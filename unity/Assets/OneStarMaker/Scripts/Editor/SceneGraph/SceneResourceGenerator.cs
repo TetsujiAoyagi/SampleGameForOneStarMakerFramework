@@ -19,7 +19,7 @@ namespace OneStarMaker.Editor.SceneGraph
     /// </summary>
     public static class SceneResourceGenerator
     {
-        private const string DefaultOutputFolder = "Assets/OneStarMakerCommon/SceneMap/Resources";
+        private const string DefaultOutputFolder = "Assets/OneStarMakerCommon/SceneMap";
         private const string DefaultMapPath = "Assets/OneStarMakerCommon/SceneMap/SceneResourceMap.asset";
 
         /// <summary>
@@ -289,7 +289,7 @@ namespace OneStarMaker.Editor.SceneGraph
                 sb.Append(node.Payloads.Count).Append('|');
                 foreach (var payload in node.Payloads)
                 {
-                    sb.Append(payload?.SceneReference?.AssetGUID ?? "null").Append(',');
+                    sb.Append(payload?.Reference?.AssetGUID ?? "null").Append(',');
                     sb.Append(payload?.Variant ?? "").Append(';');
                 }
                 sb.AppendLine();
@@ -340,7 +340,7 @@ namespace OneStarMaker.Editor.SceneGraph
         }
 
         /// <summary>
-        /// ScenePayload 配列を要素単位でコピーする（W-1）。
+        /// AssetPayload 配列を要素単位でコピーする（W-1）。
         /// boxedValue の暗黙的ディープコピーに依存せず、
         /// フィールド単位で転記することで AssetReference の安全性を保証する。
         /// </summary>
@@ -356,9 +356,9 @@ namespace OneStarMaker.Editor.SceneGraph
                 var srcElement = src.GetArrayElementAtIndex(i);
                 var dstElement = dst.GetArrayElementAtIndex(i);
 
-                // SceneReference (AssetReference)
-                var srcRef = srcElement.FindPropertyRelative("SceneReference");
-                var dstRef = dstElement.FindPropertyRelative("SceneReference");
+                // Reference (AssetReference)
+                var srcRef = srcElement.FindPropertyRelative("Reference");
+                var dstRef = dstElement.FindPropertyRelative("Reference");
                 if (srcRef != null && dstRef != null)
                 {
                     // AssetReference は m_AssetGUID + m_SubObjectName + m_SubObjectType を持つ

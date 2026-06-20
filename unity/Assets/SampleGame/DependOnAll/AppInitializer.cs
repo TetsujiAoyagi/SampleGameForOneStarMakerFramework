@@ -1,6 +1,5 @@
 #nullable enable
 
-using System.IO;
 using OneStarMaker.Runtime;
 using OneStarMaker.Runtime.SceneSystem;
 using UnityEngine;

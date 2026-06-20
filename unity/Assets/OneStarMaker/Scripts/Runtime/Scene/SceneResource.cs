@@ -35,9 +35,19 @@ namespace OneStarMaker.Runtime.SceneSystem
             internal set => _identity = value;
         }
 
+        /// <summary>埋め込み SceneAssetDescription。</summary>
+        public SceneAssetDescription? SceneAssetDescription => _sceneAssetDescription;
+
         /// <summary>ロードタイミング種別。</summary>
         public LoadType LoadType
             => _sceneAssetDescription?.LoadType ?? LoadType.OnDemand;
+
+        /// <summary>
+        /// BuildSystem 向け Payload 列挙。
+        /// SceneResourceMapSource が SceneAssetDescription を直接参照できないための公開 API。
+        /// </summary>
+        public IReadOnlyList<AssetPayload> GetPayloads()
+            => _sceneAssetDescription?.Payloads ?? System.Array.Empty<AssetPayload>();
 
         /// <summary>親シーン。null ならルート。</summary>
         public SceneResource? Parent

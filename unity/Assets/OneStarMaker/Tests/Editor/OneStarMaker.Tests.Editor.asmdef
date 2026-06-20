@@ -1,0 +1,25 @@
+{
+    "name": "OneStarMaker.Tests.Editor",
+    "rootNamespace": "OneStarMaker.Tests.Editor",
+    "references": [
+        "OneStarMaker.Editor",
+        "OneStarMaker.Runtime",
+        "Unity.Addressables",
+        "Unity.ResourceManager"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

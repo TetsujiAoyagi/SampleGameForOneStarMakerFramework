@@ -186,15 +186,15 @@ namespace OneStarMaker.Editor.SceneGraph
         }
 
         /// <summary>
-        /// Payload[0] の SceneReference の AssetGUID を取得する。
+        /// Payload[0] の Reference の AssetGUID を取得する。
         /// 存在しなければ空文字を返す。
         /// </summary>
         private static string GetPayload0Guid(SceneNodeData node)
         {
             if (node.Payloads.Count == 0) return string.Empty;
             var payload0 = node.Payloads[0];
-            if (payload0?.SceneReference == null) return string.Empty;
-            return payload0.SceneReference.AssetGUID ?? string.Empty;
+            if (payload0?.Reference == null) return string.Empty;
+            return payload0.Reference.AssetGUID ?? string.Empty;
         }
     }
 }

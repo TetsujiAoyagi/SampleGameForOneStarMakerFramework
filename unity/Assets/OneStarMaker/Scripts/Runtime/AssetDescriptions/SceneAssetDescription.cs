@@ -12,19 +12,27 @@ namespace OneStarMaker.Runtime.AssetDescriptions
 {
     /// <summary>
     /// シーンアセットの Addressable ロード情報を保持する。
-    /// バリアント対応あり。
+    /// バリアント対応あり。SceneResource に埋め込んで使う。
     /// </summary>
     [Serializable]
-    public class SceneAssetDescription
+    public class SceneAssetDescription : AssetDescription
     {
+        /// <summary>親シーンロード時の挙動（OnDemand / Always 等）。</summary>
         [SerializeField]
         private LoadType _loadType = LoadType.OnDemand;
 
+        /// <summary>Variant 付きシーン参照の一覧。Build 時は全 Variant を保持したまま whitelist で絞る。</summary>
         [SerializeField]
-        private List<ScenePayload> _payloads = new();
+        private List<AssetPayload> _payloads = new();
 
         /// <summary>ロードタイミング種別。</summary>
         public LoadType LoadType => _loadType;
+
+        /// <inheritdoc />
+        public override IReadOnlyList<AssetPayload> Payloads => _payloads;
+
+        /// <inheritdoc />
+        public override string DisplayName => "SceneAssetDescription";
 
         /// <summary>
         /// 指定バリアントのシーンを Addressables でロードする。
@@ -41,13 +49,13 @@ namespace OneStarMaker.Runtime.AssetDescriptions
             int priority = 100)
         {
             var payload = FindPayload(variant);
-            if (payload?.SceneReference == null)
+            if (payload?.Reference == null)
             {
                 return null;
             }
 
             return Addressables.LoadSceneAsync(
-                payload.SceneReference,
+                payload.Reference,
                 loadMode,
                 activateOnLoad,
                 priority);
@@ -62,7 +70,11 @@ namespace OneStarMaker.Runtime.AssetDescriptions
             // ここではペイロードのクリーンアップのみ。
         }
 
-        private ScenePayload? FindPayload(string variant)
+        /// <summary>
+        /// 指定 Variant に一致する Payload を探す。
+        /// 見つからなければデフォルト Variant（空文字）へフォールバックする。
+        /// </summary>
+        private AssetPayload? FindPayload(string variant)
         {
             foreach (var payload in _payloads)
             {
