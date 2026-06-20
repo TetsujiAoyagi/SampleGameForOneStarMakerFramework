@@ -22,7 +22,7 @@ namespace OneStarMaker.Editor.SceneGraph
         private LoadType _loadType = LoadType.OnDemand;
 
         [SerializeField]
-        private List<ScenePayload> _payloads = new();
+        private List<AssetPayload> _payloads = new();
 
         /// <summary>シーンの一意識別子。</summary>
         public string Identity
@@ -39,7 +39,7 @@ namespace OneStarMaker.Editor.SceneGraph
         }
 
         /// <summary>Addressable シーン参照リスト（バリアント対応）。</summary>
-        public List<ScenePayload> Payloads => _payloads;
+        public List<AssetPayload> Payloads => _payloads;
 
         /// <summary>
         /// W-5: Payload[0] の SceneAsset が変更されたとき Identity を自動同期する。
@@ -50,9 +50,9 @@ namespace OneStarMaker.Editor.SceneGraph
             if (_payloads.Count == 0) return;
 
             var payload0 = _payloads[0];
-            if (payload0?.SceneReference == null) return;
+            if (payload0?.Reference == null) return;
 
-            var guid = payload0.SceneReference.AssetGUID;
+            var guid = payload0.Reference.AssetGUID;
             if (string.IsNullOrEmpty(guid)) return;
 
             var assetPath = AssetDatabase.GUIDToAssetPath(guid);

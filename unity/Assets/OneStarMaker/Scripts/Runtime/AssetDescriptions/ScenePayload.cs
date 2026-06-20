@@ -1,20 +1,17 @@
 #nullable enable
 
 using System;
-using UnityEngine.AddressableAssets;
 
 namespace OneStarMaker.Runtime.AssetDescriptions
 {
     /// <summary>
-    /// シーンアセットのペイロード。バリアント対応用。
+    /// <see cref="AssetPayload"/> への後方互換 alias。
+    /// シリアライズ互換は <see cref="AssetPayload.Reference"/> の FormerlySerializedAs が担うため、
+    /// 新規コードからは本型を使わない。
     /// </summary>
     [Serializable]
-    public class ScenePayload
+    [Obsolete("Use AssetPayload instead.")]
+    public class ScenePayload : AssetPayload
     {
-        /// <summary>Addressables のシーンアセット参照。</summary>
-        public AssetReference? SceneReference;
-
-        /// <summary>バリアント名（空文字はデフォルト）。</summary>
-        public string Variant = string.Empty;
     }
 }

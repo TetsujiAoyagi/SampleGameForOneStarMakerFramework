@@ -4,6 +4,7 @@
     "references": [
         "OneStarMaker.Runtime",
         "Unity.Addressables",
+        "Unity.Addressables.Editor",
         "Unity.ResourceManager"
     ],
     "includePlatforms": [

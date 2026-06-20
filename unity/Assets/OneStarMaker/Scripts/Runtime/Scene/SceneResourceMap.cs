@@ -25,6 +25,9 @@ namespace OneStarMaker.Runtime.SceneSystem
         /// <summary>Generate 時に書き込まれたハッシュ。</summary>
         public string GenerateHash => _generateHash;
 
+        /// <summary>登録済み SceneResource 一覧。</summary>
+        public IReadOnlyList<SceneResource> SceneResources => _sceneResources;
+
         private Dictionary<string, SceneResource>? _dictionary;
 
         /// <summary>

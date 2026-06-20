@@ -291,9 +291,9 @@ namespace OneStarMaker.Editor.SceneGraph
 
                 if (node.Payloads.Count == 0)
                 {
-                    node.Payloads.Add(new ScenePayload());
+                    node.Payloads.Add(new AssetPayload());
                 }
-                node.Payloads[0].SceneReference = new AssetReference(guid);
+                node.Payloads[0].Reference = new AssetReference(guid);
                 EditorUtility.SetDirty(node);
                 AssetDatabase.SaveAssets();
             }

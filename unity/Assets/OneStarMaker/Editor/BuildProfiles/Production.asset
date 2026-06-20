@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5e8a1f3c7d924b6e8c0a246813579def, type: 3}
+  m_Name: Production
+  m_EditorClassIdentifier: OneStarMaker.Editor::OneStarMaker.Editor.Build.BuildVariantProfile
+  _variantWhitelist:
+  - 
+  - Full
+  _sceneResourceMap: {fileID: 11400000, guid: aacc051859bd53e4db09d89bd703d7ae, type: 2}
+  _alwaysIncludedAssets:
+  - m_AssetGUID: aacc051859bd53e4db09d89bd703d7ae
+  - m_AssetGUID: bd51734fab3deb24b9fbd444046213ac
+  - m_AssetGUID: 944aaf00c152586428ee2f7f62f7d5b2
+  _targetAddressablesGroupName: Default Local Group
