@@ -1,0 +1,2 @@
+# SampleGameForOneStarMakerFramework
+Unity用の自作Frameｗork試作リポジトリです
