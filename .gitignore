@@ -26,6 +26,9 @@ unity/.vsconfig
 # Runtime output (logs, local cache)
 unity/OneStarMakerLocal/
 
+# user settings
+UserSettings/
+
 # DebugStudio (.NET)
 tools/DebugStudio/**/bin/
 tools/DebugStudio/**/obj/
