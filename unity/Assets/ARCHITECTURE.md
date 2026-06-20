@@ -1,0 +1,191 @@
+﻿# アーキテクチャ設計書 v2
+
+本ドキュメントは、SampleGame プロジェクトの設計方針・実装ガイドラインを定義する。  
+前プロジェクト（NewGradious）のレビュー結果と設計議論を反映し、既知の問題を回避する設計を示す。
+
+> **ファイル構成:** 各セクションの詳細は `Docs/Architecture/` 配下のサブドキュメントに分割されている。
+
+---
+
+## 目次
+
+1. [全体構成](#1-全体構成)
+2. [レイヤー構造と Assembly 依存ルール](#2-レイヤー構造と-assembly-依存ルール)
+3. [DI・依存管理](Docs/Architecture/03-di.md)
+4. [アプリケーション起動](Docs/Architecture/04-app-startup.md)
+5. [シーン管理](Docs/Architecture/05-scene.md)
+6. [UI 管理](Docs/Architecture/06-ui.md)
+7. [サウンド / 入力 / HostedService](Docs/Architecture/07-09-services.md)
+8. [コーディング規約・共通ルール](Docs/Architecture/10-coding-rules.md)
+9. [Scene Graph Editor（Editor 拡張）](Docs/Architecture/11-scene-graph-editor.md)
+10. [開発フェーズ](#12-開発フェーズ)
+11. [ライブラリ選定](#13-ライブラリ選定)
+12. [前プロジェクトからの教訓](#14-前プロジェクトからの教訓)
+
+---
+
+## 1. 全体構成
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  Game (ゲーム固有の実装)                                       │
+│  ├── DependOnAll  … 起動エントリーポイント・SceneFactory         │
+│  │                  ※ 唯一 VContainer を直接参照できる Game 層   │
+│  ├── Common       … ゲーム共通サービス・シーン定義                │
+│  ├── InGame       … インゲーム                                  │
+│  └── OutGame      … アウトゲーム（タイトル等）                    │
+├──────────────────────────────────────────────────────────────┤
+│  OneStarMaker (汎用ゲームフレームワーク — 3 Assembly)            │
+│                                                              │
+│  ┌─ Foundation (leaf) ─────────────────────────┐     │
+│  │  Config  … AppConfig, IConfigProvider, 各プロバイダ  │     │
+│  │  Logging … ILogger / ILoggerFactory,                 │     │
+│  │              AppLoggerFactory                        │     │
+│  │  Telemetry … AppTelemetry, ITelemetrySink,           │     │
+│  │              JsonFileTelemetrySink, DebugSocket DTO  │     │
+│  └─────────────────────────────────────────────┘     │
+│          ▲                                                    │
+│  ┌─ Runtime ─┘──────────────────────────────────┐     │
+│  │  Scene   … SceneDirector, SceneBase, ISceneQuery    │     │
+│  │  UI      … UICommon, UIView (6レイヤー + Blocker)    │     │
+│  │  AssetDescriptions … SceneAssetDescription         │     │
+│  │  AbstractApplicationInitializer                   │     │
+│  └─────────────────────────────────────────────┘     │
+│          ▲                                                    │
+│  ┌─ Debug ──┴────────────────────────────────────┐     │
+│  │  Profiler … DebugProfilerView, FrameTimeSampler    │     │
+│  └─────────────────────────────────────────────┘     │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### 設計原則
+
+- **依存は上から下への一方向のみ。** Game → OneStarMaker は可。逆は不可。
+- **OneStarMaker はゲーム固有の型を知らない。** インターフェースと抽象クラスで拡張ポイントを提供する。
+- **Foundation はフレームワーク内で最下層（leaf）。** Config と Logging のみ。全モジュールから参照可能。
+- **Runtime は Foundation のみに依存。** Scene, UI, AssetDescriptions, 起動処理。
+- **Debug は Foundation + Runtime に依存。** TMP 等の重い依存を隔離。
+- **Game 層は VContainer を知らない。** 例外は DependOnAll のみ。
+- **Game 層のクラスはコンストラクタ注入で依存を受け取る。** DI の Attribute (`[Inject]`) は使用禁止。
+
+### 前プロジェクトからの変更点
+
+| 項目 | 旧プロジェクト | 本プロジェクト |
+|---|---|---|
+| フレームワーク層 | OneStarMakerCommon + Framework.Core の2層が共存 | **OneStarMaker に統合・3 Assembly 分割** (Foundation / Runtime / Debug)。Framework.Core は廃止 |
+| 理由 | Framework.Core は未完成の再設計案で実際には未使用 | 依存方向の明確化、ZLogger/TMP 等の重い依存を Debug に隔離 |
+
+---
+
+## 2. レイヤー構造と Assembly 依存ルール
+
+```
+OneStarMaker.Foundation  (leaf — フレームワーク内依存なし)
+       ▲
+       │
+OneStarMaker.Runtime ──► Foundation + UniTask + Addressables + LitMotion + VContainer
+       ▲
+       │
+OneStarMaker.Debug ──► Foundation + Runtime + TMP
+
+DependOnAll ──→ Game.Common, Game.InGame, Game.OutGame, Foundation, Runtime, Debug, VContainer
+Game.InGame ──→ Game.Common, Foundation, Runtime
+Game.OutGame ──→ Game.Common, Foundation, Runtime
+Game.Common ──→ Foundation, Runtime
+```
+
+**禁止事項:**
+- OneStarMaker から Game 層への参照
+- 同階層の横断参照（例: InGame → OutGame）
+- Assembly 循環依存
+- DependOnAll 以外の Game 層からの VContainer 参照
+
+### VContainer 参照範囲
+
+| Assembly | VContainer 参照 | 理由 |
+|---|---|---|
+| OneStarMaker.Runtime | **可** | HostedService ラップ、SceneBase の Scope 管理 |
+| DependOnAll | **可** | LifetimeScope 構築・サービス登録（起動エントリーポイント） |
+| Game.Common | **不可** | Pure C#。コンストラクタ注入のみ |
+| Game.InGame | **不可** | Pure C#。コンストラクタ注入のみ |
+| Game.OutGame | **不可** | Pure C#。コンストラクタ注入のみ |
+
+---
+
+## 詳細セクション（サブドキュメント）
+
+以下のセクションは個別ファイルに分割されている。
+
+| # | セクション | ファイル |
+|---|---|---|
+| §3 | DI・依存管理 | [03-di.md](Docs/Architecture/03-di.md) |
+| §4 | アプリケーション起動 | [04-app-startup.md](Docs/Architecture/04-app-startup.md) |
+| §5 | シーン管理 | [05-scene.md](Docs/Architecture/05-scene.md) |
+| §6 | UI 管理 | [06-ui.md](Docs/Architecture/06-ui.md) |
+| §7-9 | サウンド / 入力 / HostedService | [07-09-services.md](Docs/Architecture/07-09-services.md) |
+| §10 | コーディング規約・共通ルール | [10-coding-rules.md](Docs/Architecture/10-coding-rules.md) |
+| §11 | Scene Graph Editor（Editor 拡張） | [11-scene-graph-editor.md](Docs/Architecture/11-scene-graph-editor.md) |
+| §12 | テレメトリ設計 | [12-telemetry.md](Docs/Architecture/12-telemetry.md) |
+| §13 | リソースシステム設計 | [13-resource-system.md](Docs/Architecture/13-resource-system.md) |
+| §14 | アーキテクチャレビュー（ギャップ分析 & FW 比較） | [14-architecture-review.md](Docs/Architecture/14-architecture-review.md) |
+| §15 | テレメトリ v2（ボトルネック検出・メモリ監視） | [15-telemetry-v2.md](Docs/Architecture/15-telemetry-v2.md) |
+| §16 | Update 基盤設計（Layer / Updater） | [16-update-architecture.md](Docs/Architecture/16-update-architecture.md) |
+
+---
+
+## 12. 開発フェーズ
+
+| Phase | 内容 | 成果物 | 状態 |
+|---|---|---|---|
+| **Phase 1** | Framework 骨格 + Editor ツール | Assembly 定義、SceneState、SceneLifecycleManager、SceneDirector（テスト付）、SceneBase、UICommon（6レイヤー + Blocker）、UIView（Debug レイヤー含む）、AbstractApplicationInitializer、Config（AppConfig + 3 Provider）、SceneResource / SceneResourceMap / SceneAssetDescription / ScenePayload / LoadType / SceneContext / SceneEvent / SceneLoadProgress / SceneTransitionPlan、**Scene Graph Editor（§11）**、**AppLoggerFactory（ZLogger ベースの `ILoggerFactory`）**、**テレメトリ基盤（§12: AppTelemetry + lightweight span + JsonFileTelemetrySink + DebugSocket / MessagePack export + ZString 最適化）** | ✅ 完了 |
+| **Phase 2** | Framework サービス | HostedService ラップ、SoundService 基盤、InputManager 基盤、操作キュー | 未着手 |
+| **Phase 3** | Game 基盤 | DependOnAll 起動処理、SceneFactory、ApplicationService | 🔧 一部完了（AppInitializer, GameSceneFactory, NullLoadingDisplay, TitleScene 実装済） |
+| **Phase 4** | Game 実装 + UI 移行 | Title → InGame 遷移、Player(MVVM + R3)、Grid 再構築、UI Toolkit 段階移行 | 未着手 |
+
+---
+
+## 13. ライブラリ選定
+
+| 領域 | 旧プロジェクト | **本プロジェクト** | 変更理由 |
+|---|---|---|---|
+| DI | Static Service Locator | **VContainer** | テスタビリティ・依存方向の強制 |
+| リアクティブ | UniRx（コメントアウト状態） | **R3 + ObservableCollections** | UniRx → R3 が公式後継 |
+| Tween | DOTween | **LitMotion** | Zero-Allocation、UniTask ネイティブ統合 |
+| async | UniTask | **UniTask**（継続） | — |
+| ログ | Debug.Log / DebugService | **ZLogger + `ILogger<T>` / `ILoggerFactory`** | 構造化ログと rolling file / realtime stream の分離 |
+| 文字列構築 | string.Format / $"" | **ZString**（ホットパス限定） | GC Alloc ゼロ。毎フレーム・毎遷移パスで使用 |
+| テレメトリ | なし | **`AppTelemetry` + lightweight Trace/Span + DebugSocket envelope** | Unity hot path の zero-allocation を優先しつつ、DebugStudio.App は観測と export UI、`DebugStudio.Export` は Elastic 向け export contract / writer を担当 |
+| アセット | Addressables | **Addressables**（継続） | — |
+| UI | uGUI | **uGUI**（継続、Phase 4 で UI Toolkit 段階移行） | まず動くもの優先 |
+| 入力 | Unity InputSystem | **Unity InputSystem**（継続） | — |
+
+**設計思想: Cysharp エコシステムへの統一。**  
+VContainer, UniTask, R3, LitMotion, ZLogger は全て Cysharp 互換。ライブラリ間の相互運用性と API 設計思想の一貫性を重視する。
+
+---
+
+## 14. 前プロジェクトからの教訓
+
+| 問題 | 原因 | 本設計での対策 |
+|---|---|---|
+| コンストラクタで Unity API + async 同期ブロック | 設計ルール不在 | §4.5: コンストラクタ軽量化ルール |
+| `.GetAwaiter()` で待てていない | 知識不足 | §10.2: async/await 規約 |
+| SceneState の二重管理 | オーナー不明確 | §5.2: SceneLifecycleManager に集約 |
+| `setSceneState` が internal で外部から呼べる | カプセル化不足 | §5.2: SceneLifecycleManager のみが変更可能 |
+| finally 内で既に削除済みの要素にアクセス | catch/finally の使い分け不適切 | §5.8: catch でキャンセル処理 |
+| キャンセル済みトークンでクリーンアップ実行 | ルール不在 | §5.8: CancellationToken.None |
+| DOTween と Delay の不一致 | Tween の待ち方の知識不足 | §6.4: LitMotion を直接 await |
+| Unload 時に ViewOut 未呼出 | 実装漏れ | §6.5: 明示的に ViewOut を呼ぶ |
+| UICommon ↔ SceneBase の双方向依存 | 設計ルール不在 | §6.6: SceneDirector を仲介者にする |
+| Forget した非同期のエラー消失 | ルール不在 | §5.8: エラーログを残す |
+| CancellationTokenSource の Dispose 漏れ | ルール不在 | §4.3 + §10.4: ReleaseAll + Dispose パターン |
+| Static Service Locator で NullReferenceException | 設計パターンの問題 | §4.4: ISceneFactory 経由の手動 DI → Phase 2 で VContainer |
+| SceneDirector の Dispose 保証なし | ローカル変数で保持 | §4.3: Application.quitting + SubsystemRegistration 二重保護 |
+| StandaloneInputModule（旧 Input Manager） | 更新漏れ | §4.2: InputSystemUIInputModule に変更 |
+| private メソッドの camelCase/PascalCase 混在 | 規約不統一 | §10.1: PascalCase 統一 |
+| Framework.Core と OneStarMakerCommon の2層共存 | 再設計が未完成のまま放置 | §1: OneStarMaker に統合、3 Assembly 分割 (Foundation / Runtime / Debug) |
+| `WiatLoadChildScene` タイポ | コードレビュー不足 | §5.2: `WaitLoadChildScene` に修正 |
+| `AfterUnloaded` 状態が未使用 | 不要な状態の残留 | §5.2: 削除（13状態 + LoadCanceled） |
+| GridBuilder の面積計算バグ (`column * column`) | テスト不足 | Game 層は構造参考に新規実装。旧コード持ち込み禁止 |
+| Player/Grid の UniRx コメントアウト放置 | 移行未完了 | R3 で新規実装 |
+| 毎フレーム Debug.Log のスパム | ログ規約不在 | §10.7: ZLogger + `ILogger<T>`、hot path は ZString / struct telemetry を優先 |

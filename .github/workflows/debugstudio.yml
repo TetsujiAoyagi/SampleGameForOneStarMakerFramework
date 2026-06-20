@@ -1,0 +1,24 @@
+name: DebugStudio
+
+on:
+  push:
+    paths:
+      - 'tools/DebugStudio/**'
+      - '.github/workflows/debugstudio.yml'
+  pull_request:
+    paths:
+      - 'tools/DebugStudio/**'
+
+jobs:
+  test:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: tools/DebugStudio
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Restore and test
+        run: dotnet test DebugStudio.sln -c Release --verbosity minimal

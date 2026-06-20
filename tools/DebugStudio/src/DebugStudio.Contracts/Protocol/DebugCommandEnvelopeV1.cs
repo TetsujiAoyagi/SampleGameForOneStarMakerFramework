@@ -1,0 +1,18 @@
+#nullable enable
+
+using MessagePack;
+
+namespace DebugStudio.Contracts.Protocol;
+
+[MessagePackObject]
+public sealed class DebugCommandEnvelopeV1
+{
+    [Key(0)]
+    public string RequestId { get; set; } = string.Empty;
+
+    [Key(1)]
+    public string CommandType { get; set; } = string.Empty;
+
+    [Key(2)]
+    public string PayloadJson { get; set; } = string.Empty;
+}

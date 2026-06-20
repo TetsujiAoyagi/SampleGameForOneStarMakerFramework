@@ -1,0 +1,405 @@
+<UserControl x:Class="DebugStudio.App.Features.LogViewer.LogViewerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:logcat="clr-namespace:DebugStudio.App.Features.LogViewer" xmlns:session="clr-namespace:DebugStudio.App.Features.Session" xmlns:telemetry="clr-namespace:DebugStudio.App.Features.Telemetry" xmlns:commands="clr-namespace:DebugStudio.App.Features.Commands" xmlns:hierarchy="clr-namespace:DebugStudio.App.Features.Hierarchy" xmlns:inspector="clr-namespace:DebugStudio.App.Features.Inspector">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+    </UserControl.Resources>
+
+    <Border Padding="12"
+            Background="#FFF7F7FA"
+            BorderBrush="#FFD0D4DC"
+            BorderThickness="1"
+            CornerRadius="6">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="290" />
+            </Grid.RowDefinitions>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock FontSize="16"
+                               FontWeight="SemiBold"
+                               Text="Logviewer Work Surface" />
+                    <TextBlock Margin="0,6,0,0"
+                               Foreground="#FF5F6368"
+                               Text="{Binding FilterSummary}" />
+                    <TextBlock Margin="0,4,0,0"
+                               Foreground="#FF5F6368"
+                               TextWrapping="Wrap"
+                               Text="{Binding LatestSummary}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1"
+                            HorizontalAlignment="Right">
+                    <TextBlock HorizontalAlignment="Right"
+                               FontWeight="SemiBold"
+                               Text="{Binding TailStateText}" />
+                    <TextBlock Margin="0,4,0,0"
+                               HorizontalAlignment="Right"
+                               Foreground="#FF5F6368"
+                               Text="{Binding ExportStatus}" />
+                </StackPanel>
+            </Grid>
+
+            <Border Grid.Row="1"
+                    Margin="0,12,0,12"
+                    Padding="12"
+                    Background="White"
+                    BorderBrush="#FFD9DCE3"
+                    BorderThickness="1"
+                    CornerRadius="6">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="170" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBox Margin="0,0,8,8"
+                             VerticalContentAlignment="Center"
+                             Text="{Binding QueryText, UpdateSourceTrigger=PropertyChanged}" />
+                    <CheckBox Grid.Column="1"
+                              Margin="0,0,8,8"
+                              VerticalAlignment="Center"
+                              IsChecked="{Binding UseRegex, Mode=TwoWay}"
+                              Content="Regex" />
+                    <ComboBox Grid.Column="2"
+                              Margin="0,0,8,8"
+                              DisplayMemberPath="Label"
+                              ItemsSource="{Binding KindFilters}"
+                              SelectedItem="{Binding SelectedKindFilter, Mode=TwoWay}" />
+                    <ComboBox Grid.Column="3"
+                              Margin="0,0,8,8"
+                              DisplayMemberPath="Label"
+                              ItemsSource="{Binding CategoryFilters}"
+                              SelectedItem="{Binding SelectedCategoryFilter, Mode=TwoWay}" />
+                    <Button Grid.Column="4"
+                            Margin="0,0,8,8"
+                            Padding="14,6"
+                            Command="{Binding ClearQueryCommand}"
+                            Content="Clear" />
+                    <Button Grid.Column="5"
+                            Margin="0,0,8,8"
+                            Padding="14,6"
+                            Command="{Binding ToggleAutoScrollCommand}"
+                            Content="{Binding TailToggleButtonText}" />
+                    <CheckBox Grid.Column="6"
+                              Margin="0,0,0,8"
+                              VerticalAlignment="Center"
+                              IsChecked="{Binding IsCompactDensityEnabled, Mode=TwoWay}"
+                              Content="Compact" />
+
+                    <TextBlock Grid.Row="1"
+                               Grid.ColumnSpan="7"
+                               Margin="0,0,0,8"
+                               Foreground="#FFB91C1C"
+                               Text="{Binding ValidationError}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasValidationError}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+
+                    <Grid Grid.Row="2"
+                          Grid.ColumnSpan="7">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="120" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBox Margin="0,0,8,0"
+                                  VerticalContentAlignment="Center"
+                                  Text="{Binding ExportPath, UpdateSourceTrigger=PropertyChanged}" />
+                        <ComboBox Grid.Column="1"
+                                  Margin="0,0,8,0"
+                                  DisplayMemberPath="Label"
+                                  ItemsSource="{Binding ExportFormats}"
+                                  SelectedItem="{Binding SelectedExportFormat, Mode=TwoWay}" />
+                        <Button Grid.Column="2"
+                                Margin="0,0,8,0"
+                                Padding="14,6"
+                                Command="{Binding ExportCommand}"
+                                Content="{Binding ExportButtonText}" />
+                        <Button Grid.Column="3"
+                                 Padding="14,6"
+                                 IsEnabled="False"
+                                 Content="Saved Filters (later)" />
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="2"
+                    Background="White"
+                    BorderBrush="#FFD9DCE3"
+                    BorderThickness="1"
+                    CornerRadius="6">
+                <DockPanel LastChildFill="True">
+                    <Border DockPanel.Dock="Top"
+                            Padding="10,8"
+                            Background="#FFF4F6FA"
+                            BorderBrush="#FFE5E7EB"
+                            BorderThickness="0,0,0,1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="110" />
+                                <ColumnDefinition Width="90" />
+                                <ColumnDefinition Width="200" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock FontWeight="SemiBold" Text="Time" />
+                            <TextBlock Grid.Column="1" FontWeight="SemiBold" Text="Level" />
+                            <TextBlock Grid.Column="2" FontWeight="SemiBold" Text="Category" />
+                            <TextBlock Grid.Column="3" FontWeight="SemiBold" Text="Message" />
+                        </Grid>
+                    </Border>
+
+                    <Grid>
+                        <ListBox x:Name="LogEntriesList"
+                                 ItemsSource="{Binding VisibleLogs}"
+                                 SelectedItem="{Binding SelectedLog, Mode=TwoWay}"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 ScrollViewer.CanContentScroll="True"
+                                 VirtualizingPanel.IsVirtualizing="True"
+                                 VirtualizingPanel.VirtualizationMode="Recycling">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type logcat:LogViewerListItemViewModel}">
+                                        <Border Margin="8,8,8,0"
+                                                Padding="10"
+                                                BorderBrush="#FFE5E7EB"
+                                                BorderThickness="1"
+                                                CornerRadius="4">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="110" />
+                                                    <ColumnDefinition Width="90" />
+                                                    <ColumnDefinition Width="200" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock FontFamily="Consolas"
+                                                           Text="{Binding TimestampText}" />
+                                                <Border Grid.Column="1"
+                                                        Width="72"
+                                                        Padding="6,2"
+                                                        HorizontalAlignment="Left"
+                                                        Background="{Binding KindBadgeBackground}"
+                                                        CornerRadius="12">
+                                                    <TextBlock HorizontalAlignment="Center"
+                                                               Foreground="{Binding KindBadgeForeground}"
+                                                               FontSize="11"
+                                                               FontWeight="SemiBold"
+                                                               Text="{Binding KindText}" />
+                                                </Border>
+                                                <TextBlock Grid.Column="2"
+                                                           Margin="0,0,8,0"
+                                                           Foreground="#FF374151"
+                                                           Text="{Binding Category}" />
+                                                <TextBlock Grid.Column="3"
+                                                           Text="{Binding Message}"
+                                                           TextTrimming="CharacterEllipsis" />
+
+                                                <TextBlock Grid.Row="1"
+                                                           Grid.ColumnSpan="4"
+                                                           Margin="0,8,0,0"
+                                                           Foreground="#FF6B7280"
+                                                           Text="{Binding SecondaryLine}"
+                                                           TextTrimming="CharacterEllipsis">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding DataContext.IsCompactDensityEnabled, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+
+                                                <TextBlock Grid.Row="2"
+                                                           Grid.ColumnSpan="4"
+                                                           Margin="0,6,0,0"
+                                                           Foreground="#FFB91C1C"
+                                                           Text="{Binding ExceptionPreview}"
+                                                           TextTrimming="CharacterEllipsis">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasException}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding DataContext.IsCompactDensityEnabled, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <TextBlock HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Foreground="#FF5F6368"
+                                   Text="{Binding EmptyStateText}"
+                                   TextAlignment="Center"
+                                   TextWrapping="Wrap">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasVisibleLogs}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </DockPanel>
+            </Border>
+
+            <Border Grid.Row="3"
+                    Margin="0,12,0,0"
+                    Background="White"
+                    BorderBrush="#FFD9DCE3"
+                    BorderThickness="1"
+                    CornerRadius="6">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel>
+                        <TextBlock FontWeight="SemiBold"
+                                   Text="Selected Entry Detail" />
+                        <TextBlock Margin="0,6,0,0"
+                                   FontFamily="Consolas"
+                                   Text="{Binding SelectedLogTitle, Mode=OneWay}" />
+                        <TextBlock Margin="0,4,0,0"
+                                   Foreground="#FF5F6368"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding SelectedLogSummary, Mode=OneWay}" />
+                    </StackPanel>
+
+                    <TabControl Grid.Row="1"
+                                Margin="0,12,0,0">
+                        <TabItem Header="Overview">
+                            <Grid Margin="8">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="120" />
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Foreground="#FF5F6368"
+                                           TextWrapping="Wrap"
+                                           Text="{Binding DetailEmptyState, Mode=OneWay}" />
+                                <ListView Grid.Row="1"
+                                          Margin="0,10,0,10"
+                                          ItemsSource="{Binding DetailFields}"
+                                          BorderThickness="0"
+                                          Background="Transparent">
+                                    <ListView.View>
+                                        <GridView>
+                                            <GridViewColumn Width="130" Header="Field" DisplayMemberBinding="{Binding Label}" />
+                                            <GridViewColumn Width="220" Header="Value" DisplayMemberBinding="{Binding Value}" />
+                                            <GridViewColumn Width="280" Header="Note" DisplayMemberBinding="{Binding Hint}" />
+                                        </GridView>
+                                    </ListView.View>
+                                </ListView>
+
+                                <TextBlock Grid.Row="2"
+                                           Margin="0,0,0,6"
+                                           FontWeight="SemiBold"
+                                           Text="Message / Exception" />
+                                <Grid Grid.Row="3">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Margin="0,0,6,0"
+                                             IsReadOnly="True"
+                                             Text="{Binding SelectedLogMessage, Mode=OneWay}"
+                                             TextWrapping="Wrap"
+                                             VerticalScrollBarVisibility="Auto" />
+                                    <TextBox Grid.Column="1"
+                                             Margin="6,0,0,0"
+                                             IsReadOnly="True"
+                                             Text="{Binding SelectedLogException, Mode=OneWay}"
+                                             TextWrapping="Wrap"
+                                             VerticalScrollBarVisibility="Auto" />
+                                </Grid>
+                            </Grid>
+                        </TabItem>
+
+                        <TabItem Header="Structured Payload">
+                            <Grid Margin="8">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Foreground="#FF5F6368"
+                                           TextWrapping="Wrap"
+                                           Text="{Binding StructuredPayloadStatus, Mode=OneWay}" />
+                                <ListView Grid.Row="1"
+                                          Margin="0,10,0,0"
+                                          ItemsSource="{Binding StructuredFields}"
+                                          BorderThickness="0"
+                                          Background="Transparent"
+                                          Visibility="{Binding HasStructuredFields, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <ListView.View>
+                                        <GridView>
+                                            <GridViewColumn Width="180" Header="Path" DisplayMemberBinding="{Binding Label}" />
+                                            <GridViewColumn Width="260" Header="Value" DisplayMemberBinding="{Binding Value}" />
+                                            <GridViewColumn Width="200" Header="Note" DisplayMemberBinding="{Binding Hint}" />
+                                        </GridView>
+                                    </ListView.View>
+                                </ListView>
+                            </Grid>
+                        </TabItem>
+                    </TabControl>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>

@@ -1,0 +1,26 @@
+.scene-graph-node {
+    min-width: 220px;
+    min-height: 120px;
+}
+
+.scene-graph-node .title {
+    -unity-font-style: bold;
+    font-size: 13px;
+}
+
+.scene-graph-node__load-type {
+    margin-top: 6px;
+    padding-left: 6px;
+    padding-right: 6px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+    border-bottom-left-radius: 3px;
+    border-bottom-right-radius: 3px;
+    background-color: rgba(70, 70, 70, 0.9);
+    color: rgb(210, 210, 210);
+    font-size: 11px;
+    -unity-text-align: middle-center;
+    align-self: flex-start;
+}

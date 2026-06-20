@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DebugStudio.Client\DebugStudio.Client.csproj" />
+    <ProjectReference Include="..\DebugStudio.Export\DebugStudio.Export.csproj" />
+    <ProjectReference Include="..\DebugStudio.Server\DebugStudio.Server\DebugStudio.Server.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dirkster.AvalonDock" Version="4.74.1" />
+  </ItemGroup>
+</Project>

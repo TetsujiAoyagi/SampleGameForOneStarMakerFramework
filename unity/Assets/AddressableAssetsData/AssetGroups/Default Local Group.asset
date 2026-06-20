@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
+  m_Name: Default Local Group
+  m_EditorClassIdentifier: Unity.Addressables.Editor::UnityEditor.AddressableAssets.Settings.AddressableAssetGroup
+  m_GroupName: Default Local Group
+  m_GUID: ee2d01616f6c8b541a52acb861d9a2a6
+  m_SerializeEntries:
+  - m_GUID: 7417c2f339f202e4bbb8f5062f684ab1
+    m_Address: Assets/SampleGame/OutGame/Title/Title.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 944aaf00c152586428ee2f7f62f7d5b2
+    m_Address: Assets/SampleGame/Config/app-config.json
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: aacc051859bd53e4db09d89bd703d7ae
+    m_Address: Assets/OneStarMakerCommon/SceneMap/SceneResourceMap.asset
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: bd51734fab3deb24b9fbd444046213ac
+    m_Address: Assets/OneStarMaker/Scenes/UIScene.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  m_ReadOnly: 0
+  m_Settings: {fileID: 11400000, guid: 13e54d3eb28a6ee4ca6915ff8e6eabba, type: 2}
+  m_SchemaSet:
+    m_Schemas:
+    - {fileID: 11400000, guid: 5581bf3a432c2274085a5ad74ea372d4, type: 2}
+    - {fileID: 11400000, guid: 331f7070a26059941a876bd642ce9f82, type: 2}

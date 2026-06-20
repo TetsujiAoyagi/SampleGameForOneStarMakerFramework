@@ -1,0 +1,87 @@
+<Window x:Class="DebugStudio.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:avalonDock="https://github.com/Dirkster99/AvalonDock"
+        Title="DebugStudio Workbench"
+        Width="1640"
+        Height="960"
+        MinWidth="1360"
+        MinHeight="780"
+        WindowStartupLocation="CenterScreen">
+    <DockPanel>
+        <Border DockPanel.Dock="Top"
+                Padding="16,14"
+                Background="#FFF3F6FA"
+                BorderBrush="#FFD7DDE6"
+                BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="24" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock FontSize="24" FontWeight="SemiBold" Text="DebugStudio Workbench" />
+                    <TextBlock Margin="0,4,0,0"
+                               Foreground="#FF5B6572"
+                               Text="AvalonDock shell with tool window inventory" />
+                </StackPanel>
+
+                <Grid Grid.Column="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock VerticalAlignment="Center"
+                               Margin="0,0,8,0"
+                               FontWeight="SemiBold"
+                               Text="Listen URI" />
+                    <TextBox Grid.Column="1"
+                             MinWidth="520"
+                             Margin="0,0,8,0"
+                             VerticalAlignment="Center"
+                             Text="{Binding Session.ServerUri, UpdateSourceTrigger=PropertyChanged}" />
+                    <Button Grid.Column="2"
+                            Margin="0,0,8,0"
+                            Padding="16,6"
+                            Command="{Binding Session.ConnectCommand}"
+                            Content="Start Listening" />
+                    <Button Grid.Column="3"
+                            Padding="16,6"
+                            Command="{Binding Session.DisconnectCommand}"
+                            Content="Stop Listening" />
+                </Grid>
+            </Grid>
+        </Border>
+
+        <StatusBar DockPanel.Dock="Bottom">
+            <StatusBarItem>
+                <TextBlock>
+                    <Run Text="Listener: " />
+                    <Run FontWeight="SemiBold" Text="{Binding Session.ConnectionState, Mode=OneWay}" />
+                </TextBlock>
+            </StatusBarItem>
+            <Separator />
+            <StatusBarItem Content="{Binding Session.SessionIdentityText, Mode=OneWay}" />
+            <Separator />
+            <StatusBarItem Content="{Binding Session.NegotiatedCapabilitiesText, Mode=OneWay}" />
+            <Separator />
+            <StatusBarItem>
+                <TextBlock>
+                    <Run Text="Layout: " />
+                    <Run Text="{Binding Shell.Inventory.Count, Mode=OneWay}" />
+                    <Run Text=" tool windows (AvalonDock)" />
+                </TextBlock>
+            </StatusBarItem>
+        </StatusBar>
+
+        <avalonDock:DockingManager x:Name="DockingManagerRoot"
+                                   AllowMixedOrientation="True"
+                                   BorderBrush="#FFD7DDE6"
+                                   BorderThickness="1" />
+    </DockPanel>
+</Window>

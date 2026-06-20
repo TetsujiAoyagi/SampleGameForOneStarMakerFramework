@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a55e49cc16182ed438f81c6b1032b83c, type: 3}
+  m_Name: Title
+  m_EditorClassIdentifier: OneStarMaker.Runtime::OneStarMaker.Runtime.SceneSystem.SceneResource
+  _identity: Title
+  _sceneAssetDescription:
+    _loadType: 0
+    _payloads:
+    - SceneReference:
+        m_AssetGUID: 7417c2f339f202e4bbb8f5062f684ab1
+        m_SubObjectName: 
+        m_SubObjectGUID: 
+        m_SubObjectType: 
+        m_EditorAssetChanged: 0
+      Variant: 
+  _parent: {fileID: 0}
+  _children: []

@@ -1,0 +1,26 @@
+#nullable enable
+
+using System;
+
+namespace OneStarMaker.Foundation.DebugSocket
+{
+    /// <summary>
+    /// DebugStudio v1 の capability bitset。
+    /// sender / receiver がどの画面機能を理解できるかを粗く共有するために使う。
+    /// </summary>
+    [Flags]
+    public enum DebugStudioCapability : long
+    {
+        None = 0,
+        CapabilityNegotiation = 1L << 0,
+        LogStream = 1L << 1,
+        TelemetryStream = 1L << 2,
+        ServiceStatusStream = 1L << 3,
+        DebugCommand = 1L << 4,
+        CommandResult = 1L << 5,
+        HierarchySnapshot = 1L << 6,
+        HierarchyDelta = 1L << 7,
+        InspectorQuery = 1L << 8,
+        InspectorDetail = 1L << 9,
+    }
+}

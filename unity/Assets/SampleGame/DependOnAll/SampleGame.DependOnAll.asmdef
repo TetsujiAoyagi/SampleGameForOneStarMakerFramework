@@ -1,0 +1,25 @@
+{
+    "name": "SampleGame.DependOnAll",
+    "rootNamespace": "SampleGame.DependOnAll",
+    "references": [
+        "SampleGame.Common",
+        "SampleGame.InGame",
+        "SampleGame.OutGame",
+        "OneStarMaker.Foundation",
+        "OneStarMaker.Runtime",
+        "OneStarMaker.Debug"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "UniTask.dll",
+        "VContainer.dll",
+        "R3.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

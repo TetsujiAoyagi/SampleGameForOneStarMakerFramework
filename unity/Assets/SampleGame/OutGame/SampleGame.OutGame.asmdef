@@ -1,0 +1,22 @@
+{
+    "name": "SampleGame.OutGame",
+    "rootNamespace": "SampleGame.OutGame",
+    "references": [
+        "SampleGame.Common",
+        "OneStarMaker.Foundation",
+        "OneStarMaker.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "UniTask.dll",
+        "R3.dll",
+        "ObservableCollections.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

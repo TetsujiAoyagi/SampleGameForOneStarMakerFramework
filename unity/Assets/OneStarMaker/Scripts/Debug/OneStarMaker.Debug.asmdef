@@ -1,0 +1,26 @@
+{
+    "name": "OneStarMaker.Debug",
+    "rootNamespace": "OneStarMaker.Debug",
+    "references": [
+        "OneStarMaker.Foundation",
+        "OneStarMaker.Runtime",
+        "UniTask",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "UniTask.dll",
+        "ZString.dll",
+        "ZStringFormatExtension.dll",
+        "ZLogger.dll",
+        "Microsoft.Extensions.Logging.dll",
+        "Microsoft.Extensions.Logging.Abstractions.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,5 @@
+{
+    "debugSocket:enabled" : true,
+    "debugSocket:mode" : "connect",
+    "debugSocket:connectUri" : "ws://127.0.0.1:5011/debugsocket/"
+}
