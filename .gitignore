@@ -29,10 +29,18 @@ unity/OneStarMakerLocal/
 # user settings
 UserSettings/
 
-# DebugStudio (.NET)
-tools/DebugStudio/**/bin/
-tools/DebugStudio/**/obj/
-tools/DebugStudio/.vs/
+# .NET tools (DebugStudio 等)
+tools/**/[Bb]in/
+tools/**/[Oo]bj/
+tools/**/TestResults/
+tools/**/artifacts/
+tools/**/publish/
+tools/**/.vs/
+
+# Test coverage (Coverlet 等)
+**/coverage*.json
+**/coverage*.xml
+**/coverage*.cobertura.xml
 
 # NuGet
 **/[Pp]ackages/*
