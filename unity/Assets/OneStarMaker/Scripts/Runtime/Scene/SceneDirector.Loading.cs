@@ -8,9 +8,8 @@ using Cysharp.Threading.Tasks;
 using OneStarMaker.Foundation.Telemetry;
 using OneStarMaker.Runtime;
 using OneStarMaker.Runtime.AssetDescriptions;
+using OneStarMaker.Runtime.AssetManagement;
 using UnityEngine;
-using UnityEngine.ResourceManagement.AsyncOperations;
-using UnityEngine.ResourceManagement.ResourceProviders;
 using UnityEngine.SceneManagement;
 
 namespace OneStarMaker.Runtime.SceneSystem
@@ -264,6 +263,8 @@ namespace OneStarMaker.Runtime.SceneSystem
                 var pair = new ScenePair(newInstance);
                 _currentScenes.Add(sceneIdentify, pair);
                 newlyCreatedScenes.Add(sceneIdentify);
+                // OnPreLoadedImpl 以降で Assets.LoadAsync(ref, sceneId) が使えるよう注入
+                newInstance.BindAssets(_assetManagement);
 
                 _sceneEventSubject.OnNext(new SceneEvent(
                     SceneEventType.StateChanged, sceneIdentify, SceneState.PreLoading));
@@ -316,8 +317,9 @@ namespace OneStarMaker.Runtime.SceneSystem
             // PreLoaded → Loading: Addressable ロード開始
             TransitionSceneState(sceneIdentify, sceneBase, SceneState.Loading);
 
-            var (handle, rootObjects) = await PerformUnitySceneLoad(sceneIdentify, sceneBase.SceneResource);
-            _currentScenes[sceneIdentify].Handle = handle;
+            var (addressablesLoaded, rootObjects) = await PerformUnitySceneLoad(sceneIdentify, sceneBase.SceneResource);
+            // Phase 2/3 で AssetManagement 経由の Unload/Release が必要かどうかを記録
+            _currentScenes[sceneIdentify].AddressablesSceneLoaded = addressablesLoaded;
 
             // Loading → Loaded → WaitLoadChildScene
             TransitionSceneState(sceneIdentify, sceneBase, SceneState.Loaded);
@@ -401,24 +403,36 @@ namespace OneStarMaker.Runtime.SceneSystem
         /// <summary>
         /// Unity Scene をロードし、RootGameObjects を返す。
         /// テスト時にオーバーライドして Addressables / SceneManager 依存を排除する。
+        ///
+        /// <para>戻り値の AddressablesLoaded:</para>
+        /// <list type="bullet">
+        ///   <item>true — 本メソッド内で LoadSceneAsync した。Phase 2/3 で AssetManagement 経由の Unload/Release が必要。</item>
+        ///   <item>false — Editor 等で既に SceneManager にロード済み。SceneManager.UnloadSceneAsync でアンロード。</item>
+        /// </list>
         /// </summary>
-        protected virtual async UniTask<(AsyncOperationHandle<SceneInstance>? Handle, GameObject[] RootObjects)>
+        protected virtual async UniTask<(bool AddressablesLoaded, GameObject[] RootObjects)>
             PerformUnitySceneLoad(string sceneIdentify, SceneResource sceneResource)
         {
             var unityScene = SceneManager.GetSceneByName(sceneIdentify);
             if (!unityScene.IsValid() || !unityScene.isLoaded)
             {
-                var handle = sceneResource.Load();
-                if (handle == null)
+                var sceneAssetDescription = sceneResource.SceneAssetDescription;
+                if (sceneAssetDescription == null)
                 {
-                    throw new InvalidOperationException($"SceneResource.Load() returned null: {sceneIdentify}");
+                    throw new InvalidOperationException($"Scene reference not found: {sceneIdentify}");
                 }
 
-                await handle.Value.Task;
-                return (handle, handle.Value.Result.Scene.GetRootGameObjects());
+                // sceneIdentity は呼び出し側（メソッド引数）を正とし、variant には混ぜない。
+                var sceneHandle = await _assetManagement.LoadSceneAsync(
+                    sceneIdentify,
+                    sceneAssetDescription,
+                    string.Empty,
+                    new SceneLoadOptions(LoadSceneMode.Additive, activateOnLoad: true, priority: 100),
+                    CancellationToken.None);
+                return (true, sceneHandle.GetRootGameObjects());
             }
 
-            return (null, unityScene.GetRootGameObjects());
+            return (false, unityScene.GetRootGameObjects());
         }
     }
 }

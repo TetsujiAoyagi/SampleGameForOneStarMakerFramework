@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using UnityEngine.AddressableAssets;
 
 namespace OneStarMaker.Runtime.AssetDescriptions
 {
@@ -13,6 +14,8 @@ namespace OneStarMaker.Runtime.AssetDescriptions
     [Serializable]
     public abstract class AssetDescription : IAssetPayloadProvider
     {
+        abstract internal AssetReference? ResolveReference(string variant);
+
         /// <summary>Variant 付き Payload 一覧。</summary>
         public abstract IReadOnlyList<AssetPayload> Payloads { get; }
 

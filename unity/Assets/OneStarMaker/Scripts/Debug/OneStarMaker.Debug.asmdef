@@ -12,7 +12,6 @@
     "allowUnsafeCode": false,
     "overrideReferences": true,
     "precompiledReferences": [
-        "UniTask.dll",
         "ZString.dll",
         "ZStringFormatExtension.dll",
         "ZLogger.dll",

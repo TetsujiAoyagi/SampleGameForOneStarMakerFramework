@@ -2,11 +2,10 @@
 
 using System;
 using Cysharp.Threading.Tasks;
+using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.UISystem;
 using UnityEngine;
-using UnityEngine.ResourceManagement.AsyncOperations;
-using UnityEngine.ResourceManagement.ResourceProviders;
 
 namespace OneStarMaker.Tests.SceneSystem.TestDoubles
 {
@@ -22,15 +21,21 @@ namespace OneStarMaker.Tests.SceneSystem.TestDoubles
         /// </summary>
         public UniTaskCompletionSource? UnitySceneLoadGate { get; set; }
 
-        /// <summary>PerformUnitySceneUnload が呼ばれた回数。</summary>
+        /// <summary>PerformUnitySceneUnload が呼ばれた回数。3-Phase Unload の検証用。</summary>
         public int UnloadCallCount { get; private set; }
 
+        /// <summary>
+        /// テスト用 SceneDirector を生成する。
+        /// AssetManagement には FakeAssetBackend 入りのインスタンスを渡す想定。
+        /// </summary>
+        /// <param name="assetManagement">Fake バックエンド入り AssetManagement。</param>
         public TestableSceneDirector(
             ISceneFactory sceneFactory,
             UICommon uiCommon,
             SceneResourceMap sceneResourceMap,
+            IAssetManagement assetManagement,
             ILoadingDisplay? loadingDisplay = null)
-            : base(sceneFactory, uiCommon, sceneResourceMap, loadingDisplay ?? new NullLoadingDisplay())
+            : base(sceneFactory, uiCommon, sceneResourceMap, loadingDisplay ?? new NullLoadingDisplay(), assetManagement)
         {
         }
 
@@ -43,7 +48,7 @@ namespace OneStarMaker.Tests.SceneSystem.TestDoubles
                 => UniTask.CompletedTask;
         }
 
-        protected override async UniTask<(AsyncOperationHandle<SceneInstance>? Handle, GameObject[] RootObjects)>
+        protected override async UniTask<(bool AddressablesLoaded, GameObject[] RootObjects)>
             PerformUnitySceneLoad(string sceneIdentify, SceneResource sceneResource)
         {
             if (UnitySceneLoadGate != null)
@@ -51,11 +56,15 @@ namespace OneStarMaker.Tests.SceneSystem.TestDoubles
                 await UnitySceneLoadGate.Task;
             }
 
-            return (null, Array.Empty<GameObject>());
+            // Addressables ロードをスキップ。RootObjects 空で SceneBase ライフサイクルのみ検証
+            return (false, Array.Empty<GameObject>());
         }
 
+        /// <summary>
+        /// テスト用: 実際の SceneManager / AssetManagement 呼び出しを行わず、呼び出し回数のみ記録。
+        /// </summary>
         protected override UniTask PerformUnitySceneUnload(
-            string sceneIdentify, AsyncOperationHandle<SceneInstance>? handle)
+            string sceneIdentify, bool addressablesSceneLoaded)
         {
             UnloadCallCount++;
             return UniTask.CompletedTask;

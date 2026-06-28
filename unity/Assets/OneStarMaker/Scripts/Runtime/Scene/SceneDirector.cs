@@ -4,11 +4,9 @@ using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using OneStarMaker.Runtime.AssetDescriptions;
+using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.UISystem;
 using R3;
-using UnityEngine.AddressableAssets;
-using UnityEngine.ResourceManagement.AsyncOperations;
-using UnityEngine.ResourceManagement.ResourceProviders;
 
 namespace OneStarMaker.Runtime.SceneSystem
 {
@@ -26,11 +24,17 @@ namespace OneStarMaker.Runtime.SceneSystem
     /// </summary>
     public partial class SceneDirector : IDisposable, ISceneQuery
     {
-        /// <summary>シーンペア（SceneBase + Addressable ハンドル + ロード用 CTS）。</summary>
+        /// <summary>シーンペア（SceneBase + Addressables ロード状態 + ロード用 CTS）。</summary>
         private class ScenePair
         {
             public SceneBase SceneBase { get; }
-            public AsyncOperationHandle<SceneInstance>? Handle { get; set; }
+
+            /// <summary>
+            /// PerformUnitySceneLoad が Addressables 経由でロードした場合 true。
+            /// Phase 2/3 で AssetManagement 経由の Unload/Release に使用する。
+            /// Editor 既存シーン等で SceneManager から取得した場合は false。
+            /// </summary>
+            public bool AddressablesSceneLoaded { get; set; }
 
             /// <summary>
             /// AddScene のキャンセル窓内でのみ有効な CTS。
@@ -64,6 +68,12 @@ namespace OneStarMaker.Runtime.SceneSystem
         private readonly UICommon _uiCommon;
         private readonly SceneResourceMap _sceneResourceMap;
         private readonly ILoadingDisplay _loadingDisplay;
+
+        /// <summary>
+        /// Addressables Load / Release 管理。PerformUnitySceneLoad/Unload および Phase 3 Release に使用。
+        /// AbstractApplicationInitializer が生成したインスタンスを共有する。
+        /// </summary>
+        private readonly IAssetManagement _assetManagement;
         private readonly Subject<SceneEvent> _sceneEventSubject = new();
         private readonly Stack<SceneHistoryEntry> _sceneHistory = new();
 
@@ -89,16 +99,22 @@ namespace OneStarMaker.Runtime.SceneSystem
         /// <param name="uiCommon">共通 UI 管理。</param>
         /// <param name="sceneResourceMap">シーンリソースマップ。</param>
         /// <param name="loadingDisplay">ローディング表示の実装。</param>
+        /// <param name="assetManagement">
+        /// Addressables Load / Release 管理。
+        /// シーンロード・アンロードの 3-Phase と PreLoad アセットの Release に使用する。
+        /// </param>
         public SceneDirector(
             ISceneFactory sceneFactory,
             UICommon uiCommon,
             SceneResourceMap sceneResourceMap,
-            ILoadingDisplay loadingDisplay)
+            ILoadingDisplay loadingDisplay,
+            IAssetManagement assetManagement)
         {
             _sceneFactory = sceneFactory ?? throw new ArgumentNullException(nameof(sceneFactory));
             _uiCommon = uiCommon ?? throw new ArgumentNullException(nameof(uiCommon));
             _sceneResourceMap = sceneResourceMap ?? throw new ArgumentNullException(nameof(sceneResourceMap));
             _loadingDisplay = loadingDisplay ?? throw new ArgumentNullException(nameof(loadingDisplay));
+            _assetManagement = assetManagement ?? throw new ArgumentNullException(nameof(assetManagement));
         }
 
         // ─── IDisposable ───
@@ -162,20 +178,16 @@ namespace OneStarMaker.Runtime.SceneSystem
         }
 
         /// <summary>
-        /// 全シーンを解放する。Addressable ハンドルも解放する。
+        /// 全シーンを解放する。
+        /// 各 sceneId に対して ReleaseSceneAsync を非同期で発行し、SceneBase を Dispose する。
+        /// App 常駐分（UICommon 等）の Release は AbstractApplicationInitializer.ReleaseAppAll が担当。
         /// </summary>
         private void Release()
         {
             foreach (var kvp in _currentScenes)
             {
                 var pair = kvp.Value;
-
-                // Addressable ハンドルが有効なら解放
-                if (pair.Handle != null && pair.Handle.Value.IsValid())
-                {
-                    Addressables.UnloadSceneAsync(pair.Handle.Value.Result);
-                }
-
+                _assetManagement.ReleaseScene(kvp.Key);
                 pair.SceneBase.Dispose();
             }
             _currentScenes.Clear();

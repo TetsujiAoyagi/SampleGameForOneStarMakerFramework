@@ -3,9 +3,7 @@
 using System.Collections.Generic;
 using OneStarMaker.Runtime.AssetDescriptions;
 using UnityEngine;
-using UnityEngine.ResourceManagement.AsyncOperations;
-using UnityEngine.ResourceManagement.ResourceProviders;
-using UnityEngine.SceneManagement;
+using UnityEngine.AddressableAssets;
 
 namespace OneStarMaker.Runtime.SceneSystem
 {
@@ -60,28 +58,10 @@ namespace OneStarMaker.Runtime.SceneSystem
         public IReadOnlyList<SceneResource> Children => _children;
 
         /// <summary>
-        /// Addressables でシーンをロードする。
+        /// 指定 Variant の Addressables シーン参照を返す。
         /// </summary>
-        /// <param name="variant">バリアント名。</param>
-        /// <param name="loadMode">シーンロードモード。</param>
-        /// <param name="activateOnLoad">ロード後に即アクティブにするか。</param>
-        /// <param name="priority">ロード優先度。</param>
-        /// <returns>ロードハンドル。該当アセットがなければ null。</returns>
-        public AsyncOperationHandle<SceneInstance>? Load(
-            string variant = "",
-            LoadSceneMode loadMode = LoadSceneMode.Additive,
-            bool activateOnLoad = true,
-            int priority = 100)
-        {
-            return _sceneAssetDescription?.Load(variant, loadMode, activateOnLoad, priority);
-        }
+        public AssetReference? GetSceneReference(string variant)
+            => _sceneAssetDescription?.ResolveReference(variant);
 
-        /// <summary>
-        /// 全アセット参照をリリースする。
-        /// </summary>
-        public void ReleaseAll()
-        {
-            _sceneAssetDescription?.ReleaseAll();
-        }
     }
 }

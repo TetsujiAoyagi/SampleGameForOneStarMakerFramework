@@ -4,9 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.UISystem;
 using UnityEngine;
-using UnityEngine.ResourceManagement.ResourceProviders;
 
 namespace OneStarMaker.Runtime.SceneSystem
 {
@@ -23,7 +23,12 @@ namespace OneStarMaker.Runtime.SceneSystem
         private readonly SceneResource _sceneResource;
         private readonly ISceneQuery _sceneQuery;
         private readonly SceneLifecycleManager _lifecycle = new();
-        private readonly SceneInstance _sceneInstance;
+
+        /// <summary>
+        /// SceneDirector から BindAssets で注入される Addressables 管理。
+        /// OnPreLoadedImpl 以降で Assets プロパティ経由のアクセスが可能。
+        /// </summary>
+        private IAssetManagement _assets = null!;
         private readonly List<GameObject> _rootObjects = new();
 
         private UIView? _uiView;
@@ -49,6 +54,35 @@ namespace OneStarMaker.Runtime.SceneSystem
         /// 親シーンや兄弟シーンのサービスを取得するために使用する。
         /// </summary>
         protected ISceneQuery SceneQuery => _sceneQuery;
+
+        /// <summary>
+        /// Addressables Load / Release API。
+        /// SceneBase.OnPreLoadedImpl 等から PreLoad アセットのロードに使用する。
+        /// </summary>
+        protected IAssetManagement Assets => _assets;
+
+        /// <summary>
+        /// このシーンを寿命とする AssetOwner。シーンアンロード時に紐付けたアセットが解放される。
+        /// </summary>
+        protected AssetOwner SceneAssetOwner => AssetOwner.Scene(SceneResource.Identity);
+
+        /// <summary>
+        /// このシーンスコープでアセットをロードする。手動で AssetOwner.Scene を渡す必要をなくしリーク誤りを防ぐ。
+        /// </summary>
+        protected UniTask<IAssetHandle<T>> LoadSceneScopedAssetAsync<T>(AssetKey key, CancellationToken ct = default)
+            where T : UnityEngine.Object
+            => Assets.LoadAssetAsync<T>(key, SceneAssetOwner, ct);
+
+        /// <summary>
+        /// SceneDirector から AssetManagement を注入する。
+        /// LoadSceneBase 内で SceneBase 生成直後に 1 回だけ呼ばれる。
+        /// 注入前に Assets へアクセスすると NullReferenceException になる。
+        /// </summary>
+        /// <param name="assets">アプリ全体で共有する AssetManagement インスタンス。</param>
+        internal void BindAssets(IAssetManagement assets)
+        {
+            _assets = assets ?? throw new ArgumentNullException(nameof(assets));
+        }
 
         /// <summary>ライフサイクルマネージャ（状態の読み取り用）。</summary>
         internal SceneLifecycleManager Lifecycle => _lifecycle;

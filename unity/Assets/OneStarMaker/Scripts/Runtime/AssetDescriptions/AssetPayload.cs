@@ -14,11 +14,15 @@ namespace OneStarMaker.Runtime.AssetDescriptions
     [Serializable]
     public class AssetPayload
     {
+        public AssetPayload() { }
+
+        public AssetPayload(string variant, AssetReference reference)
+        {
+            Variant = variant;
+            Reference = reference;
+        }
+
         /// <summary>Addressables アセット参照。</summary>
-        /// <remarks>
-        /// 旧 ScenePayload.SceneReference からの移行互換のため FormerlySerializedAs を付与。
-        /// </remarks>
-        [FormerlySerializedAs("SceneReference")]
         public AssetReference? Reference;
 
         /// <summary>

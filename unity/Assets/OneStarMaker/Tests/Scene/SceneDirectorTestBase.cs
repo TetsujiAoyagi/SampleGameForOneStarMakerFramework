@@ -3,7 +3,9 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using OneStarMaker.Runtime.AssetDescriptions;
+using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.SceneSystem;
+using OneStarMaker.Tests.AssetManagement;
 using OneStarMaker.Tests.SceneSystem.Helpers;
 using OneStarMaker.Tests.SceneSystem.TestDoubles;
 using OneStarMaker.Runtime.UISystem;
@@ -21,6 +23,12 @@ namespace OneStarMaker.Tests.SceneSystem
         protected FakeSceneFactory Factory = null!;
         protected UICommon UICommon = null!;
         protected SceneResourceMap Map = null!;
+
+        /// <summary>
+        /// FakeAssetBackend 入り AssetManagement。
+        /// SceneDirector テスト全体で共有し、Addressables ビルドなしで実行する。
+        /// </summary>
+        protected Runtime.AssetManagement.AssetManagement AssetManagement = null!;
         protected readonly List<ScriptableObject> CreatedSOs = new();
 
         private GameObject _uiCommonGo = null!;
@@ -31,6 +39,8 @@ namespace OneStarMaker.Tests.SceneSystem
             _uiCommonGo = new GameObject("UICommon_Test");
             UICommon = _uiCommonGo.AddComponent<UICommon>();
             Factory = new FakeSceneFactory();
+            // Addressables 直叩きを排除した AssetManagement を全 SceneDirector テストで共有
+            AssetManagement = new Runtime.AssetManagement.AssetManagement(new FakeAssetBackend());
         }
 
         [TearDown]
@@ -66,7 +76,7 @@ namespace OneStarMaker.Tests.SceneSystem
             Map = SceneTestHelper.CreateSceneResourceMap(resource);
             CreatedSOs.Add(Map);
 
-            Director = new TestableSceneDirector(Factory, UICommon, Map);
+            Director = new TestableSceneDirector(Factory, UICommon, Map, AssetManagement);
             return Director;
         }
 
@@ -86,7 +96,7 @@ namespace OneStarMaker.Tests.SceneSystem
             Map = SceneTestHelper.CreateSceneResourceMap(parentRes, childRes);
             CreatedSOs.Add(Map);
 
-            Director = new TestableSceneDirector(Factory, UICommon, Map);
+            Director = new TestableSceneDirector(Factory, UICommon, Map, AssetManagement);
             return Director;
         }
 
@@ -111,7 +121,7 @@ namespace OneStarMaker.Tests.SceneSystem
             Map = SceneTestHelper.CreateSceneResourceMap(rootRes, midRes, leafRes);
             CreatedSOs.Add(Map);
 
-            Director = new TestableSceneDirector(Factory, UICommon, Map);
+            Director = new TestableSceneDirector(Factory, UICommon, Map, AssetManagement);
             return Director;
         }
     }

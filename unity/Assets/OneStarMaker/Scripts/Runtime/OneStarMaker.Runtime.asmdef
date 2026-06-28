@@ -7,20 +7,18 @@
         "Unity.Addressables",
         "Unity.ResourceManager",
         "LitMotion",
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "UniTask.Addressables"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": true,
     "precompiledReferences": [
-        "UniTask.dll",
-        "VContainer.dll",
         "R3.dll",
         "ObservableCollections.dll",
         "ZString.dll",
-        "System.Diagnostics.DiagnosticSource.dll",
-        "Microsoft.Extensions.Logging.Abstractions.dll"
+        "ZStringFormatExtension.dll"
     ],
     "autoReferenced": true,
     "defineConstraints": [],

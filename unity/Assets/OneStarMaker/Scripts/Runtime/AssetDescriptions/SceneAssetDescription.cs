@@ -1,12 +1,10 @@
 #nullable enable
 
+using Cysharp.Threading.Tasks;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
-using UnityEngine.ResourceManagement.AsyncOperations;
-using UnityEngine.ResourceManagement.ResourceProviders;
-using UnityEngine.SceneManagement;
 
 namespace OneStarMaker.Runtime.AssetDescriptions
 {
@@ -28,46 +26,31 @@ namespace OneStarMaker.Runtime.AssetDescriptions
         /// <summary>ロードタイミング種別。</summary>
         public LoadType LoadType => _loadType;
 
+        public string SceneIdentity = "";
+
+        public SceneAssetDescription() { }
+
+        public SceneAssetDescription(string sceneIdentity, LoadType loadType, List<AssetPayload> payloads)
+        {
+            SceneIdentity = sceneIdentity;
+            _loadType = loadType;
+            _payloads = payloads;
+        }
+
+        public void AddPayload(string variant, AssetReference reference)
+        {
+            _payloads.Add(new AssetPayload(variant, reference));
+        }
+
         /// <inheritdoc />
         public override IReadOnlyList<AssetPayload> Payloads => _payloads;
 
         /// <inheritdoc />
         public override string DisplayName => "SceneAssetDescription";
 
-        /// <summary>
-        /// 指定バリアントのシーンを Addressables でロードする。
-        /// </summary>
-        /// <param name="variant">バリアント名。空文字でデフォルト。</param>
-        /// <param name="loadMode">シーンロードモード。</param>
-        /// <param name="activateOnLoad">ロード後に即アクティブにするか。</param>
-        /// <param name="priority">ロード優先度。</param>
-        /// <returns>ロードハンドル。該当バリアントがなければ null。</returns>
-        public AsyncOperationHandle<SceneInstance>? Load(
-            string variant = "",
-            LoadSceneMode loadMode = LoadSceneMode.Additive,
-            bool activateOnLoad = true,
-            int priority = 100)
+        internal override AssetReference? ResolveReference(string variant)
         {
-            var payload = FindPayload(variant);
-            if (payload?.Reference == null)
-            {
-                return null;
-            }
-
-            return Addressables.LoadSceneAsync(
-                payload.Reference,
-                loadMode,
-                activateOnLoad,
-                priority);
-        }
-
-        /// <summary>
-        /// 全ペイロードのアセット参照をリリースする。
-        /// </summary>
-        public void ReleaseAll()
-        {
-            // Addressable のリリースは Load したハンドル側で行うため、
-            // ここではペイロードのクリーンアップのみ。
+            return FindPayload(variant)?.Reference;
         }
 
         /// <summary>
