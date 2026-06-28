@@ -7,10 +7,8 @@ using Cysharp.Text;
 using Cysharp.Threading.Tasks;
 using OneStarMaker.Foundation.Telemetry;
 using OneStarMaker.Runtime;
+using OneStarMaker.Runtime.AssetManagement;
 using UnityEngine;
-using UnityEngine.AddressableAssets;
-using UnityEngine.ResourceManagement.AsyncOperations;
-using UnityEngine.ResourceManagement.ResourceProviders;
 using UnityEngine.SceneManagement;
 
 namespace OneStarMaker.Runtime.SceneSystem
@@ -210,7 +208,7 @@ namespace OneStarMaker.Runtime.SceneSystem
             }
 
             TransitionSceneState(sceneIdentify, pair.SceneBase, SceneState.Unloading);
-            await PerformUnitySceneUnload(sceneIdentify, pair.Handle);
+            await PerformUnitySceneUnload(sceneIdentify, pair.AddressablesSceneLoaded);
             TransitionSceneState(sceneIdentify, pair.SceneBase, SceneState.Unloaded);
         }
 
@@ -225,6 +223,8 @@ namespace OneStarMaker.Runtime.SceneSystem
             }
 
             await pair.SceneBase.ExecuteAfterUnLoad();
+            // Phase 3: PreLoad アセット + シーンハンドルをまとめて Release
+            _assetManagement.ReleaseScene(sceneIdentify);
             pair.SceneBase.Dispose();
             _currentScenes.Remove(sceneIdentify);
             _sceneEventSubject.OnNext(new SceneEvent(
@@ -326,10 +326,11 @@ namespace OneStarMaker.Runtime.SceneSystem
             }
 
             // Unity Scene のアンロード（キャンセル窓内のため通常は Handle が null で no-op）
-            await PerformUnitySceneUnload(sceneIdentify, pair.Handle);
+            await PerformUnitySceneUnload(sceneIdentify, pair.AddressablesSceneLoaded);
 
             // PreLoad で確保したリソースを解放する（LoadCanceled → AfterUnloading）
             await pair.SceneBase.ExecuteAfterUnLoad();
+            _assetManagement.ReleaseScene(sceneIdentify);
 
             pair.SceneBase.Dispose();
             _currentScenes.Remove(sceneIdentify);
@@ -376,21 +377,27 @@ namespace OneStarMaker.Runtime.SceneSystem
         /// <summary>
         /// Unity Scene をアンロードする。
         /// テスト時にオーバーライドして Addressables / SceneManager 依存を排除する。
+        ///
+        /// <para>AssetManagement 経由でロードしたシーン（addressablesSceneLoaded=true）は
+        /// AssetManagement.UnloadSceneAsync を呼ぶ（Phase 2）。
+        /// Editor 既存シーン等（false）は SceneManager.UnloadSceneAsync にフォールバックする。</para>
         /// </summary>
+        /// <param name="sceneIdentify">対象シーンの Identity。</param>
+        /// <param name="addressablesSceneLoaded">PerformUnitySceneLoad の戻り値 AddressablesLoaded。</param>
         protected virtual async UniTask PerformUnitySceneUnload(
-            string sceneIdentify, AsyncOperationHandle<SceneInstance>? handle)
+            string sceneIdentify, bool addressablesSceneLoaded)
         {
-            if (handle != null && handle.Value.Status == AsyncOperationStatus.Succeeded)
+            if (addressablesSceneLoaded)
             {
-                await Addressables.UnloadSceneAsync(handle.Value.Result).Task;
+                // Phase 2: Unity Scene アンロードのみ。所有アセット Release は Phase 3
+                await _assetManagement.UnloadSceneAsync(sceneIdentify);
+                return;
             }
-            else
+
+            var asyncOp = SceneManager.UnloadSceneAsync(sceneIdentify);
+            if (asyncOp != null)
             {
-                var asyncOp = SceneManager.UnloadSceneAsync(sceneIdentify);
-                if (asyncOp != null)
-                {
-                    await asyncOp;
-                }
+                await asyncOp;
             }
         }
     }

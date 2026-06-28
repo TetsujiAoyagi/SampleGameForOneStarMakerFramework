@@ -6,7 +6,9 @@
         "OneStarMaker.Runtime",
         "Unity.Collections",
         "Unity.Addressables",
-        "Unity.ResourceManager"
+        "Unity.ResourceManager",
+        "UniTask",
+        "UniTask.Linq"
     ],
     "includePlatforms": [
         "Editor"
@@ -15,8 +17,7 @@
     "allowUnsafeCode": false,
     "overrideReferences": true,
     "precompiledReferences": [
-        "nunit.framework.dll",
-        "UniTask.dll"
+        "nunit.framework.dll"
     ],
     "autoReferenced": false,
     "defineConstraints": [

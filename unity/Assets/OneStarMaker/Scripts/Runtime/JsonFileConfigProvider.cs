@@ -3,8 +3,8 @@
 using System;
 using System.Collections.Generic;
 using OneStarMaker.Foundation.Config;
+using OneStarMaker.Runtime.AssetManagement;
 using UnityEngine;
-using UnityEngine.AddressableAssets;
 
 namespace OneStarMaker.Runtime.Config
 {
@@ -38,16 +38,33 @@ namespace OneStarMaker.Runtime.Config
     public sealed class JsonFileConfigProvider : IConfigProvider
     {
         private readonly string _filePath;
+        private readonly IAssetManagement _assetManagement;
 
-        /// <param name="filePath">JSON ファイルのパス。</param>
-        public JsonFileConfigProvider(string filePath)
+        /// <param name="filePath">JSON ファイルの Addressable アドレス（StreamingAssets パスではなく Addressables キー）。</param>
+        /// <param name="assetManagement">
+        /// App 常駐アセットの Load / Release 管理。
+        /// BeforeSceneLoad で生成済みのインスタンスを渡す。LoadAppAsync で登録され ReleaseAppAll で解放される。
+        /// </param>
+        public JsonFileConfigProvider(string filePath, IAssetManagement assetManagement)
         {
             _filePath = filePath ?? throw new ArgumentNullException(nameof(filePath));
+            _assetManagement = assetManagement ?? throw new ArgumentNullException(nameof(assetManagement));
         }
 
+        /// <summary>
+        /// IConfigProvider.Load の実装。
+        /// Addressables 経由で TextAsset を同期的に取得し、フラットキーへ展開する。
+        ///
+        /// <para>BuildConfig は BeforeSceneLoad の同期コンテキストで呼ばれるため、
+        /// LoadAppAsync を GetAwaiter().GetResult() で同期的に待つ。
+        /// 取得した TextAsset は App スコープとして ReleaseAppAll まで保持される。</para>
+        /// </summary>
+        /// <param name="store">フラット化した設定値の格納先。</param>
         public void Load(Dictionary<string, string> store)
         {
-            var textAsset = Addressables.LoadAssetAsync<TextAsset>(_filePath).WaitForCompletion();
+            // App 常駐としてロード。ReleaseAppAll までハンドルを保持する
+            var textAssetHandle = _assetManagement.LoadAppAssetSync<TextAsset>(AssetKey.FromAddress(_filePath));
+            var textAsset = textAssetHandle.Value;
 
             if (textAsset == null)
             {

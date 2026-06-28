@@ -15,6 +15,8 @@ using OneStarMaker.Foundation.DebugSocket;
 using OneStarMaker.Foundation.Logging;
 using OneStarMaker.Foundation.Telemetry;
 using OneStarMaker.Runtime.DebugSocketServices;
+using OneStarMaker.Runtime.AssetDescriptions;
+using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.Config;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.UpdateSystem;
@@ -24,7 +26,6 @@ using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
-using UnityEngine.ResourceManagement.ResourceProviders;
 using UnityEngine.SceneManagement;
 
 namespace OneStarMaker.Runtime
@@ -75,7 +76,16 @@ namespace OneStarMaker.Runtime
         private DebugSocketService? _debugSocketService;
         private UpdateSystemHost? _updateSystemHost;
         private bool _debugSocketTelemetrySinkRegistered;
-        private SceneInstance _uiSceneInstance;
+
+        /// <summary>
+        /// Addressables Load / Release の一元管理。
+        /// BeforeSceneLoad で生成し、AfterSceneLoad 以降の全 Addressables 操作をここ経由にする。
+        /// Application.quitting 時に ReleaseAppAll で App 常駐分を解放する。
+        /// </summary>
+        private IAssetManagement? _assetManagement;
+
+        /// <summary>LoadUICommonAsync でロードした UICommon シーンのハンドル。</summary>
+        private ISceneHandle? _uiSceneHandle;
 
         // ─── Protected accessors ───
 
@@ -84,6 +94,12 @@ namespace OneStarMaker.Runtime
 
         /// <summary>現在の SceneDirector。BeforeSceneLoad 完了後に有効。</summary>
         protected SceneDirector? SceneDirector => _sceneDirector;
+
+        /// <summary>
+        /// Addressables Load / Release 管理。
+        /// UICommon / SceneResourceMap のロードや SceneDirector への注入に使用する。
+        /// </summary>
+        protected IAssetManagement? AssetManagement => _assetManagement;
 
         /// <summary>
         /// Framework 標準のロガーファクトリ。
@@ -156,6 +172,9 @@ namespace OneStarMaker.Runtime
                 // Application.quitting で確実にリソースを解放する
                 Application.quitting += OnApplicationQuitting;
 
+                // Config の JSON 読み込みも Addressables 経由のため、AssetManagement を先に生成する
+                _assetManagement = new AssetManagement.AssetManagement();
+
                 // Config を構築（ConfigFile → 環境変数 → コマンドライン引数 の優先順）
                 _config = BuildConfig();
 
@@ -209,15 +228,22 @@ namespace OneStarMaker.Runtime
                 startupStage = "create-scene-factory";
                 var sceneFactory = CreateSceneFactory();
 
+                if (_assetManagement == null || _cts == null)
+                {
+                    Debug.LogError("[AppInit] BeforeSceneLoad が未完了のため AfterSceneLoad をスキップします。");
+                    return;
+                }
+
                 startupStage = "create-scene-director";
                 _sceneDirector = new SceneDirector(
                     sceneFactory,
                     uiCommon,
                     _sceneResourceMap,
-                    CreateLoadingDisplay());
+                    CreateLoadingDisplay(),
+                    _assetManagement);
                 _updateSystemHost?.BindSceneDirector(_sceneDirector);
 
-                if (_sceneDirector == null || _cts == null)
+                if (_sceneDirector == null)
                 {
                     Debug.LogError("[AppInit] BeforeSceneLoad が未完了のため AfterSceneLoad をスキップします。");
                     return;
@@ -302,14 +328,20 @@ namespace OneStarMaker.Runtime
             }
 
             var address = GetUICommonPrefabAddress();
-            var uiSceneHandle = Addressables.LoadSceneAsync(address, LoadSceneMode.Additive);
-            while(!uiSceneHandle.IsDone)
+            // UICommon は SceneDirector 管理外の App 常駐シーン。ReleaseAppAll で解放される
+            // bool / int / SceneReleaseMode の並びを位置引数で固定しないとオーバーロードが曖昧になる
+            var desc = new SceneAssetDescription();
+            desc.AddPayload(string.Empty, new AssetReference(address));
+            _uiSceneHandle = await _assetManagement!.LoadSceneAsync(
+                "UICommon",
+                desc,
+                string.Empty,
+                new SceneLoadOptions(LoadSceneMode.Additive, activateOnLoad: true, priority: 100));
+            var go = _uiSceneHandle.GetRootGameObjects().FirstOrDefault();
+            if (go == null)
             {
-                // Scene のロードが完了するまで待つ
-                await UniTask.Yield();
+                throw new InvalidOperationException($"UICommon scene has no root object: {address}");
             }
-            _uiSceneInstance = uiSceneHandle.Result;
-            var go = _uiSceneInstance.Scene.GetRootGameObjects().FirstOrDefault();
             go.name = "[UICommon]";
             _uiCommonObject = go;
 
@@ -325,17 +357,14 @@ namespace OneStarMaker.Runtime
             return uiCommon;
         }
 
-        private async UniTask<SceneResourceMap> LoadSceneResourceMapAsync()
+        private UniTask<SceneResourceMap> LoadSceneResourceMapAsync()
         {
             var address = GetSceneResourceMapAddress();
-            var handle = Addressables.LoadAssetAsync<SceneResourceMap>(address);
-            while (!handle.IsDone)
-            {
-                await UniTask.Yield();
-            }
-            var map = handle.Result;
-            // ScriptableObject はアプリ生存期間中ずっと必要なためハンドルを解放しない
-            return map;
+            // ScriptableObject はアプリ生存期間中ずっと必要。ReleaseAppAll まで保持する
+            var handle = _assetManagement!.LoadAppAssetSync<SceneResourceMap>(AssetKey.FromAddress(address));
+            var map = handle.Value
+                ?? throw new InvalidOperationException($"SceneResourceMap not found: {address}");
+            return UniTask.FromResult(map);
         }
 
         /// <summary>
@@ -369,7 +398,7 @@ namespace OneStarMaker.Runtime
             var configPath = GetConfigFilePath();
             if (!string.IsNullOrEmpty(configPath))
             {
-                providers.Add(new JsonFileConfigProvider(configPath));
+                providers.Add(new JsonFileConfigProvider(configPath, _assetManagement!));
             }
 
             var envPrefix = GetEnvironmentVariablePrefix();
@@ -441,6 +470,10 @@ namespace OneStarMaker.Runtime
             _sceneDirector?.Dispose();
             _sceneDirector = null;
 
+            // UICommon シーン / SceneResourceMap / Config 等の App 常駐ハンドルを一括 Release
+            _assetManagement?.ReleaseAll();
+            _assetManagement = null;
+
             _sceneResourceMap = null;
 
             if (_uiCommonObject != null)
@@ -449,10 +482,7 @@ namespace OneStarMaker.Runtime
                 _uiCommonObject = null;
             }
 
-            if(_uiSceneInstance.Scene.IsValid())
-            {
-                SceneManager.UnloadSceneAsync(_uiSceneInstance.Scene);
-            }
+            _uiSceneHandle = null;
 
             if (_eventSystemObject != null)
             {

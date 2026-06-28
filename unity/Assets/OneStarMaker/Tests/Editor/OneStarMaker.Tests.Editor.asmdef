@@ -5,7 +5,9 @@
         "OneStarMaker.Editor",
         "OneStarMaker.Runtime",
         "Unity.Addressables",
-        "Unity.ResourceManager"
+        "Unity.ResourceManager",
+        "UniTask",
+        "UniTask.Addressables"
     ],
     "includePlatforms": [
         "Editor"
