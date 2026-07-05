@@ -15,6 +15,16 @@ MonoBehaviour:
   m_GroupName: Default Local Group
   m_GUID: ee2d01616f6c8b541a52acb861d9a2a6
   m_SerializeEntries:
+  - m_GUID: 1b120727824033a4eb9776195f98054e
+    m_Address: Assets/SampleGame/OutGame/ConfirmDialog/ConfirmDialog.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 44678065ee005c946b204a07a09c0d48
+    m_Address: Assets/SampleGame/OutGame/HpGauge/HpGauge.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 7417c2f339f202e4bbb8f5062f684ab1
     m_Address: Assets/SampleGame/OutGame/Title/Title.unity
     m_ReadOnly: 0

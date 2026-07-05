@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement style="flex-grow: 1; align-items: center; justify-content: center;">
+        <ui:Label name="hp-label" text="100" style="font-size: 48px; margin-bottom: 16px; -unity-text-align: middle-center;" />
+        <ui:ProgressBar name="hp-bar" high-value="100" value="100" title="HP" style="width: 320px; height: 28px; margin-bottom: 24px;" />
+        <ui:VisualElement style="flex-direction: row; margin-bottom: 12px;">
+            <ui:Button name="damage-button" text="Damage" style="width: 120px; height: 40px; margin-right: 12px;" />
+            <ui:Button name="heal-button" text="Heal" style="width: 120px; height: 40px;" />
+        </ui:VisualElement>
+        <ui:Button name="open-dialog-button" text="Open Dialog" style="width: 200px; height: 40px;" />
+    </ui:VisualElement>
+</ui:UXML>

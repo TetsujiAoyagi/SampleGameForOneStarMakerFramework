@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement style="flex-grow: 1; align-items: center; justify-content: center;">
+        <ui:VisualElement name="dialog-panel" style="width: 400px; background-color: rgb(45, 45, 50); border-radius: 8px; padding: 24px; align-items: center;">
+            <ui:Label name="message-label" text="確認" style="font-size: 20px; margin-bottom: 24px; white-space: normal; -unity-text-align: middle-center;" />
+            <ui:VisualElement style="flex-direction: row; justify-content: center;">
+                <ui:Button name="ok-button" text="OK" style="width: 100px; height: 36px; margin-right: 16px;" />
+                <ui:Button name="cancel-button" text="Cancel" style="width: 100px; height: 36px;" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

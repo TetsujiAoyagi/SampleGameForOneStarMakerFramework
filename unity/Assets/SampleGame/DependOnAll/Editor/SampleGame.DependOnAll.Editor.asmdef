@@ -1,0 +1,21 @@
+{
+    "name": "SampleGame.DependOnAll.Editor",
+    "rootNamespace": "SampleGame.DependOnAll.Editor",
+    "references": [
+        "SampleGame.OutGame",
+        "OneStarMaker.Runtime",
+        "Unity.Addressables",
+        "Unity.Addressables.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

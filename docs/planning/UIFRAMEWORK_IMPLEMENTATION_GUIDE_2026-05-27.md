@@ -1,5 +1,7 @@
 # UIFramework 実装ガイド（明日着手用）
 
+> **廃止注記（2026-07-06）:** 本ガイドは [`UI_MVVM_Behaviour_Plan.md`](UI_MVVM_Behaviour_Plan.md) v0.2 に統合済み。uGUI 二重バックエンド案と独自レイヤー再定義（Transient/Screen/...）は**不採用**。現行の正本は [`06-ui.md`](../../unity/Assets/Docs/Architecture/06-ui.md) および上記計画書 v0.2。以下の本文は履歴として残す。
+
 ## 0. 前提
 - 方針: **UIToolkit メイン + uGUI 差し替え可能**
 - アーキテクチャ: **MVVM**
