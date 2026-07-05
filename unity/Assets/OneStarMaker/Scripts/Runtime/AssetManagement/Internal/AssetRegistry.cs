@@ -12,15 +12,19 @@ namespace OneStarMaker.Runtime.AssetManagement.Internal
     {
         internal sealed class LoadedAsset
         {
-            public LoadedAsset(string key, IBackendAsset backend)
+            public LoadedAsset(string key, IBackendAsset backend, AssetType type, bool isInstance)
             {
                 Key = key;
                 Backend = backend;
+                Type = type;
+                IsInstance = isInstance;
                 RefCount = 1;
             }
 
             public string Key { get; }
             public IBackendAsset Backend { get; }
+            public AssetType Type { get; }
+            public bool IsInstance { get; }
             public int RefCount { get; set; }
         }
 
@@ -48,14 +52,19 @@ namespace OneStarMaker.Runtime.AssetManagement.Internal
 
         public bool TryGetAsset(string key, out LoadedAsset asset) => _assets.TryGetValue(key, out asset!);
 
-        public LoadedAsset AddAsset(string key, IBackendAsset backend)
+        public LoadedAsset AddAsset(string key, IBackendAsset backend, AssetType type, bool isInstance)
         {
-            var loaded = new LoadedAsset(key, backend);
+            var loaded = new LoadedAsset(key, backend, type, isInstance);
             _assets.Add(key, loaded);
             return loaded;
         }
 
-        public LoadedAsset Acquire(string key, IBackendAsset backend, AssetOwner owner)
+        public LoadedAsset Acquire(
+            string key,
+            IBackendAsset backend,
+            AssetOwner owner,
+            AssetType type,
+            bool isInstance)
         {
             if (_assets.TryGetValue(key, out var loaded))
             {
@@ -63,42 +72,42 @@ namespace OneStarMaker.Runtime.AssetManagement.Internal
             }
             else
             {
-                loaded = AddAsset(key, backend);
+                loaded = AddAsset(key, backend, type, isInstance);
             }
 
             TrackOwner(owner, key);
             return loaded;
         }
 
-        public bool Release(string key, out IBackendAsset? backend)
+        public bool Release(string key, out LoadedAsset? loaded)
         {
-            backend = null;
-            if (!_assets.TryGetValue(key, out var loaded))
+            loaded = null;
+            if (!_assets.TryGetValue(key, out var asset))
             {
                 return false;
             }
 
-            loaded.RefCount--;
-            if (loaded.RefCount > 0)
+            asset.RefCount--;
+            if (asset.RefCount > 0)
             {
                 return false;
             }
 
             _assets.Remove(key);
-            backend = loaded.Backend;
+            loaded = asset;
             return true;
         }
 
-        public IReadOnlyList<IBackendAsset> ReleaseSceneOwned(string sceneIdentity)
+        public IReadOnlyList<LoadedAsset> ReleaseSceneOwned(string sceneIdentity)
         {
-            var released = new List<IBackendAsset>();
+            var released = new List<LoadedAsset>();
             if (_sceneOwned.TryGetValue(sceneIdentity, out var keys))
             {
                 foreach (var key in keys)
                 {
-                    if (Release(key, out var backend) && backend != null)
+                    if (Release(key, out var loaded) && loaded != null)
                     {
-                        released.Add(backend);
+                        released.Add(loaded);
                     }
                 }
                 _sceneOwned.Remove(sceneIdentity);
@@ -108,9 +117,9 @@ namespace OneStarMaker.Runtime.AssetManagement.Internal
             return released;
         }
 
-        public IReadOnlyList<IBackendAsset> ReleaseGameObjectOwned(ulong gameObjectId)
+        public IReadOnlyList<LoadedAsset> ReleaseGameObjectOwned(ulong gameObjectId)
         {
-            var released = new List<IBackendAsset>();
+            var released = new List<LoadedAsset>();
             if (!_goOwned.TryGetValue(gameObjectId, out var keys))
             {
                 return released;
@@ -118,9 +127,9 @@ namespace OneStarMaker.Runtime.AssetManagement.Internal
 
             foreach (var key in keys)
             {
-                if (Release(key, out var backend) && backend != null)
+                if (Release(key, out var loaded) && loaded != null)
                 {
-                    released.Add(backend);
+                    released.Add(loaded);
                 }
             }
 
@@ -128,12 +137,12 @@ namespace OneStarMaker.Runtime.AssetManagement.Internal
             return released;
         }
 
-        public IReadOnlyList<IBackendAsset> ReleaseAllAssets()
+        public IReadOnlyList<LoadedAsset> ReleaseAllAssets()
         {
-            var released = new List<IBackendAsset>(_assets.Count);
+            var released = new List<LoadedAsset>(_assets.Count);
             foreach (var pair in _assets)
             {
-                released.Add(pair.Value.Backend);
+                released.Add(pair.Value);
             }
 
             _assets.Clear();

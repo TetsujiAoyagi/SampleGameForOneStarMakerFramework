@@ -20,12 +20,16 @@ namespace OneStarMaker.Editor.Build
             VariantWhitelistBuildResult whitelistResult,
             AddressablesGroupSnapshot snapshot)
         {
-            var targetGroup = settings.FindGroup(profile.TargetAddressablesGroupName)
+            // リモート配信ビルド時は RemoteGroupName を同期先にする。空なら従来のローカルグループ。
+            var targetGroupName = string.IsNullOrEmpty(profile.RemoteGroupName)
+                ? profile.TargetAddressablesGroupName
+                : profile.RemoteGroupName;
+            var targetGroup = settings.FindGroup(targetGroupName)
                 ?? settings.DefaultGroup;
             if (targetGroup == null)
             {
                 whitelistResult.Errors.Add(
-                    $"Target Addressables group '{profile.TargetAddressablesGroupName}' was not found.");
+                    $"Target Addressables group '{targetGroupName}' was not found.");
                 return;
             }
 

@@ -8,7 +8,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using OneStarMaker.Foundation.Config;
-using OneStarMaker.Foundation.Core;
 using OneStarMaker.Foundation.UpdateSystem;
 using OneStarMaker.Foundation.UpdateSystem.World;
 using OneStarMaker.Foundation.DebugSocket;
@@ -24,6 +23,7 @@ using OneStarMaker.Runtime.UpdateSystem.Hosting;
 using OneStarMaker.Runtime.UISystem;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
+using UnityEngine.Networking;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
@@ -218,6 +218,10 @@ namespace OneStarMaker.Runtime
 
             try
             {
+                startupStage = "load-remote-catalog";
+                await TryLoadRemoteCatalogAsync();
+
+                startupStage = "load-ui-common";
                 Debug.Log("[AppInit] AfterSceneLoad: loading UICommon.");
                 var uiCommon = await LoadUICommonAsync();
 
@@ -365,6 +369,166 @@ namespace OneStarMaker.Runtime
             var map = handle.Value
                 ?? throw new InvalidOperationException($"SceneResourceMap not found: {address}");
             return UniTask.FromResult(map);
+        }
+
+        /// <summary>
+        /// リモート Addressables カタログを追加ロードする(開発ワークフロー専用のフォールバック)。
+        /// URL の解決順序:
+        ///   1. AppConfig のキー "assetCheckout:remoteCatalogUrl"(開発ビルド・実機で使用)
+        ///   2. Editor のみ: RemoteCatalogRuntimeBridge 経由で現在選択中プロファイルの URL
+        /// URL が空ならロードをスキップする(ローカル完結の開発者に一切影響を与えない)。
+        /// ロード失敗(サーバ不達等)は警告ログのみで起動を継続する。
+        /// サーバ不達で起動が長時間ブロックされるのを避けるためタイムアウトを設ける。
+        /// </summary>
+        private async UniTask TryLoadRemoteCatalogAsync()
+        {
+            var url = ResolveRemoteCatalogUrl();
+            if (string.IsNullOrEmpty(url))
+            {
+                return;
+            }
+
+            try
+            {
+                Debug.Log($"[AppInit] Loading remote content catalog: {url}");
+                // サーバ不達時に無限待機しないよう短いタイムアウトを設ける。
+                var handle = UnityEngine.AddressableAssets.Addressables.LoadContentCatalogAsync(url);
+                await handle.ToUniTask().Timeout(System.TimeSpan.FromSeconds(10));
+                Debug.Log("[AppInit] Remote content catalog loaded. Missing local assets will resolve from remote bundles.");
+                await WarnOnRevisionMismatchAsync(url);
+            }
+            catch (System.Exception ex)
+            {
+                // フォールバック不能でも起動は続行する。ローカルに揃っている開発者には無害。
+                Debug.LogWarning($"[AppInit] Failed to load remote content catalog ('{url}'). Continuing with local assets only. Reason: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// リモートカタログ URL を解決する。Config 優先、次に Editor 注入。
+        /// </summary>
+        private string ResolveRemoteCatalogUrl()
+        {
+            var fromConfig = _config?.GetString("assetCheckout:remoteCatalogUrl", string.Empty) ?? string.Empty;
+            if (!string.IsNullOrEmpty(fromConfig))
+            {
+                return fromConfig;
+            }
+
+#if UNITY_EDITOR
+            var resolver = OneStarMaker.Runtime.AssetManagement.RemoteCatalogRuntimeBridge.EditorRemoteCatalogUrlResolver;
+            if (resolver != null)
+            {
+                var url = resolver();
+                if (!string.IsNullOrEmpty(url))
+                {
+                    return url!;
+                }
+            }
+#endif
+
+            return string.Empty;
+        }
+
+        /// <summary>
+        /// リモートのビルド元リビジョンとローカル作業コピーのリビジョンを比較し、乖離を警告する。
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// catalog と同じディレクトリにある build-info.json を取得し、
+        /// <c>revision</c> フィールドをローカルリビジョンと比較する。
+        /// </para>
+        /// <para>
+        /// ベストエフォート。取得/解析失敗やローカルリビジョン不明時は静かにスキップし、
+        /// 起動をブロックしない。
+        /// </para>
+        /// </remarks>
+        /// <param name="catalogUrl">ロード済みリモートカタログの URL。</param>
+        private async UniTask WarnOnRevisionMismatchAsync(string catalogUrl)
+        {
+            try
+            {
+                var buildInfoUrl = DeriveBuildInfoUrl(catalogUrl);
+                if (string.IsNullOrEmpty(buildInfoUrl)) return;
+
+                string json;
+                using (var request = UnityWebRequest.Get(buildInfoUrl))
+                {
+                    await request.SendWebRequest().ToUniTask();
+                    if (request.result != UnityWebRequest.Result.Success)
+                    {
+                        // build-info.json が無い/取得失敗。比較はスキップ(警告のみ debug)。
+                        Debug.Log($"[AppInit] build-info.json を取得できませんでした（比較スキップ）: {buildInfoUrl}");
+                        return;
+                    }
+                    json = request.downloadHandler.text;
+                }
+
+                var info = JsonUtility.FromJson<RemoteBuildInfo>(json);
+                var remoteRevision = info?.revision ?? string.Empty;
+                var localRevision = ResolveLocalRevision();
+
+                if (string.IsNullOrEmpty(remoteRevision) || string.IsNullOrEmpty(localRevision))
+                {
+                    // どちらか不明なら比較不能。
+                    return;
+                }
+
+                if (!string.Equals(remoteRevision, localRevision, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    Debug.LogWarning(
+                        $"[AppInit] リビジョン乖離を検出しました。リモートのビルド済みアセットは古い/新しい可能性があります。\n" +
+                        $"  local  = {localRevision}\n" +
+                        $"  remote = {remoteRevision} (builtAtUtc={info?.builtAtUtc})\n" +
+                        "  混在ロードで不具合が出る場合はリモートを再ビルドするか、ローカルをリモートのリビジョンへ合わせてください。");
+                }
+                else
+                {
+                    Debug.Log($"[AppInit] リビジョン一致: {localRevision}");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[AppInit] リビジョン比較に失敗しました（無視して続行）: {ex.Message}");
+            }
+        }
+
+        /// <summary>catalog URL と同じディレクトリの build-info.json の URL を導出する。</summary>
+        /// <param name="catalogUrl">リモートカタログの URL。</param>
+        /// <returns>build-info.json の URL。導出不能時は空文字。</returns>
+        private static string DeriveBuildInfoUrl(string catalogUrl)
+        {
+            if (string.IsNullOrEmpty(catalogUrl)) return string.Empty;
+            var lastSlash = catalogUrl.LastIndexOf('/');
+            if (lastSlash < 0) return string.Empty;
+            return catalogUrl.Substring(0, lastSlash + 1) + "build-info.json";
+        }
+
+        /// <summary>
+        /// ローカル作業コピーのリビジョンを解決する。
+        /// </summary>
+        /// <remarks>
+        /// 解決順序:
+        /// <list type="number">
+        /// <item><description>AppConfig の <c>assetCheckout:localRevision</c>(ビルド時に焼き込み)</description></item>
+        /// <item><description>Editor 注入 (<see cref="RemoteCatalogRuntimeBridge.EditorLocalRevisionResolver"/>)</description></item>
+        /// </list>
+        /// どちらも無ければ空文字を返す。
+        /// </remarks>
+        /// <returns>ローカル Git リビジョン。不明時は空文字。</returns>
+        private string ResolveLocalRevision()
+        {
+            var fromConfig = _config?.GetString("assetCheckout:localRevision", string.Empty) ?? string.Empty;
+            if (!string.IsNullOrEmpty(fromConfig)) return fromConfig;
+#if UNITY_EDITOR
+            var resolver = OneStarMaker.Runtime.AssetManagement.RemoteCatalogRuntimeBridge.EditorLocalRevisionResolver;
+            if (resolver != null)
+            {
+                var rev = resolver();
+                if (!string.IsNullOrEmpty(rev)) return rev!;
+            }
+#endif
+            return string.Empty;
         }
 
         /// <summary>
@@ -597,116 +761,6 @@ namespace OneStarMaker.Runtime
             {
                 Debug.LogWarning("[AppInit] DebugSocket autoStart is false. Transport は起動時に自動開始しません。");
             }
-        }
-    }
-
-    /// <summary>
-    /// Runtime 層で扱う telemetry 用の軽量メモリ snapshot。
-    /// 文字列や参照型を持たず、呼び出し元の hot path に余計なアロケーションを入れない。
-    /// </summary>
-    public readonly struct RuntimeTelemetryMemorySnapshot
-    {
-        public readonly long ManagedMem;
-        public readonly long NativeMem;
-
-        public RuntimeTelemetryMemorySnapshot(long managedMem, long nativeMem)
-        {
-            ManagedMem = managedMem;
-            NativeMem = nativeMem;
-        }
-    }
-
-    /// <summary>
-    /// Runtime / Debug で使う telemetry metadata と tag 判定の共通 helper。
-    ///
-    /// <para>
-    /// 本来は `Runtime\Telemetry\` へ独立配置したい責務だが、
-    /// 現在は Unity 生成 csproj の取り込みを乱さずに進めるため既存ファイル内へ置いている。
-    /// 重要なのは「責務を Runtime 側へ寄せること」であり、
-    /// hot path のゼロアロ特性を崩さないことを優先する。
-    /// </para>
-    /// </summary>
-    public static class RuntimeTelemetryMetadataFactory
-    {
-        public static RuntimeTelemetryMemorySnapshot CaptureMemorySnapshot()
-        {
-            return new RuntimeTelemetryMemorySnapshot(
-                managedMem: GC.GetTotalMemory(false),
-                nativeMem: UnityEngine.Profiling.Profiler.GetTotalAllocatedMemoryLong());
-        }
-
-        public static Metadata CreateMemoryMetadata(in RuntimeTelemetryMemorySnapshot snapshot)
-        {
-            return new Metadata(
-                managedMem: snapshot.ManagedMem,
-                nativeMem: snapshot.NativeMem);
-        }
-
-        public static Metadata CreateProfilerMetadata(float cpuTime, float gpuTime)
-        {
-            return new Metadata(
-                cpuTime: cpuTime,
-                gpuTime: gpuTime,
-                managedMem: UnityEngine.Profiling.Profiler.GetMonoUsedSizeLong(),
-                nativeMem: UnityEngine.Profiling.Profiler.GetTotalAllocatedMemoryLong());
-        }
-
-        public static TelemetryTagType? ClassifyFrameRate(float fps)
-        {
-            if (fps > 0f && fps < 30f)
-            {
-                return TelemetryTagType.FrameRateDrop;
-            }
-
-            return null;
-        }
-
-        public static TelemetryTagType? ClassifyMemoryDelta(
-            in RuntimeTelemetryMemorySnapshot before,
-            in RuntimeTelemetryMemorySnapshot after,
-            TelemetryThresholds? thresholds)
-        {
-            if (thresholds == null)
-            {
-                return null;
-            }
-
-            var managedDeltaMb = GetManagedDeltaMb(before, after);
-            var nativeDeltaMb = GetNativeDeltaMb(before, after);
-            TelemetryTagType? tags = null;
-
-            if (managedDeltaMb > thresholds.MemoryDeltaMb)
-            {
-                tags = TelemetryTagType.ManagedMemoryOver;
-            }
-
-            if (nativeDeltaMb > thresholds.MemoryDeltaMb)
-            {
-                tags = tags.HasValue
-                    ? tags | TelemetryTagType.NativeMemoryOver
-                    : TelemetryTagType.NativeMemoryOver;
-            }
-
-            if (tags.HasValue)
-            {
-                tags |= TelemetryTagType.Bottleneck;
-            }
-
-            return tags;
-        }
-
-        public static double GetManagedDeltaMb(
-            in RuntimeTelemetryMemorySnapshot before,
-            in RuntimeTelemetryMemorySnapshot after)
-        {
-            return (after.ManagedMem - before.ManagedMem) / (1024.0 * 1024.0);
-        }
-
-        public static double GetNativeDeltaMb(
-            in RuntimeTelemetryMemorySnapshot before,
-            in RuntimeTelemetryMemorySnapshot after)
-        {
-            return (after.NativeMem - before.NativeMem) / (1024.0 * 1024.0);
         }
     }
 }

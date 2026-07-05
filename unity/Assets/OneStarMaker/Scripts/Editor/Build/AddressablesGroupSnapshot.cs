@@ -40,6 +40,9 @@ namespace OneStarMaker.Editor.Build
             }
 
             var snapshot = new AddressablesGroupSnapshot(settings);
+            // BuildRemoteCatalog フラグも記録し、Dispose / RestorePending 時に元に戻す。
+            snapshot._data.OriginalBuildRemoteCatalog = settings.BuildRemoteCatalog;
+            snapshot._data.BuildRemoteCatalogCaptured = true;
             // 空の snapshot ファイルを先に作り、以降の Record* で逐次更新する。
             snapshot.WriteSnapshotFile();
             return snapshot;
@@ -177,6 +180,12 @@ namespace OneStarMaker.Editor.Build
             {
                 RestoreRemovedEntry(settings, removed);
             }
+
+            // ビルド中に有効化した Remote Catalog フラグを元に戻す。
+            if (data.BuildRemoteCatalogCaptured)
+            {
+                settings.BuildRemoteCatalog = data.OriginalBuildRemoteCatalog;
+            }
         }
 
         private static void RestoreRemovedEntry(AddressableAssetSettings settings, RemovedEntrySnapshot removed)
@@ -271,6 +280,12 @@ namespace OneStarMaker.Editor.Build
 
             /// <summary>今回のビルドで RemoveAssetEntry した entry の復元情報。</summary>
             public List<RemovedEntrySnapshot> RemovedEntries = new();
+
+            /// <summary>Capture 時点の BuildRemoteCatalog フラグ。復元対象。</summary>
+            public bool OriginalBuildRemoteCatalog;
+
+            /// <summary>BuildRemoteCatalog を記録済みか。true の時のみ復元する。</summary>
+            public bool BuildRemoteCatalogCaptured;
         }
 
         /// <summary>RemoveAssetEntry 前に保存する entry のスナップショット。</summary>

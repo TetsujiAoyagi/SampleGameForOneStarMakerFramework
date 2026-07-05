@@ -1,7 +1,7 @@
 # 13. リソースシステム + メモリバジェット設計
 
-> ステータス: 設計完了・実装待ち (2026-03-07)
-> 優先度: テレメトリ (T1-T8) の後に着手
+> ステータス: AssetResidentCache(常駐キャッシュ)実装済み。テレメトリ配線/品質降格は次パス (2026-07-05)
+> 優先度: コア API 安定化後に Cache 実装へ進む
 
 ---
 
@@ -22,14 +22,15 @@
 13. [施行 (T9-T15)](#13-施行-t9-t15)
 14. [トレードオフ記録](#14-トレードオフ記録)
 15. [将来拡張](#15-将来拡張)
+16. [受け入れた前提と制約](#16-受け入れた前提と制約)
 
 ---
 
 ## 1. 目的
 
 - プロジェクト毎に **メモリバジェット** を定義し、カテゴリ別に予算管理する
-- **AssetDescription** にアセット種別と概算メモリを記録する
-- バジェット内で **LFU + 時間減衰キャッシュ** を運用し、頻繁に使うものを保持・使わないものを解放する
+- **AssetKey.AssetType** にアセット種別メタを保持する
+- 将来パスで **LFU + 時間減衰キャッシュ** を運用し、頻繁に使うものを保持・使わないものを解放する
 - **Mesh LOD** と **Texture Mip** を独立に interface 化し、将来の高度なストリーミング（MeshShader 等）に対応する
 - キャッシュの使用状況を **テレメトリ** に統合する
 
@@ -47,8 +48,10 @@
 | 概算メモリ | 精度は追求しない。参考値として記録。Editor バッチツールで算出 |
 | STG 向け実装 | Full / Unloaded の 2 段階。品質降格は将来有効化 |
 | QualityLevel | 4 段階定義（Full / Reduced / Minimum / Unloaded）。STG では Full/Unloaded のみ使用 |
-| キャッシュ配置 | SceneDirector とは独立サービス。DI で注入 |
-| テレメトリ結合 | `Observable<CacheEvent>` で疎結合。キャッシュ自体はテレメトリに非依存 |
+| 現行コア | `IAssetManagement` + `AssetRegistry` でスコープ付き寿命管理。Addressables 型は公開 API へ出さない |
+| キャッシュ配置 | **常駐キャッシュ方式**。`AssetManagement` 内に統合し、refcount 0 のアセットを `AssetResidentCache` に退避。独立 `IResourceCache` レイヤーは不採用 |
+| バジェット計上 | **キャッシュ内 (refcount 0) のみ**。使用中アセットは計上しない |
+| テレメトリ結合 | `AssetResidentCache.GetSnapshot()` をテレメトリ層がポーリング（配線は次パス）。R3 はプロジェクトに存在しない |
 
 ---
 
@@ -74,10 +77,14 @@
 ┌──────────────────────────────────────────────────────────┐
 │  Game 層 (SceneDirector から透過的に利用)                  │
 ├──────────────────────────────────────────────────────────┤
-│  IResourceCache ← バジェット制御・エビクション判断          │
-│    ├── IResourceHandle      ← 1 リソースの抽象表現        │
-│    ├── IQualityPolicy       ← バジェット超過時の品質戦略   │
-│    └── IBudgetProvider      ← カテゴリ別バジェット定義     │
+│  IAssetManagement ← スコープ付きロード/解放 + 常駐キャッシュ   │
+│    ├── IAssetHandle / ISceneHandle                         │
+│    ├── AssetKey / AssetOwner / SceneLoadOptions             │
+│    ├── AssetRegistry ← refcount + owner tracking            │
+│    └── AssetResidentCache ← refcount 0 退避 / LFU エビクション│
+│          └── IBudgetProvider (MemoryBudgetConfig)            │
+├──────────────────────────────────────────────────────────┤
+│  IQualityPolicy (将来)      ← バジェット超過時の品質戦略     │
 ├──────────────────────────────────────────────────────────┤
 │  IStreamingProvider (interface)                            │
 │    ├── ILodProvider         ← Mesh LOD 制御              │
@@ -85,6 +92,7 @@
 │    └── IMipStreamingProvider ← Texture Mip 制御          │
 │          └── UnityTextureStreamingProvider (Unity 標準)    │
 ├──────────────────────────────────────────────────────────┤
+│  AddressableBackend         ← Addressables を呼ぶ唯一の実装 │
 │  Addressables (Unity)       ← 実際のロード/アンロード      │
 │  LODGroup (Unity)           ← Mesh LOD 切替              │
 │  Texture Streaming (Unity)  ← Mip レベル制御             │
@@ -95,32 +103,56 @@
 
 ## 5. Interface 設計
 
-### IResourceHandle
+### 現行 AssetManagement API
 
 ```csharp
-/// <summary>1 つのキャッシュエントリを表す。</summary>
-public interface IResourceHandle : IDisposable
+public interface IAssetManagement
 {
-    string Key { get; }
-    AssetType AssetType { get; }
-    ResourceState State { get; }          // Unloaded / Loading / Resident / Streaming
-    QualityLevel CurrentQuality { get; }  // Full / Reduced / Minimum / Unloaded
-    long EstimatedMemoryBytes { get; }    // 概算（参考値）
-    float EffectiveFrequency { get; }     // LFU + 時間減衰後の頻度
-    void Touch();                         // アクセス記録
+    UniTask<IAssetHandle<T>> LoadAssetAsync<T>(AssetKey key, AssetOwner owner, CancellationToken ct = default)
+        where T : UnityEngine.Object;
+    IAssetHandle<T> LoadAppAssetSync<T>(AssetKey key) where T : UnityEngine.Object;
+    UniTask<ISceneHandle> LoadSceneAsync(SceneAssetDescription desc, string variant, AssetOwner owner, SceneLoadOptions options = default, CancellationToken ct = default);
+    UniTask UnloadSceneAsync(string sceneIdentity, CancellationToken ct = default);
+    UniTask<GameObject> InstantiateAsync(AssetKey key, Transform? parent = null, bool worldSpace = false, CancellationToken ct = default);
+    void Release(IAssetHandle handle);
+    void ReleaseScene(string sceneIdentity);
+    void ReleaseAll();
 }
 ```
 
-### IResourceCache
+`AssetOwner.App` / `AssetOwner.Scene(sceneIdentity)` / `AssetOwner.Bind(go)` / `AssetOwner.Manual` で寿命を明示する。内部 backend は `IAssetBackend` で、`AsyncOperationHandle` / `SceneInstance` / `Addressables.` は公開 API に出さない。
+
+### IResourceHandle / IResourceCache（不採用: 独立レイヤー案）
+
+`LoadAsync` / `IResourceHandle` / `Observable<CacheEvent>` を持つ独立 `IResourceCache` レイヤー案は不採用。`AssetRegistry` と台帳が二重化するため、`AssetManagement` 内の `AssetResidentCache` に統合した。
+
+### IAssetResidentCache（実装済み）
 
 ```csharp
-/// <summary>バジェット制御付きリソースキャッシュ。</summary>
-public interface IResourceCache
+/// <summary>refcount 0 のアセットを退避し、同一 key の再ロードで再利用する常駐キャッシュ。</summary>
+internal interface IAssetResidentCache
 {
-    UniTask<IResourceHandle> LoadAsync(AssetDescription desc, CancellationToken ct);
-    void Release(string key);
-    Observable<CacheEvent> OnCacheEvent { get; }
-    MemoryBudgetSnapshot GetBudgetSnapshot();
+    /// <summary>key がキャッシュにあれば取り出して返す（エントリはキャッシュから除去され、統計は復帰用に保持される）。</summary>
+    bool TryTake(string key, out IBackendAsset asset);
+    /// <summary>refcount 0 のアセットを退避する。バジェット超過分は effectiveFrequency 最小からエビクトされる。</summary>
+    void Store(string key, AssetType type, IBackendAsset asset);
+    /// <summary>全エントリをエビクトする（ReleaseAll 用）。</summary>
+    void Clear();
+    /// <summary>ヒット/ミス/エビクション数と type 別使用バイトのスナップショット。</summary>
+    CacheStatsSnapshot GetSnapshot();
+}
+```
+
+### CacheStatsSnapshot（実装済み）
+
+```csharp
+/// <summary>常駐キャッシュの統計スナップショット。</summary>
+public readonly struct CacheStatsSnapshot
+{
+    public int HitCount { get; }
+    public int MissCount { get; }
+    public int EvictionCount { get; }
+    public IReadOnlyDictionary<AssetType, long> ResidentBytes { get; }
 }
 ```
 
@@ -157,14 +189,14 @@ public interface IMipStreamingProvider
 }
 ```
 
-### IBudgetProvider
+### IBudgetProvider（実装済み）
 
 ```csharp
-/// <summary>カテゴリ別メモリバジェットを提供する。</summary>
+/// <summary>AssetType 別のキャッシュバジェットを提供する。</summary>
 public interface IBudgetProvider
 {
-    long GetBudget(AssetType category);
-    long TotalBudget { get; }
+    /// <summary>type のキャッシュバジェット（バイト）。未定義の type は 0 を返し、その type はキャッシュされない。</summary>
+    long GetBudgetBytes(AssetType type);
 }
 ```
 
@@ -179,6 +211,7 @@ public enum AssetType
     Prefab,
     Texture,
     Audio,
+    Other,
 }
 
 public enum QualityLevel
@@ -255,13 +288,14 @@ SO のデフォルトを AppConfig で上書き可能。QA テスト時にビル
 ### LFU + 時間減衰
 
 ```
-effectiveFrequency = accessCount × decay^(elapsedSeconds / halfLifeSeconds)
+effectiveFrequency = accessCount × 0.5^(経過秒 / halfLifeSeconds)
 ```
 
-- **halfLife** = 300s (5 分)。設定可変。
+- **halfLife** = 300s (5 分)。`MemoryBudgetConfig.HalfLifeSeconds` で設定可変。
 - 新規ロード時 `accessCount = 1`
-- アクセス毎に `accessCount++`
+- `TryTake` でキャッシュヒットした際に `accessCount` を引き継ぎ、次の `Store` 時に累積される（使用中→解放のたびにリセットされない）
 - エビクション判定時に `effectiveFrequency` が最小のエントリを解放
+- **退避対象**は refcount 0 になったアセットのみ（使用中アセットはキャッシュに入らない）
 
 ### カテゴリ別プール
 
@@ -301,7 +335,23 @@ Total budget: 256MB
 
 ## 11. メモリテレメトリ
 
-### CacheEvent 種別
+### ポーリング方式（実装済み / 配線は次パス）
+
+常駐キャッシュは `GetSnapshot()` でカウンタと type 別常駐バイトを返す。テレメトリ層がこれを定期的にポーリングし、`ITelemetrySink` 等へ書き込む想定（配線は次パス）。
+
+```csharp
+// AssetResidentCache.GetSnapshot() が返す値
+CacheStatsSnapshot {
+    HitCount, MissCount, EvictionCount,
+    ResidentBytes  // AssetType → 常駐バイト合計
+}
+```
+
+**注:** 当初案の `Observable<CacheEvent>` (R3) 前提は破棄。本プロジェクトに R3 は存在しない。
+
+### CacheEvent 種別（将来のテレメトリ配線用）
+
+品質降格・バジェット警告等のイベント駆動テレメトリは将来パス。現行は上記スナップショットのポーリングのみ。
 
 ```csharp
 public enum CacheEventType
@@ -314,8 +364,6 @@ public enum CacheEventType
     BudgetExceeded, // 100% 超過
 }
 ```
-
-`CacheEvent` は `Observable<CacheEvent>` で発火され、テレメトリ層が購読して `ITelemetrySink` に書き込む。
 
 ---
 
@@ -367,10 +415,13 @@ T9 (AssetDescription 汎用化 + Interface 定義)
 | QualityLevel 段階 | 2 / 4 / 連続値 | 4 段階 (STG は 2 のみ使用) | LODGroup の LOD0-2 + Unload に自然にマッピング |
 | バジェット監視頻度 | ロード時のみ / 毎フレーム / 毎秒+ロード時 | 毎秒 + ロード時 | 毎フレームはコスト高、ロード時のみは遅い |
 | Cache と SceneDirector | 内包 / 独立サービス / Cache が包含 | 独立サービス | Scene 以外のアセットもキャッシュ可能。DI で差替え容易 |
-| テレメトリ結合 | 直接呼び / Observable / delegate | Observable | R3 Subject で疎結合。キャッシュはテレメトリに非依存 |
+| テレメトリ結合 | Observable(R3) / GetSnapshot ポーリング / delegate | GetSnapshot ポーリング | 本プロジェクトに R3 が無いため Observable 案は破棄。キャッシュはテレメトリに非依存のまま |
 | バジェット定義場所 | AppConfig のみ / SO のみ / 両方 | SO + AppConfig Override | SO はエディタ調整可能、AppConfig で QA 時にビルドなし変更 |
 | 概算計算 | Import 時自動 / バッチ / ビルド前バリデーション | バッチ + ビルド前バリデーション | Import 頻度が高すぎる。バッチ + バリデーションで忘れ防止 |
 | STG 実装範囲 | Interface のみ / on/off のみ / LFU (2 段階) | LFU (Full/Unloaded) | LFU エビクションは STG でも有用。品質降格は将来有効化 |
+| キャッシュ統合方式 | 独立 IResourceCache レイヤー / AssetManagement 内常駐キャッシュ | 常駐キャッシュ方式 | 独立レイヤーは `AssetRegistry` と台帳二重化のため不採用 |
+| バジェット計上範囲 | 使用中+キャッシュ / キャッシュ内のみ | キャッシュ内 (refcount 0) のみ | 使用中メモリの上限はスコープ設計の責務。バジェットは投機的保持分の上限 |
+| LFU 時間減衰 | 純 LRU / LFU+減衰 / 固定 TTL | LFU + 時間減衰 | LRU に漸近するが、共通アセット保護のため accessCount 引き継ぎ付き LFU を維持 |
 
 ---
 
@@ -384,3 +435,16 @@ T9 (AssetDescription 汎用化 + Interface 定義)
 | F4 | Adaptive Budget — デバイス RAM に応じた動的バジェット | 多機種対応開始時 |
 | F5 | 実メモリ vs 概算の乖離テレメトリ | テレメトリ運用開始後 |
 | F6 | PrefabAssetDescription / AudioAssetDescription | 各アセット種別のキャッシュ着手時 |
+| F7 | フレーム分散エビクション — 大量エビクション時のスパイク抑制 | 大規模シーン遷移で GC スパイクが問題化した時 |
+| F8 | CacheEvent テレメトリ配線 — `GetSnapshot()` ポーリングからイベント駆動へ | テレメトリ運用開始時 |
+| F9 | AppConfig によるバジェット上書き | QA テストでビルドなし上限変更が必要になった時 |
+| F10 | 品質降格 (IQualityPolicy, ILodProvider, IMipStreamingProvider) | F1/F2 完了後 |
+
+---
+
+## 16. 受け入れた前提と制約
+
+1. **総メモリ上限は保証しない。** 使用中アセットの上限はスコープ設計の責務。バジェットは「投機的に持つ追加メモリ」の上限。
+2. **エビクション = 即メモリ解放ではない。** Addressables はバンドル単位のため、実効性はバンドル分割粒度に依存する近似ノブ。
+3. **概算の歪みは AssetType ごとに異なる。** `Profiler.GetRuntimeMemorySizeLong` は Prefab の依存 Texture/Mesh を含まない過小値。バジェット値は実測で調整する仮値。
+4. **`AssetOwner.App` プリロードとの棲み分け:** 確実に必要なものは App スコープで明示固定（保証あり）、キャッシュは自動・保証なし。キャッシュはプリロードの代替ではない。

@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.IO;
 using System.Text;
 using UnityEditor;
 using UnityEditor.AddressableAssets;
@@ -55,6 +56,16 @@ namespace OneStarMaker.Editor.Build
             var timer = Stopwatch.StartNew();
             // using 終了時に Addressables グループを元に戻す。
             using var snapshot = AddressablesGroupSnapshot.Capture(builderInput.AddressableSettings);
+
+            // リモート配信ビルド(RemoteGroupName 指定時)は Remote Catalog を一時的に有効化する。
+            // snapshot が元のフラグを保持しているため、ビルド後(using 終了)に自動で復元される。
+            if (!string.IsNullOrEmpty(_activeProfile.RemoteGroupName))
+            {
+                builderInput.AddressableSettings.BuildRemoteCatalog = true;
+                Debug.Log(
+                    $"[VariantFilteringBuildScript] Remote distribution build: enabled Remote Catalog and syncing to group '{_activeProfile.RemoteGroupName}'.");
+            }
+
             var whitelistResult = VariantWhitelistBuilder.Build(_activeProfile);
 
             // Apply 前でも AssetDatabase パスで GUID の対応関係は確認できる。
@@ -96,7 +107,94 @@ namespace OneStarMaker.Editor.Build
                 result.Duration = timer.Elapsed.TotalSeconds;
             }
 
+            // リモート配信ビルド時は、ビルド元リビジョンを build-info.json として出力する。
+            // 起動時のリビジョンずれ検知(WarnOnRevisionMismatchAsync)が参照する。
+            if (result != null && !string.IsNullOrEmpty(_activeProfile.RemoteGroupName))
+            {
+                TryWriteBuildInfo();
+            }
+
             return result;
+        }
+
+        /// <summary>
+        /// リモート配信ビルドの成果物ディレクトリへ build-info.json を出力する。
+        /// </summary>
+        /// <remarks>
+        /// ベストエフォート。git 取得やファイル書き込みに失敗してもビルド自体は失敗させない。
+        /// 起動時の <c>WarnOnRevisionMismatchAsync</c> が本ファイルの <c>revision</c> を参照する。
+        /// </remarks>
+        private static void TryWriteBuildInfo()
+        {
+            try
+            {
+                // Addressables の [BuildTarget] トークンは標準プラットフォームでは
+                // activeBuildTarget.ToString()（例: StandaloneWindows64）と一致する。
+                // PlatformMappingService は Addressables のバージョンで名前空間が変わるため、
+                // 依存を避けて BuildTarget 名から出力先サブフォルダを解決する。
+                var platformSubFolder = EditorUserBuildSettings.activeBuildTarget.ToString();
+                var dir = Path.Combine("ServerData", platformSubFolder);
+                if (!Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                var revision = TryGetGitHeadRevision();
+                var builtAtUtc = System.DateTime.UtcNow.ToString("o");
+                var json = $"{{\"revision\":\"{revision}\",\"builtAtUtc\":\"{builtAtUtc}\"}}";
+                var outputPath = Path.Combine(dir, "build-info.json");
+                File.WriteAllText(outputPath, json);
+                Debug.Log($"[VariantFilteringBuildScript] Wrote build-info.json: {outputPath} (revision={revision})");
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[VariantFilteringBuildScript] build-info.json の出力に失敗しました（ビルドは続行）: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// プロジェクトルートで <c>git rev-parse HEAD</c> を実行し、HEAD リビジョンを取得する。
+        /// </summary>
+        /// <returns>Git リビジョン。取得失敗時は空文字。</returns>
+        private static string TryGetGitHeadRevision()
+        {
+            try
+            {
+                var projectRoot = Path.GetDirectoryName(Application.dataPath);
+                if (string.IsNullOrEmpty(projectRoot))
+                {
+                    return string.Empty;
+                }
+
+                using var process = new System.Diagnostics.Process();
+                process.StartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "git",
+                    Arguments = "rev-parse HEAD",
+                    WorkingDirectory = projectRoot,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                };
+                process.Start();
+                if (!process.WaitForExit(3000))
+                {
+                    try { process.Kill(); } catch { /* best-effort */ }
+                    return string.Empty;
+                }
+
+                if (process.ExitCode != 0)
+                {
+                    return string.Empty;
+                }
+
+                return process.StandardOutput.ReadToEnd().Trim();
+            }
+            catch (System.Exception)
+            {
+                return string.Empty;
+            }
         }
 
         /// <summary>

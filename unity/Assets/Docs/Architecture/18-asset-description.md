@@ -30,6 +30,17 @@ Variant は「同じ論理アセットに対する制作・検証用の差し替
 
 **重要:** Variant の第一目的は **編集ワークフローの差し替え**であり、ランタイム機能ではない。ランタイムで Variant を選ぶ拡張は可能だが、現時点で BuildSystem の必須要件ではない。
 
+**第二用途: チェックアウト厳選タグ。** 上記に加え、Variant を「どの開発領域のアセットを手元に置くか」を示すタグとしても活用できる。`DeveloperVariantSettings` で選択した `BuildVariantProfile` の whitelist に一致する Payload をローカル Checkout 対象とし、未取得分はリモート Addressables カタログからストリーミングする開発ワークフローが本リポジトリに実装済みである（詳細は [20. Variant チェックアウト厳選ワークフロー](20-variant-checkout-workflow.md)）。
+
+ただし Variant の**本来の軸**は品質・制作段階（`Whitebox` / `Full` 等）であり、領域軸（`OutGame` 等）と 1 つの文字列に無秩序に混在させると運用が破綻しうる。Framework は Variant 名を**完全一致**でしか解釈しないため、命名規約はプロジェクト側で統一すること。
+
+| 用途 | 命名の例 |
+|---|---|
+| 領域タグ（単独） | `OutGame`, `InGame` |
+| 領域 + 品質の複合 | `OutGame_Whitebox`, `InGame_Full` |
+
+本機構は **Build / Play 時の Addressables カタログ構成**で完結する。ランタイムで Variant 文字列を選ぶ配線ではない（§2「ランタイム Variant 選択は現状未配線」のとおり）。
+
 ---
 
 ## 2. 有用性
@@ -141,7 +152,8 @@ AddressablesGroupSnapshot.Dispose (restore)  Editor の設定を元に戻す
 2. その型を走査する `IAssetDescriptionSource` を追加（独立 SO なら `AssetDatabase.FindAssets` ベース）。
 3. `AssetDescriptionCollector.DefaultSources` に登録、または `Build(profile, additionalSources)` で注入。
    - BuildScript / Whitelist ロジックは変更不要（`IAssetPayloadProvider` 経由のため）。
-- 注意: 計画段階で Prefab/Audio/Texture/Generic を作ったが、**実需要が出るまで作らない方針で剪定済み**。「あるけど使われない型」を増やさないこと。
+- 注意: 計画段階で Prefab/Audio/Texture/Generic の個別 Description 型を作ったが、**実需要が出るまで作らない方針で剪定済み**。「あるけど使われない型」を増やさないこと。
+  AssetType 自体は `AssetKey` のメタ情報として採用済みで、カテゴリ別 cache / budget の次パスで使用する。
 
 ### ランタイムで Variant を選びたくなったら
 
@@ -164,5 +176,5 @@ AddressablesGroupSnapshot.Dispose (restore)  Editor の設定を元に戻す
 - Runtime: `unity/Assets/OneStarMaker/Scripts/Runtime/AssetDescriptions/`
 - BuildSystem: `unity/Assets/OneStarMaker/Scripts/Editor/Build/`
 - Scene 連携: `unity/Assets/OneStarMaker/Scripts/Runtime/Scene/SceneResource.cs`, `SceneResourceMap.cs`
-- 既存資料: [13. リソースシステム](13-resource-system.md)（§7 は参考。ただし `AssetType` は本実装では不採用）
+- 既存資料: [13. リソースシステム](13-resource-system.md)（AssetType は cache 用メタとして採用済み。AssetResidentCache(常駐キャッシュ + per-category budget)実装済み）
 - レビュー/修正指示: [17. Variant BuildScript レビュー](17-variant-build-system-review.md)

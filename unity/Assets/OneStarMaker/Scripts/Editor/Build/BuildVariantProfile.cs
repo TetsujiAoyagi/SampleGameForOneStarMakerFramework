@@ -32,6 +32,29 @@ namespace OneStarMaker.Editor.Build
         [SerializeField]
         private string _targetAddressablesGroupName = "Default Local Group";
 
+        /// <summary>
+        /// このプロファイル使用時にフォールバック先とするリモート Addressables カタログの URL。
+        /// 空文字の場合はリモートフォールバックを無効にする。
+        /// 例: <c>http://buildpc:8080/StandaloneWindows64/catalog.json</c>
+        /// </summary>
+        [SerializeField]
+        private string _remoteCatalogUrl = string.Empty;
+
+        /// <summary>
+        /// この Variant でビルド / Play する際の論理初回シーンの識別子。
+        /// 空文字の場合は AppInitializer の既定値（現状 <c>"Title"</c>）を使用する。
+        /// Build Settings の Scene 0 を差し替えるのではなく、起動後にロードする論理シーンを差し替える点に注意。
+        /// </summary>
+        [SerializeField]
+        private string _firstSceneIdentify = string.Empty;
+
+        /// <summary>
+        /// リモート配信ビルド時に Included アセットを同期する Addressables グループ名。
+        /// 空文字の場合は従来通り <see cref="TargetAddressablesGroupName"/>（ローカルグループ）へ同期する。
+        /// </summary>
+        [SerializeField]
+        private string _remoteGroupName = string.Empty;
+
         /// <summary>同梱を許可する Variant 名一覧。空リスト時はデフォルト Variant のみ。</summary>
         public IReadOnlyList<string> VariantWhitelist => _variantWhitelist;
 
@@ -43,5 +66,23 @@ namespace OneStarMaker.Editor.Build
 
         /// <summary>whitelist 同期先 Addressables グループ名。</summary>
         public string TargetAddressablesGroupName => _targetAddressablesGroupName;
+
+        /// <summary>
+        /// リモート Addressables カタログのフォールバック URL。
+        /// 空文字の場合はリモートフォールバック無効。
+        /// </summary>
+        public string RemoteCatalogUrl => _remoteCatalogUrl;
+
+        /// <summary>
+        /// 論理初回シーンの識別子。
+        /// 空文字の場合は AppInitializer の既定（現状 <c>"Title"</c>）を使用。
+        /// </summary>
+        public string FirstSceneIdentify => _firstSceneIdentify;
+
+        /// <summary>
+        /// リモート配信時の Included アセット同期先 Addressables グループ名。
+        /// 空文字の場合は <see cref="TargetAddressablesGroupName"/> へ同期。
+        /// </summary>
+        public string RemoteGroupName => _remoteGroupName;
     }
 }

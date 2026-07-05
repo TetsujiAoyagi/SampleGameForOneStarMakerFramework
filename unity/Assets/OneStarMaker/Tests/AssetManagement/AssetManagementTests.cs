@@ -169,10 +169,14 @@ namespace OneStarMaker.Tests.AssetManagement
             var go = await _assetManagement.InstantiateAsync(
                 AssetKey.FromAddress("Assets/Prefabs/Enemy.prefab"));
 
-            Object.DestroyImmediate(go);
-            await UniTask.Yield();
+            // batchmode(-nographics/EditMode)では OnDestroy 経由の破棄通知が発火しないため、
+            // 破棄通知を直接呼んで解放されることを決定論的に検証する。
+            var instanceId = EntityId.ToULong(go.GetEntityId());
+            _assetManagement.NotifyGameObjectDestroyed(instanceId);
 
             Assert.That(_backend.ReleaseCallCount, Is.EqualTo(1));
+
+            Object.DestroyImmediate(go);
         });
 
         [UnityTest]

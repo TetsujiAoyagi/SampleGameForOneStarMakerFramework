@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using OneStarMaker.Runtime.AssetDescriptions;
+using OneStarMaker.Runtime.AssetManagement.Cache;
 using OneStarMaker.Runtime.AssetManagement.Components;
 using OneStarMaker.Runtime.AssetManagement.Internal;
 using UnityEngine;
@@ -17,6 +18,7 @@ namespace OneStarMaker.Runtime.AssetManagement
     public sealed class AssetManagement : IAssetManagement
     {
         private readonly IAssetBackend _backend;
+        private readonly IAssetResidentCache? _cache;
         private readonly AssetRegistry _registry = new();
 
         /// <summary>同一 key の並行ロードを 1 本の backend ロードに集約する in-flight テーブル。</summary>
@@ -27,9 +29,24 @@ namespace OneStarMaker.Runtime.AssetManagement
         {
         }
 
+        public AssetManagement(MemoryBudgetConfig? budgetConfig)
+        {
+            var backend = new AddressableBackend();
+            _backend = backend;
+            _cache = budgetConfig != null
+                ? new AssetResidentCache(budgetConfig, budgetConfig.HalfLifeSeconds, backend.Release)
+                : null;
+        }
+
         internal AssetManagement(IAssetBackend backend)
+            : this(backend, null)
+        {
+        }
+
+        internal AssetManagement(IAssetBackend backend, IAssetResidentCache? cache)
         {
             _backend = backend ?? throw new ArgumentNullException(nameof(backend));
+            _cache = cache;
         }
 
         public async UniTask<IAssetHandle<T>> LoadAssetAsync<T>(
@@ -40,12 +57,16 @@ namespace OneStarMaker.Runtime.AssetManagement
             AssetRegistry.LoadedAsset loaded;
             if (_registry.TryGetAsset(key.Canonical, out var existing))
             {
-                loaded = _registry.Acquire(key.Canonical, existing.Backend, owner);
+                loaded = _registry.Acquire(key.Canonical, existing.Backend, owner, key.Type, isInstance: false);
+            }
+            else if (_cache != null && _cache.TryTake(key.Canonical, out var cached))
+            {
+                loaded = _registry.Acquire(key.Canonical, cached, owner, key.Type, isInstance: false);
             }
             else
             {
                 var backendAsset = await LoadBackendAssetDedup<T>(key, ct);
-                loaded = _registry.Acquire(key.Canonical, backendAsset, owner);
+                loaded = _registry.Acquire(key.Canonical, backendAsset, owner, key.Type, isInstance: false);
             }
 
             AttachDestroyReleaseIfNeeded(owner);
@@ -57,12 +78,16 @@ namespace OneStarMaker.Runtime.AssetManagement
             AssetRegistry.LoadedAsset loaded;
             if (_registry.TryGetAsset(key.Canonical, out var existing))
             {
-                loaded = _registry.Acquire(key.Canonical, existing.Backend, AssetOwner.App);
+                loaded = _registry.Acquire(key.Canonical, existing.Backend, AssetOwner.App, key.Type, isInstance: false);
+            }
+            else if (_cache != null && _cache.TryTake(key.Canonical, out var cached))
+            {
+                loaded = _registry.Acquire(key.Canonical, cached, AssetOwner.App, key.Type, isInstance: false);
             }
             else
             {
                 var backendAsset = _backend.LoadAssetSync<T>(key.Address);
-                loaded = _registry.Acquire(key.Canonical, backendAsset, AssetOwner.App);
+                loaded = _registry.Acquire(key.Canonical, backendAsset, AssetOwner.App, key.Type, isInstance: false);
             }
 
             return new AssetHandle<T>(loaded);
@@ -121,7 +146,7 @@ namespace OneStarMaker.Runtime.AssetManagement
             if (backendInstance is IBackendAsset backendAsset)
             {
                 var instanceKey = $"{key.Canonical}:instance:{owner.GameObjectId}";
-                _registry.Acquire(instanceKey, backendAsset, owner);
+                _registry.Acquire(instanceKey, backendAsset, owner, AssetType.Prefab, isInstance: true);
             }
 
             AttachDestroyReleaseIfNeeded(owner);
@@ -149,9 +174,9 @@ namespace OneStarMaker.Runtime.AssetManagement
             }
 
             // 既にアンロード済み（通常の 3-Phase Phase3）なら同期で所有アセットのみ解放する。
-            foreach (var backendAsset in _registry.ReleaseSceneOwned(sceneIdentity))
+            foreach (var loaded in _registry.ReleaseSceneOwned(sceneIdentity))
             {
-                _backend.Release(backendAsset);
+                ReleaseOrStore(loaded);
             }
         }
 
@@ -159,9 +184,9 @@ namespace OneStarMaker.Runtime.AssetManagement
         {
             await _backend.UnloadSceneAsync(scene.Backend, CancellationToken.None);
             _registry.MarkSceneUnloaded(sceneIdentity);
-            foreach (var backendAsset in _registry.ReleaseSceneOwned(sceneIdentity))
+            foreach (var loaded in _registry.ReleaseSceneOwned(sceneIdentity))
             {
-                _backend.Release(backendAsset);
+                ReleaseOrStore(loaded);
             }
         }
 
@@ -201,17 +226,19 @@ namespace OneStarMaker.Runtime.AssetManagement
 
         private void ReleaseAllAssetsNow()
         {
-            foreach (var backendAsset in _registry.ReleaseAllAssets())
+            foreach (var loaded in _registry.ReleaseAllAssets())
             {
-                _backend.Release(backendAsset);
+                _backend.Release(loaded.Backend);
             }
+
+            _cache?.Clear();
         }
 
         internal void NotifyGameObjectDestroyed(ulong gameObjectInstanceId)
         {
-            foreach (var backendAsset in _registry.ReleaseGameObjectOwned(gameObjectInstanceId))
+            foreach (var loaded in _registry.ReleaseGameObjectOwned(gameObjectInstanceId))
             {
-                _backend.Release(backendAsset);
+                ReleaseOrStore(loaded);
             }
         }
 
@@ -219,9 +246,21 @@ namespace OneStarMaker.Runtime.AssetManagement
 
         private void ReleaseKey(string key)
         {
-            if (_registry.Release(key, out var backendAsset) && backendAsset != null)
+            if (_registry.Release(key, out var loaded) && loaded != null)
             {
-                _backend.Release(backendAsset);
+                ReleaseOrStore(loaded);
+            }
+        }
+
+        private void ReleaseOrStore(AssetRegistry.LoadedAsset loaded)
+        {
+            if (_cache != null && !loaded.IsInstance)
+            {
+                _cache.Store(loaded.Key, loaded.Type, loaded.Backend);
+            }
+            else
+            {
+                _backend.Release(loaded.Backend);
             }
         }
 
