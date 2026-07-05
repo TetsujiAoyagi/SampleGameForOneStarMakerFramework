@@ -27,7 +27,7 @@ OneStarMaker 汎用フレームワーク + SampleGame ゲーム層 + DebugStudio
 
 | ライブラリ | バージョン | 用途 |
 |---|---|---|
-| [VContainer](https://github.com/hadashiA/VContainer) | 1.0.2 | DI（パッケージ導入済・配線は未完了） |
+| [VContainer](https://github.com/hadashiA/VContainer) | 1.0.2 | **未使用**（手動 DI を正式採用したため。パッケージは将来削除予定） |
 | [UniTask](https://github.com/Cysharp/UniTask) | 2.5.10 | async/await |
 | [R3](https://github.com/Cysharp/R3) | 1.3.0 | Reactive Extensions |
 | [ObservableCollections](https://github.com/Cysharp/ObservableCollections) | 3.3.4 | コレクション変更通知 |

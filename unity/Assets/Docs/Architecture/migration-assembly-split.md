@@ -57,7 +57,7 @@ Assets/OneStarMaker/
 OneStarMaker.Foundation  (leaf — 外部依存なし within framework)
        ▲
        │
-OneStarMaker.Runtime ──► Foundation + UniTask + Addressables + LitMotion + VContainer
+OneStarMaker.Runtime ──► Foundation + UniTask + Addressables + LitMotion + InputSystem + R3
        ▲
        │
 OneStarMaker.Debug ──► Foundation + Runtime + Unity.TextMeshPro
@@ -120,17 +120,18 @@ OneStarMaker.Tests  ──► Runtime + Foundation
         "Unity.Addressables",
         "Unity.ResourceManager",
         "LitMotion",
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "UniTask.Addressables"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": true,
     "precompiledReferences": [
-        "UniTask.dll",
-        "VContainer.dll",
         "R3.dll",
-        "ObservableCollections.dll"
+        "ObservableCollections.dll",
+        "ZString.dll",
+        "ZStringFormatExtension.dll"
     ],
     "autoReferenced": true,
     "defineConstraints": [],
@@ -201,11 +202,11 @@ OneStarMaker.Tests  ──► Runtime + Foundation
 ### 6.2 Runtime (22 files)
 | From | To |
 |---|---|
-| `Scripts/AbstractApplicationInitializer.cs` | `Runtime/AbstractApplicationInitializer.cs` |
+| `Scripts/AbstractApplicationInitializer.cs` | `Runtime/Bootstrap/AbstractApplicationInitializer.cs` |
 | `Scripts/AssemblyInfo.cs` | `Runtime/AssemblyInfo.cs` |
 | `Scripts/AssetDescriptions/*.cs` (3) | `Runtime/AssetDescriptions/*.cs` |
-| `Scripts/Scene/*.cs` (17) | `Runtime/Scene/*.cs` |
-| `Scripts/UI/*.cs` (2) | `Runtime/UI/*.cs` |
+| `Scripts/Scene/*.cs` (17) | `Runtime/SceneSystem/*.cs` |
+| `Scripts/UI/*.cs` (2) | `Runtime/UISystem/*.cs` |
 
 ### 6.3 Debug (3 files)
 | From | To |

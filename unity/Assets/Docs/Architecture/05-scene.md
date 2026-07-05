@@ -16,7 +16,7 @@ SceneDirector.Unloading.cs   … UnloadScene, RemoveScene, 3-Phase, CleanupCance
 SceneDirector.Transitions.cs … SwitchScene, GoBack, ClearHistory, ExecuteTransitionPlan
 ```
 
-フォルダ構成は `Scripts/Scene/` フラットのまま維持する。
+フォルダ構成は `Scripts/Runtime/SceneSystem/` フラットのまま維持する。
 ファイル数が 25 を超えた時点（Phase 2 の操作キュー・SceneValidator 追加時を想定）で
 `Director/`, `Lifecycle/`, `Resource/` 等へのサブフォルダ分割を再検討する。
 

@@ -3,7 +3,7 @@
 > ステータス: 設計ドラフト・プロトタイプ検証前 (2026-05-07)
 > 優先度: Phase 2 サービス最小実装と並行して vertical slice で検証
 >
-> **注意:** この文書は実装前ドラフトです。現在の実装仕様は `UPDATER_CURRENT_SPEC.md` を正本として参照してください。
+> **注意:** この文書は実装前ドラフトです。現在の実装仕様は `docs/updater/UPDATER_CURRENT_SPEC.md`（リポジトリルート）を正本として参照してください。
 > 本文には未採用案や差し替え済み API が含まれるため、実装確認用途には使わないでください。
 
 ---
@@ -224,7 +224,7 @@ AfterSceneLoad
 
 - `UpdateDriver` はシーン prefab として置かず、Application ライフタイムで 1 個だけ持つ
 - `Application.quitting` と `SubsystemRegistration` の両方で解放する
-- Phase 1 は手動 DI でよいが、Phase 2 以降は `VContainer LifetimeScope` への統合点として `IUpdateService` を使う
+- 手動 DI（正式採用、[03-di.md](03-di.md) 参照）での配線集約点として `IUpdateService` を使う
 
 ---
 
@@ -557,7 +557,7 @@ public abstract class Updater<T> : IUpdater where T : struct
 /// Application ライフタイムで Layer を保持するサービス。
 ///
 /// Scene はこのサービス経由で Register / Unregister を行う。
-/// 将来的に VContainer 統合する場合も、ここが集約点になる。
+/// DI 配線（手動 DI）の集約点になる。
 /// </summary>
 public interface IUpdateService
 {

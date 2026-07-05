@@ -30,12 +30,12 @@
 ┌──────────────────────────────────────────────────────────────┐
 │  Game (ゲーム固有の実装)                                       │
 │  ├── DependOnAll  … 起動エントリーポイント・SceneFactory         │
-│  │                  ※ 唯一 VContainer を直接参照できる Game 層   │
+│  │                  ※ 依存配線（コンポジションルート）を集約する層 │
 │  ├── Common       … ゲーム共通サービス・シーン定義                │
 │  ├── InGame       … インゲーム                                  │
 │  └── OutGame      … アウトゲーム（タイトル等）                    │
 ├──────────────────────────────────────────────────────────────┤
-│  OneStarMaker (汎用ゲームフレームワーク — 3 Assembly)            │
+│  OneStarMaker (汎用ゲームフレームワーク)                         │
 │                                                              │
 │  ┌─ Foundation (leaf) ─────────────────────────┐     │
 │  │  Config  … AppConfig, IConfigProvider, 各プロバイダ  │     │
@@ -43,18 +43,27 @@
 │  │              AppLoggerFactory                        │     │
 │  │  Telemetry … AppTelemetry, ITelemetrySink,           │     │
 │  │              JsonFileTelemetrySink, DebugSocket DTO  │     │
+│  │  UpdateSystem … UpdateCoordinator, UpdateLayer       │     │
+│  │              （正本: docs/updater/UPDATER_CURRENT_SPEC.md）│     │
 │  └─────────────────────────────────────────────┘     │
 │          ▲                                                    │
 │  ┌─ Runtime ─┘──────────────────────────────────┐     │
-│  │  Scene   … SceneDirector, SceneBase, ISceneQuery    │     │
-│  │  UI      … UICommon, UIView (6レイヤー + Blocker)    │     │
-│  │  AssetDescriptions … SceneAssetDescription         │     │
-│  │  AbstractApplicationInitializer                   │     │
+│  │  SceneSystem … SceneDirector, SceneBase, ISceneQuery │     │
+│  │  UISystem  … UICommon, UIView (6レイヤー + Blocker)  │     │
+│  │  AssetManagement … IAssetManagement,                 │     │
+│  │              AddressableBackend, AssetResidentCache  │     │
+│  │  AssetDescriptions … SceneAssetDescription          │     │
+│  │  Bootstrap … AbstractApplicationInitializer         │     │
+│  │  DebugSocketServices … DebugSocketService           │     │
+│  │  UpdateSystem (hosting) … UpdateSystemHost          │     │
 │  └─────────────────────────────────────────────┘     │
 │          ▲                                                    │
 │  ┌─ Debug ──┴────────────────────────────────────┐     │
 │  │  Profiler … DebugProfilerView, FrameTimeSampler    │     │
 │  └─────────────────────────────────────────────┘     │
+│                                                              │
+│  Editor … SceneGraph Editor / Build (Variants,               │
+│           AssetDescriptions, Addressables)                   │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -62,10 +71,10 @@
 
 - **依存は上から下への一方向のみ。** Game → OneStarMaker は可。逆は不可。
 - **OneStarMaker はゲーム固有の型を知らない。** インターフェースと抽象クラスで拡張ポイントを提供する。
-- **Foundation はフレームワーク内で最下層（leaf）。** Config と Logging のみ。全モジュールから参照可能。
-- **Runtime は Foundation のみに依存。** Scene, UI, AssetDescriptions, 起動処理。
+- **Foundation はフレームワーク内で最下層（leaf）。** Config / Logging / Telemetry / UpdateSystem コア。全モジュールから参照可能。
+- **Runtime は Foundation のみに依存。** SceneSystem, UISystem, AssetManagement, AssetDescriptions, Bootstrap。
 - **Debug は Foundation + Runtime に依存。** TMP 等の重い依存を隔離。
-- **Game 層は VContainer を知らない。** 例外は DependOnAll のみ。
+- **DI コンテナは使わない（手動 DI 正式採用、2026-07-06 決定）。** 依存配線は DependOnAll に集約する。詳細は [03-di.md](Docs/Architecture/03-di.md)。
 - **Game 層のクラスはコンストラクタ注入で依存を受け取る。** DI の Attribute (`[Inject]`) は使用禁止。
 
 ### 前プロジェクトからの変更点
@@ -83,12 +92,12 @@
 OneStarMaker.Foundation  (leaf — フレームワーク内依存なし)
        ▲
        │
-OneStarMaker.Runtime ──► Foundation + UniTask + Addressables + LitMotion + VContainer
+OneStarMaker.Runtime ──► Foundation + UniTask + Addressables + LitMotion + InputSystem + R3
        ▲
        │
 OneStarMaker.Debug ──► Foundation + Runtime + TMP
 
-DependOnAll ──→ Game.Common, Game.InGame, Game.OutGame, Foundation, Runtime, Debug, VContainer
+DependOnAll ──→ Game.Common, Game.InGame, Game.OutGame, Foundation, Runtime, Debug
 Game.InGame ──→ Game.Common, Foundation, Runtime
 Game.OutGame ──→ Game.Common, Foundation, Runtime
 Game.Common ──→ Foundation, Runtime
@@ -98,17 +107,7 @@ Game.Common ──→ Foundation, Runtime
 - OneStarMaker から Game 層への参照
 - 同階層の横断参照（例: InGame → OutGame）
 - Assembly 循環依存
-- DependOnAll 以外の Game 層からの VContainer 参照
-
-### VContainer 参照範囲
-
-| Assembly | VContainer 参照 | 理由 |
-|---|---|---|
-| OneStarMaker.Runtime | **可** | HostedService ラップ、SceneBase の Scope 管理 |
-| DependOnAll | **可** | LifetimeScope 構築・サービス登録（起動エントリーポイント） |
-| Game.Common | **不可** | Pure C#。コンストラクタ注入のみ |
-| Game.InGame | **不可** | Pure C#。コンストラクタ注入のみ |
-| Game.OutGame | **不可** | Pure C#。コンストラクタ注入のみ |
+- DI コンテナ・リゾルバの導入（手動 DI 正式採用。[03-di.md](Docs/Architecture/03-di.md) の再評価条件を満たした場合のみ検討）
 
 ---
 
@@ -127,9 +126,14 @@ Game.Common ──→ Foundation, Runtime
 | §11 | Scene Graph Editor（Editor 拡張） | [11-scene-graph-editor.md](Docs/Architecture/11-scene-graph-editor.md) |
 | §12 | テレメトリ設計 | [12-telemetry.md](Docs/Architecture/12-telemetry.md) |
 | §13 | リソースシステム設計 | [13-resource-system.md](Docs/Architecture/13-resource-system.md) |
-| §14 | アーキテクチャレビュー（ギャップ分析 & FW 比較） | [14-architecture-review.md](Docs/Architecture/14-architecture-review.md) |
+| §14 | アーキテクチャレビュー（ギャップ分析 & FW 比較、2026-03-07 断面） | [14-architecture-review.md](Docs/Architecture/14-architecture-review.md) |
 | §15 | テレメトリ v2（ボトルネック検出・メモリ監視） | [15-telemetry-v2.md](Docs/Architecture/15-telemetry-v2.md) |
-| §16 | Update 基盤設計（Layer / Updater） | [16-update-architecture.md](Docs/Architecture/16-update-architecture.md) |
+| §16 | Update 基盤設計（ドラフト。正本は `docs/updater/UPDATER_CURRENT_SPEC.md`） | [16-update-architecture.md](Docs/Architecture/16-update-architecture.md) |
+| §17 | （欠番 — Variant BuildScript レビューは未保存のまま失われた） | — |
+| §18 | AssetDescription — 目的・有用性・実装 | [18-asset-description.md](Docs/Architecture/18-asset-description.md) |
+| §19 | AssetResidentCache（常駐キャッシュ）チケット仕様 | [19-asset-resident-cache-tickets.md](Docs/Architecture/19-asset-resident-cache-tickets.md) |
+| §20 | Variant チェックアウトワークフロー | [20-variant-checkout-workflow.md](Docs/Architecture/20-variant-checkout-workflow.md) |
+| — | Assembly 分割移行記録 | [migration-assembly-split.md](Docs/Architecture/migration-assembly-split.md) |
 
 ---
 
@@ -142,13 +146,17 @@ Game.Common ──→ Foundation, Runtime
 | **Phase 3** | Game 基盤 | DependOnAll 起動処理、SceneFactory、ApplicationService | 🔧 一部完了（AppInitializer, GameSceneFactory, NullLoadingDisplay, TitleScene 実装済） |
 | **Phase 4** | Game 実装 + UI 移行 | Title → InGame 遷移、Player(MVVM + R3)、Grid 再構築、UI Toolkit 段階移行 | 未着手 |
 
+> **Phase 1 完了後の追加実装（フェーズ表の枠外で進行したもの）:**
+> テレメトリ v2 + DebugSocket / DebugStudio 連携（§12, §15）、AssetManagement + AssetResidentCache（§13, §19）、
+> UpdateSystem（§16、正本 `docs/updater/UPDATER_CURRENT_SPEC.md`）、Variant ビルド / チェックアウトワークフロー（§18, §20）。
+
 ---
 
 ## 13. ライブラリ選定
 
 | 領域 | 旧プロジェクト | **本プロジェクト** | 変更理由 |
 |---|---|---|---|
-| DI | Static Service Locator | **VContainer** | テスタビリティ・依存方向の強制 |
+| DI | Static Service Locator | **手動 DI（コンストラクタ注入 + Factory 配線）** | テスタビリティ・依存方向の強制。DI コンテナは不採用（2026-07-06 決定、[03-di.md](Docs/Architecture/03-di.md)） |
 | リアクティブ | UniRx（コメントアウト状態） | **R3 + ObservableCollections** | UniRx → R3 が公式後継 |
 | Tween | DOTween | **LitMotion** | Zero-Allocation、UniTask ネイティブ統合 |
 | async | UniTask | **UniTask**（継続） | — |
@@ -160,7 +168,7 @@ Game.Common ──→ Foundation, Runtime
 | 入力 | Unity InputSystem | **Unity InputSystem**（継続） | — |
 
 **設計思想: Cysharp エコシステムへの統一。**  
-VContainer, UniTask, R3, LitMotion, ZLogger は全て Cysharp 互換。ライブラリ間の相互運用性と API 設計思想の一貫性を重視する。
+UniTask, R3, LitMotion, ZLogger, ZString は全て Cysharp 互換。ライブラリ間の相互運用性と API 設計思想の一貫性を重視する。
 
 ---
 
@@ -179,7 +187,7 @@ VContainer, UniTask, R3, LitMotion, ZLogger は全て Cysharp 互換。ライブ
 | UICommon ↔ SceneBase の双方向依存 | 設計ルール不在 | §6.6: SceneDirector を仲介者にする |
 | Forget した非同期のエラー消失 | ルール不在 | §5.8: エラーログを残す |
 | CancellationTokenSource の Dispose 漏れ | ルール不在 | §4.3 + §10.4: ReleaseAll + Dispose パターン |
-| Static Service Locator で NullReferenceException | 設計パターンの問題 | §4.4: ISceneFactory 経由の手動 DI → Phase 2 で VContainer |
+| Static Service Locator で NullReferenceException | 設計パターンの問題 | §4.4: ISceneFactory 経由の手動 DI（正式採用） |
 | SceneDirector の Dispose 保証なし | ローカル変数で保持 | §4.3: Application.quitting + SubsystemRegistration 二重保護 |
 | StandaloneInputModule（旧 Input Manager） | 更新漏れ | §4.2: InputSystemUIInputModule に変更 |
 | private メソッドの camelCase/PascalCase 混在 | 規約不統一 | §10.1: PascalCase 統一 |

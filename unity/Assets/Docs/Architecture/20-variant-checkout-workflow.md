@@ -1,7 +1,7 @@
 # 20. Variant チェックアウト厳選ワークフロー
 
 > ステータス: 実装済み (2026-07-05)
-> 前提資料: [18. AssetDescription](18-asset-description.md) / [17. Variant BuildScript レビュー](17-variant-build-system-review.md)
+> 前提資料: [18. AssetDescription](18-asset-description.md)
 
 ---
 
@@ -241,5 +241,6 @@ $env:UNITY_PATH = "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe"
 ## 8. 関連ドキュメント
 
 - [18. AssetDescription — 目的・有用性・実装](18-asset-description.md) — Variant の定義と第二用途（チェックアウト厳選タグ）
-- [17. Variant BuildScript レビュー](17-variant-build-system-review.md) — whitelist BuildScript の設計レビュー
 - [13. リソースシステム + メモリバジェット設計](13-resource-system.md) — ランタイムアセット管理（リモートロード後のキャッシュ等）
+
+> 注: 旧「17. Variant BuildScript レビュー」はファイル未保存のまま失われたため欠番。whitelist BuildScript の設計判断は本書と実装（`Editor/Build/Variants/`）を正とする。

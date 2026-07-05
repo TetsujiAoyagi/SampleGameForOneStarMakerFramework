@@ -1,6 +1,6 @@
 # 18. AssetDescription — 目的・有用性・実装
 
-本書は `OneStarMaker.Runtime.AssetDescriptions` の `AssetDescription` 系について、**何のために存在し、なぜ有用で、どう実装されているか**を整理する。Variant フィルタ BuildScript（[17](17-variant-build-system-review.md)）の前提知識でもある。
+本書は `OneStarMaker.Runtime.AssetDescriptions` の `AssetDescription` 系について、**何のために存在し、なぜ有用で、どう実装されているか**を整理する。Variant フィルタ BuildScript（[20. Variant チェックアウトワークフロー](20-variant-checkout-workflow.md) で使用）の前提知識でもある。
 
 ---
 
@@ -175,6 +175,8 @@ AddressablesGroupSnapshot.Dispose (restore)  Editor の設定を元に戻す
 
 - Runtime: `unity/Assets/OneStarMaker/Scripts/Runtime/AssetDescriptions/`
 - BuildSystem: `unity/Assets/OneStarMaker/Scripts/Editor/Build/`
-- Scene 連携: `unity/Assets/OneStarMaker/Scripts/Runtime/Scene/SceneResource.cs`, `SceneResourceMap.cs`
+- Scene 連携: `unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneResource.cs`, `SceneResourceMap.cs`
 - 既存資料: [13. リソースシステム](13-resource-system.md)（AssetType は cache 用メタとして採用済み。AssetResidentCache(常駐キャッシュ + per-category budget)実装済み）
-- レビュー/修正指示: [17. Variant BuildScript レビュー](17-variant-build-system-review.md)
+- ワークフロー: [20. Variant チェックアウトワークフロー](20-variant-checkout-workflow.md)
+
+> 注: 旧「17. Variant BuildScript レビュー」はファイル未保存のまま失われたため欠番（git 履歴にも存在しない）。

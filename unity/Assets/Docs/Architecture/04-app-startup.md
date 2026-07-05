@@ -95,9 +95,9 @@ private void ReleaseAll()
 }
 ```
 
-## 4.4 サービス注入パターン（Phase 1: 手動 DI）
+## 4.4 サービス注入パターン（手動 DI）
 
-Phase 1 では `ISceneFactory` を通じた手動 DI でサービスを注入する。
+`ISceneFactory` を通じた手動 DI でサービスを注入する。
 
 ```csharp
 // Game 層の SceneFactory
@@ -119,7 +119,7 @@ class GameSceneFactory : ISceneFactory
 }
 ```
 
-Phase 2 以降で VContainer（`IObjectResolver`）に移行する。
+> **決定 (2026-07-06):** 当初予定していた VContainer への移行は取り止め、手動 DI を正式採用（[03-di.md](03-di.md) 参照）。Factory の配線が破綻し始めた場合に再評価する。
 
 ## 4.5 実装ルール
 

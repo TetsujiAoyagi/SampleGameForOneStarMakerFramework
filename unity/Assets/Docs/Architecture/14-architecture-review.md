@@ -4,6 +4,11 @@
 > レビュー対象: OneStarMaker Framework (Phase 1 完了時点)  
 > 視点: ソフトウェアアーキテクトによるセルフレビュー
 
+> **注記 (2026-07-06): 本書は 2026-03-07 時点のスナップショットであり、歴史的記録として原文のまま保存する。**
+> その後の実装で解消済みの指摘: F13 リソースシステム（AssetManagement + AssetResidentCache 実装済み、[13](13-resource-system.md)/[19](19-asset-resident-cache-tickets.md)）、
+> Addressables 生呼び（`IAssetManagement` 経由に移行）、テストカバレッジ（UpdateSystem / AssetManagement / Build のテスト追加）。
+> また推奨アクション 2「VContainer LifetimeScope 統合」は取り止め、**手動 DI を正式採用**した（[03-di.md](03-di.md) 参照）。
+
 ---
 
 ## 目次

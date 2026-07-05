@@ -385,12 +385,12 @@ finally
 
 | ファイル | 種別 | 内容 |
 |---|---|---|
-| `Runtime/Scene/SceneLifecycleManager.cs` | 変更 | Stopwatch フェーズ計測 |
-| `Runtime/Scene/SceneEvent.cs` | 変更 | ElapsedMs / TimestampUtcTicks 追加 + ZString 化 |
-| `Runtime/Scene/SceneDirector.Transitions.cs` | 変更 | SwitchScene span + telemetryTags |
-| `Runtime/Scene/SceneDirector.Loading.cs` | 変更 | AddScene span + telemetryTags |
-| `Runtime/Scene/SceneDirector.Unloading.cs` | 変更 | UnloadScene span + telemetryTags |
-| `Runtime/AbstractApplicationInitializer.cs` | 変更 | 起動フェーズ span + Sink 登録 + runtime telemetry helper |
+| `Runtime/SceneSystem/SceneLifecycleManager.cs` | 変更 | Stopwatch フェーズ計測 |
+| `Runtime/SceneSystem/SceneEvent.cs` | 変更 | ElapsedMs / TimestampUtcTicks 追加 + ZString 化 |
+| `Runtime/SceneSystem/SceneDirector.Transitions.cs` | 変更 | SwitchScene span + telemetryTags |
+| `Runtime/SceneSystem/SceneDirector.Loading.cs` | 変更 | AddScene span + telemetryTags |
+| `Runtime/SceneSystem/SceneDirector.Unloading.cs` | 変更 | UnloadScene span + telemetryTags |
+| `Runtime/Bootstrap/AbstractApplicationInitializer.cs` | 変更 | 起動フェーズ span + Sink 登録 + runtime telemetry helper |
 | `Runtime/OneStarMaker.Runtime.asmdef` | 変更 | DiagnosticSource, ZString DLL 参照追加 |
 
 ### Debug (変更 2)

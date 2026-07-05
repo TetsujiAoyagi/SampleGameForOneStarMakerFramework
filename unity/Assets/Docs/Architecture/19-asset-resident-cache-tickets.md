@@ -16,7 +16,7 @@
 | キャッシュ対象 | `LoadAssetAsync` / `LoadAppAssetSync` のアセットのみ。シーンと `InstantiateAsync` のインスタンスは対象外 |
 | バジェット未定義の AssetType | キャッシュせず即解放（現行挙動と同じ。明示オプトイン） |
 | 公開 API | `IAssetManagement` は変更しない。既存呼び出し元（`AbstractApplicationInitializer` 等）は無変更で従来挙動 |
-| テレメトリ | 配線は次パス。ただし統計カウンタ（`GetSnapshot`）は本パスに含める。R3 はプロジェクトに存在しないため `Observable<CacheEvent>` 前提は破棄 |
+| テレメトリ | 配線は次パス。ただし統計カウンタ（`GetSnapshot`）は本パスに含める。`Observable<CacheEvent>`(R3) 前提は破棄 — R3 自体はプロジェクトに導入済みだが、AssetManagement にリアクティブ依存を持ち込まず `GetSnapshot()` ポーリングで足りるため |
 | スコープ外 | AppConfig によるバジェット上書き / 品質降格 (IQualityPolicy, ILodProvider, IMipStreamingProvider) / フレーム分散エビクション |
 
 ## 0.1 共通ルール（全チケット適用）
@@ -220,7 +220,7 @@ internal interface IAssetResidentCache
 2. doc 13 を更新:
    - ステータス行: 常駐キャッシュ実装済みに更新。
    - §4 レイヤー構成 / §5 Interface: `IResourceCache` レイヤー案を廃し、実装した `IAssetResidentCache` / `IBudgetProvider` / `CacheStatsSnapshot` の実シグネチャに差し替え。
-   - §11 テレメトリ: `Observable<CacheEvent>`(R3) 前提を削除し、「`GetSnapshot()` をテレメトリ層がポーリングする」方式に書き換え（配線は次パス）。
+   - §11 テレメトリ: `Observable<CacheEvent>`(R3) 前提を削除し、「`GetSnapshot()` をテレメトリ層がポーリングする」方式に書き換え（配線は次パス）。R3 は導入済みだが AssetManagement へのリアクティブ依存追加を避ける判断。
    - §14 トレードオフ記録に追記: 常駐キャッシュ方式 vs 独立レイヤー / バジェット計上 = キャッシュ内のみ / LFU+減衰は LRU に漸近するが共通アセット保護のため維持。
    - 新節「受け入れた前提と制約」を追加（下記をそのまま記載）:
      - 総メモリ上限は保証しない。使用中アセットの上限はスコープ設計の責務。バジェットは「投機的に持つ追加メモリ」の上限。

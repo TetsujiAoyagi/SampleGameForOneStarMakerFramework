@@ -13,7 +13,7 @@
 | Render Pipeline | **URP 17.5.0** |
 | Scripting Backend | **IL2CPP** (Android) |
 | .NET | **.NET Standard 2.1** |
-| DI | **VContainer 1.0.2** |
+| DI | **手動 DI**（コンストラクタ注入 + Factory 配線。コンテナ不採用 — [03-di.md](Docs/Architecture/03-di.md)） |
 | Async | **UniTask 2.5.10** |
 | Reactive | **R3 1.3.0** + ObservableCollections |
 | Tween | **LitMotion** |
@@ -29,37 +29,37 @@
 
 ```
 Assets/
-├── OneStarMaker/                ← 汎用ゲームフレームワーク (3 Assembly)
+├── OneStarMaker/Scripts/        ← 汎用ゲームフレームワーク
 │   ├── Foundation/              ← OneStarMaker.Foundation.asmdef (leaf)
 │   │   ├── Config/              … AppConfig + 3 ConfigProvider
-│   │   └── Logging/             … IAppLogger<T>, AppLogger, AppLoggerFactory, NullAppLogger
+│   │   ├── Logging/             … IAppLogger<T>, AppLogger, AppLoggerFactory, NullAppLogger
+│   │   ├── Telemetry/           … AppTelemetry, ITelemetrySink, JsonFileTelemetrySink
+│   │   ├── DebugSocket/         … DebugStudio 連携プロトコル DTO (MessagePack)
+│   │   └── UpdateSystem/        … UpdateCoordinator, UpdateLayer（正本: docs/updater/UPDATER_CURRENT_SPEC.md）
 │   ├── Runtime/                 ← OneStarMaker.Runtime.asmdef (→ Foundation)
-│   │   ├── AbstractApplicationInitializer.cs  … 3フェーズ起動基盤
-│   │   ├── Scene/               … SceneDirector (partial×4), SceneBase, SceneLifecycleManager 他
-│   │   ├── UI/                  … UICommon (SiblingIndex 管理), UIView (6レイヤー)
-│   │   └── AssetDescriptions/   … SceneAssetDescription, ScenePayload, LoadType
+│   │   ├── Bootstrap/           … AbstractApplicationInitializer（3フェーズ起動基盤）
+│   │   ├── SceneSystem/         … SceneDirector (partial×4), SceneBase, SceneLifecycleManager 他
+│   │   ├── UISystem/            … UICommon (SiblingIndex 管理), UIView (6レイヤー)
+│   │   ├── AssetManagement/     … IAssetManagement, AddressableBackend, AssetResidentCache
+│   │   ├── AssetDescriptions/   … SceneAssetDescription, ScenePayload, LoadType
+│   │   ├── DebugSocketServices/ … DebugSocketService（ヒエラルキー/インスペクタ/コマンド）
+│   │   └── UpdateSystem/        … UpdateSystemHost, UpdaterDriver（ホスティング層）
 │   ├── Debug/                   ← OneStarMaker.Debug.asmdef (→ Foundation + Runtime + TMP)
 │   │   └── Profiler/            … DebugProfilerView, FrameTimeSampler, FrameTimeGraphRenderer
-│   ├── Editor/                  ← OneStarMaker.Editor.asmdef (→ Runtime)
-│   │   └── SceneGraph/          … Scene Graph Editor (ノードベース可視化・SceneResource 生成)
-│   └── Tests/                   ← OneStarMaker.Tests.asmdef (→ Foundation + Runtime)
-│       └── Scene/               … SceneDirector テスト
+│   └── Editor/                  ← OneStarMaker.Editor.asmdef (→ Runtime)
+│       ├── SceneGraph/          … Scene Graph Editor (ノードベース可視化・SceneResource 生成)
+│       └── Build/               … Variant ビルド / AssetDescription 収集 / Addressables 同期
+├── OneStarMaker/Tests/          ← Tests / Tests.Editor asmdef
+│   └── Scene, AssetManagement, UpdateSystem, Build のテスト
 │
 ├── SampleGame/                  ← ゲーム固有実装
 │   ├── DependOnAll/             … AppInitializer, GameSceneFactory, NullLoadingDisplay
 │   ├── Common/                  … ゲーム共通サービス・シーン定義（未実装）
 │   ├── OutGame/
-│   │   └── Scenes/TitleScene.cs … タイトル画面
+│   │   └── Title/TitleScene.cs  … タイトル画面
 │   └── InGame/                  … インゲーム（未実装）
 │
-└── Docs/Architecture/           ← 設計ドキュメント群
-    ├── 03-di.md                 … DI・依存管理
-    ├── 04-app-startup.md        … アプリケーション起動
-    ├── 05-scene.md              … シーン管理
-    ├── 06-ui.md                 … UI 管理（6レイヤー、SiblingIndex、Blocker）
-    ├── 07-09-services.md        … サウンド / 入力 / HostedService
-    ├── 10-coding-rules.md       … コーディング規約
-    └── 11-scene-graph-editor.md … Scene Graph Editor 仕様
+└── Docs/Architecture/           ← 設計ドキュメント群（§3〜§20 + 移行記録。索引は ARCHITECTURE.md）
 ```
 
 ---
@@ -69,20 +69,20 @@ Assets/
 ```
 OneStarMaker.Foundation  (leaf — フレームワーク内依存なし)
        ▲
-OneStarMaker.Runtime ──► Foundation + UniTask + Addressables + LitMotion + VContainer
+OneStarMaker.Runtime ──► Foundation + UniTask + Addressables + LitMotion + InputSystem + R3
        ▲
 OneStarMaker.Debug ──► Foundation + Runtime + TMP
 
-SampleGame.DependOnAll ──→ Common, InGame, OutGame, Foundation, Runtime, Debug, VContainer
+SampleGame.DependOnAll ──→ Common, InGame, OutGame, Foundation, Runtime, Debug
 SampleGame.InGame      ──→ Common, Foundation, Runtime
 SampleGame.OutGame     ──→ Common, Foundation, Runtime
 SampleGame.Common      ──→ Foundation, Runtime
 ```
 
 - **依存は上→下の一方向のみ**
-- Foundation はフレームワーク内最下層（Config + Logging）
+- Foundation はフレームワーク内最下層（Config / Logging / Telemetry / UpdateSystem コア）
 - Debug は TMP 等の重い依存を隔離。Game 層からは DependOnAll のみ参照
-- Game 層は VContainer を知らない（例外: DependOnAll のみ）
+- **DI コンテナは不採用（手動 DI 正式採用、2026-07-06 決定）**。依存配線は DependOnAll に集約
 - Game 層のクラスはコンストラクタ注入で依存を受け取る
 
 ---
@@ -116,6 +116,18 @@ Microsoft.Extensions.Configuration 互換のキー形式（`:` 区切り）。
 ### Scene Graph Editor（Editor ツール）
 ノードベースの可視化エディタでシーンツリーを定義 → `SceneResource` / `SceneResourceMap` を自動生成。
 
+### Telemetry（テレメトリ）
+OTel 互換の TraceId/SpanId を持つ軽量スパン計測。JSONL ファイル出力 + DebugSocket 経由で外部ツール DebugStudio（`tools/DebugStudio`）へストリーム。詳細は [12-telemetry.md](Docs/Architecture/12-telemetry.md)。
+
+### AssetManagement（アセット管理）
+Addressables を `IAssetManagement` / `IAssetBackend` で隠蔽。LFU + 時間減衰の常駐キャッシュ `AssetResidentCache`（AssetType 別バジェット）を内蔵。詳細は [13-resource-system.md](Docs/Architecture/13-resource-system.md)。
+
+### Variant ビルド / チェックアウトワークフロー（Editor ツール）
+Variant タグによる whitelist ビルド、部分チェックアウト + ローカル/リモート Addressables ハイブリッド解決。詳細は [20-variant-checkout-workflow.md](Docs/Architecture/20-variant-checkout-workflow.md)。
+
+### UpdateSystem（フレームスケジューラ）
+MonoBehaviour.Update によらない更新基盤（Layer / Coordinator / Job System バックエンド）。正本仕様は `docs/updater/UPDATER_CURRENT_SPEC.md`（リポジトリルート）。
+
 ---
 
 ## 開発フェーズ
@@ -129,31 +141,25 @@ Microsoft.Extensions.Configuration 互換のキー形式（`:` 区切り）。
 
 **Phase 3 実装済み:** `AppInitializer`, `GameSceneFactory`, `NullLoadingDisplay`, `TitleScene`
 
+**フェーズ表の枠外で完了した追加実装:** テレメトリ v2 + DebugSocket / DebugStudio 連携、AssetManagement + AssetResidentCache、UpdateSystem、Variant ビルド / チェックアウトワークフロー（詳細は [ARCHITECTURE.md](ARCHITECTURE.md) の開発フェーズ欄を参照）
+
 ---
 
-## 実装ファイル一覧（2026-03-07 時点）
+## 実装規模（2026-07-06 時点）
 
-**OneStarMaker Framework: 36 ファイル / 約 3,700 行** (3 Assembly)
+**OneStarMaker Framework: 約 192 ファイル / 約 21,000 行**（テスト含む）
 
-| Assembly | カテゴリ | ファイル数 | 主要クラス |
+| Assembly | ファイル数 | 行数(概算) | 主な内容 |
 |---|---|---|---|
-| Foundation | Config | 5 | `AppConfig`, `IConfigProvider`, `JsonConfigFlattener`, `EnvironmentVariableConfigProvider`, `CommandLineConfigProvider` |
-| Foundation | Logging | 4 | `IAppLogger<T>`, `AppLogger<T>`, `AppLoggerFactory`, `NullAppLogger<T>` |
-| Runtime | Root | 2 | `AbstractApplicationInitializer`, `AssemblyInfo` |
-| Runtime | Config | 1 | `JsonFileConfigProvider` |
-| Runtime | Scene | 17 | `SceneDirector` (×4 partial), `SceneBase`, `SceneLifecycleManager`, `SceneState`, `SceneContext`, `SceneEvent`, `SceneLoadProgress`, `SceneTransitionPlan`, `SceneResourceMap`, `SceneResource`, `ISceneQuery`, `ISceneFactory`, `ILoadingDisplay`, `LoadingDisplayType` |
-| Runtime | UI | 2 | `UICommon`, `UIView` |
-| Runtime | AssetDescriptions | 3 | `SceneAssetDescription`, `ScenePayload`, `LoadType` |
-| Debug | Profiler | 3 | `DebugProfilerView`, `FrameTimeSampler`, `FrameTimeGraphRenderer` |
+| Foundation | 76 | 5,600 | Config, Logging, Telemetry, DebugSocket DTO, UpdateSystem コア |
+| Runtime | 59 | 6,900 | SceneSystem, UISystem, AssetManagement, AssetDescriptions, Bootstrap, DebugSocketServices |
+| Debug | 3 | 600 | Profiler オーバーレイ |
+| Editor | 30 | 5,000 | Scene Graph Editor, Variant ビルド, AssetDescription 収集 |
+| Tests | 24 | 3,200 | Scene, AssetManagement, UpdateSystem, Build |
 
-**OneStarMaker.Editor: 10 ファイル**（Scene Graph Editor）
+**SampleGame: 4 ファイル / 約 120 行**（`AppInitializer`, `GameSceneFactory`, `NullLoadingDisplay`, `TitleScene`）
 
-**SampleGame: 4 ファイル / 約 123 行**
-
-| Assembly | ファイル | クラス |
-|---|---|---|
-| DependOnAll | 3 | `AppInitializer`, `GameSceneFactory`, `NullLoadingDisplay` |
-| OutGame | 1 | `TitleScene` |
+このほか外部ツール **DebugStudio**（`tools/DebugStudio`、.NET 8 WPF + CLI、独自テスト・CI あり）が付属する。
 
 ---
 
@@ -168,4 +174,4 @@ Microsoft.Extensions.Configuration 互換のキー形式（`:` 区切り）。
 
 1. Unity 6.5 (6000.5.0f1) で **`unity/`** フォルダを開く
 2. NuGetForUnity が自動で NuGet パッケージを復元する
-3. Addressable のビルドは未構成（Phase 3 で対応予定）
+3. Addressables は Variant ビルドシステムで構成済み（whitelist ビルド / ハイブリッド Play Mode。手順は [20-variant-checkout-workflow.md](Docs/Architecture/20-variant-checkout-workflow.md)）

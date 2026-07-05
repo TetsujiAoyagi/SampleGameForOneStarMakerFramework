@@ -48,7 +48,7 @@ NewStgCommonInput : InputManager (Game.Common)
 
 ### 9.1 設計
 
-ASP.NET Core の `IHostedService` パターンを VContainer 上に薄くラップしたもの。
+ASP.NET Core の `IHostedService` パターンの薄い移植（DI コンテナには依存しない。手動 DI 正式採用については [03-di.md](03-di.md) 参照）。
 
 ```
 IHostBuilder
@@ -61,11 +61,11 @@ IHostedLifecycleService  … Starting/Started/Stopping/Stopped フック付き
 BackgroundService        … 長時間実行タスクの基底クラス（UniTask ベース）
 ```
 
-### 9.2 VContainer との統合
+### 9.2 起動処理との統合
 
-- `HostedServiceExecutor` を VContainer の `IAsyncStartable` として登録する。
-- VContainer の Scope 破棄時に `StopServicesAsync` を呼ぶ。
-- `IHostedService` / `IHostedLifecycleService` のインターフェースはそのまま定義（VContainer に依存しない）。
+- `HostedServiceExecutor` は `AbstractApplicationInitializer` の起動フェーズ内で `StartServicesAsync` を呼ぶ。
+- アプリ終了時（`Application.quitting`）に `StopServicesAsync` を呼ぶ。
+- `IHostedService` / `IHostedLifecycleService` のインターフェースは特定の DI コンテナ・フレームワークに依存しない。
 
 ### 9.3 ルール
 
