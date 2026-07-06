@@ -142,7 +142,7 @@ public sealed class ShellCompositionTests
     {
         // Assert
         Assert.Equal("session", ShellLayoutDefinitions.Session.Id);
-        Assert.Equal("logcat", ShellLayoutDefinitions.LogViewer.Id);
+        Assert.Equal("logviewer", ShellLayoutDefinitions.LogViewer.Id);
         Assert.Equal("hierarchy", ShellLayoutDefinitions.Hierarchy.Id);
         Assert.Equal("inspector", ShellLayoutDefinitions.Inspector.Id);
         Assert.Equal("telemetry", ShellLayoutDefinitions.Telemetry.Id);
@@ -353,7 +353,7 @@ public sealed class ShellCompositionTests
                 CreateDescriptor("telemetry", ToolWindowPlacement.Bottom),
                 CreateDescriptor("commands", ToolWindowPlacement.Bottom)));
 
-        Assert.Contains("logcatWindow", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("logViewerWindow", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

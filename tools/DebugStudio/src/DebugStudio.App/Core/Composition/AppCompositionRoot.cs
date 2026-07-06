@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using DebugStudio.App.Core.Infrastructure;
 using DebugStudio.App.Core.Services;
@@ -30,13 +31,14 @@ public sealed class AppCompositionRoot
         var shellLayoutPersistenceService = new ShellLayoutPersistenceService(
             ShellLayoutPersistenceService.CreateDefaultLayoutFilePath());
         var shellLayoutSerializerService = new ShellLayoutSerializerService();
+        var logPersistenceService = TryCreateLogPersistenceService(composition.MessageRouter);
         IAsyncDisposable appLifetime = viewModel;
 
         var cliControlService = new DebugStudioCliControlService(composition.SessionService, composition.CommandService);
         try
         {
             cliControlService.StartAsync().GetAwaiter().GetResult();
-            appLifetime = new OrderedAsyncDisposable(cliControlService, viewModel);
+            appLifetime = CreateAppLifetime(cliControlService, logPersistenceService, viewModel);
         }
         catch (Exception ex)
         {
@@ -44,6 +46,7 @@ public sealed class AppCompositionRoot
             // そのためここでは control plane だけ無効化し、本体 UI は従来どおり起動を継続する。
             Debug.WriteLine($"CLI control plane failed to start: {ex}");
             cliControlService.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            appLifetime = CreateAppLifetime(null, logPersistenceService, viewModel);
         }
 
         return new MainWindow(
@@ -176,11 +179,53 @@ public sealed class AppCompositionRoot
                 hierarchyViewModel,
                 inspectorViewModel),
             sessionService,
-            commandService);
+            commandService,
+            messageRouter);
+    }
+
+    private static LogPersistenceService? TryCreateLogPersistenceService(SessionMessageRouter messageRouter)
+    {
+        try
+        {
+            var pathPolicy = new LogPersistencePathPolicy();
+            Directory.CreateDirectory(pathPolicy.Directory);
+            var writer = new RollingLogFileWriter(pathPolicy.Directory);
+            return new LogPersistenceService(messageRouter, writer);
+        }
+        catch (Exception ex)
+        {
+            // persistence 初期化失敗で shell 起動自体を止めない。
+            Debug.WriteLine($"Log persistence failed to initialize: {ex}");
+            return null;
+        }
+    }
+
+    private static IAsyncDisposable CreateAppLifetime(
+        DebugStudioCliControlService? cliControlService,
+        LogPersistenceService? logPersistenceService,
+        MainWindowViewModel viewModel)
+    {
+        if (cliControlService != null && logPersistenceService != null)
+        {
+            return new OrderedAsyncDisposable(cliControlService, logPersistenceService, viewModel);
+        }
+
+        if (cliControlService != null)
+        {
+            return new OrderedAsyncDisposable(cliControlService, viewModel);
+        }
+
+        if (logPersistenceService != null)
+        {
+            return new OrderedAsyncDisposable(logPersistenceService, viewModel);
+        }
+
+        return viewModel;
     }
 
     private sealed record AppShellComposition(
         MainWindowViewModel ViewModel,
         SessionService SessionService,
-        CommandService CommandService);
+        CommandService CommandService,
+        SessionMessageRouter MessageRouter);
 }

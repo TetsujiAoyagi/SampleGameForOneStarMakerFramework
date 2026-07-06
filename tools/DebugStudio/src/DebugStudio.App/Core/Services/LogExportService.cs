@@ -47,7 +47,7 @@ public sealed class LogExportService
 
     public Task ExportAsync(string outputPath, LogQueryOptions? options = null, CancellationToken cancellationToken = default)
     {
-        var logs = _queryService.Query(_logStore, options).Select(ToExportRecord).ToArray();
+        var logs = _queryService.Query(_logStore, options).Select(LogRecordExportMapper.ToExportRecord).ToArray();
         return ResolveWriter(LogExportFormat.Ndjson).WriteAsync(logs, outputPath, cancellationToken);
     }
 
@@ -67,7 +67,7 @@ public sealed class LogExportService
     public Task ExportAsync(string outputPath, LogFilterCriteria criteria, LogExportFormat format, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(criteria);
-        var logs = _logStore.QueryLogs(criteria).Matches.Select(ToExportRecord).ToArray();
+        var logs = _logStore.QueryLogs(criteria).Matches.Select(LogRecordExportMapper.ToExportRecord).ToArray();
         return ResolveWriter(format).WriteAsync(logs, outputPath, cancellationToken);
     }
 
@@ -79,43 +79,5 @@ public sealed class LogExportService
         }
 
         throw new InvalidOperationException($"Export writer for format '{format}' is not registered.");
-    }
-
-    private static LogExportRecord ToExportRecord(LogRecord log)
-    {
-        ArgumentNullException.ThrowIfNull(log);
-
-        return new LogExportRecord
-        {
-            TimestampUtc = DateTimeOffset.FromUnixTimeMilliseconds(log.TimestampUnixTimeMilliseconds).UtcDateTime.ToString("O"),
-            SequenceNumber = log.SequenceNumber,
-            ApplicationName = log.ApplicationName,
-            TimestampUnixTimeMilliseconds = log.TimestampUnixTimeMilliseconds,
-            TimestampLocal = log.TimestampText,
-            Kind = log.Kind.ToString(),
-            RawLogLevel = log.RawLogLevel,
-            Category = log.Category,
-            EventId = log.EventId,
-            EventName = log.EventName,
-            Message = log.Message,
-            Exception = log.Exception,
-            ThreadId = log.ThreadId,
-            ThreadName = log.ThreadName,
-            MemberName = log.MemberName,
-            FilePath = log.FilePath,
-            LineNumber = log.LineNumber,
-            ServiceName = log.ApplicationName,
-            LogLevel = log.Kind switch
-            {
-                DebugStudio.Contracts.Schema.LogEntryKind.Trace => "trace",
-                DebugStudio.Contracts.Schema.LogEntryKind.Debug => "debug",
-                DebugStudio.Contracts.Schema.LogEntryKind.Information => "info",
-                DebugStudio.Contracts.Schema.LogEntryKind.Warning => "warning",
-                DebugStudio.Contracts.Schema.LogEntryKind.Error => "error",
-                DebugStudio.Contracts.Schema.LogEntryKind.Critical => "critical",
-                DebugStudio.Contracts.Schema.LogEntryKind.None => "none",
-                _ => "unknown",
-            }
-        };
     }
 }

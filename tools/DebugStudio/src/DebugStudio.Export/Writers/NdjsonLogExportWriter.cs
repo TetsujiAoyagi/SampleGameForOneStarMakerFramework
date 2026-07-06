@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using DebugStudio.Export.Models;
@@ -15,12 +14,6 @@ namespace DebugStudio.Export.Writers;
 /// </summary>
 public sealed class NdjsonLogExportWriter : ILogExportWriter
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = false,
-    };
-
     public LogExportFormat Format => LogExportFormat.Ndjson;
 
     public async Task WriteAsync(IReadOnlyList<LogExportRecord> logs, string outputPath, CancellationToken cancellationToken = default)
@@ -51,7 +44,7 @@ public sealed class NdjsonLogExportWriter : ILogExportWriter
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var json = JsonSerializer.Serialize(log, SerializerOptions);
+            var json = NdjsonLogRecordSerializer.Serialize(log);
             await writer.WriteLineAsync(json.AsMemory(), cancellationToken).ConfigureAwait(false);
         }
 
