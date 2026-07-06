@@ -100,6 +100,44 @@ namespace OneStarMaker.Tests.SceneSystem
             return Director;
         }
 
+        /// <summary>
+        /// ストリーミング統合テスト用: World 親 + gridWidth×gridHeight 個の OnDemand セル
+        /// （<c>Cell_{x}_{y}</c>）を構築する。
+        /// </summary>
+        protected TestableSceneDirector SetupWorldWithCellGrid(
+            int gridWidth,
+            int gridHeight,
+            string worldId = "World")
+        {
+            var worldRes = SceneTestHelper.CreateSceneResource(worldId);
+            CreatedSOs.Add(worldRes);
+
+            var cellResources = new SceneResource[gridWidth * gridHeight];
+            var index = 0;
+
+            for (var x = 0; x < gridWidth; x++)
+            {
+                for (var y = 0; y < gridHeight; y++)
+                {
+                    var cellId = CellIdentity.Format(x, y);
+                    var cellRes = SceneTestHelper.CreateSceneResource(cellId, LoadType.OnDemand, worldRes);
+                    SceneTestHelper.AddChild(worldRes, cellRes);
+                    cellResources[index++] = cellRes;
+                    CreatedSOs.Add(cellRes);
+                }
+            }
+
+            var allResources = new SceneResource[1 + cellResources.Length];
+            allResources[0] = worldRes;
+            cellResources.CopyTo(allResources, 1);
+
+            Map = SceneTestHelper.CreateSceneResourceMap(allResources);
+            CreatedSOs.Add(Map);
+
+            Director = new TestableSceneDirector(Factory, UICommon, Map, AssetManagement);
+            return Director;
+        }
+
         /// <summary>親 → 子 → 孫 の3階層を構築する。</summary>
         protected TestableSceneDirector SetupThreeLevel(
             string rootId = "Root",

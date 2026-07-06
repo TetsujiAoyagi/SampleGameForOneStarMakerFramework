@@ -234,6 +234,7 @@ Tick(focusPosition):                       // UpdateSystem 駆動。毎フレー
 | T-04 | ✅ CellScene 基底（セル座標・バウンズのメタデータ運搬のみ。判断ロジック禁止）+ セル identity バリデータ | R-1/R-2 が構造的に守られる |
 | T-05 | ✅ World Cell Generator（エディタツール、§6） | グリッド定義から N×N のシーン + SceneResource + Map 登録が生成される |
 | T-06 | ✅ `ISceneStreamingBackend` + `WorldStreamingController`（§8） | FakeBackend による純 C# テストで差分発火・ヒステリシス・in-flight 上限を検証 |
+| T-06.5 | ✅ Controller × 本物 SceneDirector 統合テスト（`SceneDirectorStreamingBackend`） | 施行表 T-06.5 の 5 テストが全グリーン（A-3 / A-5 の EditMode 版） |
 | T-07 | 実証スライス（10×10 グリッド + フライスルーカメラ + 簡易コンテンツ） | Editor Play で横断できる |
 | T-08 | テレメトリ計測 + DebugStudio でのセル状態観測 | §9 の計測値が取得できる |
 | T-09 | 受け入れ判定（§9）と撤退判断（§11） | 判定記録を本書に追記 |
@@ -328,6 +329,20 @@ R-3 を「将来」から本チケットへ繰り上げ、`SwitchSceneCore` 冒�
 - maxInFlight の空き枠は発行ごとに再評価（即時完了バックエンドでは 1 Tick で maxInFlight 超の件数を順次発行可。未完了同時数は常に上限以下）
 - Add 保留中に retain 外へ出たセルには Tick ごとに RequestRemove が再発行され得る（バックエンド側 Remove の冪等性で吸収する前提。レビュー Nit として許容）
 - UpdateSystem への接続アダプタ・Tick 間引き（5Hz / 1/4 セル移動）はアダプタ側の責務で T-07 にて実装
+
+**T-06.5 完了記録 (2026-07-06):**
+`Runtime/Streaming/SceneDirectorStreamingBackend.cs`（`ISceneStreamingBackend` の本実装）を新設。`RequestAdd` → `AddScene(cellId, null, CancellationToken.None, loadingDisplay: None, priority, telemetryLevel: Verbose)`、`RequestRemove` → `UnloadScene(cellId, telemetryLevel: Verbose)` へ委譲（R-4 / H-3）。`IsLoaded` は `GetLoadedScene` + `Lifecycle.State == Stable` で **Stable のみ true**（`ISceneQuery.IsSceneLoaded` は Loading 中も true になるため不使用。G-6 再照合の観測点として Loading/アンロード中/未登録を false に統一）。
+テスト: `Tests/Streaming/StreamingIntegrationTests.cs` に 6 本（施行表の 5 本: グリッド横断で最終常駐集合 == desired の完全一致、高速通過のキャンセル窓内/PoNR 後 2 経路 + 例外ログ 0、先発キャンセル後の合流 Add が再照合で最終ロード（G-6 実機検証）、World アンロードの全セル再帰破棄 + Controller 再生成での desired 復元、保留アンロードの Stable 到達後自動実行。追加 1 本: backend 委譲パラメータの直接検証 = 距離順 priority 0/1 と SceneLoad/SceneUnload スパンの Verbose）。`SceneDirectorTestBase` に `SetupWorldWithCellGrid(gridWidth, gridHeight)` ヘルパーを追加。TDD サイクル: スケルトン（NotImplementedException）+ レッド 5 本を Unity バッチで確認後に実装。
+検証結果:
+
+- `OneStarMaker.Tests`: 217 / 217 passed（既存 211 + T-06.5 6 本、回帰ゼロ）
+
+設計上の割り切り・要点:
+
+- SceneDirector / WorldStreamingController 本体は無変更で統合が成立（H-1〜H-4 の堅牢化と G-6 再照合設計の実証）。統合欠陥は検出されなかった
+- テストの決定性: Tick 回数依存を排除し、PoNR 到達（`SceneState.Loading`）とアンロード完了（`ContainsScene == false`）を上限つき yield ループで明示待機。収束判定は desired ⊆ resident ⊆ retain の観測で行い、横断テストのみ unloadRadius < セル中心間距離に設定して常駐集合 == desired の完全一致を検証
+- キャンセルされ得る PreLoad ゲートは `UniTask.WhenAny(gate, WaitUntilCanceled(ct))` + `ThrowIfCancellationRequested` でキャンセル観測型とし、ハング・未観測例外を排除（施行表 §5）
+- `LoadingDisplayType.None` の伝搬は TestableSceneDirector が NullLoadingDisplay 固定のため直接検証していない（実装は R-4 どおり None を明示指定）
 
 **ベースラインテスト復活記録 (2026-07-06):**
 初回コミット以来コメントアウトされていた SceneDirector テスト群（AddScene / UnloadScene / Guard / Cancellation / Misc、計 19 本）を現行 API（`AssetManagement` 引数、`progress:` 名前付き引数、同期 `IProgress` 実装）へ合わせて復活。実行結果は SceneSystem 全体で **53 本中 46 グリーン / 7 レッド**。レッドの内訳:
