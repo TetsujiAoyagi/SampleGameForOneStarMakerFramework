@@ -3,7 +3,6 @@
 using System;
 using System.Buffers;
 using OneStarMaker.Foundation.DebugSocket;
-using OneStarMaker.Foundation.Core;
 using OneStarMaker.Foundation.Telemetry;
 using ZLogger;
 
@@ -25,10 +24,16 @@ namespace OneStarMaker.Foundation.Logging
     /// </code>
     ///
     /// <para>
-    /// つまり realtime log も DebugSocket の共通 envelope に包み、
-    /// command / telemetry / service status と同じ protocol の上に載せる。
+    /// つまり realtime log を DebugSocket の共通 envelope に包み、
+    /// command / service status と同じ protocol の上に載せる。
     /// receiver 側は envelope の message type を見てから
     /// <see cref="LogEnvelopeV1"/> を復号する。
+    /// </para>
+    ///
+    /// <para>
+    /// telemetry は <c>DebugSocketTelemetrySink</c> 専用経路でのみ DebugStudio へ送る。
+    /// 同じ ZLogger entry が rolling file と realtime stream の両方を通るため、
+    /// ここでは telemetry EventId の entry を意図的に捨て、二重送信を防ぐ。
     /// </para>
     /// </summary>
     internal sealed class MessagePackZLoggerFormatter : IZLoggerFormatter
@@ -54,21 +59,20 @@ namespace OneStarMaker.Foundation.Logging
 
             var logInfo = nonReturnableEntry.LogInfo;
 
-            // telemetry は通常ログとは別の source-of-truth payload として扱う。
-            // 同じ ZLogger entry でも EventId で判別し、message type を切り替える。
-            if (TryCreateTelemetryEnvelope(logInfo, out var telemetryEnvelope))
+            // telemetry は DebugSocketTelemetrySink 専用。realtime stream では捨てる。
+            if (logInfo.EventId.Id == TelemetryZLoggerConstants.EventId.Id &&
+                string.Equals(logInfo.EventId.Name, TelemetryZLoggerConstants.EventId.Name, StringComparison.Ordinal))
             {
-                DebugSocketProtocol.SerializeMessage(writer, DebugSocketMessageType.Telemetry, telemetryEnvelope);
                 return;
             }
 
             DebugSocketProtocol.SerializeMessage(
                 writer,
                 DebugSocketMessageType.Log,
-                CreateEnvelope(logInfo));
+                CreateEnvelope(logInfo, entry));
         }
 
-        private LogEnvelopeV1 CreateEnvelope(in LogInfo logInfo)
+        private LogEnvelopeV1 CreateEnvelope(in LogInfo logInfo, IZLoggerEntry entry)
         {
             // ここでは sender の内部型を receiver が知らなくてもよいように、
             // 必要な値だけを素直な DTO にコピーしている。
@@ -80,7 +84,7 @@ namespace OneStarMaker.Foundation.Logging
                 LogLevel = (int)logInfo.LogLevel,
                 EventId = logInfo.EventId.Id,
                 EventName = logInfo.EventId.Name,
-                Message = GetMessage(logInfo.Context, logInfo.Exception),
+                Message = GetMessage(entry, logInfo.Context, logInfo.Exception),
                 Exception = logInfo.Exception?.ToString(),
                 ThreadId = logInfo.ThreadInfo.ThreadId,
                 ThreadName = logInfo.ThreadInfo.ThreadName,
@@ -90,10 +94,15 @@ namespace OneStarMaker.Foundation.Logging
             };
         }
 
-        private static string GetMessage(object? context, Exception? exception)
+        private static string GetMessage(IZLoggerEntry entry, object? context, Exception? exception)
         {
-            // ZLogger の structured log は IZLoggerFormattable を実装していることがある。
-            // その場合は formatter 済み文字列を優先して receiver に渡す。
+            // ZLogger entry 本体が formatter 済み文字列を持つケースを先に見る。
+            if (entry is IZLoggerFormattable entryFormattable)
+            {
+                return entryFormattable.ToString();
+            }
+
+            // ZLogger の structured log は IZLoggerFormattable を context 側に載せることもある。
             if (context is IZLoggerFormattable formattable)
             {
                 return formattable.ToString();
@@ -107,246 +116,6 @@ namespace OneStarMaker.Foundation.Logging
 
             // context がなく例外だけあるケースでは、最低限 Message 欄を空にしない。
             return exception?.Message ?? string.Empty;
-        }
-
-        private static bool TryCreateTelemetryEnvelope(in LogInfo logInfo, out DebugTelemetryEnvelopeV1 envelope)
-        {
-            envelope = new DebugTelemetryEnvelopeV1();
-
-            if (logInfo.EventId.Id != TelemetryZLoggerConstants.EventId.Id ||
-                !string.Equals(logInfo.EventId.Name, TelemetryZLoggerConstants.EventId.Name, StringComparison.Ordinal) ||
-                logInfo.Context is not IZLoggerFormattable formattable)
-            {
-                return false;
-            }
-
-            var result = new DebugTelemetryEnvelopeV1();
-            var hasAnyField = false;
-
-            for (var i = 0; i < formattable.ParameterCount; i++)
-            {
-                var key = formattable.GetParameterKeyAsString(i);
-                var value = formattable.GetParameterValue(i);
-
-                switch (key)
-                {
-                    case "name":
-                        if (value is TelemetryStartType startType)
-                        {
-                            result.Name = startType.ToStartTypeString();
-                            hasAnyField = true;
-                        }
-                        else if (TryConvertInt32(value, out var nameCode))
-                        {
-                            result.Name = ((TelemetryStartType)nameCode).ToStartTypeString();
-                            hasAnyField = true;
-                        }
-                        else if (value is string name)
-                        {
-                            result.Name = name;
-                            hasAnyField = true;
-                        }
-                        break;
-                    case "traceId":
-                        if (TryConvertInt64(value, out var traceId))
-                        {
-                            result.TraceId = traceId;
-                            hasAnyField = true;
-                        }
-                        break;
-                    case "spanId":
-                        if (TryConvertInt64(value, out var spanId))
-                        {
-                            result.SpanId = spanId;
-                            hasAnyField = true;
-                        }
-                        break;
-                    case "parentSpanId":
-                        if (TryConvertInt64(value, out var parentSpanId))
-                        {
-                            result.ParentSpanId = parentSpanId;
-                            hasAnyField = true;
-                        }
-                        break;
-                    case "startTimestampUtcTicks":
-                        if (TryConvertInt64(value, out var startTimestampUtcTicks))
-                        {
-                            result.StartTimestampUtcTicks = startTimestampUtcTicks;
-                            hasAnyField = true;
-                        }
-                        break;
-                    case "endTimestampUtcTicks":
-                        if (TryConvertInt64(value, out var endTimestampUtcTicks))
-                        {
-                            result.EndTimestampUtcTicks = endTimestampUtcTicks;
-                            hasAnyField = true;
-                        }
-                        break;
-                    case "elapsedMs":
-                        if (TryConvertDouble(value, out var elapsedMs))
-                        {
-                            result.ElapsedMs = elapsedMs;
-                            hasAnyField = true;
-                        }
-                        break;
-                    case "isSuccess":
-                        if (value is bool isSuccess)
-                        {
-                            result.IsSuccess = isSuccess;
-                            hasAnyField = true;
-                        }
-                        break;
-                    case "telemetryLevel":
-                        if (TryConvertInt32(value, out var telemetryLevel))
-                        {
-                            result.Level = telemetryLevel;
-                            hasAnyField = true;
-                        }
-                        break;
-                    case "tagBits":
-                        if (TryConvertInt32(value, out var tagBits) && tagBits >= 0)
-                        {
-                            result.TagBits = tagBits;
-                            hasAnyField = true;
-                        }
-                        else if (TryConvertInt32(value, out _) && tagBits < 0)
-                        {
-                            result.TagBits = null;
-                            hasAnyField = true;
-                        }
-                        break;
-                    case "cpuTime":
-                        if (TryConvertSingle(value, out var cpuTime))
-                        {
-                            result.CpuTime = cpuTime;
-                            hasAnyField = true;
-                        }
-                        break;
-                    case "gpuTime":
-                        if (TryConvertSingle(value, out var gpuTime))
-                        {
-                            result.GpuTime = gpuTime;
-                            hasAnyField = true;
-                        }
-                        break;
-                    case "managedMem":
-                        if (TryConvertInt64(value, out var managedMem))
-                        {
-                            result.ManagedMem = managedMem;
-                            hasAnyField = true;
-                        }
-                        break;
-                    case "nativeMem":
-                        if (TryConvertInt64(value, out var nativeMem))
-                        {
-                            result.NativeMem = nativeMem;
-                            hasAnyField = true;
-                        }
-                        break;
-                    case "sceneFrom":
-                        if (TryConvertInt32(value, out var sceneFrom))
-                        {
-                            result.SceneFrom = sceneFrom;
-                            hasAnyField = true;
-                        }
-                        break;
-                    case "sceneTo":
-                        if (TryConvertInt32(value, out var sceneTo))
-                        {
-                            result.SceneTo = sceneTo;
-                            hasAnyField = true;
-                        }
-                        break;
-                }
-            }
-
-            envelope = result;
-            return hasAnyField;
-        }
-
-        private static bool TryConvertInt32(object? value, out int converted)
-        {
-            switch (value)
-            {
-                case int v:
-                    converted = v;
-                    return true;
-                case long v:
-                    converted = (int)v;
-                    return true;
-                case short v:
-                    converted = v;
-                    return true;
-                case byte v:
-                    converted = v;
-                    return true;
-                case TelemetryLevel v:
-                    converted = (int)v;
-                    return true;
-                case TelemetryTagType v:
-                    converted = (int)v;
-                    return true;
-                case TelemetryStartType v:
-                    converted = (int)v;
-                    return true;
-                default:
-                    converted = default;
-                    return false;
-            }
-        }
-
-        private static bool TryConvertInt64(object? value, out long converted)
-        {
-            switch (value)
-            {
-                case long v:
-                    converted = v;
-                    return true;
-                case int v:
-                    converted = v;
-                    return true;
-                case short v:
-                    converted = v;
-                    return true;
-                case byte v:
-                    converted = v;
-                    return true;
-                default:
-                    converted = default;
-                    return false;
-            }
-        }
-
-        private static bool TryConvertDouble(object? value, out double converted)
-        {
-            switch (value)
-            {
-                case double v:
-                    converted = v;
-                    return true;
-                case float v:
-                    converted = v;
-                    return true;
-                default:
-                    converted = default;
-                    return false;
-            }
-        }
-
-        private static bool TryConvertSingle(object? value, out float converted)
-        {
-            switch (value)
-            {
-                case float v:
-                    converted = v;
-                    return true;
-                case double v:
-                    converted = (float)v;
-                    return true;
-                default:
-                    converted = default;
-                    return false;
-            }
         }
     }
 }

@@ -170,11 +170,11 @@ public interface ITelemetrySink
 
 `JsonFileTelemetrySink` は名前に反して「JSONL 直書き」ではなく、telemetry record を固定キーの structured ZLogger entry として流す。
 
-- rolling file 側は JSON formatter
-- realtime stream 側は `MessagePackZLoggerFormatter`
-- formatter 側で `DebugSocketEnvelopeV1` + `DebugTelemetryEnvelopeV1` に再構成
+- rolling file 側は JSON formatter（telemetry 行もここに残る）
+- realtime stream 側は `MessagePackZLoggerFormatter` が通常ログのみ framed message 化
+- telemetry EventId の entry は formatter が意図的に捨て、DebugStudio への telemetry は `DebugSocketTelemetrySink` 専用経路のみ
 
-この二段構成により、Unity 側 producer は `TelemetryRecord` だけを意識し、transport 事情は logging infrastructure に閉じ込める。
+この構成により、Unity 側 producer は `TelemetryRecord` だけを意識し、transport 事情は logging infrastructure に閉じ込める。
 
 ---
 
@@ -343,27 +343,35 @@ finally
 
 ### 概要
 
-- Unity 側は `AppLoggerFactory` の realtime stream に log / telemetry を流す。
-- realtime stream は `MessagePackZLoggerFormatter` により、`DebugSocketProtocol` の framed message に変換される。
-- `DebugSocketService` はその frame を WebSocket session に enqueue する。
+- Unity 側は `AppLoggerFactory` の realtime stream に通常ログのみを流す。
+- realtime stream は `MessagePackZLoggerFormatter` により、`DebugSocketProtocol` の framed Log message に変換される。
+- telemetry EventId の ZLogger entry は formatter が意図的に捨て、DebugStudio ログパネルへの二重送信を防ぐ。
+- telemetry は `DebugSocketTelemetrySink` → `DebugSocketService.EnqueueTelemetry` の専用経路のみで DebugStudio へ届く。
+- ローカル rolling file（JSON formatter）は telemetry 行を従来どおり保持する。
+- `DebugSocketService` は realtime log frame を WebSocket session に enqueue する。
 - DebugStudio 側は message type ごとに envelope を解釈し、UI 表示と NDJSON export に流す。
 
 ### クライアント構成
 
-1. **Producer**
-   - `JsonFileTelemetrySink.Write(in TelemetryRecord)` または通常の `ILogger<T>` 呼び出し
-2. **Formatter**
-   - `MessagePackZLoggerFormatter` が `LogInfo` / telemetry parameters を `DebugSocketEnvelopeV1` に変換
-3. **Transport**
+1. **Producer（ログ）**
+   - 通常の `ILogger<T>` 呼び出し → realtime stream
+2. **Producer（telemetry）**
+   - `DebugSocketTelemetrySink` → `DebugSocketService.EnqueueTelemetry`
+   - `JsonFileTelemetrySink` → rolling file のみ（realtime stream には載せない）
+3. **Formatter**
+   - `MessagePackZLoggerFormatter` が通常 `LogInfo` を `DebugSocketEnvelopeV1` + `LogEnvelopeV1` に変換
+   - telemetry EventId の entry は 0 バイト出力（フレーム未生成）
+4. **Transport**
    - `DebugSocketRealtimeStream` → `DebugSocketService.EnqueueRealtimeLogFrame(...)`
-4. **Receiver**
+   - telemetry 専用 → `DebugSocketService.EnqueueTelemetry(...)`
+5. **Receiver**
    - DebugStudio が `DebugSocketMessageType` ごとに decode し、store / export / UI に反映
 
 ### 期待効果
 
 - Unity 側 producer は transport 実装を直接持たずに済む。
-- telemetry と通常 log が同一 protocol 上に乗るため、receiver 側の multiplex が単純。
-- 今後 `MessagePackLogProcessor` ベースに切り替える余地を残しつつ、現状でも動作経路が一意。
+- telemetry と通常 log の経路が分離され、二重送信が起きない。
+- ローカル解析用 rolling file には telemetry が残り、DebugStudio 側は専用 sink 経由で正本を受け取る。
 
 ---
 

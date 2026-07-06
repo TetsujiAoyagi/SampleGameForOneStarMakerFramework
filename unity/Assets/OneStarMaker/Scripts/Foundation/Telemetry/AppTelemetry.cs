@@ -202,9 +202,12 @@ namespace OneStarMaker.Foundation.Telemetry
         {
             if (!span.HasValue) return 0.0f;
             var s = span.Value;
-            if (level < Level) return 0.0f;
 
             var elapsed = (DateTime.UtcNow.Ticks - s.StartTimestampUtcTicks) / (double)TimeSpan.TicksPerMillisecond;
+            s_spanContext.ClearIfCurrent(s.SpanId);
+
+            if (level < Level) return elapsed;
+
             var mergedTags = MergeTags(s, tags);
             if (s_alertNotifier.IsThresholdExceeded(s.Name, elapsed))
             {
@@ -225,7 +228,6 @@ namespace OneStarMaker.Foundation.Telemetry
                 level: level);
 
             s_alertNotifier.CheckThreshold(record, s.Name);
-            s_spanContext.ClearIfCurrent(s.SpanId);
             s_sinkRegistry.Write(record);
 
             return elapsed;

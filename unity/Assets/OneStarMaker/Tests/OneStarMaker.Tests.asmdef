@@ -19,7 +19,13 @@
     "overrideReferences": true,
     "precompiledReferences": [
         "nunit.framework.dll",
-        "R3.dll"
+        "R3.dll",
+        "MessagePack.dll",
+        "MessagePack.Annotations.dll",
+        "ZLogger.dll",
+        "Microsoft.Extensions.Logging.dll",
+        "Microsoft.Extensions.Logging.Abstractions.dll",
+        "ZString.dll"
     ],
     "autoReferenced": false,
     "defineConstraints": [
