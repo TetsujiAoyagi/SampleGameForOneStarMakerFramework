@@ -27,10 +27,12 @@ namespace OneStarMaker.Runtime.SceneSystem
         /// <param name="sceneIdentify">シーンの一意識別子。</param>
         /// <param name="loadingDisplay">ローディング表示モード。</param>
         /// <param name="telemetryTags">テレメトリスパンに付与する追加タグ。</param>
+        /// <param name="telemetryLevel">UnloadScene スパンのテレメトリ出力レベル。</param>
         public async UniTask UnloadScene(
             string sceneIdentify,
             LoadingDisplayType loadingDisplay = LoadingDisplayType.None,
-            IReadOnlyDictionary<string, string>? telemetryTags = null)
+            IReadOnlyDictionary<string, string>? telemetryTags = null,
+            TelemetryLevel telemetryLevel = TelemetryLevel.Summary)
         {
             if (!_currentScenes.TryGetValue(sceneIdentify, out var pair))
             {
@@ -93,7 +95,7 @@ namespace OneStarMaker.Runtime.SceneSystem
 
                 var metadata = RuntimeTelemetryMetadataFactory.CreateMemoryMetadata(memAfter);
 
-                AppTelemetry.FinishSpan(span, metadata, success, TelemetryLevel.Summary, tags);
+                AppTelemetry.FinishSpan(span, metadata, success, telemetryLevel, tags);
             }
         }
 

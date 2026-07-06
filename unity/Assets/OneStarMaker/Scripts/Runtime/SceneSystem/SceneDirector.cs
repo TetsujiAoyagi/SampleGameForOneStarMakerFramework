@@ -64,6 +64,9 @@ namespace OneStarMaker.Runtime.SceneSystem
 
         private readonly Dictionary<string, ScenePair> _currentScenes = new();
         private readonly HashSet<string> _pendingUnloads = new();
+        private readonly Dictionary<string, UniTaskCompletionSource> _inFlightAddScenes = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, UniTaskCompletionSource> _inFlightSceneBaseLoads = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, UniTaskCompletionSource> _inFlightUnitySceneLoads = new(StringComparer.Ordinal);
         private readonly ISceneFactory _sceneFactory;
         private readonly UICommon _uiCommon;
         private readonly SceneResourceMap _sceneResourceMap;

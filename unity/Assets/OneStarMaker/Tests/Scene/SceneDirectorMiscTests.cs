@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
@@ -21,115 +22,125 @@ namespace OneStarMaker.Tests.SceneSystem
         //  Progress 通知
         // ═══════════════════════════════════════════
 
-    //    [UnityTest]
-    //    public IEnumerator AddScene_Progress_ReportsAllPhases() => UniTask.ToCoroutine(async () =>
-    //    {
-    //        var director = SetupSingleScene();
-    //        var reports = new List<SceneLoadProgress>();
-    //        var progress = new Progress<SceneLoadProgress>(p => reports.Add(p));
+        [UnityTest]
+        public IEnumerator AddScene_Progress_ReportsAllPhases() => UniTask.ToCoroutine(async () =>
+        {
+            var director = SetupSingleScene();
+            var reports = new List<SceneLoadProgress>();
+            // System.Progress<T> は SynchronizationContext 経由で遅延通知されるため、
+            // 同期的に記録できるインライン IProgress 実装を使う
+            var progress = new InlineProgress<SceneLoadProgress>(p => reports.Add(p));
 
-    //        await director.AddScene("TestScene", null, CancellationToken.None, progress);
+            await director.AddScene("TestScene", null, CancellationToken.None, progress: progress);
 
-    //        Assert.IsTrue(reports.Count >= 4,
-    //            $"4フェーズ以上の進捗が報告されるべき: actual={reports.Count}");
+            Assert.IsTrue(reports.Count >= 4,
+                $"4フェーズ以上の進捗が報告されるべき: actual={reports.Count}");
 
-    //        Assert.AreEqual(SceneLoadPhase.PreLoadStarted, reports[0].Phase);
-    //        Assert.IsTrue(reports[0].IsCancelable);
+            Assert.AreEqual(SceneLoadPhase.PreLoadStarted, reports[0].Phase);
+            Assert.IsTrue(reports[0].IsCancelable);
 
-    //        Assert.AreEqual(SceneLoadPhase.PreLoadCompleted, reports[1].Phase);
-    //        Assert.IsTrue(reports[1].IsCancelable);
+            Assert.AreEqual(SceneLoadPhase.PreLoadCompleted, reports[1].Phase);
+            Assert.IsTrue(reports[1].IsCancelable);
 
-    //        Assert.AreEqual(SceneLoadPhase.UnitySceneLoading, reports[2].Phase);
-    //        Assert.IsFalse(reports[2].IsCancelable);
+            Assert.AreEqual(SceneLoadPhase.UnitySceneLoading, reports[2].Phase);
+            Assert.IsFalse(reports[2].IsCancelable);
 
-    //        Assert.AreEqual(SceneLoadPhase.Completed, reports[3].Phase);
-    //        Assert.IsFalse(reports[3].IsCancelable);
-    //    });
+            Assert.AreEqual(SceneLoadPhase.Completed, reports[3].Phase);
+            Assert.IsFalse(reports[3].IsCancelable);
+        });
 
-    //    // ═══════════════════════════════════════════
-    //    //  Dispose
-    //    // ═══════════════════════════════════════════
+        /// <summary>コールバックを同期実行する IProgress 実装。</summary>
+        private sealed class InlineProgress<T> : IProgress<T>
+        {
+            private readonly Action<T> _handler;
+            public InlineProgress(Action<T> handler) => _handler = handler;
+            public void Report(T value) => _handler(value);
+        }
 
-    //    [UnityTest]
-    //    public IEnumerator Dispose_ReleasesAllScenes() => UniTask.ToCoroutine(async () =>
-    //    {
-    //        var director = SetupSingleScene();
-    //        await director.AddScene("TestScene", null, CancellationToken.None);
+        // ═══════════════════════════════════════════
+        //  Dispose
+        // ═══════════════════════════════════════════
 
-    //        Assert.IsTrue(director.ContainsScene("TestScene"));
+        [UnityTest]
+        public IEnumerator Dispose_ReleasesAllScenes() => UniTask.ToCoroutine(async () =>
+        {
+            var director = SetupSingleScene();
+            await director.AddScene("TestScene", null, CancellationToken.None);
 
-    //        director.Dispose();
+            Assert.IsTrue(director.ContainsScene("TestScene"));
 
-    //        Assert.IsFalse(director.ContainsScene("TestScene"));
-    //    });
+            director.Dispose();
 
-    //    // ═══════════════════════════════════════════
-    //    //  複合シナリオ
-    //    // ═══════════════════════════════════════════
+            Assert.IsFalse(director.ContainsScene("TestScene"));
+        });
 
-    //    [UnityTest]
-    //    public IEnumerator AddScene_LoadAndUnloadAndReload_Works() => UniTask.ToCoroutine(async () =>
-    //    {
-    //        var director = SetupSingleScene();
+        // ═══════════════════════════════════════════
+        //  複合シナリオ
+        // ═══════════════════════════════════════════
 
-    //        await director.AddScene("TestScene", null, CancellationToken.None);
-    //        Assert.AreEqual(SceneState.Stable, director.GetSceneState("TestScene"));
+        [UnityTest]
+        public IEnumerator AddScene_LoadAndUnloadAndReload_Works() => UniTask.ToCoroutine(async () =>
+        {
+            var director = SetupSingleScene();
 
-    //        await director.UnloadScene("TestScene");
-    //        Assert.IsFalse(director.ContainsScene("TestScene"));
+            await director.AddScene("TestScene", null, CancellationToken.None);
+            Assert.AreEqual(SceneState.Stable, director.GetSceneState("TestScene"));
 
-    //        await director.AddScene("TestScene", null, CancellationToken.None);
-    //        Assert.AreEqual(SceneState.Stable, director.GetSceneState("TestScene"));
-    //    });
+            await director.UnloadScene("TestScene");
+            Assert.IsFalse(director.ContainsScene("TestScene"));
 
-    //    [UnityTest]
-    //    public IEnumerator AddScene_MultipleIndependentScenes_BothLoadable() => UniTask.ToCoroutine(async () =>
-    //    {
-    //        var resA = SceneTestHelper.CreateSceneResource("SceneA");
-    //        var resB = SceneTestHelper.CreateSceneResource("SceneB");
-    //        CreatedSOs.Add(resA);
-    //        CreatedSOs.Add(resB);
+            await director.AddScene("TestScene", null, CancellationToken.None);
+            Assert.AreEqual(SceneState.Stable, director.GetSceneState("TestScene"));
+        });
 
-    //        Map = SceneTestHelper.CreateSceneResourceMap(resA, resB);
-    //        CreatedSOs.Add(Map);
+        [UnityTest]
+        public IEnumerator AddScene_MultipleIndependentScenes_BothLoadable() => UniTask.ToCoroutine(async () =>
+        {
+            var resA = SceneTestHelper.CreateSceneResource("SceneA");
+            var resB = SceneTestHelper.CreateSceneResource("SceneB");
+            CreatedSOs.Add(resA);
+            CreatedSOs.Add(resB);
 
-    //        Director = new TestableSceneDirector(Factory, UICommon, Map);
+            Map = SceneTestHelper.CreateSceneResourceMap(resA, resB);
+            CreatedSOs.Add(Map);
 
-    //        await Director.AddScene("SceneA", null, CancellationToken.None);
-    //        await Director.AddScene("SceneB", null, CancellationToken.None);
+            Director = new TestableSceneDirector(Factory, UICommon, Map, AssetManagement);
 
-    //        Assert.AreEqual(SceneState.Stable, Director.GetSceneState("SceneA"));
-    //        Assert.AreEqual(SceneState.Stable, Director.GetSceneState("SceneB"));
+            await Director.AddScene("SceneA", null, CancellationToken.None);
+            await Director.AddScene("SceneB", null, CancellationToken.None);
 
-    //        await Director.UnloadScene("SceneA");
-    //        Assert.IsFalse(Director.ContainsScene("SceneA"));
-    //        Assert.IsTrue(Director.ContainsScene("SceneB"));
-    //    });
+            Assert.AreEqual(SceneState.Stable, Director.GetSceneState("SceneA"));
+            Assert.AreEqual(SceneState.Stable, Director.GetSceneState("SceneB"));
 
-    //    [UnityTest]
-    //    public IEnumerator UnloadScene_ChildOnly_ParentRemains() => UniTask.ToCoroutine(async () =>
-    //    {
-    //        var parentRes = SceneTestHelper.CreateSceneResource("Parent");
-    //        var childRes = SceneTestHelper.CreateSceneResource("Child", LoadType.OnDemand, parentRes);
-    //        SceneTestHelper.AddChild(parentRes, childRes);
-    //        CreatedSOs.Add(parentRes);
-    //        CreatedSOs.Add(childRes);
+            await Director.UnloadScene("SceneA");
+            Assert.IsFalse(Director.ContainsScene("SceneA"));
+            Assert.IsTrue(Director.ContainsScene("SceneB"));
+        });
 
-    //        Map = SceneTestHelper.CreateSceneResourceMap(parentRes, childRes);
-    //        CreatedSOs.Add(Map);
+        [UnityTest]
+        public IEnumerator UnloadScene_ChildOnly_ParentRemains() => UniTask.ToCoroutine(async () =>
+        {
+            var parentRes = SceneTestHelper.CreateSceneResource("Parent");
+            var childRes = SceneTestHelper.CreateSceneResource("Child", LoadType.OnDemand, parentRes);
+            SceneTestHelper.AddChild(parentRes, childRes);
+            CreatedSOs.Add(parentRes);
+            CreatedSOs.Add(childRes);
 
-    //        Director = new TestableSceneDirector(Factory, UICommon, Map);
+            Map = SceneTestHelper.CreateSceneResourceMap(parentRes, childRes);
+            CreatedSOs.Add(Map);
 
-    //        await Director.AddScene("Parent", null, CancellationToken.None);
-    //        Assert.IsFalse(Director.ContainsScene("Child"));
+            Director = new TestableSceneDirector(Factory, UICommon, Map, AssetManagement);
 
-    //        await Director.AddScene("Child", null, CancellationToken.None);
-    //        Assert.IsTrue(Director.ContainsScene("Child"));
+            await Director.AddScene("Parent", null, CancellationToken.None);
+            Assert.IsFalse(Director.ContainsScene("Child"));
 
-    //        await Director.UnloadScene("Child");
-    //        Assert.IsFalse(Director.ContainsScene("Child"));
-    //        Assert.IsTrue(Director.ContainsScene("Parent"),
-    //            "子のアンロードで親は消えてはならない");
-    //    });
+            await Director.AddScene("Child", null, CancellationToken.None);
+            Assert.IsTrue(Director.ContainsScene("Child"));
+
+            await Director.UnloadScene("Child");
+            Assert.IsFalse(Director.ContainsScene("Child"));
+            Assert.IsTrue(Director.ContainsScene("Parent"),
+                "子のアンロードで親は消えてはならない");
+        });
     }
 }

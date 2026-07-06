@@ -31,6 +31,8 @@ namespace OneStarMaker.Runtime.SceneSystem
         /// <param name="progress">進捗通知。IsCancelable で窓の状態を確認可能。</param>
         /// <param name="loadingDisplay">ローディング表示モード。</param>
         /// <param name="telemetryTags">テレメトリスパンに付与する追加タグ。</param>
+        /// <param name="priority">Unity Scene ロードの優先度。同一 identity で in-flight に合流した後発呼び出しの priority は無視される（I-5 と同じ意味論）。</param>
+        /// <param name="telemetryLevel">AddScene スパンのテレメトリ出力レベル。</param>
         public async UniTask AddScene(
             string sceneIdentify,
             Func<UniTask>? afterOnLoadedTask,
@@ -38,7 +40,79 @@ namespace OneStarMaker.Runtime.SceneSystem
             SceneContext? context = null,
             IProgress<SceneLoadProgress>? progress = null,
             LoadingDisplayType loadingDisplay = LoadingDisplayType.None,
-            IReadOnlyDictionary<string, string>? telemetryTags = null)
+            IReadOnlyDictionary<string, string>? telemetryTags = null,
+            int priority = 100,
+            TelemetryLevel telemetryLevel = TelemetryLevel.Summary)
+        {
+            if (_inFlightAddScenes.TryGetValue(sceneIdentify, out var inFlight))
+            {
+                await inFlight.Task;
+                return;
+            }
+
+            var completion = new UniTaskCompletionSource();
+            _inFlightAddScenes[sceneIdentify] = completion;
+
+            try
+            {
+                await AddSceneCore(
+                    sceneIdentify,
+                    afterOnLoadedTask,
+                    ct,
+                    context,
+                    progress,
+                    loadingDisplay,
+                    telemetryTags,
+                    priority,
+                    telemetryLevel);
+                completion.TrySetResult();
+            }
+            catch (Exception ex)
+            {
+                completion.TrySetException(ex);
+                ObserveInFlightException(completion.Task);
+                throw;
+            }
+            finally
+            {
+                _inFlightAddScenes.Remove(sceneIdentify);
+            }
+        }
+
+        /// <summary>
+        /// in-flight 完了通知に設定した例外を観測済みにする。
+        /// 合流者がいない場合、UniTaskCompletionSource に設定した非 OCE 例外は誰にも await されず、
+        /// GC 時に ExceptionHolder のファイナライザが UnobservedTaskException として
+        /// Debug.LogException を発行し、無関係なテストや実行環境を汚染する。
+        /// 先発呼び出し元へは throw で別途伝搬するため、通知側の複製はここで観測して破棄してよい。
+        /// </summary>
+        private static void ObserveInFlightException(UniTask task)
+        {
+            static async UniTaskVoid Core(UniTask t)
+            {
+                try
+                {
+                    await t;
+                }
+                catch
+                {
+                    // 観測のみ。例外は先発呼び出し元と合流者へそれぞれ伝搬済み
+                }
+            }
+
+            Core(task).Forget();
+        }
+
+        private async UniTask AddSceneCore(
+            string sceneIdentify,
+            Func<UniTask>? afterOnLoadedTask,
+            CancellationToken ct,
+            SceneContext? context,
+            IProgress<SceneLoadProgress>? progress,
+            LoadingDisplayType loadingDisplay,
+            IReadOnlyDictionary<string, string>? telemetryTags,
+            int priority,
+            TelemetryLevel telemetryLevel)
         {
             // 追加の文字列 tag はここでは組み立てない。
             // シーンロードは実行頻度こそ高くないが、transport へ載せる本命は
@@ -47,11 +121,10 @@ namespace OneStarMaker.Runtime.SceneSystem
             var success = false;
             var memBefore = RuntimeTelemetryMetadataFactory.CaptureMemorySnapshot();
 
-            // 既にロード中・ロード済みならスキップ。
-            // PreLoad 中も「同じシーンを二重に起こさない」ことを優先する。
+            // 既に利用可能なシーンはスキップ。ロード中の同一 identity は
+            // public AddScene 側の in-flight 共有で Stable 到達まで合流する。
             if (_currentScenes.TryGetValue(sceneIdentify, out var existing)
-                && (existing.SceneBase.Lifecycle.IsLoadedOrActive
-                    || existing.SceneBase.Lifecycle.IsInLoadingPhase))
+                && existing.SceneBase.Lifecycle.IsActive)
             {
                 AppTelemetry.FinishSpan(span, default, true, TelemetryLevel.Verbose, null);
                 return;
@@ -95,25 +168,26 @@ namespace OneStarMaker.Runtime.SceneSystem
 
                 for (var index = 0; index < parentList.Count; index++)
                 {
-                    await LoadSceneBase(parentList[index].Identity, cancelableCt, isLoadChildren: false, newlyCreatedScenes);
+                    await LoadSceneBase(
+                        parentList[index].Identity,
+                        cancelableCt,
+                        isLoadChildren: false,
+                        newlyCreatedScenes,
+                        linkedCts);
                 }
 
-                await LoadSceneBase(sceneIdentify, cancelableCt, isLoadChildren: true, newlyCreatedScenes);
+                await LoadSceneBase(
+                    sceneIdentify,
+                    cancelableCt,
+                    isLoadChildren: true,
+                    newlyCreatedScenes,
+                    linkedCts);
 
                 // 共有 context はターゲットシーンだけに入れる。
                 // 親シーンへ流すと既存状態を不用意に汚すため、明示的に対象を絞る。
                 if (context != null && _currentScenes.TryGetValue(sceneIdentify, out var target))
                 {
                     target.SceneBase.SetContext(context);
-                }
-
-                for (var index = 0; index < newlyCreatedScenes.Count; index++)
-                {
-                    var createdSceneId = newlyCreatedScenes[index];
-                    if (_currentScenes.TryGetValue(createdSceneId, out var created))
-                    {
-                        created.LoadCts = linkedCts;
-                    }
                 }
 
                 progress?.Report(new SceneLoadProgress(
@@ -140,10 +214,10 @@ namespace OneStarMaker.Runtime.SceneSystem
                 {
                     var parentSceneId = parentList[index].Identity;
                     var parentBase = _currentScenes[parentSceneId].SceneBase;
-                    await LoadUnityScene(parentSceneId, parentBase, CancellationToken.None, isLoadChildScene: false);
+                    await LoadUnityScene(parentSceneId, parentBase, CancellationToken.None, isLoadChildScene: false, priority);
                 }
 
-                await LoadUnityScene(sceneIdentify, _currentScenes[sceneIdentify].SceneBase, CancellationToken.None, isLoadChildScene: true);
+                await LoadUnityScene(sceneIdentify, _currentScenes[sceneIdentify].SceneBase, CancellationToken.None, isLoadChildScene: true, priority);
 
                 if (afterOnLoadedTask != null)
                 {
@@ -220,6 +294,21 @@ namespace OneStarMaker.Runtime.SceneSystem
                     await _loadingDisplay.Hide(CancellationToken.None);
                 }
 
+                // 非 OCE 例外経路では pair が _currentScenes に残ったままここへ来る。
+                // 破棄済み CTS を LoadCts に残すと後続の UnloadScene が
+                // ObjectDisposedException を投げるため、Dispose 前に必ず切り離す。
+                if (linkedCts != null)
+                {
+                    for (var index = 0; index < newlyCreatedScenes.Count; index++)
+                    {
+                        if (_currentScenes.TryGetValue(newlyCreatedScenes[index], out var created)
+                            && ReferenceEquals(created.LoadCts, linkedCts))
+                        {
+                            created.LoadCts = null;
+                        }
+                    }
+                }
+
                 linkedCts?.Dispose();
 
                 var memAfter = RuntimeTelemetryMetadataFactory.CaptureMemorySnapshot();
@@ -236,7 +325,7 @@ namespace OneStarMaker.Runtime.SceneSystem
 
                 var metadata = RuntimeTelemetryMetadataFactory.CreateMemoryMetadata(memAfter);
 
-                AppTelemetry.FinishSpan(span, metadata, success, TelemetryLevel.Summary, tags);
+                AppTelemetry.FinishSpan(span, metadata, success, telemetryLevel, tags);
             }
         }
 
@@ -250,7 +339,52 @@ namespace OneStarMaker.Runtime.SceneSystem
             string sceneIdentify,
             CancellationToken ct,
             bool isLoadChildren,
-            List<string> newlyCreatedScenes)
+            List<string> newlyCreatedScenes,
+            CancellationTokenSource? loadCts)
+        {
+            if (_inFlightSceneBaseLoads.TryGetValue(sceneIdentify, out var inFlight))
+            {
+                await inFlight.Task;
+                return;
+            }
+
+            if (_currentScenes.TryGetValue(sceneIdentify, out var existing)
+                && !existing.SceneBase.Lifecycle.IsNone)
+            {
+                return;
+            }
+
+            var completion = new UniTaskCompletionSource();
+            _inFlightSceneBaseLoads[sceneIdentify] = completion;
+
+            try
+            {
+                await LoadSceneBaseCore(
+                    sceneIdentify,
+                    ct,
+                    isLoadChildren,
+                    newlyCreatedScenes,
+                    loadCts);
+                completion.TrySetResult();
+            }
+            catch (Exception ex)
+            {
+                completion.TrySetException(ex);
+                ObserveInFlightException(completion.Task);
+                throw;
+            }
+            finally
+            {
+                _inFlightSceneBaseLoads.Remove(sceneIdentify);
+            }
+        }
+
+        private async UniTask LoadSceneBaseCore(
+            string sceneIdentify,
+            CancellationToken ct,
+            bool isLoadChildren,
+            List<string> newlyCreatedScenes,
+            CancellationTokenSource? loadCts)
         {
             if (!_currentScenes.ContainsKey(sceneIdentify))
             {
@@ -260,7 +394,10 @@ namespace OneStarMaker.Runtime.SceneSystem
                 var newInstance = _sceneFactory.CreateSceneClass(sceneResource, this)
                     ?? throw new InvalidOperationException($"SceneFactory returned null for: {sceneIdentify}");
 
-                var pair = new ScenePair(newInstance);
+                var pair = new ScenePair(newInstance)
+                {
+                    LoadCts = loadCts
+                };
                 _currentScenes.Add(sceneIdentify, pair);
                 newlyCreatedScenes.Add(sceneIdentify);
                 // OnPreLoadedImpl 以降で Assets.LoadAsync(ref, sceneId) が使えるよう注入
@@ -282,7 +419,12 @@ namespace OneStarMaker.Runtime.SceneSystem
                     {
                         if (child.LoadType != LoadType.OnDemand)
                         {
-                            tasks[taskCount++] = LoadSceneBase(child.Identity, ct, isLoadChildren, newlyCreatedScenes);
+                            tasks[taskCount++] = LoadSceneBase(
+                                child.Identity,
+                                ct,
+                                isLoadChildren,
+                                newlyCreatedScenes,
+                                loadCts);
                         }
                     }
                     await UniTask.WhenAll(tasks);
@@ -306,9 +448,48 @@ namespace OneStarMaker.Runtime.SceneSystem
             string sceneIdentify,
             SceneBase sceneBase,
             CancellationToken ct,
-            bool isLoadChildScene)
+            bool isLoadChildScene,
+            int priority = 100)
         {
             // 既に Stable に到達済みの親シーンはスキップ
+            if (sceneBase.Lifecycle.IsActive)
+            {
+                return;
+            }
+
+            if (_inFlightUnitySceneLoads.TryGetValue(sceneIdentify, out var inFlight))
+            {
+                await inFlight.Task;
+                return;
+            }
+
+            var completion = new UniTaskCompletionSource();
+            _inFlightUnitySceneLoads[sceneIdentify] = completion;
+
+            try
+            {
+                await LoadUnitySceneCore(sceneIdentify, sceneBase, ct, isLoadChildScene, priority);
+                completion.TrySetResult();
+            }
+            catch (Exception ex)
+            {
+                completion.TrySetException(ex);
+                ObserveInFlightException(completion.Task);
+                throw;
+            }
+            finally
+            {
+                _inFlightUnitySceneLoads.Remove(sceneIdentify);
+            }
+        }
+
+        private async UniTask LoadUnitySceneCore(
+            string sceneIdentify,
+            SceneBase sceneBase,
+            CancellationToken ct,
+            bool isLoadChildScene,
+            int priority)
+        {
             if (sceneBase.Lifecycle.IsActive)
             {
                 return;
@@ -317,7 +498,7 @@ namespace OneStarMaker.Runtime.SceneSystem
             // PreLoaded → Loading: Addressable ロード開始
             TransitionSceneState(sceneIdentify, sceneBase, SceneState.Loading);
 
-            var (addressablesLoaded, rootObjects) = await PerformUnitySceneLoad(sceneIdentify, sceneBase.SceneResource);
+            var (addressablesLoaded, rootObjects) = await PerformUnitySceneLoad(sceneIdentify, sceneBase.SceneResource, priority);
             // Phase 2/3 で AssetManagement 経由の Unload/Release が必要かどうかを記録
             _currentScenes[sceneIdentify].AddressablesSceneLoaded = addressablesLoaded;
 
@@ -411,7 +592,7 @@ namespace OneStarMaker.Runtime.SceneSystem
         /// </list>
         /// </summary>
         protected virtual async UniTask<(bool AddressablesLoaded, GameObject[] RootObjects)>
-            PerformUnitySceneLoad(string sceneIdentify, SceneResource sceneResource)
+            PerformUnitySceneLoad(string sceneIdentify, SceneResource sceneResource, int priority)
         {
             var unityScene = SceneManager.GetSceneByName(sceneIdentify);
             if (!unityScene.IsValid() || !unityScene.isLoaded)
@@ -427,7 +608,7 @@ namespace OneStarMaker.Runtime.SceneSystem
                     sceneIdentify,
                     sceneAssetDescription,
                     string.Empty,
-                    new SceneLoadOptions(LoadSceneMode.Additive, activateOnLoad: true, priority: 100),
+                    new SceneLoadOptions(LoadSceneMode.Additive, activateOnLoad: true, priority: priority),
                     CancellationToken.None);
                 return (true, sceneHandle.GetRootGameObjects());
             }

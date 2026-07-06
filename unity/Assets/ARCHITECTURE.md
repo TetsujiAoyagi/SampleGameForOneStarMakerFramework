@@ -133,6 +133,7 @@ Game.Common ──→ Foundation, Runtime
 | §18 | AssetDescription — 目的・有用性・実装 | [18-asset-description.md](Docs/Architecture/18-asset-description.md) |
 | §19 | AssetResidentCache（常駐キャッシュ）チケット仕様 | [19-asset-resident-cache-tickets.md](Docs/Architecture/19-asset-resident-cache-tickets.md) |
 | §20 | Variant チェックアウトワークフロー | [20-variant-checkout-workflow.md](Docs/Architecture/20-variant-checkout-workflow.md) |
+| §21 | SceneStreaming — セルストリーミング設計（ドラフト） | [21-scene-streaming.md](Docs/Architecture/21-scene-streaming.md) |
 | — | Assembly 分割移行記録 | [migration-assembly-split.md](Docs/Architecture/migration-assembly-split.md) |
 
 ---
