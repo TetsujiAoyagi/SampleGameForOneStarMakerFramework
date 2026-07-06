@@ -233,7 +233,7 @@ Tick(focusPosition):                       // UpdateSystem 駆動。毎フレー
 | T-03 | ✅ priority / テレメトリレベルの公開（H-2, H-3） | 既存呼び出しの挙動不変 |
 | T-04 | ✅ CellScene 基底（セル座標・バウンズのメタデータ運搬のみ。判断ロジック禁止）+ セル identity バリデータ | R-1/R-2 が構造的に守られる |
 | T-05 | ✅ World Cell Generator（エディタツール、§6） | グリッド定義から N×N のシーン + SceneResource + Map 登録が生成される |
-| T-06 | `ISceneStreamingBackend` + `WorldStreamingController`（§8） | FakeBackend による純 C# テストで差分発火・ヒステリシス・in-flight 上限を検証 |
+| T-06 | ✅ `ISceneStreamingBackend` + `WorldStreamingController`（§8） | FakeBackend による純 C# テストで差分発火・ヒステリシス・in-flight 上限を検証 |
 | T-07 | 実証スライス（10×10 グリッド + フライスルーカメラ + 簡易コンテンツ） | Editor Play で横断できる |
 | T-08 | テレメトリ計測 + DebugStudio でのセル状態観測 | §9 の計測値が取得できる |
 | T-09 | 受け入れ判定（§9）と撤退判断（§11） | 判定記録を本書に追記 |
@@ -311,6 +311,23 @@ R-3 を「将来」から本チケットへ繰り上げ、`SwitchSceneCore` 冒�
 - `Generate` は Map 未登録だがディスクに存在するセル .asset を先に Map / 親子へ取り込む（identity がファイル名と食い違う場合は警告してスキップ。取り込みは登録のみで payload 内容は無検証）
 - 既存ファイルへの変更は `SceneResourceMap` への `internal RebuildDictionary()` 追加のみ（ApplyPlan 後の辞書整合性用）
 - Addressables 登録・セルシーンテンプレートの中身は T-07 以降で判断（生成される .unity は空シーン）
+
+**T-06 完了記録 (2026-07-06):**
+`Runtime/Streaming/` に `ISceneStreamingBackend`（施行表で固定した API）、`StreamingConfig`（グリッド + loadRadius / unloadRadius / maxInFlight。引数検証つき）、`WorldStreamingController` を新設。純 C#・MonoBehaviour / SceneDirector 非依存で、`Tick(Vector3)` を外部から手動駆動する。
+ポリシー: 毎 Tick 全セルの XZ 距離を計算し、loadRadius 内 = desired（距離昇順ソート）、unloadRadius 内 = retain。ロード済み or Add in-flight で retain 外のセルへ RequestRemove、desired かつ未ロード・非 in-flight のセルへ距離順ランク（0 始まり）を priority として RequestAdd。current 集合は保持せず毎 Tick `IsLoaded` で再照合（G-6 自己修復）。
+テスト: `Tests/Streaming/WorldStreamingControllerTests.cs` に 10 本（desired set、アンロード半径、ヒステリシス、差分発火、距離順 priority、in-flight 上限、キュー取り消し、G-6 再発行、focus 移動収束、Add/Remove 競合）。`FakeStreamingBackend` は即時/手動完了の切替・履歴記録・二重 RequestAdd 検出（例外）を持つ。TDD サイクル: スケルトン + レッド 9 本を確認後に実装。
+検証結果:
+
+- `OneStarMaker.Tests`: 211 / 211 passed
+
+設計上の割り切り・要点:
+
+- in-flight の Add は完了観測（`ObserveAddCompletionAsync` の finally）まで解放しない。desired 外へ出たセルは Add 未完了でも RequestRemove を発行するが、Add 枠は完了まで占有し続けることで desired 復帰時の二重 RequestAdd を防ぐ
+- Remove in-flight 中のセルへは再 Add しない（Remove 完了後の次 Tick の G-6 再照合に委ねる）
+- UniTask の消費は Observe ヘルパー内の 1 箇所の await のみ（二重消費禁止）。例外・キャンセルもそこで観測し、失敗セルは次 Tick の再照合で回収
+- maxInFlight の空き枠は発行ごとに再評価（即時完了バックエンドでは 1 Tick で maxInFlight 超の件数を順次発行可。未完了同時数は常に上限以下）
+- Add 保留中に retain 外へ出たセルには Tick ごとに RequestRemove が再発行され得る（バックエンド側 Remove の冪等性で吸収する前提。レビュー Nit として許容）
+- UpdateSystem への接続アダプタ・Tick 間引き（5Hz / 1/4 セル移動）はアダプタ側の責務で T-07 にて実装
 
 **ベースラインテスト復活記録 (2026-07-06):**
 初回コミット以来コメントアウトされていた SceneDirector テスト群（AddScene / UnloadScene / Guard / Cancellation / Misc、計 19 本）を現行 API（`AssetManagement` 引数、`progress:` 名前付き引数、同期 `IProgress` 実装）へ合わせて復活。実行結果は SceneSystem 全体で **53 本中 46 グリーン / 7 レッド**。レッドの内訳:
