@@ -112,6 +112,11 @@ namespace OneStarMaker.Runtime.SceneSystem
             bool recordHistory,
             IReadOnlyDictionary<string, string>? telemetryTags = null)
         {
+            // セル identity ガード（R-3/G-4）: セルは AddScene / UnloadScene 専用（D-5）。
+            // 履歴・TransitionPlan を汚染しないよう、span 開始・Show・履歴記録より前に失敗させる。
+            ThrowIfCellIdentity(fromSceneIdentify);
+            ThrowIfCellIdentity(toSceneIdentify);
+
             // 文字列タグの持ち回りはやめ、操作種別は StartType、数値情報は Metadata に寄せる。
             // これにより scene 遷移でも追加ヒープ確保を増やさず transport へ流せる。
             var span = AppTelemetry.StartSpan(Foundation.Core.TelemetryStartType.SceneTransition, null);
@@ -188,6 +193,20 @@ namespace OneStarMaker.Runtime.SceneSystem
                 var metadata = RuntimeTelemetryMetadataFactory.CreateMemoryMetadata(memAfter);
 
                 AppTelemetry.FinishSpan(span, metadata, success, TelemetryLevel.Summary, tags);
+            }
+        }
+
+        /// <summary>
+        /// セル identity（`Cell_{x}_{y}`）を画面遷移に乗せようとした場合に即失敗させる。
+        /// GoBack / ExecuteTransitionPlan も SwitchSceneCore を経由するため、ここで全経路を守る。
+        /// </summary>
+        private static void ThrowIfCellIdentity(string? sceneIdentify)
+        {
+            if (sceneIdentify != null && CellIdentity.IsCellId(sceneIdentify))
+            {
+                throw new InvalidOperationException(
+                    $"セル identity '{sceneIdentify}' を SwitchScene / GoBack / TransitionPlan に乗せることはできません（R-3）。" +
+                    "セルは AddScene / UnloadScene 専用です（21-scene-streaming.md D-5）。");
             }
         }
 

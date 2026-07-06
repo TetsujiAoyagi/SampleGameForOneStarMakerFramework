@@ -114,17 +114,27 @@ namespace OneStarMaker.Runtime.SceneSystem
         {
             _rootObjects.AddRange(roots);
 
-            // RootObjects から UIView を自動検索（1シーン = 0 or 1 UIView）
+            _uiView = SearchUIView();
+
+            OnInitialize();
+        }
+
+        /// <summary>
+        /// Initialize 時に RootObjects から UIView を自動検索する（1シーン = 0 or 1 UIView）。
+        /// UI を構造的に持たないシーン（CellScene 等、R-2）は null 固定にオーバーライドする。
+        /// </summary>
+        protected virtual UIView? SearchUIView()
+        {
             foreach (var rootObject in _rootObjects)
             {
-                _uiView = rootObject.GetComponentInChildren<UIView>();
-                if (_uiView != null)
+                var uiView = rootObject.GetComponentInChildren<UIView>();
+                if (uiView != null)
                 {
-                    break;
+                    return uiView;
                 }
             }
 
-            OnInitialize();
+            return null;
         }
 
         /// <summary>PreLoading → PreLoaded。Unity Scene ロード前の事前準備。</summary>

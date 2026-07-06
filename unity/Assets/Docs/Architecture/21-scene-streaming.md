@@ -168,7 +168,7 @@ Addressables グループ登録 (既存の AddressablesGroupSyncFilter を流用
 |---|---|---|---|
 | R-1 | 重量アセット（テクスチャ群・プレハブ群）は `OnPreLoadedImpl` の `Assets.LoadAsync` でプリフェッチする（キャンセル窓内 = 高速通過時に中止可能）。Unity シーン本体は参照とレイアウトのみの軽量構成とし、PoNR 区間を最小化する | セルテンプレート + コードレビュー | 規約 |
 | R-2 | セルは UIView を持たない | CellScene 基底クラスが UIView 検索を行わない | 構造的強制 |
-| R-3 | セルを `SwitchScene` / `GoBack` / `TransitionPlan` に乗せない（D-5） | コードレビュー（将来: identity プレフィックス `Cell_` で Editor バリデーション） | 規約 |
+| R-3 | セルを `SwitchScene` / `GoBack` / `TransitionPlan` に乗せない（D-5） | `SwitchSceneCore` 冒頭のセル identity ガード（`CellIdentity.IsCellId` で検出し `InvalidOperationException`。T-04 で実装） | 構造的強制 |
 | R-4 | セルの `LoadingDisplayType` は常に `None` | Controller が固定値で呼ぶ | 構造的強制 |
 | R-5 | セル内オブジェクトはセル外のシーンオブジェクトを参照しない（隣接セルとの直接参照禁止） | コードレビュー | 規約 |
 
@@ -231,7 +231,7 @@ Tick(focusPosition):                       // UpdateSystem 駆動。毎フレー
 | T-01 | ✅ 並行 AddScene 親共有競合の再現テスト（H-1） | 現行コードで競合が失敗として観測できる |
 | T-02 | ✅ in-flight タスク共有によるガード実装 | T-01 のテストがグリーン。`OneStarMaker.Tests` 180 本に回帰なし |
 | T-03 | ✅ priority / テレメトリレベルの公開（H-2, H-3） | 既存呼び出しの挙動不変 |
-| T-04 | CellScene 基底（セル座標・バウンズのメタデータ運搬のみ。判断ロジック禁止）+ セルテンプレート | R-1/R-2 が構造的に守られる |
+| T-04 | ✅ CellScene 基底（セル座標・バウンズのメタデータ運搬のみ。判断ロジック禁止）+ セル identity バリデータ | R-1/R-2 が構造的に守られる |
 | T-05 | World Cell Generator（エディタツール、§6） | グリッド定義から N×N のシーン + SceneResource + Map 登録が生成される |
 | T-06 | `ISceneStreamingBackend` + `WorldStreamingController`（§8） | FakeBackend による純 C# テストで差分発火・ヒステリシス・in-flight 上限を検証 |
 | T-07 | 実証スライス（10×10 グリッド + フライスルーカメラ + 簡易コンテンツ） | Editor Play で横断できる |
@@ -279,6 +279,22 @@ T-02 の受入条件はこの5本のグリーン化（`Sequential_AddTwoCells_Sh
 - 同一 identity で in-flight に合流した後発 `AddScene` の `priority` / `telemetryLevel` は無視される（I-5 と同じ意味論。先発の値が使われる）
 - `IncrementalLoadAsync` および `NecessaryAlways` 子シーンの `LoadUnityScene` 呼び出しは既定値 100 のままとし挙動不変（セルは葉の OnDemand であり子ロード経路を通らない）
 - `SwitchScene` / `GoBack` / `TransitionPlan` 内部の `AddScene` / `UnloadScene` 呼び出しは引数を渡さず既定値のままとし、画面遷移の挙動を変えない（G-3）
+
+**T-04 完了記録 (2026-07-06):**
+`Runtime/SceneSystem/Cells/` に `CellIdentity`（`Cell_{x}_{y}` の判定・解析・整形）、`CellGridConfig`（原点・セルサイズ・高さ）、`CellScene`（SceneBase 派生、座標・バウンズのメタデータ運搬のみ）を新設。
+R-2 の構造的強制のため `SceneBase` の UIView 自動検索を `protected virtual UIView? SearchUIView()` へ抽出し、`CellScene` が `sealed override` で null 固定（検索自体を行わない）。既存シーンの挙動は不変。
+R-3 を「将来」から本チケットへ繰り上げ、`SwitchSceneCore` 冒頭（span 開始・Show・履歴記録より前）でセル identity を検出したら `InvalidOperationException` を投げるガードを追加。GoBack / ExecuteTransitionPlan も SwitchSceneCore を経由するため全経路が守られる。画面遷移の正常系挙動は不変（G-3。セル identity は元々未定義動作であり、明示的失敗への変更は許容）。
+テスト: `Tests/Scene/CellSceneTests.cs` に 8 本（CellIdentity 判定/整形 2、座標解析・不正 identity・バウンズ 3、R-2 UIView 非登録 1 + ハーネス健全性 1、R-3 SwitchScene ガード 1）。TDD サイクル: スケルトン + レッド 7 本（健全性 1 本はグリーン）を確認後に実装。
+検証結果:
+
+- `OneStarMaker.Tests.SceneSystem`: 68 / 68 passed
+- `OneStarMaker.Tests`: 195 / 195 passed
+
+設計上の割り切り:
+
+- セル座標は非負整数のみ（`Cell_-1_0` は非セル扱い）。グリッドはビルド時確定・原点基準のため
+- セルシーンテンプレート（.unity アセット）は T-05 World Cell Generator がシーン量産と併せて生成するため本チケットでは作成せず、規約の構造的強制（R-2 の SearchUIView 封鎖・identity 検証）のみを本チケットで実装した
+- ガードは `AddScene` / `UnloadScene` には掛けない（セルの正規経路。D-5）
 
 **ベースラインテスト復活記録 (2026-07-06):**
 初回コミット以来コメントアウトされていた SceneDirector テスト群（AddScene / UnloadScene / Guard / Cancellation / Misc、計 19 本）を現行 API（`AssetManagement` 引数、`progress:` 名前付き引数、同期 `IProgress` 実装）へ合わせて復活。実行結果は SceneSystem 全体で **53 本中 46 グリーン / 7 レッド**。レッドの内訳:
