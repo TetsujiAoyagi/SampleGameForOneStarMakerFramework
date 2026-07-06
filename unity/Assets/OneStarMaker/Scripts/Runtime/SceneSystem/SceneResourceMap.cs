@@ -69,5 +69,14 @@ namespace OneStarMaker.Runtime.SceneSystem
                 }
             }
         }
+
+        /// <summary>
+        /// <see cref="_sceneResources"/> の変更後に identity 辞書を再構築する。
+        /// Editor ツールが実行時に Map を更新した際に <see cref="GetSceneResource"/> の整合性を保つ。
+        /// </summary>
+        internal void RebuildDictionary()
+        {
+            BuildDictionary();
+        }
     }
 }

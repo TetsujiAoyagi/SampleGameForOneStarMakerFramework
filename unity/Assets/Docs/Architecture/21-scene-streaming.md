@@ -232,7 +232,7 @@ Tick(focusPosition):                       // UpdateSystem 駆動。毎フレー
 | T-02 | ✅ in-flight タスク共有によるガード実装 | T-01 のテストがグリーン。`OneStarMaker.Tests` 180 本に回帰なし |
 | T-03 | ✅ priority / テレメトリレベルの公開（H-2, H-3） | 既存呼び出しの挙動不変 |
 | T-04 | ✅ CellScene 基底（セル座標・バウンズのメタデータ運搬のみ。判断ロジック禁止）+ セル identity バリデータ | R-1/R-2 が構造的に守られる |
-| T-05 | World Cell Generator（エディタツール、§6） | グリッド定義から N×N のシーン + SceneResource + Map 登録が生成される |
+| T-05 | ✅ World Cell Generator（エディタツール、§6） | グリッド定義から N×N のシーン + SceneResource + Map 登録が生成される |
 | T-06 | `ISceneStreamingBackend` + `WorldStreamingController`（§8） | FakeBackend による純 C# テストで差分発火・ヒステリシス・in-flight 上限を検証 |
 | T-07 | 実証スライス（10×10 グリッド + フライスルーカメラ + 簡易コンテンツ） | Editor Play で横断できる |
 | T-08 | テレメトリ計測 + DebugStudio でのセル状態観測 | §9 の計測値が取得できる |
@@ -295,6 +295,22 @@ R-3 を「将来」から本チケットへ繰り上げ、`SwitchSceneCore` 冒�
 - セル座標は非負整数のみ（`Cell_-1_0` は非セル扱い）。グリッドはビルド時確定・原点基準のため
 - セルシーンテンプレート（.unity アセット）は T-05 World Cell Generator がシーン量産と併せて生成するため本チケットでは作成せず、規約の構造的強制（R-2 の SearchUIView 封鎖・identity 検証）のみを本チケットで実装した
 - ガードは `AddScene` / `UnloadScene` には掛けない（セルの正規経路。D-5）
+
+**T-05 完了記録 (2026-07-06):**
+`Editor/Streaming/` に `WorldGridDefinition`（ScriptableObject: 原点・セルサイズ・N×N・親 identity・出力フォルダ）と `WorldCellGenerator` を新設。
+生成ロジックを純関数に分離: `ComputePlan`（グリッド定義 + 既存状態 → Create/Skip の計画）と `ApplyPlan`（計画 → SceneResource 生成・親子設定・Map 登録。.unity 書き込みなし）がテスト対象。`.unity` I/O は `ApplySceneFiles`（Additive 作成 → 保存 → クローズで作業中シーンを破壊しない）と `Generate`（一括実行）に隔離し、施行表どおりテスト対象外。
+テスト: `Tests/Editor/WorldCellGeneratorTests.cs` に 6 本（N×N 生成、OnDemand + 親子双方向、`Cell_{x}_{y}` 命名、冪等性、Map 登録、不正定義の例外）。TDD サイクル: スケルトン + レッド 5 本を確認後に実装。
+検証結果:
+
+- `OneStarMaker.Tests`: 211 / 211 passed（T-05 6 本 + T-06 10 本を含む）
+
+設計上の割り切り・要点:
+
+- 冪等性は `WorldCellExistingState.FromMap` → `ComputePlan` の Skip 判定で表現。2 回目は Create 0 件・既存インスタンスの再利用（同一参照）・`parent.Children` 非増加をテストで保証
+- `SceneAssetDescription` の書き込みは boxedValue を使わず SerializedProperty の要素単位転記（11-scene-graph-editor.md §W-1 と同方針）。GUID 解決は `AssetPathToGUIDOptions.OnlyExistingAssets` で削除済みアセットを除外
+- `Generate` は Map 未登録だがディスクに存在するセル .asset を先に Map / 親子へ取り込む（identity がファイル名と食い違う場合は警告してスキップ。取り込みは登録のみで payload 内容は無検証）
+- 既存ファイルへの変更は `SceneResourceMap` への `internal RebuildDictionary()` 追加のみ（ApplyPlan 後の辞書整合性用）
+- Addressables 登録・セルシーンテンプレートの中身は T-07 以降で判断（生成される .unity は空シーン）
 
 **ベースラインテスト復活記録 (2026-07-06):**
 初回コミット以来コメントアウトされていた SceneDirector テスト群（AddScene / UnloadScene / Guard / Cancellation / Misc、計 19 本）を現行 API（`AssetManagement` 引数、`progress:` 名前付き引数、同期 `IProgress` 実装）へ合わせて復活。実行結果は SceneSystem 全体で **53 本中 46 グリーン / 7 レッド**。レッドの内訳:
