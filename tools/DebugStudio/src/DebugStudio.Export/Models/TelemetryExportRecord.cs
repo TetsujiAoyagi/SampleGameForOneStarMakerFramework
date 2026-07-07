@@ -56,4 +56,16 @@ public sealed class TelemetryExportRecord
     public int? SceneFrom { get; init; }
 
     public int? SceneTo { get; init; }
+
+    public int? CameraTotalViewCount { get; init; }
+
+    public int? CameraAdditionalViewCount { get; init; }
+
+    public int? CameraBlendingViewCount { get; init; }
+
+    public int? CameraMaxStackDepthTotal { get; init; }
+
+    public int? CameraViewId { get; init; }
+
+    public int? CameraActiveCameraHash { get; init; }
 }

@@ -9,7 +9,8 @@
         "Unity.Addressables",
         "Unity.ResourceManager",
         "UniTask",
-        "UniTask.Linq"
+        "UniTask.Linq",
+        "Unity.Cinemachine"
     ],
     "includePlatforms": [
         "Editor"

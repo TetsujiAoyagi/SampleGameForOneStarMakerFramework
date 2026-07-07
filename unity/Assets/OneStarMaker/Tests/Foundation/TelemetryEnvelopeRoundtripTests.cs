@@ -34,6 +34,46 @@ namespace OneStarMaker.Tests.Foundation
             AssertRoundtrip(record, expectedTagBits: (int)tags);
         }
 
+        [Test]
+        public void Roundtrip_SceneRecord_LeavesCameraFieldsUnset()
+        {
+            var record = CreateRecord(tags: null);
+            AssertRoundtrip(record, expectedTagBits: null);
+            Assert.AreEqual(-1, record.MetadataValue.CameraTotalViewCount);
+            Assert.AreEqual(-1, record.MetadataValue.CameraViewId);
+        }
+
+        [Test]
+        public void Roundtrip_CameraFields_WithSceneFieldsIndependent()
+        {
+            var record = new TelemetryRecord(
+                traceId: TraceId,
+                spanId: SpanId,
+                parentSpanId: ParentSpanId,
+                name: TelemetryStartType.CameraSystemSnapshot,
+                startTimestampUtcTicks: StartTicks,
+                endTimestampUtcTicks: EndTicks,
+                elapsedMs: ElapsedMs,
+                isSuccess: true,
+                tags: null,
+                level: TelemetryLevel.Verbose,
+                metadata: new Metadata(
+                    cpuTime: 1.0f,
+                    gpuTime: 2.0f,
+                    managedMem: 100,
+                    nativeMem: 200,
+                    sceneFrom: 10,
+                    sceneTo: 20,
+                    cameraTotalViewCount: 3,
+                    cameraAdditionalViewCount: 2,
+                    cameraBlendingViewCount: 1,
+                    cameraMaxStackDepthTotal: 4,
+                    cameraViewId: 5,
+                    cameraActiveCameraHash: 6));
+
+            AssertRoundtrip(record, expectedTagBits: null);
+        }
+
         private static TelemetryRecord CreateRecord(TelemetryTagType? tags)
         {
             return new TelemetryRecord(
@@ -89,6 +129,12 @@ namespace OneStarMaker.Tests.Foundation
             Assert.AreEqual(record.MetadataValue.NativeMem, payload.NativeMem);
             Assert.AreEqual(record.MetadataValue.SceneFrom, payload.SceneFrom);
             Assert.AreEqual(record.MetadataValue.SceneTo, payload.SceneTo);
+            Assert.AreEqual(record.MetadataValue.CameraTotalViewCount, payload.CameraTotalViewCount);
+            Assert.AreEqual(record.MetadataValue.CameraAdditionalViewCount, payload.CameraAdditionalViewCount);
+            Assert.AreEqual(record.MetadataValue.CameraBlendingViewCount, payload.CameraBlendingViewCount);
+            Assert.AreEqual(record.MetadataValue.CameraMaxStackDepthTotal, payload.CameraMaxStackDepthTotal);
+            Assert.AreEqual(record.MetadataValue.CameraViewId, payload.CameraViewId);
+            Assert.AreEqual(record.MetadataValue.CameraActiveCameraHash, payload.CameraActiveCameraHash);
         }
     }
 }

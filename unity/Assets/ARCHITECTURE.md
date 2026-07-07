@@ -134,6 +134,8 @@ Game.Common ──→ Foundation, Runtime
 | §19 | AssetResidentCache（常駐キャッシュ）チケット仕様 | [19-asset-resident-cache-tickets.md](Docs/Architecture/19-asset-resident-cache-tickets.md) |
 | §20 | Variant チェックアウトワークフロー | [20-variant-checkout-workflow.md](Docs/Architecture/20-variant-checkout-workflow.md) |
 | §21 | SceneStreaming — セルストリーミング設計（ドラフト） | [21-scene-streaming.md](Docs/Architecture/21-scene-streaming.md) |
+| §22 | （予約 — HLOD / Proxy ティア。21-scene-streaming.md §12 参照） | — |
+| §23 | CameraSystem — カメラシステム設計（要件確定・実装前） | [23-camera-system.md](Docs/Architecture/23-camera-system.md) |
 | — | Assembly 分割移行記録 | [migration-assembly-split.md](Docs/Architecture/migration-assembly-split.md) |
 
 ---

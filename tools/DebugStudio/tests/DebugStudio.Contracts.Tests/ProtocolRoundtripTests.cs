@@ -461,4 +461,47 @@ public sealed class ProtocolRoundtripTests
     }
 
     #endregion
+
+    #region Telemetry envelope テスト
+
+    [Fact]
+    public void DebugTelemetryEnvelopeV1のcameraFields往復が成功する()
+    {
+        var original = new DebugTelemetryEnvelopeV1
+        {
+            Name = "CameraSystemSnapshot",
+            TraceId = 100,
+            SpanId = 200,
+            EndTimestampUtcTicks = 999,
+            ElapsedMs = 12.5,
+            IsSuccess = true,
+            Level = 2,
+            SceneFrom = 10,
+            SceneTo = 20,
+            CameraTotalViewCount = 3,
+            CameraAdditionalViewCount = 2,
+            CameraBlendingViewCount = 1,
+            CameraMaxStackDepthTotal = 4,
+            CameraViewId = 5,
+            CameraActiveCameraHash = 6,
+        };
+
+        var framed = DebugSocketProtocol.SerializeMessage(DebugSocketMessageType.Telemetry, original);
+        Assert.True(DebugSocketProtocol.TryDeserializeEnvelope(framed, out var envelope));
+        Assert.NotNull(envelope);
+
+        Assert.True(DebugSocketProtocol.TryDeserializePayload<DebugTelemetryEnvelopeV1>(envelope, out var deserialized));
+        Assert.NotNull(deserialized);
+        Assert.Equal(original.Name, deserialized!.Name);
+        Assert.Equal(original.SceneFrom, deserialized.SceneFrom);
+        Assert.Equal(original.SceneTo, deserialized.SceneTo);
+        Assert.Equal(original.CameraTotalViewCount, deserialized.CameraTotalViewCount);
+        Assert.Equal(original.CameraAdditionalViewCount, deserialized.CameraAdditionalViewCount);
+        Assert.Equal(original.CameraBlendingViewCount, deserialized.CameraBlendingViewCount);
+        Assert.Equal(original.CameraMaxStackDepthTotal, deserialized.CameraMaxStackDepthTotal);
+        Assert.Equal(original.CameraViewId, deserialized.CameraViewId);
+        Assert.Equal(original.CameraActiveCameraHash, deserialized.CameraActiveCameraHash);
+    }
+
+    #endregion
 }

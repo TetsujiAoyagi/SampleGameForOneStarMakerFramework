@@ -68,6 +68,24 @@ namespace OneStarMaker.Foundation.DebugSocket
         [Key(16)]
         public int SceneTo { get; set; } = -1;
 
+        [Key(17)]
+        public int CameraTotalViewCount { get; set; } = -1;
+
+        [Key(18)]
+        public int CameraAdditionalViewCount { get; set; } = -1;
+
+        [Key(19)]
+        public int CameraBlendingViewCount { get; set; } = -1;
+
+        [Key(20)]
+        public int CameraMaxStackDepthTotal { get; set; } = -1;
+
+        [Key(21)]
+        public int CameraViewId { get; set; } = -1;
+
+        [Key(22)]
+        public int CameraActiveCameraHash { get; set; } = -1;
+
         public static DebugTelemetryEnvelopeV1 FromRecord(in TelemetryRecord record)
         {
             return new DebugTelemetryEnvelopeV1
@@ -88,6 +106,12 @@ namespace OneStarMaker.Foundation.DebugSocket
                 NativeMem = record.MetadataValue.NativeMem,
                 SceneFrom = record.MetadataValue.SceneFrom,
                 SceneTo = record.MetadataValue.SceneTo,
+                CameraTotalViewCount = record.MetadataValue.CameraTotalViewCount,
+                CameraAdditionalViewCount = record.MetadataValue.CameraAdditionalViewCount,
+                CameraBlendingViewCount = record.MetadataValue.CameraBlendingViewCount,
+                CameraMaxStackDepthTotal = record.MetadataValue.CameraMaxStackDepthTotal,
+                CameraViewId = record.MetadataValue.CameraViewId,
+                CameraActiveCameraHash = record.MetadataValue.CameraActiveCameraHash,
             };
         }
     }

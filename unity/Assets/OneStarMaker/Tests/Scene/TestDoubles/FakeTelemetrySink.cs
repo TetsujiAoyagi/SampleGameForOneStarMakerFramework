@@ -26,6 +26,15 @@ namespace OneStarMaker.Tests.SceneSystem.TestDoubles
             }
         }
 
+        /// <summary>蓄積レコードを破棄する（テスト間の分離用）。</summary>
+        public void ClearRecords()
+        {
+            lock (_lock)
+            {
+                _records.Clear();
+            }
+        }
+
         /// <inheritdoc />
         public void Write(in TelemetryRecord record)
         {

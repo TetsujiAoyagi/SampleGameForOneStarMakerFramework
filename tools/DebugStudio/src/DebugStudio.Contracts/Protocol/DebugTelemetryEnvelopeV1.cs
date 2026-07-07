@@ -61,4 +61,22 @@ public sealed class DebugTelemetryEnvelopeV1
 
     [Key(16)]
     public int SceneTo { get; set; } = -1;
+
+    [Key(17)]
+    public int CameraTotalViewCount { get; set; } = -1;
+
+    [Key(18)]
+    public int CameraAdditionalViewCount { get; set; } = -1;
+
+    [Key(19)]
+    public int CameraBlendingViewCount { get; set; } = -1;
+
+    [Key(20)]
+    public int CameraMaxStackDepthTotal { get; set; } = -1;
+
+    [Key(21)]
+    public int CameraViewId { get; set; } = -1;
+
+    [Key(22)]
+    public int CameraActiveCameraHash { get; set; } = -1;
 }

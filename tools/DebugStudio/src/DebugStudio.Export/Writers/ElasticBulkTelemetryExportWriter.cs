@@ -98,6 +98,12 @@ public sealed class ElasticBulkTelemetryExportWriter : ITelemetryExportWriter
             record.NativeMem,
             record.SceneFrom,
             record.SceneTo,
+            record.CameraTotalViewCount,
+            record.CameraAdditionalViewCount,
+            record.CameraBlendingViewCount,
+            record.CameraMaxStackDepthTotal,
+            record.CameraViewId,
+            record.CameraActiveCameraHash,
             @event = new
             {
                 category = document.Event.Category,

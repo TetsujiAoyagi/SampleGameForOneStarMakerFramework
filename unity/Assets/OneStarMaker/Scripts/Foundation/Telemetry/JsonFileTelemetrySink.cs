@@ -62,12 +62,18 @@ namespace OneStarMaker.Foundation.Telemetry
             var nativeMem = record.MetadataValue.NativeMem;
             var sceneFrom = record.MetadataValue.SceneFrom;
             var sceneTo = record.MetadataValue.SceneTo;
+            var cameraTotalViewCount = record.MetadataValue.CameraTotalViewCount;
+            var cameraAdditionalViewCount = record.MetadataValue.CameraAdditionalViewCount;
+            var cameraBlendingViewCount = record.MetadataValue.CameraBlendingViewCount;
+            var cameraMaxStackDepthTotal = record.MetadataValue.CameraMaxStackDepthTotal;
+            var cameraViewId = record.MetadataValue.CameraViewId;
+            var cameraActiveCameraHash = record.MetadataValue.CameraActiveCameraHash;
 
             var logLevel = MapLogLevel(record.Level);
             _logger.ZLog(
                 logLevel: logLevel,
                 eventId: TelemetryZLoggerConstants.EventId,
-                message: $"[Telemetry] name={name} success={isSuccess} elapsedMs={elapsedMs:F1} traceId={traceId} spanId={spanId} parentSpanId={parentSpanId} startTimestampUtcTicks={startTimestampUtcTicks} endTimestampUtcTicks={endTimestampUtcTicks} telemetryLevel={telemetryLevel} tagBits={tagBits} tagNames={tagNames} cpuTime={cpuTime} gpuTime={gpuTime} managedMem={managedMem} nativeMem={nativeMem} sceneFrom={sceneFrom} sceneTo={sceneTo}",
+                message: $"[Telemetry] name={name} success={isSuccess} elapsedMs={elapsedMs:F1} traceId={traceId} spanId={spanId} parentSpanId={parentSpanId} startTimestampUtcTicks={startTimestampUtcTicks} endTimestampUtcTicks={endTimestampUtcTicks} telemetryLevel={telemetryLevel} tagBits={tagBits} tagNames={tagNames} cpuTime={cpuTime} gpuTime={gpuTime} managedMem={managedMem} nativeMem={nativeMem} sceneFrom={sceneFrom} sceneTo={sceneTo} cameraTotalViewCount={cameraTotalViewCount} cameraAdditionalViewCount={cameraAdditionalViewCount} cameraBlendingViewCount={cameraBlendingViewCount} cameraMaxStackDepthTotal={cameraMaxStackDepthTotal} cameraViewId={cameraViewId} cameraActiveCameraHash={cameraActiveCameraHash}",
                 context: null);
         }
 

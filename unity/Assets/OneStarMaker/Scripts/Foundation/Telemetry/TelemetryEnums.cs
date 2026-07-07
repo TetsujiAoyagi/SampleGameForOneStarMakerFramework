@@ -43,6 +43,12 @@ namespace OneStarMaker.Foundation.Core
         /// <summary>UI 再構築/バッチ増大の検出イベント。</summary>
         UiCost = 7,
 
+        /// <summary>CameraSystem の定期 snapshot（View 数・スタック深度・ブレンド数）。</summary>
+        CameraSystemSnapshot = 8,
+
+        /// <summary>論理カメラ切替（Push/Pop による Active 変化 → ブレンド完了）。</summary>
+        CameraSwitch = 9,
+
     }
 
     /// <summary>

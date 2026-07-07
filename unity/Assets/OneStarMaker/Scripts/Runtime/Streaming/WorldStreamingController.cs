@@ -17,6 +17,9 @@ namespace OneStarMaker.Runtime.Streaming
     {
         private readonly HashSet<string> _inFlightAddCells = new(StringComparer.Ordinal);
         private readonly HashSet<string> _inFlightRemoveCells = new(StringComparer.Ordinal);
+        // Controller は状態を持つ同期ポリシー層であり、再入・スレッドセーフはスコープ外。
+        // hot path の Tick(Vector3) では、この 1 要素バッファを再利用して余分な GC を増やさない。
+        private readonly Vector3[] _singleFocusBuffer = new Vector3[1];
 
         /// <summary>
         /// Controller を構築する。
@@ -36,12 +39,35 @@ namespace OneStarMaker.Runtime.Streaming
         public ISceneStreamingBackend Backend { get; }
 
         /// <summary>
-        /// 注視点を受け取り、desired/retain 集合の差分をバックエンドへ発火する。
+        /// 単一注視点を受け取り、desired/retain 集合の差分をバックエンドへ発火する。
         /// 毎 Tick <see cref="ISceneStreamingBackend.IsLoaded"/> で実状態と再照合し自己修復する（G-6）。
         /// </summary>
         /// <param name="focusPosition">注視点のワールド座標。</param>
         public void Tick(Vector3 focusPosition)
         {
+            _singleFocusBuffer[0] = focusPosition;
+            Tick(_singleFocusBuffer);
+        }
+
+        /// <summary>
+        /// 複数注視点を受け取り、desired/retain 集合の差分をバックエンドへ発火する（CAM-08）。
+        /// desired = 各 focus の loadRadius 内セルの和集合。
+        /// retain = 各 focus の unloadRadius 内セルの和集合。
+        /// priority はセル中心から最寄り focus への距離昇順。
+        /// </summary>
+        /// <param name="focusPositions">注視点のワールド座標列（1 件以上）。</param>
+        public void Tick(IReadOnlyList<Vector3> focusPositions)
+        {
+            if (focusPositions is null)
+            {
+                throw new ArgumentNullException(nameof(focusPositions));
+            }
+
+            if (focusPositions.Count == 0)
+            {
+                throw new ArgumentException("注視点は 1 件以上必要です。", nameof(focusPositions));
+            }
+
             var grid = Config.Grid;
             var desiredOrdered = new List<(string cellId, float distance)>();
             var retain = new HashSet<string>(StringComparer.Ordinal);
@@ -53,19 +79,19 @@ namespace OneStarMaker.Runtime.Streaming
                 {
                     var cellId = CellIdentity.Format(x, y);
                     var center = GetCellCenter(x, y, grid);
-                    var distance = GetXzDistance(focusPosition, center);
+                    var nearestDistance = GetNearestFocusDistance(focusPositions, center);
 
                     if (Backend.IsLoaded(cellId))
                     {
                         loaded.Add(cellId);
                     }
 
-                    if (distance <= Config.LoadRadius)
+                    if (nearestDistance <= Config.LoadRadius)
                     {
-                        desiredOrdered.Add((cellId, distance));
+                        desiredOrdered.Add((cellId, nearestDistance));
                     }
 
-                    if (distance <= Config.UnloadRadius)
+                    if (nearestDistance <= Config.UnloadRadius)
                     {
                         retain.Add(cellId);
                     }
@@ -254,6 +280,23 @@ namespace OneStarMaker.Runtime.Streaming
             var dx = a.x - b.x;
             var dz = a.z - b.z;
             return Mathf.Sqrt(dx * dx + dz * dz);
+        }
+
+        /// <summary>複数 focus のうちセル中心に最も近い focus への XZ 距離。</summary>
+        private static float GetNearestFocusDistance(IReadOnlyList<Vector3> focusPositions, Vector3 cellCenter)
+        {
+            var nearest = float.MaxValue;
+
+            for (var i = 0; i < focusPositions.Count; i++)
+            {
+                var distance = GetXzDistance(focusPositions[i], cellCenter);
+                if (distance < nearest)
+                {
+                    nearest = distance;
+                }
+            }
+
+            return nearest;
         }
     }
 }

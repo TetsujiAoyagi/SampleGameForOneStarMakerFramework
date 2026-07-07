@@ -9,9 +9,8 @@ namespace OneStarMaker.Foundation.Telemetry
     /// Represents performance metrics and memory usage information associated with a scene transition.
     /// </summary>
     /// <remarks>The Metadata struct contains fields for tracking CPU and GPU processing times, managed and
-    /// native memory consumption, and identifiers for the source and destination scenes. This information is useful for
-    /// profiling and optimizing scene transitions in applications, enabling developers to monitor resource usage and
-    /// identify potential performance bottlenecks.</remarks>
+    /// native memory consumption, identifiers for the source and destination scenes, and optional CameraSystem
+    /// counters. Scene/Memory フィールドと Camera フィールドは用途が異なり、混在させない。</remarks>
     public readonly struct Metadata
     {
         // 値を持たせたいタグに対応する追加フィールド
@@ -22,7 +21,37 @@ namespace OneStarMaker.Foundation.Telemetry
         public readonly int SceneFrom;     // SceneTransition 等
         public readonly int SceneTo;
 
-        public Metadata(float cpuTime = 0, float gpuTime = 0, long managedMem = 0, long nativeMem = 0, int sceneFrom = -1, int sceneTo = -1)
+        /// <summary>CameraSystem snapshot: 管理中 View 総数。-1 = 未設定。</summary>
+        public readonly int CameraTotalViewCount;
+
+        /// <summary>CameraSystem snapshot: MainView を除く追加 View 数。-1 = 未設定。</summary>
+        public readonly int CameraAdditionalViewCount;
+
+        /// <summary>CameraSystem snapshot: ブレンド中 View 数。-1 = 未設定。</summary>
+        public readonly int CameraBlendingViewCount;
+
+        /// <summary>CameraSystem snapshot: 全 View の最大スタック深度。-1 = 未設定。</summary>
+        public readonly int CameraMaxStackDepthTotal;
+
+        /// <summary>CameraSwitch span: 対象 ViewId。-1 = 未設定。</summary>
+        public readonly int CameraViewId;
+
+        /// <summary>CameraSwitch span: ActiveCamera.Id の決定的 FNV-1a 32bit hash。-1 = 未設定。</summary>
+        public readonly int CameraActiveCameraHash;
+
+        public Metadata(
+            float cpuTime = 0,
+            float gpuTime = 0,
+            long managedMem = 0,
+            long nativeMem = 0,
+            int sceneFrom = -1,
+            int sceneTo = -1,
+            int cameraTotalViewCount = -1,
+            int cameraAdditionalViewCount = -1,
+            int cameraBlendingViewCount = -1,
+            int cameraMaxStackDepthTotal = -1,
+            int cameraViewId = -1,
+            int cameraActiveCameraHash = -1)
         {
             CpuTime = cpuTime;
             GpuTime = gpuTime;
@@ -30,6 +59,12 @@ namespace OneStarMaker.Foundation.Telemetry
             NativeMem = nativeMem;
             SceneFrom = sceneFrom;
             SceneTo = sceneTo;
+            CameraTotalViewCount = cameraTotalViewCount;
+            CameraAdditionalViewCount = cameraAdditionalViewCount;
+            CameraBlendingViewCount = cameraBlendingViewCount;
+            CameraMaxStackDepthTotal = cameraMaxStackDepthTotal;
+            CameraViewId = cameraViewId;
+            CameraActiveCameraHash = cameraActiveCameraHash;
         }
     }
 

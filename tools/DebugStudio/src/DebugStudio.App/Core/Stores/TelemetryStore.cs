@@ -230,6 +230,12 @@ public sealed class TelemetryStore
             NativeMem = telemetry.NativeMem,
             SceneFrom = telemetry.SceneFrom,
             SceneTo = telemetry.SceneTo,
+            CameraTotalViewCount = telemetry.CameraTotalViewCount,
+            CameraAdditionalViewCount = telemetry.CameraAdditionalViewCount,
+            CameraBlendingViewCount = telemetry.CameraBlendingViewCount,
+            CameraMaxStackDepthTotal = telemetry.CameraMaxStackDepthTotal,
+            CameraViewId = telemetry.CameraViewId,
+            CameraActiveCameraHash = telemetry.CameraActiveCameraHash,
         };
     }
 

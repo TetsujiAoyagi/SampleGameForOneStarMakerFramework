@@ -60,6 +60,36 @@ public sealed class TelemetryExportServiceTests
     }
 
     [Fact]
+    public async Task ExportAsync_cameraFieldsをexportRecordへ写す()
+    {
+        var store = new TelemetryStore(retainedCapacity: 8);
+        store.AppendTelemetry(new DebugTelemetryEnvelopeV1
+        {
+            Name = "CameraSystemSnapshot",
+            EndTimestampUtcTicks = new DateTime(2026, 4, 29, 1, 0, 2, DateTimeKind.Utc).Ticks,
+            CameraTotalViewCount = 3,
+            CameraAdditionalViewCount = 2,
+            CameraBlendingViewCount = 1,
+            CameraMaxStackDepthTotal = 4,
+            CameraViewId = 5,
+            CameraActiveCameraHash = 6,
+        });
+
+        var writer = new RecordingTelemetryExportWriter();
+        var service = new TelemetryExportService(store, writer);
+
+        await service.ExportAsync(@"C:\exports\telemetry.ndjson");
+
+        var record = Assert.Single(writer.LastRecords);
+        Assert.Equal(3, record.CameraTotalViewCount);
+        Assert.Equal(2, record.CameraAdditionalViewCount);
+        Assert.Equal(1, record.CameraBlendingViewCount);
+        Assert.Equal(4, record.CameraMaxStackDepthTotal);
+        Assert.Equal(5, record.CameraViewId);
+        Assert.Equal(6, record.CameraActiveCameraHash);
+    }
+
+    [Fact]
     public async Task ExportAsync_ElasticBulk指定時は対応writerへ委譲する()
     {
         var store = new TelemetryStore(retainedCapacity: 8);
