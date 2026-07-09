@@ -136,6 +136,7 @@ Game.Common ──→ Foundation, Runtime
 | §21 | SceneStreaming — セルストリーミング設計（ドラフト） | [21-scene-streaming.md](Docs/Architecture/21-scene-streaming.md) |
 | §22 | （予約 — HLOD / Proxy ティア。21-scene-streaming.md §12 参照） | — |
 | §23 | CameraSystem — カメラシステム設計（要件確定・実装前） | [23-camera-system.md](Docs/Architecture/23-camera-system.md) |
+| §24 | RenderingSystem — レンダリングシステム構想（構想段階・骨子） | [24-rendering-system.md](Docs/Architecture/24-rendering-system.md) |
 | — | Assembly 分割移行記録 | [migration-assembly-split.md](Docs/Architecture/migration-assembly-split.md) |
 
 ---
