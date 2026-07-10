@@ -477,7 +477,7 @@ T-17 の合格は、フレームワーク設計者自身が選んだ 2 ユース
 
 ## 将来の拡張
 
-- **デザイナーオーサリング経路**: フレームワークがアニメーション制作を代替する必要はなく、**所有権（割り込み・収束・duration）だけを握る**。具体経路は 2 つ。(1) BehaviorAsset のイージングを `AnimationCurve` フィールド化しデザイナーがカーブを調整できるようにする。(2) `AnimationClip` / Timeline を再生するだけの Behavior を副作用系と同じ外部システム扱いで用意し、duration と Rewind 可否を Runner の契約に載せる。デザイナーは既存ツールでカーブを打ち、Runner はそれを一部品として管理する
+- **デザイナーオーサリング経路**: フレームワークがアニメーション制作を代替する必要はなく、**所有権（割り込み・収束・duration）だけを握る**。具体経路は 2 つ。(1) BehaviorAsset のイージングを `AnimationCurve` フィールド化しデザイナーがカーブを調整できるようにする（**Animation ウィンドウで編集**）。(2) `AnimationClip` / Timeline を再生するだけの Behavior を副作用系と同じ外部システム扱いで用意し、duration と Rewind 可否を Runner の契約に載せる。デザイナーは既存ツールでカーブを打ち、Runner はそれを一部品として管理する。**専用 Storybook 型 Preview は作らない**（[`UI_LIFECYCLE_BOUNDARY_REMEDIATION_2026-07-10.md`](UI_LIFECYCLE_BOUNDARY_REMEDIATION_2026-07-10.md) §D-6）。
 - **常駐型 Follow Behavior**: 毎フレーム変化する値への連続追従プリミティブ（スコープ境界の章を参照）
 - **UXML Behavior DSL**: `<On event="HPChanged">` 等の UXML 内 Behavior 記述（v0.1 で示した理想的な UXML は将来の拡張）
 - **割り込みポリシーの追加**: ブレンド、即時終了など
@@ -506,4 +506,5 @@ T-17 の合格は、フレームワーク設計者自身が選んだ 2 ユース
 ## 関連ドキュメント
 
 - 施行表: [`UI_BEHAVIOR_PIPELINE_WORKPLAN_2026-07-06.md`](UI_BEHAVIOR_PIPELINE_WORKPLAN_2026-07-06.md)
+- D 項目修正案（寿命・責務境界）: [`UI_LIFECYCLE_BOUNDARY_REMEDIATION_2026-07-10.md`](UI_LIFECYCLE_BOUNDARY_REMEDIATION_2026-07-10.md)
 - UI アーキテクチャ正本: [`unity/Assets/Docs/Architecture/06-ui.md`](../../unity/Assets/Docs/Architecture/06-ui.md)
