@@ -5,6 +5,8 @@
         "OneStarMaker.Foundation",
         "OneStarMaker.Runtime",
         "OneStarMaker.TestSupport",
+        "SampleGame.DependOnAll",
+        "SampleGame.OutGame",
         "Unity.Collections",
         "Unity.Addressables",
         "Unity.ResourceManager",

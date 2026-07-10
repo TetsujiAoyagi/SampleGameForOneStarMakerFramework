@@ -31,7 +31,7 @@ OneStarMaker 汎用フレームワーク + SampleGame ゲーム層 + DebugStudio
 | [UniTask](https://github.com/Cysharp/UniTask) | 2.5.10 | async/await |
 | [R3](https://github.com/Cysharp/R3) | 1.3.0 | Reactive Extensions |
 | [ObservableCollections](https://github.com/Cysharp/ObservableCollections) | 3.3.4 | コレクション変更通知 |
-| [ZLogger](https://github.com/Cysharp/ZLogger) | 2.5.10 | 構造化ログ（`IAppLogger<T>` で隠蔽） |
+| [ZLogger](https://github.com/Cysharp/ZLogger) | 2.5.10 | 構造化ログ（`ILogger<T>` + ZLogger 拡張） |
 | [ZString](https://github.com/Cysharp/ZString) | 2.6.0 | ゼロアロケ文字列 |
 | ZStringFormatExtension | 0.0.6 | ZString 拡張 |
 | [MessagePack](https://github.com/MessagePack-CSharp/MessagePack-CSharp) | 3.1.4 | DebugSocket / テレメトリ直列化 |
@@ -93,3 +93,5 @@ dotnet run --project src/DebugStudio.App/DebugStudio.App.csproj
 - Unity 内メイン設計書: `unity/Assets/ARCHITECTURE.md`
 - アーキテクチャ詳細: `unity/Assets/Docs/Architecture/`
 - UpdateSystem 正本仕様: `docs/updater/UPDATER_CURRENT_SPEC.md`
+- Carbon Engine 設計参照（パターン比較・コード非移植）: `docs/reference/carbon-engine/README.md`
+- 外部参照深掘り引き継ぎ（YooAsset / UnityStarter 等）: `docs/reference/HANDOFF.md`

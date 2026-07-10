@@ -13,7 +13,10 @@
     "overrideReferences": true,
     "precompiledReferences": [
         "R3.dll",
-        "ObservableCollections.dll"
+        "ObservableCollections.dll",
+        "ZLogger.dll",
+        "Microsoft.Extensions.Logging.dll",
+        "Microsoft.Extensions.Logging.Abstractions.dll"
     ],
     "autoReferenced": true,
     "defineConstraints": [],

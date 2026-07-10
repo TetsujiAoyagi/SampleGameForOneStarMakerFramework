@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using OneStarMaker.Runtime;
 using OneStarMaker.Runtime.SceneSystem;
 using UnityEngine;
@@ -24,7 +25,14 @@ namespace SampleGame.DependOnAll
         private static void After() => BootstrapAfterSceneLoad(s_instance);
 
         protected override ISceneFactory CreateSceneFactory()
-            => new GameSceneFactory();
+        {
+            // Bootstrap が構成した唯一の ILoggerFactory を Game 層へ渡す。
+            // Game 層で AppLoggerFactory を再生成すると、rolling file と DebugSocket への出力経路が分断される。
+            var loggerFactory = LoggerFactory
+                ?? throw new InvalidOperationException(
+                    "ILoggerFactory is not initialized. Ensure BeforeSceneLoad completed successfully.");
+            return new GameSceneFactory(loggerFactory);
+        }
 
         protected override string GetUICommonPrefabAddress()
             => "Assets/OneStarMaker/Scenes/UIScene.unity";

@@ -17,7 +17,7 @@
 | Async | **UniTask 2.5.10** |
 | Reactive | **R3 1.3.0** + ObservableCollections |
 | Tween | **LitMotion** |
-| Logging | **ZLogger 2.5.10** → `IAppLogger<T>` で隠蔽 |
+| Logging | **ZLogger 2.5.10** + **Microsoft.Extensions.Logging**（`ILogger<T>` / `ILoggerFactory`） |
 | Asset Management | **Addressables 2.9.1** |
 | UI | **uGUI**（Phase 4 で UI Toolkit 段階移行予定） |
 | Input | **Unity InputSystem** |
@@ -32,7 +32,7 @@ Assets/
 ├── OneStarMaker/Scripts/        ← 汎用ゲームフレームワーク
 │   ├── Foundation/              ← OneStarMaker.Foundation.asmdef (leaf)
 │   │   ├── Config/              … AppConfig + 3 ConfigProvider
-│   │   ├── Logging/             … IAppLogger<T>, AppLogger, AppLoggerFactory, NullAppLogger
+│   │   ├── Logging/             … AppLoggerFactory (ILoggerFactory), MessagePackZLoggerFormatter
 │   │   ├── Telemetry/           … AppTelemetry, ITelemetrySink, JsonFileTelemetrySink
 │   │   ├── DebugSocket/         … DebugStudio 連携プロトコル DTO (MessagePack)
 │   │   └── UpdateSystem/        … UpdateCoordinator, UpdateLayer（正本: docs/updater/UPDATER_CURRENT_SPEC.md）
@@ -94,10 +94,10 @@ SampleGame.Common      ──→ Foundation, Runtime
 Microsoft.Extensions.Configuration 互換のキー形式（`:` 区切り）。
 
 ### Logging（ログ）
-`IAppLogger<T>` インターフェースで ZLogger を隠蔽。Game 層は ZLogger/MEL を直接参照しない。  
-- `AppLoggerFactory` で生成（RollingFile JSON 出力 + Unity Console 転送）
-- `Trace`/`Debug` レベルは `[Conditional]` で Release ビルド時にゼロコスト除去
-- テスト時は `NullAppLogger<T>` を注入
+`AppLoggerFactory` が `ILoggerFactory` を構成し、rolling file（JSON）と DebugSocket realtime stream を一本化する。
+- Game 層は `ILogger<T>` と ZLogger 拡張（`ZLogInformation` 等）を直接参照する（独自 `IAppLogger<T>` ラッパーは不採用）
+- `AppInitializer` → `GameSceneFactory` → `Scene` へ手動 DI。Game 層での `new AppLoggerFactory()` は禁止
+- テスト時は `NullLoggerFactory.Instance` を注入
 
 ### Scene（シーン管理）
 `SceneDirector` が親子階層のシーンツリーを一元管理。  

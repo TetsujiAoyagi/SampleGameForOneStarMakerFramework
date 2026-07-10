@@ -27,7 +27,7 @@
 |---|---|:---:|:---:|---|---|
 | **F1** | 3-Assembly 分割 (Foundation/Runtime/Debug) | ✅ | ✅ | — | — |
 | **F2** | Config (3ソースマージ) | ✅ | ✅ | — | — |
-| **F3** | Logging (ZLogger → IAppLogger\<T\>) | ✅ | ✅ | — | — |
+| **F3** | Logging (ZLogger + `ILogger<T>` / `ILoggerFactory`) | ✅ | ✅ | — | — |
 | **F4** | Telemetry (Activity Span + JSONL Sink) | ✅ | ✅ | — | — |
 | **F5** | ZString ホットパス最適化 | ✅ | ✅ | TMP `SetTextFormat` 不可（NuGet版制約） | UPM 版切替が必要になる可能性 |
 | **F6** | Scene 管理 (14状態 + partial×4) | ✅ | ✅ | — | 状態数の認知負荷は高い |
@@ -38,7 +38,7 @@
 | **F11** | SoundService | ✅ | ❌ | **設計のみ。Phase 2 未着手** | 音がない＝動作確認困難 |
 | **F12** | InputManager + R3 配信 | ✅ | ❌ | **設計のみ。Phase 2 未着手** | Game 層が入力を受けられない |
 | **F13** | リソースシステム + メモリバジェット | ✅ | ❌ | **設計のみ。T9-T15 未着手** | アセット管理が Addressables 生呼び |
-| **F14** | VContainer 本格統合 (Scope 管理) | ✅ | ⚠️ | Phase 1 は手動 DI。LifetimeScope 未実装 | DI 無しでサービス数が増えると配線地獄 |
+| **F14** | 手動 DI の配線拡張性 | ✅ | ✅ | `DependOnAll` をコンポジションルートとする手動 DI を正式採用 | サービス増加で Factory 配線が読みづらくなる可能性。具体的な配線コストを計測して再評価する |
 | **F15** | Game 実装 (Title→InGame 遷移) | — | ⚠️ | TitleScene のみ。InGame/Player/Grid 未着手 | フレームワークの検証手段がない |
 | **F16** | UI Toolkit 段階移行 | 構想 | ❌ | Phase 4。設計ドキュメントもなし | 移行パスが不透明 |
 | **F17** | テスト | ✅ | ⚠️ | SceneDirector テストのみ存在 | カバレッジが極めて低い |
@@ -55,11 +55,11 @@
 
 | 観点 | OneStarMaker | 一般的な Unity プロジェクト / 既存 FW | 優位理由 |
 |---|---|---|---|
-| **依存方向の強制** | Assembly 分割 + 禁止ルール明文化。Game→FW のみ、逆参照不可。VContainer は DependOnAll に封じ込め | Zenject/Extenject は全層から参照可能。`[Inject]` が散在しがち | コンパイル時に違反を検出。「知らないうちにフレームワークがゲーム固有型を参照」が原理的に不可能 |
+| **依存方向の強制** | Assembly 分割 + 禁止ルール明文化。Game→FW のみ、逆参照不可。手動 DI の配線は DependOnAll のコンポジションルートへ集約 | Zenject/Extenject は全層から参照可能。`[Inject]` が散在しがち | コンパイル時に違反を検出。「知らないうちにフレームワークがゲーム固有型を参照」が原理的に不可能 |
 | **シーンライフサイクル** | 14状態 + キャンセル窓 + PoNR の明示的モデル。SceneLifecycleManager がオーナーシップを独占 | Unity 標準は Load/Unload のみ。多くのプロジェクトで状態管理が暗黙的 | 二重ロード/二重アンロード/キャンセル競合を構造的に排除。旧プロジェクトで実際に踏んだバグが再発不可能 |
-| **ログの隠蔽** | `IAppLogger<T>` で ZLogger を完全ラップ。`[Conditional]` でゼロコスト除去 | `Debug.Log` 直接呼び、Release ビルドで残留するパターンが多い | Game 層は ZLogger/MEL の型を一切知らない。ライブラリ差し替えが Foundation 内で完結 |
+| **ログ** | `AppLoggerFactory` が `ILoggerFactory` を構成。Game 層は `ILogger<T>` + ZLogger 拡張を直接参照 | `Debug.Log` 直接呼び、Release ビルドで残留するパターンが多い | rolling file / DebugSocket / カテゴリフィルタが Game 層ログにも適用される。Service Locator なしで依存が型シグネチャから追跡可能 |
 | **テレメトリ設計** | OTel 互換 TraceId/SpanId。JSONL ローカル → 将来 Elastic。IL2CPP 安全 | 多くの Unity プロジェクトにはテレメトリ基盤がない。あっても Analytics SDK 依存 | シーン遷移・起動・FPS を統一フォーマットで因果関係付きで記録。OTEL SDK なしで軽量実装 |
-| **Cysharp 統一** | VContainer + UniTask + R3 + LitMotion + ZLogger + ZString = 同一設計思想チェーン | Zenject + DOTween + UniRx + 自前ログ = API 思想がバラバラ | await / Observable / Tween / DI の相互運用がネイティブ。ボイラープレートが激減 |
+| **Cysharp 系ライブラリの採用** | UniTask + R3 + LitMotion + ZLogger + ZString を用途ごとに採用。依存配線はコンテナを使わず DependOnAll の手動 DI で行う | Zenject + DOTween + UniRx + 自前ログ = API 思想がバラバラ | async / Observable / Tween / 構造化ログの主要 API を統一しつつ、依存の出所をコンストラクタとコンポジションルートから追跡できる |
 | **暗黙知の文書化** | IK-1〜IK-10 レベルで「なぜそうなのか」をテーブル化 | README + コード内コメントが散在。設計意図が消失 | 新メンバーが「なぜ UIView は1シーン1つなのか」を文書から即座に理解可能 |
 | **トレードオフ記録** | 全設計セクションに「採用/却下理由」テーブル | 設計理由が Slack/議事録に埋没 | ADR (Architecture Decision Records) 相当。後から「なぜ sortingOrder を使わないのか」が追跡可能 |
 | **Scene Graph Editor** | ノードベース MVVM + 3層ファイル分離 (ノード/エッジ/レイアウト) | 多くのプロジェクトは ScriptableObject 手編集か Inspector ベース | 親子関係をビジュアル編集でき、Git マージ衝突を構造的に回避。SceneResource 生成を自動化 |
@@ -75,7 +75,7 @@
 | **実装の空洞化** | 設計ドキュメント 17本 vs 実際に動く Game シーン 1本 (TitleScene) | 「動くもの優先」が Unity 開発の定石。Unity 公式テンプレートは最小動作から拡張 | **設計文書は充実しているが、ゲームが動かない**。Phase 2 サービス (Sound/Input/HostedService) が全部揃わないと Game ループが成立しない |
 | **テストカバレッジ** | SceneDirector テストのみ。Foundation (Config/Logging/Telemetry) のテストなし | 成熟した FW は Foundation 層こそテスト密度が高い | `AppLoggerFactory` の AdditionalFormatter、`JsonFileTelemetrySink` のローリング/フラッシュ、`AppConfig` の3ソースマージ — **最もバグが出やすい箇所にテストがない** |
 | **static テレメトリ** | `AppTelemetry` は static class。Sink リストは static フィールド + lock | VContainer / DI ベースなら `IAppTelemetry` interface で注入可能 | テスト時にグローバル状態がリークする。並列テスト不可。DI で解決可能だが Foundation が DI を知らない制約と衝突 |
-| **手動 DI の限界** | Phase 1 は `ISceneFactory` 経由の手動配線。VContainer Scope 未実装 | VContainer の `LifetimeScope` でシーン毎の Scope を自動管理するのが標準パターン | サービスが増えるたびに Factory のコンストラクタ引数が爆発する。**Phase 2 着手前に VContainer 統合が必須** |
+| **手動 DI の配線コスト** | `ISceneFactory` と `DependOnAll` を経由して依存を明示的に配線する | DI コンテナでスコープを自動管理する設計もある | サービス増加で Factory の引数や配線が読みにくくなる可能性がある。実際の重複・変更頻度・テスト容易性を観測し、閾値を超えた場合だけ方針を再評価する |
 | **MonoBehaviour 依存** | UICommon / UIView / DebugProfilerView が MonoBehaviour | Pure C# + interface で抽象化し、MonoBehaviour は最外殻のみにする設計もある | UICommon が MonoBehaviour のため、ユニットテストが困難。`FindRootComponent<T>()` がランタイム依存する |
 | **Addressables 生呼び** | SceneDirector が `Addressables.LoadSceneAsync` / `UnloadSceneAsync` を直接呼ぶ | リソースシステム (F13) のインターフェースを通してロードするのが理想 | リソースシステム設計は完了しているが未実装。**現在の SceneDirector はリファクタリングが必要になる** |
 | **エラーリカバリ** | シーンロード失敗時の回復パスが薄い。`catch` でログ + 再throw が主 | Resilience パターン (リトライ/フォールバック/Circuit Breaker) | STG では「ロード失敗→タイトルに戻す」程度で十分だが、その具体実装がない |
@@ -111,7 +111,7 @@
 | 順位 | アクション | 理由 | 見積り |
 |---|---|---|---|
 | **1** | **Phase 2 サービス最小実装 → Title→InGame 動線を貫通させる** | フレームワークの妥当性は動くゲームでしか検証できない。Sound/Input は stub でもよいから動線をつなぐ | Phase 2 (中) |
-| **2** | **VContainer LifetimeScope 統合** | Phase 2 サービス増でコンストラクタ配線が破綻するため、統合しないと先に進めない | Phase 2 前提 |
+| **2** | **Phase 2 の Factory 配線コストを観測する** | 手動 DI を正式方針として維持し、サービス追加時の重複・変更範囲・テスト容易性を記録する。具体的な痛みが確認できた場合だけ DI 方針を再評価する | Phase 2 を通じて |
 | **3** | **Foundation 層のユニットテスト追加** | AppConfig マージ、JsonFileTelemetrySink ローリング、TelemetryRecord — 最もバグが出やすい箇所 | 随時 |
 | **4** | **Unity Profiler で GC Alloc 実測** | ZString 投資の ROI を数値で確認。DeepProfile でフレーム毎 alloc を計測 | 短期 |
 | **5** | **NuGet → UPM 統一検討** | ZString/ZLogger の UPM 化で `SetTextFormat` 問題を解消し、IL2CPP stripping リスクも排除 | 短期 |

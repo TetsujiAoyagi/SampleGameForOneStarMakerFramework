@@ -2,8 +2,9 @@
 
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using OneStarMaker.Runtime.SceneSystem;
-using UnityEngine;
+using ZLogger;
 
 namespace SampleGame.OutGame.Scenes
 {
@@ -12,9 +13,19 @@ namespace SampleGame.OutGame.Scenes
     /// </summary>
     public sealed class ConfirmDialogScene : SceneBase
     {
-        public ConfirmDialogScene(SceneResource sceneResource, ISceneQuery sceneQuery)
+        private readonly ILogger<ConfirmDialogScene> _logger;
+
+        public ConfirmDialogScene(SceneResource sceneResource, ISceneQuery sceneQuery, ILoggerFactory loggerFactory)
             : base(sceneResource, sceneQuery)
         {
+            if (loggerFactory == null)
+            {
+                throw new System.ArgumentNullException(nameof(loggerFactory));
+            }
+
+            // Scene ごとのカテゴリを維持するため、文字列カテゴリではなく型付き logger を使用する。
+            // DebugStudio 側で発生元 Scene を絞り込めることを優先する。
+            _logger = loggerFactory.CreateLogger<ConfirmDialogScene>();
         }
 
         /// <inheritdoc />
@@ -43,7 +54,7 @@ namespace SampleGame.OutGame.Scenes
         {
             if (SceneQuery is not SceneDirector director)
             {
-                Debug.LogError("[ConfirmDialogScene] SceneDirector を取得できません。");
+                _logger.ZLogError($"SceneDirector を取得できません。");
                 return;
             }
 

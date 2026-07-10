@@ -81,7 +81,10 @@ else
 
 - **ZLogger** を標準のロギング基盤とする。
 - `Debug.Log` / `Debug.LogWarning` / `Debug.LogError` は直接使用しない。
-- OneStarMaker.Foundation 層で **`IAppLogger<T>`** ベースのロギング基盤を提供する。
-- Game 層は `IAppLogger<T>` のみを参照し、ZLogger / Microsoft.Extensions.Logging を直接参照しない。
-- `AppLoggerFactory` で生成する。テスト時は `NullAppLogger<T>` を注入する。
-- `Trace` / `Debug` レベルは `[Conditional]` 属性により Release ビルドでゼロコスト除去される。
+- Foundation 層の **`AppLoggerFactory`** が `ILoggerFactory` を構成する（rolling file + DebugSocket realtime stream）。
+- Game 層は **`ILogger<T>`** と **ZLogger 拡張**（`ZLogInformation` 等）を直接参照する。独自の `IAppLogger<T>` ラッパーは導入しない。
+- `AppInitializer` → `GameSceneFactory` → `Scene` へ `ILoggerFactory` を手動 DI する。Game 層で `new AppLoggerFactory()` は禁止。
+- Unity 生成の View へは、ログを書く場合のみ `SceneBase.OnInitialize` から `Initialize(ILoggerFactory)` で渡す。
+- テスト時は `NullLoggerFactory.Instance` またはキャプチャ用 `ILoggerFactory` を注入する。
+- Service Locator / `IServiceProvider` / 汎用 Global logger は導入しない（注入不能な Unity/Editor 生成物のみ例外レビュー）。
+- ZLogger の用途に合う API とログレベルを選び、hot path では不要な文字列補間・`ToString()`・配列生成を避ける。
