@@ -14,4 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: OneStarMaker.Editor::OneStarMaker.Editor.SceneGraph.SceneGraphLayout
   _positions:
   - Node: {fileID: 11400000, guid: 75a3217c416d1904594d249e3d9332d8, type: 2}
-    Position: {x: 121, y: 186}
+    Position: {x: 114, y: 194}
+  - Node: {fileID: 11400000, guid: b5502d478be8a9043b77f4b09867e67e, type: 2}
+    Position: {x: 173, y: 198}

@@ -16,12 +16,13 @@ MonoBehaviour:
   _sceneAssetDescription:
     _loadType: 0
     _payloads:
-    - SceneReference:
+    - Reference:
         m_AssetGUID: 7417c2f339f202e4bbb8f5062f684ab1
         m_SubObjectName: 
-        m_SubObjectGUID: 
         m_SubObjectType: 
+        m_SubObjectGUID: 
         m_EditorAssetChanged: 0
       Variant: 
+    SceneIdentity: 
   _parent: {fileID: 0}
   _children: []

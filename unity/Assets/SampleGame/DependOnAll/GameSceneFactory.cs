@@ -2,6 +2,7 @@
 
 using OneStarMaker.Runtime.SceneSystem;
 using SampleGame.OutGame.Scenes;
+using SampleGame.OutGame.Title;
 
 namespace SampleGame.DependOnAll
 {

@@ -5,7 +5,7 @@ using System.Threading;
 using OneStarMaker.Runtime.SceneSystem;
 using UnityEngine;
 
-namespace SampleGame.OutGame.Scenes
+namespace SampleGame.OutGame.Title
 {
     /// <summary>
     /// タイトル画面シーン。最小実装。

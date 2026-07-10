@@ -14,6 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: OneStarMaker.Runtime::OneStarMaker.Runtime.SceneSystem.SceneResourceMap
   _sceneResources:
   - {fileID: 11400000, guid: 857e7ad69c4baba4bbc8ed69eade0171, type: 2}
-  - {fileID: 11400000, guid: 76470e4bc349d4348884f95a32477101, type: 2}
-  - {fileID: 11400000, guid: 41a47e005b7c1024396b0f49f86e78da, type: 2}
-  _generateHash: d37514fff374e853
+  _generateHash: 6eaebb4d7a090029

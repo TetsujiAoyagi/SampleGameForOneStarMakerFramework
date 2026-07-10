@@ -10,15 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d5563bd9cdc08aa488a2912019372f27, type: 3}
-  m_Name: TitleNode
+  m_Name: Title
   m_EditorClassIdentifier: OneStarMaker.Editor::OneStarMaker.Editor.SceneGraph.SceneNodeData
   _identity: Title
   _loadType: 0
   _payloads:
-  - SceneReference:
+  - Reference:
       m_AssetGUID: 7417c2f339f202e4bbb8f5062f684ab1
       m_SubObjectName: 
-      m_SubObjectGUID: 
       m_SubObjectType: 
+      m_SubObjectGUID: 
       m_EditorAssetChanged: 0
     Variant: 
