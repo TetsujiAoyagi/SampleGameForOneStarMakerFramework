@@ -455,6 +455,10 @@ namespace OneStarMaker.Runtime.DebugSocketServices
 
         private async UniTask ConnectLoopAsync(Uri connectUri, CancellationToken cancellationToken)
         {
+            // DebugStudio 未起動時の 2 秒周期リトライで Console が溢れないよう、
+            // 同一の「未接続ストリーク」では初回失敗だけをログに出す。
+            var logNextConnectFailure = true;
+
             while (!cancellationToken.IsCancellationRequested)
             {
                 ClientWebSocket? socket = null;
@@ -465,7 +469,11 @@ namespace OneStarMaker.Runtime.DebugSocketServices
                     socket = new ClientWebSocket();
                     socket.Options.KeepAliveInterval = OutboundKeepAliveInterval;
 
-                    Debug.Log($"[DebugSocket] Connecting to DebugStudio server. endpoint={connectUri}");
+                    if (logNextConnectFailure)
+                    {
+                        Debug.Log($"[DebugSocket] Connecting to DebugStudio server. endpoint={connectUri}");
+                    }
+
                     await socket.ConnectAsync(connectUri, cancellationToken).AsUniTask();
 
                     session = await ActivateSessionAsync(
@@ -489,13 +497,22 @@ namespace OneStarMaker.Runtime.DebugSocketServices
                 {
                     socket?.Dispose();
                     _lastStartError = ex.Message;
-                    Debug.LogWarning($"[DebugSocket] Failed to connect to DebugStudio server. endpoint={connectUri}, detail={ex.Message}");
+                    if (logNextConnectFailure)
+                    {
+                        Debug.LogWarning(
+                            $"[DebugSocket] Failed to connect to DebugStudio server. endpoint={connectUri}, detail={ex.Message}");
+                        logNextConnectFailure = false;
+                    }
                 }
                 catch (Exception ex)
                 {
                     socket?.Dispose();
                     _lastStartError = ex.Message;
-                    Debug.LogError($"[DebugSocket] Outbound transport loop failed. endpoint={connectUri}: {ex}");
+                    if (logNextConnectFailure)
+                    {
+                        Debug.LogError($"[DebugSocket] Outbound transport loop failed. endpoint={connectUri}: {ex}");
+                        logNextConnectFailure = false;
+                    }
                 }
 
                 if (cancellationToken.IsCancellationRequested)
@@ -506,6 +523,7 @@ namespace OneStarMaker.Runtime.DebugSocketServices
                 if (session != null)
                 {
                     Debug.LogWarning($"[DebugSocket] Connection to DebugStudio server ended. Reconnecting. endpoint={connectUri}");
+                    logNextConnectFailure = true;
                 }
 
                 // 接続失敗や切断はセッション単位の揺らぎとして扱い、

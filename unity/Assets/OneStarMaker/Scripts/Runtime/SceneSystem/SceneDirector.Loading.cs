@@ -603,6 +603,15 @@ namespace OneStarMaker.Runtime.SceneSystem
                     throw new InvalidOperationException($"Scene reference not found: {sceneIdentify}");
                 }
 
+                // Payload を持たない SceneResource は Unity シーン実体を持たない論理ノード
+                // （子シーンをまとめる親グループ等）。SceneGraphValidator が空 Payload を Info 扱いで
+                // 許容している（R-8）ため、ここでは Addressables ロードを行わず、SceneBase の
+                // ライフサイクルだけを進める器として扱う。RootObjects は空を返す。
+                if (sceneAssetDescription.Payloads.Count == 0)
+                {
+                    return (false, Array.Empty<GameObject>());
+                }
+
                 // sceneIdentity は呼び出し側（メソッド引数）を正とし、variant には混ぜない。
                 var sceneHandle = await _assetManagement.LoadSceneAsync(
                     sceneIdentify,

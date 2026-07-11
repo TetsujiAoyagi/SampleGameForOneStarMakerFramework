@@ -361,14 +361,15 @@ namespace OneStarMaker.Runtime
             return uiCommon;
         }
 
-        private UniTask<SceneResourceMap> LoadSceneResourceMapAsync()
+        private async UniTask<SceneResourceMap> LoadSceneResourceMapAsync()
         {
             var address = GetSceneResourceMapAddress();
-            // ScriptableObject はアプリ生存期間中ずっと必要。ReleaseAppAll まで保持する
-            var handle = _assetManagement!.LoadAppAssetSync<SceneResourceMap>(AssetKey.FromAddress(address));
-            var map = handle.Value
+            // ScriptableObject は App スコープで保持。ReleaseAll まで解放しない
+            var handle = await _assetManagement!.LoadAssetAsync<SceneResourceMap>(
+                AssetKey.FromAddress(address),
+                AssetOwner.App);
+            return handle.Value
                 ?? throw new InvalidOperationException($"SceneResourceMap not found: {address}");
-            return UniTask.FromResult(map);
         }
 
         /// <summary>

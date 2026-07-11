@@ -16,4 +16,7 @@ MonoBehaviour:
   _nodes:
   - {fileID: 11400000, guid: 75a3217c416d1904594d249e3d9332d8, type: 2}
   - {fileID: 11400000, guid: b5502d478be8a9043b77f4b09867e67e, type: 2}
-  _edges: []
+  - {fileID: 11400000, guid: df564375ee5fe5e40a95fc972ded7081, type: 2}
+  _edges:
+  - Parent: {fileID: 11400000, guid: df564375ee5fe5e40a95fc972ded7081, type: 2}
+    Child: {fileID: 11400000, guid: b5502d478be8a9043b77f4b09867e67e, type: 2}

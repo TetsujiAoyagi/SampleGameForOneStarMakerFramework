@@ -31,6 +31,7 @@ namespace SampleGame.DependOnAll
             return sceneResource.Identity switch
             {
                 "Title" => new TitleScene(sceneResource, sceneQuery, _loggerFactory),
+                "OutGame" => new OutGame.OutGameScene(sceneResource, sceneQuery, _loggerFactory),
                 "HpGauge" => new HpGaugeScene(sceneResource, sceneQuery, _loggerFactory),
                 "ConfirmDialog" => new ConfirmDialogScene(sceneResource, sceneQuery, _loggerFactory),
                 _ => null,

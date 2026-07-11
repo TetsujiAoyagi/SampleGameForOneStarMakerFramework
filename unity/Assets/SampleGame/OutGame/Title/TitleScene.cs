@@ -26,6 +26,8 @@ namespace SampleGame.OutGame.Title
             // Scene ごとのカテゴリを維持するため、文字列カテゴリではなく型付き logger を使用する。
             // DebugStudio 側で発生元 Scene を絞り込めることを優先する。
             _logger = loggerFactory.CreateLogger<TitleScene>();
+
+            _logger.ZLogInformation($"Create TitleScene");
         }
 
         protected override void OnInitialize()

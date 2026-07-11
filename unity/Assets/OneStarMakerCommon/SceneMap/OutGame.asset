@@ -9,10 +9,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 51d134cc19e9fea4f91af0d05587f592, type: 3}
-  m_Name: SceneResourceMap
-  m_EditorClassIdentifier: OneStarMaker.Runtime::OneStarMaker.Runtime.SceneSystem.SceneResourceMap
-  _sceneResources:
-  - {fileID: 11400000, guid: e3a2bfedc61cea64cb970c68aad414ef, type: 2}
+  m_Script: {fileID: 11500000, guid: a55e49cc16182ed438f81c6b1032b83c, type: 3}
+  m_Name: OutGame
+  m_EditorClassIdentifier: OneStarMaker.Runtime::OneStarMaker.Runtime.SceneSystem.SceneResource
+  _identity: OutGame
+  _sceneAssetDescription:
+    _loadType: 0
+    _payloads: []
+    SceneIdentity: 
+  _parent: {fileID: 0}
+  _children:
   - {fileID: 11400000, guid: 857e7ad69c4baba4bbc8ed69eade0171, type: 2}
-  _generateHash: 7c147707f6c96084
