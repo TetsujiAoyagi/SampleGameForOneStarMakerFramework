@@ -20,6 +20,7 @@ namespace OneStarMaker.Runtime.UpdateSystem.Hosting
         private readonly HashSet<string> _unstableSceneIds = new(StringComparer.Ordinal);
         private IDisposable? _sceneEventSubscription;
         private bool _activationRequested = true;
+        private bool _sceneDirectorBound;
         private bool _disposed;
 
         public UpdateSystemHost()
@@ -27,7 +28,13 @@ namespace OneStarMaker.Runtime.UpdateSystem.Hosting
             Coordinator = new UpdateCoordinator();
 
             var host = new GameObject("[UpdaterHost]");
-            UnityEngine.Object.DontDestroyOnLoad(host);
+            // EditMode テストでは DontDestroyOnLoad を呼べない。再生時だけ常駐化し、
+            // テスト側は Dispose によって生成した Host を明示的に破棄する。
+            if (Application.isPlaying)
+            {
+                UnityEngine.Object.DontDestroyOnLoad(host);
+            }
+
             _driver = host.AddComponent<UpdaterDriver>();
             _driver.Initialize(this);
 
@@ -43,7 +50,10 @@ namespace OneStarMaker.Runtime.UpdateSystem.Hosting
 
         internal bool TryConsumeActivationRequest()
         {
-            if (!_activationRequested || _unstableSceneIds.Count > 0)
+            // SceneDirector が未接続の間は、ロード済みシーン由来 Element の安定性を判定できない。
+            // Application 常駐サービス（CameraSystem など）は Bootstrap が Coordinator を直接操作して
+            // 明示的に active 化するが、通常の RegisterElement はここで止めて遷移途中の実行を防ぐ。
+            if (!_sceneDirectorBound || !_activationRequested || _unstableSceneIds.Count > 0)
             {
                 return false;
             }
@@ -61,6 +71,10 @@ namespace OneStarMaker.Runtime.UpdateSystem.Hosting
 
             _sceneEventSubscription?.Dispose();
             _sceneEventSubscription = sceneDirector.OnSceneEvent.Subscribe(OnSceneEvent);
+            // 既に pending の Element があるため、SceneDirector 接続後の最初の安定フレームで
+            // activation を再評価する。scene event が直ちに届く場合は _unstableSceneIds が優先して停止する。
+            _sceneDirectorBound = true;
+            _activationRequested = true;
         }
 
         public void Dispose()

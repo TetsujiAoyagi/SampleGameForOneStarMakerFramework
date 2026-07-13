@@ -229,25 +229,7 @@ namespace OneStarMaker.Runtime
                 Debug.Log("[AppInit] AfterSceneLoad: loading SceneResourceMap.");
                 _sceneResourceMap = await LoadSceneResourceMapAsync();
 
-                startupStage = "create-scene-factory";
-                var sceneFactory = CreateSceneFactory();
-
                 if (_assetManagement == null || _cts == null)
-                {
-                    Debug.LogError("[AppInit] BeforeSceneLoad が未完了のため AfterSceneLoad をスキップします。");
-                    return;
-                }
-
-                startupStage = "create-scene-director";
-                _sceneDirector = new SceneDirector(
-                    sceneFactory,
-                    uiCommon,
-                    _sceneResourceMap,
-                    CreateLoadingDisplay(),
-                    _assetManagement);
-                _updateSystemHost?.BindSceneDirector(_sceneDirector);
-
-                if (_sceneDirector == null)
                 {
                     Debug.LogError("[AppInit] BeforeSceneLoad が未完了のため AfterSceneLoad をスキップします。");
                     return;
@@ -264,6 +246,24 @@ namespace OneStarMaker.Runtime
                 // Phase 2 拡張ポイント: HostedService 等の追加初期化
                 startupStage = "initialize-app-services";
                 await OnServicesInitializing(ct);
+
+                startupStage = "create-scene-factory";
+                var sceneFactory = CreateSceneFactory();
+
+                startupStage = "create-scene-director";
+                _sceneDirector = new SceneDirector(
+                    sceneFactory,
+                    uiCommon,
+                    _sceneResourceMap,
+                    CreateLoadingDisplay(),
+                    _assetManagement);
+                _updateSystemHost?.BindSceneDirector(_sceneDirector);
+
+                if (_sceneDirector == null)
+                {
+                    Debug.LogError("[AppInit] BeforeSceneLoad が未完了のため AfterSceneLoad をスキップします。");
+                    return;
+                }
 
                 // Editor のプレイモードで開いていたシーンを SceneDirector に登録する。
                 // PerformUnitySceneLoad が SceneManager.GetSceneByName でロード済みシーンを検出し、
@@ -289,6 +289,25 @@ namespace OneStarMaker.Runtime
             catch (Exception ex)
             {
                 Debug.LogError($"[AppInit] AfterSceneLoad failed at stage '{startupStage}': {ex}");
+                try
+                {
+                    // 派生側が OnServicesInitializing で常駐リソースを確保している場合、
+                    // その後段（SceneDirector 構築・初回シーン追加）の失敗では通常の終了処理まで残り続ける。
+                    // Framework 自身の ReleaseAll をここで呼ぶと診断用状態まで一律に失うため、
+                    // 所有者である派生クラスへ限定的な回収機会を渡す。
+                    OnAfterSceneLoadInitializationFailed(startupStage, ex);
+                }
+                catch (Exception cleanupException)
+                {
+                    // 元の起動失敗を隠さず、後始末の失敗は追加情報としてだけ記録する。
+                    Debug.LogError(
+                        $"[AppInit] Cleanup after failed AfterSceneLoad initialization also failed: {cleanupException}");
+                }
+
+                // SceneDirector や SceneFactory は、途中まで初期化したアプリ固有サービスを参照している可能性がある。
+                // 失敗した bootstrap を継続して stale な依存を使わせないため、派生側の回収後に
+                // Framework の Director / Updater / AssetManagement も同じ失敗境界で破棄する。
+                ReleaseAll();
             }
             finally
             {
@@ -695,6 +714,15 @@ namespace OneStarMaker.Runtime
         /// </summary>
         protected virtual UniTask OnServicesInitializing(CancellationToken ct)
             => UniTask.CompletedTask;
+
+        /// <summary>
+        /// AfterSceneLoad 初期化の途中失敗を派生クラスへ通知する。
+        /// OnServicesInitializing で確保したアプリ固有の常駐リソースだけを、所有者がここで回収する。
+        /// Framework 共通リソースの破棄や再試行方針はこのフックでは決めない。
+        /// </summary>
+        protected virtual void OnAfterSceneLoadInitializationFailed(string stage, Exception exception)
+        {
+        }
 
         /// <summary>
         /// Framework 標準の logger factory を作る。

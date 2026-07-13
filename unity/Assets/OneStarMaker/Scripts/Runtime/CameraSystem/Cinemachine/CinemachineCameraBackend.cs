@@ -19,7 +19,7 @@ namespace OneStarMaker.Runtime.CameraSystem.Cinemachine
     /// ポリシー層の指示を Cinemachine Channel / Brain へ翻訳する Backend（正典 §7）。
     /// Cinemachine 型はこのクラスと Host / Tests に閉じ込める（G-2）。
     /// </summary>
-    public sealed class CinemachineCameraBackend : ICameraBackend
+    public sealed class CinemachineCameraBackend : ICameraBackend, ICameraFrameDriver
     {
         private readonly CameraSystemHost _host;
         private readonly Dictionary<ViewId, CameraSystemHost.ViewEntry> _viewEntries = new();
@@ -95,7 +95,7 @@ namespace OneStarMaker.Runtime.CameraSystem.Cinemachine
             var entry = _viewEntries[view];
 
             var cameraObject = new GameObject($"CM_{id}");
-            cameraObject.transform.SetParent(entry.Root.transform, worldPositionStays: false);
+            cameraObject.transform.SetParent(entry.CinemachineCameraRoot.transform, worldPositionStays: false);
             var cinemachineCamera = cameraObject.AddComponent<CinemachineCamera>();
             ConfigureCameraForView(cinemachineCamera, entry, logical);
             cinemachineCamera.enabled = false;
@@ -210,6 +210,26 @@ namespace OneStarMaker.Runtime.CameraSystem.Cinemachine
             unityCamera.farClipPlane = finalPose.FarClip;
         }
 
+        /// <summary>
+        /// UpdateSystem が所有するカメラフレームを進める。
+        /// RenderTexture の有効化判定を先に済ませ、そのフレームに描画する View の Brain も含めて
+        /// 同じ frameIndex / deltaTime で手動更新する。ここ以外から ManualUpdate を呼ばないことで、
+        /// Brain 出力 → Modifier → Snapshot の順序と「1 render frame に 1 回」の契約を守る。
+        /// </summary>
+        void ICameraFrameDriver.AdvanceFrame(uint frameIndex, float deltaTime)
+        {
+            _host.ProcessRenderScheduling();
+
+            // Cinemachine 3.1.7 の ManualUpdate overload は int の frame index を要求する。
+            // UpdateSystem は uint を正本にしているため、長時間実行で符号境界を越えても
+            // 連続したビット列を渡せる unchecked 変換を使う。
+            var cinemachineFrameIndex = unchecked((int)frameIndex);
+            foreach (var entry in _viewEntries.Values)
+            {
+                entry.Brain.ManualUpdate(cinemachineFrameIndex, deltaTime);
+            }
+        }
+
         /// <summary>テスト用。Host の RT 更新スケジューリングを 1 フレーム分進める。</summary>
         internal void AdvanceRenderScheduling() => _host.ProcessRenderScheduling();
 
@@ -218,6 +238,13 @@ namespace OneStarMaker.Runtime.CameraSystem.Cinemachine
         {
             EnsureViewRegistered(view);
             return _viewEntries[view].Brain.ChannelMask;
+        }
+
+        /// <summary>テスト用。View の Brain が UpdateSystem による ManualUpdate 用に設定されているかを返す。</summary>
+        internal CinemachineBrain.UpdateMethods GetBrainUpdateMethod(ViewId view)
+        {
+            EnsureViewRegistered(view);
+            return _viewEntries[view].Brain.UpdateMethod;
         }
 
         /// <summary>テスト用。論理カメラに紐づく CinemachineCamera の有効状態。</summary>
@@ -253,7 +280,7 @@ namespace OneStarMaker.Runtime.CameraSystem.Cinemachine
         {
             _managedCameraCounter++;
             var cameraObject = new GameObject($"CM_auto_{camera.Id}_{_managedCameraCounter}");
-            cameraObject.transform.SetParent(entry.Root.transform, worldPositionStays: false);
+            cameraObject.transform.SetParent(entry.CinemachineCameraRoot.transform, worldPositionStays: false);
             var cinemachineCamera = cameraObject.AddComponent<CinemachineCamera>();
             ConfigureCameraForView(cinemachineCamera, entry, camera);
             cinemachineCamera.enabled = false;

@@ -68,6 +68,16 @@ namespace OneStarMaker.Tests.CameraSystem
         }
 
         [Test]
+        public void CreateView_ConfiguresBrainForManualUpdate()
+        {
+            RegisterMainView();
+
+            Assert.That(
+                _backend.GetBrainUpdateMethod(new ViewId(1)),
+                Is.EqualTo(CinemachineBrain.UpdateMethods.ManualUpdate));
+        }
+
+        [Test]
         public void CreateView_ExceedsChannelCapacity_Throws()
         {
             for (var i = 1; i <= CameraSystemHost.MaxViewCount; i++)
@@ -281,6 +291,80 @@ namespace OneStarMaker.Tests.CameraSystem
             Assert.That(viewMain, Is.Not.Null);
             Assert.That(viewMain!.GetComponent<Camera>(), Is.Not.Null);
             Assert.That(viewMain.GetComponent<CinemachineBrain>(), Is.Not.Null);
+
+            var cmContainer = _host.Root.transform.Find("View_Main_CM");
+            Assert.That(cmContainer, Is.Not.Null);
+            Assert.That(cmContainer!.GetComponent<Camera>(), Is.Null);
+            Assert.That(cmContainer.GetComponent<CinemachineBrain>(), Is.Null);
+        }
+
+        [Test]
+        public void CreateView_AddsAudioListenerOnlyToMainView()
+        {
+            RegisterMainView();
+            _backend.RegisterView(new ViewId(2), new CameraViewConfig
+            {
+                ViewportRect = new Rect(0.5f, 0f, 0.5f, 1f),
+            }, isMainView: false);
+
+            Assert.That(_host.Views[new ViewId(1)].Root.GetComponent<AudioListener>(), Is.Not.Null);
+            Assert.That(_host.Views[new ViewId(2)].Root.GetComponent<AudioListener>(), Is.Null);
+        }
+
+        [Test]
+        public void CreateManagedCamera_IsNotChildOfBrainOrCameraRoot()
+        {
+            RegisterMainView();
+            var logical = _backend.CreateManagedCamera(new ViewId(1), "managed-hierarchy");
+            var cameraObject = _backend.GetCinemachineCameraGameObject(logical);
+
+            Assert.That(cameraObject, Is.Not.Null);
+            AssertCinemachineCameraHierarchy(cameraObject!, new ViewId(1));
+        }
+
+        [Test]
+        public void SetActiveCamera_AutoBinding_IsNotChildOfBrainOrCameraRoot()
+        {
+            RegisterMainView();
+            var logical = new LogicalCamera("auto-hierarchy");
+            _backend.SetActiveCamera(new ViewId(1), logical, CameraBlendSpec.Cut);
+            var cameraObject = _backend.GetCinemachineCameraGameObject(logical);
+
+            Assert.That(cameraObject, Is.Not.Null);
+            AssertCinemachineCameraHierarchy(cameraObject!, new ViewId(1));
+        }
+
+        [Test]
+        public void ReleaseView_DestroysCinemachineCameraContainer()
+        {
+            _backend.RegisterView(new ViewId(2), new CameraViewConfig
+            {
+                ViewportRect = new Rect(0f, 0f, 0.5f, 1f),
+            }, isMainView: false);
+            _backend.CreateManagedCamera(new ViewId(2), "container-release");
+
+            var container = _host.Root.transform.Find("View_2_CM");
+            Assert.That(container, Is.Not.Null);
+
+            _backend.ReleaseView(new ViewId(2));
+
+            Assert.That(container == null, Is.True);
+            Assert.That(_host.Root.transform.Find("View_2"), Is.Null);
+        }
+
+        [Test]
+        public void HostDispose_DestroysCinemachineCameraContainers()
+        {
+            RegisterMainView();
+            _backend.CreateManagedCamera(new ViewId(1), "dispose-hierarchy");
+
+            var container = _host.Root.transform.Find("View_Main_CM");
+            Assert.That(container, Is.Not.Null);
+
+            _host.Dispose();
+
+            Assert.That(container == null, Is.True);
+            Assert.That(CameraSystemHost.Instance, Is.Null);
         }
 
         [Test]
@@ -344,6 +428,19 @@ namespace OneStarMaker.Tests.CameraSystem
             Assert.That(
                 _backend.GetBrainChannelMask(new ViewId(1)),
                 Is.Not.EqualTo(_backend.GetBrainChannelMask(new ViewId(2))));
+        }
+
+        private static void AssertCinemachineCameraHierarchy(GameObject cameraObject, ViewId viewId)
+        {
+            var entry = CameraSystemHost.Instance!.Views[viewId];
+            Assert.That(cameraObject.transform.parent, Is.EqualTo(entry.CinemachineCameraRoot.transform));
+            Assert.That(cameraObject.transform.IsChildOf(entry.Root.transform), Is.False);
+
+            for (var current = cameraObject.transform.parent; current != null; current = current.parent)
+            {
+                Assert.That(current.GetComponent<CinemachineBrain>(), Is.Null);
+                Assert.That(current.GetComponent<CinemachineCamera>(), Is.Null);
+            }
         }
 
         private void RegisterMainView()

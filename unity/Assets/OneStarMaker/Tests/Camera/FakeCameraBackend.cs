@@ -73,6 +73,12 @@ namespace OneStarMaker.Tests.CameraSystem
         public IReadOnlyList<PostModifierCall> PostModifierCalls => _postModifierCalls;
         public IReadOnlyList<RegisterViewCall> RegisterViewCalls => _registerViewCalls;
         public IReadOnlyList<ViewId> ReleaseViewCalls => _releaseViewCalls;
+        /// <summary>
+        /// Tick の相対順序を検証するテスト用フック。
+        /// 本番コードの契約ではなく、FakeBackend を使うテストが FrameDriver の完了後に
+        /// Modifier 適用まで進んだことを観測するためだけに提供する。
+        /// </summary>
+        public Action? OnPostModifierApplied { get; set; }
 
         public void ClearHistory()
         {
@@ -122,6 +128,7 @@ namespace OneStarMaker.Tests.CameraSystem
         public void ApplyPostModifier(ViewId view, in CameraPose finalPose)
         {
             _postModifierCalls.Add(new PostModifierCall(view, finalPose));
+            OnPostModifierApplied?.Invoke();
         }
     }
 }

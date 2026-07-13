@@ -28,7 +28,6 @@ namespace OneStarMaker.Runtime.CameraSystem.Hosting
         private static CameraSystemHost? s_instance;
 
         private readonly GameObject _root;
-        private readonly CameraSystemHostDriver _driver;
         private readonly Dictionary<ViewId, ViewEntry> _views = new();
         private readonly List<OutputChannels> _availableChannels = new(MaxViewCount);
         private bool _disposed;
@@ -51,8 +50,6 @@ namespace OneStarMaker.Runtime.CameraSystem.Hosting
                 UnityEngine.Object.DontDestroyOnLoad(_root);
             }
 
-            _driver = _root.AddComponent<CameraSystemHostDriver>();
-            _driver.Initialize(this);
         }
 
         /// <summary>常駐 Host を生成する。二重 Initialize は例外（テスト TearDown 後に再生成可）。</summary>
@@ -97,19 +94,38 @@ namespace OneStarMaker.Runtime.CameraSystem.Hosting
             var viewRoot = new GameObject(viewName);
             viewRoot.transform.SetParent(_root.transform, worldPositionStays: false);
 
+            // CinemachineCamera は Brain/Camera と同一 GameObject 配下に置けない制約があるため、
+            // View 論理所属は Channel で維持しつつ Host 直下に専用コンテナを sibling として生成する。
+            var cinemachineCameraRoot = new GameObject($"{viewName}_CM");
+            cinemachineCameraRoot.transform.SetParent(_root.transform, worldPositionStays: false);
+
             var unityCamera = viewRoot.AddComponent<Camera>();
             unityCamera.rect = config.ViewportRect;
             unityCamera.targetTexture = config.TargetTexture;
             unityCamera.enabled = config.TargetTexture == null
                                   || config.UpdateMode == RenderTextureUpdateMode.EveryFrame;
 
+            // 従来シーンの Main Camera は CameraSystem の View_Main と二重描画しないよう無効化している。
+            // そのためアプリで唯一の AudioListener も常駐する主 View が所有する必要がある。
+            // 分割画面・RenderTexture View に追加すると Unity が複数 Listener を検出して音声が不定になるため、
+            // ポリシー層から明示された isMainView の場合だけ生成する。
+            if (isMainView)
+            {
+                viewRoot.AddComponent<AudioListener>();
+            }
+
             var brain = viewRoot.AddComponent<CinemachineBrain>();
             brain.ChannelMask = channel;
+            // Brain の自動 LateUpdate を停止し、UpdateSystem の CameraSystemUpdateElement だけが
+            // ManualUpdate(frameIndex, deltaTime) を呼ぶ。これにより Unity 内の実行順へ依存せず、
+            // Brain 出力の後に Modifier / Snapshot を確定する順序をコードで保証する。
+            brain.UpdateMethod = CinemachineBrain.UpdateMethods.ManualUpdate;
 
             var entry = new ViewEntry(
                 viewId,
                 channel,
                 viewRoot,
+                cinemachineCameraRoot,
                 unityCamera,
                 brain,
                 config);
@@ -130,6 +146,7 @@ namespace OneStarMaker.Runtime.CameraSystem.Hosting
             _availableChannels.Sort(CompareChannels);
             // RT 参照を切ってから GameObject を破棄する（破棄後の RenderTexture 参照残りを避ける）。
             entry.Camera.targetTexture = null;
+            DestroyRootObject(entry.CinemachineCameraRoot);
             DestroyRootObject(entry.Root);
         }
 
@@ -226,6 +243,7 @@ namespace OneStarMaker.Runtime.CameraSystem.Hosting
                 ViewId viewId,
                 OutputChannels channel,
                 GameObject root,
+                GameObject cinemachineCameraRoot,
                 Camera camera,
                 CinemachineBrain brain,
                 in CameraViewConfig config)
@@ -233,6 +251,7 @@ namespace OneStarMaker.Runtime.CameraSystem.Hosting
                 ViewId = viewId;
                 Channel = channel;
                 Root = root;
+                CinemachineCameraRoot = cinemachineCameraRoot;
                 Camera = camera;
                 Brain = brain;
                 Config = config;
@@ -241,6 +260,8 @@ namespace OneStarMaker.Runtime.CameraSystem.Hosting
             public ViewId ViewId { get; }
             public OutputChannels Channel { get; }
             public GameObject Root { get; }
+            /// <summary>Brain/Camera を持たない CinemachineCamera 専用コンテナ（View の sibling）。</summary>
+            public GameObject CinemachineCameraRoot { get; }
             public Camera Camera { get; }
             public CinemachineBrain Brain { get; }
             public CameraViewConfig Config { get; }
@@ -288,19 +309,5 @@ namespace OneStarMaker.Runtime.CameraSystem.Hosting
             }
         }
 
-        // Host 本体は純 C# のため MonoBehaviour の LateUpdate を受け取れない。
-        // この Driver を Host root に貼り、毎フレームの RT スケジューリング駆動だけを橋渡しする。
-        private sealed class CameraSystemHostDriver : MonoBehaviour
-        {
-            private CameraSystemHost? _host;
-
-            public void Initialize(CameraSystemHost host) =>
-                _host = host ?? throw new ArgumentNullException(nameof(host));
-
-            private void LateUpdate()
-            {
-                _host?.ProcessRenderScheduling();
-            }
-        }
     }
 }

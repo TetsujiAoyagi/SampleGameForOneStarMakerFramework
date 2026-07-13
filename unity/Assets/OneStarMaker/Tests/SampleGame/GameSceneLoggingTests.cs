@@ -6,11 +6,14 @@ using System.Reflection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
+using OneStarMaker.Runtime.CameraSystem.Abstractions;
+using OneStarMaker.Tests.CameraSystem;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Tests.SceneSystem.Helpers;
 using SampleGame.DependOnAll;
 using SampleGame.OutGame.Scenes;
 using SampleGame.OutGame.Title;
+using RuntimeCameraSystem = OneStarMaker.Runtime.CameraSystem.Core.CameraSystem;
 
 namespace OneStarMaker.Tests.SampleGame
 {
@@ -28,13 +31,29 @@ namespace OneStarMaker.Tests.SampleGame
         [Test]
         public void Constructor_NullLoggerFactory_Throws()
         {
-            Assert.Throws<ArgumentNullException>(() => new GameSceneFactory(null!));
+            Assert.Throws<ArgumentNullException>(() => new GameSceneFactory(null!, null!, null!));
+        }
+
+        [Test]
+        public void Constructor_NullCameraSystem_Throws()
+        {
+            Assert.Throws<ArgumentNullException>(
+                () => new GameSceneFactory(NullLoggerFactory.Instance, null!, new NoopCameraBackgroundApplier()));
+        }
+
+        [Test]
+        public void Constructor_NullCameraBackgroundApplier_Throws()
+        {
+            var cameraSystem = new RuntimeCameraSystem(new FakeCameraBackend());
+
+            Assert.Throws<ArgumentNullException>(
+                () => new GameSceneFactory(NullLoggerFactory.Instance, cameraSystem, null!));
         }
 
         [Test]
         public void CreateSceneClass_WithNullLoggerFactoryInstance_DoesNotThrow()
         {
-            var factory = new GameSceneFactory(NullLoggerFactory.Instance);
+            var factory = CreateFactory(NullLoggerFactory.Instance);
             var resource = SceneTestHelper.CreateSceneResource("Title");
 
             Assert.DoesNotThrow(() => factory.CreateSceneClass(resource, _sceneQuery));
@@ -45,7 +64,7 @@ namespace OneStarMaker.Tests.SampleGame
         [TestCase("ConfirmDialog", typeof(ConfirmDialogScene))]
         public void CreateSceneClass_KnownIdentity_ReturnsExpectedSceneType(string identity, Type expectedType)
         {
-            var factory = new GameSceneFactory(NullLoggerFactory.Instance);
+            var factory = CreateFactory(NullLoggerFactory.Instance);
             var resource = SceneTestHelper.CreateSceneResource(identity);
 
             var scene = factory.CreateSceneClass(resource, _sceneQuery);
@@ -57,12 +76,25 @@ namespace OneStarMaker.Tests.SampleGame
         [Test]
         public void CreateSceneClass_UnknownIdentity_ReturnsNull()
         {
-            var factory = new GameSceneFactory(NullLoggerFactory.Instance);
+            var factory = CreateFactory(NullLoggerFactory.Instance);
             var resource = SceneTestHelper.CreateSceneResource("Unknown");
 
             var scene = factory.CreateSceneClass(resource, _sceneQuery);
 
             Assert.IsNull(scene);
+        }
+
+        private static GameSceneFactory CreateFactory(ILoggerFactory loggerFactory)
+        {
+            var cameraSystem = new RuntimeCameraSystem(new FakeCameraBackend());
+            return new GameSceneFactory(loggerFactory, cameraSystem, new NoopCameraBackgroundApplier());
+        }
+
+        private sealed class NoopCameraBackgroundApplier : ICameraBackgroundApplier
+        {
+            public void SetClearFlag(ICameraView view, ClearFlag clearFlag, UnityEngine.Color color)
+            {
+            }
         }
 
         private sealed class StubSceneQuery : ISceneQuery
