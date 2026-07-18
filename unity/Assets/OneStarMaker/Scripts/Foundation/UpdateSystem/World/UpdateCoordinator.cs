@@ -25,6 +25,11 @@ namespace OneStarMaker.Foundation.UpdateSystem.World
         private readonly List<UpdateHandle> _removedHandlesBuffer = new();
         private readonly NativePipelineCatalog _nativePipelineCatalog;
 
+        // Actionのキャッシュ
+        private readonly Action<UpdateHandle> _requestElementApply;
+        private readonly Func<string, int, UpdateLayer> _getOrCreateLayer;
+        private readonly Action<UpdateHandle> _removeElementIfDetached;
+
         public UpdateCoordinator(
             IUpdateExecutionBackend? backend = null,
             UpdateElementRegistry? elementRegistry = null,
@@ -41,6 +46,10 @@ namespace OneStarMaker.Foundation.UpdateSystem.World
             _mainThreadApplyCommandBuffer = mainThreadApplyCommandBuffer ?? new MainThreadApplyCommandBuffer();
             _mainThreadApplyHandleBuffer = mainThreadApplyHandleBuffer ?? new MainThreadApplyHandleBuffer();
             _nativePipelineCatalog = new NativePipelineCatalog();
+
+            _requestElementApply = RequestElementApply;
+            _getOrCreateLayer = GetOrCreateLayer;
+            _removeElementIfDetached = RemoveElementIfDetached;
         }
 
         public uint FrameIndex { get; private set; }
@@ -359,8 +368,8 @@ namespace OneStarMaker.Foundation.UpdateSystem.World
                 _elementRegistry,
                 _orderedLayers,
                 _nativePipelineCatalog,
-                GetOrCreateLayer,
-                RemoveElementIfDetached);
+                _getOrCreateLayer,
+                _removeElementIfDetached);
         }
 
         private void RemoveElementIfDetached(UpdateHandle handle)
@@ -390,7 +399,7 @@ namespace OneStarMaker.Foundation.UpdateSystem.World
 
         private void RunNativePhase(string layerId, UpdateExecutionPhase phase, in UpdateFrameContext context)
         {
-            _nativePipelineCatalog.RunLayer(layerId, phase, in context, RequestElementApply);
+            _nativePipelineCatalog.RunLayer(layerId, phase, in context, _requestElementApply);
         }
 
         private NativeExecutionPipeline GetOrCreateNativePipeline<TState>(
