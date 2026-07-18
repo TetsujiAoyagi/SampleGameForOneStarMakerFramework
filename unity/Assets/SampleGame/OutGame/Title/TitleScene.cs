@@ -1,17 +1,16 @@
 #nullable enable
 
-using Cysharp.Threading.Tasks;
 using System.Threading;
+using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using OneStarMaker.Runtime.SceneSystem;
 using SampleGame.OutGame.Background;
 using ZLogger;
-using System.Diagnostics;
 
 namespace SampleGame.OutGame.Title
 {
     /// <summary>
-    /// タイトル画面シーン。最小実装。
+    /// タイトル画面シーン。
     /// </summary>
     public sealed class TitleScene : SceneBase
     {
@@ -41,12 +40,32 @@ namespace SampleGame.OutGame.Title
         {
             _logger.ZLogInformation($"Loaded.");
 
-            if (UIView is TitleView titleView && titleView.BackgroundDefinition != null)
+            if (UIView is TitleView titleView)
             {
-                RequestParentBackground(titleView.BackgroundDefinition);
+                titleView.OnStartRequested += HandleStartRequested;
+
+                if (titleView.BackgroundDefinition != null)
+                {
+                    RequestParentBackground(titleView.BackgroundDefinition);
+                }
             }
 
             await UniTask.CompletedTask;
+        }
+
+        protected override UniTask OnPreUnLoadedImpl()
+        {
+            if (UIView is TitleView titleView)
+            {
+                titleView.OnStartRequested -= HandleStartRequested;
+            }
+
+            return UniTask.CompletedTask;
+        }
+
+        private void HandleStartRequested()
+        {
+            _logger.ZLogInformation($"Start requested.");
         }
 
         private void RequestParentBackground(OutGameBackgroundDefinition definition)

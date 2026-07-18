@@ -1,3 +1,10 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
-    <ui:VisualElement class="title-screen" />
+    <ui:VisualElement style="flex-grow: 1; align-items: center; justify-content: center;">
+        <ui:VisualElement name="title-panel" style="align-items: center; padding: 32px;">
+            <ui:Label name="title-label" text="Title" style="font-size: 48px; margin-bottom: 12px; -unity-text-align: middle-center; color: rgb(255, 255, 255);" />
+            <ui:Label name="subtitle-label" text="Subtitle" style="font-size: 18px; margin-bottom: 32px; -unity-text-align: middle-center; color: rgb(200, 200, 210);" />
+            <ui:Button name="start-button" text="スタート" style="width: 200px; height: 44px; margin-bottom: 12px; font-size: 18px;" />
+            <ui:Button name="pulse-button" text="タイトルを揺らす" style="width: 200px; height: 40px; font-size: 14px;" />
+        </ui:VisualElement>
+    </ui:VisualElement>
 </ui:UXML>
