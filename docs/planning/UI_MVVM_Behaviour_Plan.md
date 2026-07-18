@@ -143,7 +143,7 @@ Visual State
 
 ### Stable State
 
-ViewModel が保持する。例: `IsOpen = true`
+ViewModel が保持する。ドメイン由来の事実だけでなく、時間軸を含まないプレゼンテーション射影も含む。例: `IsOpen = true`, `IsMessageVisible = true`, `SelectedTabIndex = 1`。ViewModel は `VisualElement` を参照しない。
 
 ### Transition Resolver
 
@@ -151,7 +151,7 @@ ViewModel が保持する。例: `IsOpen = true`
 
 ### Behavior Runner
 
-Behavior を実行する。時間管理・割り込み・Visual State 保持を担当する。例: `Fade → Scale → PlaySE`
+Behavior を実行する。時間管理・割り込み・Visual State を統括する。例: `Fade → Scale → PlaySE`
 
 Runner は **`IsTransitioning`（読み取り専用 Observable）** を公開する。Stable State の権威は ViewModel、遷移中フラグの権威は Runner である。ViewModel は遷移中かどうかを知る必要がない。
 
@@ -159,7 +159,7 @@ Runner は **`IsTransitioning`（読み取り専用 Observable）** を公開す
 
 現在画面へ表示する値。例: `Opacity`, `Scale`, `Rotation`, `Current HP Display`, `Animation Progress`
 
-Visual State は Runner のみが保持する。**Model は一切知らない。**
+Visual State の表示上の実体は Behavior が `VisualElement.style` へ適用する。Runner は実行・割り込み・収束を統括し、`VisualStateStore` は FromCurrent 等の割り込みに必要な値を保持する補助ストアである。**Model は一切知らない。**
 
 ---
 
@@ -456,7 +456,7 @@ T-17 の合格は、フレームワーク設計者自身が選んだ 2 ユース
 
 | 反証条件 | 検証ユースケース |
 |---|---|
-| レイアウトへ影響する複数要素の遷移で、Runner の Visual State 保持が UI Toolkit のレイアウトシステムと競合し、画面固有コードが Behavior なし実装より増える | リスト追加・削除スライス |
+| レイアウトへ影響する複数要素の遷移で、Runner の Visual State 保持が UI Toolkit のレイアウトシステムと競合し、画面固有コードが Behavior なし実装より増える | リスト追加・削除スライス（設計示唆: [ui-behavior/01 §8](../reference/ui-behavior/01-undo-redo-lens-framework-comparison.md#8-リスト増減へ向けた示唆--key-の二系統)） |
 | Behavior 語彙が 20 件規模になったとき、割り込みポリシー × 合成（Parallel / Sequence / Rewind フォールバック）の相互作用が予測不能になり、収束不変条件のテストで守り切れない | 語彙拡充時に相互作用テストを追加して計測 |
 | デザイナー（非プログラマ）が BehaviorAsset のパラメータ調整だけでは演出品質の要求を満たせず、都度プログラマ作業が発生し続ける | デザイナー調整のみで演出を 1 件仕上げる試行 |
 
@@ -508,3 +508,5 @@ T-17 の合格は、フレームワーク設計者自身が選んだ 2 ユース
 - 施行表: [`UI_BEHAVIOR_PIPELINE_WORKPLAN_2026-07-06.md`](UI_BEHAVIOR_PIPELINE_WORKPLAN_2026-07-06.md)
 - D 項目修正案（寿命・責務境界）: [`UI_LIFECYCLE_BOUNDARY_REMEDIATION_2026-07-10.md`](UI_LIFECYCLE_BOUNDARY_REMEDIATION_2026-07-10.md)
 - UI アーキテクチャ正本: [`unity/Assets/Docs/Architecture/06-ui.md`](../../unity/Assets/Docs/Architecture/06-ui.md)
+- 外部 FW 横断比較（Undo/Redo レンズ）: [`docs/reference/ui-behavior/01`](../reference/ui-behavior/01-undo-redo-lens-framework-comparison.md)
+- Velvet 1 対 1 比較: [`docs/reference/velvet/01`](../reference/velvet/01-declarative-ui-vs-mvvm-behavior.md)

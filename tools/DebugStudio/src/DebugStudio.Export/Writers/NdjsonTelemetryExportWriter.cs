@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using DebugStudio.Export.Models;
@@ -16,12 +15,6 @@ namespace DebugStudio.Export.Writers;
 /// </summary>
 public sealed class NdjsonTelemetryExportWriter : ITelemetryExportWriter
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = false,
-    };
-
     public TelemetryExportFormat Format => TelemetryExportFormat.Ndjson;
 
     public async Task WriteAsync(IReadOnlyList<TelemetryExportRecord> records, string outputPath, CancellationToken cancellationToken = default)
@@ -51,7 +44,7 @@ public sealed class NdjsonTelemetryExportWriter : ITelemetryExportWriter
         foreach (var record in records)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var json = JsonSerializer.Serialize(record, SerializerOptions);
+            var json = NdjsonTelemetryRecordSerializer.Serialize(record);
             await writer.WriteLineAsync(json.AsMemory(), cancellationToken).ConfigureAwait(false);
         }
 

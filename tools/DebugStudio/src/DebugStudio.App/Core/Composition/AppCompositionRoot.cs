@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Collections.Generic;
 using System.Windows;
 using DebugStudio.App.Core.Infrastructure;
 using DebugStudio.App.Core.Services;
@@ -32,13 +33,14 @@ public sealed class AppCompositionRoot
             ShellLayoutPersistenceService.CreateDefaultLayoutFilePath());
         var shellLayoutSerializerService = new ShellLayoutSerializerService();
         var logPersistenceService = TryCreateLogPersistenceService(composition.MessageRouter);
+        var telemetryPersistenceService = TryCreateTelemetryPersistenceService(composition.MessageRouter);
         IAsyncDisposable appLifetime = viewModel;
 
         var cliControlService = new DebugStudioCliControlService(composition.SessionService, composition.CommandService);
         try
         {
             cliControlService.StartAsync().GetAwaiter().GetResult();
-            appLifetime = CreateAppLifetime(cliControlService, logPersistenceService, viewModel);
+            appLifetime = CreateAppLifetime(cliControlService, logPersistenceService, telemetryPersistenceService, viewModel);
         }
         catch (Exception ex)
         {
@@ -46,7 +48,7 @@ public sealed class AppCompositionRoot
             // そのためここでは control plane だけ無効化し、本体 UI は従来どおり起動を継続する。
             Debug.WriteLine($"CLI control plane failed to start: {ex}");
             cliControlService.DisposeAsync().AsTask().GetAwaiter().GetResult();
-            appLifetime = CreateAppLifetime(null, logPersistenceService, viewModel);
+            appLifetime = CreateAppLifetime(null, logPersistenceService, telemetryPersistenceService, viewModel);
         }
 
         return new MainWindow(
@@ -200,27 +202,49 @@ public sealed class AppCompositionRoot
         }
     }
 
+    private static TelemetryPersistenceService? TryCreateTelemetryPersistenceService(SessionMessageRouter messageRouter)
+    {
+        try
+        {
+            var pathPolicy = new TelemetryPersistencePathPolicy();
+            Directory.CreateDirectory(pathPolicy.Directory);
+            var writer = new RollingTelemetryFileWriter(pathPolicy.Directory);
+            return new TelemetryPersistenceService(messageRouter, writer);
+        }
+        catch (Exception ex)
+        {
+            // 観測追加が DebugStudio 起動を阻害してはいけないため、telemetry 永続化だけ degrade する。
+            Debug.WriteLine($"Telemetry persistence failed to initialize: {ex}");
+            return null;
+        }
+    }
+
     private static IAsyncDisposable CreateAppLifetime(
         DebugStudioCliControlService? cliControlService,
         LogPersistenceService? logPersistenceService,
+        TelemetryPersistenceService? telemetryPersistenceService,
         MainWindowViewModel viewModel)
     {
-        if (cliControlService != null && logPersistenceService != null)
-        {
-            return new OrderedAsyncDisposable(cliControlService, logPersistenceService, viewModel);
-        }
-
+        var disposables = new List<IAsyncDisposable>(4);
         if (cliControlService != null)
         {
-            return new OrderedAsyncDisposable(cliControlService, viewModel);
+            disposables.Add(cliControlService);
         }
 
         if (logPersistenceService != null)
         {
-            return new OrderedAsyncDisposable(logPersistenceService, viewModel);
+            disposables.Add(logPersistenceService);
         }
 
-        return viewModel;
+        if (telemetryPersistenceService != null)
+        {
+            disposables.Add(telemetryPersistenceService);
+        }
+
+        disposables.Add(viewModel);
+        return disposables.Count == 1
+            ? viewModel
+            : new OrderedAsyncDisposable(disposables.ToArray());
     }
 
     private sealed record AppShellComposition(

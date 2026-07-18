@@ -1,7 +1,7 @@
 # UI 寿命管理・責務境界 修正案（D 項目）
 
 作成日: 2026-07-10
-ステータス: **提案のみ（実装未着手）**
+ステータス: **D-1 / D-3 / D-4 の最小施行済み（2026-07-14）。D-2 の規約反映済み。D-5 / D-6 は未着手。**
 関連: [`UI_MVVM_Behaviour_Plan.md`](UI_MVVM_Behaviour_Plan.md) v0.3、[`UI_BEHAVIOR_PIPELINE_WORKPLAN_2026-07-06.md`](UI_BEHAVIOR_PIPELINE_WORKPLAN_2026-07-06.md)、[`06-ui.md`](../../unity/Assets/Docs/Architecture/06-ui.md)
 
 本ドキュメントは、UI フレームワーク弱点の切り分けで **D（要対応）** と判定した項目の修正案をまとめたものである。
@@ -426,10 +426,10 @@ velvet 比較で一度 D とした「Preview なし」は、**未完成フレー
 
 | ID | タイトル | 依存 | 種別 |
 |---|---|---|---|
-| T-18 | `UIToolkitView` 破棄順序修正 + `Track` API | なし | Runtime |
-| T-19 | 寿命・通知境界の規約反映（06-ui / Plan v0.4） | T-18 案確定 | ドキュメント |
-| T-20 | SampleGame View を Track + パターン A 準拠へ整理 | T-18 | SampleGame |
-| T-21 | `BindVisible` 参照画面（タブ or トースト骨格） | T-19 | SampleGame |
+| T-18 | `UIToolkitView` 破棄順序修正 + `Track` API | **完了** | Runtime |
+| T-19 | 寿命・通知境界の規約反映（06-ui / Plan v0.4） | **完了** | ドキュメント |
+| T-20 | SampleGame View を Track + パターン A 準拠へ整理 | **完了** | SampleGame |
+| T-21 | `BindVisible` 参照画面（タブ or トースト骨格） | **ConfirmDialog のメッセージ表示で V-1 を参照実装化** | SampleGame |
 | T-22 | BehaviorAsset の `AnimationCurve` 対応 + 調整手順文書化 | T-11/T-12 拡張時 | Runtime + ドキュメント |
 | T-23 | Timeline / Clip 再生 Behavior（契約 + 最小実装） | T-22 任意 | Runtime |
 

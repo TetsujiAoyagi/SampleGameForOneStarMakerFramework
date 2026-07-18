@@ -6,7 +6,6 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using DebugStudio.App.Core.Formatting;
 using DebugStudio.App.Core.Models;
 using DebugStudio.App.Core.Stores;
 using DebugStudio.Contracts.Protocol;
@@ -59,7 +58,7 @@ public sealed class TelemetryExportService
         var records = new List<TelemetryExportRecord>(telemetry.Count + serviceStatuses.Count);
         for (var index = 0; index < telemetry.Count; index++)
         {
-            records.Add(CreateTelemetryRecord(telemetry[index]));
+            records.Add(TelemetryRecordExportMapper.ToExportRecord(telemetry[index]));
         }
 
         for (var index = 0; index < serviceStatuses.Count; index++)
@@ -69,39 +68,6 @@ public sealed class TelemetryExportService
 
         records.Sort(static (left, right) => left.TimestampUnixTimeMilliseconds.CompareTo(right.TimestampUnixTimeMilliseconds));
         return ResolveWriter(format).WriteAsync(records, outputPath, cancellationToken);
-    }
-
-    private static TelemetryExportRecord CreateTelemetryRecord(DebugTelemetryEnvelopeV1 telemetry)
-    {
-        var timestampUnixTimeMilliseconds = ConvertTicksToUnixTimeMilliseconds(telemetry.EndTimestampUtcTicks);
-        var tags = DebugTelemetryTagFormatter.ToNames(telemetry.TagBits);
-        return new TelemetryExportRecord
-        {
-            TimestampUtc = FormatTimestampUtc(timestampUnixTimeMilliseconds),
-            TimestampUnixTimeMilliseconds = timestampUnixTimeMilliseconds,
-            Stream = "telemetry",
-            Name = telemetry.Name,
-            IsSuccess = telemetry.IsSuccess,
-            ElapsedMs = telemetry.ElapsedMs,
-            Level = telemetry.Level,
-            TraceId = telemetry.TraceId,
-            SpanId = telemetry.SpanId,
-            ParentSpanId = telemetry.ParentSpanId,
-            TagBits = telemetry.TagBits,
-            Tags = tags.Length == 0 ? null : tags,
-            CpuTime = telemetry.CpuTime,
-            GpuTime = telemetry.GpuTime,
-            ManagedMem = telemetry.ManagedMem,
-            NativeMem = telemetry.NativeMem,
-            SceneFrom = telemetry.SceneFrom,
-            SceneTo = telemetry.SceneTo,
-            CameraTotalViewCount = telemetry.CameraTotalViewCount,
-            CameraAdditionalViewCount = telemetry.CameraAdditionalViewCount,
-            CameraBlendingViewCount = telemetry.CameraBlendingViewCount,
-            CameraMaxStackDepthTotal = telemetry.CameraMaxStackDepthTotal,
-            CameraViewId = telemetry.CameraViewId,
-            CameraActiveCameraHash = telemetry.CameraActiveCameraHash,
-        };
     }
 
     private static TelemetryExportRecord CreateServiceStatusRecord(DebugSocketServiceStatusEnvelopeV1 serviceStatus)
@@ -114,23 +80,6 @@ public sealed class TelemetryExportService
             Status = serviceStatus.Status,
             Message = serviceStatus.Message,
         };
-    }
-
-    private static long ConvertTicksToUnixTimeMilliseconds(long utcTicks)
-    {
-        if (utcTicks <= 0)
-        {
-            return 0;
-        }
-
-        try
-        {
-            return new DateTimeOffset(new DateTime(utcTicks, DateTimeKind.Utc)).ToUnixTimeMilliseconds();
-        }
-        catch
-        {
-            return 0;
-        }
     }
 
     private static string FormatTimestampUtc(long unixTimeMilliseconds)
