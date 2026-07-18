@@ -6,7 +6,7 @@ namespace DebugStudio.Client;
 
 public sealed class DebugSocketClientOptions
 {
-    public static readonly Uri DefaultServerUri = new("ws://127.0.0.1:5010/debugsocket/");
+    public static readonly Uri DefaultServerUri = new("ws://127.0.0.1:5011/debugsocket/");
 
     public Uri ServerUri { get; init; } = DefaultServerUri;
 

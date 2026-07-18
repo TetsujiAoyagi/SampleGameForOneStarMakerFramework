@@ -649,7 +649,7 @@ public sealed class ShellCompositionTests
     public async Task SessionWindowViewModel_接続状態を待受UI表現へ変換する()
     {
         var (transport, _, _, _, _, _, session) = CreateSessionHarness();
-        var listenUri = new Uri("ws://127.0.0.1:5010/debugsocket/");
+        var listenUri = new Uri("ws://127.0.0.1:5011/debugsocket/");
 
         await using var viewModel = session;
 
@@ -680,7 +680,7 @@ public sealed class ShellCompositionTests
 
         await using var viewModel = session;
 
-        capabilityStateStore.ResetForConnect(new Uri("ws://127.0.0.1:5010/debugsocket/"));
+        capabilityStateStore.ResetForConnect(new Uri("ws://127.0.0.1:5011/debugsocket/"));
 
         Assert.Equal("Negotiating", viewModel.CapabilityStatus);
         Assert.Equal("Negotiating capabilities with the connected Unity session.", viewModel.CapabilityDetail);

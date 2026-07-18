@@ -9,7 +9,7 @@ namespace DebugStudio.App.Tests;
 
 public sealed class DebugSocketConnectionErrorFormatterTests
 {
-    private static readonly Uri ServerUri = new("ws://127.0.0.1:5010/debugsocket/");
+    private static readonly Uri ServerUri = new("ws://127.0.0.1:5011/debugsocket/");
 
     [Fact]
     public void ConnectionRefused時_UnityListener未起動ヒントを返す()
