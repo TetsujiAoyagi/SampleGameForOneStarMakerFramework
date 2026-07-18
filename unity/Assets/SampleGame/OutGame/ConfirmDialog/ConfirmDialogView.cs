@@ -7,7 +7,6 @@ using OneStarMaker.Runtime.UISystem;
 using OneStarMaker.Runtime.UISystem.Behaviors;
 using OneStarMaker.Runtime.UISystem.Behaviors.Library;
 using OneStarMaker.Runtime.UISystem.Mvvm;
-using R3;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -18,7 +17,6 @@ namespace SampleGame.OutGame.ConfirmDialog
     /// </summary>
     public sealed class ConfirmDialogView : UIToolkitView
     {
-        private readonly CompositeDisposable _disposables = new();
         private BehaviorRunner? _runner;
         private ConfirmDialogViewModel? _viewModel;
 
@@ -31,10 +29,8 @@ namespace SampleGame.OutGame.ConfirmDialog
         /// <inheritdoc />
         protected override void OnRootCreated(VisualElement root)
         {
-            _viewModel = new ConfirmDialogViewModel
-            {
-                Message = "HPを回復しますか？",
-            };
+            _viewModel = new ConfirmDialogViewModel();
+            _viewModel.SetMessage("HPを回復しますか？");
             SetViewModel(_viewModel);
             _viewModel.Decided += HandleViewModelDecided;
 
@@ -47,16 +43,17 @@ namespace SampleGame.OutGame.ConfirmDialog
             var cancelButton = root.Q<Button>("cancel-button")
                 ?? throw new InvalidOperationException("cancel-button が見つかりません。");
 
-            messageLabel.text = _viewModel.Message;
+            Track(messageLabel.BindText(_viewModel.Message));
+            Track(messageLabel.BindVisible(_viewModel.IsMessageVisible));
 
             panel.style.opacity = 0f;
             panel.style.scale = new Scale(new Vector3(0.8f, 0.8f, 1f));
 
             _runner = new BehaviorRunner(panel, InterruptPolicy.Rewind);
-            _disposables.Add(_runner);
+            Track(_runner);
 
-            _disposables.Add(okButton.BindClick(() => _viewModel.Decide(true)));
-            _disposables.Add(cancelButton.BindClick(() => _viewModel.Decide(false)));
+            Track(okButton.BindClick(() => _viewModel.Decide(true)));
+            Track(cancelButton.BindClick(() => _viewModel.Decide(false)));
         }
 
         /// <inheritdoc />
@@ -98,7 +95,6 @@ namespace SampleGame.OutGame.ConfirmDialog
                 _viewModel.Decided -= HandleViewModelDecided;
             }
 
-            _disposables.Dispose();
         }
 
         private void HandleViewModelDecided(bool accepted)

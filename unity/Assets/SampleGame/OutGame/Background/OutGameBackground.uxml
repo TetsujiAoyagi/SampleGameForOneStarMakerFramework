@@ -1,0 +1,6 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="OutGameBackground.uss" />
+    <ui:VisualElement name="outgame-background-surface"
+                      class="outgame-background-surface"
+                      picking-mode="Ignore" />
+</ui:UXML>

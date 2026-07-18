@@ -14,4 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: OneStarMaker.Editor::OneStarMaker.Editor.SceneGraph.SceneNodeData
   _identity: OutGame
   _loadType: 0
-  _payloads: []
+  _payloads:
+  - Reference:
+      m_AssetGUID: 30710b0456e31694a89047872db50aeb
+      m_SubObjectName: 
+      m_SubObjectType: 
+      m_SubObjectGUID: 
+      m_EditorAssetChanged: 0
+    Variant: 

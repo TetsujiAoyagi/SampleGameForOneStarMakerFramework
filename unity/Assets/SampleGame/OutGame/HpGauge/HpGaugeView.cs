@@ -16,7 +16,6 @@ namespace SampleGame.OutGame.HpGauge
     /// </summary>
     public sealed class HpGaugeView : UIToolkitView
     {
-        private readonly CompositeDisposable _disposables = new();
         private HpGaugeViewModel? _viewModel;
 
         /// <summary>確認ダイアログを開く要求。</summary>
@@ -46,26 +45,20 @@ namespace SampleGame.OutGame.HpGauge
             // 以降の HP 数値更新は TweenNumberBehavior が担う。
             hpLabel.text = _viewModel.Hp.CurrentValue.ToString();
 
-            _disposables.Add(_viewModel.Hp.Subscribe(value => hpBar.value = value));
-            _disposables.Add(damageButton.BindClick(_viewModel.Damage));
-            _disposables.Add(healButton.BindClick(_viewModel.Heal));
-            _disposables.Add(openDialogButton.BindClick(() => OnOpenDialogRequested?.Invoke()));
+            Track(_viewModel.Hp.Subscribe(value => hpBar.value = value));
+            Track(damageButton.BindClick(_viewModel.Damage));
+            Track(healButton.BindClick(_viewModel.Heal));
+            Track(openDialogButton.BindClick(() => OnOpenDialogRequested?.Invoke()));
 
             var runner = new BehaviorRunner(hpLabel, InterruptPolicy.FromCurrent);
-            _disposables.Add(runner);
+            Track(runner);
 
             var hpTransition = new ParallelBehavior(
                 new TweenNumberBehavior(),
                 new FlashBehavior(Color.red, 0.2f),
                 new ShakeBehavior(6f, 0.3f, 10));
 
-            _disposables.Add(_viewModel.Hp.BindTransition(runner, hpTransition));
-        }
-
-        /// <inheritdoc />
-        protected override void OnViewDestroy()
-        {
-            _disposables.Dispose();
+            Track(_viewModel.Hp.BindTransition(runner, hpTransition));
         }
     }
 }

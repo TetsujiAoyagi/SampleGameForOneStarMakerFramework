@@ -4,6 +4,7 @@
     "references": [
         "SampleGame.OutGame",
         "OneStarMaker.Runtime",
+        "OneStarMaker.Editor",
         "Unity.Addressables",
         "Unity.Addressables.Editor"
     ],

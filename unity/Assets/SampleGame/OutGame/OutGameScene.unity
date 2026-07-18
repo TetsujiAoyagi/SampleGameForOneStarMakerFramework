@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &238277024
+--- !u!1 &1586900856
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -127,36 +127,22 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 238277026}
-  - component: {fileID: 238277025}
+  - component: {fileID: 1586900857}
+  - component: {fileID: 1586900858}
   m_Layer: 0
-  m_Name: TitleView
+  m_Name: Background
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &238277025
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 238277024}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 63f72c1f53aa8c04cb56b9f958a41555, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: SampleGame.OutGame::SampleGame.OutGame.Title.TitleView
-  _visualTreeAsset: {fileID: 9197481963319205126, guid: 388f160d2963e9c4fa5442fa22b98af7, type: 3}
-  _backgroundDefinition: {fileID: 11400000, guid: a788c89994528fc40bd1d2583cc0b6ef, type: 2}
---- !u!4 &238277026
+--- !u!4 &1586900857
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 238277024}
+  m_GameObject: {fileID: 1586900856}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -165,8 +151,21 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1586900858
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1586900856}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9660ecd10bbac964480ef98212b2825d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SampleGame.OutGame::SampleGame.OutGame.OutGameBackgroundView
+  _visualTreeAsset: {fileID: 9197481963319205126, guid: 394411aa7d2bee14fb8e084f221c4ab5, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 238277026}
+  - {fileID: 1586900857}

@@ -11,6 +11,7 @@ using OneStarMaker.Tests.CameraSystem;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Tests.SceneSystem.Helpers;
 using SampleGame.DependOnAll;
+using SampleGame.OutGame;
 using SampleGame.OutGame.Scenes;
 using SampleGame.OutGame.Title;
 using RuntimeCameraSystem = OneStarMaker.Runtime.CameraSystem.Core.CameraSystem;
@@ -60,6 +61,7 @@ namespace OneStarMaker.Tests.SampleGame
         }
 
         [TestCase("Title", typeof(TitleScene))]
+        [TestCase("OutGame", typeof(OutGameScene))]
         [TestCase("HpGauge", typeof(HpGaugeScene))]
         [TestCase("ConfirmDialog", typeof(ConfirmDialogScene))]
         public void CreateSceneClass_KnownIdentity_ReturnsExpectedSceneType(string identity, Type expectedType)

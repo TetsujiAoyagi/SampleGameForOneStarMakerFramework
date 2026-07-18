@@ -9,7 +9,9 @@ namespace OneStarMaker.Runtime.UISystem.Mvvm
 {
     /// <summary>
     /// R3 Observable から UI Toolkit VisualElement への最小バインディング拡張。
-    /// 各メソッドは購読の <see cref="IDisposable"/> を返す。呼び出し側の <see cref="CompositeDisposable"/> へ集約すること。
+    /// 各メソッドは購読の <see cref="IDisposable"/> を返す。
+    /// <see cref="UIToolkitView"/> 内から使う場合は、呼び出し側の
+    /// <see cref="UIToolkitView.Track{T}(T)"/> へ集約すること。
     /// </summary>
     public static class BindingExtensions
     {

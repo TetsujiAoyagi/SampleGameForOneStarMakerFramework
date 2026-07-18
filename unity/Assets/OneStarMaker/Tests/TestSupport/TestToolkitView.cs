@@ -1,7 +1,9 @@
 #nullable enable
 
+using System;
 using System.Reflection;
 using OneStarMaker.Runtime.UISystem;
+using OneStarMaker.Runtime.UISystem.Mvvm;
 using UnityEngine.UIElements;
 
 namespace OneStarMaker.Tests.UISystem.TestDoubles
@@ -21,6 +23,8 @@ namespace OneStarMaker.Tests.UISystem.TestDoubles
 
         private UIView.UILayer _layer = UIView.UILayer.Normal;
 
+        public Action? ViewDestroyed { get; set; }
+
         /// <summary>テスト用 Root を注入する。</summary>
         /// <param name="root">差し替える VisualElement。</param>
         public void SetTestRoot(VisualElement root)
@@ -36,10 +40,26 @@ namespace OneStarMaker.Tests.UISystem.TestDoubles
             _layer = layer;
         }
 
+        public T TrackForTest<T>(T disposable)
+            where T : IDisposable
+        {
+            return Track(disposable);
+        }
+
+        public void SetViewModelForTest(ViewModelBase viewModel)
+        {
+            SetViewModel(viewModel);
+        }
+
         /// <inheritdoc/>
         public override UIView.UILayer GetUILayer()
         {
             return _layer;
+        }
+
+        protected override void OnViewDestroy()
+        {
+            ViewDestroyed?.Invoke();
         }
     }
 }

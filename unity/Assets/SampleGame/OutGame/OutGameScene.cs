@@ -1,14 +1,19 @@
 using Microsoft.Extensions.Logging;
 using OneStarMaker.Runtime.CameraSystem.Abstractions;
 using OneStarMaker.Runtime.SceneSystem;
-using SampleGame.OutGame.Title;
+using SampleGame.OutGame.Background;
 using UnityEngine;
 
 namespace SampleGame.OutGame
 {
-    public class OutGameScene : SceneBase
+    public class OutGameScene : SceneBase, IOutGameBackgroundRequests
     {
         private readonly ILogger<OutGameScene> _logger;
+        private readonly OutGameBackgroundController _backgroundController = new();
+
+        /// <inheritdoc />
+        public OutGameBackgroundDefinition? Current => _backgroundController.Current;
+
         public OutGameScene(
             SceneResource sceneResource,
             ISceneQuery sceneQuery,
@@ -39,7 +44,25 @@ namespace SampleGame.OutGame
 
             // OutGame の背景色は View_Main の描画設定であり、シーンの旧 Main Camera には設定しない。
             // 依存を必須化して Bootstrap 失敗をここまで持ち込まず、破棄済み Host への書き込みも防ぐ。
-            cameraBackgroundApplier.SetClearFlag(cameraSystem.MainView, ClearFlag.Color, Color.black);
+            cameraBackgroundApplier.SetClearFlag(cameraSystem.MainView, ClearFlag.Color, Color.red);
+        }
+
+        /// <inheritdoc />
+        public void Request(OutGameBackgroundDefinition definition)
+        {
+            _backgroundController.Request(definition);
+        }
+
+        /// <inheritdoc />
+        protected override void OnInitialize()
+        {
+            if (UIView is not OutGameBackgroundView backgroundView)
+            {
+                throw new System.InvalidOperationException(
+                    "OutGameScene には OutGameBackgroundView が1つ必要です。");
+            }
+
+            backgroundView.Connect(_backgroundController);
         }
     }
 }

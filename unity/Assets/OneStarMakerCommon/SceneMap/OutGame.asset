@@ -15,7 +15,14 @@ MonoBehaviour:
   _identity: OutGame
   _sceneAssetDescription:
     _loadType: 0
-    _payloads: []
+    _payloads:
+    - Reference:
+        m_AssetGUID: 30710b0456e31694a89047872db50aeb
+        m_SubObjectName: 
+        m_SubObjectType: 
+        m_SubObjectGUID: 
+        m_EditorAssetChanged: 0
+      Variant: 
     SceneIdentity: 
   _parent: {fileID: 0}
   _children:

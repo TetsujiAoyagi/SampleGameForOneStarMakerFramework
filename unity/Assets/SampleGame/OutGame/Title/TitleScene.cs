@@ -4,7 +4,9 @@ using Cysharp.Threading.Tasks;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using OneStarMaker.Runtime.SceneSystem;
+using SampleGame.OutGame.Background;
 using ZLogger;
+using System.Diagnostics;
 
 namespace SampleGame.OutGame.Title
 {
@@ -38,7 +40,27 @@ namespace SampleGame.OutGame.Title
         protected override async UniTask OnLoadedImpl(CancellationToken ct)
         {
             _logger.ZLogInformation($"Loaded.");
+
+            if (UIView is TitleView titleView && titleView.BackgroundDefinition != null)
+            {
+                RequestParentBackground(titleView.BackgroundDefinition);
+            }
+
             await UniTask.CompletedTask;
+        }
+
+        private void RequestParentBackground(OutGameBackgroundDefinition definition)
+        {
+            var parent = SceneResource.Parent
+                ?? throw new System.InvalidOperationException("TitleScene には OutGame 親シーンが必要です。");
+
+            if (SceneQuery.GetLoadedScene(parent.Identity) is not IOutGameBackgroundRequests requests)
+            {
+                throw new System.InvalidOperationException(
+                    $"親シーン '{parent.Identity}' は共有背景要求を提供していません。");
+            }
+
+            requests.Request(definition);
         }
     }
 }

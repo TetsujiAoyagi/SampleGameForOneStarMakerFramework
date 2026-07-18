@@ -1,9 +1,9 @@
 #nullable enable
 
+using Cysharp.Threading.Tasks;
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.UIElements;
@@ -15,7 +15,6 @@ namespace OneStarMaker.Runtime.UISystem
     /// UIToolkitView はレイヤーコンテナ構造で、uGUI UIView（レガシー）は SiblingIndex で描画順を管理する。
     /// SceneBase を知らず、string の ownerId で管理する（一方向依存の実現）。
     /// </summary>
-    [RequireComponent(typeof(Canvas), typeof(GraphicRaycaster))]
     public class UICommon : MonoBehaviour
     {
         /// <summary>
