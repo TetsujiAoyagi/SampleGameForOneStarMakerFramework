@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Threading;
 using DebugStudio.App.Core.Models;
 using DebugStudio.App.Core.Services;
@@ -40,7 +41,8 @@ public sealed class LogViewerViewModel : ObservableObject, IDisposable
     private int _retainedCount;
     private long _totalReceived;
     private long _queryElapsedMilliseconds;
-    private bool _isCompactDensityEnabled;
+    private bool _isCompactDensityEnabled = true;
+    private bool _isDetailPaneVisible = true;
 
     public LogViewerViewModel(
         Dispatcher dispatcher,
@@ -62,6 +64,7 @@ public sealed class LogViewerViewModel : ObservableObject, IDisposable
         ExportCommand = new AsyncRelayCommand(ExportAsync, CanExport);
         ClearQueryCommand = new RelayCommand(() => _filterState.ClearQuery(), () => _filterState.CanClearQuery());
         ToggleAutoScrollCommand = new RelayCommand(() => _tailState.ToggleAutoScroll());
+        ToggleDetailPaneCommand = new RelayCommand(() => IsDetailPaneVisible = !IsDetailPaneVisible);
 
         _filterState.FilterChanged += (_, _) =>
         {
@@ -103,6 +106,8 @@ public sealed class LogViewerViewModel : ObservableObject, IDisposable
     public RelayCommand ClearQueryCommand { get; }
 
     public RelayCommand ToggleAutoScrollCommand { get; }
+
+    public RelayCommand ToggleDetailPaneCommand { get; }
 
     public IReadOnlyList<LogKindFilterOption> KindFilters => _filterState.KindFilters;
 
@@ -221,6 +226,33 @@ public sealed class LogViewerViewModel : ObservableObject, IDisposable
         get => _isCompactDensityEnabled;
         set => SetProperty(ref _isCompactDensityEnabled, value);
     }
+
+    public bool IsDetailPaneVisible
+    {
+        get => _isDetailPaneVisible;
+        set
+        {
+            if (SetProperty(ref _isDetailPaneVisible, value))
+            {
+                OnPropertyChanged(nameof(DetailToggleButtonText));
+                OnPropertyChanged(nameof(DetailPaneColumnWidth));
+                OnPropertyChanged(nameof(DetailSplitterColumnWidth));
+                OnPropertyChanged(nameof(DetailPaneMinWidth));
+            }
+        }
+    }
+
+    public string DetailToggleButtonText => IsDetailPaneVisible ? "Hide Detail" : "Show Detail";
+
+    public GridLength DetailPaneColumnWidth => IsDetailPaneVisible
+        ? new GridLength(320)
+        : new GridLength(0);
+
+    public GridLength DetailSplitterColumnWidth => IsDetailPaneVisible
+        ? new GridLength(5)
+        : new GridLength(0);
+
+    public double DetailPaneMinWidth => IsDetailPaneVisible ? 240 : 0;
 
     public LogViewerListItemViewModel? SelectedLog
     {

@@ -96,6 +96,38 @@ public sealed class LogViewerViewModelTests
     }
 
     [Fact]
+    public void LayoutDefaults_CompactとDetailPaneが既定で有効()
+    {
+        var viewModel = CreateViewModel(out _, out _);
+
+        Assert.True(viewModel.IsCompactDensityEnabled);
+        Assert.True(viewModel.IsDetailPaneVisible);
+        Assert.Equal(320, viewModel.DetailPaneColumnWidth.Value);
+        Assert.Equal(5, viewModel.DetailSplitterColumnWidth.Value);
+        Assert.Equal(240, viewModel.DetailPaneMinWidth);
+    }
+
+    [Fact]
+    public void ToggleDetailPane_非表示時は列幅をゼロにする()
+    {
+        var viewModel = CreateViewModel(out _, out _);
+
+        viewModel.ToggleDetailPaneCommand.Execute(null);
+
+        Assert.False(viewModel.IsDetailPaneVisible);
+        Assert.Equal("Show Detail", viewModel.DetailToggleButtonText);
+        Assert.Equal(0, viewModel.DetailPaneColumnWidth.Value);
+        Assert.Equal(0, viewModel.DetailSplitterColumnWidth.Value);
+        Assert.Equal(0, viewModel.DetailPaneMinWidth);
+
+        viewModel.ToggleDetailPaneCommand.Execute(null);
+
+        Assert.True(viewModel.IsDetailPaneVisible);
+        Assert.Equal("Hide Detail", viewModel.DetailToggleButtonText);
+        Assert.Equal(320, viewModel.DetailPaneColumnWidth.Value);
+    }
+
+    [Fact]
     public async Task EndToEnd_FilterSearchExportWorkflow_表示条件と同じ結果をCSVへ流せる()
     {
         var viewModel = CreateViewModel(out var store, out var writers);
