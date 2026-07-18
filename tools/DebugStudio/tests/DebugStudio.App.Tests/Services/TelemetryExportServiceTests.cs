@@ -158,8 +158,9 @@ public sealed class TelemetryExportServiceTests
 
             var lines = await File.ReadAllLinesAsync(outputPath);
             Assert.Equal(4, lines.Length);
-            Assert.Contains("\"create\":{\"index\":\"debugstudio-telemetry-2026.04.29\"}", lines[0], StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("\"create\":{\"_index\":\"debugstudio-telemetry-2026.04.29\"}", lines[0], StringComparison.OrdinalIgnoreCase);
             using var telemetryPayload = JsonDocument.Parse(lines[1]);
+            Assert.Equal("2026-04-29T01:00:02.0000000Z", telemetryPayload.RootElement.GetProperty("@timestamp").GetString());
             Assert.Equal("telemetry", telemetryPayload.RootElement.GetProperty("stream").GetString());
             Assert.Equal("telemetry", telemetryPayload.RootElement.GetProperty("event").GetProperty("category").GetString());
             Assert.Equal("boot", telemetryPayload.RootElement.GetProperty("event").GetProperty("action").GetString());
@@ -167,7 +168,7 @@ public sealed class TelemetryExportServiceTests
             Assert.Equal("11", telemetryPayload.RootElement.GetProperty("span").GetProperty("id").GetString());
             Assert.Equal("9", telemetryPayload.RootElement.GetProperty("span").GetProperty("parent").GetProperty("id").GetString());
             Assert.Equal("debugstudio", telemetryPayload.RootElement.GetProperty("service").GetProperty("name").GetString());
-            Assert.Contains("\"create\":{\"index\":\"debugstudio-service-status-2026.04.29\"}", lines[2], StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("\"create\":{\"_index\":\"debugstudio-service-status-2026.04.29\"}", lines[2], StringComparison.OrdinalIgnoreCase);
             Assert.Contains("\"stream\":\"serviceStatus\"", lines[3], StringComparison.OrdinalIgnoreCase);
         }
         finally

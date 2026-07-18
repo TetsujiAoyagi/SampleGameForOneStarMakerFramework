@@ -75,45 +75,47 @@ public sealed class ElasticBulkTelemetryExportWriter : ITelemetryExportWriter
     {
         var document = ElasticTelemetryDocumentFactory.Create(record);
 
-        return new
+        // 匿名型の `@timestamp` は C# ではプロパティ名 `timestamp` になる。
+        // Kibana Data View / ECS は `@timestamp` を前提にするため、Dictionary で明示する。
+        return new Dictionary<string, object?>
         {
-            @timestamp = record.TimestampUtc,
-            record.TimestampUnixTimeMilliseconds,
-            record.Stream,
-            record.Source,
-            record.Name,
-            record.Status,
-            record.Message,
-            record.IsSuccess,
-            record.ElapsedMs,
-            record.Level,
-            record.TraceId,
-            record.SpanId,
-            record.ParentSpanId,
-            record.TagBits,
-            record.Tags,
-            record.CpuTime,
-            record.GpuTime,
-            record.ManagedMem,
-            record.NativeMem,
-            record.SceneFrom,
-            record.SceneTo,
-            record.CameraTotalViewCount,
-            record.CameraAdditionalViewCount,
-            record.CameraBlendingViewCount,
-            record.CameraMaxStackDepthTotal,
-            record.CameraViewId,
-            record.CameraActiveCameraHash,
-            @event = new
+            ["@timestamp"] = record.TimestampUtc,
+            ["timestampUnixTimeMilliseconds"] = record.TimestampUnixTimeMilliseconds,
+            ["stream"] = record.Stream,
+            ["source"] = record.Source,
+            ["name"] = record.Name,
+            ["status"] = record.Status,
+            ["message"] = record.Message,
+            ["isSuccess"] = record.IsSuccess,
+            ["elapsedMs"] = record.ElapsedMs,
+            ["level"] = record.Level,
+            ["traceId"] = record.TraceId,
+            ["spanId"] = record.SpanId,
+            ["parentSpanId"] = record.ParentSpanId,
+            ["tagBits"] = record.TagBits,
+            ["tags"] = record.Tags,
+            ["cpuTime"] = record.CpuTime,
+            ["gpuTime"] = record.GpuTime,
+            ["managedMem"] = record.ManagedMem,
+            ["nativeMem"] = record.NativeMem,
+            ["sceneFrom"] = record.SceneFrom,
+            ["sceneTo"] = record.SceneTo,
+            ["cameraTotalViewCount"] = record.CameraTotalViewCount,
+            ["cameraAdditionalViewCount"] = record.CameraAdditionalViewCount,
+            ["cameraBlendingViewCount"] = record.CameraBlendingViewCount,
+            ["cameraMaxStackDepthTotal"] = record.CameraMaxStackDepthTotal,
+            ["cameraViewId"] = record.CameraViewId,
+            ["cameraActiveCameraHash"] = record.CameraActiveCameraHash,
+            ["event"] = new
             {
                 category = document.Event.Category,
                 action = document.Event.Action,
             },
-            trace = new
+            ["trace"] = new
             {
                 id = document.Trace.Id,
             },
-            span = new
+            ["span"] = new
             {
                 id = document.Span.Id,
                 parent = new
@@ -121,7 +123,7 @@ public sealed class ElasticBulkTelemetryExportWriter : ITelemetryExportWriter
                     id = document.Span.ParentId,
                 }
             },
-            service = new
+            ["service"] = new
             {
                 name = document.Service.Name,
             }
@@ -175,6 +177,11 @@ public sealed class ElasticBulkTelemetryExportWriter : ITelemetryExportWriter
             Index = index;
         }
 
+        /// <summary>
+        /// Elastic `_bulk` の action metadata では index 名は必須で `_index`。
+        /// camelCase の `index` だと unknown parameter として 400 になる。
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("_index")]
         public string Index { get; }
     }
 }

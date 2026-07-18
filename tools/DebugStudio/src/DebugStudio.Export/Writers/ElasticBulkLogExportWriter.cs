@@ -81,36 +81,38 @@ public sealed class ElasticBulkLogExportWriter : ILogExportWriter
 
     private static object ToElasticPayload(LogExportRecord log)
     {
-        return new
+        // 匿名型の `@timestamp` は C# ではプロパティ名 `timestamp` になる。
+        // Kibana Data View / ECS は `@timestamp` を前提にするため、Dictionary で明示する。
+        return new Dictionary<string, object?>
         {
-            @timestamp = log.TimestampUtc,
-            log.SequenceNumber,
-            log.ApplicationName,
-            log.TimestampUnixTimeMilliseconds,
-            log.TimestampLocal,
-            log.Kind,
-            log.RawLogLevel,
-            log.Category,
-            log.EventId,
-            log.EventName,
-            log.Message,
-            log.Exception,
-            log.ThreadId,
-            log.ThreadName,
-            log.MemberName,
-            log.FilePath,
-            log.LineNumber,
-            @event = new
+            ["@timestamp"] = log.TimestampUtc,
+            ["sequenceNumber"] = log.SequenceNumber,
+            ["applicationName"] = log.ApplicationName,
+            ["timestampUnixTimeMilliseconds"] = log.TimestampUnixTimeMilliseconds,
+            ["timestampLocal"] = log.TimestampLocal,
+            ["kind"] = log.Kind,
+            ["rawLogLevel"] = log.RawLogLevel,
+            ["category"] = log.Category,
+            ["eventId"] = log.EventId,
+            ["eventName"] = log.EventName,
+            ["message"] = log.Message,
+            ["exception"] = log.Exception,
+            ["threadId"] = log.ThreadId,
+            ["threadName"] = log.ThreadName,
+            ["memberName"] = log.MemberName,
+            ["filePath"] = log.FilePath,
+            ["lineNumber"] = log.LineNumber,
+            ["event"] = new
             {
                 id = log.EventId,
                 name = log.EventName,
             },
-            log = new
+            ["log"] = new
             {
                 level = log.LogLevel,
                 logger = log.Category,
             },
-            service = new
+            ["service"] = new
             {
                 name = log.ServiceName ?? log.ApplicationName,
             }
@@ -134,6 +136,11 @@ public sealed class ElasticBulkLogExportWriter : ILogExportWriter
             Index = index;
         }
 
+        /// <summary>
+        /// Elastic `_bulk` の action metadata では index 名は必須で `_index`。
+        /// camelCase の `index` だと unknown parameter として 400 になる。
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("_index")]
         public string Index { get; }
     }
 }

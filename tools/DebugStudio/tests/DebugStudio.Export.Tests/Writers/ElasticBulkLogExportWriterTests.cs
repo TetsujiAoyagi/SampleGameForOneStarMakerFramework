@@ -54,8 +54,11 @@ public sealed class ElasticBulkLogExportWriterTests
 
             Assert.Equal(
                 "debugstudio-log-2026.04.29",
-                actionDocument.RootElement.GetProperty("create").GetProperty("index").GetString());
+                actionDocument.RootElement.GetProperty("create").GetProperty("_index").GetString());
             Assert.Equal("timeout detected", payloadDocument.RootElement.GetProperty("message").GetString());
+            Assert.Equal(
+                "2026-04-29T01:23:45.000Z",
+                payloadDocument.RootElement.GetProperty("@timestamp").GetString());
             Assert.Equal("warning", payloadDocument.RootElement.GetProperty("log").GetProperty("level").GetString());
             Assert.Equal("GameClient", payloadDocument.RootElement.GetProperty("service").GetProperty("name").GetString());
         }
