@@ -5,6 +5,8 @@
 >
 > **注意:** この文書は実装前ドラフトです。現在の実装仕様は `docs/updater/UPDATER_CURRENT_SPEC.md`（リポジトリルート）を正本として参照してください。
 > 本文には未採用案や差し替え済み API が含まれるため、実装確認用途には使わないでください。
+>
+> **関連:** Async/Await（UniTask）との役割分担・時間権威の設計方針は [26-update-async-time-authority.md](26-update-async-time-authority.md) を参照。
 
 ---
 
