@@ -691,7 +691,7 @@ public sealed class ShellCompositionTests
     {
         _ = Application.Current ?? new Application();
         var root = new AppCompositionRoot();
-        await using var mainWindow = root.CreateMainWindowViewModel();
+        var mainWindow = root.CreateMainWindowViewModel();
 
         var sessionServiceField = typeof(SessionWindowViewModel).GetField("_sessionService", BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(sessionServiceField);
@@ -700,6 +700,13 @@ public sealed class ShellCompositionTests
         var sessionTransportField = typeof(SessionService).GetField("_session", BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(sessionTransportField);
         Assert.IsType<DebugStudioServerSessionTransport>(sessionTransportField!.GetValue(sessionService));
+
+        var ownedLifetimeField = typeof(MainWindowViewModel).GetField("_ownedLifetime", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(ownedLifetimeField);
+        Assert.NotNull(ownedLifetimeField!.GetValue(mainWindow));
+
+        await mainWindow.DisposeAsync();
+        Assert.Null(ownedLifetimeField.GetValue(mainWindow));
     }
 
     #endregion

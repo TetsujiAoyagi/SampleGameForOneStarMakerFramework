@@ -29,6 +29,8 @@ public sealed class TelemetryWindowViewModel : ObservableObject, IDisposable
     private readonly TelemetryStore _telemetryStore;
     private readonly CapabilityStateStore _capabilityStateStore;
     private readonly TelemetryExportService? _telemetryExportService;
+    private readonly ElasticTelemetryPushService? _elasticTelemetryPushService;
+    private readonly IElasticPushConfirmation? _elasticPushConfirmation;
     private readonly TelemetryExportState _exportState;
     private long _telemetryCount;
     private long _serviceStatusCount;
@@ -36,6 +38,11 @@ public sealed class TelemetryWindowViewModel : ObservableObject, IDisposable
     private string _latestServiceStatus = "No service status frames yet.";
     private string _telemetryStatus = "Connect to a Unity session to receive telemetry.";
     private string _serviceStatusState = "Service status frames will appear after the session starts reporting.";
+    private string _elasticConfigurationSummary = "Elastic L1 Verify is not available.";
+    private string _elasticPreflightStatus = "Run preflight to verify localhost Elastic connectivity.";
+    private string _elasticPreviewSummary = "Retained telemetry preview is unavailable.";
+    private string _elasticPushStatus = string.Empty;
+    private bool _elasticPreflightSucceeded;
 
     public TelemetryWindowViewModel(
         Dispatcher dispatcher,
@@ -51,21 +58,46 @@ public sealed class TelemetryWindowViewModel : ObservableObject, IDisposable
         CapabilityStateStore capabilityStateStore,
         TelemetryExportService? telemetryExportService,
         TelemetryExportPathPolicy? pathPolicy)
+        : this(
+            dispatcher,
+            telemetryStore,
+            capabilityStateStore,
+            telemetryExportService,
+            pathPolicy,
+            elasticTelemetryPushService: null,
+            elasticPushConfirmation: null)
+    {
+    }
+
+    public TelemetryWindowViewModel(
+        Dispatcher dispatcher,
+        TelemetryStore telemetryStore,
+        CapabilityStateStore capabilityStateStore,
+        TelemetryExportService? telemetryExportService,
+        TelemetryExportPathPolicy? pathPolicy,
+        ElasticTelemetryPushService? elasticTelemetryPushService,
+        IElasticPushConfirmation? elasticPushConfirmation = null)
     {
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
         _telemetryStore = telemetryStore ?? throw new ArgumentNullException(nameof(telemetryStore));
         _capabilityStateStore = capabilityStateStore ?? throw new ArgumentNullException(nameof(capabilityStateStore));
         _telemetryExportService = telemetryExportService;
+        _elasticTelemetryPushService = elasticTelemetryPushService;
+        _elasticPushConfirmation = elasticPushConfirmation;
         _exportState = new TelemetryExportState(pathPolicy);
 
         RecentTelemetry = new ObservableCollection<string>();
         RecentServiceStatuses = new ObservableCollection<string>();
         ExportCommand = new AsyncRelayCommand(ExportAsync, CanExport);
+        ElasticPreflightCommand = new AsyncRelayCommand(PreflightElasticAsync, CanRunElasticPreflight);
+        ElasticPushCommand = new AsyncRelayCommand(PushElasticAsync, CanPushElastic);
         _exportState.ExportPathChanged += OnExportStateChanged;
         _exportState.ExportFormatChanged += OnExportStateChanged;
 
         _telemetryStore.Changed += OnTelemetryChanged;
         _capabilityStateStore.Changed += OnCapabilityChanged;
+        RefreshElasticConfigurationSummary();
+        RefreshElasticPreview();
         Refresh();
     }
 
@@ -137,6 +169,43 @@ public sealed class TelemetryWindowViewModel : ObservableObject, IDisposable
 
     public AsyncRelayCommand ExportCommand { get; }
 
+    /// <summary>
+    /// localhost Elastic への preflight。成功後に preview を更新し push を有効化する。
+    /// </summary>
+    public AsyncRelayCommand ElasticPreflightCommand { get; }
+
+    /// <summary>
+    /// bootstrap + `_bulk` による retained telemetry の明示投入。
+    /// </summary>
+    public AsyncRelayCommand ElasticPushCommand { get; }
+
+    public string ElasticConfigurationSummary
+    {
+        get => _elasticConfigurationSummary;
+        private set => SetProperty(ref _elasticConfigurationSummary, value);
+    }
+
+    public string ElasticPreflightStatus
+    {
+        get => _elasticPreflightStatus;
+        private set => SetProperty(ref _elasticPreflightStatus, value);
+    }
+
+    /// <summary>
+    /// retained snapshot（最大 256 件の current-session 近似）の件数と概算サイズ。
+    /// </summary>
+    public string ElasticPreviewSummary
+    {
+        get => _elasticPreviewSummary;
+        private set => SetProperty(ref _elasticPreviewSummary, value);
+    }
+
+    public string ElasticPushStatus
+    {
+        get => _elasticPushStatus;
+        private set => SetProperty(ref _elasticPushStatus, value);
+    }
+
     public void Dispose()
     {
         _telemetryStore.Changed -= OnTelemetryChanged;
@@ -182,6 +251,9 @@ public sealed class TelemetryWindowViewModel : ObservableObject, IDisposable
             TelemetryStatus = BuildTelemetryStatus(snapshot, capability);
             ServiceStatusState = BuildServiceStatusState(snapshot, capability);
             ExportCommand.RaiseCanExecuteChanged();
+            ElasticPreflightCommand.RaiseCanExecuteChanged();
+            ElasticPushCommand.RaiseCanExecuteChanged();
+            RefreshElasticPreview();
 
             ReplaceCollection(
                 RecentTelemetry,
@@ -277,6 +349,124 @@ public sealed class TelemetryWindowViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(ExportStatus));
             });
         }
+    }
+
+    private bool CanRunElasticPreflight()
+    {
+        return _elasticTelemetryPushService != null;
+    }
+
+    private bool CanPushElastic()
+    {
+        return _elasticTelemetryPushService != null &&
+            _elasticPushConfirmation != null &&
+            _elasticPreflightSucceeded &&
+            TelemetryCount > 0;
+    }
+
+    private async Task PreflightElasticAsync()
+    {
+        if (_elasticTelemetryPushService == null)
+        {
+            UpdateOnUiThread(() => ElasticPreflightStatus = "Elastic L1 Verify service is not available.");
+            return;
+        }
+
+        RefreshElasticConfigurationSummary();
+        RefreshElasticPreview();
+
+        try
+        {
+            var result = await _elasticTelemetryPushService.PreflightAsync().ConfigureAwait(false);
+            UpdateOnUiThread(() =>
+            {
+                _elasticPreflightSucceeded = result.Success;
+                ElasticPreflightStatus = result.Message;
+                ElasticPushCommand.RaiseCanExecuteChanged();
+            });
+        }
+        catch (Exception ex)
+        {
+            UpdateOnUiThread(() =>
+            {
+                _elasticPreflightSucceeded = false;
+                ElasticPreflightStatus = $"Elastic preflight failed safely: {ex.GetType().Name}.";
+                ElasticPushCommand.RaiseCanExecuteChanged();
+            });
+        }
+    }
+
+    private async Task PushElasticAsync()
+    {
+        if (_elasticTelemetryPushService == null)
+        {
+            UpdateOnUiThread(() => ElasticPushStatus = "Elastic L1 Verify service is not available.");
+            return;
+        }
+
+        try
+        {
+            var preview = _elasticTelemetryPushService.BuildPreview();
+            UpdateOnUiThread(() => ElasticPreviewSummary = preview.DescribeForUi());
+
+            if (_elasticPushConfirmation == null)
+            {
+                UpdateOnUiThread(() => ElasticPushStatus = "Elastic push confirmation is not available.");
+                return;
+            }
+
+            if (!await _elasticPushConfirmation.ConfirmPushAsync(preview).ConfigureAwait(false))
+            {
+                UpdateOnUiThread(() => ElasticPushStatus = "Elastic push was canceled before bootstrap and bulk submission.");
+                return;
+            }
+
+            var result = await _elasticTelemetryPushService.PushRetainedTelemetryAsync().ConfigureAwait(false);
+            UpdateOnUiThread(() =>
+            {
+                ElasticPushStatus = result.Message;
+                ElasticPushCommand.RaiseCanExecuteChanged();
+            });
+        }
+        catch (Exception ex)
+        {
+            UpdateOnUiThread(() =>
+            {
+                ElasticPushStatus = $"Elastic push failed safely: {ex.GetType().Name}.";
+                ElasticPushCommand.RaiseCanExecuteChanged();
+            });
+        }
+    }
+
+    private void RefreshElasticConfigurationSummary()
+    {
+        if (_elasticTelemetryPushService == null)
+        {
+            ElasticConfigurationSummary = "Elastic L1 Verify is not available.";
+            return;
+        }
+
+        if (!_elasticTelemetryPushService.TryCreateSettings(out var settings, out var errorMessage) ||
+            settings == null)
+        {
+            ElasticConfigurationSummary = errorMessage;
+            _elasticPreflightSucceeded = false;
+            ElasticPushCommand.RaiseCanExecuteChanged();
+            return;
+        }
+
+        ElasticConfigurationSummary = settings.DescribeConfigurationForUi();
+    }
+
+    private void RefreshElasticPreview()
+    {
+        if (_elasticTelemetryPushService == null)
+        {
+            ElasticPreviewSummary = "Retained telemetry preview is unavailable.";
+            return;
+        }
+
+        ElasticPreviewSummary = _elasticTelemetryPushService.BuildPreview().DescribeForUi();
     }
 
     /// <summary>

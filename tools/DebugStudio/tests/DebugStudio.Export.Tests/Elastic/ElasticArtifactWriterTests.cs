@@ -44,6 +44,15 @@ public sealed class ElasticArtifactWriterTests
             Assert.Equal("keyword", properties.GetProperty("span").GetProperty("properties").GetProperty("id").GetProperty("type").GetString());
             Assert.Equal("keyword", properties.GetProperty("span").GetProperty("properties").GetProperty("parent").GetProperty("properties").GetProperty("id").GetProperty("type").GetString());
             Assert.Equal("keyword", properties.GetProperty("service").GetProperty("properties").GetProperty("name").GetProperty("type").GetString());
+            Assert.Equal(
+                "debugstudio-telemetry",
+                root.GetProperty("template")
+                    .GetProperty("settings")
+                    .GetProperty("index")
+                    .GetProperty("default_pipeline")
+                    .GetString());
+            Assert.False(
+                root.GetProperty("template").GetProperty("settings").TryGetProperty("default_pipeline", out _));
         }
         finally
         {

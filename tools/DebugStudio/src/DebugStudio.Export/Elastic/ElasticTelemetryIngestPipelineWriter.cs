@@ -2,7 +2,6 @@
 
 using System;
 using System.IO;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,12 +13,7 @@ namespace DebugStudio.Export.Elastic;
 /// </summary>
 public sealed class ElasticTelemetryIngestPipelineWriter
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new()
-    {
-        WriteIndented = true,
-    };
-
-    public async Task WriteAsync(string outputPath, CancellationToken cancellationToken = default)
+    public Task WriteAsync(string outputPath, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(outputPath))
         {
@@ -32,31 +26,6 @@ public sealed class ElasticTelemetryIngestPipelineWriter
             Directory.CreateDirectory(directoryPath);
         }
 
-        var document = new
-        {
-            description = "debugstudio telemetry ingest pipeline",
-            processors = new object[]
-            {
-                new
-                {
-                    set = new
-                    {
-                        field = "stream",
-                        value = "telemetry",
-                    }
-                },
-                new
-                {
-                    set = new
-                    {
-                        field = "observer.name",
-                        value = "DebugStudio",
-                    }
-                }
-            }
-        };
-
-        var json = JsonSerializer.Serialize(document, SerializerOptions);
-        await File.WriteAllTextAsync(outputPath, json, cancellationToken).ConfigureAwait(false);
+        return File.WriteAllTextAsync(outputPath, ElasticTelemetryIngestPipelineDefinition.CreateArtifactJson(), cancellationToken);
     }
 }

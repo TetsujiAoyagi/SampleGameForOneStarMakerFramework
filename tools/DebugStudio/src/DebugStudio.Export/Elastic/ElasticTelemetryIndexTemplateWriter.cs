@@ -1,9 +1,7 @@
 #nullable enable
 
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -15,12 +13,7 @@ namespace DebugStudio.Export.Elastic;
 /// </summary>
 public sealed class ElasticTelemetryIndexTemplateWriter
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new()
-    {
-        WriteIndented = true,
-    };
-
-    public async Task WriteAsync(string outputPath, CancellationToken cancellationToken = default)
+    public Task WriteAsync(string outputPath, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(outputPath))
         {
@@ -33,79 +26,6 @@ public sealed class ElasticTelemetryIndexTemplateWriter
             Directory.CreateDirectory(directoryPath);
         }
 
-        var properties = new Dictionary<string, object?>
-        {
-            ["@timestamp"] = new { type = "date" },
-            ["timestampUnixTimeMilliseconds"] = new { type = "long" },
-            ["stream"] = new { type = "keyword" },
-            ["source"] = new { type = "keyword" },
-            ["name"] = new { type = "keyword" },
-            ["message"] = new { type = "text" },
-            ["isSuccess"] = new { type = "boolean" },
-            ["elapsedMs"] = new { type = "double" },
-            ["level"] = new { type = "integer" },
-            ["traceId"] = new { type = "long" },
-            ["spanId"] = new { type = "long" },
-            ["parentSpanId"] = new { type = "long" },
-            ["tagBits"] = new { type = "integer" },
-            ["tags"] = new { type = "keyword" },
-            ["event"] = new
-            {
-                properties = new
-                {
-                    category = new { type = "keyword" },
-                    action = new { type = "keyword" },
-                }
-            },
-            ["trace"] = new
-            {
-                properties = new
-                {
-                    id = new { type = "keyword" },
-                }
-            },
-            ["span"] = new
-            {
-                properties = new Dictionary<string, object?>
-                {
-                    ["id"] = new { type = "keyword" },
-                    ["parent"] = new
-                    {
-                        properties = new
-                        {
-                            id = new { type = "keyword" },
-                        }
-                    }
-                }
-            },
-            ["service"] = new
-            {
-                properties = new
-                {
-                    name = new { type = "keyword" },
-                }
-            },
-            ["cpuTime"] = new { type = "float" },
-            ["gpuTime"] = new { type = "float" },
-            ["managedMem"] = new { type = "long" },
-            ["nativeMem"] = new { type = "long" },
-            ["sceneFrom"] = new { type = "integer" },
-            ["sceneTo"] = new { type = "integer" },
-        };
-
-        var document = new
-        {
-            index_patterns = new[] { "debugstudio-telemetry-*" },
-            template = new
-            {
-                mappings = new
-                {
-                    properties
-                }
-            }
-        };
-
-        var json = JsonSerializer.Serialize(document, SerializerOptions);
-        await File.WriteAllTextAsync(outputPath, json, cancellationToken).ConfigureAwait(false);
+        return File.WriteAllTextAsync(outputPath, ElasticTelemetryIndexTemplateDefinition.CreateArtifactJson(), cancellationToken);
     }
 }

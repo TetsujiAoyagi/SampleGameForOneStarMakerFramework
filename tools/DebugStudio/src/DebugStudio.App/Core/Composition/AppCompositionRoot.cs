@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Windows;
 using DebugStudio.App.Core.Infrastructure;
 using DebugStudio.App.Core.Services;
@@ -40,7 +41,11 @@ public sealed class AppCompositionRoot
         try
         {
             cliControlService.StartAsync().GetAwaiter().GetResult();
-            appLifetime = CreateAppLifetime(cliControlService, logPersistenceService, telemetryPersistenceService, viewModel);
+            appLifetime = CreateAppLifetime(
+                cliControlService,
+                logPersistenceService,
+                telemetryPersistenceService,
+                viewModel);
         }
         catch (Exception ex)
         {
@@ -48,7 +53,11 @@ public sealed class AppCompositionRoot
             // そのためここでは control plane だけ無効化し、本体 UI は従来どおり起動を継続する。
             Debug.WriteLine($"CLI control plane failed to start: {ex}");
             cliControlService.DisposeAsync().AsTask().GetAwaiter().GetResult();
-            appLifetime = CreateAppLifetime(null, logPersistenceService, telemetryPersistenceService, viewModel);
+            appLifetime = CreateAppLifetime(
+                null,
+                logPersistenceService,
+                telemetryPersistenceService,
+                viewModel);
         }
 
         return new MainWindow(
@@ -107,6 +116,12 @@ public sealed class AppCompositionRoot
                 new NdjsonTelemetryExportWriter(),
                 new ElasticBulkTelemetryExportWriter(),
             });
+        var elasticHttpClient = new HttpClient();
+        var elasticHttpClientLifetime = new HttpClientAsyncDisposable(elasticHttpClient);
+        var elasticTelemetryPushService = new ElasticTelemetryPushService(
+            telemetryStore,
+            new ProcessElasticEnvironmentReader(),
+            elasticHttpClient);
         var hierarchyExportService = new HierarchyExportService(
             hierarchyStore,
             new NdjsonHierarchyExportWriter());
@@ -167,7 +182,9 @@ public sealed class AppCompositionRoot
             telemetryStore,
             capabilityStateStore,
             telemetryExportService,
-            new TelemetryExportPathPolicy());
+            new TelemetryExportPathPolicy(),
+            elasticTelemetryPushService,
+            new WpfElasticPushConfirmation());
         var commandService = new CommandService(sessionService, capabilityStateStore, commandStore);
         var commandViewModel = new CommandWindowViewModel(dispatcher, commandStore, capabilityStateStore, commandService);
 
@@ -179,7 +196,8 @@ public sealed class AppCompositionRoot
                 commandViewModel,
                 logViewer,
                 hierarchyViewModel,
-                inspectorViewModel),
+                inspectorViewModel,
+                elasticHttpClientLifetime),
             sessionService,
             commandService,
             messageRouter);

@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Threading;
 using DebugStudio.App.Features.Session;
 using DebugStudio.App.Features.LogViewer;
 using DebugStudio.App.Features.Hierarchy;
@@ -20,13 +21,16 @@ namespace DebugStudio.App.Features.Shell;
 /// </summary>
 public sealed class MainWindowViewModel : IAsyncDisposable
 {
+    private IAsyncDisposable? _ownedLifetime;
+
     public MainWindowViewModel(
         SessionWindowViewModel session,
         TelemetryWindowViewModel telemetry,
         CommandWindowViewModel commands,
         LogViewerViewModel logViewer,
         HierarchyViewModel hierarchy,
-        InspectorViewModel inspector)
+        InspectorViewModel inspector,
+        IAsyncDisposable? ownedLifetime = null)
     {
         Session = session ?? throw new ArgumentNullException(nameof(session));
         Telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
@@ -34,6 +38,7 @@ public sealed class MainWindowViewModel : IAsyncDisposable
         LogViewer = logViewer ?? throw new ArgumentNullException(nameof(logViewer));
         Hierarchy = hierarchy ?? throw new ArgumentNullException(nameof(hierarchy));
         Inspector = inspector ?? throw new ArgumentNullException(nameof(inspector));
+        _ownedLifetime = ownedLifetime;
 
         Shell = new ShellLayoutViewModel(
             new ToolWindowDescriptorViewModel(ShellLayoutDefinitions.Session, Session),
@@ -65,6 +70,18 @@ public sealed class MainWindowViewModel : IAsyncDisposable
         LogViewer.Dispose();
         Hierarchy.Dispose();
         Inspector.Dispose();
-        await Session.DisposeAsync().ConfigureAwait(false);
+        try
+        {
+            await Session.DisposeAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            // Session 停止が失敗しても composition 所有 HttpClient を残さない。
+            var ownedLifetime = Interlocked.Exchange(ref _ownedLifetime, null);
+            if (ownedLifetime != null)
+            {
+                await ownedLifetime.DisposeAsync().ConfigureAwait(false);
+            }
+        }
     }
 }

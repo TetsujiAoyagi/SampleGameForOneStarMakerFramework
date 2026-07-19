@@ -12,6 +12,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <TextBlock FontWeight="SemiBold" Text="Telemetry" />
@@ -138,6 +139,43 @@
                            Foreground="#FF666666"
                            TextWrapping="Wrap"
                            Text="{Binding ExportStatus}" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="5" Margin="0,12,0,0">
+                <TextBlock FontWeight="SemiBold" Text="Elastic L1 Verify" />
+                <TextBlock Margin="0,8,0,0"
+                           Foreground="#FF666666"
+                           TextWrapping="Wrap"
+                           Text="Push retained telemetry (current-session, max 256) to localhost Elastic via explicit _bulk. Configure DEBUGSTUDIO_ELASTIC_URL / DEBUGSTUDIO_ELASTIC_API_KEY / DEBUGSTUDIO_KIBANA_URL via environment variables only." />
+                <TextBlock Margin="0,8,0,0"
+                           Foreground="#FF666666"
+                           TextWrapping="Wrap"
+                           Text="{Binding ElasticConfigurationSummary}" />
+                <TextBlock Margin="0,8,0,0"
+                           Foreground="#FF666666"
+                           TextWrapping="Wrap"
+                           Text="{Binding ElasticPreviewSummary}" />
+                <DockPanel Margin="0,8,0,0" LastChildFill="True">
+                    <Button Width="140"
+                            Margin="0,0,12,0"
+                            Command="{Binding ElasticPreflightCommand}"
+                            Content="Elastic Preflight"
+                            DockPanel.Dock="Right" />
+                    <Button Width="140"
+                            Margin="12,0,0,0"
+                            HorizontalAlignment="Right"
+                            Command="{Binding ElasticPushCommand}"
+                            Content="Elastic Push"
+                            DockPanel.Dock="Right" />
+                </DockPanel>
+                <TextBlock Margin="0,8,0,0"
+                           Foreground="#FF666666"
+                           TextWrapping="Wrap"
+                           Text="{Binding ElasticPreflightStatus}" />
+                <TextBlock Margin="0,4,0,0"
+                           Foreground="#FF666666"
+                           TextWrapping="Wrap"
+                           Text="{Binding ElasticPushStatus}" />
             </StackPanel>
         </Grid>
     </Border>

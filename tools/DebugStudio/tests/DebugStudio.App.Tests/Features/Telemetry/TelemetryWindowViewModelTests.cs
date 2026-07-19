@@ -2,6 +2,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Net;
+using System.Net.Http;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Threading;
@@ -9,6 +12,7 @@ using DebugStudio.App.Core.Services;
 using DebugStudio.App.Core.Stores;
 using DebugStudio.App.Features.Telemetry;
 using DebugStudio.Contracts.Protocol;
+using DebugStudio.Export.Elastic;
 using DebugStudio.Export.Models;
 using DebugStudio.Export.Writers;
 
@@ -144,6 +148,104 @@ public sealed class TelemetryWindowViewModelTests
         Assert.Contains("Exported telemetry Elastic bulk", viewModel.ExportStatus, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ElasticConfigurationSummary_ApiKey有無だけ表示し秘密値は出さない()
+    {
+        var dispatcher = Dispatcher.CurrentDispatcher;
+        var telemetryStore = new TelemetryStore();
+        telemetryStore.AppendTelemetry(CreateTelemetry("boot", 10));
+
+        var capabilityStateStore = new CapabilityStateStore(new CapabilityHandshakeService().LocalSupportedCapabilities);
+        var pushService = CreatePushService(telemetryStore, new RecordingHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{}") }));
+
+        var viewModel = new TelemetryWindowViewModel(
+            dispatcher,
+            telemetryStore,
+            capabilityStateStore,
+            telemetryExportService: null,
+            pathPolicy: null,
+            elasticTelemetryPushService: pushService);
+
+        Assert.Contains("ApiKey=configured", viewModel.ElasticConfigurationSummary, StringComparison.Ordinal);
+        Assert.DoesNotContain("configured-but-hidden", viewModel.ElasticConfigurationSummary, StringComparison.Ordinal);
+        Assert.Contains("max 256", viewModel.ElasticPreviewSummary, StringComparison.OrdinalIgnoreCase);
+        Assert.False(viewModel.ElasticPushCommand.CanExecute(null));
+        Assert.True(viewModel.ElasticPreflightCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public void ElasticPushService未注入時はL1操作を無効化する()
+    {
+        var dispatcher = Dispatcher.CurrentDispatcher;
+        var telemetryStore = new TelemetryStore();
+        telemetryStore.AppendTelemetry(CreateTelemetry("boot", 10));
+        var capabilityStateStore = new CapabilityStateStore(new CapabilityHandshakeService().LocalSupportedCapabilities);
+
+        var viewModel = new TelemetryWindowViewModel(dispatcher, telemetryStore, capabilityStateStore);
+
+        Assert.False(viewModel.ElasticPreflightCommand.CanExecute(null));
+        Assert.False(viewModel.ElasticPushCommand.CanExecute(null));
+        Assert.Contains("not available", viewModel.ElasticConfigurationSummary, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ElasticPushAsync_確認でCancelならbootstrapとbulkを呼ばない()
+    {
+        var dispatcher = Dispatcher.CurrentDispatcher;
+        var telemetryStore = new TelemetryStore();
+        telemetryStore.AppendTelemetry(CreateTelemetry("boot", 10));
+        var capabilityStateStore = new CapabilityStateStore(new CapabilityHandshakeService().LocalSupportedCapabilities);
+        var handler = new RecordingHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{}") });
+        var confirmation = new StubElasticPushConfirmation(confirmed: false);
+        var viewModel = new TelemetryWindowViewModel(
+            dispatcher,
+            telemetryStore,
+            capabilityStateStore,
+            telemetryExportService: null,
+            pathPolicy: null,
+            elasticTelemetryPushService: CreatePushService(telemetryStore, handler),
+            elasticPushConfirmation: confirmation);
+
+        var pushMethod = typeof(TelemetryWindowViewModel).GetMethod(
+            "PushElasticAsync",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        var pushTask = Assert.IsAssignableFrom<Task>(pushMethod!.Invoke(viewModel, null));
+        await pushTask;
+
+        Assert.True(confirmation.WasCalled);
+        Assert.Empty(handler.Requests);
+        Assert.Contains("canceled", viewModel.ElasticPushStatus, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Elastic操作_予期しない例外もUIステータスへ安全に変換する()
+    {
+        var dispatcher = Dispatcher.CurrentDispatcher;
+        var telemetryStore = new TelemetryStore();
+        telemetryStore.AppendTelemetry(CreateTelemetry("boot", 10));
+        var capabilityStateStore = new CapabilityStateStore(new CapabilityHandshakeService().LocalSupportedCapabilities);
+        var pushService = new ElasticTelemetryPushService(
+            telemetryStore,
+            new StubElasticEnvironmentReader(),
+            _ => throw new InvalidOperationException("unexpected"));
+        var viewModel = new TelemetryWindowViewModel(
+            dispatcher,
+            telemetryStore,
+            capabilityStateStore,
+            telemetryExportService: null,
+            pathPolicy: null,
+            elasticTelemetryPushService: pushService,
+            elasticPushConfirmation: new StubElasticPushConfirmation(confirmed: true));
+
+        await InvokePrivateTaskAsync(viewModel, "PreflightElasticAsync");
+        await InvokePrivateTaskAsync(viewModel, "PushElasticAsync");
+
+        Assert.Contains("failed safely", viewModel.ElasticPreflightStatus, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("failed safely", viewModel.ElasticPushStatus, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static DebugTelemetryEnvelopeV1 CreateTelemetry(string name, double elapsedMs, int? tagBits = null)
     {
         return new DebugTelemetryEnvelopeV1
@@ -168,6 +270,22 @@ public sealed class TelemetryWindowViewModelTests
         };
     }
 
+    private static ElasticTelemetryPushService CreatePushService(
+        TelemetryStore telemetryStore,
+        HttpMessageHandler handler)
+    {
+        return new ElasticTelemetryPushService(
+            telemetryStore,
+            new StubElasticEnvironmentReader(),
+            _ => new ElasticTelemetryIngestClient(new HttpClient(handler), new Uri("http://localhost:9200"), "configured-but-hidden"));
+    }
+
+    private static Task InvokePrivateTaskAsync(TelemetryWindowViewModel viewModel, string methodName)
+    {
+        var method = typeof(TelemetryWindowViewModel).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
+        return Assert.IsAssignableFrom<Task>(method!.Invoke(viewModel, null));
+    }
+
     private sealed class RecordingTelemetryExportWriter : ITelemetryExportWriter
     {
         public RecordingTelemetryExportWriter(TelemetryExportFormat format = TelemetryExportFormat.Ndjson)
@@ -186,6 +304,51 @@ public sealed class TelemetryWindowViewModelTests
             LastOutputPath = outputPath;
             LastRecords = records;
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class StubElasticEnvironmentReader : IElasticEnvironmentReader
+    {
+        public string? ReadElasticUrl() => null;
+
+        public string? ReadElasticApiKey() => "configured-but-hidden";
+
+        public string? ReadKibanaUrl() => null;
+    }
+
+    private sealed class RecordingHttpMessageHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, HttpResponseMessage> _responder;
+
+        public RecordingHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responder)
+        {
+            _responder = responder;
+        }
+
+        public List<HttpRequestMessage> Requests { get; } = new();
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Requests.Add(request);
+            return Task.FromResult(_responder(request));
+        }
+    }
+
+    private sealed class StubElasticPushConfirmation : IElasticPushConfirmation
+    {
+        private readonly bool _confirmed;
+
+        public StubElasticPushConfirmation(bool confirmed)
+        {
+            _confirmed = confirmed;
+        }
+
+        public bool WasCalled { get; private set; }
+
+        public Task<bool> ConfirmPushAsync(ElasticTelemetryPushPreview preview, CancellationToken cancellationToken = default)
+        {
+            WasCalled = true;
+            return Task.FromResult(_confirmed);
         }
     }
 }
