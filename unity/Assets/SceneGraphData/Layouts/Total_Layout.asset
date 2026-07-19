@@ -16,6 +16,6 @@ MonoBehaviour:
   - Node: {fileID: 11400000, guid: 75a3217c416d1904594d249e3d9332d8, type: 2}
     Position: {x: 114, y: 194}
   - Node: {fileID: 11400000, guid: b5502d478be8a9043b77f4b09867e67e, type: 2}
-    Position: {x: 248, y: 231}
+    Position: {x: 247, y: 231}
   - Node: {fileID: 11400000, guid: df564375ee5fe5e40a95fc972ded7081, type: 2}
-    Position: {x: -108, y: 258}
+    Position: {x: -62, y: 274}

@@ -7,7 +7,7 @@
 /// <remarks>
 /// 使い方:
 ///   dotnet run --project tools/DebugStudio/src/DebugStudio.ElasticArtifactGen
-///   dotnet run --project ... -- &lt;outputRoot&gt; [exportRoot]
+///   dotnet run --project ... -- &lt;outputRoot&gt; [inputRoot]
 /// </remarks>
 
 var outputRoot = args.Length > 0
@@ -17,20 +17,20 @@ var outputRoot = args.Length > 0
         "DebugStudio",
         "elastic-artifacts");
 
-// Filebeat sample が参照する export 監視ルート。未指定時は手動 Export の既定 Documents 配下。
-var exportRoot = args.Length > 1
+// Filebeat が tail する L0 永続化ルート。未指定時は %LocalAppData%\DebugStudio。
+var inputRoot = args.Length > 1
     ? args[1]
     : Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-        "DebugStudio",
-        "exports");
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "DebugStudio");
 
 Directory.CreateDirectory(outputRoot);
 
 var bundle = await new ElasticArtifactBundleWriter()
-    .WriteAsync(outputRoot, exportRoot)
+    .WriteAsync(outputRoot, inputRoot)
     .ConfigureAwait(false);
 
 Console.WriteLine($"Artifacts written to: {outputRoot}");
+Console.WriteLine($"Filebeat input root (L0): {inputRoot}");
 Console.WriteLine($"import-telemetry.ps1: {bundle.Layout.BulkImportCommandPath}");
 Console.WriteLine($"invoke-ingest.ps1:    {bundle.Layout.IngestRunnerCommandPath}");

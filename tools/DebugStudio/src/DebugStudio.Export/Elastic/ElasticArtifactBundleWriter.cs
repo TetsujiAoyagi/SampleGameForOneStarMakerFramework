@@ -12,7 +12,7 @@ public sealed class ElasticArtifactBundleWriter
 {
     public async Task<ElasticArtifactBundle> WriteAsync(
         string outputRootDirectory,
-        string exportRootDirectory,
+        string inputRootDirectory,
         CancellationToken cancellationToken = default)
     {
         var layout = ElasticArtifactLayout.CreateDefault(outputRootDirectory);
@@ -22,7 +22,7 @@ public sealed class ElasticArtifactBundleWriter
         await new ElasticLogIndexTemplateWriter().WriteAsync(layout.LogIndexTemplatePath, cancellationToken).ConfigureAwait(false);
         await new ElasticTelemetryIngestPipelineWriter().WriteAsync(layout.TelemetryIngestPipelinePath, cancellationToken).ConfigureAwait(false);
         await new ElasticLogIngestPipelineWriter().WriteAsync(layout.LogIngestPipelinePath, cancellationToken).ConfigureAwait(false);
-        await new ElasticFilebeatConfigWriter().WriteAsync(layout.FilebeatConfigPath, layout, exportRootDirectory, cancellationToken).ConfigureAwait(false);
+        await new ElasticFilebeatConfigWriter().WriteAsync(layout.FilebeatConfigPath, layout, inputRootDirectory, cancellationToken).ConfigureAwait(false);
         await new ElasticBulkImportCommandWriter().WriteAsync(layout.BulkImportCommandPath, layout, cancellationToken).ConfigureAwait(false);
         await new ElasticKibanaSavedObjectsWriter().WriteAsync(layout.KibanaSavedObjectsPath, cancellationToken).ConfigureAwait(false);
         await new ElasticKibanaImportCommandWriter().WriteAsync(layout.KibanaImportCommandPath, layout, cancellationToken).ConfigureAwait(false);

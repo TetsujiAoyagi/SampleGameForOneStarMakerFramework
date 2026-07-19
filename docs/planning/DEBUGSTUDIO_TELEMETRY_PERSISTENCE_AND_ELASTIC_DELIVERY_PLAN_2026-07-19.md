@@ -128,7 +128,7 @@ flowchart TB
 | template | `settings.index.default_pipeline=debugstudio-telemetry` |
 | HTTP | 注入 `HttpClient` を所有しない。request 単位 timeout。client.Timeout は変更しない |
 | UI | TelemetryPanel: preflight → preview → push。ネットワーク中は AsyncRelayCommand で二重実行防止 |
-| L2 | Filebeat / Elastic Agent 方針は変更しない |
+| L2 | Filebeat L2 Ship を実装。L0 LocalAppData を tail、compose Filebeat 追加（**実装済み**） |
 | ローカル ops | `tools/DebugStudio/elastic/docker-compose.yml` + README runbook |
 
 ### L1 TDD 表
@@ -162,6 +162,42 @@ flowchart TB
 3. agent を起動し、shipper の health と ingest lag を運用監視する。
 
 DebugStudio が API key を平文 config に書き出したり、agent を内包してプロセス監督したりしない。
+
+### L2 Ship 実装決定（2026-07-19）
+
+| 項目 | 決定 |
+|---|---|
+| 入力源 | L0 `%LocalAppData%\DebugStudio\telemetry\*.ndjson` / `logs\*.ndjson`（flat rolling） |
+| artifact 既定 input root | `%LocalAppData%\DebugStudio`（第2 CLI 引数で上書き可） |
+| host Filebeat endpoint | `http://localhost:9200`（artifact `ElasticFilebeatConfigWriter`） |
+| compose Filebeat endpoint | `http://elasticsearch:9200`（`tools/DebugStudio/elastic/filebeat/filebeat.yml`） |
+| ローカル compose 認証 | `xpack.security.enabled=false`、API key 不要 |
+| 管理 Elastic 認証 | 運用が秘密管理から inject。DebugStudio / committed config に値を書かない |
+| Filebeat 監督 | DebugStudio WPF は起動・停止・health 監視しない |
+| compose Filebeat | `docker-compose.yml` に service 追加。L0 を read-only マウント、registry は named volume |
+| template bootstrap | L1 Push または `import-telemetry.ps1` と同一定義を事前 PUT |
+| NDJSON 復元 | 両 Filebeat config の filestream `parsers.ndjson` が `target: ""` / `overwrite_keys: true` で root に decode し、parse error は `error` field で可視化 |
+| index routing | input が付与する `debugstudio.route` で `debugstudio-telemetry-YYYY.MM.dd` / `debugstudio-log-YYYY.MM.dd` を明示選択。`stream` は routing に使わない |
+
+### L2 TDD 表
+
+| テスト | 守る契約 |
+|---|---|
+| `ElasticFilebeatConfigWriterTests.SampleConfigはL0永続化のflatNDJSONを監視する` | `telemetry\*.ndjson` / `logs\*.ndjson`、root NDJSON parser と parse error 可視化、pipeline 名、explicit route と日次 index、host endpoint `localhost:9200` |
+| `ElasticFilebeatConfigWriterTests.SampleConfigはAPIキー値を含まず日本語で秘密注入手順を示す` | 有効な `api_key:` 行なし、`Authorization:` なし、日本語コメントで inject 手順 |
+| `ElasticArtifactBundleWriterTests`（更新） | artifact 一式に Filebeat config が含まれる |
+| `ElasticArtifactWriterTests`（既存） | template / pipeline 定義の shape 回帰 |
+| compose `filebeat.yml`（committed） | `/mnt/debugstudio-l0` flat path、compose 内 ES endpoint、credentials なし |
+| README runbook（手動） | L1/L2 経路分離、E2E、health / lag、failure isolation |
+
+### L2 実装上の注意
+
+- Filebeat artifact の監視 path は手動 Export の `**` tree ではなく L0 flat directory に合わせる。
+- Filebeat は NDJSON parser で各行を root に decode する。解析しないと既存 `@timestamp` / `stream` が `message` だけに残り、pipeline・template の前提を満たせない。
+- Filebeat input ID は event field にならない。`debugstudio.route` を input ごとに明示し、既存 data view と template に対応する index を選ぶ。データ契約の `stream` は routing の都合で上書きしない。
+- 生成 YAML と compose YAML には **日本語で** 非自明な制約（DebugStudio 非監督、secret 非保存、endpoint 差）をコメントする。自明な代入には冗長コメントを付けない。
+- `setup.template.enabled: false` / `setup.ilm.enabled: false` で Filebeat 自動 template 作成を抑止し、bootstrap PUT と整合させる。
+- `ElasticArtifactGen` 第2引数は L0 input root override として維持する。
 
 ## 将来の共通データ契約
 
@@ -201,7 +237,7 @@ source
 2. Data contract: schema version、session、build、environment の定義と追加
 3. L1 bootstrap: agent config template、endpoint preflight、operator による疎通
 4. L1 push: current-session retained telemetry を専用 HTTP client で明示投入（**実装済み**）
-5. L2 QA: 管理された Elastic Agent/Filebeat、health と ingest lag の監視
+5. L2 QA: 管理された Elastic Agent/Filebeat、health と ingest lag の監視（**L2 compose / artifact 実装済み**）
 6. Production gate: sampling、redaction、retention、incident runbook、key rotation を満たしてから端末展開
 
 ## L0 実装チケット

@@ -19,5 +19,17 @@ services:
     ports:
       - "5601:5601"
 
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.17.0
+    depends_on:
+      - elasticsearch
+    user: root
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ${LOCALAPPDATA}/DebugStudio:/mnt/debugstudio-l0:ro
+      - filebeat-data:/usr/share/filebeat/data
+    command: filebeat -e -strict.perms=false -c /usr/share/filebeat/filebeat.yml
+
 volumes:
   elasticsearch-data:
+  filebeat-data:

@@ -1,0 +1,58 @@
+# DebugStudio L2 compose 用 Filebeat 設定。
+# L0 永続化 (%LocalAppData%\DebugStudio) を /mnt/debugstudio-l0 へ read-only マウントして tail する。
+# DebugStudio は Filebeat を起動・監督しない。本 compose はローカル検証専用。
+
+filebeat.inputs:
+- type: filestream
+  id: debugstudio-telemetry
+  enabled: true
+  paths:
+    - /mnt/debugstudio-l0/telemetry/*.ndjson
+  # NDJSON を root へ復元し、@timestamp / stream 等を message 文字列に閉じ込めない。
+  parsers:
+    - ndjson:
+        target: ""
+        overwrite_keys: true
+        add_error_key: true
+  # input ID は event field にならないため、index routing 専用の非衝突 field を明示する。
+  fields:
+    debugstudio.route: telemetry
+  fields_under_root: true
+  pipeline: debugstudio-telemetry
+- type: filestream
+  id: debugstudio-log
+  enabled: true
+  paths:
+    - /mnt/debugstudio-l0/logs/*.ndjson
+  # NDJSON を root へ復元し、Log の既存 JSON field を ingest pipeline へ渡す。
+  parsers:
+    - ndjson:
+        target: ""
+        overwrite_keys: true
+        add_error_key: true
+  # stream はデータ契約の field なので、routing には別 field を使う。
+  fields:
+    debugstudio.route: log
+  fields_under_root: true
+  pipeline: debugstudio-log
+
+# compose 内では Docker ネットワーク上の Elasticsearch を参照する。
+# host 上の Filebeat artifact は http://localhost:9200 を使う (ElasticFilebeatConfigWriter)。
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  # 明示 routing で既存 template / Kibana data view と一致する日次 index に送る。
+  indices:
+    - index: "debugstudio-telemetry-%{+yyyy.MM.dd}"
+      when.equals:
+        debugstudio.route: telemetry
+    - index: "debugstudio-log-%{+yyyy.MM.dd}"
+      when.equals:
+        debugstudio.route: log
+
+# 管理 Elastic (security 有効) では API key を平文 config に書かないこと。
+# 秘密管理 (Vault / K8s Secret / Elastic Agent policy 等) から
+#   output.elasticsearch.api_key
+# を注入する。本 compose (xpack.security.enabled=false) では API key 不要。
+
+setup.template.enabled: false
+setup.ilm.enabled: false

@@ -15,13 +15,13 @@ public sealed class ElasticArtifactBundleWriterTests
     public async Task WriteAsync_投入に必要なartifact一式をまとめて出力する()
     {
         var outputRoot = Path.Combine(Path.GetTempPath(), $"debugstudio-elastic-bundle-{Guid.NewGuid():N}");
-        var exportRoot = @"C:\Users\void\Documents\DebugStudio\exports";
+        var inputRoot = @"C:\Users\void\AppData\Local\DebugStudio";
 
         try
         {
             var writer = new ElasticArtifactBundleWriter();
 
-            var bundle = await writer.WriteAsync(outputRoot, exportRoot);
+            var bundle = await writer.WriteAsync(outputRoot, inputRoot);
 
             Assert.True(File.Exists(bundle.Layout.TelemetryIndexTemplatePath));
             Assert.True(File.Exists(bundle.Layout.LogIndexTemplatePath));

@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d5563bd9cdc08aa488a2912019372f27, type: 3}
-  m_Name: OutGame
+  m_Name: OutGameScene
   m_EditorClassIdentifier: OneStarMaker.Editor::OneStarMaker.Editor.SceneGraph.SceneNodeData
-  _identity: OutGame
-  _loadType: 0
+  _identity: OutGameScene
+  _loadType: 1
   _payloads:
   - Reference:
       m_AssetGUID: 30710b0456e31694a89047872db50aeb
