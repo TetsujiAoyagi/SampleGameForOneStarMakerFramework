@@ -40,6 +40,11 @@ public sealed class ElasticLogIndexTemplateWriterTests
             Assert.Equal("keyword", properties.GetProperty("event").GetProperty("properties").GetProperty("name").GetProperty("type").GetString());
             Assert.Equal("keyword", properties.GetProperty("log").GetProperty("properties").GetProperty("level").GetProperty("type").GetString());
             Assert.Equal("keyword", properties.GetProperty("service").GetProperty("properties").GetProperty("name").GetProperty("type").GetString());
+            Assert.Equal("keyword", properties.GetProperty("sessionId").GetProperty("type").GetString());
+            Assert.Equal("long", properties.GetProperty("producerSequence").GetProperty("type").GetString());
+            Assert.Equal("long", properties.GetProperty("unityFrameAtEmit").GetProperty("type").GetString());
+            Assert.Equal("long", properties.GetProperty("traceId").GetProperty("type").GetString());
+            Assert.Equal("long", properties.GetProperty("spanId").GetProperty("type").GetString());
         }
         finally
         {

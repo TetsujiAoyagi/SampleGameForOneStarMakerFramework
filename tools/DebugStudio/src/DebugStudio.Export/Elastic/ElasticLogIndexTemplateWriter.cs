@@ -72,7 +72,12 @@ public sealed class ElasticLogIndexTemplateWriter
                 {
                     name = new { type = "keyword" },
                 }
-            }
+            },
+            ["sessionId"] = new { type = "keyword" },
+            ["producerSequence"] = new { type = "long" },
+            ["unityFrameAtEmit"] = new { type = "long" },
+            ["traceId"] = new { type = "long" },
+            ["spanId"] = new { type = "long" },
         };
 
         var document = new

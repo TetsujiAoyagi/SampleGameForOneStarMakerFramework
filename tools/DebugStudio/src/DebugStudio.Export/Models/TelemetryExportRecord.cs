@@ -68,4 +68,16 @@ public sealed class TelemetryExportRecord
     public int? CameraViewId { get; init; }
 
     public int? CameraActiveCameraHash { get; init; }
+
+    /// <summary>Unity 起動単位 session ID。wire DTO の値をそのまま export へ通す。</summary>
+    public string? SessionId { get; init; }
+
+    /// <summary>Log / Telemetry 横断の producer 順序。</summary>
+    public long? ProducerSequence { get; init; }
+
+    /// <summary>span 開始 frame。未観測は null。</summary>
+    public int? UnityFrameAtStart { get; init; }
+
+    /// <summary>span 終了 frame。未観測は null。</summary>
+    public int? UnityFrameAtEnd { get; init; }
 }

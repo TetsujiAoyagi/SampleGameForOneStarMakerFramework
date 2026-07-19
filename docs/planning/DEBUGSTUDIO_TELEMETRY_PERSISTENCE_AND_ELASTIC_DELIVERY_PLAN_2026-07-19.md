@@ -18,6 +18,7 @@ DebugStudio が Unity から受信した telemetry を、UI の retain 容量や
 | 保持 | 10 MB × 10 世代 |
 | Elastic Bulk | 手動 Export 専用として維持 |
 | Elastic 自動配送 | 今回は実装しない |
+| L1 Elastic Verify | 今回実装。retained telemetry の明示 `_bulk` 投入 |
 
 Log の自動永続はすでに `%LocalAppData%\DebugStudio\logs\` で稼働している。Telemetry は同じ運用契約に揃える。
 
@@ -105,10 +106,50 @@ flowchart TB
 ### L1 Verify の要件
 
 - Elastic endpoint と API key の設定有無を検証する。秘密値を画面・ログへ出さない。
-- 送信対象は `current session` または `today` に限定する。
+- 送信対象は `GetRetainedSnapshot().Telemetry` のみ。ServiceStatus は含めない。最大 256 件の current-session 近似。
 - 実行前に stream、件数、概算サイズを表示する。
-- 初回は template / ingest pipeline の bootstrap 状態を明示する。
+- 初回 push で template / ingest pipeline の bootstrap（`settings.index.default_pipeline=debugstudio-telemetry`）を行う。
 - 成功時は index、件数、Kibana URL を示す。失敗時は安全な診断情報と retry 可否を示す。
+- endpoint は環境変数のみ: `DEBUGSTUDIO_ELASTIC_URL` / `DEBUGSTUDIO_ELASTIC_API_KEY` / `DEBUGSTUDIO_KIBANA_URL`
+- loopback（localhost / 127.0.0.1 / ::1）と http/https のみ。userinfo / query / fragment を拒否。
+- create action の timeout / 通信断は自動 retry しない。受理不明時は 409 / 重複の可能性を診断に含める。
+- preflight / push 失敗は L0 persistence や受信処理を止めない。
+
+### L1 Verify 実装決定（2026-07-19）
+
+| 項目 | 決定 |
+|---|---|
+| 設定源 | 環境変数のみ。UI 入力欄・永続化・ログ出力なし |
+| 既定 endpoint | Elastic `http://localhost:9200`、Kibana `http://localhost:5601` |
+| 認証 | 任意 `DEBUGSTUDIO_ELASTIC_API_KEY`（Base64 済み値を `Authorization: ApiKey <value>` にそのまま使用） |
+| 送信対象 | `TelemetryStore.GetRetainedSnapshot().Telemetry` のみ |
+| 0 件 | `_bulk` を呼ばない |
+| JSON 生成 | `ElasticTelemetryIndexTemplateDefinition` / `ElasticTelemetryIngestPipelineDefinition` / `ElasticBulkTelemetryNdjsonBuilder` を artifact と HTTP で共有 |
+| template | `settings.index.default_pipeline=debugstudio-telemetry` |
+| HTTP | 注入 `HttpClient` を所有しない。request 単位 timeout。client.Timeout は変更しない |
+| UI | TelemetryPanel: preflight → preview → push。ネットワーク中は AsyncRelayCommand で二重実行防止 |
+| L2 | Filebeat / Elastic Agent 方針は変更しない |
+| ローカル ops | `tools/DebugStudio/elastic/docker-compose.yml` + README runbook |
+
+### L1 TDD 表
+
+| テスト | 守る契約 |
+|---|---|
+| `ElasticLoopbackEndpointPolicyTests` | loopback / scheme / userinfo / query / fragment 拒否 |
+| `ElasticTelemetrySettingsTests` | env reader 注入、既定 URL、ApiKey 有無のみ UI 表示 |
+| `ElasticBulkTelemetryNdjsonBuilderTests` | file export と byte 完全一致、UTF-8 終端改行 |
+| `ElasticTelemetryIngestClientTests` | GET `/`、PUT template/pipeline、POST `_bulk` header、bulk item error 解析、受理不明の通信断・取消は retry 不可 |
+| `ElasticArtifactWriterTests`（更新） | template に `default_pipeline` |
+| `ElasticTelemetryPushServiceTests` | telemetry のみ、0 件 skip、例外を外へ投げない |
+| `TelemetryWindowViewModelTests`（更新） | preflight 後 push 有効化、秘密非表示、service 未注入時 degrade |
+
+### L1 実装上の注意
+
+- `ElasticBulkTelemetryExportWriter` は builder へ委譲し、HTTP `_bulk` と同一 NDJSON を使う。
+- bulk 応答は HTTP 200 だけでなく `errors=true` と各 item `status` / `error.type` を解析する。
+- bootstrap は pipeline 登録だけで終わらせず、index template の `settings.index.default_pipeline` を設定する。
+- 環境変数テストは `IElasticEnvironmentReader` 注入で process-global 競合を避ける。
+- production code には設計理由付きの日本語 XML / 非自明コメントを厚めに書く。
 
 既存の `import-telemetry.ps1` / `invoke-ingest.ps1` は operator と CI の導線として維持する。WPF が PowerShell を起動する実装は採用しない。実行ポリシーや profile に依存し、アプリ内の診断・エラー処理を不安定にするためである。
 
@@ -159,7 +200,7 @@ source
 1. L0: Telemetry の自動 NDJSON rolling（本計画の実装対象）
 2. Data contract: schema version、session、build、environment の定義と追加
 3. L1 bootstrap: agent config template、endpoint preflight、operator による疎通
-4. L1 push: current-session を専用 HTTP client で明示投入
+4. L1 push: current-session retained telemetry を専用 HTTP client で明示投入（**実装済み**）
 5. L2 QA: 管理された Elastic Agent/Filebeat、health と ingest lag の監視
 6. Production gate: sampling、redaction、retention、incident runbook、key rotation を満たしてから端末展開
 

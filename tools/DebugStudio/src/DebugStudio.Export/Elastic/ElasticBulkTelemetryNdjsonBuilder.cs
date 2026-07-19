@@ -97,6 +97,10 @@ public static class ElasticBulkTelemetryNdjsonBuilder
             ["cameraMaxStackDepthTotal"] = record.CameraMaxStackDepthTotal,
             ["cameraViewId"] = record.CameraViewId,
             ["cameraActiveCameraHash"] = record.CameraActiveCameraHash,
+            ["sessionId"] = record.SessionId,
+            ["producerSequence"] = record.ProducerSequence,
+            ["unityFrameAtStart"] = record.UnityFrameAtStart,
+            ["unityFrameAtEnd"] = record.UnityFrameAtEnd,
             ["event"] = new
             {
                 category = document.Event.Category,

@@ -169,6 +169,11 @@ namespace OneStarMaker.Foundation.Logging
         {
             // JSON 側はローカルファイル観測が主目的なので、
             // timestamp と property をできるだけ落とさず保持する。
+            // 通常 Log の producer correlation は realtime MessagePack formatter が wire 化時に
+            // 捕捉する。rolling provider 側で独立に sequence を採番すると同じログに別順序が
+            // 生まれるため、L0 Unity Log JSON へ擬似的な相関値は追加しない。
+            // 一方、Telemetry は JsonFileTelemetrySink が producer-owned 値を structured property
+            // として明示的に渡すので、L0 でも同じ session/frame 軸を検索できる。
             options.UseJsonFormatter(formatter =>
             {
                 formatter.UseUtcTimestamp = true;

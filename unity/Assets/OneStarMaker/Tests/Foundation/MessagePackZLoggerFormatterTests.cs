@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using OneStarMaker.Foundation.Core;
@@ -113,6 +114,40 @@ namespace OneStarMaker.Tests.Foundation
             Assert.AreEqual("companion log line", logPayload!.Message);
         }
 
+        [Test]
+        public void TelemetryEntry_L0Jsonには相関値をstructuredPropertiesとして出力する()
+        {
+            using var stream = new MemoryStream();
+            using var loggerFactory = CreateJsonLoggerFactory(stream);
+            using var telemetrySink = new JsonFileTelemetrySink(loggerFactory);
+
+            telemetrySink.Write(new TelemetryRecord(
+                traceId: 100,
+                spanId: 200,
+                parentSpanId: -1,
+                name: TelemetryStartType.SceneLoad,
+                startTimestampUtcTicks: DateTime.UtcNow.Ticks,
+                endTimestampUtcTicks: DateTime.UtcNow.Ticks,
+                elapsedMs: 1.0,
+                isSuccess: true,
+                tags: null,
+                level: TelemetryLevel.Verbose,
+                metadata: default,
+                sessionId: "l0-session",
+                producerSequence: 12,
+                unityFrameAtStart: 90,
+                unityFrameAtEnd: 93));
+
+            loggerFactory.Dispose();
+
+            using var document = JsonDocument.Parse(stream.ToArray());
+            var root = document.RootElement;
+            Assert.AreEqual("l0-session", root.GetProperty("SessionId").GetString());
+            Assert.AreEqual(12, root.GetProperty("ProducerSequence").GetInt64());
+            Assert.AreEqual(90, root.GetProperty("UnityFrameAtStart").GetInt32());
+            Assert.AreEqual(93, root.GetProperty("UnityFrameAtEnd").GetInt32());
+        }
+
         private static ILoggerFactory CreateLoggerFactory(Stream stream)
         {
             return LoggerFactory.Create(builder =>
@@ -122,6 +157,22 @@ namespace OneStarMaker.Tests.Foundation
                 builder.AddZLoggerStream(
                     stream,
                     options => options.UseFormatter(() => new MessagePackZLoggerFormatter(ApplicationName)));
+            });
+        }
+
+        private static ILoggerFactory CreateJsonLoggerFactory(Stream stream)
+        {
+            return LoggerFactory.Create(builder =>
+            {
+                builder.ClearProviders();
+                builder.SetMinimumLevel(LogLevel.Trace);
+                builder.AddZLoggerStream(
+                    stream,
+                    options => options.UseJsonFormatter(formatter =>
+                    {
+                        formatter.UseUtcTimestamp = true;
+                        formatter.IncludeProperties = IncludeProperties.All;
+                    }));
             });
         }
 

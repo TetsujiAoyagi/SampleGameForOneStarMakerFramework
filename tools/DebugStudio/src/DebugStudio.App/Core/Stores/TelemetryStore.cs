@@ -236,6 +236,10 @@ public sealed class TelemetryStore
             CameraMaxStackDepthTotal = telemetry.CameraMaxStackDepthTotal,
             CameraViewId = telemetry.CameraViewId,
             CameraActiveCameraHash = telemetry.CameraActiveCameraHash,
+            SessionId = telemetry.SessionId,
+            ProducerSequence = telemetry.ProducerSequence,
+            UnityFrameAtStart = telemetry.UnityFrameAtStart,
+            UnityFrameAtEnd = telemetry.UnityFrameAtEnd,
         };
     }
 

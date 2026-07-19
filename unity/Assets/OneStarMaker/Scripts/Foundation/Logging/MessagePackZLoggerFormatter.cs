@@ -91,6 +91,13 @@ namespace OneStarMaker.Foundation.Logging
                 MemberName = logInfo.MemberName,
                 FilePath = logInfo.FilePath,
                 LineNumber = logInfo.LineNumber,
+                SessionId = UnitySessionCorrelationContext.SessionId,
+                ProducerSequence = UnitySessionCorrelationContext.NextProducerSequence(),
+                // emit frame は「formatter が wire envelope を組み立てた時点」の frame。
+                // ZLogger queue 遅延によりログ呼び出し元 frame と一致しない場合がある。
+                UnityFrameAtEmit = UnityPlayerLoopFrameObservation.TryGetCurrentFrame(),
+                TraceId = AppTelemetry.CurrentTraceId,
+                SpanId = AppTelemetry.CurrentSpanId,
             };
         }
 

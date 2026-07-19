@@ -61,6 +61,36 @@ public sealed class LogEnvelopeV1
     public int LineNumber { get; set; }
 
     /// <summary>
+    /// Unity 起動単位の session ID。DebugSocket handshake Welcome と同一。
+    /// </summary>
+    [Key(14)]
+    public string SessionId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// session 内で Telemetry と共有する producer 順序。
+    /// </summary>
+    [Key(15)]
+    public long ProducerSequence { get; set; }
+
+    /// <summary>
+    /// formatter が envelope を組み立てた時点の Unity player-loop frame。main thread 以外は null。
+    /// </summary>
+    [Key(16)]
+    public int? UnityFrameAtEmit { get; set; }
+
+    /// <summary>
+    /// active telemetry span がある場合のみ付与。span 外 Log は null。
+    /// </summary>
+    [Key(17)]
+    public long? TraceId { get; set; }
+
+    /// <summary>
+    /// active telemetry span がある場合のみ付与。span 外 Log は null。
+    /// </summary>
+    [Key(18)]
+    public long? SpanId { get; set; }
+
+    /// <summary>
     /// wire 上の int level を、共有 schema で再利用できる kind へ写した読み取り専用ビュー。
     /// MessagePack key を増やさず transport 互換性を維持するため、serialize 対象にはしない。
     /// </summary>

@@ -115,6 +115,10 @@ public static class ElasticTelemetryIndexTemplateDefinition
             ["cameraMaxStackDepthTotal"] = new { type = "integer" },
             ["cameraViewId"] = new { type = "integer" },
             ["cameraActiveCameraHash"] = new { type = "integer" },
+            ["sessionId"] = new { type = "keyword" },
+            ["producerSequence"] = new { type = "long" },
+            ["unityFrameAtStart"] = new { type = "long" },
+            ["unityFrameAtEnd"] = new { type = "long" },
         };
 
         return new ElasticTelemetryIndexTemplateDocument(

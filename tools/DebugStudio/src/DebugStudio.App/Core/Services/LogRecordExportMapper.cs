@@ -47,7 +47,12 @@ internal static class LogRecordExportMapper
                 LogEntryKind.Critical => "critical",
                 LogEntryKind.None => "none",
                 _ => "unknown",
-            }
+            },
+            SessionId = string.IsNullOrEmpty(log.SessionId) ? null : log.SessionId,
+            ProducerSequence = log.ProducerSequence > 0 ? log.ProducerSequence : null,
+            UnityFrameAtEmit = log.UnityFrameAtEmit,
+            TraceId = log.TraceId,
+            SpanId = log.SpanId,
         };
     }
 }

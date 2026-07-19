@@ -2,6 +2,7 @@
 
 using System;
 using OneStarMaker.Foundation.Core;
+using OneStarMaker.Foundation.DebugSocket;
 
 namespace OneStarMaker.Foundation.Telemetry
 {
@@ -80,6 +81,9 @@ namespace OneStarMaker.Foundation.Telemetry
         public TelemetryStartType Name { get; }
         internal long StartTimestampUtcTicks { get; }
 
+        /// <summary>span 開始時に観測した player-loop frame。非 main thread では null。</summary>
+        internal int? UnityFrameAtStart { get; }
+
         public TelemetryTagType? Tags { get; }
 
         public string NameString => Name.ToStartTypeString();
@@ -87,13 +91,15 @@ namespace OneStarMaker.Foundation.Telemetry
                                long spanId,
                                long parentSpanId,
                                TelemetryStartType name,
-                               TelemetryTagType? tags)
+                               TelemetryTagType? tags,
+                               int? unityFrameAtStart)
         {
             TraceId = traceId;
             SpanId = spanId;
             ParentSpanId = parentSpanId;
             Name = name;
             Tags = tags;
+            UnityFrameAtStart = unityFrameAtStart;
             StartTimestampUtcTicks = DateTime.UtcNow.Ticks;
         }
     }
@@ -249,7 +255,7 @@ namespace OneStarMaker.Foundation.Telemetry
                 mergedTags = MergeTags(mergedTags, TelemetryTagType.Bottleneck);
             }
 
-            var record = new TelemetryRecord(
+            var record = CreateCorrelatedRecord(
                 traceId: s.TraceId,
                 spanId: s.SpanId,
                 parentSpanId: s.ParentSpanId,
@@ -260,7 +266,9 @@ namespace OneStarMaker.Foundation.Telemetry
                 isSuccess: isSuccess,
                 metadata: metadata,
                 tags: mergedTags,
-                level: level);
+                level: level,
+                unityFrameAtStart: s.UnityFrameAtStart,
+                unityFrameAtEnd: UnityPlayerLoopFrameObservation.TryGetCurrentFrame());
 
             s_alertNotifier.CheckThreshold(record, s.Name);
             s_sinkRegistry.Write(record);
@@ -275,7 +283,35 @@ namespace OneStarMaker.Foundation.Telemetry
         public static void WriteRecord(in TelemetryRecord record)
         {
             if (record.Level < Level) return;
-            s_sinkRegistry.Write(record);
+
+            // WriteRecord 経路は FinishSpan を通らないため、sink に渡す前に producer-owned
+            // correlation を必ず検証する。sequence だけが存在しても session が空/別物なら、
+            // 過去 record や外部 producer の値を混ぜることになるため安全ではない。
+            // frame は worker thread で null が正しい値なので、完全性の判定には含めない。
+            // instant record では start/end frame は同一観測点（または null）になる。
+            var observedFrame = UnityPlayerLoopFrameObservation.TryGetCurrentFrame();
+            var sessionId = UnitySessionCorrelationContext.SessionId;
+            var hasCurrentProducerCorrelation =
+                record.ProducerSequence > 0 &&
+                string.Equals(record.SessionId, sessionId, StringComparison.Ordinal);
+            var enriched = hasCurrentProducerCorrelation
+                ? record
+                : CreateCorrelatedRecord(
+                    traceId: record.TraceId,
+                    spanId: record.SpanId,
+                    parentSpanId: record.ParentSpanId,
+                    name: record.Name,
+                    startTimestampUtcTicks: record.StartTimestampUtcTicks,
+                    endTimestampUtcTicks: record.EndTimestampUtcTicks,
+                    elapsedMs: record.ElapsedMs,
+                    isSuccess: record.IsSuccess,
+                    metadata: record.MetadataValue,
+                    tags: record.Tags,
+                    level: record.Level,
+                    unityFrameAtStart: record.UnityFrameAtStart ?? observedFrame,
+                    unityFrameAtEnd: record.UnityFrameAtEnd ?? observedFrame);
+
+            s_sinkRegistry.Write(enriched);
         }
 
         // ─── Helpers ───
@@ -307,6 +343,39 @@ namespace OneStarMaker.Foundation.Telemetry
             return currentTags | extraTag;
         }
 
+        private static TelemetryRecord CreateCorrelatedRecord(
+            long traceId,
+            long spanId,
+            long parentSpanId,
+            TelemetryStartType name,
+            long startTimestampUtcTicks,
+            long endTimestampUtcTicks,
+            double elapsedMs,
+            bool isSuccess,
+            Metadata metadata,
+            TelemetryTagType? tags,
+            TelemetryLevel level,
+            int? unityFrameAtStart,
+            int? unityFrameAtEnd)
+        {
+            return new TelemetryRecord(
+                traceId: traceId,
+                spanId: spanId,
+                parentSpanId: parentSpanId,
+                name: name,
+                startTimestampUtcTicks: startTimestampUtcTicks,
+                endTimestampUtcTicks: endTimestampUtcTicks,
+                elapsedMs: elapsedMs,
+                isSuccess: isSuccess,
+                tags: tags,
+                level: level,
+                metadata: metadata,
+                sessionId: UnitySessionCorrelationContext.SessionId,
+                producerSequence: UnitySessionCorrelationContext.NextProducerSequence(),
+                unityFrameAtStart: unityFrameAtStart,
+                unityFrameAtEnd: unityFrameAtEnd);
+        }
+
 
         // TelemetrySpanContext に移譲したため、この facade からは採番フィールドを外した。
         // 既存 public API は維持しつつ、責務だけを内側へ分離している。
@@ -328,7 +397,13 @@ namespace OneStarMaker.Foundation.Telemetry
         {
             var traceId = GenerateId();
             var spanId = GenerateId();
-            var span = new TelemetrySpan(traceId, spanId, -1, name, tags);
+            var span = new TelemetrySpan(
+                traceId,
+                spanId,
+                -1,
+                name,
+                tags,
+                UnityPlayerLoopFrameObservation.TryGetCurrentFrame());
             _currentSpan.Value = span;
             return span;
         }
@@ -336,7 +411,13 @@ namespace OneStarMaker.Foundation.Telemetry
         public TelemetrySpan StartChildSpan(TelemetryStartType name, TelemetryTagType? tags, in TelemetrySpan parent)
         {
             var spanId = GenerateId();
-            var span = new TelemetrySpan(parent.TraceId, spanId, parent.SpanId, name, tags);
+            var span = new TelemetrySpan(
+                parent.TraceId,
+                spanId,
+                parent.SpanId,
+                name,
+                tags,
+                UnityPlayerLoopFrameObservation.TryGetCurrentFrame());
 
             // child span は explicit に親を受け取って完結させる。
             // ここで ambient current を child へ差し替えると、

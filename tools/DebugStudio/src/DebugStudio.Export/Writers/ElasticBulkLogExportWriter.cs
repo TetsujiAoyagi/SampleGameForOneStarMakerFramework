@@ -102,6 +102,11 @@ public sealed class ElasticBulkLogExportWriter : ILogExportWriter
             ["memberName"] = log.MemberName,
             ["filePath"] = log.FilePath,
             ["lineNumber"] = log.LineNumber,
+            ["sessionId"] = log.SessionId,
+            ["producerSequence"] = log.ProducerSequence,
+            ["unityFrameAtEmit"] = log.UnityFrameAtEmit,
+            ["traceId"] = log.TraceId,
+            ["spanId"] = log.SpanId,
             ["event"] = new
             {
                 id = log.EventId,

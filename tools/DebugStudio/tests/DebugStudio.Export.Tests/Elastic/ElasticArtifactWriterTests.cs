@@ -38,6 +38,10 @@ public sealed class ElasticArtifactWriterTests
             Assert.Equal("long", properties.GetProperty("traceId").GetProperty("type").GetString());
             Assert.Equal("long", properties.GetProperty("spanId").GetProperty("type").GetString());
             Assert.Equal("keyword", properties.GetProperty("tags").GetProperty("type").GetString());
+            Assert.Equal("keyword", properties.GetProperty("sessionId").GetProperty("type").GetString());
+            Assert.Equal("long", properties.GetProperty("producerSequence").GetProperty("type").GetString());
+            Assert.Equal("long", properties.GetProperty("unityFrameAtStart").GetProperty("type").GetString());
+            Assert.Equal("long", properties.GetProperty("unityFrameAtEnd").GetProperty("type").GetString());
             Assert.Equal("keyword", properties.GetProperty("event").GetProperty("properties").GetProperty("category").GetProperty("type").GetString());
             Assert.Equal("keyword", properties.GetProperty("event").GetProperty("properties").GetProperty("action").GetProperty("type").GetString());
             Assert.Equal("keyword", properties.GetProperty("trace").GetProperty("properties").GetProperty("id").GetProperty("type").GetString());

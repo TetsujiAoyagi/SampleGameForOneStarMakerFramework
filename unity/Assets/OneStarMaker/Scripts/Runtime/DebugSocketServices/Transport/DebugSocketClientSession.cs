@@ -51,7 +51,7 @@ namespace OneStarMaker.Runtime.DebugSocketServices
             _cts = CancellationTokenSource.CreateLinkedTokenSource(serviceCancellationToken);
         }
 
-        public string SessionId { get; } = Guid.NewGuid().ToString("N");
+        public string SessionId { get; } = UnitySessionCorrelationContext.SessionId;
         public UniTask Completion => _completionSource.Task;
         public int PendingQueueLength
         {

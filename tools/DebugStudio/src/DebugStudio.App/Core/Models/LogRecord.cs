@@ -33,7 +33,12 @@ public sealed class LogRecord
         string? threadName,
         string? memberName,
         string? filePath,
-        int lineNumber)
+        int lineNumber,
+        string sessionId,
+        long producerSequence,
+        int? unityFrameAtEmit,
+        long? traceId,
+        long? spanId)
     {
         SequenceNumber = sequenceNumber;
         SchemaVersion = schemaVersion;
@@ -51,6 +56,11 @@ public sealed class LogRecord
         MemberName = memberName;
         FilePath = filePath;
         LineNumber = lineNumber;
+        SessionId = sessionId;
+        ProducerSequence = producerSequence;
+        UnityFrameAtEmit = unityFrameAtEmit;
+        TraceId = traceId;
+        SpanId = spanId;
     }
 
     public long SequenceNumber { get; }
@@ -94,6 +104,27 @@ public sealed class LogRecord
 
     public int LineNumber { get; }
 
+    /// <summary>
+    /// Unity producer が wire 化時に付与した session ID。export 時の後付けは行わない。
+    /// </summary>
+    public string SessionId { get; }
+
+    /// <summary>
+    /// session 内 producer 順序。DebugStudio 受信順 (<see cref="SequenceNumber"/>) とは別軸。
+    /// </summary>
+    public long ProducerSequence { get; }
+
+    /// <summary>
+    /// Log formatter が envelope を組み立てた時点の Unity frame。未観測時は null。
+    /// </summary>
+    public int? UnityFrameAtEmit { get; }
+
+    /// <summary>active telemetry span 内の Log のみ。span 外は null。</summary>
+    public long? TraceId { get; }
+
+    /// <summary>active telemetry span 内の Log のみ。span 外は null。</summary>
+    public long? SpanId { get; }
+
     public string Summary => DebugStudioTextFormatter.FormatLog(this);
 
     public static LogRecord FromEnvelope(long sequenceNumber, LogEnvelopeV1 envelope)
@@ -114,6 +145,11 @@ public sealed class LogRecord
             envelope.ThreadName,
             envelope.MemberName,
             envelope.FilePath,
-            envelope.LineNumber);
+            envelope.LineNumber,
+            envelope.SessionId,
+            envelope.ProducerSequence,
+            envelope.UnityFrameAtEmit,
+            envelope.TraceId,
+            envelope.SpanId);
     }
 }

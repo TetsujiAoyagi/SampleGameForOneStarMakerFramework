@@ -48,4 +48,19 @@ public sealed class LogExportRecord
     public string? ServiceName { get; init; }
 
     public string? LogLevel { get; init; }
+
+    /// <summary>Unity producer session ID。wire 値をそのまま保持する。</summary>
+    public string? SessionId { get; init; }
+
+    /// <summary>Log / Telemetry 横断 producer 順序。</summary>
+    public long? ProducerSequence { get; init; }
+
+    /// <summary>formatter emit 時点の Unity frame。未観測は null。</summary>
+    public int? UnityFrameAtEmit { get; init; }
+
+    /// <summary>active span 内 Log の trace。span 外は null。</summary>
+    public long? TraceId { get; init; }
+
+    /// <summary>active span 内 Log の span。span 外は null。</summary>
+    public long? SpanId { get; init; }
 }

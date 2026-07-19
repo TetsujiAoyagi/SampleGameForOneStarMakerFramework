@@ -56,6 +56,10 @@ public static class TelemetryRecordExportMapper
             CameraMaxStackDepthTotal = telemetry.CameraMaxStackDepthTotal,
             CameraViewId = telemetry.CameraViewId,
             CameraActiveCameraHash = telemetry.CameraActiveCameraHash,
+            SessionId = string.IsNullOrEmpty(telemetry.SessionId) ? null : telemetry.SessionId,
+            ProducerSequence = telemetry.ProducerSequence > 0 ? telemetry.ProducerSequence : null,
+            UnityFrameAtStart = telemetry.UnityFrameAtStart,
+            UnityFrameAtEnd = telemetry.UnityFrameAtEnd,
         };
     }
 

@@ -49,6 +49,29 @@ namespace OneStarMaker.Foundation.Telemetry
 
         public Metadata MetadataValue { get; }
 
+        /// <summary>
+        /// Unity 起動単位の session ID。DebugSocket handshake Welcome と同一。
+        /// producer が wire 化前に付与し、export 側での後付けは行わない。
+        /// </summary>
+        public string SessionId { get; }
+
+        /// <summary>
+        /// session 内で Log / Telemetry が共有する単調増加 sequence。
+        /// 同一 frame 内の全体順序を再構成するための producer 側順序キー。
+        /// </summary>
+        public long ProducerSequence { get; }
+
+        /// <summary>
+        /// span 開始時点の Unity player-loop frame。main thread 以外では null。
+        /// async span は複数 frame にまたがるため start/end を分けて保持する。
+        /// </summary>
+        public int? UnityFrameAtStart { get; }
+
+        /// <summary>
+        /// span 終了時点の Unity player-loop frame。main thread 以外では null。
+        /// </summary>
+        public int? UnityFrameAtEnd { get; }
+
         public TelemetryRecord(
                 long traceId,
                 long spanId,
@@ -60,7 +83,11 @@ namespace OneStarMaker.Foundation.Telemetry
                 bool isSuccess,
                 Core.TelemetryTagType? tags,
                 TelemetryLevel level,
-                Metadata metadata)
+                Metadata metadata,
+                string sessionId = "",
+                long producerSequence = 0,
+                int? unityFrameAtStart = null,
+                int? unityFrameAtEnd = null)
         {
             TraceId = traceId;
             SpanId = spanId;
@@ -73,6 +100,10 @@ namespace OneStarMaker.Foundation.Telemetry
             Tags = tags;
             Level = level;
             MetadataValue = metadata;
+            SessionId = sessionId ?? string.Empty;
+            ProducerSequence = producerSequence;
+            UnityFrameAtStart = unityFrameAtStart;
+            UnityFrameAtEnd = unityFrameAtEnd;
         }
         
 

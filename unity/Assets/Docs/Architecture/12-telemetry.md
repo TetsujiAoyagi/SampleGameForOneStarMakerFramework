@@ -373,6 +373,28 @@ finally
 - telemetry と通常 log の経路が分離され、二重送信が起きない。
 - ローカル解析用 rolling file には telemetry が残り、DebugStudio 側は専用 sink 経由で正本を受け取る。
 
+### Telemetry / Log frame 相関（L2 前提）
+
+Unity producer が wire 作成時に付与する additive field。DebugStudio export 時の後付けは行わない。
+
+| field | 対象 | 意味 |
+|---|---|---|
+| `sessionId` | Log / Telemetry | Unity 起動単位 ID。handshake Welcome と同一 |
+| `producerSequence` | Log / Telemetry | session 内で Log / Telemetry が共有する単調増加順序 |
+| `unityFrameAtStart` / `unityFrameAtEnd` | Telemetry span | span 開始・終了 frame。非 main thread は null |
+| `unityFrameAtEmit` | Log | formatter が envelope を組み立てた時点の frame |
+| `traceId` / `spanId` | Log（optional） | active span 内のみ。span 外は null |
+
+Kibana / NDJSON 突合例:
+
+```text
+sessionId:"<id>" AND unityFrameAtEmit:100
+sessionId:"<id>" AND producerSequence:[1 TO 10]
+sessionId:"<id>" AND traceId:9001
+```
+
+multi-frame span は `unityFrameAtStart < unityFrameAtEnd`。worker log は `unityFrameAtEmit` が null のため `threadId` + `timestamp` + optional `traceId` で判別する。
+
 ---
 
 ## 11. 変更ファイル一覧

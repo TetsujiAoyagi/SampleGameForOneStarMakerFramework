@@ -79,4 +79,28 @@ public sealed class DebugTelemetryEnvelopeV1
 
     [Key(22)]
     public int CameraActiveCameraHash { get; set; } = -1;
+
+    /// <summary>
+    /// Unity 起動単位の session ID。handshake Welcome と同一。export 時の後付けは行わない。
+    /// </summary>
+    [Key(23)]
+    public string SessionId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// session 内で Log / Telemetry が共有する producer 順序。receiver 受信順とは別。
+    /// </summary>
+    [Key(24)]
+    public long ProducerSequence { get; set; }
+
+    /// <summary>
+    /// span 開始時の Unity player-loop frame。非 main thread では null。
+    /// </summary>
+    [Key(25)]
+    public int? UnityFrameAtStart { get; set; }
+
+    /// <summary>
+    /// span 終了時の Unity player-loop frame。非 main thread では null。
+    /// </summary>
+    [Key(26)]
+    public int? UnityFrameAtEnd { get; set; }
 }

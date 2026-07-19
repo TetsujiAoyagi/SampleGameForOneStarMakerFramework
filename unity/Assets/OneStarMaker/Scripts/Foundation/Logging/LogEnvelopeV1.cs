@@ -110,5 +110,37 @@ namespace OneStarMaker.Foundation.Logging
         /// </summary>
         [Key(13)]
         public int LineNumber { get; set; }
+
+        /// <summary>
+        /// Unity 起動単位の session ID。DebugSocket handshake Welcome と同一。
+        /// export 側で後付けしないため wire 作成時に必ず埋める。
+        /// </summary>
+        [Key(14)]
+        public string SessionId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// session 内で Telemetry と共有する producer 順序。同一 frame 内の全体順序を確定する。
+        /// </summary>
+        [Key(15)]
+        public long ProducerSequence { get; set; }
+
+        /// <summary>
+        /// formatter が envelope を組み立てた時点の Unity player-loop frame。
+        /// main thread 以外では null。queue 遅延により事象発生 frame と一致しない場合がある。
+        /// </summary>
+        [Key(16)]
+        public int? UnityFrameAtEmit { get; set; }
+
+        /// <summary>
+        /// active telemetry span がある場合のみコピー。span 外 Log は null のまま送る。
+        /// </summary>
+        [Key(17)]
+        public long? TraceId { get; set; }
+
+        /// <summary>
+        /// active telemetry span がある場合のみコピー。span 外 Log は null のまま送る。
+        /// </summary>
+        [Key(18)]
+        public long? SpanId { get; set; }
     }
 }

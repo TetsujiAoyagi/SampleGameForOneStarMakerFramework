@@ -120,6 +120,9 @@ namespace OneStarMaker.Runtime
         {
             try
             {
+                // domain reload / player restart の切替点で session / sequence を切り替え、
+                // 旧 session の Log / Telemetry に新 ID を混ぜない。
+                UnitySessionCorrelationContext.ResetForNewPlayerSession();
                 instance.ReleaseAll();
             }
             catch (Exception ex)
