@@ -80,11 +80,21 @@ public sealed class ElasticLogIndexTemplateWriter
             ["spanId"] = new { type = "long" },
         };
 
+        // Filebeat 入力の pipeline 指定に加え、template 側でも default_pipeline を固定する。
+        // L1 Push は telemetry のみ bootstrap するため、artifact / import 経路で log 側が欠けると
+        // Filebeat が pipeline 未登録で drop する。
         var document = new
         {
             index_patterns = new[] { "debugstudio-log-*" },
             template = new
             {
+                settings = new
+                {
+                    index = new
+                    {
+                        default_pipeline = "debugstudio-log",
+                    }
+                },
                 mappings = new
                 {
                     properties

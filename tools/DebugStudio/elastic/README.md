@@ -141,6 +141,7 @@ L0 NDJSON と Filebeat registry (`filebeat-data`) は volume / ホスト側に�
 | preflight 失敗 | Elastic 起動、`DEBUGSTUDIO_ELASTIC_URL` が loopback か |
 | Filebeat が 0 件 | L0 に NDJSON があるか、マウント path `/mnt/debugstudio-l0` が空でないか |
 | pipeline エラー | §2 bootstrap 済みか、`debugstudio-telemetry` / `debugstudio-log` pipeline が存在するか |
+| log だけ 0 件 / Filebeat dropped | L1 Push は telemetry のみ bootstrap。log は `import-telemetry.ps1` か pipeline PUT が必要。既に drop 済みなら `docker compose rm -f -s filebeat` → `docker volume rm elastic_filebeat-data` → `docker compose up -d filebeat` で再読込（telemetry 重複あり） |
 | bulk item 409 (L1) | create 再実行による重複 |
 | host Filebeat が ES に届かない | config が `localhost:9200` か（compose 内 endpoint と混同していないか） |
 

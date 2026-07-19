@@ -28,7 +28,8 @@ services:
       - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - ${LOCALAPPDATA}/DebugStudio:/mnt/debugstudio-l0:ro
       - filebeat-data:/usr/share/filebeat/data
-    command: filebeat -e -strict.perms=false -c /usr/share/filebeat/filebeat.yml
+    # --strict.perms=false はハイフン2本。-strict だと shorthand 解釈で起動に失敗する。
+    command: filebeat -e --strict.perms=false -c /usr/share/filebeat/filebeat.yml
 
 volumes:
   elasticsearch-data:

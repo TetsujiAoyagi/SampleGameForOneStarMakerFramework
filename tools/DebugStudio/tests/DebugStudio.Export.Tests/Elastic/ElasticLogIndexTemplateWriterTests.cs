@@ -31,6 +31,13 @@ public sealed class ElasticLogIndexTemplateWriterTests
                 .GetProperty("properties");
 
             Assert.Equal("debugstudio-log-*", root.GetProperty("index_patterns")[0].GetString());
+            Assert.Equal(
+                "debugstudio-log",
+                root.GetProperty("template")
+                    .GetProperty("settings")
+                    .GetProperty("index")
+                    .GetProperty("default_pipeline")
+                    .GetString());
             Assert.Equal("date", properties.GetProperty("@timestamp").GetProperty("type").GetString());
             Assert.Equal("long", properties.GetProperty("sequenceNumber").GetProperty("type").GetString());
             Assert.Equal("keyword", properties.GetProperty("applicationName").GetProperty("type").GetString());
