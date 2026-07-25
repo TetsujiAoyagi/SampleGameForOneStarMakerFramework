@@ -15,8 +15,8 @@ namespace SampleGame.OutGame.Scenes
     {
         private readonly ILogger<ConfirmDialogScene> _logger;
 
-        public ConfirmDialogScene(SceneResource sceneResource, ISceneQuery sceneQuery, ILoggerFactory loggerFactory)
-            : base(sceneResource, sceneQuery)
+        public ConfirmDialogScene(SceneResource sceneResource, ISceneQuery sceneQuery, ISceneController sceneController, ILoggerFactory loggerFactory)
+            : base(sceneResource, sceneQuery, sceneController)
         {
             if (loggerFactory == null)
             {

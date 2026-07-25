@@ -15,6 +15,9 @@ using SampleGame.OutGame;
 using SampleGame.OutGame.Scenes;
 using SampleGame.OutGame.Title;
 using RuntimeCameraSystem = OneStarMaker.Runtime.CameraSystem.Core.CameraSystem;
+using Cysharp.Threading.Tasks;
+using System.Threading;
+using OneStarMaker.Foundation.Telemetry;
 
 namespace OneStarMaker.Tests.SampleGame
 {
@@ -22,11 +25,13 @@ namespace OneStarMaker.Tests.SampleGame
     public sealed class GameSceneFactoryTests
     {
         private StubSceneQuery _sceneQuery = null!;
+        private StubSceneController _sceneController = null!;
 
         [SetUp]
         public void SetUp()
         {
             _sceneQuery = new StubSceneQuery();
+            _sceneController = new StubSceneController();
         }
 
         [Test]
@@ -57,7 +62,7 @@ namespace OneStarMaker.Tests.SampleGame
             var factory = CreateFactory(NullLoggerFactory.Instance);
             var resource = SceneTestHelper.CreateSceneResource("Title");
 
-            Assert.DoesNotThrow(() => factory.CreateSceneClass(resource, _sceneQuery));
+            Assert.DoesNotThrow(() => factory.CreateSceneClass(resource, _sceneQuery, _sceneController));
         }
 
         [TestCase("Title", typeof(TitleScene))]
@@ -69,7 +74,7 @@ namespace OneStarMaker.Tests.SampleGame
             var factory = CreateFactory(NullLoggerFactory.Instance);
             var resource = SceneTestHelper.CreateSceneResource(identity);
 
-            var scene = factory.CreateSceneClass(resource, _sceneQuery);
+            var scene = factory.CreateSceneClass(resource, _sceneQuery, _sceneController);
 
             Assert.NotNull(scene);
             Assert.IsInstanceOf(expectedType, scene);
@@ -81,7 +86,7 @@ namespace OneStarMaker.Tests.SampleGame
             var factory = CreateFactory(NullLoggerFactory.Instance);
             var resource = SceneTestHelper.CreateSceneResource("Unknown");
 
-            var scene = factory.CreateSceneClass(resource, _sceneQuery);
+            var scene = factory.CreateSceneClass(resource, _sceneQuery, _sceneController);
 
             Assert.IsNull(scene);
         }
@@ -105,6 +110,33 @@ namespace OneStarMaker.Tests.SampleGame
 
             public bool IsSceneLoaded(string identity) => false;
         }
+
+        private sealed class StubSceneController : ISceneController
+        {
+            public UniTask AddScene(string sceneIdentify, Func<UniTask>? afterOnLoadedTask, CancellationToken ct, SceneContext? context = null, IProgress<SceneLoadProgress>? progress = null, LoadingDisplayType loadingDisplay = LoadingDisplayType.None, IReadOnlyDictionary<string, string>? telemetryTags = null, int priority = 100, TelemetryLevel telemetryLevel = TelemetryLevel.Summary)
+            {
+                return UniTask.CompletedTask;
+            }
+
+            public void ClearHistory()
+            {
+            }
+
+            public UniTask GoBack(CancellationToken ct, SceneContext? context = null, LoadingDisplayType loadingDisplay = LoadingDisplayType.BlackScreen, IReadOnlyDictionary<string, string>? telemetryTags = null)
+            {
+                return UniTask.CompletedTask;
+            }
+
+            public UniTask SwitchScene(string? fromSceneIdentify, string toSceneIdentify, CancellationToken ct, SceneContext? context = null, LoadingDisplayType loadingDisplay = LoadingDisplayType.BlackScreen, IReadOnlyDictionary<string, string>? telemetryTags = null)
+            {
+                return UniTask.CompletedTask;
+            }
+
+            public UniTask UnloadScene(string sceneIdentify, LoadingDisplayType loadingDisplay = LoadingDisplayType.None, IReadOnlyDictionary<string, string>? telemetryTags = null, TelemetryLevel telemetryLevel = TelemetryLevel.Summary)
+            {
+                return UniTask.CompletedTask;
+            }
+        }
     }
 
     [TestFixture]
@@ -116,7 +148,7 @@ namespace OneStarMaker.Tests.SampleGame
             var capturingFactory = new CategoryCapturingLoggerFactory();
             var resource = SceneTestHelper.CreateSceneResource("Title");
 
-            _ = new TitleScene(resource, new StubSceneQuery(), capturingFactory);
+            _ = new TitleScene(resource, new StubSceneQuery(), new StubSceneController(), capturingFactory);
 
             Assert.AreEqual(typeof(TitleScene).FullName, capturingFactory.LastCategory);
         }
@@ -126,7 +158,7 @@ namespace OneStarMaker.Tests.SampleGame
         {
             using var capturingFactory = new CapturingLoggerFactory();
             var resource = SceneTestHelper.CreateSceneResource("Title");
-            var scene = new TitleScene(resource, new StubSceneQuery(), capturingFactory);
+            var scene = new TitleScene(resource, new StubSceneQuery(), new StubSceneController(), capturingFactory);
 
             InvokeOnInitialize(scene);
 
@@ -141,7 +173,7 @@ namespace OneStarMaker.Tests.SampleGame
         {
             using var capturingFactory = new CapturingLoggerFactory();
             var resource = SceneTestHelper.CreateSceneResource("HpGauge");
-            var scene = new HpGaugeScene(resource, new StubSceneQuery(), capturingFactory);
+            var scene = new HpGaugeScene(resource, new StubSceneQuery(), new StubSceneController(), capturingFactory);
 
             InvokeNonPublic(scene, nameof(HpGaugeScene), "HandleOpenDialogRequested");
 
@@ -174,6 +206,33 @@ namespace OneStarMaker.Tests.SampleGame
             public SceneBase? GetLoadedScene(string identity) => null;
 
             public bool IsSceneLoaded(string identity) => false;
+        }
+
+        private sealed class StubSceneController : ISceneController
+        {
+            public UniTask AddScene(string sceneIdentify, Func<UniTask>? afterOnLoadedTask, CancellationToken ct, SceneContext? context = null, IProgress<SceneLoadProgress>? progress = null, LoadingDisplayType loadingDisplay = LoadingDisplayType.None, IReadOnlyDictionary<string, string>? telemetryTags = null, int priority = 100, TelemetryLevel telemetryLevel = TelemetryLevel.Summary)
+            {
+                return UniTask.CompletedTask;
+            }
+
+            public void ClearHistory()
+            {
+            }
+
+            public UniTask GoBack(CancellationToken ct, SceneContext? context = null, LoadingDisplayType loadingDisplay = LoadingDisplayType.BlackScreen, IReadOnlyDictionary<string, string>? telemetryTags = null)
+            {
+                return UniTask.CompletedTask;
+            }
+
+            public UniTask SwitchScene(string? fromSceneIdentify, string toSceneIdentify, CancellationToken ct, SceneContext? context = null, LoadingDisplayType loadingDisplay = LoadingDisplayType.BlackScreen, IReadOnlyDictionary<string, string>? telemetryTags = null)
+            {
+                return UniTask.CompletedTask;
+            }
+
+            public UniTask UnloadScene(string sceneIdentify, LoadingDisplayType loadingDisplay = LoadingDisplayType.None, IReadOnlyDictionary<string, string>? telemetryTags = null, TelemetryLevel telemetryLevel = TelemetryLevel.Summary)
+            {
+                return UniTask.CompletedTask;
+            }
         }
 
         private sealed class CategoryCapturingLoggerFactory : ILoggerFactory

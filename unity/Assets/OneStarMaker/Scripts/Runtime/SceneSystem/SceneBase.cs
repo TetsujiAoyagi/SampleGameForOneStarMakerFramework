@@ -22,6 +22,7 @@ namespace OneStarMaker.Runtime.SceneSystem
     {
         private readonly SceneResource _sceneResource;
         private readonly ISceneQuery _sceneQuery;
+        private readonly ISceneController _sceneController;
         private readonly SceneLifecycleManager _lifecycle = new();
 
         /// <summary>
@@ -38,10 +39,12 @@ namespace OneStarMaker.Runtime.SceneSystem
         /// <summary>SceneBase を生成する。</summary>
         /// <param name="sceneResource">このシーンの定義情報。</param>
         /// <param name="sceneQuery">ロード済みシーンへの読み取り専用アクセス。</param>
-        public SceneBase(SceneResource sceneResource, ISceneQuery sceneQuery)
+        /// <param name="sceneController">シーン読み込みコントロール専用アクセス。</param>
+        public SceneBase(SceneResource sceneResource, ISceneQuery sceneQuery, ISceneController sceneController)
         {
             _sceneResource = sceneResource ?? throw new ArgumentNullException(nameof(sceneResource));
             _sceneQuery = sceneQuery ?? throw new ArgumentNullException(nameof(sceneQuery));
+            _sceneController = sceneController;
         }
 
         // ─── Public API ───

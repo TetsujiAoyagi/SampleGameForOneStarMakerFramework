@@ -391,7 +391,7 @@ namespace OneStarMaker.Runtime.SceneSystem
                 var sceneResource = _sceneResourceMap.GetSceneResource(sceneIdentify)
                     ?? throw new InvalidOperationException($"SceneResource not found: {sceneIdentify}");
 
-                var newInstance = _sceneFactory.CreateSceneClass(sceneResource, this)
+                var newInstance = _sceneFactory.CreateSceneClass(sceneResource, this, this)
                     ?? throw new InvalidOperationException($"SceneFactory returned null for: {sceneIdentify}");
 
                 var pair = new ScenePair(newInstance)

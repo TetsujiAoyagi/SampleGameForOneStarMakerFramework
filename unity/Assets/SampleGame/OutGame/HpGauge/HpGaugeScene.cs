@@ -15,8 +15,8 @@ namespace SampleGame.OutGame.Scenes
     {
         private readonly ILogger<HpGaugeScene> _logger;
 
-        public HpGaugeScene(SceneResource sceneResource, ISceneQuery sceneQuery, ILoggerFactory loggerFactory)
-            : base(sceneResource, sceneQuery)
+        public HpGaugeScene(SceneResource sceneResource, ISceneQuery sceneQuery, ISceneController sceneController, ILoggerFactory loggerFactory)
+            : base(sceneResource, sceneQuery, sceneController)
         {
             if (loggerFactory == null)
             {

@@ -1,16 +1,19 @@
 #nullable enable
 
-using System;
-using System.Collections.Generic;
-using System.Reflection;
+using Cysharp.Threading.Tasks;
 using NUnit.Framework;
-using OneStarMaker.Runtime.UISystem;
+using OneStarMaker.Foundation.Telemetry;
 using OneStarMaker.Runtime.SceneSystem;
+using OneStarMaker.Runtime.UISystem;
 using SampleGame.OutGame;
 using SampleGame.OutGame.Background;
 using SampleGame.OutGame.Title;
-using UnityEngine;
+using System;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Threading;
 using UnityEditor;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace OneStarMaker.Tests.SampleGame
@@ -198,6 +201,7 @@ namespace OneStarMaker.Tests.SampleGame
             var scene = new TitleScene(
                 title,
                 new RecordingSceneQuery(parent.Identity, parentScene),
+                new NullSceneController(),
                 Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance);
             var definition = CreateDefinition();
 
@@ -277,7 +281,7 @@ namespace OneStarMaker.Tests.SampleGame
         private sealed class BackgroundRequestsScene : SceneBase, IOutGameBackgroundRequests
         {
             public BackgroundRequestsScene(SceneResource resource)
-                : base(resource, new NullSceneQuery())
+                : base(resource, new NullSceneQuery(), new NullSceneController())
             {
             }
 
@@ -313,6 +317,33 @@ namespace OneStarMaker.Tests.SampleGame
             public SceneBase? GetLoadedScene(string identity) => null;
 
             public bool IsSceneLoaded(string identity) => false;
+        }
+
+        private sealed class NullSceneController : ISceneController
+        {
+            public UniTask AddScene(string sceneIdentify, Func<UniTask>? afterOnLoadedTask, CancellationToken ct, SceneContext? context = null, IProgress<SceneLoadProgress>? progress = null, LoadingDisplayType loadingDisplay = LoadingDisplayType.None, IReadOnlyDictionary<string, string>? telemetryTags = null, int priority = 100, TelemetryLevel telemetryLevel = TelemetryLevel.Summary)
+            {
+                return UniTask.CompletedTask;
+            }
+
+            public void ClearHistory()
+            {
+            }
+
+            public UniTask GoBack(CancellationToken ct, SceneContext? context = null, LoadingDisplayType loadingDisplay = LoadingDisplayType.BlackScreen, IReadOnlyDictionary<string, string>? telemetryTags = null)
+            {
+                return UniTask.CompletedTask;
+            }
+
+            public UniTask SwitchScene(string? fromSceneIdentify, string toSceneIdentify, CancellationToken ct, SceneContext? context = null, LoadingDisplayType loadingDisplay = LoadingDisplayType.BlackScreen, IReadOnlyDictionary<string, string>? telemetryTags = null)
+            {
+                return UniTask.CompletedTask;
+            }
+
+            public UniTask UnloadScene(string sceneIdentify, LoadingDisplayType loadingDisplay = LoadingDisplayType.None, IReadOnlyDictionary<string, string>? telemetryTags = null, TelemetryLevel telemetryLevel = TelemetryLevel.Summary)
+            {
+                return UniTask.CompletedTask;
+            }
         }
     }
 }

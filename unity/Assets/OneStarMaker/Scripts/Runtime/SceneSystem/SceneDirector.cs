@@ -22,7 +22,7 @@ namespace OneStarMaker.Runtime.SceneSystem
     ///   SceneDirector.Unloading.cs   … UnloadScene, RemoveScene, 3-Phase, CleanupCanceledScene, PerformUnitySceneUnload
     ///   SceneDirector.Transitions.cs … SwitchScene, GoBack, ClearHistory, ExecuteTransitionPlan
     /// </summary>
-    public partial class SceneDirector : IDisposable, ISceneQuery
+    public partial class SceneDirector : IDisposable, ISceneQuery, ISceneController
     {
         /// <summary>シーンペア（SceneBase + Addressables ロード状態 + ロード用 CTS）。</summary>
         private class ScenePair

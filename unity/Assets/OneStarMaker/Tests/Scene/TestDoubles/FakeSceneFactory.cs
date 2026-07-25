@@ -17,9 +17,9 @@ namespace OneStarMaker.Tests.SceneSystem.TestDoubles
         /// <summary>生成前にカスタム初期化を行うためのコールバック。</summary>
         public Action<TestSceneBase>? OnCreated { get; set; }
 
-        public SceneBase? CreateSceneClass(SceneResource sceneResource, ISceneQuery sceneQuery)
+        public SceneBase? CreateSceneClass(SceneResource sceneResource, ISceneQuery sceneQuery, ISceneController sceneController)
         {
-            var scene = new TestSceneBase(sceneResource, sceneQuery);
+            var scene = new TestSceneBase(sceneResource, sceneQuery, sceneController);
             _instances[sceneResource.Identity] = scene;
             OnCreated?.Invoke(scene);
             return scene;

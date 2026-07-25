@@ -20,8 +20,8 @@ namespace OneStarMaker.Runtime.SceneSystem
     /// </summary>
     public class CellScene : SceneBase
     {
-        public CellScene(SceneResource sceneResource, ISceneQuery sceneQuery)
-            : base(sceneResource, sceneQuery)
+        public CellScene(SceneResource sceneResource, ISceneQuery sceneQuery, ISceneController sceneController)
+            : base(sceneResource, sceneQuery, sceneController)
         {
             if (!CellIdentity.TryParse(sceneResource.Identity, out var coordinate))
             {

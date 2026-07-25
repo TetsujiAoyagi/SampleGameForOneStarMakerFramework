@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using NUnit.Framework;
+using OneStarMaker.Foundation.Telemetry;
 using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.UISystem;
@@ -91,7 +92,7 @@ namespace OneStarMaker.Tests.SceneSystem
             CreatedSOs.Add(resource);
 
             Assert.Throws<ArgumentException>(
-                () => new CellScene(resource, new NullSceneQuery()),
+                () => new CellScene(resource, new NullSceneQuery(), new NullSceneController()),
                 "Cell_{x}_{y} 形式でない identity の CellScene 生成は即失敗すべき");
         }
 
@@ -196,7 +197,7 @@ namespace OneStarMaker.Tests.SceneSystem
         {
             var resource = SceneTestHelper.CreateSceneResource(identity);
             CreatedSOs.Add(resource);
-            return new CellScene(resource, new NullSceneQuery());
+            return new CellScene(resource, new NullSceneQuery(), new NullSceneController());
         }
 
         private GameObject CreateRootWithUIView(string name)
@@ -247,6 +248,33 @@ namespace OneStarMaker.Tests.SceneSystem
             public bool IsSceneLoaded(string identity) => false;
         }
 
+        private sealed class NullSceneController : ISceneController
+        {
+            public UniTask AddScene(string sceneIdentify, Func<UniTask>? afterOnLoadedTask, CancellationToken ct, SceneContext? context = null, IProgress<SceneLoadProgress>? progress = null, LoadingDisplayType loadingDisplay = LoadingDisplayType.None, IReadOnlyDictionary<string, string>? telemetryTags = null, int priority = 100, TelemetryLevel telemetryLevel = TelemetryLevel.Summary)
+            {
+                return UniTask.CompletedTask;
+            }
+
+            public void ClearHistory()
+            {
+            }
+
+            public UniTask GoBack(CancellationToken ct, SceneContext? context = null, LoadingDisplayType loadingDisplay = LoadingDisplayType.BlackScreen, IReadOnlyDictionary<string, string>? telemetryTags = null)
+            {
+                return UniTask.CompletedTask;
+            }
+
+            public UniTask SwitchScene(string? fromSceneIdentify, string toSceneIdentify, CancellationToken ct, SceneContext? context = null, LoadingDisplayType loadingDisplay = LoadingDisplayType.BlackScreen, IReadOnlyDictionary<string, string>? telemetryTags = null)
+            {
+                return UniTask.CompletedTask;
+            }
+
+            public UniTask UnloadScene(string sceneIdentify, LoadingDisplayType loadingDisplay = LoadingDisplayType.None, IReadOnlyDictionary<string, string>? telemetryTags = null, TelemetryLevel telemetryLevel = TelemetryLevel.Summary)
+            {
+                return UniTask.CompletedTask;
+            }
+        }
+
         /// <summary>
         /// identity のプレフィックスで CellScene / SceneBase を出し分けるファクトリ。
         /// 生成インスタンスを保持し、テストから UIView の有無を観測できるようにする。
@@ -255,11 +283,11 @@ namespace OneStarMaker.Tests.SceneSystem
         {
             public Dictionary<string, SceneBase> Created { get; } = new();
 
-            public SceneBase? CreateSceneClass(SceneResource sceneResource, ISceneQuery sceneQuery)
+            public SceneBase? CreateSceneClass(SceneResource sceneResource, ISceneQuery sceneQuery, ISceneController sceneController)
             {
                 SceneBase scene = sceneResource.Identity.StartsWith(CellIdentity.Prefix, StringComparison.Ordinal)
-                    ? new CellScene(sceneResource, sceneQuery)
-                    : new SceneBase(sceneResource, sceneQuery);
+                    ? new CellScene(sceneResource, sceneQuery, sceneController)
+                    : new SceneBase(sceneResource, sceneQuery, sceneController);
                 Created[sceneResource.Identity] = scene;
                 return scene;
             }

@@ -16,8 +16,8 @@ namespace SampleGame.OutGame.Title
     {
         private readonly ILogger<TitleScene> _logger;
 
-        public TitleScene(SceneResource sceneResource, ISceneQuery sceneQuery, ILoggerFactory loggerFactory)
-            : base(sceneResource, sceneQuery)
+        public TitleScene(SceneResource sceneResource, ISceneQuery sceneQuery, ISceneController sceneController, ILoggerFactory loggerFactory)
+            : base(sceneResource, sceneQuery, sceneController)
         {
             if (loggerFactory == null)
             {
@@ -35,6 +35,7 @@ namespace SampleGame.OutGame.Title
         {
             _logger.ZLogInformation($"Initialized.");
         }
+
 
         protected override async UniTask OnLoadedImpl(CancellationToken ct)
         {

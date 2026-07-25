@@ -24,7 +24,7 @@ namespace OneStarMaker.Tests.SceneSystem.TestDoubles
         /// <summary>OnLoaded 中に実行するカスタムアクション。</summary>
         public Func<CancellationToken, UniTask>? LoadedAction { get; set; }
 
-        public TestSceneBase(SceneResource sceneResource, ISceneQuery sceneQuery) : base(sceneResource, sceneQuery) { }
+        public TestSceneBase(SceneResource sceneResource, ISceneQuery sceneQuery, ISceneController sceneController) : base(sceneResource, sceneQuery, sceneController) { }
 
         protected override async UniTask OnPreLoadedImpl(CancellationToken ct)
         {

@@ -1,7 +1,9 @@
+using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using OneStarMaker.Runtime.CameraSystem.Abstractions;
 using OneStarMaker.Runtime.SceneSystem;
 using SampleGame.OutGame.Background;
+using System.Threading;
 using UnityEngine;
 
 namespace SampleGame.OutGame
@@ -17,9 +19,10 @@ namespace SampleGame.OutGame
         public OutGameScene(
             SceneResource sceneResource,
             ISceneQuery sceneQuery,
+            ISceneController sceneController,
             ILoggerFactory loggerFactory,
             ICameraBackgroundApplier cameraBackgroundApplier,
-            ICameraSystem cameraSystem) : base(sceneResource, sceneQuery)
+            ICameraSystem cameraSystem) : base(sceneResource, sceneQuery, sceneController)
         {
             if (loggerFactory == null)
             {
@@ -56,6 +59,9 @@ namespace SampleGame.OutGame
         /// <inheritdoc />
         protected override void OnInitialize()
         {
+            // InGameSceneがあれば排他なのでUnload
+            
+
             if (UIView is not OutGameBackgroundView backgroundView)
             {
                 throw new System.InvalidOperationException(
@@ -63,6 +69,13 @@ namespace SampleGame.OutGame
             }
 
             backgroundView.Connect(_backgroundController);
+        }
+
+        protected override UniTask OnPreLoadedImpl(CancellationToken ct)
+        {
+            // InGameSceneがあれば排他なのでUnload
+
+            return base.OnPreLoadedImpl(ct);
         }
     }
 }

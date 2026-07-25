@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using OneStarMaker.Runtime.CameraSystem.Abstractions;
 using OneStarMaker.Runtime.CameraSystem.Hosting;
 using OneStarMaker.Runtime.SceneSystem;
+using SampleGame.Common;
 using SampleGame.OutGame.Scenes;
 using SampleGame.OutGame.Title;
 
@@ -34,14 +35,14 @@ namespace SampleGame.DependOnAll
             _cameraBackgroundApplier = backgroundApplier ?? throw new System.ArgumentNullException(nameof(backgroundApplier));
         }
 
-        public SceneBase? CreateSceneClass(SceneResource sceneResource, ISceneQuery sceneQuery)
+        public SceneBase? CreateSceneClass(SceneResource sceneResource, ISceneQuery sceneQuery, ISceneController sceneController)
         {
             return sceneResource.Identity switch
             {
-                "Title" => new TitleScene(sceneResource, sceneQuery, _loggerFactory),
-                "OutGameScene" => new OutGame.OutGameScene(sceneResource, sceneQuery, _loggerFactory, _cameraBackgroundApplier, _cameraSystem),
-                "HpGauge" => new HpGaugeScene(sceneResource, sceneQuery, _loggerFactory),
-                "ConfirmDialog" => new ConfirmDialogScene(sceneResource, sceneQuery, _loggerFactory),
+                "Title" => new TitleScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
+                "OutGameScene" => new OutGame.OutGameScene(sceneResource, sceneQuery, sceneController, _loggerFactory, _cameraBackgroundApplier, _cameraSystem),
+                "HpGauge" => new HpGaugeScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
+                "ConfirmDialog" => new ConfirmDialogScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
                 _ => null,
             };
         }
