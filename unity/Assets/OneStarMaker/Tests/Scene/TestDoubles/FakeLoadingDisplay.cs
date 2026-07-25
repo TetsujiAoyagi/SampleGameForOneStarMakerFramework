@@ -16,13 +16,20 @@ namespace OneStarMaker.Tests.SceneSystem.TestDoubles
         public int HideCallCount { get; private set; }
         public LoadingDisplayType LastDisplayType { get; private set; }
         public bool IsShowing { get; private set; }
+        public UniTaskCompletionSource? ShowGate { get; set; }
 
-        public UniTask Show(LoadingDisplayType displayType, CancellationToken ct)
+        public async UniTask Show(LoadingDisplayType displayType, CancellationToken ct)
         {
             ShowCallCount++;
             LastDisplayType = displayType;
+
+            if (ShowGate != null)
+            {
+                await ShowGate.Task.AttachExternalCancellation(ct);
+            }
+
+            ct.ThrowIfCancellationRequested();
             IsShowing = true;
-            return UniTask.CompletedTask;
         }
 
         public UniTask Hide(CancellationToken ct)

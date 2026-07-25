@@ -59,6 +59,12 @@ namespace OneStarMaker.Runtime.SceneSystem
         protected ISceneQuery SceneQuery => _sceneQuery;
 
         /// <summary>
+        /// シーン読み込みコントロール
+        /// 他のシーンへの遷移や追加、Unloadなど行う
+        /// </summary>
+        protected ISceneController SceneController => _sceneController;
+
+        /// <summary>
         /// Addressables Load / Release API。
         /// SceneBase.OnPreLoadedImpl 等から PreLoad アセットのロードに使用する。
         /// </summary>

@@ -4,7 +4,6 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using OneStarMaker.Runtime.SceneSystem;
-using ZLogger;
 
 namespace SampleGame.OutGame.Scenes
 {
@@ -13,8 +12,6 @@ namespace SampleGame.OutGame.Scenes
     /// </summary>
     public sealed class HpGaugeScene : SceneBase
     {
-        private readonly ILogger<HpGaugeScene> _logger;
-
         public HpGaugeScene(SceneResource sceneResource, ISceneQuery sceneQuery, ISceneController sceneController, ILoggerFactory loggerFactory)
             : base(sceneResource, sceneQuery, sceneController)
         {
@@ -23,9 +20,6 @@ namespace SampleGame.OutGame.Scenes
                 throw new System.ArgumentNullException(nameof(loggerFactory));
             }
 
-            // Scene ごとのカテゴリを維持するため、文字列カテゴリではなく型付き logger を使用する。
-            // DebugStudio 側で発生元 Scene を絞り込めることを優先する。
-            _logger = loggerFactory.CreateLogger<HpGaugeScene>();
         }
 
         /// <inheritdoc />
@@ -52,13 +46,7 @@ namespace SampleGame.OutGame.Scenes
 
         private void HandleOpenDialogRequested()
         {
-            if (SceneQuery is not SceneDirector director)
-            {
-                _logger.ZLogError($"SceneDirector を取得できません。");
-                return;
-            }
-
-            director.AddScene("ConfirmDialog", null, CancellationToken.None).Forget();
+            SceneController.AddScene("ConfirmDialog", null, CancellationToken.None).Forget();
         }
     }
 }
