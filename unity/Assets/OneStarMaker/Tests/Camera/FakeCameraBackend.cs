@@ -68,11 +68,16 @@ namespace OneStarMaker.Tests.CameraSystem
         private readonly Dictionary<ViewId, CameraPose> _currentPoses = new();
         private readonly Dictionary<LogicalCamera, CameraPose> _cameraPoses = new();
         private readonly Dictionary<ViewId, bool> _blendingStates = new();
+        private readonly Dictionary<LogicalCamera, Transform?> _follows = new();
+        private readonly Dictionary<LogicalCamera, Transform?> _lookAts = new();
+        private readonly Dictionary<LogicalCamera, ViewId> _managedCameras = new();
 
         public IReadOnlyList<SetActiveCall> SetActiveCalls => _setActiveCalls;
         public IReadOnlyList<PostModifierCall> PostModifierCalls => _postModifierCalls;
         public IReadOnlyList<RegisterViewCall> RegisterViewCalls => _registerViewCalls;
         public IReadOnlyList<ViewId> ReleaseViewCalls => _releaseViewCalls;
+        public IReadOnlyDictionary<LogicalCamera, Transform?> FollowTargets => _follows;
+        public IReadOnlyDictionary<LogicalCamera, Transform?> LookAtTargets => _lookAts;
         /// <summary>
         /// Tick の相対順序を検証するテスト用フック。
         /// 本番コードの契約ではなく、FakeBackend を使うテストが FrameDriver の完了後に
@@ -129,6 +134,60 @@ namespace OneStarMaker.Tests.CameraSystem
         {
             _postModifierCalls.Add(new PostModifierCall(view, finalPose));
             OnPostModifierApplied?.Invoke();
+        }
+
+        /// <inheritdoc />
+        public LogicalCamera CreateManagedCamera(ViewId view, string id)
+        {
+            var logical = new LogicalCamera(id ?? throw new ArgumentNullException(nameof(id)));
+            _managedCameras[logical] = view;
+            return logical;
+        }
+
+        /// <inheritdoc />
+        public void SetFollow(LogicalCamera camera, Transform? follow)
+        {
+            if (camera == null)
+            {
+                throw new ArgumentNullException(nameof(camera));
+            }
+
+            _follows[camera] = follow;
+        }
+
+        /// <inheritdoc />
+        public void SetLookAt(LogicalCamera camera, Transform? lookAt)
+        {
+            if (camera == null)
+            {
+                throw new ArgumentNullException(nameof(camera));
+            }
+
+            _lookAts[camera] = lookAt;
+        }
+
+        /// <inheritdoc />
+        public void ApplyLens(LogicalCamera camera)
+        {
+            if (camera == null)
+            {
+                throw new ArgumentNullException(nameof(camera));
+            }
+
+            // Fake は Pose 辞書を持たないため、呼び出しが例外なく通ることだけを保証する。
+        }
+
+        /// <inheritdoc />
+        public void ReleaseManagedCamera(LogicalCamera camera)
+        {
+            if (camera == null)
+            {
+                throw new ArgumentNullException(nameof(camera));
+            }
+
+            _managedCameras.Remove(camera);
+            _follows.Remove(camera);
+            _lookAts.Remove(camera);
         }
     }
 }

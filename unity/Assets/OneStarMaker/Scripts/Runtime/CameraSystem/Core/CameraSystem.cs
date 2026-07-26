@@ -52,6 +52,77 @@ namespace OneStarMaker.Runtime.CameraSystem.Core
         public ICameraView CreateView(in CameraViewConfig config) =>
             CreateViewInternal(config, isMain: false);
 
+        /// <inheritdoc />
+        public LogicalCamera CreateManagedCamera(ICameraView view, string id)
+        {
+            if (view == null)
+            {
+                throw new ArgumentNullException(nameof(view));
+            }
+
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                throw new ArgumentException("論理カメラ Id は空にできません。", nameof(id));
+            }
+
+            // ViewId は internal のため、Game 層は ICameraView だけを渡し、ここで具象 CameraView へ正規化する。
+            if (view is not CameraView cameraView)
+            {
+                throw new ArgumentException("この CameraSystem が生成した CameraView を指定してください。", nameof(view));
+            }
+
+            if (cameraView.IsReleased)
+            {
+                throw new InvalidOperationException("解放済み View には論理カメラを生成できません。");
+            }
+
+            return _backend.CreateManagedCamera(cameraView.ViewId, id);
+        }
+
+        /// <inheritdoc />
+        public void SetFollow(LogicalCamera camera, UnityEngine.Transform? follow)
+        {
+            if (camera == null)
+            {
+                throw new ArgumentNullException(nameof(camera));
+            }
+
+            _backend.SetFollow(camera, follow);
+        }
+
+        /// <inheritdoc />
+        public void SetLookAt(LogicalCamera camera, UnityEngine.Transform? lookAt)
+        {
+            if (camera == null)
+            {
+                throw new ArgumentNullException(nameof(camera));
+            }
+
+            _backend.SetLookAt(camera, lookAt);
+        }
+
+        /// <inheritdoc />
+        public void ApplyLens(LogicalCamera camera)
+        {
+            if (camera == null)
+            {
+                throw new ArgumentNullException(nameof(camera));
+            }
+
+            _backend.ApplyLens(camera);
+        }
+
+        /// <inheritdoc />
+        public void ReleaseManagedCamera(LogicalCamera camera)
+        {
+            if (camera == null)
+            {
+                throw new ArgumentNullException(nameof(camera));
+            }
+
+            _backend.ReleaseManagedCamera(camera);
+        }
+
         /// <summary>
         /// 全 View を 1 フレーム分更新し、周期到来時にテレメトリ snapshot を発行する。
         /// MainView を先に更新してから追加 View を走査する。

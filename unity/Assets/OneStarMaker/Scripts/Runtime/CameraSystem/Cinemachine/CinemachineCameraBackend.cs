@@ -84,10 +84,11 @@ namespace OneStarMaker.Runtime.CameraSystem.Cinemachine
             _host.DestroyView(view);
         }
 
-        /// <summary>
-        /// Backend 管理下で CinemachineCamera を生成し、論理カメラとして返す。
-        /// テストおよび将来の Game 層 API から利用する。
-        /// </summary>
+        /// <inheritdoc />
+        /// <remarks>
+        /// CinemachineCamera を Host 配下に生成し、論理カメラへバインドする。
+        /// Game 層は <see cref="ICameraSystem.CreateManagedCamera"/> 経由でのみ到達する（CM 型非露出）。
+        /// </remarks>
         public LogicalCamera CreateManagedCamera(ViewId view, string id)
         {
             EnsureViewRegistered(view);
@@ -98,6 +99,8 @@ namespace OneStarMaker.Runtime.CameraSystem.Cinemachine
             cameraObject.transform.SetParent(entry.CinemachineCameraRoot.transform, worldPositionStays: false);
             var cinemachineCamera = cameraObject.AddComponent<CinemachineCamera>();
             ConfigureCameraForView(cinemachineCamera, entry, logical);
+            // CM3 では Follow/LookAt Transform だけでは動かない。Body/Aim パイプラインが必須。
+            EnsureTrackingPipeline(cinemachineCamera);
             cinemachineCamera.enabled = false;
 
             RegisterBinding(logical, new CameraBinding(
@@ -108,6 +111,86 @@ namespace OneStarMaker.Runtime.CameraSystem.Cinemachine
                 cinemachineCamera.enabled,
                 cinemachineCamera.Priority));
             return logical;
+        }
+
+        /// <inheritdoc />
+        public void SetFollow(LogicalCamera camera, Transform? follow)
+        {
+            ResolveBinding(camera).Camera.Follow = follow;
+        }
+
+        /// <inheritdoc />
+        public void SetLookAt(LogicalCamera camera, Transform? lookAt)
+        {
+            ResolveBinding(camera).Camera.LookAt = lookAt;
+        }
+
+        /// <inheritdoc />
+        public void ApplyLens(LogicalCamera camera)
+        {
+            var binding = ResolveBinding(camera);
+            binding.Camera.Lens.FieldOfView = camera.FieldOfViewDegrees;
+            binding.Camera.Lens.NearClipPlane = camera.NearClip;
+            binding.Camera.Lens.FarClipPlane = camera.FarClip;
+        }
+
+        /// <inheritdoc />
+        public void ReleaseManagedCamera(LogicalCamera camera)
+        {
+            if (camera == null)
+            {
+                throw new ArgumentNullException(nameof(camera));
+            }
+
+            if (!_bindings.TryGetValue(camera, out var binding))
+            {
+                return;
+            }
+
+            if (_viewCameras.TryGetValue(binding.ViewId, out var set))
+            {
+                set.Remove(camera);
+            }
+
+            if (_activeCameras.TryGetValue(binding.ViewId, out var active) &&
+                ReferenceEquals(active, camera))
+            {
+                _activeCameras[binding.ViewId] = null;
+            }
+
+            _bindings.Remove(camera);
+
+            if (binding.IsSceneAuthored)
+            {
+                // オーサリングカメラはシーン所有。無効化してバインドだけ外す。
+                binding.Camera.enabled = false;
+                binding.Camera.Priority = InactivePriority;
+                binding.Camera.Follow = null;
+                binding.Camera.LookAt = null;
+            }
+            else
+            {
+                DestroyCameraObject(binding.Camera.gameObject);
+            }
+        }
+
+        /// <summary>
+        /// バインド済み論理カメラを解決する。未生成のまま Follow/LookAt を触ると原因が遠いので明示失敗させる。
+        /// </summary>
+        private CameraBinding ResolveBinding(LogicalCamera camera)
+        {
+            if (camera == null)
+            {
+                throw new ArgumentNullException(nameof(camera));
+            }
+
+            if (!_bindings.TryGetValue(camera, out var binding))
+            {
+                throw new InvalidOperationException(
+                    $"論理カメラ '{camera.Id}' は Backend に未登録です。CreateManagedCamera または WrapSceneAuthoredCamera 後に呼び出してください。");
+            }
+
+            return binding;
         }
 
         /// <summary>
@@ -283,6 +366,7 @@ namespace OneStarMaker.Runtime.CameraSystem.Cinemachine
             cameraObject.transform.SetParent(entry.CinemachineCameraRoot.transform, worldPositionStays: false);
             var cinemachineCamera = cameraObject.AddComponent<CinemachineCamera>();
             ConfigureCameraForView(cinemachineCamera, entry, camera);
+            EnsureTrackingPipeline(cinemachineCamera);
             cinemachineCamera.enabled = false;
 
             var binding = new CameraBinding(
@@ -311,6 +395,26 @@ namespace OneStarMaker.Runtime.CameraSystem.Cinemachine
             cinemachineCamera.Lens.FieldOfView = logical.FieldOfViewDegrees;
             cinemachineCamera.Lens.NearClipPlane = logical.NearClip;
             cinemachineCamera.Lens.FarClipPlane = logical.FarClip;
+        }
+
+        /// <summary>
+        /// 追従カメラ用の最小パイプラインを付与する。
+        /// Cinemachine 3 は Target.Follow/LookAt だけでは Passive のまま動かず、
+        /// Body（位置）と Aim（向き）コンポーネントが無いとプレイヤーを追わない。
+        /// オフセットは Game 側の Follow Transform 階層に持たせ、ここではゼロオフセットで追従する。
+        /// </summary>
+        private static void EnsureTrackingPipeline(CinemachineCamera cinemachineCamera)
+        {
+            if (cinemachineCamera.GetComponent<CinemachineFollow>() == null)
+            {
+                var follow = cinemachineCamera.gameObject.AddComponent<CinemachineFollow>();
+                follow.FollowOffset = Vector3.zero;
+            }
+
+            if (cinemachineCamera.GetComponent<CinemachineHardLookAt>() == null)
+            {
+                cinemachineCamera.gameObject.AddComponent<CinemachineHardLookAt>();
+            }
         }
 
         private static CinemachineBlendDefinition CreateBlendDefinition(in CameraBlendSpec blend)

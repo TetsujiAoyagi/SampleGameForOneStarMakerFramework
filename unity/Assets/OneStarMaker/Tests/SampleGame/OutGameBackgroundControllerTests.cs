@@ -310,6 +310,7 @@ namespace OneStarMaker.Tests.SampleGame
             }
 
             public bool IsSceneLoaded(string identity) => identity == _identity;
+            public bool IsSceneStable(string identity) => identity == _identity;
         }
 
         private sealed class NullSceneQuery : ISceneQuery
@@ -317,6 +318,7 @@ namespace OneStarMaker.Tests.SampleGame
             public SceneBase? GetLoadedScene(string identity) => null;
 
             public bool IsSceneLoaded(string identity) => false;
+            public bool IsSceneStable(string identity) => false;
         }
 
         private sealed class NullSceneController : ISceneController

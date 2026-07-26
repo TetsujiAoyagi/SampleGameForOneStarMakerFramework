@@ -24,7 +24,7 @@ MonoBehaviour:
   - Node: {fileID: 11400000, guid: 721af4f8511f15c48959b2bc9e1eed6d, type: 2}
     Position: {x: 239, y: -168}
   - Node: {fileID: 11400000, guid: 10f55155854e2e44f97a2284ced8dfdd, type: 2}
-    Position: {x: 583, y: -398}
+    Position: {x: 638, y: -418}
   - Node: {fileID: 11400000, guid: ad1ed5d8d6e12b9438c47848967a3daa, type: 2}
     Position: {x: 613, y: -227}
   - Node: {fileID: 11400000, guid: 984e1917f0fc84e42a0de085b28dd277, type: 2}
@@ -34,8 +34,10 @@ MonoBehaviour:
   - Node: {fileID: 11400000, guid: c9118be944656724b85b37d9c5eddf2a, type: 2}
     Position: {x: 785, y: 538}
   - Node: {fileID: 11400000, guid: a963bddbe44610548905e7387285b551, type: 2}
-    Position: {x: 569, y: -605}
+    Position: {x: 613, y: -610}
   - Node: {fileID: 11400000, guid: 962b04e4184e224458c4f9001083140e, type: 2}
-    Position: {x: 311, y: 22}
+    Position: {x: 171, y: 47}
+  - Node: {fileID: 11400000, guid: f8b02d3c5e607951b2c3d4e5f6071829, type: 2}
+    Position: {x: 257, y: -421}
   - Node: {fileID: 11400000, guid: 5c455a0d56a96704fbbea9c521f64173, type: 2}
     Position: {x: 332, y: 513}

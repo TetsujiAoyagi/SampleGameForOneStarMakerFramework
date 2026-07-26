@@ -5,7 +5,8 @@
         "SampleGame.Common",
         "OneStarMaker.Foundation",
         "OneStarMaker.Runtime",
-        "UniTask"
+        "UniTask",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -14,7 +15,9 @@
     "precompiledReferences": [
         "R3.dll",
         "ObservableCollections.dll",
-        "ZLogger.dll"
+        "ZLogger.dll",
+        "Microsoft.Extensions.Logging.dll",
+        "Microsoft.Extensions.Logging.Abstractions.dll"
     ],
     "autoReferenced": true,
     "defineConstraints": [],

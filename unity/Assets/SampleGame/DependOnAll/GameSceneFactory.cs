@@ -45,6 +45,14 @@ namespace SampleGame.DependOnAll
                 "HomeScene" => new OutGame.Home.HomeScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
                 "InGameScene" => new InGame.InGameScene(sceneResource, sceneQuery, sceneController, _loggerFactory, _cameraBackgroundApplier, _cameraSystem),
                 "InGameSession" => new InGame.InGameSession(sceneResource, sceneQuery, sceneController, _loggerFactory),
+                // PlayerScene は描画オーナーを CameraSystem に委ねるため、背景 applier と system を必須注入する。
+                "PlayerScene" => new InGame.PlayerScene(
+                    sceneResource,
+                    sceneQuery,
+                    sceneController,
+                    _loggerFactory,
+                    _cameraSystem,
+                    _cameraBackgroundApplier),
                 "InGameUI" => new InGame.InGameUI(sceneResource, sceneQuery, sceneController, _loggerFactory),
                 "SpringLevel" => new InGame.InGameImplments.SpringLevel(sceneResource, sceneQuery, sceneController, _loggerFactory),
                 "SummerLevel" => new InGame.InGameImplments.SummerLevel(sceneResource, sceneQuery, sceneController, _loggerFactory),

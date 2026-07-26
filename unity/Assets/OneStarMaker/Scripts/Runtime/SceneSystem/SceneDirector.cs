@@ -149,6 +149,14 @@ namespace OneStarMaker.Runtime.SceneSystem
                    && !pair.SceneBase.Lifecycle.IsLoadCanceled;
         }
 
+        /// <inheritdoc/>
+        public bool IsSceneStable(string identity)
+        {
+            return _currentScenes.TryGetValue(identity, out var pair)
+                   && pair.SceneBase.Lifecycle.State == SceneState.Stable
+                   && !pair.SceneBase.Lifecycle.IsUnloadStarted;
+        }
+
         // ─── Internal: テストアクセサ ───
 
         /// <summary>テスト用: 指定シーンが管理下にあるか。</summary>

@@ -40,5 +40,34 @@ namespace OneStarMaker.Runtime.CameraSystem.Abstractions
 
         /// <summary>Modifier 適用後の最終 Pose を実カメラへ書き戻す。</summary>
         void ApplyPostModifier(ViewId view, in CameraPose finalPose);
+
+        /// <summary>
+        /// Backend 管理下の論理カメラを生成する。
+        /// Game 層は <see cref="ICameraSystem.CreateManagedCamera"/> 経由でのみ呼び、Cinemachine 型には触れない。
+        /// </summary>
+        LogicalCamera CreateManagedCamera(ViewId view, string id);
+
+        /// <summary>
+        /// 論理カメラの追従ターゲットを設定する。null で解除。
+        /// 実装側（Cinemachine）へ翻訳するだけで、ポリシー層は構図に関与しない。
+        /// </summary>
+        void SetFollow(LogicalCamera camera, UnityEngine.Transform? follow);
+
+        /// <summary>
+        /// 論理カメラの注視点を設定する。null で解除。
+        /// </summary>
+        void SetLookAt(LogicalCamera camera, UnityEngine.Transform? lookAt);
+
+        /// <summary>
+        /// <see cref="LogicalCamera"/> のレンズ設定（FOV / near / far）を実カメラへ再反映する。
+        /// 生成後に Game 側が値を変えた場合に呼ぶ（生成時 Configure だけでは後書きが届かない）。
+        /// </summary>
+        void ApplyLens(LogicalCamera camera);
+
+        /// <summary>
+        /// <see cref="CreateManagedCamera"/> で作った論理カメラと Backend 実体を解放する。
+        /// シーン配置カメラ（Wrap）は破棄せずバインドのみ外す。
+        /// </summary>
+        void ReleaseManagedCamera(LogicalCamera camera);
     }
 }

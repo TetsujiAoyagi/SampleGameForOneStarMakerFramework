@@ -30,9 +30,18 @@ namespace OneStarMaker.Runtime.SceneSystem
 
         /// <summary>
         /// 指定 Identity のシーンが現在ロード済みかどうかを返す。
+        /// PreLoading 以降で true になり得るため、「操作可能」判定には <see cref="IsSceneStable"/> を使う。
         /// </summary>
         /// <param name="identity">シーンの一意識別子。</param>
         /// <returns>ロード済みなら true。</returns>
         bool IsSceneLoaded(string identity);
+
+        /// <summary>
+        /// 指定 Identity のシーンが <see cref="SceneState.Stable"/> に到達しているか。
+        /// 地形生成や OnLoaded 完了後のスポーン待ちに使う。
+        /// </summary>
+        /// <param name="identity">シーンの一意識別子。</param>
+        /// <returns>Stable なら true。</returns>
+        bool IsSceneStable(string identity);
     }
 }

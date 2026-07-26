@@ -20,11 +20,13 @@ namespace SampleGame.Common
                             context: toSceneContext,
                             ct: ct);
 
+            // 初期 Level は InGameArgs と一致させる（Spring 固定だと Session/Player が別 Level 待ちで固まる）。
+            // Session.OnLoaded でも EnsureLevelLoaded するが、ここは明示ロード + 黒画面表示用。
             await sceneController.AddScene(
-                        SceneIds.SpringLevel.idToName(),
+                        toInGameScene.idToName(),
                         afterOnLoadedTask: null,
                         ct,
-                        context: null, // または Level 用 context
+                        context: null,
                         loadingDisplay: LoadingDisplayType.BlackScreen);
         }
 
@@ -41,10 +43,10 @@ namespace SampleGame.Common
                             ct: ct);
 
             await sceneController.AddScene(
-                        SceneIds.SpringLevel.idToName(),
+                        toInGameScene.idToName(),
                         afterOnLoadedTask: null,
                         ct,
-                        context: null, // または Level 用 context
+                        context: null,
                         loadingDisplay: LoadingDisplayType.BlackScreen);
         }
 

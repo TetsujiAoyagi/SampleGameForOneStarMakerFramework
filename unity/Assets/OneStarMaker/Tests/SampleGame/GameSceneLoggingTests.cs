@@ -76,6 +76,7 @@ namespace OneStarMaker.Tests.SampleGame
             public SceneBase? GetLoadedScene(string identity) => null;
 
             public bool IsSceneLoaded(string identity) => false;
+            public bool IsSceneStable(string identity) => false;
         }
 
         private sealed class StubSceneController : ISceneController
@@ -162,6 +163,7 @@ namespace OneStarMaker.Tests.SampleGame
             public SceneBase? GetLoadedScene(string identity) => null;
 
             public bool IsSceneLoaded(string identity) => false;
+            public bool IsSceneStable(string identity) => false;
         }
 
         private sealed class StubSceneController : ISceneController

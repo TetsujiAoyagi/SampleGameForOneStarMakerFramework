@@ -25,6 +25,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: c9118be944656724b85b37d9c5eddf2a, type: 2}
   - {fileID: 11400000, guid: a963bddbe44610548905e7387285b551, type: 2}
   - {fileID: 11400000, guid: 962b04e4184e224458c4f9001083140e, type: 2}
+  - {fileID: 11400000, guid: f8b02d3c5e607951b2c3d4e5f6071829, type: 2}
   - {fileID: 11400000, guid: 5c455a0d56a96704fbbea9c521f64173, type: 2}
   _edges:
   - Parent: {fileID: 11400000, guid: df564375ee5fe5e40a95fc972ded7081, type: 2}
@@ -43,6 +44,8 @@ MonoBehaviour:
     Child: {fileID: 11400000, guid: a963bddbe44610548905e7387285b551, type: 2}
   - Parent: {fileID: 11400000, guid: 721af4f8511f15c48959b2bc9e1eed6d, type: 2}
     Child: {fileID: 11400000, guid: 962b04e4184e224458c4f9001083140e, type: 2}
+  - Parent: {fileID: 11400000, guid: 721af4f8511f15c48959b2bc9e1eed6d, type: 2}
+    Child: {fileID: 11400000, guid: f8b02d3c5e607951b2c3d4e5f6071829, type: 2}
   - Parent: {fileID: 11400000, guid: 5c455a0d56a96704fbbea9c521f64173, type: 2}
     Child: {fileID: 11400000, guid: c9118be944656724b85b37d9c5eddf2a, type: 2}
   - Parent: {fileID: 11400000, guid: df564375ee5fe5e40a95fc972ded7081, type: 2}
