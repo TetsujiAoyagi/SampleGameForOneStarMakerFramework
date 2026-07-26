@@ -19,6 +19,13 @@ namespace SampleGame.Common
                             toSceneIdentify: SceneIds.InGameSession.idToName(),
                             context: toSceneContext,
                             ct: ct);
+
+            await sceneController.AddScene(
+                        SceneIds.SpringLevel.idToName(),
+                        afterOnLoadedTask: null,
+                        ct,
+                        context: null, // または Level 用 context
+                        loadingDisplay: LoadingDisplayType.BlackScreen);
         }
 
         public static async UniTask EnterInGame<T>(ISceneController sceneController, SceneIds toInGameScene, T sceneContext, CancellationToken ct)
@@ -29,9 +36,16 @@ namespace SampleGame.Common
 
             await sceneController.SwitchScene(
                             fromSceneIdentify: SceneIds.OutGameScene.idToName(),
-                            toSceneIdentify: toInGameScene.idToName(),
+                            toSceneIdentify: SceneIds.InGameSession.idToName(),
                             context: toSceneContext,
                             ct: ct);
+
+            await sceneController.AddScene(
+                        SceneIds.SpringLevel.idToName(),
+                        afterOnLoadedTask: null,
+                        ct,
+                        context: null, // または Level 用 context
+                        loadingDisplay: LoadingDisplayType.BlackScreen);
         }
 
         public static async UniTask EnterOutGame(ISceneController sceneController, SceneIds toOutGameScene, SceneContext? sceneContext, CancellationToken ct)

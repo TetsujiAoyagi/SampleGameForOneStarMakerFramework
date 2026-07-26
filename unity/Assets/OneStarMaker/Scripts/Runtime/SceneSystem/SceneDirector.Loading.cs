@@ -166,12 +166,14 @@ namespace OneStarMaker.Runtime.SceneSystem
                     CollectNecessaryScenes(targetSceneResource.Parent, parentList);
                 }
 
+                // 祖先も isLoadChildren: true で LoadType に従い再帰する。
+                // NecessaryAlways は await、IncrementalAlways は Forget、OnDemand は触らない。
                 for (var index = 0; index < parentList.Count; index++)
                 {
                     await LoadSceneBase(
                         parentList[index].Identity,
                         cancelableCt,
-                        isLoadChildren: false,
+                        isLoadChildren: true,
                         newlyCreatedScenes,
                         linkedCts);
                 }
@@ -210,11 +212,12 @@ namespace OneStarMaker.Runtime.SceneSystem
                 progress?.Report(new SceneLoadProgress(
                     SceneLoadPhase.UnitySceneLoading, false, sceneIdentify));
 
+                // 祖先の Unity Scene ロードも isLoadChildScene: true で子へ同じ再帰規則を適用する。
                 for (var index = 0; index < parentList.Count; index++)
                 {
                     var parentSceneId = parentList[index].Identity;
                     var parentBase = _currentScenes[parentSceneId].SceneBase;
-                    await LoadUnityScene(parentSceneId, parentBase, CancellationToken.None, isLoadChildScene: false, priority);
+                    await LoadUnityScene(parentSceneId, parentBase, CancellationToken.None, isLoadChildScene: true, priority);
                 }
 
                 await LoadUnityScene(sceneIdentify, _currentScenes[sceneIdentify].SceneBase, CancellationToken.None, isLoadChildScene: true, priority);
