@@ -33,13 +33,11 @@ AbstractApplicationInitializer (OneStarMaker.Runtime)
   │     └── new SceneDirector(...)
   ├── BootstrapAfterSceneLoad()         … 非同期初期化
   │     ├── OnServicesInitializing()    … virtual（Phase 2: HostedService 登録）
-  │     ├── RegisterAlreadyLoadedScenes()  … Editor Play 済みシーンの登録
-  │     └── AddScene(firstScene)        … 初回シーンのロード
+  │     └── RegisterAlreadyLoadedScenes()  … Editor Play 済みシーンの登録
   │
   ├── GetUICommonPrefabAddress()        … abstract
   ├── GetSceneResourceMapAddress()      … abstract
-  ├── GetLoadingSceneIdentify()         … abstract
-  ├── GetFirstSceneIdentify()           … abstract
+  ├── CreateLoadingDisplay()            … abstract
   ├── GetConfigFilePath()               … virtual（デフォルト: StreamingAssets/app-config.json）
   └── GetEnvironmentVariablePrefix()    … virtual（デフォルト: ""）
 
@@ -66,8 +64,8 @@ sealed class AppInitializer : AbstractApplicationInitializer
     protected override ISceneFactory CreateSceneFactory() => new MySceneFactory(Config!);
     protected override string GetUICommonPrefabAddress()  => "Assets/Prefabs/UICommon.prefab";
     protected override string GetSceneResourceMapAddress() => "Assets/SceneMap/Map.asset";
-    protected override string GetLoadingSceneIdentify()   => "Loading";
-    protected override string GetFirstSceneIdentify()     => "Title";
+    protected override ILoadingDisplay CreateLoadingDisplay() => new MyLoadingDisplay();
+    protected override string GetConfigFilePath()         => Path.Combine(Application.streamingAssetsPath, "app-config.json");
     protected override string GetEnvironmentVariablePrefix() => "ONESM_";
 }
 ```
@@ -76,24 +74,27 @@ sealed class AppInitializer : AbstractApplicationInitializer
 
 | タイミング | 呼び出し元 | 目的 |
 |---|---|---|
-| `Application.quitting` | イベント | Play 終了時の正常クリーンアップ |
+| `Application.quitting` | イベント | Play 終了時の正常クリーンアップ（Shutdown） |
 | `SubsystemRegistration` | Unity | Domain Reload 無効時の前回セッション解放（二重保護） |
 
 `ReleaseAll()` は複数回呼び出しても安全。null チェック + null 代入パターン。
 
-```csharp
-private void ReleaseAll()
-{
-    Application.quitting -= OnApplicationQuitting;
-    _cts?.Cancel();
-    _cts?.Dispose();
-    _cts = null;
-    _sceneDirector?.Dispose();
-    _sceneDirector = null;
-    _sceneResourceMap = null;
-    // GameObject は Destroy + null 代入
-}
+**Shutdown 契約（通常の `UnloadScene` 3フェーズとは別）:**
+
+Play Mode 終了時は Unity が先に Scene を解体する。そのあとで `Addressables.UnloadSceneAsync` を呼ぶと
+`Cannot find handle for scene` になるため、teardown では Scene backend Unload を行わない。
+
 ```
+Initializer.ReleaseAll()
+  ├── cancel CTS / stop services
+  ├── SceneDirector.Dispose()       … 論理 Scene 台帳と SceneBase のみ破棄（AM Unload は呼ばない）
+  ├── AssetManagement.ReleaseAll()  … 未 Unload Scene を台帳上 MarkUnloaded + 全アセットを同期解放
+  │                                   （Addressables Scene Unload は呼ばない）
+  ├── UICommon 等の残存 GO 破棄
+  └── AppTelemetry.Shutdown()
+```
+
+ゲーム中の正式アンロードは引き続き `SceneDirector.UnloadScene` → Phase 2 `UnloadSceneAsync` → Phase 3 `ReleaseScene` が担う。
 
 ## 4.4 サービス注入パターン（手動 DI）
 
@@ -223,11 +224,27 @@ private async UniTaskVoid InitializeAfterSceneLoad()
 ## 4.6 Play-from-any-scene（Editor 対応）
 
 `AfterSceneLoad` で `SceneManager.sceneCount` を走査し、既にロード済みのシーンを `SceneDirector.AddScene` で登録する。
+**Build Settings の Scene 0 を別途 `AddScene` する処理は持たない。** Editor で開いたシーンがそのまま初回シーンになる。
 
 - `AddScene` は冪等（既に登録済みならスキップ）。
 - `PerformUnitySceneLoad` が `SceneManager.GetSceneByName` でロード済みシーンを検出し、再ロードしない。
 - `SceneResourceMap` に未登録のシーン（テストシーン等）はスキップしてログ出力する。
-- Build 時は Scene 0 = `firstSceneIdentify` なので二重ロードは発生しない。
+- ビルド時は Build Settings の Scene 0 が唯一の初回 Unity シーン。`RegisterAlreadyLoadedScenes` は Scene 0 を登録するだけで二重ロードは発生しない。
+
+### InGameSession の初回 Level 解決（Play-from-level-scene）
+
+`InGameSession.OnLoadedImpl` は `InGameArgs.TransitionLevel` が無い場合、Editor で Level シーンから直接 Play したケースに備えて初回 Level を推定する。
+
+```
+優先順位:
+  1. InGameArgs.TransitionLevel（通常の OutGame → InGame 遷移）
+  2. SceneManager.GetActiveScene().name が SeasonWorldCatalog.Chain に含まれる
+  3. SceneManager.sceneCount 走査で最初に見つかった Chain 一致シーン
+  4. 解決不能 → 警告ログのみ。Coordinator は起動しない（Spring 等への暗黙デフォルトなし）
+```
+
+`LevelStreamCoordinator.EnsureLevelLoadedAsync` は既に Stable / in-flight の Level をそのまま扱うため、
+`RegisterAlreadyLoadedScenes` で Level が先に登録されていても安全。
 
 ## 4.7 設定の読み込み（AppConfig）
 

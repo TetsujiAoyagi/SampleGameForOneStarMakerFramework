@@ -354,8 +354,26 @@ public class EquipmentScene : SceneBase
 | LoadType | 動作 | 用途 |
 |---|---|---|
 | `NecessaryAlways` | 親ロード時に同期的（await）にロード | HUD 等、親と同時に必要なもの |
-| `Incremental` | 親ロード時に非同期（Forget）でロード | バックグラウンドで先読みしたいもの |
+| `IncrementalAlways` | 親ロード時に非同期（Forget）でロード | バックグラウンドで先読みしたいもの |
 | `OnDemand` | 明示的な `AddScene` 呼び出し時のみロード | ポーズメニュー、リザルト等 |
+
+### AddScene の祖先ロード
+
+深いシーンを `AddScene` すると、`CollectNecessaryScenes` で祖先チェーン（ルート→…→直接の親）を収集し、
+**各祖先も `isLoadChildren: true` / `isLoadChildScene: true` でロードする。**
+ターゲット自身と同じ LoadType 再帰規則が祖先にも適用される。
+
+| LoadType | 祖先ロード中の挙動 |
+|---|---|
+| `NecessaryAlways` | 同期的（await）に PreLoad + Unity Scene ロード |
+| `IncrementalAlways` | バックグラウンド（Forget）で PreLoad + Unity Scene ロード |
+| `OnDemand` | ロードしない（明示的 `AddScene` のみ） |
+
+例: `Session` 配下に `Always` [NecessaryAlways] と `Demand` / `OtherDemand` [OnDemand] があるとき、
+`AddScene("Demand")` は `Session` と `Always` を Stable までロードするが、`OtherDemand` はロードしない。
+
+例: `Root → Mid` [NecessaryAlways] `→ Leaf` [OnDemand] のとき、
+`AddScene("Leaf")` は `Root` / `Mid` / `Leaf` の3つすべて Stable になる。
 
 ## 5.8 キャンセル処理
 
@@ -409,10 +427,17 @@ sibling 間参照を保証するため、子孫のアンロードを3フェー�
 
 ```
 Phase 1: 全子孫の ViewOut + PreUnload（全 Unity Scene がまだ残っている → sibling 参照可能）
-Phase 2: 全子孫の Unity Scene アンロード
-Phase 3: 全子孫の AfterUnload + Dispose + 辞書除去
+Phase 2: 全子孫の Unity Scene アンロード（AssetManagement.UnloadSceneAsync / Addressables）
+Phase 3: 全子孫の AfterUnload + ReleaseScene（所有アセットのみ）+ Dispose + 辞書除去
 最後に self を同じ順序で処理
 ```
+
+Phase 3 の `ReleaseScene` は所有アセット解放専用で、backend Scene Unload は行わない（Phase 2 済みが前提）。
+未 Unload の Scene に対して `ReleaseScene` を呼ぶと契約違反として例外になる。
+
+`SceneDirector.Dispose`（Play 終了の Initializer.ReleaseAll から呼ばれる）は論理台帳と SceneBase のみ破棄し、
+`AssetManagement.ReleaseScene` / Addressables Unload は呼ばない。実リソースの teardown は直後の
+`AssetManagement.ReleaseAll()`（Shutdown 契約: Scene Unload なし・同期解放）に一元化する。
 
 アンロードは完全非キャンセル。`CancellationToken` を引数に取らない。
 

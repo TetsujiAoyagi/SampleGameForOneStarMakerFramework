@@ -71,5 +71,32 @@ namespace OneStarMaker.Tests.SceneSystem
             Assert.IsTrue(afterCalled);
             Assert.AreEqual(SceneState.Stable, director.GetSceneState("TestScene"));
         });
+
+        [UnityTest]
+        public IEnumerator AddScene_ThreeLevelOnDemandLeaf_LoadsAncestorsAndLeafToStable() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                var director = SetupThreeLevel(
+                    midLoadType: LoadType.NecessaryAlways,
+                    leafLoadType: LoadType.OnDemand);
+                await director.AddScene("Leaf", null, CancellationToken.None);
+
+                Assert.AreEqual(SceneState.Stable, director.GetSceneState("Root"));
+                Assert.AreEqual(SceneState.Stable, director.GetSceneState("Mid"));
+                Assert.AreEqual(SceneState.Stable, director.GetSceneState("Leaf"));
+            });
+
+        [UnityTest]
+        public IEnumerator AddScene_OnDemandChild_LoadsNecessaryAlwaysSiblingOnly() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                var director = SetupParentWithMixedChildren();
+                await director.AddScene("Demand", null, CancellationToken.None);
+
+                Assert.AreEqual(SceneState.Stable, director.GetSceneState("Session"));
+                Assert.AreEqual(SceneState.Stable, director.GetSceneState("Always"));
+                Assert.AreEqual(SceneState.Stable, director.GetSceneState("Demand"));
+                Assert.IsFalse(director.ContainsScene("OtherDemand"));
+            });
     }
 }

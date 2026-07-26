@@ -622,6 +622,12 @@ namespace OneStarMaker.Runtime
         /// <summary>
         /// 全リソースを解放する。SubsystemRegistration と Application.quitting の双方から呼ばれる。
         /// 複数回呼び出しても安全。
+        ///
+        /// Shutdown 契約（通常の UnloadScene 3フェーズとは別）:
+        /// 1. SceneDirector.Dispose … 論理 Scene 台帳と SceneBase のみ破棄（AM Unload は呼ばない）
+        /// 2. AssetManagement.ReleaseAll … Addressables Scene Unload なしで台帳 MarkUnloaded + 全アセット同期解放
+        /// Play Mode 終了では Unity が先に Scene を解体するため、ここで Addressables Unload すると
+        /// 「Cannot find handle for scene」になる。正式 Unload はゲーム中の UnloadScene 経路だけが担う。
         /// </summary>
         private void ReleaseAll()
         {
@@ -645,10 +651,12 @@ namespace OneStarMaker.Runtime
 
             _config = null;
 
+            // 論理台帳のみ。AssetManagement の Scene Unload は誘発しない。
             _sceneDirector?.Dispose();
             _sceneDirector = null;
 
-            // UICommon シーン / SceneResourceMap / Config 等の App 常駐ハンドルを一括 Release
+            // Shutdown: Scene backend Unload なし・同期で全アセット解放
+            // （UICommon / SceneResourceMap / Config / 各 Scene 所有分を含む）
             _assetManagement?.ReleaseAll();
             _assetManagement = null;
 

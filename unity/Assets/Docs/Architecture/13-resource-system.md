@@ -111,7 +111,12 @@ public interface IAssetManagement
     UniTask<IAssetHandle<T>> LoadAssetAsync<T>(AssetKey key, AssetOwner owner, CancellationToken ct = default)
         where T : UnityEngine.Object;
     IAssetHandle<T> LoadAppAssetSync<T>(AssetKey key) where T : UnityEngine.Object;
-    UniTask<ISceneHandle> LoadSceneAsync(SceneAssetDescription desc, string variant, AssetOwner owner, SceneLoadOptions options = default, CancellationToken ct = default);
+    UniTask<ISceneHandle> LoadSceneAsync(
+        string sceneIdentity,
+        SceneAssetDescription desc,
+        string variant = "",
+        SceneLoadOptions options = default,
+        CancellationToken ct = default);
     UniTask UnloadSceneAsync(string sceneIdentity, CancellationToken ct = default);
     UniTask<GameObject> InstantiateAsync(AssetKey key, Transform? parent = null, bool worldSpace = false, CancellationToken ct = default);
     void Release(IAssetHandle handle);
@@ -121,6 +126,17 @@ public interface IAssetManagement
 ```
 
 `AssetOwner.App` / `AssetOwner.Scene(sceneIdentity)` / `AssetOwner.Bind(go)` / `AssetOwner.Manual` で寿命を明示する。内部 backend は `IAssetBackend` で、`AsyncOperationHandle` / `SceneInstance` / `Addressables.` は公開 API に出さない。
+
+### Scene 解放の役割分担
+
+| API | 用途 | Scene backend Unload | 同期性 |
+|---|---|---|---|
+| `UnloadSceneAsync` | 通常 gameplay（SceneDirector Phase 2） | する | await 可能 |
+| `ReleaseScene` | 所有アセット解放（Phase 3）。未 Unload Scene 本体が残っていると例外 | しない | 同期 |
+| `ReleaseAll` | quitting / SubsystemRegistration の Shutdown。Unity 解体済み前提 | **しない**（台帳 MarkUnloaded のみ） | **同期** |
+
+Play Mode 終了で `Addressables.UnloadSceneAsync` を呼ぶと `Cannot find handle for scene` になり得るため、
+`ReleaseAll` は意図的に backend Scene Unload を行わない。`.Forget()` による非同期 Unload も持たない。
 
 ### IResourceHandle / IResourceCache（不採用: 独立レイヤー案）
 

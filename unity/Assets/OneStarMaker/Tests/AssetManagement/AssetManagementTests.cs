@@ -93,7 +93,58 @@ namespace OneStarMaker.Tests.AssetManagement
 
             Assert.That(handle.Identity, Is.EqualTo("TestScene"));
             Assert.That(handle.IsLoaded, Is.False);
+            Assert.That(_backend.UnloadSceneCallCount, Is.EqualTo(1));
             Assert.That(_backend.ReleaseCallCount, Is.GreaterThan(0));
+        });
+
+        [UnityTest]
+        public IEnumerator Scene_Unload_Then_ReleaseScene_DoesNotUnloadAgain() => UniTask.ToCoroutine(async () =>
+        {
+            var desc = CreateSceneDescription("Battle", "Assets/Scenes/Battle.unity");
+            await _assetManagement.LoadSceneAsync("Battle", desc, string.Empty);
+            await _assetManagement.LoadAssetAsync<GameObject>(
+                AssetKey.FromAddress("Assets/Prefabs/BattleOwned.prefab"),
+                AssetOwner.Scene("Battle"));
+
+            await _assetManagement.UnloadSceneAsync("Battle");
+            Assert.That(_backend.UnloadSceneCallCount, Is.EqualTo(1));
+
+            // Phase 3 相当: 所有アセット解放のみ。backend Unload は増えない。
+            _assetManagement.ReleaseScene("Battle");
+            Assert.That(_backend.UnloadSceneCallCount, Is.EqualTo(1));
+            Assert.That(_assetManagement.LoadedAssetCountForTests, Is.EqualTo(0));
+        });
+
+        [UnityTest]
+        public IEnumerator Scene_ReleaseScene_WhileStillLoaded_Throws() => UniTask.ToCoroutine(async () =>
+        {
+            var desc = CreateSceneDescription("StillLoaded", "Assets/Scenes/StillLoaded.unity");
+            await _assetManagement.LoadSceneAsync("StillLoaded", desc, string.Empty);
+
+            Assert.Throws<System.InvalidOperationException>(() =>
+                _assetManagement.ReleaseScene("StillLoaded"));
+            // 契約違反で投げただけなので backend Unload は走っていないこと。
+            Assert.That(_backend.UnloadSceneCallCount, Is.EqualTo(0));
+        });
+
+        [UnityTest]
+        public IEnumerator Scene_ReleaseAll_SkipsBackendUnload_AndReleasesAssets() => UniTask.ToCoroutine(async () =>
+        {
+            var desc = CreateSceneDescription("TeardownScene", "Assets/Scenes/Teardown.unity");
+            await _assetManagement.LoadSceneAsync("TeardownScene", desc, string.Empty);
+            await _assetManagement.LoadAssetAsync<GameObject>(
+                AssetKey.FromAddress("Assets/Prefabs/TeardownOwned.prefab"),
+                AssetOwner.Scene("TeardownScene"));
+            await _assetManagement.LoadAssetAsync<GameObject>(
+                AssetKey.FromAddress("Assets/Prefabs/TeardownApp.prefab"),
+                AssetOwner.App);
+
+            // Shutdown 契約: 未 Unload Scene が残っていても Addressables/backend Unload は呼ばない。
+            _assetManagement.ReleaseAll();
+
+            Assert.That(_backend.UnloadSceneCallCount, Is.EqualTo(0));
+            Assert.That(_backend.ReleaseCallCount, Is.EqualTo(2));
+            Assert.That(_assetManagement.LoadedAssetCountForTests, Is.EqualTo(0));
         });
 
         [UnityTest]

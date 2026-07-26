@@ -30,7 +30,11 @@ namespace OneStarMaker.Runtime.AssetManagement
             SceneLoadOptions options = default,
             CancellationToken ct = default);
 
-        /// <summary>指定シーン本体をアンロードする。所有アセットの解放は ReleaseScene が担当する。</summary>
+        /// <summary>
+        /// 指定シーン本体を backend（Addressables 等）経由でアンロードする。
+        /// 通常 gameplay の SceneDirector 3フェーズ Phase 2 専用。
+        /// 所有アセットの解放は続けて <see cref="ReleaseScene"/> が担当する。
+        /// </summary>
         UniTask UnloadSceneAsync(string sceneIdentity, CancellationToken ct = default);
 
         /// <summary>Prefab を生成し、生成 GameObject の破棄時にインスタンス寿命を解放する。</summary>
@@ -43,10 +47,22 @@ namespace OneStarMaker.Runtime.AssetManagement
         /// <summary>Manual owner で取得したハンドルを明示解放する。</summary>
         void Release(IAssetHandle handle);
 
-        /// <summary>指定シーン所有のアセットとシーンハンドルを解放する。</summary>
+        /// <summary>
+        /// 指定シーン identity が所有するアセットだけを解放する（Phase 3 / 所有解放専用）。
+        /// シーン本体の backend Unload は行わない。
+        /// registry に「まだ Unload されていない Scene 本体」が残っている状態で呼ぶと
+        /// <see cref="System.InvalidOperationException"/> を投げる
+        /// （先に <see cref="UnloadSceneAsync"/> するか、teardown なら <see cref="ReleaseAll"/> を使うこと）。
+        /// Scene 本体を載せずに <c>AssetOwner.Scene</c> だけで所有しているアセットは、従来どおり解放できる。
+        /// </summary>
         void ReleaseScene(string sceneIdentity);
 
-        /// <summary>アプリ終了時に全ロード済みリソースを解放する。</summary>
+        /// <summary>
+        /// プロセス／Play Mode 終了向けの同期 teardown。
+        /// Unity 側が既に Scene を解体している前提のため、Addressables の Scene Unload は呼ばない。
+        /// 未アンロード扱いの Scene を台帳上だけ MarkUnloaded し、全アセットを同期解放する。
+        /// Application.quitting / SubsystemRegistration から Initializer.ReleaseAll 経由で呼ばれる。
+        /// </summary>
         void ReleaseAll();
     }
 }

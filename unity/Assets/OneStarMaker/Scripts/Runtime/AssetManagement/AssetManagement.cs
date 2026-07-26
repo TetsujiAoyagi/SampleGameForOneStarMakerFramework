@@ -163,62 +163,39 @@ namespace OneStarMaker.Runtime.AssetManagement
             ReleaseKey(handle.Key);
         }
 
+        /// <inheritdoc/>
         public void ReleaseScene(string sceneIdentity)
         {
+            // 契約: ReleaseScene は「所有アセット解放」だけ。Scene 本体の backend Unload はしない。
+            // 通常 gameplay では Phase 2 (UnloadSceneAsync) → Phase 3 (ここ) の順が必須。
+            // Play Mode 終了などで未 Unload のまま来た場合は、ここではなく ReleaseAll（Shutdown）を使う。
             if (_registry.TryGetScene(sceneIdentity, out var scene) && !scene.IsUnloaded)
             {
-                // 未アンロード（Dispose 経路）なら、アンロード完了後に所有アセットを解放して順序を保証する。
-                // シーン内 GO が生きたまま Addressables 参照を切ると MissingReference を招くため。
-                UnloadThenReleaseSceneAsync(sceneIdentity, scene).Forget();
-                return;
+                throw new InvalidOperationException(
+                    $"ReleaseScene('{sceneIdentity}') は未アンロードの Scene 本体に対して呼べません。" +
+                    " 先に UnloadSceneAsync するか、teardown なら ReleaseAll を使ってください。");
             }
 
-            // 既にアンロード済み（通常の 3-Phase Phase3）なら同期で所有アセットのみ解放する。
             foreach (var loaded in _registry.ReleaseSceneOwned(sceneIdentity))
             {
                 ReleaseOrStore(loaded);
             }
         }
 
-        private async UniTaskVoid UnloadThenReleaseSceneAsync(string sceneIdentity, AssetRegistry.LoadedScene scene)
-        {
-            await _backend.UnloadSceneAsync(scene.Backend, CancellationToken.None);
-            _registry.MarkSceneUnloaded(sceneIdentity);
-            foreach (var loaded in _registry.ReleaseSceneOwned(sceneIdentity))
-            {
-                ReleaseOrStore(loaded);
-            }
-        }
-
+        /// <inheritdoc/>
         public void ReleaseAll()
         {
-            var loadedScenes = new List<AssetRegistry.LoadedScene>();
+            // Shutdown 契約:
+            // Application.quitting / Play Mode 終了では Unity が先に Scene を解体している。
+            // その状態で Addressables.UnloadSceneAsync を呼ぶと
+            // 「Cannot find handle for scene」になり得るため、backend Unload は一切行わない。
+            // 台帳上の Scene を MarkUnloaded し、所有アセットと App スコープ資産を同期で一気に落とす。
             foreach (var scene in _registry.GetScenes())
             {
                 if (!scene.IsUnloaded)
                 {
-                    loadedScenes.Add(scene);
+                    _registry.MarkSceneUnloaded(scene.Identity);
                 }
-            }
-
-            if (loadedScenes.Count > 0)
-            {
-                // ロード中シーンを全てアンロード完了させてから全アセットを解放する（順序保証）。
-                // シーン内 GO が生きたまま Addressables 参照を切ると MissingReference を招くため。
-                UnloadScenesThenReleaseAllAsync(loadedScenes).Forget();
-                return;
-            }
-
-            // 既にシーンが全てアンロード済み、またはシーンが無い場合は同期で解放（従来挙動と等価）。
-            ReleaseAllAssetsNow();
-        }
-
-        private async UniTaskVoid UnloadScenesThenReleaseAllAsync(List<AssetRegistry.LoadedScene> scenes)
-        {
-            foreach (var scene in scenes)
-            {
-                await _backend.UnloadSceneAsync(scene.Backend, CancellationToken.None);
-                _registry.MarkSceneUnloaded(scene.Identity);
             }
 
             ReleaseAllAssetsNow();

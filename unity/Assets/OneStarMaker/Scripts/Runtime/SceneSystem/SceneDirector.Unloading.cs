@@ -215,7 +215,9 @@ namespace OneStarMaker.Runtime.SceneSystem
         }
 
         /// <summary>
-        /// Phase 3: AfterUnload + Dispose + 辞書除去。
+        /// Phase 3: AfterUnload + 所有アセット Release + Dispose + 辞書除去。
+        /// この時点では Phase 2 で Scene 本体は既に Unload 済みなので、
+        /// <see cref="IAssetManagement.ReleaseScene"/> は所有アセット解放のみを行う（backend Unload はしない）。
         /// </summary>
         private async UniTask PhaseAfterUnloadAndDispose(string sceneIdentify)
         {
@@ -225,7 +227,7 @@ namespace OneStarMaker.Runtime.SceneSystem
             }
 
             await pair.SceneBase.ExecuteAfterUnLoad();
-            // Phase 3: PreLoad アセット + シーンハンドルをまとめて Release
+            // Phase 3: Scene 所有の PreLoad アセット等を解放（Scene 本体は Phase 2 済み）
             _assetManagement.ReleaseScene(sceneIdentify);
             pair.SceneBase.Dispose();
             _currentScenes.Remove(sceneIdentify);

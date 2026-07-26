@@ -170,6 +170,8 @@ namespace OneStarMaker.Runtime.SceneSystem
 
         /// <summary>
         /// 親シーンを再帰的に収集する（ルート方向から順に並ぶ）。
+        /// AddSceneCore では収集した各祖先を isLoadChildren / isLoadChildScene: true でロードし、
+        /// NecessaryAlways / IncrementalAlways / OnDemand の再帰規則をターゲットと同一に適用する。
         /// </summary>
         private static void CollectNecessaryScenes(SceneResource sceneResource, List<SceneResource> list)
         {
@@ -181,20 +183,22 @@ namespace OneStarMaker.Runtime.SceneSystem
         }
 
         /// <summary>
-        /// 全シーンを解放する。
-        /// 各 sceneId に対して ReleaseSceneAsync を非同期で発行し、SceneBase を Dispose する。
-        /// App 常駐分（UICommon 等）の Release は AbstractApplicationInitializer.ReleaseAppAll が担当。
+        /// SceneDirector 自身の台帳と SceneBase だけを破棄する（teardown / Dispose 専用）。
+        /// AssetManagement の Scene Unload や所有アセット解放はここでは行わない。
+        /// Play Mode 終了時に Addressables.UnloadSceneAsync を誘発すると
+        /// Unity 解体済み Scene に対する「Cannot find handle」になるため、
+        /// 実リソース解放は直後の <c>AssetManagement.ReleaseAll()</c>（Shutdown 契約）に一元化する。
         /// </summary>
         private void Release()
         {
             foreach (var kvp in _currentScenes)
             {
-                var pair = kvp.Value;
-                _assetManagement.ReleaseScene(kvp.Key);
-                pair.SceneBase.Dispose();
+                kvp.Value.SceneBase.Dispose();
             }
+
             _currentScenes.Clear();
             _sceneHistory.Clear();
+            _pendingUnloads.Clear();
             _sceneEventSubject.Dispose();
         }
 

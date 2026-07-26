@@ -54,15 +54,21 @@ namespace OneStarMaker.Runtime.AssetManagement.Internal
 
         public async UniTask UnloadSceneAsync(IBackendScene scene, CancellationToken ct)
         {
-            if (scene is not AddressableScene addressableScene || !addressableScene.SceneInstance.Scene.IsValid())
+            // 通常 gameplay Unload の防衛:
+            // Scene.IsValid だけ見ると、Play Mode 終了直後などで
+            // Unity Scene はまだ Valid に見えても Addressables の handle マップが消えていることがある。
+            // その状態で UnloadSceneAsync(SceneInstance) すると「Cannot find handle for scene」になる。
+            // ロード時に保持した AsyncOperationHandle の IsValid と isLoaded を見てから Unload する。
+            if (scene is not AddressableScene addressableScene || !addressableScene.CanUnloadViaAddressables)
             {
                 return;
             }
 
-            var handle = Addressables.UnloadSceneAsync(
-                addressableScene.SceneInstance,
+            // SceneInstance 経由より handle 経由の方が Addressables 内部対応と一致しやすい。
+            var unloadHandle = Addressables.UnloadSceneAsync(
+                addressableScene.Handle,
                 UnloadSceneOptions.None);
-            await AwaitHandle(handle, ct);
+            await AwaitHandle(unloadHandle, ct);
         }
 
         public async UniTask<IBackendInstance> InstantiateAsync(
@@ -138,15 +144,30 @@ namespace OneStarMaker.Runtime.AssetManagement.Internal
                 _handle = handle;
             }
 
+            /// <summary>ロード時の Addressables ハンドル。Unload はこれを正とする。</summary>
+            public AsyncOperationHandle<SceneInstance> Handle => _handle;
+
             public SceneInstance SceneInstance => _handle.Result;
 
             public bool IsLoaded => _handle.IsValid() && SceneInstance.Scene.isLoaded;
 
-            public string Name => SceneInstance.Scene.name;
+            /// <summary>
+            /// Addressables.UnloadSceneAsync を安全に呼べるか。
+            /// handle が無効、または Unity Scene が既に unloaded なら false。
+            /// </summary>
+            public bool CanUnloadViaAddressables =>
+                _handle.IsValid()
+                && SceneInstance.Scene.IsValid()
+                && SceneInstance.Scene.isLoaded;
+
+            public string Name =>
+                _handle.IsValid() && SceneInstance.Scene.IsValid()
+                    ? SceneInstance.Scene.name
+                    : string.Empty;
 
             public GameObject[] GetRootGameObjects()
             {
-                return SceneInstance.Scene.IsValid()
+                return _handle.IsValid() && SceneInstance.Scene.IsValid()
                     ? SceneInstance.Scene.GetRootGameObjects()
                     : Array.Empty<GameObject>();
             }

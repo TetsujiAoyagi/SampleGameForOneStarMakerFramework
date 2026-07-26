@@ -192,7 +192,7 @@ internal interface IAssetResidentCache
 
 - キャッシュ無効時（null 設定）に**分岐が増えないこと**。null チェック分岐を散らすより、何もしない `NullResidentCache`（TryTake は常に false、Store は即 release 相当= backend.Release を呼ぶ実装 or AssetManagement 側で null 時は従来コードパス）のどちらかに統一する。推奨は「`_cache` が null なら従来コードパス」の単純分岐を各解放箇所に閉じ込めるヘルパー `ReleaseOrStore(LoadedAsset)` を 1 つ作ること。
 - **本番の budget 配線は `AssetManagement(MemoryBudgetConfig)` ctor 内**で行う: `halfLifeSeconds = config.HalfLifeSeconds`、`releaseAsset = _backend.Release`。`AbstractApplicationInitializer` の変更はスコープ外（budgetConfig を渡す配線は次パス）。
-- シーンは `_assets` 台帳に入らない（`_scenes` 別管理）ため、キャッシュ経路に乗らないことを前提にできる。ただし `ReleaseScene` の非同期経路（`UnloadThenReleaseSceneAsync`）でもシーン**所有アセット**は `ReleaseOrStore` を通すこと。
+- シーンは `_assets` 台帳に入らない（`_scenes` 別管理）ため、キャッシュ経路に乗らないことを前提にできる。`ReleaseScene` は所有アセット解放専用（同期）で、シーン**所有アセット**は `ReleaseOrStore` を通すこと。未 Unload Scene 本体が残っている場合の teardown は `ReleaseAll`（Shutdown）が担う。
 - in-flight dedup との順序: registry → cache → in-flight → backend。cache ヒット時に in-flight テーブルを触らない。
 - `AttachDestroyReleaseIfNeeded` など既存の owner 処理はキャッシュヒット経路でも従来どおり呼ぶ。
 

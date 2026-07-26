@@ -162,5 +162,39 @@ namespace OneStarMaker.Tests.SceneSystem
             Director = new TestableSceneDirector(Factory, UICommon, Map, AssetManagement);
             return Director;
         }
+
+        /// <summary>
+        /// 親の下に NecessaryAlways 1 つと OnDemand 複数をぶら下げる。
+        /// AddScene 祖先ロードの LoadType 再帰テスト用。
+        /// </summary>
+        protected TestableSceneDirector SetupParentWithMixedChildren(
+            string parentId = "Session",
+            string necessaryChildId = "Always",
+            string onDemandChildId = "Demand",
+            string extraOnDemandChildId = "OtherDemand")
+        {
+            var parentRes = SceneTestHelper.CreateSceneResource(parentId);
+            var necessaryRes = SceneTestHelper.CreateSceneResource(
+                necessaryChildId, LoadType.NecessaryAlways, parentRes);
+            var demandRes = SceneTestHelper.CreateSceneResource(
+                onDemandChildId, LoadType.OnDemand, parentRes);
+            var extraRes = SceneTestHelper.CreateSceneResource(
+                extraOnDemandChildId, LoadType.OnDemand, parentRes);
+            SceneTestHelper.AddChild(parentRes, necessaryRes);
+            SceneTestHelper.AddChild(parentRes, demandRes);
+            SceneTestHelper.AddChild(parentRes, extraRes);
+
+            CreatedSOs.Add(parentRes);
+            CreatedSOs.Add(necessaryRes);
+            CreatedSOs.Add(demandRes);
+            CreatedSOs.Add(extraRes);
+
+            Map = SceneTestHelper.CreateSceneResourceMap(
+                parentRes, necessaryRes, demandRes, extraRes);
+            CreatedSOs.Add(Map);
+
+            Director = new TestableSceneDirector(Factory, UICommon, Map, AssetManagement);
+            return Director;
+        }
     }
 }
