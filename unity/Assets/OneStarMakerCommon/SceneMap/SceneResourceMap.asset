@@ -13,6 +13,16 @@ MonoBehaviour:
   m_Name: SceneResourceMap
   m_EditorClassIdentifier: OneStarMaker.Runtime::OneStarMaker.Runtime.SceneSystem.SceneResourceMap
   _sceneResources:
+  - {fileID: 11400000, guid: 8f92634236aeb6f41afbd64e32f4c42e, type: 2}
+  - {fileID: 11400000, guid: 916cca3936a9ab146b157dfacd3d99fd, type: 2}
+  - {fileID: 11400000, guid: d179832e05a509e4d87170dfa73a1c1f, type: 2}
+  - {fileID: 11400000, guid: 235c5b8b1abd83e4a8b9e475eea71341, type: 2}
+  - {fileID: 11400000, guid: 081bcdf893d944040a71107f810caca6, type: 2}
   - {fileID: 11400000, guid: c0ed934d0c48a3a40abdac1ae766f241, type: 2}
+  - {fileID: 11400000, guid: 195e12b4ea3c47c48bdc9cfa822b9719, type: 2}
+  - {fileID: 11400000, guid: ff353bec21cdc9247a42df5774827c36, type: 2}
+  - {fileID: 11400000, guid: a0336d1f6a5765c47a80415b147964ef, type: 2}
+  - {fileID: 11400000, guid: 932cff84725853f478170017f34767f9, type: 2}
   - {fileID: 11400000, guid: 857e7ad69c4baba4bbc8ed69eade0171, type: 2}
-  _generateHash: 2bd1e807d0b5825f
+  - {fileID: 11400000, guid: 4b7ee419b080892438285e13029e198e, type: 2}
+  _generateHash: 9dccebc717d771f4

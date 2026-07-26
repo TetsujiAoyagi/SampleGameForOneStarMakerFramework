@@ -1,10 +1,12 @@
 #nullable enable
 
-using System.Threading;
 using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using OneStarMaker.Runtime.SceneSystem;
+using SampleGame.Common;
 using SampleGame.OutGame.Background;
+using System;
+using System.Threading;
 using ZLogger;
 
 namespace SampleGame.OutGame.Title
@@ -67,6 +69,28 @@ namespace SampleGame.OutGame.Title
         private void HandleStartRequested()
         {
             _logger.ZLogInformation($"Start requested.");
+            // 投げっぱなし
+            SwitchToHomeAsync(CancellationToken.None).Forget();
+        }
+
+        private async UniTaskVoid SwitchToHomeAsync(CancellationToken ct)
+        {
+            try
+            {
+                await SceneController.SwitchScene(
+                    fromSceneIdentify: SceneIds.Title.idToName(),
+                    toSceneIdentify: SceneIds.HomeScene.idToName(),
+                    ct: ct); // Show キャンセル不要なら None
+            }
+            catch (OperationCanceledException)
+            {
+                // Show 中キャンセルだけ。通常は何もしない
+            }
+            catch (Exception ex)
+            {
+                _logger.ZLogError(ex, $"Title → Home 失敗 {ex.Message}");
+                // 必要なら UI にエラー表示。再 throw しない（Forget 経路）
+            }
         }
 
         private void RequestParentBackground(OutGameBackgroundDefinition definition)

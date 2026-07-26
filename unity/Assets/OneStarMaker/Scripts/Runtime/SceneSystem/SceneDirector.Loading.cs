@@ -554,6 +554,8 @@ namespace OneStarMaker.Runtime.SceneSystem
             _sceneEventSubject.OnNext(new SceneEvent(
                 SceneEventType.Added, sceneIdentify, SceneState.Stable,
                 sceneBase.Lifecycle.LastPhaseElapsedMs));
+
+            await sceneBase.ExecuteStabled();
         }
 
         /// <summary>

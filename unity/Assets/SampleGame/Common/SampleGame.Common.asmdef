@@ -3,14 +3,14 @@
     "rootNamespace": "SampleGame.Common",
     "references": [
         "OneStarMaker.Foundation",
-        "OneStarMaker.Runtime"
+        "OneStarMaker.Runtime",
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": true,
     "precompiledReferences": [
-        "UniTask.dll",
         "R3.dll",
         "ObservableCollections.dll"
     ],

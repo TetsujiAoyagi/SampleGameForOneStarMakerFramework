@@ -382,7 +382,8 @@ namespace OneStarMaker.Runtime.SceneSystem
         ///
         /// <para>AssetManagement 経由でロードしたシーン（addressablesSceneLoaded=true）は
         /// AssetManagement.UnloadSceneAsync を呼ぶ（Phase 2）。
-        /// Editor 既存シーン等（false）は SceneManager.UnloadSceneAsync にフォールバックする。</para>
+        /// Editor 既存シーン等（false）は SceneManager.UnloadSceneAsync にフォールバックする。
+        /// Payload 空の論理ノードは Unity Scene 実体を持たないため、UnloadSceneAsync を呼ばない。</para>
         /// </summary>
         /// <param name="sceneIdentify">対象シーンの Identity。</param>
         /// <param name="addressablesSceneLoaded">PerformUnitySceneLoad の戻り値 AddressablesLoaded。</param>
@@ -393,6 +394,15 @@ namespace OneStarMaker.Runtime.SceneSystem
             {
                 // Phase 2: Unity Scene アンロードのみ。所有アセット Release は Phase 3
                 await _assetManagement.UnloadSceneAsync(sceneIdentify);
+                return;
+            }
+
+            // 空 Payload の論理ノード（InGameScene / InGameSession 等）は
+            // PerformUnitySceneLoad が AddressablesLoaded=false・RootObjects 空で返す。
+            // 実体の無い名前で UnloadSceneAsync すると "Scene to unload is invalid" になるためスキップする。
+            var unityScene = SceneManager.GetSceneByName(sceneIdentify);
+            if (!unityScene.IsValid() || !unityScene.isLoaded)
+            {
                 return;
             }
 

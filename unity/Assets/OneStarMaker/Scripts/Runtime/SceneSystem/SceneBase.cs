@@ -159,6 +159,11 @@ namespace OneStarMaker.Runtime.SceneSystem
         {
             await OnLoadedImpl(ct);
         }
+        
+        internal async UniTask ExecuteStabled()
+        {
+            await OnStabledImpl();
+        }
 
         /// <summary>PreUnloading → PreUnloaded。リソース解放の準備。キャンセル不可。</summary>
         internal async UniTask ExecutePreUnLoad()
@@ -186,6 +191,9 @@ namespace OneStarMaker.Runtime.SceneSystem
 
         /// <summary>Unity Scene ロード後の Addressable アセットのロード等。</summary>
         protected virtual UniTask OnLoadedImpl(CancellationToken ct) => UniTask.CompletedTask;
+
+        /// <summary>諸々の処理が終わった状態 </summary>
+        protected virtual UniTask OnStabledImpl() => UniTask.CompletedTask;
 
         /// <summary>Unity Scene アンロード前のリソース解放準備。キャンセル不可。</summary>
         protected virtual UniTask OnPreUnLoadedImpl() => UniTask.CompletedTask;
