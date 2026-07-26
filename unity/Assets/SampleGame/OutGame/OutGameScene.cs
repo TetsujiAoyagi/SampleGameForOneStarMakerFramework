@@ -47,7 +47,7 @@ namespace SampleGame.OutGame
 
             // OutGame の背景色は View_Main の描画設定であり、シーンの旧 Main Camera には設定しない。
             // 依存を必須化して Bootstrap 失敗をここまで持ち込まず、破棄済み Host への書き込みも防ぐ。
-            cameraBackgroundApplier.SetClearFlag(cameraSystem.MainView, ClearFlag.Color, Color.red);
+            cameraBackgroundApplier.SetClearFlag(cameraSystem.MainView, ClearFlag.Color, Color.black);
         }
 
         /// <inheritdoc />

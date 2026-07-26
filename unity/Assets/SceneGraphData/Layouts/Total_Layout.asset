@@ -16,23 +16,23 @@ MonoBehaviour:
   - Node: {fileID: 11400000, guid: 75a3217c416d1904594d249e3d9332d8, type: 2}
     Position: {x: 114, y: 194}
   - Node: {fileID: 11400000, guid: b5502d478be8a9043b77f4b09867e67e, type: 2}
-    Position: {x: 307, y: 516}
+    Position: {x: 346, y: 516}
   - Node: {fileID: 11400000, guid: df564375ee5fe5e40a95fc972ded7081, type: 2}
-    Position: {x: -192, y: 538}
+    Position: {x: 0, y: 516}
   - Node: {fileID: 11400000, guid: cb5e8c1591196db4ab4bc793a118980e, type: 2}
     Position: {x: -57, y: -168}
   - Node: {fileID: 11400000, guid: 721af4f8511f15c48959b2bc9e1eed6d, type: 2}
     Position: {x: 239, y: -168}
   - Node: {fileID: 11400000, guid: c9118be944656724b85b37d9c5eddf2a, type: 2}
-    Position: {x: 676, y: 776}
+    Position: {x: 664, y: 751}
   - Node: {fileID: 11400000, guid: a963bddbe44610548905e7387285b551, type: 2}
-    Position: {x: 595, y: -591}
+    Position: {x: 536, y: -250}
   - Node: {fileID: 11400000, guid: 962b04e4184e224458c4f9001083140e, type: 2}
     Position: {x: 417, y: 61}
   - Node: {fileID: 11400000, guid: f8b02d3c5e607951b2c3d4e5f6071829, type: 2}
     Position: {x: 456, y: -389}
   - Node: {fileID: 11400000, guid: 5c455a0d56a96704fbbea9c521f64173, type: 2}
-    Position: {x: 268, y: 776}
+    Position: {x: 349, y: 753}
   - Node: {fileID: 11400000, guid: b227859e1e46ae5499316864281c8f71, type: 2}
     Position: {x: 598, y: -59}
   - Node: {fileID: 11400000, guid: b31105f0524a4f638b52f4ce613d34b0, type: 2}
