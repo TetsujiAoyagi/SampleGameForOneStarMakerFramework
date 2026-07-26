@@ -56,7 +56,6 @@ namespace OneStarMaker.Runtime
     ///     protected override string GetUICommonPrefabAddress()  =&gt; "Assets/Prefabs/UICommon.prefab";
     ///     protected override string GetSceneResourceMapAddress() =&gt; "Assets/SceneMap/Map.asset";
     ///     protected override ILoadingDisplay CreateLoadingDisplay() =&gt; new MyLoadingDisplay();
-    ///     protected override string GetFirstSceneIdentify()     =&gt; "Title";
     ///     protected override string GetConfigFilePath()         =&gt; Path.Combine(Application.streamingAssetsPath, "app-config.json");
     ///     protected override string GetEnvironmentVariablePrefix() =&gt; "ONESM_";
     /// }
@@ -273,14 +272,6 @@ namespace OneStarMaker.Runtime
                 // 再ロードせず RootGameObjects を返すため二重ロードは発生しない。
                 startupStage = "register-loaded-scenes";
                 await RegisterAlreadyLoadedScenes(ct);
-
-                // 初回シーンのロード（RegisterAlreadyLoadedScenes で登録済みなら冪等にスキップ）
-                var firstScene = GetFirstSceneIdentify();
-                if (!string.IsNullOrEmpty(firstScene))
-                {
-                    startupStage = "load-first-scene";
-                    await _sceneDirector.AddScene(firstScene, null, ct);
-                }
 
                 success = true;
             }
@@ -694,9 +685,6 @@ namespace OneStarMaker.Runtime
 
         /// <summary>ローディング表示の実装を返す。</summary>
         protected abstract ILoadingDisplay CreateLoadingDisplay();
-
-        /// <summary>初回ロードするシーンの識別子を返す。</summary>
-        protected abstract string GetFirstSceneIdentify();
 
         /// <summary>
         /// 設定ファイルのパスを返す。空文字を返すとファイル読み込みをスキップする。

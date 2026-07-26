@@ -72,14 +72,6 @@ namespace SampleGame.DependOnAll
         protected override ILoadingDisplay CreateLoadingDisplay()
             => new NullLoadingDisplay();
 
-        protected override string GetFirstSceneIdentify()
-        {
-            // ビルド/実行時に app-config.json 等で論理初回シーンを差し替え可能にする。
-            // キー未設定時は従来通り "Title"。
-            var overridden = Config?.GetString("assetCheckout:firstSceneIdentify", string.Empty) ?? string.Empty;
-            return string.IsNullOrEmpty(overridden) ? "Title" : overridden;
-        }
-
         protected override string GetConfigFilePath()
             => "Assets/SampleGame/Config/app-config.json";
 
