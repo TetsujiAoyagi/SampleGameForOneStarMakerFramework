@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using OneStarMaker.Runtime.CameraSystem.Abstractions;
 using OneStarMaker.Runtime.CameraSystem.Hosting;
 using OneStarMaker.Runtime.SceneSystem;
-using SampleGame.Common;
 using SampleGame.OutGame.Scenes;
 using SampleGame.OutGame.Title;
 
@@ -37,6 +36,18 @@ namespace SampleGame.DependOnAll
 
         public SceneBase? CreateSceneClass(SceneResource sceneResource, ISceneQuery sceneQuery, ISceneController sceneController)
         {
+            // Cell_* は 100 件の case 列挙を避け、identity バリデータで分岐する。
+            if (CellIdentity.IsCellId(sceneResource.Identity))
+            {
+                return new InGame.World.DemoCellScene(sceneResource, sceneQuery, sceneController, _loggerFactory);
+            }
+
+            // Environment_* は Cell 子の職種シーン（萌芽）。CellScene 継承は不要。
+            if (InGame.World.EnvironmentIdentity.IsEnvironmentId(sceneResource.Identity))
+            {
+                return new InGame.World.EnvironmentScene(sceneResource, sceneQuery, sceneController, _loggerFactory);
+            }
+
             return sceneResource.Identity switch
             {
                 "Title" => new TitleScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
@@ -54,10 +65,7 @@ namespace SampleGame.DependOnAll
                     _cameraSystem,
                     _cameraBackgroundApplier),
                 "InGameUI" => new InGame.InGameUI(sceneResource, sceneQuery, sceneController, _loggerFactory),
-                "SpringLevel" => new InGame.InGameImplments.SpringLevel(sceneResource, sceneQuery, sceneController, _loggerFactory),
-                "SummerLevel" => new InGame.InGameImplments.SummerLevel(sceneResource, sceneQuery, sceneController, _loggerFactory),
-                "AutumnLevel" => new InGame.InGameImplments.AutumnLevel(sceneResource, sceneQuery, sceneController, _loggerFactory),
-                "WinterLevel" => new InGame.InGameImplments.WinterLevel(sceneResource, sceneQuery, sceneController, _loggerFactory),
+                "World" => new InGame.World.WorldScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
                 "Result" => new InGame.Result.ResultScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
                 "HpGauge" => new HpGaugeScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
                 "ConfirmDialog" => new ConfirmDialogScene(sceneResource, sceneQuery, sceneController, _loggerFactory),

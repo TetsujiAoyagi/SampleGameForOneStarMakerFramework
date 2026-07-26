@@ -1,39 +1,33 @@
 #nullable enable
 using Cysharp.Threading.Tasks;
 using OneStarMaker.Runtime.SceneSystem;
-using SampleGame.Common.TransitionArgs;
 using System.Threading;
-using UnityEngine;
 
 namespace SampleGame.Common
 {
     public static class SceneFlow
     {
-        public static async UniTask EnterInGame(ISceneController sceneController, SceneIds toInGameScene, CancellationToken ct)
+        /// <summary>
+        /// OutGame → InGameSession へ切り替える。
+        /// 初期セルは Switch 後に WorldStreamingController が Focus から載せるため、
+        /// ここでは Level/Cell の明示 AddScene を行わない。
+        /// </summary>
+        public static async UniTask EnterInGame(ISceneController sceneController, CancellationToken ct)
         {
-            var toSceneContext = new SceneContext();
-            toSceneContext.Set(new InGameArgs(toInGameScene));
-
             await sceneController.SwitchScene(
                             fromSceneIdentify: SceneIds.OutGameScene.idToName(),
                             toSceneIdentify: SceneIds.InGameSession.idToName(),
-                            context: toSceneContext,
+                            context: null,
                             ct: ct);
-
-            // 初期 Level は InGameArgs と一致させる（Spring 固定だと Session/Player が別 Level 待ちで固まる）。
-            // Session.OnLoaded でも EnsureLevelLoaded するが、ここは明示ロード + 黒画面表示用。
-            await sceneController.AddScene(
-                        toInGameScene.idToName(),
-                        afterOnLoadedTask: null,
-                        ct,
-                        context: null,
-                        loadingDisplay: LoadingDisplayType.BlackScreen);
         }
 
-        public static async UniTask EnterInGame<T>(ISceneController sceneController, SceneIds toInGameScene, T sceneContext, CancellationToken ct)
+        /// <summary>
+        /// 追加コンテキスト付きで InGameSession へ入る。
+        /// セル指定は行わず、コンテキストは Session / 子が必要なら自行で読む。
+        /// </summary>
+        public static async UniTask EnterInGame<T>(ISceneController sceneController, T sceneContext, CancellationToken ct)
         {
             var toSceneContext = new SceneContext();
-            toSceneContext.Set(new InGameArgs(toInGameScene));
             toSceneContext.Set(sceneContext);
 
             await sceneController.SwitchScene(
@@ -41,13 +35,6 @@ namespace SampleGame.Common
                             toSceneIdentify: SceneIds.InGameSession.idToName(),
                             context: toSceneContext,
                             ct: ct);
-
-            await sceneController.AddScene(
-                        toInGameScene.idToName(),
-                        afterOnLoadedTask: null,
-                        ct,
-                        context: null,
-                        loadingDisplay: LoadingDisplayType.BlackScreen);
         }
 
         public static async UniTask EnterOutGame(ISceneController sceneController, SceneIds toOutGameScene, SceneContext? sceneContext, CancellationToken ct)

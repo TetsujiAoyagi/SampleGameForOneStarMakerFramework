@@ -1,45 +1,59 @@
 #nullable enable
 
+using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using OneStarMaker.Runtime.SceneSystem;
-using SampleGame.Common;
-using SampleGame.Common.TransitionArgs;
-using SampleGame.InGame.LevelStreaming;
 using SampleGame.InGame.Player;
+using SampleGame.InGame.Streaming;
 using System.Threading;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using ZLogger;
 
 namespace SampleGame.InGame
 {
     /// <summary>
     /// InGame セッションの親シーン。
-    /// PlayerScene / InGameUI へのサービスハブと、暫定 LevelStreamCoordinator の所有者を兼ねる。
-    /// （四季 Level 自体は Cell Streaming 正典へ全面書き直し予定。ここはハブ契約を先に固める。）
+    /// PlayerScene / InGameUI へのサービスハブと、Cell Streaming（WSC）所有者を兼ねる。
     /// </summary>
+    /// <remarks>
+    /// Full ティアは Unity シーンを SceneDirector.AddScene/UnloadScene で載せる戦略（正典 D-1/D-2）。
+    /// 距離判断は <see cref="SessionWorldStreamingDriver"/> → FW の WorldStreamingController に集約する。
+    /// 職種子（Environment_*）の明示ロードは <see cref="SessionCellChildLoadDriver"/> が別ループで行い、
+    /// WSC の desired set には混ぜない（引っ張られないことの実証）。
+    /// </remarks>
     public class InGameSession : SceneBase, IInGameSessionServices
     {
+        private static readonly IReadOnlyList<string> EmptyResidents = System.Array.Empty<string>();
+
         private readonly ILogger<InGameSession> _logger;
-        private readonly LevelStreamTransitionBridge _transitionBridge = new();
-        private LevelStreamCoordinator<InGameSession>? _coordinator;
+        private SessionWorldStreamingDriver? _streamingDriver;
+        private SessionCellChildLoadDriver? _childLoadDriver;
         private IFlightReadModel? _flight;
-
-        /// <inheritdoc />
-        public LevelStreamCoordinator<InGameSession>? Coordinator => _coordinator;
-
-        /// <inheritdoc />
-        public ILevelStreamTransitionFeedback TransitionFeedback => _transitionBridge;
-
-        /// <summary>UI 購読用に具象ブリッジも公開（Shown/Hidden イベント）。</summary>
-        public LevelStreamTransitionBridge TransitionBridge => _transitionBridge;
 
         /// <inheritdoc />
         public IFlightReadModel? Flight => _flight;
 
         /// <inheritdoc />
         public Vector3? FocusWorldPosition => _flight?.Position;
+
+        /// <inheritdoc />
+        public string? CurrentCellIdentity => _streamingDriver?.CurrentCellIdentity;
+
+        /// <inheritdoc />
+        public IReadOnlyList<string> ResidentCellIdentities
+            => _streamingDriver?.GetResidentCellIdentities() ?? EmptyResidents;
+
+        /// <inheritdoc />
+        public IReadOnlyList<string> LoadedChildSceneIdentities
+            => _childLoadDriver?.GetLoadedChildIdentities() ?? EmptyResidents;
+
+        /// <inheritdoc />
+        /// <remarks>
+        /// Driver 生成だけでは false。OnStabled で Tick ループが Start された後に true。
+        /// Player bootstrap は「セル Add が走り得る状態」をこのフラグで待つ。
+        /// </remarks>
+        public bool IsStreamingActive => _streamingDriver is { IsRunning: true };
 
         public InGameSession(
             SceneResource sceneResource,
@@ -61,7 +75,7 @@ namespace SampleGame.InGame
         public void RegisterFlight(IFlightReadModel flight)
         {
             _flight = flight ?? throw new System.ArgumentNullException(nameof(flight));
-            _logger.ZLogInformation($"Flight registered for session hub");
+            _logger.ZLogInformation($"Flight registered for session hub (Focus supplier for Cell Streaming)");
         }
 
         /// <inheritdoc />
@@ -76,92 +90,51 @@ namespace SampleGame.InGame
             _logger.ZLogInformation($"Flight unregistered from session hub");
         }
 
-        protected override async UniTask OnLoadedImpl(CancellationToken ct)
+        protected override UniTask OnLoadedImpl(CancellationToken ct)
         {
-            var initialLevel = ResolveInitialLevelIdentity();
-            if (string.IsNullOrEmpty(initialLevel))
+            // SceneDirectorStreamingBackend は SceneDirector 具象を要求する。
+            // Composition Root は常に SceneDirector を ISceneController として渡す前提。
+            if (SceneController is not SceneDirector sceneDirector)
             {
-                // 初期 Level が無いと Coordinator を立てられない。Play 起点や SceneFlow の引数を確認する。
-                _logger.ZLogWarning($"OnLoadedImpl: initialLevel unresolved — Coordinator not created");
-                return;
+                throw new System.InvalidOperationException(
+                    "InGameSession の Cell Streaming には SceneDirector が必要です。" +
+                    $"実際の型: {SceneController.GetType().FullName}");
             }
 
-            // Overlay のランタイム GO は作らない。演出は TransitionBridge → InGameUI MVVM。
-            _coordinator = new LevelStreamCoordinator<InGameSession>(
-                SceneController,
-                SceneQuery,
-                _logger,
-                _transitionBridge,
-                initialLevel);
+            _streamingDriver = new SessionWorldStreamingDriver(
+                sceneDirector,
+                () => FocusWorldPosition,
+                _logger);
 
-            _logger.ZLogInformation($"[InGameSession] Coordinator ready. initialLevel={initialLevel}");
-            await UniTask.CompletedTask;
+            // 子シーン明示ロードは WSC と別ライフサイクル。距離判断には混ぜない。
+            _childLoadDriver = new SessionCellChildLoadDriver(
+                sceneDirector,
+                sceneDirector,
+                () => ResidentCellIdentities,
+                _logger);
+
+            _logger.ZLogInformation($"[InGameSession] WorldStreamingDriver + CellChildLoadDriver created");
+            return UniTask.CompletedTask;
         }
 
-        protected override async UniTask OnStabledImpl()
+        protected override UniTask OnStabledImpl()
         {
-            // 普通にデッドロックしたのでコメントアウト
-
-            // OnDemand Level は親ロードでは載らない。
-            // OnLoaded 中の AddScene は親ロード完了待ちとデッドロックし得るため、Stable 後に載せる。
-            // Player の Bootstrap は Forget 待機なので、ここで Add すれば解除される。
-            // SceneFlow 側の AddScene と二重になっても EnsureLevelLoadedAsync は冪等。
-            //if (_coordinator != null)
-            //{
-            //    var level = _coordinator.CurrentLevelIdentity;
-            //    // シーン寿命に紐づく CT が無いため None。AddScene 失敗は例外で親ロードに伝播させる。
-            //    await _coordinator.EnsureLevelLoadedAsync(level, CancellationToken.None);
-            //    _logger.ZLogInformation($"[InGameSession] Initial level ensured: {level}");
-            //}
-            await UniTask.CompletedTask;
-        }
-
-        private string? ResolveInitialLevelIdentity()
-        {
-            var args = Context?.GetValueType<InGameArgs>();
-            if (args.HasValue)
-            {
-                var fromArgs = args.Value.TransitionLevel.idToName();
-                if (!string.IsNullOrEmpty(fromArgs))
-                {
-                    return fromArgs;
-                }
-            }
-
-            var activeScene = SceneManager.GetActiveScene();
-            if (activeScene.IsValid() && activeScene.isLoaded && IsSeasonLevelIdentity(activeScene.name))
-            {
-                return activeScene.name;
-            }
-
-            for (var i = 0; i < SceneManager.sceneCount; i++)
-            {
-                var scene = SceneManager.GetSceneAt(i);
-                if (!scene.isLoaded)
-                {
-                    continue;
-                }
-
-                if (IsSeasonLevelIdentity(scene.name))
-                {
-                    return scene.name;
-                }
-            }
-
-            _logger.ZLogWarning(
-                $"[InGameSession] Initial level could not be resolved. Provide InGameArgs.TransitionLevel or Play from a season level scene in SeasonWorldCatalog.Chain.");
-            return null;
-        }
-
-        private static bool IsSeasonLevelIdentity(string sceneName)
-        {
-            return SeasonWorldCatalog.IndexOf(sceneName) >= 0;
+            // World（NecessaryAlways）は親ロード時に既に載っている。
+            // セルの初回 Add は Player が Focus を登録した直後の Driver Tick に任せる。
+            // （OnLoaded 中の AddScene は親ロード完了待ちとデッドロックし得るため、ここでも Ensure しない。）
+            _streamingDriver?.Start();
+            // Cell Stable 後の Environment 明示 Add。Cell Add 瞬間にはまだ走らない（別ループ）。
+            _childLoadDriver?.Start();
+            _logger.ZLogInformation($"[InGameSession] WorldStreamingDriver + CellChildLoadDriver started");
+            return UniTask.CompletedTask;
         }
 
         protected override UniTask OnPreUnLoadedImpl()
         {
-            _coordinator?.Dispose();
-            _coordinator = null;
+            _childLoadDriver?.Dispose();
+            _childLoadDriver = null;
+            _streamingDriver?.Dispose();
+            _streamingDriver = null;
             _flight = null;
             return UniTask.CompletedTask;
         }

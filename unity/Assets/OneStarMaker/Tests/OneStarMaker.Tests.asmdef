@@ -6,6 +6,7 @@
         "OneStarMaker.Runtime",
         "OneStarMaker.TestSupport",
         "SampleGame.DependOnAll",
+        "SampleGame.InGame",
         "SampleGame.OutGame",
         "Unity.Collections",
         "Unity.Addressables",

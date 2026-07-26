@@ -7,8 +7,8 @@ using Microsoft.Extensions.Logging;
 using OneStarMaker.Runtime.CameraSystem.Abstractions;
 using OneStarMaker.Runtime.CameraSystem.Stacking;
 using OneStarMaker.Runtime.SceneSystem;
-using SampleGame.InGame.LevelStreaming;
 using SampleGame.InGame.Player;
+using SampleGame.InGame.Streaming;
 using UnityEngine;
 using ZLogger;
 
@@ -19,6 +19,10 @@ namespace SampleGame.InGame
     /// Payload の PlayerScene.unity にリグを置き、ここでは参照解決と CameraSystem 配線のみを行う。
     /// 自前 Camera / AudioListener / DontDestroyOnLoad / HUD は持たない。
     /// </summary>
+    /// <remarks>
+    /// Cell Streaming では Level Ensure を待たない。
+    /// Focus（Flight）を Session に登録すれば、WorldStreamingController がセルを載せる。
+    /// </remarks>
     public sealed class PlayerScene : SceneBase
     {
         private readonly ILogger<PlayerScene> _logger;
@@ -73,7 +77,7 @@ namespace SampleGame.InGame
 
         protected override UniTask OnStabledImpl()
         {
-            // 親 Session の OnLoaded 完了や初期 Level Add を待つ必要があるため、
+            // 親 Session の OnLoaded（Driver 生成）より先に走り得るため、
             // ここではブロックせずバックグラウンド起動する（デッドロック防止）。
             _bootstrapCts = new CancellationTokenSource();
             BootstrapAsync(_bootstrapCts.Token).Forget();
@@ -94,10 +98,6 @@ namespace SampleGame.InGame
             if (_sessionServices != null && _flyer != null)
             {
                 _sessionServices.UnregisterFlight(_flyer);
-                if (_sessionServices.Coordinator != null)
-                {
-                    _sessionServices.Coordinator.CurrentLevelChanged -= OnCurrentLevelChanged;
-                }
             }
 
             // Push ハンドルの Dispose = Pop。続けて managed 実体も破棄（Pop だけでは CM GO が残る）。
@@ -146,12 +146,8 @@ namespace SampleGame.InGame
         {
             try
             {
-                // 親 Session サービス面を解決（兄弟 UI とのやり取りは必ずここ経由）。
-                // NecessaryAlways 子の OnStabled は親 OnLoaded（Coordinator 生成）より先に走り得るため、
-                // ここで親サービスと Coordinator の出現を待ってから初期 Level を決める。
-                // SpringLevel 固定フォールバックは夏指定時に永久待ちになるので使わない。
-                // 親が初期 Level を解決できないと Coordinator が作られない。
-                // 無期限待ちにしないようタイムアウトし、失敗時は入力を上げずログして抜ける。
+                // NecessaryAlways 子の OnStabled は親 OnLoaded（Driver 生成）より先に走り得る。
+                // Streaming が使える状態（IsStreamingActive）になるまで待ち、Focus を登録する。
                 using var hubTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 hubTimeoutCts.CancelAfter(TimeSpan.FromSeconds(15));
                 try
@@ -160,47 +156,31 @@ namespace SampleGame.InGame
                         () =>
                         {
                             _sessionServices = TryResolveSessionServices();
-                            return _sessionServices?.Coordinator != null;
+                            return _sessionServices is { IsStreamingActive: true };
                         },
                         cancellationToken: hubTimeoutCts.Token);
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested)
                 {
                     _logger.ZLogError(
-                        $"Player bootstrap aborted: InGameSession Coordinator が 15 秒以内に現れませんでした。InGameArgs.TransitionLevel または季節 Level からの Play を確認してください。");
+                        $"Player bootstrap aborted: InGameSession Streaming が 15 秒以内に現れませんでした。");
                     return;
                 }
 
-                if (_sessionServices?.Coordinator == null)
+                if (_sessionServices == null || _flyer == null)
                 {
                     return;
                 }
 
-                var coordinator = _sessionServices.Coordinator;
-                var initialLevel = coordinator.CurrentLevelIdentity;
-
-                // EnsureLevelLoadedAsync は Stable（地形生成完了）まで待つ。
-                await coordinator.EnsureLevelLoadedAsync(initialLevel, ct);
-
-                if (_flyer == null)
-                {
-                    return;
-                }
-
-                var spawn = SeasonWorldCatalog.SpawnPosition(initialLevel);
+                var spawn = WorldCellCatalog.SpawnPosition();
                 _flyer.Teleport(spawn, Vector3.forward);
                 _flyer.InputEnabled = true;
 
+                // Focus 供給を開始 → Driver の WaitUntil が解除され、desired セルが載り始める。
                 _sessionServices.RegisterFlight(_flyer);
-                ApplySeasonLook(initialLevel);
+                ApplyDemoLook();
 
-                if (_sessionServices.Coordinator != null)
-                {
-                    _sessionServices.Coordinator.CurrentLevelChanged -= OnCurrentLevelChanged;
-                    _sessionServices.Coordinator.CurrentLevelChanged += OnCurrentLevelChanged;
-                }
-
-                _logger.ZLogInformation($"Player ready at {initialLevel} {spawn}");
+                _logger.ZLogInformation($"Player ready at Cell stream spawn {spawn}");
             }
             catch (OperationCanceledException)
             {
@@ -208,7 +188,7 @@ namespace SampleGame.InGame
             }
             catch (Exception ex)
             {
-                // 初期 Level 失敗時も入力を上げてカーソルを戻し、完全フリーズを避ける。
+                // 失敗時も入力を上げてカーソルを戻し、完全フリーズを避ける。
                 _logger.ZLogError(ex, $"Player bootstrap failed");
                 if (_flyer != null)
                 {
@@ -228,35 +208,30 @@ namespace SampleGame.InGame
             return SceneQuery.GetLoadedScene(parent.Identity) as IInGameSessionServices;
         }
 
-        private void OnCurrentLevelChanged(string identity)
-        {
-            ApplySeasonLook(identity);
-        }
-
         /// <summary>
-        /// 季節スカイは CameraSystem の MainView 背景へ書く（自前 Camera 禁止）。
-        /// Fog / Ambient は暫定で RenderSettings 直書き（環境オーナーシップは Level 書き直し時に移す）。
+        /// 実証用の単純な空模様。季節テーマは捨てたので固定トーンにする。
+        /// Fog / Ambient は暫定で RenderSettings 直書き（環境オーナーは将来 Environment 子シーン側へ）。
         /// </summary>
-        private void ApplySeasonLook(string identity)
+        private void ApplyDemoLook()
         {
             try
             {
-                var def = SeasonWorldCatalog.Get(identity);
+                var sky = new Color(0.45f, 0.7f, 0.95f);
                 _cameraBackgroundApplier.SetClearFlag(
                     _cameraSystem.MainView,
                     ClearFlag.Color,
-                    def.Sky);
+                    sky);
 
                 RenderSettings.fog = true;
                 RenderSettings.fogMode = FogMode.ExponentialSquared;
-                RenderSettings.fogColor = def.Fog;
-                RenderSettings.fogDensity = 0.0045f;
+                RenderSettings.fogColor = new Color(0.75f, 0.85f, 0.95f);
+                RenderSettings.fogDensity = 0.0035f;
                 RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-                RenderSettings.ambientLight = Color.Lerp(def.Sky, Color.white, 0.35f);
+                RenderSettings.ambientLight = Color.Lerp(sky, Color.white, 0.4f);
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
-                _logger.ZLogWarning($"ApplySeasonLook failed: {ex.Message}");
+                _logger.ZLogWarning($"ApplyDemoLook failed: {ex.Message}");
             }
         }
     }

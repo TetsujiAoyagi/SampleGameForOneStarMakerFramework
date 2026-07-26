@@ -116,6 +116,25 @@ namespace OneStarMaker.Tests.Editor
         }
 
         [Test]
+        public void ComputePlan_OutputPaths_UsePerCellSubfolders()
+        {
+            // CCS-00: フォルダ = 実行環境境界。Cell の .unity / .asset は同名サブフォルダに同居する。
+            var definition = CreateGridDefinition(GridSize, GridSize);
+            var plan = WorldCellGenerator.ComputePlan(definition, WorldCellExistingState.Empty);
+
+            foreach (var entry in plan.Entries)
+            {
+                var identity = entry.Identity;
+                Assert.That(
+                    entry.SceneAssetPath,
+                    Is.EqualTo($"Assets/Test/World/Cells/{identity}/{identity}.unity"));
+                Assert.That(
+                    entry.SceneResourceAssetPath,
+                    Is.EqualTo($"Assets/Test/SceneMap/Cells/{identity}/{identity}.asset"));
+            }
+        }
+
+        [Test]
         public void Generate_RunTwice_IsIdempotent()
         {
             var definition = CreateGridDefinition(GridSize, GridSize);

@@ -6,9 +6,10 @@
     -->
     <ui:VisualElement name="hud-root" style="flex-grow: 1; position: absolute; left: 0; top: 0; right: 0; bottom: 0;">
         <ui:VisualElement name="status-panel" style="position: absolute; left: 16px; top: 16px; width: 460px; padding: 12px; background-color: rgba(0,0,0,0.55);">
-            <ui:Label name="title-label" text="Season Streaming Test" style="font-size: 16px; color: rgb(255,255,255); margin-bottom: 6px; -unity-font-style: bold;" />
-            <ui:Label name="current-label" text="Current: (waiting)" style="font-size: 14px; color: rgb(255,255,255); white-space: normal;" />
-            <ui:Label name="loaded-label" text="Loaded: -" style="font-size: 14px; color: rgb(255,255,255); white-space: normal;" />
+            <ui:Label name="title-label" text="Cell + Child Scenes (sprout)" style="font-size: 16px; color: rgb(255,255,255); margin-bottom: 6px; -unity-font-style: bold;" />
+            <ui:Label name="current-label" text="Cell: (waiting)" style="font-size: 14px; color: rgb(255,255,255); white-space: normal;" />
+            <ui:Label name="loaded-label" text="Resident: -" style="font-size: 14px; color: rgb(255,255,255); white-space: normal;" />
+            <ui:Label name="children-label" text="Children: -" style="font-size: 14px; color: rgb(255,255,255); white-space: normal;" />
             <ui:Label name="pos-label" text="Pos: 0 , 0 , 0" style="font-size: 14px; color: rgb(255,255,255); white-space: normal;" />
             <ui:Label name="help-label" text="" style="font-size: 13px; color: rgb(220,230,255); margin-top: 8px; white-space: normal;" />
         </ui:VisualElement>

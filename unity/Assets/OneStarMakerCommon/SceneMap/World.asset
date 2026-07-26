@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a55e49cc16182ed438f81c6b1032b83c, type: 3}
+  m_Name: World
+  m_EditorClassIdentifier: OneStarMaker.Runtime::OneStarMaker.Runtime.SceneSystem.SceneResource
+  _identity: World
+  _sceneAssetDescription:
+    _loadType: 1
+    _payloads:
+    - Reference:
+        m_AssetGUID: 956427c6e6b12b24788477f2f869d65e
+        m_SubObjectName: 
+        m_SubObjectType: 
+        m_SubObjectGUID: 
+        m_EditorAssetChanged: 0
+      Variant: 
+    SceneIdentity: World
+  _parent: {fileID: 11400000, guid: 235c5b8b1abd83e4a8b9e475eea71341, type: 2}
+  _children:
+  - {fileID: 11400000, guid: 523ee976dfb8bfe42b446b12d0eaec74, type: 2}
+  - {fileID: 11400000, guid: ddb422e3d87bef543bbdf14225722425, type: 2}
+  - {fileID: 11400000, guid: cfd5c6fcee0e17142bec9a3f52aa9ce7, type: 2}
+  - {fileID: 11400000, guid: 35b57cfd58c8d264b858dec52cd2a03b, type: 2}
+  - {fileID: 11400000, guid: d4832c036efb7cf4eb692868c20bd556, type: 2}
+  - {fileID: 11400000, guid: 2f8891bf76967d84881180713c39d8aa, type: 2}
+  - {fileID: 11400000, guid: 7a46846c2f993a64c97f4dc8dbae506b, type: 2}
+  - {fileID: 11400000, guid: 634c0553ba4f2e94d9d710098dd7e65d, type: 2}
+  - {fileID: 11400000, guid: bd221b26baa131a47a393071720a9ef8, type: 2}
+  - {fileID: 11400000, guid: 88edce1b12f1cd3499acb246756c7c33, type: 2}
+  - {fileID: 11400000, guid: a9a765861deb258418b6d78696bf18e0, type: 2}
+  - {fileID: 11400000, guid: 2a1340cfce8423c4fb62a3c680d06187, type: 2}
+  - {fileID: 11400000, guid: e27d2e96af1b2264686b435b9956ff15, type: 2}
+  - {fileID: 11400000, guid: a6f0bcd8500add146bc95c51d4a5d5dc, type: 2}
+  - {fileID: 11400000, guid: 9d7888345e5c1ac479e154d8a5daf06b, type: 2}
+  - {fileID: 11400000, guid: 94d7082425fd57a4d8f68c0719ff350b, type: 2}

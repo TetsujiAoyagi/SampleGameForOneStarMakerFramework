@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2af9c9e355eaa884a9c58c31ba826588, type: 3}
+  m_Name: WorldGridDefinition
+  m_EditorClassIdentifier: OneStarMaker.Editor::OneStarMaker.Editor.Streaming.WorldGridDefinition
+  _origin: {x: 0, y: 0, z: 0}
+  _cellSize: 250
+  _gridWidth: 4
+  _gridHeight: 4
+  _parentSceneIdentity: World
+  _sceneOutputFolder: Assets/SampleGame/InGame/InGameSession/World/Cells
+  _sceneResourceOutputFolder: Assets/SampleGame/InGame/InGameSession/World/Cells

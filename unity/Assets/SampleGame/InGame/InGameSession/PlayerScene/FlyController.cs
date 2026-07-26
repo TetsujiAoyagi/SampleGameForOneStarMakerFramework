@@ -2,14 +2,14 @@
 
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using SampleGame.InGame.LevelStreaming;
+using SampleGame.InGame.Streaming;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 namespace SampleGame.InGame.Player
 {
     /// <summary>
-    /// 四季マップ巡回用の飛行コントローラ（New Input System）。
+    /// Cell Streaming 実証用の飛行コントローラ（New Input System）。
     /// カメラ本体は持たない。視点は CameraSystem の Follow/LookAt に任せ、
     /// ここでは機体 yaw と LookAt ターゲットのローカルピッチだけを更新する。
     /// </summary>
@@ -128,9 +128,7 @@ namespace SampleGame.InGame.Player
 
         private void FixedUpdate()
         {
-            // 暫定: LevelStreamCoordinator.Current を直接参照。
-            // Session サービス面へ寄せるのは Level 書き直し時にまとめて行う。
-            if (!_inputEnabled || LevelStreamCoordinator<InGameSession>.Current is { IsTransitionBusy: true })
+            if (!_inputEnabled)
             {
                 _body.linearVelocity = Vector3.zero;
                 return;
@@ -186,6 +184,10 @@ namespace SampleGame.InGame.Player
             Cursor.visible = !locked;
         }
 
+        /// <summary>
+        /// F1〜F4 でグリッド四隅へ瞬間移動する。
+        /// セルのロードは Focus 移動後の WorldStreamingController に任せる（Ensure しない）。
+        /// </summary>
         private void HandleDebugTeleport(Keyboard? keyboard)
         {
             if (keyboard == null || !_inputEnabled)
@@ -193,13 +195,13 @@ namespace SampleGame.InGame.Player
                 return;
             }
 
-            string? target = null;
-            if (keyboard.f1Key.wasPressedThisFrame) target = "SpringLevel";
-            else if (keyboard.f2Key.wasPressedThisFrame) target = "SummerLevel";
-            else if (keyboard.f3Key.wasPressedThisFrame) target = "AutumnLevel";
-            else if (keyboard.f4Key.wasPressedThisFrame) target = "WinterLevel";
+            int? corner = null;
+            if (keyboard.f1Key.wasPressedThisFrame) corner = 0;
+            else if (keyboard.f2Key.wasPressedThisFrame) corner = 1;
+            else if (keyboard.f3Key.wasPressedThisFrame) corner = 2;
+            else if (keyboard.f4Key.wasPressedThisFrame) corner = 3;
 
-            if (target == null)
+            if (corner == null)
             {
                 return;
             }
@@ -207,22 +209,17 @@ namespace SampleGame.InGame.Player
             _teleportCts?.Cancel();
             _teleportCts?.Dispose();
             _teleportCts = new CancellationTokenSource();
-            DebugTeleportAsync(target, _teleportCts.Token).Forget();
+            DebugTeleportAsync(corner.Value, _teleportCts.Token).Forget();
         }
 
-        private async UniTaskVoid DebugTeleportAsync(string target, CancellationToken ct)
+        private async UniTaskVoid DebugTeleportAsync(int cornerIndex, CancellationToken ct)
         {
-            var coordinator = LevelStreamCoordinator<InGameSession>.Current;
             InputEnabled = false;
             try
             {
-                if (coordinator != null)
-                {
-                    await coordinator.EnsureLevelLoadedAsync(target, ct);
-                    coordinator.DebugForceArrive(target);
-                }
-
-                Teleport(SeasonWorldCatalog.SpawnPosition(target), Vector3.forward);
+                // 1 フレーム空けて入力オフを反映してから飛ばす（FixedUpdate との競合緩和）。
+                await UniTask.Yield(cancellationToken: ct);
+                Teleport(WorldCellCatalog.CornerSpawn(cornerIndex), Vector3.forward);
             }
             catch (System.OperationCanceledException)
             {

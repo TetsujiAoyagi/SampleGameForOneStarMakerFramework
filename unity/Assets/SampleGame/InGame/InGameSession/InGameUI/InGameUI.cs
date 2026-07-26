@@ -5,7 +5,6 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using OneStarMaker.Runtime.SceneSystem;
-using SampleGame.InGame.LevelStreaming;
 using SampleGame.InGame.UI;
 using UnityEngine;
 using ZLogger;
@@ -13,14 +12,13 @@ using ZLogger;
 namespace SampleGame.InGame
 {
     /// <summary>
-    /// InGame の UI シーン。飛行 HUD / 遷移オーバーレイを UIToolkit + MVVM で持つ。
+    /// InGame の UI シーン。飛行 HUD を UIToolkit + MVVM で持つ。
     /// PlayerScene とは兄弟であり、やり取りは親 <see cref="IInGameSessionServices"/> 経由のみ。
     /// </summary>
     public class InGameUI : SceneBase
     {
         private readonly ILogger<InGameUI> _logger;
         private IInGameSessionServices? _session;
-        private LevelStreamTransitionBridge? _bridge;
         private InGameHudViewModel? _viewModel;
         private CancellationTokenSource? _pollCts;
 
@@ -70,17 +68,9 @@ namespace SampleGame.InGame
 
             // 親 Session / Player の Stable と順序が前後し得るため、ここで配線しポーリングを開始する。
             _session = ResolveSessionServices();
-            // 具象ブリッジだけが Shown/Hidden を持つ。インターフェースは Coordinator 向けの Show/Hide のみ。
-            _bridge = _session.TransitionFeedback as LevelStreamTransitionBridge;
-            if (_bridge != null)
-            {
-                _bridge.Shown += OnOverlayShown;
-                _bridge.Hidden += OnOverlayHidden;
-            }
-
             _pollCts = new CancellationTokenSource();
             PollHudAsync(_pollCts.Token).Forget();
-            _logger.ZLogInformation($"InGameUI bound to session hub");
+            _logger.ZLogInformation($"InGameUI bound to session hub (Cell Streaming HUD)");
             return UniTask.CompletedTask;
         }
 
@@ -88,14 +78,6 @@ namespace SampleGame.InGame
         protected override UniTask OnPreUnLoadedImpl()
         {
             _pollCts?.Cancel();
-
-            if (_bridge != null)
-            {
-                _bridge.Shown -= OnOverlayShown;
-                _bridge.Hidden -= OnOverlayHidden;
-                _bridge = null;
-            }
-
             _session = null;
             _viewModel = null;
             return UniTask.CompletedTask;
@@ -123,18 +105,8 @@ namespace SampleGame.InGame
             return services;
         }
 
-        private void OnOverlayShown(string title, string body)
-        {
-            _viewModel?.ShowOverlay(title, body);
-        }
-
-        private void OnOverlayHidden()
-        {
-            _viewModel?.HideOverlay();
-        }
-
         /// <summary>
-        /// Coordinator / Flight の状態を間引いて ViewModel へ流す。
+        /// Focus / 常駐セルを間引いて ViewModel へ流す。
         /// 高頻度 Pos を毎フレーム Reactive 更新しすぎないよう、約 10Hz に制限する。
         /// </summary>
         private async UniTaskVoid PollHudAsync(CancellationToken ct)
@@ -147,26 +119,20 @@ namespace SampleGame.InGame
                     var vm = _viewModel;
                     if (session != null && vm != null)
                     {
-                        var coordinator = session.Coordinator;
-                        var current = coordinator?.CurrentLevelIdentity ?? "(waiting)";
-                        var display = current;
-                        try
-                        {
-                            if (coordinator != null && current != "(waiting)")
-                            {
-                                display = SeasonWorldCatalog.Get(current).DisplayName;
-                            }
-                        }
-                        catch
-                        {
-                            // Identity 未登録時は生文字を出す
-                        }
-
-                        var loaded = coordinator == null
+                        var current = session.CurrentCellIdentity ?? "(waiting)";
+                        var residents = session.ResidentCellIdentities;
+                        var loaded = residents.Count == 0
                             ? "-"
-                            : string.Join(", ", coordinator.LoadedLevels);
-                        var busy = coordinator != null && coordinator.IsTransitionBusy;
-                        vm.SetStreamingState(display, loaded, busy);
+                            : string.Join(", ", residents);
+                        var children = session.LoadedChildSceneIdentities;
+                        var loadedChildren = children.Count == 0
+                            ? "-"
+                            : string.Join(", ", children);
+                        vm.SetStreamingState(
+                            current,
+                            loaded,
+                            loadedChildren,
+                            isBusy: !session.IsStreamingActive);
 
                         if (session.Flight != null)
                         {

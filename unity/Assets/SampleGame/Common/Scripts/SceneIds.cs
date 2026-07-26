@@ -1,5 +1,4 @@
 using System;
-using UnityEngine;
 
 namespace SampleGame.Common
 {
@@ -14,10 +13,7 @@ namespace SampleGame.Common
         InGameSession,
         PlayerScene,
         InGameUI,
-        SpringLevel,
-        SummerLevel,
-        AutumnLevel,
-        WinterLevel,
+        World,
         Result,
     }
 
@@ -36,10 +32,7 @@ namespace SampleGame.Common
                 SceneIds.InGameSession => "InGameSession",
                 SceneIds.PlayerScene => "PlayerScene",
                 SceneIds.InGameUI => "InGameUI",
-                SceneIds.SpringLevel => "SpringLevel",
-                SceneIds.SummerLevel => "SummerLevel",
-                SceneIds.AutumnLevel => "AutumnLevel",
-                SceneIds.WinterLevel => "WinterLevel",
+                SceneIds.World => "World",
                 SceneIds.Result => "Result",
                 _ => throw new ArgumentOutOfRangeException(nameof(idValue)),
             };

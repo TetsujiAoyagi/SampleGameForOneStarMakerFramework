@@ -33,6 +33,8 @@ namespace SampleGame.InGame.UI
                 ?? throw new InvalidOperationException("current-label が見つかりません。");
             var loadedLabel = root.Q<Label>("loaded-label")
                 ?? throw new InvalidOperationException("loaded-label が見つかりません。");
+            var childrenLabel = root.Q<Label>("children-label")
+                ?? throw new InvalidOperationException("children-label が見つかりません。");
             var posLabel = root.Q<Label>("pos-label")
                 ?? throw new InvalidOperationException("pos-label が見つかりません。");
             var helpLabel = root.Q<Label>("help-label")
@@ -47,10 +49,11 @@ namespace SampleGame.InGame.UI
             helpLabel.text = _viewModel.ControlsHelp;
 
             // 購読寿命は View.Track に載せる（E-8）。ViewModel 側の ReactiveProperty 破棄は DisposeCore。
-            Track(_viewModel.CurrentLevel.Subscribe(v => currentLabel.text = $"Current: {v}  [{_viewModel.BusyLabel.CurrentValue}]"));
+            Track(_viewModel.CurrentLevel.Subscribe(v => currentLabel.text = $"Cell: {v}  [{_viewModel.BusyLabel.CurrentValue}]"));
             Track(_viewModel.BusyLabel.Subscribe(v =>
-                currentLabel.text = $"Current: {_viewModel.CurrentLevel.CurrentValue}  [{v}]"));
-            Track(_viewModel.LoadedLevels.Subscribe(v => loadedLabel.text = $"Loaded: {v}"));
+                currentLabel.text = $"Cell: {_viewModel.CurrentLevel.CurrentValue}  [{v}]"));
+            Track(_viewModel.LoadedLevels.Subscribe(v => loadedLabel.text = $"Resident: {v}"));
+            Track(_viewModel.LoadedChildren.Subscribe(v => childrenLabel.text = $"Children: {v}"));
             Track(_viewModel.PositionLabel.Subscribe(v => posLabel.text = $"Pos: {v}"));
             Track(_viewModel.OverlayTitle.Subscribe(v => overlayTitle.text = v));
             Track(_viewModel.OverlayBody.Subscribe(v => overlayBody.text = v));

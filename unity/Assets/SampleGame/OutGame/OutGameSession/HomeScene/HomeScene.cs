@@ -2,10 +2,7 @@ using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using OneStarMaker.Runtime.SceneSystem;
 using SampleGame.Common;
-using SampleGame.Common.TransitionArgs;
 using System.Threading;
-using System.Threading.Tasks;
-using UnityEngine;
 using ZLogger;
 
 namespace SampleGame.OutGame.Home
@@ -38,9 +35,9 @@ namespace SampleGame.OutGame.Home
         protected override async UniTask OnStabledImpl()
         {
             _logger.ZLogInformation($"OnStabledImpl HomeScene");
+            // 初期セルは Session 側 WorldStreamingController が Focus から載せる。
             await SceneFlow.EnterInGame(
                 sceneController: SceneController,
-                toInGameScene: SceneIds.SpringLevel,
                 CancellationToken.None);
         }
     }
