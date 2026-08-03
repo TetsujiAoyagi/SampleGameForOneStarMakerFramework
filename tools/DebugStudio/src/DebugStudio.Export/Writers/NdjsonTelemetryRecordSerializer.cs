@@ -2,6 +2,7 @@
 
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using DebugStudio.Export.Models;
 
 namespace DebugStudio.Export.Writers;
@@ -27,6 +28,8 @@ internal static class NdjsonTelemetryRecordSerializer
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = false,
+        // Contract v3: sample の elapsedMs=null や payload 未設定フィールドをキーごと省略する
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
     internal static string Serialize(TelemetryExportRecord record)

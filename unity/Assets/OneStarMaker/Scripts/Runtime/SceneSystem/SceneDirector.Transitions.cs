@@ -117,7 +117,7 @@ namespace OneStarMaker.Runtime.SceneSystem
             ThrowIfCellIdentity(fromSceneIdentify);
             ThrowIfCellIdentity(toSceneIdentify);
 
-            // 文字列タグの持ち回りはやめ、操作種別は StartType、数値情報は Metadata に寄せる。
+            // 文字列タグの持ち回りはやめ、操作種別は StartType、数値は Payload（併記で Metadata）に寄せる。
             // これにより scene 遷移でも追加ヒープ確保を増やさず transport へ流せる。
             var span = AppTelemetry.StartSpan(Foundation.Core.TelemetryStartType.SceneTransition, null);
             var success = false;
@@ -190,9 +190,13 @@ namespace OneStarMaker.Runtime.SceneSystem
                             toSceneIdentify));
                 }
 
-                var metadata = RuntimeTelemetryMetadataFactory.CreateMemoryMetadata(memAfter);
+                // Contract v3: 遷移先 identity を target に載せ、memory delta を payload で返す。
+                var (metadata, payload) = RuntimeTelemetryMetadataFactory.CreateTimingMemoryTelemetry(
+                    memBefore,
+                    memAfter,
+                    targetIdentity: toSceneIdentify);
 
-                AppTelemetry.FinishSpan(span, metadata, success, TelemetryLevel.Summary, tags);
+                AppTelemetry.FinishSpan(span, metadata, success, TelemetryLevel.Summary, tags, payload);
             }
         }
 

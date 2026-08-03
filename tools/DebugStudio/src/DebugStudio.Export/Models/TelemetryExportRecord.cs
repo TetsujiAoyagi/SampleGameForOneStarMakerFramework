@@ -25,12 +25,25 @@ public sealed class TelemetryExportRecord
 
     public string? Name { get; init; }
 
+    /// <summary>Contract v3: span / sample / event。フィルタの主キー。</summary>
+    public string? Kind { get; init; }
+
+    /// <summary>Contract v3: 用途固有ペイロード（正本）。</summary>
+    public TelemetryExportPayload? Payload { get; init; }
+
+    /// <summary>wire schemaVersion（v3=3）。</summary>
+    public int? SchemaVersion { get; init; }
+
     public string? Status { get; init; }
 
     public string? Message { get; init; }
 
     public bool? IsSuccess { get; init; }
 
+    /// <summary>
+    /// 所要時間 (ms)。sample では null（キー省略）。
+    /// MessagePack 上は 0 が来ても、export では kind=sample なら載せない。
+    /// </summary>
     public double? ElapsedMs { get; init; }
 
     public int? Level { get; init; }

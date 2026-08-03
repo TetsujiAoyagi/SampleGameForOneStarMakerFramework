@@ -7,11 +7,14 @@ using OneStarMaker.Foundation.DebugSocket;
 namespace OneStarMaker.Foundation.Telemetry
 {
     /// <summary>
-    /// Represents performance metrics and memory usage information associated with a scene transition.
+    /// 旧フラット metadata（Contract v3 では deprecated）。
+    /// 段階移行（案 A）のため wire / 既存 producer 互換として残す。
+    /// 新規の意味づけは <see cref="TelemetryPayload"/> 側へ置くこと。
     /// </summary>
-    /// <remarks>The Metadata struct contains fields for tracking CPU and GPU processing times, managed and
-    /// native memory consumption, identifiers for the source and destination scenes, and optional CameraSystem
-    /// counters. Scene/Memory フィールドと Camera フィールドは用途が異なり、混在させない。</remarks>
+    /// <remarks>
+    /// Scene/Memory フィールドと Camera フィールドは用途が異なり、混在させない。
+    /// 未設定の 0 / -1 センチネルは旧契約の名残であり、v3 消費者は Payload の省略を正とする。
+    /// </remarks>
     public readonly struct Metadata
     {
         // 値を持たせたいタグに対応する追加フィールド
@@ -231,15 +234,22 @@ namespace OneStarMaker.Foundation.Telemetry
         /// スパンを完了し、テレメトリレコードを全 Sink に書き込む。
         /// </summary>
         /// <param name="span">完了するスパン。null の場合は何もしない。</param>
+        /// <param name="metadata">旧フラット metadata（段階移行の併記用）。</param>
         /// <param name="isSuccess">成功したか。</param>
         /// <param name="level">このレコードのテレメトリレベル。</param>
         /// <param name="tags">追加タグ。</param>
+        /// <param name="payload">Contract v3 の用途固有ペイロード（正本）。未指定なら空。</param>
+        /// <remarks>
+        /// span 経路の kind は常に <see cref="TelemetryKindRules.InferKind"/> で決める（明示 override 不可）。
+        /// kind を明示したい点イベントは <see cref="WriteRecord"/> を使う。
+        /// </remarks>
         public static double FinishSpan(
             in TelemetrySpan? span,
             in Metadata metadata,
             bool isSuccess = true,
             TelemetryLevel level = TelemetryLevel.Verbose,
-            TelemetryTagType? tags = null)
+            TelemetryTagType? tags = null,
+            in TelemetryPayload payload = default)
         {
             if (!span.HasValue) return 0.0f;
             var s = span.Value;
@@ -268,7 +278,9 @@ namespace OneStarMaker.Foundation.Telemetry
                 tags: mergedTags,
                 level: level,
                 unityFrameAtStart: s.UnityFrameAtStart,
-                unityFrameAtEnd: UnityPlayerLoopFrameObservation.TryGetCurrentFrame());
+                unityFrameAtEnd: UnityPlayerLoopFrameObservation.TryGetCurrentFrame(),
+                kind: TelemetryKindRules.InferKind(s.Name),
+                payload: payload);
 
             s_alertNotifier.CheckThreshold(record, s.Name);
             s_sinkRegistry.Write(record);
@@ -309,7 +321,9 @@ namespace OneStarMaker.Foundation.Telemetry
                     tags: record.Tags,
                     level: record.Level,
                     unityFrameAtStart: record.UnityFrameAtStart ?? observedFrame,
-                    unityFrameAtEnd: record.UnityFrameAtEnd ?? observedFrame);
+                    unityFrameAtEnd: record.UnityFrameAtEnd ?? observedFrame,
+                    kind: record.Kind,
+                    payload: record.Payload);
 
             s_sinkRegistry.Write(enriched);
         }
@@ -356,7 +370,9 @@ namespace OneStarMaker.Foundation.Telemetry
             TelemetryTagType? tags,
             TelemetryLevel level,
             int? unityFrameAtStart,
-            int? unityFrameAtEnd)
+            int? unityFrameAtEnd,
+            TelemetryKind? kind = null,
+            TelemetryPayload payload = default)
         {
             return new TelemetryRecord(
                 traceId: traceId,
@@ -373,7 +389,9 @@ namespace OneStarMaker.Foundation.Telemetry
                 sessionId: UnitySessionCorrelationContext.SessionId,
                 producerSequence: UnitySessionCorrelationContext.NextProducerSequence(),
                 unityFrameAtStart: unityFrameAtStart,
-                unityFrameAtEnd: unityFrameAtEnd);
+                unityFrameAtEnd: unityFrameAtEnd,
+                kind: kind,
+                payload: payload);
         }
 
 

@@ -48,6 +48,34 @@ public sealed class ElasticBulkTelemetryNdjsonBuilderTests
         Assert.True(payload.Length > 0);
     }
 
+    [Fact]
+    public void BuildBulkPayload_kindとpayloadをNDJSONに含む()
+    {
+        var records = new[]
+        {
+            new TelemetryExportRecord
+            {
+                TimestampUtc = "2026-04-29T01:00:02.0000000Z",
+                TimestampUnixTimeMilliseconds = 1,
+                Stream = "telemetry",
+                Name = "ProfilerSummary",
+                Kind = "sample",
+                SchemaVersion = 3,
+                Payload = new TelemetryExportPayload
+                {
+                    Shape = "Frame",
+                    CpuMs = 14.1f,
+                },
+            },
+        };
+
+        var text = Encoding.UTF8.GetString(ElasticBulkTelemetryNdjsonBuilder.BuildBulkPayload(records));
+        Assert.Contains("\"kind\":\"sample\"", text, StringComparison.Ordinal);
+        Assert.Contains("\"schemaVersion\":3", text, StringComparison.Ordinal);
+        Assert.Contains("\"shape\":\"Frame\"", text, StringComparison.Ordinal);
+        Assert.Contains("\"cpuMs\":14.1", text, StringComparison.Ordinal);
+    }
+
     private static TelemetryExportRecord[] CreateSampleRecords()
     {
         return

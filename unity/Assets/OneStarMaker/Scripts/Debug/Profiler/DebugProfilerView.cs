@@ -220,13 +220,14 @@ namespace OneStarMaker.Debug
 
             _logger.LogInformation(msg);
 
-            // ── テレメトリ: 1秒サマリをレコードとして出力 ──
+            // ── テレメトリ: 1秒サマリをレコードとして出力（kind=sample） ──
             if (AppTelemetry.IsEnabled)
             {
                 WriteProfilerTelemetry(
                     Foundation.Core.TelemetryStartType.ProfilerSummary,
                     tags: RuntimeTelemetryMetadataFactory.ClassifyFrameRate(avgFps),
-                    level: TelemetryLevel.Verbose);
+                    level: TelemetryLevel.Verbose,
+                    fps: avgFps);
             }
         }
 
@@ -274,13 +275,14 @@ namespace OneStarMaker.Debug
                     "[Telemetry] GC spike: {0} collections in frame {1} (scene: {2})",
                     gcDelta, Time.frameCount, sceneName));
 
-            // テレメトリレコード出力
+            // テレメトリレコード出力（kind=event + GcGen0Delta）
             if (AppTelemetry.IsEnabled)
             {
                 WriteProfilerTelemetry(
                     Foundation.Core.TelemetryStartType.GcSpike,
                     Foundation.Core.TelemetryTagType.AllocSpike | Foundation.Core.TelemetryTagType.Bottleneck,
-                    TelemetryLevel.Summary);
+                    TelemetryLevel.Summary,
+                    gcGen0Delta: gcDelta);
             }
         }
 
@@ -317,21 +319,56 @@ namespace OneStarMaker.Debug
         /// <summary>
         /// DebugProfilerView が持っているサンプラ値だけで telemetry record を組み立てる。
         /// 毎フレームでも追加ヒープ確保を増やさないため、DTO 化せず struct をその場で書き出す。
+        ///
+        /// <para>
+        /// Contract v3: ProfilerSummary は kind=sample（elapsedMs は意味を持たない）、
+        /// GcSpike / UiCost は kind=event。export 側は sample の elapsedMs キーを省略する。
+        /// </para>
         /// </summary>
         private void WriteProfilerTelemetry(
             Foundation.Core.TelemetryStartType startType,
             Foundation.Core.TelemetryTagType? tags,
-            TelemetryLevel level)
+            TelemetryLevel level,
+            float fps = 0f,
+            int? gcGen0Delta = null)
         {
             var now = DateTime.UtcNow.Ticks;
-            var metadata = RuntimeTelemetryMetadataFactory.CreateProfilerMetadata(
-                cpuTime: _sampler.CpuAvgMs,
-                gpuTime: _sampler.IsGpuTimingAvailable ? _sampler.GpuAvgMs : 0f);
+            var kind = TelemetryKindRules.InferKind(startType);
+            Metadata metadata;
+            TelemetryPayload payload;
+
+            if (kind == TelemetryKind.Sample)
+            {
+                // sample: Frame payload。elapsedMs=0 は MessagePack 互換のプレースホルダに過ぎない。
+                (metadata, payload) = RuntimeTelemetryMetadataFactory.CreateFrameSampleTelemetry(
+                    fps: fps,
+                    cpuTime: _sampler.CpuAvgMs,
+                    gpuTime: _sampler.GpuAvgMs,
+                    gpuAvailable: _sampler.IsGpuTimingAvailable);
+            }
+            else if (kind == TelemetryKind.Event && gcGen0Delta.HasValue)
+            {
+                // GcSpike: 根拠値だけを EventDetail に載せる（cpu/elapsed 欄を持たせない）
+                metadata = default;
+                payload = TelemetryPayload.ForEventDetail(
+                    gcGen0Delta: gcGen0Delta.Value,
+                    unityFrame: Time.frameCount);
+            }
+            else
+            {
+                // UiCost: 瞬間 event。根拠値は frameCount のみ（rebuild/batch は後続拡張）。
+                // cpu/gpu を flat に載せると「区間計測」と誤読されるため載せない。
+                metadata = default;
+                payload = TelemetryPayload.ForEventDetail(
+                    gcGen0Delta: 0,
+                    unityFrame: Time.frameCount);
+            }
 
             var telemetryRecord = new TelemetryRecord(
                 traceId: AppTelemetry.GenerateId(),
                 spanId: AppTelemetry.GenerateId(),
-                parentSpanId: 0,
+                // 親なしのセンチネルは -1 に統一（0 と混在させない）
+                parentSpanId: -1,
                 name: startType,
                 startTimestampUtcTicks: now,
                 endTimestampUtcTicks: now,
@@ -339,7 +376,9 @@ namespace OneStarMaker.Debug
                 isSuccess: true,
                 tags: tags,
                 level: level,
-                metadata: metadata);
+                metadata: metadata,
+                kind: kind,
+                payload: payload);
 
             AppTelemetry.WriteRecord(telemetryRecord);
         }

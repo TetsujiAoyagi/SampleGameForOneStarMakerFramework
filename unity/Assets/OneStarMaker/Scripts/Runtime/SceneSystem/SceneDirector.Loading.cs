@@ -115,8 +115,7 @@ namespace OneStarMaker.Runtime.SceneSystem
             TelemetryLevel telemetryLevel)
         {
             // 追加の文字列 tag はここでは組み立てない。
-            // シーンロードは実行頻度こそ高くないが、transport へ載せる本命は
-            // StartType / Metadata / TagBits なので、ヒープ文字列を増やさない。
+            // Contract v3 では StartType / Payload / TagBits が本命。ヒープ文字列を増やさない。
             var span = AppTelemetry.StartSpan(Foundation.Core.TelemetryStartType.SceneLoad, null);
             var success = false;
             var memBefore = RuntimeTelemetryMetadataFactory.CaptureMemorySnapshot();
@@ -126,7 +125,13 @@ namespace OneStarMaker.Runtime.SceneSystem
             if (_currentScenes.TryGetValue(sceneIdentify, out var existing)
                 && existing.SceneBase.Lifecycle.IsActive)
             {
-                AppTelemetry.FinishSpan(span, default, true, TelemetryLevel.Verbose, null);
+                // 既に Stable: 超短 span。memory delta は 0（before=after）でよいが
+                // targetIdentity は必ず載せ、SceneLoad の payload 形を揃える。
+                var (skipMetadata, skipPayload) = RuntimeTelemetryMetadataFactory.CreateTimingMemoryTelemetry(
+                    memBefore,
+                    memBefore,
+                    targetIdentity: sceneIdentify);
+                AppTelemetry.FinishSpan(span, skipMetadata, true, TelemetryLevel.Verbose, null, skipPayload);
                 return;
             }
 
@@ -326,9 +331,14 @@ namespace OneStarMaker.Runtime.SceneSystem
                             sceneIdentify));
                 }
 
-                var metadata = RuntimeTelemetryMetadataFactory.CreateMemoryMetadata(memAfter);
+                // Contract v3: payload に before/after/delta と targetIdentity を載せる。
+                // 旧 flat ManagedMem/NativeMem は after 絶対値を併記（段階移行）。
+                var (metadata, payload) = RuntimeTelemetryMetadataFactory.CreateTimingMemoryTelemetry(
+                    memBefore,
+                    memAfter,
+                    targetIdentity: sceneIdentify);
 
-                AppTelemetry.FinishSpan(span, metadata, success, telemetryLevel, tags);
+                AppTelemetry.FinishSpan(span, metadata, success, telemetryLevel, tags, payload);
             }
         }
 

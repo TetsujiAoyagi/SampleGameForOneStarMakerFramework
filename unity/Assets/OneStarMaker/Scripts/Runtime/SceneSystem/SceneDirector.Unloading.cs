@@ -93,9 +93,13 @@ namespace OneStarMaker.Runtime.SceneSystem
                             sceneIdentify));
                 }
 
-                var metadata = RuntimeTelemetryMetadataFactory.CreateMemoryMetadata(memAfter);
+                // Contract v3: Unload も SceneLoad と同じ TimingMemory payload 形に揃える。
+                var (metadata, payload) = RuntimeTelemetryMetadataFactory.CreateTimingMemoryTelemetry(
+                    memBefore,
+                    memAfter,
+                    targetIdentity: sceneIdentify);
 
-                AppTelemetry.FinishSpan(span, metadata, success, telemetryLevel, tags);
+                AppTelemetry.FinishSpan(span, metadata, success, telemetryLevel, tags, payload);
             }
         }
 

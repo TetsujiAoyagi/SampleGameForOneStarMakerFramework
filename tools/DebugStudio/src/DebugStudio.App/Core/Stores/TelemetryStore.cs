@@ -240,6 +240,42 @@ public sealed class TelemetryStore
             ProducerSequence = telemetry.ProducerSequence,
             UnityFrameAtStart = telemetry.UnityFrameAtStart,
             UnityFrameAtEnd = telemetry.UnityFrameAtEnd,
+            // Contract v3: clone で Kind/Payload を落とすと export が全部 span 扱いになる
+            Kind = telemetry.Kind,
+            Payload = ClonePayload(telemetry.Payload),
+        };
+    }
+
+    private static DebugTelemetryPayloadV1? ClonePayload(DebugTelemetryPayloadV1? payload)
+    {
+        if (payload == null)
+        {
+            return null;
+        }
+
+        return new DebugTelemetryPayloadV1
+        {
+            Shape = payload.Shape,
+            TargetIdentity = payload.TargetIdentity,
+            Stage = payload.Stage,
+            ManagedBeforeBytes = payload.ManagedBeforeBytes,
+            NativeBeforeBytes = payload.NativeBeforeBytes,
+            ManagedAfterBytes = payload.ManagedAfterBytes,
+            NativeAfterBytes = payload.NativeAfterBytes,
+            ManagedDeltaBytes = payload.ManagedDeltaBytes,
+            NativeDeltaBytes = payload.NativeDeltaBytes,
+            Fps = payload.Fps,
+            CpuMs = payload.CpuMs,
+            GpuMs = payload.GpuMs,
+            GpuAvailable = payload.GpuAvailable,
+            ManagedBytes = payload.ManagedBytes,
+            NativeBytes = payload.NativeBytes,
+            GcGen0Delta = payload.GcGen0Delta,
+            UnityFrame = payload.UnityFrame,
+            CameraTotalViewCount = payload.CameraTotalViewCount,
+            CameraAdditionalViewCount = payload.CameraAdditionalViewCount,
+            CameraBlendingViewCount = payload.CameraBlendingViewCount,
+            CameraMaxStackDepthTotal = payload.CameraMaxStackDepthTotal,
         };
     }
 

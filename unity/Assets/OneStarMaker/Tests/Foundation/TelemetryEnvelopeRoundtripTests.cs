@@ -112,7 +112,7 @@ namespace OneStarMaker.Tests.Foundation
                 "Telemetry payload の復号に失敗");
             Assert.NotNull(payload);
 
-            Assert.AreEqual(1, payload!.SchemaVersion);
+            Assert.AreEqual(3, payload!.SchemaVersion);
             Assert.AreEqual(record.TraceId, payload.TraceId);
             Assert.AreEqual(record.SpanId, payload.SpanId);
             Assert.AreEqual(record.ParentSpanId, payload.ParentSpanId);
@@ -135,6 +135,16 @@ namespace OneStarMaker.Tests.Foundation
             Assert.AreEqual(record.MetadataValue.CameraMaxStackDepthTotal, payload.CameraMaxStackDepthTotal);
             Assert.AreEqual(record.MetadataValue.CameraViewId, payload.CameraViewId);
             Assert.AreEqual(record.MetadataValue.CameraActiveCameraHash, payload.CameraActiveCameraHash);
+            Assert.AreEqual(record.Kind.ToWireString(), payload.Kind);
+            if (record.Payload.Shape == TelemetryPayloadShape.None)
+            {
+                Assert.IsNull(payload.Payload);
+            }
+            else
+            {
+                Assert.IsNotNull(payload.Payload);
+                Assert.AreEqual((byte)record.Payload.Shape, payload.Payload!.Shape);
+            }
         }
     }
 }

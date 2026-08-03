@@ -7,8 +7,9 @@ namespace DebugStudio.Contracts.Protocol;
 [MessagePackObject]
 public sealed class DebugTelemetryEnvelopeV1
 {
+    /// <summary>Contract v3 以降は 3。Key 27/28 に Kind / Payload を追加。</summary>
     [Key(0)]
-    public int SchemaVersion { get; set; } = 1;
+    public int SchemaVersion { get; set; } = 3;
 
     [Key(1)]
     public long TraceId { get; set; }
@@ -103,4 +104,12 @@ public sealed class DebugTelemetryEnvelopeV1
     /// </summary>
     [Key(26)]
     public int? UnityFrameAtEnd { get; set; }
+
+    /// <summary>Contract v3: "span" / "sample" / "event"。</summary>
+    [Key(27)]
+    public string Kind { get; set; } = "span";
+
+    /// <summary>Contract v3: 用途固有ペイロード。無い場合は null。</summary>
+    [Key(28)]
+    public DebugTelemetryPayloadV1? Payload { get; set; }
 }

@@ -32,9 +32,16 @@ public static class DebugStudioTextFormatter
     {
         var successText = telemetry.IsSuccess ? "success" : "failure";
         var tagsText = DebugTelemetryTagFormatter.FormatInline(telemetry.TagBits);
+        var kind = string.IsNullOrEmpty(telemetry.Kind) ? "span" : telemetry.Kind;
+        // sample / 瞬間 event では elapsedMs=0 を表示しない（Contract v3）
+        var showElapsed = !string.Equals(kind, "sample", StringComparison.OrdinalIgnoreCase)
+            && !(string.Equals(kind, "event", StringComparison.OrdinalIgnoreCase) && telemetry.ElapsedMs <= 0.0);
+        var elapsedPart = showElapsed
+            ? string.Create(CultureInfo.InvariantCulture, $"{telemetry.ElapsedMs:F2} ms ")
+            : string.Empty;
         return string.Create(
             CultureInfo.InvariantCulture,
-            $"[{FormatTicks(telemetry.EndTimestampUtcTicks)}] [telemetry] {telemetry.Name} {telemetry.ElapsedMs:F2} ms {successText} trace={telemetry.TraceId} span={telemetry.SpanId}{(string.IsNullOrEmpty(tagsText) ? string.Empty : $" tags={tagsText}")}");
+            $"[{FormatTicks(telemetry.EndTimestampUtcTicks)}] [telemetry/{kind}] {telemetry.Name} {elapsedPart}{successText} trace={telemetry.TraceId} span={telemetry.SpanId}{(string.IsNullOrEmpty(tagsText) ? string.Empty : $" tags={tagsText}")}");
     }
 
     public static string FormatServiceStatus(DebugSocketServiceStatusEnvelopeV1 status)

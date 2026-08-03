@@ -166,6 +166,8 @@ namespace OneStarMaker.Runtime
         {
             var span = AppTelemetry.StartSpan(Foundation.Core.TelemetryStartType.AppStartup, null);
             var success = false;
+            // Contract v3: AppStartup でも memory before/after/delta を載せる（metadata: default 廃止）。
+            var memBefore = RuntimeTelemetryMetadataFactory.CaptureMemorySnapshot();
 
             try
             {
@@ -200,12 +202,19 @@ namespace OneStarMaker.Runtime
             }
             finally
             {
+                var memAfter = RuntimeTelemetryMetadataFactory.CaptureMemorySnapshot();
+                var (metadata, payload) = RuntimeTelemetryMetadataFactory.CreateTimingMemoryTelemetry(
+                    memBefore,
+                    memAfter,
+                    stage: "BeforeSceneLoad");
+
                 AppTelemetry.FinishSpan(
                     span: span,
-                    metadata: default,
+                    metadata: metadata,
                     isSuccess: success,
                     level: TelemetryLevel.Summary,
-                    tags: null);
+                    tags: null,
+                    payload: payload);
             }
         }
 
@@ -217,6 +226,8 @@ namespace OneStarMaker.Runtime
             var span = AppTelemetry.StartSpan(Foundation.Core.TelemetryStartType.AppStartup, null);
             var success = false;
             CancellationToken ct = default;
+            // Contract v3: AfterSceneLoad 区間の memory delta + 最終 stage 名を payload に載せる。
+            var memBefore = RuntimeTelemetryMetadataFactory.CaptureMemorySnapshot();
 
             try
             {
@@ -305,12 +316,21 @@ namespace OneStarMaker.Runtime
             }
             finally
             {
+                var memAfter = RuntimeTelemetryMetadataFactory.CaptureMemorySnapshot();
+                // 成功時は最終段階名ではなく区間名を載せる（失敗時だけ到達 stage で切り分ける）。
+                var stageForPayload = success ? "AfterSceneLoad" : startupStage;
+                var (metadata, payload) = RuntimeTelemetryMetadataFactory.CreateTimingMemoryTelemetry(
+                    memBefore,
+                    memAfter,
+                    stage: stageForPayload);
+
                 AppTelemetry.FinishSpan(
                     span: span,
-                    metadata: default,
+                    metadata: metadata,
                     isSuccess: success,
                     level: TelemetryLevel.Summary,
-                    tags: null);
+                    tags: null,
+                    payload: payload);
             }
         }
 

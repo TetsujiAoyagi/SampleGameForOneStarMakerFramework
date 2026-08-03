@@ -16,7 +16,7 @@ namespace OneStarMaker.Runtime.CameraSystem.Telemetry
 {
     /// <summary>
     /// CameraSystem のスナップショットを 1 件のテレメトリレコードへ変換して送出する。
-    /// 状態観測用の点イベントなので開始/終了タイムスタンプは同一、elapsed は 0 とする。
+    /// Contract v3 では kind=sample（状態ゲージ）。elapsed は意味を持たない。
     /// </summary>
     public static class CameraSystemTelemetryEmitter
     {
@@ -39,24 +39,33 @@ namespace OneStarMaker.Runtime.CameraSystem.Telemetry
                 maxStackDepth = Math.Max(maxStackDepth, snapshot.ViewSummaries[i].StackDepthTotal);
             }
 
+            // Contract v3: カウンタの正本は CameraCounters payload。flat metadata は段階移行の併記。
             var metadata = new Metadata(
                 cameraTotalViewCount: snapshot.TotalViewCount,
                 cameraAdditionalViewCount: snapshot.AdditionalViewCount,
                 cameraBlendingViewCount: snapshot.BlendingViewCount,
                 cameraMaxStackDepthTotal: maxStackDepth);
+            var payload = TelemetryPayload.ForCameraCounters(
+                totalViewCount: snapshot.TotalViewCount,
+                additionalViewCount: snapshot.AdditionalViewCount,
+                blendingViewCount: snapshot.BlendingViewCount,
+                maxStackDepthTotal: maxStackDepth);
 
+            var now = DateTime.UtcNow.Ticks;
             var record = new TelemetryRecord(
                 traceId: AppTelemetry.GenerateId(),
                 spanId: AppTelemetry.GenerateId(),
                 parentSpanId: -1,
                 name: TelemetryStartType.CameraSystemSnapshot,
-                startTimestampUtcTicks: DateTime.UtcNow.Ticks,
-                endTimestampUtcTicks: DateTime.UtcNow.Ticks,
+                startTimestampUtcTicks: now,
+                endTimestampUtcTicks: now,
                 elapsedMs: 0.0,
                 isSuccess: true,
                 tags: null,
                 level: TelemetryLevel.Verbose,
-                metadata: metadata);
+                metadata: metadata,
+                kind: TelemetryKind.Sample,
+                payload: payload);
 
             AppTelemetry.WriteRecord(record);
         }

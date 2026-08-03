@@ -95,6 +95,92 @@ public sealed class CorrelationExportMapperTests
         Assert.Equal(8, exportRecord.ProducerSequence);
         Assert.Equal(40, exportRecord.UnityFrameAtStart);
         Assert.Equal(45, exportRecord.UnityFrameAtEnd);
+        Assert.Equal("span", exportRecord.Kind);
+        Assert.Equal(5, exportRecord.ElapsedMs);
+    }
+
+    [Fact]
+    public void TelemetryExportMapper_sampleはElapsedMsを省略する()
+    {
+        var telemetry = new DebugTelemetryEnvelopeV1
+        {
+            Name = "ProfilerSummary",
+            Kind = "sample",
+            SchemaVersion = 3,
+            TraceId = 1,
+            SpanId = 2,
+            EndTimestampUtcTicks = DateTime.UtcNow.Ticks,
+            ElapsedMs = 0,
+            IsSuccess = true,
+            Level = 0,
+            Payload = new DebugTelemetryPayloadV1
+            {
+                Shape = 2,
+                Fps = 59.2f,
+                CpuMs = 14.1f,
+            },
+        };
+
+        var exportRecord = TelemetryRecordExportMapper.ToExportRecord(telemetry);
+
+        Assert.Equal("sample", exportRecord.Kind);
+        Assert.Null(exportRecord.ElapsedMs);
+        Assert.NotNull(exportRecord.Payload);
+        Assert.Equal("Frame", exportRecord.Payload!.Shape);
+        Assert.Equal(14.1f, exportRecord.Payload.CpuMs);
+    }
+
+    [Fact]
+    public void TelemetryExportMapper_SceneSpanのflatCpuゼロとカメラセンチネルを省略する()
+    {
+        var telemetry = new DebugTelemetryEnvelopeV1
+        {
+            Name = "SceneLoad",
+            Kind = "span",
+            SchemaVersion = 3,
+            ElapsedMs = 12.5,
+            EndTimestampUtcTicks = DateTime.UtcNow.Ticks,
+            CpuTime = 0f,
+            GpuTime = 0f,
+            ManagedMem = 150,
+            NativeMem = 220,
+            SceneFrom = -1,
+            SceneTo = -1,
+            CameraTotalViewCount = -1,
+            Payload = new DebugTelemetryPayloadV1
+            {
+                Shape = 1,
+                TargetIdentity = "Cell_0_0",
+                ManagedDeltaBytes = 50,
+            },
+        };
+
+        var exportRecord = TelemetryRecordExportMapper.ToExportRecord(telemetry);
+
+        Assert.Null(exportRecord.CpuTime);
+        Assert.Null(exportRecord.GpuTime);
+        Assert.Null(exportRecord.SceneFrom);
+        Assert.Null(exportRecord.CameraTotalViewCount);
+        Assert.Equal(12.5, exportRecord.ElapsedMs);
+        Assert.Equal("TimingMemory", exportRecord.Payload!.Shape);
+    }
+
+    [Fact]
+    public void TelemetryExportMapper_瞬間eventのElapsedMsゼロを省略する()
+    {
+        var telemetry = new DebugTelemetryEnvelopeV1
+        {
+            Name = "UiCost",
+            Kind = "event",
+            SchemaVersion = 3,
+            ElapsedMs = 0,
+            EndTimestampUtcTicks = DateTime.UtcNow.Ticks,
+            Payload = new DebugTelemetryPayloadV1 { Shape = 3, UnityFrame = 10 },
+        };
+
+        var exportRecord = TelemetryRecordExportMapper.ToExportRecord(telemetry);
+        Assert.Null(exportRecord.ElapsedMs);
+        Assert.Equal("EventDetail", exportRecord.Payload!.Shape);
     }
 
     [Fact]

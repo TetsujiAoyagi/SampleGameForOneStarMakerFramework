@@ -9,12 +9,18 @@ namespace OneStarMaker.Foundation.DebugSocket
     /// <summary>
     /// DebugSocket へ流すテレメトリ DTO。
     /// TelemetryRecord の内部表現をそのまま漏らさず、受信側が扱いやすい形へ写像する。
+    ///
+    /// <para>
+    /// SchemaVersion=3 から <see cref="Kind"/> / <see cref="Payload"/> を追加（Key 27/28）。
+    /// 既存 Key 0〜26 は変更しない（MessagePack 互換）。旧フラット欄は段階移行のため併記する。
+    /// </para>
     /// </summary>
     [MessagePackObject]
     public sealed class DebugTelemetryEnvelopeV1
     {
+        /// <summary>Contract v3 以降は 3。旧クライアントは未知 Key を無視できれば併存可能。</summary>
         [Key(0)]
-        public int SchemaVersion { get; set; } = 1;
+        public int SchemaVersion { get; set; } = 3;
 
         [Key(1)]
         public long TraceId { get; set; }
@@ -110,10 +116,24 @@ namespace OneStarMaker.Foundation.DebugSocket
         [Key(26)]
         public int? UnityFrameAtEnd { get; set; }
 
+        /// <summary>
+        /// Contract v3: "span" / "sample" / "event"。
+        /// 消費者はこれを正としてフィルタする。
+        /// </summary>
+        [Key(27)]
+        public string Kind { get; set; } = "span";
+
+        /// <summary>
+        /// Contract v3: 用途固有ペイロード。Shape=None のときは null。
+        /// </summary>
+        [Key(28)]
+        public DebugTelemetryPayloadV1? Payload { get; set; }
+
         public static DebugTelemetryEnvelopeV1 FromRecord(in TelemetryRecord record)
         {
             return new DebugTelemetryEnvelopeV1
             {
+                SchemaVersion = 3,
                 TraceId = record.TraceId,
                 SpanId = record.SpanId,
                 ParentSpanId = record.ParentSpanId,
@@ -124,6 +144,7 @@ namespace OneStarMaker.Foundation.DebugSocket
                 IsSuccess = record.IsSuccess,
                 Level = (int)record.Level,
                 TagBits = record.Tags.HasValue ? (int)record.Tags.Value : null,
+                // 旧フラット欄は段階移行のため併記（新規意味づけは Payload 側）
                 CpuTime = record.MetadataValue.CpuTime,
                 GpuTime = record.MetadataValue.GpuTime,
                 ManagedMem = record.MetadataValue.ManagedMem,
@@ -140,6 +161,8 @@ namespace OneStarMaker.Foundation.DebugSocket
                 ProducerSequence = record.ProducerSequence,
                 UnityFrameAtStart = record.UnityFrameAtStart,
                 UnityFrameAtEnd = record.UnityFrameAtEnd,
+                Kind = record.Kind.ToWireString(),
+                Payload = DebugTelemetryPayloadV1.FromPayload(record.Payload),
             };
         }
     }

@@ -23,6 +23,8 @@ public static class ElasticBulkTelemetryNdjsonBuilder
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = false,
+        // Contract v3: null フィールド（sample の elapsedMs 等）はキー省略
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
     /// <summary>
@@ -75,6 +77,10 @@ public static class ElasticBulkTelemetryNdjsonBuilder
             ["stream"] = record.Stream,
             ["source"] = record.Source,
             ["name"] = record.Name,
+            // Contract v3: kind / schemaVersion / payload を Elastic 文書の正本として載せる
+            ["kind"] = record.Kind,
+            ["schemaVersion"] = record.SchemaVersion,
+            ["payload"] = record.Payload,
             ["status"] = record.Status,
             ["message"] = record.Message,
             ["isSuccess"] = record.IsSuccess,
