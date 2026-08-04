@@ -26,6 +26,9 @@ unity/.vsconfig
 # Runtime output (logs, local cache)
 unity/OneStarMakerLocal/
 
+# tools/run-tests.ps1 の出力（結果 XML / Unity ログ）
+TestResults/
+
 # user settings
 UserSettings/
 
