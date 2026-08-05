@@ -12,9 +12,10 @@ namespace OneStarMaker.Runtime.AssetManagement.Internal
     {
         internal sealed class LoadedAsset
         {
-            public LoadedAsset(string key, IBackendAsset backend, AssetType type, bool isInstance)
+            public LoadedAsset(string key, AssetKey sourceKey, IBackendAsset backend, AssetType type, bool isInstance)
             {
                 Key = key;
+                SourceKey = sourceKey;
                 Backend = backend;
                 Type = type;
                 IsInstance = isInstance;
@@ -23,6 +24,13 @@ namespace OneStarMaker.Runtime.AssetManagement.Internal
             }
 
             public string Key { get; }
+
+            /// <summary>
+            /// このエントリの元になった AssetKey。台帳の辞書キー（<see cref="Key"/>）は
+            /// instance エントリで suffix が付くため一致しない。文字列から復元はできないので保持する。
+            /// </summary>
+            public AssetKey SourceKey { get; }
+
             public IBackendAsset Backend { get; }
             public AssetType Type { get; }
             public bool IsInstance { get; }
@@ -54,15 +62,16 @@ namespace OneStarMaker.Runtime.AssetManagement.Internal
 
         public bool TryGetAsset(string key, out LoadedAsset asset) => _assets.TryGetValue(key, out asset!);
 
-        public LoadedAsset AddAsset(string key, IBackendAsset backend, AssetType type, bool isInstance)
+        public LoadedAsset AddAsset(string key, AssetKey sourceKey, IBackendAsset backend, AssetType type, bool isInstance)
         {
-            var loaded = new LoadedAsset(key, backend, type, isInstance);
+            var loaded = new LoadedAsset(key, sourceKey, backend, type, isInstance);
             _assets.Add(key, loaded);
             return loaded;
         }
 
         public LoadedAsset Acquire(
             string key,
+            AssetKey sourceKey,
             IBackendAsset backend,
             AssetOwner owner,
             AssetType type,
@@ -74,7 +83,7 @@ namespace OneStarMaker.Runtime.AssetManagement.Internal
             }
             else
             {
-                loaded = AddAsset(key, backend, type, isInstance);
+                loaded = AddAsset(key, sourceKey, backend, type, isInstance);
             }
 
             TrackOwner(owner, key);

@@ -57,20 +57,20 @@ namespace OneStarMaker.Runtime.AssetManagement
             AssetRegistry.LoadedAsset loaded;
             if (_registry.TryGetAsset(key.Canonical, out var existing))
             {
-                loaded = _registry.Acquire(key.Canonical, existing.Backend, owner, key.Type, isInstance: false);
+                loaded = _registry.Acquire(key.Canonical, key, existing.Backend, owner, key.Type, isInstance: false);
             }
             else if (_cache != null && _cache.TryTake(key.Canonical, out var cached))
             {
-                loaded = _registry.Acquire(key.Canonical, cached, owner, key.Type, isInstance: false);
+                loaded = _registry.Acquire(key.Canonical, key, cached, owner, key.Type, isInstance: false);
             }
             else
             {
                 var backendAsset = await LoadBackendAssetDedup<T>(key, ct);
-                loaded = _registry.Acquire(key.Canonical, backendAsset, owner, key.Type, isInstance: false);
+                loaded = _registry.Acquire(key.Canonical, key, backendAsset, owner, key.Type, isInstance: false);
             }
 
             AttachDestroyReleaseIfNeeded(owner);
-            return new AssetHandle<T>(loaded);
+            return new AssetHandle<T>(loaded, owner);
         }
 
         public IAssetHandle<T> LoadAppAssetSync<T>(AssetKey key) where T : UnityEngine.Object
@@ -78,19 +78,19 @@ namespace OneStarMaker.Runtime.AssetManagement
             AssetRegistry.LoadedAsset loaded;
             if (_registry.TryGetAsset(key.Canonical, out var existing))
             {
-                loaded = _registry.Acquire(key.Canonical, existing.Backend, AssetOwner.App, key.Type, isInstance: false);
+                loaded = _registry.Acquire(key.Canonical, key, existing.Backend, AssetOwner.App, key.Type, isInstance: false);
             }
             else if (_cache != null && _cache.TryTake(key.Canonical, out var cached))
             {
-                loaded = _registry.Acquire(key.Canonical, cached, AssetOwner.App, key.Type, isInstance: false);
+                loaded = _registry.Acquire(key.Canonical, key, cached, AssetOwner.App, key.Type, isInstance: false);
             }
             else
             {
                 var backendAsset = _backend.LoadAssetSync<T>(key.Address);
-                loaded = _registry.Acquire(key.Canonical, backendAsset, AssetOwner.App, key.Type, isInstance: false);
+                loaded = _registry.Acquire(key.Canonical, key, backendAsset, AssetOwner.App, key.Type, isInstance: false);
             }
 
-            return new AssetHandle<T>(loaded);
+            return new AssetHandle<T>(loaded, AssetOwner.App);
         }
 
         public async UniTask<ISceneHandle> LoadSceneAsync(
@@ -146,7 +146,8 @@ namespace OneStarMaker.Runtime.AssetManagement
             if (backendInstance is IBackendAsset backendAsset)
             {
                 var instanceKey = $"{key.Canonical}:instance:{owner.GameObjectId}";
-                _registry.Acquire(instanceKey, backendAsset, owner, AssetType.Prefab, isInstance: true);
+                // instance エントリの辞書キーは suffix 付きだが、診断が返すべきキーは元プレハブの key。
+                _registry.Acquire(instanceKey, key, backendAsset, owner, AssetType.Prefab, isInstance: true);
             }
 
             AttachDestroyReleaseIfNeeded(owner);
@@ -160,7 +161,15 @@ namespace OneStarMaker.Runtime.AssetManagement
                 throw new ArgumentNullException(nameof(handle));
             }
 
-            ReleaseKey(handle.Key);
+            // owner が判らないまま解放すると Owners と RefCount が乖離する（旧実装は一律 Manual を外していた）。
+            if (handle is not IOwnedAssetHandle owned)
+            {
+                throw new ArgumentException(
+                    $"この AssetManagement が発行していないハンドルは解放できません: {handle.GetType().Name}",
+                    nameof(handle));
+            }
+
+            ReleaseKey(handle.Key, owned.Owner);
         }
 
         /// <inheritdoc/>
@@ -242,12 +251,13 @@ namespace OneStarMaker.Runtime.AssetManagement
                     continue;
                 }
 
-                if (!seen.Add(loaded.Key))
+                // instance エントリは元プレハブと同じ SourceKey を持つため、ここで畳む。
+                if (!seen.Add(loaded.SourceKey.Canonical))
                 {
                     continue;
                 }
 
-                keys.Add(ToAssetKey(loaded));
+                keys.Add(loaded.SourceKey);
             }
 
             return keys;
@@ -266,21 +276,9 @@ namespace OneStarMaker.Runtime.AssetManagement
             return false;
         }
 
-        private static AssetKey ToAssetKey(AssetRegistry.LoadedAsset loaded)
+        private void ReleaseKey(string key, AssetOwner owner)
         {
-            const string addressPrefix = "address:";
-            if (loaded.Key.StartsWith(addressPrefix, StringComparison.Ordinal))
-            {
-                return AssetKey.FromAddress(loaded.Key.Substring(addressPrefix.Length));
-            }
-
-            throw new InvalidOperationException(
-                $"Cannot reconstruct AssetKey from registry entry: {loaded.Key}");
-        }
-
-        private void ReleaseKey(string key)
-        {
-            if (_registry.Release(key, AssetOwner.Manual, out var loaded) && loaded != null)
+            if (_registry.Release(key, owner, out var loaded) && loaded != null)
             {
                 ReleaseOrStore(loaded);
             }
@@ -337,14 +335,17 @@ namespace OneStarMaker.Runtime.AssetManagement
             }
         }
 
-        private sealed class AssetHandle<T> : IAssetHandle<T> where T : UnityEngine.Object
+        private sealed class AssetHandle<T> : IAssetHandle<T>, IOwnedAssetHandle where T : UnityEngine.Object
         {
             private readonly AssetRegistry.LoadedAsset _asset;
 
-            public AssetHandle(AssetRegistry.LoadedAsset asset)
+            public AssetHandle(AssetRegistry.LoadedAsset asset, AssetOwner owner)
             {
                 _asset = asset;
+                Owner = owner;
             }
+
+            public AssetOwner Owner { get; }
 
             public string Key => _asset.Key;
 
