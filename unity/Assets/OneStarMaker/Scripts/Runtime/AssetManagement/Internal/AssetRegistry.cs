@@ -19,7 +19,6 @@ namespace OneStarMaker.Runtime.AssetManagement.Internal
                 Type = type;
                 IsInstance = isInstance;
                 RefCount = 1;
-                Owners = new List<AssetOwner>();
             }
 
             public string Key { get; }
@@ -27,7 +26,6 @@ namespace OneStarMaker.Runtime.AssetManagement.Internal
             public AssetType Type { get; }
             public bool IsInstance { get; }
             public int RefCount { get; set; }
-            public List<AssetOwner> Owners { get; }
         }
 
         internal sealed class LoadedScene
@@ -78,11 +76,10 @@ namespace OneStarMaker.Runtime.AssetManagement.Internal
             }
 
             TrackOwner(owner, key);
-            loaded.Owners.Add(owner);
             return loaded;
         }
 
-        public bool Release(string key, AssetOwner owner, out LoadedAsset? loaded)
+        public bool Release(string key, out LoadedAsset? loaded)
         {
             loaded = null;
             if (!_assets.TryGetValue(key, out var asset))
@@ -90,7 +87,6 @@ namespace OneStarMaker.Runtime.AssetManagement.Internal
                 return false;
             }
 
-            asset.Owners.Remove(owner);
             asset.RefCount--;
             if (asset.RefCount > 0)
             {
@@ -105,12 +101,11 @@ namespace OneStarMaker.Runtime.AssetManagement.Internal
         public IReadOnlyList<LoadedAsset> ReleaseSceneOwned(string sceneIdentity)
         {
             var released = new List<LoadedAsset>();
-            var owner = AssetOwner.Scene(sceneIdentity);
             if (_sceneOwned.TryGetValue(sceneIdentity, out var keys))
             {
                 foreach (var key in keys)
                 {
-                    if (Release(key, owner, out var loaded) && loaded != null)
+                    if (Release(key, out var loaded) && loaded != null)
                     {
                         released.Add(loaded);
                     }
@@ -130,10 +125,9 @@ namespace OneStarMaker.Runtime.AssetManagement.Internal
                 return released;
             }
 
-            var owner = AssetOwner.FromGameObjectId(gameObjectId);
             foreach (var key in keys)
             {
-                if (Release(key, owner, out var loaded) && loaded != null)
+                if (Release(key, out var loaded) && loaded != null)
                 {
                     released.Add(loaded);
                 }
@@ -169,11 +163,6 @@ namespace OneStarMaker.Runtime.AssetManagement.Internal
         }
 
         public bool TryGetScene(string identity, out LoadedScene scene) => _scenes.TryGetValue(identity, out scene!);
-
-        internal IReadOnlyList<LoadedAsset> GetAllLoadedAssets()
-        {
-            return new List<LoadedAsset>(_assets.Values);
-        }
 
         public void MarkSceneUnloaded(string identity)
         {

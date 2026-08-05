@@ -55,11 +55,6 @@ namespace OneStarMaker.Runtime.AssetManagement
             return new AssetOwner(AssetOwnerKind.GameObject, id.ToString(), id, go);
         }
 
-        internal static AssetOwner FromGameObjectId(ulong id)
-        {
-            return new AssetOwner(AssetOwnerKind.GameObject, id.ToString(), id);
-        }
-
         public bool Equals(AssetOwner other)
         {
             return Kind == other.Kind
@@ -78,23 +73,6 @@ namespace OneStarMaker.Runtime.AssetManagement
                 hash = hash * 31 + StringComparer.Ordinal.GetHashCode(Id);
                 hash = hash * 31 + GameObjectId.GetHashCode();
                 return hash;
-            }
-        }
-
-        public override string ToString()
-        {
-            switch (Kind)
-            {
-                case AssetOwnerKind.App:
-                    return "App";
-                case AssetOwnerKind.Manual:
-                    return "Manual";
-                case AssetOwnerKind.Scene:
-                    return $"Scene({Id})";
-                case AssetOwnerKind.GameObject:
-                    return $"GameObject({GameObjectId})";
-                default:
-                    return Kind.ToString();
             }
         }
 
