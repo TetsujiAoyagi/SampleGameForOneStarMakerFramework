@@ -59,9 +59,6 @@ namespace OneStarMaker.Editor.SceneGraph
             _graphView.style.flexGrow = 1;
             mainContainer.Add(_graphView);
 
-            // Delete キー
-            _graphView.RegisterCallback<KeyDownEvent>(OnKeyDown);
-
             // GraphView のノード選択を 100ms ポーリングで ViewModel に反映
             // （GraphView は選択変更イベントを直接公開しないため）
             rootVisualElement.schedule.Execute(PollGraphViewSelection).Every(100);
@@ -95,8 +92,8 @@ namespace OneStarMaker.Editor.SceneGraph
             var newNodeButton = new ToolbarButton(OnNewNode) { text = "New Node" };
             toolbar.Add(newNodeButton);
 
-            // ── Delete ──
-            var deleteButton = new ToolbarButton(OnDeleteSelected) { text = "Delete" };
+            // ── Remove from Graph ──
+            var deleteButton = new ToolbarButton(OnDeleteSelected) { text = "Remove from Graph" };
             toolbar.Add(deleteButton);
 
             toolbar.Add(new ToolbarSpacer());
@@ -167,7 +164,7 @@ namespace OneStarMaker.Editor.SceneGraph
             }
 
             // 見つからなければ最初のグラフ
-            target ??= graphs[0];
+            if (target == null) target = graphs[0];
 
             _viewModel.LoadGraph(target);
             if (_graphSelector != null)
@@ -213,10 +210,8 @@ namespace OneStarMaker.Editor.SceneGraph
 
         private void OnDeleteSelected()
         {
-            if (_viewModel?.SelectedNode != null)
-            {
-                _viewModel.DeleteNode(_viewModel.SelectedNode);
-            }
+            // §3.9.3: 意味論が「グラフから除外」に変わったため、GraphView の統一 Delete 経路へ委譲する。
+            _graphView?.RemoveSelectionFromGraph();
         }
 
         private void OnAutoLayout()
@@ -280,41 +275,53 @@ namespace OneStarMaker.Editor.SceneGraph
             EditorUtility.DisplayDialog("Scene Graph", message, "OK");
         }
 
-        private void OnKeyDown(KeyDownEvent evt)
-        {
-            // Delete キーでノード削除
-            if (evt.keyCode == KeyCode.Delete && _viewModel?.SelectedNode != null)
-            {
-                _viewModel.DeleteNode(_viewModel.SelectedNode);
-                evt.StopPropagation();
-            }
-        }
-
         /// <summary>
         /// GraphView のノード選択をポーリングで検知し ViewModel に反映する。
+        /// ポーリング方式（100ms）はそのまま維持する。AddToSelection 等の override 方式は
+        /// 矩形選択の発火パターンが版依存のため採用しない。
         /// </summary>
-        private SceneNodeData? _lastPolledSelection;
+        private List<SceneNodeData> _lastPolledSelection = new();
 
         private void PollGraphViewSelection()
         {
             if (_graphView == null || _viewModel == null) return;
 
-            var selectedNodes = _graphView.selection
+            var current = _graphView.selection
                 .OfType<SceneGraphNode>()
+                .Select(n => n.NodeData)
+                .Where(n => n != null)
+                .Cast<SceneNodeData>()
                 .ToList();
 
-            var current = selectedNodes.Count == 1 ? selectedNodes[0].NodeData : null;
-
-            if (current != _lastPolledSelection)
+            if (!SelectionSequenceEquals(current, _lastPolledSelection))
             {
                 _lastPolledSelection = current;
-                _viewModel.SelectedNode = current;
+                _viewModel.SetSelection(current);
             }
+        }
+
+        private static bool SelectionSequenceEquals(List<SceneNodeData> a, List<SceneNodeData> b)
+        {
+            if (a.Count != b.Count) return false;
+            for (int i = 0; i < a.Count; i++)
+            {
+                if (a[i] != b[i]) return false;
+            }
+            return true;
         }
 
         private void OnUndoRedo()
         {
-            _viewModel?.RefreshNodes();
+            if (_viewModel == null) return;
+
+            _viewModel.RefreshNodes();
+
+            // B4: 破棄済みノードを選択から外す（Inspector の SerializedObject 例外を防ぐ）
+            _viewModel.SetSelection(_viewModel.SelectedNodes);
+
+            // B3: Identity とアセットファイル名の食い違いを直す
+            _viewModel.SyncAssetNamesToIdentity();
+
             _graphView?.RebuildGraph();
         }
 

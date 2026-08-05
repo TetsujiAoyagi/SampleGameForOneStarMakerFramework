@@ -20,12 +20,29 @@ namespace OneStarMaker.Editor.SceneGraph
             "Assets/OneStarMaker/Scripts/Editor/SceneGraph/View/SceneGraphView.uss";
 
         private readonly SceneGraphViewModel _viewModel;
+        private readonly SceneGraphPasteService _pasteService;
         private readonly Dictionary<SceneNodeData, SceneGraphNode> _nodeMap = new();
         private bool _isRebuilding;
+        private bool _rebuildScheduled;
+
+        // GraphView 内部クリップボードは外から読めないため、Ctrl+C 経路の JSON をここに残す。
+        // static: グラフ切替で SceneGraphView が作り直されても「別グラフへの参照ペースト」を残すため。
+        private static string _lastClipboardJson = string.Empty;
+
+        /// <summary>
+        /// 実行中の編集コマンド名（"Copy" / "Cut" / "Duplicate" / "Paste" …）。
+        /// GraphView は Duplicate（Ctrl+D）でも serializeGraphElements を呼ぶため、
+        /// クリップボードを更新してよい操作かどうかをこれで判別する。
+        /// </summary>
+        private string _activeCommandName = string.Empty;
+
+        /// <summary>Duplicate はクリップボードを変更しない操作である、という区別のための定数。</summary>
+        private const string DuplicateCommandName = "Duplicate";
 
         public SceneGraphView(SceneGraphViewModel viewModel)
         {
             _viewModel = viewModel;
+            _pasteService = new SceneGraphPasteService(viewModel);
 
             // ── 基本操作の有効化 ──
             SetupZoom(ContentZoomer.DefaultMinScale, ContentZoomer.DefaultMaxScale);
@@ -61,10 +78,23 @@ namespace OneStarMaker.Editor.SceneGraph
             }
 
             // ── ViewModel イベント購読 ──
-            _viewModel.OnGraphChanged += RebuildGraph;
+            // R1: 同期的に RebuildGraph を呼ぶと、graphViewChanged ハンドラの内側（BeginBatch の
+            // Dispose は return graphViewChange; より前に走る）で GraphView が elementsToRemove /
+            // edgesToCreate を適用し終える前に全要素を撤去してしまう（B5 再発）。次フレームへ
+            // コアレスして遅延させる。
+            _viewModel.OnGraphChanged += ScheduleRebuild;
 
             // ── GraphView コールバック ──
             graphViewChanged = OnGraphViewChanged;
+            serializeGraphElements = OnSerializeGraphElements;
+            canPasteSerializedData = OnCanPasteSerializedData;
+            unserializeAndPaste = OnUnserializeAndPaste;
+            deleteSelection = OnDeleteSelection;
+
+            // ── 実行中コマンドの捕捉 ──
+            // TrickleDown: GraphView 本体がコマンドを処理する前に名前を控える必要がある
+            // （serializeGraphElements はその処理の内側から呼ばれるため）。
+            RegisterCallback<ExecuteCommandEvent>(OnExecuteCommandCapture, TrickleDown.TrickleDown);
 
             // ── 右クリックメニュー ──
             RegisterCallback<ContextualMenuPopulateEvent>(OnContextMenuPopulate);
@@ -109,12 +139,19 @@ namespace OneStarMaker.Editor.SceneGraph
                 }
                 _nodeMap.Clear();
 
-                if (_viewModel.CurrentEdges == null) return;
+                // §2.3(d): 破棄済み ScriptableObject は == null が true になる。?. / ?? は使わない。
+                var currentEdges = _viewModel.CurrentEdges;
+                if (currentEdges == null) return;
 
                 // ── ノードの作成 ──
+                // B9: `_viewModel.Nodes` は Nodes フォルダの全アセットを含む（一意名の採番や
+                // Generate が全件を必要とするため）。描画してよいのは **現在のグラフに所属している
+                // ノードだけ**。全件描くと、グラフから除外したノードが RefreshNodes のたびに
+                // (0,0) へ復活し、「Remove from Graph が効いていない」ように見える。
                 foreach (var nodeData in _viewModel.Nodes)
                 {
                     if (nodeData == null) continue;
+                    if (!currentEdges.ContainsNode(nodeData)) continue;
                     AddNodeElement(nodeData);
                 }
 
@@ -135,12 +172,30 @@ namespace OneStarMaker.Editor.SceneGraph
             }
         }
 
+        /// <summary>
+        /// リビルドを次フレームへ遅延させる（R1 対策）。graphViewChanged ハンドラの内側で同期的に
+        /// RebuildGraph を走らせると、GraphView が elementsToRemove / edgesToCreate を適用し終える前に
+        /// 全要素を撤去してしまう（BeginBatch の Dispose は return graphViewChange; より前に走るため）。
+        /// 複数回呼ばれても 1 回にコアレスする。
+        /// </summary>
+        private void ScheduleRebuild()
+        {
+            if (_rebuildScheduled) return;
+            _rebuildScheduled = true;
+            schedule.Execute(() =>
+            {
+                _rebuildScheduled = false;
+                RebuildGraph();
+            }).ExecuteLater(0);
+        }
+
         private SceneGraphNode AddNodeElement(SceneNodeData nodeData)
         {
             var node = new SceneGraphNode(nodeData);
 
             // 位置の復元
-            var pos = _viewModel.CurrentLayout?.GetPosition(nodeData) ?? Vector2.zero;
+            var layout = _viewModel.CurrentLayout;
+            var pos = layout != null ? layout.GetPosition(nodeData) : Vector2.zero;
             node.SetPosition(new Rect(pos.x, pos.y, 200, 150));
 
             AddElement(node);
@@ -155,64 +210,115 @@ namespace OneStarMaker.Editor.SceneGraph
 
         /// <summary>
         /// GraphView の変更（Edge 追加/削除、Node 移動等）を処理する。
+        /// 一括操作は 1 つの BeginBatch で囲み、削除/切断/移動をそれぞれリストへ集めてから
+        /// 一括コマンドを 1 回ずつ呼ぶ（B5: 逐次削除による RebuildGraph の再入連打を防ぐ）。
         /// </summary>
         private GraphViewChange OnGraphViewChanged(GraphViewChange graphViewChange)
         {
             // RebuildGraph 中はハンドラを無視（再入防止）
             if (_isRebuilding) return graphViewChange;
 
-            // ── Edge 作成 ──
-            if (graphViewChange.edgesToCreate != null)
+            using (_viewModel.BeginBatch("Edit Scene Graph"))
             {
-                var validEdges = new List<Edge>();
-
-                foreach (var edge in graphViewChange.edgesToCreate)
+                // ── Edge 作成 ──
+                if (graphViewChange.edgesToCreate != null)
                 {
-                    var parentNode = edge.output?.node as SceneGraphNode;
-                    var childNode = edge.input?.node as SceneGraphNode;
+                    var validEdges = new List<Edge>();
+                    var batchConnectHandled = false;
 
-                    if (parentNode?.NodeData == null || childNode?.NodeData == null)
-                        continue;
-
-                    if (_viewModel.ConnectEdge(parentNode.NodeData, childNode.NodeData))
+                    foreach (var edge in graphViewChange.edgesToCreate)
                     {
-                        validEdges.Add(edge);
-                    }
-                }
-
-                // バリデーション失敗したエッジは除外
-                graphViewChange.edgesToCreate = validEdges;
-            }
-
-            // ── Edge 削除 ──
-            if (graphViewChange.elementsToRemove != null)
-            {
-                foreach (var element in graphViewChange.elementsToRemove)
-                {
-                    if (element is Edge edge)
-                    {
+                        var parentNode = edge.output?.node as SceneGraphNode;
                         var childNode = edge.input?.node as SceneGraphNode;
-                        if (childNode?.NodeData != null)
+
+                        if (parentNode?.NodeData == null || childNode?.NodeData == null)
+                            continue;
+
+                        // 複数選択中に子側が選択に含まれるエッジを引いたら、選択全部を同じ親へ一括接続。
+                        // 視覚エッジは ConnectEdges → OnGraphChanged → ScheduleRebuild が引き直すため
+                        // validEdges には入れない（GraphView にも作らせると二重になる）。
+                        if (!batchConnectHandled)
                         {
-                            _viewModel.DisconnectEdge(childNode.NodeData);
+                            var selectedNodes = selection.OfType<SceneGraphNode>().ToList();
+                            if (selectedNodes.Count >= 2 && selectedNodes.Contains(childNode))
+                            {
+                                var children = selectedNodes
+                                    .Select(n => n.NodeData)
+                                    .Where(n => n != null && n != parentNode.NodeData)
+                                    .ToList();
+
+                                if (children.Count > 0)
+                                {
+                                    _viewModel.ConnectEdges(parentNode.NodeData, children);
+                                    batchConnectHandled = true;
+                                    continue;
+                                }
+                            }
+                        }
+
+                        if (_viewModel.ConnectEdge(parentNode.NodeData, childNode.NodeData))
+                        {
+                            validEdges.Add(edge);
                         }
                     }
-                    else if (element is SceneGraphNode node)
+
+                    // バリデーション失敗したエッジは除外
+                    graphViewChange.edgesToCreate = validEdges;
+                }
+
+                // ── Edge / Node 削除 ──
+                if (graphViewChange.elementsToRemove != null)
+                {
+                    var nodesToRemove = new List<SceneNodeData>();
+                    var edgeChildrenToDisconnect = new List<SceneNodeData>();
+
+                    foreach (var element in graphViewChange.elementsToRemove)
                     {
-                        _viewModel.DeleteNode(node.NodeData);
+                        if (element is Edge edge)
+                        {
+                            var childNode = edge.input?.node as SceneGraphNode;
+                            if (childNode?.NodeData != null)
+                            {
+                                edgeChildrenToDisconnect.Add(childNode.NodeData);
+                            }
+                        }
+                        else if (element is SceneGraphNode node)
+                        {
+                            if (node.NodeData != null)
+                            {
+                                nodesToRemove.Add(node.NodeData);
+                            }
+                        }
+                    }
+
+                    if (edgeChildrenToDisconnect.Count > 0)
+                    {
+                        _viewModel.DisconnectEdges(edgeChildrenToDisconnect);
+                    }
+
+                    if (nodesToRemove.Count > 0)
+                    {
+                        _viewModel.RemoveNodesFromGraph(nodesToRemove);
                     }
                 }
-            }
 
-            // ── Node 移動 ──
-            if (graphViewChange.movedElements != null)
-            {
-                foreach (var element in graphViewChange.movedElements)
+                // ── Node 移動 ──
+                if (graphViewChange.movedElements != null)
                 {
-                    if (element is SceneGraphNode node)
+                    var moves = new List<(SceneNodeData Node, Vector2 Position)>();
+
+                    foreach (var element in graphViewChange.movedElements)
                     {
-                        var rect = node.GetPosition();
-                        _viewModel.MoveNode(node.NodeData, new Vector2(rect.x, rect.y));
+                        if (element is SceneGraphNode node && node.NodeData != null)
+                        {
+                            var rect = node.GetPosition();
+                            moves.Add((node.NodeData, new Vector2(rect.x, rect.y)));
+                        }
+                    }
+
+                    if (moves.Count > 0)
+                    {
+                        _viewModel.MoveNodes(moves);
                     }
                 }
             }
@@ -220,23 +326,248 @@ namespace OneStarMaker.Editor.SceneGraph
             return graphViewChange;
         }
 
+        // ── クリップボード: Copy / Paste / Duplicate / Delete ──
+        // Unity の CopySelectionCallback() 等は版によってアクセシビリティが違うので依存しない。
+        // 自前メソッドを作り、GraphView のデリゲートはそこへ委譲する。
+
+        public void CopySelectionToClipboard()
+        {
+            StoreClipboardJson(BuildClipboardJson(selection.OfType<GraphElement>()));
+        }
+
+        public void PasteFromClipboard()
+        {
+            var json = GetPasteSource();
+            if (!SceneGraphClipboard.CanPaste(json)) return;
+            ApplyPaste(json, forceDuplicate: false);
+        }
+
+        public void DuplicateSelection()
+        {
+            var json = BuildClipboardJson(selection.OfType<GraphElement>());
+            if (string.IsNullOrEmpty(json)) return;
+            ApplyPaste(json, forceDuplicate: true);
+        }
+
+        /// <summary>
+        /// 選択されているノード（+ グラフ内エッジ）をグラフから除外する。
+        /// アセットの実削除はここからは絶対に呼ばない。
+        /// R2: 以前は `public new void DeleteSelection()` として基底 GraphView の同名メンバを隠していた。
+        /// 基底側の経路（GraphView.DeleteSelection()）から呼ばれると `new` 側ではなく基底実装が動いて
+        /// しまい意図が保証されないため、専用名にリネームした。
+        /// </summary>
+        public void RemoveSelectionFromGraph()
+        {
+            var nodesToRemove = selection.OfType<SceneGraphNode>()
+                .Select(n => n.NodeData)
+                .Where(n => n != null)
+                .Cast<SceneNodeData>()
+                .ToList();
+
+            var edgeChildrenToDisconnect = selection.OfType<Edge>()
+                .Select(e => (e.input?.node as SceneGraphNode)?.NodeData)
+                .Where(n => n != null)
+                .Cast<SceneNodeData>()
+                .ToList();
+
+            if (nodesToRemove.Count == 0 && edgeChildrenToDisconnect.Count == 0) return;
+
+            using (_viewModel.BeginBatch("Remove from Graph"))
+            {
+                if (edgeChildrenToDisconnect.Count > 0)
+                {
+                    _viewModel.DisconnectEdges(edgeChildrenToDisconnect);
+                }
+
+                if (nodesToRemove.Count > 0)
+                {
+                    _viewModel.RemoveNodesFromGraph(nodesToRemove);
+                }
+            }
+        }
+
+        /// <summary>実行中の編集コマンド名を控える。GraphView が処理する前に呼ばれる。</summary>
+        private void OnExecuteCommandCapture(ExecuteCommandEvent evt)
+        {
+            _activeCommandName = evt.commandName;
+        }
+
+        private string OnSerializeGraphElements(IEnumerable<GraphElement> elements)
+        {
+            var json = BuildClipboardJson(elements);
+
+            // GraphView は Copy / Cut だけでなく Duplicate（Ctrl+D）でもこのデリゲートを呼ぶ。
+            // Duplicate はクリップボードを変更しない操作なので、ここで保存すると
+            // 「A を Ctrl+C → B を Ctrl+D」でユーザーのコピー内容が B に破壊される。
+            var isDuplicate = _activeCommandName == DuplicateCommandName;
+            _activeCommandName = string.Empty;
+
+            if (!isDuplicate)
+            {
+                StoreClipboardJson(json);
+            }
+
+            return json;
+        }
+
+        private bool OnCanPasteSerializedData(string data)
+        {
+            return SceneGraphClipboard.CanPaste(GetPasteSource());
+        }
+
+        /// <summary>
+        /// ペースト元 JSON の唯一の窓口。systemCopyBuffer が有効ならそれを、通らなければ Ctrl+C 由来の static スナップショットを使う。
+        /// </summary>
+        private static string GetPasteSource()
+        {
+            var systemBuffer = EditorGUIUtility.systemCopyBuffer;
+            if (SceneGraphClipboard.CanPaste(systemBuffer))
+                return systemBuffer;
+            return _lastClipboardJson;
+        }
+
+        /// <summary>
+        /// Copy 経路（メニュー / Ctrl+C）の書き込み口。CanPaste を通る内容だけを両系統へ書く。
+        /// </summary>
+        private static void StoreClipboardJson(string json)
+        {
+            if (!SceneGraphClipboard.CanPaste(json)) return;
+            _lastClipboardJson = json;
+            EditorGUIUtility.systemCopyBuffer = json;
+        }
+
+        private void OnUnserializeAndPaste(string operationName, string data)
+        {
+            var forceDuplicate = operationName == DuplicateCommandName;
+
+            // Duplicate は「いま選択されている要素」を複製する操作なので、直前に
+            // OnSerializeGraphElements が作った data をそのまま使う（クリップボードは見ない）。
+            // Paste はクリップボードの内容を貼る操作なので GetPasteSource() を唯一の窓口とする。
+            var json = forceDuplicate ? data : GetPasteSource();
+            ApplyPaste(json, forceDuplicate);
+        }
+
+        private void OnDeleteSelection(string operationName, GraphView.AskUser askUser)
+        {
+            RemoveSelectionFromGraph();
+        }
+
+        /// <summary>
+        /// GraphElement 群を SceneNodeData に変換してから、ペーストサービスへ委譲する薄いラッパ。
+        /// </summary>
+        private string BuildClipboardJson(IEnumerable<GraphElement> elements)
+        {
+            var nodes = elements.OfType<SceneGraphNode>()
+                .Select(n => n.NodeData)
+                .Where(n => n != null)
+                .Cast<SceneNodeData>()
+                .Distinct()
+                .ToList();
+            return nodes.Count == 0 ? string.Empty : _pasteService.BuildClipboardJson(nodes);
+        }
+
+        /// <summary>
+        /// クリップボード JSON を貼り付け、結果ノードを選択状態にする。
+        /// ドメイン処理はペーストサービスへ委譲し、選択復元だけ View に残す。
+        /// </summary>
+        private void ApplyPaste(string json, bool forceDuplicate)
+        {
+            var result = _pasteService.ApplyPaste(json, forceDuplicate);
+            if (result.Count == 0) return;
+
+            // ペースト後は生成/追加されたノードを選択状態にする。
+            // RebuildGraph は ScheduleRebuild で次フレームへ遅延している（R1）ため、
+            // _nodeMap の更新を待つ必要がある。ScheduleRebuild のスケジュールより後に
+            // キューされるので実行順序は保たれる。
+            schedule.Execute(() =>
+            {
+                ClearSelection();
+                foreach (var node in result)
+                {
+                    if (_nodeMap.TryGetValue(node, out var visualNode))
+                        AddToSelection(visualNode);
+                }
+            }).ExecuteLater(0);
+        }
+
+        private static SceneGraphNode? ResolveContextTargetNode(IEventHandler? target)
+        {
+            if (target is SceneGraphNode node) return node;
+            if (target is VisualElement ve) return ve.GetFirstAncestorOfType<SceneGraphNode>();
+            return null;
+        }
+
         private void OnContextMenuPopulate(ContextualMenuPopulateEvent evt)
         {
             var localMousePosition = contentViewContainer.WorldToLocal(evt.mousePosition);
+            var targetNode = ResolveContextTargetNode(evt.target);
 
-            // R-2: 右クリックで即座にノード作成（ダイアログなし）
-            evt.menu.AppendAction("Create Node", action =>
+            var selectedGraphNodes = selection.OfType<SceneGraphNode>().ToList();
+            var selectedNodes = selectedGraphNodes
+                .Select(n => n.NodeData)
+                .Where(n => n != null)
+                .Cast<SceneNodeData>()
+                .ToList();
+
+            if (selectedGraphNodes.Count == 0)
             {
-                var name = _viewModel.GenerateUniqueName();
-                _viewModel.CreateNode(name, localMousePosition);
-            });
+                // R-2: 右クリックで即座にノード作成（ダイアログなし）
+                evt.menu.AppendAction("Create Node", _ =>
+                {
+                    var name = _viewModel.GenerateUniqueName();
+                    _viewModel.CreateNode(name, localMousePosition);
+                });
+
+                if (SceneGraphClipboard.CanPaste(GetPasteSource()))
+                {
+                    evt.menu.AppendAction("Paste", _ => PasteFromClipboard());
+                }
+
+                evt.menu.AppendSeparator();
+                evt.menu.AppendAction("Auto Layout", _ => PerformAutoLayout());
+                return;
+            }
+
+            evt.menu.AppendAction("Copy", _ => CopySelectionToClipboard());
+            evt.menu.AppendAction("Duplicate", _ => DuplicateSelection());
 
             evt.menu.AppendSeparator();
 
-            evt.menu.AppendAction("Auto Layout", action =>
+            // 「Parent to」の親は右クリックしたノードとする。選択の順序には依存させない。
+            if (selectedNodes.Count >= 2 && targetNode != null && targetNode.NodeData != null)
             {
-                PerformAutoLayout();
+                var parentData = targetNode.NodeData;
+                evt.menu.AppendAction($"Parent to '{parentData.Identity}'", _ =>
+                {
+                    var children = selectedNodes.Where(n => n != parentData).ToList();
+                    _viewModel.ConnectEdges(parentData, children);
+                });
+            }
+
+            var currentEdges = _viewModel.CurrentEdges;
+            var nodesWithParent = currentEdges != null
+                ? selectedNodes.Where(n => currentEdges.GetParent(n) != null).ToList()
+                : new List<SceneNodeData>();
+            if (nodesWithParent.Count > 0)
+            {
+                evt.menu.AppendAction("Unparent Selected", _ => _viewModel.DisconnectEdges(nodesWithParent));
+            }
+
+            evt.menu.AppendAction("Remove from Graph", _ => _viewModel.RemoveNodesFromGraph(selectedNodes));
+
+            evt.menu.AppendSeparator();
+
+            evt.menu.AppendAction("Select in Project", _ =>
+            {
+                Selection.objects = selectedNodes.Cast<UnityEngine.Object>().ToArray();
+                if (selectedNodes.Count > 0) EditorGUIUtility.PingObject(selectedNodes[0]);
             });
+
+            evt.menu.AppendAction("Frame Selection", _ => FrameSelection());
+
+            evt.menu.AppendSeparator();
+
+            evt.menu.AppendAction("Auto Layout", _ => PerformAutoLayout());
         }
 
         /// <summary>
@@ -272,16 +603,15 @@ namespace OneStarMaker.Editor.SceneGraph
 
             var dropPos = contentViewContainer.WorldToLocal(evt.mousePosition);
 
-            Undo.SetCurrentGroupName("Drop SceneAsset(s)");
-            var groupIndex = Undo.GetCurrentGroup();
-
-            for (int i = 0; i < sceneAssetPaths.Count; i++)
+            // §3.1: BeginBatch を通す（以前は IncrementCurrentGroup 無しで直前の操作を巻き込んでいた）
+            using (_viewModel.BeginBatch("Drop SceneAsset(s)"))
             {
-                var pos = new Vector2(dropPos.x, dropPos.y + i * 200);
-                _viewModel.CreateNodeWithSceneAsset(sceneAssetPaths[i], pos);
+                for (int i = 0; i < sceneAssetPaths.Count; i++)
+                {
+                    var pos = new Vector2(dropPos.x, dropPos.y + i * 200);
+                    _viewModel.CreateNodeWithSceneAsset(sceneAssetPaths[i], pos);
+                }
             }
-
-            Undo.CollapseUndoOperations(groupIndex);
         }
 
         private static bool HasSceneAssetInDrag()
@@ -314,21 +644,30 @@ namespace OneStarMaker.Editor.SceneGraph
         /// </summary>
         public void PerformAutoLayout()
         {
-            if (_viewModel.CurrentEdges == null || _viewModel.CurrentLayout == null) return;
+            // R3: BeginBatch を通す（Undo.IncrementCurrentGroup 無しで直前の無関係な操作を
+            // 巻き込んでいた B8 が Auto Layout にだけ残っていた）。
+            var currentEdges = _viewModel.CurrentEdges;
+            var currentLayout = _viewModel.CurrentLayout;
+            if (currentEdges == null || currentLayout == null) return;
 
-            Undo.RecordObject(_viewModel.CurrentLayout, "Auto Layout");
-
-            var roots = _viewModel.CurrentEdges.GetRoots();
-            float startX = 0;
-
-            foreach (var root in roots)
+            using (_viewModel.BeginBatch("Auto Layout"))
             {
-                LayoutTree(root, startX, 0, out var width);
-                startX += width + 100;
+                Undo.RecordObject(currentLayout, "Auto Layout");
+
+                var roots = currentEdges.GetRoots();
+                float startX = 0;
+
+                foreach (var root in roots)
+                {
+                    LayoutTree(root, startX, 0, out var width);
+                    startX += width + 100;
+                }
+
+                EditorUtility.SetDirty(currentLayout);
             }
 
-            EditorUtility.SetDirty(_viewModel.CurrentLayout);
-            RebuildGraph();
+            // R1: ViewModel 側に公開の再描画要求が無いため、バッチを抜けた後に自前で ScheduleRebuild する。
+            ScheduleRebuild();
         }
 
         private void LayoutTree(SceneNodeData node, float x, float y, out float subtreeWidth)

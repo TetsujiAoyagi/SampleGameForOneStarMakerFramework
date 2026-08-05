@@ -70,15 +70,26 @@ namespace OneStarMaker.Editor.SceneGraph
             // ── Step 3: SceneResource の生成/更新 ──
             var nodeToResource = new Dictionary<SceneNodeData, SceneResource>();
 
+            // 既存 SceneResource の Identity → パスの索引を「ループの外で 1 回だけ」作る。
+            // ノードごとに AssetDatabase.FindAssets + LoadAssetAtPath を回すと O(ノード数 × 既存数) になり、
+            // ワールドストリーミングのセル数（数百）では Generate が数万回のアセットロードで固まる。
+            var existingResourcePathByIdentity = BuildSceneResourcePathIndex();
+
             foreach (var node in allNodes)
             {
                 if (node == null) continue;
 
-                var assetPath = $"{outputFolder}/{node.Identity}.asset";
+                // CCS: Cell/Environment は World/Cells 配下に同居するため、
+                // identity 一致の既存アセットがあればそのパスを正とする（SceneMap への二重生成を防ぐ）。
+                var existingPath = FindExistingSceneResourcePath(existingResourcePathByIdentity, node.Identity);
+                var assetPath = string.IsNullOrEmpty(existingPath)
+                    ? $"{outputFolder}/{node.Identity}.asset"
+                    : existingPath;
                 var resource = AssetDatabase.LoadAssetAtPath<SceneResource>(assetPath);
 
                 if (resource == null)
                 {
+                    EnsureDirectoryExists(Path.GetDirectoryName(assetPath)!.Replace('\\', '/'));
                     resource = ScriptableObject.CreateInstance<SceneResource>();
                     AssetDatabase.CreateAsset(resource, assetPath);
                 }
@@ -319,6 +330,42 @@ namespace OneStarMaker.Editor.SceneGraph
                 hashSb.Append(bytes[i].ToString("x2"));
             }
             return hashSb.ToString();
+        }
+
+        /// <summary>
+        /// プロジェクト内の既存 SceneResource を走査し、Identity → アセットパスの索引を作る。
+        /// **必ずループの外で 1 回だけ呼ぶこと。** ノードごとに呼ぶと O(ノード数 × 既存数) になる。
+        /// Identity が重複している場合は最初に見つかったものを採用する（重複自体は V-2 が検出する）。
+        /// </summary>
+        private static Dictionary<string, string> BuildSceneResourcePathIndex()
+        {
+            var index = new Dictionary<string, string>(System.StringComparer.Ordinal);
+
+            var guids = AssetDatabase.FindAssets("t:SceneResource");
+            for (var i = 0; i < guids.Length; i++)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guids[i]);
+                var resource = AssetDatabase.LoadAssetAtPath<SceneResource>(path);
+                if (resource == null) continue;
+
+                var identity = resource.Identity;
+                if (string.IsNullOrWhiteSpace(identity)) continue;
+                if (index.ContainsKey(identity)) continue;
+
+                index[identity] = path.Replace('\\', '/');
+            }
+
+            return index;
+        }
+
+        /// <summary>
+        /// 索引から identity 一致の既存 SceneResource パスを引く（無ければ null）。
+        /// </summary>
+        private static string? FindExistingSceneResourcePath(
+            Dictionary<string, string> pathByIdentity, string identity)
+        {
+            if (string.IsNullOrWhiteSpace(identity)) return null;
+            return pathByIdentity.TryGetValue(identity, out var path) ? path : null;
         }
 
         private static void EnsureDirectoryExists(string path)
