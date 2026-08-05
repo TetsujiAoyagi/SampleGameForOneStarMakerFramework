@@ -12,6 +12,9 @@ on:
 jobs:
   test:
     runs-on: windows-latest
+    # ハングしたテストがあってもジョブ全体が GitHub Actions の 6 時間上限まで
+    # 走り続けないよう、明示的な上限を設ける。
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: tools/DebugStudio
@@ -20,5 +23,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      # --blame-hang-timeout: いずれかのテストが 120 秒進捗しなければ、
+      #   そのテストを失敗として中断し、ハング中のテスト名を出力する
+      #   （6 時間の無限ハングを、数分で終わる実行可能な失敗に変える）。
+      # --blame-hang-dump-type none: ダンプ収集（procdump 依存）を避け、中断のみ行う。
       - name: Restore and test
-        run: dotnet test DebugStudio.sln -c Release --verbosity minimal
+        run: dotnet test DebugStudio.sln -c Release --verbosity minimal --blame-hang-timeout 120s --blame-hang-dump-type none
