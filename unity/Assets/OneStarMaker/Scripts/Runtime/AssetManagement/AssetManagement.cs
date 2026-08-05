@@ -15,7 +15,7 @@ namespace OneStarMaker.Runtime.AssetManagement
     /// <summary>
     /// アセットとシーンのロード寿命をスコープ付きで一元管理する。
     /// </summary>
-    public sealed class AssetManagement : IAssetManagement
+    public sealed class AssetManagement : IAssetManagement, IAssetDiagnostics
     {
         private readonly IAssetBackend _backend;
         private readonly IAssetResidentCache? _cache;
@@ -221,9 +221,66 @@ namespace OneStarMaker.Runtime.AssetManagement
 
         internal int LoadedAssetCountForTests => _registry.AssetCount;
 
+        public IReadOnlyList<AssetOwner> GetOwners(AssetKey key)
+        {
+            if (!_registry.TryGetAsset(key.Canonical, out var loaded))
+            {
+                return Array.Empty<AssetOwner>();
+            }
+
+            return new List<AssetOwner>(loaded.Owners);
+        }
+
+        public IReadOnlyList<AssetKey> GetOwnedAssets(AssetOwner owner)
+        {
+            var keys = new List<AssetKey>();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var loaded in _registry.GetAllLoadedAssets())
+            {
+                if (!ContainsOwner(loaded, owner))
+                {
+                    continue;
+                }
+
+                if (!seen.Add(loaded.Key))
+                {
+                    continue;
+                }
+
+                keys.Add(ToAssetKey(loaded));
+            }
+
+            return keys;
+        }
+
+        private static bool ContainsOwner(AssetRegistry.LoadedAsset loaded, AssetOwner owner)
+        {
+            foreach (var entry in loaded.Owners)
+            {
+                if (entry.Equals(owner))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static AssetKey ToAssetKey(AssetRegistry.LoadedAsset loaded)
+        {
+            const string addressPrefix = "address:";
+            if (loaded.Key.StartsWith(addressPrefix, StringComparison.Ordinal))
+            {
+                return AssetKey.FromAddress(loaded.Key.Substring(addressPrefix.Length));
+            }
+
+            throw new InvalidOperationException(
+                $"Cannot reconstruct AssetKey from registry entry: {loaded.Key}");
+        }
+
         private void ReleaseKey(string key)
         {
-            if (_registry.Release(key, out var loaded) && loaded != null)
+            if (_registry.Release(key, AssetOwner.Manual, out var loaded) && loaded != null)
             {
                 ReleaseOrStore(loaded);
             }
