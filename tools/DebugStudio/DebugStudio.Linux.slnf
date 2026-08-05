@@ -1,0 +1,17 @@
+{
+  "solution": {
+    "path": "DebugStudio.sln",
+    "projects": [
+      "src\\DebugStudio.Contracts\\DebugStudio.Contracts.csproj",
+      "src\\DebugStudio.Client\\DebugStudio.Client.csproj",
+      "src\\DebugStudio.Export\\DebugStudio.Export.csproj",
+      "src\\DebugStudio.Server\\DebugStudio.Server\\DebugStudio.Server.csproj",
+      "src\\DebugStudio.Cli\\DebugStudio.Cli.csproj",
+      "src\\DebugStudio.ElasticArtifactGen\\DebugStudio.ElasticArtifactGen.csproj",
+      "tests\\DebugStudio.Contracts.Tests\\DebugStudio.Contracts.Tests.csproj",
+      "tests\\DebugStudio.Export.Tests\\DebugStudio.Export.Tests.csproj",
+      "tests\\DebugStudio.Server.Tests\\DebugStudio.Server.Tests\\DebugStudio.Server.Tests.csproj",
+      "tests\\DebugStudio.Cli.Tests\\DebugStudio.Cli.Tests.csproj"
+    ]
+  }
+}
