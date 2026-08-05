@@ -1,5 +1,7 @@
 #nullable enable
 
+using System.Collections.Generic;
+using System.Linq;
 using OneStarMaker.Runtime.AssetDescriptions;
 using UnityEditor;
 using UnityEngine;
@@ -23,6 +25,7 @@ namespace OneStarMaker.Editor.SceneGraph
         private readonly IMGUIContainer _sceneAssetContainer;
         private readonly VisualElement _contentContainer;
         private readonly Label _emptyLabel;
+        private readonly Label _multiLabel;
 
         // Payload[0] 変更追跡用
         private string _lastPayload0Guid = string.Empty;
@@ -47,6 +50,14 @@ namespace OneStarMaker.Editor.SceneGraph
             _emptyLabel.style.color = new Color(0.6f, 0.6f, 0.6f);
             _emptyLabel.style.marginTop = 20;
             Add(_emptyLabel);
+
+            // ── 複数選択時のラベル ──
+            _multiLabel = new Label(string.Empty);
+            _multiLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            _multiLabel.style.color = new Color(0.6f, 0.6f, 0.6f);
+            _multiLabel.style.marginTop = 20;
+            _multiLabel.style.display = DisplayStyle.None;
+            Add(_multiLabel);
 
             // ── コンテンツ ──
             _contentContainer = new VisualElement();
@@ -82,18 +93,35 @@ namespace OneStarMaker.Editor.SceneGraph
             _viewModel.OnSelectionChanged += OnSelectionChanged;
         }
 
-        private void OnSelectionChanged(SceneNodeData? node)
+        private void OnSelectionChanged(IReadOnlyList<SceneNodeData> nodes)
         {
-            if (node == null)
+            // 偽 null（破棄済みオブジェクト）を除外してから件数判定する（§2.3(d)）。
+            var liveNodes = nodes.Where(n => n != null).ToList();
+
+            if (liveNodes.Count == 0)
             {
                 _contentContainer.style.display = DisplayStyle.None;
+                _multiLabel.style.display = DisplayStyle.None;
                 _emptyLabel.style.display = DisplayStyle.Flex;
                 _lastPayload0Guid = string.Empty;
                 return;
             }
 
+            if (liveNodes.Count > 1)
+            {
+                _contentContainer.style.display = DisplayStyle.None;
+                _emptyLabel.style.display = DisplayStyle.None;
+                _multiLabel.text = $"{liveNodes.Count} nodes selected";
+                _multiLabel.style.display = DisplayStyle.Flex;
+                _lastPayload0Guid = string.Empty;
+                return;
+            }
+
+            var node = liveNodes[0];
+
             _contentContainer.style.display = DisplayStyle.Flex;
             _emptyLabel.style.display = DisplayStyle.None;
+            _multiLabel.style.display = DisplayStyle.None;
 
             _titleLabel.text = node.Identity;
             _identityField.SetValueWithoutNotify(node.Identity);
@@ -168,9 +196,26 @@ namespace OneStarMaker.Editor.SceneGraph
                             var assetName = System.IO.Path.GetFileNameWithoutExtension(assetPath);
                             if (assetName != node.Identity)
                             {
-                                _viewModel.RenameNode(node, assetName);
-                                _titleLabel.text = node.Identity;
-                                _identityField.SetValueWithoutNotify(node.Identity);
+                                // ここは IMGUIContainer の描画コールバックの内側。
+                                // RenameNode は AssetDatabase.RenameAsset と SaveAssets を伴い、
+                                // 描画中にアセットのインポートを走らせるとレイアウト例外や
+                                // 入力落ちを起こす。次のフレームへ逃がしてから実行する。
+                                var targetNode = node;
+                                var newName = assetName;
+                                schedule.Execute(() =>
+                                {
+                                    // 遅延中に選択が変わる / ノードが破棄される可能性がある
+                                    if (targetNode == null) return;
+                                    if (targetNode.Identity == newName) return;
+
+                                    _viewModel.RenameNode(targetNode, newName);
+
+                                    if (_viewModel.SelectedNode == targetNode)
+                                    {
+                                        _titleLabel.text = targetNode.Identity;
+                                        _identityField.SetValueWithoutNotify(targetNode.Identity);
+                                    }
+                                }).ExecuteLater(0);
                             }
                         }
                         // R-7: ロック

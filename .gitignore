@@ -55,3 +55,7 @@ tools/**/.vs/
 *.dll.mdb
 *.pdb
 *.mdb
+
+# project files
+docs/reference/**
+docs/slides/**
