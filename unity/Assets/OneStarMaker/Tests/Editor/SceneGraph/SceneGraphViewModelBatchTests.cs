@@ -224,5 +224,31 @@ namespace OneStarMaker.Tests.Editor.SceneGraph
 
             Assert.AreEqual(0, edges.Edges.Count);
         }
+
+        [Test]
+        public void GenerateUniqueName_StillAvoidsNodesRemovedFromGraph()
+        {
+            // cursor[bot] High #3:
+            // RemoveNodesFromGraph が _nodes からも外していたため、除外直後の New Node が
+            // 同じ Identity を返し、ディスク上に残っている既存アセットと衝突していた。
+            // グラフからの除外はアセットを消さないので、名前は引き続き使用中として扱うこと。
+            var (edges, _) = CreateGraph("G5");
+            var node = CreateNodeAsset("Taken");
+            edges.AddNode(node);
+            EditorUtility.SetDirty(edges);
+            AssetDatabase.SaveAssets();
+
+            var viewModel = new SceneGraphViewModel();
+            viewModel.LoadGraph(edges);
+
+            Assert.AreNotEqual("Taken", viewModel.GenerateUniqueName("Taken"));
+
+            viewModel.RemoveNodesFromGraph(new List<SceneNodeData> { node });
+
+            Assert.IsFalse(edges.ContainsNode(node), "グラフからは外れていること");
+            Assert.IsTrue(node != null, "アセット自体は消えていないこと");
+            Assert.AreNotEqual("Taken", viewModel.GenerateUniqueName("Taken"),
+                "グラフから外しても、アセットが残っている限り Identity は空かない");
+        }
     }
 }

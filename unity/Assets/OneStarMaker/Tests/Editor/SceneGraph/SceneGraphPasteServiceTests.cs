@@ -204,5 +204,78 @@ namespace OneStarMaker.Tests.Editor.SceneGraph
             Assert.AreEqual(0, result[0].Payloads.Count);
             Assert.AreNotEqual(source.Identity, result[0].Identity);
         }
+
+        [Test]
+        public void ReferencePaste_KeepsExistingParent_InsteadOfSilentlyReparenting()
+        {
+            // cursor[bot] High #4:
+            // 参照ペーストが既存ノードの親を黙って差し替えると、共有ノード経由で
+            // 貼り付け先の既存ツリーが静かに壊れる。既存の親は維持されること。
+            var (sourceEdges, _) = CreateGraph("ReparentSource");
+            var newParent = CreateNodeAsset("NewParent");
+            var shared = CreateNodeAsset("SharedChild");
+
+            sourceEdges.AddNode(newParent);
+            sourceEdges.AddNode(shared);
+            sourceEdges.AddEdge(newParent, shared);
+            EditorUtility.SetDirty(sourceEdges);
+
+            // 貼り付け先では shared が別の親を持っている
+            var (targetEdges, _) = CreateGraph("ReparentTarget");
+            var existingParent = CreateNodeAsset("ExistingParent");
+            targetEdges.AddNode(existingParent);
+            targetEdges.AddNode(shared);
+            targetEdges.AddEdge(existingParent, shared);
+            EditorUtility.SetDirty(targetEdges);
+            AssetDatabase.SaveAssets();
+
+            var sourceViewModel = new SceneGraphViewModel();
+            sourceViewModel.LoadGraph(sourceEdges);
+            var json = new SceneGraphPasteService(sourceViewModel)
+                .BuildClipboardJson(new List<SceneNodeData> { newParent, shared });
+
+            var targetViewModel = new SceneGraphViewModel();
+            targetViewModel.LoadGraph(targetEdges);
+            new SceneGraphPasteService(targetViewModel).ApplyPaste(json, forceDuplicate: false);
+
+            // 既存の親が維持されている（NewParent へ付け替えられていない）
+            Assert.AreEqual(existingParent, targetEdges.GetParent(shared));
+            Assert.AreEqual(0, targetEdges.Edges.Count(e => e.Parent == newParent && e.Child == shared));
+        }
+
+        [Test]
+        public void Paste_WithUnresolvableEntry_DoesNotTurnIntoDuplicate()
+        {
+            // cursor[bot] Medium #9:
+            // 解決できないエントリを除いた残りが全部所属済みだと、参照ペーストのつもりが
+            // 複製に化ける。未解決がある場合は複製へ倒さないこと。
+            var (edges, _) = CreateGraph("UnresolvedPaste");
+            var member = CreateNodeAsset("AlreadyMember");
+            edges.AddNode(member);
+            EditorUtility.SetDirty(edges);
+            AssetDatabase.SaveAssets();
+
+            var viewModel = new SceneGraphViewModel();
+            viewModel.LoadGraph(edges);
+            var service = new SceneGraphPasteService(viewModel);
+
+            // 実在ノード 1 件のクリップボードを作り、解決できない GUID を 1 件足す
+            var json = service.BuildClipboardJson(new List<SceneNodeData> { member });
+            var data = SceneGraphClipboard.TryDeserialize(json);
+            Assert.IsNotNull(data);
+            data!.Nodes.Add(new SceneGraphClipboardEntry
+            {
+                NodeGuid = "00000000000000000000000000000000",
+                Identity = "Missing",
+            });
+
+            var nodeCountBefore = edges.GraphNodes.Count;
+            var result = service.ApplyPaste(SceneGraphClipboard.Serialize(data), forceDuplicate: false);
+
+            // 複製されていない（新しいアセットが増えていない）
+            Assert.AreEqual(1, result.Count);
+            Assert.AreEqual(member, result[0]);
+            Assert.AreEqual(nodeCountBefore, edges.GraphNodes.Count);
+        }
     }
 }

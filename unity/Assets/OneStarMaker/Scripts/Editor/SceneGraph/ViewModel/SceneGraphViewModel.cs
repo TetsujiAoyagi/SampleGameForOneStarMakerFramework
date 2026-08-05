@@ -55,6 +55,15 @@ namespace OneStarMaker.Editor.SceneGraph
         public SceneNodeData? SelectedNode => _selectedNodes.Count == 1 ? _selectedNodes[0] : null;
 
         /// <summary>
+        /// ユーザー向けメッセージを通知する。C# のイベントは宣言型の外から発火できないため、
+        /// 同アセンブリ内の協力クラス（SceneGraphPasteService 等）はこの窓口を使う。
+        /// </summary>
+        internal void ReportValidationMessage(string message)
+        {
+            OnValidationMessage?.Invoke(message);
+        }
+
+        /// <summary>
         /// 選択を差し替える。破棄済みオブジェクト（偽 null）は除外する。内容が同じなら何もしない。
         /// </summary>
         public void SetSelection(IReadOnlyList<SceneNodeData>? nodes)
@@ -468,10 +477,13 @@ namespace OneStarMaker.Editor.SceneGraph
                     EditorUtility.SetDirty(_currentLayout);
                 }
 
-                foreach (var node in validNodes)
-                {
-                    _nodes.Remove(node);
-                }
+                // `_nodes` からは外さない。
+                // `_nodes` は「Nodes フォルダに存在する全ノード」であり、グラフ所属とは別の概念。
+                // ここで外すと GenerateUniqueName / TryGenerateUniqueIdentity が
+                // 除外直後のノードを見落とし、New Node が同じ Identity を返して
+                // ディスク上の既存アセットと衝突（もしくは意図しない Reuse）を起こす。
+                // 描画対象は SceneGraphView.RebuildGraph が ContainsNode で絞っているため、
+                // グラフから外れたノードがキャンバスに残ることはない。
 
                 var remainingSelection = _selectedNodes
                     .Where(n => n != null && !validNodes.Contains(n))

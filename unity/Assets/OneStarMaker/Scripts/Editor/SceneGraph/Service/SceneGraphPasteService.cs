@@ -114,19 +114,25 @@ namespace OneStarMaker.Editor.SceneGraph
 
             if (resolved.All(n => n == null)) return Array.Empty<SceneNodeData>();
 
+            var hasUnresolved = resolved.Any(n => n == null);
+
             var allAlreadyInCurrentGraph = resolved
                 .Where(n => n != null)
                 .All(n => currentEdges.ContainsNode(n!));
 
-            var duplicate = forceDuplicate || allAlreadyInCurrentGraph;
+            // 解決できなかったエントリがあると「残り全部が所属済み」が偶然成立してしまい、
+            // 参照ペーストのつもりが複製に化ける。未解決がある場合は複製へ倒さない
+            // （Ctrl+D は明示操作なので forceDuplicate はそのまま尊重する）。
+            var duplicate = forceDuplicate || (allAlreadyInCurrentGraph && !hasUnresolved);
 
             var offset = new Vector2(40f, 40f);
             var resultByIndex = new SceneNodeData?[resolved.Count];
             var validCount = resolved.Count(n => n != null);
             var undoName = duplicate ? $"Duplicate {validCount} node(s)" : $"Paste {validCount} node(s)";
 
-            // R5: 参照ペーストで既存ノードの親子関係が黙って差し替わったケースを報告する
-            var reparentedIdentities = new List<string>();
+            // 参照ペーストで「既に別の親を持つ既存ノード」の親子付けをスキップした分。
+            // 黙って差し替えるのではなく、貼り付け後にユーザーへ 1 回まとめて知らせる。
+            var skippedReparentIdentities = new List<string>();
 
             using (_viewModel.BeginBatch(undoName))
             {
@@ -170,7 +176,11 @@ namespace OneStarMaker.Editor.SceneGraph
                         var existingParent = currentEdges.GetParent(child);
                         if (existingParent != null && existingParent != parent)
                         {
-                            reparentedIdentities.Add(child.Identity);
+                            // 既に別の親を持つ既存ノードの親子関係は **書き換えない**。
+                            // ノードは複数グラフで共有される資産であり、ペーストの副作用で
+                            // 既存ツリーが静かに壊れるほうが害が大きい。スキップして後でまとめて報告する。
+                            skippedReparentIdentities.Add(child.Identity);
+                            continue;
                         }
                     }
 
@@ -202,11 +212,21 @@ namespace OneStarMaker.Editor.SceneGraph
                 }
             }
 
-            if (reparentedIdentities.Count > 0)
+            // Console だけでは気付かれないので、ユーザーに見える経路（Window 側でダイアログになる）で伝える。
+            if (skippedReparentIdentities.Count > 0)
             {
-                Debug.LogWarning(
-                    $"[SceneGraph] Paste: re-parented {reparentedIdentities.Count} existing node(s): " +
-                    string.Join(", ", reparentedIdentities));
+                _viewModel.ReportValidationMessage(
+                    $"Pasted, but kept the existing parent of {skippedReparentIdentities.Count} node(s):\n" +
+                    string.Join(", ", skippedReparentIdentities) +
+                    "\n\nThese nodes already belong to another parent in this graph. " +
+                    "Unparent them first if you want the pasted hierarchy to apply.");
+            }
+
+            if (hasUnresolved)
+            {
+                _viewModel.ReportValidationMessage(
+                    "Some clipboard entries could not be resolved to node assets and were skipped. " +
+                    "Pasted as references to keep the remaining nodes intact.");
             }
 
             return resultByIndex.Where(n => n != null).Cast<SceneNodeData>().ToList();

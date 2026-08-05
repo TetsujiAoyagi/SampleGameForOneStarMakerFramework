@@ -131,6 +131,15 @@ namespace OneStarMaker.Editor.SceneGraph
             _isRebuilding = true;
             try
             {
+                // 全要素を作り直すと GraphView の選択は失われる。Paste 経路だけが自前で
+                // 復元していたため、削除 / 接続 / Undo・Redo / グラフ再読込では選択が消えていた。
+                // ここで一括して面倒を見る（対象が残っていれば選択し直す）。
+                var previousSelection = selection.OfType<SceneGraphNode>()
+                    .Select(n => n.NodeData)
+                    .Where(n => n != null)
+                    .Cast<SceneNodeData>()
+                    .ToList();
+
                 // Node と Edge のみ削除（MiniMap 等の GraphElement は残す）
                 foreach (var element in graphElements.ToList())
                 {
@@ -156,7 +165,7 @@ namespace OneStarMaker.Editor.SceneGraph
                 }
 
                 // ── エッジの作成 ──
-                foreach (var edge in _viewModel.CurrentEdges.Edges)
+                foreach (var edge in currentEdges.Edges)
                 {
                     if (edge.Parent == null || edge.Child == null) continue;
                     if (!_nodeMap.TryGetValue(edge.Parent, out var parentNode)) continue;
@@ -165,10 +174,31 @@ namespace OneStarMaker.Editor.SceneGraph
                     var graphEdge = parentNode.OutputPort.ConnectTo(childNode.InputPort);
                     AddElement(graphEdge);
                 }
+
+                RestoreSelection(previousSelection);
             }
             finally
             {
                 _isRebuilding = false;
+            }
+        }
+
+        /// <summary>
+        /// リビルド前に選択されていたノードのうち、まだ描画対象に残っているものを選択し直す。
+        /// 復元できなかったもの（グラフから除外された / 破棄された）は黙って捨てる。
+        /// </summary>
+        private void RestoreSelection(IReadOnlyList<SceneNodeData> previousSelection)
+        {
+            if (previousSelection.Count == 0) return;
+
+            ClearSelection();
+            foreach (var nodeData in previousSelection)
+            {
+                if (nodeData == null) continue;
+                if (_nodeMap.TryGetValue(nodeData, out var visualNode))
+                {
+                    AddToSelection(visualNode);
+                }
             }
         }
 
@@ -438,6 +468,11 @@ namespace OneStarMaker.Editor.SceneGraph
 
         private void OnUnserializeAndPaste(string operationName, string data)
         {
+            // serialize されずにこの経路へ来た場合に備えて必ず落とす。
+            // 残しておくと、次に serialize されたとき誤って Duplicate 扱いになり
+            // クリップボードが更新されなくなる。
+            _activeCommandName = string.Empty;
+
             var forceDuplicate = operationName == DuplicateCommandName;
 
             // Duplicate は「いま選択されている要素」を複製する操作なので、直前に
