@@ -18,6 +18,7 @@ namespace DebugStudio.App.Tests;
 /// DebugStudio server-inversion 経路を、実 transport と app store 群を通して縦に検証する。
 /// Unity 実行環境は使えないため、WebSocket peer だけを実クライアントとして模擬する。
 /// </summary>
+[Collection("DebugStudioHttpListener")]
 public sealed class ServerInversionVerticalSliceTests
 {
     private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(10);
