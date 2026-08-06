@@ -47,14 +47,18 @@ public sealed class ExportPathPolicy
             throw new ArgumentException("A file extension is required.", nameof(extension));
         }
 
-        var localNow = (now ?? DateTimeOffset.Now).ToLocalTime();
+        // 渡された timestamp が持つ offset の壁時計をそのまま採用する。
+        // 以前は ToLocalTime() でマシンのタイムゾーンへ変換していたため、
+        // UTC で動く CI ランナーと JST の開発機で出力ファイル名がずれ、テストが不安定だった。
+        // 既定（DateTimeOffset.Now）はローカル offset を持つため、通常運用の挙動は変わらない。
+        var timestamp = now ?? DateTimeOffset.Now;
         var dayDirectory = Path.Combine(
             _rootDirectory,
             areaName,
-            localNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+            timestamp.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
         var fileName = string.Create(
             CultureInfo.InvariantCulture,
-            $"{baseFileName}-{localNow:yyyyMMdd-HHmmss}{extension}");
+            $"{baseFileName}-{timestamp:yyyyMMdd-HHmmss}{extension}");
         return Path.Combine(dayDirectory, fileName);
     }
 
