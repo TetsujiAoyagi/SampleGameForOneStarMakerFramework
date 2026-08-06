@@ -172,6 +172,16 @@ public sealed class ServerInversionVerticalSliceTests
             Assert.Contains(DebugSocketConnectionState.Connected, stateSnapshots);
         }
 
+        // server 側 receive loop が Close を観測できるよう、先に peer socket を閉じる。
+        // Disconnect 前に閉じないと Accept/Receive 待ちが残り、testhost 終了がハングする。
+        if (clientSocket.State is WebSocketState.Open or WebSocketState.CloseReceived)
+        {
+            await clientSocket.CloseAsync(
+                WebSocketCloseStatus.NormalClosure,
+                "vertical-slice-complete",
+                CancellationToken.None);
+        }
+
         await harness.SessionService.DisconnectAsync();
     }
 
