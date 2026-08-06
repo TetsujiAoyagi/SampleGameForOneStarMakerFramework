@@ -2,6 +2,9 @@ name: DebugStudio
 
 on:
   push:
+    branches:
+      - main
+      - develop
     paths:
       - 'tools/DebugStudio/**'
       - '.github/workflows/debugstudio.yml'
