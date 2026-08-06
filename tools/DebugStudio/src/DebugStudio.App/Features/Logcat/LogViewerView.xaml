@@ -339,7 +339,10 @@
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="*" MinHeight="80" />
-                                        <RowDefinition Height="*" MinHeight="100" />
+                                        <!-- Message + Exception の両方が最低限読める高さを確保する。
+                                             Exception 側は Bottom dock で先に高さを取るため、
+                                             ここが小さいと Message 側が 0 まで潰れる。 -->
+                                        <RowDefinition Height="*" MinHeight="180" />
                                     </Grid.RowDefinitions>
 
                                     <TextBlock Foreground="#FF5F6368"
@@ -373,7 +376,7 @@
                                                        FontWeight="SemiBold"
                                                        Foreground="#FFB91C1C"
                                                        Text="Exception" />
-                                            <TextBox MinHeight="96"
+                                            <TextBox MinHeight="72"
                                                      MaxHeight="220"
                                                      IsReadOnly="True"
                                                      Text="{Binding SelectedLogException, Mode=OneWay}"
@@ -383,7 +386,8 @@
                                                      FontSize="11"
                                                      Foreground="#FFB91C1C" />
                                         </StackPanel>
-                                        <TextBox IsReadOnly="True"
+                                        <TextBox MinHeight="44"
+                                                 IsReadOnly="True"
                                                  Text="{Binding SelectedLogMessage, Mode=OneWay}"
                                                  TextWrapping="Wrap"
                                                  VerticalScrollBarVisibility="Auto"

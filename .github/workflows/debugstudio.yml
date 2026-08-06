@@ -33,8 +33,18 @@ jobs:
       # --blame-hang-dump-type none: ダンプ収集（procdump 依存）を避け、中断のみ行う。
       #
       # App.Tests (WPF) は全件成功後に testhost が終了せず blame-hang で abort することがある。
-      # その場合は TRX 上の failed/error が 0 なら成功扱いとする（本物の失敗は落とす）。
+      # その場合だけを成功扱いにする。「failed が 0」だけでは条件が緩すぎる:
+      # 実行途中でハングすると未実行テストは TRX に一切現れないため、
+      # failed=0 のまま「残りを黙って飛ばした緑」になってしまう。
+      # そこで TRX の本数（= テストプロジェクト数）と実行件数の下限を併せて要求し、
+      # 「全件実行して全件通ったが後始末で落ちた」場合にだけ握りつぶす。
+      #
+      # EXPECTED_TEST_PROJECTS / MIN_EXPECTED_TESTS はテストを削除したりプロジェクトを
+      # 増減したときだけ更新する（追加した分には追随不要。下限判定なので増える方向は素通り）。
       - name: Restore and test
+        env:
+          EXPECTED_TEST_PROJECTS: '5'
+          MIN_EXPECTED_TESTS: '325'
         run: |
           $resultsDir = Join-Path (Get-Location) 'TestResults'
           New-Item -ItemType Directory -Force -Path $resultsDir | Out-Null
@@ -52,6 +62,9 @@ jobs:
             exit 0
           }
 
+          $expectedProjects = [int]$env:EXPECTED_TEST_PROJECTS
+          $minExpectedTests = [int]$env:MIN_EXPECTED_TESTS
+
           $trxFiles = @(Get-ChildItem -Path $resultsDir -Filter '*.trx' -Recurse -ErrorAction SilentlyContinue)
           if ($trxFiles.Count -eq 0) {
             Write-Host "dotnet test failed and no TRX results were produced."
@@ -59,25 +72,42 @@ jobs:
           }
 
           $failed = 0
+          $passed = 0
           $total = 0
           foreach ($trx in $trxFiles) {
             [xml]$xml = Get-Content -LiteralPath $trx.FullName
             $counters = $xml.TestRun.ResultSummary.Counters
             if ($null -eq $counters) {
-              continue
+              Write-Host "TRX without ResultSummary/Counters: $($trx.Name)"
+              exit $exitCode
             }
 
             $total += [int]$counters.total
-            $failed += [int]$counters.failed + [int]$counters.error
+            $passed += [int]$counters.passed
+            $failed += [int]$counters.failed + [int]$counters.error + [int]$counters.timeout +
+              [int]$counters.aborted + [int]$counters.notExecuted + [int]$counters.passedButRunAborted
           }
 
-          if ($total -gt 0 -and $failed -eq 0) {
-            Write-Host "All $total tests passed in TRX, but testhost exited with code $exitCode (likely WPF App.Tests teardown hang). Treating as success."
-            exit 0
+          Write-Host "TRX summary: $($trxFiles.Count) file(s) / total=$total passed=$passed failed(+error/timeout/aborted/notExecuted)=$failed"
+
+          if ($failed -ne 0) {
+            Write-Host "dotnet test failed with $failed non-passing test result(s) across $total total."
+            exit $exitCode
           }
 
-          Write-Host "dotnet test failed with $failed failing test(s) across $total total."
-          exit $exitCode
+          if ($trxFiles.Count -lt $expectedProjects) {
+            Write-Host "Only $($trxFiles.Count) of $expectedProjects test projects produced a TRX. A project likely never finished - not treating as success."
+            exit $exitCode
+          }
+
+          if ($passed -lt $minExpectedTests) {
+            Write-Host "Only $passed tests passed but at least $minExpectedTests were expected. The run probably hung mid-suite - not treating as success."
+            Write-Host "If tests were intentionally removed, lower MIN_EXPECTED_TESTS in this workflow."
+            exit $exitCode
+          }
+
+          Write-Host "All $passed tests passed across $($trxFiles.Count) project(s), but testhost exited with code $exitCode (known WPF App.Tests teardown hang). Treating as success."
+          exit 0
       # クラッシュ／ハング時に原因テストを追えるよう、Blame の Sequence ファイル等を保存する。
       - name: Upload test diagnostics
         if: failure()

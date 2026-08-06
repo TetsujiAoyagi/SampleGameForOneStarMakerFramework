@@ -67,12 +67,15 @@ public sealed class LogViewerViewModel : ObservableObject, IDisposable
         ToggleAutoScrollCommand = new RelayCommand(() => _tailState.ToggleAutoScroll());
         ToggleDetailPaneCommand = new RelayCommand(() => IsDetailPaneVisible = !IsDetailPaneVisible);
 
-        _filterState.PropertyChanged += OnFilterStatePropertyChanged;
+        // 分割した state 群は ViewModel の property をそのまま同名で公開しているため、
+        // PropertyChanged はそのまま素通しでよい。ここを繋がないと詳細ペインや
+        // フィルタ UI が state 側の変更を受け取れない。
+        _filterState.PropertyChanged += ForwardStatePropertyChanged;
         _filterState.FilterChanged += OnFilterChanged;
-        _selectionState.PropertyChanged += OnSelectionStatePropertyChanged;
+        _selectionState.PropertyChanged += ForwardStatePropertyChanged;
         _exportState.ExportPathChanged += OnExportPathChanged;
         _exportState.ExportFormatChanged += OnExportFormatChanged;
-        _tailState.PropertyChanged += OnTailStatePropertyChanged;
+        _tailState.PropertyChanged += ForwardStatePropertyChanged;
         _tailState.AutoScrollChanged += OnAutoScrollChanged;
 
         _logStore.Changed += OnLogStoreChanged;
@@ -290,12 +293,12 @@ public sealed class LogViewerViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _logStore.Changed -= OnLogStoreChanged;
-        _filterState.PropertyChanged -= OnFilterStatePropertyChanged;
+        _filterState.PropertyChanged -= ForwardStatePropertyChanged;
         _filterState.FilterChanged -= OnFilterChanged;
-        _selectionState.PropertyChanged -= OnSelectionStatePropertyChanged;
+        _selectionState.PropertyChanged -= ForwardStatePropertyChanged;
         _exportState.ExportPathChanged -= OnExportPathChanged;
         _exportState.ExportFormatChanged -= OnExportFormatChanged;
-        _tailState.PropertyChanged -= OnTailStatePropertyChanged;
+        _tailState.PropertyChanged -= ForwardStatePropertyChanged;
         _tailState.AutoScrollChanged -= OnAutoScrollChanged;
     }
 
@@ -306,27 +309,7 @@ public sealed class LogViewerViewModel : ObservableObject, IDisposable
         ExportCommand.RaiseCanExecuteChanged();
     }
 
-    private void OnFilterStatePropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (string.IsNullOrEmpty(e.PropertyName))
-        {
-            return;
-        }
-
-        OnPropertyChanged(e.PropertyName);
-    }
-
-    private void OnSelectionStatePropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (string.IsNullOrEmpty(e.PropertyName))
-        {
-            return;
-        }
-
-        OnPropertyChanged(e.PropertyName);
-    }
-
-    private void OnTailStatePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    private void ForwardStatePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (string.IsNullOrEmpty(e.PropertyName))
         {
@@ -411,7 +394,10 @@ public sealed class LogViewerViewModel : ObservableObject, IDisposable
         {
             // category dropdown を先に同期してから query する。
             // SetAvailableCategories は FilterChanged を上げないため再入しない。
+            // ただし retention から消えた category は黙って All へ戻るので、
+            // FilterChanged 経由では拾えない Clear ボタンの活性はここで更新する。
             _filterState.SetAvailableCategories(categories);
+            ClearQueryCommand.RaiseCanExecuteChanged();
 
             try
             {

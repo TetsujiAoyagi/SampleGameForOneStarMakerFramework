@@ -174,12 +174,17 @@ public sealed class ServerInversionVerticalSliceTests
 
         // server 側 receive loop が Close を観測できるよう、先に peer socket を閉じる。
         // Disconnect 前に閉じないと Accept/Receive 待ちが残り、testhost 終了がハングする。
+        //
+        // CloseAsync ではなく CloseOutputAsync を使う。CloseAsync は close frame を送った後に
+        // peer からの close 応答を待つため、まさにここで防ごうとしているハングを
+        // このテスト自身が起こしうる。close frame の送信だけで receive loop は解ける。
         if (clientSocket.State is WebSocketState.Open or WebSocketState.CloseReceived)
         {
-            await clientSocket.CloseAsync(
+            using var closeTimeout = new CancellationTokenSource(TestTimeout);
+            await clientSocket.CloseOutputAsync(
                 WebSocketCloseStatus.NormalClosure,
                 "vertical-slice-complete",
-                CancellationToken.None);
+                closeTimeout.Token);
         }
 
         await harness.SessionService.DisconnectAsync();
