@@ -1,7 +1,12 @@
 name: DebugStudio
 
 on:
+  # PR ブランチへの push で push と pull_request が二重起動しないよう、
+  # push は統合先ブランチのみに限定する（検証は pull_request 側）。
   push:
+    branches:
+      - main
+      - develop
     paths:
       - 'tools/DebugStudio/**'
       - '.github/workflows/debugstudio.yml'
