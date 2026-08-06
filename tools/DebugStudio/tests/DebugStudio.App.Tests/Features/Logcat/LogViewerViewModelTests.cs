@@ -208,7 +208,12 @@ public sealed class LogViewerViewModelTests
             ThreadId = Environment.CurrentManagedThreadId,
         });
 
+        // auto-scroll により既に例外行が選ばれているので、一度 plain へ戻してから再選択する
         viewModel.IsAutoScrollEnabled = false;
+        viewModel.SelectedLog = viewModel.VisibleLogs[0];
+        Assert.Equal("plain", viewModel.SelectedLogMessage);
+        Assert.False(viewModel.HasSelectedLogException);
+
         var notifications = new HashSet<string>(StringComparer.Ordinal);
         viewModel.PropertyChanged += (_, e) =>
         {
