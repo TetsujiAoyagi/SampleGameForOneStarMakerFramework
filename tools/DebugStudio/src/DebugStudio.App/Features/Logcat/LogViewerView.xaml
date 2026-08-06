@@ -339,8 +339,10 @@
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="*" MinHeight="80" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="*" MinHeight="100" />
+                                        <!-- Message + Exception の両方が最低限読める高さを確保する。
+                                             Exception 側は Bottom dock で先に高さを取るため、
+                                             ここが小さいと Message 側が 0 まで潰れる。 -->
+                                        <RowDefinition Height="*" MinHeight="180" />
                                     </Grid.RowDefinitions>
 
                                     <TextBlock Foreground="#FF5F6368"
@@ -361,30 +363,37 @@
                                         </ListView.View>
                                     </ListView>
 
-                                    <TextBlock Grid.Row="2"
-                                               Margin="0,0,0,4"
-                                               FontWeight="SemiBold"
-                                               Text="Message / Exception" />
-                                    <Grid Grid.Row="3">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="*" />
-                                            <RowDefinition Height="*" />
-                                        </Grid.RowDefinitions>
-                                        <TextBox IsReadOnly="True"
+                                    <DockPanel Grid.Row="2"
+                                               LastChildFill="True">
+                                        <TextBlock DockPanel.Dock="Top"
+                                                   Margin="0,0,0,4"
+                                                   FontWeight="SemiBold"
+                                                   Text="Message" />
+                                        <StackPanel DockPanel.Dock="Bottom"
+                                                    Margin="0,8,0,0"
+                                                    Visibility="{Binding HasSelectedLogException, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <TextBlock Margin="0,0,0,4"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#FFB91C1C"
+                                                       Text="Exception" />
+                                            <TextBox MinHeight="72"
+                                                     MaxHeight="220"
+                                                     IsReadOnly="True"
+                                                     Text="{Binding SelectedLogException, Mode=OneWay}"
+                                                     TextWrapping="Wrap"
+                                                     VerticalScrollBarVisibility="Auto"
+                                                     FontFamily="Consolas"
+                                                     FontSize="11"
+                                                     Foreground="#FFB91C1C" />
+                                        </StackPanel>
+                                        <TextBox MinHeight="44"
+                                                 IsReadOnly="True"
                                                  Text="{Binding SelectedLogMessage, Mode=OneWay}"
                                                  TextWrapping="Wrap"
                                                  VerticalScrollBarVisibility="Auto"
                                                  FontFamily="Consolas"
                                                  FontSize="11" />
-                                        <TextBox Grid.Row="1"
-                                                 Margin="0,6,0,0"
-                                                 IsReadOnly="True"
-                                                 Text="{Binding SelectedLogException, Mode=OneWay}"
-                                                 TextWrapping="Wrap"
-                                                 VerticalScrollBarVisibility="Auto"
-                                                 FontFamily="Consolas"
-                                                 FontSize="11" />
-                                    </Grid>
+                                    </DockPanel>
                                 </Grid>
                             </TabItem>
 

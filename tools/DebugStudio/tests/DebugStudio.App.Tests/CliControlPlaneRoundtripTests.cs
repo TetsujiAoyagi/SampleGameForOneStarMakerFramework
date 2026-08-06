@@ -12,6 +12,7 @@ using DebugStudio.Server;
 
 namespace DebugStudio.App.Tests;
 
+[Collection("DebugStudioHttpListener")]
 public sealed class CliControlPlaneRoundtripTests
 {
     private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(10);
