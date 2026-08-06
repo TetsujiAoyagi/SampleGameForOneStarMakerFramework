@@ -41,11 +41,13 @@ jobs:
       #
       # EXPECTED_TEST_PROJECTS / MIN_EXPECTED_TESTS はテストを削除したりプロジェクトを
       # 増減したときだけ更新する（追加した分には追随不要。下限判定なので増える方向は素通り）。
-      # MIN は CI 上の全件成功実績に合わせる（ローカル 325 でも windows-latest は 324 を観測）。
+      # MIN は CI 上の全件成功実績に合わせる。teardown ハング修正前は windows-latest が
+      # 324 止まりだったが、修正後の run 31121013669 で 325 件のクリーン完走を確認したため
+      # 325 に戻した（324 のままだと「325 件中 324 件目でハング」が緑を通ってしまう）。
       - name: Restore and test
         env:
           EXPECTED_TEST_PROJECTS: '5'
-          MIN_EXPECTED_TESTS: '324'
+          MIN_EXPECTED_TESTS: '325'
         run: |
           $resultsDir = Join-Path (Get-Location) 'TestResults'
           New-Item -ItemType Directory -Force -Path $resultsDir | Out-Null
