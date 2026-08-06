@@ -108,6 +108,8 @@ public sealed class LogViewerListItemViewModel
 
     private static Brush CreateBrush(string color)
     {
-        return (SolidColorBrush)new BrushConverter().ConvertFromString(color)!;
+        var brush = (SolidColorBrush)new BrushConverter().ConvertFromString(color)!;
+        brush.Freeze();
+        return brush;
     }
 }

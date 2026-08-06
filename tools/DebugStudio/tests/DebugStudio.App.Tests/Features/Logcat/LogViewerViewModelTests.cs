@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Threading;
 using DebugStudio.App.Core.Services;
@@ -156,6 +157,109 @@ public sealed class LogViewerViewModelTests
     }
 
     [Fact]
+    public void VisibleLogs_時系列順で古いものが先頭になり最新が末尾になる()
+    {
+        var viewModel = CreateViewModel(out var store, out _);
+
+        store.Append(CreateLogEnvelope("first"));
+        store.Append(CreateLogEnvelope("second"));
+        store.Append(CreateLogEnvelope("third"));
+
+        Assert.Equal(3, viewModel.VisibleLogs.Count);
+        Assert.Equal("first", viewModel.VisibleLogs[0].Message);
+        Assert.Equal("second", viewModel.VisibleLogs[1].Message);
+        Assert.Equal("third", viewModel.VisibleLogs[2].Message);
+        Assert.Equal("third", viewModel.SelectedLog?.Message);
+    }
+
+    [Fact]
+    public void AutoScroll有効時は新規ログで最新行を選択する()
+    {
+        var viewModel = CreateViewModel(out var store, out _);
+        Assert.True(viewModel.IsAutoScrollEnabled);
+
+        store.Append(CreateLogEnvelope("older"));
+        store.Append(CreateLogEnvelope("newer"));
+
+        Assert.Equal("newer", viewModel.SelectedLog?.Message);
+
+        viewModel.IsAutoScrollEnabled = false;
+        viewModel.SelectedLog = viewModel.VisibleLogs[0];
+        store.Append(CreateLogEnvelope("latest-while-paused"));
+
+        Assert.Equal("older", viewModel.SelectedLog?.Message);
+    }
+
+    [Fact]
+    public void SelectedLog変更時にMessageとExceptionのPropertyChangedが飛ぶ()
+    {
+        var viewModel = CreateViewModel(out var store, out _);
+        store.Append(CreateLogEnvelope("plain"));
+        store.Append(new LogEnvelopeV1
+        {
+            SchemaVersion = 1,
+            ApplicationName = "TestApp",
+            TimestampUnixTimeMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Category = "Default",
+            LogLevel = 4,
+            EventId = 1,
+            Message = "boom",
+            Exception = "System.TimeoutException: timed out\n  at Net.Receive()",
+            ThreadId = Environment.CurrentManagedThreadId,
+        });
+
+        viewModel.IsAutoScrollEnabled = false;
+        var notifications = new HashSet<string>(StringComparer.Ordinal);
+        viewModel.PropertyChanged += (_, e) =>
+        {
+            if (!string.IsNullOrEmpty(e.PropertyName))
+            {
+                notifications.Add(e.PropertyName);
+            }
+        };
+
+        viewModel.SelectedLog = viewModel.VisibleLogs[1];
+
+        Assert.Contains(nameof(LogViewerViewModel.SelectedLog), notifications);
+        Assert.Contains(nameof(LogViewerViewModel.SelectedLogMessage), notifications);
+        Assert.Contains(nameof(LogViewerViewModel.SelectedLogException), notifications);
+        Assert.Contains(nameof(LogViewerViewModel.HasSelectedLogException), notifications);
+        Assert.Equal("boom", viewModel.SelectedLogMessage);
+        Assert.Contains("TimeoutException", viewModel.SelectedLogException, StringComparison.Ordinal);
+        Assert.True(viewModel.HasSelectedLogException);
+
+        notifications.Clear();
+        viewModel.SelectedLog = viewModel.VisibleLogs[0];
+
+        Assert.Equal("plain", viewModel.SelectedLogMessage);
+        Assert.False(viewModel.HasSelectedLogException);
+        Assert.Equal(string.Empty, viewModel.SelectedLogException);
+        Assert.Contains(nameof(LogViewerViewModel.HasSelectedLogException), notifications);
+    }
+
+    [Fact]
+    public void ToggleAutoScroll_Tail文言のPropertyChangedが飛ぶ()
+    {
+        var viewModel = CreateViewModel(out _, out _);
+        var notifications = new HashSet<string>(StringComparer.Ordinal);
+        viewModel.PropertyChanged += (_, e) =>
+        {
+            if (!string.IsNullOrEmpty(e.PropertyName))
+            {
+                notifications.Add(e.PropertyName);
+            }
+        };
+
+        viewModel.ToggleAutoScrollCommand.Execute(null);
+
+        Assert.False(viewModel.IsAutoScrollEnabled);
+        Assert.Equal("Resume", viewModel.TailToggleButtonText);
+        Assert.Contains(nameof(LogViewerViewModel.IsAutoScrollEnabled), notifications);
+        Assert.Contains(nameof(LogViewerViewModel.TailToggleButtonText), notifications);
+        Assert.Contains(nameof(LogViewerViewModel.TailStateText), notifications);
+    }
+
+    [Fact]
     public void SelectedLog_V1ScalarPayloadをStructuredFieldsへ正規化する()
     {
         var viewModel = CreateViewModel(out var store, out _);
@@ -180,6 +284,8 @@ public sealed class LogViewerViewModelTests
         viewModel.SelectedLog = Assert.Single(viewModel.VisibleLogs);
 
         Assert.True(viewModel.HasStructuredFields);
+        Assert.True(viewModel.HasSelectedLogException);
+        Assert.Equal("TimeoutException", viewModel.SelectedLogException);
         Assert.Contains("field path", viewModel.StructuredPayloadStatus, StringComparison.Ordinal);
         Assert.Contains(viewModel.StructuredFields, field => field.Label == "schema.version" && field.Value == "3");
         Assert.Contains(viewModel.StructuredFields, field => field.Label == "event.name" && field.Value == "PacketTimeout");
@@ -232,15 +338,40 @@ public sealed class LogViewerViewModelTests
         viewModel.SelectedLog = null;
 
         Assert.False(viewModel.HasStructuredFields);
+        Assert.False(viewModel.HasSelectedLogException);
         Assert.Empty(viewModel.StructuredFields);
         Assert.Equal("No row selected.", viewModel.SelectedLogTitle);
+        Assert.Equal(string.Empty, viewModel.SelectedLogException);
         Assert.Contains("scalar payload", viewModel.StructuredPayloadStatus, StringComparison.Ordinal);
     }
 
-    private static LogViewerViewModel CreateViewModel(out LogStore store, out RecordingExportWriters writers)
+    [Fact]
+    public void 選択カテゴリがretentionから消えたらAllへ戻り可視ログを空にしない()
+    {
+        var viewModel = CreateViewModel(out var store, out _, capacity: 2);
+
+        store.Append(CreateLogEnvelope("keep-me", category: "Keep"));
+        store.Append(CreateLogEnvelope("evict-me", category: "Evict"));
+
+        var evictOption = Assert.Single(viewModel.CategoryFilters.Where(option => option.Category == "Evict"));
+        viewModel.SelectedCategoryFilter = evictOption;
+        Assert.Single(viewModel.VisibleLogs);
+        Assert.Equal("evict-me", viewModel.VisibleLogs[0].Message);
+
+        // capacity=2 のため Keep が落ち、続けて New を入れると Evict も落ちる
+        store.Append(CreateLogEnvelope("new-1", category: "New"));
+        store.Append(CreateLogEnvelope("new-2", category: "New"));
+
+        Assert.Null(viewModel.SelectedCategoryFilter.Category);
+        Assert.Equal(2, viewModel.VisibleLogs.Count);
+        Assert.All(viewModel.VisibleLogs, log => Assert.Equal("New", log.Category));
+        Assert.DoesNotContain(viewModel.CategoryFilters, option => option.Category == "Evict");
+    }
+
+    private static LogViewerViewModel CreateViewModel(out LogStore store, out RecordingExportWriters writers, int capacity = 128)
     {
         var dispatcher = Dispatcher.CurrentDispatcher;
-        store = new LogStore(capacity: 128);
+        store = new LogStore(capacity: capacity);
         writers = new RecordingExportWriters();
         var queryService = new LogQueryService();
         var exportService = new LogExportService(store, queryService, new ILogExportWriter[] { writers.NdjsonWriter, writers.CsvWriter, writers.BulkWriter });
