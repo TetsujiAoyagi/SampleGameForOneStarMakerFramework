@@ -1,0 +1,24 @@
+schema_version: 1
+protocol_name: debugsocket
+default_schema_version: 1
+emitters:
+  messagepack_csharp:
+    targets:
+      unity:
+        surface: unity
+        output_dir: unity/Assets/OneStarMaker/Scripts/Foundation/DebugSocket
+        namespace: OneStarMaker.Foundation.DebugSocket
+        namespace_style: braced
+        usability: public
+        sealed: true
+        partial: true
+        nullable_enable: true
+      debugstudio:
+        surface: debugstudio
+        output_dir: tools/DebugStudio/src/DebugStudio.Contracts/Protocol
+        namespace: DebugStudio.Contracts.Protocol
+        namespace_style: file_scoped
+        usability: public
+        sealed: true
+        partial: true
+        nullable_enable: true

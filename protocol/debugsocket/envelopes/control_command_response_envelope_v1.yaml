@@ -1,0 +1,11 @@
+name: ControlCommandResponseEnvelopeV1
+kind: message
+surfaces: [debugstudio]
+fields:
+  - { id: 0, name: RequestId, type: string, default: "" }
+  - { id: 1, name: Status, type: ControlCommandRoundtripStatus, default: Failed }
+  - { id: 2, name: Detail, type: string, default: "" }
+  - { id: 3, name: CommandResult, type: DebugCommandResultEnvelopeV1, optional: true }
+encodings:
+  messagepack:
+    key_field: id

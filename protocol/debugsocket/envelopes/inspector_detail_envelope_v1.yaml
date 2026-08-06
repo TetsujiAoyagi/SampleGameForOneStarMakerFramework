@@ -1,0 +1,17 @@
+name: InspectorDetailEnvelopeV1
+kind: message
+surfaces: [unity, debugstudio]
+fields:
+  - { id: 0, name: SchemaVersion, type: i32, default: 1 }
+  - { id: 1, name: Revision, type: i64 }
+  - { id: 2, name: CapturedAtUnixTimeMilliseconds, type: i64 }
+  - { id: 3, name: TargetId, type: i64 }
+  - { id: 4, name: TargetName, type: string, default: "" }
+  - { id: 5, name: TargetTypeId, type: i32 }
+  - { id: 6, name: TargetTypeName, type: string, optional: true }
+  - { id: 7, name: State, type: InspectorDetailState, default: Unknown }
+  - { id: 8, name: Message, type: string, default: "" }
+  - { id: 9, name: Sections, type: array<InspectorSectionDtoV1>, default: [] }
+encodings:
+  messagepack:
+    key_field: id

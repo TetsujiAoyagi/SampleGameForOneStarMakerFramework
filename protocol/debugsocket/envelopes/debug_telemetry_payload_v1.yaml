@@ -1,0 +1,33 @@
+name: DebugTelemetryPayloadV1
+kind: message
+surfaces: [unity, debugstudio]
+csharp:
+  unity:
+    partial: true
+  debugstudio:
+    partial: true
+fields:
+  - { id: 0, name: Shape, type: u8 }
+  - { id: 1, name: TargetIdentity, type: string, optional: true }
+  - { id: 2, name: Stage, type: string, optional: true }
+  - { id: 3, name: ManagedBeforeBytes, type: i64, optional: true }
+  - { id: 4, name: NativeBeforeBytes, type: i64, optional: true }
+  - { id: 5, name: ManagedAfterBytes, type: i64, optional: true }
+  - { id: 6, name: NativeAfterBytes, type: i64, optional: true }
+  - { id: 7, name: ManagedDeltaBytes, type: i64, optional: true }
+  - { id: 8, name: NativeDeltaBytes, type: i64, optional: true }
+  - { id: 9, name: Fps, type: f32, optional: true }
+  - { id: 10, name: CpuMs, type: f32, optional: true }
+  - { id: 11, name: GpuMs, type: f32, optional: true }
+  - { id: 12, name: GpuAvailable, type: bool, optional: true }
+  - { id: 13, name: ManagedBytes, type: i64, optional: true }
+  - { id: 14, name: NativeBytes, type: i64, optional: true }
+  - { id: 15, name: GcGen0Delta, type: i32, optional: true }
+  - { id: 16, name: UnityFrame, type: i32, optional: true }
+  - { id: 17, name: CameraTotalViewCount, type: i32, optional: true }
+  - { id: 18, name: CameraAdditionalViewCount, type: i32, optional: true }
+  - { id: 19, name: CameraBlendingViewCount, type: i32, optional: true }
+  - { id: 20, name: CameraMaxStackDepthTotal, type: i32, optional: true }
+encodings:
+  messagepack:
+    key_field: id

@@ -1,0 +1,12 @@
+name: HierarchySnapshotEnvelopeV1
+kind: message
+surfaces: [unity, debugstudio]
+fields:
+  - { id: 0, name: SchemaVersion, type: i32, default: 1 }
+  - { id: 1, name: Revision, type: i64 }
+  - { id: 2, name: CapturedAtUnixTimeMilliseconds, type: i64 }
+  - { id: 3, name: ScopeName, type: string, default: "" }
+  - { id: 4, name: Nodes, type: array<HierarchyNodeDtoV1>, default: [] }
+encodings:
+  messagepack:
+    key_field: id

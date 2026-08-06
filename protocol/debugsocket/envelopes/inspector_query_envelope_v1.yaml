@@ -1,0 +1,10 @@
+name: InspectorQueryEnvelopeV1
+kind: message
+surfaces: [unity, debugstudio]
+fields:
+  - { id: 0, name: SchemaVersion, type: i32, default: 1 }
+  - { id: 1, name: TargetId, type: i64 }
+  - { id: 2, name: QueryFlags, type: InspectorQueryFlags, default: "IncludeMetadata | IncludeComponents | IncludeProperties" }
+encodings:
+  messagepack:
+    key_field: id

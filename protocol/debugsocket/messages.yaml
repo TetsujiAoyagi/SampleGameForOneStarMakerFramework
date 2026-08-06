@@ -1,0 +1,18 @@
+name: DebugSocketMessageType
+kind: enum
+surfaces: [unity, debugstudio]
+members:
+  - { id: 0, name: Unknown, surfaces: [unity, debugstudio] }
+  - { id: 1, name: Log, surfaces: [unity, debugstudio] }
+  - { id: 2, name: Telemetry, surfaces: [unity, debugstudio] }
+  - { id: 3, name: ServiceStatus, surfaces: [unity, debugstudio] }
+  - { id: 4, name: DebugCommand, surfaces: [unity, debugstudio] }
+  - { id: 5, name: CommandResult, surfaces: [unity, debugstudio] }
+  - { id: 6, name: CapabilityHello, surfaces: [unity, debugstudio] }
+  - { id: 7, name: CapabilityWelcome, surfaces: [unity, debugstudio] }
+  - { id: 8, name: HierarchySnapshot, surfaces: [unity, debugstudio] }
+  - { id: 9, name: HierarchyDelta, surfaces: [unity, debugstudio] }
+  - { id: 10, name: InspectorQuery, surfaces: [unity, debugstudio] }
+  - { id: 11, name: InspectorDetail, surfaces: [unity, debugstudio] }
+  - { id: 12, name: ControlCommandRequest, surfaces: [debugstudio] }
+  - { id: 13, name: ControlCommandResponse, surfaces: [debugstudio] }

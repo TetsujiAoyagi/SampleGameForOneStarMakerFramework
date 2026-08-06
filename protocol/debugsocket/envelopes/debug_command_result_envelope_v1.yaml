@@ -1,0 +1,11 @@
+name: DebugCommandResultEnvelopeV1
+kind: message
+surfaces: [unity, debugstudio]
+fields:
+  - { id: 0, name: RequestId, type: string, default: "" }
+  - { id: 1, name: Success, type: bool }
+  - { id: 2, name: Message, type: string, default: "" }
+  - { id: 3, name: PayloadJson, type: string, default: "" }
+encodings:
+  messagepack:
+    key_field: id

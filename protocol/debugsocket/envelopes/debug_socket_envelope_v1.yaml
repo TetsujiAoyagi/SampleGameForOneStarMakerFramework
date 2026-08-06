@@ -1,0 +1,11 @@
+name: DebugSocketEnvelopeV1
+kind: message
+surfaces: [unity, debugstudio]
+fields:
+  - { id: 0, name: SchemaVersion, type: i32, default: 1 }
+  - { id: 1, name: MessageType, type: i32 }
+  - { id: 2, name: RequestId, type: string, optional: true }
+  - { id: 3, name: Payload, type: bytes, default: [] }
+encodings:
+  messagepack:
+    key_field: id

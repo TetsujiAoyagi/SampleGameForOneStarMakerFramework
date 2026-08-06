@@ -4,10 +4,14 @@ on:
   push:
     paths:
       - 'tools/DebugStudio/**'
+      - 'tools/protocol-codegen/**'
+      - 'protocol/debugsocket/**'
       - '.github/workflows/debugstudio.yml'
   pull_request:
     paths:
       - 'tools/DebugStudio/**'
+      - 'tools/protocol-codegen/**'
+      - 'protocol/debugsocket/**'
 
 jobs:
   test:
@@ -15,14 +19,15 @@ jobs:
     # ハングしたテストがあってもジョブ全体が GitHub Actions の 6 時間上限まで
     # 走り続けないよう、明示的な上限を設ける。
     timeout-minutes: 20
-    defaults:
-      run:
-        working-directory: tools/DebugStudio
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      # YAML 正本と commit 済み生成物の乖離を防ぐ（PROTO-21）。
+      - name: Protocol codegen check
+        shell: bash
+        run: ./tools/protocol-codegen/generate.sh --check
       # --blame:               テストホストがクラッシュした場合に、直前まで実行していた
       #                        テストを Sequence_*.xml に記録する（原因テストの特定用）。
       # --blame-hang-timeout:  いずれかのテストが 120 秒進捗しなければ、そのテストを失敗として
@@ -30,6 +35,7 @@ jobs:
       #                        （6 時間の無限ハングを、数分で終わる実行可能な失敗に変える）。
       # --blame-hang-dump-type none: ダンプ収集（procdump 依存）を避け、中断のみ行う。
       - name: Restore and test
+        working-directory: tools/DebugStudio
         run: dotnet test DebugStudio.sln -c Release --verbosity minimal --blame --blame-hang-timeout 120s --blame-hang-dump-type none
       # クラッシュ／ハング時に原因テストを追えるよう、Blame の Sequence ファイル等を保存する。
       - name: Upload test diagnostics
