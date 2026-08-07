@@ -40,6 +40,7 @@ public static class YamlSchemaLoader
             }
         }
 
+        SchemaValidator.Validate(schema);
         return schema;
     }
 
@@ -88,7 +89,7 @@ public static class YamlSchemaLoader
         var root = LoadRoot(path);
         var enumType = new EnumType
         {
-            Name = GetString(root, "name", ""),
+            Name = GetRequiredString(root, "name", path),
             Kind = GetString(root, "kind", "enum"),
             Underlying = GetOptionalString(root, "underlying"),
         };
@@ -101,9 +102,11 @@ public static class YamlSchemaLoader
             {
                 var member = new EnumMember
                 {
-                    Id = GetInt(item, "id", 0),
-                    Name = GetString(item, "name", ""),
-                    Value = GetOptionalString(item, "value") ?? GetString(item, "id", "0"),
+                    Id = GetRequiredInt(item, "id", $"enum '{enumType.Name}' member"),
+                    Name = GetRequiredString(item, "name", $"enum '{enumType.Name}' member"),
+                    Value = GetOptionalString(item, "value")
+                            ?? GetRequiredInt(item, "id", $"enum '{enumType.Name}' member")
+                                .ToString(CultureInfo.InvariantCulture),
                 };
                 AddSurfaces(member.Surfaces, item, enumType.Surfaces);
                 enumType.Members.Add(member);
@@ -125,8 +128,7 @@ public static class YamlSchemaLoader
 
         foreach (var item in enums.Children.OfType<YamlMappingNode>())
         {
-            // Reuse by writing temp-like parse: wrap as document shape
-            var name = GetString(item, "name", "");
+            var name = GetRequiredString(item, "name", "enums.yaml entry");
             var enumType = new EnumType
             {
                 Name = name,
@@ -141,9 +143,11 @@ public static class YamlSchemaLoader
                 {
                     var member = new EnumMember
                     {
-                        Id = GetInt(m, "id", 0),
-                        Name = GetString(m, "name", ""),
-                        Value = GetOptionalString(m, "value") ?? GetInt(m, "id", 0).ToString(CultureInfo.InvariantCulture),
+                        Id = GetRequiredInt(m, "id", $"enum '{name}' member"),
+                        Name = GetRequiredString(m, "name", $"enum '{name}' member"),
+                        Value = GetOptionalString(m, "value")
+                                ?? GetRequiredInt(m, "id", $"enum '{name}' member")
+                                    .ToString(CultureInfo.InvariantCulture),
                     };
                     AddSurfaces(member.Surfaces, m, enumType.Surfaces);
                     enumType.Members.Add(member);
@@ -161,7 +165,7 @@ public static class YamlSchemaLoader
         var root = LoadRoot(path);
         var message = new MessageType
         {
-            Name = GetString(root, "name", ""),
+            Name = GetRequiredString(root, "name", path),
         };
         AddSurfaces(message.Surfaces, root, null);
 
@@ -197,9 +201,9 @@ public static class YamlSchemaLoader
             {
                 message.Fields.Add(new FieldDef
                 {
-                    Id = GetInt(item, "id", 0),
-                    Name = GetString(item, "name", ""),
-                    Type = GetString(item, "type", ""),
+                    Id = GetRequiredInt(item, "id", $"message '{message.Name}' field"),
+                    Name = GetRequiredString(item, "name", $"message '{message.Name}' field"),
+                    Type = GetRequiredString(item, "type", $"message '{message.Name}' field '{GetOptionalString(item, "name")}'"),
                     Optional = GetBool(item, "optional", false),
                     Default = GetDefaultValue(item),
                 });
@@ -296,6 +300,28 @@ public static class YamlSchemaLoader
     {
         var s = GetOptionalString(node, key);
         return int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : fallback;
+    }
+
+    private static int GetRequiredInt(YamlMappingNode node, string key, string context)
+    {
+        var s = GetOptionalString(node, key);
+        if (!int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n))
+        {
+            throw new InvalidOperationException($"{context}: '{key}' must be a decimal integer (got '{s ?? "<missing>"}').");
+        }
+
+        return n;
+    }
+
+    private static string GetRequiredString(YamlMappingNode node, string key, string context)
+    {
+        var s = GetOptionalString(node, key);
+        if (string.IsNullOrWhiteSpace(s))
+        {
+            throw new InvalidOperationException($"{context}: '{key}' is required.");
+        }
+
+        return s;
     }
 
     private static bool GetBool(YamlMappingNode node, string key, bool fallback)

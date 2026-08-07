@@ -11,12 +11,18 @@ on:
       - 'tools/DebugStudio/**'
       - 'tools/protocol-codegen/**'
       - 'protocol/debugsocket/**'
+      - 'unity/Assets/OneStarMaker/Scripts/Foundation/DebugSocket/**'
+      - 'unity/Assets/OneStarMaker/Scripts/Foundation/Logging/LogEnvelopeV1.cs'
+      - 'unity/Assets/OneStarMaker/Tests/Foundation/ProtocolGoldenCrossContractTests.cs'
       - '.github/workflows/debugstudio.yml'
   pull_request:
     paths:
       - 'tools/DebugStudio/**'
       - 'tools/protocol-codegen/**'
       - 'protocol/debugsocket/**'
+      - 'unity/Assets/OneStarMaker/Scripts/Foundation/DebugSocket/**'
+      - 'unity/Assets/OneStarMaker/Scripts/Foundation/Logging/LogEnvelopeV1.cs'
+      - 'unity/Assets/OneStarMaker/Tests/Foundation/ProtocolGoldenCrossContractTests.cs'
       - '.github/workflows/debugstudio.yml'
 
 jobs:

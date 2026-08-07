@@ -15,7 +15,8 @@ static int Usage()
         Options:
           --input       protocol YAML directory (e.g. protocol/debugsocket)
           --repo-root   repository root for resolving relative output_dir (default: cwd)
-          --check       generate to memory and fail if committed outputs would change
+          --check       generate in memory and fail if committed outputs would change
+                        (also fails on orphan auto-generated files under output dirs)
           --emit        emitter name (only messagepack-csharp is supported)
         """);
     return 2;
@@ -63,60 +64,155 @@ if (!emit.Equals("messagepack-csharp", StringComparison.OrdinalIgnoreCase))
 
 input = Path.GetFullPath(input);
 repoRoot = Path.GetFullPath(repoRoot);
-
-var schema = YamlSchemaLoader.Load(input);
-var emitter = new MessagePackCsharpEmitter(schema, repoRoot);
-var generated = emitter.GenerateAll();
-
-if (generated.Count == 0)
+if (!repoRoot.EndsWith(Path.DirectorySeparatorChar) && !repoRoot.EndsWith(Path.AltDirectorySeparatorChar))
 {
-    Console.Error.WriteLine("No types generated. Check surfaces / YAML input.");
-    return 1;
+    repoRoot += Path.DirectorySeparatorChar;
 }
 
-var dirty = new List<string>();
-foreach (var (path, content) in generated)
+try
 {
-    Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-    var normalized = content.Replace("\r\n", "\n");
-    if (check)
-    {
-        if (!File.Exists(path))
-        {
-            dirty.Add(path + " (missing)");
-            continue;
-        }
+    var schema = YamlSchemaLoader.Load(input);
+    var emitter = new MessagePackCsharpEmitter(schema, repoRoot);
+    var generated = emitter.GenerateAll();
+    SchemaValidator.ValidateUnitySurfaceIsolation(generated);
 
-        var existing = File.ReadAllText(path).Replace("\r\n", "\n");
-        if (!string.Equals(existing, normalized, StringComparison.Ordinal))
-        {
-            dirty.Add(path);
-        }
-    }
-    else
+    if (generated.Count == 0)
     {
-        File.WriteAllText(path, normalized);
-        Console.WriteLine("wrote " + Path.GetRelativePath(repoRoot, path));
-    }
-}
-
-if (check)
-{
-    if (dirty.Count > 0)
-    {
-        Console.Error.WriteLine("Generated sources are out of date:");
-        foreach (var d in dirty)
-        {
-            Console.Error.WriteLine("  " + Path.GetRelativePath(repoRoot, d));
-        }
-
-        Console.Error.WriteLine("Run tools/protocol-codegen/generate.sh to regenerate.");
+        Console.Error.WriteLine("No types generated. Check surfaces / YAML input.");
         return 1;
     }
 
-    Console.WriteLine($"OK: {generated.Count} generated files match YAML.");
+    var dirty = new List<(string Path, string Reason)>();
+    foreach (var (path, content) in generated)
+    {
+        var normalized = content.Replace("\r\n", "\n");
+        if (check)
+        {
+            if (!File.Exists(path))
+            {
+                dirty.Add((path, "missing"));
+                continue;
+            }
+
+            var existing = File.ReadAllText(path).Replace("\r\n", "\n");
+            if (!string.Equals(existing, normalized, StringComparison.Ordinal))
+            {
+                dirty.Add((path, "differs"));
+            }
+        }
+        else
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, normalized);
+            Console.WriteLine("wrote " + Path.GetRelativePath(repoRoot, path));
+        }
+    }
+
+    if (check)
+    {
+        foreach (var orphan in FindOrphanGeneratedFiles(schema, repoRoot, generated.Keys))
+        {
+            dirty.Add((orphan, "orphan"));
+        }
+
+        if (dirty.Count > 0)
+        {
+            Console.Error.WriteLine("Generated sources are out of date:");
+            foreach (var (path, reason) in dirty)
+            {
+                Console.Error.WriteLine($"  [{reason}] {Path.GetRelativePath(repoRoot, path)}");
+            }
+
+            Console.Error.WriteLine("Run tools/protocol-codegen/generate.sh to regenerate.");
+            return 1;
+        }
+
+        Console.WriteLine($"OK: {generated.Count} generated files match YAML.");
+        return 0;
+    }
+
+    Console.WriteLine($"Generated {generated.Count} files.");
     return 0;
 }
+catch (Exception ex)
+{
+    Console.Error.WriteLine("protocol-codegen failed: " + ex.Message);
+    return 1;
+}
 
-Console.WriteLine($"Generated {generated.Count} files.");
-return 0;
+static IEnumerable<string> FindOrphanGeneratedFiles(
+    ProtocolCodegen.Model.ProtocolSchema schema,
+    string repoRoot,
+    IEnumerable<string> expectedPaths)
+{
+    var expected = new HashSet<string>(
+        expectedPaths.Select(Path.GetFullPath),
+        OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+
+    var outputDirs = new HashSet<string>(
+        OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+
+    foreach (var target in schema.Meta.Targets.Values)
+    {
+        AddOutputDir(outputDirs, repoRoot, target.OutputDir);
+    }
+
+    foreach (var message in schema.Messages)
+    {
+        foreach (var csharp in message.Csharp.Values)
+        {
+            if (!string.IsNullOrWhiteSpace(csharp.OutputDir))
+            {
+                AddOutputDir(outputDirs, repoRoot, csharp.OutputDir!);
+            }
+        }
+    }
+
+    foreach (var dir in outputDirs)
+    {
+        if (!Directory.Exists(dir))
+        {
+            continue;
+        }
+
+        foreach (var file in Directory.EnumerateFiles(dir, "*.cs", SearchOption.TopDirectoryOnly))
+        {
+            var full = Path.GetFullPath(file);
+            if (expected.Contains(full))
+            {
+                continue;
+            }
+
+            // 手書き partial / Protocol helper はヘッダが無い。auto-generated のみ orphan 扱い。
+            string head;
+            try
+            {
+                head = File.ReadAllText(full);
+            }
+            catch
+            {
+                continue;
+            }
+
+            if (head.Contains("// <auto-generated", StringComparison.Ordinal))
+            {
+                yield return full;
+            }
+        }
+    }
+}
+
+static void AddOutputDir(HashSet<string> dirs, string repoRoot, string outputDir)
+{
+    var dir = outputDir;
+    if (!Path.IsPathRooted(dir))
+    {
+        dir = Path.GetFullPath(Path.Combine(repoRoot, dir));
+    }
+    else
+    {
+        dir = Path.GetFullPath(dir);
+    }
+
+    dirs.Add(dir);
+}

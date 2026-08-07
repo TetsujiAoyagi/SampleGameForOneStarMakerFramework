@@ -40,6 +40,9 @@ Transport-neutral semantic contract. MessagePack Key binding uses stable `fields
 - `debugstudio` — DebugStudio.Contracts output (includes CLI)
 
 Members/types without the target surface are omitted from that emitter output.
+If a member omits `surfaces`, it inherits the parent type's surfaces.
+Explicit `surfaces: []` means **exclude from all targets** (not "all targets").
+Codegen also fails if Unity outputs contain `ControlCommand*` or message type 12/13.
 
 ## Encodings
 

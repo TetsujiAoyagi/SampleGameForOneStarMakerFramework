@@ -30,8 +30,10 @@ public sealed class MessagePackCsharpEmitter
                     continue;
                 }
 
+                // surfaces 未指定メンバーは loader が親 surfaces を継承済み。
+                // 明示的な surfaces: [] は空集合のまま残り、ここでは除外される。
                 var members = enumType.Members
-                    .Where(m => m.Surfaces.Count == 0 || m.Surfaces.Contains(target.Surface))
+                    .Where(m => m.Surfaces.Contains(target.Surface))
                     .ToList();
                 if (members.Count == 0)
                 {
@@ -64,6 +66,25 @@ public sealed class MessagePackCsharpEmitter
         if (!Path.IsPathRooted(dir))
         {
             dir = Path.GetFullPath(Path.Combine(_repoRoot, dir));
+        }
+        else
+        {
+            dir = Path.GetFullPath(dir);
+        }
+
+        var root = Path.GetFullPath(_repoRoot);
+        if (!root.EndsWith(Path.DirectorySeparatorChar) && !root.EndsWith(Path.AltDirectorySeparatorChar))
+        {
+            root += Path.DirectorySeparatorChar;
+        }
+
+        var fullDir = dir.EndsWith(Path.DirectorySeparatorChar) || dir.EndsWith(Path.AltDirectorySeparatorChar)
+            ? dir
+            : dir + Path.DirectorySeparatorChar;
+        if (!fullDir.StartsWith(root, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"output_dir escapes repository root: '{dir}' (repoRoot={_repoRoot})");
         }
 
         // 既存パスと同名で置換し、Unity .meta GUID を維持する。
@@ -211,24 +232,19 @@ public sealed class MessagePackCsharpEmitter
     private string MapFieldType(FieldDef field)
     {
         var mapped = MapType(field.Type);
-        if (field.Optional && !mapped.EndsWith('?') && mapped != "string" && mapped != "byte[]" && !mapped.EndsWith("[]", StringComparison.Ordinal))
+        if (!field.Optional || mapped.EndsWith('?'))
         {
-            // reference message types and primitives become nullable
-            if (IsValueType(field.Type) || IsEnumName(field.Type) || IsMessageName(field.Type))
-            {
-                mapped += "?";
-            }
-            else if (mapped is "string" or "byte[]")
-            {
-                mapped += "?";
-            }
+            return mapped;
         }
-        else if (field.Optional && (mapped == "string" || mapped.EndsWith("[]", StringComparison.Ordinal) || IsMessageName(field.Type)))
+
+        // optional は値型・参照型とも T? にする（MessagePack nil スロット互換）。
+        if (IsValueType(field.Type)
+            || IsEnumName(field.Type)
+            || IsMessageName(field.Type)
+            || mapped is "string" or "byte[]"
+            || mapped.EndsWith("[]", StringComparison.Ordinal))
         {
-            if (!mapped.EndsWith('?'))
-            {
-                mapped += "?";
-            }
+            mapped += "?";
         }
 
         return mapped;
