@@ -1,0 +1,33 @@
+name: LogEnvelopeV1
+kind: message
+surfaces: [unity, debugstudio]
+csharp:
+  unity:
+    namespace: OneStarMaker.Foundation.Logging
+    output_dir: unity/Assets/OneStarMaker/Scripts/Foundation/Logging
+    partial: true
+  debugstudio:
+    partial: true
+fields:
+  - { id: 0, name: SchemaVersion, type: i32, default: 1 }
+  - { id: 1, name: ApplicationName, type: string, default: "" }
+  - { id: 2, name: TimestampUnixTimeMilliseconds, type: i64 }
+  - { id: 3, name: Category, type: string, default: "" }
+  - { id: 4, name: LogLevel, type: i32 }
+  - { id: 5, name: EventId, type: i32 }
+  - { id: 6, name: EventName, type: string, optional: true }
+  - { id: 7, name: Message, type: string, default: "" }
+  - { id: 8, name: Exception, type: string, optional: true }
+  - { id: 9, name: ThreadId, type: i32 }
+  - { id: 10, name: ThreadName, type: string, optional: true }
+  - { id: 11, name: MemberName, type: string, optional: true }
+  - { id: 12, name: FilePath, type: string, optional: true }
+  - { id: 13, name: LineNumber, type: i32 }
+  - { id: 14, name: SessionId, type: string, default: "" }
+  - { id: 15, name: ProducerSequence, type: i64 }
+  - { id: 16, name: UnityFrameAtEmit, type: i32, optional: true }
+  - { id: 17, name: TraceId, type: i64, optional: true }
+  - { id: 18, name: SpanId, type: i64, optional: true }
+encodings:
+  messagepack:
+    key_field: id

@@ -1,0 +1,13 @@
+name: InspectorSectionDtoV1
+kind: message
+surfaces: [unity, debugstudio]
+fields:
+  - { id: 0, name: SectionId, type: i32 }
+  - { id: 1, name: Kind, type: InspectorSectionKind, default: Unknown }
+  - { id: 2, name: TypeId, type: i32 }
+  - { id: 3, name: DisplayName, type: string, default: "" }
+  - { id: 4, name: TypeName, type: string, optional: true }
+  - { id: 5, name: Properties, type: array<InspectorPropertyDtoV1>, default: [] }
+encodings:
+  messagepack:
+    key_field: id

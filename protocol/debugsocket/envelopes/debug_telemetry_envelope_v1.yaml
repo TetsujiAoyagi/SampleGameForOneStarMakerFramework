@@ -1,0 +1,41 @@
+name: DebugTelemetryEnvelopeV1
+kind: message
+surfaces: [unity, debugstudio]
+csharp:
+  unity:
+    partial: true
+  debugstudio:
+    partial: true
+fields:
+  - { id: 0, name: SchemaVersion, type: i32, default: 3 }
+  - { id: 1, name: TraceId, type: i64 }
+  - { id: 2, name: SpanId, type: i64 }
+  - { id: 3, name: ParentSpanId, type: i64 }
+  - { id: 4, name: Name, type: string, default: "" }
+  - { id: 5, name: StartTimestampUtcTicks, type: i64 }
+  - { id: 6, name: EndTimestampUtcTicks, type: i64 }
+  - { id: 7, name: ElapsedMs, type: f64 }
+  - { id: 8, name: IsSuccess, type: bool }
+  - { id: 9, name: Level, type: i32 }
+  - { id: 10, name: TagBits, type: i32, optional: true }
+  - { id: 11, name: CpuTime, type: f32 }
+  - { id: 12, name: GpuTime, type: f32 }
+  - { id: 13, name: ManagedMem, type: i64 }
+  - { id: 14, name: NativeMem, type: i64 }
+  - { id: 15, name: SceneFrom, type: i32, default: -1 }
+  - { id: 16, name: SceneTo, type: i32, default: -1 }
+  - { id: 17, name: CameraTotalViewCount, type: i32, default: -1 }
+  - { id: 18, name: CameraAdditionalViewCount, type: i32, default: -1 }
+  - { id: 19, name: CameraBlendingViewCount, type: i32, default: -1 }
+  - { id: 20, name: CameraMaxStackDepthTotal, type: i32, default: -1 }
+  - { id: 21, name: CameraViewId, type: i32, default: -1 }
+  - { id: 22, name: CameraActiveCameraHash, type: i32, default: -1 }
+  - { id: 23, name: SessionId, type: string, default: "" }
+  - { id: 24, name: ProducerSequence, type: i64 }
+  - { id: 25, name: UnityFrameAtStart, type: i32, optional: true }
+  - { id: 26, name: UnityFrameAtEnd, type: i32, optional: true }
+  - { id: 27, name: Kind, type: string, default: "span" }
+  - { id: 28, name: Payload, type: DebugTelemetryPayloadV1, optional: true }
+encodings:
+  messagepack:
+    key_field: id

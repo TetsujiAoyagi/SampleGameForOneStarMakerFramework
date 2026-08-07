@@ -9,10 +9,20 @@ on:
       - develop
     paths:
       - 'tools/DebugStudio/**'
+      - 'tools/protocol-codegen/**'
+      - 'protocol/debugsocket/**'
+      - 'unity/Assets/OneStarMaker/Scripts/Foundation/DebugSocket/**'
+      - 'unity/Assets/OneStarMaker/Scripts/Foundation/Logging/LogEnvelopeV1.cs'
+      - 'unity/Assets/OneStarMaker/Tests/Foundation/ProtocolGoldenCrossContractTests.cs'
       - '.github/workflows/debugstudio.yml'
   pull_request:
     paths:
       - 'tools/DebugStudio/**'
+      - 'tools/protocol-codegen/**'
+      - 'protocol/debugsocket/**'
+      - 'unity/Assets/OneStarMaker/Scripts/Foundation/DebugSocket/**'
+      - 'unity/Assets/OneStarMaker/Scripts/Foundation/Logging/LogEnvelopeV1.cs'
+      - 'unity/Assets/OneStarMaker/Tests/Foundation/ProtocolGoldenCrossContractTests.cs'
       - '.github/workflows/debugstudio.yml'
 
 jobs:
@@ -30,6 +40,13 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      # YAML 正本と commit 済み生成物の乖離を防ぐ（PROTO-21）。
+      # このジョブの defaults は tools/DebugStudio なので、リポジトリルート起点の
+      # スクリプトを叩くこのステップだけ working-directory を明示で上書きする。
+      - name: Protocol codegen check
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: ./tools/protocol-codegen/generate.sh --check
       # --blame:               テストホストがクラッシュした場合に、直前まで実行していた
       #                        テストを Sequence_*.xml に記録する（原因テストの特定用）。
       # --blame-hang-timeout:  いずれかのテストが 120 秒進捗しなければ、そのテストを失敗として

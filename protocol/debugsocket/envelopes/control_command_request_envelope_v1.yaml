@@ -1,0 +1,11 @@
+name: ControlCommandRequestEnvelopeV1
+kind: message
+surfaces: [debugstudio]
+fields:
+  - { id: 0, name: RequestId, type: string, default: "" }
+  - { id: 1, name: CommandType, type: string, default: "" }
+  - { id: 2, name: PayloadJson, type: string, default: "{}" }
+  - { id: 3, name: TimeoutMilliseconds, type: i32, default: 15000 }
+encodings:
+  messagepack:
+    key_field: id

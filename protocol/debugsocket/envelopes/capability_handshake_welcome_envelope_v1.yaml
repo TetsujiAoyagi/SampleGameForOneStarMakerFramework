@@ -1,0 +1,16 @@
+name: CapabilityHandshakeWelcomeEnvelopeV1
+kind: message
+surfaces: [unity, debugstudio]
+fields:
+  - { id: 0, name: SchemaVersion, type: i32, default: 1 }
+  - { id: 1, name: SessionId, type: string, default: "" }
+  - { id: 2, name: ServerName, type: string, default: "" }
+  - { id: 3, name: SelectedSchemaVersion, type: i32, default: 1 }
+  - { id: 4, name: ServerCapabilities, type: DebugStudioCapability, default: None }
+  - { id: 5, name: NegotiatedCapabilities, type: DebugStudioCapability, default: None }
+  - { id: 6, name: SupportedMessageTypes, type: array<i32>, default: [] }
+  - { id: 7, name: TimestampUnixTimeMilliseconds, type: i64 }
+  - { id: 8, name: StatusMessage, type: string, default: "" }
+encodings:
+  messagepack:
+    key_field: id

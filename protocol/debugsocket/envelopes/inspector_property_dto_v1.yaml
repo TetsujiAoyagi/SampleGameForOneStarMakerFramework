@@ -1,0 +1,15 @@
+name: InspectorPropertyDtoV1
+kind: message
+surfaces: [unity, debugstudio]
+fields:
+  - { id: 0, name: PropertyId, type: i32 }
+  - { id: 1, name: ValueTypeId, type: i32 }
+  - { id: 2, name: Flags, type: InspectorPropertyFlags, default: None }
+  - { id: 3, name: DisplayName, type: string, default: "" }
+  - { id: 4, name: ValueText, type: string, default: "" }
+  - { id: 5, name: RawValue, type: string, optional: true }
+  - { id: 6, name: Unit, type: string, optional: true }
+  - { id: 7, name: Path, type: string, optional: true }
+encodings:
+  messagepack:
+    key_field: id

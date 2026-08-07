@@ -10,6 +10,8 @@
 - DebugStudio transport/client (`DebugStudio.Client`)
 - DebugStudio app/service/store (`DebugStudio.App`)
 
+**wire DTO の正本**は `protocol/debugsocket/`（中立 YAML）です。Unity / DebugStudio の MessagePack C# は `tools/protocol-codegen` から生成します。DTO を手で二重定義・コピーしないでください（詳細: `protocol/debugsocket/README.md`）。
+
 ---
 
 ## 全体像
