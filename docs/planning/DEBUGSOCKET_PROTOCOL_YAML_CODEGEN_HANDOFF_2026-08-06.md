@@ -314,3 +314,85 @@ encodings:
 | 側固有は partial | `FromRecord` と CLI/UI 拡張を契約から隔離 |
 | `DebugSocketProtocol` は初回対象外 | 置換範囲を DTO に閉じ、輸送ヘルパ差分リスクを後回し |
 | CLI 12/13 は DS surface | すでに存在する意図的ドリフトを「Unity へ寄せる」のではなく「正本上で表面分離」する |
+
+---
+
+## 11. Phase C レビュー（2026-08-08 / Claude Code）
+
+対象: PR #10（`cursor/debugsocket-protocol-yaml-codegen-8c7a`）を `origin/develop` へ rebase したもの。
+
+> 本書は §0〜§10 が Phase A の設計で、§7 は「受入の定義」であって「Phase C レビュー」ではない。
+> CLAUDE.md の §7 = レビュー / §8 = 監査 という番号規約とはズレているが、既存の節番号を振り直すと
+> 実装側の参照が壊れるため、**追記で §11 = Phase C、§12 = Phase C' とする。**
+
+### 11.1 まず構造レビュー（機能レビューの前）
+
+`git diff --stat` は 106 ファイル / +2762 −583。CLAUDE.md の「1 ファイルが 50% 以上増えていたら構造レビュー」に該当するファイルは多数あるが、**その増分はほぼ全て生成物と YAML** であり、人手で書かれた新規ロジックは次の 4 ファイルに閉じている。
+
+| ファイル | 行数 | 責務 |
+|---|---|---|
+| `tools/protocol-codegen/Emitters/MessagePackCsharpEmitter.cs` | 369 | C# 出力 |
+| `tools/protocol-codegen/Loading/YamlSchemaLoader.cs` | 313 | YAML → モデル |
+| `tools/protocol-codegen/Program.cs` | 122 | CLI / `--check` |
+| `tools/protocol-codegen/Model/SchemaModels.cs` | 70 | モデル定義 |
+
+いずれも 500 行 / 3 責務を超えていない。**構造の劣化は無い。**
+
+### 11.2 wire 契約が変わっていないことの検証（本レビューの中核）
+
+変更前後の Unity / DebugStudio 双方から `[MessagePackObject]` / `[Key(n)]` / `[IgnoreMember]` / プロパティ宣言 / 既定値だけを機械抽出して diff した。差分は次の 3 種類**のみ**。
+
+1. `sealed class` → `sealed partial class`
+2. `Array.Empty<T>()` → `System.Array.Empty<T>()`（`using System;` 省略に伴う完全修飾）
+3. `FromRecord` / `FromPayload` / `[IgnoreMember] Kind` の手書き partial への移動
+
+**Key 番号・型・nullable・既定値・enum 値の変更はゼロ。** `[IgnoreMember]` も維持。
+併せて **ファイル削除ゼロ**を確認した（同パス置換のため Unity `.meta` GUID は保たれている。PROTO-20 の注意を満たす）。
+
+### 11.3 指摘と対応
+
+| ID | 深刻度 | 内容 | 対応 |
+|---|---|---|---|
+| **B1** | ブロッカー | `ProtocolGoldenCrossContractTests.cs` が `Convert.ToHexString` / `Convert.FromHexString` を使用。これは .NET 5 以降の API で **netstandard2.1（Unity の API Compatibility Level）に存在しない**。`Editor\Data\NetStandard\ref\2.1.0\netstandard.dll` にも `BCLExtensions\TargetingPacks\netstandard2.1` にも無いことを実測確認。`OneStarMaker.Tests` アセンブリ全体がコンパイル不能 → EditMode 0 件 → CLAUDE.md の「テスト0件は失敗扱い」に該当 | 本ブランチで修正済み（テスト内ローカルヘルパへ置換）。DS 側は net8.0 なので現状維持 |
+| **B2** | ブロッカー | `develop` 側の `defaults: run: working-directory: tools/DebugStudio` を残したまま `Protocol codegen check` ステップ（`shell: bash` のみ指定・相対パス実行）を取り込むと、`tools/DebugStudio` 配下でスクリプトを探して落ちる | 本ブランチで解決済み。当該ステップにのみ `working-directory: ${{ github.workspace }}` を明示。`Restore and test` と `defaults` は develop 側（#11/#12 の CI 強化）を採用 |
+| **D1** | 設計後退 | 削除 583 行のうち **416 行（71%）が `///` ドキュメントコメント**。全 wire DTO のフィールド単位の「なぜ」が両側から消えた。§6-8 は「YAML の description があれば emitter が短く出してよい」と条件付きで許容していたが、`SCHEMA.md` にも emitter にも **`description` は実装されていない**（grep ヒット 0）。移設先が無いまま削除された | **別スライスへ切り出す**（人間判断）。#10 のレビュー面積を増やさないため。後続 HANDOFF: `DEBUGSOCKET_PROTOCOL_DESCRIPTION_BACKFILL_HANDOFF_2026-08-08.md` |
+| **D2** | プロセス | 本書は「1チケット = 1 PR または明確に独立したコミット単位」と定義しているが、PROTO-00〜23 の全 20 チケットが **2 コミット / 106 ファイル**で着地している。また §7 のチェックリストは全項目 `[x]` だが Unity EditMode は未実施であり、その状態で B1 が残っていた | 記録のみ。**自己採点のチェックリストは検証の代わりにならない**という実例として残す |
+| **M1** | 軽微 | `Program.cs` が `--check` でも `Directory.CreateDirectory` を呼ぶ。読み取り専用のはずの経路に副作用がある | 未修正。実害は空ディレクトリ生成のみ |
+| **M2** | 軽微 | `--check` は「差分あり / 欠損」は検出するが、**YAML から型を消したときに取り残された生成 `.cs` を検出しない** | 未修正。型削除が発生する時期に対応でよい |
+| **M3** | 軽微 | emitter 本体（369 行）に単体テストが無い | 未修正。`--check` + PROTO-00 golden fixture が end-to-end のガードとして効いており、CLAUDE.md A-4 の趣旨は実質満たしていると判断 |
+| **M4** | 軽微 | `SCHEMA.md` が `surfaces/*.yaml` を "informational" と明記。「Unity に message type 12/13 を出さない」不変条件は各型・各メンバーの `surfaces` だけが担保しており、二重化されていない | 未修正。ただし PROTO-00 fixture は 12/13 を含まないため、破れても golden では検出できない点は認識しておく |
+
+### 11.4 CI 赤について
+
+PR #10 の CI 失敗は **本変更が原因ではない**。実測:
+
+```
+OK: 53 generated files match YAML.
+Contracts 35 / Server 10 / Cli 7 / Export 60 / App 214 — すべて Failed: 0
+The active test run was aborted. Reason: Test host process crashed  ← App.Tests teardown hang
+```
+
+これは `develop` が PR #11 / #12 で対処済みのフレーク。#10 は #11 より前に切られていたため修正を持っていなかった。
+
+### 11.5 検証結果（rebase + B1 修正後）
+
+| 検証 | 結果 |
+|---|---|
+| `./tools/protocol-codegen/generate.sh --check` | `OK: 53 generated files match YAML.` |
+| `dotnet test DebugStudio.sln -c Release`（blame/hang-timeout 付き） | exit 0。Contracts 35 / Export 60 / Server 10 / Cli 7 / App 221 = **計 333 件、Failed 0**。testhang による abort も無し |
+| `.github/workflows/debugstudio.yml` | 競合マーカー無し。`MIN_EXPECTED_TESTS: 325` に対し実測 333 なので下限判定は素通り |
+
+### 11.6 確認していないこと
+
+- `MessagePackCsharpEmitter.cs` / `YamlSchemaLoader.cs` の**本文の精読**。生成物の正しさは出力側の API サーフェス diff で担保したため、emitter の内部ロジックは追っていない
+- `protocol/debugsocket/*.yaml` 全 20 ファイルと生成物の 1:1 目視突合（`--check` が通ることをもって代替）
+- **golden fixture の hex 値が本当に移行前の実装から採取されたものか。** 生成後の実装で作った値なら「自分で自分を検証している」ことになり、PROTO-00 の錨としての意味が薄れる。手順は `fixtures/proto00/README.md` にあるが再現していない
+- **PROTO-00 の受入条件「意図的に Key をずらすと少なくとも一方が落ちる」の手動確認。** 本書 §3 が要求しているが、実施記録がどこにも無い
+- Unity EditMode 以外の Unity ビルド（Player ビルド）への影響
+
+---
+
+## 12. Phase C' 監査（未実施）
+
+> 実装にも設計にも関与していないモデルが記入する。自己採点にしない。
+> 監査の着眼点は §11.6「確認していないこと」を優先すること。
