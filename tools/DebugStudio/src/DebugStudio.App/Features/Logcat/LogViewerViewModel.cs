@@ -5,6 +5,7 @@ using DebugStudio.App.Core.Mvvm;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
@@ -66,30 +67,16 @@ public sealed class LogViewerViewModel : ObservableObject, IDisposable
         ToggleAutoScrollCommand = new RelayCommand(() => _tailState.ToggleAutoScroll());
         ToggleDetailPaneCommand = new RelayCommand(() => IsDetailPaneVisible = !IsDetailPaneVisible);
 
-        _filterState.FilterChanged += (_, _) =>
-        {
-            ClearQueryCommand.RaiseCanExecuteChanged();
-            RefreshFromStore();
-            ExportCommand.RaiseCanExecuteChanged();
-        };
-        _exportState.ExportPathChanged += (_, _) =>
-        {
-            OnPropertyChanged(nameof(ExportPath));
-            ExportCommand.RaiseCanExecuteChanged();
-        };
-        _exportState.ExportFormatChanged += (_, _) =>
-        {
-            OnPropertyChanged(nameof(SelectedExportFormat));
-            OnPropertyChanged(nameof(ExportStatus));
-            OnPropertyChanged(nameof(ExportButtonText));
-        };
-        _tailState.AutoScrollChanged += (_, _) =>
-        {
-            if (_tailState.IsAutoScrollEnabled)
-            {
-                SnapSelectionToLatest();
-            }
-        };
+        // 分割した state 群は ViewModel の property をそのまま同名で公開しているため、
+        // PropertyChanged はそのまま素通しでよい。ここを繋がないと詳細ペインや
+        // フィルタ UI が state 側の変更を受け取れない。
+        _filterState.PropertyChanged += ForwardStatePropertyChanged;
+        _filterState.FilterChanged += OnFilterChanged;
+        _selectionState.PropertyChanged += ForwardStatePropertyChanged;
+        _exportState.ExportPathChanged += OnExportPathChanged;
+        _exportState.ExportFormatChanged += OnExportFormatChanged;
+        _tailState.PropertyChanged += ForwardStatePropertyChanged;
+        _tailState.AutoScrollChanged += OnAutoScrollChanged;
 
         _logStore.Changed += OnLogStoreChanged;
         RefreshFromStore();
@@ -268,6 +255,8 @@ public sealed class LogViewerViewModel : ObservableObject, IDisposable
 
     public string SelectedLogException => _selectionState.SelectedLogException;
 
+    public bool HasSelectedLogException => _selectionState.HasSelectedLogException;
+
     public string DetailEmptyState => _selectionState.DetailEmptyState;
 
     public string StructuredPayloadStatus => _selectionState.StructuredPayloadStatus;
@@ -304,6 +293,52 @@ public sealed class LogViewerViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _logStore.Changed -= OnLogStoreChanged;
+        _filterState.PropertyChanged -= ForwardStatePropertyChanged;
+        _filterState.FilterChanged -= OnFilterChanged;
+        _selectionState.PropertyChanged -= ForwardStatePropertyChanged;
+        _exportState.ExportPathChanged -= OnExportPathChanged;
+        _exportState.ExportFormatChanged -= OnExportFormatChanged;
+        _tailState.PropertyChanged -= ForwardStatePropertyChanged;
+        _tailState.AutoScrollChanged -= OnAutoScrollChanged;
+    }
+
+    private void OnFilterChanged(object? sender, EventArgs e)
+    {
+        ClearQueryCommand.RaiseCanExecuteChanged();
+        RefreshFromStore();
+        ExportCommand.RaiseCanExecuteChanged();
+    }
+
+    private void ForwardStatePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(e.PropertyName))
+        {
+            return;
+        }
+
+        OnPropertyChanged(e.PropertyName);
+    }
+
+    private void OnExportPathChanged(object? sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(ExportPath));
+        ExportCommand.RaiseCanExecuteChanged();
+    }
+
+    private void OnExportFormatChanged(object? sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(SelectedExportFormat));
+        OnPropertyChanged(nameof(ExportStatus));
+        OnPropertyChanged(nameof(ExportButtonText));
+    }
+
+    private void OnAutoScrollChanged(object? sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(IsAutoScrollEnabled));
+        if (_tailState.IsAutoScrollEnabled)
+        {
+            SnapSelectionToLatest();
+        }
     }
 
     private async Task ExportAsync()
@@ -348,24 +383,31 @@ public sealed class LogViewerViewModel : ObservableObject, IDisposable
     /// store snapshot を UI 表示用 collection へ写す。
     /// ここで ObservableCollection を更新するため allocation は発生するが、
     /// それは WPF 境界でのみ許容し、raw retention 自体は ring buffer で抑える。
+    /// 表示順は store と同じ時系列（古い→新しい）とし、末尾が最新行になる。
     /// </summary>
     private void RefreshFromStore(LogStoreSnapshot snapshot)
     {
         var categories = _logStore.GetAvailableCategories();
-        try
+        var selectedSequenceNumber = SelectedLog?.SequenceNumber;
+
+        UpdateOnUiThread(() =>
         {
-            var searchResult = _logStore.QueryLogs(_filterState.CreateFilterCriteria());
-            var nextVisibleLogs = new List<LogViewerListItemViewModel>(searchResult.MatchCount);
-            for (var index = searchResult.MatchCount - 1; index >= 0; index--)
-            {
-                nextVisibleLogs.Add(new LogViewerListItemViewModel(searchResult.Matches[index]));
-            }
+            // category dropdown を先に同期してから query する。
+            // SetAvailableCategories は FilterChanged を上げないため再入しない。
+            // ただし retention から消えた category は黙って All へ戻るので、
+            // FilterChanged 経由では拾えない Clear ボタンの活性はここで更新する。
+            _filterState.SetAvailableCategories(categories);
+            ClearQueryCommand.RaiseCanExecuteChanged();
 
-            var selectedSequenceNumber = SelectedLog?.SequenceNumber;
-
-            UpdateOnUiThread(() =>
+            try
             {
-                _filterState.SetAvailableCategories(categories);
+                var searchResult = _logStore.QueryLogs(_filterState.CreateFilterCriteria());
+                var nextVisibleLogs = new List<LogViewerListItemViewModel>(searchResult.MatchCount);
+                for (var index = 0; index < searchResult.MatchCount; index++)
+                {
+                    nextVisibleLogs.Add(new LogViewerListItemViewModel(searchResult.Matches[index]));
+                }
+
                 TotalReceived = snapshot.TotalReceived;
                 RetainedCount = snapshot.RetainedCount;
                 QueryElapsedMilliseconds = searchResult.ElapsedMilliseconds;
@@ -388,13 +430,9 @@ public sealed class LogViewerViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(HasVisibleLogs));
                 OnPropertyChanged(nameof(EmptyStateText));
                 ExportCommand.RaiseCanExecuteChanged();
-            });
-        }
-        catch (ArgumentException ex)
-        {
-            UpdateOnUiThread(() =>
+            }
+            catch (ArgumentException ex)
             {
-                _filterState.SetAvailableCategories(categories);
                 TotalReceived = snapshot.TotalReceived;
                 RetainedCount = snapshot.RetainedCount;
                 QueryElapsedMilliseconds = 0;
@@ -404,8 +442,8 @@ public sealed class LogViewerViewModel : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(HasVisibleLogs));
                 OnPropertyChanged(nameof(EmptyStateText));
                 ExportCommand.RaiseCanExecuteChanged();
-            });
-        }
+            }
+        });
     }
 
     private LogViewerListItemViewModel? ResolveSelection(LogViewerListItemViewModel? matchedSelection)
