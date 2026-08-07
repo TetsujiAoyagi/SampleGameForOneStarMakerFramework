@@ -381,6 +381,21 @@ The active test run was aborted. Reason: Test host process crashed  ← App.Test
 | `./tools/protocol-codegen/generate.sh --check` | `OK: 53 generated files match YAML.` |
 | `dotnet test DebugStudio.sln -c Release`（blame/hang-timeout 付き） | exit 0。Contracts 35 / Export 60 / Server 10 / Cli 7 / App 221 = **計 333 件、Failed 0**。testhang による abort も無し |
 | `.github/workflows/debugstudio.yml` | 競合マーカー無し。`MIN_EXPECTED_TESTS: 325` に対し実測 333 なので下限判定は素通り |
+| `pwsh tools/run-tests.ps1`（Unity EditMode 全件） | **total 446 / passed 442 / failed 4**。B1 修正によりコンパイルが通りテストが実行された（修正前はアセンブリごと落ちて 0 件になるはずだった） |
+
+**Unity の failed 4 件は本変更と無関係（実測で確認）。** 同一 worktree で `origin/develop`（`87e1d0c`）を checkout して同じコマンドを流したところ、**total 438 / passed 434 / failed 4 で、失敗したテストの顔ぶれが完全に一致**した。
+
+| 既存の失敗テスト | 内容 |
+|---|---|
+| `Foundation.TelemetryLogCorrelationTests.LogAndTelemetry_共有sequenceで1_2_3と採番される` | `ProducerSequence` の採番順（Expected 2 / But was 1） |
+| `Foundation.TelemetryLogCorrelationTests.LogInsideActiveSpan_TraceIdとSpanIdを持つ` | log 側 `TraceId` が null |
+| `UpdateSystem.UpdateSystemHostTests.TryConsumeActivationRequest_BeforeSceneDirectorBinding_ReturnsFalse` | `UpdateSystemHost.Dispose` が edit mode で `Destroy` を呼ぶ |
+| `Editor.WorldCellGeneratorTests.ComputePlan_OutputPaths_UsePerCellSubfolders` | 期待がセル毎サブフォルダだが実装がフラット |
+
+**これらは `develop` が既に抱えている負債であり、このスライスが作ったものではない。** 特に上 2 件は telemetry 系なので本変更を疑ったが、develop でも同じ形で落ちる。ただし `develop` の EditMode が赤いまま放置されている事実自体は別途扱うべき（本スライスのスコープ外）。
+
+差分 446 − 438 = **8 件は PROTO-00 の `ProtocolGoldenCrossContractTests` が丸ごと追加された分**で、8 件すべて Passed。
+**Unity（netstandard2.1 / MessagePack 3.1.7）と DebugStudio（net8.0）が同一の golden hex を通したことになり、クロス側のバイト互換が実証された。** §7 のチェックリストで唯一未検証だった欄はこれで埋まる。
 
 ### 11.6 確認していないこと
 
@@ -389,6 +404,7 @@ The active test run was aborted. Reason: Test host process crashed  ← App.Test
 - **golden fixture の hex 値が本当に移行前の実装から採取されたものか。** 生成後の実装で作った値なら「自分で自分を検証している」ことになり、PROTO-00 の錨としての意味が薄れる。手順は `fixtures/proto00/README.md` にあるが再現していない
 - **PROTO-00 の受入条件「意図的に Key をずらすと少なくとも一方が落ちる」の手動確認。** 本書 §3 が要求しているが、実施記録がどこにも無い
 - Unity EditMode 以外の Unity ビルド（Player ビルド）への影響
+- `develop` に既に存在する EditMode failed 4 件（§11.5）の原因。本スライスの責任範囲外として切り離しただけで、中身は追っていない
 
 ---
 
