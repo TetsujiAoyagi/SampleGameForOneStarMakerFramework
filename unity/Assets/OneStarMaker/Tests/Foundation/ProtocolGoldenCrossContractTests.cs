@@ -1,8 +1,10 @@
 #nullable enable
 
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using MessagePack;
 using NUnit.Framework;
 using OneStarMaker.Foundation.DebugSocket;
@@ -24,7 +26,7 @@ namespace OneStarMaker.Tests.Foundation
         {
             var expected = LoadHex("log_envelope_v1.hex");
             var actual = MessagePackSerializer.Serialize(CreateGoldenLog(), Options);
-            Assert.AreEqual(Convert.ToHexString(expected), Convert.ToHexString(actual));
+            Assert.AreEqual(ToHex(expected), ToHex(actual));
         }
 
         [Test]
@@ -60,7 +62,7 @@ namespace OneStarMaker.Tests.Foundation
         {
             var expected = LoadHex("debug_telemetry_payload_v1.hex");
             var actual = MessagePackSerializer.Serialize(CreateGoldenPayload(), Options);
-            Assert.AreEqual(Convert.ToHexString(expected), Convert.ToHexString(actual));
+            Assert.AreEqual(ToHex(expected), ToHex(actual));
         }
 
         [Test]
@@ -68,7 +70,7 @@ namespace OneStarMaker.Tests.Foundation
         {
             var expected = LoadHex("debug_telemetry_envelope_v1.hex");
             var actual = MessagePackSerializer.Serialize(CreateGoldenTelemetry(), Options);
-            Assert.AreEqual(Convert.ToHexString(expected), Convert.ToHexString(actual));
+            Assert.AreEqual(ToHex(expected), ToHex(actual));
         }
 
         [Test]
@@ -106,7 +108,7 @@ namespace OneStarMaker.Tests.Foundation
                 DebugSocketMessageType.Log,
                 CreateGoldenLog(),
                 requestId: "req-proto00");
-            Assert.AreEqual(Convert.ToHexString(expected), Convert.ToHexString(actual));
+            Assert.AreEqual(ToHex(expected), ToHex(actual));
         }
 
         [Test]
@@ -117,7 +119,7 @@ namespace OneStarMaker.Tests.Foundation
                 DebugSocketMessageType.Telemetry,
                 CreateGoldenTelemetry(),
                 requestId: null);
-            Assert.AreEqual(Convert.ToHexString(expected), Convert.ToHexString(actual));
+            Assert.AreEqual(ToHex(expected), ToHex(actual));
         }
 
         [Test]
@@ -207,10 +209,43 @@ namespace OneStarMaker.Tests.Foundation
         private static byte[] LoadHex(string fileName)
         {
             var path = ResolveFixturePath(fileName);
-            var hex = File.ReadAllText(path)
+            var hex = new string(File.ReadAllText(path)
                 .Where(c => !char.IsWhiteSpace(c))
-                .Aggregate(string.Empty, (acc, c) => acc + c);
-            return Convert.FromHexString(hex);
+                .ToArray());
+            return ParseHex(hex);
+        }
+
+        // Convert.ToHexString / Convert.FromHexString は .NET 5 以降の API で
+        // netstandard2.1（Unity の API Compatibility Level）には存在しない。
+        // DebugStudio 側（net8.0）とは違い、Unity 側は自前で持つ必要がある。
+        private static string ToHex(byte[] bytes)
+        {
+            var builder = new StringBuilder(bytes.Length * 2);
+            foreach (var b in bytes)
+            {
+                builder.Append(b.ToString("X2", CultureInfo.InvariantCulture));
+            }
+
+            return builder.ToString();
+        }
+
+        private static byte[] ParseHex(string hex)
+        {
+            if (hex.Length % 2 != 0)
+            {
+                throw new FormatException($"hex fixture length must be even but was {hex.Length}.");
+            }
+
+            var bytes = new byte[hex.Length / 2];
+            for (var i = 0; i < bytes.Length; i++)
+            {
+                bytes[i] = byte.Parse(
+                    hex.Substring(i * 2, 2),
+                    NumberStyles.HexNumber,
+                    CultureInfo.InvariantCulture);
+            }
+
+            return bytes;
         }
 
         private static string ResolveFixturePath(string fileName)
