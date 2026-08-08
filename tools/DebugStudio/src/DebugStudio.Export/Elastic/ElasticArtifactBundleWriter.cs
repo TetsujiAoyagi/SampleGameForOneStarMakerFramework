@@ -2,6 +2,7 @@
 
 using System.Threading;
 using System.Threading.Tasks;
+using DebugStudio.Export.Elastic.Kibana;
 
 namespace DebugStudio.Export.Elastic;
 

@@ -60,6 +60,7 @@ public static class ElasticTelemetryIndexTemplateDefinition
             ["name"] = new { type = "keyword" },
             ["kind"] = new { type = "keyword" },
             ["schemaVersion"] = new { type = "integer" },
+            ["status"] = new { type = "keyword" },
             ["payload"] = new
             {
                 properties = new Dictionary<string, object?>

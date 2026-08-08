@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DebugStudio.Export.Elastic;
+namespace DebugStudio.Export.Elastic.Kibana;
 
 /// <summary>
 /// Kibana saved objects import 用の PowerShell 雛形を出力する。

@@ -192,7 +192,7 @@ var batchRecorder = ProfilerRecorder.StartNew(
 |:---:|:---|:---|:---|
 | **Phase 1** | 開発中の自分 | `DebugProfilerView` 警告行 + Unity local log + DebugStudio telemetry panel | **実装済み** |
 | **Phase 2** | QA プレイ後分析 | `DebugStudio.App` export UI + `DebugStudio.Export` による NDJSON / Elastic Bulk export | **実装済み（telemetry / service status / log）** |
-| **Phase 3** | リリース後ユーザー端末 | Elastic / Kibana ダッシュボード（Filebeat 連携 or bulk ingest） | thin export foundation + Kibana saved objects artifact 実装済み、運用設定と dashboard 内容は今後拡張 |
+| **Phase 3** | リリース後ユーザー端末 | Elastic / Kibana ダッシュボード（Filebeat 連携 or bulk ingest） | Kibana saved objects の正本は `tools/DebugStudio/elastic/kibana/debugstudio-overview.ndjson`（埋め込みリソース経由で artifact 出力）。saved search パネル 2 枚の overview まで実装済み。Lens 等のパネル作り込みは後続スライス |
 
 ---
 
@@ -237,6 +237,7 @@ DebugStudio 側 export では `TagBits` と decoded `Tags` の両方を保持す
 4. 通し実行したい場合は `invoke-ingest.ps1` を使う
 
 この段階では **one-shot ingest runner を主経路** とし、Filebeat 常設化は運用段階で追加する。
+Kibana saved objects の正本はリポジトリ上の NDJSON ファイルであり、C# は埋め込みリソースを吐き出すだけである。パネルの集計内容（Lens 等）の作り込みは後続スライスで行う。
 
 ### 各 command の責務
 

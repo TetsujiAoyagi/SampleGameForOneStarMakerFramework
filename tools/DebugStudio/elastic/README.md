@@ -52,9 +52,11 @@ Filebeat 投入前に index template と ingest pipeline を登録します。L1
 dotnet run --project tools/DebugStudio/src/DebugStudio.ElasticArtifactGen
 cd $env:LOCALAPPDATA\DebugStudio\elastic-artifacts\commands
 .\import-telemetry.ps1 -ElasticUrl http://localhost:9200
+.\import-kibana.ps1 -KibanaUrl http://localhost:5601
 ```
 
 `import-telemetry.ps1` は template / pipeline を PUT し、同梱 bulk NDJSON があれば `_bulk` も実行します。L2 継続 tail だけが目的なら template / pipeline PUT 部分が重要です。
+`import-kibana.ps1` は saved objects（`DebugStudio Overview` 含む）を Kibana へ import します。dashboard を見る前に必ず実行してください。
 
 **L1 WPF 経由:** Telemetry パネルの **Elastic Preflight** → **Elastic Push**（retained telemetry がある場合）。
 
@@ -80,7 +82,7 @@ cd $env:LOCALAPPDATA\DebugStudio\elastic-artifacts\commands
 4. **Filebeat ship:**
    - **compose:** `docker compose up -d filebeat`（§1 済みなら再起動のみ）
    - **host:** artifact の `debugstudio-filebeat.yml` を Filebeat に渡して起動（DebugStudio は起動しない）
-5. **Kibana 確認:** `http://localhost:5601` で `debugstudio-telemetry-*` / `debugstudio-log-*` に document が増える
+5. **Kibana 確認:** `http://localhost:5601` で Dashboard → `DebugStudio Overview` を開き、あわせて Discover で `debugstudio-telemetry-*` / `debugstudio-log-*` に document が増えることを確認する
 
 ```powershell
 # ingest 件数のざっくり確認（security 無効 compose）

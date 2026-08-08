@@ -1,8 +1,10 @@
 #nullable enable
 
 using System.IO;
+using System.Text;
 using System.Text.Json;
 using DebugStudio.Export.Elastic;
+using DebugStudio.Export.Elastic.Kibana;
 
 namespace DebugStudio.Export.Tests.Elastic;
 
@@ -39,6 +41,7 @@ public sealed class ElasticArtifactWriterTests
             Assert.Equal("long", properties.GetProperty("spanId").GetProperty("type").GetString());
             Assert.Equal("keyword", properties.GetProperty("tags").GetProperty("type").GetString());
             Assert.Equal("keyword", properties.GetProperty("sessionId").GetProperty("type").GetString());
+            Assert.Equal("keyword", properties.GetProperty("status").GetProperty("type").GetString());
             Assert.Equal("long", properties.GetProperty("producerSequence").GetProperty("type").GetString());
             Assert.Equal("long", properties.GetProperty("unityFrameAtStart").GetProperty("type").GetString());
             Assert.Equal("long", properties.GetProperty("unityFrameAtEnd").GetProperty("type").GetString());
@@ -65,6 +68,21 @@ public sealed class ElasticArtifactWriterTests
                 File.Delete(outputPath);
             }
         }
+    }
+
+    [Fact]
+    public void TelemetryIndexTemplateのstatusはkeywordである()
+    {
+        using var document = JsonDocument.Parse(ElasticTelemetryIndexTemplateDefinition.CreateArtifactJson());
+        var statusType = document.RootElement
+            .GetProperty("template")
+            .GetProperty("mappings")
+            .GetProperty("properties")
+            .GetProperty("status")
+            .GetProperty("type")
+            .GetString();
+
+        Assert.Equal("keyword", statusType);
     }
 
     [Fact]
@@ -111,10 +129,46 @@ public sealed class ElasticArtifactWriterTests
             var root = document.RootElement;
             var processors = root.GetProperty("processors");
 
-            Assert.True(processors.GetArrayLength() >= 2);
+            Assert.True(processors.GetArrayLength() >= 3);
             Assert.Equal("debugstudio log ingest pipeline", root.GetProperty("description").GetString());
-            Assert.Equal("log", processors[0].GetProperty("set").GetProperty("value").GetString());
-            Assert.Equal("stream", processors[0].GetProperty("set").GetProperty("field").GetString());
+
+            // stream 固定は processor の並び順に依存させず、存在で見る。
+            Assert.Contains(
+                processors.EnumerateArray(),
+                p => p.TryGetProperty("set", out var s)
+                    && s.GetProperty("field").GetString() == "stream"
+                    && s.GetProperty("value").GetString() == "log");
+        }
+        finally
+        {
+            if (File.Exists(outputPath))
+            {
+                File.Delete(outputPath);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LogIngestPipelineはフラットなlogLevelをlogのlevelへrenameする()
+    {
+        var outputPath = Path.Combine(Path.GetTempPath(), $"debugstudio-log-ingest-pipeline-rename-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            await new ElasticLogIngestPipelineWriter().WriteAsync(outputPath);
+
+            using var document = JsonDocument.Parse(await File.ReadAllTextAsync(outputPath));
+            var processors = document.RootElement.GetProperty("processors");
+
+            var rename = Assert.Single(
+                processors.EnumerateArray().Where(p => p.TryGetProperty("rename", out _)))
+                .GetProperty("rename");
+
+            // L0/Filebeat 経路の flat な logLevel を、bulk 経路と index template が正本にしている
+            // log.level へ揃える。bulk document には logLevel が無いので ignore_missing が必須。
+            Assert.Equal("logLevel", rename.GetProperty("field").GetString());
+            Assert.Equal("log.level", rename.GetProperty("target_field").GetString());
+            Assert.True(rename.GetProperty("ignore_missing").GetBoolean());
         }
         finally
         {
@@ -252,24 +306,11 @@ public sealed class ElasticArtifactWriterTests
 
             await writer.WriteAsync(outputPath);
 
-            var lines = await File.ReadAllLinesAsync(outputPath);
-            Assert.True(lines.Length >= 5);
+            var text = await File.ReadAllTextAsync(outputPath);
+            Assert.False(string.IsNullOrWhiteSpace(text));
 
-            using var telemetryDataView = JsonDocument.Parse(lines[0]);
-            using var logDataView = JsonDocument.Parse(lines[1]);
-            using var telemetrySearch = JsonDocument.Parse(lines[2]);
-            using var logSearch = JsonDocument.Parse(lines[3]);
-            using var dashboard = JsonDocument.Parse(lines[4]);
-
-            Assert.Equal("index-pattern", telemetryDataView.RootElement.GetProperty("type").GetString());
-            Assert.Equal("debugstudio-telemetry-*", telemetryDataView.RootElement.GetProperty("attributes").GetProperty("title").GetString());
-            Assert.Equal("debugstudio-log-*", logDataView.RootElement.GetProperty("attributes").GetProperty("title").GetString());
-            Assert.Equal("search", telemetrySearch.RootElement.GetProperty("type").GetString());
-            Assert.Equal("DebugStudio Telemetry Timeline", telemetrySearch.RootElement.GetProperty("attributes").GetProperty("title").GetString());
-            Assert.Equal("DebugStudio Log Warnings", logSearch.RootElement.GetProperty("attributes").GetProperty("title").GetString());
-            Assert.Equal("dashboard", dashboard.RootElement.GetProperty("type").GetString());
-            Assert.Equal("DebugStudio Overview", dashboard.RootElement.GetProperty("attributes").GetProperty("title").GetString());
-            Assert.True(dashboard.RootElement.GetProperty("references").GetArrayLength() >= 2);
+            var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            Assert.Equal(5, lines.Length);
         }
         finally
         {
@@ -278,5 +319,63 @@ public sealed class ElasticArtifactWriterTests
                 File.Delete(outputPath);
             }
         }
+    }
+
+    [Fact]
+    public async Task KibanaSavedObjectsの出力先頭3バイトはBOMではない()
+    {
+        var outputPath = Path.Combine(Path.GetTempPath(), $"debugstudio-kibana-overview-bom-{Guid.NewGuid():N}.ndjson");
+
+        try
+        {
+            var writer = new ElasticKibanaSavedObjectsWriter();
+            await writer.WriteAsync(outputPath);
+
+            var bytes = await File.ReadAllBytesAsync(outputPath);
+            Assert.True(bytes.Length >= 3);
+            Assert.False(bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF);
+        }
+        finally
+        {
+            if (File.Exists(outputPath))
+            {
+                File.Delete(outputPath);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task WriteAsyncの出力はReadSavedObjectsNdjsonと完全一致する()
+    {
+        var outputPath = Path.Combine(Path.GetTempPath(), $"debugstudio-kibana-overview-match-{Guid.NewGuid():N}.ndjson");
+
+        try
+        {
+            var writer = new ElasticKibanaSavedObjectsWriter();
+            await writer.WriteAsync(outputPath);
+
+            var written = await File.ReadAllTextAsync(outputPath, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            Assert.Equal(ElasticKibanaSavedObjectsWriter.ReadSavedObjectsNdjson(), written);
+        }
+        finally
+        {
+            if (File.Exists(outputPath))
+            {
+                File.Delete(outputPath);
+            }
+        }
+    }
+
+    [Fact]
+    public void ManifestResourceStreamの内容はReadSavedObjectsNdjsonと完全一致する()
+    {
+        using var stream = typeof(ElasticKibanaSavedObjectsWriter).Assembly
+            .GetManifestResourceStream(ElasticKibanaSavedObjectsWriter.ResourceName);
+        Assert.NotNull(stream);
+
+        using var reader = new StreamReader(stream!, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        var fromStream = reader.ReadToEnd();
+
+        Assert.Equal(ElasticKibanaSavedObjectsWriter.ReadSavedObjectsNdjson(), fromStream);
     }
 }

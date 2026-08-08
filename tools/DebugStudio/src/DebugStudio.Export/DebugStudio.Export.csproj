@@ -7,4 +7,9 @@
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\elastic\kibana\debugstudio-overview.ndjson"
+                      LogicalName="DebugStudio.Export.Elastic.Kibana.debugstudio-overview.ndjson" />
+  </ItemGroup>
+
 </Project>
