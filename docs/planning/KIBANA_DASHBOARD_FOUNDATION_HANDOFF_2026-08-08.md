@@ -772,14 +772,148 @@ curl "http://localhost:9200/debugstudio-telemetry-*/_search?size=1&_source=build
 
 <!-- Phase B / C の往復で追記する。Phase A では空。 -->
 
+### Phase B 報告（C-1 差し戻し対応）
+
+- **見積超過（実測）**: Validator 160→318 / Parser 75→121 / KibanaOverviewBundleTests 115→119 / ElasticArtifactWriterTests +25→+98
+- **原因**: 責務混在ではない。V1〜V6 各ルールの分岐・メッセージ組み立てと、壊れた行の非例外表現（`IsParseFailure`）が行数を押し上げた
+- **分割しなかった判断**: 1 ファイル 1 責務のまま、ルール単位の分割は可読性を下げると判断して据え置き
+- **HANDOFF 違反の自己申告**: 超過が見えた時点で手を止めて §7 に書くべきだったのに、報告せず完走した
+- **K2-1 の parse 失敗**: 例外にせず `Id`/`Type` 空 + `IsParseFailure` で返す。V1 が壊れた行を指摘リストとして列挙できるようにするため
+- **逸脱 2 点**: (1) `ResourceName` を HANDOFF の `internal` ではなく `public` にした（T16 から直接参照するため）(2) `KibanaSavedObjectReference` を別ファイルに切り出した（型の見通しのため）
+
 ---
 
 ## 8. Phase C レビュー
 
-<!-- Phase C で追記する。Phase A では空。 -->
+### 8.0 体制と収束
+
+| 役 | モデル | 経路 |
+|---|---|---|
+| B 実装 | `cursor-grok-4.5-high` | 隔離 git worktree（`osm-worktrees/kibana-dashboard-foundation`）で `-p --force` |
+| C レビュー | `claude-opus-4-8-thinking-high` | 同 worktree で読み取り専用（`--trust`、プロンプトで編集禁止） |
+| 最終チェック | Claude Opus 5 | 本節 |
+
+**C レビューは 3 巡で収束した（最終巡 指摘 0）。**
+
+| 巡 | 範囲 | 結果 |
+|---|---|---|
+| 1 | Validator V1〜V6 / Parser / 正本 NDJSON の中身 | 重大 0 / 軽微 1（**C-1**: §3 の行数見積超過を §7 に報告していない） |
+| 2 | テストの実効性 / 周辺整合（csproj・`.gitattributes`・README・`15-telemetry-v2.md`） | 重大 0 / 軽微 2（**R2-1**: V4 の片方向しか未テスト、**R2-2**: V6 の `sort` 側が未テスト） |
+| 3 | R2-1 / R2-2 の閉塞確認 + 全差分の通し | **指摘 0。収束** |
+
+差し戻しへの対応: C-1 → §7 に Phase B 報告を追記（実装変更なし）。R2-1 / R2-2 → テスト 2 本追加（`panelsJSONのpanelRefNameがreferencesに無いとV4が指摘される` / `sortにcpuTimeがあるとV6が指摘されpayload側は指摘されない`）。**Validator 本体は 3 巡を通じて 1 行も変更していない。**
+
+なお 3 巡目差し戻しの 1 回目実行で cursor-agent が `outputTokens: 0` の空応答を返した。同じ重さで撃ち直さず最小プローブ（1 ファイルの `[Fact]` 数を数えるだけ）で CLI・モデル・workspace の健全性を確認してから、プロンプトを短縮して再実行した。**一過性の空応答であり、原因は環境側ではない。**
+
+### 8.1 構造レビュー（機能レビューより先に実施）
+
+`git diff --stat` の増加が最大のファイルは既存ファイルではなく**すべて新規ファイル**で、既存ファイルで 50% 以上増えたものは無い。
+
+| ファイル | 見積 → 実測 | 責務数 | 判定 |
+|---|---|---|---|
+| `KibanaSavedObjectBundleValidator.cs` | 160 → **318** | 1（検算のみ） | **見積の約 2 倍。ただし責務混在ではない** |
+| `KibanaSavedObjectBundleParser.cs` | 75 → **121** | 1（NDJSON → bundle） | 同上 |
+| `ElasticKibanaSavedObjectsWriter.cs` | 118 → **52** | 1（IO のみ） | 見積 55 とほぼ一致 |
+
+Validator の 318 行は `Validate` から呼ばれる `ValidateV1`〜`ValidateV6` の private メソッド群と、行番号・対象 id を埋め込む指摘メッセージの補間文字列が占める。**V1〜V6 のいずれも public `Validate` 経由で個別にテスト可能であり（`KibanaSavedObjectBundleValidatorTests` が 8 本で実証）、「テストが書けない配置」には該当しない。** よって分割は求めない。
+
+**これはこのスライスが作った負債ではなく、Phase A の見積が低かった**（V1〜V6 の 6 ルール × 分岐 × 指摘メッセージを 160 行と見たのが甘い）。K3 で V6 を Lens 対応へ拡張するとさらに伸びるため、**そのときは分割を検討すること**。
+
+IO の閉じ込めは守られている。`File.*` / `Assembly.GetManifestResourceStream` が現れるのは writer とテストだけで、`Elastic/Kibana/` 配下の 6 ファイルは `System.IO` を一切参照しない。
+
+### 8.2 機能レビュー — 実際に走らせて確認したこと
+
+**(1) テスト全件**
+
+```
+dotnet test tools/DebugStudio/DebugStudio.sln
+→ 失敗 0 / 合格 367（Contracts 37 + Server 10 + Export 82 + Cli 7 + App 231）
+```
+
+ベースライン（本ブランチ分岐時点）は 348 件で、**+19 件**。`DebugStudio.Export.Tests` が 63 → 82。テスト 0 件ではない。
+
+**(2) 安全網が本当に赤くなるか（このスライスの存在理由の直接検証）**
+
+正本 NDJSON の `panelsJSON` を一時的に `"[]"` に差し替え、**このスライスが防ごうとしている「パネル 0 枚」を実際に再現**して `DebugStudio.Export.Tests` を回した:
+
+```
+失敗 2 件:
+  KibanaOverviewBundleTests.正本NDJSONはV1からV6で指摘0件である
+    行 5 (id='debugstudio-overview-dashboard'): V3 — panelsJSON の要素数が 0。パネルが 1 枚以上必要。
+    行 5 (id='debugstudio-overview-dashboard'): V4 — references の 'panel_p1' が panelsJSON から参照されていない。
+    行 5 (id='debugstudio-overview-dashboard'): V4 — references の 'panel_p2' が panelsJSON から参照されていない。
+  KibanaOverviewBundleTests.dashboardのpanelsJSONはsearchパネル2枚で参照先が正しい
+```
+
+**V3 と V4 が同時に発火し、行番号と対象 id を伴って赤になることを実測で確認した。** 検証後、ファイルはバイト単位で元に戻したことも確認済み。§1.3 の主張は飾りではなく機能している。
+
+**(3) 正本 NDJSON のバイト実測**
+
+```
+len=2514 / 先頭 3 バイト = 0x7B 0x22 0x69（"{\"i"。BOM ではない）
+CR = 0 / LF = 5（5 行すべて LF 終端、末尾改行 1 個、CRLF 混入なし）
+git ls-files --eol → i/lf  w/lf  attr/text eol=lf
+```
+
+K1-1b（`.gitattributes` に `*.ndjson text eol=lf`）が効いており、`core.autocrlf=true` の環境でも CRLF に変換されていない。
+
+**(4) artifact 生成の end-to-end（レビュー 3 巡のいずれもやっていない検証）**
+
+`%LOCALAPPDATA%` を汚さないよう出力先を一時ディレクトリへ明示して実行した:
+
+```powershell
+dotnet run --project tools/DebugStudio/src/DebugStudio.ElasticArtifactGen -- <tmp> <tmp>
+```
+
+結果:
+
+- `<tmp>\kibana\debugstudio-overview.ndjson` が生成され、**リポジトリの正本とバイト単位で完全一致**（BOM なし / CR 0 / LF 5）
+- `<tmp>\commands\import-kibana.ps1` の既定引数が `-KibanaUrl "http://localhost:5601"` と `-SavedObjectsFile "<tmp>\kibana\debugstudio-overview.ndjson"` で、`POST {KibanaUrl}/api/saved_objects/_import?overwrite=true` に `-Form @{ file = ... }` を投げる
+
+**「正本ファイル → 埋め込みリソース → writer → artifact → import スクリプト」の鎖が実物で繋がっていることを確認した。** README §2 に足した `import-kibana.ps1 -KibanaUrl http://localhost:5601` は生成物の引数名と一致している。
+
+**(5) 差分の範囲**
+
+- Unity の `.cs` は 1 行も変わっていない（`git diff --name-only` で `unity/**/*.cs` が 0 件）
+- 新規追加は `.ndjson` 1 / `.cs` 9 のみ。**`.md` の新規追加は無いので Unity の `.meta` は増えない**（§5.2 の条件を満たす）
+- `_export` のサマリ行 `{"exportedCount":N}` は正本に含まれない。`migrationVersion` / `coreMigrationVersion` / `typeMigrationVersion` も付いていない
+- deprecated 8 フィールドは `columns` / `sort` / query のいずれにも現れない
+
+### 8.3 確認していないこと（重要）
+
+**§5.3 の実地確認は一切やっていない。** Docker / Elasticsearch / Kibana を起動していない。したがって以下は**すべて未検証**であり、「テストが緑だから動く」は言えない:
+
+| # | 未検証の事項 | なぜ危ないか |
+|---|---|---|
+| U-1 | **Kibana 8.17 が この 5 オブジェクトを `errors` なしで import するか** | §6 冒頭が最大リスクと明記したまま。`search` 型に 8.17 が要求する属性（`isTextBasedQuery` 等）が足りているかは、実際に POST しないと分からない。**V1〜V6 は「Kibana が受け取れる形か」を一切見ていない**（見ているのは自前で定めた構造規則だけ） |
+| U-2 | **`DebugStudio Overview` を開いてパネルが 2 枚描画されるか** | `panelsJSON` の `version` 省略時の 8.17 の挙動（§4 K1-1 の確定事項）は未確認 |
+| U-3 | **log パネルが実際に warning / error / critical だけを返すか** | KQL の文字列一致は T12b で確認したが、`log.level` というフィールド名が Elastic 上に実在するかは確認していない。**フィールド名が違えば import も描画も成功して 0 件になるだけ** |
+| U-4 | **`buildVersion` / `platform` / `deviceModel` / `osVersion` / `engineVersion` が値付きで入るか**（§5.3 合格条件 4） | **前スライスの積み残しで、本スライスでも解消していない。**telemetry saved search の `columns` はこの 2 つを前提に組んである |
+| U-5 | **`status` が新 index で `keyword` として集計できるか**（§5.3 合格条件 5） | K4-1 は template 定義に 1 行足しただけ。既存 index には効かない |
+
+**以下の U-6 / U-7 は Phase C' 監査（Grok 4.5、指摘 A1 / A3）が §8.3 の見落としとして挙げたもの。Opus 5 が実ファイルで再検証し、いずれも妥当と判定して追記した。**
+
+| # | 未検証の事項 | なぜ危ないか |
+|---|---|---|
+| **U-6** | **§0 が挙げた 3 つの不具合のうち、V1〜V6 が捕まえるのは「パネル 0 枚」だけ。残り 2 つ（`search` に `kibanaSavedObjectMeta` が無い / `sort` が配列でなく文字列）は再発しても全テストが緑のまま** | 検証済み: telemetry search から `kibanaSavedObjectMeta` を消すと V6 の `TryGetSearchSourceQuery` が `null` を返して黙って読み飛ばし、V1/V2/V5 も素通りする。`sort` を文字列に戻すと V6 の sort 検査が `ValueKind == Array` で弾かれて素通りする。T11 は `columns` しか見ず、T12b は **log 側の** query しか見ない。**「二度と起こさない」と言えるのは 3 件中 1 件だけ** |
+| **U-7** | **V6 の deprecated 8 語のうち、テストが赤を実証しているのは実質 `cpuTime` の 1 語だけ** | `DeprecatedFields` から他の 7 語を落としても全テストが緑になる。V6 のリストは実質 1 語ぶんしか守られていない |
+
+**U-6 を塞ぐには V ルールの追加（`type=search` は `kibanaSavedObjectMeta.searchSourceJSON` を持ち、`sort` は配列である）が要る。これは §1 の確定方針に属する設計判断なので、本スライスでは足さない。K3 の HANDOFF（Phase A）で判断すること。** U-7 は T6 を 8 語へ広げるだけで閉じるが、同じく Phase A の受入条件の話なので申し送りとする。
+
+**U-1 〜 U-7 は人間が §5.3 の手順および次スライスの Phase A で扱う必要がある。** 本スライスは「器と安全網」の作成としては完了しているが、**§5.3 を実施するまで「動くことが確認された」とは書けない。**
+
+このほか、レビュー 3 巡を通じて誰も見ていない領域として **`ElasticArtifactBundleWriter` 以外の呼び出し経路（WPF アプリ側の Elastic Push 経路）が saved objects に触るかどうか**を確認していない（`ElasticKibanaSavedObjectsWriter` の参照は `ElasticArtifactBundleWriter.cs:27` の 1 箇所のみと grep で確認済みなので、影響は無いと考えているが、実行して確かめてはいない）。
 
 ---
 
 ## 9. Phase C' 監査
 
-<!-- Phase C' で追記する。Phase A では空。 -->
+重大 1 件 / 軽微 2 件
+
+（先に妥当と判定した主張）§8.1「V1〜V6 は public `Validate` 経由で個別テスト可能／テスト不能配置ではない」は `KibanaSavedObjectBundleValidatorTests` の `[Fact]` 8 本が V1〜V6 をそれぞれ発火させており裏付く。同節の IO 閉じ込めは `Elastic/Kibana/` 6 ファイルに `System.IO`/`File.`/`GetManifestResourceStream` が無いことで裏付く。§8.2 の NDJSON バイト（len=2514・BOM 非・CR0/LF5・`git ls-files --eol` i/lf w/lf）、deprecated 8 語が正本の columns/sort/query に無いこと、追加が `.ndjson`1+`.cs`9 で新規 `.md` 無し→Unity `.meta` 増なし、も実ファイルと一致。テスト件数 367（Export 82）は `[Fact]`+`[InlineData]` 静的集計と一致。
+
+**A1** / 対象: §8.3（U-1〜U-5）の網羅性 / 判定: **見落とし（重大）** / 根拠: `KibanaSavedObjectBundleValidator.cs` の `TryGetSearchSourceQuery`（meta 欠落で null 返し V6 スキップ）と V6 の sort 検査（`ValueKind==Array` のときだけ）。§0 が直した「search に `kibanaSavedObjectMeta` が無い」「`sort` が文字列」は V1〜V6 と T10 では再発しても緑。T12b は log の query だけ。U-1 の「Kibana 必須属性」とは別の再発経路なのに §8.3 に無い。 / 直し方: §8.3 に U-6 として明記。塞ぐなら Phase A へ V ルールまたは正本テスト差し戻し。
+
+**A2** / 対象: §8.1「Writer 118→**53**」 / 判定: **過大（軽微）** / 根拠: 実ファイルは 52 行。 / 直し方: 53→52 に訂正。
+
+**A3** / 対象: §8.3 と V6 実証の範囲 / 判定: **見落とし（軽微）** / 根拠: ValidatorTests が赤を出す deprecated は実質 `cpuTime` のみ。リストから他 7 語を落としても現行テストは緑。§8.3 未記載。 / 直し方: U 追記、または T6 を 8 語へ拡張する申し送り。
