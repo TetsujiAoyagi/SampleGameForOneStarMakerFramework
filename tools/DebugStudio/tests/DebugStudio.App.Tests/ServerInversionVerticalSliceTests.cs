@@ -18,6 +18,7 @@ namespace DebugStudio.App.Tests;
 /// DebugStudio server-inversion 経路を、実 transport と app store 群を通して縦に検証する。
 /// Unity 実行環境は使えないため、WebSocket peer だけを実クライアントとして模擬する。
 /// </summary>
+[Collection("DebugStudioHttpListener")]
 public sealed class ServerInversionVerticalSliceTests
 {
     private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(10);
@@ -170,6 +171,21 @@ public sealed class ServerInversionVerticalSliceTests
         {
             Assert.Contains(DebugSocketConnectionState.Connecting, stateSnapshots);
             Assert.Contains(DebugSocketConnectionState.Connected, stateSnapshots);
+        }
+
+        // server 側 receive loop が Close を観測できるよう、先に peer socket を閉じる。
+        // Disconnect 前に閉じないと Accept/Receive 待ちが残り、testhost 終了がハングする。
+        //
+        // CloseAsync ではなく CloseOutputAsync を使う。CloseAsync は close frame を送った後に
+        // peer からの close 応答を待つため、まさにここで防ごうとしているハングを
+        // このテスト自身が起こしうる。close frame の送信だけで receive loop は解ける。
+        if (clientSocket.State is WebSocketState.Open or WebSocketState.CloseReceived)
+        {
+            using var closeTimeout = new CancellationTokenSource(TestTimeout);
+            await clientSocket.CloseOutputAsync(
+                WebSocketCloseStatus.NormalClosure,
+                "vertical-slice-complete",
+                closeTimeout.Token);
         }
 
         await harness.SessionService.DisconnectAsync();

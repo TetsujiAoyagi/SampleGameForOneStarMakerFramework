@@ -1,0 +1,10 @@
+name: DebugSocketServiceStatusEnvelopeV1
+kind: message
+surfaces: [unity, debugstudio]
+fields:
+  - { id: 0, name: Status, type: string, default: "" }
+  - { id: 1, name: Message, type: string, default: "" }
+  - { id: 2, name: TimestampUnixTimeMilliseconds, type: i64 }
+encodings:
+  messagepack:
+    key_field: id

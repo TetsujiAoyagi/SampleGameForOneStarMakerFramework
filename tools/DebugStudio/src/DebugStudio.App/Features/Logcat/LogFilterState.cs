@@ -195,11 +195,13 @@ internal sealed class LogFilterState : ObservableObject
             }
         }
 
+        // FilterChanged は上げない。呼び出し元 (RefreshFromStore) がすでに再描画中であり、
+        // ここで上げると再入して古い query 結果で上書きされる。
+        // 選択オブジェクト差し替えや All へのフォールバックは PropertyChanged のみ通知する。
         if (!ReferenceEquals(_selectedCategoryFilter, nextSelected))
         {
             _selectedCategoryFilter = nextSelected;
             OnPropertyChanged(nameof(SelectedCategoryFilter));
-            FilterChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 

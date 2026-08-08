@@ -31,6 +31,8 @@ flowchart LR
 - main thread context が存在しないときに Hierarchy / Inspector capability を公開しない仕様。
 - `AbstractApplicationInitializer` の生成・起動・破棄配線。
 
+> **wire DTO の正本**はリポジトリ直下 `protocol/debugsocket/`（中立 YAML）です。Unity / DebugStudio の MessagePack C# は `tools/protocol-codegen` で生成するため、DTO を手編集・二重コピーしないこと（手順: `protocol/debugsocket/README.md`）。
+
 ---
 
 ## 2. 実行・レビュー運用

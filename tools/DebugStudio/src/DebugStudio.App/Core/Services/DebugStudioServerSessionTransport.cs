@@ -18,6 +18,11 @@ namespace DebugStudio.App.Core.Services;
 /// </summary>
 public sealed class DebugStudioServerSessionTransport : ISessionTransport
 {
+    /// <summary>
+    /// peer が close 応答を返さなくても teardown が固まらないよう、close / receive-loop 待ちに付ける上限。
+    /// </summary>
+    private static readonly TimeSpan TeardownWaitTimeout = TimeSpan.FromSeconds(3);
+
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly DebugStudioServerOptions _serverOptionsTemplate;
     private readonly DebugSocketInboundRouter _inboundRouter;
@@ -110,11 +115,46 @@ public sealed class DebugStudioServerSessionTransport : ISessionTransport
                 }
 
                 _socket = acceptedSocket;
-                _receiveLoopTask = StartReceiveLoopAsync(server, acceptedSocket, serverUri, sessionCts.Token);
+                // gate 保持中に receive loop を同期開始すると、即完了時に FinalizeReceiveLoopAsync が
+                // 同じスタックで _gate.WaitAsync(None) して自己デッドロックする。起動は gate 解放後。
             }
             finally
             {
                 _gate.Release();
+            }
+
+            // gate 解放後に起動し、完了待ちも gate 外で行う（Finalize との自己デッドロック防止）。
+            var receiveLoopTask = StartReceiveLoopAsync(server, acceptedSocket, serverUri, sessionCts.Token);
+
+            var attached = false;
+            await _gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                if (ReferenceEquals(_server, server) && ReferenceEquals(_socket, acceptedSocket))
+                {
+                    _receiveLoopTask = receiveLoopTask;
+                    attached = true;
+                }
+            }
+            finally
+            {
+                _gate.Release();
+            }
+
+            if (!attached)
+            {
+                try
+                {
+                    await receiveLoopTask.WaitAsync(TeardownWaitTimeout).ConfigureAwait(false);
+                }
+                catch (TimeoutException)
+                {
+                }
+                catch
+                {
+                }
+
+                throw new OperationCanceledException("The pending server session was replaced before it became active.");
             }
 
             UpdateState(
@@ -222,12 +262,27 @@ public sealed class DebugStudioServerSessionTransport : ISessionTransport
         Exception? fatalError,
         string detail)
     {
+        // Disconnect が見切ったあと Dispose で _gate が破棄されている場合がある。
+        // 未観測タスク例外にしないため、disposed / ObjectDisposedException はここで吸収する。
+        if (_disposed)
+        {
+            return;
+        }
+
         CancellationTokenSource? sessionCts;
 
-        await _gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
-            if (!ReferenceEquals(_server, server) || !ReferenceEquals(_socket, socket))
+            await _gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (ObjectDisposedException)
+        {
+            return;
+        }
+
+        try
+        {
+            if (_disposed || !ReferenceEquals(_server, server) || !ReferenceEquals(_socket, socket))
             {
                 return;
             }
@@ -241,7 +296,13 @@ public sealed class DebugStudioServerSessionTransport : ISessionTransport
         }
         finally
         {
-            _gate.Release();
+            try
+            {
+                _gate.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
         }
 
         await ShutdownSessionAsync(
@@ -366,9 +427,16 @@ public sealed class DebugStudioServerSessionTransport : ISessionTransport
 
         if (receiveLoopTask != null)
         {
+            // peer が close 応答を返さず loop が解けなくても、ここで無限待ちしない。
             try
             {
-                await receiveLoopTask.ConfigureAwait(false);
+                await receiveLoopTask.WaitAsync(TeardownWaitTimeout, cancellationToken).ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+            }
+            catch (OperationCanceledException)
+            {
             }
             catch
             {
@@ -390,7 +458,15 @@ public sealed class DebugStudioServerSessionTransport : ISessionTransport
         {
             if (socket.State is WebSocketState.Open or WebSocketState.CloseReceived)
             {
-                await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, description, cancellationToken).ConfigureAwait(false);
+                // CloseAsync は peer の close 応答を待つため、CancellationToken.None だと固まりうる。
+                // 送信のみの CloseOutputAsync に短い上限を掛け、teardown を完了させる。
+                using var timeoutCts = new CancellationTokenSource(TeardownWaitTimeout);
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+                await socket.CloseOutputAsync(
+                        WebSocketCloseStatus.NormalClosure,
+                        description,
+                        linkedCts.Token)
+                    .ConfigureAwait(false);
             }
         }
         catch

@@ -13,7 +13,8 @@ internal sealed class LogSelectionState : ObservableObject
     private string _selectedLogTitle = "No row selected.";
     private string _selectedLogSummary = "Select a log row to inspect its fields and future structured payload surface.";
     private string _selectedLogMessage = "Message body will appear here.";
-    private string _selectedLogException = "Exception details will appear here when present.";
+    private string _selectedLogException = string.Empty;
+    private bool _hasSelectedLogException;
     private string _detailEmptyState = "ログを選択すると、本文・例外・メタデータをこのペインで確認できます。";
     private string _structuredPayloadStatus =
         "現行 transport の scalar payload は field map として表示されます。将来 StructuredLogEnvelopeV2 相当が届いたら、このタブへ typed tree を差し込めます。";
@@ -65,6 +66,12 @@ internal sealed class LogSelectionState : ObservableObject
         private set => SetProperty(ref _selectedLogException, value);
     }
 
+    public bool HasSelectedLogException
+    {
+        get => _hasSelectedLogException;
+        private set => SetProperty(ref _hasSelectedLogException, value);
+    }
+
     public string DetailEmptyState
     {
         get => _detailEmptyState;
@@ -94,7 +101,8 @@ internal sealed class LogSelectionState : ObservableObject
             SelectedLogTitle = "No row selected.";
             SelectedLogSummary = "Select a log row to inspect its fields and future structured payload surface.";
             SelectedLogMessage = "Message body will appear here.";
-            SelectedLogException = "Exception details will appear here when present.";
+            SelectedLogException = string.Empty;
+            HasSelectedLogException = false;
             DetailEmptyState = "ログを選択すると、本文・例外・メタデータをこのペインで確認できます。";
             StructuredPayloadStatus =
                 "現行 transport の scalar payload は field map として表示されます。将来 StructuredLogEnvelopeV2 相当が届いたら、このタブへ typed tree を差し込めます。";
@@ -105,9 +113,9 @@ internal sealed class LogSelectionState : ObservableObject
         SelectedLogTitle = $"{record.KindText}  •  {record.Category}";
         SelectedLogSummary = $"#{record.SequenceNumber}  •  {record.TimestampText}  •  {record.ApplicationName}";
         SelectedLogMessage = record.Message;
-        SelectedLogException = string.IsNullOrWhiteSpace(record.Exception)
-            ? "No exception payload for this entry."
-            : record.Exception;
+        var hasException = !string.IsNullOrWhiteSpace(record.Exception);
+        SelectedLogException = hasException ? record.Exception! : string.Empty;
+        HasSelectedLogException = hasException;
         DetailEmptyState = "選択中エントリの本文・例外・メタデータを表示しています。将来はここへ structured payload drill-down も追加します。";
         PopulateStructuredFields(record);
         StructuredPayloadStatus = HasStructuredFields
@@ -123,7 +131,7 @@ internal sealed class LogSelectionState : ObservableObject
         AddDetailField("Thread", BuildThreadText(record), "thread id / name");
         AddDetailField("Member", record.MemberName ?? "n/a", "呼び出し member 名");
         AddDetailField("Source", BuildSourceText(record), "file path / line number");
-        AddDetailField("Exception", string.IsNullOrWhiteSpace(record.Exception) ? "none" : "present", "本文は下段テキスト領域へ表示");
+        AddDetailField("Exception", hasException ? "present" : "none", "本文は下段テキスト領域へ表示");
     }
 
     private void AddDetailField(string label, string value, string hint)

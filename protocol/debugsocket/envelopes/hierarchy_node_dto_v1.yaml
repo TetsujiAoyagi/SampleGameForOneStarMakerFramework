@@ -1,0 +1,17 @@
+name: HierarchyNodeDtoV1
+kind: message
+surfaces: [unity, debugstudio]
+fields:
+  - { id: 0, name: NodeId, type: i64 }
+  - { id: 1, name: ParentId, type: i64 }
+  - { id: 2, name: TypeId, type: i32 }
+  - { id: 3, name: Flags, type: HierarchyNodeFlags, default: None }
+  - { id: 4, name: Depth, type: i32 }
+  - { id: 5, name: SiblingIndex, type: i32 }
+  - { id: 6, name: ChildCount, type: i32 }
+  - { id: 7, name: TraversalIndex, type: i32 }
+  - { id: 8, name: Name, type: string, default: "" }
+  - { id: 9, name: TypeName, type: string, optional: true }
+encodings:
+  messagepack:
+    key_field: id

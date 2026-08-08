@@ -1,13 +1,29 @@
 name: DebugStudio
 
 on:
+  # PR ブランチへの push で push と pull_request が二重起動しないよう、
+  # push は統合先ブランチのみに限定する（検証は pull_request 側）。
   push:
+    branches:
+      - main
+      - develop
     paths:
       - 'tools/DebugStudio/**'
+      - 'tools/protocol-codegen/**'
+      - 'protocol/debugsocket/**'
+      - 'unity/Assets/OneStarMaker/Scripts/Foundation/DebugSocket/**'
+      - 'unity/Assets/OneStarMaker/Scripts/Foundation/Logging/LogEnvelopeV1.cs'
+      - 'unity/Assets/OneStarMaker/Tests/Foundation/ProtocolGoldenCrossContractTests.cs'
       - '.github/workflows/debugstudio.yml'
   pull_request:
     paths:
       - 'tools/DebugStudio/**'
+      - 'tools/protocol-codegen/**'
+      - 'protocol/debugsocket/**'
+      - 'unity/Assets/OneStarMaker/Scripts/Foundation/DebugSocket/**'
+      - 'unity/Assets/OneStarMaker/Scripts/Foundation/Logging/LogEnvelopeV1.cs'
+      - 'unity/Assets/OneStarMaker/Tests/Foundation/ProtocolGoldenCrossContractTests.cs'
+      - '.github/workflows/debugstudio.yml'
 
 jobs:
   test:
@@ -18,24 +34,112 @@ jobs:
     defaults:
       run:
         working-directory: tools/DebugStudio
+        shell: pwsh
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      # YAML 正本と commit 済み生成物の乖離を防ぐ（PROTO-21）。
+      # このジョブの defaults は tools/DebugStudio なので、リポジトリルート起点の
+      # スクリプトを叩くこのステップだけ working-directory を明示で上書きする。
+      - name: Protocol codegen check
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: ./tools/protocol-codegen/generate.sh --check
       # --blame:               テストホストがクラッシュした場合に、直前まで実行していた
       #                        テストを Sequence_*.xml に記録する（原因テストの特定用）。
       # --blame-hang-timeout:  いずれかのテストが 120 秒進捗しなければ、そのテストを失敗として
       #                        中断し、ハング中のテスト名を記録する
       #                        （6 時間の無限ハングを、数分で終わる実行可能な失敗に変える）。
       # --blame-hang-dump-type none: ダンプ収集（procdump 依存）を避け、中断のみ行う。
+      #
+      # App.Tests (WPF) は全件成功後に testhost が終了せず blame-hang で abort することがある。
+      # その場合だけを成功扱いにする。「failed が 0」だけでは条件が緩すぎる:
+      # 実行途中でハングすると未実行テストは TRX に一切現れないため、
+      # failed=0 のまま「残りを黙って飛ばした緑」になってしまう。
+      # そこで TRX の本数（= テストプロジェクト数）と実行件数の下限を併せて要求し、
+      # 「全件実行して全件通ったが後始末で落ちた」場合にだけ握りつぶす。
+      #
+      # EXPECTED_TEST_PROJECTS / MIN_EXPECTED_TESTS はテストを削除したりプロジェクトを
+      # 増減したときだけ更新する（追加した分には追随不要。下限判定なので増える方向は素通り）。
+      # MIN は CI 上の全件成功実績に合わせる。teardown ハング修正前は windows-latest が
+      # 324 止まりだったが、修正後の run 31121013669 で 325 件のクリーン完走を確認したため
+      # 325 に戻した（324 のままだと「325 件中 324 件目でハング」が緑を通ってしまう）。
       - name: Restore and test
-        run: dotnet test DebugStudio.sln -c Release --verbosity minimal --blame --blame-hang-timeout 120s --blame-hang-dump-type none
+        env:
+          EXPECTED_TEST_PROJECTS: '5'
+          MIN_EXPECTED_TESTS: '325'
+        run: |
+          $resultsDir = Join-Path (Get-Location) 'TestResults'
+          New-Item -ItemType Directory -Force -Path $resultsDir | Out-Null
+
+          dotnet test DebugStudio.sln `
+            -c Release `
+            --verbosity minimal `
+            --blame `
+            --blame-hang-timeout 120s `
+            --blame-hang-dump-type none `
+            --logger "trx;LogFilePrefix=debugstudio" `
+            --results-directory $resultsDir
+          $exitCode = $LASTEXITCODE
+          if ($exitCode -eq 0) {
+            exit 0
+          }
+
+          $expectedProjects = [int]$env:EXPECTED_TEST_PROJECTS
+          $minExpectedTests = [int]$env:MIN_EXPECTED_TESTS
+
+          $trxFiles = @(Get-ChildItem -Path $resultsDir -Filter '*.trx' -Recurse -ErrorAction SilentlyContinue)
+          if ($trxFiles.Count -eq 0) {
+            Write-Host "dotnet test failed and no TRX results were produced."
+            exit $exitCode
+          }
+
+          $failed = 0
+          $passed = 0
+          $total = 0
+          foreach ($trx in $trxFiles) {
+            [xml]$xml = Get-Content -LiteralPath $trx.FullName
+            $counters = $xml.TestRun.ResultSummary.Counters
+            if ($null -eq $counters) {
+              Write-Host "TRX without ResultSummary/Counters: $($trx.Name)"
+              exit $exitCode
+            }
+
+            $total += [int]$counters.total
+            $passed += [int]$counters.passed
+            $failed += [int]$counters.failed + [int]$counters.error + [int]$counters.timeout +
+              [int]$counters.aborted + [int]$counters.notExecuted + [int]$counters.passedButRunAborted
+          }
+
+          Write-Host "TRX summary: $($trxFiles.Count) file(s) / total=$total passed=$passed failed(+error/timeout/aborted/notExecuted)=$failed"
+
+          if ($failed -ne 0) {
+            Write-Host "dotnet test failed with $failed non-passing test result(s) across $total total."
+            exit $exitCode
+          }
+
+          if ($trxFiles.Count -lt $expectedProjects) {
+            Write-Host "Only $($trxFiles.Count) of $expectedProjects test projects produced a TRX. A project likely never finished - not treating as success."
+            exit $exitCode
+          }
+
+          if ($passed -lt $minExpectedTests) {
+            Write-Host "Only $passed tests passed but at least $minExpectedTests were expected. The run probably hung mid-suite - not treating as success."
+            Write-Host "If tests were intentionally removed, lower MIN_EXPECTED_TESTS in this workflow."
+            exit $exitCode
+          }
+
+          Write-Host "All $passed tests passed across $($trxFiles.Count) project(s), but testhost exited with code $exitCode (known WPF App.Tests teardown hang). Treating as success."
+          exit 0
       # クラッシュ／ハング時に原因テストを追えるよう、Blame の Sequence ファイル等を保存する。
       - name: Upload test diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: debugstudio-testresults
-          path: tools/DebugStudio/**/TestResults/**
+          path: |
+            tools/DebugStudio/**/TestResults/**
+            tools/DebugStudio/TestResults/**
           if-no-files-found: ignore

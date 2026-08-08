@@ -1,3 +1,5 @@
+#nullable enable
+
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -10,8 +12,11 @@ using DebugStudio.Server;
 
 namespace DebugStudio.App.Tests;
 
+[Collection("DebugStudioHttpListener")]
 public sealed class DebugStudioServerSessionTransportTests
 {
+    private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(10);
+
     [Fact]
     public async Task ConnectAsync_着信WebSocketを受けると送受信を仲介できる()
     {
@@ -32,8 +37,8 @@ public sealed class DebugStudioServerSessionTransportTests
         });
 
         using var clientSocket = new ClientWebSocket();
-        await clientSocket.ConnectAsync(serverUri, CancellationToken.None);
-        await connectTask;
+        await clientSocket.ConnectAsync(serverUri, CancellationToken.None).WaitAsync(TestTimeout);
+        await connectTask.WaitAsync(TestTimeout);
 
         Assert.Equal(DebugSocketConnectionState.Connected, transport.State);
 
@@ -53,7 +58,7 @@ public sealed class DebugStudioServerSessionTransportTests
             true,
             CancellationToken.None);
 
-        var receivedLog = await logReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var receivedLog = await logReceived.Task.WaitAsync(TestTimeout);
         Assert.Equal(outboundLog.Message, receivedLog.Message);
 
         var command = new DebugCommandEnvelopeV1
@@ -63,7 +68,7 @@ public sealed class DebugStudioServerSessionTransportTests
             PayloadJson = "{}",
         };
 
-        await transport.SendCommandAsync(command);
+        await transport.SendCommandAsync(command).WaitAsync(TestTimeout);
 
         var inboundFrame = await ReceiveBinaryMessageAsync(clientSocket);
         Assert.True(DebugSocketProtocol.TryDeserializeEnvelope(inboundFrame, out var envelope));
@@ -74,7 +79,21 @@ public sealed class DebugStudioServerSessionTransportTests
         Assert.Equal(command.RequestId, receivedCommand!.RequestId);
         Assert.Equal(command.CommandType, receivedCommand.CommandType);
 
-        await transport.DisconnectAsync();
+        // server 側 receive loop が Close を観測できるよう、先に peer socket を閉じる。
+        // Disconnect 前に閉じないと Accept/Receive 待ちが残り、testhost 終了がハングしうる。
+        //
+        // CloseAsync ではなく CloseOutputAsync を使う。CloseAsync は close frame を送った後に
+        // peer からの close 応答を待つため、teardown 自体がハングしうる。
+        if (clientSocket.State is WebSocketState.Open or WebSocketState.CloseReceived)
+        {
+            using var closeTimeout = new CancellationTokenSource(TestTimeout);
+            await clientSocket.CloseOutputAsync(
+                WebSocketCloseStatus.NormalClosure,
+                "session-transport-test-complete",
+                closeTimeout.Token);
+        }
+
+        await transport.DisconnectAsync().WaitAsync(TestTimeout);
         Assert.Equal(DebugSocketConnectionState.Disconnected, transport.State);
     }
 
@@ -82,10 +101,11 @@ public sealed class DebugStudioServerSessionTransportTests
     {
         var buffer = new byte[8192];
         using var memoryStream = new MemoryStream();
+        using var timeoutCts = new CancellationTokenSource(TestTimeout);
 
         while (true)
         {
-            var result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+            var result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), timeoutCts.Token);
             if (result.MessageType == WebSocketMessageType.Close)
             {
                 throw new InvalidOperationException("The client socket closed before a binary message was received.");

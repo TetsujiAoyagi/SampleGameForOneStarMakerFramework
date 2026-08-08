@@ -1,0 +1,14 @@
+name: CapabilityHandshakeHelloEnvelopeV1
+kind: message
+surfaces: [unity, debugstudio]
+fields:
+  - { id: 0, name: SchemaVersion, type: i32, default: 1 }
+  - { id: 1, name: ClientName, type: string, default: "" }
+  - { id: 2, name: ClientInstanceId, type: string, default: "" }
+  - { id: 3, name: MinSchemaVersion, type: i32, default: 1 }
+  - { id: 4, name: MaxSchemaVersion, type: i32, default: 1 }
+  - { id: 5, name: SupportedCapabilities, type: DebugStudioCapability, default: None }
+  - { id: 6, name: SupportedMessageTypes, type: array<i32>, default: [] }
+encodings:
+  messagepack:
+    key_field: id

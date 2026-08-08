@@ -1,0 +1,85 @@
+enums:
+  - name: DebugStudioCapability
+    kind: flags
+    underlying: i64
+    surfaces: [unity, debugstudio]
+    members:
+      - { id: 0, name: None, value: "0" }
+      - { id: 1, name: CapabilityNegotiation, value: "1L << 0" }
+      - { id: 2, name: LogStream, value: "1L << 1" }
+      - { id: 3, name: TelemetryStream, value: "1L << 2" }
+      - { id: 4, name: ServiceStatusStream, value: "1L << 3" }
+      - { id: 5, name: DebugCommand, value: "1L << 4" }
+      - { id: 6, name: CommandResult, value: "1L << 5" }
+      - { id: 7, name: HierarchySnapshot, value: "1L << 6" }
+      - { id: 8, name: HierarchyDelta, value: "1L << 7" }
+      - { id: 9, name: InspectorQuery, value: "1L << 8" }
+      - { id: 10, name: InspectorDetail, value: "1L << 9" }
+
+  - name: HierarchyChangeKind
+    kind: enum
+    surfaces: [unity, debugstudio]
+    members:
+      - { id: 0, name: Unknown, value: "0" }
+      - { id: 1, name: Upsert, value: "1" }
+      - { id: 2, name: Remove, value: "2" }
+
+  - name: HierarchyNodeFlags
+    kind: flags
+    surfaces: [unity, debugstudio]
+    members:
+      - { id: 0, name: None, value: "0" }
+      - { id: 1, name: ActiveSelf, value: "1 << 0" }
+      - { id: 2, name: ActiveInHierarchy, value: "1 << 1" }
+      - { id: 3, name: SceneRoot, value: "1 << 2" }
+      - { id: 4, name: PrefabInstance, value: "1 << 3" }
+      - { id: 5, name: DontDestroyOnLoad, value: "1 << 4" }
+      - { id: 6, name: HasChildren, value: "1 << 5" }
+
+  - name: InspectorDetailState
+    kind: enum
+    surfaces: [unity, debugstudio]
+    members:
+      - { id: 0, name: Unknown, value: "0" }
+      - { id: 1, name: Pending, value: "1" }
+      - { id: 2, name: Ready, value: "2" }
+      - { id: 3, name: NotFound, value: "3" }
+      - { id: 4, name: Unsupported, value: "4" }
+      - { id: 5, name: Faulted, value: "5" }
+
+  - name: InspectorPropertyFlags
+    kind: flags
+    surfaces: [unity, debugstudio]
+    members:
+      - { id: 0, name: None, value: "0" }
+      - { id: 1, name: ReadOnly, value: "1 << 0" }
+      - { id: 2, name: Nullable, value: "1 << 1" }
+      - { id: 3, name: ExpandedByDefault, value: "1 << 2" }
+      - { id: 4, name: MissingValue, value: "1 << 3" }
+
+  - name: InspectorQueryFlags
+    kind: flags
+    surfaces: [unity, debugstudio]
+    members:
+      - { id: 0, name: None, value: "0" }
+      - { id: 1, name: IncludeMetadata, value: "1 << 0" }
+      - { id: 2, name: IncludeComponents, value: "1 << 1" }
+      - { id: 3, name: IncludeProperties, value: "1 << 2" }
+      - { id: 4, name: IncludeRawValues, value: "1 << 3" }
+
+  - name: InspectorSectionKind
+    kind: enum
+    surfaces: [unity, debugstudio]
+    members:
+      - { id: 0, name: Unknown, value: "0" }
+      - { id: 1, name: Header, value: "1" }
+      - { id: 2, name: Component, value: "2" }
+      - { id: 3, name: Metadata, value: "3" }
+
+  - name: ControlCommandRoundtripStatus
+    kind: enum
+    surfaces: [debugstudio]
+    members:
+      - { id: 0, name: Completed, value: "0" }
+      - { id: 1, name: TimedOut, value: "1" }
+      - { id: 2, name: Failed, value: "2" }
