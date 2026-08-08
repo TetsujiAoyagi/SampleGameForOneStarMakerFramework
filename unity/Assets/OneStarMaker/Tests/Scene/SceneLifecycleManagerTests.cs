@@ -6,6 +6,21 @@ using OneStarMaker.Runtime.SceneSystem;
 
 namespace OneStarMaker.Tests.SceneSystem
 {
+    /// <summary>
+    /// SceneState 14 状態の遷移契約を検証する。
+    ///
+    /// <para>
+    /// 前進のみ・同一状態への再遷移禁止・中間状態のスキップ禁止・
+    /// キャンセルを受け付ける窓の範囲、を正面から主張する。
+    /// </para>
+    ///
+    /// <para>
+    /// <c>SceneState</c> の enum 順序は整数比較でガードに使われているため並べ替え禁止であり、
+    /// 実質的にその不変条件を守っているのはこの fixture である。
+    /// 判定述語（IsInLoadingPhase / IsActive / IsUnloadStarted / IsLoadedOrActive /
+    /// IsLoadCanceled / IsInAfterUnloading）を状態ごとに固定しているのがそのため。
+    /// </para>
+    /// </summary>
     [TestFixture]
     public class SceneLifecycleManagerTests
     {

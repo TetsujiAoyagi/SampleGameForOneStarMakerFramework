@@ -84,7 +84,9 @@ namespace OneStarMaker.Foundation.Logging
             LogDirectoryPath = GetLogDirectoryPath();
             EnsureDirectory(LogDirectoryPath);
 
-            _inner = LoggerFactory.Create(builder =>
+            // producer 相関（sequence / trace / span）はログ呼び出しスレッドで採取する必要があるため、
+            // 生成した factory を必ずデコレータで包む。詳細は LogProducerCorrelation を参照。
+            _inner = new ProducerCorrelationLoggerFactory(LoggerFactory.Create(builder =>
             {
                 builder.ClearProviders();
                 builder.SetMinimumLevel(minimumLevel);
@@ -116,8 +118,7 @@ namespace OneStarMaker.Foundation.Logging
                             // formatter 側で length-prefix frame まで作って stream に流す。
                             builder.AddZLoggerStream(
                                 RealtimeStream,
-                                options => options.UseFormatter(
-                                    () => new MessagePackZLoggerFormatter(ApplicationName)));
+                                options => MessagePackZLoggerFormatter.Configure(options, ApplicationName));
                             break;
                         default:
                             throw new ArgumentOutOfRangeException(
@@ -126,7 +127,7 @@ namespace OneStarMaker.Foundation.Logging
                                 "Unsupported realtime log format.");
                     }
                 }
-            });
+            }));
         }
 
         /// <summary>
@@ -169,10 +170,10 @@ namespace OneStarMaker.Foundation.Logging
         {
             // JSON 側はローカルファイル観測が主目的なので、
             // timestamp と property をできるだけ落とさず保持する。
-            // 通常 Log の producer correlation は realtime MessagePack formatter が wire 化時に
-            // 捕捉する。rolling provider 側で独立に sequence を採番すると同じログに別順序が
-            // 生まれるため、L0 Unity Log JSON へ擬似的な相関値は追加しない。
-            // 一方、Telemetry は JsonFileTelemetrySink が producer-owned 値を structured property
+            // producer correlation は ProducerCorrelationLoggerFactory が呼び出し時に採取するため、
+            // provider をまたいでも採番は 1 回で済む。ただし rolling file の出力形式を変えないよう、
+            // ここでは IncludeScopes を有効にせず L0 Unity Log JSON へ相関値を載せない。
+            // Telemetry は JsonFileTelemetrySink が producer-owned 値を structured property
             // として明示的に渡すので、L0 でも同じ session/frame 軸を検索できる。
             options.UseJsonFormatter(formatter =>
             {

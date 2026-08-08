@@ -8,6 +8,38 @@ using OneStarMaker.Foundation.UpdateSystem.World;
 
 namespace OneStarMaker.Tests.UpdateSystem
 {
+    /// <summary>
+    /// UpdateCoordinator の実行順序・構造変更・例外伝播の契約を検証する。
+    ///
+    /// <para>
+    /// 主張している軸は 4 つ:
+    /// </para>
+    /// <list type="number">
+    /// <item><description>
+    /// 実行順序 — layerOrder → executionOrder → 登録順の三段で決まり、
+    /// 同一 layer 内では native が managed より先に走る。
+    /// </description></item>
+    /// <item><description>
+    /// 遅延反映 — Update / start 中の登録・解除はそのフレームには効かず、
+    /// ActivatePendingRegistrations / ApplyStructuralChanges を跨いで初めて反映される。
+    /// </description></item>
+    /// <item><description>
+    /// 例外伝播 — Element が投げた例外は握り潰さずフレームを中断して伝播し、
+    /// それでも registry と native state を壊れた状態で残さない。
+    /// </description></item>
+    /// <item><description>
+    /// mainThread apply — 要求は畳まれて 1 回だけ適用され、解除済み Element には届かない。
+    /// </description></item>
+    /// </list>
+    ///
+    /// <para>
+    /// ただしここで検証しているのは Coordinator の個々の API であって、
+    /// PlayerLoop 上での呼び順ではない。1 フレームの順序
+    /// （ActivatePendingRegistrations → RunUpdate → RunLateUpdate →
+    /// ApplyMainThreadChanges → ApplyStructuralChanges）を実装しているのは
+    /// <c>UpdaterDriver</c> 側であり、そちらを直接守るテストは存在しない。
+    /// </para>
+    /// </summary>
     [TestFixture]
     public class UpdateCoordinatorTests
     {
@@ -20,7 +52,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test1()
+        public void GetOrCreateUpdateLayer_返したlayerのtimeScaleがdeltaTimeへ反映される()
         {
             var world = new UpdateCoordinator();
             var layer = world.GetOrCreateUpdateLayer("Gameplay");
@@ -37,7 +69,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test2()
+        public void ExecutionConfigurationCommand_Register時にlayerIdがnullなら例外()
         {
             Assert.Throws<ArgumentException>(
                 () => new ExecutionConfigurationCommand(
@@ -47,7 +79,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test3()
+        public void ExecutionConfigurationQueue_未定義のcommand種別をEnqueueすると例外()
         {
             var queue = new ExecutionConfigurationQueue();
             var invalid = new ExecutionConfigurationCommand(
@@ -58,7 +90,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test4()
+        public void ExecutionConfigurationCommand_Register時にhandleがInvalidなら例外()
         {
             Assert.Throws<ArgumentException>(
                 () => new ExecutionConfigurationCommand(
@@ -68,7 +100,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test5()
+        public void RegisterElement_Activate後の初回Updateでstartとupdateが順に走る()
         {
             var element = new RecordingElement();
 
@@ -84,7 +116,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test6()
+        public void RunUpdate_LayerTimeScale適用時はdeltaTimeのみscaleされunscaledは素通しになる()
         {
             var element = new RecordingElement();
             var layer = _coordinator.GetOrCreateLayer("Gameplay");
@@ -100,7 +132,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test7()
+        public void RunUpdate_LayerがpausedならstartのみでupdateもlateUpdateも走らない()
         {
             var element = new RecordingElement();
             var layer = _coordinator.GetOrCreateLayer("Gameplay");
@@ -115,7 +147,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test8()
+        public void RegisterElement_Update中の登録は次フレームのActivate後に開始する()
         {
             var lateRegistrant = new RecordingElement();
             var first = new RecordingElement
@@ -143,7 +175,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test9()
+        public void UnregisterElement_Update中の自己解除でもそのフレームのlateUpdateまでは走る()
         {
             RecordingElement? element = null;
             element = new RecordingElement
@@ -164,7 +196,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test10()
+        public void RegisterElement_既存layerへ異なるlayerOrderを指定すると例外()
         {
             var first = new RecordingElement();
             var second = new RecordingElement();
@@ -175,7 +207,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test11()
+        public void RunUpdate_executionOrderの昇順で実行される()
         {
             var executionLog = new System.Collections.Generic.List<string>();
             var second = new RecordingElement("second", executionLog);
@@ -192,7 +224,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test12()
+        public void RunUpdate_executionOrderが同値なら登録順を保つ()
         {
             var executionLog = new System.Collections.Generic.List<string>();
             var first = new RecordingElement("first", executionLog);
@@ -209,7 +241,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test13()
+        public void RunUpdate_layerOrderの昇順でlayerをまたいで実行される()
         {
             var executionLog = new System.Collections.Generic.List<string>();
             var lateLayer = new RecordingElement("late-layer", executionLog);
@@ -226,7 +258,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test14()
+        public void UnregisterElement_構造変更適用後の次フレームから実行対象外になる()
         {
             var executionLog = new System.Collections.Generic.List<string>();
             var first = new RecordingElement("first", executionLog);
@@ -254,7 +286,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test15()
+        public void RegisterElement_解除して別executionOrderで再登録すると新しい順序が効く()
         {
             var executionLog = new System.Collections.Generic.List<string>();
             var first = new RecordingElement("first", executionLog);
@@ -286,7 +318,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test16()
+        public void ActivatePendingRegistrations_start例外は伝播し失敗Elementはupdate対象にならない()
         {
             var survivor = new RecordingElement();
             var failing = new RecordingElement
@@ -308,7 +340,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test17()
+        public void RunUpdate_update例外はフレームを中断して伝播し次フレームで再開する()
         {
             var survivor = new RecordingElement();
             var failing = new RecordingElement
@@ -330,7 +362,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test18()
+        public void RunLateUpdate_lateUpdate例外はフレームを中断して伝播し次フレームで再開する()
         {
             var survivor = new RecordingElement();
             var failing = new RecordingElement
@@ -352,7 +384,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test19()
+        public void RunUpdate_backendへUpdateとLateUpdateのphaseが順に渡る()
         {
             var backend = new RecordingBackend();
             var world = new UpdateCoordinator(backend);
@@ -374,7 +406,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test20()
+        public void RequestUnregister_構造変更を適用するまでは当該フレームの実行を継続する()
         {
             var element = new RecordingElement();
 
@@ -395,7 +427,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test21()
+        public void RequestReorder_mirrorの並べ替えがnativeRegistryのexecutionOrderへ伝わる()
         {
             using var registry = new NativeStateRegistry<NativeTestState>();
             var world = new UpdateCoordinator();
@@ -416,14 +448,14 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test22()
+        public void RequestReorder_未知のhandleは無視され構造変更は0件になる()
         {
             Assert.DoesNotThrow(() => _coordinator.RequestReorder(new UpdateHandle(999, 1), 5));
             Assert.That(_coordinator.ApplyStructuralChanges(), Is.EqualTo(0));
         }
 
         [Test]
-        public void Test23()
+        public void ApplyMainThreadChanges_enqueueしたcommandが1回適用される()
         {
             var command = new RecordingApplyCommand();
 
@@ -435,7 +467,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test24()
+        public void ApplyMainThreadChanges_command例外が伝播した後もqueueは再適用されない()
         {
             var first = new RecordingApplyCommand();
             var failing = new ThrowingApplyCommand();
@@ -451,7 +483,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test25()
+        public void RequestElementApply_handle指定でElementのmainThreadApplyが呼ばれる()
         {
             var element = new RecordingElement();
 
@@ -468,7 +500,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test26()
+        public void RequestElementApply_未登録Elementはfalseを返す()
         {
             var element = new RecordingElement();
 
@@ -476,7 +508,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test27()
+        public void RequestElementApply_同一Elementへの重複要求は1回に畳まれる()
         {
             var element = new RecordingElement();
 
@@ -495,7 +527,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test28()
+        public void RequestElementApply_解除済みElementへの要求は適用されない()
         {
             var element = new RecordingElement();
 
@@ -513,7 +545,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test29()
+        public void RegisterElement_layerOrder競合で例外になったElementはhandleを持たない()
         {
             var first = new RecordingElement();
             var second = new RecordingElement();
@@ -526,7 +558,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test30()
+        public void RegisterElement_同一Elementを別layerへ登録すると既存layer名付きで例外()
         {
             var element = new RecordingElement();
 
@@ -538,7 +570,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test31()
+        public void RegisterElement_start中の登録は次フレームのActivate後に開始する()
         {
             var lateRegistrant = new RecordingElement();
             var first = new RecordingElement
@@ -561,7 +593,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test32()
+        public void RegisterNative_RunUpdateでnativeStateが更新されmirrorへapplyされる()
         {
             using var registry = new NativeStateRegistry<NativeTestState>();
             var backend = new JobSystemUpdateProcessorBackend<NativeTestState, NativeIncrementProcessor>(new NativeIncrementProcessor());
@@ -589,7 +621,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test33()
+        public void UnregisterElement_mirror解除でnativeRegistryのentryも削除される()
         {
             using var registry = new NativeStateRegistry<NativeTestState>();
             var backend = new JobSystemUpdateProcessorBackend<NativeTestState, NativeIncrementProcessor>(new NativeIncrementProcessor());
@@ -611,7 +643,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test34()
+        public void RunUpdate_nativeBackendが例外を投げたときはdirtyが残る()
         {
             using var registry = new NativeStateRegistry<NativeTestState>();
             var backend = new ThrowingNativeBackend();
@@ -631,7 +663,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test35()
+        public void RegisterNative_layerのtimeScaleがnative処理のdeltaTimeにも効く()
         {
             using var registry = new NativeStateRegistry<NativeTestState>();
             var backend = new JobSystemUpdateProcessorBackend<NativeTestState, NativeIncrementProcessor>(new NativeIncrementProcessor());
@@ -654,7 +686,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test36()
+        public void RegisterNative_layerがpausedならnative処理もapplyも走らない()
         {
             using var registry = new NativeStateRegistry<NativeTestState>();
             var backend = new JobSystemUpdateProcessorBackend<NativeTestState, NativeIncrementProcessor>(new NativeIncrementProcessor());
@@ -678,7 +710,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test37()
+        public void RegisterNative_layerOrderの昇順でnativePipelineが実行される()
         {
             using var earlyRegistry = new NativeStateRegistry<NativeTestState>();
             using var lateRegistry = new NativeStateRegistry<NativeTestState>();
@@ -711,7 +743,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test38()
+        public void RunUpdate_同一layerではnativeがmanagedより先に実行される()
         {
             using var registry = new NativeStateRegistry<NativeTestState>();
             var executionLog = new System.Collections.Generic.List<string>();
@@ -735,7 +767,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test39()
+        public void RegisterNative_同一registryを別layerへ登録すると既存layer名付きで例外()
         {
             using var registry = new NativeStateRegistry<NativeTestState>();
             var world = new UpdateCoordinator();
@@ -764,7 +796,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test40()
+        public void RegisterNativePipeline_異なるstate型のpipelineが同一layerで併存する()
         {
             using var primaryRegistry = new NativeStateRegistry<NativeTestState>();
             using var secondaryRegistry = new NativeStateRegistry<SecondaryNativeTestState>();
@@ -803,7 +835,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test41()
+        public void RegisterNative_pipelineのstate型と異なる型を登録すると型名付きで例外()
         {
             using var registry = new NativeStateRegistry<NativeTestState>();
             var world = new UpdateCoordinator();
@@ -824,7 +856,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test42()
+        public void RegisterNativePipeline_同名pipelineIdの二重登録はid付きで例外()
         {
             using var firstRegistry = new NativeStateRegistry<NativeTestState>();
             using var secondRegistry = new NativeStateRegistry<SecondaryNativeTestState>();
@@ -847,7 +879,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test43()
+        public void NativePipelineId_既定値でもGetHashCodeが例外にならない()
         {
             var pipelineId = default(NativePipelineId);
 
@@ -855,7 +887,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test44()
+        public void RegisterNativePipeline_pipelineOrderの昇順で実行される()
         {
             using var firstRegistry = new NativeStateRegistry<NativeTestState>();
             using var secondRegistry = new NativeStateRegistry<SecondaryNativeTestState>();
@@ -896,7 +928,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test45()
+        public void RunUpdate_pipeline例外時も先行pipelineのstateはcommitされapplyされる()
         {
             using var successfulRegistry = new NativeStateRegistry<NativeTestState>();
             using var failingRegistry = new NativeStateRegistry<SecondaryNativeTestState>();

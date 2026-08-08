@@ -7,11 +7,20 @@ using OneStarMaker.Foundation.UpdateSystem.Apply;
 
 namespace OneStarMaker.Tests.UpdateSystem
 {
+    /// <summary>
+    /// mainThread apply ステージの適用対象と順序を検証する。
+    ///
+    /// <para>
+    /// handle 経由の Element と command は登録順に適用される。
+    /// <c>IMainThreadApplyElement</c> を実装しない Element の handle は
+    /// 例外ではなく「適用対象 0 件」として扱う。
+    /// </para>
+    /// </summary>
     [TestFixture]
     public class MainThreadApplyProcessorTests
     {
         [Test]
-        public void Test1()
+        public void Apply_handleとcommandの両方が登録順に適用される()
         {
             var stage = new MainThreadApplyProcessor();
             var elementRegistry = new UpdateElementRegistry();
@@ -34,7 +43,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test2()
+        public void Apply_IMainThreadApplyElementでないElementのhandleは適用されない()
         {
             var stage = new MainThreadApplyProcessor();
             var elementRegistry = new UpdateElementRegistry();

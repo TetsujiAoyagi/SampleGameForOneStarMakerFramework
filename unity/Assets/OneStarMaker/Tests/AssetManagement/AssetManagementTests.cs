@@ -12,6 +12,19 @@ using UnityEngine.TestTools;
 
 namespace OneStarMaker.Tests.AssetManagement
 {
+    /// <summary>
+    /// AssetOwner による寿命スコープ契約を検証する。
+    ///
+    /// <para>
+    /// App / Manual / Scene(id) / Bind(go) の 4 スコープすべてについて、
+    /// 「そのスコープが閉じたときだけ解放される」ことと、
+    /// 同一 key を複数 owner が掴んだときに dedup されることを主張する。
+    /// </para>
+    ///
+    /// <para>
+    /// backend は <c>FakeAssetBackend</c> に差し替えており、Addressables の実体には依存しない。
+    /// </para>
+    /// </summary>
     [TestFixture]
     public class AssetManagementTests
     {

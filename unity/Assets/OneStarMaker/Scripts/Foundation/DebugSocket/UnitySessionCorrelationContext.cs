@@ -42,7 +42,13 @@ namespace OneStarMaker.Foundation.DebugSocket
 
         /// <summary>
         /// session 内で 1 から単調増加する producer sequence を採番する。
-        /// Log formatter と telemetry record 生成の双方がこの API を通す。
+        /// Log と telemetry record 生成の双方がこの API を通す。
+        ///
+        /// <para>
+        /// Log 側は formatter ではなく <c>LogProducerCorrelation.Capture</c> が
+        /// 呼び出しスレッド上で採番する。ZLogger は entry を背景スレッドで format するため、
+        /// formatter 内で採番すると telemetry との全体順序が入れ替わる。
+        /// </para>
         /// </summary>
         public static long NextProducerSequence()
             => Interlocked.Increment(ref _producerSequence);

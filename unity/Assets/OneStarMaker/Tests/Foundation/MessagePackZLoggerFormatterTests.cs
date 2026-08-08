@@ -148,16 +148,20 @@ namespace OneStarMaker.Tests.Foundation
             Assert.AreEqual(93, root.GetProperty("UnityFrameAtEnd").GetInt32());
         }
 
+        /// <summary>
+        /// 本番の <c>AppLoggerFactory</c> と同じ配線で realtime MessagePack 出力を組む。
+        /// provider 設定と factory デコレータは相関値を運ぶために対で必要。
+        /// </summary>
         private static ILoggerFactory CreateLoggerFactory(Stream stream)
         {
-            return LoggerFactory.Create(builder =>
+            return new ProducerCorrelationLoggerFactory(LoggerFactory.Create(builder =>
             {
                 builder.ClearProviders();
                 builder.SetMinimumLevel(LogLevel.Trace);
                 builder.AddZLoggerStream(
                     stream,
-                    options => options.UseFormatter(() => new MessagePackZLoggerFormatter(ApplicationName)));
-            });
+                    options => MessagePackZLoggerFormatter.Configure(options, ApplicationName));
+            }));
         }
 
         private static ILoggerFactory CreateJsonLoggerFactory(Stream stream)

@@ -7,6 +7,15 @@ using OneStarMaker.Foundation.Telemetry;
 
 namespace OneStarMaker.Tests.Foundation
 {
+    /// <summary>
+    /// session ID と producer sequence の採番契約を検証する。
+    ///
+    /// <para>
+    /// sessionId は初期化後に固定され handshake と同一値になる。
+    /// producer sequence は Log と Telemetry が共有する 1 本のカウンタで、
+    /// stream ごとに分けると同一 frame 内の全体順序が再構成できなくなる。
+    /// </para>
+    /// </summary>
     [TestFixture]
     public sealed class UnitySessionCorrelationContextTests
     {

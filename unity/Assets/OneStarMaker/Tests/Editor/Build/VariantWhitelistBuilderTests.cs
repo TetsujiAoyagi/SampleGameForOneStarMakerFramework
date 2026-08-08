@@ -7,6 +7,14 @@ using OneStarMaker.Runtime.AssetDescriptions;
 
 namespace OneStarMaker.Tests.Editor.Build
 {
+    /// <summary>
+    /// variant whitelist の解決規則を検証する。
+    ///
+    /// <para>
+    /// 未指定なら既定 variant のみ。always-included な asset は variant 一致を問わず載る。
+    /// 一致する variant が無いとき required は error になり optional はならない、が肝。
+    /// </para>
+    /// </summary>
     public sealed class VariantWhitelistBuilderTests
     {
         [Test]

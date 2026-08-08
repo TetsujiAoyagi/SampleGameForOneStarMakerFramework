@@ -7,6 +7,14 @@ using UnityEngine.UIElements;
 
 namespace OneStarMaker.Tests.SampleGame
 {
+    /// <summary>
+    /// ViewModel が VisualElement を保持せずに binding できることを検証する。
+    ///
+    /// <para>
+    /// ViewModel 側が UI 要素を掴むと、View の寿命に ViewModel が引きずられる。
+    /// 表示状態は値として持ち、View 側が反映する、という向きを固定する。
+    /// </para>
+    /// </summary>
     [TestFixture]
     public sealed class ConfirmDialogViewModelTests
     {

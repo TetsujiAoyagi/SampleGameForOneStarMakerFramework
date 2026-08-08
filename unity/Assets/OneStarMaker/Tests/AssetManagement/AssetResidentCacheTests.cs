@@ -10,6 +10,15 @@ using UnityEngine;
 
 namespace OneStarMaker.Tests.AssetManagement
 {
+    /// <summary>
+    /// 常駐キャッシュの予算管理と追い出し方針を検証する。
+    ///
+    /// <para>
+    /// 追い出し順は「実効頻度（アクセス回数の時間減衰込み）が最小のもの」から。
+    /// 予算は asset 型ごとに独立しており、単体で予算を超える asset は
+    /// キャッシュに載せず即解放する。
+    /// </para>
+    /// </summary>
     [TestFixture]
     public class AssetResidentCacheTests
     {

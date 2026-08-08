@@ -12,6 +12,14 @@ using UnityEngine.TestTools;
 
 namespace OneStarMaker.Tests.AssetManagement
 {
+    /// <summary>
+    /// asset key と owner の相互逆引き契約を検証する。
+    ///
+    /// <para>
+    /// 「誰がこの asset を掴んでいるか」「この owner は何を掴んでいるか」の双方が
+    /// 解放後に正しく縮むことが主眼。未ロード key の問い合わせは例外ではなく空を返す。
+    /// </para>
+    /// </summary>
     [TestFixture]
     public class AssetOwnerLookupTests
     {
