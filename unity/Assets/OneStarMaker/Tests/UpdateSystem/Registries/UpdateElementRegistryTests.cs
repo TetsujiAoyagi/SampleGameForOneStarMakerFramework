@@ -7,11 +7,20 @@ using OneStarMaker.Foundation.UpdateSystem;
 
 namespace OneStarMaker.Tests.UpdateSystem
 {
+    /// <summary>
+    /// UpdateElementRegistry の slot 再利用と policy 保持を検証する。
+    ///
+    /// <para>
+    /// generation が上限に達した slot を再利用したときの巻き戻りが主眼。
+    /// この条件はリフレクションで entry を差し込まないと作れないため、
+    /// 内部フィールド名を変えるとテストが黙って別条件を検証することになる。
+    /// </para>
+    /// </summary>
     [TestFixture]
     public class UpdateElementRegistryTests
     {
         [Test]
-        public void Test1()
+        public void Register_generationが上限に達したslotは再利用時に0へ巻き戻る()
         {
             var registry = new UpdateElementRegistry();
             var element = new PlainElement();
@@ -40,7 +49,7 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
-        public void Test2()
+        public void TryGetPolicy_登録時のsyncPolicyをhandleから引ける()
         {
             var registry = new UpdateElementRegistry();
             var element = new PlainElement();

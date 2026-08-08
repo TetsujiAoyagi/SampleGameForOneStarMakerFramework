@@ -9,6 +9,14 @@ using OneStarMaker.Foundation.Telemetry;
 
 namespace OneStarMaker.Tests.Foundation
 {
+    /// <summary>
+    /// telemetry envelope の wire roundtrip で field が欠落しないことを検証する。
+    ///
+    /// <para>
+    /// scene 系と camera 系の field は互いに独立しており、
+    /// 片方だけを持つ record を通しても他方が勝手に埋まらないことを含む。
+    /// </para>
+    /// </summary>
     [TestFixture]
     public sealed class TelemetryEnvelopeRoundtripTests
     {

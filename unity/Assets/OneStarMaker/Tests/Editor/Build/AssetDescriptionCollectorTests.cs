@@ -8,6 +8,14 @@ using UnityEngine;
 
 namespace OneStarMaker.Tests.Editor.Build
 {
+    /// <summary>
+    /// SceneResourceMap 由来の description が収集対象に入ることを検証する。
+    ///
+    /// <para>
+    /// 現状このテストは private field をリフレクションで注入して条件を組み立てている。
+    /// 収集側のフィールド名を変えると、コンパイルは通るのに黙って条件が組まれなくなる。
+    /// </para>
+    /// </summary>
     public sealed class AssetDescriptionCollectorTests
     {
         [Test]

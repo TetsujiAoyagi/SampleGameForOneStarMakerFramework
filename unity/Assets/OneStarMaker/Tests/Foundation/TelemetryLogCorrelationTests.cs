@@ -293,16 +293,25 @@ namespace OneStarMaker.Tests.Foundation
                 unityFrameAtEnd: unityFrameAtEnd);
         }
 
+        /// <summary>
+        /// 本番の <c>AppLoggerFactory</c> と同じ配線で realtime MessagePack 出力を組む。
+        ///
+        /// <para>
+        /// 相関値は ZLogger の背景スレッドではなく呼び出しスレッドで採取する必要があるため、
+        /// provider 設定（<c>MessagePackZLoggerFormatter.Configure</c>）と factory デコレータ
+        /// （<c>ProducerCorrelationLoggerFactory</c>）は必ず対で使う。片方だけだと相関が落ちる。
+        /// </para>
+        /// </summary>
         private static ILoggerFactory CreateLoggerFactory(Stream stream)
         {
-            return LoggerFactory.Create(builder =>
+            return new ProducerCorrelationLoggerFactory(LoggerFactory.Create(builder =>
             {
                 builder.ClearProviders();
                 builder.SetMinimumLevel(LogLevel.Trace);
                 builder.AddZLoggerStream(
                     stream,
-                    options => options.UseFormatter(() => new MessagePackZLoggerFormatter(ApplicationName)));
-            });
+                    options => MessagePackZLoggerFormatter.Configure(options, ApplicationName));
+            }));
         }
 
         private static List<LogEnvelopeV1> ParseLogPayloads(byte[] data)

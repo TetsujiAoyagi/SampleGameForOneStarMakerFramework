@@ -89,7 +89,25 @@ namespace OneStarMaker.Runtime.UpdateSystem.Hosting
             _sceneEventSubscription = null;
             Api.UpdateSystemRuntime.Uninstall(this);
 
-            UnityEngine.Object.Destroy(_driver.gameObject);
+            // 破棄済み UnityEngine.Object を踏まないよう == で判定する。
+            // ?. は Unity の == オーバーロードを迂回するため使わない。
+            if (_driver == null)
+            {
+                return;
+            }
+
+            var host = _driver.gameObject;
+
+            // コンストラクタの DontDestroyOnLoad と対になる分岐。
+            // EditMode では Destroy が「edit mode から呼ぶな」とエラーログを出すため使えない。
+            if (Application.isPlaying)
+            {
+                UnityEngine.Object.Destroy(host);
+            }
+            else
+            {
+                UnityEngine.Object.DestroyImmediate(host);
+            }
         }
 
         private void OnSceneEvent(SceneEvent sceneEvent)

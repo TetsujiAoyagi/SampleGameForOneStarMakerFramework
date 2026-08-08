@@ -13,6 +13,14 @@ using UnityEngine.UIElements;
 
 namespace OneStarMaker.Tests.UISystem
 {
+    /// <summary>
+    /// View 破棄時の解体順序契約を検証する。
+    ///
+    /// <para>
+    /// binding → ViewModel → root 除去後の hook、の順を配列比較で固定している。
+    /// ViewModel を先に捨てると binding が破棄済み参照を触るため、順序自体が契約。
+    /// </para>
+    /// </summary>
     [TestFixture]
     public sealed class UIToolkitViewLifecycleTests
     {

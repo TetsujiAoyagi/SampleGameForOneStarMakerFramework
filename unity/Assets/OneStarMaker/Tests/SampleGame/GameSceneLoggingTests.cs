@@ -19,6 +19,14 @@ using OneStarMaker.Foundation.Telemetry;
 
 namespace OneStarMaker.Tests.SampleGame
 {
+    /// <summary>
+    /// SampleGame の scene ファクトリの構築契約を検証する。
+    ///
+    /// <para>
+    /// 依存はすべてコンストラクタ必須引数であり、null は生成時点で弾く。
+    /// 未知の scene identity は例外ではなく null を返す。
+    /// </para>
+    /// </summary>
     [TestFixture]
     public sealed class GameSceneFactoryTests
     {
@@ -107,6 +115,14 @@ namespace OneStarMaker.Tests.SampleGame
         }
     }
 
+    /// <summary>
+    /// SampleGame の scene 間コマンド伝搬を検証する。
+    ///
+    /// <para>
+    /// 子 scene の追加・自身の unload といった遷移要求が、
+    /// scene 側から SceneDirector の正しい API に届くことを主張する。
+    /// </para>
+    /// </summary>
     [TestFixture]
     public sealed class GameSceneCommandTests
     {

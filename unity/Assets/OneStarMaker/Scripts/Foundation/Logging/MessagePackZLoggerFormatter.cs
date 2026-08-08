@@ -72,8 +72,33 @@ namespace OneStarMaker.Foundation.Logging
                 CreateEnvelope(logInfo, entry));
         }
 
+        /// <summary>
+        /// realtime MessagePack 出力に必要な provider 設定を一括で行う。
+        ///
+        /// <para>
+        /// formatter の差し替えと <c>IncludeScopes</c> は対で必要なため、
+        /// 呼び出し側が片方だけ設定して相関値を落とさないようにここへ寄せている。
+        /// <see cref="ProducerCorrelationLoggerFactory"/> でラップした factory と併せて使う。
+        /// </para>
+        /// </summary>
+        internal static void Configure(ZLoggerOptions options, string applicationName)
+        {
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            options.EnableProducerCorrelation();
+            options.UseFormatter(() => new MessagePackZLoggerFormatter(applicationName));
+        }
+
         private LogEnvelopeV1 CreateEnvelope(in LogInfo logInfo, IZLoggerEntry entry)
         {
+            // 相関値はログ呼び出しスレッドで採取済みのものを scope から受け取る。
+            // ここ（背景スレッド）で採り直すと sequence の順序と trace context が壊れる。
+            // 理由の詳細は LogProducerCorrelation を参照。
+            var correlation = LogProducerCorrelation.TryFind(logInfo.ScopeState);
+
             // ここでは sender の内部型を receiver が知らなくてもよいように、
             // 必要な値だけを素直な DTO にコピーしている。
             return new LogEnvelopeV1
@@ -91,13 +116,18 @@ namespace OneStarMaker.Foundation.Logging
                 MemberName = logInfo.MemberName,
                 FilePath = logInfo.FilePath,
                 LineNumber = logInfo.LineNumber,
-                SessionId = UnitySessionCorrelationContext.SessionId,
-                ProducerSequence = UnitySessionCorrelationContext.NextProducerSequence(),
+                // session ID は session 内で不変なので、scope が無くても format 時に読んでよい。
+                SessionId = correlation == null
+                    ? UnitySessionCorrelationContext.SessionId
+                    : correlation.SessionId,
+                // 相関 scope が無い＝ProducerCorrelationLoggerFactory を通していない配線。
+                // ここで採り直すと「起きた順」を偽ることになるので、0（未採番）を明示する。
+                ProducerSequence = correlation == null ? 0L : correlation.ProducerSequence,
                 // emit frame は「formatter が wire envelope を組み立てた時点」の frame。
                 // ZLogger queue 遅延によりログ呼び出し元 frame と一致しない場合がある。
                 UnityFrameAtEmit = UnityPlayerLoopFrameObservation.TryGetCurrentFrame(),
-                TraceId = AppTelemetry.CurrentTraceId,
-                SpanId = AppTelemetry.CurrentSpanId,
+                TraceId = correlation == null ? null : correlation.TraceId,
+                SpanId = correlation == null ? null : correlation.SpanId,
             };
         }
 

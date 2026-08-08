@@ -8,6 +8,14 @@ using OneStarMaker.Runtime.DebugSocketServices.Commands;
 
 namespace OneStarMaker.Tests.Foundation
 {
+    /// <summary>
+    /// 組み込み debug コマンドの応答 JSON 契約を検証する。
+    ///
+    /// <para>
+    /// 受信側（DebugStudio）が解釈する形なので、payload の形・null の扱い・
+    /// 文字列エスケープは実装都合で変えられない。別名とケース差も受理する。
+    /// </para>
+    /// </summary>
     [TestFixture]
     public sealed class DebugSocketBuiltInCommandHandlerTests
     {

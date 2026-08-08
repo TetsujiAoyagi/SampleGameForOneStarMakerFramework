@@ -6,6 +6,19 @@ using OneStarMaker.Foundation.UpdateSystem;
 
 namespace OneStarMaker.Tests.UpdateSystem
 {
+    /// <summary>
+    /// native state registry の handle 世代管理と lease 契約を検証する。
+    ///
+    /// <para>
+    /// slot 再利用時に generation が進み、古い handle が無効になることが安全性の核。
+    /// 実行用 snapshot は生成後に registry が変化しても不変で、
+    /// snapshot 生成後に解除された handle への書き戻しは黙って無視する。
+    /// </para>
+    ///
+    /// <para>
+    /// lease 中の mutation 拒否と、完了済み epoch の再完了を stale として弾くことも含む。
+    /// </para>
+    /// </summary>
     [TestFixture]
     public class NativeStateRegistryTests
     {

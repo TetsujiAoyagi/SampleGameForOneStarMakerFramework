@@ -12,6 +12,15 @@ using UnityEngine.TestTools;
 
 namespace OneStarMaker.Tests.AssetManagement
 {
+    /// <summary>
+    /// 常駐キャッシュを挟んだときの asset 寿命契約を検証する。
+    ///
+    /// <para>
+    /// キャッシュの有無で「backend へ release が届くタイミング」が変わるのが本質。
+    /// hit した再ロードは backend を叩き直さず、キャッシュ無効時は release が即座に貫通する。
+    /// Scene owner の解放はキャッシュへの退避であって backend release ではない。
+    /// </para>
+    /// </summary>
     [TestFixture]
     public class AssetManagementCacheTests
     {

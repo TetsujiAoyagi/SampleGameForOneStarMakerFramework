@@ -7,6 +7,14 @@ using OneStarMaker.Tests.SceneSystem.TestDoubles;
 
 namespace OneStarMaker.Tests.Foundation
 {
+    /// <summary>
+    /// span 終了時の副作用契約を検証する。
+    ///
+    /// <para>
+    /// level フィルタで record を書かない場合でも current span は必ず解除する。
+    /// ここを外すと、出力されないだけの span が以降のログすべてに誤った trace を付ける。
+    /// </para>
+    /// </summary>
     [TestFixture]
     public sealed class AppTelemetrySpanTests
     {

@@ -5,6 +5,14 @@ using OneStarMaker.Editor.Build;
 
 namespace OneStarMaker.Tests.Editor.Build
 {
+    /// <summary>
+    /// ビルド時に「配信コンテンツとして扱うか」のパス判定を検証する。
+    ///
+    /// <para>
+    /// Assets 配下の資産だけが対象で、Packages 由来とスクリプトは除外する。
+    /// 区切り文字が円記号でも同じ判定になることを含む。
+    /// </para>
+    /// </summary>
     public sealed class AssetDependencyClosureTests
     {
         [Test]

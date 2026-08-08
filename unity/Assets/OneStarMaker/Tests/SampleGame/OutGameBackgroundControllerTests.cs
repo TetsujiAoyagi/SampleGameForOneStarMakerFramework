@@ -18,6 +18,15 @@ using UnityEngine.UIElements;
 
 namespace OneStarMaker.Tests.SampleGame
 {
+    /// <summary>
+    /// OutGame 背景の surface 接続契約を検証する。
+    ///
+    /// <para>
+    /// controller は「現在の背景定義」を保持し、surface の attach 時に一度だけ適用する。
+    /// detach せずに別 surface を attach するのは二重所有なので例外。
+    /// 同一定義の再要求で描き直さないことも含む。
+    /// </para>
+    /// </summary>
     [TestFixture]
     public sealed class OutGameBackgroundControllerTests
     {

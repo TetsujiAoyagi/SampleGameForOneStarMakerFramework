@@ -5,11 +5,19 @@ using OneStarMaker.Foundation.UpdateSystem;
 
 namespace OneStarMaker.Tests.UpdateSystem
 {
+    /// <summary>
+    /// native state を job 経由で更新する backend の書き戻し契約を検証する。
+    ///
+    /// <para>
+    /// batch 実行の結果が registry の正本へ writeBack されること、
+    /// および writeBack しても dirty は明示的に clear するまで残ることを主張する。
+    /// </para>
+    /// </summary>
     [TestFixture]
     public class JobSystemUpdateProcessorBackendTests
     {
         [Test]
-        public void Test1()
+        public void ExecuteNative_batch実行結果がwriteBackされdirtyは残る()
         {
             using var registry = new NativeStateRegistry<TestState>();
             var context = new UpdateFrameContext(5, 2f, 2f, 1f, isPaused: false);
