@@ -17,7 +17,11 @@ namespace DebugStudio.App.Core.Stores;
 /// </summary>
 public sealed class TelemetrySessionAttributesStore
 {
-    internal const int MaxSessions = 32;
+    /// <summary>
+    /// TelemetryStore の default retainedCapacity（256）以上にする。
+    /// session チャーンで属性だけ先に FIFO eviction され、retained telemetry の再 map が欠測になるのを防ぐ。
+    /// </summary>
+    internal const int MaxSessions = 256;
 
     private readonly object _gate = new();
     private readonly Dictionary<string, TelemetrySessionAttributes> _bySessionId = new(StringComparer.Ordinal);

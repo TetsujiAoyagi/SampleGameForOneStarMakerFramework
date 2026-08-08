@@ -293,7 +293,7 @@ API:
 
 - **複数 session を同時に保持できること。**再接続で上書き消去してはいけない（§1.2）
 - スレッド安全にすること。受信は socket スレッド、export は UI スレッドから来る
-- 無制限に増えないよう上限を設ける（**上限 32 session、超えたら古いものから捨てる**）。DebugStudio は開発ツールなので厳密な LRU でなくてよいが、上限は必ず入れる
+- 無制限に増えないよう上限を設ける（~~**上限 32 session**~~ → **256。§10 の R5 で変更**、超えたら古いものから捨てる）。DebugStudio は開発ツールなので厳密な LRU でなくてよいが、上限は必ず入れる
 
 配線は `tools/DebugStudio/src/DebugStudio.App/Core/Services/SessionMessageRouter.cs` の既存箇所:
 
@@ -818,3 +818,67 @@ HANDOFF が明示的に対象外と書いていなかった。**仕様として�
 §6 の `record` 禁止ルールは巡目 2 で追記されたので巡目 1 は照合できなかったが、
 **`unity/Assets/OneStarMaker/Scripts` 配下に `record` 型宣言が 1 つも無いことは巡目 1 でも grep できた。**
 「既存コードベースに前例が無い構文が新規に入った」は、ルールが明文化されていなくても静的レビューで拾える。
+
+---
+
+## 10. PR #14 外部レビューからの差し戻し（2026-08-08）
+
+担い手: cursor[bot]（PR #14 のコメント）。判定は **Approve with nits / must-fix なし**。
+should-fix 3 件と nit 数件のうち、以下を取り込んだ。**指摘は Phase C（Opus 5）が実コードで裏取りしてから着手している。**
+
+### R3【should-fix / 対応済み】サービス層が sessionId で引けることを証明するテストが無い
+
+store 単体（T1〜T4）と mapper 単体（T5 / T6）はあったが、`TelemetryExportService` / `ElasticTelemetryPushService` が
+**store を正しく通しているか**を固定するテストが無かった。両テストとも空の `new TelemetrySessionAttributesStore()` を渡していた。
+
+> **指摘の核心:** mapper / builder 単体だけでは、サービスが `null` を渡す事故を検知できない。
+> これは CLAUDE.md の「テストが書けない配置は間違っている」ではなく「**書けるのに書いていない**」パターン。
+
+対応:
+
+- `TelemetryExportServiceTests.ExportAsync_recordのSessionIdで属性storeを引きsessionAだけ付与する`
+  — session-a / session-b / 属性未登録の session-unknown の **3 record を 1 回の export に混ぜ**、
+  a には a の属性、b には b の属性、unknown には `null` が付くことを assert する。**取り違えたら落ちる**
+- `ElasticTelemetryPushServiceTests.PushRetainedTelemetryAsync_recordのSessionIdで属性storeを引きsessionAだけ付与する`
+  — `_bulk` payload に a の値が出て、b の値（`2.0.0-b` / `Pixel 8` / `Android`）が **1 つも出ない**ことを assert する
+
+### R4【should-fix / 対応済み】Welcome 正方向の roundtrip が無い
+
+旧 key 0〜8 → default 化のテスト（§8 の R2）はあったが、**値を入れた field 9〜13 の serialize/deserialize** を固定していなかった。
+codegen や `[Key]` 付け替えの回帰に弱い。`CorrelationProtocolRoundtripTests` に 1 本追加。
+
+### R5【should-fix / 対応済み】`MaxSessions=32` と retained 容量 256 の非対称
+
+**Phase C が裏取りした事実:** `TelemetryStore` の `retainedCapacity` は既定 **256（レコード数）**、
+属性 store の上限は **32（セッション数）**。**単位が違う。**
+
+session が頻繁に切り替わると（domain reload 連打など）、retained telemetry にはまだ record が残っているのに
+属性だけ先に FIFO eviction される。その状態で export / push すると **再 map しても属性が付かない**。
+これは §9.2 の Welcome 前 race とは**別の欠測経路**。
+
+**対処: 文書化ではなく不変条件で潰した。`MaxSessions` を 32 → 256。**
+
+> retained record の数（`TelemetryStore` の `retainedCapacity` 既定 256）以上を保持すれば、
+> **「retained に残っている record の属性は必ず引ける」**が成り立つ。
+> 保持するのは 5 本の短い文字列なので 256 session でもメモリは無視できる。
+
+**§4 の P1-4 に書いた「上限 32」はこれで上書きされている。**
+
+### R6【nit / 対応済み】空文字ケースのテストが無い
+
+`null` 属性のテスト（T6 / T11）はあったが、**属性オブジェクトは引けるが個々の値が空文字**のケースが無かった。
+旧 Unity（field 9〜13 欠測 → `string.Empty`）や `Capture()` 前の Welcome で実際に起きる経路。
+`TelemetrySessionAttributesExportMapperTests` に 1 本追加。
+
+### 取り込まなかった指摘と理由
+
+| 指摘 | 判断 |
+|---|---|
+| **`UnitySessionAttributes` の getter が個別 lock** — `Capture()` と競合すると 1 Welcome 内で snapshot が混ざり得る | **変更しない。** 混ざり得るのは事実だが、混ざる相手は**同一プロセスの同一値**（`Application.version` 等はプロセス内で不変で、domain reload 後も同じ値を採る）。実害のある値の食い違いが起きない一方、snapshot 一括取得の API を足すと公開面が増える。**理屈上の指摘であることを認めた上で、直さない判断** |
+| **§9.2（Welcome 前 telemetry の rolling file 焼き付き）** | このスライスでは (c) 仕様受け入れ。§1.1 の表現を弱めた。恒久対処は別スライス |
+| **§5.3 の実地確認** | 未実施のまま。マージ前必須にしない判断は人間（Phase D）に委ねる |
+
+### 検証（R3〜R6 反映後）
+
+`dotnet test tools/DebugStudio/DebugStudio.sln` → **348 合格 / 失敗 0**（344 + R3 の 2 本 + R4 の 1 本 + R6 の 1 本）。
+Unity 側は R3〜R6 で 1 行も変わっていないため再実行不要（`git diff HEAD -- unity/.../DebugSocket unity/.../Runtime unity/.../Tests` が空であることを確認済み。直近の実測は exit 0 / 447 合格 / 失敗 0）。

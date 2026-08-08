@@ -48,6 +48,29 @@ public sealed class TelemetrySessionAttributesExportMapperTests
         Assert.DoesNotContain("engineVersion", ndjson, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void TelemetryExportMapper_属性はあるが値が空文字ならキー自体が出ない()
+    {
+        // 旧 Unity（field 9〜13 欠測）や Capture() 前に Welcome を送った producer では、
+        // 属性オブジェクトは引けるが中身が空文字になる。null と同じくキーごと省略する。
+        var telemetry = CreateTelemetry("sess-empty-attrs");
+        var attributes = new TelemetrySessionAttributes(
+            BuildVersion: string.Empty,
+            Platform: string.Empty,
+            DeviceModel: string.Empty,
+            OsVersion: string.Empty,
+            EngineVersion: string.Empty);
+
+        var exportRecord = TelemetryRecordExportMapper.ToExportRecord(telemetry, attributes);
+        var ndjson = NdjsonTelemetryRecordSerializer.Serialize(exportRecord);
+
+        Assert.DoesNotContain("buildVersion", ndjson, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"platform\"", ndjson, StringComparison.Ordinal);
+        Assert.DoesNotContain("deviceModel", ndjson, StringComparison.Ordinal);
+        Assert.DoesNotContain("osVersion", ndjson, StringComparison.Ordinal);
+        Assert.DoesNotContain("engineVersion", ndjson, StringComparison.Ordinal);
+    }
+
     private static DebugTelemetryEnvelopeV1 CreateTelemetry(string sessionId)
     {
         return new DebugTelemetryEnvelopeV1

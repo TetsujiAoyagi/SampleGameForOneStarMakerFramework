@@ -150,4 +150,44 @@ public sealed class CorrelationProtocolRoundtripTests
         Assert.Equal(string.Empty, current.OsVersion);
         Assert.Equal(string.Empty, current.EngineVersion);
     }
+
+    [Fact]
+    public void WelcomeEnvelope_セッション属性field付きpayloadの往復が成功する()
+    {
+        var original = new CapabilityHandshakeWelcomeEnvelopeV1
+        {
+            SessionId = "session-attrs",
+            ServerName = "Unity Player",
+            SelectedSchemaVersion = 1,
+            ServerCapabilities = DebugStudioCapability.LogStream | DebugStudioCapability.TelemetryStream,
+            NegotiatedCapabilities = DebugStudioCapability.LogStream | DebugStudioCapability.TelemetryStream,
+            SupportedMessageTypes = new[] { 1, 2, 7 },
+            TimestampUnixTimeMilliseconds = 1234567890123L,
+            StatusMessage = "welcome",
+            BuildVersion = "1.4.2",
+            Platform = "WindowsPlayer",
+            DeviceModel = "PC",
+            OsVersion = "Windows 11 (10.0.26200)",
+            EngineVersion = "6000.5.0f1",
+        };
+
+        var framed = DebugSocketProtocol.SerializeMessage(DebugSocketMessageType.CapabilityWelcome, original);
+        Assert.True(DebugSocketProtocol.TryDeserializeEnvelope(framed, out var envelope));
+        Assert.True(DebugSocketProtocol.TryDeserializePayload(envelope!, out CapabilityHandshakeWelcomeEnvelopeV1? deserialized));
+
+        Assert.NotNull(deserialized);
+        Assert.Equal(original.SessionId, deserialized!.SessionId);
+        Assert.Equal(original.ServerName, deserialized.ServerName);
+        Assert.Equal(original.SelectedSchemaVersion, deserialized.SelectedSchemaVersion);
+        Assert.Equal(original.ServerCapabilities, deserialized.ServerCapabilities);
+        Assert.Equal(original.NegotiatedCapabilities, deserialized.NegotiatedCapabilities);
+        Assert.Equal(original.SupportedMessageTypes, deserialized.SupportedMessageTypes);
+        Assert.Equal(original.TimestampUnixTimeMilliseconds, deserialized.TimestampUnixTimeMilliseconds);
+        Assert.Equal(original.StatusMessage, deserialized.StatusMessage);
+        Assert.Equal(original.BuildVersion, deserialized.BuildVersion);
+        Assert.Equal(original.Platform, deserialized.Platform);
+        Assert.Equal(original.DeviceModel, deserialized.DeviceModel);
+        Assert.Equal(original.OsVersion, deserialized.OsVersion);
+        Assert.Equal(original.EngineVersion, deserialized.EngineVersion);
+    }
 }
