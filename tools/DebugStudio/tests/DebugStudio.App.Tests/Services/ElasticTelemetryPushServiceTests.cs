@@ -108,9 +108,7 @@ public sealed class ElasticTelemetryPushServiceTests
 
         var reader = new ChangingElasticEnvironmentReader();
         Uri? clientEndpoint = null;
-        var service = new ElasticTelemetryPushService(
-            store,
-            reader,
+        var service = new ElasticTelemetryPushService(store, new TelemetrySessionAttributesStore(), reader,
             settings =>
             {
                 clientEndpoint = settings.ElasticUrl;
@@ -165,12 +163,81 @@ public sealed class ElasticTelemetryPushServiceTests
         Assert.Contains("full delivery cannot be verified", result.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task PushRetainedTelemetryAsync_recordのSessionIdで属性storeを引きsessionAだけ付与する()
+    {
+        var telemetryStore = new TelemetryStore();
+        var attributesStore = new TelemetrySessionAttributesStore();
+        attributesStore.ApplyWelcome(new CapabilityHandshakeWelcomeEnvelopeV1
+        {
+            SessionId = "session-a",
+            BuildVersion = "1.0.0-a",
+            Platform = "WindowsPlayer",
+            DeviceModel = "PC-A",
+            OsVersion = "Windows 11",
+            EngineVersion = "6000.5.0f1",
+            TimestampUnixTimeMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+        });
+        attributesStore.ApplyWelcome(new CapabilityHandshakeWelcomeEnvelopeV1
+        {
+            SessionId = "session-b",
+            BuildVersion = "2.0.0-b",
+            Platform = "Android",
+            DeviceModel = "Pixel 8",
+            OsVersion = "Android OS 14",
+            EngineVersion = "6000.1.0f1",
+            TimestampUnixTimeMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+        });
+        telemetryStore.AppendTelemetry(new DebugTelemetryEnvelopeV1
+        {
+            Name = "boot",
+            EndTimestampUtcTicks = DateTime.UtcNow.Ticks,
+            IsSuccess = true,
+            SessionId = "session-a",
+        });
+
+        byte[]? bulkPayload = null;
+        var handler = new RecordingHttpMessageHandler(async (request, cancellationToken) =>
+        {
+            if (request.Method == HttpMethod.Post)
+            {
+                bulkPayload = await request.Content!.ReadAsByteArrayAsync(cancellationToken);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"errors\":false,\"items\":[{\"create\":{\"status\":201}}]}"),
+            };
+        });
+        var service = CreateService(telemetryStore, attributesStore, handler);
+
+        var result = await service.PushRetainedTelemetryAsync();
+
+        Assert.True(result.Success);
+        Assert.NotNull(bulkPayload);
+        var payloadText = Encoding.UTF8.GetString(bulkPayload!);
+        Assert.Contains("\"buildVersion\":\"1.0.0-a\"", payloadText, StringComparison.Ordinal);
+        Assert.Contains("\"platform\":\"WindowsPlayer\"", payloadText, StringComparison.Ordinal);
+        Assert.Contains("\"deviceModel\":\"PC-A\"", payloadText, StringComparison.Ordinal);
+        Assert.Contains("\"osVersion\":\"Windows 11\"", payloadText, StringComparison.Ordinal);
+        Assert.Contains("\"engineVersion\":\"6000.5.0f1\"", payloadText, StringComparison.Ordinal);
+        Assert.DoesNotContain("2.0.0-b", payloadText, StringComparison.Ordinal);
+        Assert.DoesNotContain("Pixel 8", payloadText, StringComparison.Ordinal);
+        Assert.DoesNotContain("Android", payloadText, StringComparison.Ordinal);
+    }
+
     private static ElasticTelemetryPushService CreateService(TelemetryStore store, HttpMessageHandler handler)
     {
+        return CreateService(store, new TelemetrySessionAttributesStore(), handler);
+    }
+
+    private static ElasticTelemetryPushService CreateService(
+        TelemetryStore store,
+        TelemetrySessionAttributesStore attributesStore,
+        HttpMessageHandler handler)
+    {
         var reader = new StubElasticEnvironmentReader();
-        return new ElasticTelemetryPushService(
-            store,
-            reader,
+        return new ElasticTelemetryPushService(store, attributesStore, reader,
             _ => new ElasticTelemetryIngestClient(new HttpClient(handler), new Uri("http://localhost:9200"), null));
     }
 

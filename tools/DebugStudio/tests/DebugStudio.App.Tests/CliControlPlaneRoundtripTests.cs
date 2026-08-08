@@ -127,7 +127,8 @@ public sealed class CliControlPlaneRoundtripTests
             inspectorStore,
             telemetryStore,
             commandStore,
-            capabilityStateStore);
+            capabilityStateStore,
+            new TelemetrySessionAttributesStore());
         var capabilityCoordinator = new SessionCapabilityCoordinator(
             transport,
             capabilityHandshakeService,

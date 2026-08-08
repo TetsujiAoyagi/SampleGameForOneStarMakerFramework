@@ -38,4 +38,19 @@ public sealed partial class CapabilityHandshakeWelcomeEnvelopeV1
     [Key(8)]
     public string StatusMessage { get; set; } = string.Empty;
 
+    [Key(9)]
+    public string BuildVersion { get; set; } = string.Empty;
+
+    [Key(10)]
+    public string Platform { get; set; } = string.Empty;
+
+    [Key(11)]
+    public string DeviceModel { get; set; } = string.Empty;
+
+    [Key(12)]
+    public string OsVersion { get; set; } = string.Empty;
+
+    [Key(13)]
+    public string EngineVersion { get; set; } = string.Empty;
+
 }

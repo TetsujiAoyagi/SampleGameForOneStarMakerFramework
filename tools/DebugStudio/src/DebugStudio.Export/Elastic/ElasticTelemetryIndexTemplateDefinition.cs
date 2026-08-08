@@ -148,6 +148,11 @@ public static class ElasticTelemetryIndexTemplateDefinition
             ["producerSequence"] = new { type = "long" },
             ["unityFrameAtStart"] = new { type = "long" },
             ["unityFrameAtEnd"] = new { type = "long" },
+            ["buildVersion"] = new { type = "keyword" },
+            ["platform"] = new { type = "keyword" },
+            ["deviceModel"] = new { type = "keyword" },
+            ["osVersion"] = new { type = "keyword" },
+            ["engineVersion"] = new { type = "keyword" },
         };
 
         return new ElasticTelemetryIndexTemplateDocument(

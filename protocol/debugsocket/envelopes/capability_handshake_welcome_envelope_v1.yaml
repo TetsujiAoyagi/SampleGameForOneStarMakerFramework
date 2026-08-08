@@ -11,6 +11,11 @@ fields:
   - { id: 6, name: SupportedMessageTypes, type: array<i32>, default: [] }
   - { id: 7, name: TimestampUnixTimeMilliseconds, type: i64 }
   - { id: 8, name: StatusMessage, type: string, default: "" }
+  - { id: 9,  name: BuildVersion,  type: string, default: "" }
+  - { id: 10, name: Platform,      type: string, default: "" }
+  - { id: 11, name: DeviceModel,   type: string, default: "" }
+  - { id: 12, name: OsVersion,     type: string, default: "" }
+  - { id: 13, name: EngineVersion, type: string, default: "" }
 encodings:
   messagepack:
     key_field: id

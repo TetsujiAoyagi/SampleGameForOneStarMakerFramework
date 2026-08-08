@@ -24,6 +24,7 @@ public sealed class SessionMessageRouter
     private readonly TelemetryStore _telemetryStore;
     private readonly CommandStore _commandStore;
     private readonly CapabilityStateStore _capabilityStateStore;
+    private readonly TelemetrySessionAttributesStore _telemetrySessionAttributesStore;
 
     public SessionMessageRouter(
         LogStore logStore,
@@ -31,7 +32,8 @@ public sealed class SessionMessageRouter
         InspectorStore inspectorStore,
         TelemetryStore telemetryStore,
         CommandStore commandStore,
-        CapabilityStateStore capabilityStateStore)
+        CapabilityStateStore capabilityStateStore,
+        TelemetrySessionAttributesStore telemetrySessionAttributesStore)
     {
         _logStore = logStore ?? throw new ArgumentNullException(nameof(logStore));
         _hierarchyStore = hierarchyStore ?? throw new ArgumentNullException(nameof(hierarchyStore));
@@ -39,6 +41,8 @@ public sealed class SessionMessageRouter
         _telemetryStore = telemetryStore ?? throw new ArgumentNullException(nameof(telemetryStore));
         _commandStore = commandStore ?? throw new ArgumentNullException(nameof(commandStore));
         _capabilityStateStore = capabilityStateStore ?? throw new ArgumentNullException(nameof(capabilityStateStore));
+        _telemetrySessionAttributesStore = telemetrySessionAttributesStore
+            ?? throw new ArgumentNullException(nameof(telemetrySessionAttributesStore));
     }
 
     public event Action<LogRecord>? LogReceived;
@@ -92,6 +96,7 @@ public sealed class SessionMessageRouter
         // capability welcome だけは store mutation が単なる蓄積ではなく、
         // negotiation 結果の正本更新になる。ここで state store を更新してから外へ通知する。
         _capabilityStateStore.ApplyWelcome(welcome);
+        _telemetrySessionAttributesStore.ApplyWelcome(welcome);
         CapabilityWelcomeReceived?.Invoke(welcome);
     }
 

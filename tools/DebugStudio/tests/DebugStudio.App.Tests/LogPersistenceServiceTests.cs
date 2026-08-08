@@ -91,7 +91,8 @@ public sealed class LogPersistenceServiceTests
             inspectorStore,
             telemetryStore,
             commandStore,
-            capabilityStateStore);
+            capabilityStateStore,
+            new TelemetrySessionAttributesStore());
     }
 
     private static LogEnvelopeV1 CreateLogEnvelope(string message, string category)

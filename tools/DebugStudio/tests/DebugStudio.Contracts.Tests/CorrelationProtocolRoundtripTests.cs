@@ -104,4 +104,90 @@ public sealed class CorrelationProtocolRoundtripTests
         Assert.Null(current.TraceId);
         Assert.Null(current.SpanId);
     }
+
+    [MessagePackObject]
+    internal sealed class LegacyCapabilityHandshakeWelcomeEnvelopeV1
+    {
+        [Key(0)] public int SchemaVersion { get; set; } = 1;
+        [Key(1)] public string SessionId { get; set; } = string.Empty;
+        [Key(2)] public string ServerName { get; set; } = string.Empty;
+        [Key(3)] public int SelectedSchemaVersion { get; set; } = 1;
+        [Key(4)] public DebugStudioCapability ServerCapabilities { get; set; } = DebugStudioCapability.None;
+        [Key(5)] public DebugStudioCapability NegotiatedCapabilities { get; set; } = DebugStudioCapability.None;
+        [Key(6)] public int[] SupportedMessageTypes { get; set; } = Array.Empty<int>();
+        [Key(7)] public long TimestampUnixTimeMilliseconds { get; set; }
+        [Key(8)] public string StatusMessage { get; set; } = string.Empty;
+    }
+
+    [Fact]
+    public void WelcomeEnvelope_旧keyのみpayloadはセッション属性fieldがdefaultになる()
+    {
+        var legacyBytes = MessagePackSerializer.Serialize(new LegacyCapabilityHandshakeWelcomeEnvelopeV1
+        {
+            SessionId = "legacy-session",
+            ServerName = "Legacy Unity",
+            SelectedSchemaVersion = 1,
+            ServerCapabilities = DebugStudioCapability.LogStream,
+            NegotiatedCapabilities = DebugStudioCapability.LogStream,
+            SupportedMessageTypes = new[] { 1, 2 },
+            TimestampUnixTimeMilliseconds = 1234567890123L,
+            StatusMessage = "ok",
+        });
+
+        var current = MessagePackSerializer.Deserialize<CapabilityHandshakeWelcomeEnvelopeV1>(legacyBytes);
+
+        Assert.Equal("legacy-session", current.SessionId);
+        Assert.Equal("Legacy Unity", current.ServerName);
+        Assert.Equal(1, current.SelectedSchemaVersion);
+        Assert.Equal(DebugStudioCapability.LogStream, current.ServerCapabilities);
+        Assert.Equal(DebugStudioCapability.LogStream, current.NegotiatedCapabilities);
+        Assert.Equal(new[] { 1, 2 }, current.SupportedMessageTypes);
+        Assert.Equal(1234567890123L, current.TimestampUnixTimeMilliseconds);
+        Assert.Equal("ok", current.StatusMessage);
+        Assert.Equal(string.Empty, current.BuildVersion);
+        Assert.Equal(string.Empty, current.Platform);
+        Assert.Equal(string.Empty, current.DeviceModel);
+        Assert.Equal(string.Empty, current.OsVersion);
+        Assert.Equal(string.Empty, current.EngineVersion);
+    }
+
+    [Fact]
+    public void WelcomeEnvelope_セッション属性field付きpayloadの往復が成功する()
+    {
+        var original = new CapabilityHandshakeWelcomeEnvelopeV1
+        {
+            SessionId = "session-attrs",
+            ServerName = "Unity Player",
+            SelectedSchemaVersion = 1,
+            ServerCapabilities = DebugStudioCapability.LogStream | DebugStudioCapability.TelemetryStream,
+            NegotiatedCapabilities = DebugStudioCapability.LogStream | DebugStudioCapability.TelemetryStream,
+            SupportedMessageTypes = new[] { 1, 2, 7 },
+            TimestampUnixTimeMilliseconds = 1234567890123L,
+            StatusMessage = "welcome",
+            BuildVersion = "1.4.2",
+            Platform = "WindowsPlayer",
+            DeviceModel = "PC",
+            OsVersion = "Windows 11 (10.0.26200)",
+            EngineVersion = "6000.5.0f1",
+        };
+
+        var framed = DebugSocketProtocol.SerializeMessage(DebugSocketMessageType.CapabilityWelcome, original);
+        Assert.True(DebugSocketProtocol.TryDeserializeEnvelope(framed, out var envelope));
+        Assert.True(DebugSocketProtocol.TryDeserializePayload(envelope!, out CapabilityHandshakeWelcomeEnvelopeV1? deserialized));
+
+        Assert.NotNull(deserialized);
+        Assert.Equal(original.SessionId, deserialized!.SessionId);
+        Assert.Equal(original.ServerName, deserialized.ServerName);
+        Assert.Equal(original.SelectedSchemaVersion, deserialized.SelectedSchemaVersion);
+        Assert.Equal(original.ServerCapabilities, deserialized.ServerCapabilities);
+        Assert.Equal(original.NegotiatedCapabilities, deserialized.NegotiatedCapabilities);
+        Assert.Equal(original.SupportedMessageTypes, deserialized.SupportedMessageTypes);
+        Assert.Equal(original.TimestampUnixTimeMilliseconds, deserialized.TimestampUnixTimeMilliseconds);
+        Assert.Equal(original.StatusMessage, deserialized.StatusMessage);
+        Assert.Equal(original.BuildVersion, deserialized.BuildVersion);
+        Assert.Equal(original.Platform, deserialized.Platform);
+        Assert.Equal(original.DeviceModel, deserialized.DeviceModel);
+        Assert.Equal(original.OsVersion, deserialized.OsVersion);
+        Assert.Equal(original.EngineVersion, deserialized.EngineVersion);
+    }
 }

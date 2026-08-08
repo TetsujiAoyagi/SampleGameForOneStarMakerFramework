@@ -43,7 +43,7 @@ public sealed class TelemetryExportServiceTests
         });
 
         var writer = new RecordingTelemetryExportWriter();
-        var service = new TelemetryExportService(store, writer);
+        var service = new TelemetryExportService(store, writer, new TelemetrySessionAttributesStore());
 
         await service.ExportAsync(@"C:\exports\telemetry.ndjson");
 
@@ -76,7 +76,7 @@ public sealed class TelemetryExportServiceTests
         });
 
         var writer = new RecordingTelemetryExportWriter();
-        var service = new TelemetryExportService(store, writer);
+        var service = new TelemetryExportService(store, writer, new TelemetrySessionAttributesStore());
 
         await service.ExportAsync(@"C:\exports\telemetry.ndjson");
 
@@ -103,13 +103,89 @@ public sealed class TelemetryExportServiceTests
 
         var ndjsonWriter = new RecordingTelemetryExportWriter(TelemetryExportFormat.Ndjson);
         var bulkWriter = new RecordingTelemetryExportWriter(TelemetryExportFormat.ElasticBulk);
-        var service = new TelemetryExportService(store, new ITelemetryExportWriter[] { ndjsonWriter, bulkWriter });
+        var service = new TelemetryExportService(store, new ITelemetryExportWriter[] { ndjsonWriter, bulkWriter }, new TelemetrySessionAttributesStore());
 
         await service.ExportAsync(@"C:\exports\telemetry.bulk.ndjson", TelemetryExportFormat.ElasticBulk);
 
         Assert.Empty(ndjsonWriter.LastRecords);
         Assert.Single(bulkWriter.LastRecords);
         Assert.Equal(@"C:\exports\telemetry.bulk.ndjson", bulkWriter.LastOutputPath);
+    }
+
+    [Fact]
+    public async Task ExportAsync_recordのSessionIdで属性storeを引きsessionAだけ付与する()
+    {
+        var telemetryStore = new TelemetryStore(retainedCapacity: 8);
+        var attributesStore = new TelemetrySessionAttributesStore();
+        attributesStore.ApplyWelcome(new CapabilityHandshakeWelcomeEnvelopeV1
+        {
+            SessionId = "session-a",
+            BuildVersion = "1.0.0-a",
+            Platform = "WindowsPlayer",
+            DeviceModel = "PC-A",
+            OsVersion = "Windows 11",
+            EngineVersion = "6000.5.0f1",
+            TimestampUnixTimeMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+        });
+        attributesStore.ApplyWelcome(new CapabilityHandshakeWelcomeEnvelopeV1
+        {
+            SessionId = "session-b",
+            BuildVersion = "2.0.0-b",
+            Platform = "Android",
+            DeviceModel = "Pixel 8",
+            OsVersion = "Android OS 14",
+            EngineVersion = "6000.1.0f1",
+            TimestampUnixTimeMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+        });
+        telemetryStore.AppendTelemetry(new DebugTelemetryEnvelopeV1
+        {
+            Name = "boot",
+            EndTimestampUtcTicks = new DateTime(2026, 4, 29, 1, 0, 2, DateTimeKind.Utc).Ticks,
+            IsSuccess = true,
+            SessionId = "session-a",
+        });
+        // 2 session 分を同じ export に混ぜる。record ごとに引き分けられていないと落ちる。
+        telemetryStore.AppendTelemetry(new DebugTelemetryEnvelopeV1
+        {
+            Name = "boot",
+            EndTimestampUtcTicks = new DateTime(2026, 4, 29, 1, 0, 3, DateTimeKind.Utc).Ticks,
+            IsSuccess = true,
+            SessionId = "session-b",
+        });
+        // 属性を登録していない session も混ぜる。欠測は欠測のまま出る。
+        telemetryStore.AppendTelemetry(new DebugTelemetryEnvelopeV1
+        {
+            Name = "boot",
+            EndTimestampUtcTicks = new DateTime(2026, 4, 29, 1, 0, 4, DateTimeKind.Utc).Ticks,
+            IsSuccess = true,
+            SessionId = "session-unknown",
+        });
+
+        var writer = new RecordingTelemetryExportWriter();
+        var service = new TelemetryExportService(telemetryStore, writer, attributesStore);
+
+        await service.ExportAsync(@"C:\exports\telemetry.ndjson");
+
+        var a = Assert.Single(writer.LastRecords, record => record.SessionId == "session-a");
+        Assert.Equal("1.0.0-a", a.BuildVersion);
+        Assert.Equal("WindowsPlayer", a.Platform);
+        Assert.Equal("PC-A", a.DeviceModel);
+        Assert.Equal("Windows 11", a.OsVersion);
+        Assert.Equal("6000.5.0f1", a.EngineVersion);
+
+        var b = Assert.Single(writer.LastRecords, record => record.SessionId == "session-b");
+        Assert.Equal("2.0.0-b", b.BuildVersion);
+        Assert.Equal("Android", b.Platform);
+        Assert.Equal("Pixel 8", b.DeviceModel);
+        Assert.Equal("Android OS 14", b.OsVersion);
+        Assert.Equal("6000.1.0f1", b.EngineVersion);
+
+        var unknown = Assert.Single(writer.LastRecords, record => record.SessionId == "session-unknown");
+        Assert.Null(unknown.BuildVersion);
+        Assert.Null(unknown.Platform);
+        Assert.Null(unknown.DeviceModel);
+        Assert.Null(unknown.OsVersion);
+        Assert.Null(unknown.EngineVersion);
     }
 
     [Fact]

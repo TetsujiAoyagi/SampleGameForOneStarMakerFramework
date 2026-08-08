@@ -29,15 +29,18 @@ public sealed class ElasticTelemetryPushService
     public const int RetainedTelemetryCapacityHint = 256;
 
     private readonly TelemetryStore _telemetryStore;
+    private readonly TelemetrySessionAttributesStore _sessionAttributesStore;
     private readonly Func<ElasticTelemetrySettings, ElasticTelemetryIngestClient> _clientFactory;
     private readonly IElasticEnvironmentReader _environmentReader;
 
     public ElasticTelemetryPushService(
         TelemetryStore telemetryStore,
+        TelemetrySessionAttributesStore sessionAttributesStore,
         IElasticEnvironmentReader environmentReader,
         HttpClient httpClient)
         : this(
             telemetryStore,
+            sessionAttributesStore,
             environmentReader,
             settings => new ElasticTelemetryIngestClient(httpClient, settings.ElasticUrl, settings.ApiKeyBase64Value))
     {
@@ -45,10 +48,13 @@ public sealed class ElasticTelemetryPushService
 
     public ElasticTelemetryPushService(
         TelemetryStore telemetryStore,
+        TelemetrySessionAttributesStore sessionAttributesStore,
         IElasticEnvironmentReader environmentReader,
         Func<ElasticTelemetrySettings, ElasticTelemetryIngestClient> clientFactory)
     {
         _telemetryStore = telemetryStore ?? throw new ArgumentNullException(nameof(telemetryStore));
+        _sessionAttributesStore = sessionAttributesStore
+            ?? throw new ArgumentNullException(nameof(sessionAttributesStore));
         _environmentReader = environmentReader ?? throw new ArgumentNullException(nameof(environmentReader));
         _clientFactory = clientFactory ?? throw new ArgumentNullException(nameof(clientFactory));
     }
@@ -144,7 +150,10 @@ public sealed class ElasticTelemetryPushService
         var records = new List<TelemetryExportRecord>(telemetry.Count);
         for (var index = 0; index < telemetry.Count; index++)
         {
-            records.Add(TelemetryRecordExportMapper.ToExportRecord(telemetry[index]));
+            var envelope = telemetry[index];
+            records.Add(TelemetryRecordExportMapper.ToExportRecord(
+                envelope,
+                _sessionAttributesStore.TryGet(envelope.SessionId)));
         }
 
         records.Sort(static (left, right) => left.TimestampUnixTimeMilliseconds.CompareTo(right.TimestampUnixTimeMilliseconds));
