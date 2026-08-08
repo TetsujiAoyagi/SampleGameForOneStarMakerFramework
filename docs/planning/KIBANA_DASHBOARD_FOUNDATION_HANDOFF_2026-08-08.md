@@ -372,6 +372,25 @@ LogLevel = log.Kind switch
 
 ---
 
+### K1-1b 追補（Phase B 直前に Phase A が追加）: `.gitattributes` に `*.ndjson` の eol を固定する
+
+このリポジトリは **`core.autocrlf=true`** で、`.gitattributes` に `*.ndjson` の規則が**無い**（リポジトリ内に既存の `.ndjson` は 1 件も無く、前例も無い）。
+このまま commit すると、**checkout 時に各行末が CRLF に変換される**。埋め込みリソースはディスク上のファイルをそのまま焼き込むので、
+**行末に `\r` が付いた NDJSON が Kibana へ渡り、かつ OS によって成果物のバイト列が変わる**。
+
+`.gitattributes` の末尾（`# ETC` 以降の適当な位置でよい）に 1 行足すこと:
+
+```
+*.ndjson                text eol=lf
+```
+
+**この 1 行を、NDJSON ファイルを作る前に足すこと。** 後から足しても既に checkout 済みのファイルは変換されない。
+
+作成後に `git ls-files --eol tools/DebugStudio/elastic/kibana/debugstudio-overview.ndjson` で
+`i/lf    w/lf` になっていることを確認する。`w/crlf` なら失敗している。
+
+---
+
 ### K1-2 csproj に `EmbeddedResource` を足す
 
 **ファイル:** `tools/DebugStudio/src/DebugStudio.Export/DebugStudio.Export.csproj`
