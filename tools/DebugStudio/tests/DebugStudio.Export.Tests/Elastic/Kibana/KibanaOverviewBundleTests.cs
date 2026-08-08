@@ -33,7 +33,7 @@ public sealed class KibanaOverviewBundleTests
 
     private static readonly string[] ExpectedLogColumns =
     {
-        "log.level",
+        "logLevel",
         "category",
         "message",
         "sessionId",
@@ -106,7 +106,7 @@ public sealed class KibanaOverviewBundleTests
 
         using var searchSource = JsonDocument.Parse(searchSourceJson);
         var query = searchSource.RootElement.GetProperty("query").GetProperty("query").GetString();
-        Assert.Equal("log.level: (\"warning\" or \"error\" or \"critical\")", query);
+        Assert.Equal("logLevel: (\"warning\" or \"error\" or \"critical\")", query);
     }
 
     private static string[] ReadColumns(KibanaSavedObject search)

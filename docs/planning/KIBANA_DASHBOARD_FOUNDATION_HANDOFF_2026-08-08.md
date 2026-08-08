@@ -174,10 +174,16 @@ import 後に Kibana でこう見える、という確定仕様。
 `#4` の query（KQL）:
 
 ```
-log.level: ("warning" or "error" or "critical")
+logLevel: ("warning" or "error" or "critical")
 ```
 
-`log.level` の実際の値は `tools/DebugStudio/src/DebugStudio.App/Core/Services/LogRecordExportMapper.cs:40` で決まっており、**すべて小文字**である（原文ママ）:
+> **訂正（2026-08-09、実地確認で判明）。** Phase A は当初この欄を **`log.level`** と書いていたが、**そのフィールドは Elastic 上に存在しない。**
+> 実際のフィールド名は **`logLevel`**（フラットな camelCase）。`log.*` は Filebeat が付ける `log.file.path` / `log.offset` の名前空間であり、ログレベルとは無関係。
+> `LogRecordExportMapper` の C# プロパティ名 `LogLevel` から `log.level` と誤って起こしたのが原因。**値（小文字 3 語）のほうは正しかった。**
+> 実測: `logLevel.keyword` の分布は `info` 439 / `error` 10 / `warning` 2。`log.level` での絞り込みは **451 件中 0 件**、`logLevel` では **12 件**。
+> **この誤りは import も描画も成功したうえで「ただ 0 件になるだけ」という形で現れるため、§5.3 を実施しない限り検出できなかった。**
+
+`logLevel` の実際の値は `tools/DebugStudio/src/DebugStudio.App/Core/Services/LogRecordExportMapper.cs:40` で決まっており、**すべて小文字**である（原文ママ）:
 
 ```csharp
 LogLevel = log.Kind switch
@@ -323,10 +329,10 @@ LogLevel = log.Kind switch
   "attributes": {
     "title": "DebugStudio Log Warnings",
     "description": "warning 以上のログのみ。telemetry の異常と突き合わせる用。",
-    "columns": ["log.level", "category", "message", "sessionId"],
+    "columns": ["logLevel", "category", "message", "sessionId"],
     "sort": [["@timestamp", "desc"]],
     "kibanaSavedObjectMeta": {
-      "searchSourceJSON": "{\"query\":{\"query\":\"log.level: (\\\"warning\\\" or \\\"error\\\" or \\\"critical\\\")\",\"language\":\"kuery\"},\"filter\":[],\"indexRefName\":\"kibanaSavedObjectMeta.searchSourceJSON.index\"}"
+      "searchSourceJSON": "{\"query\":{\"query\":\"logLevel: (\\\"warning\\\" or \\\"error\\\" or \\\"critical\\\")\",\"language\":\"kuery\"},\"filter\":[],\"indexRefName\":\"kibanaSavedObjectMeta.searchSourceJSON.index\"}"
     }
   },
   "references": [
@@ -630,7 +636,7 @@ Phase 3 の行が現在こうなっている（原文ママ）:
 | **T10** | **正本 NDJSON** | **`ReadSavedObjectsNdjson()` の内容が V1〜V6 で指摘 0 件** | `KibanaOverviewBundleTests.cs` |
 | T11 | 同上 | 5 オブジェクトが出力され、id が §2 の表と一致する。**さらに 2 本の search の `columns` が §4 K1-1 と完全一致する** | 同上 |
 | **T12** | 同上 | dashboard の `panelsJSON` のパネル数が 2 で、**各パネルの `type` が `"search"`**、かつ `panelRefName` の参照先が `debugstudio-telemetry-timeline` / `debugstudio-log-warnings` である | 同上 |
-| **T12b** | 同上 | **log search の `searchSourceJSON` を JSON として parse でき、`query.query` が `log.level: ("warning" or "error" or "critical")` と完全一致する** | 同上 |
+| **T12b** | 同上 | **log search の `searchSourceJSON` を JSON として parse でき、`query.query` が `logLevel: ("warning" or "error" or "critical")` と完全一致する** | 同上 |
 | T13 | `ElasticKibanaSavedObjectsWriter` | 出力ファイルの先頭 3 バイトが BOM (`EF BB BF`) でない | `ElasticArtifactWriterTests.cs` |
 | T14 | `ElasticTelemetryIndexTemplateDefinition` | `status` が `keyword` として含まれる | `tests/.../Elastic/` |
 | **T15** | `ElasticKibanaSavedObjectsWriter` | **`WriteAsync` が書いたファイルの中身が `ReadSavedObjectsNdjson()` と完全一致する** | `ElasticArtifactWriterTests.cs` |
@@ -689,7 +695,7 @@ Elasticsearch / Kibana は **8.17.0**（`docker-compose.yml` で固定。`xpack.
 |---|---|---|
 | 1 | `DebugStudio Overview` を開く | **パネルが 2 枚描画される**（現状は 0 枚） |
 | 2 | 左のパネル | telemetry のドキュメントが行として出る。`kind` / `name` / `buildVersion` の列が見える |
-| 3 | 右のパネル | log が出る。**`log.level` が warning / error / critical のものだけ**であること |
+| 3 | 右のパネル | log が出る。**`logLevel` が warning / error / critical のものだけ**であること |
 | 4 | Discover → `debugstudio-telemetry-*` | `buildVersion` / `platform` / `deviceModel` / `osVersion` / `engineVersion` が**値付きで**入っている（前スライスの積み残しの解消） |
 | 5 | 同上 | `status` が `keyword` として集計できる（`status.keyword` を要求されない）。**新しい index でのみ確認できる**（K4-1 の注記） |
 
@@ -902,7 +908,77 @@ dotnet run --project tools/DebugStudio/src/DebugStudio.ElasticArtifactGen -- <tm
 
 **U-1 〜 U-7 は人間が §5.3 の手順および次スライスの Phase A で扱う必要がある。** 本スライスは「器と安全網」の作成としては完了しているが、**§5.3 を実施するまで「動くことが確認された」とは書けない。**
 
+> **↑ ここまでが 2026-08-09 の §5.3 実施前の記述。実施後の結果は §8.4 にある。U-1 / U-2 / U-3 / U-5 は解消、U-3 は仕様バグを 1 件検出した。U-4 は未達のまま。**
+
 このほか、レビュー 3 巡を通じて誰も見ていない領域として **`ElasticArtifactBundleWriter` 以外の呼び出し経路（WPF アプリ側の Elastic Push 経路）が saved objects に触るかどうか**を確認していない（`ElasticKibanaSavedObjectsWriter` の参照は `ElasticArtifactBundleWriter.cs:27` の 1 箇所のみと grep で確認済みなので、影響は無いと考えているが、実行して確かめてはいない）。
+
+### 8.4 §5.3 実地確認の結果（2026-08-09 実施）
+
+Elasticsearch / Kibana **8.17.0**（`tools/DebugStudio/elastic/docker-compose.yml`、`xpack.security.enabled=false`）が起動済みの環境で実施した。既存データは telemetry 1154 件 / log 451 件。
+
+**実施前の状態: `DebugStudio Overview` は Kibana に一度も import されていなかった**（saved object は手作業で作られた `index-pattern` が 1 本あるだけ）。「そのままでは Dashboard が見えない」の直接の原因はこれ。**artifact 生成 → `import-kibana.ps1` を実行しない限り、ダッシュボードは存在しない。**
+
+| # | 合格条件 | 結果 |
+|---|---|---|
+| — | **U-1** import が `errors` なしで通るか | **合格。** `success: true` / `successCount: 5` / `errors` なし / `warnings` なし。**§6 冒頭が「本スライス最大のリスク」としていた Kibana 8.17 の saved object schema 適合は解消した。**`search` 型に `isTextBasedQuery` 等の追加属性は要求されなかった |
+| 1 | **U-2** パネルが 2 枚描画されるか | **合格。** import 後の dashboard を Kibana API で取得すると `panelsJSON` は 2 要素、`type` はいずれも `search`、`panelRefName` は `panel_p1` / `panel_p2` で `references` と 1:1。`panelsJSON` の `version` 省略でも migration は誤作動しなかった |
+| 2 | 左（telemetry）パネル | **条件付き合格。** `kind` / `name` / `elapsedMs` / `payload.stage` / `sessionId` は実在し行が出る。**`buildVersion` だけは列が空**（下記 U-4） |
+| 3 | **U-3** 右（log）パネルが warning 以上だけを返すか | **不合格 → 修正して合格。仕様バグを 1 件検出した。** 下記 |
+| 4 | **U-4** セッション属性 5 フィールドが値付きで入るか | **不合格。未解消のまま。** 下記 |
+| 5 | **U-5** `status` が `keyword` として集計できるか | **確認できず（想定内）。** 既存 index に `status` フィールドが 1 件も無い。K4-1 は index template の変更なので**既存 index には効かない**（§4 K4-1 の注記どおり）。新しい index が作られるまで確認できない |
+
+#### U-3 — `log.level` は存在しないフィールドだった（本スライスで修正済み）
+
+**Phase A の §2 が確定仕様として書いた `log.level` は、Elastic 上に存在しない。** 実測:
+
+```
+log.level での絞り込み  → 451 件中 0 件
+logLevel.keyword の分布 → info 439 / error 10 / warning 2
+logLevel での絞り込み   → 12 件
+```
+
+log index の実フィールドは **`logLevel`**（フラットな camelCase）で、`log.*` は Filebeat が付ける `log.file.path` / `log.file.inode` / `log.offset` の名前空間である。`LogRecordExportMapper` の C# プロパティ名 `LogLevel` から `log.level` と誤って起こしたのが原因。**値（`warning` / `error` / `critical` の小文字 3 語）のほうは正しかった。**
+
+この誤りは **import も描画も成功したうえで「ただ 0 件になるだけ」**という形で現れる。T12b は「HANDOFF が書いた文字列と正本が一致するか」を見ていたので緑のまま通り、C レビュー 3 巡も C' 監査も「HANDOFF どおり」と判定した。**仕様そのものが間違っている場合、仕様との照合をいくら重ねても検出できない。**
+
+修正した箇所（正本 / テスト / 仕様の 3 つを揃えた）:
+
+| ファイル | 変更 |
+|---|---|
+| `elastic/kibana/debugstudio-overview.ndjson` | `columns` と `searchSourceJSON` の query を `log.level` → `logLevel` |
+| `KibanaOverviewBundleTests.cs` | T11 の期待 `columns` と T12b の期待 query 文字列 |
+| 本 HANDOFF §2 / §4 K1-1 / §5.1 T12b / §5.3 | 確定仕様側を `logLevel` へ訂正し、経緯を残した |
+
+修正後に再度 artifact 生成 → import し、Kibana から saved object を取得して確認済み:
+
+```
+query   = logLevel: ("warning" or "error" or "critical")
+columns = logLevel, category, message, sessionId
+panels  = 2 / types = search,search / refs = panel_p1,panel_p2
+```
+
+`dotnet test tools/DebugStudio/DebugStudio.sln` は修正後も **合格 367 / 失敗 0**。
+
+#### U-4 — セッション属性 5 フィールドは**入っていない**（前スライスの積み残し。本スライスの不具合ではない）
+
+§5.3 の指示どおり区別して記録する。telemetry index を `_field_caps` で見ると、**`buildVersion` / `platform` / `deviceModel` / `osVersion` / `engineVersion` はフィールドとして 1 つも存在しない**。`exists` クエリでも 1154 件中 **0 件**。`sessionId` は存在し値も入っている（最新 doc は 2026-08-08、`sessionId=ace2b4c0…`）。
+
+これは前スライス `TELEMETRY_SESSION_ATTRIBUTES_HANDOFF_2026-08-08.md` §8.3 の申し送り「Elastic を立てて実際に 5 フィールドが入ることは誰も確認していない」が**未解消であることを実測で確定させたもの**。原因が (a) Unity → DebugStudio の handshake で属性が飛んでいない (b) export mapper が落としている (c) 単に前スライス実装前のデータしか入っていない のいずれかは**特定していない**。
+
+**telemetry saved search の `columns` には `buildVersion` が入ったままにしてある。** これは §1.4 の「ビルド間比較のための器」という設計意図どおりの列であり、データ側が埋まれば自動的に見えるようになるため。**列が空に見えるのは正しい状態である。**
+
+#### 実地確認の手順（README §2 に加えて、実際に踏んだ順序）
+
+```powershell
+cd tools/DebugStudio/elastic
+docker compose up -d
+dotnet run --project tools/DebugStudio/src/DebugStudio.ElasticArtifactGen
+& "$env:LOCALAPPDATA\DebugStudio\elastic-artifacts\commands\import-telemetry.ps1" -ElasticUrl http://localhost:9200
+& "$env:LOCALAPPDATA\DebugStudio\elastic-artifacts\commands\import-kibana.ps1"   -KibanaUrl  http://localhost:5601
+# → http://localhost:5601/app/dashboards#/view/debugstudio-overview-dashboard
+```
+
+**`dotnet run` は必ず本ブランチの作業ツリーから実行すること。** 別ブランチから実行すると旧 writer（`panelsJSON = "[]"`）の artifact が `%LOCALAPPDATA%` に生成され、import しても**パネル 0 枚のまま**になる。
 
 ---
 
