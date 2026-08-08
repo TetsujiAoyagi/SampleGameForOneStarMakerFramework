@@ -155,6 +155,7 @@ Packages/packages-lock.json linguist-generated
 *.a                     lfs
 *.reason                lfs
 *.rns                   lfs
+*.ndjson                text eol=lf
 
 # Spine export file for Unity
 *.skel.bytes            lfs
