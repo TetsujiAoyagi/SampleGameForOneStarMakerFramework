@@ -174,16 +174,16 @@ import 後に Kibana でこう見える、という確定仕様。
 `#4` の query（KQL）:
 
 ```
-logLevel: ("warning" or "error" or "critical")
+log.level: ("warning" or "error" or "critical")
 ```
 
-> **訂正（2026-08-09、実地確認で判明）。** Phase A は当初この欄を **`log.level`** と書いていたが、**そのフィールドは Elastic 上に存在しない。**
-> 実際のフィールド名は **`logLevel`**（フラットな camelCase）。`log.*` は Filebeat が付ける `log.file.path` / `log.offset` の名前空間であり、ログレベルとは無関係。
-> `LogRecordExportMapper` の C# プロパティ名 `LogLevel` から `log.level` と誤って起こしたのが原因。**値（小文字 3 語）のほうは正しかった。**
-> 実測: `logLevel.keyword` の分布は `info` 439 / `error` 10 / `warning` 2。`log.level` での絞り込みは **451 件中 0 件**、`logLevel` では **12 件**。
-> **この誤りは import も描画も成功したうえで「ただ 0 件になるだけ」という形で現れるため、§5.3 を実施しない限り検出できなかった。**
+> **経緯（2026-08-09）。この欄は一度 `logLevel` に書き換えられ、外部レビューを受けて `log.level` に戻した。詳細は §8.5。**
+> 実地確認で「`log.level` は 451 件中 0 件、`logLevel` なら 12 件」と出たため、いったん `logLevel` へ直した。
+> しかしそれは **L0 rolling NDJSON → Filebeat 経路だけの現実**であり、`_bulk` 経路と log index template は `log.level` を正本にしていた（**経路が分裂していた**）。
+> `logLevel` に寄せると今度は bulk 経路が 0 件になるため、**log ingest pipeline に `rename`（`logLevel` → `log.level`、`ignore_missing`）を足して投入経路によらず `log.level` へ正規化する**方針を採った。
+> したがってこの欄の正解は **`log.level`** であり、Phase A の記述は結果的に正しかった。**ただし「なぜ正しいか」の根拠は Phase A が書いたものとは別である。**
 
-`logLevel` の実際の値は `tools/DebugStudio/src/DebugStudio.App/Core/Services/LogRecordExportMapper.cs:40` で決まっており、**すべて小文字**である（原文ママ）:
+`log.level` の実際の値は `tools/DebugStudio/src/DebugStudio.App/Core/Services/LogRecordExportMapper.cs:40` で決まっており、**すべて小文字**である（原文ママ）:
 
 ```csharp
 LogLevel = log.Kind switch
@@ -329,10 +329,10 @@ LogLevel = log.Kind switch
   "attributes": {
     "title": "DebugStudio Log Warnings",
     "description": "warning 以上のログのみ。telemetry の異常と突き合わせる用。",
-    "columns": ["logLevel", "category", "message", "sessionId"],
+    "columns": ["log.level", "category", "message", "sessionId"],
     "sort": [["@timestamp", "desc"]],
     "kibanaSavedObjectMeta": {
-      "searchSourceJSON": "{\"query\":{\"query\":\"logLevel: (\\\"warning\\\" or \\\"error\\\" or \\\"critical\\\")\",\"language\":\"kuery\"},\"filter\":[],\"indexRefName\":\"kibanaSavedObjectMeta.searchSourceJSON.index\"}"
+      "searchSourceJSON": "{\"query\":{\"query\":\"log.level: (\\\"warning\\\" or \\\"error\\\" or \\\"critical\\\")\",\"language\":\"kuery\"},\"filter\":[],\"indexRefName\":\"kibanaSavedObjectMeta.searchSourceJSON.index\"}"
     }
   },
   "references": [
@@ -636,7 +636,7 @@ Phase 3 の行が現在こうなっている（原文ママ）:
 | **T10** | **正本 NDJSON** | **`ReadSavedObjectsNdjson()` の内容が V1〜V6 で指摘 0 件** | `KibanaOverviewBundleTests.cs` |
 | T11 | 同上 | 5 オブジェクトが出力され、id が §2 の表と一致する。**さらに 2 本の search の `columns` が §4 K1-1 と完全一致する** | 同上 |
 | **T12** | 同上 | dashboard の `panelsJSON` のパネル数が 2 で、**各パネルの `type` が `"search"`**、かつ `panelRefName` の参照先が `debugstudio-telemetry-timeline` / `debugstudio-log-warnings` である | 同上 |
-| **T12b** | 同上 | **log search の `searchSourceJSON` を JSON として parse でき、`query.query` が `logLevel: ("warning" or "error" or "critical")` と完全一致する** | 同上 |
+| **T12b** | 同上 | **log search の `searchSourceJSON` を JSON として parse でき、`query.query` が `log.level: ("warning" or "error" or "critical")` と完全一致する** | 同上 |
 | T13 | `ElasticKibanaSavedObjectsWriter` | 出力ファイルの先頭 3 バイトが BOM (`EF BB BF`) でない | `ElasticArtifactWriterTests.cs` |
 | T14 | `ElasticTelemetryIndexTemplateDefinition` | `status` が `keyword` として含まれる | `tests/.../Elastic/` |
 | **T15** | `ElasticKibanaSavedObjectsWriter` | **`WriteAsync` が書いたファイルの中身が `ReadSavedObjectsNdjson()` と完全一致する** | `ElasticArtifactWriterTests.cs` |
@@ -695,7 +695,7 @@ Elasticsearch / Kibana は **8.17.0**（`docker-compose.yml` で固定。`xpack.
 |---|---|---|
 | 1 | `DebugStudio Overview` を開く | **パネルが 2 枚描画される**（現状は 0 枚） |
 | 2 | 左のパネル | telemetry のドキュメントが行として出る。`kind` / `name` / `buildVersion` の列が見える |
-| 3 | 右のパネル | log が出る。**`logLevel` が warning / error / critical のものだけ**であること |
+| 3 | 右のパネル | log が出る。**`log.level` が warning / error / critical のものだけ**であること（**ingest pipeline の `rename` を通った新しい document のみ**。§8.5） |
 | 4 | Discover → `debugstudio-telemetry-*` | `buildVersion` / `platform` / `deviceModel` / `osVersion` / `engineVersion` が**値付きで**入っている（前スライスの積み残しの解消） |
 | 5 | 同上 | `status` が `keyword` として集計できる（`status.keyword` を要求されない）。**新しい index でのみ確認できる**（K4-1 の注記） |
 
@@ -979,6 +979,89 @@ dotnet run --project tools/DebugStudio/src/DebugStudio.ElasticArtifactGen
 ```
 
 **`dotnet run` は必ず本ブランチの作業ツリーから実行すること。** 別ブランチから実行すると旧 writer（`panelsJSON = "[]"`）の artifact が `%LOCALAPPDATA%` に生成され、import しても**パネル 0 枚のまま**になる。
+
+### 8.5 PR 外部レビュー（`cursor[bot]`）の反映 — log フィールドの経路分裂
+
+§8.4 の修正（`log.level` → `logLevel`）を含む PR #15 に対し、外部レビューが**重大 1 件**を返した。**内容を実コードに当てて確認した結果、指摘は正しく、§8.4 の修正は片手落ちだった。**
+
+#### 確認した事実（すべて実ファイルで裏付け済み）
+
+| 経路 | 実フィールド | 根拠 |
+|---|---|---|
+| L0 rolling NDJSON → Filebeat | **`logLevel`**（flat） | `NdjsonLogRecordSerializer` が `LogExportRecord.LogLevel` を camelCase で出す。`RollingLogFileWriterTests.cs:164` が `logLevel` を断言 |
+| Elastic `_bulk`（WPF の ElasticBulk export → `import-telemetry.ps1`） | **`log.level`**（nested） | `ElasticBulkLogExportWriter.cs:115` が `["log"] = { level = log.LogLevel, logger = ... }` |
+| log index template | **`log.level` のみ**（`logLevel` の mapping 無し） | `ElasticLogIndexTemplateWriter.cs:61` |
+| log ingest pipeline | **正規化なし** | `ElasticLogIngestPipelineWriter.cs` は `stream` と `observer.name` を `set` するだけだった |
+
+**両経路とも投入先は `debugstudio-log-*` である。** つまり同じ index に 2 つの shape が混在しうるのに、それを揃える場所がどこにも無かった。
+
+§8.4 の修正は **Filebeat 経路を直して bulk 経路を 0 件にした**だけで、修正前は逆だった。**どちらの状態も正しくない。**
+§8.4 に書いた「`log.*` は Filebeat が付ける名前空間」も**不正確**だった。DebugStudio 自身の bulk writer が `log.level` を書いている。
+
+#### 採った方針（人間の設計判断）
+
+**log ingest pipeline に `rename` processor を足し、投入経路によらず `log.level` へ正規化する。**
+
+```csharp
+new { rename = new { field = "logLevel", target_field = "log.level", ignore_missing = true } }
+```
+
+そのうえで Kibana の `columns` / query は `log.level` に戻した。理由:
+
+- **ingest pipeline は shape を揃える正しい層である。** index template が `default_pipeline = "debugstudio-log"` を固定しているため、**Filebeat 経路も bulk 経路も必ずここを通る**（`ElasticLogIndexTemplateWriter.cs:95`）
+- bulk writer と index template は既に `log.level` / `log.logger` / `service.name` / `event.id` と ECS 寄せで書かれている。`logLevel` に寄せるとこれを部分的に壊す
+- 変更は 1 processor で済み、`ElasticBulkLogExportWriter` にも `LogExportRecord` にも触らない
+- `ignore_missing: true` により、`logLevel` を持たない bulk document は素通りする
+
+#### 実 Elastic での検証（`_ingest/pipeline/_simulate`。非破壊）
+
+```
+doc1（Filebeat 経路）: {"logLevel":"warning","log":{"file":{"path":"..."},"offset":0}}
+  → {"log":{"file":{"path":"..."},"offset":0,"level":"warning"},"stream":"log","observer":{"name":"DebugStudio"}}
+     logLevel は消え、log.file.* を保ったまま log.level が生えている
+
+doc2（bulk 経路）:     {"log":{"level":"error","logger":"X"}}
+  → {"log":{"level":"error","logger":"X"},"stream":"log","observer":{"name":"DebugStudio"}}
+     logLevel が無くても失敗せず、log.level は無傷
+```
+
+**両経路が `log.level` に収束することを実測で確認した。**
+
+#### 追加した再発防止テスト（この穴を塞ぐ唯一の手段）
+
+`SavedSearchのcolumnsは対応するIndexTemplateにmappingされている`（`KibanaOverviewBundleTests`）。
+saved search の `columns` が、対応する index template の `mappings.properties` を再帰的に辿って得た**フィールドパス集合の部分集合**であることを検算する。
+
+**これが無かったために、実在しないフィールド `log.level` を参照した saved search が C レビュー 3 巡と C' 監査を通過した。**
+V1〜V6 は正本 NDJSON の内部構造しか見ないので、**「参照先が Elastic 側に実在するか」はこのテストでしか捕まえられない。**
+
+空振りでないことを実測で確認済み: `columns` を `logLevel` に戻すと
+
+```
+saved search 'debugstudio-log-warnings' の columns に index template へ mapping されていないフィールドがある: logLevel
+```
+
+で赤になる。
+
+> **限界（K3 への申し送り）:** このテストが見るのは `columns` だけで、**`searchSourceJSON` の query 内のフィールド参照は見ていない**。
+> query だけを実在しないフィールドに書き換えても緑のまま通る。V6 の query 走査と同じ仕組みで拡張できるはずだが、本スライスでは足していない。
+
+#### 残る未検証（U-8）
+
+| # | 事項 | 内容 |
+|---|---|---|
+| **U-8** | **既存 document は `rename` を通らない** | ingest pipeline は**新規投入時にしか走らない**。実地確認時点で `debugstudio-log-*` にある 451 件は flat な `logLevel` を持ったままなので、**log パネルは新しいデータが入るまで 0 件のままである**。移行するなら `POST debugstudio-log-*/_update_by_query?pipeline=debugstudio-log` が要るが、既存データの書き換えになるため実行していない |
+
+#### 外部レビューの軽微指摘（すべて K3 送り。人間の判断）
+
+| # | 指摘 | 判定 |
+|---|---|---|
+| 1 | V4 は `panelRefName` を持たないパネルを見逃す（`panelsJSON` に要素があり `references` が空なら V3/V4 とも緑） | **妥当。** 「各 panel は非空 `panelRefName` を持つ」を K3 で足す |
+| 2 | V5 は `references[].type` と実オブジェクトの `type` の一致を見ない | **妥当。** id 存在のみ。誤 type でも緑 |
+| 3 | deprecated 8 語が `HashSet` と `Regex` で二重管理されている | **妥当。** 片方だけ更新すると columns/sort と query で判定が食い違う。U-7 / A3 と同系 |
+| 4 | 縮小した旧テストが「5 行」しか見ておらず、弱いテストだと分かりにくい | **妥当。** §3.3 の指示どおりの縮小だが、コメントを足すか正本バイト一致へ寄せる余地がある |
+
+いずれも V ルールの追加・拡張であり **§1 の確定方針に属する設計判断**なので、U-6 / U-7 と揃えて K3 の Phase A で判断する。
 
 ---
 

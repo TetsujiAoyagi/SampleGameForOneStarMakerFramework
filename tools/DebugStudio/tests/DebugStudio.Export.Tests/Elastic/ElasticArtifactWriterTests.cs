@@ -128,10 +128,46 @@ public sealed class ElasticArtifactWriterTests
             var root = document.RootElement;
             var processors = root.GetProperty("processors");
 
-            Assert.True(processors.GetArrayLength() >= 2);
+            Assert.True(processors.GetArrayLength() >= 3);
             Assert.Equal("debugstudio log ingest pipeline", root.GetProperty("description").GetString());
-            Assert.Equal("log", processors[0].GetProperty("set").GetProperty("value").GetString());
-            Assert.Equal("stream", processors[0].GetProperty("set").GetProperty("field").GetString());
+
+            // stream 固定は processor の並び順に依存させず、存在で見る。
+            Assert.Contains(
+                processors.EnumerateArray(),
+                p => p.TryGetProperty("set", out var s)
+                    && s.GetProperty("field").GetString() == "stream"
+                    && s.GetProperty("value").GetString() == "log");
+        }
+        finally
+        {
+            if (File.Exists(outputPath))
+            {
+                File.Delete(outputPath);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LogIngestPipelineはlogLevelをlogLevelネストへrenameする()
+    {
+        var outputPath = Path.Combine(Path.GetTempPath(), $"debugstudio-log-ingest-pipeline-rename-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            await new ElasticLogIngestPipelineWriter().WriteAsync(outputPath);
+
+            using var document = JsonDocument.Parse(await File.ReadAllTextAsync(outputPath));
+            var processors = document.RootElement.GetProperty("processors");
+
+            var rename = Assert.Single(
+                processors.EnumerateArray().Where(p => p.TryGetProperty("rename", out _)))
+                .GetProperty("rename");
+
+            // L0/Filebeat 経路の flat な logLevel を、bulk 経路と index template が正本にしている
+            // log.level へ揃える。bulk document には logLevel が無いので ignore_missing が必須。
+            Assert.Equal("logLevel", rename.GetProperty("field").GetString());
+            Assert.Equal("log.level", rename.GetProperty("target_field").GetString());
+            Assert.True(rename.GetProperty("ignore_missing").GetBoolean());
         }
         finally
         {

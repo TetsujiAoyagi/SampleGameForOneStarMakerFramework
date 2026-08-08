@@ -37,6 +37,21 @@ public sealed class ElasticLogIngestPipelineWriter
             description = "debugstudio log ingest pipeline",
             processors = new object[]
             {
+                // L0 rolling NDJSON は log level を flat な `logLevel` で出し、Filebeat はそれを
+                // event root にそのまま復元する。一方 ElasticBulkLogExportWriter と本 index template は
+                // ECS 寄せの `log.level` を正本にしている。同じ debugstudio-log-* に 2 つの shape が
+                // 混ざると Kibana の saved search がどちらか片方しか拾えないため、
+                // 投入経路によらず必ず通る default_pipeline のここで `log.level` へ正規化する。
+                // bulk 経路の document には `logLevel` が無いので ignore_missing で素通りさせる。
+                new
+                {
+                    rename = new
+                    {
+                        field = "logLevel",
+                        target_field = "log.level",
+                        ignore_missing = true,
+                    }
+                },
                 new
                 {
                     set = new
