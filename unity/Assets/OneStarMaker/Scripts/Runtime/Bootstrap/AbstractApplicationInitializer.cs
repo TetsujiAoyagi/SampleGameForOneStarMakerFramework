@@ -122,6 +122,8 @@ namespace OneStarMaker.Runtime
                 // domain reload / player restart の切替点で session / sequence を切り替え、
                 // 旧 session の Log / Telemetry に新 ID を混ぜない。
                 UnitySessionCorrelationContext.ResetForNewPlayerSession();
+                // Application / SystemInfo はメインスレッド専用。Welcome 組み立て前に焼き込む。
+                UnitySessionAttributes.Capture();
                 instance.ReleaseAll();
             }
             catch (Exception ex)

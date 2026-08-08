@@ -5,7 +5,6 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using OneStarMaker.Foundation.DebugSocket;
 using OneStarMaker.Runtime.DebugSocketServices.Protocol;
-using UnityEngine;
 
 namespace OneStarMaker.Runtime.DebugSocketServices
 {
@@ -49,13 +48,20 @@ namespace OneStarMaker.Runtime.DebugSocketServices
                 new CapabilityHandshakeWelcomeEnvelopeV1
                 {
                     SessionId = sessionId,
-                    ServerName = string.IsNullOrWhiteSpace(Application.productName) ? "Unity Player" : Application.productName,
+                    ServerName = string.IsNullOrWhiteSpace(UnitySessionAttributes.ProductName)
+                        ? "Unity Player"
+                        : UnitySessionAttributes.ProductName,
                     SelectedSchemaVersion = selectedSchemaVersion,
                     ServerCapabilities = runtimeAvailableCapabilities,
                     NegotiatedCapabilities = negotiatedCapabilities,
                     SupportedMessageTypes = SupportedMessageTypes,
                     TimestampUnixTimeMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                     StatusMessage = statusMessage,
+                    BuildVersion = UnitySessionAttributes.BuildVersion,
+                    Platform = UnitySessionAttributes.Platform,
+                    DeviceModel = UnitySessionAttributes.DeviceModel,
+                    OsVersion = UnitySessionAttributes.OsVersion,
+                    EngineVersion = UnitySessionAttributes.UnityVersion,
                 });
         }
 

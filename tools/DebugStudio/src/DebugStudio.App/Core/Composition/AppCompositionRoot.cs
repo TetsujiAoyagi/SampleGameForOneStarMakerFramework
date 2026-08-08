@@ -34,7 +34,9 @@ public sealed class AppCompositionRoot
             ShellLayoutPersistenceService.CreateDefaultLayoutFilePath());
         var shellLayoutSerializerService = new ShellLayoutSerializerService();
         var logPersistenceService = TryCreateLogPersistenceService(composition.MessageRouter);
-        var telemetryPersistenceService = TryCreateTelemetryPersistenceService(composition.MessageRouter);
+        var telemetryPersistenceService = TryCreateTelemetryPersistenceService(
+            composition.MessageRouter,
+            composition.TelemetrySessionAttributesStore);
         IAsyncDisposable appLifetime = viewModel;
 
         var cliControlService = new DebugStudioCliControlService(composition.SessionService, composition.CommandService);
@@ -109,17 +111,20 @@ public sealed class AppCompositionRoot
                 new CsvLogExportWriter(),
                 new ElasticBulkLogExportWriter(),
             });
+        var telemetrySessionAttributesStore = new TelemetrySessionAttributesStore();
         var telemetryExportService = new TelemetryExportService(
             telemetryStore,
             new ITelemetryExportWriter[]
             {
                 new NdjsonTelemetryExportWriter(),
                 new ElasticBulkTelemetryExportWriter(),
-            });
+            },
+            telemetrySessionAttributesStore);
         var elasticHttpClient = new HttpClient();
         var elasticHttpClientLifetime = new HttpClientAsyncDisposable(elasticHttpClient);
         var elasticTelemetryPushService = new ElasticTelemetryPushService(
             telemetryStore,
+            telemetrySessionAttributesStore,
             new ProcessElasticEnvironmentReader(),
             elasticHttpClient);
         var hierarchyExportService = new HierarchyExportService(
@@ -148,7 +153,8 @@ public sealed class AppCompositionRoot
             inspectorStore,
             telemetryStore,
             commandStore,
-            capabilityStateStore);
+            capabilityStateStore,
+            telemetrySessionAttributesStore);
         var capabilityCoordinator = new SessionCapabilityCoordinator(
             session,
             capabilityHandshakeService,
@@ -200,7 +206,8 @@ public sealed class AppCompositionRoot
                 elasticHttpClientLifetime),
             sessionService,
             commandService,
-            messageRouter);
+            messageRouter,
+            telemetrySessionAttributesStore);
     }
 
     private static LogPersistenceService? TryCreateLogPersistenceService(SessionMessageRouter messageRouter)
@@ -220,14 +227,16 @@ public sealed class AppCompositionRoot
         }
     }
 
-    private static TelemetryPersistenceService? TryCreateTelemetryPersistenceService(SessionMessageRouter messageRouter)
+    private static TelemetryPersistenceService? TryCreateTelemetryPersistenceService(
+        SessionMessageRouter messageRouter,
+        TelemetrySessionAttributesStore sessionAttributesStore)
     {
         try
         {
             var pathPolicy = new TelemetryPersistencePathPolicy();
             Directory.CreateDirectory(pathPolicy.Directory);
             var writer = new RollingTelemetryFileWriter(pathPolicy.Directory);
-            return new TelemetryPersistenceService(messageRouter, writer);
+            return new TelemetryPersistenceService(messageRouter, writer, sessionAttributesStore);
         }
         catch (Exception ex)
         {
@@ -269,5 +278,6 @@ public sealed class AppCompositionRoot
         MainWindowViewModel ViewModel,
         SessionService SessionService,
         CommandService CommandService,
-        SessionMessageRouter MessageRouter);
+        SessionMessageRouter MessageRouter,
+        TelemetrySessionAttributesStore TelemetrySessionAttributesStore);
 }

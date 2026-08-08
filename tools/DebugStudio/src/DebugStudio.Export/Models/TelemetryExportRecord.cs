@@ -93,4 +93,19 @@ public sealed class TelemetryExportRecord
 
     /// <summary>span 終了 frame。未観測は null。</summary>
     public int? UnityFrameAtEnd { get; init; }
+
+    /// <summary>producer のビルドバージョン。未知 session では null（キー省略）。</summary>
+    public string? BuildVersion { get; init; }
+
+    /// <summary>producer の実行プラットフォーム。未知 session では null（キー省略）。</summary>
+    public string? Platform { get; init; }
+
+    /// <summary>端末モデル。未知 session では null（キー省略）。</summary>
+    public string? DeviceModel { get; init; }
+
+    /// <summary>OS バージョン。未知 session では null（キー省略）。</summary>
+    public string? OsVersion { get; init; }
+
+    /// <summary>producer の engine/runtime バージョン。未知 session では null（キー省略）。</summary>
+    public string? EngineVersion { get; init; }
 }

@@ -27,8 +27,11 @@ public static class TelemetryRecordExportMapper
     /// <summary>
     /// telemetry envelope を Elastic-ready な export record へ変換する。
     /// UTC ticks → Unix milliseconds、tag bit → tag names の既存変換を維持する。
+    /// <paramref name="sessionAttributes"/> は record.SessionId で引いた属性。未知なら null。
     /// </summary>
-    public static TelemetryExportRecord ToExportRecord(DebugTelemetryEnvelopeV1 telemetry)
+    public static TelemetryExportRecord ToExportRecord(
+        DebugTelemetryEnvelopeV1 telemetry,
+        TelemetrySessionAttributes? sessionAttributes = null)
     {
         ArgumentNullException.ThrowIfNull(telemetry);
 
@@ -90,10 +93,18 @@ public static class TelemetryRecordExportMapper
             ProducerSequence = telemetry.ProducerSequence > 0 ? telemetry.ProducerSequence : null,
             UnityFrameAtStart = telemetry.UnityFrameAtStart,
             UnityFrameAtEnd = telemetry.UnityFrameAtEnd,
+            BuildVersion = NullIfEmpty(sessionAttributes?.BuildVersion),
+            Platform = NullIfEmpty(sessionAttributes?.Platform),
+            DeviceModel = NullIfEmpty(sessionAttributes?.DeviceModel),
+            OsVersion = NullIfEmpty(sessionAttributes?.OsVersion),
+            EngineVersion = NullIfEmpty(sessionAttributes?.EngineVersion),
         };
     }
 
     private static int? NullIfSentinel(int value) => value < 0 ? null : value;
+
+    private static string? NullIfEmpty(string? value) =>
+        string.IsNullOrEmpty(value) ? null : value;
 
     private static TelemetryExportPayload? MapPayload(DebugTelemetryPayloadV1? payload)
     {

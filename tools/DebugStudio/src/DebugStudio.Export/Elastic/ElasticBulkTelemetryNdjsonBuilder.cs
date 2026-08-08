@@ -70,7 +70,7 @@ public static class ElasticBulkTelemetryNdjsonBuilder
 
         // 匿名型の `@timestamp` は C# ではプロパティ名 `timestamp` になる。
         // Kibana Data View / ECS は `@timestamp` を前提にするため、Dictionary で明示する。
-        return new Dictionary<string, object?>
+        var payload = new Dictionary<string, object?>
         {
             ["@timestamp"] = record.TimestampUtc,
             ["timestampUnixTimeMilliseconds"] = record.TimestampUnixTimeMilliseconds,
@@ -129,6 +129,22 @@ public static class ElasticBulkTelemetryNdjsonBuilder
                 name = document.Service.Name,
             }
         };
+
+        // Dictionary の null 値は WhenWritingNull でもキーが残るため、欠測はエントリ自体を入れない。
+        AddIfPresent(payload, "buildVersion", record.BuildVersion);
+        AddIfPresent(payload, "platform", record.Platform);
+        AddIfPresent(payload, "deviceModel", record.DeviceModel);
+        AddIfPresent(payload, "osVersion", record.OsVersion);
+        AddIfPresent(payload, "engineVersion", record.EngineVersion);
+        return payload;
+    }
+
+    private static void AddIfPresent(Dictionary<string, object?> payload, string key, string? value)
+    {
+        if (!string.IsNullOrEmpty(value))
+        {
+            payload[key] = value;
+        }
     }
 
     /// <summary>

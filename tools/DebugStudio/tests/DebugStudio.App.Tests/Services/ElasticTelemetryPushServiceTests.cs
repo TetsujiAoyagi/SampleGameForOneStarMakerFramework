@@ -108,9 +108,7 @@ public sealed class ElasticTelemetryPushServiceTests
 
         var reader = new ChangingElasticEnvironmentReader();
         Uri? clientEndpoint = null;
-        var service = new ElasticTelemetryPushService(
-            store,
-            reader,
+        var service = new ElasticTelemetryPushService(store, new TelemetrySessionAttributesStore(), reader,
             settings =>
             {
                 clientEndpoint = settings.ElasticUrl;
@@ -168,9 +166,7 @@ public sealed class ElasticTelemetryPushServiceTests
     private static ElasticTelemetryPushService CreateService(TelemetryStore store, HttpMessageHandler handler)
     {
         var reader = new StubElasticEnvironmentReader();
-        return new ElasticTelemetryPushService(
-            store,
-            reader,
+        return new ElasticTelemetryPushService(store, new TelemetrySessionAttributesStore(), reader,
             _ => new ElasticTelemetryIngestClient(new HttpClient(handler), new Uri("http://localhost:9200"), null));
     }
 

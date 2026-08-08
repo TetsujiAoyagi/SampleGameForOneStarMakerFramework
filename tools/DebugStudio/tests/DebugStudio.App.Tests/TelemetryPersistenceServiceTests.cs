@@ -29,7 +29,8 @@ public sealed class TelemetryPersistenceServiceTests
         {
             await using var persistence = new TelemetryPersistenceService(
                 messageRouter,
-                new RollingTelemetryFileWriter(directory, maxFileSizeBytes: 4096));
+                new RollingTelemetryFileWriter(directory, maxFileSizeBytes: 4096),
+                new TelemetrySessionAttributesStore());
 
             messageRouter.RouteTelemetryMessage(CreateTelemetryEnvelope("persisted-from-router"));
 
@@ -60,7 +61,7 @@ public sealed class TelemetryPersistenceServiceTests
         try
         {
             var writer = new RollingTelemetryFileWriter(directory, maxFileSizeBytes: 4096);
-            var persistence = new TelemetryPersistenceService(messageRouter, writer);
+            var persistence = new TelemetryPersistenceService(messageRouter, writer, new TelemetrySessionAttributesStore());
 
             for (var index = 0; index < recordCount; index++)
             {
@@ -89,7 +90,8 @@ public sealed class TelemetryPersistenceServiceTests
         {
             await using var persistence = new TelemetryPersistenceService(
                 messageRouter,
-                new RollingTelemetryFileWriter(directory, maxFileSizeBytes: 4096));
+                new RollingTelemetryFileWriter(directory, maxFileSizeBytes: 4096),
+                new TelemetrySessionAttributesStore());
 
             messageRouter.RouteTelemetryMessage(new DebugTelemetryEnvelopeV1
             {
@@ -142,7 +144,8 @@ public sealed class TelemetryPersistenceServiceTests
             inspectorStore,
             telemetryStore,
             commandStore,
-            capabilityStateStore);
+            capabilityStateStore,
+            new TelemetrySessionAttributesStore());
     }
 
     private static DebugTelemetryEnvelopeV1 CreateTelemetryEnvelope(string name)

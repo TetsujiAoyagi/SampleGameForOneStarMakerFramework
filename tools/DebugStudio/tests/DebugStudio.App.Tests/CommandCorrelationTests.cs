@@ -246,7 +246,8 @@ public sealed class CommandCorrelationTests
             inspectorStore,
             telemetryStore,
             commandStore,
-            capabilityStateStore);
+            capabilityStateStore,
+            new TelemetrySessionAttributesStore());
         var capabilityCoordinator = new SessionCapabilityCoordinator(
             transport,
             capabilityHandshakeService,

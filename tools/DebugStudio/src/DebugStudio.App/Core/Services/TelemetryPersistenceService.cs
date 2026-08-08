@@ -2,6 +2,7 @@
 
 using System;
 using System.Threading.Tasks;
+using DebugStudio.App.Core.Stores;
 using DebugStudio.Contracts.Protocol;
 using DebugStudio.Export.Writers;
 
@@ -21,11 +22,17 @@ public sealed class TelemetryPersistenceService : IAsyncDisposable
 {
     private readonly SessionMessageRouter _messageRouter;
     private readonly RollingTelemetryFileWriter _writer;
+    private readonly TelemetrySessionAttributesStore _sessionAttributesStore;
 
-    public TelemetryPersistenceService(SessionMessageRouter messageRouter, RollingTelemetryFileWriter writer)
+    public TelemetryPersistenceService(
+        SessionMessageRouter messageRouter,
+        RollingTelemetryFileWriter writer,
+        TelemetrySessionAttributesStore sessionAttributesStore)
     {
         _messageRouter = messageRouter ?? throw new ArgumentNullException(nameof(messageRouter));
         _writer = writer ?? throw new ArgumentNullException(nameof(writer));
+        _sessionAttributesStore = sessionAttributesStore
+            ?? throw new ArgumentNullException(nameof(sessionAttributesStore));
         _messageRouter.TelemetryReceived += OnTelemetryReceived;
     }
 
@@ -34,7 +41,9 @@ public sealed class TelemetryPersistenceService : IAsyncDisposable
     /// </summary>
     private void OnTelemetryReceived(DebugTelemetryEnvelopeV1 telemetry)
     {
-        _writer.Enqueue(TelemetryRecordExportMapper.ToExportRecord(telemetry));
+        _writer.Enqueue(TelemetryRecordExportMapper.ToExportRecord(
+            telemetry,
+            _sessionAttributesStore.TryGet(telemetry.SessionId)));
     }
 
     /// <summary>

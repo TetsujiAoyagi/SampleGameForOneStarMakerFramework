@@ -43,7 +43,7 @@ public sealed class TelemetryExportServiceTests
         });
 
         var writer = new RecordingTelemetryExportWriter();
-        var service = new TelemetryExportService(store, writer);
+        var service = new TelemetryExportService(store, writer, new TelemetrySessionAttributesStore());
 
         await service.ExportAsync(@"C:\exports\telemetry.ndjson");
 
@@ -76,7 +76,7 @@ public sealed class TelemetryExportServiceTests
         });
 
         var writer = new RecordingTelemetryExportWriter();
-        var service = new TelemetryExportService(store, writer);
+        var service = new TelemetryExportService(store, writer, new TelemetrySessionAttributesStore());
 
         await service.ExportAsync(@"C:\exports\telemetry.ndjson");
 
@@ -103,7 +103,7 @@ public sealed class TelemetryExportServiceTests
 
         var ndjsonWriter = new RecordingTelemetryExportWriter(TelemetryExportFormat.Ndjson);
         var bulkWriter = new RecordingTelemetryExportWriter(TelemetryExportFormat.ElasticBulk);
-        var service = new TelemetryExportService(store, new ITelemetryExportWriter[] { ndjsonWriter, bulkWriter });
+        var service = new TelemetryExportService(store, new ITelemetryExportWriter[] { ndjsonWriter, bulkWriter }, new TelemetrySessionAttributesStore());
 
         await service.ExportAsync(@"C:\exports\telemetry.bulk.ndjson", TelemetryExportFormat.ElasticBulk);
 

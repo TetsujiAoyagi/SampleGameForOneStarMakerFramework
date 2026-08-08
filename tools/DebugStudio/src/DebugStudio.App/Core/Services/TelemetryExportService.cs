@@ -25,16 +25,25 @@ namespace DebugStudio.App.Core.Services;
 public sealed class TelemetryExportService
 {
     private readonly TelemetryStore _telemetryStore;
+    private readonly TelemetrySessionAttributesStore _sessionAttributesStore;
     private readonly IReadOnlyDictionary<TelemetryExportFormat, ITelemetryExportWriter> _writers;
 
-    public TelemetryExportService(TelemetryStore telemetryStore, ITelemetryExportWriter writer)
-        : this(telemetryStore, [writer])
+    public TelemetryExportService(
+        TelemetryStore telemetryStore,
+        ITelemetryExportWriter writer,
+        TelemetrySessionAttributesStore sessionAttributesStore)
+        : this(telemetryStore, [writer], sessionAttributesStore)
     {
     }
 
-    public TelemetryExportService(TelemetryStore telemetryStore, IEnumerable<ITelemetryExportWriter> writers)
+    public TelemetryExportService(
+        TelemetryStore telemetryStore,
+        IEnumerable<ITelemetryExportWriter> writers,
+        TelemetrySessionAttributesStore sessionAttributesStore)
     {
         _telemetryStore = telemetryStore ?? throw new ArgumentNullException(nameof(telemetryStore));
+        _sessionAttributesStore = sessionAttributesStore
+            ?? throw new ArgumentNullException(nameof(sessionAttributesStore));
 
         ArgumentNullException.ThrowIfNull(writers);
         _writers = writers.ToDictionary(static writer => writer.Format);
@@ -58,7 +67,10 @@ public sealed class TelemetryExportService
         var records = new List<TelemetryExportRecord>(telemetry.Count + serviceStatuses.Count);
         for (var index = 0; index < telemetry.Count; index++)
         {
-            records.Add(TelemetryRecordExportMapper.ToExportRecord(telemetry[index]));
+            var envelope = telemetry[index];
+            records.Add(TelemetryRecordExportMapper.ToExportRecord(
+                envelope,
+                _sessionAttributesStore.TryGet(envelope.SessionId)));
         }
 
         for (var index = 0; index < serviceStatuses.Count; index++)

@@ -98,7 +98,7 @@ public sealed class TelemetryWindowViewModelTests
         var capabilityHandshakeService = new CapabilityHandshakeService();
         var capabilityStateStore = new CapabilityStateStore(capabilityHandshakeService.LocalSupportedCapabilities);
         var writer = new RecordingTelemetryExportWriter();
-        var exportService = new TelemetryExportService(telemetryStore, writer);
+        var exportService = new TelemetryExportService(telemetryStore, writer, new TelemetrySessionAttributesStore());
         var viewModel = new TelemetryWindowViewModel(
             dispatcher,
             telemetryStore,
@@ -128,7 +128,7 @@ public sealed class TelemetryWindowViewModelTests
         var capabilityStateStore = new CapabilityStateStore(capabilityHandshakeService.LocalSupportedCapabilities);
         var ndjsonWriter = new RecordingTelemetryExportWriter(TelemetryExportFormat.Ndjson);
         var bulkWriter = new RecordingTelemetryExportWriter(TelemetryExportFormat.ElasticBulk);
-        var exportService = new TelemetryExportService(telemetryStore, new ITelemetryExportWriter[] { ndjsonWriter, bulkWriter });
+        var exportService = new TelemetryExportService(telemetryStore, new ITelemetryExportWriter[] { ndjsonWriter, bulkWriter }, new TelemetrySessionAttributesStore());
         var viewModel = new TelemetryWindowViewModel(
             dispatcher,
             telemetryStore,
@@ -226,9 +226,7 @@ public sealed class TelemetryWindowViewModelTests
         var telemetryStore = new TelemetryStore();
         telemetryStore.AppendTelemetry(CreateTelemetry("boot", 10));
         var capabilityStateStore = new CapabilityStateStore(new CapabilityHandshakeService().LocalSupportedCapabilities);
-        var pushService = new ElasticTelemetryPushService(
-            telemetryStore,
-            new StubElasticEnvironmentReader(),
+        var pushService = new ElasticTelemetryPushService(telemetryStore, new TelemetrySessionAttributesStore(), new StubElasticEnvironmentReader(),
             _ => throw new InvalidOperationException("unexpected"));
         var viewModel = new TelemetryWindowViewModel(
             dispatcher,
@@ -274,9 +272,7 @@ public sealed class TelemetryWindowViewModelTests
         TelemetryStore telemetryStore,
         HttpMessageHandler handler)
     {
-        return new ElasticTelemetryPushService(
-            telemetryStore,
-            new StubElasticEnvironmentReader(),
+        return new ElasticTelemetryPushService(telemetryStore, new TelemetrySessionAttributesStore(), new StubElasticEnvironmentReader(),
             _ => new ElasticTelemetryIngestClient(new HttpClient(handler), new Uri("http://localhost:9200"), "configured-but-hidden"));
     }
 
