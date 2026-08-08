@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DebugStudio.Export.Elastic;
+namespace DebugStudio.Export.Elastic.Kibana;
 
 /// <summary>
 /// Kibana import 用の saved objects bundle を出力する。

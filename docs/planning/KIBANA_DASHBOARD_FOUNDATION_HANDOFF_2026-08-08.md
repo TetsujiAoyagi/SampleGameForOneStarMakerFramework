@@ -257,6 +257,10 @@ LogLevel = log.Kind switch
 | 構造の検算 | **新規 `Elastic/Kibana/KibanaSavedObjectBundleValidator.cs`** | parser と分ける。parser は「読めるか」、validator は「意味が通るか」。混ぜると V1〜V6 を個別にテストできない |
 | Kibana 関連の置き場 | **新規サブフォルダ `Elastic/Kibana/`** | `Elastic/` は既に 22 ファイルある。Kibana saved object は Elasticsearch の template / pipeline とは別の関心事なので、サブフォルダで分ける |
 
+> **この基準の適用が不完全だった（§8.6 で是正）。** Phase B は新規 6 ファイルだけを `Elastic/Kibana/` に置き、
+> **既存の `ElasticKibanaSavedObjectsWriter` / `ElasticKibanaImportCommandWriter` を `Elastic/` 直下に残した。**
+> その結果フォルダの意味が「Kibana か否か」ではなく「このスライスの新規ファイルか否か」になっていた。**マージ前に writer 2 本を `Elastic/Kibana/` へ移した。**
+
 **本スライスが 500 行 / 3 責務を超えさせるファイルは無い。** 最大は validator の 160 行（1 責務）。
 
 ---
@@ -893,7 +897,7 @@ dotnet run --project tools/DebugStudio/src/DebugStudio.ElasticArtifactGen -- <tm
 |---|---|---|
 | U-1 | **Kibana 8.17 が この 5 オブジェクトを `errors` なしで import するか** | §6 冒頭が最大リスクと明記したまま。`search` 型に 8.17 が要求する属性（`isTextBasedQuery` 等）が足りているかは、実際に POST しないと分からない。**V1〜V6 は「Kibana が受け取れる形か」を一切見ていない**（見ているのは自前で定めた構造規則だけ） |
 | U-2 | **`DebugStudio Overview` を開いてパネルが 2 枚描画されるか** | `panelsJSON` の `version` 省略時の 8.17 の挙動（§4 K1-1 の確定事項）は未確認 |
-| U-3 | **log パネルが実際に warning / error / critical だけを返すか** | KQL の文字列一致は T12b で確認したが、`log.level` というフィールド名が Elastic 上に実在するかは確認していない。**フィールド名が違えば import も描画も成功して 0 件になるだけ** |
+| U-3 | **log パネルが実際に warning / error / critical だけを返すか** | KQL の文字列一致は T12b で確認したが、`log.level` というフィールド名が Elastic 上に実在するかは確認していない。**フィールド名が違えば import も描画も成功して 0 件になるだけ**（**このリスクは現実だった。§8.4 で検出し、§8.5 で最終的な対処をした**） |
 | U-4 | **`buildVersion` / `platform` / `deviceModel` / `osVersion` / `engineVersion` が値付きで入るか**（§5.3 合格条件 4） | **前スライスの積み残しで、本スライスでも解消していない。**telemetry saved search の `columns` はこの 2 つを前提に組んである |
 | U-5 | **`status` が新 index で `keyword` として集計できるか**（§5.3 合格条件 5） | K4-1 は template 定義に 1 行足しただけ。既存 index には効かない |
 
@@ -927,9 +931,12 @@ Elasticsearch / Kibana **8.17.0**（`tools/DebugStudio/elastic/docker-compose.ym
 | 4 | **U-4** セッション属性 5 フィールドが値付きで入るか | **不合格。未解消のまま。** 下記 |
 | 5 | **U-5** `status` が `keyword` として集計できるか | **確認できず（想定内）。** 既存 index に `status` フィールドが 1 件も無い。K4-1 は index template の変更なので**既存 index には効かない**（§4 K4-1 の注記どおり）。新しい index が作られるまで確認できない |
 
-#### U-3 — `log.level` は存在しないフィールドだった（本スライスで修正済み）
+#### U-3 — log パネルが 0 件だった（**この節の対処は §8.5 で差し替えた**）
 
-**Phase A の §2 が確定仕様として書いた `log.level` は、Elastic 上に存在しない。** 実測:
+> **この節の結論は §8.5 で覆っている。最終的な正解は `log.level` であり、下記の「`logLevel` へ直した」は取り消された。**
+> ここに残してあるのは**そのとき何を観測し何をしたか**の記録であって、最終状態ではない。
+
+**Phase A の §2 が確定仕様として書いた `log.level` で絞り込むと 0 件になった。** 実測:
 
 ```
 log.level での絞り込み  → 451 件中 0 件
@@ -937,19 +944,25 @@ logLevel.keyword の分布 → info 439 / error 10 / warning 2
 logLevel での絞り込み   → 12 件
 ```
 
-log index の実フィールドは **`logLevel`**（フラットな camelCase）で、`log.*` は Filebeat が付ける `log.file.path` / `log.file.inode` / `log.offset` の名前空間である。`LogRecordExportMapper` の C# プロパティ名 `LogLevel` から `log.level` と誤って起こしたのが原因。**値（`warning` / `error` / `critical` の小文字 3 語）のほうは正しかった。**
+> **この観測の限界（§8.5 で判明）:** これは **L0 rolling NDJSON → Filebeat 経路で入った document だけ**を見たものである。
+> Elastic `_bulk` 経路で入る document は `log.level`（nested）を持つのに、**そちらを見ていなかった。**
 
-この誤りは **import も描画も成功したうえで「ただ 0 件になるだけ」**という形で現れる。T12b は「HANDOFF が書いた文字列と正本が一致するか」を見ていたので緑のまま通り、C レビュー 3 巡も C' 監査も「HANDOFF どおり」と判定した。**仕様そのものが間違っている場合、仕様との照合をいくら重ねても検出できない。**
+このとき「log index の実フィールドは `logLevel` であり、`log.*` は Filebeat が付ける `log.file.path` / `log.offset` の名前空間である」と結論した。
 
-修正した箇所（正本 / テスト / 仕様の 3 つを揃えた）:
+> **この結論は誤りである（§8.5 で訂正）。** `log.level` は DebugStudio 自身の `ElasticBulkLogExportWriter` が書いている。
+> `log.*` は Filebeat 専用の名前空間ではない。**経路ごとに shape が分裂していた**というのが正しい理解で、経路表は §8.5 にある。
 
-| ファイル | 変更 |
-|---|---|
-| `elastic/kibana/debugstudio-overview.ndjson` | `columns` と `searchSourceJSON` の query を `log.level` → `logLevel` |
-| `KibanaOverviewBundleTests.cs` | T11 の期待 `columns` と T12b の期待 query 文字列 |
-| 本 HANDOFF §2 / §4 K1-1 / §5.1 T12b / §5.3 | 確定仕様側を `logLevel` へ訂正し、経緯を残した |
+この誤りは **import も描画も成功したうえで「ただ 0 件になるだけ」**という形で現れる。T12b は「HANDOFF が書いた文字列と正本が一致するか」を見ていたので緑のまま通り、C レビュー 3 巡も C' 監査も「HANDOFF どおり」と判定した。**仕様そのものが間違っている場合、仕様との照合をいくら重ねても検出できない。この教訓自体は §8.5 を経ても変わらない。**
 
-修正後に再度 artifact 生成 → import し、Kibana から saved object を取得して確認済み:
+このとき行った変更（**いずれも §8.5 で差し戻した**）:
+
+| ファイル | 変更 | 現状 |
+|---|---|---|
+| `elastic/kibana/debugstudio-overview.ndjson` | `columns` と `searchSourceJSON` の query を `log.level` → `logLevel` | **差し戻し済み。`log.level`** |
+| `KibanaOverviewBundleTests.cs` | T11 の期待 `columns` と T12b の期待 query 文字列 | **差し戻し済み** |
+| 本 HANDOFF §2 / §4 K1-1 / §5.1 T12b / §5.3 | 確定仕様側を `logLevel` へ訂正 | **差し戻し済み。`log.level` が正** |
+
+このときの検証ログ（**この時点の状態。最終状態は §8.5 を見ること**）:
 
 ```
 query   = logLevel: ("warning" or "error" or "critical")
@@ -957,7 +970,7 @@ columns = logLevel, category, message, sessionId
 panels  = 2 / types = search,search / refs = panel_p1,panel_p2
 ```
 
-`dotnet test tools/DebugStudio/DebugStudio.sln` は修正後も **合格 367 / 失敗 0**。
+`dotnet test tools/DebugStudio/DebugStudio.sln` はこの時点で **合格 367 / 失敗 0**。
 
 #### U-4 — セッション属性 5 フィールドは**入っていない**（前スライスの積み残し。本スライスの不具合ではない）
 
@@ -1062,6 +1075,58 @@ saved search 'debugstudio-log-warnings' の columns に index template へ mappi
 | 4 | 縮小した旧テストが「5 行」しか見ておらず、弱いテストだと分かりにくい | **妥当。** §3.3 の指示どおりの縮小だが、コメントを足すか正本バイト一致へ寄せる余地がある |
 
 いずれも V ルールの追加・拡張であり **§1 の確定方針に属する設計判断**なので、U-6 / U-7 と揃えて K3 の Phase A で判断する。
+
+### 8.6 マージ前の配置見直し
+
+§8.5 まで終えた時点で **PR の diff を配置の観点で読み直した。** 以下はこのスライス自身が作った荒れで、マージ前に是正した。**コードの振る舞いは 1 行も変えていない**（テスト件数 369 / 失敗 0 のまま）。
+
+#### 是正 1 — Kibana 関連 writer 2 本を `Elastic/Kibana/` へ移した
+
+§3.5 は「Kibana saved object は template / pipeline とは別の関心事なのでサブフォルダで分ける」と決めたのに、Phase B は**新規 6 ファイルだけ**を `Elastic/Kibana/` に置き、既存の 2 本を `Elastic/` 直下に残した。
+
+| 移動前 | 移動後 |
+|---|---|
+| `Elastic/ElasticKibanaSavedObjectsWriter.cs` | `Elastic/Kibana/ElasticKibanaSavedObjectsWriter.cs` |
+| `Elastic/ElasticKibanaImportCommandWriter.cs` | `Elastic/Kibana/ElasticKibanaImportCommandWriter.cs` |
+
+**放置すると `Kibana/` の意味が「Kibana か否か」ではなく「このスライスの新規ファイルか否か」になる。** K3 は確実にここを触る（V ルール追加 / Lens 対応 / `_export` した NDJSON への差し替え）ので、その前に基準と実際の配置を一致させた。
+
+namespace を `DebugStudio.Export.Elastic.Kibana` へ変更し、`ElasticArtifactBundleWriter` とテスト側に `using` を足しただけ。**型名は変えていない**（`ElasticKibanaSavedObjectsWriter` のまま）。HANDOFF 本文・T15 / T16 の説明がそのまま使えるため。
+
+`ResourceName`（`"DebugStudio.Export.Elastic.Kibana.debugstudio-overview.ndjson"`）は csproj の `LogicalName` で明示固定しているので**namespace 変更の影響を受けない**。csproj は触っていない。移動後に namespace と一致して読みやすくなった。
+
+#### 是正 2 — index template 突き合わせテストを別ファイルへ切り出した
+
+§8.5 で追加した `SavedSearchのcolumnsは対応するIndexTemplateにmappingされている` を、**既存の `KibanaOverviewBundleTests` に足したのが誤りだった。**
+
+あのクラスの責務は「正本 NDJSON が V1〜V6 と確定仕様を満たす」で、**IO を持たず埋め込みリソースだけを見る**（クラスの doc コメントにもそう書いてある）。そこへ足した結果:
+
+- ファイル IO が入った（log の index template を temp に書いて読み直す）
+- `CollectMappedFieldPaths` / `MappingProperties` という **Elasticsearch index template 側の関心事**が紛れ込んだ
+- 115 行見積のファイルが **206 行**になった
+
+**`CLAUDE.md` A-3（新責務を既存ファイルへ黙って割り当てない）に抵触している。** Phase C では同じ理由で Grok に差し戻していたのに、Opus 5 が自分で同じことをした。マージ前に自分で差し戻す。
+
+`tests/.../Elastic/Kibana/KibanaSavedObjectFieldMappingTests.cs` を新設して移設（ロジックは 1 行も変えていない）。`KibanaOverviewBundleTests` は **119 行**に戻り、`File` / `Path` / `Task` / index template 型への参照が消えて、doc コメントの「埋め込みリソースだけを見る」が再び事実になった。
+
+`CollectMappedFieldPaths` は**テストクラスの private に留めた。** K3 で query 側へ拡張するとき再利用したくなるが、消費者のいない public API を production に先に生やすのは `docs/planning/UNUSED_API_INVENTORY_2026-08-03.md` の方針に反する。必要になった時点で K3 が昇格させる。
+
+#### 是正 3 — 潰れたテスト名を直した
+
+`LogIngestPipelineはlogLevelをlogLevelネストへrenameする` — C# のメソッド名に `.` が使えないため `log.level` が `logLevel` に潰れ、**「logLevel を logLevel へ rename する」と読めていた。**
+→ `LogIngestPipelineはフラットなlogLevelをlogのlevelへrenameする`
+
+#### 今回やらなかった配置の問題（別 PR / K3 Phase A 送り）
+
+**S-1 が最重要。** これは既存の負債であって本スライスが作ったものではないが、**§8.5 の経路分裂を誰も見つけられなかった構造的原因**である。
+
+| # | 内容 |
+|---|---|
+| **S-1** | **log の shape を決める 4 ファイルが `Writers/` と `Elastic/` に散っている。** `Writers/NdjsonLogRecordSerializer.cs` が `logLevel`（flat）を書き、`Writers/ElasticBulkLogExportWriter.cs` が `log.level`（nested）を書き、`Elastic/ElasticLogIndexTemplateWriter.cs` が mapping を、`Elastic/ElasticLogIngestPipelineWriter.cs` が正規化を持つ。**`ElasticBulk*` という名前でありながら `Elastic/` の外にいる。** 「Kibana の query を直そう」と思った人は `Elastic/` を見て `Writers/` を見ない。実際 C レビュー 3 巡も C' 監査も `Writers/` を見ず、外部 PR レビューだけが気づいた |
+| **S-2** | `Elastic/` 直下 20 ファイルに 6 関心事が混在（artifact 骨格 3 / command writer 3 / template・pipeline 6 / ingest ポリシー 5 / HTTP client 1（396 行）/ document 組み立て 3 / Filebeat config 1）。`Kibana/` だけサブフォルダがあり、「サブフォルダを持つ関心事」と「持たない関心事」が混在していて基準が一貫していない |
+| **S-3** | `ElasticArtifactWriterTests.cs` が 380 行 / 13 テスト / 7 種類の対象。`ElasticLogIndexTemplateWriterTests.cs` が別ファイルで存在するのに log pipeline のテストはこちら、という不整合もある |
+
+S-1 は `Writers/` の Elastic 系を移すと App 側の `using` も動くため PR が大きくなる。**本スライスの「器と安全網」スコープを越えるので別 PR にする。**
 
 ---
 

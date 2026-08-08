@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using System.Text.Json;
 using DebugStudio.Export.Elastic;
+using DebugStudio.Export.Elastic.Kibana;
 
 namespace DebugStudio.Export.Tests.Elastic;
 
@@ -148,7 +149,7 @@ public sealed class ElasticArtifactWriterTests
     }
 
     [Fact]
-    public async Task LogIngestPipelineはlogLevelをlogLevelネストへrenameする()
+    public async Task LogIngestPipelineはフラットなlogLevelをlogのlevelへrenameする()
     {
         var outputPath = Path.Combine(Path.GetTempPath(), $"debugstudio-log-ingest-pipeline-rename-{Guid.NewGuid():N}.json");
 
