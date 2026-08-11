@@ -702,7 +702,67 @@ Filebeat が読む L0 rolling 経路で「Welcome 後の同一 `sessionId` な�
 
 ## 7. Phase C レビュー
 
-（Phase C が記入する。`git diff --stat` の構造レビュー → 機能レビュー → **確認していないこと**の順）
+### 7.0 体制と収束（2026-08-11）
+
+| Phase | 担い手 | 結果 |
+|---|---|---|
+| B 実装 | cursor-agent `cursor-grok-4.5-high`（3 ジョブ + 差し戻し 2 ジョブ） | K3-0 / K3-1 / K3-2 |
+| C レビュー | cursor-agent `claude-opus-4-8-thinking-high`（`--plan --trust`、3 巡） | 1 巡目 APPROVE + R1/R2 → 2 巡目 APPROVE + R3/R4 → **3 巡目 APPROVE / 指摘なしで収束** |
+| C 最終チェック | Claude Code (Opus 5) | 本節 §7.1〜§7.4 |
+
+**本スライスの実施範囲は K3-0 / K3-1 / K3-2 のみ。** K3-3 / K3-4 / K3-5 は未着手（理由は §7.4）。
+
+### 7.1 構造レビュー
+
+`git diff develop..HEAD --stat`（HANDOFF を除く）:
+
+```
+DeprecatedFieldCatalog.cs              |  36 ++（新規）
+KibanaSavedObjectBundleValidator.cs    | 181 +++---（318 → 321 行）
+TelemetryPersistenceServiceTests.cs    |  93 ++
+IndexTemplateFieldMappingHelper.cs     | 306 ++（新規・テスト側）
+KibanaSavedObjectBundleValidatorTests  | 113 ++（171 → 263 行）
+KibanaSavedObjectFieldMappingTests     | 275 ++（107 → 239 行）
+```
+
+- **50% 以上増えたファイルは production に無い。** `KibanaSavedObjectBundleValidator.cs` は 318 → **321 行**で §3.3 の 380 行制限内。V6〜V10 の追加分は `DeprecatedFieldCatalog` 抽出による削減と相殺されている。§3.3 の「`Validate` が 400 行を超えたら分割」は発火せず、分割不要は妥当
+- **増えたのはテスト側**（`IndexTemplateFieldMappingHelper` 306 行 + テスト 2 本で +388 行）。責務は「mapping パス収集」「data view 振り分け」「lens/kuery のフィールド抽出」の 3 つで、いずれも純関数として単体で呼べる形になっている。**テストが書けないロジックは無い**
+- **§3.5 P-5 は守られている。** `CollectMappedFieldPaths` は `internal static` のテスト側ヘルパのままで production に昇格していない
+- **V7 と V4 は別ルールとして分離**（`ValidateV3V4AndV7` 内で `RuleId` が分かれ、V7 は `continue` して V4 の 1:1 判定に流さない）。どちらで落ちたか区別できる
+- **`DeprecatedFieldCatalog` の Regex は語リストから生成**（`string.Join("|", Fields.Select(Regex.Escape))`）。二重管理は解消。lookbehind `(?<![.\w])` により `payload.cameraTotalViewCount` は誤検出しない
+
+### 7.2 実測した数字（**自分で実行した**）
+
+```
+dotnet test tools/DebugStudio/DebugStudio.sln
+→ 失敗: 0、合格: 394
+   (Contracts 37 / Export 107 / Server 10 / Cli 7 / App 233)
+```
+
+**ベースライン 369 → 394（+25）。減少なし。** §6 の自己申告 394 と一致する。
+
+**Phase C レビュー（Opus 4.8）は 3 巡とも `dotnet test` を実行していない**（`--plan` がシェルを拒否するため）。3 巡分のレビューは全て「HANDOFF の申告値を前提とした」判定であり、**数字を実測したのはこの最終チェックが初めて**である。
+
+### 7.3 最終チェックで新たに出た指摘
+
+| # | 重大度 | 内容 |
+|---|---|---|
+| **F1** | **中（Phase A = HANDOFF の失点）** | **§4 K3-1 の「`Elastic/Kibana/` の 6 ファイルには `System.IO` / `File.` / `GetManifestResourceStream` が 1 つも無い（C' 監査が裏付け済み）」は事実誤り。** 実際には `ElasticKibanaSavedObjectsWriter.cs`（`GetManifestResourceStream` / `File.WriteAllTextAsync`）と `ElasticKibanaImportCommandWriter.cs`（`File.WriteAllTextAsync`）が IO を持つ。**守るべき不変条件は「検算経路（parser / validator / catalog / model）に IO を持ち込まない」**であり、それは今回も守られている。**問題は、Opus 4.8 が 1 巡目で「`Elastic/Kibana/` 配下は IO 無し」を*良い点*として追認したこと** — 仕様の文言をそのまま検証結果として書いた。§0.5 が警告した「仕様との照合をいくら重ねても仕様の誤りは検出できない」が、この HANDOFF 自身で再発した。**次スライスで §4 K3-1 の文言を訂正すること** |
+| **F2** | 低〜中（本スライスが作った潜在穴） | `IndexTemplateFieldMappingHelper.StripDoubleQuotedSegments` は kuery のダブルクォート区間を空白に置換してから field を拾う。**KQL はフィールド名自体の引用（`"log.level": warn`）を許すため、引用符付きフィールド名は照合対象から静かに落ちる。** 現正本の kuery は `log.level: ("warning" or ...)` で値だけが引用されているため無害だが、**「検算が静かに消える」型の穴**で、本スライスが塞ごうとしたものと同型。doc の限界列挙にもこの項目が無い。修正案: 引用符区間を除去する前に `"field":` 形を先に拾う、または最低限 doc の限界に明記する |
+| **F3** | 低（K3-4 への申し送り） | `TryResolveMappedFieldPaths` は index-pattern 参照が **複数あると赤**にする。**K3-4 で annotation layer / reference line を持つ Lens は複数 data view を参照しうる**ため、正当なパネルが赤になる可能性がある。現在 lens 0 個なので無害。K3-4 着手時に実 `_export` で確認すること |
+| **F4** | 低 | 既存テスト名 `正本NDJSONはV1からV6で指摘0件である` が**古い**。中身は `KibanaSavedObjectBundleValidator.Validate` を丸ごと呼ぶため、**実際には V1〜V10 を正本に対して強制している**（§5.1 T8 は実質達成）。名前だけ V6 で止まっており、読み手が「V7〜V10 は正本にかかっていない」と誤解する。改名するだけ |
+
+**§5.1 の T9（正本のダッシュボードは 2 枚あり、各パネルが `references` と 1:1）は未実装。** 正本は現在 dashboard 1 枚 / lens 0 個 / 5 オブジェクトで、2 枚目は K3-4 の成果物であるため**本スライスでは原理的に書けない**。K3-4 と同時に入れること。
+
+### 7.4 確認していないこと（**ここが本スライスの限界**）
+
+- **Elastic / Kibana の実測は一切していない。** この環境では Docker が停止しており、`docker compose up -d` を回していない。したがって:
+  - **U-1（`_field_caps` に 5 フィールドが現れる）は未達成。K3-0 は gate の完了条件を満たしていない**
+  - U-2 / U-3 / U-4 / U-5 / U-6 も全て未実施
+- **K3-0 の原因判定 (c) は状況証拠にとどまる。** 根拠は「このマシンの `%LOCALAPPDATA%\DebugStudio\telemetry\` の最新 rolling NDJSON（mtime 2026-08-08 18:35）に 5 キーが 0 件で、session attributes を入れた PR #14 の merge が同日 23:33」というもの。**Elastic 上で新規 run を流して 5 フィールドが出ることは確認していない。** 「コードは繋がっているから入るはず」で完了扱いにしていない点は §6.1 に明記されている
+- **Unity 側のコードは 1 行も変更していない**（`git diff` に `unity/` 配下が 1 件も無い）。したがって `record` 型の混入や `?.` / `??` による偽 null チェックのリスクは本スライスでは発生していない。`pwsh tools/run-tests.ps1` も不要（§5.2 の条件どおり）
+- **K3-3 / K3-4 / K3-5 は未着手。** K3-3 は実 Elastic での実行が完了条件、K3-4 は Kibana UI 操作が必要（§4 の担い手欄が「要 Kibana UI」）、K3-5 は K3-4 の成果物に依存する。**環境が無いまま「クエリは書いたが未検証」を commit すると、§1.3 が禁止した「クエリが通らないうちにパネルを作らない」の逆をやることになるため、着手しない判断をした**
+- **正本 NDJSON は 1 byte も変更していない。** パネルは 1 枚も増えていない。**本スライスの成果は「中身を入れる前の安全網」までであり、§0 が掲げた Q1 / Q2 にはまだ 1 つも答えられない**
 
 ---
 
