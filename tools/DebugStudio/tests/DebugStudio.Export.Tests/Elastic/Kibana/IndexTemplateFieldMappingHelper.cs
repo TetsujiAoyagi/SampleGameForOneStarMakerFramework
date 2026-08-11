@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using DebugStudio.Export.Elastic.Kibana;
@@ -12,6 +13,9 @@ namespace DebugStudio.Export.Tests.Elastic.Kibana;
 /// </summary>
 internal static class IndexTemplateFieldMappingHelper
 {
+    public const string TelemetryDataViewId = "debugstudio-telemetry-dataview";
+    public const string LogDataViewId = "debugstudio-log-dataview";
+
     /// <summary>
     /// kuery 文字列から <c>field.path:</c> 形の参照を緩く拾う。
     /// 完全な KQL パーサではない（引用符内・関数引数・スクリプト等は見ない）。
@@ -23,6 +27,66 @@ internal static class IndexTemplateFieldMappingHelper
     public static JsonElement MappingProperties(JsonElement templateRoot)
     {
         return templateRoot.GetProperty("template").GetProperty("mappings").GetProperty("properties");
+    }
+
+    /// <summary>
+    /// saved object の <c>references</c> にある index-pattern id から、照合する mapping 集合を選ぶ。
+    /// <list type="bullet">
+    /// <item><description><c>debugstudio-telemetry-dataview</c> → telemetry template</description></item>
+    /// <item><description><c>debugstudio-log-dataview</c> → log template</description></item>
+    /// </list>
+    /// どちらでもない / index-pattern 参照が無い / 複数の異なる data view を指す場合は
+    /// <c>false</c>（呼び出し側は赤にする）。黙って通すと log 側フィールドを telemetry mapping と
+    /// 照合して検算が嘘になるため、不明は失敗とする。
+    /// </summary>
+    public static bool TryResolveMappedFieldPaths(
+        KibanaSavedObject obj,
+        HashSet<string> telemetryMapped,
+        HashSet<string> logMapped,
+        out HashSet<string>? mapped,
+        out string failureReason)
+    {
+        mapped = null;
+        failureReason = string.Empty;
+
+        var dataViewIds = obj.References
+            .Where(r => string.Equals(r.Type, "index-pattern", StringComparison.Ordinal))
+            .Select(r => r.Id)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        if (dataViewIds.Length == 0)
+        {
+            failureReason =
+                $"{obj.Type} '{obj.Id}' に index-pattern 参照が無いため、照合先 mapping を選べない。";
+            return false;
+        }
+
+        if (dataViewIds.Length > 1)
+        {
+            failureReason =
+                $"{obj.Type} '{obj.Id}' が複数の index-pattern を参照している"
+                + $" ({string.Join(", ", dataViewIds)})。照合先を一意に決められない。";
+            return false;
+        }
+
+        var dataViewId = dataViewIds[0];
+        if (string.Equals(dataViewId, TelemetryDataViewId, StringComparison.Ordinal))
+        {
+            mapped = telemetryMapped;
+            return true;
+        }
+
+        if (string.Equals(dataViewId, LogDataViewId, StringComparison.Ordinal))
+        {
+            mapped = logMapped;
+            return true;
+        }
+
+        failureReason =
+            $"{obj.Type} '{obj.Id}' の index-pattern 参照 '{dataViewId}' は既知の data view ではない"
+            + $"（{TelemetryDataViewId} / {LogDataViewId}）。";
+        return false;
     }
 
     /// <summary>
@@ -60,7 +124,6 @@ internal static class IndexTemplateFieldMappingHelper
     /// <list type="bullet">
     /// <item><description>キー名が異なる参照（例: <c>fields</c> 配列、<c>accessor</c>、<c>textField</c>）</description></item>
     /// <item><description>ES|QL / 数式文字列の中に埋め込まれたフィールド名</description></item>
-    /// <item><description>参照先 data view との対応付け（呼び出し側が mapping 集合を渡す）</description></item>
     /// <item><description>Kibana バージョン固有の state スキーマの妥当性そのもの</description></item>
     /// </list>
     /// したがって「これで lens の全フィールド参照を見ている」とは言えない。

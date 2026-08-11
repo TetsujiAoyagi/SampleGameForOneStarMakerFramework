@@ -104,6 +104,19 @@ public sealed class KibanaSavedObjectBundleValidatorTests
         Assert.Contains(issues, i => i.RuleId == "V10");
     }
 
+    [Fact]
+    public void searchのsortが無いとV10で落ちる()
+    {
+        var ndjson =
+            """
+            {"id":"s1","type":"search","attributes":{"title":"s","columns":[],"kibanaSavedObjectMeta":{"searchSourceJSON":"{\"query\":{\"query\":\"\",\"language\":\"kuery\"}}"}},"references":[]}
+            """;
+
+        var issues = Validate(ndjson);
+
+        Assert.Contains(issues, i => i.RuleId == "V10" && i.Message.Contains("sort が無い", StringComparison.Ordinal));
+    }
+
     [Theory]
     [InlineData("cpuTime")]
     [InlineData("gpuTime")]

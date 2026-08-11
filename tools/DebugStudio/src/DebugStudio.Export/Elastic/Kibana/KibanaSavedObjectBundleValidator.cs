@@ -212,8 +212,12 @@ public static class KibanaSavedObjectBundleValidator
                     "attributes.kibanaSavedObjectMeta.searchSourceJSON が文字列として存在しない。"));
             }
 
-            if (!obj.Attributes.TryGetProperty("sort", out var sortProp)
-                || sortProp.ValueKind != JsonValueKind.Array)
+            // V10: sort は必須かつ配列。欠如も赤（文字列に戻ると V6 の sort 走査が消える穴を塞ぐ）。
+            if (!obj.Attributes.TryGetProperty("sort", out var sortProp))
+            {
+                issues.Add(CreateIssue("V10", obj, "attributes.sort が無い。"));
+            }
+            else if (sortProp.ValueKind != JsonValueKind.Array)
             {
                 issues.Add(CreateIssue("V10", obj, "attributes.sort が配列ではない。"));
             }

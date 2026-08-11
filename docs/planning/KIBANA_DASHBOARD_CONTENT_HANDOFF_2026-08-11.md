@@ -326,7 +326,7 @@ curl -s "http://localhost:9200/debugstudio-telemetry-*/_search?size=1&sort=@time
 | **V7** | **各パネルは非空の `panelRefName` を持つ。** 現在の V4 は `panelRefName` を持たないパネルを見逃す（`panelsJSON` に要素があり `references` が空なら V3/V4 とも緑になる） | 外部レビュー指摘 1 |
 | **V8** | **`references[].type` が参照先オブジェクトの `type` と一致する。** 現在の V5 は id の存在しか見ず、誤 type でも緑 | 外部レビュー指摘 2 |
 | **V9** | **`type=search` は `attributes.kibanaSavedObjectMeta.searchSourceJSON` を文字列として持つ。** これが無いと V6 の query 走査が丸ごとスキップされ、**前スライス §0 が直した「器が無い」不具合が再発しても緑になる** | C' 監査 A1 / U-6 |
-| **V10** | **`type=search` の `sort` は配列である**（文字列は不可）。V6 の sort 検査は `ValueKind==Array` のときだけ走るため、文字列に戻ると検査ごと消える | C' 監査 A1 / U-6 |
+| **V10** | **`type=search` の `sort` は必須かつ配列**（欠如・文字列は不可）。V6 の sort 検査は `ValueKind==Array` のときだけ走るため、欠如／文字列に戻ると検査ごと消える | C' 監査 A1 / U-6。欠如も赤は §6.4 で確定 |
 
 **deprecated 語の一元化**（外部レビュー指摘 3 / C' 監査 A3）:
 
@@ -637,6 +637,38 @@ Filebeat が読む L0 rolling 経路で「Welcome 後の同一 `sessionId` な�
 1. **K3-1 異議 1 の「V11 で Validate が 400 行超」は当たらない。** V11 は index template 照合なので `Validate` に載せず FieldMappingTests 側。Validate 分割は K3-1 時点の行数懸念としては解消
 2. **lens → data view → template の対応付けは未実装。** 呼び出し側が mapping 集合を渡す。正本に lens が入ったら references の index-pattern で振り分ける必要がある（今は telemetry mapping を仮に使う／lens 0 個）
 3. §1 / パネル方針への異議は K3-2 範囲では無し
+
+### 6.4 Phase C 差し戻し（R1 / R2）対応（2026-08-11）
+
+#### R2 — lens → data view → mapping 振り分け
+
+- `IndexTemplateFieldMappingHelper.TryResolveMappedFieldPaths` を追加。`references` の `type=index-pattern` の id で照合先を選ぶ
+  - `debugstudio-telemetry-dataview` → telemetry index template mapping
+  - `debugstudio-log-dataview` → log index template mapping
+  - **どちらでもない / index-pattern 参照が無い / 複数 data view** → 赤（失敗理由をメッセージに出す）。黙って通すと K3-4 で log 側 lens が telemetry mapping と照合されて検算が嘘になるため
+- lens / saved search（columns・query）の検算をいずれもこの振り分けに統一。saved search は以前も正本 id ごとに正しい mapping を渡していたが、**references 起点ではなかった**ので同時に直した
+- 合成 fixture: **赤を先に見てから緑**
+  1. log data view + `payload.cpuMs`（telemetry 専用）→ unmapped で赤
+  2. log data view + `log.level`（log 専用）→ 緑
+  3. 正本（lens 0 個）→ 緑のまま
+
+#### R1 — V10 の sort 欠如
+
+**判断: 欠如も赤（現行を確定）。**
+
+理由: V6 の sort 走査は `ValueKind==Array` のときだけ走る。`sort` が無いと V6 sort 検査が丸ごとスキップされ、V9（searchSourceJSON 必須）と同型の「器が無いと下流が死ぬ」穴が残る。T4 の文言は「文字列だと落ちる」だけだが、欠如を許容するとその穴が仕様として残る。正本は常に配列で `sort` を持つ。メッセージを「無い」/「配列ではない」に分け、欠如用テストを追加した。
+
+#### 赤を見た記録 / 確認していないこと
+
+| ケース | 結果 |
+|---|---|
+| log DV + `payload.cpuMs` lens | 赤（`payload.cpuMs` unmapped） |
+| log DV + `log.level` lens | 緑 |
+| search に `sort` 無し | V10 赤（`sort が無い`） |
+
+確認していないこと: 実 Kibana `_export` lens の reference 名のばらつき、未知 data view id を正本に足したときの運用フロー（現状は赤で止める）。
+
+実装後: `dotnet test tools/DebugStudio/DebugStudio.sln` → **394 passed / 0 failed**（直前 393 + sort 欠如テスト 1）。
 
 ---
 
