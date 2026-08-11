@@ -1,19 +1,14 @@
 #nullable enable
 
-using System;
-using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Text;
 using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using OneStarMaker.Foundation.Telemetry;
-using OneStarMaker.Runtime;
 using OneStarMaker.Runtime.UISystem;
 using TMPro;
-using Unity.Profiling;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using ZLogger;
 
@@ -23,6 +18,12 @@ namespace OneStarMaker.Debug
     /// <summary>
     /// Debug レイヤーに配置する FPS / フレームタイム プロファイラ UIView。
     /// 画面左上にグラフ + 数値テキストを表示する。
+    ///
+    /// <para>
+    /// テレメトリ送出はこの View から切り離してある。送出は
+    /// <see cref="ProfilerTelemetryEmitter"/> が UpdateSystem の Element として常駐して行う。
+    /// この View は表示専用であり、警告行は <c>AppTelemetry.AlertStream</c> の購読で受け取る。
+    /// </para>
     /// </summary>
     public sealed class DebugProfilerView : UIView
     {
@@ -38,12 +39,6 @@ namespace OneStarMaker.Debug
         private TextMeshProUGUI _textDisplay = null!;
         private TextMeshProUGUI _warningDisplay = null!;
         private ILogger<DebugProfilerView> _logger = null!;
-
-        // ── GC スパイク検出 ──
-        private int _lastGcCount;
-
-        // ── UI 描画コスト計測 ──
-        private ProfilerUiCostCollector _uiCostCollector = null!;
 
         // ── 警告行管理 ──
         private const float WarningDisplayDuration = 5f;
@@ -71,13 +66,6 @@ namespace OneStarMaker.Debug
             _graphRenderer = new FrameTimeGraphRenderer(GraphWidth, GraphHeight);
             _logger ??= new NullLogger<DebugProfilerView>();
 
-            // GC ベースライン
-            _lastGcCount = GC.CollectionCount(0);
-
-            // UI 描画コスト collector。
-            // View は snapshot を読むだけにして、recorder の寿命管理を分離する。
-            _uiCostCollector = new ProfilerUiCostCollector();
-
             // 警告行バッファ
             _warningLines = new string?[MaxWarningLines];
             _warningTimers = new float[MaxWarningLines];
@@ -100,12 +88,6 @@ namespace OneStarMaker.Debug
 
             UpdateProfilerText(fps, cpuMs, gpuMs);
 
-            // ── GC スパイク検出（毎フレーム）──
-            DetectGcSpike();
-
-            // ── UI 描画コスト検出 ──
-            DetectUiCost();
-
             // ── 警告テキスト更新 ──
             UpdateWarningDisplay();
 
@@ -120,7 +102,6 @@ namespace OneStarMaker.Debug
         private void OnDestroy()
         {
             AppTelemetry.AlertStream.AlertRaised -= OnBottleneckDetected;
-            _uiCostCollector.Dispose();
             _graphRenderer?.Dispose();
         }
 
@@ -219,16 +200,6 @@ namespace OneStarMaker.Debug
                     avgFps, _sampler.CpuAvgMs, _sampler.CpuMinMs, _sampler.CpuMaxMs);
 
             _logger.LogInformation(msg);
-
-            // ── テレメトリ: 1秒サマリをレコードとして出力（kind=sample） ──
-            if (AppTelemetry.IsEnabled)
-            {
-                WriteProfilerTelemetry(
-                    Foundation.Core.TelemetryStartType.ProfilerSummary,
-                    tags: RuntimeTelemetryMetadataFactory.ClassifyFrameRate(avgFps),
-                    level: TelemetryLevel.Verbose,
-                    fps: avgFps);
-            }
         }
 
         /// <summary>
@@ -246,141 +217,6 @@ namespace OneStarMaker.Debug
             }
 
             _textDisplay.SetText("FPS: {0:0}  CPU: {1:0.0}ms  GPU: N/A", fps, cpuMs);
-        }
-
-        // ── ボトルネック検出 ──
-
-        /// <summary>
-        /// 毎フレーム GC.CollectionCount(0) の差分を取り、GC スパイクを検出する。
-        /// GC.CollectionCount はゼロアロケーション呼び出しのため毎フレームのコストは無視できる。
-        /// </summary>
-        private void DetectGcSpike()
-        {
-            int gcCount = GC.CollectionCount(0);
-            int gcDelta = gcCount - _lastGcCount;
-            _lastGcCount = gcCount;
-
-            if (gcDelta <= 0) return;
-            if (AppTelemetry.Thresholds is not { } th) return;
-            if (gcDelta <= th.GcPerFrame) return;
-
-            var sceneName = SceneManager.GetActiveScene().name;
-            var msg = ZString.Format(
-                "[\u26a0 GC] {0} collections @ frame {1} ({2})",
-                gcDelta, Time.frameCount, sceneName);
-
-            PushWarning(msg);
-            _logger.LogWarning(
-                ZString.Format(
-                    "[Telemetry] GC spike: {0} collections in frame {1} (scene: {2})",
-                    gcDelta, Time.frameCount, sceneName));
-
-            // テレメトリレコード出力（kind=event + GcGen0Delta）
-            if (AppTelemetry.IsEnabled)
-            {
-                WriteProfilerTelemetry(
-                    Foundation.Core.TelemetryStartType.GcSpike,
-                    Foundation.Core.TelemetryTagType.AllocSpike | Foundation.Core.TelemetryTagType.Bottleneck,
-                    TelemetryLevel.Summary,
-                    gcGen0Delta: gcDelta);
-            }
-        }
-
-        /// <summary>
-        /// Canvas Rebuild 回数とバッチ数を ProfilerRecorder で取得し、閾値超過を検出する。
-        /// ProfilerRecorder は Development Build / Editor でのみ有効。
-        /// </summary>
-        private void DetectUiCost()
-        {
-            if (AppTelemetry.Thresholds is not { } th) return;
-            var snapshot = _uiCostCollector.Capture();
-            if (!snapshot.IsAvailable) return;
-
-            long rebuilds = snapshot.CanvasRebuildCount;
-            long batches = snapshot.BatchCount;
-
-            if (rebuilds <= th.CanvasRebuildPerFrame && batches <= th.BatchCount) return;
-
-            var msg = ZString.Format(
-                "[\u26a0 UI] {0} rebuilds, {1} batches",
-                rebuilds, batches);
-            PushWarning(msg);
-
-            // テレメトリレコード出力
-            if (AppTelemetry.IsEnabled)
-            {
-                WriteProfilerTelemetry(
-                    Foundation.Core.TelemetryStartType.UiCost,
-                    Foundation.Core.TelemetryTagType.Bottleneck,
-                    TelemetryLevel.Summary);
-            }
-        }
-
-        /// <summary>
-        /// DebugProfilerView が持っているサンプラ値だけで telemetry record を組み立てる。
-        /// 毎フレームでも追加ヒープ確保を増やさないため、DTO 化せず struct をその場で書き出す。
-        ///
-        /// <para>
-        /// Contract v3: ProfilerSummary は kind=sample（elapsedMs は意味を持たない）、
-        /// GcSpike / UiCost は kind=event。export 側は sample の elapsedMs キーを省略する。
-        /// </para>
-        /// </summary>
-        private void WriteProfilerTelemetry(
-            Foundation.Core.TelemetryStartType startType,
-            Foundation.Core.TelemetryTagType? tags,
-            TelemetryLevel level,
-            float fps = 0f,
-            int? gcGen0Delta = null)
-        {
-            var now = DateTime.UtcNow.Ticks;
-            var kind = TelemetryKindRules.InferKind(startType);
-            Metadata metadata;
-            TelemetryPayload payload;
-
-            if (kind == TelemetryKind.Sample)
-            {
-                // sample: Frame payload。elapsedMs=0 は MessagePack 互換のプレースホルダに過ぎない。
-                (metadata, payload) = RuntimeTelemetryMetadataFactory.CreateFrameSampleTelemetry(
-                    fps: fps,
-                    cpuTime: _sampler.CpuAvgMs,
-                    gpuTime: _sampler.GpuAvgMs,
-                    gpuAvailable: _sampler.IsGpuTimingAvailable);
-            }
-            else if (kind == TelemetryKind.Event && gcGen0Delta.HasValue)
-            {
-                // GcSpike: 根拠値だけを EventDetail に載せる（cpu/elapsed 欄を持たせない）
-                metadata = default;
-                payload = TelemetryPayload.ForEventDetail(
-                    gcGen0Delta: gcGen0Delta.Value,
-                    unityFrame: Time.frameCount);
-            }
-            else
-            {
-                // UiCost: 瞬間 event。根拠値は frameCount のみ（rebuild/batch は後続拡張）。
-                // cpu/gpu を flat に載せると「区間計測」と誤読されるため載せない。
-                metadata = default;
-                payload = TelemetryPayload.ForEventDetail(
-                    gcGen0Delta: 0,
-                    unityFrame: Time.frameCount);
-            }
-
-            var telemetryRecord = new TelemetryRecord(
-                traceId: AppTelemetry.GenerateId(),
-                spanId: AppTelemetry.GenerateId(),
-                // 親なしのセンチネルは -1 に統一（0 と混在させない）
-                parentSpanId: -1,
-                name: startType,
-                startTimestampUtcTicks: now,
-                endTimestampUtcTicks: now,
-                elapsedMs: 0,
-                isSuccess: true,
-                tags: tags,
-                level: level,
-                metadata: metadata,
-                kind: kind,
-                payload: payload);
-
-            AppTelemetry.WriteRecord(telemetryRecord);
         }
 
         // ── 警告表示管理 ──
@@ -456,58 +292,6 @@ namespace OneStarMaker.Debug
             {
                 sb.Dispose();
             }
-        }
-    }
-
-    /// <summary>
-    /// UI コスト監視用の ProfilerRecorder を束ねる collector。
-    ///
-    /// <para>
-    /// recorder の開始/停止責務を View から切り離し、
-    /// 表示ロジックは軽量 snapshot の解釈だけに留める。
-    /// </para>
-    /// </summary>
-    internal sealed class ProfilerUiCostCollector : IDisposable
-    {
-        private ProfilerRecorder _canvasRebuildRecorder;
-        private ProfilerRecorder _batchCountRecorder;
-
-        public ProfilerUiCostCollector()
-        {
-            _canvasRebuildRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Internal, "UI.Canvas.RebuildBatchedCount");
-            _batchCountRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Internal, "UI.Canvas.BatchCount");
-        }
-
-        public ProfilerUiCostSnapshot Capture()
-        {
-            return new ProfilerUiCostSnapshot(
-                isAvailable: _canvasRebuildRecorder.Valid || _batchCountRecorder.Valid,
-                canvasRebuildCount: _canvasRebuildRecorder.Valid ? _canvasRebuildRecorder.LastValue : 0,
-                batchCount: _batchCountRecorder.Valid ? _batchCountRecorder.LastValue : 0);
-        }
-
-        public void Dispose()
-        {
-            _canvasRebuildRecorder.Dispose();
-            _batchCountRecorder.Dispose();
-        }
-    }
-
-    /// <summary>
-    /// UI コスト collector から取得する軽量 snapshot。
-    /// 値型にして毎フレーム取得でもヒープ確保を増やさない。
-    /// </summary>
-    internal readonly struct ProfilerUiCostSnapshot
-    {
-        public readonly bool IsAvailable;
-        public readonly long CanvasRebuildCount;
-        public readonly long BatchCount;
-
-        public ProfilerUiCostSnapshot(bool isAvailable, long canvasRebuildCount, long batchCount)
-        {
-            IsAvailable = isAvailable;
-            CanvasRebuildCount = canvasRebuildCount;
-            BatchCount = batchCount;
         }
     }
 }
