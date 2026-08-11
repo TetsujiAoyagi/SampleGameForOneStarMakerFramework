@@ -56,7 +56,14 @@ cd $env:LOCALAPPDATA\DebugStudio\elastic-artifacts\commands
 ```
 
 `import-telemetry.ps1` は template / pipeline を PUT し、同梱 bulk NDJSON があれば `_bulk` も実行します。L2 継続 tail だけが目的なら template / pipeline PUT 部分が重要です。
-`import-kibana.ps1` は saved objects（`DebugStudio Overview` 含む）を Kibana へ import します。dashboard を見る前に必ず実行してください。
+`import-kibana.ps1` は saved objects（下記のダッシュボード 2 枚を含む）を Kibana へ import します。dashboard を見る前に必ず実行してください。
+
+| ダッシュボード | id | 答える問い |
+|---|---|---|
+| **DebugStudio Run Timeline** | `debugstudio-overview-dashboard` | Q1: 今の実行で何が重いか。`run (sessionId)` コントロールで 1 run に絞って見る |
+| **DebugStudio Run over Run** | `debugstudio-run-over-run-dashboard` | Q2: 前の実行と比べて何が重くなったか。run を横に並べる |
+
+読み方は各ダッシュボードの description に書いてあります。
 
 > **artifact を生成して `import-kibana.ps1` を実行しない限り、ダッシュボードは Kibana に存在しません。**
 > 「Dashboard が見えない」の原因が「そもそも一度も import していなかった」だったことが実際にあります。
@@ -94,7 +101,7 @@ cd $env:LOCALAPPDATA\DebugStudio\elastic-artifacts\commands
 4. **Filebeat ship:**
    - **compose:** `docker compose up -d filebeat`（§1 済みなら再起動のみ）
    - **host:** artifact の `debugstudio-filebeat.yml` を Filebeat に渡して起動（DebugStudio は起動しない）
-5. **Kibana 確認:** `http://localhost:5601` で Dashboard → `DebugStudio Overview` を開き、あわせて Discover で `debugstudio-telemetry-*` / `debugstudio-log-*` に document が増えることを確認する
+5. **Kibana 確認:** `http://localhost:5601` で Dashboard → `DebugStudio Run Timeline` / `DebugStudio Run over Run` を開き、あわせて Discover で `debugstudio-telemetry-*` / `debugstudio-log-*` に document が増えることを確認する
 
 ```powershell
 # ingest 件数のざっくり確認（security 無効 compose）

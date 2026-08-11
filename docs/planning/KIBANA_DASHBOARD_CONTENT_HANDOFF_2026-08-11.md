@@ -1165,6 +1165,129 @@ by-reference で作れば必ず当たる）。
 **A を採る場合、V4 / V7 の修正は K3-4 の一部ではなく K3-2 の差し戻しとして扱うのが正しい**
 （安全網は K3-2 の成果物であり、K3-4 はそれを使う側）。
 
+**人間の判断: A を採る。** 以降 §7.9 / §7.10。
+
+---
+
+### 7.9 K3-2 差し戻し — V4 / V7 の修正と V12 の追加（2026-08-11）
+
+#### 直したもの
+
+| ルール | 変更 |
+|---|---|
+| **V4** | `NormalizePanelReferenceName` を追加し、reference 名の `<panelIndex>:` 接頭辞を剥がしてから突き合わせる。手書き正本（`panel_p1`）と実 `_export`（`p1:panel_p1`）の両方を受け付ける。**接頭辞が本当に panelIndex と一致するかまでは見ない**（V4 の目的は 1:1 の検算であって接頭辞の検算ではない。緩さは doc コメントに明記） |
+| **V7** | 「`panelRefName` を持つ **または** `embeddableConfig.attributes` を持つ」＝**中身が解決できる**、に緩めた。一律に許すと V7 が塞いだ穴が戻るので、どちらでもないパネルは従来どおり赤 |
+| **V12（新規）** | by-value ES\|QL パネルは `type=lens` の saved object にならないため V6 も V11 も届かない。その穴を埋める。`Elastic/Kibana/Validation/EsqlPanelRules.cs`（183 行）へ分離した（§3.3 の分割方針） |
+
+**V12 が見るのは 2 点だけ:**
+
+1. §1.6 の deprecated 8 語（**V6 は `type=search` しか見ないので by-value パネルは素通りしていた**）
+2. `FROM` が bundle 内の index-pattern の `title` と一致すること
+
+**V11 の mapping 照合を移植しなかった理由:** ES|QL では存在しないフィールドが
+**実行時に硬いエラーになる**（`Unknown column`）。saved search の `columns` / kuery のように
+「実在しないフィールドを静かに参照し続ける」状態にならないので、同じ検算は要らない。
+
+#### 赤を見た記録
+
+| # | 壊し方 | 結果 |
+|---|---|---|
+| 1 | 実装前に新規テストだけ追加 | **11 件が赤**（V4 接頭辞 / V7 by-value / V12 deprecated 8 語 × InlineData / V12 FROM）。実装後 58 合格 |
+| 2 | 実 `_export` を正本に差し替え（修正前） | **V4×2 + V7×1 の赤 3 件** |
+| 3 | 同（修正後） | **V1〜V12 すべて緑** |
+| 4 | 正本の by-value パネルから `embeddableConfig.attributes` を削除 | **V7 と T9 の両方が赤**（空振りでないことを実測） |
+| 5 | control が存在しない data view を参照した状態の `_export` | **V5 が赤**（下記 §7.10 で実際に起きた事故を安全網が止めた） |
+
+いずれも確認後に正本を復元し、緑に戻してから次へ進んだ。**正本 NDJSON を壊したまま commit していない。**
+
+#### 行数（§3.3 / A-2）
+
+`KibanaSavedObjectBundleValidator.cs` は 320 → **368 行**で 380 行制限内。
+V12 は別ファイルへ切ったので `Validate` 本体は肥大していない。
+
+---
+
+### 7.10 K3-4 / K3-5 実施結果（2026-08-11）
+
+#### 作ったもの — ダッシュボード 2 枚 / 正本 6 オブジェクト
+
+| id | title | パネル |
+|---|---|---|
+| `debugstudio-overview-dashboard` | **DebugStudio Run Timeline**（D1） | telemetry 生行（既存 saved search） / warning ログ（既存 saved search = D1-7） / **D1-4 重い span** / **D1-6 異常タグ内訳** ＋ `run (sessionId)` コントロール |
+| `debugstudio-run-over-run-dashboard` | **DebugStudio Run over Run**（D2） | **D2-1 run メタ表** / **D2-2 AppStartup** / **D2-3 SceneLoad** / **D2-7 異常発生率** |
+
+新規パネルはすべて **by-value ES|QL パネル**で、`queries/` の `.esql` 正本と 1 対 1 に対応する。
+`_export` した NDJSON をそのまま正本にした（`state` を手書きしていない。§1.4）。
+
+> **`id` を書き換えた箇所が 1 つある。** Kibana は新規ダッシュボードに UUID を振るため、
+> D2 の id を `6dea14a5-…` → `debugstudio-run-over-run-dashboard` にした。
+> K3-4 の注意書きは「`_export` の id を書き換えるな（`references` と対応が切れる）」だが、
+> **`references` は dashboard → panel の一方向で、dashboard 自身の id は誰からも参照されない。**
+> 書き換え後に「旧 id が bundle 内に 1 箇所も残っていない」ことを assert してから書き出し、
+> 再 import して描画されることを確認した。他の id は 1 文字も変えていない。
+
+#### 実地確認（§5.3）
+
+| # | 確認 | 結果 |
+|---|---|---|
+| **U-1** | `_field_caps` に 5 フィールド | **合格**（§7.6） |
+| **U-2** | クエリ 5 本が結果を返す | **合格**（§7.6。`frame-cost` のみ 0 行で、構文は通る） |
+| **U-3** | import | **合格**。`successCount: 6` / `success: True` / `errors` なし |
+| **U-4** | D1 の描画 | **部分合格**。span テーブル・異常タグ内訳・warning ログは値付きで出た。**fps / cpu / メモリの推移は未実装**（ProfilerSummary が無い。§7.7） |
+| **U-5** | D2 の描画 | **合格**。19 run が縦に並び、run メタ表に buildVersion `0.1.0` / platform `WindowsEditor` / deviceModel `FRONTIER (Inversenet Inc.)` が出た（属性を持つ run は 2 本、残り 17 本は null） |
+| **U-6** | Editor 除外 | **合格（ただし絞る先が無い）**。D2-2 は `platform` 列を持ち、コントロール／フィルタで Player に絞れる。**ただし Player の run が 1 本も無い**ため、絞ると 0 行になる |
+
+**`run (sessionId)` コントロールの動作も実測した:** 最新 run を選ぶと
+telemetry 生行 770 → **137 件**、warning ログ 8 → **1 件**、span テーブルの先頭が
+他 run の 5544.8431 から当該 run の 2055.6453 に変わった。
+**by-reference の saved search パネルと by-value の ES|QL パネルの両方が絞られる。**
+
+#### K3-4 で起きた事故と、安全網が止めたこと
+
+コントロールを追加したとき、Kibana は data view として
+**保存済みの `debugstudio-telemetry-dataview` ではなく、ES|QL パネルが作った ad-hoc data view**
+（id = 64 桁の hash）を掴んだ。`_export` は `missingRefCount: 1` を返し、
+その id は Kibana 上にも saved object として存在しなかった（`404`）。
+
+**この状態の `_export` を正本に入れようとしたところ V5 が赤にした:**
+
+```
+行 5 (id='debugstudio-overview-dashboard'): V5 — references の id
+'865bee6e3bb566f7aaf98cb4975d6266ef91cb7560621996009034468122c17a'
+(name='controlGroup_…:optionsListDataView') が bundle 内に存在しない。
+```
+
+コントロールエディタで data view を明示的に選び直して修正し、`missingRefCount: 0` を確認してから
+正本にした。**import 時にエラーは出ず、コントロールだけが黙って壊れる**タイプの事故で、
+V5 が無ければそのまま commit していた。
+
+#### K3-5
+
+- `elastic/README.md` に **§9「ES|QL クエリ正本」** を追加（`queries/` の位置づけ、叩き方、パネル対応表）
+- §2 に「artifact 生成 → import しない限りダッシュボードは存在しない」「template PUT は ingest より先」を明記
+- トラブルシュートに **「件数を検算する」「mapping 衝突」「registry を作り直す」** を追加
+- ダッシュボード名の変更（`DebugStudio Overview` → 2 枚）を README に反映
+- **`description` に読み方を書いた**（§2.1 / §2.2 の読み方 ＋ 「span は入れ子なので合計しない」「run をまたいで percentile を取っていない」「ProfilerSummary 依存パネルは未実装」）
+
+#### テスト
+
+```
+dotnet test tools/DebugStudio/DebugStudio.sln
+→ 失敗: 0、合格: 409
+   (Contracts 37 / Export 122 / Server 10 / Cli 7 / App 233)
+```
+
+**ベースライン 395 → 409（+14）。減少なし。**
+
+#### 確認していないこと
+
+- **`frame-cost-per-run.esql` は値が入った状態で一度も動いていない。** 0 行でも構文と列解決は通ることまで
+- **Player（実機ビルド）の run が 1 本も無い。** U-6 は「列があるので絞れる」までで、絞った結果は見ていない
+- **ad-hoc data view を掴む再発条件を特定していない。** ES|QL パネルを先に作ったダッシュボードで
+  コントロールを足すと起きる、という 1 例しか観測していない。**V5 が止めるので致命的にはならない**
+- V12 の `FROM` 解析は緩いパーサで、文字列リテラル内の `FROM` やサブクエリは想定していない
+- 実 Kibana を 8.18 以降に上げたときに reference 名の形式が再び変わらないか
+
 ---
 
 ## 8. Phase C' 監査

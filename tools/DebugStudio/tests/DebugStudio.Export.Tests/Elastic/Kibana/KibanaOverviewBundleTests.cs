@@ -11,13 +11,23 @@ namespace DebugStudio.Export.Tests.Elastic.Kibana;
 /// </summary>
 public sealed class KibanaOverviewBundleTests
 {
+    /// <summary>
+    /// 並び順は Kibana の <c>_export</c> が返した順。手で並べ替えない（§1.4）。
+    /// </summary>
     private static readonly string[] ExpectedIds =
     {
         "debugstudio-telemetry-dataview",
-        "debugstudio-log-dataview",
         "debugstudio-telemetry-timeline",
+        "debugstudio-log-dataview",
         "debugstudio-log-warnings",
         "debugstudio-overview-dashboard",
+        "debugstudio-run-over-run-dashboard",
+    };
+
+    private static readonly string[] ExpectedDashboardIds =
+    {
+        "debugstudio-overview-dashboard",
+        "debugstudio-run-over-run-dashboard",
     };
 
     private static readonly string[] ExpectedTelemetryColumns =
@@ -57,12 +67,12 @@ public sealed class KibanaOverviewBundleTests
     }
 
     [Fact]
-    public void 正本は5オブジェクトでidとsearchのcolumnsが仕様どおりである()
+    public void 正本は6オブジェクトでidとsearchのcolumnsが仕様どおりである()
     {
         var ndjson = ElasticKibanaSavedObjectsWriter.ReadSavedObjectsNdjson();
         var bundle = KibanaSavedObjectBundleParser.Parse(ndjson);
 
-        Assert.Equal(5, bundle.Objects.Count);
+        Assert.Equal(6, bundle.Objects.Count);
         Assert.Equal(ExpectedIds, bundle.Objects.Select(o => o.Id).ToArray());
 
         Assert.True(bundle.TryGetById("debugstudio-telemetry-timeline", out var telemetrySearch));
@@ -72,28 +82,78 @@ public sealed class KibanaOverviewBundleTests
         Assert.Equal(ExpectedLogColumns, ReadColumns(logSearch!));
     }
 
+    /// <summary>
+    /// T9: 正本のダッシュボードは 2 枚あり、どのパネルも中身が解決できる。
+    ///
+    /// <para>
+    /// パネルは 2 通りある。by-reference（saved search）は <c>panelRefName</c> が
+    /// <c>references</c> と 1:1 で対応し、by-value（ES|QL）は
+    /// <c>embeddableConfig.attributes</c> に中身が丸ごと入る。
+    /// **どちらでもないパネルは「参照先が消えたのに気づけない」状態**なので、
+    /// パネル 0 枚事故と同型の再発検知としてここで落とす。
+    /// </para>
+    /// <para>
+    /// Kibana 8.17 の <c>_export</c> は reference 名に <c>&lt;panelIndex&gt;:</c> の
+    /// 接頭辞を付ける（<c>p1:panel_p1</c>）ので、突き合わせは接頭辞を剥がして行う。
+    /// </para>
+    /// </summary>
     [Fact]
-    public void dashboardのpanelsJSONはsearchパネル2枚で参照先が正しい()
+    public void 正本のダッシュボードは2枚ありどのパネルも参照先かbyvalueの中身を持つ()
     {
         var ndjson = ElasticKibanaSavedObjectsWriter.ReadSavedObjectsNdjson();
         var bundle = KibanaSavedObjectBundleParser.Parse(ndjson);
 
-        Assert.True(bundle.TryGetById("debugstudio-overview-dashboard", out var dashboard));
-        var panelsJson = dashboard!.Attributes.GetProperty("panelsJSON").GetString()
-            ?? throw new InvalidOperationException("panelsJSON missing");
+        var dashboards = bundle.Objects
+            .Where(o => o.Type == "dashboard")
+            .ToArray();
 
-        using var panelsDoc = JsonDocument.Parse(panelsJson);
-        var panels = panelsDoc.RootElement;
-        Assert.Equal(2, panels.GetArrayLength());
+        Assert.Equal(ExpectedDashboardIds, dashboards.Select(d => d.Id).ToArray());
 
-        var panel0 = panels[0];
-        var panel1 = panels[1];
-        Assert.Equal("search", panel0.GetProperty("type").GetString());
-        Assert.Equal("search", panel1.GetProperty("type").GetString());
+        foreach (var dashboard in dashboards)
+        {
+            var panelsJson = dashboard.Attributes.GetProperty("panelsJSON").GetString()
+                ?? throw new InvalidOperationException($"panelsJSON missing on '{dashboard.Id}'");
 
-        var refByName = dashboard.References.ToDictionary(r => r.Name, r => r.Id, StringComparer.Ordinal);
-        Assert.Equal("debugstudio-telemetry-timeline", refByName[panel0.GetProperty("panelRefName").GetString()!]);
-        Assert.Equal("debugstudio-log-warnings", refByName[panel1.GetProperty("panelRefName").GetString()!]);
+            using var panelsDoc = JsonDocument.Parse(panelsJson);
+            var panels = panelsDoc.RootElement;
+            Assert.True(panels.GetArrayLength() > 0, $"'{dashboard.Id}' のパネルが 0 枚。");
+
+            var refIdByPanelName = dashboard.References.ToDictionary(
+                r => StripPanelIndexPrefix(r.Name),
+                r => r.Id,
+                StringComparer.Ordinal);
+
+            var index = 0;
+            foreach (var panel in panels.EnumerateArray())
+            {
+                var where = $"'{dashboard.Id}' の panelsJSON[{index}]";
+                index++;
+
+                if (panel.TryGetProperty("panelRefName", out var refName)
+                    && refName.ValueKind == JsonValueKind.String)
+                {
+                    var name = refName.GetString()!;
+                    Assert.True(
+                        refIdByPanelName.TryGetValue(name, out var targetId),
+                        $"{where} の panelRefName '{name}' に対応する references が無い。");
+                    Assert.True(
+                        bundle.TryGetById(targetId!, out _),
+                        $"{where} の参照先 '{targetId}' が bundle 内に無い。");
+                    continue;
+                }
+
+                Assert.True(
+                    panel.TryGetProperty("embeddableConfig", out var embeddableConfig)
+                    && embeddableConfig.TryGetProperty("attributes", out _),
+                    $"{where} は panelRefName も embeddableConfig.attributes も持たない。");
+            }
+        }
+    }
+
+    private static string StripPanelIndexPrefix(string referenceName)
+    {
+        var separator = referenceName.LastIndexOf(':');
+        return separator < 0 ? referenceName : referenceName[(separator + 1)..];
     }
 
     [Fact]
