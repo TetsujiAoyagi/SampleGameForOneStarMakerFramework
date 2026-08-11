@@ -867,8 +867,8 @@ $ curl -s "http://localhost:9200/debugstudio-telemetry-*/_search?size=1&sort=@ti
   "@timestamp":"2026-08-11T09:15:40.299Z"}
 ```
 
-`exists` 件数は telemetry 全 1516 件中 **220 件**。この 220 件は 2026-08-11 の新規 2 run
-（137 + 83）と**完全に一致**する。それより前の run は 5 フィールドすべてが null。
+`exists` 件数は **220 件**で、これは 2026-08-11 の新規 2 run（137 + 83）と**完全に一致**する。
+それより前の run は 5 フィールドすべてが null。
 
 > **§6.1 の原因判定 (c) は実データで裏付けられた。** 状況証拠（LocalAppData の mtime と
 > PR #14 の merge 時刻）だけでなく、Elastic 上で「実装後に流した run にだけ属性が付く」ことを確認した。
@@ -886,20 +886,25 @@ $ curl -s "http://localhost:9200/debugstudio-telemetry-*/_search?size=1&sort=@ti
         started         |     docs      |           sessionId            | buildVersion | platform      | deviceModel              | runSeconds
 2026-08-11T09:14:21.858Z|137            |3c943cbb2fbb4f25b1c9f69c7f06139a|0.1.0         |WindowsEditor  |FRONTIER (Inversenet Inc.)|78
 2026-08-11T09:07:31.032Z| 83            |26dfe7fba8764df4b5587a01b52da073|0.1.0         |WindowsEditor  |FRONTIER (Inversenet Inc.)|58
-2026-08-08T09:34:36.098Z| 82            |ace2b4c0a3024ad2b28f7d7f2cfe8614|null          |null           |null                      |26
-2026-08-08T09:22:29.166Z|110            |7452d637a4334142821e10fbe2ba1f93|null          |null           |null                      |32
+2026-08-08T09:34:36.098Z| 41            |ace2b4c0a3024ad2b28f7d7f2cfe8614|null          |null           |null                      |26
+2026-08-08T09:22:29.166Z| 55            |7452d637a4334142821e10fbe2ba1f93|null          |null           |null                      |32
 （以下 2026-07-26 / 07-19 の 15 run、すべて属性 null）
 ```
 
-`app-startup-per-run.esql`（D2-2）— 2 行:
+`app-startup-per-run.esql`（D2-2）— 4 行:
 
 ```
       ms       |        started         |           sessionId            |   platform    | payload.stage
+1851.6362      |2026-08-08T09:22:29.174Z|7452d637a4334142821e10fbe2ba1f93|null           |AfterSceneLoad
+1258.8166      |2026-08-08T09:34:36.164Z|ace2b4c0a3024ad2b28f7d7f2cfe8614|null           |AfterSceneLoad
 5544.8431      |2026-08-11T09:07:31.041Z|26dfe7fba8764df4b5587a01b52da073|WindowsEditor  |AfterSceneLoad
 2055.6453      |2026-08-11T09:14:21.870Z|3c943cbb2fbb4f25b1c9f69c7f06139a|WindowsEditor  |AfterSceneLoad
 ```
 
-**run に 1 span しか無く、stage は `AfterSceneLoad` のみ**（§6.6 D-1）。
+**どの run も AppStartup は 1 span しか無く、stage は `AfterSceneLoad` のみ**（§6.6 D-1）。
+
+> 上 2 行の `payload.stage` は、mapping 衝突があった時点では**エラー無しで null になっていた**。
+> index を作り直したら値が出た。B-2 の「静かな壊れ方」の直接の証拠。
 
 `scene-load-per-run.esql`（D2-3）— 42 行:
 
@@ -929,8 +934,8 @@ $ curl -s "http://localhost:9200/debugstudio-telemetry-*/_search?size=1&sort=@ti
       gc       |      ui       |  bottleneck   |           sessionId            |  runSeconds   | bottleneckPerMin
 0              |0              |9              |3c943cbb2fbb4f25b1c9f69c7f06139a|78             |6.923076923076923
 0              |0              |8              |26dfe7fba8764df4b5587a01b52da073|58             |8.275862068965518
-0              |0              |10             |ace2b4c0a3024ad2b28f7d7f2cfe8614|26             |23.076923076923077
-0              |0              |14             |7452d637a4334142821e10fbe2ba1f93|32             |26.25
+0              |0              |5              |ace2b4c0a3024ad2b28f7d7f2cfe8614|26             |11.538461538461538
+0              |0              |7              |7452d637a4334142821e10fbe2ba1f93|32             |13.125
 （以下 15 run）
 ```
 
@@ -938,16 +943,17 @@ $ curl -s "http://localhost:9200/debugstudio-telemetry-*/_search?size=1&sort=@ti
 
 #### B-3 の実測（`tags == "Bottleneck"` が静かに間違える）
 
-同じ 2 run に対する 3 つの数え方:
+telemetry 全 709 件（`sessionId` 非 null）に対する 3 つの数え方:
 
 ```
-| 数え方                                                    | 26dfe7fb… | 3c943cbb… | 計 |
-| terms 集計（STATS n = COUNT(*) BY tags の "Bottleneck")   |     —     |     —     | 17 |
-| CONCAT("|",MV_CONCAT(tags,"|"),"|") LIKE "*|Bottleneck|*" |     8     |     9     | 17 |  ← 正しい
-| tags == "Bottleneck"                                      |     3     |     5     |  8 |  ← 9 件落ちる
+| 数え方                                                    | 件数 |
+| terms 集計（STATS n = COUNT(*) BY tags の "Bottleneck"）  |  57  |
+| CONCAT("|",MV_CONCAT(tags,"|"),"|") LIKE "*|Bottleneck|*" |  57  |  ← 正しい
+| tags == "Bottleneck"                                      |  30  |  ← 27 件落ちる
 ```
 
-落ちた 9 件は `tags` が `["Bottleneck","NativeMemoryOver"]` の record。
+落ちた 27 件は `tags` が `["Bottleneck","NativeMemoryOver"]` の record
+（terms 集計の `NativeMemoryOver` が 27 件で一致する）。
 **エラーも警告も出ず件数だけが減る**ため、結果を読んでも気づけない。
 
 #### B-2 の実測（index 間 mapping 衝突）
@@ -974,10 +980,51 @@ CONFLICT payload.cameraTotalViewCount{'long'   : [...2026.08.08], 'integer': [..
 
 **対処: index を作り直した**（データは破棄可という判断を人間から得た）。
 telemetry / log の index を全削除 → Filebeat の registry ボリュームを破棄 → 再作成し、
-L0 の `.ndjson` を先頭から現行 template 準拠の index へ再投入する。
+L0 の `.ndjson` を先頭から現行 template 準拠の index へ再投入した。
 クエリ側に回避コード（`kind::keyword` のキャスト等）を入れない方針を採った。
 **Kibana の data view でも conflict 型は Lens で集計不能になるため、K3-4 のためにも
 データ側で直す必要がある。**
+
+再投入後の実測:
+
+```
+$ curl -s ".../_field_caps?fields=kind,payload.stage,payload.targetIdentity,payload.shape,payload.cameraTotalViewCount,buildVersion,platform,deviceModel,osVersion,engineVersion"
+ok  kind ['keyword']            ok  payload.stage ['keyword']
+ok  payload.shape ['keyword']   ok  payload.targetIdentity ['keyword']
+ok  payload.cameraTotalViewCount ['integer']
+ok  buildVersion / platform / deviceModel / osVersion / engineVersion ['keyword']
+--- conflicts: 0
+```
+
+**`.esql` 5 本すべてを、再投入後の `debugstudio-telemetry-*`（wildcard）に対して通し直した。**
+上に貼った出力はすべて再投入後の値。
+
+> **ES はワイルドカードでの index 削除を拒否する**（`action.destructive_requires_name` が既定で true）。
+> `_cat/indices` で名前を取ってから明示的に列挙して DELETE する必要がある。
+>
+> **Windows PowerShell 5.1 では `&&` が使えず、`curl` は `Invoke-WebRequest` の別名**なので
+> `-s -X DELETE` が通らない。手順を人に渡すときは `Invoke-RestMethod` で書くか pwsh 7 を指定すること。
+
+#### B-5（作り直して初めて分かった）— 旧 index は二重投入されていた
+
+再投入後の telemetry 件数は **770 件で、L0 の `.ndjson` の総行数と完全に一致**した。
+作り直す前は **1516 件**あった。
+
+| L0 ファイル | 行数 | 旧 index | 再投入後 |
+|---|---|---|---|
+| `2026-07-19_001` | 128 | 277 | 85 |
+| `2026-07-26_001` + `2026-07-27_001` | 164 + 162 | 652 | 326 |
+| `2026-08-08_001` | 96 | 192 | 96 |
+| `2026-08-11_001` | 220 | 220 | 220 |
+
+**最新の 2026-08-11 だけは重複していない**ため、§7.6 の K3-0 gate の根拠（220 件 = 137 + 83）は
+影響を受けない。一方 `runs.esql` の `docs` 列と `event-rate-per-run.esql` の
+`bottleneck` 列は旧データで**約 2 倍に膨らんでいた**ので、上の出力は再投入後の値に貼り替えてある。
+
+> **これも「エラーを出さずに数字だけ嘘になる」型である。** 件数が 2 倍でもクエリは正常に返る。
+> 気づけたのは「L0 の行数」という**外部の基準**と突き合わせたからで、
+> Elastic の中だけを見ていても永久に分からない。
+> **ダッシュボードの数字を信じる前に、L0 の行数と一致するかを一度は確認すること。**
 
 ---
 
@@ -1041,6 +1088,82 @@ $ grep -rln "DebugProfilerView" unity/Assets --include=*.prefab --include=*.unit
 > §1.5 の gate 条件は「フィールドが `_field_caps` に現れること」だったが、
 > **それは「パネルに値が出ること」を保証しない。** 次スライスの gate 条件は
 > 「**そのパネルが参照する record が、直近 run に 1 件以上ある**」にすべきである。
+
+---
+
+### 7.8 K3-4 の着手で判明した — **V4 / V7 は実 `_export` を受け付けられない**
+
+#### やったこと
+
+Kibana UI で `runs.esql`（D2-1）を **ES|QL パネル**として 1 枚組み、dashboard を保存して
+`_export` し、**その NDJSON を正本に差し替えて検算テストを実行した**（赤を先に見る手順）。
+
+#### 結果: **赤 3 件**
+
+```
+$ dotnet test ... --filter "FullyQualifiedName~Kibana"
+失敗: 3、合格: 41
+
+正本に検算指摘がある:
+行 5 (id='debugstudio-overview-dashboard'): V7 — panelsJSON[2] に非空の panelRefName が無い。
+行 5 (id='debugstudio-overview-dashboard'): V4 — panelsJSON の panelRefName 'panel_p1' に対応する references が無い。
+行 5 (id='debugstudio-overview-dashboard'): V4 — panelsJSON の panelRefName 'panel_p2' に対応する references が無い。
+```
+
+**正本は元に戻して緑（44 合格）に復帰済み。** 正本 NDJSON は 1 byte も変更していない。
+
+#### 原因は 2 つあり、どちらも「仕様が実物と違う」
+
+| # | 内容 |
+|---|---|
+| **G-1** | **Kibana 8.17 の `_export` は panel の reference 名を `p1:panel_p1` の形で出す**（`<panelIndex>:` 接頭辞が付く）。V4 は `reference.Name.StartsWith("panel_")` で絞っているので**1 件も拾えず**、既存の saved search パネル 2 枚が両方とも「references が無い」で赤になる。**手書きの正本（`panel_p1`）では通り、実 `_export` では落ちる** |
+| **G-2** | **ES\|QL パネルは by-value で、`panelRefName` を持たない。** 内容は dashboard の `panelsJSON[].embeddableConfig.attributes` に丸ごと埋まる。V7 は「全パネルが非空の `panelRefName` を持つ」なので必ず赤になる |
+
+#### これは §0.5 が警告した型そのもの
+
+**V4 / V7 は手書きのフィクスチャに対してだけ検証されていた。** §1.4 は
+「Kibana UI で組んで `_export` したものだけを正本にする」と決めているのに、
+**その `_export` を安全網が受け付けられない。** 仕様（V ルール）と仕様（§1.4）が矛盾しており、
+K3-1 / K3-2 のレビュー 3 巡 + C' 監査 + PR レビューはいずれもこれを検出していない。
+**実物の `_export` を一度も通していなかったため。**
+
+#### by-value ES|QL パネルの実物（`_export` から抜粋）
+
+```
+type: lens | panelIndex: e0ce0605-… | panelRefName: None
+  embeddableConfig.attributes.references: []          ← index-pattern 参照が無い
+  embeddableConfig.attributes.state.query:
+    {"esql": "FROM debugstudio-telemetry-* | WHERE sessionId IS NOT NULL | STATS ... | LIMIT 20"}
+```
+
+**F3（複数 index-pattern で赤）より深刻な形で当たった。** F3 は「複数あると赤」を心配していたが、
+実際に出てくる ES|QL パネルは **index-pattern 参照が 1 つも無い**。
+`TryResolveMappedFieldPaths` は参照が無い場合も赤にするので、こちらでも落ちる
+（今回は `type=lens` の saved object が生成されないため V11 まで到達していないが、
+by-reference で作れば必ず当たる）。
+
+一方で **by-value ES|QL パネルには大きな利点がある**:
+
+- **`git diff` が読める。** 埋まっているのは ES|QL のクエリ文字列そのもので、
+  §1.4 が「読めないので手書き禁止」とした巨大な Lens state ではない
+- **`queries/` の正本と 1 対 1 で対応する。** §1.3 が狙った「パネルの意図をバージョンから独立させる」が、
+  パネル自体で達成される
+- **クエリは実 Elastic で検証済み**（§7.6）
+
+#### 決めてもらう必要があること（**K3-4 の続行はここで止めた**）
+
+| 案 | 内容 | 代償 |
+|---|---|---|
+| **A（推奨）** | **by-value ES\|QL パネルで組み、V4 / V7 を実 `_export` に合わせて直す。** V4 は reference 名の `<panelIndex>:` 接頭辞を許容する。V7 は「`panelRefName` を持つ **か** `embeddableConfig.attributes` を持つ」＝「パネルの中身が解決できる」に緩める | DebugStudio 側の C# + テスト作業が発生する（K3-2 の安全網の修正）。ES\|QL パネルは V11 の mapping 検算の対象外になるため、**代わりに「`FROM` が既知の index パターンを指す」等の別ルールが要る** |
+| **B** | **classic（data view ベース）の Lens を by-reference で組む。** V4 の接頭辞問題だけ直せば V7 / V11 はそのまま効く | Lens の drag-and-drop を UI 操作で組む必要があり、この環境では **Monaco / Lens への修飾キー入力が届かない**（下記）ため実行可能性が低い。`git diff` も読めなくなる |
+
+> **この環境の UI 操作の制約（実測）:** Kibana の ES|QL エディタ（Monaco）に対し、
+> `type` は届くが **`Ctrl+A` / `Backspace` / `Ctrl+Shift+Home` などのキー入力が一切届かない**。
+> テキストの置換は `triple_click` で行選択してから `type` する方法でのみ成功した。
+> Lens の drag-and-drop はこれより難度が高い。
+
+**A を採る場合、V4 / V7 の修正は K3-4 の一部ではなく K3-2 の差し戻しとして扱うのが正しい**
+（安全網は K3-2 の成果物であり、K3-4 はそれを使う側）。
 
 ---
 

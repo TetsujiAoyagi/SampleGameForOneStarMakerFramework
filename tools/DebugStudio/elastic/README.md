@@ -58,6 +58,18 @@ cd $env:LOCALAPPDATA\DebugStudio\elastic-artifacts\commands
 `import-telemetry.ps1` は template / pipeline を PUT し、同梱 bulk NDJSON があれば `_bulk` も実行します。L2 継続 tail だけが目的なら template / pipeline PUT 部分が重要です。
 `import-kibana.ps1` は saved objects（`DebugStudio Overview` 含む）を Kibana へ import します。dashboard を見る前に必ず実行してください。
 
+> **artifact を生成して `import-kibana.ps1` を実行しない限り、ダッシュボードは Kibana に存在しません。**
+> 「Dashboard が見えない」の原因が「そもそも一度も import していなかった」だったことが実際にあります。
+> `dotnet run` は**必ず見ているブランチの作業ツリーから**実行してください。別ブランチから実行すると
+> 旧 artifact が `%LOCALAPPDATA%` に生成され、import しても意図した内容になりません。
+
+> **template / pipeline の PUT は ingest より先に行う必要があります。**
+> template 適用前に作られた index は動的 mapping になり、後から template を直しても**既存 index の
+> mapping は変わりません**。そのまま `debugstudio-telemetry-*` を横断すると、`kind` のように
+> クエリごと 400 で落ちるフィールドと、`payload.stage` のように**エラー無しで全行 null になる**
+> フィールドが混在します。後者は結果を見ても気づけません。
+> 衝突の確認と復旧は「トラブルシュート」を見てください。
+
 **L1 WPF 経由:** Telemetry パネルの **Elastic Preflight** → **Elastic Push**（retained telemetry がある場合）。
 
 ## 3. L1 Verify（任意・疎通確認）
@@ -136,6 +148,37 @@ docker compose down
 
 L0 NDJSON と Filebeat registry (`filebeat-data`) は volume / ホスト側に残ります。
 
+## 9. ES|QL クエリ正本
+
+ダッシュボードの各パネルが**何をどう集計しているか**の正本を
+[`queries/`](queries/) に `.esql` として置いています。
+
+Lens のパネル定義は Kibana のバージョンに依存する巨大な JSON で `git diff` では読めませんが、
+そこに埋まっている「何を集計したいか」はバージョンに依存しません。分離しておくと、
+Kibana が上がってパネル JSON が壊れても**何を作りたかったかは残ります**。
+
+**順序は必ず「クエリを通す → パネルに起こす」です。** 逆をやると、実在しないフィールドを
+参照したパネルがレビューを通過します（2026-08-08 のスライスで実際に起きました）。
+
+```powershell
+$body = @{ query = (Get-Content -Raw tools/DebugStudio/elastic/queries/runs.esql) } | ConvertTo-Json -Compress
+Invoke-RestMethod -Method Post -Uri "http://localhost:9200/_query?format=txt" `
+  -ContentType "application/json" -Body $body
+```
+
+ES|QL は `//` 行コメントと改行をそのまま受け付けるので、ファイルの中身を無加工で投げられます。
+
+| ファイル | パネル |
+|---|---|
+| `runs.esql` | D2-1 run メタ表 |
+| `app-startup-per-run.esql` | D2-2 AppStartup |
+| `scene-load-per-run.esql` | D2-3 SceneLoad |
+| `frame-cost-per-run.esql` | D2-4 CPU / D2-5 fps / D2-6 メモリ |
+| `event-rate-per-run.esql` | D2-7 異常発生率 |
+
+クエリを書くときに踏む罠（multivalue への `==` が静かに件数を減らす、等）は
+[`queries/README.md`](queries/README.md) にまとめてあります。
+
 ## トラブルシュート
 
 | 症状 | 確認 |
@@ -143,9 +186,57 @@ L0 NDJSON と Filebeat registry (`filebeat-data`) は volume / ホスト側に�
 | preflight 失敗 | Elastic 起動、`DEBUGSTUDIO_ELASTIC_URL` が loopback か |
 | Filebeat が 0 件 | L0 に NDJSON があるか、マウント path `/mnt/debugstudio-l0` が空でないか |
 | pipeline エラー | §2 bootstrap 済みか、`debugstudio-telemetry` / `debugstudio-log` pipeline が存在するか |
-| log だけ 0 件 / Filebeat dropped | L1 Push は telemetry のみ bootstrap。log は `import-telemetry.ps1` か pipeline PUT が必要。既に drop 済みなら `docker compose rm -f -s filebeat` → `docker volume rm elastic_filebeat-data` → `docker compose up -d filebeat` で再読込（telemetry 重複あり） |
+| log だけ 0 件 / Filebeat dropped | L1 Push は telemetry のみ bootstrap。log は `import-telemetry.ps1` か pipeline PUT が必要。既に drop 済みなら下記「registry を作り直す」 |
 | bulk item 409 (L1) | create 再実行による重複 |
 | host Filebeat が ES に届かない | config が `localhost:9200` か（compose 内 endpoint と混同していないか） |
+| **件数が L0 より多い（二重投入）** | 下記「件数を検算する」 |
+| **フィールドが全行 null / `Cannot use field [x] due to ambiguities`** | 下記「mapping 衝突」 |
+
+### 件数を検算する（**ダッシュボードの数字を信じる前に一度やる**）
+
+registry を作り直すと Filebeat は L0 を**先頭から読み直す**ため、既存 index を消さずに行うと
+**同じ record が二重に入ります。エラーは出ず、件数だけが増えます。**
+実際に telemetry が 770 件のところ 1516 件入っていたことがあります。
+
+```powershell
+# L0 の総行数（これが正解）
+(Get-ChildItem "$env:LOCALAPPDATA\DebugStudio\telemetry\*.ndjson" | Get-Content | Measure-Object -Line).Lines
+# Elasticsearch 側
+curl "http://localhost:9200/debugstudio-telemetry-*/_count"
+```
+
+一致しなければ二重投入です。**Elastic の中だけを見ていても分かりません。**
+
+### mapping 衝突
+
+```powershell
+curl "http://localhost:9200/debugstudio-telemetry-*/_field_caps?fields=kind,payload.stage,payload.targetIdentity"
+```
+
+1 つのフィールドに型が 2 つ以上出たら衝突です。壊れ方は 2 種類あり、
+**`keyword` / `text` の衝突は集計でエラーになるものと、静かに null になるものがあります。**
+Kibana の data view でも conflict 型になり、**Lens で集計できなくなります。**
+
+### registry を作り直す（衝突・二重投入の復旧）
+
+**index を消してから registry を消すこと。** 順番を逆にすると二重投入になります。
+
+```powershell
+# 1. index を明示列挙して削除（ES はワイルドカード削除を拒否する: action.destructive_requires_name）
+$names = (Invoke-RestMethod -Uri "http://localhost:9200/_cat/indices/debugstudio-telemetry-*,debugstudio-log-*?h=index&format=json").index
+Invoke-RestMethod -Method Delete -Uri ("http://localhost:9200/" + ($names -join ","))
+
+# 2. registry を破棄して再作成（L0 を先頭から読み直す）
+docker compose rm -f filebeat
+docker volume rm elastic_filebeat-data
+docker compose up -d filebeat
+```
+
+完了後に必ず「件数を検算する」と「mapping 衝突」の両方を確認してください。
+
+> **Windows PowerShell 5.1 では `&&` が使えず、`curl` は `Invoke-WebRequest` の別名**です
+> （`-s -X DELETE` が通りません）。上記は `Invoke-RestMethod` で書いてあります。
+> `&&` で繋ぎたい場合は pwsh 7 を使ってください。
 
 ## 関連
 
