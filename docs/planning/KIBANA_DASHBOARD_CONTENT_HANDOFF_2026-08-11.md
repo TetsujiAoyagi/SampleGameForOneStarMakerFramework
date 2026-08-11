@@ -701,6 +701,48 @@ Filebeat が読む L0 rolling 経路で「Welcome 後の同一 `sessionId` な�
 
 実装後: `dotnet test tools/DebugStudio/DebugStudio.sln` → **394 passed / 0 failed**（件数は直前と同じ。既存 Fact 内に fixture を追加）。
 
+### 6.6 K3-0 gate 実測 + K3-3 Phase B（2026-08-11、Claude Code / Opus 5）
+
+Docker / Elasticsearch / Kibana が起動した環境で、前スライスが「確認していないこと」に
+積み残していた実測をすべて行った。
+
+#### K3-0 gate: **通過**
+
+§7.4 が「未達成」と書いていた U-1 を閉じた。実測出力は §7.6 に貼る。
+§6.1 の原因判定 **(c)（実装前の古いデータしか入っていなかった）は実データで裏付けられた** —
+新しく流した 2 run は 5 フィールドすべてに値を持ち、それより前の run は全て null。
+
+#### 設計への異議（§0.5）
+
+| # | 内容 |
+|---|---|
+| **D-1** | **§2.2 D2-2 と付録 A.3 の「AppStartup は run に 2 回（BeforeSceneLoad / AfterSceneLoad の 2 span）」は実データと違う。** 実測では **run に 1 span だけ**で、`payload.stage` は `AfterSceneLoad` のみ。`app-startup-per-run.esql` は `BY ... payload.stage` を残してあるので、BeforeSceneLoad 側が出るようになれば自動的に 2 行へ分かれる。**HANDOFF 本文の訂正が要る** |
+| **D-2** | **§4 K3-3 の app-startup 草案にある `platform == "WindowsPlayer"` をクエリ正本に焼き込まなかった。** §1.2 の要件は「platform で Player に**絞れること**」であって「常に Player だけを出すこと」ではない。焼き込むと Editor しか無いデータセットで 0 行になり、**パネルが壊れているのか Player run が無いのかを区別できなくなる**。platform を出力列として残し、絞り込みはダッシュボードのコントロールに寄せた |
+| **D-3** | **§2.2 D2-7 の分母は「run 長」を採った**（§2.2 が K3-3 で決めろと指示していた選択）。理由は 2 つ。(1) `ProfilerSummary` が 1 件も出ていないので件数を分母にすると常にゼロ除算になる (2) 分母が「たまたま有効になっている sample ストリーム」に依存するのは脆く、run 長は telemetry が 1 件でもあれば必ず定義できる。件数分母の利点（Unity 一時停止区間を除ける）は、その区間では分子の event も出ないため実質相殺される |
+| **D-4** | **§2.2 D2-7 に `bottleneck` 列を足した**（草案は `gc` / `ui` のみ）。`GcSpike` / `UiCost` が 0 件なので、草案のままではパネルが常に全ゼロになる。`tags` に `Bottleneck` が付いた record 数は **ProfilerSummary 非依存で実データが動く**ため、D2-7 が今日から意味を持つ唯一の列になる |
+| **D-5** | **§2.3 の「run をまたいだ percentile を取らない」に加えて、`n`（サンプル数）を出すことを `scene-load-per-run.esql` の要件にした。** 実測では `payload.targetIdentity` ごとの n がほとんど **1**。n=1 の p50 はその 1 件そのものであって代表値ではなく、n を出さないと読み手が p50 を過信する |
+
+#### 見つかった、パネルを作る前に潰すべき問題
+
+| # | 内容 |
+|---|---|
+| **B-1（gate 級）** | **`ProfilerSummary` / `GcSpike` / `UiCost` が Elastic にも L0 にも 1 件も無い。** §2 の 14 パネル中 **8 枚**（D1-1 / D1-2 / D1-3 / D1-5 / D2-4 / D2-5 / D2-6 / D2-7）がこれに依存する。原因は export ではなく **Unity が一度も emit していない**こと。詳細は §7.7 |
+| **B-2** | **index 間の mapping 衝突。** `debugstudio-telemetry-2026.08.08` だけが index template 適用前の動的 mapping を持ち、`kind` / `payload.stage` / `payload.targetIdentity` / `payload.shape` が `text`。**`kind` はクエリごと 400 で落ち、`payload.*` はエラー無しで全行 null になる。** 後者が §0.5 の言う「仕様との照合では検出できない」型 |
+| **B-3** | **`tags == "Bottleneck"` は静かに間違える。** ES\|QL は multivalue フィールドへの比較を null にするため、`["Bottleneck","NativeMemoryOver"]` の record が数から丸ごと落ちる。実測で **17 件が 8 件になった**。エラーが出ないので結果を見ても気づけない。`MV_CONTAINS` は 8.17 に存在しない |
+| **B-4** | **`sessionId` が null の record を `BY sessionId` に流すと偽の run ができる。** 実測で **runSeconds = 48227 秒（13 時間超）** の存在しない run が 1 行でき、他の run（数十秒）が縦軸で潰れた。**セッション属性が null なのとは別問題**で、そちらは run が実在するので落としてはいけない |
+
+#### 何を作ったか
+
+`tools/DebugStudio/elastic/queries/` に `.esql` 5 本 + `README.md`。
+**5 本すべて実 Elasticsearch 8.17 に投げて通ることを確認した**（出力は §7.6）。
+B-2 / B-3 / B-4 は罠として `README.md` の表と各クエリのコメントに転記した
+（実装側は 23k 行のドキュメントを読まない前提なので、クエリの隣に置く）。
+
+#### 確認していないこと
+
+- **`frame-cost-per-run.esql` は 0 行しか返していない。** 構文と列解決が通ることは確認したが、**値が入った状態での挙動は未確認**（B-1 が解けるまで確認できない）
+- `.esql` は検算テストの対象外。V6 の deprecated 8 語も V11 の mapping 照合もかからない
+
 ---
 
 
@@ -786,6 +828,219 @@ dotnet test tools/DebugStudio/DebugStudio.sln
 **`dotnet test` = 395 passed / 0 failed**（+1 = N1 のテスト）。
 
 > **N1 は、私（Phase C 最終チェック）も Opus 4.8（3 巡）も見落としていた。** F2 として「引用符付きフィールド名が*落ちる*」方向は指摘できていたのに、**同じ引用符の扱いが V6 側では*逆方向の誤検知*を生んでいることに気づかなかった。** 非対称性を疑う視点が抜けていた。
+
+---
+
+### 7.6 K3-0 / K3-3 の実測出力（2026-08-11、Claude Code / Opus 5）
+
+環境: Elasticsearch / Kibana 8.17.0（`docker compose`、`xpack.security.enabled=false`）。
+
+#### U-1 — `_field_caps` に 5 フィールドが現れる: **合格**
+
+```
+$ curl -s "http://localhost:9200/debugstudio-telemetry-*/_field_caps?fields=buildVersion,platform,deviceModel,osVersion,engineVersion"
+
+{"indices":["debugstudio-telemetry-2026.07.18","debugstudio-telemetry-2026.07.19",
+"debugstudio-telemetry-2026.07.26","debugstudio-telemetry-2026.08.08","debugstudio-telemetry-2026.08.11"],
+"fields":{
+ "engineVersion":{"keyword":{"type":"keyword","metadata_field":false,"searchable":true,"aggregatable":true}},
+ "buildVersion" :{"keyword":{"type":"keyword","metadata_field":false,"searchable":true,"aggregatable":true}},
+ "osVersion"    :{"keyword":{"type":"keyword","metadata_field":false,"searchable":true,"aggregatable":true}},
+ "deviceModel"  :{"keyword":{"type":"keyword","metadata_field":false,"searchable":true,"aggregatable":true}},
+ "platform"     :{"keyword":{"type":"keyword","metadata_field":false,"searchable":true,"aggregatable":true}}}}
+```
+
+直近 run の document に**値が入っている**こと:
+
+```
+$ curl -s "http://localhost:9200/debugstudio-telemetry-*/_search?size=1&sort=@timestamp:desc"
+
+"_index":"debugstudio-telemetry-2026.08.11",
+"_source":{
+  "platform"     :"WindowsEditor",
+  "osVersion"    :"Windows 11  (10.0.26200)",
+  "engineVersion":"6000.5.0f1",
+  "buildVersion" :"0.1.0",
+  "deviceModel"  :"FRONTIER (Inversenet Inc.)",
+  "kind":"sample","name":"CameraSystemSnapshot",
+  "sessionId":"3c943cbb2fbb4f25b1c9f69c7f06139a",
+  "@timestamp":"2026-08-11T09:15:40.299Z"}
+```
+
+`exists` 件数は telemetry 全 1516 件中 **220 件**。この 220 件は 2026-08-11 の新規 2 run
+（137 + 83）と**完全に一致**する。それより前の run は 5 フィールドすべてが null。
+
+> **§6.1 の原因判定 (c) は実データで裏付けられた。** 状況証拠（LocalAppData の mtime と
+> PR #14 の merge 時刻）だけでなく、Elastic 上で「実装後に流した run にだけ属性が付く」ことを確認した。
+> **本番コードの変更は不要だった**という §6.1 の結論も維持される。
+>
+> なお §6.1 が「handshake より前に届いた telemetry には属性が付かない」を既知の制約として
+> 挙げていたが、**この 2 run では該当 record が 0 件**だった（220 件が run の全 record と一致）。
+> 制約が消えたわけではなく、この 2 run でたまたま踏まなかっただけとして扱う。
+
+#### U-2 — クエリ 5 本が実 Elastic で結果を返す: **合格**
+
+`runs.esql`（D2-1）— 20 行。新旧の run が属性の有無で並ぶ:
+
+```
+        started         |     docs      |           sessionId            | buildVersion | platform      | deviceModel              | runSeconds
+2026-08-11T09:14:21.858Z|137            |3c943cbb2fbb4f25b1c9f69c7f06139a|0.1.0         |WindowsEditor  |FRONTIER (Inversenet Inc.)|78
+2026-08-11T09:07:31.032Z| 83            |26dfe7fba8764df4b5587a01b52da073|0.1.0         |WindowsEditor  |FRONTIER (Inversenet Inc.)|58
+2026-08-08T09:34:36.098Z| 82            |ace2b4c0a3024ad2b28f7d7f2cfe8614|null          |null           |null                      |26
+2026-08-08T09:22:29.166Z|110            |7452d637a4334142821e10fbe2ba1f93|null          |null           |null                      |32
+（以下 2026-07-26 / 07-19 の 15 run、すべて属性 null）
+```
+
+`app-startup-per-run.esql`（D2-2）— 2 行:
+
+```
+      ms       |        started         |           sessionId            |   platform    | payload.stage
+5544.8431      |2026-08-11T09:07:31.041Z|26dfe7fba8764df4b5587a01b52da073|WindowsEditor  |AfterSceneLoad
+2055.6453      |2026-08-11T09:14:21.870Z|3c943cbb2fbb4f25b1c9f69c7f06139a|WindowsEditor  |AfterSceneLoad
+```
+
+**run に 1 span しか無く、stage は `AfterSceneLoad` のみ**（§6.6 D-1）。
+
+`scene-load-per-run.esql`（D2-3）— 42 行:
+
+```
+       p50        |       n       |           sessionId            |payload.targetIdentity
+3269.2928         |1              |26dfe7fba8764df4b5587a01b52da073|Title
+1666.0206         |1              |26dfe7fba8764df4b5587a01b52da073|InGameSession
+1693.424          |1              |26dfe7fba8764df4b5587a01b52da073|HomeScene
+ 222.4247         |5              |3c943cbb2fbb4f25b1c9f69c7f06139a|Environment_1_0
+ 288.0494999999999|2              |3c943cbb2fbb4f25b1c9f69c7f06139a|Cell_2_3
+（以下 37 行）
+```
+
+**n がほとんど 1**。§6.6 D-5 の根拠。
+
+`frame-cost-per-run.esql`（D2-4/5/6）— **0 行**（列は解決する。構文エラーではない）:
+
+```
+    cpuP95     |    fpsP05     |  managedMax   |   nativeMax   |    samples    |    started    |   sessionId
+---------------+---------------+---------------+---------------+---------------+---------------+---------------
+（行なし）
+```
+
+`event-rate-per-run.esql`（D2-7）— 19 行:
+
+```
+      gc       |      ui       |  bottleneck   |           sessionId            |  runSeconds   | bottleneckPerMin
+0              |0              |9              |3c943cbb2fbb4f25b1c9f69c7f06139a|78             |6.923076923076923
+0              |0              |8              |26dfe7fba8764df4b5587a01b52da073|58             |8.275862068965518
+0              |0              |10             |ace2b4c0a3024ad2b28f7d7f2cfe8614|26             |23.076923076923077
+0              |0              |14             |7452d637a4334142821e10fbe2ba1f93|32             |26.25
+（以下 15 run）
+```
+
+`gc` / `ui` は全 run で 0（§6.6 B-1）。`bottleneck` は実データが動く（§6.6 D-4）。
+
+#### B-3 の実測（`tags == "Bottleneck"` が静かに間違える）
+
+同じ 2 run に対する 3 つの数え方:
+
+```
+| 数え方                                                    | 26dfe7fb… | 3c943cbb… | 計 |
+| terms 集計（STATS n = COUNT(*) BY tags の "Bottleneck")   |     —     |     —     | 17 |
+| CONCAT("|",MV_CONCAT(tags,"|"),"|") LIKE "*|Bottleneck|*" |     8     |     9     | 17 |  ← 正しい
+| tags == "Bottleneck"                                      |     3     |     5     |  8 |  ← 9 件落ちる
+```
+
+落ちた 9 件は `tags` が `["Bottleneck","NativeMemoryOver"]` の record。
+**エラーも警告も出ず件数だけが減る**ため、結果を読んでも気づけない。
+
+#### B-2 の実測（index 間 mapping 衝突）
+
+```
+$ curl -s "http://localhost:9200/debugstudio-telemetry-*/_field_caps?fields=kind,payload.stage,payload.targetIdentity,payload.shape,payload.cameraTotalViewCount"
+
+CONFLICT kind                        {'keyword': [...2026.08.11], 'text': [...2026.08.08]}
+CONFLICT payload.shape               {'keyword': [...2026.08.11], 'text': [...2026.08.08]}
+CONFLICT payload.stage               {'keyword': [...2026.08.11], 'text': [...2026.08.08]}
+CONFLICT payload.targetIdentity      {'keyword': [...2026.08.11], 'text': [...2026.08.08]}
+CONFLICT payload.cameraTotalViewCount{'long'   : [...2026.08.08], 'integer': [...2026.08.11]}
+```
+
+**壊れ方が 2 種類あり、片方は静かである:**
+
+| フィールド | 症状 |
+|---|---|
+| `kind` | `verification_exception` / 400。**クエリごと落ちるので気づける** |
+| `payload.stage` / `payload.targetIdentity` | **エラー無しで全行 null。** 気づけない |
+
+原因は `debugstudio-telemetry-2026.08.08` **1 本だけ**が index template 適用前の
+動的 mapping で作られていること。他の index は無害。
+
+**対処: index を作り直した**（データは破棄可という判断を人間から得た）。
+telemetry / log の index を全削除 → Filebeat の registry ボリュームを破棄 → 再作成し、
+L0 の `.ndjson` を先頭から現行 template 準拠の index へ再投入する。
+クエリ側に回避コード（`kind::keyword` のキャスト等）を入れない方針を採った。
+**Kibana の data view でも conflict 型は Lens で集計不能になるため、K3-4 のためにも
+データ側で直す必要がある。**
+
+---
+
+### 7.7 新しい gate: `ProfilerSummary` が emit されていない（**次スライスへの申し送り**）
+
+#### 事実（実測）
+
+```
+$ FROM debugstudio-telemetry-* | STATS n = COUNT(*) BY name, kind
+CameraSystemSnapshot 1074 | SceneLoad 275 | SceneUnload 70 | SceneTransition 44
+AppStartup 35 | CameraSwitch 18
+→ ProfilerSummary / GcSpike / UiCost は 0 件
+```
+
+**L0 の rolling NDJSON にも 0 件**なので、export / Filebeat / Elastic のいずれの問題でもない。
+Unity が一度も emit していない。
+
+```
+$ %LOCALAPPDATA%\DebugStudio\telemetry\debugstudio-telemetry_2026-08-11_001.ndjson （220 行）
+('sample','CameraSystemSnapshot') 129 / ('span','SceneLoad') 57 / ('span','SceneUnload') 26
+('span','SceneTransition') 4 / ('span','AppStartup') 2 / ('span','CameraSwitch') 2
+```
+
+#### 原因
+
+発生源は `DebugProfilerView.Update()` → `LogSummary()`（1 秒ごと）だが、
+**`DebugProfilerView` はプロジェクト全体で呼び出し側が 1 つも無い。**
+
+```
+$ grep -rn "DebugProfilerView" unity/Assets --include=*.cs
+→ 定義（DebugProfilerView.cs）と AppTelemetry.cs のコメント以外に参照なし
+$ grep -rln "DebugProfilerView" unity/Assets --include=*.prefab --include=*.unity --include=*.asset
+→ 0 件（prefab / シーンにも置かれていない）
+```
+
+`UIView` なので Debug レイヤーに積まれない限り `Update()` が回らない。
+
+#### なぜ本スライスで直さなかったか
+
+`UIView` を画面に出す唯一の経路は `UICommon.AddUIView(ownerId, view, ct)` で、
+**呼び出し側は `SceneDirector.Loading` ただ 1 つ、`ownerId` は必ずシーン識別子**
+（`RemoveUIView(ownerId)` も同じキーで引く）。
+
+つまり `DebugProfilerView` のようなアプリ常駐 View を載せるには
+**「シーンが所有しない UIView の寿命を誰が持つか」という所有権の設計判断**が要る。
+これは OSM の中核契約（寿命スコープ）に触るので、Kibana ダッシュボードのスライスで
+黙って決めてよい話ではない。**別スライスとして切る。**
+
+#### 影響範囲
+
+| 状態 | パネル |
+|---|---|
+| **作れる**（実データあり） | D1-4 重い span / D1-6 異常タグ内訳 / D1-7 warning ログ / D2-1 run メタ表 / D2-2 AppStartup / D2-3 SceneLoad |
+| **作れない**（ProfilerSummary 依存） | D1-1 CPU/GPU 推移 / D1-2 fps 推移 / D1-3 メモリ推移 / D1-5 イベント発生点 / D2-4 CPU p95 / D2-5 fps p05 / D2-6 メモリ最大 / D2-7 の `gc` `ui` 列 |
+
+**`.esql` は 5 本すべて書いて構文検証した**（§1.3 の「何を作りたかったかは残す」）が、
+**0 行のクエリからパネルは作らない。**
+
+> **これは K3-0 と同型の gate である。** 「フィールドが Elastic に無い」を潰したら、
+> 次は「そのフィールドを持つ record 自体が生成されていない」が出た。
+> §1.5 の gate 条件は「フィールドが `_field_caps` に現れること」だったが、
+> **それは「パネルに値が出ること」を保証しない。** 次スライスの gate 条件は
+> 「**そのパネルが参照する record が、直近 run に 1 件以上ある**」にすべきである。
 
 ---
 

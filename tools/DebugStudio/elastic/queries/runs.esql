@@ -1,0 +1,28 @@
+// 対応パネル: D2-1（run メタ表）
+//
+// run（= sessionId）を 1 行にたたみ、開始時刻・セッション属性・run 長を並べる。
+// D2 の他パネルで「4 番目の run から重い」を見つけたとき、ここを見て
+// 「端末が変わっている」「build が上がっている」を人間が当てはめるための表。
+//
+// 設計判断 1: セッション属性が null の run は落とさない。
+//   handshake より前に届いた telemetry と、session attributes 実装（PR #14, 2026-08-08）
+//   より前に記録された run は属性を持たない。これらを WHERE で消すと
+//   「run は存在したのに run 軸から消える」ことになり、run 比較そのものが嘘になる。
+//   null は値として見えている方が正しい。
+//
+// 設計判断 2: ただし sessionId 自体が null の record は落とす。属性 null とは別物。
+//   sessionId が無い record は「run が特定できない record」であって run ではない。
+//   残すと全期間ぶんが 1 グループにまとまり、実測では runSeconds = 48227 秒（13 時間超）の
+//   存在しない run が 1 行できて、他の run（数十秒）が縦軸で潰れる。
+//
+// DATE_DIFF の引数順は (単位, 開始, 終了)。実測で正の秒数が返ることを確認済み。
+
+FROM debugstudio-telemetry-*
+| WHERE sessionId IS NOT NULL
+| STATS started = MIN(@timestamp),
+        ended = MAX(@timestamp),
+        docs = COUNT(*)
+    BY sessionId, buildVersion, platform, deviceModel, engineVersion
+| EVAL runSeconds = DATE_DIFF("seconds", started, ended)
+| SORT started DESC
+| LIMIT 20

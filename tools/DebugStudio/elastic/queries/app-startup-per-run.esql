@@ -1,0 +1,25 @@
+// 対応パネル: D2-2（AppStartup を run 別に並べる）
+//
+// AppStartup は run に 1 回しか出ないので MAX(elapsedMs) = その run の値。
+//
+// 設計判断 1: platform を WHERE で固定しない（HANDOFF §4 K3-3 の草案からの変更）。
+//   §1.2 の要件は「AppStartup を見るパネルは platform で Player に絞れること」であって
+//   「常に Player だけを出すこと」ではない。草案の
+//       | WHERE ... AND platform == "WindowsPlayer"
+//   をクエリ正本に焼き込むと、Editor しか無いデータセットでは 0 行になり、
+//   パネルが壊れているのか Player run が無いのか区別できなくなる。
+//   platform を出力列として残し、絞り込みはダッシュボードのコントロールで行う。
+//
+// 設計判断 2: payload.stage で分けたまま残す。
+//   実測（2026-08-11）では AppStartup は run に 1 span だけで stage は AfterSceneLoad のみ。
+//   HANDOFF §A.3 / §2.2 は「BeforeSceneLoad / AfterSceneLoad の 2 span」と書いているが
+//   実データと一致しない。BY に stage を残しておけば、将来 BeforeSceneLoad 側が
+//   出るようになった時点でクエリを変えずに 2 行へ分かれる。
+
+FROM debugstudio-telemetry-*
+| WHERE kind == "span" AND name == "AppStartup" AND sessionId IS NOT NULL
+| STATS ms = MAX(elapsedMs),
+        started = MIN(@timestamp)
+    BY sessionId, platform, payload.stage
+| SORT started ASC
+| LIMIT 50
