@@ -809,6 +809,82 @@ Kibana は編集画面に **「Displaying a limited portion of the available fie
 - **再 `_export` により、内容が変わっていない 5 オブジェクトも `created_at` / `updated_at` / `version` が変わっている。** 内容差分が D2 ダッシュボード 1 行だけであることは JSON 比較で確認済み（メタ 3 欄を除外して比較）
 - D2-1 / D2-7 に追加した列は**末尾に追加**されており、列順は最適ではない（`sessionId` が中ほどに来る）。並べ替えは Lens の drag-and-drop が要るため見送った
 - **D2-2 / D2-3 は 5 列ちょうどなので truncation の影響を受けていない**ことは確認したが、D1-4（6 列返して 5 列表示、`sessionId` が非表示）は §2 の D1-4 仕様が `sessionId` を要求していないため**変更していない**
+  → §6.8 で `IntentionallyHiddenColumns` に理由付きで宣言し、「黙って落ちている」から「宣言して落としている」に変えた
+
+---
+
+### 6.8 PR #17 フォローアップレビュー対応（2026-08-11、cursor[bot] → Claude Code / Opus 5）
+
+[フォローアップコメント](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/17#issuecomment-5252912680)。
+前回 7 件の修正はすべて NDJSON 実体で裏取り済みと確認された。新規は Should fix 1 + Nit 3。
+
+#### Should fix #1 — 5 列 truncation の再発を機械的に止める（**最重要**）
+
+指摘のとおり、§6.7 の修正は**教訓と README に依存していて、テストになっていなかった**。
+D2-1 / D2-7 を 5 列に戻しても全テストが緑のまま通る状態だった。
+
+`KibanaEsqlPanelColumnCoverageTests`（3 テスト）と `EsqlOutputColumns`（テスト専用の狭いパーサ）を追加した。
+
+| 見るもの | 内容 |
+|---|---|
+| **クエリが返す列 ⊆ パネルの `datasourceStates.textBased.layers.*.columns[].fieldName`** | truncation の本体。**`datasource` 側にも切り詰めが残る**（D1-4 は `KEEP` 6 列に対し 5 列）ことを実測で確認したので、`visualization` ではなくここを主軸にした |
+| **逆方向**（クエリが返さない列がパネルにある） | 対応が壊れている状態 |
+| **`IntentionallyHiddenColumns` の宣言がクエリに存在するか** | クエリを直したあと宣言だけ残ると、落ちているのか出ているのか分からなくなる |
+| **datatable は `datasource` の列数 == `visualization.columns` の列数** | datasource に居ても `visualization` に無ければ表に描かれない |
+| **正本 6 パネルすべてで列が導出できている** | パーサが 0 列を返して空振りするのを防ぐ |
+
+`EsqlOutputColumns` は `KEEP` / `STATS ... BY` / `EVAL` の左辺しか見ない。
+**知らないコマンドは黙って通さず `NotSupportedException` を投げる**（列を取りこぼしたまま
+「包含できている」と報告するのが最悪の失敗なので）。`|` の分割は文字列リテラルを避ける必要がある
+（`MV_CONCAT(tags, "|")` / `LIKE "*|Bottleneck|*"` が正本にある）。
+
+**唯一の宣言済み例外は D1-4 の `sessionId`。** §2 の D1-4 仕様が要求しておらず、
+`KEEP` しているのは run コントロールを効かせるためで、表に出す必要が無いから。
+
+#### Nit #2 — `KibanaSavedObjectBundleValidator.cs` が 399 行
+
+§3.3 / A-2 の 380 行を超えていた（§7.9 の「368 行で 380 行制限内」は §6.7 の追記で古くなっていた）。
+V3 / V4 / V7 を `Validation/PanelReferenceRules.cs` に切り出した（V12 が `EsqlPanelRules` にあるのと同じ分け方）。
+
+| ファイル | 行数 |
+|---|---|
+| `KibanaSavedObjectBundleValidator.cs` | 399 → **235** |
+| `Validation/PanelReferenceRules.cs`（新規） | **215** |
+| `Validation/EsqlPanelRules.cs` | 192 |
+
+`NormalizePanelReferenceName` は V4 と一緒に移動した（T9 との共有はそのまま）。
+
+#### Nit #3 — 二重タイトル
+
+`panelsJSON[].title` は明示名、`embeddableConfig.attributes.title` は Lens の自動生成名のまま。
+**これは意図的で、直さない。** §1.4 が「`_export` したものだけを正本にする」と決めており、
+後者は Lens の state の一部。by-value パネルの inline エディタにこの欄は出てこないので、
+書き換えるには NDJSON の手編集が要り、それは §1.4 違反になる。
+表示に使われるのは前者なので実害は無い。理由を `elastic/README.md` §9 に転記した。
+
+#### Nit #4 — D2 の description が古い
+
+`build / platform / device` のままだったので、`buildVersion` / `platform` / `deviceModel` /
+`osVersion` / `engineVersion` に直した。あわせて「異常発生率は run 長で割った PerMin 列を見ること」
+の一文を足した（§6.7 で表示されるようになった列の読み方が description に無かったため）。
+Kibana の Dashboard settings で直して再 `_export`。**`panelsJSON` は 1 文字も変わっていない**
+（メタ 3 欄を除外した JSON 比較で、差分が `attributes.description` だけであることを確認）。
+
+#### 赤を見た記録
+
+| 壊し方 | 結果 |
+|---|---|
+| D2-1 の `datasource.columns` と `visualization.columns` を先頭 5 件に切り詰める | `ESQLパネルはクエリが返す列を落としていない` が赤。**落ちた列を名指しする**（`platform, deviceModel, osVersion, engineVersion, runSeconds`）。復元して緑 |
+
+#### テスト結果
+
+`DebugStudio.Export.Tests` は 128 → **131**。`dotnet test` 全体で **418 件合格 / 失敗 0**。
+
+#### 確認していないこと
+
+- `EsqlOutputColumns` は正本の 6 本でしか試していない。`DROP` / `RENAME` / `GROK` / `DISSECT` /
+  `ENRICH` / `MV_EXPAND` を使い始めたら `NotSupportedException` で赤くなる（**黙って通らないので事故にはならない**が、そのときは実装を足すこと）
+- D1-6 は棒グラフ（`lnsXY`）で `visualization.columns` を持たないため、**列数の突き合わせは datasource 側だけ**。棒グラフの accessor まで見ていない
 
 
 ## 7. Phase C レビュー
@@ -1269,6 +1345,10 @@ by-reference で作れば必ず当たる）。
 
 `KibanaSavedObjectBundleValidator.cs` は 320 → **368 行**で 380 行制限内。
 V12 は別ファイルへ切ったので `Validate` 本体は肥大していない。
+
+> **追記（§6.8 / フォローアップ Nit #2）:** §6.7 の修正で 399 行になり 380 行を超えた。
+> V3 / V4 / V7 を `Validation/PanelReferenceRules.cs` へ切り出して **235 行**に戻した。
+> 行数はここではなく §6.8 の表が実測の正本。
 
 ---
 

@@ -203,6 +203,22 @@ ES|QL は `//` 行コメントと改行をそのまま受け付けるので、�
 **パネルを作ったら、クエリの列数と表示列数を必ず突き合わせること。** 足りない列は
 Lens の Visualization configuration → Metrics → 「Add or drag-and-drop a field」で足します。
 
+これは `KibanaEsqlPanelColumnCoverageTests` が機械的に強制するようになりました。
+意図的に列を落とす場合は同テストの `IntentionallyHiddenColumns` に理由付きで宣言します
+（**黙って消える**を**宣言して消す**に変えるのが目的）。
+
+### パネルのタイトルは NDJSON 上で 2 箇所ある
+
+| 場所 | 何か |
+|---|---|
+| `panelsJSON[].title` | **ダッシュボードに表示される名前。** ここだけが人間の付けた名前 |
+| `panelsJSON[].embeddableConfig.attributes.title` | Lens が列名から自動生成した内部名（`Table started & ended & …`） |
+
+**後者は手で直しません。** §1.4 が「`_export` したものだけを正本にする」と決めており、
+これは Lens の state の一部です。by-value パネルの inline エディタにこの欄は出てこないので、
+書き換えるなら NDJSON を手編集するしかなく、それは §1.4 違反になります。
+**表示は前者が使われるので実害はありません**が、NDJSON を読むときは前者を見てください。
+
 ## トラブルシュート
 
 | 症状 | 確認 |

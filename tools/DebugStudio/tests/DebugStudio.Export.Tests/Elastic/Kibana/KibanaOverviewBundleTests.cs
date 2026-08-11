@@ -3,6 +3,7 @@
 using System.Linq;
 using System.Text.Json;
 using DebugStudio.Export.Elastic.Kibana;
+using DebugStudio.Export.Elastic.Kibana.Validation;
 
 namespace DebugStudio.Export.Tests.Elastic.Kibana;
 
@@ -121,7 +122,7 @@ public sealed class KibanaOverviewBundleTests
             // 正規化は本番（V4）と同じ関数を使う。T9 が独自実装を持っていた頃は
             // 「':' 以降を無条件で剥がす」ため controlGroup 参照まで辞書に入っていた。
             var refIdByPanelName = dashboard.References
-                .Select(r => (Name: KibanaSavedObjectBundleValidator.NormalizePanelReferenceName(r.Name), r.Id))
+                .Select(r => (Name: PanelReferenceRules.NormalizePanelReferenceName(r.Name), r.Id))
                 .Where(r => r.Name is not null)
                 .ToDictionary(r => r.Name!, r => r.Id, StringComparer.Ordinal);
 
