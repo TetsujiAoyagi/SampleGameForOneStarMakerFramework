@@ -721,12 +721,14 @@ DeprecatedFieldCatalog.cs              |  36 ++（新規）
 KibanaSavedObjectBundleValidator.cs    | 181 +++---（318 → 321 行）
 TelemetryPersistenceServiceTests.cs    |  93 ++
 IndexTemplateFieldMappingHelper.cs     | 306 ++（新規・テスト側）
-KibanaSavedObjectBundleValidatorTests  | 113 ++（171 → 263 行）
-KibanaSavedObjectFieldMappingTests     | 275 ++（107 → 239 行）
+KibanaSavedObjectBundleValidatorTests  | 113 ++（171 → 276 行）
+KibanaSavedObjectFieldMappingTests     | 275 ++（107 → 329 行）
 ```
 
+> **訂正（C' 監査 §8.1 の指摘による）:** 初版はテスト 2 本の現在行数を「263 行 / 239 行」と書いていたが、これは `git diff` の挿入行数を現在行数と取り違えたもので、**実測は 276 行 / 329 行**。`wc -l` で確認して上表を訂正した。「自分で数えた」と書いた箇所で数えていなかったのは本節の失点。**production 側の 321 行（380 行制限内）は実測値で、こちらは誤っていない。**
+
 - **50% 以上増えたファイルは production に無い。** `KibanaSavedObjectBundleValidator.cs` は 318 → **321 行**で §3.3 の 380 行制限内。V6〜V10 の追加分は `DeprecatedFieldCatalog` 抽出による削減と相殺されている。§3.3 の「`Validate` が 400 行を超えたら分割」は発火せず、分割不要は妥当
-- **増えたのはテスト側**（`IndexTemplateFieldMappingHelper` 306 行 + テスト 2 本で +388 行）。責務は「mapping パス収集」「data view 振り分け」「lens/kuery のフィールド抽出」の 3 つで、いずれも純関数として単体で呼べる形になっている。**テストが書けないロジックは無い**
+- **増えたのはテスト側**（新規ヘルパ 306 行 + 既存テスト 2 本に +327 行 = 計 +633 行）。責務は「mapping パス収集」「data view 振り分け」「lens/kuery のフィールド抽出」の 3 つで、いずれも純関数として単体で呼べる形になっている。**テストが書けないロジックは無い**
 - **§3.5 P-5 は守られている。** `CollectMappedFieldPaths` は `internal static` のテスト側ヘルパのままで production に昇格していない
 - **V7 と V4 は別ルールとして分離**（`ValidateV3V4AndV7` 内で `RuleId` が分かれ、V7 は `continue` して V4 の 1:1 判定に流さない）。どちらで落ちたか区別できる
 - **`DeprecatedFieldCatalog` の Regex は語リストから生成**（`string.Join("|", Fields.Select(Regex.Escape))`）。二重管理は解消。lookbehind `(?<![.\w])` により `payload.cameraTotalViewCount` は誤検出しない
@@ -749,7 +751,7 @@ dotnet test tools/DebugStudio/DebugStudio.sln
 |---|---|---|
 | **F1** | **中（Phase A = HANDOFF の失点）** | **§4 K3-1 の「`Elastic/Kibana/` の 6 ファイルには `System.IO` / `File.` / `GetManifestResourceStream` が 1 つも無い（C' 監査が裏付け済み）」は事実誤り。** 実際には `ElasticKibanaSavedObjectsWriter.cs`（`GetManifestResourceStream` / `File.WriteAllTextAsync`）と `ElasticKibanaImportCommandWriter.cs`（`File.WriteAllTextAsync`）が IO を持つ。**守るべき不変条件は「検算経路（parser / validator / catalog / model）に IO を持ち込まない」**であり、それは今回も守られている。**問題は、Opus 4.8 が 1 巡目で「`Elastic/Kibana/` 配下は IO 無し」を*良い点*として追認したこと** — 仕様の文言をそのまま検証結果として書いた。§0.5 が警告した「仕様との照合をいくら重ねても仕様の誤りは検出できない」が、この HANDOFF 自身で再発した。**次スライスで §4 K3-1 の文言を訂正すること** |
 | **F2** | 低〜中（本スライスが作った潜在穴） | `IndexTemplateFieldMappingHelper.StripDoubleQuotedSegments` は kuery のダブルクォート区間を空白に置換してから field を拾う。**KQL はフィールド名自体の引用（`"log.level": warn`）を許すため、引用符付きフィールド名は照合対象から静かに落ちる。** 現正本の kuery は `log.level: ("warning" or ...)` で値だけが引用されているため無害だが、**「検算が静かに消える」型の穴**で、本スライスが塞ごうとしたものと同型。doc の限界列挙にもこの項目が無い。修正案: 引用符区間を除去する前に `"field":` 形を先に拾う、または最低限 doc の限界に明記する |
-| **F3** | 低（K3-4 への申し送り） | `TryResolveMappedFieldPaths` は index-pattern 参照が **複数あると赤**にする。**K3-4 で annotation layer / reference line を持つ Lens は複数 data view を参照しうる**ため、正当なパネルが赤になる可能性がある。現在 lens 0 個なので無害。K3-4 着手時に実 `_export` で確認すること |
+| **F3** | ~~低~~ → **中**（C' 監査 §8.1 の指摘を受けて格上げ。安全網が*誤って塞ぐ*方向のリスクであり、K3-4 着手前に方針決定が要る） | `TryResolveMappedFieldPaths` は index-pattern 参照が **複数あると赤**にする。**K3-4 で annotation layer / reference line を持つ Lens は複数 data view を参照しうる**ため、正当なパネルが赤になる可能性がある。現在 lens 0 個なので無害。K3-4 着手時に実 `_export` で確認すること |
 | **F4** | 低 | 既存テスト名 `正本NDJSONはV1からV6で指摘0件である` が**古い**。中身は `KibanaSavedObjectBundleValidator.Validate` を丸ごと呼ぶため、**実際には V1〜V10 を正本に対して強制している**（§5.1 T8 は実質達成）。名前だけ V6 で止まっており、読み手が「V7〜V10 は正本にかかっていない」と誤解する。改名するだけ |
 
 **§5.1 の T9（正本のダッシュボードは 2 枚あり、各パネルが `references` と 1:1）は未実装。** 正本は現在 dashboard 1 枚 / lens 0 個 / 5 オブジェクトで、2 枚目は K3-4 の成果物であるため**本スライスでは原理的に書けない**。K3-4 と同時に入れること。
@@ -768,7 +770,36 @@ dotnet test tools/DebugStudio/DebugStudio.sln
 
 ## 8. Phase C' 監査
 
-（実装にも設計にも関与していないモデルが記入する）
+### 8.1 JOB C' 監査（2026-08-11）
+
+**限界:** 本監査は Phase B 実装者（cursor-grok-4.5-high）による自己採点であり、CLAUDE.md が求める「実装・設計に関与していないモデル」の条件を満たさない。
+
+#### §7 の主張 — 再現できたもの / できなかったもの
+
+| §7 の主張 | 本監査の実測 |
+|---|---|
+| `dotnet test` 394 / 0 failed（Contracts 37 / Export 107 / Server 10 / Cli 7 / App 233） | **再現。** 失敗 0、合格 394。内訳一致 |
+| `KibanaSavedObjectBundleValidator.cs` が 321 行 | **再現。** `wc -l` = 321 |
+| `CollectMappedFieldPaths` が production に昇格していない | **再現。** 定義は `tests/.../IndexTemplateFieldMappingHelper.cs` のみ。`src/` に無し |
+| V7 と V4 が別ルールとして分離 | **再現。** `ValidateV3V4AndV7` 内で V7 は `RuleId="V7"` + `continue`、V4 は別 `RuleId` |
+| **F1**: Writer 2 本が IO を持ち、§4 K3-1「6 ファイルに IO 無し」は事実誤り | **再現（事実誤りは本当）。** `ElasticKibanaSavedObjectsWriter`（`GetManifestResourceStream` / `File.WriteAllTextAsync`）と `ElasticKibanaImportCommandWriter`（`File.WriteAllTextAsync`）が IO 保有。検算経路（parser / validator / catalog / model 系）には IO 無し。なお配下は現在 **9 ファイル**（「6」も既に陳腐） |
+| **F2**: `"log.level": warn` が `StripDoubleQuotedSegments` で照合から落ちる | **再現。** reflection で `CollectKueryFieldReferences` 実行 → フィールド **0 件**。対して `log.level: warn` と `log.level: ("warning" or ...)` は `log.level` を拾う |
+| **F4**: テスト名は V6 だが中身は V1〜V10 | **再現。** `正本NDJSONはV1からV6で指摘0件である` は `Validate` 丸呼び（V1〜V10）。V11 は別テスト |
+
+**再現できなかった（§7 側の誤記）:**
+
+- §7.1 の行数: FieldMappingTests を「107 → **239**」と書いたが実測は **329** 行。ValidatorTests を「171 → **263**」と書いたが実測は **276** 行。diff の増分行と現在行数を混同した可能性が高い。「自分で数えた」主張と食い違う
+
+#### §7 が見落としていた問題
+
+- **F3 の格付けが K3-4 向けに甘い。** `TryResolveMappedFieldPaths` は index-pattern 参照が複数だとオブジェクトごと赤。annotation layer / reference line を持つ本物の Lens `_export` では正当パネルが落ちうる。§7 は「低」だが、次スライスで安全網が**誤って塞ぐ**方向のリスクなので **中（K3-4 着手前に方針決定が必要）** が妥当。F1 / F2 / F4 の格付け自体は過大でも過小でもない（F2 は現正本では無害、同型の静かな穴である点の指摘は正しい）
+- **それ以外の重大な見落としは無し。** §7.4「Elastic 未実測 / K3-3〜5 未着手 / 正本未変更」は正直（本環境も `docker info` 失敗）。「確認できたのに諦めた」箇所は行数誤記程度
+
+#### 本監査が確認していないこと
+
+- Elastic `_field_caps` / 実 run 投入、Kibana UI、本物の `_export` NDJSON に対する V11 の当たり具合
+- Phase C（Opus 4.8）が本当に `dotnet test` 未実行だったか（メタ主張）
+- Unity 配下・`pwsh tools/run-tests.ps1`
 
 ---
 
