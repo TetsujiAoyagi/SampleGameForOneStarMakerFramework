@@ -128,7 +128,96 @@ public sealed class TelemetryPersistenceServiceTests
         }
     }
 
-    private static SessionMessageRouter CreateMessageRouter()
+    [Fact]
+    public async Task RouteTelemetryMessage_Welcome後の同一sessionIdならrolling_NDJSONにセッション属性5キーが出る()
+    {
+        // Filebeat が読む L0 rolling NDJSON 経路。router と persistence が同一 store を共有する契約を固定する。
+        var directory = CreateTempDirectory();
+        var attributesStore = new TelemetrySessionAttributesStore();
+        var messageRouter = CreateMessageRouter(attributesStore);
+
+        try
+        {
+            await using var persistence = new TelemetryPersistenceService(
+                messageRouter,
+                new RollingTelemetryFileWriter(directory, maxFileSizeBytes: 4096),
+                attributesStore);
+
+            messageRouter.RouteCapabilityWelcomeMessage(new CapabilityHandshakeWelcomeEnvelopeV1
+            {
+                SessionId = "session-persist-attrs",
+                BuildVersion = "1.4.2",
+                Platform = "WindowsPlayer",
+                DeviceModel = "PC",
+                OsVersion = "Windows 11",
+                EngineVersion = "6000.5.0f1",
+                TimestampUnixTimeMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            });
+
+            messageRouter.RouteTelemetryMessage(new DebugTelemetryEnvelopeV1
+            {
+                Name = "ProfilerSummary",
+                EndTimestampUtcTicks = DateTime.UtcNow.Ticks,
+                ElapsedMs = 0,
+                IsSuccess = true,
+                SessionId = "session-persist-attrs",
+            });
+
+            await persistence.DisposeAsync();
+
+            var line = Assert.Single(await ReadAllLinesAsync(directory));
+            Assert.Contains("\"buildVersion\":\"1.4.2\"", line, StringComparison.Ordinal);
+            Assert.Contains("\"platform\":\"WindowsPlayer\"", line, StringComparison.Ordinal);
+            Assert.Contains("\"deviceModel\":\"PC\"", line, StringComparison.Ordinal);
+            Assert.Contains("\"osVersion\":\"Windows 11\"", line, StringComparison.Ordinal);
+            Assert.Contains("\"engineVersion\":\"6000.5.0f1\"", line, StringComparison.Ordinal);
+        }
+        finally
+        {
+            CleanupDirectory(directory);
+        }
+    }
+
+    [Fact]
+    public async Task RouteTelemetryMessage_Welcome前のtelemetryはセッション属性キーを出さない()
+    {
+        var directory = CreateTempDirectory();
+        var attributesStore = new TelemetrySessionAttributesStore();
+        var messageRouter = CreateMessageRouter(attributesStore);
+
+        try
+        {
+            await using var persistence = new TelemetryPersistenceService(
+                messageRouter,
+                new RollingTelemetryFileWriter(directory, maxFileSizeBytes: 4096),
+                attributesStore);
+
+            messageRouter.RouteTelemetryMessage(new DebugTelemetryEnvelopeV1
+            {
+                Name = "AppStartup",
+                EndTimestampUtcTicks = DateTime.UtcNow.Ticks,
+                ElapsedMs = 1.0,
+                IsSuccess = true,
+                SessionId = "session-before-welcome",
+            });
+
+            await persistence.DisposeAsync();
+
+            var line = Assert.Single(await ReadAllLinesAsync(directory));
+            Assert.DoesNotContain("buildVersion", line, StringComparison.Ordinal);
+            Assert.DoesNotContain("\"platform\"", line, StringComparison.Ordinal);
+            Assert.DoesNotContain("deviceModel", line, StringComparison.Ordinal);
+            Assert.DoesNotContain("osVersion", line, StringComparison.Ordinal);
+            Assert.DoesNotContain("engineVersion", line, StringComparison.Ordinal);
+        }
+        finally
+        {
+            CleanupDirectory(directory);
+        }
+    }
+
+    private static SessionMessageRouter CreateMessageRouter(
+        TelemetrySessionAttributesStore? sessionAttributesStore = null)
     {
         var logStore = new LogStore(capacity: 64);
         var hierarchyStore = new HierarchyStore();
@@ -145,7 +234,7 @@ public sealed class TelemetryPersistenceServiceTests
             telemetryStore,
             commandStore,
             capabilityStateStore,
-            new TelemetrySessionAttributesStore());
+            sessionAttributesStore ?? new TelemetrySessionAttributesStore());
     }
 
     private static DebugTelemetryEnvelopeV1 CreateTelemetryEnvelope(string name)

@@ -49,6 +49,98 @@ public sealed class KibanaSavedObjectBundleValidatorTests
     }
 
     [Fact]
+    public void パネルにpanelRefNameが無いとV7で落ちる()
+    {
+        // V3/V4 は panelRefName 無し + references 空だと緑のまま通る穴。V7 がそれを捕まえる。
+        var ndjson =
+            """
+            {"id":"dash","type":"dashboard","attributes":{"title":"x","panelsJSON":"[{\"type\":\"search\",\"panelIndex\":\"p1\"}]"},"references":[]}
+            """;
+
+        var issues = Validate(ndjson);
+
+        Assert.Contains(issues, i => i.RuleId == "V7");
+        Assert.DoesNotContain(issues, i => i.RuleId == "V4");
+    }
+
+    [Fact]
+    public void referencesのtypeが実オブジェクトと違うとV8で落ちる()
+    {
+        var ndjson =
+            """
+            {"id":"dash","type":"dashboard","attributes":{"title":"x","panelsJSON":"[{\"type\":\"search\",\"panelIndex\":\"p1\",\"panelRefName\":\"panel_p1\"}]"},"references":[{"id":"s1","name":"panel_p1","type":"lens"}]}
+            {"id":"s1","type":"search","attributes":{"title":"s","columns":[],"sort":[],"kibanaSavedObjectMeta":{"searchSourceJSON":"{\"query\":{\"query\":\"\",\"language\":\"kuery\"}}"}},"references":[]}
+            """;
+
+        var issues = Validate(ndjson);
+
+        Assert.Contains(issues, i => i.RuleId == "V8");
+        Assert.DoesNotContain(issues, i => i.RuleId == "V5");
+    }
+
+    [Fact]
+    public void searchにkibanaSavedObjectMetaが無いとV9で落ちる()
+    {
+        var ndjson =
+            """
+            {"id":"s1","type":"search","attributes":{"title":"s","columns":[],"sort":[]},"references":[]}
+            """;
+
+        var issues = Validate(ndjson);
+
+        Assert.Contains(issues, i => i.RuleId == "V9");
+    }
+
+    [Fact]
+    public void searchのsortが文字列だとV10で落ちる()
+    {
+        var ndjson =
+            """
+            {"id":"s1","type":"search","attributes":{"title":"s","columns":[],"sort":"@timestamp","kibanaSavedObjectMeta":{"searchSourceJSON":"{\"query\":{\"query\":\"\",\"language\":\"kuery\"}}"}},"references":[]}
+            """;
+
+        var issues = Validate(ndjson);
+
+        Assert.Contains(issues, i => i.RuleId == "V10");
+    }
+
+    [Theory]
+    [InlineData("cpuTime")]
+    [InlineData("gpuTime")]
+    [InlineData("managedMem")]
+    [InlineData("nativeMem")]
+    [InlineData("cameraTotalViewCount")]
+    [InlineData("cameraAdditionalViewCount")]
+    [InlineData("cameraBlendingViewCount")]
+    [InlineData("cameraMaxStackDepthTotal")]
+    public void deprecated8語がcolumnsでV6に落ちる(string field)
+    {
+        var ndjson = BuildSearchNdjson(
+            columnsJson: $"[\"{field}\"]",
+            query: string.Empty);
+        var issues = Validate(ndjson);
+        Assert.Contains(issues, i => i.RuleId == "V6" && i.Message.Contains(field, System.StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("cpuTime")]
+    [InlineData("gpuTime")]
+    [InlineData("managedMem")]
+    [InlineData("nativeMem")]
+    [InlineData("cameraTotalViewCount")]
+    [InlineData("cameraAdditionalViewCount")]
+    [InlineData("cameraBlendingViewCount")]
+    [InlineData("cameraMaxStackDepthTotal")]
+    public void deprecated8語がqueryでV6に落ちる(string field)
+    {
+        var ndjson = BuildSearchNdjson(
+            columnsJson: "[\"kind\"]",
+            query: $"{field} > 0");
+        var issues = Validate(ndjson);
+        Assert.Contains(issues, i => i.RuleId == "V6" && i.Message.Contains(field, System.StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void columnsにcpuTimeがあるとV6が指摘されpayload側は指摘されない()
     {
         var deprecatedColumns = BuildSearchNdjson(
@@ -93,7 +185,7 @@ public sealed class KibanaSavedObjectBundleValidatorTests
     {
         var ndjson =
             """
-            {"id":"s1","type":"search","attributes":{"title":"s","columns":[],"sort":[]},"references":[{"id":"missing-dataview","name":"kibanaSavedObjectMeta.searchSourceJSON.index","type":"index-pattern"}]}
+            {"id":"s1","type":"search","attributes":{"title":"s","columns":[],"sort":[],"kibanaSavedObjectMeta":{"searchSourceJSON":"{\"query\":{\"query\":\"\",\"language\":\"kuery\"}}"}},"references":[{"id":"missing-dataview","name":"kibanaSavedObjectMeta.searchSourceJSON.index","type":"index-pattern"}]}
             """;
 
         var issues = Validate(ndjson);
@@ -106,8 +198,8 @@ public sealed class KibanaSavedObjectBundleValidatorTests
     {
         var ndjson =
             """
-            {"id":"dup","type":"search","attributes":{"title":"a","columns":[],"sort":[]},"references":[]}
-            {"id":"dup","type":"search","attributes":{"title":"b","columns":[],"sort":[]},"references":[]}
+            {"id":"dup","type":"search","attributes":{"title":"a","columns":[],"sort":[],"kibanaSavedObjectMeta":{"searchSourceJSON":"{\"query\":{\"query\":\"\",\"language\":\"kuery\"}}"}},"references":[]}
+            {"id":"dup","type":"search","attributes":{"title":"b","columns":[],"sort":[],"kibanaSavedObjectMeta":{"searchSourceJSON":"{\"query\":{\"query\":\"\",\"language\":\"kuery\"}}"}},"references":[]}
             """;
 
         var issues = Validate(ndjson);
@@ -120,7 +212,7 @@ public sealed class KibanaSavedObjectBundleValidatorTests
     {
         var ndjson =
             """
-            {"id":"a","type":"search","attributes":{"title":"a","columns":[],"sort":[]},"references":[]}
+            {"id":"a","type":"search","attributes":{"title":"a","columns":[],"sort":[],"kibanaSavedObjectMeta":{"searchSourceJSON":"{\"query\":{\"query\":\"\",\"language\":\"kuery\"}}"}},"references":[]}
             {"exportedCount":5}
             """;
 

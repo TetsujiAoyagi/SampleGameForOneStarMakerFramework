@@ -539,9 +539,107 @@ pwsh tools/run-tests.ps1
 
 ## 6. Phase C からの差し戻し / 実装側からの設計への異議
 
-（Phase B / C が記入する。§0.5 のとおり、**設計への異議はここに書いてから進むこと**）
+### 6.1 K3-0 Phase B（2026-08-11）— セッション属性 5 フィールド
+
+#### 原因判定: **(c)**（前スライス実装前の古いデータしか Elastic に入っていなかった）
+
+**(a) / (b) は現行コード上は繋がっている。** 根拠:
+
+| 経路 | 根拠（ファイル:行） |
+|---|---|
+| **(a) Unity → Welcome** | `UnitySessionAttributes.Capture()` が `AbstractApplicationInitializer.cs:126`。Welcome 組み立てで 5 フィールド代入が `DebugSocketService.Inbound.cs:60-64`。wire key 9〜13 は Unity / Contracts 双方の `CapabilityHandshakeWelcomeEnvelopeV1.cs` で一致 |
+| **(a) SessionId 一致** | Welcome の `session.SessionId` は `DebugSocketClientSession.cs:54` で `UnitySessionCorrelationContext.SessionId`。telemetry も `AppTelemetry.cs:305/389` で同値 |
+| **(b) store** | `SessionMessageRouter.cs:98-99` が Welcome を `TelemetrySessionAttributesStore.ApplyWelcome` へ流す。lookup は `sessionId` キー（`TelemetrySessionAttributesStore.cs:66-76`）。「現在接続中」依存なし |
+| **(b) mapper / `_bulk`** | `TelemetryRecordExportMapper.cs:96-100` が空文字を null 化。`ElasticBulkTelemetryNdjsonBuilder.CreatePayloadDictionary`（`:134-138`）が `AddIfPresent` でキー省略。index template に 5 keyword（`ElasticTelemetryIndexTemplateDefinition.cs:152-156`） |
+| **(b) 配線** | `AppCompositionRoot.cs:114-128,150-157,210` で export / push / persistence / router が**同一** `TelemetrySessionAttributesStore` を共有 |
+
+**(c) の根拠（このマシンの LocalAppData）:**
+
+- `%LOCALAPPDATA%\DebugStudio\telemetry\` の全 `*.ndjson`（最新は `debugstudio-telemetry_2026-08-08_001.ndjson`、mtime **18:35**）に `buildVersion` / `platform` / `deviceModel` / `osVersion` / `engineVersion` は **0 件**
+- 前スライス PR #14（session attributes）の merge は **2026-08-08 23:33**（`b21b044`）。つまり U-4 が読んだ L0 永続は**実装マージ前に書かれたファイル**
+- foundation U-4 の「最新 doc 2026-08-08 / 5 フィールドが `_field_caps` に無い」は、この古い L0 を Filebeat / import した結果と整合する
+
+#### 何を直したか
+
+**本番コードの欠陥は見つからなかったため、本番コードは変更していない。**  
+Filebeat が読む L0 rolling 経路で「Welcome 後の同一 `sessionId` なら 5 キーが出る / Welcome 前は出ない」を固定する回帰テストを `TelemetryPersistenceServiceTests` に追加した（既存テストは router と persistence で store が別インスタンスだった）。
+
+#### 確認していないこと
+
+- **Docker / Elasticsearch / Kibana はこの環境で起動できない。** `_field_caps` / 直近 run の curl 実測は**未了**
+- Unity をこのブランチで起動して DebugStudio に接続し、新規 telemetry を流す実機確認も**未了**
+- したがって HANDOFF §4 K3-0 の完了条件（Elastic 上に 5 フィールドが実在）は**このジョブでは満たしていない**。「コード上は (a)/(b) が繋がり、(c) が U-4 欠損の説明になる」までが到達点
+
+#### 設計への異議（§0.5）
+
+1. **K3-0 完了条件が「Elastic 実測」一択だと、Docker 不可の Phase B 作業ツリーでは原理的に完了不能になる。** 「(a)/(b) をコード＋単体テストで潰す」と「(c) 切り分け＋ curl 実測」を完了の二段に分け、後者を Phase C / 人間担当と明記した方が差し戻し理由が嘘にならない
+2. **手順の「まず (c)」は正しいが、切り分けの最安は LocalAppData の rolling NDJSON の mtime と `buildVersion` 有無を見ること。** U-4 時点でそれを書いていれば、(c) は curl 前に確定できた
+3. §1.1〜1.5 / パネル方針への異議は K3-0 範囲では無し（属性依存の前提自体は妥当。実データが無いだけ）
+
+### 6.2 K3-1 Phase B（2026-08-11）— V7〜V10 + DeprecatedFieldCatalog
+
+#### 何を直したか
+
+- `DeprecatedFieldCatalog.cs` を新規追加し、deprecated 8 語の `HashSet` / `Regex` 二重管理を廃止。`QueryPattern` は語リストから生成
+- `KibanaSavedObjectBundleValidator` に V7〜V10 を追加（公開入口 `Validate` は維持。分割せず 317 行で 380 行制限内）
+- 単体テスト T1〜T5 を `KibanaSavedObjectBundleValidatorTests` に追加
+
+#### 赤を見た記録
+
+| テスト | 壊し方 | 結果 |
+|---|---|---|
+| T1 V7 | 実装前にテストだけ追加 | `Assert.Contains(V7)` 失敗、issues=`[]`（V3/V4 緑の穴を実測） |
+| T2 V8 | 同上 | `Assert.Contains(V8)` 失敗、issues=`[]`（誤 type でも V5 緑） |
+| T3 V9 | 同上 | `Assert.Contains(V9)` 失敗、issues=`[]` |
+| T4 V10 | 同上 | `Assert.Contains(V10)` 失敗、issues=`[]`（sort 文字列でも検査スキップ） |
+| T5 Catalog | 実装後に Catalog から `gpuTime` を一時削除 | columns / query 双方の `gpuTime` InlineData が失敗（Collection: `[]`）。復元後は 8 語×2 経路すべて緑 |
+
+実装後: validator テスト 28 合格。全解 `dotnet test tools/DebugStudio/DebugStudio.sln` → **391 passed / 0 failed**（ベースライン 369 + 本ジョブで +20、K3-0 分含む）。
+
+#### 確認していないこと
+
+- Kibana UI / Elastic への import 実測（本ジョブ範囲外）
+- 正本 NDJSON を人手で壊して V7〜V10 が本番バンドル経路でも赤になることの再確認（単体フィクスチャで赤は確認済み）
+
+#### 設計への異議（§0.5）
+
+1. **§3.3 の「Validate 本体が 400 行を超えたら分割」と JOB の「V7〜V10 で 380 行超えない」は閾値が食い違う。** 今回は 317 行で両条件を満たしたので分割しなかったが、K3-2 の V11 で確実に超える。分割タイミングは「K3-1 完了時点で先に切る」方が K3-2 の diff が読みやすい（今回は JOB 指示どおり未分割）
+2. **V10 を「sort プロパティ欠如」も赤にするか**は仕様が曖昧。本実装は「無いか配列でない」を赤にした（文字列に戻る穴と、sort 検査ごと消える穴の両方）。欠如を許容するならテストとルール文を明示して欲しい
+3. §1 / パネル方針への異議は K3-1 範囲では無し
+
+### 6.3 K3-2 Phase B（2026-08-11）— V11 lens mapping + query 内フィールド検算
+
+#### 何を直したか
+
+- `IndexTemplateFieldMappingHelper`（テスト共有）を新設。`CollectMappedFieldPaths` は production に昇格せず、ここに切り出し（§3.5 P-5）
+- lens `attributes.state` を再帰走査して `sourceField` / `field` の文字列値を集め、index template mapping と突き合わせる（V11・緩い実装。限界はヘルパの doc コメントに明記）
+- saved search の `searchSourceJSON` query 内の `field:` 参照も同じ mapping 検算の対象に拡張（前スライスの申し送り）
+- 公開入口 `KibanaSavedObjectBundleValidator.Validate` は未変更。V11 は template 照合のため `KibanaSavedObjectFieldMappingTests` 側（columns 検算と同系統）
+
+#### 赤を見た記録
+
+| テスト | 壊し方 | 結果 |
+|---|---|---|
+| T6 V11 | 合成 lens fixture に `sourceField=payload.doesNotExist` | unmapped として検出（`payload.doesNotExist`）。正本は lens 0 個で緑 |
+| T7 query | 正本 `debugstudio-log-warnings` の query だけ `log.level` → `payload.doesNotExist` に一時書き換え | `saved search 'debugstudio-log-warnings' の searchSourceJSON query に index template へ mapping されていないフィールドがある: payload.doesNotExist`。復元後緑 |
+| （旧穴） | 同上の query 破壊のまま columns 検算だけ実行 | **緑のまま**（query 未検査だった穴を実測） |
+
+実装後: `dotnet test tools/DebugStudio/DebugStudio.sln` → **393 passed / 0 failed**（K3-1 時点 391 + T6/T7 で +2）。
+
+#### 確認していないこと
+
+- 実 Kibana から `_export` した本物の lens `state` での false negative / false positive（正本に lens が未だ 0。K3-4 後に再確認が要る）
+- kuery 以外（Lucene / filter DSL / ES|QL 埋め込み）のフィールド参照
+- lens の deprecated 8 語禁止（§1.6 の「lens も見る」は mapping とは別。本ジョブ範囲外）
+
+#### 設計への異議（§0.5）
+
+1. **K3-1 異議 1 の「V11 で Validate が 400 行超」は当たらない。** V11 は index template 照合なので `Validate` に載せず FieldMappingTests 側。Validate 分割は K3-1 時点の行数懸念としては解消
+2. **lens → data view → template の対応付けは未実装。** 呼び出し側が mapping 集合を渡す。正本に lens が入ったら references の index-pattern で振り分ける必要がある（今は telemetry mapping を仮に使う／lens 0 個）
+3. §1 / パネル方針への異議は K3-2 範囲では無し
 
 ---
+
 
 ## 7. Phase C レビュー
 
