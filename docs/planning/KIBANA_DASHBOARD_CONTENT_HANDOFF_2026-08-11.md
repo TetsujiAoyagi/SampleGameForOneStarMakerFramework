@@ -150,7 +150,7 @@ ES|QL クエリを書く → 実 Elastic に当てて通ることを確認 → q
 
 | # | パネル | 集計 | なぜこの統計量か |
 |---|---|---|---|
-| D2-1 | **run メタ表** | run ごとに 開始時刻 / `buildVersion` / `platform` / `deviceModel` / `engineVersion` / run 長（秒） | 「いつ何が変わったか」の当てどころ。§1.1 の要 |
+| D2-1 | **run メタ表** | run ごとに 開始時刻 / `buildVersion` / `platform` / `deviceModel` / `osVersion` / `engineVersion` / run 長（秒） | 「いつ何が変わったか」の当てどころ。§1.1 の要 |
 | D2-2 | AppStartup | run × `payload.stage`（`BeforeSceneLoad` / `AfterSceneLoad`）別の `elapsedMs` 最大値 | run に 1 回ずつしか出ないので max = その run の値 |
 | D2-3 | SceneLoad | run × `payload.targetIdentity` 別の `elapsedMs` の p50 | シーンごとに重さが違うので混ぜない。回数が少ないので p50 |
 | D2-4 | CPU | run 別 `payload.cpuMs` の **p95** | 平均は「ほとんどの時間が暇」に引っ張られて鈍い |
@@ -742,8 +742,73 @@ B-2 / B-3 / B-4 は罠として `README.md` の表と各クエリのコメント
 
 - **`frame-cost-per-run.esql` は 0 行しか返していない。** 構文と列解決が通ることは確認したが、**値が入った状態での挙動は未確認**（B-1 が解けるまで確認できない）
 - `.esql` は検算テストの対象外。V6 の deprecated 8 語も V11 の mapping 照合もかからない
+  → **§6.7 で部分的に解消。** パネルに載っている `.esql` は NDJSON の埋め込みクエリと
+  一致することが強制され、そこから V12 経由で 8 語も掛かるようになった。
+  パネル未実装の `frame-cost-per-run.esql` だけは今も検算外
 
 ---
+
+### 6.7 PR #17 レビュー差し戻し（2026-08-11、cursor[bot] レビュー → Claude Code / Opus 5 対応）
+
+[PR #17 のレビューコメント](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/17#issuecomment-5252151698)。
+**指摘 7 件はすべて事実確認済みで、誤検知ゼロ。** 全件対応した。
+
+| # | 指摘 | 対応 |
+|---|---|---|
+| 1 | D1 の ES\|QL パネル 2 枚（D1-4 / D1-6）に対応する `.esql` が `queries/` に無い。§7.10 の「`queries/` の正本と 1 対 1」は嘘 | `heavy-spans.esql` / `tag-breakdown.esql` を追加。逆方向（`frame-cost-per-run.esql` はパネル未実装）も含めて §6.7 の同期テストが強制する |
+| 2 | `runs.esql`（D2-1）に `osVersion` が無い。§1.2 と食い違う | クエリに追加し、Kibana でパネルを直して再 `_export`。**§2 の D2-1 行にも `osVersion` が抜けていた**ので、そちらも訂正（§1.2 と §2 が食い違っていたのが根本原因） |
+| 3 | `.esql` ↔ NDJSON 埋め込みクエリの同期テストが無い | `KibanaEsqlQuerySourceOfTruthTests`（4 テスト）を追加 |
+| 4 | V7 の残穴: `embeddableConfig.attributes: {}` が通る | `attributes.state` が非空であることまで要求。T9 側も同じ強さに揃えた |
+| 5 | テスト名 / クラスコメントが `V1〜V6` / `V1からV10` のまま | `V1〜V12` に更新 |
+| 6 | V12 の `ES\|QL パネル[n]` が panelsJSON 添字ではない | `panelsJSON[n]（ES\|QL パネル）` に変更し、実インデックスを返すようにした |
+| 7 | T9 の `StripPanelIndexPrefix` が V4 より広い（`controlGroup_*` まで辞書に入る） | `NormalizePanelReferenceName` を `public` にして T9 と共有。T9 側の重複実装は削除 |
+
+#### レビューに無かったが、#2 を直す過程で見つかった defect（**#2 より重い**）
+
+**Lens の ES|QL パネルは、クエリが何列返しても既定で先頭 5 列しか表示しない。**
+K3-4 はこれを見落としており、実測で以下が「完成」として commit されていた。
+
+| パネル | クエリの列数 | 表示していた列数 | 落ちていた列 |
+|---|---|---|---|
+| D2-1 run メタ表 | 9 | 5 | `platform` / `deviceModel` / `engineVersion` / `runSeconds` |
+| D2-7 異常発生率 | 11 | 5 | `sessionId` / `runSeconds` / **`gcPerMin` / `uiPerMin` / `bottleneckPerMin`** |
+
+**D2-7 は「異常発生率」という名前でありながら、率の列を 1 つも表示していなかった**
+（生の件数だけ）。§2 の「run 長で割った率」を満たしていない。D2-1 も §1.1 の要でありながら
+`buildVersion` 以外の端末属性を表示していなかった。
+
+Kibana は編集画面に **「Displaying a limited portion of the available fields」** という警告を
+出しており、K3-4 のスクリーンショットにも写っていた。**保存後のダッシュボードには何も出ない。**
+
+対応: 両パネルに不足列を追加し、パネルタイトルを `D2-1 run メタ表` /
+`D2-7 異常発生率（run 長あたり）` に変更（自動タイトルは列を 5 つしか挙げず、列追加後は
+実態と食い違うため）。再 `_export` して正本を差し替えた。罠は
+[`elastic/README.md`](../../tools/DebugStudio/elastic/README.md) §9 に転記した。
+
+> **教訓: 「パネルが描画された」は「パネルが仕様どおり」ではない。**
+> §5.3 の実地確認は描画されたことしか見ておらず、**列の突き合わせをしていなかった。**
+> ES|QL パネルを作ったら、クエリの列数と表示列数を数えて突き合わせること。
+
+#### 赤を見た記録
+
+| # | 壊し方 | 結果 |
+|---|---|---|
+| 1 | `runs.esql` の `LIMIT 20` → `LIMIT 21` | `パネルに載っているESQLは対応する正本ファイルと一致する` が赤（pos 297 で差分を名指し）。復元して緑 |
+| 2 | `HasByValueAttributes` を修正前（`attributes` が object なら true）に戻す | `byvalueのattributesに中身が無ければV7で落ちる` が **InlineData 2 件とも赤**。復元して緑 |
+
+**MSBuild の罠（実測）:** `.esql` を `mv` で復元すると mtime が巻き戻り、
+埋め込みリソースが再生成されずに**古い内容のままテストが赤になる**。`touch` が要る。
+通常の編集では mtime が進むので起きない。
+
+#### テスト結果
+
+`dotnet test` 全体で **415 件合格 / 失敗 0**（`DebugStudio.Export.Tests` は 122 → 128）。
+
+#### 確認していないこと
+
+- **再 `_export` により、内容が変わっていない 5 オブジェクトも `created_at` / `updated_at` / `version` が変わっている。** 内容差分が D2 ダッシュボード 1 行だけであることは JSON 比較で確認済み（メタ 3 欄を除外して比較）
+- D2-1 / D2-7 に追加した列は**末尾に追加**されており、列順は最適ではない（`sessionId` が中ほどに来る）。並べ替えは Lens の drag-and-drop が要るため見送った
+- **D2-2 / D2-3 は 5 列ちょうどなので truncation の影響を受けていない**ことは確認したが、D1-4（6 列返して 5 列表示、`sessionId` が非表示）は §2 の D1-4 仕様が `sessionId` を要求していないため**変更していない**
 
 
 ## 7. Phase C レビュー
@@ -1216,7 +1281,13 @@ V12 は別ファイルへ切ったので `Validate` 本体は肥大していな�
 | `debugstudio-overview-dashboard` | **DebugStudio Run Timeline**（D1） | telemetry 生行（既存 saved search） / warning ログ（既存 saved search = D1-7） / **D1-4 重い span** / **D1-6 異常タグ内訳** ＋ `run (sessionId)` コントロール |
 | `debugstudio-run-over-run-dashboard` | **DebugStudio Run over Run**（D2） | **D2-1 run メタ表** / **D2-2 AppStartup** / **D2-3 SceneLoad** / **D2-7 異常発生率** |
 
-新規パネルはすべて **by-value ES|QL パネル**で、`queries/` の `.esql` 正本と 1 対 1 に対応する。
+新規パネルはすべて **by-value ES|QL パネル**である。
+
+> **訂正（§6.7 / PR #17 レビュー #1）:** ここには当初「`queries/` の `.esql` 正本と
+> 1 対 1 に対応する」と書いていたが、**commit 時点では事実ではなかった。** D1-4 / D1-6 の
+> 2 枚に対応する `.esql` が存在せず、逆に `frame-cost-per-run.esql` はパネルが無かった。
+> §6.7 で `.esql` 2 本を追加し、対応表を `KibanaEsqlQuerySourceOfTruthTests` で
+> 機械的に強制するようにしてから、この記述は事実になった。
 `_export` した NDJSON をそのまま正本にした（`state` を手書きしていない。§1.4）。
 
 > **`id` を書き換えた箇所が 1 つある。** Kibana は新規ダッシュボードに UUID を振るため、

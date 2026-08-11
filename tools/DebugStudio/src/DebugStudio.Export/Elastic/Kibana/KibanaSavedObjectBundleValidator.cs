@@ -137,7 +137,8 @@ public static class KibanaSavedObjectBundleValidator
                     issues.Add(CreateIssue(
                         "V7",
                         obj,
-                        $"panelsJSON[{panelIndex - 1}] に非空の panelRefName も embeddableConfig.attributes も無い。"));
+                        $"panelsJSON[{panelIndex - 1}] に非空の panelRefName も、中身のある "
+                        + "embeddableConfig.attributes.state も無い。"));
                     continue;
                 }
 
@@ -176,6 +177,13 @@ public static class KibanaSavedObjectBundleValidator
     /// panel の reference 名を <c>panel_*</c> の形に正規化する。panel 参照でなければ null。
     ///
     /// <para>
+    /// <b>public なのはテスト（T9）と共有するため。</b> T9 が独自に「<c>:</c> 以降を無条件で剥がす」
+    /// 実装を持っていたところ、こちらは <c>panel_</c> で始まる suffix しか受け付けないという
+    /// ずれがあり、<c>controlGroup_*</c> のような panel 以外の reference まで T9 側の
+    /// 突き合わせ辞書に入っていた。**正規化は 1 箇所に置き、本番とテストで同じものを使う。**
+    /// </para>
+    ///
+    /// <para>
     /// Kibana 8.17 の <c>_export</c> は reference 名に <c>&lt;panelIndex&gt;:</c> の接頭辞を付ける
     /// （<c>p1:panel_p1</c>）。手書き正本は接頭辞無し（<c>panel_p1</c>）。**両方を受け付ける**。
     /// 接頭辞を剥がさないと実 <c>_export</c> が丸ごと V4 で赤になる。
@@ -185,8 +193,13 @@ public static class KibanaSavedObjectBundleValidator
     /// V4 の目的は「panelRefName と references の 1:1」であって接頭辞の検算ではない。
     /// </para>
     /// </summary>
-    private static string? NormalizePanelReferenceName(string referenceName)
+    public static string? NormalizePanelReferenceName(string referenceName)
     {
+        if (referenceName is null)
+        {
+            throw new ArgumentNullException(nameof(referenceName));
+        }
+
         if (referenceName.StartsWith("panel_", StringComparison.Ordinal))
         {
             return referenceName;
@@ -202,11 +215,29 @@ public static class KibanaSavedObjectBundleValidator
         return suffix.StartsWith("panel_", StringComparison.Ordinal) ? suffix : null;
     }
 
+    /// <summary>
+    /// by-value パネルが「中身を持っている」か。
+    ///
+    /// <para>
+    /// <b><c>attributes</c> が object であるだけでは足りない。</b> <c>attributes: {}</c> は
+    /// 中身が空の by-value パネル、つまり V7 が塞ごうとした「参照先が消えたのに気づけない」状態と
+    /// 同じものなのに、object であるという理由だけで緑になっていた。
+    /// 実体は <c>attributes.state</c>（Lens なら datasource / visualization / query が入る）に
+    /// あるので、そこまで非空を要求する。
+    /// </para>
+    /// <para>
+    /// <c>state.query.esql</c> まで要求していないのは、by-value パネルが ES|QL とは限らないため。
+    /// ES|QL パネルの中身（<c>FROM</c> と deprecated 語）は V12 が別に見る。
+    /// </para>
+    /// </summary>
     private static bool HasByValueAttributes(JsonElement panel) =>
         panel.TryGetProperty("embeddableConfig", out var embeddableConfig)
         && embeddableConfig.ValueKind == JsonValueKind.Object
         && embeddableConfig.TryGetProperty("attributes", out var attributes)
-        && attributes.ValueKind == JsonValueKind.Object;
+        && attributes.ValueKind == JsonValueKind.Object
+        && attributes.TryGetProperty("state", out var state)
+        && state.ValueKind == JsonValueKind.Object
+        && state.EnumerateObject().Any();
 
     private static void ValidateV5AndV8(KibanaSavedObjectBundle bundle, List<KibanaSavedObjectValidationIssue> issues)
     {

@@ -35,13 +35,20 @@ ES|QL は `//` 行コメントと改行をそのまま受け付けるので、**
 
 ## ファイルとパネルの対応
 
-| ファイル | パネル | 実データで動くか |
+| ファイル | パネル（dashboard / panelsJSON 添字） | 実データで動くか |
 |---|---|---|
-| `runs.esql` | D2-1 run メタ表 | ○ |
-| `app-startup-per-run.esql` | D2-2 AppStartup | ○ |
-| `scene-load-per-run.esql` | D2-3 SceneLoad | ○ |
-| `frame-cost-per-run.esql` | D2-4 CPU / D2-5 fps / D2-6 メモリ | **× 0 行**（下記） |
-| `event-rate-per-run.esql` | D2-7 異常発生率 | △ `bottleneck` 列のみ |
+| `heavy-spans.esql` | D1-4 重い span（`debugstudio-overview-dashboard` [2]） | ○ |
+| `tag-breakdown.esql` | D1-6 異常タグ内訳（`debugstudio-overview-dashboard` [3]） | ○ |
+| `runs.esql` | D2-1 run メタ表（`debugstudio-run-over-run-dashboard` [0]） | ○ |
+| `app-startup-per-run.esql` | D2-2 AppStartup（同 [1]） | ○ |
+| `scene-load-per-run.esql` | D2-3 SceneLoad（同 [2]） | ○ |
+| `event-rate-per-run.esql` | D2-7 異常発生率（同 [3]） | △ `bottleneck` 列のみ |
+| `frame-cost-per-run.esql` | **パネル未実装**（D2-4 CPU / D2-5 fps / D2-6 メモリ用） | **× 0 行**（下記） |
+
+**この表は `KibanaEsqlQuerySourceOfTruthTests` が機械的に強制する。** ファイルとパネルの
+対応、行コメント除去・空白正規化後のクエリ一致、そして「`frame-cost-per-run.esql` は
+どのパネルにも埋め込まれていないこと」まで assert している。パネルを足して `.esql` を
+足し忘れる（またはその逆）と赤くなるので、**この表と実体がずれたまま commit できない。**
 
 ### `ProfilerSummary` が出ていない
 
@@ -69,5 +76,10 @@ Debug レイヤーに積まれることが無い。詳細と対応方針は
 `cameraAdditionalViewCount` / `cameraBlendingViewCount` / `cameraMaxStackDepthTotal` の 8 語は
 Telemetry Contract v3 で deprecated。正本は `payload.*` 側（`payload.cpuMs` 等）。
 
-saved object 側はこの 8 語を `KibanaSavedObjectBundleValidator` の V6 が機械的に赤にするが、
-**`.esql` ファイルは検算対象外**なので、ここは人間が守ること。
+saved object 側はこの 8 語を `KibanaSavedObjectBundleValidator` の V6（saved object）と
+V12（by-value ES|QL パネル）が機械的に赤にする。
+
+**`.esql` ファイル自体を直接見るルールは無い**が、パネルに載っているクエリは
+`KibanaEsqlQuerySourceOfTruthTests` で `.esql` と一致することが強制されるため、
+**パネル化された `.esql` に 8 語を入れると V12 経由で赤になる**。パネル未実装の
+`.esql`（現在 `frame-cost-per-run.esql`）だけは検算が届かないので、そこは人間が守ること。

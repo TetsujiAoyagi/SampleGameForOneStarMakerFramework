@@ -1,0 +1,20 @@
+// 対応パネル: D1-6（異常タグ内訳）
+//
+// tags の terms 集計。D1-4 で重い span を名指ししたあと、
+// 「それが GC 由来か UI 由来か」を切るための内訳。
+//
+// 設計判断 1: `tags == "..."` で絞らない。**tags は multivalue である。**
+//   ES|QL は multivalue フィールドへの `==` を**エラー無しで null にする**ので、
+//   ["Bottleneck","NativeMemoryOver"] のような record が丸ごと落ちる（実測 17 件 → 8 件）。
+//   ここは絞らずに STATS ... BY tags で内訳を出すため、その罠は踏んでいない。
+//   絞る必要が出たら CONCAT("|", MV_CONCAT(tags, "|"), "|") LIKE "*|Bottleneck|*" を使う
+//   （event-rate-per-run.esql の bottleneck 列がその形）。MV_CONTAINS は 8.17 に存在しない。
+//
+// 設計判断 2: tags IS NOT NULL で絞る。タグの付いていない record は
+//   「内訳」の分母ではなく、全件の大部分を占める無関係な record なので棒に混ぜない。
+
+FROM debugstudio-telemetry-*
+| WHERE sessionId IS NOT NULL AND tags IS NOT NULL
+| STATS records = COUNT(*) BY tags
+| SORT records DESC
+| LIMIT 20

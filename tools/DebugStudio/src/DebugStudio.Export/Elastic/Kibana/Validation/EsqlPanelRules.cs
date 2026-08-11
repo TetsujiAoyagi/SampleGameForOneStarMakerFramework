@@ -52,11 +52,8 @@ public static class EsqlPanelRules
                 continue;
             }
 
-            var panelIndex = 0;
-            foreach (var esql in EnumerateEsqlQueries(obj))
+            foreach (var (panelIndex, esql) in EnumerateEsqlQueries(obj))
             {
-                panelIndex++;
-
                 // §1.6: deprecated なフラット欄は新しいパネルにも禁止。
                 // TryFindInQuery は照合前にダブルクォート区間を落とすので、
                 // ES|QL の文字列リテラル（WHERE name == "cpuTime"）は誤検知しない。
@@ -64,7 +61,7 @@ public static class EsqlPanelRules
                 {
                     issues.Add(CreateIssue(
                         obj,
-                        $"ES|QL パネル[{panelIndex - 1}] の query に deprecated フィールド '{matched}' が含まれている。"));
+                        $"panelsJSON[{panelIndex}]（ES|QL パネル）の query に deprecated フィールド '{matched}' が含まれている。"));
                 }
 
                 foreach (var target in EnumerateFromTargets(esql))
@@ -76,7 +73,7 @@ public static class EsqlPanelRules
 
                     issues.Add(CreateIssue(
                         obj,
-                        $"ES|QL パネル[{panelIndex - 1}] の FROM '{target}' が bundle 内の index-pattern の title と一致しない。"));
+                        $"panelsJSON[{panelIndex}]（ES|QL パネル）の FROM '{target}' が bundle 内の index-pattern の title と一致しない。"));
                 }
             }
         }
@@ -102,7 +99,17 @@ public static class EsqlPanelRules
         return titles;
     }
 
-    private static IEnumerable<string> EnumerateEsqlQueries(KibanaSavedObject obj)
+    /// <summary>
+    /// ES|QL パネルの (panelsJSON 上の実インデックス, query) を列挙する。
+    ///
+    /// <para>
+    /// <b>インデックスは panelsJSON のものであって「ES|QL パネルの何枚目」ではない。</b>
+    /// 両者は一致しないことがある（by-reference の saved search パネルが混ざる D1 では、
+    /// panelsJSON[2] が ES|QL としては 1 枚目）。指摘を読んだ人間が panelsJSON を
+    /// そのまま数えて辿れるよう、実インデックスを返す。
+    /// </para>
+    /// </summary>
+    private static IEnumerable<(int PanelIndex, string Esql)> EnumerateEsqlQueries(KibanaSavedObject obj)
     {
         if (!obj.Attributes.TryGetProperty("panelsJSON", out var panelsJsonProp)
             || panelsJsonProp.ValueKind != JsonValueKind.String)
@@ -127,8 +134,10 @@ public static class EsqlPanelRules
             yield break;
         }
 
+        var panelIndex = -1;
         foreach (var panel in panels.EnumerateArray())
         {
+            panelIndex++;
             if (panel.TryGetProperty("embeddableConfig", out var embeddableConfig)
                 && embeddableConfig.TryGetProperty("attributes", out var attributes)
                 && attributes.TryGetProperty("state", out var state)
@@ -136,7 +145,7 @@ public static class EsqlPanelRules
                 && query.TryGetProperty("esql", out var esql)
                 && esql.ValueKind == JsonValueKind.String)
             {
-                yield return esql.GetString() ?? string.Empty;
+                yield return (panelIndex, esql.GetString() ?? string.Empty);
             }
         }
     }

@@ -347,6 +347,24 @@ public sealed class KibanaSavedObjectBundleValidatorTests
     }
 
     [Theory]
+    // 空オブジェクト、および state はあるが中身が無い形。どちらも「中身の無い by-value
+    // パネル」であって、V7 が塞ごうとした「参照先が消えたのに気づけない」状態と同じもの。
+    // PR #17 レビュー #4: attributes が object であるという理由だけで緑になっていた。
+    [InlineData("{}")]
+    [InlineData("{\\\"state\\\":{}}")]
+    public void byvalueのattributesに中身が無ければV7で落ちる(string attributesJson)
+    {
+        var ndjson =
+            "{\"id\":\"dash\",\"type\":\"dashboard\",\"attributes\":{\"title\":\"x\",\"panelsJSON\":"
+            + "\"[{\\\"type\\\":\\\"lens\\\",\\\"panelIndex\\\":\\\"e0\\\",\\\"embeddableConfig\\\":"
+            + "{\\\"attributes\\\":" + attributesJson + "}}]\"},\"references\":[]}";
+
+        var issues = Validate(ndjson);
+
+        Assert.Contains(issues, i => i.RuleId == "V7");
+    }
+
+    [Theory]
     [InlineData("cpuTime")]
     [InlineData("gpuTime")]
     [InlineData("managedMem")]

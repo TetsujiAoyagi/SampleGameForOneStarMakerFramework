@@ -7,7 +7,7 @@ using DebugStudio.Export.Elastic.Kibana;
 namespace DebugStudio.Export.Tests.Elastic.Kibana;
 
 /// <summary>
-/// 正本 NDJSON（埋め込みリソース）が V1〜V6 と確定仕様を満たすことの検算。
+/// 正本 NDJSON（埋め込みリソース）が V1〜V12 と確定仕様を満たすことの検算。
 /// </summary>
 public sealed class KibanaOverviewBundleTests
 {
@@ -50,12 +50,12 @@ public sealed class KibanaOverviewBundleTests
 
     /// <summary>
     /// <see cref="KibanaSavedObjectBundleValidator.Validate"/> を丸ごと呼ぶため、
-    /// ルールが増えれば自動的にそれも正本に強制される（現在 V1〜V10）。
+    /// ルールが増えれば自動的にそれも正本に強制される（現在 V1〜V10 と V12）。
     /// V11（lens / query のフィールド mapping 検算）は index template を要するため
     /// <c>KibanaSavedObjectFieldMappingTests</c> 側にある。
     /// </summary>
     [Fact]
-    public void 正本NDJSONはV1からV10で指摘0件である()
+    public void 正本NDJSONはV1からV12で指摘0件である()
     {
         var ndjson = ElasticKibanaSavedObjectsWriter.ReadSavedObjectsNdjson();
         var bundle = KibanaSavedObjectBundleParser.Parse(ndjson);
@@ -118,10 +118,12 @@ public sealed class KibanaOverviewBundleTests
             var panels = panelsDoc.RootElement;
             Assert.True(panels.GetArrayLength() > 0, $"'{dashboard.Id}' のパネルが 0 枚。");
 
-            var refIdByPanelName = dashboard.References.ToDictionary(
-                r => StripPanelIndexPrefix(r.Name),
-                r => r.Id,
-                StringComparer.Ordinal);
+            // 正規化は本番（V4）と同じ関数を使う。T9 が独自実装を持っていた頃は
+            // 「':' 以降を無条件で剥がす」ため controlGroup 参照まで辞書に入っていた。
+            var refIdByPanelName = dashboard.References
+                .Select(r => (Name: KibanaSavedObjectBundleValidator.NormalizePanelReferenceName(r.Name), r.Id))
+                .Where(r => r.Name is not null)
+                .ToDictionary(r => r.Name!, r => r.Id, StringComparer.Ordinal);
 
             var index = 0;
             foreach (var panel in panels.EnumerateArray())
@@ -142,18 +144,19 @@ public sealed class KibanaOverviewBundleTests
                     continue;
                 }
 
+                // **`attributes` の存在だけでは足りない。** `attributes: {}` は中身の無い
+                // by-value パネルであり、V7 が塞ごうとした状態そのもの。ここでも中身
+                // （ES|QL パネルなら state.query.esql）まで要求する。
                 Assert.True(
                     panel.TryGetProperty("embeddableConfig", out var embeddableConfig)
-                    && embeddableConfig.TryGetProperty("attributes", out _),
-                    $"{where} は panelRefName も embeddableConfig.attributes も持たない。");
+                    && embeddableConfig.TryGetProperty("attributes", out var attributes)
+                    && attributes.TryGetProperty("state", out var state)
+                    && state.TryGetProperty("query", out var query)
+                    && query.TryGetProperty("esql", out var esql)
+                    && !string.IsNullOrWhiteSpace(esql.GetString()),
+                    $"{where} は panelRefName も、中身のある embeddableConfig.attributes.state.query.esql も持たない。");
             }
         }
-    }
-
-    private static string StripPanelIndexPrefix(string referenceName)
-    {
-        var separator = referenceName.LastIndexOf(':');
-        return separator < 0 ? referenceName : referenceName[(separator + 1)..];
     }
 
     [Fact]

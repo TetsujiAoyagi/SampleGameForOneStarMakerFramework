@@ -177,14 +177,31 @@ ES|QL は `//` 行コメントと改行をそのまま受け付けるので、�
 
 | ファイル | パネル |
 |---|---|
+| `heavy-spans.esql` | D1-4 重い span |
+| `tag-breakdown.esql` | D1-6 異常タグ内訳 |
 | `runs.esql` | D2-1 run メタ表 |
 | `app-startup-per-run.esql` | D2-2 AppStartup |
 | `scene-load-per-run.esql` | D2-3 SceneLoad |
-| `frame-cost-per-run.esql` | D2-4 CPU / D2-5 fps / D2-6 メモリ |
 | `event-rate-per-run.esql` | D2-7 異常発生率 |
+| `frame-cost-per-run.esql` | **パネル未実装**（D2-4 CPU / D2-5 fps / D2-6 メモリ用。実データで 0 行） |
+
+**この対応は `KibanaEsqlQuerySourceOfTruthTests` が両方向に強制します。** パネルを足して
+`.esql` を足し忘れても、`.esql` を直してパネルに反映し忘れても赤くなります。
 
 クエリを書くときに踏む罠（multivalue への `==` が静かに件数を減らす、等）は
 [`queries/README.md`](queries/README.md) にまとめてあります。
+
+### Lens の ES|QL パネルは既定で先頭 5 列しか表示しない
+
+**クエリが 10 列返しても、パネルは 5 列だけ表示した状態で保存されます。** Kibana は
+編集画面に「Displaying a limited portion of the available fields」という警告を出しますが、
+**保存後のダッシュボードには何も出ません**。K3-4 ではこれを見落とし、run メタ表が
+`platform` / `deviceModel` / `osVersion` / `engineVersion` / `runSeconds` を、
+異常発生率パネルが `gcPerMin` / `uiPerMin` / `bottleneckPerMin` を落としたまま
+「完成」として commit されていました（PR #17 レビューで発覚）。
+
+**パネルを作ったら、クエリの列数と表示列数を必ず突き合わせること。** 足りない列は
+Lens の Visualization configuration → Metrics → 「Add or drag-and-drop a field」で足します。
 
 ## トラブルシュート
 

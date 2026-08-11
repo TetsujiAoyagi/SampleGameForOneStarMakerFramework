@@ -1,0 +1,21 @@
+// 対応パネル: D1-4（重い span）
+//
+// span を elapsedMs の降順に並べ、遅い区間を名指しするためのテーブル。
+// D1-1 / D1-2 で「落ちている時刻」を見つけたあと、その時刻の span を特定するのに使う。
+//
+// 設計判断 1: 合計しない。**span は入れ子である。**
+//   SceneTransition は SceneLoad / SceneUnload を内包する（parentSpanId で親子が付く）。
+//   name 別に合計する棒グラフを作ると二重計上になるので、個々の span を行として並べる。
+//
+// 設計判断 2: sessionId を KEEP に残す。
+//   ダッシュボードの run コントロール（sessionId フィルタ）が効くのは、
+//   その列が結果に残っている場合だけ。表示上は冗長でも落とさない。
+//
+// 設計判断 3: sessionId が null の record は落とす。runs.esql と同じ理由で、
+//   run が特定できない record は run 軸のダッシュボードに載せられない。
+
+FROM debugstudio-telemetry-*
+| WHERE kind == "span" AND sessionId IS NOT NULL
+| KEEP @timestamp, name, payload.targetIdentity, elapsedMs, payload.managedDeltaBytes, sessionId
+| SORT elapsedMs DESC
+| LIMIT 20

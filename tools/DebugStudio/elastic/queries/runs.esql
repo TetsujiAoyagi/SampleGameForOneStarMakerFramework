@@ -22,7 +22,7 @@ FROM debugstudio-telemetry-*
 | STATS started = MIN(@timestamp),
         ended = MAX(@timestamp),
         docs = COUNT(*)
-    BY sessionId, buildVersion, platform, deviceModel, engineVersion
+    BY sessionId, buildVersion, platform, deviceModel, osVersion, engineVersion
 | EVAL runSeconds = DATE_DIFF("seconds", started, ended)
 | SORT started DESC
 | LIMIT 20
