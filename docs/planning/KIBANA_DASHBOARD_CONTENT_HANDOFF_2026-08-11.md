@@ -150,7 +150,7 @@ ES|QL クエリを書く → 実 Elastic に当てて通ることを確認 → q
 
 | # | パネル | 集計 | なぜこの統計量か |
 |---|---|---|---|
-| D2-1 | **run メタ表** | run ごとに 開始時刻 / `buildVersion` / `platform` / `deviceModel` / `engineVersion` / run 長（秒） | 「いつ何が変わったか」の当てどころ。§1.1 の要 |
+| D2-1 | **run メタ表** | run ごとに 開始時刻 / `buildVersion` / `platform` / `deviceModel` / `osVersion` / `engineVersion` / run 長（秒） | 「いつ何が変わったか」の当てどころ。§1.1 の要 |
 | D2-2 | AppStartup | run × `payload.stage`（`BeforeSceneLoad` / `AfterSceneLoad`）別の `elapsedMs` 最大値 | run に 1 回ずつしか出ないので max = その run の値 |
 | D2-3 | SceneLoad | run × `payload.targetIdentity` 別の `elapsedMs` の p50 | シーンごとに重さが違うので混ぜない。回数が少ないので p50 |
 | D2-4 | CPU | run 別 `payload.cpuMs` の **p95** | 平均は「ほとんどの時間が暇」に引っ張られて鈍い |
@@ -701,7 +701,190 @@ Filebeat が読む L0 rolling 経路で「Welcome 後の同一 `sessionId` な�
 
 実装後: `dotnet test tools/DebugStudio/DebugStudio.sln` → **394 passed / 0 failed**（件数は直前と同じ。既存 Fact 内に fixture を追加）。
 
+### 6.6 K3-0 gate 実測 + K3-3 Phase B（2026-08-11、Claude Code / Opus 5）
+
+Docker / Elasticsearch / Kibana が起動した環境で、前スライスが「確認していないこと」に
+積み残していた実測をすべて行った。
+
+#### K3-0 gate: **通過**
+
+§7.4 が「未達成」と書いていた U-1 を閉じた。実測出力は §7.6 に貼る。
+§6.1 の原因判定 **(c)（実装前の古いデータしか入っていなかった）は実データで裏付けられた** —
+新しく流した 2 run は 5 フィールドすべてに値を持ち、それより前の run は全て null。
+
+#### 設計への異議（§0.5）
+
+| # | 内容 |
+|---|---|
+| **D-1** | **§2.2 D2-2 と付録 A.3 の「AppStartup は run に 2 回（BeforeSceneLoad / AfterSceneLoad の 2 span）」は実データと違う。** 実測では **run に 1 span だけ**で、`payload.stage` は `AfterSceneLoad` のみ。`app-startup-per-run.esql` は `BY ... payload.stage` を残してあるので、BeforeSceneLoad 側が出るようになれば自動的に 2 行へ分かれる。**HANDOFF 本文の訂正が要る** |
+| **D-2** | **§4 K3-3 の app-startup 草案にある `platform == "WindowsPlayer"` をクエリ正本に焼き込まなかった。** §1.2 の要件は「platform で Player に**絞れること**」であって「常に Player だけを出すこと」ではない。焼き込むと Editor しか無いデータセットで 0 行になり、**パネルが壊れているのか Player run が無いのかを区別できなくなる**。platform を出力列として残し、絞り込みはダッシュボードのコントロールに寄せた |
+| **D-3** | **§2.2 D2-7 の分母は「run 長」を採った**（§2.2 が K3-3 で決めろと指示していた選択）。理由は 2 つ。(1) `ProfilerSummary` が 1 件も出ていないので件数を分母にすると常にゼロ除算になる (2) 分母が「たまたま有効になっている sample ストリーム」に依存するのは脆く、run 長は telemetry が 1 件でもあれば必ず定義できる。件数分母の利点（Unity 一時停止区間を除ける）は、その区間では分子の event も出ないため実質相殺される |
+| **D-4** | **§2.2 D2-7 に `bottleneck` 列を足した**（草案は `gc` / `ui` のみ）。`GcSpike` / `UiCost` が 0 件なので、草案のままではパネルが常に全ゼロになる。`tags` に `Bottleneck` が付いた record 数は **ProfilerSummary 非依存で実データが動く**ため、D2-7 が今日から意味を持つ唯一の列になる |
+| **D-5** | **§2.3 の「run をまたいだ percentile を取らない」に加えて、`n`（サンプル数）を出すことを `scene-load-per-run.esql` の要件にした。** 実測では `payload.targetIdentity` ごとの n がほとんど **1**。n=1 の p50 はその 1 件そのものであって代表値ではなく、n を出さないと読み手が p50 を過信する |
+
+#### 見つかった、パネルを作る前に潰すべき問題
+
+| # | 内容 |
+|---|---|
+| **B-1（gate 級）** | **`ProfilerSummary` / `GcSpike` / `UiCost` が Elastic にも L0 にも 1 件も無い。** §2 の 14 パネル中 **8 枚**（D1-1 / D1-2 / D1-3 / D1-5 / D2-4 / D2-5 / D2-6 / D2-7）がこれに依存する。原因は export ではなく **Unity が一度も emit していない**こと。詳細は §7.7 |
+| **B-2** | **index 間の mapping 衝突。** `debugstudio-telemetry-2026.08.08` だけが index template 適用前の動的 mapping を持ち、`kind` / `payload.stage` / `payload.targetIdentity` / `payload.shape` が `text`。**`kind` はクエリごと 400 で落ち、`payload.*` はエラー無しで全行 null になる。** 後者が §0.5 の言う「仕様との照合では検出できない」型 |
+| **B-3** | **`tags == "Bottleneck"` は静かに間違える。** ES\|QL は multivalue フィールドへの比較を null にするため、`["Bottleneck","NativeMemoryOver"]` の record が数から丸ごと落ちる。実測で **17 件が 8 件になった**。エラーが出ないので結果を見ても気づけない。`MV_CONTAINS` は 8.17 に存在しない |
+| **B-4** | **`sessionId` が null の record を `BY sessionId` に流すと偽の run ができる。** 実測で **runSeconds = 48227 秒（13 時間超）** の存在しない run が 1 行でき、他の run（数十秒）が縦軸で潰れた。**セッション属性が null なのとは別問題**で、そちらは run が実在するので落としてはいけない |
+
+#### 何を作ったか
+
+`tools/DebugStudio/elastic/queries/` に `.esql` 5 本 + `README.md`。
+**5 本すべて実 Elasticsearch 8.17 に投げて通ることを確認した**（出力は §7.6）。
+B-2 / B-3 / B-4 は罠として `README.md` の表と各クエリのコメントに転記した
+（実装側は 23k 行のドキュメントを読まない前提なので、クエリの隣に置く）。
+
+#### 確認していないこと
+
+- **`frame-cost-per-run.esql` は 0 行しか返していない。** 構文と列解決が通ることは確認したが、**値が入った状態での挙動は未確認**（B-1 が解けるまで確認できない）
+- `.esql` は検算テストの対象外。V6 の deprecated 8 語も V11 の mapping 照合もかからない
+  → **§6.7 で部分的に解消。** パネルに載っている `.esql` は NDJSON の埋め込みクエリと
+  一致することが強制され、そこから V12 経由で 8 語も掛かるようになった。
+  パネル未実装の `frame-cost-per-run.esql` だけは今も検算外
+
 ---
+
+### 6.7 PR #17 レビュー差し戻し（2026-08-11、cursor[bot] レビュー → Claude Code / Opus 5 対応）
+
+[PR #17 のレビューコメント](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/17#issuecomment-5252151698)。
+**指摘 7 件はすべて事実確認済みで、誤検知ゼロ。** 全件対応した。
+
+| # | 指摘 | 対応 |
+|---|---|---|
+| 1 | D1 の ES\|QL パネル 2 枚（D1-4 / D1-6）に対応する `.esql` が `queries/` に無い。§7.10 の「`queries/` の正本と 1 対 1」は嘘 | `heavy-spans.esql` / `tag-breakdown.esql` を追加。逆方向（`frame-cost-per-run.esql` はパネル未実装）も含めて §6.7 の同期テストが強制する |
+| 2 | `runs.esql`（D2-1）に `osVersion` が無い。§1.2 と食い違う | クエリに追加し、Kibana でパネルを直して再 `_export`。**§2 の D2-1 行にも `osVersion` が抜けていた**ので、そちらも訂正（§1.2 と §2 が食い違っていたのが根本原因） |
+| 3 | `.esql` ↔ NDJSON 埋め込みクエリの同期テストが無い | `KibanaEsqlQuerySourceOfTruthTests`（4 テスト）を追加 |
+| 4 | V7 の残穴: `embeddableConfig.attributes: {}` が通る | `attributes.state` が非空であることまで要求。T9 側も同じ強さに揃えた |
+| 5 | テスト名 / クラスコメントが `V1〜V6` / `V1からV10` のまま | `V1〜V12` に更新 |
+| 6 | V12 の `ES\|QL パネル[n]` が panelsJSON 添字ではない | `panelsJSON[n]（ES\|QL パネル）` に変更し、実インデックスを返すようにした |
+| 7 | T9 の `StripPanelIndexPrefix` が V4 より広い（`controlGroup_*` まで辞書に入る） | `NormalizePanelReferenceName` を `public` にして T9 と共有。T9 側の重複実装は削除 |
+
+#### レビューに無かったが、#2 を直す過程で見つかった defect（**#2 より重い**）
+
+**Lens の ES|QL パネルは、クエリが何列返しても既定で先頭 5 列しか表示しない。**
+K3-4 はこれを見落としており、実測で以下が「完成」として commit されていた。
+
+| パネル | クエリの列数 | 表示していた列数 | 落ちていた列 |
+|---|---|---|---|
+| D2-1 run メタ表 | 9 | 5 | `platform` / `deviceModel` / `engineVersion` / `runSeconds` |
+| D2-7 異常発生率 | 11 | 5 | `sessionId` / `runSeconds` / **`gcPerMin` / `uiPerMin` / `bottleneckPerMin`** |
+
+**D2-7 は「異常発生率」という名前でありながら、率の列を 1 つも表示していなかった**
+（生の件数だけ）。§2 の「run 長で割った率」を満たしていない。D2-1 も §1.1 の要でありながら
+`buildVersion` 以外の端末属性を表示していなかった。
+
+Kibana は編集画面に **「Displaying a limited portion of the available fields」** という警告を
+出しており、K3-4 のスクリーンショットにも写っていた。**保存後のダッシュボードには何も出ない。**
+
+対応: 両パネルに不足列を追加し、パネルタイトルを `D2-1 run メタ表` /
+`D2-7 異常発生率（run 長あたり）` に変更（自動タイトルは列を 5 つしか挙げず、列追加後は
+実態と食い違うため）。再 `_export` して正本を差し替えた。罠は
+[`elastic/README.md`](../../tools/DebugStudio/elastic/README.md) §9 に転記した。
+
+> **教訓: 「パネルが描画された」は「パネルが仕様どおり」ではない。**
+> §5.3 の実地確認は描画されたことしか見ておらず、**列の突き合わせをしていなかった。**
+> ES|QL パネルを作ったら、クエリの列数と表示列数を数えて突き合わせること。
+
+#### 赤を見た記録
+
+| # | 壊し方 | 結果 |
+|---|---|---|
+| 1 | `runs.esql` の `LIMIT 20` → `LIMIT 21` | `パネルに載っているESQLは対応する正本ファイルと一致する` が赤（pos 297 で差分を名指し）。復元して緑 |
+| 2 | `HasByValueAttributes` を修正前（`attributes` が object なら true）に戻す | `byvalueのattributesに中身が無ければV7で落ちる` が **InlineData 2 件とも赤**。復元して緑 |
+
+**MSBuild の罠（実測）:** `.esql` を `mv` で復元すると mtime が巻き戻り、
+埋め込みリソースが再生成されずに**古い内容のままテストが赤になる**。`touch` が要る。
+通常の編集では mtime が進むので起きない。
+
+#### テスト結果
+
+`dotnet test` 全体で **415 件合格 / 失敗 0**（`DebugStudio.Export.Tests` は 122 → 128）。
+
+#### 確認していないこと
+
+- **再 `_export` により、内容が変わっていない 5 オブジェクトも `created_at` / `updated_at` / `version` が変わっている。** 内容差分が D2 ダッシュボード 1 行だけであることは JSON 比較で確認済み（メタ 3 欄を除外して比較）
+- D2-1 / D2-7 に追加した列は**末尾に追加**されており、列順は最適ではない（`sessionId` が中ほどに来る）。並べ替えは Lens の drag-and-drop が要るため見送った
+- **D2-2 / D2-3 は 5 列ちょうどなので truncation の影響を受けていない**ことは確認したが、D1-4（6 列返して 5 列表示、`sessionId` が非表示）は §2 の D1-4 仕様が `sessionId` を要求していないため**変更していない**
+  → §6.8 で `IntentionallyHiddenColumns` に理由付きで宣言し、「黙って落ちている」から「宣言して落としている」に変えた
+
+---
+
+### 6.8 PR #17 フォローアップレビュー対応（2026-08-11、cursor[bot] → Claude Code / Opus 5）
+
+[フォローアップコメント](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/17#issuecomment-5252912680)。
+前回 7 件の修正はすべて NDJSON 実体で裏取り済みと確認された。新規は Should fix 1 + Nit 3。
+
+#### Should fix #1 — 5 列 truncation の再発を機械的に止める（**最重要**）
+
+指摘のとおり、§6.7 の修正は**教訓と README に依存していて、テストになっていなかった**。
+D2-1 / D2-7 を 5 列に戻しても全テストが緑のまま通る状態だった。
+
+`KibanaEsqlPanelColumnCoverageTests`（3 テスト）と `EsqlOutputColumns`（テスト専用の狭いパーサ）を追加した。
+
+| 見るもの | 内容 |
+|---|---|
+| **クエリが返す列 ⊆ パネルの `datasourceStates.textBased.layers.*.columns[].fieldName`** | truncation の本体。**`datasource` 側にも切り詰めが残る**（D1-4 は `KEEP` 6 列に対し 5 列）ことを実測で確認したので、`visualization` ではなくここを主軸にした |
+| **逆方向**（クエリが返さない列がパネルにある） | 対応が壊れている状態 |
+| **`IntentionallyHiddenColumns` の宣言がクエリに存在するか** | クエリを直したあと宣言だけ残ると、落ちているのか出ているのか分からなくなる |
+| **datatable は `datasource` の列数 == `visualization.columns` の列数** | datasource に居ても `visualization` に無ければ表に描かれない |
+| **正本 6 パネルすべてで列が導出できている** | パーサが 0 列を返して空振りするのを防ぐ |
+
+`EsqlOutputColumns` は `KEEP` / `STATS ... BY` / `EVAL` の左辺しか見ない。
+**知らないコマンドは黙って通さず `NotSupportedException` を投げる**（列を取りこぼしたまま
+「包含できている」と報告するのが最悪の失敗なので）。`|` の分割は文字列リテラルを避ける必要がある
+（`MV_CONCAT(tags, "|")` / `LIKE "*|Bottleneck|*"` が正本にある）。
+
+**唯一の宣言済み例外は D1-4 の `sessionId`。** §2 の D1-4 仕様が要求しておらず、
+`KEEP` しているのは run コントロールを効かせるためで、表に出す必要が無いから。
+
+#### Nit #2 — `KibanaSavedObjectBundleValidator.cs` が 399 行
+
+§3.3 / A-2 の 380 行を超えていた（§7.9 の「368 行で 380 行制限内」は §6.7 の追記で古くなっていた）。
+V3 / V4 / V7 を `Validation/PanelReferenceRules.cs` に切り出した（V12 が `EsqlPanelRules` にあるのと同じ分け方）。
+
+| ファイル | 行数 |
+|---|---|
+| `KibanaSavedObjectBundleValidator.cs` | 399 → **235** |
+| `Validation/PanelReferenceRules.cs`（新規） | **215** |
+| `Validation/EsqlPanelRules.cs` | 192 |
+
+`NormalizePanelReferenceName` は V4 と一緒に移動した（T9 との共有はそのまま）。
+
+#### Nit #3 — 二重タイトル
+
+`panelsJSON[].title` は明示名、`embeddableConfig.attributes.title` は Lens の自動生成名のまま。
+**これは意図的で、直さない。** §1.4 が「`_export` したものだけを正本にする」と決めており、
+後者は Lens の state の一部。by-value パネルの inline エディタにこの欄は出てこないので、
+書き換えるには NDJSON の手編集が要り、それは §1.4 違反になる。
+表示に使われるのは前者なので実害は無い。理由を `elastic/README.md` §9 に転記した。
+
+#### Nit #4 — D2 の description が古い
+
+`build / platform / device` のままだったので、`buildVersion` / `platform` / `deviceModel` /
+`osVersion` / `engineVersion` に直した。あわせて「異常発生率は run 長で割った PerMin 列を見ること」
+の一文を足した（§6.7 で表示されるようになった列の読み方が description に無かったため）。
+Kibana の Dashboard settings で直して再 `_export`。**`panelsJSON` は 1 文字も変わっていない**
+（メタ 3 欄を除外した JSON 比較で、差分が `attributes.description` だけであることを確認）。
+
+#### 赤を見た記録
+
+| 壊し方 | 結果 |
+|---|---|
+| D2-1 の `datasource.columns` と `visualization.columns` を先頭 5 件に切り詰める | `ESQLパネルはクエリが返す列を落としていない` が赤。**落ちた列を名指しする**（`platform, deviceModel, osVersion, engineVersion, runSeconds`）。復元して緑 |
+
+#### テスト結果
+
+`DebugStudio.Export.Tests` は 128 → **131**。`dotnet test` 全体で **418 件合格 / 失敗 0**。
+
+#### 確認していないこと
+
+- `EsqlOutputColumns` は正本の 6 本でしか試していない。`DROP` / `RENAME` / `GROK` / `DISSECT` /
+  `ENRICH` / `MV_EXPAND` を使い始めたら `NotSupportedException` で赤くなる（**黙って通らないので事故にはならない**が、そのときは実装を足すこと）
+- D1-6 は棒グラフ（`lnsXY`）で `visualization.columns` を持たないため、**列数の突き合わせは datasource 側だけ**。棒グラフの accessor まで見ていない
 
 
 ## 7. Phase C レビュー
@@ -786,6 +969,475 @@ dotnet test tools/DebugStudio/DebugStudio.sln
 **`dotnet test` = 395 passed / 0 failed**（+1 = N1 のテスト）。
 
 > **N1 は、私（Phase C 最終チェック）も Opus 4.8（3 巡）も見落としていた。** F2 として「引用符付きフィールド名が*落ちる*」方向は指摘できていたのに、**同じ引用符の扱いが V6 側では*逆方向の誤検知*を生んでいることに気づかなかった。** 非対称性を疑う視点が抜けていた。
+
+---
+
+### 7.6 K3-0 / K3-3 の実測出力（2026-08-11、Claude Code / Opus 5）
+
+環境: Elasticsearch / Kibana 8.17.0（`docker compose`、`xpack.security.enabled=false`）。
+
+#### U-1 — `_field_caps` に 5 フィールドが現れる: **合格**
+
+```
+$ curl -s "http://localhost:9200/debugstudio-telemetry-*/_field_caps?fields=buildVersion,platform,deviceModel,osVersion,engineVersion"
+
+{"indices":["debugstudio-telemetry-2026.07.18","debugstudio-telemetry-2026.07.19",
+"debugstudio-telemetry-2026.07.26","debugstudio-telemetry-2026.08.08","debugstudio-telemetry-2026.08.11"],
+"fields":{
+ "engineVersion":{"keyword":{"type":"keyword","metadata_field":false,"searchable":true,"aggregatable":true}},
+ "buildVersion" :{"keyword":{"type":"keyword","metadata_field":false,"searchable":true,"aggregatable":true}},
+ "osVersion"    :{"keyword":{"type":"keyword","metadata_field":false,"searchable":true,"aggregatable":true}},
+ "deviceModel"  :{"keyword":{"type":"keyword","metadata_field":false,"searchable":true,"aggregatable":true}},
+ "platform"     :{"keyword":{"type":"keyword","metadata_field":false,"searchable":true,"aggregatable":true}}}}
+```
+
+直近 run の document に**値が入っている**こと:
+
+```
+$ curl -s "http://localhost:9200/debugstudio-telemetry-*/_search?size=1&sort=@timestamp:desc"
+
+"_index":"debugstudio-telemetry-2026.08.11",
+"_source":{
+  "platform"     :"WindowsEditor",
+  "osVersion"    :"Windows 11  (10.0.26200)",
+  "engineVersion":"6000.5.0f1",
+  "buildVersion" :"0.1.0",
+  "deviceModel"  :"FRONTIER (Inversenet Inc.)",
+  "kind":"sample","name":"CameraSystemSnapshot",
+  "sessionId":"3c943cbb2fbb4f25b1c9f69c7f06139a",
+  "@timestamp":"2026-08-11T09:15:40.299Z"}
+```
+
+`exists` 件数は **220 件**で、これは 2026-08-11 の新規 2 run（137 + 83）と**完全に一致**する。
+それより前の run は 5 フィールドすべてが null。
+
+> **§6.1 の原因判定 (c) は実データで裏付けられた。** 状況証拠（LocalAppData の mtime と
+> PR #14 の merge 時刻）だけでなく、Elastic 上で「実装後に流した run にだけ属性が付く」ことを確認した。
+> **本番コードの変更は不要だった**という §6.1 の結論も維持される。
+>
+> なお §6.1 が「handshake より前に届いた telemetry には属性が付かない」を既知の制約として
+> 挙げていたが、**この 2 run では該当 record が 0 件**だった（220 件が run の全 record と一致）。
+> 制約が消えたわけではなく、この 2 run でたまたま踏まなかっただけとして扱う。
+
+#### U-2 — クエリ 5 本が実 Elastic で結果を返す: **合格**
+
+`runs.esql`（D2-1）— 20 行。新旧の run が属性の有無で並ぶ:
+
+```
+        started         |     docs      |           sessionId            | buildVersion | platform      | deviceModel              | runSeconds
+2026-08-11T09:14:21.858Z|137            |3c943cbb2fbb4f25b1c9f69c7f06139a|0.1.0         |WindowsEditor  |FRONTIER (Inversenet Inc.)|78
+2026-08-11T09:07:31.032Z| 83            |26dfe7fba8764df4b5587a01b52da073|0.1.0         |WindowsEditor  |FRONTIER (Inversenet Inc.)|58
+2026-08-08T09:34:36.098Z| 41            |ace2b4c0a3024ad2b28f7d7f2cfe8614|null          |null           |null                      |26
+2026-08-08T09:22:29.166Z| 55            |7452d637a4334142821e10fbe2ba1f93|null          |null           |null                      |32
+（以下 2026-07-26 / 07-19 の 15 run、すべて属性 null）
+```
+
+`app-startup-per-run.esql`（D2-2）— 4 行:
+
+```
+      ms       |        started         |           sessionId            |   platform    | payload.stage
+1851.6362      |2026-08-08T09:22:29.174Z|7452d637a4334142821e10fbe2ba1f93|null           |AfterSceneLoad
+1258.8166      |2026-08-08T09:34:36.164Z|ace2b4c0a3024ad2b28f7d7f2cfe8614|null           |AfterSceneLoad
+5544.8431      |2026-08-11T09:07:31.041Z|26dfe7fba8764df4b5587a01b52da073|WindowsEditor  |AfterSceneLoad
+2055.6453      |2026-08-11T09:14:21.870Z|3c943cbb2fbb4f25b1c9f69c7f06139a|WindowsEditor  |AfterSceneLoad
+```
+
+**どの run も AppStartup は 1 span しか無く、stage は `AfterSceneLoad` のみ**（§6.6 D-1）。
+
+> 上 2 行の `payload.stage` は、mapping 衝突があった時点では**エラー無しで null になっていた**。
+> index を作り直したら値が出た。B-2 の「静かな壊れ方」の直接の証拠。
+
+`scene-load-per-run.esql`（D2-3）— 42 行:
+
+```
+       p50        |       n       |           sessionId            |payload.targetIdentity
+3269.2928         |1              |26dfe7fba8764df4b5587a01b52da073|Title
+1666.0206         |1              |26dfe7fba8764df4b5587a01b52da073|InGameSession
+1693.424          |1              |26dfe7fba8764df4b5587a01b52da073|HomeScene
+ 222.4247         |5              |3c943cbb2fbb4f25b1c9f69c7f06139a|Environment_1_0
+ 288.0494999999999|2              |3c943cbb2fbb4f25b1c9f69c7f06139a|Cell_2_3
+（以下 37 行）
+```
+
+**n がほとんど 1**。§6.6 D-5 の根拠。
+
+`frame-cost-per-run.esql`（D2-4/5/6）— **0 行**（列は解決する。構文エラーではない）:
+
+```
+    cpuP95     |    fpsP05     |  managedMax   |   nativeMax   |    samples    |    started    |   sessionId
+---------------+---------------+---------------+---------------+---------------+---------------+---------------
+（行なし）
+```
+
+`event-rate-per-run.esql`（D2-7）— 19 行:
+
+```
+      gc       |      ui       |  bottleneck   |           sessionId            |  runSeconds   | bottleneckPerMin
+0              |0              |9              |3c943cbb2fbb4f25b1c9f69c7f06139a|78             |6.923076923076923
+0              |0              |8              |26dfe7fba8764df4b5587a01b52da073|58             |8.275862068965518
+0              |0              |5              |ace2b4c0a3024ad2b28f7d7f2cfe8614|26             |11.538461538461538
+0              |0              |7              |7452d637a4334142821e10fbe2ba1f93|32             |13.125
+（以下 15 run）
+```
+
+`gc` / `ui` は全 run で 0（§6.6 B-1）。`bottleneck` は実データが動く（§6.6 D-4）。
+
+#### B-3 の実測（`tags == "Bottleneck"` が静かに間違える）
+
+telemetry 全 709 件（`sessionId` 非 null）に対する 3 つの数え方:
+
+```
+| 数え方                                                    | 件数 |
+| terms 集計（STATS n = COUNT(*) BY tags の "Bottleneck"）  |  57  |
+| CONCAT("|",MV_CONCAT(tags,"|"),"|") LIKE "*|Bottleneck|*" |  57  |  ← 正しい
+| tags == "Bottleneck"                                      |  30  |  ← 27 件落ちる
+```
+
+落ちた 27 件は `tags` が `["Bottleneck","NativeMemoryOver"]` の record
+（terms 集計の `NativeMemoryOver` が 27 件で一致する）。
+**エラーも警告も出ず件数だけが減る**ため、結果を読んでも気づけない。
+
+#### B-2 の実測（index 間 mapping 衝突）
+
+```
+$ curl -s "http://localhost:9200/debugstudio-telemetry-*/_field_caps?fields=kind,payload.stage,payload.targetIdentity,payload.shape,payload.cameraTotalViewCount"
+
+CONFLICT kind                        {'keyword': [...2026.08.11], 'text': [...2026.08.08]}
+CONFLICT payload.shape               {'keyword': [...2026.08.11], 'text': [...2026.08.08]}
+CONFLICT payload.stage               {'keyword': [...2026.08.11], 'text': [...2026.08.08]}
+CONFLICT payload.targetIdentity      {'keyword': [...2026.08.11], 'text': [...2026.08.08]}
+CONFLICT payload.cameraTotalViewCount{'long'   : [...2026.08.08], 'integer': [...2026.08.11]}
+```
+
+**壊れ方が 2 種類あり、片方は静かである:**
+
+| フィールド | 症状 |
+|---|---|
+| `kind` | `verification_exception` / 400。**クエリごと落ちるので気づける** |
+| `payload.stage` / `payload.targetIdentity` | **エラー無しで全行 null。** 気づけない |
+
+原因は `debugstudio-telemetry-2026.08.08` **1 本だけ**が index template 適用前の
+動的 mapping で作られていること。他の index は無害。
+
+**対処: index を作り直した**（データは破棄可という判断を人間から得た）。
+telemetry / log の index を全削除 → Filebeat の registry ボリュームを破棄 → 再作成し、
+L0 の `.ndjson` を先頭から現行 template 準拠の index へ再投入した。
+クエリ側に回避コード（`kind::keyword` のキャスト等）を入れない方針を採った。
+**Kibana の data view でも conflict 型は Lens で集計不能になるため、K3-4 のためにも
+データ側で直す必要がある。**
+
+再投入後の実測:
+
+```
+$ curl -s ".../_field_caps?fields=kind,payload.stage,payload.targetIdentity,payload.shape,payload.cameraTotalViewCount,buildVersion,platform,deviceModel,osVersion,engineVersion"
+ok  kind ['keyword']            ok  payload.stage ['keyword']
+ok  payload.shape ['keyword']   ok  payload.targetIdentity ['keyword']
+ok  payload.cameraTotalViewCount ['integer']
+ok  buildVersion / platform / deviceModel / osVersion / engineVersion ['keyword']
+--- conflicts: 0
+```
+
+**`.esql` 5 本すべてを、再投入後の `debugstudio-telemetry-*`（wildcard）に対して通し直した。**
+上に貼った出力はすべて再投入後の値。
+
+> **ES はワイルドカードでの index 削除を拒否する**（`action.destructive_requires_name` が既定で true）。
+> `_cat/indices` で名前を取ってから明示的に列挙して DELETE する必要がある。
+>
+> **Windows PowerShell 5.1 では `&&` が使えず、`curl` は `Invoke-WebRequest` の別名**なので
+> `-s -X DELETE` が通らない。手順を人に渡すときは `Invoke-RestMethod` で書くか pwsh 7 を指定すること。
+
+#### B-5（作り直して初めて分かった）— 旧 index は二重投入されていた
+
+再投入後の telemetry 件数は **770 件で、L0 の `.ndjson` の総行数と完全に一致**した。
+作り直す前は **1516 件**あった。
+
+| L0 ファイル | 行数 | 旧 index | 再投入後 |
+|---|---|---|---|
+| `2026-07-19_001` | 128 | 277 | 85 |
+| `2026-07-26_001` + `2026-07-27_001` | 164 + 162 | 652 | 326 |
+| `2026-08-08_001` | 96 | 192 | 96 |
+| `2026-08-11_001` | 220 | 220 | 220 |
+
+**最新の 2026-08-11 だけは重複していない**ため、§7.6 の K3-0 gate の根拠（220 件 = 137 + 83）は
+影響を受けない。一方 `runs.esql` の `docs` 列と `event-rate-per-run.esql` の
+`bottleneck` 列は旧データで**約 2 倍に膨らんでいた**ので、上の出力は再投入後の値に貼り替えてある。
+
+> **これも「エラーを出さずに数字だけ嘘になる」型である。** 件数が 2 倍でもクエリは正常に返る。
+> 気づけたのは「L0 の行数」という**外部の基準**と突き合わせたからで、
+> Elastic の中だけを見ていても永久に分からない。
+> **ダッシュボードの数字を信じる前に、L0 の行数と一致するかを一度は確認すること。**
+
+---
+
+### 7.7 新しい gate: `ProfilerSummary` が emit されていない（**次スライスへの申し送り**）
+
+#### 事実（実測）
+
+```
+$ FROM debugstudio-telemetry-* | STATS n = COUNT(*) BY name, kind
+CameraSystemSnapshot 1074 | SceneLoad 275 | SceneUnload 70 | SceneTransition 44
+AppStartup 35 | CameraSwitch 18
+→ ProfilerSummary / GcSpike / UiCost は 0 件
+```
+
+**L0 の rolling NDJSON にも 0 件**なので、export / Filebeat / Elastic のいずれの問題でもない。
+Unity が一度も emit していない。
+
+```
+$ %LOCALAPPDATA%\DebugStudio\telemetry\debugstudio-telemetry_2026-08-11_001.ndjson （220 行）
+('sample','CameraSystemSnapshot') 129 / ('span','SceneLoad') 57 / ('span','SceneUnload') 26
+('span','SceneTransition') 4 / ('span','AppStartup') 2 / ('span','CameraSwitch') 2
+```
+
+#### 原因
+
+発生源は `DebugProfilerView.Update()` → `LogSummary()`（1 秒ごと）だが、
+**`DebugProfilerView` はプロジェクト全体で呼び出し側が 1 つも無い。**
+
+```
+$ grep -rn "DebugProfilerView" unity/Assets --include=*.cs
+→ 定義（DebugProfilerView.cs）と AppTelemetry.cs のコメント以外に参照なし
+$ grep -rln "DebugProfilerView" unity/Assets --include=*.prefab --include=*.unity --include=*.asset
+→ 0 件（prefab / シーンにも置かれていない）
+```
+
+`UIView` なので Debug レイヤーに積まれない限り `Update()` が回らない。
+
+#### なぜ本スライスで直さなかったか
+
+`UIView` を画面に出す唯一の経路は `UICommon.AddUIView(ownerId, view, ct)` で、
+**呼び出し側は `SceneDirector.Loading` ただ 1 つ、`ownerId` は必ずシーン識別子**
+（`RemoveUIView(ownerId)` も同じキーで引く）。
+
+つまり `DebugProfilerView` のようなアプリ常駐 View を載せるには
+**「シーンが所有しない UIView の寿命を誰が持つか」という所有権の設計判断**が要る。
+これは OSM の中核契約（寿命スコープ）に触るので、Kibana ダッシュボードのスライスで
+黙って決めてよい話ではない。**別スライスとして切る。**
+
+#### 影響範囲
+
+| 状態 | パネル |
+|---|---|
+| **作れる**（実データあり） | D1-4 重い span / D1-6 異常タグ内訳 / D1-7 warning ログ / D2-1 run メタ表 / D2-2 AppStartup / D2-3 SceneLoad |
+| **作れない**（ProfilerSummary 依存） | D1-1 CPU/GPU 推移 / D1-2 fps 推移 / D1-3 メモリ推移 / D1-5 イベント発生点 / D2-4 CPU p95 / D2-5 fps p05 / D2-6 メモリ最大 / D2-7 の `gc` `ui` 列 |
+
+**`.esql` は 5 本すべて書いて構文検証した**（§1.3 の「何を作りたかったかは残す」）が、
+**0 行のクエリからパネルは作らない。**
+
+> **これは K3-0 と同型の gate である。** 「フィールドが Elastic に無い」を潰したら、
+> 次は「そのフィールドを持つ record 自体が生成されていない」が出た。
+> §1.5 の gate 条件は「フィールドが `_field_caps` に現れること」だったが、
+> **それは「パネルに値が出ること」を保証しない。** 次スライスの gate 条件は
+> 「**そのパネルが参照する record が、直近 run に 1 件以上ある**」にすべきである。
+
+---
+
+### 7.8 K3-4 の着手で判明した — **V4 / V7 は実 `_export` を受け付けられない**
+
+#### やったこと
+
+Kibana UI で `runs.esql`（D2-1）を **ES|QL パネル**として 1 枚組み、dashboard を保存して
+`_export` し、**その NDJSON を正本に差し替えて検算テストを実行した**（赤を先に見る手順）。
+
+#### 結果: **赤 3 件**
+
+```
+$ dotnet test ... --filter "FullyQualifiedName~Kibana"
+失敗: 3、合格: 41
+
+正本に検算指摘がある:
+行 5 (id='debugstudio-overview-dashboard'): V7 — panelsJSON[2] に非空の panelRefName が無い。
+行 5 (id='debugstudio-overview-dashboard'): V4 — panelsJSON の panelRefName 'panel_p1' に対応する references が無い。
+行 5 (id='debugstudio-overview-dashboard'): V4 — panelsJSON の panelRefName 'panel_p2' に対応する references が無い。
+```
+
+**正本は元に戻して緑（44 合格）に復帰済み。** 正本 NDJSON は 1 byte も変更していない。
+
+#### 原因は 2 つあり、どちらも「仕様が実物と違う」
+
+| # | 内容 |
+|---|---|
+| **G-1** | **Kibana 8.17 の `_export` は panel の reference 名を `p1:panel_p1` の形で出す**（`<panelIndex>:` 接頭辞が付く）。V4 は `reference.Name.StartsWith("panel_")` で絞っているので**1 件も拾えず**、既存の saved search パネル 2 枚が両方とも「references が無い」で赤になる。**手書きの正本（`panel_p1`）では通り、実 `_export` では落ちる** |
+| **G-2** | **ES\|QL パネルは by-value で、`panelRefName` を持たない。** 内容は dashboard の `panelsJSON[].embeddableConfig.attributes` に丸ごと埋まる。V7 は「全パネルが非空の `panelRefName` を持つ」なので必ず赤になる |
+
+#### これは §0.5 が警告した型そのもの
+
+**V4 / V7 は手書きのフィクスチャに対してだけ検証されていた。** §1.4 は
+「Kibana UI で組んで `_export` したものだけを正本にする」と決めているのに、
+**その `_export` を安全網が受け付けられない。** 仕様（V ルール）と仕様（§1.4）が矛盾しており、
+K3-1 / K3-2 のレビュー 3 巡 + C' 監査 + PR レビューはいずれもこれを検出していない。
+**実物の `_export` を一度も通していなかったため。**
+
+#### by-value ES|QL パネルの実物（`_export` から抜粋）
+
+```
+type: lens | panelIndex: e0ce0605-… | panelRefName: None
+  embeddableConfig.attributes.references: []          ← index-pattern 参照が無い
+  embeddableConfig.attributes.state.query:
+    {"esql": "FROM debugstudio-telemetry-* | WHERE sessionId IS NOT NULL | STATS ... | LIMIT 20"}
+```
+
+**F3（複数 index-pattern で赤）より深刻な形で当たった。** F3 は「複数あると赤」を心配していたが、
+実際に出てくる ES|QL パネルは **index-pattern 参照が 1 つも無い**。
+`TryResolveMappedFieldPaths` は参照が無い場合も赤にするので、こちらでも落ちる
+（今回は `type=lens` の saved object が生成されないため V11 まで到達していないが、
+by-reference で作れば必ず当たる）。
+
+一方で **by-value ES|QL パネルには大きな利点がある**:
+
+- **`git diff` が読める。** 埋まっているのは ES|QL のクエリ文字列そのもので、
+  §1.4 が「読めないので手書き禁止」とした巨大な Lens state ではない
+- **`queries/` の正本と 1 対 1 で対応する。** §1.3 が狙った「パネルの意図をバージョンから独立させる」が、
+  パネル自体で達成される
+- **クエリは実 Elastic で検証済み**（§7.6）
+
+#### 決めてもらう必要があること（**K3-4 の続行はここで止めた**）
+
+| 案 | 内容 | 代償 |
+|---|---|---|
+| **A（推奨）** | **by-value ES\|QL パネルで組み、V4 / V7 を実 `_export` に合わせて直す。** V4 は reference 名の `<panelIndex>:` 接頭辞を許容する。V7 は「`panelRefName` を持つ **か** `embeddableConfig.attributes` を持つ」＝「パネルの中身が解決できる」に緩める | DebugStudio 側の C# + テスト作業が発生する（K3-2 の安全網の修正）。ES\|QL パネルは V11 の mapping 検算の対象外になるため、**代わりに「`FROM` が既知の index パターンを指す」等の別ルールが要る** |
+| **B** | **classic（data view ベース）の Lens を by-reference で組む。** V4 の接頭辞問題だけ直せば V7 / V11 はそのまま効く | Lens の drag-and-drop を UI 操作で組む必要があり、この環境では **Monaco / Lens への修飾キー入力が届かない**（下記）ため実行可能性が低い。`git diff` も読めなくなる |
+
+> **この環境の UI 操作の制約（実測）:** Kibana の ES|QL エディタ（Monaco）に対し、
+> `type` は届くが **`Ctrl+A` / `Backspace` / `Ctrl+Shift+Home` などのキー入力が一切届かない**。
+> テキストの置換は `triple_click` で行選択してから `type` する方法でのみ成功した。
+> Lens の drag-and-drop はこれより難度が高い。
+
+**A を採る場合、V4 / V7 の修正は K3-4 の一部ではなく K3-2 の差し戻しとして扱うのが正しい**
+（安全網は K3-2 の成果物であり、K3-4 はそれを使う側）。
+
+**人間の判断: A を採る。** 以降 §7.9 / §7.10。
+
+---
+
+### 7.9 K3-2 差し戻し — V4 / V7 の修正と V12 の追加（2026-08-11）
+
+#### 直したもの
+
+| ルール | 変更 |
+|---|---|
+| **V4** | `NormalizePanelReferenceName` を追加し、reference 名の `<panelIndex>:` 接頭辞を剥がしてから突き合わせる。手書き正本（`panel_p1`）と実 `_export`（`p1:panel_p1`）の両方を受け付ける。**接頭辞が本当に panelIndex と一致するかまでは見ない**（V4 の目的は 1:1 の検算であって接頭辞の検算ではない。緩さは doc コメントに明記） |
+| **V7** | 「`panelRefName` を持つ **または** `embeddableConfig.attributes` を持つ」＝**中身が解決できる**、に緩めた。一律に許すと V7 が塞いだ穴が戻るので、どちらでもないパネルは従来どおり赤 |
+| **V12（新規）** | by-value ES\|QL パネルは `type=lens` の saved object にならないため V6 も V11 も届かない。その穴を埋める。`Elastic/Kibana/Validation/EsqlPanelRules.cs`（183 行）へ分離した（§3.3 の分割方針） |
+
+**V12 が見るのは 2 点だけ:**
+
+1. §1.6 の deprecated 8 語（**V6 は `type=search` しか見ないので by-value パネルは素通りしていた**）
+2. `FROM` が bundle 内の index-pattern の `title` と一致すること
+
+**V11 の mapping 照合を移植しなかった理由:** ES|QL では存在しないフィールドが
+**実行時に硬いエラーになる**（`Unknown column`）。saved search の `columns` / kuery のように
+「実在しないフィールドを静かに参照し続ける」状態にならないので、同じ検算は要らない。
+
+#### 赤を見た記録
+
+| # | 壊し方 | 結果 |
+|---|---|---|
+| 1 | 実装前に新規テストだけ追加 | **11 件が赤**（V4 接頭辞 / V7 by-value / V12 deprecated 8 語 × InlineData / V12 FROM）。実装後 58 合格 |
+| 2 | 実 `_export` を正本に差し替え（修正前） | **V4×2 + V7×1 の赤 3 件** |
+| 3 | 同（修正後） | **V1〜V12 すべて緑** |
+| 4 | 正本の by-value パネルから `embeddableConfig.attributes` を削除 | **V7 と T9 の両方が赤**（空振りでないことを実測） |
+| 5 | control が存在しない data view を参照した状態の `_export` | **V5 が赤**（下記 §7.10 で実際に起きた事故を安全網が止めた） |
+
+いずれも確認後に正本を復元し、緑に戻してから次へ進んだ。**正本 NDJSON を壊したまま commit していない。**
+
+#### 行数（§3.3 / A-2）
+
+`KibanaSavedObjectBundleValidator.cs` は 320 → **368 行**で 380 行制限内。
+V12 は別ファイルへ切ったので `Validate` 本体は肥大していない。
+
+> **追記（§6.8 / フォローアップ Nit #2）:** §6.7 の修正で 399 行になり 380 行を超えた。
+> V3 / V4 / V7 を `Validation/PanelReferenceRules.cs` へ切り出して **235 行**に戻した。
+> 行数はここではなく §6.8 の表が実測の正本。
+
+---
+
+### 7.10 K3-4 / K3-5 実施結果（2026-08-11）
+
+#### 作ったもの — ダッシュボード 2 枚 / 正本 6 オブジェクト
+
+| id | title | パネル |
+|---|---|---|
+| `debugstudio-overview-dashboard` | **DebugStudio Run Timeline**（D1） | telemetry 生行（既存 saved search） / warning ログ（既存 saved search = D1-7） / **D1-4 重い span** / **D1-6 異常タグ内訳** ＋ `run (sessionId)` コントロール |
+| `debugstudio-run-over-run-dashboard` | **DebugStudio Run over Run**（D2） | **D2-1 run メタ表** / **D2-2 AppStartup** / **D2-3 SceneLoad** / **D2-7 異常発生率** |
+
+新規パネルはすべて **by-value ES|QL パネル**である。
+
+> **訂正（§6.7 / PR #17 レビュー #1）:** ここには当初「`queries/` の `.esql` 正本と
+> 1 対 1 に対応する」と書いていたが、**commit 時点では事実ではなかった。** D1-4 / D1-6 の
+> 2 枚に対応する `.esql` が存在せず、逆に `frame-cost-per-run.esql` はパネルが無かった。
+> §6.7 で `.esql` 2 本を追加し、対応表を `KibanaEsqlQuerySourceOfTruthTests` で
+> 機械的に強制するようにしてから、この記述は事実になった。
+`_export` した NDJSON をそのまま正本にした（`state` を手書きしていない。§1.4）。
+
+> **`id` を書き換えた箇所が 1 つある。** Kibana は新規ダッシュボードに UUID を振るため、
+> D2 の id を `6dea14a5-…` → `debugstudio-run-over-run-dashboard` にした。
+> K3-4 の注意書きは「`_export` の id を書き換えるな（`references` と対応が切れる）」だが、
+> **`references` は dashboard → panel の一方向で、dashboard 自身の id は誰からも参照されない。**
+> 書き換え後に「旧 id が bundle 内に 1 箇所も残っていない」ことを assert してから書き出し、
+> 再 import して描画されることを確認した。他の id は 1 文字も変えていない。
+
+#### 実地確認（§5.3）
+
+| # | 確認 | 結果 |
+|---|---|---|
+| **U-1** | `_field_caps` に 5 フィールド | **合格**（§7.6） |
+| **U-2** | クエリ 5 本が結果を返す | **合格**（§7.6。`frame-cost` のみ 0 行で、構文は通る） |
+| **U-3** | import | **合格**。`successCount: 6` / `success: True` / `errors` なし |
+| **U-4** | D1 の描画 | **部分合格**。span テーブル・異常タグ内訳・warning ログは値付きで出た。**fps / cpu / メモリの推移は未実装**（ProfilerSummary が無い。§7.7） |
+| **U-5** | D2 の描画 | **合格**。19 run が縦に並び、run メタ表に buildVersion `0.1.0` / platform `WindowsEditor` / deviceModel `FRONTIER (Inversenet Inc.)` が出た（属性を持つ run は 2 本、残り 17 本は null） |
+| **U-6** | Editor 除外 | **合格（ただし絞る先が無い）**。D2-2 は `platform` 列を持ち、コントロール／フィルタで Player に絞れる。**ただし Player の run が 1 本も無い**ため、絞ると 0 行になる |
+
+**`run (sessionId)` コントロールの動作も実測した:** 最新 run を選ぶと
+telemetry 生行 770 → **137 件**、warning ログ 8 → **1 件**、span テーブルの先頭が
+他 run の 5544.8431 から当該 run の 2055.6453 に変わった。
+**by-reference の saved search パネルと by-value の ES|QL パネルの両方が絞られる。**
+
+#### K3-4 で起きた事故と、安全網が止めたこと
+
+コントロールを追加したとき、Kibana は data view として
+**保存済みの `debugstudio-telemetry-dataview` ではなく、ES|QL パネルが作った ad-hoc data view**
+（id = 64 桁の hash）を掴んだ。`_export` は `missingRefCount: 1` を返し、
+その id は Kibana 上にも saved object として存在しなかった（`404`）。
+
+**この状態の `_export` を正本に入れようとしたところ V5 が赤にした:**
+
+```
+行 5 (id='debugstudio-overview-dashboard'): V5 — references の id
+'865bee6e3bb566f7aaf98cb4975d6266ef91cb7560621996009034468122c17a'
+(name='controlGroup_…:optionsListDataView') が bundle 内に存在しない。
+```
+
+コントロールエディタで data view を明示的に選び直して修正し、`missingRefCount: 0` を確認してから
+正本にした。**import 時にエラーは出ず、コントロールだけが黙って壊れる**タイプの事故で、
+V5 が無ければそのまま commit していた。
+
+#### K3-5
+
+- `elastic/README.md` に **§9「ES|QL クエリ正本」** を追加（`queries/` の位置づけ、叩き方、パネル対応表）
+- §2 に「artifact 生成 → import しない限りダッシュボードは存在しない」「template PUT は ingest より先」を明記
+- トラブルシュートに **「件数を検算する」「mapping 衝突」「registry を作り直す」** を追加
+- ダッシュボード名の変更（`DebugStudio Overview` → 2 枚）を README に反映
+- **`description` に読み方を書いた**（§2.1 / §2.2 の読み方 ＋ 「span は入れ子なので合計しない」「run をまたいで percentile を取っていない」「ProfilerSummary 依存パネルは未実装」）
+
+#### テスト
+
+```
+dotnet test tools/DebugStudio/DebugStudio.sln
+→ 失敗: 0、合格: 409
+   (Contracts 37 / Export 122 / Server 10 / Cli 7 / App 233)
+```
+
+**ベースライン 395 → 409（+14）。減少なし。**
+
+#### 確認していないこと
+
+- **`frame-cost-per-run.esql` は値が入った状態で一度も動いていない。** 0 行でも構文と列解決は通ることまで
+- **Player（実機ビルド）の run が 1 本も無い。** U-6 は「列があるので絞れる」までで、絞った結果は見ていない
+- **ad-hoc data view を掴む再発条件を特定していない。** ES|QL パネルを先に作ったダッシュボードで
+  コントロールを足すと起きる、という 1 例しか観測していない。**V5 が止めるので致命的にはならない**
+- V12 の `FROM` 解析は緩いパーサで、文字列リテラル内の `FROM` やサブクエリは想定していない
+- 実 Kibana を 8.18 以降に上げたときに reference 名の形式が再び変わらないか
 
 ---
 

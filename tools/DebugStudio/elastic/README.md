@@ -56,7 +56,26 @@ cd $env:LOCALAPPDATA\DebugStudio\elastic-artifacts\commands
 ```
 
 `import-telemetry.ps1` は template / pipeline を PUT し、同梱 bulk NDJSON があれば `_bulk` も実行します。L2 継続 tail だけが目的なら template / pipeline PUT 部分が重要です。
-`import-kibana.ps1` は saved objects（`DebugStudio Overview` 含む）を Kibana へ import します。dashboard を見る前に必ず実行してください。
+`import-kibana.ps1` は saved objects（下記のダッシュボード 2 枚を含む）を Kibana へ import します。dashboard を見る前に必ず実行してください。
+
+| ダッシュボード | id | 答える問い |
+|---|---|---|
+| **DebugStudio Run Timeline** | `debugstudio-overview-dashboard` | Q1: 今の実行で何が重いか。`run (sessionId)` コントロールで 1 run に絞って見る |
+| **DebugStudio Run over Run** | `debugstudio-run-over-run-dashboard` | Q2: 前の実行と比べて何が重くなったか。run を横に並べる |
+
+読み方は各ダッシュボードの description に書いてあります。
+
+> **artifact を生成して `import-kibana.ps1` を実行しない限り、ダッシュボードは Kibana に存在しません。**
+> 「Dashboard が見えない」の原因が「そもそも一度も import していなかった」だったことが実際にあります。
+> `dotnet run` は**必ず見ているブランチの作業ツリーから**実行してください。別ブランチから実行すると
+> 旧 artifact が `%LOCALAPPDATA%` に生成され、import しても意図した内容になりません。
+
+> **template / pipeline の PUT は ingest より先に行う必要があります。**
+> template 適用前に作られた index は動的 mapping になり、後から template を直しても**既存 index の
+> mapping は変わりません**。そのまま `debugstudio-telemetry-*` を横断すると、`kind` のように
+> クエリごと 400 で落ちるフィールドと、`payload.stage` のように**エラー無しで全行 null になる**
+> フィールドが混在します。後者は結果を見ても気づけません。
+> 衝突の確認と復旧は「トラブルシュート」を見てください。
 
 **L1 WPF 経由:** Telemetry パネルの **Elastic Preflight** → **Elastic Push**（retained telemetry がある場合）。
 
@@ -82,7 +101,7 @@ cd $env:LOCALAPPDATA\DebugStudio\elastic-artifacts\commands
 4. **Filebeat ship:**
    - **compose:** `docker compose up -d filebeat`（§1 済みなら再起動のみ）
    - **host:** artifact の `debugstudio-filebeat.yml` を Filebeat に渡して起動（DebugStudio は起動しない）
-5. **Kibana 確認:** `http://localhost:5601` で Dashboard → `DebugStudio Overview` を開き、あわせて Discover で `debugstudio-telemetry-*` / `debugstudio-log-*` に document が増えることを確認する
+5. **Kibana 確認:** `http://localhost:5601` で Dashboard → `DebugStudio Run Timeline` / `DebugStudio Run over Run` を開き、あわせて Discover で `debugstudio-telemetry-*` / `debugstudio-log-*` に document が増えることを確認する
 
 ```powershell
 # ingest 件数のざっくり確認（security 無効 compose）
@@ -136,6 +155,70 @@ docker compose down
 
 L0 NDJSON と Filebeat registry (`filebeat-data`) は volume / ホスト側に残ります。
 
+## 9. ES|QL クエリ正本
+
+ダッシュボードの各パネルが**何をどう集計しているか**の正本を
+[`queries/`](queries/) に `.esql` として置いています。
+
+Lens のパネル定義は Kibana のバージョンに依存する巨大な JSON で `git diff` では読めませんが、
+そこに埋まっている「何を集計したいか」はバージョンに依存しません。分離しておくと、
+Kibana が上がってパネル JSON が壊れても**何を作りたかったかは残ります**。
+
+**順序は必ず「クエリを通す → パネルに起こす」です。** 逆をやると、実在しないフィールドを
+参照したパネルがレビューを通過します（2026-08-08 のスライスで実際に起きました）。
+
+```powershell
+$body = @{ query = (Get-Content -Raw tools/DebugStudio/elastic/queries/runs.esql) } | ConvertTo-Json -Compress
+Invoke-RestMethod -Method Post -Uri "http://localhost:9200/_query?format=txt" `
+  -ContentType "application/json" -Body $body
+```
+
+ES|QL は `//` 行コメントと改行をそのまま受け付けるので、ファイルの中身を無加工で投げられます。
+
+| ファイル | パネル |
+|---|---|
+| `heavy-spans.esql` | D1-4 重い span |
+| `tag-breakdown.esql` | D1-6 異常タグ内訳 |
+| `runs.esql` | D2-1 run メタ表 |
+| `app-startup-per-run.esql` | D2-2 AppStartup |
+| `scene-load-per-run.esql` | D2-3 SceneLoad |
+| `event-rate-per-run.esql` | D2-7 異常発生率 |
+| `frame-cost-per-run.esql` | **パネル未実装**（D2-4 CPU / D2-5 fps / D2-6 メモリ用。実データで 0 行） |
+
+**この対応は `KibanaEsqlQuerySourceOfTruthTests` が両方向に強制します。** パネルを足して
+`.esql` を足し忘れても、`.esql` を直してパネルに反映し忘れても赤くなります。
+
+クエリを書くときに踏む罠（multivalue への `==` が静かに件数を減らす、等）は
+[`queries/README.md`](queries/README.md) にまとめてあります。
+
+### Lens の ES|QL パネルは既定で先頭 5 列しか表示しない
+
+**クエリが 10 列返しても、パネルは 5 列だけ表示した状態で保存されます。** Kibana は
+編集画面に「Displaying a limited portion of the available fields」という警告を出しますが、
+**保存後のダッシュボードには何も出ません**。K3-4 ではこれを見落とし、run メタ表が
+`platform` / `deviceModel` / `osVersion` / `engineVersion` / `runSeconds` を、
+異常発生率パネルが `gcPerMin` / `uiPerMin` / `bottleneckPerMin` を落としたまま
+「完成」として commit されていました（PR #17 レビューで発覚）。
+
+**パネルを作ったら、クエリの列数と表示列数を必ず突き合わせること。** 足りない列は
+Lens の Visualization configuration → Metrics → 「Add or drag-and-drop a field」で足します。
+
+これは `KibanaEsqlPanelColumnCoverageTests` が機械的に強制するようになりました。
+意図的に列を落とす場合は同テストの `IntentionallyHiddenColumns` に理由付きで宣言します
+（**黙って消える**を**宣言して消す**に変えるのが目的）。
+
+### パネルのタイトルは NDJSON 上で 2 箇所ある
+
+| 場所 | 何か |
+|---|---|
+| `panelsJSON[].title` | **ダッシュボードに表示される名前。** ここだけが人間の付けた名前 |
+| `panelsJSON[].embeddableConfig.attributes.title` | Lens が列名から自動生成した内部名（`Table started & ended & …`） |
+
+**後者は手で直しません。** §1.4 が「`_export` したものだけを正本にする」と決めており、
+これは Lens の state の一部です。by-value パネルの inline エディタにこの欄は出てこないので、
+書き換えるなら NDJSON を手編集するしかなく、それは §1.4 違反になります。
+**表示は前者が使われるので実害はありません**が、NDJSON を読むときは前者を見てください。
+
 ## トラブルシュート
 
 | 症状 | 確認 |
@@ -143,9 +226,57 @@ L0 NDJSON と Filebeat registry (`filebeat-data`) は volume / ホスト側に�
 | preflight 失敗 | Elastic 起動、`DEBUGSTUDIO_ELASTIC_URL` が loopback か |
 | Filebeat が 0 件 | L0 に NDJSON があるか、マウント path `/mnt/debugstudio-l0` が空でないか |
 | pipeline エラー | §2 bootstrap 済みか、`debugstudio-telemetry` / `debugstudio-log` pipeline が存在するか |
-| log だけ 0 件 / Filebeat dropped | L1 Push は telemetry のみ bootstrap。log は `import-telemetry.ps1` か pipeline PUT が必要。既に drop 済みなら `docker compose rm -f -s filebeat` → `docker volume rm elastic_filebeat-data` → `docker compose up -d filebeat` で再読込（telemetry 重複あり） |
+| log だけ 0 件 / Filebeat dropped | L1 Push は telemetry のみ bootstrap。log は `import-telemetry.ps1` か pipeline PUT が必要。既に drop 済みなら下記「registry を作り直す」 |
 | bulk item 409 (L1) | create 再実行による重複 |
 | host Filebeat が ES に届かない | config が `localhost:9200` か（compose 内 endpoint と混同していないか） |
+| **件数が L0 より多い（二重投入）** | 下記「件数を検算する」 |
+| **フィールドが全行 null / `Cannot use field [x] due to ambiguities`** | 下記「mapping 衝突」 |
+
+### 件数を検算する（**ダッシュボードの数字を信じる前に一度やる**）
+
+registry を作り直すと Filebeat は L0 を**先頭から読み直す**ため、既存 index を消さずに行うと
+**同じ record が二重に入ります。エラーは出ず、件数だけが増えます。**
+実際に telemetry が 770 件のところ 1516 件入っていたことがあります。
+
+```powershell
+# L0 の総行数（これが正解）
+(Get-ChildItem "$env:LOCALAPPDATA\DebugStudio\telemetry\*.ndjson" | Get-Content | Measure-Object -Line).Lines
+# Elasticsearch 側
+curl "http://localhost:9200/debugstudio-telemetry-*/_count"
+```
+
+一致しなければ二重投入です。**Elastic の中だけを見ていても分かりません。**
+
+### mapping 衝突
+
+```powershell
+curl "http://localhost:9200/debugstudio-telemetry-*/_field_caps?fields=kind,payload.stage,payload.targetIdentity"
+```
+
+1 つのフィールドに型が 2 つ以上出たら衝突です。壊れ方は 2 種類あり、
+**`keyword` / `text` の衝突は集計でエラーになるものと、静かに null になるものがあります。**
+Kibana の data view でも conflict 型になり、**Lens で集計できなくなります。**
+
+### registry を作り直す（衝突・二重投入の復旧）
+
+**index を消してから registry を消すこと。** 順番を逆にすると二重投入になります。
+
+```powershell
+# 1. index を明示列挙して削除（ES はワイルドカード削除を拒否する: action.destructive_requires_name）
+$names = (Invoke-RestMethod -Uri "http://localhost:9200/_cat/indices/debugstudio-telemetry-*,debugstudio-log-*?h=index&format=json").index
+Invoke-RestMethod -Method Delete -Uri ("http://localhost:9200/" + ($names -join ","))
+
+# 2. registry を破棄して再作成（L0 を先頭から読み直す）
+docker compose rm -f filebeat
+docker volume rm elastic_filebeat-data
+docker compose up -d filebeat
+```
+
+完了後に必ず「件数を検算する」と「mapping 衝突」の両方を確認してください。
+
+> **Windows PowerShell 5.1 では `&&` が使えず、`curl` は `Invoke-WebRequest` の別名**です
+> （`-s -X DELETE` が通りません）。上記は `Invoke-RestMethod` で書いてあります。
+> `&&` で繋ぎたい場合は pwsh 7 を使ってください。
 
 ## 関連
 

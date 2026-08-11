@@ -1,0 +1,48 @@
+// 対応パネル: D2-7（異常発生率）
+//
+// !!! GcSpike / UiCost は現在 0 件のため gc / ui 列は常に 0 になる。 !!!
+//   frame-cost-per-run.esql と同じ理由（DebugProfilerView に呼び出し側が無い）。
+//   ただし本クエリは bottleneck 列と runSeconds が実データで動くため、
+//   0 行ではなく「run 数ぶんの行」が返る。
+//
+// 設計判断: 分母は run 長（MAX-MIN @timestamp）。ProfilerSummary の件数は使わない。
+//   HANDOFF §2.2 は「ProfilerSummary は 1 秒に 1 件出るので件数 ≒ 秒数」として
+//   どちらを採るか K3-3 で実測して決めろと指示している。実測の結論は run 長:
+//     1. ProfilerSummary は現在 1 件も出ていない。件数を分母にすると常にゼロ除算になる
+//     2. 分母が「たまたま有効になっている sample ストリーム」に依存するのは脆い。
+//        run 長は telemetry が 1 件でもあれば必ず定義できる
+//   件数を分母にする利点（Unity が一時停止していた区間を分母から除ける）は、
+//   その区間で分子の event も出ないため実質的に相殺される。
+//
+// tags は keyword の配列なので、Bottleneck が付いた record を数えれば
+// ProfilerSummary 非依存の「異常の量」になる。これは実データで動く。
+//
+// !!! tags == "Bottleneck" と書いてはいけない（静かに間違える）。 !!!
+//   ES|QL は multivalue フィールドへの比較を null にするため、
+//   tags が ["Bottleneck","NativeMemoryOver"] の record が丸ごと数から落ちる。
+//   2026-08-11 の実測: terms 集計では 17 件だが tags == "Bottleneck" は 8 件しか返さない。
+//   エラーにならず件数だけが減るので、結果を見ても気づけない。
+//   MV_CONCAT で 1 本の文字列にたたんでから照合する。
+//   前後を区切り文字で挟むのは、将来 "NotBottleneck" のような語が増えたときに
+//   LIKE "*Bottleneck*" が誤爆しないようにするため。
+//   MV_CONTAINS は Elasticsearch 8.17 には存在しない（実測で Unknown function）。
+//
+// runSeconds が 0 の run（1 秒未満で終了）は率を null にする。
+// 0 で割ると Inf になり、パネルの縦軸が壊れて他の run が読めなくなるため。
+
+// sessionId が null の record を落とす理由は runs.esql の設計判断 2 と同じ。
+
+FROM debugstudio-telemetry-*
+| WHERE sessionId IS NOT NULL
+| STATS gc = COUNT(*) WHERE name == "GcSpike",
+        ui = COUNT(*) WHERE name == "UiCost",
+        bottleneck = COUNT(*) WHERE CONCAT("|", MV_CONCAT(tags, "|"), "|") LIKE "*|Bottleneck|*",
+        started = MIN(@timestamp),
+        ended = MAX(@timestamp)
+    BY sessionId
+| EVAL runSeconds = DATE_DIFF("seconds", started, ended)
+| EVAL gcPerMin = CASE(runSeconds > 0, 60.0 * gc / runSeconds, null),
+       uiPerMin = CASE(runSeconds > 0, 60.0 * ui / runSeconds, null),
+       bottleneckPerMin = CASE(runSeconds > 0, 60.0 * bottleneck / runSeconds, null)
+| SORT started ASC
+| LIMIT 20

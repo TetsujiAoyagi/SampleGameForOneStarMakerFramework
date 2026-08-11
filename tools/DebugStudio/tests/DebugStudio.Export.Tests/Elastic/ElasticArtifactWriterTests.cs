@@ -309,8 +309,10 @@ public sealed class ElasticArtifactWriterTests
             var text = await File.ReadAllTextAsync(outputPath);
             Assert.False(string.IsNullOrWhiteSpace(text));
 
+            // data view 2 + saved search 2 + dashboard 2（Run Timeline / Run over Run）。
+            // 1 行 = 1 saved object なので、行数ではなくオブジェクト数として数える。
             var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            Assert.Equal(5, lines.Length);
+            Assert.Equal(6, lines.Length);
         }
         finally
         {

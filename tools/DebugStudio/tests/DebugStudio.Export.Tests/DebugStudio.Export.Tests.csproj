@@ -24,4 +24,16 @@
     <ProjectReference Include="..\..\src\DebugStudio.Export\DebugStudio.Export.csproj" />
   </ItemGroup>
 
+  <!--
+    ES|QL クエリ正本。P-1（「C# に埋め込まない」）に反しない: 製品コードは今も
+    これらを持たず、artifact にも出力しない。テストアセンブリだけが「正本ファイルと
+    NDJSON の埋め込みクエリが一致しているか」を検算するために原文を必要とする。
+    リンク参照ではなく埋め込みにしているのは、実行時の作業ディレクトリに依存せず
+    commit されたファイルそのものを読むため。
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\elastic\queries\*.esql"
+                      LogicalName="DebugStudio.Export.Tests.Elastic.Queries.%(Filename)%(Extension)" />
+  </ItemGroup>
+
 </Project>

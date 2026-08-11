@@ -8,7 +8,8 @@ using System.Text.Json;
 namespace DebugStudio.Export.Elastic.Kibana;
 
 /// <summary>
-/// Kibana saved object bundle の構造検算（V1〜V10）。IO 無しの純関数。
+/// Kibana saved object bundle の構造検算（V1〜V10, V12）。IO 無しの純関数。
+/// V11（index template との mapping 照合）は template を要するためテスト側にある。
 /// </summary>
 public static class KibanaSavedObjectBundleValidator
 {
@@ -22,9 +23,10 @@ public static class KibanaSavedObjectBundleValidator
         var issues = new List<KibanaSavedObjectValidationIssue>();
         ValidateV1(bundle, issues);
         ValidateV2(bundle, issues);
-        ValidateV3V4AndV7(bundle, issues);
+        Validation.PanelReferenceRules.Validate(bundle, issues);
         ValidateV5AndV8(bundle, issues);
         ValidateV6V9AndV10(bundle, issues);
+        Validation.EsqlPanelRules.Validate(bundle, issues);
         return issues;
     }
 
@@ -69,93 +71,6 @@ public static class KibanaSavedObjectBundleValidator
             else
             {
                 seen[obj.Id] = obj;
-            }
-        }
-    }
-
-    private static void ValidateV3V4AndV7(KibanaSavedObjectBundle bundle, List<KibanaSavedObjectValidationIssue> issues)
-    {
-        foreach (var obj in bundle.Objects)
-        {
-            if (!string.Equals(obj.Type, "dashboard", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            if (!obj.Attributes.TryGetProperty("panelsJSON", out var panelsJsonProp)
-                || panelsJsonProp.ValueKind != JsonValueKind.String)
-            {
-                issues.Add(CreateIssue("V3", obj, "attributes.panelsJSON が文字列として存在しない。"));
-                continue;
-            }
-
-            var panelsJsonText = panelsJsonProp.GetString() ?? string.Empty;
-            JsonElement panelsArray;
-            try
-            {
-                using var panelsDoc = JsonDocument.Parse(panelsJsonText);
-                panelsArray = panelsDoc.RootElement.Clone();
-            }
-            catch (JsonException)
-            {
-                issues.Add(CreateIssue("V3", obj, "panelsJSON が JSON として parse できない。"));
-                continue;
-            }
-
-            if (panelsArray.ValueKind != JsonValueKind.Array)
-            {
-                issues.Add(CreateIssue("V3", obj, "panelsJSON が JSON 配列ではない。"));
-                continue;
-            }
-
-            if (panelsArray.GetArrayLength() < 1)
-            {
-                issues.Add(CreateIssue("V3", obj, "panelsJSON の要素数が 0。パネルが 1 枚以上必要。"));
-            }
-
-            var panelRefNames = new HashSet<string>(StringComparer.Ordinal);
-            var panelIndex = 0;
-            foreach (var panel in panelsArray.EnumerateArray())
-            {
-                panelIndex++;
-                if (!panel.TryGetProperty("panelRefName", out var panelRefNameProp)
-                    || panelRefNameProp.ValueKind != JsonValueKind.String
-                    || string.IsNullOrEmpty(panelRefNameProp.GetString()))
-                {
-                    // V7: 存在チェック。V4 は「存在する名前」の 1:1 だけを見る。
-                    issues.Add(CreateIssue(
-                        "V7",
-                        obj,
-                        $"panelsJSON[{panelIndex - 1}] に非空の panelRefName が無い。"));
-                    continue;
-                }
-
-                panelRefNames.Add(panelRefNameProp.GetString()!);
-            }
-
-            var referencePanelNames = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var reference in obj.References)
-            {
-                if (reference.Name.StartsWith("panel_", StringComparison.Ordinal))
-                {
-                    referencePanelNames.Add(reference.Name);
-                }
-            }
-
-            foreach (var name in panelRefNames.Where(n => !referencePanelNames.Contains(n)))
-            {
-                issues.Add(CreateIssue(
-                    "V4",
-                    obj,
-                    $"panelsJSON の panelRefName '{name}' に対応する references が無い。"));
-            }
-
-            foreach (var name in referencePanelNames.Where(n => !panelRefNames.Contains(n)))
-            {
-                issues.Add(CreateIssue(
-                    "V4",
-                    obj,
-                    $"references の '{name}' が panelsJSON から参照されていない。"));
             }
         }
     }

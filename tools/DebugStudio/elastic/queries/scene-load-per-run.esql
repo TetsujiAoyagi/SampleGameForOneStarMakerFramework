@@ -1,0 +1,21 @@
+// 対応パネル: D2-3（SceneLoad を run × シーン別に並べる）
+//
+// シーンごとに重さが違うので payload.targetIdentity を混ぜない。
+// 1 run 内の回数が少ないので p95 ではなく p50（§2.2）。
+//
+// 設計判断: n（サンプル数）を必ず出す。
+//   n = 1 の p50 はその 1 件そのものであって「代表値」ではない。
+//   実測（2026-08-11）では targetIdentity ごとの n は 2〜5 件しかなく、
+//   n を出さないと読み手が p50 を過信する。
+//
+// percentile は BY sessionId の中で取る（§2.3）。run をまたいで取ると
+// run が 1 本増えるたびに過去の値まで動く。
+
+FROM debugstudio-telemetry-*
+| WHERE kind == "span" AND name == "SceneLoad" AND sessionId IS NOT NULL
+| STATS p50 = PERCENTILE(elapsedMs, 50),
+        n = COUNT(*),
+        started = MIN(@timestamp)
+    BY sessionId, payload.targetIdentity
+| SORT started ASC, p50 DESC
+| LIMIT 100
