@@ -69,6 +69,12 @@ namespace OneStarMaker.Debug
 
             _sampler.Sample();
 
+            // SummaryUpdated は「読み取り後にリセットする」契約のフラグ（FrameTimeSampler の宣言どおり）。
+            // 送出したかどうかに関わらずここで落とす。Policy が None を返す間だけ立ちっぱなしにすると、
+            // テレメトリ無効から復帰した直後の 1 フレームで古いサマリが出る。
+            bool summaryUpdated = _sampler.SummaryUpdated;
+            _sampler.SummaryUpdated = false;
+
             int gcCount = GC.CollectionCount(0);
             int gcDelta = gcCount - _lastGcCount;
             _lastGcCount = gcCount;
@@ -76,7 +82,7 @@ namespace OneStarMaker.Debug
             var uiCost = _uiCostSource.Capture();
 
             var input = new ProfilerFrameInput(
-                summaryUpdated: _sampler.SummaryUpdated,
+                summaryUpdated: summaryUpdated,
                 gcGen0Delta: gcDelta,
                 uiCostAvailable: uiCost.IsAvailable,
                 canvasRebuildCount: uiCost.CanvasRebuildCount,
@@ -140,9 +146,6 @@ namespace OneStarMaker.Debug
                 gpuAvgMs: _sampler.GpuAvgMs,
                 gpuAvailable: _sampler.IsGpuTimingAvailable,
                 utcTicks: utcTicks));
-
-            // サマリは 1 秒ごとの立ち上がりでのみ出す。読み取り側が明示的に落とす契約。
-            _sampler.SummaryUpdated = false;
         }
 
         private void EmitGcSpike(int gcDelta, int unityFrame, long utcTicks)

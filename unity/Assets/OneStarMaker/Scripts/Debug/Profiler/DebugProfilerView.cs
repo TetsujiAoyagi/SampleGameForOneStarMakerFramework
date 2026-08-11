@@ -10,7 +10,6 @@ using OneStarMaker.Runtime.UISystem;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using ZLogger;
 
 
 namespace OneStarMaker.Debug

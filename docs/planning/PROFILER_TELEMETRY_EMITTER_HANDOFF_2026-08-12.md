@@ -544,6 +544,21 @@ GC差分が閾値ちょうどならGcSpikeは立たない
 
 赤くなったのは当該 1 本だけで、他の 8 本は緑のまま。確認後に `>` へ戻してある。
 
+### 6.5 PR #18 の cursor[bot] レビュー対応（唯一の非 Claude の目）
+
+判定は **Approve（ブロッカーなし）**。指摘 4 件のうち 3 件を本ブランチで対応し、1 件は次スライスへ申し送る。
+
+| ID | 指摘 | 対応 |
+|---|---|---|
+| **N2** | `Decide` が `None` のとき `SummaryUpdated` を落とさないため、テレメトリ無効から復帰した直後の 1 フレームで古いサマリが即出る | **直した。** `FrameTimeSampler.SummaryUpdated` は宣言自体が「読み取り後にリセットすること」と書いており、送出可否に関わらず読んだ時点で落とすのが元の契約に忠実。`OnElementLateUpdate` の先頭でローカルへ退避してから落とし、`EmitSummary` 側のリセットを外した |
+| **N3** | Factory テストが GcSpike / UiCost の `tags` を固定していない（`AllocSpike\|Bottleneck` / `Bottleneck` が回帰しても赤にならない） | **直した。** `GcSpikeとUiCostのtagsが固定されている` を追加（Factory テスト 7 → 8 本） |
+| **N4** | `DebugProfilerView.cs` に未使用 `using ZLogger;` が残っている | **直した。** ZLogger の拡張（`ZLogInformation` 等）は使っておらず、`LogInformation` は Microsoft.Extensions.Logging 側。移設前から未使用だったもので、§P-5 の「未使用 using を残さない」に合わせて削除 |
+| **N1** | `AppTelemetry.IsEnabled == false` のとき、旧 View は GC/UI の `PushWarning` を出していたが、新 Policy は `None` を返すので `NotifyBottleneck` も止まる。旧は「警告表示」と「WriteRecord」が分離していたが、新は両方が `IsEnabled` に束ねられている | **直さない。申し送り。** 現状 View は生成されないため実害 0。「警告は `Level=Off` でも出すか」は表示側の要件であり、Canvas / UIToolkit 移植スライスで決める。§2.1 が全種別共通の前提として `IsEnabled` を要求している以上、実装側の独断で分離しない |
+
+`AppInitializer` の +52.3%（§6.2）については **「本スライスでは許容。切り出さない判断に同意する。3 件目の常駐 Element が出た時点で Host/Owner へ切り出せばよい」** との回答があった。条件 3 を機械適用しての差し戻しは不要という判断。
+
+**Play Mode 実測（§5.3）はレビューでも C1 として残件扱い。** 静的レビューのブロッカーではないが、製品ゲートとしては未達のまま。
+
 ---
 
 ## 7. Phase C レビュー

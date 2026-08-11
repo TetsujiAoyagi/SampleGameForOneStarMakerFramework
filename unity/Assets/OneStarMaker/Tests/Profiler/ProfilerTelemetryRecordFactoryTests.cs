@@ -95,6 +95,25 @@ namespace OneStarMaker.Tests.Profiler
             Assert.AreEqual(42, record.Payload.UnityFrame);
         }
 
+        /// <summary>
+        /// event 側の tags は Kibana の Bottleneck 系パネルが引く条件そのもの。
+        /// GcSpike から AllocSpike が落ちたり Bottleneck が付かなくなったりすると、
+        /// 出力先を見る前にここが赤くなる。
+        /// </summary>
+        [Test]
+        public void GcSpikeとUiCostのtagsが固定されている()
+        {
+            var gcSpike = ProfilerTelemetryRecordFactory.CreateGcSpike(
+                gcGen0Delta: 3, unityFrame: 120, utcTicks: FixedUtcTicks);
+            var uiCost = ProfilerTelemetryRecordFactory.CreateUiCost(
+                unityFrame: 120, utcTicks: FixedUtcTicks);
+
+            Assert.AreEqual(
+                TelemetryTagType.AllocSpike | TelemetryTagType.Bottleneck,
+                gcSpike.Tags);
+            Assert.AreEqual(TelemetryTagType.Bottleneck, uiCost.Tags);
+        }
+
         [Test]
         public void サマリのtagsはfpsのClassifyFrameRateと一致する()
         {
