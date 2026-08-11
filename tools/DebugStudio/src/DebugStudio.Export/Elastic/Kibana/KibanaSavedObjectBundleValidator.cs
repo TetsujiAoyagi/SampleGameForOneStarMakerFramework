@@ -4,31 +4,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 
 namespace DebugStudio.Export.Elastic.Kibana;
 
 /// <summary>
-/// Kibana saved object bundle の構造検算（V1〜V6）。IO 無しの純関数。
+/// Kibana saved object bundle の構造検算（V1〜V10）。IO 無しの純関数。
 /// </summary>
 public static class KibanaSavedObjectBundleValidator
 {
-    private static readonly HashSet<string> DeprecatedFields = new(StringComparer.Ordinal)
-    {
-        "cpuTime",
-        "gpuTime",
-        "managedMem",
-        "nativeMem",
-        "cameraTotalViewCount",
-        "cameraAdditionalViewCount",
-        "cameraBlendingViewCount",
-        "cameraMaxStackDepthTotal",
-    };
-
-    private static readonly Regex DeprecatedFieldInQuery = new(
-        @"(?<![.\w])(cpuTime|gpuTime|managedMem|nativeMem|cameraTotalViewCount|cameraAdditionalViewCount|cameraBlendingViewCount|cameraMaxStackDepthTotal)(?![\w])",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant);
-
     public static IReadOnlyList<KibanaSavedObjectValidationIssue> Validate(KibanaSavedObjectBundle bundle)
     {
         if (bundle is null)
@@ -39,9 +22,9 @@ public static class KibanaSavedObjectBundleValidator
         var issues = new List<KibanaSavedObjectValidationIssue>();
         ValidateV1(bundle, issues);
         ValidateV2(bundle, issues);
-        ValidateV3AndV4(bundle, issues);
-        ValidateV5(bundle, issues);
-        ValidateV6(bundle, issues);
+        ValidateV3V4AndV7(bundle, issues);
+        ValidateV5AndV8(bundle, issues);
+        ValidateV6V9AndV10(bundle, issues);
         return issues;
     }
 
@@ -90,7 +73,7 @@ public static class KibanaSavedObjectBundleValidator
         }
     }
 
-    private static void ValidateV3AndV4(KibanaSavedObjectBundle bundle, List<KibanaSavedObjectValidationIssue> issues)
+    private static void ValidateV3V4AndV7(KibanaSavedObjectBundle bundle, List<KibanaSavedObjectValidationIssue> issues)
     {
         foreach (var obj in bundle.Objects)
         {
@@ -102,11 +85,7 @@ public static class KibanaSavedObjectBundleValidator
             if (!obj.Attributes.TryGetProperty("panelsJSON", out var panelsJsonProp)
                 || panelsJsonProp.ValueKind != JsonValueKind.String)
             {
-                issues.Add(new KibanaSavedObjectValidationIssue(
-                    "V3",
-                    obj.LineNumber,
-                    obj.Id,
-                    $"行 {obj.LineNumber} (id='{obj.Id}'): V3 — attributes.panelsJSON が文字列として存在しない。"));
+                issues.Add(CreateIssue("V3", obj, "attributes.panelsJSON が文字列として存在しない。"));
                 continue;
             }
 
@@ -119,45 +98,39 @@ public static class KibanaSavedObjectBundleValidator
             }
             catch (JsonException)
             {
-                issues.Add(new KibanaSavedObjectValidationIssue(
-                    "V3",
-                    obj.LineNumber,
-                    obj.Id,
-                    $"行 {obj.LineNumber} (id='{obj.Id}'): V3 — panelsJSON が JSON として parse できない。"));
+                issues.Add(CreateIssue("V3", obj, "panelsJSON が JSON として parse できない。"));
                 continue;
             }
 
             if (panelsArray.ValueKind != JsonValueKind.Array)
             {
-                issues.Add(new KibanaSavedObjectValidationIssue(
-                    "V3",
-                    obj.LineNumber,
-                    obj.Id,
-                    $"行 {obj.LineNumber} (id='{obj.Id}'): V3 — panelsJSON が JSON 配列ではない。"));
+                issues.Add(CreateIssue("V3", obj, "panelsJSON が JSON 配列ではない。"));
                 continue;
             }
 
             if (panelsArray.GetArrayLength() < 1)
             {
-                issues.Add(new KibanaSavedObjectValidationIssue(
-                    "V3",
-                    obj.LineNumber,
-                    obj.Id,
-                    $"行 {obj.LineNumber} (id='{obj.Id}'): V3 — panelsJSON の要素数が 0。パネルが 1 枚以上必要。"));
+                issues.Add(CreateIssue("V3", obj, "panelsJSON の要素数が 0。パネルが 1 枚以上必要。"));
             }
 
             var panelRefNames = new HashSet<string>(StringComparer.Ordinal);
+            var panelIndex = 0;
             foreach (var panel in panelsArray.EnumerateArray())
             {
-                if (panel.TryGetProperty("panelRefName", out var panelRefNameProp)
-                    && panelRefNameProp.ValueKind == JsonValueKind.String)
+                panelIndex++;
+                if (!panel.TryGetProperty("panelRefName", out var panelRefNameProp)
+                    || panelRefNameProp.ValueKind != JsonValueKind.String
+                    || string.IsNullOrEmpty(panelRefNameProp.GetString()))
                 {
-                    var name = panelRefNameProp.GetString();
-                    if (!string.IsNullOrEmpty(name))
-                    {
-                        panelRefNames.Add(name);
-                    }
+                    // V7: 存在チェック。V4 は「存在する名前」の 1:1 だけを見る。
+                    issues.Add(CreateIssue(
+                        "V7",
+                        obj,
+                        $"panelsJSON[{panelIndex - 1}] に非空の panelRefName が無い。"));
+                    continue;
                 }
+
+                panelRefNames.Add(panelRefNameProp.GetString()!);
             }
 
             var referencePanelNames = new HashSet<string>(StringComparer.Ordinal);
@@ -171,25 +144,23 @@ public static class KibanaSavedObjectBundleValidator
 
             foreach (var name in panelRefNames.Where(n => !referencePanelNames.Contains(n)))
             {
-                issues.Add(new KibanaSavedObjectValidationIssue(
+                issues.Add(CreateIssue(
                     "V4",
-                    obj.LineNumber,
-                    obj.Id,
-                    $"行 {obj.LineNumber} (id='{obj.Id}'): V4 — panelsJSON の panelRefName '{name}' に対応する references が無い。"));
+                    obj,
+                    $"panelsJSON の panelRefName '{name}' に対応する references が無い。"));
             }
 
             foreach (var name in referencePanelNames.Where(n => !panelRefNames.Contains(n)))
             {
-                issues.Add(new KibanaSavedObjectValidationIssue(
+                issues.Add(CreateIssue(
                     "V4",
-                    obj.LineNumber,
-                    obj.Id,
-                    $"行 {obj.LineNumber} (id='{obj.Id}'): V4 — references の '{name}' が panelsJSON から参照されていない。"));
+                    obj,
+                    $"references の '{name}' が panelsJSON から参照されていない。"));
             }
         }
     }
 
-    private static void ValidateV5(KibanaSavedObjectBundle bundle, List<KibanaSavedObjectValidationIssue> issues)
+    private static void ValidateV5AndV8(KibanaSavedObjectBundle bundle, List<KibanaSavedObjectValidationIssue> issues)
     {
         foreach (var obj in bundle.Objects)
         {
@@ -200,19 +171,29 @@ public static class KibanaSavedObjectBundleValidator
                     continue;
                 }
 
-                if (!bundle.TryGetById(reference.Id, out _))
+                if (!bundle.TryGetById(reference.Id, out var target))
                 {
-                    issues.Add(new KibanaSavedObjectValidationIssue(
+                    issues.Add(CreateIssue(
                         "V5",
-                        obj.LineNumber,
-                        obj.Id,
-                        $"行 {obj.LineNumber} (id='{obj.Id}'): V5 — references の id '{reference.Id}' (name='{reference.Name}') が bundle 内に存在しない。"));
+                        obj,
+                        $"references の id '{reference.Id}' (name='{reference.Name}') が bundle 内に存在しない。"));
+                    continue;
+                }
+
+                // V8: id は見つかったが type が食い違う場合。V5 とは別ルール。
+                if (!string.IsNullOrEmpty(reference.Type)
+                    && !string.Equals(reference.Type, target.Type, StringComparison.Ordinal))
+                {
+                    issues.Add(CreateIssue(
+                        "V8",
+                        obj,
+                        $"references の id '{reference.Id}' (name='{reference.Name}') の type '{reference.Type}' が参照先の type '{target.Type}' と一致しない。"));
                 }
             }
         }
     }
 
-    private static void ValidateV6(KibanaSavedObjectBundle bundle, List<KibanaSavedObjectValidationIssue> issues)
+    private static void ValidateV6V9AndV10(KibanaSavedObjectBundle bundle, List<KibanaSavedObjectValidationIssue> issues)
     {
         foreach (var obj in bundle.Objects)
         {
@@ -221,26 +202,26 @@ public static class KibanaSavedObjectBundleValidator
                 continue;
             }
 
-            if (obj.Attributes.TryGetProperty("columns", out var columnsProp)
-                && columnsProp.ValueKind == JsonValueKind.Array)
+            if (!obj.Attributes.TryGetProperty("kibanaSavedObjectMeta", out var meta)
+                || !meta.TryGetProperty("searchSourceJSON", out var searchSourceProp)
+                || searchSourceProp.ValueKind != JsonValueKind.String)
             {
-                foreach (var column in columnsProp.EnumerateArray())
-                {
-                    if (column.ValueKind != JsonValueKind.String)
-                    {
-                        continue;
-                    }
-
-                    var columnName = column.GetString() ?? string.Empty;
-                    if (DeprecatedFields.Contains(columnName))
-                    {
-                        issues.Add(CreateV6Issue(obj, $"columns に deprecated フィールド '{columnName}' が含まれている。"));
-                    }
-                }
+                issues.Add(CreateIssue(
+                    "V9",
+                    obj,
+                    "attributes.kibanaSavedObjectMeta.searchSourceJSON が文字列として存在しない。"));
             }
 
-            if (obj.Attributes.TryGetProperty("sort", out var sortProp)
-                && sortProp.ValueKind == JsonValueKind.Array)
+            // V10: sort は必須かつ配列。欠如も赤（文字列に戻ると V6 の sort 走査が消える穴を塞ぐ）。
+            if (!obj.Attributes.TryGetProperty("sort", out var sortProp))
+            {
+                issues.Add(CreateIssue("V10", obj, "attributes.sort が無い。"));
+            }
+            else if (sortProp.ValueKind != JsonValueKind.Array)
+            {
+                issues.Add(CreateIssue("V10", obj, "attributes.sort が配列ではない。"));
+            }
+            else
             {
                 foreach (var sortEntry in sortProp.EnumerateArray())
                 {
@@ -256,20 +237,38 @@ public static class KibanaSavedObjectBundleValidator
                     }
 
                     var fieldName = field.GetString() ?? string.Empty;
-                    if (DeprecatedFields.Contains(fieldName))
+                    if (DeprecatedFieldCatalog.Contains(fieldName))
                     {
-                        issues.Add(CreateV6Issue(obj, $"sort に deprecated フィールド '{fieldName}' が含まれている。"));
+                        issues.Add(CreateIssue("V6", obj, $"sort に deprecated フィールド '{fieldName}' が含まれている。"));
+                    }
+                }
+            }
+
+            if (obj.Attributes.TryGetProperty("columns", out var columnsProp)
+                && columnsProp.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var column in columnsProp.EnumerateArray())
+                {
+                    if (column.ValueKind != JsonValueKind.String)
+                    {
+                        continue;
+                    }
+
+                    var columnName = column.GetString() ?? string.Empty;
+                    if (DeprecatedFieldCatalog.Contains(columnName))
+                    {
+                        issues.Add(CreateIssue("V6", obj, $"columns に deprecated フィールド '{columnName}' が含まれている。"));
                     }
                 }
             }
 
             var queryText = TryGetSearchSourceQuery(obj.Attributes);
-            if (queryText is not null && DeprecatedFieldInQuery.IsMatch(queryText))
+            if (queryText is not null && DeprecatedFieldCatalog.TryFindInQuery(queryText, out var matched))
             {
-                var match = DeprecatedFieldInQuery.Match(queryText);
-                issues.Add(CreateV6Issue(
+                issues.Add(CreateIssue(
+                    "V6",
                     obj,
-                    $"searchSourceJSON の query に deprecated フィールド '{match.Value}' が含まれている。"));
+                    $"searchSourceJSON の query に deprecated フィールド '{matched}' が含まれている。"));
             }
         }
     }
@@ -307,12 +306,15 @@ public static class KibanaSavedObjectBundleValidator
         }
     }
 
-    private static KibanaSavedObjectValidationIssue CreateV6Issue(KibanaSavedObject obj, string detail)
+    private static KibanaSavedObjectValidationIssue CreateIssue(
+        string ruleId,
+        KibanaSavedObject obj,
+        string detail)
     {
         return new KibanaSavedObjectValidationIssue(
-            "V6",
+            ruleId,
             obj.LineNumber,
             obj.Id,
-            $"行 {obj.LineNumber} (id='{obj.Id}'): V6 — {detail}");
+            $"行 {obj.LineNumber} (id='{obj.Id}'): {ruleId} — {detail}");
     }
 }
