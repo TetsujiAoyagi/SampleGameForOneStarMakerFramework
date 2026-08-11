@@ -67,6 +67,33 @@ public sealed class KibanaSavedObjectFieldMappingTests
                 dataViewId: IndexTemplateFieldMappingHelper.LogDataViewId));
         AssertLensFieldsAreMapped(greenBundle, telemetryMapped, logMapped);
 
+        // 3) 緑: Lens count の sentinel ___records___ は mapping に無くても除外されて通る
+        var recordsBundle = KibanaSavedObjectBundleParser.Parse(
+            BuildLensNdjson(
+                id: "lens-count-records",
+                sourceField: "___records___",
+                dataViewId: IndexTemplateFieldMappingHelper.LogDataViewId));
+        Assert.True(recordsBundle.TryGetById("lens-count-records", out var recordsLens));
+        var recordsFields = IndexTemplateFieldMappingHelper.CollectLensReferencedFields(recordsLens!);
+        Assert.DoesNotContain("___records___", recordsFields);
+        AssertLensFieldsAreMapped(recordsBundle, telemetryMapped, logMapped);
+
+        // 4) 赤: sentinel 以外の実在しないフィールドは引き続き unmapped
+        var missingBundle = KibanaSavedObjectBundleParser.Parse(
+            BuildLensNdjson(
+                id: "lens-missing-field",
+                sourceField: "payload.doesNotExist",
+                dataViewId: IndexTemplateFieldMappingHelper.LogDataViewId));
+        Assert.True(missingBundle.TryGetById("lens-missing-field", out var missingLens));
+        Assert.True(
+            IndexTemplateFieldMappingHelper.TryResolveMappedFieldPaths(
+                missingLens!, telemetryMapped, logMapped, out var missingMapped, out var missingResolveFailure),
+            missingResolveFailure);
+        var missingFields = IndexTemplateFieldMappingHelper.CollectLensReferencedFields(missingLens!);
+        Assert.Contains("payload.doesNotExist", missingFields);
+        var missingUnmapped = missingFields.Where(f => !missingMapped!.Contains(f)).ToArray();
+        Assert.Contains("payload.doesNotExist", missingUnmapped);
+
         // 正本: lens 0 個でも成立（K3-4 前）
         var canonical = KibanaSavedObjectBundleParser.Parse(
             ElasticKibanaSavedObjectsWriter.ReadSavedObjectsNdjson());

@@ -670,6 +670,33 @@ Filebeat が読む L0 rolling 経路で「Welcome 後の同一 `sessionId` な�
 
 実装後: `dotnet test tools/DebugStudio/DebugStudio.sln` → **394 passed / 0 failed**（直前 393 + sort 欠如テスト 1）。
 
+### 6.5 Phase C 差し戻し 2 巡目（R3 / R4）対応（2026-08-11）
+
+#### R3 — Lens sentinel `___records___` の除外
+
+- `IndexTemplateFieldMappingHelper.LensMappingExcludedSentinels` に **`___records___` のみ**を列挙
+- 理由: Lens の count（Count of records）が使う擬似フィールド（Kibana `DOCUMENT_FIELD_NAME`）。index mapping に存在しないが正当な state。除外しないと K3-4 で正当な count metric が false-positive 赤になる
+- 「mapping に無いものを全部見逃す」方向には緩めていない。列挙 sentinel 以外は従来どおり赤
+- 合成 fixture: `___records___` → 収集されず緑 / `payload.doesNotExist` → 引き続き赤
+
+#### R4 — `KueryFieldPattern` の doc と実装の不一致
+
+**選択: 照合前にダブルクォート文字列を除去し、doc（「引用符内は見ない」）どおりにする。**
+
+理由: doc が意図していた挙動の方が正しい。値内の `"a:b"` をフィールド名と誤収集すると V11 query 検算が嘘の赤を出しうる。Regex 側を複雑にするより、照合前に引用符区間を空白へ置換する方が意図が追いやすい。単一引用符・高度なエスケープは対象外（緩いパーサの限界として残す）。
+
+#### 赤を見た記録 / 確認していないこと
+
+| ケース | 結果 |
+|---|---|
+| log DV + `___records___` lens | 緑（sentinel 除外） |
+| log DV + `payload.doesNotExist` lens | 赤（unmapped） |
+| log DV + `payload.cpuMs` lens | 赤（従来どおり） |
+
+確認していないこと: 実 Kibana `_export` の count metric 以外に同種 sentinel が増えていないか、単一引用符 kuery の誤収集。
+
+実装後: `dotnet test tools/DebugStudio/DebugStudio.sln` → **394 passed / 0 failed**（件数は直前と同じ。既存 Fact 内に fixture を追加）。
+
 ---
 
 

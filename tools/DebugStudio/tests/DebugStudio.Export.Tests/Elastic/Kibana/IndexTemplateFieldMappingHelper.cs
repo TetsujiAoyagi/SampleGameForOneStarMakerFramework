@@ -18,11 +18,37 @@ internal static class IndexTemplateFieldMappingHelper
 
     /// <summary>
     /// kuery 文字列から <c>field.path:</c> 形の参照を緩く拾う。
-    /// 完全な KQL パーサではない（引用符内・関数引数・スクリプト等は見ない）。
+    /// 完全な KQL パーサではない（関数引数・スクリプト等は見ない）。
+    /// 引用符内は <see cref="StripDoubleQuotedSegments"/> で照合前に除去する。
     /// </summary>
     private static readonly Regex KueryFieldPattern = new(
         @"\b([A-Za-z_][\w]*(?:\.[A-Za-z_][\w]*)*)\s*:",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// ダブルクォート文字列を空白に置換する（簡易。エスケープされた <c>\"</c> は考慮する）。
+    /// </summary>
+    private static readonly Regex DoubleQuotedSegmentPattern = new(
+        "\"(?:\\\\.|[^\"\\\\])*\"",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// Lens の <c>sourceField</c> / <c>field</c> に現れるが、index template には mapping されない
+    /// Kibana 内部 sentinel。列挙したものだけ除外する（「mapping に無いものを全部見逃す」はしない）。
+    /// <list type="bullet">
+    /// <item>
+    /// <description>
+    /// <c>___records___</c> — Lens の count（Count of records）が使う擬似フィールド
+    /// （Kibana <c>DOCUMENT_FIELD_NAME</c>）。ドキュメント数を数えるための値で、
+    /// どの index mapping にも存在しない。除外しないと正当な count metric が赤になる。
+    /// </description>
+    /// </item>
+    /// </list>
+    /// </summary>
+    private static readonly HashSet<string> LensMappingExcludedSentinels = new(StringComparer.Ordinal)
+    {
+        "___records___",
+    };
 
     public static JsonElement MappingProperties(JsonElement templateRoot)
     {
@@ -120,6 +146,11 @@ internal static class IndexTemplateFieldMappingHelper
     /// 文字列値を集める。state が JSON 文字列の場合も一度 parse してから走査する。
     /// </para>
     /// <para>
+    /// <b>除外する sentinel（<see cref="LensMappingExcludedSentinels"/>）:</b>
+    /// <c>___records___</c> のみ。Lens count metric の擬似フィールドで mapping に存在しないため、
+    /// 照合対象から外す。列挙以外の未 mapping 値は引き続き赤にする。
+    /// </para>
+    /// <para>
     /// <b>検出できないこと（緩い実装の限界）:</b>
     /// <list type="bullet">
     /// <item><description>キー名が異なる参照（例: <c>fields</c> 配列、<c>accessor</c>、<c>textField</c>）</description></item>
@@ -183,10 +214,16 @@ internal static class IndexTemplateFieldMappingHelper
         return CollectKueryFieldReferences(queryText);
     }
 
+    /// <summary>
+    /// kuery から <c>field:</c> 形の参照を緩く集める。
+    /// 照合前にダブルクォート文字列を除去し、値内の <c>"a:b"</c> をフィールド名と誤認しない
+    /// （doc どおり「引用符内は見ない」）。単一引用符・ネストした複雑なエスケープは対象外。
+    /// </summary>
     public static IReadOnlyList<string> CollectKueryFieldReferences(string queryText)
     {
+        var scrubbed = StripDoubleQuotedSegments(queryText);
         var fields = new HashSet<string>(StringComparer.Ordinal);
-        foreach (Match match in KueryFieldPattern.Matches(queryText))
+        foreach (Match match in KueryFieldPattern.Matches(scrubbed))
         {
             var name = match.Groups[1].Value;
             if (!string.IsNullOrEmpty(name))
@@ -197,6 +234,9 @@ internal static class IndexTemplateFieldMappingHelper
 
         return fields.OrderBy(f => f, StringComparer.Ordinal).ToArray();
     }
+
+    private static string StripDoubleQuotedSegments(string queryText) =>
+        DoubleQuotedSegmentPattern.Replace(queryText, " ");
 
     public static string? TryGetSearchSourceQuery(JsonElement attributes)
     {
@@ -242,7 +282,8 @@ internal static class IndexTemplateFieldMappingHelper
                         && property.Value.ValueKind == JsonValueKind.String)
                     {
                         var value = property.Value.GetString();
-                        if (!string.IsNullOrEmpty(value))
+                        if (!string.IsNullOrEmpty(value)
+                            && !LensMappingExcludedSentinels.Contains(value))
                         {
                             fields.Add(value);
                         }
