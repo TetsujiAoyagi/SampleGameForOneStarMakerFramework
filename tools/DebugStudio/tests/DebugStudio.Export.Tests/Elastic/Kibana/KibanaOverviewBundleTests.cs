@@ -38,8 +38,14 @@ public sealed class KibanaOverviewBundleTests
         "sessionId",
     };
 
+    /// <summary>
+    /// <see cref="KibanaSavedObjectBundleValidator.Validate"/> を丸ごと呼ぶため、
+    /// ルールが増えれば自動的にそれも正本に強制される（現在 V1〜V10）。
+    /// V11（lens / query のフィールド mapping 検算）は index template を要するため
+    /// <c>KibanaSavedObjectFieldMappingTests</c> 側にある。
+    /// </summary>
     [Fact]
-    public void 正本NDJSONはV1からV6で指摘0件である()
+    public void 正本NDJSONはV1からV10で指摘0件である()
     {
         var ndjson = ElasticKibanaSavedObjectsWriter.ReadSavedObjectsNdjson();
         var bundle = KibanaSavedObjectBundleParser.Parse(ndjson);

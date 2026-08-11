@@ -338,7 +338,11 @@ curl -s "http://localhost:9200/debugstudio-telemetry-*/_search?size=1&sort=@time
 - **V7 と V4 の関係を壊さないこと。** V7 は「`panelRefName` が存在すること」、V4 は「存在するものが `references` と 1:1 であること」。V7 を V4 の中に混ぜると、どちらで落ちたか分からなくなる
 - **issue の `RuleId` は既存の書式（`"V1"` 等）に揃える。** メッセージは `行 N (id='X'): V7 — …` の形（既存に合わせる）
 - **`Validate` は例外を投げず issue のリストを返す**（既存の契約）。新ルールも同じ
-- **純関数を維持すること。** `Elastic/Kibana/` の 6 ファイルには `System.IO` / `File.` / `GetManifestResourceStream` が**1 つも無い**（C' 監査が裏付け済み）。ここに IO を持ち込むと検算がテスト不能になる
+- **検算経路を純関数に保つこと。** `Elastic/Kibana/` のうち **parser / validator / catalog / model 系**（`KibanaSavedObjectBundleParser` / `KibanaSavedObjectBundleValidator` / `DeprecatedFieldCatalog` / `KibanaSavedObject` / `KibanaSavedObjectBundle` / `KibanaSavedObjectReference` / `KibanaSavedObjectValidationIssue`）には `System.IO` / `File.` / `GetManifestResourceStream` が 1 つも無い。**ここに IO を持ち込むと検算がテスト不能になる**
+
+> **訂正（2026-08-11）:** 初版はここを「`Elastic/Kibana/` の 6 ファイルには IO が 1 つも無い（C' 監査が裏付け済み）」と書いていたが、**これは事実誤り**だった。同ディレクトリの `ElasticKibanaSavedObjectsWriter`（`GetManifestResourceStream` / `File.WriteAllTextAsync`）と `ElasticKibanaImportCommandWriter`（`File.WriteAllTextAsync`）は**設計どおり IO を持つ**。ファイル数も 6 ではなく現在 9。
+>
+> **この誤りは Phase C レビュー 1 巡目に「`Elastic/Kibana/` 配下は IO 無し」と*良い点*として追認され、C' 監査で初めて実測により覆った。** §0.5 が警告した「仕様との照合をいくら重ねても仕様の誤りは検出できない」が、この HANDOFF 自身で再発した実例である。**不変条件として意味があるのは「検算経路に IO を持ち込まない」であって、ディレクトリ全体ではない。**
 
 ---
 
@@ -765,6 +769,23 @@ dotnet test tools/DebugStudio/DebugStudio.sln
 - **Unity 側のコードは 1 行も変更していない**（`git diff` に `unity/` 配下が 1 件も無い）。したがって `record` 型の混入や `?.` / `??` による偽 null チェックのリスクは本スライスでは発生していない。`pwsh tools/run-tests.ps1` も不要（§5.2 の条件どおり）
 - **K3-3 / K3-4 / K3-5 は未着手。** K3-3 は実 Elastic での実行が完了条件、K3-4 は Kibana UI 操作が必要（§4 の担い手欄が「要 Kibana UI」）、K3-5 は K3-4 の成果物に依存する。**環境が無いまま「クエリは書いたが未検証」を commit すると、§1.3 が禁止した「クエリが通らないうちにパネルを作らない」の逆をやることになるため、着手しない判断をした**
 - **正本 NDJSON は 1 byte も変更していない。** パネルは 1 枚も増えていない。**本スライスの成果は「中身を入れる前の安全網」までであり、§0 が掲げた Q1 / Q2 にはまだ 1 つも答えられない**
+
+---
+
+### 7.5 PR #16 レビュー（cursor[bot]）への対応（2026-08-11）
+
+判定は **Approve / ブロッカーなし**。新規指摘 N1〜N3 のうち、**挙動を変えない小修正と、誤検知を消す 1 件をマージ前に取り込んだ。**
+
+| ID | 対応 |
+|---|---|
+| **N1**（低〜中・**修正済み**） | **V6 の query 走査が引用符を剥がしていなかったため、`message: "cpuTime is high"` が誤検知で赤になっていた。** `DeprecatedFieldCatalog.TryFindInQuery` を追加し、照合前にダブルクォート区間を処理する。**直後が `:` の区間はフィールド名として中身を残し、それ以外は値として空白に落とす**ため、`"cpuTime": 10`（引用符付きフィールド名）は引き続き赤になる。テスト `queryの引用符内の値はV6に落ちず引用符付きフィールド名は落ちる` を追加し、**修正を外すと `Assert.DoesNotContain() Failure` で赤になることを実測した** |
+| **F1**（中・**修正済み**） | §4 K3-1 の「`Elastic/Kibana/` の 6 ファイルには IO が 1 つも無い」を訂正した（同節の訂正ブロックを参照）。**§7 / §8 だけで訂正すると本文が残って次のレビュアーが再誤認する**という指摘に従い、本文側を直した |
+| **F4**（低・**修正済み**） | テスト名を `正本NDJSONはV1からV10で指摘0件である` に改名し、「`Validate` を丸呼びするのでルールが増えれば自動的に正本へ強制される / V11 は index template を要するため別テスト」を doc コメントに書いた |
+| **F2 / F3 / N2 / N3** | **次スライス送り。** F2（引用符付きフィールド名が mapping 検算から落ちる）は検算ヘルパ側の同型の穴、F3（複数 index-pattern で赤）は K3-4 の annotation layer 着手前に方針決定が要る、N2（`TryResolve` の失敗系にテストが無い）、N3（`searchSourceJSON.filter` 内フィールドが未走査） |
+
+**`dotnet test` = 395 passed / 0 failed**（+1 = N1 のテスト）。
+
+> **N1 は、私（Phase C 最終チェック）も Opus 4.8（3 巡）も見落としていた。** F2 として「引用符付きフィールド名が*落ちる*」方向は指摘できていたのに、**同じ引用符の扱いが V6 側では*逆方向の誤検知*を生んでいることに気づかなかった。** 非対称性を疑う視点が抜けていた。
 
 ---
 

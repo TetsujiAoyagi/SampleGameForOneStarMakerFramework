@@ -263,13 +263,12 @@ public static class KibanaSavedObjectBundleValidator
             }
 
             var queryText = TryGetSearchSourceQuery(obj.Attributes);
-            if (queryText is not null && DeprecatedFieldCatalog.QueryPattern.IsMatch(queryText))
+            if (queryText is not null && DeprecatedFieldCatalog.TryFindInQuery(queryText, out var matched))
             {
-                var match = DeprecatedFieldCatalog.QueryPattern.Match(queryText);
                 issues.Add(CreateIssue(
                     "V6",
                     obj,
-                    $"searchSourceJSON の query に deprecated フィールド '{match.Value}' が含まれている。"));
+                    $"searchSourceJSON の query に deprecated フィールド '{matched}' が含まれている。"));
             }
         }
     }

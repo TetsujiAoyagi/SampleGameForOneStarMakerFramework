@@ -175,6 +175,33 @@ public sealed class KibanaSavedObjectBundleValidatorTests
         Assert.Contains(deprecatedQueryIssues, i => i.RuleId == "V6");
     }
 
+    /// <summary>
+    /// N1（PR #16 レビュー指摘）— query の引用符内の<b>値</b>に deprecated 語が入っているだけでは
+    /// フィールド参照ではないので V6 に落とさない。引用符付きの<b>フィールド名</b>は落とす。
+    /// </summary>
+    [Fact]
+    public void queryの引用符内の値はV6に落ちず引用符付きフィールド名は落ちる()
+    {
+        var quotedValue = BuildSearchNdjson(
+            columnsJson: "[\"kind\"]",
+            query: "message: \"cpuTime is high\" or message: \"gpuTime\"");
+        var quotedValueIssues = Validate(quotedValue);
+        Assert.DoesNotContain(quotedValueIssues, i => i.RuleId == "V6");
+
+        var quotedFieldName = BuildSearchNdjson(
+            columnsJson: "[\"kind\"]",
+            query: "\"cpuTime\": 10");
+        var quotedFieldNameIssues = Validate(quotedFieldName);
+        Assert.Contains(quotedFieldNameIssues, i => i.RuleId == "V6");
+
+        // 引用符を挟んでも、素の参照は従来どおり落ちる。
+        var mixed = BuildSearchNdjson(
+            columnsJson: "[\"kind\"]",
+            query: "message: \"ok\" and cpuTime > 10");
+        var mixedIssues = Validate(mixed);
+        Assert.Contains(mixedIssues, i => i.RuleId == "V6");
+    }
+
     [Fact]
     public void sortにcpuTimeがあるとV6が指摘されpayload側は指摘されない()
     {
