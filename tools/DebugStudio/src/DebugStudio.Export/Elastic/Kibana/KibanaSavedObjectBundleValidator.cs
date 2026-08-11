@@ -8,7 +8,8 @@ using System.Text.Json;
 namespace DebugStudio.Export.Elastic.Kibana;
 
 /// <summary>
-/// Kibana saved object bundle の構造検算（V1〜V10）。IO 無しの純関数。
+/// Kibana saved object bundle の構造検算（V1〜V10, V12）。IO 無しの純関数。
+/// V11（index template との mapping 照合）は template を要するためテスト側にある。
 /// </summary>
 public static class KibanaSavedObjectBundleValidator
 {
@@ -25,6 +26,7 @@ public static class KibanaSavedObjectBundleValidator
         ValidateV3V4AndV7(bundle, issues);
         ValidateV5AndV8(bundle, issues);
         ValidateV6V9AndV10(bundle, issues);
+        Validation.EsqlPanelRules.Validate(bundle, issues);
         return issues;
     }
 
@@ -122,11 +124,20 @@ public static class KibanaSavedObjectBundleValidator
                     || panelRefNameProp.ValueKind != JsonValueKind.String
                     || string.IsNullOrEmpty(panelRefNameProp.GetString()))
                 {
+                    // by-value パネル（ES|QL 等）は panelRefName を持たず、中身が
+                    // embeddableConfig.attributes に丸ごと埋まる。中身が解決できるなら V7 は通す。
+                    // 「panelRefName が無い」を一律に許すと V7 が塞いだ穴が戻るので、
+                    // reference でも by-value でもないパネルだけを赤にする。
+                    if (HasByValueAttributes(panel))
+                    {
+                        continue;
+                    }
+
                     // V7: 存在チェック。V4 は「存在する名前」の 1:1 だけを見る。
                     issues.Add(CreateIssue(
                         "V7",
                         obj,
-                        $"panelsJSON[{panelIndex - 1}] に非空の panelRefName が無い。"));
+                        $"panelsJSON[{panelIndex - 1}] に非空の panelRefName も embeddableConfig.attributes も無い。"));
                     continue;
                 }
 
@@ -136,9 +147,10 @@ public static class KibanaSavedObjectBundleValidator
             var referencePanelNames = new HashSet<string>(StringComparer.Ordinal);
             foreach (var reference in obj.References)
             {
-                if (reference.Name.StartsWith("panel_", StringComparison.Ordinal))
+                var normalized = NormalizePanelReferenceName(reference.Name);
+                if (normalized is not null)
                 {
-                    referencePanelNames.Add(reference.Name);
+                    referencePanelNames.Add(normalized);
                 }
             }
 
@@ -159,6 +171,42 @@ public static class KibanaSavedObjectBundleValidator
             }
         }
     }
+
+    /// <summary>
+    /// panel の reference 名を <c>panel_*</c> の形に正規化する。panel 参照でなければ null。
+    ///
+    /// <para>
+    /// Kibana 8.17 の <c>_export</c> は reference 名に <c>&lt;panelIndex&gt;:</c> の接頭辞を付ける
+    /// （<c>p1:panel_p1</c>）。手書き正本は接頭辞無し（<c>panel_p1</c>）。**両方を受け付ける**。
+    /// 接頭辞を剥がさないと実 <c>_export</c> が丸ごと V4 で赤になる。
+    /// </para>
+    /// <para>
+    /// <b>緩い実装:</b> 接頭辞が本当にその panel の <c>panelIndex</c> と一致するかまでは見ていない。
+    /// V4 の目的は「panelRefName と references の 1:1」であって接頭辞の検算ではない。
+    /// </para>
+    /// </summary>
+    private static string? NormalizePanelReferenceName(string referenceName)
+    {
+        if (referenceName.StartsWith("panel_", StringComparison.Ordinal))
+        {
+            return referenceName;
+        }
+
+        var separator = referenceName.LastIndexOf(':');
+        if (separator < 0)
+        {
+            return null;
+        }
+
+        var suffix = referenceName[(separator + 1)..];
+        return suffix.StartsWith("panel_", StringComparison.Ordinal) ? suffix : null;
+    }
+
+    private static bool HasByValueAttributes(JsonElement panel) =>
+        panel.TryGetProperty("embeddableConfig", out var embeddableConfig)
+        && embeddableConfig.ValueKind == JsonValueKind.Object
+        && embeddableConfig.TryGetProperty("attributes", out var attributes)
+        && attributes.ValueKind == JsonValueKind.Object;
 
     private static void ValidateV5AndV8(KibanaSavedObjectBundle bundle, List<KibanaSavedObjectValidationIssue> issues)
     {

@@ -300,4 +300,149 @@ public sealed class KibanaSavedObjectBundleValidatorTests
 
         return JsonSerializer.Serialize(obj) + "\n";
     }
+    // ── K3-4 で判明した実 _export 非対応（HANDOFF §7.8 G-1 / G-2）──
+
+    [Fact]
+    public void export形式のpanelIndex接頭辞付きreference名でもV4で落ちない()
+    {
+        // Kibana 8.17 の _export は reference 名を "<panelIndex>:panel_<panelIndex>" で出す。
+        // 手書き正本の "panel_p1" しか受け付けないと、実 _export が丸ごと赤になる。
+        var ndjson =
+            """
+            {"id":"dash","type":"dashboard","attributes":{"title":"x","panelsJSON":"[{\"type\":\"search\",\"panelIndex\":\"p1\",\"panelRefName\":\"panel_p1\"}]"},"references":[{"id":"s1","name":"p1:panel_p1","type":"search"}]}
+            {"id":"s1","type":"search","attributes":{"title":"s","columns":[],"sort":[["@timestamp","desc"]],"kibanaSavedObjectMeta":{"searchSourceJSON":"{}"}},"references":[]}
+            """;
+
+        var issues = Validate(ndjson);
+
+        Assert.DoesNotContain(issues, i => i.RuleId == "V4");
+        Assert.DoesNotContain(issues, i => i.RuleId == "V7");
+    }
+
+    [Fact]
+    public void byvalueパネルはpanelRefNameが無くてもV7で落ちない()
+    {
+        // ES|QL パネルは by-value で、中身が embeddableConfig.attributes に丸ごと埋まる。
+        // panelRefName は原理的に存在しない。
+        var esql = "FROM debugstudio-telemetry-* | LIMIT 5";
+
+        var issues = Validate(EsqlPanelBundle(esql));
+
+        Assert.DoesNotContain(issues, i => i.RuleId == "V7");
+        Assert.DoesNotContain(issues, i => i.RuleId == "V12");
+    }
+
+    [Fact]
+    public void byvalueでもembeddableConfigのattributesが無ければV7で落ちる()
+    {
+        // 「panelRefName が無い」を一律に許すと、V7 が塞いだ穴が戻る。
+        var ndjson =
+            """
+            {"id":"dash","type":"dashboard","attributes":{"title":"x","panelsJSON":"[{\"type\":\"lens\",\"panelIndex\":\"e0\",\"embeddableConfig\":{}}]"},"references":[]}
+            """;
+
+        var issues = Validate(ndjson);
+
+        Assert.Contains(issues, i => i.RuleId == "V7");
+    }
+
+    [Theory]
+    [InlineData("cpuTime")]
+    [InlineData("gpuTime")]
+    [InlineData("managedMem")]
+    [InlineData("nativeMem")]
+    [InlineData("cameraTotalViewCount")]
+    [InlineData("cameraAdditionalViewCount")]
+    [InlineData("cameraBlendingViewCount")]
+    [InlineData("cameraMaxStackDepthTotal")]
+    public void ESQLパネルのqueryにdeprecated語があるとV12で落ちる(string deprecatedField)
+    {
+        // §1.6 は「K3 で追加するパネルにも同じ禁止がかかる」と書いているが、
+        // V6 は type=search しか見ないため by-value パネルは素通りしていた。
+        var esql = $"FROM debugstudio-telemetry-* | STATS m = MAX({deprecatedField}) BY sessionId";
+
+        var issues = Validate(EsqlPanelBundle(esql));
+
+        Assert.Contains(issues, i => i.RuleId == "V12" && i.Message.Contains(deprecatedField, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ESQLパネルのpayload接頭辞付きの同名はV12で落ちない()
+    {
+        var esql = "FROM debugstudio-telemetry-* | STATS m = MAX(payload.cameraTotalViewCount) BY sessionId";
+
+        var issues = Validate(EsqlPanelBundle(esql));
+
+        Assert.DoesNotContain(issues, i => i.RuleId == "V12");
+    }
+
+    [Fact]
+    public void ESQLパネルの文字列リテラル内のdeprecated語はV12で落ちない()
+    {
+        var esql = """FROM debugstudio-telemetry-* | WHERE name == "cpuTime" | LIMIT 5""";
+
+        var issues = Validate(EsqlPanelBundle(esql));
+
+        Assert.DoesNotContain(issues, i => i.RuleId == "V12");
+    }
+
+    [Fact]
+    public void ESQLパネルのFROMがbundle内のindexpatternに無いとV12で落ちる()
+    {
+        // bundle が宣言していない index を引くパネルは、import 先で黙って 0 件になる。
+        var esql = "FROM debugstudio-telemetry-2026.08.11 | LIMIT 5";
+
+        var issues = Validate(EsqlPanelBundle(esql));
+
+        Assert.Contains(issues, i => i.RuleId == "V12"
+            && i.Message.Contains("debugstudio-telemetry-2026.08.11", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// index-pattern 1 本と by-value ES|QL パネル 1 枚だけの最小 bundle。
+    /// </summary>
+    private static string EsqlPanelBundle(string esql)
+    {
+        var attributes = new Dictionary<string, object?>
+        {
+            ["title"] = "t",
+            ["references"] = Array.Empty<object>(),
+            ["state"] = new Dictionary<string, object?>
+            {
+                ["query"] = new Dictionary<string, string> { ["esql"] = esql },
+            },
+        };
+
+        var panels = new[]
+        {
+            new Dictionary<string, object?>
+            {
+                ["type"] = "lens",
+                ["panelIndex"] = "e0",
+                ["embeddableConfig"] = new Dictionary<string, object?> { ["attributes"] = attributes },
+            },
+        };
+
+        var dataView = new Dictionary<string, object?>
+        {
+            ["id"] = "dv",
+            ["type"] = "index-pattern",
+            ["attributes"] = new Dictionary<string, string> { ["title"] = "debugstudio-telemetry-*" },
+            ["references"] = Array.Empty<object>(),
+        };
+
+        var dashboard = new Dictionary<string, object?>
+        {
+            ["id"] = "dash",
+            ["type"] = "dashboard",
+            ["attributes"] = new Dictionary<string, object?>
+            {
+                ["title"] = "x",
+                ["panelsJSON"] = JsonSerializer.Serialize(panels),
+            },
+            ["references"] = Array.Empty<object>(),
+        };
+
+        return JsonSerializer.Serialize(dataView) + "\n" + JsonSerializer.Serialize(dashboard) + "\n";
+    }
 }
