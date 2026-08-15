@@ -1,8 +1,16 @@
-# Cell オーサリング正本の確立 と 季節軸の導入 ハンドオフ (2026-08-15)
+# Cell オーサリング正本の確立 と 季節軸の導入 ハンドオフ (2026-08-15 / 2026-08-16 改訂)
 
 > Phase A（計画）: Claude Code / Opus 5
-> 対象スライス: **S-1「生成器の非破壊化と分割」のみ**。季節化（S-2 以降）は本書 §1 に方針だけ確定させ、実装はしない
+> 対象スライス: **S-1「生成器の非破壊化」のみ**。季節化（S-2 以降）は本書 §1 に方針だけ確定させ、実装はしない
 > 前スライス: `chore/pending-changes-triage`（コミット 5 本。§0.3 参照）
+>
+> **2026-08-16 改訂:** 実コードとの突き合わせで 5 点を修正した。事実主張はすべて裏付けが取れている。
+>
+> 1. **生成器の 7 ファイル分割をやめた**（§2 / §2.1）。§1.2 の「生成 Script は捨てる前提」と、旧 §2 の分割計画・旧受入 A-4「250 行以下・責務 1」が正面衝突していた。抽出するのは純関数 2 ファイルだけ
+> 2. **`DeleteOutOfGridCellFolders` という第二の破壊経路**を追記した（§2.2 / §3 T-7 / §5 A-7）。旧版に一切出てこなかった
+> 3. **`CellPopulationPlan` の入力に Environment の状態と削除可否を含める**ことを明示した（§3）。旧版の入力定義では T-2b が Plan の外に落ちてテストが書けなくなる
+> 4. **policy データの置き場**を「ハードコード静的配列」に確定した（§2.3）
+> 5. **§4 にベースラインコミットを追加**した。生成器が untracked のままだとリファクタ差分が `git diff` に出ず、Phase C の構造レビューが成立しない
 
 ---
 
@@ -56,18 +64,23 @@ private static void DetachSeasonLevels(SceneResource session, SceneResourceMap m
 意図的に**コミットしなかった**もの:
 
 - `WorldGridDefinition.cs` の既定値を SampleGame パスへ変える差分は **revert 済み**。OneStarMaker(FW) が SampleGame のパスを既定値に持つのは「FW → Game 参照禁止」に反する。実インスタンス `SampleGame/InGame/InGameSession/World/WorldGridDefinition.asset` が既に正しいパスを保持し、テストも `Assets/Test/...` を明示設定するため機能差はない
-- 下記 10 本は**作業ツリーに保留**（破棄も `.gitignore` もしていない）。本スライスの入力:
+- 下記は**作業ツリーに保留**（破棄も `.gitignore` もしていない）。本スライスの入力。**2026-08-16 に `git status` で再確認した実態**:
 
 ```
+ M unity/Assets/AddressableAssetsData/AddressableAssetSettings.asset
  M unity/Assets/AddressableAssetsData/AssetGroups/Default Local Group.asset
- M unity/Assets/Docs/Architecture/21-scene-streaming.md
  M unity/Assets/SampleGame/DependOnAll/Editor/SampleGame.DependOnAll.Editor.asmdef
 ?? unity/Assets/AddressableAssetsData/ProfileDataSourceSettings.asset (+.meta)
-?? unity/Assets/SampleGame/DependOnAll/Editor/PlayerInGameSliceSceneCreator.cs (+.meta)
-?? unity/Assets/SampleGame/DependOnAll/Editor/WorldCellStreamingSliceCreator.cs (+.meta)
+?? unity/Assets/SampleGame/DependOnAll/Editor/PlayerInGameSliceSceneCreator.cs (+.meta)   ← 183 行
+?? unity/Assets/SampleGame/DependOnAll/Editor/WorldCellStreamingSliceCreator.cs (+.meta)  ← 1366 行
 ```
 
-`AddressableAssetSettings.asset`（`m_currentHash` のゼロ化）はテスト実行時の Unity バッチ起動でハッシュが再計算され、差分が自然消滅した。
+以前ここに書いていた 2 点を訂正した:
+
+- `unity/Assets/Docs/Architecture/21-scene-streaming.md` は**もう modified ではない**（リストから外した）
+- `AddressableAssetSettings.asset` は「差分が自然消滅した」と書いていたが**現在 modified**。§4 の Addressables 差分コミットの対象に含めること
+
+`PlayerInGameSliceSceneCreator.cs` は本スライスのロジック変更対象ではないが untracked のままなので、§4 のベースラインコミットに**無変更で一緒に入れる**。
 
 ---
 
@@ -100,7 +113,7 @@ InGameSession
   └── WinterLevel
 ```
 
-遷移: `SwitchScene(Tunnel)` → 滞在中に次季節をロード → `SwitchScene(NextSeason)`。
+遷移（S-2。本スライスでは実装しない）: 次季節は `SwitchScene` せず **`AddScene` で追加ロード**する。範囲外になったらその **Level を丸ごと Unload** する。
 
 **Tunnel は季節ごとに入口/出口を持たせず、`InGameSession` 直下に常設 1 本とする。** 季節ごとに持つと 4×2 = 8 本になり、演出差が要らないうちは無駄。差別化が必要になったら Tunnel を Variant で分ける（Scene を増やさない）。**設計判断としてこう決めた。**
 
@@ -108,8 +121,9 @@ InGameSession
 
 - 秋を Checkout していない状態でもトンネルを抜けたら秋が始まる → `20-variant-checkout-workflow.md` のハイブリッド解決の実物デモ
 - 冬だけ後から単独ビルドして差し替える → 差分ビルドの実物デモ
+- **次 Level が無い（未ビルド / 未 Checkout）ときの Fallback は後で決める。初期はエラーでよい。**
 
-`21-scene-streaming.md` の D-5（セルを `SwitchScene` / `GoBack` / `TransitionPlan` に乗せるな）には**抵触しない**。禁止対象は **Cell** であって、Season Level と Tunnel は画面遷移の語彙に乗ってよい。既存の `LoadingDisplayType` / `TransitionPlan` に載る。
+`21-scene-streaming.md` の D-5（セルを `SwitchScene` / `GoBack` / `TransitionPlan` に乗せるな）は Cell に対してそのまま。Season Level の出し入れも画面遷移には乗せない（`AddScene` / 範囲外 Unload）。Tunnel は継ぎ目として残す。
 
 線形の進行（春→夏→秋→冬）は偶然ではなく利点。「次のものだけあれば進める」という性質が、部分 Checkout の証明をそのまま与える。
 
@@ -125,6 +139,8 @@ InGameSession
 | **冬** | **Build** | 別 Addressables グループ + 別 Variant。後から単独ビルドして差し替えられることを示す |
 
 コンテンツ量は今の 4×4 グリッド 1 個分 + α で足りる（秋・冬は夏のグリッドを Variant 違いで使い回す）。`README` で「どの動詞がどこで実証されているか」を 1 行ずつ指させる。
+
+**生成コンテンツは捨てる前提。** Script で作ってよいが、生成 Script 自体の Push や、生成物の中身に対する Test は不要。残すテストは手編集を消さないこと（`CellPopulationPlan` の Skip / Populate）だけ。
 
 **Commit 境界は Cell 単体ではなく「同一 Cell フォルダ内の職種別 `.unity` 分割」で確定する。** 「二人が別々の Cell を触る」は何も証明しない — Cell が別ファイルなのは Streaming 境界を切った結果であって、Commit 軸の成果ではない。Commit 軸が証明すべきは**同じ空間を複数職種が同時に触れること**なので、春の受入は「同一 Cell 内で、地形担当が `Cell_x_y.unity` を、背景担当が `Environment_x_y.unity` を同時に編集しても、マージ衝突なくコミットできる」になる。**設計判断としてこう決めた。**
 
@@ -146,57 +162,90 @@ InGameSession
 - **春** = 手編集が正本。生成器は初回スキャフォールドのみ。**`Cell_x_y.unity` の `AuthoredRoot` と `Environment_x_y.unity` の中身の両方**について、既存があれば**触らない**
 - **夏** = 生成物が正本。再生成で上書きしてよい
 
-**Environment を Skip 対象から外さないこと。** §1.2 で Commit 境界を職種別ファイル分割にした以上、Environment 側の手編集を潰すと Commit 軸の証明が成立しない。加えて §5 の A-2（**全 `.unity` の差分 0**）が直接落ちる。
+**Environment を Skip 対象から外さないこと。** §1.2 で Commit 境界を職種別ファイル分割にした以上、Environment 側の手編集を潰すと Commit 軸の証明が成立しない。加えて §5 の A-3(b)（`Environment_x_y.unity` に手で足した GameObject が残る）が直接落ちる。
 
 **サンプルが証明すべきは「両方を同居させられる」ことなので、片方に決める必要がない。** これが現行のフラット構成では表現できなかった。
 
-### 1.4 順序の制約（守らないと破綻する）
+### 1.4 順序の制約
 
-**正本を決める前に季節化してはいけない。** 現行の `PopulateSingleCellScene` は毎回 `AuthoredRoot` を `DestroyImmediate` して作り直すため:
+現行の `PopulateSingleCellScene` は毎回 `AuthoredRoot` を `DestroyImmediate` して作り直す。人が Unity で手編集した中身は**次の生成で消える**。これが S-1 で直す破綻点（実際には破壊経路は 3 つある。§2.2 の表を見ること）。
 
-- 再生成すると全シーンが**全文差分**になる（内容が同一でも fileID が総入れ替え）。現行グリッドでの実測対象は Cell 16 枚 + Environment 4 枚
-- 人が Unity で手編集した中身は**次の生成で消える**
+「このまま 64 セルにすると生成のたび 64 シーン全文差分」という見積りは **過剰**。各季節は人が作り込む想定なので、グリッド全体を正本として整合させる必要はない。
 
-このまま 64 セルにすると生成のたび 64 シーン全文差分。よって **S-1（本スライス）= 正本の確立、S-2 = 季節化**。
+**S-1 の核は「生成器が手編集を消さない」ことだけ。** 南辺 4 枚（`Cell_0_0`〜`Cell_3_0`）と Environment 4 枚が残れば足りる。Generated セルの再生成差分を 0 にすること、季節化の前に全セルの正本を確定することはやらない。S-2（季節化）は手編集保護ができていれば進めてよい。
 
 ### 1.5 本スライス（S-1）でやらないこと
 
 - 季節 Level / Tunnel の追加（S-2）
+- Season Level の `AddScene` / 範囲外 Unload、および未ビルド Level の Fallback（S-2。初期はエラーでよい）
 - Addressables グループ分割・Variant タグ付与（S-3）
 - グリッドサイズの変更（4×4 のまま。3×3 への縮小可否は S-2 で `loadRadius 375m / unloadRadius 550m / セル 250m` の横断が成立するか検証してから判断。**実装値は `WorldCellCatalog.cs` が正**。以前ここに書いていた 150m / 250m は §21 の設計時初期値の写し間違いで、セル 250m では隣接セル中心が desired set に入らず成立しない）
+  - ただし**縮小したときに `HandAuthored` な Cell が消えないガードは S-1 で入れる**（§2.2 / §3 T-7 / §5 A-7）。ガード無しで S-2 の縮小を試すと、南辺 4 枚の手編集がフォルダごと消える
 - `.gitattributes` の `merge=unityyamlmerge` ドライバ設定（local / global とも未設定で効いていないが、PC 依存の設定なので別途）
 
 ---
 
-## 2. 変更対象ファイル一覧（A-1: 規模見積もり）
+## 2. 変更対象ファイル一覧（CLAUDE.md A-1: 規模見積もり）
 
-現状 `WorldCellStreamingSliceCreator.cs` は **1366 行・約 45 メソッド・責務 8 つ以上**（レガシー移行 / フォルダ削除 / マテリアル生成 / シーン内容生成 / SceneGraph ノード同期 / Addressables 登録 / Map 圧縮 / グリッド定義）。CLAUDE.md A-1 の「500 行 or 3 責務」を大幅超過し、`AssetDatabase` 密結合でテストが **0 本**。
+> **ラベルの読み方:** §2〜§3 の `A-1`〜`A-4` は **CLAUDE.md の Phase A チェック項目**を指す。§5 の `A-1`〜`A-7` は**本スライスの受入条件**で、別物。混同しないこと。
+
+現状 `WorldCellStreamingSliceCreator.cs` は **1366 行・39 メソッド・責務 8 つ以上**（レガシー移行 / フォルダ削除 / マテリアル生成 / シーン内容生成 / SceneGraph ノード同期 / Addressables 登録 / Map 圧縮 / グリッド定義）。`AssetDatabase` 密結合でテストが **0 本**。
 
 | ファイル | 現在 → 予想 | 責務数 | 備考 |
 |---|---|---|---|
-| `SampleGame/DependOnAll/Editor/WorldCellStreamingSliceCreator.cs` | 1366 → **≤ 250** | 1（オーケストレーションのみ） | 未追跡。本スライスで初コミットする |
-| `SampleGame/DependOnAll/Editor/Cells/CellAuthoringPolicy.cs` | 新規 → ~80 | 1 | **純 C#**。Generated / HandAuthored の宣言と、Cell → policy の解決 |
-| `SampleGame/DependOnAll/Editor/Cells/CellPopulationPlan.cs` | 新規 → ~150 | 1 | **純関数**。定義 + 既存状態 + policy → Populate / Skip の計画 |
-| `SampleGame/DependOnAll/Editor/Cells/CellSceneWriter.cs` | 新規 → ~250 | 1 | `AssetDatabase` / `EditorSceneManager` I/O のみ |
-| `SampleGame/DependOnAll/Editor/Cells/WorldSceneGraphSync.cs` | 新規 → ~200 | 1 | SceneGraph ノード / エッジ同期 |
-| `SampleGame/DependOnAll/Editor/Cells/WorldResourceLinker.cs` | 新規 → ~280 | 1 | SceneResource 親子 / Map 登録・圧縮 |
-| `SampleGame/DependOnAll/Editor/Cells/WorldAddressablesRegistrar.cs` | 新規 → ~100 | 1 | Addressables エントリ登録 |
-| `OneStarMaker/Tests/Editor/CellPopulationPlanTests.cs` | 新規 → ~200 | — | §3 参照 |
+| `SampleGame/DependOnAll/Editor/Cells/CellAuthoringPolicy.cs` | 新規 → ~60 | 1 | **純 C#**。Generated / HandAuthored の宣言と、Cell → policy の解決 |
+| `SampleGame/DependOnAll/Editor/Cells/CellPopulationPlan.cs` | 新規 → ~150 | 1 | **純関数**。定義 + 既存状態 + policy → Populate / Skip / 削除可否の計画 |
+| `SampleGame/DependOnAll/Editor/WorldCellStreamingSliceCreator.cs` | 1366 → **~1200** | 据え置き | 死コード ~130 行を削除し、破壊的処理を Plan 経由に差し替える。**分割しない**（下記） |
+| `OneStarMaker/Tests/Editor/CellPopulationPlanTests.cs` | 新規 → ~220 | — | §3 参照 |
 | `OneStarMaker/Tests/Editor/OneStarMaker.Tests.Editor.asmdef` | +1 行 | — | **`SampleGame.DependOnAll.Editor` 参照を追加。これが無いとテストがコンパイルしない**（§3 冒頭） |
 | `SampleGame/DependOnAll/Editor/SampleGame.DependOnAll.Editor.asmdef` | +1 行 | — | `SampleGame.InGame` 参照を追加（保留中の差分をそのまま使う） |
 
-### A-2: 500 行 / 3 責務を超える見込みへの対処
+### 2.1 (CLAUDE.md A-2) 500 行超をあえて分割しない — 設計判断
 
-上表が分割先。**`WorldCellStreamingSliceCreator.cs` に新しいロジックを足さないこと。** 同ファイルに残してよいのは「どの順で何を呼ぶか」だけで、判断・生成・I/O はすべて上記の新ファイルへ置く。
+CLAUDE.md A-1 / A-2 の「500 行 or 3 責務を超えるなら分割先を明記」は**育つファイル**を想定した規律であり、**寿命が有限と分かっているスキャフォールドには適用しない。設計判断としてこう決めた。**
 
-### A-3: 既存ファイルへの新責務割り当て
+`WorldSceneGraphSync` / `WorldResourceLinker` / `WorldAddressablesRegistrar` / `CellSceneWriter` に相当する ~830 行は、責務を分けても**誰もテストせず、S-2 完了後に消える**。§1.2 の「生成コンテンツは捨てる前提。生成 Script 自体の Push や、生成物の中身に対する Test は不要」に従い、ここに構造化投資はしない。
+
+**恒久的なのは「生成器が手編集を消さない」という判断だけで、それは純関数 2 ファイルに閉じる。** そこにテストを集中させる（§3）。CLAUDE.md の「テスト要求は構造の指示より強く効く」はこの形で満たす。
+
+代わりに `WorldCellStreamingSliceCreator.cs` の先頭 XML doc に次の一文を足すこと（受入条件 A-4'）:
+
+> このクラスは**スキャフォールド**であり、S-2（季節化）完了後の削除候補である。恒久的な判断は `Cells/CellPopulationPlan.cs` にのみ置き、ここには「どの順で何を呼ぶか」と使い捨ての生成手続きだけを置く。**構造化の投資をしないと決めた（HANDOFF §2.1）。**
+
+これが無いと、次にこのファイルを見た人が「1200 行・責務 8 つ」を負債と読んで再び分割しにかかる。
+
+### 2.2 破壊的処理は 3 箇所しかない — すべて Plan 経由にする
+
+手編集を消しうる経路は次の 3 つで、**S-1 が塞ぐのはこれだけ**。ここ以外は挙動を変えないこと。
+
+| 経路 | 現在の挙動 | S-1 後 |
+|---|---|---|
+| `PopulateSingleCellScene`（`:740`） | 毎回 `AuthoredRoot` を `DestroyImmediate` して作り直す | **Populate 計画が出た Cell にのみ**実行 |
+| `PopulateEnvironmentScene`（`:923`） | 同上（Environment 側の `AuthoredRoot`） | **Populate 計画が出た Environment にのみ**実行 |
+| `DeleteOutOfGridCellFolders`（`:387`） | 範囲外 Cell フォルダを `AssetDatabase.DeleteAsset` で `.unity` ごと削除 | **`HandAuthored` な Cell は範囲外でも削除しない**（下記） |
+
+**`DeleteOutOfGridCellFolders` は当初の計画に無かった第二の破壊経路。** S-1 は 4×4 固定なので発火しないが、§1.5 が S-2 で検討するとしている **3×3 縮小がそのまま踏む**ため、今のうちに塞ぐ:
+
+- 削除対象の判定も `CellPopulationPlan` を経由させる。`HandAuthored` な Cell は範囲外でも削除せず `Debug.LogWarning` に留める
+- あわせて、判定に使っている `WorldCellCatalog.GridWidth` / `GridHeight`（SampleGame の const）を **`definition.GridWidth` / `definition.GridHeight` に統一する**。同ファイルの他メソッドは `definition` を使っており不整合になっている
+
+`WorldCellGenerator`（FW 側）は**既存 `.unity` を上書きしない**ことを確認済み（`ApplySceneFiles` は `LoadAssetAtPath<SceneAsset>` が非 null なら skip する）。したがって §2.3 の「触らない」で問題ない。
+
+### 2.3 (CLAUDE.md A-3) 既存ファイルへの新責務割り当て
 
 - `CellAuthoringPolicy` を **`OneStarMaker`（FW）側に置かない**。正本の決め方は SampleGame の運用方針であって FW の契約ではない。**設計判断としてこう決めた**
 - `WorldGridDefinition`（FW）に policy フィールドを足さない。同じ理由
-- `OneStarMaker/Scripts/Editor/Streaming/WorldCellGenerator.cs` は**触らない**。`dc8977f`（サブフォルダ化）と `a9bdf99`（S1: `.asset` 側のフォルダ生成漏れ修正）で緑になったばかりで、既存テスト 6 本が乗っている
-- **テストは `OneStarMaker/Tests/Editor/` に置く**（SampleGame 側に新規テストアセンブリを作らない）。SUT が SampleGame にあるのにテストが `OneStarMaker.Tests.*` にあるのは一見ねじれだが、`OneStarMaker.Tests` は既に `SampleGame.DependOnAll` / `SampleGame.InGame` / `SampleGame.OutGame` を参照しており、**テストアセンブリは依存グラフの頂点なので「FW → Game 禁止」に抵触しない**。確立済みのパターンに合わせる。**設計判断としてこう決めた**
+- **policy データは `CellAuthoringPolicy.cs` 内のハードコード静的配列とする。** 既存の `EnvironmentSproutCells`（`WorldCellStreamingSliceCreator.cs:69` の `Vector2Int[]`）と同じ形。**設計判断としてこう決めた。** 却下した代案:
+  - *ScriptableObject 資産* — 純関数性が崩れ、テストがアセット読み込みに依存する。§3 の「`AssetDatabase` に一切依存しない純関数として書け」と正面から衝突する
+  - *`SceneResource` にフラグ* — `SceneResource` は FW 側の型なので、FW に SampleGame の運用概念が漏れる（上 2 項と同じ理由）
 
-### 削除するもの（C: 置き換え残骸）
+  S-1 の対象は南辺 4 枚固定なので配列で足りる。資産化は季節が入る S-2 で再検討する
+- `OneStarMaker/Scripts/Editor/Streaming/WorldCellGenerator.cs` は**触らない**。`dc8977f`（サブフォルダ化）と `a9bdf99`（S1: `.asset` 側のフォルダ生成漏れ修正）で緑になったばかりで、既存テスト 6 本が乗っている
+- **テストは `OneStarMaker/Tests/Editor/` に置く**（SampleGame 側に新規テストアセンブリを作らない）。SUT が SampleGame にあるのにテストが `OneStarMaker.Tests.*` にあるのは一見ねじれだが、**テストアセンブリは依存グラフの頂点なので「FW → Game 禁止」に抵触しない**。既に `OneStarMaker.Tests` が `SampleGame.DependOnAll` / `SampleGame.InGame` / `SampleGame.OutGame` を参照している確立済みのパターンに合わせる。**設計判断としてこう決めた**
+
+  ⚠ **ただしそれは `OneStarMaker.Tests`（ランタイム側）の話で、新規テストを置く `OneStarMaker.Tests.Editor` は SampleGame を一切参照していない。** 現在の参照は `OneStarMaker.Editor` / `OneStarMaker.Runtime` / Addressables / ResourceManager / UniTask のみ。**「もう参照がある」と読んで §3 冒頭の前提作業を飛ばすと必ずコンパイルエラーになる。**
+
+### 2.4 削除するもの（C: 置き換え残骸）
 
 | 対象 | 理由 |
 |---|---|
@@ -205,15 +254,33 @@ InGameSession
 
 削除前に `git status` と Explorer で `Assets/OneStarMakerCommon/World/` が存在しないことを確認すること。
 
+`DeleteOutOfGridCellFolders` は**削除しない**（§2.2 のとおりガードを足して残す）。縮小時の掃除は S-2 で要る。
+
 ---
 
-## 3. A-4: 単体テストの要求（必須）
+## 3. 単体テストの要求（CLAUDE.md A-4。必須）
 
 > **テスト要求は構造の指示より強く効く。** 「どこに置け」は破られるが「テストを書け」はテスト可能な配置を強制する。2026-08-05 のスライスでは、テストを要求した箇所だけが新規ファイルとして切り出され、要求しなかった約 120 行は `GraphView` サブクラスに埋まってテストが 1 本も書けないまま残った。
 
 **前提作業（先にやる）:** `OneStarMaker/Tests/Editor/OneStarMaker.Tests.Editor.asmdef` の `references` に `SampleGame.DependOnAll.Editor` を足す。現在の参照は `OneStarMaker.Editor` / `OneStarMaker.Runtime` / Addressables / UniTask だけで、**足さないとテストがコンパイルしない**。
 
-`CellPopulationPlan` は **`AssetDatabase` / `EditorSceneManager` に一切依存しない純関数として書け。これができていないとテストが書けない。** 入力は「グリッド定義の値（原点・セルサイズ・N×N）」「既存セルの状態（identity と AuthoredRoot の有無を表す単純な構造体の集合）」「policy」で、出力は Populate / Skip の計画。
+`CellPopulationPlan` は **`AssetDatabase` / `EditorSceneManager` に一切依存しない純関数として書け。これができていないとテストが書けない。**
+
+入力は 3 つ:
+
+1. **グリッド定義の値** — 原点 / セルサイズ / `GridWidth` × `GridHeight`（`WorldGridDefinition` そのものではなく値を渡す）
+2. **既存セルの状態** — `AssetDatabase` に触れない単純な構造体（`readonly struct`）の集合。1 件あたり次の 4 つを持つ:
+   - Cell の identity（`Cell_x_y`）
+   - Cell の `AuthoredRoot` の有無
+   - **Environment `.unity` が存在するか**
+   - **Environment の `AuthoredRoot` の有無**
+3. **policy**（`Generated` / `HandAuthored`）
+
+出力は **Cell の Populate / Skip、Environment の Populate / Skip、および削除可否**の計画。
+
+⚠ **Environment の状態を入力に含めること。** ここを省くと T-2b の判定が `CellPopulationPlan` の外（呼び出し側の `if`）に落ち、**テストが 1 本も書けない配置**になる。これは CLAUDE.md 2026-08-05 の `ApplyPaste` と同じ失敗パターンなので、レビュー（Phase C）はここを最初に見ること。
+
+同様に**削除可否も出力に含めること**（§2.2）。`DeleteOutOfGridCellFolders` 側で `if (policy == HandAuthored)` と書くと T-7 が書けなくなる。
 
 `OneStarMaker/Tests/Editor/CellPopulationPlanTests.cs` に最低限これらを要求する:
 
@@ -221,27 +288,35 @@ InGameSession
 |---|---|---|
 | T-1 | `Generated` な Cell は AuthoredRoot の有無に関わらず Populate | 夏の挙動 |
 | T-2 | `HandAuthored` かつ Cell の AuthoredRoot **あり** → **Skip** | 春の挙動。**これが本スライスの核心** |
-| T-2b | `HandAuthored` かつ **Environment シーンが既存** → その Environment も **Skip** | §1.3。これが無いと A-2 が落ちる |
+| T-2b | `HandAuthored` かつ **Environment シーンが既存** → その Environment も **Skip** | §1.3。これが無いと A-3(b) が落ちる |
 | T-3 | `HandAuthored` かつ AuthoredRoot **なし** → Populate（初回スキャフォールド） | 春の初回 |
 | T-4 | 同じ入力で 2 回計画しても結果が同一（冪等） | 再生成安全性 |
 | T-5 | policy 未指定の Cell は既定 `Generated` に落ちる | 既定値の明示 |
-| T-6 | グリッド範囲外の既存 Cell は計画に現れない | 縮小時の挙動 |
+| T-6 | グリッド範囲外の既存 Cell は **Populate 計画**に現れない | 縮小時の挙動 |
+| T-7 | グリッド範囲外かつ `HandAuthored` な Cell は **削除計画に現れない** | §2.2 のガード。S-2 の縮小検討の前提。範囲外かつ `Generated` なら削除計画に現れること（対の確認）も同テストに含める |
 
 TDD で回すこと: スケルトン + レッドを Unity バッチで確認してから実装する。
+
+**`record` を使わないこと。** このプロジェクトには `IsExternalInit` が無く、`record` を書くとプロジェクト全体がコンパイル不能になる（静的レビューでは出ない）。入出力の構造体は `readonly struct` か通常の `sealed class` で書く。
 
 ---
 
 ## 4. 実装順序
 
-1. ブランチを切る（`chore/pending-changes-triage` から、または develop へマージ後に develop から）
-2. `CellAuthoringPolicy` / `CellPopulationPlan` のスケルトンと §3 のテスト 6 本を書き、**レッドを確認**
-3. `CellPopulationPlan` を実装してグリーンにする
-4. `CellSceneWriter` を切り出す。`PopulateSingleCellScene` の `DestroyImmediate` は **Populate 計画が出たセルに対してのみ**実行する
-5. `WorldSceneGraphSync` / `WorldResourceLinker` / `WorldAddressablesRegistrar` を機械的に移す（挙動を変えない）
-6. `WorldCellStreamingSliceCreator` をオーケストレーションだけに削る。§2 の削除対象を消す
-7. 春に相当するセル（`Cell_0_0`〜`Cell_3_0` の南辺 4 枚。既に Environment 萌芽がある 4 枚。§1.2 の S-1 / S-2 切り分け参照）を `HandAuthored` に指定する。**Cell 本体と Environment の両方が Skip 対象になることを確認する**
-8. 生成器を実行 → **もう一度実行** → §5 の冪等性を確認
-9. 保留中の Addressables 差分（`Default Local Group` / `AddressableAssetSettings` / `ProfileDataSourceSettings`）を、生成器の出力と一致する状態で一緒にコミットする
+1. ブランチを切る（develop から）
+2. **ベースラインコミット** — `WorldCellStreamingSliceCreator.cs` と `PlayerInGameSliceSceneCreator.cs`（+ 各 `.meta`）を**無変更のまま** 1 コミットする。**以降の差分がガードの追加分だけになり、Phase C の構造レビューが `git diff` で読める。** これをやらないと初コミットが「新規 1200 行」になり、何を変えたのかレビュー側から判別できない
+3. `OneStarMaker/Tests/Editor/OneStarMaker.Tests.Editor.asmdef` の `references` に `SampleGame.DependOnAll.Editor` を足す（§3 冒頭。無いとコンパイルしない）
+4. `CellAuthoringPolicy` / `CellPopulationPlan` のスケルトンと §3 のテスト 7 本を書き、**レッドを確認**
+5. `CellPopulationPlan` を実装してグリーンにする
+6. `PopulateSingleCellScene` / `PopulateEnvironmentScene` の `DestroyImmediate` を、**Populate 計画が出た対象に対してのみ**実行するよう変える（§2.2）
+7. `DeleteOutOfGridCellFolders` の削除判定を Plan 経由に変え、`WorldCellCatalog.GridWidth/Height` → `definition.GridWidth/Height` へ統一する（§2.2）
+8. §2.4「削除するもの」を消す。**削除前に `Assets/OneStarMakerCommon/World/` が存在しないことを確認**
+9. `WorldCellStreamingSliceCreator.cs` の先頭 XML doc にスキャフォールド宣言を足す（§2.1 / 受入 A-4'）
+10. 春に相当するセル（`Cell_0_0`〜`Cell_3_0` の南辺 4 枚。既に Environment 萌芽がある 4 枚。§1.2 の S-1 / S-2 切り分け参照）を `HandAuthored` に指定する。**Cell 本体と Environment の両方が Skip 対象になることを確認する**
+11. 生成器を実行 → **もう一度実行** → §5 の受入条件を確認
+12. 保留中の Addressables 差分（`Default Local Group` / `AddressableAssetSettings` / `ProfileDataSourceSettings`）を、生成器の出力と一致する状態で一緒にコミットする
+
+**分割リファクタは行わない**（§2.1）。6〜9 はすべて `WorldCellStreamingSliceCreator.cs` 内の局所変更で、新規ファイルは `Cells/` 配下の 2 本とテスト 1 本だけ。
 
 ---
 
@@ -249,12 +324,13 @@ TDD で回すこと: スケルトン + レッドを Unity バッチで確認し�
 
 | # | 条件 | 判定方法 |
 |---|---|---|
-| A-1 | 全テストが緑 | `pwsh tools/run-tests.ps1`（**Unity を閉じてから**）。464 + 新規 6 本以上、failed 0。**テスト 0 件は失敗扱い**（コンパイルエラーが 0 件として現れる） |
-| A-2 | **生成器を 2 回連続実行して `.unity` の差分が 0** | 1 回目実行 → `git add -A` → 2 回目実行 → `git status --porcelain` に `.unity` が 1 本も現れない。**対象は Cell 16 枚と Environment 4 枚の両方**（Environment を除外しないこと）。**これが本スライスの核心的受入条件** |
-| A-3 | 手編集が消えない（**両方**） | `HandAuthored` 指定した Cell について、(a) `Cell_x_y.unity` の `AuthoredRoot` 配下、(b) `Environment_x_y.unity` の中、それぞれに GameObject を手で 1 つ足す → 生成器を実行 → **両方**残っている |
-| A-4 | `WorldCellStreamingSliceCreator.cs` が 250 行以下・責務 1 | `git diff --stat` と目視 |
-| A-5 | `DetachSeasonLevels` / レガシー移行コードが存在しない | grep |
+| A-1 | 全テストが緑 | `pwsh tools/run-tests.ps1`（**Unity を閉じてから**）。464 + 新規 7 本以上、failed 0。**テスト 0 件は失敗扱い**（コンパイルエラーが 0 件として現れる） |
+| **A-3** | **手編集が消えない（両方）。これが本スライスの核心的受入条件** | `HandAuthored` 指定した Cell について、(a) `Cell_x_y.unity` の `AuthoredRoot` 配下、(b) `Environment_x_y.unity` の中、それぞれに GameObject を手で 1 つ足す → 生成器を実行 → **両方**残っている |
+| A-2 | HandAuthored の `.unity` が 2 回目実行で差分 0 | 1 回目実行 → `git add -A` → 2 回目実行 → `git status --porcelain` に **南辺 4 Cell（`Cell_0_0`〜`Cell_3_0`）と Environment 4 枚** が現れない。Generated 側に差分が出ても受入失敗にしない（生成物は捨てる前提）。**Skip 実装にした時点でほぼ自明に通るので、これ単独を核心と見なさないこと**（回帰検出用） |
+| A-4' | スキャフォールド宣言がある | `WorldCellStreamingSliceCreator.cs` の先頭 XML doc に §2.1 の一文があること。目視。**旧 A-4（250 行以下・責務 1）は §2.1 の決定により削除した** |
+| A-5 | `DetachSeasonLevels` / レガシー移行コードが存在しない | grep。`DeleteOutOfGridCellFolders` は**残る**（§2.2） |
 | A-6 | 既存の Streaming 挙動が不変 | `OneStarMaker.Tests.Streaming` に回帰なし |
+| A-7 | `HandAuthored` は範囲外でも消えない | `WorldGridDefinition.asset` の `_gridWidth` を一時的に 3 にして生成器を実行 → `Cells/Cell_3_0/` が**残っている**（`Cell_3_1`〜`Cell_3_3` は Generated なので消えてよい）→ 値を 4 に戻して再実行 |
 
 補足: 終了コード `0xC0000005` は Unity のシャットダウンクラッシュで、テスト結果自体は有効。コード変更を疑う前にログ末尾を見ること。
 
