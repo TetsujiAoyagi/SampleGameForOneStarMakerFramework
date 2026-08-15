@@ -146,7 +146,7 @@ namespace SampleGame.DependOnAll.Editor
             EnsureChildLink(session, worldResource);
 
             // Scene Graph Editor 可視化: Node + Edge を同期し、Generate で Map ハッシュも揃える。
-            SyncSceneGraph(definition);
+            SyncSceneGraph(definition, plan);
 
             EditorUtility.SetDirty(session);
             EditorUtility.SetDirty(map);
@@ -170,7 +170,7 @@ namespace SampleGame.DependOnAll.Editor
         /// SceneResourceGenerator.Generate で Map / 親子 / GenerateHash を正本化する。
         /// Cell SceneResource 実体は既存の World/Cells パスを再利用する（Generator 側で identity 解決）。
         /// </summary>
-        private static void SyncSceneGraph(WorldGridDefinition definition)
+        private static void SyncSceneGraph(WorldGridDefinition definition, CellPopulationPlan plan)
         {
             EnsureAssetFolder(SceneGraphCellsFolder);
 
@@ -242,6 +242,9 @@ namespace SampleGame.DependOnAll.Editor
                 }
             }
 
+            // 範囲外だが削除計画に無い（保持した HandAuthored）既存ノードも keep する。
+            KeepRetainedOutOfGridSceneGraphNodes(definition, plan, keepIdentities);
+
             PruneStaleCellSceneGraphNodes(totalGraph, keepIdentities);
             EditorUtility.SetDirty(totalGraph);
             AssetDatabase.SaveAssets();
@@ -268,6 +271,65 @@ namespace SampleGame.DependOnAll.Editor
             Debug.Log(
                 $"[WorldCellStreamingSliceCreator] Scene Graph synced: " +
                 $"cells+envs kept={keepIdentities.Count - 1} under World");
+        }
+
+        /// <summary>
+        /// ディスク上に実在する範囲外 Cell / Environment ノードのうち、
+        /// 削除計画に含まれないものだけを keep に加える。
+        /// </summary>
+        private static void KeepRetainedOutOfGridSceneGraphNodes(
+            WorldGridDefinition definition,
+            CellPopulationPlan plan,
+            HashSet<string> keepIdentities)
+        {
+            if (!AssetDatabase.IsValidFolder(SceneGraphCellsFolder))
+            {
+                return;
+            }
+
+            var guids = AssetDatabase.FindAssets("t:SceneNodeData", new[] { SceneGraphCellsFolder });
+            for (var i = 0; i < guids.Length; i++)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guids[i]);
+                var node = AssetDatabase.LoadAssetAtPath<SceneNodeData>(path);
+                if (node == null)
+                {
+                    continue;
+                }
+
+                var id = node.Identity;
+                if (CellIdentity.TryParse(id, out var cellCoord))
+                {
+                    if (cellCoord.x < definition.GridWidth
+                        && cellCoord.y < definition.GridHeight)
+                    {
+                        continue;
+                    }
+
+                    if (!plan.IsDeletable(cellCoord))
+                    {
+                        keepIdentities.Add(id);
+                    }
+
+                    continue;
+                }
+
+                if (!EnvironmentIdentity.TryParse(id, out var envCoord))
+                {
+                    continue;
+                }
+
+                if (envCoord.x < definition.GridWidth
+                    && envCoord.y < definition.GridHeight)
+                {
+                    continue;
+                }
+
+                if (!plan.IsDeletable(envCoord))
+                {
+                    keepIdentities.Add(id);
+                }
+            }
         }
 
         private static SceneNodeData EnsureSceneGraphNode(
@@ -842,6 +904,7 @@ namespace SampleGame.DependOnAll.Editor
         {
             var cellsFolder = definition.SceneResourceOutputFolder.Replace('\\', '/').TrimEnd('/');
             var created = 0;
+            var skipped = 0;
 
             for (var i = 0; i < EnvironmentSproutCells.Length; i++)
             {
@@ -854,9 +917,11 @@ namespace SampleGame.DependOnAll.Editor
                 var envResourcePath = $"{cellFolder}/{envId}.asset";
 
                 var cellResource = AssetDatabase.LoadAssetAtPath<SceneResource>(cellResourcePath);
+                // 削除済み Generated sprout など、親 Cell が無いのは正常系（例外にしない）。
                 if (cellResource == null)
                 {
-                    throw new FileNotFoundException($"萌芽親 Cell がありません: {cellResourcePath}");
+                    skipped++;
+                    continue;
                 }
 
                 EnsureAssetFolder(cellFolder);
@@ -883,7 +948,9 @@ namespace SampleGame.DependOnAll.Editor
             }
 
             AssetDatabase.SaveAssets();
-            Debug.Log($"[WorldCellStreamingSliceCreator] Environment sprouts: {created} (OnDemand under Cell)");
+            Debug.Log(
+                $"[WorldCellStreamingSliceCreator] Environment sprouts: {created} " +
+                $"(OnDemand under Cell), skipped={skipped}");
         }
 
         private static void EnsureEnvironmentSceneFile(string scenePath)

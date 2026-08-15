@@ -54,7 +54,13 @@ namespace SampleGame.DependOnAll.Editor.Cells
         /// <summary>Cell シーンに AuthoredRoot があるか。</summary>
         public bool HasCellAuthoredRoot { get; }
 
-        /// <summary>Environment の <c>.unity</c> が存在するか。</summary>
+        /// <summary>
+        /// Environment の <c>.unity</c> が存在するか。
+        /// Populate / Skip 判定には使わない。<c>.unity</c> の存在は
+        /// <c>EnsureEnvironmentSceneFile</c> が扱う呼び出し側の関心事であり、
+        /// 判定は <see cref="HasEnvironmentAuthoredRoot"/> の有無だけで行う
+        /// （空の <c>.unity</c> が残る半端状態から自己回復させるため）。
+        /// </summary>
         public bool HasEnvironmentScene { get; }
 
         /// <summary>Environment シーンに AuthoredRoot があるか。</summary>
@@ -146,6 +152,23 @@ namespace SampleGame.DependOnAll.Editor.Cells
                 }
 
                 return entry.EnvironmentAction == CellPopulationAction.Populate;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 範囲外 Cell フォルダを削除してよいか。
+        /// <see cref="DeletionEntries"/> に含まれる座標のみ true（HandAuthored は範囲外でも false）。
+        /// </summary>
+        public bool IsDeletable(Vector2Int coordinate)
+        {
+            for (var i = 0; i < DeletionEntries.Count; i++)
+            {
+                if (DeletionEntries[i].Coordinate == coordinate)
+                {
+                    return true;
+                }
             }
 
             return false;

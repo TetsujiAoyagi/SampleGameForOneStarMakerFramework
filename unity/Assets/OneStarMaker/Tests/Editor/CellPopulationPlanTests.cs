@@ -81,7 +81,7 @@ namespace OneStarMaker.Tests.Editor
         }
 
         [Test]
-        public void T2b_HandAuthored_WithExistingEnvironmentScene_SkipsEnvironment()
+        public void T2b_HandAuthored_WithEnvironmentAuthoredRoot_SkipsEnvironment()
         {
             var existing = State(
                 0, 0,
@@ -93,7 +93,7 @@ namespace OneStarMaker.Tests.Editor
             var entry = RequirePopulationEntry(plan, 0, 0);
 
             Assert.That(entry.EnvironmentAction, Is.EqualTo(CellPopulationAction.Skip),
-                "HandAuthored かつ Environment .unity 既存は Environment も Skip");
+                "HandAuthored かつ Environment AuthoredRoot ありは Environment も Skip");
         }
 
         [Test]
@@ -256,6 +256,49 @@ namespace OneStarMaker.Tests.Editor
                 "HandAuthored かつ Environment AuthoredRoot ありは false");
             Assert.That(plan.ShouldPopulateEnvironment(new Vector2Int(1, 1)), Is.True,
                 "Generated は true");
+        }
+
+        [Test]
+        public void T10_HandAuthored_CellPopulate_EnvironmentSkip_AreIndependent()
+        {
+            // Cell に AuthoredRoot は無いが Environment にはある → Cell Populate / Env Skip
+            var existing = State(
+                0, 0,
+                hasCellAuthoredRoot: false,
+                hasEnvironmentScene: true,
+                hasEnvironmentAuthoredRoot: true);
+            Assert.That(CellAuthoringPolicy.Resolve(0, 0), Is.EqualTo(CellAuthoringPolicyKind.HandAuthored));
+
+            var plan = CellPopulationPlan.Compute(Grid4x4(), new[] { existing });
+            var entry = RequirePopulationEntry(plan, 0, 0);
+
+            Assert.That(entry.CellAction, Is.EqualTo(CellPopulationAction.Populate),
+                "Cell AuthoredRoot 無しなら Cell は Populate");
+            Assert.That(entry.EnvironmentAction, Is.EqualTo(CellPopulationAction.Skip),
+                "Environment AuthoredRoot ありなら Environment は Skip（Cell と独立）");
+        }
+
+        [Test]
+        public void T11_IsDeletable_InGrid_OutOfGridGenerated_OutOfGridHandAuthored()
+        {
+            // 3×3: (1,1) 範囲内 / (3,1) 範囲外 Generated / (3,0) 範囲外 HandAuthored
+            var existing = new[]
+            {
+                State(1, 1, hasCellAuthoredRoot: false),
+                State(3, 1, hasCellAuthoredRoot: false),
+                State(3, 0, hasCellAuthoredRoot: true, hasEnvironmentScene: true),
+            };
+            Assert.That(CellAuthoringPolicy.Resolve(3, 0), Is.EqualTo(CellAuthoringPolicyKind.HandAuthored));
+            Assert.That(CellAuthoringPolicy.Resolve(3, 1), Is.EqualTo(CellAuthoringPolicyKind.Generated));
+
+            var plan = CellPopulationPlan.Compute(Grid3x3(), existing);
+
+            Assert.That(plan.IsDeletable(new Vector2Int(1, 1)), Is.False,
+                "範囲内座標は削除計画に出ない");
+            Assert.That(plan.IsDeletable(new Vector2Int(3, 1)), Is.True,
+                "範囲外 Generated は削除可能");
+            Assert.That(plan.IsDeletable(new Vector2Int(3, 0)), Is.False,
+                "範囲外 HandAuthored は削除不可");
         }
     }
 }
