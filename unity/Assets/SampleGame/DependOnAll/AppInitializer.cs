@@ -1,5 +1,6 @@
 #nullable enable
 
+using OneStarMaker.Debug;
 using OneStarMaker.Runtime;
 using OneStarMaker.Runtime.CameraSystem.Abstractions;
 using OneStarMaker.Runtime.CameraSystem.BackgroundApplier;
@@ -28,11 +29,16 @@ namespace SampleGame.DependOnAll
         private CameraBackgroundApplier? _cameraBackgroundApplier;
         private bool _cameraQuittingHandlerRegistered;
 
+        private ProfilerUiCostCollector? _profilerUiCostCollector;
+        private ProfilerTelemetryEmitter? _profilerTelemetryEmitter;
+        private bool _profilerQuittingHandlerRegistered;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void Sub()
         {
             // Domain Reload 無効時も前セッションの常駐 Host を先に片付けてから Framework を初期化する。
             s_instance.ReleaseCameraSystem();
+            s_instance.ReleaseProfilerTelemetry();
             BootstrapSubsystemRegistration(s_instance);
         }
 
@@ -47,6 +53,7 @@ namespace SampleGame.DependOnAll
             if (s_instance.UpdateCoordinator != null)
             {
                 s_instance.InitializeCameraSystem();
+                s_instance.InitializeProfilerTelemetry();
             }
         }
 
@@ -86,6 +93,7 @@ namespace SampleGame.DependOnAll
         protected override void OnAfterSceneLoadInitializationFailed(string stage, Exception exception)
         {
             ReleaseCameraSystem();
+            ReleaseProfilerTelemetry();
         }
 
         private void InitializeCameraSystem()
@@ -190,6 +198,100 @@ namespace SampleGame.DependOnAll
 
             _cameraSystemHost?.Dispose();
             _cameraSystemHost = null;
+        }
+
+        /// <summary>
+        /// profiler テレメトリ送出を常駐させる。送出は元々 <c>DebugProfilerView.Update()</c> にあったが、
+        /// あの View は uGUI Canvas が無いため一度も生成されず、ProfilerSummary / GcSpike / UiCost が
+        /// Unity から一度も出ていなかった。CameraSystem と同じく MonoBehaviour を持たない Element として、
+        /// AppInitializer が生成から破棄までを所有する。
+        /// </summary>
+        private void InitializeProfilerTelemetry()
+        {
+            if (_profilerTelemetryEmitter != null)
+            {
+                return;
+            }
+
+            // 既定は有効。config で明示的に false にしたときだけ常駐させない。
+            if (Config?.GetBool("telemetry:profiler:enabled", true) != true)
+            {
+                return;
+            }
+
+            var coordinator = UpdateCoordinator;
+            if (coordinator == null)
+            {
+                return;
+            }
+
+            try
+            {
+                // Emitter に new を書かせず、サンプラと collector の寿命は所有者側で決める。
+                var uiCostCollector = new ProfilerUiCostCollector();
+                _profilerUiCostCollector = uiCostCollector;
+                var emitter = new ProfilerTelemetryEmitter(new FrameTimeSampler(), uiCostCollector);
+                _profilerTelemetryEmitter = emitter;
+
+                if (!coordinator.RegisterElement(
+                        ProfilerTelemetryEmitter.LayerId,
+                        emitter,
+                        layerOrder: ProfilerTelemetryEmitter.LayerOrder))
+                {
+                    throw new InvalidOperationException(
+                        "Profiler テレメトリの UpdateElement を登録できませんでした。UpdateSystem の初期化順を確認してください。");
+                }
+
+                // CameraSystem と同じ理由でここは即時 active 化する。呼ばないと UpdateSystemHost の
+                // scene stability gate に掛かり、SceneDirector が bind されるまで 1 件も送出されない。
+                coordinator.ActivatePendingRegistrations();
+
+                RegisterProfilerTelemetryQuittingHandler();
+            }
+            catch (Exception ex)
+            {
+                ReleaseProfilerTelemetry();
+                Debug.LogException(ex);
+                throw;
+            }
+        }
+
+        private void RegisterProfilerTelemetryQuittingHandler()
+        {
+            if (_profilerQuittingHandlerRegistered)
+            {
+                return;
+            }
+
+            Application.quitting += ReleaseProfilerTelemetry;
+            _profilerQuittingHandlerRegistered = true;
+        }
+
+        /// <summary>
+        /// 常駐 profiler Emitter の解放。冪等のため、SubsystemRegistration と
+        /// Application.quitting の双方から安全に呼べる。
+        /// </summary>
+        private void ReleaseProfilerTelemetry()
+        {
+            Application.quitting -= ReleaseProfilerTelemetry;
+            _profilerQuittingHandlerRegistered = false;
+
+            // Unregister は構造変更フェーズまで遅延するため、先に no-op 化してから登録解除する。
+            _profilerTelemetryEmitter?.Deactivate();
+            if (_profilerTelemetryEmitter != null)
+            {
+                UpdateCoordinator?.UnregisterElement(_profilerTelemetryEmitter);
+                // Emitter の Dispose が collector（ProfilerRecorder）も閉じるため、ここでは参照を落とすだけにする。
+                _profilerTelemetryEmitter.Dispose();
+                _profilerTelemetryEmitter = null;
+                _profilerUiCostCollector = null;
+            }
+            else if (_profilerUiCostCollector != null)
+            {
+                // Emitter 構築前に失敗した経路。recorder だけが開いたまま残らないようにする。
+                _profilerUiCostCollector.Dispose();
+                _profilerUiCostCollector = null;
+            }
         }
     }
 }

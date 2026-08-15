@@ -4,6 +4,7 @@
     "references": [
         "OneStarMaker.Foundation",
         "OneStarMaker.Runtime",
+        "OneStarMaker.Debug",
         "OneStarMaker.TestSupport",
         "SampleGame.DependOnAll",
         "SampleGame.InGame",
