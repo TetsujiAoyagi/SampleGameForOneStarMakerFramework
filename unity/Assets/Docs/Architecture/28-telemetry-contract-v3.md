@@ -60,6 +60,27 @@ kind の増殖は禁止。増やすのは `TelemetryStartType`（name）と payl
 
 ---
 
+## 2.5 共通エンベロープ（全 kind）
+
+輸送・相関に必要な最小集合。**用途固有の数値をここに増やさない**（増やす先は §3 の payload）。
+
+| フィールド | 必須 | 説明 |
+|---|---|---|
+| `schemaVersion` | ✅ | v3 から明示（現行 envelope の 1 と区別） |
+| `kind` | ✅ | `span` / `sample` / `event` |
+| `name` | ✅ | `TelemetryStartType` 文字列（拡張時は enum 追加） |
+| `traceId` / `spanId` / `parentSpanId` | span は ✅ | sample / event は生成 ID でよい |
+| `startTimestampUtcTicks` / `endTimestampUtcTicks` | ✅ | sample / event は同一時刻可 |
+| `elapsedMs` | span のみ ✅ | sample では**キー自体を出さない**（0 埋め禁止） |
+| `isSuccess` | span 推奨 | sample は省略可 |
+| `level` | ✅ | Verbose / Summary / Off |
+| `tags` / `tagBits` | 任意 | Bottleneck 等 |
+| `sessionId` / `producerSequence` | ✅ | 相関 |
+| `unityFrameAtStart` / `unityFrameAtEnd` | 任意 | |
+| `payload` | ✅ | kind × name ごとのオブジェクト（§3） |
+
+---
+
 ## 3. Payload（未設定は省略。0 埋め禁止）
 
 | Shape | 主な name | 内容 |
@@ -115,6 +136,8 @@ MessagePack wire 上の `elapsedMs` は型都合で常に存在するが、**exp
 | 論点 | 結論 |
 |---|---|
 | 移行戦略 | **案 A: 段階併記**（kind + payload を追加し、旧フラットは deprecated 併記） |
+| payload を string JSON にすると alloc が増える | Unity 側は **struct / typed writer を維持**し、オブジェクト化は Serialize 境界だけで行う |
+| kind を増やしたい | **禁止。** 増やしてよいのは `name`（`TelemetryStartType`）と payload 形のみ |
 | Bottleneck 超過 span を event としても二重発行するか | **しない**（span に tag を付け、AlertStream は現状維持） |
 | `StreamingStats` の emit 周期 | 変化時 + 上限 1 Hz |
 | 単位 | **ワイヤは bytes（整数）。MB 換算は表示層のみ** |

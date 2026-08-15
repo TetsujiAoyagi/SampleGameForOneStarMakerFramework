@@ -78,7 +78,13 @@ $warnings = @()
 # --- 検査1: リンク切れ ------------------------------------------------------
 foreach ($rel in $ownMd) {
     $full = Join-Path $Root $rel
-    if (-not (Test-Path $full)) { continue }
+    if (-not (Test-Path $full)) {
+        # ls-files にあるのに実体が無い = checkout が部分的に失敗している。
+        # 黙って飛ばすと「残ったファイルに違反が無いので緑」になり、
+        # 検証手段が壊れていることを成功と誤報する（0 件エラーと同じ理由）。
+        $errors += "[検査0] $rel は ls-files にあるが checkout されていない（部分 checkout 失敗）"
+        continue
+    }
     $dir = Split-Path -Parent $rel   # リポジトリ相対
     $lineNo = 0
     foreach ($line in (Get-Content -LiteralPath $full -Encoding utf8)) {

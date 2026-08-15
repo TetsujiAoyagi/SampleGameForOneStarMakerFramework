@@ -1,6 +1,6 @@
 # 21. SceneStreaming — セルストリーミング設計
 
-> ステータス: 設計ドラフト・実装前 (2026-07-06)
+> ステータス: 実装済み（`WorldStreamingController` + `SessionWorldStreamingDriver`）。HLOD / Proxy ティアは未着手
 > 前提資料: [05. シーン管理](05-scene.md) / [13. リソースシステム](13-resource-system.md)
 > 関連: HLOD / Proxy ティアの詳細は将来の §22 に分離する（本書はインターフェース予約のみ）
 
@@ -216,13 +216,18 @@ Tick(focusPosition):                       // UpdateSystem 駆動。毎フレー
     PumpLoadQueue(maxInFlight)              // 同時ロード数制御
 ```
 
-| パラメータ | 初期値（仮） | 備考 |
-|---|---|---|
-| セルサイズ | 250m × 250m（SampleGame 4×4） | Player カプセル（約 2.2m）を基準に作業単位として拡大。正典初期値は 100m だった |
-| グリッド | 10 × 10（実証スライス） | |
-| ロード半径 / アンロード半径 | 150m / 250m | 差分 = ヒステリシス幅 |
-| 同時 in-flight ロード上限 | 2 | H-2 の priority と併用 |
-| Tick 頻度 | 5Hz または注視点が 1/4 セル移動したとき | 毎フレーム距離計算はしない |
+| パラメータ | 設計時の初期値（仮） | **SampleGame 実装値** | 備考 |
+|---|---|---|---|
+| セルサイズ | 100m × 100m | **250m × 250m** | Player カプセル（約 2.2m）を基準に作業単位として拡大 |
+| グリッド | 10 × 10 | **4 × 4** | `WorldGridDefinition.asset` |
+| ロード半径 | 150m | **375m** | 中心間 250m の約 1.5 セル。**セルサイズに追随させること** |
+| アンロード半径 | 250m | **550m** | 差分 = ヒステリシス幅 |
+| 同時 in-flight ロード上限 | 2 | 2 | H-2 の priority と併用 |
+| Tick 頻度 | 5Hz または注視点が 1/4 セル移動したとき | 同左 | 毎フレーム距離計算はしない |
+
+実装値の正本は `SampleGame/InGame/InGameSession/Streaming/WorldCellCatalog.cs`（半径・グリッド）と `WorldGridDefinition.asset`（セルサイズ）。
+
+> **半径はセルサイズに従属する。** セルサイズ 250m に対してロード半径 150m だと、隣接セル中心（250m 先）が desired set に入らず、ストリーミングが成立しない。セルサイズを変えるときは必ず半径を再計算すること。
 
 - Controller は純 C#・MonoBehaviour 非使用。テストは FakeSceneDirector（`ISceneStreamingBackend` インターフェース経由）で行う
 - **`ISceneStreamingBackend`**（`AddCell` / `RemoveCell` の2メソッド程度）を Controller と SceneDirector の間に挟む。これが §11 撤退ラインの差し替え点になり、Proxy ティア（§22）も同型のバックエンドとして追加する

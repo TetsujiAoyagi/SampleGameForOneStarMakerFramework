@@ -1,5 +1,10 @@
 # ドキュメント方針
 
+> **この文書がドキュメント方針の正本である。** 人間にとっても、実装エージェントにとっても入口はここ。
+> `CLAUDE.md` / `.cursor/rules/` にも同じ方針を書いてあるが、**あれらは git 管理外**
+> （`.git/info/exclude`。リポジトリを特定の AI ツールに依存させない方針のため）。
+> したがって worktree や clone には届かない。**ツール非依存で参照されるべき規則はこのファイルに置くこと。**
+
 **このリポジトリにコミットされているドキュメントは、現況を説明するものだけである。**
 
 計画書・作業指示・外部フレームワーク比較・発表資料は作者の手元にあるが、リポジトリには含めない。「昔こう決めた」「こう作る予定だった」という文書が同じ場所に積み上がると、読む側は**どれが今も有効なのか判定できなくなる**ためである。
@@ -8,7 +13,7 @@
 
 | 層 | 場所 | git | 寿命 |
 |---|---|---|---|
-| **公開面** | `README.md` / `unity/Assets/ARCHITECTURE.md` / `unity/Assets/Docs/Architecture/` / `docs/` 直下 / `protocol/` / `tools/**/README.md` | tracked | 永続。**今この瞬間に真であること** |
+| **公開面** | `README.md` / `unity/Assets/ARCHITECTURE.md` / `unity/Assets/Docs/Architecture/` / `docs/` 直下 / **`docs/updater/`**（UpdateSystem 正本仕様 + 視覚メモ） / `protocol/` / `tools/**/README.md` | tracked | 永続。**今この瞬間に真であること** |
 | **作業台** | `docs/handoff/` | tracked | **1スライス**。マージ時に削除する |
 | **手元** | `docs/planning/` `docs/reference/` `docs/slides/` `docs/debugstudio/` | ignored | 無期限。公開面から参照しない |
 

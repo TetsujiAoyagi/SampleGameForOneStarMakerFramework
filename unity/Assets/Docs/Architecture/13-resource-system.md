@@ -1,7 +1,6 @@
 # 13. リソースシステム + メモリバジェット設計
 
-> ステータス: AssetResidentCache(常駐キャッシュ)実装済み。テレメトリ配線/品質降格は次パス (2026-07-05)
-> 優先度: コア API 安定化後に Cache 実装へ進む
+> ステータス: AssetResidentCache（常駐キャッシュ）実装済み。テレメトリ配線 / 品質降格 / Editor 概算ツールは次パス
 
 ---
 
@@ -398,31 +397,21 @@ public enum CacheEventType
 
 ---
 
-## 13. 施行 (T9-T15)
+## 13. 施行の記録 (T9-T15)
 
-### 依存グラフ
+> **T12 / T13 は当初案であり、そのままの形では実装していない。** 独立 `IResourceCache` レイヤーは
+> §5 のとおり不採用となり、`AssetManagement` 内の `AssetResidentCache` に統合された（実装は
+> `Runtime/AssetManagement/Cache/`）。この表は当時の分割の記録であって、これから作るものの指示ではない。
 
-```
-T9 (AssetDescription 汎用化 + Interface 定義)
-├── T10 (IBudgetProvider + MemoryBudgetConfig)
-├── T11 (IStreamingProvider + Unity 標準ラッパー)
-├── T12 (IResourceCache + LFU 実装)
-│    └── T13 (SceneDirector 統合)
-├── T14 (メモリテレメトリ) ← T6 にも依存
-└── T15 (Editor: 概算バッチツール)
-```
-
-### 実装順
-
-| Phase | 内容 | Assembly | 新規/変更 |
-|---|---|---|---|
-| T9 | `AssetDescription` 基底、`AssetType`, `QualityLevel`, `ResourceState`, 全 interface | Runtime | 新規 8 + 変更 1 |
-| T10 | `MemoryBudgetConfig` (SO + IBudgetProvider) + AppConfig Override | Runtime | 新規 1 |
-| T11 | `UnityLodGroupProvider`, `UnityTextureStreamingProvider` | Runtime | 新規 2 |
-| T12 | `ResourceCache` (IResourceCache 実装) + `ResourceHandle` | Runtime | 新規 2 |
-| T13 | SceneDirector に IResourceCache 注入・統合 | Runtime | 変更 2 |
-| T14 | CacheEvent → ITelemetrySink 接続 | Runtime | 新規 1 |
-| T15 | Editor: AssetMemoryEstimator バッチツール | Editor | 新規 1 |
+| Phase | 内容 | 結果 |
+|---|---|---|
+| T9 | `AssetDescription` 基底、`AssetType`, `QualityLevel`, `ResourceState`, 全 interface | 施行済み |
+| T10 | `MemoryBudgetConfig` (SO + IBudgetProvider) + AppConfig Override | 施行済み |
+| T11 | `UnityLodGroupProvider`, `UnityTextureStreamingProvider` | 施行済み |
+| T12 | `ResourceCache` (IResourceCache 実装) + `ResourceHandle` | **不採用**。`AssetResidentCache`（`AssetManagement` 内・LFU + 時間減衰）に置き換え |
+| T13 | SceneDirector に IResourceCache 注入・統合 | **不採用**。T12 の変更に伴い不要 |
+| T14 | CacheEvent → ITelemetrySink 接続 | 方式変更。`GetSnapshot()` ポーリング（R3 依存を持ち込まない判断）。配線は次パス |
+| T15 | Editor: AssetMemoryEstimator バッチツール | 未着手 |
 
 ---
 

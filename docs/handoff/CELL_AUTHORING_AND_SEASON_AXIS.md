@@ -163,7 +163,7 @@ InGameSession
 
 - 季節 Level / Tunnel の追加（S-2）
 - Addressables グループ分割・Variant タグ付与（S-3）
-- グリッドサイズの変更（4×4 のまま。3×3 への縮小可否は S-2 で `loadRadius 150m / unloadRadius 250m / セル 250m` の横断が成立するか検証してから判断）
+- グリッドサイズの変更（4×4 のまま。3×3 への縮小可否は S-2 で `loadRadius 375m / unloadRadius 550m / セル 250m` の横断が成立するか検証してから判断。**実装値は `WorldCellCatalog.cs` が正**。以前ここに書いていた 150m / 250m は §21 の設計時初期値の写し間違いで、セル 250m では隣接セル中心が desired set に入らず成立しない）
 - `.gitattributes` の `merge=unityyamlmerge` ドライバ設定（local / global とも未設定で効いていないが、PC 依存の設定なので別途）
 
 ---
