@@ -182,7 +182,7 @@ InGameSession
 
 - `CellAuthoringPolicy` を **`OneStarMaker`（FW）側に置かない**。正本の決め方は SampleGame の運用方針であって FW の契約ではない。**設計判断としてこう決めた**
 - `WorldGridDefinition`（FW）に policy フィールドを足さない。同じ理由
-- `OneStarMaker/Scripts/Editor/Streaming/WorldCellGenerator.cs` は**触らない**。`dc8977f` / `9a1c4e2`（S1 修正）で緑になったばかりで、既存テスト 6 本が乗っている
+- `OneStarMaker/Scripts/Editor/Streaming/WorldCellGenerator.cs` は**触らない**。`dc8977f`（サブフォルダ化）と `a9bdf99`（S1: `.asset` 側のフォルダ生成漏れ修正）で緑になったばかりで、既存テスト 6 本が乗っている
 - **テストは `OneStarMaker/Tests/Editor/` に置く**（SampleGame 側に新規テストアセンブリを作らない）。SUT が SampleGame にあるのにテストが `OneStarMaker.Tests.*` にあるのは一見ねじれだが、`OneStarMaker.Tests` は既に `SampleGame.DependOnAll` / `SampleGame.InGame` / `SampleGame.OutGame` を参照しており、**テストアセンブリは依存グラフの頂点なので「FW → Game 禁止」に抵触しない**。確立済みのパターンに合わせる。**設計判断としてこう決めた**
 
 ### 削除するもの（C: 置き換え残骸）
