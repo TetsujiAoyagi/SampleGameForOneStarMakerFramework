@@ -19,7 +19,7 @@ SampleGame の存在理由は **Build / Commit / Checkout / Streaming を一度�
 | **Streaming** | 距離で頻繁に跨ぐ / 小さい / 多数 / 均質 | ✅ `Cell_x_y`（250m, `LoadType.OnDemand`） |
 | **Build** | バンドル / グループに一致 / 少数 / 独立に出荷できる | ❌ 無い |
 | **Checkout** | 一部だけ sparse-checkout しても Play できる | ❌ 無い |
-| **Commit** | 二人が同じファイルを触らない大きさ / 人が手で書く | ❌ 無い |
+| **Commit** | 同じ空間を複数職種が同時に触れる（職種別ファイル分割） | ❌ 無い |
 
 裏付け（すべて実測）:
 
@@ -126,16 +126,27 @@ InGameSession
 
 コンテンツ量は今の 4×4 グリッド 1 個分 + α で足りる（秋・冬は夏のグリッドを Variant 違いで使い回す）。`README` で「どの動詞がどこで実証されているか」を 1 行ずつ指させる。
 
-**Commit 境界は Cell ではなく Environment（職種別子シーン）で確定する。** 「二人が別々の Cell を触る」は何も証明しない — Cell が別ファイルなのは Streaming 境界を切った結果であって、Commit 軸の成果ではない。Commit 軸が証明すべきは**同じ空間を複数職種が同時に触れること**なので、春の受入は「同一 Cell 内で、地形担当が `Cell_x_y.unity` を、背景担当が `Environment_x_y.unity` を同時に編集しても、マージ衝突なくコミットできる」になる。**設計判断としてこう決めた。**
+**Commit 境界は Cell 単体ではなく「同一 Cell フォルダ内の職種別 `.unity` 分割」で確定する。** 「二人が別々の Cell を触る」は何も証明しない — Cell が別ファイルなのは Streaming 境界を切った結果であって、Commit 軸の成果ではない。Commit 軸が証明すべきは**同じ空間を複数職種が同時に触れること**なので、春の受入は「同一 Cell 内で、地形担当が `Cell_x_y.unity` を、背景担当が `Environment_x_y.unity` を同時に編集しても、マージ衝突なくコミットできる」になる。**設計判断としてこう決めた。**
 
-これに伴い、春の Environment は「一部の Cell だけの萌芽」ではなく**全 Cell に置く**（現状は南辺 4 枚のみ）。夏以降は萌芽のままでよい。
+用語の精度: Commit 対象は Environment 単体ではない。**`Cell_x_y.unity` が地形担当の Commit 対象、`Environment_x_y.unity` が追加された職種ファイル**で、両方が Commit 境界の構成要素。したがって §1.3 の「触らない」対象も両方に及ぶ。
+
+**S-1 / S-2 の切り分け（重要）:**
+
+| | 範囲 |
+|---|---|
+| **S-1（本スライス）** | 現行フラットグリッドの**南辺 4 枚**（`Cell_0_0`〜`Cell_3_0`。既に Environment 萌芽がある 4 枚）で、Cell と Environment の**両方**の非破壊を証明する |
+| **S-2** | 季節化。そのとき春の**全 Cell** に Environment を置く |
+
+夏以降は萌芽のままでよい。
 
 ### 1.3 正本は季節ごとに違ってよい（択一しない）
 
 「Cell の `.unity` は生成物か手編集物か」を全体で択一する必要はない。1.2 の割り当てなら:
 
-- **春** = 手編集が正本。生成器は初回スキャフォールドのみ。既存の `AuthoredRoot` があれば**触らない**
+- **春** = 手編集が正本。生成器は初回スキャフォールドのみ。**`Cell_x_y.unity` の `AuthoredRoot` と `Environment_x_y.unity` の中身の両方**について、既存があれば**触らない**
 - **夏** = 生成物が正本。再生成で上書きしてよい
+
+**Environment を Skip 対象から外さないこと。** §1.2 で Commit 境界を職種別ファイル分割にした以上、Environment 側の手編集を潰すと Commit 軸の証明が成立しない。加えて §5 の A-2（**全 `.unity` の差分 0**）が直接落ちる。
 
 **サンプルが証明すべきは「両方を同居させられる」ことなので、片方に決める必要がない。** これが現行のフラット構成では表現できなかった。
 
@@ -143,7 +154,7 @@ InGameSession
 
 **正本を決める前に季節化してはいけない。** 現行の `PopulateSingleCellScene` は毎回 `AuthoredRoot` を `DestroyImmediate` して作り直すため:
 
-- 再生成すると Cell 16 + Environment 4 のシーンが**全文差分**になる（内容が同一でも fileID が総入れ替え）
+- 再生成すると全シーンが**全文差分**になる（内容が同一でも fileID が総入れ替え）。現行グリッドでの実測対象は Cell 16 枚 + Environment 4 枚
 - 人が Unity で手編集した中身は**次の生成で消える**
 
 このまま 64 セルにすると生成のたび 64 シーン全文差分。よって **S-1（本スライス）= 正本の確立、S-2 = 季節化**。
@@ -209,7 +220,8 @@ InGameSession
 | # | テスト | 検証内容 |
 |---|---|---|
 | T-1 | `Generated` な Cell は AuthoredRoot の有無に関わらず Populate | 夏の挙動 |
-| T-2 | `HandAuthored` かつ AuthoredRoot **あり** → **Skip** | 春の挙動。**これが本スライスの核心** |
+| T-2 | `HandAuthored` かつ Cell の AuthoredRoot **あり** → **Skip** | 春の挙動。**これが本スライスの核心** |
+| T-2b | `HandAuthored` かつ **Environment シーンが既存** → その Environment も **Skip** | §1.3。これが無いと A-2 が落ちる |
 | T-3 | `HandAuthored` かつ AuthoredRoot **なし** → Populate（初回スキャフォールド） | 春の初回 |
 | T-4 | 同じ入力で 2 回計画しても結果が同一（冪等） | 再生成安全性 |
 | T-5 | policy 未指定の Cell は既定 `Generated` に落ちる | 既定値の明示 |
@@ -227,7 +239,7 @@ TDD で回すこと: スケルトン + レッドを Unity バッチで確認し�
 4. `CellSceneWriter` を切り出す。`PopulateSingleCellScene` の `DestroyImmediate` は **Populate 計画が出たセルに対してのみ**実行する
 5. `WorldSceneGraphSync` / `WorldResourceLinker` / `WorldAddressablesRegistrar` を機械的に移す（挙動を変えない）
 6. `WorldCellStreamingSliceCreator` をオーケストレーションだけに削る。§2 の削除対象を消す
-7. 春に相当するセル（暫定: `Cell_0_0`〜`Cell_3_0` の南辺 4 枚。現在 Environment 萌芽がある 4 枚と揃える）を `HandAuthored` に指定する
+7. 春に相当するセル（`Cell_0_0`〜`Cell_3_0` の南辺 4 枚。既に Environment 萌芽がある 4 枚。§1.2 の S-1 / S-2 切り分け参照）を `HandAuthored` に指定する。**Cell 本体と Environment の両方が Skip 対象になることを確認する**
 8. 生成器を実行 → **もう一度実行** → §5 の冪等性を確認
 9. 保留中の Addressables 差分（`Default Local Group` / `AddressableAssetSettings` / `ProfileDataSourceSettings`）を、生成器の出力と一致する状態で一緒にコミットする
 
@@ -238,8 +250,8 @@ TDD で回すこと: スケルトン + レッドを Unity バッチで確認し�
 | # | 条件 | 判定方法 |
 |---|---|---|
 | A-1 | 全テストが緑 | `pwsh tools/run-tests.ps1`（**Unity を閉じてから**）。464 + 新規 6 本以上、failed 0。**テスト 0 件は失敗扱い**（コンパイルエラーが 0 件として現れる） |
-| A-2 | **生成器を 2 回連続実行して `.unity` の差分が 0** | 1 回目実行 → `git add -A` → 2 回目実行 → `git status --porcelain` に `.unity` が現れない。**これが本スライスの核心的受入条件** |
-| A-3 | 手編集が消えない | `HandAuthored` 指定した Cell の `AuthoredRoot` 配下に GameObject を手で 1 つ足す → 生成器を実行 → その GameObject が残っている |
+| A-2 | **生成器を 2 回連続実行して `.unity` の差分が 0** | 1 回目実行 → `git add -A` → 2 回目実行 → `git status --porcelain` に `.unity` が 1 本も現れない。**対象は Cell 16 枚と Environment 4 枚の両方**（Environment を除外しないこと）。**これが本スライスの核心的受入条件** |
+| A-3 | 手編集が消えない（**両方**） | `HandAuthored` 指定した Cell について、(a) `Cell_x_y.unity` の `AuthoredRoot` 配下、(b) `Environment_x_y.unity` の中、それぞれに GameObject を手で 1 つ足す → 生成器を実行 → **両方**残っている |
 | A-4 | `WorldCellStreamingSliceCreator.cs` が 250 行以下・責務 1 | `git diff --stat` と目視 |
 | A-5 | `DetachSeasonLevels` / レガシー移行コードが存在しない | grep |
 | A-6 | 既存の Streaming 挙動が不変 | `OneStarMaker.Tests.Streaming` に回帰なし |

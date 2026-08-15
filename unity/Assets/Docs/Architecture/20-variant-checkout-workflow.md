@@ -124,7 +124,7 @@ flowchart TB
 1. **OneStarMaker > Build > Build Player (Active Variant)** を実行
 2. 本経路は Build Settings を**参照しない**。`VariantPlayerBuild.BootstrapScenePath`（`Assets/Scenes/SampleScene.unity`）を明示指定してビルドするため、Scene 0 が何であっても出力は変わらない
 3. プロファイルの `FirstSceneIdentify` が `app-config.json` の `assetCheckout:firstSceneIdentify` へ一時書き込みされ、ビルド完了後（成否問わず）復元される
-4. 起動後 `AppInitializer.GetFirstSceneIdentify` が AppConfig の `assetCheckout:firstSceneIdentify` を優先する
+4. ⚠️ **書き込みのみ実装済み。起動側の読者は未実装**（2026-08-15 確認）。ランタイムが読む `assetCheckout:*` は `remoteCatalogUrl` と `localRevision` だけで、`firstSceneIdentify` を消費するコードはリポジトリに存在しない。`AppInitializer.GetFirstSceneIdentify` というメソッドも無い。したがって Variant 出荷は現状 `SampleScene` で起動して止まる。§2.1 の「Scene 0 差し替えではなく論理初回シーン注入」は、読者が実装されるまで意図の宣言に留まる
 
 > **Scene 0 について（2026-08-15 更新）**
 >
