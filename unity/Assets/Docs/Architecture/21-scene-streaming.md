@@ -185,6 +185,57 @@ Addressables グループ登録 (既存の AddressablesGroupSyncFilter を流用
 - 実装は `HpGaugeSliceSceneCreator`（シーン+ノード生成）と `SceneResourceGenerator` の既存資産を流用する
 - セルは `AssetPayload.Variant` タグを付与でき、[20. Variant チェックアウト](20-variant-checkout-workflow.md) の whitelist ビルド/部分チェックアウトの対象にできる（ワールドの一部だけ Checkout して作業する運用）
 
+#### 生成器の非破壊契約（2026-08-16）
+
+**Cell の `.unity` は「生成物が正本」と「手編集が正本」が同居する。** どちらか一方に決める必要はなく、決めてもいけない — 両方を同居させられることがサンプルの証明対象だからである。
+
+| policy | 意味 | 再生成時 |
+|---|---|---|
+| `Generated` | 生成物が正本 | Cell / Environment とも常に上書き |
+| `HandAuthored` | 手編集が正本 | `AuthoredRoot` があれば触らない。無ければ初回スキャフォールドとして生成する |
+
+判定は **`SampleGame.DependOnAll.Editor.Cells.CellPopulationPlan`（純関数）に閉じる。** `AssetDatabase` / `EditorSceneManager` に依存させない。呼び出し側に `if (policy == HandAuthored)` を書くと単体テストが書けなくなる。
+
+**手編集を壊し得る経路は 3 つしかなく、すべて計画経由でなければならない:**
+
+1. Cell シーンへの書き込み（`AuthoredRoot` の作り直し）
+2. Environment シーンへの書き込み（同上）
+3. **グリッド範囲外 Cell フォルダの削除** — `HandAuthored` は範囲外でも削除しない
+
+3 番目を忘れやすい。グリッドを縮小すると範囲外の手編集がフォルダごと消える。
+
+**`HandAuthored` を「範囲外だが保持する」状態に置いたら、その状態を知らないコードを探すこと。** 実際に、フォルダと `.unity` を守っても SceneGraph の `SceneNodeData` だけが刈られる欠陥が同じ形で 2 度発生した。
+
+派生ルール:
+
+- **Cell と Environment は独立に判定する。** 片方 Skip でもう片方 Populate があり得る
+- **Skip は書き込みだけを飛ばす。配線は必ず続行する。** シーンファイルの生成・`SceneResource` の作成・親子リンク・`SetDirty` を飛ばすと Map と親子関係が壊れる
+- **Environment の Skip 条件は `.unity` の有無ではなく `AuthoredRoot` の有無。** シーンファイル生成と中身の焼き込みは 2 段構えなので、前者を条件にすると中断時に空の Environment が永久に残る
+
+#### policy データの所在（2026-08-16）
+
+**「どの Cell が手編集正本か」は SampleGame の運用方針であって FW の契約ではない。** したがって:
+
+- `CellAuthoringPolicy` を `OneStarMaker`（FW）側に置かない
+- `WorldGridDefinition`（FW）に policy フィールドを足さない
+- `SceneResource`（FW の型）にフラグを足さない
+
+いずれも「FW → Game 参照禁止」に反するか、FW に Game の運用概念を漏らす。
+
+#### グリッド寸法の正本（2026-08-16）
+
+**`WorldCellCatalog`（`SampleGame.InGame.Streaming` の const）が正本で、`WorldGridDefinition.asset` はその写しである。** 生成器の `EnsureGridDefinition` が実行のたびにアセットへ書き戻すことで一致を強制している。
+
+**アセット側だけを書き換えても効かない。** ランタイムの `SessionWorldStreamingDriver` はアセットではなく `WorldCellCatalog` の const を読んで desired set を組むため、乖離させると存在しない Cell を要求する。グリッド寸法を変えるときは const 側を変えること。
+
+#### エディタ拡張が batchmode で踏む罠（2026-08-16）
+
+**`EditorSceneManager.NewScene(..., NewSceneMode.Additive)` は、未保存の untitled シーンが開いていると必ず失敗する。** `Single` モードの `NewScene` / `OpenScene` は成功するため、この差に気づきにくい。
+
+セルの `.unity` を新規作成する経路は Additive を使う。したがって**その手前で `.unity` を Additive で開閉するコードを足すと、Unity が未保存 untitled を作り直して生成器全体が落ちる。** 症状は「フォルダだけできて `.unity` が 1 つも作られない」。既存の 16 セルが揃っている間は新規作成に到達しないので発火せず、`git clone` 直後の初回実行と、グリッド縮小 → 拡大でだけ表に出る。
+
+対処は、シーンを開閉したあとに**保存済みの実シーンを `Single` で開き直す**こと（`NewScene(EmptyScene, Single)` は dirty な untitled を作るので逆効果）。
+
 ---
 
 ## 7. セル制作規約
@@ -196,6 +247,7 @@ Addressables グループ登録 (既存の AddressablesGroupSyncFilter を流用
 | R-3 | セルを `SwitchScene` / `GoBack` / `TransitionPlan` に乗せない（D-5） | `SwitchSceneCore` 冒頭のセル identity ガード（`CellIdentity.IsCellId` で検出し `InvalidOperationException`。T-04 で実装） | 構造的強制 |
 | R-4 | セルの `LoadingDisplayType` は常に `None` | Controller が固定値で呼ぶ | 構造的強制 |
 | R-5 | セル内オブジェクトはセル外のシーンオブジェクトを参照しない（隣接セルとの直接参照禁止） | コードレビュー | 規約 |
+| R-6 | **生成器は `HandAuthored` な Cell / Environment の手編集を消さない**（§6「生成器の非破壊契約」） | `CellPopulationPlan`（純関数）と単体テスト 13 本 | 構造的強制 |
 
 ---
 

@@ -15,8 +15,48 @@ MonoBehaviour:
   m_GroupName: Default Local Group
   m_GUID: ee2d01616f6c8b541a52acb861d9a2a6
   m_SerializeEntries:
+  - m_GUID: 02b5d78e5aaa3e3428d358874a7ec9a2
+    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_3_0/Cell_3_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 03e7a22e5ad57f944baaa34435530428
+    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_0_0/Cell_0_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 1b120727824033a4eb9776195f98054e
     m_Address: Assets/SampleGame/OutGame/ConfirmDialog/ConfirmDialog.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 24106045250647e4f8dc998de2751255
+    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_0_3/Cell_0_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3142760357bf1ae40830f46407b953fd
+    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_0_2/Cell_0_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 324e09fe6af9a92459f4be707313c995
+    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_2_2/Cell_2_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 32895f876ed46d24ab83d54d6c192640
+    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_2_0/Cell_2_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 37f04f5e9ff90b645a067cdd0331057a
+    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_1_1/Cell_1_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3b31114e026f5c74fb2976802ae98096
+    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_2_0/Environment_2_0.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -25,8 +65,18 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4aa33572946bff740a235262163a44a9
+    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_3_1/Cell_3_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 7417c2f339f202e4bbb8f5062f684ab1
     m_Address: Assets/SampleGame/OutGame/Title/Title.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8af02f5ad15162341b1f7582b1209145
+    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_3_0/Environment_3_0.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -35,13 +85,73 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 953e0a6d3d511e941a6b82a728c00fa5
+    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_0_0/Environment_0_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 956427c6e6b12b24788477f2f869d65e
+    m_Address: Assets/SampleGame/InGame/InGameSession/World/World.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a63712cc0690e9a42aaf5ce42bac4e23
+    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_2_3/Cell_2_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a8030564e2e1a2549af188736e116e44
+    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_2_1/Cell_2_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: aacc051859bd53e4db09d89bd703d7ae
     m_Address: Assets/OneStarMakerCommon/SceneMap/SceneResourceMap.asset
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ab1b0676251f6c441bcb466005ba67ea
+    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_1_0/Cell_1_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b0f42ebeac96c594bbb93e553567e8cd
+    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_1_3/Cell_1_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b85890b3b90b43c4aa721e7e6d46949f
+    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_0_1/Cell_0_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: bd51734fab3deb24b9fbd444046213ac
     m_Address: Assets/OneStarMaker/Scenes/UIScene.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c03517b35199eb046852798ce73fa2d7
+    m_Address: Assets/SampleGame/InGame/InGameSession/World/Materials/DemoCellLit.mat
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d34b48a8f0227fc429bf8273c44aa24b
+    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_3_2/Cell_3_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: dfe44c0f0d32ac14e8957c83900b2eeb
+    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_1_2/Cell_1_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ecbdac293c3a98d4e844c03a989e31f8
+    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_3_3/Cell_3_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: fecf6d0b6e30c2a4aaebebb063fa3e2d
+    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_1_0/Environment_1_0.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0

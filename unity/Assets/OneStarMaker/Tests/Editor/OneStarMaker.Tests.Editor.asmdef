@@ -7,7 +7,9 @@
         "Unity.Addressables",
         "Unity.ResourceManager",
         "UniTask",
-        "UniTask.Addressables"
+        "UniTask.Addressables",
+        "SampleGame.DependOnAll.Editor",
+        "SampleGame.InGame"
     ],
     "includePlatforms": [
         "Editor"
