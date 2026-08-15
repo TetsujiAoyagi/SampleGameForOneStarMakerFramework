@@ -122,9 +122,16 @@ flowchart TB
 ### 3.4 プレイヤービルド
 
 1. **OneStarMaker > Build > Build Player (Active Variant)** を実行
-2. Build Settings の Scene 0（`SampleScene`）は**差し替えない**
+2. 本経路は Build Settings を**参照しない**。`VariantPlayerBuild.BootstrapScenePath`（`Assets/Scenes/SampleScene.unity`）を明示指定してビルドするため、Scene 0 が何であっても出力は変わらない
 3. プロファイルの `FirstSceneIdentify` が `app-config.json` の `assetCheckout:firstSceneIdentify` へ一時書き込みされ、ビルド完了後（成否問わず）復元される
 4. 起動後 `AppInitializer.GetFirstSceneIdentify` が AppConfig の `assetCheckout:firstSceneIdentify` を優先する
+
+> **Scene 0 について（2026-08-15 更新）**
+>
+> `EditorBuildSettings` の Scene 0 は `SampleScene` から `Assets/SampleGame/OutGame/Title/Title.unity` へ変更済み。**Editor の Play from first scene を Title から始めるための変更**であり、本節の出荷経路には影響しない（上記 2）。
+>
+> - `AppInitializer` は `[RuntimeInitializeOnLoadMethod]` で起動するため、Scene 0 が何であっても初期化は走る。`SampleScene` に Bootstrap オブジェクトは無い（Main Camera / Directional Light / Global Volume のみ）
+> - **素の `File > Build Settings > Build` は使わないこと。** Title が Addressables カタログとプレイヤー本体の両方に載り、§3.4 冒頭の「コンテンツ二重化を避ける」意図が壊れる。プレイヤービルドは常に上記 1 の経路を使う
 
 ---
 

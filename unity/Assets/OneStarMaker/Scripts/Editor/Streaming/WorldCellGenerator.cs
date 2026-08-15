@@ -388,13 +388,15 @@ namespace OneStarMaker.Editor.Streaming
             ApplySceneFiles(definition, plan);
             var result = ApplyPlan(definition, plan, map, parentResource);
 
-            EnsureAssetFolder(definition.SceneResourceOutputFolder);
-
             foreach (var resource in result.CreatedOrUpdatedResources)
             {
                 var entry = plan.Entries.First(e => e.Identity == resource.Identity);
                 if (AssetDatabase.LoadAssetAtPath<SceneResource>(entry.SceneResourceAssetPath) == null)
                 {
+                    // CCS-00 でパスが {folder}/{identity}/{identity}.asset になったため、
+                    // 親フォルダ 1 段だけでは足りない。.unity 側（ApplySceneFiles）と同じく
+                    // エントリごとのディレクトリを作る。
+                    EnsureAssetFolder(Path.GetDirectoryName(entry.SceneResourceAssetPath)!);
                     AssetDatabase.CreateAsset(resource, entry.SceneResourceAssetPath);
                 }
             }

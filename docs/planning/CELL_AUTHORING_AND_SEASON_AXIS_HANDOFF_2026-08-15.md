@@ -59,7 +59,6 @@ private static void DetachSeasonLevels(SceneResource session, SceneResourceMap m
 - 下記 10 本は**作業ツリーに保留**（破棄も `.gitignore` もしていない）。本スライスの入力:
 
 ```
- M unity/Assets/AddressableAssetsData/AddressableAssetSettings.asset
  M unity/Assets/AddressableAssetsData/AssetGroups/Default Local Group.asset
  M unity/Assets/Docs/Architecture/21-scene-streaming.md
  M unity/Assets/SampleGame/DependOnAll/Editor/SampleGame.DependOnAll.Editor.asmdef
@@ -68,23 +67,44 @@ private static void DetachSeasonLevels(SceneResource session, SceneResourceMap m
 ?? unity/Assets/SampleGame/DependOnAll/Editor/WorldCellStreamingSliceCreator.cs (+.meta)
 ```
 
+`AddressableAssetSettings.asset`（`m_currentHash` のゼロ化）はテスト実行時の Unity バッチ起動でハッシュが再計算され、差分が自然消滅した。
+
 ---
 
 ## 1. 確定方針（Phase A の設計判断。実装で変えないこと）
 
 ### 1.1 季節構想を採る
 
+#### 用語（混ぜないこと）
+
+| 語 | 意味 | 実体 |
+|---|---|---|
+| **境界** | 何が何と分かれるか | Season Level / Cell / Environment |
+| **継ぎ目 (seam)** | 境界を跨ぐ「時間」を隠す場所。境界そのものではない | Tunnel |
+| **実証担当** | その動詞を README で指させる季節 | 春=Commit / 夏=Streaming / 秋=Checkout / 冬=Build |
+
+「Tunnel = Build 単位」とは書かない。Tunnel は**継ぎ目**であって境界ではない。
+
+#### ツリー
+
 四段の入れ子が、四つの動詞にちょうど対応する:
 
 ```
 InGameSession
-  ├── Tunnel                        ← Build 単位の継ぎ目（ロード隠蔽）。SwitchScene 対象
-  └── SpringLevel                   ← Build 単位 = Addressables グループ / Checkout 単位 = Variant タグ
-        └── Cell_0_0 (OnDemand)     ← Streaming 単位（距離で跨ぐ）
-              └── Environment_0_0   ← Commit 単位（人が手で書く。職種別に分かれる）
+  ├── Tunnel                        ← 継ぎ目（常設 1 本）。SwitchScene 対象
+  ├── SpringLevel                   ← Build 境界 = Addressables グループ / Checkout 境界 = Variant タグ
+  │     └── Cell_0_0 (OnDemand)     ← Streaming 境界（距離で跨ぐ）
+  │           └── Environment_0_0   ← Commit 境界（職種別。人が手で書く）
+  ├── SummerLevel                   ← 以下同型
+  ├── AutumnLevel
+  └── WinterLevel
 ```
 
-**トンネルが Build と Checkout を「実演可能」にする唯一の仕掛け。** 滞在中に次の季節のバンドルを取りに行くので:
+遷移: `SwitchScene(Tunnel)` → 滞在中に次季節をロード → `SwitchScene(NextSeason)`。
+
+**Tunnel は季節ごとに入口/出口を持たせず、`InGameSession` 直下に常設 1 本とする。** 季節ごとに持つと 4×2 = 8 本になり、演出差が要らないうちは無駄。差別化が必要になったら Tunnel を Variant で分ける（Scene を増やさない）。**設計判断としてこう決めた。**
+
+**継ぎ目が Build と Checkout を「実演可能」にする唯一の仕掛け。** 滞在中に次の季節のバンドルを取りに行くので:
 
 - 秋を Checkout していない状態でもトンネルを抜けたら秋が始まる → `20-variant-checkout-workflow.md` のハイブリッド解決の実物デモ
 - 冬だけ後から単独ビルドして差し替える → 差分ビルドの実物デモ
@@ -99,12 +119,16 @@ InGameSession
 
 | 季節 | 実証する動詞 | 具体的な差 |
 |---|---|---|
-| **春** | **Commit** | セルの中身は手編集。生成器は骨格だけ作り中身に触らない。二人が別セルを同時に触れることを示す |
+| **春** | **Commit** | セルの中身は手編集。生成器は骨格だけ作り中身に触らない。**同一 Cell の中を複数職種が同時に触っても衝突しない**ことを示す（下記） |
 | **夏** | **Streaming** | 生成器で量産した均質グリッド。`21-scene-streaming.md` §9 の受入条件 A-1〜A-5 はここで実測する |
 | **秋** | **Checkout** | ローカルに Checkout しない前提。リモートカタログから解決される |
 | **冬** | **Build** | 別 Addressables グループ + 別 Variant。後から単独ビルドして差し替えられることを示す |
 
 コンテンツ量は今の 4×4 グリッド 1 個分 + α で足りる（秋・冬は夏のグリッドを Variant 違いで使い回す）。`README` で「どの動詞がどこで実証されているか」を 1 行ずつ指させる。
+
+**Commit 境界は Cell ではなく Environment（職種別子シーン）で確定する。** 「二人が別々の Cell を触る」は何も証明しない — Cell が別ファイルなのは Streaming 境界を切った結果であって、Commit 軸の成果ではない。Commit 軸が証明すべきは**同じ空間を複数職種が同時に触れること**なので、春の受入は「同一 Cell 内で、地形担当が `Cell_x_y.unity` を、背景担当が `Environment_x_y.unity` を同時に編集しても、マージ衝突なくコミットできる」になる。**設計判断としてこう決めた。**
+
+これに伴い、春の Environment は「一部の Cell だけの萌芽」ではなく**全 Cell に置く**（現状は南辺 4 枚のみ）。夏以降は萌芽のままでよい。
 
 ### 1.3 正本は季節ごとに違ってよい（択一しない）
 
@@ -147,6 +171,7 @@ InGameSession
 | `SampleGame/DependOnAll/Editor/Cells/WorldResourceLinker.cs` | 新規 → ~280 | 1 | SceneResource 親子 / Map 登録・圧縮 |
 | `SampleGame/DependOnAll/Editor/Cells/WorldAddressablesRegistrar.cs` | 新規 → ~100 | 1 | Addressables エントリ登録 |
 | `OneStarMaker/Tests/Editor/CellPopulationPlanTests.cs` | 新規 → ~200 | — | §3 参照 |
+| `OneStarMaker/Tests/Editor/OneStarMaker.Tests.Editor.asmdef` | +1 行 | — | **`SampleGame.DependOnAll.Editor` 参照を追加。これが無いとテストがコンパイルしない**（§3 冒頭） |
 | `SampleGame/DependOnAll/Editor/SampleGame.DependOnAll.Editor.asmdef` | +1 行 | — | `SampleGame.InGame` 参照を追加（保留中の差分をそのまま使う） |
 
 ### A-2: 500 行 / 3 責務を超える見込みへの対処
@@ -157,7 +182,8 @@ InGameSession
 
 - `CellAuthoringPolicy` を **`OneStarMaker`（FW）側に置かない**。正本の決め方は SampleGame の運用方針であって FW の契約ではない。**設計判断としてこう決めた**
 - `WorldGridDefinition`（FW）に policy フィールドを足さない。同じ理由
-- `OneStarMaker/Scripts/Editor/Streaming/WorldCellGenerator.cs` は**触らない**。`dc8977f` で緑になったばかりで、既存テスト 6 本が乗っている
+- `OneStarMaker/Scripts/Editor/Streaming/WorldCellGenerator.cs` は**触らない**。`dc8977f` / `9a1c4e2`（S1 修正）で緑になったばかりで、既存テスト 6 本が乗っている
+- **テストは `OneStarMaker/Tests/Editor/` に置く**（SampleGame 側に新規テストアセンブリを作らない）。SUT が SampleGame にあるのにテストが `OneStarMaker.Tests.*` にあるのは一見ねじれだが、`OneStarMaker.Tests` は既に `SampleGame.DependOnAll` / `SampleGame.InGame` / `SampleGame.OutGame` を参照しており、**テストアセンブリは依存グラフの頂点なので「FW → Game 禁止」に抵触しない**。確立済みのパターンに合わせる。**設計判断としてこう決めた**
 
 ### 削除するもの（C: 置き換え残骸）
 
@@ -173,6 +199,8 @@ InGameSession
 ## 3. A-4: 単体テストの要求（必須）
 
 > **テスト要求は構造の指示より強く効く。** 「どこに置け」は破られるが「テストを書け」はテスト可能な配置を強制する。2026-08-05 のスライスでは、テストを要求した箇所だけが新規ファイルとして切り出され、要求しなかった約 120 行は `GraphView` サブクラスに埋まってテストが 1 本も書けないまま残った。
+
+**前提作業（先にやる）:** `OneStarMaker/Tests/Editor/OneStarMaker.Tests.Editor.asmdef` の `references` に `SampleGame.DependOnAll.Editor` を足す。現在の参照は `OneStarMaker.Editor` / `OneStarMaker.Runtime` / Addressables / UniTask だけで、**足さないとテストがコンパイルしない**。
 
 `CellPopulationPlan` は **`AssetDatabase` / `EditorSceneManager` に一切依存しない純関数として書け。これができていないとテストが書けない。** 入力は「グリッド定義の値（原点・セルサイズ・N×N）」「既存セルの状態（identity と AuthoredRoot の有無を表す単純な構造体の集合）」「policy」で、出力は Populate / Skip の計画。
 
