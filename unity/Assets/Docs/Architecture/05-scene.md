@@ -9,6 +9,8 @@
 シーンは**親子階層のツリー構造**で定義され、`SceneDirector` が一元管理する。
 SceneDirector は責務ごとに **partial class** で分割する。
 
+ディスク上のフォルダも Scene 親子に揃え、必要なアセット（Scene / Texture / Mesh 等）はそのツリー配下に同居させる。配置ルールは [27-folder-structure.md](27-folder-structure.md)（軸 B）を参照。
+
 ```
 SceneDirector.cs             … フィールド, ctor, Dispose, ISceneQuery, テストアクセサ, ヘルパー
 SceneDirector.Loading.cs     … AddScene, LoadSceneBase, LoadUnityScene, PerformUnitySceneLoad
