@@ -330,13 +330,32 @@ TDD で回すこと: スケルトン + レッドを Unity バッチで確認し�
 | A-4' | スキャフォールド宣言がある | `WorldCellStreamingSliceCreator.cs` の先頭 XML doc に §2.1 の一文があること。目視。**旧 A-4（250 行以下・責務 1）は §2.1 の決定により削除した** |
 | A-5 | `DetachSeasonLevels` / レガシー移行コードが存在しない | grep。`DeleteOutOfGridCellFolders` は**残る**（§2.2） |
 | A-6 | 既存の Streaming 挙動が不変 | `OneStarMaker.Tests.Streaming` に回帰なし |
-| A-7 | `HandAuthored` は範囲外でも消えない | `WorldGridDefinition.asset` の `_gridWidth` を一時的に 3 にして生成器を実行 → `Cells/Cell_3_0/` が**残っている**（`Cell_3_1`〜`Cell_3_3` は Generated なので消えてよい）→ 値を 4 に戻して再実行 |
+| A-7 | `HandAuthored` は範囲外でも消えない | **`WorldCellCatalog.GridWidth` の const を一時的に `3` にして**生成器を実行 → `Cells/Cell_3_0/` が**残っている**（`Cell_3_1`〜`Cell_3_3` は Generated なので消えてよい）→ const を `4` に戻して再実行。**`WorldGridDefinition.asset` を直接書き換える方法では検証できない**（§6.0 の裁定を見ること） |
 
 補足: 終了コード `0xC0000005` は Unity のシャットダウンクラッシュで、テスト結果自体は有効。コード変更を疑う前にログ末尾を見ること。
 
 ### 偽 null チェック（Unity 固有・レビュー時に必ず grep）
 
 破棄済み `UnityEngine.Object` は `== null` が true になるが、**`?.` と `??` は Unity の `==` オーバーロードを迂回して短絡しない**。`is null` / `ReferenceEquals` だけでなく **`?.` / `??` も grep すること。** 2026-08-05 のスライスでは HANDOFF 本文とレビューの両方がこの 2 演算子を見落とし、C' 監査が検出した。
+
+---
+
+## 6.0 Phase B からの設計指摘
+
+結論: 破綻 1 件
+
+1. **何が:** 受入 A-7（`WorldGridDefinition.asset` の `_gridWidth` を一時的に 3 にして生成器実行）と、`EnsureGridDefinition`（`:1014`）が毎回 `_gridWidth` / `_gridHeight` を `WorldCellCatalog` 定数で上書きする挙動が両立しない。**なぜ実装できない/壊れる:** `CreateCore` は `DeleteOutOfGridCellFolders` の前に必ず `EnsureGridDefinition` を呼ぶ（`:113`→`:119`）ため、アセットを 3 にしても実行直後に 4 へ戻る。Phase A 追加確定 #4 で削除判定を `definition` に寄せても、縮小が一度も起きず A-7（および T-7 の実機経路）が検証不能になる。変更対象一覧にも `EnsureGridDefinition` の緩和が無い。**代案:** 既存アセットでは `_gridWidth` / `_gridHeight` を上書きしない（新規作成時のみ Catalog 既定を書く）。A-7 は現行どおりアセット側の一時変更で検証する。
+
+確認した論点（破綻なし）: asmdef 参照追加と Plan 公開 API の型制限 / Skip 時も配線継続（Populate のみ省略）と `:712` FileNotFound 維持 / `HandAuthoredCells` と `EnvironmentSproutCells` の非統合 / 生成器非分割 / CreateCore 完了 Log の Catalog 参照はスコープ外。
+
+#### 裁定（Phase A / Claude Code, 2026-08-16）
+
+**指摘 1 は事実として採用。代案は却下し、別解に差し替えた。**
+
+- **事実の確認:** `EnsureGridDefinition`（`:1023`〜`:1027`）は毎回無条件に `_origin` / `_cellSize` / `_gridWidth` / `_gridHeight` / `_parentSceneIdentity` / 出力フォルダを `WorldCellCatalog` の値で上書きする。よって旧 A-7 の「`WorldGridDefinition.asset` の `_gridWidth` を 3 にする」手順は、`CreateCore` が `:113` で `EnsureGridDefinition` を呼んだ時点で 4 に戻り、`DeleteOutOfGridCellFolders`（`:119`）まで届かない。**旧 A-7 は実行不能だった。**
+- **代案（既存アセットでは上書きしない）を却下する理由:** `WorldCellCatalog` の XML doc が「アセット側の `WorldGridDefinition` と数値を食い違わせないこと」と明示しており、`EnsureGridDefinition` はその一致を**強制する装置**である。ランタイムの `SessionWorldStreamingDriver`（`:49` / `:89`）はアセットではなく `WorldCellCatalog` の const を読んで desired set を組むため、アセットだけ 3 にすると**存在しない `Cell_3_*` を要求する**乖離が生まれる。S-1 のスコープ外の挙動変更でもある。
+- **差し替え後の A-7:** `WorldCellCatalog.GridWidth` の **const を一時的に 3 にする**。`EnsureGridDefinition` がアセットへ伝播し、catalog とアセットが一致したまま縮小が起きるので、`DeleteOutOfGridCellFolders` が正しく発火する。検証後に const を 4 へ戻して再実行する。
+- **Phase A 追加確定 #4（削除判定を `definition.GridWidth/Height` へ統一）は維持する。** 上記のとおり const → アセットへ伝播するので値は同じであり、「同一メソッド内で catalog 直参照とアセット参照が混在する」不整合の解消という当初の目的は変わらない。
 
 ---
 
