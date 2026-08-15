@@ -56,6 +56,10 @@ tools/**/.vs/
 *.pdb
 *.mdb
 
-# project files
+# 手元にのみ置くドキュメント（方針は docs/README.md）
+# 計画書・外部フレームワーク比較・発表資料。公開面は「現況の説明」だけに保つ。
+# docs/handoff/ は例外的に tracked — git worktree 経由で実装エージェントへ渡すため。
 docs/reference/**
 docs/slides/**
+docs/planning/**
+docs/debugstudio/**

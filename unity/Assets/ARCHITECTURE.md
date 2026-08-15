@@ -128,18 +128,17 @@ Game.Common ──→ Foundation, Runtime
 | §11 | Scene Graph Editor（Editor 拡張） | [11-scene-graph-editor.md](Docs/Architecture/11-scene-graph-editor.md) |
 | §12 | テレメトリ設計 | [12-telemetry.md](Docs/Architecture/12-telemetry.md) |
 | §13 | リソースシステム設計 | [13-resource-system.md](Docs/Architecture/13-resource-system.md) |
-| §14 | アーキテクチャレビュー（ギャップ分析 & FW 比較、2026-03-07 断面） | [14-architecture-review.md](Docs/Architecture/14-architecture-review.md) |
 | §15 | テレメトリ v2（ボトルネック検出・メモリ監視）。最新は §28 | [15-telemetry-v2.md](Docs/Architecture/15-telemetry-v2.md) |
-| §16 | Update 基盤設計（ドラフト。正本は `docs/updater/UPDATER_CURRENT_SPEC.md`） | [16-update-architecture.md](Docs/Architecture/16-update-architecture.md) |
+| §16 | （欠番 — Update 基盤の実装前ドラフト。正本 `docs/updater/UPDATER_CURRENT_SPEC.md` に置き換え済み） | — |
 | §17 | （欠番 — Variant BuildScript レビューは未保存のまま失われた） | — |
 | §18 | AssetDescription — 目的・有用性・実装 | [18-asset-description.md](Docs/Architecture/18-asset-description.md) |
-| §19 | AssetResidentCache（常駐キャッシュ）チケット仕様 | [19-asset-resident-cache-tickets.md](Docs/Architecture/19-asset-resident-cache-tickets.md) |
+| §19 | （欠番 — AssetResidentCache 施行表。施行完了につき設計判断は §13 へ集約） | — |
 | §20 | Variant チェックアウトワークフロー | [20-variant-checkout-workflow.md](Docs/Architecture/20-variant-checkout-workflow.md) |
-| §21 | SceneStreaming — セルストリーミング設計（ドラフト） | [21-scene-streaming.md](Docs/Architecture/21-scene-streaming.md) |
+| §21 | SceneStreaming — セルストリーミング設計（コア実装済み。実証スライス / テレメトリ / 受入は未了） | [21-scene-streaming.md](Docs/Architecture/21-scene-streaming.md) |
 | §22 | （予約 — HLOD / Proxy ティア。21-scene-streaming.md §12 参照） | — |
-| §23 | CameraSystem — カメラシステム設計（要件確定・実装前） | [23-camera-system.md](Docs/Architecture/23-camera-system.md) |
+| §23 | CameraSystem — カメラシステム設計（実装済み。Play 目視判定が未了） | [23-camera-system.md](Docs/Architecture/23-camera-system.md) |
 | §24 | RenderingSystem — レンダリングシステム構想（構想段階・骨子） | [24-rendering-system.md](Docs/Architecture/24-rendering-system.md) |
-| §25 | DebugSocket サービス分割チケット | [25-debugsocket-service-refactoring-tickets.md](Docs/Architecture/25-debugsocket-service-refactoring-tickets.md) |
+| §25 | （欠番 — DebugSocketService 分割施行表。施行完了。結果は `Runtime/DebugSocketServices/` の partial 構成そのもの） | — |
 | §26 | UpdateSystem × Async — 時間権威 | [26-update-async-time-authority.md](Docs/Architecture/26-update-async-time-authority.md) |
 | §27 | フォルダ構成戦略（Assembly × Scene 同居） | [27-folder-structure.md](Docs/Architecture/27-folder-structure.md) |
 | §28 | テレメトリ Contract v3（kind + payload）。§12 / §15 の後継 | [28-telemetry-contract-v3.md](Docs/Architecture/28-telemetry-contract-v3.md) |
@@ -158,8 +157,8 @@ Game.Common ──→ Foundation, Runtime
 | **Phase 4** | Game 実装 + UI 移行 | Title → InGame 遷移、Player(MVVM + R3)、Grid 再構築、UI Toolkit 段階移行 | 未着手 |
 
 > **Phase 1 完了後の追加実装（フェーズ表の枠外で進行したもの）:**
-> テレメトリ v2 + DebugSocket / DebugStudio 連携（§12, §15）、AssetManagement + AssetResidentCache（§13, §19）、
-> UpdateSystem（§16、正本 `docs/updater/UPDATER_CURRENT_SPEC.md`）、Variant ビルド / チェックアウトワークフロー（§18, §20）。
+> テレメトリ v2 + DebugSocket / DebugStudio 連携（§12, §15, §28）、AssetManagement + AssetResidentCache（§13）、
+> UpdateSystem（正本 `docs/updater/UPDATER_CURRENT_SPEC.md`）、Variant ビルド / チェックアウトワークフロー（§18, §20）。
 
 ---
 

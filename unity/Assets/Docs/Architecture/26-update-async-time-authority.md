@@ -2,8 +2,8 @@
 
 > ステータス: 設計方向メモ・実装前 (2026-07-19)
 > 正本: 実装仕様は `docs/updater/UPDATER_CURRENT_SPEC.md` を参照。
-> 視覚メモ（現状 vs 理想 AA / Mermaid）: [UPDATE_SYSTEM_CURRENT_VS_IDEAL.md](../../../docs/updater/UPDATE_SYSTEM_CURRENT_VS_IDEAL.md)
-> 関連: [16-update-architecture.md](16-update-architecture.md), [carbon-engine/02](../../../docs/reference/carbon-engine/02-scheduler-vs-update-system.md), [et-framework/01](../../../docs/reference/et-framework/01-distributed-lifecycle-vs-scene-update.md)
+> 視覚メモ（現状 vs 理想 AA / Mermaid）: [UPDATE_SYSTEM_CURRENT_VS_IDEAL.md](../../../../docs/updater/UPDATE_SYSTEM_CURRENT_VS_IDEAL.md)
+> 関連: [21. SceneStreaming](21-scene-streaming.md)
 
 ---
 
@@ -131,7 +131,7 @@ async UniTask PlayIntroAsync(CancellationToken ct)
 
 > **gameplay の asmdef では素の `UniTask.Delay` / `UniTask.Yield` を使わず、layer clock を await する。**
 
-「隠れ更新ループを書くな」のような曖昧な心得と違い、**API 名で機械的に判定できる** ため Roslyn Analyzer 一本で強制できる（UnityStarter が `async void` を Error にしているのと同じ手筋。[unity-starter/01](../../../docs/reference/unity-starter/01-foundation-vs-onestarmaker.md) 参照）。
+「隠れ更新ループを書くな」のような曖昧な心得と違い、**API 名で機械的に判定できる** ため Roslyn Analyzer 一本で強制できる（UnityStarter が `async void` を Error にしているのと同じ手筋）。
 
 適用範囲の目安:
 
@@ -155,7 +155,7 @@ async UniTask PlayIntroAsync(CancellationToken ct)
 
 | FW | 更新の権威 | 待ち・時系列 | 本方針との関係 |
 |---|---|---|---|
-| **Carbon** | scheduler（tasklet 再開の唯一権威） | I/O も tasklet yield で同じ scheduler に載せる | 「単一権威」を C# 標準機能で再現する。Greenlet 写経はしない（[carbon 02](../../../docs/reference/carbon-engine/02-scheduler-vs-update-system.md) §5.3 と整合） |
+| **Carbon** | scheduler（tasklet 再開の唯一権威） | I/O も tasklet yield で同じ scheduler に載せる | 「単一権威」を C# 標準機能で再現する。Greenlet 写経はしない |
 | **ET** | Fiber / Actor | メッセージ駆動に寄せる | 別種の一本化。Fiber runtime は借りない判断済み |
 | **UnityStarter** | Gameplay 側 Tick（Update 集約 FW は薄い） | UniTask + Analyzer（`async void` 禁止等） | Analyzer で機械的に縛る手筋を借りる |
 

@@ -1,8 +1,7 @@
 # 23. CameraSystem — カメラシステム設計
 
-> ステータス: 要件確定・実装前 (2026-07-07)
-> 前提資料: [03. DI](03-di.md) / [06. UI 管理](06-ui.md) / [16. Update 基盤](16-update-architecture.md) / [21. SceneStreaming](21-scene-streaming.md)
-> 関連計画書: `docs/planning/CAMERA_SYSTEM_TDD_PLAN_2026-07-07.md`
+> ステータス: 実装済み。§10 の受け入れ条件 CA-1〜CA-5 は EditMode 検証済み・Play 目視判定が未了
+> 前提資料: [03. DI](03-di.md) / [06. UI 管理](06-ui.md) / [21. SceneStreaming](21-scene-streaming.md) / [UpdateSystem 正本](../../../../docs/updater/UPDATER_CURRENT_SPEC.md)
 
 ---
 
@@ -69,7 +68,7 @@
 | D-3 | **View を第一級概念とする**。分割画面・PiP・RT 描画は全て「View の追加」で表現する | 「どの画面に出すか（ルーティング）」と「どのカメラが勝つか（優先度）」は直交概念。Cinemachine 3 系が Channel を Priority と別軸で導入したのと同じ判断 |
 | D-4 | **View 内は少数レイヤー × スタックでアクティブカメラを決定する**。Push/Pop はハンドル（`IDisposable`）方式 | UISystem（6 レイヤー + Stack）と同じ規律。カットシーン終了で自動的に元のカメラへ戻る、が構造的に保証される |
 | D-5 | **Cinemachine の Priority / Channel 数値は公開 API に出さない**。バックエンド内部の実装詳細に隠蔽する | Priority int の調整合戦（100 vs 101 問題）を構造的に排除する。勝者決定は純 C# のスタックポリシーが唯一のオーナー |
-| D-6 | **スタックポリシー・フラスタム計算・Modifier 合成は純 C#**。MonoBehaviour / Cinemachine 型に依存しない | `WorldStreamingController` と同じテスト戦略。バックエンドは翻訳のみを行う薄い層に保つ |
+| D-6 | **スタックポリシー・フラスタム計算・Modifier 合成は純 C#**。MonoBehaviour / Cinemachine 型に依存しない | `WorldStreamingController` と同じテスト戦略。バックエンドは翻訳のみを行う薄い層に保つ。**施行結果として Cinemachine 参照は `OneStarMaker.Runtime.asmdef`（と `OneStarMaker.Tests.asmdef`）のみ。Foundation には足さない** |
 | D-7 | View 毎に `CameraViewSnapshot`（フラスタム 6 平面・速度含む）を公開する。**ブレンド中は遷移先 POV も公開する** | SceneStreaming の注視点・先読み入力（§9）。ブレンド完了を待たずに遷移先エリアのプリフェッチを開始できる |
 
 ### 3.2 却下案
@@ -133,7 +132,7 @@ flowchart TB
 | F-3 | 論理カメラ毎に描画設定を持てる: FOV・near/far・cullingMask・VolumeProfile。アクティブ化に伴い View の実 Camera / Volume へ反映される |
 | F-4 | View を複数同時に持てる。出力先は画面 Viewport Rect または RenderTexture。分割画面 = 全画面外の Rect を持つ View の追加、ミニマップ = RT 出力 View に固定論理カメラを 1 枚 Push |
 | F-5 | RT 出力 View は更新頻度（毎フレーム / N フレーム毎 / 手動）を指定できる |
-| F-6 | Modifier スタック: シェイク等を最終 POV へ加算できる。時限 Modifier は減衰完了で自動除去。UI Behavior 計画の `CameraShake`（`UI_MVVM_Behaviour_Plan.md` 外部演出システム）の受け皿となる |
+| F-6 | Modifier スタック: シェイク等を最終 POV へ加算できる。時限 Modifier は減衰完了で自動除去。UI Behavior パイプライン（[06-ui.md §6.17](06-ui.md)）が合成する `CameraShake` の受け皿となる |
 | F-7 | View 毎に `CameraViewSnapshot`（位置・回転・FOV・アスペクト・near/far・フラスタム 6 平面・速度）を公開する。フラスタム計算は純 C# で単体テスト可能 |
 | F-8 | ブレンド中は遷移先論理カメラの POV スナップショットも公開する（SceneStreaming の先読み入力） |
 | F-9 | シーン内に配置（オーサリング）された CinemachineCamera を論理カメラとしてラップ登録できる（カットシーン用カメラのレベル内配置を許容する） |
@@ -218,7 +217,27 @@ Cinemachine（3 系以降、`OutputChannels` を持つ版）を新規パッケ�
 | Modifier 適用 | Brain 更新後（`CinemachineCore.CameraUpdatedEvent` 等）に最終 POV へ加算を反映。Cinemachine Impulse は使わない（バックエンド差し替え可能性を保つため Modifier はフレームワーク概念とする） |
 | 追従・構図 | CinemachineCamera の Follow/LookAt をそのまま使う（本システムは関与しない） |
 
-**制約:** Brain は LateUpdate 駆動のため、スナップショット更新・Modifier 適用の順序は「Brain 更新 → Modifier → Snapshot 確定」を UpdateSystem 上で保証すること（TDD 計画のガードレール参照）。
+### 7.1 更新順序の不変条件（I-1〜I-4）
+
+Brain は LateUpdate 駆動である。UpdateSystem 上で以下をフレーム内で保証すること。**これは実装の任意ではなく契約であり、破ると症状は「クラッシュ」ではなく「見た目が微妙におかしい」形で出るため、テストで固定してある。**
+
+| # | 不変条件 | 破った場合の症状 |
+|---|---|---|
+| I-1 | 1 フレームの処理順は **Brain 更新（ブレンド済み POV 確定）→ Modifier 適用 → Snapshot 確定** | シェイクが 1 フレーム遅れて二重像に見える / Snapshot がシェイク前の値を返し、ストリーミング注視点が揺れない |
+| I-2 | Modifier は実 Camera の Transform を直接恒久変更しない。毎フレーム「Brain 出力 + Modifier 合成」を適用する（**加算の蓄積禁止**） | シェイクの原点ドリフト |
+| I-3 | `Snapshot` / `IncomingSnapshot` は同一フレーム内で自己一貫（途中状態を観測させない） | ストリーミング先読みが不正な位置を読む |
+| I-4 | ハンドル（`CameraStackHandle` / `CameraModifierHandle`）の Dispose は冪等。所有 View 破棄後の Dispose も安全（no-op） | カットシーン終了処理と View 破棄の順序でクラッシュ |
+
+I-2 は UE の CameraModifier と同じ規律。フレーム順序そのものは [UPDATER_CURRENT_SPEC.md](../../../../docs/updater/UPDATER_CURRENT_SPEC.md) の `RunUpdate` → `RunLateUpdate` に従う。
+
+### 7.2 踏みやすい罠（実測）
+
+| 症状 | 原因と対処 |
+|---|---|
+| EditMode で CinemachineBrain がブレンドしない | **Brain の時間駆動は Play 前提。** EditMode では有効化状態と Channel 割当のみ検証し、ブレンドは Play 確認に委ねる |
+| シェイクの原点ドリフト | Modifier が Transform を直接蓄積変更している（**I-2 違反**）。毎フレーム「Brain 出力 + 合成」を適用し直す |
+| Snapshot がシェイク前の値を返す | 更新順序違反（**I-1**）。UpdateSystem 上の駆動順とフック選定を確認する |
+| `DontDestroyOnLoad` 絡みのテスト汚染 | EditMode テストで生成した GameObject は TearDown で必ず破棄。Host のシングルトン再入（二重 `Initialize` は例外）に注意 |
 
 ---
 
@@ -262,9 +281,9 @@ Cinemachine（3 系以降、`OutputChannels` を持つ版）を新規パッケ�
 
 ---
 
-## 11. 実装チケット
+## 11. 実装チケット（施行済み）
 
-チケットの施行表（レッドテスト仕様・ガードレール）は `docs/planning/CAMERA_SYSTEM_TDD_PLAN_2026-07-07.md` を正とする。
+施行時の分割と受入条件の記録。守るべき制約は §3 の決定事項と §7.1 の不変条件に集約済みで、**この表は履歴であって指示ではない**。
 
 | # | 内容 | 受入条件 |
 |---|---|---|

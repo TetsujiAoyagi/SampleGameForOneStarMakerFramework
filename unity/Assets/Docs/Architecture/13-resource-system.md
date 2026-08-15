@@ -1,7 +1,6 @@
 # 13. リソースシステム + メモリバジェット設計
 
-> ステータス: AssetResidentCache(常駐キャッシュ)実装済み。テレメトリ配線/品質降格は次パス (2026-07-05)
-> 優先度: コア API 安定化後に Cache 実装へ進む
+> ステータス: AssetResidentCache（常駐キャッシュ）実装済み。テレメトリ配線 / 品質降格 / Editor 概算ツールは次パス
 
 ---
 
@@ -50,8 +49,11 @@
 | QualityLevel | 4 段階定義（Full / Reduced / Minimum / Unloaded）。STG では Full/Unloaded のみ使用 |
 | 現行コア | `IAssetManagement` + `AssetRegistry` でスコープ付き寿命管理。Addressables 型は公開 API へ出さない |
 | キャッシュ配置 | **常駐キャッシュ方式**。`AssetManagement` 内に統合し、refcount 0 のアセットを `AssetResidentCache` に退避。独立 `IResourceCache` レイヤーは不採用 |
-| バジェット計上 | **キャッシュ内 (refcount 0) のみ**。使用中アセットは計上しない |
-| テレメトリ結合 | `AssetResidentCache.GetSnapshot()` をテレメトリ層がポーリング（配線は次パス）。R3 はプロジェクトに存在しない |
+| バジェット計上 | **キャッシュ内 (refcount 0) のみ**。使用中アセットは計上しない。**総メモリ上限は保証しない**（責務はスコープ設計側） |
+| キャッシュ対象 | `LoadAssetAsync` / `LoadAppAssetSync` のアセットのみ。**シーンと `InstantiateAsync` のインスタンスは対象外** |
+| バジェット未定義の AssetType | キャッシュせず即解放（明示オプトイン方式。バジェットを定義しない限り従来挙動） |
+| 公開 API | `IAssetManagement` は変更しない。既存呼び出し元は無変更で従来挙動のまま |
+| テレメトリ結合 | `AssetResidentCache.GetSnapshot()` をテレメトリ層がポーリング（配線は次パス）。AssetManagement にリアクティブ依存（R3）を持ち込まない判断 |
 
 ---
 
@@ -363,7 +365,7 @@ CacheStatsSnapshot {
 }
 ```
 
-**注:** 当初案の `Observable<CacheEvent>` (R3) 前提は破棄。本プロジェクトに R3 は存在しない。
+**注:** 当初案の `Observable<CacheEvent>` (R3) 前提は破棄。**AssetManagement 層にリアクティブ依存を持ち込まない**という判断であり、`GetSnapshot()` ポーリングで足りる。R3 自体はプロジェクトに導入済みで、UI 層（`HpGaugeViewModel` 等）では使っている。
 
 ### CacheEvent 種別（将来のテレメトリ配線用）
 
@@ -395,31 +397,21 @@ public enum CacheEventType
 
 ---
 
-## 13. 施行 (T9-T15)
+## 13. 施行の記録 (T9-T15)
 
-### 依存グラフ
+> **T12 / T13 は当初案であり、そのままの形では実装していない。** 独立 `IResourceCache` レイヤーは
+> §5 のとおり不採用となり、`AssetManagement` 内の `AssetResidentCache` に統合された（実装は
+> `Runtime/AssetManagement/Cache/`）。この表は当時の分割の記録であって、これから作るものの指示ではない。
 
-```
-T9 (AssetDescription 汎用化 + Interface 定義)
-├── T10 (IBudgetProvider + MemoryBudgetConfig)
-├── T11 (IStreamingProvider + Unity 標準ラッパー)
-├── T12 (IResourceCache + LFU 実装)
-│    └── T13 (SceneDirector 統合)
-├── T14 (メモリテレメトリ) ← T6 にも依存
-└── T15 (Editor: 概算バッチツール)
-```
-
-### 実装順
-
-| Phase | 内容 | Assembly | 新規/変更 |
-|---|---|---|---|
-| T9 | `AssetDescription` 基底、`AssetType`, `QualityLevel`, `ResourceState`, 全 interface | Runtime | 新規 8 + 変更 1 |
-| T10 | `MemoryBudgetConfig` (SO + IBudgetProvider) + AppConfig Override | Runtime | 新規 1 |
-| T11 | `UnityLodGroupProvider`, `UnityTextureStreamingProvider` | Runtime | 新規 2 |
-| T12 | `ResourceCache` (IResourceCache 実装) + `ResourceHandle` | Runtime | 新規 2 |
-| T13 | SceneDirector に IResourceCache 注入・統合 | Runtime | 変更 2 |
-| T14 | CacheEvent → ITelemetrySink 接続 | Runtime | 新規 1 |
-| T15 | Editor: AssetMemoryEstimator バッチツール | Editor | 新規 1 |
+| Phase | 内容 | 結果 |
+|---|---|---|
+| T9 | `AssetDescription` 基底、`AssetType`, `QualityLevel`, `ResourceState`, 全 interface | 施行済み |
+| T10 | `MemoryBudgetConfig` (SO + IBudgetProvider) + AppConfig Override | 施行済み |
+| T11 | `UnityLodGroupProvider`, `UnityTextureStreamingProvider` | 施行済み |
+| T12 | `ResourceCache` (IResourceCache 実装) + `ResourceHandle` | **不採用**。`AssetResidentCache`（`AssetManagement` 内・LFU + 時間減衰）に置き換え |
+| T13 | SceneDirector に IResourceCache 注入・統合 | **不採用**。T12 の変更に伴い不要 |
+| T14 | CacheEvent → ITelemetrySink 接続 | 方式変更。`GetSnapshot()` ポーリング（R3 依存を持ち込まない判断）。配線は次パス |
+| T15 | Editor: AssetMemoryEstimator バッチツール | 未着手 |
 
 ---
 
@@ -430,8 +422,8 @@ T9 (AssetDescription 汎用化 + Interface 定義)
 | LOD 抽象化 | 直接呼び / ILodProvider / 統合 interface | ILodProvider (分離) | LOD と Mip は制御対象が異なる。MeshShader 差替え時に ILodProvider だけ交換可能 |
 | QualityLevel 段階 | 2 / 4 / 連続値 | 4 段階 (STG は 2 のみ使用) | LODGroup の LOD0-2 + Unload に自然にマッピング |
 | バジェット監視頻度 | ロード時のみ / 毎フレーム / 毎秒+ロード時 | 毎秒 + ロード時 | 毎フレームはコスト高、ロード時のみは遅い |
-| Cache と SceneDirector | 内包 / 独立サービス / Cache が包含 | 独立サービス | Scene 以外のアセットもキャッシュ可能。DI で差替え容易 |
-| テレメトリ結合 | Observable(R3) / GetSnapshot ポーリング / delegate | GetSnapshot ポーリング | 本プロジェクトに R3 が無いため Observable 案は破棄。キャッシュはテレメトリに非依存のまま |
+| Cache と SceneDirector | 内包 / 独立サービス / Cache が包含 | **AssetManagement 内の常駐キャッシュ** | 当初は「独立サービス」を採用したが、`AssetRegistry` と台帳が二重化するため撤回（§5 / 下段の「キャッシュ統合方式」が最終判断） |
+| テレメトリ結合 | Observable(R3) / GetSnapshot ポーリング / delegate | GetSnapshot ポーリング | **AssetManagement にリアクティブ依存を持ち込まない**ため Observable 案は破棄（R3 自体は UI 層で使用中）。キャッシュはテレメトリに非依存のまま |
 | バジェット定義場所 | AppConfig のみ / SO のみ / 両方 | SO + AppConfig Override | SO はエディタ調整可能、AppConfig で QA 時にビルドなし変更 |
 | 概算計算 | Import 時自動 / バッチ / ビルド前バリデーション | バッチ + ビルド前バリデーション | Import 頻度が高すぎる。バッチ + バリデーションで忘れ防止 |
 | STG 実装範囲 | Interface のみ / on/off のみ / LFU (2 段階) | LFU (Full/Unloaded) | LFU エビクションは STG でも有用。品質降格は将来有効化 |

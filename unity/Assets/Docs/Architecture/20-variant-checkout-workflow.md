@@ -247,8 +247,6 @@ $env:UNITY_PATH = "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe"
 
 ## 8. 関連ドキュメント
 
-- [Carbon 参照 01 §3.8 — 設計方針宣言](../../../../docs/reference/carbon-engine/01-resources-vs-asset-management.md#38-設計方針宣言--unity-超巨大プロジェクトのつらみを解く) — **なぜ** Variant/checkout を EVE/Carbon モデルごと採らないか（本書は **どうやるか**）
-- [Carbon 参照 01 §3.9 — 巨大チーム向け構想](../../../../docs/reference/carbon-engine/01-resources-vs-asset-management.md#39-巨大チーム向けに足す仕組み構想) — org レイヤ（Catalog Registry / Closure artifact 等）のロードマップ
 - [18. AssetDescription — 目的・有用性・実装](18-asset-description.md) — Variant の定義と第二用途（チェックアウト厳選タグ）
 - [13. リソースシステム + メモリバジェット設計](13-resource-system.md) — ランタイムアセット管理（リモートロード後のキャッシュ等）
 

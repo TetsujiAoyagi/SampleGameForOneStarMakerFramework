@@ -58,7 +58,7 @@ SampleGameProject/
 │   └── ProjectSettings/
 ├── tools/
 │   └── DebugStudio/       .NET 8 デスクトップデバッグスイート
-└── docs/                  設計・計画ドキュメント(ルート由来の md)
+└── docs/                  現況を説明する設計ドキュメント
 ```
 
 ## 環境
@@ -90,8 +90,11 @@ dotnet run --project src/DebugStudio.App/DebugStudio.App.csproj
 
 ## ドキュメント
 
-- Unity 内メイン設計書: `unity/Assets/ARCHITECTURE.md`
-- アーキテクチャ詳細: `unity/Assets/Docs/Architecture/`
-- UpdateSystem 正本仕様: `docs/updater/UPDATER_CURRENT_SPEC.md`
-- Carbon Engine 設計参照（パターン比較・コード非移植）: `docs/reference/carbon-engine/README.md`
-- 外部参照深掘り引き継ぎ（YooAsset / UnityStarter 等）: `docs/reference/HANDOFF.md`
+- このリポジトリが何を主張しているか: [`docs/GOALS_AND_STRENGTHS.md`](docs/GOALS_AND_STRENGTHS.md)
+- Unity 内メイン設計書: [`unity/Assets/ARCHITECTURE.md`](unity/Assets/ARCHITECTURE.md)
+- アーキテクチャ詳細: [`unity/Assets/Docs/Architecture/`](unity/Assets/Docs/Architecture/)
+- UpdateSystem 正本仕様: [`docs/updater/UPDATER_CURRENT_SPEC.md`](docs/updater/UPDATER_CURRENT_SPEC.md)
+
+コミットされているドキュメントは**現況を説明するものだけ**である。計画書・外部フレームワーク比較・発表資料は作者の手元にのみ置き、リポジトリには含めない。
+
+例外は `docs/handoff/` で、ここには**進行中のスライス 1 本分の作業指示だけ**が入る（実装を別セッション / 別ツールへ渡すため git worktree に持っていく必要がある）。マージ時に恒久的な内容を `Docs/Architecture/` へ移してから削除する。方針の正本は [`docs/README.md`](docs/README.md)。

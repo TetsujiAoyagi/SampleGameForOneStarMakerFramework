@@ -27,4 +27,5 @@ Unity と DebugStudio が共有する **wire 契約の正本** です。MessageP
 | `fixtures/proto00/` | バイト互換 golden（PROTO-00） |
 | `SCHEMA.md` | 型システムのメモ |
 
-詳細方針: `docs/planning/DEBUGSOCKET_PROTOCOL_YAML_CODEGEN_HANDOFF_2026-08-06.md`
+この YAML 群が wire 契約の正本であり、Unity 側 / DebugStudio 側の DTO は
+`tools/protocol-codegen` がここから生成する。手書きで両側を編集しないこと。

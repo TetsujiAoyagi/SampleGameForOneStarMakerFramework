@@ -1,7 +1,7 @@
 # 24. RenderingSystem — レンダリングシステム構想
 
 > ステータス: 構想段階・骨子（実装前・要件未確定）(2026-07-08)
-> 前提資料: [13. リソースシステム](13-resource-system.md) / [16. Update 基盤](16-update-architecture.md) / [21. SceneStreaming](21-scene-streaming.md) / [23. CameraSystem](23-camera-system.md)
+> 前提資料: [13. リソースシステム](13-resource-system.md) / [UpdateSystem 正本](../../../../docs/updater/UPDATER_CURRENT_SPEC.md) / [21. SceneStreaming](21-scene-streaming.md) / [23. CameraSystem](23-camera-system.md)
 > 関連計画書: なし（TDD 計画は判定ゲート（§5）の結果を踏まえて作成する）
 
 ---

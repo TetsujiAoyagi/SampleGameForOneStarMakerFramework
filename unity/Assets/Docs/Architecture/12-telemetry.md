@@ -165,7 +165,9 @@ public interface ITelemetrySink
 }
 ```
 
-`TelemetryRecord` は immutable struct。`TelemetryStartType` を「操作種別」、`TelemetryTagType` を「異常/補助分類」に分離し、数値 detail は `Metadata` に寄せる。
+`TelemetryRecord` は immutable struct。`TelemetryStartType` を「操作種別」、`TelemetryTagType` を「異常/補助分類」に分離する。
+
+> **数値 detail の置き場は Contract v3 で変わった。** 新しい数値は [28-telemetry-contract-v3.md](28-telemetry-contract-v3.md) の `payload` に入れる。フラットな `Metadata` は deprecated 併記中（削除は TC-09）。ここに数値を足すと §28 §1.1 の 0 埋め汚染が戻る。
 
 ### 4.4 ZLogger 経由の telemetry transport
 

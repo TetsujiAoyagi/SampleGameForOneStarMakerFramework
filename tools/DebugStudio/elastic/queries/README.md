@@ -57,8 +57,10 @@ ES|QL は `//` 行コメントと改行をそのまま受け付けるので、**
 構文エラーではない。
 
 発生源の `DebugProfilerView` は `UIView` だが、プロジェクト全体で呼び出し側が 1 つも無く、
-Debug レイヤーに積まれることが無い。詳細と対応方針は
-[`docs/planning/KIBANA_DASHBOARD_CONTENT_HANDOFF_2026-08-11.md`](../../../../docs/planning/KIBANA_DASHBOARD_CONTENT_HANDOFF_2026-08-11.md) §7 を見ること。
+Debug レイヤーに積まれることが無い。**クエリを直しても直らない** — emit 側を配線するまで 0 行のままである。
+
+なお `DebugProfilerView` は uGUI レガシー経路の View であり、現行の `UIScene` に uGUI Canvas が無い。
+常駐させても描画されないため、配線は「Canvas を用意する」か「UI Toolkit へ移す」かの判断を伴う。
 
 ## 書くときに踏む罠（実測で踏んだもの）
 
