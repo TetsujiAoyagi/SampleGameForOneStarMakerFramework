@@ -461,6 +461,20 @@ CLAUDE.md の「PR を立てて cursor[bot] のレビューを受けるまでを
 
 **S2 の教訓: R-2 を直したときに「同じ形の穴が他にないか」を横展開しなかった。** 「範囲外だが保持する `HandAuthored`」という新しい状態を作った以上、その状態を知らないコードは `SyncSceneGraph` 以外にもあり得た。Phase C は 1 件直したら同型を探すこと。
 
+#### 再レビュー（2 巡目）
+
+**新規ブロッカーなし。4 件とも対応済みと確認され、「S-1 としてはマージしてよい」と評価された。** 残った nit を 1 件だけ追加で閉じた:
+
+| # | 指摘 | 対応 |
+|---|---|---|
+| N1 | `KeepRetainedOutOfGridSceneGraphNodes` が `!IsDeletable` だけで keep していた。`IsDeletable` は `existingStates` に無い孤立座標でも false を返すため、**Cell フォルダがもう無い stray な `SceneNodeData` まで prune 対象外になっていた**（このスライス以前は刈られていた） | Cell フォルダの実在（`AssetDatabase.IsValidFolder`）で絞った。A-7 を再実行し `kept=17` / ノード生存 / プローブ 8/8 を再確認 |
+
+**未対応のまま残す nit（S-2 の範囲。次のスライスの実装者へ）:**
+
+- **保持したノードに `totalGraph.AddNode` / `EnsureEdge` を張り直していない。** identity を keep に足すだけなので、縮小前のグラフにノードが残っている限りは問題にならない。**グラフ側が先に落ちている状態だと `.asset` だけ残って Total に載らない。** S-2 で縮小を本番運用するなら明示的に AddNode + World/Cell 辺を張ること
+- `HandEditProbe` の置き場（`SampleGame.DependOnAll.Editor` にあり `EditorApplication.Exit` する）。S-2 完了時に生成器と一緒に削除する前提
+- `CollectExistingStates(WorldGridDefinition definition)` の `definition` が未使用。`CellGridSpec.Origin` / `CellSize` も `Compute` では未使用
+
 ### 7.8 確認していないこと
 
 - **Play モードでの実挙動を一度も見ていない。** Streaming が実際に動くか、`SessionWorldStreamingDriver` が 16 セルを正しく要求するかは EditMode テストと生成器の出力でしか担保していない
