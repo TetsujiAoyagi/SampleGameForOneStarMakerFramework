@@ -132,7 +132,7 @@ flowchart TB
 | F-3 | 論理カメラ毎に描画設定を持てる: FOV・near/far・cullingMask・VolumeProfile。アクティブ化に伴い View の実 Camera / Volume へ反映される |
 | F-4 | View を複数同時に持てる。出力先は画面 Viewport Rect または RenderTexture。分割画面 = 全画面外の Rect を持つ View の追加、ミニマップ = RT 出力 View に固定論理カメラを 1 枚 Push |
 | F-5 | RT 出力 View は更新頻度（毎フレーム / N フレーム毎 / 手動）を指定できる |
-| F-6 | Modifier スタック: シェイク等を最終 POV へ加算できる。時限 Modifier は減衰完了で自動除去。UI Behavior 計画の `CameraShake`（`UI_MVVM_Behaviour_Plan.md` 外部演出システム）の受け皿となる |
+| F-6 | Modifier スタック: シェイク等を最終 POV へ加算できる。時限 Modifier は減衰完了で自動除去。UI Behavior パイプライン（[06-ui.md §6.17](06-ui.md)）が合成する `CameraShake` の受け皿となる |
 | F-7 | View 毎に `CameraViewSnapshot`（位置・回転・FOV・アスペクト・near/far・フラスタム 6 平面・速度）を公開する。フラスタム計算は純 C# で単体テスト可能 |
 | F-8 | ブレンド中は遷移先論理カメラの POV スナップショットも公開する（SceneStreaming の先読み入力） |
 | F-9 | シーン内に配置（オーサリング）された CinemachineCamera を論理カメラとしてラップ登録できる（カットシーン用カメラのレベル内配置を許容する） |
