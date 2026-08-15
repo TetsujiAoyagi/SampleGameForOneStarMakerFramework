@@ -61,6 +61,22 @@ SampleGameProject/
 └── docs/                  現況を説明する設計ドキュメント
 ```
 
+## ブランチ
+
+**統合先は `develop`。`main` は Initial commit しか持たない。**
+
+| ブランチ | 役割 |
+|---|---|
+| `develop` | 実質の既定ブランチ。PR の base は常にこれ |
+| `main` | Initial commit のみ。リリースタグ用に空けてある |
+| `feat/*` `fix/*` `chore/*` | 1スライス = 1ブランチ。`develop` から切る |
+
+```bash
+gh pr create --base develop
+```
+
+`--base` を省くとホスティング側の既定（`main`）に向いてしまい、`develop` 以降の全履歴が差分に乗ってレビュー不能になる。
+
 ## 環境
 
 
