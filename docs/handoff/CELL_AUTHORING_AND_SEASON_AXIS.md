@@ -367,6 +367,32 @@ TDD で回すこと: スケルトン + レッドを Unity バッチで確認し�
 
 ## 7. Phase C レビュー
 
+### 7.1 B1（スケルトン + テスト）の TDD レッド確認 — Claude Code 実行 / 2026-08-16
+
+Grok は `unity/Library` の無い隔離 worktree で作業するため Unity バッチを回せない。HANDOFF §3 の「レッドを Unity バッチで確認してから実装する」はレビュー側が代行した。
+
+`pwsh tools/run-tests.ps1`（コミット `5c3de68`）:
+
+```
+total : 472   passed : 464   failed : 8   skipped : 0
+```
+
+失敗 8 件はすべて `CellPopulationPlanTests` の `System.NotImplementedException`。**期待どおりのレッド。**
+
+- **コンパイルは通っている** — 既存 464 本が実行され全て緑。asmdef への `SampleGame.DependOnAll.Editor` / `SampleGame.InGame` 追加は機能している
+- テスト 0 件ではないので、コンパイルエラーが 0 件として現れる罠には該当しない
+- `record` は使われていない（grep 済み）
+
+**確認していないこと:** `CellPopulationPlan.Compute` の中身は未実装なので、判定ロジックの正しさは一切検証していない。`WorldCellStreamingSliceCreator` 側は未着手。
+
+### 7.2 B1 への差し戻し（B2 に同梱）
+
+| # | 指摘 |
+|---|---|
+| R-1 | **T-3 が Environment 側を assert していない。** `HandAuthored` かつ Environment `.unity` が**存在しない**とき Environment が `Populate` になることを確認するテストが 1 本も無い。現状のテスト 8 本は「HandAuthored なら Environment は常に Skip」という実装でも全部通ってしまい、その実装だと**初回スキャフォールドで Environment の中身が永久に生成されない**。T-3 に `EnvironmentAction == Populate` の assert を足すこと |
+
+### 7.3 B2 レビュー
+
 （未記入）
 
 ---
