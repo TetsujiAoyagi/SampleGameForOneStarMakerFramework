@@ -306,7 +306,10 @@ namespace SampleGame.DependOnAll.Editor
                         continue;
                     }
 
-                    if (!plan.IsDeletable(cellCoord))
+                    // IsDeletable は existingStates に無い孤立座標でも false を返すので、
+                    // フォルダ実在で絞り、ディスク上に無い stray ノードは Prune に刈らせる。
+                    var cellFolder = $"{CellsRootFolder}/{CellIdentity.Format(cellCoord.x, cellCoord.y)}";
+                    if (!plan.IsDeletable(cellCoord) && AssetDatabase.IsValidFolder(cellFolder))
                     {
                         keepIdentities.Add(id);
                     }
@@ -325,7 +328,10 @@ namespace SampleGame.DependOnAll.Editor
                     continue;
                 }
 
-                if (!plan.IsDeletable(envCoord))
+                // IsDeletable は existingStates に無い孤立座標でも false を返すので、
+                // フォルダ実在で絞り、ディスク上に無い stray ノードは Prune に刈らせる。
+                var envCellFolder = $"{CellsRootFolder}/{CellIdentity.Format(envCoord.x, envCoord.y)}";
+                if (!plan.IsDeletable(envCoord) && AssetDatabase.IsValidFolder(envCellFolder))
                 {
                     keepIdentities.Add(id);
                 }
