@@ -9,7 +9,6 @@ namespace OneStarMaker.Tests.Editor
 {
     /// <summary>
     /// CellPopulationPlan の純関数テスト（AssetDatabase 非依存）。
-    /// 本体未実装のためレッドが期待値。
     /// </summary>
     [TestFixture]
     public sealed class CellPopulationPlanTests
@@ -98,6 +97,24 @@ namespace OneStarMaker.Tests.Editor
         }
 
         [Test]
+        public void T2c_HandAuthored_WithEnvironmentSceneButNoAuthoredRoot_PopulatesEnvironment()
+        {
+            // .unity だけあって AuthoredRoot が無い半端状態 → Environment は Populate（自己回復）
+            var existing = State(
+                0, 0,
+                hasCellAuthoredRoot: true,
+                hasEnvironmentScene: true,
+                hasEnvironmentAuthoredRoot: false);
+            Assert.That(CellAuthoringPolicy.Resolve(0, 0), Is.EqualTo(CellAuthoringPolicyKind.HandAuthored));
+
+            var plan = CellPopulationPlan.Compute(Grid4x4(), new[] { existing });
+            var entry = RequirePopulationEntry(plan, 0, 0);
+
+            Assert.That(entry.EnvironmentAction, Is.EqualTo(CellPopulationAction.Populate),
+                "HandAuthored でも Environment AuthoredRoot 無しなら Environment は Populate");
+        }
+
+        [Test]
         public void T3_HandAuthored_WithoutAuthoredRoot_Populates()
         {
             var existing = State(2, 0, hasCellAuthoredRoot: false, hasEnvironmentScene: false);
@@ -108,6 +125,8 @@ namespace OneStarMaker.Tests.Editor
 
             Assert.That(entry.CellAction, Is.EqualTo(CellPopulationAction.Populate),
                 "HandAuthored かつ AuthoredRoot なしは初回スキャフォールドとして Populate");
+            Assert.That(entry.EnvironmentAction, Is.EqualTo(CellPopulationAction.Populate),
+                "hasEnvironmentScene: false なら Environment も Populate（初回スキャフォールド）");
         }
 
         [Test]

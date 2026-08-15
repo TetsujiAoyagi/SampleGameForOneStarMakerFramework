@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using OneStarMaker.Runtime.SceneSystem;
 using UnityEngine;
 
 namespace SampleGame.DependOnAll.Editor.Cells
@@ -138,9 +139,89 @@ namespace SampleGame.DependOnAll.Editor.Cells
             CellGridSpec grid,
             IReadOnlyList<CellExistingState> existingStates)
         {
-            _ = grid;
-            _ = existingStates;
-            throw new NotImplementedException();
+            _ = existingStates ?? throw new ArgumentNullException(nameof(existingStates));
+
+            var existingByCoordinate = new Dictionary<Vector2Int, CellExistingState>(existingStates.Count);
+            for (var i = 0; i < existingStates.Count; i++)
+            {
+                var state = existingStates[i];
+                existingByCoordinate[state.Coordinate] = state;
+            }
+
+            var populationEntries = new List<CellPopulationEntry>(grid.GridWidth * grid.GridHeight);
+            for (var y = 0; y < grid.GridHeight; y++)
+            {
+                for (var x = 0; x < grid.GridWidth; x++)
+                {
+                    var coordinate = new Vector2Int(x, y);
+                    var hasCellAuthoredRoot = false;
+                    var hasEnvironmentAuthoredRoot = false;
+                    if (existingByCoordinate.TryGetValue(coordinate, out var existing))
+                    {
+                        hasCellAuthoredRoot = existing.HasCellAuthoredRoot;
+                        hasEnvironmentAuthoredRoot = existing.HasEnvironmentAuthoredRoot;
+                    }
+
+                    ResolveActions(
+                        coordinate,
+                        hasCellAuthoredRoot,
+                        hasEnvironmentAuthoredRoot,
+                        out var cellAction,
+                        out var environmentAction);
+
+                    populationEntries.Add(new CellPopulationEntry(
+                        identity: CellIdentity.Format(x, y),
+                        coordinate: coordinate,
+                        cellAction: cellAction,
+                        environmentAction: environmentAction));
+                }
+            }
+
+            var deletionEntries = new List<CellDeletionEntry>();
+            for (var i = 0; i < existingStates.Count; i++)
+            {
+                var state = existingStates[i];
+                var c = state.Coordinate;
+                var outOfGrid = c.x < 0 || c.y < 0 || c.x >= grid.GridWidth || c.y >= grid.GridHeight;
+                if (!outOfGrid)
+                {
+                    continue;
+                }
+
+                // HandAuthored は範囲外でも削除しない。負座標では Format 不可のため Identity を流用する。
+                if (CellAuthoringPolicy.Resolve(c) == CellAuthoringPolicyKind.HandAuthored)
+                {
+                    continue;
+                }
+
+                deletionEntries.Add(new CellDeletionEntry(state.Identity, c));
+            }
+
+            return new CellPopulationPlan(populationEntries, deletionEntries);
+        }
+
+        private static void ResolveActions(
+            Vector2Int coordinate,
+            bool hasCellAuthoredRoot,
+            bool hasEnvironmentAuthoredRoot,
+            out CellPopulationAction cellAction,
+            out CellPopulationAction environmentAction)
+        {
+            var policy = CellAuthoringPolicy.Resolve(coordinate);
+            if (policy == CellAuthoringPolicyKind.Generated)
+            {
+                cellAction = CellPopulationAction.Populate;
+                environmentAction = CellPopulationAction.Populate;
+                return;
+            }
+
+            // HandAuthored: Cell / Environment は独立判定（AuthoredRoot の有無のみ）
+            cellAction = hasCellAuthoredRoot
+                ? CellPopulationAction.Skip
+                : CellPopulationAction.Populate;
+            environmentAction = hasEnvironmentAuthoredRoot
+                ? CellPopulationAction.Skip
+                : CellPopulationAction.Populate;
         }
     }
 }
