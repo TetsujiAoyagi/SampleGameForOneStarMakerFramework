@@ -422,13 +422,13 @@ B↔C は **4 巡**した（上限内）。R-2 / R-3 は**実機を回すまで�
 
 | # | 結果 | 証拠 |
 |---|---|---|
-| A-1 | ✅ | `pwsh tools/run-tests.ps1` → **475 / 475 passed, failed 0**（exit 0）。内訳は既存 464 + 新規 11（T-1〜T-9 + T-2b + T-2c）。テスト 0 件ではない |
+| A-1 | ✅ | `pwsh tools/run-tests.ps1` → **477 / 477 passed, failed 0**（exit 0）。内訳は既存 464 + 新規 13（T-1〜T-11 + T-2b + T-2c）。テスト 0 件ではない |
 | **A-3** | ✅ | `HandEditProbe.StampHandEdits` で南辺 4 Cell の `AuthoredRoot` 配下と Environment 4 枚の `AuthoredRoot` 配下に計 8 個の GameObject を置き、生成器を実行 → `VerifyHandEdits` が **exit 0（8/8 生存）**。縮小（3 幅）を挟んでも 8/8 |
 | A-2 | ✅ | クリーンな作業ツリーから生成器を 1 回実行した `git status --porcelain` に、**`Cell_0_0`〜`Cell_3_0` と `Environment_0_0`〜`Environment_3_0` が 1 つも現れない**。生成器のログも `Populated authored visuals in 12 cell scenes (skipped=4)` |
 | A-4' | ✅ | 目視。§7.3 参照 |
 | A-5 | ✅ | grep で `DetachSeasonLevels` / `IsSeasonLevel` / `SeasonLevelIdentities` / `MigrateLegacyLayout` / `CleanupLegacyFolders` / `MoveIfMissing` / `TryDeleteAssetFolderIfEmpty` がヒットしない。`DeleteOutOfGridCellFolders` は残っている |
 | A-6 | ✅ | `OneStarMaker.Tests.Streaming` を含む既存 464 本に回帰なし |
-| A-7 | ✅ | `WorldCellCatalog.GridWidth` を一時的に 3 にして生成器を実行 → `範囲外だが HandAuthored なので保持した: Cell_3_0` を出力し、`Cell_3_1`〜`Cell_3_3` は削除。`Cells/Cell_3_0/` は残り、**その中の手編集プローブも生存**（R-2 修正後）。const を 4 に戻して再実行し 16 セルに復元 |
+| A-7 | ✅ | `WorldCellCatalog.GridWidth` を一時的に 3 にして生成器を実行 → `範囲外だが HandAuthored なので保持した: Cell_3_0` を出力し、`Cell_3_1`〜`Cell_3_3` は削除。`Cells/Cell_3_0/` は残り、**その中の手編集プローブも生存**（R-2 修正後）。**SceneGraph ノード `Cell_3_0.asset` / `Environment_3_0.asset` も生存**（§7.7 S2 修正後、`kept=17`）。const を 4 に戻して再実行し 16 セルに復元 |
 
 **A-7 の判定方法は §6.0 の裁定どおり `WorldCellCatalog` の const 側を触った。** `WorldGridDefinition.asset` を直接書き換える旧手順では `EnsureGridDefinition` に上書きされて検証できない。
 
@@ -446,7 +446,22 @@ grep した結果、`WorldCellStreamingSliceCreator.cs` に `??` が 8 箇所あ
 
 **これは既存の負債ですらなく、偽陽性である。** ただし「grep して評価した」ことは記録しておく（次のレビュアが同じ grep で同じ 8 件を踏むため）。
 
-### 7.7 確認していないこと
+### 7.7 cursor[bot]（PR #21）の指摘と対応 — 唯一の非 Claude / 非 Grok の目
+
+CLAUDE.md の「PR を立てて cursor[bot] のレビューを受けるまでを 1 スライスの完了条件に含める」に従って `@cursoragent code-review` を投げた。**Opus 5（C）と Codex 5.3 High（C'）が揃って見落としたものを 4 件拾った。** §8 の C' が「指摘なし」で終わっていることと合わせて読むこと。
+
+| # | 重大度 | 指摘 | 対応 |
+|---|---|---|---|
+| B1 | **Blocker** | **PR の base が `main`。** `origin/main` は `5b84409 Initial commit` だけで、実質の統合先は `develop`（main から 143 コミット先）。このままマージすると develop 以降の全履歴が main に乗り、Files changed も 2690 files でレビュー不能だった | base を `develop` に付け替えた（51 files）。コード変更なし |
+| S1 | Should-fix | `CellExistingState.HasEnvironmentScene` が死データ。`Compute` は `HasEnvironmentAuthoredRoot` しか読んでいないのに、T-2b の名前と assert 文言は「`.unity` が既存なら Skip」のままだった | XML doc に判定へ使わない理由を明記。T-2b をリネームし文言を修正。**Cell Populate × Environment Skip の独立行列を T-10 で固定** |
+| S2 | Should-fix | **範囲外の `HandAuthored` の `SceneNodeData` はまだ刈られる。** `.unity` は守るのに `SyncSceneGraph` の `keepIdentities` が範囲内しか見ておらず、`PruneStaleCellSceneGraphNodes` が `Cell_3_0` / `Environment_3_0` のノードを消していた。**R-2 と完全に同じ形の穴** | `CellPopulationPlan.IsDeletable` を足して keep 判定を計画側へ寄せた（T-11）。実機で `kept=17`、`Cell_3_0.asset` / `Environment_3_0.asset` の生存を確認 |
+| S3 | Should-fix | `CreateEnvironmentSprouts` が計画ではなく `EnvironmentSproutCells` を走査するため、親 Cell が削除済みだと `FileNotFoundException` で生成器が落ちる。現在は sprout == HandAuthored で一致しているため潜在 | 親 Cell の `.asset` が無い座標は `continue`（正常系）。`skipped` をログに追加 |
+
+**B1 は Phase C（Claude Code）の手順ミス。** リポジトリの既定ブランチが `main` だという前提で PR を立てた。`docs/` にも CLAUDE.md にも「統合先は `develop`」と書かれておらず、C' も HANDOFF しか読まないので気づけなかった。**恒久対策は Phase D で `docs/` 側に統合先を明記すること。**
+
+**S2 の教訓: R-2 を直したときに「同じ形の穴が他にないか」を横展開しなかった。** 「範囲外だが保持する `HandAuthored`」という新しい状態を作った以上、その状態を知らないコードは `SyncSceneGraph` 以外にもあり得た。Phase C は 1 件直したら同型を探すこと。
+
+### 7.8 確認していないこと
 
 - **Play モードでの実挙動を一度も見ていない。** Streaming が実際に動くか、`SessionWorldStreamingDriver` が 16 セルを正しく要求するかは EditMode テストと生成器の出力でしか担保していない
 - **`git clone` 直後の完全な初回生成を通していない。** R-3 の修正は「グリッド縮小 → 拡大で 3 セルを新規作成する」経路で確認したもので、`Cells/` フォルダ自体が存在しない状態からの実行は試していない。同じ `ApplySceneFiles` の経路を通るので直っているはずだが、**未検証**
