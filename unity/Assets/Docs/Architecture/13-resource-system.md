@@ -365,7 +365,7 @@ CacheStatsSnapshot {
 }
 ```
 
-**注:** 当初案の `Observable<CacheEvent>` (R3) 前提は破棄。本プロジェクトに R3 は存在しない。
+**注:** 当初案の `Observable<CacheEvent>` (R3) 前提は破棄。**AssetManagement 層にリアクティブ依存を持ち込まない**という判断であり、`GetSnapshot()` ポーリングで足りる。R3 自体はプロジェクトに導入済みで、UI 層（`HpGaugeViewModel` 等）では使っている。
 
 ### CacheEvent 種別（将来のテレメトリ配線用）
 
@@ -422,8 +422,8 @@ public enum CacheEventType
 | LOD 抽象化 | 直接呼び / ILodProvider / 統合 interface | ILodProvider (分離) | LOD と Mip は制御対象が異なる。MeshShader 差替え時に ILodProvider だけ交換可能 |
 | QualityLevel 段階 | 2 / 4 / 連続値 | 4 段階 (STG は 2 のみ使用) | LODGroup の LOD0-2 + Unload に自然にマッピング |
 | バジェット監視頻度 | ロード時のみ / 毎フレーム / 毎秒+ロード時 | 毎秒 + ロード時 | 毎フレームはコスト高、ロード時のみは遅い |
-| Cache と SceneDirector | 内包 / 独立サービス / Cache が包含 | 独立サービス | Scene 以外のアセットもキャッシュ可能。DI で差替え容易 |
-| テレメトリ結合 | Observable(R3) / GetSnapshot ポーリング / delegate | GetSnapshot ポーリング | 本プロジェクトに R3 が無いため Observable 案は破棄。キャッシュはテレメトリに非依存のまま |
+| Cache と SceneDirector | 内包 / 独立サービス / Cache が包含 | **AssetManagement 内の常駐キャッシュ** | 当初は「独立サービス」を採用したが、`AssetRegistry` と台帳が二重化するため撤回（§5 / 下段の「キャッシュ統合方式」が最終判断） |
+| テレメトリ結合 | Observable(R3) / GetSnapshot ポーリング / delegate | GetSnapshot ポーリング | **AssetManagement にリアクティブ依存を持ち込まない**ため Observable 案は破棄（R3 自体は UI 層で使用中）。キャッシュはテレメトリに非依存のまま |
 | バジェット定義場所 | AppConfig のみ / SO のみ / 両方 | SO + AppConfig Override | SO はエディタ調整可能、AppConfig で QA 時にビルドなし変更 |
 | 概算計算 | Import 時自動 / バッチ / ビルド前バリデーション | バッチ + ビルド前バリデーション | Import 頻度が高すぎる。バッチ + バリデーションで忘れ防止 |
 | STG 実装範囲 | Interface のみ / on/off のみ / LFU (2 段階) | LFU (Full/Unloaded) | LFU エビクションは STG でも有用。品質降格は将来有効化 |

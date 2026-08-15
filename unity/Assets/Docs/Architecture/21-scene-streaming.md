@@ -1,6 +1,6 @@
 # 21. SceneStreaming — セルストリーミング設計
 
-> ステータス: 実装済み（`WorldStreamingController` + `SessionWorldStreamingDriver`）。HLOD / Proxy ティアは未着手
+> ステータス: コア実装済み（T-01〜T-06.5: `WorldStreamingController` + `SessionWorldStreamingDriver`）。**T-07〜T-09（実証スライス・テレメトリ・受入判定）は未了。** HLOD / Proxy ティアは未着手
 > 前提資料: [05. シーン管理](05-scene.md) / [13. リソースシステム](13-resource-system.md)
 > 関連: HLOD / Proxy ティアの詳細は将来の §22 に分離する（本書はインターフェース予約のみ）
 
@@ -265,7 +265,7 @@ Tick(focusPosition):                       // UpdateSystem 駆動。毎フレー
 | T-05 | ✅ World Cell Generator（エディタツール、§6） | グリッド定義から N×N のシーン + SceneResource + Map 登録が生成される |
 | T-06 | ✅ `ISceneStreamingBackend` + `WorldStreamingController`（§8） | FakeBackend による純 C# テストで差分発火・ヒステリシス・in-flight 上限を検証 |
 | T-06.5 | ✅ Controller × 本物 SceneDirector 統合テスト（`SceneDirectorStreamingBackend`） | 施行表 T-06.5 の 5 テストが全グリーン（A-3 / A-5 の EditMode 版） |
-| T-07 | 実証スライス（10×10 グリッド + フライスルーカメラ + 簡易コンテンツ） | Editor Play で横断できる |
+| T-07 | 実証スライス（**4×4 グリッド / セル 250m** + Player + 簡易コンテンツ） | Editor Play で横断できる |
 | T-08 | テレメトリ計測 + DebugStudio でのセル状態観測 | §9 の計測値が取得できる |
 | T-09 | 受け入れ判定（§9）と撤退判断（§11） | 判定記録を本書に追記 |
 

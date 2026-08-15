@@ -91,6 +91,10 @@ cd $env:LOCALAPPDATA\DebugStudio\elastic-artifacts\commands
 2. Telemetry パネルの **Elastic L1 Verify** で env 設定有無と retained preview を確認
 3. **Elastic Preflight** → **Elastic Push**
 
+> **L1 が送るのは retained 分だけで、上限は 256 件**（`TelemetryStore` の `retainedCapacity` /
+> `ElasticTelemetryPushService.RetainedTelemetryCapacityHint`）。**セッション全体の代表ではない**ので、
+> 件数を根拠にした判断には使わない。0 件なら `_bulk` を投げない。全量が要るなら L2（Filebeat）を使う。
+
 失敗しても L0 NDJSON 永続化や受信処理は継続します。
 
 ## 4. L2 Ship — E2E 検証（Unity → DebugStudio → NDJSON → Filebeat → Kibana）
@@ -146,6 +150,11 @@ dotnet run --project tools/DebugStudio/src/DebugStudio.ElasticArtifactGen
 ```
 
 既定 input root は `%LocalAppData%\DebugStudio` です。
+
+> 生成される YAML は **`setup.template.enabled: false` / `setup.ilm.enabled: false`** を含む
+> （`ElasticFilebeatConfigWriter.cs`）。**この 2 行を有効化しないこと。** Filebeat の自動 template が
+> §2 で bootstrap した index template と衝突し、`kind` / `payload.*` の mapping が壊れる。
+> 症状は「エラーなしで全行 null」なので気づけない（§ mapping 衝突 を参照）。
 
 ## 8. 停止
 

@@ -68,7 +68,7 @@
 | D-3 | **View を第一級概念とする**。分割画面・PiP・RT 描画は全て「View の追加」で表現する | 「どの画面に出すか（ルーティング）」と「どのカメラが勝つか（優先度）」は直交概念。Cinemachine 3 系が Channel を Priority と別軸で導入したのと同じ判断 |
 | D-4 | **View 内は少数レイヤー × スタックでアクティブカメラを決定する**。Push/Pop はハンドル（`IDisposable`）方式 | UISystem（6 レイヤー + Stack）と同じ規律。カットシーン終了で自動的に元のカメラへ戻る、が構造的に保証される |
 | D-5 | **Cinemachine の Priority / Channel 数値は公開 API に出さない**。バックエンド内部の実装詳細に隠蔽する | Priority int の調整合戦（100 vs 101 問題）を構造的に排除する。勝者決定は純 C# のスタックポリシーが唯一のオーナー |
-| D-6 | **スタックポリシー・フラスタム計算・Modifier 合成は純 C#**。MonoBehaviour / Cinemachine 型に依存しない | `WorldStreamingController` と同じテスト戦略。バックエンドは翻訳のみを行う薄い層に保つ |
+| D-6 | **スタックポリシー・フラスタム計算・Modifier 合成は純 C#**。MonoBehaviour / Cinemachine 型に依存しない | `WorldStreamingController` と同じテスト戦略。バックエンドは翻訳のみを行う薄い層に保つ。**施行結果として Cinemachine 参照は `OneStarMaker.Runtime.asmdef`（と `OneStarMaker.Tests.asmdef`）のみ。Foundation には足さない** |
 | D-7 | View 毎に `CameraViewSnapshot`（フラスタム 6 平面・速度含む）を公開する。**ブレンド中は遷移先 POV も公開する** | SceneStreaming の注視点・先読み入力（§9）。ブレンド完了を待たずに遷移先エリアのプリフェッチを開始できる |
 
 ### 3.2 却下案

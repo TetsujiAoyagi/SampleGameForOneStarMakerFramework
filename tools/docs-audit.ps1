@@ -119,9 +119,9 @@ foreach ($rel in $ownMd) {
 }
 
 # --- 検査2: 層をまたぐ参照 --------------------------------------------------
-# 「手元」層と「作業台」層。公開面の md がこれらを指してはいけない。
-$lowerTiers = @(
-    'docs/handoff/',
+# 「手元」層は git 管理外。公開面が指すと clone した人には存在しない先になる。
+# ディレクトリ名の言及自体を禁止する。
+$localTiers = @(
     'docs/planning/',
     'docs/reference/',
     'docs/slides/',
@@ -139,11 +139,23 @@ foreach ($rel in $ownMd) {
     $lineNo = 0
     foreach ($line in (Get-Content -LiteralPath $full -Encoding utf8)) {
         $lineNo++
-        foreach ($tier in $lowerTiers) {
+
+        # 手元層: ディレクトリ名の言及だけでアウト（clone に存在しない先を指すため）
+        $hit = $false
+        foreach ($tier in $localTiers) {
             if ($line -like "*$tier*") {
-                $errors += "[検査2] ${rel}:${lineNo} 公開面が下位層を参照している → $tier"
+                $errors += "[検査2] ${rel}:${lineNo} 公開面が手元層（git 管理外）を参照している → $tier"
+                $hit = $true
                 break
             }
+        }
+        if ($hit) { continue }
+
+        # 作業台: tracked なのでリンク切れにはならない。問題は「一時文書に依存すること」。
+        # したがって個別の HANDOFF ファイルを指すのはアウト、方針としてディレクトリに
+        # 言及するのはセーフ（ルート README は3層を説明する必要がある）。
+        if ($line -match 'docs/handoff/[^/\s)\]`"]+\.md') {
+            $errors += "[検査2] ${rel}:${lineNo} 公開面が個別の HANDOFF に依存している → $($Matches[0])"
         }
     }
 }

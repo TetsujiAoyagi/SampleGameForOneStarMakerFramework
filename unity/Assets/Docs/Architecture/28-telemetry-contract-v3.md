@@ -101,7 +101,7 @@ MessagePack wire 上の `elapsedMs` は型都合で常に存在するが、**exp
 
 1. envelope に `kind` + `payload` を追加（SchemaVersion=3、MessagePack Key 27/28）
 2. 旧フラット欄（CpuTime / ManagedMem 等）は deprecated 併記
-3. 消費者は **payload / kind を正**とする
+3. 消費者は **payload / kind を正**とする。**旧フラット欄は fallback にのみ使う** — 併記中に旧欄を正本として読むと §1.1 の 0 埋め汚染がそのまま戻る。payload にキーが無いのは「欠測」であって「0」ではない
 4. 旧欄削除は TC-09（併記期間終了時）
 
 ---

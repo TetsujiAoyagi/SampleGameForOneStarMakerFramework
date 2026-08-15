@@ -1,6 +1,6 @@
 # 15. テレメトリ要件定義 v2 — ボトルネック検出・メモリ監視
 
-> ステータス: **実装更新済み** (2026-04-29 時点で現行コードに同期)  
+> ステータス: **ボトルネック / メモリ監視の設計は現行。** ただし**レコード契約の正本は [28-telemetry-contract-v3.md](28-telemetry-contract-v3.md)**（kind + payload、段階移行 案 A）。本書の `Metadata` 前提の記述は移行期のものとして読むこと  
 > 前提: [12-telemetry.md](12-telemetry.md) の基盤は custom lightweight span + ZLogger / DebugSocket transport へ更新済み。本ドキュメントはその上に乗る bottleneck / anomaly 設計を記録する。
 
 ---
