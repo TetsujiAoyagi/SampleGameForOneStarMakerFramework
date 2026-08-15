@@ -372,34 +372,35 @@ namespace SampleGame.DependOnAll.Editor
         private static List<CellExistingState> CollectExistingStates(WorldGridDefinition definition)
         {
             var result = new List<CellExistingState>();
-            if (!AssetDatabase.IsValidFolder(CellsRootFolder))
+            if (AssetDatabase.IsValidFolder(CellsRootFolder))
             {
-                return result;
-            }
-
-            var subFolders = AssetDatabase.GetSubFolders(CellsRootFolder);
-            for (var i = 0; i < subFolders.Length; i++)
-            {
-                var folder = subFolders[i].Replace('\\', '/');
-                var folderName = Path.GetFileName(folder);
-                if (!CellIdentity.TryParse(folderName, out var coordinate))
+                var subFolders = AssetDatabase.GetSubFolders(CellsRootFolder);
+                for (var i = 0; i < subFolders.Length; i++)
                 {
-                    continue;
+                    var folder = subFolders[i].Replace('\\', '/');
+                    var folderName = Path.GetFileName(folder);
+                    if (!CellIdentity.TryParse(folderName, out var coordinate))
+                    {
+                        continue;
+                    }
+
+                    var cellScenePath = $"{folder}/{folderName}.unity";
+                    var hasCellRoot = AssetDatabase.LoadAssetAtPath<SceneAsset>(cellScenePath) != null
+                        && SceneHasAuthoredRoot(cellScenePath, DemoCellScene.AuthoredRootName);
+
+                    var envScenePath = $"{folder}/{EnvironmentIdentity.Format(coordinate.x, coordinate.y)}.unity";
+                    var hasEnvScene = AssetDatabase.LoadAssetAtPath<SceneAsset>(envScenePath) != null;
+                    var hasEnvRoot = hasEnvScene
+                        && SceneHasAuthoredRoot(envScenePath, EnvironmentScene.AuthoredRootName);
+
+                    result.Add(new CellExistingState(
+                        folderName, coordinate, hasCellRoot, hasEnvScene, hasEnvRoot));
                 }
-
-                var cellScenePath = $"{folder}/{folderName}.unity";
-                var hasCellRoot = AssetDatabase.LoadAssetAtPath<SceneAsset>(cellScenePath) != null
-                    && SceneHasAuthoredRoot(cellScenePath, DemoCellScene.AuthoredRootName);
-
-                var envScenePath = $"{folder}/{EnvironmentIdentity.Format(coordinate.x, coordinate.y)}.unity";
-                var hasEnvScene = AssetDatabase.LoadAssetAtPath<SceneAsset>(envScenePath) != null;
-                var hasEnvRoot = hasEnvScene
-                    && SceneHasAuthoredRoot(envScenePath, EnvironmentScene.AuthoredRootName);
-
-                result.Add(new CellExistingState(
-                    folderName, coordinate, hasCellRoot, hasEnvScene, hasEnvRoot));
             }
 
+            // Additive NewScene は未保存 untitled があると失敗するため、
+            // 保存済みシーンを開いて状態をリセットする。
+            EditorSceneManager.OpenScene(WorldScenePath, OpenSceneMode.Single);
             return result;
         }
 
