@@ -400,7 +400,6 @@ namespace SampleGame.DependOnAll.Editor
                     folderName, coordinate, hasCellRoot, hasEnvScene, hasEnvRoot));
             }
 
-            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             return result;
         }
 
