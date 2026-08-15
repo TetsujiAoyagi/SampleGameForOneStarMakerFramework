@@ -2,6 +2,7 @@
 
 > ステータス: 設計方向メモ・実装前 (2026-07-19)
 > 正本: 実装仕様は `docs/updater/UPDATER_CURRENT_SPEC.md` を参照。
+> 視覚メモ（現状 vs 理想 AA / Mermaid）: [UPDATE_SYSTEM_CURRENT_VS_IDEAL.md](../../../docs/updater/UPDATE_SYSTEM_CURRENT_VS_IDEAL.md)
 > 関連: [16-update-architecture.md](16-update-architecture.md), [carbon-engine/02](../../../docs/reference/carbon-engine/02-scheduler-vs-update-system.md), [et-framework/01](../../../docs/reference/et-framework/01-distributed-lifecycle-vs-scene-update.md)
 
 ---

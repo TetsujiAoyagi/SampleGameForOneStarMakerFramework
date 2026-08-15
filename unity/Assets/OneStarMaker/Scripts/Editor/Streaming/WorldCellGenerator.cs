@@ -241,8 +241,11 @@ namespace OneStarMaker.Editor.Streaming
                     var action = existingIdentities.Contains(identity)
                         ? WorldCellPlanAction.Skip
                         : WorldCellPlanAction.Create;
-                    var sceneAssetPath = $"{sceneFolder}/{identity}.unity";
-                    var sceneResourceAssetPath = $"{resourceFolder}/{identity}.asset";
+                    // フォルダ = 実行環境境界（CCS-00）:
+                    // 「この Cell を動かすのに何が要るか」を Explorer で同名サブフォルダを開けば把握できるようにする。
+                    // 例: Cells/Cell_0_0/Cell_0_0.unity + Cell_0_0.asset（+ 任意で Environment_0_0.*）
+                    var sceneAssetPath = $"{sceneFolder}/{identity}/{identity}.unity";
+                    var sceneResourceAssetPath = $"{resourceFolder}/{identity}/{identity}.asset";
 
                     entries.Add(new WorldCellGenerationEntry(
                         identity,
@@ -385,13 +388,15 @@ namespace OneStarMaker.Editor.Streaming
             ApplySceneFiles(definition, plan);
             var result = ApplyPlan(definition, plan, map, parentResource);
 
-            EnsureAssetFolder(definition.SceneResourceOutputFolder);
-
             foreach (var resource in result.CreatedOrUpdatedResources)
             {
                 var entry = plan.Entries.First(e => e.Identity == resource.Identity);
                 if (AssetDatabase.LoadAssetAtPath<SceneResource>(entry.SceneResourceAssetPath) == null)
                 {
+                    // CCS-00 でパスが {folder}/{identity}/{identity}.asset になったため、
+                    // 親フォルダ 1 段だけでは足りない。.unity 側（ApplySceneFiles）と同じく
+                    // エントリごとのディレクトリを作る。
+                    EnsureAssetFolder(Path.GetDirectoryName(entry.SceneResourceAssetPath)!);
                     AssetDatabase.CreateAsset(resource, entry.SceneResourceAssetPath);
                 }
             }
@@ -458,7 +463,7 @@ namespace OneStarMaker.Editor.Streaming
                         continue;
                     }
 
-                    var assetPath = $"{resourceFolder}/{identity}.asset";
+                    var assetPath = $"{resourceFolder}/{identity}/{identity}.asset";
                     var existing = AssetDatabase.LoadAssetAtPath<SceneResource>(assetPath);
                     if (existing == null)
                     {

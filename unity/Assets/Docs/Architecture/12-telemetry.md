@@ -1,6 +1,7 @@
 # 12. テレメトリ設計
 
-> ステータス: **実装更新済み** (2026-04-29 時点で現行コードに同期)
+> ステータス: **実装更新済み** (2026-04-29 時点で現行コードに同期)  
+> Contract v3（kind + payload）の正本: [28-telemetry-contract-v3.md](28-telemetry-contract-v3.md)。旧フラット Metadata は段階移行のため deprecated 併記。
 
 ---
 

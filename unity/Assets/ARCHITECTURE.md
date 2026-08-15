@@ -88,6 +88,8 @@
 
 ## 2. レイヤー構造と Assembly 依存ルール
 
+フォルダ全体の戦略（Assembly 軸 + Scene ごとのアセット同居）は [27-folder-structure.md](Docs/Architecture/27-folder-structure.md) を参照。
+
 ```
 OneStarMaker.Foundation  (leaf — フレームワーク内依存なし)
        ▲
@@ -127,7 +129,7 @@ Game.Common ──→ Foundation, Runtime
 | §12 | テレメトリ設計 | [12-telemetry.md](Docs/Architecture/12-telemetry.md) |
 | §13 | リソースシステム設計 | [13-resource-system.md](Docs/Architecture/13-resource-system.md) |
 | §14 | アーキテクチャレビュー（ギャップ分析 & FW 比較、2026-03-07 断面） | [14-architecture-review.md](Docs/Architecture/14-architecture-review.md) |
-| §15 | テレメトリ v2（ボトルネック検出・メモリ監視） | [15-telemetry-v2.md](Docs/Architecture/15-telemetry-v2.md) |
+| §15 | テレメトリ v2（ボトルネック検出・メモリ監視）。最新は §28 | [15-telemetry-v2.md](Docs/Architecture/15-telemetry-v2.md) |
 | §16 | Update 基盤設計（ドラフト。正本は `docs/updater/UPDATER_CURRENT_SPEC.md`） | [16-update-architecture.md](Docs/Architecture/16-update-architecture.md) |
 | §17 | （欠番 — Variant BuildScript レビューは未保存のまま失われた） | — |
 | §18 | AssetDescription — 目的・有用性・実装 | [18-asset-description.md](Docs/Architecture/18-asset-description.md) |
@@ -137,6 +139,11 @@ Game.Common ──→ Foundation, Runtime
 | §22 | （予約 — HLOD / Proxy ティア。21-scene-streaming.md §12 参照） | — |
 | §23 | CameraSystem — カメラシステム設計（要件確定・実装前） | [23-camera-system.md](Docs/Architecture/23-camera-system.md) |
 | §24 | RenderingSystem — レンダリングシステム構想（構想段階・骨子） | [24-rendering-system.md](Docs/Architecture/24-rendering-system.md) |
+| §25 | DebugSocket サービス分割チケット | [25-debugsocket-service-refactoring-tickets.md](Docs/Architecture/25-debugsocket-service-refactoring-tickets.md) |
+| §26 | UpdateSystem × Async — 時間権威 | [26-update-async-time-authority.md](Docs/Architecture/26-update-async-time-authority.md) |
+| §27 | フォルダ構成戦略（Assembly × Scene 同居） | [27-folder-structure.md](Docs/Architecture/27-folder-structure.md) |
+| §28 | テレメトリ Contract v3（kind + payload）。§12 / §15 の後継 | [28-telemetry-contract-v3.md](Docs/Architecture/28-telemetry-contract-v3.md) |
+| §29 | UI エフェクト合成（非UIレンダラの描画順統合、検証待ち） | [29-ui-effect-compositing.md](Docs/Architecture/29-ui-effect-compositing.md) |
 | — | Assembly 分割移行記録 | [migration-assembly-split.md](Docs/Architecture/migration-assembly-split.md) |
 
 ---

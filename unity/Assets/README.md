@@ -27,6 +27,8 @@
 
 ## プロジェクト構造
 
+方針の正本（Assembly 依存 + Scene ごとのアセット同居）: [Docs/Architecture/27-folder-structure.md](Docs/Architecture/27-folder-structure.md)
+
 ```
 Assets/
 ├── OneStarMaker/Scripts/        ← 汎用ゲームフレームワーク

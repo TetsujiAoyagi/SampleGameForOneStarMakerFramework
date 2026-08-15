@@ -4,6 +4,8 @@
 
 このドキュメントは、現在の Updater 実装を **final 名だけ** で整理した仕様書です。
 
+視覚メモ（現状 AA / 理想・LayerClock 構想）: [UPDATE_SYSTEM_CURRENT_VS_IDEAL.md](UPDATE_SYSTEM_CURRENT_VS_IDEAL.md)
+
 Updater は次の 3 つを一体で扱います。
 
 1. `UpdateLayer` ごとの更新順制御
