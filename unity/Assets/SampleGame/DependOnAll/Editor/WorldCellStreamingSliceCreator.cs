@@ -25,6 +25,11 @@ namespace SampleGame.DependOnAll.Editor
     /// CCS-00: 実行物を <c>InGameSession/World/</c> 配下へ集約（フォルダ = 実行環境境界）。
     /// CCS-01〜02: 萌芽 Cell（南辺 0_0〜3_0）に Environment 子を OnDemand で付ける。
     /// グリッド縮小時は範囲外の <c>Cells/Cell_*</c> フォルダを丸ごと削除する。
+    /// <para>
+    /// このクラスはスキャフォールドであり、S-2（季節化）完了後の削除候補である。
+    /// 恒久的な判断は <c>Cells/CellPopulationPlan.cs</c> にのみ置き、ここには「どの順で何を呼ぶか」と使い捨ての生成手続きだけを置く。
+    /// 構造化の投資をしないと決めた（HANDOFF §2.1）。
+    /// </para>
     /// </summary>
     public static class WorldCellStreamingSliceCreator
     {
@@ -47,21 +52,6 @@ namespace SampleGame.DependOnAll.Editor
         private const string TotalGraphPath = "Assets/SceneGraphData/Graphs/Total.asset";
         private const string WorldNodePath = SceneGraphNodesFolder + "/World.asset";
         private const string InGameSessionNodePath = SceneGraphNodesFolder + "/InGameSession.asset";
-
-        // 旧レイアウト（CCS-00 移行元）。再実行時に Move / 削除する。
-        private const string LegacyCellsSceneFolder = "Assets/OneStarMakerCommon/World/Cells";
-        private const string LegacyCellsResourceFolder = "Assets/OneStarMakerCommon/SceneMap/Cells";
-        private const string LegacyMaterialsFolder = "Assets/OneStarMakerCommon/World/Materials";
-        private const string LegacyGridDefinitionPath = "Assets/OneStarMakerCommon/World/WorldGridDefinition.asset";
-        private const string LegacySharedLitPath = LegacyMaterialsFolder + "/DemoCellLit.mat";
-
-        private static readonly string[] SeasonLevelIdentities =
-        {
-            "SpringLevel",
-            "SummerLevel",
-            "AutumnLevel",
-            "WinterLevel",
-        };
 
         /// <summary>
         /// Environment 萌芽を付ける Cell 座標（4×4 の南辺すべて）。
@@ -108,7 +98,6 @@ namespace SampleGame.DependOnAll.Editor
                 ?? throw new FileNotFoundException(InGameSessionResourcePath);
 
             EnsureFolders();
-            MigrateLegacyLayout();
 
             var worldResource = EnsureWorldResource(session, map);
             var definition = EnsureGridDefinition();
@@ -117,9 +106,6 @@ namespace SampleGame.DependOnAll.Editor
             var plan = CellPopulationPlan.Compute(
                 new CellGridSpec(definition.GridWidth, definition.GridHeight, definition.Origin, definition.CellSize),
                 existingStates);
-
-            // 四季 Level を Session 子 / Map から外す（アセットファイル自体の削除は手動でも可）。
-            DetachSeasonLevels(session, map);
 
             // 10×10 → 4×4 等の縮小で余った Cell_* フォルダを Map ごと除去する。
             DeleteOutOfGridCellFolders(map, worldResource, definition, plan);
@@ -150,9 +136,6 @@ namespace SampleGame.DependOnAll.Editor
             CompactNullMapEntries(map);
             // ディスク上の Cell / Environment SceneResource を Map へ再登録（null 枠除去後の再同期）。
             RelinkMapFromDisk(map, definition);
-
-            // 旧パス掃除（空フォルダ・旧 GridDefinition）。
-            CleanupLegacyFolders();
 
             RegisterAddressableScene(WorldScenePath);
             RegisterAddressableAsset(WorldMaterialBindings.SharedLitAssetPath);
@@ -588,117 +571,6 @@ namespace SampleGame.DependOnAll.Editor
             EnsureAssetFolder(WorldRootFolder);
             EnsureAssetFolder(CellsRootFolder);
             EnsureAssetFolder(MaterialsFolder);
-        }
-
-        /// <summary>
-        /// 旧 Common 配下の Cell / Material / GridDefinition を World 配下へ MoveAsset する。
-        /// GUID を維持するため、コピーではなく Move する（Addressables / シーン参照が切れない）。
-        /// </summary>
-        private static void MigrateLegacyLayout()
-        {
-            // GridDefinition
-            if (AssetDatabase.LoadAssetAtPath<WorldGridDefinition>(GridDefinitionPath) == null
-                && AssetDatabase.LoadAssetAtPath<WorldGridDefinition>(LegacyGridDefinitionPath) != null)
-            {
-                var err = AssetDatabase.MoveAsset(LegacyGridDefinitionPath, GridDefinitionPath);
-                if (!string.IsNullOrEmpty(err))
-                {
-                    throw new System.InvalidOperationException(
-                        $"GridDefinition 移行失敗: {LegacyGridDefinitionPath} → {GridDefinitionPath}: {err}");
-                }
-
-                Debug.Log($"[WorldCellStreamingSliceCreator] Moved GridDefinition → {GridDefinitionPath}");
-            }
-
-            // Shared Lit
-            if (AssetDatabase.LoadAssetAtPath<Material>(WorldMaterialBindings.SharedLitAssetPath) == null
-                && AssetDatabase.LoadAssetAtPath<Material>(LegacySharedLitPath) != null)
-            {
-                EnsureAssetFolder(MaterialsFolder);
-                var err = AssetDatabase.MoveAsset(LegacySharedLitPath, WorldMaterialBindings.SharedLitAssetPath);
-                if (!string.IsNullOrEmpty(err))
-                {
-                    throw new System.InvalidOperationException(
-                        $"SharedLit 移行失敗: {LegacySharedLitPath} → {WorldMaterialBindings.SharedLitAssetPath}: {err}");
-                }
-
-                Debug.Log($"[WorldCellStreamingSliceCreator] Moved SharedLit → {WorldMaterialBindings.SharedLitAssetPath}");
-            }
-
-            // フラット Cell .unity → Cells/Cell_x_y/Cell_x_y.unity
-            for (var x = 0; x < WorldCellCatalog.GridWidth; x++)
-            {
-                for (var y = 0; y < WorldCellCatalog.GridHeight; y++)
-                {
-                    var identity = CellIdentity.Format(x, y);
-                    var newScenePath = $"{CellsRootFolder}/{identity}/{identity}.unity";
-                    var newResourcePath = $"{CellsRootFolder}/{identity}/{identity}.asset";
-                    var legacyScenePath = $"{LegacyCellsSceneFolder}/{identity}.unity";
-                    var legacyResourcePath = $"{LegacyCellsResourceFolder}/{identity}.asset";
-
-                    EnsureAssetFolder($"{CellsRootFolder}/{identity}");
-
-                    MoveIfMissing(legacyScenePath, newScenePath);
-                    MoveIfMissing(legacyResourcePath, newResourcePath);
-                }
-            }
-
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-        }
-
-        private static void MoveIfMissing(string fromPath, string toPath)
-        {
-            if (AssetDatabase.LoadAssetAtPath<Object>(toPath) != null)
-            {
-                return;
-            }
-
-            if (AssetDatabase.LoadAssetAtPath<Object>(fromPath) == null)
-            {
-                return;
-            }
-
-            var err = AssetDatabase.MoveAsset(fromPath, toPath);
-            if (!string.IsNullOrEmpty(err))
-            {
-                throw new System.InvalidOperationException($"MoveAsset 失敗: {fromPath} → {toPath}: {err}");
-            }
-
-            Debug.Log($"[WorldCellStreamingSliceCreator] Moved {fromPath} → {toPath}");
-        }
-
-        private static void CleanupLegacyFolders()
-        {
-            TryDeleteAssetFolderIfEmpty(LegacyCellsSceneFolder);
-            TryDeleteAssetFolderIfEmpty(LegacyCellsResourceFolder);
-            TryDeleteAssetFolderIfEmpty(LegacyMaterialsFolder);
-            TryDeleteAssetFolderIfEmpty("Assets/OneStarMakerCommon/World");
-
-            const string legacyCellMaterials = "Assets/OneStarMakerCommon/World/CellMaterials";
-            if (AssetDatabase.IsValidFolder(legacyCellMaterials))
-            {
-                AssetDatabase.DeleteAsset(legacyCellMaterials);
-            }
-        }
-
-        private static void TryDeleteAssetFolderIfEmpty(string folder)
-        {
-            if (!AssetDatabase.IsValidFolder(folder))
-            {
-                return;
-            }
-
-            var guids = AssetDatabase.FindAssets(string.Empty, new[] { folder });
-            if (guids.Length > 0)
-            {
-                return;
-            }
-
-            if (AssetDatabase.DeleteAsset(folder))
-            {
-                Debug.Log($"[WorldCellStreamingSliceCreator] Removed empty legacy folder: {folder}");
-            }
         }
 
         /// <summary>
@@ -1186,45 +1058,6 @@ namespace SampleGame.DependOnAll.Editor
             EnsureChildLink(session, world);
             UpsertMap(map, world);
             return world;
-        }
-
-        private static void DetachSeasonLevels(SceneResource session, SceneResourceMap map)
-        {
-            var sessionSo = new SerializedObject(session);
-            var childrenProp = sessionSo.FindProperty("_children");
-            for (var i = childrenProp.arraySize - 1; i >= 0; i--)
-            {
-                var child = childrenProp.GetArrayElementAtIndex(i).objectReferenceValue as SceneResource;
-                if (child == null)
-                {
-                    continue;
-                }
-
-                if (IsSeasonLevel(child.Identity))
-                {
-                    var childSo = new SerializedObject(child);
-                    childSo.FindProperty("_parent").objectReferenceValue = null;
-                    childSo.ApplyModifiedPropertiesWithoutUndo();
-                    childrenProp.DeleteArrayElementAtIndex(i);
-                    RemoveFromMap(map, child.Identity);
-                    EditorUtility.SetDirty(child);
-                }
-            }
-
-            sessionSo.ApplyModifiedPropertiesWithoutUndo();
-        }
-
-        private static bool IsSeasonLevel(string identity)
-        {
-            for (var i = 0; i < SeasonLevelIdentities.Length; i++)
-            {
-                if (SeasonLevelIdentities[i] == identity)
-                {
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         /// <summary>
