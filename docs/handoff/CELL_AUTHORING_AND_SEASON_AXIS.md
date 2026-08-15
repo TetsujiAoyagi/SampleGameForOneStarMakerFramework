@@ -458,4 +458,8 @@ grep した結果、`WorldCellStreamingSliceCreator.cs` に `??` が 8 箇所あ
 
 ## 8. Phase C' 監査
 
-（未記入）
+結論: 指摘なし
+論点 1: 確認したが問題なし。根拠は、恒久判断（HandAuthored/Generated の判定と Populate/Skip/削除可否）が `CellAuthoringPolicy` と `CellPopulationPlan` に閉じており、`WorldCellStreamingSliceCreator` は計画結果を消費するだけで policy 分岐を持たないこと、かつ Skip 時も `EnsureEnvironmentSceneFile` / `EnsureEnvironmentResource` / `EnsureChildLink` / `SetDirty` が維持されて配線が壊れないこと。
+論点 1: `CellPopulationPlan` は `AssetDatabase` / `EditorSceneManager` 非依存で同一入力に対して決定的であり、Environment の Skip 条件を「`.unity` 有無」ではなく「`AuthoredRoot` 有無」にした裁定も、`.unity` だけ残る半端状態を自己回復できるため妥当。
+論点 2: 確認したが問題なし。根拠は、`WorldCellStreamingSliceCreator` 内で Cell/Environment の手編集を消し得る `.unity` 破壊経路が `PopulateSingleCellScene` / `PopulateEnvironmentScene` / `DeleteOutOfGridCellFolders` の 3 経路に限定され、いずれも Plan 経由で Skip・削除抑止されること。
+論点 2: `CollectExistingStates` と Populate/Skip 実行の間に `WorldCellGenerator.Generate` が入るが、同生成器は既存 `.unity` を上書きせず不足分の新規作成のみを行うため、状態ずれで手編集が消える経路は成立しない（範囲外 Environment の再生成漏れも `ShouldPopulateEnvironment` で閉じている）。
