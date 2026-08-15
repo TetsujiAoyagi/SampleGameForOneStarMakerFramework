@@ -230,6 +230,15 @@ Brain は LateUpdate 駆動である。UpdateSystem 上で以下をフレーム�
 
 I-2 は UE の CameraModifier と同じ規律。フレーム順序そのものは [UPDATER_CURRENT_SPEC.md](../../../../docs/updater/UPDATER_CURRENT_SPEC.md) の `RunUpdate` → `RunLateUpdate` に従う。
 
+### 7.2 踏みやすい罠（実測）
+
+| 症状 | 原因と対処 |
+|---|---|
+| EditMode で CinemachineBrain がブレンドしない | **Brain の時間駆動は Play 前提。** EditMode では有効化状態と Channel 割当のみ検証し、ブレンドは Play 確認に委ねる |
+| シェイクの原点ドリフト | Modifier が Transform を直接蓄積変更している（**I-2 違反**）。毎フレーム「Brain 出力 + 合成」を適用し直す |
+| Snapshot がシェイク前の値を返す | 更新順序違反（**I-1**）。UpdateSystem 上の駆動順とフック選定を確認する |
+| `DontDestroyOnLoad` 絡みのテスト汚染 | EditMode テストで生成した GameObject は TearDown で必ず破棄。Host のシングルトン再入（二重 `Initialize` は例外）に注意 |
+
 ---
 
 ## 8. URP / Volume 方針
