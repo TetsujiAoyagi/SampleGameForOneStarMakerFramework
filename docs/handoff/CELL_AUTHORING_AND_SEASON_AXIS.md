@@ -391,9 +391,68 @@ total : 472   passed : 464   failed : 8   skipped : 0
 |---|---|
 | R-1 | **T-3 が Environment 側を assert していない。** `HandAuthored` かつ Environment `.unity` が**存在しない**とき Environment が `Populate` になることを確認するテストが 1 本も無い。現状のテスト 8 本は「HandAuthored なら Environment は常に Skip」という実装でも全部通ってしまい、その実装だと**初回スキャフォールドで Environment の中身が永久に生成されない**。T-3 に `EnvironmentAction == Populate` の assert を足すこと |
 
-### 7.3 B2 レビュー
+### 7.3 構造レビュー（機能レビューより先にやる）
 
-（未記入）
+`git diff --stat` から入った。
+
+| 観点 | 結果 |
+|---|---|
+| `WorldCellStreamingSliceCreator.cs` の増減 | 1366 → **1307 行**（−59）。`CollectExistingStates` / `SceneHasAuthoredRoot` で +約 100、死コード削除で −172。**増えていない** |
+| 新責務の所在 | `Cells/CellAuthoringPolicy.cs`（59 行）と `Cells/CellPopulationPlan.cs`（247 行）の 2 本に閉じている。スキャフォールド側に残ったのは「AssetDatabase から状態を読む」アダプタと「計画に従って呼ぶ / 呼ばない」の分岐だけ |
+| `if (policy == HandAuthored)` の漏れ | **無し。** `WorldCellStreamingSliceCreator` に `CellAuthoringPolicy` の参照は 1 つも無く、policy 判断はすべて `CellPopulationPlan` の内側。R-2 で見つかった穴（範囲外の判定が呼び出し側のフォールバックに落ちていた）も `ShouldPopulateEnvironment` として計画側へ引き上げた |
+| テストが書けないロジックの残存 | 無し。判定は 10 本のテストで覆われている |
+| `HandAuthoredCells` と `EnvironmentSproutCells` の統合 | **されていない。** 別ファイルの別配列として残っている（§1.2 の設計判断どおり） |
+| スキャフォールド宣言（A-4'） | あり。先頭 `<summary>` に `<para>` で 3 要素（削除候補である / 恒久的判断は `CellPopulationPlan.cs` にのみ置く / 構造化投資をしないと決めた）が入っている |
+
+### 7.4 Phase C からの差し戻しと、その顛末
+
+B↔C は **4 巡**した（上限内）。R-2 / R-3 は**実機を回すまで誰も気づかなかった**もので、静的レビューでは出ない。
+
+| # | 指摘 | 原因 | 対応 |
+|---|---|---|---|
+| R-1 | T-3 が Environment 側を assert しておらず、「HandAuthored なら Environment は常に Skip」でもテストが全部通る。その実装だと初回スキャフォールドで Environment が永久に空になる | テスト設計の穴 | T-3 に assert 追加 + T-2c 新設（B2） |
+| R-2 | **範囲外の `HandAuthored` は、フォルダは守られるのに `Environment_x_y.unity` だけ再生成されて手編集が消える** | **Phase A / C の指示ミス。** `Compute` は範囲内座標にしかエントリを出さないのに、`CreateEnvironmentSprouts` に「エントリが無ければ従来どおり Populate」というフォールバックを書かせた | `CellPopulationPlan.ShouldPopulateEnvironment` を新設して判定を計画側へ移動。計画に無い座標は false。T-8 が回帰テスト（B5） |
+| R-3 | **生成器が `Cannot create a new scene additively with an untitled scene unsaved` で落ちる。`.unity` が 1 つも作られない** | `CollectExistingStates` が Additive で開閉を繰り返した結果、Unity が未保存 untitled シーンを残す。直後の `WorldCellGenerator.ApplySceneFiles` が `NewScene(Additive)` で必ず失敗する | 収集後に `OpenScene(WorldScenePath, Single)` で保存済みシーンへリセット（B6 / B7） |
+
+**R-3 は clone 直後の初回実行が必ず落ちるバグだった。** 16 セルが揃っている間は `ApplySceneFiles` が既存 `.unity` を skip するため発火せず、**A-7 の縮小 → 復元でグリッドを作り直したときに初めて表に出た**。受入条件を実機で通していなければ、そのままマージされていた。
+
+### 7.5 受入条件の判定
+
+すべて Claude Code が実機で確認した。
+
+| # | 結果 | 証拠 |
+|---|---|---|
+| A-1 | ✅ | `pwsh tools/run-tests.ps1` → **475 / 475 passed, failed 0**（exit 0）。内訳は既存 464 + 新規 11（T-1〜T-9 + T-2b + T-2c）。テスト 0 件ではない |
+| **A-3** | ✅ | `HandEditProbe.StampHandEdits` で南辺 4 Cell の `AuthoredRoot` 配下と Environment 4 枚の `AuthoredRoot` 配下に計 8 個の GameObject を置き、生成器を実行 → `VerifyHandEdits` が **exit 0（8/8 生存）**。縮小（3 幅）を挟んでも 8/8 |
+| A-2 | ✅ | クリーンな作業ツリーから生成器を 1 回実行した `git status --porcelain` に、**`Cell_0_0`〜`Cell_3_0` と `Environment_0_0`〜`Environment_3_0` が 1 つも現れない**。生成器のログも `Populated authored visuals in 12 cell scenes (skipped=4)` |
+| A-4' | ✅ | 目視。§7.3 参照 |
+| A-5 | ✅ | grep で `DetachSeasonLevels` / `IsSeasonLevel` / `SeasonLevelIdentities` / `MigrateLegacyLayout` / `CleanupLegacyFolders` / `MoveIfMissing` / `TryDeleteAssetFolderIfEmpty` がヒットしない。`DeleteOutOfGridCellFolders` は残っている |
+| A-6 | ✅ | `OneStarMaker.Tests.Streaming` を含む既存 464 本に回帰なし |
+| A-7 | ✅ | `WorldCellCatalog.GridWidth` を一時的に 3 にして生成器を実行 → `範囲外だが HandAuthored なので保持した: Cell_3_0` を出力し、`Cell_3_1`〜`Cell_3_3` は削除。`Cells/Cell_3_0/` は残り、**その中の手編集プローブも生存**（R-2 修正後）。const を 4 に戻して再実行し 16 セルに復元 |
+
+**A-7 の判定方法は §6.0 の裁定どおり `WorldCellCatalog` の const 側を触った。** `WorldGridDefinition.asset` を直接書き換える旧手順では `EnsureGridDefinition` に上書きされて検証できない。
+
+### 7.6 偽 null チェック（`?.` / `??` / `is null` / `ReferenceEquals`）
+
+grep した結果、`WorldCellStreamingSliceCreator.cs` に `??` が 8 箇所ある。**すべてこのスライス以前からある既存コードで、新規に持ち込んだものは 0 件。** むしろ B3 は `CreateEnvironmentSprouts` の `LoadAssetAtPath<SceneResource>(...) ?? throw` を `== null` の明示チェックへ**直している**。
+
+残る 8 箇所を評価した結果、**実害は無いと判断した**（対応しない）:
+
+- `LoadAssetAtPath<T>(...) ?? throw`（5 箇所）— `LoadAssetAtPath` は「見つからない」ときに**本物の null** を返す。破棄済みオブジェクトを返す API ではないので `??` が短絡する
+- `Shader.Find(...) ?? Shader.Find(...)`（2 箇所）— 同上
+- `GetComponent<T>() ?? GetComponentInChildren<T>()`（1 箇所）— 同上
+
+`Cells/` 配下の `??` は `string` と `IReadOnlyList<T>` に対するもので `UnityEngine.Object` ではない。
+
+**これは既存の負債ですらなく、偽陽性である。** ただし「grep して評価した」ことは記録しておく（次のレビュアが同じ grep で同じ 8 件を踏むため）。
+
+### 7.7 確認していないこと
+
+- **Play モードでの実挙動を一度も見ていない。** Streaming が実際に動くか、`SessionWorldStreamingDriver` が 16 セルを正しく要求するかは EditMode テストと生成器の出力でしか担保していない
+- **`git clone` 直後の完全な初回生成を通していない。** R-3 の修正は「グリッド縮小 → 拡大で 3 セルを新規作成する」経路で確認したもので、`Cells/` フォルダ自体が存在しない状態からの実行は試していない。同じ `ApplySceneFiles` の経路を通るので直っているはずだが、**未検証**
+- **`CollectExistingStates` はグリッド 16 セル分の `.unity` を毎回開いて閉じる。** 実行時間への影響を測っていない（体感では生成器全体が 1〜4 分で、以前と大きく変わらない）
+- **`DeleteOutOfGridCellFolders` の Map 掃除の網羅性が少し狭まった。** 以前は `Cells/` 配下の範囲外 `SceneResource` を無条件に Map から外していたが、現在は `Cell_*` という名前のフォルダに属するものだけが対象。`Cell_*` 以外の場所に stray な `SceneResource` があった場合は掃除されない。実害は確認していない
+- **Environment 側の Skip 条件を「`.unity` の有無」から「`AuthoredRoot` の有無」へ精密化した**（§6.0 の裁定と B2 のコミットメッセージ参照）。これは HANDOFF §3 T-2b の文言からの逸脱なので、C' は妥当性を独立に判断すること
 
 ---
 
