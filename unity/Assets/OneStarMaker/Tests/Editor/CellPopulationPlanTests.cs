@@ -217,5 +217,45 @@ namespace OneStarMaker.Tests.Editor
             Assert.That(plan.DeletionEntries.Any(e => e.Identity == "Cell_3_1"), Is.True,
                 "範囲外かつ Generated は削除計画に現れる");
         }
+
+        [Test]
+        public void T8_OutOfGrid_ShouldPopulateEnvironment_IsFalse()
+        {
+            // A-7 実機: GridWidth=3 で範囲外になった HandAuthored Cell_3_0
+            var existing = new[]
+            {
+                State(
+                    3, 0,
+                    hasCellAuthoredRoot: true,
+                    hasEnvironmentScene: true,
+                    hasEnvironmentAuthoredRoot: true),
+            };
+
+            var plan = CellPopulationPlan.Compute(Grid3x3(), existing);
+
+            Assert.That(plan.ShouldPopulateEnvironment(new Vector2Int(3, 0)), Is.False,
+                "範囲外座標は計画に無いため Environment を再生成しない");
+        }
+
+        [Test]
+        public void T9_ShouldPopulateEnvironment_MatchesInGridActions()
+        {
+            var existing = new[]
+            {
+                State(
+                    0, 0,
+                    hasCellAuthoredRoot: true,
+                    hasEnvironmentScene: true,
+                    hasEnvironmentAuthoredRoot: true),
+                State(1, 1, hasCellAuthoredRoot: false),
+            };
+
+            var plan = CellPopulationPlan.Compute(Grid4x4(), existing);
+
+            Assert.That(plan.ShouldPopulateEnvironment(new Vector2Int(0, 0)), Is.False,
+                "HandAuthored かつ Environment AuthoredRoot ありは false");
+            Assert.That(plan.ShouldPopulateEnvironment(new Vector2Int(1, 1)), Is.True,
+                "Generated は true");
+        }
     }
 }

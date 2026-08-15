@@ -132,6 +132,26 @@ namespace SampleGame.DependOnAll.Editor.Cells
         public IReadOnlyList<CellDeletionEntry> DeletionEntries { get; }
 
         /// <summary>
+        /// Environment を Populate してよいか。
+        /// 計画にエントリが無い座標（グリッド範囲外）は false。
+        /// </summary>
+        public bool ShouldPopulateEnvironment(Vector2Int coordinate)
+        {
+            for (var i = 0; i < PopulationEntries.Count; i++)
+            {
+                var entry = PopulationEntries[i];
+                if (entry.Coordinate != coordinate)
+                {
+                    continue;
+                }
+
+                return entry.EnvironmentAction == CellPopulationAction.Populate;
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// グリッド定義の値・既存状態・policy から計画を返す。
         /// policy は <see cref="CellAuthoringPolicy.Resolve(UnityEngine.Vector2Int)"/> で解決する。
         /// </summary>

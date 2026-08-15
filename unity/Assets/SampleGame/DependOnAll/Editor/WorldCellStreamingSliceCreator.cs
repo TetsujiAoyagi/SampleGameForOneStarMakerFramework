@@ -862,18 +862,7 @@ namespace SampleGame.DependOnAll.Editor
                 EnsureAssetFolder(cellFolder);
                 EnsureEnvironmentSceneFile(envScenePath);
 
-                var populateEnvironment = true;
-                for (var j = 0; j < plan.PopulationEntries.Count; j++)
-                {
-                    var entry = plan.PopulationEntries[j];
-                    if (entry.Coordinate != coord)
-                    {
-                        continue;
-                    }
-
-                    populateEnvironment = entry.EnvironmentAction != CellPopulationAction.Skip;
-                    break;
-                }
+                var populateEnvironment = plan.ShouldPopulateEnvironment(coord);
 
                 if (populateEnvironment)
                 {
