@@ -1,8 +1,7 @@
 # 28. Telemetry Contract v3（kind + payload）
 
-> ステータス: **実装中（段階移行 案 A）**（2026-08-01）  
+> ステータス: **実装中（段階移行 案 A）**。旧フラット欄は `AppTelemetry.cs` で deprecated 併記中、削除は TC-09 待ち  
 > [ARCHITECTURE.md](../../ARCHITECTURE.md) に戻る  
-> 計画: [TELEMETRY_CONTRACT_REDESIGN_PLAN_2026-07-27.md](../../../../docs/planning/TELEMETRY_CONTRACT_REDESIGN_PLAN_2026-07-27.md)  
 > 関連: [12-telemetry.md](12-telemetry.md)、[15-telemetry-v2.md](15-telemetry-v2.md)
 
 ---
@@ -10,6 +9,42 @@
 ## 1. 一文
 
 輸送路（Sink / DebugSocket / DebugStudio / Filebeat）は残し、フラット `Metadata` に全部を詰める契約を廃して、**kind 分離 + payload 契約**へ立て直す。
+
+### 1.1 なぜ立て直したか（旧契約の壊れ方）
+
+v2 までは **1 レコード = 1 フラット `Metadata`**。用途の違う数値を同じ欄に同居させ、未設定を `0` / `-1` で表現していた。結果、Elastic 上でこうなった。
+
+| レコード例 | 実際に埋まるもの | Elastic 上の見え方 |
+|---|---|---|
+| `ProfilerSummary` / `GcSpike` / `UiCost` | cpu/gpu/mem（点イベント）。`elapsedMs` は意図的に 0 | 件数が多く、elapsed=0 が全体平均を支配する |
+| `CameraSystemSnapshot` | カメラカウンタのみ。elapsed/cpu/mem は空 | 「情報がない」行 |
+| `SceneLoad` / `Unload` / `Transition` | elapsed + finish 時メモリ絶対値。cpu/gpu は未配線で常に 0 | 「半分空っぽ」 |
+| `AppStartup` | elapsed のみ。`metadata: default` で mem も 0 | 芯なのに空 |
+
+**0 埋めは「値が 0」と「観測していない」を区別できなくする。** §3 が「未設定は省略。0 埋め禁止」を要求しているのはこの再発防止であって、様式の好みではない。
+
+### 1.2 壊してはいけない芯
+
+v3 で契約を変えても、以下は維持する。
+
+| 残すもの | 理由 |
+|---|---|
+| Sink 例外非伝播 | 観測がゲームを人質に取らない |
+| enum `TelemetryStartType` / `TelemetryTagType` | hot path で文字列を増殖させない |
+| 軽量 span（自前実装） | OTel SDK 全面導入は非目標（§1.3） |
+| DebugSocket → DebugStudio → L0 NDJSON → Filebeat | 既に動いている輸送路 |
+| Bottleneck 自己申告（閾値 + tag + AlertStream） | v2 の目的そのもの |
+| Release でもゲームを止めない | Profiler API 不可時は欠測を明示する |
+
+### 1.3 非目標
+
+| やらない | 理由 |
+|---|---|
+| OpenTelemetry .NET/Unity SDK の全面導入 | hot path・依存・ライセンス面のコストが見合わない。概念（TraceId 等）は借用済み |
+| Unity 内に Elastic 固有型を持ち込む | DebugStudio.Export / Filebeat 側の責務 |
+| 「全レコードが全フィールドを埋める」 | 観測種が違うのに揃えると再び 0 埋めに戻る |
+| 統計的異常検知 | データ蓄積後（[15-telemetry-v2.md](15-telemetry-v2.md)） |
+| HLOD / Proxy テレメトリ | Streaming の後続フェーズ |
 
 ---
 
@@ -73,8 +108,22 @@ MessagePack wire 上の `elapsedMs` は型都合で常に存在するが、**exp
 
 ---
 
-## 7. 更新履歴
+## 7. 決定済みの論点
+
+再燃しやすいので結論だけ残す。
+
+| 論点 | 結論 |
+|---|---|
+| 移行戦略 | **案 A: 段階併記**（kind + payload を追加し、旧フラットは deprecated 併記） |
+| Bottleneck 超過 span を event としても二重発行するか | **しない**（span に tag を付け、AlertStream は現状維持） |
+| `StreamingStats` の emit 周期 | 変化時 + 上限 1 Hz |
+| 単位 | **ワイヤは bytes（整数）。MB 換算は表示層のみ** |
+
+---
+
+## 8. 更新履歴
 
 | 日付 | 内容 |
 |---|---|
-| 2026-08-01 | 初版。計画合意（TC-00）に基づき正典化。§16 は Update 基盤が占有のため §28 として採番 |
+| 2026-08-01 | 初版。§16 は Update 基盤が占有していたため §28 として採番 |
+| 2026-08-15 | 設計理由（§1.1〜§1.3）と決定済み論点（§7）を計画書から吸収し、本書を単独で読めるようにした |

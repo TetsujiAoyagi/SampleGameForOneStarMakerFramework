@@ -50,8 +50,11 @@
 | QualityLevel | 4 段階定義（Full / Reduced / Minimum / Unloaded）。STG では Full/Unloaded のみ使用 |
 | 現行コア | `IAssetManagement` + `AssetRegistry` でスコープ付き寿命管理。Addressables 型は公開 API へ出さない |
 | キャッシュ配置 | **常駐キャッシュ方式**。`AssetManagement` 内に統合し、refcount 0 のアセットを `AssetResidentCache` に退避。独立 `IResourceCache` レイヤーは不採用 |
-| バジェット計上 | **キャッシュ内 (refcount 0) のみ**。使用中アセットは計上しない |
-| テレメトリ結合 | `AssetResidentCache.GetSnapshot()` をテレメトリ層がポーリング（配線は次パス）。R3 はプロジェクトに存在しない |
+| バジェット計上 | **キャッシュ内 (refcount 0) のみ**。使用中アセットは計上しない。**総メモリ上限は保証しない**（責務はスコープ設計側） |
+| キャッシュ対象 | `LoadAssetAsync` / `LoadAppAssetSync` のアセットのみ。**シーンと `InstantiateAsync` のインスタンスは対象外** |
+| バジェット未定義の AssetType | キャッシュせず即解放（明示オプトイン方式。バジェットを定義しない限り従来挙動） |
+| 公開 API | `IAssetManagement` は変更しない。既存呼び出し元は無変更で従来挙動のまま |
+| テレメトリ結合 | `AssetResidentCache.GetSnapshot()` をテレメトリ層がポーリング（配線は次パス）。AssetManagement にリアクティブ依存（R3）を持ち込まない判断 |
 
 ---
 

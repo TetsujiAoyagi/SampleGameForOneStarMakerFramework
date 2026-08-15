@@ -1,8 +1,7 @@
 # 23. CameraSystem — カメラシステム設計
 
-> ステータス: 要件確定・実装前 (2026-07-07)
-> 前提資料: [03. DI](03-di.md) / [06. UI 管理](06-ui.md) / [16. Update 基盤](16-update-architecture.md) / [21. SceneStreaming](21-scene-streaming.md)
-> 関連計画書: `docs/planning/CAMERA_SYSTEM_TDD_PLAN_2026-07-07.md`
+> ステータス: 実装済み。§10 の受け入れ条件 CA-1〜CA-5 は EditMode 検証済み・Play 目視判定が未了
+> 前提資料: [03. DI](03-di.md) / [06. UI 管理](06-ui.md) / [21. SceneStreaming](21-scene-streaming.md) / [UpdateSystem 正本](../../../../docs/updater/UPDATER_CURRENT_SPEC.md)
 
 ---
 
@@ -218,7 +217,18 @@ Cinemachine（3 系以降、`OutputChannels` を持つ版）を新規パッケ�
 | Modifier 適用 | Brain 更新後（`CinemachineCore.CameraUpdatedEvent` 等）に最終 POV へ加算を反映。Cinemachine Impulse は使わない（バックエンド差し替え可能性を保つため Modifier はフレームワーク概念とする） |
 | 追従・構図 | CinemachineCamera の Follow/LookAt をそのまま使う（本システムは関与しない） |
 
-**制約:** Brain は LateUpdate 駆動のため、スナップショット更新・Modifier 適用の順序は「Brain 更新 → Modifier → Snapshot 確定」を UpdateSystem 上で保証すること（TDD 計画のガードレール参照）。
+### 7.1 更新順序の不変条件（I-1〜I-4）
+
+Brain は LateUpdate 駆動である。UpdateSystem 上で以下をフレーム内で保証すること。**これは実装の任意ではなく契約であり、破ると症状は「クラッシュ」ではなく「見た目が微妙におかしい」形で出るため、テストで固定してある。**
+
+| # | 不変条件 | 破った場合の症状 |
+|---|---|---|
+| I-1 | 1 フレームの処理順は **Brain 更新（ブレンド済み POV 確定）→ Modifier 適用 → Snapshot 確定** | シェイクが 1 フレーム遅れて二重像に見える / Snapshot がシェイク前の値を返し、ストリーミング注視点が揺れない |
+| I-2 | Modifier は実 Camera の Transform を直接恒久変更しない。毎フレーム「Brain 出力 + Modifier 合成」を適用する（**加算の蓄積禁止**） | シェイクの原点ドリフト |
+| I-3 | `Snapshot` / `IncomingSnapshot` は同一フレーム内で自己一貫（途中状態を観測させない） | ストリーミング先読みが不正な位置を読む |
+| I-4 | ハンドル（`CameraStackHandle` / `CameraModifierHandle`）の Dispose は冪等。所有 View 破棄後の Dispose も安全（no-op） | カットシーン終了処理と View 破棄の順序でクラッシュ |
+
+I-2 は UE の CameraModifier と同じ規律。フレーム順序そのものは [UPDATER_CURRENT_SPEC.md](../../../../docs/updater/UPDATER_CURRENT_SPEC.md) の `RunUpdate` → `RunLateUpdate` に従う。
 
 ---
 
@@ -262,9 +272,9 @@ Cinemachine（3 系以降、`OutputChannels` を持つ版）を新規パッケ�
 
 ---
 
-## 11. 実装チケット
+## 11. 実装チケット（施行済み）
 
-チケットの施行表（レッドテスト仕様・ガードレール）は `docs/planning/CAMERA_SYSTEM_TDD_PLAN_2026-07-07.md` を正とする。
+施行時の分割と受入条件の記録。守るべき制約は §3 の決定事項と §7.1 の不変条件に集約済みで、**この表は履歴であって指示ではない**。
 
 | # | 内容 | 受入条件 |
 |---|---|---|

@@ -3,7 +3,6 @@
 > ステータス: 視覚整理メモ (2026-07-27)
 > 実装正本: [UPDATER_CURRENT_SPEC.md](UPDATER_CURRENT_SPEC.md)
 > 理想（時間権威）: [26-update-async-time-authority.md](../../unity/Assets/Docs/Architecture/26-update-async-time-authority.md)
-> 設計ドラフト: [16-update-architecture.md](../../unity/Assets/Docs/Architecture/16-update-architecture.md)
 
 チャット上で長い AA / Mermaid が末尾までスクロールできない場合があるため、ここに書き出す。
 

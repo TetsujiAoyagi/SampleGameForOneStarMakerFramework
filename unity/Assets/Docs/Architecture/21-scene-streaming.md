@@ -1,7 +1,7 @@
 # 21. SceneStreaming — セルストリーミング設計
 
 > ステータス: 設計ドラフト・実装前 (2026-07-06)
-> 前提資料: [05. シーン管理](05-scene.md) / [13. リソースシステム](13-resource-system.md) / [19. AssetResidentCache](19-asset-resident-cache-tickets.md)
+> 前提資料: [05. シーン管理](05-scene.md) / [13. リソースシステム](13-resource-system.md)
 > 関連: HLOD / Proxy ティアの詳細は将来の §22 に分離する（本書はインターフェース予約のみ）
 
 ---
@@ -113,9 +113,34 @@ flowchart TB
 Main (ルート)
   └── InGame (コンテナ)
         └── World (コンテナ、セルの親)
-              ├── Cell_0_0 (LoadType.OnDemand)
+              ├── Cell_0_0 (LoadType.OnDemand)          ← 距離ストリーミング境界
+              │     └── Environment_0_0 (OnDemand)      ← 職種作業単位（引っ張られない）
               ├── Cell_0_1 (LoadType.OnDemand)
               └── ... (N×N)
+```
+
+### Cell 作業単位と子シーン（CCS / 2026-07-26）
+
+Cell は「距離ストリーミングの境界」であると同時に、**人間が並走作業する大きさの作業単位**でもある。
+
+| ルール | 内容 |
+|---|---|
+| 距離判断の単位 | 常に Cell。`WorldStreamingController` は Cell identity だけを見る |
+| Full ティア | Unity シーンを SceneDirector で Load（Prefab 直ストリーミングへ逃げない） |
+| 子の LoadType | 既定 `OnDemand`。Cell `AddScene` で Environment 等は自動ロードされない |
+| 子の明示ロード | SampleGame の薄いデモ配線（`SessionCellChildLoadDriver`）が Cell Stable 後に `AddScene` |
+| 子の Unload | 親 Cell Unload の再帰破棄に任せる（ダングリング防止）。ロード時の引っ張りとは別 |
+| フォルダ境界 | Scene identity の実行単位とディスクフォルダを揃える。実行物は `SampleGame/.../InGameSession/World/` 配下に集約 |
+
+SampleGame 既定レイアウト（カタログ `SceneResourceMap` は Common/SceneMap に残してよい）:
+
+```
+SampleGame/InGame/InGameSession/World/
+  World.unity / Materials/DemoCellLit.mat / WorldGridDefinition.asset
+  Cells/
+    Cell_0_0/
+      Cell_0_0.unity / Cell_0_0.asset
+      Environment_0_0.unity / Environment_0_0.asset   ← 萌芽（一部 Cell のみ）
 ```
 
 - セルは全て `World` の子・`LoadType.OnDemand`。親ロード時に自動ロードされず、Controller の指示でのみ出入りする
@@ -193,7 +218,7 @@ Tick(focusPosition):                       // UpdateSystem 駆動。毎フレー
 
 | パラメータ | 初期値（仮） | 備考 |
 |---|---|---|
-| セルサイズ | 100m × 100m | ゲーム内容確定後に調整 |
+| セルサイズ | 250m × 250m（SampleGame 4×4） | Player カプセル（約 2.2m）を基準に作業単位として拡大。正典初期値は 100m だった |
 | グリッド | 10 × 10（実証スライス） | |
 | ロード半径 / アンロード半径 | 150m / 250m | 差分 = ヒステリシス幅 |
 | 同時 in-flight ロード上限 | 2 | H-2 の priority と併用 |

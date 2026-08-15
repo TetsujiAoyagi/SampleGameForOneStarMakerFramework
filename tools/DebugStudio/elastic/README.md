@@ -278,6 +278,26 @@ docker compose up -d filebeat
 > （`-s -X DELETE` が通りません）。上記は `Invoke-RestMethod` で書いてあります。
 > `&&` で繋ぎたい場合は pwsh 7 を使ってください。
 
-## 関連
+## L0 永続化の契約
 
-- 計画: [`docs/planning/DEBUGSTUDIO_TELEMETRY_PERSISTENCE_AND_ELASTIC_DELIVERY_PLAN_2026-07-19.md`](../../../docs/planning/DEBUGSTUDIO_TELEMETRY_PERSISTENCE_AND_ELASTIC_DELIVERY_PLAN_2026-07-19.md)
+Telemetry の自動永続は Log（`logs\`、先行して稼働）と**同じ運用契約に揃えてある**。
+
+| 項目 | 決定 |
+|---|---|
+| 対象 | `Telemetry` フレームのみ（`ServiceStatus` は含めない） |
+| 形式 | NDJSON、日次 + サイズ rolling |
+| 出力先 | `%LocalAppData%\DebugStudio\telemetry\` |
+| ファイル名 | `debugstudio-telemetry_yyyy-MM-dd_NNN.ndjson` |
+| 保持 | **10 MB × 10 世代** |
+| Elastic Bulk | 手動 Export 専用。自動配送はしない（配送は Filebeat の責務） |
+
+### 運用ルール
+
+| 領域 | ルール |
+|---|---|
+| 送信失敗 | **L0 Capture を止めない。** replay は Filebeat の checkpoint / retry に任せる |
+| memory | NDJSON write は非同期。shipper が停滞しても DebugStudio の memory を増やさない |
+| データ量 | 高頻度 telemetry の sampling / aggregation は producer か transform 層で明示する |
+| PII / secrets | message / tag の allowlist と redaction 基準を本番導入前に定義する |
+| retention | development / QA / production で index lifecycle を分ける |
+| credentials | **Unity・`app-config`・リポジトリに Elastic key を置かない**（§6 の API key 注入を使う） |
