@@ -52,7 +52,15 @@ foreach ($f in $tracked) {
     }
 }
 
+if ($tracked.Count -eq 0) {
+    Write-Error "tracked ファイルが 0 件。checkout に失敗しているか、リポジトリが空: $Root"
+}
+
 $mdFiles = @($tracked | Where-Object { $_ -like '*.md' })
+if ($mdFiles.Count -eq 0) {
+    # 「検査対象が無いので違反も無い」を成功と報告しない（実測: clone 失敗を緑と誤報した）
+    Write-Error "tracked な md が 0 件。検査対象が存在しない: $Root"
+}
 
 # ベンダー同梱の README は対象外（3rd party のもので、こちらの方針は適用しない）
 $vendorPrefixes = @(
