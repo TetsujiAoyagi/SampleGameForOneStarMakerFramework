@@ -3,6 +3,7 @@
     "rootNamespace": "SampleGame.DependOnAll.Editor",
     "references": [
         "SampleGame.OutGame",
+        "SampleGame.InGame",
         "OneStarMaker.Runtime",
         "OneStarMaker.Editor",
         "Unity.Addressables",
