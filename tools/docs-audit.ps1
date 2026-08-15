@@ -6,10 +6,18 @@
 .DESCRIPTION
     方針は docs/README.md。実際に起きた3つの失敗だけを検査する。
 
+      検査0  tracked なのに実体が無い（部分 checkout 失敗）  → エラー
+             （実例: 長いパスへの clone が MAX_PATH で半分だけ失敗し、緑に見えた）
       検査1  tracked な md のリンク先が git に無い          → エラー
              （実例: README.md が gitignore 済みの docs/reference/ を案内していた）
-      検査2  公開面の md が「作業台 / 手元」層を参照している → エラー
-             （実例: tools/DebugStudio/elastic/queries/README.md が HANDOFF §7 を指していた）
+      検査2  層をまたぐ参照                                  → エラー
+             手元層（git 管理外）は**ディレクトリ名の言及だけでアウト**。clone に
+             存在しない先を指すため。
+             作業台 docs/handoff/ は tracked なのでリンクは切れない。問題は一時
+             文書への依存なので、**個別 HANDOFF ファイルの参照だけアウト**とし、
+             方針としてのディレクトリ言及は許す（ルート README は3層を説明する
+             必要がある）。
+             （実例: elastic/queries/README.md が HANDOFF §7 を指していた）
       検査3  §7 と §8 が両方埋まった HANDOFF が残っている    → 警告
              （マージ済みなのに harvest されていない）
 

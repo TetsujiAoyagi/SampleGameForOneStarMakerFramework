@@ -134,7 +134,7 @@ Game.Common ──→ Foundation, Runtime
 | §18 | AssetDescription — 目的・有用性・実装 | [18-asset-description.md](Docs/Architecture/18-asset-description.md) |
 | §19 | （欠番 — AssetResidentCache 施行表。施行完了につき設計判断は §13 へ集約） | — |
 | §20 | Variant チェックアウトワークフロー | [20-variant-checkout-workflow.md](Docs/Architecture/20-variant-checkout-workflow.md) |
-| §21 | SceneStreaming — セルストリーミング設計（実装済み。HLOD / Proxy は未着手） | [21-scene-streaming.md](Docs/Architecture/21-scene-streaming.md) |
+| §21 | SceneStreaming — セルストリーミング設計（コア実装済み。実証スライス / テレメトリ / 受入は未了） | [21-scene-streaming.md](Docs/Architecture/21-scene-streaming.md) |
 | §22 | （予約 — HLOD / Proxy ティア。21-scene-streaming.md §12 参照） | — |
 | §23 | CameraSystem — カメラシステム設計（実装済み。Play 目視判定が未了） | [23-camera-system.md](Docs/Architecture/23-camera-system.md) |
 | §24 | RenderingSystem — レンダリングシステム構想（構想段階・骨子） | [24-rendering-system.md](Docs/Architecture/24-rendering-system.md) |
