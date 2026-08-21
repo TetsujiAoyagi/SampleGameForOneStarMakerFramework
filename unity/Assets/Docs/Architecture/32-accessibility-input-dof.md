@@ -1,6 +1,6 @@
 # 32. アクセシビリティ入力自由度の低減（片腕）
 
-> ステータス: **構想・契約固定（実装前）**（2026-08-21）
+> ステータス: **設計中**（2026-08-22）。方針は確定、実装は InputManager 待ち
 > [ARCHITECTURE.md](../../ARCHITECTURE.md) に戻る
 > 関連: [30-accessibility-identity.md](30-accessibility-identity.md)、[31-accessibility-output-budget.md](31-accessibility-output-budget.md)、[07-09-services.md](07-09-services.md)
 
@@ -22,7 +22,7 @@
 全盲の律速は出力帯域（§31）。片腕の律速は入力の同時性。
 同居させると、ほぼ方針だけで書ける片腕側が、契約の足りない全盲側と同じ準備度に見える。分ける。
 
-§30 に残すのは 1 行だけである: **レジストリは Focusable + Actionable を候補集合として供給し、Hidden は除外する。**
+§30 に残すのは 1 行だけである: **レジストリは Focusable + Actionable を候補集合として供給する。** Hidden を落とすのは消費者側であり、[§30 §10](30-accessibility-identity.md#10-レジストリ) の `AccessibilityQueryFilter.ExcludedFlags` に指定する。
 
 ---
 
@@ -54,9 +54,9 @@
 | ホールドをトグルに | 押しっぱなし用の第二指を要求しない | InputManager |
 | フルリマップ | マウスのみ / スティック + 肩ボタン等 | InputManager |
 | Focusable + Actionable を巡回し、決定は 1 ボタン | 同時照準をやめる | 候補は §30。操作は InputManager |
-| UI の初期フォーカスと Tab / 決定 / キャンセル | 画面を片手デバイスで閉じる | UISystem + §30 の UI 記述子 |
+| UI の初期フォーカスと Tab / 決定 / キャンセル | 画面を片手デバイスで閉じる | **UISystem 単独。**UITK の `focusable` / `tabIndex` で足り、§30 を必要としない |
 
-Hidden は巡回から除外。[§30](30-accessibility-identity.md) の `Hidden \| Focusable` は作者付け不備。
+Hidden は巡回から除外する（`ExcludedFlags` に指定する。§30 §10）。`Hidden | Focusable` は作者付け不備。
 
 ---
 
@@ -65,8 +65,8 @@ Hidden は巡回から除外。[§30](30-accessibility-identity.md) の `Hidden 
 | 項目 | 理由 |
 |---|---|
 | 入力プロファイル / リマップ UI | InputManager 未着手 |
-| ワールド巡回の実装 | §30 S-2 の候補集合が先 |
-| UI の初期フォーカス配線 | 既存画面への適用は §30 S-2 の BindAccessible と同時でよいが、今はしない |
+| ワールド巡回の実装 | [§30 S-2](30-accessibility-identity.md#15-実装スライス) の候補集合が先。加えて W-7（到達可能性）の供給元が無く、「拾えるが行けない」を候補から外せない |
+| UI の初期フォーカス配線 | **§30 に依存しないので単独で進められる。**最も安く出せる項目だが、今はしない |
 | 触覚ボタンの割り当て | 要求が無い |
 
 ---
