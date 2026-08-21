@@ -143,7 +143,7 @@ Game.Common ──→ Foundation, Runtime
 | §27 | フォルダ構成戦略（Assembly × Scene 同居） | [27-folder-structure.md](Docs/Architecture/27-folder-structure.md) |
 | §28 | テレメトリ Contract v3（kind + payload）。§12 / §15 の後継 | [28-telemetry-contract-v3.md](Docs/Architecture/28-telemetry-contract-v3.md) |
 | §29 | UI エフェクト合成（非UIレンダラの描画順統合、検証待ち） | [29-ui-effect-compositing.md](Docs/Architecture/29-ui-effect-compositing.md) |
-| §30 | 意味アイデンティティ層（構想・契約固定。実装前） | [30-accessibility-identity.md](Docs/Architecture/30-accessibility-identity.md) |
+| §30 | 意味アイデンティティ層（構想・契約固定。実装前。動的状態と登録入口を改訂） | [30-accessibility-identity.md](Docs/Architecture/30-accessibility-identity.md) |
 | — | Assembly 分割移行記録 | [migration-assembly-split.md](Docs/Architecture/migration-assembly-split.md) |
 
 ---
