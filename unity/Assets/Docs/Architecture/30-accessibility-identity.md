@@ -1,6 +1,6 @@
 # 30. 意味アイデンティティ層（Accessibility Identity）
 
-> ステータス: **設計中**（2026-08-22）。§6 の理想は確定。§11 はホストの有無で消費者を分けた。**§9 以降の契約は S-1（番地）のみ暫定確定**。独立監査は [§18](#18-独立監査)
+> ステータス: **設計中**（2026-08-22）。§6 の理想は確定。§11 はホストの有無で消費者を分けた。**§9 以降の契約は S-1（番地）のみ暫定確定**
 > [ARCHITECTURE.md](../../ARCHITECTURE.md) に戻る
 > 関連: [05-scene.md](05-scene.md)、[06-ui.md](06-ui.md)、[31-accessibility-output-budget.md](31-accessibility-output-budget.md)、[32-accessibility-input-dof.md](32-accessibility-input-dof.md)、[21-scene-streaming.md](21-scene-streaming.md)、[23-camera-system.md](23-camera-system.md)、[24-rendering-system.md](24-rendering-system.md)、[26-update-async-time-authority.md](26-update-async-time-authority.md)
 
@@ -36,7 +36,6 @@
 15. [実装スライス](#15-実装スライス)
 16. [撤退ライン](#16-撤退ライン)
 17. [オープン論点](#17-オープン論点)
-18. [独立監査](#18-独立監査)
 
 ---
 
@@ -173,7 +172,7 @@ ARIA の role / name / state は、おおむね次が揃う文脈で成立して
 
 | # | 帰結 |
 |---|---|
-| 1 | **[§31](31-accessibility-output-budget.md) のキュー競合の大半は、1 本のチャネルに全部載せたことの副作用である。** 分ければ、緊急の告知と描写的な告知は**同じキューを奪わない**。注意そのものは共有されるので、同時提示が人間側で衝突しうる（§18） |
+| 1 | **[§31](31-accessibility-output-budget.md) のキュー競合の大半は、1 本のチャネルに全部載せたことの副作用である。** 分ければ、緊急の告知と描写的な告知は**同じキューを奪わない**。注意そのものは共有されるので、同時提示が人間側で衝突しうる |
 | 2 | `Urgent`（§9.1）は優先度ではなく**即時チャネルの候補資格**である。1 ビットで足りるのは、行き先そのものではなく「即時に出してよいか」を表すから。振り分けは §31 がイベントごとに行う（D-17） |
 | 3 | **W-11（名前）は説明的チャネルの積荷であり、即時チャネルには載らない。** 「Label を落とす」のではなく「Label を pull 側に閉じる」が正しい |
 | 4 | **W-O-2 が解ける。** 連続量は即時チャネルのパラメトリック符号化（D-16 の言う通り）、W-10（Game の順序値）は説明的チャネルの並べ替え。別チャネルの別機構なので衝突しない |
@@ -195,7 +194,7 @@ ARIA の role / name / state は、おおむね次が揃う文脈で成立して
 
 **W-1 / W-2 は全手段に現れる。W-11（名前）は説明的チャネルにのみ現れ、即時チャネルには一度も現れない。**
 
-S-1 は消費者を置かず、全手段に共通する W-1 / W-2 / W-3 だけを証明する（§15、§18）。チャネル選択はホストが実装されてから行う。Label をデバッグ表示用のプレーン文字列として持ってよい。この段階では `IAccessibilityText` と loc は要らない。
+S-1 は消費者を置かず、全手段に共通する W-1 / W-2 / W-3 だけを証明する（§15）。チャネル選択はホストが実装されてから行う。Label をデバッグ表示用のプレーン文字列として持ってよい。この段階では `IAccessibilityText` と loc は要らない。
 
 ### 6.4 この表から出た未解決
 
@@ -232,7 +231,7 @@ S-1 は消費者を置かず、全手段に共通する W-1 / W-2 / W-3 だけ�
 | D-14 | **初期走査が Attach と初回 Register を同時に行う。** Attach 前の OnEnable は登録しない | Stable 時点で OnEnable は既に終わっている。走査と OnEnable の二重 Register を防ぐ |
 | D-15 | **Handle は `slot` + `generation`。** [`UpdateHandle`](../../OneStarMaker/Scripts/Foundation/UpdateSystem/Contracts/UpdateHandle.cs) を踏襲する | **スロット再利用の ABA 問題**。旧版は「跨いで保持しない」という規約だけで、A を Unregister した後の古い Handle が、同じスロットを取った B の Flags を黙って書き換えられた。FW 内に解決済みの前例があるのに別形を発明していた |
 | D-16 | **連続量は記述子に載せない** | 接近・残量は**即時チャネルのパラメトリック符号化**（ピッチ・強度・間隔）で運ぶ。Identity をテレメトリバスにしない（§6.2） |
-| D-17 | **チャネル振り分けが先、調停は後。** `Urgent` は**即時チャネルの候補資格**であり、通知の行き先そのものではない | 振り分けは [§31](31-accessibility-output-budget.md) が変更フィードの**イベントごと**に行う。オブジェクト Flags に行き先を焼くと、同じ Actor の接近（即時）と名前照会（説明的）を分けられない（§18） |
+| D-17 | **チャネル振り分けが先、調停は後。** `Urgent` は**即時チャネルの候補資格**であり、通知の行き先そのものではない | 振り分けは [§31](31-accessibility-output-budget.md) が変更フィードの**イベントごと**に行う。オブジェクト Flags に行き先を焼くと、同じ Actor の接近（即時）と名前照会（説明的）を分けられない |
 | D-18 | **`IAccessibilityBackend` を挟む。** 公開 API に Unity 型を漏らさない。**片方向の翻訳テストを課す** | [§24 D-3](24-rendering-system.md)「高価な実装の着手を計測まで遅延できる」。§24 D-5 と同じ型漏れ禁止。翻訳テストは §11.2。**AccessibilityRole への全単射は要求しない** |
 | D-19 | **`Register` は Handle を返す（`out`）** | 返さないと登録側が毎回 string で引き直すことになり、D-9 を契約自身が破る。[`UpdateElementRegistry.Register`](../../OneStarMaker/Scripts/Foundation/UpdateSystem/Elements/UpdateElementRegistry.cs) と同形 |
 | D-20 | **重複 StableId は Editor / 開発ビルドで例外、製品ビルドではログ + `false`** | `UnregisterScene` の呼び出し元は 4 経路（PreUnloading / LoadCanceled / Dispose / Bootstrap）あり、1 つ落とすとセル再入のたびに例外が飛ぶ。セル identity は `Cell_{x}_{y}` で固定なので確実に再現する |
@@ -473,7 +472,7 @@ Register / Unregister / SetFlags は §31 の変更フィードの材料にな�
 |---|---|---|---|---|
 | **DebugStudio inspector** | 説明的 | W-1, W-11 | ホストは存在する。アクセシビリティ用 surface は未着手。プロトコル非変更の範囲 | **今日ホストがある最初の候補** |
 | **レート**（[§26](26-update-async-time-authority.md) の Layer timeScale） | — | W-8 | `UpdateLayer.SetTimeScale` は実装済み。未読量との接続は未着手 | Sample での実験 |
-| **強調描画**（[§24](24-rendering-system.md) Policy 層。輪郭・コントラスト） | 即時 | W-1, W-2, W-5 | §24 は**構想段階**。`IRenderBackend` はコードゼロ | **S-1 の消費者にしない**（§18）。ホスト待ち |
+| **強調描画**（[§24](24-rendering-system.md) Policy 層。輪郭・コントラスト） | 即時 | W-1, W-2, W-5 | §24 は**構想段階**。`IRenderBackend` はコードゼロ | **S-1 の消費者にしない**。ホスト待ち |
 | **点検・方向走査**（NavStick 型） | 説明的 | W-1, W-2, W-4, W-5, W-6, W-11 + **方向クエリ** | W-5 の視線判定が要る（W-O-3）。`Query` の形が合わない（W-O-4） | 後続。**S-1 の見積もりを超える** |
 | **実行支援・巡回**（[§32](32-accessibility-input-dof.md)） | 説明的 | W-1, W-2, W-6, W-7, W-11 | InputManager 未着手 | 後続 |
 | **触覚・非音声音** | 即時 | W-1, W-2, W-5, W-8 | Phase 2 Sound 未着手 | 後続 |
@@ -493,7 +492,7 @@ Register / Unregister / SetFlags は §31 の変更フィードの材料にな�
 | Backend | 対象 | 検証 |
 |---|---|---|
 | `FakeAccessibilityBackend` | テスト | EditMode。**ポリシー層の受入はここで全部取る** |
-| `UnityAssistiveSupportBackend` | Android / iOS / Windows / macOS（デスクトップは Unity 6.3 以降） | 実機のみ。CI 不可 |
+| `UnityAssistiveSupportBackend` | Android / iOS / Windows / macOS（デスクトップは [Unity 6.3 以降](https://discussions.unity.com/t/native-desktop-screen-reader-support-now-available-in-unity-6-3/1681788)） | 実機のみ。CI 不可 |
 | `DebugSocketBackend` | DebugStudio | プロトコル非変更の範囲 |
 
 規約は §24 D-5 と同じ: **`AccessibilityNode` / `AccessibilityRole` 等の Unity 型を公開 API に一切漏らさない。**
@@ -668,69 +667,9 @@ public static class AccessibilityAudit
 | O-2 | 方位の語彙 | §31 のガイド実装時に時計回りで固定 |
 | O-3 | 大量インスタンスの粒度 | Archetype 既定 + 近いものだけ。計測してから |
 | O-4 | Hidden を Query 既定除外するか | しない。`ExcludedFlags` に消費者が入れる（§10） |
-| O-5 | Kind の FW 予約域が 7 つで足りるか | 足りなければ追加。**Game 域があるので不足は事故にならない**（D-2）。7 種は推定であり実測ではない（§18） |
+| O-5 | Kind の FW 予約域が 7 つで足りるか | 足りなければ追加。**Game 域があるので不足は事故にならない**（D-2）。7 種は推定であり実測ではない |
 | O-6 | 破棄済み source を `TryGetHandle` に残す上限 | Scene 一括解除まで。リーク疑いが出たら期限を足す |
 | O-7 | `Query` の結果順序 | 未定義（登録順）とする。距離順は呼び出し側が `TryGetPosition` で並べ替える |
 
 （World 側の未決は §6.4 の W-O-* にある）
 
----
-
-## 18. 独立監査
-
-> 2026-08-22。起草（§30〜§32）に関与していない側が、既存実装と公開 API に照合した。コードは書いていない。
-
-### 18.1 採用する骨格
-
-次は既存コードと一致し、残す。
-
-| 項目 | 照合 |
-|---|---|
-| 「契約固定」から「設計中」への降格 | §31 は Phase 2 Sound、§32 は InputManager 待ち。消費者が無い要求で型を凍結していた、は正しい診断 |
-| 理想（§6）→ 消費者（§11）→ 契約（§9〜） | 規律そのものは採用 |
-| 即時 / 説明的の二分 | 予算の単位が違う（信号種類数 vs 語数）。1 本のキューに載せない |
-| Handle = slot + generation | [`UpdateHandle`](../../OneStarMaker/Scripts/Foundation/UpdateSystem/Contracts/UpdateHandle.cs) と同型。旧稿の「跨いで保持しない」だけでは ABA を防げない |
-| `Register` が `out handle` | [`UpdateElementRegistry.Register`](../../OneStarMaker/Scripts/Foundation/UpdateSystem/Elements/UpdateElementRegistry.cs) と同形 |
-| `TryGetPosition` を契約に置く | 旧稿は位置を読む API が無く、S-1 の距離検証が書けなかった |
-| Kind 未定義 + Flags では分類を足せない | 旧稿に `AccessibilityKind` の定義が無い。数値域（D-2）で解消する |
-| `aria-live` は維持を扱う | 旧 §3 の「Web は維持を扱わない」は誤り。polite / assertive / off は 15 年以上の運用がある |
-| デスクトップ screen reader は Unity 6.3 | [公式告知](https://discussions.unity.com/t/native-desktop-screen-reader-support-now-available-in-unity-6-3/1681788)。本リポジトリは 6.5.0f1 なので機能は使える |
-| 解除 4 経路と `Cell_{x}_{y}` | `ExecutePreUnLoad` / `LoadCanceled` / `Dispose` / Bootstrap `ReleaseAll` は実在。[`CellIdentity`](../../OneStarMaker/Scripts/Runtime/SceneSystem/Cells/CellIdentity.cs) は固定文字列 |
-
-`BindAccessible` 削除は設計判断（§5）であり、バグ修正だけではない。`UICommon.AddUIView` は Stable 中にも呼べるので、二重登録の失敗モード自体は実在する。
-
-### 18.2 判定した 2 論点
-
-起草側が独断とした 5 件のうち、契約を動かす 2 件。
-
-**A. Kind の FW 予約 7 種（§9.1）— 機構は採用、中身は暫定**
-
-数値域（1–999 / 1000–）は Foundation の `enum` に Game が名前を足せない、という制約の正しい解き方である。7 種（Actor / Item / Region / Passage / Obstacle / Surface / Marker）は音響ゲームの手掛かりからの推定であり、このゲームの実測ではない。O-5 のとおり足せるので、不足は事故にならない。
-
-ただし D-18 旧稿の「`AccessibilityNode` と AccessKit の双方へ無損失で射影できる」は成立しない。Unity 6.3 の [`AccessibilityRole`](https://docs.unity3d.com/6000.3/Documentation/ScriptReference/Accessibility.AccessibilityRole.html) は Button / Toggle / Header / Slider / Container 等の **UI ウィジェット分類**で、World Kind とは空間が違う。大半は `None` + label に落ち、逆射影できない。UI をレジストリから外した（§5）以上、抽象の証明を UI 木への全単射に置かない。翻訳テストは Backend DTO への**片方向**に弱めた（§11.2、S-1 の 5）。
-
-**B. 最初の消費者を強調描画にした（§15）— 却下**
-
-根拠の「§24 着手済み」は事実誤認である。[§24](24-rendering-system.md) のステータスは「構想段階・骨子（実装前）」。`IRenderBackend` / `RenderWorld` はリポジトリに無い（描画コードは `FrameTimeGraphRenderer` のみ）。
-
-これは、本章が新設した規律「消費者が存在しない要求で契約を凍結しない」の再発である。強調描画は即時チャネルの実験として後で有効だが、S-1 の消費者にはしない。S-1 は W-1 / W-2 / W-3 の番地だけを証明する。
-
-加えて、§6.3 と §11.1 は強調描画に W-5（視線）を要求し、旧 §15 は W-5 無しで閉じると書いていた。壁越し強調を飲むか、W-5 を待つかを決めないまま第一消費者にはできない。
-
-### 18.3 残 3 件
-
-| 論点 | 判定 |
-|---|---|
-| 優先度 3 クラス（§31 D-9） | **採用。** `aria-live` の assertive / polite / off から始める。ゲームで足りる保証は無い。旧 4 クラス目（キュー先頭 = 止めないが次に言う）は、割り込みせずに順序だけ上げる需要が出てから足す |
-| 方向クエリ（W-O-4）を S-1 から外した | **採用。** 視線判定の供給元が無い（W-O-3）。実測で優位な形を先送りするのは、供給元が無いときの正しい縮退。`Query` を後から置き換えず別メソッドで足す、も残す |
-| UI を §30 から外した（§5、§12.4） | **S-1 では採用。** 2D の文書順モデルは UI には合う。未検証なのはダイジェティック UI / World-space UI。ここを外したことが、A の「UI 木への無損失射影」を自己矛盾にしていた |
-
-### 18.4 追加で直したこと
-
-| 項目 | 内容 |
-|---|---|
-| `Urgent` の粒度 | オブジェクト Flags に行き先を焼くと、同じ Actor の接近と名前照会を分けられない。**候補資格**に戻し、振り分けは §31 がイベントごとに行う（D-17） |
-| 「両者は競合しない」 | キューは奪わない。注意資源は共有するので、同時提示は人間側で衝突しうる。帰結 1 をその意味に限定した |
-| §11.1 の「今日存在する」 | DebugStudio と §26 `SetTimeScale` はホストがある。強調描画のホストは無い |
-
-30 秒書き下し（§31 §10）は未実施のままである。実施結果で S-1 / S-2 の順を差し替える手続は残す。
