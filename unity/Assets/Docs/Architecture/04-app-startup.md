@@ -231,21 +231,6 @@ private async UniTaskVoid InitializeAfterSceneLoad()
 - `SceneResourceMap` に未登録のシーン（テストシーン等）はスキップしてログ出力する。
 - ビルド時は Build Settings の Scene 0 が唯一の初回 Unity シーン。`RegisterAlreadyLoadedScenes` は Scene 0 を登録するだけで二重ロードは発生しない。
 
-### InGameSession の初回 Level 解決（Play-from-level-scene）
-
-`InGameSession.OnLoadedImpl` は `InGameArgs.TransitionLevel` が無い場合、Editor で Level シーンから直接 Play したケースに備えて初回 Level を推定する。
-
-```
-優先順位:
-  1. InGameArgs.TransitionLevel（通常の OutGame → InGame 遷移）
-  2. SceneManager.GetActiveScene().name が SeasonWorldCatalog.Chain に含まれる
-  3. SceneManager.sceneCount 走査で最初に見つかった Chain 一致シーン
-  4. 解決不能 → 警告ログのみ。Coordinator は起動しない（Spring 等への暗黙デフォルトなし）
-```
-
-`LevelStreamCoordinator.EnsureLevelLoadedAsync` は既に Stable / in-flight の Level をそのまま扱うため、
-`RegisterAlreadyLoadedScenes` で Level が先に登録されていても安全。
-
 ## 4.7 設定の読み込み（AppConfig）
 
 アプリケーション設定は3つのソースからレイヤード方式でマージする。後のソースが前のソースを上書きする。

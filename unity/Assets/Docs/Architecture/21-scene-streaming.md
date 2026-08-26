@@ -111,13 +111,16 @@ flowchart TB
 
 ```
 Main (ルート)
-  └── InGame (コンテナ)
-        └── World (コンテナ、セルの親)
-              ├── Cell_0_0 (LoadType.OnDemand)          ← 距離ストリーミング境界
-              │     └── Environment_0_0 (OnDemand)      ← 職種作業単位（引っ張られない）
-              ├── Cell_0_1 (LoadType.OnDemand)
-              └── ... (N×N)
+  └── InGameScene (コンテナ)
+        └── InGameSession
+              └── World (LoadType.NecessaryAlways、セルの親)
+                    ├── Cell_0_0 (LoadType.OnDemand)          ← 距離ストリーミング境界
+                    │     └── Environment_0_0 (OnDemand)      ← 職種作業単位（引っ張られない）
+                    ├── Cell_0_1 (LoadType.OnDemand)
+                    └── ... (N×N)
 ```
+
+> 上図は現況である。SampleGame の実証境界（Season / Tunnel）が入ると `InGameSession` と `Cell` のあいだに Season Level が挟まり、`World` はそれに置き換わる。設計は [§33](33-sample-demonstration-boundaries.md)。
 
 ### Cell 作業単位と子シーン（CCS / 2026-07-26）
 
