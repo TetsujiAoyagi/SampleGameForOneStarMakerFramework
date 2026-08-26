@@ -622,7 +622,7 @@ public static class AccessibilityAudit
 
 | # | 内容 | 受入 |
 |---|---|---|
-| 1 | Foundation の型（Kind / Flags / Descriptor / Handle / QueryFilter / QueryResult / StableId / Audit） | EditMode |
+| 1 | Foundation の型（Kind / Flags / Descriptor / Handle / QueryFilter / QueryResult / StableId / Audit / `IAccessibilityBackend` の**インターフェース定義のみ**） | EditMode |
 | 2 | Registry: Register の `out handle`、重複時の D-20 挙動、Set/Add/RemoveFlags、`Clear` してから詰める Query、`ExcludedFlags`、Scene 一括 Unregister の冪等 | EditMode |
 | 3 | **世代の検証**: A を登録 → handle 取得 → Unregister → B を登録（同じ slot を再利用）→ **handleA での `SetFlags` が `false` を返し、B が不変であること** | EditMode。**必須** |
 | 4 | `TryGetPosition`: 供給元を Register に載せ、**供給元が動いたら次の `TryGetPosition` が追随すること**、破棄済みで `false` になること | EditMode |
