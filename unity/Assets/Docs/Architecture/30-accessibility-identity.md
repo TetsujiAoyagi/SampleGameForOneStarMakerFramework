@@ -236,7 +236,7 @@ S-1 は消費者を置かず、全手段に共通する W-1 / W-2 / W-3 だけ�
 | D-17 | **チャネル振り分けが先、調停は後。** `Urgent` は**即時チャネルの候補資格**であり、通知の行き先そのものではない | 振り分けは [§31](31-accessibility-output-budget.md) が変更フィードの**イベントごと**に行う。オブジェクト Flags に行き先を焼くと、同じ Actor の接近（即時）と名前照会（説明的）を分けられない |
 | D-18 | **`IAccessibilityBackend` を挟む。** 公開 API に Unity 型を漏らさない。**片方向の翻訳テストを課す** | [§24 D-3](24-rendering-system.md)「高価な実装の着手を計測まで遅延できる」。§24 D-5 と同じ型漏れ禁止。翻訳テストは §11.2。**AccessibilityRole への全単射は要求しない** |
 | D-19 | **`Register` は Handle を返す（`out`）** | 返さないと登録側が毎回 string で引き直すことになり、D-9 を契約自身が破る。[`UpdateElementRegistry.Register`](../../OneStarMaker/Scripts/Foundation/UpdateSystem/Elements/UpdateElementRegistry.cs) と同形 |
-| D-20 | **重複 StableId は Editor / 開発ビルドで例外、製品ビルドではログ + `false`** | `UnregisterScene` の呼び出し元は 4 経路（PreUnloading / LoadCanceled / Dispose / Bootstrap）あり、1 つ落とすとセル再入のたびに例外が飛ぶ。セル identity は `Cell_{x}_{y}` で固定なので確実に再現する |
+| D-20 | **重複 StableId は Editor / 開発ビルドで例外、製品ビルドではログ + `false`。ここだけ [`UpdateElementRegistry`](../../OneStarMaker/Scripts/Foundation/UpdateSystem/Elements/UpdateElementRegistry.cs) の踏襲から外れる**（あちらは重複時に常に `false` を返し、例外を投げない） | 踏襲元が引くのは*同じ element 参照*の二重登録で、呼び出し側の冪等性の問題である。こちらが引くのは*別の対象が同じ StableId を名乗った*ことで、**作者付けの誤り**である。黙って `false` を返すと登録漏れが実行時まで見えない。一方 `UnregisterScene` の呼び出し元は 4 経路（PreUnloading / LoadCanceled / Dispose / Bootstrap）あり、1 つ落とすとセル再入のたびに例外が飛ぶ。セル identity は `Cell_{x}_{y}` で固定なので確実に再現する |
 | D-21 | **レジストリはメインスレッド限定** | `ApplyMainThreadChanges` を持つ UpdateSystem と同じ前提に揃える。並行登録を契約しない |
 
 ### 7.2 却下案
@@ -493,7 +493,7 @@ Register / Unregister / SetFlags は §31 の変更フィードの材料にな�
 
 | Backend | 対象 | 検証 |
 |---|---|---|
-| `FakeAccessibilityBackend` | テスト | EditMode。**ポリシー層の受入はここで全部取る** |
+| `FakeAccessibilityBackend` | テスト | EditMode。**ポリシー層の受入はここで全部取る**（ポリシー層が現れてから。型そのものは S-2 の 9。S-1 は作らない） |
 | `UnityAssistiveSupportBackend` | Android / iOS / Windows / macOS（デスクトップは [Unity 6.3 以降](https://discussions.unity.com/t/native-desktop-screen-reader-support-now-available-in-unity-6-3/1681788)） | 実機のみ。CI 不可 |
 | `DebugSocketBackend` | DebugStudio | プロトコル非変更の範囲 |
 
@@ -627,6 +627,8 @@ public static class AccessibilityAudit
 | 3 | **世代の検証**: A を登録 → handle 取得 → Unregister → B を登録（同じ slot を再利用）→ **handleA での `SetFlags` が `false` を返し、B が不変であること** | EditMode。**必須** |
 | 4 | `TryGetPosition`: 供給元を Register に載せ、**供給元が動いたら次の `TryGetPosition` が追随すること**、破棄済みで `false` になること | EditMode |
 | 5 | 翻訳テスト: Kind / Flags / Label / 位置が Backend DTO へ**片方向で載ること**（射影先は表データ。Unity 型に依存しない）。`AccessibilityRole` への全単射は要求しない | EditMode |
+
+**S-1 は `IAccessibilityBackend` の実装型を作らない。** 受入 5 の射影先はテスト内の表データに閉じ、`FakeAccessibilityBackend` は S-2 の 9 で作る。§11.2 の「ポリシー層の受入は Fake で全部取る」はポリシー層が現れてからの話であり、**S-1 にポリシー層は無い**。
 
 規模の見積もり: Foundation ≈ 260 行 / Runtime ≈ 200 行（[`UpdateElementRegistry`](../../OneStarMaker/Scripts/Foundation/UpdateSystem/Elements/UpdateElementRegistry.cs) が 178 行）/ Tests ≈ 300 行。**既存ファイルの変更ゼロ。**
 
