@@ -249,8 +249,12 @@ namespace OneStarMaker.Tests.Editor
             var so = new SerializedObject(definition);
             so.FindProperty("_origin").vector3Value = Vector3.zero;
             so.FindProperty("_cellSize").floatValue = 100f;
-            so.FindProperty("_gridWidth").intValue = width;
-            so.FindProperty("_gridHeight").intValue = height;
+            var rects = so.FindProperty("_rectangles");
+            rects.ClearArray();
+            rects.InsertArrayElementAtIndex(0);
+            var elem = rects.GetArrayElementAtIndex(0);
+            elem.FindPropertyRelative("origin").vector2IntValue = Vector2Int.zero;
+            elem.FindPropertyRelative("size").vector2IntValue = new Vector2Int(width, height);
             so.FindProperty("_parentSceneIdentity").stringValue = ParentIdentity;
             so.FindProperty("_sceneOutputFolder").stringValue = "Assets/Test/World/Cells";
             so.FindProperty("_sceneResourceOutputFolder").stringValue = "Assets/Test/SceneMap/Cells";

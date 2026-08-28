@@ -73,28 +73,26 @@ namespace OneStarMaker.Runtime.Streaming
             var retain = new HashSet<string>(StringComparer.Ordinal);
             var loaded = new HashSet<string>(StringComparer.Ordinal);
 
-            for (var x = 0; x < Config.GridWidth; x++)
+            for (var i = 0; i < Config.Cells.Count; i++)
             {
-                for (var y = 0; y < Config.GridHeight; y++)
+                var cell = Config.Cells[i];
+                var cellId = CellIdentity.Format(cell.x, cell.y);
+                var center = GetCellCenter(cell.x, cell.y, grid);
+                var nearestDistance = GetNearestFocusDistance(focusPositions, center);
+
+                if (Backend.IsLoaded(cellId))
                 {
-                    var cellId = CellIdentity.Format(x, y);
-                    var center = GetCellCenter(x, y, grid);
-                    var nearestDistance = GetNearestFocusDistance(focusPositions, center);
+                    loaded.Add(cellId);
+                }
 
-                    if (Backend.IsLoaded(cellId))
-                    {
-                        loaded.Add(cellId);
-                    }
+                if (nearestDistance <= Config.LoadRadius)
+                {
+                    desiredOrdered.Add((cellId, nearestDistance));
+                }
 
-                    if (nearestDistance <= Config.LoadRadius)
-                    {
-                        desiredOrdered.Add((cellId, nearestDistance));
-                    }
-
-                    if (nearestDistance <= Config.UnloadRadius)
-                    {
-                        retain.Add(cellId);
-                    }
+                if (nearestDistance <= Config.UnloadRadius)
+                {
+                    retain.Add(cellId);
                 }
             }
 

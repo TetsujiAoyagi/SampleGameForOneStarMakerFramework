@@ -14,8 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: OneStarMaker.Editor::OneStarMaker.Editor.Streaming.WorldGridDefinition
   _origin: {x: 0, y: 0, z: 0}
   _cellSize: 250
-  _gridWidth: 4
-  _gridHeight: 4
+  _rectangles:
+  - origin: {x: 0, y: 0}
+    size: {x: 4, y: 4}
   _parentSceneIdentity: World
   _sceneOutputFolder: Assets/SampleGame/InGame/InGameSession/World/Cells
   _sceneResourceOutputFolder: Assets/SampleGame/InGame/InGameSession/World/Cells

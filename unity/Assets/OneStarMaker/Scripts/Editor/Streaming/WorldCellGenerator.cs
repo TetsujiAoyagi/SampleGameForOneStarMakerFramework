@@ -205,7 +205,7 @@ namespace OneStarMaker.Editor.Streaming
     }
 
     /// <summary>
-    /// グリッド定義から N×N セルシーン + SceneResource + SceneResourceMap 登録を量産するエディタツール。
+    /// グリッド定義の矩形集合からセルシーン + SceneResource + SceneResourceMap 登録を量産するエディタツール。
     /// 生成ロジック（計画）は純関数として分離し、.unity I/O は <see cref="ApplySceneFiles"/> に隔離する。
     /// </summary>
     public static class WorldCellGenerator
@@ -231,31 +231,32 @@ namespace OneStarMaker.Editor.Streaming
             var parentIdentity = definition.ParentSceneIdentity;
             var sceneFolder = NormalizeAssetPath(definition.SceneOutputFolder);
             var resourceFolder = NormalizeAssetPath(definition.SceneResourceOutputFolder);
-            var entries = new List<WorldCellGenerationEntry>(definition.CellCount);
+            var cells = definition.EnumerateCells();
+            var entries = new List<WorldCellGenerationEntry>(cells.Count);
 
-            for (var y = 0; y < definition.GridHeight; y++)
+            for (var i = 0; i < cells.Count; i++)
             {
-                for (var x = 0; x < definition.GridWidth; x++)
-                {
-                    var identity = CellIdentity.Format(x, y);
-                    var action = existingIdentities.Contains(identity)
-                        ? WorldCellPlanAction.Skip
-                        : WorldCellPlanAction.Create;
-                    // フォルダ = 実行環境境界（CCS-00）:
-                    // 「この Cell を動かすのに何が要るか」を Explorer で同名サブフォルダを開けば把握できるようにする。
-                    // 例: Cells/Cell_0_0/Cell_0_0.unity + Cell_0_0.asset（+ 任意で Environment_0_0.*）
-                    var sceneAssetPath = $"{sceneFolder}/{identity}/{identity}.unity";
-                    var sceneResourceAssetPath = $"{resourceFolder}/{identity}/{identity}.asset";
+                var coordinate = cells[i];
+                var x = coordinate.x;
+                var y = coordinate.y;
+                var identity = CellIdentity.Format(x, y);
+                var action = existingIdentities.Contains(identity)
+                    ? WorldCellPlanAction.Skip
+                    : WorldCellPlanAction.Create;
+                // フォルダ = 実行環境境界（CCS-00）:
+                // 「この Cell を動かすのに何が要るか」を Explorer で同名サブフォルダを開けば把握できるようにする。
+                // 例: Cells/Cell_0_0/Cell_0_0.unity + Cell_0_0.asset（+ 任意で Environment_0_0.*）
+                var sceneAssetPath = $"{sceneFolder}/{identity}/{identity}.unity";
+                var sceneResourceAssetPath = $"{resourceFolder}/{identity}/{identity}.asset";
 
-                    entries.Add(new WorldCellGenerationEntry(
-                        identity,
-                        new Vector2Int(x, y),
-                        parentIdentity,
-                        LoadType.OnDemand,
-                        action,
-                        sceneAssetPath,
-                        sceneResourceAssetPath));
-                }
+                entries.Add(new WorldCellGenerationEntry(
+                    identity,
+                    new Vector2Int(x, y),
+                    parentIdentity,
+                    LoadType.OnDemand,
+                    action,
+                    sceneAssetPath,
+                    sceneResourceAssetPath));
             }
 
             return new WorldCellGenerationPlan(entries);
@@ -452,39 +453,38 @@ namespace OneStarMaker.Editor.Streaming
         {
             var resourceFolder = NormalizeAssetPath(definition.SceneResourceOutputFolder);
             var adopted = false;
+            var cells = definition.EnumerateCells();
 
-            for (var y = 0; y < definition.GridHeight; y++)
+            for (var i = 0; i < cells.Count; i++)
             {
-                for (var x = 0; x < definition.GridWidth; x++)
+                var coordinate = cells[i];
+                var identity = CellIdentity.Format(coordinate.x, coordinate.y);
+                if (map.GetSceneResource(identity) != null)
                 {
-                    var identity = CellIdentity.Format(x, y);
-                    if (map.GetSceneResource(identity) != null)
-                    {
-                        continue;
-                    }
-
-                    var assetPath = $"{resourceFolder}/{identity}/{identity}.asset";
-                    var existing = AssetDatabase.LoadAssetAtPath<SceneResource>(assetPath);
-                    if (existing == null)
-                    {
-                        continue;
-                    }
-
-                    // ファイル名から仮定した identity と .asset 内部の _identity が食い違う場合は
-                    // 取り込まない（食い違ったまま upsert すると ComputePlan が Create 判定し、
-                    // Map が未保存インスタンスを指す不整合が再発するため）。
-                    if (!string.Equals(existing.Identity, identity, StringComparison.Ordinal))
-                    {
-                        Debug.LogWarning(
-                            $"[WorldCellGenerator] 既存アセット {assetPath} の identity '{existing.Identity}' が " +
-                            $"ファイル名由来の '{identity}' と一致しないため取り込みをスキップします。");
-                        continue;
-                    }
-
-                    AddChildToParent(parentResource, existing);
-                    UpsertSceneResourceInMap(map, existing);
-                    adopted = true;
+                    continue;
                 }
+
+                var assetPath = $"{resourceFolder}/{identity}/{identity}.asset";
+                var existing = AssetDatabase.LoadAssetAtPath<SceneResource>(assetPath);
+                if (existing == null)
+                {
+                    continue;
+                }
+
+                // ファイル名から仮定した identity と .asset 内部の _identity が食い違う場合は
+                // 取り込まない（食い違ったまま upsert すると ComputePlan が Create 判定し、
+                // Map が未保存インスタンスを指す不整合が再発するため）。
+                if (!string.Equals(existing.Identity, identity, StringComparison.Ordinal))
+                {
+                    Debug.LogWarning(
+                        $"[WorldCellGenerator] 既存アセット {assetPath} の identity '{existing.Identity}' が " +
+                        $"ファイル名由来の '{identity}' と一致しないため取り込みをスキップします。");
+                    continue;
+                }
+
+                AddChildToParent(parentResource, existing);
+                UpsertSceneResourceInMap(map, existing);
+                adopted = true;
             }
 
             if (adopted)
@@ -543,17 +543,14 @@ namespace OneStarMaker.Editor.Streaming
         }
 
         /// <summary>
-        /// グリッド定義の妥当性を検証する（負・ゼロのグリッドや空フォルダを
+        /// グリッド定義の妥当性を検証する（不正矩形・空フォルダを
         /// AssetDatabase の不可解な失敗ではなく明示的な例外にする）。
+        /// 矩形レイアウトの例外は <see cref="WorldGridDefinition"/> に委譲する。
         /// </summary>
         private static void ValidateDefinition(WorldGridDefinition definition)
         {
-            if (definition.GridWidth <= 0 || definition.GridHeight <= 0)
-            {
-                throw new ArgumentException(
-                    $"グリッドサイズは 1 以上が必要です: {definition.GridWidth}x{definition.GridHeight}",
-                    nameof(definition));
-            }
+            // 矩形の空・サイズ・重なりは WorldGridDefinition 側で例外にする。
+            _ = definition.Rectangles;
 
             if (definition.CellSize <= 0f)
             {
