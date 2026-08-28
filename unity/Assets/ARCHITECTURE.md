@@ -146,6 +146,7 @@ Game.Common ──→ Foundation, Runtime
 | §30 | 意味アイデンティティ層（番地付けと分類。設計中。S-1 は番地のみ。製品消費者はホスト待ち） | [30-accessibility-identity.md](Docs/Architecture/30-accessibility-identity.md) |
 | §31 | アクセシビリティ出力予算と調停（設計中。予算値と集約は未設計） | [31-accessibility-output-budget.md](Docs/Architecture/31-accessibility-output-budget.md) |
 | §32 | アクセシビリティ入力自由度の低減（設計中。InputManager 待ち） | [32-accessibility-input-dof.md](Docs/Architecture/32-accessibility-input-dof.md) |
+| §33 | SampleGame 実証境界 — Season / Tunnel / 4 動詞（設計中。実装は S-3 以降） | [33-sample-demonstration-boundaries.md](Docs/Architecture/33-sample-demonstration-boundaries.md) |
 | — | Assembly 分割移行記録 | [migration-assembly-split.md](Docs/Architecture/migration-assembly-split.md) |
 
 ---
