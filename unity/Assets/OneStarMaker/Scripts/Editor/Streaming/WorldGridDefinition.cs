@@ -86,28 +86,16 @@ namespace OneStarMaker.Editor.Streaming
         /// <summary>1 セルの XZ 一辺の長さ（正方セル）。</summary>
         public float CellSize => _cellSize;
 
-        /// <summary>セル矩形の集合。本番は 1 要素。</summary>
+        /// <summary>セル矩形の集合。本番は 1 要素。不正サイズ・重なり・空集合は例外。</summary>
         public IReadOnlyList<CellRect> Rectangles
         {
             get
             {
-                var src = _rectangles;
-                if (src == null || src.Count == 0)
-                {
-                    return Array.Empty<CellRect>();
-                }
-
+                var src = RequireValidRectangles();
                 var result = new CellRect[src.Count];
                 for (var i = 0; i < src.Count; i++)
                 {
-                    var size = src[i].size;
-                    if (size.x < 1 || size.y < 1)
-                    {
-                        result[i] = default;
-                        continue;
-                    }
-
-                    result[i] = new CellRect(src[i].origin, size);
+                    result[i] = new CellRect(src[i].origin, src[i].size);
                 }
 
                 return result;
@@ -128,21 +116,11 @@ namespace OneStarMaker.Editor.Streaming
 
         public bool Contains(Vector2Int coordinate)
         {
-            var src = _rectangles;
-            if (src == null)
-            {
-                return false;
-            }
-
+            var src = RequireValidRectangles();
             for (var i = 0; i < src.Count; i++)
             {
                 var origin = src[i].origin;
                 var size = src[i].size;
-                if (size.x < 1 || size.y < 1)
-                {
-                    continue;
-                }
-
                 if (coordinate.x >= origin.x
                     && coordinate.y >= origin.y
                     && coordinate.x < origin.x + size.x
@@ -157,22 +135,12 @@ namespace OneStarMaker.Editor.Streaming
 
         public IReadOnlyList<Vector2Int> EnumerateCells()
         {
-            var src = _rectangles;
-            if (src == null || src.Count == 0)
-            {
-                return Array.Empty<Vector2Int>();
-            }
-
+            var src = RequireValidRectangles();
             var cells = new List<Vector2Int>();
             for (var r = 0; r < src.Count; r++)
             {
                 var origin = src[r].origin;
                 var size = src[r].size;
-                if (size.x < 1 || size.y < 1)
-                {
-                    continue;
-                }
-
                 for (var y = 0; y < size.y; y++)
                 {
                     for (var x = 0; x < size.x; x++)
@@ -183,6 +151,39 @@ namespace OneStarMaker.Editor.Streaming
             }
 
             return cells;
+        }
+
+        private List<SerializedCellRect> RequireValidRectangles()
+        {
+            var src = _rectangles;
+            if (src == null || src.Count == 0)
+            {
+                throw new ArgumentException("矩形集合は 1 件以上である必要があります。");
+            }
+
+            for (var i = 0; i < src.Count; i++)
+            {
+                var size = src[i].size;
+                if (size.x < 1 || size.y < 1)
+                {
+                    throw new ArgumentException($"矩形サイズは幅・高さとも 1 以上が必要です: {size}");
+                }
+
+                for (var j = i + 1; j < src.Count; j++)
+                {
+                    var a = src[i];
+                    var b = src[j];
+                    if (a.origin.x < b.origin.x + b.size.x
+                        && b.origin.x < a.origin.x + a.size.x
+                        && a.origin.y < b.origin.y + b.size.y
+                        && b.origin.y < a.origin.y + a.size.y)
+                    {
+                        throw new ArgumentException("矩形同士の重なりは禁止です。");
+                    }
+                }
+            }
+
+            return src;
         }
     }
 }

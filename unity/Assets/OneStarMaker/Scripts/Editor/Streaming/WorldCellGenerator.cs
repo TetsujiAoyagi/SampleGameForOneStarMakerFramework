@@ -205,7 +205,7 @@ namespace OneStarMaker.Editor.Streaming
     }
 
     /// <summary>
-    /// グリッド定義から N×N セルシーン + SceneResource + SceneResourceMap 登録を量産するエディタツール。
+    /// グリッド定義の矩形集合からセルシーン + SceneResource + SceneResourceMap 登録を量産するエディタツール。
     /// 生成ロジック（計画）は純関数として分離し、.unity I/O は <see cref="ApplySceneFiles"/> に隔離する。
     /// </summary>
     public static class WorldCellGenerator
@@ -543,35 +543,14 @@ namespace OneStarMaker.Editor.Streaming
         }
 
         /// <summary>
-        /// グリッド定義の妥当性を検証する（負・ゼロのグリッドや空フォルダを
+        /// グリッド定義の妥当性を検証する（不正矩形・空フォルダを
         /// AssetDatabase の不可解な失敗ではなく明示的な例外にする）。
+        /// 矩形レイアウトの例外は <see cref="WorldGridDefinition"/> に委譲する。
         /// </summary>
         private static void ValidateDefinition(WorldGridDefinition definition)
         {
-            var rectangles = definition.Rectangles;
-            if (rectangles == null || rectangles.Count == 0)
-            {
-                throw new ArgumentException("矩形集合は 1 件以上である必要があります。", nameof(definition));
-            }
-
-            for (var i = 0; i < rectangles.Count; i++)
-            {
-                var size = rectangles[i].Size;
-                if (size.x < 1 || size.y < 1)
-                {
-                    throw new ArgumentException(
-                        $"矩形サイズは幅・高さとも 1 以上が必要です: {size}",
-                        nameof(definition));
-                }
-
-                for (var j = i + 1; j < rectangles.Count; j++)
-                {
-                    if (RectanglesOverlap(rectangles[i], rectangles[j]))
-                    {
-                        throw new ArgumentException("矩形同士の重なりは禁止です。", nameof(definition));
-                    }
-                }
-            }
+            // 矩形の空・サイズ・重なりは WorldGridDefinition 側で例外にする。
+            _ = definition.Rectangles;
 
             if (definition.CellSize <= 0f)
             {
@@ -590,14 +569,6 @@ namespace OneStarMaker.Editor.Streaming
             {
                 throw new ArgumentException("出力フォルダが未設定です。", nameof(definition));
             }
-        }
-
-        private static bool RectanglesOverlap(CellRect a, CellRect b)
-        {
-            return a.Origin.x < b.Origin.x + b.Size.x
-                && b.Origin.x < a.Origin.x + a.Size.x
-                && a.Origin.y < b.Origin.y + b.Size.y
-                && b.Origin.y < a.Origin.y + a.Size.y;
         }
 
         private static string NormalizeAssetPath(string path)

@@ -70,7 +70,7 @@ namespace OneStarMaker.Tests.Streaming
         }
 
         [Test]
-        public void TD_TryGetCoordinate_GapInFixture_IsFalse()
+        public void TD_FixtureGapCoordinate_IsOutsideMembership()
         {
             var rectangles = new[]
             {
@@ -80,25 +80,39 @@ namespace OneStarMaker.Tests.Streaming
 
             var gapWorld = WorldCellCatalog.GetCellCenter(2, 0);
             Assert.That(
-                WorldCellCatalog.TryGetCoordinate(
-                    gapWorld,
-                    rectangles,
-                    WorldCellCatalog.Origin,
-                    WorldCellCatalog.CellSize,
-                    out _),
+                TryGetCoordinateOnFixture(gapWorld, rectangles),
                 Is.False,
                 "AABB 内でも空隙なら false");
 
             var inRect = WorldCellCatalog.GetCellCenter(1, 1);
-            Assert.That(
-                WorldCellCatalog.TryGetCoordinate(
-                    inRect,
-                    rectangles,
-                    WorldCellCatalog.Origin,
-                    WorldCellCatalog.CellSize,
-                    out var coordinate),
-                Is.True);
+            Assert.That(TryGetCoordinateOnFixture(inRect, rectangles, out var coordinate), Is.True);
             Assert.That(coordinate, Is.EqualTo(new Vector2Int(1, 1)));
+        }
+
+        private static bool TryGetCoordinateOnFixture(
+            Vector3 worldPosition,
+            IReadOnlyList<CellRect> rectangles)
+            => TryGetCoordinateOnFixture(worldPosition, rectangles, out _);
+
+        private static bool TryGetCoordinateOnFixture(
+            Vector3 worldPosition,
+            IReadOnlyList<CellRect> rectangles,
+            out Vector2Int coordinate)
+        {
+            var local = worldPosition - WorldCellCatalog.Origin;
+            var x = Mathf.FloorToInt(local.x / WorldCellCatalog.CellSize);
+            var y = Mathf.FloorToInt(local.z / WorldCellCatalog.CellSize);
+            coordinate = new Vector2Int(x, y);
+            for (var i = 0; i < rectangles.Count; i++)
+            {
+                if (rectangles[i].Contains(coordinate))
+                {
+                    return true;
+                }
+            }
+
+            coordinate = default;
+            return false;
         }
 
         private static float MinCrossRectCenterDistance(

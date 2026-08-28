@@ -131,39 +131,6 @@ namespace SampleGame.InGame.Streaming
             return true;
         }
 
-        /// <summary>
-        /// 任意の矩形集合に対する membership。テストフィクスチャ用。
-        /// </summary>
-        public static bool TryGetCoordinate(
-            Vector3 worldPosition,
-            IReadOnlyList<CellRect> rectangles,
-            Vector3 origin,
-            float cellSize,
-            out Vector2Int coordinate)
-        {
-            var local = worldPosition - origin;
-            var x = Mathf.FloorToInt(local.x / cellSize);
-            var y = Mathf.FloorToInt(local.z / cellSize);
-            coordinate = new Vector2Int(x, y);
-
-            if (rectangles == null)
-            {
-                coordinate = default;
-                return false;
-            }
-
-            for (var i = 0; i < rectangles.Count; i++)
-            {
-                if (rectangles[i].Contains(coordinate))
-                {
-                    return true;
-                }
-            }
-
-            coordinate = default;
-            return false;
-        }
-
         /// <summary>ワールド座標が載っているセル identity。グリッド外は null。</summary>
         public static string? TryGetCellIdentity(Vector3 worldPosition)
         {
