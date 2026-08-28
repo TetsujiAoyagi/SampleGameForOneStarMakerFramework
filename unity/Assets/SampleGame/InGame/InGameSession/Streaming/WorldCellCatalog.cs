@@ -1,10 +1,45 @@
 #nullable enable
 
+using System;
+using System.Collections.Generic;
 using OneStarMaker.Runtime.SceneSystem;
 using UnityEngine;
 
 namespace SampleGame.InGame.Streaming
 {
+    /// <summary>
+    /// セル格子上の軸揃え矩形。幅・高さは 1 以上。
+    /// </summary>
+    public readonly struct CellRect
+    {
+        public CellRect(Vector2Int origin, Vector2Int size)
+        {
+            if (size.x < 1 || size.y < 1)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(size),
+                    size,
+                    "矩形サイズは幅・高さとも 1 以上である必要があります。");
+            }
+
+            Origin = origin;
+            Size = size;
+        }
+
+        public Vector2Int Origin { get; }
+
+        /// <summary>x = 幅, y = 高さ。どちらも 1 以上。</summary>
+        public Vector2Int Size { get; }
+
+        public bool Contains(Vector2Int coordinate)
+        {
+            return coordinate.x >= Origin.x
+                && coordinate.y >= Origin.y
+                && coordinate.x < Origin.x + Size.x
+                && coordinate.y < Origin.y + Size.y;
+        }
+    }
+
     /// <summary>
     /// 実証スライス用のワールド格子定数。
     /// Player カプセル（高さ約 2.2m）を基準に、人間が編集する作業単位として
@@ -25,11 +60,13 @@ namespace SampleGame.InGame.Streaming
         /// <summary>バウンズ計算用のセル高さ（ロード判断には使わない）。</summary>
         public const float CellHeight = 96f;
 
-        /// <summary>X 方向セル数。</summary>
-        public const int GridWidth = 4;
-
-        /// <summary>Z（グリッド y）方向セル数。</summary>
-        public const int GridHeight = 4;
+        /// <summary>
+        /// 本番レイアウト。現行 4×4 を矩形 1 個として残す。
+        /// </summary>
+        public static readonly CellRect[] Rectangles =
+        {
+            new(new Vector2Int(0, 0), new Vector2Int(4, 4)),
+        };
 
         /// <summary>
         /// desired set に入れる距離。
@@ -52,9 +89,15 @@ namespace SampleGame.InGame.Streaming
         /// <summary>セルの地形モチーフ数（Editor 焼き込みとランタイム tint の契約）。</summary>
         public const int MotifCount = 4;
 
+        private static readonly Vector2Int[] ExpandedCells = ExpandAndValidate(Rectangles);
+        private static readonly HashSet<Vector2Int> CellMembership = new(ExpandedCells);
+
         /// <summary>ランタイム / Editor 双方で使う格子メタデータ。</summary>
         public static CellGridConfig CreateGridConfig()
             => new(Origin, CellSize, CellHeight);
+
+        /// <summary>矩形集合を展開したセル座標。</summary>
+        public static IReadOnlyList<Vector2Int> EnumerateCells() => ExpandedCells;
 
         /// <summary>指定セルのワールド中心（XZ）。Y は 0。</summary>
         public static Vector3 GetCellCenter(int x, int y)
@@ -70,21 +113,55 @@ namespace SampleGame.InGame.Streaming
             => GetCellCenter(0, 0) + Vector3.up * SpawnHeight;
 
         /// <summary>
-        /// ワールド座標からセル座標を求める。グリッド外なら false。
+        /// ワールド座標からセル座標を求める。集合外（空隙含む）なら false。
+        /// Origin / CellSize で floor したあと membership。AABB 内でも空隙なら false。
         /// </summary>
         public static bool TryGetCoordinate(Vector3 worldPosition, out Vector2Int coordinate)
         {
             var local = worldPosition - Origin;
             var x = Mathf.FloorToInt(local.x / CellSize);
             var y = Mathf.FloorToInt(local.z / CellSize);
-            if (x < 0 || y < 0 || x >= GridWidth || y >= GridHeight)
+            coordinate = new Vector2Int(x, y);
+            if (!CellMembership.Contains(coordinate))
             {
                 coordinate = default;
                 return false;
             }
 
-            coordinate = new Vector2Int(x, y);
             return true;
+        }
+
+        /// <summary>
+        /// 任意の矩形集合に対する membership。テストフィクスチャ用。
+        /// </summary>
+        public static bool TryGetCoordinate(
+            Vector3 worldPosition,
+            IReadOnlyList<CellRect> rectangles,
+            Vector3 origin,
+            float cellSize,
+            out Vector2Int coordinate)
+        {
+            var local = worldPosition - origin;
+            var x = Mathf.FloorToInt(local.x / cellSize);
+            var y = Mathf.FloorToInt(local.z / cellSize);
+            coordinate = new Vector2Int(x, y);
+
+            if (rectangles == null)
+            {
+                coordinate = default;
+                return false;
+            }
+
+            for (var i = 0; i < rectangles.Count; i++)
+            {
+                if (rectangles[i].Contains(coordinate))
+                {
+                    return true;
+                }
+            }
+
+            coordinate = default;
+            return false;
         }
 
         /// <summary>ワールド座標が載っているセル identity。グリッド外は null。</summary>
@@ -102,8 +179,9 @@ namespace SampleGame.InGame.Streaming
         public static Vector3 CornerSpawn(int cornerIndex)
         {
             // 0: 南西(0,0) / 1: 南東(W-1,0) / 2: 北西(0,H-1) / 3: 北東(W-1,H-1)
-            var x = cornerIndex is 1 or 3 ? GridWidth - 1 : 0;
-            var y = cornerIndex is 2 or 3 ? GridHeight - 1 : 0;
+            var rect = Rectangles[0];
+            var x = cornerIndex is 1 or 3 ? rect.Origin.x + rect.Size.x - 1 : rect.Origin.x;
+            var y = cornerIndex is 2 or 3 ? rect.Origin.y + rect.Size.y - 1 : rect.Origin.y;
             return GetCellCenter(x, y) + Vector3.up * SpawnHeight;
         }
 
@@ -119,5 +197,47 @@ namespace SampleGame.InGame.Streaming
         /// </summary>
         public static int GetMotifIndex(int x, int y)
             => ((x * 3) + (y * 5)) % MotifCount;
+
+        private static Vector2Int[] ExpandAndValidate(IReadOnlyList<CellRect> rectangles)
+        {
+            if (rectangles == null || rectangles.Count == 0)
+            {
+                throw new InvalidOperationException("矩形集合は 1 件以上である必要があります。");
+            }
+
+            for (var i = 0; i < rectangles.Count; i++)
+            {
+                for (var j = i + 1; j < rectangles.Count; j++)
+                {
+                    if (Overlaps(rectangles[i], rectangles[j]))
+                    {
+                        throw new InvalidOperationException("矩形同士の重なりは禁止です。");
+                    }
+                }
+            }
+
+            var cells = new List<Vector2Int>();
+            for (var r = 0; r < rectangles.Count; r++)
+            {
+                var rect = rectangles[r];
+                for (var y = 0; y < rect.Size.y; y++)
+                {
+                    for (var x = 0; x < rect.Size.x; x++)
+                    {
+                        cells.Add(new Vector2Int(rect.Origin.x + x, rect.Origin.y + y));
+                    }
+                }
+            }
+
+            return cells.ToArray();
+        }
+
+        private static bool Overlaps(CellRect a, CellRect b)
+        {
+            return a.Origin.x < b.Origin.x + b.Size.x
+                && b.Origin.x < a.Origin.x + a.Size.x
+                && a.Origin.y < b.Origin.y + b.Size.y
+                && b.Origin.y < a.Origin.y + a.Size.y;
+        }
     }
 }

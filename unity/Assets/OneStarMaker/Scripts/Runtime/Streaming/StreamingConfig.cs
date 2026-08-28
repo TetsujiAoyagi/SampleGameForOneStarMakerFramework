@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using OneStarMaker.Runtime.SceneSystem;
 using UnityEngine;
 
@@ -8,32 +9,31 @@ namespace OneStarMaker.Runtime.Streaming
 {
     /// <summary>
     /// WorldStreamingController のポリシーパラメータ（21-scene-streaming.md §8）。
-    /// グリッド定義・ロード/アンロード半径・同時 in-flight 上限を保持する。
+    /// セル座標集合・ロード/アンロード半径・同時 in-flight 上限を保持する。
+    /// 矩形レイアウトは知らない。列挙は呼び出し側の責務。
     /// </summary>
     public sealed class StreamingConfig
     {
         /// <param name="grid">セル原点・サイズ（CellGridConfig）。</param>
-        /// <param name="gridWidth">グリッド幅（X 方向セル数）。</param>
-        /// <param name="gridHeight">グリッド高さ（Z 方向セル数）。</param>
+        /// <param name="cells">走査対象のセル座標（1 件以上）。</param>
         /// <param name="loadRadius">注視点からの XZ 平面距離がこの値以下のセルを desired set に含める。</param>
         /// <param name="unloadRadius">注視点からの XZ 平面距離がこの値以下のセルを retain set に含める（ヒステリシス）。</param>
         /// <param name="maxInFlight">未完了 RequestAdd の同時上限。</param>
         public StreamingConfig(
             CellGridConfig grid,
-            int gridWidth,
-            int gridHeight,
+            IReadOnlyList<Vector2Int> cells,
             float loadRadius,
             float unloadRadius,
             int maxInFlight)
         {
-            if (gridWidth <= 0)
+            if (cells == null)
             {
-                throw new ArgumentOutOfRangeException(nameof(gridWidth), gridWidth, "グリッド幅は 1 以上である必要があります。");
+                throw new ArgumentNullException(nameof(cells));
             }
 
-            if (gridHeight <= 0)
+            if (cells.Count == 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(gridHeight), gridHeight, "グリッド高さは 1 以上である必要があります。");
+                throw new ArgumentException("セル座標集合は 1 件以上である必要があります。", nameof(cells));
             }
 
             if (loadRadius <= 0f)
@@ -54,9 +54,14 @@ namespace OneStarMaker.Runtime.Streaming
                 throw new ArgumentOutOfRangeException(nameof(maxInFlight), maxInFlight, "maxInFlight は 1 以上である必要があります。");
             }
 
+            var copy = new Vector2Int[cells.Count];
+            for (var i = 0; i < cells.Count; i++)
+            {
+                copy[i] = cells[i];
+            }
+
             Grid = grid;
-            GridWidth = gridWidth;
-            GridHeight = gridHeight;
+            Cells = copy;
             LoadRadius = loadRadius;
             UnloadRadius = unloadRadius;
             MaxInFlight = maxInFlight;
@@ -65,11 +70,8 @@ namespace OneStarMaker.Runtime.Streaming
         /// <summary>セル原点・サイズ。</summary>
         public CellGridConfig Grid { get; }
 
-        /// <summary>グリッド幅（X 方向セル数）。</summary>
-        public int GridWidth { get; }
-
-        /// <summary>グリッド高さ（Z 方向セル数）。</summary>
-        public int GridHeight { get; }
+        /// <summary>走査対象のセル座標。</summary>
+        public IReadOnlyList<Vector2Int> Cells { get; }
 
         /// <summary>ロード半径（XZ 平面距離）。</summary>
         public float LoadRadius { get; }

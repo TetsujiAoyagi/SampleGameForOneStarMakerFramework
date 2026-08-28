@@ -104,7 +104,7 @@ namespace SampleGame.DependOnAll.Editor
 
             var existingStates = CollectExistingStates(definition);
             var plan = CellPopulationPlan.Compute(
-                new CellGridSpec(definition.GridWidth, definition.GridHeight, definition.Origin, definition.CellSize),
+                new CellGridSpec(definition.EnumerateCells(), definition.Origin, definition.CellSize),
                 existingStates);
 
             // 10×10 → 4×4 等の縮小で余った Cell_* フォルダを Map ごと除去する。
@@ -154,12 +154,13 @@ namespace SampleGame.DependOnAll.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
-            var maxX = WorldCellCatalog.GridWidth - 1;
-            var maxY = WorldCellCatalog.GridHeight - 1;
+            var production = WorldCellCatalog.Rectangles[0];
+            var maxX = production.Origin.x + production.Size.x - 1;
+            var maxY = production.Origin.y + production.Size.y - 1;
             Debug.Log(
                 "[WorldCellStreamingSliceCreator] 完了。\n" +
                 $"1. World + Cell_0_0 .. Cell_{maxX}_{maxY}（{WorldCellCatalog.CellSize}m, " +
-                $"{WorldCellCatalog.GridWidth}x{WorldCellCatalog.GridHeight}）を {CellsRootFolder}/ に集約。\n" +
+                $"{production.Size.x}x{production.Size.y}）を {CellsRootFolder}/ に集約。\n" +
                 "2. Environment_0_0 .. Environment_3_0 を萌芽（OnDemand・明示 Add）。\n" +
                 "3. Scene Graph（Total）に Cell/Environment ノードを同期済み。\n" +
                 $"BatchMethod={BatchMethod}");
@@ -199,47 +200,47 @@ namespace SampleGame.DependOnAll.Editor
             };
 
             var sproutSet = BuildSproutSet();
-            for (var x = 0; x < definition.GridWidth; x++)
+            var cells = definition.EnumerateCells();
+            for (var i = 0; i < cells.Count; i++)
             {
-                for (var y = 0; y < definition.GridHeight; y++)
+                var x = cells[i].x;
+                var y = cells[i].y;
+                var cellId = CellIdentity.Format(x, y);
+                var cellScenePath = $"{CellsRootFolder}/{cellId}/{cellId}.unity";
+                var cellNodePath = $"{SceneGraphCellsFolder}/{cellId}.asset";
+                var cellNode = EnsureSceneGraphNode(
+                    cellId,
+                    cellNodePath,
+                    cellScenePath,
+                    LoadType.OnDemand);
+
+                totalGraph.AddNode(cellNode);
+                EnsureEdge(totalGraph, worldNode, cellNode);
+                keepIdentities.Add(cellId);
+
+                var coord = new Vector2Int(x, y);
+                if (!sproutSet.Contains(coord))
                 {
-                    var cellId = CellIdentity.Format(x, y);
-                    var cellScenePath = $"{CellsRootFolder}/{cellId}/{cellId}.unity";
-                    var cellNodePath = $"{SceneGraphCellsFolder}/{cellId}.asset";
-                    var cellNode = EnsureSceneGraphNode(
-                        cellId,
-                        cellNodePath,
-                        cellScenePath,
-                        LoadType.OnDemand);
-
-                    totalGraph.AddNode(cellNode);
-                    EnsureEdge(totalGraph, worldNode, cellNode);
-                    keepIdentities.Add(cellId);
-
-                    var coord = new Vector2Int(x, y);
-                    if (!sproutSet.Contains(coord))
-                    {
-                        continue;
-                    }
-
-                    var envId = EnvironmentIdentity.Format(x, y);
-                    var envScenePath = $"{CellsRootFolder}/{cellId}/{envId}.unity";
-                    if (AssetDatabase.LoadAssetAtPath<SceneAsset>(envScenePath) == null)
-                    {
-                        continue;
-                    }
-
-                    var envNodePath = $"{SceneGraphCellsFolder}/{envId}.asset";
-                    var envNode = EnsureSceneGraphNode(
-                        envId,
-                        envNodePath,
-                        envScenePath,
-                        LoadType.OnDemand);
-
-                    totalGraph.AddNode(envNode);
-                    EnsureEdge(totalGraph, cellNode, envNode);
-                    keepIdentities.Add(envId);
+                    continue;
                 }
+
+                var envId = EnvironmentIdentity.Format(x, y);
+                var envScenePath = $"{CellsRootFolder}/{cellId}/{envId}.unity";
+                if (AssetDatabase.LoadAssetAtPath<SceneAsset>(envScenePath) == null)
+                {
+                    continue;
+                }
+
+                var envNodePath = $"{SceneGraphCellsFolder}/{envId}.asset";
+                var envNode = EnsureSceneGraphNode(
+                    envId,
+                    envNodePath,
+                    envScenePath,
+                    LoadType.OnDemand);
+
+                totalGraph.AddNode(envNode);
+                EnsureEdge(totalGraph, cellNode, envNode);
+                keepIdentities.Add(envId);
             }
 
             // 範囲外だが削除計画に無い（保持した HandAuthored）既存ノードも keep する。
@@ -300,8 +301,7 @@ namespace SampleGame.DependOnAll.Editor
                 var id = node.Identity;
                 if (CellIdentity.TryParse(id, out var cellCoord))
                 {
-                    if (cellCoord.x < definition.GridWidth
-                        && cellCoord.y < definition.GridHeight)
+                    if (definition.Contains(cellCoord))
                     {
                         continue;
                     }
@@ -322,8 +322,7 @@ namespace SampleGame.DependOnAll.Editor
                     continue;
                 }
 
-                if (envCoord.x < definition.GridWidth
-                    && envCoord.y < definition.GridHeight)
+                if (definition.Contains(envCoord))
                 {
                     continue;
                 }
@@ -530,8 +529,7 @@ namespace SampleGame.DependOnAll.Editor
 
                 if (CellIdentity.TryParse(resource.Identity, out var cellCoord))
                 {
-                    if (cellCoord.x >= definition.GridWidth
-                        || cellCoord.y >= definition.GridHeight)
+                    if (!definition.Contains(cellCoord))
                     {
                         if (deletableCells.Contains(resource.Identity))
                         {
@@ -544,8 +542,7 @@ namespace SampleGame.DependOnAll.Editor
 
                 if (EnvironmentIdentity.TryParse(resource.Identity, out var envCoord))
                 {
-                    if (envCoord.x >= definition.GridWidth
-                        || envCoord.y >= definition.GridHeight)
+                    if (!definition.Contains(envCoord))
                     {
                         var cellId = CellIdentity.Format(envCoord.x, envCoord.y);
                         if (deletableCells.Contains(cellId))
@@ -567,8 +564,7 @@ namespace SampleGame.DependOnAll.Editor
                     continue;
                 }
 
-                if (coordinate.x < definition.GridWidth
-                    && coordinate.y < definition.GridHeight)
+                if (definition.Contains(coordinate))
                 {
                     continue;
                 }
@@ -1076,8 +1072,16 @@ namespace SampleGame.DependOnAll.Editor
             var so = new SerializedObject(definition);
             so.FindProperty("_origin").vector3Value = WorldCellCatalog.Origin;
             so.FindProperty("_cellSize").floatValue = WorldCellCatalog.CellSize;
-            so.FindProperty("_gridWidth").intValue = WorldCellCatalog.GridWidth;
-            so.FindProperty("_gridHeight").intValue = WorldCellCatalog.GridHeight;
+            var rectsProp = so.FindProperty("_rectangles");
+            rectsProp.ClearArray();
+            var catalogRects = WorldCellCatalog.Rectangles;
+            for (var i = 0; i < catalogRects.Length; i++)
+            {
+                rectsProp.InsertArrayElementAtIndex(i);
+                var elem = rectsProp.GetArrayElementAtIndex(i);
+                elem.FindPropertyRelative("origin").vector2IntValue = catalogRects[i].Origin;
+                elem.FindPropertyRelative("size").vector2IntValue = catalogRects[i].Size;
+            }
             so.FindProperty("_parentSceneIdentity").stringValue = WorldCellCatalog.WorldIdentity;
             // .unity と SceneResource を同じ Cells ルートへ（サブフォルダは Generator 側）。
             so.FindProperty("_sceneOutputFolder").stringValue = CellsRootFolder;

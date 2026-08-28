@@ -1,8 +1,10 @@
 #nullable enable
 
+using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using SampleGame.DependOnAll.Editor.Cells;
+using SampleGame.InGame.Streaming;
 using UnityEngine;
 
 namespace OneStarMaker.Tests.Editor
@@ -14,10 +16,28 @@ namespace OneStarMaker.Tests.Editor
     public sealed class CellPopulationPlanTests
     {
         private static CellGridSpec Grid4x4()
-            => new(gridWidth: 4, gridHeight: 4, origin: Vector3.zero, cellSize: 250f);
+            => new(Expand(new CellRect(Vector2Int.zero, new Vector2Int(4, 4))), Vector3.zero, 250f);
 
         private static CellGridSpec Grid3x3()
-            => new(gridWidth: 3, gridHeight: 3, origin: Vector3.zero, cellSize: 250f);
+            => new(Expand(new CellRect(Vector2Int.zero, new Vector2Int(3, 3))), Vector3.zero, 250f);
+
+        private static IReadOnlyList<Vector2Int> Expand(params CellRect[] rectangles)
+        {
+            var cells = new List<Vector2Int>();
+            for (var r = 0; r < rectangles.Length; r++)
+            {
+                var rect = rectangles[r];
+                for (var y = 0; y < rect.Size.y; y++)
+                {
+                    for (var x = 0; x < rect.Size.x; x++)
+                    {
+                        cells.Add(new Vector2Int(rect.Origin.x + x, rect.Origin.y + y));
+                    }
+                }
+            }
+
+            return cells;
+        }
 
         private static CellExistingState State(
             int x,
@@ -295,6 +315,50 @@ namespace OneStarMaker.Tests.Editor
 
             Assert.That(plan.IsDeletable(new Vector2Int(1, 1)), Is.False,
                 "範囲内座標は削除計画に出ない");
+            Assert.That(plan.IsDeletable(new Vector2Int(3, 1)), Is.True,
+                "範囲外 Generated は削除可能");
+            Assert.That(plan.IsDeletable(new Vector2Int(3, 0)), Is.False,
+                "範囲外 HandAuthored は削除不可");
+        }
+
+        [Test]
+        public void TC_RectangleSet_GapNotPopulated_OutOfSetHandAuthoredKept_GeneratedDeleted()
+        {
+            // 矩形 2 つ（空隙あり）: (0,0) 2×2 と (4,0) 2×2。空隙 (2..3, *) は Populate に出ない。
+            // (3,0) は南辺 HandAuthored、(3,1) は Generated。破壊経路 3 の保護が矩形集合でも同じ。
+            var grid = new CellGridSpec(
+                Expand(
+                    new CellRect(Vector2Int.zero, new Vector2Int(2, 2)),
+                    new CellRect(new Vector2Int(4, 0), new Vector2Int(2, 2))),
+                Vector3.zero,
+                250f);
+
+            var existing = new[]
+            {
+                State(1, 1, hasCellAuthoredRoot: false),
+                State(3, 0, hasCellAuthoredRoot: true, hasEnvironmentScene: true),
+                State(3, 1, hasCellAuthoredRoot: false),
+            };
+
+            Assert.That(CellAuthoringPolicy.Resolve(3, 0), Is.EqualTo(CellAuthoringPolicyKind.HandAuthored));
+            Assert.That(CellAuthoringPolicy.Resolve(3, 1), Is.EqualTo(CellAuthoringPolicyKind.Generated));
+
+            var plan = CellPopulationPlan.Compute(grid, existing);
+
+            Assert.That(plan.PopulationEntries.Any(e => e.Identity == "Cell_3_0"), Is.False,
+                "空隙セルは Populate 計画に現れない");
+            Assert.That(plan.PopulationEntries.Any(e => e.Identity == "Cell_3_1"), Is.False,
+                "空隙セルは Populate 計画に現れない");
+            Assert.That(plan.PopulationEntries.Any(e => e.Identity == "Cell_1_1"), Is.True,
+                "矩形内の既存 Cell は Populate 計画に現れる");
+
+            Assert.That(plan.DeletionEntries.Any(e => e.Identity == "Cell_3_0"), Is.False,
+                "範囲外かつ HandAuthored は削除計画に現れない");
+            Assert.That(plan.DeletionEntries.Any(e => e.Identity == "Cell_3_1"), Is.True,
+                "範囲外かつ Generated は削除計画に現れる");
+
+            Assert.That(plan.IsDeletable(new Vector2Int(1, 1)), Is.False,
+                "矩形内座標は削除計画に出ない");
             Assert.That(plan.IsDeletable(new Vector2Int(3, 1)), Is.True,
                 "範囲外 Generated は削除可能");
             Assert.That(plan.IsDeletable(new Vector2Int(3, 0)), Is.False,

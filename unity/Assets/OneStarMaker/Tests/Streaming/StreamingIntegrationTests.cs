@@ -37,6 +37,21 @@ namespace OneStarMaker.Tests.Streaming
         private static CellGridConfig CreateGrid() =>
             new(Vector3.zero, CellSize, height: 10f);
 
+        private static IReadOnlyList<Vector2Int> DenseCells(int width, int height)
+        {
+            var cells = new Vector2Int[width * height];
+            var i = 0;
+            for (var y = 0; y < height; y++)
+            {
+                for (var x = 0; x < width; x++)
+                {
+                    cells[i++] = new Vector2Int(x, y);
+                }
+            }
+
+            return cells;
+        }
+
         private static Vector3 CellCenter(int x, int y, in CellGridConfig grid) =>
             grid.Origin + new Vector3(
                 (x + 0.5f) * grid.CellSize,
@@ -58,15 +73,13 @@ namespace OneStarMaker.Tests.Streaming
             var result = new HashSet<string>(StringComparer.Ordinal);
             var grid = config.Grid;
 
-            for (var x = 0; x < config.GridWidth; x++)
+            for (var i = 0; i < config.Cells.Count; i++)
             {
-                for (var y = 0; y < config.GridHeight; y++)
+                var cell = config.Cells[i];
+                var center = CellCenter(cell.x, cell.y, grid);
+                if (XzDistance(focus, center) <= radius)
                 {
-                    var center = CellCenter(x, y, grid);
-                    if (XzDistance(focus, center) <= radius)
-                    {
-                        result.Add(CellIdentity.Format(x, y));
-                    }
+                    result.Add(CellIdentity.Format(cell.x, cell.y));
                 }
             }
 
@@ -84,7 +97,7 @@ namespace OneStarMaker.Tests.Streaming
             var director = SetupWorldWithCellGrid(gridWidth, gridHeight, World);
             var grid = CreateGrid();
             var config = new StreamingConfig(
-                grid, gridWidth, gridHeight, loadRadius, unloadRadius, maxInFlight);
+                grid, DenseCells(gridWidth, gridHeight), loadRadius, unloadRadius, maxInFlight);
             var backend = new SceneDirectorStreamingBackend(director);
             var controller = new WorldStreamingController(config, backend);
             return (director, controller, backend, config);
@@ -143,20 +156,18 @@ namespace OneStarMaker.Tests.Streaming
                 }
             }
 
-            for (var x = 0; x < config.GridWidth; x++)
+            for (var i = 0; i < config.Cells.Count; i++)
             {
-                for (var y = 0; y < config.GridHeight; y++)
+                var cell = config.Cells[i];
+                var cellId = CellIdentity.Format(cell.x, cell.y);
+                if (retain.Contains(cellId))
                 {
-                    var cellId = CellIdentity.Format(x, y);
-                    if (retain.Contains(cellId))
-                    {
-                        continue;
-                    }
+                    continue;
+                }
 
-                    if (backend.IsLoaded(cellId))
-                    {
-                        return false;
-                    }
+                if (backend.IsLoaded(cellId))
+                {
+                    return false;
                 }
             }
 
@@ -178,20 +189,18 @@ namespace OneStarMaker.Tests.Streaming
                     $"desired セル '{cellId}' はロード済みであるべき（focus={focus}）。");
             }
 
-            for (var x = 0; x < config.GridWidth; x++)
+            for (var i = 0; i < config.Cells.Count; i++)
             {
-                for (var y = 0; y < config.GridHeight; y++)
+                var cell = config.Cells[i];
+                var cellId = CellIdentity.Format(cell.x, cell.y);
+                if (retain.Contains(cellId))
                 {
-                    var cellId = CellIdentity.Format(x, y);
-                    if (retain.Contains(cellId))
-                    {
-                        continue;
-                    }
-
-                    Assert.IsFalse(
-                        backend.IsLoaded(cellId),
-                        $"retain 外セル '{cellId}' はアンロード済みであるべき（focus={focus}）。");
+                    continue;
                 }
+
+                Assert.IsFalse(
+                    backend.IsLoaded(cellId),
+                    $"retain 外セル '{cellId}' はアンロード済みであるべき（focus={focus}）。");
             }
         }
 
@@ -206,17 +215,15 @@ namespace OneStarMaker.Tests.Streaming
         {
             var desired = ComputeCellsWithinRadius(focus, config, config.LoadRadius);
 
-            for (var x = 0; x < config.GridWidth; x++)
+            for (var i = 0; i < config.Cells.Count; i++)
             {
-                for (var y = 0; y < config.GridHeight; y++)
-                {
-                    var cellId = CellIdentity.Format(x, y);
-                    var expectedLoaded = desired.Contains(cellId);
-                    Assert.AreEqual(
-                        expectedLoaded,
-                        backend.IsLoaded(cellId),
-                        $"セル '{cellId}' の IsLoaded は desired 所属と一致すべき（focus={focus}）。");
-                }
+                var cell = config.Cells[i];
+                var cellId = CellIdentity.Format(cell.x, cell.y);
+                var expectedLoaded = desired.Contains(cellId);
+                Assert.AreEqual(
+                    expectedLoaded,
+                    backend.IsLoaded(cellId),
+                    $"セル '{cellId}' の IsLoaded は desired 所属と一致すべき（focus={focus}）。");
             }
         }
 
@@ -507,9 +514,10 @@ namespace OneStarMaker.Tests.Streaming
             await director.UnloadScene(World);
 
             Assert.IsFalse(director.ContainsScene(World), "World アンロード後、World は管理下から消えるべき。");
-            for (var x = 0; x < config.GridWidth; x++)
+            for (var i = 0; i < config.Cells.Count; i++)
             {
-                var cellId = CellIdentity.Format(x, 0);
+                var cell = config.Cells[i];
+                var cellId = CellIdentity.Format(cell.x, cell.y);
                 Assert.IsFalse(
                     director.ContainsScene(cellId),
                     $"World アンロード後、子セル '{cellId}' も再帰破棄されるべき。");

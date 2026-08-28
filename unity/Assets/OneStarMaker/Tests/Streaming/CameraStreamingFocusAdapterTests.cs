@@ -40,7 +40,7 @@ namespace OneStarMaker.Tests.Streaming
         private static StreamingConfig CreateConfig(float loadRadius = 150f)
         {
             var grid = new CellGridConfig(Vector3.zero, cellSize: 100f, height: 10f);
-            return new StreamingConfig(grid, gridWidth: 5, gridHeight: 5, loadRadius, unloadRadius: 250f, maxInFlight: 8);
+            return new StreamingConfig(grid, DenseCells(5, 5), loadRadius, unloadRadius: 250f, maxInFlight: 8);
         }
 
         private static CameraViewSnapshot SnapshotAt(Vector3 position) =>
@@ -134,23 +134,36 @@ namespace OneStarMaker.Tests.Streaming
 
             for (var i = 0; i < focuses.Count; i++)
             {
-                for (var x = 0; x < config.GridWidth; x++)
+                for (var c = 0; c < config.Cells.Count; c++)
                 {
-                    for (var y = 0; y < config.GridHeight; y++)
+                    var cell = config.Cells[c];
+                    var center = CellCenter(cell.x, cell.y, grid);
+                    var dx = focuses[i].x - center.x;
+                    var dz = focuses[i].z - center.z;
+                    var distance = Mathf.Sqrt(dx * dx + dz * dz);
+                    if (distance <= config.LoadRadius)
                     {
-                        var center = CellCenter(x, y, grid);
-                        var dx = focuses[i].x - center.x;
-                        var dz = focuses[i].z - center.z;
-                        var distance = Mathf.Sqrt(dx * dx + dz * dz);
-                        if (distance <= config.LoadRadius)
-                        {
-                            union.Add(CellIdentity.Format(x, y));
-                        }
+                        union.Add(CellIdentity.Format(cell.x, cell.y));
                     }
                 }
             }
 
             return union;
+        }
+
+        private static IReadOnlyList<Vector2Int> DenseCells(int width, int height)
+        {
+            var cells = new Vector2Int[width * height];
+            var i = 0;
+            for (var y = 0; y < height; y++)
+            {
+                for (var x = 0; x < width; x++)
+                {
+                    cells[i++] = new Vector2Int(x, y);
+                }
+            }
+
+            return cells;
         }
     }
 }

@@ -46,8 +46,7 @@ namespace SampleGame.InGame.Streaming
 
             var config = new StreamingConfig(
                 WorldCellCatalog.CreateGridConfig(),
-                WorldCellCatalog.GridWidth,
-                WorldCellCatalog.GridHeight,
+                WorldCellCatalog.EnumerateCells(),
                 WorldCellCatalog.LoadRadius,
                 WorldCellCatalog.UnloadRadius,
                 WorldCellCatalog.MaxInFlight);
@@ -56,7 +55,7 @@ namespace SampleGame.InGame.Streaming
             var backend = new SceneDirectorStreamingBackend(sceneDirector);
             _controller = new WorldStreamingController(config, backend);
             _logger.ZLogInformation(
-                $"SessionWorldStreamingDriver ready. grid={WorldCellCatalog.GridWidth}x{WorldCellCatalog.GridHeight} load={WorldCellCatalog.LoadRadius} unload={WorldCellCatalog.UnloadRadius}");
+                $"SessionWorldStreamingDriver ready. cells={WorldCellCatalog.EnumerateCells().Count} load={WorldCellCatalog.LoadRadius} unload={WorldCellCatalog.UnloadRadius}");
         }
 
         /// <summary>ポリシー層への参照（テスト・診断用）。</summary>
@@ -86,15 +85,14 @@ namespace SampleGame.InGame.Streaming
         public IReadOnlyList<string> GetResidentCellIdentities()
         {
             _residentBuffer.Clear();
-            for (var x = 0; x < WorldCellCatalog.GridWidth; x++)
+            var cells = WorldCellCatalog.EnumerateCells();
+            for (var i = 0; i < cells.Count; i++)
             {
-                for (var y = 0; y < WorldCellCatalog.GridHeight; y++)
+                var cell = cells[i];
+                var cellId = CellIdentity.Format(cell.x, cell.y);
+                if (_controller.Backend.IsLoaded(cellId))
                 {
-                    var cellId = CellIdentity.Format(x, y);
-                    if (_controller.Backend.IsLoaded(cellId))
-                    {
-                        _residentBuffer.Add(cellId);
-                    }
+                    _residentBuffer.Add(cellId);
                 }
             }
 

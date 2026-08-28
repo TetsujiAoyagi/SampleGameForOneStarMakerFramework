@@ -26,7 +26,22 @@ namespace OneStarMaker.Tests.Streaming
             int maxInFlight = 8)
         {
             var grid = new CellGridConfig(Vector3.zero, cellSize, height: 10f);
-            return new StreamingConfig(grid, gridWidth, gridHeight, loadRadius, unloadRadius, maxInFlight);
+            return new StreamingConfig(grid, DenseCells(gridWidth, gridHeight), loadRadius, unloadRadius, maxInFlight);
+        }
+
+        private static IReadOnlyList<Vector2Int> DenseCells(int width, int height)
+        {
+            var cells = new Vector2Int[width * height];
+            var i = 0;
+            for (var y = 0; y < height; y++)
+            {
+                for (var x = 0; x < width; x++)
+                {
+                    cells[i++] = new Vector2Int(x, y);
+                }
+            }
+
+            return cells;
         }
 
         private static Vector3 CellCenter(int x, int y, in CellGridConfig grid)
@@ -67,15 +82,13 @@ namespace OneStarMaker.Tests.Streaming
             var result = new HashSet<string>(StringComparer.Ordinal);
             var grid = config.Grid;
 
-            for (var x = 0; x < config.GridWidth; x++)
+            for (var i = 0; i < config.Cells.Count; i++)
             {
-                for (var y = 0; y < config.GridHeight; y++)
+                var cell = config.Cells[i];
+                var center = CellCenter(cell.x, cell.y, grid);
+                if (XzDistance(focus, center) <= radius)
                 {
-                    var center = CellCenter(x, y, grid);
-                    if (XzDistance(focus, center) <= radius)
-                    {
-                        result.Add(CellIdentity.Format(x, y));
-                    }
+                    result.Add(CellIdentity.Format(cell.x, cell.y));
                 }
             }
 

@@ -9,21 +9,45 @@ namespace SampleGame.DependOnAll.Editor.Cells
 {
     /// <summary>
     /// グリッド定義の値（WorldGridDefinition 資産そのものではなく純データ）。
+    /// 矩形集合を展開したセル座標を持つ。
     /// </summary>
     public readonly struct CellGridSpec
     {
-        public CellGridSpec(int gridWidth, int gridHeight, Vector3 origin, float cellSize)
+        public CellGridSpec(IReadOnlyList<Vector2Int> cells, Vector3 origin, float cellSize)
         {
-            GridWidth = gridWidth;
-            GridHeight = gridHeight;
+            if (cells == null)
+            {
+                throw new ArgumentNullException(nameof(cells));
+            }
+
+            if (cells.Count == 0)
+            {
+                throw new ArgumentException("セル座標集合は 1 件以上である必要があります。", nameof(cells));
+            }
+
+            var copy = new Vector2Int[cells.Count];
+            var membership = new HashSet<Vector2Int>();
+            for (var i = 0; i < cells.Count; i++)
+            {
+                copy[i] = cells[i];
+                membership.Add(cells[i]);
+            }
+
+            Cells = copy;
             Origin = origin;
             CellSize = cellSize;
+            _membership = membership;
         }
 
-        public int GridWidth { get; }
-        public int GridHeight { get; }
+        public IReadOnlyList<Vector2Int> Cells { get; }
+
         public Vector3 Origin { get; }
+
         public float CellSize { get; }
+
+        private readonly HashSet<Vector2Int> _membership;
+
+        public bool Contains(Vector2Int coordinate) => _membership.Contains(coordinate);
     }
 
     /// <summary>
@@ -191,33 +215,30 @@ namespace SampleGame.DependOnAll.Editor.Cells
                 existingByCoordinate[state.Coordinate] = state;
             }
 
-            var populationEntries = new List<CellPopulationEntry>(grid.GridWidth * grid.GridHeight);
-            for (var y = 0; y < grid.GridHeight; y++)
+            var populationEntries = new List<CellPopulationEntry>(grid.Cells.Count);
+            for (var i = 0; i < grid.Cells.Count; i++)
             {
-                for (var x = 0; x < grid.GridWidth; x++)
+                var coordinate = grid.Cells[i];
+                var hasCellAuthoredRoot = false;
+                var hasEnvironmentAuthoredRoot = false;
+                if (existingByCoordinate.TryGetValue(coordinate, out var existing))
                 {
-                    var coordinate = new Vector2Int(x, y);
-                    var hasCellAuthoredRoot = false;
-                    var hasEnvironmentAuthoredRoot = false;
-                    if (existingByCoordinate.TryGetValue(coordinate, out var existing))
-                    {
-                        hasCellAuthoredRoot = existing.HasCellAuthoredRoot;
-                        hasEnvironmentAuthoredRoot = existing.HasEnvironmentAuthoredRoot;
-                    }
-
-                    ResolveActions(
-                        coordinate,
-                        hasCellAuthoredRoot,
-                        hasEnvironmentAuthoredRoot,
-                        out var cellAction,
-                        out var environmentAction);
-
-                    populationEntries.Add(new CellPopulationEntry(
-                        identity: CellIdentity.Format(x, y),
-                        coordinate: coordinate,
-                        cellAction: cellAction,
-                        environmentAction: environmentAction));
+                    hasCellAuthoredRoot = existing.HasCellAuthoredRoot;
+                    hasEnvironmentAuthoredRoot = existing.HasEnvironmentAuthoredRoot;
                 }
+
+                ResolveActions(
+                    coordinate,
+                    hasCellAuthoredRoot,
+                    hasEnvironmentAuthoredRoot,
+                    out var cellAction,
+                    out var environmentAction);
+
+                populationEntries.Add(new CellPopulationEntry(
+                    identity: CellIdentity.Format(coordinate.x, coordinate.y),
+                    coordinate: coordinate,
+                    cellAction: cellAction,
+                    environmentAction: environmentAction));
             }
 
             var deletionEntries = new List<CellDeletionEntry>();
@@ -225,8 +246,7 @@ namespace SampleGame.DependOnAll.Editor.Cells
             {
                 var state = existingStates[i];
                 var c = state.Coordinate;
-                var outOfGrid = c.x < 0 || c.y < 0 || c.x >= grid.GridWidth || c.y >= grid.GridHeight;
-                if (!outOfGrid)
+                if (grid.Contains(c))
                 {
                     continue;
                 }

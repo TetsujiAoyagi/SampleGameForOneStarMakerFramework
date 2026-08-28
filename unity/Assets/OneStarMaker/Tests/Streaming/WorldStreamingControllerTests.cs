@@ -21,6 +21,21 @@ namespace OneStarMaker.Tests.Streaming
         //  テスト用ヘルパー
         // ═══════════════════════════════════════════
 
+        private static IReadOnlyList<Vector2Int> DenseCells(int width, int height)
+        {
+            var cells = new Vector2Int[width * height];
+            var i = 0;
+            for (var y = 0; y < height; y++)
+            {
+                for (var x = 0; x < width; x++)
+                {
+                    cells[i++] = new Vector2Int(x, y);
+                }
+            }
+
+            return cells;
+        }
+
         private static StreamingConfig CreateConfig(
             int gridWidth = 5,
             int gridHeight = 5,
@@ -30,7 +45,7 @@ namespace OneStarMaker.Tests.Streaming
             int maxInFlight = 4)
         {
             var grid = new CellGridConfig(Vector3.zero, cellSize, height: 10f);
-            return new StreamingConfig(grid, gridWidth, gridHeight, loadRadius, unloadRadius, maxInFlight);
+            return new StreamingConfig(grid, DenseCells(gridWidth, gridHeight), loadRadius, unloadRadius, maxInFlight);
         }
 
         private static Vector3 CellCenter(int x, int y, in CellGridConfig grid)
@@ -60,15 +75,13 @@ namespace OneStarMaker.Tests.Streaming
             var result = new HashSet<string>(StringComparer.Ordinal);
             var grid = config.Grid;
 
-            for (var x = 0; x < config.GridWidth; x++)
+            for (var i = 0; i < config.Cells.Count; i++)
             {
-                for (var y = 0; y < config.GridHeight; y++)
+                var cell = config.Cells[i];
+                var center = CellCenter(cell.x, cell.y, grid);
+                if (XzDistance(focus, center) <= radius)
                 {
-                    var center = CellCenter(x, y, grid);
-                    if (XzDistance(focus, center) <= radius)
-                    {
-                        result.Add(CellIdentity.Format(x, y));
-                    }
+                    result.Add(CellIdentity.Format(cell.x, cell.y));
                 }
             }
 
@@ -370,16 +383,14 @@ namespace OneStarMaker.Tests.Streaming
 
             Assert.IsTrue(converged, "10 サイクル以内に Tick がバックエンド呼び出しゼロで収束する");
 
-            for (var x = 0; x < config.GridWidth; x++)
+            for (var i = 0; i < config.Cells.Count; i++)
             {
-                for (var y = 0; y < config.GridHeight; y++)
-                {
-                    var cellId = CellIdentity.Format(x, y);
-                    Assert.AreEqual(
-                        desiredB.Contains(cellId),
-                        backend.IsLoaded(cellId),
-                        $"収束後のロード済み集合は desiredB と一致: {cellId}");
-                }
+                var cell = config.Cells[i];
+                var cellId = CellIdentity.Format(cell.x, cell.y);
+                Assert.AreEqual(
+                    desiredB.Contains(cellId),
+                    backend.IsLoaded(cellId),
+                    $"収束後のロード済み集合は desiredB と一致: {cellId}");
             }
 
             backend.ClearHistory();
@@ -431,6 +442,23 @@ namespace OneStarMaker.Tests.Streaming
             controller.Tick(focusHome);
             Assert.AreEqual(1, backend.AddCalls.Count(c => c.CellId == "Cell_2_2"),
                 "Add/Remove 完了後の Tick で RequestAdd がちょうど 1 回再発行される（G-6）");
+        }
+
+        [Test]
+        public void TB_FocusInGapBetweenTwoRects_DesiredIsEmpty()
+        {
+            // cellSize 100: (0,0) 中心 (50,0,50)、(4,0) 中心 (450,0,50)。中間 (250,0,50) まで各 200m。
+            var grid = new CellGridConfig(Vector3.zero, cellSize: 100f, height: 10f);
+            var cells = new[] { new Vector2Int(0, 0), new Vector2Int(4, 0) };
+            var config = new StreamingConfig(grid, cells, loadRadius: 150f, unloadRadius: 180f, maxInFlight: 4);
+            var backend = new FakeStreamingBackend();
+            var controller = new WorldStreamingController(config, backend);
+
+            var focus = new Vector3(250f, 0f, 50f);
+            controller.Tick(focus);
+
+            Assert.IsEmpty(backend.AddCalls, "空隙中間の focus では desired が空");
+            Assert.IsEmpty(backend.RemoveCalls);
         }
     }
 }
