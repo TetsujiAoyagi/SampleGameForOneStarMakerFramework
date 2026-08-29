@@ -219,9 +219,15 @@ namespace SampleGame.InGame.Streaming
                 var identity = CellIdentity.Format(cell.x, cell.y);
                 if (!volumeQuery.TryGetSceneVolume(identity, out var volume))
                 {
+                    // TryGetSceneVolume が false になる理由は 3 つあり、対処がそれぞれ違う。
+                    // 「再計算メニューを実行」だけを案内すると、フラグ off のときに
+                    // 回しても直らない（再計算は体積しか書かない）。全部並べて誤診を防ぐ。
                     throw new InvalidOperationException(
-                        $"セル '{identity}' の体積が引けません。SceneResource の体積が未計算か、"
-                        + $"距離政策の候補フラグが off です。Editor メニュー '{RecalculateMenuPath}' を実行してください。");
+                        $"セル '{identity}' の体積が引けません。次のどれかです。"
+                        + $" (1) SceneResourceMap に未登録 → SceneGraph の Generate。"
+                        + $" (2) 距離政策の候補フラグ（_streamByDistance）が off → 生成器を実行。"
+                        + $"     再計算メニューはフラグを書かないので回しても直りません。"
+                        + $" (3) 体積が空 → Editor メニュー '{RecalculateMenuPath}'。");
                 }
 
                 candidates.Add(new StreamingCandidate(identity, volume));

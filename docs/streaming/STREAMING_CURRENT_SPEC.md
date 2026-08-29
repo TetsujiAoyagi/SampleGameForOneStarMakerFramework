@@ -31,7 +31,7 @@ StreamingCandidateSet（identity ＋ Bounds）→ 体積の中心 → 注視点�
 | 本番レイアウト | 矩形 1 個 `{ origin=(0,0), size=(4,4) }`。展開すると 16 セル | `WorldCellCatalog.Rectangles` |
 | 格子定数 | `Origin = (0,0,0)` / `CellSize = 250` / `CellHeight = 96`。**生成器入力・スポーン・HUD 用。距離政策は読まない** | `WorldCellCatalog` |
 | 体積 | `SceneResource._volume`（ワールド AABB）。`.unity` の全 Renderer の合併 ＋ 候補でない子の合併 | `SceneResource` |
-| 候補フラグ | `SceneResource._streamByDistance`。**生成器が焼く決定**（`WorldCellGenerator` が Cell に true、Environment に false）。幾何からは導出しない | 同上 |
+| 候補フラグ | `SceneResource._streamByDistance`。**生成器が焼く決定**。Cell に true を書くのは FW Editor の `WorldCellGenerator`、Environment に false を書くのは SampleGame の `EnsureEnvironmentResource`。幾何からは導出しない | 同上 |
 | 体積の焼き直し | シーン保存フック ＋ メニュー `OneStarMaker/Scene Volume/Recalculate All` ＋ 生成完了時。**書くのは体積だけ**でフラグには触らない | `SceneVolumeRecalculator` |
 | 半径 | `LoadRadius = 375` / `UnloadRadius = 550` / `MaxInFlight = 2` | 同上 |
 | Tick | 0.2s（5Hz 相当） | 同上 |
@@ -40,7 +40,7 @@ StreamingCandidateSet（identity ＋ Bounds）→ 体積の中心 → 注視点�
 | 正本 policy | 南辺 4 枚 `(0,0)(1,0)(2,0)(3,0)` = `HandAuthored`、他 12 枚 = `Generated` | `CellAuthoringPolicy.cs` |
 | セル実体 | 16 フォルダ。Environment `.unity` は南辺 4 枚のみ | `SampleGame/.../World/Cells/` |
 | Variant | `.asset` の `Variant:` は **52 ファイル全て空文字**。非空値ゼロ | SceneMap / Cells / SceneGraphData |
-| Addressables | グループは `Default Local Group` **1 個**（28 エントリ）。`Remote.LoadPath` 未定義。`RemoteFull.asset` / `VariantHybridPlayModeScript.asset` はメニュー実行待ちで未生成 | `AddressableAssetsData/` |
+| Addressables | グループは `Default Local Group` **1 個**（33 エントリ）。`.unity` を持つ SceneResource 26 本は全て登録済み（`OutGameScene` / `InGameUI` / `PlayerScene` / `Result` の 4 本は未登録のままで、Title からの Play が `InvalidKeyException` で落ちていた。M-1 の Play 検証時に補った）。`Remote.LoadPath` 未定義。`RemoteFull.asset` / `VariantHybridPlayModeScript.asset` はメニュー実行待ちで未生成 | `AddressableAssetsData/` |
 | シーン木 | `InGameSession → World → Cell_{x}_{y} → Environment_{x}_{y}` | `World` は `NecessaryAlways` |
 
 グリッド寸法の正本は `WorldCellCatalog` の const。`WorldGridDefinition.asset` はその写し（`EnsureGridDefinition` が毎回上書き）。アセット側だけを書き換えてもランタイムは追従しない。
@@ -113,7 +113,7 @@ Editor の体積再計算（`SceneVolumeRecalculator`）は名前文法を使わ
 
 ## 6. テストと計測
 
-- テストは全て EditMode。**WSC 10 本相当（T-B 空隙を入れて 11）+ MultiFocus 3 + 統合 6 / 生成器 7 / `CellPopulationPlan` 14** ほか。M-1 で `StreamingCandidateSet` / `StreamingPolicySettings` の検証 8 本と `SceneVolumeMath` 10 本が増えた。既存 3 群は入力の与え方が座標列から候補列（identity ＋ 体積）へ変わっただけで、期待値の数値は 1 つも動いていない（体積中心 = セル中心）
+- テストは全て EditMode。**WSC 10 本相当（T-B 空隙を入れて 11）+ MultiFocus 3 + 統合 6 / 生成器 7 / `CellPopulationPlan` 14** ほか。M-1 で `StreamingCandidateSet` / `StreamingPolicySettings` の検証 8 本、`SceneVolumeMath` 10 本、`ISceneVolumeQuery` の 3 分岐 4 本が増えた。既存 3 群は入力の与え方が座標列から候補列（identity ＋ 体積）へ変わっただけで、期待値の数値は 1 つも動いていない（体積中心 = セル中心）
 - CI（GitHub Actions）は DebugStudio の `dotnet test` のみ。Unity テストはローカル `pwsh tools/run-tests.ps1`
 - [§21](../../unity/Assets/Docs/Architecture/21-scene-streaming.md) の T-07〜T-09（Play 実証・テレメトリ・受入判定）は未了。季節化のあとに取る
 

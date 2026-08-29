@@ -161,6 +161,7 @@ namespace OneStarMaker.Editor.SceneGraph
                 // 合併は下から。鎖の外の子は保存済みの値をそのまま使う。
                 var childVolume = default(Bounds);
                 var childIsCandidate = false;
+                var changed = false;
 
                 for (var i = chain.Count - 1; i >= 0; i--)
                 {
@@ -184,10 +185,15 @@ namespace OneStarMaker.Editor.SceneGraph
 
                     childVolume = SceneVolumeMath.Merge(own[i], children);
                     childIsCandidate = chain[i].StreamByDistance;
-                    Write(chain[i], childVolume);
+                    changed |= Write(chain[i], childVolume);
                 }
 
-                AssetDatabase.SaveAssets();
+                // 体積が動いていない保存（マテリアルだけ、空のシーン等）で
+                // プロジェクトを dirty にしない。RecalculateAll と同じ条件にそろえる。
+                if (changed)
+                {
+                    AssetDatabase.SaveAssets();
+                }
             }
             finally
             {
