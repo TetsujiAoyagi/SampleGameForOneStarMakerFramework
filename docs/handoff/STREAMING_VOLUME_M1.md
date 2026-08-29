@@ -88,7 +88,7 @@
 | ファイル | 現 | 上限 | 実測 | 責務 |
 |---|---:|---:|---:|---|
 | `Editor/SceneGraph/SceneVolumeMath.cs` | 新規 | 90 | 94 | **純関数**。Bounds 列の合併 / 親と候補でない子の合併 / 空判定 |
-| `Editor/SceneGraph/SceneVolumeRecalculator.cs` | 新規 | 260 | 285 | 候補判定・合併の走査・SerializedProperty 書き込み・全件メニュー |
+| `Editor/SceneGraph/SceneVolumeRecalculator.cs` | 新規 | 260 | 288 | 合併の走査・体積の SerializedProperty 書き込み・全件メニュー。候補フラグは読むだけ |
 | `Editor/SceneGraph/SceneVolumeSceneReader.cs`（**計画外の追加**） | 新規 | — | 180 | アセットと `.unity` の読み取り（資産探索・シーンパス解決・Renderer 収集） |
 | `Editor/SceneGraph/SceneVolumeSaveHook.cs` | 新規 | 60 | 49 | `EditorSceneManager.sceneSaved` → 該当 SceneResource ＋ 祖先を再計算 |
 
@@ -116,8 +116,10 @@
 
 ### 着手時 HANDOFF から外れた 2 点（実装中に判明。M-2 以降が再解釈しないため記録する）
 
-1. **候補フラグの決め方が違った。** §9.3 は「`_streamByDistance` は『体積が空でない』で決まる」と書いていたが、これでは **Environment も候補になってしまう**（Ground を持つので体積が空でない）。実装は「体積が空でなく、かつ**候補である祖先を持たない**」に変えた。これは §34 §6 の「距離の単位は人が開く作業単位」の機械的な言い直しであり、World（Renderer 無し = 空）→ Cell（候補）→ Environment（畳まれる）が正しく出る。
-   - **副作用として知っておくこと:** World の `.unity` に Renderer を 1 つでも置くと、World が候補になり Cell 16 枚が候補から落ちる。そのとき Driver は起動時に例外で落ちる（暗黙フォールバックが無いので黙って壊れない）。
+1. **候補フラグは導出をやめ、生成器が焼く決定にした。** 着手時は「`_streamByDistance` は『体積が空でない』で決まる」と書いていたが、それでは Environment（Ground を持つ）まで候補になる。次に「体積が空でなく、かつ候補である祖先を持たない」へ直したが、**これも Editor で実測して誤爆した** — `PlayerScene`（プレイヤーのカプセルに Renderer がある）が候補フラグ 1 で焼かれた。今日は無害だが、M-3 で R-3 がこのフラグを読み始めた瞬間に `SwitchScene("PlayerScene")` が理由なく弾かれる。
+   - **結論: 「距離政策の候補か」は幾何から導出できる事実ではなく決定である**（§34 §5 が「フラグ」と呼んでいるのはそういう意味だった）。それを知っているのは作業単位を焼く生成器だけである。
+   - 着地: `WorldCellGenerator.ConfigureSceneResource` が Cell に `true`、`EnsureEnvironmentResource` が Environment に `false` を焼く。`SceneVolumeRecalculator` は**体積だけ**を書き、フラグは合併判断のために**読むだけ**。
+   - 副作用: 新しく作業単位を足したときは生成器を回さないとフラグが付かない。再計算メニューだけでは付かない。これは正しい — フラグは決定であって観測ではない。
 2. **Editor 側を 3 ファイルに割った。** `SceneVolumeRecalculator` を 1 ファイルで書くと 437 行・3 責務（アセット探索 / 走査規則 / 書き込み）になったため、`.unity` とアセットの読み取りを `SceneVolumeSceneReader` へ抜いた。A-2 の「純関数と I/O を分ける」の延長であり、使い捨てスクリプトではないので分割の方を選んだ。
 
 ## 4. A-2 分割先
@@ -180,7 +182,7 @@ public sealed class StreamingPolicySettings    // ずっと不変
 
 - 1 シーン分: `.unity` を Additive で開き、全ルートの `Renderer.bounds` を集めて `TryUnion` → 閉じる（`WorldCellStreamingSliceCreator.PopulateSingleCellScene` と同じ開閉の流儀）
 - 子を持つ場合は、**保存済みの子の体積**を `Merge` で畳む（子のシーンを開き直さない）
-- 書き込みは `SerializedProperty`。`_streamByDistance` は「**体積が空でなく、候補である祖先を持たない**」で決まる（§3 末尾の逸脱 1。着手時は「体積が空でない」と書いていたが、それでは Environment も候補になる）
+- 書き込みは `SerializedProperty`。**書くのは `_volume` だけ**で、`_streamByDistance` には触らない（§3 末尾の逸脱 1）。フラグは合併規則の入力として読むだけである
 - メニュー: 全件をボトムアップで再計算する 1 項目
 - **名前文法を一切使わない。** 親子は `SceneResource.Parent` / `Children`、identity 引きは `SceneResourceMap.GetSceneResource`
 

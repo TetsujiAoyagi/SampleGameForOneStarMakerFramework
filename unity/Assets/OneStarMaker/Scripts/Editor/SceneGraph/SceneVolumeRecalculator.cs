@@ -10,14 +10,20 @@ using UnityEngine.SceneManagement;
 namespace OneStarMaker.Editor.SceneGraph
 {
     /// <summary>
-    /// `.unity` の中身から <see cref="SceneResource"/> の体積と距離政策の候補フラグを焼く
+    /// `.unity` の中身から <see cref="SceneResource"/> のワールド体積を焼く
     /// （34-ondemand-spatial-policy.md §5）。
     ///
     /// <para>
-    /// <b>候補フラグの規則:</b> 体積が空でなく、かつ**候補である祖先を持たない**シーンが候補である。
-    /// これは §34 §6 の「距離の単位は人が開く作業単位」を機械的に言い直したものである。
-    /// 空間を占める最上位のノードが作業単位であり、その下の分割は空間ではなく職種の分割
-    /// （現状の Environment）なので、親へ畳んで候補にしない。
+    /// <b>書くのは体積だけ。</b> <c>_streamByDistance</c> には触らない。
+    /// 「距離政策の候補か」は幾何から導出できる事実ではなく<b>決定</b>であり（§34 §5）、
+    /// それを知っているのは作業単位を焼く生成器（<c>WorldCellGenerator</c> / Environment 側）である。
+    /// ここで「体積が空でなければ候補」と導出すると、Renderer を持つだけの
+    /// Player や UI のシーンまで候補になる（実測で誤爆した）。
+    /// </para>
+    ///
+    /// <para>
+    /// 合併では**候補でない子だけ**を親へ畳む（§34 §6）。畳むかどうかの判断材料として
+    /// フラグを<b>読む</b>のはここの仕事である。書かないだけである。
     /// </para>
     ///
     /// <para>
@@ -52,7 +58,7 @@ namespace OneStarMaker.Editor.SceneGraph
         }
 
         /// <summary>
-        /// 全 <see cref="SceneResource"/> の体積と候補フラグを再計算する。
+        /// 全 <see cref="SceneResource"/> の体積を再計算する。
         /// </summary>
         /// <returns>実際に値が変わった件数。</returns>
         public static int RecalculateAll()
@@ -82,13 +88,12 @@ namespace OneStarMaker.Editor.SceneGraph
                 }
 
                 var final = new Dictionary<ulong, Bounds>(resources.Count);
-                var candidate = new Dictionary<ulong, bool>(resources.Count);
 
                 for (var i = 0; i < resources.Count; i++)
                 {
                     if (resources[i].Parent == null)
                     {
-                        Resolve(resources[i], ancestorIsCandidate: false, own, final, candidate, depth: 0);
+                        Resolve(resources[i], own, final, depth: 0);
                     }
                 }
 
@@ -100,10 +105,10 @@ namespace OneStarMaker.Editor.SceneGraph
                     // 親リンクが壊れていてルートから到達できなかったものも取りこぼさない。
                     if (!final.ContainsKey(id))
                     {
-                        Resolve(resource, ancestorIsCandidate: false, own, final, candidate, depth: 0);
+                        Resolve(resource, own, final, depth: 0);
                     }
 
-                    if (Write(resource, final[id], candidate[id]))
+                    if (Write(resource, final[id]))
                     {
                         changed++;
                     }
@@ -153,15 +158,6 @@ namespace OneStarMaker.Editor.SceneGraph
                         chain[i], isSaved ? savedScene : (Scene?)null);
                 }
 
-                // 候補判定は上から。祖先が候補ならその下は候補にしない。
-                var candidate = new bool[chain.Count];
-                var ancestorIsCandidate = false;
-                for (var i = 0; i < chain.Count; i++)
-                {
-                    candidate[i] = !SceneVolumeMath.IsEmpty(own[i]) && !ancestorIsCandidate;
-                    ancestorIsCandidate |= candidate[i];
-                }
-
                 // 合併は下から。鎖の外の子は保存済みの値をそのまま使う。
                 var childVolume = default(Bounds);
                 var childIsCandidate = false;
@@ -187,8 +183,8 @@ namespace OneStarMaker.Editor.SceneGraph
                     }
 
                     childVolume = SceneVolumeMath.Merge(own[i], children);
-                    childIsCandidate = candidate[i];
-                    Write(chain[i], childVolume, childIsCandidate);
+                    childIsCandidate = chain[i].StreamByDistance;
+                    Write(chain[i], childVolume);
                 }
 
                 AssetDatabase.SaveAssets();
@@ -222,13 +218,11 @@ namespace OneStarMaker.Editor.SceneGraph
             return chain;
         }
 
-        /// <summary>候補判定（上から）と合併（下から）を 1 回の再帰で行う。</summary>
+        /// <summary>子から順に体積を確定させる。候補フラグは読むだけで書き換えない。</summary>
         private static void Resolve(
             SceneResource resource,
-            bool ancestorIsCandidate,
             IReadOnlyDictionary<ulong, Bounds> own,
             Dictionary<ulong, Bounds> final,
-            Dictionary<ulong, bool> candidate,
             int depth)
         {
             var id = IdOf(resource);
@@ -241,8 +235,6 @@ namespace OneStarMaker.Editor.SceneGraph
                 ? stored
                 : SceneVolumeSceneReader.ComputeOwnVolume(resource, liveScene: null);
 
-            var isCandidate = !SceneVolumeMath.IsEmpty(ownVolume) && !ancestorIsCandidate;
-            candidate[id] = isCandidate;
             // 先に自分を確定扱いにしておくと、親子リンクが循環していても無限再帰しない。
             final[id] = ownVolume;
 
@@ -257,13 +249,13 @@ namespace OneStarMaker.Editor.SceneGraph
                     continue;
                 }
 
-                Resolve(child, isCandidate || ancestorIsCandidate, own, final, candidate, depth + 1);
+                Resolve(child, own, final, depth + 1);
 
                 var childId = IdOf(child);
                 // MaxDepth 打ち切りで子が未確定のまま戻ることがある。メニュー実行を落とさない。
                 if (final.TryGetValue(childId, out var childVolume))
                 {
-                    children.Add((childVolume, candidate[childId]));
+                    children.Add((childVolume, child.StreamByDistance));
                 }
             }
 
@@ -275,12 +267,14 @@ namespace OneStarMaker.Editor.SceneGraph
         /// </summary>
         private static ulong IdOf(SceneResource resource) => EntityId.ToULong(resource.GetEntityId());
 
-        /// <summary>SerializedProperty 経由で書き込む。値が変わったら true。</summary>
-        private static bool Write(SceneResource resource, Bounds volume, bool streamByDistance)
+        /// <summary>
+        /// SerializedProperty 経由で体積だけを書き込む。値が変わったら true。
+        /// <c>_streamByDistance</c> は生成器が持つ決定なので、ここでは触らない。
+        /// </summary>
+        private static bool Write(SceneResource resource, Bounds volume)
         {
             var so = new SerializedObject(resource);
             so.FindProperty("_volume").boundsValue = volume;
-            so.FindProperty("_streamByDistance").boolValue = streamByDistance;
 
             if (!so.ApplyModifiedPropertiesWithoutUndo())
             {

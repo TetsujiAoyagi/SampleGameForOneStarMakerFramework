@@ -1059,6 +1059,8 @@ namespace SampleGame.DependOnAll.Editor
 
             var so = new SerializedObject(resource);
             so.FindProperty("_identity").stringValue = envId;
+            // 職種分割の子は距離政策の候補にしない（§34 §6）。親 Cell の体積へ畳まれる側。
+            so.FindProperty("_streamByDistance").boolValue = false;
             var sad = so.FindProperty("_sceneAssetDescription");
             sad.FindPropertyRelative("SceneIdentity").stringValue = envId;
             // 必ず OnDemand。NecessaryAlways にすると Cell Add で引っ張られる。

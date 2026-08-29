@@ -31,8 +31,8 @@ StreamingCandidateSet（identity ＋ Bounds）→ 体積の中心 → 注視点�
 | 本番レイアウト | 矩形 1 個 `{ origin=(0,0), size=(4,4) }`。展開すると 16 セル | `WorldCellCatalog.Rectangles` |
 | 格子定数 | `Origin = (0,0,0)` / `CellSize = 250` / `CellHeight = 96`。**生成器入力・スポーン・HUD 用。距離政策は読まない** | `WorldCellCatalog` |
 | 体積 | `SceneResource._volume`（ワールド AABB）。`.unity` の全 Renderer の合併 ＋ 候補でない子の合併 | `SceneResource` |
-| 候補フラグ | `SceneResource._streamByDistance`。体積が空でなく、候補である祖先を持たないシーンが true | 同上 |
-| 体積の焼き直し | シーン保存フック ＋ メニュー `OneStarMaker/Scene Volume/Recalculate All` ＋ 生成完了時 | `SceneVolumeRecalculator` |
+| 候補フラグ | `SceneResource._streamByDistance`。**生成器が焼く決定**（`WorldCellGenerator` が Cell に true、Environment に false）。幾何からは導出しない | 同上 |
+| 体積の焼き直し | シーン保存フック ＋ メニュー `OneStarMaker/Scene Volume/Recalculate All` ＋ 生成完了時。**書くのは体積だけ**でフラグには触らない | `SceneVolumeRecalculator` |
 | 半径 | `LoadRadius = 375` / `UnloadRadius = 550` / `MaxInFlight = 2` | 同上 |
 | Tick | 0.2s（5Hz 相当） | 同上 |
 | スポーン | `Cell_0_0` 中心上空（高さ 28） | `WorldCellCatalog.SpawnPosition` |
@@ -58,7 +58,7 @@ StreamingCandidateSet（identity ＋ Bounds）→ 体積の中心 → 注視点�
 | `ISceneStreamingBackend` | FW Runtime | `RequestAdd` / `RequestRemove` / `IsLoaded`。SceneDirector 委譲 |
 | `ISceneVolumeQuery` | FW Runtime | `TryGetSceneVolume(identity, out Bounds)`。**未ロード**候補の体積を引く口。`ISceneQuery`（ロード済み専用）とは別 |
 | `SceneResource` | FW Runtime | `_volume` / `_streamByDistance` を持つ。体積が空 = 空間に属さない（Title / Pause / Tunnel） |
-| `SceneVolumeMath` / `SceneVolumeRecalculator` / `SceneVolumeSceneReader` / `SceneVolumeSaveHook` | FW Editor | 合併規則（純関数）／走査と書き込み／`.unity` 読み取り／保存フック |
+| `SceneVolumeMath` / `SceneVolumeRecalculator` / `SceneVolumeSceneReader` / `SceneVolumeSaveHook` | FW Editor | 合併規則（純関数）／体積の走査と書き込み／`.unity` 読み取り／保存フック。候補フラグは読むだけ |
 | `CellIdentity` | FW Runtime | `Cell_{x}_{y}` の判定・解析・整形。R-3（`SwitchScene` 禁止）の検出と SampleGame の identity 組み立て。**距離経路からは外れた** |
 | `CellGridConfig` / `CellScene` | FW Runtime | 原点・セルサイズ・高さ。`CellScene.ComputeBounds` はテストのみ（本番経路からは呼ばれない） |
 | `WorldCellCatalog` | SampleGame | 矩形集合の展開・membership・スポーン・tint。`CreateGridConfig` は距離経路から外れて参照 0（意図的に残す） |
