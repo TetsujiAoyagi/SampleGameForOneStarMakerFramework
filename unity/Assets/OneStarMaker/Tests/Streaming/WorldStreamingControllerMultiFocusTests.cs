@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
-using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.Streaming;
 using UnityEngine;
 
@@ -17,112 +16,33 @@ namespace OneStarMaker.Tests.Streaming
     [TestFixture]
     public class WorldStreamingControllerMultiFocusTests
     {
-        private static StreamingConfig CreateConfig(
+        private static (StreamingCandidateSet Candidates, StreamingPolicySettings Settings) CreateConfig(
             int gridWidth = 5,
             int gridHeight = 5,
             float cellSize = 100f,
             float loadRadius = 150f,
             float unloadRadius = 250f,
             int maxInFlight = 8)
-        {
-            var grid = new CellGridConfig(Vector3.zero, cellSize, height: 10f);
-            return new StreamingConfig(grid, DenseCells(gridWidth, gridHeight), loadRadius, unloadRadius, maxInFlight);
-        }
+            => (StreamingCandidateFixtures.DenseGrid(gridWidth, gridHeight, cellSize),
+                StreamingCandidateFixtures.Settings(loadRadius, unloadRadius, maxInFlight));
 
-        private static IReadOnlyList<Vector2Int> DenseCells(int width, int height)
-        {
-            var cells = new Vector2Int[width * height];
-            var i = 0;
-            for (var y = 0; y < height; y++)
-            {
-                for (var x = 0; x < width; x++)
-                {
-                    cells[i++] = new Vector2Int(x, y);
-                }
-            }
-
-            return cells;
-        }
-
-        private static Vector3 CellCenter(int x, int y, in CellGridConfig grid)
-        {
-            return grid.Origin + new Vector3(
-                (x + 0.5f) * grid.CellSize,
-                0f,
-                (y + 0.5f) * grid.CellSize);
-        }
-
-        private static float XzDistance(Vector3 a, Vector3 b)
-        {
-            var dx = a.x - b.x;
-            var dz = a.z - b.z;
-            return Mathf.Sqrt(dx * dx + dz * dz);
-        }
-
-        private static float NearestFocusDistance(IReadOnlyList<Vector3> focuses, Vector3 point)
-        {
-            var nearest = float.MaxValue;
-            for (var i = 0; i < focuses.Count; i++)
-            {
-                var distance = XzDistance(focuses[i], point);
-                if (distance < nearest)
-                {
-                    nearest = distance;
-                }
-            }
-
-            return nearest;
-        }
-
-        private static HashSet<string> ComputeCellsWithinRadius(
-            Vector3 focus,
-            StreamingConfig config,
-            float radius)
-        {
-            var result = new HashSet<string>(StringComparer.Ordinal);
-            var grid = config.Grid;
-
-            for (var i = 0; i < config.Cells.Count; i++)
-            {
-                var cell = config.Cells[i];
-                var center = CellCenter(cell.x, cell.y, grid);
-                if (XzDistance(focus, center) <= radius)
-                {
-                    result.Add(CellIdentity.Format(cell.x, cell.y));
-                }
-            }
-
-            return result;
-        }
-
-        private static HashSet<string> ComputeUnionDesired(
-            IReadOnlyList<Vector3> focuses,
-            StreamingConfig config)
-        {
-            var union = new HashSet<string>(StringComparer.Ordinal);
-            for (var i = 0; i < focuses.Count; i++)
-            {
-                union.UnionWith(ComputeCellsWithinRadius(focuses[i], config, config.LoadRadius));
-            }
-
-            return union;
-        }
+        private static Vector3 CellCenter(int x, int y) => StreamingCandidateFixtures.CellCenter(x, y);
 
         [Test]
         public void Tick_MultiFocus_DesiredSetIsUnion()
         {
-            var config = CreateConfig(loadRadius: 120f, unloadRadius: 220f);
+            var (candidates, settings) = CreateConfig(loadRadius: 120f, unloadRadius: 220f);
             var backend = new FakeStreamingBackend();
-            var controller = new WorldStreamingController(config, backend);
+            var controller = new WorldStreamingController(candidates, settings, backend);
 
-            var focusA = CellCenter(0, 0, config.Grid);
-            var focusB = CellCenter(4, 4, config.Grid);
+            var focusA = CellCenter(0, 0);
+            var focusB = CellCenter(4, 4);
             var focuses = new List<Vector3> { focusA, focusB };
 
             controller.Tick(focuses);
 
             var requested = backend.AddCalls.Select(c => c.CellId).ToHashSet(StringComparer.Ordinal);
-            var expected = ComputeUnionDesired(focuses, config);
+            var expected = StreamingCandidateFixtures.UnionWithinRadius(focuses, candidates, settings.LoadRadius);
 
             CollectionAssert.AreEquivalent(expected, requested);
         }
@@ -130,12 +50,12 @@ namespace OneStarMaker.Tests.Streaming
         [Test]
         public void Tick_MultiFocus_PriorityUsesNearestFocusDistance()
         {
-            var config = CreateConfig(loadRadius: 300f, unloadRadius: 400f);
+            var (candidates, settings) = CreateConfig(loadRadius: 300f, unloadRadius: 400f);
             var backend = new FakeStreamingBackend();
-            var controller = new WorldStreamingController(config, backend);
+            var controller = new WorldStreamingController(candidates, settings, backend);
 
-            var focusA = CellCenter(0, 0, config.Grid);
-            var focusB = CellCenter(4, 4, config.Grid);
+            var focusA = CellCenter(0, 0);
+            var focusB = CellCenter(4, 4);
             var focuses = new List<Vector3> { focusA, focusB };
 
             controller.Tick(focuses);
@@ -143,14 +63,9 @@ namespace OneStarMaker.Tests.Streaming
             var adds = backend.AddCalls.ToList();
             Assert.Greater(adds.Count, 1, "複数セルがロード対象になる設定であること");
 
-            var grid = config.Grid;
             var nearestDistances = adds
-                .Select(c =>
-                {
-                    Assert.IsTrue(CellIdentity.TryParse(c.CellId, out var coord));
-                    var center = CellCenter(coord.x, coord.y, grid);
-                    return NearestFocusDistance(focuses, center);
-                })
+                .Select(c => StreamingCandidateFixtures.NearestFocusDistance(
+                    focuses, StreamingCandidateFixtures.CenterOf(candidates, c.CellId)))
                 .ToList();
 
             for (var i = 1; i < nearestDistances.Count; i++)
@@ -168,12 +83,12 @@ namespace OneStarMaker.Tests.Streaming
         [Test]
         public void Tick_SingleFocusOverload_BehaviorUnchanged()
         {
-            var config = CreateConfig(loadRadius: 150f, unloadRadius: 250f);
-            var focus = CellCenter(2, 2, config.Grid);
+            var (candidates, settings) = CreateConfig(loadRadius: 150f, unloadRadius: 250f);
+            var focus = CellCenter(2, 2);
 
             // Tick(Vector3) は単一 focus 専用バッファ経由でも、複数 focus overload 1 件入力と同じ差分を出す。
             var legacyBackend = new FakeStreamingBackend();
-            var legacyController = new WorldStreamingController(config, legacyBackend);
+            var legacyController = new WorldStreamingController(candidates, settings, legacyBackend);
             legacyController.Tick(focus);
             var legacyAdds = legacyBackend.AddCalls
                 .Select(c => (c.CellId, c.Priority))
@@ -181,7 +96,7 @@ namespace OneStarMaker.Tests.Streaming
             var legacyRemoves = legacyBackend.RemoveCalls.Select(c => c.CellId).ToList();
 
             var overloadBackend = new FakeStreamingBackend();
-            var overloadController = new WorldStreamingController(config, overloadBackend);
+            var overloadController = new WorldStreamingController(candidates, settings, overloadBackend);
             overloadController.Tick(new List<Vector3> { focus });
             var overloadAdds = overloadBackend.AddCalls
                 .Select(c => (c.CellId, c.Priority))

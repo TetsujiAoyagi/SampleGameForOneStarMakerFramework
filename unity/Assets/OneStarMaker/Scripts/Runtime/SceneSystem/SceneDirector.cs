@@ -6,6 +6,7 @@ using Cysharp.Threading.Tasks;
 using OneStarMaker.Runtime.AssetDescriptions;
 using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.UISystem;
+using UnityEngine;
 using R3;
 
 namespace OneStarMaker.Runtime.SceneSystem
@@ -15,14 +16,15 @@ namespace OneStarMaker.Runtime.SceneSystem
     /// 親子ツリー構造に基づき、LoadType に応じたロード戦略を実行する。
     /// UICommon との仲介者として UIView のライフサイクルも管理する。
     /// ISceneQuery を実装し、SceneBase に読み取り専用アクセスを提供する。
+    /// ISceneVolumeQuery を実装し、空間政策へ未ロード候補の体積を提供する（§34 §5）。
     ///
     /// partial 構成:
-    ///   SceneDirector.cs             … フィールド, ctor, Dispose, ISceneQuery, テストアクセサ, ヘルパー
+    ///   SceneDirector.cs             … フィールド, ctor, Dispose, ISceneQuery, ISceneVolumeQuery, テストアクセサ, ヘルパー
     ///   SceneDirector.Loading.cs     … AddScene, LoadSceneBase, LoadUnityScene, PerformUnitySceneLoad
     ///   SceneDirector.Unloading.cs   … UnloadScene, RemoveScene, 3-Phase, CleanupCanceledScene, PerformUnitySceneUnload
     ///   SceneDirector.Transitions.cs … SwitchScene, GoBack, ClearHistory, ExecuteTransitionPlan
     /// </summary>
-    public partial class SceneDirector : IDisposable, ISceneQuery, ISceneController
+    public partial class SceneDirector : IDisposable, ISceneQuery, ISceneVolumeQuery, ISceneController
     {
         /// <summary>シーンペア（SceneBase + Addressables ロード状態 + ロード用 CTS）。</summary>
         private class ScenePair
@@ -155,6 +157,35 @@ namespace OneStarMaker.Runtime.SceneSystem
             return _currentScenes.TryGetValue(identity, out var pair)
                    && pair.SceneBase.Lifecycle.State == SceneState.Stable
                    && !pair.SceneBase.Lifecycle.IsUnloadStarted;
+        }
+
+        // ─── ISceneVolumeQuery 実装 ───
+
+        /// <inheritdoc/>
+        public bool TryGetSceneVolume(string identity, out Bounds volume)
+        {
+            volume = default;
+
+            var resource = _sceneResourceMap.GetSceneResource(identity);
+            // SceneResource は UnityEngine.Object。破棄済みを ?. / ?? で素通しさせない。
+            if (resource == null)
+            {
+                return false;
+            }
+
+            if (!resource.StreamByDistance)
+            {
+                return false;
+            }
+
+            var candidate = resource.Volume;
+            if (candidate.size == Vector3.zero)
+            {
+                return false;
+            }
+
+            volume = candidate;
+            return true;
         }
 
         // ─── Internal: テストアクセサ ───

@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using OneStarMaker.Runtime.CameraSystem;
-using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.Streaming;
 using UnityEngine;
 using OneStarMaker.Runtime.CameraSystem.Abstractions;
@@ -37,11 +36,10 @@ namespace OneStarMaker.Tests.Streaming
                 throw new NotSupportedException();
         }
 
-        private static StreamingConfig CreateConfig(float loadRadius = 150f)
-        {
-            var grid = new CellGridConfig(Vector3.zero, cellSize: 100f, height: 10f);
-            return new StreamingConfig(grid, DenseCells(5, 5), loadRadius, unloadRadius: 250f, maxInFlight: 8);
-        }
+        private static (StreamingCandidateSet Candidates, StreamingPolicySettings Settings) CreateConfig(
+            float loadRadius = 150f)
+            => (StreamingCandidateFixtures.DenseGrid(5, 5),
+                StreamingCandidateFixtures.Settings(loadRadius, unloadRadius: 250f, maxInFlight: 8));
 
         private static CameraViewSnapshot SnapshotAt(Vector3 position) =>
             CameraViewSnapshot.CreateInitial(new CameraPose
@@ -57,9 +55,6 @@ namespace OneStarMaker.Tests.Streaming
         private static CameraFocusSource Source(ICameraView view, bool includeInStreaming = true) =>
             new() { View = view, IncludeInStreaming = includeInStreaming };
 
-        private static Vector3 CellCenter(int x, int y, in CellGridConfig grid) =>
-            grid.Origin + new Vector3((x + 0.5f) * grid.CellSize, 0f, (y + 0.5f) * grid.CellSize);
-
         [Test]
         public void CameraStreamingFocusAdapter_Tick_ForwardsCurrentAndIncomingFocuses()
         {
@@ -71,16 +66,17 @@ namespace OneStarMaker.Tests.Streaming
                 IncomingSnapshot = SnapshotAt(incoming),
             };
 
-            var config = CreateConfig(loadRadius: 120f);
+            var (candidates, settings) = CreateConfig(loadRadius: 120f);
             var backend = new FakeStreamingBackend();
-            var controller = new WorldStreamingController(config, backend);
+            var controller = new WorldStreamingController(candidates, settings, backend);
             var adapter = new CameraStreamingFocusAdapter(controller, new[] { Source(view) });
 
             adapter.Tick();
 
             Assert.That(adapter.LastForwardedFocusCount, Is.EqualTo(2));
 
-            var expected = ComputeUnionDesired(new List<Vector3> { current, incoming }, config);
+            var expected = StreamingCandidateFixtures.UnionWithinRadius(
+                new List<Vector3> { current, incoming }, candidates, settings.LoadRadius);
             var requested = backend.AddCalls.Select(c => c.CellId).ToHashSet(StringComparer.Ordinal);
 
             CollectionAssert.AreEquivalent(expected, requested);
@@ -92,9 +88,9 @@ namespace OneStarMaker.Tests.Streaming
             var mainView = new FakeCameraView { Snapshot = SnapshotAt(new Vector3(0f, 0f, 0f)) };
             var rtView = new FakeCameraView { Snapshot = SnapshotAt(new Vector3(400f, 0f, 400f)) };
 
-            var config = CreateConfig(loadRadius: 120f);
+            var (candidates, settings) = CreateConfig(loadRadius: 120f);
             var backend = new FakeStreamingBackend();
-            var controller = new WorldStreamingController(config, backend);
+            var controller = new WorldStreamingController(candidates, settings, backend);
             var adapter = new CameraStreamingFocusAdapter(controller, new[]
             {
                 Source(mainView, includeInStreaming: true),
@@ -105,7 +101,8 @@ namespace OneStarMaker.Tests.Streaming
 
             Assert.That(adapter.LastForwardedFocusCount, Is.EqualTo(1));
 
-            var expected = ComputeUnionDesired(new List<Vector3> { Vector3.zero }, config);
+            var expected = StreamingCandidateFixtures.UnionWithinRadius(
+                new List<Vector3> { Vector3.zero }, candidates, settings.LoadRadius);
             var requested = backend.AddCalls.Select(c => c.CellId).ToHashSet(StringComparer.Ordinal);
             CollectionAssert.AreEquivalent(expected, requested);
         }
@@ -116,7 +113,8 @@ namespace OneStarMaker.Tests.Streaming
             var rtOnlyView = new FakeCameraView { Snapshot = SnapshotAt(new Vector3(99f, 0f, 99f)) };
 
             var backend = new FakeStreamingBackend();
-            var controller = new WorldStreamingController(CreateConfig(), backend);
+            var (candidates, settings) = CreateConfig();
+            var controller = new WorldStreamingController(candidates, settings, backend);
             var adapter = new CameraStreamingFocusAdapter(controller, new[]
             {
                 Source(rtOnlyView, includeInStreaming: false),
@@ -127,43 +125,5 @@ namespace OneStarMaker.Tests.Streaming
             Assert.That(backend.CallHistory, Is.Empty);
         }
 
-        private static HashSet<string> ComputeUnionDesired(IReadOnlyList<Vector3> focuses, StreamingConfig config)
-        {
-            var union = new HashSet<string>(StringComparer.Ordinal);
-            var grid = config.Grid;
-
-            for (var i = 0; i < focuses.Count; i++)
-            {
-                for (var c = 0; c < config.Cells.Count; c++)
-                {
-                    var cell = config.Cells[c];
-                    var center = CellCenter(cell.x, cell.y, grid);
-                    var dx = focuses[i].x - center.x;
-                    var dz = focuses[i].z - center.z;
-                    var distance = Mathf.Sqrt(dx * dx + dz * dz);
-                    if (distance <= config.LoadRadius)
-                    {
-                        union.Add(CellIdentity.Format(cell.x, cell.y));
-                    }
-                }
-            }
-
-            return union;
-        }
-
-        private static IReadOnlyList<Vector2Int> DenseCells(int width, int height)
-        {
-            var cells = new Vector2Int[width * height];
-            var i = 0;
-            for (var y = 0; y < height; y++)
-            {
-                for (var x = 0; x < width; x++)
-                {
-                    cells[i++] = new Vector2Int(x, y);
-                }
-            }
-
-            return cells;
-        }
     }
 }

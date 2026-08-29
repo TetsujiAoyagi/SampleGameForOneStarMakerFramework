@@ -3,14 +3,14 @@
 using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
-using OneStarMaker.Runtime.SceneSystem;
 using UnityEngine;
 
 namespace OneStarMaker.Runtime.Streaming
 {
     /// <summary>
-    /// セルストリーミングのポリシー層（21-scene-streaming.md §8 / D-3）。
+    /// OnDemand シーンの距離政策層（21-scene-streaming.md §8 / D-3、34-ondemand-spatial-policy.md §4）。
     /// desired set 計算・差分発火・ヒステリシス・in-flight 上限・priority を担う純 C# クラス。
+    /// 読むのは候補の identity と体積だけであり、格子座標も名前文法も知らない。
     /// UpdateSystem への接続は薄いアダプタに分離し、テストでは <see cref="Tick"/> を直接呼ぶ。
     /// </summary>
     public sealed class WorldStreamingController
@@ -24,16 +24,24 @@ namespace OneStarMaker.Runtime.Streaming
         /// <summary>
         /// Controller を構築する。
         /// </summary>
-        /// <param name="config">ポリシーパラメータ。</param>
+        /// <param name="candidates">候補集合（identity ＋ 体積）。差し替えるときは丸ごと作り直す側。</param>
+        /// <param name="settings">半径・in-flight 上限。候補が変わっても不変な側。</param>
         /// <param name="backend">ロード/アンロード要求先。</param>
-        public WorldStreamingController(StreamingConfig config, ISceneStreamingBackend backend)
+        public WorldStreamingController(
+            StreamingCandidateSet candidates,
+            StreamingPolicySettings settings,
+            ISceneStreamingBackend backend)
         {
-            Config = config ?? throw new ArgumentNullException(nameof(config));
+            Candidates = candidates ?? throw new ArgumentNullException(nameof(candidates));
+            Settings = settings ?? throw new ArgumentNullException(nameof(settings));
             Backend = backend ?? throw new ArgumentNullException(nameof(backend));
         }
 
-        /// <summary>ポリシーパラメータ。</summary>
-        public StreamingConfig Config { get; }
+        /// <summary>候補集合（identity ＋ 体積）。</summary>
+        public StreamingCandidateSet Candidates { get; }
+
+        /// <summary>半径・in-flight 上限。</summary>
+        public StreamingPolicySettings Settings { get; }
 
         /// <summary>ロード/アンロード要求先。</summary>
         public ISceneStreamingBackend Backend { get; }
@@ -51,9 +59,9 @@ namespace OneStarMaker.Runtime.Streaming
 
         /// <summary>
         /// 複数注視点を受け取り、desired/retain 集合の差分をバックエンドへ発火する（CAM-08）。
-        /// desired = 各 focus の loadRadius 内セルの和集合。
-        /// retain = 各 focus の unloadRadius 内セルの和集合。
-        /// priority はセル中心から最寄り focus への距離昇順。
+        /// desired = 各 focus の loadRadius 内候補の和集合。
+        /// retain = 各 focus の unloadRadius 内候補の和集合。
+        /// priority は候補の体積中心から最寄り focus への距離昇順。
         /// </summary>
         /// <param name="focusPositions">注視点のワールド座標列（1 件以上）。</param>
         public void Tick(IReadOnlyList<Vector3> focusPositions)
@@ -68,16 +76,17 @@ namespace OneStarMaker.Runtime.Streaming
                 throw new ArgumentException("注視点は 1 件以上必要です。", nameof(focusPositions));
             }
 
-            var grid = Config.Grid;
+            var candidates = Candidates.Candidates;
             var desiredOrdered = new List<(string cellId, float distance)>();
             var retain = new HashSet<string>(StringComparer.Ordinal);
             var loaded = new HashSet<string>(StringComparer.Ordinal);
 
-            for (var i = 0; i < Config.Cells.Count; i++)
+            for (var i = 0; i < candidates.Count; i++)
             {
-                var cell = Config.Cells[i];
-                var cellId = CellIdentity.Format(cell.x, cell.y);
-                var center = GetCellCenter(cell.x, cell.y, grid);
+                var candidate = candidates[i];
+                var cellId = candidate.Identity;
+                // 距離は体積の中心（§34 §5）。identity から座標を復元しない。
+                var center = candidate.Volume.center;
                 var nearestDistance = GetNearestFocusDistance(focusPositions, center);
 
                 if (Backend.IsLoaded(cellId))
@@ -85,12 +94,12 @@ namespace OneStarMaker.Runtime.Streaming
                     loaded.Add(cellId);
                 }
 
-                if (nearestDistance <= Config.LoadRadius)
+                if (nearestDistance <= Settings.LoadRadius)
                 {
                     desiredOrdered.Add((cellId, nearestDistance));
                 }
 
-                if (nearestDistance <= Config.UnloadRadius)
+                if (nearestDistance <= Settings.UnloadRadius)
                 {
                     retain.Add(cellId);
                 }
@@ -140,7 +149,7 @@ namespace OneStarMaker.Runtime.Streaming
                 // 空き枠は発行ごとに再評価する。即時完了するバックエンドでは
                 // 発行直後に in-flight が同期的に空くため、1 Tick で maxInFlight を
                 // 超える件数を順次発行できる（未完了の同時数は常に maxInFlight 以下）。
-                if (_inFlightAddCells.Count >= Config.MaxInFlight)
+                if (_inFlightAddCells.Count >= Settings.MaxInFlight)
                 {
                     break;
                 }
@@ -265,14 +274,6 @@ namespace OneStarMaker.Runtime.Streaming
             return StringComparer.Ordinal.Compare(left.cellId, right.cellId);
         }
 
-        private static Vector3 GetCellCenter(int x, int y, in CellGridConfig grid)
-        {
-            return grid.Origin + new Vector3(
-                (x + 0.5f) * grid.CellSize,
-                0f,
-                (y + 0.5f) * grid.CellSize);
-        }
-
         private static float GetXzDistance(Vector3 a, Vector3 b)
         {
             var dx = a.x - b.x;
@@ -280,14 +281,14 @@ namespace OneStarMaker.Runtime.Streaming
             return Mathf.Sqrt(dx * dx + dz * dz);
         }
 
-        /// <summary>複数 focus のうちセル中心に最も近い focus への XZ 距離。</summary>
-        private static float GetNearestFocusDistance(IReadOnlyList<Vector3> focusPositions, Vector3 cellCenter)
+        /// <summary>複数 focus のうち候補の体積中心に最も近い focus への XZ 距離。</summary>
+        private static float GetNearestFocusDistance(IReadOnlyList<Vector3> focusPositions, Vector3 volumeCenter)
         {
             var nearest = float.MaxValue;
 
             for (var i = 0; i < focusPositions.Count; i++)
             {
-                var distance = GetXzDistance(focusPositions[i], cellCenter);
+                var distance = GetXzDistance(focusPositions[i], volumeCenter);
                 if (distance < nearest)
                 {
                     nearest = distance;

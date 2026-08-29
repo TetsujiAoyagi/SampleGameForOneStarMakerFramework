@@ -92,6 +92,23 @@ namespace SampleGame.DependOnAll.Editor
 
         private static void CreateCore()
         {
+            // 生成中は 1 保存ごとに祖先を再計算しない。最後に全件で焼き直す（§34 §5）。
+            SceneVolumeRecalculator.SaveHookSuspended = true;
+            try
+            {
+                CreateCoreInner();
+            }
+            finally
+            {
+                SceneVolumeRecalculator.SaveHookSuspended = false;
+            }
+
+            // 再生成のたびに人が再計算メニューを思い出す必要をなくす。
+            SceneVolumeRecalculator.RecalculateAll();
+        }
+
+        private static void CreateCoreInner()
+        {
             var map = AssetDatabase.LoadAssetAtPath<SceneResourceMap>(SceneResourceMapPath)
                 ?? throw new FileNotFoundException(SceneResourceMapPath);
             var session = AssetDatabase.LoadAssetAtPath<SceneResource>(InGameSessionResourcePath)
