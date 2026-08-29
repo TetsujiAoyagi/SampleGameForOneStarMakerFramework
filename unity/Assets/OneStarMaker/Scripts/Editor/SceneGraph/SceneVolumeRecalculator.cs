@@ -260,7 +260,11 @@ namespace OneStarMaker.Editor.SceneGraph
                 Resolve(child, isCandidate || ancestorIsCandidate, own, final, candidate, depth + 1);
 
                 var childId = child.GetInstanceID();
-                children.Add((final[childId], candidate[childId]));
+                // MaxDepth 打ち切りで子が未確定のまま戻ることがある。メニュー実行を落とさない。
+                if (final.TryGetValue(childId, out var childVolume))
+                {
+                    children.Add((childVolume, candidate[childId]));
+                }
             }
 
             final[id] = SceneVolumeMath.Merge(ownVolume, children);
