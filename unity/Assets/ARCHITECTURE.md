@@ -134,7 +134,7 @@ Game.Common ──→ Foundation, Runtime
 | §18 | AssetDescription — 目的・有用性・実装 | [18-asset-description.md](Docs/Architecture/18-asset-description.md) |
 | §19 | （欠番 — AssetResidentCache 施行表。施行完了につき設計判断は §13 へ集約） | — |
 | §20 | Variant チェックアウトワークフロー | [20-variant-checkout-workflow.md](Docs/Architecture/20-variant-checkout-workflow.md) |
-| §21 | SceneStreaming — セルストリーミング設計（コア実装済み。実証スライス / テレメトリ / 受入は未了） | [21-scene-streaming.md](Docs/Architecture/21-scene-streaming.md) |
+| §21 | SceneStreaming — **現状**（格子キー。到着点ではない） | [21-scene-streaming.md](Docs/Architecture/21-scene-streaming.md) |
 | §22 | （予約 — HLOD / Proxy ティア。21-scene-streaming.md §12 参照） | — |
 | §23 | CameraSystem — カメラシステム設計（実装済み。Play 目視判定が未了） | [23-camera-system.md](Docs/Architecture/23-camera-system.md) |
 | §24 | RenderingSystem — レンダリングシステム構想（構想段階・骨子） | [24-rendering-system.md](Docs/Architecture/24-rendering-system.md) |
@@ -146,7 +146,8 @@ Game.Common ──→ Foundation, Runtime
 | §30 | 意味アイデンティティ層（番地付けと分類。設計中。S-1 は番地のみ。製品消費者はホスト待ち） | [30-accessibility-identity.md](Docs/Architecture/30-accessibility-identity.md) |
 | §31 | アクセシビリティ出力予算と調停（設計中。予算値と集約は未設計） | [31-accessibility-output-budget.md](Docs/Architecture/31-accessibility-output-budget.md) |
 | §32 | アクセシビリティ入力自由度の低減（設計中。InputManager 待ち） | [32-accessibility-input-dof.md](Docs/Architecture/32-accessibility-input-dof.md) |
-| §33 | SampleGame 実証境界 — Season / Tunnel / 4 動詞（設計中。実装は S-3 以降） | [33-sample-demonstration-boundaries.md](Docs/Architecture/33-sample-demonstration-boundaries.md) |
+| §33 | SampleGame 実証境界 — Season / Tunnel / 4 動詞（部分退役。空間は §34） | [33-sample-demonstration-boundaries.md](Docs/Architecture/33-sample-demonstration-boundaries.md) |
+| §34 | OnDemand の空間政策 — **到着契約**（未実装）。現状は §21 / `docs/streaming/` | [34-ondemand-spatial-policy.md](Docs/Architecture/34-ondemand-spatial-policy.md) |
 | — | Assembly 分割移行記録 | [migration-assembly-split.md](Docs/Architecture/migration-assembly-split.md) |
 
 ---
@@ -160,9 +161,12 @@ Game.Common ──→ Foundation, Runtime
 | **Phase 3** | Game 基盤 | DependOnAll 起動処理、SceneFactory、ApplicationService | 🔧 一部完了（AppInitializer, GameSceneFactory, NullLoadingDisplay, TitleScene 実装済） |
 | **Phase 4** | Game 実装 + UI 移行 | Title → InGame 遷移、Player(MVVM + R3)、Grid 再構築、UI Toolkit 段階移行 | 未着手 |
 
+> **Phase 4 の「Grid 再構築」は旧タイトル（NewGradious）の盤面ビルダであり、SceneStreaming の格子キーではない。** 空間政策の到着点は [§34](Docs/Architecture/34-ondemand-spatial-policy.md)。現状は [§21](Docs/Architecture/21-scene-streaming.md) と [`docs/streaming/`](../../docs/streaming/STREAMING_CURRENT_SPEC.md)。
+
 > **Phase 1 完了後の追加実装（フェーズ表の枠外で進行したもの）:**
 > テレメトリ v2 + DebugSocket / DebugStudio 連携（§12, §15, §28）、AssetManagement + AssetResidentCache（§13）、
-> UpdateSystem（正本 `docs/updater/UPDATER_CURRENT_SPEC.md`）、Variant ビルド / チェックアウトワークフロー（§18, §20）。
+> UpdateSystem（正本 `docs/updater/UPDATER_CURRENT_SPEC.md`）、Variant ビルド / チェックアウトワークフロー（§18, §20）、
+> SceneStreaming 現状（§21 / `docs/streaming/`。到着契約は §34）。
 
 ---
 

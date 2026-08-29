@@ -409,6 +409,8 @@ OutGame
 | `IncrementalAlways` | 親ロード時に非同期（Forget）でロード | バックグラウンドで先読みしたいもの |
 | `OnDemand` | 明示的な `AddScene` 呼び出し時のみロード | ポーズメニュー、リザルト等 |
 
+LoadType は**親に対する引っ張り**専用である。距離で載せるかは LoadType の値を増やさず、[§34 OnDemand の空間政策](34-ondemand-spatial-policy.md) が候補集合と体積で決める（現状の格子キーは [§21](21-scene-streaming.md)）。Pause / Result のような明示 `AddScene` は、距離政策の候補に入っていない OnDemand である。
+
 ### AddScene の祖先ロード
 
 深いシーンを `AddScene` すると、`CollectNecessaryScenes` で祖先チェーン（ルート→…→直接の親）を収集し、

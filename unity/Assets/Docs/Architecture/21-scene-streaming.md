@@ -1,8 +1,13 @@
-# 21. SceneStreaming — セルストリーミング設計
+# 21. SceneStreaming — セルストリーミング設計（現状）
 
-> ステータス: コア実装済み（T-01〜T-06.5: `WorldStreamingController` + `SessionWorldStreamingDriver`）。**T-07〜T-09（実証スライス・テレメトリ・受入判定）は未了。** HLOD / Proxy ティアは未着手
+> ステータス: **現状の設計記録。到着点ではない。** コア実装済み（T-01〜T-06.5）。**T-07〜T-09 は未了。** HLOD / Proxy ティアは未着手
+> 到着契約: [§34 OnDemand の空間政策](34-ondemand-spatial-policy.md)
+> 実装値の正本: [STREAMING_CURRENT_SPEC.md](../../../../docs/streaming/STREAMING_CURRENT_SPEC.md)
+> 対照: [STREAMING_CURRENT_VS_IDEAL.md](../../../../docs/streaming/STREAMING_CURRENT_VS_IDEAL.md)
 > 前提資料: [05. シーン管理](05-scene.md) / [13. リソースシステム](13-resource-system.md)
 > 関連: HLOD / Proxy ティアの詳細は将来の §22 に分離する（本書はインターフェース予約のみ）
+>
+> 本書が固定して残るのは政策/メカニズム分離（D-3 / D-4）、生成器の非破壊契約、受入値、チケット履歴である。格子座標をランタイムのキーにしている記述は**今動いている経路**であり、一般化先ではない。
 
 ---
 

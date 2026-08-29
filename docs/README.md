@@ -15,13 +15,13 @@
 
 | 層 | 場所 | git | 寿命 |
 |---|---|---|---|
-| **公開面** | `README.md` / `unity/Assets/ARCHITECTURE.md` / `unity/Assets/Docs/Architecture/` / `docs/` 直下 / **`docs/updater/`**（UpdateSystem 正本仕様 + 視覚メモ） / `protocol/` / `tools/**/README.md` | tracked | 永続。**今この瞬間に真であること** |
+| **公開面** | `README.md` / `unity/Assets/ARCHITECTURE.md` / `unity/Assets/Docs/Architecture/` / `docs/` 直下 / **`docs/updater/`**（UpdateSystem 正本仕様 + 視覚メモ） / **`docs/streaming/`**（Streaming 現状仕様 + 対照。到着契約は Architecture §34） / `protocol/` / `tools/**/README.md` | tracked | 永続。**今この瞬間に真であること** |
 | **作業台** | `docs/handoff/` | tracked | 進行中のスライス。複数スライスに跨る計画も置いてよい（harvest 先と期限を本文に書く）。マージ時に削除する |
 | **手元** | `docs/planning/` `docs/reference/` `docs/slides/` `docs/debugstudio/` | ignored | 無期限。公開面から参照しない |
 
 ## 公開面のルール
 
-1. **今この瞬間に真であること。** 古くなったら直すか消す。新旧を併存させない
+1. **今この瞬間に真であること。** 古くなったら直すか消す。同じ主張の新旧を併存させない。役割が違う二枚（現状仕様と到着契約）は UpdateSystem / Streaming のとおり公開面に置いてよい。到着契約は「未実装の設計方向」と明示する
 2. **ファイル名に日付を入れない。** 日付が要るなら、それは現況ではなく記録である
 3. **「これは読むな」と書きたくなったら、その文書は消す。** 消しても git 履歴に残る
 4. **手元の層へリンクしない。** clone した人には存在しないため

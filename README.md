@@ -110,6 +110,7 @@ dotnet run --project src/DebugStudio.App/DebugStudio.App.csproj
 - Unity 内メイン設計書: [`unity/Assets/ARCHITECTURE.md`](unity/Assets/ARCHITECTURE.md)
 - アーキテクチャ詳細: [`unity/Assets/Docs/Architecture/`](unity/Assets/Docs/Architecture/)
 - UpdateSystem 正本仕様: [`docs/updater/UPDATER_CURRENT_SPEC.md`](docs/updater/UPDATER_CURRENT_SPEC.md)
+- Streaming 現状仕様: [`docs/streaming/STREAMING_CURRENT_SPEC.md`](docs/streaming/STREAMING_CURRENT_SPEC.md)（到着契約は [§34](unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md)）
 
 コミットされているドキュメントは**現況を説明するものだけ**である。計画書・外部フレームワーク比較・発表資料は作者の手元にのみ置き、リポジトリには含めない。
 
