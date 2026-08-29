@@ -6,7 +6,7 @@
 > 設計記録・チケット履歴: [§21](../../unity/Assets/Docs/Architecture/21-scene-streaming.md)
 > UpdateSystem の [UPDATER_CURRENT_SPEC.md](../updater/UPDATER_CURRENT_SPEC.md) に相当する。
 
-本書は格子キーの一般化先ではない。S-3（矩形集合化）までを含む**現況**である。
+本書は格子キーの一般化先ではない。S-3（矩形集合化）までを含む**現況**である。**実装指示ではない。**
 
 ---
 
