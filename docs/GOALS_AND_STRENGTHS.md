@@ -110,6 +110,7 @@ OSM 側の寄せ方:
 | 設計の入口 | [ARCHITECTURE.md](../unity/Assets/ARCHITECTURE.md) |
 | スコープ木の意味論 | [05-scene.md §5.6「何を親に置くか」](../unity/Assets/Docs/Architecture/05-scene.md) |
 | Update システムの正本仕様 | [UPDATER_CURRENT_SPEC.md](updater/UPDATER_CURRENT_SPEC.md) |
+| Streaming の現状仕様 | [STREAMING_CURRENT_SPEC.md](streaming/STREAMING_CURRENT_SPEC.md) |
 | OnDemand の空間政策（到着契約） | [34-ondemand-spatial-policy.md](../unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md) |
 
 ---
@@ -122,3 +123,4 @@ OSM 側の寄せ方:
 | 2026-08-15 | ドキュメント3層の整理に伴い、手元層（外部参照シリーズ・発表資料）への参照を削除 |
 | 2026-08-27 | §3 の「InGame 階層は Factory 未配線のスケルトン」が実装に追い越されていたため修正 |
 | 2026-08-29 | Streaming の到着契約（§34）を次に読むものへ追加 |
+| 2026-08-29 | Streaming の現状仕様を次に読むものへ追加（到着契約 §34 と並べる） |
