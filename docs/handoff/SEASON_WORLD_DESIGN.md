@@ -314,16 +314,17 @@ Editor 操作境界（正本は `.cursor/skills/osm-unity-editor/SKILL.md`）は
 
 ---
 
-## 12. harvest 方針（移行の口が通ったあと。§33 本文は今は書き換えない）
+## 12. harvest 方針（§33 本文は今は書き換えない。期限を混ぜない）
 
 空間契約は [§34](../../unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md) へ移した。S-3 実測は [STREAMING_CURRENT_SPEC.md](../streaming/STREAMING_CURRENT_SPEC.md) へ移した。`SCENE_WORLD_BOUNDS.md` と `SEASON_LEVELS_IMPLEMENTATION.md` は git 履歴に残し、本文は復活させない。
 
-口が通ったあと:
+§33 本文の harvest は、移行の口（**M-1 + M-2**。S-4 のゲート）が通ってから:
 
 - §33 D-1: 空隙配置 → 同座標 + 候補集合の排他 + §34。identity 文法を FW 契約にしない
 - §33 D-6 / §5 表: 季節↔動詞・季節別 policy → §4 の検証マトリクスと 2 段 policy
 - §33 §7: 空隙の幾何 → §3.3 / §5
 - §33 §8: シーン木の identity 例を修飾付きフォルダ名へ（FW は読まない、と注記）
-- 移行 HANDOFF: 実装値を現状仕様へ移して `git rm`
-- 本書も全スライス harvest 後に `git rm`
 - `pwsh tools/docs-audit.ps1` を通す
+
+移行 HANDOFF の `git rm` は移行側の期限（**M-1〜M-4 全部**）。実装値を現状仕様へ移してから消す。S-4 のゲート（M-1+M-2）と混ぜない。M-3 / M-4 の正本が残る。
+本書は全スライス harvest 後に `git rm`。
