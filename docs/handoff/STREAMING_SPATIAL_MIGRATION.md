@@ -5,8 +5,9 @@
 > 現行レイアウト（4×4）で口を通す手順は**ここだけ**に置く。§34 の主語にしない。
 >
 > **harvest 先:** 口が通ったら実装値を `STREAMING_CURRENT_SPEC.md` に移し、§21 の現状記述を追随させる。契約の追加判断があれば §34 へ。
-> **期限:** M-1〜M-4 が全て通った時点。Controller が `Format` せず、体積がデータであり、生成器の既存収集 / policy のキーが identity 文字列であり、R-3 が名前文法を見ず、`Runtime/SceneSystem/Cells/` が FW 公開面に無い。そのあと本書を `git rm`。M-1 + M-2 だけで消さない。
-> **世界構図:** [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md)。S-4（216 セル）は本書の口が通ってから。
+> **期限（git rm）:** M-1〜M-4 が全て通った時点。Controller が `Format` せず、体積がデータであり、生成器の既存収集 / policy のキーが identity 文字列であり、R-3 が名前文法を見ず、`Runtime/SceneSystem/Cells/` が FW 公開面に無い。そのあと本書を `git rm`。M-1 + M-2 だけで消さない。**S-4 の開始条件ではない。**
+> **S-4 のゲート:** **M-1 の受入**（体積の口）。M-3 は S-4 より前か同ブランチ。M-4 は S-4 と同時可。`git rm` の期限と混ぜない。
+> **世界構図:** [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md)。
 >
 > `docs-audit.ps1` 検査3の対象にしないため §7 / §8 は欠番。
 
@@ -42,8 +43,13 @@
 | M-4 | `Runtime/SceneSystem/Cells/`（`CellIdentity` / `CellGridConfig` / `CellScene`）を FW 公開面から下ろす。SampleGame または Editor へ | 動かさない |
 | S-4 以降 | 谷の生成・Season_*。正本は [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md) | **全廃**（移送しない） |
 
-M-1 が通るまで M-2 / M-3 / M-4 / S-4 に入らない。M-2 は M-1 と同ブランチでもよい（座標キーのままだと後で 4 季節が潰れるため、早めに寄せる）。
-M-4 は M-3 の後。S-4 と同時でもよい（factory が `IsCellId` をやめる瞬間に型を下ろせる）。
+ゲート（次の実装がここで部分解を出さないための固定）:
+
+- **S-4 の前提は M-1**（体積の口）。M-1 の受入が通るまで 9×6×4 を焼かない
+- **M-2 / M-3 / M-4 も M-1 のあと。** M-2 は M-1 と同ブランチでもよい（座標キーのままだと後で 4 季節が潰れるため、早めに寄せる）。S-4 のゲートではない
+- **M-3 は S-4 より前か同ブランチ**（修飾付き identity で R-3 が空洞化しないため）
+- **M-4 は M-3 の後。S-4 と同時でもよい**（factory が `IsCellId` をやめる瞬間に型を下ろせる）
+- **本書を `git rm` する期限は M-1〜M-4 全部。** S-4 のゲートと混ぜない
 
 R-3 の所有者: **M-3 が口を作る。S-4 が修飾付き名で効かせる。** どちらも「名前文法から外す」とだけ書くと二重所有になる。factory の SceneBase 結線（`IsCellId` → `DemoCellScene`）は S-4。M-3 は factory を動かさない。
 
@@ -60,19 +66,22 @@ R-3 の所有者: **M-3 が口を作る。S-4 が修飾付き名で効かせる�
 
 ---
 
-## 3. M-1 で決めること（契約は §34。署名はここ）
+## 3. 移行で決めること（契約は §34。署名は各スライス）
 
-§34 をひっくり返さない。次だけを分解する。
+§34 をひっくり返さない。次だけを分解する。M-1 セッションは M-2 / M-3 / M-4 の問いを「決める」対象にしない。
 
-1. 体積の置き場（§34 の 3 候補。避けたいのは identity 文法と座標の第二キー）
-2. `StreamingConfig` が持つもの（identity＋体積の列か、SceneResource 参照か）。`Vector2Int` 列と `CellGridConfig` による中心組み立ては捨てる
-3. 生成器が AABB をいつ書くか（現行格子定数から焼いて埋め込む。ランタイムは焼かない）
-4. R-3 の検出をフラグへ移す範囲（`CellIdentity.IsCellId` を残す過渡か、一括か）。**factory の SceneBase 結線（`IsCellId` → `DemoCellScene`）とは別口。** M-1 は無修飾 4×4 のまま factory を動かさない
-5. `CellScene.Coordinate` を残すか（HUD 用。距離判断からは外す）。型そのもの（`CellIdentity` / `CellGridConfig` / `CellScene`）を FW から下ろすのは **M-4**
-6. 既存テストの入力を体積列へ移す手順（本番 4×4 は動かさない）
-7. 生成器の policy 解決と既存収集のキーを identity 文字列へ移す範囲（§34。現行無修飾でもフォルダ名照合に寄せて証明する）
+| # | 問い | 所有者 |
+|---|---|---|
+| 1 | 体積の置き場（§34 の 3 候補。避けたいのは identity 文法と座標の第二キー） | M-1 |
+| 2 | `StreamingConfig` が持つもの（identity＋体積の列か、SceneResource 参照か）。`Vector2Int` 列と `CellGridConfig` による中心組み立ては捨てる | M-1 |
+| 3 | 生成器が AABB をいつ書くか（現行格子定数から焼いて埋め込む。ランタイムは焼かない） | M-1 |
+| 4 | R-3 の検出をフラグへ移す範囲（`CellIdentity.IsCellId` を残す過渡か、一括か）。**factory の SceneBase 結線（`IsCellId` → `DemoCellScene`）とは別口。** | **M-3** |
+| 5a | `CellScene.Coordinate` を残すか（HUD 用。距離判断からは外す） | M-1 |
+| 5b | 型そのもの（`CellIdentity` / `CellGridConfig` / `CellScene`）を FW から下ろす | **M-4** |
+| 6 | 既存テストの入力を体積列へ移す手順（本番 4×4 は動かさない） | M-1 |
+| 7 | 生成器の policy 解決と既存収集のキーを identity 文字列へ移す範囲（§34。現行無修飾でもフォルダ名照合に寄せて証明する） | **M-2** |
 
-Environment は距離政策の候補に入れない（距離の単位は Cell 作業単位）。子は親 Stable 後の明示 Add のまま。
+Environment は距離政策の候補に入れない（距離の単位は Cell 作業単位）。子は親 Stable 後の明示 Add のまま。M-1 は無修飾 4×4 のまま factory を動かさない。
 
 ---
 
@@ -86,9 +95,13 @@ Environment は距離政策の候補に入れない（距離の単位は Cell �
 3. 既存 WSC 10 本相当 / MultiFocus / 統合が緑（入力の与え方が座標列から体積列へ変わる）
 4. R-3: `SwitchScene("Cell_0_0")` は今どおり失敗する。検出が名前文法以外になってもよい（M-3 まで名前文法のままでも M-1 は通せる）
 5. FW に季節語が無い（W-1）
-6. 生成器が既存収集で座標キーに潰さない（現行無修飾でも、フォルダ名を identity として照合する）— M-2 と同時ならここで見る
+6. 生成器が既存収集で座標キーに潰さない（現行無修飾でも、フォルダ名を identity として照合する）— M-2 と同時ならここで見る。S-4 のゲートではない
 
-これが通るまで S-4 に入らない。
+**S-4 のゲートはここ（M-1 の受入）だけ。** M-2 / M-3 / M-4 の受入は本書の `git rm` 期限であり、S-4 開始条件ではない。ただし M-3 は修飾付き identity で R-3 が空洞化しないよう、S-4 より前か同ブランチで通す。
+
+### M-2 の受入
+
+生成器の既存収集 / policy のキーが identity 文字列である。座標キーで 4 季節が潰れないことを、現行無修飾 4×4 のフォルダ名照合で証明する。S-4 のゲートではない。
 
 ### M-3 の受入
 

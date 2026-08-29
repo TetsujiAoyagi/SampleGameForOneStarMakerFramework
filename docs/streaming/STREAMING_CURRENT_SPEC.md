@@ -101,7 +101,7 @@ S-3 が変えたのは走査範囲だけである。dense `0..W × 0..H` を矩�
 
 ## 6. テストと計測
 
-- テストは全て EditMode。**WSC 10 + MultiFocus 3 + 統合 6 / 生成器 7 / `CellPopulationPlan` 13** ほか
+- テストは全て EditMode。**WSC 10 本相当（T-B 空隙を入れて 11）+ MultiFocus 3 + 統合 6 / 生成器 7 / `CellPopulationPlan` 14** ほか
 - CI（GitHub Actions）は DebugStudio の `dotnet test` のみ。Unity テストはローカル `pwsh tools/run-tests.ps1`
 - [§21](../../unity/Assets/Docs/Architecture/21-scene-streaming.md) の T-07〜T-09（Play 実証・テレメトリ・受入判定）は未了。季節化のあとに取る
 
