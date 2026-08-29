@@ -1,13 +1,14 @@
 # 世界設計「主題と変奏」— S-3C 構図の正本 (2026-08-29 改訂)
 
 > ステータス: **構図は発注者承認済み。** 距離ストリーミングの空間プロトコルは本書が決めない。
-> 先に通す口: [SCENE_WORLD_BOUNDS.md](SCENE_WORLD_BOUNDS.md)（Plan。実装分解は別セッション）。
-> S-3 の矩形集合化は `develop` にマージ済み。機構の記録は [SEASON_LEVELS_IMPLEMENTATION.md](SEASON_LEVELS_IMPLEMENTATION.md)。
-> 旧稿（修飾パース / デコレータ / S-3D を `CellIdentity` の本題にする）は git 履歴にある。**本文には残さない。**
-> §33 の D-1（空隙で季節矩形を離す）/ 季節↔動詞 / identity に季節名を入れない、とは食い違う。世界については本書が新しい。§33 への harvest は Bounds の口が通ってから行い、それまで §33 を書き換えない。
+> 到着契約: [§34 OnDemand の空間政策](../../unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md)（公開面）。
+> 格子キーを殺す順序: [STREAMING_SPATIAL_MIGRATION.md](STREAMING_SPATIAL_MIGRATION.md)（移行。現行 4×4 で口を通す手順はそちらだけ）。
+> S-3 の矩形集合化は `develop` にマージ済み。実装値は [STREAMING_CURRENT_SPEC.md](../streaming/STREAMING_CURRENT_SPEC.md)。
+> 旧稿（修飾パース / デコレータ / S-3D を `CellIdentity` の本題にする / 空隙矩形）は git 履歴にある。**本文には残さない。**
+> §33 の D-1（空隙で季節矩形を離す）/ 季節↔動詞 / identity に季節名を入れない、とは食い違う。世界については本書が新しい。§33 には退役表がある。本文 harvest は移行の口が通ってから行い、それまで §33 本文は書き換えない。
 > §7 / §8 は欠番（HANDOFF の Phase C / C' と番号を重ねない）。harvest 期限は §12。`docs-audit.ps1` 検査3の対象にしない。
 
-実装エージェントへ: 本書は構図・実証・スライス順序の正本である。`CellIdentity.TryParse` を修飾対応すること、`StreamingConfig` に qualifier を足すこと、Backend デコレータで id を翻訳することは、**本書の指示ではない。** 距離判断は Bounds Plan が先に決める。既存 16 セルの全廃は **S-4**。Bounds の口を通すあいだは現行 4×4 を動かさない。
+実装エージェントへ: 本書は構図・実証・スライス順序の正本である。`CellIdentity.TryParse` を修飾対応すること、`StreamingConfig` に qualifier を足すこと、Backend デコレータで id を翻訳することは、**本書の指示ではない。** 距離判断は §34。格子キーを殺すのは移行 HANDOFF。既存 16 セルの全廃は **S-4**。移行の口を通すあいだは現行 4×4 を動かさない。
 
 ---
 
@@ -18,7 +19,7 @@
 季節の入れ替えはトンネル滞在中の Unload → Add で隠す。ワールドは原点直上の
 2.25km × 1.5km に収まり、季節間の座標オフセットもセル座標の写像も無い。
 
-距離判断が読むのは identity 文字列ではなく、各シーンが持つ体積（Bounds Plan）である。
+距離判断が読むのは identity 文字列ではなく、各シーンが持つ体積（[§34](../../unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md)）である。
 
 ---
 
@@ -30,9 +31,9 @@
 | 2026-08-29 | 各季節をもっと大きく。予算上限（軟 16 / 硬 64）撤廃 | 総セル 216 を目標寸法とする。S-4 冒頭で生成コストを測り、維持か縮小かを裁定する（§6） |
 | 2026-08-29 | **季節ごとの動詞割当を廃止**。実証の目的は「多人数・職種別の同時編集、単独ビルド、単独チェックアウト、イテレーションが世界のどこでも簡単」であること | §33 §4 / §5 の季節↔動詞表は退役。§4 の検証マトリクスに置換 |
 | 2026-08-29 | 座標帯オフセット（原点から 25km〜75km）は float 精度・物理の理由で却下 | 撤回済み。象限配置も不要になり撤回 |
-| 2026-08-29 | **四季は同じ座標を共有する。** ディスク上は接頭辞付きフォルダ名 | FW が季節語を読んではならない。名前から座標を復元する契約を FW に足さない（空間は Bounds） |
+| 2026-08-29 | **四季は同じ座標を共有する。** ディスク上は接頭辞付きフォルダ名 | FW が季節語を読んではならない。名前から座標を復元する契約を FW に足さない（空間は §34） |
 | 2026-08-29 | テーマ「主題と変奏」（時制 × 楽譜の混合）を承認 | §2 |
-| 2026-08-29 | 距離の正本を identity 文法にしない。`SceneWorldBounds` 系の Plan を先に通す | [SCENE_WORLD_BOUNDS.md](SCENE_WORLD_BOUNDS.md) |
+| 2026-08-29 | 距離の正本を identity 文法にしない。空間の到着契約を公開面へ | [§34](../../unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md)。移行は [STREAMING_SPATIAL_MIGRATION.md](STREAMING_SPATIAL_MIGRATION.md) |
 
 ---
 
@@ -95,7 +96,7 @@ y0  |  .  .  .  .  .  .  .  .  .
 FW は季節語を知らない。次は SampleGame のファイル名の約束である。
 
 ```
-無修飾:   Cell_{x}_{y}                      （現行 4×4。Bounds の口を通すあいだ存続）
+無修飾:   Cell_{x}_{y}                      （現行 4×4。移行の口を通すあいだ存続）
 修飾付き: {Qualifier}_Cell_{x}_{y}          例: Spring_Cell_4_2
 Environment: {Qualifier}_Environment_{x}_{y} 例: Spring_Environment_4_2
 季節コンテナ: Season_Spring 等
@@ -129,10 +130,10 @@ Main
 
 ### 3.4 空間プロトコルは本書の外
 
-距離・ヒステリシス・候補集合の持ち方は [SCENE_WORLD_BOUNDS.md](SCENE_WORLD_BOUNDS.md)。
+距離・ヒステリシス・候補集合の持ち方は [§34](../../unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md)。
 本書が固定するのは「四季は同じ AABB を共有し、候補集合だけが排他」という**使い方**である。
 
-S-4 で 9×6×4 を焼くのは、Bounds の口が現行 4×4 で通ってから。
+S-4 で 9×6×4 を焼くのは、移行 HANDOFF の口が現行 4×4 で通ってから。
 
 ---
 
@@ -158,7 +159,7 @@ S-4 で 9×6×4 を焼くのは、Bounds の口が現行 4×4 で通ってから
 | 初期（S-4 生成直後） | 全セル（216） | `Generated` | 変奏パラメータを再実行で回せる。S-8 の目視より先に凍結しない |
 | 昇格後 | 人が手を入れた identity のみ | `HandAuthored` | 目安は各変奏の線沿い 8〜10 + 見証周辺。**キーは座標ではなく修飾付き identity**。春の `(4,2)` を昇格しても夏の `(4,2)` は Generated のまま |
 | 固定 Generated | 各季節の背 `y=5` | 昇格禁止 | 計測の均質性 |
-| S-9 まで Generated | 各季節の `y=4` 行 | 昇格禁止（S-9 完了まで） | **中心距離**で y=5 中心から y=4 中心は 250m ≤ LoadRadius 375m。表面距離だと y=3 も desired に入り、線セル `(2,3)(3,3)` の昇格と W-8 が衝突する。距離の基準は [SCENE_WORLD_BOUNDS.md](SCENE_WORLD_BOUNDS.md) §3.3。源流 `(0,4)(1,4)` の演奏は S-9 のあと |
+| S-9 まで Generated | 各季節の `y=4` 行 | 昇格禁止（S-9 完了まで） | **中心距離**で y=5 中心から y=4 中心は 250m ≤ LoadRadius 375m。表面距離だと y=3 も desired に入り、線セル `(2,3)(3,3)` の昇格と W-8 が衝突する。距離の基準は [§34](../../unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md) §5。源流 `(0,4)(1,4)` の演奏は S-9 のあと |
 
 `HandAuthored` は「全セルを手作業で作る」ではない。初回は生成器のスキャフォールド、
 手を入れた identity だけ昇格する。「再生成しても編集が残る」はテーブル上の宣言ではなく、
@@ -193,16 +194,16 @@ Checkout の入口（次の変奏を要求する唯一の正規経路）であ�
 
 ## 6. スライス順序
 
-順序: **Bounds の口 → S-4 → S-5 → (S-6, S-7) → S-8a（春）→ S-9 → S-8b〜d（他変奏）**。
+順序: **移行の口（M-1） → S-4 → S-5 → (S-6, S-7) → S-8a（春）→ S-9 → S-8b〜d（他変奏）**。
 1 スライス = 1 ブランチ = 1 HANDOFF（着手時に切り出す）。
 
 旧 HANDOFF の Editor 操作境界は全スライスに適用する（人間が開いた Editor への CLI のみ可、Unity.exe 起動・テスト実行・YAML 手編集は禁止、テストは Phase C）。`record` 禁止・`#nullable enable`・破棄されうる `UnityEngine.Object` への `?.` / `??` 禁止も同様。
 
-**退役:** S-3D（`CellIdentity` の修飾パース）。Bounds が identity を不透明キーにすれば不要。復活させない。
+**退役:** S-3D（`CellIdentity` の修飾パース）。§34 が identity を不透明キーにすれば不要。復活させない。
 
 | # | 内容 | 補足 |
 |---|---|---|
-| Bounds | 現行 4×4 で、距離政策が AABB を読む口を通す | [SCENE_WORLD_BOUNDS.md](SCENE_WORLD_BOUNDS.md)。**通るまで 9×6×4 を焼かない。現行 16 枚も動かさない。** 実装分解は別セッション |
+| 移行 M-1 | 現行 4×4 で、距離政策が体積を読む口を通す | [STREAMING_SPATIAL_MIGRATION.md](STREAMING_SPATIAL_MIGRATION.md)。**通るまで 9×6×4 を焼かない。現行 16 枚も動かさない。** |
 | S-4 | 谷の生成と季節スワップ（本体） | Season_* 4 ノード、`World` を置き換え。接頭辞はファイル名。候補集合の差し替え。初期 policy は全 Generated。**既存 16 セルは全廃**（下節。移送しない）。identity → `SceneBase` の結線と R-3 ガードを名前文法から外す。スポーンを `(0,4)` へ。**頭で 1 季節 9×6 だけ生成して生成器 1 回の実時間を測り、M を維持するか裁定する** |
 | S-5 | トンネルと季節遷移 | §5 の契約。N-3 の内装はここで実測 |
 | S-6 | 1 変奏 = 1 Addressables グループ | Tunnel と共有 Lit / Primitive は専用季節グループに入れない |
@@ -214,13 +215,13 @@ Checkout の入口（次の変奏を要求する唯一の正規経路）であ�
 **S-4 の既存 16 セル: 全廃。** 谷は新規生成する。移送も座標補正も行わない。
 `move_asset` も `set_transform` によるワールド Δ も、破壊経路 3 に旧 12 枚を任せる手順も、使わない。
 
-**Bounds のあいだは現行 16 枚を動かさない。** 全廃は S-4 の仕事。
+**移行のあいだは現行 16 枚を動かさない。** 全廃は S-4 の仕事。
 
 破壊経路 3（範囲外削除）では捨てられない。既存 16 枚は `(0,0)〜(3,3)` にあり、新谷 `{ origin=(0,0), size=(9,6) }` の**範囲内**。`CellPopulationPlan` の削除計画は `grid.Contains` なら continue する。`HandAuthoredCells` を空にして生成器を回すと、今の生成器は `CellIdentity.Format` のまま **`Cell_*` を 9×6 に拡張するだけ**で、Spring 谷にはならない。`CollectExistingStates` は `CellIdentity.TryParse(folderName)` 失敗を無視するので、`Spring_Cell_*` を先に焼いても旧 `Cell_*` が座標キーで残る。
 
 手順:
 
-1. Bounds の口が現行 4×4 で通っていること
+1. 移行 HANDOFF の口が現行 4×4 で通っていること
 2. 範囲内でも `Cell_*` / `Environment_*` を消す**明示ワイプ**（今の生成器にその口は無い。S-4 で足すか、Editor から消してから生成する）
 3. ワイプの前に、南辺 4 座標 `(0,0)(1,0)(2,0)(3,0)` を別々の意味で持つ 3 配列を触る
 4. 修飾付き identity を吐く生成器を回す（`CellIdentity.Format` のまま焼かない）
@@ -232,12 +233,12 @@ Checkout の入口（次の変奏を要求する唯一の正規経路）であ�
 | 2 | `WorldCellStreamingSliceCreator.EnvironmentSproutCells` | 二役。(a) Environment 子を作るセル (b) Ground を置かないセル（`includeGround = !sproutSet.Contains(...)`）。「全セルに Environment をスキャフォールド」で配列を全セルへ広げると、**谷全体から地面が消える**。二役を切り離すこと |
 | 3 | `HandEditProbe.TargetCells` | 南辺 4 枚のハードコード。捨てたセルを stamp しにいく。春の演奏レイヤ（S-8a）の identity へ差し替えるまで無効 |
 
-**S-4 で名前文法が外れる口（Bounds では触らない。現行 `Cell_0_0` のまま通す）:**
+**S-4 で名前文法が外れる口（移行 M-1 では触らない。現行 `Cell_0_0` のまま通す）:**
 
 - `GameSceneFactory`: `IsCellId` / `IsEnvironmentId` が false → factory が null → Director が `SceneFactory returned null` で throw。`Spring_Cell_*` が `DemoCellScene` にならない
 - `CellScene` ctor: `TryParse` 失敗で `ArgumentException`。factory を先に直すと即死
 - `EnvironmentIdentity.TryFromCellId`: 親名から子名を組み立ててから Children 走査。修飾付きでは走査に届かず Environment を Add しない（無言）。子の解決は Children 走査へ寄せる
-- R-3（`ThrowIfCellIdentity`）: `IsCellId("Spring_Cell_4_2")` は false。修飾付きになると遷移禁止が空洞化する。検出は名前文法ではなく距離政策の候補フラグへ（口の通しかたは Bounds の分解問 4。S-4 で名前が変わる瞬間に効いていなければならない）
+- R-3（`ThrowIfCellIdentity`）: `IsCellId("Spring_Cell_4_2")` は false。修飾付きになると遷移禁止が空洞化する。検出は名前文法ではなく距離政策の候補フラグへ（口の通しかたは移行 HANDOFF の分解問 4。S-4 で名前が変わる瞬間に効いていなければならない）
 
 スポーン: 現行 `WorldCellCatalog.SpawnPosition` は `Cell_0_0` 中心。S-4 で春の源流 `(0,4)` へ移す。
 
@@ -248,7 +249,7 @@ Checkout の入口（次の変奏を要求する唯一の正規経路）であ�
 スキャフォールドは sprout 配列の二役を切ったあとの口で行う（上表 2）。
 
 **テスト:** 既存 WSC / MultiFocus / 統合 / 生成器 / `CellPopulationPlan` は残す。
-入力は Bounds の口に追随させる（分解セッションが署名を決める）。
+入力は移行 HANDOFF の口に追随させる（署名は移行側が決める）。
 旧 T-A（矩形間空隙ガード）の本番 assert は不要（本番は単一矩形 × 共有座標）。フィクスチャとしては残してよい。
 テストで `Task.Delay` / `Thread.Sleep` 禁止。全件実行は Phase C。実装者は「実装完了。テスト未実行」と報告する。
 
@@ -288,7 +289,7 @@ Checkout の入口（次の変奏を要求する唯一の正規経路）であ�
 | W-6 | 単独チェックアウト | ローカル欠落季節がリモート解決 or 明示失敗 + 旧季節復帰 |
 | W-7 | 品質バー | §2 の 4 項目を人が目視（自動化しない）。S-8a 時点では春について見る。全変奏は S-8d |
 | W-8 | 計測 | 変奏 II 背コリドーで A-1 / A-2 が §21 の受入値内。desired はすべて Generated |
-| W-9 | 空間の口 | Bounds Plan の受入を満たしたうえで S-4 に入っている。名前から座標を復元して desired を組んでいない |
+| W-9 | 空間の口 | 移行 HANDOFF の受入を満たしたうえで S-4 に入っている。名前から座標を復元して desired を組んでいない |
 
 レビュー時の grep: `?.` / `??` / `is null` / `ReferenceEquals`（破棄されうる `UnityEngine.Object` 対象）。
 
@@ -301,20 +302,24 @@ Checkout の入口（次の変奏を要求する唯一の正規経路）であ�
 | N-1 | 初回季節を誰が Ensure するか（トンネル始まりか、Session の初回 Ensure か） | S-4 |
 | N-2 | RenderSettings の適用主体（Season シーンの Stable フックか、専用コンポーネントか） | S-4（N-1 と同時） |
 | N-3 | トンネルの内装・滞在時間（ロード隠蔽の実測。距離条件は §5 で固定済み） | S-5 |
-| N-4 | Environment を距離政策の候補にしないこと（CCS: 距離の単位は Cell）。子は親 Stable 後の明示 Add のまま | Bounds 分解時に確認 |
+| N-4 | Environment を距離政策の候補にしないこと（CCS: 距離の単位は Cell）。子は親 Stable 後の明示 Add のまま | 移行 HANDOFF で確認（§34 は候補に入れない） |
 | N-5 | 第三声部（照明職 `*_Lighting_*.unity`）を標準装備にするか | S-8 までに発注者判断。今回は 2 声部 |
 | N-6 | `unityyamlmerge` ドライバ設定（前提条件ではない） | 任意 |
-| N-7 | AABB の置き場（`SceneAssetDescription` か隣の値型か `SceneResource` 直下か） | Bounds の実装分解セッション |
+| N-7 | AABB の置き場（`SceneAssetDescription` か隣の値型か `SceneResource` 直下か） | 移行 HANDOFF |
 | N-8 | 生成器を**実証項目として**残すか。残すなら Generated / HandAuthored 同居・W-4・品質バー 4・イテレーション行は S-8a 以降も生きる。下ろすならそれらと `CellAuthoringPolicy` / `CellPopulationPlan` / `HandEditProbe` / R-6 の公開面分類が同時に動く（§21 / §33 は同居自体を実証対象と書いている）。S-4 で 216 セルを焼く装置自体は、どちらでも残る | S-4 頭 |
 
 ---
 
-## 12. harvest 方針（Bounds の口が通ったあと。今は §33 を書き換えない）
+## 12. harvest 方針（移行の口が通ったあと。§33 本文は今は書き換えない）
 
-- §33 D-1: 空隙配置 → 同座標 + 候補集合の排他 + Bounds。identity 文法を FW 契約にしない
+空間契約は [§34](../../unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md) へ移した。S-3 実測は [STREAMING_CURRENT_SPEC.md](../streaming/STREAMING_CURRENT_SPEC.md) へ移した。`SCENE_WORLD_BOUNDS.md` と `SEASON_LEVELS_IMPLEMENTATION.md` は git 履歴に残し、本文は復活させない。
+
+口が通ったあと:
+
+- §33 D-1: 空隙配置 → 同座標 + 候補集合の排他 + §34。identity 文法を FW 契約にしない
 - §33 D-6 / §5 表: 季節↔動詞・季節別 policy → §4 の検証マトリクスと 2 段 policy
 - §33 §7: 空隙の幾何 → §3.3 / §5
 - §33 §8: シーン木の identity 例を修飾付きフォルダ名へ（FW は読まない、と注記）
-- `SEASON_LEVELS_IMPLEMENTATION.md`: S-3 記録と §0.3 実測以外は、全スライス harvest 後に `git rm`
-- 本書と Bounds Plan も harvest 後に `git rm`
+- 移行 HANDOFF: 実装値を現状仕様へ移して `git rm`
+- 本書も全スライス harvest 後に `git rm`
 - `pwsh tools/docs-audit.ps1` を通す
