@@ -28,9 +28,12 @@ description: >-
 4. 名前付き command が足りないときだけ `unity command eval`。
 5. 生成器 1 回は既存メニュー `OneStarMaker/Sample/Create World + Cell Streaming Slice`（`WorldCellStreamingSliceCreator.CreateFromMenu`）を `menu` か eval で叩く。
 
-## やってはいけない
+## Phase B でやってはいけない
 
 - Unity.exe の起動、`unity test`、`unity run`、`pwsh tools/run-tests.ps1`、Addressables ビルド
+
+## Editor 操作でやってはいけない
+
 - 接続できる Editor があるときの `.unity` / `.prefab` / `.asset` YAML 手直し
 - 単独の `git mv` をシーン移送の正本にする（GUID は `move_asset` が運ぶ）
 - Safe Mode（コンパイルエラーで Pipeline が載らない）を YAML 編集で迂回する。C# を直して Editor を立て直す
@@ -38,4 +41,4 @@ description: >-
 
 ## テスト
 
-実装エージェントはテストを走らせない。報告は「実装完了。テスト未実行」。`run-tests.ps1` は Phase C。
+Phase B の実装エージェントはテストを走らせず、「実装完了。テスト未実行」と報告する。Phase C は Editor を閉じてから `osm-workflow` に従って `run-tests.ps1` を実行してよい。`unity test` / `unity run` は Phase C でも使わない。

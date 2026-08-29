@@ -31,10 +31,18 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 
 - HANDOFF の受け入れ条件と差分を照合し、機能レビューより先に構造レビューを行う。
 - 変更量、責務の混在、単体テスト可能性、Unity の偽 null を確認する。
+- テストに `Task.Delay` / `Thread.Sleep` が入っていないことを確認する。
 - Unity Editor が閉じていることを確認して `pwsh tools/run-tests.ps1` を実行する。絞り込みは `-Filter` を使う。
 - exit 0 は1件以上実行かつ failed 0。0件は失敗として扱う。
 - `0xC0000005` でも結果 XML が完成していれば、ログ末尾と XML を基に判定する。
 - 確認結果と未確認事項を HANDOFF に記録する。
+
+## Phase C': 独立監査
+
+- Phase C の結論を正解として渡さず、新規セッションで HANDOFF、対象差分、テスト結果を一次資料として読む。
+- Phase B、Cと異なるモデルを使う条件は [Phase と HANDOFF](references/phases-and-handoff.md) に従う。
+- 受け入れ条件だけでなく、契約違反、構造劣化、未検証の失敗経路、Phase C 自体の見落としを探す。
+- 指摘、残存リスク、監査できなかった範囲、使用したモデルを HANDOFF の Phase C' 欄へ記録する。
 
 ## 完了
 
