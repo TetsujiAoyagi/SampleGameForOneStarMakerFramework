@@ -1,12 +1,11 @@
 # 世界設計「主題と変奏」— S-3C 構図の正本 (2026-08-29 改訂)
 
-> ステータス: **構図は発注者承認済み。** 距離ストリーミングの空間プロトコルは本書が決めない。
-> 到着契約: [§34 OnDemand の空間政策](../../unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md)（公開面）。
-> 格子キーを殺す順序: [STREAMING_SPATIAL_MIGRATION.md](STREAMING_SPATIAL_MIGRATION.md)（移行。現行 4×4 で口を通す手順はそちらだけ）。
-> S-3 の矩形集合化は `develop` にマージ済み。実装値は [STREAMING_CURRENT_SPEC.md](../streaming/STREAMING_CURRENT_SPEC.md)。
+> ステータス: **構図は発注者承認済み。**
+> **世界は本書。空間の到着契約は [§34](../../unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md)。格子キーを殺す順序は [STREAMING_SPATIAL_MIGRATION.md](STREAMING_SPATIAL_MIGRATION.md)（現行 4×4 で口を通す手順はそちらだけ）。§33 本文はまだ（空隙レイアウトのまま）。世界についても空間についても、§33 から書き始めない。**
+> S-3 の矩形集合化は `develop` にマージ済み。記録は公開面 [STREAMING_CURRENT_SPEC.md](../streaming/STREAMING_CURRENT_SPEC.md)。**実装指示ではない。**
 > 旧稿（修飾パース / デコレータ / S-3D を `CellIdentity` の本題にする / 空隙矩形）は git 履歴にある。**本文には残さない。**
 > §33 の D-1（空隙で季節矩形を離す）/ 季節↔動詞 / identity に季節名を入れない、とは食い違う。世界については本書が新しい。§33 には退役表がある。本文 harvest は移行の口が通ってから行い、それまで §33 本文は書き換えない。
-> §7 / §8 は欠番（HANDOFF の Phase C / C' と番号を重ねない）。harvest 期限は §12。`docs-audit.ps1` 検査3の対象にしない。
+> §7 / §8 は欠番（HANDOFF の Phase C / C' と番号を重ねない。スライス S-8 と節番号を混同しない）。harvest 期限は §12。`docs-audit.ps1` 検査3の対象にしない。
 
 実装エージェントへ: 本書は構図・実証・スライス順序の正本である。`CellIdentity.TryParse` を修飾対応すること、`StreamingConfig` に qualifier を足すこと、Backend デコレータで id を翻訳することは、**本書の指示ではない。** 距離判断は §34。格子キーを殺すのは移行 HANDOFF。既存 16 セルの全廃は **S-4**。移行の口を通すあいだは現行 4×4 を動かさない。
 
@@ -84,7 +83,7 @@ y0  |  .  .  .  .  .  .  .  .  .
 - 見証セル: `(4,2)`（線の曲がり角。tall vertical、遠くから同定できるシルエット）
 - 背: `y=5` の行 9 セル
 - グリッド定数は [現状仕様](../streaming/STREAMING_CURRENT_SPEC.md) の写し: `Origin = (0,0,0)` / `CellSize 250` / `LoadRadius 375` / `UnloadRadius 550` / `MaxInFlight 2`
-- スポーン: 春（変奏 I）の源流セル `(0,4)` 中心上空。現行コードの `WorldCellCatalog.SpawnPosition` は `Cell_0_0`。S-4 で移す
+- スポーン座標は春（変奏 I）の源流セル `(0,4)` 中心上空（構図の定点）。現行コードの `WorldCellCatalog.SpawnPosition` は `Cell_0_0`。S-4 で移すのは **N-1 と同スライス**。Ensure が無い状態で座標だけ移すと、Season_* が OnDemand のため空中スポーンになる
 - 品質バー 1 の判定地点は演奏レイヤがある線上（見証 `(4,2)`、または線の途中 `(2,3)`）。スポーン `(0,4)` ではない。`(0,4)` は S-9 まで Generated（§4）
 
 この座標は **M 前提**（§9）。S-4 頭の実測で S（6×4）に落とすなら楽譜も書き直す。
@@ -140,7 +139,7 @@ S-4 で 9×6×4 を焼くのは、移行 HANDOFF の **M-1 の受入** が現行
 ## 4. 検証マトリクス — このサンプルが証明する表
 
 季節ごとに別の動詞を陳列するのではなく、**全変奏 × 全ワークフロー**を証明する。
-ただし **春（変奏 I）の演奏レイヤが入った時点で 4 動詞は出荷可能** とする（§6 の S-8）。
+ただし **春（変奏 I）の演奏レイヤが入った時点で 4 動詞は出荷可能** とする（スライス S-8a）。
 他変奏の作り込みは品質バー（W-7）であり、動詞の証明条件ではない。
 
 | ワークフロー | 実現手段（全変奏共通） |
@@ -207,7 +206,7 @@ Editor 操作境界（正本は `.cursor/skills/osm-unity-editor/SKILL.md`）は
 | 移行 M-2 | 生成器の既存収集 / policy のキーを identity 文字列へ | 移行 HANDOFF。M-1 と同ブランチ可。**S-4 のゲートではない** |
 | 移行 M-3 | R-3 の口を作る。検出を距離政策の候補フラグへ | 移行 HANDOFF。**S-4 より前か同ブランチ**（修飾付きで空洞化しないため） |
 | 移行 M-4 | `Runtime/SceneSystem/Cells/` を FW 公開面から下ろす | 移行 HANDOFF。**S-4 と同時可** |
-| S-4 | 谷の生成と季節スワップ（本体） | Season_* 4 ノード、`World` を置き換え。接頭辞はファイル名。候補集合の差し替え。初期 policy は全 Generated。**既存 16 セルは全廃**（下節。移送しない）。identity → `SceneBase` の結線を名前文法から外す。**R-3 の口は移行 M-3。S-4 は修飾付き identity でもその口が効くことを着地条件にする。** スポーンを `(0,4)` へ。**頭で 1 季節 9×6 だけ生成して生成器 1 回の実時間を測り、M を維持するか裁定する** |
+| S-4 | 谷の生成と季節スワップ（本体） | Season_* 4 ノード、`World` を置き換え。接頭辞はファイル名。候補集合の差し替え。初期 policy は全 Generated。**既存 16 セルは全廃**（下節。移送しない）。identity → `SceneBase` の結線を名前文法から外す。**R-3 の口は移行 M-3。S-4 は修飾付き identity でもその口が効くことを着地条件にする。** スポーンを `(0,4)` へ移すのは N-1 と同スライス。**頭で 1 季節 9×6 だけ生成して生成器 1 回の実時間を測り、M を維持するか裁定する** |
 | S-5 | トンネルと季節遷移 | §5 の契約。N-3 の内装はここで実測 |
 | S-6 | 1 変奏 = 1 Addressables グループ | Tunnel と共有 Lit / Primitive は専用季節グループに入れない |
 | S-7 | 1 変奏 = 1 Variant タグ + 未チェックアウト経路 | §20 の既存機構にデータを流す。新機構なし |
@@ -217,6 +216,7 @@ Editor 操作境界（正本は `.cursor/skills/osm-unity-editor/SKILL.md`）は
 
 **S-4 の既存 16 セル: 全廃。** 谷は新規生成する。移送も座標補正も行わない。
 `move_asset` も `set_transform` によるワールド Δ も、破壊経路 3 に旧 12 枚を任せる手順も、使わない。
+旧 `Cell_0_0`（南辺の手編集）を `Spring_Cell_0_4` へ移して昇格する、は採らない。源流 `(0,4)` は新規 Generated。stamp で生存を見ない（移送しない）。y=4 行は S-9 まで昇格禁止（§4）。
 
 **移行のあいだは現行 16 枚を動かさない。** 全廃は S-4 の仕事。
 
@@ -243,10 +243,11 @@ Editor 操作境界（正本は `.cursor/skills/osm-unity-editor/SKILL.md`）は
 - `EnvironmentIdentity.TryFromCellId`: 親名から子名を組み立ててから Children 走査。修飾付きでは走査に届かず Environment を Add しない（無言）。子の解決は Children 走査へ寄せる
 - R-3（`ThrowIfCellIdentity`）: `IsCellId("Spring_Cell_4_2")` は false。修飾付きになると遷移禁止が空洞化する。**口は移行 M-3**（名前文法ではなく距離政策の候補フラグ）。S-4 は修飾付き identity でもその口が効くことを着地条件にする
 
-スポーン: 現行 `WorldCellCatalog.SpawnPosition` は `Cell_0_0` 中心。S-4 で春の源流 `(0,4)` へ移す。
+スポーン: 現行 `WorldCellCatalog.SpawnPosition` は `Cell_0_0` 中心。S-4 で春の源流 `(0,4)` へ移すのは **N-1 と同スライス**（未決のまま座標だけ動かさない）。
 
-**Catalog / Driver（S-4 で SampleGame 側）:** 谷は矩形 1 つ `{ origin=(0,0), size=(9,6) }`。
-列挙は局所 54 セル。アクティブ季節が候補集合を決める。FW に季節語を出さない。
+**Catalog / Driver（S-4 で SampleGame 側）:** 谷の生成器入力は矩形 1 つ `{ origin=(0,0), size=(9,6) }`。局所 54 セルは楽譜（生成器が AABB を焼く入力）であり、距離政策の入力ではない。
+**距離政策の候補は identity、体積は AABB**（[§34](../../unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md)）。Catalog の矩形・格子列挙を desired にしない。
+アクティブ季節が候補集合を決める。FW に季節語を出さない。
 生成器は Season_* 4 ノードを吐き、`World` を置き換える。楽譜関数は局所 `(x,y)` の純関数。
 乱数を使うならシード固定。全セルに Environment をスキャフォールド（空でよい）。
 スキャフォールドは sprout 配列の二役を切ったあとの口で行う（上表 2）。
@@ -257,6 +258,8 @@ Editor 操作境界（正本は `.cursor/skills/osm-unity-editor/SKILL.md`）は
 テストで `Task.Delay` / `Thread.Sleep` 禁止。全件実行は Phase C。実装者は「実装完了。テスト未実行」と報告する。
 
 ---
+
+（§7 / §8 は欠番。スライス番号の S-8 と節番号を混同しない。「スライス S-8a」は春の演奏レイヤ。次は §9。）
 
 ## 9. スケール（採用候補: M。S-4 頭で裁定）
 
@@ -300,7 +303,7 @@ Editor 操作境界（正本は `.cursor/skills/osm-unity-editor/SKILL.md`）は
 
 | # | 論点 | 決定時期 |
 |---|---|---|
-| N-1 | 初回季節を誰が Ensure するか（トンネル始まりか、Session の初回 Ensure か） | S-4 |
+| N-1 | 初回季節を誰が Ensure するか（トンネル始まりか、Session の初回 Ensure か）。**スポーンを `(0,4)` へ移すのはこれと同スライス。** 未決のまま `SpawnPosition` だけ動かさない | S-4 |
 | N-2 | RenderSettings の適用主体（Season シーンの Stable フックか、専用コンポーネントか） | S-4（N-1 と同時） |
 | N-3 | トンネルの内装・滞在時間（ロード隠蔽の実測。距離条件は §5 で固定済み） | S-5 |
 | N-4 | Environment を距離政策の候補にしないこと（CCS: 距離の単位は Cell）。子は親 Stable 後の明示 Add のまま | 移行 HANDOFF で確認（§34 は候補に入れない） |

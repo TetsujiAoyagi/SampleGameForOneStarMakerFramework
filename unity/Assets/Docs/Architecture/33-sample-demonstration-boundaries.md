@@ -1,7 +1,7 @@
 # 33. SampleGame 実証境界 — Season / Tunnel / 4 動詞
 
-> ステータス: **部分退役。** 空間の到着契約は [§34](34-ondemand-spatial-policy.md)。現状の格子キーは [§21](21-scene-streaming.md) / [STREAMING_CURRENT_SPEC.md](../../../../docs/streaming/STREAMING_CURRENT_SPEC.md)。世界構図と 4 動詞の検証マトリクスは作業台（`docs/handoff/`）の進行中計画が新しい。本文は harvest まで残す。
-> **コードは本章から書き始めない。**
+> ステータス: **部分退役。** 世界は作業台の世界稿。空間の到着契約は [§34](34-ondemand-spatial-policy.md)。現状の格子キーは [§21](21-scene-streaming.md) / [STREAMING_CURRENT_SPEC.md](../../../../docs/streaming/STREAMING_CURRENT_SPEC.md)。4 動詞の検証マトリクスも作業台が新しい。本文は harvest まで残す。
+> **コードは本章から書き始めない。** 本文の空隙レイアウト（D-1 / §7）に戻らない。
 > [ARCHITECTURE.md](../../ARCHITECTURE.md) に戻る
 > 関連: [18-asset-description.md](18-asset-description.md)、[20-variant-checkout-workflow.md](20-variant-checkout-workflow.md)、[21-scene-streaming.md](21-scene-streaming.md)、[27-folder-structure.md](27-folder-structure.md)、[05-scene.md](05-scene.md)
 
