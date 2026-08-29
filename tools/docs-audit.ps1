@@ -70,10 +70,12 @@ if ($mdFiles.Count -eq 0) {
     Write-Error "tracked な md が 0 件。検査対象が存在しない: $Root"
 }
 
-# ベンダー同梱の README は対象外（3rd party のもので、こちらの方針は適用しない）
+# ベンダー同梱の README は対象外（3rd party のもので、こちらの方針は適用しない）。
+# `.cursor/skills/unity-cli/` は公式スキル。references/*.md は未 tracked で、検査1 が常に赤になる。
 $vendorPrefixes = @(
     'unity/Assets/Packages/',
-    'unity/Assets/MobileDependencyResolver/'
+    'unity/Assets/MobileDependencyResolver/',
+    '.cursor/skills/unity-cli/'
 )
 $ownMd = @($mdFiles | Where-Object {
     $p = $_
