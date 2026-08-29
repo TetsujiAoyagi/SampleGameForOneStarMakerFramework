@@ -35,8 +35,8 @@ Config.Cells（Vector2Int）→ CellIdentity.Format → id
 | 飛行速度 | `FlyController._moveSpeed = 42` m/s（ブースト 2.4 倍で約 100 m/s） | `FlyController.cs` |
 | 正本 policy | 南辺 4 枚 `(0,0)(1,0)(2,0)(3,0)` = `HandAuthored`、他 12 枚 = `Generated` | `CellAuthoringPolicy.cs` |
 | セル実体 | 16 フォルダ。Environment `.unity` は南辺 4 枚のみ | `SampleGame/.../World/Cells/` |
-| Variant | `.asset` の `Variant:` は空文字 | SceneMap / Cells / SceneGraphData |
-| Addressables | グループは `Default Local Group` 1 個。`Remote.LoadPath` 未定義 | `AddressableAssetsData/` |
+| Variant | `.asset` の `Variant:` は **52 ファイル全て空文字**。非空値ゼロ | SceneMap / Cells / SceneGraphData |
+| Addressables | グループは `Default Local Group` **1 個**（28 エントリ）。`Remote.LoadPath` 未定義。`RemoteFull.asset` / `VariantHybridPlayModeScript.asset` はメニュー実行待ちで未生成 | `AddressableAssetsData/` |
 | シーン木 | `InGameSession → World → Cell_{x}_{y} → Environment_{x}_{y}` | `World` は `NecessaryAlways` |
 
 グリッド寸法の正本は `WorldCellCatalog` の const。`WorldGridDefinition.asset` はその写し（`EnsureGridDefinition` が毎回上書き）。アセット側だけを書き換えてもランタイムは追従しない。
@@ -95,26 +95,18 @@ S-3 が変えたのは走査範囲だけである。dense `0..W × 0..H` を矩�
 
 南辺ハードコードが 4 箇所ある（`HandAuthoredCells` / `EnvironmentSproutCells` / `HandEditProbe` / 生成器完了ログ）。`EnvironmentSproutCells` は二役（Environment 子を作る / Ground を置かない）。
 
-§20 の Variant 機構は実装済み。データ（タグ・グループ・プロファイル）は流し込まれていない。
+§20 の Variant 機構（`VariantFilteringBuildScript` / whitelist / Hybrid Play / `TryLoadRemoteCatalogAsync` / `RemoteCatalogRuntimeBridge`）は実装済み。所在は `OneStarMaker/Scripts/Editor/Build/Variants/`。データ（タグ・グループ・プロファイル）は流し込まれていない。
 
 ---
 
 ## 6. テストと計測
 
-- テストは全て EditMode。WSC / MultiFocus / 統合 / 生成器 / `CellPopulationPlan` ほか
-- CI（GitHub Actions）は DebugStudio の `dotnet test` のみ。Unity テストはローカル
+- テストは全て EditMode。**WSC 10 + MultiFocus 3 + 統合 6 / 生成器 7 / `CellPopulationPlan` 13** ほか
+- CI（GitHub Actions）は DebugStudio の `dotnet test` のみ。Unity テストはローカル `pwsh tools/run-tests.ps1`
 - [§21](../../unity/Assets/Docs/Architecture/21-scene-streaming.md) の T-07〜T-09（Play 実証・テレメトリ・受入判定）は未了。季節化のあとに取る
 
 ---
 
 ## 7. 維持してよい現状判断（到着点でも残る）
 
-これらは格子キーとは独立で、§34 も維持する。
-
-- 政策 / メカニズム分離（Controller が desired、Director が寿命）
-- シーンは `ShouldLoad` を答えない
-- LoadType 3 値は親に対する引っ張り専用
-- desired / retain / ヒステリシス / maxInFlight / 距離順 priority
-- Full ティアは SceneDirector。Backend 差し替えが撤退ライン
-- policy データを FW に置かない
-- セルは人が開く作業単位（フォルダと職種分割）
+政策 / メカニズム分離、LoadType 3 値、ヒステリシス、`maxInFlight`、距離順 priority は**現状でも既にそうなっている**。到着点で残すものの一覧は [§34 §8](../../unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md) が持つ。ここへ逐語で写さない。
