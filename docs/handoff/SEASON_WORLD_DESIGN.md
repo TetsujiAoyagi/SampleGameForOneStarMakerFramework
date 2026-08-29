@@ -309,7 +309,7 @@ Editor 操作境界（正本は `.cursor/skills/osm-unity-editor/SKILL.md`）は
 | N-4 | Environment を距離政策の候補にしないこと（CCS: 距離の単位は Cell）。子は親 Stable 後の明示 Add のまま | 移行 HANDOFF で確認（§34 は候補に入れない） |
 | N-5 | 第三声部（照明職 `*_Lighting_*.unity`）を標準装備にするか | S-8 までに発注者判断。今回は 2 声部 |
 | N-6 | `unityyamlmerge` ドライバ設定（前提条件ではない） | 任意 |
-| N-7 | AABB の置き場（`SceneAssetDescription` か隣の値型か `SceneResource` 直下か） | 移行 HANDOFF |
+| N-7 | ~~AABB の置き場~~ **決定済み（M-1）: `SceneResource` 直下**（`_volume` ＋ `_streamByDistance`）。値は生成器が格子定数から焼くのではなく、Editor がシーン保存フックと全件メニューで `.unity` から自動計算する | 移行 HANDOFF で決着 |
 | N-8 | 生成器を**実証項目として**残すか。決まったら **§2 品質バー 4 / §4 の「再生成しても編集が残る」「イテレーション」の 2 行 / W-4** が同時に動く。残すなら Generated / HandAuthored 同居は S-8a 以降も生きる。下ろすならそれらと `CellAuthoringPolicy` / `CellPopulationPlan` / `HandEditProbe` / R-6 の公開面分類が同時に動く（§21 / §33 は同居自体を実証対象と書いている）。S-4 で 216 セルを焼く装置自体は、どちらでも残る | S-4 頭 |
 
 ---

@@ -26,6 +26,20 @@ namespace OneStarMaker.Runtime.SceneSystem
         [SerializeField]
         private List<SceneResource> _children = new();
 
+        /// <summary>
+        /// このシーンが占めるワールド AABB（34-ondemand-spatial-policy.md §5）。
+        /// Editor の再計算機構が自動で書く。空（size == zero）なら空間に属さない。
+        /// </summary>
+        [SerializeField]
+        private Bounds _volume;
+
+        /// <summary>
+        /// 距離政策の候補かどうか（§34 §5）。
+        /// 職種分割の子シーン（現状の Environment）は false。距離の単位は人が開く作業単位。
+        /// </summary>
+        [SerializeField]
+        private bool _streamByDistance;
+
         /// <summary>シーンの一意識別子。</summary>
         public string Identity
         {
@@ -56,6 +70,23 @@ namespace OneStarMaker.Runtime.SceneSystem
 
         /// <summary>子シーンのリスト。</summary>
         public IReadOnlyList<SceneResource> Children => _children;
+
+        /// <summary>
+        /// このシーンが占めるワールド AABB。空間政策の距離計算はこの中心を使う（§34 §5）。
+        /// 空（size == zero）は「空間に属さない」の表明であり、原点の点ではない。
+        /// </summary>
+        public Bounds Volume
+        {
+            get => _volume;
+            internal set => _volume = value;
+        }
+
+        /// <summary>距離政策の候補か（§34 §5）。</summary>
+        public bool StreamByDistance
+        {
+            get => _streamByDistance;
+            internal set => _streamByDistance = value;
+        }
 
         /// <summary>
         /// 指定 Variant の Addressables シーン参照を返す。

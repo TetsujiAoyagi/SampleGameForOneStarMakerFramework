@@ -1,6 +1,7 @@
 # 34. OnDemand の空間政策
 
-> ステータス: **到着契約。未実装。** 実装値の正本ではない。
+> ステータス: **到着契約。一部実装済み。** 実装値の正本ではない。
+> 距離政策の口（§4 の形と §5 の「体積はデータの正本」）は着地した。名前文法の残り（§1 の型の所在、§5 の候補フラグによる R-3、生成器のキー）は未実装。
 > 現状（今動いている格子キー）: [§21](21-scene-streaming.md) / [STREAMING_CURRENT_SPEC.md](../../../../docs/streaming/STREAMING_CURRENT_SPEC.md)
 > 対照: [STREAMING_CURRENT_VS_IDEAL.md](../../../../docs/streaming/STREAMING_CURRENT_VS_IDEAL.md)
 > 関連: [§5 LoadType](05-scene.md)（親に対する引っ張り。本章は触らない）/ [§33](33-sample-demonstration-boundaries.md)（SampleGame の実証。世界構図は作業台）

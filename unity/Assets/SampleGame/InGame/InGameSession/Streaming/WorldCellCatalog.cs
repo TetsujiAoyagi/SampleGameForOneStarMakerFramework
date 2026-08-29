@@ -92,7 +92,13 @@ namespace SampleGame.InGame.Streaming
         private static readonly Vector2Int[] ExpandedCells = ExpandAndValidate(Rectangles);
         private static readonly HashSet<Vector2Int> CellMembership = new(ExpandedCells);
 
-        /// <summary>ランタイム / Editor 双方で使う格子メタデータ。</summary>
+        /// <summary>
+        /// 格子メタデータ。距離政策はこれを読まない（体積がデータの正本。§34 §5）。
+        /// </summary>
+        /// <remarks>
+        /// 移行 M-1 で距離経路から外れて参照 0 になったが、生成器入力・HUD 表示のための
+        /// 意図的な先行宣言として残す。**参照が無いことを根拠に削除しない。**
+        /// </remarks>
         public static CellGridConfig CreateGridConfig()
             => new(Origin, CellSize, CellHeight);
 

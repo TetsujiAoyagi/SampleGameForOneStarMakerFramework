@@ -26,3 +26,7 @@ MonoBehaviour:
     SceneIdentity: Environment_2_0
   _parent: {fileID: 11400000, guid: bd221b26baa131a47a393071720a9ef8, type: 2}
   _children: []
+  _volume:
+    m_Center: {x: 625, y: 3, z: 125}
+    m_Extent: {x: 122.5, y: 4, z: 122.5}
+  _streamByDistance: 0

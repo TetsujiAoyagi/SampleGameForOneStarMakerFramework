@@ -92,6 +92,23 @@ namespace SampleGame.DependOnAll.Editor
 
         private static void CreateCore()
         {
+            // 生成中は 1 保存ごとに祖先を再計算しない。最後に全件で焼き直す（§34 §5）。
+            SceneVolumeRecalculator.SaveHookSuspended = true;
+            try
+            {
+                CreateCoreInner();
+            }
+            finally
+            {
+                SceneVolumeRecalculator.SaveHookSuspended = false;
+            }
+
+            // 再生成のたびに人が再計算メニューを思い出す必要をなくす。
+            SceneVolumeRecalculator.RecalculateAll();
+        }
+
+        private static void CreateCoreInner()
+        {
             var map = AssetDatabase.LoadAssetAtPath<SceneResourceMap>(SceneResourceMapPath)
                 ?? throw new FileNotFoundException(SceneResourceMapPath);
             var session = AssetDatabase.LoadAssetAtPath<SceneResource>(InGameSessionResourcePath)
@@ -1042,6 +1059,8 @@ namespace SampleGame.DependOnAll.Editor
 
             var so = new SerializedObject(resource);
             so.FindProperty("_identity").stringValue = envId;
+            // 職種分割の子は距離政策の候補にしない（§34 §6）。親 Cell の体積へ畳まれる側。
+            so.FindProperty("_streamByDistance").boolValue = false;
             var sad = so.FindProperty("_sceneAssetDescription");
             sad.FindPropertyRelative("SceneIdentity").stringValue = envId;
             // 必ず OnDemand。NecessaryAlways にすると Cell Add で引っ張られる。

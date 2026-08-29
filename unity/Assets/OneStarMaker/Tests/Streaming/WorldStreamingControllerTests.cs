@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
-using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.Streaming;
 using UnityEngine;
 
@@ -13,6 +12,7 @@ namespace OneStarMaker.Tests.Streaming
     /// <summary>
     /// T-06: WorldStreamingController ポリシー層のレッドテスト（FakeBackend 使用・同期的に決定的）。
     /// FakeBackend による純 C# テスト。Controller のポリシー（desired/retain・G-6 再照合・in-flight 上限）を検証する。
+    /// 入力は候補列（identity ＋ 体積）。体積中心 = セル中心なので期待値の数値は座標列だった頃と同じ。
     /// </summary>
     [TestFixture]
     public class WorldStreamingControllerTests
@@ -21,72 +21,17 @@ namespace OneStarMaker.Tests.Streaming
         //  テスト用ヘルパー
         // ═══════════════════════════════════════════
 
-        private static IReadOnlyList<Vector2Int> DenseCells(int width, int height)
-        {
-            var cells = new Vector2Int[width * height];
-            var i = 0;
-            for (var y = 0; y < height; y++)
-            {
-                for (var x = 0; x < width; x++)
-                {
-                    cells[i++] = new Vector2Int(x, y);
-                }
-            }
-
-            return cells;
-        }
-
-        private static StreamingConfig CreateConfig(
+        private static (StreamingCandidateSet Candidates, StreamingPolicySettings Settings) CreateConfig(
             int gridWidth = 5,
             int gridHeight = 5,
             float cellSize = 100f,
             float loadRadius = 150f,
             float unloadRadius = 250f,
             int maxInFlight = 4)
-        {
-            var grid = new CellGridConfig(Vector3.zero, cellSize, height: 10f);
-            return new StreamingConfig(grid, DenseCells(gridWidth, gridHeight), loadRadius, unloadRadius, maxInFlight);
-        }
+            => (StreamingCandidateFixtures.DenseGrid(gridWidth, gridHeight, cellSize),
+                StreamingCandidateFixtures.Settings(loadRadius, unloadRadius, maxInFlight));
 
-        private static Vector3 CellCenter(int x, int y, in CellGridConfig grid)
-        {
-            return grid.Origin + new Vector3(
-                (x + 0.5f) * grid.CellSize,
-                0f,
-                (y + 0.5f) * grid.CellSize);
-        }
-
-        private static float XzDistance(Vector3 a, Vector3 b)
-        {
-            var dx = a.x - b.x;
-            var dz = a.z - b.z;
-            return Mathf.Sqrt(dx * dx + dz * dz);
-        }
-
-        /// <summary>
-        /// 注視点と半径から desired set（グリッド範囲内・XZ 距離 <= radius）を計算する。
-        /// Controller 実装の期待値算出に使用。
-        /// </summary>
-        private static HashSet<string> ComputeCellsWithinRadius(
-            Vector3 focus,
-            StreamingConfig config,
-            float radius)
-        {
-            var result = new HashSet<string>(StringComparer.Ordinal);
-            var grid = config.Grid;
-
-            for (var i = 0; i < config.Cells.Count; i++)
-            {
-                var cell = config.Cells[i];
-                var center = CellCenter(cell.x, cell.y, grid);
-                if (XzDistance(focus, center) <= radius)
-                {
-                    result.Add(CellIdentity.Format(cell.x, cell.y));
-                }
-            }
-
-            return result;
-        }
+        private static Vector3 CellCenter(int x, int y) => StreamingCandidateFixtures.CellCenter(x, y);
 
         private static void MarkAllAddsAsLoaded(FakeStreamingBackend backend)
         {
@@ -103,15 +48,15 @@ namespace OneStarMaker.Tests.Streaming
         [Test]
         public void Tick_FocusInGrid_RequestsCellsWithinLoadRadius()
         {
-            var config = CreateConfig(loadRadius: 120f, unloadRadius: 200f);
+            var (candidates, settings) = CreateConfig(loadRadius: 120f, unloadRadius: 200f);
             var backend = new FakeStreamingBackend();
-            var controller = new WorldStreamingController(config, backend);
+            var controller = new WorldStreamingController(candidates, settings, backend);
 
-            var focus = CellCenter(2, 2, config.Grid);
+            var focus = CellCenter(2, 2);
             controller.Tick(focus);
 
             var requested = backend.AddCalls.Select(c => c.CellId).ToHashSet(StringComparer.Ordinal);
-            var expected = ComputeCellsWithinRadius(focus, config, config.LoadRadius);
+            var expected = StreamingCandidateFixtures.WithinRadius(focus, candidates, settings.LoadRadius);
 
             CollectionAssert.AreEquivalent(expected, requested);
         }
@@ -123,16 +68,16 @@ namespace OneStarMaker.Tests.Streaming
         [Test]
         public void Tick_CellBeyondUnloadRadius_IsRemoved()
         {
-            var config = CreateConfig(loadRadius: 80f, unloadRadius: 120f, maxInFlight: 8);
+            var (candidates, settings) = CreateConfig(loadRadius: 80f, unloadRadius: 120f, maxInFlight: 8);
             var backend = new FakeStreamingBackend();
-            var controller = new WorldStreamingController(config, backend);
+            var controller = new WorldStreamingController(candidates, settings, backend);
 
-            var nearFocus = CellCenter(2, 2, config.Grid);
+            var nearFocus = CellCenter(2, 2);
             controller.Tick(nearFocus);
             MarkAllAddsAsLoaded(backend);
             backend.ClearHistory();
 
-            var farFocus = CellCenter(0, 0, config.Grid);
+            var farFocus = CellCenter(0, 0);
             controller.Tick(farFocus);
 
             var removed = backend.RemoveCalls.Select(c => c.CellId).ToList();
@@ -146,11 +91,11 @@ namespace OneStarMaker.Tests.Streaming
         [Test]
         public void Tick_CellBetweenRadii_IsRetained()
         {
-            var config = CreateConfig(loadRadius: 40f, unloadRadius: 240f);
+            var (candidates, settings) = CreateConfig(loadRadius: 40f, unloadRadius: 240f);
             var backend = new FakeStreamingBackend();
-            var controller = new WorldStreamingController(config, backend);
+            var controller = new WorldStreamingController(candidates, settings, backend);
 
-            var cell22Center = CellCenter(2, 2, config.Grid);
+            var cell22Center = CellCenter(2, 2);
             controller.Tick(cell22Center);
             MarkAllAddsAsLoaded(backend);
             backend.ClearHistory();
@@ -170,11 +115,11 @@ namespace OneStarMaker.Tests.Streaming
         [Test]
         public void Tick_SameFocusTwice_NoRedundantRequests()
         {
-            var config = CreateConfig();
+            var (candidates, settings) = CreateConfig();
             var backend = new FakeStreamingBackend();
-            var controller = new WorldStreamingController(config, backend);
+            var controller = new WorldStreamingController(candidates, settings, backend);
 
-            var focus = CellCenter(2, 2, config.Grid);
+            var focus = CellCenter(2, 2);
             controller.Tick(focus);
             MarkAllAddsAsLoaded(backend);
 
@@ -192,23 +137,19 @@ namespace OneStarMaker.Tests.Streaming
         [Test]
         public void Tick_LoadRequests_OrderedByDistanceToFocus()
         {
-            var config = CreateConfig(loadRadius: 180f, unloadRadius: 280f);
+            var (candidates, settings) = CreateConfig(loadRadius: 180f, unloadRadius: 280f);
             var backend = new FakeStreamingBackend();
-            var controller = new WorldStreamingController(config, backend);
+            var controller = new WorldStreamingController(candidates, settings, backend);
 
-            var focus = CellCenter(2, 2, config.Grid);
+            var focus = CellCenter(2, 2);
             controller.Tick(focus);
 
             var adds = backend.AddCalls.ToList();
             Assert.Greater(adds.Count, 1, "複数セルがロード対象になる設定であること");
 
-            var grid = config.Grid;
             var distances = adds
-                .Select(c =>
-                {
-                    Assert.IsTrue(CellIdentity.TryParse(c.CellId, out var coord));
-                    return XzDistance(focus, CellCenter(coord.x, coord.y, grid));
-                })
+                .Select(c => StreamingCandidateFixtures.XzDistance(
+                    focus, StreamingCandidateFixtures.CenterOf(candidates, c.CellId)))
                 .ToList();
 
             for (var i = 1; i < distances.Count; i++)
@@ -230,18 +171,18 @@ namespace OneStarMaker.Tests.Streaming
         [Test]
         public void Tick_InFlightLimit_Respected()
         {
-            var config = CreateConfig(loadRadius: 250f, unloadRadius: 350f, maxInFlight: 2);
+            var (candidates, settings) = CreateConfig(loadRadius: 250f, unloadRadius: 350f, maxInFlight: 2);
             var backend = new FakeStreamingBackend { AutoCompleteRequestAdd = false };
-            var controller = new WorldStreamingController(config, backend);
+            var controller = new WorldStreamingController(candidates, settings, backend);
 
-            var focus = CellCenter(2, 2, config.Grid);
+            var focus = CellCenter(2, 2);
             controller.Tick(focus);
 
             var firstTickAdds = backend.AddCalls.ToList();
             Assert.LessOrEqual(firstTickAdds.Count, 2, "maxInFlight=2 のとき未完了 RequestAdd は 2 件以下");
             Assert.AreEqual(2, firstTickAdds.Count, "desired が 2 件超のとき最初の Tick で 2 件発行される");
 
-            var desired = ComputeCellsWithinRadius(focus, config, config.LoadRadius);
+            var desired = StreamingCandidateFixtures.WithinRadius(focus, candidates, settings.LoadRadius);
             Assert.Greater(desired.Count, 2, "テスト前提: desired が maxInFlight を超える");
 
             var pendingCell = firstTickAdds[0].CellId;
@@ -264,11 +205,11 @@ namespace OneStarMaker.Tests.Streaming
         [Test]
         public void Tick_QueuedCellLeavesDesired_IsNotIssued()
         {
-            var config = CreateConfig(loadRadius: 250f, unloadRadius: 350f, maxInFlight: 1);
+            var (candidates, settings) = CreateConfig(loadRadius: 250f, unloadRadius: 350f, maxInFlight: 1);
             var backend = new FakeStreamingBackend { AutoCompleteRequestAdd = false };
-            var controller = new WorldStreamingController(config, backend);
+            var controller = new WorldStreamingController(candidates, settings, backend);
 
-            var centerFocus = CellCenter(2, 2, config.Grid);
+            var centerFocus = CellCenter(2, 2);
             controller.Tick(centerFocus);
 
             var firstTickAdds = backend.AddCalls.ToList();
@@ -280,11 +221,11 @@ namespace OneStarMaker.Tests.Streaming
                 "maxInFlight=1 では初回 Tick で最近傍セルのみ発行され、Cell_3_3 はキュー待ち");
 
             // 隅へ focus を移動: キュー待ちの遠方セル（Cell_3_3）は desired から外れる
-            var centerDesired = ComputeCellsWithinRadius(centerFocus, config, config.LoadRadius);
+            var centerDesired = StreamingCandidateFixtures.WithinRadius(centerFocus, candidates, settings.LoadRadius);
             Assert.IsTrue(centerDesired.Contains(queuedFarCell), "テスト前提: 中心 focus では Cell_3_3 が desired 内");
 
-            var cornerFocus = CellCenter(0, 0, config.Grid);
-            var cornerDesired = ComputeCellsWithinRadius(cornerFocus, config, config.LoadRadius);
+            var cornerFocus = CellCenter(0, 0);
+            var cornerDesired = StreamingCandidateFixtures.WithinRadius(cornerFocus, candidates, settings.LoadRadius);
             Assert.IsFalse(cornerDesired.Contains(queuedFarCell), "Cell_3_3 は隅 focus では desired 外");
 
             backend.ClearHistory();
@@ -308,11 +249,11 @@ namespace OneStarMaker.Tests.Streaming
         [Test]
         public void Tick_AddCompletedButNotLoaded_ReissuesNextTick()
         {
-            var config = CreateConfig(loadRadius: 80f, unloadRadius: 160f, maxInFlight: 4);
+            var (candidates, settings) = CreateConfig(loadRadius: 80f, unloadRadius: 160f, maxInFlight: 4);
             var backend = new FakeStreamingBackend();
-            var controller = new WorldStreamingController(config, backend);
+            var controller = new WorldStreamingController(candidates, settings, backend);
 
-            var focus = CellCenter(2, 2, config.Grid);
+            var focus = CellCenter(2, 2);
             controller.Tick(focus);
 
             // G-6: RequestAdd は正常完了するが IsLoaded は false のまま（Stable 未到達）
@@ -334,16 +275,16 @@ namespace OneStarMaker.Tests.Streaming
         [Test]
         public void Tick_FocusMovesDuringInFlight_ConvergesToDesired()
         {
-            var config = CreateConfig(loadRadius: 120f, unloadRadius: 220f, maxInFlight: 2);
+            var (candidates, settings) = CreateConfig(loadRadius: 120f, unloadRadius: 220f, maxInFlight: 2);
             var backend = new FakeStreamingBackend { AutoCompleteRequestAdd = false };
-            var controller = new WorldStreamingController(config, backend);
+            var controller = new WorldStreamingController(candidates, settings, backend);
 
-            var focusA = CellCenter(1, 1, config.Grid);
+            var focusA = CellCenter(1, 1);
             controller.Tick(focusA);
             var inFlightFromA = backend.AddCalls.Select(c => c.CellId).ToHashSet(StringComparer.Ordinal);
 
-            var focusB = CellCenter(3, 3, config.Grid);
-            var desiredB = ComputeCellsWithinRadius(focusB, config, config.LoadRadius);
+            var focusB = CellCenter(3, 3);
+            var desiredB = StreamingCandidateFixtures.WithinRadius(focusB, candidates, settings.LoadRadius);
             Assert.IsFalse(desiredB.SetEquals(inFlightFromA), "focus B の desired は focus A と異なる");
 
             backend.ClearHistory();
@@ -383,10 +324,10 @@ namespace OneStarMaker.Tests.Streaming
 
             Assert.IsTrue(converged, "10 サイクル以内に Tick がバックエンド呼び出しゼロで収束する");
 
-            for (var i = 0; i < config.Cells.Count; i++)
+            var allCandidates = candidates.Candidates;
+            for (var i = 0; i < allCandidates.Count; i++)
             {
-                var cell = config.Cells[i];
-                var cellId = CellIdentity.Format(cell.x, cell.y);
+                var cellId = allCandidates[i].Identity;
                 Assert.AreEqual(
                     desiredB.Contains(cellId),
                     backend.IsLoaded(cellId),
@@ -407,20 +348,20 @@ namespace OneStarMaker.Tests.Streaming
         {
             // loadRadius 80 / cellSize 100: focus をセル中心に置くとそのセルのみ desired。
             // unloadRadius 120: 隅 focus では Cell_2_2 中心まで約 283m → retain 外。
-            var config = CreateConfig(loadRadius: 80f, unloadRadius: 120f, maxInFlight: 4);
+            var (candidates, settings) = CreateConfig(loadRadius: 80f, unloadRadius: 120f, maxInFlight: 4);
             var backend = new FakeStreamingBackend
             {
                 AutoCompleteRequestAdd = false,
                 AutoCompleteRequestRemove = false,
             };
-            var controller = new WorldStreamingController(config, backend);
+            var controller = new WorldStreamingController(candidates, settings, backend);
 
-            var focusHome = CellCenter(2, 2, config.Grid);
+            var focusHome = CellCenter(2, 2);
             controller.Tick(focusHome);
             Assert.IsTrue(backend.IsRequestAddPending("Cell_2_2"), "テスト前提: Cell_2_2 の Add が保留中");
 
             // Add 保留のまま focus が離脱 → retain 外の in-flight セルへ RequestRemove が発行される
-            var focusAway = CellCenter(0, 0, config.Grid);
+            var focusAway = CellCenter(0, 0);
             backend.ClearHistory();
             controller.Tick(focusAway);
             Assert.That(backend.RemoveCalls.Select(c => c.CellId), Does.Contain("Cell_2_2"),
@@ -448,11 +389,12 @@ namespace OneStarMaker.Tests.Streaming
         public void TB_FocusInGapBetweenTwoRects_DesiredIsEmpty()
         {
             // cellSize 100: (0,0) 中心 (50,0,50)、(4,0) 中心 (450,0,50)。中間 (250,0,50) まで各 200m。
-            var grid = new CellGridConfig(Vector3.zero, cellSize: 100f, height: 10f);
-            var cells = new[] { new Vector2Int(0, 0), new Vector2Int(4, 0) };
-            var config = new StreamingConfig(grid, cells, loadRadius: 150f, unloadRadius: 180f, maxInFlight: 4);
+            var candidates = StreamingCandidateFixtures.FromCoordinates(
+                new[] { new Vector2Int(0, 0), new Vector2Int(4, 0) });
+            var settings = StreamingCandidateFixtures.Settings(
+                loadRadius: 150f, unloadRadius: 180f, maxInFlight: 4);
             var backend = new FakeStreamingBackend();
-            var controller = new WorldStreamingController(config, backend);
+            var controller = new WorldStreamingController(candidates, settings, backend);
 
             var focus = new Vector3(250f, 0f, 50f);
             controller.Tick(focus);

@@ -21,6 +21,9 @@ namespace SampleGame.InGame.Streaming
     /// </remarks>
     public sealed class SessionWorldStreamingDriver : IDisposable
     {
+        /// <summary>体積が引けなかったときに案内する再計算メニュー（FW Editor 側）。</summary>
+        private const string RecalculateMenuPath = "OneStarMaker/Scene Volume/Recalculate All";
+
         private readonly Microsoft.Extensions.Logging.ILogger _logger;
         private readonly WorldStreamingController _controller;
         private readonly Func<Vector3?> _focusProvider;
@@ -44,18 +47,19 @@ namespace SampleGame.InGame.Streaming
             _focusProvider = focusProvider ?? throw new ArgumentNullException(nameof(focusProvider));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-            var config = new StreamingConfig(
-                WorldCellCatalog.CreateGridConfig(),
-                WorldCellCatalog.EnumerateCells(),
+            // identity は Catalog（SampleGame の制作規約）、体積はデータ（§34 §5）。
+            // 政策層へ渡すのはこの 2 つだけで、格子定数は渡さない。
+            var candidates = BuildCandidateSet(sceneDirector);
+            var settings = new StreamingPolicySettings(
                 WorldCellCatalog.LoadRadius,
                 WorldCellCatalog.UnloadRadius,
                 WorldCellCatalog.MaxInFlight);
 
             // FW の本実装 Backend。ISceneController 抽象ではなく SceneDirector 具象が必要。
             var backend = new SceneDirectorStreamingBackend(sceneDirector);
-            _controller = new WorldStreamingController(config, backend);
+            _controller = new WorldStreamingController(candidates, settings, backend);
             _logger.ZLogInformation(
-                $"SessionWorldStreamingDriver ready. cells={WorldCellCatalog.EnumerateCells().Count} load={WorldCellCatalog.LoadRadius} unload={WorldCellCatalog.UnloadRadius}");
+                $"SessionWorldStreamingDriver ready. candidates={candidates.Candidates.Count} load={WorldCellCatalog.LoadRadius} unload={WorldCellCatalog.UnloadRadius}");
         }
 
         /// <summary>ポリシー層への参照（テスト・診断用）。</summary>
@@ -79,17 +83,16 @@ namespace SampleGame.InGame.Streaming
 
         /// <summary>
         /// Stable 到達済みセル identity のスナップショットを返す。
-        /// Backend.IsLoaded（= Stable）をグリッド走査で再照合する（G-6 と同型の観測）。
+        /// Backend.IsLoaded（= Stable）を候補列の走査で再照合する（G-6 と同型の観測）。
         /// 内部バッファは再利用するが、戻り値は毎回新規配列にして呼び出し側へのエイリアス漏れを防ぐ。
         /// </summary>
         public IReadOnlyList<string> GetResidentCellIdentities()
         {
             _residentBuffer.Clear();
-            var cells = WorldCellCatalog.EnumerateCells();
-            for (var i = 0; i < cells.Count; i++)
+            var candidates = _controller.Candidates.Candidates;
+            for (var i = 0; i < candidates.Count; i++)
             {
-                var cell = cells[i];
-                var cellId = CellIdentity.Format(cell.x, cell.y);
+                var cellId = candidates[i].Identity;
                 if (_controller.Backend.IsLoaded(cellId))
                 {
                     _residentBuffer.Add(cellId);
@@ -194,6 +197,43 @@ namespace SampleGame.InGame.Streaming
             _ = movedFar;
             _controller.Tick(position);
             _lastTickFocus = position;
+        }
+
+        /// <summary>
+        /// Catalog の identity 列に体積を突き合わせて候補集合を作る。
+        /// </summary>
+        /// <remarks>
+        /// 1 件でも体積が引けなければ例外で落とす。暗黙のフォールバック（原点の点など）を
+        /// 作ると、Generate 忘れや再計算忘れが「なぜか近くのセルが載らない」に化けて
+        /// 距離政策のバグに見えるため。
+        /// </remarks>
+        private static StreamingCandidateSet BuildCandidateSet(ISceneVolumeQuery volumeQuery)
+        {
+            var cells = WorldCellCatalog.EnumerateCells();
+            var candidates = new List<StreamingCandidate>(cells.Count);
+
+            for (var i = 0; i < cells.Count; i++)
+            {
+                var cell = cells[i];
+                // identity の組み立ては SampleGame（制作規約）側の責務。FW は不透明キーとして扱う。
+                var identity = CellIdentity.Format(cell.x, cell.y);
+                if (!volumeQuery.TryGetSceneVolume(identity, out var volume))
+                {
+                    // TryGetSceneVolume が false になる理由は 3 つあり、対処がそれぞれ違う。
+                    // 「再計算メニューを実行」だけを案内すると、フラグ off のときに
+                    // 回しても直らない（再計算は体積しか書かない）。全部並べて誤診を防ぐ。
+                    throw new InvalidOperationException(
+                        $"セル '{identity}' の体積が引けません。次のどれかです。"
+                        + $" (1) SceneResourceMap に未登録 → SceneGraph の Generate。"
+                        + $" (2) 距離政策の候補フラグ（_streamByDistance）が off → 生成器を実行。"
+                        + $"     再計算メニューはフラグを書かないので回しても直りません。"
+                        + $" (3) 体積が空 → Editor メニュー '{RecalculateMenuPath}'。");
+                }
+
+                candidates.Add(new StreamingCandidate(identity, volume));
+            }
+
+            return new StreamingCandidateSet(candidates);
         }
 
         private void ThrowIfDisposed()

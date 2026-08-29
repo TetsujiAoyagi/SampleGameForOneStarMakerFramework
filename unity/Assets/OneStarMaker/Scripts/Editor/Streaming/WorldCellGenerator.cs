@@ -417,6 +417,11 @@ namespace OneStarMaker.Editor.Streaming
             var so = new SerializedObject(resource);
             so.FindProperty("_identity").stringValue = entry.Identity;
 
+            // 距離政策の候補であることは幾何から導出できない「決定」であり、
+            // それを知っているのは均一格子から作業単位を焼くこの生成器だけである（§34 §5）。
+            // 体積のほうは SceneVolumeRecalculator が編集のたびに焼き直す。
+            so.FindProperty("_streamByDistance").boolValue = true;
+
             var sadProp = so.FindProperty("_sceneAssetDescription");
             sadProp.FindPropertyRelative("SceneIdentity").stringValue = entry.Identity;
             sadProp.FindPropertyRelative("_loadType").enumValueIndex = (int)entry.LoadType;

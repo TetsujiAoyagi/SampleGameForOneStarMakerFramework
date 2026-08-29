@@ -34,59 +34,16 @@ namespace OneStarMaker.Tests.Streaming
         //  セットアップ / ヘルパー
         // ═══════════════════════════════════════════
 
-        private static CellGridConfig CreateGrid() =>
-            new(Vector3.zero, CellSize, height: 10f);
-
-        private static IReadOnlyList<Vector2Int> DenseCells(int width, int height)
-        {
-            var cells = new Vector2Int[width * height];
-            var i = 0;
-            for (var y = 0; y < height; y++)
-            {
-                for (var x = 0; x < width; x++)
-                {
-                    cells[i++] = new Vector2Int(x, y);
-                }
-            }
-
-            return cells;
-        }
-
-        private static Vector3 CellCenter(int x, int y, in CellGridConfig grid) =>
-            grid.Origin + new Vector3(
-                (x + 0.5f) * grid.CellSize,
-                0f,
-                (y + 0.5f) * grid.CellSize);
-
-        private static float XzDistance(Vector3 a, Vector3 b)
-        {
-            var dx = a.x - b.x;
-            var dz = a.z - b.z;
-            return Mathf.Sqrt(dx * dx + dz * dz);
-        }
+        private static Vector3 CellCenter(int x, int y) =>
+            StreamingCandidateFixtures.CellCenter(x, y, CellSize);
 
         private static HashSet<string> ComputeCellsWithinRadius(
             Vector3 focus,
-            StreamingConfig config,
+            StreamingCandidateSet candidates,
             float radius)
-        {
-            var result = new HashSet<string>(StringComparer.Ordinal);
-            var grid = config.Grid;
+            => StreamingCandidateFixtures.WithinRadius(focus, candidates, radius);
 
-            for (var i = 0; i < config.Cells.Count; i++)
-            {
-                var cell = config.Cells[i];
-                var center = CellCenter(cell.x, cell.y, grid);
-                if (XzDistance(focus, center) <= radius)
-                {
-                    result.Add(CellIdentity.Format(cell.x, cell.y));
-                }
-            }
-
-            return result;
-        }
-
-        private (TestableSceneDirector Director, WorldStreamingController Controller, SceneDirectorStreamingBackend Backend, StreamingConfig Config)
+        private (TestableSceneDirector Director, WorldStreamingController Controller, SceneDirectorStreamingBackend Backend, StreamingCandidateSet Candidates, StreamingPolicySettings Settings)
             CreateHarness(
                 int gridWidth,
                 int gridHeight,
@@ -95,12 +52,11 @@ namespace OneStarMaker.Tests.Streaming
                 int maxInFlight = 4)
         {
             var director = SetupWorldWithCellGrid(gridWidth, gridHeight, World);
-            var grid = CreateGrid();
-            var config = new StreamingConfig(
-                grid, DenseCells(gridWidth, gridHeight), loadRadius, unloadRadius, maxInFlight);
+            var candidates = StreamingCandidateFixtures.DenseGrid(gridWidth, gridHeight, CellSize);
+            var settings = StreamingCandidateFixtures.Settings(loadRadius, unloadRadius, maxInFlight);
             var backend = new SceneDirectorStreamingBackend(director);
-            var controller = new WorldStreamingController(config, backend);
-            return (director, controller, backend, config);
+            var controller = new WorldStreamingController(candidates, settings, backend);
+            return (director, controller, backend, candidates, settings);
         }
 
         private static async UniTask PumpAsync(
@@ -118,7 +74,8 @@ namespace OneStarMaker.Tests.Streaming
         private static async UniTask WaitForConvergenceAsync(
             WorldStreamingController controller,
             SceneDirectorStreamingBackend backend,
-            StreamingConfig config,
+            StreamingCandidateSet candidates,
+            StreamingPolicySettings settings,
             Vector3 focus,
             int maxTicks = ConvergenceMaxTicks)
         {
@@ -127,7 +84,7 @@ namespace OneStarMaker.Tests.Streaming
                 controller.Tick(focus);
                 await UniTask.Yield();
 
-                if (IsResidentSetConverged(backend, config, focus))
+                if (IsResidentSetConverged(backend, candidates, settings, focus))
                 {
                     return;
                 }
@@ -142,11 +99,12 @@ namespace OneStarMaker.Tests.Streaming
         /// </summary>
         private static bool IsResidentSetConverged(
             SceneDirectorStreamingBackend backend,
-            StreamingConfig config,
+            StreamingCandidateSet candidates,
+            StreamingPolicySettings settings,
             Vector3 focus)
         {
-            var desired = ComputeCellsWithinRadius(focus, config, config.LoadRadius);
-            var retain = ComputeCellsWithinRadius(focus, config, config.UnloadRadius);
+            var desired = ComputeCellsWithinRadius(focus, candidates, settings.LoadRadius);
+            var retain = ComputeCellsWithinRadius(focus, candidates, settings.UnloadRadius);
 
             foreach (var cellId in desired)
             {
@@ -156,10 +114,10 @@ namespace OneStarMaker.Tests.Streaming
                 }
             }
 
-            for (var i = 0; i < config.Cells.Count; i++)
+            var list = candidates.Candidates;
+            for (var i = 0; i < list.Count; i++)
             {
-                var cell = config.Cells[i];
-                var cellId = CellIdentity.Format(cell.x, cell.y);
+                var cellId = list[i].Identity;
                 if (retain.Contains(cellId))
                 {
                     continue;
@@ -176,11 +134,12 @@ namespace OneStarMaker.Tests.Streaming
 
         private static void AssertResidentSetMatchesPolicy(
             SceneDirectorStreamingBackend backend,
-            StreamingConfig config,
+            StreamingCandidateSet candidates,
+            StreamingPolicySettings settings,
             Vector3 focus)
         {
-            var desired = ComputeCellsWithinRadius(focus, config, config.LoadRadius);
-            var retain = ComputeCellsWithinRadius(focus, config, config.UnloadRadius);
+            var desired = ComputeCellsWithinRadius(focus, candidates, settings.LoadRadius);
+            var retain = ComputeCellsWithinRadius(focus, candidates, settings.UnloadRadius);
 
             foreach (var cellId in desired)
             {
@@ -189,10 +148,10 @@ namespace OneStarMaker.Tests.Streaming
                     $"desired セル '{cellId}' はロード済みであるべき（focus={focus}）。");
             }
 
-            for (var i = 0; i < config.Cells.Count; i++)
+            var list = candidates.Candidates;
+            for (var i = 0; i < list.Count; i++)
             {
-                var cell = config.Cells[i];
-                var cellId = CellIdentity.Format(cell.x, cell.y);
+                var cellId = list[i].Identity;
                 if (retain.Contains(cellId))
                 {
                     continue;
@@ -210,15 +169,16 @@ namespace OneStarMaker.Tests.Streaming
         /// </summary>
         private static void AssertResidentSetEqualsDesired(
             SceneDirectorStreamingBackend backend,
-            StreamingConfig config,
+            StreamingCandidateSet candidates,
+            StreamingPolicySettings settings,
             Vector3 focus)
         {
-            var desired = ComputeCellsWithinRadius(focus, config, config.LoadRadius);
+            var desired = ComputeCellsWithinRadius(focus, candidates, settings.LoadRadius);
 
-            for (var i = 0; i < config.Cells.Count; i++)
+            var list = candidates.Candidates;
+            for (var i = 0; i < list.Count; i++)
             {
-                var cell = config.Cells[i];
-                var cellId = CellIdentity.Format(cell.x, cell.y);
+                var cellId = list[i].Identity;
                 var expectedLoaded = desired.Contains(cellId);
                 Assert.AreEqual(
                     expectedLoaded,
@@ -336,22 +296,21 @@ namespace OneStarMaker.Tests.Streaming
             // desired == retain == 常駐集合 が成立する。
             const float unloadRadius = 90f;
 
-            var (_, controller, backend, config) = CreateHarness(
+            var (_, controller, backend, candidates, settings) = CreateHarness(
                 gridWidth, gridHeight, loadRadius, unloadRadius, maxInFlight: 4);
 
-            var grid = config.Grid;
 
             // focus を左端セル → 右端セルへ段階的に移動し、各位置で Tick + ポンプ
             for (var x = 0; x < gridWidth; x++)
             {
-                var focus = CellCenter(x, 0, grid);
+                var focus = CellCenter(x, 0);
                 await PumpAsync(controller, focus, ticks: 3);
             }
 
-            var finalFocus = CellCenter(gridWidth - 1, 0, grid);
-            await WaitForConvergenceAsync(controller, backend, config, finalFocus);
+            var finalFocus = CellCenter(gridWidth - 1, 0);
+            await WaitForConvergenceAsync(controller, backend, candidates, settings, finalFocus);
 
-            AssertResidentSetEqualsDesired(backend, config, finalFocus);
+            AssertResidentSetEqualsDesired(backend, candidates, settings, finalFocus);
         });
 
         [UnityTest]
@@ -364,14 +323,13 @@ namespace OneStarMaker.Tests.Streaming
             const float loadRadius = 60f;
             const float unloadRadius = 120f;
 
-            var (director, controller, backend, config) = CreateHarness(
+            var (director, controller, backend, candidates, settings) = CreateHarness(
                 2, 1, loadRadius, unloadRadius, maxInFlight: 4);
 
             using var logCounter = new ExceptionLogCounter();
 
-            var grid = config.Grid;
-            var nearFocus = CellCenter(0, 0, grid);
-            var farFocus = CellCenter(1, 0, grid) + new Vector3(200f, 0f, 0f);
+            var nearFocus = CellCenter(0, 0);
+            var farFocus = CellCenter(1, 0) + new Vector3(200f, 0f, 0f);
 
             // ── 経路 A: PoNR 通過後（SceneLoadGates）の保留アンロード ──
             var unityLoadGate = new UniTaskCompletionSource();
@@ -383,7 +341,7 @@ namespace OneStarMaker.Tests.Streaming
             await PumpAsync(controller, farFocus, ticks: 2);
 
             unityLoadGate.TrySetResult();
-            await WaitForConvergenceAsync(controller, backend, config, farFocus);
+            await WaitForConvergenceAsync(controller, backend, candidates, settings, farFocus);
 
             await WaitForSceneRemovedAsync(director, targetCell);
 
@@ -411,12 +369,12 @@ namespace OneStarMaker.Tests.Streaming
                 };
             };
 
-            var preLoadFocus = CellCenter(1, 0, grid);
+            var preLoadFocus = CellCenter(1, 0);
             await PumpAsync(controller, preLoadFocus, ticks: 1);
             await preLoadStarted.Task;
 
             await PumpAsync(controller, farFocus, ticks: 2);
-            await WaitForConvergenceAsync(controller, backend, config, farFocus);
+            await WaitForConvergenceAsync(controller, backend, candidates, settings, farFocus);
 
             await WaitForSceneRemovedAsync(director, preLoadCell);
 
@@ -438,11 +396,10 @@ namespace OneStarMaker.Tests.Streaming
             const float loadRadius = 80f;
             const float unloadRadius = 160f;
 
-            var (director, controller, backend, config) = CreateHarness(
+            var (director, controller, backend, candidates, settings) = CreateHarness(
                 2, 1, loadRadius, unloadRadius, maxInFlight: 4);
 
-            var grid = config.Grid;
-            var focus = CellCenter(1, 0, grid);
+            var focus = CellCenter(1, 0);
 
             var preLoadGate = new UniTaskCompletionSource();
             var preLoadEntered = new UniTaskCompletionSource();
@@ -482,7 +439,7 @@ namespace OneStarMaker.Tests.Streaming
                 backend.IsLoaded(targetCell),
                 "先発キャンセル後、合流側はシーン未ロードのまま正常終了し得る（G-6）。");
 
-            await WaitForConvergenceAsync(controller, backend, config, focus);
+            await WaitForConvergenceAsync(controller, backend, candidates, settings, focus);
 
             Assert.IsTrue(
                 backend.IsLoaded(targetCell),
@@ -497,15 +454,14 @@ namespace OneStarMaker.Tests.Streaming
             const float loadRadius = 80f;
             const float unloadRadius = 160f;
 
-            var (director, controller, backend, config) = CreateHarness(
+            var (director, controller, backend, candidates, settings) = CreateHarness(
                 3, 1, loadRadius, unloadRadius, maxInFlight: 4);
 
-            var grid = config.Grid;
-            var focus = CellCenter(1, 0, grid);
+            var focus = CellCenter(1, 0);
 
-            await WaitForConvergenceAsync(controller, backend, config, focus);
+            await WaitForConvergenceAsync(controller, backend, candidates, settings, focus);
 
-            var desiredBefore = ComputeCellsWithinRadius(focus, config, config.LoadRadius);
+            var desiredBefore = ComputeCellsWithinRadius(focus, candidates, settings.LoadRadius);
             foreach (var cellId in desiredBefore)
             {
                 Assert.IsTrue(backend.IsLoaded(cellId), $"World アンロード前: '{cellId}' はロード済みであるべき。");
@@ -514,20 +470,19 @@ namespace OneStarMaker.Tests.Streaming
             await director.UnloadScene(World);
 
             Assert.IsFalse(director.ContainsScene(World), "World アンロード後、World は管理下から消えるべき。");
-            for (var i = 0; i < config.Cells.Count; i++)
+            for (var i = 0; i < candidates.Candidates.Count; i++)
             {
-                var cell = config.Cells[i];
-                var cellId = CellIdentity.Format(cell.x, cell.y);
+                var cellId = candidates.Candidates[i].Identity;
                 Assert.IsFalse(
                     director.ContainsScene(cellId),
                     $"World アンロード後、子セル '{cellId}' も再帰破棄されるべき。");
             }
 
             // InGame 退出→再入場相当: Controller を Stop/Start し、新インスタンスで desired を再構築する。
-            var restartedController = new WorldStreamingController(config, backend);
-            await WaitForConvergenceAsync(restartedController, backend, config, focus);
+            var restartedController = new WorldStreamingController(candidates, settings, backend);
+            await WaitForConvergenceAsync(restartedController, backend, candidates, settings, focus);
 
-            AssertResidentSetMatchesPolicy(backend, config, focus);
+            AssertResidentSetMatchesPolicy(backend, candidates, settings, focus);
         });
 
         [UnityTest]
@@ -539,12 +494,11 @@ namespace OneStarMaker.Tests.Streaming
             const float loadRadius = 60f;
             const float unloadRadius = 120f;
 
-            var (director, controller, backend, config) = CreateHarness(
+            var (director, controller, backend, candidates, settings) = CreateHarness(
                 2, 1, loadRadius, unloadRadius, maxInFlight: 4);
 
-            var grid = config.Grid;
-            var nearFocus = CellCenter(0, 0, grid);
-            var farFocus = CellCenter(1, 0, grid) + new Vector3(200f, 0f, 0f);
+            var nearFocus = CellCenter(0, 0);
+            var farFocus = CellCenter(1, 0) + new Vector3(200f, 0f, 0f);
 
             var loadGate = new UniTaskCompletionSource();
             director.SceneLoadGates[targetCell] = loadGate;
@@ -563,7 +517,7 @@ namespace OneStarMaker.Tests.Streaming
                 "PoNR 通過後に desired から外れたセルは保留アンロードへ登録されるべき。");
 
             loadGate.TrySetResult();
-            await WaitForConvergenceAsync(controller, backend, config, farFocus);
+            await WaitForConvergenceAsync(controller, backend, candidates, settings, farFocus);
 
             await WaitForSceneRemovedAsync(director, targetCell);
 
@@ -589,11 +543,10 @@ namespace OneStarMaker.Tests.Streaming
             const float loadRadius = 120f;
             const float unloadRadius = 200f;
 
-            var (director, controller, backend, config) = CreateHarness(
+            var (director, controller, backend, candidates, settings) = CreateHarness(
                 2, 1, loadRadius, unloadRadius, maxInFlight: 4);
 
-            var grid = config.Grid;
-            var nearFocus = CellCenter(0, 0, grid);
+            var nearFocus = CellCenter(0, 0);
             var farFocus = nearFocus + new Vector3(500f, 0f, 0f);
 
             var sink = new FakeTelemetrySink();
@@ -604,7 +557,7 @@ namespace OneStarMaker.Tests.Streaming
                 AppTelemetry.Level = TelemetryLevel.Verbose;
                 AppTelemetry.AddSink(sink);
 
-                await WaitForConvergenceAsync(controller, backend, config, nearFocus);
+                await WaitForConvergenceAsync(controller, backend, candidates, settings, nearFocus);
 
                 Assert.AreEqual(
                     0, director.LastLoadPriorities[cellNear],
@@ -626,7 +579,7 @@ namespace OneStarMaker.Tests.Streaming
                     }
                 }
 
-                await WaitForConvergenceAsync(controller, backend, config, farFocus);
+                await WaitForConvergenceAsync(controller, backend, candidates, settings, farFocus);
 
                 await WaitForSceneRemovedAsync(director, cellNear);
                 await WaitForSceneRemovedAsync(director, cellFar);

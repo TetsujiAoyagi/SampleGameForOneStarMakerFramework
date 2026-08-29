@@ -37,7 +37,7 @@
 
 | # | 内容 | 本番セル |
 |---|---|---|
-| M-1 | 体積をデータとして持ち、Controller が座標も `Format` も使わない。候補は identity 列 | 動かさない |
+| M-1 | **実装済み・受入 1〜5 すべて充足（全件 505/505 passed）。** 体積は `SceneResource` 直下のデータで、Editor（保存フック ＋ 全件メニュー）が `.unity` から自動計算する。`StreamingConfig` は寿命で `StreamingCandidateSet` / `StreamingPolicySettings` に割った。取り出し口は新規 `ISceneVolumeQuery`。着手時 HANDOFF は `STREAMING_VOLUME_M1.md` | 動かさない |
 | M-2 | 生成器の既存収集 / policy のキーを identity 文字列へ | 動かさない |
 | M-3 | R-3 の**口を作る**。検出を距離政策の候補フラグへ。現行 `Cell_0_0` で `SwitchScene` が失敗し続けること | 動かさない（無修飾のまま） |
 | M-4 | `Runtime/SceneSystem/Cells/`（`CellIdentity` / `CellGridConfig` / `CellScene`）を FW 公開面から下ろす。SampleGame または Editor へ | 動かさない |
@@ -70,16 +70,23 @@ R-3 の所有者: **M-3 が口を作る。S-4 が修飾付き名で効かせる�
 
 §34 をひっくり返さない。次だけを分解する。M-1 セッションは M-2 / M-3 / M-4 の問いを「決める」対象にしない。
 
-| # | 問い | 所有者 |
-|---|---|---|
-| 1 | 体積の置き場（§34 の 3 候補。避けたいのは identity 文法と座標の第二キー） | M-1 |
-| 2 | `StreamingConfig` が持つもの（identity＋体積の列か、SceneResource 参照か）。`Vector2Int` 列と `CellGridConfig` による中心組み立ては捨てる | M-1 |
-| 3 | 生成器が AABB をいつ書くか（現行格子定数から焼いて埋め込む。ランタイムは焼かない） | M-1 |
-| 4 | R-3 の検出をフラグへ移す範囲（`CellIdentity.IsCellId` を残す過渡か、一括か）。**factory の SceneBase 結線（`IsCellId` → `DemoCellScene`）とは別口。** | **M-3** |
-| 5a | `CellScene.Coordinate` を残すか（HUD 用。距離判断からは外す） | M-1 |
-| 5b | 型そのもの（`CellIdentity` / `CellGridConfig` / `CellScene`）を FW から下ろす | **M-4** |
-| 6 | 既存テストの入力を体積列へ移す手順（本番 4×4 は動かさない） | M-1 |
-| 7 | 生成器の policy 解決と既存収集のキーを identity 文字列へ移す範囲（§34。現行無修飾でもフォルダ名照合に寄せて証明する） | **M-2** |
+| # | 問い | 所有者 | 決定 |
+|---|---|---|---|
+| 1 | 体積の置き場（§34 の 3 候補。避けたいのは identity 文法と座標の第二キー） | M-1 | **決定済み: `SceneResource` 直下**（第 3 候補）。`_volume`(Bounds) ＋ `_streamByDistance`(bool) |
+| 2 | `StreamingConfig` が持つもの（identity＋体積の列か、SceneResource 参照か）。`Vector2Int` 列と `CellGridConfig` による中心組み立ては捨てる | M-1 | **決定済み: 寿命で 2 つに割って `StreamingConfig` を捨てた。** `StreamingCandidateSet`（identity ＋ 体積。差し替えるとき丸ごと作り直す）と `StreamingPolicySettings`（半径 ＋ maxInFlight。不変） |
+| 3 | 生成器が AABB をいつ書くか（現行格子定数から焼いて埋め込む。ランタイムは焼かない） | M-1 | **決定済み: 想定を却下し、Scene の編集で自動計算する。** `EditorSceneManager.sceneSaved` フック ＋ 全件再計算メニュー ＋ 生成完了時に 1 回。値は `.unity` の Renderer の合併であって格子定数ではない |
+| 4 | R-3 の検出をフラグへ移す範囲（`CellIdentity.IsCellId` を残す過渡か、一括か）。**factory の SceneBase 結線（`IsCellId` → `DemoCellScene`）とは別口。** | **M-3** | 未決 |
+| 5a | `CellScene.Coordinate` を残すか（HUD 用。距離判断からは外す） | M-1 | **決定済み: 残す。** `ComputeBounds` も残す（テスト用）。距離判断からは外れた |
+| 5b | 型そのもの（`CellIdentity` / `CellGridConfig` / `CellScene`）を FW から下ろす | **M-4** | 未決 |
+| 6 | 既存テストの入力を体積列へ移す手順（本番 4×4 は動かさない） | M-1 | **決定済み: 共有フィクスチャ 1 本**（`StreamingCandidateFixtures`）が均一格子から体積を焼く。体積中心 = セル中心なので期待値の数値は不変 |
+| 7 | 生成器の policy 解決と既存収集のキーを identity 文字列へ移す範囲（§34。現行無修飾でもフォルダ名照合に寄せて証明する） | **M-2** | 未決 |
+
+M-1 が新たに決めたこと（上の 3 と不可分なので、M-2 以降が再解釈しないためにここへ残す）:
+
+- **セルの体積 = そのシーン ＋ 距離政策の候補でない子（Environment）の合併。** 南辺 4 枚は `Ground` が Environment 側にあり、合併しないと中心が数十 m ずれて境界セルが desired を出入りする。**合併規則が受入 2 そのものである。**
+- **候補フラグは幾何から導出しない。生成器が焼く決定である。** `WorldCellGenerator` が Cell に `true`、Environment 側に `false` を書き、Editor の再計算機構は体積だけを書いてフラグは読むだけ。導出（「体積が空でなければ候補」等）は Editor 実測で誤爆した — `PlayerScene` がカプセルの Renderer だけで候補になった。**M-3 で R-3 がこのフラグを読むので、誤爆したまま進めると `SwitchScene` が理由なく弾かれる。**
+- **取り出し口は新規 `ISceneVolumeQuery`。** `ISceneQuery` へは足さない（あれは「ロード済みシーンへの読み取り専用アクセス」を自称しており、政策が体積を要るのは未ロードの候補についてだから）。
+- **体積が引けない候補は起動時に例外。** 暗黙フォールバックを作らない。
 
 Environment は距離政策の候補に入れない（距離の単位は Cell 作業単位）。子は親 Stable 後の明示 Add のまま。M-1 は無修飾 4×4 のまま factory を動かさない。
 

@@ -7,7 +7,7 @@
 > 前提資料: [05. シーン管理](05-scene.md) / [13. リソースシステム](13-resource-system.md)
 > 関連: HLOD / Proxy ティアの詳細は将来の §22 に分離する（本書はインターフェース予約のみ）
 >
-> 本書が固定して残るのは政策/メカニズム分離（D-3 / D-4）、生成器の非破壊契約、受入値、チケット履歴である。格子座標をランタイムのキーにしている記述は**今動いている経路**であり、一般化先ではない。
+> 本書が固定して残るのは政策/メカニズム分離（D-3 / D-4）、生成器の非破壊契約、受入値、チケット履歴である。格子座標をランタイムのキーにしている記述は**当時動いていた経路**であり、一般化先ではない。**距離政策のキーは既に identity ＋ 体積へ移した**（実装値は `STREAMING_CURRENT_SPEC.md`）。生成器・R-3・factory の座標と名前文法は未移行のまま残っている。
 
 ---
 
@@ -405,6 +405,7 @@ R-3 を「将来」から本チケットへ繰り上げ、`SwitchSceneCore` 冒�
 
 **T-06 完了記録 (2026-07-06):**
 `Runtime/Streaming/` に `ISceneStreamingBackend`（施行表で固定した API）、`StreamingConfig`（グリッド + loadRadius / unloadRadius / maxInFlight。引数検証つき）、`WorldStreamingController` を新設。純 C#・MonoBehaviour / SceneDirector 非依存で、`Tick(Vector3)` を外部から手動駆動する。
+> 後日: `StreamingConfig` は寿命の違う `StreamingCandidateSet`（候補列）と `StreamingPolicySettings`（半径 + maxInFlight）へ割って削除した。走査対象はグリッドではなく候補列である。
 ポリシー: 毎 Tick 全セルの XZ 距離を計算し、loadRadius 内 = desired（距離昇順ソート）、unloadRadius 内 = retain。ロード済み or Add in-flight で retain 外のセルへ RequestRemove、desired かつ未ロード・非 in-flight のセルへ距離順ランク（0 始まり）を priority として RequestAdd。current 集合は保持せず毎 Tick `IsLoaded` で再照合（G-6 自己修復）。
 テスト: `Tests/Streaming/WorldStreamingControllerTests.cs` に 10 本（desired set、アンロード半径、ヒステリシス、差分発火、距離順 priority、in-flight 上限、キュー取り消し、G-6 再発行、focus 移動収束、Add/Remove 競合）。`FakeStreamingBackend` は即時/手動完了の切替・履歴記録・二重 RequestAdd 検出（例外）を持つ。TDD サイクル: スケルトン + レッド 9 本を確認後に実装。
 検証結果:
