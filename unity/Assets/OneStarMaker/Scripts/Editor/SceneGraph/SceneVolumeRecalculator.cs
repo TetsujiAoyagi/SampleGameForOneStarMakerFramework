@@ -74,15 +74,15 @@ namespace OneStarMaker.Editor.SceneGraph
             SaveHookSuspended = true;
             try
             {
-                var own = new Dictionary<int, Bounds>(resources.Count);
+                var own = new Dictionary<ulong, Bounds>(resources.Count);
                 for (var i = 0; i < resources.Count; i++)
                 {
-                    own[resources[i].GetInstanceID()] =
+                    own[IdOf(resources[i])] =
                         SceneVolumeSceneReader.ComputeOwnVolume(resources[i], liveScene: null);
                 }
 
-                var final = new Dictionary<int, Bounds>(resources.Count);
-                var candidate = new Dictionary<int, bool>(resources.Count);
+                var final = new Dictionary<ulong, Bounds>(resources.Count);
+                var candidate = new Dictionary<ulong, bool>(resources.Count);
 
                 for (var i = 0; i < resources.Count; i++)
                 {
@@ -96,7 +96,7 @@ namespace OneStarMaker.Editor.SceneGraph
                 for (var i = 0; i < resources.Count; i++)
                 {
                     var resource = resources[i];
-                    var id = resource.GetInstanceID();
+                    var id = IdOf(resource);
                     // 親リンクが壊れていてルートから到達できなかったものも取りこぼさない。
                     if (!final.ContainsKey(id))
                     {
@@ -148,7 +148,7 @@ namespace OneStarMaker.Editor.SceneGraph
                 var own = new Bounds[chain.Count];
                 for (var i = 0; i < chain.Count; i++)
                 {
-                    var isSaved = chain[i].GetInstanceID() == saved.GetInstanceID();
+                    var isSaved = IdOf(chain[i]) == IdOf(saved);
                     own[i] = SceneVolumeSceneReader.ComputeOwnVolume(
                         chain[i], isSaved ? savedScene : (Scene?)null);
                 }
@@ -181,7 +181,7 @@ namespace OneStarMaker.Editor.SceneGraph
                         }
 
                         children.Add(
-                            hasChildInChain && child.GetInstanceID() == chain[i + 1].GetInstanceID()
+                            hasChildInChain && IdOf(child) == IdOf(chain[i + 1])
                                 ? (childVolume, childIsCandidate)
                                 : (child.Volume, child.StreamByDistance));
                     }
@@ -226,12 +226,12 @@ namespace OneStarMaker.Editor.SceneGraph
         private static void Resolve(
             SceneResource resource,
             bool ancestorIsCandidate,
-            IReadOnlyDictionary<int, Bounds> own,
-            Dictionary<int, Bounds> final,
-            Dictionary<int, bool> candidate,
+            IReadOnlyDictionary<ulong, Bounds> own,
+            Dictionary<ulong, Bounds> final,
+            Dictionary<ulong, bool> candidate,
             int depth)
         {
-            var id = resource.GetInstanceID();
+            var id = IdOf(resource);
             if (depth >= MaxDepth || final.ContainsKey(id))
             {
                 return;
@@ -259,7 +259,7 @@ namespace OneStarMaker.Editor.SceneGraph
 
                 Resolve(child, isCandidate || ancestorIsCandidate, own, final, candidate, depth + 1);
 
-                var childId = child.GetInstanceID();
+                var childId = IdOf(child);
                 // MaxDepth 打ち切りで子が未確定のまま戻ることがある。メニュー実行を落とさない。
                 if (final.TryGetValue(childId, out var childVolume))
                 {
@@ -269,6 +269,11 @@ namespace OneStarMaker.Editor.SceneGraph
 
             final[id] = SceneVolumeMath.Merge(ownVolume, children);
         }
+
+        /// <summary>
+        /// 辞書キー用の安定 ID。`GetInstanceID` は Unity 6.5 で obsolete（CS0619 = エラー）なので使わない。
+        /// </summary>
+        private static ulong IdOf(SceneResource resource) => EntityId.ToULong(resource.GetEntityId());
 
         /// <summary>SerializedProperty 経由で書き込む。値が変わったら true。</summary>
         private static bool Write(SceneResource resource, Bounds volume, bool streamByDistance)
