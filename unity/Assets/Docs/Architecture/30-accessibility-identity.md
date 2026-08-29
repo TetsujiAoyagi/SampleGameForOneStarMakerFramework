@@ -494,7 +494,7 @@ Register / Unregister / SetFlags は §31 の変更フィードの材料にな�
 | Backend | 対象 | 検証 |
 |---|---|---|
 | `FakeAccessibilityBackend` | テスト | EditMode。**ポリシー層の受入はここで全部取る**（ポリシー層が現れてから。型そのものは S-2 の 9。S-1 は作らない） |
-| `UnityAssistiveSupportBackend` | Android / iOS / Windows / macOS（デスクトップは [Unity 6.3 以降](https://discussions.unity.com/t/native-desktop-screen-reader-support-now-available-in-unity-6-3/1681788)） | 実機のみ。CI 不可 |
+| `UnityAssistiveSupportBackend` | Android / iOS。Windows / macOS は Unity 6.3 の [desktop support announcement](https://discussions.unity.com/t/native-desktop-screen-reader-support-now-available-in-unity-6-3/1681788) があるが、2026-08-30 時点の [Scripting API](https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Accessibility.AssistiveSupport.html) は Android / iPhonePlayer のみを列挙しているため、`6000.5.0f1` の player smoke が通るまで **要実測** | 実機のみ。CI 不可 |
 | `DebugSocketBackend` | DebugStudio | プロトコル非変更の範囲 |
 
 規約は §24 D-5 と同じ: **`AccessibilityNode` / `AccessibilityRole` 等の Unity 型を公開 API に一切漏らさない。**

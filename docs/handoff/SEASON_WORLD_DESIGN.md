@@ -148,7 +148,7 @@ S-4 で 9×6×4 を焼くのは、移行 HANDOFF の **M-1 と M-2 の受入** �
 | 再生成しても編集が残る | 昇格済み identity = `HandAuthored`（`AuthoredRoot` を R-6 が保護）/ それ以外 = `Generated`。**判定は S-8a 以降**（S-4 時点は昇格 0） |
 | 単独ビルド | 1 変奏 = 1 Addressables グループ。見証の頂きを差し替え → その変奏だけ再ビルド → 他 3 変奏のバンドルはハッシュ不変。**共有 Lit / Primitive / Tunnel は季節グループに入れない**（Common 側） |
 | 単独チェックアウト | 1 変奏 = 1 Variant タグ。手元に無い変奏はリモートカタログから解決、解決不能ならトンネル出口で明示失敗し旧季節へ復帰（D-5 継承）。隔離は空隙ではなく **候補集合の排他**（常駐季節が 1 つ） |
-| ストリーミング | 全域で動く。**計測（§21 A-1/A-2）だけは変奏 II（夏）の背コリドー**で取る |
+| ストリーミング | 全域で動く。S-9 は純政策ベンチマークと実コンテンツ横断を分け、**実コンテンツ計測（§21 A-1〜A-5）は変奏 II（夏）の背コリドー**で取る |
 | イテレーション | ループ実演: 印を 1 個編集 → 保存 → 生成器再実行（昇格分は消えない）→ Play → 変奏単独の差分ビルド |
 
 **正本 policy（2 段）:**
@@ -164,7 +164,7 @@ S-4 で 9×6×4 を焼くのは、移行 HANDOFF の **M-1 と M-2 の受入** �
 手を入れた identity だけ昇格する。「再生成しても編集が残る」はテーブル上の宣言ではなく、
 Generated → 編集 → 昇格、の遷移として実演する。
 
-W-8 の前提: **計測フライト中の desired はすべて Generated。**
+W-8 の前提: **実コンテンツの計測フライト中の desired はすべて Generated。** 純政策ベンチマークはシーンをロードせず、候補数と制御面の費用だけを変える。
 
 ---
 
@@ -211,8 +211,28 @@ Editor 操作境界（正本は `.agents/skills/osm-unity-editor/SKILL.md`）は
 | S-6 | 1 変奏 = 1 Addressables グループ | Tunnel と共有 Lit / Primitive は専用季節グループに入れない |
 | S-7 | 1 変奏 = 1 Variant タグ + 未チェックアウト経路 | §20 の既存機構にデータを流す。新機構なし |
 | S-8a | 春の演奏レイヤ | 線沿い + 見証。ここで 4 動詞は出荷可能。`HandEditProbe` とスキャフォールド宣言の退役は春で開始してよい |
-| S-9 | 変奏 II 背コリドーで §21 T-07〜T-09 | y=4 未昇格を確認してから測る。それまで T-07〜T-09 凍結 |
+| S-9 | Streaming の計測と撤退判断（下記 S-9a〜c） | 純政策ベンチマーク → 変奏 II 背コリドーで §21 T-07〜T-09 → 結果に基づく最適化・撤退判断。y=4 未昇格を確認してから S-9b を測る。それまで T-07〜T-09 凍結 |
 | S-8b〜d | 夏・秋・冬の演奏レイヤ | 品質バー W-7。動詞の証明条件ではない |
+
+### S-9 — Streaming の計測を 3 段に分ける
+
+Megacity は大きな workload の証拠であり、OSM の性能を代弁しない。S-9 の合否は「Megacity より速い」ではなく、OSM の control plane と実コンテンツが着手時 HANDOFF で固定した予算を超えないこととする。DOTS / Jobs / Burst への移行を先に決めず、現行 managed 実装を基準値として測る。
+
+| 段 | 目的 | workload / 計測 | 完了条件 |
+|---|---|---|---|
+| **S-9a 純政策ベンチマーク** | `WorldStreamingController` 自体の候補数スケールと収束を、シーンロードの重さから分離する | FakeBackend で **1,000 / 10,000 候補**。単一 / 複数 Focus、静止 / 等速移動 / テレポート、desired 疎 / 密を分ける。Tick 時間、1 Tick の GC allocation、`IsLoaded` 照会数、最終 `desired = resident` までの時間、in-flight 上限時の backlog と最古要求待ち時間、starvation、duplicate request / stale completion / cancel 後残留を取る | workload ごとに反復数・中央値・p95 / p99を記録し、着手時 HANDOFF の control-plane 予算内。予算外なら S-9c の判断材料にし、S-9a 中に索引や Jobs を先回り実装しない |
+| **S-9b 実コンテンツ横断** | SceneDirector / Addressables / asset payload を含む実証 | 変奏 II（夏）の背 `y=5` を等速と高速で往復。§21 A-1〜A-5に加え、ロード時間 p50 / p95 / p99、停止後の収束時間、常駐 / in-flight / cancel / pending-unload、managed / native / asset memory peak と復帰、Addressables handle 残留を取る | `y=4` が未昇格で、計測中 desired がすべて Generated。A-1〜A-5と着手時 HANDOFF の数値予算を満たし、例外・集合不一致・リークが 0 |
+| **S-9c 撤退・最適化判断** | 数値から次の実装を選び、推測で設計を増やさない | S-9a / b の結果を、政策計算、`IsLoaded` 全件再照合、SceneDirector 状態遷移、Addressables / asset payload に分解する | 現状維持 / 空間索引＋ロード済み identity 列の取得口 / managed・native backend 比較 / SceneDirector 撤退ライン、のいずれかを根拠付きで決定。空間索引だけを入れて遠方 resident の Unload を漏らさない |
+
+S-9a / b の結果には、比較可能性のため次の **workload manifest** を必ず添える。
+
+- 候補数、resident 数、同時 desired 数、Focus 数
+- `LoadRadius` / `UnloadRadius` / `maxInFlight`、Focus 速度と経路
+- セルごとの Addressables 容量とロード後メモリ（S-9b）
+- Unity / Addressables のバージョン、Editor / Player、quality tier、解像度、対象ハードウェア
+- cold / warm cache、測定時間、反復数、Development Build / Profiler 接続の有無
+
+S-9 の着手時 HANDOFF は S-9a〜c を 1 ブランチに詰め込まない。少なくとも「測定器と純政策ベンチマーク」「実コンテンツ計測」「判断記録」を責務として見積もり、500 行または 3 責務を超える見込みなら別スライス / 別ブランチへ切る。閾値は測定を見て後付けせず、各測定スライスの開始時にハードウェアと workload manifest とともに固定する。
 
 **S-4 の既存 16 セル: 全廃。** 谷は新規生成する。移送も座標補正も行わない。
 `move_asset` も `set_transform` によるワールド Δ も、破壊経路 3 に旧 12 枚を任せる手順も、使わない。
@@ -292,7 +312,7 @@ Editor 操作境界（正本は `.agents/skills/osm-unity-editor/SKILL.md`）は
 | W-5 | 単独ビルド | 1 季節リビルドで他 3 季節バンドルのハッシュ不変。見証の頂きが変わる。共有 Lit は季節グループ外 |
 | W-6 | 単独チェックアウト | ローカル欠落季節がリモート解決 or 明示失敗 + 旧季節復帰 |
 | W-7 | 品質バー | §2 の 4 項目を人が目視（自動化しない）。S-8a 時点では春について見る。全変奏は S-8d |
-| W-8 | 計測 | 変奏 II 背コリドーで A-1 / A-2 が §21 の受入値内。desired はすべて Generated |
+| W-8 | 計測 | S-9a の 1,000 / 10,000 候補で control-plane 予算内。S-9b の変奏 II 背コリドーで §21 A-1〜A-5と着手時 HANDOFF の数値予算を満たす。実コンテンツ計測中の desired はすべて Generated。workload manifest と S-9c の判断記録がある |
 | W-9 | 空間の口 | 移行 HANDOFF の **M-1 と M-2 の受入** を満たしたうえで S-4 に入っている。M-3 は S-4 より前か同ブランチ。名前から座標を復元して desired を組んでいない |
 
 レビュー時の grep: `?.` / `??` / `is null` / `ReferenceEquals`（破棄されうる `UnityEngine.Object` 対象）。
