@@ -4,6 +4,8 @@
 > 正本の順序は [STREAMING_SPATIAL_MIGRATION.md](STREAMING_SPATIAL_MIGRATION.md)、到着契約は [§34](../../unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md)。
 > 本書は §34 をひっくり返さない。移行 HANDOFF §2 の A-1〜A-4 を満たす着手時指示書である。
 > **期限:** M-1 が緑になり、移行 HANDOFF §3 の問い 1 / 2 / 3 / 5a に決定が書き戻された時点で `git rm`。
+>
+> `docs-audit.ps1` 検査3 の対象にしないため §7 / §8 は欠番（移行 HANDOFF と同じ理由）。
 
 ---
 
@@ -123,9 +125,9 @@
 
 ---
 
-## 7. 実装手順
+## 9. 実装手順
 
-### 7.1 FW Runtime — 体積をデータにする
+### 9.1 FW Runtime — 体積をデータにする
 
 `SceneResource.cs` に 2 フィールドを足す。既存の `Identity` と同じ `internal set` 方式（Editor は `SerializedProperty` 経由で書く。`WorldCellGenerator.ConfigureSceneResource` が既にその流儀）。
 
@@ -138,7 +140,7 @@
 
 > **偽 null**: `SceneResource` は `UnityEngine.Object`。`?.` / `??` / `is null` / `ReferenceEquals` を使わず `== null` / `!= null` で書く（`SceneResourceMap.BuildDictionary` が既にこの流儀）。
 
-### 7.2 FW Runtime — 政策層から座標を抜く
+### 9.2 FW Runtime — 政策層から座標を抜く
 
 3 つの新規型を作り、`StreamingConfig.cs` を削除する。
 
@@ -154,7 +156,7 @@ public sealed class StreamingPolicySettings    // ずっと不変
 
 **着地の目印**: `unity/Assets/OneStarMaker/Scripts/Runtime/Streaming/` から `CellIdentity` / `CellGridConfig` の参照が 0 になる。M-4 の下準備でもある。
 
-### 7.3 FW Editor — 自動計算
+### 9.3 FW Editor — 自動計算
 
 `SceneVolumeMath`（純関数、テスト対象）:
 
@@ -173,13 +175,13 @@ public sealed class StreamingPolicySettings    // ずっと不変
 
 `WorldCellStreamingSliceCreator` の生成完了時にも全件再計算を 1 回呼ぶ。
 
-### 7.4 SampleGame — 候補列を組む
+### 9.4 SampleGame — 候補列を組む
 
 `SessionWorldStreamingDriver` の ctor で、`WorldCellCatalog.EnumerateCells()` の identity 列（`CellIdentity.Format`。SampleGame 側なので M-1 では可）に対し `ISceneVolumeQuery.TryGetSceneVolume` を引き、`StreamingCandidateSet` を作る。`StreamingPolicySettings` は `WorldCellCatalog` の半径定数から別に作る。
 
 **1 件でも引けなければ、再計算メニュー名を含めた例外を投げて落とす。** `GetResidentCellIdentities` も候補列の identity を舐める形にして `Format` を消す。
 
-### 7.5 ドキュメント（同一ブランチ）
+### 9.5 ドキュメント（同一ブランチ）
 
 - `docs/streaming/STREAMING_CURRENT_SPEC.md` — §1 の一文、§2 の実装値、§3 の型表、§4 の「名前文法が空間になっている箇所」を M-1 後の実態へ。**新旧を併存させない**
 - `docs/handoff/STREAMING_SPATIAL_MIGRATION.md` — §3 の問い 1 / 2 / 3 / 5a を「決定済み」にして落とす。M-1 の行に決定内容を 1 行で残す
@@ -187,7 +189,7 @@ public sealed class StreamingPolicySettings    // ずっと不変
 
 ---
 
-## 8. 検証
+## 10. 検証
 
 **実装者は Unity を起動しない**（Editor 操作境界。正本は `.cursor/skills/osm-unity-editor/SKILL.md`）。実装完了時は「実装完了。テスト未実行」と報告する。
 
@@ -228,7 +230,7 @@ exit 0 かつ 1 件以上実行され failed 0。**テスト 0 件は失敗扱�
 
 | 移行 HANDOFF §4 | 満たし方 |
 |---|---|
-| 1. Tick が `Format` を呼ばない | §7.2 ＋ 静的 grep |
+| 1. Tick が `Format` を呼ばない | §9.2 ＋ 静的 grep |
 | 2. 現行 4×4 と同等の集合 | 体積中心 = セル中心（Environment 合併で南辺 4 枚も成立）＋ Editor 手順 2 |
 | 3. 既存 WSC / MultiFocus / 統合が緑 | `run-tests.ps1`。期待値の数値は不変 |
 | 4. R-3 は今どおり失敗 | 触らない。Editor 手順 3 |
@@ -236,7 +238,7 @@ exit 0 かつ 1 件以上実行され failed 0。**テスト 0 件は失敗扱�
 
 ---
 
-## 9. 将来の空間索引（M-1 では入れない。形だけ塞がないことを確認する）
+## 11. 将来の空間索引（M-1 では入れない。形だけ塞がないことを確認する）
 
 OctTree 等は §34 §7 の「距離の出どころの差し替え」ではなく、**同じユークリッド距離の加速構造**である。新しいメトリック interface は要らない。
 
@@ -259,7 +261,7 @@ M-1 の形（`StreamingCandidateSet` が不変 / 候補列がインデックス�
 
 ---
 
-## 10. やらないこと
+## 12. やらないこと
 
 9×6 の焼き込み / `Season_*` / トンネル / 既存 16 セルの移動・全廃、修飾パース・`SeasonScopedStreamingBackend`・`StreamingConfig.cellIdQualifier`、生成器の既存収集と policy のキー剥がし（**M-2**）、R-3 をフラグへ移すこと（**M-3**）、`Runtime/SceneSystem/Cells/` を FW から下ろすこと（**M-4**）、`GameSceneFactory` / `CellScene` ctor / `TryFromCellId` の修飾対応（S-4）、§21 / §33 本文の全面改稿。
 
