@@ -35,6 +35,11 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 30710b0456e31694a89047872db50aeb
+    m_Address: Assets/SampleGame/OutGame/OutGameScene.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 3142760357bf1ae40830f46407b953fd
     m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_0_2/Cell_0_2.unity
     m_ReadOnly: 0
@@ -72,6 +77,11 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 7417c2f339f202e4bbb8f5062f684ab1
     m_Address: Assets/SampleGame/OutGame/Title/Title.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7d5069b8f599b704ca02b91d74c4d46c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Result/Result.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -140,6 +150,11 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: da5125f72779dd64abaf36e9295a881b
+    m_Address: Assets/SampleGame/InGame/InGameSession/InGameUI/InGameUI.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: dfe44c0f0d32ac14e8957c83900b2eeb
     m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_1_2/Cell_1_2.unity
     m_ReadOnly: 0
@@ -147,6 +162,11 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: ecbdac293c3a98d4e844c03a989e31f8
     m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_3_3/Cell_3_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f1e2d3c4b5a697887766554433221100
+    m_Address: Assets/SampleGame/InGame/InGameSession/PlayerScene/PlayerScene.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
