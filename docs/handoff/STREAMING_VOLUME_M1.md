@@ -66,52 +66,65 @@
 
 ---
 
-## 3. A-1 変更ファイル（現在行数 → 予想行数は**足す量の上限**）
+## 3. A-1 変更ファイル（着手時の見積 → 実測）
+
+「上限」は着手時に置いた**足す量の上限**、「実測」は実装後の行数。超えた行には理由を書く。
 
 ### FW Runtime
 
-| ファイル | 現 | 上限 | 責務 |
-|---|---:|---:|---|
-| `Runtime/Streaming/StreamingCandidate.cs` | 新規 | 70 | identity ＋ Bounds の値型。空 identity / 空体積を弾く |
-| `Runtime/Streaming/StreamingCandidateSet.cs` | 新規 | 100 | 候補列。1 件以上・identity 重複禁止・防御的コピー |
-| `Runtime/Streaming/StreamingPolicySettings.cs` | 新規 | 80 | 半径 2 つ ＋ maxInFlight。既存の引数検証をここへ移す |
-| `Runtime/Streaming/StreamingConfig.cs` | 85 | **削除** | 上 2 つへ分割 |
-| `Runtime/Streaming/WorldStreamingController.cs` | 300 | 295 | ctor が `(candidates, settings, backend)`。`Format` / `GetCellCenter` 削除。距離は `candidate.Volume.center` |
-| `Runtime/SceneSystem/SceneResource.cs` | 67 | 100 | `_volume`(Bounds) / `_streamByDistance`(bool) ＋ internal setter |
-| `Runtime/SceneSystem/ISceneVolumeQuery.cs` | 新規 | 35 | `bool TryGetSceneVolume(string identity, out Bounds volume)` |
-| `Runtime/SceneSystem/SceneDirector.cs` | 228 | 250 | `ISceneVolumeQuery` 実装（既存の private `_sceneResourceMap` を引く） |
+| ファイル | 現 | 上限 | 実測 | 責務 |
+|---|---:|---:|---:|---|
+| `Runtime/Streaming/StreamingCandidate.cs` | 新規 | 70 | 52 | identity ＋ Bounds の値型。空 identity / 空体積を弾く |
+| `Runtime/Streaming/StreamingCandidateSet.cs` | 新規 | 100 | 71 | 候補列。1 件以上・identity 重複禁止・防御的コピー |
+| `Runtime/Streaming/StreamingPolicySettings.cs` | 新規 | 80 | 54 | 半径 2 つ ＋ maxInFlight。既存の引数検証をここへ移す |
+| `Runtime/Streaming/StreamingConfig.cs` | 85 | **削除** | 削除 | 上 2 つへ分割 |
+| `Runtime/Streaming/WorldStreamingController.cs` | 300 | 295 | **301** | ctor が `(candidates, settings, backend)`。`Format` / `GetCellCenter` 削除。距離は `candidate.Volume.center`。**+6**: ctor 引数が 1 → 2 になり公開プロパティも 1 → 2 に増えた分が、`GetCellCenter` 削除分を上回った |
+| `Runtime/SceneSystem/SceneResource.cs` | 67 | 100 | 98 | `_volume`(Bounds) / `_streamByDistance`(bool) ＋ internal setter |
+| `Runtime/SceneSystem/ISceneVolumeQuery.cs` | 新規 | 35 | 33 | `bool TryGetSceneVolume(string identity, out Bounds volume)` |
+| `Runtime/SceneSystem/SceneDirector.cs` | 228 | 250 | 259 | `ISceneVolumeQuery` 実装（既存の private `_sceneResourceMap` を引く）。**+9**: 偽 null を避けるため `?.` を使えず、3 条件を早期 return で分けた |
 
 ### FW Editor
 
-| ファイル | 現 | 上限 | 責務 |
-|---|---:|---:|---|
-| `Editor/SceneGraph/SceneVolumeMath.cs` | 新規 | 90 | **純関数**。Bounds 列の合併 / 親と候補でない子の合併 / 空判定 |
-| `Editor/SceneGraph/SceneVolumeRecalculator.cs` | 新規 | 260 | シーン開閉・Renderer 収集・`Parent` 遡り・SerializedProperty 書き込み・全件メニュー |
-| `Editor/SceneGraph/SceneVolumeSaveHook.cs` | 新規 | 60 | `EditorSceneManager.sceneSaved` → 該当 SceneResource ＋ 親を再計算 |
+| ファイル | 現 | 上限 | 実測 | 責務 |
+|---|---:|---:|---:|---|
+| `Editor/SceneGraph/SceneVolumeMath.cs` | 新規 | 90 | 94 | **純関数**。Bounds 列の合併 / 親と候補でない子の合併 / 空判定 |
+| `Editor/SceneGraph/SceneVolumeRecalculator.cs` | 新規 | 260 | 285 | 候補判定・合併の走査・SerializedProperty 書き込み・全件メニュー |
+| `Editor/SceneGraph/SceneVolumeSceneReader.cs`（**計画外の追加**） | 新規 | — | 180 | アセットと `.unity` の読み取り（資産探索・シーンパス解決・Renderer 収集） |
+| `Editor/SceneGraph/SceneVolumeSaveHook.cs` | 新規 | 60 | 49 | `EditorSceneManager.sceneSaved` → 該当 SceneResource ＋ 祖先を再計算 |
 
 ### SampleGame
 
-| ファイル | 現 | 上限 | 責務 |
-|---|---:|---:|---|
-| `InGame/InGameSession/Streaming/SessionWorldStreamingDriver.cs` | 207 | 250 | 候補列の組み立て（identity は Catalog、体積は `ISceneVolumeQuery`）。欠落は例外 |
-| `InGame/InGameSession/Streaming/WorldCellCatalog.cs` | 210 | 215 | 変更ほぼ無し（`CreateGridConfig` は消さない。未使用理由は判定表へ） |
-| `DependOnAll/Editor/WorldCellStreamingSliceCreator.cs` | 1384 | 1392 | 生成完了時に再計算を 1 回呼ぶだけ（再生成後にメニューを忘れる罠を塞ぐ） |
+| ファイル | 現 | 上限 | 実測 | 責務 |
+|---|---:|---:|---:|---|
+| `InGame/InGameSession/Streaming/SessionWorldStreamingDriver.cs` | 207 | 250 | 241 | 候補列の組み立て（identity は Catalog、体積は `ISceneVolumeQuery`）。欠落は例外 |
+| `InGame/InGameSession/Streaming/WorldCellCatalog.cs` | 210 | 215 | 216 | 変更は `CreateGridConfig` の remark 追加のみ（参照 0 になったが**意図的な先行宣言**として残す） |
+| `DependOnAll/Editor/WorldCellStreamingSliceCreator.cs` | 1384 | 1392 | 1401 | 生成完了時に再計算を 1 回呼ぶ。**+9**: 生成中の保存フック停止（try/finally）を足した |
 
 ### テスト
 
-| ファイル | 現 | 上限 |
-|---|---:|---:|
-| `Tests/Streaming/StreamingCandidateFixtures.cs`（新規・共有ヘルパー） | 新規 | 80 |
-| `Tests/Streaming/WorldStreamingControllerTests.cs` | 464 | 470 |
-| `Tests/Streaming/WorldStreamingControllerMultiFocusTests.cs` | 197 | 200 |
-| `Tests/Streaming/StreamingIntegrationTests.cs` | 658 | 665 |
-| `Tests/Streaming/CameraStreamingFocusAdapterTests.cs` | 169 | 175 |
-| `Tests/Streaming/StreamingCandidateSetTests.cs`（新規） | 新規 | 90 |
-| `Tests/Editor/SceneGraph/SceneVolumeMathTests.cs`（新規） | 新規 | 130 |
+| ファイル | 現 | 上限 | 実測 |
+|---|---:|---:|---:|
+| `Tests/Streaming/StreamingCandidateFixtures.cs`（新規・共有ヘルパー） | 新規 | 80 | **141** |
+| `Tests/Streaming/WorldStreamingControllerTests.cs` | 464 | 470 | 406 |
+| `Tests/Streaming/WorldStreamingControllerMultiFocusTests.cs` | 197 | 200 | 112 |
+| `Tests/Streaming/StreamingIntegrationTests.cs` | 658 | 665 | 611 |
+| `Tests/Streaming/CameraStreamingFocusAdapterTests.cs` | 169 | 175 | 129 |
+| `Tests/Streaming/StreamingCandidateSetTests.cs`（新規） | 新規 | 90 | 108 |
+| `Tests/Editor/SceneGraph/SceneVolumeMathTests.cs`（新規） | 新規 | 130 | 144 |
+
+フィクスチャが見積の 1.8 倍になったのは、4 ファイルに散っていた `DenseCells` / `CellCenter` / `XzDistance` / `NearestFocusDistance` / `ComputeCellsWithinRadius` / `ComputeUnionDesired` を 1 本へ寄せたため。既存 4 ファイルは合計 1488 → 1258 行に減っており、テスト全体では差し引き 89 行の減。
+
+### 着手時 HANDOFF から外れた 2 点（実装中に判明。M-2 以降が再解釈しないため記録する）
+
+1. **候補フラグの決め方が違った。** §9.3 は「`_streamByDistance` は『体積が空でない』で決まる」と書いていたが、これでは **Environment も候補になってしまう**（Ground を持つので体積が空でない）。実装は「体積が空でなく、かつ**候補である祖先を持たない**」に変えた。これは §34 §6 の「距離の単位は人が開く作業単位」の機械的な言い直しであり、World（Renderer 無し = 空）→ Cell（候補）→ Environment（畳まれる）が正しく出る。
+   - **副作用として知っておくこと:** World の `.unity` に Renderer を 1 つでも置くと、World が候補になり Cell 16 枚が候補から落ちる。そのとき Driver は起動時に例外で落ちる（暗黙フォールバックが無いので黙って壊れない）。
+2. **Editor 側を 3 ファイルに割った。** `SceneVolumeRecalculator` を 1 ファイルで書くと 437 行・3 責務（アセット探索 / 走査規則 / 書き込み）になったため、`.unity` とアセットの読み取りを `SceneVolumeSceneReader` へ抜いた。A-2 の「純関数と I/O を分ける」の延長であり、使い捨てスクリプトではないので分割の方を選んだ。
 
 ## 4. A-2 分割先
 
 `SceneVolumeMath`（純関数）と `SceneVolumeRecalculator`（Editor I/O）を最初から分ける。前者だけがテスト対象で、後者は Unity を開かないと動かない。**使い捨てスクリプトではないので分割する。**
+
+実装では I/O 側がさらに 2 つに割れた（`SceneVolumeRecalculator` = 走査規則と書き込み / `SceneVolumeSceneReader` = アセットと `.unity` の読み取り）。理由は §3 末尾の逸脱 2。
 
 ## 5. A-3 新責務
 
@@ -167,7 +180,7 @@ public sealed class StreamingPolicySettings    // ずっと不変
 
 - 1 シーン分: `.unity` を Additive で開き、全ルートの `Renderer.bounds` を集めて `TryUnion` → 閉じる（`WorldCellStreamingSliceCreator.PopulateSingleCellScene` と同じ開閉の流儀）
 - 子を持つ場合は、**保存済みの子の体積**を `Merge` で畳む（子のシーンを開き直さない）
-- 書き込みは `SerializedProperty`。`_streamByDistance` は「体積が空でない」で決まる（§34 §5: 空なら空間に属さない = Title / Pause / Tunnel）
+- 書き込みは `SerializedProperty`。`_streamByDistance` は「**体積が空でなく、候補である祖先を持たない**」で決まる（§3 末尾の逸脱 1。着手時は「体積が空でない」と書いていたが、それでは Environment も候補になる）
 - メニュー: 全件をボトムアップで再計算する 1 項目
 - **名前文法を一切使わない。** 親子は `SceneResource.Parent` / `Children`、identity 引きは `SceneResourceMap.GetSceneResource`
 
