@@ -1,7 +1,6 @@
 # 四季 Level と 4 動詞実証の実装計画 ハンドオフ (2026-08-26 / 2026-08-27 改訂 / 2026-08-29 退役注記)
 
-> **2026-08-29:** S-3 機構は `develop` にマージ済み。世界構図の正本は [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md)。空間プロトコルは [SCENE_WORLD_BOUNDS.md](SCENE_WORLD_BOUNDS.md)。
-> **読まない:** 本書 §1.2 / §1.3 / §1.4 / §1.5 / §4.2 / §5.2。季節↔動詞、空隙レイアウト、Fable 依頼文、S-3C を矩形 4 つとして実装する手順は退役。
+> **2026-08-29:** S-3 機構は `develop` にマージ済み。世界構図の正本は [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md)。空間プロトコルは [SCENE_WORLD_BOUNDS.md](SCENE_WORLD_BOUNDS.md)。退役した構図・policy・空隙・Fable 依頼は本書に本文を残さない。既存 16 セルは S-4 で全廃し、移送しない。
 > **残す理由:** §0.3 の実測表と §2〜§3 / §4.1 / §5.1 の S-3 記録。harvest 後に `git rm`。
 >
 > Phase A（計画）: Cursor Cloud Agent
@@ -86,11 +85,11 @@ S-3 は機構だけを先に通し、構図を混ぜない（§0.4）。これ�
 
 S-3 と S-3C を混ぜないこと。混ぜると、機構を通すためにまた最安レイアウトが確定する（§0.4 の再発）。
 
-### 1.2〜1.5 退役
+### 1.2 退役した構図指定
 
-季節別 policy、空隙付き矩形 4 つ、Fable 依頼文、S-3C の「矩形 4 つへ移送」は退役した。
+季節別 policy、空隙付き矩形 4 つ、Fable 依頼文、S-3C の「矩形 4 つへ移送」は退役した。正本は隣の 2 ファイル。既存 16 セルは S-4 で全廃し、移送しない。
 
-- 構図・policy・移送先: [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md)
+- 構図・policy: [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md)
 - 距離政策: [SCENE_WORLD_BOUNDS.md](SCENE_WORLD_BOUNDS.md)
 
 S-3 の本番データは現行 4×4 を矩形 1 個として残す（完了済み）。複数矩形の挙動はテスト用フィクスチャ（§3 T-A / T-B）。
@@ -99,7 +98,7 @@ AI の編集も `AuthoredRoot` 配下に置くこと、は生きている（R-6�
 ### 1.6 本スライス（S-3）でやらないこと
 
 - 季節矩形の本番座標・寸法の確定（S-3C）
-- 既存セルの移送（S-3C）
+- 既存セルの全廃（S-4。移送しない。Bounds 中は 16 枚を残す）
 - `Season_*` / Tunnel ノード（S-4 / S-5）。**S-3 のシーン木は `InGameSession → World → Cell` のまま**
 - Addressables グループ分割（S-6）、Variant タグ付与（S-7）
 - 季節テーマの焼き込み・春の職種別コンテンツ（S-3C / S-8）
@@ -155,7 +154,7 @@ S-3 は「矩形 1 個 = 今の 4×4」でも「矩形 4 個」でも同じコ�
 | `OneStarMaker/Tests/Editor/CellPopulationPlanTests.cs` | 304 | 追随 + T-C | テスト | T-7 / T-11 を矩形集合の範囲外でも同じ保護に |
 | 新規テスト（既存ファイルに足してよい） | — | T-A / T-D | テスト | §3 |
 
-S-3 では触らない: `CellAuthoringPolicy`（南辺 4 枚のまま）、`EnvironmentSproutCells` の座標そのもの、`HandEditProbe`、セル `.unity` の中身。これらは S-3C の移送と同時に動かす。`WorldCellStreamingSliceCreator` の sprout 配列の**値**は動かさない。触るのは定義 API への追随だけ。
+S-3 では触らない: `CellAuthoringPolicy`（南辺 4 枚のまま）、`EnvironmentSproutCells` の座標そのもの、`HandEditProbe`、セル `.unity` の中身。これらは S-4 の全廃と同時に動かす（正本は SEASON_WORLD_DESIGN §6。移送しない）。`WorldCellStreamingSliceCreator` の sprout 配列の**値**は動かさない。触るのは定義 API への追随だけ。
 
 **FW（`OneStarMaker`）に「季節」の語彙を入れないこと**（型名・identity・コメントとも）。矩形は幾何としてのみ FW に渡る。`CellIdentity` 書式・`SceneState`・asmdef 依存方向は §33 §10 のとおり不変。
 
@@ -226,9 +225,9 @@ public IReadOnlyList<Vector2Int> Cells { get; }
 7. PR（base: `develop`）→ cursor[bot] → 本書 §7 / §8 のうち S-3 分を埋める。**本書は Bounds と季節スライスの harvest まで `git rm` しない**（§0.3 実測と S-3 記録のため）
 8. **`pwsh tools/run-tests.ps1` は実装者が走らせない。** Phase C が Unity を閉じてから全緑を取る
 
-### 4.2 S-3C 以降 — 退役
+### 4.2 S-4 以降
 
-構図の実装手順は [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md) §6。
+構図の実装手順は [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md) §6（既存 16 セルは全廃。移送しない）。
 空間の口は [SCENE_WORLD_BOUNDS.md](SCENE_WORLD_BOUNDS.md)。矩形 4 つ + 空隙への Catalog 書き込みは行わない。
 
 ---
@@ -245,7 +244,7 @@ public IReadOnlyList<Vector2Int> Cells { get; }
 | A-4 | FW に季節の語彙が漏れていない | `unity/Assets/OneStarMaker/` を Season / 季節で grep → 0 件（D-1） |
 | A-5 | 既存 Streaming テストが残っている | WSC 10 本相当が単一矩形入力で緑 |
 
-### 5.2 S-3C 以降 — 退役
+### 5.2 S-4 以降
 
 受入は [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md) §10 と [SCENE_WORLD_BOUNDS.md](SCENE_WORLD_BOUNDS.md) §4。空隙へ出て desired が空、は同座標構図では使わない。
 

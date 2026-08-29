@@ -19,23 +19,33 @@
 
 ## 1. なぜ今か
 
-現行の距離計算は次のチェーンである。
+現行の距離計算は **座標が主キーで identity が派生物** である。
 
 ```
-Cell_4_2 → CellIdentity.TryParse → (4,2) → CellGridConfig → AABB → 注視点との距離
+Config.Cells（Vector2Int）→ CellIdentity.Format → id
+                ↘ GetCellCenter(x, y) → 注視点との XZ 点距離
 ```
 
-`WorldStreamingController` は毎 Tick `CellIdentity.Format(x, y)` で無修飾 id を自前生成する。
-`CellScene.ComputeBounds` も名前と格子定数から体積を組み立てる。格子のうえでは足りる。
+`WorldStreamingController` は毎 Tick `Format` で無修飾 id を自前生成する。名前から座標をパースしてはいない。AABB も作らない。
+
+名前 → 座標のパースが起きているのは、距離経路の外である。
+
+- `GameSceneFactory.IsCellId` / `EnvironmentIdentity.IsEnvironmentId`（SceneBase 結線）
+- `CellScene` の ctor（`Cell_{x}_{y}` でなければ throw）
+- `EnvironmentIdentity.TryFromCellId`（親名から子名）
+- R-3 の `ThrowIfCellIdentity`（`IsCellId`）
+- 生成器の `CollectExistingStates` / `CellPopulationPlan`（座標を辞書キー）
 
 四季を同じ座標に載せると、`(4,2)` から名前は一意に戻らない。修飾パース・デコレータ・`cellIdQualifier` は、このチェーンを延長する部分解である。それを FW 契約にすると、体積をデータにした瞬間に捨て仕事になる。
+
+4 季節が同一座標キーへ潰れるのは、ランタイムより先に **生成器** で起きる（`Dictionary<Vector2Int, …>` / `CellAuthoringPolicy.Resolve(Vector2Int)` / `TryParse(folderName)`）。
 
 ストリーミングが要るのは次の 2 つだけである。
 
 - **候補集合**（今いる季節の子、など）
 - 各候補の **ワールド体積** と注視点の距離
 
-格子座標は生成器が体積を書くときの入力である。
+格子座標は生成器が体積を書くときの入力である。SceneBase 結線・R-3・子 identity の導出は、名前が修飾付きになる S-4 の着地条件（[SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md) §6）。この口を現行 4×4 で通すあいだ、factory は動かさない。
 
 ---
 
@@ -45,8 +55,8 @@ Cell_4_2 → CellIdentity.TryParse → (4,2) → CellGridConfig → AABB → 注
 |---|---|---|
 | identity が `Cell_{x}_{y}` | `CellIdentity` / R-3 の `IsCellId` | 文法が空間プロトコルになっている |
 | Controller が `Format(x,y)` | `WorldStreamingController` | 候補が座標列。修飾付きファイル名と二層になる |
-| バウンズを毎回組み立てる | `CellScene.ComputeBounds(CellGridConfig)` | 体積がデータの正本ではない |
-| 生成器が parse → 座標をキー | `WorldCellStreamingSliceCreator.CollectExistingStates` 等 | 修飾を足すと 4 季節が同一キーに潰れる |
+| バウンズを毎回組み立てる | `CellScene.ComputeBounds(CellGridConfig)` | 体積がデータの正本ではない。**本番経路からは呼ばれていない（テストのみ）** |
+| 生成器が parse → 座標をキー | `CollectExistingStates` / `CellPopulationPlan` / `CellAuthoringPolicy.Resolve` | 修飾を足すと 4 季節が同一キーに潰れる。ランタイムより先 |
 
 残すもの:
 
@@ -99,6 +109,7 @@ identity は不透明。Controller は `Format` しない。
 持つもの（最小）:
 
 - 体積: AABB、または中心＋半径（球）。ランタイムの距離は XZ でよいか、分解時に現行 `GetXzDistance` と揃える
+- 距離は体積の**中心**（`bounds.center`）への XZ 距離。表面距離は採らない（現行 `GetCellCenter` と同値になり、§4 受入 2 の「同等の集合」が成立する）
 - 距離政策の候補か: `StreamByDistance`（仮）。true のときだけ Controller の候補。R-3（`SwitchScene` 禁止）は名前文法ではなくこのフラグ（または「距離政策の候補」）で見る
 
 **グリッド座標 `Vector2Int` はランタイムのキーにしない。** 生成器の入力・HUD 表示用なら局所に残してよい。policy / 既存収集 / desired のキーは identity 文字列か体積そのもの。
@@ -121,7 +132,7 @@ identity は不透明。Controller は `Format` しない。
 - 距離 = 各候補の AABB と注視点
 - 季節切替 = 候補リストを差し替えて Controller を作り直す。id の翻訳層は作らない
 
-Environment は距離政策の候補に入れない（CCS: 距離の単位は常に Cell）。子は親 Stable 後の明示 Add のまま（現行 `SessionCellChildLoadDriver`）。これは遅延した LoadType に近く、空間メトリックに混ぜない。
+Environment は距離政策の候補に入れない（CCS: 距離の単位は常に Cell）。子は親 Stable 後の明示 Add のまま（現行 `SessionCellChildLoadDriver`）。これは遅延した LoadType に近く、空間メトリックに混ぜない。親名から子名を導く `TryFromCellId` は修飾付きでは成立しないが、直し方は S-4（[SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md) §6）。この Plan の 4×4 証明では現行 `Cell_*` のまま動く。
 
 ### 3.5 距離以外（予約。このスライスで実装しない）
 
@@ -147,6 +158,7 @@ Environment は距離政策の候補に入れない（CCS: 距離の単位は常
 ## 4. 通したあとの形（現行 4×4 で証明する）
 
 本番セルは動かさない（S-3 と同じ）。名前は今の `Cell_0_0` のままでよい。
+既存 16 枚の全廃は [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md) の S-4。この口を通すあいだは残す。
 
 受入（分解セッションがテストに落とす。ここでは条件だけ）:
 
@@ -165,7 +177,8 @@ Environment は距離政策の候補に入れない（CCS: 距離の単位は常
 
 - 実装ファイル一覧、API の確定署名、テスト関数名（別セッション）
 - 修飾 `TryParse`、`SeasonScopedStreamingBackend`、`StreamingConfig.cellIdQualifier`
-- 9×6 の焼き込み、Season_* ノード、トンネル
+- 9×6 の焼き込み、Season_* ノード、トンネル、既存 16 セルの全廃
+- `GameSceneFactory` / `CellScene` ctor / `TryFromCellId` の修飾対応（S-4。現行 4×4 の factory は動かさない）
 - グラフメトリック / ノベル / HLOD（§22）
 - §21 / §33 / §5 の本文改稿（harvest は口が通ってから）
 - Unity.exe 起動、テスト全件実行（実装分解後も実装者は走らせない）
@@ -179,8 +192,9 @@ Environment は距離政策の候補に入れない（CCS: 距離の単位は常
 1. Bounds の置き場（§3.3 の 3 候補）
 2. `StreamingConfig` が持つもの（identity+Bounds の列か、SceneResource 参照か）
 3. 生成器が AABB をいつ書くか（現行格子定数から焼いて埋め込む）
-4. R-3 の検出をフラグへ移す範囲（`CellIdentity.IsCellId` を残す過渡か、一括か）
+4. R-3 の検出をフラグへ移す範囲（`CellIdentity.IsCellId` を残す過渡か、一括か）。**factory の SceneBase 結線（`IsCellId` → `DemoCellScene`）とは別口。** この Plan は無修飾 4×4 のまま factory を動かさない。結線と `TryFromCellId` と修飾付きでの R-3 空洞化は S-4（[SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md) §6）
 5. `CellScene.Coordinate` を残すか（HUD 用。距離判断からは外す）
 6. 既存テストの入力を体積列へ移す手順（本番 4×4 は動かさない）
+7. 生成器の policy 解決と既存収集のキーを identity 文字列へ移す範囲（§4 受入 6。座標キーのままだと 4 季節が潰れる。現行無修飾 4×4 でもフォルダ名照合に寄せて証明する）
 
 Editor 操作境界・`record` 禁止・偽 null 禁止・実装者はテスト未実行、は他スライスと同じ。
