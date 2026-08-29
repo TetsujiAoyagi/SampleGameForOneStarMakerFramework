@@ -7,7 +7,7 @@
 > **harvest 先:** 口が通ったら実装値を `STREAMING_CURRENT_SPEC.md` に移し、§21 の現状記述を追随させる。契約の追加判断があれば §34 へ。
 > **期限（git rm）:** M-1〜M-4 が全て通った時点。Controller が `Format` せず、体積がデータであり、生成器の既存収集 / policy のキーが identity 文字列であり、R-3 が名前文法を見ず、`Runtime/SceneSystem/Cells/` が FW 公開面に無い。そのあと本書を `git rm`。M-1 + M-2 だけで消さない。**S-4 の開始条件ではない。**
 > **S-4 のゲート:** **M-1 の受入**（体積の口）**と M-2 の受入**（生成器 / policy のキーが identity 文字列）。M-2 は M-1 と同ブランチでも、S-4 と同ブランチでもよい（同スライスなら修飾付き生成の前に通す）。M-3 は S-4 より前か同ブランチ。M-4 は S-4 と同時可。`git rm` の期限と混ぜない。
-> **世界構図:** [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md)。
+> **世界構図:** [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md)。進行中正本は世界稿と本書の 2 つ。S-3 記録は [STREAMING_CURRENT_SPEC.md](../streaming/STREAMING_CURRENT_SPEC.md)（公開面。実装指示ではない）。
 >
 > `docs-audit.ps1` 検査3の対象にしないため §7 / §8 は欠番。
 
