@@ -60,7 +60,7 @@
 1. どの変奏でも、最初の 3 秒で「同じ場所（主題）だ」と分かり、続く 3 秒で「違う変奏だ」と分かる
 2. 判別の根拠は完成度パターンと光であり、色名ではない（グレースケール overhead でも I〜IV を区別できる）
 3. どの季節のどのセルを開いても、床（`*_Cell_*.unity`）と印（`*_Environment_*.unity`）の 2 ファイルがあり、どちらを開くべきか迷わない
-4. 生成器を再実行しても、昇格済み identity の演奏レイヤ（`AuthoredRoot` 配下）は 1 個も消えない（判定は **S-8a 以降**。S-4 時点は昇格 0。N-8 で実証項目から下ろすならこの項は無効）
+4. 生成器を再実行しても、昇格済み identity の演奏レイヤ（`AuthoredRoot` 配下）は 1 個も消えない（判定は **S-8a 以降**。S-4 時点は昇格 0）
 
 変奏の密度・崩しを生成器パラメータで回す対象は、**まだ昇格していないセル**に限る。180 セルを先に `HandAuthored` にすると、パラメータは初回スキャフォールドにしか効かない。
 
@@ -83,7 +83,7 @@ y0  |  .  .  .  .  .  .  .  .  .
 - 線セル: `(0,4)(1,4)(2,3)(3,3)(4,2)(5,2)(6,2)(7,1)(8,1)`
 - 見証セル: `(4,2)`（線の曲がり角。tall vertical、遠くから同定できるシルエット）
 - 背: `y=5` の行 9 セル
-- グリッド定数は現行どおり: `Origin = (0,0,0)` / `CellSize 250` / `LoadRadius 375` / `UnloadRadius 550` / `MaxInFlight 2`
+- グリッド定数は [現状仕様](../streaming/STREAMING_CURRENT_SPEC.md) の写し: `Origin = (0,0,0)` / `CellSize 250` / `LoadRadius 375` / `UnloadRadius 550` / `MaxInFlight 2`
 - スポーン: 春（変奏 I）の源流セル `(0,4)` 中心上空。現行コードの `WorldCellCatalog.SpawnPosition` は `Cell_0_0`。S-4 で移す
 - 品質バー 1 の判定地点は演奏レイヤがある線上（見証 `(4,2)`、または線の途中 `(2,3)`）。スポーン `(0,4)` ではない。`(0,4)` は S-9 まで Generated（§4）
 
@@ -146,7 +146,7 @@ S-4 で 9×6×4 を焼くのは、移行 HANDOFF の口が現行 4×4 で通っ�
 | ワークフロー | 実現手段（全変奏共通） |
 |---|---|
 | 2 職種の同時編集 | 全セルに床 `*_Cell_*.unity`（地形職）+ 印 `*_Environment_*.unity`（置き物職）。同じ地点を 2 人が同時に触ってもファイルが違うので衝突しない。**ただし衝突しないのは中身。** `SceneResourceMap.asset`、`Season_*.asset` の `_children`、Addressables 設定は構造変更のたびに全員が触る 1 ファイル。構造は生成器が単独で触る |
-| 再生成しても編集が残る | 昇格済み identity = `HandAuthored`（`AuthoredRoot` を R-6 が保護）/ それ以外 = `Generated`。**判定は S-8a 以降**（S-4 時点は昇格 0。N-8 で実証項目から下ろすならこの行は無効） |
+| 再生成しても編集が残る | 昇格済み identity = `HandAuthored`（`AuthoredRoot` を R-6 が保護）/ それ以外 = `Generated`。**判定は S-8a 以降**（S-4 時点は昇格 0） |
 | 単独ビルド | 1 変奏 = 1 Addressables グループ。見証の頂きを差し替え → その変奏だけ再ビルド → 他 3 変奏のバンドルはハッシュ不変。**共有 Lit / Primitive / Tunnel は季節グループに入れない**（Common 側） |
 | 単独チェックアウト | 1 変奏 = 1 Variant タグ。手元に無い変奏はリモートカタログから解決、解決不能ならトンネル出口で明示失敗し旧季節へ復帰（D-5 継承）。隔離は空隙ではなく **候補集合の排他**（常駐季節が 1 つ） |
 | ストリーミング | 全域で動く。**計測（§21 A-1/A-2）だけは変奏 II（夏）の背コリドー**で取る |
@@ -194,17 +194,17 @@ Checkout の入口（次の変奏を要求する唯一の正規経路）であ�
 
 ## 6. スライス順序
 
-順序: **移行の口（M-1） → S-4 → S-5 → (S-6, S-7) → S-8a（春）→ S-9 → S-8b〜d（他変奏）**。
+順序: **移行の口（M-1〜M-4） → S-4 → S-5 → (S-6, S-7) → S-8a（春）→ S-9 → S-8b〜d（他変奏）**。
 1 スライス = 1 ブランチ = 1 HANDOFF（着手時に切り出す）。
 
-旧 HANDOFF の Editor 操作境界は全スライスに適用する（人間が開いた Editor への CLI のみ可、Unity.exe 起動・テスト実行・YAML 手編集は禁止、テストは Phase C）。`record` 禁止・`#nullable enable`・破棄されうる `UnityEngine.Object` への `?.` / `??` 禁止も同様。
+Editor 操作境界（正本は `.cursor/skills/osm-unity-editor/SKILL.md`）は全スライスに適用する（人間が開いた Editor への CLI のみ可、Unity.exe 起動・テスト実行・YAML 手編集は禁止、テストは Phase C。Cloud では Unity CLI を叩かない）。`record` 禁止・`#nullable enable`・破棄されうる `UnityEngine.Object` への `?.` / `??` 禁止も同様。
 
 **退役:** S-3D（`CellIdentity` の修飾パース）。§34 が identity を不透明キーにすれば不要。復活させない。
 
 | # | 内容 | 補足 |
 |---|---|---|
 | 移行 M-1 | 現行 4×4 で、距離政策が体積を読む口を通す | [STREAMING_SPATIAL_MIGRATION.md](STREAMING_SPATIAL_MIGRATION.md)。**通るまで 9×6×4 を焼かない。現行 16 枚も動かさない。** |
-| S-4 | 谷の生成と季節スワップ（本体） | Season_* 4 ノード、`World` を置き換え。接頭辞はファイル名。候補集合の差し替え。初期 policy は全 Generated。**既存 16 セルは全廃**（下節。移送しない）。identity → `SceneBase` の結線と R-3 ガードを名前文法から外す。スポーンを `(0,4)` へ。**頭で 1 季節 9×6 だけ生成して生成器 1 回の実時間を測り、M を維持するか裁定する** |
+| S-4 | 谷の生成と季節スワップ（本体） | Season_* 4 ノード、`World` を置き換え。接頭辞はファイル名。候補集合の差し替え。初期 policy は全 Generated。**既存 16 セルは全廃**（下節。移送しない）。identity → `SceneBase` の結線を名前文法から外す。**R-3 の口は移行 M-3。S-4 は修飾付き identity でもその口が効くことを着地条件にする。** スポーンを `(0,4)` へ。**頭で 1 季節 9×6 だけ生成して生成器 1 回の実時間を測り、M を維持するか裁定する** |
 | S-5 | トンネルと季節遷移 | §5 の契約。N-3 の内装はここで実測 |
 | S-6 | 1 変奏 = 1 Addressables グループ | Tunnel と共有 Lit / Primitive は専用季節グループに入れない |
 | S-7 | 1 変奏 = 1 Variant タグ + 未チェックアウト経路 | §20 の既存機構にデータを流す。新機構なし |
@@ -233,12 +233,12 @@ Checkout の入口（次の変奏を要求する唯一の正規経路）であ�
 | 2 | `WorldCellStreamingSliceCreator.EnvironmentSproutCells` | 二役。(a) Environment 子を作るセル (b) Ground を置かないセル（`includeGround = !sproutSet.Contains(...)`）。「全セルに Environment をスキャフォールド」で配列を全セルへ広げると、**谷全体から地面が消える**。二役を切り離すこと |
 | 3 | `HandEditProbe.TargetCells` | 南辺 4 枚のハードコード。捨てたセルを stamp しにいく。春の演奏レイヤ（S-8a）の identity へ差し替えるまで無効 |
 
-**S-4 で名前文法が外れる口（移行 M-1 では触らない。現行 `Cell_0_0` のまま通す）:**
+**S-4 で名前文法が外れる口（移行 M-1 では触らない。R-3 の口は M-3。現行 `Cell_0_0` のまま通す）:**
 
 - `GameSceneFactory`: `IsCellId` / `IsEnvironmentId` が false → factory が null → Director が `SceneFactory returned null` で throw。`Spring_Cell_*` が `DemoCellScene` にならない
 - `CellScene` ctor: `TryParse` 失敗で `ArgumentException`。factory を先に直すと即死
 - `EnvironmentIdentity.TryFromCellId`: 親名から子名を組み立ててから Children 走査。修飾付きでは走査に届かず Environment を Add しない（無言）。子の解決は Children 走査へ寄せる
-- R-3（`ThrowIfCellIdentity`）: `IsCellId("Spring_Cell_4_2")` は false。修飾付きになると遷移禁止が空洞化する。検出は名前文法ではなく距離政策の候補フラグへ（口の通しかたは移行 HANDOFF の分解問 4。S-4 で名前が変わる瞬間に効いていなければならない）
+- R-3（`ThrowIfCellIdentity`）: `IsCellId("Spring_Cell_4_2")` は false。修飾付きになると遷移禁止が空洞化する。**口は移行 M-3**（名前文法ではなく距離政策の候補フラグ）。S-4 は修飾付き identity でもその口が効くことを着地条件にする
 
 スポーン: 現行 `WorldCellCatalog.SpawnPosition` は `Cell_0_0` 中心。S-4 で春の源流 `(0,4)` へ移す。
 
@@ -254,8 +254,6 @@ Checkout の入口（次の変奏を要求する唯一の正規経路）であ�
 テストで `Task.Delay` / `Thread.Sleep` 禁止。全件実行は Phase C。実装者は「実装完了。テスト未実行」と報告する。
 
 ---
-
-> §7 / §8 は欠番。HANDOFF の Phase C（§7）/ C'（§8）と番号を重ねない。`tools/docs-audit.ps1` 検査3は両方埋まっている HANDOFF を harvest 忘れと見るため、本書は対象にしない。harvest 期限は §12。
 
 ## 9. スケール（採用候補: M。S-4 頭で裁定）
 
@@ -284,7 +282,7 @@ Checkout の入口（次の変奏を要求する唯一の正規経路）であ�
 | W-1 | FW に季節の語彙が無い | `unity/Assets/OneStarMaker/` を `Season\|Spring\|Summer\|Autumn\|Winter\|季節` で grep → 0 件 |
 | W-2 | identity 重複 0 | SceneResourceMap 生成時の Duplicate 警告 0 |
 | W-3 | 遷移の排他 | 旧季節の in-flight 0 → 新季節 Add。重畳 0。同時に Stable な `Season_*` は 1 つ。desired が完全に入れ替わる |
-| W-4 | 編集が消えない | 生成器 2 回のあと、昇格済み stamp 全生存（Environment 増加分含む）。**判定は S-8a 以降**（S-4 時点は昇格 0 なので空振りする。N-8 で実証項目から下ろすならこの行は無効） |
+| W-4 | 編集が消えない | 生成器 2 回のあと、昇格済み stamp 全生存（Environment 増加分含む）。**判定は S-8a 以降**（S-4 時点は昇格 0 なので空振りする） |
 | W-5 | 単独ビルド | 1 季節リビルドで他 3 季節バンドルのハッシュ不変。見証の頂きが変わる。共有 Lit は季節グループ外 |
 | W-6 | 単独チェックアウト | ローカル欠落季節がリモート解決 or 明示失敗 + 旧季節復帰 |
 | W-7 | 品質バー | §2 の 4 項目を人が目視（自動化しない）。S-8a 時点では春について見る。全変奏は S-8d |
@@ -306,7 +304,7 @@ Checkout の入口（次の変奏を要求する唯一の正規経路）であ�
 | N-5 | 第三声部（照明職 `*_Lighting_*.unity`）を標準装備にするか | S-8 までに発注者判断。今回は 2 声部 |
 | N-6 | `unityyamlmerge` ドライバ設定（前提条件ではない） | 任意 |
 | N-7 | AABB の置き場（`SceneAssetDescription` か隣の値型か `SceneResource` 直下か） | 移行 HANDOFF |
-| N-8 | 生成器を**実証項目として**残すか。残すなら Generated / HandAuthored 同居・W-4・品質バー 4・イテレーション行は S-8a 以降も生きる。下ろすならそれらと `CellAuthoringPolicy` / `CellPopulationPlan` / `HandEditProbe` / R-6 の公開面分類が同時に動く（§21 / §33 は同居自体を実証対象と書いている）。S-4 で 216 セルを焼く装置自体は、どちらでも残る | S-4 頭 |
+| N-8 | 生成器を**実証項目として**残すか。決まったら **§2 品質バー 4 / §4 の「再生成しても編集が残る」「イテレーション」の 2 行 / W-4** が同時に動く。残すなら Generated / HandAuthored 同居は S-8a 以降も生きる。下ろすならそれらと `CellAuthoringPolicy` / `CellPopulationPlan` / `HandEditProbe` / R-6 の公開面分類が同時に動く（§21 / §33 は同居自体を実証対象と書いている）。S-4 で 216 セルを焼く装置自体は、どちらでも残る | S-4 頭 |
 
 ---
 

@@ -5,7 +5,7 @@
 > 現行レイアウト（4×4）で口を通す手順は**ここだけ**に置く。§34 の主語にしない。
 >
 > **harvest 先:** 口が通ったら実装値を `STREAMING_CURRENT_SPEC.md` に移し、§21 の現状記述を追随させる。契約の追加判断があれば §34 へ。
-> **期限:** Controller が `Format` せず、体積がデータであり、生成器の既存収集 / policy のキーが identity 文字列になった時点。そのあと本書を `git rm`。
+> **期限:** M-1〜M-4 が全て通った時点。Controller が `Format` せず、体積がデータであり、生成器の既存収集 / policy のキーが identity 文字列であり、R-3 が名前文法を見ず、`Runtime/SceneSystem/Cells/` が FW 公開面に無い。そのあと本書を `git rm`。M-1 + M-2 だけで消さない。
 > **世界構図:** [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md)。S-4（216 セル）は本書の口が通ってから。
 >
 > `docs-audit.ps1` 検査3の対象にしないため §7 / §8 は欠番。
@@ -38,10 +38,23 @@
 |---|---|---|
 | M-1 | 体積をデータとして持ち、Controller が座標も `Format` も使わない。候補は identity 列 | 動かさない |
 | M-2 | 生成器の既存収集 / policy のキーを identity 文字列へ | 動かさない |
-| M-3 | R-3 を名前文法から外す。factory の `IsCellId` 結線は S-4 と同時でよい | 動かさない（無修飾のまま） |
+| M-3 | R-3 の**口を作る**。検出を距離政策の候補フラグへ。現行 `Cell_0_0` で `SwitchScene` が失敗し続けること | 動かさない（無修飾のまま） |
+| M-4 | `Runtime/SceneSystem/Cells/`（`CellIdentity` / `CellGridConfig` / `CellScene`）を FW 公開面から下ろす。SampleGame または Editor へ | 動かさない |
 | S-4 以降 | 谷の生成・Season_*。正本は [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md) | **全廃**（移送しない） |
 
-M-1 が通るまで M-2 / M-3 / S-4 に入らない。M-2 は M-1 と同ブランチでもよい（座標キーのままだと後で 4 季節が潰れるため、早めに寄せる）。
+M-1 が通るまで M-2 / M-3 / M-4 / S-4 に入らない。M-2 は M-1 と同ブランチでもよい（座標キーのままだと後で 4 季節が潰れるため、早めに寄せる）。
+M-4 は M-3 の後。S-4 と同時でもよい（factory が `IsCellId` をやめる瞬間に型を下ろせる）。
+
+R-3 の所有者: **M-3 が口を作る。S-4 が修飾付き名で効かせる。** どちらも「名前文法から外す」とだけ書くと二重所有になる。factory の SceneBase 結線（`IsCellId` → `DemoCellScene`）は S-4。M-3 は factory を動かさない。
+
+着手時に短い指示書を切るときは、次を本文に入れる（切らない場合も A-1 だけは着手前に出す）。
+
+| # | 必須 |
+|---|---|
+| A-1 | 変更ファイルの現在行数 → 予想行数 / 責務。予想は足す量の上限 |
+| A-2 | 分割先。一度きりの生成スクリプトは例外として明示 |
+| A-3 | 新責務を足すならその旨。足さないなら「新責務なし」 |
+| A-4 | テスト要求（本数・何を残すか・新規） |
 
 退役して復活させない: 修飾パース、`SeasonScopedStreamingBackend`、`StreamingConfig.cellIdQualifier`、矩形 4 つ＋空隙の Catalog。
 
@@ -55,7 +68,7 @@ M-1 が通るまで M-2 / M-3 / S-4 に入らない。M-2 は M-1 と同ブラ�
 2. `StreamingConfig` が持つもの（identity＋体積の列か、SceneResource 参照か）。`Vector2Int` 列と `CellGridConfig` による中心組み立ては捨てる
 3. 生成器が AABB をいつ書くか（現行格子定数から焼いて埋め込む。ランタイムは焼かない）
 4. R-3 の検出をフラグへ移す範囲（`CellIdentity.IsCellId` を残す過渡か、一括か）。**factory の SceneBase 結線（`IsCellId` → `DemoCellScene`）とは別口。** M-1 は無修飾 4×4 のまま factory を動かさない
-5. `CellScene.Coordinate` を残すか（HUD 用。距離判断からは外す）。型そのものを SampleGame へ下ろすタイミングは M-1 では必須ではない
+5. `CellScene.Coordinate` を残すか（HUD 用。距離判断からは外す）。型そのもの（`CellIdentity` / `CellGridConfig` / `CellScene`）を FW から下ろすのは **M-4**
 6. 既存テストの入力を体積列へ移す手順（本番 4×4 は動かさない）
 7. 生成器の policy 解決と既存収集のキーを identity 文字列へ移す範囲（§34。現行無修飾でもフォルダ名照合に寄せて証明する）
 
@@ -77,6 +90,14 @@ Environment は距離政策の候補に入れない（距離の単位は Cell �
 
 これが通るまで S-4 に入らない。
 
+### M-3 の受入
+
+R-3 が `CellIdentity.IsCellId` を見ない。`SwitchScene("Cell_0_0")` はフラグ（距離政策の候補）で失敗する。修飾付き名での着地は S-4（[SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md)）。
+
+### M-4 の受入
+
+`unity/Assets/OneStarMaker/` に `Cell_{x}_{y}` 文法の型（`CellIdentity` / それを公開する `CellScene` / ランタイムの `CellGridConfig`）が無い。生成器入力の格子定数は Editor または SampleGame。
+
 ---
 
 ## 5. やらないこと
@@ -89,7 +110,7 @@ Environment は距離政策の候補に入れない（距離の単位は Cell �
 - Unity.exe 起動、テスト全件実行（実装者は走らせない）
 - `record` の使用（`IsExternalInit` が無い）
 
-Editor 操作境界は他スライスと同じ。人間が開いた Editor への `unity status` / `unity command` / `unity eval` のみ可。YAML 手編集禁止。偽 null 禁止。テストで `Task.Delay` / `Thread.Sleep` 禁止。
+Editor 操作境界（正本は `.cursor/skills/osm-unity-editor/SKILL.md`）。人間が開いた Editor への `unity status` / `unity command` / `unity eval` のみ可。YAML 手編集禁止。偽 null 禁止。テストで `Task.Delay` / `Thread.Sleep` 禁止。Cloud では Unity CLI を叩かない。
 
 ---
 
