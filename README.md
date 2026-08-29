@@ -110,7 +110,8 @@ dotnet run --project src/DebugStudio.App/DebugStudio.App.csproj
 - Unity 内メイン設計書: [`unity/Assets/ARCHITECTURE.md`](unity/Assets/ARCHITECTURE.md)
 - アーキテクチャ詳細: [`unity/Assets/Docs/Architecture/`](unity/Assets/Docs/Architecture/)
 - UpdateSystem 正本仕様: [`docs/updater/UPDATER_CURRENT_SPEC.md`](docs/updater/UPDATER_CURRENT_SPEC.md)
+- Streaming 現状仕様: [`docs/streaming/STREAMING_CURRENT_SPEC.md`](docs/streaming/STREAMING_CURRENT_SPEC.md)（到着契約は [§34](unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md)）
 
 コミットされているドキュメントは**現況を説明するものだけ**である。計画書・外部フレームワーク比較・発表資料は作者の手元にのみ置き、リポジトリには含めない。
 
-例外は `docs/handoff/` で、ここには**進行中のスライス 1 本分の作業指示だけ**が入る（実装を別セッション / 別ツールへ渡すため git worktree に持っていく必要がある）。マージ時に恒久的な内容を `Docs/Architecture/` へ移してから削除する。方針の正本は [`docs/README.md`](docs/README.md)。
+例外は `docs/handoff/` で、ここには進行中のスライスの作業指示と、複数スライスに跨る計画を置いてよい（harvest 先と期限を本文に書く）。実装を別セッション / 別ツールへ渡すため git worktree に持っていく必要がある。マージ時に恒久的な内容を `Docs/Architecture/` へ移してから削除する。方針の正本は [`docs/README.md`](docs/README.md)。
