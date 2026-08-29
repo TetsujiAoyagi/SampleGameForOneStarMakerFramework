@@ -33,6 +33,7 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 - 変更量、責務の混在、単体テスト可能性、Unity の偽 null を確認する。
 - テストに `Task.Delay` / `Thread.Sleep` が入っていないことを確認する。
 - Unity Editor が閉じていることを確認して `pwsh tools/run-tests.ps1` を実行する。絞り込みは `-Filter` を使う。
+- Phase C でも `unity test` / `unity run` は使わない。
 - exit 0 は1件以上実行かつ failed 0。0件は失敗として扱う。
 - `0xC0000005` でも結果 XML が完成していれば、ログ末尾と XML を基に判定する。
 - 確認結果と未確認事項を HANDOFF に記録する。
