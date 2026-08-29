@@ -196,7 +196,7 @@ Checkout の入口（次の変奏を要求する唯一の正規経路）であ�
 順序: **M-1 + M-2（S-4 のゲート）→ S-4。** M-3 は S-4 より前か同ブランチ。M-4 は S-4 と同時可。M-2 は M-1 と同ブランチでも、S-4 と同ブランチでもよい（同スライスなら生成の前に通す）。スライスの中身は移行 HANDOFF。そのあと **S-5 → (S-6, S-7) → S-8a（春）→ S-9 → S-8b〜d（他変奏）**。
 1 スライス = 1 ブランチ = 1 HANDOFF（着手時に切り出す）。
 
-Editor 操作境界（正本は `.cursor/skills/osm-unity-editor/SKILL.md`）は全スライスに適用する（人間が開いた Editor への CLI のみ可、Unity.exe 起動・テスト実行・YAML 手編集は禁止、テストは Phase C。Cloud では Unity CLI を叩かない）。`record` 禁止・`#nullable enable`・破棄されうる `UnityEngine.Object` への `?.` / `??` 禁止も同様。
+Editor 操作境界（正本は `.agents/skills/osm-unity-editor/SKILL.md`）は全スライスに適用する（人間が開いた Editor への CLI のみ可、Unity.exe 起動・テスト実行・YAML 手編集は禁止、テストは Phase C。Cloud では Unity CLI を叩かない）。`record` 禁止・`#nullable enable`・破棄されうる `UnityEngine.Object` への `?.` / `??` 禁止も同様。
 
 **退役:** S-3D（`CellIdentity` の修飾パース）。§34 が identity を不透明キーにすれば不要。復活させない。
 

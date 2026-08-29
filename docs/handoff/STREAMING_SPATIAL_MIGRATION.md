@@ -131,7 +131,7 @@ R-3 が `CellIdentity.IsCellId` を見ない。`SwitchScene("Cell_0_0")` はフ�
 - Unity.exe 起動、テスト全件実行（実装者は走らせない）
 - `record` の使用（`IsExternalInit` が無い）
 
-Editor 操作境界（正本は `.cursor/skills/osm-unity-editor/SKILL.md`）。人間が開いた Editor への `unity status` / `unity command` / `unity eval` のみ可。YAML 手編集禁止。偽 null 禁止。テストで `Task.Delay` / `Thread.Sleep` 禁止。Cloud では Unity CLI を叩かない。
+Editor 操作境界（正本は `.agents/skills/osm-unity-editor/SKILL.md`）。人間が開いた Editor への `unity status` / `unity command` / `unity eval` のみ可。YAML 手編集禁止。偽 null 禁止。テストで `Task.Delay` / `Thread.Sleep` 禁止。Cloud では Unity CLI を叩かない。
 
 ---
 

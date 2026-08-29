@@ -71,11 +71,11 @@ if ($mdFiles.Count -eq 0) {
 }
 
 # ベンダー同梱の README は対象外（3rd party のもので、こちらの方針は適用しない）。
-# `.cursor/skills/unity-cli/` は公式スキル。references/*.md は未 tracked で、検査1 が常に赤になる。
+# `.agents/skills/unity-cli/` は公式スキル。references/*.md は未 tracked で、検査1 が常に赤になる。
 $vendorPrefixes = @(
     'unity/Assets/Packages/',
     'unity/Assets/MobileDependencyResolver/',
-    '.cursor/skills/unity-cli/'
+    '.agents/skills/unity-cli/'
 )
 $ownMd = @($mdFiles | Where-Object {
     $p = $_
