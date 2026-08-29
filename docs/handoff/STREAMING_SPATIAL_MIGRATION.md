@@ -37,7 +37,7 @@
 
 | # | 内容 | 本番セル |
 |---|---|---|
-| M-1 | **実装済み（テスト未実行）。** 体積は `SceneResource` 直下のデータで、Editor（保存フック ＋ 全件メニュー）が `.unity` から自動計算する。`StreamingConfig` は寿命で `StreamingCandidateSet` / `StreamingPolicySettings` に割った。取り出し口は新規 `ISceneVolumeQuery`。着手時 HANDOFF は `STREAMING_VOLUME_M1.md` | 動かさない |
+| M-1 | **実装済み・受入 1〜5 すべて充足（全件 505/505 passed）。** 体積は `SceneResource` 直下のデータで、Editor（保存フック ＋ 全件メニュー）が `.unity` から自動計算する。`StreamingConfig` は寿命で `StreamingCandidateSet` / `StreamingPolicySettings` に割った。取り出し口は新規 `ISceneVolumeQuery`。着手時 HANDOFF は `STREAMING_VOLUME_M1.md` | 動かさない |
 | M-2 | 生成器の既存収集 / policy のキーを identity 文字列へ | 動かさない |
 | M-3 | R-3 の**口を作る**。検出を距離政策の候補フラグへ。現行 `Cell_0_0` で `SwitchScene` が失敗し続けること | 動かさない（無修飾のまま） |
 | M-4 | `Runtime/SceneSystem/Cells/`（`CellIdentity` / `CellGridConfig` / `CellScene`）を FW 公開面から下ろす。SampleGame または Editor へ | 動かさない |

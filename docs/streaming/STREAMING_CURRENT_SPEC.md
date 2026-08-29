@@ -40,7 +40,7 @@ StreamingCandidateSet（identity ＋ Bounds）→ 体積の中心 → 注視点�
 | 正本 policy | 南辺 4 枚 `(0,0)(1,0)(2,0)(3,0)` = `HandAuthored`、他 12 枚 = `Generated` | `CellAuthoringPolicy.cs` |
 | セル実体 | 16 フォルダ。Environment `.unity` は南辺 4 枚のみ | `SampleGame/.../World/Cells/` |
 | Variant | `.asset` の `Variant:` は **52 ファイル全て空文字**。非空値ゼロ | SceneMap / Cells / SceneGraphData |
-| Addressables | グループは `Default Local Group` **1 個**（33 エントリ）。`.unity` を持つ SceneResource 26 本は全て登録済み（`OutGameScene` / `InGameUI` / `PlayerScene` / `Result` の 4 本は未登録のままで、Title からの Play が `InvalidKeyException` で落ちていた。M-1 の Play 検証時に補った）。`Remote.LoadPath` 未定義。`RemoteFull.asset` / `VariantHybridPlayModeScript.asset` はメニュー実行待ちで未生成 | `AddressableAssetsData/` |
+| Addressables | グループは `Default Local Group` **1 個**（32 エントリ。うち `.unity` は 29）。`.unity` を持つ SceneResource 26 本は全て登録済み（`OutGameScene` / `InGameUI` / `PlayerScene` / `Result` の 4 本は未登録のままで、Title からの Play が `InvalidKeyException` で落ちていた。M-1 の Play 検証時に補った）。`Remote.LoadPath` 未定義。`RemoteFull.asset` / `VariantHybridPlayModeScript.asset` はメニュー実行待ちで未生成 | `AddressableAssetsData/` |
 | シーン木 | `InGameSession → World → Cell_{x}_{y} → Environment_{x}_{y}` | `World` は `NecessaryAlways` |
 
 グリッド寸法の正本は `WorldCellCatalog` の const。`WorldGridDefinition.asset` はその写し（`EnsureGridDefinition` が毎回上書き）。アセット側だけを書き換えてもランタイムは追従しない。
@@ -114,6 +114,7 @@ Editor の体積再計算（`SceneVolumeRecalculator`）は名前文法を使わ
 ## 6. テストと計測
 
 - テストは全て EditMode。**WSC 10 本相当（T-B 空隙を入れて 11）+ MultiFocus 3 + 統合 6 / 生成器 7 / `CellPopulationPlan` 14** ほか。M-1 で `StreamingCandidateSet` / `StreamingPolicySettings` の検証 8 本、`SceneVolumeMath` 10 本、`ISceneVolumeQuery` の 3 分岐 4 本が増えた。既存 3 群は入力の与え方が座標列から候補列（identity ＋ 体積）へ変わっただけで、期待値の数値は 1 つも動いていない（体積中心 = セル中心）
+- 直近の全件実行（2026-08-30）は **505 / 505 passed・failed 0**。M-1 の受入 3 はこれで満たしている
 - CI（GitHub Actions）は DebugStudio の `dotnet test` のみ。Unity テストはローカル `pwsh tools/run-tests.ps1`
 - [§21](../../unity/Assets/Docs/Architecture/21-scene-streaming.md) の T-07〜T-09（Play 実証・テレメトリ・受入判定）は未了。季節化のあとに取る
 
