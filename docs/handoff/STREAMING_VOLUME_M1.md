@@ -214,7 +214,7 @@ public sealed class StreamingPolicySettings    // ずっと不変
 
 ## 10. 検証
 
-**実装者は Unity を起動しない**（Editor 操作境界。正本は `.cursor/skills/osm-unity-editor/SKILL.md`）。実装完了時は「実装完了。テスト未実行」と報告する。
+**実装者は Unity を起動しない**（Editor 操作境界。正本は `.agents/skills/osm-unity-editor/SKILL.md`）。実装完了時は「実装完了。テスト未実行」と報告する。
 
 ### 静的（実装者がやる）
 
