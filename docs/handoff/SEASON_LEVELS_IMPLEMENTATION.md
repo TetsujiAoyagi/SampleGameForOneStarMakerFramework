@@ -1,13 +1,17 @@
-# 四季 Level と 4 動詞実証の実装計画 ハンドオフ (2026-08-26 / 2026-08-27 改訂)
+# 四季 Level と 4 動詞実証の実装計画 ハンドオフ (2026-08-26 / 2026-08-27 改訂 / 2026-08-29 退役注記)
 
+> **2026-08-29:** S-3 機構は `develop` にマージ済み。世界構図の正本は [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md)。空間プロトコルは [SCENE_WORLD_BOUNDS.md](SCENE_WORLD_BOUNDS.md)。
+> **読まない:** 本書 §1.2 / §1.3 / §1.4 / §1.5 / §4.2 / §5.2。季節↔動詞、空隙レイアウト、Fable 依頼文、S-3C を矩形 4 つとして実装する手順は退役。
+> **残す理由:** §0.3 の実測表と §2〜§3 / §4.1 / §5.1 の S-3 記録。harvest 後に `git rm`。
+>
 > Phase A（計画）: Cursor Cloud Agent
-> 対象スライス: **S-3「`WorldCellCatalog` を矩形集合へ一般化する」のみ**。世界構図と Level の中身は S-3C（Fable 依頼）。S-4〜S-9 は §1 に方針だけ確定させ、実装はしない
-> 分解と順序の正本: [§33](../../unity/Assets/Docs/Architecture/33-sample-demonstration-boundaries.md)。前スライス: S-1「生成器の非破壊化」（harvest 済み → [§21 §6 / R-6](../../unity/Assets/Docs/Architecture/21-scene-streaming.md)）
-> **実装・検証はローカルマシンの Cursor Editor セッションで行う**（発注者決定 2026-08-26）。本書を書いたクラウド VM に Unity は無く、Phase A は静的調査のみ。§0.3 の実測はコード読解と `git grep` によるもので、Play / テスト実行は一切していない
+> 対象スライス: **S-3「`WorldCellCatalog` を矩形集合へ一般化する」のみ**（完了）。
+> 分解と順序の正本: 世界は SEASON_WORLD_DESIGN、空間は SCENE_WORLD_BOUNDS。§33 の harvest は Bounds の口が通ってから。
+> **実装・検証はローカルマシンの Cursor Editor セッションで行う**（発注者決定 2026-08-26）。§0.3 の実測はコード読解と `git grep` によるもので、Play / テスト実行は一切していない
 >
-> **2026-08-27 改訂:** 初版 §1.3 の座標確定と §1.5 の季節テーマ表を撤回した。理由は §0.4。発注者の指摘は「大きさ・置き方が微妙」と「Fable の創造性は見たい。依頼の仕方ごと直せ」の 2 点。
+> **2026-08-27 改訂:** 初版 §1.3 の座標確定と §1.5 の季節テーマ表を撤回した。理由は §0.4。
 >
-> **2026-08-27 Cloud 改訂:** Unity シーン操作の手順、CLI / Skills、変更対象の欠落、A-1〜A-3、テスト主体を詰めた。この Cloud セッションでは CLI を動かさない。接続確認はローカル。
+> **2026-08-27 Cloud 改訂:** Unity シーン操作の手順、CLI / Skills、変更対象の欠落、A-1〜A-3、テスト主体を詰めた。
 
 ---
 
@@ -15,17 +19,17 @@
 
 ### 0.1 何をするか
 
-§33 が設計した Season / Tunnel / 4 動詞（Build / Commit / Checkout / Streaming）を実装へ落とす。本書はその作業指示である。
+§33 が設計した Season / Tunnel / 4 動詞を実装へ落とす作業のうち、**S-3（矩形集合化）の記録**が本書に残っている。世界構図と空間は隣の 2 ファイルが正本。
 
-**初版との最大の差:** 世界の大きさ・置き方・中身は計画セッションが決めない。S-3 は機構だけを先に通し、構図と Level は制約カードを渡して Fable に設計させる（§1.3 / §1.5）。
+S-3 は機構だけを先に通し、構図を混ぜない（§0.4）。これは完了済み。
 
 ### 0.2 発注者決定（§33 の記述より新しく、優先する）
 
 | 日付 | 決定 |
 |---|---|
-| 2026-08-26 | **Level コンテンツは生成器で大まかに作ってよいが、人または AI の手による編集を正とする。** → §1.2 で D-6 を改訂する |
+| 2026-08-26 | **Level コンテンツは生成器で大まかに作ってよいが、人または AI の手による編集を正とする。** 2 段 policy の正本は SEASON_WORLD_DESIGN §4 |
 | 2026-08-26 | **実装・検証はローカルの Cursor Editor セッションで行う。** クラウドエージェントは計画とコード下書きまで（Unity が無いため生成器実行・テスト実行・Play 確認ができない） |
-| 2026-08-27 | **大きさと置き方を計画側で確定しない。** §33 の「要る大きさ」は最小であり、構図ではない。世界構図と Level の中身は Fable への設計依頼にする（§1.5 のプロンプトを使う） |
+| 2026-08-27 | **大きさと置き方を計画側で確定しない。** 構図の正本は SEASON_WORLD_DESIGN（Fable 稿を改訂済み） |
 | 2026-08-27 | **開いている Editor への Unity CLI（`unity command` / `unity eval`）は可。** Unity.exe 起動・`run-tests.ps1`・`unity test` / `unity run`・Addressables ビルドは禁止。接続できる Editor があるとき `.unity` / `.prefab` / `.asset` の YAML 手直しは禁止。`com.unity.pipeline` は manifest 宣言のみ（lock はローカル Editor が書く） |
 
 ### 0.3 現況の実測（2026-08-26 クラウド側で確認済み。やり直さないこと）
@@ -70,136 +74,27 @@
 | # | 内容 | 前提 | 誰が |
 |---|---|---|---|
 | **S-3** | Catalog / Config / 生成器入力を「矩形の集合」へ一般化する。**本番レイアウトは現行 4×4 を矩形 1 個のまま残す。セルは動かさない** | §33 | ローカル（機構） |
-| **S-3C** | 世界構図（大きさ・置き方）と Level のシルエット。人が図を承認してから移送・再生成 | S-3 | **Fable（設計）+ ローカル（実装）** |
-| S-4 | Season Level 復活。生成器が `Season_*` を吐き `World` を置き換える。初回季節の Ensure 問題（§33 §8 注記）もここで裁定 | S-3C | ローカル |
+| **S-3C** | 世界構図。正本は [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md)。空間は [SCENE_WORLD_BOUNDS.md](SCENE_WORLD_BOUNDS.md) が先 | S-3 | 設計済み。実装は Bounds の口のあと |
+| S-4 | Season Level 復活。生成器が `Season_*` を吐き `World` を置き換える。初回季節の Ensure 問題（§33 §8 注記）もここで裁定 | Bounds の口 + S-3C 構図 | ローカル |
 | S-5 | Tunnel 常設 1 本。滞在中の明示 `AddScene` と D-5 の失敗経路 | S-4 | ローカル |
-| S-6 | 季節ごとの Addressables グループ = **Build 実証（冬）** | S-4 | ローカル |
-| S-7 | 季節 Variant タグ + 未 Checkout 経路 = **Checkout 実証（秋）** | S-5, S-6 | ローカル |
-| S-8 | 春の職種別コンテンツの作り込み = **Commit 実証**。`HandEditProbe` と生成器のスキャフォールド宣言を退役 | S-3C | ローカル（S-3C で骨格、ここで密度） |
-| S-9 | 夏で [§21](../../unity/Assets/Docs/Architecture/21-scene-streaming.md) の T-07〜T-09 = **Streaming 実証** | S-4 | ローカル（実測） |
+| S-6 | 季節ごとの Addressables グループ | S-4 | ローカル。手順は SEASON_WORLD_DESIGN |
+| S-7 | 季節 Variant タグ + 未 Checkout 経路 | S-5, S-6 | ローカル。手順は SEASON_WORLD_DESIGN |
+| S-8 | 演奏レイヤ。春（S-8a）で 4 動詞は出荷可能 | Bounds + S-4 | ローカル。手順は SEASON_WORLD_DESIGN |
+| S-9 | 夏の背コリドーで [§21](../../unity/Assets/Docs/Architecture/21-scene-streaming.md) の T-07〜T-09 | S-4 | ローカル（実測）。y=4 未昇格が前提 |
 
 **§21 の T-07〜T-09 を S-9 まで動かさないこと**（§33 §12。数値が季節化のあとで取り直しになる）。
 
 S-3 と S-3C を混ぜないこと。混ぜると、機構を通すためにまた最安レイアウトが確定する（§0.4 の再発）。
 
-### 1.2 正本 policy の改訂 — 「編集が正」を既定にし、夏だけ `Generated` に残す（D-6 改訂）
+### 1.2〜1.5 退役
 
-発注者決定を §21 §6 の既存機構に載せる。**新しい policy 種別は作らない。** `HandAuthored` の意味論（「`AuthoredRoot` があれば触らない。無ければ初回スキャフォールドとして生成する」）が「生成器で大まかに作り、以後の編集を正とする」そのものである。
+季節別 policy、空隙付き矩形 4 つ、Fable 依頼文、S-3C の「矩形 4 つへ移送」は退役した。
 
-| 季節 | 正本 policy（改訂後） | §33 D-6 からの変化 |
-|---|---|---|
-| 春 | `HandAuthored` | 変化なし |
-| 夏 | **`Generated`** | 変化なし |
-| 秋 | `HandAuthored` | `Generated` → 変更 |
-| 冬 | `HandAuthored` | `Generated` → 変更 |
+- 構図・policy・移送先: [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md)
+- 距離政策: [SCENE_WORLD_BOUNDS.md](SCENE_WORLD_BOUNDS.md)
 
-**夏を `Generated` に残す理由（全季節 `HandAuthored` 化は却下）:**
-
-1. §21 §6 は「どちらか一方に決める必要はなく、**決めてもいけない** — 両方を同居させられることがサンプルの証明対象」と明記している。全季節を編集正本にすると、この証明の `Generated` 側が世界から消える
-2. 夏は Streaming 計測（A-1 / A-2）の場である。手編集でセルごとの密度が揺れると、計測値が編集履歴に依存して再現しなくなる。均質な量産グリッドのまま保つ
-
-**AI の編集も「手編集」である。** 生成器が守るのは `AuthoredRoot` 配下だけなので、AI セッションが `.unity` を編集するときも必ず `AuthoredRoot` 配下に置くこと。外に置いたものは次の生成で消える。
-
-**§33 への反映:** S-3C の Phase D で §33 の D-6 行と §5 表の「正本 policy」列をこの割り当てへ改訂する。それまで §33 と本書が食い違う期間は本書 §1 が優先。レイアウト座標の harvest も S-3C 承認後であり、S-3 では書かない。
-
-### 1.3 レイアウト — 固定するのは幾何条件だけ（O-1 は開けたまま）
-
-§33 §7 の一文をそのまま守る。**並びと座標と「最小を超える寸法」は S-3C が答える。**
-
-固定する条件:
-
-| # | 条件 |
-|---|---|
-| L-1 | 単一座標空間に季節 **矩形 4 つ**（D-1）。L 字や穴開きは矩形集合の契約を破るので採らない |
-| L-2 | 異なる矩形に属する最近セル中心間距離 > `UnloadRadius`（現行 550 m）。空隙 1 セル（中心間 500 m）は不可。2 セル（750 m）以上 |
-| L-3 | `CellIdentity` は非負の `Cell_{x}_{y}`。FW に季節の語彙を入れない |
-| L-4 | 夏は **少なくとも 4×4**（Streaming が半径を跨ぐため）。春 / 秋 / 冬は **少なくとも 2×2** |
-| L-5 | トンネルは常設 1 本（D-4）。隙間を街道として飾らない。隙間は隔離帯 |
-| L-6 | セル増やす提案は Streaming の証明としては却下（§33 §4）。**場所として必要な増分は別理由**で、§1.5 の予算内なら可 |
-
-S-3 の本番データは現行 4×4 を矩形 1 個として残す。複数矩形の挙動は **テスト用フィクスチャ** で検証する（§3 T-A / T-B）。これで機構は通るが、世界はまだ動かない。
-
-### 1.4 既存 16 セルの移送（O-2）— 手順は確定、行き先は S-3C 待ち
-
-- **`Generated` 12 枚は捨てる。** 生成物なので再生成できる。破壊経路 3 に削除させる
-- **`HandAuthored` 南辺 4 枚は春矩形へ移す。** 相対的な並び（横一列の 4 枚）を春のどの 4 マスへどう畳むかは、春矩形の寸法が決まってから決める。2×2 なら 2×2 に畳むし、3×2 なら余白が出る
-- **順序は「構図の承認 → 移送 → 生成器」**。生成器を先に走らせると、南辺のうち春に入らないマスが「範囲外だが保持」の孤児になる（消えはしない。R-6）
-- ワールド座標の補正は、移動したセルごとに「旧セル原点 → 新セル原点」の Δ を `AuthoredRoot` に足す（手段は §4.2。YAML の `m_LocalPosition` を手で足さない）
-- 追随: フォルダ / `.unity` / `.asset` のファイル名、`.asset` 内 identity、SceneGraph ノード、Addressables address、§0.3 の南辺ハードコード 4 箇所
-
-**S-3 では移送しない。** 手段（`move_asset` → identity → `set_transform`）は今確定し、実行は S-3C。S-3 が YAML 前提の API を作らないため。
-
-### 1.5 S-3C — Fable への設計依頼
-
-#### 1.5.1 依頼の切り方（これを破ると §0.4 が再発する）
-
-| やってよい | やってはいけない |
-|---|---|
-| 制約カードと品質バーと既定解の禁止を渡す | 桜・紅葉・雪原など、中身の答えを先に書く |
-| 「10 秒で何が見えるか」を季節ごとに 1 段落出させる | 計画セッションで座標表を埋めて確定にする |
-| 人が overhead 図を見てから Catalog に落とす | 機構 PR のついでに最安レイアウトをマージする |
-| Primitive の範囲でシルエットと職種分割を設計させる | 新しいアセットパイプラインや地形ツールを足させる |
-
-創造性の置き場はカラーパレットではない。**地図の構図、矩形の縦横比、横断にかかる時間、職種で割ったオブジェクト、差し替え可能な 1 個の目印**である。グレースケールの overhead でも四季が区別できるなら、その構図は色に頼っていない。
-
-#### 1.5.2 制約カード（破ったら差し戻し）
-
-- §1.3 の L-1〜L-6
-- 春の Cell には Environment 子を付ける（Commit）。同一 Cell フォルダ内で `Cell_*.unity` と `Environment_*.unity` が別職種の正本
-- 夏は `Generated`。編集で密度を揺らさない
-- 秋・冬は `HandAuthored`（§1.2）
-- 使用してよいのは現行スタック（Cube / Cylinder / Sphere / 共有 Lit、セル 250 m）。メッシュ新規投入はしない
-- FW（`unity/Assets/OneStarMaker/`）に Season / 季節 の語を出さない
-
-#### 1.5.3 品質バー（これを満たさない構図は却下）
-
-- overhead が「同じ切手 4 枚 + 隙間」に見えない。3 季節が同じ縦横比なら、ほぼこの失敗である
-- 飛行 42 m/s で各季節を横断したとき、その動詞に合う滞在時間になっている（目安: 春は職種作業が目に入る距離、夏は Load/Unload 半径を実際に跨げる距離、秋は到着が 1 拍で分かる距離、冬は差し替え物に近づける距離）
-- 春の 1 セルを開いたとき、地形（地面・高低・道）と置き物（木・建物相当）がファイルで分かれている
-- 秋に「今来た」と分かる目印が 1 つある（ログを読まなくても Checkout 実演が指せる）
-- 冬に「この季節だけ差し替えた」と指せる目印が 1 つある（雪だるまである必要は無い。差し替え可能な 1 個であればよい）
-- 現行生成器のモチーフ 4 種（柱 / 筒 / 塔 / 球）を HSV で塗り分けただけ、になっていない
-
-#### 1.5.4 予算
-
-- 最小は §33 どおり 春 2×2 / 夏 4×4 / 秋 2×2 / 冬 2×2
-- 最小を超えるセルは **1 セルにつき「場所として必要な理由」を 1 文**。Streaming の証明のための増設は却下
-- 軟上限: 春+秋+冬の `HandAuthored` 合計 16 セル（現行南辺の 4 倍）。夏は 4×4 を基本とし、距離が足りないときだけ長辺を足す
-- 硬上限: 64 セル構想には戻さない
-
-#### 1.5.5 成果物（コードより先に出す。人が承認してから実装）
-
-1. overhead の図（ASCII か手描き）。矩形 4 つの座標範囲と空隙距離を書き込む
-2. 季節ごとに「10 秒で何が見えるか」1 段落。色名の列挙で終わらせない
-3. 春の職種分割表: 何が `Cell_*.unity` で何が `Environment_*.unity` か
-4. 冬の差し替え目印 1 個と、秋の到着目印 1 個
-5. セル数の内訳と、最小を超えたセルの理由 1 文ずつ
-
-#### 1.5.6 渡すプロンプト（ローカル Cursor で Fable を指定して貼る）
-
-S-3 の機構 PR がマージされたあとの **別セッション** で使う。計画や S-3 のコード変更と同一スレッドに投げない。
-
-```
-モデルは Fable。実装計画ではなく、SampleGame の世界構図と Level のシルエットを設計してほしい。
-
-読むもの:
-- unity/Assets/Docs/Architecture/33-sample-demonstration-boundaries.md
-- docs/handoff/SEASON_LEVELS_IMPLEMENTATION.md の §0.4 と §1.3 と §1.5
-
-やってほしいこと:
-- §1.5.5 の成果物 5 点をこのチャットに出す
-- 座標を Catalog に書き込むのは、人間が図を承認したあと
-- 生成器や FW のリファクタはしない
-
-やってほしくないこと:
-- 春=桜、秋=紅葉、冬=雪、という四季ポスターの既定解で埋めない
-- 2×2 / 4×4 / 2×2 / 2×2 を横一列に空隙 3 セルで置く案は、前の計画が出した最安解なので再提出しない（同じ構図を別座標にずらすのも不可）
-- 「最小で足りる」を理由に切手 3 枚へ戻さない。最小は下限であって目標ではない
-
-品質バーは §1.5.3。制約は §1.5.2。予算は §1.5.4。
-```
-
-Fable が図を出したら、人が overhead を見て承認 or 差し戻しする。承認後の実装（Catalog 定数・移送・生成器）はローカルセッションでよく、Fable である必要は無い。
+S-3 の本番データは現行 4×4 を矩形 1 個として残す（完了済み）。複数矩形の挙動はテスト用フィクスチャ（§3 T-A / T-B）。
+AI の編集も `AuthoredRoot` 配下に置くこと、は生きている（R-6）。
 
 ### 1.6 本スライス（S-3）でやらないこと
 
@@ -328,24 +223,13 @@ public IReadOnlyList<Vector2Int> Cells { get; }
 4. `WorldCellCatalog` / `WorldGridDefinition` / `WorldCellGenerator` / `CellPopulationPlan` を矩形集合へ。本番 Catalog は 4×4 の矩形 1 個。`WorldCellStreamingSliceCreator` は `EnsureGridDefinition` と `CellGridSpec` のコンパイル追随のみ
 5. 人間がこのプロジェクトの Editor を開く。エージェントは `unity status` で `ready` を確認する
 6. 生成器を **1 回**: 既存メニュー `OneStarMaker/Sample/Create World + Cell Streaming Slice`（`WorldCellStreamingSliceCreator.CreateFromMenu`）を `unity command menu` があればそれで、無ければ eval で叩く。現行 16 セルが削除も増設もされないこと（差分は Generated の焼き込み再出力が出ても、HandAuthored 南辺 4 + Environment 4 が `git status` に出なければよい）
-7. PR（base: `develop`）→ cursor[bot] → 本書 §7 / §8 のうち S-3 分を埋める。**本書は S-3C が終わるまで `git rm` しない**
+7. PR（base: `develop`）→ cursor[bot] → 本書 §7 / §8 のうち S-3 分を埋める。**本書は Bounds と季節スライスの harvest まで `git rm` しない**（§0.3 実測と S-3 記録のため）
 8. **`pwsh tools/run-tests.ps1` は実装者が走らせない。** Phase C が Unity を閉じてから全緑を取る
 
-### 4.2 S-3C（構図。Fable 設計 → 人の承認 → ローカル実装）
+### 4.2 S-3C 以降 — 退役
 
-1. §1.5.6 のプロンプトで Fable セッションを切る
-2. 成果物 5 点を人が overhead で見る。切手一列なら差し戻し
-3. 承認後、Catalog に矩形 4 つを書く
-4. **移送 SOP（人間が Editor を開いた状態。YAML / 単独 `git mv` を正本にしない）:**
-   1. `unity status` が `ready`
-   2. フォルダ移動は `move_asset`（`.meta` GUID 同梱）。コマンド名は `unity command` で確認
-   3. identity / 親子 / Addressables address は既存の `SerializedObject` 経路（`ConfigureSceneResource` と同型）。eval で足りる
-   4. `AuthoredRoot` のワールド座標 Δ は `set_transform`（無ければ eval で `Transform`）。シーンは `save_scene`
-   5. policy / sprout 配列を追随
-5. `HandEditProbe.StampHandEdits`（移送前 or 移送直後の生存確認ができるタイミングで）
-6. 生成器を §4.1 と同じメニュー経路で実行 → 旧 Generated 12 の削除と新セルの生成 → もう一度実行して HandAuthored 側差分 0
-7. `VerifyHandEdits`、Phase C でテスト全緑、Editor Play で空隙に desired が空であること
-8. §33 の D-6 / §5 表 / §7 座標 / O-1 / O-2 を harvest。`pwsh tools/docs-audit.ps1`。本書を `git rm`
+構図の実装手順は [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md) §6。
+空間の口は [SCENE_WORLD_BOUNDS.md](SCENE_WORLD_BOUNDS.md)。矩形 4 つ + 空隙への Catalog 書き込みは行わない。
 
 ---
 
@@ -361,16 +245,9 @@ public IReadOnlyList<Vector2Int> Cells { get; }
 | A-4 | FW に季節の語彙が漏れていない | `unity/Assets/OneStarMaker/` を Season / 季節で grep → 0 件（D-1） |
 | A-5 | 既存 Streaming テストが残っている | WSC 10 本相当が単一矩形入力で緑 |
 
-### 5.2 S-3C（Fable 成果物 + 実装）
+### 5.2 S-3C 以降 — 退役
 
-| # | 条件 | 判定方法 |
-|---|---|---|
-| C-1 | §1.5.5 の 5 点がチャットにあり、人が overhead を承認している | 承認コメントが残っている。初版の横一列切手は不在 |
-| C-2 | 空隙条件が本番 Catalog に対するテストで緑 | T-A を本番矩形に対しても走らせている |
-| C-3 | 移送した手編集が消えない | stamp が生成器 2 回のあと 8 / 8 生存（Environment 本数が春の寸法で増えるなら、その分まで含めて生存） |
-| C-4 | 旧 Generated 12 枚がフォルダ・SceneGraph とも消えている | Explorer / grep |
-| C-5 | Editor Play で季節 A から空隙へ出ると desired が空 | 例外 0。隣の季節が load 半径に入らない |
-| C-6 | 品質バー | §1.5.3 を人の目視。自動テスト化しない |
+受入は [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md) §10 と [SCENE_WORLD_BOUNDS.md](SCENE_WORLD_BOUNDS.md) §4。空隙へ出て desired が空、は同座標構図では使わない。
 
 偽 null チェック（`?.` / `??` / `is null` / `ReferenceEquals`）の grep をレビュー時に行うこと（S-1 の教訓。破棄済み `UnityEngine.Object` は `?.` / `??` が短絡しない）。
 
