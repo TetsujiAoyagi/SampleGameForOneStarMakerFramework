@@ -1,10 +1,21 @@
 # 33. SampleGame 実証境界 — Season / Tunnel / 4 動詞
 
-> ステータス: **設計中**（2026-08-27）。**コードはまだ書かない。** 実装は S-3 以降
+> ステータス: **部分退役。** 空間の到着契約は [§34](34-ondemand-spatial-policy.md)。現状の格子キーは [§21](21-scene-streaming.md) / [STREAMING_CURRENT_SPEC.md](../../../../docs/streaming/STREAMING_CURRENT_SPEC.md)。世界構図と 4 動詞の検証マトリクスは作業台（`docs/handoff/`）の進行中計画が新しい。本文は harvest まで残す。
+> **コードは本章から書き始めない。**
 > [ARCHITECTURE.md](../../ARCHITECTURE.md) に戻る
 > 関連: [18-asset-description.md](18-asset-description.md)、[20-variant-checkout-workflow.md](20-variant-checkout-workflow.md)、[21-scene-streaming.md](21-scene-streaming.md)、[27-folder-structure.md](27-folder-structure.md)、[05-scene.md](05-scene.md)
 
 本章は **SampleGame が何をどこで実証するか** を所有する。フレームワークの契約ではなく、**検証用ゲームの構造の契約**である。
+
+### 退役表（本文より優先する）
+
+| 本文 | 退役理由 | 今の正本 |
+|---|---|---|
+| D-1 空隙で季節矩形を離す。`CellIdentity` 不変 | 四季は同じ座標の四変奏。identity 文法を空間プロトコルにしない | §34。世界構図は作業台 |
+| §5 季節↔動詞、季節別 policy | 実証の目的は全変奏×全ワークフロー | 作業台の検証マトリクス |
+| §10「`CellIdentity` 書式は不変」「Controller のポリシー実装は変更不要」 | 到着点では政策のキーは identity、体積はデータ | §34 |
+| §12 S-3 を「レイアウト確定 + 矩形集合化」とする行 | S-3 は矩形集合化まで（現状）。構図は混ぜない | 現状仕様。移行は作業台 |
+| §7 空隙の幾何、O-1 を S-3 で座標確定 | 計画セッションに構図を確定させない | 作業台の世界構図 |
 
 季節（Season）という語が出てくるが、これはコンテンツのテーマではない。**独立に出荷でき、独立にチェックアウトでき、独立に人が触れる単位**に名前を付けたものである。テーマを剥がしても構造は残る。
 
