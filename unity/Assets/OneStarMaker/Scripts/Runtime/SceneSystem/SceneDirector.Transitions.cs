@@ -112,10 +112,10 @@ namespace OneStarMaker.Runtime.SceneSystem
             bool recordHistory,
             IReadOnlyDictionary<string, string>? telemetryTags = null)
         {
-            // セル identity ガード（R-3/G-4）: セルは AddScene / UnloadScene 専用（D-5）。
+            // 距離政策候補ガード（R-3）: OnDemand の候補は AddScene / UnloadScene 専用。
             // 履歴・TransitionPlan を汚染しないよう、span 開始・Show・履歴記録より前に失敗させる。
-            ThrowIfCellIdentity(fromSceneIdentify);
-            ThrowIfCellIdentity(toSceneIdentify);
+            ThrowIfStreamByDistanceCandidate(fromSceneIdentify);
+            ThrowIfStreamByDistanceCandidate(toSceneIdentify);
 
             // 文字列タグの持ち回りはやめ、操作種別は StartType、数値は Payload（併記で Metadata）に寄せる。
             // これにより scene 遷移でも追加ヒープ確保を増やさず transport へ流せる。
@@ -201,17 +201,31 @@ namespace OneStarMaker.Runtime.SceneSystem
         }
 
         /// <summary>
-        /// セル identity（`Cell_{x}_{y}`）を画面遷移に乗せようとした場合に即失敗させる。
+        /// 距離政策の候補を画面遷移に乗せようとした場合に即失敗させる。
         /// GoBack / ExecuteTransitionPlan も SwitchSceneCore を経由するため、ここで全経路を守る。
         /// </summary>
-        private static void ThrowIfCellIdentity(string? sceneIdentify)
+        private void ThrowIfStreamByDistanceCandidate(string? sceneIdentify)
         {
-            if (sceneIdentify != null && CellIdentity.IsCellId(sceneIdentify))
+            if (string.IsNullOrEmpty(sceneIdentify))
             {
-                throw new InvalidOperationException(
-                    $"セル identity '{sceneIdentify}' を SwitchScene / GoBack / TransitionPlan に乗せることはできません（R-3）。" +
-                    "セルは AddScene / UnloadScene 専用です（21-scene-streaming.md D-5）。");
+                return;
             }
+
+            var resource = _sceneResourceMap.GetSceneResource(sceneIdentify);
+            // SceneResource は UnityEngine.Object。未登録・破棄済みを拒否しない。
+            if (resource == null)
+            {
+                return;
+            }
+
+            if (!resource.StreamByDistance)
+            {
+                return;
+            }
+
+            throw new InvalidOperationException(
+                $"距離政策の候補 '{sceneIdentify}' を SwitchScene / GoBack / TransitionPlan に乗せることはできません（R-3）。" +
+                "候補は AddScene / UnloadScene 専用です。");
         }
 
         // ─── Private: SceneTransitionPlan execution ───
