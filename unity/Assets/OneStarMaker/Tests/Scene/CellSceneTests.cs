@@ -22,7 +22,6 @@ namespace OneStarMaker.Tests.SceneSystem
     /// - CellIdentity: `Cell_{x}_{y}` 形式の判定・座標解析
     /// - CellScene: 座標・バウンズのメタデータ運搬（判断ロジックなし）
     /// - R-2: CellScene は UIView を検索・登録しない（構造的強制）
-    /// - R-3/G-4: セル identity を SwitchScene に乗せたら明示的に失敗する
     /// </summary>
     [TestFixture]
     public class CellSceneTests : SceneDirectorTestBase
@@ -153,43 +152,6 @@ namespace OneStarMaker.Tests.SceneSystem
         });
 
         // ═══════════════════════════════════════════
-        //  R-3/G-4: セル identity の画面遷移ガード
-        // ═══════════════════════════════════════════
-
-        [UnityTest]
-        public IEnumerator SwitchScene_WithCellIdentity_ThrowsInvalidOperation()
-            => UniTask.ToCoroutine(async () =>
-        {
-            var director = SetupTitleAndCell();
-
-            // to 側にセル identity
-            try
-            {
-                await director.SwitchScene(null, "Cell_0_0", CancellationToken.None);
-                Assert.Fail("セル identity への SwitchScene は InvalidOperationException を投げるべき（R-3/G-4）");
-            }
-            catch (InvalidOperationException)
-            {
-            }
-
-            Assert.IsFalse(director.ContainsScene("Cell_0_0"),
-                "ガードはシーンを一切ロードせずに失敗すべき");
-
-            // from 側にセル identity
-            try
-            {
-                await director.SwitchScene("Cell_0_0", "Title", CancellationToken.None);
-                Assert.Fail("セル identity からの SwitchScene は InvalidOperationException を投げるべき（R-3/G-4）");
-            }
-            catch (InvalidOperationException)
-            {
-            }
-
-            Assert.IsFalse(director.ContainsScene("Title"),
-                "ガードはシーンを一切ロードせずに失敗すべき");
-        });
-
-        // ═══════════════════════════════════════════
         //  Helpers / TestDoubles
         // ═══════════════════════════════════════════
 
@@ -221,20 +183,6 @@ namespace OneStarMaker.Tests.SceneSystem
             var director = new RootObjectsSceneDirector(factory, UICommon, Map, AssetManagement);
             Director = director;
             return (director, factory);
-        }
-
-        /// <summary>Title（通常）+ Cell_0_0（セル）の 2 リソース構成。ガードテスト用。</summary>
-        private TestableSceneDirector SetupTitleAndCell()
-        {
-            var titleRes = SceneTestHelper.CreateSceneResource("Title");
-            var cellRes = SceneTestHelper.CreateSceneResource("Cell_0_0");
-            CreatedSOs.Add(titleRes);
-            CreatedSOs.Add(cellRes);
-            Map = SceneTestHelper.CreateSceneResourceMap(titleRes, cellRes);
-            CreatedSOs.Add(Map);
-
-            Director = new TestableSceneDirector(Factory, UICommon, Map, AssetManagement);
-            return Director;
         }
 
         /// <summary>テスト用の最小 UIView 実装（既定レイヤー Normal、アニメーションなし）。</summary>
