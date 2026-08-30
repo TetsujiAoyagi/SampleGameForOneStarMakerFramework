@@ -203,9 +203,9 @@ Editor 操作境界（正本は `.agents/skills/osm-unity-editor/SKILL.md`）は
 | # | 内容 | 補足 |
 |---|---|---|
 | 移行 M-1 | 現行 4×4 で、距離政策が体積を読む口を通す | [STREAMING_SPATIAL_MIGRATION.md](STREAMING_SPATIAL_MIGRATION.md)。**S-4 のゲート（体積の口）。** M-2 と揃えて通す。通るまで 9×6×4 を焼かない。現行 16 枚も動かさない |
-| 移行 M-2 | 生成器の既存収集 / policy のキーを identity 文字列へ | 移行 HANDOFF。M-1 と同ブランチ可。**S-4 のゲート（キーが identity 文字列）。** S-4 と同スライスでもよいが、修飾付き生成の前に通す |
-| 移行 M-3 | R-3 の口を作る。検出を距離政策の候補フラグへ | 移行 HANDOFF。**S-4 より前か同ブランチ**（修飾付きで空洞化しないため） |
-| 移行 M-4 | `Runtime/SceneSystem/Cells/` を FW 公開面から下ろす | 移行 HANDOFF。**S-4 と同時可** |
+| 移行 M-2 | 生成器の既存収集 / policy のキーを identity 文字列へ | [STREAMING_SPATIAL_M2.md](STREAMING_SPATIAL_M2.md)。**S-4 のゲート（キーが identity 文字列）。** S-4 と同スライスでもよいが、修飾付き生成の前に通す |
+| 移行 M-3 | R-3 の口を作る。検出を距離政策の候補フラグへ | [STREAMING_SPATIAL_M3.md](STREAMING_SPATIAL_M3.md)。**S-4 より前か同ブランチ**（修飾付きで空洞化しないため）。`IsCellId` 過渡は採らない |
+| 移行 M-4 | `Runtime/SceneSystem/Cells/` を FW 公開面から下ろす | [STREAMING_SPATIAL_M4.md](STREAMING_SPATIAL_M4.md)。**S-4 と同時可** |
 | S-4 | 谷の生成と季節スワップ（本体） | Season_* 4 ノード、`World` を置き換え。接頭辞はファイル名。候補集合の差し替え。初期 policy は全 Generated。**既存 16 セルは全廃**（下節。移送しない）。identity → `SceneBase` の結線を名前文法から外す。**R-3 の口は移行 M-3。S-4 は修飾付き identity でもその口が効くことを着地条件にする。** スポーンを `(0,4)` へ移すのは N-1 と同スライス。**頭で 1 季節 9×6 だけ生成して生成器 1 回の実時間を測り、M を維持するか裁定する** |
 | S-5 | トンネルと季節遷移 | §5 の契約。N-3 の内装はここで実測 |
 | S-6 | 1 変奏 = 1 Addressables グループ | Tunnel と共有 Lit / Primitive は専用季節グループに入れない |
@@ -331,6 +331,8 @@ S-9 の着手時 HANDOFF は S-9a〜c を 1 ブランチに詰め込まない。
 | N-6 | `unityyamlmerge` ドライバ設定（前提条件ではない） | 任意 |
 | N-7 | ~~AABB の置き場~~ **決定済み（M-1）: `SceneResource` 直下**（`_volume` ＋ `_streamByDistance`）。値は生成器が格子定数から焼くのではなく、Editor がシーン保存フックと全件メニューで `.unity` から自動計算する | 移行 HANDOFF で決着 |
 | N-8 | 生成器を**実証項目として**残すか。決まったら **§2 品質バー 4 / §4 の「再生成しても編集が残る」「イテレーション」の 2 行 / W-4** が同時に動く。残すなら Generated / HandAuthored 同居は S-8a 以降も生きる。下ろすならそれらと `CellAuthoringPolicy` / `CellPopulationPlan` / `HandEditProbe` / R-6 の公開面分類が同時に動く（§21 / §33 は同居自体を実証対象と書いている）。S-4 で 216 セルを焼く装置自体は、どちらでも残る | S-4 頭 |
+| N-9 | 体積収集の範囲。現状は全 `Renderer`（`includeInactive: true`）。Particle / 無効デバッグメッシュで中心が跳ね得る。規約が要るなら谷を焼くときに決める | S-4 |
+| N-10 | `WorldStreamingController.Candidates` 差し替え口。候補集合は丸ごと作り直す型。in-flight を抱えたまま集合だけ替えたくなったら WSC 側に口を足す | S-4 |
 
 ---
 
