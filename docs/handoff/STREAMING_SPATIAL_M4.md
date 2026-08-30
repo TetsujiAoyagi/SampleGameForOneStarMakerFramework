@@ -59,6 +59,10 @@ SampleGame/DependOnAll/Editor/Streaming/Cells/
   を変えない。
 - Runtime 型の namespace は `SampleGame.InGame.World` または既存の
   `SampleGame.InGame.Streaming` に寄せる。新しい公開契約を増やさない。
+- `DemoCellScene` / `EnvironmentIdentity` / `EnvironmentScene` は **既に**
+  `SampleGame.InGame.World` にある。CellScenes/ へ寄せてよいが、namespace は
+  `SampleGame.InGame.World` のままでよい。寄せないなら対象外と明記して残す。
+  挙動は変えない。
 - Editor 生成器型は `SampleGame.DependOnAll.Editor.Streaming.Cells` 配下でよい
   （Creator 本体の namespace だけ固定）。
 
@@ -108,7 +112,7 @@ SampleGame/DependOnAll/Editor/Streaming/Cells/
 | `DependOnAll/Editor/WorldCellStreamingSliceCreator.cs` | M-2 後 | 1180 | フォルダ移動可。namespace / `BatchMethod` 不変 |
 | `DependOnAll/GameSceneFactory.cs` | 76 | 76 | using のみ |
 | `Tests/Scene/SceneDirectorTestBase.cs` | 200 | 210 | Format → リテラルまたは SampleGame |
-| `Tests/Streaming/WorldCellCatalogTests.cs` | （既存） | +40 | asset を `EnsureGridDefinition` なしでロード |
+| `Tests/Editor/WorldGridDefinitionLoadTests.cs`（新規） | 0 | 80 | `WorldGridDefinition.asset` を `EnsureGridDefinition` なしでロード。Catalog テストに載せない |
 
 A-2: generator 604 行は分割しない（M-2 と同じ例外。今分割すると移送が二重）。
 A-3: 新責務なし。置き場の選定理由は §3.1（生成済み `World/Cells/` とフラット root を避ける）。
@@ -145,8 +149,14 @@ Phase C: 構造レビュー（`.cs` 数、namespace、`BatchMethod` grep）→
 
 ## 6.1 実装制約
 
-M-2 HANDOFF §6.1 と同じ。GUID を落とさない。YAML 手編集しない。
-衝突したら Phase B を止める。
+- 新規・編集する Unity C# は先頭に `#nullable enable`。
+- Unity C# で `record` を使わない。
+- 破棄されうる `UnityEngine.Object` は `== null` / `!= null`。`?.` / `??` / `is null` / `ReferenceEquals` を使わない。
+- Editor コードを Runtime asmdef に置かない。本番 asmdef 参照を追加しない。
+- `SceneState` の 14 値を減らさず、並べ替えない。
+- テストで `Task.Delay` / `Thread.Sleep` を使わない。
+- `.unity` / `.prefab` / `.asset` YAML を手編集しない。GUID を落とさない。
+- HANDOFF とコードが衝突する、新しい設計判断が必要なら Phase B を止める。
 
 ---
 

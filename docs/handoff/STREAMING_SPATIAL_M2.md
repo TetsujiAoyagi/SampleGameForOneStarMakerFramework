@@ -84,6 +84,7 @@ Creator は `FromGrid(definition)` の結果を受け取り、自分では Forma
 WorldCellGenerator.ComputePlan(definition, targets, existingState)
 WorldCellGenerator.Generate(definition, targets, map, parentResource)
 WorldCellExistingState.FromMap(map, targets)
+AdoptExistingResourceAssets(definition, targets, map, parentResource)
 ```
 
 - `ComputePlan`、出力フォルダ、SceneResource identity、Skip 判定は `target.Identity` を使う。
@@ -91,6 +92,7 @@ WorldCellExistingState.FromMap(map, targets)
 - `FromMap` は `CellIdentity.IsCellId` で選別しない。target identity と完全一致する
   Map entry だけを集める。重複 identity は `HashSet.Add` で黙殺せず **throw**。
 - `AdoptExistingResourceAssets` は target 列の identity / path を使い、内部で Format しない。
+  旧署名 `(definition, map, parent)` を残して `EnumerateCells` + Format するフォールバックは置かない。
 - target に無い SceneResource を `AllCellResources` へ混ぜない。
 - `ApplyPlan` / `ApplySceneFiles` は plan entry を正とし、追加の名前解析を行わない。
 - 既存テストの `ComputePlan(definition, existingState)` 呼び出しは全て新署名へ直す。
@@ -141,10 +143,14 @@ CellAuthoringPolicy.Resolve(string identity)
 | `DeleteOutOfGridCellFolders` | `TryParse` + `definition.Contains` | フォルダ名 = identity。削除計画の identity 集合 |
 | `CollectExistingStates` | `TryParse(folderName)` 失敗で捨てる | フォルダ名を identity として採用。パース失敗で捨てない |
 | `SyncSceneGraph` | `Format(x, y)` | `target.Identity` |
-| `CreateEnvironmentSprouts` の所属 | 南辺座標 | 南辺 identity 集合（§3.6） |
+| `CreateEnvironmentSprouts` の所属と cellId | 南辺座標 + `Format` | 南辺 identity 集合。cellId は集合の文字列。座標は **一致する target.Coordinate**。Cell 側を Format しない |
+| `Relink*` / `RegisterCellAddressables` / `SyncSceneGraph` / 削除の引数 | `definition` と座標 membership | **targets または target identity 集合**を受け取る。`definition.Contains` で所属を見ない |
 
 SceneGraph の孤立ノード掃除・Map 除去も、収集済み identity 集合を正とし
 `TryParse` / `Format` でフォルダを組み立て直さない。
+
+`DeleteOutOfGridCellFolders` 内の Environment 掃除も Format しない。
+削除フォルダ内の全 SceneResource identity を集めれば `Environment_*` は一緒に落ちる。
 
 ### 3.6 Environment 収集と sprout
 
@@ -164,10 +170,17 @@ SceneGraph の孤立ノード掃除・Map 除去も、収集済み identity 集�
   `EnvironmentIdentity.Format(x, y)` のまま（S-4）。
 - `EnvironmentSproutCells` を座標配列から **identity 集合** へ変える。
   今の南辺だけ: `"Cell_0_0"` … `"Cell_3_0"`。
+- ループは identity を回す。`cellId` はその文字列。配置座標は **targets から同じ identity を引いた `Coordinate`**。
+  `CellIdentity.Format` で cellId を組み直さない。見つからない identity は sprout しない（例外にしない）。
+- `ShouldPopulateEnvironment` も identity で見る。
 - 同一座標の 2 identity がどちらも sprout すると子 identity `Environment_0_0` が衝突する。
   sprout を identity 集合にしたので、南辺 identity 以外は sprout しない。
 - 同一座標・別 identity のテストは、sprout 集合に入る identity を **1 つまで** にする
   （両方 `"Cell_0_0"` 相当にしない。片方は arbitrary 名）。
+
+`Cells/` 直下のサブフォルダはすべて Cell 作業単位の identity とみなす。
+今の本番は `Cell_*` だけなので 4×4 は不変。未知フォルダは target に無く、
+HandAuthored 文字列でもなければ削除計画に乗る（パース失敗で黙殺しない）。
 
 `HandEditProbe` の `Format` は M-2 では触らない。所有者は S-4（命名）。ファイル移送は M-4。
 
@@ -202,10 +215,10 @@ Creator に残す責務（ここ以外を Creator に足さない）:
 | `Scripts/Editor/Streaming/WorldCellGenerationTarget.cs`（新規） | 0 | 90 | identity＋coordinate と入力検証。`FromGrid` が Format の唯一口。新責務は別ファイル |
 | `Scripts/Editor/Streaming/WorldCellGenerator.cs` | 604 | 625 | target を計画・adoption へ通す。6 型同居は維持（A-2 例外） |
 | `DependOnAll/Editor/WorldCellStreamingSliceCreator.cs` | 1403 | 1180 | I/O 抽出で縮小。§3.7 の残責務に限定 |
-| `Editor/Streaming/Cells/State/WorldCellExistingStateCollector.cs`（新規） | 0 | 220 | AssetDatabase から identity keyed state を読む |
-| `Editor/Streaming/Cells/State/WorldCellFolderReconciler.cs`（新規） | 0 | 320 | folder / Map / World / Graph の削除整合 |
-| `Editor/Cells/CellPopulationPlan.cs` | 290 | 330 | identity keyed の純計画。`CellGridSpec` 削除 |
-| `Editor/Cells/CellAuthoringPolicy.cs` | 59 | 55 | identity → policy の純関数 |
+| `DependOnAll/Editor/Streaming/Cells/State/WorldCellExistingStateCollector.cs`（新規） | 0 | 220 | AssetDatabase から identity keyed state を読む。FW Editor に置かない |
+| `DependOnAll/Editor/Streaming/Cells/State/WorldCellFolderReconciler.cs`（新規） | 0 | 320 | folder / Map / World / Graph の削除整合。FW Editor に置かない |
+| `DependOnAll/Editor/Cells/CellPopulationPlan.cs` | 290 | 330 | identity keyed の純計画。`CellGridSpec` 削除 |
+| `DependOnAll/Editor/Cells/CellAuthoringPolicy.cs` | 59 | 55 | identity → policy の純関数 |
 | `Tests/Editor/WorldCellGeneratorTests.cs` | 295 | 390 | arbitrary identity / duplicate / adoption。旧署名呼び出しを全置換 |
 | `Tests/Editor/CellPopulationPlanTests.cs` | 368 | 490 | 同座標複数 identity と既存受入。`Resolve(int,int)` 呼び出しを全置換 |
 

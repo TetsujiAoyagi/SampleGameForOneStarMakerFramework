@@ -109,9 +109,14 @@ Phase C: 構造レビュー →
 
 ## 6.1 実装制約
 
-M-2 HANDOFF §6.1 と同じ（`#nullable enable` / `record` 禁止 / 偽 null 禁止 /
-asmdef 追加禁止 / `SceneState` 14 値 / `Task.Delay` 禁止 / YAML 手編集禁止）。
-衝突したら Phase B を止める。
+- 新規・編集する Unity C# は先頭に `#nullable enable`。
+- Unity C# で `record` を使わない。
+- 破棄されうる `UnityEngine.Object` は `== null` / `!= null`。`?.` / `??` / `is null` / `ReferenceEquals` を使わない。
+- Editor コードを Runtime asmdef に置かない。asmdef 参照を追加しない。
+- `SceneState` の 14 値を減らさず、並べ替えない。
+- テストで `Task.Delay` / `Thread.Sleep` を使わない。
+- `.unity` / `.prefab` / `.asset` YAML を手編集しない。
+- HANDOFF とコードが衝突する、新しい設計判断が必要なら Phase B を止める。
 
 ---
 
