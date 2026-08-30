@@ -12,10 +12,7 @@ using UnityEngine;
 
 namespace OneStarMaker.Editor.Streaming
 {
-    /// <summary>
-    /// 生成計画におけるセル 1 件分のアクション種別。
-    /// 冪等性は <see cref="Skip"/> で「既存分は変更しない」を表現する。
-    /// </summary>
+    /// <summary>生成計画におけるセル 1 件分のアクション種別。</summary>
     public enum WorldCellPlanAction
     {
         /// <summary>新規 SceneResource（および未存在なら .unity）を生成する。</summary>
@@ -25,15 +22,11 @@ namespace OneStarMaker.Editor.Streaming
         Skip,
     }
 
-    /// <summary>
-    /// セル 1 件分の生成計画エントリ（純粋データ）。
-    /// </summary>
+    /// <summary>セル 1 件分の生成計画エントリ（純粋データ）。</summary>
     public sealed class WorldCellGenerationEntry
     {
-        /// <summary>
-        /// 生成計画エントリを構築する。
-        /// </summary>
-        /// <param name="identity">セル identity（Cell_{x}_{y}）。</param>
+        /// <summary>生成計画エントリを構築する。</summary>
+        /// <param name="identity">生成対象の不透明な identity。</param>
         /// <param name="coordinate">グリッド座標。</param>
         /// <param name="parentIdentity">親シーン identity。</param>
         /// <param name="loadType">ロードタイミング種別。</param>
@@ -58,7 +51,7 @@ namespace OneStarMaker.Editor.Streaming
             SceneResourceAssetPath = sceneResourceAssetPath;
         }
 
-        /// <summary>セル identity（Cell_{x}_{y}）。</summary>
+        /// <summary>生成対象の不透明な Cell identity。</summary>
         public string Identity { get; }
 
         /// <summary>グリッド座標。</summary>
@@ -80,14 +73,10 @@ namespace OneStarMaker.Editor.Streaming
         public string SceneResourceAssetPath { get; }
     }
 
-    /// <summary>
-    /// グリッド定義から算出したセル生成計画（純関数の出力）。
-    /// </summary>
+    /// <summary>グリッド定義から算出したセル生成計画（純粋データ）。</summary>
     public sealed class WorldCellGenerationPlan
     {
-        /// <summary>
-        /// 生成計画を構築する。
-        /// </summary>
+        /// <summary>生成計画を構築する。</summary>
         /// <param name="entries">全セル分の計画エントリ（Create + Skip）。</param>
         public WorldCellGenerationPlan(IReadOnlyList<WorldCellGenerationEntry> entries)
         {
@@ -112,25 +101,39 @@ namespace OneStarMaker.Editor.Streaming
         public int SkipCount => Entries.Count(e => e.Action == WorldCellPlanAction.Skip);
     }
 
-    /// <summary>
-    /// 生成前の既存状態（純関数 <see cref="WorldCellGenerator.ComputePlan"/> の入力）。
-    /// 既存セル identity の集合で冪等性（Skip 判定）を表現する。
-    /// </summary>
+    /// <summary>生成前の既存状態。既存セル identity の集合で Skip 判定を表す。</summary>
     public sealed class WorldCellExistingState
     {
         /// <summary>既存セルが 1 件もない初期状態。</summary>
         public static WorldCellExistingState Empty { get; } = new(Array.Empty<string>(), null);
 
-        /// <summary>
-        /// 既存状態を構築する。
-        /// </summary>
+        /// <summary>既存状態を構築する。</summary>
         /// <param name="existingCellIdentities">既に存在するセル identity の集合。</param>
-        /// <param name="map">参照用 SceneResourceMap（任意）。Apply 後の再計画に使用。</param>
+        /// <param name="map">参照用 SceneResourceMap（任意）。</param>
         public WorldCellExistingState(
             IReadOnlyCollection<string> existingCellIdentities,
             SceneResourceMap? map)
         {
-            ExistingCellIdentities = existingCellIdentities ?? throw new ArgumentNullException(nameof(existingCellIdentities));
+            if (existingCellIdentities == null)
+            {
+                throw new ArgumentNullException(nameof(existingCellIdentities));
+            }
+
+            var identities = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var identity in existingCellIdentities)
+            {
+                if (identity == null)
+                {
+                    throw new ArgumentException("既存 identity に null は指定できません。", nameof(existingCellIdentities));
+                }
+
+                if (!identities.Add(identity))
+                {
+                    throw new ArgumentException($"既存 identity が重複しています: {identity}", nameof(existingCellIdentities));
+                }
+            }
+
+            ExistingCellIdentities = identities;
             Map = map;
         }
 
@@ -144,12 +147,22 @@ namespace OneStarMaker.Editor.Streaming
         /// SceneResourceMap からセル identity を収集して既存状態を構築する。
         /// </summary>
         /// <param name="map">走査対象の Map。</param>
-        /// <returns>Map 内の Cell_* identity を ExistingCellIdentities に含む状態。</returns>
-        public static WorldCellExistingState FromMap(SceneResourceMap map)
+        /// <param name="targets">生成対象 identity 列。</param>
+        /// <returns>Map 内で target と完全一致した identity の状態。</returns>
+        public static WorldCellExistingState FromMap(
+            SceneResourceMap map,
+            IReadOnlyList<WorldCellGenerationTarget> targets)
         {
             if (map == null)
             {
                 throw new ArgumentNullException(nameof(map));
+            }
+
+            WorldCellGenerationTarget.Validate(targets);
+            var targetIdentities = new HashSet<string>(StringComparer.Ordinal);
+            for (var i = 0; i < targets.Count; i++)
+            {
+                targetIdentities.Add(targets[i].Identity);
             }
 
             var identities = new HashSet<string>(StringComparer.Ordinal);
@@ -160,9 +173,14 @@ namespace OneStarMaker.Editor.Streaming
                     continue;
                 }
 
-                if (CellIdentity.IsCellId(resource.Identity))
+                if (!targetIdentities.Contains(resource.Identity))
                 {
-                    identities.Add(resource.Identity);
+                    continue;
+                }
+
+                if (!identities.Add(resource.Identity))
+                {
+                    throw new InvalidOperationException($"Map 内の target identity が重複しています: {resource.Identity}");
                 }
             }
 
@@ -170,17 +188,13 @@ namespace OneStarMaker.Editor.Streaming
         }
     }
 
-    /// <summary>
-    /// <see cref="WorldCellGenerator.ApplyPlan"/> の適用結果。
-    /// </summary>
+    /// <summary>ApplyPlan の適用結果。</summary>
     public sealed class WorldCellGenerationResult
     {
-        /// <summary>
-        /// 適用結果を構築する。
-        /// </summary>
+        /// <summary>適用結果を構築する。</summary>
         /// <param name="createdOrUpdatedResources">今回 Create した SceneResource。</param>
         /// <param name="skippedIdentities">Skip した identity。</param>
-        /// <param name="allCellResources">Map 登録後の全セル SceneResource（Create + 既存）。</param>
+        /// <param name="allCellResources">Map 登録後の全セル SceneResource。</param>
         public WorldCellGenerationResult(
             IReadOnlyList<SceneResource> createdOrUpdatedResources,
             IReadOnlyList<string> skippedIdentities,
@@ -211,35 +225,36 @@ namespace OneStarMaker.Editor.Streaming
     public static class WorldCellGenerator
     {
         /// <summary>
-        /// グリッド定義と既存状態から生成計画を算出する（純関数・テスト対象）。
+        /// グリッド定義・target 列・既存状態から生成計画を算出する（純関数・テスト対象）。
         /// 既存 identity は <see cref="WorldCellPlanAction.Skip"/> で表現し、2 回目以降の差分なしを保証する。
         /// </summary>
         /// <param name="definition">グリッド定義。</param>
+        /// <param name="targets">identity と視覚配置座標の正本列。</param>
         /// <param name="existingState">生成前の既存セル identity 集合。</param>
         /// <returns>全セル分の生成計画。</returns>
         public static WorldCellGenerationPlan ComputePlan(
             WorldGridDefinition definition,
+            IReadOnlyList<WorldCellGenerationTarget> targets,
             WorldCellExistingState existingState)
         {
-            _ = definition ?? throw new ArgumentNullException(nameof(definition));
+            if (definition == null) throw new ArgumentNullException(nameof(definition));
+            _ = targets ?? throw new ArgumentNullException(nameof(targets));
             _ = existingState ?? throw new ArgumentNullException(nameof(existingState));
             ValidateDefinition(definition);
-
+            WorldCellGenerationTarget.Validate(targets);
             var existingIdentities = new HashSet<string>(
                 existingState.ExistingCellIdentities,
                 StringComparer.Ordinal);
             var parentIdentity = definition.ParentSceneIdentity;
             var sceneFolder = NormalizeAssetPath(definition.SceneOutputFolder);
             var resourceFolder = NormalizeAssetPath(definition.SceneResourceOutputFolder);
-            var cells = definition.EnumerateCells();
-            var entries = new List<WorldCellGenerationEntry>(cells.Count);
+            var entries = new List<WorldCellGenerationEntry>(targets.Count);
 
-            for (var i = 0; i < cells.Count; i++)
+            for (var i = 0; i < targets.Count; i++)
             {
-                var coordinate = cells[i];
-                var x = coordinate.x;
-                var y = coordinate.y;
-                var identity = CellIdentity.Format(x, y);
+                var target = targets[i];
+                var coordinate = target.Coordinate;
+                var identity = target.Identity;
                 var action = existingIdentities.Contains(identity)
                     ? WorldCellPlanAction.Skip
                     : WorldCellPlanAction.Create;
@@ -251,7 +266,7 @@ namespace OneStarMaker.Editor.Streaming
 
                 entries.Add(new WorldCellGenerationEntry(
                     identity,
-                    new Vector2Int(x, y),
+                    coordinate,
                     parentIdentity,
                     LoadType.OnDemand,
                     action,
@@ -279,10 +294,10 @@ namespace OneStarMaker.Editor.Streaming
             SceneResourceMap map,
             SceneResource parentResource)
         {
-            _ = definition ?? throw new ArgumentNullException(nameof(definition));
+            if (definition == null) throw new ArgumentNullException(nameof(definition));
             _ = plan ?? throw new ArgumentNullException(nameof(plan));
-            _ = map ?? throw new ArgumentNullException(nameof(map));
-            _ = parentResource ?? throw new ArgumentNullException(nameof(parentResource));
+            if (map == null) throw new ArgumentNullException(nameof(map));
+            if (parentResource == null) throw new ArgumentNullException(nameof(parentResource));
 
             if (!string.Equals(parentResource.Identity, definition.ParentSceneIdentity, StringComparison.Ordinal))
             {
@@ -329,6 +344,39 @@ namespace OneStarMaker.Editor.Streaming
         }
 
         /// <summary>
+        /// Map から指定 identity を除去し、シリアライズ配列を詰め直して辞書を再構築する。
+        /// Map の参照編集を担う Editor 境界であり、Runtime API は internal のまま保つ。
+        /// </summary>
+        public static void RemoveSceneResourcesFromMap(
+            SceneResourceMap map,
+            IReadOnlyCollection<string> identities)
+        {
+            if (map == null) throw new ArgumentNullException(nameof(map));
+            _ = identities ?? throw new ArgumentNullException(nameof(identities));
+
+            var remove = new HashSet<string>(identities, StringComparer.Ordinal);
+            var mapSo = new SerializedObject(map);
+            var listProp = mapSo.FindProperty("_sceneResources");
+            var keep = new List<SceneResource>(listProp.arraySize);
+            for (var i = 0; i < listProp.arraySize; i++)
+            {
+                var resource = listProp.GetArrayElementAtIndex(i).objectReferenceValue as SceneResource;
+                if (resource != null && !remove.Contains(resource.Identity))
+                {
+                    keep.Add(resource);
+                }
+            }
+            listProp.ClearArray();
+            for (var i = 0; i < keep.Count; i++)
+            {
+                listProp.InsertArrayElementAtIndex(i);
+                listProp.GetArrayElementAtIndex(i).objectReferenceValue = keep[i];
+            }
+            mapSo.ApplyModifiedPropertiesWithoutUndo();
+            map.RebuildDictionary();
+        }
+
+        /// <summary>
         /// 生成計画に基づき .unity シーンファイルを作成・更新する（テスト対象外）。
         /// 既存ファイルはスキップし、冪等に保つ。
         /// </summary>
@@ -338,7 +386,7 @@ namespace OneStarMaker.Editor.Streaming
             WorldGridDefinition definition,
             WorldCellGenerationPlan plan)
         {
-            _ = definition ?? throw new ArgumentNullException(nameof(definition));
+            if (definition == null) throw new ArgumentNullException(nameof(definition));
             _ = plan ?? throw new ArgumentNullException(nameof(plan));
 
             foreach (var entry in plan.EntriesToCreate)
@@ -359,32 +407,35 @@ namespace OneStarMaker.Editor.Streaming
         }
 
         /// <summary>
-        /// グリッド定義に基づき計画算出 → .unity 生成 → SceneResource / Map 登録を一括実行する（テスト対象外）。
+        /// グリッド定義と target 列に基づき計画算出 → .unity 生成 → SceneResource / Map 登録を一括実行する（テスト対象外）。
         /// </summary>
         /// <param name="definition">グリッド定義。</param>
+        /// <param name="targets">identity と視覚配置座標の正本列。</param>
         /// <param name="map">登録先 SceneResourceMap。</param>
         /// <param name="parentResource">全セルの親 SceneResource。</param>
         /// <returns>true: 成功。</returns>
         public static bool Generate(
             WorldGridDefinition definition,
+            IReadOnlyList<WorldCellGenerationTarget> targets,
             SceneResourceMap map,
             SceneResource parentResource)
         {
-            _ = definition ?? throw new ArgumentNullException(nameof(definition));
-            _ = map ?? throw new ArgumentNullException(nameof(map));
-            _ = parentResource ?? throw new ArgumentNullException(nameof(parentResource));
+            if (definition == null) throw new ArgumentNullException(nameof(definition));
+            _ = targets ?? throw new ArgumentNullException(nameof(targets));
+            if (map == null) throw new ArgumentNullException(nameof(map));
+            if (parentResource == null) throw new ArgumentNullException(nameof(parentResource));
 
             // 副作用（取り込みによる Map・親子の書き換え）より前に定義を検証し、
             // 不正定義で中途半端な変更が残らないようにする。
             ValidateDefinition(definition);
-
+            WorldCellGenerationTarget.Validate(targets);
             // Map に載っていないがディスク上に既存の SceneResource .asset があるケースを先に取り込む。
             // これを怠ると ApplyPlan が未保存インスタンスを新規作成して Map に挿入する一方、
             // CreateAsset は既存 .asset を見てスキップし、Map が未保存インスタンスを指してしまう。
-            AdoptExistingResourceAssets(definition, map, parentResource);
+            AdoptExistingResourceAssets(definition, targets, map, parentResource);
 
-            var existingState = WorldCellExistingState.FromMap(map);
-            var plan = ComputePlan(definition, existingState);
+            var existingState = WorldCellExistingState.FromMap(map, targets);
+            var plan = ComputePlan(definition, targets, existingState);
 
             ApplySceneFiles(definition, plan);
             var result = ApplyPlan(definition, plan, map, parentResource);
@@ -453,17 +504,15 @@ namespace OneStarMaker.Editor.Streaming
         /// </summary>
         private static void AdoptExistingResourceAssets(
             WorldGridDefinition definition,
+            IReadOnlyList<WorldCellGenerationTarget> targets,
             SceneResourceMap map,
             SceneResource parentResource)
         {
             var resourceFolder = NormalizeAssetPath(definition.SceneResourceOutputFolder);
             var adopted = false;
-            var cells = definition.EnumerateCells();
-
-            for (var i = 0; i < cells.Count; i++)
+            for (var i = 0; i < targets.Count; i++)
             {
-                var coordinate = cells[i];
-                var identity = CellIdentity.Format(coordinate.x, coordinate.y);
+                var identity = targets[i].Identity;
                 if (map.GetSceneResource(identity) != null)
                 {
                     continue;

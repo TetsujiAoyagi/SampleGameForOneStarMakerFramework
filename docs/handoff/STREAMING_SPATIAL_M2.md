@@ -1,6 +1,6 @@
 # Streaming 空間政策 M-2 HANDOFF — 生成器の identity 主キー化
 
-> ステータス: **Phase A 完了・Phase B 未着手。**
+> ステータス: **Phase C' 完了。ローカル commit 待ち。**
 > ブランチ予定: `codex/streaming-spatial-m2` から stacked（実装は専用ブランチ）
 > 上位計画: [STREAMING_SPATIAL_MIGRATION.md](STREAMING_SPATIAL_MIGRATION.md)
 > 到着契約: [§34 OnDemand の空間政策](../../unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md)
@@ -163,6 +163,7 @@ SceneGraph の孤立ノード掃除・Map 除去も、収集済み identity 集�
   1. Cell の `SceneResource.Children`
   2. 同じフォルダ内で、**フォルダ名と一致しない** SceneResource
 - フォルダ内の全 `.unity` を Environment とみなさない（Cell 本体を二重カウントする）。
+- SceneResource が無い孤立 `.unity` は Environment 候補にしない。これは §3.6 の対象外 orphan として残し、名前からの推測で補完しない。
 
 作成はまだ座標キーである。対象外にせず、衝突だけ閉じる。
 
@@ -208,19 +209,22 @@ Creator に残す責務（ここ以外を Creator に足さない）:
 
 ## 4. A-1〜A-4: 規模と配置
 
-予想行数は上限。実装後は実数と責務を本書へ追記する。
+Phase A の baseline / HEAD 行数を保持し、Phase B の実装実数と再検証済み上限を分けて記録する。
 
-| ファイル | 現在 | 予想上限 | 責務 / 判断 |
-|---|---:|---:|---|
-| `Scripts/Editor/Streaming/WorldCellGenerationTarget.cs`（新規） | 0 | 90 | identity＋coordinate と入力検証。`FromGrid` が Format の唯一口。新責務は別ファイル |
-| `Scripts/Editor/Streaming/WorldCellGenerator.cs` | 604 | 625 | target を計画・adoption へ通す。6 型同居は維持（A-2 例外） |
-| `DependOnAll/Editor/WorldCellStreamingSliceCreator.cs` | 1403 | 1180 | I/O 抽出で縮小。§3.7 の残責務に限定 |
-| `DependOnAll/Editor/Streaming/Cells/State/WorldCellExistingStateCollector.cs`（新規） | 0 | 220 | AssetDatabase から identity keyed state を読む。FW Editor に置かない |
-| `DependOnAll/Editor/Streaming/Cells/State/WorldCellFolderReconciler.cs`（新規） | 0 | 320 | folder / Map / World / Graph の削除整合。FW Editor に置かない |
-| `DependOnAll/Editor/Cells/CellPopulationPlan.cs` | 290 | 330 | identity keyed の純計画。`CellGridSpec` 削除 |
-| `DependOnAll/Editor/Cells/CellAuthoringPolicy.cs` | 59 | 55 | identity → policy の純関数 |
-| `Tests/Editor/WorldCellGeneratorTests.cs` | 295 | 390 | arbitrary identity / duplicate / adoption。旧署名呼び出しを全置換 |
-| `Tests/Editor/CellPopulationPlanTests.cs` | 368 | 490 | 同座標複数 identity と既存受入。`Resolve(int,int)` 呼び出しを全置換 |
+| ファイル | Phase A baseline / HEAD | Phase B 実装実数 | 再検証済み上限 | 責務 / 判断 |
+|---|---:|---:|---:|---|
+| `Scripts/Editor/Streaming/WorldCellGenerationTarget.cs`（新規） | 0 | 78 | 90 | identity＋coordinate と入力検証。`FromGrid` が Format の唯一口。新責務は別ファイル |
+| `Scripts/Editor/Streaming/WorldCellGenerator.cs` | 604 | 653 | 670 | target を計画・adoption へ通し、Editor 境界で Map compact / dictionary 再構築。6 型同居は維持（A-2 例外） |
+| `DependOnAll/Editor/WorldCellStreamingSliceCreator.cs` | 1403 | 1212 | 1270 | I/O 抽出で縮小。§3.7 の残責務に限定 |
+| `DependOnAll/Editor/Streaming/Cells/State/WorldCellExistingStateCollector.cs`（新規） | 0 | 196 | 220 | AssetDatabase から identity keyed state を読む。FW Editor に置かない |
+| `DependOnAll/Editor/Streaming/Cells/State/WorldCellFolderReconciler.cs`（新規） | 0 | 200 | 320 | folder / Map / World / Graph の削除整合。Map 編集は FW Editor 境界へ委譲し、FW Editor に置かない |
+| `DependOnAll/Editor/Cells/CellPopulationPlan.cs` | 290 | 209 | 330 | identity keyed の純計画。`CellGridSpec` 削除 |
+| `DependOnAll/Editor/Cells/CellAuthoringPolicy.cs` | 59 | 37 | 55 | identity → policy の純関数 |
+| `Tests/Editor/WorldCellGeneratorTests.cs` | 295 | 318 | 390 | arbitrary identity / duplicate / adoption。旧署名呼び出しを全置換 |
+| `Tests/Editor/WorldCellGenerationIdentityTests.cs`（新規分割） | 0 | 230 | 390 | arbitrary identity の path / adoption / Skip / duplicate side-effect / target validation 受入 |
+| `Tests/Editor/WorldCellExistingStateCollectorTests.cs`（新規分割） | 0 | 166 | 220 | Children / sibling resource / payload fallback / AuthoredRoot 収集受入 |
+| `Tests/Editor/WorldCellFolderReconcilerTests.cs`（新規分割） | 0 | 197 | 240 | Graph / Map / World 参照除去後のフォルダ削除、保持リソースと辞書 compact 受入 |
+| `Tests/Editor/CellPopulationPlanTests.cs` | 368 | 205 | 490 | 同座標複数 identity と既存受入。`Resolve(int,int)` 呼び出しを全置換 |
 
 ### A-2 `WorldCellGenerator` を分割しない例外
 
@@ -229,7 +233,7 @@ Creator に残す責務（ここ以外を Creator に足さない）:
 `WorldCellExistingState` / `WorldCellGenerationResult` / `WorldCellGenerator`）。
 
 M-2 で分割しない。理由: M-4 がファイルごと SampleGame へ移す。今分割すると移送が二重になる。
-M-2 は型をこのファイルへ足さない。target 列を通すだけ。上限 625 を超えたら Phase A に戻す。
+M-2 は型をこのファイルへ足さない。target 列を通すだけ。Phase A 再検証で、復元した公開 XML と受入根拠を含む上限を 670 行へ暫定承認した。
 
 Creator は既に 500 行超。触る責務（収集 / 削除）だけ 2 ファイルへ抜く。
 残る全面分割は別スライス。M-2 で新しい責務を Creator に積まない。
@@ -247,6 +251,13 @@ Creator は既に 500 行超。触る責務（収集 / 削除）だけ 2 ファ�
 
 - 状態収集・削除は `Editor/Streaming/Cells/State/` に置く。
 - Phase C は変更前後の各対象ディレクトリ直下 `.cs` 数を記録し、フラットな root の増加を構造指摘にする。
+
+### Phase A 再検証記録
+
+Phase A の規範追加（§3.6 の Environment 候補を Children / 同一フォルダの非 Cell
+SceneResource に限定する規則、§4 の責務分割と実装実数欄、§6 の Phase C 検証順序の拡張）を
+Phase A 契約として再承認した。A-2 の型同居は M-4 まで維持し、復元した根拠コメントを含む暫定上限を
+`WorldCellGenerator.cs` 670 行、`WorldCellStreamingSliceCreator.cs` 1270 行とする。
 
 ---
 
@@ -291,8 +302,11 @@ Phase C の順序:
 1. 構造レビューと target grep（§5.3 の Format 0、§3.5 の `IsCellId` 残存）
 2. `pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.CellPopulationPlanTests`
 3. `pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.WorldCellGeneratorTests`
-4. `pwsh tools/docs-audit.ps1`
-5. `pwsh tools/run-tests.ps1`（全 EditMode）
+4. `pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.WorldCellGenerationIdentityTests`
+5. `pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.WorldCellExistingStateCollectorTests`
+6. `pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.WorldCellFolderReconcilerTests`
+7. `pwsh tools/docs-audit.ps1`
+8. `pwsh tools/run-tests.ps1`（全 EditMode）
 
 exit 0 でも total 0 は失敗。`0xC0000005` は完成済み XML とログ末尾で判定する。
 
@@ -330,19 +344,30 @@ exit 0 でも total 0 は失敗。`0xC0000005` は完成済み XML とログ末�
 
 ### Phase B
 
-- 担当 / モデル:
-- 実装結果:
-- 実行しなかった事項:
-- HANDOFF との差異:
+- 担当 / モデル: Codex Phase B writer / GPT-5.6 Luna
+- 実装結果: `WorldCellGenerationTarget` を新設し、`FromGrid` を Cell identity の唯一の Format 入口とした。`WorldCellGenerator` の ComputePlan / Generate / FromMap / adoption を target 列必須へ変更し、`CellPopulationPlan` / `CellAuthoringPolicy` を Ordinal identity keyed へ移行した。Creator の収集・削除 I/O を `Streaming/Cells/State/WorldCellExistingStateCollector.cs` と `WorldCellFolderReconciler.cs` へ抽出し、SceneGraph、World children、Map、Cell Addressables、Environment sprout の所属判定へ同じ target identity 列を渡すよう変更した。EditMode テストを新 API へ移行し、arbitrary identity、同座標複数 identity、duplicate、Ordinal、adoption/FromMap/Skip、identity deletion を追加した。Phase C 指摘に対応し、reconciler は Graph / World children の参照除去後に `WorldCellGenerator.RemoveSceneResourcesFromMap`（OneStarMaker.Editor 境界）で Map を compact / dictionary 再構築し、その後フォルダを削除する。Runtime の `SceneResourceMap.RebuildDictionary` は internal のままで、Runtime 公開 API は拡張していない。全新規 C# とフォルダの `.meta` を追加した。再レビュー指摘には、永続化した parent/resource を `AssetDatabase` で cleanup し、Refresh 後に path から再読込して identity / parent / Map / Skip を検証する adoption → Generate → Skip テストと、範囲外 Environment false テストを追加した。C' 指摘には、Environment 候補を Cell.Children または同一フォルダの非 Cell SceneResource に限定し、無関係な `.unity` を無視する collector と専用受入テストを追加した。追加指摘には、collector の target identity 重複・default target 検証、reconciler の参照除去順を検証する reflection テスト、保持リソース付き compact / dictionary 検証、Generate の duplicate target side-effect 無し検証、payload 不在 / dangling 時の identity path fallback、任意 identity の AuthoredRoot 収集、Environment sprout の座標重複検証を加えた。reconciler の受入は test-only hook を廃し、参照除去段階とフォルダ削除段階を分離して順序を検証する。実装後の行数は `WorldCellGenerationTarget.cs` 78、`WorldCellGenerator.cs` 653、Creator 1212、collector 196、reconciler 200、`CellPopulationPlan.cs` 209、`CellAuthoringPolicy.cs` 37、`WorldCellGeneratorTests.cs` 318、`WorldCellGenerationIdentityTests.cs` 230、`WorldCellExistingStateCollectorTests.cs` 166、`WorldCellFolderReconcilerTests.cs` 197、`CellPopulationPlanTests.cs` 205。
+- Phase C 引継ぎ用の対象ディレクトリ直下 `.cs` 数（変更前→変更後）は、`Scripts/Editor/Streaming` 2→3、`Tests/Editor` 2→5、`DependOnAll/Editor` 5→5、`DependOnAll/Editor/Streaming/Cells/State` 0→2。既存 root の増加は target と受入テスト分割のみで、State は新責務配置どおり。
+- 実行しなかった事項: Phase B 制約に従い Unity Editor 起動・接続、`unity test` / `unity run`、`pwsh tools/run-tests.ps1`、Addressables build、`pwsh tools/docs-audit.ps1` は実行していない。静的確認として `git diff --check` と対象経路の `CellIdentity.Format` / `TryParse` / `IsCellId` grep を実施した。補助的な `dotnet build` は Unity 生成 csproj の Windows SDK パス権限エラーでコンパイルに到達しなかった。
+- HANDOFF との差異: C' 指摘修正を反映済み。Phase C は修正後の構造レビュー、対象テスト、docs audit、全 EditMode 回帰を再実行する。
 
 ---
 
 ## 7. Phase C 実績（レビュー／テストセッションが記入）
 
-未着手
+- 担当 / モデル: Cursor Agent 新規セッション / Grok 4.6
+- 構造レビュー: 指摘 0。Runtime 公開 API 拡張なし、Editor 境界での Map compact / dictionary 再構築、保持リソース付き再読込、全 target 入口の検証、collector source 規則、削除順、行数予算を確認。
+- 対象テスト: `CellPopulationPlanTests` 13/13、`WorldCellGeneratorTests` 8/8、`WorldCellGenerationIdentityTests` 9/9、`WorldCellExistingStateCollectorTests` 2/2、`WorldCellFolderReconcilerTests` 1/1。全て total > 0、failed 0。先頭フィルタの Unity exit は `0xC0000005` だったが、完成 XML により成功判定。
+- 全 EditMode / docs audit: 517/517 pass、docs audit 50 Markdown / 11048 行、違反 0。§7 / §8 記入済みの harvest 警告 1 件は仕様どおりで exit 0。
+- 未確認事項: Addressables build と本番 asset 生成は対象外のため未実行。
+- 結論: 修正後の新規 Grok 4.6 セッションで Phase C PASS。ブロッキング指摘 0。Phase C' 再実行待ち。
 
 ---
 
 ## 8. Phase C' 実績（独立監査セッションが記入）
 
-未着手
+- 担当 / モデル: Claude CLI 新規セッション / `claude-opus-5`（Claude Opus 5、Anthropic）。Phase B の GPT-5.6 Luna、Phase C の Grok 4.6 と異なるモデル・系列・ベンダーで、会話履歴を使わず独立性を充足。
+- 監査結果: **PASS**。受け入れ条件 1–9、旧 C' 指摘の修正、Phase A baseline / 実装実数 / 暫定上限、Runtime 公開境界、identity / Ordinal / duplicate / default target / collector / Map compact / deletion / adoption、meta / 行数 / 対象外を一次資料から再検証。ブロッキング指摘 0。
+- テスト証拠: C' は Unity を起動せず、Phase C の XML を直接確認して 13/13、8/8、9/9、2/2、1/1、全 517/517 failed 0 と、実装・テストの更新時刻が実行前であることを確認。docs audit は C' が読み取り専用で再実行し、50 Markdown、検査1・2違反 0、harvest 警告 1、exit 0 を再現。
+- 非ブロッキング指摘: Creator の一部メンバー間空行、collector の説明コメント位置、Creator クラス doc の一部設計注記、reconciler のテストシーム説明、Generator 公開 XML の一部説明密度。既存由来の Creator 偽 null は M-2 対象外。
+- 残存リスク: グリッド縮小時、保持 HandAuthored セルが Map / Graph に残りつつ World children から外れる相互作用と、保持セルの Cell Addressables 登録範囲は未受入。現行 4×4 では到達せず、M-3 以降へ引き継ぐ。Addressables build、本番 asset 生成、Play 経路は対象外で未検証。
+- 結論: **Phase C' PASS**。M-2 はローカル commit 可能。Claude 側のリポジトリ編集は無い。
