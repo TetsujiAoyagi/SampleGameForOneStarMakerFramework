@@ -8,6 +8,7 @@ using OneStarMaker.Editor.Streaming;
 using OneStarMaker.Runtime.AssetDescriptions;
 using OneStarMaker.Runtime.SceneSystem;
 using SampleGame.DependOnAll.Editor.Cells;
+using SampleGame.DependOnAll.Editor.Streaming.Cells.State;
 using SampleGame.InGame.Streaming;
 using SampleGame.InGame.World;
 using UnityEditor;
@@ -22,15 +23,13 @@ namespace SampleGame.DependOnAll.Editor
 {
     /// <summary>
     /// World + 4×4 Cell（250m）を一括生成し、InGameSession ツリーへ配線する。
-    /// CCS-00: 実行物を <c>InGameSession/World/</c> 配下へ集約（フォルダ = 実行環境境界）。
-    /// CCS-01〜02: 萌芽 Cell（南辺 0_0〜3_0）に Environment 子を OnDemand で付ける。
-    /// グリッド縮小時は範囲外の <c>Cells/Cell_*</c> フォルダを丸ごと削除する。
-    /// <para>
-    /// このクラスはスキャフォールドであり、S-2（季節化）完了後の削除候補である。
-    /// 恒久的な判断は <c>Cells/CellPopulationPlan.cs</c> にのみ置き、ここには「どの順で何を呼ぶか」と使い捨ての生成手続きだけを置く。
-    /// 構造化の投資をしないと決めた（HANDOFF §2.1）。
-    /// </para>
+    /// CCS-00: 実行物を InGameSession/World/ 配下へ集約し、フォルダを実行環境境界にする。
+    /// CCS-01〜02: 南辺の萌芽 Cell に Environment 子を OnDemand で付ける。
     /// </summary>
+    /// <remarks>
+    /// このクラスはスキャフォールドであり、編集方針 / 状態は専用型が所有する。
+    /// ここには呼び出し順序と使い捨ての生成 I/O だけを残す（HANDOFF §2.1）。
+    /// </remarks>
     public static class WorldCellStreamingSliceCreator
     {
         private const string MenuPath = "OneStarMaker/Sample/Create World + Cell Streaming Slice";
@@ -54,15 +53,15 @@ namespace SampleGame.DependOnAll.Editor
         private const string InGameSessionNodePath = SceneGraphNodesFolder + "/InGameSession.asset";
 
         /// <summary>
-        /// Environment 萌芽を付ける Cell 座標（4×4 の南辺すべて）。
-        /// 北側は葉のままにして、引っ張られないことと作業単位分割を体感できるようにする。
+        /// Environment 萌芽を付ける Cell identity（4×4 の南辺）。
+        /// 北側は葉のままにし、作業単位の分割を検証できるようにする。
         /// </summary>
-        private static readonly Vector2Int[] EnvironmentSproutCells =
+        private static readonly string[] EnvironmentSproutCells =
         {
-            new(0, 0),
-            new(1, 0),
-            new(2, 0),
-            new(3, 0),
+            "Cell_0_0",
+            "Cell_1_0",
+            "Cell_2_0",
+            "Cell_3_0",
         };
 
         /// <summary>Editor メニューから実行。</summary>
@@ -71,7 +70,6 @@ namespace SampleGame.DependOnAll.Editor
         {
             CreateCore();
         }
-
         /// <summary>
         /// Unity batchmode 用エントリ。
         /// <c>-executeMethod SampleGame.DependOnAll.Editor.WorldCellStreamingSliceCreator.CreateFromBatch</c>
@@ -89,10 +87,9 @@ namespace SampleGame.DependOnAll.Editor
                 EditorApplication.Exit(1);
             }
         }
-
         private static void CreateCore()
         {
-            // 生成中は 1 保存ごとに祖先を再計算しない。最後に全件で焼き直す（§34 §5）。
+            // 生成中は保存フックを止め、最後に全件で SceneVolume を再計算する。
             SceneVolumeRecalculator.SaveHookSuspended = true;
             try
             {
@@ -103,67 +100,60 @@ namespace SampleGame.DependOnAll.Editor
                 SceneVolumeRecalculator.SaveHookSuspended = false;
             }
 
-            // 再生成のたびに人が再計算メニューを思い出す必要をなくす。
             SceneVolumeRecalculator.RecalculateAll();
         }
-
         private static void CreateCoreInner()
         {
-            var map = AssetDatabase.LoadAssetAtPath<SceneResourceMap>(SceneResourceMapPath)
-                ?? throw new FileNotFoundException(SceneResourceMapPath);
-            var session = AssetDatabase.LoadAssetAtPath<SceneResource>(InGameSessionResourcePath)
-                ?? throw new FileNotFoundException(InGameSessionResourcePath);
+            var map = LoadRequiredAsset<SceneResourceMap>(SceneResourceMapPath);
+            var session = LoadRequiredAsset<SceneResource>(InGameSessionResourcePath);
 
             EnsureFolders();
 
             var worldResource = EnsureWorldResource(session, map);
             var definition = EnsureGridDefinition();
+            var targets = WorldCellGenerationTarget.FromGrid(definition);
 
-            var existingStates = CollectExistingStates(definition);
-            var plan = CellPopulationPlan.Compute(
-                new CellGridSpec(definition.EnumerateCells(), definition.Origin, definition.CellSize),
-                existingStates);
+            var existingStates = WorldCellExistingStateCollector.Collect(targets);
+            var plan = CellPopulationPlan.Compute(targets, existingStates);
 
-            // 10×10 → 4×4 等の縮小で余った Cell_* フォルダを Map ごと除去する。
-            DeleteOutOfGridCellFolders(map, worldResource, definition, plan);
+            WorldCellFolderReconciler.DeleteOutOfGridCellFolders(map, worldResource, plan);
 
-            if (!WorldCellGenerator.Generate(definition, map, worldResource))
+            if (!WorldCellGenerator.Generate(definition, targets, map, worldResource))
             {
                 throw new System.InvalidOperationException("WorldCellGenerator.Generate が false を返しました。");
             }
 
-            // Generate は CreateAsset 前に親._children / Map へ未保存 SO を差し込むため、
-            // 保存後は fileID:0 が残ることがある。null 枠を先に畳んでから親子を再配線する。
+            // Generate は CreateAsset 前に未保存 SO を親と Map へ差し込むため、
+            // 保存後に fileID:0 の残骸が生じ得る。null 枠を畳んでから親子を再配線する。
             CompactNullMapEntries(map);
-            RelinkWorldChildren(worldResource, definition);
+            RelinkWorldChildren(worldResource, definition, targets);
 
-            // 共有 Lit を World 階層に 1 本置き、各 Cell / Environment はそれを参照 + ランタイム MPB。
+            // 共有 Lit は World 階層に 1 本だけ置き、Cell / Environment はこれを参照する。
             var sharedLit = EnsureSharedLitMaterial();
             PopulateWorldScene(sharedLit);
 
-            // ランタイム生成禁止: 床・目印は各 .unity に事前配置する。
+            // ランタイム生成は禁止し、床・目印は各 .unity へ事前に書き込む。
             PopulateCellVisuals(definition, sharedLit, plan);
 
-            // PopulateWorldScene の finally が untitled を残し得るため、萌芽作成前に破棄する。
-            // （未保存 untitled があると Additive Open / NewScene が失敗する。）
+            // 萌芽ヘルパーが Additive scene を開く前に untitled scene を片付ける。
+            // 未保存 scene が残ると Additive Open / NewScene が失敗し得る。
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-            // 萌芽: Cell 配下に Environment 子（OnDemand）。Ground を Environment 側へ移す。
-            CreateEnvironmentSprouts(map, definition, sharedLit, plan);
+            CreateEnvironmentSprouts(map, definition, targets, sharedLit, plan);
+            // 萌芽後にも null 枠を整理し、ディスク上の生存アセットだけを Map へ再登録する。
             CompactNullMapEntries(map);
-            // ディスク上の Cell / Environment SceneResource を Map へ再登録（null 枠除去後の再同期）。
-            RelinkMapFromDisk(map, definition);
+            RelinkMapFromDisk(map, definition, targets);
 
             RegisterAddressableScene(WorldScenePath);
             RegisterAddressableAsset(WorldMaterialBindings.SharedLitAssetPath);
-            RegisterCellAddressables(definition);
+            RegisterCellAddressables(definition, targets);
             RegisterEnvironmentAddressables();
 
             // Session 子に World を必ず含める（NecessaryAlways）。
             EnsureChildLink(session, worldResource);
 
-            // Scene Graph Editor 可視化: Node + Edge を同期し、Generate で Map ハッシュも揃える。
-            SyncSceneGraph(definition, plan);
+            // Scene Graph の Node / Edge を同期し、Generate で Map hash も正本化する。
+            SyncSceneGraph(targets, plan);
 
             EditorUtility.SetDirty(session);
             EditorUtility.SetDirty(map);
@@ -182,29 +172,25 @@ namespace SampleGame.DependOnAll.Editor
                 "3. Scene Graph（Total）に Cell/Environment ノードを同期済み。\n" +
                 $"BatchMethod={BatchMethod}");
         }
-
         /// <summary>
-        /// Scene Graph 中間データに World → Cell_* → Environment_* を載せ、
-        /// SceneResourceGenerator.Generate で Map / 親子 / GenerateHash を正本化する。
-        /// Cell SceneResource 実体は既存の World/Cells パスを再利用する（Generator 側で identity 解決）。
+        /// Scene Graph 中間データへ World → Cell → Environment の Node / Edge を同期する。
+        /// Cell 実体は既存の World/Cells パスを再利用し、Generate で Map hash を正本化する。
         /// </summary>
-        private static void SyncSceneGraph(WorldGridDefinition definition, CellPopulationPlan plan)
+        private static void SyncSceneGraph(
+            IReadOnlyList<WorldCellGenerationTarget> targets,
+            CellPopulationPlan plan)
         {
             EnsureAssetFolder(SceneGraphCellsFolder);
 
-            var totalGraph = AssetDatabase.LoadAssetAtPath<SceneGraphEdges>(TotalGraphPath)
-                ?? throw new FileNotFoundException(TotalGraphPath);
-            var worldNode = AssetDatabase.LoadAssetAtPath<SceneNodeData>(WorldNodePath)
-                ?? throw new FileNotFoundException(WorldNodePath);
-            var sessionNode = AssetDatabase.LoadAssetAtPath<SceneNodeData>(InGameSessionNodePath)
-                ?? throw new FileNotFoundException(InGameSessionNodePath);
+            var totalGraph = LoadRequiredAsset<SceneGraphEdges>(TotalGraphPath);
+            var worldNode = LoadRequiredAsset<SceneNodeData>(WorldNodePath);
+            var sessionNode = LoadRequiredAsset<SceneNodeData>(InGameSessionNodePath);
 
             totalGraph.GraphNodes.RemoveAll(node => node == null);
             totalGraph.AddNode(sessionNode);
             totalGraph.AddNode(worldNode);
             EnsureEdge(totalGraph, sessionNode, worldNode);
 
-            // World ノードの payload / LoadType を実行シーンに揃える。
             EnsureSceneGraphNode(
                 WorldCellCatalog.WorldIdentity,
                 WorldNodePath,
@@ -217,12 +203,10 @@ namespace SampleGame.DependOnAll.Editor
             };
 
             var sproutSet = BuildSproutSet();
-            var cells = definition.EnumerateCells();
-            for (var i = 0; i < cells.Count; i++)
+            for (var i = 0; i < targets.Count; i++)
             {
-                var x = cells[i].x;
-                var y = cells[i].y;
-                var cellId = CellIdentity.Format(x, y);
+                var target = targets[i];
+                var cellId = target.Identity;
                 var cellScenePath = $"{CellsRootFolder}/{cellId}/{cellId}.unity";
                 var cellNodePath = $"{SceneGraphCellsFolder}/{cellId}.asset";
                 var cellNode = EnsureSceneGraphNode(
@@ -235,13 +219,12 @@ namespace SampleGame.DependOnAll.Editor
                 EnsureEdge(totalGraph, worldNode, cellNode);
                 keepIdentities.Add(cellId);
 
-                var coord = new Vector2Int(x, y);
-                if (!sproutSet.Contains(coord))
+                if (!sproutSet.Contains(cellId))
                 {
                     continue;
                 }
 
-                var envId = EnvironmentIdentity.Format(x, y);
+                var envId = EnvironmentIdentity.Format(target.Coordinate.x, target.Coordinate.y);
                 var envScenePath = $"{CellsRootFolder}/{cellId}/{envId}.unity";
                 if (AssetDatabase.LoadAssetAtPath<SceneAsset>(envScenePath) == null)
                 {
@@ -260,8 +243,7 @@ namespace SampleGame.DependOnAll.Editor
                 keepIdentities.Add(envId);
             }
 
-            // 範囲外だが削除計画に無い（保持した HandAuthored）既存ノードも keep する。
-            KeepRetainedOutOfGridSceneGraphNodes(definition, plan, keepIdentities);
+            KeepRetainedOutOfGridSceneGraphNodes(targets, plan, keepIdentities);
 
             PruneStaleCellSceneGraphNodes(totalGraph, keepIdentities);
             EditorUtility.SetDirty(totalGraph);
@@ -292,11 +274,10 @@ namespace SampleGame.DependOnAll.Editor
         }
 
         /// <summary>
-        /// ディスク上に実在する範囲外 Cell / Environment ノードのうち、
-        /// 削除計画に含まれないものだけを keep に加える。
+        /// 削除計画に含まれず、対応する SceneResource が残る範囲外ノードを keep に加える。
         /// </summary>
         private static void KeepRetainedOutOfGridSceneGraphNodes(
-            WorldGridDefinition definition,
+            IReadOnlyList<WorldCellGenerationTarget> targets,
             CellPopulationPlan plan,
             HashSet<string> keepIdentities)
         {
@@ -306,6 +287,21 @@ namespace SampleGame.DependOnAll.Editor
             }
 
             var guids = AssetDatabase.FindAssets("t:SceneNodeData", new[] { SceneGraphCellsFolder });
+            var existingResourceIdentities = new HashSet<string>(System.StringComparer.Ordinal);
+            var folders = AssetDatabase.GetSubFolders(CellsRootFolder);
+            for (var f = 0; f < folders.Length; f++)
+            {
+                var folder = folders[f].Replace('\\', '/');
+                if (plan.IsDeletable(Path.GetFileName(folder))) continue;
+                var resourceGuids = AssetDatabase.FindAssets("t:SceneResource", new[] { folder });
+                for (var r = 0; r < resourceGuids.Length; r++)
+                {
+                    var resource = AssetDatabase.LoadAssetAtPath<SceneResource>(
+                        AssetDatabase.GUIDToAssetPath(resourceGuids[r]));
+                    if (resource != null) existingResourceIdentities.Add(resource.Identity);
+                }
+            }
+
             for (var i = 0; i < guids.Length; i++)
             {
                 var path = AssetDatabase.GUIDToAssetPath(guids[i]);
@@ -316,44 +312,28 @@ namespace SampleGame.DependOnAll.Editor
                 }
 
                 var id = node.Identity;
-                if (CellIdentity.TryParse(id, out var cellCoord))
+                var targetIdentity = false;
+                for (var t = 0; t < targets.Count; t++)
                 {
-                    if (definition.Contains(cellCoord))
+                    if (string.Equals(targets[t].Identity, id, System.StringComparison.Ordinal))
                     {
-                        continue;
+                        targetIdentity = true;
+                        break;
                     }
-
-                    // IsDeletable は existingStates に無い孤立座標でも false を返すので、
-                    // フォルダ実在で絞り、ディスク上に無い stray ノードは Prune に刈らせる。
-                    var cellFolder = $"{CellsRootFolder}/{CellIdentity.Format(cellCoord.x, cellCoord.y)}";
-                    if (!plan.IsDeletable(cellCoord) && AssetDatabase.IsValidFolder(cellFolder))
-                    {
-                        keepIdentities.Add(id);
-                    }
-
-                    continue;
                 }
 
-                if (!EnvironmentIdentity.TryParse(id, out var envCoord))
+                if (targetIdentity)
                 {
                     continue;
                 }
-
-                if (definition.Contains(envCoord))
-                {
-                    continue;
-                }
-
-                // IsDeletable は existingStates に無い孤立座標でも false を返すので、
-                // フォルダ実在で絞り、ディスク上に無い stray ノードは Prune に刈らせる。
-                var envCellFolder = $"{CellsRootFolder}/{CellIdentity.Format(envCoord.x, envCoord.y)}";
-                if (!plan.IsDeletable(envCoord) && AssetDatabase.IsValidFolder(envCellFolder))
+                if (existingResourceIdentities.Contains(id))
                 {
                     keepIdentities.Add(id);
+                    Debug.LogWarning(
+                        $"[WorldCellStreamingSliceCreator] 範囲外だが対応する SceneResource があるため identity を保持しました: {id}");
                 }
             }
         }
-
         private static SceneNodeData EnsureSceneGraphNode(
             string identity,
             string nodeAssetPath,
@@ -381,7 +361,6 @@ namespace SampleGame.DependOnAll.Editor
             EditorUtility.SetDirty(node);
             return node;
         }
-
         private static void EnsureEdge(SceneGraphEdges graph, SceneNodeData parent, SceneNodeData child)
         {
             if (graph.Edges.Any(edge => edge.Parent == parent && edge.Child == child))
@@ -392,10 +371,7 @@ namespace SampleGame.DependOnAll.Editor
             graph.RemoveEdgeByChild(child);
             graph.AddEdge(parent, child);
         }
-
-        /// <summary>
-        /// グリッド外・廃止した Cell_/Environment_ の SceneNodeData を Graph とディスクから除去する。
-        /// </summary>
+        /// <summary>グリッド外または keep 集合外の Cell / Environment ノードを除去する。</summary>
         private static void PruneStaleCellSceneGraphNodes(
             SceneGraphEdges totalGraph,
             HashSet<string> keepIdentities)
@@ -410,7 +386,8 @@ namespace SampleGame.DependOnAll.Editor
                 }
 
                 var id = node.Identity;
-                if (!CellIdentity.IsCellId(id) && !EnvironmentIdentity.IsEnvironmentId(id))
+                var nodePath = AssetDatabase.GetAssetPath(node).Replace('\\', '/');
+                if (!nodePath.StartsWith(SceneGraphCellsFolder + "/", System.StringComparison.Ordinal))
                 {
                     continue;
                 }
@@ -451,200 +428,6 @@ namespace SampleGame.DependOnAll.Editor
                     Debug.Log($"[WorldCellStreamingSliceCreator] Removed orphan SceneGraph node: {path}");
                 }
             }
-        }
-
-        private static List<CellExistingState> CollectExistingStates(WorldGridDefinition definition)
-        {
-            var result = new List<CellExistingState>();
-            if (AssetDatabase.IsValidFolder(CellsRootFolder))
-            {
-                var subFolders = AssetDatabase.GetSubFolders(CellsRootFolder);
-                for (var i = 0; i < subFolders.Length; i++)
-                {
-                    var folder = subFolders[i].Replace('\\', '/');
-                    var folderName = Path.GetFileName(folder);
-                    if (!CellIdentity.TryParse(folderName, out var coordinate))
-                    {
-                        continue;
-                    }
-
-                    var cellScenePath = $"{folder}/{folderName}.unity";
-                    var hasCellRoot = AssetDatabase.LoadAssetAtPath<SceneAsset>(cellScenePath) != null
-                        && SceneHasAuthoredRoot(cellScenePath, DemoCellScene.AuthoredRootName);
-
-                    var envScenePath = $"{folder}/{EnvironmentIdentity.Format(coordinate.x, coordinate.y)}.unity";
-                    var hasEnvScene = AssetDatabase.LoadAssetAtPath<SceneAsset>(envScenePath) != null;
-                    var hasEnvRoot = hasEnvScene
-                        && SceneHasAuthoredRoot(envScenePath, EnvironmentScene.AuthoredRootName);
-
-                    result.Add(new CellExistingState(
-                        folderName, coordinate, hasCellRoot, hasEnvScene, hasEnvRoot));
-                }
-            }
-
-            // Additive NewScene は未保存 untitled があると失敗するため、
-            // 保存済みシーンを開いて状態をリセットする。
-            EditorSceneManager.OpenScene(WorldScenePath, OpenSceneMode.Single);
-            return result;
-        }
-
-        private static bool SceneHasAuthoredRoot(string scenePath, string authoredRootName)
-        {
-            var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Additive);
-            try
-            {
-                foreach (var root in scene.GetRootGameObjects())
-                {
-                    if (root != null && root.name == authoredRootName)
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
-            }
-            finally
-            {
-                EditorSceneManager.CloseScene(scene, removeScene: true);
-            }
-        }
-
-        /// <summary>
-        /// 現行グリッド外の <c>Cells/Cell_x_y/</c> をフォルダごと削除し、Map / World 子からも外す。
-        /// Environment_* も同フォルダ内なので一緒に消える。Map に残った identity も掃除する。
-        /// </summary>
-        private static void DeleteOutOfGridCellFolders(
-            SceneResourceMap map,
-            SceneResource world,
-            WorldGridDefinition definition,
-            CellPopulationPlan plan)
-        {
-            if (!AssetDatabase.IsValidFolder(CellsRootFolder))
-            {
-                return;
-            }
-
-            var deletableCells = new HashSet<string>(System.StringComparer.Ordinal);
-            for (var i = 0; i < plan.DeletionEntries.Count; i++)
-            {
-                deletableCells.Add(plan.DeletionEntries[i].Identity);
-            }
-
-            var deletedFolders = 0;
-            var guids = AssetDatabase.FindAssets("t:SceneResource", new[] { CellsRootFolder });
-            var identitiesToDrop = new HashSet<string>(System.StringComparer.Ordinal);
-
-            // 先に「範囲外 identity」を収集（フォルダ削除前にパスから読む）。
-            foreach (var guid in guids)
-            {
-                var path = AssetDatabase.GUIDToAssetPath(guid);
-                var resource = AssetDatabase.LoadAssetAtPath<SceneResource>(path);
-                if (resource == null)
-                {
-                    continue;
-                }
-
-                if (CellIdentity.TryParse(resource.Identity, out var cellCoord))
-                {
-                    if (!definition.Contains(cellCoord))
-                    {
-                        if (deletableCells.Contains(resource.Identity))
-                        {
-                            identitiesToDrop.Add(resource.Identity);
-                        }
-                    }
-
-                    continue;
-                }
-
-                if (EnvironmentIdentity.TryParse(resource.Identity, out var envCoord))
-                {
-                    if (!definition.Contains(envCoord))
-                    {
-                        var cellId = CellIdentity.Format(envCoord.x, envCoord.y);
-                        if (deletableCells.Contains(cellId))
-                        {
-                            identitiesToDrop.Add(resource.Identity);
-                        }
-                    }
-                }
-            }
-
-            // サブフォルダ走査: Cell_* でグリッド外かつ削除計画にあるものだけ DeleteAsset(フォルダ)。
-            var subFolders = AssetDatabase.GetSubFolders(CellsRootFolder);
-            for (var i = 0; i < subFolders.Length; i++)
-            {
-                var folder = subFolders[i].Replace('\\', '/');
-                var folderName = Path.GetFileName(folder);
-                if (!CellIdentity.TryParse(folderName, out var coordinate))
-                {
-                    continue;
-                }
-
-                if (definition.Contains(coordinate))
-                {
-                    continue;
-                }
-
-                var cellId = CellIdentity.Format(coordinate.x, coordinate.y);
-                if (!deletableCells.Contains(cellId))
-                {
-                    Debug.LogWarning(
-                        $"[WorldCellStreamingSliceCreator] 範囲外だが HandAuthored なので保持した: {cellId}");
-                    continue;
-                }
-
-                identitiesToDrop.Add(cellId);
-                if (EnvironmentIdentity.TryFromCellId(cellId, out var envId))
-                {
-                    identitiesToDrop.Add(envId);
-                }
-
-                if (AssetDatabase.DeleteAsset(folder))
-                {
-                    deletedFolders++;
-                    Debug.Log($"[WorldCellStreamingSliceCreator] Deleted out-of-grid folder: {folder}");
-                }
-            }
-
-            foreach (var identity in identitiesToDrop)
-            {
-                RemoveFromMap(map, identity);
-            }
-
-            // World._children から消えた参照を落とす（Relink 前のゴミ防止）。
-            if (identitiesToDrop.Count > 0)
-            {
-                var worldSo = new SerializedObject(world);
-                var childrenProp = worldSo.FindProperty("_children");
-                var keep = new List<SceneResource>();
-                for (var i = 0; i < childrenProp.arraySize; i++)
-                {
-                    var child = childrenProp.GetArrayElementAtIndex(i).objectReferenceValue as SceneResource;
-                    if (child != null && !identitiesToDrop.Contains(child.Identity))
-                    {
-                        keep.Add(child);
-                    }
-                }
-
-                childrenProp.ClearArray();
-                for (var i = 0; i < keep.Count; i++)
-                {
-                    childrenProp.InsertArrayElementAtIndex(i);
-                    childrenProp.GetArrayElementAtIndex(i).objectReferenceValue = keep[i];
-                }
-
-                worldSo.ApplyModifiedPropertiesWithoutUndo();
-                EditorUtility.SetDirty(world);
-                EditorUtility.SetDirty(map);
-                CompactNullMapEntries(map);
-                AssetDatabase.SaveAssets();
-                AssetDatabase.Refresh();
-            }
-
-            Debug.Log(
-                $"[WorldCellStreamingSliceCreator] Out-of-grid cleanup: folders={deletedFolders}, " +
-                $"identitiesDropped={identitiesToDrop.Count}");
         }
 
         private static void EnsureFolders()
@@ -761,7 +544,7 @@ namespace SampleGame.DependOnAll.Editor
                     continue;
                 }
 
-                var includeGround = !sproutSet.Contains(entry.Coordinate);
+                var includeGround = !sproutSet.Contains(entry.Identity);
                 PopulateSingleCellScene(
                     scenePath,
                     entry.Coordinate.x,
@@ -777,9 +560,9 @@ namespace SampleGame.DependOnAll.Editor
                 $"(skipped={skipped}, sprout cells={sproutSet.Count} keep Marker only)");
         }
 
-        private static HashSet<Vector2Int> BuildSproutSet()
+        private static HashSet<string> BuildSproutSet()
         {
-            var set = new HashSet<Vector2Int>();
+            var set = new HashSet<string>(System.StringComparer.Ordinal);
             for (var i = 0; i < EnvironmentSproutCells.Length; i++)
             {
                 set.Add(EnvironmentSproutCells[i]);
@@ -913,11 +696,13 @@ namespace SampleGame.DependOnAll.Editor
 
         /// <summary>
         /// 萌芽 Cell に Environment 子 SceneResource / .unity を付け、Ground を焼き込む。
+        /// Sprout の所属はこの生成手続きが所有し、Populate / Skip は plan の編集方針に従う。
         /// LoadType は必ず OnDemand（Cell Add で引っ張られない）。
         /// </summary>
         private static void CreateEnvironmentSprouts(
             SceneResourceMap map,
             WorldGridDefinition definition,
+            IReadOnlyList<WorldCellGenerationTarget> targets,
             Material sharedLit,
             CellPopulationPlan plan)
         {
@@ -927,8 +712,15 @@ namespace SampleGame.DependOnAll.Editor
 
             for (var i = 0; i < EnvironmentSproutCells.Length; i++)
             {
-                var coord = EnvironmentSproutCells[i];
-                var cellId = CellIdentity.Format(coord.x, coord.y);
+                var cellId = EnvironmentSproutCells[i];
+                var target = FindTarget(targets, cellId);
+                if (!target.HasValue)
+                {
+                    skipped++;
+                    continue;
+                }
+
+                var coord = target.Value.Coordinate;
                 var envId = EnvironmentIdentity.Format(coord.x, coord.y);
                 var cellFolder = $"{cellsFolder}/{cellId}";
                 var cellResourcePath = $"{cellFolder}/{cellId}.asset";
@@ -936,7 +728,7 @@ namespace SampleGame.DependOnAll.Editor
                 var envResourcePath = $"{cellFolder}/{envId}.asset";
 
                 var cellResource = AssetDatabase.LoadAssetAtPath<SceneResource>(cellResourcePath);
-                // 削除済み Generated sprout など、親 Cell が無いのは正常系（例外にしない）。
+                // 削除済みの生成済み萌芽など、親 Cell が無いのは正常系（例外にしない）。
                 if (cellResource == null)
                 {
                     skipped++;
@@ -946,7 +738,7 @@ namespace SampleGame.DependOnAll.Editor
                 EnsureAssetFolder(cellFolder);
                 EnsureEnvironmentSceneFile(envScenePath);
 
-                var populateEnvironment = plan.ShouldPopulateEnvironment(coord);
+                var populateEnvironment = plan.ShouldPopulateEnvironment(cellId);
 
                 if (populateEnvironment)
                 {
@@ -970,6 +762,21 @@ namespace SampleGame.DependOnAll.Editor
             Debug.Log(
                 $"[WorldCellStreamingSliceCreator] Environment sprouts: {created} " +
                 $"(OnDemand under Cell), skipped={skipped}");
+        }
+
+        private static WorldCellGenerationTarget? FindTarget(
+            IReadOnlyList<WorldCellGenerationTarget> targets,
+            string identity)
+        {
+            for (var i = 0; i < targets.Count; i++)
+            {
+                if (string.Equals(targets[i].Identity, identity, System.StringComparison.Ordinal))
+                {
+                    return targets[i];
+                }
+            }
+
+            return null;
         }
 
         private static void EnsureEnvironmentSceneFile(string scenePath)
@@ -1149,7 +956,10 @@ namespace SampleGame.DependOnAll.Editor
         /// World._children を Cell SceneResource アセットで埋め直す。
         /// Environment 等の非 Cell 子は触らない（Cell 側の Children に残る）。
         /// </summary>
-        private static void RelinkWorldChildren(SceneResource world, WorldGridDefinition definition)
+        private static void RelinkWorldChildren(
+            SceneResource world,
+            WorldGridDefinition definition,
+            IReadOnlyList<WorldCellGenerationTarget> targets)
         {
             var folder = definition.SceneResourceOutputFolder.Replace('\\', '/').TrimEnd('/');
             var guids = AssetDatabase.FindAssets("t:SceneResource", new[] { folder });
@@ -1158,7 +968,8 @@ namespace SampleGame.DependOnAll.Editor
             {
                 var path = AssetDatabase.GUIDToAssetPath(guid);
                 var cell = AssetDatabase.LoadAssetAtPath<SceneResource>(path);
-                if (cell == null || !CellIdentity.IsCellId(cell.Identity))
+                if (cell == null || !targets.Any(t =>
+                        string.Equals(t.Identity, cell.Identity, System.StringComparison.Ordinal)))
                 {
                     continue;
                 }
@@ -1278,10 +1089,13 @@ namespace SampleGame.DependOnAll.Editor
         }
 
         /// <summary>
-        /// Cells 配下の全 SceneResource（Cell_* / Environment_*）を Map に再 Upsert する。
+        /// Cells 配下の全 Cell / Environment SceneResource を Map に再 Upsert する。
         /// Compact 後に「生きているアセットだけ」がカタログに揃うことを保証する。
         /// </summary>
-        private static void RelinkMapFromDisk(SceneResourceMap map, WorldGridDefinition definition)
+        private static void RelinkMapFromDisk(
+            SceneResourceMap map,
+            WorldGridDefinition definition,
+            IReadOnlyList<WorldCellGenerationTarget> targets)
         {
             var folder = definition.SceneResourceOutputFolder.Replace('\\', '/').TrimEnd('/');
             var guids = AssetDatabase.FindAssets("t:SceneResource", new[] { folder });
@@ -1295,7 +1109,7 @@ namespace SampleGame.DependOnAll.Editor
                     continue;
                 }
 
-                if (!CellIdentity.IsCellId(resource.Identity)
+                if (!targets.Any(t => string.Equals(t.Identity, resource.Identity, System.StringComparison.Ordinal))
                     && !EnvironmentIdentity.IsEnvironmentId(resource.Identity))
                 {
                     continue;
@@ -1309,32 +1123,16 @@ namespace SampleGame.DependOnAll.Editor
             Debug.Log($"[WorldCellStreamingSliceCreator] Relinked {count} Cell/Environment resources into SceneResourceMap");
         }
 
-        private static void RemoveFromMap(SceneResourceMap map, string identity)
-        {
-            var mapSo = new SerializedObject(map);
-            var listProp = mapSo.FindProperty("_sceneResources");
-            for (var i = listProp.arraySize - 1; i >= 0; i--)
-            {
-                var resource = listProp.GetArrayElementAtIndex(i).objectReferenceValue as SceneResource;
-                if (resource != null && resource.Identity == identity)
-                {
-                    listProp.DeleteArrayElementAtIndex(i);
-                }
-            }
-
-            mapSo.ApplyModifiedPropertiesWithoutUndo();
-        }
-
-        private static void RegisterCellAddressables(WorldGridDefinition definition)
+        private static void RegisterCellAddressables(
+            WorldGridDefinition definition,
+            IReadOnlyList<WorldCellGenerationTarget> targets)
         {
             var folder = definition.SceneOutputFolder.Replace('\\', '/').TrimEnd('/');
-            var guids = AssetDatabase.FindAssets("t:SceneAsset", new[] { folder });
-            foreach (var guid in guids)
+            for (var i = 0; i < targets.Count; i++)
             {
-                var path = AssetDatabase.GUIDToAssetPath(guid);
-                // Environment は別メソッドで登録。ここでは Cell_*.unity のみ。
-                var fileName = Path.GetFileNameWithoutExtension(path);
-                if (CellIdentity.IsCellId(fileName))
+                var identity = targets[i].Identity;
+                var path = $"{folder}/{identity}/{identity}.unity";
+                if (AssetDatabase.LoadAssetAtPath<SceneAsset>(path) != null)
                 {
                     RegisterAddressableScene(path);
                 }
@@ -1376,6 +1174,17 @@ namespace SampleGame.DependOnAll.Editor
             var entry = settings.CreateOrMoveEntry(guid, settings.DefaultGroup);
             entry.address = assetPath;
             settings.SetDirty(AddressableAssetSettings.ModificationEvent.EntryMoved, entry, true);
+        }
+
+        private static T LoadRequiredAsset<T>(string assetPath) where T : UnityEngine.Object
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<T>(assetPath);
+            if (asset == null)
+            {
+                throw new FileNotFoundException(assetPath);
+            }
+
+            return asset;
         }
 
         private static void EnsureAssetFolder(string assetFolder)

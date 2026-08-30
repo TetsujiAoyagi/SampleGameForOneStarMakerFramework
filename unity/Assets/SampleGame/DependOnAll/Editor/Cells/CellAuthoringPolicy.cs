@@ -1,59 +1,37 @@
 #nullable enable
 
-using UnityEngine;
+using System;
+using System.Collections.Generic;
 
 namespace SampleGame.DependOnAll.Editor.Cells
 {
-    /// <summary>
-    /// Cell の正本方針。Generated は再生成で上書き可、HandAuthored は既存があれば触らない。
-    /// </summary>
     public enum CellAuthoringPolicyKind
     {
-        /// <summary>生成物が正本。再生成で上書きしてよい。</summary>
         Generated = 0,
-
-        /// <summary>手編集が正本。既存の AuthoredRoot / Environment は触らない。</summary>
         HandAuthored = 1,
     }
 
-    /// <summary>
-    /// SampleGame 運用としての Cell → policy 解決。
-    /// データはハードコード静的配列（純関数性のため ScriptableObject 資産にはしない）。
-    /// </summary>
+    /// <summary>SampleGame の Cell identity → 編集方針の解決。</summary>
     public static class CellAuthoringPolicy
     {
-        /// <summary>
-        /// 手編集正本とする Cell 座標（4×4 の南辺）。
-        /// EnvironmentSproutCells と同座標だが意味が違うため統合しない。
-        /// </summary>
-        private static readonly Vector2Int[] HandAuthoredCells =
+        private static readonly HashSet<string> HandAuthoredIdentities = new(StringComparer.Ordinal)
         {
-            new(0, 0),
-            new(1, 0),
-            new(2, 0),
-            new(3, 0),
+            "Cell_0_0",
+            "Cell_1_0",
+            "Cell_2_0",
+            "Cell_3_0",
         };
 
-        /// <summary>
-        /// 座標に対する policy を返す。未指定座標は既定 <see cref="CellAuthoringPolicyKind.Generated"/>。
-        /// </summary>
-        public static CellAuthoringPolicyKind Resolve(Vector2Int coordinate)
+        public static CellAuthoringPolicyKind Resolve(string identity)
         {
-            for (var i = 0; i < HandAuthoredCells.Length; i++)
+            if (identity == null)
             {
-                if (HandAuthoredCells[i] == coordinate)
-                {
-                    return CellAuthoringPolicyKind.HandAuthored;
-                }
+                throw new ArgumentNullException(nameof(identity));
             }
 
-            return CellAuthoringPolicyKind.Generated;
+            return HandAuthoredIdentities.Contains(identity)
+                ? CellAuthoringPolicyKind.HandAuthored
+                : CellAuthoringPolicyKind.Generated;
         }
-
-        /// <summary>
-        /// 座標に対する policy を返す。未指定座標は既定 <see cref="CellAuthoringPolicyKind.Generated"/>。
-        /// </summary>
-        public static CellAuthoringPolicyKind Resolve(int x, int y)
-            => Resolve(new Vector2Int(x, y));
     }
 }

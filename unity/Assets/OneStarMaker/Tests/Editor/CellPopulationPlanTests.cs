@@ -3,366 +3,203 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using OneStarMaker.Editor.Streaming;
 using SampleGame.DependOnAll.Editor.Cells;
-using SampleGame.InGame.Streaming;
 using UnityEngine;
 
 namespace OneStarMaker.Tests.Editor
 {
-    /// <summary>
-    /// CellPopulationPlan の純関数テスト（AssetDatabase 非依存）。
-    /// </summary>
     [TestFixture]
     public sealed class CellPopulationPlanTests
     {
-        private static CellGridSpec Grid4x4()
-            => new(Expand(new CellRect(Vector2Int.zero, new Vector2Int(4, 4))), Vector3.zero, 250f);
+        private static IReadOnlyList<WorldCellGenerationTarget> Grid4x4()
+            => Targets(new Vector2Int(4, 4));
 
-        private static CellGridSpec Grid3x3()
-            => new(Expand(new CellRect(Vector2Int.zero, new Vector2Int(3, 3))), Vector3.zero, 250f);
+        private static IReadOnlyList<WorldCellGenerationTarget> Grid3x3()
+            => Targets(new Vector2Int(3, 3));
 
-        private static IReadOnlyList<Vector2Int> Expand(params CellRect[] rectangles)
+        private static IReadOnlyList<WorldCellGenerationTarget> Targets(Vector2Int size)
         {
-            var cells = new List<Vector2Int>();
-            for (var r = 0; r < rectangles.Length; r++)
+            var result = new List<WorldCellGenerationTarget>();
+            for (var y = 0; y < size.y; y++)
             {
-                var rect = rectangles[r];
-                for (var y = 0; y < rect.Size.y; y++)
+                for (var x = 0; x < size.x; x++)
                 {
-                    for (var x = 0; x < rect.Size.x; x++)
-                    {
-                        cells.Add(new Vector2Int(rect.Origin.x + x, rect.Origin.y + y));
-                    }
+                    result.Add(new WorldCellGenerationTarget($"Cell_{x}_{y}", new Vector2Int(x, y)));
                 }
             }
 
-            return cells;
+            return result;
         }
 
         private static CellExistingState State(
-            int x,
-            int y,
+            string identity,
             bool hasCellAuthoredRoot,
             bool hasEnvironmentScene = false,
             bool hasEnvironmentAuthoredRoot = false)
-        {
-            var coordinate = new Vector2Int(x, y);
-            return new CellExistingState(
-                identity: $"Cell_{x}_{y}",
-                coordinate: coordinate,
-                hasCellAuthoredRoot: hasCellAuthoredRoot,
-                hasEnvironmentScene: hasEnvironmentScene,
-                hasEnvironmentAuthoredRoot: hasEnvironmentAuthoredRoot);
-        }
+            => new(identity, hasCellAuthoredRoot, hasEnvironmentScene, hasEnvironmentAuthoredRoot);
 
-        private static CellPopulationEntry RequirePopulationEntry(
-            CellPopulationPlan plan,
-            int x,
-            int y)
+        private static CellPopulationEntry Require(CellPopulationPlan plan, string identity)
         {
-            var identity = $"Cell_{x}_{y}";
             var entry = plan.PopulationEntries.SingleOrDefault(e => e.Identity == identity);
             Assert.That(entry, Is.Not.Null, $"Populate 計画に {identity} が含まれること");
             return entry!;
         }
 
         [Test]
-        public void T1_Generated_Populates_RegardlessOfAuthoredRoot()
+        public void Generated_PopulatesRegardlessOfAuthoredRoot()
         {
-            // Generated 座標 (1,1) — 南辺 HandAuthored 以外
-            var withoutRoot = State(1, 1, hasCellAuthoredRoot: false);
-            var withRoot = State(1, 1, hasCellAuthoredRoot: true);
-            var grid = Grid4x4();
-
-            Assert.That(CellAuthoringPolicy.Resolve(1, 1), Is.EqualTo(CellAuthoringPolicyKind.Generated));
-
-            var planWithout = CellPopulationPlan.Compute(grid, new[] { withoutRoot });
-            var planWith = CellPopulationPlan.Compute(grid, new[] { withRoot });
-
-            Assert.That(RequirePopulationEntry(planWithout, 1, 1).CellAction,
-                Is.EqualTo(CellPopulationAction.Populate),
-                "AuthoredRoot 無しでも Generated は Populate");
-            Assert.That(RequirePopulationEntry(planWith, 1, 1).CellAction,
-                Is.EqualTo(CellPopulationAction.Populate),
-                "AuthoredRoot 有りでも Generated は Populate");
+            Assert.That(CellAuthoringPolicy.Resolve("Cell_1_1"), Is.EqualTo(CellAuthoringPolicyKind.Generated));
+            var noRoot = CellPopulationPlan.Compute(Grid4x4(), new[] { State("Cell_1_1", false) });
+            var withRoot = CellPopulationPlan.Compute(Grid4x4(), new[] { State("Cell_1_1", true) });
+            Assert.That(Require(noRoot, "Cell_1_1").CellAction, Is.EqualTo(CellPopulationAction.Populate));
+            Assert.That(Require(withRoot, "Cell_1_1").CellAction, Is.EqualTo(CellPopulationAction.Populate));
         }
 
         [Test]
-        public void T2_HandAuthored_WithCellAuthoredRoot_SkipsCell()
+        public void HandAuthored_CellAndEnvironmentAreIndependent()
         {
-            var existing = State(0, 0, hasCellAuthoredRoot: true);
-            Assert.That(CellAuthoringPolicy.Resolve(0, 0), Is.EqualTo(CellAuthoringPolicyKind.HandAuthored));
-
-            var plan = CellPopulationPlan.Compute(Grid4x4(), new[] { existing });
-            var entry = RequirePopulationEntry(plan, 0, 0);
-
-            Assert.That(entry.CellAction, Is.EqualTo(CellPopulationAction.Skip),
-                "HandAuthored かつ Cell AuthoredRoot ありは Skip（本スライスの核心）");
+            var plan = CellPopulationPlan.Compute(
+                Grid4x4(), new[] { State("Cell_0_0", false, true, true) });
+            Assert.That(CellAuthoringPolicy.Resolve("Cell_0_0"), Is.EqualTo(CellAuthoringPolicyKind.HandAuthored));
+            Assert.That(Require(plan, "Cell_0_0").CellAction, Is.EqualTo(CellPopulationAction.Populate));
+            Assert.That(Require(plan, "Cell_0_0").EnvironmentAction, Is.EqualTo(CellPopulationAction.Skip));
         }
 
         [Test]
-        public void T2b_HandAuthored_WithEnvironmentAuthoredRoot_SkipsEnvironment()
+        public void HandAuthored_ExistingRootSkipsAndIncompleteEnvironmentPopulates()
         {
-            var existing = State(
-                0, 0,
-                hasCellAuthoredRoot: true,
-                hasEnvironmentScene: true,
-                hasEnvironmentAuthoredRoot: true);
-
-            var plan = CellPopulationPlan.Compute(Grid4x4(), new[] { existing });
-            var entry = RequirePopulationEntry(plan, 0, 0);
-
-            Assert.That(entry.EnvironmentAction, Is.EqualTo(CellPopulationAction.Skip),
-                "HandAuthored かつ Environment AuthoredRoot ありは Environment も Skip");
+            var plan = CellPopulationPlan.Compute(
+                Grid4x4(), new[] { State("Cell_0_0", true, true, false) });
+            Assert.That(Require(plan, "Cell_0_0").CellAction, Is.EqualTo(CellPopulationAction.Skip));
+            Assert.That(Require(plan, "Cell_0_0").EnvironmentAction, Is.EqualTo(CellPopulationAction.Populate));
         }
 
         [Test]
-        public void T2c_HandAuthored_WithEnvironmentSceneButNoAuthoredRoot_PopulatesEnvironment()
+        public void SameCoordinateDifferentIdentitiesRemainIndependent()
         {
-            // .unity だけあって AuthoredRoot が無い半端状態 → Environment は Populate（自己回復）
-            var existing = State(
-                0, 0,
-                hasCellAuthoredRoot: true,
-                hasEnvironmentScene: true,
-                hasEnvironmentAuthoredRoot: false);
-            Assert.That(CellAuthoringPolicy.Resolve(0, 0), Is.EqualTo(CellAuthoringPolicyKind.HandAuthored));
-
-            var plan = CellPopulationPlan.Compute(Grid4x4(), new[] { existing });
-            var entry = RequirePopulationEntry(plan, 0, 0);
-
-            Assert.That(entry.EnvironmentAction, Is.EqualTo(CellPopulationAction.Populate),
-                "HandAuthored でも Environment AuthoredRoot 無しなら Environment は Populate");
+            var targets = new[]
+            {
+                new WorldCellGenerationTarget("Cell_0_0", new Vector2Int(0, 0)),
+                new WorldCellGenerationTarget("Arbitrary_A", new Vector2Int(0, 0)),
+            };
+            var plan = CellPopulationPlan.Compute(
+                targets,
+                new[] { State("Cell_0_0", true), State("Arbitrary_A", false) });
+            Assert.That(plan.PopulationEntries.Select(e => e.Identity), Is.EquivalentTo(new[] { "Cell_0_0", "Arbitrary_A" }));
+            Assert.That(Require(plan, "Cell_0_0").CellAction, Is.EqualTo(CellPopulationAction.Skip));
+            Assert.That(Require(plan, "Arbitrary_A").CellAction, Is.EqualTo(CellPopulationAction.Populate));
         }
 
         [Test]
-        public void T3_HandAuthored_WithoutAuthoredRoot_Populates()
+        public void DuplicateTargetOrExistingIdentityThrows()
         {
-            var existing = State(2, 0, hasCellAuthoredRoot: false, hasEnvironmentScene: false);
-            Assert.That(CellAuthoringPolicy.Resolve(2, 0), Is.EqualTo(CellAuthoringPolicyKind.HandAuthored));
-
-            var plan = CellPopulationPlan.Compute(Grid4x4(), new[] { existing });
-            var entry = RequirePopulationEntry(plan, 2, 0);
-
-            Assert.That(entry.CellAction, Is.EqualTo(CellPopulationAction.Populate),
-                "HandAuthored かつ AuthoredRoot なしは初回スキャフォールドとして Populate");
-            Assert.That(entry.EnvironmentAction, Is.EqualTo(CellPopulationAction.Populate),
-                "hasEnvironmentScene: false なら Environment も Populate（初回スキャフォールド）");
+            var target = new WorldCellGenerationTarget("Arbitrary", Vector2Int.zero);
+            Assert.Throws<System.ArgumentException>(() => CellPopulationPlan.Compute(
+                new[] { target, target }, new CellExistingState[0]));
+            Assert.Throws<System.ArgumentException>(() => CellPopulationPlan.Compute(
+                new[] { target }, new[] { State("Arbitrary", false), State("Arbitrary", true) }));
         }
 
         [Test]
-        public void T4_SameInput_Twice_IsIdempotent()
+        public void IdentityComparisonIsOrdinal()
+        {
+            var targets = new[]
+            {
+                new WorldCellGenerationTarget("Cell_0_0", Vector2Int.zero),
+                new WorldCellGenerationTarget("cell_0_0", Vector2Int.one),
+            };
+            var plan = CellPopulationPlan.Compute(targets, new CellExistingState[0]);
+            Assert.That(plan.PopulationEntries, Has.Count.EqualTo(2));
+            Assert.That(CellAuthoringPolicy.Resolve("cell_0_0"), Is.EqualTo(CellAuthoringPolicyKind.Generated));
+        }
+
+        [Test]
+        public void ExistingSameCoordinateDifferentIdentityIsNotExistingTarget()
+        {
+            var target = new WorldCellGenerationTarget("Arbitrary", new Vector2Int(3, 3));
+            var plan = CellPopulationPlan.Compute(
+                new[] { target }, new[] { State("Other", true) });
+            Assert.That(Require(plan, "Arbitrary").CellAction, Is.EqualTo(CellPopulationAction.Populate));
+            Assert.That(plan.DeletionEntries.Single().Identity, Is.EqualTo("Other"));
+        }
+
+        [Test]
+        public void SameInputTwiceIsIdempotent()
         {
             var existing = new[]
             {
-                State(0, 0, hasCellAuthoredRoot: true, hasEnvironmentScene: true, hasEnvironmentAuthoredRoot: true),
-                State(1, 1, hasCellAuthoredRoot: false),
-                State(3, 3, hasCellAuthoredRoot: true),
+                State("Cell_0_0", true, true, true),
+                State("Cell_1_1", false),
+                State("Cell_3_3", true),
             };
-            var grid = Grid4x4();
-
-            var first = CellPopulationPlan.Compute(grid, existing);
-            var second = CellPopulationPlan.Compute(grid, existing);
-
+            var first = CellPopulationPlan.Compute(Grid4x4(), existing);
+            var second = CellPopulationPlan.Compute(Grid4x4(), existing);
             Assert.That(second.PopulationEntries.Count, Is.EqualTo(first.PopulationEntries.Count));
-            Assert.That(second.DeletionEntries.Count, Is.EqualTo(first.DeletionEntries.Count));
-
-            foreach (var a in first.PopulationEntries)
+            Assert.That(second.DeletionEntries.Select(e => e.Identity),
+                Is.EquivalentTo(first.DeletionEntries.Select(e => e.Identity)));
+            foreach (var entry in first.PopulationEntries)
             {
-                var b = second.PopulationEntries.Single(e => e.Identity == a.Identity);
-                Assert.That(b.Coordinate, Is.EqualTo(a.Coordinate));
-                Assert.That(b.CellAction, Is.EqualTo(a.CellAction), $"{a.Identity} CellAction が同一");
-                Assert.That(b.EnvironmentAction, Is.EqualTo(a.EnvironmentAction),
-                    $"{a.Identity} EnvironmentAction が同一");
-            }
-
-            foreach (var a in first.DeletionEntries)
-            {
-                Assert.That(
-                    second.DeletionEntries.Any(e => e.Identity == a.Identity && e.Coordinate == a.Coordinate),
-                    Is.True,
-                    $"削除計画の {a.Identity} が 2 回目にも含まれること");
+                var other = Require(second, entry.Identity);
+                Assert.That(other.Coordinate, Is.EqualTo(entry.Coordinate));
+                Assert.That(other.CellAction, Is.EqualTo(entry.CellAction));
+                Assert.That(other.EnvironmentAction, Is.EqualTo(entry.EnvironmentAction));
             }
         }
 
         [Test]
-        public void T5_UnspecifiedPolicy_DefaultsToGenerated()
+        public void OutOfTargetExistingIsAbsentFromPopulation()
         {
-            // 南辺以外は policy 未指定 → Generated
-            Assert.That(CellAuthoringPolicy.Resolve(0, 1), Is.EqualTo(CellAuthoringPolicyKind.Generated));
-            Assert.That(CellAuthoringPolicy.Resolve(2, 2), Is.EqualTo(CellAuthoringPolicyKind.Generated));
-
-            var existing = State(2, 2, hasCellAuthoredRoot: true);
-            var plan = CellPopulationPlan.Compute(Grid4x4(), new[] { existing });
-            var entry = RequirePopulationEntry(plan, 2, 2);
-
-            Assert.That(entry.CellAction, Is.EqualTo(CellPopulationAction.Populate),
-                "未指定 policy は Generated 相当で AuthoredRoot 有りでも Populate");
+            var plan = CellPopulationPlan.Compute(
+                Grid3x3(), new[] { State("Cell_3_0", true), State("Cell_1_1", false) });
+            Assert.That(plan.PopulationEntries.Any(e => e.Identity == "Cell_3_0"), Is.False);
+            Assert.That(plan.PopulationEntries.Any(e => e.Identity == "Cell_1_1"), Is.True);
         }
 
         [Test]
-        public void T6_OutOfGridExistingCell_DoesNotAppearInPopulationPlan()
+        public void OutOfTargetShouldPopulateEnvironmentIsFalse()
         {
-            // 3×3 では (3,0) は範囲外。既存として渡しても Populate 計画には出ない。
-            var existing = new[]
+            var plan = CellPopulationPlan.Compute(
+                Grid3x3(), new[] { State("Cell_3_0", true, true, true) });
+            Assert.That(plan.ShouldPopulateEnvironment("Cell_3_0"), Is.False);
+        }
+
+        [Test]
+        public void SameCoordinateGapUsesIdentitySetNotGeometry()
+        {
+            var targets = new[]
             {
-                State(1, 1, hasCellAuthoredRoot: false),
-                State(3, 0, hasCellAuthoredRoot: true, hasEnvironmentScene: true),
+                new WorldCellGenerationTarget("Cell_0_0", Vector2Int.zero),
+                new WorldCellGenerationTarget("Cell_4_0", new Vector2Int(4, 0)),
             };
-
-            var plan = CellPopulationPlan.Compute(Grid3x3(), existing);
-
-            Assert.That(plan.PopulationEntries.Any(e => e.Identity == "Cell_3_0"), Is.False,
-                "グリッド範囲外の既存 Cell は Populate 計画に現れない");
-            Assert.That(plan.PopulationEntries.Any(e => e.Identity == "Cell_1_1"), Is.True,
-                "範囲内の既存 Cell は Populate 計画に現れる");
+            var plan = CellPopulationPlan.Compute(
+                targets,
+                new[] { State("Cell_3_0", true), State("Cell_3_1", false) });
+            Assert.That(plan.PopulationEntries.Select(e => e.Identity),
+                Is.EquivalentTo(new[] { "Cell_0_0", "Cell_4_0" }));
+            Assert.That(plan.IsDeletable("Cell_3_0"), Is.False);
+            Assert.That(plan.IsDeletable("Cell_3_1"), Is.True);
         }
 
         [Test]
-        public void T7_OutOfGrid_HandAuthored_NotDeleted_Generated_IsDeleted()
+        public void DeletionAndEnvironmentQueriesAreIdentityBased()
         {
-            // 3×3 縮小: Cell_3_0 は HandAuthored（南辺）、Cell_3_1 は Generated
-            var existing = new[]
-            {
-                State(3, 0, hasCellAuthoredRoot: true, hasEnvironmentScene: true),
-                State(3, 1, hasCellAuthoredRoot: false),
-            };
-
-            Assert.That(CellAuthoringPolicy.Resolve(3, 0), Is.EqualTo(CellAuthoringPolicyKind.HandAuthored));
-            Assert.That(CellAuthoringPolicy.Resolve(3, 1), Is.EqualTo(CellAuthoringPolicyKind.Generated));
-
-            var plan = CellPopulationPlan.Compute(Grid3x3(), existing);
-
-            Assert.That(plan.DeletionEntries.Any(e => e.Identity == "Cell_3_0"), Is.False,
-                "範囲外かつ HandAuthored は削除計画に現れない");
-            Assert.That(plan.DeletionEntries.Any(e => e.Identity == "Cell_3_1"), Is.True,
-                "範囲外かつ Generated は削除計画に現れる");
+            var plan = CellPopulationPlan.Compute(
+                Grid3x3(), new[] { State("Cell_3_1", false), State("Arbitrary_Old", false) });
+            Assert.That(plan.IsDeletable("Cell_3_1"), Is.True);
+            Assert.That(plan.IsDeletable("Arbitrary_Old"), Is.True);
+            Assert.That(plan.IsDeletable("Cell_1_1"), Is.False);
+            Assert.That(plan.ShouldPopulateEnvironment("Cell_1_1"), Is.True);
+            Assert.That(plan.ShouldPopulateEnvironment("Missing"), Is.False);
         }
 
         [Test]
-        public void T8_OutOfGrid_ShouldPopulateEnvironment_IsFalse()
+        public void OutOfTargetHandAuthoredIdentityIsRetained()
         {
-            // A-7 実機: GridWidth=3 で範囲外になった HandAuthored Cell_3_0
-            var existing = new[]
-            {
-                State(
-                    3, 0,
-                    hasCellAuthoredRoot: true,
-                    hasEnvironmentScene: true,
-                    hasEnvironmentAuthoredRoot: true),
-            };
-
-            var plan = CellPopulationPlan.Compute(Grid3x3(), existing);
-
-            Assert.That(plan.ShouldPopulateEnvironment(new Vector2Int(3, 0)), Is.False,
-                "範囲外座標は計画に無いため Environment を再生成しない");
-        }
-
-        [Test]
-        public void T9_ShouldPopulateEnvironment_MatchesInGridActions()
-        {
-            var existing = new[]
-            {
-                State(
-                    0, 0,
-                    hasCellAuthoredRoot: true,
-                    hasEnvironmentScene: true,
-                    hasEnvironmentAuthoredRoot: true),
-                State(1, 1, hasCellAuthoredRoot: false),
-            };
-
-            var plan = CellPopulationPlan.Compute(Grid4x4(), existing);
-
-            Assert.That(plan.ShouldPopulateEnvironment(new Vector2Int(0, 0)), Is.False,
-                "HandAuthored かつ Environment AuthoredRoot ありは false");
-            Assert.That(plan.ShouldPopulateEnvironment(new Vector2Int(1, 1)), Is.True,
-                "Generated は true");
-        }
-
-        [Test]
-        public void T10_HandAuthored_CellPopulate_EnvironmentSkip_AreIndependent()
-        {
-            // Cell に AuthoredRoot は無いが Environment にはある → Cell Populate / Env Skip
-            var existing = State(
-                0, 0,
-                hasCellAuthoredRoot: false,
-                hasEnvironmentScene: true,
-                hasEnvironmentAuthoredRoot: true);
-            Assert.That(CellAuthoringPolicy.Resolve(0, 0), Is.EqualTo(CellAuthoringPolicyKind.HandAuthored));
-
-            var plan = CellPopulationPlan.Compute(Grid4x4(), new[] { existing });
-            var entry = RequirePopulationEntry(plan, 0, 0);
-
-            Assert.That(entry.CellAction, Is.EqualTo(CellPopulationAction.Populate),
-                "Cell AuthoredRoot 無しなら Cell は Populate");
-            Assert.That(entry.EnvironmentAction, Is.EqualTo(CellPopulationAction.Skip),
-                "Environment AuthoredRoot ありなら Environment は Skip（Cell と独立）");
-        }
-
-        [Test]
-        public void T11_IsDeletable_InGrid_OutOfGridGenerated_OutOfGridHandAuthored()
-        {
-            // 3×3: (1,1) 範囲内 / (3,1) 範囲外 Generated / (3,0) 範囲外 HandAuthored
-            var existing = new[]
-            {
-                State(1, 1, hasCellAuthoredRoot: false),
-                State(3, 1, hasCellAuthoredRoot: false),
-                State(3, 0, hasCellAuthoredRoot: true, hasEnvironmentScene: true),
-            };
-            Assert.That(CellAuthoringPolicy.Resolve(3, 0), Is.EqualTo(CellAuthoringPolicyKind.HandAuthored));
-            Assert.That(CellAuthoringPolicy.Resolve(3, 1), Is.EqualTo(CellAuthoringPolicyKind.Generated));
-
-            var plan = CellPopulationPlan.Compute(Grid3x3(), existing);
-
-            Assert.That(plan.IsDeletable(new Vector2Int(1, 1)), Is.False,
-                "範囲内座標は削除計画に出ない");
-            Assert.That(plan.IsDeletable(new Vector2Int(3, 1)), Is.True,
-                "範囲外 Generated は削除可能");
-            Assert.That(plan.IsDeletable(new Vector2Int(3, 0)), Is.False,
-                "範囲外 HandAuthored は削除不可");
-        }
-
-        [Test]
-        public void TC_RectangleSet_GapNotPopulated_OutOfSetHandAuthoredKept_GeneratedDeleted()
-        {
-            // 矩形 2 つ（空隙あり）: (0,0) 2×2 と (4,0) 2×2。空隙 (2..3, *) は Populate に出ない。
-            // (3,0) は南辺 HandAuthored、(3,1) は Generated。破壊経路 3 の保護が矩形集合でも同じ。
-            var grid = new CellGridSpec(
-                Expand(
-                    new CellRect(Vector2Int.zero, new Vector2Int(2, 2)),
-                    new CellRect(new Vector2Int(4, 0), new Vector2Int(2, 2))),
-                Vector3.zero,
-                250f);
-
-            var existing = new[]
-            {
-                State(1, 1, hasCellAuthoredRoot: false),
-                State(3, 0, hasCellAuthoredRoot: true, hasEnvironmentScene: true),
-                State(3, 1, hasCellAuthoredRoot: false),
-            };
-
-            Assert.That(CellAuthoringPolicy.Resolve(3, 0), Is.EqualTo(CellAuthoringPolicyKind.HandAuthored));
-            Assert.That(CellAuthoringPolicy.Resolve(3, 1), Is.EqualTo(CellAuthoringPolicyKind.Generated));
-
-            var plan = CellPopulationPlan.Compute(grid, existing);
-
-            Assert.That(plan.PopulationEntries.Any(e => e.Identity == "Cell_3_0"), Is.False,
-                "空隙セルは Populate 計画に現れない");
-            Assert.That(plan.PopulationEntries.Any(e => e.Identity == "Cell_3_1"), Is.False,
-                "空隙セルは Populate 計画に現れない");
-            Assert.That(plan.PopulationEntries.Any(e => e.Identity == "Cell_1_1"), Is.True,
-                "矩形内の既存 Cell は Populate 計画に現れる");
-
-            Assert.That(plan.DeletionEntries.Any(e => e.Identity == "Cell_3_0"), Is.False,
-                "範囲外かつ HandAuthored は削除計画に現れない");
-            Assert.That(plan.DeletionEntries.Any(e => e.Identity == "Cell_3_1"), Is.True,
-                "範囲外かつ Generated は削除計画に現れる");
-
-            Assert.That(plan.IsDeletable(new Vector2Int(1, 1)), Is.False,
-                "矩形内座標は削除計画に出ない");
-            Assert.That(plan.IsDeletable(new Vector2Int(3, 1)), Is.True,
-                "範囲外 Generated は削除可能");
-            Assert.That(plan.IsDeletable(new Vector2Int(3, 0)), Is.False,
-                "範囲外 HandAuthored は削除不可");
+            var plan = CellPopulationPlan.Compute(
+                Grid3x3(), new[] { State("Cell_3_0", true), State("Cell_3_1", false) });
+            Assert.That(plan.IsDeletable("Cell_3_0"), Is.False);
+            Assert.That(plan.IsDeletable("Cell_3_1"), Is.True);
         }
     }
 }

@@ -2,10 +2,12 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using NUnit.Framework;
 using OneStarMaker.Editor.Streaming;
 using OneStarMaker.Runtime.AssetDescriptions;
 using OneStarMaker.Runtime.SceneSystem;
+using SampleGame.DependOnAll.Editor;
 using UnityEditor;
 using UnityEngine;
 
@@ -44,7 +46,8 @@ namespace OneStarMaker.Tests.Editor
             var map = CreateEmptyMap();
             var parent = CreateSceneResource(ParentIdentity);
 
-            var plan = WorldCellGenerator.ComputePlan(definition, WorldCellExistingState.Empty);
+            var targets = WorldCellGenerationTarget.FromGrid(definition);
+            var plan = WorldCellGenerator.ComputePlan(definition, targets, WorldCellExistingState.Empty);
             var result = WorldCellGenerator.ApplyPlan(definition, plan, map, parent);
             RegisterCreatedResources(result);
 
@@ -60,7 +63,7 @@ namespace OneStarMaker.Tests.Editor
             var map = CreateEmptyMap();
             var parent = CreateSceneResource(ParentIdentity);
 
-            var plan = WorldCellGenerator.ComputePlan(definition, WorldCellExistingState.Empty);
+            var plan = WorldCellGenerator.ComputePlan(definition, WorldCellGenerationTarget.FromGrid(definition), WorldCellExistingState.Empty);
             var result = WorldCellGenerator.ApplyPlan(definition, plan, map, parent);
             RegisterCreatedResources(result);
 
@@ -87,7 +90,7 @@ namespace OneStarMaker.Tests.Editor
         {
             var definition = CreateGridDefinition(GridSize, GridSize);
 
-            var plan = WorldCellGenerator.ComputePlan(definition, WorldCellExistingState.Empty);
+            var plan = WorldCellGenerator.ComputePlan(definition, WorldCellGenerationTarget.FromGrid(definition), WorldCellExistingState.Empty);
 
             Assert.That(plan.Entries, Has.Count.EqualTo(GridSize * GridSize));
 
@@ -120,7 +123,7 @@ namespace OneStarMaker.Tests.Editor
         {
             // CCS-00: フォルダ = 実行環境境界。Cell の .unity / .asset は同名サブフォルダに同居する。
             var definition = CreateGridDefinition(GridSize, GridSize);
-            var plan = WorldCellGenerator.ComputePlan(definition, WorldCellExistingState.Empty);
+            var plan = WorldCellGenerator.ComputePlan(definition, WorldCellGenerationTarget.FromGrid(definition), WorldCellExistingState.Empty);
 
             foreach (var entry in plan.Entries)
             {
@@ -141,15 +144,16 @@ namespace OneStarMaker.Tests.Editor
             var map = CreateEmptyMap();
             var parent = CreateSceneResource(ParentIdentity);
 
-            var planFirst = WorldCellGenerator.ComputePlan(definition, WorldCellExistingState.Empty);
+            var targets = WorldCellGenerationTarget.FromGrid(definition);
+            var planFirst = WorldCellGenerator.ComputePlan(definition, targets, WorldCellExistingState.Empty);
             var resultFirst = WorldCellGenerator.ApplyPlan(definition, planFirst, map, parent);
             RegisterCreatedResources(resultFirst);
 
             Assert.That(planFirst.CreateCount, Is.EqualTo(GridSize * GridSize));
             Assert.That(planFirst.SkipCount, Is.EqualTo(0));
 
-            var existingState = WorldCellExistingState.FromMap(map);
-            var planSecond = WorldCellGenerator.ComputePlan(definition, existingState);
+            var existingState = WorldCellExistingState.FromMap(map, targets);
+            var planSecond = WorldCellGenerator.ComputePlan(definition, targets, existingState);
             var resultSecond = WorldCellGenerator.ApplyPlan(definition, planSecond, map, parent);
             RegisterCreatedResources(resultSecond);
 
@@ -160,7 +164,7 @@ namespace OneStarMaker.Tests.Editor
             Assert.That(resultSecond.CreatedOrUpdatedResources, Is.Empty,
                 "2 回目の Apply で新規リソースが作られないこと");
 
-            var registeredCellIds = CollectCellIdentitiesFromMap(map);
+            var registeredCellIds = CollectIdentitiesFromMap(map);
             Assert.That(registeredCellIds, Has.Count.EqualTo(GridSize * GridSize));
             Assert.That(registeredCellIds, Is.EquivalentTo(
                 planFirst.Entries.Select(e => e.Identity).ToArray()),
@@ -171,7 +175,7 @@ namespace OneStarMaker.Tests.Editor
                 "AllCellResources の identity 集合が 1 回目と 2 回目で一致すること");
 
             var cellResourcesInRawList = map.SceneResources
-                .Where(r => r != null && CellIdentity.IsCellId(r.Identity))
+                .Where(r => r != null)
                 .ToList();
             Assert.That(cellResourcesInRawList, Has.Count.EqualTo(GridSize * GridSize),
                 "SceneResources 生リスト上のセル件数が重複なく GridSize^2 であること");
@@ -196,12 +200,12 @@ namespace OneStarMaker.Tests.Editor
         {
             var zeroGrid = CreateGridDefinition(0, GridSize);
             Assert.Throws<System.ArgumentException>(
-                () => WorldCellGenerator.ComputePlan(zeroGrid, WorldCellExistingState.Empty),
+                () => WorldCellGenerator.ComputePlan(zeroGrid, WorldCellGenerationTarget.FromGrid(zeroGrid), WorldCellExistingState.Empty),
                 "ゼロ以下のグリッドサイズは明示的な例外になること");
 
             var negativeGrid = CreateGridDefinition(GridSize, -1);
             Assert.Throws<System.ArgumentException>(
-                () => WorldCellGenerator.ComputePlan(negativeGrid, WorldCellExistingState.Empty),
+                () => WorldCellGenerator.ComputePlan(negativeGrid, WorldCellGenerationTarget.FromGrid(negativeGrid), WorldCellExistingState.Empty),
                 "負のグリッドサイズは明示的な例外になること");
         }
 
@@ -212,7 +216,7 @@ namespace OneStarMaker.Tests.Editor
             var map = CreateEmptyMap();
             var parent = CreateSceneResource(ParentIdentity);
 
-            var plan = WorldCellGenerator.ComputePlan(definition, WorldCellExistingState.Empty);
+            var plan = WorldCellGenerator.ComputePlan(definition, WorldCellGenerationTarget.FromGrid(definition), WorldCellExistingState.Empty);
             var result = WorldCellGenerator.ApplyPlan(definition, plan, map, parent);
             RegisterCreatedResources(result);
 
@@ -226,8 +230,27 @@ namespace OneStarMaker.Tests.Editor
                     $"{entry.Identity} の SceneAssetDescription が生成されていること");
             }
 
-            var registeredCellIds = CollectCellIdentitiesFromMap(map);
+            var registeredCellIds = CollectIdentitiesFromMap(map);
             Assert.That(registeredCellIds, Has.Count.EqualTo(GridSize * GridSize));
+        }
+
+        [Test]
+        public void EnvironmentSproutCells_MapToUniqueCoordinates()
+        {
+            var definition = CreateGridDefinition(4, 1);
+            var targets = WorldCellGenerationTarget.FromGrid(definition);
+            var field = typeof(WorldCellStreamingSliceCreator).GetField(
+                "EnvironmentSproutCells", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null);
+            var sproutIdentities = (string[])field!.GetValue(null)!;
+            var sproutTargets = sproutIdentities
+                .Select(identity => targets.Single(target => target.Identity == identity))
+                .ToList();
+
+            Assert.That(sproutIdentities.Distinct().Count(), Is.EqualTo(sproutIdentities.Length));
+            Assert.That(sproutTargets.Select(target => target.Coordinate).Distinct().Count(),
+                Is.EqualTo(sproutTargets.Count),
+                "同じ座標から複数の Environment identity を萌芽させないこと");
         }
 
         private void RegisterCreatedResources(WorldCellGenerationResult result)
@@ -278,12 +301,12 @@ namespace OneStarMaker.Tests.Editor
             return resource;
         }
 
-        private static HashSet<string> CollectCellIdentitiesFromMap(SceneResourceMap map)
+        private static HashSet<string> CollectIdentitiesFromMap(SceneResourceMap map)
         {
             var identities = new HashSet<string>(System.StringComparer.Ordinal);
             foreach (var resource in map.SceneResources)
             {
-                if (resource != null && CellIdentity.IsCellId(resource.Identity))
+                if (resource != null)
                 {
                     identities.Add(resource.Identity);
                 }
