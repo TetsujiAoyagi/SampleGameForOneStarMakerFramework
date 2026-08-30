@@ -31,6 +31,7 @@ StreamingCandidateSet（identity ＋ Bounds）→ 体積の中心 → 注視点�
 | 本番レイアウト | 矩形 1 個 `{ origin=(0,0), size=(4,4) }`。展開すると 16 セル | `WorldCellCatalog.Rectangles` |
 | 格子定数 | `Origin = (0,0,0)` / `CellSize = 250` / `CellHeight = 96`。**生成器入力・スポーン・HUD 用。距離政策は読まない** | `WorldCellCatalog` |
 | 体積 | `SceneResource._volume`（ワールド AABB）。`.unity` の全 Renderer の合併 ＋ 候補でない子の合併 | `SceneResource` |
+| 体積の収集範囲 | `SceneVolumeSceneReader` は全 `Renderer` を `includeInactive: true` で拾う。Particle / Trail / 無効デバッグメッシュを足して保存すると中心が跳ね得る。Collider のみは寄与しない。規約を足すなら S-4（世界稿 N-9） | 同上 |
 | 候補フラグ | `SceneResource._streamByDistance`。**生成器が焼く決定**。Cell に true を書くのは FW Editor の `WorldCellGenerator`、Environment に false を書くのは SampleGame の `EnsureEnvironmentResource`。幾何からは導出しない | 同上 |
 | 体積の焼き直し | シーン保存フック ＋ メニュー `OneStarMaker/Scene Volume/Recalculate All` ＋ 生成完了時。**書くのは体積だけ**でフラグには触らない | `SceneVolumeRecalculator` |
 | 半径 | `LoadRadius = 375` / `UnloadRadius = 550` / `MaxInFlight = 2` | 同上 |
@@ -54,9 +55,9 @@ StreamingCandidateSet（identity ＋ Bounds）→ 体積の中心 → 注視点�
 | `StreamingCandidate` | FW Runtime | identity ＋ `Bounds` の値型。空 identity / 空体積は例外 |
 | `StreamingCandidateSet` | FW Runtime | 候補列。**差し替えるときは丸ごと作り直す側。** 空集合と identity 重複は例外。防御的コピー |
 | `StreamingPolicySettings` | FW Runtime | 半径 2 つ ＋ `maxInFlight`。**ずっと不変な側。** 半径の順序と正値を検証 |
-| `WorldStreamingController` | FW Runtime | 毎 Tick 候補列を走査し、体積中心と注視点の距離で切る。desired / retain / ヒステリシス / in-flight / 距離順 priority。current は持たず `IsLoaded` で再照合（G-6）。**格子も名前文法も知らない** |
+| `WorldStreamingController` | FW Runtime | 毎 Tick 候補列を走査し、体積中心と注視点の距離で切る。desired / retain / ヒステリシス / in-flight / 距離順 priority。current は持たず `IsLoaded` で再照合（G-6）。**格子も名前文法も知らない**。`Candidates` 差し替え口は無い（集合は丸ごと作り直す。口が要るなら S-4 / N-10） |
 | `ISceneStreamingBackend` | FW Runtime | `RequestAdd` / `RequestRemove` / `IsLoaded`。SceneDirector 委譲 |
-| `ISceneVolumeQuery` | FW Runtime | `TryGetSceneVolume(identity, out Bounds)`。**未ロード**候補の体積を引く口。`ISceneQuery`（ロード済み専用）とは別 |
+| `ISceneVolumeQuery` | FW Runtime | `TryGetSceneVolume(identity, out Bounds)`。**未ロード**候補の体積を引く口。`ISceneQuery`（ロード済み専用）とは別。未登録 / フラグ off / 空体積を 1 つの `false` に畳む。失敗理由 enum は **開かない**（R-3 は query を使わない） |
 | `SceneResource` | FW Runtime | `_volume` / `_streamByDistance` を持つ。体積が空 = 空間に属さない（Title / Pause / Tunnel） |
 | `SceneVolumeMath` / `SceneVolumeRecalculator` / `SceneVolumeSceneReader` / `SceneVolumeSaveHook` | FW Editor | 合併規則（純関数）／体積の走査と書き込み／`.unity` 読み取り／保存フック。候補フラグは読むだけ |
 | `CellIdentity` | FW Runtime | `Cell_{x}_{y}` の判定・解析・整形。R-3（`SwitchScene` 禁止）の検出と SampleGame の identity 組み立て。**距離経路からは外れた** |

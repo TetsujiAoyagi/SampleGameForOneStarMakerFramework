@@ -33,14 +33,15 @@
 
 ## 2. スライス（1 本 = 1 ブランチ = 1 着手時 HANDOFF）
 
-本書は複数スライスに跨る移行の正本である。着手時に短い指示書を切ってよい。切らないなら本書の該当節だけを実装対象にする。
+本書は複数スライスに跨る移行の正本である。実装の正は各着手時 HANDOFF である。
+M-2 / M-3 / M-4 は切済みなので、本書の該当節だけを実装対象にしない。
 
 | # | 内容 | 本番セル |
 |---|---|---|
 | M-1 | **実装済み・受入 1〜5 すべて充足（全件 505/505 passed）。** 体積は `SceneResource` 直下のデータで、Editor（保存フック ＋ 全件メニュー）が `.unity` から自動計算する。`StreamingConfig` は寿命で `StreamingCandidateSet` / `StreamingPolicySettings` に割った。取り出し口は新規 `ISceneVolumeQuery`。着手時 HANDOFF は harvest 済みで git 履歴にある | 動かさない |
-| M-2 | 生成器の既存収集 / policy のキーを identity 文字列へ | 動かさない |
-| M-3 | R-3 の**口を作る**。検出を距離政策の候補フラグへ。現行 `Cell_0_0` で `SwitchScene` が失敗し続けること | 動かさない（無修飾のまま） |
-| M-4 | `Runtime/SceneSystem/Cells/`（`CellIdentity` / `CellGridConfig` / `CellScene`）を FW 公開面から下ろす。SampleGame または Editor へ | 動かさない |
+| M-2 | 生成器の既存収集 / policy のキーを identity 文字列へ。着手時 HANDOFF は [STREAMING_SPATIAL_M2.md](STREAMING_SPATIAL_M2.md) | 動かさない |
+| M-3 | R-3 の**口を作る**。検出を距離政策の候補フラグへ。着手時 HANDOFF は [STREAMING_SPATIAL_M3.md](STREAMING_SPATIAL_M3.md) | 動かさない（無修飾のまま） |
+| M-4 | `Runtime/SceneSystem/Cells/` を FW 公開面から下ろす。着手時 HANDOFF は [STREAMING_SPATIAL_M4.md](STREAMING_SPATIAL_M4.md) | 動かさない |
 | S-4 以降 | 谷の生成・Season_*。正本は [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md) | **全廃**（移送しない） |
 
 ゲート（次の実装がここで部分解を出さないための固定）:
@@ -75,9 +76,9 @@ R-3 の所有者: **M-3 が口を作る。S-4 が修飾付き名で効かせる�
 | 1 | 体積の置き場（§34 の 3 候補。避けたいのは identity 文法と座標の第二キー） | M-1 | **決定済み: `SceneResource` 直下**（第 3 候補）。`_volume`(Bounds) ＋ `_streamByDistance`(bool) |
 | 2 | `StreamingConfig` が持つもの（identity＋体積の列か、SceneResource 参照か）。`Vector2Int` 列と `CellGridConfig` による中心組み立ては捨てる | M-1 | **決定済み: 寿命で 2 つに割って `StreamingConfig` を捨てた。** `StreamingCandidateSet`（identity ＋ 体積。差し替えるとき丸ごと作り直す）と `StreamingPolicySettings`（半径 ＋ maxInFlight。不変） |
 | 3 | 生成器が AABB をいつ書くか（現行格子定数から焼いて埋め込む。ランタイムは焼かない） | M-1 | **決定済み: 想定を却下し、Scene の編集で自動計算する。** `EditorSceneManager.sceneSaved` フック ＋ 全件再計算メニュー ＋ 生成完了時に 1 回。値は `.unity` の Renderer の合併であって格子定数ではない |
-| 4 | R-3 の検出をフラグへ移す範囲（`CellIdentity.IsCellId` を残す過渡か、一括か）。**factory の SceneBase 結線（`IsCellId` → `DemoCellScene`）とは別口。** | **M-3** | 未決 |
+| 4 | R-3 の検出をフラグへ移す範囲（`CellIdentity.IsCellId` を残す過渡か、一括か）。**factory の SceneBase 結線（`IsCellId` → `DemoCellScene`）とは別口。** | **M-3** | **決定済み: 一括。`IsCellId` 過渡は採らない。** 判定は `SceneResourceMap.GetSceneResource` → `StreamByDistance`。`ISceneVolumeQuery` は使わない（未登録・フラグ off・空体積を全部 `false` に畳むので、「空体積は拒否しない」が壊れる）。M-1 が M-3 に振った「失敗理由を enum に開ける」は **却下して閉じる** |
 | 5a | `CellScene.Coordinate` を残すか（HUD 用。距離判断からは外す） | M-1 | **決定済み: 残す。** `ComputeBounds` も残す（テスト用）。距離判断からは外れた |
-| 5b | 型そのもの（`CellIdentity` / `CellGridConfig` / `CellScene`）を FW から下ろす | **M-4** | 未決 |
+| 5b | 型そのもの（`CellIdentity` / `CellGridConfig` / `CellScene`）を FW から下ろす | **M-4** | **決定済み: SampleGame へ下ろす。** Runtime は `InGameSession/World/CellScenes/`。Editor は `DependOnAll/Editor/Streaming/Cells/`。`World/Cells/` に C# を置かない。Creator の namespace と `BatchMethod` 文字列は変えない。本番の Game→FW 逆参照を足さない。テスト asmdef の参照追加は不要（既に SampleGame を指している） |
 | 6 | 既存テストの入力を体積列へ移す手順（本番 4×4 は動かさない） | M-1 | **決定済み: 共有フィクスチャ 1 本**（`StreamingCandidateFixtures`）が均一格子から体積を焼く。体積中心 = セル中心なので期待値の数値は不変 |
 | 7 | 生成器の policy 解決と既存収集のキーを identity 文字列へ移す範囲（§34。現行無修飾でもフォルダ名照合に寄せて証明する） | **M-2** | **決定済み: `(identity, coordinate)` の target 列を1本の正本にする。** policy / existing / generator plan / adoption / path / Graph / Map / World children / Addressables / deletion に同じ target identity を流す。座標は生成メタデータのみ。同一座標の別 identity は許可、duplicate identity は Ordinal で例外。実装署名と分割は `STREAMING_SPATIAL_M2.md` |
 
@@ -89,6 +90,14 @@ M-1 が新たに決めたこと（上の 3 と不可分なので、M-2 以降が
 - **体積が引けない候補は起動時に例外。** 暗黙フォールバックを作らない。
 
 Environment は距離政策の候補に入れない（距離の単位は Cell 作業単位）。子は親 Stable 後の明示 Add のまま。M-1 は無修飾 4×4 のまま factory を動かさない。
+
+M-1 着手時 HANDOFF を消す前に残っていた残件（harvest 先）:
+
+| 残件 | 所有者 | 扱い |
+|---|---|---|
+| 体積収集が全 `Renderer`（`includeInactive: true`）。Particle / 無効デバッグメッシュで中心が跳ね得る | **S-4** | 現状は [STREAMING_CURRENT_SPEC.md](../streaming/STREAMING_CURRENT_SPEC.md)。規約が要るなら谷を焼くときに [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md) N-9 |
+| `ISceneVolumeQuery` の失敗理由 enum（未登録 / フラグ off / 空体積を `false` に畳む） | 旧 M-3 | **却下して閉じる。** R-3 は query を使わない（問 4） |
+| `WorldStreamingController.Candidates` 差し替え口 | **S-4** | 季節スワップで集合を丸ごと作り直すとき。N-10 |
 
 ---
 
@@ -117,19 +126,35 @@ SceneGraph、Map / World children、Addressables、削除まで通す。M-2 は�
 
 ### M-3 の受入
 
-R-3 が `CellIdentity.IsCellId` を見ない。`SwitchScene("Cell_0_0")` はフラグ（距離政策の候補）で失敗する。修飾付き名での着地は S-4（[SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md)）。
+R-3 が `CellIdentity.IsCellId` を見ない。**一括。`IsCellId` 過渡は採らない**（問 4）。
+`SwitchScene("Cell_0_0")` はフラグ（距離政策の候補）で失敗する。修飾付き名での着地は S-4。
 
 実装時の判定口は `ISceneVolumeQuery` ではなく、`SceneDirector` が持つ `SceneResourceMap` の
 `SceneResource.StreamByDistance` を直接読む。Volume が空でも flag true なら拒否する。
 ガードは from / to の双方を span、LoadingDisplay、履歴、Unload / Add より前に検査する。
 未登録・破棄済み・flag off は R-3 では拒否しない。公開 API / DI / asmdef は増やさない。
+`GoBack` / `ExecuteTransitionPlan` は今どおり `SwitchSceneCore` 経由なので、第二のガードを足さない。
 
-テストは Cell 型に依存しない transition テストへ置き、任意名 flag true、`Cell_0_0` flag off、
-空 Volume flag true、from / to、失敗時の履歴・表示・ロード状態不変を証明する。
+既存 `CellSceneTests` の R-3 はフラグを立てていない。`StreamByDistance` 既定は `false` なので、
+名前だけでは拒否されず偽陰性になる。計画どおり `SceneDirectorTransitionTests` へ移し、
+フラグ true のリソースを Map に載せる。`CellSceneTests` 側は CellScene の契約だけに削る。
+
+追加受入:
+
+- `Title` / `PlayerScene` 相当（フラグ off）は R-3 で拒否しない
+- 例外メッセージから `Cell_{x}_{y}` / 「セル identity」を消す
+- `SceneDirector.Transitions` から `CellIdentity` 参照 0
+
+詳細は [STREAMING_SPATIAL_M3.md](STREAMING_SPATIAL_M3.md)。
 
 ### M-4 の受入
 
-`unity/Assets/OneStarMaker/` に `Cell_{x}_{y}` 文法の型（`CellIdentity` / それを公開する `CellScene` / ランタイムの `CellGridConfig`）が無い。生成器入力の格子定数は Editor または SampleGame。
+`unity/Assets/OneStarMaker/Scripts/` に `CellIdentity` / `CellGridConfig` / `CellScene` /
+`WorldCellGenerator` / `WorldGridDefinition` の**型定義**が 0。
+Tests は SampleGame の型を using してよい。移行 HANDOFF の grep 文言
+`unity/Assets/OneStarMaker/`（Tests 含む）とは切り分ける。
+
+生成器入力の格子定数は Editor または SampleGame。
 
 移送先はフラットな root と生成済み `World/Cells/` を避け、次で固定する。
 
@@ -145,27 +170,60 @@ SampleGame/DependOnAll/Editor/Streaming/Cells/
   State/       identity keyed の既存収集 / folder reconciliation
 ```
 
-`.cs` と `.meta` を一緒に移し GUID を維持する。`WorldGridDefinition.asset` は YAML 手編集せず、
-AssetDatabase から新しい型としてロードでき、origin / cellSize / rectangles / output path が保持されるテストを置く。
-Framework と SampleGame に重複する `CellRect` は SampleGame 側へ統一し、serialized field は変えない。
-`CellIdentity` の ZString は `string.Concat` 等へ置換し、asmdef 参照を足さない。
+`.cs` と `.meta` を一緒に移し GUID を維持する。**フォルダは動かす。Creator の namespace と
+`BatchMethod` 文字列は変えない**
+（`SampleGame.DependOnAll.Editor.WorldCellStreamingSliceCreator.CreateFromBatch`）。
 
-M-4 の静的受入 grep は production code の `unity/Assets/OneStarMaker/Scripts/` を対象にする。
-`GameSceneFactory` の名前文法による `DemoCellScene` 選択は S-4 所有なので、M-4 は参照先を移すだけで挙動を変えない。
+`WorldGridDefinition.asset` は YAML 手編集せず、AssetDatabase から新しい型としてロードでき、
+origin / cellSize / rectangles / output path が保持されるテストを置く。
+**`EnsureGridDefinition` を通さない**（通すと Catalog で origin / rectangles を上書きし、
+「型移動で YAML が死んでいない」ことの証明にならない）。
 
-### Phase B / C / C' のモデル分離
+Framework と SampleGame に重複する `CellRect` の統一先は
+**`WorldCellCatalog` 側（`SampleGame.InGame.Streaming`）**。Editor に 3 個目を作らない。
+`WorldGridDefinition.Rectangles` の戻り型名前空間は変わる。serialized field は
+`SerializedCellRect` のまま。
 
-各スライスの着手時 HANDOFF に実績欄を作り、次の分離を既定とする。将来の固定割り当てではなく、
-今回の M-2〜M-4 実行キューに対する選定である。
+`CellIdentity` の ZString は `string.Concat` 等へ置換する（`SampleGame.InGame` は ZString.dll を参照していない）。
+本番 asmdef 参照を足さない。テスト asmdef（`OneStarMaker.Tests` → `SampleGame.InGame`、
+`Tests.Editor` → `SampleGame.DependOnAll.Editor`）は既に SampleGame を指しているので参照追加は不要。
 
-- Phase B 実装・指摘修正: `gpt-5.6-luna`
-- Phase C 構造／機能レビューとテスト: `gpt-5.6-terra` の新規セッション
-- Phase C' 独立監査: `gpt-5.5` の新規セッション
+`SceneDirectorTestBase` の `CellIdentity.Format` はリテラル `"Cell_0_0"` にするか、
+SampleGame の Format を使う。
+
+`CreateAssetMenu` の `OneStarMaker/Streaming/...` は FW 語彙の残りなので、
+M-4 で `SampleGame/Streaming/World Grid Definition` へ直す。
+
+`GameSceneFactory` の名前文法による `DemoCellScene` 選択は S-4 所有なので、
+M-4 は参照先を移すだけで挙動を変えない。
+
+詳細は [STREAMING_SPATIAL_M4.md](STREAMING_SPATIAL_M4.md)。
+
+### Phase B / C / C' のモデル運用
+
+担当は Phase 開始時に選ぶ。モデル名を将来の固定割り当てとして書かない。
+luna / terra / 特定 GPT 版を本文の固定表にしない。
+
+今回の Phase C は人間が **Grok 4.6** を選定した。M-2 / M-3 / M-4 の各スライスで
+Phase C を始めるとき、この選定を引き継いでよい。実績は各着手時 HANDOFF に書く。
+
+- Phase B: 開始時に選ぶ。C と異なるモデル。
+- Phase C: **Grok 4.6**。新規セッション。構造レビューとテスト。
+- Phase C': 開始時に選ぶ。C と異なるモデル。可能なら異なる系列またはベンダー。
+  C が Grok 4.6（xAI）なので C' に Grok 系列を使わない。
+  条件を満たせない場合は独立監査済みと書かない。
 - 最終統合チェック: 親セッション
 
-writer は常に1名。依存する M-2 → M-3 → M-4 は直列にし、構造レビューとテスト等の read-only / 非競合検査だけを並列化する。
-Phase C 指摘は Phase B 担当へ戻し、修正後に C を再実行する。C が指摘0になってから C' を行い、C' 指摘後も C からやり直す。
-同じ prompt / CLI command を無応答だけを理由に再送せず、status / log / cursor を確認して writer の二重起動を防ぐ。
+writer は常に 1 名。依存する M-2 → M-3 → M-4 は直列にし、
+構造レビューとテスト等の read-only / 非競合検査だけを並列化する。
+Phase C 指摘は Phase B 担当へ戻し、修正後に C を再実行する。
+C が指摘 0 になってから C' を行い、C' 指摘後も C からやり直す。
+同じ prompt / CLI command を無応答だけを理由に再送せず、
+status / log / cursor を確認して writer の二重起動を防ぐ。
+
+各スライスでフィルタ付き + 全 EditMode + `docs-audit` は Phase C の責任。
+Phase B は `run-tests.ps1` を走らせない。マージ・PR・Scene / Prefab / Addressables
+資産変更は範囲外（本番セルを動かさない）。
 
 ---
 
@@ -187,4 +245,5 @@ Editor 操作境界（正本は `.agents/skills/osm-unity-editor/SKILL.md`）。
 
 `SCENE_WORLD_BOUNDS.md` の契約本文は §34 へ移した。分解問と 4×4 証明は本書へ移した。
 `SEASON_LEVELS_IMPLEMENTATION.md` の S-3 実測は `STREAMING_CURRENT_SPEC.md` へ移した。
-どちらも git 履歴に残る。本文は復活させない。
+`STREAMING_VOLUME_M1.md` の残件は本書 §3 の表と `STREAMING_CURRENT_SPEC.md` / `SEASON_WORLD_DESIGN.md` へ移した。
+どれも git 履歴に残る。本文は復活させない。
