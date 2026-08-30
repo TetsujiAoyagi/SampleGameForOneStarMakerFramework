@@ -37,7 +37,7 @@
 
 | # | 内容 | 本番セル |
 |---|---|---|
-| M-1 | **実装済み・受入 1〜5 すべて充足（全件 505/505 passed）。** 体積は `SceneResource` 直下のデータで、Editor（保存フック ＋ 全件メニュー）が `.unity` から自動計算する。`StreamingConfig` は寿命で `StreamingCandidateSet` / `StreamingPolicySettings` に割った。取り出し口は新規 `ISceneVolumeQuery`。着手時 HANDOFF は `STREAMING_VOLUME_M1.md` | 動かさない |
+| M-1 | **実装済み・受入 1〜5 すべて充足（全件 505/505 passed）。** 体積は `SceneResource` 直下のデータで、Editor（保存フック ＋ 全件メニュー）が `.unity` から自動計算する。`StreamingConfig` は寿命で `StreamingCandidateSet` / `StreamingPolicySettings` に割った。取り出し口は新規 `ISceneVolumeQuery`。着手時 HANDOFF は harvest 済みで git 履歴にある | 動かさない |
 | M-2 | 生成器の既存収集 / policy のキーを identity 文字列へ | 動かさない |
 | M-3 | R-3 の**口を作る**。検出を距離政策の候補フラグへ。現行 `Cell_0_0` で `SwitchScene` が失敗し続けること | 動かさない（無修飾のまま） |
 | M-4 | `Runtime/SceneSystem/Cells/`（`CellIdentity` / `CellGridConfig` / `CellScene`）を FW 公開面から下ろす。SampleGame または Editor へ | 動かさない |
@@ -79,7 +79,7 @@ R-3 の所有者: **M-3 が口を作る。S-4 が修飾付き名で効かせる�
 | 5a | `CellScene.Coordinate` を残すか（HUD 用。距離判断からは外す） | M-1 | **決定済み: 残す。** `ComputeBounds` も残す（テスト用）。距離判断からは外れた |
 | 5b | 型そのもの（`CellIdentity` / `CellGridConfig` / `CellScene`）を FW から下ろす | **M-4** | 未決 |
 | 6 | 既存テストの入力を体積列へ移す手順（本番 4×4 は動かさない） | M-1 | **決定済み: 共有フィクスチャ 1 本**（`StreamingCandidateFixtures`）が均一格子から体積を焼く。体積中心 = セル中心なので期待値の数値は不変 |
-| 7 | 生成器の policy 解決と既存収集のキーを identity 文字列へ移す範囲（§34。現行無修飾でもフォルダ名照合に寄せて証明する） | **M-2** | 未決 |
+| 7 | 生成器の policy 解決と既存収集のキーを identity 文字列へ移す範囲（§34。現行無修飾でもフォルダ名照合に寄せて証明する） | **M-2** | **決定済み: `(identity, coordinate)` の target 列を1本の正本にする。** policy / existing / generator plan / adoption / path / Graph / Map / World children / Addressables / deletion に同じ target identity を流す。座標は生成メタデータのみ。同一座標の別 identity は許可、duplicate identity は Ordinal で例外。実装署名と分割は `STREAMING_SPATIAL_M2.md` |
 
 M-1 が新たに決めたこと（上の 3 と不可分なので、M-2 以降が再解釈しないためにここへ残す）:
 
@@ -111,13 +111,61 @@ M-1 は 1〜5 に閉じる。生成器の座標キー剥がしは M-2 の受入�
 
 生成器の既存収集 / policy のキーが identity 文字列である。座標キーで 4 季節が潰れないことを、現行無修飾 4×4 のフォルダ名照合で証明する。**S-4 のゲートに含む。** 修飾付き `Spring_Cell_*` を焼く前に通す（未了なら S-4 と同スライスで、生成の前に通す）。
 
+実装境界は [STREAMING_SPATIAL_M2.md](STREAMING_SPATIAL_M2.md)。`CellPopulationPlan` だけを文字列辞書へ変えて終わりにしない。
+`WorldCellGenerator` が内部で identity を再構築すると plan と実生成が分離するため、target 列を generator、既存 asset adoption、
+SceneGraph、Map / World children、Addressables、削除まで通す。M-2 は本番4×4の asset を変更しない。
+
 ### M-3 の受入
 
 R-3 が `CellIdentity.IsCellId` を見ない。`SwitchScene("Cell_0_0")` はフラグ（距離政策の候補）で失敗する。修飾付き名での着地は S-4（[SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md)）。
 
+実装時の判定口は `ISceneVolumeQuery` ではなく、`SceneDirector` が持つ `SceneResourceMap` の
+`SceneResource.StreamByDistance` を直接読む。Volume が空でも flag true なら拒否する。
+ガードは from / to の双方を span、LoadingDisplay、履歴、Unload / Add より前に検査する。
+未登録・破棄済み・flag off は R-3 では拒否しない。公開 API / DI / asmdef は増やさない。
+
+テストは Cell 型に依存しない transition テストへ置き、任意名 flag true、`Cell_0_0` flag off、
+空 Volume flag true、from / to、失敗時の履歴・表示・ロード状態不変を証明する。
+
 ### M-4 の受入
 
 `unity/Assets/OneStarMaker/` に `Cell_{x}_{y}` 文法の型（`CellIdentity` / それを公開する `CellScene` / ランタイムの `CellGridConfig`）が無い。生成器入力の格子定数は Editor または SampleGame。
+
+移送先はフラットな root と生成済み `World/Cells/` を避け、次で固定する。
+
+```text
+SampleGame/InGame/InGameSession/World/CellScenes/
+  CellIdentity / CellGridConfig / CellScene
+  DemoCellScene / EnvironmentIdentity / EnvironmentScene
+
+SampleGame/DependOnAll/Editor/Streaming/Cells/
+  WorldCellStreamingSliceCreator / HandEditProbe
+  Generation/  WorldCellGenerationTarget / WorldGridDefinition / WorldCellGenerator
+  Planning/    CellAuthoringPolicy / CellPopulationPlan
+  State/       identity keyed の既存収集 / folder reconciliation
+```
+
+`.cs` と `.meta` を一緒に移し GUID を維持する。`WorldGridDefinition.asset` は YAML 手編集せず、
+AssetDatabase から新しい型としてロードでき、origin / cellSize / rectangles / output path が保持されるテストを置く。
+Framework と SampleGame に重複する `CellRect` は SampleGame 側へ統一し、serialized field は変えない。
+`CellIdentity` の ZString は `string.Concat` 等へ置換し、asmdef 参照を足さない。
+
+M-4 の静的受入 grep は production code の `unity/Assets/OneStarMaker/Scripts/` を対象にする。
+`GameSceneFactory` の名前文法による `DemoCellScene` 選択は S-4 所有なので、M-4 は参照先を移すだけで挙動を変えない。
+
+### Phase B / C / C' のモデル分離
+
+各スライスの着手時 HANDOFF に実績欄を作り、次の分離を既定とする。将来の固定割り当てではなく、
+今回の M-2〜M-4 実行キューに対する選定である。
+
+- Phase B 実装・指摘修正: `gpt-5.6-luna`
+- Phase C 構造／機能レビューとテスト: `gpt-5.6-terra` の新規セッション
+- Phase C' 独立監査: `gpt-5.5` の新規セッション
+- 最終統合チェック: 親セッション
+
+writer は常に1名。依存する M-2 → M-3 → M-4 は直列にし、構造レビューとテスト等の read-only / 非競合検査だけを並列化する。
+Phase C 指摘は Phase B 担当へ戻し、修正後に C を再実行する。C が指摘0になってから C' を行い、C' 指摘後も C からやり直す。
+同じ prompt / CLI command を無応答だけを理由に再送せず、status / log / cursor を確認して writer の二重起動を防ぐ。
 
 ---
 

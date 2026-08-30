@@ -41,7 +41,7 @@
 | `SEASON_WORLD_DESIGN.md` | 世界構図・実証・スライス順序 | 着手時 HANDOFF を切るまでの正本。スライス表の順で切る |
 | `STREAMING_SPATIAL_MIGRATION.md` | 格子キーを殺す順序（現行 4×4 で口を通す） | 同上。M-* の順で切る |
 
-上 2 つから切り出した**着手時 HANDOFF**（1 スライス専用・実装ブランチと同じ寿命）は別枠である。いまあるのは `STREAMING_VOLUME_M1.md`（移行 M-1）。スライスが緑になり、決定が正本へ書き戻された時点で `git rm` する。
+上 2 つから切り出した**着手時 HANDOFF**（1 スライス専用・実装ブランチと同じ寿命）は別枠である。いまあるのは `STREAMING_SPATIAL_M2.md`（移行 M-2、Phase A 完了）。M-1 の着手時 HANDOFF はマージ後に harvest して削除済み。スライスが緑になり、決定が正本へ書き戻された時点で `git rm` する。
 
 S-3 の記録は公開面 `docs/streaming/STREAMING_CURRENT_SPEC.md` に移した。**実装指示ではない。** 旧 `SEASON_LEVELS_IMPLEMENTATION.md` を復活させない。
 
