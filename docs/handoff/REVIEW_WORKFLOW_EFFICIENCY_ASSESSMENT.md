@@ -1,5 +1,6 @@
 # 外部モデルレビュー効率調査への独立評価 — Claude / Grok
 
+> type: research
 > ステータス: **2026-09-01 に人間が採否を決定。残る実測項目の判断材料。**
 > 対象は `docs/handoff/REVIEW_WORKFLOW_EFFICIENCY.md`（以下「調査記録」）。
 > 本書は採否判断の根拠を残す一時記録であり、現在の Phase 契約の正本ではない。

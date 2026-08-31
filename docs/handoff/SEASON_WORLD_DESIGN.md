@@ -1,5 +1,6 @@
 # 世界設計「主題と変奏」— S-3C 構図の正本 (2026-08-29 改訂)
 
+> type: program
 > ステータス: **構図は発注者承認済み。**
 > **世界は本書。空間の到着契約は [§34](../../unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md)。格子キーを外す M-1〜M-4 は完了し、現況は [STREAMING_CURRENT_SPEC.md](../streaming/STREAMING_CURRENT_SPEC.md)。§33 本文はまだ（空隙レイアウトのまま）。世界についても空間についても、§33 から書き始めない。**
 > S-3 の矩形集合化は `develop` にマージ済み。記録は公開面 [STREAMING_CURRENT_SPEC.md](../streaming/STREAMING_CURRENT_SPEC.md)。**実装指示ではない。**

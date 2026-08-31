@@ -13,6 +13,8 @@ Phase C と C' は同じ実装を評価する。レビュー開始時に次を�
 
 staged diff や可変な作業ツリーだけを正本にしない。差し戻し後は新しい head で bundle を作り直し、古い結果と混ぜない。
 
+Phase A snapshot、Phase B result snapshot、evidence bundle、C' blind audit bundle は、それぞれ path / id、生成時刻、hash を manifest に記録する。C と C' の入力bundleは、どちらかのレビューを開始する前に同じ snapshot と evidence から生成する。
+
 ## Phase C の入力
 
 - 凍結した Phase A snapshot
@@ -31,6 +33,8 @@ C' へ渡す入力は Phase C の入力から生成するが、次を含めな�
 - Phase C 後に追加された誘導的な説明
 
 C' は凍結した Phase A snapshot、Phase B の実装結果、Phase C と同じ evidence bundle だけから独立に findings を出す。監査完了後に人間または Phase D 担当が C と C' を初めて突き合わせる。
+
+Cまたは差し戻しでheadが変わった場合は、そのheadに対する旧C/C'結果を無効とする。新しいsnapshotとbundleを作り、両レビューを新しい対象へやり直す。
 
 ## 機械検査と意味レビュー
 

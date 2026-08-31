@@ -1,5 +1,6 @@
 # 外部モデルレビューの実行効率 — 調査記録と次回検討事項
 
+> type: research
 > ステータス: **2026-09-01 に採否を決定し、普遍契約を Skill へ harvest 済み。実行方式の比較だけ未完。**
 > 本書は次の Phase C で残る仮説を検証するための一時記録であり、現在の Phase 契約の正本ではない。
 > harvest 先: 普遍契約は `.agents/skills/osm-workflow/`、現在のモデル・CLI割当は git 管理外の `docs/agents/`。

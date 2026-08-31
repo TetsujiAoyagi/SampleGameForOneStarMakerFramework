@@ -26,17 +26,18 @@
 使用するモデル・サービスは固定しない。利用可能性、変更規模、専門性、コストを踏まえて各Phaseの開始時に選ぶ。
 
 - Phase C は Phase B と異なるモデルで行う。
-- Phase C' は Phase C と異なるモデルで行う。
+- Phase C' は Phase B、C の両方と異なるモデルで行う。
 - Phase C と C' は新規セッションで開始する。
-- 可能なら Phase C' は異なるモデル系列または異なるベンダーを優先する。
-- 高リスク変更の C' は、可能なら Phase A、B、C の設計・実装・レビューに関与していないモデル系列またはベンダーを使う。Phase A の複数モデルレビューで利用可能な全系統を使い切らず、監査担当を予約する。
-- 条件を満たせない場合は独立レビュー・監査済みと扱わず、未実施として人間へ判断を返す。
+- **最低条件:** C' は B/C と異なるモデル、新規セッション、blind audit bundle を使う。満たせない場合は独立監査済みと扱わず、未実施として人間へ返す。
+- **強化条件:** 高リスク変更の C' は、可能なら Phase A、B、C に関与していないモデル系列またはベンダーを使う。Phase A で利用可能な全系統を使い切らず、監査担当を予約する。
+- 強化条件だけを満たせない場合は監査自体を未実施にはしない。`独立性制約あり`として理由と残存リスクを HANDOFF に記録し、人間が採否を判断する。
 
 使用した担当・モデルと独立性の充足状況を HANDOFF に実績として記録する。モデル名を将来の固定割り当てとして書かない。
 
 ## HANDOFF の必須内容
 
-- type、status、branch、base / head commit、risk、owner、期限、harvest 先、evidence id
+- type、status、branch、base / head commit、risk、owner、期限、harvest 先
+- Phase A snapshot、Phase B result snapshot、evidence bundle、C' blind audit bundle の path / id、生成時刻、hash
 - 目的、対象外、受け入れ条件
 - A0 の現況、制約、未決事項
 - Phase A の独立レビュー結果と採用・不採用・保留の理由
@@ -70,3 +71,4 @@
 - Phase C' に可変な HANDOFF 全文を渡さない。凍結した Phase A snapshot、Phase B の実装結果、完全 diff、生のテスト結果、Phase C より前の機械検査だけを渡す。
 - Phase C の結論、指摘、疑念候補は C' 完了まで隔離する。
 - C と C' の所見は Phase D で初めて突き合わせる。
+- C または差し戻しで head が変わった場合は旧 bundle と C' 結果を無効にし、新しい head から C と C' をやり直す。

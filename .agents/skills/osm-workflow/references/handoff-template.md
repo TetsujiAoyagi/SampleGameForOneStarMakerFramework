@@ -14,7 +14,20 @@
 - created:
 - expires:
 - harvest to:
-- evidence id:
+- Phase A snapshot path / id:
+- Phase A snapshot generated at:
+- Phase A snapshot hash:
+- Phase B result snapshot path / id:
+- Phase B result snapshot generated at:
+- Phase B result snapshot hash:
+- evidence bundle path / id:
+- evidence bundle generated at:
+- evidence bundle hash:
+- C' blind bundle path / id:
+- C' blind bundle generated at:
+- C' blind bundle hash:
+
+Phase A では base commit と Phase A snapshot を記録する。head、Phase B result、evidence、C' blind bundle は各成果物が生成された Phase で追記し、未到達 Phase の値を推測して埋めない。
 
 ## 1. 目的と対象外
 
@@ -44,8 +57,11 @@
 - 単体テスト:
 - 統合・Unity テスト:
 - 機械検査:
-- Phase A 独立レビューと採否:
-- C' 用に予約した独立性:
+- A0/A1 主担当・モデル・ベンダー:
+- A2 独立レビューごとの観点・担当・モデル・ベンダー:
+- A3 統合担当・モデル・採否:
+- C' 用に予約した担当・モデル・ベンダー:
+- 独立性の強化条件を満たせない場合の理由:
 
 ## 6. Phase B 実装結果
 
@@ -53,10 +69,11 @@
 - HANDOFF との差:
 - 未実行:
 - head commit:
+- Phase B 担当・モデル・ベンダー:
 
 ## 7. Phase C
 
-- evidence id:
+- evidence bundle id / hash:
 - 構造適合:
 - findings:
 - テスト結果:
@@ -65,7 +82,7 @@
 
 ## 8. Phase C'
 
-- blind audit bundle:
+- blind audit bundle id / hash:
 - findings:
 - 残存リスク:
 - 監査できなかった範囲:
