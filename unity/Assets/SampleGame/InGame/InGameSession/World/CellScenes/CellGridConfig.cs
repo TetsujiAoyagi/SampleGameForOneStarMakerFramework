@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace OneStarMaker.Runtime.SceneSystem
+namespace SampleGame.InGame.World
 {
     /// <summary>
     /// セルグリッドのワールド配置定義（原点・セルサイズ・高さ）。

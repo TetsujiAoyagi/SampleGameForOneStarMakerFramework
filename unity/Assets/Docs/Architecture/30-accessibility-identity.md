@@ -282,7 +282,7 @@ App 常駐レジストリなので、次でも `UnregisterScene` する（冪等
 - `SceneBase.Dispose`
 - Editor 停止 / Domain Reload 無効時の Bootstrap クリーンアップ
 
-**この 4 経路のうち 1 つでも落とすと、同じ identity のシーンに再入した時点で重複登録になる。** セル identity は `Cell_{x}_{y}` で固定（[CellScene](../../OneStarMaker/Scripts/Runtime/SceneSystem/Cells/CellScene.cs)）なので、ストリーミングで確実に再現する。したがって重複時の挙動を D-20 で分けている（Editor は例外、製品ビルドはログ + `false`）。
+**この 4 経路のうち 1 つでも落とすと、同じ identity のシーンに再入した時点で重複登録になる。** セル identity は `Cell_{x}_{y}` で固定（[CellScene](../../SampleGame/InGame/InGameSession/World/CellScenes/CellScene.cs)）なので、ストリーミングで確実に再現する。したがって重複時の挙動を D-20 で分けている（Editor は例外、製品ビルドはログ + `false`）。
 
 初期走査は `GetComponentsInChildren<T>(includeInactive: true)`。
 走査は初期集合に限る。生成物は、生成側が Attach してから Enable する。

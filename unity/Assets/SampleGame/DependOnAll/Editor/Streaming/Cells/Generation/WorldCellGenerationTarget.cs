@@ -2,10 +2,10 @@
 
 using System;
 using System.Collections.Generic;
-using OneStarMaker.Runtime.SceneSystem;
+using SampleGame.InGame.World;
 using UnityEngine;
 
-namespace OneStarMaker.Editor.Streaming
+namespace SampleGame.DependOnAll.Editor.Streaming.Cells.Generation
 {
     /// <summary>
     /// 生成対象の不透明な identity と、視覚配置に使う格子座標を対にした値。

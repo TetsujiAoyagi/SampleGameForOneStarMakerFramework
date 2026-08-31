@@ -4,10 +4,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
-using OneStarMaker.Editor.Streaming;
 using OneStarMaker.Runtime.AssetDescriptions;
 using OneStarMaker.Runtime.SceneSystem;
 using SampleGame.DependOnAll.Editor;
+using SampleGame.DependOnAll.Editor.Streaming.Cells.Generation;
+using SampleGame.InGame.World;
 using UnityEditor;
 using UnityEngine;
 

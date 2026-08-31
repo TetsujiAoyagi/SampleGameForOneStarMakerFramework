@@ -7,7 +7,7 @@
 > 前提資料: [05. シーン管理](05-scene.md) / [13. リソースシステム](13-resource-system.md)
 > 関連: HLOD / Proxy ティアの詳細は将来の §22 に分離する（本書はインターフェース予約のみ）
 >
-> 本書が固定して残るのは政策/メカニズム分離（D-3 / D-4）、生成器の非破壊契約、受入値、チケット履歴である。格子座標をランタイムのキーにしている記述は**当時動いていた経路**であり、一般化先ではない。**距離政策のキーは既に identity ＋ 体積へ移した**（実装値は `STREAMING_CURRENT_SPEC.md`）。生成器・R-3・factory の座標と名前文法は未移行のまま残っている。
+> 本書が固定して残るのは政策/メカニズム分離（D-3 / D-4）、生成器の非破壊契約、受入値、チケット履歴である。格子座標をランタイムのキーにしている記述は**当時動いていた経路**であり、一般化先ではない。**距離政策と生成器のキーは identity へ、R-3 は候補フラグへ移行済み**（実装値は `STREAMING_CURRENT_SPEC.md`）。factory、`CellScene`、子 identity 導出には名前文法が残っている。
 
 ---
 
@@ -202,7 +202,7 @@ Addressables グループ登録 (既存の AddressablesGroupSyncFilter を流用
 | `Generated` | 生成物が正本 | Cell / Environment とも常に上書き |
 | `HandAuthored` | 手編集が正本 | `AuthoredRoot` があれば触らない。無ければ初回スキャフォールドとして生成する |
 
-判定は **`SampleGame.DependOnAll.Editor.Cells.CellPopulationPlan`（純関数）に閉じる。** `AssetDatabase` / `EditorSceneManager` に依存させない。呼び出し側に `if (policy == HandAuthored)` を書くと単体テストが書けなくなる。
+判定は **`SampleGame.DependOnAll.Editor.Streaming.Cells.Planning.CellPopulationPlan`（純関数）に閉じる。** `AssetDatabase` / `EditorSceneManager` に依存させない。呼び出し側に `if (policy == HandAuthored)` を書くと単体テストが書けなくなる。
 
 **手編集を壊し得る経路は 3 つしかなく、すべて計画経由でなければならない:**
 
@@ -252,10 +252,10 @@ Addressables グループ登録 (既存の AddressablesGroupSyncFilter を流用
 |---|---|---|---|
 | R-1 | 重量アセット（テクスチャ群・プレハブ群）は `OnPreLoadedImpl` の `Assets.LoadAsync` でプリフェッチする（キャンセル窓内 = 高速通過時に中止可能）。Unity シーン本体は参照とレイアウトのみの軽量構成とし、PoNR 区間を最小化する | セルテンプレート + コードレビュー | 規約 |
 | R-2 | セルは UIView を持たない | CellScene 基底クラスが UIView 検索を行わない | 構造的強制 |
-| R-3 | セルを `SwitchScene` / `GoBack` / `TransitionPlan` に乗せない（D-5） | `SwitchSceneCore` 冒頭のセル identity ガード（`CellIdentity.IsCellId` で検出し `InvalidOperationException`。T-04 で実装） | 構造的強制 |
+| R-3 | 距離政策の候補を `SwitchScene` / `GoBack` / `TransitionPlan` に乗せない（D-5） | `SwitchSceneCore` 冒頭で対象 `SceneResource.StreamByDistance` を検査し、候補なら `InvalidOperationException` | 構造的強制 |
 | R-4 | セルの `LoadingDisplayType` は常に `None` | Controller が固定値で呼ぶ | 構造的強制 |
 | R-5 | セル内オブジェクトはセル外のシーンオブジェクトを参照しない（隣接セルとの直接参照禁止） | コードレビュー | 規約 |
-| R-6 | **生成器は `HandAuthored` な Cell / Environment の手編集を消さない**（§6「生成器の非破壊契約」） | `CellPopulationPlan`（純関数）と単体テスト 13 本 | 構造的強制 |
+| R-6 | **生成器は `HandAuthored` な Cell / Environment の手編集を消さない**（§6「生成器の非破壊契約」） | `CellPopulationPlan`（純関数）と単体テスト 14 本 | 構造的強制 |
 
 ---
 
@@ -371,8 +371,8 @@ T-02 の受入条件はこの5本のグリーン化（`Sequential_AddTwoCells_Sh
 - `IncrementalLoadAsync` および `NecessaryAlways` 子シーンの `LoadUnityScene` 呼び出しは既定値 100 のままとし挙動不変（セルは葉の OnDemand であり子ロード経路を通らない）
 - `SwitchScene` / `GoBack` / `TransitionPlan` 内部の `AddScene` / `UnloadScene` 呼び出しは引数を渡さず既定値のままとし、画面遷移の挙動を変えない（G-3）
 
-**T-04 完了記録 (2026-07-06):**
-`Runtime/SceneSystem/Cells/` に `CellIdentity`（`Cell_{x}_{y}` の判定・解析・整形）、`CellGridConfig`（原点・セルサイズ・高さ）、`CellScene`（SceneBase 派生、座標・バウンズのメタデータ運搬のみ）を新設。
+**T-04 完了記録 (2026-07-06。当時の所在):**
+当時の `Runtime/SceneSystem/Cells/` に `CellIdentity`（`Cell_{x}_{y}` の判定・解析・整形）、`CellGridConfig`（原点・セルサイズ・高さ）、`CellScene`（SceneBase 派生、座標・バウンズのメタデータ運搬のみ）を新設した。現在の所在は `SampleGame/InGame/InGameSession/World/CellScenes/`。
 R-2 の構造的強制のため `SceneBase` の UIView 自動検索を `protected virtual UIView? SearchUIView()` へ抽出し、`CellScene` が `sealed override` で null 固定（検索自体を行わない）。既存シーンの挙動は不変。
 R-3 を「将来」から本チケットへ繰り上げ、`SwitchSceneCore` 冒頭（span 開始・Show・履歴記録より前）でセル identity を検出したら `InvalidOperationException` を投げるガードを追加。GoBack / ExecuteTransitionPlan も SwitchSceneCore を経由するため全経路が守られる。画面遷移の正常系挙動は不変（G-3。セル identity は元々未定義動作であり、明示的失敗への変更は許容）。
 テスト: `Tests/Scene/CellSceneTests.cs` に 8 本（CellIdentity 判定/整形 2、座標解析・不正 identity・バウンズ 3、R-2 UIView 非登録 1 + ハーネス健全性 1、R-3 SwitchScene ガード 1）。TDD サイクル: スケルトン + レッド 7 本（健全性 1 本はグリーン）を確認後に実装。

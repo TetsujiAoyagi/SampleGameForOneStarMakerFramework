@@ -39,9 +39,9 @@
 | ファイル | 役割 | 実装キューか |
 |---|---|---|
 | `SEASON_WORLD_DESIGN.md` | 世界構図・実証・スライス順序 | 着手時 HANDOFF を切るまでの正本。スライス表の順で切る |
-| `STREAMING_SPATIAL_MIGRATION.md` | 格子キーを殺す順序（現行 4×4 で口を通す） | 同上。M-* の順で切る |
+| `REVIEW_WORKFLOW_EFFICIENCY.md` | 外部モデルレビューの問題点と未採用の改善候補 | いいえ。次セッションで運用を決め、採用分だけ Skill へ harvest する |
 
-上 2 つから切り出した**着手時 HANDOFF**（1 スライス専用・実装ブランチと同じ寿命）は別枠である。いまあるのは `STREAMING_SPATIAL_M2.md` / `STREAMING_SPATIAL_M3.md` / `STREAMING_SPATIAL_M4.md`（いずれも Phase A 完了、着手は M-2 → M-3 → M-4）。M-1 の着手時 HANDOFF はマージ後に harvest して削除済み。スライスが緑になり、決定が正本へ書き戻された時点で `git rm` する。
+Streaming の M-1〜M-4 は完了し、決定を公開面へ harvest して、移行計画と各着手時 HANDOFF を削除済み。完了済み HANDOFF は復活させない。
 
 S-3 の記録は公開面 `docs/streaming/STREAMING_CURRENT_SPEC.md` に移した。**実装指示ではない。** 旧 `SEASON_LEVELS_IMPLEMENTATION.md` を復活させない。
 

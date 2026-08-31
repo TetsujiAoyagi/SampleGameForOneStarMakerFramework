@@ -1,15 +1,13 @@
 #nullable enable
 
 using System;
-using Cysharp.Text;
 using UnityEngine;
 
-namespace OneStarMaker.Runtime.SceneSystem
+namespace SampleGame.InGame.World
 {
     /// <summary>
     /// セル identity（`Cell_{x}_{y}`）の判定・解析・整形を行う純 C# ユーティリティ。
-    /// セルを画面遷移（SwitchScene / GoBack / TransitionPlan）に乗せないためのバリデータ
-    /// （21-scene-streaming.md R-3 / D-5）の基盤でもある。
+    /// 現行セルシーンの命名と、S-4 まで残る factory の型選択に使用する。
     /// </summary>
     public static class CellIdentity
     {
@@ -65,7 +63,7 @@ namespace OneStarMaker.Runtime.SceneSystem
                 throw new ArgumentOutOfRangeException(nameof(y), y, "セル座標は非負整数のみ有効です。");
             }
 
-            return ZString.Format("{0}{1}_{2}", Prefix, x, y);
+            return string.Concat(Prefix, x, "_", y);
         }
 
         /// <summary>

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using OneStarMaker.Runtime.CameraSystem.Abstractions;
 using OneStarMaker.Runtime.CameraSystem.Hosting;
 using OneStarMaker.Runtime.SceneSystem;
+using SampleGame.InGame.World;
 using SampleGame.OutGame.Scenes;
 using SampleGame.OutGame.Title;
 

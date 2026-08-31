@@ -2,7 +2,7 @@
 
 using System;
 using System.Collections.Generic;
-using OneStarMaker.Runtime.SceneSystem;
+using SampleGame.InGame.World;
 using UnityEngine;
 
 namespace SampleGame.InGame.Streaming

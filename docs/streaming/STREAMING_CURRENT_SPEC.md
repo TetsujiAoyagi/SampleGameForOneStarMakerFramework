@@ -1,12 +1,12 @@
 # Streaming — 現状仕様
 
-> ステータス: **今動いている実装の正本**（2026-08-29）。到着点ではない。
+> ステータス: **今動いている実装の正本**（2026-09-01）。到着点ではない。
 > 到着契約: [§34 OnDemand の空間政策](../../unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md)
 > 対照: [STREAMING_CURRENT_VS_IDEAL.md](STREAMING_CURRENT_VS_IDEAL.md)
 > 設計記録・チケット履歴: [§21](../../unity/Assets/Docs/Architecture/21-scene-streaming.md)
 > UpdateSystem の [UPDATER_CURRENT_SPEC.md](../updater/UPDATER_CURRENT_SPEC.md) に相当する。
 
-本書は格子キーの一般化先ではない。S-3（矩形集合化）と移行 M-1（体積の口）までを含む**現況**である。**実装指示ではない。**
+本書は格子キーの一般化先ではない。S-3（矩形集合化）と移行 M-1〜M-4 を含む**現況**である。**実装指示ではない。**
 
 ---
 
@@ -20,11 +20,11 @@ StreamingCandidateSet（identity ＋ Bounds）→ 体積の中心 → 注視点�
 
 `WorldStreamingController` は identity を組み立てない。格子座標も格子定数も読まない。体積は `SceneResource` のデータであり、Editor が `.unity` の Renderer から自動計算して焼く（§34 §5）。
 
-**まだ座標が主キーなのは距離経路の外である。** 生成器の既存収集・policy のキー（M-2）、R-3 の検出（M-3）、`Runtime/SceneSystem/Cells/` の所在（M-4）は手つかずである（§4）。
+生成器の既存収集・policy は identity 文字列をキーにし、R-3 は候補フラグで検出する。セル型と生成器格子型は SampleGame へ移り、FW の公開面に格子文法の型は残っていない。名前文法が残る箇所は §4 に限定する。
 
 ---
 
-## 2. 実装値（S-3 ＋ M-1 後）
+## 2. 実装値（S-3 ＋ M-1〜M-4 後）
 
 | 項目 | 値 | 所在 |
 |---|---|---|
@@ -32,7 +32,7 @@ StreamingCandidateSet（identity ＋ Bounds）→ 体積の中心 → 注視点�
 | 格子定数 | `Origin = (0,0,0)` / `CellSize = 250` / `CellHeight = 96`。**生成器入力・スポーン・HUD 用。距離政策は読まない** | `WorldCellCatalog` |
 | 体積 | `SceneResource._volume`（ワールド AABB）。`.unity` の全 Renderer の合併 ＋ 候補でない子の合併 | `SceneResource` |
 | 体積の収集範囲 | `SceneVolumeSceneReader` は全 `Renderer` を `includeInactive: true` で拾う。Particle / Trail / 無効デバッグメッシュを足して保存すると中心が跳ね得る。Collider のみは寄与しない。規約を足すなら S-4（世界稿 N-9） | 同上 |
-| 候補フラグ | `SceneResource._streamByDistance`。**生成器が焼く決定**。Cell に true を書くのは FW Editor の `WorldCellGenerator`、Environment に false を書くのは SampleGame の `EnsureEnvironmentResource`。幾何からは導出しない | 同上 |
+| 候補フラグ | `SceneResource._streamByDistance`。**生成器が焼く決定**。Cell に true、Environment に false を書くのは SampleGame Editor の生成器。幾何からは導出しない | 同上 |
 | 体積の焼き直し | シーン保存フック ＋ メニュー `OneStarMaker/Scene Volume/Recalculate All` ＋ 生成完了時。**書くのは体積だけ**でフラグには触らない | `SceneVolumeRecalculator` |
 | 半径 | `LoadRadius = 375` / `UnloadRadius = 550` / `MaxInFlight = 2` | 同上 |
 | Tick | 0.2s（5Hz 相当） | 同上 |
@@ -60,12 +60,12 @@ StreamingCandidateSet（identity ＋ Bounds）→ 体積の中心 → 注視点�
 | `ISceneVolumeQuery` | FW Runtime | `TryGetSceneVolume(identity, out Bounds)`。**未ロード**候補の体積を引く口。`ISceneQuery`（ロード済み専用）とは別。未登録 / フラグ off / 空体積を 1 つの `false` に畳む。失敗理由 enum は **開かない**（R-3 は query を使わない） |
 | `SceneResource` | FW Runtime | `_volume` / `_streamByDistance` を持つ。体積が空 = 空間に属さない（Title / Pause / Tunnel） |
 | `SceneVolumeMath` / `SceneVolumeRecalculator` / `SceneVolumeSceneReader` / `SceneVolumeSaveHook` | FW Editor | 合併規則（純関数）／体積の走査と書き込み／`.unity` 読み取り／保存フック。候補フラグは読むだけ |
-| `CellIdentity` | FW Runtime | `Cell_{x}_{y}` の判定・解析・整形。R-3（`SwitchScene` 禁止）の検出と SampleGame の identity 組み立て。**距離経路からは外れた** |
-| `CellGridConfig` / `CellScene` | FW Runtime | 原点・セルサイズ・高さ。`CellScene.ComputeBounds` はテストのみ（本番経路からは呼ばれない） |
+| `CellIdentity` | SampleGame Runtime | `Cell_{x}_{y}` の判定・解析・整形。SceneBase 結線と SampleGame の identity 組み立てに残る。**距離経路と R-3 からは外れた** |
+| `CellGridConfig` / `CellScene` | SampleGame Runtime | 原点・セルサイズ・高さ。`CellScene.ComputeBounds` はテストのみ（本番経路からは呼ばれない） |
 | `WorldCellCatalog` | SampleGame | 矩形集合の展開・membership・スポーン・tint。`CreateGridConfig` は距離経路から外れて参照 0（意図的に残す） |
 | `SessionWorldStreamingDriver` | SampleGame | Catalog の identity 列に `ISceneVolumeQuery` の体積を突き合わせて候補集合を作る。1 件でも引けなければ起動時に例外 |
 
-S-3 が変えたのは走査範囲だけだった。M-1 が変えたのはキーである。`Vector2Int` 列と `CellGridConfig` は政策層から消え、Controller は identity を組み立てない。
+S-3 が変えたのは走査範囲だけだった。M-1 が距離政策のキーを変え、M-2 が生成器のキー、M-3 が R-3 の検出、M-4 が型の所有境界を着地させた。`Vector2Int` 列と `CellGridConfig` は政策層から消え、Controller は identity を組み立てない。
 
 `TryGetCoordinate` は Origin / CellSize で floor したあと集合 membership。AABB 内でも空隙なら false。本番は矩形 1 個なので空隙は無い。複数矩形の挙動はテストフィクスチャだけ。
 
@@ -80,20 +80,17 @@ S-3 が変えたのは走査範囲だけだった。M-1 が変えたのはキー
 | `GameSceneFactory.IsCellId` / `EnvironmentIdentity.IsEnvironmentId` | SceneBase 結線 | S-4 |
 | `CellScene` の ctor | `Cell_{x}_{y}` でなければ throw | S-4 |
 | `EnvironmentIdentity.TryFromCellId` | 親名から子名を組み立て | S-4 |
-| `ThrowIfCellIdentity`（R-3） | `IsCellId` で `SwitchScene` を拒否 | M-3 |
-| 生成器 `CollectExistingStates` / `CellPopulationPlan` | フォルダ名を `TryParse` し座標を辞書キー | M-2 |
-| `CellAuthoringPolicy.Resolve(Vector2Int)` | policy のキーが座標 | M-2 |
 | `SessionWorldStreamingDriver` | 候補列の identity を `CellIdentity.Format` で組み立て | S-4（候補の出どころが親コンテナの子になる） |
 
 Editor の体積再計算（`SceneVolumeRecalculator`）は名前文法を使わない。親子は `SceneResource.Parent` / `Children`、シーンの所在は payload の GUID で引く。
 
-到着点（§34）では、政策のキーは identity 文字列、R-3 は距離政策の候補フラグ、生成器の既存収集も identity 文字列である。本章はまだそこに居ない。
+R-3 は `SceneResource.StreamByDistance`、生成器の既存収集と policy は Ordinal な identity 文字列で着地済みである。同一座標の異なる identity は独立に扱う。
 
 ---
 
 ## 5. 生成器と非破壊契約
 
-判定は `CellPopulationPlan`（純関数）に閉じる。policy データは SampleGame。FW の `WorldGridDefinition` に policy を足さない。**`SceneResource` に生成器 policy（`Generated` / `HandAuthored`）を足さない** — M-1 が足した `_volume` / `_streamByDistance` は空間のデータであって生成器の判定材料ではない。
+判定は `CellPopulationPlan`（純関数）に閉じる。policy データと `WorldGridDefinition` は SampleGame Editor にある。**`SceneResource` に生成器 policy（`Generated` / `HandAuthored`）を足さない** — `_volume` / `_streamByDistance` は空間のデータであって生成器の判定材料ではない。
 
 | policy | 再生成時 |
 |---|---|
@@ -104,7 +101,7 @@ Editor の体積再計算（`SceneVolumeRecalculator`）は名前文法を使わ
 
 1. Cell シーンへの書き込み
 2. Environment シーンへの書き込み
-3. **グリッド範囲外** Cell フォルダの削除 — `HandAuthored` は範囲外でも削除しない
+3. target identity に含まれない Cell フォルダの削除 — `HandAuthored` は target 外でも削除しない
 
 南辺ハードコードが 4 箇所ある（`HandAuthoredCells` / `EnvironmentSproutCells` / `HandEditProbe` / 生成器完了ログ）。`EnvironmentSproutCells` は二役（Environment 子を作る / Ground を置かない）。
 
@@ -114,8 +111,8 @@ Editor の体積再計算（`SceneVolumeRecalculator`）は名前文法を使わ
 
 ## 6. テストと計測
 
-- テストは全て EditMode。**WSC 10 本相当（T-B 空隙を入れて 11）+ MultiFocus 3 + 統合 6 / 生成器 7 / `CellPopulationPlan` 14** ほか。M-1 で `StreamingCandidateSet` / `StreamingPolicySettings` の検証 8 本、`SceneVolumeMath` 10 本、`ISceneVolumeQuery` の 3 分岐 4 本が増えた。既存 3 群は入力の与え方が座標列から候補列（identity ＋ 体積）へ変わっただけで、期待値の数値は 1 つも動いていない（体積中心 = セル中心）
-- 直近の全件実行（2026-08-30）は **505 / 505 passed・failed 0**。M-1 の受入 3 はこれで満たしている
+- テストは全て EditMode。WSC / MultiFocus / 統合 / 生成器 / `CellPopulationPlan` のほか、M-1〜M-4 の候補集合・体積・identity key・R-3・所有境界を検証する
+- 直近の全件実行（2026-08-31）は **525 / 525 passed・failed 0**。M-1〜M-4 の受入を満たしている
 - CI（GitHub Actions）は DebugStudio の `dotnet test` のみ。Unity テストはローカル `pwsh tools/run-tests.ps1`
 - [§21](../../unity/Assets/Docs/Architecture/21-scene-streaming.md) の T-07〜T-09（Play 実証・テレメトリ・受入判定）は未了。季節化のあとに取る
 

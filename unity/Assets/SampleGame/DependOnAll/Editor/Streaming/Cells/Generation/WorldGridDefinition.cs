@@ -2,50 +2,18 @@
 
 using System;
 using System.Collections.Generic;
+using SampleGame.InGame.Streaming;
 using UnityEngine;
 
-namespace OneStarMaker.Editor.Streaming
+namespace SampleGame.DependOnAll.Editor.Streaming.Cells.Generation
 {
-    /// <summary>
-    /// セル格子上の軸揃え矩形。幅・高さは 1 以上。
-    /// </summary>
-    public readonly struct CellRect
-    {
-        public CellRect(Vector2Int origin, Vector2Int size)
-        {
-            if (size.x < 1 || size.y < 1)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(size),
-                    size,
-                    "矩形サイズは幅・高さとも 1 以上である必要があります。");
-            }
-
-            Origin = origin;
-            Size = size;
-        }
-
-        public Vector2Int Origin { get; }
-
-        /// <summary>x = 幅, y = 高さ。どちらも 1 以上。</summary>
-        public Vector2Int Size { get; }
-
-        public bool Contains(Vector2Int coordinate)
-        {
-            return coordinate.x >= Origin.x
-                && coordinate.y >= Origin.y
-                && coordinate.x < Origin.x + Size.x
-                && coordinate.y < Origin.y + Size.y;
-        }
-    }
-
     /// <summary>
     /// ワールドセルグリッドの配置・出力定義。
     /// World Cell Generator の入力データとして使用する ScriptableObject。
     /// </summary>
     [CreateAssetMenu(
         fileName = "WorldGridDefinition",
-        menuName = "OneStarMaker/Streaming/World Grid Definition")]
+        menuName = "SampleGame/Streaming/World Grid Definition")]
     public sealed class WorldGridDefinition : ScriptableObject
     {
         [Serializable]
