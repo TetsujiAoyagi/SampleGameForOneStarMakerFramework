@@ -1,8 +1,8 @@
 # 34. OnDemand の空間政策
 
 > ステータス: **到着契約。一部実装済み。** 実装値の正本ではない。
-> 距離政策の口（§4 の形と §5 の「体積はデータの正本」）は着地した。名前文法の残り（§1 の型の所在、§5 の候補フラグによる R-3、生成器のキー）は未実装。
-> 現状（今動いている格子キー）: [§21](21-scene-streaming.md) / [STREAMING_CURRENT_SPEC.md](../../../../docs/streaming/STREAMING_CURRENT_SPEC.md)
+> 距離政策の口、体積のデータ化、候補フラグによる R-3、生成器の identity キー化、セル型の SampleGame 移動は着地した。残る名前文法は SceneBase 結線、子 identity 導出、`CellScene` の検証、Driver の候補組み立てである。
+> 現状（今動いている実装）: [§21](21-scene-streaming.md) / [STREAMING_CURRENT_SPEC.md](../../../../docs/streaming/STREAMING_CURRENT_SPEC.md)
 > 対照: [STREAMING_CURRENT_VS_IDEAL.md](../../../../docs/streaming/STREAMING_CURRENT_VS_IDEAL.md)
 > 関連: [§5 LoadType](05-scene.md)（親に対する引っ張り。本章は触らない）/ [§33](33-sample-demonstration-boundaries.md)（SampleGame の実証。世界構図は作業台）
 > [ARCHITECTURE.md](../../ARCHITECTURE.md) に戻る
@@ -31,13 +31,13 @@ UpdateSystem の二枚立て（[現状仕様](../../../../docs/updater/UPDATER_C
 
 セルは「人が並走する大きさ」である。名前から座標が戻る型ではない。
 
-`Runtime/SceneSystem/Cells/`（`CellIdentity` / `CellGridConfig` / `CellScene`）は現状 FW にある。到着点では SampleGame または Editor へ下ろす。公開面に格子文法を残さない。
+`CellIdentity` / `CellGridConfig` / `CellScene` は `SampleGame/InGame/InGameSession/World/CellScenes/`、生成器側の格子型は `SampleGame/DependOnAll/Editor/Streaming/Cells/` にある。FW の公開面に格子文法は残していない。
 
 ---
 
 ## 2. なぜこの契約か
 
-現状の距離計算は **座標が主キーで identity が派生物** である（[現状仕様](../../../../docs/streaming/STREAMING_CURRENT_SPEC.md)）。
+移行前の距離計算は **座標が主キーで identity が派生物** だった。現在は identity と体積が主入力である（[現状仕様](../../../../docs/streaming/STREAMING_CURRENT_SPEC.md)）。
 
 ```
 座標列 → 名前の Format → 格子定数で中心を組み立て → 点距離
@@ -73,7 +73,7 @@ Pause / Result のような明示 Add は、距離政策の候補に入ってい
 `bool ShouldLoad(this)` を `SceneAssetDescription` や SceneBase 派生に置かない。
 却下済みの自律判断（[§21 D-3](21-scene-streaming.md) 却下案 1）に戻る。距離は全候補と in-flight 上限と優先度を同時に見る。
 
-形（契約。署名は移行 HANDOFF）:
+形（契約。実装署名は現状仕様を参照）:
 
 ```
 候補集合 + 各候補の体積
@@ -101,11 +101,11 @@ identity は不透明。政策層は名前を組み立てない。
 
 - 体積: AABB、または中心＋半径（球）
 - 距離は体積の**中心**への XZ 距離（現状のセル中心距離と同値になり、移行の「同等の集合」が成立する）。表面距離は採らない
-- 距離政策の候補か: フラグ（仮称 `StreamByDistance`）。true のときだけ政策の候補。画面遷移禁止（現状 R-3）は名前文法ではなくこのフラグで見る
+- 距離政策の候補か: `SceneResource.StreamByDistance`。true のときだけ政策の候補。画面遷移禁止（R-3）も名前文法ではなくこのフラグで見る
 
 **グリッド座標はランタイムのキーにしない。** 生成器の入力・HUD 表示用なら局所に残してよい。policy / 既存収集 / desired のキーは identity 文字列か体積そのもの。
 
-置き場は移行が選ぶ。どれでもよく、避けたいのは identity 文法を増やすことと、座標を第二の主キーにすること。
+置き場は `SceneResource` 直下に決まった。identity 文法を増やさず、座標を第二の主キーにしない。
 
 | 候補 | 向き |
 |---|---|
@@ -163,7 +163,7 @@ SampleGame の四季は、この契約の**使い方**である（同じ体積�
 
 ## 9. やらないこと（本章の本文）
 
-- 実装ファイル一覧、API の確定署名、テスト関数名（移行 HANDOFF）
+- 実装ファイル一覧、API の確定署名、テスト関数名（[現状仕様](../../../../docs/streaming/STREAMING_CURRENT_SPEC.md) とコード）
 - 現行レイアウトの寸法・本番セルの移動・生成器メニュー手順
 - 修飾パース、id 翻訳デコレータ、qualifier を Config に足すこと
 - グラフメトリック / ノベル / HLOD（§22）

@@ -1,6 +1,6 @@
 # 33. SampleGame 実証境界 — Season / Tunnel / 4 動詞
 
-> ステータス: **部分退役。** 世界は作業台の世界稿。空間の到着契約は [§34](34-ondemand-spatial-policy.md)。現状の格子キーは [§21](21-scene-streaming.md) / [STREAMING_CURRENT_SPEC.md](../../../../docs/streaming/STREAMING_CURRENT_SPEC.md)。4 動詞の検証マトリクスも作業台が新しい。本文は harvest まで残す。
+> ステータス: **部分退役。** 世界は作業台の世界稿。空間の到着契約は [§34](34-ondemand-spatial-policy.md)。現状実装は [§21](21-scene-streaming.md) / [STREAMING_CURRENT_SPEC.md](../../../../docs/streaming/STREAMING_CURRENT_SPEC.md)。4 動詞の検証マトリクスも作業台が新しい。本文は harvest まで残す。
 > **コードは本章から書き始めない。** 本文の空隙レイアウト（D-1 / §7）に戻らない。
 > [ARCHITECTURE.md](../../ARCHITECTURE.md) に戻る
 > 関連: [18-asset-description.md](18-asset-description.md)、[20-variant-checkout-workflow.md](20-variant-checkout-workflow.md)、[21-scene-streaming.md](21-scene-streaming.md)、[27-folder-structure.md](27-folder-structure.md)、[05-scene.md](05-scene.md)
@@ -237,7 +237,7 @@ Cells/Cell_0_0/
 
 | 契約 | 所在 |
 |---|---|
-| `CellIdentity` の書式（`Cell_{x}_{y}`） | `Runtime/SceneSystem/Cells/` |
+| `CellIdentity` の書式（`Cell_{x}_{y}`） | `SampleGame/InGame/InGameSession/World/CellScenes/` |
 | セル制作規約 R-1〜R-6 | [§21 §7](21-scene-streaming.md) |
 | `WorldStreamingController` のポリシー仕様（desired set・ヒステリシス・in-flight 上限） | [§21 §8](21-scene-streaming.md) |
 | `SceneState` の 14 状態と enum 順序 | [§5](05-scene.md) |
