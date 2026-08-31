@@ -7,6 +7,7 @@ using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.Streaming;
+using SampleGame.InGame.World;
 using UnityEngine;
 using ZLogger;
 

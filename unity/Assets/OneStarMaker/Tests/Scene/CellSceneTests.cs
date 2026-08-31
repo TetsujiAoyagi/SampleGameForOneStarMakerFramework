@@ -9,6 +9,7 @@ using NUnit.Framework;
 using OneStarMaker.Foundation.Telemetry;
 using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.SceneSystem;
+using SampleGame.InGame.World;
 using OneStarMaker.Runtime.UISystem;
 using OneStarMaker.Tests.SceneSystem.Helpers;
 using OneStarMaker.Tests.SceneSystem.TestDoubles;

@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace SampleGame.DependOnAll.Editor.Cells
+namespace SampleGame.DependOnAll.Editor.Streaming.Cells.Planning
 {
     public enum CellAuthoringPolicyKind
     {

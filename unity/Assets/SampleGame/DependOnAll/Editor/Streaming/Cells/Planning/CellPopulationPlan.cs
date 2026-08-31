@@ -2,10 +2,10 @@
 
 using System;
 using System.Collections.Generic;
-using OneStarMaker.Editor.Streaming;
+using SampleGame.DependOnAll.Editor.Streaming.Cells.Generation;
 using UnityEngine;
 
-namespace SampleGame.DependOnAll.Editor.Cells
+namespace SampleGame.DependOnAll.Editor.Streaming.Cells.Planning
 {
     /// <summary>既存 Cell 1 件分の状態（AssetDatabase に触れない純データ）。</summary>
     public readonly struct CellExistingState

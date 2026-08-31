@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.Streaming;
+using SampleGame.InGame.World;
 using UnityEngine;
 
 namespace OneStarMaker.Tests.Streaming

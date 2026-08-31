@@ -1,10 +1,11 @@
 #nullable enable
 
 using System;
+using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.UISystem;
 using UnityEngine;
 
-namespace OneStarMaker.Runtime.SceneSystem
+namespace SampleGame.InGame.World
 {
     /// <summary>
     /// セルシーンの基底クラス。

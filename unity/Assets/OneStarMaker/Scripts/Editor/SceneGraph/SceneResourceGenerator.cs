@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -21,6 +22,16 @@ namespace OneStarMaker.Editor.SceneGraph
     {
         private const string DefaultOutputFolder = "Assets/OneStarMakerCommon/SceneMap";
         private const string DefaultMapPath = "Assets/OneStarMakerCommon/SceneMap/SceneResourceMap.asset";
+
+        /// <summary>
+        /// Editor ツールがシリアライズ済みリストを変更した後、Runtime 公開 API を増やさずに
+        /// <see cref="SceneResourceMap.GetSceneResource(string)"/> の検索辞書を同期する。
+        /// </summary>
+        public static void RebuildMapLookup(SceneResourceMap map)
+        {
+            if (map == null) throw new ArgumentNullException(nameof(map));
+            map.RebuildDictionary();
+        }
 
         /// <summary>
         /// Generate を実行する。

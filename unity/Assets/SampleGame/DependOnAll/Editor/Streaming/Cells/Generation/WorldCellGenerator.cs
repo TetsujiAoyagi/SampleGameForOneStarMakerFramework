@@ -4,13 +4,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using OneStarMaker.Editor.SceneGraph;
 using OneStarMaker.Runtime.AssetDescriptions;
 using OneStarMaker.Runtime.SceneSystem;
+using SampleGame.InGame.World;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-namespace OneStarMaker.Editor.Streaming
+namespace SampleGame.DependOnAll.Editor.Streaming.Cells.Generation
 {
     /// <summary>生成計画におけるセル 1 件分のアクション種別。</summary>
     public enum WorldCellPlanAction
@@ -335,7 +337,7 @@ namespace OneStarMaker.Editor.Streaming
                 }
             }
 
-            map.RebuildDictionary();
+            SceneResourceGenerator.RebuildMapLookup(map);
 
             return new WorldCellGenerationResult(
                 createdResources,
@@ -373,7 +375,7 @@ namespace OneStarMaker.Editor.Streaming
                 listProp.GetArrayElementAtIndex(i).objectReferenceValue = keep[i];
             }
             mapSo.ApplyModifiedPropertiesWithoutUndo();
-            map.RebuildDictionary();
+            SceneResourceGenerator.RebuildMapLookup(map);
         }
 
         /// <summary>
@@ -543,7 +545,7 @@ namespace OneStarMaker.Editor.Streaming
 
             if (adopted)
             {
-                map.RebuildDictionary();
+                SceneResourceGenerator.RebuildMapLookup(map);
             }
         }
 

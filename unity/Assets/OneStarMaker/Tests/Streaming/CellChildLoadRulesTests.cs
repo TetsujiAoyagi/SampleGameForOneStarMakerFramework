@@ -72,7 +72,7 @@ namespace OneStarMaker.Tests.Streaming
         [Test]
         public void EnvironmentIdentity_DoesNotCollideWithCellIdentity()
         {
-            Assert.That(OneStarMaker.Runtime.SceneSystem.CellIdentity.IsCellId("Environment_0_0"), Is.False);
+            Assert.That(global::SampleGame.InGame.World.CellIdentity.IsCellId("Environment_0_0"), Is.False);
             Assert.That(EnvironmentIdentity.IsEnvironmentId("Cell_0_0"), Is.False);
         }
     }

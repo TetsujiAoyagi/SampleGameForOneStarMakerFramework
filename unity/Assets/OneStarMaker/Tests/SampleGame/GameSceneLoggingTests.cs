@@ -11,6 +11,7 @@ using OneStarMaker.Tests.CameraSystem;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Tests.SceneSystem.Helpers;
 using SampleGame.DependOnAll;
+using SampleGame.InGame.World;
 using SampleGame.OutGame.Scenes;
 using RuntimeCameraSystem = OneStarMaker.Runtime.CameraSystem.Core.CameraSystem;
 using Cysharp.Threading.Tasks;
@@ -64,6 +65,20 @@ namespace OneStarMaker.Tests.SampleGame
                 new StubSceneController());
 
             Assert.IsNull(scene);
+        }
+
+        [Test]
+        public void CreateSceneClass_CellIdentity_ReturnsDemoCellScene()
+        {
+            var factory = CreateFactory(NullLoggerFactory.Instance);
+            var resource = SceneTestHelper.CreateSceneResource("Cell_0_0");
+
+            var scene = factory.CreateSceneClass(
+                resource,
+                new StubSceneQuery(),
+                new StubSceneController());
+
+            Assert.That(scene, Is.TypeOf<DemoCellScene>());
         }
 
         private static GameSceneFactory CreateFactory(ILoggerFactory loggerFactory)

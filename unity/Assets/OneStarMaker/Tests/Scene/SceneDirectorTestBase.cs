@@ -5,6 +5,7 @@ using NUnit.Framework;
 using OneStarMaker.Runtime.AssetDescriptions;
 using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.SceneSystem;
+using SampleGame.InGame.World;
 using OneStarMaker.Tests.AssetManagement;
 using OneStarMaker.Tests.SceneSystem.Helpers;
 using OneStarMaker.Tests.SceneSystem.TestDoubles;
