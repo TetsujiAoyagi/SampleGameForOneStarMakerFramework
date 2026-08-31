@@ -135,7 +135,8 @@ $localTiers = @(
     'docs/planning/',
     'docs/reference/',
     'docs/slides/',
-    'docs/debugstudio/'
+    'docs/debugstudio/',
+    'docs/agents/'
 )
 # docs/README.md は方針そのものを説明する文書なので、層名の言及を許可する
 $tierMentionAllowed = @('docs/README.md')

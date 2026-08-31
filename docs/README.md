@@ -16,7 +16,7 @@
 |---|---|---|---|
 | **公開面** | `README.md` / `unity/Assets/ARCHITECTURE.md` / `unity/Assets/Docs/Architecture/` / `docs/` 直下 / **`docs/updater/`**（UpdateSystem 正本仕様 + 視覚メモ） / **`docs/streaming/`**（Streaming 現状仕様 + 対照。到着契約は Architecture §34） / `protocol/` / `tools/**/README.md` | tracked | 永続。**今この瞬間に真であること** |
 | **作業台** | `docs/handoff/` | tracked | 進行中のスライス。複数スライスに跨る計画も置いてよい（harvest 先と期限を本文に書く）。マージ時に削除する |
-| **手元** | `docs/planning/` `docs/reference/` `docs/slides/` `docs/debugstudio/` | ignored | 無期限。公開面から参照しない |
+| **手元** | `docs/planning/` `docs/reference/` `docs/slides/` `docs/debugstudio/` `docs/agents/` | ignored | 無期限。公開面から参照しない。`docs/agents/` は現在のモデル・CLI割当だけを持ち、Phase契約の正本にしない |
 
 ## 公開面のルール
 
@@ -34,12 +34,13 @@
 複数スライスに跨る計画（構図の正本、空間プロトコルの Plan など）も作業台に置いてよい。ただし harvest 先と期限を本文に書くこと。作業指示だけに限らない。
 §7 / §8 を持たない長期計画は検査3 の網に掛からない。harvest 期限を本文に書くこと。
 
-**いま `docs/handoff/` にある進行中正本は 2 つだけである。**
+**いま `docs/handoff/` にある進行中正本は 3 つだけである。**
 
 | ファイル | 役割 | 実装キューか |
 |---|---|---|
 | `SEASON_WORLD_DESIGN.md` | 世界構図・実証・スライス順序 | 着手時 HANDOFF を切るまでの正本。スライス表の順で切る |
-| `REVIEW_WORKFLOW_EFFICIENCY.md` | 外部モデルレビューの問題点と未採用の改善候補 | いいえ。次セッションで運用を決め、採用分だけ Skill へ harvest する |
+| `REVIEW_WORKFLOW_EFFICIENCY.md` | 外部モデルレビューの実測と、次のPhase Cで残す比較項目 | いいえ。普遍契約はSkillへharvest済み。残る実測後に削除する |
+| `REVIEW_WORKFLOW_EFFICIENCY_ASSESSMENT.md` | 上記への独立評価（Claude / Grok）と採否記録 | いいえ。次のPhase Cで残る仮説を検証後、調査記録ごと削除する |
 
 Streaming の M-1〜M-4 は完了し、決定を公開面へ harvest して、移行計画と各着手時 HANDOFF を削除済み。完了済み HANDOFF は復活させない。
 
