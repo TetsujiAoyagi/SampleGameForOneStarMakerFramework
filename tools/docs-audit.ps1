@@ -17,6 +17,8 @@
              文書への依存なので、**個別 HANDOFF ファイルの参照だけアウト**とし、
              方針としてのディレクトリ言及は許す（ルート README は3層を説明する
              必要がある）。
+             slice / program HANDOFF も worktree へ渡すので、手元層へ依存させない。
+             research HANDOFF はローカル運用自体を調査対象にできるため例外とする。
              （実例: elastic/queries/README.md が HANDOFF §7 を指していた）
       検査3  §7 と §8 が両方埋まった HANDOFF が残っている    → 警告
              （マージ済みなのに harvest されていない）
@@ -135,17 +137,28 @@ $localTiers = @(
     'docs/planning/',
     'docs/reference/',
     'docs/slides/',
-    'docs/debugstudio/'
+    'docs/debugstudio/',
+    'docs/agents/'
 )
 # docs/README.md は方針そのものを説明する文書なので、層名の言及を許可する
 $tierMentionAllowed = @('docs/README.md')
 
 foreach ($rel in $ownMd) {
-    if ($rel.StartsWith('docs/handoff/', 'OrdinalIgnoreCase')) { continue }
+    $isHandoff = $rel.StartsWith('docs/handoff/', 'OrdinalIgnoreCase')
     if ($tierMentionAllowed -contains $rel) { continue }
 
     $full = Join-Path $Root $rel
     if (-not (Test-Path $full)) { continue }
+    $handoffType = ''
+    if ($isHandoff) {
+        foreach ($metaLine in (Get-Content -LiteralPath $full -Encoding utf8 | Select-Object -First 20)) {
+            if ($metaLine -match '^[>\s-]*type:\s*(slice|program|research)\s*$') {
+                $handoffType = $Matches[1].ToLowerInvariant()
+                break
+            }
+        }
+    }
+    if ($isHandoff -and $handoffType -eq 'research') { continue }
     $lineNo = 0
     foreach ($line in (Get-Content -LiteralPath $full -Encoding utf8)) {
         $lineNo++
@@ -160,6 +173,9 @@ foreach ($rel in $ownMd) {
             }
         }
         if ($hit) { continue }
+
+        # HANDOFF 同士の参照は作業台内の一時的な関係なので許す。
+        if ($isHandoff) { continue }
 
         # 作業台: tracked なのでリンク切れにはならない。問題は「一時文書に依存すること」。
         # したがって個別の HANDOFF ファイルを指すのはアウト、方針としてディレクトリに
@@ -192,6 +208,7 @@ foreach ($rel in $handoffs) {
             if ($t -eq '') { continue }
             if ($t -match '^-{3,}$') { continue }                       # 水平線
             if ($t -match '^[（(]?(未記入|未実施|未着手|なし|TBD|N/?A)[)）]?$') { continue }
+            if ($t -match '^-[\s]+[^:]+:[\s]*(未記入|未実施|未着手|なし|TBD|N/?A)?[\s]*$') { continue } # 未記入フィールド
             $count++
         }
         return $count

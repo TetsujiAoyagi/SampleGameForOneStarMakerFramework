@@ -1,9 +1,11 @@
 # 外部モデルレビューの実行効率 — 調査記録と次回検討事項
 
-> ステータス: **調査結果を記録済み。改善案は未承認・未適用。**
-> 本書は次セッションで運用を検討するための作業台であり、現在の Phase 契約やモデル設定を変更しない。
-> harvest 先: 人が採用を決めた項目だけを `.agents/skills/osm-workflow/SKILL.md` または `references/phases-and-handoff.md` へ反映する。会話の正本を GitHub Issue に移す案を採る場合は、その Issue も判断記録にする。
-> 削除期限: 改善案を採用して正本へ harvest した時、または不採用を決めて記録が不要になった時。
+> type: research
+> ステータス: **2026-09-01 に採否を決定し、普遍契約を Skill へ harvest 済み。実行方式の比較だけ未完。**
+> 本書は次の Phase C で残る仮説を検証するための一時記録であり、現在の Phase 契約の正本ではない。
+> harvest 先: 普遍契約は `.agents/skills/osm-workflow/`、現在のモデル・CLI割当は git 管理外の `docs/agents/`。
+> 削除期限: 次のスライスの Phase C で `stream-json` と findings 分類を実測し、採否を記録した時点。独立評価とともに削除する。
+> ⚠ **§2 の診断のうち問題1・問題2は既存の実測記録と衝突している。原因分析は `REVIEW_WORKFLOW_EFFICIENCY_ASSESSMENT.md` を正とする。**
 
 ## 1. 観測した実行
 
@@ -25,6 +27,35 @@
 
 数値は今回の実行ログから得た一例であり、将来の固定予算ではない。
 
+## 1.5 2026-09-01 の採否
+
+採用して Skill へ harvest:
+
+- Phase A は A0 入力固定、A1 初稿、A2 複数モデル独立レビュー、A3 人間統合と凍結に分ける。
+- Phase A の少なくとも1レビューは、責務、依存、所有者、寿命、フォルダ、テスト境界を専門に見る。高リスクでは初稿を見ない代替構成も検討する。
+- 行数、責務数、増加率は自動分割条件ではなく、分割または非分割の説明を要求するトリガーとする。
+- Phase C と C' は base / head commit を固定した同じ evidence bundle を使う。
+- C' には C の所見を含まない blind audit bundle だけを渡し、Phase D で初めて突き合わせる。
+- 時間、token、tool calls だけでなく、unique finding、重複、誤検知、重大度を記録する。
+
+ローカル実行プロファイルへ harvest:
+
+- Cursor Agent は Grok 系だけに使い、Claude CLI は Opus / Sonnet に使う。
+- 高リスク変更では Claude を Phase A〜C に参加させず、C' の未関与ベンダーとして予約する。
+
+不採用:
+
+- `--mode ask` への即時変更
+- subagent / delegation の全面禁止
+- 60〜80% 削減を目標値にすること
+- GitHub Issue をレビュー判断の正本にすること
+- 変更種類と実害を分類せず、全検査を先にスクリプト化すること
+
+未決・次回実測:
+
+- mode を維持したまま `--output-format stream-json` だけを変える比較
+- findings 分類に基づく機械検査の最小範囲
+
 ## 2. 問題点
 
 1. 読み取りレビューに Cursor の `plan` mode を使い、最終回答まで余分な往復が発生した。
@@ -37,9 +68,9 @@
 8. 会話だけを判断記録にすると、セッションを跨いだ前提と決定が見失われやすい。
 9. モデルの呼び出し経路が利用者の意図と一致していなかった。Cursor は Grok 系、Claude CLI は Opus / Sonnet に限定する、という使い分けが必要。
 
-## 3. 次セッションで検討する改善案
+## 3. 元の改善候補
 
-以下は候補であり、まだ運用へ反映しない。
+以下は調査時点の候補である。現在の採否は §1.5 を正とする。
 
 - Cursor の read-only review は `--mode ask` を使い、subagent / delegation を明示的に禁止する。
 - root が一度だけ evidence bundle を作る。内容は staged diff / stat / name-status、GUID map、asmdef・保護 YAML の差分、契約 grep、テスト XML 要約とする。
@@ -58,4 +89,4 @@
 - **Claude CLI は Opus / Sonnet を使う時に使用する。**
 - Claude、Gemini、Codex を Cursor Agent 経由で呼ばない。別経路を増やす場合は先に利用者と合意する。
 
-これは改善候補ではなく、今後の手動実行にも適用する利用者指定である。ただし今回、この指定を Skill・script・設定へ自動反映する変更は行わない。永続ルールへの置き場は次回検討する。
+これは普遍的な Phase 契約ではなく、現在のローカル実行プロファイルである。2026-09-01 に `docs/agents/workflow.md` へ統合した。Skill 側はモデル名を固定せず、役割と独立性だけを持つ。
