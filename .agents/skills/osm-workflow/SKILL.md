@@ -37,6 +37,7 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 - 計画外の状態、依存、所有者、寿命、公開 API が必要になった場合、または計画した配置では中核ロジックを単体テストできない場合も実装を止める。Phase B 内で便宜的な Helper / Manager へ押し込まない。
 - Unity Editor、Scene、Prefab、Addressables等を扱う場合は `../osm-unity-editor/SKILL.md` を先に読む。
 - Unity バッチテストと Addressables ビルドは Phase C の責任とし、Phase B では実行しない。完了時に未実行を明記する。
+- 実装を終えたら `pwsh tools/contract-audit.ps1` を実行する。Unity を起動しない以上、コンパイラが捕まえる違反もここでしか見つからない。
 
 ## Phase C: レビューとテスト
 
@@ -44,7 +45,7 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 - HANDOFF の受け入れ条件と差分を照合し、機能レビューより先に構造レビューを行う。
 - Phase A の責務マップと実際のメンバー、依存、配置、テスト境界を照合する。行数と増加率は分割命令ではなく、構造判断の説明を要求するトリガーとして扱う。
 - 変更量、独立した変更理由の混在、単体テスト可能性、Unity の偽 null を確認する。
-- テストに `Task.Delay` / `Thread.Sleep` が入っていないことを確認する。
+- `pwsh tools/contract-audit.ps1` を実行する。機械で判定できる契約はこれで済ませ、構造レビューは設計判断に集中する。
 - Unity Editor が閉じていることを確認して `pwsh tools/run-tests.ps1` を実行する。絞り込みは `-Filter` を使う。
 - Phase C でも `unity test` / `unity run` は使わない。
 - exit 0 は1件以上実行かつ failed 0。0件は失敗として扱う。
