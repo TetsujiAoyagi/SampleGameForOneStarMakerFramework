@@ -208,7 +208,7 @@ foreach ($rel in $handoffs) {
             if ($t -eq '') { continue }
             if ($t -match '^-{3,}$') { continue }                       # 水平線
             if ($t -match '^[（(]?(未記入|未実施|未着手|なし|TBD|N/?A)[)）]?$') { continue }
-            if ($t -match '^-[\s]+[^:]+:[\s]*$') { continue }         # テンプレートの未記入フィールド
+            if ($t -match '^-[\s]+[^:]+:[\s]*(未記入|未実施|未着手|なし|TBD|N/?A)?[\s]*$') { continue } # 未記入フィールド
             $count++
         }
         return $count

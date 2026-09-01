@@ -7,8 +7,8 @@
 - type: `slice` / `program` / `research`
 - status: `A` / `B` / `C` / `C'` / `D`
 - branch:
-- base commit:
-- head commit:
+- implementation base commit:
+- implementation head commit:
 - risk: `low` / `normal` / `high`
 - owner:
 - created:
@@ -27,7 +27,7 @@
 - C' blind bundle generated at:
 - C' blind bundle hash:
 
-Phase A では base commit と Phase A snapshot を記録する。head、Phase B result、evidence、C' blind bundle は各成果物が生成された Phase で追記し、未到達 Phase の値を推測して埋めない。
+Phase A では implementation base commit と Phase A snapshot を記録する。implementation head、Phase B result、evidence、C' blind bundle は各成果物が生成された Phase で追記し、未到達 Phase の値を推測して埋めない。HANDOFF へのレビュー記録だけの commit は implementation head に含めない。
 
 ## 1. 目的と対象外
 
@@ -68,7 +68,7 @@ Phase A では base commit と Phase A snapshot を記録する。head、Phase B
 - 実装:
 - HANDOFF との差:
 - 未実行:
-- head commit:
+- implementation head commit:
 - Phase B 担当・モデル・ベンダー:
 
 ## 7. Phase C

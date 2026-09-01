@@ -40,7 +40,7 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 
 ## Phase C: レビューとテスト
 
-- [レビュー証拠](references/review-evidence.md) に従い、base / head commit を固定した evidence bundle を作る。staged 状態や可変な作業ツリーだけをレビュー対象にしない。
+- [レビュー証拠](references/review-evidence.md) に従い、implementation base / head commit を固定した evidence bundle を作る。staged 状態や可変な作業ツリーだけをレビュー対象にしない。
 - HANDOFF の受け入れ条件と差分を照合し、機能レビューより先に構造レビューを行う。
 - Phase A の責務マップと実際のメンバー、依存、配置、テスト境界を照合する。行数と増加率は分割命令ではなく、構造判断の説明を要求するトリガーとして扱う。
 - 変更量、独立した変更理由の混在、単体テスト可能性、Unity の偽 null を確認する。
@@ -54,7 +54,7 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 ## Phase C': 独立監査
 
 - 新規セッションで開始し、Phase C の結論、指摘、疑念候補を含まない blind audit bundle を読む。可変な HANDOFF 全文をそのまま入力にしない。
-- blind audit bundle は、凍結した Phase A snapshot、Phase B の実装結果、Phase C と同じ base / head の完全 diff、生のテスト結果、Phase C より前に生成した機械検査出力だけで構成する。
+- blind audit bundle は、凍結した Phase A snapshot、Phase B の実装結果、Phase C と同じ implementation base / head の完全 diff、生のテスト結果、Phase C より前に生成した機械検査出力だけで構成する。
 - Phase B、Cと異なるモデルを使う条件は [Phase と HANDOFF](references/phases-and-handoff.md) に従う。
 - 受け入れ条件だけでなく、契約違反、構造劣化、未検証の失敗経路、Phase C 自体の見落としを探す。
 - 指摘、残存リスク、監査できなかった範囲、使用したモデルを HANDOFF の Phase C' 欄へ記録する。

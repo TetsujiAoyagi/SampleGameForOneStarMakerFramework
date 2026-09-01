@@ -36,7 +36,7 @@
 
 ## HANDOFF の必須内容
 
-- type、status、branch、base / head commit、risk、owner、期限、harvest 先
+- type、status、branch、implementation base / head commit、risk、owner、期限、harvest 先
 - Phase A snapshot、Phase B result snapshot、evidence bundle、C' blind audit bundle の path / id、生成時刻、hash
 - 目的、対象外、受け入れ条件
 - A0 の現況、制約、未決事項
@@ -67,8 +67,8 @@
 
 詳細は [レビュー証拠と指摘記録](review-evidence.md) を正とする。
 
-- Phase C と C' は同じ base / head commit と evidence bundle を使う。
+- Phase C と C' は同じ implementation base / head commit と evidence bundle を使う。
 - Phase C' に可変な HANDOFF 全文を渡さない。凍結した Phase A snapshot、Phase B の実装結果、完全 diff、生のテスト結果、Phase C より前の機械検査だけを渡す。
 - Phase C の結論、指摘、疑念候補は C' 完了まで隔離する。
 - C と C' の所見は Phase D で初めて突き合わせる。
-- C または差し戻しで head が変わった場合は旧 bundle と C' 結果を無効にし、新しい head から C と C' をやり直す。
+- 差し戻し等でレビュー対象の implementation head または対象 diff が変わった場合は旧 bundle と C' 結果を無効にし、新しい対象で C と C' をやり直す。HANDOFF へレビュー結果だけを追記した commit は implementation head を更新せず、再実行条件にしない。
