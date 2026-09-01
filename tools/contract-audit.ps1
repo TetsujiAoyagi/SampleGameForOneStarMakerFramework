@@ -22,9 +22,13 @@
       検査6  GetInstanceID()                  Unity 6.5 で CS0619         → エラー
       検査7  公開面への ZLogger 型漏れ        判断が要るので              → 警告
 
-    検査1 だけが差分限定。未対応の既存ファイルが 71 件残っており（一括整備は
-    別スライス）、全体検査にすると常時赤になって他の検査ごと無視されるため。
+    検査1 だけが差分限定。未対応の既存ファイルが残っており（一括整備は別スライス）、
+    全体検査にすると常時赤になって他の検査ごと無視されるため。
     「既存から外さない」側は、外したファイルが差分に入る以上、同じ検査で捕まる。
+
+    検査対象は、作業ツリーに実在する追跡済み・未追跡ファイルの両方。Phase B が
+    commit / stage より前に実行しても、新規 .cs と新規 .asmdef を検査へ含める。
+    HEAD から削除・rename された旧パスは、現在の作業ツリーには無いので対象外。
 
     検査2 と 検査6 は Unity のコンパイラも捕まえる。それでも入れているのは
     上の「Phase B は Unity を起動しない」ため。実測でどちらも Phase C まで
@@ -92,7 +96,21 @@ function Test-InScope {
 $tracked = @(git -C $Root ls-files)
 if ($LASTEXITCODE -ne 0) { Write-Error "git ls-files に失敗した: $Root" }
 
-$csFiles = @($tracked | Where-Object { Test-InScope $_ })
+$untracked = @(git -C $Root ls-files --others --exclude-standard)
+if ($LASTEXITCODE -ne 0) { Write-Error "git ls-files --others に失敗した: $Root" }
+
+# index ではなく、現在の作業ツリーを検査する。これにより、stage 前の新規ファイルを
+# 検査2〜7へ含め、削除・rename 済みの旧パスを部分 checkout 失敗と誤認しない。
+# リポジトリ全体への Test-Path は遅いので、HEAD との差分から削除済みパスを除外する。
+$deleted = @(git -C $Root diff --name-only --diff-filter=D HEAD --)
+if ($LASTEXITCODE -ne 0) { Write-Error "git diff による削除一覧の取得に失敗した: $Root" }
+$deletedSet = [System.Collections.Generic.HashSet[string]]::new(
+    [string[]]$deleted, [System.StringComparer]::OrdinalIgnoreCase)
+$worktreeFiles = @(($tracked + $untracked) |
+    Sort-Object -Unique |
+    Where-Object { -not $deletedSet.Contains($_) })
+
+$csFiles = @($worktreeFiles | Where-Object { Test-InScope $_ })
 if ($csFiles.Count -eq 0) {
     # 「検査対象が無いので違反も無い」を成功と報告しない（docs-audit.ps1 と同じ理由）
     Write-Error "検査対象の Unity側 .cs が 0 件。checkout に失敗している: $Root"
@@ -104,9 +122,8 @@ if ($csFiles.Count -eq 0) {
 # （実測: パス名に Editor が含まれるかで判定すると、Editor 専用 asmdef を
 #   持つ SampleGame.DependOnAll.Editor/ が丸ごと誤検知になる）。
 $asmdefByDir = @{}
-foreach ($rel in @($tracked | Where-Object { $_.EndsWith('.asmdef', 'OrdinalIgnoreCase') })) {
+foreach ($rel in @($worktreeFiles | Where-Object { $_.EndsWith('.asmdef', 'OrdinalIgnoreCase') })) {
     $full = Join-Path $Root $rel
-    if (-not (Test-Path $full)) { continue }
     $json = Get-Content -LiteralPath $full -Encoding utf8 -Raw | ConvertFrom-Json
     $dir = ($rel -replace '/[^/]+$', '')
     $asmdefByDir[$dir] = [pscustomobject]@{
@@ -170,7 +187,6 @@ if (-not $baseCommit) {
     # git diff <commit> は作業ツリーまで含む。コミット前の Phase B でも効かせるため。
     $diff = @(git -C $Root diff --name-only --diff-filter=ACMR $baseCommit --)
     if ($LASTEXITCODE -ne 0) { Write-Error "git diff に失敗した: $baseCommit" }
-    $untracked = @(git -C $Root ls-files --others --exclude-standard)
     $changed = @(($diff + $untracked) | Sort-Object -Unique | Where-Object { Test-InScope $_ })
 
     foreach ($rel in $changed) {
@@ -185,8 +201,8 @@ if (-not $baseCommit) {
 }
 
 # --- 検査2・3・5・6・7（全体を1パスで） -------------------------------------
-$recordPattern  = [regex]'(^|[^\w.])record\s+(class\s+|struct\s+)?[A-Za-z_]\w*\s*($|[({:<])'
-$realWaitPattern = [regex]'(^|[^\w.])(Task\.Delay|Thread\.Sleep)\s*\('
+$recordPattern  = [regex]'(^|[^\w.])record\s+(class\s+|struct\s+)?[A-Za-z_]\w*\s*($|[({:<;])'
+$realWaitPattern = [regex]'(?<!\w)(Task\.Delay|Thread\.Sleep)\s*\('
 $editorPattern  = [regex]'(^|[^\w.])UnityEditor\s*[.;]'
 $instanceIdPattern = [regex]'\.GetInstanceID\s*\('
 $zloggerPublicPattern = [regex]'^\s*(public|protected)\b.*\bI?ZLogger\w*\b'
@@ -201,10 +217,6 @@ $zloggerAdapterPrefixes = @(
 $testAssemblies = 0
 foreach ($rel in $csFiles) {
     $full = Join-Path $Root $rel
-    if (-not (Test-Path $full)) {
-        $errors += "[検査0] $rel は ls-files にあるが checkout されていない（部分 checkout 失敗）"
-        continue
-    }
     $asm = Get-Assembly $rel
     $isTest = ($asm.Name -match 'Tests|TestSupport')
     if ($isTest) { $testAssemblies++ }
