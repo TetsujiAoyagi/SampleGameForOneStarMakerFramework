@@ -108,6 +108,7 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             EnsureFolder(ResourceOutputPath);
             EnsureFolder(parentCellFolder);
 
+            CreateSavedScene($"{Root}/OriginalSetup.unity", leaveOpen: true, NewSceneMode.Single);
             var parentSceneGuid = CreateSavedScene($"{parentCellFolder}/{parentIdentity}.unity", leaveOpen: false);
             ParentNode = ScriptableObject.CreateInstance<SceneNodeData>();
             ParentNode.name = parentIdentity;
@@ -138,9 +139,9 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             var map = AssetDatabase.LoadAssetAtPath<SceneResourceMap>(MapPath);
             Assert.That(map, Is.Not.Null);
             Assert.That(map!.GenerateHash, Is.EqualTo(StartingHash));
+            SceneResourceGenerator.RebuildMapLookup(map);
             Assert.That(map.GetSceneResource(parentIdentity)!.StreamByDistance, Is.True);
 
-            CreateSavedScene($"{Root}/OriginalSetup.unity", leaveOpen: true);
             _startingSetup = SetupFingerprint(EditorSceneManager.GetSceneManagerSetup());
             _startingActiveScenePath = SceneManager.GetActiveScene().path;
         }
@@ -229,23 +230,42 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
                 catch { WorldCompanionRecoveryJournal.Delete(); }
             }
             RemoveExactAddress(Plan.ScenePath);
-            EditorSceneManager.RestoreSceneManagerSetup(_outerSetup);
+            RestoreOuterSetup();
             if (AssetDatabase.IsValidFolder(Root)) AssetDatabase.DeleteAsset(Root);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
         }
 
-        private static string CreateSavedScene(string path, bool leaveOpen)
+        private static string CreateSavedScene(
+            string path,
+            bool leaveOpen,
+            NewSceneMode mode = NewSceneMode.Additive)
         {
-            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, mode);
             Assert.That(EditorSceneManager.SaveScene(scene, path), Is.True);
             var guid = AssetDatabase.AssetPathToGUID(path);
             Assert.That(guid, Is.Not.Empty);
             if (leaveOpen)
-                Assert.That(SceneManager.SetActiveScene(scene), Is.True);
+            {
+                if (SceneManager.GetActiveScene().handle != scene.handle)
+                    Assert.That(SceneManager.SetActiveScene(scene), Is.True);
+            }
             else
+            {
                 Assert.That(EditorSceneManager.CloseScene(scene, removeScene: true), Is.True);
+            }
             return guid;
+        }
+
+        private void RestoreOuterSetup()
+        {
+            if (_outerSetup.Any(item => item.isLoaded && !string.IsNullOrEmpty(item.path)))
+            {
+                EditorSceneManager.RestoreSceneManagerSetup(_outerSetup);
+                return;
+            }
+
+            EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
         }
 
         private static List<T> LoadAll<T>(string root) where T : UnityEngine.Object

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using NUnit.Framework;
 using OneStarMaker.Runtime.AssetDescriptions;
@@ -31,7 +32,7 @@ namespace OneStarMaker.Tests.SceneSystem
         [TestCase("", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
         [TestCase("Whitebox", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")]
         [TestCase("Missing", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
-        public async UniTask Load_ForwardsExactVariantAndPreservesDefaultFallback(string variant, string expectedAddress)
+        public async Task Load_ForwardsExactVariantAndPreservesDefaultFallback(string variant, string expectedAddress)
         {
             var backend = new FakeAssetBackend();
             var assets = new Runtime.AssetManagement.AssetManagement(backend);
@@ -50,7 +51,7 @@ namespace OneStarMaker.Tests.SceneSystem
         }
 
         [Test]
-        public async UniTask Load_LogicalNodeWithoutPayload_DoesNotCallBackend()
+        public async Task Load_LogicalNodeWithoutPayload_DoesNotCallBackend()
         {
             var backend = new FakeAssetBackend();
             var assets = new Runtime.AssetManagement.AssetManagement(backend);

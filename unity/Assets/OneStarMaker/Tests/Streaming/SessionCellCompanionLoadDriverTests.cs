@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
@@ -28,7 +29,7 @@ namespace OneStarMaker.Tests.Streaming
         }
 
         [Test]
-        public async UniTask Reconcile_ParentNotStable_AddsNothing()
+        public async Task Reconcile_ParentNotStable_AddsNothing()
         {
             var fixture = CreateFixture(CellCompanionSet.Full, parentStable: false, "Spring_Environment_0_0");
 
@@ -38,7 +39,7 @@ namespace OneStarMaker.Tests.Streaming
         }
 
         [Test]
-        public async UniTask Reconcile_Planner_LoadsEventsOnlyFromChildren()
+        public async Task Reconcile_Planner_LoadsEventsOnlyFromChildren()
         {
             var fixture = CreateFixture(
                 CellCompanionSet.Planner,
@@ -55,7 +56,7 @@ namespace OneStarMaker.Tests.Streaming
         [TestCase(CellCompanionSet.Planner, "Events")]
         [TestCase(CellCompanionSet.Lighting, "Environment,Lighting")]
         [TestCase(CellCompanionSet.Vfx, "Environment,Lighting,VFX")]
-        public async UniTask Reconcile_EachProfile_LoadsOnlyItsIncludedRoles(
+        public async Task Reconcile_EachProfile_LoadsOnlyItsIncludedRoles(
             CellCompanionSet set,
             string expectedRoles)
         {
@@ -75,7 +76,7 @@ namespace OneStarMaker.Tests.Streaming
         }
 
         [Test]
-        public async UniTask Reconcile_DuplicateSameRole_AddsNoneForRole()
+        public async Task Reconcile_DuplicateSameRole_AddsNoneForRole()
         {
             var fixture = CreateFixture(
                 CellCompanionSet.Full,
@@ -89,7 +90,7 @@ namespace OneStarMaker.Tests.Streaming
         }
 
         [Test]
-        public async UniTask Reconcile_InFlightDuplicate_OnlyOneAdd()
+        public async Task Reconcile_InFlightDuplicate_OnlyOneAdd()
         {
             var fixture = CreateFixture(CellCompanionSet.Full, true, "Spring_Environment_0_0");
             var gate = new UniTaskCompletionSource();
@@ -105,7 +106,7 @@ namespace OneStarMaker.Tests.Streaming
         }
 
         [Test]
-        public async UniTask Reconcile_ParentLeavesResidentsDuringAdd_UnloadsChild()
+        public async Task Reconcile_ParentLeavesResidentsDuringAdd_UnloadsChild()
         {
             var fixture = CreateFixture(CellCompanionSet.Full, true, "Spring_Environment_0_0");
             fixture.Controller.AddHandler = (id, _) =>
@@ -121,7 +122,7 @@ namespace OneStarMaker.Tests.Streaming
         }
 
         [Test]
-        public async UniTask Reconcile_ParentReloadedWithSameIdentity_UnloadsChild()
+        public async Task Reconcile_ParentReloadedWithSameIdentity_UnloadsChild()
         {
             var fixture = CreateFixture(CellCompanionSet.Full, true, "Spring_Environment_0_0");
             fixture.Controller.AddHandler = (id, _) =>
@@ -140,7 +141,7 @@ namespace OneStarMaker.Tests.Streaming
         }
 
         [Test]
-        public async UniTask Reconcile_CancelledAfterAdd_UnloadsChild()
+        public async Task Reconcile_CancelledAfterAdd_UnloadsChild()
         {
             var fixture = CreateFixture(CellCompanionSet.Full, true, "Spring_Environment_0_0");
             using var cts = new CancellationTokenSource();

@@ -4,6 +4,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
@@ -93,7 +94,7 @@ namespace OneStarMaker.Tests.SceneSystem
         }
 
         [Test]
-        public async UniTask DemoCell_LoadedWithAuthoredRoot_Succeeds()
+        public async Task DemoCell_LoadedWithAuthoredRoot_Succeeds()
         {
             var resource = SceneTestHelper.CreateSceneResource("opaque-cell", streamByDistance: true);
             var root = new GameObject(DemoCellScene.AuthoredRootName);

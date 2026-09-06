@@ -343,6 +343,7 @@ namespace OneStarMaker.Runtime
 
         private void EnsureEventSystem()
         {
+            if (!Application.isPlaying) return;
             if (EventSystem.current != null) return;
 
             var go = new GameObject("[EventSystem]");

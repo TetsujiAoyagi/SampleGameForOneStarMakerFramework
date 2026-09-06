@@ -274,7 +274,7 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
             if (!string.IsNullOrEmpty(journal.originalActiveScenePath))
             {
                 var active = SceneManager.GetSceneByPath(journal.originalActiveScenePath);
-                if (!active.IsValid() || !SceneManager.SetActiveScene(active)) throw new InvalidOperationException("Failed to restore active scene.");
+                if (!active.IsValid() || (SceneManager.GetActiveScene().handle != active.handle && !SceneManager.SetActiveScene(active))) throw new InvalidOperationException("Failed to restore active scene.");
             }
         }
         private static void RemoveAddressable(WorldCompanionJournalData journal)
@@ -306,7 +306,6 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
                 if (graph.ContainsNode(node) || graph.GetParent(node) != null) throw new InvalidOperationException("Graph unlink verification failed.");
             }
         }
-
         private static void DeleteOwnedAssets(WorldCompanionJournalData journal)
         {
             DeleteOwned(journal.nodePath, ref journal.nodeGuid);
@@ -333,11 +332,12 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
 
         private static void DeleteOwned(string path, ref string checkpointGuid)
         {
+            if (AssetDatabase.LoadMainAssetAtPath(path) == null && !System.IO.File.Exists(FullPath(path)) && !System.IO.File.Exists(FullPath(path) + ".meta")) return;
             var current = AssetDatabase.AssetPathToGUID(path);
-            if (string.IsNullOrEmpty(current)) return;
+            if (string.IsNullOrEmpty(current)) throw new InvalidOperationException($"Cannot verify GUID ownership: {path}");
             if (string.IsNullOrEmpty(checkpointGuid)) checkpointGuid = current;
             if (!string.Equals(current, checkpointGuid, StringComparison.Ordinal)) throw new InvalidOperationException($"GUID ownership mismatch: {path}");
-            if (!AssetDatabase.DeleteAsset(path) || !string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(path)))
+            if (!AssetDatabase.DeleteAsset(path) || AssetDatabase.LoadMainAssetAtPath(path) != null || System.IO.File.Exists(FullPath(path)) || System.IO.File.Exists(FullPath(path) + ".meta"))
                 throw new InvalidOperationException($"Failed to delete transaction asset: {path}");
         }
 

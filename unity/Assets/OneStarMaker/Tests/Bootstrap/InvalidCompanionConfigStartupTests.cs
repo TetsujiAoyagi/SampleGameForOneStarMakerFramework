@@ -2,6 +2,8 @@
 
 using System;
 using System.Reflection;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using NUnit.Framework;
 using OneStarMaker.Foundation.Config;
@@ -12,6 +14,7 @@ using OneStarMaker.Runtime.UISystem;
 using OneStarMaker.Tests.AssetManagement;
 using SampleGame.InGame.Streaming;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace OneStarMaker.Tests.Bootstrap
 {
@@ -27,7 +30,7 @@ namespace OneStarMaker.Tests.Bootstrap
         }
 
         [Test]
-        public async UniTask InvalidConfig_FailsBeforeDirectorAndReleasesLoadedAppAssets()
+        public async Task InvalidConfig_FailsBeforeDirectorAndReleasesLoadedAppAssets()
         {
             Environment.SetEnvironmentVariable(EnvironmentKey, "invalid");
             var initializer = new TestInitializer();
@@ -40,6 +43,10 @@ namespace OneStarMaker.Tests.Bootstrap
             initializer.ReplaceAssetManagement(new Runtime.AssetManagement.AssetManagement(backend));
             try
             {
+                LogAssert.Expect(LogType.Error, new Regex(
+                    "AfterSceneLoad failed at stage 'create-scene-factory'"));
+                LogAssert.Expect(LogType.Error, new Regex(
+                    "Destroy may not be called from edit mode"));
                 initializer.RunAfter();
                 await initializer.Failed.Task;
 

@@ -34,7 +34,7 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
         {
             if (!string.IsNullOrEmpty(_tempRoot))
             {
-                EditorSceneManager.RestoreSceneManagerSetup(_originalSetup);
+                RestoreOriginalSetup();
                 if (AssetDatabase.IsValidFolder(_tempRoot)) AssetDatabase.DeleteAsset(_tempRoot);
             }
             foreach (var item in _created) if (item != null) UnityEngine.Object.DestroyImmediate(item);
@@ -149,14 +149,13 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             for (var i = 0; i < identities.Length; i++)
             {
                 paths[i] = $"{_tempRoot}/{identities[i]}.unity";
-                var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
+                var mode = i == 0 ? NewSceneMode.Single : NewSceneMode.Additive;
+                var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, mode);
                 Assert.That(EditorSceneManager.SaveScene(scene, paths[i]), Is.True);
-                Assert.That(EditorSceneManager.CloseScene(scene, removeScene: true), Is.True);
                 resources[i] = CreateResource(
                     identities[i],
                     new AssetPayload(string.Empty, new AssetReference(AssetDatabase.AssetPathToGUID(paths[i]))));
             }
-            EditorSceneManager.RestoreSceneManagerSetup(_originalSetup);
             var map = CreateMap(resources);
             var selection = new WorldWorkspaceSelection(
                 WorldSeason.Spring, 0, 0, WorldWorkspaceRole.Lighting, WorldLevelPayload.Full);
@@ -194,6 +193,18 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
 
         private static void Set(object target, string name, object value)
             => target.GetType().GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(target, value);
+
+        private void RestoreOriginalSetup()
+        {
+            foreach (var item in _originalSetup)
+            {
+                if (!item.isLoaded || string.IsNullOrEmpty(item.path)) continue;
+                EditorSceneManager.RestoreSceneManagerSetup(_originalSetup);
+                return;
+            }
+
+            EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
+        }
 
         private static class SceneResourceGeneratorBridge
         {
