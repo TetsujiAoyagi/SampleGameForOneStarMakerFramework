@@ -22,7 +22,9 @@ namespace OneStarMaker.Tests.SceneSystem.Helpers
         public static SceneResource CreateSceneResource(
             string identity,
             LoadType loadType = LoadType.OnDemand,
-            SceneResource? parent = null)
+            SceneResource? parent = null,
+            bool streamByDistance = false,
+            Bounds? volume = null)
         {
             var resource = ScriptableObject.CreateInstance<SceneResource>();
             resource.Identity = identity; // internal set
@@ -31,6 +33,9 @@ namespace OneStarMaker.Tests.SceneSystem.Helpers
             {
                 resource.Parent = parent; // internal set
             }
+
+            resource.StreamByDistance = streamByDistance;
+            resource.Volume = volume ?? default;
 
             if (loadType != LoadType.OnDemand)
             {

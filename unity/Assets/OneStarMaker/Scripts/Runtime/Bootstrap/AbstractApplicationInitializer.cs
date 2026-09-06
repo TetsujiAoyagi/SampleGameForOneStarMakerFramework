@@ -265,13 +265,18 @@ namespace OneStarMaker.Runtime
                 startupStage = "create-scene-factory";
                 var sceneFactory = CreateSceneFactory();
 
+                startupStage = "resolve-scene-variant";
+                var sceneVariant = ResolveSceneVariant()
+                    ?? throw new InvalidOperationException("ResolveSceneVariant returned null.");
+
                 startupStage = "create-scene-director";
                 _sceneDirector = new SceneDirector(
                     sceneFactory,
                     uiCommon,
                     _sceneResourceMap,
                     CreateLoadingDisplay(),
-                    _assetManagement);
+                    _assetManagement,
+                    sceneVariant);
                 _updateSystemHost?.BindSceneDirector(_sceneDirector);
 
                 if (_sceneDirector == null)
@@ -706,6 +711,22 @@ namespace OneStarMaker.Runtime
 
         /// <summary>SceneBase のファクトリを生成する。</summary>
         protected abstract ISceneFactory CreateSceneFactory();
+
+        /// <summary>
+        /// 起動中に一度だけ Scene Variant を解決する。Editor では active profile が設定値より優先する。
+        /// </summary>
+        protected virtual string ResolveSceneVariant()
+        {
+            var configuredValue = _config?.GetString("assets:sceneVariant", string.Empty) ?? string.Empty;
+#if UNITY_EDITOR
+            return SceneVariantResolver.Resolve(
+                configuredValue,
+                SceneVariantRuntimeBridge.EditorSceneVariantResolver,
+                useEditorResolver: true);
+#else
+            return SceneVariantResolver.Resolve(configuredValue, null, useEditorResolver: false);
+#endif
+        }
 
         /// <summary>UICommon Prefab の Addressable アドレスを返す。</summary>
         protected abstract string GetUICommonPrefabAddress();

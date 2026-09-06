@@ -9,6 +9,7 @@ using OneStarMaker.Runtime.SceneSystem;
 using SampleGame.DependOnAll.Editor.Streaming.Cells.Generation;
 using SampleGame.DependOnAll.Editor.Streaming.Cells.Planning;
 using SampleGame.DependOnAll.Editor.Streaming.Cells.State;
+using SampleGame.DependOnAll.Editor.WorldAuthoring;
 using SampleGame.InGame.Streaming;
 using SampleGame.InGame.World;
 using UnityEditor;
@@ -224,7 +225,7 @@ namespace SampleGame.DependOnAll.Editor
                     continue;
                 }
 
-                var envId = EnvironmentIdentity.Format(target.Coordinate.x, target.Coordinate.y);
+                var envId = LegacyWorldAuthoringNames.FormatEnvironment(target.Coordinate.x, target.Coordinate.y);
                 var envScenePath = $"{CellsRootFolder}/{cellId}/{envId}.unity";
                 if (AssetDatabase.LoadAssetAtPath<SceneAsset>(envScenePath) == null)
                 {
@@ -721,7 +722,7 @@ namespace SampleGame.DependOnAll.Editor
                 }
 
                 var coord = target.Value.Coordinate;
-                var envId = EnvironmentIdentity.Format(coord.x, coord.y);
+                var envId = LegacyWorldAuthoringNames.FormatEnvironment(coord.x, coord.y);
                 var cellFolder = $"{cellsFolder}/{cellId}";
                 var cellResourcePath = $"{cellFolder}/{cellId}.asset";
                 var envScenePath = $"{cellFolder}/{envId}.unity";
@@ -799,7 +800,7 @@ namespace SampleGame.DependOnAll.Editor
             var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
             foreach (var root in scene.GetRootGameObjects())
             {
-                if (root != null && root.name == EnvironmentScene.AuthoredRootName)
+                if (root != null && root.name == LegacyWorldAuthoringNames.EnvironmentRootName)
                 {
                     Object.DestroyImmediate(root);
                 }
@@ -807,7 +808,7 @@ namespace SampleGame.DependOnAll.Editor
 
             var center = WorldCellCatalog.GetCellCenter(x, y);
             var motif = WorldCellCatalog.GetMotifIndex(x, y);
-            var rootGo = new GameObject(EnvironmentScene.AuthoredRootName);
+            var rootGo = new GameObject(LegacyWorldAuthoringNames.EnvironmentRootName);
             SceneManager.MoveGameObjectToScene(rootGo, scene);
 
             // 作業単位分割の体感: Ground を Environment 側へ。
@@ -1110,7 +1111,7 @@ namespace SampleGame.DependOnAll.Editor
                 }
 
                 if (!targets.Any(t => string.Equals(t.Identity, resource.Identity, System.StringComparison.Ordinal))
-                    && !EnvironmentIdentity.IsEnvironmentId(resource.Identity))
+                    && !LegacyWorldAuthoringNames.IsEnvironmentIdentity(resource.Identity))
                 {
                     continue;
                 }
@@ -1146,7 +1147,7 @@ namespace SampleGame.DependOnAll.Editor
             {
                 var path = AssetDatabase.GUIDToAssetPath(guid);
                 var fileName = Path.GetFileNameWithoutExtension(path);
-                if (EnvironmentIdentity.IsEnvironmentId(fileName))
+                if (LegacyWorldAuthoringNames.IsEnvironmentIdentity(fileName))
                 {
                     RegisterAddressableScene(path);
                 }

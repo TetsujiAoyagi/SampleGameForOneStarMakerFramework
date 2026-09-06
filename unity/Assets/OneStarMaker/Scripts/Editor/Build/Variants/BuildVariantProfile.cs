@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using OneStarMaker.Runtime.SceneSystem;
 using UnityEngine;
@@ -19,6 +20,10 @@ namespace OneStarMaker.Editor.Build
         /// <summary>同梱を許可する Variant 名一覧。空リスト時はデフォルト Variant のみ。</summary>
         [SerializeField]
         private List<string> _variantWhitelist = new() { string.Empty };
+
+        /// <summary>Play / Player 起動時に固定する Scene Variant。空文字は default payload。</summary>
+        [SerializeField]
+        private string _sceneVariant = string.Empty;
 
         /// <summary>SceneResource 走査対象の SceneResourceMap。</summary>
         [SerializeField]
@@ -58,6 +63,9 @@ namespace OneStarMaker.Editor.Build
         /// <summary>同梱を許可する Variant 名一覧。空リスト時はデフォルト Variant のみ。</summary>
         public IReadOnlyList<string> VariantWhitelist => _variantWhitelist;
 
+        /// <summary>Play / Player 起動時に固定する Scene Variant。</summary>
+        public string SceneVariant => _sceneVariant;
+
         /// <summary>SceneResource 走査用マップ。</summary>
         public SceneResourceMap? SceneResourceMap => _sceneResourceMap;
 
@@ -84,5 +92,24 @@ namespace OneStarMaker.Editor.Build
         /// 空文字の場合は <see cref="TargetAddressablesGroupName"/> へ同期。
         /// </summary>
         public string RemoteGroupName => _remoteGroupName;
+
+        internal void ThrowIfSceneVariantInvalid()
+        {
+            if (string.IsNullOrEmpty(_sceneVariant))
+            {
+                return;
+            }
+
+            for (var i = 0; i < _variantWhitelist.Count; i++)
+            {
+                if (string.Equals(_sceneVariant, _variantWhitelist[i], StringComparison.Ordinal))
+                {
+                    return;
+                }
+            }
+
+            throw new InvalidOperationException(
+                $"BuildVariantProfile '{name}' Scene Variant '{_sceneVariant}' is not present in its whitelist.");
+        }
     }
 }

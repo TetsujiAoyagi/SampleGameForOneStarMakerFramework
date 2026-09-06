@@ -19,7 +19,7 @@ namespace SampleGame.InGame
     /// <remarks>
     /// Full ティアは Unity シーンを SceneDirector.AddScene/UnloadScene で載せる戦略（正典 D-1/D-2）。
     /// 距離判断は <see cref="SessionWorldStreamingDriver"/> → FW の WorldStreamingController に集約する。
-    /// 職種子（Environment_*）の明示ロードは <see cref="SessionCellChildLoadDriver"/> が別ループで行い、
+    /// Cell companion の明示ロードは <see cref="SessionCellCompanionLoadDriver"/> が別ループで行い、
     /// WSC の desired set には混ぜない（引っ張られないことの実証）。
     /// </remarks>
     public class InGameSession : SceneBase, IInGameSessionServices
@@ -28,7 +28,8 @@ namespace SampleGame.InGame
 
         private readonly ILogger<InGameSession> _logger;
         private SessionWorldStreamingDriver? _streamingDriver;
-        private SessionCellChildLoadDriver? _childLoadDriver;
+        private readonly CellCompanionSet _companionSet;
+        private SessionCellCompanionLoadDriver? _companionLoadDriver;
         private IFlightReadModel? _flight;
 
         /// <inheritdoc />
@@ -46,7 +47,7 @@ namespace SampleGame.InGame
 
         /// <inheritdoc />
         public IReadOnlyList<string> LoadedChildSceneIdentities
-            => _childLoadDriver?.GetLoadedChildIdentities() ?? EmptyResidents;
+            => _companionLoadDriver?.GetLoadedCompanionIdentities() ?? EmptyResidents;
 
         /// <inheritdoc />
         /// <remarks>
@@ -59,7 +60,8 @@ namespace SampleGame.InGame
             SceneResource sceneResource,
             ISceneQuery sceneQuery,
             ISceneController sceneController,
-            ILoggerFactory loggerFactory)
+            ILoggerFactory loggerFactory,
+            CellCompanionSet companionSet)
             : base(sceneResource, sceneQuery, sceneController)
         {
             if (loggerFactory == null)
@@ -68,6 +70,7 @@ namespace SampleGame.InGame
             }
 
             _logger = loggerFactory.CreateLogger<InGameSession>();
+            _companionSet = companionSet;
             _logger.ZLogInformation($"Create InGameSession");
         }
 
@@ -107,13 +110,14 @@ namespace SampleGame.InGame
                 _logger);
 
             // 子シーン明示ロードは WSC と別ライフサイクル。距離判断には混ぜない。
-            _childLoadDriver = new SessionCellChildLoadDriver(
+            _companionLoadDriver = new SessionCellCompanionLoadDriver(
                 sceneDirector,
                 sceneDirector,
                 () => ResidentCellIdentities,
+                _companionSet,
                 _logger);
 
-            _logger.ZLogInformation($"[InGameSession] WorldStreamingDriver + CellChildLoadDriver created");
+            _logger.ZLogInformation($"[InGameSession] WorldStreamingDriver + CellCompanionLoadDriver created");
             return UniTask.CompletedTask;
         }
 
@@ -123,16 +127,16 @@ namespace SampleGame.InGame
             // セルの初回 Add は Player が Focus を登録した直後の Driver Tick に任せる。
             // （OnLoaded 中の AddScene は親ロード完了待ちとデッドロックし得るため、ここでも Ensure しない。）
             _streamingDriver?.Start();
-            // Cell Stable 後の Environment 明示 Add。Cell Add 瞬間にはまだ走らない（別ループ）。
-            _childLoadDriver?.Start();
-            _logger.ZLogInformation($"[InGameSession] WorldStreamingDriver + CellChildLoadDriver started");
+            // Cell Stable 後の companion 明示 Add。Cell Add 瞬間にはまだ走らない（別ループ）。
+            _companionLoadDriver?.Start();
+            _logger.ZLogInformation($"[InGameSession] WorldStreamingDriver + CellCompanionLoadDriver started");
             return UniTask.CompletedTask;
         }
 
         protected override UniTask OnPreUnLoadedImpl()
         {
-            _childLoadDriver?.Dispose();
-            _childLoadDriver = null;
+            _companionLoadDriver?.Dispose();
+            _companionLoadDriver = null;
             _streamingDriver?.Dispose();
             _streamingDriver = null;
             _flight = null;

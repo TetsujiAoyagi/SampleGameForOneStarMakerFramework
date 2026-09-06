@@ -25,9 +25,15 @@ namespace OneStarMaker.Tests.AssetManagement
 
         public int UnloadSceneCallCount { get; private set; }
 
+        public IReadOnlyList<string> SceneLoadAddresses => _sceneLoadAddresses;
+
+        public IReadOnlyList<SceneLoadOptions> SceneLoadOptionsHistory => _sceneLoadOptionsHistory;
+
         public IReadOnlyList<IBackendAsset> ReleasedAssets => _releasedAssets;
 
         private readonly List<IBackendAsset> _releasedAssets = new();
+        private readonly List<string> _sceneLoadAddresses = new();
+        private readonly List<SceneLoadOptions> _sceneLoadOptionsHistory = new();
 
         public void SetSceneRoots(string address, params GameObject[] roots)
         {
@@ -49,6 +55,8 @@ namespace OneStarMaker.Tests.AssetManagement
         public UniTask<IBackendScene> LoadSceneAsync(string address, SceneLoadOptions options, CancellationToken ct)
         {
             LoadSceneCallCount++;
+            _sceneLoadAddresses.Add(address);
+            _sceneLoadOptionsHistory.Add(options);
             var roots = _sceneRoots.TryGetValue(address, out var value) ? value : Array.Empty<GameObject>();
             return UniTask.FromResult<IBackendScene>(new FakeScene(address, roots));
         }

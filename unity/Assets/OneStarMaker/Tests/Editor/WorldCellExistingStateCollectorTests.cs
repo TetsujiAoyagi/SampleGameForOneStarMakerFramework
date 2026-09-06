@@ -10,6 +10,7 @@ using OneStarMaker.Runtime.SceneSystem;
 using SampleGame.DependOnAll.Editor.Streaming.Cells.Planning;
 using SampleGame.DependOnAll.Editor.Streaming.Cells.State;
 using SampleGame.InGame.World;
+using SampleGame.DependOnAll.Editor.WorldAuthoring;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -51,13 +52,13 @@ namespace OneStarMaker.Tests.Editor
                 childFolder, "Environment_1_0");
             var childCell = CreatePersistedResource(childFolder, "Cell_1_0");
             AddChild(childCell, childEnvironment);
-            CreateScene(childFolder, "Environment_1_0", EnvironmentScene.AuthoredRootName);
+            CreateScene(childFolder, "Environment_1_0", LegacyWorldAuthoringNames.EnvironmentRootName);
 
             var siblingFolder = CreateCellFolder("Cell_2_0");
             CreatePersistedResource(siblingFolder, "Cell_2_0");
             var siblingEnvironment = CreatePersistedResource(siblingFolder, "Environment_2_0");
             SetDanglingScenePayload(siblingEnvironment);
-            CreateScene(siblingFolder, "Environment_2_0", EnvironmentScene.AuthoredRootName);
+            CreateScene(siblingFolder, "Environment_2_0", LegacyWorldAuthoringNames.EnvironmentRootName);
 
             var targets = new[]
             {

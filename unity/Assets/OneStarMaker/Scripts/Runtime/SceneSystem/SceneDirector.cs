@@ -73,6 +73,7 @@ namespace OneStarMaker.Runtime.SceneSystem
         private readonly UICommon _uiCommon;
         private readonly SceneResourceMap _sceneResourceMap;
         private readonly ILoadingDisplay _loadingDisplay;
+        private readonly string _sceneVariant;
 
         /// <summary>
         /// Addressables Load / Release 管理。PerformUnitySceneLoad/Unload および Phase 3 Release に使用。
@@ -108,18 +109,21 @@ namespace OneStarMaker.Runtime.SceneSystem
         /// Addressables Load / Release 管理。
         /// シーンロード・アンロードの 3-Phase と PreLoad アセットの Release に使用する。
         /// </param>
+        /// <param name="sceneVariant">起動時に固定された Scene payload Variant。空文字は default。</param>
         public SceneDirector(
             ISceneFactory sceneFactory,
             UICommon uiCommon,
             SceneResourceMap sceneResourceMap,
             ILoadingDisplay loadingDisplay,
-            IAssetManagement assetManagement)
+            IAssetManagement assetManagement,
+            string sceneVariant = "")
         {
             _sceneFactory = sceneFactory ?? throw new ArgumentNullException(nameof(sceneFactory));
             _uiCommon = uiCommon ?? throw new ArgumentNullException(nameof(uiCommon));
             _sceneResourceMap = sceneResourceMap ?? throw new ArgumentNullException(nameof(sceneResourceMap));
             _loadingDisplay = loadingDisplay ?? throw new ArgumentNullException(nameof(loadingDisplay));
             _assetManagement = assetManagement ?? throw new ArgumentNullException(nameof(assetManagement));
+            _sceneVariant = sceneVariant ?? throw new ArgumentNullException(nameof(sceneVariant));
         }
 
         // ─── IDisposable ───

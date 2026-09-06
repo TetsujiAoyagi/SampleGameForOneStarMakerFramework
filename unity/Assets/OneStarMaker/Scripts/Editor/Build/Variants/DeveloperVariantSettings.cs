@@ -66,6 +66,19 @@ namespace OneStarMaker.Editor.Build
             return AssetDatabase.LoadAssetAtPath<BuildVariantProfile>(path);
         }
 
+        /// <summary>active profile の Scene Variant。未選択時だけ null。</summary>
+        internal string? GetActiveSceneVariant()
+        {
+            var profile = GetActiveProfile();
+            if (profile == null)
+            {
+                return null;
+            }
+
+            profile.ThrowIfSceneVariantInvalid();
+            return profile.SceneVariant;
+        }
+
         /// <summary>
         /// 選択中プロファイルのリモート Addressables カタログ URL を返す。
         /// </summary>
@@ -74,7 +87,8 @@ namespace OneStarMaker.Editor.Build
         /// </returns>
         public string GetActiveRemoteCatalogUrl()
         {
-            return GetActiveProfile()?.RemoteCatalogUrl ?? string.Empty;
+            var profile = GetActiveProfile();
+            return profile == null ? string.Empty : profile.RemoteCatalogUrl;
         }
     }
 }

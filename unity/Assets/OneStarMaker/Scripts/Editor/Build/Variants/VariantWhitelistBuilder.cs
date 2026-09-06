@@ -57,6 +57,8 @@ namespace OneStarMaker.Editor.Build
                 throw new ArgumentNullException(nameof(profile));
             }
 
+            profile.ThrowIfSceneVariantInvalid();
+
             var result = new VariantWhitelistBuildResult();
             var whitelist = ResolveVariantWhitelist(profile.VariantWhitelist);
             var descriptions = AssetDescriptionCollector.Collect(profile, additionalSources);

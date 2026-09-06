@@ -8,6 +8,7 @@ using OneStarMaker.Runtime.CameraSystem.Cinemachine;
 using OneStarMaker.Runtime.CameraSystem.Hosting;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.UpdateSystem.Api;
+using SampleGame.InGame.Streaming;
 using System;
 using UnityEngine;
 using RuntimeCameraSystem = OneStarMaker.Runtime.CameraSystem.Core.CameraSystem;
@@ -67,7 +68,19 @@ namespace SampleGame.DependOnAll
             var loggerFactory = LoggerFactory
                 ?? throw new InvalidOperationException(
                     "ILoggerFactory is not initialized. Ensure BeforeSceneLoad completed successfully.");
-            return new GameSceneFactory(loggerFactory, _cameraSystem, _cameraBackgroundApplier);
+            var config = Config
+                ?? throw new InvalidOperationException(
+                    "AppConfig is not initialized. Ensure BeforeSceneLoad completed successfully.");
+            const string key = "world:cellCompanionSet";
+            var keyExists = config.ContainsKey(key);
+            var companionSet = CellCompanionSetParser.Parse(
+                keyExists ? config.GetString(key) : null,
+                keyExists);
+            return new GameSceneFactory(
+                loggerFactory,
+                _cameraSystem,
+                _cameraBackgroundApplier,
+                companionSet);
         }
 
         protected override string GetUICommonPrefabAddress()
