@@ -6,7 +6,7 @@
 - status: `A3 freeze candidate / purchaser decision pending`（architecture gate PASS。発注者が明示凍結するまで Phase B へ渡さない）
 - branch: `codex/s-4a-runtime-variant-workspace-plan`
 - implementation base commit: `be33e4716c70334100aada23c555ac75a0b0dbb7`
-- implementation head commit: 未到達
+- implementation head commit: `1ca960989d92d6991bdd0a98536fc5a32181c964`
 - risk: `high`
 - owner: 発注者（freeze 判断）/ 将来の S-4a Phase B 実装担当
 - created: `2026-09-06`
@@ -15,9 +15,9 @@
 - Phase A snapshot path / id: `docs/handoff/evidence/S-4A_PHASE_A_INPUT.txt` / `S-4a-A0-be33e47-20260906T103508+0900`
 - Phase A snapshot generated at: `2026-09-06T10:35:08.3818239+09:00`
 - Phase A snapshot hash: `sha256:15b2facfaabec89933ad73a5af92b48cfc78398f6e649e59bfad5af1339a40ce`
-- Phase B result snapshot path / id: 未到達
-- Phase B result snapshot generated at: 未到達
-- Phase B result snapshot hash: 未到達
+- Phase B result snapshot path / id: `docs/handoff/evidence/S-4A_PHASE_B_RESULT.txt` / `S-4a-B-1ca9609-20260907T023236+0900`
+- Phase B result snapshot generated at: `2026-09-07T02:32:36.1238502+09:00`
+- Phase B result snapshot hash: `sha256:59109bd88f7797f35a4c4f49474158578800f22dd013cac759c96c3d354b5c0f`
 - evidence bundle path / id: 未到達
 - evidence bundle generated at: 未到達
 - evidence bundle hash: 未到達
@@ -576,11 +576,11 @@ public static class CellCompanionSetParser
 
 ## 6. Phase B 実装結果
 
-- 実装: 未到達
-- HANDOFF との差: 未到達
-- 未実行: 全項目
-- implementation head commit: 未到達
-- Phase B 担当・モデル・ベンダー: 未選定
+- 実装: RV-1〜RV-10、CP-1〜CP-12、WW-1〜WW-13 と §5 の test code を実装した。責務・実ファイル照合、規模/停止条件、静的検査、既存 Editor での同期コンパイル/profile 確認を `docs/handoff/evidence/S-4A_PHASE_B_RESULT.txt`（`S-4a-B-1ca9609-20260907T023236+0900`、`sha256:59109bd88f7797f35a4c4f49474158578800f22dd013cac759c96c3d354b5c0f`）へ固定した。
+- HANDOFF との差: 設計差分なし。追加した `InternalsVisibleTo` は凍結済み internal test seam のためだけで、asmdef/public API/production dependency は不変。実測は99ファイル、production C# 1,908追加/861削除、新規 production 1,651行。最大新規 file は transaction の400行で停止条件 `>400` 未発火、既存最大増加は30.7%、見積 +25% 上限内。`git diff --check` の非0は Editor生成 `.asset` / directory `.meta` の空 serialized scalar に付く trailing space のみで、YAML/meta の手修正はしていない。
+- 未実行: `pwsh tools/run-tests.ps1`、`unity test` / `unity run`、全 Runtime/Editor NUnit test、Addressables build。Editor依存の profile/meta/GUID/SceneGraph/SceneResourceMap/Addressables/transaction/recovery/open-order assertions はコンパイル済みだが Phase C operator による実行待ち。Phase C/C' は未着手。
+- implementation head commit: `1ca960989d92d6991bdd0a98536fc5a32181c964`
+- Phase B 担当・モデル・ベンダー: Codex primary agent / GPT-5 系 / OpenAI
 
 ## 7. Phase C
 
