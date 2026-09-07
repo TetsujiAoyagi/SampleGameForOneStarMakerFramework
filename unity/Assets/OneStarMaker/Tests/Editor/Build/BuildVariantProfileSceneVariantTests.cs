@@ -61,7 +61,7 @@ namespace OneStarMaker.Tests.Editor.Build
             }
             finally
             {
-                Object.DestroyImmediate(profile);
+                UnityEngine.Object.DestroyImmediate(profile);
             }
         }
 
