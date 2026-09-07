@@ -604,12 +604,17 @@ public static class CellCompanionSetParser
 
 ## 8. Phase C'
 
-- blind audit bundle id / hash: 未実施
-- findings: 未実施
-- 残存リスク: 未実施
-- 監査できなかった範囲: 未実施
-- 独立性: 未実施
-- 担当・モデル: 未実施
+- blind audit bundle id / hash: `S-4a-Cprime-R3-blind-be33e47-156cfd7-20260908T022708+0900` / `sha256:14ee04ab5d5d19d0e8f824f0810108d84bcc75f9a42a75fb34a965d7291605a4`
+- 入力照合: 10証拠すべての SHA-256 を再計算して manifest と一致。実装は `156cfd7` を `git show` / `git diff` で読んだ（監査時の worktree HEAD は docs のみの後続 commit）。
+- findings:
+  - `P2 / semantic / unique / accepted`: `BuildVariantProfileSceneVariantTests` の TearDown が `SceneVariantRuntimeBridge.EditorSceneVariantResolver` に元の delegate を戻さず `null` を書く。凍結 A3（HANDOFF:559）の「テストは finally で元の delegate を復元する」に違反。開いたままの Editor で当該 fixture を回すと domain reload まで Play Mode が active BuildVariantProfile を読まなくなり、Whitebox ではなく空 Variant で Addressables load する。Player とバッチ実行には影響しない。
+  - P1 は無し。production の ownership / rollback / 依存反転 / SceneState / asmdef / companion race に、凍結テストが取り逃がしている欠陥は見つからなかった。
+- 残存リスク: 既開き Unity scene の load 0、Addressables full build（S-4b）、open 途中の EditorSceneManager 失敗復元（WW-4 で対象外）、Generate〜fingerprint refresh 間の crash。`FindTopLevelStringValue` が文字列内の brace を飛ばさない点は現行の値では顕在化しない。
+- 監査できなかった範囲: Unity.exe / `run-tests.ps1` / `unity test` / Addressables build は不実行（契約どおり）。可変 HANDOFF・全 `*_REVIEW.txt`・R3 以外の evidence は未読。Play Mode 実機確認なし。
+- 判定: **PASS**
+- 独立性: blind bundle と `156cfd7` のソース、AGENTS.md / workflow 契約のみを入力とした。Phase C の結論・指摘は渡していない。
+- 担当・モデル・ベンダー: Cursor Grok 4.6 / SpaceXAI+Cursor
+- **C と C' の不一致（Phase D で突合すること）**: 両者は Generate〜fingerprint refresh の同じ窓を見たうえで、C' は凍結 HANDOFF 570-574 の受容済み residual と読み、C は transaction 自身の dependent mutation なので WW-9 / WW-10 違反と読んだ。安全側で C の FAIL を採用する。
 
 ## 9. Phase D
 
