@@ -34,6 +34,10 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
         public string resourceGuid = string.Empty;
         public string nodeGuid = string.Empty;
         public string companionFolderGuid = string.Empty;
+        public string sceneFingerprint = string.Empty;
+        public string resourceFingerprint = string.Empty;
+        public string nodeFingerprint = string.Empty;
+        public string addressableFingerprint = string.Empty;
         public string originalActiveScenePath = string.Empty;
         public WorldCompanionSceneSetupData[] originalSceneSetup = Array.Empty<WorldCompanionSceneSetupData>();
         public int completedRecoveryBarrier;
@@ -117,6 +121,10 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
                 || !IsOptionalGuid(data.resourceGuid)
                 || !IsOptionalGuid(data.nodeGuid)
                 || !IsOptionalGuid(data.companionFolderGuid)
+                || !IsOptionalFingerprint(data.sceneFingerprint)
+                || !IsOptionalFingerprint(data.resourceFingerprint)
+                || !IsOptionalFingerprint(data.nodeFingerprint)
+                || !IsOptionalFingerprint(data.addressableFingerprint)
                 || data.originalSceneSetup == null
                 || data.completedRecoveryBarrier < 0
                 || data.completedRecoveryBarrier > (int)WorldCompanionRecoveryBarrier.Saved)
@@ -181,6 +189,8 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
                && value.IndexOf('\\') < 0;
 
         private static bool IsOptionalGuid(string value) => string.IsNullOrEmpty(value) || IsGuid(value);
+
+        private static bool IsOptionalFingerprint(string value) => string.IsNullOrEmpty(value) || IsHex(value, 64);
 
         private static bool IsGuid(string value) => IsHex(value, 32);
 

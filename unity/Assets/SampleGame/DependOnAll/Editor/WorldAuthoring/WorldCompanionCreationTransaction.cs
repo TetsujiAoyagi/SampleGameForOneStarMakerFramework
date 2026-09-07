@@ -88,10 +88,12 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
                 var nodes = LoadAll<SceneNodeData>(journal.sourceSearchRoot);
                 var graphs = LoadAll<SceneGraphEdges>(journal.sourceSearchRoot);
                 GenerateOrThrow(nodes, graphs, journal);
+                WorldCompanionOwnershipProof.RefreshGeneratedAssets(journal);
                 Fault(WorldCompanionMutationPoint.Generated);
                 VerifyCommitted(journal, preflight.ParentNode, preflight.Graph, node, nodes, graphs);
                 Fault(WorldCompanionMutationPoint.Verified);
                 GenerateOrThrow(nodes, graphs, journal);
+                WorldCompanionOwnershipProof.RefreshGeneratedAssets(journal);
                 VerifyCommitted(journal, preflight.ParentNode, preflight.Graph, node, nodes, graphs);
                 Fault(WorldCompanionMutationPoint.Regenerated);
                 WorldCompanionRecoveryJournal.Delete();
@@ -156,6 +158,7 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
         }
         private static void Rollback(WorldCompanionJournalData journal)
         {
+            WorldCompanionOwnershipProof.VerifyPending(journal);
             Barrier(journal, WorldCompanionRecoveryBarrier.ScenesRestored, () => RestoreScenes(journal));
             Barrier(journal, WorldCompanionRecoveryBarrier.AddressableRemoved, () => RemoveAddressable(journal));
             Barrier(journal, WorldCompanionRecoveryBarrier.GraphUnlinked, () => UnlinkGraph(journal));
@@ -190,8 +193,7 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
             if (!EditorSceneManager.SaveScene(scene, journal.scenePath)) throw new InvalidOperationException("Failed to save companion scene.");
-            journal.sceneGuid = CheckpointGuid(journal.scenePath);
-            WorldCompanionRecoveryJournal.Save(journal);
+            WorldCompanionOwnershipProof.CheckpointAsset(journal, journal.scenePath, ref journal.sceneGuid, ref journal.sceneFingerprint);
             if (!EditorSceneManager.CloseScene(scene, removeScene: true)) throw new InvalidOperationException("Failed to close companion scene.");
         }
         private static SceneNodeData CreateNode(WorldCompanionJournalData journal)
@@ -202,8 +204,7 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
             node.NodeLoadType = LoadType.OnDemand;
             node.Payloads.Add(new AssetPayload(string.Empty, new AssetReference(journal.sceneGuid)));
             AssetDatabase.CreateAsset(node, journal.nodePath);
-            journal.nodeGuid = CheckpointGuid(journal.nodePath);
-            WorldCompanionRecoveryJournal.Save(journal);
+            WorldCompanionOwnershipProof.CheckpointAsset(journal, journal.nodePath, ref journal.nodeGuid, ref journal.nodeFingerprint);
             return node;
         }
         private static void LinkGraph(SceneGraphEdges graph, SceneNodeData parent, SceneNodeData child)
@@ -222,8 +223,7 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
             so.FindProperty("_identity").stringValue = journal.identity;
             so.ApplyModifiedPropertiesWithoutUndo();
             AssetDatabase.SaveAssets();
-            journal.resourceGuid = CheckpointGuid(journal.resourcePath);
-            WorldCompanionRecoveryJournal.Save(journal);
+            WorldCompanionOwnershipProof.CheckpointAsset(journal, journal.resourcePath, ref journal.resourceGuid, ref journal.resourceFingerprint);
         }
         private static void CreateAddressableEntry(WorldCompanionJournalData journal)
         {
@@ -233,6 +233,7 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
             entry.address = journal.scenePath;
             EditorUtility.SetDirty(settings);
             AssetDatabase.SaveAssets();
+            WorldCompanionOwnershipProof.CheckpointAddressable(journal, entry);
         }
         private static void VerifyCommitted(WorldCompanionJournalData j, SceneNodeData parent, SceneGraphEdges graph, SceneNodeData node, IReadOnlyList<SceneNodeData> nodes, IReadOnlyList<SceneGraphEdges> graphs)
         {
@@ -279,8 +280,6 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
         }
         private static void RemoveAddressable(WorldCompanionJournalData journal)
         {
-            if (string.IsNullOrEmpty(journal.sceneGuid))
-                CaptureGuid(journal, journal.scenePath, guid => journal.sceneGuid = guid);
             var settings = AddressableAssetSettingsDefaultObject.Settings;
             if (settings != null && !string.IsNullOrEmpty(journal.sceneGuid) && settings.FindAssetEntry(journal.sceneGuid) != null)
             {
@@ -292,8 +291,6 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
         }
         private static void UnlinkGraph(WorldCompanionJournalData journal)
         {
-            if (string.IsNullOrEmpty(journal.nodeGuid))
-                CaptureGuid(journal, journal.nodePath, guid => journal.nodeGuid = guid);
             var graphPath = AssetDatabase.GUIDToAssetPath(journal.graphGuid);
             var graph = AssetDatabase.LoadAssetAtPath<SceneGraphEdges>(graphPath);
             var node = AssetDatabase.LoadAssetAtPath<SceneNodeData>(journal.nodePath);
@@ -308,9 +305,9 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
         }
         private static void DeleteOwnedAssets(WorldCompanionJournalData journal)
         {
-            DeleteOwned(journal.nodePath, ref journal.nodeGuid);
-            DeleteOwned(journal.resourcePath, ref journal.resourceGuid);
-            DeleteOwned(journal.scenePath, ref journal.sceneGuid);
+            DeleteOwned(journal, journal.nodePath, ref journal.nodeGuid, ref journal.nodeFingerprint, WorldCompanionOwnedAssetKind.Node);
+            DeleteOwned(journal, journal.resourcePath, ref journal.resourceGuid, ref journal.resourceFingerprint, WorldCompanionOwnedAssetKind.Resource);
+            DeleteOwned(journal, journal.scenePath, ref journal.sceneGuid, ref journal.sceneFingerprint, WorldCompanionOwnedAssetKind.Scene);
             if (string.IsNullOrEmpty(journal.companionFolderGuid) && AssetDatabase.IsValidFolder(journal.companionFolderPath))
             {
                 journal.companionFolderGuid = AssetDatabase.AssetPathToGUID(journal.companionFolderPath);
@@ -330,13 +327,10 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
             WorldCompanionRecoveryJournal.Save(journal);
         }
 
-        private static void DeleteOwned(string path, ref string checkpointGuid)
+        private static void DeleteOwned(WorldCompanionJournalData journal, string path, ref string checkpointGuid, ref string fingerprint, WorldCompanionOwnedAssetKind kind)
         {
             if (AssetDatabase.LoadMainAssetAtPath(path) == null && !System.IO.File.Exists(FullPath(path)) && !System.IO.File.Exists(FullPath(path) + ".meta")) return;
-            var current = AssetDatabase.AssetPathToGUID(path);
-            if (string.IsNullOrEmpty(current)) throw new InvalidOperationException($"Cannot verify GUID ownership: {path}");
-            if (string.IsNullOrEmpty(checkpointGuid)) checkpointGuid = current;
-            if (!string.Equals(current, checkpointGuid, StringComparison.Ordinal)) throw new InvalidOperationException($"GUID ownership mismatch: {path}");
+            WorldCompanionOwnershipProof.VerifyOrCaptureAsset(journal, path, ref checkpointGuid, ref fingerprint, kind);
             if (!AssetDatabase.DeleteAsset(path) || AssetDatabase.LoadMainAssetAtPath(path) != null || System.IO.File.Exists(FullPath(path)) || System.IO.File.Exists(FullPath(path) + ".meta"))
                 throw new InvalidOperationException($"Failed to delete transaction asset: {path}");
         }
@@ -379,18 +373,6 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
             foreach (var group in settings.groups)
                 if (group != null && group.entries.Any(entry => string.Equals(entry.address, address, StringComparison.Ordinal))) return true;
             return false;
-        }
-        private static string CheckpointGuid(string path)
-        {
-            AssetDatabase.ImportAsset(path);
-            var guid = AssetDatabase.AssetPathToGUID(path);
-            if (string.IsNullOrEmpty(guid)) throw new InvalidOperationException($"Asset GUID is missing: {path}");
-            return guid;
-        }
-        private static void CaptureGuid(WorldCompanionJournalData journal, string path, Action<string> assign)
-        {
-            var guid = AssetDatabase.AssetPathToGUID(path);
-            if (!string.IsNullOrEmpty(guid)) { assign(guid); WorldCompanionRecoveryJournal.Save(journal); }
         }
         private static string FullPath(string assetPath)
             => System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Application.dataPath)!, assetPath);

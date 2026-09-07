@@ -6,6 +6,9 @@ using System.IO;
 using NUnit.Framework;
 using SampleGame.DependOnAll.Editor.WorldAuthoring;
 using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace OneStarMaker.Tests.Editor.WorldAuthoring
 {
@@ -170,6 +173,88 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             scope.AssertRolledBack();
         }
 
+        [TestCase("Scene")]
+        [TestCase("Node")]
+        [TestCase("Resource")]
+        public void Recovery_DoesNotDeleteExternallyChangedPendingAsset(string assetKind)
+        {
+            using var scope = new WorldCompanionTestScope();
+            LeaveFullyCreatedPending(scope);
+            var path = assetKind switch
+            {
+                "Scene" => scope.Plan.ScenePath,
+                "Node" => scope.Plan.NodePath,
+                "Resource" => scope.Plan.ResourcePath,
+                _ => throw new ArgumentOutOfRangeException(nameof(assetKind)),
+            };
+            var guid = AssetDatabase.AssetPathToGUID(path);
+            MutateAsset(path, assetKind);
+
+            var exception = Assert.Throws<InvalidOperationException>(
+                () => WorldCompanionCreationTransaction.RecoverPending());
+            Assert.That(exception!.Message, Does.Contain("Content ownership mismatch"));
+            Assert.That(WorldCompanionRecoveryJournal.Exists, Is.True);
+            Assert.That(AssetDatabase.AssetPathToGUID(path), Is.EqualTo(guid));
+            Assert.That(AssetDatabase.LoadMainAssetAtPath(path), Is.Not.Null);
+        }
+
+        [Test]
+        public void Recovery_DoesNotDeleteExternallyChangedAddressableEntry_AndRetriesAfterCorrection()
+        {
+            using var scope = new WorldCompanionTestScope();
+            LeaveFullyCreatedPending(scope);
+            var externalAddress = scope.Plan.ScenePath + ".external";
+            scope.SetAddressableAddress(externalAddress);
+
+            var exception = Assert.Throws<InvalidOperationException>(
+                () => WorldCompanionCreationTransaction.RecoverPending());
+            Assert.That(exception!.Message, Does.Contain("Addressables ownership mismatch"));
+            Assert.That(WorldCompanionRecoveryJournal.Exists, Is.True);
+            Assert.That(scope.GetAddressableAddress(), Is.EqualTo(externalAddress));
+            Assert.That(AssetDatabase.LoadMainAssetAtPath(scope.Plan.ScenePath), Is.Not.Null);
+
+            scope.SetAddressableAddress(scope.Plan.ScenePath);
+            WorldCompanionCreationTransaction.RecoverPending();
+            scope.AssertRolledBack();
+        }
+
+        private static void LeaveFullyCreatedPending(WorldCompanionTestScope scope)
+        {
+            WorldCompanionCreationTransaction.FaultInjector = point =>
+            {
+                if (point == WorldCompanionMutationPoint.Regenerated)
+                    throw new InjectedWorldCompanionFault("forward-complete");
+            };
+            WorldCompanionCreationTransaction.RecoveryFaultInjector = barrier =>
+            {
+                if (barrier == WorldCompanionRecoveryBarrier.ScenesRestored)
+                    throw new InjectedWorldCompanionFault("before-recovery");
+            };
+            using var transaction = new WorldCompanionCreationTransaction(scope.Plan);
+            Assert.Throws<AggregateException>(() => transaction.Execute());
+            WorldCompanionCreationTransaction.FaultInjector = null;
+            WorldCompanionCreationTransaction.RecoveryFaultInjector = null;
+            Assert.That(WorldCompanionRecoveryJournal.Exists, Is.True);
+        }
+
+        private static void MutateAsset(string path, string assetKind)
+        {
+            if (string.Equals(assetKind, "Scene", StringComparison.Ordinal))
+            {
+                var scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Additive);
+                var external = new GameObject("ExternalChange");
+                SceneManager.MoveGameObjectToScene(external, scene);
+                Assert.That(EditorSceneManager.SaveScene(scene), Is.True);
+                Assert.That(EditorSceneManager.CloseScene(scene, removeScene: true), Is.True);
+                return;
+            }
+            var asset = AssetDatabase.LoadMainAssetAtPath(path);
+            Assert.That(asset, Is.Not.Null);
+            asset!.name += "_ExternalChange";
+            EditorUtility.SetDirty(asset);
+            AssetDatabase.SaveAssets();
+        }
+
         private static IEnumerable<int> MutationPoints()
         {
             foreach (WorldCompanionMutationPoint value in Enum.GetValues(typeof(WorldCompanionMutationPoint)))
@@ -198,6 +283,10 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
                 parentNodeGuid = "11111111111111111111111111111111",
                 graphGuid = "22222222222222222222222222222222",
                 sceneGuid = "33333333333333333333333333333333",
+                sceneFingerprint = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                resourceFingerprint = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                nodeFingerprint = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                addressableFingerprint = "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
             };
 
         private static void DeleteJournalSidecars()

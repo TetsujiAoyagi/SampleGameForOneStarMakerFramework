@@ -269,6 +269,19 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             return path;
         }
 
+        internal string GetAddressableAddress()
+            => GetStringMember(GetAddressableEntry(), "address");
+
+        internal void SetAddressableAddress(string address)
+        {
+            var entry = GetAddressableEntry();
+            entry.GetType().GetProperty("address")!.SetValue(entry, address);
+            var settings = GetAddressableSettings();
+            Assert.That(settings, Is.Not.Null);
+            EditorUtility.SetDirty((UnityEngine.Object)settings!);
+            AssetDatabase.SaveAssets();
+        }
+
         public void Dispose()
         {
             if (_disposed) return;
@@ -375,6 +388,15 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             var type = Type.GetType(
                 "UnityEditor.AddressableAssets.AddressableAssetSettingsDefaultObject, Unity.Addressables.Editor");
             return type?.GetProperty("Settings", BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
+        }
+
+        private object GetAddressableEntry()
+        {
+            var settings = GetAddressableSettings();
+            Assert.That(settings, Is.Not.Null);
+            var guid = AssetDatabase.AssetPathToGUID(Plan.ScenePath);
+            return GetAddressableEntries(settings!).Single(
+                entry => string.Equals(GetStringMember(entry, "guid"), guid, StringComparison.Ordinal));
         }
 
         private static IEnumerable<object> GetAddressableEntries(object settings)
