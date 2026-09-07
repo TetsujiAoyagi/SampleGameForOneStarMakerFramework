@@ -19,7 +19,7 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
     internal enum WorldCompanionMutationPoint
     {
         JournalWritten, FolderCreated, SceneCreated, NodeCreated, GraphLinked,
-        ResourceCreated, AddressableCreated, Generated, Verified, Regenerated,
+        ResourceCreated, AddressableCreated, GeneratedBeforeCheckpoint, Generated, Verified, Regenerated,
     }
     internal enum WorldCompanionRecoveryBarrier
     {
@@ -87,11 +87,14 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
 
                 var nodes = LoadAll<SceneNodeData>(journal.sourceSearchRoot);
                 var graphs = LoadAll<SceneGraphEdges>(journal.sourceSearchRoot);
+                WorldCompanionOwnershipProof.BeginGeneratedMutation(journal);
                 GenerateOrThrow(nodes, graphs, journal);
+                Fault(WorldCompanionMutationPoint.GeneratedBeforeCheckpoint);
                 WorldCompanionOwnershipProof.RefreshGeneratedAssets(journal);
                 Fault(WorldCompanionMutationPoint.Generated);
                 VerifyCommitted(journal, preflight.ParentNode, preflight.Graph, node, nodes, graphs);
                 Fault(WorldCompanionMutationPoint.Verified);
+                WorldCompanionOwnershipProof.BeginGeneratedMutation(journal);
                 GenerateOrThrow(nodes, graphs, journal);
                 WorldCompanionOwnershipProof.RefreshGeneratedAssets(journal);
                 VerifyCommitted(journal, preflight.ParentNode, preflight.Graph, node, nodes, graphs);

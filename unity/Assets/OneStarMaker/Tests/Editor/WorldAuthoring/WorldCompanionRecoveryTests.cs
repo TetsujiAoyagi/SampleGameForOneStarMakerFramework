@@ -113,6 +113,39 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             Assert.That(AssetDatabase.LoadMainAssetAtPath(sentinelPath), Is.Not.Null);
         }
 
+        [Test]
+        public void CrashBetweenGenerateAndCheckpoint_RollsBack_InsteadOfBlockingOnStaleFingerprint()
+        {
+            // Generate は予約済み SceneResource を同じ GUID のまま in-place で書き換える。
+            // journal の fingerprint 更新前に落ちると、GUID 一致 + fingerprint 不一致になる。
+            // これを外部改変として fail-closed にすると rollback が破壊バリアへ到達できず、
+            // journal が残って Workspace も公式 Rollback も詰む（WW-9 / WW-10）。
+            using var scope = new WorldCompanionTestScope();
+            var sentinelPath = scope.CreateSentinel();
+            WorldCompanionCreationTransaction.FaultInjector = point =>
+            {
+                if (point == WorldCompanionMutationPoint.GeneratedBeforeCheckpoint)
+                    throw new InjectedWorldCompanionFault("generate-before-checkpoint");
+            };
+            WorldCompanionCreationTransaction.RecoveryFaultInjector = barrier =>
+            {
+                if (barrier == WorldCompanionRecoveryBarrier.ScenesRestored)
+                    throw new InjectedWorldCompanionFault("domain-reload");
+            };
+            using var transaction = new WorldCompanionCreationTransaction(scope.Plan);
+
+            Assert.Throws<AggregateException>(() => transaction.Execute());
+            Assert.That(WorldCompanionRecoveryJournal.Exists, Is.True);
+            Assert.That(WorldCompanionRecoveryJournal.Load().resourceFingerprint, Is.Empty);
+            WorldCompanionCreationTransaction.FaultInjector = null;
+            WorldCompanionCreationTransaction.RecoveryFaultInjector = null;
+
+            WorldCompanionCreationTransaction.RecoverPending();
+
+            scope.AssertRolledBack();
+            Assert.That(AssetDatabase.LoadMainAssetAtPath(sentinelPath), Is.Not.Null);
+        }
+
         [TestCaseSource(nameof(RecoveryBarriers))]
         public void RecoveryBarrierFailure_RetainsSameJournal_AndSecondAttemptResumes(
             int recoveryBarrierValue)

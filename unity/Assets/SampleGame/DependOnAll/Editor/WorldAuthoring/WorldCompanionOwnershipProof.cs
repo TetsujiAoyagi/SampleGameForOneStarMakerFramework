@@ -47,6 +47,17 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
             WorldCompanionRecoveryJournal.Save(journal);
         }
 
+        /// <summary>Generate は所有済み asset を in-place で書き換える。書き換え途中で crash しても
+        /// recovery が外部改変と誤判定しないよう、直前に fingerprint を空へ戻す。空の間の所有証明は
+        /// GUID 一致と期待 shape が担う。</summary>
+        internal static void BeginGeneratedMutation(WorldCompanionJournalData journal)
+        {
+            journal.sceneFingerprint = string.Empty;
+            journal.nodeFingerprint = string.Empty;
+            journal.resourceFingerprint = string.Empty;
+            WorldCompanionRecoveryJournal.Save(journal);
+        }
+
         internal static void RefreshGeneratedAssets(WorldCompanionJournalData journal)
         {
             RefreshAsset(journal.scenePath, journal.sceneGuid, ref journal.sceneFingerprint);
@@ -77,7 +88,9 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
             if (!AssetExists(path)) return;
             var currentGuid = AssetDatabase.AssetPathToGUID(path);
             if (string.IsNullOrEmpty(currentGuid)) throw new InvalidOperationException($"Cannot verify GUID ownership: {path}");
-            if (string.IsNullOrEmpty(guid))
+            if (!string.IsNullOrEmpty(guid) && !string.Equals(currentGuid, guid, StringComparison.Ordinal))
+                throw new InvalidOperationException($"GUID ownership mismatch: {path}");
+            if (string.IsNullOrEmpty(fingerprint))
             {
                 VerifyExpectedShape(journal, path, kind);
                 guid = currentGuid;
@@ -85,9 +98,7 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
                 WorldCompanionRecoveryJournal.Save(journal);
                 return;
             }
-            if (!string.Equals(currentGuid, guid, StringComparison.Ordinal))
-                throw new InvalidOperationException($"GUID ownership mismatch: {path}");
-            if (string.IsNullOrEmpty(fingerprint) || !string.Equals(AssetFingerprint(path), fingerprint, StringComparison.Ordinal))
+            if (!string.Equals(AssetFingerprint(path), fingerprint, StringComparison.Ordinal))
                 throw new InvalidOperationException($"Content ownership mismatch: {path}");
         }
 

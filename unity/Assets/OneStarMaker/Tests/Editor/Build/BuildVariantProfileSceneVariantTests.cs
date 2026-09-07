@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
@@ -14,18 +15,22 @@ namespace OneStarMaker.Tests.Editor.Build
     public sealed class BuildVariantProfileSceneVariantTests
     {
         private string _originalGuid = string.Empty;
+        private Func<string?>? _originalResolver;
 
         [SetUp]
         public void SetUp()
         {
             _originalGuid = DeveloperVariantSettings.instance.ActiveProfileGuid;
+            _originalResolver = SceneVariantRuntimeBridge.EditorSceneVariantResolver;
         }
 
         [TearDown]
         public void TearDown()
         {
             DeveloperVariantSettings.instance.SetActiveProfileGuid(_originalGuid);
-            SceneVariantRuntimeBridge.EditorSceneVariantResolver = null;
+            // null を書くと SceneVariantResolver が「editor override 無し」と解釈し、開いたままの
+            // Editor では次の domain reload まで Play Mode が active profile を読まなくなる。
+            SceneVariantRuntimeBridge.EditorSceneVariantResolver = _originalResolver;
         }
 
         [Test]
