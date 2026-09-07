@@ -1,0 +1,14 @@
+S-4a Phase C contract audit
+===========================
+
+Generated at: 2026-09-07T06:34:09.6820663+09:00
+Command: pwsh tools/contract-audit.ps1 -BaseRef be33e4716c70334100aada23c555ac75a0b0dbb7
+Implementation head: fcb7e2dfe4de53c22906f38231856a34b3a34397
+Exit code: 0
+
+対象: D:\repositories\unity\SampleGameForOneStarMakerFramework
+Unity側 .cs（ベンダー同梱を除く）: 449 ファイル
+検査1 の差分: 51 ファイル（基点 be33e4716c70334100aada23c555ac75a0b0dbb7 = be33e47）
+
+機械で判定できる契約に違反なし。
+設計判断（責務配置・寿命・依存・UpdateSystem 登録・偽 null）は対象外。

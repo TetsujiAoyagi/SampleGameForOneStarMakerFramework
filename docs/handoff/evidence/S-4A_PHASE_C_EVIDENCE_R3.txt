@@ -1,0 +1,43 @@
+S-4a repeated Phase C fixed evidence manifest (round 3)
+
+evidence id: S-4a-C-R3-be33e47-156cfd7-20260908T022708+0900
+generated at: 2026-09-08T02:27:08.4006926+09:00
+implementation base: be33e4716c70334100aada23c555ac75a0b0dbb7
+implementation head: 156cfd7dbd11f7f0d187ddbf1fd8c5943763c028
+review mode: read-only, structure-first repeated Phase C
+
+The implementation head above is frozen for this review. The reviewer must not edit
+the worktree or regenerate tests. The responsibility map and accepted Phase A design
+come only from the frozen HANDOFF snapshot below; the current mutable HANDOFF is not
+an input. Review the responsibility map against actual members, dependencies, owners,
+lifetimes, public API, folder/assembly boundaries, and test seams before reviewing
+function bodies and test coverage.
+
+Fixed inputs (SHA-256):
+
+53C23BA0A028EB0FED110E219A7FC90A1D6692E5D10EDCE47C76138C03278EDF  docs/handoff/evidence/S-4A_FROZEN_HANDOFF_53a9d97.md
+15B2FACFAABEC89933AD73A5AF92B48CFC78398F6E649E59BFAD5AF1339A40CE  docs/handoff/evidence/S-4A_PHASE_A_INPUT.txt
+597977A0BB9B5FF93C69A381E7F0842FDACAA9110471848D9E503860701DABD2  docs/handoff/evidence/S-4A_PHASE_B_RESULT_R4.txt
+3AB3DDD5C0DDD8EF66116A94CE266218A9B5AB0FFAA2135E40613E1E16E447A6  docs/handoff/evidence/S-4A_IMPLEMENTATION_be33e47_156cfd7.diff
+82B4D3D09AAC97214719232ADCAC4607CF3BD07D7D516CCD1DF927F91A9093B3  docs/handoff/evidence/S-4A_IMPLEMENTATION_be33e47_156cfd7_STAT.txt
+03CDA54AF0A9880BF0249A756AB083AD87D38BE9EE2AB9971E3DFF687563B2F9  docs/handoff/evidence/S-4A_IMPLEMENTATION_be33e47_156cfd7_NAME_STATUS.txt
+A59B39FA8AE1B33DB4034D63B4A4DCFDC2DF2BE9E9B0E9A43667A0A2CF3A83AE  docs/handoff/evidence/S-4A_PHASE_C_R3_TEST_RESULTS.xml
+ED855C296526AB66B6D62C3EF7EE5D955FABB8724DF3E4B439C55FCF54FF6632  docs/handoff/evidence/S-4A_PHASE_C_R3_UNITY.log
+CD4EFC70954D1A1A10CC2AF3B135677DEF1701137D568855C93FD41B2AE126B4  docs/handoff/evidence/S-4A_PHASE_C_R3_CONTRACT_AUDIT.txt
+ADF62220DDDD17C7CDC7D1871AF52CBCCE6C217EA68073C842D9AA5F50552B8D  docs/handoff/evidence/S-4A_PHASE_C_R3_MACHINE_CHECKS.txt
+
+Verification record:
+
+- Final Unity test evidence reports 672 total, 672 passed, 0 failed, 0 skipped.
+- Contract audit reports PASS against the implementation base.
+- Addressables full build is deliberately absent because the frozen HANDOFF assigns it
+  to S-4b or later.
+- The complete diff is binary-capable and covers exactly implementation base..head.
+
+Required reviewer output:
+
+- Findings first, ordered by severity, with category and exact file/line evidence.
+- Explicit responsibility-map conformance result before functional correctness.
+- Explicit PASS or FAIL for Phase C.
+- Residual risks and unreviewed areas, including whether test evidence is sufficient.
+- Reviewer model/vendor identity.

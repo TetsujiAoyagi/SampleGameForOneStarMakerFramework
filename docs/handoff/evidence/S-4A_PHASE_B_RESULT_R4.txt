@@ -1,0 +1,65 @@
+S-4a Phase B result snapshot (revision 4)
+==========================================
+
+Snapshot id: S-4a-B-156cfd7-20260908T022708+0900
+Generated at: 2026-09-08T02:27:08.4006926+09:00
+Repository branch: codex/s-4a-runtime-variant-workspace-plan
+Purchaser decision: Phase A HANDOFF was treated as approved and A frozen.
+Phase B start commit: 53a9d975335d1640e9f889a2eebc31ab9c3ca4a9
+Implementation base: be33e4716c70334100aada23c555ac75a0b0dbb7
+Implementation head: 156cfd7dbd11f7f0d187ddbf1fd8c5943763c028
+Supersedes for final review: S-4A_PHASE_B_RESULT_R3.txt at 99f5add.
+Purpose: immutable Phase B implementation result used by the repeated Phase C/C'.
+
+1. Implemented frozen scope
+---------------------------
+
+- Resolves one startup Scene Variant and forwards it through SceneDirector to every Addressables Unity scene load while preserving default-payload fallback.
+- Wires the Editor active BuildVariantProfile and Player build JSON overlay, including exact original-byte restoration on every exit path.
+- Provides WorldWhitebox with Scene Variant Whitebox and whitelist ["", "Whitebox"]. Production selects the empty Variant and excludes Whitebox.
+- Implements strict cell companion-set parsing/policy, structural SceneResource Cell/child classification, SessionCellCompanionLoadDriver stable/in-flight/parent-race/ABA/cancellation handling, and initializer propagation.
+- Removes runtime coordinate parsing/tint behavior and isolates legacy unqualified Environment naming in Editor-only compatibility code.
+- Implements pure World Workspace planning, exact payload opening, SceneNodeData + SceneGraphEdges source-backed creation, persistent single-pending journal, dependency-barrier rollback/retry, and explicit recovery UI.
+- Implements the frozen Runtime and Editor tests for variant, profile/build overlay, companion policy/races, structural construction, startup cleanup, Workspace planning/opening, transaction rollback, recovery, retry barriers, partial-output collision rejection, and external mutation during pending.
+
+2. Corrections included in the fixed implementation
+---------------------------------------------------
+
+- The fixture/startup/recovery corrections recorded by revision 2 and the preflight collision rejection recorded by revision 3 remain included.
+- The journal now checkpoints the creation-time fingerprint of the Scene, SceneResource, SceneNodeData asset content and of the Addressables entry, alongside the GUIDs it already recorded.
+- Recovery requires a fingerprint match, not only a GUID match, before any destructive step. A same-GUID external mutation now stops fail-closed and preserves the journal for a human, per frozen HANDOFF line 571.
+- The comparison moved into a new WorldCompanionOwnershipProof file, which shrank WorldCompanionCreationTransaction.cs from 400 to 382 lines.
+- Four regression cases cover Scene / Node / Resource same-GUID edits and Addressables entry edits. Each stops before deletion; the Addressables case also completes an explicit retry once the entry is restored.
+- No public API, owner, lifetime, dependency, SceneState, LoadType, asmdef, package, or responsibility-map decision was added or changed.
+
+3. Scope and stop-condition reconciliation
+------------------------------------------
+
+- Complete implementation diff be33e47..156cfd7: 105 files, 5077 insertions, 1133 deletions.
+- Unity production C#: 2114 additions, 861 deletions. New production C#: 20 files / 1856 lines, below the 2150 + 25% limit of 2687.5 lines.
+- Largest new production file is WorldCompanionCreationTransaction.cs at 382 lines; the new WorldCompanionOwnershipProof.cs is 213 lines. No new production file exceeds 400 lines.
+- 16 existing production files were modified. Largest existing-file growth remains BuildVariantProfile.cs from 88 to 115 lines (+30.7%); no existing file exceeds +50%.
+- The final ownership correction changes three existing files, adds one production file plus its Unity-generated .meta, and adds no assembly or package dependency.
+- Changed Unity C# retains #nullable enable; no Unity record declaration was added; tests contain no Task.Delay or Thread.Sleep.
+- Diff count is zero for asmdef, Packages manifest/lock, and .unity files. SceneState and LoadType definitions are unchanged.
+- No S-4b 4-season x 9 x 6 scene generation, Lighting/VFX content, VFX Graph package, or authored world content was created.
+
+4. Verification state at snapshot creation
+------------------------------------------
+
+- Implementation commit: 156cfd7dbd11f7f0d187ddbf1fd8c5943763c028.
+- Targeted fixtures: WorldCompanionRecoveryTests 26 total / 26 passed; WorldCompanionCreationTransactionTests 18 total / 18 passed.
+- Full Phase C operator run: `pwsh tools/run-tests.ps1`, 672 total / 672 passed / 0 failed / 0 skipped.
+- `pwsh tools/contract-audit.ps1 -BaseRef be33e47`: PASS over 450 Unity C# files and 52 changed files.
+- Raw final test XML/log and complete diff/stat/name-status are separate hashed artifacts in the repeated Phase C evidence bundle.
+- `unity test`, `unity run`, and Addressables full build were not executed. The first two remain prohibited; the full Addressables build belongs to S-4b and later per the frozen HANDOFF.
+
+5. Responsibility reconciliation
+---------------------------------
+
+- Framework Runtime remains the owner of variant resolution/one-shot propagation; Framework Editor remains the owner of profile selection and build overlay.
+- SampleGame Runtime remains the owner of companion-set selection and structural Cell/child loading; it does not scan the map or derive child identities.
+- SampleGame Editor remains the owner of World Workspace planning/opening and the single source-backed transaction/recovery boundary.
+- WorldCompanionOwnershipProof is an internal seam inside that same Editor transaction owner. The fingerprint checkpoint is internal durability, not a new owner, lifetime, dependency, or public surface, so the frozen responsibility map is unchanged.
+- SceneResourceMap remains a generated projection; SceneNodeData and SceneGraphEdges remain authoritative.
+- All corrections stay within frozen responsibilities, so no return to Phase A was required.

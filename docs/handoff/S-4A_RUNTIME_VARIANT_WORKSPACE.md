@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A3 freeze candidate / purchaser decision pending`（architecture gate PASS。発注者が明示凍結するまで Phase B へ渡さない）
+- status: `Phase B 完了 / Phase C・C' ラウンド3 待ち`（Phase A は発注者判断で凍結済み。実装 head は `156cfd7` に固定）
 - branch: `codex/s-4a-runtime-variant-workspace-plan`
 - implementation base commit: `be33e4716c70334100aada23c555ac75a0b0dbb7`
-- implementation head commit: `1ca960989d92d6991bdd0a98536fc5a32181c964`
+- implementation head commit: `156cfd7dbd11f7f0d187ddbf1fd8c5943763c028`
 - risk: `high`
 - owner: 発注者（freeze 判断）/ 将来の S-4a Phase B 実装担当
 - created: `2026-09-06`
@@ -15,15 +15,16 @@
 - Phase A snapshot path / id: `docs/handoff/evidence/S-4A_PHASE_A_INPUT.txt` / `S-4a-A0-be33e47-20260906T103508+0900`
 - Phase A snapshot generated at: `2026-09-06T10:35:08.3818239+09:00`
 - Phase A snapshot hash: `sha256:15b2facfaabec89933ad73a5af92b48cfc78398f6e649e59bfad5af1339a40ce`
-- Phase B result snapshot path / id: `docs/handoff/evidence/S-4A_PHASE_B_RESULT.txt` / `S-4a-B-1ca9609-20260907T023236+0900`
-- Phase B result snapshot generated at: `2026-09-07T02:32:36.1238502+09:00`
-- Phase B result snapshot hash: `sha256:59109bd88f7797f35a4c4f49474158578800f22dd013cac759c96c3d354b5c0f`
-- evidence bundle path / id: 未到達
-- evidence bundle generated at: 未到達
-- evidence bundle hash: 未到達
-- C' blind bundle path / id: 未到達
-- C' blind bundle generated at: 未到達
-- C' blind bundle hash: 未到達
+- Phase B result snapshot path / id: `docs/handoff/evidence/S-4A_PHASE_B_RESULT_R4.txt` / `S-4a-B-156cfd7-20260908T022708+0900`
+- Phase B result snapshot generated at: `2026-09-08T02:27:08.4006926+09:00`
+- Phase B result snapshot hash: `sha256:597977a0bb9b5ff93c69a381e7f0842fdacaa9110471848d9e503860701dabd2`
+- evidence bundle path / id: `docs/handoff/evidence/S-4A_PHASE_C_EVIDENCE_R3.txt` / `S-4a-C-R3-be33e47-156cfd7-20260908T022708+0900`
+- evidence bundle generated at: `2026-09-08T02:27:08.4006926+09:00`
+- evidence bundle hash: `sha256:04c63079c8cf407b9c705a19799461b884e6085bb348f19174c8c9c10e4de984`
+- C' blind bundle path / id: `docs/handoff/evidence/S-4A_PHASE_C_PRIME_BLIND_BUNDLE_R3.txt` / `S-4a-Cprime-R3-blind-be33e47-156cfd7-20260908T022708+0900`
+- C' blind bundle generated at: `2026-09-08T02:27:08.4006926+09:00`
+- C' blind bundle hash: `sha256:14ee04ab5d5d19d0e8f824f0810108d84bcc75f9a42a75fb34a965d7291605a4`
+- 失効した snapshot / bundle: `S-4A_PHASE_B_RESULT.txt`(1ca9609)、`_R2`(fcb7e2d)、`_R3`(99f5add) と Phase C ラウンド1/2 の evidence / blind bundle。差し戻しで head が変わったため最終受け入れには使わない。
 
 ## 1. 目的と対象外
 
@@ -576,11 +577,17 @@ public static class CellCompanionSetParser
 
 ## 6. Phase B 実装結果
 
-- 実装: RV-1〜RV-10、CP-1〜CP-12、WW-1〜WW-13 と §5 の test code を実装した。責務・実ファイル照合、規模/停止条件、静的検査、既存 Editor での同期コンパイル/profile 確認を `docs/handoff/evidence/S-4A_PHASE_B_RESULT.txt`（`S-4a-B-1ca9609-20260907T023236+0900`、`sha256:59109bd88f7797f35a4c4f49474158578800f22dd013cac759c96c3d354b5c0f`）へ固定した。
-- HANDOFF との差: 設計差分なし。追加した `InternalsVisibleTo` は凍結済み internal test seam のためだけで、asmdef/public API/production dependency は不変。実測は99ファイル、production C# 1,908追加/861削除、新規 production 1,651行。最大新規 file は transaction の400行で停止条件 `>400` 未発火、既存最大増加は30.7%、見積 +25% 上限内。`git diff --check` の非0は Editor生成 `.asset` / directory `.meta` の空 serialized scalar に付く trailing space のみで、YAML/meta の手修正はしていない。
-- 未実行: `pwsh tools/run-tests.ps1`、`unity test` / `unity run`、全 Runtime/Editor NUnit test、Addressables build。Editor依存の profile/meta/GUID/SceneGraph/SceneResourceMap/Addressables/transaction/recovery/open-order assertions はコンパイル済みだが Phase C operator による実行待ち。Phase C/C' は未着手。
-- implementation head commit: `1ca960989d92d6991bdd0a98536fc5a32181c964`
+- 実装: RV-1〜RV-10、CP-1〜CP-12、WW-1〜WW-13 と §5 の test code を実装した。責務・実ファイル照合、規模/停止条件、静的検査を `docs/handoff/evidence/S-4A_PHASE_B_RESULT_R4.txt`（`S-4a-B-156cfd7-20260908T022708+0900`、`sha256:597977a0bb9b5ff93c69a381e7f0842fdacaa9110471848d9e503860701dabd2`）へ固定した。
+- HANDOFF との差: 設計差分なし。追加した `InternalsVisibleTo` は凍結済み internal test seam のためだけで、asmdef/public API/production dependency は不変。実測は105ファイル、production C# 2,114追加/861削除、新規 production 20ファイル1,856行。最大新規 file は transaction の382行で停止条件 `>400` 未発火、既存最大増加は `BuildVariantProfile.cs` の30.7%で見積 +25% 上限内。`git diff --check` は head で0行。
+- Phase C からの差し戻しを2回受けた。いずれも凍結責務の内側の修正で、Phase A へは戻していない。
+  - ラウンド1 (`fcb7e2d`): planned path の孤立 `.meta` / directory / companion folder 物理衝突を journal 作成前に拒否する preflight を追加した。
+  - ラウンド2 (`99f5add` → `156cfd7`): journal に作成時 fingerprint を checkpoint し、recovery が GUID 一致だけで破壊しないようにした。比較は新規 `WorldCompanionOwnershipProof.cs`（213行）へ切り出し、transaction 本体は400→382行に縮んだ。
+  - 詳細と失効した結論は `docs/handoff/evidence/S-4A_PHASE_C_R1_REVIEW.txt` と `S-4A_PHASE_C_R2_REVIEW.txt` に保存した。
+- 実行済み: `pwsh tools/run-tests.ps1` を head `156cfd7` に対して実行し、672 total / 672 passed / 0 failed / 0 skipped。`pwsh tools/contract-audit.ps1 -BaseRef be33e47` は exit 0（450ファイル / 変更52ファイル）。生 XML / log / 完全 diff は §0 の evidence bundle が hash で固定している。
+- 未実行: `unity test` / `unity run`（契約により恒久的に禁止）、Addressables full build（凍結 HANDOFF が S-4b 以降へ割り当て）。
+- implementation head commit: `156cfd7dbd11f7f0d187ddbf1fd8c5943763c028`
 - Phase B 担当・モデル・ベンダー: Codex primary agent / GPT-5 系 / OpenAI
+- Phase C / C' ラウンド3 入力: §0 の evidence bundle と C' blind bundle。どちらも同一時点・同一10証拠で固定済みで、レビュー未着手。
 
 ## 7. Phase C
 

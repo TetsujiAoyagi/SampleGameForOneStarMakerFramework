@@ -1,0 +1,30 @@
+S-4a Phase C review result (superseded round 1)
+
+implementation base: be33e4716c70334100aada23c555ac75a0b0dbb7
+reviewed implementation head: fcb7e2dfe4de53c22906f38231856a34b3a34397
+result: FAIL
+reviewer: OpenAI Codex / GPT-5 family (independent Phase C session)
+
+High / semantic: World Workspace preflight checked a loadable main asset and the
+main filesystem path, but did not reject a pre-existing `<planned-path>.meta`, a
+directory at the planned path, or a physical companion-folder collision not yet
+known as a valid AssetDatabase folder. Recovery could then capture the existing
+GUID and delete a sidecar it did not own. This violated frozen WW-7, WW-9, and
+WW-10 (no adoption/overwrite of partial outputs; rollback deletes only proven
+transaction-owned targets).
+
+Evidence:
+
+- unity/Assets/SampleGame/DependOnAll/Editor/WorldAuthoring/WorldCompanionCreationTransaction.cs:120-124
+- unity/Assets/SampleGame/DependOnAll/Editor/WorldAuthoring/WorldCompanionCreationTransaction.cs:333-341
+- unity/Assets/OneStarMaker/Tests/Editor/WorldAuthoring/WorldCompanionCreationTransactionTests.cs:56-72
+
+Required action: reject sidecar/directory collisions for scene, resource, and node
+paths before journaling or mutation, preserve the colliding object, add regression
+tests, then freeze a new implementation head and regenerate both C and C' inputs.
+
+Disposition: returned to Phase B and fixed by implementation commit
+99f5addf467211d80f1b5a04bc17756523fa7bc7. The fcb7e2d evidence and blind bundle
+are superseded and must not be used for final acceptance. The round-1 C' review
+was interrupted by the session reset and is immaterial because its implementation
+head was invalidated.

@@ -1,0 +1,56 @@
+S-4a Phase C / C' review result (superseded round 2)
+
+implementation base: be33e4716c70334100aada23c555ac75a0b0dbb7
+reviewed implementation head: 99f5addf467211d80f1b5a04bc17756523fa7bc7
+Phase C input manifest: docs/handoff/evidence/S-4A_PHASE_C_EVIDENCE_R2.txt
+  sha256 cf8c6d7170680e1aeed661d167ae5ffa546ba65387696b2e944a5c3d2a0e0cb0
+Phase C' blind bundle: docs/handoff/evidence/S-4A_PHASE_C_PRIME_BLIND_BUNDLE_R2.txt
+  sha256 5c1d7ac5d504e385f814ba21ca7df8a7a8e3a46d9a3f9518e594501a006bdc47
+
+Both bundles were fixed at the same instant from the same 10 artifacts before either
+review started. C' received neither the superseded round-1 FAIL report nor any round-2
+Phase C output.
+
+Phase C result: FAIL
+Phase C' result: PASS with a residual risk on the same boundary
+Adopted disposition: FAIL (safe side)
+
+High / semantic (Phase C P1): while a creation is pending, the journal recorded only
+the GUID of each owned asset and Addressables entry. If the same GUID's asset content
+or Addressables entry was mutated from outside the Workspace before recovery ran,
+recovery treated the matching GUID alone as ownership proof and could delete or revert
+work it did not own. This contradicts the frozen fail-closed clause, which requires
+recovery to stop and hand the journal back to a human in exactly that case.
+
+Evidence:
+
+- docs/handoff/evidence/S-4A_FROZEN_HANDOFF_53a9d97.md:571
+- unity/Assets/SampleGame/DependOnAll/Editor/WorldAuthoring/WorldCompanionRecoveryJournal.cs at 99f5add
+  (WorldCompanionJournalData carried sceneGuid / resourceGuid / nodeGuid /
+  companionFolderGuid and no creation-time content or entry state)
+- unity/Assets/SampleGame/DependOnAll/Editor/WorldAuthoring/WorldCompanionCreationTransaction.cs at 99f5add
+
+Phase C' independently reached PASS on the same head but recorded "manual external
+mutation while pending" as an explicit residual risk, i.e. it saw the same boundary
+without classifying it as a defect. The safe side was taken and the Phase C FAIL was
+adopted.
+
+Required action: checkpoint the creation-time fingerprint of the asset content and of
+the Addressables entry into the journal, and make recovery require a fingerprint match,
+not only a GUID match, before any destructive step. Add regression tests for external
+mutation of Scene, Node, Resource, and Addressables entry, then freeze a new
+implementation head and regenerate both the C and C' inputs.
+
+Disposition: returned to Phase B and fixed by implementation commit
+156cfd7dbd11f7f0d187ddbf1fd8c5943763c028, which adds sceneFingerprint /
+resourceFingerprint / nodeFingerprint / addressableFingerprint to the journal, extracts
+the comparison into WorldCompanionOwnershipProof, and adds four external-mutation
+regression cases (WorldCompanionRecoveryTests 22 -> 26, full suite 668 -> 672).
+
+The 99f5add evidence and blind bundle are superseded and must not be used for final
+acceptance. Both round-2 conclusions above are history only; the round-3 reviews at
+156cfd7 are the acceptance inputs.
+
+Reviewer identity: the surviving session log records that C and C' ran as separate new
+sessions on models other than the Phase B implementer, but does not name either model
+or vendor. Round 3 must record model and vendor explicitly.
