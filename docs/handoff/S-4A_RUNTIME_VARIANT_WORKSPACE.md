@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `Phase C ラウンド3 FAIL / Phase B 差し戻し`（実装 head `156cfd7` のラウンド3 evidence は最終受け入れに使わない。C' は未実施のまま隔離）
+- status: `Phase C ラウンド4 コード PASS / テスト証拠未作成`（実装 head `88fda3e`。R3 の C FAIL / C' PASS と 156cfd7 evidence は最終受け入れに使わない）
 - branch: `codex/s-4a-runtime-variant-workspace-plan`
 - implementation base commit: `be33e4716c70334100aada23c555ac75a0b0dbb7`
-- implementation head commit: `156cfd7dbd11f7f0d187ddbf1fd8c5943763c028`
+- implementation head commit: `88fda3ef32f08ac1d0bf0f7f021b047c5b697b6a`
 - risk: `high`
 - owner: 発注者（freeze 判断）/ 将来の S-4a Phase B 実装担当
 - created: `2026-09-06`
@@ -24,7 +24,7 @@
 - C' blind bundle path / id: `docs/handoff/evidence/S-4A_PHASE_C_PRIME_BLIND_BUNDLE_R3.txt` / `S-4a-Cprime-R3-blind-be33e47-156cfd7-20260908T022708+0900`
 - C' blind bundle generated at: `2026-09-08T02:27:08.4006926+09:00`
 - C' blind bundle hash: `sha256:14ee04ab5d5d19d0e8f824f0810108d84bcc75f9a42a75fb34a965d7291605a4`
-- 失効した snapshot / bundle: `S-4A_PHASE_B_RESULT.txt`(1ca9609)、`_R2`(fcb7e2d)、`_R3`(99f5add) と Phase C ラウンド1/2 の evidence / blind bundle。差し戻しで head が変わったため最終受け入れには使わない。
+- 失効した snapshot / bundle: `S-4A_PHASE_B_RESULT.txt`(1ca9609)、`_R2`(fcb7e2d)、`_R3`(99f5add)、`_R4`(156cfd7) と Phase C ラウンド1〜3 の evidence / blind bundle / C' 結論。差し戻しで head が `88fda3e` になったため最終受け入れには使わない。
 
 ## 1. 目的と対象外
 
@@ -582,25 +582,28 @@ public static class CellCompanionSetParser
 - Phase C からの差し戻しを2回受けた。いずれも凍結責務の内側の修正で、Phase A へは戻していない。
   - ラウンド1 (`fcb7e2d`): planned path の孤立 `.meta` / directory / companion folder 物理衝突を journal 作成前に拒否する preflight を追加した。
   - ラウンド2 (`99f5add` → `156cfd7`): journal に作成時 fingerprint を checkpoint し、recovery が GUID 一致だけで破壊しないようにした。比較は新規 `WorldCompanionOwnershipProof.cs`（213行）へ切り出し、transaction 本体は400→382行に縮んだ。
-  - 詳細と失効した結論は `docs/handoff/evidence/S-4A_PHASE_C_R1_REVIEW.txt` と `S-4A_PHASE_C_R2_REVIEW.txt` に保存した。
+  - ラウンド3 (`88fda3e`): Generate 直前に fingerprint を空へ戻し、空の間は GUID + shape proof、記録後の不一致は fail-closed。`GeneratedBeforeCheckpoint` と named recovery を追加。C' P2 の resolver TearDown 復元も含む。
+  - 詳細と失効した結論は `docs/handoff/evidence/S-4A_PHASE_C_R1_REVIEW.txt` / `S-4A_PHASE_C_R2_REVIEW.txt` / `S-4A_PHASE_C_R3_REVIEW.txt` に保存した。
 - 実行済み: `pwsh tools/run-tests.ps1` を head `156cfd7` に対して実行し、672 total / 672 passed / 0 failed / 0 skipped。`pwsh tools/contract-audit.ps1 -BaseRef be33e47` は exit 0（450ファイル / 変更52ファイル）。生 XML / log / 完全 diff は §0 の evidence bundle が hash で固定している。
 - 未実行: `unity test` / `unity run`（契約により恒久的に禁止）、Addressables full build（凍結 HANDOFF が S-4b 以降へ割り当て）。
-- implementation head commit: `156cfd7dbd11f7f0d187ddbf1fd8c5943763c028`
-- Phase B 担当・モデル・ベンダー: Codex primary agent / GPT-5 系 / OpenAI
-- Phase C / C' ラウンド3 入力: §0 の evidence bundle と C' blind bundle。どちらも同一時点・同一10証拠で固定済み。Phase C ラウンド3 は FAIL（§7）。C' は未実施のまま隔離。
+- implementation head commit: `88fda3ef32f08ac1d0bf0f7f021b047c5b697b6a`
+- Phase B 担当・モデル・ベンダー: 初期実装 Codex / GPT-5 / OpenAI。ラウンド3修正 Claude Opus 5 / Anthropic
+- Phase C / C' ラウンド3 入力と結論は `156cfd7` 向けで失効。ラウンド4 の C は `88fda3e` のソース差分を直接見た（新しい Phase B snapshot / R4 evidence は未作成）。
 
 ## 7. Phase C
 
-- evidence bundle id / hash: `S-4a-C-R3-be33e47-156cfd7-20260908T022708+0900` / `sha256:04c63079c8cf407b9c705a19799461b884e6085bb348f19174c8c9c10e4de984`
-- 入力照合: 凍結 HANDOFF / A0 / Phase B R4 の SHA-256 を再計算し manifest と一致。実装 head は `156cfd7`。本欄の追記は review-record であり implementation head を更新しない。
-- 構造適合: **PASS**（公開面・依存方向・Runtime/Editor・Game→Framework・asmdef/SceneState/LoadType 0。`WorldCompanionOwnershipProof` はラウンド2後の同一 transaction owner 内部分離で、Phase A 再開は不要。規模警報は分割不要）。
+- ラウンド3（失効）: FAIL。`docs/handoff/evidence/S-4A_PHASE_C_R3_REVIEW.txt`。head `156cfd7`。
+- ラウンド4 対象: `88fda3ef32f08ac1d0bf0f7f021b047c5b697b6a`。evidence bundle id / hash: 未作成（本環境に Unity.exe / pwsh がなく、`run-tests.ps1` と完全 bundle を作れない）。
+- 構造適合: **PASS**。公開面・依存・asmdef/SceneState/LoadType 不変。`BeginGeneratedMutation` は同一 transaction owner の耐久処理。transaction 385行、OwnershipProof 224行。
 - findings:
-  - `High / semantic / unique / accepted for FAIL`: Generate が予約 SceneResource を in-place 書き換えした直後、journal の resource fingerprint 更新前に crash すると、GUID 一致 + fingerprint 不一致を外部改変と誤判定し、WW-10 の reverse recovery が開始できない。Workspace は pending journal で永続 block され、公式 Rollback も完了できない。根拠と必要な修正は `docs/handoff/evidence/S-4A_PHASE_C_R3_REVIEW.txt`。凍結 571 の「手作業改変は fail-closed」とは別物で、transaction 自身の dependent mutation である。
-  - `Low / obvious`: `EnsureEventSystem` に計画外の `Application.isPlaying` guard。新しい owner/API ではない。
-- テスト結果: 凍結 XML を採用（再実行しない契約）。672 total / 672 passed / 0 failed / 0 skipped。contract-audit exit 0。Generate→fingerprint 更新の間に fault seam がなく、当該経路は未証明。
-- 未確認事項: Addressables full build（S-4b）、既開き同名 Scene の load 0（新規テストなし）、C'（本セッションでは実施しない）。
-- 判定: **FAIL**。Phase A は再開しない。凍結責務の内側で Phase B へ差し戻す。
-- 担当・モデル・ベンダー: Cursor Grok 4.6 / SpaceXAI+Cursor。Phase B（Codex / GPT-5 / OpenAI）と異なる新規セッション。C' 用の blind bundle と本所見は隔離した。
+  - ラウンド3 P1 クロージャ: **PASS**。Generate 直前に fingerprint を journal へ空で保存し、空の間は GUID + `VerifyExpectedShape`、記録後の不一致は fail-closed。`GeneratedBeforeCheckpoint` と named recovery あり。ラウンド2の外部改変テスト経路（`Regenerated` 後）は維持。
+  - C' P2 クロージャ: **PASS**（観測。C' 入力には使っていない）。`BuildVariantProfileSceneVariantTests` は resolver を退避して復元する。
+  - High / Medium の新規指摘: なし。
+  - Low / residual: 2回目 Generate に fault seam が無い（本番の空 fingerprint 経路は同じ）。空 fingerprint 中の shape 一致外部改変は所有とみなす（要求した修正の受容コスト）。
+- テスト結果: 本セッションでは未実行。`156cfd7` の 672/672 は新 mutation point を含まないため使わない。
+- 未確認事項: `pwsh tools/run-tests.ps1` @ `88fda3e`、R4 evidence / C' blind bundle、Addressables full build（S-4b）。
+- 判定: **PASS（構造と差し戻しクロージャ）**。Phase A / B へは戻さない。マージ受け入れはテスト証拠と `88fda3e` 向け C' が揃うまで保留。
+- 担当・モデル・ベンダー: Cursor Grok 4.6 / SpaceXAI+Cursor。`88fda3e` の Phase B（Claude Opus 5）と異なる新規セッション。
 
 ## 8. Phase C'
 
