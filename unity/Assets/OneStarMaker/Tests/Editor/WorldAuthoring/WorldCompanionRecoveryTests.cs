@@ -122,10 +122,15 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             // journal が残って Workspace も公式 Rollback も詰む（WW-9 / WW-10）。
             using var scope = new WorldCompanionTestScope();
             var sentinelPath = scope.CreateSentinel();
+            var observedClearedFingerprint = false;
             WorldCompanionCreationTransaction.FaultInjector = point =>
             {
                 if (point == WorldCompanionMutationPoint.GeneratedBeforeCheckpoint)
+                {
+                    observedClearedFingerprint = string.IsNullOrEmpty(
+                        WorldCompanionRecoveryJournal.Load().resourceFingerprint);
                     throw new InjectedWorldCompanionFault("generate-before-checkpoint");
+                }
             };
             WorldCompanionCreationTransaction.RecoveryFaultInjector = barrier =>
             {
@@ -136,7 +141,7 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
 
             Assert.Throws<AggregateException>(() => transaction.Execute());
             Assert.That(WorldCompanionRecoveryJournal.Exists, Is.True);
-            Assert.That(WorldCompanionRecoveryJournal.Load().resourceFingerprint, Is.Empty);
+            Assert.That(observedClearedFingerprint, Is.True);
             WorldCompanionCreationTransaction.FaultInjector = null;
             WorldCompanionCreationTransaction.RecoveryFaultInjector = null;
 
