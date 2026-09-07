@@ -117,10 +117,10 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
             var parentFolder = System.IO.Path.GetDirectoryName(companionFolder)!.Replace('\\', '/');
             if (!AssetDatabase.IsValidFolder(parentFolder))
                 throw new InvalidOperationException($"Parent Cell folder is missing: {parentFolder}");
-            if (AssetDatabase.IsValidFolder(companionFolder))
+            if (AssetDatabase.IsValidFolder(companionFolder) || System.IO.Directory.Exists(FullPath(companionFolder)) || System.IO.File.Exists(FullPath(companionFolder) + ".meta"))
                 throw new InvalidOperationException($"Planned companion folder already exists: {companionFolder}");
             foreach (var path in new[] { plan.ScenePath, plan.ResourcePath, plan.NodePath })
-                if (AssetDatabase.LoadMainAssetAtPath(path) != null || System.IO.File.Exists(FullPath(path)))
+                if (AssetDatabase.LoadMainAssetAtPath(path) != null || System.IO.File.Exists(FullPath(path)) || System.IO.File.Exists(FullPath(path) + ".meta") || System.IO.Directory.Exists(FullPath(path)))
                 throw new InvalidOperationException($"Planned path already exists: {path}");
             var nodes = LoadAll<SceneNodeData>(plan.SourceSearchRoot);
             if (nodes.Count(node => string.Equals(node.Identity, plan.Identity, StringComparison.Ordinal)) != 0)

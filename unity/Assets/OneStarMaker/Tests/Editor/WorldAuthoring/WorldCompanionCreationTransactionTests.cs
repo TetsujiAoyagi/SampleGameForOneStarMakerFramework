@@ -71,8 +71,54 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             scope.AssertRolledBack();
         }
 
+        [TestCaseSource(nameof(PlannedPathCollisions))]
+        public void Preflight_PlannedPathSidecarOrDirectoryCollision_ChangesNothing(
+            string pathKind,
+            bool sidecar)
+        {
+            using var scope = new WorldCompanionTestScope();
+            var path = pathKind switch
+            {
+                "Scene" => scope.Plan.ScenePath,
+                "Resource" => scope.Plan.ResourcePath,
+                "Node" => scope.Plan.NodePath,
+                _ => throw new ArgumentOutOfRangeException(nameof(pathKind)),
+            };
+            var fullPath = Path.GetFullPath(path);
+            var collisionPath = sidecar ? fullPath + ".meta" : fullPath;
+            if (sidecar)
+            {
+                var assetParent = Path.GetDirectoryName(path)!.Replace('\\', '/');
+                if (!AssetDatabase.IsValidFolder(assetParent))
+                {
+                    AssetDatabase.CreateFolder(
+                        Path.GetDirectoryName(assetParent)!.Replace('\\', '/'),
+                        Path.GetFileName(assetParent));
+                }
+                File.WriteAllText(collisionPath, $"fileFormatVersion: 2\nguid: {Guid.NewGuid():N}\n");
+            }
+            else
+            {
+                Directory.CreateDirectory(collisionPath);
+            }
+
+            Assert.Throws<InvalidOperationException>(() => WorldCompanionCreationTransaction.Preflight(scope.Plan));
+            Assert.That(WorldCompanionRecoveryJournal.Exists, Is.False);
+            Assert.That(sidecar ? File.Exists(collisionPath) : Directory.Exists(collisionPath), Is.True);
+            scope.AssertSourceStateUnchanged();
+        }
+
         private static IEnumerable<int> MutationPoints()
             => ((WorldCompanionMutationPoint[])Enum.GetValues(typeof(WorldCompanionMutationPoint))).Select(value => (int)value);
+
+        private static IEnumerable<TestCaseData> PlannedPathCollisions()
+        {
+            foreach (var pathKind in new[] { "Scene", "Resource", "Node" })
+            {
+                yield return new TestCaseData(pathKind, true).SetName($"Preflight_{pathKind}_SidecarCollision");
+                yield return new TestCaseData(pathKind, false).SetName($"Preflight_{pathKind}_DirectoryCollision");
+            }
+        }
     }
 
     internal sealed class InjectedWorldCompanionFault : Exception
@@ -95,7 +141,7 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             WorldCompanionCreationTransaction.RecoveryFaultInjector = null;
             _outerSetup = EditorSceneManager.GetSceneManagerSetup();
 
-            var token = Guid.NewGuid().ToString("N");
+            var token = Guid.NewGuid().ToString("N").Substring(0, 12);
             Root = $"Assets/__WorldCompanionTests_{token}";
             SourceRoot = $"{Root}/Source";
             NodeRoot = $"{SourceRoot}/Nodes";
@@ -193,11 +239,16 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
 
         internal void AssertRolledBack()
         {
-            Assert.That(WorldCompanionRecoveryJournal.Exists, Is.False);
             Assert.That(AssetDatabase.LoadMainAssetAtPath(Plan.ScenePath), Is.Null);
             Assert.That(AssetDatabase.LoadMainAssetAtPath(Plan.ResourcePath), Is.Null);
             Assert.That(AssetDatabase.LoadMainAssetAtPath(Plan.NodePath), Is.Null);
             Assert.That(AssetDatabase.IsValidFolder(Path.GetDirectoryName(Plan.ScenePath)!.Replace('\\', '/')), Is.False);
+            AssertSourceStateUnchanged();
+        }
+
+        internal void AssertSourceStateUnchanged()
+        {
+            Assert.That(WorldCompanionRecoveryJournal.Exists, Is.False);
             Assert.That(Graph.GraphNodes.Where(node => node != null).Select(node => node!.Identity),
                 Does.Not.Contain(Plan.Identity));
             Assert.That(AddressableAddressCount(Plan.ScenePath), Is.Zero);
