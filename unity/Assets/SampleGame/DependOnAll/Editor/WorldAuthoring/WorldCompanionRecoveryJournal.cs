@@ -38,6 +38,7 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
         public string resourceFingerprint = string.Empty;
         public string nodeFingerprint = string.Empty;
         public string addressableFingerprint = string.Empty;
+        public int resourceCreationState;
         public string originalActiveScenePath = string.Empty;
         public WorldCompanionSceneSetupData[] originalSceneSetup = Array.Empty<WorldCompanionSceneSetupData>();
         public int completedRecoveryBarrier;
@@ -125,6 +126,8 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
                 || !IsOptionalFingerprint(data.resourceFingerprint)
                 || !IsOptionalFingerprint(data.nodeFingerprint)
                 || !IsOptionalFingerprint(data.addressableFingerprint)
+                || data.resourceCreationState < (int)WorldCompanionResourceCreationState.None
+                || data.resourceCreationState > (int)WorldCompanionResourceCreationState.Initialized
                 || data.originalSceneSetup == null
                 || data.completedRecoveryBarrier < 0
                 || data.completedRecoveryBarrier > (int)WorldCompanionRecoveryBarrier.Saved)

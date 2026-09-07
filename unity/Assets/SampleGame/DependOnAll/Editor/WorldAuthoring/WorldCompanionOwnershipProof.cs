@@ -24,6 +24,13 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
         Resource,
     }
 
+    internal enum WorldCompanionResourceCreationState
+    {
+        None,
+        CreatingReserved,
+        Initialized,
+    }
+
     internal static class WorldCompanionOwnershipProof
     {
         internal static void CheckpointAsset(
@@ -144,11 +151,17 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
                 case WorldCompanionOwnedAssetKind.Resource:
                     var resource = AssetDatabase.LoadAssetAtPath<SceneResource>(path);
                     var resourcePayloads = resource == null ? null : resource.GetPayloads();
+                    var state = (WorldCompanionResourceCreationState)journal.resourceCreationState;
+                    var identityShape = state == WorldCompanionResourceCreationState.CreatingReserved
+                        ? resource != null && (string.IsNullOrEmpty(resource.Identity)
+                            || string.Equals(resource.Identity, journal.identity, StringComparison.Ordinal))
+                        : state == WorldCompanionResourceCreationState.Initialized
+                          && resource != null && string.Equals(resource.Identity, journal.identity, StringComparison.Ordinal);
                     var payloadShape = resourcePayloads != null && (resourcePayloads.Count == 0
                         || (resourcePayloads.Count == 1 && resourcePayloads[0].Reference != null
                             && string.Equals(resourcePayloads[0].Variant, string.Empty, StringComparison.Ordinal)
                             && string.Equals(resourcePayloads[0].Reference!.AssetGUID, journal.sceneGuid, StringComparison.Ordinal)));
-                    if (resource == null || !string.Equals(resource.Identity, journal.identity, StringComparison.Ordinal)
+                    if (resource == null || !identityShape
                         || resource.LoadType != LoadType.OnDemand || resource.StreamByDistance
                         || resource.Volume.center != Vector3.zero || resource.Volume.size != Vector3.zero
                         || resource.Children.Count != 0 || !payloadShape

@@ -151,6 +151,42 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             Assert.That(AssetDatabase.LoadMainAssetAtPath(sentinelPath), Is.Not.Null);
         }
 
+        [Test]
+        public void CrashBetweenReservedResourceAndInitialization_RollsBackEmptyStub()
+        {
+            using var scope = new WorldCompanionTestScope();
+            var observedEmptyStub = false;
+            WorldCompanionCreationTransaction.FaultInjector = point =>
+            {
+                if (point == WorldCompanionMutationPoint.ResourceReservedBeforeInitialization)
+                {
+                    var resource = AssetDatabase.LoadAssetAtPath<OneStarMaker.Runtime.SceneSystem.SceneResource>(
+                        scope.Plan.ResourcePath);
+                    var journal = WorldCompanionRecoveryJournal.Load();
+                    observedEmptyStub = resource != null && string.IsNullOrEmpty(resource.Identity)
+                        && journal.resourceCreationState == (int)WorldCompanionResourceCreationState.CreatingReserved
+                        && string.IsNullOrEmpty(journal.resourceGuid) && string.IsNullOrEmpty(journal.resourceFingerprint);
+                    throw new InjectedWorldCompanionFault("resource-before-initialization");
+                }
+            };
+            WorldCompanionCreationTransaction.RecoveryFaultInjector = barrier =>
+            {
+                if (barrier == WorldCompanionRecoveryBarrier.ScenesRestored)
+                    throw new InjectedWorldCompanionFault("domain-reload");
+            };
+            using var transaction = new WorldCompanionCreationTransaction(scope.Plan);
+
+            Assert.Throws<AggregateException>(() => transaction.Execute());
+            Assert.That(observedEmptyStub, Is.True);
+            Assert.That(WorldCompanionRecoveryJournal.Exists, Is.True);
+            WorldCompanionCreationTransaction.FaultInjector = null;
+            WorldCompanionCreationTransaction.RecoveryFaultInjector = null;
+
+            WorldCompanionCreationTransaction.RecoverPending();
+
+            scope.AssertRolledBack();
+        }
+
         [TestCaseSource(nameof(RecoveryBarriers))]
         public void RecoveryBarrierFailure_RetainsSameJournal_AndSecondAttemptResumes(
             int recoveryBarrierValue)

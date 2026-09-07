@@ -19,7 +19,8 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
     internal enum WorldCompanionMutationPoint
     {
         JournalWritten, FolderCreated, SceneCreated, NodeCreated, GraphLinked,
-        ResourceCreated, AddressableCreated, GeneratedBeforeCheckpoint, Generated, Verified, Regenerated,
+        ResourceReservedBeforeInitialization, ResourceCreated, AddressableCreated,
+        GeneratedBeforeCheckpoint, Generated, Verified, Regenerated,
     }
     internal enum WorldCompanionRecoveryBarrier
     {
@@ -221,11 +222,15 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
         private static void CreateReservedResource(WorldCompanionJournalData journal)
         {
             var resource = ScriptableObject.CreateInstance<SceneResource>();
+            journal.resourceCreationState = (int)WorldCompanionResourceCreationState.CreatingReserved;
+            WorldCompanionRecoveryJournal.Save(journal);
             AssetDatabase.CreateAsset(resource, journal.resourcePath);
+            Fault(WorldCompanionMutationPoint.ResourceReservedBeforeInitialization);
             var so = new SerializedObject(resource);
             so.FindProperty("_identity").stringValue = journal.identity;
             so.ApplyModifiedPropertiesWithoutUndo();
             AssetDatabase.SaveAssets();
+            journal.resourceCreationState = (int)WorldCompanionResourceCreationState.Initialized;
             WorldCompanionOwnershipProof.CheckpointAsset(journal, journal.resourcePath, ref journal.resourceGuid, ref journal.resourceFingerprint);
         }
         private static void CreateAddressableEntry(WorldCompanionJournalData journal)
