@@ -1,0 +1,70 @@
+S-4a Phase C review result (round 3)
+
+implementation base: be33e4716c70334100aada23c555ac75a0b0dbb7
+reviewed implementation head: 156cfd7dbd11f7f0d187ddbf1fd8c5943763c028
+Phase C input manifest: docs/handoff/evidence/S-4A_PHASE_C_EVIDENCE_R3.txt
+  sha256 04c63079c8cf407b9c705a19799461b884e6085bb348f19174c8c9c10e4de984
+Phase C' blind bundle: docs/handoff/evidence/S-4A_PHASE_C_PRIME_BLIND_BUNDLE_R3.txt
+  (not consumed by this review; C' remains a separate new session)
+
+result: FAIL
+reviewer: Cursor Grok 4.6 / SpaceXAI+Cursor (new Phase C session; different vendor and model from Phase B Codex / GPT-5 / OpenAI)
+
+Responsibility-map conformance: PASS, with one recorded post-freeze split
+------------------------------------------------
+- Frozen Framework public surface matches the implementation: SceneDirector(string sceneVariant = ""), ResolveSceneVariant(), SceneVariantRuntimeBridge.EditorSceneVariantResolver, BuildVariantProfile.SceneVariant.
+- Frozen SampleGame public surface matches: CellCompanionSet, CellCompanionSetParser.Parse. Role enum, inclusion, classifier, driver reconcile seam, and all World Workspace types stay internal.
+- Folder / namespace / asmdef / Runtime-Editor / Game→Framework direction match the map. No asmdef, package, SceneState, or LoadType diffs.
+- WorldCompanionOwnershipProof.cs (213 lines) is not in the frozen A map. Phase B recorded it as an internal durability seam of the same Editor transaction owner after the round-2 FAIL. Change reason (ownership comparison) differs from mutation I/O, so the split is structurally acceptable and does not reopen Phase A.
+- Size gates: new production 20 files / 1856 lines; largest new file WorldCompanionCreationTransaction.cs 382 lines; existing max growth BuildVariantProfile.cs +30.7%. Alarms did not require a split.
+- Narrow edits on 500-line files (AbstractApplicationInitializer wiring, SceneDirector.Loading one-line variant substitution, WorldCellStreamingSliceCreator name redirect) stay inside VT-5.
+
+Findings
+--------
+
+1. High / semantic / unique — FAIL
+   World Workspace recovery treats the transaction's own Generate rewrite as an external mutation.
+
+   SceneResourceGenerator.Generate always rewrites the reserved SceneResource (identity, payload, parent, volume, StreamByDistance) and then SaveAssets. Execute checkpoints the stub resource fingerprint at CreateReservedResource, calls Generate, and only afterwards refreshes the journal fingerprint.
+
+   If the Editor crashes (or the process is killed) after Generate returns and before RefreshGeneratedAssets saves the new fingerprint, VerifyOrCaptureAsset sees a matching GUID and a mismatched fingerprint and throws "Content ownership mismatch". Rollback never reaches a destructive barrier. The journal stays. Open/Create remain blocked. The official Rollback command cannot finish. The generated companion is left in place.
+
+   This is not the frozen residual at HANDOFF:571 (manual external edit while pending). Generate is a transaction-owned dependent mutation. WW-9 requires a checkpoint before the next dependent mutation; WW-10 requires crash recovery via the same reverse operations. The create-before-checkpoint gap is recoverable because an empty fingerprint falls back to path + expected shape. The Generate-before-refresh gap is not: the stub fingerprint is already non-empty, and mismatch has no owned-shape fallback.
+
+   Evidence:
+   - unity/Assets/OneStarMaker/Scripts/Editor/SceneGraph/SceneResourceGenerator.cs:81-209
+     (in-place SerializedObject rewrite + SaveAssets)
+   - unity/Assets/SampleGame/DependOnAll/Editor/WorldAuthoring/WorldCompanionCreationTransaction.cs:83-92
+     (CreateReservedResource checkpoint → Generate → RefreshGeneratedAssets, no fault point between)
+   - unity/Assets/SampleGame/DependOnAll/Editor/WorldAuthoring/WorldCompanionOwnershipProof.cs:70-91
+     (empty fingerprint → VerifyExpectedShape; non-empty mismatch → throw, no owned-shape fallback)
+   - unity/Assets/OneStarMaker/Tests/Editor/WorldAuthoring/WorldCompanionCreationTransactionTests.cs:40-54
+     (FaultInjector only at WorldCompanionMutationPoint values; Generated is after Refresh)
+   - docs/handoff/evidence/S-4A_FROZEN_HANDOFF_53a9d97.md WW-9 / WW-10 / line 571
+
+   Required action (stay inside the frozen transaction owner; do not reopen Phase A):
+   - Do not treat a transaction-owned Generate rewrite as external mutation.
+   - Practical repair: leave the resource fingerprint empty until the post-Generate refresh (scene / node / Addressables fingerprints can stay at creation time if Generate does not rewrite those files). A crash in the Generate→refresh window then uses the existing empty-fingerprint + VerifyExpectedShape path, which already accepts both the reserved stub and the generated leaf shape.
+   - Keep the round-2 rule: once a post-Generate fingerprint is stored, a same-GUID content mismatch must still fail-closed and keep the journal.
+   - Add a fault-injection seam between Generate and the journal fingerprint save, plus a recovery test that the same journal can finish rollback after that crash.
+
+2. Low / obvious / unique — not blocking
+   AbstractApplicationInitializer.EnsureEventSystem gained `if (!Application.isPlaying) return;` (be33e47..156cfd7). The frozen map allowed only ResolveSceneVariant wiring. The guard is a fixture/Edit-Mode compatibility edit, not a new owner, API, or policy. Recorded so it is not silently treated as in-map.
+
+Functional review of the rest (not independently failing)
+---------------------------------------------------------
+- RV-1..RV-10: constructor validation, one-shot resolve-before-director, Editor null/empty precedence, Player #if exclusion, whitelist fail-closed, byte[] overlay restore, Production empty / WorldWhitebox Whitebox+whitelist all match.
+- CP-1..CP-12: strict parser, 4×4 inclusion, third-from-end classifier, structural factory, Volume passthrough, tint removal, driver stable/in-flight/ABA/cancel unload, EnvironmentIdentity isolated to Editor legacy helper.
+- WW-1..WW-8, WW-11..WW-13 and the round-1/round-2 closures (sidecar/directory preflight; pending external mutation fail-closed) hold on the reviewed head.
+- Machine evidence at 156cfd7: 672/672 passed, contract-audit exit 0, no nullable/record/Task.Delay/Thread.Sleep/asmdef/SceneState/LoadType regressions. Tests were not re-run in this session; the frozen XML/log hashes were used as required by the evidence bundle.
+
+Residual risks / unreviewed
+---------------------------
+- Corrupt journal remains intentionally unrecoverable by command (frozen line 575).
+- Addressables CreateOrMoveEntry can move a pre-existing GUID entry; preflight cannot see a GUID that does not exist yet. Practical only under GUID collision.
+- Graph content is not fingerprinted; unlink is by start-of-transaction graph GUID + node path. End hash barrier is the backstop.
+- Already-open same-name Unity scene → load 0 is not re-proven by a new test in this slice; logical-node load 0 is.
+- Addressables full build remains assigned to S-4b.
+- This session did not perform Phase C'. C' must start from S-4A_PHASE_C_PRIME_BLIND_BUNDLE_R3.txt in a new session on a model other than Phase B and this Phase C, without this file.
+
+Disposition: return to Phase B on the same frozen HANDOFF. Implementation head 156cfd7 and the round-3 evidence / blind bundles are invalid for final acceptance after the fix. Regenerate both C and C' inputs on the new head.

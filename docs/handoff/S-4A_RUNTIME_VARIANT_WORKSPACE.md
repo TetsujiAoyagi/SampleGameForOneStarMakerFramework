@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `Phase B 完了 / Phase C・C' ラウンド3 待ち`（Phase A は発注者判断で凍結済み。実装 head は `156cfd7` に固定）
+- status: `Phase C ラウンド3 FAIL / Phase B 差し戻し`（実装 head `156cfd7` のラウンド3 evidence は最終受け入れに使わない。C' は未実施のまま隔離）
 - branch: `codex/s-4a-runtime-variant-workspace-plan`
 - implementation base commit: `be33e4716c70334100aada23c555ac75a0b0dbb7`
 - implementation head commit: `156cfd7dbd11f7f0d187ddbf1fd8c5943763c028`
@@ -587,16 +587,20 @@ public static class CellCompanionSetParser
 - 未実行: `unity test` / `unity run`（契約により恒久的に禁止）、Addressables full build（凍結 HANDOFF が S-4b 以降へ割り当て）。
 - implementation head commit: `156cfd7dbd11f7f0d187ddbf1fd8c5943763c028`
 - Phase B 担当・モデル・ベンダー: Codex primary agent / GPT-5 系 / OpenAI
-- Phase C / C' ラウンド3 入力: §0 の evidence bundle と C' blind bundle。どちらも同一時点・同一10証拠で固定済みで、レビュー未着手。
+- Phase C / C' ラウンド3 入力: §0 の evidence bundle と C' blind bundle。どちらも同一時点・同一10証拠で固定済み。Phase C ラウンド3 は FAIL（§7）。C' は未実施のまま隔離。
 
 ## 7. Phase C
 
-- evidence bundle id / hash: 未実施
-- 構造適合: 未実施
-- findings: 未実施
-- テスト結果: 未実施
-- 未確認事項: 未実施
-- 担当・モデル: 未実施
+- evidence bundle id / hash: `S-4a-C-R3-be33e47-156cfd7-20260908T022708+0900` / `sha256:04c63079c8cf407b9c705a19799461b884e6085bb348f19174c8c9c10e4de984`
+- 入力照合: 凍結 HANDOFF / A0 / Phase B R4 の SHA-256 を再計算し manifest と一致。実装 head は `156cfd7`。本欄の追記は review-record であり implementation head を更新しない。
+- 構造適合: **PASS**（公開面・依存方向・Runtime/Editor・Game→Framework・asmdef/SceneState/LoadType 0。`WorldCompanionOwnershipProof` はラウンド2後の同一 transaction owner 内部分離で、Phase A 再開は不要。規模警報は分割不要）。
+- findings:
+  - `High / semantic / unique / accepted for FAIL`: Generate が予約 SceneResource を in-place 書き換えした直後、journal の resource fingerprint 更新前に crash すると、GUID 一致 + fingerprint 不一致を外部改変と誤判定し、WW-10 の reverse recovery が開始できない。Workspace は pending journal で永続 block され、公式 Rollback も完了できない。根拠と必要な修正は `docs/handoff/evidence/S-4A_PHASE_C_R3_REVIEW.txt`。凍結 571 の「手作業改変は fail-closed」とは別物で、transaction 自身の dependent mutation である。
+  - `Low / obvious`: `EnsureEventSystem` に計画外の `Application.isPlaying` guard。新しい owner/API ではない。
+- テスト結果: 凍結 XML を採用（再実行しない契約）。672 total / 672 passed / 0 failed / 0 skipped。contract-audit exit 0。Generate→fingerprint 更新の間に fault seam がなく、当該経路は未証明。
+- 未確認事項: Addressables full build（S-4b）、既開き同名 Scene の load 0（新規テストなし）、C'（本セッションでは実施しない）。
+- 判定: **FAIL**。Phase A は再開しない。凍結責務の内側で Phase B へ差し戻す。
+- 担当・モデル・ベンダー: Cursor Grok 4.6 / SpaceXAI+Cursor。Phase B（Codex / GPT-5 / OpenAI）と異なる新規セッション。C' 用の blind bundle と本所見は隔離した。
 
 ## 8. Phase C'
 
