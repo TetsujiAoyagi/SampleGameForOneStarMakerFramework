@@ -157,10 +157,13 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
                             || string.Equals(resource.Identity, journal.identity, StringComparison.Ordinal))
                         : state == WorldCompanionResourceCreationState.Initialized
                           && resource != null && string.Equals(resource.Identity, journal.identity, StringComparison.Ordinal);
-                    var payloadShape = resourcePayloads != null && (resourcePayloads.Count == 0
-                        || (resourcePayloads.Count == 1 && resourcePayloads[0].Reference != null
-                            && string.Equals(resourcePayloads[0].Variant, string.Empty, StringComparison.Ordinal)
-                            && string.Equals(resourcePayloads[0].Reference!.AssetGUID, journal.sceneGuid, StringComparison.Ordinal)));
+                    var payloadShape = state == WorldCompanionResourceCreationState.CreatingReserved
+                        ? resourcePayloads != null && resourcePayloads.Count == 0
+                        : state == WorldCompanionResourceCreationState.Initialized
+                          && resourcePayloads != null && (resourcePayloads.Count == 0
+                              || (resourcePayloads.Count == 1 && resourcePayloads[0].Reference != null
+                                  && string.Equals(resourcePayloads[0].Variant, string.Empty, StringComparison.Ordinal)
+                                  && string.Equals(resourcePayloads[0].Reference!.AssetGUID, journal.sceneGuid, StringComparison.Ordinal)));
                     if (resource == null || !identityShape
                         || resource.LoadType != LoadType.OnDemand || resource.StreamByDistance
                         || resource.Volume.center != Vector3.zero || resource.Volume.size != Vector3.zero

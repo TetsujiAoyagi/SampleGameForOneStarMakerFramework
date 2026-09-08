@@ -3,11 +3,15 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using NUnit.Framework;
+using OneStarMaker.Runtime.AssetDescriptions;
+using OneStarMaker.Runtime.SceneSystem;
 using SampleGame.DependOnAll.Editor.WorldAuthoring;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.AddressableAssets;
 using UnityEngine.SceneManagement;
 
 namespace OneStarMaker.Tests.Editor.WorldAuthoring
@@ -185,6 +189,37 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             WorldCompanionCreationTransaction.RecoverPending();
 
             scope.AssertRolledBack();
+        }
+
+        [Test]
+        public void ReservedResource_ExternallyGivenPayload_FailsClosed()
+        {
+            using var scope = new WorldCompanionTestScope();
+            WorldCompanionCreationTransaction.FaultInjector = point =>
+            {
+                if (point != WorldCompanionMutationPoint.ResourceReservedBeforeInitialization) return;
+                var resource = AssetDatabase.LoadAssetAtPath<SceneResource>(scope.Plan.ResourcePath)!;
+                var journal = WorldCompanionRecoveryJournal.Load();
+                var description = new SceneAssetDescription(
+                    scope.Plan.Identity,
+                    LoadType.OnDemand,
+                    new List<AssetPayload>
+                    {
+                        new(string.Empty, new AssetReference(journal.sceneGuid)),
+                    });
+                typeof(SceneResource).GetField("_sceneAssetDescription", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(resource, description);
+                EditorUtility.SetDirty(resource);
+                AssetDatabase.SaveAssets();
+                throw new InjectedWorldCompanionFault("external-reserved-payload");
+            };
+            using var transaction = new WorldCompanionCreationTransaction(scope.Plan);
+
+            var error = Assert.Throws<AggregateException>(() => transaction.Execute());
+
+            Assert.That(error!.InnerExceptions[1].Message, Does.Contain("Resource ownership mismatch"));
+            Assert.That(WorldCompanionRecoveryJournal.Exists, Is.True);
+            Assert.That(AssetDatabase.LoadMainAssetAtPath(scope.Plan.ResourcePath), Is.Not.Null);
         }
 
         [TestCaseSource(nameof(RecoveryBarriers))]
