@@ -162,3 +162,7 @@ Packages/packages-lock.json linguist-generated
 
 # Exceptions for .asset files such as lightning pre-baking
 LightingData.asset     binary
+
+# Phase C / C' の evidence は hash で固定する。checkout での改行変換は
+# manifest に記録した SHA-256 を壊すので、この配下だけ変換を禁止する。
+docs/handoff/evidence/**    -text

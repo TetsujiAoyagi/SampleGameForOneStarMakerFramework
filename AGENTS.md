@@ -31,6 +31,7 @@ Unity の正しいバージョンは `unity/ProjectSettings/ProjectVersion.txt` 
 - **テストで `Task.Delay` / `Thread.Sleep` を使わない。** 待機はシグナル等へのリアクティブな待機にするか、時間を注入して進める。
 - **参照 0 を削除理由にしない。** 未使用 API は意図的な先行宣言やフェーズ外の場合があり、置き換え残骸と確認できたものだけが削除候補になる。
 - **PR の base は `develop`。** `main` は既定ブランチとして使わない。
+- **`cursor-agent` CLI は Grok 系モデルでのみ使う。** 他系列（Claude / GPT / Gemini / Composer など）を `--model` に指定しない。既定モデルは変わりうるので、推論起動では必ず Grok 系を明示する。Grok が不適な用途では cursor-agent を使わず別の経路を取る。この契約を機械で強制する仕組みは、各自のエージェント設定（git 管理外）へ置く。
 
 ## 作業別の追加指示
 

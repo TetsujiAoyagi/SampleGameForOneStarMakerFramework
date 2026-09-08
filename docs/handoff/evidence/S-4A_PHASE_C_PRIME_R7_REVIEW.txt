@@ -1,0 +1,99 @@
+S-4a Phase C' Independent Blind Audit (Round 7)
+
+## Metadata
+
+| Field | Value |
+|---|---|
+| Implementation base | `be33e4716c70334100aada23c555ac75a0b0dbb7` |
+| Implementation head | `3b7b64fe4517d3737a89868f4672d2f0236010a0` |
+| Blind bundle id | `S-4a-Cprime-R7-blind-be33e47-3b7b64f-20260909T015050+0900` |
+| Auditor model / vendor | **Cursor Grok 4.5** / **SpaceXAI + Cursor** |
+| Verdict | **PASS** |
+
+## Input hash verification
+
+**Result: NOT RECOMPUTED (environment blocked).**
+
+This session could not execute shell/hash tooling: every Shell invocation was rejected by a broken pre-tool hook (`D:\.claude\hooks\block-non-grok-cursor-agent.py` missing). Therefore the ten declared SHA-256 digests were **not** independently recomputed.
+
+Mitigation used instead (does **not** replace digest verification):
+
+- Read the ten bundle-listed files from the exact paths in `S-4A_PHASE_C_PRIME_BLIND_BUNDLE_R7.txt`.
+- Cross-checked coherence: base/head SHAs, Phase B R8 narrative, STAT/NAME_STATUS (128 files, +6919/−1131), contract-audit exit 0, machine-checks, and test XML/log (681/681, exit 0).
+- Audited production/test sources corresponding to NAME_STATUS paths at the workspace tree for that head’s feature set.
+
+**Residual process risk:** digests were not cryptographically reconfirmed in this session. Phase D should treat digest re-hash as a mechanical follow-up if absolute bit-integrity proof is required.
+
+## Evidence summary (from frozen inputs only)
+
+- Phase A frozen HANDOFF + A0 input: runtime variant, companion policy, World Workspace transaction/recovery contracts fixed.
+- Phase B R8 at `3b7b64f`: CreatingReserved zero-payload stub ownership, graph exact-membership before destructive rollback, JSON escape of U+0000..U+001F in Player overlay; 681/681 tests claimed.
+- Contract audit R7: exit 0; 450 Unity C# / 52 changed; no machine-detectable contract violation.
+- Machine checks R7: no missing nullable / Unity `record` / test `Task.Delay`/`Thread.Sleep`; no asmdef/package/.unity/SceneState/LoadType diffs; Addressables full build / `unity test` / `unity run` not run.
+- Unity log R7: `Test run completed. Exiting with code 0`; invalid companion config error observed during InvalidCompanionConfigStartupTests as expected.
+- Test XML R7: `total="681" passed="681" failed="0" skipped="0"`.
+
+## Findings
+
+### F1 — Medium / semantic / unique  
+**Companion `AddScene` non-cancel failure does not unload; interacts with SceneDirector non-OCE leftover pairs**
+
+- **Where:** `SessionCellCompanionLoadDriver.TryAddAsync` (`SessionCellCompanionLoadDriver.cs` ~225–228) catches non-`OperationCanceledException` and only logs; no `UnloadScene`.
+- **Contract / evidence:** CP-10 covers post-successful-Add parent-race predicates (tested: leave residents, ABA/reload, cancel-after-add). `SceneDirector.Loading.cs` (~305–307) documents that **non-OCE** exception paths can leave pairs in `_currentScenes`. OCE cleanup exists; non-OCE does not mirror it for the companion driver.
+- **Why it matters:** A failed companion Add after SceneDirector registration can leave an orphan companion; next reconcile may treat identity as loaded/in-flight-cleared and skip repair. No focused test injects Add failure after partial registration.
+- **Not High:** HANDOFF CP-10 text is framed around Add **completion** then re-check; SceneDirector non-OCE leftover is largely pre-existing framework behavior that this slice’s driver inherits rather than a direct RV/CP/WW acceptance miss.
+
+### F2 — Low / semantic / unique  
+**Workspace open mid-failure leaves a partial Editor scene set**
+
+- **Where:** `WorldWorkspaceSceneOpener.Open` (~74–91): Single then Additive open; catch returns `false` without restoring prior setup.
+- **Contract:** WW-4 explicitly scopes open atomicity to preflight + save confirm, not full restore on Editor API failure. Documented residual, not a silent contract break.
+- **Severity Low** as accepted Phase A residual; still an operational foot-gun if Open fails after the first scene.
+
+### F3 — Low / semantic / unique  
+**`CreatingReserved` ownership allows empty **or** matching identity with zero payloads**
+
+- **Where:** `WorldCompanionOwnershipProof.VerifyExpectedShape` resource branch (~181–198).
+- **Evidence:** R8/B narrative and `CrashBetweenReservedResourceAndInitialization_RollsBackEmptyStub` / `ReservedResource_ExternallyGivenPayload_FailsClosed` prove zero-payload fail-closed and empty-stub recovery.
+- **Note:** Broader than “identity must be empty” during CreatingReserved (allows identity already set before `Initialized`). Still rejects non-zero payloads. Residual only if an external mutator sets identity + empty payloads and mimics the stub shape.
+
+No High findings. No machine-category failures observed in the frozen contract-audit / machine-checks artifacts.
+
+## Acceptance / structure spot-check (independent)
+
+| Area | Result |
+|---|---|
+| RV null/empty/Whitebox resolve + SceneDirector ctor null reject + `_sceneVariant` load forwarding | Covered by resolver/forwarding tests + code |
+| Companion strict parse, role matrix, structural factory, stable/dedupe/parent-race/ABA | Covered; factory uses `StreamByDistance` / Parent structure only |
+| Player overlay restore + control-char escape | `EscapeJsonString` uses `character < ' '` → `\uXXXX`; overlay test asserts `\0`/`\u0001` escaping |
+| Workspace exact payload (no runtime fallback) | `ResolveExactPayloadPath` ordinal exact match only |
+| Create/recovery ownership + graph membership + CreatingReserved stub | Transaction 390 lines; ownership helper; recovery tests include unowned-graph fail-closed and reserved-stub paths |
+| Production whitelist | `Production.asset`: empty + Full; no Whitebox; `_sceneVariant` empty. `WorldWhitebox.asset`: Whitebox + whitelist empty/Whitebox |
+| asmdef / SceneState / LoadType / Unity record / test sleeps | Frozen machine evidence: 0 |
+| New production size vs Phase A stop (>400 / +25%) | Transaction 390; ownership 266; VariantPlayerBuild 192; new production 1920 vs gate 2687.5 |
+
+## Residual risk
+
+1. SHA-256 of the ten blind inputs was not recomputed here (tooling blocked).
+2. F1: companion Add non-cancel failure vs SceneDirector leftover pairs — untested repair path.
+3. WW-4 open partial failure (F2) and Phase A journal/external-edit fail-closed cases remain operational residuals.
+4. Addressables **full** build and large scene-graph aggregate validation intentionally out of S-4a scope.
+5. Could not run `git rev-parse` to prove workspace HEAD equals `3b7b64f` (same shell block); audit relied on frozen diff/stat/name-status + matching source trees.
+
+## What could not be audited
+
+- Independent SHA-256 recomputation of the ten bundle files.
+- `git show` / `git diff be33e47..3b7b64f` live confirmation (shell blocked); used frozen `.diff` / STAT / NAME_STATUS instead.
+- Live Unity re-run (forbidden by protocol; used frozen XML/log).
+- Addressables full player build.
+- Bit-exact proof that the working tree has zero commits after `3b7b64f`.
+
+## Independence statement
+
+New Phase C' session. Did **not** read mutable HANDOFF, any `*_REVIEW.txt`, earlier R1–R6 bundles/reviews, `S-4A_PHASE_C_EVIDENCE_R7.txt`, PR comments, or Phase C conclusions. Inputs were the R7 blind bundle’s ten files, standing contracts (`AGENTS.md`, osm-workflow + references), and source corresponding to head `3b7b64f`. Auditor model/vendor (**Cursor Grok 4.5 / SpaceXAI + Cursor**) differs from Phase B (OpenAI Codex / GPT-5 family per B R8) and Phase C operator (OpenAI Codex / GPT-5.6 Terra per contract-audit artifact).
+
+## Verdict
+
+**PASS**
+
+No High contract/structure blockers found against the frozen Phase A acceptance surface. Medium F1 is a real untested failure-path gap and should be tracked, but does not by itself invalidate the R7 evidence bundle’s acceptance for S-4a at `be33e47`…`3b7b64f`.

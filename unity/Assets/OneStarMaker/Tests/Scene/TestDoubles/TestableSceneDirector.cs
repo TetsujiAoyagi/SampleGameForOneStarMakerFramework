@@ -54,8 +54,9 @@ namespace OneStarMaker.Tests.SceneSystem.TestDoubles
             UICommon uiCommon,
             SceneResourceMap sceneResourceMap,
             IAssetManagement assetManagement,
-            ILoadingDisplay? loadingDisplay = null)
-            : base(sceneFactory, uiCommon, sceneResourceMap, loadingDisplay ?? new NullLoadingDisplay(), assetManagement)
+            ILoadingDisplay? loadingDisplay = null,
+            string sceneVariant = "")
+            : base(sceneFactory, uiCommon, sceneResourceMap, loadingDisplay ?? new NullLoadingDisplay(), assetManagement, sceneVariant)
         {
         }
 

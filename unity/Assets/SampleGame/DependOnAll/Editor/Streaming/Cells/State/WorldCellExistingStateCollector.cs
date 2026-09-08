@@ -5,6 +5,7 @@ using System.IO;
 using SampleGame.DependOnAll.Editor.Streaming.Cells.Generation;
 using SampleGame.DependOnAll.Editor.Streaming.Cells.Planning;
 using SampleGame.InGame.World;
+using SampleGame.DependOnAll.Editor.WorldAuthoring;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using OneStarMaker.Runtime.SceneSystem;
@@ -95,7 +96,7 @@ namespace SampleGame.DependOnAll.Editor.Streaming.Cells.State
                             cellResource, resourcesByIdentity, environmentIdentity);
                         if (environmentResource != null
                             && TryGetScenePath(environmentResource, folder, out var environmentScenePath)
-                            && SceneHasAuthoredRoot(environmentScenePath, EnvironmentScene.AuthoredRootName))
+                            && SceneHasAuthoredRoot(environmentScenePath, LegacyWorldAuthoringNames.EnvironmentRootName))
                         {
                             hasEnvironmentAuthoredRoot = true;
                         }

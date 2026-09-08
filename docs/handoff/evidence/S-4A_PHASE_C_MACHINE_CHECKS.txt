@@ -1,0 +1,55 @@
+S-4a Phase C machine checks
+===========================
+
+Generated at: 2026-09-07T06:34:09.6820663+09:00
+Implementation base: be33e4716c70334100aada23c555ac75a0b0dbb7
+Implementation head: fcb7e2dfe4de53c22906f38231856a34b3a34397
+
+1. Complete diff identity
+-------------------------
+
+- git diff --shortstat be33e47 fcb7e2d: 103 files changed, 4708 insertions, 1133 deletions.
+- Complete binary-capable diff SHA256: d11b6fac491780e81f43c8bc3db9ad8e874518f17ca84ff47421b9448ef334db.
+- Stat SHA256: cc2f49eefa48a9b3e82cf2419308597020bf8776b57d2b1a78e7c2c77eea4c91.
+- Name-status SHA256: 586fff02bac32578a495884fc0bd764b6f3331f2141f7d2a4acfa00aaab2338e.
+
+2. Test result
+--------------
+
+- Command: pwsh tools/run-tests.ps1
+- Unity: D:\UnityEditor\6000.5.0f1\Editor\Unity.exe, derived from ProjectVersion.txt.
+- Result: exit 0; total 662; passed 662; failed 0; skipped 0.
+- XML SHA256: 2768f73796b4693189d9f5317698efccbf5b8d1f7ae43f2d8fb8ee7cef2023e7.
+- Raw Unity log SHA256: 6f253b381be0f778c89c0d84a55ba547c363fb1804d5bf67e3969e0b9f76a77a.
+- unity test / unity run: not executed; prohibited by repository contract.
+- Addressables full build: not executed; frozen HANDOFF assigns it to S-4b and later.
+
+3. Contract and forbidden-scope checks
+--------------------------------------
+
+- contract-audit: exit 0; 449 Unity C# files; 51 changed C# files; no machine-detectable contract violation.
+- Changed Unity C# without #nullable enable: 0.
+- Test Task.Delay / Thread.Sleep matches: 0.
+- Unity record declarations added: 0.
+- asmdef, Packages manifest/lock, and .unity diff count: 0.
+- SceneState definition diff: 0. LoadType definition diff: 0.
+- Runtime matches for EnvironmentIdentity.TryFromCellId, CellIdentity.TryParse, and ComputeBounds in OneStarMaker Runtime / SampleGame InGame: 0.
+- Added OneStarMaker Runtime lines containing Spring/Summer/Autumn/Winter/Environment/Lighting/VFX/Events: 0.
+- Temporary __WorldCompanionTests_* / __WorldWorkspaceOpenTests_* assets after final run: 0.
+- Worktree immediately after final test run: clean at implementation head fcb7e2d.
+
+4. Size and line-count gates
+----------------------------
+
+- Unity production C# diff: 1909 additions, 861 deletions.
+- New production C#: 19 files / 1651 lines; frozen estimate gate is 2687.5 lines.
+- Largest new production file: WorldCompanionCreationTransaction.cs, exactly 400 lines. New files over 400 lines: 0.
+- Largest existing-file growth remains BuildVariantProfile.cs from 88 to 115 lines (+30.7%); existing files over +50%: 0.
+- Existing files above 500 lines remain only the frozen narrow-edit exceptions.
+
+5. Diff-check classification
+----------------------------
+
+- git diff --check is nonzero only for the frozen Phase A snapshot's final blank line and Unity Editor-generated empty serialized scalar/directory-meta trailing spaces.
+- Reported files: S-4A_PHASE_A_INPUT.txt; Default.asset; Production.asset; WorldWhitebox.asset; WorldWhitebox.asset.meta; Tests/Bootstrap.meta; Tests/Editor/WorldAuthoring.meta; SampleGame/DependOnAll/Editor/WorldAuthoring.meta; SampleGame/InGame/Properties.meta.
+- No C# file is reported. Scene/asset YAML and .meta files were not hand-normalized.

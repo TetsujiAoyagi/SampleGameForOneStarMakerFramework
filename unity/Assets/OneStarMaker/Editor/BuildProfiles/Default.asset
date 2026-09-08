@@ -14,9 +14,25 @@ MonoBehaviour:
   m_EditorClassIdentifier: OneStarMaker.Editor::OneStarMaker.Editor.Build.BuildVariantProfile
   _variantWhitelist:
   - 
+  _sceneVariant: 
   _sceneResourceMap: {fileID: 11400000, guid: aacc051859bd53e4db09d89bd703d7ae, type: 2}
   _alwaysIncludedAssets:
   - m_AssetGUID: aacc051859bd53e4db09d89bd703d7ae
+    m_SubObjectName: 
+    m_SubObjectType: 
+    m_SubObjectGUID: 
+    m_EditorAssetChanged: 0
   - m_AssetGUID: bd51734fab3deb24b9fbd444046213ac
+    m_SubObjectName: 
+    m_SubObjectType: 
+    m_SubObjectGUID: 
+    m_EditorAssetChanged: 0
   - m_AssetGUID: 944aaf00c152586428ee2f7f62f7d5b2
+    m_SubObjectName: 
+    m_SubObjectType: 
+    m_SubObjectGUID: 
+    m_EditorAssetChanged: 0
   _targetAddressablesGroupName: Default Local Group
+  _remoteCatalogUrl: 
+  _firstSceneIdentify: 
+  _remoteGroupName: 

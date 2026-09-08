@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using OneStarMaker.Runtime.SceneSystem;
 using SampleGame.InGame.World;
+using SampleGame.DependOnAll.Editor.WorldAuthoring;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -63,7 +64,7 @@ namespace SampleGame.DependOnAll.Editor
                 {
                     var coordinate = TargetCells[i];
                     var cellId = CellIdentity.Format(coordinate.x, coordinate.y);
-                    var envId = EnvironmentIdentity.Format(coordinate.x, coordinate.y);
+                    var envId = LegacyWorldAuthoringNames.FormatEnvironment(coordinate.x, coordinate.y);
                     var folder = $"{CellsRootFolder}/{cellId}";
 
                     Process(
@@ -74,7 +75,7 @@ namespace SampleGame.DependOnAll.Editor
                         missing);
                     Process(
                         $"{folder}/{envId}.unity",
-                        EnvironmentScene.AuthoredRootName,
+                        LegacyWorldAuthoringNames.EnvironmentRootName,
                         ProbePrefix + envId,
                         stamp,
                         missing);

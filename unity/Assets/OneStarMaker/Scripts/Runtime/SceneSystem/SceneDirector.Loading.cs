@@ -631,7 +631,7 @@ namespace OneStarMaker.Runtime.SceneSystem
                 var sceneHandle = await _assetManagement.LoadSceneAsync(
                     sceneIdentify,
                     sceneAssetDescription,
-                    string.Empty,
+                    _sceneVariant,
                     new SceneLoadOptions(LoadSceneMode.Additive, activateOnLoad: true, priority: priority),
                     CancellationToken.None);
                 return (true, sceneHandle.GetRootGameObjects());

@@ -87,6 +87,15 @@ namespace OneStarMaker.Editor.Build
             }
 
             DrawReadOnlyProfileDetails(activeProfile);
+
+            try
+            {
+                activeProfile.ThrowIfSceneVariantInvalid();
+            }
+            catch (System.InvalidOperationException ex)
+            {
+                EditorGUILayout.HelpBox(ex.Message, MessageType.Error);
+            }
         }
 
         /// <summary>
@@ -130,6 +139,10 @@ namespace OneStarMaker.Editor.Build
                 var whitelist = profile.VariantWhitelist
                     .Select(variant => string.IsNullOrEmpty(variant) ? "(default)" : variant);
                 EditorGUILayout.TextField("Variant Whitelist", string.Join(", ", whitelist));
+
+                EditorGUILayout.TextField(
+                    "Scene Variant",
+                    string.IsNullOrEmpty(profile.SceneVariant) ? "(default)" : profile.SceneVariant);
 
                 var remoteCatalogUrl = string.IsNullOrEmpty(profile.RemoteCatalogUrl)
                     ? "(none / local only)"

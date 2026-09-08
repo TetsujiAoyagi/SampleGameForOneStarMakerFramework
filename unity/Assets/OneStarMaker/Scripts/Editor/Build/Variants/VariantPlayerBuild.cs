@@ -2,235 +2,191 @@
 
 using System;
 using System.IO;
+using System.Text;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 
 namespace OneStarMaker.Editor.Build
 {
-    /// <summary>
-    /// アクティブな <see cref="BuildVariantProfile"/> の構成でプレイヤービルドを行う Editor メニュー。
-    /// </summary>
-    /// <remarks>
-    /// Build Settings の Scene 0 (SampleScene) は差し替えず、
-    /// 共有の app-config.json に論理初回シーン識別子を一時書き込みしてからビルドし、
-    /// 完了後 (成否問わず) 必ず元内容へ復元する。
-    /// Addressables の同梱内容は <see cref="VariantFilteringBuildScript"/> で別途ビルドすること。
-    /// </remarks>
+    internal interface IVariantPlayerBuildBackend
+    {
+        void Build();
+    }
+
+    /// <summary>active profile の JSON overlay を build 中だけ適用する。</summary>
     public static class VariantPlayerBuild
     {
-        /// <summary>論理初回シーン差し替え用の app-config.json パス (Assets 相対)。</summary>
-        private const string AppConfigAssetPath = "Assets/SampleGame/Config/app-config.json";
+        internal const string AppConfigAssetPath = "Assets/SampleGame/Config/app-config.json";
+        internal const string FirstSceneIdentifyConfigKey = "assetCheckout:firstSceneIdentify";
+        internal const string SceneVariantConfigKey = "assets:sceneVariant";
 
-        /// <summary>app-config.json 内の論理初回シーン識別子キー。</summary>
-        private const string FirstSceneIdentifyConfigKey = "assetCheckout:firstSceneIdentify";
-
-        /// <summary>プレイヤービルド出力先ディレクトリ (プロジェクトルート相対)。</summary>
-        private const string OutputDirectory = "Builds/ActiveVariant";
-
-        /// <summary>Windows 向け実行ファイル名。</summary>
-        private const string WindowsExecutableName = "SampleGame.exe";
-
-        /// <summary>Windows 以外向け実行ファイル名 (拡張子なし)。</summary>
-        private const string GenericExecutableName = "SampleGame";
-
-        /// <summary>Build Settings に登録するダミー起動シーン (Scene 0)。</summary>
-        private const string BootstrapScenePath = "Assets/Scenes/SampleScene.unity";
-
-        /// <summary>
-        /// アクティブ Variant プロファイルの論理初回シーン設定を反映してプレイヤービルドを実行する。
-        /// </summary>
         [MenuItem("OneStarMaker/Build/Build Player (Active Variant)")]
         public static void BuildActiveVariant()
         {
             var profile = DeveloperVariantSettings.instance.GetActiveProfile();
             if (profile == null)
             {
-                Debug.LogError(
-                    "[VariantPlayerBuild] Project Settings > OneStarMaker > Variant でプロファイルを選択してください。");
+                Debug.LogError("[VariantPlayerBuild] active BuildVariantProfile が未選択です。");
                 return;
             }
 
-            var configFullPath = GetProjectRelativeFullPath(AppConfigAssetPath);
-            string originalJson;
             try
             {
-                originalJson = File.ReadAllText(configFullPath);
+                profile.ThrowIfSceneVariantInvalid();
+                BuildWithOverlay(profile, GetFullPath(AppConfigAssetPath), new UnityPlayerBuildBackend());
             }
             catch (Exception ex)
             {
-                Debug.LogError(
-                    $"[VariantPlayerBuild] app-config.json の読み込みに失敗したためビルドを中止します: {ex.Message}");
-                return;
+                Debug.LogError($"[VariantPlayerBuild] build failed: {ex}");
             }
+        }
 
-            if (!string.IsNullOrEmpty(profile.FirstSceneIdentify))
-            {
-                try
-                {
-                    var modifiedJson = InsertFirstSceneIdentify(originalJson, profile.FirstSceneIdentify);
-                    File.WriteAllText(configFullPath, modifiedJson);
-                    AssetDatabase.ImportAsset(AppConfigAssetPath);
-                }
-                catch (Exception ex)
-                {
-                    Debug.LogError(
-                        $"[VariantPlayerBuild] app-config.json への firstSceneIdentify 書き込みに失敗したためビルドを中止します: {ex.Message}");
-                    RestoreAppConfig(configFullPath, originalJson);
-                    return;
-                }
-            }
+        internal static void BuildWithOverlay(BuildVariantProfile profile, string configFullPath, IVariantPlayerBuildBackend backend)
+        {
+            if (profile == null) throw new ArgumentNullException(nameof(profile));
+            if (configFullPath == null) throw new ArgumentNullException(nameof(configFullPath));
+            if (backend == null) throw new ArgumentNullException(nameof(backend));
 
-            var firstSceneLabel = string.IsNullOrEmpty(profile.FirstSceneIdentify)
-                ? "Title(既定)"
-                : profile.FirstSceneIdentify;
-            Debug.Log(
-                $"[VariantPlayerBuild] 初回シーン: {firstSceneLabel}。" +
-                " Addressables は別途 VariantFilteringBuildScript でビルドすること。");
-
+            profile.ThrowIfSceneVariantInvalid();
+            var originalBytes = File.ReadAllBytes(configFullPath);
             try
             {
-                ExecutePlayerBuild();
+                var json = DecodeUtf8(originalBytes);
+                json = UpsertTopLevelString(json, FirstSceneIdentifyConfigKey, profile.FirstSceneIdentify);
+                json = UpsertTopLevelString(json, SceneVariantConfigKey, profile.SceneVariant);
+                File.WriteAllText(configFullPath, json, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+                AssetDatabase.ImportAsset(AppConfigAssetPath);
+                backend.Build();
             }
             finally
             {
-                RestoreAppConfig(configFullPath, originalJson);
-            }
-        }
-
-        /// <summary>
-        /// app-config.json の JSON テキストに論理初回シーン識別子キーを挿入する。
-        /// </summary>
-        /// <param name="originalJson">元の app-config.json 全文。</param>
-        /// <param name="sceneIdentify">挿入するシーン識別子。</param>
-        /// <returns>キーを追加/更新した JSON 文字列。</returns>
-        /// <exception cref="ArgumentException">JSON 形式が不正な場合。</exception>
-        private static string InsertFirstSceneIdentify(string originalJson, string sceneIdentify)
-        {
-            if (string.IsNullOrEmpty(originalJson))
-            {
-                throw new ArgumentException("app-config.json が空です。", nameof(originalJson));
-            }
-
-            if (originalJson.Contains($"\"{FirstSceneIdentifyConfigKey}\"", StringComparison.Ordinal))
-            {
-                Debug.Log(
-                    $"[VariantPlayerBuild] app-config.json に {FirstSceneIdentifyConfigKey} が既に存在するため、そのまま使用します。");
-                return originalJson;
-            }
-
-            var openBraceIndex = originalJson.IndexOf('{');
-            if (openBraceIndex < 0)
-            {
-                throw new ArgumentException("app-config.json にオブジェクト開始 '{' が見つかりません。", nameof(originalJson));
-            }
-
-            var closeBraceIndex = originalJson.LastIndexOf('}');
-            if (closeBraceIndex < 0 || closeBraceIndex <= openBraceIndex)
-            {
-                throw new ArgumentException("app-config.json にオブジェクト終了 '}' が見つかりません。", nameof(originalJson));
-            }
-
-            var innerContent = originalJson.Substring(openBraceIndex + 1, closeBraceIndex - openBraceIndex - 1);
-            var isEmptyObject = string.IsNullOrWhiteSpace(innerContent);
-
-            var escapedIdentify = EscapeJsonString(sceneIdentify);
-            var entry = isEmptyObject
-                ? $"\n  \"{FirstSceneIdentifyConfigKey}\": \"{escapedIdentify}\"\n"
-                : $",\n  \"{FirstSceneIdentifyConfigKey}\": \"{escapedIdentify}\"\n";
-
-            return originalJson.Substring(0, closeBraceIndex) + entry + originalJson.Substring(closeBraceIndex);
-        }
-
-        /// <summary>
-        /// プレイヤービルドを実行し、結果をログ出力する。
-        /// </summary>
-        private static void ExecutePlayerBuild()
-        {
-            var outputDir = Path.Combine(Path.GetDirectoryName(Application.dataPath)!, OutputDirectory);
-            Directory.CreateDirectory(outputDir);
-
-            var target = EditorUserBuildSettings.activeBuildTarget;
-            var exeName = IsWindowsBuildTarget(target) ? WindowsExecutableName : GenericExecutableName;
-            var locationPathName = Path.Combine(outputDir, exeName);
-
-            var options = new BuildPlayerOptions
-            {
-                scenes = new[] { BootstrapScenePath },
-                locationPathName = locationPathName,
-                target = target,
-                targetGroup = BuildPipeline.GetBuildTargetGroup(target),
-                options = BuildOptions.None,
-            };
-
-            var report = BuildPipeline.BuildPlayer(options);
-            if (report.summary.result == BuildResult.Succeeded)
-            {
-                Debug.Log(
-                    $"[VariantPlayerBuild] プレイヤービルド成功: {locationPathName} " +
-                    $"(出力サイズ: {report.summary.totalSize} bytes)");
-            }
-            else
-            {
-                Debug.LogError(
-                    $"[VariantPlayerBuild] プレイヤービルド失敗: {report.summary.result} " +
-                    $"(エラー数: {report.summary.totalErrors})");
-            }
-        }
-
-        /// <summary>
-        /// app-config.json を元の内容へ復元し、AssetDatabase へ反映する。
-        /// </summary>
-        /// <param name="configFullPath">app-config.json のフルパス。</param>
-        /// <param name="originalJson">退避しておいた元内容。</param>
-        private static void RestoreAppConfig(string configFullPath, string originalJson)
-        {
-            try
-            {
-                File.WriteAllText(configFullPath, originalJson);
+                File.WriteAllBytes(configFullPath, originalBytes);
                 AssetDatabase.ImportAsset(AppConfigAssetPath);
             }
-            catch (Exception ex)
-            {
-                Debug.LogError(
-                    $"[VariantPlayerBuild] app-config.json の復元に失敗しました。手動で内容を確認してください: {ex.Message}");
-            }
         }
 
-        /// <summary>
-        /// Assets 相対パスをプロジェクトルート基準のフルパスへ変換する。
-        /// </summary>
-        /// <param name="assetPath">Assets 配下の相対パス。</param>
-        /// <returns>フルパス。</returns>
-        private static string GetProjectRelativeFullPath(string assetPath)
+        internal static string UpsertTopLevelString(string json, string key, string value)
         {
-            var projectRoot = Path.GetDirectoryName(Application.dataPath)!;
-            return Path.Combine(projectRoot, assetPath);
+            if (string.IsNullOrWhiteSpace(json)) throw new ArgumentException("JSON is empty.", nameof(json));
+            var close = FindRootObjectEnd(json);
+            var valueRange = FindTopLevelStringValue(json, key, close);
+            var escaped = EscapeJsonString(value);
+            if (valueRange.HasValue)
+            {
+                return json.Substring(0, valueRange.Value.Start) + escaped + json.Substring(valueRange.Value.End);
+            }
+
+            var open = json.IndexOf('{');
+            var body = json.Substring(open + 1, close - open - 1);
+            var separator = string.IsNullOrWhiteSpace(body) ? string.Empty : ",";
+            var entry = $"{separator}\n    \"{EscapeJsonString(key)}\" : \"{escaped}\"\n";
+            return json.Substring(0, close) + entry + json.Substring(close);
         }
 
-        /// <summary>
-        /// JSON 文字列リテラル用に特殊文字をエスケープする。
-        /// </summary>
-        /// <param name="value">エスケープ対象文字列。</param>
-        /// <returns>エスケープ済み文字列。</returns>
+        private static (int Start, int End)? FindTopLevelStringValue(string json, string key, int rootEnd)
+        {
+            var depth = 0;
+            for (var i = 0; i < rootEnd; i++)
+            {
+                if (json[i] == '{') { depth++; continue; }
+                if (json[i] == '}') { depth--; continue; }
+                if (json[i] != '"') continue;
+                var tokenStart = i + 1;
+                var tokenEnd = SkipString(json, i);
+                if (depth == 1 && string.Equals(UnescapeSimple(json.Substring(tokenStart, tokenEnd - tokenStart)), key, StringComparison.Ordinal))
+                {
+                    var cursor = tokenEnd + 1;
+                    while (cursor < rootEnd && char.IsWhiteSpace(json[cursor])) cursor++;
+                    if (cursor >= rootEnd || json[cursor] != ':') { i = tokenEnd; continue; }
+                    cursor++;
+                    while (cursor < rootEnd && char.IsWhiteSpace(json[cursor])) cursor++;
+                    if (cursor >= rootEnd || json[cursor] != '"') throw new ArgumentException($"Top-level property '{key}' is not a string.", nameof(json));
+                    var valueEnd = SkipString(json, cursor);
+                    return (cursor + 1, valueEnd);
+                }
+                i = tokenEnd;
+            }
+            return null;
+        }
+
+        private static int FindRootObjectEnd(string json)
+        {
+            var open = json.IndexOf('{');
+            if (open < 0) throw new ArgumentException("Root object is missing.", nameof(json));
+            var depth = 0;
+            for (var i = open; i < json.Length; i++)
+            {
+                if (json[i] == '"') { i = SkipString(json, i); continue; }
+                if (json[i] == '{') depth++;
+                else if (json[i] == '}' && --depth == 0) return i;
+            }
+            throw new ArgumentException("Root object is incomplete.", nameof(json));
+        }
+
+        private static int SkipString(string text, int quote)
+        {
+            for (var i = quote + 1; i < text.Length; i++)
+            {
+                if (text[i] == '\\') { i++; continue; }
+                if (text[i] == '"') return i;
+            }
+            throw new ArgumentException("JSON string is incomplete.", nameof(text));
+        }
+
+        private static string DecodeUtf8(byte[] bytes)
+        {
+            var offset = bytes.Length >= 3 && bytes[0] == 0xef && bytes[1] == 0xbb && bytes[2] == 0xbf ? 3 : 0;
+            return new UTF8Encoding(false, true).GetString(bytes, offset, bytes.Length - offset);
+        }
+
         private static string EscapeJsonString(string value)
         {
-            return value
-                .Replace("\\", "\\\\")
-                .Replace("\"", "\\\"")
-                .Replace("\n", "\\n")
-                .Replace("\r", "\\r")
-                .Replace("\t", "\\t");
+            var escaped = new StringBuilder(value.Length);
+            foreach (var character in value)
+            {
+                switch (character)
+                {
+                    case '\\': escaped.Append("\\\\"); break;
+                    case '"': escaped.Append("\\\""); break;
+                    case '\b': escaped.Append("\\b"); break;
+                    case '\f': escaped.Append("\\f"); break;
+                    case '\n': escaped.Append("\\n"); break;
+                    case '\r': escaped.Append("\\r"); break;
+                    case '\t': escaped.Append("\\t"); break;
+                    default:
+                        if (character < ' ') escaped.Append("\\u").Append(((int)character).ToString("x4"));
+                        else escaped.Append(character);
+                        break;
+                }
+            }
+            return escaped.ToString();
         }
 
-        /// <summary>
-        /// 指定 BuildTarget が Windows スタンドアロン向けかどうかを返す。
-        /// </summary>
-        /// <param name="target">判定対象。</param>
-        /// <returns>Windows 向けの場合 true。</returns>
-        private static bool IsWindowsBuildTarget(BuildTarget target)
+        private static string UnescapeSimple(string value)
+            => value.Replace("\\\"", "\"").Replace("\\\\", "\\");
+
+        private static string GetFullPath(string assetPath)
+            => Path.Combine(Path.GetDirectoryName(Application.dataPath)!, assetPath);
+
+        private sealed class UnityPlayerBuildBackend : IVariantPlayerBuildBackend
         {
-            return target is BuildTarget.StandaloneWindows or BuildTarget.StandaloneWindows64;
+            public void Build()
+            {
+                var output = Path.Combine(Path.GetDirectoryName(Application.dataPath)!, "Builds/ActiveVariant");
+                Directory.CreateDirectory(output);
+                var target = EditorUserBuildSettings.activeBuildTarget;
+                var executable = target is BuildTarget.StandaloneWindows or BuildTarget.StandaloneWindows64 ? "SampleGame.exe" : "SampleGame";
+                var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+                {
+                    scenes = new[] { "Assets/Scenes/SampleScene.unity" },
+                    locationPathName = Path.Combine(output, executable),
+                    target = target,
+                    targetGroup = BuildPipeline.GetBuildTargetGroup(target),
+                    options = BuildOptions.None,
+                });
+                if (report.summary.result != BuildResult.Succeeded) throw new InvalidOperationException($"Build result: {report.summary.result}");
+            }
         }
     }
 }

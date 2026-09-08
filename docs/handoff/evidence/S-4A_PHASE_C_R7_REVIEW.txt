@@ -1,0 +1,88 @@
+S-4a Phase C review (round 7)
+
+- **implementation base:** `be33e4716c70334100aada23c555ac75a0b0dbb7`
+- **implementation head:** `3b7b64fe4517d3737a89868f4672d2f0236010a0`
+- **evidence id:** `S-4a-C-R7-be33e47-3b7b64f-20260909T015050+0900`
+- **reviewer model / vendor:** Cursor Grok 4.6 / SpaceXAI and Cursor
+- **inputs:** the ten R7 manifest files plus source at the frozen head. Mutable HANDOFF, earlier reviews, and C' output were not used as review authorities.
+
+## Evidence integrity
+
+Independent SHA-256 recomputation of the ten files was blocked in this session (local shell hook). File identities and contents were read from the listed paths. One cross-check holds: frozen Phase A snapshot `S-4A_FROZEN_HANDOFF_53a9d97.md` records Phase A input hash `sha256:15b2facfaabec89933ad73a5af92b48cfc78398f6e649e59bfad5af1339a40ce`, which matches the R7 manifest digest for `S-4A_PHASE_A_INPUT.txt`. The other nine digests were not independently recomputed here.
+
+## 1. Structure vs frozen Phase A snapshot
+
+**Responsibility-map conformance: PASS**
+
+Game → Framework, Runtime / Editor, folder, namespace, and asmdef placement match the frozen map. Framework public additions are the frozen three: `SceneDirector(..., string sceneVariant = "")`, `protected virtual string ResolveSceneVariant()`, `SceneVariantRuntimeBridge.EditorSceneVariantResolver`, and `BuildVariantProfile.SceneVariant`. SampleGame public surface is `CellCompanionSet` and `CellCompanionSetParser.Parse`; role/inclusion/classifier/driver seams are `internal` with `InternalsVisibleTo` as planned. No new Framework SceneResource field, LoadType, SceneState, asmdef reference, or package. Companion loading stays on `IAssetManagement` / `SceneDirector` / `AssetOwner.Scene`; Workspace has no runtime asset owner.
+
+Owners and lifetimes match: startup variant is one-shot into `SceneDirector`; companion set is constructor-injected App → factory → session → driver; Workspace selection is EditorWindow-instance only; pending journal is Library-scoped, fail-closed, single-pending.
+
+Testability matches the map: resolver/policy/classifier/rules/open-plan are Unity-light or Unity-free; driver races use `UniTaskCompletionSource`; transaction/recovery use Editor temp graphs and fault injectors. Machine checks record no missing `#nullable enable`, no Unity `record`, no test `Task.Delay` / `Thread.Sleep`.
+
+`WorldCompanionOwnershipProof.cs` (266 lines) is not a named Phase A production file. It is an internal extraction of the planned WW-9/WW-10 ownership-proof duty from `WorldCompanionCreationTransaction`, not a new public API, owner, lifetime, or dependency direction. That is a justified split (proof vs mutation), not a map change.
+
+### Size-alarm judgments
+
+| Location | Alarm | Judgment |
+|---|---|---|
+| `AbstractApplicationInitializer` (~816 + wiring) | 500-line existing | **Non-split valid.** Only `ResolveSceneVariant` + constructor forwarding (VT-5). |
+| `SceneDirector.Loading.cs` | 500-line existing | **Non-split valid.** One substitution of `string.Empty` → `_sceneVariant`. |
+| `WorldCellStreamingSliceCreator` | 500-line existing | **Non-split valid.** Legacy name swap only. |
+| `WorldCompanionCreationTransaction.cs` (390) | approaching 400 production gate | **Non-split valid.** Forward/rollback remain one graph invariant. Under 400. |
+| `WorldCompanionOwnershipProof.cs` (266) | new file | **Split done.** Same planned ownership invariant; no Phase A reopen. |
+| `VariantPlayerBuild.cs` (192) | rewritten overlay type | **Non-split valid.** Same overlay + `finally` restore owner. |
+| Transaction/recovery test fixtures (421 / 440) | test size vs 250/500 hints | **Non-split valid.** One Editor invariant family each; both under 500. |
+
+New production C# 20 files / 1920 lines is under the frozen +25% gate (2687.5). Production C# +2196/-859. No new production file over 400. Largest existing-file growth is not a 50% production-policy split trigger on the overlay/profile types reviewed.
+
+Deleted `EnvironmentIdentity` / `EnvironmentScene` are replacement remnants, with Editor-only `LegacyWorldAuthoringNames` as the freeze specified.
+
+## 2. Acceptance, failure paths, rollback/retry, ownership, variant wiring
+
+Runtime variant (RV-1…RV-10) is implemented: null constructor rejection; empty as legal Production; `_sceneVariant` forwarded to the single Addressables `LoadSceneAsync`; logical-node skip unchanged; `FindPayload` / `IAssetManagement` untouched; JSON < env < CLI unchanged; Editor `null` vs `""` distinguished; `#if UNITY_EDITOR` keeps Player off the bridge; one-shot resolve before `SceneDirector`; WorldWhitebox whitelist `""` + `Whitebox` with Scene Variant `Whitebox`; Production empty variant and no Whitebox; Default empty; overlay upsert + byte restore in `finally`; whitelist mismatch fail-closed in settings UI, `GetActiveSceneVariant`, and Player build. Overlay escaping covers U+0000..U+001F via `character < ' '` plus the named JSON escapes.
+
+Companion / identity (CP-1…CP-12): missing key → Full; exact ordinal tokens; inclusion matrix; parse in `CreateSceneFactory` before director construction; Cell/child classification is `StreamByDistance` / `Parent.StreamByDistance` with Unity `== null`; `CellScene` refuses non-streaming and exposes `SceneResource.Volume`; factory ignores role names; classifier uses token `length-3` without integer parse; driver enumerates parent `Children` only; stable / in-flight / duplicate-role / unknown-role / parent-race / ABA `ReferenceEquals` / session cancel match CP-9/CP-10; tint removed from `DemoCellScene`.
+
+Workspace (WW-1…WW-13): window fields only; frozen open order; exact payload (no runtime fallback); preflight + save confirm; create limited to optional Lighting/VFX/Events; planned paths/values; project-wide SceneResource identity 0; standard `Generate`; journal + GUID/fingerprint checkpoints; recovery barriers in WW-10 order; temp scene owned then closed; no journal-discard command; Editor APIs/`SerializedObject` only.
+
+R8 corrections are present in production: CreatingReserved is a zero-payload stub (`CreateReservedResource` + `VerifyExpectedShape`); pending node must belong only to the recorded graph with exact membership before destructive rollback (`VerifyGraphMembership`); Player overlay JSON-escapes all C0 controls.
+
+## 3. Test evidence vs those paths
+
+Frozen XML `S-4A_PHASE_C_R7_TEST_RESULTS.xml`:
+
+- `test-run` **result="Passed"**
+- **total=681 / passed=681 / failed=0 / inconclusive=0 / skipped=0**
+- `testcasecount="681"`
+- start `2026-09-08 16:43:59Z`, end `2026-09-08 16:49:37Z`
+- EditMode; `OneStarMaker.Tests.dll` 515 passed; remainder Editor fixtures passed
+
+Frozen Unity log: `Test run completed. Exiting with code 0 (Ok).` No 0xC0000005 footer. Contract audit: exit 0; 450 Unity C# / 52 changed; no machine-detectable contract violation. Machine checks: 128 files, +6919/-1131; nullable/record/sleep 0; asmdef/package/.unity/SceneState/LoadType diffs 0; `unity test` / `unity run` / Addressables full build not run.
+
+Slice fixtures in that XML (all Passed): InvalidCompanionConfigStartupTests 1; SceneVariantResolverTests 7; SceneVariantForwardingTests 5; CellCompanionPolicyTests 40; SessionCellCompanionLoadDriverTests 11; CellSceneTests 8; BuildVariantProfileSceneVariantTests 4; VariantPlayerBuildConfigOverlayTests 4; WorldCompanionCreationTransactionTests 20; WorldCompanionRecoveryTests 32; WorldWorkspaceSelectionTests 20; GameSceneFactoryTests 11 (in `GameSceneLoggingTests.cs`).
+
+These cover VT-1…VT-3, VT-6 and the R8 boundaries (`Upsert_EscapesEveryJsonControlCharacter`, `CrashBetweenReservedResourceAndInitialization_RollsBackEmptyStub`, `ReservedResource_ExternallyGivenPayload_FailsClosed`, `PendingNode_ReferencedByAnotherGraph_FailsClosedBeforeDeletion`, barrier retry). Open ordering is exercised (`Opener_ResolvedLightingPlan_OpensSingleThenAdditiveInFrozenOrder`). No test `Task.Delay` / `Thread.Sleep` in those fixtures.
+
+## 4. Findings
+
+**None.**
+
+No High / Medium / Low finding with a unique production defect, contract break, or missing required test for a path this slice claims.
+
+## 5. Residual risk / unaudited scope
+
+- SHA-256 of the ten evidence files was not independently recomputed in this session.
+- Addressables full build, real `BuildPipeline` Player, and interactive Play Mode were not in the frozen evidence (Phase A already scoped S-4a to overlay/profile/structure tests).
+- Already-open Unity scene skip (`PerformUnitySceneLoad` `GetSceneByName` hit) is pre-existing behavior; this slice does not add a dedicated forwarding test for that skip.
+- Checkpoint-before-GUID crash still uses “path did not exist at start + pending path” as ownership proof; Workspace-external edits of that path remain fail-closed by design.
+- If `SceneResourceGenerator.Generate` itself fails during recovery, the journal is retained for explicit retry (WW-10 / freeze residual).
+- Editor open mid-failure is not a creation-transaction restore (WW-4).
+- Corrupt journal stays fail-closed and is not auto-deleted.
+- This review did not re-run Unity tests or contract-audit.
+
+## Verdict
+
+**PASS**
+
+**Disposition:** **merge-hold** — do not return to Phase B; do not reopen Phase A. Hold for Phase C' on the same implementation base/head and human Phase D.

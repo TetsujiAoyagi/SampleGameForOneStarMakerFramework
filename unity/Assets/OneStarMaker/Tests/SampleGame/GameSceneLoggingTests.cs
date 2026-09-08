@@ -12,6 +12,7 @@ using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Tests.SceneSystem.Helpers;
 using SampleGame.DependOnAll;
 using SampleGame.InGame.World;
+using SampleGame.InGame.Streaming;
 using SampleGame.OutGame.Scenes;
 using RuntimeCameraSystem = OneStarMaker.Runtime.CameraSystem.Core.CameraSystem;
 using Cysharp.Threading.Tasks;
@@ -34,14 +35,14 @@ namespace OneStarMaker.Tests.SampleGame
         [Test]
         public void Constructor_NullLoggerFactory_Throws()
         {
-            Assert.Throws<ArgumentNullException>(() => new GameSceneFactory(null!, null!, null!));
+            Assert.Throws<ArgumentNullException>(() => new GameSceneFactory(null!, null!, null!, CellCompanionSet.Full));
         }
 
         [Test]
         public void Constructor_NullCameraSystem_Throws()
         {
             Assert.Throws<ArgumentNullException>(
-                () => new GameSceneFactory(NullLoggerFactory.Instance, null!, new NoopCameraBackgroundApplier()));
+                () => new GameSceneFactory(NullLoggerFactory.Instance, null!, new NoopCameraBackgroundApplier(), CellCompanionSet.Full));
         }
 
         [Test]
@@ -50,7 +51,7 @@ namespace OneStarMaker.Tests.SampleGame
             var cameraSystem = new RuntimeCameraSystem(new FakeCameraBackend());
 
             Assert.Throws<ArgumentNullException>(
-                () => new GameSceneFactory(NullLoggerFactory.Instance, cameraSystem, null!));
+                () => new GameSceneFactory(NullLoggerFactory.Instance, cameraSystem, null!, CellCompanionSet.Full));
         }
 
         [Test]
@@ -71,7 +72,9 @@ namespace OneStarMaker.Tests.SampleGame
         public void CreateSceneClass_CellIdentity_ReturnsDemoCellScene()
         {
             var factory = CreateFactory(NullLoggerFactory.Instance);
-            var resource = SceneTestHelper.CreateSceneResource("Cell_0_0");
+            var resource = SceneTestHelper.CreateSceneResource(
+                "Qualifier_With_Underscore_Cell_not_an_int_east",
+                streamByDistance: true);
 
             var scene = factory.CreateSceneClass(
                 resource,
@@ -81,10 +84,54 @@ namespace OneStarMaker.Tests.SampleGame
             Assert.That(scene, Is.TypeOf<DemoCellScene>());
         }
 
-        private static GameSceneFactory CreateFactory(ILoggerFactory loggerFactory)
+        [Test]
+        public void CreateSceneClass_StructuralCellChild_ReturnsCompanionScene()
+        {
+            var factory = CreateFactory(NullLoggerFactory.Instance);
+            var parent = SceneTestHelper.CreateSceneResource("opaque-parent", streamByDistance: true);
+            var child = SceneTestHelper.CreateSceneResource("Spring_Environment_west_east", parent: parent);
+
+            var scene = factory.CreateSceneClass(child, new StubSceneQuery(), new StubSceneController());
+
+            Assert.That(scene, Is.TypeOf<CellCompanionScene>());
+        }
+
+        [Test]
+        public void CreateSceneClass_SeasonLightingWithoutCellParent_IsNotCompanion()
+        {
+            var factory = CreateFactory(NullLoggerFactory.Instance);
+            var resource = SceneTestHelper.CreateSceneResource("Spring_Lighting");
+
+            Assert.That(factory.CreateSceneClass(resource, new StubSceneQuery(), new StubSceneController()), Is.Null);
+        }
+
+        [TestCase(CellCompanionSet.Full)]
+        [TestCase(CellCompanionSet.Planner)]
+        [TestCase(CellCompanionSet.Lighting)]
+        [TestCase(CellCompanionSet.Vfx)]
+        public void CreateSceneClass_InGameSession_ForwardsCompanionSet(CellCompanionSet companionSet)
+        {
+            var factory = CreateFactory(NullLoggerFactory.Instance, companionSet);
+            var resource = SceneTestHelper.CreateSceneResource("InGameSession");
+
+            var scene = factory.CreateSceneClass(resource, new StubSceneQuery(), new StubSceneController());
+
+            Assert.That(scene, Is.TypeOf<global::SampleGame.InGame.InGameSession>());
+            var field = typeof(global::SampleGame.InGame.InGameSession)
+                .GetField("_companionSet", BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.That(field!.GetValue(scene), Is.EqualTo(companionSet));
+        }
+
+        private static GameSceneFactory CreateFactory(
+            ILoggerFactory loggerFactory,
+            CellCompanionSet companionSet = CellCompanionSet.Full)
         {
             var cameraSystem = new RuntimeCameraSystem(new FakeCameraBackend());
-            return new GameSceneFactory(loggerFactory, cameraSystem, new NoopCameraBackgroundApplier());
+            return new GameSceneFactory(
+                loggerFactory,
+                cameraSystem,
+                new NoopCameraBackgroundApplier(),
+                companionSet);
         }
 
         private sealed class NoopCameraBackgroundApplier : ICameraBackgroundApplier
