@@ -7,7 +7,7 @@
 > 前提資料: [05. シーン管理](05-scene.md) / [13. リソースシステム](13-resource-system.md)
 > 関連: HLOD / Proxy ティアの詳細は将来の §22 に分離する（本書はインターフェース予約のみ）
 >
-> 本書が固定して残るのは政策/メカニズム分離（D-3 / D-4）、生成器の非破壊契約、受入値、チケット履歴である。格子座標をランタイムのキーにしている記述は**当時動いていた経路**であり、一般化先ではない。**距離政策と生成器のキーは identity へ、R-3 は候補フラグへ移行済み**（実装値は `STREAMING_CURRENT_SPEC.md`）。factory、`CellScene`、子 identity 導出には名前文法が残っている。
+> 本書が固定して残るのは政策/メカニズム分離（D-3 / D-4）、生成器の非破壊契約、受入値、チケット履歴である。格子座標をランタイムのキーにしている記述は**当時動いていた経路**であり、一般化先ではない。**距離政策と生成器のキーは identity へ、R-3 は候補フラグへ移行済み**（実装値は `STREAMING_CURRENT_SPEC.md`）。factory と `CellScene` は `StreamByDistance` / `Parent` で分類する。距離候補列の identity 組み立ては `SessionWorldStreamingDriver` に残る。
 
 ---
 

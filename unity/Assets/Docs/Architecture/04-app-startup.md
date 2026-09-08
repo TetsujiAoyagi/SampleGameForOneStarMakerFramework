@@ -286,3 +286,38 @@ protected override string GetEnvironmentVariablePrefix() => "MYAPP_";
 ### 制限事項
 
 - JSON パーサは標準 JSON のみ対応（コメント非対応）。
+
+## 4.8 起動時 Scene Variant と職種 companion set
+
+Scene payload の Variant と Cell 職種のロード集合は、**起動時に一度だけ**決まる。Play Mode / Player の実行中に切り替えない。反映には再起動が必要。
+
+### Scene Variant
+
+`AbstractApplicationInitializer` は `SceneDirector` を構築する直前に `ResolveSceneVariant()` を一度呼び、non-null の文字列を constructor へ渡す。null は拒否する。空文字 `""` は Production の正当な default payload である。
+
+優先順位は既存 AppConfig と同じ（低 → 高）:
+
+```
+JSON `assets:sceneVariant`  <  環境変数  <  コマンドライン
+```
+
+- key 欠落時は空文字。trim や大小文字変換はしない。
+- Player は AppConfig だけを読む。Editor resolver をコンパイルしない。
+- Editor では active `BuildVariantProfile.SceneVariant` が config より優先する。`SceneVariantRuntimeBridge.EditorSceneVariantResolver` の戻り値 `null` は active profile なし（config へ戻る）、`""` は Production profile の明示選択。この二つを混ぜない。
+- Player build 中、`VariantPlayerBuild` は active profile の Scene Variant を `app-config.json` の同 key へ一時 upsert する（最低優先の JSON 値）。元ファイルは `byte[]` で退避し、成否や例外にかかわらず `finally` で byte-for-byte 復元する。制御文字は JSON escape する。
+- 空でない `BuildVariantProfile.SceneVariant` は、同 profile の whitelist に ordinal 完全一致で含まれなければ settings / Editor startup / Player build を失敗させる。不整合を default へ隠さない。
+
+`Production.asset` の Scene Variant は空、whitelist に Whitebox を含めない。`WorldWhitebox.asset` は Scene Variant `Whitebox`、whitelist は `""` と `"Whitebox"`。
+
+### 職種 companion set
+
+`AppInitializer.CreateSceneFactory` は `world:cellCompanionSet` を SceneDirector 構築前に一度 parse し、immutable な集合を `GameSceneFactory` → `InGameSession` → `SessionCellCompanionLoadDriver` へ constructor 注入する。static な可変状態は使わない。
+
+| 値 | 含める職種 |
+|---|---|
+| `Full`（key 欠落時の既定） | Environment + Lighting + VFX + Events |
+| `Planner` | Events |
+| `Lighting` | Environment + Lighting |
+| `VFX` | Environment + Lighting + VFX |
+
+空・空白・大小文字違い・未知値は `FormatException` で起動失敗。暗黙に Full へ戻さない。invalid config のあと、Framework はロード済み UI / map / App owner asset を release する。

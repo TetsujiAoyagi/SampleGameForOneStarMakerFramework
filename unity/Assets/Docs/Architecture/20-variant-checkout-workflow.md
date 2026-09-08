@@ -189,7 +189,7 @@ $env:UNITY_PATH = "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe"
 ### Editor / Play 制約
 
 - **未 Checkout のシーンは Hierarchy で開けない。** リモートフォールバックは Addressables ロード（Runtime）のみが対象。Editor 上でのシーン直接編集にはローカル実体が必要。
-- **本機構はビルド / カタログ構成レイヤーで完結**し、ランタイム Variant 選択機能ではない（[18](18-asset-description.md) §2 参照）。
+- **本機構はビルド / カタログ構成レイヤーで完結**し、作業者が手元に置く領域を選ぶ機能である。起動時 Scene Variant は [§4.8](04-app-startup.md#48-起動時-scene-variant-と職種-companion-set) / [§18](18-asset-description.md) が別口で所有する。
 - **Editor の Addressables はローカル前提**のため、欠損分の除外は Play Mode Script でカタログを絞る方式である。AddressableGroup 設定だけでは実現できない。
 
 ### 本番ビルド

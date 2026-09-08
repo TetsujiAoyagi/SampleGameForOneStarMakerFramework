@@ -12,7 +12,7 @@
 
 ## 一文で
 
-- **現状**: 距離政策・生成器・R-3 は identity と体積／候補フラグで動く。名前から座標を戻すのは factory、`CellScene`、子 identity 導出などに残る。
+- **現状**: 距離政策・生成器・R-3 は identity と体積／候補フラグで動く。Cell / 職種 child の SceneBase 結線は `StreamByDistance` と `Parent`。距離候補列の identity 組み立ては `SessionWorldStreamingDriver` に残る。
 - **到着**: 不透明な identity 列と、各シーンが持つ体積と、ヒステリシスで切る。**どこにも名前文法が無い。**
 
 ---
@@ -51,7 +51,7 @@
 
 到着点は「格子の一般化」ではない。候補＋体積＋ヒステリシスである。
 
-M-1 はこの列に入らない。走査範囲を広げたのではなく、**キーを座標から identity ＋ 体積へ替えた**からである。M-2 と M-3 により生成器と R-3 も名前文法から外れた。factory、`CellScene`、子 identity 導出、Driver の Format は S-4 に残る。
+M-1 はこの列に入らない。走査範囲を広げたのではなく、**キーを座標から identity ＋ 体積へ替えた**からである。M-2 と M-3 により生成器と R-3 も名前文法から外れた。factory と `CellScene` の結線は `StreamByDistance` へ移した。距離候補列の `CellIdentity.Format` は残る。
 
 ---
 
