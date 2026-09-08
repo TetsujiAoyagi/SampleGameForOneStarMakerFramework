@@ -256,9 +256,7 @@ M-2 後の `CellPopulationPlan` は座標範囲ではなく target identity の�
 
 **S-4 で名前文法が外れる残りの口:**
 
-- `GameSceneFactory`: `IsCellId` / `IsEnvironmentId` が false → factory が null → Director が `SceneFactory returned null` で throw。`Spring_Cell_*` が `DemoCellScene` にならない
-- `CellScene` ctor: `TryParse` 失敗で `ArgumentException`。factory を先に直すと即死
-- `EnvironmentIdentity.TryFromCellId`: 親名から子名を組み立ててから Children 走査。修飾付きでは走査に届かず Environment を Add しない（無言）。子の解決は Children 走査へ寄せる
+- `SessionWorldStreamingDriver`: 距離候補列の identity を `CellIdentity.Format` で組み立てる。`GameSceneFactory` / `CellScene` の結線は S-4a で `StreamByDistance` / `Parent` へ移し、`EnvironmentIdentity` は削除済み
 - R-3 は M-3 で `SceneResource.StreamByDistance` の検査へ移行済み。S-4 は新しい SceneResource に候補フラグを正しく焼き、修飾付き identity でもガードが効くことを維持する
 
 スポーン: 現行 `WorldCellCatalog.SpawnPosition` は `Cell_0_0` 中心。S-4 で春の源流 `(0,4)` へ移すのは **N-1 と同スライス**（未決のまま座標だけ動かさない）。

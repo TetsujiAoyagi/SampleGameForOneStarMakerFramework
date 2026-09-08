@@ -136,7 +136,7 @@ Cell は「距離ストリーミングの境界」であると同時に、**人�
 | 距離判断の単位 | 常に Cell。`WorldStreamingController` は Cell identity だけを見る |
 | Full ティア | Unity シーンを SceneDirector で Load（Prefab 直ストリーミングへ逃げない） |
 | 子の LoadType | 既定 `OnDemand`。Cell `AddScene` で Environment 等は自動ロードされない |
-| 子の明示ロード | SampleGame の薄いデモ配線（`SessionCellChildLoadDriver`）が Cell Stable 後に `AddScene` |
+| 子の明示ロード | `SessionCellCompanionLoadDriver` が resident Cell の `Children` を列挙し、起動時 companion set に入る職種 child を Cell Stable 後に `AddScene` |
 | 子の Unload | 親 Cell Unload の再帰破棄に任せる（ダングリング防止）。ロード時の引っ張りとは別 |
 | フォルダ境界 | Scene identity の実行単位とディスクフォルダを揃える。実行物は `SampleGame/.../InGameSession/World/` 配下に集約 |
 
