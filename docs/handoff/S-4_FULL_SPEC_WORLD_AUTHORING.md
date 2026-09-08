@@ -1,7 +1,7 @@
 # S-4 フルスペック World 制作基盤
 
 > type: program
-> status: 発注者承認済み。S-4a 着手時 HANDOFF の入力正本。
+> status: 発注者承認済み。S-4a は develop へマージ済み（公開面: Architecture §04 / §05 / §18 / §20 / §21 / §27 と STREAMING_CURRENT_SPEC）。S-4b 着手時 HANDOFF の入力正本。
 > branch: `codex/s-4-full-spec-plan`
 > implementation base commit: `1502ffc`
 > risk: high
@@ -138,12 +138,14 @@ Full / Whitebox は同じ Scene 名を使う。これにより、Editor で Whit
 
 ## 3. S-4a — Runtime Variant と職種 Workspace
 
+> **完了。** 現況は [§4.8](../../unity/Assets/Docs/Architecture/04-app-startup.md#48-起動時-scene-variant-と職種-companion-set)、[§5.13](../../unity/Assets/Docs/Architecture/05-scene.md#513-cell-と職種-companion-の分類)、[§18](../../unity/Assets/Docs/Architecture/18-asset-description.md)、[§20](../../unity/Assets/Docs/Architecture/20-variant-checkout-workflow.md)、[§21](../../unity/Assets/Docs/Architecture/21-scene-streaming.md)、[§27](../../unity/Assets/Docs/Architecture/27-folder-structure.md)、[STREAMING_CURRENT_SPEC.md](../streaming/STREAMING_CURRENT_SPEC.md)。以下は後続スライスが前提として読む要約であり、実装 HANDOFF ではない。
+
 ### 3.1 Runtime Variant
 
 - `SceneDirector` に起動時固定の Scene Variant を渡す。
 - `PerformUnitySceneLoad` は空文字固定をやめ、その値を `IAssetManagement.LoadSceneAsync` へ渡す。
 - AppConfig key は `assets:sceneVariant`。空文字が Production、`Whitebox` が開発用。
-- Editor は `UserSettings` 上の選択を runtime bridge で注入する。
+- Editor は active `BuildVariantProfile.SceneVariant` を config より優先して注入する。
 - Player は config file、環境変数、コマンドラインの既存優先順位を使う。
 - Variant は起動後に切り替えない。切替には Play / Player の再起動を要求する。
 - Cell の `SceneAssetDescription` は `""` と `"Whitebox"` の2 payloadを持つ。
@@ -165,8 +167,8 @@ AppConfig key `world:cellCompanionSet` に次の値を定義する。
 
 既定値は `Full`。不明な値は暗黙に Full へ戻さず、設定エラーとして起動を失敗させる。
 
-既存 `SessionCellChildLoadDriver` は、Environment名を親identityから組み立てる実装を廃止し、
-ロード済み Cell の `SceneResource.Children` を列挙する `SessionCellCompanionLoadDriver` へ置き換える。
+`SessionCellCompanionLoadDriver` は、ロード済み Cell の `SceneResource.Children` を列挙する。
+親 identity から Environment 名を組み立てない。
 role判定は SampleGame の制作規約に閉じ、Framework は Environment / Lighting / VFX / Events を知らない。
 role identity はロード対象選別だけに使い、座標、bounds、辞書keyの導出には使わない。
 

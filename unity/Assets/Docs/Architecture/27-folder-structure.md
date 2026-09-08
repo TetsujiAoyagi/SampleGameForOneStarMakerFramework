@@ -175,8 +175,50 @@ SampleGame/
 
 ---
 
-## 6. 更新履歴
+## 6. World Workspace（職種 companion の Editor 作成）
+
+任意の Cell Lighting / VFX / Events を作る Editor 口は `SampleGame/DependOnAll/Editor/WorldAuthoring/` に置く。Framework Runtime は職種名も Workspace も知らない。Workspace は runtime asset owner を持たない。
+
+```text
+SampleGame/DependOnAll/Editor/WorldAuthoring/
+  WorldWorkspaceWindow.cs              ← 選択 UI（EditorWindow instance 寿命。Prefs に保存しない）
+  WorldWorkspaceSelection.cs           ← season / x / y / role / payload の値
+  WorldWorkspaceSceneOpener.cs         ← 事前解決 + 保存確認のあと Single → Additive
+  WorldCompanionCreationPlan.cs        ← 予定 path / identity（Unity I/O なし）
+  WorldCompanionCreationTransaction.cs ← 原子 create + rollback
+  WorldCompanionOwnershipProof.cs      ← GUID / fingerprint / shape / graph membership
+  WorldCompanionRecoveryJournal.cs     ← Library 配下の pending journal
+  WorldCompanionRecoveryService.cs     ← domain load 時の block と明示 Rollback
+  WorldCompanionSceneCreator.cs        ← 空 .unity の作成
+  LegacyWorldAuthoringNames.cs         ← 旧 bulk generator 専用。Runtime から参照しない
+```
+
+作成する companion の Scene / SceneResource は親 Cell フォルダへ同居させる（軸 B）。
+
+```text
+Seasons/{Season}/Cells/{Season}_Cell_{x}_{y}/{identity}/{identity}.unity
+Assets/SceneGraphData/Nodes/Cells/{identity}.asset
+```
+
+正本は `SceneNodeData` と `SceneGraphEdges`。`SceneResource` / Map は標準 `SceneResourceGenerator.Generate` の投影物であり、Workspace が生成物だけを手で upsert してはならない。payload は空 Variant、`LoadType.OnDemand`、`Volume = zero`、`StreamByDistance = false`。座標は Editor 入力にだけ使い、runtime が identity から復元しない。
+
+Cell / Environment / season Lighting / 大型 Event はこの口では作れない。既存の部分成果物を adopt / repair / overwrite しない。衝突があれば無変更で失敗する。
+
+### pending journal が残ったとき
+
+journal は `Library/OneStarMaker/WorldWorkspace/pending-companion-create.json`（git 管理外）。存在中は新しい Open / Create を拒否する。
+
+1. World Workspace の **Rollback Pending Creation** を実行する。完了済み step は no-op、失敗した barrier より先の破壊はしない。
+2. 公式 Rollback が同じ barrier で止まる、またはファイルが壊れて読めないときは **自動削除しない**。journal と識別元（path / GUID / fingerprint）を残して調査する。
+3. 調査後に不要と分かった残骸だけを、人間が Editor と Addressables を確認してから取り除く。journal 破棄だけの command は無い。
+
+Editor open の途中で Unity API が失敗したときの完全復元は対象外である（事前解決 + 保存確認が境界）。creation transaction の atomic/recovery と混同しない。
+
+---
+
+## 7. 更新履歴
 
 | 日付 | 内容 |
 |---|---|
+| 2026-09-09 | World Workspace の配置、Generate 投影、pending journal の調査手順を追加 |
 | 2026-07-27 | 初版。Assembly 軸と Scene 同居軸を文書化 |

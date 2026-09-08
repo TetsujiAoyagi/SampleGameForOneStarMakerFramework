@@ -7,7 +7,7 @@
 > 前提資料: [05. シーン管理](05-scene.md) / [13. リソースシステム](13-resource-system.md)
 > 関連: HLOD / Proxy ティアの詳細は将来の §22 に分離する（本書はインターフェース予約のみ）
 >
-> 本書が固定して残るのは政策/メカニズム分離（D-3 / D-4）、生成器の非破壊契約、受入値、チケット履歴である。格子座標をランタイムのキーにしている記述は**当時動いていた経路**であり、一般化先ではない。**距離政策と生成器のキーは identity へ、R-3 は候補フラグへ移行済み**（実装値は `STREAMING_CURRENT_SPEC.md`）。factory、`CellScene`、子 identity 導出には名前文法が残っている。
+> 本書が固定して残るのは政策/メカニズム分離（D-3 / D-4）、生成器の非破壊契約、受入値、チケット履歴である。格子座標をランタイムのキーにしている記述は**当時動いていた経路**であり、一般化先ではない。**距離政策と生成器のキーは identity へ、R-3 は候補フラグへ移行済み**（実装値は `STREAMING_CURRENT_SPEC.md`）。factory と `CellScene` は `StreamByDistance` / `Parent` で分類する。距離候補列の identity 組み立ては `SessionWorldStreamingDriver` に残る。
 
 ---
 
@@ -136,7 +136,7 @@ Cell は「距離ストリーミングの境界」であると同時に、**人�
 | 距離判断の単位 | 常に Cell。`WorldStreamingController` は Cell identity だけを見る |
 | Full ティア | Unity シーンを SceneDirector で Load（Prefab 直ストリーミングへ逃げない） |
 | 子の LoadType | 既定 `OnDemand`。Cell `AddScene` で Environment 等は自動ロードされない |
-| 子の明示ロード | SampleGame の薄いデモ配線（`SessionCellChildLoadDriver`）が Cell Stable 後に `AddScene` |
+| 子の明示ロード | `SessionCellCompanionLoadDriver` が resident Cell の `Children` を列挙し、起動時 companion set に入る職種 child を Cell Stable 後に `AddScene` |
 | 子の Unload | 親 Cell Unload の再帰破棄に任せる（ダングリング防止）。ロード時の引っ張りとは別 |
 | フォルダ境界 | Scene identity の実行単位とディスクフォルダを揃える。実行物は `SampleGame/.../InGameSession/World/` 配下に集約 |
 

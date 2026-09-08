@@ -205,8 +205,12 @@ public SceneDirector(
     ISceneFactory sceneFactory,
     UICommon uiCommon,
     SceneResourceMap sceneResourceMap,
-    ILoadingDisplay loadingDisplay)    // ← string loadingSceneIdentify を置き換え
+    ILoadingDisplay loadingDisplay,
+    IAssetManagement assetManagement,
+    string sceneVariant = "")
 ```
+
+`sceneVariant` は起動時に一度解決した Scene payload Variant。null は `ArgumentNullException`、空文字は正当な Production 値。公開 setter/getter は持たない。`PerformUnitySceneLoad` は常にこの値を `IAssetManagement.LoadSceneAsync` へ渡す。`FindPayload` と AssetManagement の「要求 Variant が無ければ空 Variant」fallback は変えない。実行中の切替口は無い。解決手順は [§4.8](04-app-startup.md#48-起動時-scene-variant-と職種-companion-set)。
 
 ## 5.5 SwitchScene・GoBack（兄弟切り替えと履歴戻り）
 
@@ -665,3 +669,21 @@ sceneDirector.OnSceneEvent
 - `OnSceneEvent` は観測専用。サブスクライバが SceneDirector の動作に影響を与えてはならない。
 - Subject は SceneDirector の Dispose 時に自動的に Dispose される。
 - Phase 2 以降でシーン間通信が必要になった場合は R3 `EventChannel<T>` パターンを検討する（MessagePipe はそれでも不足な場合）。
+
+## 5.13 Cell と職種 companion の分類
+
+距離ストリーミングの Cell と、その職種 child（Environment / Lighting / VFX / Events）は、identity を座標 parse せず `SceneResource` の構造だけで分類する。Framework は職種名を知らない。
+
+| 判定 | 規則 |
+|---|---|
+| Cell | `SceneResource.StreamByDistance == true`。`CellScene` は false を constructor で拒否する |
+| Cell child | `Parent != null && Parent.StreamByDistance`。同じ lifecycle の `CellCompanionScene` |
+| その他 | identity の完全一致（Title / InGameSession 等） |
+
+Unity オブジェクトの null 判定は `== null` / `!= null`。公開 bounds が必要な箇所は `SceneResource.Volume` を返し、格子定数から再計算しない。`DemoCellScene` は identity 由来の tint を持たない。見た目を焼く責務は後続の世界制作スライス。
+
+`SessionCellCompanionLoadDriver` は resident Cell の `SceneResource.Children` だけを列挙する。Map 全走査、親名からの child 生成、第二の距離政策は持たない。parent が Stable になる前は child を Add しない。同じ child への同時 Add は最大一件。
+
+Add 完了後は、fresh resident snapshot に parent が残っていること、parent が Stable であること、捕捉した `SceneBase` と `ISceneQuery.GetLoadedScene(parent)` が `ReferenceEquals` で同一であること、session が未キャンセルであることを再確認する。一つでも偽なら、その Add が載せた child を `LoadingDisplayType.None` で Unload する。通常の parent unload は既存の再帰 unload を正とし、driver は先回り remove を出さない。`SceneBase` は `UnityEngine.Object` ではないため、この `ReferenceEquals` は偽 null 禁止に抵触しない。
+
+職種の選別は SampleGame の制作規約に閉じる。identity を `_` で分割し、末尾二要素の直前一要素だけを `Environment` / `Lighting` / `VFX` / `Events` と完全一致比較する。座標や新しい child identity は生成しない。未知 role は warning して飛ばす。同一 Cell の同一 role が複数ならその role を一件も Add しない。欠落 role は optional として正常。どの集合を載せるかは起動時の `world:cellCompanionSet`（[§4.8](04-app-startup.md#48-起動時-scene-variant-と職種-companion-set)）。

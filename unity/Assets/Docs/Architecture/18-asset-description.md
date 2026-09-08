@@ -28,7 +28,7 @@ Variant は「同じ論理アセットに対する制作・検証用の差し替
 
 空文字 `""` が「デフォルト Variant」。`SceneAssetDescription.Load` は指定 Variant が見つからなければ空文字にフォールバックする（`SceneAssetDescription.cs:71-88`）。
 
-**重要:** Variant の第一目的は **編集ワークフローの差し替え**であり、ランタイム機能ではない。ランタイムで Variant を選ぶ拡張は可能だが、現時点で BuildSystem の必須要件ではない。
+**重要:** Variant の第一目的は **編集ワークフローの差し替え**であり、実行中の切替 UI ではない。起動時に一度だけ Scene payload Variant を決める配線は実装済み（[§4.8](04-app-startup.md#48-起動時-scene-variant-と職種-companion-set)）。本機構（Build / カタログ）の必須要件ではない。
 
 **第二用途: チェックアウト厳選タグ。** 上記に加え、Variant を「どの開発領域のアセットを手元に置くか」を示すタグとしても活用できる。`DeveloperVariantSettings` で選択した `BuildVariantProfile` の whitelist に一致する Payload をローカル Checkout 対象とし、未取得分はリモート Addressables カタログからストリーミングする開発ワークフローが本リポジトリに実装済みである（詳細は [20. Variant チェックアウト厳選ワークフロー](20-variant-checkout-workflow.md)）。
 
@@ -39,7 +39,7 @@ Variant は「同じ論理アセットに対する制作・検証用の差し替
 | 領域タグ（単独） | `OutGame`, `InGame` |
 | 領域 + 品質の複合 | `OutGame_Whitebox`, `InGame_Full` |
 
-本機構は **Build / Play 時の Addressables カタログ構成**で完結する。ランタイムで Variant 文字列を選ぶ配線ではない（§2「ランタイム Variant 選択は現状未配線」のとおり）。
+本機構は **Build / Play 時の Addressables カタログ構成**で完結する。ランタイムで作業者が Variant を切り替える UI ではない。起動時に一度だけ Scene payload Variant を決めて `SceneDirector` へ渡す配線は実装済み（[§4.8](04-app-startup.md#48-起動時-scene-variant-と職種-companion-set)、[§5.4](05-scene.md#54-iloadingdisplayローディング表示)）。実行中の切替口は無い。
 
 ---
 
@@ -56,7 +56,8 @@ Variant は「同じ論理アセットに対する制作・検証用の差し替
 
 - Variant 名の規約は Framework が強制しない。命名はプロジェクト規約として別途決める必要がある。
 - 子依存（Material/Texture 等）は whitelist に含めず、Addressables の dependency resolution に委譲（IK-B5）。Payload は **primary GUID のみ**を宣言する。
-- ランタイム Variant 選択は現状未配線。ランタイムで使うなら別途仕組みが要る。
+- 起動時 Scene Variant は [§4.8](04-app-startup.md#48-起動時-scene-variant-と職種-companion-set) が所有する。本機構（checkout / packed カタログ）は実行中の切替口ではない。
+- Editor の World Workspace は runtime fallback を使わず、`SceneResource.GetPayloads()` の ordinal 完全一致だけを要求する。必須 payload が無いときは一件も開かない。全 Cell の Whitebox payload は後続の世界生成スライスが揃える。
 
 ---
 
@@ -155,9 +156,9 @@ AddressablesGroupSnapshot.Dispose (restore)  Editor の設定を元に戻す
 - 注意: 計画段階で Prefab/Audio/Texture/Generic の個別 Description 型を作ったが、**実需要が出るまで作らない方針で剪定済み**。「あるけど使われない型」を増やさないこと。
   AssetType 自体は `AssetKey` のメタ情報として採用済みで、カテゴリ別 cache / budget の次パスで使用する。
 
-### ランタイムで Variant を選びたくなったら
+### 起動時の Scene Variant
 
-`SceneAssetDescription.Load(variant)` は既に variant 引数を取る。AppConfig 等から variant 文字列を解決して渡す配線を追加すれば成立する（現状未配線）。
+起動時の一回解決は実装済み（[§4.8](04-app-startup.md#48-起動時-scene-variant-と職種-companion-set)）。`SceneAssetDescription.Load(variant)` は既に variant 引数を取る。実行中切替や第二の解決源は作らない。Play / Player の再起動が切替である。
 
 ---
 
