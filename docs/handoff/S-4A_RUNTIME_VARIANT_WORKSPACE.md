@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `Phase C ラウンド4 コード PASS / テスト証拠未作成`（実装 head `88fda3e`。R3 の C FAIL / C' PASS と 156cfd7 evidence は最終受け入れに使わない）
+- status: `Phase C ラウンド7 PASS / Phase C' ラウンド7 PASS / Phase D 待ち`（実装 head `3b7b64f`）
 - branch: `codex/s-4a-runtime-variant-workspace-plan`
 - implementation base commit: `be33e4716c70334100aada23c555ac75a0b0dbb7`
-- implementation head commit: `88fda3ef32f08ac1d0bf0f7f021b047c5b697b6a`
+- implementation head commit: `3b7b64fe4517d3737a89868f4672d2f0236010a0`
 - risk: `high`
 - owner: 発注者（freeze 判断）/ 将来の S-4a Phase B 実装担当
 - created: `2026-09-06`
@@ -15,16 +15,16 @@
 - Phase A snapshot path / id: `docs/handoff/evidence/S-4A_PHASE_A_INPUT.txt` / `S-4a-A0-be33e47-20260906T103508+0900`
 - Phase A snapshot generated at: `2026-09-06T10:35:08.3818239+09:00`
 - Phase A snapshot hash: `sha256:15b2facfaabec89933ad73a5af92b48cfc78398f6e649e59bfad5af1339a40ce`
-- Phase B result snapshot path / id: `docs/handoff/evidence/S-4A_PHASE_B_RESULT_R4.txt` / `S-4a-B-156cfd7-20260908T022708+0900`
-- Phase B result snapshot generated at: `2026-09-08T02:27:08.4006926+09:00`
-- Phase B result snapshot hash: `sha256:597977a0bb9b5ff93c69a381e7f0842fdacaa9110471848d9e503860701dabd2`
-- evidence bundle path / id: `docs/handoff/evidence/S-4A_PHASE_C_EVIDENCE_R3.txt` / `S-4a-C-R3-be33e47-156cfd7-20260908T022708+0900`
-- evidence bundle generated at: `2026-09-08T02:27:08.4006926+09:00`
-- evidence bundle hash: `sha256:04c63079c8cf407b9c705a19799461b884e6085bb348f19174c8c9c10e4de984`
-- C' blind bundle path / id: `docs/handoff/evidence/S-4A_PHASE_C_PRIME_BLIND_BUNDLE_R3.txt` / `S-4a-Cprime-R3-blind-be33e47-156cfd7-20260908T022708+0900`
-- C' blind bundle generated at: `2026-09-08T02:27:08.4006926+09:00`
-- C' blind bundle hash: `sha256:14ee04ab5d5d19d0e8f824f0810108d84bcc75f9a42a75fb34a965d7291605a4`
-- 失効した snapshot / bundle: `S-4A_PHASE_B_RESULT.txt`(1ca9609)、`_R2`(fcb7e2d)、`_R3`(99f5add)、`_R4`(156cfd7) と Phase C ラウンド1〜3 の evidence / blind bundle / C' 結論。差し戻しで head が `88fda3e` になったため最終受け入れには使わない。
+- Phase B result snapshot path / id: `docs/handoff/evidence/S-4A_PHASE_B_RESULT_R8.txt` / `S-4a-B-3b7b64f-20260909T015050+0900`
+- Phase B result snapshot generated at: `2026-09-09T01:50:50.4613245+09:00`
+- Phase B result snapshot hash: `sha256:a0ba194affac5fb37a19e25a257fcb5ede520c9a3195dc134a4b9bbff5ab4854`
+- evidence bundle path / id: `docs/handoff/evidence/S-4A_PHASE_C_EVIDENCE_R7.txt` / `S-4a-C-R7-be33e47-3b7b64f-20260909T015050+0900`
+- evidence bundle generated at: `2026-09-09T01:50:50.4613245+09:00`
+- evidence bundle hash: `sha256:0dd234b19b35a479741ac4c3992be25de45a6f3df1404e03fc53b50f124904f3`
+- C' blind bundle path / id: `docs/handoff/evidence/S-4A_PHASE_C_PRIME_BLIND_BUNDLE_R7.txt` / `S-4a-Cprime-R7-blind-be33e47-3b7b64f-20260909T015050+0900`
+- C' blind bundle generated at: `2026-09-09T01:50:50.4613245+09:00`
+- C' blind bundle hash: `sha256:a9d102e3cbb90ed13ab3ddad69b0d3728a7dbf962a9893545b4f0f80dff942d0`
+- 失効した snapshot / bundle: Phase B `S-4A_PHASE_B_RESULT.txt`(1ca9609)、`_R2`(fcb7e2d)、`_R3`(99f5add)、`_R4`(156cfd7)、`_R5`/`_R6`/`_R7` と Phase C ラウンド1〜6 の evidence / blind bundle / C/C' 結論。差し戻し後の旧 head（`88fda3e` / `78b6a0e` / `0f6e979` / `a4cd919`）は最終受け入れに使わない。
 
 ## 1. 目的と対象外
 
@@ -577,51 +577,52 @@ public static class CellCompanionSetParser
 
 ## 6. Phase B 実装結果
 
-- 実装: RV-1〜RV-10、CP-1〜CP-12、WW-1〜WW-13 と §5 の test code を実装した。責務・実ファイル照合、規模/停止条件、静的検査を `docs/handoff/evidence/S-4A_PHASE_B_RESULT_R4.txt`（`S-4a-B-156cfd7-20260908T022708+0900`、`sha256:597977a0bb9b5ff93c69a381e7f0842fdacaa9110471848d9e503860701dabd2`）へ固定した。
-- HANDOFF との差: 設計差分なし。追加した `InternalsVisibleTo` は凍結済み internal test seam のためだけで、asmdef/public API/production dependency は不変。実測は105ファイル、production C# 2,114追加/861削除、新規 production 20ファイル1,856行。最大新規 file は transaction の382行で停止条件 `>400` 未発火、既存最大増加は `BuildVariantProfile.cs` の30.7%で見積 +25% 上限内。`git diff --check` は head で0行。
-- Phase C からの差し戻しを2回受けた。いずれも凍結責務の内側の修正で、Phase A へは戻していない。
-  - ラウンド1 (`fcb7e2d`): planned path の孤立 `.meta` / directory / companion folder 物理衝突を journal 作成前に拒否する preflight を追加した。
-  - ラウンド2 (`99f5add` → `156cfd7`): journal に作成時 fingerprint を checkpoint し、recovery が GUID 一致だけで破壊しないようにした。比較は新規 `WorldCompanionOwnershipProof.cs`（213行）へ切り出し、transaction 本体は400→382行に縮んだ。
-  - ラウンド3 (`88fda3e`): Generate 直前に fingerprint を空へ戻し、空の間は GUID + shape proof、記録後の不一致は fail-closed。`GeneratedBeforeCheckpoint` と named recovery を追加。C' P2 の resolver TearDown 復元も含む。
-  - 詳細と失効した結論は `docs/handoff/evidence/S-4A_PHASE_C_R1_REVIEW.txt` / `S-4A_PHASE_C_R2_REVIEW.txt` / `S-4A_PHASE_C_R3_REVIEW.txt` に保存した。
-- 実行済み: `pwsh tools/run-tests.ps1` を head `156cfd7` に対して実行し、672 total / 672 passed / 0 failed / 0 skipped。`pwsh tools/contract-audit.ps1 -BaseRef be33e47` は exit 0（450ファイル / 変更52ファイル）。生 XML / log / 完全 diff は §0 の evidence bundle が hash で固定している。
+- 実装: RV-1〜RV-10、CP-1〜CP-12、WW-1〜WW-13 と §5 の test code を実装した。責務・実ファイル照合、規模/停止条件、静的検査を `docs/handoff/evidence/S-4A_PHASE_B_RESULT_R8.txt`（`S-4a-B-3b7b64f-20260909T015050+0900`、`sha256:a0ba194affac5fb37a19e25a257fcb5ede520c9a3195dc134a4b9bbff5ab4854`）へ固定した。
+- HANDOFF との差: 設計差分なし。追加した `InternalsVisibleTo` は凍結済み internal test seam のためだけで、asmdef/public API/production dependency は不変。実測は128ファイル、+6919/-1131。production C# +2196/-859、tests +2099/-259。新規 production 20ファイル / 1920行（ゲート 2687.5）。transaction 390行、ownership helper 266行、`VariantPlayerBuild` 192行。停止条件 `>400` 未発火。`git diff --check` は head で0行。
+- Phase C / C' からの差し戻しを凍結責務の内側で閉じ、Phase A へは戻していない。
+  - ラウンド1 (`fcb7e2d`): planned path の孤立 `.meta` / directory / companion folder 物理衝突を journal 作成前に拒否する preflight。
+  - ラウンド2 (`99f5add` → `156cfd7`): 作成時 fingerprint を checkpoint。比較は `WorldCompanionOwnershipProof.cs` へ切り出し。
+  - ラウンド3 (`88fda3e`): Generate 直前に fingerprint を空へ戻し、空の間は GUID + shape proof。`GeneratedBeforeCheckpoint` と resolver TearDown 復元。
+  - ラウンド4 (`0f6e979`): `CreateReservedResource` の CreateAsset〜identity 初期化の窓を write-ahead で回復可能にした。
+  - ラウンド5 (`a4cd919`): `CreatingReserved` の所有証明を payload 0件の exact stub に狭めた。
+  - ラウンド6 (`3b7b64f`): 他 graph からの pending node 参照を破壊前に fail-closed。Player overlay の U+0000..U+001F を JSON escape。
+  - 失効した結論は `docs/handoff/evidence/S-4A_PHASE_C_R1_REVIEW.txt` 〜 `S-4A_PHASE_C_R6` 系に保存した。
+- 実行済み: `pwsh tools/run-tests.ps1` を head `3b7b64f` に対して実行し、681 total / 681 passed / 0 failed / 0 skipped。`pwsh tools/contract-audit.ps1 -BaseRef be33e47` は exit 0（450ファイル / 変更52ファイル）。生 XML / log / 完全 diff は §0 の R7 evidence bundle が hash で固定している。
 - 未実行: `unity test` / `unity run`（契約により恒久的に禁止）、Addressables full build（凍結 HANDOFF が S-4b 以降へ割り当て）。
-- implementation head commit: `88fda3ef32f08ac1d0bf0f7f021b047c5b697b6a`
-- Phase B 担当・モデル・ベンダー: 初期実装 Codex / GPT-5 / OpenAI。ラウンド3修正 Claude Opus 5 / Anthropic
-- Phase C / C' ラウンド3 入力と結論は `156cfd7` 向けで失効。ラウンド4 の C は `88fda3e` のソース差分を直接見た（新しい Phase B snapshot / R4 evidence は未作成）。
+- implementation head commit: `3b7b64fe4517d3737a89868f4672d2f0236010a0`
+- Phase B 担当・モデル・ベンダー: 初期実装 Codex / GPT-5 / OpenAI。ラウンド3修正 Claude Opus 5 / Anthropic。ラウンド4〜6修正 OpenAI Codex / GPT-5 family。
 
 ## 7. Phase C
 
-- ラウンド3（失効）: FAIL。`docs/handoff/evidence/S-4A_PHASE_C_R3_REVIEW.txt`。head `156cfd7`。
-- ラウンド4 対象: `88fda3ef32f08ac1d0bf0f7f021b047c5b697b6a`。evidence bundle id / hash: 未作成（本環境に Unity.exe / pwsh がなく、`run-tests.ps1` と完全 bundle を作れない）。
-- 構造適合: **PASS**。公開面・依存・asmdef/SceneState/LoadType 不変。`BeginGeneratedMutation` は同一 transaction owner の耐久処理。transaction 385行、OwnershipProof 224行。
-- findings:
-  - ラウンド3 P1 クロージャ: **PASS**。Generate 直前に fingerprint を journal へ空で保存し、空の間は GUID + `VerifyExpectedShape`、記録後の不一致は fail-closed。`GeneratedBeforeCheckpoint` と named recovery あり。ラウンド2の外部改変テスト経路（`Regenerated` 後）は維持。
-  - C' P2 クロージャ: **PASS**（観測。C' 入力には使っていない）。`BuildVariantProfileSceneVariantTests` は resolver を退避して復元する。
-  - High / Medium の新規指摘: なし。
-  - Low / residual: 2回目 Generate に fault seam が無い（本番の空 fingerprint 経路は同じ）。空 fingerprint 中の shape 一致外部改変は所有とみなす（要求した修正の受容コスト）。
-- テスト結果: 本セッションでは未実行。`156cfd7` の 672/672 は新 mutation point を含まないため使わない。
-- 未確認事項: `pwsh tools/run-tests.ps1` @ `88fda3e`、R4 evidence / C' blind bundle、Addressables full build（S-4b）。
-- 判定: **PASS（構造と差し戻しクロージャ）**。Phase A / B へは戻さない。マージ受け入れはテスト証拠と `88fda3e` 向け C' が揃うまで保留。
-- 担当・モデル・ベンダー: Cursor Grok 4.6 / SpaceXAI+Cursor。`88fda3e` の Phase B（Claude Opus 5）と異なる新規セッション。
+- evidence bundle id / hash: `S-4a-C-R7-be33e47-3b7b64f-20260909T015050+0900` / `sha256:0dd234b19b35a479741ac4c3992be25de45a6f3df1404e03fc53b50f124904f3`
+- 入力照合: オーケストレータが R7 manifest の10証拠 SHA-256 を再計算し 10/10 一致。レビュー担当のセッションではシェルフックで独立再計算できなかった。
+- 構造適合: **PASS**。公開面・依存・asmdef/SceneState/LoadType 不変。`WorldCompanionOwnershipProof` は同一 Editor transaction owner の内部抽出で、Phase A 再開は不要。transaction 390行、OwnershipProof 266行、`VariantPlayerBuild` 192行。新規 production 1920行（ゲート 2687.5）。
+- findings: **なし**（High / Medium / Low の新規指摘 0）。
+- テスト結果: 凍結 XML 681 / 681 passed / 0 failed / 0 skipped。contract-audit exit 0。Unity は再実行していない。
+- 未確認事項: Addressables full build（S-4b）、実 `BuildPipeline` Player、interactive Play Mode、既開き Unity scene skip の専用 forwarding テスト。
+- 判定: **PASS**。Phase A / B へは戻さない。
+- 担当・モデル・ベンダー: Cursor Grok 4.6 Extra High / SpaceXAI+Cursor。新規セッション。Phase B（GPT-5 family / 一部 Claude）と異なる。本文: `docs/handoff/evidence/S-4A_PHASE_C_R7_REVIEW.txt`。
+- ラウンド1〜6の C 結論は実装 head 変更により失効。
 
 ## 8. Phase C'
 
-- blind audit bundle id / hash: `S-4a-Cprime-R3-blind-be33e47-156cfd7-20260908T022708+0900` / `sha256:14ee04ab5d5d19d0e8f824f0810108d84bcc75f9a42a75fb34a965d7291605a4`
-- 入力照合: 10証拠すべての SHA-256 を再計算して manifest と一致。実装は `156cfd7` を `git show` / `git diff` で読んだ（監査時の worktree HEAD は docs のみの後続 commit）。
+- blind audit bundle id / hash: `S-4a-Cprime-R7-blind-be33e47-3b7b64f-20260909T015050+0900` / `sha256:a9d102e3cbb90ed13ab3ddad69b0d3728a7dbf962a9893545b4f0f80dff942d0`
+- 入力照合: オーケストレータが同一10証拠の SHA-256 を再計算し 10/10 一致。監査担当のセッションではシェルフックで独立再計算できなかった。
 - findings:
-  - `P2 / semantic / unique / accepted`: `BuildVariantProfileSceneVariantTests` の TearDown が `SceneVariantRuntimeBridge.EditorSceneVariantResolver` に元の delegate を戻さず `null` を書く。凍結 A3（HANDOFF:559）の「テストは finally で元の delegate を復元する」に違反。開いたままの Editor で当該 fixture を回すと domain reload まで Play Mode が active BuildVariantProfile を読まなくなり、Whitebox ではなく空 Variant で Addressables load する。Player とバッチ実行には影響しない。
-  - P1 は無し。production の ownership / rollback / 依存反転 / SceneState / asmdef / companion race に、凍結テストが取り逃がしている欠陥は見つからなかった。
-- 残存リスク: 既開き Unity scene の load 0、Addressables full build（S-4b）、open 途中の EditorSceneManager 失敗復元（WW-4 で対象外）、Generate〜fingerprint refresh 間の crash。`FindTopLevelStringValue` が文字列内の brace を飛ばさない点は現行の値では顕在化しない。
-- 監査できなかった範囲: Unity.exe / `run-tests.ps1` / `unity test` / Addressables build は不実行（契約どおり）。可変 HANDOFF・全 `*_REVIEW.txt`・R3 以外の evidence は未読。Play Mode 実機確認なし。
+  - `F1 / Medium / semantic / unique / residual（Phase B へは戻さない）`: `SessionCellCompanionLoadDriver.TryAddAsync` が non-OCE の `AddScene` 失敗を log のみにし、`UnloadScene` しない。CP-10 の unload は Add **完了後** の parent-race predicate 用。SceneDirector の non-OCE leftover は既存 framework 挙動の継承。C' 自身も High ではなく PASS。
+  - `F2 / Low / semantic / unique / residual`: Workspace open 途中 failure の部分シーン残。WW-4 で対象外と明示済み。
+  - `F3 / Low / semantic / unique / residual`: `CreatingReserved` は empty identity または matching identity + payload 0 を受理。非ゼロ payload は fail-closed。R8 の意図した stub 証明。
+  - High は無し。
+- 残存リスク: F1 の未テスト修復経路、WW-4 の open 部分失敗、corrupt journal の意図的 fail-closed、Addressables full build（S-4b）。
+- 監査できなかった範囲: 監査セッション内の独立 SHA-256 / live `git diff`（フック拒否）。Unity 再実行と Addressables full build は契約どおり未実施。可変 HANDOFF・全 `*_REVIEW.txt`・R7 以外の evidence は未読。
 - 判定: **PASS**
-- 独立性: blind bundle と `156cfd7` のソース、AGENTS.md / workflow 契約のみを入力とした。Phase C の結論・指摘は渡していない。
-- 担当・モデル・ベンダー: Cursor Grok 4.6 / SpaceXAI+Cursor
-- **C と C' の不一致（Phase D で突合すること）**: 両者は Generate〜fingerprint refresh の同じ窓を見たうえで、C' は凍結 HANDOFF 570-574 の受容済み residual と読み、C は transaction 自身の dependent mutation なので WW-9 / WW-10 違反と読んだ。安全側で C の FAIL を採用する。
+- 独立性: **最低条件は充足**（新規セッション、blind bundle、B/C と異なるモデル）。**強化条件は未充足（`独立性制約あり`）**: C も C' も Grok 系列 / SpaceXAI+Cursor。人間指示により Claude と Codex は使用不可で、Grok 4.5 と 4.6 のみ。C' 本文が Phase C を GPT-5.6 Terra と書いたのは誤り（Terra は R7 の test operator / contract-audit）。正しくは C=Grok 4.6、C'=Grok 4.5。Phase C の結論・指摘は渡していない。
+- 担当・モデル・ベンダー: Cursor Grok 4.5 High / SpaceXAI+Cursor。本文: `docs/handoff/evidence/S-4A_PHASE_C_PRIME_R7_REVIEW.txt`。
+- ラウンド1〜6の C' 結論は実装 head 変更により失効。
 
 ## 9. Phase D
 
-- C / C' の突合: 未到達
-- マージ判断: 未到達
+- C / C' の突合: ラウンド7は両方 **PASS**。C に findings なし。C' F1 は CP-10 の完了後 predicate の外側かつ既存 SceneDirector 挙動の継承なので、安全側でも Phase B 差し戻しにはしない。F2 は WW-4 受容済み。F3 は R8 stub 証明の残余。マージ判断は人間。
+- マージ判断: 未到達（人間）
 - harvest: 未到達
 - 削除確認: 未到達
