@@ -622,7 +622,8 @@ public static class CellCompanionSetParser
 
 ## 9. Phase D
 
-- C / C' の突合: ラウンド7は両方 **PASS**。C に findings なし。C' F1 は CP-10 の完了後 predicate の外側かつ既存 SceneDirector 挙動の継承なので、安全側でも Phase B 差し戻しにはしない。F2 は WW-4 受容済み。F3 は R8 stub 証明の残余。マージ判断は人間。
+- C / C' の突合: ラウンド7は両方 **PASS**。C に findings なし。C' F1 は CP-10 の完了後 predicate の外側かつ既存 SceneDirector 挙動の継承なので、安全側でも Phase B 差し戻しにはしない。F2 は WW-4 受容済み。F3 は R8 stub 証明の残余。
+- 追加確認（`3b7b64f`、Cursor Grok 4.6 新規セッション、R7 を置き換えない）: `88fda3e` 以降の R4〜R6 本番差分（CreatingReserved write-ahead、payload 0 stub、他 graph 参照の fail-closed、JSON C0 escape）をソースで再読し、High なし。C' F1〜F3 に同意。本文: `docs/handoff/evidence/S-4A_PHASE_C_R7_CONFIRMATION.txt`。この worktree に R7 の生 XML / 完全 diff は無く、テストは再実行していない。
 - マージ判断: 未到達（人間）
 - harvest: 未到達
 - 削除確認: 未到達
