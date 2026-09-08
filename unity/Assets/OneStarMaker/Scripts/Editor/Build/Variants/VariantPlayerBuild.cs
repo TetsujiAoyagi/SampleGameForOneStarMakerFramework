@@ -141,7 +141,27 @@ namespace OneStarMaker.Editor.Build
         }
 
         private static string EscapeJsonString(string value)
-            => value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
+        {
+            var escaped = new StringBuilder(value.Length);
+            foreach (var character in value)
+            {
+                switch (character)
+                {
+                    case '\\': escaped.Append("\\\\"); break;
+                    case '"': escaped.Append("\\\""); break;
+                    case '\b': escaped.Append("\\b"); break;
+                    case '\f': escaped.Append("\\f"); break;
+                    case '\n': escaped.Append("\\n"); break;
+                    case '\r': escaped.Append("\\r"); break;
+                    case '\t': escaped.Append("\\t"); break;
+                    default:
+                        if (character < ' ') escaped.Append("\\u").Append(((int)character).ToString("x4"));
+                        else escaped.Append(character);
+                        break;
+                }
+            }
+            return escaped.ToString();
+        }
 
         private static string UnescapeSimple(string value)
             => value.Replace("\\\"", "\"").Replace("\\\\", "\\");

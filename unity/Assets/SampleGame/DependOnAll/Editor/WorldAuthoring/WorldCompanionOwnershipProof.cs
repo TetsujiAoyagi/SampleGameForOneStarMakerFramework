@@ -80,9 +80,35 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
                 VerifyOrCaptureAsset(journal, journal.scenePath, ref journal.sceneGuid, ref journal.sceneFingerprint, WorldCompanionOwnedAssetKind.Scene);
                 VerifyOrCaptureAsset(journal, journal.nodePath, ref journal.nodeGuid, ref journal.nodeFingerprint, WorldCompanionOwnedAssetKind.Node);
                 VerifyOrCaptureAsset(journal, journal.resourcePath, ref journal.resourceGuid, ref journal.resourceFingerprint, WorldCompanionOwnedAssetKind.Resource);
+                VerifyGraphMembership(journal);
             }
             if (journal.completedRecoveryBarrier < (int)WorldCompanionRecoveryBarrier.AddressableRemoved)
                 VerifyOrCaptureAddressable(journal);
+        }
+
+        private static void VerifyGraphMembership(WorldCompanionJournalData journal)
+        {
+            var node = AssetDatabase.LoadAssetAtPath<SceneNodeData>(journal.nodePath);
+            if (node == null) return;
+            var parentPath = AssetDatabase.GUIDToAssetPath(journal.parentNodeGuid);
+            var parent = AssetDatabase.LoadAssetAtPath<SceneNodeData>(parentPath);
+            if (parent == null) throw new InvalidOperationException("Cannot verify parent node ownership.");
+
+            foreach (var graphGuid in AssetDatabase.FindAssets("t:SceneGraphEdges"))
+            {
+                var graphPath = AssetDatabase.GUIDToAssetPath(graphGuid);
+                var graph = AssetDatabase.LoadAssetAtPath<SceneGraphEdges>(graphPath);
+                if (graph == null) continue;
+                var nodeMemberships = graph.GraphNodes.Count(candidate => candidate == node);
+                var childEdges = graph.Edges.Count(edge => edge.Child == node);
+                var parentEdges = graph.Edges.Count(edge => edge.Parent == node);
+                if (nodeMemberships == 0 && childEdges == 0 && parentEdges == 0) continue;
+                if (!string.Equals(graphGuid, journal.graphGuid, StringComparison.Ordinal))
+                    throw new InvalidOperationException($"Pending node is referenced by an unowned graph: {graphPath}");
+                if (nodeMemberships != 1 || childEdges != 1 || parentEdges != 0
+                    || graph.Edges.All(edge => edge.Child != node || edge.Parent != parent))
+                    throw new InvalidOperationException($"Recorded graph membership mismatch: {graphPath}");
+            }
         }
 
         internal static void VerifyOrCaptureAsset(

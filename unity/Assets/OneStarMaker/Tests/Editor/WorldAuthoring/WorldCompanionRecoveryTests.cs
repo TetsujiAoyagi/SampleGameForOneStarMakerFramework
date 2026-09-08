@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using NUnit.Framework;
+using OneStarMaker.Editor.SceneGraph;
 using OneStarMaker.Runtime.AssetDescriptions;
 using OneStarMaker.Runtime.SceneSystem;
 using SampleGame.DependOnAll.Editor.WorldAuthoring;
@@ -220,6 +221,36 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             Assert.That(error!.InnerExceptions[1].Message, Does.Contain("Resource ownership mismatch"));
             Assert.That(WorldCompanionRecoveryJournal.Exists, Is.True);
             Assert.That(AssetDatabase.LoadMainAssetAtPath(scope.Plan.ResourcePath), Is.Not.Null);
+        }
+
+        [Test]
+        public void PendingNode_ReferencedByAnotherGraph_FailsClosedBeforeDeletion()
+        {
+            using var scope = new WorldCompanionTestScope();
+            SceneGraphEdges? externalGraph = null;
+            WorldCompanionCreationTransaction.FaultInjector = point =>
+            {
+                if (point != WorldCompanionMutationPoint.Regenerated) return;
+                var node = AssetDatabase.LoadAssetAtPath<SceneNodeData>(scope.Plan.NodePath)!;
+                externalGraph = ScriptableObject.CreateInstance<SceneGraphEdges>();
+                externalGraph.GraphName = "External";
+                externalGraph.AddNode(scope.ParentNode);
+                externalGraph.AddNode(node);
+                externalGraph.AddEdge(scope.ParentNode, node);
+                AssetDatabase.CreateAsset(externalGraph, $"{scope.SourceRoot}/ExternalGraph.asset");
+                AssetDatabase.SaveAssets();
+                throw new InjectedWorldCompanionFault("external-graph-reference");
+            };
+            using var transaction = new WorldCompanionCreationTransaction(scope.Plan);
+
+            var error = Assert.Throws<AggregateException>(() => transaction.Execute());
+
+            Assert.That(error!.InnerExceptions[1].Message, Does.Contain("unowned graph"));
+            Assert.That(WorldCompanionRecoveryJournal.Exists, Is.True);
+            Assert.That(AssetDatabase.LoadMainAssetAtPath(scope.Plan.NodePath), Is.Not.Null);
+            Assert.That(externalGraph, Is.Not.Null);
+            Assert.That(externalGraph!.ContainsNode(
+                AssetDatabase.LoadAssetAtPath<SceneNodeData>(scope.Plan.NodePath)!), Is.True);
         }
 
         [TestCaseSource(nameof(RecoveryBarriers))]

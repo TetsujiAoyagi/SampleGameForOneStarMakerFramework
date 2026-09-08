@@ -36,6 +36,21 @@ namespace OneStarMaker.Tests.Editor.Build
         }
 
         [Test]
+        public void Upsert_EscapesEveryJsonControlCharacter()
+        {
+            var json = VariantPlayerBuild.UpsertTopLevelString(
+                "{}",
+                VariantPlayerBuild.SceneVariantConfigKey,
+                "A\0\u0001\b\f\n\r\tB");
+
+            Assert.That(json, Does.Contain("A\\u0000\\u0001\\b\\f\\n\\r\\tB"));
+            Assert.That(json, Does.Not.Contain("\0"));
+            Assert.That(json, Does.Not.Contain("\u0001"));
+            Assert.That(json, Does.Not.Contain("\b"));
+            Assert.That(json, Does.Not.Contain("\f"));
+        }
+
+        [Test]
         public void BuildWithOverlay_Success_EmbedsBothValuesAndRestoresExactBytes()
         {
             var original = new byte[] { 0xef, 0xbb, 0xbf }.Concat(Encoding.UTF8.GetBytes("{\r\n  \"assets:sceneVariant\" : \"\"\r\n}"));
