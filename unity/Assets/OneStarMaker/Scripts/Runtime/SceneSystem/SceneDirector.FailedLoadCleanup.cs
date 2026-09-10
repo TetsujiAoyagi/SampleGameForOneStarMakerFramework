@@ -43,7 +43,14 @@ namespace OneStarMaker.Runtime.SceneSystem
                         continue;
                     }
 
-                    await ClassifyFailedScene(id, pair, created, activeRoots, stillLoading);
+                    var lifecycle = pair.SceneBase.Lifecycle;
+                    if (lifecycle.IsUnloadStarted)
+                    {
+                        await ResumeUnloadFromCurrentState(id);
+                        continue;
+                    }
+
+                    ClassifyFailedScene(id, pair, created, activeRoots, stillLoading);
                 }
 
                 for (var i = 0; i < activeRoots.Count; i++)
@@ -100,7 +107,7 @@ namespace OneStarMaker.Runtime.SceneSystem
                    && ReferenceEquals(pair.SceneBase, instance);
         }
 
-        private async UniTask ClassifyFailedScene(
+        private void ClassifyFailedScene(
             string id,
             ScenePair pair,
             Dictionary<string, SceneBase> created,
@@ -112,12 +119,6 @@ namespace OneStarMaker.Runtime.SceneSystem
             // Add 完了後の TransitionPlan 失敗などはロード失敗ではない。
             if (lifecycle.State == SceneState.Stable)
             {
-                return;
-            }
-
-            if (lifecycle.IsUnloadStarted)
-            {
-                await ResumeUnloadFromCurrentState(id);
                 return;
             }
 
