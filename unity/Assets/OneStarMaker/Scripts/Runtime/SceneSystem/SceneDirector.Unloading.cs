@@ -45,7 +45,8 @@ namespace OneStarMaker.Runtime.SceneSystem
                 return;
             }
 
-            // ロード中のシーン: キャンセル窓内ならキャンセル、窓外なら Stable まで待つ
+            // ロード中のシーン: キャンセル窓内ならキャンセル、窓外なら Stable 到達後に pending を消費する。
+            // 通常例外で Add が失敗した場合は RecoverFailedLoadAsync が辞書と pending を消す。
             if (pair.SceneBase.Lifecycle.IsInLoadingPhase)
             {
                 if (pair.LoadCts != null)
@@ -115,6 +116,37 @@ namespace OneStarMaker.Runtime.SceneSystem
         /// sibling 間参照を保証するため、3フェーズで処理する。
         /// </summary>
         private async UniTask RemoveScene(string sceneIdentify)
+        {
+            if (_inFlightUnloads.TryGetValue(sceneIdentify, out var existing))
+            {
+                await ObserveCompletedTask(existing.Task);
+                return;
+            }
+
+            var completion = new UniTaskCompletionSource();
+            _inFlightUnloads[sceneIdentify] = completion;
+            try
+            {
+                await RemoveSceneCore(sceneIdentify);
+                completion.TrySetResult();
+            }
+            catch (Exception ex)
+            {
+                completion.TrySetException(ex);
+                ObserveInFlightException(completion.Task);
+                throw;
+            }
+            finally
+            {
+                _inFlightUnloads.Remove(sceneIdentify);
+            }
+        }
+
+        /// <summary>
+        /// 通常のシーンアンロード。子シーンも再帰的にアンロードする。
+        /// sibling 間参照を保証するため、3フェーズで処理する。
+        /// </summary>
+        private async UniTask RemoveSceneCore(string sceneIdentify)
         {
             if (!_currentScenes.TryGetValue(sceneIdentify, out var pair))
             {

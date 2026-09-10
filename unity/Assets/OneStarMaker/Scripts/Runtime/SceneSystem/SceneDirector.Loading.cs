@@ -295,6 +295,11 @@ namespace OneStarMaker.Runtime.SceneSystem
                     throw;
                 }
             }
+            catch (Exception)
+            {
+                await RecoverFailedLoadAsync(newlyCreatedScenes);
+                throw;
+            }
             finally
             {
                 if (showedLoading)
@@ -302,7 +307,8 @@ namespace OneStarMaker.Runtime.SceneSystem
                     await _loadingDisplay.Hide(CancellationToken.None);
                 }
 
-                // 非 OCE 例外経路では pair が _currentScenes に残ったままここへ来る。
+                // 非 OCE 例外は RecoverFailedLoadAsync で辞書から除く。
+                // ここに来る残件は OCE 経路の CTS 切り離し。
                 // 破棄済み CTS を LoadCts に残すと後続の UnloadScene が
                 // ObjectDisposedException を投げるため、Dispose 前に必ず切り離す。
                 if (linkedCts != null)
@@ -440,7 +446,7 @@ namespace OneStarMaker.Runtime.SceneSystem
                                 loadCts);
                         }
                     }
-                    await UniTask.WhenAll(tasks);
+                    await AwaitAllSettled(tasks, taskCount);
                 }
             }
             else
@@ -546,7 +552,7 @@ namespace OneStarMaker.Runtime.SceneSystem
                     }
                 }
 
-                await UniTask.WhenAll(necessaryTasks);
+                await AwaitAllSettled(necessaryTasks, taskCount);
             }
 
             // RootObjects を取得して SceneBase を初期化
@@ -591,6 +597,7 @@ namespace OneStarMaker.Runtime.SceneSystem
             catch (Exception ex)
             {
                 Debug.LogError($"[SceneDirector] Incremental load failed: {childIdentify}: {ex}");
+                await RecoverFailedLoadAsync(new List<string> { childIdentify });
             }
         }
 
