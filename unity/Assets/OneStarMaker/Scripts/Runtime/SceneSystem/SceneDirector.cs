@@ -21,6 +21,7 @@ namespace OneStarMaker.Runtime.SceneSystem
     /// partial 構成:
     ///   SceneDirector.cs             … フィールド, ctor, Dispose, ISceneQuery, ISceneVolumeQuery, テストアクセサ, ヘルパー
     ///   SceneDirector.Loading.cs     … AddScene, LoadSceneBase, LoadUnityScene, PerformUnitySceneLoad
+    ///   SceneDirector.FailedLoadCleanup.cs … 通常例外で失敗した Add の newlyCreated 回収
     ///   SceneDirector.Unloading.cs   … UnloadScene, RemoveScene, 3-Phase, CleanupCanceledScene, PerformUnitySceneUnload
     ///   SceneDirector.Transitions.cs … SwitchScene, GoBack, ClearHistory, ExecuteTransitionPlan
     /// </summary>
@@ -69,6 +70,7 @@ namespace OneStarMaker.Runtime.SceneSystem
         private readonly Dictionary<string, UniTaskCompletionSource> _inFlightAddScenes = new(StringComparer.Ordinal);
         private readonly Dictionary<string, UniTaskCompletionSource> _inFlightSceneBaseLoads = new(StringComparer.Ordinal);
         private readonly Dictionary<string, UniTaskCompletionSource> _inFlightUnitySceneLoads = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, UniTaskCompletionSource> _inFlightUnloads = new(StringComparer.Ordinal);
         private readonly ISceneFactory _sceneFactory;
         private readonly UICommon _uiCommon;
         private readonly SceneResourceMap _sceneResourceMap;

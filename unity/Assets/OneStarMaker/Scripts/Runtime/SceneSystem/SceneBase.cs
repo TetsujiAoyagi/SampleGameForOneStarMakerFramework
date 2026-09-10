@@ -169,6 +169,21 @@ namespace OneStarMaker.Runtime.SceneSystem
         internal async UniTask ExecutePreUnLoad()
         {
             _lifecycle.TransitionTo(SceneState.PreUnloading);
+            await ContinuePreUnLoadFromCurrent();
+        }
+
+        /// <summary>
+        /// すでに PreUnloading にいる個体の残り（フック → PreUnloaded）。
+        /// 途中失敗した RemoveScene を再開するとき、TransitionTo(PreUnloading) を再実行しない。
+        /// </summary>
+        internal async UniTask ContinuePreUnLoadFromCurrent()
+        {
+            if (_lifecycle.State != SceneState.PreUnloading)
+            {
+                throw new InvalidOperationException(
+                    $"ContinuePreUnLoadFromCurrent requires PreUnloading, but was {_lifecycle.State}");
+            }
+
             _rootObjects.Clear();
             await OnPreUnLoadedImpl();
             _lifecycle.TransitionTo(SceneState.PreUnloaded);
@@ -178,6 +193,21 @@ namespace OneStarMaker.Runtime.SceneSystem
         internal async UniTask ExecuteAfterUnLoad()
         {
             _lifecycle.TransitionTo(SceneState.AfterUnloading);
+            await OnAfterUnLoadedImpl();
+        }
+
+        /// <summary>
+        /// すでに AfterUnloading にいる個体の残りフック。
+        /// ExecuteAfterUnLoad は TransitionTo(AfterUnloading) から入るため、再開時は呼べない。
+        /// </summary>
+        internal async UniTask ContinueAfterUnLoadFromCurrent()
+        {
+            if (_lifecycle.State != SceneState.AfterUnloading)
+            {
+                throw new InvalidOperationException(
+                    $"ContinueAfterUnLoadFromCurrent requires AfterUnloading, but was {_lifecycle.State}");
+            }
+
             await OnAfterUnLoadedImpl();
         }
 

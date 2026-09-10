@@ -301,6 +301,15 @@ namespace OneStarMaker.Tests.SceneSystem
                 () => _manager.TransitionTo(SceneState.LoadCanceled));
         }
 
+        [Test]
+        public void TransitionTo_PreUnloading_From_Initializing_Succeeds()
+        {
+            AdvanceToWaitLoadChildScene();
+            _manager.TransitionTo(SceneState.Initializing);
+            _manager.TransitionTo(SceneState.PreUnloading);
+            Assert.AreEqual(SceneState.PreUnloading, _manager.State);
+        }
+
         // ─── LoadCanceled → AfterUnloading 遷移（キャンセル後クリーンアップ） ───
 
         [Test]

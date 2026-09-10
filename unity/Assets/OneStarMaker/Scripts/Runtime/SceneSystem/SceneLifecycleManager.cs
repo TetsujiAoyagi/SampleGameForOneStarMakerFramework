@@ -92,6 +92,7 @@ namespace OneStarMaker.Runtime.SceneSystem
                 (SceneState.Initializing, SceneState.Stable) => true,
 
                 // ── Unload パス ──
+                (SceneState.Initializing, SceneState.PreUnloading) => true,
                 (SceneState.Stable, SceneState.PreUnloading) => true,
                 (SceneState.PreUnloading, SceneState.PreUnloaded) => true,
                 (SceneState.PreUnloaded, SceneState.Unloading) => true,

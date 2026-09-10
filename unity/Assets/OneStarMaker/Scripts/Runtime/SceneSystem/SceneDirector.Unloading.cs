@@ -45,7 +45,8 @@ namespace OneStarMaker.Runtime.SceneSystem
                 return;
             }
 
-            // ロード中のシーン: キャンセル窓内ならキャンセル、窓外なら Stable まで待つ
+            // ロード中のシーン: キャンセル窓内ならキャンセル、窓外なら Stable 到達後に pending を消費する。
+            // 通常例外で Add が失敗した場合は RecoverFailedLoadAsync が辞書と pending を消す。
             if (pair.SceneBase.Lifecycle.IsInLoadingPhase)
             {
                 if (pair.LoadCts != null)
@@ -115,6 +116,47 @@ namespace OneStarMaker.Runtime.SceneSystem
         /// sibling 間参照を保証するため、3フェーズで処理する。
         /// </summary>
         private async UniTask RemoveScene(string sceneIdentify)
+        {
+            if (_inFlightUnloads.TryGetValue(sceneIdentify, out var existing))
+            {
+                // Add / PreLoad / UnityLoad の合流と同じ。先発の失敗は後発にも伝搬する。
+                await existing.Task;
+                return;
+            }
+
+            var completion = new UniTaskCompletionSource();
+            _inFlightUnloads[sceneIdentify] = completion;
+            Exception? error = null;
+            try
+            {
+                await RemoveSceneCore(sceneIdentify);
+            }
+            catch (Exception ex)
+            {
+                error = ex;
+            }
+            finally
+            {
+                _inFlightUnloads.Remove(sceneIdentify);
+            }
+
+            // 辞書キーを外してから完了させる。Recover が Task 合流した直後に再開しても
+            // 先発 RemoveScene と二重実行しない。
+            if (error != null)
+            {
+                completion.TrySetException(error);
+                ObserveInFlightException(completion.Task);
+                throw error;
+            }
+
+            completion.TrySetResult();
+        }
+
+        /// <summary>
+        /// 通常のシーンアンロード。子シーンも再帰的にアンロードする。
+        /// sibling 間参照を保証するため、3フェーズで処理する。
+        /// </summary>
+        private async UniTask RemoveSceneCore(string sceneIdentify)
         {
             if (!_currentScenes.TryGetValue(sceneIdentify, out var pair))
             {
@@ -231,6 +273,20 @@ namespace OneStarMaker.Runtime.SceneSystem
             }
 
             await pair.SceneBase.ExecuteAfterUnLoad();
+            DisposeUnloadedScene(sceneIdentify);
+        }
+
+        /// <summary>
+        /// AfterUnloading 到達後の Release / Dispose / 辞書除去。
+        /// 再開経路は TransitionTo(AfterUnloading) を既に済ませているので、ここだけを共有する。
+        /// </summary>
+        private void DisposeUnloadedScene(string sceneIdentify)
+        {
+            if (!_currentScenes.TryGetValue(sceneIdentify, out var pair))
+            {
+                return;
+            }
+
             // Phase 3: Scene 所有の PreLoad アセット等を解放（Scene 本体は Phase 2 済み）
             _assetManagement.ReleaseScene(sceneIdentify);
             pair.SceneBase.Dispose();

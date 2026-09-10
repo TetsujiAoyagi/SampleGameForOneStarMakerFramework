@@ -200,13 +200,18 @@ namespace OneStarMaker.Tests.SceneSystem
                 // 期待通り
             }
 
-            // 非 OCE 例外後、LoadCts が破棄済み CTS を指したままだと
-            // UnloadScene のキャンセル窓判定で ObjectDisposedException になる。
-            // 修正後は LoadCts が null クリアされ、保留アンロード登録に落ちる。
+            // 非 OCE 例外後は失敗回収が辞書から除去する。
+            // UnloadScene は no-op で、同一 identity の再 Add が可能。
             await director.UnloadScene("TestScene");
 
-            Assert.IsTrue(director.HasPendingUnload("TestScene"),
-                "キャンセル窓が閉じているため保留アンロードとして登録されるべき");
+            Assert.IsFalse(director.ContainsScene("TestScene"),
+                "通常例外後の失敗回収で Scene は辞書から除かれるべき");
+            Assert.IsFalse(director.HasPendingUnload("TestScene"),
+                "失敗回収後に保留アンロードが残ってはならない");
+
+            Factory.OnCreated = null;
+            await director.AddScene("TestScene", null, CancellationToken.None);
+            Assert.AreEqual(SceneState.Stable, director.GetSceneState("TestScene"));
         });
 
         // ═══════════════════════════════════════════
