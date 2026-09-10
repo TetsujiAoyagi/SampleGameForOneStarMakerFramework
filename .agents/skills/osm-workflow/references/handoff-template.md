@@ -82,11 +82,15 @@ Phase A では implementation base commit と Phase A snapshot を記録する�
 
 ## 8. Phase C'
 
+- 担当方式: 人間 / AI
 - blind audit bundle id / hash:
+- 確認範囲・方法（全件機械検査 / 代表箇所の目視・操作等）:
+- 判定（人間担当は本人の明示回答まで未実施）:
 - findings:
 - 残存リスク:
 - 監査できなかった範囲:
 - 独立性:
+- Phase C 結論の事前閲覧・設計実装への関与:
 - 担当・モデル:
 
 ## 9. Phase D
