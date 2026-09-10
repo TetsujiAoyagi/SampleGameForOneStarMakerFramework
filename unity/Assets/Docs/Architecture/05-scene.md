@@ -12,10 +12,11 @@ SceneDirector は責務ごとに **partial class** で分割する。
 ディスク上のフォルダも Scene 親子に揃え、必要なアセット（Scene / Texture / Mesh 等）はそのツリー配下に同居させる。配置ルールは [27-folder-structure.md](27-folder-structure.md)（軸 B）を参照。
 
 ```
-SceneDirector.cs             … フィールド, ctor, Dispose, ISceneQuery, テストアクセサ, ヘルパー
-SceneDirector.Loading.cs     … AddScene, LoadSceneBase, LoadUnityScene, PerformUnitySceneLoad
-SceneDirector.Unloading.cs   … UnloadScene, RemoveScene, 3-Phase, CleanupCanceledScene, PerformUnitySceneUnload
-SceneDirector.Transitions.cs … SwitchScene, GoBack, ClearHistory, ExecuteTransitionPlan
+SceneDirector.cs                    … フィールド, ctor, Dispose, ISceneQuery, テストアクセサ, ヘルパー
+SceneDirector.Loading.cs            … AddScene, LoadSceneBase, LoadUnityScene, PerformUnitySceneLoad
+SceneDirector.FailedLoadCleanup.cs  … 通常例外で失敗した Add の newlyCreated 回収
+SceneDirector.Unloading.cs          … UnloadScene, RemoveScene, 3-Phase, CleanupCanceledScene, PerformUnitySceneUnload
+SceneDirector.Transitions.cs        … SwitchScene, GoBack, ClearHistory, ExecuteTransitionPlan
 ```
 
 フォルダ構成は `Scripts/Runtime/SceneSystem/` フラットのまま維持する。
@@ -40,6 +41,7 @@ None → PreLoading → PreLoaded → Loading → Loaded → WaitLoadChildScene
   → Initializing → Stable → PreUnloading → PreUnloaded
   → Unloading → Unloaded → AfterUnloading
 
+※ Initializing → PreUnloading も有効（ViewIn 中の Unload / AddUIView 失敗後の RemoveScene）
 ※ LoadCanceled は PreLoading〜WaitLoadChildScene からのみ遷移可能
 ※ LoadCanceled → AfterUnloading（キャンセル後クリーンアップ）も有効
 ```
@@ -123,6 +125,7 @@ internal class SceneLifecycleManager
             (SceneState.Loaded, SceneState.WaitLoadChildScene) => true,
             (SceneState.WaitLoadChildScene, SceneState.Initializing) => true,
             (SceneState.Initializing, SceneState.Stable) => true,
+            (SceneState.Initializing, SceneState.PreUnloading) => true,
             (SceneState.Stable, SceneState.PreUnloading) => true,
             (SceneState.PreUnloading, SceneState.PreUnloaded) => true,
             (SceneState.PreUnloaded, SceneState.Unloading) => true,
@@ -131,6 +134,7 @@ internal class SceneLifecycleManager
             // キャンセルはロードフェーズからのみ
             (>= SceneState.PreLoading and <= SceneState.WaitLoadChildScene,
                 SceneState.LoadCanceled) => true,
+            (SceneState.LoadCanceled, SceneState.AfterUnloading) => true,
             _ => false,
         };
     }
@@ -523,6 +527,7 @@ private async UniTaskVoid IncrementalLoadAsync(string childId, SceneBase child, 
     catch (Exception ex)
     {
         Debug.LogError($"[SceneDirector] Incremental load failed: {childId}: {ex}");
+        await RecoverFailedLoadAsync(new List<string> { childId });
     }
 }
 ```

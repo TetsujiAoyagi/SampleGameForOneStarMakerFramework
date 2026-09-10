@@ -41,6 +41,17 @@ namespace OneStarMaker.Tests.SceneSystem.TestDoubles
         /// </summary>
         public Dictionary<string, int> LastLoadPriorities { get; } = new();
 
+        /// <summary>
+        /// identity 別 RootObjects。null なら空配列。
+        /// Initializing を ViewIn で止めるテストは、ここに UIView 付き GO を返す。
+        /// </summary>
+        public Func<string, GameObject[]>? RootObjectsFactory { get; set; }
+
+        /// <summary>
+        /// PerformUnitySceneUnload の差し込み。Unloading 再開テスト用。
+        /// </summary>
+        public Func<string, UniTask>? UnitySceneUnloadAction { get; set; }
+
         /// <summary>PerformUnitySceneUnload が呼ばれた回数。3-Phase Unload の検証用。</summary>
         public int UnloadCallCount { get; private set; }
 
@@ -87,6 +98,11 @@ namespace OneStarMaker.Tests.SceneSystem.TestDoubles
                 await UnitySceneLoadGate.Task;
             }
 
+            if (RootObjectsFactory != null)
+            {
+                return (false, RootObjectsFactory(sceneIdentify));
+            }
+
             // Addressables ロードをスキップ。RootObjects 空で SceneBase ライフサイクルのみ検証
             return (false, Array.Empty<GameObject>());
         }
@@ -94,11 +110,14 @@ namespace OneStarMaker.Tests.SceneSystem.TestDoubles
         /// <summary>
         /// テスト用: 実際の SceneManager / AssetManagement 呼び出しを行わず、呼び出し回数のみ記録。
         /// </summary>
-        protected override UniTask PerformUnitySceneUnload(
+        protected override async UniTask PerformUnitySceneUnload(
             string sceneIdentify, bool addressablesSceneLoaded)
         {
             UnloadCallCount++;
-            return UniTask.CompletedTask;
+            if (UnitySceneUnloadAction != null)
+            {
+                await UnitySceneUnloadAction(sceneIdentify);
+            }
         }
     }
 }

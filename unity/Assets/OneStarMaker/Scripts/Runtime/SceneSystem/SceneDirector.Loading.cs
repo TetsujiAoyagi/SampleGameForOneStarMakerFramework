@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using Cysharp.Text;
 using Cysharp.Threading.Tasks;
@@ -568,6 +569,15 @@ namespace OneStarMaker.Runtime.SceneSystem
                 await _uiCommon.AddUIView(sceneIdentify, sceneBase.UIView, ct);
             }
 
+            // Initializing 中に UnloadScene が PreUnloading へ進めた場合、
+            // ここで Stable へ進むと不正遷移になる。個体が辞書から消えていれば Unload が勝った。
+            if (!_currentScenes.TryGetValue(sceneIdentify, out var activePair)
+                || !ReferenceEquals(activePair.SceneBase, sceneBase)
+                || sceneBase.Lifecycle.IsUnloadStarted)
+            {
+                return;
+            }
+
             // Initializing → Stable
             TransitionSceneState(sceneIdentify, sceneBase, SceneState.Stable);
             _sceneEventSubject.OnNext(new SceneEvent(
@@ -645,6 +655,31 @@ namespace OneStarMaker.Runtime.SceneSystem
             }
 
             return (false, unityScene.GetRootGameObjects());
+        }
+
+        /// <summary>
+        /// 兄弟 PreLoad / UnityLoad をすべて settle してから、最初の例外だけを投げる。
+        /// WhenAll だと一人が失敗した時点で他の兄弟を待たずに抜ける。
+        /// </summary>
+        private static async UniTask AwaitAllSettled(UniTask[] tasks, int taskCount)
+        {
+            Exception? first = null;
+            for (var i = 0; i < taskCount; i++)
+            {
+                try
+                {
+                    await tasks[i];
+                }
+                catch (Exception ex)
+                {
+                    first ??= ex;
+                }
+            }
+
+            if (first != null)
+            {
+                ExceptionDispatchInfo.Capture(first).Throw();
+            }
         }
     }
 }

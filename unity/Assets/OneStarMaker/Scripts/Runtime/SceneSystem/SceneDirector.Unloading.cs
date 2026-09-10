@@ -119,27 +119,37 @@ namespace OneStarMaker.Runtime.SceneSystem
         {
             if (_inFlightUnloads.TryGetValue(sceneIdentify, out var existing))
             {
-                await ObserveCompletedTask(existing.Task);
+                // Add / PreLoad / UnityLoad の合流と同じ。先発の失敗は後発にも伝搬する。
+                await existing.Task;
                 return;
             }
 
             var completion = new UniTaskCompletionSource();
             _inFlightUnloads[sceneIdentify] = completion;
+            Exception? error = null;
             try
             {
                 await RemoveSceneCore(sceneIdentify);
-                completion.TrySetResult();
             }
             catch (Exception ex)
             {
-                completion.TrySetException(ex);
-                ObserveInFlightException(completion.Task);
-                throw;
+                error = ex;
             }
             finally
             {
                 _inFlightUnloads.Remove(sceneIdentify);
             }
+
+            // 辞書キーを外してから完了させる。Recover が Task 合流した直後に再開しても
+            // 先発 RemoveScene と二重実行しない。
+            if (error != null)
+            {
+                completion.TrySetException(error);
+                ObserveInFlightException(completion.Task);
+                throw error;
+            }
+
+            completion.TrySetResult();
         }
 
         /// <summary>
@@ -263,6 +273,20 @@ namespace OneStarMaker.Runtime.SceneSystem
             }
 
             await pair.SceneBase.ExecuteAfterUnLoad();
+            DisposeUnloadedScene(sceneIdentify);
+        }
+
+        /// <summary>
+        /// AfterUnloading 到達後の Release / Dispose / 辞書除去。
+        /// 再開経路は TransitionTo(AfterUnloading) を既に済ませているので、ここだけを共有する。
+        /// </summary>
+        private void DisposeUnloadedScene(string sceneIdentify)
+        {
+            if (!_currentScenes.TryGetValue(sceneIdentify, out var pair))
+            {
+                return;
+            }
+
             // Phase 3: Scene 所有の PreLoad アセット等を解放（Scene 本体は Phase 2 済み）
             _assetManagement.ReleaseScene(sceneIdentify);
             pair.SceneBase.Dispose();

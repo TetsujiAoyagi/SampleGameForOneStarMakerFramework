@@ -2,12 +2,14 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using NUnit.Framework;
 using OneStarMaker.Runtime.AssetDescriptions;
 using OneStarMaker.Runtime.SceneSystem;
+using OneStarMaker.Runtime.UISystem;
 using OneStarMaker.Tests.SceneSystem.Helpers;
 using OneStarMaker.Tests.SceneSystem.TestDoubles;
 using UnityEngine;
@@ -184,6 +186,349 @@ namespace OneStarMaker.Tests.SceneSystem
             Assert.IsFalse(director.ContainsScene("TestScene"));
             Assert.IsFalse(director.HasPendingUnload("TestScene"));
         });
+
+        [UnityTest]
+        public IEnumerator AddScene_ViewInException_RemovesInitializingScene_AndAllowsReAdd()
+            => UniTask.ToCoroutine(async () =>
+        {
+            var director = SetupSingleScene();
+            var roots = new List<GameObject>();
+            director.RootObjectsFactory = _ => new[] { CreateRootWithViewInError(roots, "ViewIn failure") };
+
+            try
+            {
+                await director.AddScene("TestScene", null, CancellationToken.None);
+                Assert.Fail("InvalidOperationException が throw されるべき");
+            }
+            catch (InvalidOperationException)
+            {
+            }
+            finally
+            {
+                DestroyRoots(roots);
+            }
+
+            Assert.IsFalse(director.ContainsScene("TestScene"));
+            Assert.IsFalse(director.HasPendingUnload("TestScene"));
+
+            director.RootObjectsFactory = null;
+            await director.AddScene("TestScene", null, CancellationToken.None);
+            Assert.AreEqual(SceneState.Stable, director.GetSceneState("TestScene"));
+        });
+
+        [UnityTest]
+        public IEnumerator UnloadScene_DuringInitializing_RemovesScene_AndAllowsReAdd()
+            => UniTask.ToCoroutine(async () =>
+        {
+            var director = SetupSingleScene();
+            var viewInEntered = new UniTaskCompletionSource();
+            var viewInRelease = new UniTaskCompletionSource();
+            var roots = new List<GameObject>();
+            director.RootObjectsFactory = _ => new[]
+            {
+                CreateRootWithGatedViewIn(roots, viewInEntered, viewInRelease)
+            };
+
+            var addTask = director.AddScene("TestScene", null, CancellationToken.None);
+            await viewInEntered.Task;
+            Assert.AreEqual(SceneState.Initializing, director.GetSceneState("TestScene"));
+
+            var unloadTask = director.UnloadScene("TestScene");
+            viewInRelease.TrySetResult();
+
+            await unloadTask;
+            await addTask;
+
+            Assert.IsFalse(director.ContainsScene("TestScene"));
+            Assert.IsFalse(director.HasPendingUnload("TestScene"));
+            DestroyRoots(roots);
+
+            director.RootObjectsFactory = null;
+            await director.AddScene("TestScene", null, CancellationToken.None);
+            Assert.AreEqual(SceneState.Stable, director.GetSceneState("TestScene"));
+        });
+
+        [UnityTest]
+        public IEnumerator Recover_ResumesFailedPreUnload_AndAllowsReAdd()
+            => UniTask.ToCoroutine(async () =>
+        {
+            var director = SetupSingleScene();
+            var viewInEntered = new UniTaskCompletionSource();
+            var viewInRelease = new UniTaskCompletionSource();
+            var preUnloadEntered = new UniTaskCompletionSource();
+            var preUnloadRelease = new UniTaskCompletionSource();
+            var roots = new List<GameObject>();
+            var throwPreUnload = true;
+            director.RootObjectsFactory = _ => new[]
+            {
+                CreateRootWithViewInErrorAfterGate(
+                    roots, viewInEntered, viewInRelease, "ViewIn failure after unload started")
+            };
+
+            Factory.OnCreated = scene =>
+            {
+                scene.PreUnLoadAction = async () =>
+                {
+                    preUnloadEntered.TrySetResult();
+                    await preUnloadRelease.Task;
+                    if (throwPreUnload)
+                    {
+                        throwPreUnload = false;
+                        throw new InvalidOperationException("PreUnload failure");
+                    }
+                };
+            };
+
+            var addTask = director.AddScene("TestScene", null, CancellationToken.None);
+            await viewInEntered.Task;
+            var unloadTask = director.UnloadScene("TestScene");
+            await preUnloadEntered.Task;
+            viewInRelease.TrySetResult();
+            preUnloadRelease.TrySetResult();
+
+            try
+            {
+                await addTask;
+                Assert.Fail("InvalidOperationException が throw されるべき");
+            }
+            catch (InvalidOperationException)
+            {
+            }
+
+            try
+            {
+                await unloadTask;
+            }
+            catch (InvalidOperationException)
+            {
+            }
+
+            Assert.IsFalse(director.ContainsScene("TestScene"));
+            Assert.IsFalse(director.HasPendingUnload("TestScene"));
+            DestroyRoots(roots);
+
+            Factory.OnCreated = null;
+            director.RootObjectsFactory = null;
+            await director.AddScene("TestScene", null, CancellationToken.None);
+            Assert.AreEqual(SceneState.Stable, director.GetSceneState("TestScene"));
+        });
+
+        [UnityTest]
+        public IEnumerator Recover_ResumesFailedUnityUnload_AndAllowsReAdd()
+            => UniTask.ToCoroutine(async () =>
+        {
+            var director = SetupSingleScene();
+            var viewInEntered = new UniTaskCompletionSource();
+            var viewInRelease = new UniTaskCompletionSource();
+            var unloadEntered = new UniTaskCompletionSource();
+            var unloadRelease = new UniTaskCompletionSource();
+            var roots = new List<GameObject>();
+            var throwUnload = true;
+            director.RootObjectsFactory = _ => new[]
+            {
+                CreateRootWithViewInErrorAfterGate(
+                    roots, viewInEntered, viewInRelease, "ViewIn failure after unload started")
+            };
+            director.UnitySceneUnloadAction = async _ =>
+            {
+                unloadEntered.TrySetResult();
+                await unloadRelease.Task;
+                if (throwUnload)
+                {
+                    throwUnload = false;
+                    throw new InvalidOperationException("Unity unload failure");
+                }
+            };
+
+            var addTask = director.AddScene("TestScene", null, CancellationToken.None);
+            await viewInEntered.Task;
+            var unloadTask = director.UnloadScene("TestScene");
+            await unloadEntered.Task;
+            viewInRelease.TrySetResult();
+            unloadRelease.TrySetResult();
+
+            try
+            {
+                await addTask;
+                Assert.Fail("InvalidOperationException が throw されるべき");
+            }
+            catch (InvalidOperationException)
+            {
+            }
+
+            try
+            {
+                await unloadTask;
+            }
+            catch (InvalidOperationException)
+            {
+            }
+
+            Assert.IsFalse(director.ContainsScene("TestScene"));
+            Assert.IsFalse(director.HasPendingUnload("TestScene"));
+            DestroyRoots(roots);
+
+            director.RootObjectsFactory = null;
+            director.UnitySceneUnloadAction = null;
+            await director.AddScene("TestScene", null, CancellationToken.None);
+            Assert.AreEqual(SceneState.Stable, director.GetSceneState("TestScene"));
+        });
+
+        [UnityTest]
+        public IEnumerator Recover_ResumesFailedAfterUnload_AndAllowsReAdd()
+            => UniTask.ToCoroutine(async () =>
+        {
+            var director = SetupSingleScene();
+            var viewInEntered = new UniTaskCompletionSource();
+            var viewInRelease = new UniTaskCompletionSource();
+            var afterEntered = new UniTaskCompletionSource();
+            var afterRelease = new UniTaskCompletionSource();
+            var roots = new List<GameObject>();
+            var throwAfter = true;
+            director.RootObjectsFactory = _ => new[]
+            {
+                CreateRootWithViewInErrorAfterGate(
+                    roots, viewInEntered, viewInRelease, "ViewIn failure after unload started")
+            };
+
+            Factory.OnCreated = scene =>
+            {
+                scene.AfterUnLoadAction = async () =>
+                {
+                    afterEntered.TrySetResult();
+                    await afterRelease.Task;
+                    if (throwAfter)
+                    {
+                        throwAfter = false;
+                        throw new InvalidOperationException("AfterUnload failure");
+                    }
+                };
+            };
+
+            var addTask = director.AddScene("TestScene", null, CancellationToken.None);
+            await viewInEntered.Task;
+            var unloadTask = director.UnloadScene("TestScene");
+            await afterEntered.Task;
+            viewInRelease.TrySetResult();
+            afterRelease.TrySetResult();
+
+            try
+            {
+                await addTask;
+                Assert.Fail("InvalidOperationException が throw されるべき");
+            }
+            catch (InvalidOperationException)
+            {
+            }
+
+            try
+            {
+                await unloadTask;
+            }
+            catch (InvalidOperationException)
+            {
+            }
+
+            Assert.IsFalse(director.ContainsScene("TestScene"));
+            Assert.IsFalse(director.HasPendingUnload("TestScene"));
+            DestroyRoots(roots);
+
+            Factory.OnCreated = null;
+            director.RootObjectsFactory = null;
+            await director.AddScene("TestScene", null, CancellationToken.None);
+            Assert.AreEqual(SceneState.Stable, director.GetSceneState("TestScene"));
+        });
+
+        private static GameObject CreateRootWithViewInError(List<GameObject> roots, string message)
+        {
+            var go = new GameObject("TestRoot");
+            var view = go.AddComponent<ThrowingTestUIView>();
+            view.Message = message;
+            roots.Add(go);
+            return go;
+        }
+
+        private static GameObject CreateRootWithGatedViewIn(
+            List<GameObject> roots,
+            UniTaskCompletionSource entered,
+            UniTaskCompletionSource release)
+        {
+            var go = new GameObject("TestRoot");
+            var view = go.AddComponent<GatedTestUIView>();
+            view.Entered = entered;
+            view.Release = release;
+            roots.Add(go);
+            return go;
+        }
+
+        private static GameObject CreateRootWithViewInErrorAfterGate(
+            List<GameObject> roots,
+            UniTaskCompletionSource entered,
+            UniTaskCompletionSource release,
+            string message)
+        {
+            var go = new GameObject("TestRoot");
+            var view = go.AddComponent<GatedThrowingTestUIView>();
+            view.Entered = entered;
+            view.Release = release;
+            view.Message = message;
+            roots.Add(go);
+            return go;
+        }
+
+        private static void DestroyRoots(List<GameObject> roots)
+        {
+            for (var i = 0; i < roots.Count; i++)
+            {
+                if (roots[i] != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(roots[i]);
+                }
+            }
+
+            roots.Clear();
+        }
+
+        private sealed class ThrowingTestUIView : UIView
+        {
+            public string Message = "ViewIn failure";
+
+            public override UniTask ViewIn(CancellationToken ct)
+                => UniTask.FromException(new InvalidOperationException(Message));
+        }
+
+        private sealed class GatedTestUIView : UIView
+        {
+            public UniTaskCompletionSource? Entered;
+            public UniTaskCompletionSource? Release;
+
+            public override async UniTask ViewIn(CancellationToken ct)
+            {
+                Entered?.TrySetResult();
+                if (Release != null)
+                {
+                    await Release.Task;
+                }
+            }
+        }
+
+        private sealed class GatedThrowingTestUIView : UIView
+        {
+            public UniTaskCompletionSource? Entered;
+            public UniTaskCompletionSource? Release;
+            public string Message = "ViewIn failure";
+
+            public override async UniTask ViewIn(CancellationToken ct)
+            {
+                Entered?.TrySetResult();
+                if (Release != null)
+                {
+                    await Release.Task;
+                }
+
+                throw new InvalidOperationException(Message);
+            }
+        }
 
         private TestableSceneDirector SetupParentWithTwoNecessaryChildren()
         {
