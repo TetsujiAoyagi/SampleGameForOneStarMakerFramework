@@ -439,6 +439,112 @@ namespace OneStarMaker.Tests.SceneSystem
             Assert.AreEqual(SceneState.Stable, director.GetSceneState("TestScene"));
         });
 
+        [UnityTest]
+        public IEnumerator Recover_ResumeHookKeepsFailing_ClearsPendingAndLogsLeftover()
+            => UniTask.ToCoroutine(async () =>
+        {
+            var director = SetupSingleScene();
+            var gate = new UniTaskCompletionSource();
+            var roots = new List<GameObject>();
+            director.UnitySceneLoadGate = gate;
+            director.RootObjectsFactory = _ => new[] { CreateRootWithViewInError(roots, "ViewIn failure") };
+
+            Factory.OnCreated = scene =>
+            {
+                scene.PreUnLoadAction = () =>
+                    throw new InvalidOperationException("PreUnload always fails");
+            };
+
+            var addTask = director.AddScene("TestScene", null, CancellationToken.None);
+            await UniTask.WaitUntil(() =>
+                director.ContainsScene("TestScene")
+                && director.GetSceneState("TestScene") == SceneState.Loading);
+            var unloadTask = director.UnloadScene("TestScene");
+            Assert.IsTrue(director.HasPendingUnload("TestScene"));
+
+            LogAssert.Expect(LogType.Exception, new Regex("PreUnload always fails"));
+            LogAssert.Expect(LogType.Exception, new Regex("PreUnload always fails"));
+            LogAssert.Expect(LogType.Error, new Regex("Failed-load recovery left TestScene"));
+
+            gate.TrySetResult();
+
+            try
+            {
+                await addTask;
+                Assert.Fail("InvalidOperationException が throw されるべき");
+            }
+            catch (InvalidOperationException)
+            {
+            }
+
+            await unloadTask;
+
+            Assert.IsFalse(director.HasPendingUnload("TestScene"));
+            Assert.IsTrue(director.ContainsScene("TestScene"));
+            Assert.AreEqual(SceneState.PreUnloading, director.GetSceneState("TestScene"));
+            DestroyRoots(roots);
+        });
+
+        [UnityTest]
+        public IEnumerator Recover_ResumeHookKeepsFailing_DoesNotSkipSiblingCleanup()
+            => UniTask.ToCoroutine(async () =>
+        {
+            var director = SetupParentWithTwoNecessaryChildren();
+            var viewInEntered = new UniTaskCompletionSource();
+            var viewInRelease = new UniTaskCompletionSource();
+            var roots = new List<GameObject>();
+            director.RootObjectsFactory = id => id == "Parent"
+                ? new[]
+                {
+                    CreateRootWithViewInErrorAfterGate(
+                        roots, viewInEntered, viewInRelease, "ViewIn failure after ChildA unload")
+                }
+                : Array.Empty<GameObject>();
+
+            Factory.OnCreated = scene =>
+            {
+                if (scene.SceneResource.Identity == "ChildA")
+                {
+                    scene.PreUnLoadAction = () =>
+                        throw new InvalidOperationException("ChildA PreUnload always fails");
+                }
+            };
+
+            var addTask = director.AddScene("Parent", null, CancellationToken.None);
+            await viewInEntered.Task;
+
+            try
+            {
+                await director.UnloadScene("ChildA");
+            }
+            catch (InvalidOperationException)
+            {
+            }
+
+            LogAssert.Expect(LogType.Exception, new Regex("ChildA PreUnload always fails"));
+            LogAssert.Expect(LogType.Error, new Regex("Failed-load recovery left ChildA"));
+
+            viewInRelease.TrySetResult();
+
+            try
+            {
+                await addTask;
+                Assert.Fail("InvalidOperationException が throw されるべき");
+            }
+            catch (InvalidOperationException)
+            {
+            }
+
+            Assert.IsFalse(director.ContainsScene("Parent"));
+            Assert.IsFalse(director.ContainsScene("ChildB"));
+            Assert.IsTrue(director.ContainsScene("ChildA"));
+            Assert.AreEqual(SceneState.PreUnloading, director.GetSceneState("ChildA"));
+            Assert.IsFalse(director.HasPendingUnload("Parent"));
+            Assert.IsFalse(director.HasPendingUnload("ChildA"));
+            Assert.IsFalse(director.HasPendingUnload("ChildB"));
+            DestroyRoots(roots);
+        });
+
         private static GameObject CreateRootWithViewInError(List<GameObject> roots, string message)
         {
             var go = new GameObject("TestRoot");

@@ -24,48 +24,28 @@ namespace OneStarMaker.Runtime.SceneSystem
         /// </summary>
         private async UniTask RecoverFailedLoadAsync(List<string> newlyCreatedScenes)
         {
+            Dictionary<string, SceneBase>? created = null;
             try
             {
                 await AwaitRemainingInFlightLoads(newlyCreatedScenes);
 
-                var created = CaptureCreatedInstances(newlyCreatedScenes);
+                created = CaptureCreatedInstances(newlyCreatedScenes);
                 var activeRoots = new List<string>();
                 var stillLoading = new List<string>();
 
                 // 子から親へ。cancel cleanup と同じ。
+                // 1個体の再開失敗で兄弟の回収を止めない。
                 for (var i = newlyCreatedScenes.Count - 1; i >= 0; i--)
                 {
-                    var id = newlyCreatedScenes[i];
-                    if (!TryGetCapturedPair(id, created, out var pair))
+                    try
                     {
-                        continue;
+                        await ClassifyOrResumeCreatedScene(
+                            newlyCreatedScenes[i], created, activeRoots, stillLoading);
                     }
-
-                    // in-flight の RemoveScene は finally でキーを消す。
-                    // 成功していれば個体はもう無い。失敗していれば IsUnloadStarted のまま残る。
-                    if (_inFlightUnloads.TryGetValue(id, out var unloadInFlight))
+                    catch (Exception ex)
                     {
-                        await ObserveCompletedTask(unloadInFlight.Task);
+                        Debug.LogException(ex);
                     }
-
-                    if (!TryGetCapturedPair(id, created, out pair))
-                    {
-                        continue;
-                    }
-
-                    var lifecycle = pair.SceneBase.Lifecycle;
-                    if (lifecycle.State == SceneState.Stable)
-                    {
-                        continue;
-                    }
-
-                    if (lifecycle.IsUnloadStarted)
-                    {
-                        await ResumeUnloadFromCurrentState(id);
-                        continue;
-                    }
-
-                    ClassifyFailedScene(id, pair, created, activeRoots, stillLoading);
                 }
 
                 for (var i = 0; i < activeRoots.Count; i++)
@@ -76,23 +56,76 @@ namespace OneStarMaker.Runtime.SceneSystem
                 for (var i = 0; i < stillLoading.Count; i++)
                 {
                     var id = stillLoading[i];
-                    if (_currentScenes.ContainsKey(id))
+                    if (!_currentScenes.ContainsKey(id))
+                    {
+                        continue;
+                    }
+
+                    try
                     {
                         await CleanupCanceledScene(id);
                     }
+                    catch (Exception ex)
+                    {
+                        Debug.LogException(ex);
+                    }
                 }
-
-                for (var i = 0; i < newlyCreatedScenes.Count; i++)
-                {
-                    _pendingUnloads.Remove(newlyCreatedScenes[i]);
-                }
-
-                LogLeftoverCreatedScenes(newlyCreatedScenes, created);
             }
             catch (Exception cleanupEx)
             {
                 Debug.LogException(cleanupEx);
             }
+            finally
+            {
+                // 二次回収が再度失敗しても、pending を残すと後続 Unload / Add が詰まる。
+                for (var i = 0; i < newlyCreatedScenes.Count; i++)
+                {
+                    _pendingUnloads.Remove(newlyCreatedScenes[i]);
+                }
+            }
+
+            if (created != null)
+            {
+                LogLeftoverCreatedScenes(newlyCreatedScenes, created);
+            }
+        }
+
+        private async UniTask ClassifyOrResumeCreatedScene(
+            string id,
+            Dictionary<string, SceneBase> created,
+            List<string> activeRoots,
+            List<string> stillLoading)
+        {
+            if (!TryGetCapturedPair(id, created, out var pair))
+            {
+                return;
+            }
+
+            // in-flight の RemoveScene はキーを外してから完了通知する。
+            // 成功していれば個体はもう無い。失敗していれば IsUnloadStarted のまま残る。
+            if (_inFlightUnloads.TryGetValue(id, out var unloadInFlight))
+            {
+                await ObserveCompletedTask(unloadInFlight.Task);
+            }
+
+            if (!TryGetCapturedPair(id, created, out pair))
+            {
+                return;
+            }
+
+            var lifecycle = pair.SceneBase.Lifecycle;
+            if (lifecycle.State == SceneState.Stable)
+            {
+                return;
+            }
+
+            if (lifecycle.IsUnloadStarted)
+            {
+                await ResumeUnloadFromCurrentState(id);
+                return;
+            }
+
+            ClassifyFailedScene(id, pair, created, activeRoots, stillLoading);
         }
 
         private Dictionary<string, SceneBase> CaptureCreatedInstances(List<string> newlyCreatedScenes)
@@ -261,14 +294,17 @@ namespace OneStarMaker.Runtime.SceneSystem
                 Debug.LogException(ex);
             }
 
-            if (!_currentScenes.TryGetValue(sceneIdentify, out var pair))
+            try
             {
-                return;
+                if (_currentScenes.TryGetValue(sceneIdentify, out var pair)
+                    && pair.SceneBase.Lifecycle.IsUnloadStarted)
+                {
+                    await ResumeUnloadFromCurrentState(sceneIdentify);
+                }
             }
-
-            if (pair.SceneBase.Lifecycle.IsUnloadStarted)
+            catch (Exception resumeEx)
             {
-                await ResumeUnloadFromCurrentState(sceneIdentify);
+                Debug.LogException(resumeEx);
             }
         }
 
