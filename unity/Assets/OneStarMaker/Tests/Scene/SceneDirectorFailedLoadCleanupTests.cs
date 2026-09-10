@@ -8,6 +8,7 @@ using NUnit.Framework;
 using OneStarMaker.Runtime.AssetDescriptions;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Tests.SceneSystem.Helpers;
+using OneStarMaker.Tests.SceneSystem.TestDoubles;
 using UnityEngine;
 using UnityEngine.TestTools;
 
