@@ -63,3 +63,6 @@ docs/reference/**
 docs/slides/**
 docs/planning/**
 docs/debugstudio/**
+
+# agent個別設定
+*.codex

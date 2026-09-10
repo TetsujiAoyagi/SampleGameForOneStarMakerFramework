@@ -54,9 +54,9 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 
 ## Phase C': 独立監査
 
-- 新規セッションで開始し、Phase C の結論、指摘、疑念候補を含まない blind audit bundle を読む。可変な HANDOFF 全文をそのまま入力にしない。
+- 人間または AI が担当する。AI は新規セッションで開始する。Phase C の結論、指摘、疑念候補を含まない blind audit bundle を読み、可変な HANDOFF 全文をそのまま入力にしない。
 - blind audit bundle は、凍結した Phase A snapshot、Phase B の実装結果、Phase C と同じ implementation base / head の完全 diff、生のテスト結果、Phase C より前に生成した機械検査出力だけで構成する。
-- Phase B、Cと異なるモデルを使う条件は [Phase と HANDOFF](references/phases-and-handoff.md) に従う。
+- AI 担当のモデル相違条件、人間担当の確認記録と独立性の扱いは [Phase と HANDOFF](references/phases-and-handoff.md) に従う。人間の回答前に AI が PASS や完了を記録しない。
 - 受け入れ条件だけでなく、契約違反、構造劣化、未検証の失敗経路、Phase C 自体の見落としを探す。
 - 指摘、残存リスク、監査できなかった範囲、使用したモデルを HANDOFF の Phase C' 欄へ記録する。
 
