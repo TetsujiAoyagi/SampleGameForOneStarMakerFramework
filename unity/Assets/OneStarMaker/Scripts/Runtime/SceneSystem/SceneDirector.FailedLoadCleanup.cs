@@ -53,6 +53,11 @@ namespace OneStarMaker.Runtime.SceneSystem
                         continue;
                     }
 
+                    if (pair.SceneBase.Lifecycle.State == SceneState.Stable)
+                    {
+                        continue;
+                    }
+
                     if (pair.SceneBase.Lifecycle.IsActive)
                     {
                         var parentId = pair.SceneBase.SceneResource.Parent != null

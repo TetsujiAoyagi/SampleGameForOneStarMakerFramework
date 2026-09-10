@@ -47,7 +47,7 @@ namespace OneStarMaker.Tests.SceneSystem
         });
 
         [UnityTest]
-        public IEnumerator AddScene_StabledException_RemovesScene_WithoutPending()
+        public IEnumerator AddScene_StabledException_KeepsStableScene_WithoutPending()
             => UniTask.ToCoroutine(async () =>
         {
             var director = SetupSingleScene();
@@ -65,7 +65,8 @@ namespace OneStarMaker.Tests.SceneSystem
             {
             }
 
-            Assert.IsFalse(director.ContainsScene("TestScene"));
+            Assert.AreEqual(SceneState.Stable, director.GetSceneState("TestScene"),
+                "Stable 到達後のフック失敗はロード失敗回収の対象にしない");
             Assert.IsFalse(director.HasPendingUnload("TestScene"));
         });
 
