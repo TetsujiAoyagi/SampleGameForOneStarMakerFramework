@@ -1,9 +1,10 @@
 # S-4b 四季 World 生成 — A0〜A3 と寿命契約の再開事項
 
 > type: slice
-> status: B の P1 レビュー用。revision 2 凍結済み。FW 失敗回収は PR #45。この PR は P1 生成器のみ（`990fed2` を変更理由ごとに分割）。P2 / 起動配線 / P3 は worktree `codex/s-4b-a0` に残す。
+> status: P1 の Phase C 記録済み。C' は人間。この PR は P1 生成器のみ。P2 / 起動配線 / P3 は worktree `codex/s-4b-a0` に残す。
 > branch: `codex/s-4b-p1`
-> implementation base commit: `0792edc0d05ad7eaecaf95ce06c48da7688d308f`（PR #45 マージ後の develop。B の生成開始前に再確認）
+> implementation base commit: `17dc67b232433e8ff3f909d99e401cddb159de50`（この PR の develop merge-base。HANDOFF 旧記の `0792edc` は PR #45 時点）
+> implementation head commit: `f3597adc26556624dc5aa0b0acccc2e7dfdf6ee7`（レビュー記録 commit は含めない）
 > risk: high（明示ワイプ、652 Scene、Addressables、起動順序）
 > owner: 発注者 / S-4b 担当
 > A0 担当: Codex / GPT-6 / OpenAI。
@@ -20,6 +21,11 @@
 > Phase A frozen snapshot path: `docs/handoff/S-4b_WORLD_GENERATION_A0.md`（本凍結 commit。設計本文の以後の変更は revision 3）
 > Phase A snapshot generated at: 2026-09-10
 > Phase A snapshot git / hash: `137d235e78416a3cda59aa2474b6147a29081595`。implementation base は PR #45 マージ後の `0792edc`。生成器・P2・起動配線は未着手。B result / C・C' evidence は未生成。
+> evidence bundle path / id: `docs/handoff/evidence/s-4b-p1-c`
+> evidence bundle generated at: 2026-09-11T21:18:39Z
+> evidence bundle hash: `43a81d5d9c186ab4baddadbd80d7f7bf5cf28bb3ac44485092437c5b40c8a214`（diff/stat/commits）。機械検査込み `052843482ff76291a5d3285897fff32052cb0bfa154a603894380dff0c3ebf56`
+> C' blind bundle path / id: `docs/handoff/evidence/s-4b-p1-cprime-blind`
+> C' blind bundle generated at: 2026-09-11T21:20:00Z
 > C': 当面人間。Claude は再開しない。cursor-agent は Grok 系のみ。AI は証拠と手順を準備し、本人回答前に PASS / 完了を書かない。C' 判定と D のマージ判断は分けて記録する。
 
 ## 入力と優先関係
@@ -891,4 +897,36 @@ HANDOFF 本文が正本。新規の引き渡しファイルは作らない。Uni
 - `MobileDependencyResolver` の pdb.meta 削除は Editor ノイズ。コミットしない。
 - Phase B では `Unity.exe` 起動、`run-tests.ps1`、Addressables ビルド、`unity test` / `unity run` は禁止。C' / D は人間。PASS 先書き禁止。
 - 本リポジトリ `D:\repositories\unity\SampleGameForOneStarMakerFramework` の `develop` では生成しない。
+
+### 7.27 Phase C（P1。2026-09-11）
+
+担当: Cursor Cloud / Grok 4.6 / xAI。Phase B 実装は Codex / GPT-6。モデル系列は異なる。C' は人間のまま。この節は C' に渡さない。
+
+**対象:** implementation base `17dc67b` / head `f3597ad`。evidence `docs/handoff/evidence/s-4b-p1-c`。blind 手順は `docs/handoff/evidence/s-4b-p1-cprime-blind/README.md`。
+
+**機械検査:** `pwsh tools/contract-audit.ps1 -BaseRef develop` exit 0（検査1 差分 6 .cs）。`pwsh tools/docs-audit.ps1` exit 0。Unity Editor 無し。`run-tests.ps1` 未実行。Command / Wipe.Execute / Addressables build 未実行。
+
+**構造適合（機能より先）:** §7.7 の一時 Editor 4 ファイルと public `SeasonCellNames`、Tests.Editor 配置は計画どおり。asmdef 参照追加なし。Game→FW、季節語の FW 露出なし。Command 229 行で 500 警報未満、一回の作成順として非分割妥当。Validation の純関数（Compare / Finite / CompareVolume）と Inspect の分離は同一ファイル内で計画どおり。Wipe と Generate は復旧地点が違う分割を維持。行数警報の新規ファイルはすべて 500 未満。Catalog 9×6 と起動配線は未着手（P1 の対象外維持）。Phase A 再開は不要。
+
+**受け入れ（P1 範囲）:** Plan は論理 440 / Scene 652。identity は `SeasonCellNames` と一致。Wipe allowlist はディレクトリ・runtime `.cs`・共有 Material・範囲外を拒否。Inspect は再計算・修復しない。Command に Generate メニューは無い。
+
+**findings ledger（採否は人間 / D）:**
+
+| id | severity | category | 内容 | 根拠 | 状態 |
+|---|---|---|---|---|---|
+| C-1 | medium | semantic | 体積の公式読者は `OpenScene` Additive、Validation.ReadVolume は `OpenPreviewScene`。保存値照合の許容は 0.001m。単純 Cube なら一致し得るが、§7.10 の読者を共有していない | `SeasonWorldValidation.cs` 207–219 / `SceneVolumeSceneReader.cs` 88 | proposed。P2 前に公式読者へ寄せる |
+| C-2 | medium | semantic | `RecalculateAll()` は非 batch で `SaveCurrentModifiedScenesIfUserWantsTo` を呼ぶ。P2 は開いた Editor が前提。dirty なら対話、Cancel なら bake 0 のまま Inspect 失敗し journal が残り再実行できない | `SeasonWorldGenerationCommand.cs` 115 / `SceneVolumeRecalculator.cs` 67–70 | proposed。対話を避ける入口が必要 |
+| C-3 | medium | semantic | `Wipe.Capture` は全 SceneResource と `AddressableAssetsData/` を Update にする。§7.24 のファイル読み取り「更新 22」と定義が違う。Keep の参照不変は Update に適用されない。Generate が全 Resource を書き直すなら一部は正しいが、dry-run の人間レビューを濁す | `SeasonWorldWipe.cs` 86–105 | proposed |
+| C-4 | low | obvious | L1 検査は Renderer / 余分な Component を見る。scene の LightingSettings 割り当ては見ない。Light / Volume は Component で落ちる | `SeasonWorldValidation.cs` 215–216 / §7.3 | proposed |
+| C-5 | low | obvious | §7.8 の「policy は全 Generated」に対し、Compare は Cell だけを見る。Environment は旧 `CellAuthoringPolicy` の既定 Generated に依存。P3 で policy を消すとき検査が消える | `SeasonWorldValidation.cs` 49 | proposed |
+| C-6 | low | obvious | `Format` は `y < 0` でも `nameof(x)` で投げる | `SeasonCellNames.cs` 32 | proposed |
+| C-7 | low | machine | 旧 header の implementation base `0792edc` はこの PR の merge-base `17dc67b` とずれていた（PR #46）。本節で訂正 | HANDOFF header | 記録で訂正 |
+| C-8 | low | obvious | 公開面 `docs/README.md` は handoff を「4 つだけ」と書く。作業台は 5 ファイル。docs-audit は数を見ない | `docs/README.md` 37–44 | proposed。P1 範囲外でも公開面の現況違反 |
+| C-9 | low | machine | Wipe テストに現行 Environment 実パス `World/Cells/Cell_0_0/Environment_0_0.unity`（Cell 直下の兄弟）が無い。正規表現は通す | `SeasonWorldGenerationTests.cs` 80–92 | proposed。テスト穴 |
+
+**非指摘:** 線 9 座標は世界稿 §3.1 と一致。オフラインで線帯 AABB を計算し、9 セルとも格子半幅 125m 内（最小余裕 11.4m）。Hue 0/0.08/0.16/0.24。論理 Season は payload 空。Lighting は空ルート。Material は MoveAsset。ディレクトリ削除なし。MPB 非永続は §7.24 のとおり色完成ではない。
+
+**未確認:** Unity コンパイル、EditMode テスト、AssetDatabase の Capture、Command.Generate、652 実体、共有材の見た目、LightingSettings の実シーン、P2 所要時間。
+
+**判定:** P1 の配置は計画に合う。C/C' PASS と D のマージ判断は書かない。C-1 / C-2 / C-3 は P2 の一回生成より前に人間が採否する。
 
