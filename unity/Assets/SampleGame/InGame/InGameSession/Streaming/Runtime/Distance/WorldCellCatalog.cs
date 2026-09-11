@@ -43,8 +43,7 @@ namespace SampleGame.InGame.Streaming
     /// <summary>
     /// 実証スライス用のワールド格子定数。
     /// Player カプセル（高さ約 2.2m）を基準に、人間が編集する作業単位として
-    /// <see cref="CellSize"/> = 250m / 4×4 を採用する。
-    /// アセット側の <c>WorldGridDefinition</c> と数値を食い違わせないこと。
+    /// <see cref="CellSize"/> = 250m / 9×6 を採用する。
     /// </summary>
     public static class WorldCellCatalog
     {
@@ -61,11 +60,11 @@ namespace SampleGame.InGame.Streaming
         public const float CellHeight = 96f;
 
         /// <summary>
-        /// 本番レイアウト。現行 4×4 を矩形 1 個として残す。
+        /// 本番レイアウト。9×6 を矩形 1 個とする。
         /// </summary>
         public static readonly CellRect[] Rectangles =
         {
-            new(new Vector2Int(0, 0), new Vector2Int(4, 4)),
+            new(new Vector2Int(0, 0), new Vector2Int(9, 6)),
         };
 
         /// <summary>
@@ -114,9 +113,9 @@ namespace SampleGame.InGame.Streaming
                 (y + 0.5f) * CellSize);
         }
 
-        /// <summary>プレイヤー初期スポーン。Cell_0_0 中心上空。</summary>
+        /// <summary>プレイヤー初期スポーン。源流セル (0,4) 中心上空。</summary>
         public static Vector3 SpawnPosition()
-            => GetCellCenter(0, 0) + Vector3.up * SpawnHeight;
+            => GetCellCenter(0, 4) + Vector3.up * SpawnHeight;
 
         /// <summary>
         /// ワールド座標からセル座標を求める。集合外（空隙含む）なら false。
@@ -137,7 +136,10 @@ namespace SampleGame.InGame.Streaming
             return true;
         }
 
-        /// <summary>ワールド座標が載っているセル identity。グリッド外は null。</summary>
+        /// <summary>
+        /// ワールド座標が載っている無修飾セル identity。HUD / CurrentCell には使わない。
+        /// 四季が同じ AABB に重なるため、runtime 正本は active 候補の体積判定。
+        /// </summary>
         public static string? TryGetCellIdentity(Vector3 worldPosition)
         {
             if (!TryGetCoordinate(worldPosition, out var coordinate))

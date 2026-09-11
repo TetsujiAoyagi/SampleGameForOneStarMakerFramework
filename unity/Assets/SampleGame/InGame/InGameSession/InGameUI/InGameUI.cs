@@ -132,7 +132,7 @@ namespace SampleGame.InGame
                             current,
                             loaded,
                             loadedChildren,
-                            isBusy: !session.IsStreamingActive);
+                            isBusy: !session.IsWorldReady);
 
                         if (session.Flight != null)
                         {

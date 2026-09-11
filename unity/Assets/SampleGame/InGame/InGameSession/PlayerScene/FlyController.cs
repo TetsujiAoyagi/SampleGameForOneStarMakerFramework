@@ -14,7 +14,7 @@ namespace SampleGame.InGame.Player
     /// ここでは機体 yaw と LookAt ターゲットのローカルピッチだけを更新する。
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
-    public sealed class FlyController : MonoBehaviour, IFlightReadModel
+    public sealed class FlyController : MonoBehaviour, IFlightReadModel, IPlayerReadyActor
     {
         [SerializeField] private float _moveSpeed = 42f;
         [SerializeField] private float _boostMultiplier = 2.4f;

@@ -1,6 +1,8 @@
 #nullable enable
 
 using System.Collections.Generic;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using SampleGame.InGame.Player;
 using UnityEngine;
 
@@ -11,10 +13,6 @@ namespace SampleGame.InGame
     /// OutGame の <c>IOutGameBackgroundRequests</c> と同型で、兄弟同士の直参照を避け、
     /// 依存方向を「子 → 親」に固定する（シーンツリー = DI コンテナ方針）。
     /// </summary>
-    /// <remarks>
-    /// Cell Streaming では注視点（Focus）の供給口をこの面に集約する。
-    /// 旧 LevelStreamCoordinator / トンネル演出口は廃止済み。
-    /// </remarks>
     public interface IInGameSessionServices
     {
         /// <summary>
@@ -30,7 +28,7 @@ namespace SampleGame.InGame
         Vector3? FocusWorldPosition { get; }
 
         /// <summary>
-        /// Focus が載っているセル identity（例: Cell_0_0）。
+        /// Focus の XZ が載っている active 候補 identity。
         /// Streaming 未起動・グリッド外・Focus 無しは null。
         /// </summary>
         string? CurrentCellIdentity { get; }
@@ -47,10 +45,23 @@ namespace SampleGame.InGame
         IReadOnlyList<string> LoadedChildSceneIdentities { get; }
 
         /// <summary>
-        /// WorldStreamingController の Tick ループが Start 済みか。
-        /// Driver 生成直後（未 Start）は false。セル Add が走り得る状態の判定に使う。
+        /// 距離 Tick ループが Start 済みか。初期化待ちには使わない。
         /// </summary>
         bool IsStreamingActive { get; }
+
+        /// <summary>初期 Season / 源流 Cell が Stable し、入力解禁前の準備が終わったか。</summary>
+        bool IsWorldReady { get; }
+
+        /// <summary>
+        /// WorldReady まで待つ。完了後の呼び出しは同じ結果を即返す。
+        /// 失敗・キャンセル・Session 終了では例外または OCE。
+        /// </summary>
+        UniTask WaitUntilWorldReady(CancellationToken ct);
+
+        /// <summary>
+        /// 新規の季節操作と Add 発行を同期的に拒否する。drain はしない。
+        /// </summary>
+        void StopWorldOperations();
 
         /// <summary>PlayerScene が Stable 後に飛行モデルを登録する。</summary>
         void RegisterFlight(IFlightReadModel flight);

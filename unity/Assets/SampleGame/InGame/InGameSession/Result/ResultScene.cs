@@ -1,14 +1,21 @@
+#nullable enable
+
 using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using OneStarMaker.Runtime.SceneSystem;
 using SampleGame.Common;
 using System.Threading;
-using System.Threading.Tasks;
 using UnityEngine;
 using ZLogger;
 
 namespace SampleGame.InGame.Result
 {
+    /// <summary>
+    /// InGame 終了の受け。SwitchScene の前に世界操作の受付だけ止める。
+    /// </summary>
+    /// <remarks>
+    /// drain は lifecycle 内で await しない。遅延 companion Add が Session 終了中に祖先を再ロードしないようにする。
+    /// </remarks>
     public class ResultScene : SceneBase
     {
         private readonly ILogger<ResultScene> _logger;
@@ -25,20 +32,32 @@ namespace SampleGame.InGame.Result
                 throw new System.ArgumentNullException(nameof(loggerFactory));
             }
 
-            // Scene ごとのカテゴリを維持するため、文字列カテゴリではなく型付き logger を使用する。
-            // DebugStudio 側で発生元 Scene を絞り込めることを優先する。
             _logger = loggerFactory.CreateLogger<ResultScene>();
-
             _logger.ZLogInformation($"Create ResultScene");
-
         }
 
         protected override async UniTask OnStabledImpl()
         {
-            await exitInGameScene(CancellationToken.None);
+            // 同期の受付停止だけ。枝 drain は待たない。
+            ResolveSessionServices().StopWorldOperations();
+            await ExitInGameScene(CancellationToken.None);
         }
 
-        private UniTask exitInGameScene(CancellationToken ct)
+        private IInGameSessionServices ResolveSessionServices()
+        {
+            var parent = SceneResource.Parent
+                ?? throw new System.InvalidOperationException("Result には InGameSession 親が必要です。");
+
+            if (SceneQuery.GetLoadedScene(parent.Identity) is not IInGameSessionServices services)
+            {
+                throw new System.InvalidOperationException(
+                    $"親シーン '{parent.Identity}' は IInGameSessionServices を提供していません。");
+            }
+
+            return services;
+        }
+
+        private UniTask ExitInGameScene(CancellationToken ct)
         {
             return SceneFlow.EnterOutGame(
                 sceneController: SceneController,

@@ -5,9 +5,7 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.Streaming;
-using SampleGame.InGame.World;
 using UnityEngine;
 using ZLogger;
 
@@ -17,14 +15,8 @@ namespace SampleGame.InGame.Streaming
     /// InGameSession 寿命で <see cref="WorldStreamingController"/> を駆動する薄いアダプタ。
     /// ポリシー本体は FW、ここでは Focus 供給・Tick 間引き・観測用スナップショットだけを担う。
     /// </summary>
-    /// <remarks>
-    /// UpdateSystem Layer への正式編入は後続。T-07 では Session 内の非同期ループで十分。
-    /// </remarks>
     public sealed class SessionWorldStreamingDriver : IDisposable
     {
-        /// <summary>体積が引けなかったときに案内する再計算メニュー（FW Editor 側）。</summary>
-        private const string RecalculateMenuPath = "OneStarMaker/Scene Volume/Recalculate All";
-
         private readonly Microsoft.Extensions.Logging.ILogger _logger;
         private readonly WorldStreamingController _controller;
         private readonly Func<Vector3?> _focusProvider;
@@ -34,30 +26,24 @@ namespace SampleGame.InGame.Streaming
         private bool _disposed;
 
         /// <summary>
-        /// Driver を構築する。Start するまで Tick は回らない。
+        /// 渡された候補と backend で Driver を構築する。Start するまで Tick は回らない。
+        /// 構築時に Catalog.Format で identity を組み立てない。
         /// </summary>
-        /// <param name="sceneDirector">Full ティアのメカニズム（AddScene / UnloadScene）。</param>
-        /// <param name="focusProvider">注視点。未登録時は null（Tick をスキップ）。</param>
-        /// <param name="logger">診断ログ。</param>
         public SessionWorldStreamingDriver(
-            SceneDirector sceneDirector,
+            ISceneStreamingBackend backend,
+            StreamingCandidateSet candidates,
             Func<Vector3?> focusProvider,
             Microsoft.Extensions.Logging.ILogger logger)
         {
-            _ = sceneDirector ?? throw new ArgumentNullException(nameof(sceneDirector));
+            _ = backend ?? throw new ArgumentNullException(nameof(backend));
+            _ = candidates ?? throw new ArgumentNullException(nameof(candidates));
             _focusProvider = focusProvider ?? throw new ArgumentNullException(nameof(focusProvider));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-            // identity は Catalog（SampleGame の制作規約）、体積はデータ（§34 §5）。
-            // 政策層へ渡すのはこの 2 つだけで、格子定数は渡さない。
-            var candidates = BuildCandidateSet(sceneDirector);
             var settings = new StreamingPolicySettings(
                 WorldCellCatalog.LoadRadius,
                 WorldCellCatalog.UnloadRadius,
                 WorldCellCatalog.MaxInFlight);
-
-            // FW の本実装 Backend。ISceneController 抽象ではなく SceneDirector 具象が必要。
-            var backend = new SceneDirectorStreamingBackend(sceneDirector);
             _controller = new WorldStreamingController(candidates, settings, backend);
             _logger.ZLogInformation(
                 $"SessionWorldStreamingDriver ready. candidates={candidates.Candidates.Count} load={WorldCellCatalog.LoadRadius} unload={WorldCellCatalog.UnloadRadius}");
@@ -68,24 +54,48 @@ namespace SampleGame.InGame.Streaming
 
         /// <summary>
         /// Tick ループが Start 済みか。
-        /// Driver 生成直後（未 Start）は false。Player bootstrap はこれを待つこと。
+        /// Driver 生成直後（未 Start）は false。初期化待ちには使わない。
         /// </summary>
         public bool IsRunning => _loopCts != null && !_disposed;
 
-        /// <summary>Focus が載っているセル identity。グリッド外 / Focus 無しは null。</summary>
+        /// <summary>
+        /// active 候補のうち Focus の XZ が体積に入る identity。複数なら ordinal 最小。
+        /// グリッド外・未登録・Focus 無しは null。
+        /// </summary>
         public string? CurrentCellIdentity
         {
             get
             {
                 var focus = _focusProvider();
-                return focus.HasValue ? WorldCellCatalog.TryGetCellIdentity(focus.Value) : null;
+                if (!focus.HasValue)
+                {
+                    return null;
+                }
+
+                var position = focus.Value;
+                string? best = null;
+                var candidates = _controller.Candidates.Candidates;
+                for (var i = 0; i < candidates.Count; i++)
+                {
+                    var candidate = candidates[i];
+                    if (!ContainsXz(candidate.Volume, position))
+                    {
+                        continue;
+                    }
+
+                    if (best == null || string.CompareOrdinal(candidate.Identity, best) < 0)
+                    {
+                        best = candidate.Identity;
+                    }
+                }
+
+                return best;
             }
         }
 
         /// <summary>
         /// Stable 到達済みセル identity のスナップショットを返す。
         /// Backend.IsLoaded（= Stable）を候補列の走査で再照合する（G-6 と同型の観測）。
-        /// 内部バッファは再利用するが、戻り値は毎回新規配列にして呼び出し側へのエイリアス漏れを防ぐ。
         /// </summary>
         public IReadOnlyList<string> GetResidentCellIdentities()
         {
@@ -136,8 +146,7 @@ namespace SampleGame.InGame.Streaming
         /// <inheritdoc />
         /// <remarks>
         /// Tick ループのみ止める。進行中の Backend RequestAdd/Remove は SceneDirector 側の
-        /// セッションツリー Unload（親再帰）で収束させる（T-06.5: Backend は CancellationToken.None）。
-        /// WSC ポリシー本体へ Cancel API を足すのは本スライスの非スコープ。
+        /// セッションツリー Unload（親再帰）で収束させる。
         /// </remarks>
         public void Dispose()
         {
@@ -200,41 +209,15 @@ namespace SampleGame.InGame.Streaming
             _lastTickFocus = position;
         }
 
-        /// <summary>
-        /// Catalog の identity 列に体積を突き合わせて候補集合を作る。
-        /// </summary>
-        /// <remarks>
-        /// 1 件でも体積が引けなければ例外で落とす。暗黙のフォールバック（原点の点など）を
-        /// 作ると、Generate 忘れや再計算忘れが「なぜか近くのセルが載らない」に化けて
-        /// 距離政策のバグに見えるため。
-        /// </remarks>
-        private static StreamingCandidateSet BuildCandidateSet(ISceneVolumeQuery volumeQuery)
+        /// <summary>HUD identity は XZ 体積。Y はスポーン高度が入っても距離 Tick とは別判定。</summary>
+        private static bool ContainsXz(Bounds volume, Vector3 position)
         {
-            var cells = WorldCellCatalog.EnumerateCells();
-            var candidates = new List<StreamingCandidate>(cells.Count);
-
-            for (var i = 0; i < cells.Count; i++)
-            {
-                var cell = cells[i];
-                // identity の組み立ては SampleGame（制作規約）側の責務。FW は不透明キーとして扱う。
-                var identity = CellIdentity.Format(cell.x, cell.y);
-                if (!volumeQuery.TryGetSceneVolume(identity, out var volume))
-                {
-                    // TryGetSceneVolume が false になる理由は 3 つあり、対処がそれぞれ違う。
-                    // 「再計算メニューを実行」だけを案内すると、フラグ off のときに
-                    // 回しても直らない（再計算は体積しか書かない）。全部並べて誤診を防ぐ。
-                    throw new InvalidOperationException(
-                        $"セル '{identity}' の体積が引けません。次のどれかです。"
-                        + $" (1) SceneResourceMap に未登録 → SceneGraph の Generate。"
-                        + $" (2) 距離政策の候補フラグ（_streamByDistance）が off → 生成器を実行。"
-                        + $"     再計算メニューはフラグを書かないので回しても直りません。"
-                        + $" (3) 体積が空 → Editor メニュー '{RecalculateMenuPath}'。");
-                }
-
-                candidates.Add(new StreamingCandidate(identity, volume));
-            }
-
-            return new StreamingCandidateSet(candidates);
+            var min = volume.min;
+            var max = volume.max;
+            return position.x >= min.x
+                && position.x <= max.x
+                && position.z >= min.z
+                && position.z <= max.z;
         }
 
         private void ThrowIfDisposed()

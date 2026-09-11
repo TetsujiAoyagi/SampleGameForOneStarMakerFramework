@@ -285,7 +285,7 @@ Tick(focusPosition):                       // UpdateSystem 駆動。毎フレー
 | 同時 in-flight ロード上限 | 2 | 2 | H-2 の priority と併用 |
 | Tick 頻度 | 5Hz または注視点が 1/4 セル移動したとき | 同左 | 毎フレーム距離計算はしない |
 
-実装値の正本は `SampleGame/InGame/InGameSession/Streaming/WorldCellCatalog.cs`（半径・グリッド）と `WorldGridDefinition.asset`（セルサイズ）。
+実装値の正本は `SampleGame/InGame/InGameSession/Streaming/Runtime/Distance/WorldCellCatalog.cs`（半径・グリッド）と `WorldGridDefinition.asset`（セルサイズ）。
 
 > **半径はセルサイズに従属する。** セルサイズ 250m に対してロード半径 150m だと、隣接セル中心（250m 先）が desired set に入らず、ストリーミングが成立しない。セルサイズを変えるときは必ず半径を再計算すること。
 
