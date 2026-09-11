@@ -28,3 +28,7 @@ MonoBehaviour:
   _children:
   - {fileID: 11400000, guid: 857e7ad69c4baba4bbc8ed69eade0171, type: 2}
   - {fileID: 11400000, guid: 195e12b4ea3c47c48bdc9cfa822b9719, type: 2}
+  _volume:
+    m_Center: {x: 0, y: 0, z: 0}
+    m_Extent: {x: 0, y: 0, z: 0}
+  _streamByDistance: 0

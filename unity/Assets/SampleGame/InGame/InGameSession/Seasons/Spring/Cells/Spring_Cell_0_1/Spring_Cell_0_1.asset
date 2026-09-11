@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a55e49cc16182ed438f81c6b1032b83c, type: 3}
+  m_Name: Spring_Cell_0_1
+  m_EditorClassIdentifier: OneStarMaker.Runtime::OneStarMaker.Runtime.SceneSystem.SceneResource
+  _identity: Spring_Cell_0_1
+  _sceneAssetDescription:
+    _loadType: 0
+    _payloads:
+    - Reference:
+        m_AssetGUID: fcb15d5f315aa0b4c8f5a8bb3ae679e4
+        m_SubObjectName: 
+        m_SubObjectType: 
+        m_SubObjectGUID: 
+        m_EditorAssetChanged: 0
+      Variant: 
+    - Reference:
+        m_AssetGUID: 3f73c4952d9a22245b5668ab1d0462f8
+        m_SubObjectName: 
+        m_SubObjectType: 
+        m_SubObjectGUID: 
+        m_EditorAssetChanged: 0
+      Variant: Whitebox
+    SceneIdentity: Spring_Cell_0_1
+  _parent: {fileID: 11400000, guid: 8869a9ddf028f36448023ccb0edb991c, type: 2}
+  _children:
+  - {fileID: 11400000, guid: cc1b286cfe0c8424bbff92dd93488685, type: 2}
+  _volume:
+    m_Center: {x: 125, y: 5.5, z: 375}
+    m_Extent: {x: 122.5, y: 5.5, z: 122.5}
+  _streamByDistance: 1

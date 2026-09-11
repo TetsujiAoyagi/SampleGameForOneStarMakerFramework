@@ -15,13 +15,363 @@ MonoBehaviour:
   m_GroupName: Default Local Group
   m_GUID: ee2d01616f6c8b541a52acb861d9a2a6
   m_SerializeEntries:
-  - m_GUID: 02b5d78e5aaa3e3428d358874a7ec9a2
-    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_3_0/Cell_3_0.unity
+  - m_GUID: 00418c4d540ab9644ab18d20acc976da
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_4/Variants/Whitebox/Spring_Cell_4_4.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 03e7a22e5ad57f944baaa34435530428
-    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_0_0/Cell_0_0.unity
+  - m_GUID: 00507bad435397d47b105f9d92e75a0f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_1_0/Variants/Whitebox/Autumn_Cell_1_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0071489a8434d4b41b77277fadddc401
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_8_5/Summer_Cell_8_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 008f6dd71756c7c4ab14dcbb88a305da
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_4_5/Summer_Cell_4_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 00b9c509f5453b7409f8cb59c675b275
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_4/Variants/Whitebox/Spring_Cell_5_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 00bc4be0cb04a4645bd973c955753cf7
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_7_3/Autumn_Cell_7_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 00f21bfb59426ec478dd1ec1f54ae11f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_0_1/Spring_Environment_0_1/Spring_Environment_0_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 00f35d7f46339f34996dbb08917f9ae0
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_3_2/Autumn_Cell_3_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 01282900d2adc354094c557be4008179
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Variants/Whitebox/Spring_Cell_4_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 01500316955e28b419e086eec2d97807
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_7_2/Spring_Cell_7_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 01ad114936726354bb93229279726e88
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_5_5/Summer_Cell_5_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 01ad13926df4a9647a022e43c4aadd00
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Winter_Lighting/Winter_Lighting.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 01b17d22403cb22489565ce9e6558f67
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_0_2/Autumn_Environment_0_2/Autumn_Environment_0_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 028262873693a6d4dbeb6557885abde6
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_4_0/Winter_Environment_4_0/Winter_Environment_4_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 032aa3a8608504c4da2a6464f6f0638f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_3_3/Variants/Whitebox/Spring_Cell_3_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 039866694b3d1ca4b95abb323da8703e
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_5_2/Variants/Whitebox/Autumn_Cell_5_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 03cd56a4e09fd2c49be79ac02a7cedd2
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_7_5/Summer_Environment_7_5/Summer_Environment_7_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 04cb773a00588a842ad0e88c2db93e4b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_1_4/Spring_Cell_1_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 05205fac5ad4935449d528a12979d909
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_0_5/Summer_Environment_0_5/Summer_Environment_0_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 055dd4c365ff63146b505bca45b9c3be
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_7_3/Winter_Environment_7_3/Winter_Environment_7_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 05a98ac68a9500d4e95b39ed4140d22f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_3_4/Winter_Environment_3_4/Winter_Environment_3_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0627c42968de0414ca420295236058dc
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_1_0/Winter_Cell_1_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0757cdc1964223343b29807b03364412
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_3_0/Winter_Cell_3_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0792021a0746cfb49b744476d8d1c398
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_3_0/Variants/Whitebox/Spring_Cell_3_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 087d12a2bfe58684b93f79ba1e8ad345
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_7_5/Variants/Whitebox/Winter_Cell_7_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 098f1f34db33b6a45aa15177a306192d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_3_5/Variants/Whitebox/Summer_Cell_3_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 09f665f156b9df945a0abff5112834cd
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_3_1/Variants/Whitebox/Spring_Cell_3_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 09fae6a4bceaf2a4583abefb6ef76812
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_4_5/Variants/Whitebox/Summer_Cell_4_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0a2c9a5a0638ec0459321ecfb9823129
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_3_2/Winter_Cell_3_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0a876707431c4724984eb66790106b13
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_4_4/Variants/Whitebox/Summer_Cell_4_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0a89e4f2d406963419692facd370219e
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_0_1/Variants/Whitebox/Winter_Cell_0_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0aada418e7aee3c4b92c6afc33f6d9e3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_7_4/Variants/Whitebox/Summer_Cell_7_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0abff2734c20a5342a5a7e0845eb7e5b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_2_1/Autumn_Cell_2_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0b01312653822db4dad2d37324a77696
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_1_4/Variants/Whitebox/Winter_Cell_1_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0b0cede8df1f06a45a97e81d80df26f9
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_6_3/Variants/Whitebox/Summer_Cell_6_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0b46429ad1d743c4eb952fd60546cd5e
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_1_4/Winter_Cell_1_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0b97c56eb5cf12b45b3dfdea34d4364e
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_8_5/Autumn_Environment_8_5/Autumn_Environment_8_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0bb69cac894bde547a2d4eeb58efab05
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0bd262f990484d544bbdea5651022953
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_4_0/Autumn_Environment_4_0/Autumn_Environment_4_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0bec8a90402be614c91bd35d7b883a74
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_0_0/Variants/Whitebox/Winter_Cell_0_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0c023e34d06b33c42a2b78a1edf75c63
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_8_1/Summer_Cell_8_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0c2c3936c074cc44698532e8b75a612b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_7_1/Variants/Whitebox/Winter_Cell_7_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0c43d07483952c24bae23571adbf537c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_8_3/Variants/Whitebox/Winter_Cell_8_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0c7bbee66dbb67e4f89490dc6d4a74a1
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_8_4/Spring_Cell_8_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0c7de83bc1e5b374eaccb826df953369
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_0_4/Variants/Whitebox/Summer_Cell_0_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0c8e494ac92e6884fb6e2aeb99970153
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_8_4/Variants/Whitebox/Spring_Cell_8_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0ddaa4d771e95344aaecf914d365301a
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_0_2/Variants/Whitebox/Spring_Cell_0_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0e26af1764ea668428a2260864f2502f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_8_5/Autumn_Cell_8_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0e8cfb61afaeed14db32ccb024a17d44
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_1/Spring_Cell_4_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0ed56e45ba1e7a94080e4ec733fe1c2b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_7_2/Summer_Environment_7_2/Summer_Environment_7_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0eddf96108b28d04dac0df447491e3e8
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_8_3/Autumn_Cell_8_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0f0ee7e5543d5f045bd71ddb1d29f190
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_3/Spring_Cell_4_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 112252d44eae2a74cb1572c572bc30f6
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_5_4/Variants/Whitebox/Winter_Cell_5_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1187775d740c3a04382a0eea3d8f26fe
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_2_2/Autumn_Cell_2_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1282ade010c84064eb25a63779f29937
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_0_3/Variants/Whitebox/Autumn_Cell_0_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 12db2bcf363b1ce4cae7d5d69d653915
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_0_3/Winter_Cell_0_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 13b416abc6e5af64ea93dd5d08f4f203
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_2_0/Variants/Whitebox/Winter_Cell_2_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 13ea948c5d2fa8746b2d32bf537ae4f2
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_7_5/Summer_Cell_7_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1425d5a7f3477fc4e806c1808926c748
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_4_2/Winter_Environment_4_2/Winter_Environment_4_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 144b515a616814a4a8a29f6b0dbf298b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_0_2/Variants/Whitebox/Autumn_Cell_0_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 159f0da137a654442a28213165c7a50e
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_6_0/Autumn_Cell_6_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 15ca005fa6832d149b8daa5148d21bc0
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_0_2/Winter_Environment_0_2/Winter_Environment_0_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 161a21207d75d3740a462c8863d2db73
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_1_2/Variants/Whitebox/Autumn_Cell_1_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 16543e4aa5ad5de4eadad39c70d3954d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_7_0/Spring_Environment_7_0/Spring_Environment_7_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 174a0bfed3ee8b248ab1a8326573ae4c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_6_1/Variants/Whitebox/Autumn_Cell_6_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 185e162d44512ca4ba54e46b415d3bf1
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_6_5/Winter_Cell_6_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 18bc14f8cff76e2408da8867c74ec154
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_2_2/Summer_Cell_2_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 18bfabce1db1bc9428d4fb82e554b949
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_3_0/Summer_Environment_3_0/Summer_Environment_3_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 194c03ff6da1e8b4bb223596dc457361
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_0_4/Winter_Environment_0_4/Winter_Environment_0_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 19ff4968664c65b428df9fb6b770bd28
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_4_1/Winter_Environment_4_1/Winter_Environment_4_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1a101b309f996ca4eb80c8a88436f098
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_7_0/Winter_Environment_7_0/Winter_Environment_7_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1a54ea5b5f5a0c74b8be80e76e07605f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_4_1/Summer_Cell_4_1.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -30,8 +380,278 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 24106045250647e4f8dc998de2751255
-    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_0_3/Cell_0_3.unity
+  - m_GUID: 1b66b006b2e63c84d9edcda909cc027c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_8_4/Winter_Cell_8_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1b7c9e4236f1d63448bed79a436ebe8a
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_5_4/Autumn_Environment_5_4/Autumn_Environment_5_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1c41bdf0756196f47b322461fb013b55
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_3_1/Spring_Cell_3_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1cc5721126fcee14ab5e8f437764801b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_7_4/Variants/Whitebox/Autumn_Cell_7_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1cc842082e4052248809938d793277b5
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_1_5/Summer_Cell_1_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1d2e89af0ce15f14bbce1d1759743be3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_0/Variants/Whitebox/Spring_Cell_5_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1d3f7a6d49dd2864487fba42548481d9
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_1_4/Variants/Whitebox/Autumn_Cell_1_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1dea3cee441bab54fa54abae7a3b76e3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_4_2/Autumn_Environment_4_2/Autumn_Environment_4_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1e0ee4f2ec844ea42ae1b7f5ba17bbf6
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_8_5/Winter_Environment_8_5/Winter_Environment_8_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1e65e5d8ef87fd548a9b66a7a5ba6391
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_0_5/Spring_Environment_0_5/Spring_Environment_0_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1ec938806005dde41a37e52c5b7e9643
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_6_1/Summer_Cell_6_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1f5e22d9f9f121844998e4fe52e5cd01
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_7_2/Winter_Cell_7_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1f96b2d2b5555684c992a609ae35a0a6
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_3_3/Variants/Whitebox/Summer_Cell_3_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1fc6d2b3d50ff6c4d96167770de4bdd6
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_3_4/Autumn_Cell_3_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2056497a48acaa849b0a15172fbb4638
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_1_4/Winter_Environment_1_4/Winter_Environment_1_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 20b22156828e9d542b6c06dd43297e3f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_7_1/Winter_Cell_7_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 20bdd947b25b7074faab66339fb125e0
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_1_2/Variants/Whitebox/Summer_Cell_1_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2107ec4955018354bbfa6437c460227b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_2_0/Spring_Cell_2_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 222abd3225524d44ab54d3c312a13ae8
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_3_3/Variants/Whitebox/Autumn_Cell_3_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2304331985343b240806543a8f5cbe01
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_2_4/Autumn_Environment_2_4/Autumn_Environment_2_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 246414b55bc688a4092ce81e8d0a8b26
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_3_5/Winter_Environment_3_5/Winter_Environment_3_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 24df29c2ee86d2c41a617f9f593d109d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_2_4/Spring_Environment_2_4/Spring_Environment_2_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2529f0d79e55e764bbdc80d6e603ea55
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_3/Spring_Environment_5_3/Spring_Environment_5_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 25589c5097b8d91488cc4136a1b74386
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_6_0/Summer_Environment_6_0/Summer_Environment_6_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 25e6ea7c9ed720d46b1a883f4a01e10d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_7_2/Summer_Cell_7_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2613b2dbb0a65ba428653f14754388a2
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_3_5/Variants/Whitebox/Spring_Cell_3_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 262669e7af5a53c48bed928f5964ae66
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_7_4/Variants/Whitebox/Spring_Cell_7_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 271ee10203cf04c409152587cb648c4f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_6_0/Variants/Whitebox/Winter_Cell_6_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2742f1255dbda4c4abab902e5e492183
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_8_1/Spring_Cell_8_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 280842a07fa08ae4c9c2e52a05011df6
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_1_0/Summer_Environment_1_0/Summer_Environment_1_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2814d27c6033a9446a28393c599e51e5
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_3_3/Spring_Environment_3_3/Spring_Environment_3_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 283607eec62ffbf4c90472b6fd78e7c2
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_1/Spring_Cell_5_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 284abb9cad572534e841169dec7c38ee
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_5_5/Variants/Whitebox/Autumn_Cell_5_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 29c720373bef0184c813787cea3f2a93
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_3_5/Summer_Environment_3_5/Summer_Environment_3_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 29da9a1348868d548965de37743f8121
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_3_2/Variants/Whitebox/Winter_Cell_3_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2a3cd641a89be5b478a3631824386afd
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_3_0/Winter_Environment_3_0/Winter_Environment_3_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2a441f993154ea04ab6d2a5fd8f90038
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_2_0/Variants/Whitebox/Autumn_Cell_2_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2a442188c6f2dfc41b9128e2d020b219
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_0_3/Spring_Environment_0_3/Spring_Environment_0_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2ab0e1053b527ad4d875faecbc1486bf
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_2_3/Spring_Cell_2_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2bb93c184001eac47b2129cdc8dfc7ed
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_8_0/Spring_Environment_8_0/Spring_Environment_8_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2c995d2dcdedd53448d65d76f14082bc
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_0_2/Spring_Environment_0_2/Spring_Environment_0_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2d3d0ebe68c540f47945fcc5012a6dae
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_1_3/Variants/Whitebox/Spring_Cell_1_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2d51349b75ed7334eb877ff3bf83b883
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_2_5/Autumn_Environment_2_5/Autumn_Environment_2_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2d6ea07dc73e6d641a573d342cfe3560
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_8_3/Spring_Environment_8_3/Spring_Environment_8_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2d72bf9bb0f024d4ba649fd8d4bb5ab5
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_5_0/Variants/Whitebox/Autumn_Cell_5_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2d9e15ed4986ea942a966ed3558fb9dc
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_2_3/Spring_Environment_2_3/Spring_Environment_2_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2da8e956c263a3541845c3d4e63b5356
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_7_0/Winter_Cell_7_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2e16a331ff655fb4bbdef91bde310db8
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_5_4/Winter_Cell_5_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2ec9ddcd681e4514bb1e2dcd7576317b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_8_1/Winter_Cell_8_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2f0d2efbc64bc1442908a88688b256ed
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_1_3/Spring_Environment_1_3/Spring_Environment_1_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2f54a9621677c4b4e84e715bb4876b2c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_7_3/Winter_Cell_7_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2f5e4b79b1dd26e4cb49ee09bb96e75a
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_8_5/Spring_Cell_8_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2f85edf20ed1def47857370985a018ef
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_6_2/Autumn_Environment_6_2/Autumn_Environment_6_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3004ed2df24f682439106d89841228e3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_2_0/Variants/Whitebox/Summer_Cell_2_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3049ad0c9caf29842a302b1e46e05e49
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_0_0/Spring_Environment_0_0/Spring_Environment_0_0.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -40,28 +660,248 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 3142760357bf1ae40830f46407b953fd
-    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_0_2/Cell_0_2.unity
+  - m_GUID: 30e340ac4ce2fed4487c9bdfef391b8a
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_7_2/Spring_Environment_7_2/Spring_Environment_7_2.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 324e09fe6af9a92459f4be707313c995
-    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_2_2/Cell_2_2.unity
+  - m_GUID: 31421b5451626914a89d657eab369826
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_6_4/Winter_Environment_6_4/Winter_Environment_6_4.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 32895f876ed46d24ab83d54d6c192640
-    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_2_0/Cell_2_0.unity
+  - m_GUID: 31697e1bd6206dd49afc7ab629d88696
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_5/Spring_Cell_5_5.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 37f04f5e9ff90b645a067cdd0331057a
-    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_1_1/Cell_1_1.unity
+  - m_GUID: 327297e0728b4824e8cc58918333a683
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_0_0/Winter_Environment_0_0/Winter_Environment_0_0.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 3b31114e026f5c74fb2976802ae98096
-    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_2_0/Environment_2_0.unity
+  - m_GUID: 32a99479032f5e741aa2808cbda4c4eb
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_5_3/Variants/Whitebox/Summer_Cell_5_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 32a9cc945a0d2854aba5f97b0f18b3de
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_4_4/Summer_Cell_4_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 32b9e4c1e0f8de64b9a35909cde1a1d0
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_6_0/Summer_Cell_6_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 32cfc3add5d1b9e478a500249071cf03
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_0_2/Summer_Cell_0_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 32d5574b710b7f640b3a899f48c52340
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_8_1/Autumn_Cell_8_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 32f6030bf8b805b48a853c7b337be977
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_2_4/Variants/Whitebox/Autumn_Cell_2_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 34792412ec5acdd4fbaeb8f860d5db87
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_6_1/Spring_Cell_6_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 350cce52600af2e438196a6d4174c83b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_0_5/Variants/Whitebox/Winter_Cell_0_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3522d6646a99ff34f99003c1ca289099
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_1_3/Winter_Environment_1_3/Winter_Environment_1_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 35990974804057f49b63df8ba363d387
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_0_4/Summer_Environment_0_4/Summer_Environment_0_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 35b65886735cf01418048411c3ea40d9
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_2_4/Summer_Cell_2_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 36abb1d8105a2a842a2a4fa8128cdffd
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_7_1/Summer_Cell_7_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 36e17aea772c5c84291fc98a99bd8b82
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_6_5/Variants/Whitebox/Autumn_Cell_6_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 37443e78ed6230f4a90f6bcf74abe22a
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_6_3/Variants/Whitebox/Winter_Cell_6_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 376dc74c1d975b94580610c61b11b283
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_6_2/Spring_Environment_6_2/Spring_Environment_6_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 37a19af9f1ddc6f42890315288daa471
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_2_2/Spring_Environment_2_2/Spring_Environment_2_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3834f7b288410b145a446a2309a6773d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_6_0/Spring_Environment_6_0/Spring_Environment_6_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3835c3977bdbe3148b90bcf31326fa17
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_5/Variants/Whitebox/Spring_Cell_4_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 38796faea30a98646b2a9234d456d6e7
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_7_4/Summer_Cell_7_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 38c96de79357861459997e279285ca0e
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_4_4/Autumn_Environment_4_4/Autumn_Environment_4_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3959189fe9fb6334cbb9151b79009c50
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_3_0/Spring_Environment_3_0/Spring_Environment_3_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 39fb78dbac75b7e42b0f4f75358a5d79
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_3/Spring_Environment_4_3/Spring_Environment_4_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3a159e6f19723e7439ec5c18b482f651
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_3_0/Variants/Whitebox/Summer_Cell_3_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3a3d843e291e7314096d98a7f98231d5
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_1_5/Variants/Whitebox/Summer_Cell_1_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3a4e77ec0a568704dab828f7ebe348a2
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_3/Variants/Whitebox/Spring_Cell_5_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3a8826e6eae6247479214ee529c34ebf
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_4_2/Autumn_Cell_4_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3d38f94c042ed8d43a492e71a517393b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_8_2/Variants/Whitebox/Spring_Cell_8_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3d3cdb450a32c504f93a121094b32c4a
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_0_3/Autumn_Environment_0_3/Autumn_Environment_0_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3e50f89bd5d57454298bff36bffc4657
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_8_3/Summer_Cell_8_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3e77a45cc1f908242906a6eab1105647
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_6_2/Summer_Cell_6_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3ed9ed039a4f015489ed84dccdaa1a0e
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_5_1/Autumn_Environment_5_1/Autumn_Environment_5_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3f73c4952d9a22245b5668ab1d0462f8
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_0_1/Variants/Whitebox/Spring_Cell_0_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3fb1b7201e22d1a4b93d499f5dfc3a24
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_2_5/Spring_Environment_2_5/Spring_Environment_2_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 403b5ff6c891ded43b0c2e1cb137d290
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_7_2/Variants/Whitebox/Spring_Cell_7_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4070915a02248b548abe587be5e45d3f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_3_2/Summer_Cell_3_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 40b28ec25bcdf904f940317b382b3e4f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_5_0/Summer_Environment_5_0/Summer_Environment_5_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4107f7f0b5c8cfb4eaaf64884b5c14bf
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_6_3/Autumn_Environment_6_3/Autumn_Environment_6_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 41792b64da186f4458664415ed66898d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_2_0/Summer_Environment_2_0/Summer_Environment_2_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 41e7f1f46827dd247abcce567c2894e7
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_8_0/Autumn_Cell_8_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 42c1a434fd66ea34ebfdb593072eda36
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_1_2/Autumn_Cell_1_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 42e0ba305a845e34e94fa0995f044555
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_4/Spring_Cell_5_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 42e35814f37ae7f44860674ed0ba5523
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_2_3/Variants/Whitebox/Autumn_Cell_2_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 43584381117719d4d9f99104adc04df0
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_7_4/Autumn_Cell_7_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 442ac5a42ad0d6648bea7e8d603d7d83
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_7_4/Spring_Environment_7_4/Spring_Environment_7_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4435c1678b1b26f4ab80b84955e44699
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_6_4/Autumn_Environment_6_4/Autumn_Environment_6_4.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -70,8 +910,628 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 4aa33572946bff740a235262163a44a9
-    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_3_1/Cell_3_1.unity
+  - m_GUID: 446cde474fe293a49b4bc2a7d188bf7a
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_7_5/Spring_Cell_7_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 44936af449ecbfd47ae9338af30bbb4f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_2_0/Winter_Cell_2_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 44a81733344886a49af8971bd36b6250
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_2_4/Variants/Whitebox/Winter_Cell_2_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 44b78d3db04a3aa489608346a75640d0
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_1_0/Spring_Environment_1_0/Spring_Environment_1_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 44dc8a373c7fbf64cbf369b63c185800
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_2_3/Winter_Environment_2_3/Winter_Environment_2_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 462870baaf5023247a9ee32bd4964e97
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_6_1/Winter_Environment_6_1/Winter_Environment_6_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 46e66f051a1c60042886eb5159966598
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_7_3/Summer_Cell_7_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 47184bcde09d40f4d914b3000ac1f739
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_7_1/Variants/Whitebox/Autumn_Cell_7_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 47fd830e021b5ef43893ed260ab78713
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_8_4/Autumn_Environment_8_4/Autumn_Environment_8_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4803b0a87050a664ebbaa0c61fb3d3d4
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_2_3/Variants/Whitebox/Summer_Cell_2_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4810522df648a0e4db0cf9da02f7d22b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_1_2/Winter_Environment_1_2/Winter_Environment_1_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4855a015b6b0342448a77c5d00f71187
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_3_0/Autumn_Cell_3_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4903c3461a2740649b7ff7ef6cc4afe3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_6_3/Variants/Whitebox/Autumn_Cell_6_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 49427221ba779d84d85f613f211fbc7d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_7_0/Spring_Cell_7_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 49e2cf879d6dba449b325eb0aafd4ea4
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_7_1/Spring_Cell_7_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4a5a182d7d28e4140b2e40b3baae2b0a
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_5_4/Autumn_Cell_5_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4ad39857280392b43b8274bc1f829323
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_0_4/Spring_Cell_0_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4b100ee7adbf4d14fadfbb5959967c18
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_4_1/Variants/Whitebox/Summer_Cell_4_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4b6f86e3d62911c4f901551c2d24225d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_6_4/Summer_Cell_6_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4b84ff9b3a3bbaf4cb51367cfd76bf30
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_8_2/Variants/Whitebox/Winter_Cell_8_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4ba8ba88c29eb834b8b7db07c9c47741
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_7_0/Summer_Environment_7_0/Summer_Environment_7_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4bf03c4222b1fc148bf859569fa59ccb
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_8_4/Spring_Environment_8_4/Spring_Environment_8_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4c3b31a7199c7094eb76b35c48ace3ac
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_7_5/Variants/Whitebox/Summer_Cell_7_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4c3e0f71bd9af3d479fd7d6f3f86b80d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_8_3/Variants/Whitebox/Summer_Cell_8_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4c8bd12599f4ab84291c59be6c1296eb
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_8_1/Variants/Whitebox/Autumn_Cell_8_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4d0b5a77b5b0bb44892d0f3bcbef3318
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_8_0/Summer_Environment_8_0/Summer_Environment_8_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4d14a644c6a5c8f4995e10d23b769d80
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_4_2/Variants/Whitebox/Summer_Cell_4_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4d4a6fe24a7c2d240855dcc61d0fc1be
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_5_4/Variants/Whitebox/Summer_Cell_5_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4df198f99da90f6488d3cb9df3388946
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_5_4/Variants/Whitebox/Autumn_Cell_5_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4e29614ee63f5b74a9241c7f1719c6c5
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_6_1/Winter_Cell_6_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4e58abb8ea9bbd14fafd77402920a48d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_5_0/Variants/Whitebox/Winter_Cell_5_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4f69f5a3b4d3e604f915ac7f1c4d17e3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_8_0/Variants/Whitebox/Spring_Cell_8_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4fc761af6cb50ec4e956b667a442fb0f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_3_1/Variants/Whitebox/Autumn_Cell_3_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5003d053d249abe46a28d99ce46c2ddf
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_5_4/Winter_Environment_5_4/Winter_Environment_5_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 50348f8798c2b2441bb0a5b32cd90cdf
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_6_3/Winter_Cell_6_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 505bee7aaca981a43941c5d305f4c107
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_6_0/Variants/Whitebox/Autumn_Cell_6_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 509f617c0e21b724bb6e3f8606a3d7ee
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_3_1/Autumn_Environment_3_1/Autumn_Environment_3_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 50cc12bc1d26a2e46b6e723ef4bc4967
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_6_5/Summer_Cell_6_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 50ce9acfab69e2e4cbddd731249556b5
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_0_4/Autumn_Cell_0_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 517109c0f5f207a499c86dc95ccbdd76
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_4_1/Winter_Cell_4_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 518ed03248d0e8a4e83fb5d72ff9acaf
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_0_5/Spring_Cell_0_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5203f9eca965cba419f8b0c08763c263
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_3_3/Autumn_Cell_3_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 525d1524b095d03498b7522cec319f5c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_3_0/Spring_Cell_3_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5292df09cd69dc64fb0b954b1a0e0696
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_8_3/Autumn_Environment_8_3/Autumn_Environment_8_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 52a0e5983a780684ca7a99727ac48757
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_2_1/Autumn_Environment_2_1/Autumn_Environment_2_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5304f87c352fa2f46a494a3794597b3a
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_2_1/Spring_Environment_2_1/Spring_Environment_2_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 53769c0933dd7674bb12de9716f521c9
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_4_2/Summer_Cell_4_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 53db65469b88d1842a4f82b97e25219b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_0_3/Winter_Environment_0_3/Winter_Environment_0_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 54779f9f1353be44b9f53b411719654f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_3_3/Spring_Cell_3_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 548100c45e8b98a4b8e93d028a777778
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_7_4/Summer_Environment_7_4/Summer_Environment_7_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5487f721982af7e489d16876f7ff9b54
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_8_5/Summer_Environment_8_5/Summer_Environment_8_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5532a4c5f13bca043a033c40707bb083
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_3_4/Variants/Whitebox/Winter_Cell_3_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5552c5848b020b34d86ef9394d5ed422
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_5_1/Variants/Whitebox/Summer_Cell_5_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 555ac2b635a953d45abd901d1e268777
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_5_3/Winter_Environment_5_3/Winter_Environment_5_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 55a7f50ae3da8db4aa01a340de04ccb5
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_6_4/Variants/Whitebox/Autumn_Cell_6_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 55be2339ea91177479cb4c048989631c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_5_0/Variants/Whitebox/Summer_Cell_5_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 55d1b9455eba9ae499dc2b54bc13cddb
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_3_2/Autumn_Environment_3_2/Autumn_Environment_3_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 55dc8dc80bf5dd9428afb6a9fc0e5b22
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_7_0/Variants/Whitebox/Spring_Cell_7_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5610185959218e34b82dfee947564f2e
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_1_0/Variants/Whitebox/Spring_Cell_1_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 568a140aa292f334d93ada04af63c632
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_1/Spring_Environment_5_1/Spring_Environment_5_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 56979a7417e28104f807302787900550
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_8_3/Variants/Whitebox/Spring_Cell_8_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 56d653ec5c772b2458afad443c5cb393
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_7_0/Autumn_Environment_7_0/Autumn_Environment_7_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 57ebfeecfbbd2af4183e05fd68fc3f2b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_7_0/Variants/Whitebox/Autumn_Cell_7_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 57fb3b6faef3ec841b680be3efa8b6cf
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_1_0/Variants/Whitebox/Summer_Cell_1_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 586f9261cb769d34487d8051af8419e5
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_8_1/Variants/Whitebox/Spring_Cell_8_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 59139dd1a202ed64fa193fdd01ab0be5
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_8_2/Variants/Whitebox/Summer_Cell_8_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 59e6d84c07837f84b96753903b960dab
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_5_1/Variants/Whitebox/Autumn_Cell_5_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 59f1e541faf2fd642bdfe7ca55faa50c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_0_0/Spring_Cell_0_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5a9ba6f7e3dd7694a981090479d3bd47
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_1_1/Variants/Whitebox/Summer_Cell_1_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5ab7c3b82239a944d8a513d9cb59ef54
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_5_1/Summer_Environment_5_1/Summer_Environment_5_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5ac169936767dad4cb2feeac4046ca94
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_1_1/Autumn_Environment_1_1/Autumn_Environment_1_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5ad0058af2f9edc4a9dbb866521bda4c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_8_0/Winter_Cell_8_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5baf32d5db076ae43b06321b82ec300f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_2_5/Autumn_Cell_2_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5bb7394553fe36d4e8f3e04106f5fca6
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Summer_Lighting/Summer_Lighting.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5c0a9f4d61c05dc4bb793ad75c7151e6
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_6_0/Winter_Cell_6_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5c0b54b15cab06b4ab513805d744d765
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_3_1/Winter_Environment_3_1/Winter_Environment_3_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5c270d3ca930f0d4883983a174dca49c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_6_4/Winter_Cell_6_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5c308d5d0f870e545b155b2ce3da06c4
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_5_1/Winter_Cell_5_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5c4dea55f7ec11645a6fc5ade053cc14
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_3_3/Winter_Cell_3_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5cd17546d75adec49aa872fa4cecb6e8
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_6_2/Variants/Whitebox/Winter_Cell_6_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5d2394e3b4887a74c99035ff8e7e6e7b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_1_3/Spring_Cell_1_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5e1674acf1a85ce428b27bf819d3f935
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_7_2/Variants/Whitebox/Summer_Cell_7_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5e5225cf6a5a3b24589ae85fde51a134
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_1_1/Variants/Whitebox/Winter_Cell_1_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5e6c02da747ba0c47968fa6876e080ca
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_4_4/Winter_Environment_4_4/Winter_Environment_4_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5e70b29d95e3e0e45a980aebd93e0437
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_5_0/Winter_Environment_5_0/Winter_Environment_5_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5eb74fa86c0a82a47b5d2458c1af0216
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_0_0/Summer_Cell_0_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5f9647fc46ba50c4fa371c2d0d087738
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_3_3/Summer_Cell_3_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5fae358182e27994682ecccc5a4a6e21
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_1_3/Summer_Environment_1_3/Summer_Environment_1_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 6018a32a1dc4c78418c2700878b95948
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_5_5/Variants/Whitebox/Summer_Cell_5_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 6036f0d6d2ae90648a63d4debd206a09
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_2_2/Winter_Cell_2_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 609e55812f5c06b4fb8baf31fdfbf65d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_2_2/Variants/Whitebox/Winter_Cell_2_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 60dc0b92d451bb049af88048adbeda97
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_5_4/Summer_Environment_5_4/Summer_Environment_5_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 61104ec57ad232b47ad0de2da56f791f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_0_0/Variants/Whitebox/Summer_Cell_0_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 613a7647809e48e4a893d8d1a4c44f97
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_2_2/Spring_Cell_2_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 61e80e5ea0981784aa1813ce5b802466
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_5_3/Variants/Whitebox/Winter_Cell_5_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 62bc92a8dee4f5a4a800ecbaba63f840
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_6_0/Variants/Whitebox/Spring_Cell_6_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 631e53d5e89ecd24bba4101dfd1c337c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_8_5/Variants/Whitebox/Autumn_Cell_8_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 634f0fafc17c46043871ff93ae31ff86
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_2_4/Summer_Environment_2_4/Summer_Environment_2_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 647001384e1ca95458ac5d93ba148809
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_6_2/Winter_Cell_6_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 64cde01b64baba144abb356ec5b76d74
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_1_0/Summer_Cell_1_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 6505c8f0c68d06b47a33610ff9a39020
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_1_0/Winter_Environment_1_0/Winter_Environment_1_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 650852f7e469a6246b9d9285ec21e77d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_6_1/Autumn_Environment_6_1/Autumn_Environment_6_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 65adb19d5806c1e418309e1efcc2f22c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_1_4/Variants/Whitebox/Summer_Cell_1_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 65d9248836008a3479b56e0db1cfb2c8
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_7_0/Autumn_Cell_7_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 671b4d6408082674285b6d9c70c0e415
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_2_4/Winter_Environment_2_4/Winter_Environment_2_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 67209a6d274642047803176fa73434f4
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_0_4/Summer_Cell_0_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 67307eafc288f694ab1a4e4d798ba929
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_7_3/Autumn_Environment_7_3/Autumn_Environment_7_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 68345e22cfce4f24c8899c516677e8c4
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_6_5/Spring_Cell_6_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 689e5ea0acf63824a9d8a3e91bad08f7
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_3_1/Spring_Environment_3_1/Spring_Environment_3_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 68c62006204c56343ba0d17f2df6b3d0
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_7_4/Winter_Cell_7_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 68d66ff7a8b3cf84baffe80b3371206f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Environment_4_2/Spring_Environment_4_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 68e13aa369996a44dbed673bd07e672b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_5_2/Summer_Environment_5_2/Summer_Environment_5_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 69ee2d803df1a8d4a82c47587dbbfad3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_0_0/Variants/Whitebox/Spring_Cell_0_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 6a0bd3d0baccc6f4191031382d2d67cb
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_0_5/Summer_Cell_0_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 6aa262a8fc9ff724aab5463c4c2f68a1
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_6_1/Variants/Whitebox/Summer_Cell_6_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 6b7b2f83b18c38f43b65a790d78533cd
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_2_5/Variants/Whitebox/Winter_Cell_2_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 6be82140b16893647a44fd773437262d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_0_4/Winter_Cell_0_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 6c413b1d03286e549a7d61884780dcec
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_8_4/Autumn_Cell_8_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 6cd8aa260dd28c64f943f23f7267c308
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_0_0/Variants/Whitebox/Autumn_Cell_0_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 6dc63178ae96fcb4280b223bc7a66428
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_8_5/Spring_Environment_8_5/Spring_Environment_8_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7154a2136a3e6e344a93eb009e8ca464
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_1_3/Variants/Whitebox/Winter_Cell_1_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 72323b258730fcd47942b7c8e197cdf4
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_0_5/Winter_Cell_0_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 72d5884635bc3f3419002ed7c9a5ef67
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_6_1/Variants/Whitebox/Winter_Cell_6_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 732d8b0a410dee4479fb6f117442d9b3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_6_4/Spring_Cell_6_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 733276d90a828c74aa5e99755eb38b6b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_3_2/Variants/Whitebox/Autumn_Cell_3_2.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -80,13 +1540,443 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 75444400bdb714243b65aa12eb80f3fc
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_4_1/Autumn_Environment_4_1/Autumn_Environment_4_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 754fdbe4eb2d89248b3475e0906e6225
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_2_2/Summer_Environment_2_2/Summer_Environment_2_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 75be06e3e85d7c14ab764d4da2d9adb9
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_2_3/Summer_Cell_2_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 75cb5c7975b19bb4fb23860f5ae80973
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_6_4/Variants/Whitebox/Summer_Cell_6_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7620f73eda8abde45aa46bc2971fc806
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_0_1/Winter_Environment_0_1/Winter_Environment_0_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 76321fbd204dbf847a819e52999c4b29
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_2_4/Autumn_Cell_2_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 766d9b8101d243c4d837ed3a26661684
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_4_3/Variants/Whitebox/Summer_Cell_4_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 76bbf581cbe9ce84d9504169b3340fa3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_1_1/Winter_Environment_1_1/Winter_Environment_1_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 76d0cff607cbf004eaad4e9ed97c31eb
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_2_0/Winter_Environment_2_0/Winter_Environment_2_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 76ebefb5e71591c49bf50527351b4f66
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_8_5/Variants/Whitebox/Summer_Cell_8_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7726b8ecfa8196c49ba6214e26d25590
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_3_5/Spring_Environment_3_5/Spring_Environment_3_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 77b3bce4f76b436439ea3af49153c64f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_5_1/Autumn_Cell_5_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 77e899030a638434a8633ef5872f00cf
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_6_2/Variants/Whitebox/Spring_Cell_6_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 78771bbe43c3cad47b05537cd9aad396
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_2_4/Winter_Cell_2_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 787a4f99cca9eb94ebe8b40a2143ca31
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_8_2/Summer_Environment_8_2/Summer_Environment_8_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 796240073b44df5409b399c1d8ec92be
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_4_4/Variants/Whitebox/Winter_Cell_4_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 799e0e37bed029e4199b0e4a474f9be6
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_3_4/Winter_Cell_3_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 79f45b703272c054aa1b943a81f213d2
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_7_5/Variants/Whitebox/Spring_Cell_7_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 79f60ee95b7afaa42a2567f81a8194b0
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_6_2/Spring_Cell_6_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7a3e4bf1b55eb7e47bb3c7ca82ee4982
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_0/Spring_Cell_4_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7ad47f35f08a1f546976417d4fd7e005
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Autumn_Lighting/Autumn_Lighting.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7b33794ef6b1cfc419853bf69ec9c62d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_1_4/Summer_Environment_1_4/Summer_Environment_1_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7c31113b7a6f6cd4fbce6fc78ee5b5e1
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_7_5/Winter_Environment_7_5/Winter_Environment_7_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7c3bb437b48e315409bed8b492b5eff7
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_6_0/Autumn_Environment_6_0/Autumn_Environment_6_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7cf1eb22a818d9343895e72ca3c1207b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_5_3/Winter_Cell_5_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7d1f35068fa614e438540824999fb44b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_3_0/Variants/Whitebox/Autumn_Cell_3_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7d2dc80bd574c6942b29f9544b56934c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_0_3/Spring_Cell_0_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 7d5069b8f599b704ca02b91d74c4d46c
     m_Address: Assets/SampleGame/InGame/InGameSession/Result/Result.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 8af02f5ad15162341b1f7582b1209145
-    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_3_0/Environment_3_0.unity
+  - m_GUID: 7dbe110caf8a9ec41835dc6136fe3ccb
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_6_5/Autumn_Environment_6_5/Autumn_Environment_6_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7dc3eb0702573074e88dd2c3bce6b3b1
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_2_1/Variants/Whitebox/Winter_Cell_2_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7e857cbaa812b4b4c8d660c831bc2937
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_0_1/Winter_Cell_0_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7f6c9a26a1f3084458eca7951ca410ad
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_4_3/Winter_Environment_4_3/Winter_Environment_4_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7f7279fcfb8a32f498ab3577c00e6d20
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_8_3/Winter_Environment_8_3/Winter_Environment_8_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 810ce20d05dbbc84188ea1c683c2435a
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_0_2/Autumn_Cell_0_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 81a830278d8060e4f9751cc7c0278b9d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_6_3/Spring_Environment_6_3/Spring_Environment_6_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 822ca2742ed7c844ca32637e35617d59
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_1_0/Autumn_Cell_1_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 822d4cfaeac18c540b3d22ae43b35834
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_5_2/Variants/Whitebox/Winter_Cell_5_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 82f0057d452616f4ab736e7e208fc906
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_5_3/Autumn_Environment_5_3/Autumn_Environment_5_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 831a8620976084f42ac5635d7350fa43
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_1_1/Variants/Whitebox/Spring_Cell_1_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8368d92e10b44ca40933764f11b0644a
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_1_3/Autumn_Cell_1_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 839afdb2df7e9e74584acc75e4bae95b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_4_3/Summer_Cell_4_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 839ddf158cabbbd4eb5c1376ea5d1d5b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_3/Spring_Cell_5_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 83a5a9960aee30b44abfb90b82227060
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_3_4/Summer_Environment_3_4/Summer_Environment_3_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 83b5880400055374a8ead56810121a10
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_8_5/Winter_Cell_8_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 83f70abfc23ec714082e248d6c2edaac
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_8_2/Winter_Environment_8_2/Winter_Environment_8_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 83f9571eac95c5740b9733aad0e0b839
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_6_0/Variants/Whitebox/Summer_Cell_6_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8489129631e245d4fb32261034a689cc
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_7_4/Winter_Environment_7_4/Winter_Environment_7_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 857861e38402b03498a35a7567cd6525
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_5_2/Autumn_Environment_5_2/Autumn_Environment_5_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 858cbe5998d2c714fa89ba69a980fd4c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_5_3/Autumn_Cell_5_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 85f32ce5bd4033340b72489c40225ada
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_2_3/Autumn_Environment_2_3/Autumn_Environment_2_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8619cd30ea90e9542b014c3b607fc5f9
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_2_5/Variants/Whitebox/Summer_Cell_2_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 867ac8053a92e7d43a02329f81a39582
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_7_5/Autumn_Environment_7_5/Autumn_Environment_7_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 879113655ba58c34a81bfb9ceedd735c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_2_3/Winter_Cell_2_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 87d722961349c214c80ba33a26462ca0
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_3_2/Variants/Whitebox/Spring_Cell_3_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 88d055a68bbdd6b47935f126365be034
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_0/Spring_Environment_4_0/Spring_Environment_4_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 89115815e064b7245bc00229e037aca9
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_6_5/Winter_Environment_6_5/Winter_Environment_6_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8b5bb94e6f670e54cad912f252c433ad
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_4_5/Summer_Environment_4_5/Summer_Environment_4_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8b60b3111d1670f4b96e33bcd83f262e
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_2_0/Summer_Cell_2_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8b84cba01ec7fc94fb8d36f661c320e3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_2_2/Variants/Whitebox/Summer_Cell_2_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8b858523c561c3947923f18de2685da0
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_0_5/Variants/Whitebox/Autumn_Cell_0_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8bb6602509474dd408286163332f0b80
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_2_2/Autumn_Environment_2_2/Autumn_Environment_2_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8bc8de35dd13a0b43b31e8fdbe3f09e3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_8_0/Summer_Cell_8_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8c3a6266500dc594aa78f705310de649
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_1_3/Summer_Cell_1_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8d1705ec797bba84c9ae1aaddf117fc3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_8_1/Variants/Whitebox/Winter_Cell_8_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8d26d319a32b9f44280e1b8fd2a1151e
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_5_5/Winter_Environment_5_5/Winter_Environment_5_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8d3ff383ce9291644acb42eec25d4edf
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_5_2/Autumn_Cell_5_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8e179a62e70212549bc08fd2aec40153
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_8_2/Winter_Cell_8_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8e5101c656e4be0409db9ca8f1101ce3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_7_1/Autumn_Environment_7_1/Autumn_Environment_7_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8e5ccf5bbb08ca541940a63ce2cb84d4
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_3_5/Autumn_Environment_3_5/Autumn_Environment_3_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8e8b7aad09860624c9b463da795e1f8f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_6_0/Winter_Environment_6_0/Winter_Environment_6_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8ea7f3dd5d25e9e47a6e6089bed4bd50
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_0_5/Autumn_Cell_0_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8ecf01f83abac5142a19537e3c08eed3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_0_5/Autumn_Environment_0_5/Autumn_Environment_0_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8ed0e2c8cb18e924388c48ff79a122be
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_3_4/Summer_Cell_3_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8eda2e77c62416e41b7e7b65b78a399f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_3_0/Variants/Whitebox/Winter_Cell_3_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8ef99ec3cfa49e842a1c0fe438c80574
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_1_5/Autumn_Cell_1_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8f3d8b7a30aea624f8777490c395d275
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_0_1/Summer_Cell_0_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8f70dc05d4a503548a9b122cb8b568ea
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_5_5/Autumn_Cell_5_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8fab06a5348a02a41abc29a23e0700b3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_0_0/Winter_Cell_0_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8fb3fde5e6bea964cb0e52fdc19ba600
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_4_0/Variants/Whitebox/Summer_Cell_4_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 901c69f7340b8c64f883996b5b4dec86
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_1_2/Variants/Whitebox/Spring_Cell_1_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9065d4bd514008247ae1d91fc25f8ce5
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_1_5/Autumn_Environment_1_5/Autumn_Environment_1_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9143970ead63932409171dd14fceb354
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_3_2/Winter_Environment_3_2/Winter_Environment_3_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 91936fd15d16f8342b2d0459e918b61b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Cell_4_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 92272484e52054c4dbd101168312b317
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_3_5/Spring_Cell_3_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 930ace70f750910479bb1f739f99f324
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_6_0/Spring_Cell_6_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9326e9eb951c48a4b89b2dc0cfd72a15
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_2_2/Winter_Environment_2_2/Winter_Environment_2_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 93378c84bbe144e4c838e7f0a17a7439
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_6_4/Spring_Environment_6_4/Spring_Environment_6_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 940a46e849ba40847866600831f403b3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_6_1/Variants/Whitebox/Spring_Cell_6_1.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -95,23 +1985,303 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 953e0a6d3d511e941a6b82a728c00fa5
-    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_0_0/Environment_0_0.unity
+  - m_GUID: 9468591291a4962478a20ca972b37c54
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_6_5/Variants/Whitebox/Spring_Cell_6_5.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 956427c6e6b12b24788477f2f869d65e
-    m_Address: Assets/SampleGame/InGame/InGameSession/World/World.unity
+  - m_GUID: 953996c9fb74d9644b6395bd0674a90b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_3/Variants/Whitebox/Spring_Cell_4_3.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: a63712cc0690e9a42aaf5ce42bac4e23
-    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_2_3/Cell_2_3.unity
+  - m_GUID: 95786e5fc7727d646a8e898b002376da
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_1_3/Winter_Cell_1_3.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: a8030564e2e1a2549af188736e116e44
-    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_2_1/Cell_2_1.unity
+  - m_GUID: 957abde48ce2a2446b14a2a0f29b5f2d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_3_5/Summer_Cell_3_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 963fe1c294c54f046b9a3f6870fe4162
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_4_3/Winter_Cell_4_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9640f6d90038add43949b248585c6ca2
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_3_3/Variants/Whitebox/Winter_Cell_3_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 96bacc16d6f3cf349888ef57e70cca82
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_2_3/Variants/Whitebox/Spring_Cell_2_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9765af70bf56ed449b59a22e92643562
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_3_0/Summer_Cell_3_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 97fa230222b94b5409f51a1d73b4c25e
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_6_2/Winter_Environment_6_2/Winter_Environment_6_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9806cd4139e883a45ad67f122171bbae
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_7_1/Winter_Environment_7_1/Winter_Environment_7_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 983d0b2bf52736e47a72cfbb617be0ae
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_7_0/Variants/Whitebox/Summer_Cell_7_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 984cdbb153e80c649bc21ce4abc5b779
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_0_3/Summer_Cell_0_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 993da95ccdd592545b94d9f33d994863
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_0_5/Winter_Environment_0_5/Winter_Environment_0_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 99d7453bcdd657441bd5d68b981abcc3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_6_5/Autumn_Cell_6_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 99f2ce299e81c5142a7e8de84805c4e7
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_3_1/Variants/Whitebox/Summer_Cell_3_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9a51c02217e84f241b0267f9ea064d1b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_8_3/Summer_Environment_8_3/Summer_Environment_8_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9aabc15e231c0554d822ad17203204d2
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_7_4/Autumn_Environment_7_4/Autumn_Environment_7_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9acffbcbef9ff5b43963faff51e131d2
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_2_2/Variants/Whitebox/Spring_Cell_2_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9bf3549f3ca4c1f40a1f1b5e7c329ea7
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_7_5/Variants/Whitebox/Autumn_Cell_7_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9c7ef97b1647b4a4ab640c63af5aed9f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_8_0/Variants/Whitebox/Winter_Cell_8_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9ca0f5b9468db1e4fbbcfe075aa7c789
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_8_0/Variants/Whitebox/Summer_Cell_8_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9d57b43e005129a4ba58e4e157ba4b7b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_2_5/Summer_Cell_2_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9dba66df35aa79b4b9a5cf400bd6b23a
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_4/Spring_Cell_4_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9ddf8b67638c96549802106500bc50e8
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_7_0/Summer_Cell_7_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9def90fd5e9ff5b4c8a6297c28091e1f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_2_1/Variants/Whitebox/Autumn_Cell_2_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9e21d4c6b6cdd39418e9b7efa1b37393
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_7_5/Spring_Environment_7_5/Spring_Environment_7_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9e238f3724ad9d844a4f45b32254c9f6
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_8_3/Spring_Cell_8_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9eecc8ac776a934449c91df20c1e0d7d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_6_3/Summer_Environment_6_3/Summer_Environment_6_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9f2a65102b8e1e742baec38a470338f3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_2_5/Spring_Cell_2_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9f5d4cb192bb1714cabe6ff013fe4e2a
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_6_3/Winter_Environment_6_3/Winter_Environment_6_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9fe2f224e25190f43bb8259455bcf1b3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_8_3/Winter_Cell_8_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a09724102bbec104d82a59e45e567982
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_8_2/Autumn_Environment_8_2/Autumn_Environment_8_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a1325f47d2329594f8559d999a2cf1e0
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_4_4/Autumn_Cell_4_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a17299443f2a7b544b085bd051d35f09
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_2_1/Winter_Environment_2_1/Winter_Environment_2_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a2c3cdaecfb08564a9e7ed97c6a38f9e
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_7_0/Variants/Whitebox/Winter_Cell_7_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a2f561fe4c0ccb941ad57aa1e918831d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_3_2/Spring_Cell_3_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a3a8054c1b5dad842bb2390caa758d98
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_0_4/Variants/Whitebox/Autumn_Cell_0_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a3ace64d053194c4d84c2abaf0c8d146
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_8_4/Winter_Environment_8_4/Winter_Environment_8_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a3ef3b615ae47a140bd95c2898eadfcc
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_7_2/Autumn_Cell_7_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a47e8536876e67542be97fc0cf637493
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_6_1/Summer_Environment_6_1/Summer_Environment_6_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a4ac9039cee2b87419826a46d4911090
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_3_2/Spring_Environment_3_2/Spring_Environment_3_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a4cac96ab7b49954da9db23cd0d1eeb2
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_7_4/Spring_Cell_7_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a4ffcc1c7f1cbff47a1f41b66d295573
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_4/Spring_Environment_4_4/Spring_Environment_4_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a5b5181637dde864ca51e5cc2b014684
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_1_3/Variants/Whitebox/Autumn_Cell_1_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a600313ffcca3a741b71c38545c9bf8e
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_1_5/Variants/Whitebox/Spring_Cell_1_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a617b7e398373e74397e5dbdc7808326
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_1_1/Summer_Cell_1_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a63fd788fc814c249b8806d1aca7923d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_2_5/Summer_Environment_2_5/Summer_Environment_2_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a65843280f0c2894ba61a47dfc8731cd
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_1/Spring_Environment_4_1/Spring_Environment_4_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a686ef118f011da4182e426b855dc7b7
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_3_4/Variants/Whitebox/Autumn_Cell_3_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a6c1ad5a521044f41a0a8373f845c75a
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_4_5/Autumn_Environment_4_5/Autumn_Environment_4_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a7368fdd1101c664a88881eee683a1b7
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_2_1/Winter_Cell_2_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a772df43e12f72942a69c41641475705
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_1_4/Variants/Whitebox/Spring_Cell_1_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a7791d9012310ab4ba5917db2e22be17
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Variants/Whitebox/Spring_Cell_5_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a7a4deeb3697464429b2c3f9423b71df
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_5/Spring_Environment_5_5/Spring_Environment_5_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a7c10c541c5f0354fbd1bf5a17780b52
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_8_2/Spring_Cell_8_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a8ec580001de6024a87e9cc5e4c8a879
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_8_2/Variants/Whitebox/Autumn_Cell_8_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a9ec40c1db34c774b8d295022cdc7de8
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_2_0/Variants/Whitebox/Spring_Cell_2_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: aa34c843c511c2642b9efaa6843fcc2b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_3_5/Variants/Whitebox/Autumn_Cell_3_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: aa6ef06065d6d4e42bed5966f92dbde1
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_4_1/Variants/Whitebox/Autumn_Cell_4_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: aaa69493e633f444ba4468fba6eaf863
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_8_2/Spring_Environment_8_2/Spring_Environment_8_2.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -120,18 +2290,218 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: ab1b0676251f6c441bcb466005ba67ea
-    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_1_0/Cell_1_0.unity
+  - m_GUID: ab557b3e6943eb54ebb5af345d9a001c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_6_5/Summer_Environment_6_5/Summer_Environment_6_5.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: b0f42ebeac96c594bbb93e553567e8cd
-    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_1_3/Cell_1_3.unity
+  - m_GUID: ad2c3ee66a1333140b1b95cf2ca20e53
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_7_1/Autumn_Cell_7_1.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: b85890b3b90b43c4aa721e7e6d46949f
-    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_0_1/Cell_0_1.unity
+  - m_GUID: ad4f57903fb7a724fb0fd47d063182aa
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_5/Spring_Environment_4_5/Spring_Environment_4_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ad641f862f93c8c499782a358709463d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_1_0/Spring_Cell_1_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ad659450f94a63f4a82437057f11570f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_3_5/Autumn_Cell_3_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ae17782f6ec7c9d429560ffedab29d09
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_2_5/Winter_Environment_2_5/Winter_Environment_2_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: aea73d0e0eed7ed4294b2ced3e531ece
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_5_3/Variants/Whitebox/Autumn_Cell_5_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: af42a5ad08f14214ca8778329aaa1cb9
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_4_4/Variants/Whitebox/Autumn_Cell_4_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: afeaceb7a7674ed41847cf97f0a08a19
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_0_3/Variants/Whitebox/Summer_Cell_0_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b0661a9bf6b8e0445b6557504c3f4261
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_4_2/Variants/Whitebox/Autumn_Cell_4_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b0f6d5cd820e2e943b5104e1076aef02
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_8_4/Variants/Whitebox/Summer_Cell_8_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b1e098bbe78ff194cb966641697d5a8c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Cell_5_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b23991b039e74f94aa133fbf0d564828
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_1_5/Winter_Environment_1_5/Winter_Environment_1_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b27ba2d644f9a1d489e97714df53d45a
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_8_2/Summer_Cell_8_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b30d59bc9d8da8245b0d86354e59d059
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_4_5/Autumn_Cell_4_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b3b810baf0317cc4d82de6dadb6b0fc9
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_7_3/Variants/Whitebox/Autumn_Cell_7_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b3b925fe2dff91743a551cfc7049a85b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_4_0/Variants/Whitebox/Winter_Cell_4_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b3f42a059f725a64a981ac2b22297116
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_5_2/Variants/Whitebox/Summer_Cell_5_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b4513b2ac4a13c8498f907a749e26f42
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_3_0/Autumn_Environment_3_0/Autumn_Environment_3_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b4b2f0ca218f46449a2f360f5b49e275
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_2_4/Variants/Whitebox/Spring_Cell_2_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b502c18d5ab83d34e85f5e765bff1ff2
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_0_3/Variants/Whitebox/Spring_Cell_0_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b508253a8bf60f84b87a1cb1144c7317
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_3_2/Summer_Environment_3_2/Summer_Environment_3_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b528d075c02e9004492bb161fcfed518
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_1_1/Winter_Cell_1_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b5e48b1961415e546aef7284ae5b2af8
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_1_5/Spring_Cell_1_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b65a3b9c6f2831645915ddfb21748f09
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_3_3/Winter_Environment_3_3/Winter_Environment_3_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b71a0d9438260614bb65b6da30871b0e
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_3_1/Summer_Environment_3_1/Summer_Environment_3_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b75a0fcdcc640b64a8a906ed8a7c56fa
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_1/Variants/Whitebox/Spring_Cell_5_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b83da450f0bc6254bbef0ee38caf2c13
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_0_4/Variants/Whitebox/Winter_Cell_0_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b85d5570955463d49b03fcf1408f4570
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_8_4/Variants/Whitebox/Winter_Cell_8_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b885e9e380bc34b4d9e42d824f886e7c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_4_2/Summer_Environment_4_2/Summer_Environment_4_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b8972451938bd6f459016e61eebaedd4
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_3_2/Variants/Whitebox/Summer_Cell_3_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b91b302bbc23fb640b9098ea5c86ab51
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_6_3/Spring_Cell_6_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b9352892406990046a71443da5e74fd6
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_7_1/Variants/Whitebox/Spring_Cell_7_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b958974601b6aa34080f8e42e1fd0fd7
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_0_2/Summer_Environment_0_2/Summer_Environment_0_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b96589045f4643a4da16cd3ccf942fbd
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_1_4/Autumn_Cell_1_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b96bb70771ccaf64e8322d9868608dc9
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_5_5/Variants/Whitebox/Winter_Cell_5_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ba065b5688a48a342bb1a2223df02581
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_5_3/Summer_Cell_5_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ba71a56486d91f648b1ae6d6c5d1be0b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_6_1/Spring_Environment_6_1/Spring_Environment_6_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: bac0aa6272f4e994c980b8ea4d5f4e3e
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_2_0/Autumn_Cell_2_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: bae072cf8ffead04983d55e945d7cd7d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_5_1/Variants/Whitebox/Winter_Cell_5_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: bb7fee37c1a259e49add3d44a2f687bf
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_2_1/Spring_Cell_2_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: bc7f063ecf37a9e4da5ffc13ce89912e
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_8_5/Variants/Whitebox/Winter_Cell_8_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: bc9cad73bf33d134c94059a1caee935d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_6_2/Variants/Whitebox/Summer_Cell_6_2.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -140,13 +2510,383 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: c03517b35199eb046852798ce73fa2d7
-    m_Address: Assets/SampleGame/InGame/InGameSession/World/Materials/DemoCellLit.mat
+  - m_GUID: bd55cecbd06148f4195aa6bd196a8df9
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_5/Variants/Whitebox/Spring_Cell_5_5.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: d34b48a8f0227fc429bf8273c44aa24b
-    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_3_2/Cell_3_2.unity
+  - m_GUID: be93e393df6bcda4eb6c6e70df546357
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_0_0/Summer_Environment_0_0/Summer_Environment_0_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: bee0c1a19558f8648a424ec2a31c1e76
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_6_4/Variants/Whitebox/Spring_Cell_6_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: befedf3994eb2ee48a393d1ea36d910f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_0_3/Autumn_Cell_0_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: bf940032ade80d2459872f8da1a3c78c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_3_1/Summer_Cell_3_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: bfde6e9e5bd837e498738c64b7afcc50
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_8_4/Summer_Cell_8_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: bff7abd1d4e0c2b44a40f8bef37b29dc
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_7_1/Variants/Whitebox/Summer_Cell_7_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c03517b35199eb046852798ce73fa2d7
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Materials/DemoCellLit.mat
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c0998e9d46849cc428bc48d3c036b4ef
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_4_0/Winter_Cell_4_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c0b829c625e78e841bbabb64e52a34f2
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_5_0/Autumn_Cell_5_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c1798a540047a9948974ebafe180877c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_4_1/Summer_Environment_4_1/Summer_Environment_4_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c1b3818431a9c1945a0b44375a4d9d29
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_1_2/Variants/Whitebox/Winter_Cell_1_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c247a81e100740444b25fece84ddb385
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_8_3/Variants/Whitebox/Autumn_Cell_8_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c27a1b9f8efd4654faebf9b9f6a0c5ed
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_1_1/Spring_Environment_1_1/Spring_Environment_1_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c2814eea9fd088f46b7d636132822743
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_1_2/Summer_Cell_1_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c28788775057bb543b30a21a3ba784f2
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_6_2/Variants/Whitebox/Autumn_Cell_6_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c2f998fec5cf14b408e62598885fa95b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_3_4/Spring_Environment_3_4/Spring_Environment_3_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c3725c5424fdd99468fad8a319e8b2a9
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_5_4/Summer_Cell_5_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c37771f6161d3144f98c0073f8992c12
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_4_0/Summer_Cell_4_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c3c704f1723cb5b4c94e6a64ac5cddfb
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_4_0/Summer_Environment_4_0/Summer_Environment_4_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c4265279762ddb44291ab300929a9cba
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_7_5/Autumn_Cell_7_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c4a1c3522e1cf3a4982c25ee228cbb38
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_3_4/Variants/Whitebox/Spring_Cell_3_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c4a9ea59fa7b21447b6ae585c59ac1fd
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_1_4/Spring_Environment_1_4/Spring_Environment_1_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c67327b5fa9058f4da78fd350a59479e
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_4_3/Autumn_Cell_4_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c6d7947434f5e714399961f4b26c2a92
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_8_0/Variants/Whitebox/Autumn_Cell_8_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c70b0e32efa5423478f8e9790666c063
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_0_1/Autumn_Cell_0_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c74500907bc8df046a0f30bcdde9a225
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_1/Variants/Whitebox/Spring_Cell_4_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c76fa4fbafe30d448a9a940f982e97b0
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_2_1/Variants/Whitebox/Spring_Cell_2_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c792ec3ceea550e4384621f0c970173b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_0_2/Variants/Whitebox/Summer_Cell_0_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c8228573ec70bc840b47250ed7f962ef
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_4_3/Variants/Whitebox/Autumn_Cell_4_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c82de4187d2d8ab4b9357f6dde3c6814
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_4_1/Autumn_Cell_4_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c854f8a846a07b2409ef208dd4b97906
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_0_4/Spring_Environment_0_4/Spring_Environment_0_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c8d8700c520dc77489896c1201259020
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_6_3/Variants/Whitebox/Spring_Cell_6_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c8e8df5c39dbcf147a6666624e587f78
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_4/Spring_Environment_5_4/Spring_Environment_5_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ca30df14ef8440c4fbc1152933825d70
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_0_2/Spring_Cell_0_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ca3896994ab8981449512b59aa68d8e8
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_8_1/Variants/Whitebox/Summer_Cell_8_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ca62e5f735d889a41bff4e3224c56cee
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_6_2/Summer_Environment_6_2/Summer_Environment_6_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cb03d14b54e92354eb3add66e8347f2e
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_1_3/Variants/Whitebox/Summer_Cell_1_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cb3a147bc869de9479be495bf8566781
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_1_1/Spring_Cell_1_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cbdb28a81cba4144f9875630ca787a66
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_1_2/Spring_Cell_1_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cc0a4f126123c1a4cbaea53912e13d76
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_8_1/Autumn_Environment_8_1/Autumn_Environment_8_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cc7d721e4f628a14cbb426dff45089a0
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_1_5/Variants/Whitebox/Autumn_Cell_1_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ccae5cfd66b5c4745889a272f56104c5
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_4_0/Autumn_Cell_4_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cce5cddeb7eea2c468172ef98e8e0599
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_8_0/Winter_Environment_8_0/Winter_Environment_8_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cd1f503b29cd4724ba68367156ddf5c0
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_7_1/Summer_Environment_7_1/Summer_Environment_7_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cd42d7f196fe396428dd23edf323552a
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_6_5/Variants/Whitebox/Summer_Cell_6_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cdc8aa689f29615468705ff8f8923e3f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_4_5/Variants/Whitebox/Autumn_Cell_4_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ce145b712806d204ab410cafa2572e70
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_5_1/Summer_Cell_5_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ceaadcc33ba2f4b4b95c48632789d3af
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_3_4/Autumn_Environment_3_4/Autumn_Environment_3_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cec09ced74dc3f34e94ee5fd82d87375
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_0_4/Variants/Whitebox/Spring_Cell_0_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cf06aff08d3f24f479abf278452ac615
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_3_5/Variants/Whitebox/Winter_Cell_3_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cf392ebd81ae9574ca4004031fb693a1
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_0/Spring_Cell_5_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cfb13a84da7285346a5371fa522d37e3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_8_4/Variants/Whitebox/Autumn_Cell_8_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cfc67c3ab628966458f328b78cbc7d63
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_6_4/Autumn_Cell_6_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d00dd1c477bc3814d881b9fe7578e0eb
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_2_1/Summer_Environment_2_1/Summer_Environment_2_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d0701f1d89416504da8e000b40e07a1f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_1_1/Summer_Environment_1_1/Summer_Environment_1_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d07dd240770f6614ea37d5c88418bc87
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_1_2/Spring_Environment_1_2/Spring_Environment_1_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d0a300d9a2433a747932ffe03b073ac4
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Environment_5_2/Spring_Environment_5_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d0d0cc747699dac48a8c147074d4d696
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_5_0/Winter_Cell_5_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d109289bb1419c848a09893976004979
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_3_3/Autumn_Environment_3_3/Autumn_Environment_3_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d233312b0f31d19469037a1e86e339e6
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_7_4/Variants/Whitebox/Winter_Cell_7_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d2483cc83268ea54e9147e666f143f43
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_7_2/Autumn_Environment_7_2/Autumn_Environment_7_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d26a323ce3ee31e43afa3fe480cd1de2
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_4_2/Winter_Cell_4_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d29e920eb7a414f4a9656a5dc880bf40
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_3_1/Winter_Cell_3_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d3204b038ab63d846b86452eb5d63fb1
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_3_4/Spring_Cell_3_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d4378b60ea3e82f42acf50c566933667
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_7_1/Spring_Environment_7_1/Spring_Environment_7_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d479784da4e54c344bc1f8d3668c3cb5
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_7_3/Spring_Environment_7_3/Spring_Environment_7_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d483b000c358b0e42b464a7f86dc1801
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_5_0/Summer_Cell_5_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d492570e7535ac548a805ee564271fa5
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_1_5/Winter_Cell_1_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d6f9e31a867f6a94bbb3188aa2c29382
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_5_5/Autumn_Environment_5_5/Autumn_Environment_5_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d70c26d2f8e04c841a238c41bb3b7bae
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_0_1/Variants/Whitebox/Autumn_Cell_0_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d7322385b7db88a43a63a59c92682a51
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_8_1/Winter_Environment_8_1/Winter_Environment_8_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d7c9f42b3af6e5049b6d922936d62770
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_5_3/Summer_Environment_5_3/Summer_Environment_5_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d850487675f27a54d9889cf8c078be09
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_3_1/Autumn_Cell_3_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d8f71cca307e70942a7fe910bbeaa254
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_7_3/Summer_Environment_7_3/Summer_Environment_7_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d93bb19e899520b45a929d68d00290ca
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_2_5/Variants/Whitebox/Autumn_Cell_2_5.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -155,13 +2895,273 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: dfe44c0f0d32ac14e8957c83900b2eeb
-    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_1_2/Cell_1_2.unity
+  - m_GUID: dab3d2662570ff84cacab92c4b2fde94
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_7_2/Variants/Whitebox/Winter_Cell_7_2.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: ecbdac293c3a98d4e844c03a989e31f8
-    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_3_3/Cell_3_3.unity
+  - m_GUID: dad8b14b92ae7a74ba3dbbfc22d044bd
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_6_3/Autumn_Cell_6_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: dc5a3cba41c26384f8e27793e3d89839
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_1_4/Autumn_Environment_1_4/Autumn_Environment_1_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: dd06f51470bf37947864fe1aaa6fb9d5
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_1_1/Variants/Whitebox/Autumn_Cell_1_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: dd35bb133cea82641b3560a0c4b122d1
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_4_3/Summer_Environment_4_3/Summer_Environment_4_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ddc9e6dd900e9e8488dce70682062212
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_4_3/Variants/Whitebox/Winter_Cell_4_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: dded7bf717fe3aa458a5b1912d213ae0
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_5/Spring_Cell_4_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: df2ca8862a059d24caafe49ebc11df19
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_6_5/Spring_Environment_6_5/Spring_Environment_6_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: df2ccb21497417b46a43fddb0bbffdfd
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_0_0/Autumn_Environment_0_0/Autumn_Environment_0_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: df5050a7efb3ad04d8602e15aa8f79fd
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_7_5/Winter_Cell_7_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: df79bef5db81a314abd3b6bec64fdf84
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_7_3/Spring_Cell_7_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: df852879aaf7d52439fe391dd7eae771
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_0_0/Autumn_Cell_0_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: df93576b38477a74c99bbbf790933555
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_8_5/Variants/Whitebox/Spring_Cell_8_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e027b8e46225c7c4f9f9345912e70b50
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_0_2/Winter_Cell_0_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e09e75c6a4c17d741bb2bbd4abd6c1c6
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_7_3/Variants/Whitebox/Summer_Cell_7_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e1361d414f32b4c4d975035a4bd6f22c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_1_5/Summer_Environment_1_5/Summer_Environment_1_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e1a2c5647e0e59244ab66ece1245bb37
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_1_0/Variants/Whitebox/Winter_Cell_1_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e3934d86555478f4a9591f59631c3e21
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_4_4/Winter_Cell_4_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e403d732480207d42a9f24abdfe6de75
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_0_5/Variants/Whitebox/Summer_Cell_0_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e4403f0119688c44bafbcf96a427691a
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_0_3/Summer_Environment_0_3/Summer_Environment_0_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e44bc3784d0741942b93f1bc6a71be84
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_6_1/Autumn_Cell_6_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e5fa930054e677b4a8226124ce46141b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_5_2/Winter_Cell_5_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e6316f380d9b6a043b2d9efa363773bc
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_0_4/Autumn_Environment_0_4/Autumn_Environment_0_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e6510e6c779dd79409114b7db30c9911
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_4_0/Variants/Whitebox/Autumn_Cell_4_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e6beaf2346fb7c7419a35521d77e96c2
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_1_2/Summer_Environment_1_2/Summer_Environment_1_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e71656eb1dc2b87498190a5a350de89b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_1_2/Autumn_Environment_1_2/Autumn_Environment_1_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e758679ee23f5d649bfbf3b5dc4f8f7b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_0/Spring_Environment_5_0/Spring_Environment_5_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e7fe2edc5c8110640b25a9a55820eb77
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_8_1/Spring_Environment_8_1/Spring_Environment_8_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e9016ebc4c18cf1489c74e6ddbb99c76
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_2_3/Variants/Whitebox/Winter_Cell_2_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ea1da171db2eb454fb69ee1ddb4bd90d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_5_2/Winter_Environment_5_2/Winter_Environment_5_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ea4b026ef96747e41b75818efa063138
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_0_1/Variants/Whitebox/Summer_Cell_0_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ea7cd55105270ff4e91d1360cdb9062f
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_8_0/Spring_Cell_8_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ea92d50984a33954bb10da4fb44ef75a
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_6_4/Summer_Environment_6_4/Summer_Environment_6_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: eb49f2d8b889ad746bcda63dba380957
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_0_1/Autumn_Environment_0_1/Autumn_Environment_0_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ebf7c62599556ab4ebbdc865c807022e
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_6_3/Summer_Cell_6_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ec08f66c85c652b4d8be528e9f44e124
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_4_1/Variants/Whitebox/Winter_Cell_4_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ec27a33e974f7ec47b8abc3e6c3cefe8
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_6_4/Variants/Whitebox/Winter_Cell_6_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ec44bb19f8ff98a45a3cf3f946947ccb
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_4_3/Autumn_Environment_4_3/Autumn_Environment_4_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ed72a0887b870af4b86d73bae7da02d1
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_5_5/Winter_Cell_5_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ed96bc94e23e7154e804d1d5e38844ef
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_0/Variants/Whitebox/Spring_Cell_4_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: edbc456720ba27d498e261fae1fef1ba
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_5_2/Summer_Cell_5_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ee050d3fc9ac71e49967e65ab24a2f4e
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_2_5/Variants/Whitebox/Spring_Cell_2_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ee4c0ffb4cca1524f8b6dcf596ca7b08
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_7_2/Winter_Environment_7_2/Winter_Environment_7_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ee4f854fcaece244c9125d9ff00489e8
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_0_2/Variants/Whitebox/Winter_Cell_0_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ee9192d11e4570747b6734418b92730d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_1_5/Variants/Whitebox/Winter_Cell_1_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: eee00359598177947ba11c4061a981f4
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_4_4/Summer_Environment_4_4/Summer_Environment_4_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ef10e5bdbd913e040a1fdb1ebc339364
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_4_5/Variants/Whitebox/Winter_Cell_4_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ef64ed195f7dadf40a8c7321f58617b4
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_4_2/Variants/Whitebox/Winter_Cell_4_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: efd088a2852806e4897e905951a3423a
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_3_3/Summer_Environment_3_3/Summer_Environment_3_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f0c072935efe49f4abf46baad873d242
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_1_5/Spring_Environment_1_5/Spring_Environment_1_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f10ac80c0ad387643bb3ab8e65d61fb1
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_1_4/Summer_Cell_1_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f120ccc74439aa7488a78d5457ae0265
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_7_3/Variants/Whitebox/Winter_Cell_7_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f131b03f44f29194fbdb129e1224ac2a
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_6_2/Autumn_Cell_6_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f1815344f9c730b4bb161358b4b99806
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_2_0/Autumn_Environment_2_0/Autumn_Environment_2_0.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -170,8 +3170,163 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: fecf6d0b6e30c2a4aaebebb063fa3e2d
-    m_Address: Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_1_0/Environment_1_0.unity
+  - m_GUID: f33d7aa16b43ee74ba8affbfc425a950
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_3_5/Winter_Cell_3_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f345cd1174c08a54984f7f9ebd0aebcb
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_2_1/Summer_Cell_2_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f3e461738d629084d82a69fb2452da1e
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_2_5/Winter_Cell_2_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f44278633f51ee449a96c21f0f4ae2a3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_3_1/Variants/Whitebox/Winter_Cell_3_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f50d03c43c623044eb9d945eae1152b8
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_7_3/Variants/Whitebox/Spring_Cell_7_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f584556b58be44848a25828a2bd65f19
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_4_5/Winter_Cell_4_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f58c2a363378cc94992e4da51e0122a8
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_2_3/Autumn_Cell_2_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f6271e99496225249a87a2ab2da10a4c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_4_5/Winter_Environment_4_5/Winter_Environment_4_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f670dd86110d36249b5d7a854945dbb8
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_2_3/Summer_Environment_2_3/Summer_Environment_2_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f700f202d49e53a46987996a80b062db
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_2_4/Variants/Whitebox/Summer_Cell_2_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f74282bf40518f24c86a1614c31abda0
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_2_0/Spring_Environment_2_0/Spring_Environment_2_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f768dd6ae2ccbde4cbe50629826ae2f4
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_8_0/Autumn_Environment_8_0/Autumn_Environment_8_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f7a1ef3df7431e843b447a695ab8aa5d
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_2_4/Spring_Cell_2_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f837001b06519b84282c69747ec49b9e
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_8_2/Autumn_Cell_8_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f83f58ce1cad19845b05769f8bd1cb83
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_5_1/Winter_Environment_5_1/Winter_Environment_5_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f9a9eb60f4a66a04d83db09ac4f5cc03
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_5_0/Autumn_Environment_5_0/Autumn_Environment_5_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f9b6eb381c5fc634796169ac8cc859bc
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_2_2/Variants/Whitebox/Autumn_Cell_2_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: fa490d453837cd0439da1e0c64387488
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_1_3/Autumn_Environment_1_3/Autumn_Environment_1_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: fa967dffe33ca8f40b286611723805ed
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_0_3/Variants/Whitebox/Winter_Cell_0_3.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: fb47eba8d0c8e0947ba71c71b5b5db99
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_5_5/Summer_Environment_5_5/Summer_Environment_5_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: fb74561120f02434583efd94876cfd5a
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_1_1/Autumn_Cell_1_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: fbb2291f85b3706448d4914504d66073
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_3_4/Variants/Whitebox/Summer_Cell_3_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: fc251eb6737531344a5c730c7998264b
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_0_1/Summer_Environment_0_1/Summer_Environment_0_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: fc78a98e64993ab4e8a48e9b491d55c4
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_1_0/Autumn_Environment_1_0/Autumn_Environment_1_0.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: fcb15d5f315aa0b4c8f5a8bb3ae679e4
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_0_1/Spring_Cell_0_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: fd6bf93e68cf0f84a83e96e32f252923
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_8_4/Summer_Environment_8_4/Summer_Environment_8_4.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: fe54837d8882fdd4e951a49e94faa04c
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_7_2/Variants/Whitebox/Autumn_Cell_7_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: fe945838803b021419b91edf38aa3370
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_1_2/Winter_Cell_1_2.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: fe9c2d54d9582954c87c186a3c631815
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_6_5/Variants/Whitebox/Winter_Cell_6_5.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: fed0e455fd99c5640aade7cf3d0911e3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_8_1/Summer_Environment_8_1/Summer_Environment_8_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ff07344741674704d9cb0d4b1d702f34
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_2_1/Variants/Whitebox/Summer_Cell_2_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ff8fc99b21d1b5a4b89457ccd6292c86
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_0_5/Variants/Whitebox/Spring_Cell_0_5.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0

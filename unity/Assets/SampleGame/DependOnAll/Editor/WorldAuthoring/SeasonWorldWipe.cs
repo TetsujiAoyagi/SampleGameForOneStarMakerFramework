@@ -50,6 +50,38 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
                 lines.AddRange(References);
                 return string.Join("\n", lines);
             }
+
+            internal static Manifest FromText(string text)
+            {
+                var assets = new List<Asset>();
+                var updates = new List<string>();
+                var references = new List<string>();
+                foreach (var raw in text.Replace("\r\n", "\n").Split('\n'))
+                {
+                    if (raw.StartsWith("DELETE\t", StringComparison.Ordinal)
+                        || raw.StartsWith("UPDATE\t", StringComparison.Ordinal)
+                        || raw.StartsWith("KEEP\t", StringComparison.Ordinal))
+                    {
+                        var parts = raw.Split('\t');
+                        if (parts.Length < 5) continue;
+                        var dependencies = parts[4].Length == 0
+                            ? Array.Empty<string>()
+                            : parts[4].Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+                        assets.Add(new Asset(parts[1], parts[2], parts[3], dependencies));
+                        if (raw.StartsWith("UPDATE\t", StringComparison.Ordinal)) updates.Add(parts[1]);
+                    }
+                    else if (raw.StartsWith("RESOURCE\t", StringComparison.Ordinal)
+                        || raw.StartsWith("EDGE\t", StringComparison.Ordinal)
+                        || raw.StartsWith("MAP\t", StringComparison.Ordinal)
+                        || raw.StartsWith("MAP_HASH\t", StringComparison.Ordinal)
+                        || raw.StartsWith("ADDRESSABLE\t", StringComparison.Ordinal))
+                    {
+                        references.Add(raw);
+                    }
+                }
+
+                return new Manifest(assets, updates, references);
+            }
         }
 
         internal static bool IsAllowed(string path)

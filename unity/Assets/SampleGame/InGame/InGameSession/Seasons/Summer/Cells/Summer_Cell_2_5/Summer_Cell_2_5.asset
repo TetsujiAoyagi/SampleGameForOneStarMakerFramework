@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a55e49cc16182ed438f81c6b1032b83c, type: 3}
+  m_Name: Summer_Cell_2_5
+  m_EditorClassIdentifier: OneStarMaker.Runtime::OneStarMaker.Runtime.SceneSystem.SceneResource
+  _identity: Summer_Cell_2_5
+  _sceneAssetDescription:
+    _loadType: 0
+    _payloads:
+    - Reference:
+        m_AssetGUID: 9d57b43e005129a4ba58e4e157ba4b7b
+        m_SubObjectName: 
+        m_SubObjectType: 
+        m_SubObjectGUID: 
+        m_EditorAssetChanged: 0
+      Variant: 
+    - Reference:
+        m_AssetGUID: 8619cd30ea90e9542b014c3b607fc5f9
+        m_SubObjectName: 
+        m_SubObjectType: 
+        m_SubObjectGUID: 
+        m_EditorAssetChanged: 0
+      Variant: Whitebox
+    SceneIdentity: Summer_Cell_2_5
+  _parent: {fileID: 11400000, guid: ea826ee1991823a42853ae2fe89c3c6b, type: 2}
+  _children:
+  - {fileID: 11400000, guid: baa7ec8be36176142a54f6d2b69540b5, type: 2}
+  _volume:
+    m_Center: {x: 625, y: 12.5, z: 1375}
+    m_Extent: {x: 122.5, y: 12.5, z: 122.5}
+  _streamByDistance: 1

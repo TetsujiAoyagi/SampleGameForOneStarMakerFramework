@@ -36,6 +36,18 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
             Debug.Log($"[S-4b] Dry-run only: delete={manifest.Delete.Count}, resources=440, scenes=652. {EvidenceRoot}");
         }
 
+        /// <summary>Generate は再実行しない。P0 manifest と実ファイルで検査だけやり直す。</summary>
+        public static void Revalidate()
+        {
+            var plan = new SeasonWorldGenerationPlan();
+            var before = SeasonWorldWipe.Manifest.FromText(File.ReadAllText(Path.Combine(EvidenceRoot, "p0-manifest.txt")));
+            var issues = SeasonWorldValidation.Inspect(plan, before);
+            File.WriteAllLines(Path.Combine(EvidenceRoot, "validation.txt"), issues.Count == 0
+                ? new[] { "No issues detected by implemented checks." }
+                : issues);
+            if (issues.Count > 0) throw new InvalidOperationException(string.Join("\n", issues));
+        }
+
         // Deliberately no automatic initialization or menu invocation of Generate.
         public static void Generate(string expectedProjectPath)
         {

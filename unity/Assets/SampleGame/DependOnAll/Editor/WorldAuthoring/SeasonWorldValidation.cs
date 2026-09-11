@@ -171,7 +171,10 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
             var removedIds = new HashSet<string>(before.Delete.Where(a => a.Identity.Length > 0).Select(a => a.Identity));
             foreach (var old in before.Delete)
             {
-                if (AssetDatabase.GUIDToAssetPath(old.Guid).Length > 0 || settings.FindAssetEntry(old.Guid) != null) issues.Add("Old GUID remains: " + old.Path);
+                var remaining = AssetDatabase.GUIDToAssetPath(old.Guid);
+                // DeleteAsset can leave a Library GUID map; require a real file or Addressable entry.
+                if ((remaining.Length > 0 && File.Exists(remaining)) || settings.FindAssetEntry(old.Guid) != null)
+                    issues.Add("Old GUID remains: " + old.Path);
             }
             // Missing GUIDs can disappear from AssetDatabase.GetDependencies; inspect serialized references too.
             var removedGuids = new HashSet<string>(before.Delete.Select(a => a.Guid), StringComparer.Ordinal);

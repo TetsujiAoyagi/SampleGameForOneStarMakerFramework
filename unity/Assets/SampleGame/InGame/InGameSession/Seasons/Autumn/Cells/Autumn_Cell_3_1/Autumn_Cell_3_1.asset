@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a55e49cc16182ed438f81c6b1032b83c, type: 3}
+  m_Name: Autumn_Cell_3_1
+  m_EditorClassIdentifier: OneStarMaker.Runtime::OneStarMaker.Runtime.SceneSystem.SceneResource
+  _identity: Autumn_Cell_3_1
+  _sceneAssetDescription:
+    _loadType: 0
+    _payloads:
+    - Reference:
+        m_AssetGUID: d850487675f27a54d9889cf8c078be09
+        m_SubObjectName: 
+        m_SubObjectType: 
+        m_SubObjectGUID: 
+        m_EditorAssetChanged: 0
+      Variant: 
+    - Reference:
+        m_AssetGUID: 4fc761af6cb50ec4e956b667a442fb0f
+        m_SubObjectName: 
+        m_SubObjectType: 
+        m_SubObjectGUID: 
+        m_EditorAssetChanged: 0
+      Variant: Whitebox
+    SceneIdentity: Autumn_Cell_3_1
+  _parent: {fileID: 11400000, guid: 1bafadd9d24bd684a9d25170c4522d8d, type: 2}
+  _children:
+  - {fileID: 11400000, guid: 0590545e98cdc5a40aae6c054f7d2fc4, type: 2}
+  _volume:
+    m_Center: {x: 875, y: 6.5, z: 375}
+    m_Extent: {x: 122.5, y: 6.5, z: 122.5}
+  _streamByDistance: 1
