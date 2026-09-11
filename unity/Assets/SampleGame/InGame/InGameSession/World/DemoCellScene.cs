@@ -38,7 +38,7 @@ namespace SampleGame.InGame.World
             {
                 throw new System.InvalidOperationException(
                     $"Cell '{SceneResource.Identity}' に '{AuthoredRootName}' がありません。" +
-                    " OneStarMaker/Sample/Create World + Cell Streaming Slice を再実行してください。");
+                    " Cell の authored payload が欠ける。一括生成メニューは残っていない。");
             }
 
             _logger.ZLogInformation(

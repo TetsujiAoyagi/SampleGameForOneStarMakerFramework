@@ -212,33 +212,4 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
                 => OneStarMaker.Editor.SceneGraph.SceneResourceGenerator.RebuildMapLookup(map);
         }
     }
-
-    [TestFixture]
-    public sealed class LegacyWorldAuthoringNamesTests
-    {
-        [TestCase(0, 0, "Environment_0_0")]
-        [TestCase(8, 5, "Environment_8_5")]
-        public void FormatEnvironment_UsesLegacyUnqualifiedName(int x, int y, string expected)
-        {
-            Assert.That(LegacyWorldAuthoringNames.FormatEnvironment(x, y), Is.EqualTo(expected));
-        }
-
-        [TestCase("Environment_0_0", true)]
-        [TestCase("Environment_8_5", true)]
-        [TestCase("Spring_Environment_0_0", false)]
-        [TestCase("Environment_-1_0", false)]
-        [TestCase("Environment_x_0", false)]
-        [TestCase("Environment_0", false)]
-        public void IsEnvironmentIdentity_AcceptsOnlyLegacyShape(string identity, bool expected)
-        {
-            Assert.That(LegacyWorldAuthoringNames.IsEnvironmentIdentity(identity), Is.EqualTo(expected));
-        }
-
-        [Test]
-        public void FormatEnvironment_RejectsNegativeCoordinates()
-        {
-            Assert.Throws<ArgumentOutOfRangeException>(() => LegacyWorldAuthoringNames.FormatEnvironment(-1, 0));
-            Assert.Throws<ArgumentOutOfRangeException>(() => LegacyWorldAuthoringNames.FormatEnvironment(0, -1));
-        }
-    }
 }
