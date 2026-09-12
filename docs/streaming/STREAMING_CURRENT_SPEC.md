@@ -1,6 +1,6 @@
 # Streaming — 現状仕様
 
-> ステータス: **今動いている実装の正本**（2026-09-09）。到着点ではない。
+> ステータス: **今動いている実装の正本**（2026-09-12）。到着点ではない。
 > 到着契約: [§34 OnDemand の空間政策](../../unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md)
 > 対照: [STREAMING_CURRENT_VS_IDEAL.md](STREAMING_CURRENT_VS_IDEAL.md)
 > 設計記録・チケット履歴: [§21](../../unity/Assets/Docs/Architecture/21-scene-streaming.md)

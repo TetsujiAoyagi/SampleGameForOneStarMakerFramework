@@ -104,8 +104,8 @@ SceneGraph の親子と、ディスク上のフォルダ親子を揃える。
 
 | アセット | 置き場 |
 |---|---|
-| `Cell_0_0` だけが使う地面テクスチャ | `InGame/.../Cells/Cell_0_0/` |
-| 全 Cell が使う地面マテリアル | `InGame/.../World/Materials/`（親 World） |
+| `Spring_Cell_0_4` だけが使う地面テクスチャ | `InGame/.../Seasons/Spring/Cells/Spring_Cell_0_4/` |
+| 全季節の Cell が使う地面マテリアル | `InGame/.../Seasons/Materials/`（Season 群の共通親） |
 | Session 中の HUD だけ | `InGame/.../InGameUI/` |
 | Title 専用 UXML | `OutGame/Title/` |
 
@@ -127,12 +127,13 @@ SampleGame/
         ├── PlayerScene/            ← Player 専用アセット
         ├── InGameUI/               ← その UI 専用
         ├── Result/
-        └── World/
-            ├── Materials/          ← 複数 Cell が共有 → 親(World)に置く
-            └── Cells/
-                ├── Cell_0_0/       ← この子だけが要るもの
-                │     *.unity, Texture, Mesh…
-                └── Cell_1_0/
+        └── Seasons/
+            ├── Materials/          ← 複数 Season / Cell が共有
+            └── Spring/
+                ├── Spring_Lighting/
+                └── Cells/
+                    └── Spring_Cell_0_4/  ← この子だけが要るもの
+                          *.unity, Variants/, companion Scene…
 ```
 
 ### 3.4 SceneGraph との対応
@@ -143,9 +144,9 @@ SampleGame/
   InGame                         InGame/
     └─ InGameSession               └─ InGameSession/
          ├─ Player                      ├─ PlayerScene/
-         ├─ World                       ├─ World/
-         │    ├─ Cell_0_0               │    └─ Cells/Cell_0_0/
-         │    └─ Cell_1_0               │         …
+         ├─ Season_Spring               ├─ Seasons/Spring/
+         │    ├─ Spring_Lighting        │    ├─ Spring_Lighting/
+         │    └─ Spring_Cell_0_4        │    └─ Cells/Spring_Cell_0_4/
          └─ InGameUI                    └─ InGameUI/
 ```
 
@@ -190,8 +191,9 @@ SampleGame/DependOnAll/Editor/WorldAuthoring/
   WorldCompanionRecoveryJournal.cs     ← Library 配下の pending journal
   WorldCompanionRecoveryService.cs     ← domain load 時の block と明示 Rollback
   WorldCompanionSceneCreator.cs        ← 空 .unity の作成
-  LegacyWorldAuthoringNames.cs         ← 旧 bulk generator 専用。Runtime から参照しない
 ```
+
+旧 bulk generator と `LegacyWorldAuthoringNames.cs` は S-4b の生成後に撤去済みであり、World Workspace の構成要素ではない。
 
 作成する companion の Scene / SceneResource は親 Cell フォルダへ同居させる（軸 B）。
 
