@@ -171,7 +171,7 @@ namespace OneStarMaker.Debug
             _warningDisplay.color = new Color(1f, 0.9f, 0.2f); // 警告色（黄）
             _warningDisplay.alignment = TextAlignmentOptions.BottomLeft;
             _warningDisplay.raycastTarget = false;
-            _warningDisplay.enableWordWrapping = false;
+            _warningDisplay.textWrappingMode = TextWrappingModes.NoWrap;
             _warningDisplay.overflowMode = TextOverflowModes.Truncate;
             var warnRt = warnGo.GetComponent<RectTransform>();
             warnRt.anchorMin = new Vector2(0f, 0f);
