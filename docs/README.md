@@ -38,7 +38,7 @@
 
 | ファイル | 役割 | 実装キューか |
 |---|---|---|
-| `U66_UNITY_6000_6_UPGRADE.md` | Unity 6.6 移行の Phase A 初稿。package・回帰・復旧の範囲を調査 | 未凍結。A2/A3 完了まで実装不可 |
+| `U66_UNITY_6000_6_UPGRADE.md` | Unity 6.6 移行。compile/EditMode検証済み、計画逸脱と手動/build gateをPhase Aへ差し戻し | Phase C FAIL。A再開が必要 |
 | `SEASON_WORLD_DESIGN.md` | 世界構図・実証・スライス順序 | 着手時 HANDOFF を切るまでの正本。スライス表の順で切る |
 | `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b 完了。S-4c〜d 着手時 HANDOFF の入力正本。S-4d の Phase D で harvest して削除する |
 | `REVIEW_WORKFLOW_EFFICIENCY.md` | 外部モデルレビューの実測と、次のPhase Cで残す比較項目 | いいえ。普遍契約はSkillへharvest済み。残る実測後に削除する |

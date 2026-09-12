@@ -3,17 +3,19 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A` — A0/A1 初稿 revision 1。A2/A3 未完了・未凍結。Phase B 開始不可。
+- status: `C FAIL / Aへ差し戻し` — 2026-09-13 の人間指示で既存6.6移行差分をPhase B完了として固定しPhase Cを実施。compile/EditModeは通過したが、未凍結Aの越境、package選択未承認、手動Play/build証拠不足により移行完了とは扱わない。
 - branch: `codex/u66-phase-a`（この U66 スライスを継続。PR base は `develop`）
 - implementation base commit: `3244f3635c6e18fffc1bbc40d3126e6d1eee009a`
-- implementation head commit: 未生成（本ターンは文書のみ）
+- implementation head commit: `4263a33ee0d5e75b67e82e6260ff556f12fd1dce`
 - risk: `high`（Editor/package/serialization/Player の移行）
 - owner: Phase A 主担当 Codex / GPT-6（OpenAI）、A3・D 判断は人間
 - created: 2026-09-12 JST。PR #50との追加照合: 2026-09-13 JST。
 - expires: U66 Phase D で harvest 後削除。未凍結のまま 2026-09-26 に達した場合、または base/package/採用 Editor を変更する場合、A0 を再検証する。
 - harvest to: `AGENTS.md`、`README.md`、`unity/Assets/README.md`（実際の Editor/package/セットアップ）、`unity/Assets/Docs/Architecture/20-variant-checkout-workflow.md`（検証済みの既存 build 運用だけ）、`docs/streaming/STREAMING_CURRENT_SPEC.md`（検証済みの回帰結果）、必要な wrapper 修正は `tools/run-tests.ps1` 自身。`docs/README.md` の作業台一覧は削除時にも更新する。
 - Phase A snapshot: 本文が A1 revision 1。ローカル evidence は `artifacts/u66-phase-a/A1-snapshot.md`、path / 生成時刻 / SHA-256 は `artifacts/u66-phase-a/manifest.json` に記録。別担当へ渡す際はこのbundleも添付する。凍結 snapshot は A3 後に別途生成し、初稿を凍結版と取り違えない。
-- Phase B result snapshot / evidence bundle / C' blind bundle: 全て未生成。各 path / id・生成時刻・hash は当該 Phase で記録する。
+- Phase B result snapshot: `artifacts/u66-phase-c/B-result.md`（2026-09-13 JST、hashは `artifacts/u66-phase-c/manifest.json`）。
+- evidence bundle: `artifacts/u66-phase-c/evidence.md`（2026-09-13 JST、hashは同manifest）。
+- C' blind bundle: 未生成。Phase CがAへ差し戻したためC'未着手。
 
 ## 1. 目的・対象外・A0 現況
 
@@ -191,18 +193,28 @@ asset行数は変更が発生した時に凍結前のinventoryへ追補する。
 
 ## 6. Phase B 実装結果
 
-未着手。実装・HANDOFFとの差・implementation head・担当モデル・B result snapshotは未生成。Unity起動、package更新、serialized asset変更、Unityテスト、Addressables/Player buildは本ターン未実行。
+2026-09-13 の人間指示により、すでに作業ツリーへ生じていた6.6 Editor/UPM移行をPhase B結果として固定した。implementation baseは `3244f3635c6e18fffc1bbc40d3126e6d1eee009a`、implementation headは `4263a33ee0d5e75b67e82e6260ff556f12fd1dce`。詳細は `artifacts/u66-phase-c/B-result.md`。
+
+- ProjectVersionをexact `6000.6.0f1 (f7f8ed4d1e24)`へ更新し、manifest/lock、URP Global Settings、Project Auditor、Addressables settingsのEditor/UPM生成差分を固定した。
+- `DebugProfilerView.cs` の6.6 compile errorは `enableWordWrapping = false` を同等の `textWrappingMode = TextWrappingModes.NoWrap` へ置換した。新規責務、公開API、asmdef edge、owner/lifetime変更はない。
+- contract audit、docs audit、JSON parse、diff checkはPASS。Unity test、Play、Addressables/Player buildはBでは未実行。
+- 計画との差: A2/A3未完のまま移行が先行した。さらにAds 4.19.0、collab-proxy 2.13.6、VisualScripting 1.9.12、Multiplayer Center 2.0.1への更新とtetgen追加は、A1の維持/条件付き方針に対するresolver provenanceと人間採否が未記録。この差を事後承認済みとは扱わない。
+- 担当・モデル: Codex / GPT-5（OpenAI）。
 
 ## 7. Phase C
 
-未実施
+実施済み。**判定: FAIL、Phase Aへ差し戻し。** compile/EditMode互換は通過したが、本HANDOFFの全受け入れ条件と停止条件は満たしていない。
 
-- evidence bundle id / hash: 未記入
-- 構造適合: 未記入
-- findings: 未記入
-- テスト結果: 未実施
-- 未確認事項: 未記入
-- 担当・モデル: 未記入
+- evidence bundle: `artifacts/u66-phase-c/evidence.md`、manifest: `artifacts/u66-phase-c/manifest.json`（2026-09-13 JST）。base/head完全diff、機械検査、raw test path/hashを記録。
+- 構造適合: Scene/Prefab/asmdef変更なし。661 Scene（SampleGame 659）、12 asmdefを確認。唯一のC#変更は既存Profiler UI設定の互換置換で、責務・依存・寿命・公開面の増加なし。URP/Addressables/ProjectAuditor差分は宣言assetのversion/schema更新に限定。
+- テスト結果: Editor process不在を確認後、implementation headに対し `pwsh tools/run-tests.ps1` をfilterなしで実行。Unity `6000.6.0f1 (f7f8ed4d1e24)`、679 total / 679 passed / 0 failed / 0 skipped、exit 0。XML/logとSHA-256はevidence bundleに記録。要求カテゴリのtest名も検出。初回testでAddressables必須serializationを検出・commitしたため、新headで全件を再実行しtracked tree cleanを確認した。
+- machine checks: contract audit PASS、docs audit PASS、manifest/lock JSON parse PASS、diff check PASS、最終logのC# compile errorなし。
+- finding P0 / semantic / accepted: A2/A3未完・未凍結の高リスクHANDOFFを越えてBが進んだ。人間の継続指示はC実行の根拠だが、欠落した6.5 preflight/A3を補完しない。Aへ差し戻す。
+- finding P1 / semantic / accepted: optional package更新とtetgen直接追加のresolver要求・選択理由が未固定。Aで各変更をaccept/rejectし、変更する場合は新implementation headでCをやり直す。
+- finding P1 / semantic / accepted: TMP修理自体は最小でテスト通過したが、Aの互換修理予算への追補がなかった。A revisionへ原因と許可範囲を取り込む。
+- finding P1 / semantic / accepted: T4〜T9のFull/Whitebox Play、Spring traversal、Workspace、画像、packed Addressables、Windows Player build/run、DebugSocketは未実施。特にT8 fixture/profile/backendはA3で未凍結のため、推測してbuildしない。
+- 未確認事項: 6.5 raw baseline、Editor reopen/import、UPM resolver provenance、NuGet/analyzer、全asset参照/missing script、Play/graphics/Workspace/Addressables/Player/rollback。compile/EditMode PASSを全migration PASSへ拡張しない。
+- 担当・モデル: Phase C独立レビュー `/root/u66_phase_c_review_alt`（Codex、別セッション）。モデル相違の明確な証明を記録できないため、厳密な独立性条件は未充足として扱う。
 
 ## 8. Phase C'
 

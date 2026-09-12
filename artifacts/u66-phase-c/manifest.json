@@ -1,0 +1,22 @@
+{
+  "generated": "2026-09-13T08:48:29+09:00",
+  "implementationBase": "3244f3635c6e18fffc1bbc40d3126e6d1eee009a",
+  "implementationHead": "4263a33ee0d5e75b67e82e6260ff556f12fd1dce",
+  "phaseBResult": {
+    "path": "artifacts/u66-phase-c/B-result.md",
+    "sha256": "5075CC009F1FAA21B1713EFC83C1E48F93FCA9DBDFECE0564DCCF691A6B008B4"
+  },
+  "evidenceBundle": {
+    "path": "artifacts/u66-phase-c/evidence.md",
+    "sha256": "A9A264D4A03D7B56A4C3D72BA52712BACB41F13FA48B1C9415F114D7222D130A"
+  },
+  "testXml": {
+    "path": "TestResults/results-all-20260913-084215.xml",
+    "sha256": "39226C87BCD83D15A8BDB72DCE5C55F0CC9CA08B6A8EF39F9D5E64C8A27D0DE0"
+  },
+  "testLog": {
+    "path": "TestResults/unity-all-20260913-084215.log",
+    "sha256": "D8C4EBED3C7D67E3506E927A35D19F2A73B1573F6496C2D6FE57AE976D9E5E18"
+  },
+  "completeDiffSha256": "877e6a129750de88069a02fdf35bcc1123e1ff64e81760f533459fad4ebe5a6e"
+}
