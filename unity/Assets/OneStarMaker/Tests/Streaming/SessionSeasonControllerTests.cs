@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -14,6 +15,7 @@ using OneStarMaker.Tests.SceneSystem.Helpers;
 using OneStarMaker.Tests.SceneSystem.TestDoubles;
 using SampleGame.InGame.Streaming;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace OneStarMaker.Tests.Streaming
 {
@@ -25,10 +27,17 @@ namespace OneStarMaker.Tests.Streaming
     public sealed class SessionSeasonControllerTests
     {
         private readonly List<ScriptableObject> _assets = new();
+        private readonly List<SessionSeasonController> _seasons = new();
 
         [TearDown]
         public void TearDown()
         {
+            foreach (var season in _seasons)
+            {
+                season.Dispose();
+            }
+
+            _seasons.Clear();
             foreach (var asset in _assets)
             {
                 if (asset != null)
@@ -40,8 +49,9 @@ namespace OneStarMaker.Tests.Streaming
             _assets.Clear();
         }
 
-        [Test]
-        public async UniTask Ensure_DoesNotBlockCaller_UntilStable()
+        [UnityTest]
+        public IEnumerator Ensure_DoesNotBlockCaller_UntilStable()
+            => UniTask.ToCoroutine(async () =>
         {
             var fixture = CreateFixture();
             fixture.Controller.HoldStableUntilReleased = true;
@@ -53,16 +63,18 @@ namespace OneStarMaker.Tests.Streaming
             fixture.Query.Stable.Add("Season_Spring");
             fixture.Query.Stable.Add("Spring_Lighting");
             fixture.Controller.ReleaseHeldAdds();
+            await UniTask.WaitUntil(() => fixture.Query.IsSceneLoaded("Spring_Cell_0_4"));
             fixture.Query.Stable.Add("Spring_Cell_0_4");
             fixture.Controller.ReleaseHeldAdds();
             await ensure;
 
             Assert.That(fixture.Season.IsWorldReady, Is.True);
             Assert.That(fixture.Season.IsStreamingActive, Is.True);
-        }
+        });
 
-        [Test]
-        public async UniTask Ensure_AddCompleteIsNotStable()
+        [UnityTest]
+        public IEnumerator Ensure_AddCompleteIsNotStable()
+            => UniTask.ToCoroutine(async () =>
         {
             var fixture = CreateFixture();
             fixture.Controller.HoldStableUntilReleased = true;
@@ -71,6 +83,7 @@ namespace OneStarMaker.Tests.Streaming
             fixture.Query.Stable.Add("Season_Spring");
             fixture.Query.Stable.Add("Spring_Lighting");
             fixture.Controller.ReleaseHeldAdds();
+            await UniTask.WaitUntil(() => fixture.Query.IsSceneLoaded("Spring_Cell_0_4"));
             Assert.That(fixture.Query.IsSceneLoaded("Spring_Cell_0_4"), Is.True);
             Assert.That(fixture.Query.IsSceneStable("Spring_Cell_0_4"), Is.False);
             Assert.That(fixture.Season.IsWorldReady, Is.False);
@@ -79,7 +92,7 @@ namespace OneStarMaker.Tests.Streaming
             fixture.Controller.ReleaseHeldAdds();
             await ensure;
             Assert.That(fixture.Season.IsWorldReady, Is.True);
-        }
+        });
 
         [Test]
         public void RequestSeason_WhileBusy_RejectsOtherSeason()
@@ -91,16 +104,13 @@ namespace OneStarMaker.Tests.Streaming
             Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await fixture.Season.RequestSeasonAsync("Summer", 0, 4, CancellationToken.None));
 
-            fixture.Query.Stable.Add("Season_Spring");
-            fixture.Query.Stable.Add("Spring_Lighting");
-            fixture.Controller.ReleaseHeldAdds();
-            fixture.Query.Stable.Add("Spring_Cell_0_4");
-            fixture.Controller.ReleaseHeldAdds();
+            fixture.Season.StopWorldOperations();
             first.Forget();
         }
 
-        [Test]
-        public async UniTask UnloadEarlyReturn_IsNotLifetimeEnd()
+        [UnityTest]
+        public IEnumerator UnloadEarlyReturn_IsNotLifetimeEnd()
+            => UniTask.ToCoroutine(async () =>
         {
             var fixture = CreateFixture();
             await fixture.Season.EnsureInitialWorldAsync(CancellationToken.None);
@@ -117,10 +127,11 @@ namespace OneStarMaker.Tests.Streaming
             fixture.Query.Stable.Add("Summer_Lighting");
             fixture.Query.Stable.Add("Summer_Cell_0_4");
             await switchTask;
-        }
+        });
 
-        [Test]
-        public async UniTask StopWorldOperations_RejectsNewIssues_DoesNotDrain()
+        [UnityTest]
+        public IEnumerator StopWorldOperations_RejectsNewIssues_DoesNotDrain()
+            => UniTask.ToCoroutine(async () =>
         {
             var fixture = CreateFixture();
             await fixture.Season.EnsureInitialWorldAsync(CancellationToken.None);
@@ -133,10 +144,11 @@ namespace OneStarMaker.Tests.Streaming
                 async () => await fixture.Season.RequestSeasonAsync("Summer", 0, 4, CancellationToken.None));
             Assert.That(fixture.Controller.Added.Count, Is.EqualTo(addCount));
             Assert.That(fixture.Season.Registry.HasIncomplete(), Is.True);
-        }
+        });
 
-        [Test]
-        public async UniTask EnsureFailure_SetsWorldReadyException()
+        [UnityTest]
+        public IEnumerator EnsureFailure_SetsWorldReadyException()
+            => UniTask.ToCoroutine(async () =>
         {
             var fixture = CreateFixture();
             fixture.Controller.FailIdentity = "Season_Spring";
@@ -160,7 +172,7 @@ namespace OneStarMaker.Tests.Streaming
             }
 
             Assert.That(fixture.Season.IsWorldReady, Is.False);
-        }
+        });
 
         private Fixture CreateFixture()
         {
@@ -216,6 +228,7 @@ namespace OneStarMaker.Tests.Streaming
                 CellCompanionSet.Full,
                 () => null,
                 NullLogger.Instance);
+            _seasons.Add(season);
 
             return new Fixture(season, query, controller, terminals);
         }
@@ -341,7 +354,11 @@ namespace OneStarMaker.Tests.Streaming
                 {
                     var gate = new UniTaskCompletionSource();
                     _held.Enqueue(gate);
-                    await gate.Task;
+                    using (ct.Register(() => gate.TrySetCanceled(ct)))
+                    {
+                        await gate.Task;
+                    }
+
                     return;
                 }
 

@@ -1,6 +1,7 @@
 #nullable enable
 
 using System.Threading;
+using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using NUnit.Framework;
 using SampleGame.InGame.Streaming;
@@ -41,7 +42,7 @@ namespace OneStarMaker.Tests.Streaming
         }
 
         [Test]
-        public async UniTask CompleteInstance_CompletesBoundOps()
+        public async Task CompleteInstance_CompletesBoundOps()
         {
             var registry = new IssuedSceneOperationRegistry();
             Assert.That(registry.TryRegisterAdd("Season_Spring", out var opId), Is.True);

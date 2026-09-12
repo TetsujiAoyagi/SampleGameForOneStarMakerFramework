@@ -2,6 +2,7 @@
 
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using NUnit.Framework;
 using OneStarMaker.Runtime.SceneSystem;
@@ -35,7 +36,7 @@ namespace OneStarMaker.Tests.Streaming
         }
 
         [Test]
-        public async UniTask WaitForInstance_CompletesOnMatchingTerminal()
+        public async Task WaitForInstance_CompletesOnMatchingTerminal()
         {
             var terminals = new FakeTerminalEvents();
             using var tracker = new SceneTerminalTracker(terminals);
@@ -63,7 +64,7 @@ namespace OneStarMaker.Tests.Streaming
         }
 
         [Test]
-        public async UniTask LaterInstance_DoesNotCompleteOnOldTerminal()
+        public async Task LaterInstance_DoesNotCompleteOnOldTerminal()
         {
             var terminals = new FakeTerminalEvents();
             using var tracker = new SceneTerminalTracker(terminals);
