@@ -1,5 +1,6 @@
 implementation_base=17dc67b232433e8ff3f909d99e401cddb159de50
 implementation_head=f3597adc26556624dc5aa0b0acccc2e7dfdf6ee7
+status=stale_implementation_changed_do_not_use_for_current_review
 generated_at=2026-09-11T21:18:39Z
 id=s-4b-p1-c
 branch=codex/s-4b-p1

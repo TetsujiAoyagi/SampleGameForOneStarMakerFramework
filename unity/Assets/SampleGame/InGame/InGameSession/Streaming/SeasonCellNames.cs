@@ -29,7 +29,8 @@ namespace SampleGame.InGame.Streaming
 
         private static string Format(string season, string role, int x, int y)
         {
-            if (x < 0 || y < 0) throw new ArgumentOutOfRangeException(nameof(x));
+            if (x < 0) throw new ArgumentOutOfRangeException(nameof(x));
+            if (y < 0) throw new ArgumentOutOfRangeException(nameof(y));
             return CheckSeason(season) + "_" + role + "_"
                 + x.ToString(CultureInfo.InvariantCulture) + "_" + y.ToString(CultureInfo.InvariantCulture);
         }

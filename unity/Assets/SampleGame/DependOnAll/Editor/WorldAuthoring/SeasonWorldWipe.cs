@@ -85,7 +85,7 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
                     var obj = AssetDatabase.LoadMainAssetAtPath(path);
                     if (obj is SceneResource resource)
                     {
-                        identity = resource.Identity; updates.Add(path);
+                        identity = resource.Identity;
                         references.Add("RESOURCE\t" + identity + "\tparent=" + (resource.Parent != null ? resource.Parent.Identity : "")
                             + "\tchildren=" + string.Join(";", resource.Children.Select(c => c != null ? c.Identity : "<null>")));
                     }
@@ -102,16 +102,21 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
                         references.AddRange(map.SceneResources.Select(r => "MAP\t" + (r != null ? r.Identity : "<null>")));
                     }
                 }
-                if (path.StartsWith("Assets/AddressableAssetsData/", StringComparison.Ordinal)) updates.Add(path);
                 assets.Add(new Asset(path, AssetDatabase.AssetPathToGUID(path), identity,
                     AssetDatabase.GetDependencies(path, false).Where(p => p != path).Select(AssetDatabase.AssetPathToGUID)));
             }
             var settings = AddressableAssetSettingsDefaultObject.Settings;
             if (settings == null) throw new InvalidOperationException("Addressables settings missing.");
+            updates.Add(AssetDatabase.GetAssetPath(settings));
             foreach (var group in settings.groups)
                 if (group != null)
+                {
+                    if (group.entries.Any(e => assets.Any(a => a.Guid == e.guid && IsAllowed(a.Path))))
+                        updates.Add(AssetDatabase.GetAssetPath(group));
                     references.AddRange(group.entries.Select(e => "ADDRESSABLE\t" + AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(group))
                         + "\t" + e.guid + "\t" + e.address));
+                }
+            if (settings.DefaultGroup != null) updates.Add(AssetDatabase.GetAssetPath(settings.DefaultGroup));
             return new Manifest(assets, updates, references);
         }
 

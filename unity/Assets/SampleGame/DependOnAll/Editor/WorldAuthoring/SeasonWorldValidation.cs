@@ -2,7 +2,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using OneStarMaker.Editor.SceneGraph;
 using OneStarMaker.Runtime.AssetDescriptions;
 using OneStarMaker.Runtime.SceneSystem;
@@ -11,6 +13,7 @@ using UnityEditor;
 using UnityEditor.AddressableAssets;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace SampleGame.DependOnAll.Editor.WorldAuthoring
 {
@@ -46,7 +49,8 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
                 if (item.ResourcePath != entry.ResourcePath) issues.Add("Resource path: " + item.Identity);
                 if (item.Parent != entry.Parent) issues.Add("Parent: " + item.Identity);
                 if (item.LoadType != entry.LoadType || item.StreamByDistance != entry.IsCell) issues.Add("Load policy: " + item.Identity);
-                if (entry.IsCell && !item.Generated) issues.Add("Not Generated: " + item.Identity);
+                if ((entry.IsCell || (!entry.IsLighting && entry.X >= 0)) && !item.Generated)
+                    issues.Add("Not Generated: " + item.Identity);
                 var expectedPayloads = new Dictionary<string, string>(StringComparer.Ordinal);
                 if (entry.ScenePath.Length > 0) expectedPayloads.Add(string.Empty, entry.ScenePath);
                 if (entry.WhiteboxPath.Length > 0) expectedPayloads.Add("Whitebox", entry.WhiteboxPath);
@@ -204,19 +208,39 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
             return issues;
         }
 
+        internal static bool SceneTextAssignsLightingSettings(string sceneText)
+        {
+            if (sceneText == null) throw new ArgumentNullException(nameof(sceneText));
+            var match = Regex.Match(sceneText, @"(?m)^\s*m_LightingSettings:\s*\{([^}]*)\}");
+            if (!match.Success) return false;
+            var body = match.Groups[1].Value;
+            if (Regex.IsMatch(body, @"\bguid:\s*[0-9a-fA-F]{32}\b")) return true;
+            var fileId = Regex.Match(body, @"\bfileID:\s*(-?\d+)\b");
+            return fileId.Success && fileId.Groups[1].Value != "0";
+        }
+
         private static Bounds ReadVolume(string path, bool lighting, List<string> issues)
         {
-            // Preview scenes avoid replacing the user's scene setup. Collider-only objects do not contribute.
-            var scene = EditorSceneManager.OpenPreviewScene(path);
+            // Match SceneVolumeSceneReader: inspect the real scene additively and ignore empty bounds.
+            var scene = SceneManager.GetSceneByPath(path);
+            var openedHere = !scene.IsValid() || !scene.isLoaded;
+            if (openedHere) scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Additive);
             try
             {
                 var roots = scene.GetRootGameObjects();
                 var renderers = roots.SelectMany(r => r.GetComponentsInChildren<Renderer>(true)).ToArray();
                 if (lighting && (roots.Length != 1 || renderers.Length != 0
-                    || roots.Any(r => r.GetComponentsInChildren<Component>(true).Any(c => !(c is Transform))))) issues.Add("Lighting is not empty scaffold: " + path);
-                return SceneVolumeMath.TryUnion(renderers.Where(r => r != null).Select(r => r.bounds).ToArray(), out var volume) ? volume : default;
+                    || roots.Any(r => r.GetComponentsInChildren<Component>(true).Any(c => c != null && !(c is Transform)))
+                    || SceneTextAssignsLightingSettings(File.ReadAllText(path))))
+                    issues.Add("Lighting is not empty scaffold: " + path);
+                return SceneVolumeMath.TryUnion(renderers.Where(r => r != null)
+                    .Select(r => r.bounds).Where(b => !SceneVolumeMath.IsEmpty(b)).ToArray(), out var volume)
+                    ? volume : default;
             }
-            finally { EditorSceneManager.ClosePreviewScene(scene); }
+            finally
+            {
+                if (openedHere) EditorSceneManager.CloseScene(scene, removeScene: true);
+            }
         }
     }
 }

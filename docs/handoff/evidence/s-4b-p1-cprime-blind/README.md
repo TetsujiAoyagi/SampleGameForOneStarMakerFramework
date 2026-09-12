@@ -1,5 +1,7 @@
 # S-4b P1 C' blind audit bundle
 
+> **STALE:** implementation head が変更されたため、この bundle を現在の C' に使用しない。新しい Phase C evidence と同じ head から再生成する。
+
 人間 C' 用。Phase C の結論・指摘・疑念候補は含めない。
 
 ## 固定対象

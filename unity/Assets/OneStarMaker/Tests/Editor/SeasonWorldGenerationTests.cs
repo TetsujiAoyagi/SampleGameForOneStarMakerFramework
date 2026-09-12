@@ -53,6 +53,15 @@ namespace OneStarMaker.Tests.Editor
             => Assert.That(SeasonCellNames.TryParseCell(identity, out _, out _, out _), Is.EqualTo(valid));
 
         [Test]
+        public void Names_ReportTheCoordinateThatIsOutOfRange()
+        {
+            Assert.That(() => SeasonCellNames.Cell("Spring", -1, 0),
+                Throws.TypeOf<ArgumentOutOfRangeException>().With.Property("ParamName").EqualTo("x"));
+            Assert.That(() => SeasonCellNames.Environment("Spring", 0, -1),
+                Throws.TypeOf<ArgumentOutOfRangeException>().With.Property("ParamName").EqualTo("y"));
+        }
+
+        [Test]
         public void Shapes_PreserveFloorAndLargeFormsInWhitebox()
         {
             var plan = new SeasonWorldGenerationPlan();
@@ -79,6 +88,7 @@ namespace OneStarMaker.Tests.Editor
 
         [TestCase("Assets/SampleGame/InGame/InGameSession/World/World.unity.meta", true)]
         [TestCase("Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_3_3/Cell_3_3.asset", true)]
+        [TestCase("Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_0_0/Environment_0_0.unity", true)]
         [TestCase("Assets/SceneGraphData/Nodes/Cells/Environment_3_0.asset", true)]
         [TestCase("Assets/SampleGame/InGame/InGameSession/World", false)]
         [TestCase("Assets/SampleGame/InGame/InGameSession/World/Cells/Cell_0_0", false)]
@@ -107,6 +117,16 @@ namespace OneStarMaker.Tests.Editor
             Assert.That(manifest.Update.Select(a => a.Guid), Is.EqualTo(new[] { "map" }));
             Assert.That(assets, Is.EqualTo(snapshot));
             Assert.That(manifest.ToText(), Does.Contain("meta=").And.Contain("lit"));
+        }
+
+        [Test]
+        public void DryRun_DoesNotClassifyUnrelatedSceneResourcesAsUpdates()
+        {
+            var unrelated = new SeasonWorldWipe.Asset("Assets/OneStarMakerCommon/SceneResource/Player.asset",
+                "player", "Player", Array.Empty<string>());
+            var manifest = SeasonWorldWipe.DryRun(new[] { unrelated }, Array.Empty<string>());
+            Assert.That(manifest.Update, Is.Empty);
+            Assert.That(manifest.Keep.Single().Guid, Is.EqualTo("player"));
         }
 
         [Test]
@@ -139,7 +159,17 @@ namespace OneStarMaker.Tests.Editor
             Assert.That(issues, Has.Some.Contains("Payload variant/path"));
             Assert.That(issues, Has.Some.Contains("Missing/duplicate payload GUID"));
             Assert.That(issues, Has.Some.Contains("Missing Addressable"));
+
+            var environment = actual.First(o => o.Identity.Contains("_Environment_"));
+            environment.Generated = false;
+            Assert.That(SeasonWorldValidation.Compare(plan, actual), Has.Some.Contains("Not Generated: " + environment.Identity));
         }
+
+        [TestCase("  m_LightingSettings: {fileID: 0}", false)]
+        [TestCase("  m_LightingSettings: {fileID: 11400000, guid: 0123456789abcdef0123456789abcdef, type: 2}", true)]
+        [TestCase("  m_LightingSettings: {fileID: 42}", true)]
+        public void LightingScaffold_DetectsAssignedLightingSettings(string sceneText, bool assigned)
+            => Assert.That(SeasonWorldValidation.SceneTextAssignsLightingSettings(sceneText), Is.EqualTo(assigned));
 
         [Test]
         public void Volume_RejectsNonFiniteSmallEscapingAndStaleSavedBounds()

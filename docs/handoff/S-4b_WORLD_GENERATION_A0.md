@@ -1,10 +1,10 @@
 # S-4b 四季 World 生成 — A0〜A3 と寿命契約の再開事項
 
 > type: slice
-> status: P1 の Phase C 記録済み。C' は人間。この PR は P1 生成器のみ。P2 / 起動配線 / P3 は worktree `codex/s-4b-a0` に残す。
+> status: P1 の Phase B 指摘修正済み。旧 Phase C evidence は stale、再レビュー待ち。C' は人間。この PR は P1 生成器のみ。P2 / 起動配線 / P3 は worktree `codex/s-4b-a0` に残す。
 > branch: `codex/s-4b-p1`
 > implementation base commit: `17dc67b232433e8ff3f909d99e401cddb159de50`（この PR の develop merge-base。HANDOFF 旧記の `0792edc` は PR #45 時点）
-> implementation head commit: `f3597adc26556624dc5aa0b0acccc2e7dfdf6ee7`（レビュー記録 commit は含めない）
+> implementation head commit: 指摘修正 commit で更新予定（旧 `f3597adc26556624dc5aa0b0acccc2e7dfdf6ee7` の Phase C evidence は stale）
 > risk: high（明示ワイプ、652 Scene、Addressables、起動順序）
 > owner: 発注者 / S-4b 担当
 > A0 担当: Codex / GPT-6 / OpenAI。
@@ -21,10 +21,10 @@
 > Phase A frozen snapshot path: `docs/handoff/S-4b_WORLD_GENERATION_A0.md`（本凍結 commit。設計本文の以後の変更は revision 3）
 > Phase A snapshot generated at: 2026-09-10
 > Phase A snapshot git / hash: `137d235e78416a3cda59aa2474b6147a29081595`。implementation base は PR #45 マージ後の `0792edc`。生成器・P2・起動配線は未着手。B result / C・C' evidence は未生成。
-> evidence bundle path / id: `docs/handoff/evidence/s-4b-p1-c`
+> evidence bundle path / id: `docs/handoff/evidence/s-4b-p1-c`（旧 implementation head 用。stale）
 > evidence bundle generated at: 2026-09-11T21:18:39Z
 > evidence bundle hash: `43a81d5d9c186ab4baddadbd80d7f7bf5cf28bb3ac44485092437c5b40c8a214`（diff/stat/commits）。機械検査込み `052843482ff76291a5d3285897fff32052cb0bfa154a603894380dff0c3ebf56`
-> C' blind bundle path / id: `docs/handoff/evidence/s-4b-p1-cprime-blind`
+> C' blind bundle path / id: `docs/handoff/evidence/s-4b-p1-cprime-blind`（旧 implementation head 用。使用禁止）
 > C' blind bundle generated at: 2026-09-11T21:20:00Z
 > C': 当面人間。Claude は再開しない。cursor-agent は Grok 系のみ。AI は証拠と手順を準備し、本人回答前に PASS / 完了を書かない。C' 判定と D のマージ判断は分けて記録する。
 
@@ -927,6 +927,18 @@ HANDOFF 本文が正本。新規の引き渡しファイルは作らない。Uni
 **非指摘:** 線 9 座標は世界稿 §3.1 と一致。オフラインで線帯 AABB を計算し、9 セルとも格子半幅 125m 内（最小余裕 11.4m）。Hue 0/0.08/0.16/0.24。論理 Season は payload 空。Lighting は空ルート。Material は MoveAsset。ディレクトリ削除なし。MPB 非永続は §7.24 のとおり色完成ではない。
 
 **未確認:** Unity コンパイル、EditMode テスト、AssetDatabase の Capture、Command.Generate、652 実体、共有材の見た目、LightingSettings の実シーン、P2 所要時間。
+
+### 7.28 Phase B 指摘修正（P1。2026-09-12）
+
+担当: Cursor App / GPT-6（Grok 4.6 xAI の修正方針分析を入力に実装）。P2 の別 worktree `codex/s-4b-a0` と生成物・起動配線には触れていない。
+
+- C-1: `SeasonWorldValidation` の体積読者を preview scene から公式 reader と同じ `OpenSceneMode.Additive` に変更し、空 Bounds を合併から除外した。既に開いている Scene は閉じない。
+- C-2: `SaveHookSuspended` 中の一括生成では `RecalculateAll` の保存ダイアログを出さない。通常メニュー実行は従来どおり dirty Scene を確認する。
+- C-3: dry-run の Update を全 SceneResource / Addressables 全域から、明示配線資産・全 graph・Addressables settings と実際に旧 entry を含む group / default group に限定した。Keep の依存不変検査を有効にする。
+- C-4/C-5/C-6/C-8/C-9: LightingSettings の保存 YAML 検査、Environment の Generated 検査、座標別例外引数、公開 docs の handoff 件数、現行 Environment 実 path のテストを追加した。
+- C-7: 既に §7.27 で修正済みのため追加変更なし。
+
+`pwsh tools/contract-audit.ps1 -BaseRef develop`、`pwsh tools/docs-audit.ps1`、`git diff --check` は exit 0。Phase B のため Unity Editor、EditMode tests、Addressables build、Command は未実行。実装差分が変わったため §7.27 と `s-4b-p1-c` / `s-4b-p1-cprime-blind` は失効し、新しい implementation head を固定して Phase C と C' bundle を作り直す。C / C' PASS は記録しない。
 
 **判定:** P1 の配置は計画に合う。C/C' PASS と D のマージ判断は書かない。C-1 / C-2 / C-3 は P2 の一回生成より前に人間が採否する。
 
