@@ -12,7 +12,7 @@
 
 ## 一文で
 
-- **現状**: 距離政策・生成器・R-3 は identity と体積／候補フラグで動く。Cell / 職種 child の SceneBase 結線は `StreamByDistance` と `Parent`。距離候補列の identity 組み立ては `SessionWorldStreamingDriver` に残る。
+- **現状**: 距離政策と R-3 は identity と体積／候補フラグで動く。Cell / 職種 child の SceneBase 結線は `StreamByDistance` と `Parent`。距離候補は active Season の子から選び、一回限りの S-4b 生成器は撤去済み。
 - **到着**: 不透明な identity 列と、各シーンが持つ体積と、ヒステリシスで切る。**どこにも名前文法が無い。**
 
 ---
@@ -25,7 +25,7 @@
 | 距離の入力 | `SceneResource` の AABB の中心（**M-1 で到着**） | データの体積（AABB / 球）の中心 |
 | 候補 | Catalog の全件を Driver が候補集合へ組む | 呼び出し側が渡す集合 |
 | 政策層が名前を | 組み立てない（**M-1 で到着**） | 組み立てない |
-| 生成器の既存収集 / policy | identity 文字列（**M-2 で到着**） | identity 文字列 |
+| 生成器の既存収集 / policy | S-4b 生成後に撤去済み | 必要時は新しい制作スライスで定義 |
 | R-3（`SwitchScene` 禁止） | `SceneResource.StreamByDistance`（**M-3 で到着**） | 距離政策の候補フラグ |
 | 同じ体積に複数 identity | 政策層・生成器とも許す（**M-2 で到着**） | 候補集合の差し替えで排他 |
 | 格子 | 生成器入力・スポーン・HUD（**M-1 で距離経路から外れた**） | 生成器が体積を焼く入力。HUD 用なら局所 |
