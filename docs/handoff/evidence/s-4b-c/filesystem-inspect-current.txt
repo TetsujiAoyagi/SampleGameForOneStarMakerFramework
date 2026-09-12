@@ -1,0 +1,17 @@
+generatedUtc=2026-09-12T02:17:24.5639518Z
+method=filesystem expected-set comparison per artifacts/s-4b-p3/inspect-method.txt; Generate not invoked
+expectedScenes=652
+actualScenes=652
+missingScenes=0
+extraScenes=0
+actualSeasonResources=440
+expectedSeasonResources=440
+generatorSourceMatches=0
+worldDirectoryExists=True
+oldWorldUnityExists=False
+oldWorldGridDefinitionExists=False
+worldSceneCsExists=False
+knownWorldCellsOrMaterialsMetas=23
+missingScenePaths:
+extraScenePaths:
+generatorSourceMatches:

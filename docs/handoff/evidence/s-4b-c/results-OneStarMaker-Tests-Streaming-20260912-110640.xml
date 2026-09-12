@@ -1,0 +1,821 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="118" result="Passed" total="118" passed="118" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-09-12 02:07:15Z" end-time="2026-09-12 02:07:16Z" duration="0.4978642">
+  <test-suite type="TestSuite" id="1000" name="SampleGame" fullname="SampleGame" runstate="Runnable" testcasecount="675" result="Passed" start-time="2026-09-12 02:07:15Z" end-time="2026-09-12 02:07:16Z" duration="0.497864" total="118" passed="118" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="Assembly" id="1643" name="OneStarMaker.Tests.dll" fullname="C:/Users/void/.codex/visualizations/2026/09/09/01a08634-9d58-7d32-88f0-bfcf4f75d1ea/s-4b-a0/unity/Library/ScriptAssemblies/OneStarMaker.Tests.dll" runstate="Runnable" testcasecount="552" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.456487" total="118" passed="118" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="15344" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="1644" name="OneStarMaker" fullname="OneStarMaker" runstate="Runnable" testcasecount="552" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.436171" total="118" passed="118" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1645" name="Tests" fullname="OneStarMaker.Tests" runstate="Runnable" testcasecount="552" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.417534" total="118" passed="118" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1648" name="Streaming" fullname="OneStarMaker.Tests.Streaming" runstate="Runnable" testcasecount="118" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.397042" total="118" passed="118" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestFixture" id="1110" name="CameraFocusProviderTests" fullname="OneStarMaker.Tests.Streaming.CameraFocusProviderTests" classname="OneStarMaker.Tests.Streaming.CameraFocusProviderTests" runstate="Runnable" testcasecount="4" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.043172" total="4" passed="4" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1113" name="Provider_Blending_IncludesIncomingPosition" fullname="OneStarMaker.Tests.Streaming.CameraFocusProviderTests.Provider_Blending_IncludesIncomingPosition" methodname="Provider_Blending_IncludesIncomingPosition" classname="OneStarMaker.Tests.Streaming.CameraFocusProviderTests" runstate="Runnable" seed="1172541532" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.024387" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1114" name="Provider_RtView_ExcludedByConfig" fullname="OneStarMaker.Tests.Streaming.CameraFocusProviderTests.Provider_RtView_ExcludedByConfig" methodname="Provider_RtView_ExcludedByConfig" classname="OneStarMaker.Tests.Streaming.CameraFocusProviderTests" runstate="Runnable" seed="344622997" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000515" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1111" name="Provider_SingleView_YieldsOnePosition" fullname="OneStarMaker.Tests.Streaming.CameraFocusProviderTests.Provider_SingleView_YieldsOnePosition" methodname="Provider_SingleView_YieldsOnePosition" classname="OneStarMaker.Tests.Streaming.CameraFocusProviderTests" runstate="Runnable" seed="977911500" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000320" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1112" name="Provider_TwoViews_YieldsBothPositions" fullname="OneStarMaker.Tests.Streaming.CameraFocusProviderTests.Provider_TwoViews_YieldsBothPositions" methodname="Provider_TwoViews_YieldsBothPositions" classname="OneStarMaker.Tests.Streaming.CameraFocusProviderTests" runstate="Runnable" seed="802672367" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000406" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1115" name="CameraStreamingFocusAdapterTests" fullname="OneStarMaker.Tests.Streaming.CameraStreamingFocusAdapterTests" classname="OneStarMaker.Tests.Streaming.CameraStreamingFocusAdapterTests" runstate="Runnable" testcasecount="3" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.017927" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1117" name="CameraStreamingFocusAdapter_Tick_ExcludesRtViewSource" fullname="OneStarMaker.Tests.Streaming.CameraStreamingFocusAdapterTests.CameraStreamingFocusAdapter_Tick_ExcludesRtViewSource" methodname="CameraStreamingFocusAdapter_Tick_ExcludesRtViewSource" classname="OneStarMaker.Tests.Streaming.CameraStreamingFocusAdapterTests" runstate="Runnable" seed="1876633373" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.012488" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1116" name="CameraStreamingFocusAdapter_Tick_ForwardsCurrentAndIncomingFocuses" fullname="OneStarMaker.Tests.Streaming.CameraStreamingFocusAdapterTests.CameraStreamingFocusAdapter_Tick_ForwardsCurrentAndIncomingFocuses" methodname="CameraStreamingFocusAdapter_Tick_ForwardsCurrentAndIncomingFocuses" classname="OneStarMaker.Tests.Streaming.CameraStreamingFocusAdapterTests" runstate="Runnable" seed="1091568298" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.001517" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1118" name="CameraStreamingFocusAdapter_Tick_WithEmptyIncludedSources_DoesNotCallControllerOrThrowsClearly" fullname="OneStarMaker.Tests.Streaming.CameraStreamingFocusAdapterTests.CameraStreamingFocusAdapter_Tick_WithEmptyIncludedSources_DoesNotCallControllerOrThrowsClearly" methodname="CameraStreamingFocusAdapter_Tick_WithEmptyIncludedSources_DoesNotCallControllerOrThrowsClearly" classname="OneStarMaker.Tests.Streaming.CameraStreamingFocusAdapterTests" runstate="Runnable" seed="2015635608" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.001781" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1119" name="CellCompanionPolicyTests" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" testcasecount="40" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.030513" total="40" passed="40" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-suite type="ParameterizedMethod" id="1159" name="Classifier_InvalidOrSeasonScene_IsNotRole" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Classifier_InvalidOrSeasonScene_IsNotRole" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" testcasecount="4" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.003445" total="4" passed="4" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1155" name="Classifier_InvalidOrSeasonScene_IsNotRole(&quot;Spring_Lighting&quot;)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Classifier_InvalidOrSeasonScene_IsNotRole(&quot;Spring_Lighting&quot;)" methodname="Classifier_InvalidOrSeasonScene_IsNotRole" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="2120984756" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.001144" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1156" name="Classifier_InvalidOrSeasonScene_IsNotRole(&quot;Spring_Environment&quot;)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Classifier_InvalidOrSeasonScene_IsNotRole(&quot;Spring_Environment&quot;)" methodname="Classifier_InvalidOrSeasonScene_IsNotRole" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="1477520047" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000132" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1157" name="Classifier_InvalidOrSeasonScene_IsNotRole(&quot;Spring_Audio_4_2&quot;)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Classifier_InvalidOrSeasonScene_IsNotRole(&quot;Spring_Audio_4_2&quot;)" methodname="Classifier_InvalidOrSeasonScene_IsNotRole" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="601441425" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000095" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1158" name="Classifier_InvalidOrSeasonScene_IsNotRole(&quot;&quot;)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Classifier_InvalidOrSeasonScene_IsNotRole(&quot;&quot;)" methodname="Classifier_InvalidOrSeasonScene_IsNotRole" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="863233341" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000083" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+              </test-suite>
+              <test-suite type="ParameterizedMethod" id="1154" name="Classifier_UsesThirdTokenFromEnd" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Classifier_UsesThirdTokenFromEnd" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.002949" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1149" name="Classifier_UsesThirdTokenFromEnd(&quot;Environment_3_2&quot;,&quot;Environment&quot;)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Classifier_UsesThirdTokenFromEnd(&quot;Environment_3_2&quot;,&quot;Environment&quot;)" methodname="Classifier_UsesThirdTokenFromEnd" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="1108940111" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000621" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1150" name="Classifier_UsesThirdTokenFromEnd(&quot;Spring_Environment_3_2&quot;,&quot;Environment&quot;)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Classifier_UsesThirdTokenFromEnd(&quot;Spring_Environment_3_2&quot;,&quot;Environment&quot;)" methodname="Classifier_UsesThirdTokenFromEnd" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="2004143765" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000112" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1151" name="Classifier_UsesThirdTokenFromEnd(&quot;Qualifier_With_Underscore_Lighting_west_east&quot;,&quot;Lighting&quot;)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Classifier_UsesThirdTokenFromEnd(&quot;Qualifier_With_Underscore_Lighting_west_east&quot;,&quot;Lighting&quot;)" methodname="Classifier_UsesThirdTokenFromEnd" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="1966169541" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000105" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1152" name="Classifier_UsesThirdTokenFromEnd(&quot;Spring_VFX_4_2&quot;,&quot;Vfx&quot;)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Classifier_UsesThirdTokenFromEnd(&quot;Spring_VFX_4_2&quot;,&quot;Vfx&quot;)" methodname="Classifier_UsesThirdTokenFromEnd" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="488451848" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000100" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1153" name="Classifier_UsesThirdTokenFromEnd(&quot;Spring_Events_4_2&quot;,&quot;Events&quot;)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Classifier_UsesThirdTokenFromEnd(&quot;Spring_Events_4_2&quot;,&quot;Events&quot;)" methodname="Classifier_UsesThirdTokenFromEnd" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="1666340675" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000102" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+              </test-suite>
+              <test-suite type="ParameterizedMethod" id="1148" name="Includes_FourByFourMatrix" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Includes_FourByFourMatrix" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" testcasecount="16" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.008179" total="16" passed="16" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1132" name="Includes_FourByFourMatrix(Full,&quot;Environment&quot;,True)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Includes_FourByFourMatrix(Full,&quot;Environment&quot;,True)" methodname="Includes_FourByFourMatrix" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="236591273" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000646" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1133" name="Includes_FourByFourMatrix(Full,&quot;Lighting&quot;,True)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Includes_FourByFourMatrix(Full,&quot;Lighting&quot;,True)" methodname="Includes_FourByFourMatrix" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="1987556511" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000183" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1134" name="Includes_FourByFourMatrix(Full,&quot;Vfx&quot;,True)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Includes_FourByFourMatrix(Full,&quot;Vfx&quot;,True)" methodname="Includes_FourByFourMatrix" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="1152327193" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000177" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1135" name="Includes_FourByFourMatrix(Full,&quot;Events&quot;,True)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Includes_FourByFourMatrix(Full,&quot;Events&quot;,True)" methodname="Includes_FourByFourMatrix" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="677510077" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000174" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1136" name="Includes_FourByFourMatrix(Planner,&quot;Environment&quot;,False)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Includes_FourByFourMatrix(Planner,&quot;Environment&quot;,False)" methodname="Includes_FourByFourMatrix" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="1533019156" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000177" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1137" name="Includes_FourByFourMatrix(Planner,&quot;Lighting&quot;,False)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Includes_FourByFourMatrix(Planner,&quot;Lighting&quot;,False)" methodname="Includes_FourByFourMatrix" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="1639748075" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000177" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1138" name="Includes_FourByFourMatrix(Planner,&quot;Vfx&quot;,False)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Includes_FourByFourMatrix(Planner,&quot;Vfx&quot;,False)" methodname="Includes_FourByFourMatrix" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="515734335" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000174" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1139" name="Includes_FourByFourMatrix(Planner,&quot;Events&quot;,True)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Includes_FourByFourMatrix(Planner,&quot;Events&quot;,True)" methodname="Includes_FourByFourMatrix" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="1600465179" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000182" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1140" name="Includes_FourByFourMatrix(Lighting,&quot;Environment&quot;,True)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Includes_FourByFourMatrix(Lighting,&quot;Environment&quot;,True)" methodname="Includes_FourByFourMatrix" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="914454875" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000173" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1141" name="Includes_FourByFourMatrix(Lighting,&quot;Lighting&quot;,True)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Includes_FourByFourMatrix(Lighting,&quot;Lighting&quot;,True)" methodname="Includes_FourByFourMatrix" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="1596855677" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000185" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1142" name="Includes_FourByFourMatrix(Lighting,&quot;Vfx&quot;,False)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Includes_FourByFourMatrix(Lighting,&quot;Vfx&quot;,False)" methodname="Includes_FourByFourMatrix" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="660873673" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000176" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1143" name="Includes_FourByFourMatrix(Lighting,&quot;Events&quot;,False)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Includes_FourByFourMatrix(Lighting,&quot;Events&quot;,False)" methodname="Includes_FourByFourMatrix" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="71242556" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000172" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1144" name="Includes_FourByFourMatrix(Vfx,&quot;Environment&quot;,True)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Includes_FourByFourMatrix(Vfx,&quot;Environment&quot;,True)" methodname="Includes_FourByFourMatrix" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="1681645501" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000171" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1145" name="Includes_FourByFourMatrix(Vfx,&quot;Lighting&quot;,True)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Includes_FourByFourMatrix(Vfx,&quot;Lighting&quot;,True)" methodname="Includes_FourByFourMatrix" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="1314550429" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000173" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1146" name="Includes_FourByFourMatrix(Vfx,&quot;Vfx&quot;,True)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Includes_FourByFourMatrix(Vfx,&quot;Vfx&quot;,True)" methodname="Includes_FourByFourMatrix" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="346632305" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000174" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1147" name="Includes_FourByFourMatrix(Vfx,&quot;Events&quot;,False)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Includes_FourByFourMatrix(Vfx,&quot;Events&quot;,False)" methodname="Includes_FourByFourMatrix" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="569577073" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000177" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+              </test-suite>
+              <test-suite type="ParameterizedMethod" id="1165" name="LoadRule_RequiresAllGates" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.LoadRule_RequiresAllGates" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.003166" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1160" name="LoadRule_RequiresAllGates(True,True,False,False,True)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.LoadRule_RequiresAllGates(True,True,False,False,True)" methodname="LoadRule_RequiresAllGates" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="1612825378" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000605" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1161" name="LoadRule_RequiresAllGates(False,True,False,False,False)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.LoadRule_RequiresAllGates(False,True,False,False,False)" methodname="LoadRule_RequiresAllGates" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="948002856" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000134" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1162" name="LoadRule_RequiresAllGates(True,False,False,False,False)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.LoadRule_RequiresAllGates(True,False,False,False,False)" methodname="LoadRule_RequiresAllGates" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="1101706812" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000108" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1163" name="LoadRule_RequiresAllGates(True,True,True,False,False)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.LoadRule_RequiresAllGates(True,True,True,False,False)" methodname="LoadRule_RequiresAllGates" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="653031937" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000114" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1164" name="LoadRule_RequiresAllGates(True,True,False,True,False)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.LoadRule_RequiresAllGates(True,True,False,True,False)" methodname="LoadRule_RequiresAllGates" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="605099158" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000118" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+              </test-suite>
+              <test-suite type="ParameterizedMethod" id="1125" name="Parser_ExactValues" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Parser_ExactValues" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" testcasecount="4" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.002823" total="4" passed="4" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1121" name="Parser_ExactValues(&quot;Full&quot;,Full)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Parser_ExactValues(&quot;Full&quot;,Full)" methodname="Parser_ExactValues" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="104787056" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000733" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1122" name="Parser_ExactValues(&quot;Planner&quot;,Planner)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Parser_ExactValues(&quot;Planner&quot;,Planner)" methodname="Parser_ExactValues" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="1110323703" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000135" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1123" name="Parser_ExactValues(&quot;Lighting&quot;,Lighting)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Parser_ExactValues(&quot;Lighting&quot;,Lighting)" methodname="Parser_ExactValues" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="1513867061" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000118" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1124" name="Parser_ExactValues(&quot;VFX&quot;,Vfx)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Parser_ExactValues(&quot;VFX&quot;,Vfx)" methodname="Parser_ExactValues" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="1934031855" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000116" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+              </test-suite>
+              <test-case id="1120" name="Parser_MissingOnly_DefaultsToFull" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Parser_MissingOnly_DefaultsToFull" methodname="Parser_MissingOnly_DefaultsToFull" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="1598880005" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000176" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-suite type="ParameterizedMethod" id="1131" name="Parser_PresentInvalidValue_Throws" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Parser_PresentInvalidValue_Throws" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.005630" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1126" name="Parser_PresentInvalidValue_Throws(&quot;&quot;)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Parser_PresentInvalidValue_Throws(&quot;&quot;)" methodname="Parser_PresentInvalidValue_Throws" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="1582254113" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.003210" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1127" name="Parser_PresentInvalidValue_Throws(&quot; &quot;)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Parser_PresentInvalidValue_Throws(&quot; &quot;)" methodname="Parser_PresentInvalidValue_Throws" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="972156678" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000158" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1128" name="Parser_PresentInvalidValue_Throws(&quot;full&quot;)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Parser_PresentInvalidValue_Throws(&quot;full&quot;)" methodname="Parser_PresentInvalidValue_Throws" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="1006344096" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000115" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1129" name="Parser_PresentInvalidValue_Throws(&quot;Vfx&quot;)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Parser_PresentInvalidValue_Throws(&quot;Vfx&quot;)" methodname="Parser_PresentInvalidValue_Throws" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="635713335" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000110" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1130" name="Parser_PresentInvalidValue_Throws(&quot;Unknown&quot;)" fullname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests.Parser_PresentInvalidValue_Throws(&quot;Unknown&quot;)" methodname="Parser_PresentInvalidValue_Throws" classname="OneStarMaker.Tests.Streaming.CellCompanionPolicyTests" runstate="Runnable" seed="204468085" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000104" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+              </test-suite>
+            </test-suite>
+            <test-suite type="TestFixture" id="1166" name="IssuedSceneOperationRegistryTests" fullname="OneStarMaker.Tests.Streaming.IssuedSceneOperationRegistryTests" classname="OneStarMaker.Tests.Streaming.IssuedSceneOperationRegistryTests" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.027396" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1169" name="CompleteInstance_CompletesBoundOps" fullname="OneStarMaker.Tests.Streaming.IssuedSceneOperationRegistryTests.CompleteInstance_CompletesBoundOps" methodname="CompleteInstance_CompletesBoundOps" classname="OneStarMaker.Tests.Streaming.IssuedSceneOperationRegistryTests" runstate="Runnable" seed="306708344" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.021447" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1170" name="CompleteInstance_DoesNotCompleteDifferentGeneration" fullname="OneStarMaker.Tests.Streaming.IssuedSceneOperationRegistryTests.CompleteInstance_DoesNotCompleteDifferentGeneration" methodname="CompleteInstance_DoesNotCompleteDifferentGeneration" classname="OneStarMaker.Tests.Streaming.IssuedSceneOperationRegistryTests" runstate="Runnable" seed="1391817106" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000394" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1171" name="CompleteInstance_SyncContinuationRegister_DoesNotThrowOrCompleteLaterOp" fullname="OneStarMaker.Tests.Streaming.IssuedSceneOperationRegistryTests.CompleteInstance_SyncContinuationRegister_DoesNotThrowOrCompleteLaterOp" methodname="CompleteInstance_SyncContinuationRegister_DoesNotThrowOrCompleteLaterOp" classname="OneStarMaker.Tests.Streaming.IssuedSceneOperationRegistryTests" runstate="Runnable" seed="699703729" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.001635" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1167" name="Dispose_DoesNotCompleteIncompleteOps" fullname="OneStarMaker.Tests.Streaming.IssuedSceneOperationRegistryTests.Dispose_DoesNotCompleteIncompleteOps" methodname="Dispose_DoesNotCompleteIncompleteOps" classname="OneStarMaker.Tests.Streaming.IssuedSceneOperationRegistryTests" runstate="Runnable" seed="1587674643" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000760" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1168" name="StopNewIssues_RejectsNewAdd_AllowsRecoveryUnload" fullname="OneStarMaker.Tests.Streaming.IssuedSceneOperationRegistryTests.StopNewIssues_RejectsNewAdd_AllowsRecoveryUnload" methodname="StopNewIssues_RejectsNewAdd_AllowsRecoveryUnload" classname="OneStarMaker.Tests.Streaming.IssuedSceneOperationRegistryTests" runstate="Runnable" seed="647840784" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000285" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1172" name="PlayerWorldReadySequenceTests" fullname="OneStarMaker.Tests.Streaming.PlayerWorldReadySequenceTests" classname="OneStarMaker.Tests.Streaming.PlayerWorldReadySequenceTests" runstate="Runnable" testcasecount="3" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.004428" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1175" name="Run_InputOnThrows_UnregistersAndForcesInputOff" fullname="OneStarMaker.Tests.Streaming.PlayerWorldReadySequenceTests.Run_InputOnThrows_UnregistersAndForcesInputOff" methodname="Run_InputOnThrows_UnregistersAndForcesInputOff" classname="OneStarMaker.Tests.Streaming.PlayerWorldReadySequenceTests" runstate="Runnable" seed="1526047565" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.001285" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1174" name="Run_RegisterThrows_UnregistersAndKeepsInputOff" fullname="OneStarMaker.Tests.Streaming.PlayerWorldReadySequenceTests.Run_RegisterThrows_UnregistersAndKeepsInputOff" methodname="Run_RegisterThrows_UnregistersAndKeepsInputOff" classname="OneStarMaker.Tests.Streaming.PlayerWorldReadySequenceTests" runstate="Runnable" seed="343689630" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.001041" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1173" name="Run_TeleportThenRegisterThenInputOn" fullname="OneStarMaker.Tests.Streaming.PlayerWorldReadySequenceTests.Run_TeleportThenRegisterThenInputOn" methodname="Run_TeleportThenRegisterThenInputOn" classname="OneStarMaker.Tests.Streaming.PlayerWorldReadySequenceTests" runstate="Runnable" seed="129846144" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000375" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1176" name="SceneTerminalTrackerTests" fullname="OneStarMaker.Tests.Streaming.SceneTerminalTrackerTests" classname="OneStarMaker.Tests.Streaming.SceneTerminalTrackerTests" runstate="Runnable" testcasecount="3" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.011795" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1178" name="EventBeforeRegister_DoesNotCompleteLaterWait" fullname="OneStarMaker.Tests.Streaming.SceneTerminalTrackerTests.EventBeforeRegister_DoesNotCompleteLaterWait" methodname="EventBeforeRegister_DoesNotCompleteLaterWait" classname="OneStarMaker.Tests.Streaming.SceneTerminalTrackerTests" runstate="Runnable" seed="1482809585" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.005502" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1179" name="LaterInstance_DoesNotCompleteOnOldTerminal" fullname="OneStarMaker.Tests.Streaming.SceneTerminalTrackerTests.LaterInstance_DoesNotCompleteOnOldTerminal" methodname="LaterInstance_DoesNotCompleteOnOldTerminal" classname="OneStarMaker.Tests.Streaming.SceneTerminalTrackerTests" runstate="Runnable" seed="1406174259" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.002159" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1177" name="WaitForInstance_CompletesOnMatchingTerminal" fullname="OneStarMaker.Tests.Streaming.SceneTerminalTrackerTests.WaitForInstance_CompletesOnMatchingTerminal" methodname="WaitForInstance_CompletesOnMatchingTerminal" classname="OneStarMaker.Tests.Streaming.SceneTerminalTrackerTests" runstate="Runnable" seed="820906320" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.001667" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1180" name="SceneVolumeQueryTests" fullname="OneStarMaker.Tests.Streaming.SceneVolumeQueryTests" classname="OneStarMaker.Tests.Streaming.SceneVolumeQueryTests" runstate="Runnable" testcasecount="4" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.008629" total="4" passed="4" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1181" name="TryGetSceneVolume_CandidateWithVolume_ReturnsVolume" fullname="OneStarMaker.Tests.Streaming.SceneVolumeQueryTests.TryGetSceneVolume_CandidateWithVolume_ReturnsVolume" methodname="TryGetSceneVolume_CandidateWithVolume_ReturnsVolume" classname="OneStarMaker.Tests.Streaming.SceneVolumeQueryTests" runstate="Runnable" seed="438438900" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.004445" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1184" name="TryGetSceneVolume_EmptyVolume_ReturnsFalse" fullname="OneStarMaker.Tests.Streaming.SceneVolumeQueryTests.TryGetSceneVolume_EmptyVolume_ReturnsFalse" methodname="TryGetSceneVolume_EmptyVolume_ReturnsFalse" classname="OneStarMaker.Tests.Streaming.SceneVolumeQueryTests" runstate="Runnable" seed="1450261943" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000753" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1183" name="TryGetSceneVolume_NotStreamingCandidate_ReturnsFalse" fullname="OneStarMaker.Tests.Streaming.SceneVolumeQueryTests.TryGetSceneVolume_NotStreamingCandidate_ReturnsFalse" methodname="TryGetSceneVolume_NotStreamingCandidate_ReturnsFalse" classname="OneStarMaker.Tests.Streaming.SceneVolumeQueryTests" runstate="Runnable" seed="219316967" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000440" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1182" name="TryGetSceneVolume_UnknownIdentity_ReturnsFalse" fullname="OneStarMaker.Tests.Streaming.SceneVolumeQueryTests.TryGetSceneVolume_UnknownIdentity_ReturnsFalse" methodname="TryGetSceneVolume_UnknownIdentity_ReturnsFalse" classname="OneStarMaker.Tests.Streaming.SceneVolumeQueryTests" runstate="Runnable" seed="600148338" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000640" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1185" name="SeasonCandidateSelectionTests" fullname="OneStarMaker.Tests.Streaming.SeasonCandidateSelectionTests" classname="OneStarMaker.Tests.Streaming.SeasonCandidateSelectionTests" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.010549" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1190" name="FromSeasonChildren_UsesVolumeQuery" fullname="OneStarMaker.Tests.Streaming.SeasonCandidateSelectionTests.FromSeasonChildren_UsesVolumeQuery" methodname="FromSeasonChildren_UsesVolumeQuery" classname="OneStarMaker.Tests.Streaming.SeasonCandidateSelectionTests" runstate="Runnable" seed="1620945803" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.004512" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1188" name="Select_DuplicateIdentity_Throws" fullname="OneStarMaker.Tests.Streaming.SeasonCandidateSelectionTests.Select_DuplicateIdentity_Throws" methodname="Select_DuplicateIdentity_Throws" classname="OneStarMaker.Tests.Streaming.SeasonCandidateSelectionTests" runstate="Runnable" seed="336816246" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000475" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1187" name="Select_EmptyStreamByDistance_Throws" fullname="OneStarMaker.Tests.Streaming.SeasonCandidateSelectionTests.Select_EmptyStreamByDistance_Throws" methodname="Select_EmptyStreamByDistance_Throws" classname="OneStarMaker.Tests.Streaming.SeasonCandidateSelectionTests" runstate="Runnable" seed="985049648" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000475" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1189" name="Select_MissingVolume_Throws" fullname="OneStarMaker.Tests.Streaming.SeasonCandidateSelectionTests.Select_MissingVolume_Throws" methodname="Select_MissingVolume_Throws" classname="OneStarMaker.Tests.Streaming.SeasonCandidateSelectionTests" runstate="Runnable" seed="474465765" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000339" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1186" name="Select_StreamByDistanceChildren_BecomeCandidates" fullname="OneStarMaker.Tests.Streaming.SeasonCandidateSelectionTests.Select_StreamByDistanceChildren_BecomeCandidates" methodname="Select_StreamByDistanceChildren_BecomeCandidates" classname="OneStarMaker.Tests.Streaming.SeasonCandidateSelectionTests" runstate="Runnable" seed="654233334" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000421" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1191" name="SessionCellCompanionLoadDriverTests" fullname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests" classname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests" runstate="Runnable" testcasecount="11" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.033427" total="11" passed="11" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1203" name="Reconcile_CancelledAfterAdd_UnloadsChild" fullname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests.Reconcile_CancelledAfterAdd_UnloadsChild" methodname="Reconcile_CancelledAfterAdd_UnloadsChild" classname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests" runstate="Runnable" seed="2012815438" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.010354" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1199" name="Reconcile_DuplicateSameRole_AddsNoneForRole" fullname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests.Reconcile_DuplicateSameRole_AddsNoneForRole" methodname="Reconcile_DuplicateSameRole_AddsNoneForRole" classname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests" runstate="Runnable" seed="309200729" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.002366" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-suite type="ParameterizedMethod" id="1198" name="Reconcile_EachProfile_LoadsOnlyItsIncludedRoles" fullname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests.Reconcile_EachProfile_LoadsOnlyItsIncludedRoles" classname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests" runstate="Runnable" testcasecount="4" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.006306" total="4" passed="4" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1194" name="Reconcile_EachProfile_LoadsOnlyItsIncludedRoles(Full,&quot;Environment,Lighting,VFX,Events&quot;)" fullname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests.Reconcile_EachProfile_LoadsOnlyItsIncludedRoles(Full,&quot;Environment,Lighting,VFX,Events&quot;)" methodname="Reconcile_EachProfile_LoadsOnlyItsIncludedRoles" classname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests" runstate="Runnable" seed="1044996456" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.002162" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1195" name="Reconcile_EachProfile_LoadsOnlyItsIncludedRoles(Planner,&quot;Events&quot;)" fullname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests.Reconcile_EachProfile_LoadsOnlyItsIncludedRoles(Planner,&quot;Events&quot;)" methodname="Reconcile_EachProfile_LoadsOnlyItsIncludedRoles" classname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests" runstate="Runnable" seed="717780554" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000862" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1196" name="Reconcile_EachProfile_LoadsOnlyItsIncludedRoles(Lighting,&quot;Environment,Lighting&quot;)" fullname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests.Reconcile_EachProfile_LoadsOnlyItsIncludedRoles(Lighting,&quot;Environment,Lighting&quot;)" methodname="Reconcile_EachProfile_LoadsOnlyItsIncludedRoles" classname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests" runstate="Runnable" seed="1756901842" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000854" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1197" name="Reconcile_EachProfile_LoadsOnlyItsIncludedRoles(Vfx,&quot;Environment,Lighting,VFX&quot;)" fullname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests.Reconcile_EachProfile_LoadsOnlyItsIncludedRoles(Vfx,&quot;Environment,Lighting,VFX&quot;)" methodname="Reconcile_EachProfile_LoadsOnlyItsIncludedRoles" classname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests" runstate="Runnable" seed="333560705" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000867" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+              </test-suite>
+              <test-case id="1200" name="Reconcile_InFlightDuplicate_OnlyOneAdd" fullname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests.Reconcile_InFlightDuplicate_OnlyOneAdd" methodname="Reconcile_InFlightDuplicate_OnlyOneAdd" classname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests" runstate="Runnable" seed="52500153" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.003798" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1201" name="Reconcile_ParentLeavesResidentsDuringAdd_UnloadsChild" fullname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests.Reconcile_ParentLeavesResidentsDuringAdd_UnloadsChild" methodname="Reconcile_ParentLeavesResidentsDuringAdd_UnloadsChild" classname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests" runstate="Runnable" seed="1012984798" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.002296" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1192" name="Reconcile_ParentNotStable_AddsNothing" fullname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests.Reconcile_ParentNotStable_AddsNothing" methodname="Reconcile_ParentNotStable_AddsNothing" classname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests" runstate="Runnable" seed="359198908" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.001339" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1202" name="Reconcile_ParentReloadedWithSameIdentity_UnloadsChild" fullname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests.Reconcile_ParentReloadedWithSameIdentity_UnloadsChild" methodname="Reconcile_ParentReloadedWithSameIdentity_UnloadsChild" classname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests" runstate="Runnable" seed="1771722534" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.001542" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1193" name="Reconcile_Planner_LoadsEventsOnlyFromChildren" fullname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests.Reconcile_Planner_LoadsEventsOnlyFromChildren" methodname="Reconcile_Planner_LoadsEventsOnlyFromChildren" classname="OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests" runstate="Runnable" seed="1105570461" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.001264" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1204" name="SessionSeasonControllerTests" fullname="OneStarMaker.Tests.Streaming.SessionSeasonControllerTests" classname="OneStarMaker.Tests.Streaming.SessionSeasonControllerTests" runstate="Runnable" testcasecount="6" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.062952" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1206" name="Ensure_AddCompleteIsNotStable" fullname="OneStarMaker.Tests.Streaming.SessionSeasonControllerTests.Ensure_AddCompleteIsNotStable" methodname="Ensure_AddCompleteIsNotStable" classname="OneStarMaker.Tests.Streaming.SessionSeasonControllerTests" runstate="Runnable" seed="1108601542" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.029980" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1205" name="Ensure_DoesNotBlockCaller_UntilStable" fullname="OneStarMaker.Tests.Streaming.SessionSeasonControllerTests.Ensure_DoesNotBlockCaller_UntilStable" methodname="Ensure_DoesNotBlockCaller_UntilStable" classname="OneStarMaker.Tests.Streaming.SessionSeasonControllerTests" runstate="Runnable" seed="1986603481" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.002518" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1210" name="EnsureFailure_SetsWorldReadyException" fullname="OneStarMaker.Tests.Streaming.SessionSeasonControllerTests.EnsureFailure_SetsWorldReadyException" methodname="EnsureFailure_SetsWorldReadyException" classname="OneStarMaker.Tests.Streaming.SessionSeasonControllerTests" runstate="Runnable" seed="1652942148" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.004542" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1207" name="RequestSeason_WhileBusy_RejectsOtherSeason" fullname="OneStarMaker.Tests.Streaming.SessionSeasonControllerTests.RequestSeason_WhileBusy_RejectsOtherSeason" methodname="RequestSeason_WhileBusy_RejectsOtherSeason" classname="OneStarMaker.Tests.Streaming.SessionSeasonControllerTests" runstate="Runnable" seed="2002524531" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.009865" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1209" name="StopWorldOperations_RejectsNewIssues_DoesNotDrain" fullname="OneStarMaker.Tests.Streaming.SessionSeasonControllerTests.StopWorldOperations_RejectsNewIssues_DoesNotDrain" methodname="StopWorldOperations_RejectsNewIssues_DoesNotDrain" classname="OneStarMaker.Tests.Streaming.SessionSeasonControllerTests" runstate="Runnable" seed="246343455" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.003232" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1208" name="UnloadEarlyReturn_IsNotLifetimeEnd" fullname="OneStarMaker.Tests.Streaming.SessionSeasonControllerTests.UnloadEarlyReturn_IsNotLifetimeEnd" methodname="UnloadEarlyReturn_IsNotLifetimeEnd" classname="OneStarMaker.Tests.Streaming.SessionSeasonControllerTests" runstate="Runnable" seed="1246600855" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.009308" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1211" name="SessionWorldStreamingDriverTests" fullname="OneStarMaker.Tests.Streaming.SessionWorldStreamingDriverTests" classname="OneStarMaker.Tests.Streaming.SessionWorldStreamingDriverTests" runstate="Runnable" testcasecount="2" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.003385" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1213" name="CurrentCellIdentity_OutsideVolume_IsNull" fullname="OneStarMaker.Tests.Streaming.SessionWorldStreamingDriverTests.CurrentCellIdentity_OutsideVolume_IsNull" methodname="CurrentCellIdentity_OutsideVolume_IsNull" classname="OneStarMaker.Tests.Streaming.SessionWorldStreamingDriverTests" runstate="Runnable" seed="1095529587" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.001439" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1212" name="CurrentCellIdentity_PicksOrdinalMinAmongOverlappingVolumes" fullname="OneStarMaker.Tests.Streaming.SessionWorldStreamingDriverTests.CurrentCellIdentity_PicksOrdinalMinAmongOverlappingVolumes" methodname="CurrentCellIdentity_PicksOrdinalMinAmongOverlappingVolumes" classname="OneStarMaker.Tests.Streaming.SessionWorldStreamingDriverTests" runstate="Runnable" seed="246469026" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000522" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1214" name="StreamingCandidateSetTests" fullname="OneStarMaker.Tests.Streaming.StreamingCandidateSetTests" classname="OneStarMaker.Tests.Streaming.StreamingCandidateSetTests" runstate="Runnable" testcasecount="8" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.007205" total="8" passed="8" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1216" name="Candidate_EmptyIdentity_Throws" fullname="OneStarMaker.Tests.Streaming.StreamingCandidateSetTests.Candidate_EmptyIdentity_Throws" methodname="Candidate_EmptyIdentity_Throws" classname="OneStarMaker.Tests.Streaming.StreamingCandidateSetTests" runstate="Runnable" seed="1519940326" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000507" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1215" name="Candidate_EmptyVolume_Throws" fullname="OneStarMaker.Tests.Streaming.StreamingCandidateSetTests.Candidate_EmptyVolume_Throws" methodname="Candidate_EmptyVolume_Throws" classname="OneStarMaker.Tests.Streaming.StreamingCandidateSetTests" runstate="Runnable" seed="224270139" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000292" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1220" name="CandidateSet_DefensivelyCopiesInput" fullname="OneStarMaker.Tests.Streaming.StreamingCandidateSetTests.CandidateSet_DefensivelyCopiesInput" methodname="CandidateSet_DefensivelyCopiesInput" classname="OneStarMaker.Tests.Streaming.StreamingCandidateSetTests" runstate="Runnable" seed="1508735718" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000413" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1218" name="CandidateSet_DuplicateIdentity_Throws" fullname="OneStarMaker.Tests.Streaming.StreamingCandidateSetTests.CandidateSet_DuplicateIdentity_Throws" methodname="CandidateSet_DuplicateIdentity_Throws" classname="OneStarMaker.Tests.Streaming.StreamingCandidateSetTests" runstate="Runnable" seed="1264540543" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000344" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1217" name="CandidateSet_EmptyList_Throws" fullname="OneStarMaker.Tests.Streaming.StreamingCandidateSetTests.CandidateSet_EmptyList_Throws" methodname="CandidateSet_EmptyList_Throws" classname="OneStarMaker.Tests.Streaming.StreamingCandidateSetTests" runstate="Runnable" seed="1170875055" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000413" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1219" name="CandidateSet_SameVolumeDifferentIdentity_IsAllowed" fullname="OneStarMaker.Tests.Streaming.StreamingCandidateSetTests.CandidateSet_SameVolumeDifferentIdentity_IsAllowed" methodname="CandidateSet_SameVolumeDifferentIdentity_IsAllowed" classname="OneStarMaker.Tests.Streaming.StreamingCandidateSetTests" runstate="Runnable" seed="1919003441" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000283" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1222" name="PolicySettings_NonPositiveMaxInFlight_Throws" fullname="OneStarMaker.Tests.Streaming.StreamingCandidateSetTests.PolicySettings_NonPositiveMaxInFlight_Throws" methodname="PolicySettings_NonPositiveMaxInFlight_Throws" classname="OneStarMaker.Tests.Streaming.StreamingCandidateSetTests" runstate="Runnable" seed="1171810357" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000359" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1221" name="PolicySettings_UnloadRadiusNotGreaterThanLoadRadius_Throws" fullname="OneStarMaker.Tests.Streaming.StreamingCandidateSetTests.PolicySettings_UnloadRadiusNotGreaterThanLoadRadius_Throws" methodname="PolicySettings_UnloadRadiusNotGreaterThanLoadRadius_Throws" classname="OneStarMaker.Tests.Streaming.StreamingCandidateSetTests" runstate="Runnable" seed="295717822" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000815" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1223" name="StreamingIntegrationTests" fullname="OneStarMaker.Tests.Streaming.StreamingIntegrationTests" classname="OneStarMaker.Tests.Streaming.StreamingIntegrationTests" runstate="Runnable" testcasecount="6" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.085939" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1229" name="Backend_RequestAdd_PropagatesPriorityAndVerboseTelemetry" fullname="OneStarMaker.Tests.Streaming.StreamingIntegrationTests.Backend_RequestAdd_PropagatesPriorityAndVerboseTelemetry" methodname="Backend_RequestAdd_PropagatesPriorityAndVerboseTelemetry" classname="OneStarMaker.Tests.Streaming.StreamingIntegrationTests" runstate="Runnable" seed="1510175884" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.038990" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="Timeout" value="10000" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1225" name="FastTraversal_CancelDuringLoad_NoExceptionAndConverges" fullname="OneStarMaker.Tests.Streaming.StreamingIntegrationTests.FastTraversal_CancelDuringLoad_NoExceptionAndConverges" methodname="FastTraversal_CancelDuringLoad_NoExceptionAndConverges" classname="OneStarMaker.Tests.Streaming.StreamingIntegrationTests" runstate="Runnable" seed="257738889" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.015978" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="Timeout" value="10000" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1226" name="JoinedAdd_AfterLeaderCanceled_EventuallyLoads" fullname="OneStarMaker.Tests.Streaming.StreamingIntegrationTests.JoinedAdd_AfterLeaderCanceled_EventuallyLoads" methodname="JoinedAdd_AfterLeaderCanceled_EventuallyLoads" classname="OneStarMaker.Tests.Streaming.StreamingIntegrationTests" runstate="Runnable" seed="736121692" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.009184" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="Timeout" value="10000" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1228" name="PendingUnload_CellStabilizes_ThenAutoUnloads" fullname="OneStarMaker.Tests.Streaming.StreamingIntegrationTests.PendingUnload_CellStabilizes_ThenAutoUnloads" methodname="PendingUnload_CellStabilizes_ThenAutoUnloads" classname="OneStarMaker.Tests.Streaming.StreamingIntegrationTests" runstate="Runnable" seed="506979856" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.003953" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="Timeout" value="10000" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1224" name="Traversal_FocusSweepsGrid_ResidentSetMatchesDesired" fullname="OneStarMaker.Tests.Streaming.StreamingIntegrationTests.Traversal_FocusSweepsGrid_ResidentSetMatchesDesired" methodname="Traversal_FocusSweepsGrid_ResidentSetMatchesDesired" classname="OneStarMaker.Tests.Streaming.StreamingIntegrationTests" runstate="Runnable" seed="437214600" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.006937" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="Timeout" value="10000" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1227" name="WorldUnload_RemovesAllCells_AndControllerRestarts" fullname="OneStarMaker.Tests.Streaming.StreamingIntegrationTests.WorldUnload_RemovesAllCells_AndControllerRestarts" methodname="WorldUnload_RemovesAllCells_AndControllerRestarts" classname="OneStarMaker.Tests.Streaming.StreamingIntegrationTests" runstate="Runnable" seed="2125359686" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.005276" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="Timeout" value="10000" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1230" name="WorldCellCatalogTests" fullname="OneStarMaker.Tests.Streaming.WorldCellCatalogTests" classname="OneStarMaker.Tests.Streaming.WorldCellCatalogTests" runstate="Runnable" testcasecount="4" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.011203" total="4" passed="4" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1232" name="TA_AdjacentRectangles_AreDetectedAsGapViolation" fullname="OneStarMaker.Tests.Streaming.WorldCellCatalogTests.TA_AdjacentRectangles_AreDetectedAsGapViolation" methodname="TA_AdjacentRectangles_AreDetectedAsGapViolation" classname="OneStarMaker.Tests.Streaming.WorldCellCatalogTests" runstate="Runnable" seed="818340191" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.005729" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1231" name="TA_SeparatedRectangles_NearestCrossRectCenterExceedsUnloadRadius" fullname="OneStarMaker.Tests.Streaming.WorldCellCatalogTests.TA_SeparatedRectangles_NearestCrossRectCenterExceedsUnloadRadius" methodname="TA_SeparatedRectangles_NearestCrossRectCenterExceedsUnloadRadius" classname="OneStarMaker.Tests.Streaming.WorldCellCatalogTests" runstate="Runnable" seed="75552201" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000405" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1234" name="TD_FixtureGapCoordinate_IsOutsideMembership" fullname="OneStarMaker.Tests.Streaming.WorldCellCatalogTests.TD_FixtureGapCoordinate_IsOutsideMembership" methodname="TD_FixtureGapCoordinate_IsOutsideMembership" classname="OneStarMaker.Tests.Streaming.WorldCellCatalogTests" runstate="Runnable" seed="1916439479" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.001119" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1233" name="TD_TryGetCoordinate_FourCornersTrue_OutsideFalse" fullname="OneStarMaker.Tests.Streaming.WorldCellCatalogTests.TD_TryGetCoordinate_FourCornersTrue_OutsideFalse" methodname="TD_TryGetCoordinate_FourCornersTrue_OutsideFalse" classname="OneStarMaker.Tests.Streaming.WorldCellCatalogTests" runstate="Runnable" seed="1151874762" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.001725" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1235" name="WorldStreamingControllerMultiFocusTests" fullname="OneStarMaker.Tests.Streaming.WorldStreamingControllerMultiFocusTests" classname="OneStarMaker.Tests.Streaming.WorldStreamingControllerMultiFocusTests" runstate="Runnable" testcasecount="3" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.011569" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1236" name="Tick_MultiFocus_DesiredSetIsUnion" fullname="OneStarMaker.Tests.Streaming.WorldStreamingControllerMultiFocusTests.Tick_MultiFocus_DesiredSetIsUnion" methodname="Tick_MultiFocus_DesiredSetIsUnion" classname="OneStarMaker.Tests.Streaming.WorldStreamingControllerMultiFocusTests" runstate="Runnable" seed="902537917" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.001208" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1237" name="Tick_MultiFocus_PriorityUsesNearestFocusDistance" fullname="OneStarMaker.Tests.Streaming.WorldStreamingControllerMultiFocusTests.Tick_MultiFocus_PriorityUsesNearestFocusDistance" methodname="Tick_MultiFocus_PriorityUsesNearestFocusDistance" classname="OneStarMaker.Tests.Streaming.WorldStreamingControllerMultiFocusTests" runstate="Runnable" seed="58865813" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.004508" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1238" name="Tick_SingleFocusOverload_BehaviorUnchanged" fullname="OneStarMaker.Tests.Streaming.WorldStreamingControllerMultiFocusTests.Tick_SingleFocusOverload_BehaviorUnchanged" methodname="Tick_SingleFocusOverload_BehaviorUnchanged" classname="OneStarMaker.Tests.Streaming.WorldStreamingControllerMultiFocusTests" runstate="Runnable" seed="1194018020" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.003486" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1239" name="WorldStreamingControllerTests" fullname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests" classname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests" runstate="Runnable" testcasecount="11" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.017799" total="11" passed="11" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1250" name="TB_FocusInGapBetweenTwoRects_DesiredIsEmpty" fullname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests.TB_FocusInGapBetweenTwoRects_DesiredIsEmpty" methodname="TB_FocusInGapBetweenTwoRects_DesiredIsEmpty" classname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests" runstate="Runnable" seed="1007149059" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000821" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1247" name="Tick_AddCompletedButNotLoaded_ReissuesNextTick" fullname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests.Tick_AddCompletedButNotLoaded_ReissuesNextTick" methodname="Tick_AddCompletedButNotLoaded_ReissuesNextTick" classname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests" runstate="Runnable" seed="1544144435" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.001209" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1242" name="Tick_CellBetweenRadii_IsRetained" fullname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests.Tick_CellBetweenRadii_IsRetained" methodname="Tick_CellBetweenRadii_IsRetained" classname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests" runstate="Runnable" seed="816245080" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.001243" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1241" name="Tick_CellBeyondUnloadRadius_IsRemoved" fullname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests.Tick_CellBeyondUnloadRadius_IsRemoved" methodname="Tick_CellBeyondUnloadRadius_IsRemoved" classname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests" runstate="Runnable" seed="215867238" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.001304" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1240" name="Tick_FocusInGrid_RequestsCellsWithinLoadRadius" fullname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests.Tick_FocusInGrid_RequestsCellsWithinLoadRadius" methodname="Tick_FocusInGrid_RequestsCellsWithinLoadRadius" classname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests" runstate="Runnable" seed="1053653661" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000529" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1248" name="Tick_FocusMovesDuringInFlight_ConvergesToDesired" fullname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests.Tick_FocusMovesDuringInFlight_ConvergesToDesired" methodname="Tick_FocusMovesDuringInFlight_ConvergesToDesired" classname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests" runstate="Runnable" seed="2059442624" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.002780" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1249" name="Tick_InFlightAddLeavesDesiredThenReturns_NoDoubleRequestAdd" fullname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests.Tick_InFlightAddLeavesDesiredThenReturns_NoDoubleRequestAdd" methodname="Tick_InFlightAddLeavesDesiredThenReturns_NoDoubleRequestAdd" classname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests" runstate="Runnable" seed="742696569" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.001461" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1245" name="Tick_InFlightLimit_Respected" fullname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests.Tick_InFlightLimit_Respected" methodname="Tick_InFlightLimit_Respected" classname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests" runstate="Runnable" seed="1062750377" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.001073" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1244" name="Tick_LoadRequests_OrderedByDistanceToFocus" fullname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests.Tick_LoadRequests_OrderedByDistanceToFocus" methodname="Tick_LoadRequests_OrderedByDistanceToFocus" classname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests" runstate="Runnable" seed="798490972" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000946" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1246" name="Tick_QueuedCellLeavesDesired_IsNotIssued" fullname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests.Tick_QueuedCellLeavesDesired_IsNotIssued" methodname="Tick_QueuedCellLeavesDesired_IsNotIssued" classname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests" runstate="Runnable" seed="1343526493" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.001309" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1243" name="Tick_SameFocusTwice_NoRedundantRequests" fullname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests.Tick_SameFocusTwice_NoRedundantRequests" methodname="Tick_SameFocusTwice_NoRedundantRequests" classname="OneStarMaker.Tests.Streaming.WorldStreamingControllerTests" runstate="Runnable" seed="1380344199" result="Passed" start-time="2026-09-12 02:07:16Z" end-time="2026-09-12 02:07:16Z" duration="0.000426" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[Saving results to: C:/Users/void/AppData/LocalLow/DefaultCompany/SampleGame\TestResults.xml
+]]></output>
+              </test-case>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

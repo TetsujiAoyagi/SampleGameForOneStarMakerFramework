@@ -1019,3 +1019,33 @@ HANDOFF 本文が正本。新規の引き渡しファイルは作らない。Uni
 ### 7.32 develop 取り込み（2026-09-12）
 
 PR #47 merge `bfdc1f8` をこの worktree へ取り込んだ。P3 で消した一時 `SeasonWorld*` と旧 bulk generator は復活させていない。残したのは P1 の C-2（`SaveHookSuspended` 中の保存ダイアログ抑制）と C-6（`SeasonCellNames.Format` の x/y 例外）。C-1 / C-3 / C-4 / C-5 / C-9 は生成器側の修正で、P2 実施後の P3 撤去済み HEAD には載せない。P1 Phase C 証拠は `docs/handoff/evidence/s-4b-p1-c2`。C' / D の PASS は書いていない。
+
+### 7.33 Phase C（P2 + 起動配線 + P3。2026-09-12）
+
+担当: Codex / GPT。A は凍結のまま再設計していない。P1（PR #47、implementation `64d21c5`、merge `bfdc1f8`）は対象外で、§7.29〜7.31 は再審査していない。この節は C' へ渡す Phase C 記録であるが、blind 初期入力には含めない。
+
+**固定対象:** implementation base `bfdc1f8a1f614ff17ae39a1a158181d6313ae879`、implementation head `73f4e4dc1f6b7967b25bb9afb7ab31f3d8db34c0`。開始時は branch `codex/s-4b-a0`、worktree clean、HEAD `c759767`、`origin/develop` は `bfdc1f8`。`c759767` は既存の SHA 訂正文書 commit。Phase C 記録 commit は implementation head に含めない。evidence は `docs/handoff/evidence/s-4b-c/`、C' blind bundle は `docs/handoff/evidence/s-4b-cprime-blind/`。
+
+**構造:** §7.7 の配置・依存・寿命・テスト境界を先に照合した。Game → Framework の方向を維持し、asmdef 参照、公開 API、`SceneState`、`SceneEventType` の追加はない。`InGameSessionScene` は composition と Session 寿命、`SessionSeasonController` は枝直列化、tracker / registry / candidate selection / player-ready / distance / companion は別境界のまま。controller は 568 行で見積 280〜380 を超えるが、具象 SceneDirector、候補選別、終端追跡、発行台帳、Player 操作、距離政策を取り込まず、明示的な枝 orchestration と失敗回収順を保持しているため、行数差だけを分割理由にはしない。
+
+**起動・撤去:** `SessionSeasonController.cs:127-136,185-205` は Spring の Stable、`Spring_Cell_0_4` の Stable、WorldReady 通知、距離 driver 開始の順を保持する。`PlayerScene.cs:164-168` が WorldReady 後に sequence を呼び、`PlayerWorldReadySequence.cs:36-39` が Teleport → focus 登録 → 入力 ON を行うため、同期 continuation を含めても入力 ON は距離 Tick 開始より前である。Factory は Season 4 + Lighting 4、`World` 分岐なし。一時 `SeasonWorld*` / 旧 WorldCell generator の source match は 0。旧 `World.unity` / `WorldGridDefinition.asset` / `WorldScene.cs` は無く、`World/` は存在しており一括削除していない。
+
+**全件機械検査:** `artifacts/s-4b-p3/inspect-method.txt` に従い、`expected-set.txt` と現 head の全 Scene path を再比較した。expected 652 / actual 652、missing 0 / extra 0。`Seasons/` 配下の colocated `.asset` は 440。P2 の Editor 検査生出力 `validation.txt` は implemented checks の issue なし。Generate は再実行していない。現 head で Editor が閉じていたため Graph / Map / Addressables / 体積の Editor 再 Inspect は行っていない。
+
+**機械実行:** `pwsh tools/contract-audit.ps1 -BaseRef bfdc1f8...` は exit 0（差分 Unity C# 36 files）。C# 限定の `git diff --check` は exit 0。全差分の `git diff --check` は Unity が生成した `.asset` / `.meta` 等の末尾空白を列挙して exit 2 であり、生出力を evidence に残した（生成物を手編集しない）。`pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Streaming` は total 118 / failed 0 / skipped 0。必須領域 `SessionSeasonController`、`PlayerWorldReadySequence`、`IssuedSceneOperationRegistry`、`SceneTerminalTracker`、`SeasonCandidateSelection`、`WorldCellCatalog` を含む。`pwsh tools/run-tests.ps1` 全件は total 675 / failed 0 / skipped 0。生ログと XML は evidence に保存した。テスト runner が削除した既知の MobileDependencyResolver `.pdb.meta` 5件は各実行後に HEAD へ復元した。
+
+**findings ledger（C' / D の採否対象）:**
+
+| id | severity | category | path・行・契約 | 状態 |
+|---|---|---|---|---|
+| C2-1 | high | test execution | Streaming の非同期テスト8件が `[Test]` + `UniTask` で NUnit NRE / 未観測 assertion を生み、実装を検査できなかった。対象は `Tests/Streaming/{SessionSeasonController,SceneTerminalTracker,PlayerWorldReadySequence}Tests.cs`。Unity Test 境界で実行可能にする契約 | fixed by Grok `9c92c4f` |
+| C2-2 | medium | frozen contract / test | `GameSceneFactoryTests` が Lighting を null と期待し、§7.7 の空 `SeasonLightingScene` scaffold と矛盾 | fixed by Grok `037d578` |
+| C2-3 | low | test contamination | `WorldCompanionCreationTransactionTests` の初回失敗は C2-1 の未観測 assertion が後続へ漏れたもの。単独の production defect ではない | duplicate of C2-1; no separate change |
+| C2-4 | high | test synchronization | `SessionSeasonControllerTests.UnloadEarlyReturn_IsNotLifetimeEnd` が旧枝 child の終端を発火せず 180 秒 timeout。親 Unload 後の fake query 子状態も残り、§7.7 の発行済み収束境界を再現できなかった | fixed by Grok `137b81c` |
+| C2-5 | high | runtime reentrancy | `IssuedSceneOperationRegistry.cs:105-123`。terminal 完了の同期 continuation が次 Add を登録すると `_ops` 列挙中変更になった。同じイベントで後発 op を完了せず、同期再入でも列挙を壊さない契約 | fixed by Grok `73f4e4d`; 一致 op snapshot と回帰 test 2件 |
+
+差し戻し修正は GPT が書かず、いずれも新規 Cursor CLI セッションの `cursor-grok-4.6-high` に依頼した。Grok には Unity.exe / Generate / `run-tests.ps1` / Addressables / `unity test` / `unity run` を禁止し、各修正後のテストは Phase C で再実行した。
+
+**未確認:** 現 head に対する Editor 内 Graph / Map / Addressables / 体積の再 Inspect、人間の代表操作、共有材の見た目。Addressables build は、P2 の登録検査後に Addressables 設定を変える差分がなく、今回の差し戻しが runtime/test のみなので実施していない。既知の `World/Cells/Cell_*` と `World/Materials` 空フォルダ meta は資産として残る。
+
+**人間の代表操作手順:** Title から開始し、Spring と `Spring_Cell_0_4` が Stable になるまで入力が無効であること、準備後に入力可能となること、境界移動で候補 Cell と Environment が追従すること、Result 遷移後に遅延 Add が Session 祖先を再ロードしないことを観測する。季節切替 UI は本 slice に無いため、切替の人間操作判定は後続入口から行う。
