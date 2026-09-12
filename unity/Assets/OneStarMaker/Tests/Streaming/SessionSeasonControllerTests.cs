@@ -116,16 +116,28 @@ namespace OneStarMaker.Tests.Streaming
             await fixture.Season.EnsureInitialWorldAsync(CancellationToken.None);
 
             // UnloadScene は即 return しても、捕捉個体の終端イベントまでは切替を完了しない。
+            // 次 Season の Add は旧枝の発行済み Add（Lighting / 源流 Cell）の終端が揃ってから。
             fixture.Controller.UnloadReturnsImmediately = true;
+            fixture.Controller.HoldStableUntilReleased = true;
             var switchTask = fixture.Season.RequestSeasonAsync("Summer", 0, 4, CancellationToken.None);
             await UniTask.Yield();
             Assert.That(switchTask.Status, Is.EqualTo(UniTaskStatus.Pending));
             Assert.That(fixture.Controller.Unloaded.Contains("Season_Spring"), Is.True);
 
             fixture.Terminals.Emit("Season_Spring", SceneTerminalKind.Removed);
+            fixture.Terminals.Emit("Spring_Lighting", SceneTerminalKind.Removed);
+            fixture.Terminals.Emit("Spring_Cell_0_4", SceneTerminalKind.Removed);
+
+            await UniTask.WaitUntil(() => fixture.Query.IsSceneLoaded("Season_Summer"));
+            Assert.That(switchTask.Status, Is.EqualTo(UniTaskStatus.Pending));
             fixture.Query.Stable.Add("Season_Summer");
             fixture.Query.Stable.Add("Summer_Lighting");
+            fixture.Controller.ReleaseHeldAdds();
+
+            await UniTask.WaitUntil(() => fixture.Query.IsSceneLoaded("Summer_Cell_0_4"));
+            Assert.That(switchTask.Status, Is.EqualTo(UniTaskStatus.Pending));
             fixture.Query.Stable.Add("Summer_Cell_0_4");
+            fixture.Controller.ReleaseHeldAdds();
             await switchTask;
         });
 
@@ -372,10 +384,29 @@ namespace OneStarMaker.Tests.Streaming
                 TelemetryLevel telemetryLevel = TelemetryLevel.Summary)
             {
                 Unloaded.Add(sceneIdentify);
-                _query.Loaded.Remove(sceneIdentify);
-                _query.Stable.Remove(sceneIdentify);
-                _query.Scenes.Remove(sceneIdentify);
+                // 親 Unload は子孫も query から外す（IsSceneLoaded false）。終端イベントは出さない。
+                RemoveLoadedTree(sceneIdentify);
                 return UniTask.CompletedTask;
+            }
+
+            private void RemoveLoadedTree(string identity)
+            {
+                if (_resources.TryGetValue(identity, out var resource))
+                {
+                    var children = resource.Children;
+                    for (var i = 0; i < children.Count; i++)
+                    {
+                        var child = children[i];
+                        if (child != null)
+                        {
+                            RemoveLoadedTree(child.Identity);
+                        }
+                    }
+                }
+
+                _query.Loaded.Remove(identity);
+                _query.Stable.Remove(identity);
+                _query.Scenes.Remove(identity);
             }
 
             public UniTask SwitchScene(
