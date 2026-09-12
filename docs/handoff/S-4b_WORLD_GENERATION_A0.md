@@ -1,10 +1,10 @@
 # S-4b 四季 World 生成 — A0〜A3 と寿命契約の再開事項
 
 > type: slice
-> status: P1 の Phase B 指摘修正済み。旧 Phase C evidence は stale、再レビュー待ち。C' は人間。この PR は P1 生成器のみ。P2 / 起動配線 / P3 は worktree `codex/s-4b-a0` に残す。
+> status: P1 の Phase C 再レビュー済み。C' は人間。この PR は P1 生成器のみ。P2 / 起動配線 / P3 は worktree `codex/s-4b-a0` に残す。
 > branch: `codex/s-4b-p1`
 > implementation base commit: `17dc67b232433e8ff3f909d99e401cddb159de50`（この PR の develop merge-base。HANDOFF 旧記の `0792edc` は PR #45 時点）
-> implementation head commit: `64d21c575d587004033351bb8ec77b3ec6df5b31`（指摘修正。旧 `f3597adc26556624dc5aa0b0acccc2e7dfdf6ee7` の Phase C evidence は stale）
+> implementation head commit: `64d21c575d587004033351bb8ec77b3ec6df5b31`（指摘修正。レビュー記録 commit は含めない）
 > risk: high（明示ワイプ、652 Scene、Addressables、起動順序）
 > owner: 発注者 / S-4b 担当
 > A0 担当: Codex / GPT-6 / OpenAI。
@@ -21,11 +21,11 @@
 > Phase A frozen snapshot path: `docs/handoff/S-4b_WORLD_GENERATION_A0.md`（本凍結 commit。設計本文の以後の変更は revision 3）
 > Phase A snapshot generated at: 2026-09-10
 > Phase A snapshot git / hash: `137d235e78416a3cda59aa2474b6147a29081595`。implementation base は PR #45 マージ後の `0792edc`。生成器・P2・起動配線は未着手。B result / C・C' evidence は未生成。
-> evidence bundle path / id: `docs/handoff/evidence/s-4b-p1-c`（旧 implementation head 用。stale）
-> evidence bundle generated at: 2026-09-11T21:18:39Z
-> evidence bundle hash: `43a81d5d9c186ab4baddadbd80d7f7bf5cf28bb3ac44485092437c5b40c8a214`（diff/stat/commits）。機械検査込み `052843482ff76291a5d3285897fff32052cb0bfa154a603894380dff0c3ebf56`
-> C' blind bundle path / id: `docs/handoff/evidence/s-4b-p1-cprime-blind`（旧 implementation head 用。使用禁止）
-> C' blind bundle generated at: 2026-09-11T21:20:00Z
+> evidence bundle path / id: `docs/handoff/evidence/s-4b-p1-c2`（現行）。旧 `s-4b-p1-c` は stale
+> evidence bundle generated at: 2026-09-12T00:39:50Z
+> evidence bundle hash: `245551f46baa60fbf78179c104fbd25f6d9798f14b03d9dc37b6f610b96d65ae`（diff/stat/commits）。機械検査込み `960104efa0e596de81f499dfdb506f6e0809e28fed070fd21acc50fe73f17c2f`
+> C' blind bundle path / id: `docs/handoff/evidence/s-4b-p1-c2prime-blind`。旧 `s-4b-p1-cprime-blind` は使用禁止
+> C' blind bundle generated at: 2026-09-12T00:40:00Z
 > C': 当面人間。Claude は再開しない。cursor-agent は Grok 系のみ。AI は証拠と手順を準備し、本人回答前に PASS / 完了を書かない。C' 判定と D のマージ判断は分けて記録する。
 
 ## 入力と優先関係
@@ -941,4 +941,36 @@ HANDOFF 本文が正本。新規の引き渡しファイルは作らない。Uni
 `pwsh tools/contract-audit.ps1 -BaseRef develop`、`pwsh tools/docs-audit.ps1`、`git diff --check` は exit 0。Phase B のため Unity Editor、EditMode tests、Addressables build、Command は未実行。実装差分が変わったため §7.27 と `s-4b-p1-c` / `s-4b-p1-cprime-blind` は失効し、新しい implementation head を固定して Phase C と C' bundle を作り直す。C / C' PASS は記録しない。
 
 **判定:** P1 の配置は計画に合う。C/C' PASS と D のマージ判断は書かない。C-1 / C-2 / C-3 は P2 の一回生成より前に人間が採否する。
+
+### 7.29 Phase C 再レビュー（P1。2026-09-12）
+
+担当: Cursor Cloud / Grok 4.6 / xAI。入力は implementation head `64d21c5`。旧 §7.27 と `s-4b-p1-c` は無効。この節は C' に渡さない。
+
+**対象:** implementation base `17dc67b` / head `64d21c5`。evidence `docs/handoff/evidence/s-4b-p1-c2`。blind 手順は `docs/handoff/evidence/s-4b-p1-c2prime-blind/README.md`。`fc24229` は head SHA の pin のみで implementation head に含めない。
+
+**機械検査:** `pwsh tools/contract-audit.ps1 -BaseRef develop` exit 0（検査1 差分 7 .cs）。`pwsh tools/docs-audit.ps1` exit 0。Unity Editor 無し。`run-tests.ps1` / Command / Addressables build 未実行。
+
+**構造:** 一時 Editor 4 ファイルと public `SeasonCellNames` の配置は維持。C-2 の `RecalculateAll` は既存 `SaveHookSuspended` の意味を広げた 3 行で、新しい公開 API / SceneState / 季節語は無い。Validation 246 行、Wipe 155 行、Command 229 行。500 警報未満。Phase A 再開は不要。
+
+**旧指摘の照合（`64d21c5`）:**
+
+| id | 判定 | 確認した修正 |
+|---|---|---|
+| C-1 | accepted / 解消 | `ReadVolume` が `OpenSceneMode.Additive`。開いている Scene は閉じない。空 Bounds を除外。Whitebox は path 直読みのまま（公式 `ComputeOwnVolume` は既定 payload 優先のため使わない） |
+| C-2 | accepted / 解消 | `SaveHookSuspended` 中は保存ダイアログを出さない。`Generate` は bake 前に flag を true にする。メニュー実行は従来どおり |
+| C-3 | accepted / 解消 | Capture は全 SceneResource を Update にしない。Map / Total / Layout / Session / 全 graph / Addressables settings / 旧 entry を含む group / DefaultGroup に限定。Keep の無関係 Resource テストあり |
+| C-4 | accepted / 解消 | `SceneTextAssignsLightingSettings` と YAML テスト |
+| C-5 | accepted / 解消 | Environment（`X >= 0` かつ非 Lighting）も Generated 検査。テストあり |
+| C-6 | accepted / 解消 | `x` / `y` で別例外。テストあり |
+| C-7 | accepted / 解消 | header の base は `17dc67b` |
+| C-8 | accepted / 解消 | `docs/README.md` が進行中正本 5 件と S-4b 行を書く |
+| C-9 | accepted / 解消 | `World/Cells/Cell_0_0/Environment_0_0.unity` を allowlist テストに追加 |
+
+**新しい findings:** なし。
+
+**残存リスク（欠陥ではない）:** `ReadVolume` は公式 reader と同型の複製で、共有関数にはしていない。`RecalculateAll` の flag 分岐に Editor テストは無い。`SceneResourceGenerator.Generate` は全 Resource を書き直すため、Keep になった Player 等で依存集合が動けば P2 の Inspect が落とす（それが C-3 の意図）。Unity コンパイルと EditMode は未実行。
+
+**未確認:** Unity コンパイル、EditMode テスト、AssetDatabase の Capture、Command.Generate、652 実体、P2 所要時間。
+
+**判定:** 旧 C-1〜C-9 は `64d21c5` で閉じた。C/C' PASS と D のマージ判断は書かない。
 

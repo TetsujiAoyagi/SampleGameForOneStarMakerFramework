@@ -1,0 +1,9 @@
+64d21c5 fix: address S-4b P1 review findings
+2439aac docs: record S-4b P1 Phase C review evidence
+f3597ad docs: add S-4b HANDOFF, P1 record, and next-session resume
+8238608 test: add S-4b P1 generation plan and wipe tests
+20e4051 feat: add S-4b one-shot generation command
+3289076 feat: add S-4b generation validation
+1d16fd7 feat: add S-4b wipe dry-run allowlist
+aae128d feat: add S-4b season world generation plan
+8c86b57 feat: add SeasonCellNames identity grammar for S-4b
