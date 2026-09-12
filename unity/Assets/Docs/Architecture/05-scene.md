@@ -482,6 +482,9 @@ UnloadScene が呼ばれた時、対象シーンの状態によって処理が�
 | ロード中 + キャンセル窓内 | `LoadCts.Cancel()` → AddScene の catch がクリーンアップ |
 | ロード中 + PoNR 通過後 | ペンディング登録 → AddScene が Stable 到達後に自動 RemoveScene |
 | アンロード開始済み / ペンディング済み | スキップ |
+| 通常例外で Add 失敗 | `RecoverFailedLoadAsync` が辞書と pending を消す。pending 除去は `finally` |
+
+通常例外の回収本体は `SceneDirector.FailedLoadCleanup.cs`。この Add が作った newlyCreated だけを対象にし、公開 API / SceneState 値 / SceneEventType は増やさない。Stable 個体は触らない。Initializing は 3-phase。Loading は `CleanupCanceledScene`。途中失敗した unload は `ContinuePreUnLoadFromCurrent` / `ContinueAfterUnLoadFromCurrent` で同じ状態へ再遷移しない。二次例外はログして元の Add 例外を隠さない。1個体の再開失敗で兄弟回収と pending 除去を止めない。
 
 ### 3フェーズアンロード
 
