@@ -55,5 +55,48 @@ namespace OneStarMaker.Tests.Streaming
             await wait;
             Assert.That(registry.IsComplete(opId), Is.True);
         }
+
+        [Test]
+        public void CompleteInstance_DoesNotCompleteDifferentGeneration()
+        {
+            var registry = new IssuedSceneOperationRegistry();
+            Assert.That(registry.TryRegisterAdd("Season_Spring", out var oldOp), Is.True);
+            Assert.That(registry.TryRegisterAdd("Season_Spring", out var laterOp), Is.True);
+            registry.BindInstance(oldOp, instanceGen: 1);
+            registry.BindInstance(laterOp, instanceGen: 2);
+
+            registry.CompleteInstance("Season_Spring", 1);
+
+            Assert.That(registry.IsComplete(oldOp), Is.True);
+            Assert.That(registry.IsComplete(laterOp), Is.False);
+        }
+
+        [Test]
+        public void CompleteInstance_SyncContinuationRegister_DoesNotThrowOrCompleteLaterOp()
+        {
+            var registry = new IssuedSceneOperationRegistry();
+            Assert.That(registry.TryRegisterAdd("Season_Spring", out var addOp), Is.True);
+            Assert.That(registry.TryRegisterUnload("Season_Spring", out var unloadOp), Is.True);
+            registry.BindInstance(addOp, instanceGen: 1);
+            registry.BindInstance(unloadOp, instanceGen: 1);
+
+            var laterOp = 0;
+            var continuationRan = false;
+            var wait = registry.WaitAllIncomplete(CancellationToken.None);
+            wait.GetAwaiter().OnCompleted(() =>
+            {
+                continuationRan = true;
+                Assert.That(registry.TryRegisterAdd("Season_Spring", out laterOp), Is.True);
+                registry.BindInstance(laterOp, instanceGen: 1);
+            });
+
+            Assert.DoesNotThrow(() => registry.CompleteInstance("Season_Spring", 1));
+
+            Assert.That(continuationRan, Is.True);
+            Assert.That(registry.IsComplete(addOp), Is.True);
+            Assert.That(registry.IsComplete(unloadOp), Is.True);
+            Assert.That(laterOp, Is.Not.EqualTo(0));
+            Assert.That(registry.IsComplete(laterOp), Is.False);
+        }
     }
 }

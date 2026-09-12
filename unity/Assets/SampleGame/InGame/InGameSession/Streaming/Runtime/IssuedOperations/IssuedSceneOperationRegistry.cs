@@ -98,16 +98,27 @@ namespace SampleGame.InGame.Streaming
         }
 
         /// <summary>その個体の終端。紐づく未完了 op をすべて完了する。記録は消さない。</summary>
+        /// <remarks>
+        /// 終端時点で一致した op だけを完了する。TryComplete の同期 continuation が
+        /// Register しても Dictionary 列挙を壊さず、同イベントの後発 op を誤完了しない。
+        /// </remarks>
         internal void CompleteInstance(string identity, int instanceGen)
         {
+            var matched = new List<IssuedOp>();
             foreach (var pair in _ops)
             {
                 var op = pair.Value;
-                if (op.InstanceGen == instanceGen
+                if (!op.IsCompleted
+                    && op.InstanceGen == instanceGen
                     && string.Equals(op.Identity, identity, StringComparison.Ordinal))
                 {
-                    op.TryComplete();
+                    matched.Add(op);
                 }
+            }
+
+            for (var i = 0; i < matched.Count; i++)
+            {
+                matched[i].TryComplete();
             }
         }
 
