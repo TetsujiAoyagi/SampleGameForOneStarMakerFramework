@@ -98,5 +98,22 @@ namespace OneStarMaker.Tests.Streaming
             Assert.That(laterOp, Is.Not.EqualTo(0));
             Assert.That(registry.IsComplete(laterOp), Is.False);
         }
+
+        [Test]
+        public async Task BindIncompleteForIdentity_BindsUnboundAddAndUnload()
+        {
+            var registry = new IssuedSceneOperationRegistry();
+            Assert.That(registry.TryRegisterAdd("Spring_Environment_0_4", out var addOp), Is.True);
+            Assert.That(registry.TryRegisterUnload("Spring_Environment_0_4", out var unloadOp), Is.True);
+
+            registry.BindIncompleteForIdentity("Spring_Environment_0_4", instanceGen: 2);
+            var wait = registry.WaitAllIncomplete(CancellationToken.None);
+            Assert.That(wait.Status, Is.EqualTo(UniTaskStatus.Pending));
+
+            registry.CompleteInstance("Spring_Environment_0_4", 2);
+            await wait;
+            Assert.That(registry.IsComplete(addOp), Is.True);
+            Assert.That(registry.IsComplete(unloadOp), Is.True);
+        }
     }
 }

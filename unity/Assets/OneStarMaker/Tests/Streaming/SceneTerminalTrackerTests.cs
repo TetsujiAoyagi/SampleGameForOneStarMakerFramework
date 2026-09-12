@@ -81,6 +81,26 @@ namespace OneStarMaker.Tests.Streaming
             await wait;
         }
 
+        [Test]
+        public async Task WaitAllLive_WaitsEveryUnterminatedObservedInstance()
+        {
+            var terminals = new FakeTerminalEvents();
+            using var tracker = new SceneTerminalTracker(terminals);
+            var season = CreateInstance("Season_Spring");
+            var lighting = CreateInstance("Spring_Lighting");
+            tracker.RegisterObservedInstance(season);
+            tracker.RegisterObservedInstance(lighting);
+
+            var wait = tracker.WaitAllLive(CancellationToken.None);
+            Assert.That(wait.Status, Is.EqualTo(UniTaskStatus.Pending));
+
+            terminals.Emit("Season_Spring", SceneTerminalKind.Removed);
+            Assert.That(wait.Status, Is.EqualTo(UniTaskStatus.Pending));
+
+            terminals.Emit("Spring_Lighting", SceneTerminalKind.Removed);
+            await wait;
+        }
+
         private TestSceneBase CreateInstance(string identity)
         {
             var resource = SceneTestHelper.CreateSceneResource(identity);

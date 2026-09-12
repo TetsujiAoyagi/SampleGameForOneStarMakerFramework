@@ -86,6 +86,29 @@ namespace SampleGame.InGame.Streaming
         }
 
         /// <summary>
+        /// いま未終端の観測個体すべての終端を待つ。発行していない NecessaryAlways 子も対象。
+        /// </summary>
+        internal async UniTask WaitAllLive(CancellationToken ct)
+        {
+            ThrowIfDisposed();
+            var pending = new List<UniTask>();
+            foreach (var pair in _live)
+            {
+                if (!pair.Value.IsTerminated)
+                {
+                    pending.Add(pair.Value.Terminal.Task.AttachExternalCancellation(ct));
+                }
+            }
+
+            if (pending.Count == 0)
+            {
+                return;
+            }
+
+            await UniTask.WhenAll(pending);
+        }
+
+        /// <summary>
         /// 捕捉した個体の終端を待つ。登録されていない個体を後から完了扱いしない。
         /// </summary>
         internal UniTask WaitForInstance(SceneBase instance, CancellationToken ct)

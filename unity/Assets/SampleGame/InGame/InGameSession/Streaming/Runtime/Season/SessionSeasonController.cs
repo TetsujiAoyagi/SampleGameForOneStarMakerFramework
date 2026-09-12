@@ -282,6 +282,8 @@ namespace SampleGame.InGame.Streaming
 
             await UnloadCapturedAsync(oldSeason, ct);
             await _registry.WaitAllIncomplete(ct);
+            // Lighting は発行せず観測だけする。Season 終端より遅い Removed を待たないと再入場できない。
+            await _tracker.WaitAllLive(ct);
             _activeSeasonScene = null;
             _activeSeason = null;
         }
@@ -300,8 +302,7 @@ namespace SampleGame.InGame.Streaming
                 throw new InvalidOperationException($"AddScene('{identity}') 完了後に個体を捕捉できません。");
             }
 
-            var gen = _tracker.RegisterObservedInstance(captured);
-            _registry.BindLatestAdd(identity, gen);
+            BindCapturedInstance(identity, captured);
 
             await UniTask.WaitUntil(
                 () => _query.IsSceneStable(identity) && ReferenceEquals(_query.GetLoadedScene(identity), captured),
@@ -371,8 +372,35 @@ namespace SampleGame.InGame.Streaming
                     continue;
                 }
 
-                var gen = _tracker.RegisterObservedInstance(instance);
-                _registry.BindLatestAdd(child.Identity, gen);
+                BindCapturedInstance(child.Identity, instance);
+            }
+        }
+
+        private void BindCapturedInstance(string identity, SceneBase instance)
+        {
+            var gen = _tracker.RegisterObservedInstance(instance);
+            _registry.BindLatestAdd(identity, gen);
+            _registry.BindIncompleteForIdentity(identity, gen);
+        }
+
+        private void TryCaptureAndBind(string identity, int opId)
+        {
+            var captured = _query.GetLoadedScene(identity);
+            if (captured == null)
+            {
+                return;
+            }
+
+            var gen = _tracker.RegisterObservedInstance(captured);
+            _registry.BindInstance(opId, gen);
+            _registry.BindIncompleteForIdentity(identity, gen);
+        }
+
+        private void BindLiveGeneration(string identity, int opId)
+        {
+            if (_tracker.TryGetLiveGeneration(identity, out var gen))
+            {
+                _registry.BindInstance(opId, gen);
             }
         }
 
@@ -438,12 +466,7 @@ namespace SampleGame.InGame.Streaming
                 try
                 {
                     await _inner.RequestAdd(cellId, priority);
-                    var captured = _owner._query.GetLoadedScene(cellId);
-                    if (captured != null)
-                    {
-                        var gen = _owner._tracker.RegisterObservedInstance(captured);
-                        _owner._registry.BindInstance(opId, gen);
-                    }
+                    _owner.TryCaptureAndBind(cellId, opId);
                 }
                 catch
                 {
@@ -462,7 +485,14 @@ namespace SampleGame.InGame.Streaming
 
                 try
                 {
+                    _owner.BindLiveGeneration(cellId, opId);
                     await _inner.RequestRemove(cellId);
+                    _owner.BindLiveGeneration(cellId, opId);
+                    if (!_owner._tracker.HasLiveInstance(cellId)
+                        && !_owner._registry.HasIncompleteAdd(cellId))
+                    {
+                        _owner._registry.CompleteOp(opId);
+                    }
                 }
                 catch
                 {
@@ -519,6 +549,7 @@ namespace SampleGame.InGame.Streaming
                         priority,
                         telemetryLevel);
                     _owner._registry.RememberAddOp(sceneIdentify, opId);
+                    _owner.TryCaptureAndBind(sceneIdentify, opId);
                 }
                 catch
                 {

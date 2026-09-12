@@ -14,6 +14,7 @@ using OneStarMaker.Runtime.Streaming;
 using OneStarMaker.Tests.SceneSystem.Helpers;
 using OneStarMaker.Tests.SceneSystem.TestDoubles;
 using SampleGame.InGame.Streaming;
+using SampleGame.InGame.World;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -142,6 +143,71 @@ namespace OneStarMaker.Tests.Streaming
         });
 
         [UnityTest]
+        public IEnumerator SeasonSwitch_WithEnvironmentCompanionAndDistanceRemove_CompletesBoundOps()
+            => UniTask.ToCoroutine(async () =>
+        {
+            var fixture = CreateBranchConvergenceFixture();
+            await fixture.Season.EnsureInitialWorldAsync(CancellationToken.None);
+            await UniTask.WaitUntil(() => fixture.Controller.Added.Contains("Spring_Environment_0_4"));
+
+            fixture.StreamingDriver!.Controller.Tick(new Vector3(125f, 48f, 1125f + 10000f));
+            Assert.That(fixture.StreamingBackend!.Removed, Does.Contain("Spring_Cell_0_4"));
+
+            fixture.Controller.UnloadReturnsImmediately = true;
+            fixture.Controller.HoldStableUntilReleased = true;
+            var switchTask = fixture.Season.RequestSeasonAsync("Summer", 0, 4, CancellationToken.None);
+            await UniTask.Yield();
+            Assert.That(switchTask.Status, Is.EqualTo(UniTaskStatus.Pending));
+
+            fixture.Terminals.Emit("Season_Spring", SceneTerminalKind.Removed);
+            fixture.Terminals.Emit("Spring_Lighting", SceneTerminalKind.Removed);
+            fixture.Terminals.Emit("Spring_Cell_0_4", SceneTerminalKind.Removed);
+            await UniTask.Yield();
+            Assert.That(
+                switchTask.Status,
+                Is.EqualTo(UniTaskStatus.Pending),
+                "Environment companion の終端前に切替を完了しない");
+
+            fixture.Terminals.Emit("Spring_Environment_0_4", SceneTerminalKind.Removed);
+            await CompleteHeldSwitchAsync(fixture, "Season_Summer", "Summer_Lighting", "Summer_Cell_0_4");
+            await switchTask;
+        });
+
+        [UnityTest]
+        public IEnumerator DelayedLightingTerminal_BlocksSameSeasonReentryUntilObservedInstanceEnds()
+            => UniTask.ToCoroutine(async () =>
+        {
+            var fixture = CreateFixture();
+            await fixture.Season.EnsureInitialWorldAsync(CancellationToken.None);
+
+            fixture.Controller.UnloadReturnsImmediately = true;
+            fixture.Controller.HoldStableUntilReleased = true;
+            var toSummer = fixture.Season.RequestSeasonAsync("Summer", 0, 4, CancellationToken.None);
+            await UniTask.Yield();
+            Assert.That(toSummer.Status, Is.EqualTo(UniTaskStatus.Pending));
+
+            fixture.Terminals.Emit("Season_Spring", SceneTerminalKind.Removed);
+            fixture.Terminals.Emit("Spring_Cell_0_4", SceneTerminalKind.Removed);
+            await UniTask.Yield();
+            Assert.That(
+                toSummer.Status,
+                Is.EqualTo(UniTaskStatus.Pending),
+                "Lighting Removed が Season より遅いとき、観測個体の終端まで切替しない");
+
+            fixture.Terminals.Emit("Spring_Lighting", SceneTerminalKind.Removed);
+            await CompleteHeldSwitchAsync(fixture, "Season_Summer", "Summer_Lighting", "Summer_Cell_0_4");
+            await toSummer;
+
+            var toSpring = fixture.Season.RequestSeasonAsync("Spring", 0, 4, CancellationToken.None);
+            await UniTask.Yield();
+            fixture.Terminals.Emit("Season_Summer", SceneTerminalKind.Removed);
+            fixture.Terminals.Emit("Summer_Lighting", SceneTerminalKind.Removed);
+            fixture.Terminals.Emit("Summer_Cell_0_4", SceneTerminalKind.Removed);
+            await CompleteHeldSwitchAsync(fixture, "Season_Spring", "Spring_Lighting", "Spring_Cell_0_4");
+            await toSpring;
+        });
+
+        [UnityTest]
         public IEnumerator StopWorldOperations_RejectsNewIssues_DoesNotDrain()
             => UniTask.ToCoroutine(async () =>
         {
@@ -186,8 +252,34 @@ namespace OneStarMaker.Tests.Streaming
             Assert.That(fixture.Season.IsWorldReady, Is.False);
         });
 
+        private static async UniTask CompleteHeldSwitchAsync(
+            Fixture fixture,
+            string seasonIdentity,
+            string lightingIdentity,
+            string originIdentity)
+        {
+            await UniTask.WaitUntil(() => fixture.Query.IsSceneLoaded(seasonIdentity));
+            fixture.Query.Stable.Add(seasonIdentity);
+            fixture.Query.Stable.Add(lightingIdentity);
+            fixture.Controller.ReleaseHeldAdds();
+            await UniTask.WaitUntil(() => fixture.Query.IsSceneLoaded(originIdentity));
+            fixture.Query.Stable.Add(originIdentity);
+            fixture.Controller.ReleaseHeldAdds();
+        }
+
         private Fixture CreateFixture()
         {
+            return CreateFixtureCore(includeOriginEnvironment: false);
+        }
+
+        private Fixture CreateBranchConvergenceFixture()
+        {
+            return CreateFixtureCore(includeOriginEnvironment: true);
+        }
+
+        private Fixture CreateFixtureCore(bool includeOriginEnvironment)
+        {
+            var originVolume = new Bounds(new Vector3(125f, 48f, 1125f), new Vector3(250f, 96f, 250f));
             var spring = Track(SceneTestHelper.CreateSceneResource("Season_Spring"));
             var springLight = Track(SceneTestHelper.CreateSceneResource(
                 "Spring_Lighting",
@@ -198,8 +290,16 @@ namespace OneStarMaker.Tests.Streaming
                 "Spring_Cell_0_4",
                 parent: spring,
                 streamByDistance: true,
-                volume: new Bounds(new Vector3(125f, 48f, 1125f), new Vector3(250f, 96f, 250f))));
+                volume: originVolume));
             SceneTestHelper.AddChild(spring, springOrigin);
+            SceneResource? springEnvironment = null;
+            if (includeOriginEnvironment)
+            {
+                springEnvironment = Track(SceneTestHelper.CreateSceneResource(
+                    "Spring_Environment_0_4",
+                    parent: springOrigin));
+                SceneTestHelper.AddChild(springOrigin, springEnvironment);
+            }
 
             var summer = Track(SceneTestHelper.CreateSceneResource("Season_Summer"));
             var summerLight = Track(SceneTestHelper.CreateSceneResource(
@@ -211,7 +311,7 @@ namespace OneStarMaker.Tests.Streaming
                 "Summer_Cell_0_4",
                 parent: summer,
                 streamByDistance: true,
-                volume: new Bounds(new Vector3(125f, 48f, 1125f), new Vector3(250f, 96f, 250f))));
+                volume: originVolume));
             SceneTestHelper.AddChild(summer, summerOrigin);
 
             var resources = new Dictionary<string, SceneResource>(StringComparer.Ordinal)
@@ -223,6 +323,10 @@ namespace OneStarMaker.Tests.Streaming
                 [summerLight.Identity] = summerLight,
                 [summerOrigin.Identity] = summerOrigin,
             };
+            if (springEnvironment != null)
+            {
+                resources[springEnvironment.Identity] = springEnvironment;
+            }
 
             var query = new FakeQuery();
             var controller = new FakeBranchController(query, resources);
@@ -230,7 +334,32 @@ namespace OneStarMaker.Tests.Streaming
             volumes.Volumes[springOrigin.Identity] = springOrigin.Volume;
             volumes.Volumes[summerOrigin.Identity] = summerOrigin.Volume;
             var terminals = new FakeTerminalEvents();
-            var backend = new FakeStreamingBackend();
+            ISceneStreamingBackend backend;
+            QueryBackedStreamingBackend? queryBackend = null;
+            DriverHolder? driverHolder = null;
+            Func<ISceneStreamingBackend, StreamingCandidateSet, SessionWorldStreamingDriver>? driverFactory = null;
+            if (includeOriginEnvironment)
+            {
+                queryBackend = new QueryBackedStreamingBackend(query, controller);
+                backend = queryBackend;
+                var holder = new DriverHolder();
+                driverHolder = holder;
+                driverFactory = (issuedBackend, candidates) =>
+                {
+                    var driver = new SessionWorldStreamingDriver(
+                        issuedBackend,
+                        candidates,
+                        () => null,
+                        NullLogger.Instance);
+                    holder.Driver = driver;
+                    return driver;
+                };
+            }
+            else
+            {
+                backend = new FakeStreamingBackend();
+            }
+
             var season = new SessionSeasonController(
                 controller,
                 query,
@@ -239,10 +368,11 @@ namespace OneStarMaker.Tests.Streaming
                 terminals,
                 CellCompanionSet.Full,
                 () => null,
-                NullLogger.Instance);
+                NullLogger.Instance,
+                streamingDriverFactory: driverFactory);
             _seasons.Add(season);
 
-            return new Fixture(season, query, controller, terminals);
+            return new Fixture(season, query, controller, terminals, driverHolder, queryBackend);
         }
 
         private SceneResource Track(SceneResource resource)
@@ -257,18 +387,60 @@ namespace OneStarMaker.Tests.Streaming
                 SessionSeasonController season,
                 FakeQuery query,
                 FakeBranchController controller,
-                FakeTerminalEvents terminals)
+                FakeTerminalEvents terminals,
+                DriverHolder? streamingDriver = null,
+                QueryBackedStreamingBackend? streamingBackend = null)
             {
                 Season = season;
                 Query = query;
                 Controller = controller;
                 Terminals = terminals;
+                StreamingDriverHolder = streamingDriver;
+                StreamingBackend = streamingBackend;
             }
 
             internal SessionSeasonController Season { get; }
             internal FakeQuery Query { get; }
             internal FakeBranchController Controller { get; }
             internal FakeTerminalEvents Terminals { get; }
+            internal DriverHolder? StreamingDriverHolder { get; }
+            internal SessionWorldStreamingDriver? StreamingDriver => StreamingDriverHolder?.Driver;
+            internal QueryBackedStreamingBackend? StreamingBackend { get; }
+        }
+
+        private sealed class DriverHolder
+        {
+            internal SessionWorldStreamingDriver? Driver;
+        }
+
+        private sealed class QueryBackedStreamingBackend : ISceneStreamingBackend
+        {
+            private readonly FakeQuery _query;
+            private readonly FakeBranchController _controller;
+
+            internal QueryBackedStreamingBackend(FakeQuery query, FakeBranchController controller)
+            {
+                _query = query;
+                _controller = controller;
+            }
+
+            internal List<string> Removed { get; } = new();
+
+            public async UniTask RequestAdd(string cellId, int priority)
+            {
+                await _controller.AddScene(
+                    cellId,
+                    afterOnLoadedTask: null,
+                    CancellationToken.None);
+            }
+
+            public async UniTask RequestRemove(string cellId)
+            {
+                Removed.Add(cellId);
+                await _controller.UnloadScene(cellId);
+            }
+
+            public bool IsLoaded(string cellId) => _query.IsSceneStable(cellId);
         }
 
         private sealed class FakeQuery : ISceneQuery
@@ -342,7 +514,9 @@ namespace OneStarMaker.Tests.Streaming
                     throw new InvalidOperationException($"unknown {sceneIdentify}");
                 }
 
-                var scene = new TestSceneBase(resource, _query, this);
+                var scene = resource.StreamByDistance
+                    ? (SceneBase)new CellScene(resource, _query, this)
+                    : new TestSceneBase(resource, _query, this);
                 _query.Scenes[sceneIdentify] = scene;
                 _query.Loaded.Add(sceneIdentify);
 

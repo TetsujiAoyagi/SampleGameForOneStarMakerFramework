@@ -78,6 +78,25 @@ namespace SampleGame.InGame.Streaming
             }
         }
 
+        /// <summary>
+        /// その identity の未 bind な未完了 op を個体世代へ結ぶ。
+        /// Add 完了前に出た RequestRemove / 回収 Unload も同じ個体の終端で完了する。
+        /// </summary>
+        internal void BindIncompleteForIdentity(string identity, int instanceGen)
+        {
+            ThrowIfDisposed();
+            foreach (var pair in _ops)
+            {
+                var op = pair.Value;
+                if (!op.IsCompleted
+                    && op.InstanceGen == 0
+                    && string.Equals(op.Identity, identity, StringComparison.Ordinal))
+                {
+                    op.InstanceGen = instanceGen;
+                }
+            }
+        }
+
         internal void BindInstance(int opId, int instanceGen)
         {
             ThrowIfDisposed();
