@@ -4,7 +4,7 @@
 > status: P1 の Phase B 指摘修正済み。旧 Phase C evidence は stale、再レビュー待ち。C' は人間。この PR は P1 生成器のみ。P2 / 起動配線 / P3 は worktree `codex/s-4b-a0` に残す。
 > branch: `codex/s-4b-p1`
 > implementation base commit: `17dc67b232433e8ff3f909d99e401cddb159de50`（この PR の develop merge-base。HANDOFF 旧記の `0792edc` は PR #45 時点）
-> implementation head commit: 指摘修正 commit で更新予定（旧 `f3597adc26556624dc5aa0b0acccc2e7dfdf6ee7` の Phase C evidence は stale）
+> implementation head commit: `64d21c575d587004033351bb8ec77b3ec6df5b31`（指摘修正。旧 `f3597adc26556624dc5aa0b0acccc2e7dfdf6ee7` の Phase C evidence は stale）
 > risk: high（明示ワイプ、652 Scene、Addressables、起動順序）
 > owner: 発注者 / S-4b 担当
 > A0 担当: Codex / GPT-6 / OpenAI。
