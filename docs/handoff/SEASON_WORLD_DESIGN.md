@@ -84,7 +84,7 @@ y0  |  .  .  .  .  .  .  .  .  .
 - 見証セル: `(4,2)`（線の曲がり角。tall vertical、遠くから同定できるシルエット）
 - 背: `y=5` の行 9 セル
 - グリッド定数は [現状仕様](../streaming/STREAMING_CURRENT_SPEC.md) の写し: `Origin = (0,0,0)` / `CellSize 250` / `LoadRadius 375` / `UnloadRadius 550` / `MaxInFlight 2`
-- スポーン座標は春（変奏 I）の源流セル `(0,4)` 中心上空（構図の定点）。現行コードの `WorldCellCatalog.SpawnPosition` は `Cell_0_0`。S-4 で移すのは **N-1 と同スライス**。Ensure が無い状態で座標だけ移すと、Season_* が OnDemand のため空中スポーンになる
+- スポーン座標は春（変奏 I）の源流セル `(0,4)` 中心上空（構図の定点）。S-4b で `WorldCellCatalog.SpawnPosition` と初期 Ensure を同時に移行済み
 - 品質バー 1 の判定地点は演奏レイヤがある線上（見証 `(4,2)`、または線の途中 `(2,3)`）。スポーン `(0,4)` ではない。`(0,4)` は S-9 まで Generated（§4）
 
 この座標は **M 前提**（§9）。S-4 頭の実測で S（6×4）に落とすなら楽譜も書き直す。
@@ -96,7 +96,7 @@ y0  |  .  .  .  .  .  .  .  .  .
 FW は季節語を知らない。次は SampleGame のファイル名の約束である。
 
 ```
-無修飾:   Cell_{x}_{y}                      （現行 4×4。移行の口を通すあいだ存続）
+無修飾:   Cell_{x}_{y}                      （旧 World。S-4b で撤去済み）
 修飾付き: {Qualifier}_Cell_{x}_{y}          例: Spring_Cell_4_2
 Environment: {Qualifier}_Environment_{x}_{y} 例: Spring_Environment_4_2
 季節コンテナ: Season_Spring 等
@@ -122,7 +122,7 @@ Main
               └── Season_Winter (OnDemand)
 ```
 
-- 現行の `World` ノードは Season_* 4 つに置き換わる（§33 D-2 どおり）
+- 旧 `World` ノードは S-4b で Season_* 4 つに置き換え済み（§33 D-2 どおり）
 - **常駐する季節はトンネル遷移中を除き常に 1 つ。** 全季節が同じ AABB を占めるため、
   遷移は必ず「旧季節 Unload 完了 → 新季節 Add」の順。重畳を作らない
 - 実行時の不変条件: `Season_*` が Stable なのは高々 1 つ。破ったら失敗（ログ受入だけにしない）
@@ -133,7 +133,7 @@ Main
 距離・ヒステリシス・候補集合の持ち方は [§34](../../unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md)。
 本書が固定するのは「四季は同じ AABB を共有し、候補集合だけが排他」という**使い方**である。
 
-S-4 で 9×6×4 を焼く前提だった M-1〜M-4 は、現行 4×4 で受入済みである。S-4 はこの境界を戻さず、修飾付き identity を SampleGame 内で扱う。
+M-1〜M-4 の境界を戻さず、S-4b で 9×6×4 と修飾付き identity を SampleGame 内へ着地させた。
 
 ---
 
@@ -232,43 +232,37 @@ S-9a / b の結果には、比較可能性のため次の **workload manifest** 
 
 S-9 の着手時 HANDOFF は S-9a〜c を 1 ブランチに詰め込まない。少なくとも「測定器と純政策ベンチマーク」「実コンテンツ計測」「判断記録」を責務として見積もり、500 行または 3 責務を超える見込みなら別スライス / 別ブランチへ切る。閾値は測定を見て後付けせず、各測定スライスの開始時にハードウェアと workload manifest とともに固定する。
 
-**S-4 の既存 16 セル: 全廃。** 谷は新規生成する。移送も座標補正も行わない。
-`move_asset` も `set_transform` によるワールド Δ も、破壊経路 3 に旧 12 枚を任せる手順も、使わない。
-旧 `Cell_0_0`（南辺の手編集）を `Spring_Cell_0_4` へ移して昇格する、は採らない。源流 `(0,4)` は新規 Generated。stamp で生存を見ない（移送しない）。y=4 行は S-9 まで昇格禁止（§4）。
+**S-4b で既存 16 セルは全廃済み。** 谷は新規生成し、移送も座標補正も行わなかった。
+`move_asset` も `set_transform` によるワールド Δ も、破壊経路 3 に旧 12 枚を任せる手順も使っていない。
+旧 `Cell_0_0`（南辺の手編集）を `Spring_Cell_0_4` へ移して昇格する案は採らなかった。源流 `(0,4)` は新規 Generated。stamp で生存を見ていない。y=4 行は S-9 まで昇格禁止（§4）。
 
-M-1〜M-4 の移行中は現行 16 枚を動かさなかった。全廃は S-4 の仕事。
+M-1〜M-4 の移行中は旧 16 枚を動かさず、S-4b で全廃した。
 
-M-2 後の `CellPopulationPlan` は座標範囲ではなく target identity の集合で削除を決める。したがって、新しい修飾付き target に含まれない既存 `Generated` identity は削除計画に載る。一方、既存の南辺 4 枚は `HandAuthored` のため target 外でも保護される。S-4 はこの 4 枚を含む旧 16 枚の全廃を明示的に扱い、修飾付き identity を生成器へ渡す必要がある。
+S-4b の一時 `CellPopulationPlan` は target identity の集合で削除対象を決めた。旧南辺4枚を含む16枚は明示ワイプし、修飾付き identity の生成後に plan / policy / generator を撤去した。S-4c 以降で復活させない。
 
-手順:
+実施記録:
 
 1. M-1〜M-4 の受入が現行 4×4 で通っていること（完了済み）
-2. target 外となる旧 `Generated` の削除計画を確認し、保護される旧 `HandAuthored` 4 枚を含めて `Cell_*` / `Environment_*` を消す**明示ワイプ**を S-4 で設計する
-3. ワイプの前に、南辺 4 座標 `(0,0)(1,0)(2,0)(3,0)` を別々の意味で持つ 3 配列を触る
-4. 修飾付き identity を吐く生成器を回す（`CellIdentity.Format` のまま焼かない）
-5. 初期 policy は全 Generated。昇格は S-8a
+2. 旧 `HandAuthored` 4 枚を含む `Cell_*` / `Environment_*` を明示ワイプ
+3. 南辺4座標を持っていた旧 policy を生成前に解消
+4. 修飾付き identity の四季アセットを一回生成
+5. 全件 Generated を確認後、一時生成器と policy を撤去。昇格は S-8a
 
-| # | 場所 | 何が起きるか |
-|---|---|---|
-| 1 | `CellAuthoringPolicy.HandAuthoredCells`（`CellPopulationPlan.cs` が `Resolve` する） | 範囲内の Skip。空にしないと南辺 4 枚は Populate されず残る（削除計画には載らない） |
-| 2 | `WorldCellStreamingSliceCreator.EnvironmentSproutCells` | 二役。(a) Environment 子を作るセル (b) Ground を置かないセル（`includeGround = !sproutSet.Contains(...)`）。「全セルに Environment をスキャフォールド」で配列を全セルへ広げると、**谷全体から地面が消える**。二役を切り離すこと |
-| 3 | `HandEditProbe.TargetCells` | 南辺 4 枚のハードコード。捨てたセルを stamp しにいく。春の演奏レイヤ（S-8a）の identity へ差し替えるまで無効 |
+旧 `CellAuthoringPolicy.HandAuthoredCells`、`WorldCellStreamingSliceCreator.EnvironmentSproutCells`、`HandEditProbe.TargetCells` は一時生成器とともに撤去済み。南辺4座標の旧ハードコードを S-4c 以降の入力にしない。
 
-**S-4 で名前文法が外れる残りの口:**
+**S-4b で名前文法を外した口:**
 
-- `SessionWorldStreamingDriver`: 距離候補列の identity を `CellIdentity.Format` で組み立てる。`GameSceneFactory` / `CellScene` の結線は S-4a で `StreamByDistance` / `Parent` へ移し、`EnvironmentIdentity` は削除済み
-- R-3 は M-3 で `SceneResource.StreamByDistance` の検査へ移行済み。S-4 は新しい SceneResource に候補フラグを正しく焼き、修飾付き identity でもガードが効くことを維持する
+- `SessionWorldStreamingDriver`: active Season から渡された候補集合を駆動する。`GameSceneFactory` / `CellScene` の結線は S-4a で `StreamByDistance` / `Parent` へ移し、`EnvironmentIdentity` は削除済み
+- R-3 は M-3 で `SceneResource.StreamByDistance` の検査へ移行済み。S-4b の SceneResource に候補フラグを設定し、修飾付き identity でもガードを維持した
 
-スポーン: 現行 `WorldCellCatalog.SpawnPosition` は `Cell_0_0` 中心。S-4 で春の源流 `(0,4)` へ移すのは **N-1 と同スライス**（未決のまま座標だけ動かさない）。
+スポーン: `WorldCellCatalog.SpawnPosition` は S-4b で春の源流 `(0,4)` 中心へ移行済み。
 
-**Catalog / Driver（S-4 で SampleGame 側）:** 谷の生成器入力は矩形 1 つ `{ origin=(0,0), size=(9,6) }`。局所 54 セルは楽譜（生成器が AABB を焼く入力）であり、距離政策の入力ではない。
+**Catalog / Driver（SampleGame 側）:** 谷は矩形 1 つ `{ origin=(0,0), size=(9,6) }`。局所54セルは制作座標であり、距離政策の入力ではない。
 **距離政策の候補は identity、体積は AABB**（[§34](../../unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md)）。Catalog の矩形・格子列挙を desired にしない。
 アクティブ季節が候補集合を決める。FW に季節語を出さない。
-生成器は Season_* 4 ノードを吐き、`World` を置き換える。楽譜関数は局所 `(x,y)` の純関数。
-乱数を使うならシード固定。全セルに Environment をスキャフォールド（空でよい）。
-スキャフォールドは sprout 配列の二役を切ったあとの口で行う（上表 2）。
+S-4b で Season_* 4ノードが `World` を置き換え、全セルに Environment を配置済み。生成器は撤去済みである。
 
-**テスト:** 既存 WSC / MultiFocus / 統合 / 生成器 / `CellPopulationPlan` は残す。
+**テスト:** 既存 WSC / MultiFocus / 統合に加え、Season 起動・切替・companion の寿命境界を残す。撤去済み生成器のテストは復活させない。
 入力は完了済み M-1〜M-4 の identity／体積契約に追随させる（現況は `STREAMING_CURRENT_SPEC.md`）。
 旧 T-A（矩形間空隙ガード）の本番 assert は不要（本番は単一矩形 × 共有座標）。フィクスチャとしては残してよい。
 テストで `Task.Delay` / `Thread.Sleep` 禁止。全件実行は Phase C。実装者は「実装完了。テスト未実行」と報告する。
@@ -285,7 +279,7 @@ M-2 後の `CellPopulationPlan` は座標範囲ではなく target identity の�
 | **M** | **9×6** | **216** | **54s** | **432** | **~432**（生成器 2 回ならその倍） |
 | L | 12×8 | 384 | 71s | 768 | ~768 |
 
-現行 4×4 は Cell 16 + Environment 4 + World ほかで `.unity` は 20 枚前後。
+旧 4×4 は Cell 16 + Environment 4 + World ほかで `.unity` 20 枚前後だった。S-4b の現況は 9×6×4、652 Scene。
 `SceneResourceMap.asset` は 1 ファイルの平坦リストで、M ではエントリが数百になる（R-6 の構造衝突）。
 
 `WorldCellStreamingSliceCreator` は AuthoredRoot 確認のためにセル / Environment を 1 枚ずつ開いて閉じる。
@@ -326,7 +320,7 @@ M-2 後の `CellPopulationPlan` は座標範囲ではなく target identity の�
 | N-5 | 第三声部（照明職 `*_Lighting_*.unity`）を標準装備にするか | S-8 までに発注者判断。今回は 2 声部 |
 | N-6 | `unityyamlmerge` ドライバ設定（前提条件ではない） | 任意 |
 | N-7 | ~~AABB の置き場~~ **決定済み（M-1）: `SceneResource` 直下**（`_volume` ＋ `_streamByDistance`）。値は生成器が格子定数から焼くのではなく、Editor がシーン保存フックと全件メニューで `.unity` から自動計算する | [STREAMING_CURRENT_SPEC.md](../streaming/STREAMING_CURRENT_SPEC.md) に harvest 済み |
-| N-8 | 生成器を**実証項目として**残すか。決まったら **§2 品質バー 4 / §4 の「再生成しても編集が残る」「イテレーション」の 2 行 / W-4** が同時に動く。残すなら Generated / HandAuthored 同居は S-8a 以降も生きる。下ろすならそれらと `CellAuthoringPolicy` / `CellPopulationPlan` / `HandEditProbe` / R-6 の公開面分類が同時に動く（§21 / §33 は同居自体を実証対象と書いている）。S-4 で 216 セルを焼く装置自体は、どちらでも残る | S-4 頭 |
+| N-8 | **解決済み:** S-4b の生成器と制作 policy は生成後に撤去した。実証項目として復活させない。将来の一括生成は新しい制作スライスで扱う | S-4b |
 | N-9 | 体積収集の範囲。現状は全 `Renderer`（`includeInactive: true`）。Particle / 無効デバッグメッシュで中心が跳ね得る。規約が要るなら谷を焼くときに決める | S-4 |
 | N-10 | `WorldStreamingController.Candidates` 差し替え口。候補集合は丸ごと作り直す型。in-flight を抱えたまま集合だけ替えたくなったら WSC 側に口を足す | S-4 |
 

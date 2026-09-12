@@ -1,7 +1,7 @@
 # S-4 フルスペック World 制作基盤
 
 > type: program
-> status: 発注者承認済み。S-4a は develop へマージ済み（公開面: Architecture §04 / §05 / §18 / §20 / §21 / §27 と STREAMING_CURRENT_SPEC）。S-4b 着手時 HANDOFF の入力正本。
+> status: 発注者承認済み。S-4a / S-4b は develop へマージ済み。S-4c〜d 着手時 HANDOFF の入力正本。S-4b の現況は Architecture §18 / §21 / §27 と STREAMING_CURRENT_SPEC へ harvest 済み。
 > branch: `codex/s-4-full-spec-plan`
 > implementation base commit: `1502ffc`
 > risk: high
@@ -199,6 +199,8 @@ Scene / asset YAML は直接編集しない。
 
 ## 4. S-4b — 四季 World 生成
 
+> **完了。** 以下は生成物と実施境界の記録であり、S-4c 以降の実行手順ではない。一時生成器、旧 policy、`WorldGridDefinition`、再実行メニューは撤去済みで、復活させない。
+
 ### 4.1 生成物
 
 - logical Season Resource: 4（Scene実体なし）
@@ -211,30 +213,30 @@ Scene / asset YAML は直接編集しない。
 Whiteboxは全216 Cellに作る。Environment制作前でも谷の線、床、通路、主要シルエットを確認できる
 軽量な proxy とし、Events authoring の衝突・移動面を提供する。
 
-初期 policy は全件 Generated。S-8a より前に HandAuthored へ昇格しない。
+生成時 policy は全件 Generated とした。S-8a より前に HandAuthored へ昇格しない。
 
 ### 4.2 旧Worldの廃止
 
-旧 `World`、旧16 Cell、旧4 Environmentを明示ワイプする。移送、座標補正、stampによる生存判定、
-旧南辺4 Cellの昇格は行わない。
+旧 `World`、旧16 Cell、旧4 Environmentは明示ワイプ済み。移送、座標補正、stampによる生存判定、
+旧南辺4 Cellの昇格は行わなかった。
 
 ### 4.3 起動
 
 Springを追加し、そのSeason Resource直下の `StreamByDistance` childrenから候補集合を作る。
-Spring `(0,4)` CellがStableになるまでPlayer入力を有効にしない。その後に通常の距離Tickを開始する。
+Spring `(0,4)` CellがStableになるまでPlayer入力を有効にせず、その後に通常の距離Tickを開始する配線を実装済み。
 
 Active Seasonは最大1つ。候補集合はSeason枝ごと交換し、identity文字列を季節間で翻訳しない。
-S-4ではSpring初期化と排他controllerの入口までを作り、Tunnel遷移シーケンスはS-5に残す。
+S-4bではSpring初期化と排他controllerの入口までを実装した。Tunnel遷移シーケンスはS-5に残す。
 
 ### 4.4 一時生成器
 
-ブランチ内で次のcommitを分け、非squash mergeで履歴を保存する。
+ブランチ内で次のcommitを分け、非squash mergeで履歴を保存した。
 
 1. 一時生成器とdry-run / aggregate validation。
 2. 生成されたScene / SceneResource / Addressables差分。
 3. 一時生成器、旧policy、reconciler、probe、generator専用tests、`WorldGridDefinition.asset`の削除。
 
-最終状態に大量生成器を残さない。日常利用するWorld Workspaceと職種Scene1件の作成機能だけを残す。
+最終状態に大量生成器は残していない。日常利用するWorld Workspaceと職種Scene1件の作成機能だけを残した。
 
 ---
 

@@ -1,5 +1,0 @@
-expectedScenes=652
-actualScenes=652
-actualSeasonResources=440
-generatorSourceMatches=0
-worldMaterialBindingsExists=False

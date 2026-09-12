@@ -1,7 +1,7 @@
 # 34. OnDemand の空間政策
 
 > ステータス: **到着契約。一部実装済み。** 実装値の正本ではない。
-> 距離政策の口、体積のデータ化、候補フラグによる R-3、生成器の identity キー化、セル型の SampleGame 移動は着地した。残る名前文法は SceneBase 結線、子 identity 導出、`CellScene` の検証、Driver の候補組み立てである。
+> 距離政策の口、体積のデータ化、候補フラグによる R-3、セル型の SampleGame 移動は着地した。距離候補は active Season の子から選び、Driver は identity を組み立てない。一回限りの S-4b 生成器は撤去済みである。
 > 現状（今動いている実装）: [§21](21-scene-streaming.md) / [STREAMING_CURRENT_SPEC.md](../../../../docs/streaming/STREAMING_CURRENT_SPEC.md)
 > 対照: [STREAMING_CURRENT_VS_IDEAL.md](../../../../docs/streaming/STREAMING_CURRENT_VS_IDEAL.md)
 > 関連: [§5 LoadType](05-scene.md)（親に対する引っ張り。本章は触らない）/ [§33](33-sample-demonstration-boundaries.md)（SampleGame の実証。世界構図は作業台）

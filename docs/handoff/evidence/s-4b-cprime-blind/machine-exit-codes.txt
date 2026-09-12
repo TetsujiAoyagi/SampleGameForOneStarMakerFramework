@@ -1,4 +1,0 @@
-contractAuditExit=0
-diffCheckExit=2
-diffCheckCSharpExit=0
-docsAuditExit=0

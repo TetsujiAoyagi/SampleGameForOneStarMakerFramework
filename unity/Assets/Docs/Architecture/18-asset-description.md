@@ -57,7 +57,7 @@ Variant は「同じ論理アセットに対する制作・検証用の差し替
 - Variant 名の規約は Framework が強制しない。命名はプロジェクト規約として別途決める必要がある。
 - 子依存（Material/Texture 等）は whitelist に含めず、Addressables の dependency resolution に委譲（IK-B5）。Payload は **primary GUID のみ**を宣言する。
 - 起動時 Scene Variant は [§4.8](04-app-startup.md#48-起動時-scene-variant-と職種-companion-set) が所有する。本機構（checkout / packed カタログ）は実行中の切替口ではない。
-- Editor の World Workspace は runtime fallback を使わず、`SceneResource.GetPayloads()` の ordinal 完全一致だけを要求する。必須 payload が無いときは一件も開かない。全 Cell の Whitebox payload は後続の世界生成スライスが揃える。
+- Editor の World Workspace は runtime fallback を使わず、`SceneResource.GetPayloads()` の ordinal 完全一致だけを要求する。必須 payload が無いときは一件も開かない。S-4b で全216 Cellに空文字と `Whitebox` の payloadを設定済みである。
 
 ---
 

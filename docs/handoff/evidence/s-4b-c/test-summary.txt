@@ -1,8 +1,0 @@
-streaming total=118 passed=118 failed=0 skipped=0
-SessionSeasonControllerTests=6
-PlayerWorldReadySequenceTests=3
-IssuedSceneOperationRegistryTests=5
-SceneTerminalTrackerTests=3
-SeasonCandidateSelectionTests=5
-WorldCellCatalogTests=4
-all total=675 passed=675 failed=0 skipped=0

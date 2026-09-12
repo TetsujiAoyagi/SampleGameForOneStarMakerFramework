@@ -7,7 +7,7 @@
 > 前提資料: [05. シーン管理](05-scene.md) / [13. リソースシステム](13-resource-system.md)
 > 関連: HLOD / Proxy ティアの詳細は将来の §22 に分離する（本書はインターフェース予約のみ）
 >
-> 本書が固定して残るのは政策/メカニズム分離（D-3 / D-4）、生成器の非破壊契約、受入値、チケット履歴である。格子座標をランタイムのキーにしている記述は**当時動いていた経路**であり、一般化先ではない。**距離政策と生成器のキーは identity へ、R-3 は候補フラグへ移行済み**（実装値は `STREAMING_CURRENT_SPEC.md`）。factory と `CellScene` は `StreamByDistance` / `Parent` で分類する。距離候補列の identity 組み立ては `SessionWorldStreamingDriver` に残る。
+> 本書が固定して残るのは政策/メカニズム分離（D-3 / D-4）、生成時の非破壊契約、受入値、チケット履歴である。格子座標をランタイムのキーにしている記述は**当時動いていた経路**であり、一般化先ではない。**距離政策のキーは identity へ、R-3 は候補フラグへ移行済み**（実装値は `STREAMING_CURRENT_SPEC.md`）。factory と `CellScene` は `StreamByDistance` / `Parent` で分類し、距離候補は active Season の子から選ぶ。一回限りの S-4b 生成器は撤去済みである。
 
 ---
 
@@ -118,14 +118,15 @@ flowchart TB
 Main (ルート)
   └── InGameScene (コンテナ)
         └── InGameSession
-              └── World (LoadType.NecessaryAlways、セルの親)
-                    ├── Cell_0_0 (LoadType.OnDemand)          ← 距離ストリーミング境界
-                    │     └── Environment_0_0 (OnDemand)      ← 職種作業単位（引っ張られない）
-                    ├── Cell_0_1 (LoadType.OnDemand)
-                    └── ... (N×N)
+              └── Season_* (LoadType.OnDemand、active は高々1)
+                    ├── *_Lighting (NecessaryAlways)
+                    └── *_Cell_{x}_{y} (OnDemand + StreamByDistance)
+                          └── *_Environment_{x}_{y} (OnDemand)
 ```
 
-> 上図は現況である。SampleGame の実証境界（Season / Tunnel）が入ると `InGameSession` と `Cell` のあいだに Season Level が挟まり、`World` はそれに置き換わる。設計は [§33](33-sample-demonstration-boundaries.md)。
+上図が現況である。四季は同じ 9×6 座標を持ち、論理 Resource は Season 4 + Lighting 4 + Cell 216 + Environment 216 = 440、Scene payload は Lighting 4 + Cell Full/Whitebox 432 + Environment 216 = 652。旧 `World` ノードと一括生成器は残さない。
+
+初期化は `Season_Spring` Stable → `Spring_Cell_0_4` Stable → WorldReady 通知 → Player の Teleport / focus 登録 / 入力 ON → 距離 Tick 開始の順。Add の戻りを Stable とみなさない。季節切替では、この枝が発行した companion Add / distance Remove を観測個体世代へ結び、Season と NecessaryAlways Lighting を含む全観測個体の終端後に次の Season を Add する。Session 終了は新規発行を止めるが、lifecycle callback 内で drain を await しない。
 
 ### Cell 作業単位と子シーン（CCS / 2026-07-26）
 
@@ -155,7 +156,7 @@ SampleGame/InGame/InGameSession/Seasons/
 
 - Cell は active Season の子・`LoadType.OnDemand` + `StreamByDistance`。親ロード時に自動ロードされず、距離 Tick の指示でのみ出入りする
 - InGame 退出は Session のツリー Unload（または InGame ごと）で季節枝が再帰破棄される
-- `WorldStreamingController` は DependOnAll で手動 DI 配線し（[03-di.md](03-di.md)）、InGame シーンの寿命に合わせて Start/Stop する
+- `SessionSeasonController` が active Season ごとに距離/companion driver を構築し、InGame Session 寿命で停止する。`WorldStreamingController` 自体は候補の Season 文法を知らない
 
 ---
 
@@ -238,7 +239,7 @@ Addressables グループ登録 (既存の AddressablesGroupSyncFilter を流用
 
 **`WorldCellCatalog`（`SampleGame.InGame.Streaming` の const）が正本である。** `WorldGridDefinition.asset` と一括生成器は S-4b P3 で HEAD から削除した。
 
-**アセット側だけを書き換えても効かない。** ランタイムの `SessionWorldStreamingDriver` はアセットではなく `WorldCellCatalog` の const を読んで desired set を組むため、乖離させると存在しない Cell を要求する。グリッド寸法を変えるときは const 側を変えること。
+**S-4b 後の現行経路では、** `SessionWorldStreamingDriver` は active Season から渡された候補集合を駆動し、identity を組み立てない。`WorldCellCatalog` の const は制作座標・membership・スポーンに残るため、格子寸法を変える場合は生成済みアセットとの整合を新しい設計スライスで扱うこと。
 
 #### エディタ拡張が batchmode で踏む罠（2026-08-16）
 
