@@ -1049,3 +1049,15 @@ PR #47 merge `bfdc1f8` をこの worktree へ取り込んだ。P3 で消した�
 **未確認:** 現 head に対する Editor 内 Graph / Map / Addressables / 体積の再 Inspect、人間の代表操作、共有材の見た目。Addressables build は、P2 の登録検査後に Addressables 設定を変える差分がなく、今回の差し戻しが runtime/test のみなので実施していない。既知の `World/Cells/Cell_*` と `World/Materials` 空フォルダ meta は資産として残る。
 
 **人間の代表操作手順:** Title から開始し、Spring と `Spring_Cell_0_4` が Stable になるまで入力が無効であること、準備後に入力可能となること、境界移動で候補 Cell と Environment が追従すること、Result 遷移後に遅延 Add が Session 祖先を再ロードしないことを観測する。季節切替 UI は本 slice に無いため、切替の人間操作判定は後続入口から行う。
+
+### 7.34 Phase B 差し戻し修正（PR #48 R-1 / R-2 / R-3。2026-09-12）
+
+担当: Cursor App / Grok 4.6。開始 HEAD `815cc84`、branch `codex/s-4b-p2`。A revision 2 は凍結のまま再設計していない。C' / D の判定は書かない。
+
+**R-1:** companion `AddScene` と距離 `RequestRemove` を `SceneTerminalTracker` の個体世代へ bind する。Add 完了前の Unload は `BindIncompleteForIdentity` で同じ個体に結ぶ。Environment 子付きの切替と distance remove の回帰は `SessionSeasonControllerTests`。
+
+**R-2:** NecessaryAlways Lighting は発行せず観測する契約を維持する。`TearDownActiveBranchAsync` は発行済み待ちのあと `WaitAllLive` し、Season Removed より遅い Lighting Removed を待ってから次 Season / 再入場する。回帰は遅延 Lighting と Spring 再入場。
+
+**R-3:** §7.6 / §7.7 の退役どおり `WorldMaterialBindings` を削除した。共有 Lit path は `SeasonScene` の PreLoad 責務へ移した。§7.27 時点で定数用に残していた記述は、この節で置換済み。
+
+Unity.exe / Generate / `run-tests.ps1` / Addressables build / `unity test` / `unity run` は未実行。完了時 `pwsh tools/contract-audit.ps1`。
