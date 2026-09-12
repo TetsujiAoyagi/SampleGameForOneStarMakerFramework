@@ -1061,3 +1061,11 @@ PR #47 merge `bfdc1f8` をこの worktree へ取り込んだ。P3 で消した�
 **R-3:** §7.6 / §7.7 の退役どおり `WorldMaterialBindings` を削除した。共有 Lit path は `SeasonScene` の PreLoad 責務へ移した。§7.27 時点で定数用に残していた記述は、この節で置換済み。
 
 Unity.exe / Generate / `run-tests.ps1` / Addressables build / `unity test` / `unity run` は未実行。完了時 `pwsh tools/contract-audit.ps1`。
+
+### 7.35 Phase C 再レビュー（PR #48 R-1 / R-2 / R-3。2026-09-12）
+
+担当: Codex / GPT。固定対象は base `bfdc1f8a1f614ff17ae39a1a158181d6313ae879`、新 implementation head `557fd4853b1fc0ed2b3408f8691c958fdf1a27bf`。旧 `s-4b-c` はこの head の証拠として使わず、`docs/handoff/evidence/s-4b-c2/` へ作り直した。C' blind 入力も `docs/handoff/evidence/s-4b-c2prime-blind/` へ更新する。
+
+**採否と修正:** R-1 high、R-2 medium、R-3 low を採用。実装は新規 Cursor CLI `cursor-grok-4.6-high` セッションが commit `8a01376` / `557fd48` として作成した。companion Add と distance Remove は観測個体世代へ bind され、Add 完了前の Remove も同一個体へ結ぶ。枝撤去は issued op 後に未終端の Lighting 観測個体も待つ。`WorldMaterialBindings` は削除し、共有 Lit path は `SeasonScene` の既存 PreLoad 責務へ移した。公開 API / `SceneState` / `SceneEventType` / asmdef の追加はない。
+
+**再検査:** Streaming は total 122 / failed 0 / skipped 0。Environment 子付き切替、distance Remove、Season より遅い Lighting Removed、Spring 再入場を含む。全 EditMode は total 679 / failed 0 / skipped 0。`pwsh tools/contract-audit.ps1 -BaseRef bfdc1f8...` は exit 0（差分 Unity C# 35 files）。Generate と Addressables build は再実行していない。現 head の Editor 内 Graph / Map / Addressables / 体積再 Inspect、人間の代表操作は未確認のまま。
