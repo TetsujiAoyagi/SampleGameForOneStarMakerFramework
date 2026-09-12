@@ -64,7 +64,8 @@ namespace OneStarMaker.Editor.SceneGraph
         public static int RecalculateAll()
         {
             // batchmode でダイアログを出すと固まる。対話セッションでだけ未保存の扱いを訊く。
-            if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+            if (!Application.isBatchMode && !SaveHookSuspended
+                && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
             {
                 Debug.LogWarning("[SceneVolumeRecalculator] 未保存シーンの扱いが確定しなかったため中止しました。");
                 return 0;

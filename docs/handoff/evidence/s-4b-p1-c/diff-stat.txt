@@ -1,0 +1,14 @@
+ docs/handoff/S-4b_WORLD_GENERATION_A0.md           | 894 +++++++++++++++++++++
+ .../Tests/Editor/SeasonWorldGenerationTests.cs     | 162 ++++
+ .../Editor/SeasonWorldGenerationTests.cs.meta      |   2 +
+ .../WorldAuthoring/SeasonWorldGenerationCommand.cs | 229 ++++++
+ .../SeasonWorldGenerationCommand.cs.meta           |   2 +
+ .../WorldAuthoring/SeasonWorldGenerationPlan.cs    | 132 +++
+ .../SeasonWorldGenerationPlan.cs.meta              |   2 +
+ .../Editor/WorldAuthoring/SeasonWorldValidation.cs | 222 +++++
+ .../WorldAuthoring/SeasonWorldValidation.cs.meta   |   2 +
+ .../Editor/WorldAuthoring/SeasonWorldWipe.cs       | 150 ++++
+ .../Editor/WorldAuthoring/SeasonWorldWipe.cs.meta  |   2 +
+ .../InGameSession/Streaming/SeasonCellNames.cs     |  43 +
+ .../Streaming/SeasonCellNames.cs.meta              |   2 +
+ 13 files changed, 1844 insertions(+)
