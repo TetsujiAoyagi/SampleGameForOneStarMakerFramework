@@ -26,7 +26,7 @@ description: >-
 2. `unity command` で **この Editor が公開している名前** を見る。推測でコマンド名を固定しない。
 3. 名前付き command を先に使う。Pipeline 0.4 系なら `move_asset` / `open_scene` / `save_scene` / `set_transform` / `menu` が候補。
 4. 名前付き command が足りないときだけ `unity command eval`。
-5. 生成器 1 回は既存メニュー `OneStarMaker/Sample/Create World + Cell Streaming Slice`（`WorldCellStreamingSliceCreator.CreateFromMenu`）を `menu` か eval で叩く。
+5. S-4b P3 以降、`WorldCellStreamingSliceCreator` / `SeasonWorldGenerationCommand` メニューは HEAD に無い。Generate を再実行しない。
 
 ## Phase B でやってはいけない
 

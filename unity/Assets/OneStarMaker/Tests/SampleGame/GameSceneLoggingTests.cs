@@ -102,7 +102,10 @@ namespace OneStarMaker.Tests.SampleGame
             var factory = CreateFactory(NullLoggerFactory.Instance);
             var resource = SceneTestHelper.CreateSceneResource("Spring_Lighting");
 
-            Assert.That(factory.CreateSceneClass(resource, new StubSceneQuery(), new StubSceneController()), Is.Null);
+            var scene = factory.CreateSceneClass(resource, new StubSceneQuery(), new StubSceneController());
+
+            Assert.That(scene, Is.TypeOf<SeasonLightingScene>());
+            Assert.That(scene, Is.Not.TypeOf<CellCompanionScene>());
         }
 
         [TestCase(CellCompanionSet.Full)]

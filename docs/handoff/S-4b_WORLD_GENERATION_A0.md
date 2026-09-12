@@ -1,10 +1,10 @@
 # S-4b 四季 World 生成 — A0〜A3 と寿命契約の再開事項
 
 > type: slice
-> status: P1 の Phase C 再レビュー済み。C' は人間。この PR は P1 生成器のみ。P2 / 起動配線 / P3 は worktree `codex/s-4b-a0` に残す。
-> branch: `codex/s-4b-p1`
-> implementation base commit: `17dc67b232433e8ff3f909d99e401cddb159de50`（この PR の develop merge-base。HANDOFF 旧記の `0792edc` は PR #45 時点）
-> implementation head commit: `64d21c575d587004033351bb8ec77b3ec6df5b31`（指摘修正。レビュー記録 commit は含めない）
+> status: B。revision 2 凍結済み。FW 失敗回収は PR #45。P1 は PR #47 で develop 入り（implementation head `64d21c5`、merge `bfdc1f8`。C-1〜C-9 は再レビューで閉じた。C' は人間）。P2 生成（652 Scene）・起動配線 §7.27・P3 撤去 §7.28 は `codex/s-4b-a0`。S-4b 全体の C / C' / D は未実施。
+> branch: `codex/s-4b-a0`
+> implementation base commit: `17dc67b232433e8ff3f909d99e401cddb159de50`（P1 PR の develop merge-base。a0 生成開始時の local develop は `0792edc`）
+> P1 implementation head commit: `64d21c575d587004033351bb8ec77b3ec6df5b31`（指摘修正。レビュー記録 commit は含めない）
 > risk: high（明示ワイプ、652 Scene、Addressables、起動順序）
 > owner: 発注者 / S-4b 担当
 > A0 担当: Codex / GPT-6 / OpenAI。
@@ -275,16 +275,17 @@ Cell / Environment の authored Renderer は同じ Material を `sharedMaterial`
 |---|---|---|---|---|---|---|---|---|
 | `InGameSessionScene.cs` / 型 `InGameSession` | Session 寿命で controller と driver を生成・破棄し、子へサービスを出す。OnLoaded だけが SceneDirector 具象を adapter / backend 工場へ渡す。OnPreUnload は Dispose のみで drain を await しない | Tick 即 Start をやめる。終了循環を避ける | Session Scene | 既存 SceneDirector（composition のみ） | `IInGameSessionServices` | 生成と破棄の順序は controller テストに委譲。PreUnload が発行済み操作を待たないこと | 既存ハブ | 151、+40〜70。Ensure 本体は持たない |
 | `IInGameSessionServices.cs` | Player/HUD 向けの準備完了と、Session 終了前の受付停止口 | `WaitUntilWorldReady` / `IsWorldReady` / `StopWorldOperations` を足す | 契約のみ | なし（位置所有を渡さない） | SampleGame 内 | 署名のテストは Player bootstrap と Result 側 | 既存 | 61、+20〜35 |
-| `Streaming/SessionSeasonController.cs` **新規** | 季節枝操作の直列化、active 枝、両 driver の生成破棄、発行済み操作の所有、失敗の伝播。Session 終了時は受付停止だけで drain しない | 独立して変わる起動政策 | Session CTS。枝操作中は1件 | `ISceneController` / `ISceneQuery` / `ISceneTerminalEvents`、driver 工場、immutable 候補、Issued 登録 | 内部 | 直列化・拒否・遅延 Unload・Add≠Stable・発行済み収束を fake 接続で。具象 SceneDirector は工場の外 | InGame Streaming | 280〜380 |
-| `Streaming/ISceneTerminalEvents.cs` **新規** | Removed / CancelCleanedUp 相当の終端通知。identity のみ | Query 完了と混ぜない観測口 | 契約のみ | なし | 内部 | アダプタの透過 | Streaming | 20〜40 |
-| `Streaming/SceneDirectorTerminalEvents.cs` **新規** | `SceneDirector.OnSceneEvent` を `ISceneTerminalEvents` へ適応 | 具象を composition に閉じる | Session 生成時 | SceneDirector | 内部 | イベント種別の透過 | Streaming。OnLoaded が生成 | 30〜50 |
-| `Streaming/SceneTerminalTracker.cs` **新規** | 終端イベントと世代で個体の消滅を待つ。購読は Add/Unload より前。Query が null になったことだけでは完了にしない | 既存公開 API を増やさず寿命観測する | Session。購読は controller 生成時から破棄まで | `ISceneTerminalEvents` | 内部 | 同期完了、世代ずれ、購読前に出たイベントを後から完了扱いしないこと、同一 identity の後発個体を待たないこと | Streaming | 80〜140 |
-| `Streaming/IssuedSceneOperationRegistry.cs` **新規** | この枝が発行した Add/Unload を登録し、終了まで所有する。Dispose / Stop / Clear で完了扱いしない | driver.Dispose と操作終了を混ぜない | 枝操作。Session 終了では新規登録だけ拒否 | Tracker | 内部 | Clear しないこと。未完了のまま次 Season を Add しないこと | Streaming | 80〜130 |
-| `Streaming/SeasonCandidateSelection.cs` **新規** | Season 直下の StreamByDistance 子から候補集合を作る純関数 | 読出と選別を混ぜない | 値 | identity/flag/volume の列 | 内部 | 空・重複・欠落 volume を例外 | 同上 | 80〜140 |
-| `Streaming/SeasonCellNames.cs` **新規** | `{Season}_Cell_{x}_{y}` 等の SampleGame 名称 | 無修飾 `CellIdentity` と混ぜない | 値 | なし | **SampleGame.InGame の public**（Editor はこれを使う。InternalsVisibleTo は足さない）。生成 Plan も同じ規則 | Format/parse の表 | Streaming | 40〜80 |
-| `Streaming/PlayerWorldReadySequence.cs` **新規** | Teleport / RegisterFlight / 入力 ON の順だけ | PlayerScene の private bootstrap から切り離す | 呼び出し側（Player） | `IInGameSessionServices` と flyer 抽象 | 内部（Tests から見える範囲は既存 InternalsVisibleTo） | Unity GO なしで順序・失敗時入力 OFF | Player または Streaming | 40〜80 |
-| `SessionWorldStreamingDriver.cs` | 渡された候補で WSC を Tick | 構築時 Catalog.Format をやめる。生成は `ISceneStreamingBackend` + `ISceneVolumeQuery` を受け、具象 SceneDirector を必須にしない | Session / 枝 | 既存 WSC | `CurrentCellIdentity` は候補体積 | 工場経由で fake backend | 既存 | 248、−20〜+40。距離政策は再実装しない |
-| `WorldCellCatalog.cs` | 9×6 座標、スポーン、格子補助 | 4×4 と `(0,0)` スポーンをやめる | 静的 | なし | 制作座標。runtime identity 正本ではない | 既存 Catalog テストを 9×6 に更新 | 既存 | 216、−40〜+10。`CreateGridConfig` は参照0でも残す |
+| `Streaming/Runtime/Season/SessionSeasonController.cs` **新規** | 季節枝操作の直列化、active 枝、両 driver の生成破棄、発行済み操作の所有、失敗の伝播。Session 終了時は受付停止だけで drain しない | 独立して変わる起動政策 | Session CTS。枝操作中は1件 | `ISceneController` / `ISceneQuery` / `ISceneTerminalEvents`、driver 工場、immutable 候補、Issued 登録 | 内部 | 直列化・拒否・遅延 Unload・Add≠Stable・発行済み収束を fake 接続で。具象 SceneDirector は工場の外 | InGame Streaming | 280〜380 |
+| `Streaming/Interfaces/IssuedOperations/ISceneTerminalEvents.cs` **新規** | Removed / CancelCleanedUp 相当の終端通知。identity のみ | Query 完了と混ぜない観測口 | 契約のみ | なし | 内部 | アダプタの透過 | Streaming | 20〜40 |
+| `Streaming/Runtime/IssuedOperations/SceneDirectorTerminalEvents.cs` **新規** | `SceneDirector.OnSceneEvent` を `ISceneTerminalEvents` へ適応 | 具象を composition に閉じる | Session 生成時 | SceneDirector | 内部 | イベント種別の透過 | Streaming。OnLoaded が生成 | 30〜50 |
+| `Streaming/Runtime/IssuedOperations/SceneTerminalTracker.cs` **新規** | 終端イベントと世代で個体の消滅を待つ。購読は Add/Unload より前。Query が null になったことだけでは完了にしない | 既存公開 API を増やさず寿命観測する | Session。購読は controller 生成時から破棄まで | `ISceneTerminalEvents` | 内部 | 同期完了、世代ずれ、購読前に出たイベントを後から完了扱いしないこと、同一 identity の後発個体を待たないこと | Streaming | 80〜140 |
+| `Streaming/Runtime/IssuedOperations/IssuedSceneOperationRegistry.cs` **新規** | この枝が発行した Add/Unload を登録し、終了まで所有する。Dispose / Stop / Clear で完了扱いしない | driver.Dispose と操作終了を混ぜない | 枝操作。Session 終了では新規登録だけ拒否 | Tracker | 内部 | Clear しないこと。未完了のまま次 Season を Add しないこと | Streaming | 80〜130 |
+| `Streaming/Runtime/Season/SeasonCandidateSelection.cs` **新規** | Season 直下の StreamByDistance 子から候補集合を作る純関数 | 読出と選別を混ぜない | 値 | identity/flag/volume の列 | 内部 | 空・重複・欠落 volume を例外 | 同上 | 80〜140 |
+| `Streaming/Runtime/Season/SeasonCellNames.cs` **新規** | `{Season}_Cell_{x}_{y}` 等の SampleGame 名称 | 無修飾 `CellIdentity` と混ぜない | 値 | なし | **SampleGame.InGame の public**（Editor はこれを使う。InternalsVisibleTo は足さない）。生成 Plan も同じ規則 | Format/parse の表 | Streaming | 40〜80 |
+| `Streaming/Interfaces/PlayerReady/IPlayerReadyActor.cs` **新規** | Teleport / 入力の書き込み面。物理所有は Player | Sequence から GO 依存を外す | 契約のみ | `IFlightReadModel` | 内部 | Sequence の失敗時 Unregister | Streaming Interfaces | 15〜25 |
+| `Streaming/Runtime/PlayerReady/PlayerWorldReadySequence.cs` **新規** | Teleport / RegisterFlight / 入力 ON の順だけ | PlayerScene の private bootstrap から切り離す | 呼び出し側（Player） | `IInGameSessionServices` と flyer 抽象 | 内部（Tests から見える範囲は既存 InternalsVisibleTo） | Unity GO なしで順序・失敗時入力 OFF | Player または Streaming | 40〜80 |
+| `Streaming/Runtime/Distance/SessionWorldStreamingDriver.cs` | 渡された候補で WSC を Tick | 構築時 Catalog.Format をやめる。生成は `ISceneStreamingBackend` + `ISceneVolumeQuery` を受け、具象 SceneDirector を必須にしない | Session / 枝 | 既存 WSC | `CurrentCellIdentity` は候補体積 | 工場経由で fake backend | 既存 | 248、−20〜+40。距離政策は再実装しない |
+| `Streaming/Runtime/Distance/WorldCellCatalog.cs` | 9×6 座標、スポーン、格子補助 | 4×4 と `(0,0)` スポーンをやめる | 静的 | なし | 制作座標。runtime identity 正本ではない | 既存 Catalog テストを 9×6 に更新 | 既存 | 216、−40〜+10。`CreateGridConfig` は参照0でも残す |
 | `PlayerScene.cs` | 準備完了後に PlayerWorldReadySequence を呼ぶ | 15秒待ちと失敗時入力 ON を除く。順序の中核は Sequence 側 | Player Scene | 親サービス | なし | Scene 配線のみ。順序テストは Sequence | 既存。カメラ責務は増やさない | 238、−30〜+20 |
 | `InGameUI.cs` | HUD の current/resident | Format 依存をやめ `IsWorldReady` に合わせる | UI Scene | 親サービス | なし | 表示文字列の単体は最小 | 既存 | 約151、+5〜15 |
 | `World/SeasonScene.cs` **新規** | 共有 Lit の Scene scope PreLoad | WorldScene 置換 | `AssetOwner.Scene(Season_*)` | `IAssetManagement` | なし | PreLoad 呼び出しは fake assets | World フォルダ（runtime 型の置き場を維持） | 50〜90 |
@@ -867,7 +868,7 @@ HANDOFF 本文が正本。新規の引き渡しファイルは作らない。
 - 同 `SeasonWorldWipe.cs`: 個別ファイルの allowlist、削除・更新・保持の path / GUID / identity / dependency、Map hash / membership・Graph edge・Addressables entry の読み取り snapshot。削除直前に全削除 GUID を照合。ディレクトリ削除はしない。Layout は §7.18.4 の Total_Layout の旧ノード位置だけを除く。
 - 同 `SeasonWorldGenerationCommand.cs`: 一回の I/O 順序。対象 project path、dirty / untitled Scene、Workspace journal、生成先・identity 衝突、共有 Material 本体を事前検査。manifest と時刻・件数・失敗地点を保存し、再実行は既存ログで拒否。Wipe、GUID を保つ Material 移動、Scene / Graph / Resource / Map / Addressables、初回 volume bake、非修復の検査へ進む。P1 では実行していない。Command は約230行で500行警報未満、汎用 Tool は追加していない。
 - 同 `SeasonWorldValidation.cs`: 期待集合・path・親・LoadType・候補・Generated・payload・GUID・Addressables の値照合と、有限かつ1m³超 / 格子外5m / 四季サイズ差2mの純検査。Editor 読者は Graph/Map、旧 GUID 残留、保持 GUID / 参照、Full / Whitebox / Environment の Renderer 体積と保存値を検査する。検査自身は再計算・修復しない。
-- `SampleGame.InGame/InGameSession/Streaming/SeasonCellNames.cs`: Plan が必要とする public 名称規則だけ。Season controller / tracker / registry / Catalog / Factory / Player の配線は変更していない。
+- `SampleGame.InGame/InGameSession/Streaming/Runtime/Season/SeasonCellNames.cs`: Plan が必要とする public 名称規則だけ。Season controller / tracker / registry / Catalog / Factory / Player の配線は変更していない。P1 PR 時点の path は `Streaming/SeasonCellNames.cs`。
 - `OneStarMaker.Tests.Editor/SeasonWorldGenerationTests.cs`: 件数・path・F1・canonical identity、allowlist の境界と dry-run 非変更性、Whitebox 欠落 / GUID 重複 / path・policy 不一致、体積異常の回帰。既存 WorldCellGeneratorTests と同じ asmdef。**テストは未実行**。
 
 **P1 の読み取り証拠:** `TestResults/S-4b-P1/dry-run-filesystem.json`（gitignored、同ディレクトリに再採取用 `capture-p1.ps1`）。tracked 資産970件について path / GUID / identity / SHA-256 / meta / シリアライズ済み GUID 参照を採取。削除候補64資産＋対応meta、更新候補22、保持884。旧 Scene は21（World 1 + Cell 16 + Environment 4）、旧 identity は21。Default Local Group の Addressables entry は32。JSON SHA-256: `00053A8C1F9A33EAD1557381C74CF143A1E47B9DDC26AA15B1F1FFBF5649F259`。これはファイル読み取りの dry-run 証拠であり、AssetDatabase で `SeasonWorldWipe.Capture` を実行した証拠、Editor の未保存状態の確認、P0 完了を代替しない。Editor 側の dry-run は P2 着手前に別途保存する。
@@ -878,27 +879,68 @@ HANDOFF 本文が正本。新規の引き渡しファイルは作らない。
 
 **P2 の入口:** この P1 commit と旧資産を保持したまま、対象 worktree の Editor が ready であること、clean な git / Scene / Workspace journal を確認する。`SeasonWorldGenerationCommand.DryRun()` で `artifacts/s-4b-p2/dry-run.txt` を保存し、削除・更新・保持・新規 path を確認する。その後にのみ `SeasonWorldGenerationCommand.Generate(expectedProjectPath)` へこの worktree の `unity` 絶対 path を渡す。P2 は別 commit。失敗時は自動再実行せず §7.9 の一体復旧を行う。起動配線と P3 はさらに後。P3 で一時コードを撤去しても、P1 履歴と最終 head 向け検査の生証拠を残す。
 
+### 7.25 Phase B P2 実装記録（2026-09-12）
+
+担当: Cursor Grok。Astra は使っていない（GPT 系のリミット回避。C は Astra 予定、C' / D は人間）。開始 HEAD は `990fed2`（P1）。対象 Editor は worktree `...\s-4b-a0\unity`、PID 4504。Generate は一回だけ。起動配線と P3 はこの commit に含めない。
+
+**実行:**
+1. Title.unity を開いて dirty / untitled を解消。journal はファイル不在。
+2. `OneStarMaker/Sample/S-4b/Dry Run`。`artifacts/s-4b-p2/dry-run.txt`: DELETE 64、UPDATE 22、`.cs` 削除なし。allowlist 外の削除は見えない。
+3. `SeasonWorldGenerationCommand.Generate` を eval で一回。Pipeline は 60 秒で HTTP timeout したが、主スレッドの生成は継続。`generation.log` があるので再実行していない。
+4. scenes/nodes は 652/652（約 583s）。graph projection → initial volume bake（約 730s）→ 初回 Inspect が旧 GUID の Library 幽霊マップで失敗。ディスク上の旧 `.unity` / `.asset` は既に無く、Season Scene は 652。Addressables の旧 entry は null。
+5. Generate は再実行せず、Inspect だけ直した。`GUIDToAssetPath` が残っていても実ファイルが無い場合は残留としない。`Revalidate()` は P0 manifest を読んで検査のみ。結果 `validation.txt`: `No issues detected by implemented checks.`
+
+**成果物:** Season 652 Scene、Resource / Node / Map / Addressables / `Seasons/Materials/DemoCellLit.mat`（GUID 維持の移動）、旧 World allowlist 削除。生ログは `artifacts/s-4b-p2/`（dry-run.txt / p0-manifest.txt / generation.log / validation.txt）。generation.log 末尾は初回 Inspect 失敗を残す。
+
+**実施 / 未実施:** Unity テスト未実行。Addressables build 未実行。C / C' / D の PASS は書いていない。人間の代表操作は未実施。
+
+**残る作業:** 起動配線（SessionSeasonController 一式、Catalog 9×6、Factory、Lit、PlayerWorldReadySequence、Result の StopWorldOperations）→ P3 一時生成器撤去。
+
 ### 7.26 次セッション（2026-09-12。P1 を分けて PR、実装継続は a0）
 
-HANDOFF 本文が正本。新規の引き渡しファイルは作らない。Unity Editor は **この PR のレビューと P1 分割には不要**。
+HANDOFF 本文が正本。新規の引き渡しファイルは作らない。Unity Editor は **P1 レビューと分割には不要**。
 
-**レビューセッション（この PR: `codex/s-4b-p1` → `develop`）**
+**レビューセッション（PR #47: `codex/s-4b-p1` → `develop`）**
+
+- URL: https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/47
 
 - 見るのは P1 だけ。base は現在の `develop`。S-4b 作業枝に残っていた FW 回収の重複 SHA と、P2 の 652 Scene（約 4000 files）は載せない。
-- 元の単一 commit `990fed2 feat: add S-4b P1 season world plan, wipe dry-run, and validation` を、変更理由ごとに分割した。順序は SeasonCellNames → Plan → Wipe → Validation → Command → Tests → 本 HANDOFF。
-- Command は P1 では実行していない。テストも未実行。contract-audit は元 P1 時点で exit 0。
-- 単独マージ可能な完成物とは扱わない。受け入れは生成物＋起動＋P3 撤去の一組。
+- 元の単一 commit `990fed2` を変更理由ごとに分割した。順序は SeasonCellNames → Plan → Wipe → Validation → Command → Tests → HANDOFF。
+- Command は P1 では実行していない。テストも未実行。単独マージ可能な完成物とは扱わない。
 
-**実装継続セッション（worktree `...\s-4b-a0` / 枝 `codex/s-4b-a0`）**
+**実装継続（この worktree `...\s-4b-a0` / 枝 `codex/s-4b-a0`）**
 
-- HEAD: `0835d8a feat: generate S-4b season world scenes and resources`。Generate は一回済。`artifacts/s-4b-p2/generation.log` があるので再実行しない。
-- 未コミット: 起動配線（SessionSeasonController、tracker / registry、Factory、PlayerWorldReadySequence、Result の StopWorldOperations、Catalog 9×6）と Streaming のフォルダ分け（`Interfaces/{IssuedOperations,PlayerReady}` と `Runtime/{Season,IssuedOperations,Distance,Companion,PlayerReady}`）。名前空間は `SampleGame.InGame.Streaming` のまま。
-- 次の commit 順: 起動配線（P2 と混ぜない）→ P3（一時 `SeasonWorld*`、旧 `WorldCellStreamingSliceCreator` / `WorldCellGenerator` と専用 tests を置換確認のうえで削除）。
+- P2 HEAD: `0835d8a`。Generate は一回済。`artifacts/s-4b-p2/generation.log` があるので再実行しない。
+- 起動配線は §7.27 の commit。P2 の 652 Scene は混ぜていない。名前空間は `SampleGame.InGame.Streaming` のまま。
+- P3 は §7.28。一時生成器は HEAD から削除済み。
 - `MobileDependencyResolver` の pdb.meta 削除は Editor ノイズ。コミットしない。
-- Phase B では `Unity.exe` 起動、`run-tests.ps1`、Addressables ビルド、`unity test` / `unity run` は禁止。C' / D は人間。PASS 先書き禁止。
+- Phase B では Unity.exe 起動、`run-tests.ps1`、Addressables ビルド、`unity test` / `unity run` は禁止。C' / D は人間。PASS 先書き禁止。
 - 本リポジトリ `D:\repositories\unity\SampleGameForOneStarMakerFramework` の `develop` では生成しない。
+- `codex/s-4b-a0` をそのまま develop へ PR しない（PR #45 由来の重複 SHA と P2 4000 files が混ざる）。
 
-### 7.27 Phase C（P1。2026-09-11）
+### 7.27 Phase B 起動配線記録（2026-09-12）
+
+担当: Cursor App / Grok。開始時に見つかった `a6c71b7 checkpoint before checking out develop` は、P2 `0835d8a` 上の起動配線へ Editor ノイズ（`MobileDependencyResolver` pdb.meta）を混ぜた未 push checkpoint だった。soft reset して pdb.meta を戻し、起動配線＋Streaming フォルダ分けだけをレビュー可能な 1 commit にした。ゼロから書き直していない。この節を含む commit が起動配線の保存地点であり、単独マージ可能な成果物とは扱わない。
+
+**含むもの:** `SessionSeasonController`、寿命 tracker / issued registry、Catalog 9×6、Factory の Season 4 + Lighting 4、`SeasonScene` の Scene scope Lit PreLoad、`PlayerWorldReadySequence`、Result の `StopWorldOperations`、`Interfaces/{IssuedOperations,PlayerReady}` と `Runtime/{Season,IssuedOperations,Distance,Companion,PlayerReady}` へのフォルダ分け（namespace は `SampleGame.InGame.Streaming`）。`WorldScene.cs` は Factory の `"World"` 分岐が無く、World.unity も無いので置換確認のうえで削除。`WorldMaterialBindings` は `SharedLitAssetPath` 定数として残す。
+
+**含まない:** pdb.meta、P2 の 652 Scene、P3 の生成器削除。
+
+**実施 / 未実施:** Unity テスト未実行。Addressables build 未実行。Generate 再実行なし。C / C' / D の PASS は書いていない。
+
+### 7.28 Phase B P3 実装記録（2026-09-12）
+
+担当: Cursor App / Grok。開始 HEAD は起動配線 `1c1512a`。Unity Editor は `unity status` が空（exit 6）。Unity.exe は起動していない。Generate は再実行していない。Scene / asset YAML は手編集していない。`World/` ディレクトリは一括削除していない。
+
+**置換確認（削除前）:** Factory は Season 4 + Lighting 4 で `"World"` 分岐なし。`SessionSeasonController` と Catalog 9×6 が存在する。Workspace `.cs` から `LegacyWorldAuthoringNames` 参照 0。filesystem 対称差: Seasons `.unity` 652、Season Resource `.asset` 440、欠落/余剰 0。旧 `World.unity` / `WorldGridDefinition.asset` は既に無い。生出力は `artifacts/s-4b-p3/`。
+
+**削除:** 一時 `SeasonWorldGenerationPlan` / `Wipe` / `Validation` / `Command`、旧 `Editor/Streaming/Cells/**`（`WorldCellStreamingSliceCreator` / `WorldCellGenerator` / `WorldGridDefinition` 型 / plan / policy / collector / reconciler / `HandEditProbe`）、`LegacyWorldAuthoringNames`、専用 tests（`SeasonWorldGenerationTests` / `WorldCellGeneratorTests` / `WorldCellGenerationIdentityTests` / `WorldCellExistingStateCollectorTests` / `WorldCellFolderReconcilerTests` / `CellPopulationPlanTests` / `WorldGridDefinitionLoadTests`）と `LegacyWorldAuthoringNamesTests`。保持: World Workspace、Cell runtime 型、`WorldCellCatalogTests`、companion tests。
+
+**検査:** Editor Inspect は未再実行（接続なし）。最後の Editor 出力は P2 `artifacts/s-4b-p2/validation.txt` を `artifacts/s-4b-p3/last-editor-inspect.txt` に複製。P3 は C# のみ消すので生成 Scene は変えていない。Graph / Map / Addressables / 体積の再 Inspect は Phase C。方法は `inspect-method.txt`。
+
+**残件:** `World/Cells/Cell_*` と `World/Materials` の空フォルダ meta（資産。Editor 無しでは触らない）。Unity テスト未実行。C / C' / D の PASS は書いていない。
+
+### 7.29 Phase C（P1。2026-09-11。PR #47 では §7.27）
 
 担当: Cursor Cloud / Grok 4.6 / xAI。Phase B 実装は Codex / GPT-6。モデル系列は異なる。C' は人間のまま。この節は C' に渡さない。
 
@@ -928,7 +970,7 @@ HANDOFF 本文が正本。新規の引き渡しファイルは作らない。Uni
 
 **未確認:** Unity コンパイル、EditMode テスト、AssetDatabase の Capture、Command.Generate、652 実体、共有材の見た目、LightingSettings の実シーン、P2 所要時間。
 
-### 7.28 Phase B 指摘修正（P1。2026-09-12）
+### 7.30 Phase B 指摘修正（P1。2026-09-12。PR #47 では §7.28）
 
 担当: Cursor App / GPT-6（Grok 4.6 xAI の修正方針分析を入力に実装）。P2 の別 worktree `codex/s-4b-a0` と生成物・起動配線には触れていない。
 
@@ -942,7 +984,7 @@ HANDOFF 本文が正本。新規の引き渡しファイルは作らない。Uni
 
 **判定:** P1 の配置は計画に合う。C/C' PASS と D のマージ判断は書かない。C-1 / C-2 / C-3 は P2 の一回生成より前に人間が採否する。
 
-### 7.29 Phase C 再レビュー（P1。2026-09-12）
+### 7.31 Phase C 再レビュー（P1。2026-09-12。PR #47 では §7.29）
 
 担当: Cursor Cloud / Grok 4.6 / xAI。入力は implementation head `64d21c5`。旧 §7.27 と `s-4b-p1-c` は無効。この節は C' に渡さない。
 
@@ -974,3 +1016,56 @@ HANDOFF 本文が正本。新規の引き渡しファイルは作らない。Uni
 
 **判定:** 旧 C-1〜C-9 は `64d21c5` で閉じた。C/C' PASS と D のマージ判断は書かない。
 
+### 7.32 develop 取り込み（2026-09-12）
+
+PR #47 merge `bfdc1f8` をこの worktree へ取り込んだ。P3 で消した一時 `SeasonWorld*` と旧 bulk generator は復活させていない。残したのは P1 の C-2（`SaveHookSuspended` 中の保存ダイアログ抑制）と C-6（`SeasonCellNames.Format` の x/y 例外）。C-1 / C-3 / C-4 / C-5 / C-9 は生成器側の修正で、P2 実施後の P3 撤去済み HEAD には載せない。P1 Phase C 証拠は `docs/handoff/evidence/s-4b-p1-c2`。C' / D の PASS は書いていない。
+
+### 7.33 Phase C（P2 + 起動配線 + P3。2026-09-12）
+
+担当: Codex / GPT。A は凍結のまま再設計していない。P1（PR #47、implementation `64d21c5`、merge `bfdc1f8`）は対象外で、§7.29〜7.31 は再審査していない。この節は C' へ渡す Phase C 記録であるが、blind 初期入力には含めない。
+
+**固定対象:** implementation base `bfdc1f8a1f614ff17ae39a1a158181d6313ae879`、implementation head `73f4e4dc1f6b7967b25bb9afb7ab31f3d8db34c0`。開始時は branch `codex/s-4b-a0`、worktree clean、HEAD `c759767`、`origin/develop` は `bfdc1f8`。`c759767` は既存の SHA 訂正文書 commit。Phase C 記録 commit は implementation head に含めない。evidence は `docs/handoff/evidence/s-4b-c/`、C' blind bundle は `docs/handoff/evidence/s-4b-cprime-blind/`。
+
+**構造:** §7.7 の配置・依存・寿命・テスト境界を先に照合した。Game → Framework の方向を維持し、asmdef 参照、公開 API、`SceneState`、`SceneEventType` の追加はない。`InGameSessionScene` は composition と Session 寿命、`SessionSeasonController` は枝直列化、tracker / registry / candidate selection / player-ready / distance / companion は別境界のまま。controller は 568 行で見積 280〜380 を超えるが、具象 SceneDirector、候補選別、終端追跡、発行台帳、Player 操作、距離政策を取り込まず、明示的な枝 orchestration と失敗回収順を保持しているため、行数差だけを分割理由にはしない。
+
+**起動・撤去:** `SessionSeasonController.cs:127-136,185-205` は Spring の Stable、`Spring_Cell_0_4` の Stable、WorldReady 通知、距離 driver 開始の順を保持する。`PlayerScene.cs:164-168` が WorldReady 後に sequence を呼び、`PlayerWorldReadySequence.cs:36-39` が Teleport → focus 登録 → 入力 ON を行うため、同期 continuation を含めても入力 ON は距離 Tick 開始より前である。Factory は Season 4 + Lighting 4、`World` 分岐なし。一時 `SeasonWorld*` / 旧 WorldCell generator の source match は 0。旧 `World.unity` / `WorldGridDefinition.asset` / `WorldScene.cs` は無く、`World/` は存在しており一括削除していない。
+
+**全件機械検査:** `artifacts/s-4b-p3/inspect-method.txt` に従い、`expected-set.txt` と現 head の全 Scene path を再比較した。expected 652 / actual 652、missing 0 / extra 0。`Seasons/` 配下の colocated `.asset` は 440。P2 の Editor 検査生出力 `validation.txt` は implemented checks の issue なし。Generate は再実行していない。現 head で Editor が閉じていたため Graph / Map / Addressables / 体積の Editor 再 Inspect は行っていない。
+
+**機械実行:** `pwsh tools/contract-audit.ps1 -BaseRef bfdc1f8...` は exit 0（差分 Unity C# 36 files）。C# 限定の `git diff --check` は exit 0。全差分の `git diff --check` は Unity が生成した `.asset` / `.meta` 等の末尾空白を列挙して exit 2 であり、生出力を evidence に残した（生成物を手編集しない）。`pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Streaming` は total 118 / failed 0 / skipped 0。必須領域 `SessionSeasonController`、`PlayerWorldReadySequence`、`IssuedSceneOperationRegistry`、`SceneTerminalTracker`、`SeasonCandidateSelection`、`WorldCellCatalog` を含む。`pwsh tools/run-tests.ps1` 全件は total 675 / failed 0 / skipped 0。生ログと XML は evidence に保存した。テスト runner が削除した既知の MobileDependencyResolver `.pdb.meta` 5件は各実行後に HEAD へ復元した。
+
+**findings ledger（C' / D の採否対象）:**
+
+| id | severity | category | path・行・契約 | 状態 |
+|---|---|---|---|---|
+| C2-1 | high | test execution | Streaming の非同期テスト8件が `[Test]` + `UniTask` で NUnit NRE / 未観測 assertion を生み、実装を検査できなかった。対象は `Tests/Streaming/{SessionSeasonController,SceneTerminalTracker,PlayerWorldReadySequence}Tests.cs`。Unity Test 境界で実行可能にする契約 | fixed by Grok `9c92c4f` |
+| C2-2 | medium | frozen contract / test | `GameSceneFactoryTests` が Lighting を null と期待し、§7.7 の空 `SeasonLightingScene` scaffold と矛盾 | fixed by Grok `037d578` |
+| C2-3 | low | test contamination | `WorldCompanionCreationTransactionTests` の初回失敗は C2-1 の未観測 assertion が後続へ漏れたもの。単独の production defect ではない | duplicate of C2-1; no separate change |
+| C2-4 | high | test synchronization | `SessionSeasonControllerTests.UnloadEarlyReturn_IsNotLifetimeEnd` が旧枝 child の終端を発火せず 180 秒 timeout。親 Unload 後の fake query 子状態も残り、§7.7 の発行済み収束境界を再現できなかった | fixed by Grok `137b81c` |
+| C2-5 | high | runtime reentrancy | `IssuedSceneOperationRegistry.cs:105-123`。terminal 完了の同期 continuation が次 Add を登録すると `_ops` 列挙中変更になった。同じイベントで後発 op を完了せず、同期再入でも列挙を壊さない契約 | fixed by Grok `73f4e4d`; 一致 op snapshot と回帰 test 2件 |
+
+差し戻し修正は GPT が書かず、いずれも新規 Cursor CLI セッションの `cursor-grok-4.6-high` に依頼した。Grok には Unity.exe / Generate / `run-tests.ps1` / Addressables / `unity test` / `unity run` を禁止し、各修正後のテストは Phase C で再実行した。
+
+**未確認:** 現 head に対する Editor 内 Graph / Map / Addressables / 体積の再 Inspect、人間の代表操作、共有材の見た目。Addressables build は、P2 の登録検査後に Addressables 設定を変える差分がなく、今回の差し戻しが runtime/test のみなので実施していない。既知の `World/Cells/Cell_*` と `World/Materials` 空フォルダ meta は資産として残る。
+
+**人間の代表操作手順:** Title から開始し、Spring と `Spring_Cell_0_4` が Stable になるまで入力が無効であること、準備後に入力可能となること、境界移動で候補 Cell と Environment が追従すること、Result 遷移後に遅延 Add が Session 祖先を再ロードしないことを観測する。季節切替 UI は本 slice に無いため、切替の人間操作判定は後続入口から行う。
+
+### 7.34 Phase B 差し戻し修正（PR #48 R-1 / R-2 / R-3。2026-09-12）
+
+担当: Cursor App / Grok 4.6。開始 HEAD `815cc84`、branch `codex/s-4b-p2`。A revision 2 は凍結のまま再設計していない。C' / D の判定は書かない。
+
+**R-1:** companion `AddScene` と距離 `RequestRemove` を `SceneTerminalTracker` の個体世代へ bind する。Add 完了前の Unload は `BindIncompleteForIdentity` で同じ個体に結ぶ。Environment 子付きの切替と distance remove の回帰は `SessionSeasonControllerTests`。
+
+**R-2:** NecessaryAlways Lighting は発行せず観測する契約を維持する。`TearDownActiveBranchAsync` は発行済み待ちのあと `WaitAllLive` し、Season Removed より遅い Lighting Removed を待ってから次 Season / 再入場する。回帰は遅延 Lighting と Spring 再入場。
+
+**R-3:** §7.6 / §7.7 の退役どおり `WorldMaterialBindings` を削除した。共有 Lit path は `SeasonScene` の PreLoad 責務へ移した。§7.27 時点で定数用に残していた記述は、この節で置換済み。
+
+Unity.exe / Generate / `run-tests.ps1` / Addressables build / `unity test` / `unity run` は未実行。完了時 `pwsh tools/contract-audit.ps1`。
+
+### 7.35 Phase C 再レビュー（PR #48 R-1 / R-2 / R-3。2026-09-12）
+
+担当: Codex / GPT。固定対象は base `bfdc1f8a1f614ff17ae39a1a158181d6313ae879`、新 implementation head `557fd4853b1fc0ed2b3408f8691c958fdf1a27bf`。旧 `s-4b-c` はこの head の証拠として使わず、`docs/handoff/evidence/s-4b-c2/` へ作り直した。C' blind 入力も `docs/handoff/evidence/s-4b-c2prime-blind/` へ更新する。
+
+**採否と修正:** R-1 high、R-2 medium、R-3 low を採用。実装は新規 Cursor CLI `cursor-grok-4.6-high` セッションが commit `8a01376` / `557fd48` として作成した。companion Add と distance Remove は観測個体世代へ bind され、Add 完了前の Remove も同一個体へ結ぶ。枝撤去は issued op 後に未終端の Lighting 観測個体も待つ。`WorldMaterialBindings` は削除し、共有 Lit path は `SeasonScene` の既存 PreLoad 責務へ移した。公開 API / `SceneState` / `SceneEventType` / asmdef の追加はない。
+
+**再検査:** Streaming は total 122 / failed 0 / skipped 0。Environment 子付き切替、distance Remove、Season より遅い Lighting Removed、Spring 再入場を含む。全 EditMode は total 679 / failed 0 / skipped 0。`pwsh tools/contract-audit.ps1 -BaseRef bfdc1f8...` は exit 0（差分 Unity C# 35 files）。Generate と Addressables build は再実行していない。現 head の Editor 内 Graph / Map / Addressables / 体積再 Inspect、人間の代表操作は未確認のまま。

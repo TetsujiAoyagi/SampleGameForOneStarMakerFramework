@@ -1,0 +1,317 @@
+commit 73f4e4dc1f6b7967b25bb9afb7ab31f3d8db34c0
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Sat Sep 12 11:03:08 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Sat Sep 12 11:03:08 2026 +0900
+
+    fix: snapshot issued ops before CompleteInstance to survive sync reentrancy
+    
+    CompleteInstance enumerated _ops while TryComplete's continuation registered the next Season Add, throwing Collection was modified and risking completing later ops on the same terminal event.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit 137b81c96ec51208cd9b0fb20f9e56c016ba49f3
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Sat Sep 12 10:54:47 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Sat Sep 12 10:55:42 2026 +0900
+
+    test: wait for old-branch terminals after UnloadScene early return
+    
+    UnloadScene returning immediately is not lifetime end. Emit Removed for captured Spring instances so WaitAllIncomplete can proceed, then Stable-gate the Summer scenes without Task.Delay.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit 037d578c45808abbce6c55b5d3e7baeede0106e0
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Sat Sep 12 10:25:08 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Sat Sep 12 10:25:08 2026 +0900
+
+    test: expect SeasonLightingScene instead of null for season lighting
+    
+    The frozen factory returns SeasonLightingScene for Spring_Lighting without a Cell parent, not a companion and not an unknown null.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit 9c92c4f9c4656e6f3dd4c372fb16f2e62f0f4ab8
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Sat Sep 12 10:24:59 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Sat Sep 12 10:24:59 2026 +0900
+
+    test: run S-4b streaming UniTask tests under NUnit and UnityTest
+    
+    NUnit AsyncTaskInvocationRegion NREs on async UniTask [Test], and the unobserved assertion then poisons later EditMode logs. Keep signal waits and PlayerLoop pumping without Task.Delay.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit c759767a3daa8682ec6400b80d425d7d9337cda0
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Sat Sep 12 09:56:54 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Sat Sep 12 09:56:54 2026 +0900
+
+    docs: restore the PR #47 merge SHA in S-4b HANDOFF
+    
+    A stray backspace had eaten the leading b of bfdc1f8, so Phase C would pin the wrong commit.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit f4dd5b24873875aec6a565078a13ad602e8b1191
+Merge: 2317b47 bfdc1f8
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Sat Sep 12 09:50:39 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Sat Sep 12 09:50:39 2026 +0900
+
+    merge develop after PR #47 without restoring removed generators
+    
+    P1 review fixes C-2 and C-6 stay on this worktree. One-shot SeasonWorld commands stay deleted after P3.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit 2317b4737178486902edfa51e126bb51efffefe6
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Sat Sep 12 06:10:47 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Sat Sep 12 06:10:47 2026 +0900
+
+    feat: remove S-4b one-shot generators after season startup replacement
+    
+    Temporary SeasonWorld commands and the old WorldCell bulk generator are gone from HEAD so the accepted tree cannot regenerate the 652 scenes.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit 1c1512a0ca4b0823b84def6582703d3d501eb404
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Sat Sep 12 06:04:58 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Sat Sep 12 06:04:58 2026 +0900
+
+    feat: wire Spring season startup without mixing generated scenes
+    
+    SessionSeasonController owns the active season branch so generated Season scenes can boot independently of the old World NecessaryAlways path. Streaming types are grouped by folder without changing namespaces.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit 0835d8a5d0a4439a25b88a203a09809d4226e53a
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Sat Sep 12 01:08:27 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Sat Sep 12 01:08:27 2026 +0900
+
+    feat: generate S-4b season world scenes and resources
+    
+    Wipe the old World slice and author the 652 season scenes in one Editor pass so P2 has a restorable generation point.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit 990fed21aa9d39f27efebb5f256a53e61e767537
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Fri Sep 11 07:20:28 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Fri Sep 11 07:20:28 2026 +0900
+
+    feat: add S-4b P1 season world plan, wipe dry-run, and validation
+
+commit 293c14a2c18acfc90f306d1b350dbf4097027b71
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Fri Sep 11 06:29:43 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Fri Sep 11 06:29:43 2026 +0900
+
+    docs: add S-4b next-session prompt for P1 and optional P2
+    
+    Keep a single HANDOFF. P2 still requires the already-open worktree Editor; if it is closed the next session stops after P1.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit a990ece35ec9306ce67040e39d312719a44c3aaa
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Fri Sep 11 06:25:25 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Fri Sep 11 06:25:25 2026 +0900
+
+    docs: record PR #45 merge and harvest failed-load recovery into §05
+    
+    FW cleanup is on develop. S-4b HANDOFF now starts at P1, and the unload contract includes pending-finally and isolated resume.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit fbe52aeebffb6336372512058c0b8b8329454533
+Merge: c6a72a3 0792edc
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Fri Sep 11 06:23:45 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Fri Sep 11 06:23:45 2026 +0900
+
+    merge develop after PR #45 so S-4b sits on the recovered SceneDirector
+
+commit c6a72a35b1d78059a6a85ed5d63ae678add8ae11
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Fri Sep 11 06:10:54 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Fri Sep 11 06:11:17 2026 +0900
+
+    fix: keep pending unload cleanup if secondary recovery fails
+    
+    Resume and cancel cleanup are isolated per scene so one failing hook cannot skip sibling recovery or leave _pendingUnloads set. A non-idempotent resume hook is covered by tests.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit 1b1229b17e49d1c543488e0956f3372e4b2cec83
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Fri Sep 11 01:00:05 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Fri Sep 11 01:00:17 2026 +0900
+
+    fix: resume failed unloads without re-entering the same SceneState
+    
+    In-flight RemoveScene now propagates like other joins, and recovery continues from PreUnloading/Unloading/AfterUnloading instead of calling Execute* again. Initializing can be held in tests via ViewIn, and 05-scene.md matches the new edge.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit bb06b17bc18fd498afae88c7aa133f64d7b47dd4
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Fri Sep 11 00:39:10 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Fri Sep 11 00:41:10 2026 +0900
+
+    refactor: keep failed-load classify sync and resume unload in the loop
+    
+    ClassifyFailedScene was both sorting and awaiting ResumeUnload. Split those so the loop reads as observe / resume / classify.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit 9609c346057305feaaef5548002096f2bce6e4f1
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Fri Sep 11 00:38:16 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Fri Sep 11 00:41:09 2026 +0900
+
+    refactor: split failed-load recovery into classify-then-run steps
+    
+    The original method packed instance capture, root detection, and unload resume into one reverse loop. Same behavior, closer to CleanupCanceledScene.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit dff9b90a5a41c8126867fd66a5a054c497646e95
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Fri Sep 11 00:32:12 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Fri Sep 11 00:32:12 2026 +0900
+
+    docs: record that S-4b FW cleanup was split to PR #45
+    
+    Keep generation work on this branch from mixing with the independently reviewable lifecycle fix.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit 4fa14c80845ea49a46711b2539007368875e89eb
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Fri Sep 11 00:27:58 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Fri Sep 11 00:31:47 2026 +0900
+
+    fix: do not recover scenes that already reached Stable
+    
+    ExecuteTransitionPlan can throw after a successful load. Treating that as a failed Add was unloading Planner and breaking the existing R-3 guard test.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit 44a6ffc6b43ef476da5c014e2d2cfb43620df4ba
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Fri Sep 11 00:24:41 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Fri Sep 11 00:31:46 2026 +0900
+
+    fix: restore System.Threading using in failed-load cleanup tests
+    
+    CancellationToken.None is required by AddScene calls in the new fixture.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit 11ba0ce545c50d969b0aead392b38c8b266f1bc6
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Fri Sep 11 00:23:12 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Fri Sep 11 00:31:45 2026 +0900
+
+    fix: import TestableSceneDirector in failed-load cleanup tests
+    
+    The helper return type lives in the TestDoubles namespace, so the fixture failed to compile without the using.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit a5ac995ec0c23fed04a0e7186cefb7cc3400ec83
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Fri Sep 11 00:12:08 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Fri Sep 11 00:12:08 2026 +0900
+
+    docs: record S-4b FW cleanup implementation head
+    
+    Keep the next session from rediscovering that failed-load recovery landed at f5742d9.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit f5742d97ac0ab0710ec56cb945615bbcb1c67a9b
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Fri Sep 11 00:11:38 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Fri Sep 11 00:11:38 2026 +0900
+
+    fix: recover non-cancellation AddScene failures so unload is not stuck pending
+    
+    Keep the original exception, clean only newly created scenes, and clear pending unloads so a later UnloadScene can finish.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit 137d235e78416a3cda59aa2474b6147a29081595
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Fri Sep 11 00:02:09 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Fri Sep 11 00:02:09 2026 +0900
+
+    docs: freeze S-4b Phase A revision 2 after Astra review
+    
+    Adopt all eight limited A2 findings on failed-load cleanup and Game branch lifetime without changing product decisions.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit 1cce49af844e5fe2836f012d4ae72c75d0e5d9c2
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Thu Sep 10 23:54:15 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Thu Sep 10 23:54:15 2026 +0900
+
+    docs: complete S-4b A revision 2 lifetime and failed-load design
+    
+    Record FW cleanup paths, Game branch terminal observation, and Session teardown so Astra can review before freeze.
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+commit 15b9ba59cdf7ca34619e9eff99c4bd25f1c6e7bf
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Thu Sep 10 23:42:41 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Thu Sep 10 23:42:41 2026 +0900
+
+    docs: preserve approved cleanup scope so Grok can resume S-4b with Astra review
+
+commit 76056ae9e3a3325e22608b6b8ea43e6c861fa8d0
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Thu Sep 10 08:27:23 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Thu Sep 10 08:27:23 2026 +0900
+
+    docs: preserve S-4b decisions and block generation until branch teardown is observable
+
+commit 7e993db81822662bb0a79acce9d520972dc8ba73
+Author:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+AuthorDate: Wed Sep 9 22:25:04 2026 +0900
+Commit:     tetsuji.aoyagi <j2202001edkagu2013@gmail.com>
+CommitDate: Wed Sep 9 22:25:04 2026 +0900
+
+    checkpoint before checking out develop

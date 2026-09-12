@@ -138,21 +138,23 @@ Cell は「距離ストリーミングの境界」であると同時に、**人�
 | 子の LoadType | 既定 `OnDemand`。Cell `AddScene` で Environment 等は自動ロードされない |
 | 子の明示ロード | `SessionCellCompanionLoadDriver` が resident Cell の `Children` を列挙し、起動時 companion set に入る職種 child を Cell Stable 後に `AddScene` |
 | 子の Unload | 親 Cell Unload の再帰破棄に任せる（ダングリング防止）。ロード時の引っ張りとは別 |
-| フォルダ境界 | Scene identity の実行単位とディスクフォルダを揃える。実行物は `SampleGame/.../InGameSession/World/` 配下に集約 |
+| フォルダ境界 | Scene identity の実行単位とディスクフォルダを揃える。実行物は `SampleGame/.../InGameSession/Seasons/` 配下に集約 |
 
 SampleGame 既定レイアウト（カタログ `SceneResourceMap` は Common/SceneMap に残してよい）:
 
 ```
-SampleGame/InGame/InGameSession/World/
-  World.unity / Materials/DemoCellLit.mat / WorldGridDefinition.asset
-  Cells/
-    Cell_0_0/
-      Cell_0_0.unity / Cell_0_0.asset
-      Environment_0_0.unity / Environment_0_0.asset   ← 萌芽（一部 Cell のみ）
+SampleGame/InGame/InGameSession/Seasons/
+  Materials/DemoCellLit.mat
+  Spring/  (Summer / Autumn / Winter 同型)
+    Spring_Lighting/Spring_Lighting.unity
+    Cells/Spring_Cell_{x}_{y}/
+      Spring_Cell_{x}_{y}.unity
+      Variants/Whitebox/Spring_Cell_{x}_{y}.unity
+      Spring_Environment_{x}_{y}/Spring_Environment_{x}_{y}.unity
 ```
 
-- セルは全て `World` の子・`LoadType.OnDemand`。親ロード時に自動ロードされず、Controller の指示でのみ出入りする
-- InGame 退出は `UnloadScene("World")`（または InGame ごと）で全セルが再帰破棄される
+- Cell は active Season の子・`LoadType.OnDemand` + `StreamByDistance`。親ロード時に自動ロードされず、距離 Tick の指示でのみ出入りする
+- InGame 退出は Session のツリー Unload（または InGame ごと）で季節枝が再帰破棄される
 - `WorldStreamingController` は DependOnAll で手動 DI 配線し（[03-di.md](03-di.md)）、InGame シーンの寿命に合わせて Start/Stop する
 
 ---
@@ -174,6 +176,8 @@ H-4 はストリーミングの高速通過（ロード中セルの即キャン�
 ---
 
 ## 6. セル生成パイプライン
+
+> **現況 (S-4b P3):** 一括生成器（`WorldCellGenerator` / `WorldCellStreamingSliceCreator` / `SeasonWorld*`）は HEAD から削除した。再実行メニューは残さない。以下は S-4a までの記録であり、現 HEAD の操作手順ではない。
 
 セルの SceneResource は SceneGraph Editor の手編集では量産できない（N×N ノードの手配置は非現実的）。専用のエディタ生成ツールを設ける。
 
@@ -232,7 +236,7 @@ Addressables グループ登録 (既存の AddressablesGroupSyncFilter を流用
 
 #### グリッド寸法の正本（2026-08-16）
 
-**`WorldCellCatalog`（`SampleGame.InGame.Streaming` の const）が正本で、`WorldGridDefinition.asset` はその写しである。** 生成器の `EnsureGridDefinition` が実行のたびにアセットへ書き戻すことで一致を強制している。
+**`WorldCellCatalog`（`SampleGame.InGame.Streaming` の const）が正本である。** `WorldGridDefinition.asset` と一括生成器は S-4b P3 で HEAD から削除した。
 
 **アセット側だけを書き換えても効かない。** ランタイムの `SessionWorldStreamingDriver` はアセットではなく `WorldCellCatalog` の const を読んで desired set を組むため、乖離させると存在しない Cell を要求する。グリッド寸法を変えるときは const 側を変えること。
 
@@ -255,7 +259,7 @@ Addressables グループ登録 (既存の AddressablesGroupSyncFilter を流用
 | R-3 | 距離政策の候補を `SwitchScene` / `GoBack` / `TransitionPlan` に乗せない（D-5） | `SwitchSceneCore` 冒頭で対象 `SceneResource.StreamByDistance` を検査し、候補なら `InvalidOperationException` | 構造的強制 |
 | R-4 | セルの `LoadingDisplayType` は常に `None` | Controller が固定値で呼ぶ | 構造的強制 |
 | R-5 | セル内オブジェクトはセル外のシーンオブジェクトを参照しない（隣接セルとの直接参照禁止） | コードレビュー | 規約 |
-| R-6 | **生成器は `HandAuthored` な Cell / Environment の手編集を消さない**（§6「生成器の非破壊契約」） | `CellPopulationPlan`（純関数）と単体テスト 14 本 | 構造的強制 |
+| R-6 | **S-4b の一括生成器は HEAD に残さない。** 旧 `HandAuthored` 保護は撤去済みの `CellPopulationPlan` が担っていた | 生成器削除 + 再実行メニューなし | 構造的強制 |
 
 ---
 
@@ -279,13 +283,13 @@ Tick(focusPosition):                       // UpdateSystem 駆動。毎フレー
 | パラメータ | 設計時の初期値（仮） | **SampleGame 実装値** | 備考 |
 |---|---|---|---|
 | セルサイズ | 100m × 100m | **250m × 250m** | Player カプセル（約 2.2m）を基準に作業単位として拡大 |
-| グリッド | 10 × 10 | **4 × 4** | `WorldGridDefinition.asset` |
+| グリッド | 10 × 10 | **9 × 6** | `WorldCellCatalog` |
 | ロード半径 | 150m | **375m** | 中心間 250m の約 1.5 セル。**セルサイズに追随させること** |
 | アンロード半径 | 250m | **550m** | 差分 = ヒステリシス幅 |
 | 同時 in-flight ロード上限 | 2 | 2 | H-2 の priority と併用 |
 | Tick 頻度 | 5Hz または注視点が 1/4 セル移動したとき | 同左 | 毎フレーム距離計算はしない |
 
-実装値の正本は `SampleGame/InGame/InGameSession/Streaming/WorldCellCatalog.cs`（半径・グリッド）と `WorldGridDefinition.asset`（セルサイズ）。
+実装値の正本は `SampleGame/InGame/InGameSession/Streaming/Runtime/Distance/WorldCellCatalog.cs`（半径・グリッド・セルサイズ）。`WorldGridDefinition.asset` は S-4b で削除した。
 
 > **半径はセルサイズに従属する。** セルサイズ 250m に対してロード半径 150m だと、隣接セル中心（250m 先）が desired set に入らず、ストリーミングが成立しない。セルサイズを変えるときは必ず半径を再計算すること。
 
@@ -388,7 +392,7 @@ R-3 を「将来」から本チケットへ繰り上げ、`SwitchSceneCore` 冒�
 - ガードは `AddScene` / `UnloadScene` には掛けない（セルの正規経路。D-5）
 
 **T-05 完了記録 (2026-07-06):**
-`Editor/Streaming/` に `WorldGridDefinition`（ScriptableObject: 原点・セルサイズ・N×N・親 identity・出力フォルダ）と `WorldCellGenerator` を新設。
+`Editor/Streaming/` に `WorldGridDefinition` と `WorldCellGenerator` を新設した（S-4b P3 で HEAD から削除。再実行メニューは残さない）。
 生成ロジックを純関数に分離: `ComputePlan`（グリッド定義 + 既存状態 → Create/Skip の計画）と `ApplyPlan`（計画 → SceneResource 生成・親子設定・Map 登録。.unity 書き込みなし）がテスト対象。`.unity` I/O は `ApplySceneFiles`（Additive 作成 → 保存 → クローズで作業中シーンを破壊しない）と `Generate`（一括実行）に隔離し、施行表どおりテスト対象外。
 テスト: `Tests/Editor/WorldCellGeneratorTests.cs` に 6 本（N×N 生成、OnDemand + 親子双方向、`Cell_{x}_{y}` 命名、冪等性、Map 登録、不正定義の例外）。TDD サイクル: スケルトン + レッド 5 本を確認後に実装。
 検証結果:

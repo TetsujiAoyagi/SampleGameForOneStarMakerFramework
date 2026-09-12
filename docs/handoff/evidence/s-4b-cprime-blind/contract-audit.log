@@ -1,0 +1,7 @@
+
+対象: C:\Users\void\.codex\visualizations\2026\09\09\01a08634-9d58-7d32-88f0-bfcf4f75d1ea\s-4b-a0
+Unity側 .cs（ベンダー同梱を除く）: 452 ファイル
+検査1 の差分: 36 ファイル（基点 bfdc1f8a1f614ff17ae39a1a158181d6313ae879 = bfdc1f8）
+
+機械で判定できる契約に違反なし。
+設計判断（責務配置・寿命・依存・UpdateSystem 登録・偽 null）は対象外。

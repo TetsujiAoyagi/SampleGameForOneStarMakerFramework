@@ -16,7 +16,7 @@ namespace OneStarMaker.Editor.SceneGraph
     /// <para>
     /// <b>書くのは体積だけ。</b> <c>_streamByDistance</c> には触らない。
     /// 「距離政策の候補か」は幾何から導出できる事実ではなく<b>決定</b>であり（§34 §5）、
-    /// それを知っているのは作業単位を焼く生成器（<c>WorldCellGenerator</c> / Environment 側）である。
+    /// それを知っているのは作業単位を焼く authoring（StreamByDistance を決める側）である。
     /// ここで「体積が空でなければ候補」と導出すると、Renderer を持つだけの
     /// Player や UI のシーンまで候補になる（実測で誤爆した）。
     /// </para>

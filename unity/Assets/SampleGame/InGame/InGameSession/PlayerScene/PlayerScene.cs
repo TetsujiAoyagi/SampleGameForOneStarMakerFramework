@@ -21,7 +21,7 @@ namespace SampleGame.InGame
     /// </summary>
     /// <remarks>
     /// Cell Streaming では Level Ensure を待たない。
-    /// Focus（Flight）を Session に登録すれば、WorldStreamingController がセルを載せる。
+    /// WaitUntilWorldReady のあと PlayerWorldReadySequence が Teleport → Focus 登録 → 入力 ON する。
     /// </remarks>
     public sealed class PlayerScene : SceneBase
     {
@@ -146,53 +146,44 @@ namespace SampleGame.InGame
         {
             try
             {
-                // NecessaryAlways 子の OnStabled は親 OnLoaded（Driver 生成）より先に走り得る。
-                // Streaming が使える状態（IsStreamingActive）になるまで待ち、Focus を登録する。
-                using var hubTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                hubTimeoutCts.CancelAfter(TimeSpan.FromSeconds(15));
-                try
-                {
-                    await UniTask.WaitUntil(
-                        () =>
-                        {
-                            _sessionServices = TryResolveSessionServices();
-                            return _sessionServices is { IsStreamingActive: true };
-                        },
-                        cancellationToken: hubTimeoutCts.Token);
-                }
-                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-                {
-                    _logger.ZLogError(
-                        $"Player bootstrap aborted: InGameSession Streaming が 15 秒以内に現れませんでした。");
-                    return;
-                }
+                // NecessaryAlways 子の OnStabled は親 OnLoaded（controller 生成）より先に走り得る。
+                // 15 秒上限は付けない。失敗時も入力は上げない。
+                await UniTask.WaitUntil(
+                    () =>
+                    {
+                        _sessionServices = TryResolveSessionServices();
+                        return _sessionServices != null;
+                    },
+                    cancellationToken: ct);
 
                 if (_sessionServices == null || _flyer == null)
                 {
                     return;
                 }
 
-                var spawn = WorldCellCatalog.SpawnPosition();
-                _flyer.Teleport(spawn, Vector3.forward);
-                _flyer.InputEnabled = true;
-
-                // Focus 供給を開始 → Driver の WaitUntil が解除され、desired セルが載り始める。
-                _sessionServices.RegisterFlight(_flyer);
+                await _sessionServices.WaitUntilWorldReady(ct);
+                PlayerWorldReadySequence.Run(
+                    _sessionServices,
+                    _flyer,
+                    WorldCellCatalog.SpawnPosition());
                 ApplyDemoLook();
 
-                _logger.ZLogInformation($"Player ready at Cell stream spawn {spawn}");
+                _logger.ZLogInformation($"Player ready at Cell stream spawn {WorldCellCatalog.SpawnPosition()}");
             }
             catch (OperationCanceledException)
             {
-                // teardown
+                if (_flyer != null)
+                {
+                    _flyer.InputEnabled = false;
+                }
             }
             catch (Exception ex)
             {
-                // 失敗時も入力を上げてカーソルを戻し、完全フリーズを避ける。
+                // 失敗 / キャンセルでも入力 ON には戻さない。完全フリーズ回避を入力解禁で済ませない。
                 _logger.ZLogError(ex, $"Player bootstrap failed");
                 if (_flyer != null)
                 {
-                    _flyer.InputEnabled = true;
+                    _flyer.InputEnabled = false;
                 }
             }
         }

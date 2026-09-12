@@ -48,23 +48,23 @@ namespace OneStarMaker.Tests.Streaming
         {
             Assert.That(WorldCellCatalog.Rectangles.Length, Is.EqualTo(1), "本番矩形数は 1");
             Assert.That(WorldCellCatalog.Rectangles[0].Origin, Is.EqualTo(Vector2Int.zero));
-            Assert.That(WorldCellCatalog.Rectangles[0].Size, Is.EqualTo(new Vector2Int(4, 4)));
+            Assert.That(WorldCellCatalog.Rectangles[0].Size, Is.EqualTo(new Vector2Int(9, 6)));
 
             Assert.That(WorldCellCatalog.TryGetCoordinate(WorldCellCatalog.GetCellCenter(0, 0), out var sw), Is.True);
             Assert.That(sw, Is.EqualTo(new Vector2Int(0, 0)));
-            Assert.That(WorldCellCatalog.TryGetCoordinate(WorldCellCatalog.GetCellCenter(3, 0), out var se), Is.True);
-            Assert.That(se, Is.EqualTo(new Vector2Int(3, 0)));
-            Assert.That(WorldCellCatalog.TryGetCoordinate(WorldCellCatalog.GetCellCenter(0, 3), out var nw), Is.True);
-            Assert.That(nw, Is.EqualTo(new Vector2Int(0, 3)));
-            Assert.That(WorldCellCatalog.TryGetCoordinate(WorldCellCatalog.GetCellCenter(3, 3), out var ne), Is.True);
-            Assert.That(ne, Is.EqualTo(new Vector2Int(3, 3)));
+            Assert.That(WorldCellCatalog.TryGetCoordinate(WorldCellCatalog.GetCellCenter(8, 0), out var se), Is.True);
+            Assert.That(se, Is.EqualTo(new Vector2Int(8, 0)));
+            Assert.That(WorldCellCatalog.TryGetCoordinate(WorldCellCatalog.GetCellCenter(0, 5), out var nw), Is.True);
+            Assert.That(nw, Is.EqualTo(new Vector2Int(0, 5)));
+            Assert.That(WorldCellCatalog.TryGetCoordinate(WorldCellCatalog.GetCellCenter(8, 5), out var ne), Is.True);
+            Assert.That(ne, Is.EqualTo(new Vector2Int(8, 5)));
 
             Assert.That(
                 WorldCellCatalog.TryGetCoordinate(new Vector3(-1f, 0f, 0f), out _),
                 Is.False,
                 "グリッド左外は false");
             Assert.That(
-                WorldCellCatalog.TryGetCoordinate(new Vector3(4f * WorldCellCatalog.CellSize + 1f, 0f, 0f), out _),
+                WorldCellCatalog.TryGetCoordinate(new Vector3(9f * WorldCellCatalog.CellSize + 1f, 0f, 0f), out _),
                 Is.False,
                 "グリッド右外は false");
         }

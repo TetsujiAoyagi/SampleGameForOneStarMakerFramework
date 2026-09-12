@@ -22,4 +22,11 @@ MonoBehaviour:
   - {fileID: 11400000, guid: ff353bec21cdc9247a42df5774827c36, type: 2}
   - {fileID: 11400000, guid: 081bcdf893d944040a71107f810caca6, type: 2}
   - {fileID: 11400000, guid: e7a91c2b4d5f6840a1b2c3d4e5f60718, type: 2}
-  - {fileID: 11400000, guid: 056761bd4994e9241b5122e298e4dfc2, type: 2}
+  - {fileID: 11400000, guid: 8869a9ddf028f36448023ccb0edb991c, type: 2}
+  - {fileID: 11400000, guid: ea826ee1991823a42853ae2fe89c3c6b, type: 2}
+  - {fileID: 11400000, guid: 1bafadd9d24bd684a9d25170c4522d8d, type: 2}
+  - {fileID: 11400000, guid: f162c1c610b1fe74aa9add24288ad2c7, type: 2}
+  _volume:
+    m_Center: {x: 0, y: 0, z: 0}
+    m_Extent: {x: 0.6, y: 1.2, z: 0.6}
+  _streamByDistance: 0

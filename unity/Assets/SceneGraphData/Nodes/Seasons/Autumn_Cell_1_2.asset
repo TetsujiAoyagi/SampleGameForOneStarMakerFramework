@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5563bd9cdc08aa488a2912019372f27, type: 3}
+  m_Name: Autumn_Cell_1_2
+  m_EditorClassIdentifier: OneStarMaker.Editor::OneStarMaker.Editor.SceneGraph.SceneNodeData
+  _identity: Autumn_Cell_1_2
+  _loadType: 0
+  _payloads:
+  - Reference:
+      m_AssetGUID: 42c1a434fd66ea34ebfdb593072eda36
+      m_SubObjectName: 
+      m_SubObjectType: 
+      m_SubObjectGUID: 
+      m_EditorAssetChanged: 0
+    Variant: 
+  - Reference:
+      m_AssetGUID: 161a21207d75d3740a462c8863d2db73
+      m_SubObjectName: 
+      m_SubObjectType: 
+      m_SubObjectGUID: 
+      m_EditorAssetChanged: 0
+    Variant: Whitebox

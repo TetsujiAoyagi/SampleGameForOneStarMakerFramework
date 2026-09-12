@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a55e49cc16182ed438f81c6b1032b83c, type: 3}
+  m_Name: Winter_Cell_3_3
+  m_EditorClassIdentifier: OneStarMaker.Runtime::OneStarMaker.Runtime.SceneSystem.SceneResource
+  _identity: Winter_Cell_3_3
+  _sceneAssetDescription:
+    _loadType: 0
+    _payloads:
+    - Reference:
+        m_AssetGUID: 5c4dea55f7ec11645a6fc5ade053cc14
+        m_SubObjectName: 
+        m_SubObjectType: 
+        m_SubObjectGUID: 
+        m_EditorAssetChanged: 0
+      Variant: 
+    - Reference:
+        m_AssetGUID: 9640f6d90038add43949b248585c6ca2
+        m_SubObjectName: 
+        m_SubObjectType: 
+        m_SubObjectGUID: 
+        m_EditorAssetChanged: 0
+      Variant: Whitebox
+    SceneIdentity: Winter_Cell_3_3
+  _parent: {fileID: 11400000, guid: f162c1c610b1fe74aa9add24288ad2c7, type: 2}
+  _children:
+  - {fileID: 11400000, guid: 030e372765a69aa4db504cade1d09172, type: 2}
+  _volume:
+    m_Center: {x: 875, y: 4.5, z: 875}
+    m_Extent: {x: 122.5, y: 4.5, z: 122.5}
+  _streamByDistance: 1
