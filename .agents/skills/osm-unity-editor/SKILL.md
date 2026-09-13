@@ -20,12 +20,20 @@ description: >-
 
 `com.unity.pipeline` は `unity/Packages/manifest.json` に宣言済み。`packages-lock.json` はローカルで Editor を開いたときに UPM が書く。手で lock を捏造しない。バージョンが Editor 側でずれたら lock を正とする。
 
+## 標準入口と権限
+
+- ローカルのEditor操作はリポジトリルートから `tools/unity-editor.cmd status` / `tools/unity-editor.cmd command ...` を使う。ラッパーはPATH上のUnity CLIを優先し、無ければ `%LOCALAPPDATA%\Unity\bin\unity.exe` を解決し、このリポジトリの `unity/` を接続先に固定する。
+- Cursor IDE / Cursor CLI / Claude Code / Codexでは、任意のshell全体ではなく `tools/unity-editor.cmd` のcommand prefixだけを永続許可する。`pwsh`、`unity.exe`、`Unity.exe` 全体を無確認にしない。
+- ラッパーは既に開いているEditor用の `status`、`command`（`eval`を含む）、Safe Mode診断用の `pipeline list` だけを通す。CLIのinstall/update、Editorのopen、headless run/test/build、MCP設定は通常の個別承認でUnity CLIを直接使う。
+- Unity CLIは更新してよい。更新後は `unity --version`、ラッパーの `status`、`command` discoveryを再確認し、公開command名を推測で固定しない。
+- Unity MCPは任意の補助経路。人間が希望し、導入済みで到達可能なら使ってよいが、計画・実装・テストの前提条件にしない。MCPが無い/壊れている場合もPipeline CLIで同じ作業を継続できること。
+
 ## やってよい
 
-1. `unity status` で接続を確認する（`ready`）。
-2. `unity command` で **この Editor が公開している名前** を見る。推測でコマンド名を固定しない。
+1. `tools/unity-editor.cmd status` で接続を確認する（`ready`）。
+2. `tools/unity-editor.cmd command` で **この Editor が公開している名前** を見る。推測でコマンド名を固定しない。
 3. 名前付き command を先に使う。Pipeline 0.4 系なら `move_asset` / `open_scene` / `save_scene` / `set_transform` / `menu` が候補。
-4. 名前付き command が足りないときだけ `unity command eval`。
+4. 名前付き command が足りないときだけ `tools/unity-editor.cmd command eval`。
 5. S-4b P3 以降、`WorldCellStreamingSliceCreator` / `SeasonWorldGenerationCommand` メニューは HEAD に無い。Generate を再実行しない。
 
 ## Phase B でやってはいけない
