@@ -27,7 +27,7 @@ Unity の正しいバージョンは `unity/ProjectSettings/ProjectVersion.txt` 
 - **Unity側のC#で `record` を使わない。** `OneStarMaker.Runtime` にだけ `internal` な `IsExternalInit` polyfill があるが、他の asmdef からは利用できない。Unity側では一律に禁止し、`tools/DebugStudio` の .NET 8 コードには適用しない。
 - **新規または編集する Unity側の `.cs` は先頭に `#nullable enable` を置く。** 既存ファイルからも外さない。未対応の既存ファイルは残っており、一括整備は別スライスとする。
 - **Unity の偽 null を忘れない。** 破棄されうる `UnityEngine.Object` に `?.` / `??` / `is null` / `ReferenceEquals` を使わず、`== null` / `!= null` で判定する。
-- **Phase B の実装担当は Unity.exe を起動しない。** `pwsh tools/run-tests.ps1` と Addressables ビルドも実行しない。`unity test` / `unity run` はどの Phase でも使わない。`unity/Library/` と `unity/Temp/UnityLockfile` はブランチを捨てても残る。例外は、人間が既に開いている Editor へ `unity status` / `unity command` / `unity eval` で接続する操作だけで、詳細は `osm-unity-editor` Skill に従う。
+- **Phase B の実装担当は Unity.exe を起動しない。** `pwsh tools/run-tests.ps1` と Addressables ビルドも実行しない。`unity test` / `unity run` はどの Phase でも使わない。`unity/Library/` と `unity/Temp/UnityLockfile` はブランチを捨てても残る。例外は、人間が既に開いている Editor へ `tools/unity-editor.cmd` から `status` / `command` / Base64 `eval` で接続する操作と、接続不能時の `pipeline list` 診断だけで、詳細は `osm-unity-editor` Skill に従う。Unity CLIは更新可能、Unity MCPは任意の補助であり作業前提にしない。
 - **テストで `Task.Delay` / `Thread.Sleep` を使わない。** 待機はシグナル等へのリアクティブな待機にするか、時間を注入して進める。
 - **参照 0 を削除理由にしない。** 未使用 API は意図的な先行宣言やフェーズ外の場合があり、置き換え残骸と確認できたものだけが削除候補になる。
 - **PR の base は `develop`。** `main` は既定ブランチとして使わない。
