@@ -1,6 +1,8 @@
 #nullable enable
 
 using System;
+using System.IO;
+using Unity.Loading;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
@@ -19,6 +21,13 @@ namespace CD0Spike.Editor
         [MenuItem("OneStarMaker/CD0/Build Content Directory (Incremental Baseline)")]
         private static void BuildIncrementalContentDirectory()
         {
+            foreach (var directory in ContentLoadManager.GetContentDirectories())
+            {
+                if (directory.IsValid && string.Equals(directory.BuildName, "cd0-local-v1", StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException("Unregister the cd0-local-v1 content directory before rebuilding its incremental output.");
+                }
+            }
             BuildContentDirectory(Cd0FixturePaths.DefaultContentOutput, "cd0-local-v1");
         }
 
@@ -43,8 +52,17 @@ namespace CD0Spike.Editor
             Debug.Log($"[CD0] Content build result={report.summary.result} output={report.summary.outputPath} target={report.summary.platform} totalSize={report.summary.totalSize}");
             if (report.summary.result != BuildResult.Succeeded)
             {
+                QuarantineFailedOutput(outputPath);
                 throw new InvalidOperationException($"CD0 content build failed: {report.summary.result}");
             }
+        }
+
+        private static void QuarantineFailedOutput(string outputPath)
+        {
+            if (!Directory.Exists(outputPath)) return;
+            var quarantinePath = outputPath + ".failed-" + DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffZ");
+            Directory.Move(outputPath, quarantinePath);
+            Debug.LogError($"[CD0] Failed content output quarantined at {quarantinePath}");
         }
     }
 }

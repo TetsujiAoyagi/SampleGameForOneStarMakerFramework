@@ -40,6 +40,7 @@ namespace CD0Spike
                     throw;
                 }
                 sink.Record(new Cd0ProbeEvent(CaseId, Generation, "asset", _assetLedger.Accepted ? "accepted" : "abandoned", asset.Value));
+                if (!_assetLedger.Accepted) return;
 
                 _sceneLedger.MarkIssued(Generation);
                 Scene scene;
