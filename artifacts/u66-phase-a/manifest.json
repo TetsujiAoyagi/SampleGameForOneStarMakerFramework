@@ -1,0 +1,23 @@
+{
+  "type": "A1 draft, not frozen",
+  "generatedAt": "2026-09-12T22:56:23.7023044Z",
+  "path": "artifacts/u66-phase-a/A1-snapshot.md",
+  "sha256": "194392B0046252C6A14EB239C1C97E1B36AFE93FB5716497066ABAD002C286FC",
+  "implementationBase": "3244f3635c6e18fffc1bbc40d3126e6d1eee009a",
+  "referenceHead": "0d96cd5de4e813d701512b12a7f3020b3641f404",
+  "a2Architecture": {
+    "generatedAt": "2026-09-13T09:00:00+09:00",
+    "path": "artifacts/u66-phase-a/A2-architecture.md",
+    "sha256": "3ECA89E3855B4C083134D8C85B64D3296883730BFFD755B793005B6C88C0F999"
+  },
+  "a2Packages": {
+    "generatedAt": "2026-09-13T09:00:00+09:00",
+    "path": "artifacts/u66-phase-a/A2-packages.md",
+    "sha256": "B85784BDEEC8FBCDA8DBDCE3E35C0F8105B5D8B772096C3575FB8233625ED83B"
+  },
+  "a3Frozen": {
+    "generatedAt": "2026-09-13T09:00:00+09:00",
+    "path": "artifacts/u66-phase-a/A3-frozen.md",
+    "sha256": "2B5A136B0F6EAEDEF5CE3C776950739AC5F2424E7691645EC3CB481DBA4C6D56"
+  }
+}
