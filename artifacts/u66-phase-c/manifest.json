@@ -20,7 +20,7 @@
   },
   "frozenPhaseA": {
     "path": "artifacts/u66-phase-a/A3-frozen.md",
-    "sha256": "2B5A136B0F6EAEDEF5CE3C776950739AC5F2424E7691645EC3CB481DA4C6D56"
+    "sha256": "2B5A136B0F6EAEDEF5CE3C776950739AC5F2424E7691645EC3CB481DBA4C6D56"
   },
   "testXml": {
     "path": "TestResults/results-all-20260913-084215.xml",
