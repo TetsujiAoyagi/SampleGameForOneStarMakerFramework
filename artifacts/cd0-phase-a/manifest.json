@@ -1,0 +1,21 @@
+{
+  "type": "A1 draft, not frozen",
+  "generatedAt": "2026-09-13T19:45:31.6539797+09:00",
+  "path": "artifacts/cd0-phase-a/A1-snapshot.md",
+  "sha256": "E730BD1A87CC08776D2442D43532DE66D4932C92E39540DC5B54309D88C21970",
+  "implementationBase": "0a11a4be58c7b75356b076f356078d8d001c2e5b",
+  "a0Location": "A1-snapshot.md section 1",
+  "phase": "A0/A1 only",
+  "unityExecuted": false,
+  "a2": "not performed",
+  "a3": {
+    "path": "artifacts/cd0-phase-a/A3-frozen.md",
+    "status": "revision 1 frozen",
+    "sha256": "BB8844C76F369A075F19A672D5F79416525E468E7E1CE55F0BA4077365CFD65C"
+  },
+  "phaseBResult": {
+    "path": "artifacts/cd0-phase-a/B-result.md",
+    "status": "implemented, implementation head not fixed",
+    "sha256": "374B9508D155FF1039BA4F6913C1F38C3816EA964D2961CE4AFD3D530E677C1E"
+  }
+}
