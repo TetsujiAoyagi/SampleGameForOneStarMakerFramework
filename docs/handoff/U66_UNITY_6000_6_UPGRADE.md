@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C FAIL / Aへ差し戻し` — 2026-09-13 の人間指示で既存6.6移行差分をPhase B完了として固定しPhase Cを実施。compile/EditModeは通過したが、未凍結Aの越境、package選択未承認、手動Play/build証拠不足により移行完了とは扱わない。
+- status: `A3 revision 2 frozen / B retained / C continuation required` — 2026-09-13 の人間判断で既存6.6実装を保持したままA2/A3を完了。旧Cのcompile/EditMode証拠は同一implementation headに限り再利用可。Play/Workspace/Addressables/Player gate完了までは移行PASSとしない。
 - branch: `codex/u66-phase-a`（この U66 スライスを継続。PR base は `develop`）
 - implementation base commit: `3244f3635c6e18fffc1bbc40d3126e6d1eee009a`
 - implementation head commit: `4263a33ee0d5e75b67e82e6260ff556f12fd1dce`
@@ -12,10 +12,10 @@
 - created: 2026-09-12 JST。PR #50との追加照合: 2026-09-13 JST。
 - expires: U66 Phase D で harvest 後削除。未凍結のまま 2026-09-26 に達した場合、または base/package/採用 Editor を変更する場合、A0 を再検証する。
 - harvest to: `AGENTS.md`、`README.md`、`unity/Assets/README.md`（実際の Editor/package/セットアップ）、`unity/Assets/Docs/Architecture/20-variant-checkout-workflow.md`（検証済みの既存 build 運用だけ）、`docs/streaming/STREAMING_CURRENT_SPEC.md`（検証済みの回帰結果）、必要な wrapper 修正は `tools/run-tests.ps1` 自身。`docs/README.md` の作業台一覧は削除時にも更新する。
-- Phase A snapshot: 本文が A1 revision 1。ローカル evidence は `artifacts/u66-phase-a/A1-snapshot.md`、path / 生成時刻 / SHA-256 は `artifacts/u66-phase-a/manifest.json` に記録。別担当へ渡す際はこのbundleも添付する。凍結 snapshot は A3 後に別途生成し、初稿を凍結版と取り違えない。
+- Phase A snapshot: A1初稿は `artifacts/u66-phase-a/A1-snapshot.md`。A2 2件と凍結済みrevision 2は `artifacts/u66-phase-a/A2-architecture.md`、`A2-packages.md`、`A3-frozen.md`。生成時刻とSHA-256は `artifacts/u66-phase-a/manifest.json`。実装入力の正本は `A3-frozen.md` とする。
 - Phase B result snapshot: `artifacts/u66-phase-c/B-result.md`（2026-09-13 JST、hashは `artifacts/u66-phase-c/manifest.json`）。
 - evidence bundle: `artifacts/u66-phase-c/evidence.md`（2026-09-13 JST、hashは同manifest）。
-- C' blind bundle: 未生成。Phase CがAへ差し戻したためC'未着手。
+- C' blind bundle: 未生成。revision 2に対するPhase C完了後に生成する。
 
 ## 1. 目的・対象外・A0 現況
 
@@ -115,11 +115,11 @@ Phase BはUnity.exeを起動せず、run-tests.ps1/Addressables buildを実行�
 | UniTask 2.5.11(cache表示) | Unity指定なし / `e5acc106ee196bc5a32fb14cdf2987b0f96d11e0` 維持 | PlayerLoop、domain reload無効で2回Play、cancel/Addressables await |
 | NuGetForUnity 4.5.0(cache表示) | Unity指定なし / `c2af83c9d4f8cdaada9d4a0e94de2f195d8e1d01` 維持 | fresh restore、plugin importer、MessagePack analyzer。upstream READMEはexact6.6認証ではない |
 | Pipeline 0.4.0-exp.1 | exact6.6推奨未確認 / 維持 | human初回open後ready/command discovery。接続不能を新Editor起動で回避しない |
-| Multiplayer Center 1.0.1 builtin | release list 2.0.1 / coreが強制する場合のみ追随 | Editor解決値を記録。runtime multiplayer導入なし |
-| Ads 4.16.4、collab-proxy 2.12.4、VisualScripting 1.9.11 | list 4.19.0 / 2.13.6 / 1.9.12 / current維持 | optional registry全更新は対象外。resolverが変更要求したらAへ |
+| Multiplayer Center 1.0.1 builtin | 2.0.1 / UPM `updateDependencies`結果をA3採用 | Editor解決値を固定。runtime multiplayer導入なし |
+| Ads 4.16.4、collab-proxy 2.12.4、VisualScripting 1.9.11 | 4.19.0 / 2.13.6 / 1.9.12 / UPM `updateDependencies`結果をA3採用 | 人間の実装保持判断とEditor logのexact一覧に基づく。機能追加はしない |
 | IAP 5.4.2、Analytics 3.8.2 | list IAP4.15.0は移行指示に使わない / 維持 | downgradeしない。services.analytics6.3.0、services.core1.18.0維持 |
 | Rider3.0.39、VS2.0.26、Auditor rules1.0.3、XR legacy3.0.1 | current維持 | IDE連携/compile確認。非使用を理由に削除しない |
-| builtin modules1.0.0、2D sprite/tilemap1.0.0 | Editor同梱値 | Terrain/TerrainPhysics明示依存を維持。新機能moduleを先行追加しない |
+| builtin modules1.0.0、2D sprite/tilemap1.0.0 | Editor同梱値。tetgen 1.0.0追加をA3採用 | Terrain/TerrainPhysics明示依存を維持。tetgenは6.6 UPM `updateDependencies`結果のみを保持し、新機能利用はしない |
 
 NuGet `Assets/packages.config` の25件は全維持: MessagePack/Annotations/Analyzer3.1.7、Bcl.AsyncInterfaces/TimeProvider8.0.0、Extensions.DependencyInjection/Abstractions/Logging/Logging.Abstractions/Options/Primitives8.0.0、NET.StringTools17.11.4、ObservableCollections3.3.4、R3 1.3.1、Collections.Immutable8.0.0、ComponentModel.Annotations5.0.0、Diagnostics.DiagnosticSource8.0.0、Text.Encodings.Web8.0.0、Text.Json8.0.5、Threading.Channels8.0.0、Utf8StringInterpolation1.3.1、VContainer1.0.2、ZLogger2.5.10、ZString2.6.0、ZStringFormatExtension0.0.6。復元で違う版や新dependencyが必要なら停止する。
 
@@ -185,8 +185,8 @@ asset行数は変更が発生した時に凍結前のinventoryへ追補する。
 
 - A0/A1主担当: Codex / GPT-6 / OpenAI。本稿はU66の初稿成果物。A0だけからrollback/回帰境界を検討する独立担当を使用し、A1本文へのアンカリングを避ける。
 - A0代替検討実績: `/root/a0_boundary_review`（主担当と同一モデル系列、新しい入力でA0のみ閲覧）。Git外Addressables/WorldWorkspace journalと版別出力の隔離、既存build復元の提案を採用。sourceの新実装やUnity実行なし。複数モデルA2やA3の代替とはしない。
-- A2: 高リスクとして複数モデルの独立レビューを同一A1 snapshotで実施する。少なくとも1件はarchitecture gate（公開面0変更、依存/所有者/serialization境界）を担当する。今回の初稿作成と、正式A2完了は区別して記録する。
-- A3: 主担当と人間が各指摘をaccepted/rejected/deferredに分類し理由を記録。①baseに紐づくbaseline証拠、②代表Playの移行前成否、③existing build用profile/fixtureとWindows backend、④未確認core/transitive解決方針、⑤C/C'担当の可用性を固定してから凍結する。人間の採否は未回答。
+- A2完了: architecture担当 `/root/u66_a2_architecture`（GPT-6 Astra / OpenAI）とpackage/test/rollback担当 `/root/u66_a2_packages`（GPT-5.6 Luna / OpenAI）が、同じA1 snapshotとbase/headを別contextで独立レビュー。Phase C結論は入力から除外した。成果物とhashはPhase A manifestに記録。
+- A3完了: 2026-09-13、人間が「Phase Aを実施し、既存実装は差し戻さない」と判断。主担当がA2指摘を統合し `artifacts/u66-phase-a/A3-frozen.md` をrevision 2として凍結した。package exact集合、3 serialization asset、TMP修理、manifest+lock復元契約を採用。Git URL SHA直書きとwrapper改修は別スライスへdefer。6.5 raw baseline欠如は残存riskとしてacceptし、Play/build gateはCに残す。
 - CはBと異なるモデル・新規セッション。C'はB/Cと異なるモデルの新規セッション、可能ならAにも未関与の系列/ベンダーを予約する。現時点の予約は未割当。代替として未関与の人間に依頼し、本人の確認範囲・所見・残存リスク・判定を記録する。事前関与/先にC結論閲覧があれば独立性制約ありとする。
 - C/C'開始前に同一implementation base/headの完全diff/stat/name-status、凍結A snapshot、B result、生test結果、C以前の機械出力からbundleを作る。各path/id/生成時刻/hashをmanifestへ記録。C'には可変HANDOFF全文、C結論・findings・疑念候補を渡さない。
 - implementation head変更ならbundleとC/C'結果を無効化し同じ新headで再実施。review記録だけのcommitはimplementation headを変えない。findingsにはseverity/category/unique-or-duplicate/採否/Phase/担当/根拠/修正commitまたは不採用理由を残す。
@@ -198,22 +198,22 @@ asset行数は変更が発生した時に凍結前のinventoryへ追補する。
 - ProjectVersionをexact `6000.6.0f1 (f7f8ed4d1e24)`へ更新し、manifest/lock、URP Global Settings、Project Auditor、Addressables settingsのEditor/UPM生成差分を固定した。
 - `DebugProfilerView.cs` の6.6 compile errorは `enableWordWrapping = false` を同等の `textWrappingMode = TextWrappingModes.NoWrap` へ置換した。新規責務、公開API、asmdef edge、owner/lifetime変更はない。
 - contract audit、docs audit、JSON parse、diff checkはPASS。Unity test、Play、Addressables/Player buildはBでは未実行。
-- 計画との差: A2/A3未完のまま移行が先行した。さらにAds 4.19.0、collab-proxy 2.13.6、VisualScripting 1.9.12、Multiplayer Center 2.0.1への更新とtetgen追加は、A1の維持/条件付き方針に対するresolver provenanceと人間採否が未記録。この差を事後承認済みとは扱わない。
+- 計画との差: A2/A3未完のまま移行が先行した。revision 2のA3で、Editor logのUPM `updateDependencies` provenanceと人間の実装保持判断に基づき、Ads 4.19.0、collab-proxy 2.13.6、VisualScripting 1.9.12、Multiplayer Center 2.0.1、tetgen 1.0.0を含むexact解決集合とTMP修理を事後採用した。履歴上の越境自体は消さない。
 - 担当・モデル: Codex / GPT-5（OpenAI）。
 
 ## 7. Phase C
 
-実施済み。**判定: FAIL、Phase Aへ差し戻し。** compile/EditMode互換は通過したが、本HANDOFFの全受け入れ条件と停止条件は満たしていない。
+旧revision 1に対して実施しFAIL。revision 2凍結により計画逸脱findingは解消した。implementation headは不変のため、compile/EditMode raw evidenceは再利用できるが、**Phase C全体の再判定は未実施**。残るPlay/Workspace/Addressables/Player gate完了後に判定する。
 
 - evidence bundle: `artifacts/u66-phase-c/evidence.md`、manifest: `artifacts/u66-phase-c/manifest.json`（2026-09-13 JST）。base/head完全diff、機械検査、raw test path/hashを記録。
 - 構造適合: Scene/Prefab/asmdef変更なし。661 Scene（SampleGame 659）、12 asmdefを確認。唯一のC#変更は既存Profiler UI設定の互換置換で、責務・依存・寿命・公開面の増加なし。URP/Addressables/ProjectAuditor差分は宣言assetのversion/schema更新に限定。
 - テスト結果: Editor process不在を確認後、implementation headに対し `pwsh tools/run-tests.ps1` をfilterなしで実行。Unity `6000.6.0f1 (f7f8ed4d1e24)`、679 total / 679 passed / 0 failed / 0 skipped、exit 0。XML/logとSHA-256はevidence bundleに記録。要求カテゴリのtest名も検出。初回testでAddressables必須serializationを検出・commitしたため、新headで全件を再実行しtracked tree cleanを確認した。
 - machine checks: contract audit PASS、docs audit PASS、manifest/lock JSON parse PASS、diff check PASS、最終logのC# compile errorなし。
-- finding P0 / semantic / accepted: A2/A3未完・未凍結の高リスクHANDOFFを越えてBが進んだ。人間の継続指示はC実行の根拠だが、欠落した6.5 preflight/A3を補完しない。Aへ差し戻す。
-- finding P1 / semantic / accepted: optional package更新とtetgen直接追加のresolver要求・選択理由が未固定。Aで各変更をaccept/rejectし、変更する場合は新implementation headでCをやり直す。
-- finding P1 / semantic / accepted: TMP修理自体は最小でテスト通過したが、Aの互換修理予算への追補がなかった。A revisionへ原因と許可範囲を取り込む。
-- finding P1 / semantic / accepted: T4〜T9のFull/Whitebox Play、Spring traversal、Workspace、画像、packed Addressables、Windows Player build/run、DebugSocketは未実施。特にT8 fixture/profile/backendはA3で未凍結のため、推測してbuildしない。
-- 未確認事項: 6.5 raw baseline、Editor reopen/import、UPM resolver provenance、NuGet/analyzer、全asset参照/missing script、Play/graphics/Workspace/Addressables/Player/rollback。compile/EditMode PASSを全migration PASSへ拡張しない。
+- finding P0 / semantic / resolved by A3 revision 2: 未凍結越境を履歴上の事実として残し、現在のexact実装を人間判断で明示採用。実装は巻き戻さない。
+- finding P1 / semantic / resolved by A3 revision 2: optional package更新とtetgenはEditor logの `Update Mode: updateDependencies` exact結果および人間の保持判断を根拠に採用。
+- finding P1 / semantic / resolved by A3 revision 2: TMP CS0619修理を既存Debug UI責務内の一行互換変更として明示採用。
+- finding P1 / semantic / open for revised C: T4〜T9のFull/Whitebox Play、Spring traversal、Workspace、画像、packed Addressables、Windows Player build/run、DebugSocketは未実施。revision 2はtracked `Default` / `Production` / `WorldWhitebox` profileを使用し、active GUID/backend等を実行時に採取する手順を凍結した。
+- 未確認事項: 6.5 raw baseline、Editor reopen/import、NuGet/analyzer、全asset参照/missing script、Play/graphics/Workspace/Addressables/Player/rollback。UPM `updateDependencies` provenanceはEditor logで確認済み。compile/EditMode PASSを全migration PASSへ拡張しない。
 - 担当・モデル: Phase C独立レビュー `/root/u66_phase_c_review_alt`（Codex、別セッション）。モデル相違の明確な証明を記録できないため、厳密な独立性条件は未充足として扱う。
 
 ## 8. Phase C'
