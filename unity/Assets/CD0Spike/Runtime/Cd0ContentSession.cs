@@ -16,6 +16,8 @@ namespace CD0Spike
         private bool _registered;
         private bool _assetIssued;
         private bool _sceneIssued;
+        private bool _assetPending;
+        private bool _scenePending;
         private bool _sceneLoaded;
 
         internal Cd0Root RegisterAndGetRoot(string directoryPath)
@@ -39,9 +41,17 @@ namespace CD0Spike
             if (_assetIssued) throw new InvalidOperationException("Probe asset load was already issued.");
             _asset = root.ProbeAsset;
             _assetIssued = true;
-            var asset = await _asset.LoadAsync();
-            if (asset == null) throw new InvalidOperationException("Probe asset load returned null.");
-            return asset;
+            _assetPending = true;
+            try
+            {
+                var asset = await _asset.LoadAsync();
+                if (asset == null) throw new InvalidOperationException("Probe asset load returned null.");
+                return asset;
+            }
+            finally
+            {
+                _assetPending = false;
+            }
         }
 
         internal async Awaitable<Scene> LoadSceneAsync(Cd0Root root)
@@ -50,17 +60,29 @@ namespace CD0Spike
             if (_sceneIssued) throw new InvalidOperationException("Probe scene load was already issued.");
             _sceneId = root.PayloadScene;
             _sceneIssued = true;
-            var operation = SceneManager.LoadSceneAsync(_sceneId, new LoadSceneParameters(LoadSceneMode.Additive));
-            if (operation == null) throw new InvalidOperationException("Scene load did not return an operation.");
-            await operation;
-            _scene = SceneManager.GetSceneByLoadableSceneId(_sceneId);
-            if (!_scene.IsValid() || !_scene.isLoaded) throw new InvalidOperationException("Loaded content scene could not be resolved.");
-            _sceneLoaded = true;
-            return _scene;
+            _scenePending = true;
+            try
+            {
+                var operation = SceneManager.LoadSceneAsync(_sceneId, new LoadSceneParameters(LoadSceneMode.Additive));
+                if (operation == null) throw new InvalidOperationException("Scene load did not return an operation.");
+                await operation;
+                _scene = SceneManager.GetSceneByLoadableSceneId(_sceneId);
+                if (!_scene.IsValid() || !_scene.isLoaded) throw new InvalidOperationException("Loaded content scene could not be resolved.");
+                _sceneLoaded = true;
+                return _scene;
+            }
+            finally
+            {
+                _scenePending = false;
+            }
         }
 
         internal async Awaitable CleanupAsync()
         {
+            if (_assetPending || _scenePending)
+            {
+                throw new InvalidOperationException("Cleanup cannot run while a native content operation is pending; await its terminal event first.");
+            }
             if (_sceneIssued && !_sceneLoaded)
             {
                 _scene = SceneManager.GetSceneByLoadableSceneId(_sceneId);

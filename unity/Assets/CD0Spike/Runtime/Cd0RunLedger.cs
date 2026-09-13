@@ -63,7 +63,7 @@ namespace CD0Spike
         {
             RequireGeneration(generation);
             if (!_completed) throw new InvalidOperationException("Cleanup cannot finish before the native terminal event.");
-            if (_cleanupDone) throw new InvalidOperationException("Cleanup was already recorded.");
+            if (_cleanupDone || _cleanupFailed) throw new InvalidOperationException("Cleanup already reached a terminal state.");
             _cleanupDone = true;
         }
 

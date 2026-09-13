@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &522687088
+--- !u!1 &1803359284
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -127,8 +127,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 522687090}
-  - component: {fileID: 522687089}
+  - component: {fileID: 1803359286}
+  - component: {fileID: 1803359285}
   m_Layer: 0
   m_Name: CD0 Payload Marker
   m_TagString: Untagged
@@ -136,26 +136,27 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &522687089
+--- !u!114 &1803359285
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 522687088}
+  m_GameObject: {fileID: 1803359284}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1d7939b327d1c2e4e9b1336c71db20e2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CD0Spike.Runtime::CD0Spike.Cd0SceneMarker
   _value: scene-v1
---- !u!4 &522687090
+  _probeAsset: {fileID: 11400000, guid: 84c97ce2565d399499c438764d5bcfeb, type: 2}
+--- !u!4 &1803359286
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 522687088}
+  m_GameObject: {fileID: 1803359284}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -168,4 +169,4 @@ Transform:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 522687090}
+  - {fileID: 1803359286}

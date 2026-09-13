@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.IO;
 using Unity.Loading;
 using UnityEditor;
@@ -14,15 +15,19 @@ namespace CD0Spike.Editor
         [MenuItem("OneStarMaker/CD0/Generate Fixture")]
         private static void GenerateFixture()
         {
+            RejectUnsavedSceneState();
             EnsureFolder(Cd0FixturePaths.FixtureRoot);
             var previousSetup = EditorSceneManager.GetSceneManagerSetup();
             try
             {
-                CreatePayloadScene();
-                CreateBootstrapScene();
                 var probeAsset = CreateOrLoad<Cd0ProbeAsset>(Cd0FixturePaths.ProbeAsset);
                 probeAsset.SetValue("probe-v1");
                 EditorUtility.SetDirty(probeAsset);
+                AssetDatabase.SaveAssetIfDirty(probeAsset);
+                AssetDatabase.ImportAsset(Cd0FixturePaths.ProbeAsset, ImportAssetOptions.ForceUpdate);
+
+                CreatePayloadScene(probeAsset);
+                CreateBootstrapScene();
 
                 var sceneId = LoadableSceneIdEditorUtility.CreateLoadableSceneId(Cd0FixturePaths.PayloadScene);
                 var objectId = LoadableObjectIdEditorUtility.CreateLoadableObjectId(probeAsset);
@@ -30,7 +35,7 @@ namespace CD0Spike.Editor
                 var root = CreateOrLoad<Cd0Root>(Cd0FixturePaths.RootAsset);
                 root.Initialize(sceneId, loadable);
                 EditorUtility.SetDirty(root);
-                AssetDatabase.SaveAssets();
+                AssetDatabase.SaveAssetIfDirty(root);
                 AssetDatabase.Refresh();
                 Debug.Log($"[CD0] Fixture generated at {Cd0FixturePaths.FixtureRoot}");
             }
@@ -40,12 +45,12 @@ namespace CD0Spike.Editor
             }
         }
 
-        private static void CreatePayloadScene()
+        private static void CreatePayloadScene(Cd0ProbeAsset probeAsset)
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var markerObject = new GameObject("CD0 Payload Marker");
             var marker = markerObject.AddComponent<Cd0SceneMarker>();
-            marker.SetValue("scene-v1");
+            marker.Initialize("scene-v1", probeAsset);
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene, Cd0FixturePaths.PayloadScene);
         }
@@ -56,10 +61,22 @@ namespace CD0Spike.Editor
             var runnerObject = new GameObject("CD0 Probe Runner");
             var runner = runnerObject.AddComponent<Cd0ProbeRunner>();
             var serializedRunner = new SerializedObject(runner);
-            serializedRunner.FindProperty("_contentDirectoryPath").stringValue = Cd0FixturePaths.ResolveProjectRelative(Cd0FixturePaths.DefaultContentOutput);
+            serializedRunner.FindProperty("_contentDirectoryPath").stringValue = string.Empty;
             serializedRunner.ApplyModifiedPropertiesWithoutUndo();
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene, Cd0FixturePaths.BootstrapScene);
+        }
+
+        private static void RejectUnsavedSceneState()
+        {
+            for (var index = 0; index < SceneManager.sceneCount; index++)
+            {
+                var scene = SceneManager.GetSceneAt(index);
+                if (scene.isDirty || string.IsNullOrEmpty(scene.path))
+                {
+                    throw new InvalidOperationException("Save or discard every open Scene change before generating the CD0 fixture.");
+                }
+            }
         }
 
         private static T CreateOrLoad<T>(string assetPath) where T : ScriptableObject

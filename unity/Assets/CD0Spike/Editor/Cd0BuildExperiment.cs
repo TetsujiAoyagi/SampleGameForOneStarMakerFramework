@@ -9,20 +9,32 @@ namespace CD0Spike.Editor
 {
     internal static class Cd0BuildExperiment
     {
-        [MenuItem("OneStarMaker/CD0/Build Content Directory")]
-        private static void BuildContentDirectory()
+        [MenuItem("OneStarMaker/CD0/Build Content Directory (Isolated Run)")]
+        private static void BuildIsolatedContentDirectory()
+        {
+            var runId = DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffZ");
+            BuildContentDirectory($"../artifacts/cd0/content/runs/{runId}", $"cd0-{runId}");
+        }
+
+        [MenuItem("OneStarMaker/CD0/Build Content Directory (Incremental Baseline)")]
+        private static void BuildIncrementalContentDirectory()
+        {
+            BuildContentDirectory(Cd0FixturePaths.DefaultContentOutput, "cd0-local-v1");
+        }
+
+        private static void BuildContentDirectory(string relativeOutputPath, string buildName)
         {
             if (AssetDatabase.LoadAssetAtPath<Cd0Root>(Cd0FixturePaths.RootAsset) == null)
             {
                 throw new InvalidOperationException("Generate the CD0 fixture before building content.");
             }
 
-            var outputPath = Cd0FixturePaths.ResolveProjectRelative(Cd0FixturePaths.DefaultContentOutput);
+            var outputPath = Cd0FixturePaths.ResolveProjectRelative(relativeOutputPath);
             var parameters = new BuildContentDirectoryParameters
             {
                 outputPath = outputPath,
                 rootAssetPaths = new[] { Cd0FixturePaths.RootAsset },
-                name = "cd0-local-v1",
+                name = buildName,
                 compression = BuildCompression.Uncompressed,
                 options = BuildContentOptions.None,
                 extraScriptingDefines = Array.Empty<string>(),
