@@ -203,7 +203,7 @@ asset行数は変更が発生した時に凍結前のinventoryへ追補する。
 
 ## 7. Phase C
 
-旧revision 1に対して実施しFAIL。revision 2凍結により計画逸脱findingは解消した。implementation headは不変のため、compile/EditMode raw evidenceは再利用できるが、**Phase C全体の再判定は未実施**。残るPlay/Workspace/Addressables/Player gate完了後に判定する。
+revision 2に対するPhase Cを2026-09-13に完了し、判定は **FAIL**。compile/EditModeと基本Play/Workspaceは通過したが、既存content/profileのwhitelist不整合によりAddressablesとWindows Playerを生成できない。U66の範囲では既存ビルド系を修理せず、失敗をbaseline制約として記録する。
 
 - evidence bundle: `artifacts/u66-phase-c/evidence.md`、manifest: `artifacts/u66-phase-c/manifest.json`（2026-09-13 JST）。base/head完全diff、機械検査、raw test path/hashを記録。
 - 構造適合: Scene/Prefab/asmdef変更なし。661 Scene（SampleGame 659）、12 asmdefを確認。唯一のC#変更は既存Profiler UI設定の互換置換で、責務・依存・寿命・公開面の増加なし。URP/Addressables/ProjectAuditor差分は宣言assetのversion/schema更新に限定。
@@ -212,9 +212,12 @@ asset行数は変更が発生した時に凍結前のinventoryへ追補する。
 - finding P0 / semantic / resolved by A3 revision 2: 未凍結越境を履歴上の事実として残し、現在のexact実装を人間判断で明示採用。実装は巻き戻さない。
 - finding P1 / semantic / resolved by A3 revision 2: optional package更新とtetgenはEditor logの `Update Mode: updateDependencies` exact結果および人間の保持判断を根拠に採用。
 - finding P1 / semantic / resolved by A3 revision 2: TMP CS0619修理を既存Debug UI責務内の一行互換変更として明示採用。
-- finding P1 / semantic / open for revised C: T4〜T9のFull/Whitebox Play、Spring traversal、Workspace、画像、packed Addressables、Windows Player build/run、DebugSocketは未実施。revision 2はtracked `Default` / `Production` / `WorldWhitebox` profileを使用し、active GUID/backend等を実行時に採取する手順を凍結した。
-- 未確認事項: 6.5 raw baseline、Editor reopen/import、NuGet/analyzer、全asset参照/missing script、Play/graphics/Workspace/Addressables/Player/rollback。UPM `updateDependencies` provenanceはEditor logで確認済み。compile/EditMode PASSを全migration PASSへ拡張しない。
-- 担当・モデル: Phase C独立レビュー `/root/u66_phase_c_review_alt`（Codex、別セッション）。モデル相違の明確な証明を記録できないため、厳密な独立性条件は未充足として扱う。
+- Full Playは2回、Whitebox Playは1回enter/stopし、各回Console error 0。FullはUIScene追加loadとstop後の解放を確認。Play中にAudioListener二重警告が反復したが、post-load queryでは`/Main Camera`の1件だったためopen findingとする。
+- World Workspaceはメニューから正常起動しConsole error 0。生成/saveは行っていない。
+- Production/WorldWhiteboxはいずれも、Home/InGame/各Seasonを含む8 SceneResourceMap IDにwhitelist一致payloadがなくpacked Addressablesが停止。Production Windows PlayerもAddressables prepareで同じ理由によりFAILし、実行物なし。app-configはfinallyで復元され、検証用builder/profile差分と自動生成assetは除去した。
+- 人間の2026-09-13指示により、もともと未成立のPlayer buildをU66で直すこと、およびSeason Scene/Cellの実動作修理・確認は後続作業へ延期する。従ってPlayer/Season compatibilityは主張しない。
+- 未確認事項: 6.5 raw baseline、NuGet/analyzer、全asset参照/missing script、直接input/camera/UI操作、telemetry/DebugSocket payload、Spring traversal、画像比較、mobile Player、Player run、rollback failure injection。
+- 担当・モデル: Phase C実行 Codex / GPT-5（OpenAI）。証拠の独立再点検は `/root/u66_phase_c_final_review`（GPT-6 Astra / OpenAI、別context）が担当し、FAIL判定を妥当と確認。結論を含むbundleを入力したためblind Phase C'とは扱わない。指摘されたmanifest hash、A3参照、生ログ固定、未実施gate表現を修正した。
 
 ## 8. Phase C'
 

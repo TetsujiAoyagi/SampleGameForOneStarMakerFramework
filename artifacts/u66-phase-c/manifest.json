@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-13T08:48:29+09:00",
+  "generated": "2026-09-13T14:09:03+09:00",
   "implementationBase": "3244f3635c6e18fffc1bbc40d3126e6d1eee009a",
   "implementationHead": "4263a33ee0d5e75b67e82e6260ff556f12fd1dce",
   "phaseBResult": {
@@ -8,7 +8,19 @@
   },
   "evidenceBundle": {
     "path": "artifacts/u66-phase-c/evidence.md",
-    "sha256": "A9A264D4A03D7B56A4C3D72BA52712BACB41F13FA48B1C9415F114D7222D130A"
+    "sha256": "DF7991C14220672AA3A51B6EE988F864CE0876F36602A7D3985794592E8869AC"
+  },
+  "liveEditorBuildLog": {
+    "path": "artifacts/u66-phase-c/live-editor-build-log.md",
+    "sha256": "6CACD2D184BE96C2C31034A546F6BA5212B314102CEA3B7ECA7D01EABDDF843A"
+  },
+  "independentReview": {
+    "path": "artifacts/u66-phase-c/independent-review.md",
+    "sha256": "A743B6394283F9B9B1188B35C80F1ABA5A64D1997C8D2A9C745A3C2251C4DAFC"
+  },
+  "frozenPhaseA": {
+    "path": "artifacts/u66-phase-a/A3-frozen.md",
+    "sha256": "2B5A136B0F6EAEDEF5CE3C776950739AC5F2424E7691645EC3CB481DA4C6D56"
   },
   "testXml": {
     "path": "TestResults/results-all-20260913-084215.xml",
