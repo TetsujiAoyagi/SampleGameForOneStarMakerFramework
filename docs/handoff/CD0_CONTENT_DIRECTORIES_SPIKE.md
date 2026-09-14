@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`（disposable technical spike。BuildSystem の実装スライスではない）
-- status: `A3 revision 1 frozen / B implemented / C static review and EditMode tests complete / native experiments pending`。
+- status: `A3 amended / B implemented / C native acceptance CONDITIONAL / Phase D pending`。
 - branch: `codex/cd0-phase-a`。PR base は `develop`。develop/main へ直接コミットしない。
 - implementation base commit: `0a11a4be58c7b75356b076f356078d8d001c2e5b`（2026-09-13 fetch 後の origin/develop）
-- implementation head commit: `bfc7c677e1c470d58797fb38a0128336f6490e79`。
+- implementation head commit: `3c6f19fb3b00a00a2e2584e04fb25ad947fdfb48`（E1修正とCD0固定host接続を含む）。
 - risk: `high`（未知の native loading / serialization / 非同期寿命 / stripping を実証する。ただし本番変更はしない）
 - owner: Phase A 主担当 Codex / GPT-6 Astra（OpenAI）。A3 の採否・Phase D は人間。B/C/C' は開始時に担当を記録する。
 - created: 2026-09-13 JST
@@ -129,7 +129,7 @@ E0 → E1 → E2 → E3 → E4 → E5 → E6/E8 → E7 → 判断、HTTPは別�
 
 本repoで生成・Content build・local経路を試す。Playerのstripping実験だけは **Cが用意する独立した一時Unity project** をA1第一候補とする。owner境界は `artifacts/cd0/player-host/`、Unity project rootはその直下の `artifacts/cd0/player-host/unity/` に固定し、`Assets/` と `ProjectSettings/` はこの `unity/` 配下へ置く。host側の `../artifacts/cd0/content` は `player-host/artifacts/cd0/content` へ解決され、Player出力とprevious BuildReport directoryも `player-host/` のstrict descendantにする。同じexact Editorを使い、同じfixture source/assets/metaを限定コピーしてhashを照合する。Library/Temp、OSM、SampleGame、Addressables設定・callback・packageをコピーしない。engine-onlyのfixtureとしてcore APIを検証し、manifest/lockとeffective backend/stripping/targetを独立入力として保存する。これは本repoのpackage統合Playerを証明しない。その制約をBS4へ渡す。
 
-本repoでは新規project作成・manifest変更を行わない。独立hostの生成・必要module・core-only構成の詳細はA3で固定する。Editorを開くのは人間。`tools/unity-editor.cmd` は本repoのunityへ固定されているため**別projectへ使わず、ラッパーを変更しない**。独立hostはC担当の人間が用意したメニューから実行しログ/reportを採取する。Bに別Editorの起動やbuildをさせない。この限定された手動実験が用意できない場合はE7をblockedとし、Editor成功だけでGOにしない。
+本repoでは新規project作成・manifest変更を行わない。独立hostの生成・必要module・core-only構成の詳細はA3で固定する。Editorを開くのは人間。A3実行時例外として、任意pathを受け取らず `artifacts/cd0/player-host/unity/` だけを選べる `tools/unity-editor.cmd --cd0-player-host` を追加し、既に開かれたhostへ接続した。通常の本repo接続と任意 `--project-path` 禁止は維持する。Bに別Editorの起動やbuildをさせない。この限定された手動実験が用意できない場合はE7をblockedとし、Editor成功だけでGOにしない。
 
 ### 共通の証拠
 
@@ -291,14 +291,17 @@ E2〜E7のlocal成立後にのみAを追補する。完成した一式をHTTPで
 - root、probe asset、content-only Scene marker、additive Scene、cleanup、unregisterをPlayerで確認。元path不在かつ空白・日本語を含む移設先もfresh processで成功。
 - Player report directoryを誤入力した対照は ScriptsOnlyCache.yaml 不在警告となり、Content build reportがcode stripping入力であることを実測。
 - E8変更入力はmanifest JSON、関連 .cf、BuildManifestHashだけが変化し、High stripping Playerがprobe-v2を取得。詳細は artifacts/cd0-phase-c/native-execution-20260914.md。
-- 最新判定: **CONDITIONAL**。in-flight native cancelはE5規則どおりinconclusive。本番Addressables callbackとの統合、HTTP、季節Sceneは未実証であり後続Phaseの境界とする。
+- P0/P1限定: reportなしの最初のPlayerでもSceneMarkerはloadできたため、今回の証拠は「Content reportがなければ型がstripされる」という因果を示さない。Player reportはScriptsOnlyCache.yaml不在で代用不能、Content reportは入力として受理されruntimeも成功した、とだけBS4へ渡す。
+- E8限定: 実測はR0/R1とProbe値変更R3。R2/R4/R5〜R7のmatrix完了を主張しない。
+- AOT限定: Mono + High strippingのみ。IL2CPP module/AOTは未実施でblockedとし、AOT互換へ拡張しない。
+- 最新判定: **CONDITIONAL**。in-flight native cancelはE5規則どおりinconclusive。本番Addressables callbackとの統合、IL2CPP/AOT、E8残matrix、HTTP、季節Sceneは未実証であり後続Phaseの境界とする。上に残るHOLD記述は各レビュー時点の履歴であり、最新判定ではない。
 
 ## 8. Phase C'
 
 - 担当方式: 新規agent/sessionによるblind audit。
 - blind bundle: `artifacts/cd0-phase-c/blind-audit-bundle.md`。exact hashはmanifest。
 - 確認範囲・方法: A3/B snapshot、固定diff/stat/name-status、機械検査、生test XML/logのみ。HANDOFFとC結論を入力から除外。
-- 判定: implementation sliceは**conditional pass**。CD0全体は **HOLD / inconclusive**。assembly隔離・path境界・EditMode回帰は成立したが、Content Directoriesのcore受け入れは未実証。
+- 判定（native実行前の履歴）: implementation sliceは**conditional pass**。当時のCD0全体は **HOLD / inconclusive**。assembly隔離・path境界・EditMode回帰は成立したが、Content Directoriesのcore受け入れは未実証だった。最新判定は§7追補のCONDITIONAL。
 - findings: 最終固定bundleではblockingなsource/evidence-integrity指摘なし。E0〜E8のnative証拠なし、single happy-path runnerだけではE5 matrixを駆動できない点は受け入れ残件。
 - 残存risk・監査不能範囲: native build/register/root/load/unload/retry/relocation/incremental/strippingの全項目。既存Player/季節Sceneは成功baselineがないためCD0判定へ流用しない。
 - 独立性: Cの結論を事前閲覧せず、設計・実装にも未関与。利用可能モデルの都合でOpenAI/GPT系列内となり、モデルfamily多様性は未達。

@@ -49,22 +49,24 @@ Two builds used artifacts/cd0/content/local-v1 and build name cd0-local-v1. The 
 The disposable project root was artifacts/cd0/player-host/unity. Runtime, Editor, and Fixture sources and meta files matched the main checkout by SHA-256; OSM, SampleGame, Addressables settings, and their build callbacks were absent. Content output, copied reports, and Player outputs were strict descendants of artifacts/cd0/player-host.
 
 - backend: Mono; API compatibility: .NET Standard 2.0; managed stripping: High
-- first Player build: Succeeded, 0 errors, 1 warning, 73,439,257 bytes, 53.296 seconds
+- P0 (previousBuildReportDirectoriesなし) Player build: Succeeded, 0 errors, 1 warning, 73,439,257 bytes, 53.296 seconds
 - the Player registered the host Content output and loaded Root, probe-v1, the additive Payload Scene, and the content-only Cd0SceneMarker before cleanup
 - a fresh Player loaded a complete copy from relocated content 日本語 while the original path was absent; the first launch intentionally documented that an unquoted Windows argument truncates at the first space, and the correctly quoted single argument succeeded
 - passing a Player BuildHistory directory as previousBuildReportDirectories produced Unity's Failed to locate or parse ScriptsOnlyCache.yaml warning
 - passing the Content Directory BuildHistory directory containing ScriptsOnlyCache.yaml removed that warning; the High-stripping Player build succeeded with 0 errors and 1 warning in 12.340 seconds, and its runtime load completed
 - the remaining warning was the expected absence of a RuntimePipelineManager in the isolated bootstrap Scene
 
-This establishes that previousBuildReportDirectories consumes the Content build report for content-only code retention; an arbitrary Player report directory is not interchangeable.
+The P0 Player already loaded Cd0SceneMarker successfully. Therefore this does not establish that the marker would be stripped without the Content report. It establishes only that a Player report directory is not interchangeable with the accepted Content build report, and that the Content report plus High stripping completed both build and runtime load. The causal P0-fails/P1-succeeds contrast remains inconclusive.
 
 ## E8 — changed input
 
-In the isolated host, changing only the probe value from probe-v1 to probe-v2 and rebuilding changed three roles: the manifest JSON, one 856-byte .cf payload, and BuildManifestHash.txt. The other five files retained identical SHA-256 hashes. The already-built High-stripping Player then loaded probe-v2 from the rebuilt Content Directory and completed the Scene/cleanup sequence.
+In the isolated host, changing only the probe value from probe-v1 to probe-v2 (R3) and rebuilding changed three roles: the manifest JSON, one 856-byte .cf payload, and BuildManifestHash.txt. The other five files retained identical SHA-256 hashes. The already-built High-stripping Player then loaded probe-v2 from the rebuilt Content Directory and completed the Scene/cleanup sequence. R2, R4, and R5–R7 were not executed.
 
 ## Remaining
 
 - E5 in-flight asset/Scene cancellation
+- E7 IL2CPP/AOT and a causal P0-fails/P1-succeeds stripping contrast
+- E8 R2, R4, and R5–R7
 - E9 HTTP remains optional and follows local completion
 
-The native core path is supported through E1–E8. In-flight native cancellation was not made timing-dependent and remains inconclusive as allowed by E5. The result is CONDITIONAL because Player evidence is isolated-host-only and production integration remains untested.
+The listed native observations cover parts of E1–E8; they do not mean every matrix row completed. In-flight native cancellation was not made timing-dependent and remains inconclusive as allowed by E5. Player evidence is Mono-only and isolated-host-only; IL2CPP/AOT is blocked. The result is CONDITIONAL and production integration remains untested.
