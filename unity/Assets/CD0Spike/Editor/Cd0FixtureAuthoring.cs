@@ -26,11 +26,19 @@ namespace CD0Spike.Editor
                 AssetDatabase.SaveAssetIfDirty(probeAsset);
                 AssetDatabase.ImportAsset(Cd0FixturePaths.ProbeAsset, ImportAssetOptions.ForceUpdate);
 
+                // ForceUpdate can invalidate the instance passed to the editor utility. Resolve the
+                // imported object again so the serialized LoadableObjectId keeps its GUID/file ID.
+                probeAsset = AssetDatabase.LoadAssetAtPath<Cd0ProbeAsset>(Cd0FixturePaths.ProbeAsset);
+                if (probeAsset == null)
+                {
+                    throw new InvalidOperationException("The CD0 probe asset could not be reloaded after import.");
+                }
+                var objectId = LoadableObjectIdEditorUtility.CreateLoadableObjectId(probeAsset);
+
                 CreatePayloadScene(probeAsset);
                 CreateBootstrapScene();
 
                 var sceneId = LoadableSceneIdEditorUtility.CreateLoadableSceneId(Cd0FixturePaths.PayloadScene);
-                var objectId = LoadableObjectIdEditorUtility.CreateLoadableObjectId(probeAsset);
                 var loadable = new Loadable<Cd0ProbeAsset>(objectId);
                 var root = CreateOrLoad<Cd0Root>(Cd0FixturePaths.RootAsset);
                 root.Initialize(sceneId, loadable);

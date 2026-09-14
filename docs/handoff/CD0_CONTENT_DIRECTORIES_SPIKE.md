@@ -263,7 +263,9 @@ E2〜E7のlocal成立後にのみAを追補する。完成した一式をHTTPで
 - 構造適合: 3 asmdef、既存asmdef変更0、Runtime/Editor/Test境界は適合。
 - findings: 初回静的レビュー7件を採用して修正。再レビューで取消後のScene発行とincremental出力保護の2件を追加修正し、最終限定再レビューで確定的回帰なし。BuildContentDirectoryが例外を直接throwする経路とquarantine失敗は未実測。
 - テスト: `CD0Spike.Tests` 10/10 PASS、全EditMode 689/689 PASS、failed/skipped 0。最初の試行は既存Editor lockで起動前停止し、その後の成功と分離して保存。
-- 各AC/E結果: code/serialization/compile/EditModeのみ確認。Content build、登録/root取得、asset/Scene load/unload、failure/cancel/retry、relocation、Player/linker、R0〜R7は未実行のためHOLD/inconclusive。
+- native追補（2026-09-14）: exact Editor 6000.6.0f1 / StandaloneWindows64で E1〜E4、欠損directory失敗後のretry、Editor上の別path移設、E8無変更再buildを実行。direct Content buildは成功し、root Root、asset probe-v1、additive Scene Payload、cleanup、登録解除（終了後valid handle 0）が成立した。詳細は artifacts/cd0-phase-c/native-execution-20260914.md。
+- E1で、Scene作成後に失効したasset instanceからIDを作るとrootのGUID/fileIDが消えるnative不具合を検出。import後にassetを再取得し、Scene作成前にLoadableObjectIdを確定する修正を採用し、再生成後のroot参照が既存bytesと一致することを確認した。
+- 各AC/E結果: E1〜E4、欠損directory failure/retry、Editor relocation、E8同一入力は実測済み。in-flight cancel、fresh Player relocation、E7 Player/linker/BuildReport、E8変更入力は未実行のため、CD0全体は引き続きHOLD。
 - 担当・モデル: Codex主担当、静的レビュー `/root/cd0_phase_c_review` / GPT-6 Astra / OpenAI。
 
 ### Additional independent review (2026-09-14, Grok)
