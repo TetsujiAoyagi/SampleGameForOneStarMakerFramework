@@ -266,6 +266,14 @@ E2〜E7のlocal成立後にのみAを追補する。完成した一式をHTTPで
 - 各AC/E結果: code/serialization/compile/EditModeのみ確認。Content build、登録/root取得、asset/Scene load/unload、failure/cancel/retry、relocation、Player/linker、R0〜R7は未実行のためHOLD/inconclusive。
 - 担当・モデル: Codex主担当、静的レビュー `/root/cd0_phase_c_review` / GPT-6 Astra / OpenAI。
 
+### Additional independent review (2026-09-14, Grok)
+
+- 依頼: GitHub PR #53 `@cursoragent code_review`。implementation head は据え置き `189bc21086aaf96d77f64c017b4ebf7ad4301876`。
+- 担当・モデル: Cursor Grok 4.6 / xAI。新規セッションだが C/C' 結論を読んでおり **独立性制約あり**。盲検 C' の代替ではない。
+- 構造適合: 3 asmdef と責務分割は計画どおり。`分割済み`。既存 OSM/SampleGame/asmdef 参照 0。
+- 追加 findings: G1 Player host の `Contains` が prefix 混同を許す（C' P3 の具体化）。G2 Player `outputPath` / report directory が CD0 root 外でも通る。G3 Content build/quarantine も contain 未検査。G4 Tests.Editor → Editor 参照が A3 本文から外れ B-result 未記録。G5 incremental ガードが BuildName のみ。G9 `async void` 中断時の native cleanup 漏れ。詳細は `artifacts/cd0-phase-c/cursor-grok-review.md`。
+- 判定: 既存どおり **HOLD / inconclusive**。native 未実施を成功扱いにしない。G1–G3 は E7 前の修正候補だが、このレビュー commit では実装 head を更新しない。
+
 ## 8. Phase C'
 
 - 担当方式: 新規agent/sessionによるblind audit。
