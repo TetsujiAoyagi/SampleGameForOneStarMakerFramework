@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A2 complete / A3 integration proposal / human approval pending`
+- status: `A3 frozen / Phase B ready`
 - branch: `codex/cd0-u66-phase-d-bs1-phase-a`
 - implementation base commit: `bda2ed7`
 - implementation head commit: 未到達
@@ -12,9 +12,9 @@
 - created: 2026-09-15 JST
 - expires: 2026-09-29 JST、またはBuildSystem入力、SceneResource graph、VCS境界の前提が変わった時点
 - harvest to: `unity/Assets/Docs/Architecture/18-asset-description.md` と新BuildSystemの現況を説明する既存Architecture文書。BS1 Phase Dでharvest後削除。
-- Phase A snapshot path / id: git commit `84f316f` の本ファイル
+- Phase A snapshot path / id: A1はgit commit `84f316f`。A3 frozen snapshotは凍結commitを§5へ追記する。
 - Phase A snapshot generated at: 2026-09-15 JST
-- Phase A snapshot hash: git commit `84f316f`
+- Phase A snapshot hash: A1 `84f316f` / A3は凍結commit後に追記
 - Phase B result snapshot path / id: 未到達
 - Phase B result snapshot generated at: 未到達
 - Phase B result snapshot hash: 未到達
@@ -69,7 +69,7 @@ Unity Content Directoriesと既存Addressablesのどちらにも依存させず�
   - AC1: tagなし、`Season=Spring`、`Representation=Whitebox`、両tagのtruth tableを単体テストで固定する。
   - AC2: requestの同一dimension複数値はOR、candidateがtagを持つdimension間はAND、candidateがtagを持たないrequest dimensionはneutralとして通す。
   - AC3: `BuildTagSchema`はrequestと独立した必須policy入力。match前にrequestと全candidate tagを検証し、unknown dimension/value、空selection、null/空/前後空白をerrorにする。比較はordinal case-sensitiveで暗黙trimしない。schema上正しいがrequestに選択がないdimensionのtagを持つcandidateは非選択とする。
-  - AC4: `Representation`等のexclusive dimensionで同一candidateに複数valueが導出された場合はerror。同一tag重複はdeduplicateしてwarning。同一stable candidate keyはmergeせずerror。同一physical keyを異なるlogical/stable keyが共有する場合も、将来の明示alias機構なしではerror。
+  - AC4: Frameworkはdimension名による特例を持たない。全dimensionでcandidateが持てるvalueは高々1つ。同一tag重複はdeduplicateしてwarning、同一dimensionの異なるvalueはerror。requestの同一dimension複数valueだけをORとし、複数dimensionはANDで照合する。同じdimensionの複数valueへ参加するcontentは、そのdimensionを持たないneutral candidateにするかphysical candidateを分ける。同一stable candidate keyはmergeせずerror。同一physical keyを異なるlogical/stable keyが共有する場合も、将来の明示alias機構なしではerror。
   - AC5: required/cardinalityはcandidateでなく独立した`BuildContentRequirement`として宣言する。候補自体が0件の場合と全候補がfilterされた場合の両方をerrorにできる。cardinalityはidentity検証後のdistinct candidate recordを数え、少なくとも`OneOrMore`と`ExactlyOne`を持つ。重複・矛盾するrequirement宣言はerror。
   - AC6: `SceneRole=Lighting`等を暗黙のBuildTagへ変換しない。providerが明示的に返したtagだけを選択に使う。
   - AC7: `BuildPlanResult`がcanonicalなissuesと成功時planを保持し、Errorが1件でもあればplanを公開しない。Warningだけならplanを持つ。成功`BuildPlan`はrequest、選択content、structured reason付き除外content、immutable provenanceを防御的copyで保持する。
@@ -84,7 +84,7 @@ Unity Content Directoriesと既存Addressablesのどちらにも依存させず�
   - Git/SVN checkout、revision取得、`.meta`配置、配信cache: DISTまたは専用VCS入力スライス
   - 現行Addressables whitelist不整合の修復/retirement: RET。BS2-4成立前に削除しない。
 - 判定定義:
-  - GO: 最低条件とACをpure unit testsで満たし、後続backendが`BuildPlan`以外の選択判断を再実装する必要がない。
+  - GO: 最低条件とAC1–AC9をpure unit testsで満たす。
   - NO-GO: Game固有語彙またはUnity I/Oをcoreに入れないと必要な選択を表現できない、あるいは一意で再現可能なplanを作れない。
 - 停止規則: 最低条件を満たし、現在の問いへの致命的反証がなければGOで終了する。BS2以降の未実証事項を理由にBS1を拡張しない。
 - A3後の例外承認: なし。
@@ -95,42 +95,47 @@ Unity Content Directoriesと既存Addressablesのどちらにも依存させず�
   - `SceneState`、`IAssetManagement`、`AssetOwner`、Update順序は変更しない。
   - testで`Task.Delay` / `Thread.Sleep`を使わない。
   - Phase BはUnity.exe、Unity test、`run-tests.ps1`、Addressables/Content buildを実行せず、最後に`tools/contract-audit.ps1`だけ実行する。
-- 未決事項: A3統合案への人間の採否のみ。型名の軽微な表記調整は意味論を変えない範囲でPhase Bに許す。
+- 未決事項: なし。型名の軽微な表記調整は、凍結した責務・意味論・公開面を変えない範囲でPhase Bに許す。
 
-## 3. 責務マップ（A1案）
+## 3. 責務マップ
 
 配置は`unity/Assets/OneStarMaker/Scripts/Editor/Build/Selection/`、namespaceは
 `OneStarMaker.Build.Selection`。ここにEditor-onlyかつ`noEngineReferences: true`の専用
-`OneStarMaker.Build.Selection.asmdef`を置き、Runtime、既存Editor、Addressables、Unity packageへの参照を0にする。
-既存`OneStarMaker.Editor`と将来のSampleGame Editor adapterがselection assemblyを参照し、逆参照を禁止する。
+`OneStarMaker.Build.Selection.asmdef`を置く。`includePlatforms: ["Editor"]`、`autoReferenced: false`、
+`noEngineReferences: true`とし、Runtime、既存Editor、Addressables、Unity packageへの参照を0にする。
+BS1では`OneStarMaker.Tests.Editor`だけがselection assemblyを参照する。既存`OneStarMaker.Editor`と将来の
+SampleGame Editor adapterからのproduction参照・配線はBS2 Phase Aで決め、selection側からの逆参照は禁止する。
 
 | ファイル / 現在行数 / 予想増分 | 責務・変更理由 | 所有者・寿命・依存・公開面・テスト境界 |
 |---|---|---|
 | `BuildTag.cs` / 0 / 50–80 | ordinal比較するDimension/Value値、空白・null拒否 | plan生成中の値。Systemのみ。immutable value。pure test |
 | `BuildRequest.cs` / 0 / 60–100 | dimensionごとの選択値をimmutable化 | caller demandのsnapshot。project policyを所有しない。pure test |
 | `BuildContentCandidate.cs` / 0 / 100–150 | stable key、logical key、physical key、pure provenanceを保持 | materialize済み入力。required/cardinalityを持たず、Unity objectを保持しない。pure test |
-| `IBuildTagProvider.cs` / 0 / 30–50 | candidate/contextごとに独立immutable tag attributionを返す | 過去provider出力を観測・変更できない。stable provider key必須。Game固有providerを注入可能 |
-| `BuildSelectionPolicy.cs` / 0 / 100–160 | schemaとlogical group requirementを一つのimmutable policy snapshotにする | caller所有policy。requestから独立。pure test |
+| `IBuildTagProvider.cs` / 0 / 30–50 | candidateごとに独立immutable tag attributionを返す | 引数はpure candidateだけ。context、Unity object、delegate、mutable bufferを渡さない。過去provider出力を観測・変更できず、stable provider key必須 |
+| `BuildTagSchema.cs` / 0 / 60–100 | dimensionと許可valueを宣言し、unknown/空白を検証する | Framework固有dimension名を持たないimmutable schema。pure test |
+| `BuildSelectionPolicy.cs` / 0 / 60–100 | schemaとlogical group requirementを一つのimmutable policy snapshotにする | caller所有policy。requestから独立。pure test |
 | `BuildContentRequirement.cs` / 0 / 40–70 | logical keyごとのmin/max（OneOrMore/ExactlyOne） | candidateが0件でもrequiredを表現。pure test |
-| `BuildValidationIssue.cs` / 0 / 45–75 | code/severity/candidate key/message data | plan/report間の構造化診断。ログや表示をしない |
+| `BuildValidationIssue.cs` / 0 / 45–75 | code/severity/subject/dimension/value/message data | subject kindは`Request` / `Candidate` / `Requirement`、subject keyはordinal比較可能なstable string。provider由来時はstable provider keyをattributionとして持つ。ログや表示をしない |
+| `BuildValidationCode.cs` / 0 / 35–60 | 凍結したissue code集合 | `InvalidRequestSelection`, `UnknownDimension`, `UnknownValue`, `DuplicateTag`, `ConflictingCandidateValues`, `DuplicateCandidateKey`, `PhysicalKeyCollision`, `DuplicateRequirement`, `ConflictingRequirement`, `RequiredGroupMissing`, `CardinalityViolation`。Bで追加・意味変更しない |
+| `BuildExclusionReasonCode.cs` / 0 / 15–30 | 成功planの構造化除外理由 | `UnrequestedDimension`, `ValueNotSelected`のみ。dimension/valueを別fieldで保持し、display messageをhash入力にしない |
 | `BuildProvenance.cs` / 0 / 45–75 | source kind/idとordinal string pairのimmutable snapshot | object/delegate/stream/Unity object/native handle/mutable辞書を禁止 |
 | `BuildPlan.cs` / 0 / 90–140 | 成功時のrequest/selected/structured exclusion/provenance immutable snapshot | Editor build invocation寿命。backendへ渡す唯一の選択結果。pure test |
 | `BuildPlanResult.cs` / 0 / 45–75 | canonical issuesと成功時planを分離し、error時plan使用を禁止 | selector戻り値。pure test |
 | `BuildTagSelector.cs` / 0 / 180–280 | materialize済みcandidateへprovider適用、normalize、validate、match、group validation、stable snapshot化 | source列挙/I/Oをしないstateless policy。Systemのみ。全分岐pure test |
 | `BuildTagSelectorTests.cs` / 0 / 400–600 | truth table、全identity衝突、schema matrix、順序置換、欠落、immutability、full snapshot同値 | fake providerとin-memory値のみ。AssetDatabase/Unity build不要。600行でも宣言的test matrixとして非分割妥当 |
-| `OneStarMaker.Build.Selection.asmdef` / 0 / 15–25 | pure境界を機械的に強制 | Editor only、noEngineReferences、外部参照0 |
+| `OneStarMaker.Build.Selection.asmdef` / 0 / 15–25 | pure境界を機械的に強制 | Editor only、autoReferenced false、noEngineReferences、外部参照0 |
 | `OneStarMaker.Tests.Editor.asmdef` / 既存 / +1参照 | BS1 testからselection assemblyを参照 | selectionへの片方向追加。production assemblyへの逆参照なし |
 
-予想production増分は790–1,225行、test増分400–600行。test fileだけ500行警報の可能性があるが、
+予想production増分は900–1,415行、test増分400–600行。test fileだけ500行警報の可能性があるが、
 同じselector契約の宣言的table matrixで依存・寿命・変更理由が同じため非分割を既定とする。
-スライス全体は3責務を超えるように見えるが、source/providerは拡張境界、schema/issueは入力検証、selector/planは
+スライス全体は3責務を超えるように見えるが、materialized candidate/providerは入力・拡張境界、schema/issueは入力検証、selector/planは
 同一の「選択snapshot生成」という変更理由に凝集する。Unity adapterとbackendをBS2へ分離しており、BS1内の追加分割は行数だけを理由に行わない。
 
 ## 4. 実装計画
 
-1. 人間承認後、上記placement、result/error model、schema/requirement ownerをA3として凍結する。
+1. 凍結済みplacement、result/error model、schema/requirement ownerに従って専用assemblyを作る。
 2. value型とimmutable request/candidate/policy/requirement/issue/provenanceを実装する。
-3. source/provider interfaceを実装する。
+3. `IBuildTagProvider`だけを公開拡張口として実装する。`IBuildContentSource`は追加しない。
 4. selectorをtag attribution → normalize → identity/schema validation → match → group validation → stable snapshotの順で実装する。source列挙は行わない。
 5. fakeだけを使うunit testsを追加する。
 6. 既存Addressables/Variantコードを変更していないことをdiffで確認する。
@@ -149,16 +154,16 @@ Phase BからPhase Aへ差し戻す条件:
 
 ## 5. テストとレビュー計画
 
-- 単体テスト: neutral/common、dimension内OR・dimension間AND、空selection、request/candidate双方のunknown dimension/value、全stable/logical/physical identity衝突、exclusive conflict、同一tag重複、required group自体なし/全filter、ExactlyOne/OneOrMoreの0/1/2、Full/Whitebox、Spring/Summer、role非混入、複数errorのcanonical順、全入力順置換のfull snapshot同値、nested collection/provider buffer変更後の防御的copy、warning時plan有/error時plan無。
+- 単体テスト: neutral/common、dimension内OR・dimension間AND、空selection、request/candidate双方のunknown dimension/value、全stable/logical/physical identity衝突、candidate同一dimension異値conflict、同一tag重複、required group自体なし/全filter、ExactlyOne/OneOrMoreの0/1/2、Full/Whitebox、Spring/Summer、role非混入、複数errorのcanonical順、全入力順置換のfull snapshot同値、nested collection/provider buffer変更後の防御的copy、warning時plan有/error時plan無。
 - 統合・Unityテスト: Phase Cで既存Editor test全件。BS1固有testはUnity I/Oなしだが、repo標準runnerから実行する。Content/Addressables/Player buildは対象外。
 - 機械検査: Phase B/Cの`tools/contract-audit.ps1`、Phase Cの`tools/run-tests.ps1`、`git diff --check`。
 - A0/A1主担当・モデル・ベンダー: Codex / GPT-6 Astra / OpenAI。
 - A2独立レビュー:
   - architecture gate: placement/asmdef、責務、依存、所有者、test境界。
   - semantics/test gate: truth table、schema、conflict/cardinality、determinism、後続BS2-4との境界。
-- A3統合担当・モデル・採否: Codex / GPT-6 Astraが統合案を作り、人間が採否を明示する。
+- A3統合担当・モデル・採否: Codex / GPT-6 Astraが統合。2026-09-15、人間がA2統合案を採用し、追加の凍結補記を示してA3凍結を承認。
 - C'用に予約した担当・モデル・ベンダー: Phase B/C開始時に未関与の系列またはベンダーを選定する。Phase Aで使い切らない。
-- 独立性の強化条件を満たせない場合の理由: 現時点なし。
+- 独立性の強化条件を満たせない場合の理由: A2 architecture/semanticsはいずれもOpenAI/GPT系列で、A0だけから代替構成を出す別系列レビューは未実施。人間が独立にHANDOFFと現行実装を照合して補記を提示した。C'用の未関与系列/ベンダーは予約したままとする。
 
 ### A2独立レビュー結果とA3統合案
 
@@ -176,7 +181,17 @@ Phase BからPhase Aへ差し戻す条件:
   - 採用: `BuildPlanResult`にissueを置き、Error時はplanを公開しない。
 - 不採用: なし。
 - 保留: `IBuildContentSource`型そのもの。BS1では不要なので追加せず、BS2 Phase Aでproduction adapterの入力portとして必要性と配置を決める。
-- A3提案: 上記採用事項を凍結し、statusを`A3 frozen / Phase B ready`へ変更する。人間の明示承認待ち。
+- 人間レビューで追加採用した凍結補記:
+  - `BuildTagSchema.cs`を独立ファイルとして責務マップへ追加。
+  - dimension名によるexclusive特例を廃止し、全candidateをdimensionあたり高々1 valueに統一。
+  - BS1の公開portは`IBuildTagProvider`だけとし、source portをBS2へ保留。
+  - asmdefを`autoReferenced: false`とし、BS1の参照追加はTests側だけに限定。
+  - provider入力をpure candidateだけに限定し、未定義contextを削除。
+  - issue codeとexclusion reasonの閉じた集合を凍結。
+  - GOからBS2でしか証明できない「後続が再実装しない」を削除。
+  - 責務マップ見出しから「A1案」を削除。
+- A3判断: 全A2指摘と人間補記を採用。不採用なし。`IBuildContentSource`はBS2へ保留。
+- A3 frozen snapshot: この凍結内容を含むcommitを作成後、commit idをメタデータへ追記する。
 
 ## 6. Phase B 実装結果
 
