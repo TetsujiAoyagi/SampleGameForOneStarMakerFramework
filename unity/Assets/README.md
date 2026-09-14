@@ -9,7 +9,7 @@
 
 | 項目 | バージョン / 選定 |
 |---|---|
-| Unity | **6.5 (6000.5.0f1)** |
+| Unity | **6.6 (6000.6.0f1)** |
 | Render Pipeline | **URP 17.5.0** |
 | Scripting Backend | **IL2CPP** (Android) |
 | .NET | **.NET Standard 2.1** |
@@ -174,6 +174,6 @@ MonoBehaviour.Update によらない更新基盤（Layer / Coordinator / Job Sys
 
 ## セットアップ
 
-1. Unity 6.5 (6000.5.0f1) で **`unity/`** フォルダを開く
+1. Unity 6.6 (6000.6.0f1) で **`unity/`** フォルダを開く
 2. NuGetForUnity が自動で NuGet パッケージを復元する
 3. Addressables は Variant ビルドシステムで構成済み（whitelist ビルド / ハイブリッド Play Mode。手順は [20-variant-checkout-workflow.md](Docs/Architecture/20-variant-checkout-workflow.md)）
