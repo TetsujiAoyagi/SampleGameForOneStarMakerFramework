@@ -34,10 +34,11 @@
 複数スライスに跨る計画（構図の正本、空間プロトコルの Plan など）も作業台に置いてよい。ただし harvest 先と期限を本文に書くこと。作業指示だけに限らない。
 §7 / §8 を持たない長期計画は検査3 の網に掛からない。harvest 期限を本文に書くこと。
 
-**いま `docs/handoff/` にある進行中正本は 4 つである。**
+**いま `docs/handoff/` にある進行中正本は 5 つである。**
 
 | ファイル | 役割 | 実装キューか |
 |---|---|---|
+| `BS1_PURE_CONTENT_SELECTION.md` | backend非依存のBuildTag選択coreとimmutable BuildPlan | Phase A進行中。A3凍結後にPhase Bへ渡す |
 | `SEASON_WORLD_DESIGN.md` | 世界構図・実証・スライス順序 | 着手時 HANDOFF を切るまでの正本。スライス表の順で切る |
 | `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b 完了。S-4c〜d 着手時 HANDOFF の入力正本。S-4d の Phase D で harvest して削除する |
 | `REVIEW_WORKFLOW_EFFICIENCY.md` | 外部モデルレビューの実測と、次のPhase Cで残す比較項目 | いいえ。普遍契約はSkillへharvest済み。残る実測後に削除する |
