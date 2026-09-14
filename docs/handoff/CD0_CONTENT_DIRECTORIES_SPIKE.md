@@ -274,6 +274,14 @@ E2〜E7のlocal成立後にのみAを追補する。完成した一式をHTTPで
 - 追加 findings: G1 Player host の `Contains` が prefix 混同を許す（C' P3 の具体化）。G2 Player `outputPath` / report directory が CD0 root 外でも通る。G3 Content build/quarantine も contain 未検査。G4 Tests.Editor → Editor 参照が A3 本文から外れ B-result 未記録。G5 incremental ガードが BuildName のみ。G9 `async void` 中断時の native cleanup 漏れ。詳細は `artifacts/cd0-phase-c/cursor-grok-review.md`。
 - 判定: 既存どおり **HOLD / inconclusive**。native 未実施を成功扱いにしない。G1–G3 は E7 前の修正候補だが、このレビュー commit では実装 head を更新しない。
 
+### Follow-up review of adopted fixes (2026-09-14, Grok)
+
+- 対象 implementation head: `bfc7c677e1c470d58797fb38a0128336f6490e79`。同一指摘者の再レビューのため **独立性制約あり**。
+- G1/G2/G3/G5 と fixture cleanup traversal は実装と回帰テストで確認。G4 不採用は A3 amendment 2 と一致。G6–G9 は残件/制約のまま妥当。
+- 新規残件 R1: E7 の host が HANDOFF どおり `artifacts/cd0/player-host` 直下 Assets だと、Content 相対 path `../artifacts/cd0/content` が host 外へ解決し、G2 が report を拒否する。`player-host/unity` なら合成できる。E7 手順でレイアウトを固定する必要あり。
+- 詳細: `artifacts/cd0-phase-c/cursor-grok-followup-review.md`。
+- 判定: ハーネス path 境界の前回指摘は閉じた。CD0 全体は native 未実施のため **HOLD / inconclusive**。
+
 ## 8. Phase C'
 
 - 担当方式: 新規agent/sessionによるblind audit。
