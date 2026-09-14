@@ -7,7 +7,7 @@
 
 Implemented the disposable CD0 fixture under `unity/Assets/CD0Spike/` without changing any existing OSM, SampleGame, Addressables, package, build profile, or app-config file.
 
-The implementation contains three new assemblies (`CD0Spike.Runtime`, `CD0Spike.Editor`, `CD0Spike.Tests.Editor`), 18 C# files / 803 lines, Unity-generated meta files, two generated Scenes, one root asset, and one probe asset. Existing asmdefs have no new dependency edge.
+The implementation contains three new assemblies (`CD0Spike.Runtime`, `CD0Spike.Editor`, `CD0Spike.Tests.Editor`), 18 C# files / 840 lines, Unity-generated meta files, two generated Scenes, one root asset, and one probe asset. Existing asmdefs have no new dependency edge.
 
 Runtime responsibilities are split between the serialized root/types, run ledger, native content session, orchestrator, and event sink. Editor responsibilities are split between authoring, direct Content Directory build, isolated-host Player build, filesystem inventory, and inventory-validated cleanup. Tests cover stale generation, abandonment/drain, cleanup admission, cleanup failure, duplicate cleanup, path containment, prefix confusion, and traversal.
 

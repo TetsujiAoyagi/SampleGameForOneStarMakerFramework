@@ -14,7 +14,7 @@
 - harvest to: `unity/Assets/Docs/Architecture/13-resource-system.md`（検証した loading 制約）、`unity/Assets/Docs/Architecture/20-variant-checkout-workflow.md`（現行と spike の区別・検証した build 制約）。次の BS1/BS2/BS3/BS4 Phase A に必要な制約は各開始時の A0 へ転記する。将来構成を現行実装として公開しない。
 - Phase A snapshot path / id: A1は `artifacts/cd0-phase-a/A1-snapshot.md`、実装入力は `artifacts/cd0-phase-a/A3-frozen.md`。
 - Phase A snapshot generated at / SHA-256: `artifacts/cd0-phase-a/manifest.json`。
-- Phase B result snapshot: `artifacts/cd0-phase-a/B-result.md`、SHA-256 `DEA6E3A2E620F05058E11F2FFE3C7FFDCBE670D0A1EF4FF1CF81797AC9F1D236`。
+- Phase B result snapshot: `artifacts/cd0-phase-a/B-result.md`、SHA-256 `AD691CD1E16AF020EB709869310ED5EF267CEF6762D376B99100644374851B0F`。
 - evidence bundle: `artifacts/cd0-phase-c/`（hashはmanifestに記録）。
 - C' blind bundle: `artifacts/cd0-phase-c/blind-audit-bundle.md`（hashはmanifestに記録）。
 
@@ -249,7 +249,7 @@ E2〜E7のlocal成立後にのみAを追補する。完成した一式をHTTPで
 
 ## 6. Phase B 実装結果
 
-- 実装: `unity/Assets/CD0Spike/` にRuntime/Editor/Tests.Editorの3 assembly、18 C# / 803行、2 Scene、root/probe assetを追加。既存OSM/SampleGame/Addressables/package/profile/app-config/asmdefへの変更0。詳細は `artifacts/cd0-phase-a/B-result.md`。
+- 実装: `unity/Assets/CD0Spike/` にRuntime/Editor/Tests.Editorの3 assembly、18 C# / 840行、2 Scene、root/probe assetを追加。既存OSM/SampleGame/Addressables/package/profile/app-config/asmdefへの変更0。詳細は `artifacts/cd0-phase-a/B-result.md`。
 - Editor: 人間が既に開いたexact `6000.6.0f1`へwrapperで接続。最終recompileはfailed=false/error 0。Editor APIでfixtureを生成し、元のclean SampleScene setupへ復元。生成後Console error 0。
 - 検査: contract audit PASS。docs auditは検査1/2 PASS、既存U66 harvest警告のみ。
 - HANDOFFとの差: 独立Player hostはCの実験環境なので未作成。JSONL sinkと全case matrix driverは、実際のnative結果を得る前に形式を固定しすぎないよう最小event sinkとcase ledgerまで実装。新しい設計判断が必要ならCで実装せずAへ戻す。
@@ -279,11 +279,11 @@ E2〜E7のlocal成立後にのみAを追補する。完成した一式をHTTPで
 - 担当方式: 新規agent/sessionによるblind audit。
 - blind bundle: `artifacts/cd0-phase-c/blind-audit-bundle.md`。exact hashはmanifest。
 - 確認範囲・方法: A3/B snapshot、固定diff/stat/name-status、機械検査、生test XML/logのみ。HANDOFFとC結論を入力から除外。
-- 判定: **HOLD / inconclusive**。assembly隔離とEditMode回帰は成立したが、Content Directoriesのcore受け入れは未実証。
-- findings: P1=E0〜E8のnative証拠なし、single happy-path runnerだけではE5 matrixを駆動できない。P2=directory/rootを含むrun-level ledgerとbuild evidence exportが不足。P3=Player host guardのcanonical containmentが未実装。
+- 判定: implementation sliceは**conditional pass**。CD0全体は **HOLD / inconclusive**。assembly隔離・path境界・EditMode回帰は成立したが、Content Directoriesのcore受け入れは未実証。
+- findings: 最終固定bundleではblockingなsource/evidence-integrity指摘なし。E0〜E8のnative証拠なし、single happy-path runnerだけではE5 matrixを駆動できない点は受け入れ残件。
 - 残存risk・監査不能範囲: native build/register/root/load/unload/retry/relocation/incremental/strippingの全項目。既存Player/季節Sceneは成功baselineがないためCD0判定へ流用しない。
 - 独立性: Cの結論を事前閲覧せず、設計・実装にも未関与。利用可能モデルの都合でOpenAI/GPT系列内となり、モデルfamily多様性は未達。
-- 担当・モデル: `/root/cd0_phase_c_prime_final`、Codex / GPT-6 / OpenAI。
+- 担当・モデル: `/root/cd0_blind_audit_final_committed`、Codex / GPT-5 / OpenAI。
 
 ## 9. go/no-go・Phase D・harvest
 
