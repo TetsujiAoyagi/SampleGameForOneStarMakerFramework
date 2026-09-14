@@ -33,7 +33,9 @@ namespace CD0Spike.Editor
 
             var outputPath = Cd0FixturePaths.ResolveProjectRelative(relativeOutputPath);
             var contentRoot = Cd0FixturePaths.ResolveProjectRelative("../artifacts/cd0/content");
-            if (!Cd0ArtifactInventory.IsContained(Cd0ArtifactInventory.CanonicalDirectory(contentRoot), outputPath))
+            var canonicalContentRoot = Cd0ArtifactInventory.CanonicalDirectory(contentRoot);
+            if (!Cd0ArtifactInventory.IsContained(canonicalContentRoot, outputPath)
+                || string.Equals(canonicalContentRoot, Cd0ArtifactInventory.CanonicalDirectory(outputPath), StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException($"Content output is outside the CD0 content root: {outputPath}");
             }
@@ -71,6 +73,10 @@ namespace CD0Spike.Editor
             }
             if (!Directory.Exists(outputPath)) return;
             var quarantinePath = outputPath + ".failed-" + DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffZ");
+            if (!Cd0ArtifactInventory.IsContained(Cd0ArtifactInventory.CanonicalDirectory(contentRoot), Path.GetFullPath(quarantinePath)))
+            {
+                throw new InvalidOperationException($"Quarantine destination is outside the CD0 content root: {quarantinePath}");
+            }
             Directory.Move(outputPath, quarantinePath);
             Debug.LogError($"[CD0] Failed content output quarantined at {quarantinePath}");
         }
