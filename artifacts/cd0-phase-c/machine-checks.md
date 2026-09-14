@@ -9,6 +9,6 @@
 - Editor compilation after the Phase C fixes: completed with `failed=false`, no compiler errors, and zero captured Console errors. The fixture was regenerated through its Editor menu before the Editor was closed.
 - First `pwsh tools/run-tests.ps1 -Filter CD0Spike.Tests` attempt: blocked before launch by an existing Editor process holding `unity/Temp/UnityLockfile`; no XML generated. This attempt is preserved in `test-attempt.log`.
 - Final `pwsh tools/run-tests.ps1 -Filter CD0Spike.Tests`: passed 10/10, failed 0, skipped 0. Raw XML and Unity log are stored beside this file.
-- Final `pwsh tools/run-tests.ps1` full EditMode regression against the final implementation bytes: passed 688/688, failed 0, skipped 0. Raw XML and Unity log are stored beside this file.
+- Final `pwsh tools/run-tests.ps1` full EditMode regression against the final implementation bytes: passed 689/689, failed 0, skipped 0. Raw XML and Unity log are stored beside this file.
 
 The repository has no known successful full Player build, and the seasonal scenes have no known successful runtime baseline. Those facts are environmental/project baselines, not CD0 success criteria.

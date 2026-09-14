@@ -13,4 +13,4 @@
 - G9 accepted as a native/process lifetime limitation. Domain reload or process exit is not counted as cleanup success; native non-termination remains a stop/quarantine condition.
 - G10 accepted as a test-name clarity issue only; no behavioral claim relies on post-completion abandonment.
 
-Validation at the fix head: contract audit passed, CD0 EditMode 9/9 passed, full EditMode 688/688 passed. Content/Player builds remain unexecuted.
+Validation at the fix head: contract audit passed, CD0 EditMode 10/10 passed, full EditMode 689/689 passed. Content/Player builds remain unexecuted.

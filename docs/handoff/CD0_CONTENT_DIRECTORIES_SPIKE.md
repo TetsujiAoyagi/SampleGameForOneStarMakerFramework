@@ -262,7 +262,7 @@ E2〜E7のlocal成立後にのみAを追補する。完成した一式をHTTPで
 - evidence bundle: `artifacts/cd0-phase-c/`。base `0a11a4be58c7b75356b076f356078d8d001c2e5b` / head `bfc7c677e1c470d58797fb38a0128336f6490e79` の完全diff、stat、name-status、生log/XML、機械検査を収録。
 - 構造適合: 3 asmdef、既存asmdef変更0、Runtime/Editor/Test境界は適合。
 - findings: 初回静的レビュー7件を採用して修正。再レビューで取消後のScene発行とincremental出力保護の2件を追加修正し、最終限定再レビューで確定的回帰なし。BuildContentDirectoryが例外を直接throwする経路とquarantine失敗は未実測。
-- テスト: `CD0Spike.Tests` 10/10 PASS、全EditMode 688/688 PASS、failed/skipped 0。最初の試行は既存Editor lockで起動前停止し、その後の成功と分離して保存。
+- テスト: `CD0Spike.Tests` 10/10 PASS、全EditMode 689/689 PASS、failed/skipped 0。最初の試行は既存Editor lockで起動前停止し、その後の成功と分離して保存。
 - 各AC/E結果: code/serialization/compile/EditModeのみ確認。Content build、登録/root取得、asset/Scene load/unload、failure/cancel/retry、relocation、Player/linker、R0〜R7は未実行のためHOLD/inconclusive。
 - 担当・モデル: Codex主担当、静的レビュー `/root/cd0_phase_c_review` / GPT-6 Astra / OpenAI。
 
