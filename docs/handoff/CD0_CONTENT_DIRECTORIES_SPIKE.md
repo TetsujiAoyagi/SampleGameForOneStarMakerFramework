@@ -279,6 +279,7 @@ E2〜E7のlocal成立後にのみAを追補する。完成した一式をHTTPで
 - 対象 implementation head: `bfc7c677e1c470d58797fb38a0128336f6490e79`。同一指摘者の再レビューのため **独立性制約あり**。
 - G1/G2/G3/G5 と fixture cleanup traversal は実装と回帰テストで確認。G4 不採用は A3 amendment 2 と一致。G6–G9 は残件/制約のまま妥当。
 - R1採用・解消: E7のowner境界を `artifacts/cd0/player-host/`、Unity project rootを `artifacts/cd0/player-host/unity/` に固定した。これによりhost側Content出力、report、Player出力を同じowner境界内へ閉じる。実測はE7残件。
+- 再確認 (Grok, `4d1be33`): 契約はG2/G3と合成できる。コードは `unity/` 子を強制せず、誤って `player-host` 直下をproject rootにした場合の防御はE7 preflightに残る。実装headは未変更。詳細 `artifacts/cd0-phase-c/cursor-grok-r1-layout-review.md`。
 - 詳細: `artifacts/cd0-phase-c/cursor-grok-followup-review.md`。
 - 判定: ハーネス path 境界の前回指摘は閉じた。CD0 全体は native 未実施のため **HOLD / inconclusive**。
 
