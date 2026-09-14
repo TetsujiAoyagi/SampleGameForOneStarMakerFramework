@@ -12,9 +12,9 @@
 - created: 2026-09-15 JST
 - expires: 2026-09-29 JST、またはBuildSystem入力、SceneResource graph、VCS境界の前提が変わった時点
 - harvest to: `unity/Assets/Docs/Architecture/18-asset-description.md` と新BuildSystemの現況を説明する既存Architecture文書。BS1 Phase Dでharvest後削除。
-- Phase A snapshot path / id: A1はgit commit `84f316f`。A3 frozen snapshotは凍結commitを§5へ追記する。
+- Phase A snapshot path / id: A1はgit commit `84f316f`。A3 frozen snapshotはgit commit `633b86b`の本ファイル。
 - Phase A snapshot generated at: 2026-09-15 JST
-- Phase A snapshot hash: A1 `84f316f` / A3は凍結commit後に追記
+- Phase A snapshot hash: A1 `84f316f` / A3 `633b86b`
 - Phase B result snapshot path / id: 未到達
 - Phase B result snapshot generated at: 未到達
 - Phase B result snapshot hash: 未到達
@@ -191,7 +191,7 @@ Phase BからPhase Aへ差し戻す条件:
   - GOからBS2でしか証明できない「後続が再実装しない」を削除。
   - 責務マップ見出しから「A1案」を削除。
 - A3判断: 全A2指摘と人間補記を採用。不採用なし。`IBuildContentSource`はBS2へ保留。
-- A3 frozen snapshot: この凍結内容を含むcommitを作成後、commit idをメタデータへ追記する。
+- A3 frozen snapshot: git commit `633b86b`。以後、意味論・責務・公開面を変える場合はPhase Aを新revisionで再開する。
 
 ## 6. Phase B 実装結果
 
