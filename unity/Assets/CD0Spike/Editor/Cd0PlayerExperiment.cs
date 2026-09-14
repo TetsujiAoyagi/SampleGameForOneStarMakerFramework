@@ -11,11 +11,11 @@ namespace CD0Spike.Editor
     {
         internal static BuildReport BuildInIsolatedHost(string outputPath, string? previousBuildReportDirectory)
         {
-            var projectRoot = Cd0FixturePaths.ProjectRoot.Replace('\\', '/');
-            if (!projectRoot.Contains("/artifacts/cd0/player-host", StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException("The stripping experiment may run only in the isolated CD0 player host.");
-            }
+            var hostRoot = Cd0FixturePaths.RequirePlayerHostRoot();
+            var canonicalOutput = RequireContainedPath(hostRoot, outputPath, "Player output");
+            string? canonicalReport = previousBuildReportDirectory == null
+                ? null
+                : RequireContainedPath(hostRoot, previousBuildReportDirectory, "previous BuildReport directory");
             if (!File.Exists(Path.Combine(Cd0FixturePaths.ProjectRoot, Cd0FixturePaths.BootstrapScene)))
             {
                 throw new InvalidOperationException("The isolated host bootstrap scene is missing.");
@@ -24,15 +24,25 @@ namespace CD0Spike.Editor
             var options = new BuildPlayerOptions
             {
                 scenes = new[] { Cd0FixturePaths.BootstrapScene },
-                locationPathName = outputPath,
+                locationPathName = canonicalOutput,
                 target = EditorUserBuildSettings.activeBuildTarget,
                 targetGroup = BuildPipeline.GetBuildTargetGroup(EditorUserBuildSettings.activeBuildTarget),
                 options = BuildOptions.None,
-                previousBuildReportDirectories = previousBuildReportDirectory == null
+                previousBuildReportDirectories = canonicalReport == null
                     ? Array.Empty<string>()
-                    : new[] { Path.GetFullPath(previousBuildReportDirectory) },
+                    : new[] { canonicalReport },
             };
             return BuildPipeline.BuildPlayer(options);
+        }
+
+        private static string RequireContainedPath(string allowedRoot, string path, string role)
+        {
+            var canonical = Path.GetFullPath(path);
+            if (!Cd0ArtifactInventory.IsContained(Cd0ArtifactInventory.CanonicalDirectory(allowedRoot), canonical))
+            {
+                throw new InvalidOperationException($"{role} is outside the isolated CD0 player host: {canonical}");
+            }
+            return canonical;
         }
     }
 }

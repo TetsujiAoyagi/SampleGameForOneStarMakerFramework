@@ -21,13 +21,6 @@ namespace CD0Spike.Editor
         [MenuItem("OneStarMaker/CD0/Build Content Directory (Incremental Baseline)")]
         private static void BuildIncrementalContentDirectory()
         {
-            foreach (var directory in ContentLoadManager.GetContentDirectories())
-            {
-                if (directory.IsValid && string.Equals(directory.BuildName, "cd0-local-v1", StringComparison.Ordinal))
-                {
-                    throw new InvalidOperationException("Unregister the cd0-local-v1 content directory before rebuilding its incremental output.");
-                }
-            }
             BuildContentDirectory(Cd0FixturePaths.DefaultContentOutput, "cd0-local-v1");
         }
 
@@ -39,6 +32,18 @@ namespace CD0Spike.Editor
             }
 
             var outputPath = Cd0FixturePaths.ResolveProjectRelative(relativeOutputPath);
+            var contentRoot = Cd0FixturePaths.ResolveProjectRelative("../artifacts/cd0/content");
+            if (!Cd0ArtifactInventory.IsContained(Cd0ArtifactInventory.CanonicalDirectory(contentRoot), outputPath))
+            {
+                throw new InvalidOperationException($"Content output is outside the CD0 content root: {outputPath}");
+            }
+            foreach (var directory in ContentLoadManager.GetContentDirectories())
+            {
+                if (directory.IsValid)
+                {
+                    throw new InvalidOperationException("Unregister every Content Directory before rebuilding CD0 output; handles do not expose their source path.");
+                }
+            }
             var parameters = new BuildContentDirectoryParameters
             {
                 outputPath = outputPath,
@@ -59,6 +64,11 @@ namespace CD0Spike.Editor
 
         private static void QuarantineFailedOutput(string outputPath)
         {
+            var contentRoot = Cd0FixturePaths.ResolveProjectRelative("../artifacts/cd0/content");
+            if (!Cd0ArtifactInventory.IsContained(Cd0ArtifactInventory.CanonicalDirectory(contentRoot), Path.GetFullPath(outputPath)))
+            {
+                throw new InvalidOperationException($"Refusing to quarantine a path outside the CD0 content root: {outputPath}");
+            }
             if (!Directory.Exists(outputPath)) return;
             var quarantinePath = outputPath + ".failed-" + DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffZ");
             Directory.Move(outputPath, quarantinePath);

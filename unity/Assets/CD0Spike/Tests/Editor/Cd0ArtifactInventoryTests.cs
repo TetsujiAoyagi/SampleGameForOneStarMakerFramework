@@ -24,5 +24,15 @@ namespace CD0Spike.Tests
             Assert.That(Editor.Cd0ArtifactInventory.IsContained(root, root + "-other"), Is.False);
             Assert.That(Editor.Cd0ArtifactInventory.IsContained(root, Path.GetFullPath(Path.Combine(root, "..", "outside"))), Is.False);
         }
+
+        [Test]
+        public void FindPlayerHostRoot_RequiresExactDirectoryChain()
+        {
+            var root = Path.GetFullPath(Path.Combine("tmp", "artifacts", "cd0", "player-host"));
+
+            Assert.That(Editor.Cd0FixturePaths.FindPlayerHostRoot(Path.Combine(root, "unity")), Is.EqualTo(root));
+            Assert.That(Editor.Cd0FixturePaths.FindPlayerHostRoot(Path.Combine(root + "-evil", "unity")), Is.Null);
+            Assert.That(Editor.Cd0FixturePaths.FindPlayerHostRoot(Path.Combine("tmp", "other", "cd0", "player-host", "unity")), Is.Null);
+        }
     }
 }
