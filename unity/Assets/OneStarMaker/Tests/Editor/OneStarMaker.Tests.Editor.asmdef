@@ -2,6 +2,7 @@
     "name": "OneStarMaker.Tests.Editor",
     "rootNamespace": "OneStarMaker.Tests.Editor",
     "references": [
+        "OneStarMaker.Build.Selection",
         "OneStarMaker.Editor",
         "OneStarMaker.Runtime",
         "Unity.Addressables",
