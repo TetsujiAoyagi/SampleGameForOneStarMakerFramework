@@ -35,11 +35,17 @@ Phase A では implementation base commit と Phase A snapshot を記録する�
 - 対象外:
 - 現況:
 
-## 2. 受け入れ条件と制約
+## 2. 意思決定と受け入れ境界
 
+- このスライスが答える問い:
+- 進める最低条件:
+- ここでは答えない問いと所有 Phase:
+- 停止規則: 最低条件を満たし、現在の問いに致命的な反証がなければ GO または CONDITIONAL ACCEPT で終了する。
 - 受け入れ条件:
 - 本文へ転記した実装制約:
 - 未決事項:
+
+未検証事項を網羅しない。現在の意思決定を覆し得ない追加検証は禁止する。CONDITIONAL ACCEPT を正常な終了として扱い、残件は所有する後続 Phase へ移送する。レビュー指摘は「現在の問いを阻害する欠陥」と「後続 Phase の入力」に分け、後者による実装追加を行わない。
 
 ## 3. 責務マップ
 
@@ -75,7 +81,8 @@ Phase A では implementation base commit と Phase A snapshot を記録する�
 
 - evidence bundle id / hash:
 - 構造適合:
-- findings:
+- 現在の問いを阻害する findings:
+- 後続 Phase へ移送する findings:
 - テスト結果:
 - 未確認事項:
 - 担当・モデル:
@@ -86,7 +93,8 @@ Phase A では implementation base commit と Phase A snapshot を記録する�
 - blind audit bundle id / hash:
 - 確認範囲・方法（全件機械検査 / 代表箇所の目視・操作等）:
 - 判定（人間担当は本人の明示回答まで未実施）:
-- findings:
+- 現在の問いを阻害する findings:
+- 後続 Phase へ移送する findings:
 - 残存リスク:
 - 監査できなかった範囲:
 - 独立性:
