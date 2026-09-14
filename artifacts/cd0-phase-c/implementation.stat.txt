@@ -12,15 +12,15 @@
  .../CD0Spike/Editor/CD0Spike.Editor.asmdef.meta    |   7 +
  .../Assets/CD0Spike/Editor/Cd0ArtifactInventory.cs |  58 ++++
  .../CD0Spike/Editor/Cd0ArtifactInventory.cs.meta   |   2 +
- unity/Assets/CD0Spike/Editor/Cd0BuildExperiment.cs |  68 +++++
+ unity/Assets/CD0Spike/Editor/Cd0BuildExperiment.cs |  84 ++++++
  .../CD0Spike/Editor/Cd0BuildExperiment.cs.meta     |   2 +
  .../Assets/CD0Spike/Editor/Cd0FixtureAuthoring.cs  | 102 +++++++
  .../CD0Spike/Editor/Cd0FixtureAuthoring.cs.meta    |   2 +
- unity/Assets/CD0Spike/Editor/Cd0FixtureCleanup.cs  |  37 +++
+ unity/Assets/CD0Spike/Editor/Cd0FixtureCleanup.cs  |  60 ++++
  .../CD0Spike/Editor/Cd0FixtureCleanup.cs.meta      |   2 +
- unity/Assets/CD0Spike/Editor/Cd0FixturePaths.cs    |  19 ++
+ unity/Assets/CD0Spike/Editor/Cd0FixturePaths.cs    |  43 +++
  .../Assets/CD0Spike/Editor/Cd0FixturePaths.cs.meta |   2 +
- .../Assets/CD0Spike/Editor/Cd0PlayerExperiment.cs  |  38 +++
+ .../Assets/CD0Spike/Editor/Cd0PlayerExperiment.cs  |  50 ++++
  .../CD0Spike/Editor/Cd0PlayerExperiment.cs.meta    |   2 +
  unity/Assets/CD0Spike/Fixture.meta                 |   8 +
  unity/Assets/CD0Spike/Fixture/Bootstrap.unity      | 171 ++++++++++++
@@ -56,8 +56,8 @@
  unity/Assets/CD0Spike/Tests/Editor.meta            |   8 +
  .../Tests/Editor/CD0Spike.Tests.Editor.asmdef      |  23 ++
  .../Tests/Editor/CD0Spike.Tests.Editor.asmdef.meta |   7 +
- .../Tests/Editor/Cd0ArtifactInventoryTests.cs      |  28 ++
+ .../Tests/Editor/Cd0ArtifactInventoryTests.cs      |  46 +++
  .../Tests/Editor/Cd0ArtifactInventoryTests.cs.meta |   2 +
  .../CD0Spike/Tests/Editor/Cd0RunLedgerTests.cs     |  79 ++++++
  .../Tests/Editor/Cd0RunLedgerTests.cs.meta         |   2 +
- 62 files changed, 2099 insertions(+), 1 deletion(-)
+ 62 files changed, 2192 insertions(+), 1 deletion(-)

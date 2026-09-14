@@ -2,14 +2,16 @@
 
 - date: 2026-09-13 JST
 - base: `0a11a4be58c7b75356b076f356078d8d001c2e5b`
-- implementation head: `189bc21086aaf96d77f64c017b4ebf7ad4301876`
+- implementation head: `bfc7c677e1c470d58797fb38a0128336f6490e79`
 - phase owner/model: Codex / GPT-5 / OpenAI
 
 Implemented the disposable CD0 fixture under `unity/Assets/CD0Spike/` without changing any existing OSM, SampleGame, Addressables, package, build profile, or app-config file.
 
-The implementation contains three new assemblies (`CD0Spike.Runtime`, `CD0Spike.Editor`, `CD0Spike.Tests.Editor`), 18 C# files / 754 lines, Unity-generated meta files, two generated Scenes, one root asset, and one probe asset. Existing asmdefs have no new dependency edge.
+The implementation contains three new assemblies (`CD0Spike.Runtime`, `CD0Spike.Editor`, `CD0Spike.Tests.Editor`), 18 C# files / 803 lines, Unity-generated meta files, two generated Scenes, one root asset, and one probe asset. Existing asmdefs have no new dependency edge.
 
 Runtime responsibilities are split between the serialized root/types, run ledger, native content session, orchestrator, and event sink. Editor responsibilities are split between authoring, direct Content Directory build, isolated-host Player build, filesystem inventory, and inventory-validated cleanup. Tests cover stale generation, abandonment/drain, cleanup admission, cleanup failure, duplicate cleanup, path containment, prefix confusion, and traversal.
+
+`CD0Spike.Tests.Editor` references `CD0Spike.Editor` so it can test the editor-only artifact/path guards. This matches the authoritative A3 amendment (“Tests.Editor references Runtime and Editor”), although the earlier A1 wording mentioned Runtime and Test Framework only.
 
 An already-open Unity `6000.6.0f1` Editor was reached only through `tools/unity-editor.cmd`. Compilation initially exposed a C# language-version mismatch at the `Loadable<T>` constructor call; the call was corrected without changing the API boundary. The final Editor recompile completed with `failed=false` and no errors.
 
@@ -26,4 +28,4 @@ Fixture hashes:
 
 Per Phase B rules, Unity tests, Content Directory build, Player build/run, runtime registration/load/unload, failure/cancellation/retry cases, relocation, incremental rebuild, and HTTP were not executed. These remain Phase C work. The isolated Player host itself was not created because that is part of the C experiment setup.
 
-The implementation was fixed in three commits ending at `189bc21086aaf96d77f64c017b4ebf7ad4301876`. The user's untracked `PRE_PHASE_A_BUILDSYSTEM_REBUILD_UNITY66_V3.md` remains untouched and unstaged.
+The implementation and review fixes end at `bfc7c677e1c470d58797fb38a0128336f6490e79`. The user's untracked `PRE_PHASE_A_BUILDSYSTEM_REBUILD_UNITY66_V3.md` remains untouched and unstaged.

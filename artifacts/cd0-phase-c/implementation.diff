@@ -878,10 +878,10 @@ index 0000000..f08d72b
 \ No newline at end of file
 diff --git a/unity/Assets/CD0Spike/Editor/Cd0BuildExperiment.cs b/unity/Assets/CD0Spike/Editor/Cd0BuildExperiment.cs
 new file mode 100644
-index 0000000..2d99235
+index 0000000..f93d249
 --- /dev/null
 +++ b/unity/Assets/CD0Spike/Editor/Cd0BuildExperiment.cs
-@@ -0,0 +1,68 @@
+@@ -0,0 +1,84 @@
 +#nullable enable
 +
 +using System;
@@ -905,13 +905,6 @@ index 0000000..2d99235
 +        [MenuItem("OneStarMaker/CD0/Build Content Directory (Incremental Baseline)")]
 +        private static void BuildIncrementalContentDirectory()
 +        {
-+            foreach (var directory in ContentLoadManager.GetContentDirectories())
-+            {
-+                if (directory.IsValid && string.Equals(directory.BuildName, "cd0-local-v1", StringComparison.Ordinal))
-+                {
-+                    throw new InvalidOperationException("Unregister the cd0-local-v1 content directory before rebuilding its incremental output.");
-+                }
-+            }
 +            BuildContentDirectory(Cd0FixturePaths.DefaultContentOutput, "cd0-local-v1");
 +        }
 +
@@ -923,6 +916,20 @@ index 0000000..2d99235
 +            }
 +
 +            var outputPath = Cd0FixturePaths.ResolveProjectRelative(relativeOutputPath);
++            var contentRoot = Cd0FixturePaths.ResolveProjectRelative("../artifacts/cd0/content");
++            var canonicalContentRoot = Cd0ArtifactInventory.CanonicalDirectory(contentRoot);
++            if (!Cd0ArtifactInventory.IsContained(canonicalContentRoot, outputPath)
++                || string.Equals(canonicalContentRoot, Cd0ArtifactInventory.CanonicalDirectory(outputPath), StringComparison.OrdinalIgnoreCase))
++            {
++                throw new InvalidOperationException($"Content output is outside the CD0 content root: {outputPath}");
++            }
++            foreach (var directory in ContentLoadManager.GetContentDirectories())
++            {
++                if (directory.IsValid)
++                {
++                    throw new InvalidOperationException("Unregister every Content Directory before rebuilding CD0 output; handles do not expose their source path.");
++                }
++            }
 +            var parameters = new BuildContentDirectoryParameters
 +            {
 +                outputPath = outputPath,
@@ -943,8 +950,17 @@ index 0000000..2d99235
 +
 +        private static void QuarantineFailedOutput(string outputPath)
 +        {
++            var contentRoot = Cd0FixturePaths.ResolveProjectRelative("../artifacts/cd0/content");
++            if (!Cd0ArtifactInventory.IsContained(Cd0ArtifactInventory.CanonicalDirectory(contentRoot), Path.GetFullPath(outputPath)))
++            {
++                throw new InvalidOperationException($"Refusing to quarantine a path outside the CD0 content root: {outputPath}");
++            }
 +            if (!Directory.Exists(outputPath)) return;
 +            var quarantinePath = outputPath + ".failed-" + DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffZ");
++            if (!Cd0ArtifactInventory.IsContained(Cd0ArtifactInventory.CanonicalDirectory(contentRoot), Path.GetFullPath(quarantinePath)))
++            {
++                throw new InvalidOperationException($"Quarantine destination is outside the CD0 content root: {quarantinePath}");
++            }
 +            Directory.Move(outputPath, quarantinePath);
 +            Debug.LogError($"[CD0] Failed content output quarantined at {quarantinePath}");
 +        }
@@ -1078,14 +1094,15 @@ index 0000000..99d24db
 \ No newline at end of file
 diff --git a/unity/Assets/CD0Spike/Editor/Cd0FixtureCleanup.cs b/unity/Assets/CD0Spike/Editor/Cd0FixtureCleanup.cs
 new file mode 100644
-index 0000000..63a6755
+index 0000000..425d66e
 --- /dev/null
 +++ b/unity/Assets/CD0Spike/Editor/Cd0FixtureCleanup.cs
-@@ -0,0 +1,37 @@
+@@ -0,0 +1,60 @@
 +#nullable enable
 +
 +using System;
 +using System.Collections.Generic;
++using System.IO;
 +using UnityEditor;
 +
 +namespace CD0Spike.Editor
@@ -1095,27 +1112,49 @@ index 0000000..63a6755
 +        internal static void DeleteVerifiedFixture(IReadOnlyDictionary<string, string> expectedGuidByPath)
 +        {
 +            if (expectedGuidByPath == null) throw new ArgumentNullException(nameof(expectedGuidByPath));
++            var verifiedPaths = new List<string>(expectedGuidByPath.Count);
 +            foreach (var pair in expectedGuidByPath)
 +            {
-+                if (!pair.Key.StartsWith(Cd0FixturePaths.FixtureRoot + "/", StringComparison.Ordinal))
-+                {
-+                    throw new InvalidOperationException($"Cleanup path is outside the fixture root: {pair.Key}");
-+                }
-+                var actualGuid = AssetDatabase.AssetPathToGUID(pair.Key);
++                var verifiedPath = NormalizeFixtureAssetPath(pair.Key);
++                var actualGuid = AssetDatabase.AssetPathToGUID(verifiedPath);
 +                if (!string.Equals(actualGuid, pair.Value, StringComparison.OrdinalIgnoreCase))
 +                {
-+                    throw new InvalidOperationException($"GUID changed; refusing to delete {pair.Key}.");
++                    throw new InvalidOperationException($"GUID changed; refusing to delete {verifiedPath}.");
 +                }
++                verifiedPaths.Add(verifiedPath);
 +            }
 +
-+            foreach (var pair in expectedGuidByPath)
++            foreach (var verifiedPath in verifiedPaths)
 +            {
-+                if (!AssetDatabase.DeleteAsset(pair.Key))
++                if (!AssetDatabase.DeleteAsset(verifiedPath))
 +                {
-+                    throw new InvalidOperationException($"Failed to delete verified fixture asset: {pair.Key}");
++                    throw new InvalidOperationException($"Failed to delete verified fixture asset: {verifiedPath}");
 +                }
 +            }
 +            AssetDatabase.Refresh();
++        }
++
++        internal static string NormalizeFixtureAssetPath(string assetPath)
++        {
++            if (string.IsNullOrWhiteSpace(assetPath) || Path.IsPathRooted(assetPath))
++            {
++                throw new InvalidOperationException($"Cleanup path must be project-relative: {assetPath}");
++            }
++            var candidate = assetPath.Replace('\\', '/');
++            var projectRoot = Cd0ArtifactInventory.CanonicalDirectory(Cd0FixturePaths.ProjectRoot);
++            var fixtureRoot = Cd0ArtifactInventory.CanonicalDirectory(Path.Combine(projectRoot, Cd0FixturePaths.FixtureRoot));
++            var canonical = Path.GetFullPath(Path.Combine(projectRoot, candidate));
++            if (!Cd0ArtifactInventory.IsContained(fixtureRoot, canonical)
++                || string.Equals(fixtureRoot, Cd0ArtifactInventory.CanonicalDirectory(canonical), StringComparison.OrdinalIgnoreCase))
++            {
++                throw new InvalidOperationException($"Cleanup path is outside the fixture contents: {assetPath}");
++            }
++            var normalized = Path.GetRelativePath(projectRoot, canonical).Replace('\\', '/');
++            if (!string.Equals(candidate, normalized, StringComparison.Ordinal))
++            {
++                throw new InvalidOperationException($"Cleanup path is not canonical: {assetPath}");
++            }
++            return normalized;
 +        }
 +    }
 +}
@@ -1130,12 +1169,13 @@ index 0000000..7ff2162
 \ No newline at end of file
 diff --git a/unity/Assets/CD0Spike/Editor/Cd0FixturePaths.cs b/unity/Assets/CD0Spike/Editor/Cd0FixturePaths.cs
 new file mode 100644
-index 0000000..fa9b026
+index 0000000..5a2275e
 --- /dev/null
 +++ b/unity/Assets/CD0Spike/Editor/Cd0FixturePaths.cs
-@@ -0,0 +1,19 @@
+@@ -0,0 +1,43 @@
 +#nullable enable
 +
++using System;
 +using System.IO;
 +
 +namespace CD0Spike.Editor
@@ -1151,6 +1191,29 @@ index 0000000..fa9b026
 +
 +        internal static string ProjectRoot => Path.GetDirectoryName(UnityEngine.Application.dataPath)!;
 +        internal static string ResolveProjectRelative(string relativePath) => Path.GetFullPath(Path.Combine(ProjectRoot, relativePath));
++
++        internal static string RequirePlayerHostRoot()
++        {
++            var hostRoot = FindPlayerHostRoot(ProjectRoot);
++            if (hostRoot != null) return hostRoot;
++            throw new InvalidOperationException("The stripping experiment may run only below an exact artifacts/cd0/player-host directory.");
++        }
++
++        internal static string? FindPlayerHostRoot(string projectRoot)
++        {
++            DirectoryInfo? current = new DirectoryInfo(Path.GetFullPath(projectRoot));
++            while (current != null)
++            {
++                if (string.Equals(current.Name, "player-host", StringComparison.OrdinalIgnoreCase)
++                    && string.Equals(current.Parent?.Name, "cd0", StringComparison.OrdinalIgnoreCase)
++                    && string.Equals(current.Parent?.Parent?.Name, "artifacts", StringComparison.OrdinalIgnoreCase))
++                {
++                    return current.FullName;
++                }
++                current = current.Parent;
++            }
++            return null;
++        }
 +    }
 +}
 diff --git a/unity/Assets/CD0Spike/Editor/Cd0FixturePaths.cs.meta b/unity/Assets/CD0Spike/Editor/Cd0FixturePaths.cs.meta
@@ -1164,10 +1227,10 @@ index 0000000..fe2ce9b
 \ No newline at end of file
 diff --git a/unity/Assets/CD0Spike/Editor/Cd0PlayerExperiment.cs b/unity/Assets/CD0Spike/Editor/Cd0PlayerExperiment.cs
 new file mode 100644
-index 0000000..f400e43
+index 0000000..b02c748
 --- /dev/null
 +++ b/unity/Assets/CD0Spike/Editor/Cd0PlayerExperiment.cs
-@@ -0,0 +1,38 @@
+@@ -0,0 +1,50 @@
 +#nullable enable
 +
 +using System;
@@ -1181,11 +1244,11 @@ index 0000000..f400e43
 +    {
 +        internal static BuildReport BuildInIsolatedHost(string outputPath, string? previousBuildReportDirectory)
 +        {
-+            var projectRoot = Cd0FixturePaths.ProjectRoot.Replace('\\', '/');
-+            if (!projectRoot.Contains("/artifacts/cd0/player-host", StringComparison.OrdinalIgnoreCase))
-+            {
-+                throw new InvalidOperationException("The stripping experiment may run only in the isolated CD0 player host.");
-+            }
++            var hostRoot = Cd0FixturePaths.RequirePlayerHostRoot();
++            var canonicalOutput = RequireContainedPath(hostRoot, outputPath, "Player output");
++            string? canonicalReport = previousBuildReportDirectory == null
++                ? null
++                : RequireContainedPath(hostRoot, previousBuildReportDirectory, "previous BuildReport directory");
 +            if (!File.Exists(Path.Combine(Cd0FixturePaths.ProjectRoot, Cd0FixturePaths.BootstrapScene)))
 +            {
 +                throw new InvalidOperationException("The isolated host bootstrap scene is missing.");
@@ -1194,15 +1257,27 @@ index 0000000..f400e43
 +            var options = new BuildPlayerOptions
 +            {
 +                scenes = new[] { Cd0FixturePaths.BootstrapScene },
-+                locationPathName = outputPath,
++                locationPathName = canonicalOutput,
 +                target = EditorUserBuildSettings.activeBuildTarget,
 +                targetGroup = BuildPipeline.GetBuildTargetGroup(EditorUserBuildSettings.activeBuildTarget),
 +                options = BuildOptions.None,
-+                previousBuildReportDirectories = previousBuildReportDirectory == null
++                previousBuildReportDirectories = canonicalReport == null
 +                    ? Array.Empty<string>()
-+                    : new[] { Path.GetFullPath(previousBuildReportDirectory) },
++                    : new[] { canonicalReport },
 +            };
 +            return BuildPipeline.BuildPlayer(options);
++        }
++
++        private static string RequireContainedPath(string allowedRoot, string path, string role)
++        {
++            var canonical = Path.GetFullPath(path);
++            var canonicalRoot = Cd0ArtifactInventory.CanonicalDirectory(allowedRoot);
++            if (!Cd0ArtifactInventory.IsContained(canonicalRoot, canonical)
++                || string.Equals(canonicalRoot, Cd0ArtifactInventory.CanonicalDirectory(canonical), StringComparison.OrdinalIgnoreCase))
++            {
++                throw new InvalidOperationException($"{role} must be a descendant of the isolated CD0 player host: {canonical}");
++            }
++            return canonical;
 +        }
 +    }
 +}
@@ -2361,10 +2436,10 @@ index 0000000..6e518e0
 +  assetBundleVariant: 
 diff --git a/unity/Assets/CD0Spike/Tests/Editor/Cd0ArtifactInventoryTests.cs b/unity/Assets/CD0Spike/Tests/Editor/Cd0ArtifactInventoryTests.cs
 new file mode 100644
-index 0000000..47764b5
+index 0000000..797104b
 --- /dev/null
 +++ b/unity/Assets/CD0Spike/Tests/Editor/Cd0ArtifactInventoryTests.cs
-@@ -0,0 +1,28 @@
+@@ -0,0 +1,46 @@
 +#nullable enable
 +
 +using System.IO;
@@ -2390,6 +2465,24 @@ index 0000000..47764b5
 +
 +            Assert.That(Editor.Cd0ArtifactInventory.IsContained(root, root + "-other"), Is.False);
 +            Assert.That(Editor.Cd0ArtifactInventory.IsContained(root, Path.GetFullPath(Path.Combine(root, "..", "outside"))), Is.False);
++        }
++
++        [Test]
++        public void FindPlayerHostRoot_RequiresExactDirectoryChain()
++        {
++            var root = Path.GetFullPath(Path.Combine("tmp", "artifacts", "cd0", "player-host"));
++
++            Assert.That(Editor.Cd0FixturePaths.FindPlayerHostRoot(Path.Combine(root, "unity")), Is.EqualTo(root));
++            Assert.That(Editor.Cd0FixturePaths.FindPlayerHostRoot(Path.Combine(root + "-evil", "unity")), Is.Null);
++            Assert.That(Editor.Cd0FixturePaths.FindPlayerHostRoot(Path.Combine("tmp", "other", "cd0", "player-host", "unity")), Is.Null);
++        }
++
++        [Test]
++        public void NormalizeFixtureAssetPath_RejectsTraversalAndRoot()
++        {
++            Assert.That(Editor.Cd0FixtureCleanup.NormalizeFixtureAssetPath("Assets/CD0Spike/Fixture/ProbeAsset.asset"), Is.EqualTo("Assets/CD0Spike/Fixture/ProbeAsset.asset"));
++            Assert.Throws<System.InvalidOperationException>(() => Editor.Cd0FixtureCleanup.NormalizeFixtureAssetPath("Assets/CD0Spike/Fixture/../outside.asset"));
++            Assert.Throws<System.InvalidOperationException>(() => Editor.Cd0FixtureCleanup.NormalizeFixtureAssetPath("Assets/CD0Spike/Fixture"));
 +        }
 +    }
 +}

@@ -6,7 +6,7 @@
 - status: `A3 revision 1 frozen / B implemented / C static review and EditMode tests complete / native experiments pending`。
 - branch: `codex/cd0-phase-a`。PR base は `develop`。develop/main へ直接コミットしない。
 - implementation base commit: `0a11a4be58c7b75356b076f356078d8d001c2e5b`（2026-09-13 fetch 後の origin/develop）
-- implementation head commit: `189bc21086aaf96d77f64c017b4ebf7ad4301876`。
+- implementation head commit: `bfc7c677e1c470d58797fb38a0128336f6490e79`。
 - risk: `high`（未知の native loading / serialization / 非同期寿命 / stripping を実証する。ただし本番変更はしない）
 - owner: Phase A 主担当 Codex / GPT-6 Astra（OpenAI）。A3 の採否・Phase D は人間。B/C/C' は開始時に担当を記録する。
 - created: 2026-09-13 JST
@@ -249,20 +249,20 @@ E2〜E7のlocal成立後にのみAを追補する。完成した一式をHTTPで
 
 ## 6. Phase B 実装結果
 
-- 実装: `unity/Assets/CD0Spike/` にRuntime/Editor/Tests.Editorの3 assembly、18 C# / 754行、2 Scene、root/probe assetを追加。既存OSM/SampleGame/Addressables/package/profile/app-config/asmdefへの変更0。詳細は `artifacts/cd0-phase-a/B-result.md`。
+- 実装: `unity/Assets/CD0Spike/` にRuntime/Editor/Tests.Editorの3 assembly、18 C# / 803行、2 Scene、root/probe assetを追加。既存OSM/SampleGame/Addressables/package/profile/app-config/asmdefへの変更0。詳細は `artifacts/cd0-phase-a/B-result.md`。
 - Editor: 人間が既に開いたexact `6000.6.0f1`へwrapperで接続。最終recompileはfailed=false/error 0。Editor APIでfixtureを生成し、元のclean SampleScene setupへ復元。生成後Console error 0。
 - 検査: contract audit PASS。docs auditは検査1/2 PASS、既存U66 harvest警告のみ。
 - HANDOFFとの差: 独立Player hostはCの実験環境なので未作成。JSONL sinkと全case matrix driverは、実際のnative結果を得る前に形式を固定しすぎないよう最小event sinkとcase ledgerまで実装。新しい設計判断が必要ならCで実装せずAへ戻す。
 - 未実行: Unity tests、Content build、Player build/run、register/root/load/unload、failure/cancel/retry/unregister、relocation、incremental、HTTP。Phase B契約どおりCへ渡す。
-- implementation head commit: `189bc21086aaf96d77f64c017b4ebf7ad4301876`。ユーザーのuntracked Pre-Phase文書は未変更・未stage。
+- implementation head commit: `bfc7c677e1c470d58797fb38a0128336f6490e79`。ユーザーのuntracked Pre-Phase文書は未変更・未stage。
 - Phase B担当・モデル: Codex / GPT-5 / OpenAI。
 
 ## 7. Phase C
 
-- evidence bundle: `artifacts/cd0-phase-c/`。base `0a11a4be58c7b75356b076f356078d8d001c2e5b` / head `189bc21086aaf96d77f64c017b4ebf7ad4301876` の完全diff、stat、name-status、生log/XML、機械検査を収録。
+- evidence bundle: `artifacts/cd0-phase-c/`。base `0a11a4be58c7b75356b076f356078d8d001c2e5b` / head `bfc7c677e1c470d58797fb38a0128336f6490e79` の完全diff、stat、name-status、生log/XML、機械検査を収録。
 - 構造適合: 3 asmdef、既存asmdef変更0、Runtime/Editor/Test境界は適合。
 - findings: 初回静的レビュー7件を採用して修正。再レビューで取消後のScene発行とincremental出力保護の2件を追加修正し、最終限定再レビューで確定的回帰なし。BuildContentDirectoryが例外を直接throwする経路とquarantine失敗は未実測。
-- テスト: `CD0Spike.Tests` 8/8 PASS、全EditMode 687/687 PASS、failed/skipped 0。最初の試行は既存Editor lockで起動前停止し、その後の成功と分離して保存。
+- テスト: `CD0Spike.Tests` 10/10 PASS、全EditMode 688/688 PASS、failed/skipped 0。最初の試行は既存Editor lockで起動前停止し、その後の成功と分離して保存。
 - 各AC/E結果: code/serialization/compile/EditModeのみ確認。Content build、登録/root取得、asset/Scene load/unload、failure/cancel/retry、relocation、Player/linker、R0〜R7は未実行のためHOLD/inconclusive。
 - 担当・モデル: Codex主担当、静的レビュー `/root/cd0_phase_c_review` / GPT-6 Astra / OpenAI。
 

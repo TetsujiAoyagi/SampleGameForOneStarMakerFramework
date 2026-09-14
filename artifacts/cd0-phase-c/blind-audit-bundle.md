@@ -2,7 +2,7 @@
 
 - Generated: 2026-09-14 JST
 - Implementation base: `0a11a4be58c7b75356b076f356078d8d001c2e5b`
-- Implementation head: `189bc21086aaf96d77f64c017b4ebf7ad4301876`
+- Implementation head: `bfc7c677e1c470d58797fb38a0128336f6490e79`
 - Frozen Phase A: `../cd0-phase-a/A3-frozen.md`
 - Phase B result: `../cd0-phase-a/B-result.md`
 - Complete implementation diff: `implementation.diff`
