@@ -127,7 +127,7 @@ Phase BはUnity.exeを起動しない。run-tests.ps1、Addressables buildに加
 
 E0 → E1 → E2 → E3 → E4 → E5 → E6/E8 → E7 → 判断、HTTPは別のE9とする。E6とE8の順序は独立だが同一runの出力を上書きしない。
 
-本repoで生成・Content build・local経路を試す。Playerのstripping実験だけは **Cが用意する独立した一時Unity project** をA1第一候補とする。場所は `artifacts/cd0/player-host/`。同じexact Editorを使い、同じfixture source/assets/metaを限定コピーしてhashを照合する。Library/Temp、OSM、SampleGame、Addressables設定・callback・packageをコピーしない。engine-onlyのfixtureとしてcore APIを検証し、manifest/lockとeffective backend/stripping/targetを独立入力として保存する。これは本repoのpackage統合Playerを証明しない。その制約をBS4へ渡す。
+本repoで生成・Content build・local経路を試す。Playerのstripping実験だけは **Cが用意する独立した一時Unity project** をA1第一候補とする。owner境界は `artifacts/cd0/player-host/`、Unity project rootはその直下の `artifacts/cd0/player-host/unity/` に固定し、`Assets/` と `ProjectSettings/` はこの `unity/` 配下へ置く。host側の `../artifacts/cd0/content` は `player-host/artifacts/cd0/content` へ解決され、Player出力とprevious BuildReport directoryも `player-host/` のstrict descendantにする。同じexact Editorを使い、同じfixture source/assets/metaを限定コピーしてhashを照合する。Library/Temp、OSM、SampleGame、Addressables設定・callback・packageをコピーしない。engine-onlyのfixtureとしてcore APIを検証し、manifest/lockとeffective backend/stripping/targetを独立入力として保存する。これは本repoのpackage統合Playerを証明しない。その制約をBS4へ渡す。
 
 本repoでは新規project作成・manifest変更を行わない。独立hostの生成・必要module・core-only構成の詳細はA3で固定する。Editorを開くのは人間。`tools/unity-editor.cmd` は本repoのunityへ固定されているため**別projectへ使わず、ラッパーを変更しない**。独立hostはC担当の人間が用意したメニューから実行しログ/reportを採取する。Bに別Editorの起動やbuildをさせない。この限定された手動実験が用意できない場合はE7をblockedとし、Editor成功だけでGOにしない。
 
@@ -193,7 +193,7 @@ case manifestはcase-id/run-id/generation/precondition/expected terminal/allowed
 ### E7 — Player strippingとBuildReport
 
 - 問い: Content-only型をPlayerが保持する条件は何か。reportのどのdirectoryを渡す必要があるか。
-- 手順: Cの独立hostで同一fixtureを同exact EditorでContent buildし、そのreportを使う。bootstrapだけをPlayer scenesへ明示指定。bootstrapはSceneMarker/ProbeAsset型を直接参照せず、reflectionやPreserve/link.xmlでも保持しない。root契約型への参照は許す。Windows x64、Release相当、strippingの実効値を固定する。
+- 手順: Cの独立host `artifacts/cd0/player-host/unity/` で同一fixtureを同exact EditorでContent buildし、そのreportを使う。実行前にproject root、Content出力、report、Player出力のcanonical pathを記録し、後3者が `artifacts/cd0/player-host/` のstrict descendantであることを確認する。bootstrapだけをPlayer scenesへ明示指定。bootstrapはSceneMarker/ProbeAsset型を直接参照せず、reflectionやPreserve/link.xmlでも保持しない。root契約型への参照は許す。Windows x64、Release相当、strippingの実効値を固定する。
 - 比較: P0=previousBuildReportDirectoriesなし、P1=今回の**実測で確定したexact report directory**あり。content bytesは同一にし、登録/root取得までとcontent-only型の解決・marker実行を別段階で記録する。別出力で同条件build/runし、linker reportで対象型の保持/除去と最初の失敗段階を照合する。P0成功/失敗のどちらも単独では因果確定に使わない。output rootとreport directoryのどちらを渡すか曖昧ならP1a/P1bへ分ける。正負対照が成立しなければinconclusive。P2=存在しないreport directoryは別Player出力で診断を採取する。
 - IL2CPPを主対象としてmoduleの有無をA3で確認する。利用不可ならMonoだけでAOT合格とせず、E7のAOT部分をblockedとしてCONDITIONAL/HOLDへ返す。module導入はこのターンもBも行わない。
 - 期待結果: P1でContent-only型とSceneをload可能、使ったreportと型保持の因果が説明できる。生成物内のreportとruntime配布必須fileを区別する。古いreportで新規型が保持される保証をしない。
@@ -278,7 +278,7 @@ E2〜E7のlocal成立後にのみAを追補する。完成した一式をHTTPで
 
 - 対象 implementation head: `bfc7c677e1c470d58797fb38a0128336f6490e79`。同一指摘者の再レビューのため **独立性制約あり**。
 - G1/G2/G3/G5 と fixture cleanup traversal は実装と回帰テストで確認。G4 不採用は A3 amendment 2 と一致。G6–G9 は残件/制約のまま妥当。
-- 新規残件 R1: E7 の host が HANDOFF どおり `artifacts/cd0/player-host` 直下 Assets だと、Content 相対 path `../artifacts/cd0/content` が host 外へ解決し、G2 が report を拒否する。`player-host/unity` なら合成できる。E7 手順でレイアウトを固定する必要あり。
+- R1採用・解消: E7のowner境界を `artifacts/cd0/player-host/`、Unity project rootを `artifacts/cd0/player-host/unity/` に固定した。これによりhost側Content出力、report、Player出力を同じowner境界内へ閉じる。実測はE7残件。
 - 詳細: `artifacts/cd0-phase-c/cursor-grok-followup-review.md`。
 - 判定: ハーネス path 境界の前回指摘は閉じた。CD0 全体は native 未実施のため **HOLD / inconclusive**。
 
