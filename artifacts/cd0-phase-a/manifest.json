@@ -15,7 +15,24 @@
   },
   "phaseBResult": {
     "path": "artifacts/cd0-phase-a/B-result.md",
-    "status": "implemented, implementation head not fixed",
-    "sha256": "374B9508D155FF1039BA4F6913C1F38C3816EA964D2961CE4AFD3D530E677C1E"
+    "status": "implemented",
+    "implementationHead": "189bc21086aaf96d77f64c017b4ebf7ad4301876",
+    "sha256": "DEA6E3A2E620F05058E11F2FFE3C7FFDCBE670D0A1EF4FF1CF81797AC9F1D236"
+  },
+  "phaseCEvidence": {
+    "path": "artifacts/cd0-phase-c/evidence.md",
+    "bundleId": "cd0-phase-c-189bc210",
+    "sha256": "BBDFC0EFBCCE8D5E71440A9ACF9E385CC8B19D769AD86931B6C599734183B6C0"
+  },
+  "phaseCReview": {
+    "path": "artifacts/cd0-phase-c/phase-c-review.md",
+    "sha256": "A51531A02B1DDED80EC8A0012055488126F201BF9BEE53E4816F05D098C6D235"
+  },
+  "phaseCPrime": {
+    "blindBundlePath": "artifacts/cd0-phase-c/blind-audit-bundle.md",
+    "blindBundleSha256": "75FEFB76A6D14EDCF4C8EE637E92261DA2F3C30C8647AE310BC8B188401427AC",
+    "resultPath": "artifacts/cd0-phase-c/phase-c-prime-result.md",
+    "resultSha256": "2C9F380A69B9FB5E9E71206FC29D45DDC06BCE63D7FE73F0D3D46D86F8C35DBC",
+    "verdict": "HOLD / inconclusive"
   }
 }

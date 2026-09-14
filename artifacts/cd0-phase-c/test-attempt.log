@@ -1,0 +1,13 @@
+Command: pwsh tools/run-tests.ps1 -Filter CD0Spike.Tests
+Executed: 2026-09-14 (Asia/Tokyo)
+Implementation head: b1d8ee75ea05d7c2f7bb61f618d67ca6ba1d6e22
+Exit code: 1
+
+Unity: D:\UnityEditor\6000.6.0f1\Editor\Unity.exe
+Version: 6000.6.0f1
+Project: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity
+Platform: EditMode
+Filter: CD0Spike.Tests
+
+FAILED before Unity launch: unity/Temp/UnityLockfile is held by an existing Unity Editor process.
+The test runner instructed the caller to close the Editor and retry. No test result XML was produced.

@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`（disposable technical spike。BuildSystem の実装スライスではない）
-- status: `A3 revision 1 frozen / B implemented, implementation head未固定 / C未着手`。2026-09-13の人間指示「実装に入って」によりA2統合案を採用し、CD0の限定実装開始を承認済みと扱う。
+- status: `A3 revision 1 frozen / B implemented / C static review and EditMode tests complete / native experiments pending`。
 - branch: `codex/cd0-phase-a`。PR base は `develop`。develop/main へ直接コミットしない。
 - implementation base commit: `0a11a4be58c7b75356b076f356078d8d001c2e5b`（2026-09-13 fetch 後の origin/develop）
-- implementation head commit: 未生成。文書だけの commit を実装 head としない。
+- implementation head commit: `189bc21086aaf96d77f64c017b4ebf7ad4301876`。
 - risk: `high`（未知の native loading / serialization / 非同期寿命 / stripping を実証する。ただし本番変更はしない）
 - owner: Phase A 主担当 Codex / GPT-6 Astra（OpenAI）。A3 の採否・Phase D は人間。B/C/C' は開始時に担当を記録する。
 - created: 2026-09-13 JST
@@ -14,9 +14,9 @@
 - harvest to: `unity/Assets/Docs/Architecture/13-resource-system.md`（検証した loading 制約）、`unity/Assets/Docs/Architecture/20-variant-checkout-workflow.md`（現行と spike の区別・検証した build 制約）。次の BS1/BS2/BS3/BS4 Phase A に必要な制約は各開始時の A0 へ転記する。将来構成を現行実装として公開しない。
 - Phase A snapshot path / id: A1は `artifacts/cd0-phase-a/A1-snapshot.md`、実装入力は `artifacts/cd0-phase-a/A3-frozen.md`。
 - Phase A snapshot generated at / SHA-256: `artifacts/cd0-phase-a/manifest.json`。
-- Phase B result snapshot: `artifacts/cd0-phase-a/B-result.md`、SHA-256 `374B9508D155FF1039BA4F6913C1F38C3816EA964D2961CE4AFD3D530E677C1E`。implementation head未固定のためC入力にはまだ使わない。
-- evidence bundle / generated at / hash: 未生成
-- C' blind bundle / generated at / hash: 未生成
+- Phase B result snapshot: `artifacts/cd0-phase-a/B-result.md`、SHA-256 `DEA6E3A2E620F05058E11F2FFE3C7FFDCBE670D0A1EF4FF1CF81797AC9F1D236`。
+- evidence bundle: `artifacts/cd0-phase-c/`（hashはmanifestに記録）。
+- C' blind bundle: `artifacts/cd0-phase-c/blind-audit-bundle.md`（hashはmanifestに記録）。
 
 ## 1. 目的・対象外・A0 planning packet
 
@@ -249,33 +249,33 @@ E2〜E7のlocal成立後にのみAを追補する。完成した一式をHTTPで
 
 ## 6. Phase B 実装結果
 
-- 実装: `unity/Assets/CD0Spike/` にRuntime/Editor/Tests.Editorの3 assembly、18 C# / 632行、2 Scene、root/probe assetを追加。既存OSM/SampleGame/Addressables/package/profile/app-config/asmdefへの変更0。詳細は `artifacts/cd0-phase-a/B-result.md`。
+- 実装: `unity/Assets/CD0Spike/` にRuntime/Editor/Tests.Editorの3 assembly、18 C# / 754行、2 Scene、root/probe assetを追加。既存OSM/SampleGame/Addressables/package/profile/app-config/asmdefへの変更0。詳細は `artifacts/cd0-phase-a/B-result.md`。
 - Editor: 人間が既に開いたexact `6000.6.0f1`へwrapperで接続。最終recompileはfailed=false/error 0。Editor APIでfixtureを生成し、元のclean SampleScene setupへ復元。生成後Console error 0。
 - 検査: contract audit PASS。docs auditは検査1/2 PASS、既存U66 harvest警告のみ。
 - HANDOFFとの差: 独立Player hostはCの実験環境なので未作成。JSONL sinkと全case matrix driverは、実際のnative結果を得る前に形式を固定しすぎないよう最小event sinkとcase ledgerまで実装。新しい設計判断が必要ならCで実装せずAへ戻す。
 - 未実行: Unity tests、Content build、Player build/run、register/root/load/unload、failure/cancel/retry/unregister、relocation、incremental、HTTP。Phase B契約どおりCへ渡す。
-- implementation head commit: 未固定。scoped `git add` approvalが拒否されたためcommitしていない。ユーザーのuntracked Pre-Phase文書は未変更・未stage。
+- implementation head commit: `189bc21086aaf96d77f64c017b4ebf7ad4301876`。ユーザーのuntracked Pre-Phase文書は未変更・未stage。
 - Phase B担当・モデル: Codex / GPT-5 / OpenAI。
 
 ## 7. Phase C
 
-- evidence bundle id/hash: 未生成
-- 構造適合: 未実施
-- findings: 未記入
-- テスト・各AC/E結果: 未実施
-- 未確認範囲: 未記入
-- 担当・モデル: 未記入
+- evidence bundle: `artifacts/cd0-phase-c/`。base `0a11a4be58c7b75356b076f356078d8d001c2e5b` / head `189bc21086aaf96d77f64c017b4ebf7ad4301876` の完全diff、stat、name-status、生log/XML、機械検査を収録。
+- 構造適合: 3 asmdef、既存asmdef変更0、Runtime/Editor/Test境界は適合。
+- findings: 初回静的レビュー7件を採用して修正。再レビューで取消後のScene発行とincremental出力保護の2件を追加修正し、最終限定再レビューで確定的回帰なし。BuildContentDirectoryが例外を直接throwする経路とquarantine失敗は未実測。
+- テスト: `CD0Spike.Tests` 8/8 PASS、全EditMode 687/687 PASS、failed/skipped 0。最初の試行は既存Editor lockで起動前停止し、その後の成功と分離して保存。
+- 各AC/E結果: code/serialization/compile/EditModeのみ確認。Content build、登録/root取得、asset/Scene load/unload、failure/cancel/retry、relocation、Player/linker、R0〜R7は未実行のためHOLD/inconclusive。
+- 担当・モデル: Codex主担当、静的レビュー `/root/cd0_phase_c_review` / GPT-6 Astra / OpenAI。
 
 ## 8. Phase C'
 
-- 担当方式: 未記入
-- blind bundle id/hash: 未記入
-- 確認範囲・方法: 未実施
-- 判定: 未実施
-- findings: 未記入
-- 残存risk・監査不能範囲: 未記入
-- 独立性・C結論事前閲覧・設計実装関与: 未記入
-- 担当・モデル: 未記入
+- 担当方式: 新規agent/sessionによるblind audit。
+- blind bundle: `artifacts/cd0-phase-c/blind-audit-bundle.md`。exact hashはmanifest。
+- 確認範囲・方法: A3/B snapshot、固定diff/stat/name-status、機械検査、生test XML/logのみ。HANDOFFとC結論を入力から除外。
+- 判定: **HOLD / inconclusive**。assembly隔離とEditMode回帰は成立したが、Content Directoriesのcore受け入れは未実証。
+- findings: P1=E0〜E8のnative証拠なし、single happy-path runnerだけではE5 matrixを駆動できない。P2=directory/rootを含むrun-level ledgerとbuild evidence exportが不足。P3=Player host guardのcanonical containmentが未実装。
+- 残存risk・監査不能範囲: native build/register/root/load/unload/retry/relocation/incremental/strippingの全項目。既存Player/季節Sceneは成功baselineがないためCD0判定へ流用しない。
+- 独立性: Cの結論を事前閲覧せず、設計・実装にも未関与。利用可能モデルの都合でOpenAI/GPT系列内となり、モデルfamily多様性は未達。
+- 担当・モデル: `/root/cd0_phase_c_prime_final`、Codex / GPT-6 / OpenAI。
 
 ## 9. go/no-go・Phase D・harvest
 
