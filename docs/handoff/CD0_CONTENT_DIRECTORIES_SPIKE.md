@@ -265,7 +265,7 @@ E2〜E7のlocal成立後にのみAを追補する。完成した一式をHTTPで
 - テスト: `CD0Spike.Tests` 10/10 PASS、全EditMode 689/689 PASS、failed/skipped 0。最初の試行は既存Editor lockで起動前停止し、その後の成功と分離して保存。
 - native追補（2026-09-14）: exact Editor 6000.6.0f1 / StandaloneWindows64で E1〜E4、欠損directory失敗後のretry、Editor上の別path移設、E8無変更再buildを実行。direct Content buildは成功し、root Root、asset probe-v1、additive Scene Payload、cleanup、登録解除（終了後valid handle 0）が成立した。詳細は artifacts/cd0-phase-c/native-execution-20260914.md。
 - E1で、Scene作成後に失効したasset instanceからIDを作るとrootのGUID/fileIDが消えるnative不具合を検出。import後にassetを再取得し、Scene作成前にLoadableObjectIdを確定する修正を採用し、再生成後のroot参照が既存bytesと一致することを確認した。
-- 各AC/E結果: E1〜E4、欠損directory failure/retry、Editor relocation、E8同一入力は実測済み。in-flight cancel、fresh Player relocation、E7 Player/linker/BuildReport、E8変更入力は未実行のため、CD0全体は引き続きHOLD。
+- 各AC/E結果: E1〜E4、欠損directory failure/retry、Editor/fresh Player relocation、E7 High stripping PlayerとContent BuildReport連携、E8同一/変更入力を実測済み。in-flight native cancelは時間依存で再現せずinconclusive、本番project統合は対象外。判断規則によりCD0は **CONDITIONAL**。
 - 担当・モデル: Codex主担当、静的レビュー `/root/cd0_phase_c_review` / GPT-6 Astra / OpenAI。
 
 ### Additional independent review (2026-09-14, Grok)
@@ -284,6 +284,14 @@ E2〜E7のlocal成立後にのみAを追補する。完成した一式をHTTPで
 - 再確認 (Grok, `4d1be33`): 契約はG2/G3と合成できる。コードは `unity/` 子を強制せず、誤って `player-host` 直下をproject rootにした場合の防御はE7 preflightに残る。実装headは未変更。詳細 `artifacts/cd0-phase-c/cursor-grok-r1-layout-review.md`。
 - 詳細: `artifacts/cd0-phase-c/cursor-grok-followup-review.md`。
 - 判定: ハーネス path 境界の前回指摘は閉じた。CD0 全体は native 未実施のため **HOLD / inconclusive**。
+
+### Native acceptance supplement (2026-09-14–15)
+
+- exact Editor 6000.6.0f1、StandaloneWindows64、Mono、High strippingで独立host E7を実行。Player build 0 errors、Content build reportの ScriptsOnlyCache.yaml を previousBuildReportDirectories へ渡したbuildとruntime loadに成功。
+- root、probe asset、content-only Scene marker、additive Scene、cleanup、unregisterをPlayerで確認。元path不在かつ空白・日本語を含む移設先もfresh processで成功。
+- Player report directoryを誤入力した対照は ScriptsOnlyCache.yaml 不在警告となり、Content build reportがcode stripping入力であることを実測。
+- E8変更入力はmanifest JSON、関連 .cf、BuildManifestHashだけが変化し、High stripping Playerがprobe-v2を取得。詳細は artifacts/cd0-phase-c/native-execution-20260914.md。
+- 最新判定: **CONDITIONAL**。in-flight native cancelはE5規則どおりinconclusive。本番Addressables callbackとの統合、HTTP、季節Sceneは未実証であり後続Phaseの境界とする。
 
 ## 8. Phase C'
 
