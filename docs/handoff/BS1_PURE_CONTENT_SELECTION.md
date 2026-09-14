@@ -6,7 +6,7 @@
 - status: `A3 frozen / Phase B ready`
 - branch: `codex/cd0-u66-phase-d-bs1-phase-a`
 - implementation base commit: `bda2ed7`
-- implementation head commit: 未到達
+- implementation head commit: `b4b43d3`
 - risk: `high`（新しいBuildSystemの中核型、公開境界、依存方向を定める）
 - owner: Phase A主担当 Codex / GPT-6 Astra（OpenAI）。A3採否は人間。B/C/C'は開始時に記録する。
 - created: 2026-09-15 JST
@@ -15,9 +15,9 @@
 - Phase A snapshot path / id: A1はgit commit `84f316f`。A3 frozen snapshotはgit commit `633b86b`の本ファイル。
 - Phase A snapshot generated at: 2026-09-15 JST
 - Phase A snapshot hash: A1 `84f316f` / A3 `633b86b`
-- Phase B result snapshot path / id: 未到達
-- Phase B result snapshot generated at: 未到達
-- Phase B result snapshot hash: 未到達
+- Phase B result snapshot path / id: git commit `b4b43d3`
+- Phase B result snapshot generated at: 2026-09-15 JST
+- Phase B result snapshot hash: `b4b43d3`
 - evidence bundle path / id: 未到達
 - evidence bundle generated at: 未到達
 - evidence bundle hash: 未到達
@@ -195,7 +195,24 @@ Phase BからPhase Aへ差し戻す条件:
 
 ## 6. Phase B 実装結果
 
-未実施
+- 実装内容:
+  - `unity/Assets/OneStarMaker/Scripts/Editor/Build/Selection/` に、Editor-only、
+    `autoReferenced: false`、`noEngineReferences: true`、外部参照0の
+    `OneStarMaker.Build.Selection` assemblyを追加した。
+  - pureなrequest / candidate / provenance / schema / requirement / issue / plan model、
+    公開拡張口`IBuildTagProvider`、statelessな`BuildTagSelector`を追加した。
+  - neutral選択、dimension内OR・dimension間AND、schema検証、tag競合とidentity衝突、
+    required/cardinality、canonical ordering、防御的copy、Error時plan非公開を実装した。
+  - `OneStarMaker.Tests.Editor`だけにselection assembly参照を追加し、in-memory fake providerだけを使う
+    `BuildTagSelectorTests`を追加した。既存`VariantWhitelistBuilder`とAddressables経路は変更していない。
+- HANDOFFとの差: なし。production adapter、`OneStarMaker.Editor`からの参照、
+  `IBuildContentSource`、Unity/AssetDatabase materializationは追加していない。
+- 機械検査: `pwsh tools/contract-audit.ps1` exit 0（機械で判定できる契約に違反なし）。
+  `git diff --check`も指摘なし。
+- 未実行事項: Phase B契約に従い、Unity.exe起動、Unity Editor接続、`tools/run-tests.ps1`、
+  Unity tests、Addressables build、Content build、Player buildは未実行。テスト実行とコンパイル確認はPhase Cへ送る。
+- implementation head commit: `b4b43d3`
+- Phase B担当・モデル・ベンダー: Codex / GPT-5 / OpenAI。
 
 ## 7. Phase C
 
