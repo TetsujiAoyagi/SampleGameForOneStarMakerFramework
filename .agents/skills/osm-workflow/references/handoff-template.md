@@ -39,13 +39,14 @@ Phase A では implementation base commit と Phase A snapshot を記録する�
 
 - このスライスが答える問い:
 - 進める最低条件:
-- ここでは答えない問いと所有 Phase:
-- 停止規則: 最低条件を満たし、現在の問いに致命的な反証がなければ GO または CONDITIONAL ACCEPT で終了する。
-- 受け入れ条件:
+- 受け入れ条件（進める最低条件を構成する観測可能な詳細。別の完了バーにしない）:
+- ここでは答えない問いと所有する後続スライス（HANDOFF / program 名）:
+- 判定定義（GO / NO-GO。スパイクの場合だけ CONDITIONAL ACCEPT も定義）:
+- 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。スパイクは上記で定義した場合だけ CONDITIONAL ACCEPT で終了できる。
 - 本文へ転記した実装制約:
 - 未決事項:
 
-未検証事項を網羅しない。現在の意思決定を覆し得ない追加検証は禁止する。CONDITIONAL ACCEPT を正常な終了として扱い、残件は所有する後続 Phase へ移送する。レビュー指摘は「現在の問いを阻害する欠陥」と「後続 Phase の入力」に分け、後者による実装追加を行わない。
+未検証事項を網羅しない。現在の意思決定を覆し得ない追加検証は禁止する。残件は所有する後続スライスへ移送する。レビュー指摘は「現在の問いを阻害する欠陥」と「後続スライスの入力」に分け、後者による実装追加を行わない。CONDITIONAL ACCEPT はスパイクで判定基準を定義した場合だけ正常な終了として扱う。
 
 ## 3. 責務マップ
 
@@ -55,7 +56,7 @@ Phase A では implementation base commit と Phase A snapshot を記録する�
 
 - 変更対象:
 - 順序:
-- Phase B の停止条件:
+- Phase B から Phase A へ差し戻す条件:
 - 対象外を維持する方法:
 
 ## 5. テストとレビュー計画
@@ -82,7 +83,7 @@ Phase A では implementation base commit と Phase A snapshot を記録する�
 - evidence bundle id / hash:
 - 構造適合:
 - 現在の問いを阻害する findings:
-- 後続 Phase へ移送する findings:
+- 後続スライスへ移送する findings:
 - テスト結果:
 - 未確認事項:
 - 担当・モデル:
@@ -94,7 +95,7 @@ Phase A では implementation base commit と Phase A snapshot を記録する�
 - 確認範囲・方法（全件機械検査 / 代表箇所の目視・操作等）:
 - 判定（人間担当は本人の明示回答まで未実施）:
 - 現在の問いを阻害する findings:
-- 後続 Phase へ移送する findings:
+- 後続スライスへ移送する findings:
 - 残存リスク:
 - 監査できなかった範囲:
 - 独立性:
