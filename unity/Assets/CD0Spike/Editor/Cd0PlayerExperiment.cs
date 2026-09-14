@@ -38,9 +38,11 @@ namespace CD0Spike.Editor
         private static string RequireContainedPath(string allowedRoot, string path, string role)
         {
             var canonical = Path.GetFullPath(path);
-            if (!Cd0ArtifactInventory.IsContained(Cd0ArtifactInventory.CanonicalDirectory(allowedRoot), canonical))
+            var canonicalRoot = Cd0ArtifactInventory.CanonicalDirectory(allowedRoot);
+            if (!Cd0ArtifactInventory.IsContained(canonicalRoot, canonical)
+                || string.Equals(canonicalRoot, Cd0ArtifactInventory.CanonicalDirectory(canonical), StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException($"{role} is outside the isolated CD0 player host: {canonical}");
+                throw new InvalidOperationException($"{role} must be a descendant of the isolated CD0 player host: {canonical}");
             }
             return canonical;
         }

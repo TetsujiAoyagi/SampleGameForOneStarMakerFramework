@@ -34,5 +34,13 @@ namespace CD0Spike.Tests
             Assert.That(Editor.Cd0FixturePaths.FindPlayerHostRoot(Path.Combine(root + "-evil", "unity")), Is.Null);
             Assert.That(Editor.Cd0FixturePaths.FindPlayerHostRoot(Path.Combine("tmp", "other", "cd0", "player-host", "unity")), Is.Null);
         }
+
+        [Test]
+        public void NormalizeFixtureAssetPath_RejectsTraversalAndRoot()
+        {
+            Assert.That(Editor.Cd0FixtureCleanup.NormalizeFixtureAssetPath("Assets/CD0Spike/Fixture/ProbeAsset.asset"), Is.EqualTo("Assets/CD0Spike/Fixture/ProbeAsset.asset"));
+            Assert.Throws<System.InvalidOperationException>(() => Editor.Cd0FixtureCleanup.NormalizeFixtureAssetPath("Assets/CD0Spike/Fixture/../outside.asset"));
+            Assert.Throws<System.InvalidOperationException>(() => Editor.Cd0FixtureCleanup.NormalizeFixtureAssetPath("Assets/CD0Spike/Fixture"));
+        }
     }
 }
