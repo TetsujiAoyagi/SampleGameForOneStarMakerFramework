@@ -22,7 +22,7 @@ description: >-
 
 ## 標準入口と権限
 
-- ローカルのEditor操作はリポジトリルートから `tools/unity-editor.cmd status` / `tools/unity-editor.cmd command ...` を使う。ラッパーはPATH上のUnity CLIを優先し、無ければ `%LOCALAPPDATA%\Unity\bin\unity.exe` を解決し、このリポジトリの `unity/` を接続先に固定する。
+- ローカルのEditor操作はリポジトリルートから `tools/unity-editor.cmd status` / `tools/unity-editor.cmd command ...` を使う。ラッパーはPATH上のUnity CLIを優先し、無ければ `%LOCALAPPDATA%\Unity\bin\unity.exe` を解決し、通常はこのリポジトリの `unity/` を接続先に固定する。CD0 E7の使い捨てhostだけは `--cd0-player-host` を先頭へ付け、固定path `artifacts/cd0/player-host/unity/` へ接続してよい。任意project path指定には一般化しない。
 - Cursor IDE / Cursor CLI / Claude Code / Codexでは、任意のshell全体ではなく `tools/unity-editor.cmd` のcommand prefixだけを永続許可する。`pwsh`、`unity.exe`、`Unity.exe` 全体を無確認にしない。
 - 設定例はCursor IDEの `terminalAllowlist` に `tools\\unity-editor.cmd`、Cursor CLIのallowに `Shell(tools\\unity-editor.cmd)`、Claude Codeのallowに `Bash(tools/unity-editor.cmd:*)`。Codexは承認画面で同prefixをAlways allowにする。個人設定はgit管理しない。
 - prefix allowlistがshell制御演算子の後続まで許す実装もあり得る。`tools/unity-editor.cmd ... && 別command` のように連結せず、1 tool callをラッパー1 invocationだけにする。allowlistは安全境界ではなく承認疲れを減らす補助と扱う。

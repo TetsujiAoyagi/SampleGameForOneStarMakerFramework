@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="10" result="Passed" total="10" passed="10" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-09-14 06:38:16Z" end-time="2026-09-14 06:38:16Z" duration="0.088432">
+  <test-suite type="TestSuite" id="1000" name="SampleGame" fullname="SampleGame" runstate="Runnable" testcasecount="689" result="Passed" start-time="2026-09-14 06:38:16Z" end-time="2026-09-14 06:38:16Z" duration="0.088432" total="10" passed="10" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="Assembly" id="1013" name="CD0Spike.Tests.Editor.dll" fullname="D:/repositories/unity/SampleGameForOneStarMakerFramework/unity/Library/ScriptAssemblies/CD0Spike.Tests.Editor.dll" runstate="Runnable" testcasecount="10" result="Passed" start-time="2026-09-14 06:38:16Z" end-time="2026-09-14 06:38:16Z" duration="0.058305" total="10" passed="10" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="8044" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="1014" name="CD0Spike" fullname="CD0Spike" runstate="Runnable" testcasecount="10" result="Passed" start-time="2026-09-14 06:38:16Z" end-time="2026-09-14 06:38:16Z" duration="0.057368" total="10" passed="10" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1015" name="Tests" fullname="CD0Spike.Tests" runstate="Runnable" testcasecount="10" result="Passed" start-time="2026-09-14 06:38:16Z" end-time="2026-09-14 06:38:16Z" duration="0.056787" total="10" passed="10" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestFixture" id="1001" name="Cd0ArtifactInventoryTests" fullname="CD0Spike.Tests.Cd0ArtifactInventoryTests" classname="CD0Spike.Tests.Cd0ArtifactInventoryTests" runstate="Runnable" testcasecount="4" result="Passed" start-time="2026-09-14 06:38:16Z" end-time="2026-09-14 06:38:16Z" duration="0.045786" total="4" passed="4" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-case id="1004" name="FindPlayerHostRoot_RequiresExactDirectoryChain" fullname="CD0Spike.Tests.Cd0ArtifactInventoryTests.FindPlayerHostRoot_RequiresExactDirectoryChain" methodname="FindPlayerHostRoot_RequiresExactDirectoryChain" classname="CD0Spike.Tests.Cd0ArtifactInventoryTests" runstate="Runnable" seed="858895588" result="Passed" start-time="2026-09-14 06:38:16Z" end-time="2026-09-14 06:38:16Z" duration="0.018521" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1002" name="IsContained_AcceptsRootAndDescendant" fullname="CD0Spike.Tests.Cd0ArtifactInventoryTests.IsContained_AcceptsRootAndDescendant" methodname="IsContained_AcceptsRootAndDescendant" classname="CD0Spike.Tests.Cd0ArtifactInventoryTests" runstate="Runnable" seed="1040835426" result="Passed" start-time="2026-09-14 06:38:16Z" end-time="2026-09-14 06:38:16Z" duration="0.000748" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1003" name="IsContained_RejectsPrefixConfusionAndParentTraversal" fullname="CD0Spike.Tests.Cd0ArtifactInventoryTests.IsContained_RejectsPrefixConfusionAndParentTraversal" methodname="IsContained_RejectsPrefixConfusionAndParentTraversal" classname="CD0Spike.Tests.Cd0ArtifactInventoryTests" runstate="Runnable" seed="2066796001" result="Passed" start-time="2026-09-14 06:38:16Z" end-time="2026-09-14 06:38:16Z" duration="0.000483" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1005" name="NormalizeFixtureAssetPath_RejectsTraversalAndRoot" fullname="CD0Spike.Tests.Cd0ArtifactInventoryTests.NormalizeFixtureAssetPath_RejectsTraversalAndRoot" methodname="NormalizeFixtureAssetPath_RejectsTraversalAndRoot" classname="CD0Spike.Tests.Cd0ArtifactInventoryTests" runstate="Runnable" seed="2070780805" result="Passed" start-time="2026-09-14 06:38:16Z" end-time="2026-09-14 06:38:16Z" duration="0.006064" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+          </test-suite>
+          <test-suite type="TestFixture" id="1006" name="Cd0RunLedgerTests" fullname="CD0Spike.Tests.Cd0RunLedgerTests" classname="CD0Spike.Tests.Cd0RunLedgerTests" runstate="Runnable" testcasecount="6" result="Passed" start-time="2026-09-14 06:38:16Z" end-time="2026-09-14 06:38:16Z" duration="0.009120" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-case id="1008" name="AbandonedOperation_DrainsBeforeRetryWithoutAcceptingResult" fullname="CD0Spike.Tests.Cd0RunLedgerTests.AbandonedOperation_DrainsBeforeRetryWithoutAcceptingResult" methodname="AbandonedOperation_DrainsBeforeRetryWithoutAcceptingResult" classname="CD0Spike.Tests.Cd0RunLedgerTests" runstate="Runnable" seed="82623475" result="Passed" start-time="2026-09-14 06:38:16Z" end-time="2026-09-14 06:38:16Z" duration="0.000700" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1010" name="CleanupBeforeTerminalEvent_IsRejected" fullname="CD0Spike.Tests.Cd0RunLedgerTests.CleanupBeforeTerminalEvent_IsRejected" methodname="CleanupBeforeTerminalEvent_IsRejected" classname="CD0Spike.Tests.Cd0RunLedgerTests" runstate="Runnable" seed="644870698" result="Passed" start-time="2026-09-14 06:38:16Z" end-time="2026-09-14 06:38:16Z" duration="0.000336" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1012" name="CleanupFailure_BlocksRetryAndCannotBecomeSuccess" fullname="CD0Spike.Tests.Cd0RunLedgerTests.CleanupFailure_BlocksRetryAndCannotBecomeSuccess" methodname="CleanupFailure_BlocksRetryAndCannotBecomeSuccess" classname="CD0Spike.Tests.Cd0RunLedgerTests" runstate="Runnable" seed="2004120647" result="Passed" start-time="2026-09-14 06:38:16Z" end-time="2026-09-14 06:38:16Z" duration="0.000457" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1007" name="CompletedSuccess_IsAcceptedUntilAbandoned" fullname="CD0Spike.Tests.Cd0RunLedgerTests.CompletedSuccess_IsAcceptedUntilAbandoned" methodname="CompletedSuccess_IsAcceptedUntilAbandoned" classname="CD0Spike.Tests.Cd0RunLedgerTests" runstate="Runnable" seed="48881755" result="Passed" start-time="2026-09-14 06:38:16Z" end-time="2026-09-14 06:38:16Z" duration="0.000190" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1011" name="DuplicateCleanup_IsRejected" fullname="CD0Spike.Tests.Cd0RunLedgerTests.DuplicateCleanup_IsRejected" methodname="DuplicateCleanup_IsRejected" classname="CD0Spike.Tests.Cd0RunLedgerTests" runstate="Runnable" seed="412968897" result="Passed" start-time="2026-09-14 06:38:16Z" end-time="2026-09-14 06:38:16Z" duration="0.000287" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+            </test-case>
+            <test-case id="1009" name="StaleGeneration_CannotMutateCurrentRun" fullname="CD0Spike.Tests.Cd0RunLedgerTests.StaleGeneration_CannotMutateCurrentRun" methodname="StaleGeneration_CannotMutateCurrentRun" classname="CD0Spike.Tests.Cd0RunLedgerTests" runstate="Runnable" seed="810428411" result="Passed" start-time="2026-09-14 06:38:16Z" end-time="2026-09-14 06:38:16Z" duration="0.000698" asserts="0">
+              <properties>
+                <property name="retryIteration" value="0" />
+                <property name="repeatIteration" value="0" />
+              </properties>
+              <output><![CDATA[Saving results to: C:/Users/void/AppData/LocalLow/DefaultCompany/SampleGame\TestResults.xml
+]]></output>
+            </test-case>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

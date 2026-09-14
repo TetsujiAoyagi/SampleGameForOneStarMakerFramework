@@ -1,0 +1,18 @@
+{
+  "name": "CD0Spike.Editor",
+  "rootNamespace": "CD0Spike.Editor",
+  "references": [
+    "CD0Spike.Runtime"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

@@ -1,0 +1,38 @@
+{
+  "type": "CD0 phase manifest",
+  "generatedAt": "2026-09-13T19:45:31.6539797+09:00",
+  "path": "artifacts/cd0-phase-a/A1-snapshot.md",
+  "sha256": "E730BD1A87CC08776D2442D43532DE66D4932C92E39540DC5B54309D88C21970",
+  "implementationBase": "0a11a4be58c7b75356b076f356078d8d001c2e5b",
+  "a0Location": "A1-snapshot.md section 1",
+  "phase": "A3/B/C/C' tracked; native experiments pending",
+  "unityExecuted": true,
+  "a2": "performed and integrated into A3 revision 1",
+  "a3": {
+    "path": "artifacts/cd0-phase-a/A3-frozen.md",
+    "status": "revision 1 frozen",
+    "sha256": "BB8844C76F369A075F19A672D5F79416525E468E7E1CE55F0BA4077365CFD65C"
+  },
+  "phaseBResult": {
+    "path": "artifacts/cd0-phase-a/B-result.md",
+    "status": "implemented",
+    "implementationHead": "bfc7c677e1c470d58797fb38a0128336f6490e79",
+    "sha256": "AD691CD1E16AF020EB709869310ED5EF267CEF6762D376B99100644374851B0F"
+  },
+  "phaseCEvidence": {
+    "path": "artifacts/cd0-phase-c/evidence.md",
+    "bundleId": "cd0-phase-c-bfc7c677",
+    "sha256": "E9F166D6D8564FBD9BF0A9FC0FC00ABD63FF38957E62108559CA1289333A467F"
+  },
+  "phaseCReview": {
+    "path": "artifacts/cd0-phase-c/phase-c-review.md",
+    "sha256": "8D4FE65986B73E2339B64182AACCB7ED7DA08615551DC3A22CD5BDAFDA48238E"
+  },
+  "phaseCPrime": {
+    "blindBundlePath": "artifacts/cd0-phase-c/blind-audit-bundle.md",
+    "blindBundleSha256": "0843DECDE8FEC9984115DEA875B23455CA74AC068A69ABA2C337B97D19B77685",
+    "resultPath": "artifacts/cd0-phase-c/phase-c-prime-result.md",
+    "resultSha256": "8C23A31C8802BB291DD40855B7191B953524E6ED096E63250DB1C6910EA51EE8",
+    "verdict": "conditional pass for implementation; CD0 overall HOLD / inconclusive"
+  }
+}

@@ -23,8 +23,17 @@ function Resolve-UnityCli {
 }
 
 if ($UnityArguments.Count -eq 0) {
-    [Console]::Error.WriteLine('Usage: tools\unity-editor.cmd [global flags] status | command <name> [args] | eval <utf8-base64> | pipeline list [args]')
+    [Console]::Error.WriteLine('Usage: tools\unity-editor.cmd [--cd0-player-host] [global flags] status | command <name> [args] | eval <utf8-base64> | pipeline list [args]')
     exit 2
+}
+
+$useCd0PlayerHost = $UnityArguments[0].ToLowerInvariant() -eq '--cd0-player-host'
+if ($useCd0PlayerHost) {
+    if ($UnityArguments.Count -eq 1) {
+        [Console]::Error.WriteLine('An allowed verb is required after --cd0-player-host.')
+        exit 2
+    }
+    $UnityArguments = @($UnityArguments[1..($UnityArguments.Count - 1)])
 }
 
 $forbiddenConnectionFlags = @('--project-path', '--runtime', '--runtime-path')
@@ -107,7 +116,12 @@ if ($primaryCommand -eq 'eval') {
 }
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
-$projectPath = Join-Path $repositoryRoot 'unity'
+$projectPath = if ($useCd0PlayerHost) {
+    Join-Path $repositoryRoot 'artifacts\cd0\player-host\unity'
+}
+else {
+    Join-Path $repositoryRoot 'unity'
+}
 if (-not (Test-Path -LiteralPath (Join-Path $projectPath 'ProjectSettings\ProjectVersion.txt') -PathType Leaf)) {
     throw "Unity project was not found at '$projectPath'."
 }
