@@ -6,7 +6,7 @@
 - status: `C`
 - branch: `codex/osm-pstack-skills`
 - implementation base commit: `c94d084`
-- implementation head commit:
+- implementation head commit: `4e6ba86b55362052eb53a66e9322a4d3ad8a4f47`
 - risk: `normal`
 - owner: OSM maintainer
 - created: `2026-09-16`
@@ -14,13 +14,13 @@
 - harvest to: `.agents/skills/osm-pstack/` と第三者表示へ必要事項を反映後、この HANDOFF を削除する
 - Phase A snapshot path / id: この文書の Phase A 部分
 - Phase A snapshot generated at: `2026-09-16T00:00:00+09:00`
-- Phase A snapshot hash: implementation base `c94d084` と本節。Phase A 専用 commit は作らず、実装 commit で固定する
-- Phase B result snapshot path / id:
-- Phase B result snapshot generated at:
-- Phase B result snapshot hash:
-- evidence bundle path / id:
-- evidence bundle generated at:
-- evidence bundle hash:
+- Phase A snapshot hash: `4e6ba86b55362052eb53a66e9322a4d3ad8a4f47` 内の本節
+- Phase B result snapshot path / id: 本文 §6
+- Phase B result snapshot generated at: `2026-09-16T07:24:44+09:00`
+- Phase B result snapshot hash: `4e6ba86b55362052eb53a66e9322a4d3ad8a4f47`
+- evidence bundle path / id: `c94d084..4e6ba86` の完全 diff、stat、name-status と本節の検査結果
+- evidence bundle generated at: `2026-09-16T07:24:44+09:00`
+- evidence bundle hash: `8d2510dcd6f56fde64a3c61883cf1de83c9f4d10`
 - C' blind bundle path / id:
 - C' blind bundle generated at:
 - C' blind bundle hash:
@@ -106,25 +106,25 @@
 - 実装: `.agents/skills/osm-pstack/` に入口、4つの用途別 reference、MIT 原文、第三者 notice を追加した。
 - HANDOFF との差: なし。
 - 未実行: Unity.exe、`tools/run-tests.ps1`、Addressables build、Player build。Markdown Skill のみのため実行対象外。
-- implementation head commit:
+- implementation head commit: `4e6ba86b55362052eb53a66e9322a4d3ad8a4f47`
 - Phase B 担当・モデル・ベンダー: Codex、GPT 系、OpenAI。
 
 ## 7. Phase C
 
-- evidence bundle id / hash:
-- 構造適合:
-- 現在の問いを阻害する findings:
-- 後続スライスへ移送する findings:
-- テスト結果:
-- 未確認事項:
-- 担当・モデル:
+- evidence bundle id / hash: `c94d084..4e6ba86` / `8d2510dcd6f56fde64a3c61883cf1de83c9f4d10`
+- 構造適合: Phase A の責務マップどおり、入口、4用途の reference、ライセンス、notice に分離した。既存 Skill、Unity、asmdef、公開 API、状態、寿命、依存 edge は変更していない。
+- 現在の問いを阻害する findings: なし。
+- 後続スライスへ移送する findings: 実利用による trigger と行動品質の評価は将来の Skill eval スライスへ送る。
+- テスト結果: Skill validator `Skill is valid!`。`docs-audit.ps1` は違反なし。`contract-audit.ps1` は違反なし。相対リンク5件は存在。禁止した Agent 固有語彙は中核手順に0件。`git diff --check` は違反なし。
+- 未確認事項: Phase A2 の独立レビューは所見未返却のため未実施。Unity とゲームテストは対象外として未実行。
+- 担当・モデル: Codex、GPT 系。
 
 ## 8. Phase C'
 
-- 担当方式: 人間
+- 担当方式:
 - blind audit bundle id / hash:
 - 確認範囲・方法:
-- 判定: 未実施
+- 判定:
 - 現在の問いを阻害する findings:
 - 後続スライスへ移送する findings:
 - 残存リスク:
