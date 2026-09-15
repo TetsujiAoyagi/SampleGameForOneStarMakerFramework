@@ -6,7 +6,7 @@
 - status: `C`
 - branch: `codex/osm-pstack-skills`
 - implementation base commit: `c94d084`
-- implementation head commit: `4e6ba86b55362052eb53a66e9322a4d3ad8a4f47`
+- implementation head commit: `c1a28f497a17150b1591697eb979712f0c9ea36c`
 - risk: `normal`
 - owner: OSM maintainer
 - created: `2026-09-16`
@@ -16,11 +16,11 @@
 - Phase A snapshot generated at: `2026-09-16T00:00:00+09:00`
 - Phase A snapshot hash: `4e6ba86b55362052eb53a66e9322a4d3ad8a4f47` 内の本節
 - Phase B result snapshot path / id: 本文 §6
-- Phase B result snapshot generated at: `2026-09-16T07:24:44+09:00`
-- Phase B result snapshot hash: `4e6ba86b55362052eb53a66e9322a4d3ad8a4f47`
-- evidence bundle path / id: `c94d084..4e6ba86` の完全 diff、stat、name-status と本節の検査結果
-- evidence bundle generated at: `2026-09-16T07:24:44+09:00`
-- evidence bundle hash: `8d2510dcd6f56fde64a3c61883cf1de83c9f4d10`
+- Phase B result snapshot generated at: `2026-09-16T07:39:30+09:00`
+- Phase B result snapshot hash: `c1a28f497a17150b1591697eb979712f0c9ea36c`
+- evidence bundle path / id: `c94d084..c1a28f4` の完全 diff、stat、name-status と本節の検査結果
+- evidence bundle generated at: `2026-09-16T07:39:30+09:00`
+- evidence bundle hash: `e336598c9cc3614a372d458b3f79070e5bf23d5e`
 - C' blind bundle path / id:
 - C' blind bundle generated at:
 - C' blind bundle hash:
@@ -103,15 +103,15 @@
 
 ## 6. Phase B 実装結果
 
-- 実装: `.agents/skills/osm-pstack/` に入口、4つの用途別 reference、MIT 原文、第三者 notice を追加した。
+- 実装: `.agents/skills/osm-pstack/` に入口、4つの用途別 reference、MIT 原文、第三者 notice を追加した。人間 Phase C' の指摘を受け、notice 冒頭へ非公式・非提携表示と upstream にはない OSM 独自規則である旨を追加した。
 - HANDOFF との差: なし。
 - 未実行: Unity.exe、`tools/run-tests.ps1`、Addressables build、Player build。Markdown Skill のみのため実行対象外。
-- implementation head commit: `4e6ba86b55362052eb53a66e9322a4d3ad8a4f47`
+- implementation head commit: `c1a28f497a17150b1591697eb979712f0c9ea36c`
 - Phase B 担当・モデル・ベンダー: Codex、GPT 系、OpenAI。
 
 ## 7. Phase C
 
-- evidence bundle id / hash: `c94d084..4e6ba86` / `8d2510dcd6f56fde64a3c61883cf1de83c9f4d10`
+- evidence bundle id / hash: `c94d084..c1a28f4` / `e336598c9cc3614a372d458b3f79070e5bf23d5e`
 - 構造適合: Phase A の責務マップどおり、入口、4用途の reference、ライセンス、notice に分離した。既存 Skill、Unity、asmdef、公開 API、状態、寿命、依存 edge は変更していない。
 - 現在の問いを阻害する findings: なし。
 - 後続スライスへ移送する findings: 実利用による trigger と行動品質の評価は将来の Skill eval スライスへ送る。
