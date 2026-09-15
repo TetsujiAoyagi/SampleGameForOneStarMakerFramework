@@ -127,8 +127,8 @@ namespace OneStarMaker.Tests.Editor.Build
                 Request(Tag("Season", "Spring")));
 
             Assert.That(result.Plan, Is.Null);
-            Assert.That(result.Issues.Select(issue => issue.Code),
-                Does.Contain(BuildValidationCode.UnknownDimension).And.Contain(BuildValidationCode.UnknownValue));
+            Assert.That(result.Issues.Any(issue => issue.Code == BuildValidationCode.UnknownDimension), Is.True);
+            Assert.That(result.Issues.Any(issue => issue.Code == BuildValidationCode.UnknownValue), Is.True);
             Assert.That(result.Issues.All(issue => issue.ProviderKey == "provider-a"), Is.True);
         }
 
