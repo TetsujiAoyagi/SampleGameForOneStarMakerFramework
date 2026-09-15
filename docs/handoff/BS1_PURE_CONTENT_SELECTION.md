@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `Phase B corrected / Phase C ready`
+- status: `Phase B complete / Phase C ready`
 - branch: `codex/cd0-u66-phase-d-bs1-phase-a`
 - implementation base commit: `bda2ed7`
-- implementation head commit: corrected snapshot commit pending
+- implementation head commit: clean review snapshot commit pending
 - risk: `high`（新しいBuildSystemの中核型、公開境界、依存方向を定める）
 - owner: Phase A主担当 Codex / GPT-6 Astra（OpenAI）。A3採否は人間。B/C/C'は開始時に記録する。
 - created: 2026-09-15 JST
@@ -15,7 +15,7 @@
 - Phase A snapshot path / id: A1はgit commit `84f316f`。A3 frozen snapshotはgit commit `633b86b`の本ファイル。
 - Phase A snapshot generated at: 2026-09-15 JST
 - Phase A snapshot hash: A1 `84f316f` / A3 `633b86b`
-- Phase B result snapshot path / id: initial implementation `b4b43d3`; corrective implementation `5daadcb`
+- Phase B result snapshot path / id: implementation code commit `5daadcb`; clean review snapshot commit pending
 - Phase B result snapshot generated at: 2026-09-15 JST
 - Phase B result snapshot hash: `5daadcb`
 - evidence bundle path / id: corrected snapshotで再生成待ち
@@ -214,21 +214,20 @@ Phase BからPhase Aへ差し戻す条件:
 - implementation head commit: `b4b43d3`
 - Phase B担当・モデル・ベンダー: Codex / GPT-5 / OpenAI。
 
-### Phase B corrective revision
+### Phase B final implementation snapshot
 
-- Phase C差し戻しに対し、AC3の空requestを`InvalidRequestSelection` errorに修正した。
-- candidate tagのnull/空/前後空白matrixと、warning・exclusion・全provenance・複数errorを含む
-  AC8 full snapshot permutation testsを追加した。
-- corrective implementation commit: `5daadcb`
-- `pwsh tools/contract-audit.ps1` exit 0。Unity testsはPhase C責任のため、このcorrective実装時点では未実行。
+- 空requestを`InvalidRequestSelection` errorにし、candidate tagのnull/空/前後空白matrixを含めた。
+- warning・exclusion・全provenance・複数errorを含むfull snapshot permutation testsを含めた。
+- implementation code commit: `5daadcb`
+- `pwsh tools/contract-audit.ps1` exit 0。Unity testsはPhase C責任のため未実行。
 
 ## 7. Phase C
 
-corrective implementation headに対して未実施。旧implementation headの結果は無効。
+未実施
 
 ## 8. Phase C'
 
-corrective implementation headに対して未実施。旧implementation headの結果は無効。
+未実施
 
 ## 9. Phase D
 
