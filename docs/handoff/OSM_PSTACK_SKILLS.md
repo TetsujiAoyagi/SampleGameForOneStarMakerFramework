@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C`
+- status: `D`
 - branch: `codex/osm-pstack-skills`
 - implementation base commit: `c94d084`
 - implementation head commit: `c1a28f497a17150b1591697eb979712f0c9ea36c`
@@ -21,9 +21,9 @@
 - evidence bundle path / id: `c94d084..c1a28f4` の完全 diff、stat、name-status と本節の検査結果
 - evidence bundle generated at: `2026-09-16T07:39:30+09:00`
 - evidence bundle hash: `e336598c9cc3614a372d458b3f79070e5bf23d5e`
-- C' blind bundle path / id:
-- C' blind bundle generated at:
-- C' blind bundle hash:
+- C' blind bundle path / id: `c94d084..c1a28f4` の evidence bundle を人間が確認。Phase C の記憶があるため blind ではない
+- C' blind bundle generated at: `2026-09-16`
+- C' blind bundle hash: `e336598c9cc3614a372d458b3f79070e5bf23d5e`
 
 ## 1. 目的と対象外
 
@@ -121,17 +121,17 @@
 
 ## 8. Phase C'
 
-- 担当方式:
-- blind audit bundle id / hash:
-- 確認範囲・方法:
-- 判定:
-- 現在の問いを阻害する findings:
-- 後続スライスへ移送する findings:
-- 残存リスク:
-- 監査できなかった範囲:
-- 独立性:
-- Phase C 結論の事前閲覧・設計実装への関与:
-- 担当・モデル:
+- 担当方式: 人間
+- blind audit bundle id / hash: `c94d084..c1a28f4` / `e336598c9cc3614a372d458b3f79070e5bf23d5e`。ただし blind ではない
+- 確認範囲・方法: 固定 diff と第三者表示を人間が確認。notice の帰属と upstream との境界を目視確認した
+- 判定: PASS。Phase C' 完了
+- 現在の問いを阻害する findings: 非公式・非提携表示と OSM 独自規則の境界を notice 冒頭で明確にする。`c1a28f4` で修正し、新しい implementation head に対する Phase C 検査を再実行済み
+- 後続スライスへ移送する findings: PR 上で別の Grok Bot に固定差分の追加レビューを依頼する
+- 残存リスク: 実利用での trigger と playbook 行動は未評価。Phase A2 の独立レビューは所見未返却のため未実施
+- 監査できなかった範囲: 実利用による行動評価
+- 独立性: 独立性制約あり。人間は Phase C の結論と作業経緯を既読で、記憶を除外できない
+- Phase C 結論の事前閲覧・設計実装への関与: Phase C 結論を事前に閲覧。notice の修正文を指定した
+- 担当・モデル: 人間。モデル不使用
 
 ## 9. Phase D
 
