@@ -161,7 +161,13 @@ namespace OneStarMaker.Build.Selection
                     if (returned == null) throw new InvalidOperationException("A tag provider returned null.");
                     foreach (var tag in returned)
                     {
-                        if (tag == null) throw new InvalidOperationException("A tag provider returned a null tag.");
+                        if (tag == null)
+                        {
+                            AddError(issues, BuildValidationCode.UnknownDimension, BuildValidationSubject.Candidate,
+                                candidate.StableKey, null, null, provider.StableProviderKey,
+                                "Candidate dimension is null, empty, or has surrounding whitespace.");
+                            continue;
+                        }
                         all.Add(Tuple.Create(new BuildTag(tag.Dimension, tag.Value), provider.StableProviderKey));
                     }
                 }

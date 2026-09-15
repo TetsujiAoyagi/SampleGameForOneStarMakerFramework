@@ -132,6 +132,21 @@ namespace OneStarMaker.Tests.Editor.Build
             Assert.That(result.Issues.All(issue => issue.ProviderKey == "provider-a"), Is.True);
         }
 
+        [TestCase("season", "Spring", BuildValidationCode.UnknownDimension)]
+        [TestCase("Season", "spring", BuildValidationCode.UnknownValue)]
+        public void RequestSchemaComparison_IsOrdinalCaseSensitive(
+            string dimension,
+            string value,
+            BuildValidationCode expectedCode)
+        {
+            var result = Select(
+                new[] { Candidate("candidate", "world", "physical") },
+                Array.Empty<IBuildTagProvider>(),
+                Request(Tag(dimension, value)));
+
+            AssertError(result, expectedCode);
+        }
+
         [TestCase(null, "Spring", BuildValidationCode.UnknownDimension)]
         [TestCase("", "Spring", BuildValidationCode.UnknownDimension)]
         [TestCase(" Season", "Spring", BuildValidationCode.UnknownDimension)]
@@ -151,6 +166,38 @@ namespace OneStarMaker.Tests.Editor.Build
                 Request(Tag("Season", "Spring")));
 
             AssertError(result, expectedCode);
+        }
+
+        [Test]
+        public void NullCandidateTag_IsStructuredErrorAndHidesPlan()
+        {
+            var result = Select(
+                new[] { Candidate("candidate", "world", "physical") },
+                new[] { new FakeProvider("provider", _ => new BuildTag[] { null! }) },
+                Request(Tag("Season", "Spring")));
+
+            AssertError(result, BuildValidationCode.UnknownDimension);
+            Assert.That(result.Issues.Single().Subject, Is.EqualTo(BuildValidationSubject.Candidate));
+            Assert.That(result.Issues.Single().ProviderKey, Is.EqualTo("provider"));
+        }
+
+        [Test]
+        public void ProvenanceSceneRole_IsNotInferredAsBuildTag()
+        {
+            var candidate = new BuildContentCandidate("candidate", "world", "physical",
+                new BuildProvenance("scene", "source", new[]
+                {
+                    new KeyValuePair<string, string>("SceneRole", "Lighting")
+                }));
+
+            var result = Select(
+                new[] { candidate },
+                Array.Empty<IBuildTagProvider>(),
+                Request(Tag("Season", "Spring")));
+
+            Assert.That(result.IsSuccess, Is.True);
+            Assert.That(result.Plan!.SelectedContent.Select(item => item.StableKey),
+                Is.EqualTo(new[] { "candidate" }));
         }
 
         [Test]
