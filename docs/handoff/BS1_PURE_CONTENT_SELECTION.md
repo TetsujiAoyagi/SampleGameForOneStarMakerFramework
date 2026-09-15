@@ -15,13 +15,13 @@
 - Phase A snapshot path / id: A1はgit commit `84f316f`。A3 frozen snapshotはgit commit `633b86b`の本ファイル。
 - Phase A snapshot generated at: 2026-09-15 JST
 - Phase A snapshot hash: A1 `84f316f` / A3 `633b86b`
-- Phase B result snapshot path / id: implementation code commit `5daadcb`; clean review snapshot commit pending
+- Phase B result snapshot path / id: implementation code commits `5daadcb`, `686eeda`; clean review snapshot commit pending
 - Phase B result snapshot generated at: 2026-09-15 JST
-- Phase B result snapshot hash: `5daadcb`
-- evidence bundle path / id: corrected snapshotで再生成待ち
+- Phase B result snapshot hash: `686eeda`
+- evidence bundle path / id: final clean snapshotで再生成待ち
 - evidence bundle generated at: 未到達
 - evidence bundle hash: 未到達
-- C' blind bundle path / id: corrected snapshotで再生成待ち
+- C' blind bundle path / id: final clean snapshotで再生成待ち
 - C' blind bundle generated at: 未到達
 - C' blind bundle hash: 未到達
 
@@ -220,6 +220,8 @@ Phase BからPhase Aへ差し戻す条件:
 - warning・exclusion・全provenance・複数errorを含むfull snapshot permutation testsを含めた。
 - implementation code commit: `5daadcb`
 - `pwsh tools/contract-audit.ps1` exit 0。Unity testsはPhase C責任のため未実行。
+- NUnitのenum assertion overloadを修正したimplementation code commit: `686eeda`。
+  開いているUnity Editorのrecompile結果は`completed / failed:false / errors:[]`。
 
 ## 7. Phase C
 
