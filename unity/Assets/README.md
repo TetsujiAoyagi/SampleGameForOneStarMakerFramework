@@ -48,9 +48,11 @@ Assets/
 │   │   └── UpdateSystem/        … UpdateSystemHost, UpdaterDriver（ホスティング層）
 │   ├── Debug/                   ← OneStarMaker.Debug.asmdef (→ Foundation + Runtime + TMP)
 │   │   └── Profiler/            … DebugProfilerView, FrameTimeSampler, FrameTimeGraphRenderer
-│   └── Editor/                  ← OneStarMaker.Editor.asmdef (→ Runtime)
-│       ├── SceneGraph/          … Scene Graph Editor (ノードベース可視化・SceneResource 生成)
-│       └── Build/               … Variant ビルド / AssetDescription 収集 / Addressables 同期
+│   └── Editor/
+│       ├── SceneGraph/          … OneStarMaker.Editor (→ Runtime)。Scene Graph Editor / SceneResource 生成
+│       └── Build/
+│           ├── Selection/       … OneStarMaker.Build.Selection (Editor-only pure leaf)
+│           └── その他           … OneStarMaker.Editor。Variant / AssetDescription / Addressables 同期
 ├── OneStarMaker/Tests/          ← Tests / Tests.Editor asmdef
 │   └── Scene, AssetManagement, UpdateSystem, Build のテスト
 │
@@ -74,6 +76,10 @@ OneStarMaker.Foundation  (leaf — フレームワーク内依存なし)
 OneStarMaker.Runtime ──► Foundation + UniTask + Addressables + LitMotion + InputSystem + R3
        ▲
 OneStarMaker.Debug ──► Foundation + Runtime + TMP
+
+OneStarMaker.Build.Selection  (Editor-only pure leaf — assembly参照なし)
+       ▲
+OneStarMaker.Tests.Editor ────┘
 
 SampleGame.DependOnAll ──→ Common, InGame, OutGame, Foundation, Runtime, Debug
 SampleGame.InGame      ──→ Common, Foundation, Runtime

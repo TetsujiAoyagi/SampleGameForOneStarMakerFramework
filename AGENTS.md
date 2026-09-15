@@ -13,7 +13,7 @@ OSM は、複雑なゲームを載せても Scene / 寿命 / UI / Service / ロ�
 - `tools/DebugStudio/`: 外部デバッグツール（.NET 8）
 - `unity/Assets/Docs/Architecture/`、`docs/`: 公開設計ドキュメント
 
-Unity の正しいバージョンは `unity/ProjectSettings/ProjectVersion.txt` にある（現在は 6000.5.0f1）。
+Unity の正しいバージョンは `unity/ProjectSettings/ProjectVersion.txt` にある（現在は 6000.6.0f1）。
 
 ## 常時守る契約
 
