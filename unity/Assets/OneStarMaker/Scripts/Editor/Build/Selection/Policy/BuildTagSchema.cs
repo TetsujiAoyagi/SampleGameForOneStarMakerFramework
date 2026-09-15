@@ -7,6 +7,9 @@ using System.Linq;
 
 namespace OneStarMaker.Build.Selection
 {
+    /// <summary>
+    /// Declares the allowed values for each project-defined tag dimension without assigning domain meaning.
+    /// </summary>
     public sealed class BuildTagSchema
     {
         private readonly ReadOnlyDictionary<string, IReadOnlyList<string>> _dimensions;

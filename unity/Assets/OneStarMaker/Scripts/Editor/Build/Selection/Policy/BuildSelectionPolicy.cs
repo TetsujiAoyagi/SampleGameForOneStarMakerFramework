@@ -7,6 +7,9 @@ using System.Linq;
 
 namespace OneStarMaker.Build.Selection
 {
+    /// <summary>
+    /// Combines the independent tag schema and logical-content requirements used by one selection run.
+    /// </summary>
     public sealed class BuildSelectionPolicy
     {
         private readonly ReadOnlyCollection<BuildContentRequirement> _requirements;

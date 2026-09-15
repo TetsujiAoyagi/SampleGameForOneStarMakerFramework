@@ -4,12 +4,16 @@ using System;
 
 namespace OneStarMaker.Build.Selection
 {
+    /// <summary>Defines the supported cardinality rules for a required logical content group.</summary>
     public enum BuildContentCardinality
     {
         OneOrMore,
         ExactlyOne
     }
 
+    /// <summary>
+    /// Requires a logical content group to contain the specified number of selected candidates.
+    /// </summary>
     public sealed class BuildContentRequirement
     {
         public BuildContentRequirement(string logicalKey, BuildContentCardinality cardinality)

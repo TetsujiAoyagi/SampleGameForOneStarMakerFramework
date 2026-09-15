@@ -2,12 +2,14 @@
 
 namespace OneStarMaker.Build.Selection
 {
+    /// <summary>Defines whether an issue prevents publication of a build plan.</summary>
     public enum BuildValidationSeverity
     {
         Error,
         Warning
     }
 
+    /// <summary>Identifies the kind of input entity associated with an issue.</summary>
     public enum BuildValidationSubject
     {
         Request,
@@ -15,6 +17,10 @@ namespace OneStarMaker.Build.Selection
         Requirement
     }
 
+    /// <summary>
+    /// Describes one structured validation outcome using fields suitable for canonical ordering.
+    /// The display message is informational and is not part of snapshot identity.
+    /// </summary>
     public sealed class BuildValidationIssue
     {
         public BuildValidationIssue(

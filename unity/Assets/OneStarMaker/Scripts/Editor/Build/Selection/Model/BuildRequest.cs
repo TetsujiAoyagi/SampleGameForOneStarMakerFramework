@@ -7,6 +7,10 @@ using System.Linq;
 
 namespace OneStarMaker.Build.Selection
 {
+    /// <summary>
+    /// Captures the requested dimension/value selections as an immutable canonical snapshot.
+    /// Multiple values within one dimension represent an OR selection.
+    /// </summary>
     public sealed class BuildRequest
     {
         private readonly ReadOnlyCollection<BuildTag> _selections;

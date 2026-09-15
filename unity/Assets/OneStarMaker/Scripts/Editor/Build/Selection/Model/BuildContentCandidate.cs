@@ -4,6 +4,9 @@ using System;
 
 namespace OneStarMaker.Build.Selection
 {
+    /// <summary>
+    /// Describes one already-materialized selectable content item using stable logical and physical identities.
+    /// </summary>
     public sealed class BuildContentCandidate
     {
         public BuildContentCandidate(

@@ -7,6 +7,9 @@ using System.Linq;
 
 namespace OneStarMaker.Build.Selection
 {
+    /// <summary>
+    /// Stores a pure, immutable and canonically ordered description of a candidate's origin.
+    /// </summary>
     public sealed class BuildProvenance
     {
         private readonly ReadOnlyCollection<KeyValuePair<string, string>> _properties;

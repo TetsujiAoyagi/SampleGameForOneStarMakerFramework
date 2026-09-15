@@ -4,6 +4,10 @@ using System;
 
 namespace OneStarMaker.Build.Selection
 {
+    /// <summary>
+    /// Represents one build-selection dimension/value pair using ordinal, case-sensitive equality.
+    /// Values remain nullable so the selector can report malformed external input as a structured issue.
+    /// </summary>
     public sealed class BuildTag : IEquatable<BuildTag>
     {
         public BuildTag(string? dimension, string? value)

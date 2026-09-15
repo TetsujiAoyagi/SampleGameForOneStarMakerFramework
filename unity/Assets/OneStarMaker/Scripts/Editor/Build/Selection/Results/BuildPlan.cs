@@ -7,6 +7,9 @@ using System.Linq;
 
 namespace OneStarMaker.Build.Selection
 {
+    /// <summary>
+    /// Provides the immutable, canonical selection result that a later build backend may consume.
+    /// </summary>
     public sealed class BuildPlan
     {
         private readonly ReadOnlyCollection<BuildContentCandidate> _selectedContent;

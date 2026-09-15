@@ -6,8 +6,16 @@ using System.Linq;
 
 namespace OneStarMaker.Build.Selection
 {
+    /// <summary>
+    /// Validates a materialized content set and produces a deterministic build-selection snapshot.
+    /// This pure core performs no source discovery, Unity access, or build backend I/O.
+    /// </summary>
     public sealed class BuildTagSelector
     {
+        /// <summary>
+        /// Applies provider tags and policy rules to the supplied candidates.
+        /// A result containing any error never exposes an executable <see cref="BuildPlan"/>.
+        /// </summary>
         public BuildPlanResult Select(
             BuildRequest request,
             IEnumerable<BuildContentCandidate> candidates,
@@ -30,6 +38,7 @@ namespace OneStarMaker.Build.Selection
                 .OrderBy(provider => provider.StableProviderKey, StringComparer.Ordinal)
                 .ToArray();
 
+            // Complete all input validation before matching so invalid input cannot produce a partial plan.
             ValidateProviderKeys(providerSnapshot);
             ValidateCandidateIdentity(candidateSnapshot, issues);
             ValidateRequirements(policy.Requirements, issues);
@@ -39,6 +48,7 @@ namespace OneStarMaker.Build.Selection
             if (issues.Any(issue => issue.Severity == BuildValidationSeverity.Error))
                 return new BuildPlanResult(null, issues);
 
+            // Matching only consumes normalized snapshots; caller and provider buffers are no longer observed.
             var selected = new List<BuildContentCandidate>();
             var excluded = new List<BuildContentExclusion>();
             foreach (var candidate in candidateSnapshot)
