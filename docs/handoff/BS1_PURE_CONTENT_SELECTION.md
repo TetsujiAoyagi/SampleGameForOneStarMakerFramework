@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A3 frozen / Phase B ready`
+- status: `Phase C/C' reviewed / NO-GO`
 - branch: `codex/cd0-u66-phase-d-bs1-phase-a`
 - implementation base commit: `bda2ed7`
 - implementation head commit: `b4b43d3`
@@ -18,12 +18,12 @@
 - Phase B result snapshot path / id: git commit `b4b43d3`
 - Phase B result snapshot generated at: 2026-09-15 JST
 - Phase B result snapshot hash: `b4b43d3`
-- evidence bundle path / id: 未到達
-- evidence bundle generated at: 未到達
-- evidence bundle hash: 未到達
-- C' blind bundle path / id: 未到達
-- C' blind bundle generated at: 未到達
-- C' blind bundle hash: 未到達
+- evidence bundle path / id: `TestResults/BS1-PhaseC-b4b43d3/manifest.txt`（local ignored evidence）
+- evidence bundle generated at: 2026-09-15 09:08 JST
+- evidence bundle hash: SHA-256 `3ec9e92fe5ae45b2a4f1d968d8005cfa9aeb70fbe9868d6f5c4193e909795f76`
+- C' blind bundle path / id: `TestResults/BS1-CPrime-Blind-b4b43d3/blind-manifest.txt`（local ignored evidence）
+- C' blind bundle generated at: 2026-09-15 09:08 JST
+- C' blind bundle hash: SHA-256 `311cc8b1c668c02c8f849e89ee74e7c2dfde020cc86a8a7b8b40e73bd57aa97d`
 
 ## 1. 目的と対象外
 
@@ -216,11 +216,50 @@ Phase BからPhase Aへ差し戻す条件:
 
 ## 7. Phase C
 
-未実施
+- 対象: implementation base `bda2ed7666093d70327eed3b8ff6db068b406e37` / head
+  `b4b43d3f0c1120abc790d6f91ae3044e47688d31`。上記evidence bundleで固定した。
+- 構造適合:
+  - 専用Editor-only assembly、参照0、`autoReferenced: false`、`noEngineReferences: true`、
+    Testsからだけの片方向参照は凍結責務マップに適合する。
+  - materialized candidate / provider / policy / selector / planの責務は分離され、Unity I/O、
+    production adapter、Game固有語彙、既存Variant/Addressables変更はない。
+  - selectorは279行で停止条件内。pure DTOとin-memory fakeだけで単体テスト可能な境界を維持する。
+- 現在の問いを阻害する欠陥:
+  - `C-1` P2 / semantic / unique / accepted: `BuildRequest`のselectionが0件でも
+    `InvalidRequestSelection`を出さずplanを返す。AC3「空selectionをerror」とGO条件に違反。
+    根拠は`BuildTagSelector.cs`の`ValidateRequest`と空`Request()`成功テスト。修正commitなし。
+  - `C-2` P2 / semantic / unique / accepted: AC8と凍結test planが要求するfull snapshot順序証拠が不足。
+    現テストはissue/exclusionなしの成功だけで、provider内tag順、複数issue、全provenance fieldを比較しない。
+    修正commitなし。
+  - `C-3` P1 / machine / provided evidence / accepted: 全EditMode testはUnity Licensing Client再接続失敗を
+    60秒周期で反復し、21.4分後に当該batch PIDだけを停止した。runner exit 1、Unity exit -1、XML未生成、
+    実行件数不明。AC9とGOに必要なテスト証拠がない。BS1コードの失敗を示す証拠でもない。
+- 後続スライスへの入力: 新規なし。HANDOFF記載済みのBS2/BS3/BS4/DIST/RET境界は拡張しない。
+- 機械検査: `pwsh tools/contract-audit.ps1` exit 0。`git diff --check`指摘なし。
+- 未確認事項: Unity compilation、BS1 unit tests、既存Editor回帰はlicense障害により未確認。
+- 判定: **NO-GO / 差し戻し**。C-1、C-2の実装・test是正と、license復旧後の固定headに対する
+  完成XML・1件以上・failed 0の標準runner証拠が必要。
+- Phase C担当・モデル・ベンダー: `/root/bs1_phase_c` / Codex / GPT-6 Astra / OpenAI。
+  Phase Bとは異なるモデルの新規セッション。同一ベンダー/GPT系列は独立性の限界。
 
 ## 8. Phase C'
 
-未実施
+- 入力: 上記blind bundleのみ。可変HANDOFF、Phase C所見、rootの疑念候補は渡していない。
+- 現在の問いを阻害する欠陥:
+  - High / machine: runner exit 1、XMLなしのためGO不可。license復旧後に同一headで全EditMode testを再実行する。
+  - Medium / obvious: AC8のprovider内multi-tag順と複数issueを含むfull snapshot permutation testが不足。
+  - Medium / obvious: AC3のcandidate tagについてnull/空/前後空白のdimension/value testが不足。
+- 後続スライスへの入力:
+  - Low / semantic: 未定義の`BuildContentCardinality` enum値が暗黙に`ExactlyOne`扱いになる。
+    凍結ACにinvalid enum検証はないためBS1を拡張せず、BS2 Phase Aのpolicy/API hardening入力とする。
+- non-finding: pure assembly境界、Testsのみの参照、279行selector、禁止依存・Game語彙・source列挙なし、
+  既存Variant/Addressables無変更、contract audit passは静的に確認した。
+- 監査不能範囲: Unity compilation、BS1/既存EditMode testsの実行、対象外のbackend/runtime/Player挙動。
+- 判定: **BLOCKED / NO-GO**。静的境界と主要意味論は凍結案に概ね適合するが、必須test証拠と
+  2件の凍結test obligationが不足する。
+- Phase C'担当・モデル・ベンダー: `/root/bs1_cprime` / Codex / gpt-5.6-terra / OpenAI。
+  新規セッション、blind bundle使用、BのGPT-5およびCのgpt-6-astraと異なり最低独立条件を満たす。
+  高リスク向け強化条件は、Phase A/B/Cと同じOpenAI/GPT系列のため`独立性制約あり`として未達。
 
 ## 9. Phase D
 
