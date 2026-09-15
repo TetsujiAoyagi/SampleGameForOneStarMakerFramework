@@ -62,7 +62,7 @@ namespace OneStarMaker.Tests.Editor.Build
             var result = Select(
                 new[] { Candidate("candidate", "world", "physical") },
                 new[] { new FakeProvider("provider", _ => new[] { Tag("Season", "Spring") }) },
-                Request());
+                Request(Tag("Representation", "Full")));
 
             var exclusion = result.Plan!.ExcludedContent.Single();
             Assert.That(exclusion.ReasonCode, Is.EqualTo(BuildExclusionReasonCode.UnrequestedDimension));
@@ -97,6 +97,17 @@ namespace OneStarMaker.Tests.Editor.Build
         }
 
         [Test]
+        public void EmptyRequestSelection_IsErrorAndHidesPlan()
+        {
+            var result = Select(
+                new[] { Candidate("neutral", "world", "physical") },
+                Array.Empty<IBuildTagProvider>(),
+                Request());
+
+            AssertError(result, BuildValidationCode.InvalidRequestSelection);
+        }
+
+        [Test]
         public void UnknownRequestDimensionAndValue_AreErrors()
         {
             var result = Select(Array.Empty<BuildContentCandidate>(), Array.Empty<IBuildTagProvider>(),
@@ -119,6 +130,27 @@ namespace OneStarMaker.Tests.Editor.Build
             Assert.That(result.Issues.Select(issue => issue.Code),
                 Does.Contain(BuildValidationCode.UnknownDimension).And.Contain(BuildValidationCode.UnknownValue));
             Assert.That(result.Issues.All(issue => issue.ProviderKey == "provider-a"), Is.True);
+        }
+
+        [TestCase(null, "Spring", BuildValidationCode.UnknownDimension)]
+        [TestCase("", "Spring", BuildValidationCode.UnknownDimension)]
+        [TestCase(" Season", "Spring", BuildValidationCode.UnknownDimension)]
+        [TestCase("Season ", "Spring", BuildValidationCode.UnknownDimension)]
+        [TestCase("Season", null, BuildValidationCode.UnknownValue)]
+        [TestCase("Season", "", BuildValidationCode.UnknownValue)]
+        [TestCase("Season", " Spring", BuildValidationCode.UnknownValue)]
+        [TestCase("Season", "Spring ", BuildValidationCode.UnknownValue)]
+        public void MalformedCandidateTag_IsErrorAndHidesPlan(
+            string? dimension,
+            string? value,
+            BuildValidationCode expectedCode)
+        {
+            var result = Select(
+                new[] { Candidate("candidate", "world", "physical") },
+                new[] { new FakeProvider("provider", _ => new[] { Tag(dimension, value) }) },
+                Request(Tag("Season", "Spring")));
+
+            AssertError(result, expectedCode);
         }
 
         [Test]
@@ -155,7 +187,7 @@ namespace OneStarMaker.Tests.Editor.Build
             var result = Select(
                 new[] { Candidate("same", "a", "p1"), Candidate("same", "b", "p2") },
                 Array.Empty<IBuildTagProvider>(),
-                Request());
+                Request(Tag("Representation", "Full")));
 
             AssertError(result, BuildValidationCode.DuplicateCandidateKey);
         }
@@ -166,7 +198,7 @@ namespace OneStarMaker.Tests.Editor.Build
             var result = Select(
                 new[] { Candidate("a", "group", "same"), Candidate("b", "group", "same") },
                 Array.Empty<IBuildTagProvider>(),
-                Request());
+                Request(Tag("Representation", "Full")));
 
             AssertError(result, BuildValidationCode.PhysicalKeyCollision);
         }
@@ -201,7 +233,8 @@ namespace OneStarMaker.Tests.Editor.Build
         [Test]
         public void RequirementWithNoCandidates_UsesRequiredGroupMissing()
         {
-            var result = Select(Array.Empty<BuildContentCandidate>(), Array.Empty<IBuildTagProvider>(), Request(),
+            var result = Select(Array.Empty<BuildContentCandidate>(), Array.Empty<IBuildTagProvider>(),
+                Request(Tag("Representation", "Full")),
                 new BuildContentRequirement("missing", BuildContentCardinality.OneOrMore));
 
             AssertError(result, BuildValidationCode.RequiredGroupMissing);
@@ -211,10 +244,12 @@ namespace OneStarMaker.Tests.Editor.Build
         public void DuplicateAndConflictingRequirements_AreDistinctErrors()
         {
             var candidate = Candidate("candidate", "group", "physical");
-            var duplicate = Select(new[] { candidate }, Array.Empty<IBuildTagProvider>(), Request(),
+            var duplicate = Select(new[] { candidate }, Array.Empty<IBuildTagProvider>(),
+                Request(Tag("Representation", "Full")),
                 new BuildContentRequirement("group", BuildContentCardinality.OneOrMore),
                 new BuildContentRequirement("group", BuildContentCardinality.OneOrMore));
-            var conflict = Select(new[] { candidate }, Array.Empty<IBuildTagProvider>(), Request(),
+            var conflict = Select(new[] { candidate }, Array.Empty<IBuildTagProvider>(),
+                Request(Tag("Representation", "Full")),
                 new BuildContentRequirement("group", BuildContentCardinality.OneOrMore),
                 new BuildContentRequirement("group", BuildContentCardinality.ExactlyOne));
 
@@ -223,23 +258,65 @@ namespace OneStarMaker.Tests.Editor.Build
         }
 
         [Test]
-        public void CandidateProviderAndTagOrder_DoNotChangeSnapshot()
+        public void AllSuccessInputOrders_DoNotChangeFullSnapshot()
         {
             var candidates = new[]
             {
-                Candidate("b", "world", "physical-b"),
-                Candidate("a", "world", "physical-a")
+                CandidateWithProperties("b", "world", "physical-b", false),
+                CandidateWithProperties("a", "world", "physical-a", false)
             };
             var providers = new IBuildTagProvider[]
             {
-                new FakeProvider("z", _ => new[] { Tag("Representation", "Whitebox") }),
-                new FakeProvider("a", _ => new[] { Tag("Season", "Spring") })
+                new FakeProvider("z", candidate => new[] { Tag("Season", candidate.StableKey == "a" ? "Spring" : "Summer") }),
+                new FakeProvider("a", candidate => new[]
+                {
+                    Tag("Representation", "Whitebox"),
+                    Tag("Season", candidate.StableKey == "a" ? "Spring" : "Summer")
+                })
             };
             var forward = Select(candidates, providers,
                 Request(Tag("Season", "Spring"), Tag("Representation", "Whitebox")));
-            var reverse = Select(candidates.Reverse(), providers.Reverse(),
+            var reversedCandidates = new[]
+            {
+                CandidateWithProperties("a", "world", "physical-a", true),
+                CandidateWithProperties("b", "world", "physical-b", true)
+            };
+            var reversedProviders = new IBuildTagProvider[]
+            {
+                new FakeProvider("a", candidate => new[]
+                {
+                    Tag("Season", candidate.StableKey == "a" ? "Spring" : "Summer"),
+                    Tag("Representation", "Whitebox")
+                }),
+                new FakeProvider("z", candidate => new[] { Tag("Season", candidate.StableKey == "a" ? "Spring" : "Summer") })
+            };
+            var reverse = Select(reversedCandidates, reversedProviders,
                 Request(Tag("Representation", "Whitebox"), Tag("Season", "Spring")));
 
+            Assert.That(Snapshot(reverse), Is.EqualTo(Snapshot(forward)));
+            Assert.That(forward.Issues.Any(issue => issue.Severity == BuildValidationSeverity.Warning), Is.True);
+            Assert.That(forward.Plan!.ExcludedContent, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public void AllErrorInputOrders_DoNotChangeFullSnapshot()
+        {
+            var candidates = new[]
+            {
+                Candidate("duplicate", "first", "physical-a"),
+                Candidate("duplicate", "second", "physical-b")
+            };
+            var forward = Select(
+                candidates,
+                new[] { new FakeProvider("provider", _ => new[] { Tag("Unknown", "value"), Tag("Season", "Autumn") }) },
+                Request(Tag("Unknown", "value"), Tag("Season", "Autumn")));
+            var reverse = Select(
+                candidates.Reverse(),
+                new[] { new FakeProvider("provider", _ => new[] { Tag("Season", "Autumn"), Tag("Unknown", "value") }) },
+                Request(Tag("Season", "Autumn"), Tag("Unknown", "value")));
+
+            Assert.That(forward.Plan, Is.Null);
+            Assert.That(forward.Issues.Count, Is.GreaterThan(1));
             Assert.That(Snapshot(reverse), Is.EqualTo(Snapshot(forward)));
         }
 
@@ -283,25 +360,44 @@ namespace OneStarMaker.Tests.Editor.Build
 
         private static string Snapshot(BuildPlanResult result)
         {
-            var plan = result.Plan!;
-            return string.Join("|", plan.Request.Selections
-                    .OrderBy(tag => tag.Dimension, StringComparer.Ordinal)
-                    .ThenBy(tag => tag.Value, StringComparer.Ordinal)
-                    .Select(tag => $"R:{tag.Dimension}:{tag.Value}"))
-                + "|" + string.Join("|", plan.SelectedContent.Select(candidate =>
-                    $"S:{candidate.StableKey}:{candidate.LogicalKey}:{candidate.PhysicalKey}:" +
-                    string.Join(",", candidate.Provenance.Properties.Select(pair => $"{pair.Key}={pair.Value}"))))
-                + "|" + string.Join("|", plan.ExcludedContent.Select(exclusion =>
-                    $"X:{exclusion.Candidate.StableKey}:{exclusion.ReasonCode}:{exclusion.Dimension}:{exclusion.Value}"))
-                + "|" + string.Join("|", result.Issues.Select(issue =>
+            var planSnapshot = result.Plan == null
+                ? "PLAN:null"
+                : "PLAN:" + string.Join("|", result.Plan.Request.Selections.Select(tag =>
+                        $"R:{tag.Dimension}:{tag.Value}"))
+                    + "|" + string.Join("|", result.Plan.SelectedContent.Select(candidate =>
+                        "S:" + CandidateSnapshot(candidate)))
+                    + "|" + string.Join("|", result.Plan.ExcludedContent.Select(exclusion =>
+                        $"X:{CandidateSnapshot(exclusion.Candidate)}:{exclusion.ReasonCode}:{exclusion.Dimension}:{exclusion.Value}"));
+            return planSnapshot + "|" + string.Join("|", result.Issues.Select(issue =>
                     $"I:{issue.Severity}:{issue.Code}:{issue.Subject}:{issue.SubjectKey}:{issue.Dimension}:{issue.Value}:{issue.ProviderKey}"));
         }
+
+        private static string CandidateSnapshot(BuildContentCandidate candidate) =>
+            $"{candidate.StableKey}:{candidate.LogicalKey}:{candidate.PhysicalKey}:" +
+            $"{candidate.Provenance.SourceKind}:{candidate.Provenance.SourceId}:" +
+            string.Join(",", candidate.Provenance.Properties.Select(pair => $"{pair.Key}={pair.Value}"));
 
         private static BuildRequest Request(params BuildTag[] tags) => new BuildRequest(tags);
 
         private static BuildContentCandidate Candidate(string stable, string logical, string physical) =>
             new BuildContentCandidate(stable, logical, physical,
                 new BuildProvenance("test", stable, new[] { new KeyValuePair<string, string>("key", stable) }));
+
+        private static BuildContentCandidate CandidateWithProperties(
+            string stable,
+            string logical,
+            string physical,
+            bool reverse)
+        {
+            var properties = new[]
+            {
+                new KeyValuePair<string, string>("alpha", "1"),
+                new KeyValuePair<string, string>("omega", "2")
+            };
+            return new BuildContentCandidate(stable, logical, physical,
+                new BuildProvenance("test-kind", "source-" + stable,
+                    reverse ? properties.Reverse() : properties));
+        }
 
         private static BuildTag Tag(string? dimension, string? value) => new BuildTag(dimension, value);
 

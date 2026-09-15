@@ -108,6 +108,13 @@ namespace OneStarMaker.Build.Selection
             ICollection<BuildValidationIssue> issues)
         {
             var requested = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+            if (request.Selections.Count == 0)
+            {
+                AddError(issues, BuildValidationCode.InvalidRequestSelection, BuildValidationSubject.Request,
+                    "request", null, null, null, "Request must contain at least one selection.");
+                return requested;
+            }
+
             foreach (var tag in request.Selections)
             {
                 if (!IsStable(tag.Dimension) || !IsStable(tag.Value))
