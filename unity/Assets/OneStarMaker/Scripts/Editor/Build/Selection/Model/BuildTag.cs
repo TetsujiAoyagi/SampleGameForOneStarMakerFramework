@@ -5,8 +5,8 @@ using System;
 namespace OneStarMaker.Build.Selection
 {
     /// <summary>
-    /// Represents one build-selection dimension/value pair using ordinal, case-sensitive equality.
-    /// Values remain nullable so the selector can report malformed external input as a structured issue.
+    /// build選択に使うdimension/valueの1組を、ordinalかつcase-sensitiveな等価性で表します。
+    /// selectorが不正な外部入力を構造化issueとして報告できるよう、値はnullableのまま保持します。
     /// </summary>
     public sealed class BuildTag : IEquatable<BuildTag>
     {

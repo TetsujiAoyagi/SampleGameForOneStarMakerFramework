@@ -8,7 +8,7 @@ using System.Linq;
 namespace OneStarMaker.Build.Selection
 {
     /// <summary>
-    /// Stores a pure, immutable and canonically ordered description of a candidate's origin.
+    /// candidateの由来をpureかつimmutableなcanonical順のsnapshotとして保持します。
     /// </summary>
     public sealed class BuildProvenance
     {

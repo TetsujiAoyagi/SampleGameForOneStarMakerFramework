@@ -8,7 +8,7 @@ using System.Linq;
 namespace OneStarMaker.Build.Selection
 {
     /// <summary>
-    /// Carries canonical validation issues and exposes a plan only when no error issue exists.
+    /// canonicalなvalidation issueを保持し、Errorが存在しない場合だけplanを公開します。
     /// </summary>
     public sealed class BuildPlanResult
     {

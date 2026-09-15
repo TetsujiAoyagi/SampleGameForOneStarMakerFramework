@@ -4,7 +4,7 @@ using System;
 
 namespace OneStarMaker.Build.Selection
 {
-    /// <summary>Defines the supported cardinality rules for a required logical content group.</summary>
+    /// <summary>必須logical content groupに指定できるcardinality規則を定義します。</summary>
     public enum BuildContentCardinality
     {
         OneOrMore,
@@ -12,7 +12,7 @@ namespace OneStarMaker.Build.Selection
     }
 
     /// <summary>
-    /// Requires a logical content group to contain the specified number of selected candidates.
+    /// logical content groupに必要な選択candidate数を宣言します。
     /// </summary>
     public sealed class BuildContentRequirement
     {

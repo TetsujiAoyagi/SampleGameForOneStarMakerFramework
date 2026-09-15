@@ -8,7 +8,7 @@ using System.Linq;
 namespace OneStarMaker.Build.Selection
 {
     /// <summary>
-    /// Declares the allowed values for each project-defined tag dimension without assigning domain meaning.
+    /// domain固有の意味を持たず、project定義の各tag dimensionで許可するvalueを宣言します。
     /// </summary>
     public sealed class BuildTagSchema
     {

@@ -5,7 +5,7 @@ using System;
 namespace OneStarMaker.Build.Selection
 {
     /// <summary>
-    /// Describes one already-materialized selectable content item using stable logical and physical identities.
+    /// materialize済みの選択候補1件を、stableなlogical identityとphysical identityで表します。
     /// </summary>
     public sealed class BuildContentCandidate
     {

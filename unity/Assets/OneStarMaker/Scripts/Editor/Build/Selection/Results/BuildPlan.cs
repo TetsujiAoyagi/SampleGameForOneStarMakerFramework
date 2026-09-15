@@ -8,7 +8,7 @@ using System.Linq;
 namespace OneStarMaker.Build.Selection
 {
     /// <summary>
-    /// Provides the immutable, canonical selection result that a later build backend may consume.
+    /// 後続のbuild backendが消費できる、immutableかつcanonicalな選択結果を提供します。
     /// </summary>
     public sealed class BuildPlan
     {

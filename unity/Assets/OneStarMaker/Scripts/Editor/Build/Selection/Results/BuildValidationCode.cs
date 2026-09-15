@@ -2,7 +2,7 @@
 
 namespace OneStarMaker.Build.Selection
 {
-    /// <summary>Identifies the closed set of validation outcomes produced by BS1 selection.</summary>
+    /// <summary>BS1 selectionが生成するvalidation結果の閉じた集合を識別します。</summary>
     public enum BuildValidationCode
     {
         InvalidRequestSelection,

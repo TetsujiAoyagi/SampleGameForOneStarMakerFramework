@@ -7,14 +7,14 @@ using System.Linq;
 namespace OneStarMaker.Build.Selection
 {
     /// <summary>
-    /// Validates a materialized content set and produces a deterministic build-selection snapshot.
-    /// This pure core performs no source discovery, Unity access, or build backend I/O.
+    /// materialize済みcontent集合を検証し、決定的なbuild選択snapshotを生成します。
+    /// pure coreであるため、source探索、Unity APIへのアクセス、build backend I/Oは行いません。
     /// </summary>
     public sealed class BuildTagSelector
     {
         /// <summary>
-        /// Applies provider tags and policy rules to the supplied candidates.
-        /// A result containing any error never exposes an executable <see cref="BuildPlan"/>.
+        /// 指定されたcandidateへproviderのtagとpolicy規則を適用します。
+        /// Errorを1件でも含む結果からは、実行可能な<see cref="BuildPlan"/>を公開しません。
         /// </summary>
         public BuildPlanResult Select(
             BuildRequest request,
@@ -38,7 +38,7 @@ namespace OneStarMaker.Build.Selection
                 .OrderBy(provider => provider.StableProviderKey, StringComparer.Ordinal)
                 .ToArray();
 
-            // Complete all input validation before matching so invalid input cannot produce a partial plan.
+            // 不正入力から部分的なplanが作られないよう、照合より前に全入力の検証を完了する。
             ValidateProviderKeys(providerSnapshot);
             ValidateCandidateIdentity(candidateSnapshot, issues);
             ValidateRequirements(policy.Requirements, issues);
@@ -48,7 +48,7 @@ namespace OneStarMaker.Build.Selection
             if (issues.Any(issue => issue.Severity == BuildValidationSeverity.Error))
                 return new BuildPlanResult(null, issues);
 
-            // Matching only consumes normalized snapshots; caller and provider buffers are no longer observed.
+            // 照合は正規化済みsnapshotだけを使い、以後callerやproviderのbufferを観測しない。
             var selected = new List<BuildContentCandidate>();
             var excluded = new List<BuildContentExclusion>();
             foreach (var candidate in candidateSnapshot)

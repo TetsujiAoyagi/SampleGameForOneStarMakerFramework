@@ -2,7 +2,7 @@
 
 namespace OneStarMaker.Build.Selection
 {
-    /// <summary>Identifies why a valid candidate was omitted from a successful plan.</summary>
+    /// <summary>正常なcandidateが成功planから除外された理由を識別します。</summary>
     public enum BuildExclusionReasonCode
     {
         UnrequestedDimension,
@@ -10,7 +10,7 @@ namespace OneStarMaker.Build.Selection
     }
 
     /// <summary>
-    /// Records a candidate excluded by matching, together with its structured deterministic reason.
+    /// 照合で除外されたcandidateと、その構造化された決定的な理由を保持します。
     /// </summary>
     public sealed class BuildContentExclusion
     {

@@ -8,8 +8,8 @@ using System.Linq;
 namespace OneStarMaker.Build.Selection
 {
     /// <summary>
-    /// Captures the requested dimension/value selections as an immutable canonical snapshot.
-    /// Multiple values within one dimension represent an OR selection.
+    /// 要求されたdimension/value選択をimmutableなcanonical snapshotとして保持します。
+    /// 同一dimension内の複数valueはOR選択を表します。
     /// </summary>
     public sealed class BuildRequest
     {
