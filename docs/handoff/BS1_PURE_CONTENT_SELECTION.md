@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `Phase C/C' GO / Phase D ready`
+- status: `Phase C GO / Phase C' record synchronization verification`
 - branch: `codex/cd0-u66-phase-d-bs1-phase-a`
 - implementation base commit: `bda2ed7`
-- implementation head commit: `977ee14bb4f5e704ad85e5e9b2ad5dad689bbcc0`
+- implementation head commit: `29106e76f744d7000eb6c0f47d72504936165331`
 - risk: `high`（新しいBuildSystemの中核型、公開境界、依存方向を定める）
 - owner: Phase A主担当 Codex / GPT-6 Astra（OpenAI）。A3採否は人間。B/C/C'は開始時に記録する。
 - created: 2026-09-15 JST
@@ -15,15 +15,15 @@
 - Phase A snapshot path / id: A1はgit commit `84f316f`。A3 frozen snapshotはgit commit `633b86b`の本ファイル。
 - Phase A snapshot generated at: 2026-09-15 JST
 - Phase A snapshot hash: A1 `84f316f` / A3 `633b86b`
-- Phase B result snapshot path / id: implementation code commits `5daadcb`, `686eeda`, `977ee14`
-- Phase B result snapshot generated at: 2026-09-15 JST
-- Phase B result snapshot hash: `977ee14`
-- evidence bundle path / id: `TestResults/BS1-PhaseC-977ee14-pass-20260915-233148/`
-- evidence bundle generated at: 2026-09-15T23:38:57+09:00
-- evidence bundle hash: manifest SHA-256 `343851238a4ea474ac1be37454c41075476f892228d0494ca94da0ea3afa275d`
-- C' blind bundle path / id: `TestResults/BS1-CPrime-Blind-977ee14-pass-20260915-233148/`
-- C' blind bundle generated at: 2026-09-15T23:38:57+09:00
-- C' blind bundle hash: blind-manifest SHA-256 `e18fa6c9c259937a4ce9888b61b77bbda413431c2a67b0180df029f295908e33`
+- Phase B result snapshot path / id: implementation code commits `5daadcb`, `686eeda`, `977ee14`, `d17d747`, `e77c596`, `29106e7`
+- Phase B result snapshot generated at: 2026-09-16 JST
+- Phase B result snapshot hash: `29106e7`
+- evidence bundle path / id: `TestResults/BS1-PhaseC-29106e7-pass-20260916-062616/`
+- evidence bundle generated at: 2026-09-16T06:36:18+09:00
+- evidence bundle hash: manifest SHA-256 `492eacd4bf52adc8d0969d58b0ea0c185d7e07b9672d1303b9ebdcde79fa1a23`
+- C' blind bundle path / id: `TestResults/BS1-CPrime-Blind-29106e7-pass-20260916-062616/`
+- C' blind bundle generated at: 2026-09-16T06:36:18+09:00
+- C' blind bundle hash: blind-manifest SHA-256 `619c00624e8ff2ce9d94713e6c1a203f3a65311b561c7cc0b2921d2825f236c9`
 
 ## 1. 目的と対象外
 
@@ -108,19 +108,19 @@ SampleGame Editor adapterからのproduction参照・配線はBS2 Phase Aで決�
 
 | ファイル / 現在行数 / 予想増分 | 責務・変更理由 | 所有者・寿命・依存・公開面・テスト境界 |
 |---|---|---|
-| `BuildTag.cs` / 0 / 50–80 | ordinal比較するDimension/Value値、空白・null拒否 | plan生成中の値。Systemのみ。immutable value。pure test |
-| `BuildRequest.cs` / 0 / 60–100 | dimensionごとの選択値をimmutable化 | caller demandのsnapshot。project policyを所有しない。pure test |
-| `BuildContentCandidate.cs` / 0 / 100–150 | stable key、logical key、physical key、pure provenanceを保持 | materialize済み入力。required/cardinalityを持たず、Unity objectを保持しない。pure test |
+| `Model/BuildTag.cs` / 0 / 50–80 | ordinal比較するDimension/Value値、空白・null拒否 | plan生成中の値。Systemのみ。immutable value。pure test |
+| `Model/BuildRequest.cs` / 0 / 60–100 | dimensionごとの選択値をimmutable化 | caller demandのsnapshot。project policyを所有しない。pure test |
+| `Model/BuildContentCandidate.cs` / 0 / 100–150 | stable key、logical key、physical key、pure provenanceを保持 | materialize済み入力。required/cardinalityを持たず、Unity objectを保持しない。pure test |
 | `IBuildTagProvider.cs` / 0 / 30–50 | candidateごとに独立immutable tag attributionを返す | 引数はpure candidateだけ。context、Unity object、delegate、mutable bufferを渡さない。過去provider出力を観測・変更できず、stable provider key必須 |
-| `BuildTagSchema.cs` / 0 / 60–100 | dimensionと許可valueを宣言し、unknown/空白を検証する | Framework固有dimension名を持たないimmutable schema。pure test |
-| `BuildSelectionPolicy.cs` / 0 / 60–100 | schemaとlogical group requirementを一つのimmutable policy snapshotにする | caller所有policy。requestから独立。pure test |
-| `BuildContentRequirement.cs` / 0 / 40–70 | logical keyごとのmin/max（OneOrMore/ExactlyOne） | candidateが0件でもrequiredを表現。pure test |
-| `BuildValidationIssue.cs` / 0 / 45–75 | code/severity/subject/dimension/value/message data | subject kindは`Request` / `Candidate` / `Requirement`、subject keyはordinal比較可能なstable string。provider由来時はstable provider keyをattributionとして持つ。ログや表示をしない |
-| `BuildValidationCode.cs` / 0 / 35–60 | 凍結したissue code集合 | `InvalidRequestSelection`, `UnknownDimension`, `UnknownValue`, `DuplicateTag`, `ConflictingCandidateValues`, `DuplicateCandidateKey`, `PhysicalKeyCollision`, `DuplicateRequirement`, `ConflictingRequirement`, `RequiredGroupMissing`, `CardinalityViolation`。Bで追加・意味変更しない |
-| `BuildExclusionReasonCode.cs` / 0 / 15–30 | 成功planの構造化除外理由 | `UnrequestedDimension`, `ValueNotSelected`のみ。dimension/valueを別fieldで保持し、display messageをhash入力にしない |
-| `BuildProvenance.cs` / 0 / 45–75 | source kind/idとordinal string pairのimmutable snapshot | object/delegate/stream/Unity object/native handle/mutable辞書を禁止 |
-| `BuildPlan.cs` / 0 / 90–140 | 成功時のrequest/selected/structured exclusion/provenance immutable snapshot | Editor build invocation寿命。backendへ渡す唯一の選択結果。pure test |
-| `BuildPlanResult.cs` / 0 / 45–75 | canonical issuesと成功時planを分離し、error時plan使用を禁止 | selector戻り値。pure test |
+| `Policy/BuildTagSchema.cs` / 0 / 60–100 | dimensionと許可valueを宣言し、unknown/空白を検証する | Framework固有dimension名を持たないimmutable schema。pure test |
+| `Policy/BuildSelectionPolicy.cs` / 0 / 60–100 | schemaとlogical group requirementを一つのimmutable policy snapshotにする | caller所有policy。requestから独立。pure test |
+| `Policy/BuildContentRequirement.cs` / 0 / 40–70 | logical keyごとのmin/max（OneOrMore/ExactlyOne） | candidateが0件でもrequiredを表現。pure test |
+| `Results/BuildValidationIssue.cs` / 0 / 45–75 | code/severity/subject/dimension/value/message data | subject kindは`Request` / `Candidate` / `Requirement`、subject keyはordinal比較可能なstable string。provider由来時はstable provider keyをattributionとして持つ。ログや表示をしない |
+| `Results/BuildValidationCode.cs` / 0 / 35–60 | 凍結したissue code集合 | `InvalidRequestSelection`, `UnknownDimension`, `UnknownValue`, `DuplicateTag`, `ConflictingCandidateValues`, `DuplicateCandidateKey`, `PhysicalKeyCollision`, `DuplicateRequirement`, `ConflictingRequirement`, `RequiredGroupMissing`, `CardinalityViolation`。Bで追加・意味変更しない |
+| `Results/BuildExclusionReasonCode.cs` / 0 / 15–30 | 成功planの構造化除外理由 | `UnrequestedDimension`, `ValueNotSelected`のみ。dimension/valueを別fieldで保持し、display messageをhash入力にしない |
+| `Model/BuildProvenance.cs` / 0 / 45–75 | source kind/idとordinal string pairのimmutable snapshot | object/delegate/stream/Unity object/native handle/mutable辞書を禁止 |
+| `Results/BuildPlan.cs` / 0 / 90–140 | 成功時のrequest/selected/structured exclusion/provenance immutable snapshot | Editor build invocation寿命。backendへ渡す唯一の選択結果。pure test |
+| `Results/BuildPlanResult.cs` / 0 / 45–75 | canonical issuesと成功時planを分離し、error時plan使用を禁止 | selector戻り値。pure test |
 | `BuildTagSelector.cs` / 0 / 180–280 | materialize済みcandidateへprovider適用、normalize、validate、match、group validation、stable snapshot化 | source列挙/I/Oをしないstateless policy。Systemのみ。全分岐pure test |
 | `BuildTagSelectorTests.cs` / 0 / 400–600 | truth table、全identity衝突、schema matrix、順序置換、欠落、immutability、full snapshot同値 | fake providerとin-memory値のみ。AssetDatabase/Unity build不要。600行でも宣言的test matrixとして非分割妥当 |
 | `OneStarMaker.Build.Selection.asmdef` / 0 / 15–25 | pure境界を機械的に強制 | Editor only、autoReferenced false、noEngineReferences、外部参照0 |
@@ -225,12 +225,14 @@ Phase BからPhase Aへ差し戻す条件:
 - candidate tag list内のnull要素を、凍結済み`UnknownDimension` code、Candidate subject、
   provider attributionを持つ構造化errorへ変換した。ordinal case-sensitive比較と
   SceneRole非推論をpure testsで固定したimplementation code commit: `977ee14`。
-- final implementation head: `977ee14bb4f5e704ad85e5e9b2ad5dad689bbcc0`。
+- PR review対応で`Model` / `Policy` / `Results`へ再配置し、全14 C#へ日本語の概要・契約コメントを追加した。
+  namespace、公開API、asmdef、既存C#のGUIDは不変。孤立`CD0Spike.meta`と公開文書の現況不一致も修正した。
+- final implementation head: `29106e76f744d7000eb6c0f47d72504936165331`。
 
 ## 7. Phase C
 
-- evidence id: `BS1-PhaseC-977ee14-pass-20260915-233148`、manifest SHA-256
-  `343851238a4ea474ac1be37454c41075476f892228d0494ca94da0ea3afa275d`。
+- evidence id: `BS1-PhaseC-29106e7-pass-20260916-062616`、manifest SHA-256
+  `492eacd4bf52adc8d0969d58b0ea0c185d7e07b9672d1303b9ebdcde79fa1a23`。
 - 判定: **GO**。現在の問いを阻害する欠陥は0件。最低条件1–5とAC1–AC9を満たす。
 - 構造適合:
   - pure selection coreは専用Editor-only assemblyにあり、`autoReferenced: false`、
@@ -247,14 +249,20 @@ Phase BからPhase Aへ差し戻す条件:
   - Burst compiler serverのnamed-pipe起動失敗が生ログに残るが、Tundra compile、完全XML、
     726件、runner exit 0は成立した。Burst依存検証前のtest-infra入力。
 - 未確認事項: 対象外のproduction adapter、Content/Addressables/Player build、runtime、VCS。
-- 担当・モデル・ベンダー: `/root/bs1_phase_c_977ee14` / Codex / GPT-6 Astra / OpenAI。
+- PR review対応確認: `Model` / `Policy` / `Results`配置、GUID非重複、asmdef境界、
+  日本語コメント、孤立meta削除、公開文書同期に阻害欠陥なし。
+- 担当・モデル・ベンダー: `/root/bs1_phase_c_29106e7` / Codex / GPT-6 Astra / OpenAI。
   Phase Bと異なる割当モデル、新規セッションで実施。
 
 ## 8. Phase C'
 
-- blind bundle: `BS1-CPrime-Blind-977ee14-pass-20260915-233148`、blind-manifest SHA-256
-  `e18fa6c9c259937a4ce9888b61b77bbda413431c2a67b0180df029f295908e33`。
-- 判定: **GO**。現在の問いを阻害する欠陥は0件。
+- blind bundle: `BS1-CPrime-Blind-29106e7-pass-20260916-062616`、blind-manifest SHA-256
+  `619c00624e8ff2ce9d94713e6c1a203f3a65311b561c7cc0b2921d2825f236c9`。
+- 初回判定: **NO-GO**。実装反例は0件だが、HANDOFFが旧headと旧bundleをGOとして参照していたため、
+  review evidence同期規則への阻害欠陥1件と判定した。
+- remediation: 本節とメタデータをhead `29106e7`、新Phase C/C' bundle/hashへ同期し、
+  現在の配置を責務マップへ反映した。review recordだけの修正でimplementation headは変更しない。
+- 最終判定: remediation verification待ち。
 - 監査結果: bundle内全hash、固定base/head、完全diff、凍結Phase A、Phase B結果、
   contract audit、生Unity log/XMLを確認。pure selection意味論、canonical ordering、防御的copy、
   Error時plan非公開、asmdef境界、既存経路無変更に反例なし。
@@ -267,7 +275,7 @@ Phase BからPhase Aへ差し戻す条件:
 - 監査できなかった範囲: 対象外のproduction adapter、AssetDatabase/SceneResource materialization、
   Content Directory、runtime解決、Player build。
 - 独立性: Phase C所見と旧headレビューを含まないblind bundleだけを使用。実装未関与の新規セッション。
-  担当・モデル・ベンダーは`/root/bs1_cprime_977ee14` / Codex / GPT-5.6 Luna / OpenAI。
+  担当・モデル・ベンダーは`/root/bs1_cprime_29106e7` / Codex / GPT-5.6 Luna / OpenAI。
   Phase BのGPT-5、Phase CのGPT-6 Astraと異なる割当モデルを使用し、AI C'最低条件を満たす。
 
 ## 9. Phase D
