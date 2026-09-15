@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `Phase B complete / Phase C ready`
+- status: `Phase C/C' GO / Phase D ready`
 - branch: `codex/cd0-u66-phase-d-bs1-phase-a`
 - implementation base commit: `bda2ed7`
-- implementation head commit: clean review snapshot commit pending
+- implementation head commit: `977ee14bb4f5e704ad85e5e9b2ad5dad689bbcc0`
 - risk: `high`（新しいBuildSystemの中核型、公開境界、依存方向を定める）
 - owner: Phase A主担当 Codex / GPT-6 Astra（OpenAI）。A3採否は人間。B/C/C'は開始時に記録する。
 - created: 2026-09-15 JST
@@ -15,15 +15,15 @@
 - Phase A snapshot path / id: A1はgit commit `84f316f`。A3 frozen snapshotはgit commit `633b86b`の本ファイル。
 - Phase A snapshot generated at: 2026-09-15 JST
 - Phase A snapshot hash: A1 `84f316f` / A3 `633b86b`
-- Phase B result snapshot path / id: implementation code commits `5daadcb`, `686eeda`; clean review snapshot commit pending
+- Phase B result snapshot path / id: implementation code commits `5daadcb`, `686eeda`, `977ee14`
 - Phase B result snapshot generated at: 2026-09-15 JST
-- Phase B result snapshot hash: `686eeda`
-- evidence bundle path / id: final clean snapshotで再生成待ち
-- evidence bundle generated at: 未到達
-- evidence bundle hash: 未到達
-- C' blind bundle path / id: final clean snapshotで再生成待ち
-- C' blind bundle generated at: 未到達
-- C' blind bundle hash: 未到達
+- Phase B result snapshot hash: `977ee14`
+- evidence bundle path / id: `TestResults/BS1-PhaseC-977ee14-pass-20260915-233148/`
+- evidence bundle generated at: 2026-09-15T23:38:57+09:00
+- evidence bundle hash: manifest SHA-256 `343851238a4ea474ac1be37454c41075476f892228d0494ca94da0ea3afa275d`
+- C' blind bundle path / id: `TestResults/BS1-CPrime-Blind-977ee14-pass-20260915-233148/`
+- C' blind bundle generated at: 2026-09-15T23:38:57+09:00
+- C' blind bundle hash: blind-manifest SHA-256 `e18fa6c9c259937a4ce9888b61b77bbda413431c2a67b0180df029f295908e33`
 
 ## 1. 目的と対象外
 
@@ -222,14 +222,53 @@ Phase BからPhase Aへ差し戻す条件:
 - `pwsh tools/contract-audit.ps1` exit 0。Unity testsはPhase C責任のため未実行。
 - NUnitのenum assertion overloadを修正したimplementation code commit: `686eeda`。
   開いているUnity Editorのrecompile結果は`completed / failed:false / errors:[]`。
+- candidate tag list内のnull要素を、凍結済み`UnknownDimension` code、Candidate subject、
+  provider attributionを持つ構造化errorへ変換した。ordinal case-sensitive比較と
+  SceneRole非推論をpure testsで固定したimplementation code commit: `977ee14`。
+- final implementation head: `977ee14bb4f5e704ad85e5e9b2ad5dad689bbcc0`。
 
 ## 7. Phase C
 
-未実施
+- evidence id: `BS1-PhaseC-977ee14-pass-20260915-233148`、manifest SHA-256
+  `343851238a4ea474ac1be37454c41075476f892228d0494ca94da0ea3afa275d`。
+- 判定: **GO**。現在の問いを阻害する欠陥は0件。最低条件1–5とAC1–AC9を満たす。
+- 構造適合:
+  - pure selection coreは専用Editor-only assemblyにあり、`autoReferenced: false`、
+    `noEngineReferences: true`、外部参照0。参照追加は`OneStarMaker.Tests.Editor`だけ。
+  - materialized candidate、provider、policy、selector、planの責務が分離され、selectorはI/Oを持たない。
+  - Unity/Game固有語彙、Unity API、Addressables、Content Directories、VCS、production adapterはcoreにない。
+  - 既存`VariantWhitelistBuilder`とAddressables経路は無変更。
+- 機械検査: `pwsh tools/contract-audit.ps1` exit 0、`git diff --check` exit 0。
+- Unity test: `pwsh tools/run-tests.ps1` exit 0。Unity 6000.6.0f1 EditModeは
+  `726 total / 726 passed / 0 failed / 0 skipped`。BS1固有47件を含む。
+- 後続スライスへの入力:
+  - null短絡後の`Trim()`に対するCS8602 warningが4箇所ある。静的確認上null逆参照はなく、
+    `#nullable enable`契約にも適合するためBS1 blockerではない。BS2の保守入力候補。
+  - Burst compiler serverのnamed-pipe起動失敗が生ログに残るが、Tundra compile、完全XML、
+    726件、runner exit 0は成立した。Burst依存検証前のtest-infra入力。
+- 未確認事項: 対象外のproduction adapter、Content/Addressables/Player build、runtime、VCS。
+- 担当・モデル・ベンダー: `/root/bs1_phase_c_977ee14` / Codex / GPT-6 Astra / OpenAI。
+  Phase Bと異なる割当モデル、新規セッションで実施。
 
 ## 8. Phase C'
 
-未実施
+- blind bundle: `BS1-CPrime-Blind-977ee14-pass-20260915-233148`、blind-manifest SHA-256
+  `e18fa6c9c259937a4ce9888b61b77bbda413431c2a67b0180df029f295908e33`。
+- 判定: **GO**。現在の問いを阻害する欠陥は0件。
+- 監査結果: bundle内全hash、固定base/head、完全diff、凍結Phase A、Phase B結果、
+  contract audit、生Unity log/XMLを確認。pure selection意味論、canonical ordering、防御的copy、
+  Error時plan非公開、asmdef境界、既存経路無変更に反例なし。
+- 後続スライスへの入力・残存リスク:
+  - providerのnull collection返却・例外送出は構造化resultでなく例外脱出する。凍結契約外のため、
+    BS2 Phase Aでproduction providerの失敗契約を明示する。
+  - provider key不正、schema空value集合、未定義enum値のhardening要否はBS2以降で判断する。
+  - contract auditの表示基点`origin/develop`とreview implementation baseは目的が異なるため、
+    証拠上の基点追跡を将来のtest-infra改善候補とする。
+- 監査できなかった範囲: 対象外のproduction adapter、AssetDatabase/SceneResource materialization、
+  Content Directory、runtime解決、Player build。
+- 独立性: Phase C所見と旧headレビューを含まないblind bundleだけを使用。実装未関与の新規セッション。
+  担当・モデル・ベンダーは`/root/bs1_cprime_977ee14` / Codex / GPT-5.6 Luna / OpenAI。
+  Phase BのGPT-5、Phase CのGPT-6 Astraと異なる割当モデルを使用し、AI C'最低条件を満たす。
 
 ## 9. Phase D
 
