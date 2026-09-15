@@ -9,7 +9,7 @@
 
 | 項目 | バージョン / 選定 |
 |---|---|
-| Unity | **6.5 (6000.5.0f1)** |
+| Unity | **6.6 (6000.6.0f1)** |
 | Render Pipeline | **URP 17.5.0** |
 | Scripting Backend | **IL2CPP** (Android) |
 | .NET | **.NET Standard 2.1** |
@@ -48,9 +48,11 @@ Assets/
 │   │   └── UpdateSystem/        … UpdateSystemHost, UpdaterDriver（ホスティング層）
 │   ├── Debug/                   ← OneStarMaker.Debug.asmdef (→ Foundation + Runtime + TMP)
 │   │   └── Profiler/            … DebugProfilerView, FrameTimeSampler, FrameTimeGraphRenderer
-│   └── Editor/                  ← OneStarMaker.Editor.asmdef (→ Runtime)
-│       ├── SceneGraph/          … Scene Graph Editor (ノードベース可視化・SceneResource 生成)
-│       └── Build/               … Variant ビルド / AssetDescription 収集 / Addressables 同期
+│   └── Editor/
+│       ├── SceneGraph/          … OneStarMaker.Editor (→ Runtime)。Scene Graph Editor / SceneResource 生成
+│       └── Build/
+│           ├── Selection/       … OneStarMaker.Build.Selection (Editor-only pure leaf)
+│           └── その他           … OneStarMaker.Editor。Variant / AssetDescription / Addressables 同期
 ├── OneStarMaker/Tests/          ← Tests / Tests.Editor asmdef
 │   └── Scene, AssetManagement, UpdateSystem, Build のテスト
 │
@@ -74,6 +76,10 @@ OneStarMaker.Foundation  (leaf — フレームワーク内依存なし)
 OneStarMaker.Runtime ──► Foundation + UniTask + Addressables + LitMotion + InputSystem + R3
        ▲
 OneStarMaker.Debug ──► Foundation + Runtime + TMP
+
+OneStarMaker.Build.Selection  (Editor-only pure leaf — assembly参照なし)
+       ▲
+OneStarMaker.Tests.Editor ────┘
 
 SampleGame.DependOnAll ──→ Common, InGame, OutGame, Foundation, Runtime, Debug
 SampleGame.InGame      ──→ Common, Foundation, Runtime
@@ -174,6 +180,6 @@ MonoBehaviour.Update によらない更新基盤（Layer / Coordinator / Job Sys
 
 ## セットアップ
 
-1. Unity 6.5 (6000.5.0f1) で **`unity/`** フォルダを開く
+1. Unity 6.6 (6000.6.0f1) で **`unity/`** フォルダを開く
 2. NuGetForUnity が自動で NuGet パッケージを復元する
 3. Addressables は Variant ビルドシステムで構成済み（whitelist ビルド / ハイブリッド Play Mode。手順は [20-variant-checkout-workflow.md](Docs/Architecture/20-variant-checkout-workflow.md)）

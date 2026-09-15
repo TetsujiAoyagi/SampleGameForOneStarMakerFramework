@@ -55,6 +55,20 @@
 | 公開 API | `IAssetManagement` は変更しない。既存呼び出し元は無変更で従来挙動のまま |
 | テレメトリ結合 | `AssetResidentCache.GetSnapshot()` をテレメトリ層がポーリング（配線は次パス）。AssetManagement にリアクティブ依存（R3）を持ち込まない判断 |
 
+### Unity 6.6 Content Directories の実証済み境界
+
+Unity `6000.6.0f1` の direct Content Directories API は、隔離した最小 fixture と
+Standalone Windows Player（Mono、High stripping）で、root・asset・additive Scene の
+build、登録、load、unload、release、unregister、欠損 directory からの再試行、別 path
+への移設が成立した。Content build report の `ScriptsOnlyCache.yaml` は
+`BuildPlayerOptions.previousBuildReportDirectories` の入力として受理された。
+
+これは後続 BuildSystem の backend 候補を認める限定実証であり、現行
+`IAssetManagement` / `AddressableBackend` を置き換えた事実ではない。IL2CPP/AOT、
+本番 SceneResource graph、HTTP 配信、処理中 native load の取消、全 incremental matrix
+は未実証である。要求取消は native abort と同一視せず、発行済み処理の終端を単一 owner
+が受け取ってから資源を解放する設計を後続 runtime backend の条件とする。
+
 ---
 
 ## 3. 設計思想

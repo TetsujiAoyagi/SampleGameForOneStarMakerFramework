@@ -3,6 +3,11 @@
 > ステータス: 実装済み (2026-07-05)
 > 前提資料: [18. AssetDescription](18-asset-description.md)
 
+> Unity `6000.6.0f1` への移行は採用済み。ただし現行 Addressables Player build は、
+> `BuildVariantProfile.SceneVariant` と whitelist の既存不整合で停止することが確認されている。
+> Editor compile / EditMode test の成功を Player / Season 互換の証拠にはしない。現行経路の
+> 修復または後続 BuildSystem への置換が完了するまでは、Player build 可を前提にしない。
+
 ---
 
 ## 目次

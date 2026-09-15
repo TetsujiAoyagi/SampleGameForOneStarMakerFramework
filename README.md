@@ -82,7 +82,7 @@ gh pr create --base develop
 
 | 項目       | バージョン                |
 | -------- | -------------------- |
-| Unity    | **6.5 (6000.5.0f1)** |
+| Unity    | **6.6 (6000.6.0f1)** |
 | .NET SDK | 8.0+（DebugStudio 用）  |
 
 

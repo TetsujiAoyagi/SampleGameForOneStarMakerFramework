@@ -139,6 +139,31 @@ AddressablesGroupSnapshot.Dispose (restore)  Editor の設定を元に戻す
 - 各必須 Description から最低 1 Payload が残ること。残らなければ Build Error。
 - 空 GUID / null Reference は Warning + 除外。
 
+### Pure content-selection core（現況）
+
+`Editor/Build/Selection/` には、Unity APIやbuild backendから独立した
+`OneStarMaker.Build.Selection` assemblyがある。Editor限定だが
+`noEngineReferences: true`、`autoReferenced: false`、assembly参照0であり、
+現時点で参照するのは`OneStarMaker.Tests.Editor`だけである。
+
+このcoreは、呼出側がmaterializeした`BuildContentCandidate`、project定義の
+`BuildTagSchema`、`BuildSelectionPolicy`、`IBuildTagProvider`を受け取り、
+immutableな`BuildPlanResult`を生成する。candidate探索、AssetDatabase、
+Addressables、Content Directories、VCSへのアクセスは行わない。
+
+- tagを持たないcandidateはneutral contentとして選択対象になる。
+- 同一dimension内のrequest値はOR、candidateが持つ複数dimensionはANDで照合する。
+- unknown dimension/value、candidate identity衝突、tag競合、required group欠落、
+  cardinality違反は構造化issueになる。
+- Errorが1件でもあれば`BuildPlan`を公開しない。Warningだけならplanを公開する。
+- request、candidate、provider、tagの入力順に依存せず、plan、issue、provenanceを
+  ordinal順のcanonical snapshotとして保持する。
+- FrameworkはSeason、Scene role等のproject固有語彙を解釈しない。
+
+既存の`VariantWhitelistBuilder`とAddressables build経路は現在も変更なく稼働しており、
+selection coreには接続されていない。SceneResourceMapやAssetDatabaseからcandidateを作る
+production adapterと、build backendへの配線は未実装である。
+
 ---
 
 ## 5. 拡張ガイド
@@ -176,6 +201,7 @@ AddressablesGroupSnapshot.Dispose (restore)  Editor の設定を元に戻す
 
 - Runtime: `unity/Assets/OneStarMaker/Scripts/Runtime/AssetDescriptions/`
 - BuildSystem: `unity/Assets/OneStarMaker/Scripts/Editor/Build/`
+- Pure selection: `unity/Assets/OneStarMaker/Scripts/Editor/Build/Selection/`
 - Scene 連携: `unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneResource.cs`, `SceneResourceMap.cs`
 - 既存資料: [13. リソースシステム](13-resource-system.md)（AssetType は cache 用メタとして採用済み。AssetResidentCache(常駐キャッシュ + per-category budget)実装済み）
 - ワークフロー: [20. Variant チェックアウトワークフロー](20-variant-checkout-workflow.md)
