@@ -84,8 +84,8 @@ namespace OneStarMaker.Editor.Build.Materialization
                 && !extension.Equals(".dll", StringComparison.OrdinalIgnoreCase)
                 && !extension.Equals(".asmdef", StringComparison.OrdinalIgnoreCase)
                 && !extension.Equals(".asmref", StringComparison.OrdinalIgnoreCase)
-                && path.IndexOf("Resources/unity_builtin_extra", StringComparison.OrdinalIgnoreCase) < 0
-                && path.IndexOf("Library/unity default resources", StringComparison.OrdinalIgnoreCase) < 0;
+                && !string.Equals(path, "Resources/unity_builtin_extra", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(path, "Library/unity default resources", StringComparison.OrdinalIgnoreCase);
         }
         private static void Add(ICollection<BuildMaterializationIssue> issues, BuildMaterializationIssueCode code,
             string subjectKey, string? guid = null, string? path = null) => issues.Add(new BuildMaterializationIssue(

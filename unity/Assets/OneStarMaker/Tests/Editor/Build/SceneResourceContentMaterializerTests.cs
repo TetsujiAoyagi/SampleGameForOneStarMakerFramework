@@ -97,6 +97,8 @@ namespace OneStarMaker.Tests.Editor.Build
         [TestCase("Assets/Foo.cs", false)]
         [TestCase("Assets/Foo.asmref", false)]
         [TestCase("Assets/Foo.meta", false)]
+        [TestCase("Assets/Resources/unity_builtin_extra.prefab", true)]
+        [TestCase("Assets/Library/unity default resources.prefab", true)]
         [TestCase("Packages/Foo.prefab", false)]
         [TestCase("Other/Foo.prefab", false)]
         public void DependencyFilter_UsesFrozenRules(string path, bool expected) =>
@@ -198,6 +200,53 @@ namespace OneStarMaker.Tests.Editor.Build
         }
 
         [Test]
+        public void Materialize_FixedSeedPermutation_PreservesFullProjectionAndIssues()
+        {
+            const string guidB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+            const string guidC = "cccccccccccccccccccccccccccccccc";
+            var pairs = new[] { GuidA, "Assets/A.unity", guidB, "Assets/B.unity", guidC, "Assets/C.unity" };
+            var resources = new[]
+            {
+                CreateResource("A", new AssetPayload("Whitebox", new AssetReference(GuidA)),
+                    new AssetPayload(string.Empty, new AssetReference(guidB))),
+                CreateResource("B", new AssetPayload(string.Empty, new AssetReference(guidC)))
+            };
+            var baseline = new SceneResourceContentMaterializer(new FakeGateway(pairs)).Materialize(CreateMap(resources));
+            var random = new Random(12345);
+            var seededOrder = resources.OrderBy(_ => random.Next()).ToArray();
+            var permuted = new SceneResourceContentMaterializer(new FakeGateway(true, pairs)).Materialize(CreateMap(seededOrder));
+            Assert.That(Project(permuted.Snapshot!), Is.EqualTo(Project(baseline.Snapshot!)));
+            Assert.That(permuted.Issues.Select(ProjectIssue), Is.EqualTo(baseline.Issues.Select(ProjectIssue)));
+        }
+
+        [Test]
+        public void Materialize_GatewayFailureAndUnresolvedDependency_AreStructured()
+        {
+            var map = CreateMap(CreateResource("A", new AssetPayload(string.Empty, new AssetReference(GuidA))));
+            var broken = new FakeGateway(GuidA, "Assets/A.unity") { ThrowOnDependencies = true };
+            var failure = new SceneResourceContentMaterializer(broken).Materialize(map);
+            Assert.That(failure.Snapshot, Is.Null);
+            Assert.That(failure.Issues.Select(x => x.Code), Does.Contain(BuildMaterializationIssueCode.GatewayFailure));
+
+            var missing = new FakeGateway(GuidA, "Assets/A.unity") { ExtraDependency = "Assets/Missing.prefab" };
+            var unresolved = new SceneResourceContentMaterializer(missing).Materialize(map);
+            Assert.That(unresolved.Snapshot, Is.Null);
+            Assert.That(unresolved.Issues.Select(x => x.Code), Does.Contain(BuildMaterializationIssueCode.MissingDependencyAsset));
+        }
+
+        [Test]
+        public void Materialize_RoundTripMismatchAndMissingRoot_AreStructured()
+        {
+            var map = CreateMap(CreateResource("A", new AssetPayload(string.Empty, new AssetReference(GuidA))));
+            var mismatch = new FakeGateway(GuidA, "Assets/A.unity") { ReturnWrongGuid = true };
+            Assert.That(new SceneResourceContentMaterializer(mismatch).Materialize(map).Issues.Select(x => x.Code),
+                Does.Contain(BuildMaterializationIssueCode.RootGuidRoundTripMismatch));
+            var missing = new FakeGateway(GuidA, "Assets/A.unity") { RootMissing = true };
+            Assert.That(new SceneResourceContentMaterializer(missing).Materialize(map).Issues.Select(x => x.Code),
+                Does.Contain(BuildMaterializationIssueCode.MissingRootAsset));
+        }
+
+        [Test]
         public void Selector_WhiteboxRequest_SelectsWhiteboxCandidate()
         {
             var snapshot = new SceneResourceContentMaterializer(new FakeGateway(GuidA, "Assets/A.unity"))
@@ -262,6 +311,9 @@ namespace OneStarMaker.Tests.Editor.Build
             return lines.OrderBy(x => x, StringComparer.Ordinal).ToArray();
         }
 
+        private static string ProjectIssue(BuildMaterializationIssue x) =>
+            $"{x.Code}|{x.Subject}|{x.SubjectKey}|{x.RootGuid}|{x.Path}|{x.DetailKey}";
+
         private SceneResourceMap CreateMap(params SceneResource[] resources)
         {
             var map = ScriptableObject.CreateInstance<SceneResourceMap>();
@@ -286,6 +338,10 @@ namespace OneStarMaker.Tests.Editor.Build
         {
             private readonly Dictionary<string, string> _paths = new(StringComparer.Ordinal);
             private readonly bool _reverseDependencies;
+            public bool ThrowOnDependencies { get; set; }
+            public bool ReturnWrongGuid { get; set; }
+            public bool RootMissing { get; set; }
+            public string? ExtraDependency { get; set; }
             public FakeGateway(params string[] guidPathPairs) : this(false, guidPathPairs) { }
             public FakeGateway(bool reverseDependencies, params string[] guidPathPairs)
             {
@@ -293,14 +349,16 @@ namespace OneStarMaker.Tests.Editor.Build
                 for (var i = 0; i < guidPathPairs.Length; i += 2) _paths.Add(guidPathPairs[i], guidPathPairs[i + 1]);
             }
             public string GuidToPath(string guid) => _paths.TryGetValue(guid, out var path) ? path : string.Empty;
-            public string PathToGuid(string path) => _paths.SingleOrDefault(x => x.Value == path).Key ?? string.Empty;
+            public string PathToGuid(string path) => ReturnWrongGuid ? "dddddddddddddddddddddddddddddddd"
+                : _paths.SingleOrDefault(x => x.Value == path).Key ?? string.Empty;
             public string[] GetDependencies(string path)
             {
+                if (ThrowOnDependencies) throw new InvalidOperationException("gateway fixture");
                 var values = _paths.Values.ToArray();
                 if (_reverseDependencies) Array.Reverse(values);
-                return values;
+                return ExtraDependency == null ? values : values.Concat(new[] { ExtraDependency }).ToArray();
             }
-            public bool FileExists(string path) => _paths.ContainsValue(path);
+            public bool FileExists(string path) => !RootMissing && _paths.ContainsValue(path);
             public bool IsFolder(string path) => false;
         }
     }
