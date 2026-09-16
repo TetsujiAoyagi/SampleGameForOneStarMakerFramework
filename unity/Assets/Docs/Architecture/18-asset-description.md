@@ -144,7 +144,7 @@ AddressablesGroupSnapshot.Dispose (restore)  Editor の設定を元に戻す
 `Editor/Build/Selection/` には、Unity APIやbuild backendから独立した
 `OneStarMaker.Build.Selection` assemblyがある。Editor限定だが
 `noEngineReferences: true`、`autoReferenced: false`、assembly参照0であり、
-現時点で参照するのは`OneStarMaker.Tests.Editor`だけである。
+`OneStarMaker.Build.Materialization`と`OneStarMaker.Tests.Editor`から参照される。
 
 このcoreは、呼出側がmaterializeした`BuildContentCandidate`、project定義の
 `BuildTagSchema`、`BuildSelectionPolicy`、`IBuildTagProvider`を受け取り、
@@ -160,9 +160,26 @@ Addressables、Content Directories、VCSへのアクセスは行わない。
   ordinal順のcanonical snapshotとして保持する。
 - FrameworkはSeason、Scene role等のproject固有語彙を解釈しない。
 
-既存の`VariantWhitelistBuilder`とAddressables build経路は現在も変更なく稼働しており、
-selection coreには接続されていない。SceneResourceMapやAssetDatabaseからcandidateを作る
-production adapterと、build backendへの配線は未実装である。
+### SceneResource の production materialization（現況）
+
+`Editor/Build/Materialization/` の `OneStarMaker.Build.Materialization` は Editor-only の
+production adapter である。`SceneResourceContentMaterializer` が `SceneResourceMap` と
+AssetDatabase の現況を検証し、成功時に `BuildMaterializationSnapshot` を返す。
+Selection core は引き続き Unity / AssetDatabase / Addressables を参照しない。
+
+- `SceneResource.Identity` を logical key、canonical lowercase 32桁 GUID を physical key とする。
+  stable key は version付きの長さ前置 tuple で、列挙順や表示文言に依存しない。
+- 空の payload variant は `Representation=Full`、非空は大小文字を変えずそのままタグへ写す。
+  有効な各 SceneResource に `ExactlyOne` requirement を置き、provenance に root GUID と path を保持する。
+- root 自身を含む AssetDatabase 依存閉包を root ごとに正規化・整列して snapshot に固定する。
+  GUID/path の不一致、欠損、衝突などは構造化 issue になり、issue があれば部分 snapshot を公開しない。
+- AssetDatabase I/O は狭い gateway に隔離し、mapping・依存閉包の正規化とは責務を分ける。
+  tag provider は snapshot 所有で、未知 candidate には空のタグ集合を返す。
+
+既存の `VariantWhitelistBuilder` と Addressables build 経路は変更しておらず、
+この adapter にはまだ接続されていない。Content Directories build、runtime の directory 管理、
+Player build も未実装であり、materialization の成功をそれらの成立と同一視しない。
+`FindDependency` の lookup key は canonical lowercase GUID を渡す契約である。
 
 ---
 
@@ -202,6 +219,7 @@ production adapterと、build backendへの配線は未実装である。
 - Runtime: `unity/Assets/OneStarMaker/Scripts/Runtime/AssetDescriptions/`
 - BuildSystem: `unity/Assets/OneStarMaker/Scripts/Editor/Build/`
 - Pure selection: `unity/Assets/OneStarMaker/Scripts/Editor/Build/Selection/`
+- Production materialization: `unity/Assets/OneStarMaker/Scripts/Editor/Build/Materialization/`
 - Scene 連携: `unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneResource.cs`, `SceneResourceMap.cs`
 - 既存資料: [13. リソースシステム](13-resource-system.md)（AssetType は cache 用メタとして採用済み。AssetResidentCache(常駐キャッシュ + per-category budget)実装済み）
 - ワークフロー: [20. Variant チェックアウトワークフロー](20-variant-checkout-workflow.md)

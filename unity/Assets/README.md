@@ -52,6 +52,7 @@ Assets/
 │       ├── SceneGraph/          … OneStarMaker.Editor (→ Runtime)。Scene Graph Editor / SceneResource 生成
 │       └── Build/
 │           ├── Selection/       … OneStarMaker.Build.Selection (Editor-only pure leaf)
+│           ├── Materialization/ … OneStarMaker.Build.Materialization (Editor-only adapter)
 │           └── その他           … OneStarMaker.Editor。Variant / AssetDescription / Addressables 同期
 ├── OneStarMaker/Tests/          ← Tests / Tests.Editor asmdef
 │   └── Scene, AssetManagement, UpdateSystem, Build のテスト
@@ -79,7 +80,10 @@ OneStarMaker.Debug ──► Foundation + Runtime + TMP
 
 OneStarMaker.Build.Selection  (Editor-only pure leaf — assembly参照なし)
        ▲
-OneStarMaker.Tests.Editor ────┘
+       │
+OneStarMaker.Build.Materialization ──► Selection + Runtime + Unity.Addressables (Editor-only)
+       ▲
+OneStarMaker.Tests.Editor ────┘ (Selection も直接参照)
 
 SampleGame.DependOnAll ──→ Common, InGame, OutGame, Foundation, Runtime, Debug
 SampleGame.InGame      ──→ Common, Foundation, Runtime
