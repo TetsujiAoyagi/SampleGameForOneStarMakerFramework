@@ -117,6 +117,18 @@ namespace OneStarMaker.Editor.Build.Materialization
                 }
             }
 
+            foreach (var group in dependencies.SelectMany(x => x.Entries)
+                .GroupBy(x => x.Guid, StringComparer.Ordinal))
+            {
+                var paths = group.Select(x => x.Path).Distinct(StringComparer.Ordinal)
+                    .OrderBy(x => x, StringComparer.Ordinal).ToArray();
+                for (var i = 1; i < paths.Length; i++)
+                    issues.Add(new BuildMaterializationIssue(
+                        BuildMaterializationIssueCode.DependencyIdentityCollision,
+                        BuildMaterializationSubject.Dependency, group.Key,
+                        path: paths[0], detailKey: paths[i]));
+            }
+
             var snapshot = issues.Count == 0
                 ? new BuildMaterializationSnapshot(candidates, tags, requirements, dependencies)
                 : null;

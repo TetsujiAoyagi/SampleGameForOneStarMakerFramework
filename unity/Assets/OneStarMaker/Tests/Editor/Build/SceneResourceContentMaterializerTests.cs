@@ -273,6 +273,22 @@ namespace OneStarMaker.Tests.Editor.Build
         }
 
         [Test]
+        public void Materialize_CrossRootDependencyGuidCollision_FailsDeterministically()
+        {
+            const string guidB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+            const string sharedGuid = "cccccccccccccccccccccccccccccccc";
+            var rootA = CreateResource("A", new AssetPayload(string.Empty, new AssetReference(GuidA)));
+            var rootB = CreateResource("B", new AssetPayload(string.Empty, new AssetReference(guidB)));
+            var gateway = new CrossRootCollisionGateway(GuidA, guidB, sharedGuid);
+            var first = new SceneResourceContentMaterializer(gateway).Materialize(CreateMap(rootA, rootB));
+            var second = new SceneResourceContentMaterializer(gateway).Materialize(CreateMap(rootB, rootA));
+            Assert.That(first.Snapshot, Is.Null);
+            Assert.That(second.Snapshot, Is.Null);
+            Assert.That(first.Issues.Select(ProjectIssue), Is.EqualTo(second.Issues.Select(ProjectIssue)));
+            Assert.That(first.Issues.Select(x => x.Code), Does.Contain(BuildMaterializationIssueCode.DependencyIdentityCollision));
+        }
+
+        [Test]
         public void Selector_WhiteboxRequest_SelectsWhiteboxCandidate()
         {
             var snapshot = new SceneResourceContentMaterializer(new FakeGateway(GuidA, "Assets/A.unity"))
@@ -385,6 +401,30 @@ namespace OneStarMaker.Tests.Editor.Build
                 return ExtraDependency == null ? values : values.Concat(new[] { ExtraDependency }).ToArray();
             }
             public bool FileExists(string path) => !RootMissing && _paths.ContainsValue(path);
+            public bool IsFolder(string path) => false;
+        }
+
+        private sealed class CrossRootCollisionGateway : IAssetDatabaseGateway
+        {
+            private readonly string _a;
+            private readonly string _b;
+            private readonly string _shared;
+            public CrossRootCollisionGateway(string a, string b, string shared)
+            {
+                _a = a;
+                _b = b;
+                _shared = shared;
+            }
+            public string GuidToPath(string guid) => guid == _a ? "Assets/A.unity"
+                : guid == _b ? "Assets/B.unity" : string.Empty;
+            public string PathToGuid(string path) => path == "Assets/A.unity" ? _a
+                : path == "Assets/B.unity" ? _b
+                : path == "Assets/X.prefab" || path == "Assets/Y.prefab" ? _shared : string.Empty;
+            public string[] GetDependencies(string path) => path == "Assets/A.unity"
+                ? new[] { "Assets/A.unity", "Assets/X.prefab" }
+                : new[] { "Assets/B.unity", "Assets/Y.prefab" };
+            public bool FileExists(string path) => path == "Assets/A.unity" || path == "Assets/B.unity"
+                || path == "Assets/X.prefab" || path == "Assets/Y.prefab";
             public bool IsFolder(string path) => false;
         }
     }
