@@ -1,0 +1,14 @@
+{
+    "name": "OneStarMaker.Build.Content",
+    "rootNamespace": "OneStarMaker.Editor.Build.Content",
+    "references": ["OneStarMaker.Build.Selection", "OneStarMaker.Build.Materialization", "OneStarMaker.Runtime"],
+    "includePlatforms": ["Editor"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
