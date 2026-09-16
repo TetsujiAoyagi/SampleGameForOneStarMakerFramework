@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `Phase A1 draft`（A2独立レビューと人間によるA3凍結は未実施）
+- status: `Phase A3 frozen / Phase B ready`
 - branch: `codex/bs2a-production-materialization`
 - implementation base commit: `af4f9686a1097bda27ccb7593289b08d0f4d81e3`
 - implementation head commit:
@@ -12,7 +12,7 @@
 - created: 2026-09-16 JST
 - expires: 2026-09-30 JST、または`AssetPayload`、`SceneResourceMap`、BS1 selection API、Content Directories採用判断の前提が変わった時点
 - harvest to: `unity/Assets/Docs/Architecture/18-asset-description.md`。BS2a Phase Dで現況をharvest後、本HANDOFFを削除する。
-- Phase A snapshot path / id: A1はgit commit `9f1d487ca83ba630ee78cb6cd1dbf3226e98f323`の本ファイル。A3 frozen snapshotはA2/A3後に記録する。
+- Phase A snapshot path / id: A1はgit commit `9f1d487ca83ba630ee78cb6cd1dbf3226e98f323`の本ファイル。A3 frozen snapshotは本更新のcommit（作成後に記録する）。
 - Phase A snapshot generated at: 2026-09-16 JST
 - Phase A snapshot hash: A1 `9f1d487`
 - Phase B result snapshot path / id:
@@ -65,15 +65,14 @@ materialization snapshotを生成する。空のpayload variantは明示的に`R
   修復または後続BuildSystemへの置換までPlayer build可を前提にしない。
 - FrameworkはSeason等のGame語彙を知らず、Game → Frameworkの依存方向を維持する。
 
-### A0の未決事項
+### A0の未決事項とA3決定
 
-1. materialization failureを、BS1の閉じた`BuildValidationCode`へ追加せず別result型で表す具体的なcode集合。
-2. `IBuildContentSource`を公開portとして追加するか、BS2aのsourceを`SceneResourceMap`専用のinternal adapterに留めるか。
-3. stable/logical keyを`SceneResource.Identity`、physical keyをGUIDとした際の、同一logical identity内の複数payload表現。
-4. 依存閉包をcandidateごとに保持するか、selected rootからBS2bが再計算するか。再現性と重複I/O回避のため、A1では
-   materialization snapshotにroot GUIDごとのcanonical closureを保持する案を採る。
-5. non-empty legacy variantをそのまま`Representation=<Variant>`へ写像できるか。A1では写像するが、schemaに未知値なら
-   BS1 validation errorとする。Season/roleへの推測変換はしない。
+1. failureはBS1のcodeへ追加せず、専用resultとAC11のcode集合で表す。
+2. `IBuildContentSource`は追加せず、`SceneResourceMap`専用internal traversalにする。
+3. logical keyは検証済み`SceneResource.Identity`、physical keyはlowercase 32 hex GUID。stable keyは
+   `osm-build-candidate-v1|`にlogical / Representation value / GUIDを各々「10進UTF-16 length、`:`、値」で連結する。
+4. 全candidate rootのcanonical closureをphysical keyごとにsnapshotへ保持し、BS2bは再計算しない。
+5. 空variantだけを`Representation=Full`へ写像する。非空は前後空白のないordinal値を無加工で使う。
 
 ## 2. 意思決定と受け入れ境界
 
@@ -86,24 +85,32 @@ materialization snapshotを生成する。空のpayload variantは明示的に`R
   4. root GUIDと依存閉包の欠損・衝突・不正を構造化issueとして返し、Unity/AssetDatabase I/Oとpure mapping policyを分離する。
   5. selection coreはUnity/Addressables/AssetDatabase/Content Directoriesを参照せず、FrameworkはGame固有語彙を解釈しない。
 - 受け入れ条件:
-  - AC1: `SceneResource.Identity`をlogical key、payload indexに依存しない`logical key + Representation value + GUID`をstable key、
-    `AssetReference.AssetGUID`をphysical keyとしてcanonical candidateを作る。キー連結のescaping規則はA2で固定する。
+  - AC1: `SceneResource.Identity`をlogical key、A3決定のversion付きlength-prefix tupleをstable key、canonical lowercase GUIDをphysical keyとする。
+    GUID入力は大小文字を問わず32 hexだけを受け、GUID→path→GUID round-tripも同値でなければerrorにする。
   - AC2: payload variantが空なら`Representation=Full`、非空ならordinal case-sensitiveで
     `Representation=<Variant>`を返す。trim、case fold、Season/SceneRole推測はしない。
-  - AC3: 各SceneResourceの必須descriptionに`ExactlyOne` requirementを1件生成する。optional概念を新規推測せず、
+  - AC3: 各uniqueかつvalidなSceneResource identityの必須descriptionに`ExactlyOne` requirementを1件生成する。重複identityはerrorとし、optional概念を新規推測せず、
     現行SceneResource graph外のadditional sourceは対象外にする。
-  - AC4: null resource、null description、null payload、空/不正GUID、GUID解決不能、root asset欠損、dependency欠損、
-    logical/stable/physical key衝突を構造化materialization issueにする。Errorが1件でもあれば成功snapshotを公開しない。
+  - AC4: null map/resource/description/payload、invalid identity/variant、missing reference、invalid/unresolved/round-trip mismatch GUID、
+    root asset欠損、gatewayが返したdependency pathの不在・GUID未解決・GUID/path衝突、logical/stable/physical key衝突、gateway例外を
+    構造化issueにする。Errorが1件でもあればsnapshotを公開しない。AssetDatabaseが列挙しない壊れたserialized参照は保証外とし、
+    YAML/SerializedObject検査が必要ならPhase Aへ戻す。
   - AC5: AssetDatabase accessは注入可能な狭いgatewayに隔離し、key/tag/requirement/provenance/orderingとclosure正規化は
     Unityなしの単体テストで検証できる。
-  - AC6: provenanceは少なくともsource kind、SceneResource identity、root GUID、asset pathをimmutableなordinal snapshotで保持する。
+  - AC6: provenanceは`SourceKind=SceneResourceMap`、`SourceId=logical identity`、property `rootGuid` / `rootPath`をimmutableなordinal snapshotで保持する。
     display messageはidentity/hash入力に使わない。
-  - AC7: root GUIDごとのclosureはroot自身を含み、`Assets/`配下のcontentだけをcanonical path/GUID順で保持する。
-    Packages、script/asmdef/dll、Unity built-in resourceは除外し、同じ依存が複数rootに現れてもroot別snapshotは決定的である。
-  - AC8: materializerのsource/resource/payload/dependency列挙順を置換しても、candidate、tag attribution、requirement、issue、closure、
-    provenanceを含むfull snapshotが同一になる。
+  - AC7: root GUIDごとのclosureはroot自身を明示追加し、case-sensitive ordinalの`Assets/` asset fileだけをpath、GUID順で保持する。
+    `\`は`/`へ正規化する。空path、folder、`.meta`、Packages、Assets外、`.cs`、`.dll`、`.asmdef`、`.asmref`、built-inはdependencyから除外する。
+    root自体が除外種別ならerrorとする。
+  - AC8: resource/payload/dependency列挙順をoriginal/reverse/固定seed permutationで置換しても、全fieldのcanonical projectionが同一になる。
   - AC9: materialization成功結果を既存BS1 selectorへ渡し、Full/Whitebox選択、neutral候補、ExactlyOne違反を既存contractのまま検出できる。
   - AC10: 既存Addressables/Variant経路、Runtime serialized型、SampleGame assetを変更せず、既存Editor testを維持する。
+  - AC11: issueは全てError。code集合を`NullMap`, `NullResource`, `InvalidResourceIdentity`, `DuplicateLogicalKey`, `MissingDescription`,
+    `NullPayload`, `InvalidVariant`, `MissingReference`, `InvalidRootGuid`, `UnresolvedRootGuid`, `RootGuidRoundTripMismatch`, `MissingRootAsset`,
+    `InvalidDependencyPath`, `UnresolvedDependencyGuid`, `MissingDependencyAsset`, `DependencyIdentityCollision`, `DuplicateStableKey`,
+    `PhysicalKeyCollision`, `GatewayFailure`に固定する。code、subject kind/key、root GUID、path、detail keyのordinal順で整列・完全重複排除する。
+  - AC12: internal sealedなinvocation-owned provider 1件がcandidate stable key→tag配列を防御的copyで保持する。
+    `StableProviderKey`は`osm.scene-resource-map.representation.v1`、未知candidateには空配列を返す。source stateを再参照しない。
 - ここでは答えない問いと所有する後続スライス:
   - Content Directory root asset、partition、active target/subtarget、output、build name、incremental/hash、report: `BS2b_CONTENT_DIRECTORY_BUILD`
   - runtime logical/physical variant解決、directory handleのowner、native取消後drain: `BS3_RUNTIME_CONTENT_DIRECTORY`
@@ -125,14 +132,14 @@ materialization snapshotを生成する。空のpayload variantは明示的に`R
   - `SceneState`、`IAssetManagement`、`AssetOwner`、Update順序を変更しない。
   - testで`Task.Delay` / `Thread.Sleep`を使わない。
   - Phase BはUnity.exe、Unity test、`run-tests.ps1`、Addressables/Content buildを実行しない。最後に`pwsh tools/contract-audit.ps1`だけを実行する。
-- 未決事項: A0の5項目。A2で閉じ、人間がA3で採否するまでPhase Bへ進まない。
+- 未決事項: なし。BS2bがGUID/path以外のimporter state、dependency hash、artifact keyを要求する場合はPhase Aへ戻す。
 
 ## 3. 責務マップ（A1案）
 
 production adapterは`unity/Assets/OneStarMaker/Scripts/Editor/Build/Materialization/`、namespaceは
 `OneStarMaker.Editor.Build.Materialization`へ置く。新しいEditor-only assembly
-`OneStarMaker.Build.Materialization`は`OneStarMaker.Build.Selection`、`OneStarMaker.Runtime`、Unity Editor/Engineと
-Addressables runtime型を参照する。selection assemblyからの逆参照は禁止する。既存`OneStarMaker.Editor`へ混在させず、
+`OneStarMaker.Build.Materialization`は`OneStarMaker.Build.Selection`、`OneStarMaker.Runtime`、`Unity.Addressables`を参照し、Unity Editor/Engine APIを使う。
+`Unity.ResourceManager`は必要性が判明した場合だけPhase Aへ戻して追加する。selection assemblyからの逆参照は禁止する。既存`OneStarMaker.Editor`へ混在させず、
 BS2bがmaterialization結果だけを参照できる依存境界にする。
 
 | ファイル / 現在行数 / 予想増分 | 責務・変更理由 | 所有者・寿命・依存・公開面・テスト境界 |
@@ -141,12 +148,13 @@ BS2bがmaterialization結果だけを参照できる依存境界にする。
 | `Materialization/Model/BuildDependencySnapshot.cs` / 0 / 60–90 | root GUID/pathとcanonical dependency GUID/pathのsnapshot | invocation寿命。AssetDatabase objectを保持しない。pure ordering/immutability test |
 | `Materialization/Model/BuildMaterializationSnapshot.cs` / 0 / 80–120 | candidates、tag provider、requirements、closures、provenanceの成功snapshot | BS1 selectorとBS2bへ渡す公開境界。防御的copy。Unity objectを保持しない。pure test |
 | `Materialization/Model/BuildMaterializationResult.cs` / 0 / 40–70 | issuesと成功snapshotを分離し、error時snapshotを非公開にする | invocation寿命。BS1 `BuildPlanResult`と混同しない。pure test |
-| `Materialization/IAssetDatabaseGateway.cs` / 0 / 30–50 | GUID/path/recursive dependency取得と存在確認の狭いport | production実装はEditor I/O、fakeはpure test。Unity objectを返さない |
+| `Materialization/IAssetDatabaseGateway.cs` / 0 / 30–50 | GUID/path/recursive dependency取得と存在確認の狭いport | internal。production実装はEditor I/O、fakeはfriend test。Unity objectを返さない |
 | `Materialization/UnityAssetDatabaseGateway.cs` / 0 / 70–110 | AssetDatabase/File I/Oをportへ適合 | stateless Editor infrastructure。internal。Editor integration test |
-| `Materialization/SceneResourceContentMaterializer.cs` / 0 / 220–320 | SceneResource graphを走査し、mapping policyとgatewayを使って成功snapshotまたはissuesを生成 | orchestrationのみ。SceneResourceMapは借用し保持しない。Editor testとfake gateway test |
+| `Materialization/SceneResourceContentMaterializer.cs` / 0 / 220–320 | SceneResource graphを走査し、mapping policyとgatewayを使って成功snapshotまたはissuesを生成 | public入口はgatewayを露出しない。internal overloadをfriend testから利用。SceneResourceMapは借用し保持しない |
 | `Materialization/ScenePayloadMappingPolicy.cs` / 0 / 100–150 | identity、Full mapping、tag、requirement、provenanceを決定 | pure policy。BS1型とplain inputだけへ依存。Unity/AssetDatabaseなしで単体テスト |
 | `Materialization/AssetDependencySnapshotBuilder.cs` / 0 / 120–180 | gateway結果をcontent filter、欠損検出、canonical closureへ変換 | mappingとI/Oを分離。gateway portのみ。pure fake test |
 | `Materialization/OneStarMaker.Build.Materialization.asmdef` / 0 / 20–30 | production adapterの依存方向を機械化 | Editor only、autoReferenced false。selection/runtime/Editor APIへの片方向参照 |
+| `Materialization/AssemblyInfo.cs` / 0 / 5–10 | testsへinternal test seamだけを公開 | `InternalsVisibleTo("OneStarMaker.Tests.Editor")`のみ |
 | `Tests/Editor/Build/SceneResourceContentMaterializerTests.cs` / 0 / 350–500 | null/error matrix、identity collision、順序置換、BS1接続 | ScriptableObject fixture＋fake gateway。500行到達時も同一orchestration contractなら非分割、変更理由が分かれればpolicy testを分ける |
 | `Tests/Editor/Build/ScenePayloadMappingPolicyTests.cs` / 0 / 180–260 | Full/legacy variant mapping、stable key、requirement、provenance | Unityなしのpure test |
 | `Tests/Editor/Build/AssetDependencySnapshotBuilderTests.cs` / 0 / 180–280 | filter、missing、canonical ordering、重複 | fake gatewayによるpure test |
@@ -195,12 +203,24 @@ Phase BからPhase Aへ差し戻す条件:
 - 機械検査: Phase B/Cの`pwsh tools/contract-audit.ps1`、Phase Cの`pwsh tools/run-tests.ps1`、`git diff --check`、asmdef依存確認。
 - A0/A1主担当・モデル・ベンダー: Codex / GPT-5 / OpenAI。
 - A2独立レビューごとの観点・担当・モデル・ベンダー:
-  - architecture gate: placement/asmdef、責務、依存、所有者、source port、公開面、BS2b境界。未実施。
-  - semantics/test gate: stable identity、Full mapping、issue model、closure/filter、determinism、BS1接続。未実施。
-  - 高リスク代替案: A0だけから「BS2a/BS2b分割」「既存collector拡張」「別adapter assembly」を比較。未実施。
-- A3統合担当・モデル・採否: Codex / GPT-5が統合案を作り、人間が採否・凍結する。未実施。
+  - architecture gate: `/root/bs2a_architecture`、Codex / GPT-5 / OpenAI。immutable provider、public/internal境界、closure lookup、asmdefを条件に採用推奨。
+  - semantics/test gate: `/root/bs2a_semantics`、Codex / GPT-5 / OpenAI。stable encoding、issue集合/order、GUID/path/filter、structured errorを条件に採用推奨。
+  - 高リスク代替案: `/root/bs2a_alternative`、Codex / GPT-5 / OpenAI。A0だけから3案を比較し、専用Editor-only 1 assemblyを推奨。
+- A3統合担当・モデル・採否: Codex / GPT-5 / OpenAI。2026-09-16、人間の「Phase C/C'まで承認確認なしで進めてよい」という明示委任の下、全blocking指摘を採用して凍結した。
 - C'用に予約した担当・モデル・ベンダー: Phase B/C開始時に未関与の系列またはベンダーを選び、Phase Aで使い切らない。
-- 独立性の強化条件を満たせない場合の理由: 現時点ではA1のみ。A2/C'担当確定時に記録する。
+- 独立性の強化条件を満たせない場合の理由: A2は同一モデル系列。C'にはPhase B/Cと異なるモデルを予約する。
+
+### A2 findingsの採否
+
+- 採用: BS2a/BS2b分割、専用Editor-only 1 assembly、旧collector/closure非再利用、source port非追加。
+- 採用: immutable sealed tag snapshot、public/internal境界、BS2bのphysical key→全candidate closure lookup。
+- 採用: version付きlength-prefix stable key、lowercase 32hex GUID、round-trip検証、user-data failureのstructured issue化。
+- 採用: issue code/sort/dedup、gateway例外境界、dependency欠損の観測限界、path/filter規則、bounded permutation test。
+- 採用: duplicate logical identity、empty→Full/literal Full、physical collisionをmaterialization段階で失敗させる。
+- 不採用: 既存collector/closure拡張（旧Addressables意味論と責務が異なる）。
+- 不採用: extractor/pure compilerの2 assembly化（唯一のsourceに対してraw manifest契約が過剰）。
+- 保留: なし。
+- A3 frozen boundary: §1〜§5。意味論、issue集合、公開面、asmdef edgeを変える場合はPhase Aを新revisionで再開する。
 
 ## 6. Phase B 実装結果
 
