@@ -47,7 +47,7 @@ namespace OneStarMaker.Tests.Editor.Build
             }), snapshot.Requirements);
             var selection = new BuildTagSelector().Select(new BuildRequest(new[] { new BuildTag("Representation", "Full") }),
                 snapshot.Candidates, snapshot.TagProviders, policy);
-            Assert.That(selection.HasErrors, Is.False);
+            Assert.That(selection.IsSuccess, Is.True);
             Assert.That(selection.Plan!.SelectedContent.Count, Is.EqualTo(1));
         }
 
@@ -82,6 +82,102 @@ namespace OneStarMaker.Tests.Editor.Build
             var result = new SceneResourceContentMaterializer(new FakeGateway(GuidA, "Assets/A.unity")).Materialize(map);
             Assert.That(result.Snapshot, Is.Null);
             Assert.That(result.Issues.Select(x => x.Code), Does.Contain(BuildMaterializationIssueCode.PhysicalKeyCollision));
+        }
+
+        [Test]
+        public void StableKey_LengthPrefix_DoesNotCollideForDelimiterValues()
+        {
+            var left = ScenePayloadMappingPolicy.StableKey("a:1", "b", GuidA);
+            var right = ScenePayloadMappingPolicy.StableKey("a", "1:b", GuidA);
+            Assert.That(left, Is.Not.EqualTo(right));
+            Assert.That(ScenePayloadMappingPolicy.StableKey("雪", "Full", GuidA), Does.Contain("1:雪"));
+        }
+
+        [TestCase("Assets/Foo.prefab", true)]
+        [TestCase("Assets/Foo.cs", false)]
+        [TestCase("Assets/Foo.asmref", false)]
+        [TestCase("Assets/Foo.meta", false)]
+        [TestCase("Packages/Foo.prefab", false)]
+        [TestCase("Other/Foo.prefab", false)]
+        public void DependencyFilter_UsesFrozenRules(string path, bool expected) =>
+            Assert.That(AssetDependencySnapshotBuilder.IsContent(path), Is.EqualTo(expected));
+
+        [Test]
+        public void Materialize_UppercaseGuid_CanonicalizesPhysicalKey()
+        {
+            var upper = GuidA.ToUpperInvariant();
+            var map = CreateMap(CreateResource("A", new AssetPayload(string.Empty, new AssetReference(upper))));
+            var result = new SceneResourceContentMaterializer(new FakeGateway(GuidA, "Assets/A.unity")).Materialize(map);
+            Assert.That(result.Snapshot!.Candidates.Single().PhysicalKey, Is.EqualTo(GuidA));
+        }
+
+        [Test]
+        public void Materialize_NullVariant_ReturnsStructuredIssue()
+        {
+            var payload = new AssetPayload(null!, new AssetReference(GuidA));
+            var result = new SceneResourceContentMaterializer(new FakeGateway(GuidA, "Assets/A.unity"))
+                .Materialize(CreateMap(CreateResource("A", payload)));
+            Assert.That(result.Snapshot, Is.Null);
+            Assert.That(result.Issues.Select(x => x.Code), Does.Contain(BuildMaterializationIssueCode.InvalidVariant));
+        }
+
+        [Test]
+        public void Materialize_DuplicateLogicalIdentity_ReturnsStructuredIssue()
+        {
+            var result = new SceneResourceContentMaterializer(new FakeGateway(GuidA, "Assets/A.unity"))
+                .Materialize(CreateMap(
+                    CreateResource("A", new AssetPayload(string.Empty, new AssetReference(GuidA))),
+                    CreateResource("A", new AssetPayload("Whitebox", new AssetReference("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")))));
+            Assert.That(result.Snapshot, Is.Null);
+            Assert.That(result.Issues.Select(x => x.Code), Does.Contain(BuildMaterializationIssueCode.DuplicateLogicalKey));
+        }
+
+        [Test]
+        public void MaterializationResult_SortsIssueNamesOrdinalAndDeduplicates()
+        {
+            var issues = new[]
+            {
+                new BuildMaterializationIssue(BuildMaterializationIssueCode.NullResource, BuildMaterializationSubject.Resource, "x"),
+                new BuildMaterializationIssue(BuildMaterializationIssueCode.InvalidResourceIdentity, BuildMaterializationSubject.Resource, "x"),
+                new BuildMaterializationIssue(BuildMaterializationIssueCode.NullResource, BuildMaterializationSubject.Resource, "x")
+            };
+            var result = new BuildMaterializationResult(null, issues);
+            Assert.That(result.Issues.Select(x => x.Code), Is.EqualTo(new[]
+            {
+                BuildMaterializationIssueCode.InvalidResourceIdentity,
+                BuildMaterializationIssueCode.NullResource
+            }));
+        }
+
+        [Test]
+        public void SnapshotTagProvider_DefensivelyCopiesTagBuffers()
+        {
+            var candidate = ScenePayloadMappingPolicy.Candidate("A", "Full", GuidA, "Assets/A.unity");
+            var tagBuffer = new List<BuildTag> { new BuildTag("Representation", "Full") };
+            var tags = new Dictionary<string, IReadOnlyList<BuildTag>> { [candidate.StableKey] = tagBuffer };
+            var snapshot = new BuildMaterializationSnapshot(new[] { candidate }, tags,
+                new[] { new BuildContentRequirement("A", BuildContentCardinality.ExactlyOne) },
+                new[] { new BuildDependencySnapshot(GuidA, "Assets/A.unity", new[] { new BuildDependencyEntry(GuidA, "Assets/A.unity") }) });
+            tagBuffer[0] = new BuildTag("Representation", "Whitebox");
+            Assert.That(snapshot.TagProviders.Single().GetTags(candidate).Single().Value, Is.EqualTo("Full"));
+        }
+
+        [Test]
+        public void Selector_WhiteboxAndUnknownValue_UseExistingBs1Contract()
+        {
+            var guidB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+            var gateway = new FakeGateway(GuidA, "Assets/A.unity", guidB, "Assets/B.unity");
+            var snapshot = new SceneResourceContentMaterializer(gateway).Materialize(CreateMap(
+                CreateResource("A", new AssetPayload("Whitebox", new AssetReference(GuidA))),
+                CreateResource("B", new AssetPayload("Future", new AssetReference(guidB))))).Snapshot!;
+            var policy = new BuildSelectionPolicy(new BuildTagSchema(new[]
+            {
+                new KeyValuePair<string, IEnumerable<string>>("Representation", new[] { "Full", "Whitebox" })
+            }), snapshot.Requirements);
+            var result = new BuildTagSelector().Select(new BuildRequest(new[] { new BuildTag("Representation", "Whitebox") }),
+                snapshot.Candidates, snapshot.TagProviders, policy);
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Issues.Select(x => x.Code), Does.Contain(BuildValidationCode.UnknownValue));
         }
 
         private SceneResourceMap CreateMap(params SceneResource[] resources)

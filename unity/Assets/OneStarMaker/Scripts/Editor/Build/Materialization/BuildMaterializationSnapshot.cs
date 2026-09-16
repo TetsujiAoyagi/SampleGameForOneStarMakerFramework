@@ -49,7 +49,9 @@ namespace OneStarMaker.Editor.Build.Materialization
         private readonly ReadOnlyCollection<BuildMaterializationIssue> _issues;
         internal BuildMaterializationResult(BuildMaterializationSnapshot? snapshot, IEnumerable<BuildMaterializationIssue> issues)
         {
-            _issues = Array.AsReadOnly(issues.Distinct().OrderBy(x => x.Code).ThenBy(x => x.Subject)
+            _issues = Array.AsReadOnly(issues.Distinct()
+                .OrderBy(x => x.Code.ToString(), StringComparer.Ordinal)
+                .ThenBy(x => x.Subject.ToString(), StringComparer.Ordinal)
                 .ThenBy(x => x.SubjectKey, StringComparer.Ordinal).ThenBy(x => x.RootGuid, StringComparer.Ordinal)
                 .ThenBy(x => x.Path, StringComparer.Ordinal).ThenBy(x => x.DetailKey, StringComparer.Ordinal).ToArray());
             Snapshot = _issues.Count == 0 ? snapshot : null;
