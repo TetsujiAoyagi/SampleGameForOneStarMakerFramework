@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `Phase B complete / Phase C ready`
+- status: `Phase C/C' GO / PR ready`
 - branch: `codex/bs2a-production-materialization`
 - implementation base commit: `af4f9686a1097bda27ccb7593289b08d0f4d81e3`
-- implementation head commit: `8f7c6af7`
+- implementation head commit: `946020d0184c30bfafe36eb0d7b645e4b8c00d26`
 - risk: `high`（既存Unity asset graphを新BuildSystemのpure selection境界へ接続し、新しいproduction assembly依存を追加する）
 - owner: Phase A主担当 Codex / GPT-5（OpenAI）。A3採否は人間。B/C/C'は開始時に記録する。
 - created: 2026-09-16 JST
@@ -15,15 +15,15 @@
 - Phase A snapshot path / id: A1はgit commit `9f1d487ca83ba630ee78cb6cd1dbf3226e98f323`、A3 frozen snapshotはgit commit `3c55217`の本ファイル。
 - Phase A snapshot generated at: 2026-09-16 JST
 - Phase A snapshot hash: A1 `9f1d487` / A3 `3c55217`
-- Phase B result snapshot path / id: implementation commit `8f7c6af7`
+- Phase B result snapshot path / id: initial implementation commit `8f7c6afd20d2e767007cebd2c7d48f4c1bb17064`、修正後の固定implementation head `946020d0184c30bfafe36eb0d7b645e4b8c00d26`
 - Phase B result snapshot generated at: 2026-09-16 JST
-- Phase B result snapshot hash: `8f7c6af7`
-- evidence bundle path / id:
-- evidence bundle generated at:
-- evidence bundle hash:
-- C' blind bundle path / id:
-- C' blind bundle generated at:
-- C' blind bundle hash:
+- Phase B result snapshot hash: initial `8f7c6afd20d2e767007cebd2c7d48f4c1bb17064` / fixed head `946020d0184c30bfafe36eb0d7b645e4b8c00d26`
+- evidence bundle path / id: `TestResults/bs2a-phase-c-r9-946020d/manifest.json`
+- evidence bundle generated at: 2026-09-17 04:55 JST
+- evidence bundle hash: SHA-256 `4eb7481fbafe9da68547cacadc17ec6fc78633c53f7dffc6a7b8359b7b8d7892`
+- C' blind bundle path / id: `TestResults/bs2a-cprime-blind-r9-946020d/manifest.json`
+- C' blind bundle generated at: 2026-09-17 04:55 JST
+- C' blind bundle hash: SHA-256 `7dc99dbd894aef49c62630423633739e6e4086b021aa4171cda5f2fb275a4a7a`
 
 ## 1. 目的と対象外
 
@@ -226,15 +226,41 @@ Phase BからPhase Aへ差し戻す条件:
 
 - 実装: 専用Editor-only assembly、materialization issue/result/snapshot、sealed tag provider、AssetDatabase gateway、root別closure builder、
   Scene payload mapping、SceneResource materializer、BS1接続を含むEditor testsを追加した。
-- HANDOFF との差: production 596行で予想下限を下回った。凍結責務を統合したのではなく、DTOとgatewayを簡潔に実装した結果。
+- HANDOFF との差: 初回production C#は423行で予想下限を下回った。凍結責務を統合したのではなく、DTOとgatewayを簡潔に実装した結果。
   公開面、issue集合、asmdef edge、対象外に差はない。
 - 未実行: Unity compile、Unity/EditMode tests、Content Directories/Addressables/Player buildはPhase B責任外のため未実行。
 - 機械検査: `pwsh tools/contract-audit.ps1`は違反なし。
-- implementation head commit: `8f7c6af7`
+- implementation head commit: 初回 `8f7c6afd20d2e767007cebd2c7d48f4c1bb17064`。C/C'で見つかった凍結契約内の欠陥を修正し、最終固定headを`946020d0184c30bfafe36eb0d7b645e4b8c00d26`とした。
 - Phase B 担当・モデル・ベンダー: Codex / GPT-5 / OpenAI。
 
 ## 7. Phase C
 
+- evidence bundle id / hash: `TestResults/bs2a-phase-c-r9-946020d/manifest.json` / SHA-256 `4eb7481fbafe9da68547cacadc17ec6fc78633c53f7dffc6a7b8359b7b8d7892`。
+  implementation base `af4f9686a1097bda27ccb7593289b08d0f4d81e3`、head `946020d0184c30bfafe36eb0d7b645e4b8c00d26`を固定。
+- 構造適合: Editor-only Materialization assemblyのSelection/Runtime/Addressablesへの片方向参照、mapping/gateway/closure/snapshotの責務分離、
+  invocation寿命、Game→Framework、Unity偽nullに違反なし。最大test fixtureは500行未満。既存Addressables/Runtime serialized assetは無変更。
+- 現在の問いを阻害するfindings: なし。旧headで見つかった順序依存issue、built-in path誤除外、cross-root GUID/path衝突、
+  実AssetDatabase integration未検証は固定headで修正・再検証した。旧evidenceは無効。
+- 後続スライスへ移送するfindings: Content Directory build、runtime/Player、VCSは§2の所有スライスへ残す。
+- テスト結果: sandbox外の承認済み経路で`pwsh tools/run-tests.ps1`を実行し、Unity Licensing IPC接続成功。
+  Unity 6000.6.0f1全EditModeは756 total / 756 passed / 0 failed / 0 skipped（BS2a固有30件）。Unity/runner exit 0。
+  `pwsh tools/contract-audit.ps1`と固定差分`git diff --check`もexit 0。
+- 未確認事項: Content Directories、Addressables、Player build、runtimeは対象外で未実行。
+- 担当・モデル: 新規セッション Codex / GPT-6 Astra / OpenAI。Phase BのGPT-5と異なる。
+
 ## 8. Phase C'
+
+- 担当方式: AI。
+- blind audit bundle id / hash: `TestResults/bs2a-cprime-blind-r9-946020d/manifest.json` / SHA-256 `7dc99dbd894aef49c62630423633739e6e4086b021aa4171cda5f2fb275a4a7a`。
+- 確認範囲・方法: manifest記載7ファイルのSHA-256照合、凍結A3・B結果・固定完全diff・生XML/logのblind監査。Unity再実行はせず。
+- 判定: PASS。凍結ACまたは常時契約に反する欠陥なし。
+- 現在の問いを阻害するfindings: なし。
+- 後続スライスへ移送するfindings: 各AC11 error codeの個別test網羅は追加できるが、現契約違反の証拠ではない。
+- 残存リスク: blind bundleにPhase C前の機械監査生出力がなく、C'はその実行自体を独立証明していない。Phase C evidenceには結果あり。
+- 監査できなかった範囲: Unity再実行、manifest外の可変HANDOFF、Git履歴からのdiff再生成、Content Directories/Player/runtime。
+- 独立性: 新規セッション、C所見・旧レビューを読まないblind入力のみ。BのGPT-5、CのGPT-6 Astraと異なるGPT-5.6 Terra。
+  同一OpenAIベンダーのため高リスク強化条件は`独立性制約あり`とし、人間がPRで採否判断する。
+- Phase C結論の事前閲覧・設計実装への関与: なし。
+- 担当・モデル: Codex / GPT-5.6 Terra / OpenAI。
 
 ## 9. Phase D
