@@ -12,9 +12,9 @@
 - created: 2026-09-16 JST
 - expires: 2026-09-30 JST、または`AssetPayload`、`SceneResourceMap`、BS1 selection API、Content Directories採用判断の前提が変わった時点
 - harvest to: `unity/Assets/Docs/Architecture/18-asset-description.md`。BS2a Phase Dで現況をharvest後、本HANDOFFを削除する。
-- Phase A snapshot path / id: A1は本ファイルの初稿commit（未作成）。A3 frozen snapshotはA2/A3後に記録する。
+- Phase A snapshot path / id: A1はgit commit `9f1d487ca83ba630ee78cb6cd1dbf3226e98f323`の本ファイル。A3 frozen snapshotはA2/A3後に記録する。
 - Phase A snapshot generated at: 2026-09-16 JST
-- Phase A snapshot hash:
+- Phase A snapshot hash: A1 `9f1d487`
 - Phase B result snapshot path / id:
 - Phase B result snapshot generated at:
 - Phase B result snapshot hash:
