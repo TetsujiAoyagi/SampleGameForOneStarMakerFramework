@@ -3,21 +3,21 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `Phase A3 frozen / Phase B ready`
+- status: `Phase B complete / Phase C ready`
 - branch: `codex/bs2a-production-materialization`
 - implementation base commit: `af4f9686a1097bda27ccb7593289b08d0f4d81e3`
-- implementation head commit:
+- implementation head commit: `8f7c6af7`
 - risk: `high`（既存Unity asset graphを新BuildSystemのpure selection境界へ接続し、新しいproduction assembly依存を追加する）
 - owner: Phase A主担当 Codex / GPT-5（OpenAI）。A3採否は人間。B/C/C'は開始時に記録する。
 - created: 2026-09-16 JST
 - expires: 2026-09-30 JST、または`AssetPayload`、`SceneResourceMap`、BS1 selection API、Content Directories採用判断の前提が変わった時点
 - harvest to: `unity/Assets/Docs/Architecture/18-asset-description.md`。BS2a Phase Dで現況をharvest後、本HANDOFFを削除する。
-- Phase A snapshot path / id: A1はgit commit `9f1d487ca83ba630ee78cb6cd1dbf3226e98f323`の本ファイル。A3 frozen snapshotは本更新のcommit（作成後に記録する）。
+- Phase A snapshot path / id: A1はgit commit `9f1d487ca83ba630ee78cb6cd1dbf3226e98f323`、A3 frozen snapshotはgit commit `3c55217`の本ファイル。
 - Phase A snapshot generated at: 2026-09-16 JST
-- Phase A snapshot hash: A1 `9f1d487`
-- Phase B result snapshot path / id:
-- Phase B result snapshot generated at:
-- Phase B result snapshot hash:
+- Phase A snapshot hash: A1 `9f1d487` / A3 `3c55217`
+- Phase B result snapshot path / id: implementation commit `8f7c6af7`
+- Phase B result snapshot generated at: 2026-09-16 JST
+- Phase B result snapshot hash: `8f7c6af7`
 - evidence bundle path / id:
 - evidence bundle generated at:
 - evidence bundle hash:
@@ -223,6 +223,15 @@ Phase BからPhase Aへ差し戻す条件:
 - A3 frozen boundary: §1〜§5。意味論、issue集合、公開面、asmdef edgeを変える場合はPhase Aを新revisionで再開する。
 
 ## 6. Phase B 実装結果
+
+- 実装: 専用Editor-only assembly、materialization issue/result/snapshot、sealed tag provider、AssetDatabase gateway、root別closure builder、
+  Scene payload mapping、SceneResource materializer、BS1接続を含むEditor testsを追加した。
+- HANDOFF との差: production 596行で予想下限を下回った。凍結責務を統合したのではなく、DTOとgatewayを簡潔に実装した結果。
+  公開面、issue集合、asmdef edge、対象外に差はない。
+- 未実行: Unity compile、Unity/EditMode tests、Content Directories/Addressables/Player buildはPhase B責任外のため未実行。
+- 機械検査: `pwsh tools/contract-audit.ps1`は違反なし。
+- implementation head commit: `8f7c6af7`
+- Phase B 担当・モデル・ベンダー: Codex / GPT-5 / OpenAI。
 
 ## 7. Phase C
 
