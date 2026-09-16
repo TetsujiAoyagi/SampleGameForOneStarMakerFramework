@@ -41,10 +41,14 @@ namespace OneStarMaker.Editor.Build.Materialization
             var requirements = new List<BuildContentRequirement>();
             var dependencies = new List<BuildDependencySnapshot>();
             var tags = new Dictionary<string, IReadOnlyList<BuildTag>>(StringComparer.Ordinal);
-            var logicalKeys = new HashSet<string>(StringComparer.Ordinal);
             var stableKeys = new HashSet<string>(StringComparer.Ordinal);
             var physicalKeys = new HashSet<string>(StringComparer.Ordinal);
             var closureBuilder = new AssetDependencySnapshotBuilder(_gateway);
+
+            foreach (var duplicate in map.SceneResources.Where(x => x != null && IsStable(x.Identity))
+                .GroupBy(x => x.Identity, StringComparer.Ordinal).Where(x => x.Count() > 1))
+                Add(issues, BuildMaterializationIssueCode.DuplicateLogicalKey,
+                    BuildMaterializationSubject.Resource, duplicate.Key);
 
             foreach (var resource in map.SceneResources.OrderBy(x => x == null ? string.Empty : x.Identity, StringComparer.Ordinal))
             {
@@ -57,11 +61,6 @@ namespace OneStarMaker.Editor.Build.Materialization
                 if (!IsStable(logical))
                 {
                     Add(issues, BuildMaterializationIssueCode.InvalidResourceIdentity, BuildMaterializationSubject.Resource, logical ?? string.Empty);
-                    continue;
-                }
-                if (!logicalKeys.Add(logical))
-                {
-                    Add(issues, BuildMaterializationIssueCode.DuplicateLogicalKey, BuildMaterializationSubject.Resource, logical);
                     continue;
                 }
                 if (resource.SceneAssetDescription == null)
@@ -109,7 +108,7 @@ namespace OneStarMaker.Editor.Build.Materialization
                     if (!physicalKeys.Add(candidate.PhysicalKey))
                     {
                         Add(issues, BuildMaterializationIssueCode.PhysicalKeyCollision, BuildMaterializationSubject.Payload,
-                            candidate.StableKey, guid);
+                            guid, guid);
                         continue;
                     }
                     candidates.Add(candidate);

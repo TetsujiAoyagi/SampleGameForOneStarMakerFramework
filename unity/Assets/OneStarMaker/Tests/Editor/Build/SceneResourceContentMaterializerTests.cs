@@ -135,6 +135,32 @@ namespace OneStarMaker.Tests.Editor.Build
         }
 
         [Test]
+        public void Materialize_DuplicateIdentityErrorIssues_AreResourceOrderIndependent()
+        {
+            var valid = CreateResource("A", new AssetPayload(string.Empty, new AssetReference(GuidA)));
+            var missing = CreateResource("A", new AssetPayload(string.Empty, null!));
+            var gateway = new FakeGateway(GuidA, "Assets/A.unity");
+            var first = new SceneResourceContentMaterializer(gateway).Materialize(CreateMap(valid, missing));
+            var second = new SceneResourceContentMaterializer(gateway).Materialize(CreateMap(missing, valid));
+            Assert.That(first.Snapshot, Is.Null);
+            Assert.That(second.Issues.Select(ProjectIssue), Is.EqualTo(first.Issues.Select(ProjectIssue)));
+            Assert.That(first.Issues.Select(x => x.Code), Does.Contain(BuildMaterializationIssueCode.MissingReference));
+        }
+
+        [Test]
+        public void Materialize_SharedGuidErrorIssues_ArePayloadOrderIndependent()
+        {
+            var full = new AssetPayload(string.Empty, new AssetReference(GuidA));
+            var whitebox = new AssetPayload("Whitebox", new AssetReference(GuidA));
+            var gateway = new FakeGateway(GuidA, "Assets/A.unity");
+            var first = new SceneResourceContentMaterializer(gateway).Materialize(CreateMap(CreateResource("A", full, whitebox)));
+            var second = new SceneResourceContentMaterializer(gateway).Materialize(CreateMap(CreateResource("A", whitebox, full)));
+            Assert.That(first.Snapshot, Is.Null);
+            Assert.That(second.Issues.Select(ProjectIssue), Is.EqualTo(first.Issues.Select(ProjectIssue)));
+            Assert.That(first.Issues.Select(x => x.Code), Does.Contain(BuildMaterializationIssueCode.PhysicalKeyCollision));
+        }
+
+        [Test]
         public void MaterializationResult_SortsIssueNamesOrdinalAndDeduplicates()
         {
             var issues = new[]
