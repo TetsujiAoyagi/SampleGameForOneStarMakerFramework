@@ -180,6 +180,88 @@ namespace OneStarMaker.Tests.Editor.Build
             Assert.That(result.Issues.Select(x => x.Code), Does.Contain(BuildValidationCode.UnknownValue));
         }
 
+        [Test]
+        public void Materialize_PayloadAndDependencyOrder_ProducesSameFullProjection()
+        {
+            const string guidB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+            var forwardMap = CreateMap(CreateResource("A",
+                new AssetPayload(string.Empty, new AssetReference(GuidA)),
+                new AssetPayload("Whitebox", new AssetReference(guidB))));
+            var reverseMap = CreateMap(CreateResource("A",
+                new AssetPayload("Whitebox", new AssetReference(guidB)),
+                new AssetPayload(string.Empty, new AssetReference(GuidA))));
+            var forward = new SceneResourceContentMaterializer(
+                new FakeGateway(GuidA, "Assets/A.unity", guidB, "Assets/B.unity")).Materialize(forwardMap).Snapshot!;
+            var reverse = new SceneResourceContentMaterializer(
+                new FakeGateway(true, GuidA, "Assets/A.unity", guidB, "Assets/B.unity")).Materialize(reverseMap).Snapshot!;
+            Assert.That(Project(reverse), Is.EqualTo(Project(forward)));
+        }
+
+        [Test]
+        public void Selector_WhiteboxRequest_SelectsWhiteboxCandidate()
+        {
+            var snapshot = new SceneResourceContentMaterializer(new FakeGateway(GuidA, "Assets/A.unity"))
+                .Materialize(CreateMap(CreateResource("A", new AssetPayload("Whitebox", new AssetReference(GuidA))))).Snapshot!;
+            var result = Select(snapshot, "Whitebox", "Full", "Whitebox");
+            Assert.That(result.IsSuccess, Is.True);
+            Assert.That(result.Plan!.SelectedContent.Single().PhysicalKey, Is.EqualTo(GuidA));
+        }
+
+        [Test]
+        public void Selector_NeutralSupplement_RemainsSelected()
+        {
+            var snapshot = new SceneResourceContentMaterializer(new FakeGateway(GuidA, "Assets/A.unity"))
+                .Materialize(CreateMap(CreateResource("A", new AssetPayload(string.Empty, new AssetReference(GuidA))))).Snapshot!;
+            var neutral = new BuildContentCandidate("neutral", "optional", "neutral-physical",
+                new BuildProvenance("test", "neutral"));
+            var policy = new BuildSelectionPolicy(new BuildTagSchema(new[]
+            {
+                new KeyValuePair<string, IEnumerable<string>>("Representation", new[] { "Full" })
+            }), snapshot.Requirements);
+            var result = new BuildTagSelector().Select(new BuildRequest(new[] { new BuildTag("Representation", "Full") }),
+                snapshot.Candidates.Concat(new[] { neutral }), snapshot.TagProviders, policy);
+            Assert.That(result.IsSuccess, Is.True);
+            Assert.That(result.Plan!.SelectedContent.Select(x => x.StableKey), Does.Contain("neutral"));
+        }
+
+        [Test]
+        public void Selector_ExactlyOne_RejectsZeroAndMultipleSelections()
+        {
+            const string guidB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+            var zero = new SceneResourceContentMaterializer(new FakeGateway(GuidA, "Assets/A.unity"))
+                .Materialize(CreateMap(CreateResource("A", new AssetPayload(string.Empty, new AssetReference(GuidA))))).Snapshot!;
+            Assert.That(Select(zero, "Whitebox", "Full", "Whitebox").Issues.Select(x => x.Code),
+                Does.Contain(BuildValidationCode.CardinalityViolation));
+
+            var multiple = new SceneResourceContentMaterializer(new FakeGateway(GuidA, "Assets/A.unity", guidB, "Assets/B.unity"))
+                .Materialize(CreateMap(CreateResource("A",
+                    new AssetPayload(string.Empty, new AssetReference(GuidA)),
+                    new AssetPayload(string.Empty, new AssetReference(guidB))))).Snapshot!;
+            Assert.That(Select(multiple, "Full", "Full", "Whitebox").Issues.Select(x => x.Code),
+                Does.Contain(BuildValidationCode.CardinalityViolation));
+        }
+
+        private static BuildPlanResult Select(BuildMaterializationSnapshot snapshot, string selected, params string[] allowed)
+        {
+            var policy = new BuildSelectionPolicy(new BuildTagSchema(new[]
+            {
+                new KeyValuePair<string, IEnumerable<string>>("Representation", allowed)
+            }), snapshot.Requirements);
+            return new BuildTagSelector().Select(new BuildRequest(new[] { new BuildTag("Representation", selected) }),
+                snapshot.Candidates, snapshot.TagProviders, policy);
+        }
+
+        private static string[] Project(BuildMaterializationSnapshot snapshot)
+        {
+            var lines = new List<string>();
+            lines.AddRange(snapshot.Candidates.Select(x => $"C|{x.StableKey}|{x.LogicalKey}|{x.PhysicalKey}|{x.Provenance.SourceKind}|{x.Provenance.SourceId}|{string.Join(",", x.Provenance.Properties.Select(p => p.Key + "=" + p.Value))}"));
+            lines.AddRange(snapshot.Candidates.SelectMany(candidate => snapshot.TagProviders.SelectMany(provider =>
+                provider.GetTags(candidate).Select(tag => $"T|{provider.StableProviderKey}|{candidate.StableKey}|{tag.Dimension}|{tag.Value}"))));
+            lines.AddRange(snapshot.Requirements.Select(x => $"R|{x.LogicalKey}|{x.Cardinality}"));
+            lines.AddRange(snapshot.Dependencies.SelectMany(x => x.Entries.Select(e => $"D|{x.RootGuid}|{x.RootPath}|{e.Guid}|{e.Path}")));
+            return lines.OrderBy(x => x, StringComparer.Ordinal).ToArray();
+        }
+
         private SceneResourceMap CreateMap(params SceneResource[] resources)
         {
             var map = ScriptableObject.CreateInstance<SceneResourceMap>();
@@ -203,13 +285,21 @@ namespace OneStarMaker.Tests.Editor.Build
         private sealed class FakeGateway : IAssetDatabaseGateway
         {
             private readonly Dictionary<string, string> _paths = new(StringComparer.Ordinal);
-            public FakeGateway(params string[] guidPathPairs)
+            private readonly bool _reverseDependencies;
+            public FakeGateway(params string[] guidPathPairs) : this(false, guidPathPairs) { }
+            public FakeGateway(bool reverseDependencies, params string[] guidPathPairs)
             {
+                _reverseDependencies = reverseDependencies;
                 for (var i = 0; i < guidPathPairs.Length; i += 2) _paths.Add(guidPathPairs[i], guidPathPairs[i + 1]);
             }
             public string GuidToPath(string guid) => _paths.TryGetValue(guid, out var path) ? path : string.Empty;
             public string PathToGuid(string path) => _paths.SingleOrDefault(x => x.Value == path).Key ?? string.Empty;
-            public string[] GetDependencies(string path) => new[] { path };
+            public string[] GetDependencies(string path)
+            {
+                var values = _paths.Values.ToArray();
+                if (_reverseDependencies) Array.Reverse(values);
+                return values;
+            }
             public bool FileExists(string path) => _paths.ContainsValue(path);
             public bool IsFolder(string path) => false;
         }
