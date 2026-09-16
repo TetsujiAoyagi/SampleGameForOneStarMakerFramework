@@ -5,6 +5,7 @@ using UnityEditor;
 
 namespace OneStarMaker.Editor.Build.Materialization
 {
+    // AssetDatabase への問い合わせを切り離し、依存閉包の組み立てを Editor 実体なしで検証可能にする。
     internal interface IAssetDatabaseGateway
     {
         string GuidToPath(string guid);

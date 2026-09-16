@@ -8,6 +8,7 @@ using OneStarMaker.Runtime.SceneSystem;
 
 namespace OneStarMaker.Editor.Build.Materialization
 {
+    // SceneResourceMap を検証し、Selection に渡せる候補一式へ変換する公開入口。
     public sealed class SceneResourceContentMaterializer
     {
         private readonly IAssetDatabaseGateway _gateway;
@@ -45,6 +46,7 @@ namespace OneStarMaker.Editor.Build.Materialization
             var physicalKeys = new HashSet<string>(StringComparer.Ordinal);
             var closureBuilder = new AssetDependencySnapshotBuilder(_gateway);
 
+            // 入力順によらず重複を報告できるよう、走査前に有効な論理キーを集計する。
             foreach (var duplicate in map.SceneResources.Where(x => x != null && IsStable(x.Identity))
                 .GroupBy(x => x.Identity, StringComparer.Ordinal).Where(x => x.Count() > 1))
                 Add(issues, BuildMaterializationIssueCode.DuplicateLogicalKey,
@@ -117,6 +119,7 @@ namespace OneStarMaker.Editor.Build.Materialization
                 }
             }
 
+            // 別 root 間でも同一 GUID が異なるパスを指す場合は、成功 snapshot にしない。
             foreach (var group in dependencies.SelectMany(x => x.Entries)
                 .GroupBy(x => x.Guid, StringComparer.Ordinal))
             {

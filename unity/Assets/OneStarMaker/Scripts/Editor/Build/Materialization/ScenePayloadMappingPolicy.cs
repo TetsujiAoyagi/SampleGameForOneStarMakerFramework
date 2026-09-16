@@ -6,6 +6,7 @@ using OneStarMaker.Build.Selection;
 
 namespace OneStarMaker.Editor.Build.Materialization
 {
+    // SceneResource の payload を Selection の candidate と tag に写す唯一の規則。
     internal static class ScenePayloadMappingPolicy
     {
         public const string Dimension = "Representation";
@@ -21,6 +22,7 @@ namespace OneStarMaker.Editor.Build.Materialization
                 }));
         public static BuildTag Tag(string representation) => new BuildTag(Dimension, representation);
         public static string Representation(string variant) => variant.Length == 0 ? "Full" : variant;
+        // 長さを前置して連結境界を一意にし、異なる入力が同じ stable key にならないようにする。
         private static string Part(string value) => value.Length.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + value;
     }
 }

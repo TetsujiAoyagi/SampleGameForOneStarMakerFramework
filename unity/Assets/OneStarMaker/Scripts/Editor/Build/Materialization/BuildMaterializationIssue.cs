@@ -15,6 +15,7 @@ namespace OneStarMaker.Editor.Build.Materialization
 
     public enum BuildMaterializationSubject { Map, Resource, Payload, Dependency, Gateway }
 
+    // 検証失敗を例外文言ではなく、コードと対象キーで再現可能に報告する。
     public sealed class BuildMaterializationIssue : IEquatable<BuildMaterializationIssue>
     {
         public BuildMaterializationIssue(BuildMaterializationIssueCode code, BuildMaterializationSubject subject,

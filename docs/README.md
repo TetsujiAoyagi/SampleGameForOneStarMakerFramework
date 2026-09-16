@@ -42,7 +42,7 @@
 | `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b 完了。S-4c〜d 着手時 HANDOFF の入力正本。S-4d の Phase D で harvest して削除する |
 | `REVIEW_WORKFLOW_EFFICIENCY.md` | 外部モデルレビューの実測と、次のPhase Cで残す比較項目 | いいえ。普遍契約はSkillへharvest済み。残る実測後に削除する |
 | `REVIEW_WORKFLOW_EFFICIENCY_ASSESSMENT.md` | 上記への独立評価（Claude / Grok）と採否記録 | いいえ。次のPhase Cで残る仮説を検証後、調査記録ごと削除する |
-| `BS2A_PRODUCTION_CONTENT_MATERIALIZATION.md` | BuildSystem刷新BS2aのproduction candidate・依存閉包materialization計画 | A1初稿。A2独立レビューと人間によるA3凍結後に実装キューとなる |
+| `BS2A_PRODUCTION_CONTENT_MATERIALIZATION.md` | BuildSystem刷新BS2aのproduction candidate・依存閉包materialization計画 | Phase C/C' 完了。PR #57 の Phase D 判断待ち |
 
 Streaming の M-1〜M-4 は完了し、決定を公開面へ harvest して、移行計画と各着手時 HANDOFF を削除済み。完了済み HANDOFF は復活させない。
 

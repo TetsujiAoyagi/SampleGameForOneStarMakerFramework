@@ -7,6 +7,7 @@ using System.Linq;
 
 namespace OneStarMaker.Editor.Build.Materialization
 {
+    // root ごとに Unity アセットの依存閉包を確定し、候補選択へ渡す不変の入力を作る。
     internal sealed class AssetDependencySnapshotBuilder
     {
         private readonly IAssetDatabaseGateway _gateway;
@@ -36,6 +37,7 @@ namespace OneStarMaker.Editor.Build.Materialization
                 return null;
             }
 
+            // AssetDatabase の列挙順や root 自身の列挙有無に依存しないよう、集合化してから整列する。
             var paths = new HashSet<string>(StringComparer.Ordinal) { rootPath };
             foreach (var raw in _gateway.GetDependencies(rootPath) ?? Array.Empty<string>())
             {
@@ -70,6 +72,7 @@ namespace OneStarMaker.Editor.Build.Materialization
             return new BuildDependencySnapshot(rootGuid, rootPath, entries);
         }
 
+        // GUID とパスの表記を固定し、同じアセットの照合結果が実行環境で揺れないようにする。
         internal static string Normalize(string? path) => (path ?? string.Empty).Replace('\\', '/');
         internal static string? NormalizeGuid(string? guid)
         {

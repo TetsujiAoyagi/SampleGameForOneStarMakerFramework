@@ -14,6 +14,7 @@ namespace OneStarMaker.Editor.Build.Materialization
         public string Path { get; }
     }
 
+    // 1 root の依存閉包。公開後に呼び出し元が列挙内容を書き換えられない形で保持する。
     public sealed class BuildDependencySnapshot
     {
         private readonly ReadOnlyCollection<BuildDependencyEntry> _entries;

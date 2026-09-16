@@ -8,6 +8,7 @@ using OneStarMaker.Build.Selection;
 
 namespace OneStarMaker.Editor.Build.Materialization
 {
+    // 1 回の materialize 呼び出しで確定した候補・タグ・要求・依存閉包をまとめる。
     public sealed class BuildMaterializationSnapshot
     {
         private readonly ReadOnlyCollection<BuildContentCandidate> _candidates;
@@ -32,6 +33,7 @@ namespace OneStarMaker.Editor.Build.Materialization
         public BuildDependencySnapshot? FindDependency(string physicalKey) =>
             _dependencies.FirstOrDefault(x => string.Equals(x.RootGuid, physicalKey, StringComparison.Ordinal));
 
+        // provider の寿命を snapshot に閉じ、未知の候補にはタグを付けない。
         private sealed class SnapshotTagProvider : IBuildTagProvider
         {
             private readonly IReadOnlyDictionary<string, IReadOnlyList<BuildTag>> _tags;
@@ -44,6 +46,7 @@ namespace OneStarMaker.Editor.Build.Materialization
         }
     }
 
+    // issue が 1 件でもあれば部分的な snapshot を公開しない。
     public sealed class BuildMaterializationResult
     {
         private readonly ReadOnlyCollection<BuildMaterializationIssue> _issues;
