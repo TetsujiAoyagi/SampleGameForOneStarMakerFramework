@@ -37,8 +37,8 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 - 設計判断が新たに必要になった場合も実装を止め、Phase A に戻す。
 - 計画外の状態、依存、所有者、寿命、公開 API が必要になった場合、または計画した配置では中核ロジックを単体テストできない場合も実装を止める。Phase B 内で便宜的な Helper / Manager へ押し込まない。
 - Unity Editor、Scene、Prefab、Addressables等を扱う場合は `../osm-unity-editor/SKILL.md` を先に読む。
-- Unity バッチテストと Addressables ビルドは Phase C の責任とし、Phase B では実行しない。完了時に未実行を明記する。
-- 実装を終えたら `pwsh tools/contract-audit.ps1` を実行する。Unity を起動しない以上、コンパイラが捕まえる違反もここでしか見つからない。
+- 対象を限定した Editor 操作とコンパイル確認は Phase B で行ってよい。Unity バッチテストと Addressables ビルドの実行・判定は Phase C の責任とし、Phase B では実行しない。完了時に未実行を明記する。
+- 実装を終えたら `pwsh tools/contract-audit.ps1` を実行する。Editor のコンパイル確認を行えなかった場合は、その未確認を明記する。
 
 ## Phase C: レビューとテスト
 
@@ -48,7 +48,7 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 - 指摘を「凍結済み条件または常時契約への違反により現在の問いを阻害する欠陥」と「後続スライスの入力」に分け、根拠となる凍結済み条件または常時契約を記録する。レビュー担当は欠陥を指摘できるが、後者を理由に現スライスの実装や受け入れ条件を自動拡張しない。
 - 変更量、独立した変更理由の混在、単体テスト可能性、Unity の偽 null を確認する。
 - `pwsh tools/contract-audit.ps1` を実行する。機械で判定できる契約はこれで済ませ、構造レビューは設計判断に集中する。
-- Unity Editor が閉じていることを確認して `pwsh tools/run-tests.ps1` を実行する。絞り込みは `-Filter` を使う。
+- Unity Editor が閉じていることを確認して `pwsh tools/run-tests.ps1` を実行する。自分で起動した Editor は未保存の変更を確認して正常終了させる。既存の人間所有 Editor を無断で強制終了しない。絞り込みは `-Filter` を使う。
 - Windows の Phase C Unity バッチテストは、**最初の実行から sandbox 外の承認済み経路**で `pwsh tools/run-tests.ps1` を起動する。sandbox 内では Unity Licensing Client の named-pipe IPC (`LicenseClient-void`) が成立せず、Unity が再接続を無期限に繰り返した実測がある。CLI/tool の `require_escalated` 等で通常の権限昇格承認を取得し、承認できない場合はテスト未実行として止める。`run-tests.ps1` 自体は昇格しない。license file の返却・削除・再発行を回避策にしない。
 - 起動後にライセンス接続成功とテスト進行をログで確認する。`LicenseClient-void` 不在・`com.unity.editor.headless` 不在の再接続が続き、数分間進行せず XML もない場合は、無期限に待たず、今回起動した Unity PID だけを確認して終了し、生ログと未実行判定を残す。Editor が正常に進行中なら所要時間だけで中断しない。
 - Phase C でも `unity test` / `unity run` は使わない。
