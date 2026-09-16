@@ -272,18 +272,17 @@ public enum ResourceState
 ## 7. AssetDescription 汎用化
 
 ```
-AssetDescription (abstract, ScriptableObject)
-├── AssetType           … enum
-├── EstimatedMemoryBytes … long (概算、Editor バッチ算出)
-│
-├── SceneAssetDescription (既存を継承に変更)
-│   ├── LoadType
-│   └── ScenePayloads
-│
-├── PrefabAssetDescription (将来)
-├── AudioAssetDescription (将来)
-└── TextureAssetDescription (将来)
+IAssetPayloadProvider
+└── AssetDescription (abstract, Serializable、埋め込み用)
+    └── SceneAssetDescription
+        ├── LoadType
+        └── AssetPayload の一覧
 ```
+
+現行の基底はScriptableObjectではない。SceneResourceの埋め込み構造を維持する。
+AssetTypeはAssetKeyのカテゴリmetadataであり、上図の基底フィールドではない。
+Prefab / Audio / Texture / Mesh等の個別Descriptionは未実装で、実需要時に追加する。
+Payload列挙と拡張の現況は[18. AssetDescription](18-asset-description.md)を参照。
 
 ---
 
