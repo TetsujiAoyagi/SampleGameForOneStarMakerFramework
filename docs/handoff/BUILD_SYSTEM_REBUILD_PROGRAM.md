@@ -27,6 +27,7 @@ Unity 6.6 Content Directoriesを用いて、content選択、build、Runtimeロ�
 - U66: 完了。`ProjectVersion.txt`は6000.6.0f1。バージョン移行を再実行しない。
 - CD0: 完了、限定実証によるCONDITIONAL採用。Mono/High strippingでroot・Object・Sceneの往復と移設を実証。
   IL2CPP/AOT、HTTP、処理中native loadの取消、全incremental matrixの保証ではない。
+  `unity/Assets/CD0Spike/`はPhase D（`bda2ed7`）で削除済み。本番adapterとして復元せず、履歴の実証と公開文書を設計入力にする。
 - BS1: 完了。Unity非依存のselection coreを実装済み。
 - BS2a: 完了。SceneResource production materializationを実装済み。既存build/Runtime経路へは未接続。
 - BS2b以降: 未着手。旧Addressables経路は残存し、Player build可を現行の前提にしない。
@@ -99,10 +100,15 @@ program全体の責務境界:
 
 ### BS2b — Content Directory build
 
-答える問い: 成功した選択結果と対応するmaterialization snapshotから、Scene以外も扱えるbuild中核を構成できるか。
+答える問い: 成功したplanと対応するsnapshotから、Sceneと代表非Sceneを含むContent Directoryを生成できるか。
 
 - 中核の入力は成功した`BuildPlan`と対応する`BuildMaterializationSnapshot`を基本とする。
   SceneResourceMap走査は呼出側adapterに置き、中核からSceneAssetDescription、Scene固有タグやprovider名を解釈しない。
+- 候補とclosureの対応付け・検証はUnity Content Directories API / AssetDatabaseを呼ばない中核に置き、fixtureで単体検証する。
+  root生成、AssetDatabase操作、Content Directory build、生成物cleanupはEditor adapterへ隔離し、実buildで統合検証する。
+  build orchestrationとEditor adapterはOSMのEditor/Build配下へ新設する。Playerがdeserializeするroot/受渡しmetadata型は
+  必要最小のRuntime側assemblyへ置き、UnityEditor依存を持たせない。具体配置・asmdef依存・owner・test境界はBS2b Phase Aで固定する。
+  `CD0Spike`は復元しない。責務の違いはclass/adapterで分離し、実directory生成までを一つのsliceで証明する。
 - 選択済み候補を既存snapshotの依存閉包へ対応付ける。Variantの再選択や依存閉包の再計算はしない。
   planとsnapshotの対応不整合や必要なclosure欠落はbuild前に失敗させる。
 - 既存friend test assemblyで、PrefabとTextureをrootとする非Scene snapshot fixtureを作る。
@@ -113,9 +119,16 @@ program全体の責務境界:
   選択・除外と理由、issueをbuild前に確認できるreportを持ち、失敗した成果物を成功出力として公開しない。
   成功buildと対応するContent BuildReportを後続へ渡す。全incremental matrixを無条件に追加せず、保証する範囲を固定する。
 - build出力にcatalog/address等が必要でも、ファイルGUIDだけで任意のRuntimeロード対象を識別できるとは宣言しない。
-  後続Runtimeとの形式互換を固定する必要がある場合は、BS3のidentity設計を前倒ししてからBS2bを凍結する。
+- **成果物形式はBS2bが所有する。** Phase Aで、同一logical assetの複数表現を同一directoryへ格納するか別directoryに分けるか、
+  起動時に表現を区別する情報の格納場所とRuntimeへの受渡し口、logical/表現/ロード先の対応を必須決定事項として凍結する。
+  初期の単一directory方針との整合、build identityとBuildReportの対応、成果物へ保持するmetadataの範囲も固定する。
+  この最小の受渡し契約をBS2cへ先送りしない。将来の全種別schemaやサブアセットlocator全体の実装を要求するものではない。
+- 取得済み成果物からの起動は、ローカルのproduction materialization成功を要求しない。
+  BS2bが成果物または保持するローカルmetadataへ必要な論理対応情報を渡す契約を決め、BS3がその入力だけで解決・起動する。
+  BS2aのsource/依存欠損時にsnapshotを返さない契約は緩めない。source欠損での一連の実証はDISTが所有する。
 
-追加の最低条件は、非Scene rootが同じbuild中核を通り、Scene固有の前提が消費側へ漏れていないこと。
+最低条件は、固定targetと凍結したincremental保証範囲でSceneと代表非Sceneの実directoryが生成され、
+Scene固有の前提が消費側へ漏れず、成果物・論理対応情報・BuildReportの対応を確認できること。
 fixtureによる成功はconsumer境界の実証に限定し、本番source収集、source合成、サブアセットロードの成立とは記録しない。
 Content Directoryのpartition、target/subtarget、output、incremental/hash等の詳細はBS2bのPhase Aが所有する。
 
@@ -127,16 +140,19 @@ Content Directoryのpartition、target/subtarget、output、incremental/hash等�
   全Sceneへ手入力タグを複製せず、project側providerで導出する。FrameworkへSeason名を埋め込まない。
 - 季節を絞る際は、要求されるlogical groupの範囲も定義する。全季節のExactlyOneを残したまま他季節を除外して欠落errorにしない。
 - 現BS2aのExactlyOneと、PREのFull+Whitebox同時同梱例はそのまま両立しない。
-  BS2c Phase Aで単一表現buildと複数表現dev artifactの要件・cardinality・Runtimeへ渡す表現情報を分けて凍結する。
+  BS2cはBS2bの格納・受渡し契約に従い、単一表現buildと複数表現dev artifactの選択policy・cardinalityを凍結する。
   BS2aの既存契約を黙って緩めず、変更するpolicy/adapterと回帰条件を明示する。
 - 最低条件は全季節Full、Spring Full、Spring Whiteboxの候補・必須group・除外理由が説明でき、実buildへ接続できること。
   Full+Whitebox同時同梱の開発用途を維持する設計と検証範囲もここで確定し、Runtimeの起動時選択はBS3へ渡す。
   本番graph規模の欠落・重複は機械検査、動作は代表箇所を検証し、標本確認を全件実行済みとしない。
 
-BS2b出力形式が複数表現やproject metadataを不可逆に決める場合は、この契約設計だけBS2b Phase Aへ前倒しする。
+BS2cはSampleGameのタグ導出、必須group、除外理由と選択入力を所有し、成果物schemaは所有しない。
+BS2bの受渡し契約では表せない要件が判明した場合は、BS2bの契約を変更するPhase Aへ戻し、BS2c内で別形式を作らない。
 新しいsource登録基盤全体や全アセット種別の導入は、この接続を証明するためだけに追加しない。
 
 ### BS3 — Runtime directoryとロード対象
+
+答える問い: build済みlocal contentをsource再走査なしに解決・ロードし、利用資源と登録を一貫した寿命で解放できるか。
 
 Phase Aで必ず次を決め、実装HANDOFFへ固定する。
 
@@ -144,12 +160,20 @@ Phase Aで必ず次を決め、実装HANDOFFへ固定する。
   具体的なMesh型の実装が後続でも、ファイルGUIDだけを唯一の汎用Object IDにしない。
 - logical asset/Variantから選択済みロード対象への解決と、ビルドに含まれる候補との整合性。
   Sceneのfallbackを他種別へ暗黙に流用しない。
+  BS2bが渡す成果物または保持済みmetadataを読み、ローカルSceneResourceMapのmaterializationを起動条件にしない。
+  metadata欠損・不整合時は構造化した失敗として扱い、source再走査を暗黙の必須fallbackにしない。
 - Sceneのload/unload、通常Objectのload/release、Prefab生成インスタンスの寿命の違い。
   `IAssetManagement`と`AssetOwner`を入口とし、型別Descriptionへ新しい寿命管理者を作らない。
 - load対象型の検証とカテゴリmetadataの区別。拡張子推定を正しさの根拠にしない。
 - directory登録からroot discovery、load、全依存解放、unregisterまでを所有する単一ownerと、失敗・再試行・shutdownの順序。
   callerの取消をnative abortと同一視せず、発行済み処理の終端をownerが受け取りdrainしてから解放する。
+  directory ownerはbackend/session側の責務とし、`IAssetManagement`へ登録・物理削除APIを当然には追加しない。
+  公開面を変える必要があれば、BS3 Phase Aで変更内容と既存呼出側への影響を明示する。
 - resident cacheにあるbackend資源もdirectory依存として扱い、使用中・cache内・処理中の資源を残してunregisterしない。
+- revisionの利用開始と物理削除の排他契約はBS3 Phase Aが所有する。directory ownerが登録・処理中・resident cacheを含む
+  利用保護を管理し、DISTが削除する間は新規利用・再登録を許さない。単なる「未使用か照会してから削除」にはしない。
+  削除側は排他的な削除許可を取得し、完了または失敗の確定まで保持する。具体的なport、状態遷移、例外時の解除、
+  対象process範囲はBS3 Phase Aで固定し、競合をfake削除側で検証する。物理ファイル削除そのものはDISTが担当する。
 - BS2cの表現方針に従う起動時選択とEditor Playの接続。実行中切替UIは追加しない。
   高水準Scene lifecycleを維持し、Addressables backendとの移行期間の配線・切替を明示する。
 
@@ -158,6 +182,8 @@ Phase Aで必ず次を決め、実装HANDOFFへ固定する。
 成功だけでなく、欠損、登録失敗後の再試行、取消後完了、owner解放、cache eviction、終了時cleanupを検証して次へ進む。
 
 ### BS4 — Player integration
+
+答える問い: 必要なcodeと設定を持つPlayerがcontentを二重同梱せず起動し、論理初回Sceneと代表contentを利用できるか。
 
 Sceneに加えて代表非Scene fixtureのロード・解放をPlayerで確認する。
 結果には検証した型と選択方式を明記し、Prefabの成功をMeshサブアセットの保証へ拡張しない。
@@ -179,9 +205,13 @@ Sceneに加えて代表非Scene fixtureのロード・解放をPlayerで確認�
 - v1は選択したdirectory revisionの必要file一式を取得する。部分取得状態をactiveとして登録しない。
   stagingで検証後にinstall完了へ切り替え、active revisionはimmutableとする。
 - interrupted download、hash不一致、欠損、target/revision不一致からの再試行を検証する。
-  active/known-good、cache budget、旧revision削除をRuntime登録・利用寿命と連携させる。
+- DISTはknown-good保持、disk budget、削除候補の選定と物理削除を所有する。利用状態・削除可否を独自の台帳で再判定しない。
+  BS3の排他契約で削除許可を得たrevisionだけを削除し、削除中の再登録を防ぐ。許可取得不可なら削除を延期し、
+  容量不足時の結果を報告する。Runtime資源を保持したrevisionをbudget達成のために強制削除しない。
+  新規利用との競合、利用中・resident cache保持中の拒否、物理削除失敗後の許可解除を接続して検証する。
 - 開発者のlocal/remote選択、鮮度の扱い、必要なsource pathの案内とEditor Playを新経路へ接続する。
   依存閉包のローカル完結性を判定し、source欠損時にも取得済みcontentから実行できる経路を検証する。
+  source path案内のための検査と成果物からの起動は分け、前者の欠損で後者を止めない。BS2b/BS3の入力契約を使う。
   未checkout Sceneの直接編集を可能とはしない。Git/SVN checkoutの自動操作は対象外。
 - 最低条件はremote/LAN→install→register→代表Scene/Object loadが成立し、中断更新で既存playable revisionを壊さないこと。
   必要source pathの案内、local/remote選択、鮮度、Editor Playの置換範囲も検証する。
@@ -191,6 +221,8 @@ Sceneに加えて代表非Scene fixtureのロード・解放をPlayerで確認�
 asset単位のHTTP遅延fetch、delta patch、CDN最適化は後続の専用拡張。DIST v1の最低条件を増やさない。
 
 ### RET — 旧Addressables BuildSystemの廃止
+
+答える問い: 新経路の利用者を維持したまま、置換済みの旧build・開発workflowを取り残しなく廃止できるか。
 
 開始条件はBS2b〜BS4とDISTの必要経路が成立し、置換対象の各利用者に移行先があること。
 
@@ -224,6 +256,9 @@ asset単位のHTTP遅延fetch、delta patch、CDN最適化は後続の専用拡�
   指摘した「fixtureの実証範囲限定」「build IDをRuntime IDとして固定しない」「BS3 Aでload identityを決める」を採用済み。
   全体統合時にも別agentがPRE・公開文書・統合案をレビューし、BS2cでのpolicy接続、cacheを含むdirectory寿命、
   DISTの開発workflow検証、RETの機能別移行確認を採用した。旧13のSO基底図は現行のSerializable埋め込み構造へ訂正した。
+- PR #59のレビュー（head `3da2bc0`）を受け、成果物契約のBS2b所有、pure対応付けとEditor I/Oの分離、
+  source未取得時の起動入力、BS3の利用保護とDISTの削除処理の排他を追記した。
+  slice追加分割や削除I/OのBS3集約は採用せず、一つのslice内の責務分離と単一の利用保護契約で指摘の問題を解消する。
 - この文書整備セッションは計画だけを反映する。以下の継続開発委任は別の開発セッションへ適用する。
 - 各sliceの最低条件を満たせば終了する。Prefab/Texture/Mesh全種類の完成や、将来のsource合成の完成をBS2bの終了条件へ追加しない。
   現sliceを阻害する問題は違反する受け入れ条件を明記し、その他は上記の所有sliceへ送る。
@@ -233,6 +268,7 @@ asset単位のHTTP遅延fetch、delta patch、CDN最適化は後続の専用拡�
 ユーザーは別セッションでBS開発を続け、人間の在席を前提にせず、必要な権限承認だけリモートで行う運用を希望している。
 本program内の通常の設計判断とA2 findingsの採否・A3凍結は主担当へ委任されたものとして扱い、判断理由を記録する。
 これは今回のユーザーの自律進行指示を本program内のA3採否へ適用するもので、共通Skillの人間確認を全作業から削除する変更ではない。
+この委任を共通Skillへharvestしない。各高リスクsliceはA2の担当・モデル・独立性と、制約があればその内容を実績欄へ記録する。
 各sliceのA→B→C/C'、失敗修正、機械監査、証拠作成、ローカルcommit、push、develop宛てPR作成まで、
 単なる継続確認のために止まらない。高リスクのA2独立レビューやPhase分離を省略する許可ではない。
 
