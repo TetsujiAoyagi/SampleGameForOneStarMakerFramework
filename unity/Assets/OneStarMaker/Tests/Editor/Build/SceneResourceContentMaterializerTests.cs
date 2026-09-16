@@ -212,7 +212,7 @@ namespace OneStarMaker.Tests.Editor.Build
                 CreateResource("B", new AssetPayload(string.Empty, new AssetReference(guidC)))
             };
             var baseline = new SceneResourceContentMaterializer(new FakeGateway(pairs)).Materialize(CreateMap(resources));
-            var random = new Random(12345);
+            var random = new System.Random(12345);
             var seededOrder = resources.OrderBy(_ => random.Next()).ToArray();
             var permuted = new SceneResourceContentMaterializer(new FakeGateway(true, pairs)).Materialize(CreateMap(seededOrder));
             Assert.That(Project(permuted.Snapshot!), Is.EqualTo(Project(baseline.Snapshot!)));
