@@ -1,7 +1,7 @@
 # BS2c — SampleGame の選択 policy と Content Directory 入力
 
 - type: slice
-- status: A2（独立レビュー済み。A3 凍結前）
+- status: B（A3 凍結済み）
 - branch: `codex/bs2c-samplegame-selection`
 - implementation base commit: `16650d7`
 - implementation head commit: 未作成
@@ -10,8 +10,8 @@
 - created: 2026-09-17
 - expires: BS2c Phase D。遅くとも 2026-10-17 に前提を再確認
 - harvest to: `unity/Assets/Docs/Architecture/18-asset-description.md`、`20-variant-checkout-workflow.md`
-- Phase A snapshot path / id: 本文 §1–5 の A3 凍結版
-- Phase A snapshot generated at / hash: A3 時に記録
+- Phase A snapshot path / id: 本文 §1–5、A2 commit `56f1afe`
+- Phase A snapshot generated at / hash: 2026-09-17、SHA256 `29CBB61FDBA51C7D374DB4EA64830D276A130DA10569DDAEB64F665D30ABDE2C`
 - Phase B result snapshot path / id / generated at / hash: 未作成
 - evidence bundle path / id / generated at / hash: 未作成
 - C' blind bundle path / id / generated at / hash: 未作成
@@ -74,7 +74,7 @@ A0/A1 主担当: Codex / GPT-6 Astra。A2: 独立 architecture gate は別セッ
 
 - A2 architecture gate: 親子 membership と project policy の分離を推奨。全 map の `ExactlyOne` を request 範囲に絞り、二表現では cardinality を変える。materialization snapshot は変更せず BS2b に渡す。共通 Full と Whitebox-only の選択は selector の AND/OR semantics に注意。採用: `SeasonalMode` を使い、Framework の public selector API 変更を避ける。
 - A2 独立レビュー: BS2b report だけでは request/requirement を説明できない、空 payload node の扱いが曖昧、pure policy の Unity Object 依存とテスト配置が曖昧、graph 相互整合検証が不足、と指摘。すべて採用し、上記受け入れ条件と責務マップを更新した。
-- A3 統合・採否・凍結: 未実施。
+- A3 統合・採否・凍結: A2 の指摘をすべて採用した上記境界を、2026-09-17 にユーザーが明示承認。以後の設計変更は Phase A revision とする。
 
 ## 6. Phase B 実装結果
 

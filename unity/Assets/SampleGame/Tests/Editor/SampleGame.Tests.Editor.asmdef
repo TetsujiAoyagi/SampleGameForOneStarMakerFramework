@@ -1,0 +1,14 @@
+{
+    "name": "SampleGame.Tests.Editor",
+    "rootNamespace": "SampleGame.Tests.Editor",
+    "references": [
+        "SampleGame.DependOnAll.Editor",
+        "OneStarMaker.Build.Selection"
+    ],
+    "includePlatforms": ["Editor"],
+    "overrideReferences": true,
+    "precompiledReferences": ["nunit.framework.dll"],
+    "autoReferenced": false,
+    "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+    "noEngineReferences": false
+}

@@ -1,0 +1,85 @@
+#nullable enable
+
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using OneStarMaker.Build.Selection;
+using OneStarMaker.Editor.Build.Content;
+using OneStarMaker.Editor.Build.Materialization;
+using OneStarMaker.Runtime.SceneSystem;
+using UnityEditor;
+using UnityEngine;
+
+namespace SampleGame.DependOnAll.Editor.Build
+{
+    // SampleGame の graph と選択 policy を BS2b の既存 build 入口へ接続する。
+    public static class SampleGameContentBuild
+    {
+        private const string MapPath = "Assets/OneStarMakerCommon/SceneMap/SceneResourceMap.asset";
+
+        [MenuItem("Tools/OSM/Content/Build All Seasons Full")]
+        public static void BuildAllFull() => Build(new[] { "Spring", "Summer", "Autumn", "Winter" },
+            SeasonContentMode.Full, "all-full");
+
+        [MenuItem("Tools/OSM/Content/Build Spring Full")]
+        public static void BuildSpringFull() => Build(new[] { "Spring" }, SeasonContentMode.Full, "spring-full");
+
+        [MenuItem("Tools/OSM/Content/Build Spring Whitebox")]
+        public static void BuildSpringWhitebox() => Build(new[] { "Spring" }, SeasonContentMode.Whitebox,
+            "spring-whitebox");
+
+        [MenuItem("Tools/OSM/Content/Build Spring Full And Whitebox")]
+        public static void BuildSpringBoth() => Build(new[] { "Spring" }, SeasonContentMode.FullAndWhitebox,
+            "spring-full-whitebox");
+
+        public static void Build(IReadOnlyList<string> seasons, SeasonContentMode mode, string contentSet)
+        {
+            var map = AssetDatabase.LoadAssetAtPath<SceneResourceMap>(MapPath);
+            if (map == null) throw new InvalidOperationException("SceneResourceMap is missing: " + MapPath);
+            var materialized = new SceneResourceContentMaterializer().Materialize(map);
+            if (materialized.Snapshot == null)
+                throw new InvalidOperationException("Materialization failed: " +
+                    string.Join("; ", materialized.Issues.Select(x => x.Code + ":" + x.SubjectKey)));
+            var graph = CopyGraph(map);
+            var selection = new SeasonSceneSelectionPolicy().Select(graph,
+                materialized.Snapshot.Candidates, materialized.Snapshot.TagProviders, seasons, mode);
+            if (selection.Plan == null)
+                throw new InvalidOperationException("Selection failed: " +
+                    string.Join("; ", selection.Issues.Select(x => x.Code + ":" + x.SubjectKey)));
+            var plan = selection.Plan;
+            Debug.Log("[BS2c] request=" + string.Join(",", plan.Request.Selections.Select(x => x.Dimension + "=" + x.Value)) +
+                " selected=" + plan.SelectedContent.Count + " excluded=" + plan.ExcludedContent.Count);
+            foreach (var exclusion in plan.ExcludedContent)
+                Debug.Log("[BS2c] excluded " + exclusion.Candidate.LogicalKey + " / " +
+                    exclusion.Dimension + "=" + exclusion.Value + " / " + exclusion.ReasonCode);
+
+            var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+            var artifactsRoot = Path.GetFullPath(Path.Combine(projectRoot, "..", "artifacts", "bs2b"));
+            var result = new BuildContentCoordinator().Build(
+                new BuildContentRequest(plan, materialized.Snapshot, contentSet, artifactsRoot));
+            if (!result.IsSuccess)
+                throw new InvalidOperationException("Content Directory build failed: " + result.OutcomePath + " / " + result.Summary);
+            Debug.Log("[BS2c] Content Directory: " + result.ContentPath + " / outcome: " + result.OutcomePath);
+        }
+
+        private static IReadOnlyList<SeasonSceneNode> CopyGraph(SceneResourceMap map)
+        {
+            var result = new List<SeasonSceneNode>();
+            foreach (var resource in map.SceneResources)
+            {
+                if (resource == null) throw new InvalidOperationException("SceneResourceMap contains a null resource.");
+                var children = new List<string>();
+                foreach (var child in resource.Children)
+                {
+                    if (child == null) throw new InvalidOperationException("Scene graph has a null child: " + resource.Identity);
+                    children.Add(child.Identity);
+                }
+                result.Add(new SeasonSceneNode(resource.Identity,
+                    resource.Parent == null ? null : resource.Parent.Identity,
+                    children, resource.GetPayloads().Count != 0));
+            }
+            return result;
+        }
+    }
+}
