@@ -7,8 +7,10 @@ using OneStarMaker.Build.Selection;
 
 namespace SampleGame.DependOnAll.Editor.Build
 {
+    /// <summary>季節ごとの見た目を、完成版・仮素材版・両方から選ぶ。</summary>
     public enum SeasonContentMode { Full, Whitebox, FullAndWhitebox }
 
+    /// <summary>選択結果と、その選択で満たすべきコンテンツ群を一緒に返す。</summary>
     public sealed class SeasonSelectionResult
     {
         public SeasonSelectionResult(BuildPlanResult selection, IReadOnlyList<BuildContentRequirement> requirements)
@@ -21,7 +23,7 @@ namespace SampleGame.DependOnAll.Editor.Build
         public IReadOnlyList<BuildContentRequirement> Requirements { get; }
     }
 
-    // Unity object の寿命から切り離した、1回の build 用 graph 入力。
+    /// <summary>SceneResource の親子関係と内容の有無を、Unity オブジェクトから切り離して保持する。</summary>
     public sealed class SeasonSceneNode
     {
         public SeasonSceneNode(string identity, string? parent, IEnumerable<string> children, bool hasPayload)
@@ -37,18 +39,20 @@ namespace SampleGame.DependOnAll.Editor.Build
         public bool HasPayload { get; }
     }
 
-    // SampleGame 固有の graph と表現選択。BS2b の snapshot と出力形式は変更しない。
+    /// <summary>SampleGame のシーン階層から季節を判定し、ビルド対象と必須条件を決める。</summary>
     public sealed class SeasonSceneSelectionPolicy
     {
         private static readonly string[] Seasons = { "Spring", "Summer", "Autumn", "Winter" };
         private static readonly string[] Roots = { "InGameScene", "OutGameScene" };
 
+        /// <summary>選択計画だけが必要な呼び出し向けの入口。</summary>
         public BuildPlanResult Select(IEnumerable<SeasonSceneNode> nodes,
             IEnumerable<BuildContentCandidate> candidates, IEnumerable<IBuildTagProvider> sourceProviders,
             IEnumerable<string> selectedSeasons, SeasonContentMode mode,
             IReadOnlyDictionary<string, string>? seasonOverrides = null)
             => SelectDetailed(nodes, candidates, sourceProviders, selectedSeasons, mode, seasonOverrides).Selection;
 
+        /// <summary>選択計画に加え、診断表示に使う必須コンテンツ群も返す。</summary>
         public SeasonSelectionResult SelectDetailed(IEnumerable<SeasonSceneNode> nodes,
             IEnumerable<BuildContentCandidate> candidates, IEnumerable<IBuildTagProvider> sourceProviders,
             IEnumerable<string> selectedSeasons, SeasonContentMode mode,
@@ -68,6 +72,7 @@ namespace SampleGame.DependOnAll.Editor.Build
             var providerSnapshot = sourceProviders.ToArray();
             var byLogical = candidateSnapshot.GroupBy(x => x.LogicalKey, StringComparer.Ordinal)
                 .ToDictionary(x => x.Key, x => x.ToArray(), StringComparer.Ordinal);
+            // 宣言された内容と生成候補が食い違うと、必須シーンが静かに欠落するため先に止める。
             foreach (var node in graph.Values)
             {
                 var hasCandidate = byLogical.TryGetValue(node.Identity, out var values) && values.Length != 0;
@@ -79,7 +84,7 @@ namespace SampleGame.DependOnAll.Editor.Build
 
             var memberships = graph.Values.ToDictionary(x => x.Identity,
                 x => FindSeason(x, graph), StringComparer.Ordinal);
-            // authoring 由来の例外だけを明示入力で受ける。初期構成には例外がない。
+            // 親子階層だけで表せない所属は明示入力に限定し、シーン名の推測で補わない。
             if (seasonOverrides != null)
                 foreach (var pair in seasonOverrides)
                 {
@@ -98,6 +103,7 @@ namespace SampleGame.DependOnAll.Editor.Build
                     .Select(x => Representation(x, providerSnapshot)).Distinct(StringComparer.Ordinal).ToArray();
                 var hasBothRepresentations = representationsForGroup.Contains("Full", StringComparer.Ordinal) &&
                     representationsForGroup.Contains("Whitebox", StringComparer.Ordinal);
+                // 両表現を同梱する群だけ複数選択を許す。Full が二候補あるだけなら ExactlyOne のまま。
                 if (inScope)
                     requirements.Add(new BuildContentRequirement(node.Identity,
                         mode == SeasonContentMode.FullAndWhitebox && season != null && hasBothRepresentations
@@ -110,7 +116,7 @@ namespace SampleGame.DependOnAll.Editor.Build
                     if (season != null)
                     {
                         tags.Add(new BuildTag("Season", season));
-                        // Full しかない季節 companion はどちらの mode にも必要。
+                        // Full のみで提供される補助シーンは、どちらの見た目でも共通して必要。
                         if (switchable)
                             tags.Add(new BuildTag("SeasonalMode", Representation(candidate, providerSnapshot)));
                     }
@@ -118,6 +124,8 @@ namespace SampleGame.DependOnAll.Editor.Build
                 }
             }
 
+            // Representation は候補自体の種類、SeasonalMode は季節内の切替対象だけに効く。
+            // 仮素材版でも共通シーンや Full 専用の補助シーンを残すため、二つを分けて指定する。
             var representations = mode == SeasonContentMode.Full
                 ? new[] { "Full" } : new[] { "Full", "Whitebox" };
             var modes = mode == SeasonContentMode.Full ? new[] { "Full" }
@@ -134,6 +142,7 @@ namespace SampleGame.DependOnAll.Editor.Build
             var providers = providerSnapshot.Concat(new IBuildTagProvider[] { new ProjectTags(projectTags) });
             var result = new BuildTagSelector().Select(request, candidateSnapshot, providers,
                 new BuildSelectionPolicy(schema, requirements));
+            // OneOrMore だけでは両表現の採用を保証できないため、同梱時は個別に照合する。
             if (result.IsSuccess && mode == SeasonContentMode.FullAndWhitebox)
                 VerifyDual(result.Plan!, byLogical, memberships, chosen, providerSnapshot);
             return new SeasonSelectionResult(result, Array.AsReadOnly(requirements.ToArray()));
@@ -171,6 +180,7 @@ namespace SampleGame.DependOnAll.Editor.Build
 
         private static Dictionary<string, SeasonSceneNode> ValidateGraph(IEnumerable<SeasonSceneNode> nodes)
         {
+            // 親子を相互に検査してから所属をたどる。片側だけのリンクや循環を季節判定へ渡さない。
             var graph = new Dictionary<string, SeasonSceneNode>(StringComparer.Ordinal);
             foreach (var node in nodes)
             {
@@ -204,6 +214,7 @@ namespace SampleGame.DependOnAll.Editor.Build
 
         private static string? FindSeason(SeasonSceneNode node, IReadOnlyDictionary<string, SeasonSceneNode> graph)
         {
+            // 最も近い季節名を拾うだけでは、異なる季節の入れ子を見逃すため祖先を最後まで調べる。
             var visited = new HashSet<string>(StringComparer.Ordinal);
             string? season = null;
             for (var cursor = node; cursor != null; cursor = cursor.Parent == null ? null : graph[cursor.Parent])

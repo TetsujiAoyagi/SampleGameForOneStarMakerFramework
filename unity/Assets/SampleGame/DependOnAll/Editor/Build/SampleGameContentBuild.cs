@@ -13,10 +13,11 @@ using UnityEngine;
 
 namespace SampleGame.DependOnAll.Editor.Build
 {
-    // SampleGame の graph と選択 policy を BS2b の既存 build 入口へ接続する。
+    /// <summary>シーン定義の読み取りから Content Directory の生成までをつなぐ Editor 入口。</summary>
     public static class SampleGameContentBuild
     {
         private const string MapPath = "Assets/OneStarMakerCommon/SceneMap/SceneResourceMap.asset";
+        private const string LogPrefix = "[SampleGameContentBuild] ";
 
         [MenuItem("Tools/OSM/Content/Build All Seasons Full")]
         public static void BuildAllFull() => Build(new[] { "Spring", "Summer", "Autumn", "Winter" },
@@ -35,6 +36,8 @@ namespace SampleGame.DependOnAll.Editor.Build
 
         public static void Build(IReadOnlyList<string> seasons, SeasonContentMode mode, string contentSet)
         {
+            // 実アセットから候補を作り、シーン階層の複製で季節を決めてから選択する。
+            // 途中で失敗した計画はビルド処理へ渡さない。
             var map = AssetDatabase.LoadAssetAtPath<SceneResourceMap>(MapPath);
             if (map == null) throw new InvalidOperationException("SceneResourceMap is missing: " + MapPath);
             var materialized = new SceneResourceContentMaterializer().Materialize(map);
@@ -49,13 +52,14 @@ namespace SampleGame.DependOnAll.Editor.Build
                 throw new InvalidOperationException("Selection failed: " +
                     string.Join("; ", selection.Issues.Select(x => x.Code + ":" + x.SubjectKey)));
             var plan = selection.Plan;
-            Debug.Log("[BS2c] request=" + string.Join(",", plan.Request.Selections.Select(x => x.Dimension + "=" + x.Value)) +
+            // 必須群と除外理由を残し、ビルドログから選択根拠を追えるようにする。
+            Debug.Log(LogPrefix + "request=" + string.Join(",", plan.Request.Selections.Select(x => x.Dimension + "=" + x.Value)) +
                 " required=" + detail.Requirements.Count + " selected=" + plan.SelectedContent.Count +
                 " excluded=" + plan.ExcludedContent.Count);
             foreach (var requirement in detail.Requirements)
-                Debug.Log("[BS2c] required " + requirement.LogicalKey + " / " + requirement.Cardinality);
+                Debug.Log(LogPrefix + "required " + requirement.LogicalKey + " / " + requirement.Cardinality);
             foreach (var exclusion in plan.ExcludedContent)
-                Debug.Log("[BS2c] excluded " + exclusion.Candidate.LogicalKey + " / " +
+                Debug.Log(LogPrefix + "excluded " + exclusion.Candidate.LogicalKey + " / " +
                     exclusion.Dimension + "=" + exclusion.Value + " / " + exclusion.ReasonCode);
 
             var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
@@ -64,11 +68,12 @@ namespace SampleGame.DependOnAll.Editor.Build
                 new BuildContentRequest(plan, materialized.Snapshot, contentSet, artifactsRoot));
             if (!result.IsSuccess)
                 throw new InvalidOperationException("Content Directory build failed: " + result.OutcomePath + " / " + result.Summary);
-            Debug.Log("[BS2c] Content Directory: " + result.ContentPath + " / outcome: " + result.OutcomePath);
+            Debug.Log(LogPrefix + "Content Directory: " + result.ContentPath + " / outcome: " + result.OutcomePath);
         }
 
         private static IReadOnlyList<SeasonSceneNode> CopyGraph(SceneResourceMap map)
         {
+            // 選択処理には Unity オブジェクトを渡さず、親子 ID と内容の有無だけを固定する。
             var result = new List<SeasonSceneNode>();
             foreach (var resource in map.SceneResources)
             {
