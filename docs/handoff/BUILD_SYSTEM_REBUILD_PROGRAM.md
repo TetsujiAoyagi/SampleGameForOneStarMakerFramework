@@ -1,7 +1,7 @@
 # BuildSystem刷新 — 全体計画と継続開発の引継ぎ
 
 - type: program
-- status: 継続中。BS2b Phase D 完了、次はBS2c Phase A。個別スライスの実装凍結ではない。
+- status: 継続中。BS2c Phase D 完了、次はBS3 Phase A。個別スライスの実装凍結ではない。
 - branch: `codex/build-system-program`（本program文書の整備用。各実装は専用ブランチ）
 - planning base: `65d1b91`（2026-09-17のdevelop）
 - risk: high（後続の build 出力、runtime identity、所有者・寿命の設計に関係する）
@@ -22,7 +22,7 @@ Unity 6.6 Content Directoriesを用いて、content選択、build、Runtimeロ�
 本書だけで後続を開始でき、未追跡PREや過去の会話を必須入力にしない。
 先のAssetDescription拡張programは本書へ統合し、別正本として残さない。
 
-現在地（2026-09-17）:
+現在地（2026-09-18）:
 
 - U66: 完了。`ProjectVersion.txt`は6000.6.0f1。バージョン移行を再実行しない。
 - CD0: 完了、限定実証によるCONDITIONAL採用。Mono/High strippingでroot・Object・Sceneの往復と移設を実証。
@@ -32,25 +32,24 @@ Unity 6.6 Content Directoriesを用いて、content選択、build、Runtimeロ�
 - BS2a: 完了。SceneResource production materializationを実装済み。旧build/Runtime経路へは未接続。
 - BS2b: 完了。成功planと対応snapshotからContent Directoryを生成し、単一rootとreportを渡す。
   Scene・Prefab・Texture fixture、同一workspace再build、移設後root discoveryを実証した。
-- BS2c以降: 未着手。旧Addressables経路は残存し、Player build可を現行の前提にしない。
+- BS2c: 完了。SampleGame の本番 SceneResource graph から季節・表現を選択し、四つの Editor Content Directory build を確認した。
+- BS3以降: 未着手。旧Addressables経路は残存し、Player build可を現行の前提にしない。
 
 実行順序:
 
 ```text
-U66 → CD0 → BS1 → BS2a → BS2b          完了
-                              ↓
-                             BS2c       SampleGameの選択policyと入力配線
-                               ↓
-                             BS3        Runtime backendとEditor Play
-                               ↓
-                             BS4        Player build / bootstrap
-                               ↓
-                             DIST       配信・local cache・開発workflow
-                               ↓
-                             RET        旧経路の廃止
+U66 → CD0 → BS1 → BS2a → BS2b → BS2c   完了
+                                      ↓
+                                     BS3  Runtime backendとEditor Play
+                                      ↓
+                                     BS4  Player build / bootstrap
+                                      ↓
+                                    DIST  配信・local cache・開発workflow
+                                      ↓
+                                     RET  旧経路の廃止
 ```
 
-BS2cは今回明示した接続工程の名前。既存の完了sliceや実装済み機能ではない。
+BS2c の実装済み契約は公開 Architecture §18 に記す。
 独立して進められる調査は並行可能だが、未確定の上流形式へ依存する実装は先行させない。
 非Scene本番拡張は実需要時に担当sliceを挿入し、全型の実装を本線の必須条件にはしない。
 
@@ -107,7 +106,7 @@ program全体の責務境界:
 loadable ID を保存する。preflight/outcome report、build identity、manifest pointer を対応付ける。
 同じ workspace の再 build、移設後の単一 root discovery を Scene・Prefab・Texture fixture で検証した。
 
-本番 Scene graph の選択 policy と入力配線は BS2c、source に依存しない Runtime 解決・登録・寿命は BS3、
+本番 Scene graph の選択 policy と入力配線は BS2c で完了した。source に依存しない Runtime 解決・登録・寿命は BS3、
 Player 統合は BS4、source 欠損で取得済み成果物から起動する一連の実証は DIST が所有する。
 非 Scene Description の本番 source と汎用サブアセット locator は実需要のある後続 slice で扱う。
 実装済みの build 契約は [18. AssetDescription](../../unity/Assets/Docs/Architecture/18-asset-description.md) を正とする。
@@ -227,8 +226,8 @@ asset単位のHTTP遅延fetch、delta patch、CDN最適化は後続の専用拡�
 
 ## 4. 別セッションへの引継ぎ・レビュー・停止規則
 
-- 次のBS2c開始時は本書と現行実装を読み、§3のBS2c条件をslice HANDOFFの受け入れ条件へ転記する。
-  本書に書かれていない選択policyと配線の詳細はBS2c Phase Aで解決する。
+- 次のBS3開始時は本書と現行実装、公開 Architecture §18 を読み、§3のBS3条件をslice HANDOFFの受け入れ条件へ転記する。
+  Runtime の identity・登録・寿命の詳細はBS3 Phase Aで解決する。
 - 各sliceは`osm-workflow`に従い、1 slice / 1 branch / 1 HANDOFF、PR baseはdevelopとする。
   実装base/headとPhase A snapshotを固定し、Phase境界では新規セッションへ規定の入力を渡す。
 - 新しいasmdef参照、公開API、永続化形式、所有者・寿命の変更は該当sliceのPhase Aで明示する。
