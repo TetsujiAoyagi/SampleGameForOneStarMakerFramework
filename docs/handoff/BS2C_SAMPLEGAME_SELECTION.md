@@ -4,7 +4,7 @@
 - status: Phase C/C' 完了（Phase D 判断待ち）
 - branch: `codex/bs2c-samplegame-selection`
 - implementation base commit: `16650d7`
-- implementation head commit: `2859ec0`
+- implementation head commit: `9264a55`
 - risk: high（本番 Scene graph、選択 cardinality、Editor build 入力）
 - owner: BS2c 担当
 - created: 2026-09-17
@@ -13,10 +13,10 @@
 - Phase A snapshot path / id: `artifacts/bs2c-review/phase-a-frozen.md`、commit `5967bbe` 内の A3 記録済み HANDOFF（§1–5）。A1/A2 入力版は `56f1afe`
 - Phase A snapshot generated at / hash: 2026-09-17、SHA256 `34935152EFAD3DB08BE3522E9F050A0D681A12AA5B5F42BADB54CF963AC1498B`
 - Phase B result snapshot path / id: `artifacts/bs2c-review/phase-b-result.md`
-- Phase B result snapshot generated at / hash: 2026-09-18、SHA256 `BAF9D3679A95ECF6FE7DBBE81F6FB0A1678CC19852BEB1461659D11A0F166F88`
-- evidence bundle path / id: `artifacts/bs2c-review/`、base `16650d7` / head `2859ec0`。完全 diff SHA256 `4FB80B644F0EE2B14753434E7BA9513B53FE2854AA77138954D74267EBA08BA1`
-- evidence bundle generated at / hash: 2026-09-18、C' blind bundle の各ファイル SHA256 は `artifacts/bs2c-blind/manifest.txt`。manifest SHA256 `71AE8D54A553C707DBACB4B2D40DAF7FE5990FBC5D274D96C4AC5C9278126B57`
-- C' blind bundle path / id / generated at / hash: 未作成
+- Phase B result snapshot generated at / hash: 2026-09-18、SHA256 `77E5A27AF3F5A7F6E0E6743602AF9E084D3D2E0AA29AFB97677385BA64D7D1E5`
+- evidence bundle path / id: `artifacts/bs2c-review/`、base `16650d7` / code-only head `9264a55`。完全 diff SHA256 `8D56D90AA779C25AE59D505A7F1D21F42FEEF528E858935D1831A8CF7B3FB670`
+- evidence bundle generated at / hash: 2026-09-18、各入力ファイルの SHA256 は下記 blind bundle manifest と一致
+- C' blind bundle path / id / generated at / hash: `artifacts/bs2c-blind/`、2026-09-18、manifest SHA256 `F1F88DA54A7C6AFEF23869E5D949618266346C69DB356F701D5EA2C00CD1350B`
 
 ## 1. 目的、現況、対象外
 
@@ -83,31 +83,29 @@ A0/A1 主担当: Codex / GPT-6 Astra。A2: 独立 architecture gate は別セッ
 
 - 実装: `SeasonSceneSelectionPolicy` が immutable graph record、既存 candidate/provider、request から Season/SeasonalMode と scoped requirements を生成する。`SampleGameContentBuild` が SceneResourceMap を複製し、既存 materializer → selector → BS2b coordinator へ接続し、必須 logical group/cardinality を選択診断へ出す。専用 test asmdef と policy の合成 graph テストを追加した。
 - HANDOFF との差: Full のみの季節 companion には `SeasonalMode` を付けず、Whitebox build でも共通 content と同様に残す。切替対象は Whitebox 候補を持つ logical group。例外 metadata の入口は policy の `seasonOverrides`（初期値は空）。成果物 schema や Framework API は変更していない。
-- 実装 head: `2859ec0`（`16650d7` との差分）。C' の凍結条件違反指摘を受け、二表現 group の cardinality 判定を修正し、同一 Full 二候補の異常系を追加した。
+- 実装 head: `9264a55`（`16650d7` との差分）。`2859ec0` で二表現 group の cardinality 判定と同一 Full 二候補の異常系を追加し、`9264a55` で外部向けの日本語コードコメントとログ識別子を改善した。
 - Phase B 機械確認: `pwsh tools/contract-audit.ps1` は違反なし。Unity 生成済み compiler response file を使った `SampleGame.DependOnAll.Editor` と `SampleGame.Tests.Editor` の直接コンパイルは成功。
 - 未実行: Unity バッチテストと Content Directory build は Phase C。既存の人間所有 Unity Editor PID 31664 が同 project を保持しており、ライブ Editor の最終 refresh/compile は未確認。今回起動した重複 Editor PID 11844 は終了した。
 - Phase B 担当・モデル: Codex / GPT-6 Astra。
 
 ## 7. Phase C
 
-- 旧 head `f745c9e` のレビューは GPT-5.6 Sol が PASS と判定したが、C' の別モデル blind 監査が二表現 cardinality の凍結条件違反を発見した。旧 C/C' 結果は新 head `2859ec0` へ持ち越さない。
-- 新 head `2859ec0` の担当は Codex / GPT-5.6 Sol。Phase B の GPT-6 Astra と異なる新規読み取り専用セッションで、旧レビュー結論を入力せず構造から確認した。
-- 構造: A3 の pure policy、Editor 入口、専用 test asmdef に変更を収め、Game Editor → Framework Editor の既定 3 edge 以外の依存と Framework API/schema は変更なし。全差分 628 行を構造レビューし、責務・寿命・配置の blocker はなし。
-- 機械検査: `contract-audit.ps1` 違反なし。専用 EditMode 14/14、全 EditMode 775/775。全回帰は最終 head と同一ハッシュのソースを隔離作業ツリーへ写して実行し、その後 worktree head を `2859ec0` に切り替えた。既存の人間所有 Editor は終了していない。
-- 実 build: head `2859ec0` の隔離 Unity 作業ツリーで全季節 Full（required/selected 441/441）、Spring Full（114/114）、Spring Whitebox（114/114）、Spring Full+Whitebox（114/168）を実行。4 件とも `Succeeded` outcome と Content Directory を確認し、選択診断に request、required group/cardinality、除外理由を記録。
-- 現在の問いを阻害する findings: なし。A3 の `SeasonalMode` 文言は付与先の制限であり全季節候補への付与義務ではない。Full のみの季節 companion を両 mode に残す実装は凍結条件と整合。
-- 後続への入力・残存リスク: 本番 graph のあらゆる異常状態を実 build で発生させたわけではない。合成 graph のテストで主要な失敗経路を確認。Runtime load / directory 登録・寿命は BS3、Player bootstrap / stripping は BS4。
-- 判定: PASS。
+- 対象: implementation base `16650d7` / code-only head `9264a55`。担当 Codex / GPT-5.6 Sol。Phase B の GPT-6 Astra と異なる新規読み取り専用セッションで、凍結 Phase A snapshot、Phase B result、完全 diff、生結果から構造を先に確認した。
+- 構造: pure policy、Unity Editor 入口、専用 test asmdef の責務配置を維持。Game Editor → Framework Editor の計画済み 3 edge 以外の依存、Framework API/schema、Runtime は変更なし。
+- 機械検査: `contract-audit.ps1` 違反なし。最終 head の専用 EditMode 14/14、全 EditMode 775/775、いずれも終了コード 0。人間所有の既存 Editor は終了していない。
+- 実 build: 全季節 Full（required/selected 441/441）、Spring Full（114/114）、Spring Whitebox（114/114）、Spring Full+Whitebox（114/168）がすべて `Succeeded`。ビルド時の `30e8d67` と code-only head `9264a55` の `unity/Assets` が同一であることを `source-equivalence.txt` で検証した。
+- ユーザー指摘を受け、コードコメントに季節判定・cardinality・失敗境界の理由を日本語で追加し、コメント中の内部 Phase 略記を解消。ログ識別子は `[SampleGameContentBuild]` とした。最終 C レビューで読みやすさを確認。
+- [PR #61 の外部追加レビュー](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/61#issuecomment-5721764758) は旧 head `2859ec0` を PASS と判定。複数季節 membership / map 外参照の直接テスト不足、`VerifyDual` の全 candidate 照合が凍結文面より厳しい点は後続入力として記録し、本スライスの受け入れ条件を拡張しない。blind bundle 欄の記入漏れは修正した。
+- 現在の問いを阻害する findings: なし。残存リスクは将来の authored graph 変更で validation 契約を維持すること。Runtime load / directory 登録・寿命は BS3、Player bootstrap / stripping は BS4。
+- 判定: PASS。旧 head `f745c9e` / `2859ec0` のレビュー結果は最終 head の判定へ流用していない。
 
 ## 8. Phase C'
 
-- 旧 head `f745c9e` の blind 監査は GPT-5.6 Terra の新規 Codex CLI セッションで実施。二表現 mode の `OneOrMore` 判定が「候補数 > 1」だったため Full 二候補だけでも `ExactlyOne` を回避する凍結条件違反を発見し、FAIL。現 head の修正と異常系テストへ反映した。
-- findings ledger: severity blocker、category semantic、unique、accepted。発見 Phase C' / Codex GPT-5.6 Terra。根拠は A3 の「二表現同梱の季節 group は OneOrMore」、旧 policy の `nodeCandidates.Length > 1`。bucket は現在の問いを阻害する欠陥。修正 commit `2859ec0` で Full と Whitebox の双方がある group だけを `OneOrMore` にし、Full 二候補・Whitebox なしのテストを追加した。
-- 新 head `2859ec0` の blind bundle は `artifacts/bs2c-blind/`、SHA256 manifest は上記。凍結 Phase A snapshot、Phase B result、完全 diff、生テスト・実 build ログ、Phase C 前の契約監査だけを収録し、C の結論と可変 HANDOFF を含めない。
-- 担当 Codex / GPT-5.6 Terra。Phase B/C の両モデルと異なる新規読み取り専用セッション。manifest の 13 ファイルを SHA256 照合し、blind bundle と必要な workflow 指示だけを読んだ。構造、graph・選択の失敗経路、二表現 cardinality、4 build を独立に確認。
-- 現在の問いを阻害する findings: なし。後続への入力: 将来の SceneResourceMap の root/季節 identifier と候補 identity の変化は、この validation 契約を満たす必要がある。Runtime / Player / 配布は凍結済み後続スライス。
-- 判定: PASS。C と C' の独立結果は一致し、残存 blocker はなし。
-
+- 旧 head `f745c9e` の blind 監査は二表現 cardinality の凍結条件違反を発見して FAIL。findings ledger: severity blocker、category semantic、unique、accepted、発見担当 Codex / GPT-5.6 Terra。根拠は A3 の「二表現同梱の季節 group は OneOrMore」と旧 policy の `nodeCandidates.Length > 1`。bucket は現在の問いを阻害する欠陥。修正 commit `2859ec0` で Full と Whitebox の双方がある group だけを `OneOrMore` にし、同一 Full 二候補の異常系を追加した。
+- 最終 head `9264a55` の blind bundle は上記 manifest の 16 ファイル。凍結 Phase A snapshot、Phase B result、完全 diff、生テスト・実 build ログ、Phase C 前の契約監査と source-equivalence のみを収録し、Phase C 結論と可変 HANDOFF を含めない。
+- 担当 Codex / GPT-5.6 Terra。Phase B/C の両モデルと異なる新規読み取り専用セッション。16 ファイルの SHA256 を照合し、構造、失敗経路、選択と二表現 cardinality、テストと 4 build、コードコメントとログ識別子を独立に確認した。
+- 現在の問いを阻害する findings: なし。後続への入力: 成功ログの成果物パスに残る `artifacts/bs2b` は内部 Phase 名なので、成果物配置規約を次に見直す際は機能名へ改める。固定 root / `Season_<name>` の authoring 契約も後続で維持または明示改訂する。Runtime / Player / 配布は凍結済み後続スライス。
+- 判定: PASS。最終 C と C' の独立結果は一致し、残存 blocker はなし。
 ## 9. Phase D
 
 未実施。
