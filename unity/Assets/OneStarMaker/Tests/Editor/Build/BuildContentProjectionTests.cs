@@ -12,6 +12,8 @@ using UnityEngine;
 
 namespace OneStarMaker.Tests.Editor.Build
 {
+    // Unity build を起動せずに plan/snapshot の不整合を検証する。
+    // internal constructor を使う fixture は本番選択経路で作れない不正入力も意図的に組み立てる。
     public sealed class BuildContentProjectionTests
     {
         private static BuildContentCandidate Candidate(string stable, string logical, string guid) =>
@@ -23,6 +25,8 @@ namespace OneStarMaker.Tests.Editor.Build
         [Test]
         public void SelectedRootsShareClosureButExcludeUnselectedVariant()
         {
+            // 入力順を逆にしても root は stable key 順。未選択 Variant は閉包に入れず、
+            // 複数 root が共有する Material は一度だけ残ることを同時に確認する。
             var a = Candidate("a", "scene", "a-guid");
             var b = Candidate("b", "object", "b-guid");
             var omitted = Candidate("c", "object", "c-guid");
@@ -45,6 +49,7 @@ namespace OneStarMaker.Tests.Editor.Build
         [Test]
         public void StructuralMismatchAndPhysicalCollisionArePreflightIssues()
         {
+            // 共有依存とは異なり、候補二つが同じ physical key を所有するのは入力衝突。
             var a = Candidate("a", "one", "same");
             var b = Candidate("b", "two", "same");
             var plan = new BuildPlan(new BuildRequest(Array.Empty<BuildTag>()), new[] { a, b },
@@ -59,6 +64,7 @@ namespace OneStarMaker.Tests.Editor.Build
         [Test]
         public void MissingAndInconsistentRootAreReportedWithoutAssetDatabase()
         {
+            // 閉包 root の GUID/path 不整合と閉包欠損を、Unity I/O 前の issue として返す。
             var selected = Candidate("a", "one", "guid-a");
             var plan = new BuildPlan(new BuildRequest(Array.Empty<BuildTag>()), new[] { selected },
                 Array.Empty<BuildContentExclusion>());
@@ -78,6 +84,7 @@ namespace OneStarMaker.Tests.Editor.Build
         [Test]
         public void AdapterFailureWritesPreflightAndOutcomeWithoutPublishing()
         {
+            // fake port が build 中に失敗しても report を残し、content/{identity} は公開しない。
             var selected = Candidate("a", "one", "guid-a");
             var plan = new BuildPlan(new BuildRequest(Array.Empty<BuildTag>()), new[] { selected },
                 Array.Empty<BuildContentExclusion>());

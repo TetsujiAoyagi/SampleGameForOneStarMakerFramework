@@ -7,9 +7,12 @@ using UnityEngine;
 
 namespace OneStarMaker.Runtime.BuildContent
 {
+    // Unity Content Directory に保存する entry の load 先。型付き解決は BS3 で扱う。
     public enum BuildContentKind { Scene, Object }
 
     [Serializable]
+    // logical key と選択済み表現から、Unity が生成した loadable ID へ渡す最小の対応表。
+    // StableKey は build 入力との照合・診断用で、物理 GUID だけを load ID として扱わない。
     public sealed class BuildContentEntry
     {
         [SerializeField] private string _logicalKey = "";
@@ -29,6 +32,7 @@ namespace OneStarMaker.Runtime.BuildContent
         public BuildContentEntry(string logicalKey, string stableKey, string representation,
             LoadableSceneId sceneId)
         {
+            // Scene と Object は同じ entry 配列に入るが、使う ID は Kind で明示する。
             _logicalKey = logicalKey; _stableKey = stableKey; _representation = representation;
             _kind = BuildContentKind.Scene; _sceneId = sceneId;
         }
@@ -41,6 +45,9 @@ namespace OneStarMaker.Runtime.BuildContent
         }
     }
 
+    // Content Directory に厳密に1件同梱する root asset。
+    // 登録後の Runtime はこの serialized 情報だけで logical→load target を復元できる。
+    // AssetOwner による登録・解放の寿命管理は BS3 の責務であり、この型は対応 metadata のみ保持する。
     public sealed class BuildContentRoot : ScriptableObject
     {
         public const int CurrentSchemaVersion = 1;
@@ -56,6 +63,8 @@ namespace OneStarMaker.Runtime.BuildContent
 
         public void Initialize(string buildIdentity, string target, IReadOnlyList<BuildContentEntry> entries)
         {
+            // Editor adapter が asset 化する直前に呼ぶ。配列を複写して呼出側の collection 変更を切り離す。
+            // identity は OSM report と Unity build name に一致させ、移設後にも照合可能にする。
             if (string.IsNullOrEmpty(buildIdentity) || string.IsNullOrEmpty(target) || entries == null)
                 throw new ArgumentException("Build root requires identity, target and entries.");
             _schemaVersion = CurrentSchemaVersion;

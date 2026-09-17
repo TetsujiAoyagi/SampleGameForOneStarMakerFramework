@@ -18,6 +18,8 @@ using UnityEngine.TestTools;
 
 namespace OneStarMaker.Tests.Editor.Build
 {
+    // 実 Content Directory を作る統合テスト。Editor で build し、source fixture を消してから
+    // PlayMode で移設先だけを登録することで、AssetDatabase 上の source に依存した見かけの成功を避ける。
     public sealed class BuildContentDirectoryIntegrationTests
     {
         private const string FixtureParent = "Assets/OneStarMakerGenerated/BS2bTests";
@@ -27,6 +29,7 @@ namespace OneStarMaker.Tests.Editor.Build
         [UnityTearDown]
         public IEnumerator Cleanup()
         {
+            // assertion 失敗が PlayMode 中に起きても Editor に戻し、このテスト所有の fixture/copy のみ消す。
             if (EditorApplication.isPlaying) yield return new ExitPlayMode();
             if (_folder.Length != 0) AssetDatabase.DeleteAsset(_folder);
             if (_copy.Length != 0 && Directory.Exists(_copy)) Directory.Delete(_copy, true);
@@ -37,6 +40,7 @@ namespace OneStarMaker.Tests.Editor.Build
         [UnityTest]
         public IEnumerator ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirectory()
         {
+            // Phase A で固定した target/subtarget だけを検証する。異なる環境では勝手に切り替えない。
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.StandaloneWindows64 ||
                 EditorUserBuildSettings.standaloneBuildSubtarget != StandaloneBuildSubtarget.Player)
                 Assert.Ignore("BS2b fixture requires StandaloneWindows64 Player target.");
@@ -46,6 +50,8 @@ namespace OneStarMaker.Tests.Editor.Build
             var previous = EditorSceneManager.GetSceneManagerSetup();
             try
             {
+                // Scene と二つの Prefab が同じ Material/Texture を参照する fixture を作る。
+                // High/Low は同じ logical key だが別 physical key。Excluded は選択されない root。
                 var texture = new Texture2D(2, 2);
                 texture.SetPixels(new[] { Color.red, Color.red, Color.red, Color.red });
                 texture.Apply();
@@ -89,6 +95,7 @@ namespace OneStarMaker.Tests.Editor.Build
                     [candidates[4].StableKey] = new[] { new BuildTag("Representation", "Excluded") }
                 };
                 var closures = paths.Select((path, i) => new BuildDependencySnapshot(candidates[i].PhysicalKey, path,
+                    // fixture 作成時だけ Unity に閉包を採取させる。本番 consumer は snapshot を再計算しない。
                     AssetDatabase.GetDependencies(path).Where(p => p.StartsWith("Assets/", StringComparison.Ordinal))
                         .Select(p => new BuildDependencyEntry(AssetDatabase.AssetPathToGUID(p), p)))).ToArray();
                 var snapshot = new BuildMaterializationSnapshot(candidates, tags,
@@ -104,6 +111,8 @@ namespace OneStarMaker.Tests.Editor.Build
                 var workspace = Path.Combine(artifacts, "work", BuildContentCoordinator.TargetName, "fixture");
                 var request = new BuildContentRequest(selection.Plan!, snapshot, "fixture", artifacts);
                 var coordinator = new BuildContentCoordinator();
+                // 同じ target/contentSet の workspace へ連続 build。公開先は identity ごとに別 directory。
+                // 両 report と manifest を確認し、2 回目が前回の成功 path を上書きしないことを示す。
                 var first = coordinator.Build(request);
                 Assert.That(first.IsSuccess, Is.True, first.Summary);
                 Assert.That(File.Exists(Path.Combine(workspace, "BuildManifestHash.txt")), Is.True);
@@ -122,6 +131,8 @@ namespace OneStarMaker.Tests.Editor.Build
                 Assert.That(File.ReadAllText(result.OutcomePath), Does.Contain(result.Identity));
                 Assert.That(File.ReadAllText(result.PreflightPath), Does.Contain(matPath));
                 Assert.That(File.ReadAllText(result.PreflightPath), Does.Contain("ValueNotSelected"));
+                // Unity 内部ファイルを解釈せず、公開 directory に content file と resource file があることを確認する。
+                // 選択 root の意味づけは、登録後に同梱 root を読む側で確認する。
                 Assert.That(Directory.GetFiles(result.ContentPath!, "*.cf").Length, Is.GreaterThan(0));
                 Assert.That(Directory.GetFiles(result.ContentPath!, "*.resS").Length, Is.GreaterThan(0));
                 _copy = Path.Combine(artifacts, "integration-copy-" + result.Identity);
@@ -129,16 +140,21 @@ namespace OneStarMaker.Tests.Editor.Build
             }
             finally
             {
+                // PlayMode に入る前に Editor scene と source fixture を片付ける。
+                // 移設後の検証が source asset に偶然依存しないようにする。
                 if (previous.Any(x => x.isActive)) EditorSceneManager.RestoreSceneManagerSetup(previous);
                 else EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
                 if (_folder.Length != 0) { AssetDatabase.DeleteAsset(_folder); _folder = ""; }
             }
             yield return new EnterPlayMode();
+            // ContentLoadManager の登録は PlayMode 側で行う。copy に必要な file が欠ければここで失敗する。
             var handle = ContentLoadManager.RegisterContentDirectory(_copy);
             Assert.That(handle.IsValid, Is.True);
             try
             {
                 var roots = ContentLoadManager.GetRootAssets<BuildContentRoot>(handle);
+                // 単一 root と identity を照合し、Scene/Prefab/Texture の4 entry、High/Low の2表現、
+                // 非選択 root の不在を source 再走査なしで検証する。実 Object の型付き load は BS3 に渡す。
                 Assert.That(roots.Length, Is.EqualTo(1));
                 Assert.That(roots[0].BuildIdentity,
                     Is.EqualTo(Path.GetFileName(_copy).Substring("integration-copy-".Length)));
@@ -161,6 +177,7 @@ namespace OneStarMaker.Tests.Editor.Build
 
         private static void Copy(string source, string target)
         {
+            // build 出力を丸ごと別 local path へ複写する。file 名や Unity の内部構造には依存しない。
             Directory.CreateDirectory(target);
             foreach (var directory in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
                 Directory.CreateDirectory(Path.Combine(target, Path.GetRelativePath(source, directory)));

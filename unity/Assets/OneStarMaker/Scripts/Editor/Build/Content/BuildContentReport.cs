@@ -8,6 +8,8 @@ using UnityEngine;
 
 namespace OneStarMaker.Editor.Build.Content
 {
+    // BS1 の成功 plan と、同じ候補集合に対する BS2a materialization snapshot を対で渡す。
+    // ContentSet は固定 workspace の識別子。ArtifactsRoot は coordinator が許可範囲を検証する。
     public sealed class BuildContentRequest
     {
         public BuildContentRequest(BuildPlan plan, OneStarMaker.Editor.Build.Materialization.BuildMaterializationSnapshot snapshot,
@@ -19,6 +21,8 @@ namespace OneStarMaker.Editor.Build.Content
         public string ArtifactsRoot { get; }
     }
 
+    // 1回の build の結果。preflight/outcome は失敗時にも診断用に残す。
+    // ContentPath がある場合だけ成功 directory として後続へ渡せる。
     public sealed class BuildContentResult
     {
         public BuildContentResult(string identity, string preflightPath, string outcomePath, string? contentPath,
@@ -36,6 +40,8 @@ namespace OneStarMaker.Editor.Build.Content
         public bool IsSuccess => ContentPath != null && Issues.Length == 0;
     }
 
+    // JsonUtility 用の保存形。Unity の内部 BuildReport 型を外部 protocol にしない。
+    // preflight と outcome は同じ形を使うが、前者は入力判断、後者は build 結果を記録する。
     [Serializable] internal sealed class ContentReportFile
     {
         public string identity = "";
@@ -54,6 +60,8 @@ namespace OneStarMaker.Editor.Build.Content
 
     internal static class BuildContentReport
     {
+        // Unity build 前に確定した選択、除外理由、root、閉包、構造化 issue を保存する。
+        // 失敗してもこのファイルを読めば、どの候補を build しようとしたか追跡できる。
         public static void WritePreflight(string path, string identity, string target, string contentSet,
             BuildPlan plan, BuildContentProjectionResult projection)
         {
@@ -69,6 +77,8 @@ namespace OneStarMaker.Editor.Build.Content
 
         public static void WriteOutcome(string path, BuildContentResult result)
         {
+            // 成功 path / manifest / metadata と summary、または失敗 issue を build identity で結ぶ。
+            // 選択と閉包の詳細は preflight が正本であり、ここに重複させない。
             Write(path, new ContentReportFile {
                 identity = result.Identity, target = BuildContentCoordinator.TargetName,
                 summary = result.Summary, contentPath = result.ContentPath ?? "",
@@ -79,6 +89,7 @@ namespace OneStarMaker.Editor.Build.Content
 
         private static void Write(string path, ContentReportFile data)
         {
+            // report は content directory と別に保持するため、失敗した build でも調査できる。
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             File.WriteAllText(path, JsonUtility.ToJson(data, true));
         }
