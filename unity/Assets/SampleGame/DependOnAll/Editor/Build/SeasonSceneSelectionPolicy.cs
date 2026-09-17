@@ -94,12 +94,16 @@ namespace SampleGame.DependOnAll.Editor.Build
                 if (!byLogical.TryGetValue(node.Identity, out var nodeCandidates)) continue;
                 var season = memberships[node.Identity];
                 var inScope = season == null || chosen.Contains(season, StringComparer.Ordinal);
+                var representationsForGroup = nodeCandidates
+                    .Select(x => Representation(x, providerSnapshot)).Distinct(StringComparer.Ordinal).ToArray();
+                var hasBothRepresentations = representationsForGroup.Contains("Full", StringComparer.Ordinal) &&
+                    representationsForGroup.Contains("Whitebox", StringComparer.Ordinal);
                 if (inScope)
                     requirements.Add(new BuildContentRequirement(node.Identity,
-                        mode == SeasonContentMode.FullAndWhitebox && season != null && nodeCandidates.Length > 1
+                        mode == SeasonContentMode.FullAndWhitebox && season != null && hasBothRepresentations
                             ? BuildContentCardinality.OneOrMore : BuildContentCardinality.ExactlyOne));
 
-                var switchable = season != null && nodeCandidates.Any(x => Representation(x, providerSnapshot) == "Whitebox");
+                var switchable = season != null && representationsForGroup.Contains("Whitebox", StringComparer.Ordinal);
                 foreach (var candidate in nodeCandidates)
                 {
                     var tags = new List<BuildTag>();

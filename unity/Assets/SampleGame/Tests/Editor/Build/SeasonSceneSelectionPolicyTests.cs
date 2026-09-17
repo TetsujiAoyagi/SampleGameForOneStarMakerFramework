@@ -107,6 +107,18 @@ namespace SampleGame.Tests.Editor.Build
         }
 
         [Test]
+        public void TwoFullCandidatesWithoutWhitebox_KeepExactlyOneRequirement()
+        {
+            var candidates = Candidates().Where(x => x.StableKey != "Spring_Cell/Whitebox")
+                .Concat(new[] { Candidate("Spring_Cell", "Full2") }).ToArray();
+            var detail = new SeasonSceneSelectionPolicy().SelectDetailed(Graph, candidates,
+                new[] { new RepresentationProvider() }, new[] { "Spring" }, SeasonContentMode.FullAndWhitebox);
+            Assert.That(detail.Requirements.Single(x => x.LogicalKey == "Spring_Cell").Cardinality,
+                Is.EqualTo(BuildContentCardinality.ExactlyOne));
+            Assert.That(detail.Selection.IsSuccess, Is.False);
+        }
+
+        [Test]
         public void UnknownRepresentation_FailsBeforeSelection()
         {
             var candidates = Candidates().Select(x => x.StableKey == "Spring_Cell/Whitebox"
@@ -162,7 +174,8 @@ namespace SampleGame.Tests.Editor.Build
         {
             public string StableProviderKey => "test.representation";
             public IReadOnlyList<BuildTag> GetTags(BuildContentCandidate candidate) =>
-                new[] { new BuildTag("Representation", candidate.StableKey.Split('/').Last()) };
+                new[] { new BuildTag("Representation", candidate.StableKey.EndsWith("/Full2", StringComparison.Ordinal)
+                    ? "Full" : candidate.StableKey.Split('/').Last()) };
         }
     }
 }
