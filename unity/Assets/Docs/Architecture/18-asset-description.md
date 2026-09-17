@@ -176,10 +176,10 @@ Selection core は引き続き Unity / AssetDatabase / Addressables を参照し
 - AssetDatabase I/O は狭い gateway に隔離し、mapping・依存閉包の正規化とは責務を分ける。
   tag provider は snapshot 所有で、未知 candidate には空のタグ集合を返す。
 
-既存の `VariantWhitelistBuilder` と Addressables build 経路は変更しておらず、
-この adapter にはまだ接続されていない。BS2b の Content Directory build は別入口として実装済みだが、
-本番の SceneResource graph からの選択配線、runtime の directory 管理、Player build は未実装である。
-materialization の成功だけをこれらの成立と同一視しない。
+既存の `VariantWhitelistBuilder` と Addressables build 経路は変更していない。
+SampleGame の Editor 入口は本番の `SceneResourceMap` を materialize し、後述の project policy で選択して
+Content Directory build へ渡す。Runtime の directory 管理と Player build は未実装である。
+materialization や Editor build の成功だけをこれらの成立と同一視しない。
 `FindDependency` の lookup key は canonical lowercase GUID を渡す契約である。
 
 ### 選択済み content の Content Directory build（現況）
@@ -203,6 +203,19 @@ root と依存閉包を照合し、欠損・衝突を build 前の構造化 issu
   同じ workspace で 2 回 build し、公開 directory の移設後に PlayMode で単一 root を登録・発見した。
   これは consumer 境界の検証であり、本番非 Scene Description、型付き load、サブアセット一般化、
   Runtime の所有・解放、Player への接続を証明しない。
+
+### SampleGame の季節選択と Editor build（現況）
+
+`SampleGame/DependOnAll/Editor/Build/` の `SeasonSceneSelectionPolicy` が project 固有の選択を担い、
+`SampleGameContentBuild` が本番 `SceneResourceMap` の複製、materialization、selection、Content Directory build を接続する。
+Framework の selection core と成果物 schema に季節名を持ち込まない。
+
+- `InGameScene` / `OutGameScene` を graph root とし、親子関係を相互検証する。祖先の `Season_Spring` / `Summer` / `Autumn` / `Winter` から所属を導出し、季節祖先のない content は共通扱いにする。循環、片側だけの親子リンク、異なる季節への重複所属、payload と候補の不一致は選択前に失敗する。階層で表せない所属の明示的な override 入力はあり、通常は空である。
+- materializer の `Representation=Full`（空 Variant）と `Whitebox` を使う。季節内で Whitebox 候補がある logical group にだけ `SeasonalMode` を付け、Full のみの補助シーンと共通 content は Whitebox build にも残す。
+- requirement は要求した季節と共通 content の payload group に限る。通常は `ExactlyOne`。Full と Whitebox の両候補がある季節 group を同梱する場合だけ `OneOrMore` にし、両表現の候補が採用されたことも照合する。
+- Editor メニュー `Tools/OSM/Content/` に全季節 Full、Spring Full、Spring Whitebox、Spring Full And Whitebox の入口がある。選択した必須 group、候補、除外理由をログへ出し、成功 plan と対応 snapshot を既存の `BuildContentCoordinator` へ渡す。専用 EditMode テストと、本番 graph による四つの Content Directory build を確認済み。
+
+この入口は Editor の content 生成用である。生成 directory の Runtime 登録・ロード・寿命管理、Editor Play 接続、Player bootstrap は後続工程が担う。
 
 ---
 
@@ -245,6 +258,7 @@ root と依存閉包を照合し、欠損・衝突を build 前の構造化 issu
 - Production materialization: `unity/Assets/OneStarMaker/Scripts/Editor/Build/Materialization/`
 - Content Directory build: `unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/`
 - Build content root: `unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/`
+- SampleGame selection と Editor 入口: `unity/Assets/SampleGame/DependOnAll/Editor/Build/`
 - Scene 連携: `unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneResource.cs`, `SceneResourceMap.cs`
 - 既存資料: [13. リソースシステム](13-resource-system.md)（AssetType は cache 用メタとして採用済み。AssetResidentCache(常駐キャッシュ + per-category budget)実装済み）
 - ワークフロー: [20. Variant チェックアウトワークフロー](20-variant-checkout-workflow.md)

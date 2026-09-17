@@ -6,6 +6,9 @@
         "SampleGame.InGame",
         "OneStarMaker.Runtime",
         "OneStarMaker.Editor",
+        "OneStarMaker.Build.Selection",
+        "OneStarMaker.Build.Materialization",
+        "OneStarMaker.Build.Content",
         "Unity.Addressables",
         "Unity.Addressables.Editor"
     ],
