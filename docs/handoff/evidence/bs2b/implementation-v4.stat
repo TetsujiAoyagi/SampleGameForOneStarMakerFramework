@@ -1,0 +1,25 @@
+ .gitignore                                         |   3 +-
+ .../OneStarMaker/Scripts/Editor/Build/Content.meta |   8 +
+ .../Scripts/Editor/Build/Content/AssemblyInfo.cs   |   6 +
+ .../Editor/Build/Content/AssemblyInfo.cs.meta      |   7 +
+ .../Build/Content/BuildContentCoordinator.cs       | 141 ++++++++++++++
+ .../Build/Content/BuildContentCoordinator.cs.meta  |   7 +
+ .../Editor/Build/Content/BuildContentProjection.cs | 168 +++++++++++++++++
+ .../Build/Content/BuildContentProjection.cs.meta   |   7 +
+ .../Editor/Build/Content/BuildContentReport.cs     |  97 ++++++++++
+ .../Build/Content/BuildContentReport.cs.meta       |   7 +
+ .../Content/OneStarMaker.Build.Content.asmdef      |  14 ++
+ .../Content/OneStarMaker.Build.Content.asmdef.meta |   7 +
+ .../Build/Content/UnityContentDirectoryAdapter.cs  | 152 +++++++++++++++
+ .../Content/UnityContentDirectoryAdapter.cs.meta   |   7 +
+ .../Scripts/Editor/Build/Selection/AssemblyInfo.cs |   7 +
+ .../Editor/Build/Selection/AssemblyInfo.cs.meta    |   2 +
+ .../OneStarMaker/Scripts/Runtime/BuildContent.meta |   8 +
+ .../Runtime/BuildContent/BuildContentRoot.cs       |  78 ++++++++
+ .../Runtime/BuildContent/BuildContentRoot.cs.meta  |   7 +
+ .../Build/BuildContentDirectoryIntegrationTests.cs | 204 +++++++++++++++++++++
+ .../BuildContentDirectoryIntegrationTests.cs.meta  |   7 +
+ .../Editor/Build/BuildContentProjectionTests.cs    | 111 +++++++++++
+ .../Build/BuildContentProjectionTests.cs.meta      |   7 +
+ .../Tests/Editor/OneStarMaker.Tests.Editor.asmdef  |   1 +
+ 24 files changed, 1062 insertions(+), 1 deletion(-)

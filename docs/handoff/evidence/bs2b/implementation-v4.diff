@@ -1,0 +1,1222 @@
+diff --git a/.gitignore b/.gitignore
+index 2f1db90..e878f4a 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -52,6 +52,7 @@ tools/**/.vs/
+ !unity/Assets/Packages/**
+ 
+ # Build artifacts
++artifacts/bs2b/
+ *.dll.mdb
+ *.pdb
+ *.mdb
+@@ -65,4 +66,4 @@ docs/planning/**
+ docs/debugstudio/**
+ 
+ # agent個別設定
+-*.codex
+\ No newline at end of file
++*.codex
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content.meta b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content.meta
+new file mode 100644
+index 0000000..dd7612b
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: cc65ad2705cb9b111328aa6342d7f991
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/AssemblyInfo.cs b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/AssemblyInfo.cs
+new file mode 100644
+index 0000000..2a69fb8
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/AssemblyInfo.cs
+@@ -0,0 +1,6 @@
++#nullable enable
++
++using System.Runtime.CompilerServices;
++
++// production API を広げず、pure projection と adapter port を Editor test assembly から検証する。
++[assembly: InternalsVisibleTo("OneStarMaker.Tests.Editor")]
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/AssemblyInfo.cs.meta b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/AssemblyInfo.cs.meta
+new file mode 100644
+index 0000000..61f4349
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/AssemblyInfo.cs.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: 03bea75d13dc24d167c6610c5bee9bdc
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentCoordinator.cs b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentCoordinator.cs
+new file mode 100644
+index 0000000..50f8371
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentCoordinator.cs
+@@ -0,0 +1,141 @@
++#nullable enable
++
++using System;
++using System.IO;
++using System.Linq;
++using UnityEngine;
++
++namespace OneStarMaker.Editor.Build.Content
++{
++    // Unity 固有の build 操作を coordinator から隔離する境界。
++    // fake 実装を使うと publish 失敗経路を実 Content Directory build なしで確認できる。
++    internal sealed class ContentDirectoryBuild
++    {
++        public ContentDirectoryBuild(string summary, string manifestPointer, string metadataPath)
++        { Summary = summary; ManifestPointer = manifestPointer; MetadataPath = metadataPath; }
++        public string Summary { get; }
++        public string ManifestPointer { get; }
++        public string MetadataPath { get; }
++    }
++
++    internal interface IContentDirectoryAdapter
++    {
++        void ValidateTarget();
++        ContentDirectoryBuild Build(BuildContentProjectionResult projection, string identity, string workspace);
++    }
++
++    // 1回の build の所有者。入力検証、preflight、Unity build、公開、outcome の順序を固定する。
++    // Runtime の登録や選択 policy には立ち入らず、成功した directory を次段へ渡す。
++    public sealed class BuildContentCoordinator
++    {
++        internal const string TargetName = "StandaloneWindows64-Player";
++        private readonly IContentDirectoryAdapter _adapter;
++        public BuildContentCoordinator() : this(new UnityContentDirectoryAdapter()) { }
++        internal BuildContentCoordinator(IContentDirectoryAdapter adapter) => _adapter = adapter;
++
++        public BuildContentResult Build(BuildContentRequest request)
++        {
++            if (request == null) throw new ArgumentNullException(nameof(request));
++            // 呼出側に任意の出力先を許さない。contentSet は path segment としても使うため先に検証する。
++            // work は同じ target/contentSet で再利用し、content/{identity} は成功ごとに別名で残す。
++            ValidateSegment(request.ContentSet);
++            var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
++            var approvedRoot = Path.GetFullPath(Path.Combine(projectRoot, "..", "artifacts", "bs2b"));
++            var root = Path.GetFullPath(request.ArtifactsRoot);
++            if (!SamePath(approvedRoot, root) && !Contained(approvedRoot, root))
++                throw new ArgumentException("Output root must be inside artifacts/bs2b.");
++            var identity = DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffZ") + "-" + Guid.NewGuid().ToString("N");
++            var reportDirectory = Child(root, "reports", identity);
++            var preflight = Path.Combine(reportDirectory, "preflight.json");
++            var outcome = Path.Combine(reportDirectory, "outcome.json");
++            var workspace = Child(root, "work", TargetName, request.ContentSet);
++            var staging = Child(root, "staging", identity);
++            var final = Child(root, "content", identity);
++            // Unity I/O の前に plan と snapshot を照合し、失敗でも preflight を残す。
++            // ここで止めた場合は成功 directory を作らず、構造化 issue を outcome に記録する。
++            var projection = BuildContentProjection.Create(request.Plan, request.Snapshot);
++            BuildContentReport.WritePreflight(preflight, identity, TargetName, request.ContentSet, request.Plan, projection);
++            if (!projection.IsValid)
++            {
++                var failure = new BuildContentResult(identity, preflight, outcome, null, null, null,
++                    "Preflight failed", projection.Issues.ToArray());
++                BuildContentReport.WriteOutcome(outcome, failure);
++                return failure;
++            }
++            var published = false;
++            try
++            {
++                _adapter.ValidateTarget();
++                Directory.CreateDirectory(workspace);
++                var built = _adapter.Build(projection, identity, workspace);
++                // Unity report が成功でも、manifest と metadata が所定 workspace に無ければ公開しない。
++                // adapter から返る path の包含も調べ、別の directory を誤って配布しない。
++                if (!Directory.Exists(workspace) || !File.Exists(built.ManifestPointer) ||
++                    !Directory.Exists(built.MetadataPath) || !Contained(workspace, built.ManifestPointer) ||
++                    (!SamePath(workspace, built.MetadataPath) && !Contained(workspace, built.MetadataPath)))
++                    throw new InvalidOperationException("Unity build report or manifest metadata is missing.");
++                if (Directory.Exists(staging) || Directory.Exists(final))
++                    throw new IOException("Build identity output already exists.");
++                // Unity の出力一式を staging に複写し、検証後に同じ volume 内で final へ移す。
++                // 既存の成功 directory は上書きしない。manifest と metadata は移設後の path に読み替える。
++                CopyDirectory(workspace, staging);
++                var manifest = Path.Combine(staging, Path.GetRelativePath(workspace, built.ManifestPointer));
++                var metadata = Path.Combine(staging, Path.GetRelativePath(workspace, built.MetadataPath));
++                if (!File.Exists(manifest) || !Directory.Exists(metadata))
++                    throw new IOException("Staging copy missed Unity metadata.");
++                Directory.CreateDirectory(Path.GetDirectoryName(final)!);
++                Directory.Move(staging, final);
++                published = true;
++                var success = new BuildContentResult(identity, preflight, outcome, final,
++                    Path.Combine(final, Path.GetRelativePath(workspace, built.ManifestPointer)),
++                    Path.Combine(final, Path.GetRelativePath(workspace, built.MetadataPath)), built.Summary,
++                    Array.Empty<BuildContentIssue>());
++                BuildContentReport.WriteOutcome(outcome, success);
++                return success;
++            }
++            catch (Exception ex)
++            {
++                // 失敗 workspace は診断・再試行用に保持し、公開途中の staging/final だけを片付ける。
++                // result の ContentPath は null として、途中成果物を成功として渡さない。
++                if (Directory.Exists(staging)) Directory.Delete(staging, true);
++                if (published && Directory.Exists(final)) Directory.Delete(final, true);
++                var failure = new BuildContentResult(identity, preflight, outcome, null, null, null,
++                    ex.ToString(), new[] { new BuildContentIssue(BuildContentIssueCode.BuildFailure, identity, ex.Message) });
++                BuildContentReport.WriteOutcome(outcome, failure);
++                return failure;
++            }
++        }
++
++        private static void ValidateSegment(string segment)
++        {
++            // file system の予約文字や相対移動を受け付けないため、安定した ASCII 識別子に限定する。
++            if (string.IsNullOrEmpty(segment) || segment.Length > 64 ||
++                segment.Any(c => !(c >= 'a' && c <= 'z') && !(c >= 'A' && c <= 'Z') &&
++                                 !(c >= '0' && c <= '9') && c != '-' && c != '_'))
++                throw new ArgumentException("Content set must be a safe ASCII path segment.");
++        }
++        private static string Child(string root, params string[] parts)
++        {
++            var result = Path.GetFullPath(Path.Combine(new[] { root }.Concat(parts).ToArray()));
++            if (!Contained(root, result)) throw new IOException("Output escapes artifacts root.");
++            return result;
++        }
++        private static bool Contained(string root, string path) =>
++            // 区切り文字を含めて比較し、"artifacts/bs2b-other" を子として誤認しない。
++            Path.GetFullPath(path).StartsWith(Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) +
++                Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
++        private static bool SamePath(string a, string b) =>
++            string.Equals(Path.GetFullPath(a).TrimEnd(Path.DirectorySeparatorChar),
++                Path.GetFullPath(b).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase);
++
++        private static void CopyDirectory(string source, string target)
++        {
++            // Unity が作った内部 file の形式や一覧を解釈せず、directory 全体を成果物として複写する。
++            Directory.CreateDirectory(target);
++            foreach (var directory in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
++                Directory.CreateDirectory(Path.Combine(target, Path.GetRelativePath(source, directory)));
++            foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
++                File.Copy(file, Path.Combine(target, Path.GetRelativePath(source, file)));
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentCoordinator.cs.meta b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentCoordinator.cs.meta
+new file mode 100644
+index 0000000..c446621
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentCoordinator.cs.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: 15ce4186ef4cc76890ea35482f4443bd
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentProjection.cs b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentProjection.cs
+new file mode 100644
+index 0000000..cec947c
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentProjection.cs
+@@ -0,0 +1,168 @@
++#nullable enable
++
++using System;
++using System.Collections.Generic;
++using System.Linq;
++using OneStarMaker.Build.Selection;
++using OneStarMaker.Editor.Build.Materialization;
++
++namespace OneStarMaker.Editor.Build.Content
++{
++    // build 前に確定できる入力不整合と、Unity の build 実行中に起きた失敗を同じ結果面で扱う。
++    // 呼出側は文言ではなく Code で分岐し、Key と Detail は診断・report に残す。
++    public enum BuildContentIssueCode
++    {
++        MissingCandidate, ExtraSelectedCandidate, CandidateMismatch, PhysicalKeyCollision,
++        MissingClosure, DuplicateClosure, RootMismatch, DependencyMismatch, PathCollision,
++        InvalidRepresentation, BuildFailure
++    }
++
++    public sealed class BuildContentIssue
++    {
++        public BuildContentIssue(BuildContentIssueCode code, string key, string detail)
++        { Code = code; Key = key; Detail = detail; }
++        public BuildContentIssueCode Code { get; }
++        public string Key { get; }
++        public string Detail { get; }
++    }
++
++    // 1つの選択候補に対応する「build root」と既存の依存閉包。
++    // Path は materialization 時点の root path であり、ここで AssetDatabase を再走査しない。
++    internal sealed class ProjectedContent
++    {
++        internal ProjectedContent(BuildContentCandidate candidate, string path, string representation,
++            IReadOnlyList<BuildDependencyEntry> closure)
++        { Candidate = candidate; Path = path; Representation = representation; Closure = closure; }
++        public BuildContentCandidate Candidate { get; }
++        public string Path { get; }
++        public string Representation { get; }
++        public IReadOnlyList<BuildDependencyEntry> Closure { get; }
++    }
++
++    // adapter に渡す canonical な入力。Roots は選択 root のみ、Files はそれらの閉包の和集合。
++    // 同じ依存ファイルを複数 root が共有しても Files には一度だけ載せる。
++    internal sealed class BuildContentProjectionResult
++    {
++        internal BuildContentProjectionResult(IEnumerable<ProjectedContent> roots,
++            IEnumerable<BuildDependencyEntry> files, IEnumerable<BuildContentIssue> issues)
++        {
++            Roots = Array.AsReadOnly(roots.ToArray());
++            Files = Array.AsReadOnly(files.ToArray());
++            Issues = Array.AsReadOnly(issues.ToArray());
++        }
++        public IReadOnlyList<ProjectedContent> Roots { get; }
++        public IReadOnlyList<BuildDependencyEntry> Files { get; }
++        public IReadOnlyList<BuildContentIssue> Issues { get; }
++        public bool IsValid => Issues.Count == 0;
++    }
++
++    // Unity I/O を持たない中核。成功済み plan と対応 snapshot の整合性だけを調べる。
++    // 選択 policy や依存探索をここでやり直すと、BS1/BS2a の判断と build 入力がずれるため行わない。
++    internal static class BuildContentProjection
++    {
++        public static BuildContentProjectionResult Create(BuildPlan plan, BuildMaterializationSnapshot snapshot)
++        {
++            if (plan == null) throw new ArgumentNullException(nameof(plan));
++            if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
++            var issues = new List<BuildContentIssue>();
++            var roots = new List<ProjectedContent>();
++            var files = new Dictionary<string, string>(StringComparer.Ordinal);
++            var fileGuids = new Dictionary<string, string>(StringComparer.Ordinal);
++            // 入力順で build 結果や issue の並びが変わらないよう、候補と出力を安定 key で扱う。
++            // 重複 StableKey は辞書化の前に配列として保持し、後段で不整合として報告する。
++            var all = snapshot.Candidates.GroupBy(x => x.StableKey, StringComparer.Ordinal)
++                .ToDictionary(x => x.Key, x => x.ToArray(), StringComparer.Ordinal);
++            var selected = plan.SelectedContent.OrderBy(x => x.StableKey, StringComparer.Ordinal).ToArray();
++            var selectedKeys = new HashSet<string>(selected.Select(x => x.StableKey), StringComparer.Ordinal);
++            var excludedKeys = new HashSet<string>(plan.ExcludedContent.Select(x => x.Candidate.StableKey), StringComparer.Ordinal);
++            foreach (var group in selected.GroupBy(x => x.StableKey, StringComparer.Ordinal))
++                if (group.Count() > 1 || excludedKeys.Contains(group.Key))
++                    issues.Add(new BuildContentIssue(BuildContentIssueCode.CandidateMismatch, group.Key, "Candidate occurs more than once in plan."));
++            foreach (var exclusion in plan.ExcludedContent)
++            {
++                var candidate = exclusion.Candidate;
++                if (!all.TryGetValue(candidate.StableKey, out var matches))
++                    issues.Add(new BuildContentIssue(BuildContentIssueCode.MissingCandidate, candidate.StableKey, "Excluded candidate absent from snapshot."));
++                else if (matches.Length != 1 || !Same(candidate, matches[0]))
++                    issues.Add(new BuildContentIssue(BuildContentIssueCode.CandidateMismatch, candidate.StableKey, "Excluded candidate keys mismatch."));
++            }
++            foreach (var candidate in snapshot.Candidates)
++                if (!selectedKeys.Contains(candidate.StableKey) && !excludedKeys.Contains(candidate.StableKey))
++                    issues.Add(new BuildContentIssue(BuildContentIssueCode.MissingCandidate, candidate.StableKey, "Plan omits snapshot candidate."));
++            var physical = new Dictionary<string, string>(StringComparer.Ordinal);
++            // 依存ファイルの共有は許すが、二つの候補が同じ physical key を所有するのは不可。
++            // この二種類の「重複」を混同すると、正しい共有依存まで build 前に落としてしまう。
++            foreach (var group in snapshot.Candidates.GroupBy(x => x.PhysicalKey, StringComparer.Ordinal))
++                if (group.Select(x => x.StableKey).Distinct(StringComparer.Ordinal).Count() > 1)
++                    issues.Add(new BuildContentIssue(BuildContentIssueCode.PhysicalKeyCollision, group.Key, "Snapshot candidate ownership collision."));
++            foreach (var candidate in selected)
++            {
++                if (!all.TryGetValue(candidate.StableKey, out var matches))
++                {
++                    issues.Add(new BuildContentIssue(BuildContentIssueCode.ExtraSelectedCandidate, candidate.StableKey, "Selected candidate absent from snapshot."));
++                    continue;
++                }
++                if (matches.Length != 1 || !Same(candidate, matches[0]))
++                {
++                    issues.Add(new BuildContentIssue(BuildContentIssueCode.CandidateMismatch, candidate.StableKey, "Stable, logical or physical key mismatch."));
++                    continue;
++                }
++                if (physical.TryGetValue(candidate.PhysicalKey, out var owner))
++                    issues.Add(new BuildContentIssue(BuildContentIssueCode.PhysicalKeyCollision, candidate.PhysicalKey, owner + "/" + candidate.StableKey));
++                else physical.Add(candidate.PhysicalKey, candidate.StableKey);
++
++                // materialization が保存した閉包をそのまま消費する。root に対応する閉包は厳密に1件。
++                // 欠損・重複を Unity build に渡してから発見するより、preflight issue として固定する。
++                var closures = snapshot.Dependencies.Where(x => x.RootGuid == candidate.PhysicalKey).ToArray();
++                if (closures.Length != 1)
++                {
++                    issues.Add(new BuildContentIssue(closures.Length == 0 ? BuildContentIssueCode.MissingClosure : BuildContentIssueCode.DuplicateClosure,
++                        candidate.StableKey, candidate.PhysicalKey));
++                    continue;
++                }
++                var closure = closures[0];
++                if (!Valid(closure.RootGuid, closure.RootPath) || closure.RootGuid != candidate.PhysicalKey)
++                    issues.Add(new BuildContentIssue(BuildContentIssueCode.RootMismatch, candidate.StableKey, closure.RootPath));
++                var entries = closure.Entries.OrderBy(x => x.Path, StringComparer.Ordinal)
++                    .ThenBy(x => x.Guid, StringComparer.Ordinal).ToArray();
++                if (!entries.Any(x => x.Guid == closure.RootGuid && x.Path == closure.RootPath))
++                    issues.Add(new BuildContentIssue(BuildContentIssueCode.RootMismatch, candidate.StableKey, "Root absent from closure."));
++                var localGuids = new Dictionary<string, string>(StringComparer.Ordinal);
++                // GUID→path と path→GUID の両方向を照合する。同一 path の異なる GUID、
++                // 同一 GUID の異なる path は、共有依存として正規化できないため issue にする。
++                foreach (var entry in entries)
++                {
++                    if (!Valid(entry.Guid, entry.Path) || (localGuids.TryGetValue(entry.Guid, out var path) && path != entry.Path))
++                        issues.Add(new BuildContentIssue(BuildContentIssueCode.DependencyMismatch, candidate.StableKey, entry.Guid + ":" + entry.Path));
++                    else localGuids[entry.Guid] = entry.Path;
++                    if (files.TryGetValue(entry.Path, out var guid) && guid != entry.Guid)
++                        issues.Add(new BuildContentIssue(BuildContentIssueCode.PathCollision, entry.Path, guid + "/" + entry.Guid));
++                    else files[entry.Path] = entry.Guid;
++                    if (fileGuids.TryGetValue(entry.Guid, out var existingPath) && existingPath != entry.Path)
++                        issues.Add(new BuildContentIssue(BuildContentIssueCode.DependencyMismatch, entry.Guid,
++                            existingPath + "/" + entry.Path));
++                    else fileGuids[entry.Guid] = entry.Path;
++                }
++                // Representation は既存 tag の値だけを保持する。provider 名や Scene 固有語彙は読まない。
++                // 未指定は空文字とし、複数の異なる値は暗黙に一つを選ばず preflight で止める。
++                var tags = snapshot.TagProviders.SelectMany(x => x.GetTags(matches[0]))
++                    .Where(x => x.Dimension == "Representation").Select(x => x.Value).Distinct(StringComparer.Ordinal).ToArray();
++                if (tags.Length > 1 || tags.Any(string.IsNullOrEmpty))
++                    issues.Add(new BuildContentIssue(BuildContentIssueCode.InvalidRepresentation, candidate.StableKey, "Ambiguous representation."));
++                roots.Add(new ProjectedContent(candidate, closure.RootPath, tags.Length == 1 ? tags[0]! : "",
++                    Array.AsReadOnly(entries)));
++            }
++            // Issue も canonical な順序へ揃え、同じ入力集合なら report とテスト結果を比較できるようにする。
++            return new BuildContentProjectionResult(roots,
++                files.OrderBy(x => x.Key, StringComparer.Ordinal).Select(x => new BuildDependencyEntry(x.Value, x.Key)),
++                issues.OrderBy(x => x.Code).ThenBy(x => x.Key, StringComparer.Ordinal).ThenBy(x => x.Detail, StringComparer.Ordinal));
++        }
++
++        private static bool Same(BuildContentCandidate a, BuildContentCandidate b) =>
++            a.StableKey == b.StableKey && a.LogicalKey == b.LogicalKey && a.PhysicalKey == b.PhysicalKey;
++
++        private static bool Valid(string guid, string path) =>
++            !string.IsNullOrWhiteSpace(guid) && !string.IsNullOrWhiteSpace(path) &&
++            path.StartsWith("Assets/", StringComparison.Ordinal) && !path.Contains("..") && !path.Contains('\\');
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentProjection.cs.meta b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentProjection.cs.meta
+new file mode 100644
+index 0000000..a5b2c02
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentProjection.cs.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: f67b8e577d04882ce2f5aeab76d45e80
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentReport.cs b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentReport.cs
+new file mode 100644
+index 0000000..a545d37
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentReport.cs
+@@ -0,0 +1,97 @@
++#nullable enable
++
++using System;
++using System.IO;
++using System.Linq;
++using OneStarMaker.Build.Selection;
++using UnityEngine;
++
++namespace OneStarMaker.Editor.Build.Content
++{
++    // BS1 の成功 plan と、同じ候補集合に対する BS2a materialization snapshot を対で渡す。
++    // ContentSet は固定 workspace の識別子。ArtifactsRoot は coordinator が許可範囲を検証する。
++    public sealed class BuildContentRequest
++    {
++        public BuildContentRequest(BuildPlan plan, OneStarMaker.Editor.Build.Materialization.BuildMaterializationSnapshot snapshot,
++            string contentSet, string artifactsRoot)
++        { Plan = plan; Snapshot = snapshot; ContentSet = contentSet; ArtifactsRoot = artifactsRoot; }
++        public BuildPlan Plan { get; }
++        public OneStarMaker.Editor.Build.Materialization.BuildMaterializationSnapshot Snapshot { get; }
++        public string ContentSet { get; }
++        public string ArtifactsRoot { get; }
++    }
++
++    // 1回の build の結果。preflight/outcome は失敗時にも診断用に残す。
++    // ContentPath がある場合だけ成功 directory として後続へ渡せる。
++    public sealed class BuildContentResult
++    {
++        public BuildContentResult(string identity, string preflightPath, string outcomePath, string? contentPath,
++            string? manifestPointer, string? metadataPath, string summary, BuildContentIssue[] issues)
++        { Identity = identity; PreflightPath = preflightPath; OutcomePath = outcomePath; ContentPath = contentPath;
++          ManifestPointer = manifestPointer; MetadataPath = metadataPath; Summary = summary; Issues = issues; }
++        public string Identity { get; }
++        public string PreflightPath { get; }
++        public string OutcomePath { get; }
++        public string? ContentPath { get; }
++        public string? ManifestPointer { get; }
++        public string? MetadataPath { get; }
++        public string Summary { get; }
++        public BuildContentIssue[] Issues { get; }
++        public bool IsSuccess => ContentPath != null && Issues.Length == 0;
++    }
++
++    // JsonUtility 用の保存形。Unity の内部 BuildReport 型を外部 protocol にしない。
++    // preflight と outcome は同じ形を使うが、前者は入力判断、後者は build 結果を記録する。
++    [Serializable] internal sealed class ContentReportFile
++    {
++        public string identity = "";
++        public string target = "";
++        public string contentSet = "";
++        public string[] selected = Array.Empty<string>();
++        public string[] excluded = Array.Empty<string>();
++        public string[] roots = Array.Empty<string>();
++        public string[] closure = Array.Empty<string>();
++        public string[] issues = Array.Empty<string>();
++        public string summary = "";
++        public string contentPath = "";
++        public string manifestPointer = "";
++        public string metadataPath = "";
++    }
++
++    internal static class BuildContentReport
++    {
++        // Unity build 前に確定した選択、除外理由、root、閉包、構造化 issue を保存する。
++        // 失敗してもこのファイルを読めば、どの候補を build しようとしたか追跡できる。
++        public static void WritePreflight(string path, string identity, string target, string contentSet,
++            BuildPlan plan, BuildContentProjectionResult projection)
++        {
++            Write(path, new ContentReportFile {
++                identity = identity, target = target, contentSet = contentSet,
++                selected = plan.SelectedContent.Select(x => x.StableKey + "|" + x.LogicalKey + "|" + x.PhysicalKey).ToArray(),
++                excluded = plan.ExcludedContent.Select(x => x.Candidate.StableKey + "|" + x.ReasonCode + "|" + x.Dimension + "|" + x.Value).ToArray(),
++                roots = projection.Roots.Select(x => x.Candidate.StableKey + "|" + x.Path + "|" + x.Representation).ToArray(),
++                closure = projection.Files.Select(x => x.Guid + "|" + x.Path).ToArray(),
++                issues = projection.Issues.Select(x => x.Code + "|" + x.Key + "|" + x.Detail).ToArray()
++            });
++        }
++
++        public static void WriteOutcome(string path, BuildContentResult result)
++        {
++            // 成功 path / manifest / metadata と summary、または失敗 issue を build identity で結ぶ。
++            // 選択と閉包の詳細は preflight が正本であり、ここに重複させない。
++            Write(path, new ContentReportFile {
++                identity = result.Identity, target = BuildContentCoordinator.TargetName,
++                summary = result.Summary, contentPath = result.ContentPath ?? "",
++                manifestPointer = result.ManifestPointer ?? "", metadataPath = result.MetadataPath ?? "",
++                issues = result.Issues.Select(x => x.Code + "|" + x.Key + "|" + x.Detail).ToArray()
++            });
++        }
++
++        private static void Write(string path, ContentReportFile data)
++        {
++            // report は content directory と別に保持するため、失敗した build でも調査できる。
++            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
++            File.WriteAllText(path, JsonUtility.ToJson(data, true));
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentReport.cs.meta b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentReport.cs.meta
+new file mode 100644
+index 0000000..e3441c7
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentReport.cs.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: 955a54006e8386a8ee2f080c1b0d1e8a
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/OneStarMaker.Build.Content.asmdef b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/OneStarMaker.Build.Content.asmdef
+new file mode 100644
+index 0000000..8afd63a
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/OneStarMaker.Build.Content.asmdef
+@@ -0,0 +1,14 @@
++{
++    "name": "OneStarMaker.Build.Content",
++    "rootNamespace": "OneStarMaker.Editor.Build.Content",
++    "references": ["OneStarMaker.Build.Selection", "OneStarMaker.Build.Materialization", "OneStarMaker.Runtime"],
++    "includePlatforms": ["Editor"],
++    "excludePlatforms": [],
++    "allowUnsafeCode": false,
++    "overrideReferences": false,
++    "precompiledReferences": [],
++    "autoReferenced": false,
++    "defineConstraints": [],
++    "versionDefines": [],
++    "noEngineReferences": false
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/OneStarMaker.Build.Content.asmdef.meta b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/OneStarMaker.Build.Content.asmdef.meta
+new file mode 100644
+index 0000000..a20e157
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/OneStarMaker.Build.Content.asmdef.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: de3564a71c842e539859ed3b53b5eb1b
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/UnityContentDirectoryAdapter.cs b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/UnityContentDirectoryAdapter.cs
+new file mode 100644
+index 0000000..f943a74
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/UnityContentDirectoryAdapter.cs
+@@ -0,0 +1,152 @@
++#nullable enable
++
++using System;
++using System.Collections.Generic;
++using System.IO;
++using System.Linq;
++using OneStarMaker.Runtime.BuildContent;
++using Unity.Loading;
++using UnityEditor;
++using UnityEditor.Build.Reporting;
++using UnityEngine;
++
++namespace OneStarMaker.Editor.Build.Content
++{
++    // Unity Editor API に依存する唯一の BS2b build adapter。
++    // 一時的な BuildContentRoot asset を作って Content Directory に含め、build 後は生成元だけを消す。
++    internal sealed class UnityContentDirectoryAdapter : IContentDirectoryAdapter
++    {
++        // この subtree は adapter が所有する一時 asset。既存の Game/Framework asset は消さない。
++        private const string GeneratedRoot = "Assets/OneStarMakerGenerated/BS2b";
++        private const string Marker = "bs2b-owner.marker";
++
++        public void ValidateTarget()
++        {
++            // BS2b は固定 target の証拠に限定する。自動切替は Library の状態や後続 build を変えるため行わない。
++            if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.StandaloneWindows64 ||
++                EditorUserBuildSettings.standaloneBuildSubtarget != StandaloneBuildSubtarget.Player)
++                throw new InvalidOperationException("BS2b requires active StandaloneWindows64 Player target.");
++        }
++
++        public ContentDirectoryBuild Build(BuildContentProjectionResult projection, string identity, string workspace)
++        {
++            ValidateTarget();
++            // 前回の異常終了で残った所有物だけを掃除する。marker のない folder は触れない。
++            CleanupOrphans();
++            var folder = GeneratedRoot + "/" + identity;
++            EnsureFolder(folder);
++            var markerPath = folder + "/" + Marker;
++            File.WriteAllText(Path.Combine(Application.dataPath, "OneStarMakerGenerated", "BS2b", identity, Marker), identity);
++            AssetDatabase.Refresh();
++            try
++            {
++                var entries = new List<BuildContentEntry>();
++                foreach (var item in projection.Roots)
++                {
++                    // materialization 後に root の GUID/path が変わっていれば、別 asset を build しない。
++                    // 依存閉包全体は再探索せず、選択 root の同一性だけを Editor 上で最終確認する。
++                    if (AssetDatabase.AssetPathToGUID(item.Path) != item.Candidate.PhysicalKey)
++                        throw new InvalidOperationException("Root GUID/path changed after materialization: " + item.Path);
++                    if (item.Path.EndsWith(".unity", StringComparison.OrdinalIgnoreCase))
++                    {
++                        // Scene は Unity の loadable scene ID を保存し、path/GUID 自体を Runtime の load ID にしない。
++                        var sceneId = LoadableSceneIdEditorUtility.CreateLoadableSceneId(item.Path);
++                        entries.Add(new BuildContentEntry(item.Candidate.LogicalKey, item.Candidate.StableKey,
++                            item.Representation, sceneId));
++                    }
++                    else
++                    {
++                        // Object ID は main asset の local file ID を含む Unity reference から作る。
++                        // 汎用サブアセット locator と型検証は BS3 の責務。
++                        var asset = AssetDatabase.LoadMainAssetAtPath(item.Path);
++                        if (asset == null) throw new InvalidOperationException("Root asset missing: " + item.Path);
++                        var objectId = LoadableObjectIdEditorUtility.CreateLoadableObjectId(asset);
++                        entries.Add(new BuildContentEntry(item.Candidate.LogicalKey, item.Candidate.StableKey,
++                            item.Representation, new Loadable<UnityEngine.Object>(objectId)));
++                    }
++                }
++                var root = ScriptableObject.CreateInstance<BuildContentRoot>();
++                // directory に同梱する単一 root。build identity と entry を同じ serialized asset に閉じ込める。
++                // BS3 は登録後にこの root を一件だけ取得し、source を再走査せず対応を復元する。
++                root.Initialize(identity, BuildContentCoordinator.TargetName, entries);
++                var rootPath = folder + "/BuildContentRoot.asset";
++                AssetDatabase.CreateAsset(root, rootPath);
++                EditorUtility.SetDirty(root);
++                AssetDatabase.SaveAssetIfDirty(root);
++                AssetDatabase.ImportAsset(rootPath, ImportAssetOptions.ForceUpdate);
++                var loaded = AssetDatabase.LoadAssetAtPath<BuildContentRoot>(rootPath);
++                if (loaded == null || loaded.BuildIdentity != identity || loaded.Entries.Count != entries.Count)
++                    throw new InvalidOperationException("Generated root did not retain its serialized identities.");
++                var parameters = new BuildContentDirectoryParameters {
++                    // rootAssetPaths は生成 root のみ。そこから参照される Scene/Object を Unity が収集する。
++                    // workspace は target/contentSet 固定なので、同じ場所への再 build が可能。
++                    outputPath = workspace, rootAssetPaths = new[] { rootPath }, name = identity,
++                    compression = BuildCompression.Uncompressed, options = BuildContentOptions.None,
++                    extraScriptingDefines = Array.Empty<string>()
++                };
++                var report = BuildPipeline.BuildContentDirectory(parameters);
++                if (report == null || report.summary.result != BuildResult.Succeeded)
++                    throw new InvalidOperationException("Unity Content BuildReport failed: " + report?.summary.result);
++                var manifest = Path.Combine(workspace, "BuildManifestHash.txt");
++                // Unity の内部 file 名や manifest 内容は OSM の公開 protocol として解釈しない。
++                // pointer と metadata directory の存在だけを検証し、directory 一式を coordinator に渡す。
++                if (!File.Exists(manifest)) throw new InvalidOperationException("Unity manifest pointer missing.");
++                // Unity の previousBuildReportDirectories には content 出力 folder を渡せる。
++                // summary.outputPath はその folder を指す保証がないため、検証済み workspace を記録する。
++                var metadata = Path.GetFullPath(workspace);
++                if (!Directory.Exists(metadata))
++                    throw new InvalidOperationException("Unity content output directory missing: " + metadata);
++                return new ContentDirectoryBuild(
++                    report.summary.result + "|" + report.summary.platform + "|" + report.summary.totalSize,
++                    manifest, metadata);
++            }
++            finally
++            {
++                // 成否にかかわらず、この実行で生成した asset と空の親 folder だけを削除する。
++                // published directory は Assets 外にあり、ここでは触れない。
++                if (File.Exists(Path.Combine(Application.dataPath, "OneStarMakerGenerated", "BS2b", identity, Marker)))
++                    AssetDatabase.DeleteAsset(markerPath);
++                AssetDatabase.DeleteAsset(folder);
++                DeleteIfEmpty(GeneratedRoot);
++                DeleteIfEmpty("Assets/OneStarMakerGenerated");
++            }
++        }
++
++        private static void DeleteIfEmpty(string assetFolder)
++        {
++            if (!AssetDatabase.IsValidFolder(assetFolder)) return;
++            var absolute = Path.Combine(Application.dataPath, assetFolder.Substring("Assets/".Length));
++            if (Directory.GetFileSystemEntries(absolute).Length == 0) AssetDatabase.DeleteAsset(assetFolder);
++        }
++
++        private static void CleanupOrphans()
++        {
++            // ownership marker と folder 名が一致する孤児だけを対象にする。
++            // 別機能や人が置いた生成物を一括削除しないための制限。
++            if (!AssetDatabase.IsValidFolder(GeneratedRoot)) return;
++            foreach (var guid in AssetDatabase.FindAssets("t:DefaultAsset", new[] { GeneratedRoot }))
++            {
++                var path = AssetDatabase.GUIDToAssetPath(guid);
++                if (Path.GetDirectoryName(path)?.Replace('\\', '/') != GeneratedRoot ||
++                    !AssetDatabase.IsValidFolder(path)) continue;
++                var marker = path + "/" + Marker;
++                var diskPath = Path.Combine(Application.dataPath, "OneStarMakerGenerated", "BS2b",
++                    Path.GetFileName(path), Marker);
++                if (File.Exists(diskPath) && File.ReadAllText(diskPath) == Path.GetFileName(path))
++                    AssetDatabase.DeleteAsset(path);
++            }
++        }
++
++        private static void EnsureFolder(string path)
++        {
++            // AssetDatabase を通して .meta を生成し、Unity が認識する一時 root にする。
++            var parent = "Assets";
++            foreach (var segment in path.Substring("Assets/".Length).Split('/'))
++            {
++                var next = parent + "/" + segment;
++                if (!AssetDatabase.IsValidFolder(next)) AssetDatabase.CreateFolder(parent, segment);
++                parent = next;
++            }
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/UnityContentDirectoryAdapter.cs.meta b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/UnityContentDirectoryAdapter.cs.meta
+new file mode 100644
+index 0000000..1718aab
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/UnityContentDirectoryAdapter.cs.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: d1e9063e0c9331c6bab4ee4e4425c309
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Selection/AssemblyInfo.cs b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Selection/AssemblyInfo.cs
+new file mode 100644
+index 0000000..fd91bde
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Selection/AssemblyInfo.cs
+@@ -0,0 +1,7 @@
++#nullable enable
++
++using System.Runtime.CompilerServices;
++
++// 不正な BuildPlan を使う preflight test のため、internal constructor を既存 test assembly に限定公開する。
++// 本番の plan 生成経路や公開 API は増やさない。
++[assembly: InternalsVisibleTo("OneStarMaker.Tests.Editor")]
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Selection/AssemblyInfo.cs.meta b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Selection/AssemblyInfo.cs.meta
+new file mode 100644
+index 0000000..a163e25
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Selection/AssemblyInfo.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 0c3c1d0e82de45d3a0807f54c15bb7ac
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent.meta
+new file mode 100644
+index 0000000..2325d4c
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: 1965827ea52c64c99383bf337ce8a66c
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/BuildContentRoot.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/BuildContentRoot.cs
+new file mode 100644
+index 0000000..f009a8d
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/BuildContentRoot.cs
+@@ -0,0 +1,78 @@
++#nullable enable
++
++using System;
++using System.Collections.Generic;
++using Unity.Loading;
++using UnityEngine;
++
++namespace OneStarMaker.Runtime.BuildContent
++{
++    // Unity Content Directory に保存する entry の load 先。型付き解決は BS3 で扱う。
++    public enum BuildContentKind { Scene, Object }
++
++    [Serializable]
++    // logical key と選択済み表現から、Unity が生成した loadable ID へ渡す最小の対応表。
++    // StableKey は build 入力との照合・診断用で、物理 GUID だけを load ID として扱わない。
++    public sealed class BuildContentEntry
++    {
++        [SerializeField] private string _logicalKey = "";
++        [SerializeField] private string _stableKey = "";
++        [SerializeField] private string _representation = "";
++        [SerializeField] private BuildContentKind _kind;
++        [SerializeField] private LoadableSceneId _sceneId;
++        [SerializeField] private Loadable<UnityEngine.Object>? _object;
++
++        public string LogicalKey => _logicalKey;
++        public string StableKey => _stableKey;
++        public string Representation => _representation;
++        public BuildContentKind Kind => _kind;
++        public LoadableSceneId SceneId => _sceneId;
++        public Loadable<UnityEngine.Object>? Object => _object;
++
++        public BuildContentEntry(string logicalKey, string stableKey, string representation,
++            LoadableSceneId sceneId)
++        {
++            // Scene と Object は同じ entry 配列に入るが、使う ID は Kind で明示する。
++            _logicalKey = logicalKey; _stableKey = stableKey; _representation = representation;
++            _kind = BuildContentKind.Scene; _sceneId = sceneId;
++        }
++
++        public BuildContentEntry(string logicalKey, string stableKey, string representation,
++            Loadable<UnityEngine.Object> loadable)
++        {
++            _logicalKey = logicalKey; _stableKey = stableKey; _representation = representation;
++            _kind = BuildContentKind.Object; _object = loadable;
++        }
++    }
++
++    // Content Directory に厳密に1件同梱する root asset。
++    // 登録後の Runtime はこの serialized 情報だけで logical→load target を復元できる。
++    // AssetOwner による登録・解放の寿命管理は BS3 の責務であり、この型は対応 metadata のみ保持する。
++    public sealed class BuildContentRoot : ScriptableObject
++    {
++        public const int CurrentSchemaVersion = 1;
++        [SerializeField] private int _schemaVersion;
++        [SerializeField] private string _buildIdentity = "";
++        [SerializeField] private string _target = "";
++        [SerializeField] private BuildContentEntry[] _entries = Array.Empty<BuildContentEntry>();
++
++        public int SchemaVersion => _schemaVersion;
++        public string BuildIdentity => _buildIdentity;
++        public string Target => _target;
++        public IReadOnlyList<BuildContentEntry> Entries => Array.AsReadOnly(_entries);
++
++        public void Initialize(string buildIdentity, string target, IReadOnlyList<BuildContentEntry> entries)
++        {
++            // Editor adapter が asset 化する直前に呼ぶ。配列を複写して呼出側の collection 変更を切り離す。
++            // identity は OSM report と Unity build name に一致させ、移設後にも照合可能にする。
++            if (string.IsNullOrEmpty(buildIdentity) || string.IsNullOrEmpty(target) || entries == null)
++                throw new ArgumentException("Build root requires identity, target and entries.");
++            _schemaVersion = CurrentSchemaVersion;
++            _buildIdentity = buildIdentity;
++            _target = target;
++            _entries = new BuildContentEntry[entries.Count];
++            for (var i = 0; i < entries.Count; i++)
++                _entries[i] = entries[i] ?? throw new ArgumentException("Null content entry.", nameof(entries));
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/BuildContentRoot.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/BuildContentRoot.cs.meta
+new file mode 100644
+index 0000000..0a787ab
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/BuildContentRoot.cs.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: ec18c45e724e212178f46da10e121d63
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs b/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs
+new file mode 100644
+index 0000000..877748f
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs
+@@ -0,0 +1,204 @@
++#nullable enable
++
++using System;
++using System.Collections;
++using System.Collections.Generic;
++using System.IO;
++using System.Linq;
++using NUnit.Framework;
++using OneStarMaker.Build.Selection;
++using OneStarMaker.Editor.Build.Content;
++using OneStarMaker.Editor.Build.Materialization;
++using OneStarMaker.Runtime.BuildContent;
++using Unity.Loading;
++using UnityEditor;
++using UnityEditor.SceneManagement;
++using UnityEngine;
++using UnityEngine.TestTools;
++
++namespace OneStarMaker.Tests.Editor.Build
++{
++    // 実 Content Directory を作る統合テスト。Editor で build し、source fixture を消してから
++    // PlayMode で移設先だけを登録することで、AssetDatabase 上の source に依存した見かけの成功を避ける。
++    public sealed class BuildContentDirectoryIntegrationTests
++    {
++        private const string FixtureParent = "Assets/OneStarMakerGenerated/BS2bTests";
++        private string _folder = "";
++        private string _copy = "";
++
++        [UnityTearDown]
++        public IEnumerator Cleanup()
++        {
++            // assertion 失敗が PlayMode 中に起きても Editor に戻し、このテスト所有の fixture/copy のみ消す。
++            if (EditorApplication.isPlaying) yield return new ExitPlayMode();
++            if (_folder.Length != 0) AssetDatabase.DeleteAsset(_folder);
++            if (_copy.Length != 0 && Directory.Exists(_copy)) Directory.Delete(_copy, true);
++            DeleteIfEmpty(FixtureParent);
++            DeleteIfEmpty("Assets/OneStarMakerGenerated");
++        }
++
++        [UnityTest]
++        public IEnumerator ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirectory()
++        {
++            // Phase A で固定した target/subtarget だけを検証する。異なる環境では勝手に切り替えない。
++            if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.StandaloneWindows64 ||
++                EditorUserBuildSettings.standaloneBuildSubtarget != StandaloneBuildSubtarget.Player)
++                Assert.Ignore("BS2b fixture requires StandaloneWindows64 Player target.");
++            EnsureFolder(FixtureParent);
++            _folder = FixtureParent + "/" + Guid.NewGuid().ToString("N");
++            EnsureFolder(_folder);
++            var previous = EditorSceneManager.GetSceneManagerSetup();
++            try
++            {
++                // Scene と二つの Prefab が同じ Material/Texture を参照する fixture を作る。
++                // High/Low は同じ logical key だが別 physical key。Excluded は選択されない root。
++                var texture = new Texture2D(2, 2);
++                texture.SetPixels(new[] { Color.red, Color.red, Color.red, Color.red });
++                texture.Apply();
++                var texturePath = _folder + "/Texture.png";
++                File.WriteAllBytes(Path.Combine(Application.dataPath, texturePath.Substring("Assets/".Length)), texture.EncodeToPNG());
++                UnityEngine.Object.DestroyImmediate(texture);
++                AssetDatabase.ImportAsset(texturePath);
++                var shader = Shader.Find("Universal Render Pipeline/Lit");
++                if (shader == null) shader = Shader.Find("Standard");
++                if (shader == null) throw new InvalidOperationException("Fixture shader is unavailable.");
++                var mat = new Material(shader);
++                mat.mainTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
++                var matPath = _folder + "/Shared.mat";
++                AssetDatabase.CreateAsset(mat, matPath);
++                var paths = new[] { _folder + "/Scene.unity", _folder + "/High.prefab",
++                    _folder + "/Low.prefab", texturePath, _folder + "/Excluded.prefab" };
++                var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
++                var sceneObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
++                sceneObject.GetComponent<Renderer>().sharedMaterial = mat;
++                EditorSceneManager.SaveScene(scene, paths[0]);
++                UnityEngine.Object.DestroyImmediate(sceneObject);
++                for (var i = 1; i <= 2; i++)
++                {
++                    var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
++                    go.GetComponent<Renderer>().sharedMaterial = mat;
++                    PrefabUtility.SaveAsPrefabAsset(go, paths[i]);
++                    UnityEngine.Object.DestroyImmediate(go);
++                }
++                var excluded = new GameObject("Excluded");
++                PrefabUtility.SaveAsPrefabAsset(excluded, paths[4]);
++                UnityEngine.Object.DestroyImmediate(excluded);
++                EditorSceneManager.SaveScene(scene, paths[0]);
++                AssetDatabase.SaveAssets();
++
++                var candidates = paths.Select((path, i) => new BuildContentCandidate("fixture-" + i,
++                    i == 1 || i == 2 ? "shared-logical" : "logical-" + i,
++                    AssetDatabase.AssetPathToGUID(path), new BuildProvenance("fixture", path))).ToArray();
++                var tags = new Dictionary<string, IReadOnlyList<BuildTag>> {
++                    [candidates[1].StableKey] = new[] { new BuildTag("Representation", "High") },
++                    [candidates[2].StableKey] = new[] { new BuildTag("Representation", "Low") },
++                    [candidates[4].StableKey] = new[] { new BuildTag("Representation", "Excluded") }
++                };
++                var closures = paths.Select((path, i) => new BuildDependencySnapshot(candidates[i].PhysicalKey, path,
++                    // fixture 作成時だけ Unity に閉包を採取させる。本番 consumer は snapshot を再計算しない。
++                    AssetDatabase.GetDependencies(path).Where(p => p.StartsWith("Assets/", StringComparison.Ordinal))
++                        .Select(p => new BuildDependencyEntry(AssetDatabase.AssetPathToGUID(p), p)))).ToArray();
++                var snapshot = new BuildMaterializationSnapshot(candidates, tags,
++                    new[] { new BuildContentRequirement("shared-logical", BuildContentCardinality.OneOrMore) }, closures);
++                var selection = new BuildTagSelector().Select(new BuildRequest(new[] {
++                        new BuildTag("Representation", "High"), new BuildTag("Representation", "Low") }),
++                    snapshot.Candidates, snapshot.TagProviders,
++                    new BuildSelectionPolicy(new BuildTagSchema(new[] {
++                        new KeyValuePair<string, IEnumerable<string>>("Representation", new[] { "High", "Low", "Excluded" })
++                    }), snapshot.Requirements));
++                Assert.That(selection.IsSuccess, Is.True);
++                var artifacts = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "artifacts", "bs2b"));
++                var workspace = Path.Combine(artifacts, "work", BuildContentCoordinator.TargetName, "fixture");
++                var request = new BuildContentRequest(selection.Plan!, snapshot, "fixture", artifacts);
++                var coordinator = new BuildContentCoordinator();
++                // 同じ target/contentSet の workspace へ連続 build。公開先は identity ごとに別 directory。
++                // 両 report と manifest を確認し、2 回目が前回の成功 path を上書きしないことを示す。
++                var first = coordinator.Build(request);
++                Assert.That(first.IsSuccess, Is.True, first.Summary);
++                Assert.That(File.Exists(Path.Combine(workspace, "BuildManifestHash.txt")), Is.True);
++                var result = coordinator.Build(request);
++                Assert.That(result.IsSuccess, Is.True, result.Summary);
++                Assert.That(File.Exists(Path.Combine(workspace, "BuildManifestHash.txt")), Is.True);
++                Assert.That(result.Identity, Is.Not.EqualTo(first.Identity));
++                Assert.That(result.ContentPath, Is.Not.EqualTo(first.ContentPath));
++                Assert.That(File.Exists(first.ManifestPointer), Is.True);
++                Assert.That(File.Exists(result.ManifestPointer), Is.True);
++                Assert.That(Directory.Exists(first.MetadataPath), Is.True);
++                Assert.That(Directory.Exists(result.MetadataPath), Is.True);
++                Assert.That(File.ReadAllText(first.PreflightPath), Does.Contain(first.Identity));
++                Assert.That(File.ReadAllText(first.OutcomePath), Does.Contain(first.Identity));
++                Assert.That(File.ReadAllText(result.PreflightPath), Does.Contain(result.Identity));
++                Assert.That(File.ReadAllText(result.OutcomePath), Does.Contain(result.Identity));
++                Assert.That(File.ReadAllText(result.PreflightPath), Does.Contain(matPath));
++                Assert.That(File.ReadAllText(result.PreflightPath), Does.Contain("ValueNotSelected"));
++                // Unity 内部ファイルを解釈せず、公開 directory に content file と resource file があることを確認する。
++                // 選択 root の意味づけは、登録後に同梱 root を読む側で確認する。
++                Assert.That(Directory.GetFiles(result.ContentPath!, "*.cf").Length, Is.GreaterThan(0));
++                Assert.That(Directory.GetFiles(result.ContentPath!, "*.resS").Length, Is.GreaterThan(0));
++                _copy = Path.Combine(artifacts, "integration-copy-" + result.Identity);
++                Copy(result.ContentPath!, _copy);
++            }
++            finally
++            {
++                // PlayMode に入る前に Editor scene と source fixture を片付ける。
++                // 移設後の検証が source asset に偶然依存しないようにする。
++                if (previous.Any(x => x.isActive)) EditorSceneManager.RestoreSceneManagerSetup(previous);
++                else EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
++                if (_folder.Length != 0) { AssetDatabase.DeleteAsset(_folder); _folder = ""; }
++            }
++            yield return new EnterPlayMode();
++            // ContentLoadManager の登録は PlayMode 側で行う。copy に必要な file が欠ければここで失敗する。
++            var handle = ContentLoadManager.RegisterContentDirectory(_copy);
++            Assert.That(handle.IsValid, Is.True);
++            try
++            {
++                var roots = ContentLoadManager.GetRootAssets<BuildContentRoot>(handle);
++                // 単一 root と identity を照合し、Scene/Prefab/Texture の4 entry、High/Low の2表現、
++                // 非選択 root の不在を source 再走査なしで検証する。実 Object の型付き load は BS3 に渡す。
++                Assert.That(roots.Length, Is.EqualTo(1));
++                Assert.That(roots[0].BuildIdentity,
++                    Is.EqualTo(Path.GetFileName(_copy).Substring("integration-copy-".Length)));
++                Assert.That(roots[0].Entries.Count, Is.EqualTo(4));
++                Assert.That(roots[0].Entries.Select(x => x.StableKey),
++                    Is.EquivalentTo(new[] { "fixture-0", "fixture-1", "fixture-2", "fixture-3" }));
++                Assert.That(roots[0].Entries.All(x => x.StableKey != "fixture-4"), Is.True);
++                Assert.That(roots[0].Entries.Single(x => x.StableKey == "fixture-0").Kind,
++                    Is.EqualTo(BuildContentKind.Scene));
++                Assert.That(roots[0].Entries.Where(x => x.StableKey != "fixture-0").All(x => x.Kind == BuildContentKind.Object), Is.True);
++                Assert.That(roots[0].Entries.Count(x => x.LogicalKey == "shared-logical"), Is.EqualTo(2));
++                Assert.That(roots[0].Entries.Where(x => x.LogicalKey == "shared-logical")
++                    .Select(x => x.Representation), Is.EquivalentTo(new[] { "High", "Low" }));
++                Assert.That(roots[0].Entries.Single(x => x.Kind == BuildContentKind.Scene).SceneId, Is.Not.EqualTo(default(LoadableSceneId)));
++                Assert.That(roots[0].Entries.Where(x => x.Kind == BuildContentKind.Object).All(x => x.Object != null), Is.True);
++            }
++            finally { ContentLoadManager.UnregisterContentDirectory(handle); }
++            yield return new ExitPlayMode();
++        }
++
++        private static void Copy(string source, string target)
++        {
++            // build 出力を丸ごと別 local path へ複写する。file 名や Unity の内部構造には依存しない。
++            Directory.CreateDirectory(target);
++            foreach (var directory in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
++                Directory.CreateDirectory(Path.Combine(target, Path.GetRelativePath(source, directory)));
++            foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
++                File.Copy(file, Path.Combine(target, Path.GetRelativePath(source, file)));
++        }
++        private static void EnsureFolder(string path)
++        {
++            var parent = "Assets";
++            foreach (var segment in path.Substring("Assets/".Length).Split('/'))
++            {
++                var next = parent + "/" + segment;
++                if (!AssetDatabase.IsValidFolder(next)) AssetDatabase.CreateFolder(parent, segment);
++                parent = next;
++            }
++        }
++        private static void DeleteIfEmpty(string assetFolder)
++        {
++            if (!AssetDatabase.IsValidFolder(assetFolder)) return;
++            var absolute = Path.Combine(Application.dataPath, assetFolder.Substring("Assets/".Length));
++            if (Directory.GetFileSystemEntries(absolute).Length == 0) AssetDatabase.DeleteAsset(assetFolder);
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs.meta b/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs.meta
+new file mode 100644
+index 0000000..886c50a
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: ef6fd0b2e1f60e7ef6837e2eba1b3fb9
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentProjectionTests.cs b/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentProjectionTests.cs
+new file mode 100644
+index 0000000..814ce6a
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentProjectionTests.cs
+@@ -0,0 +1,111 @@
++#nullable enable
++
++using System;
++using System.Collections.Generic;
++using System.Linq;
++using System.IO;
++using NUnit.Framework;
++using OneStarMaker.Build.Selection;
++using OneStarMaker.Editor.Build.Content;
++using OneStarMaker.Editor.Build.Materialization;
++using UnityEngine;
++
++namespace OneStarMaker.Tests.Editor.Build
++{
++    // Unity build を起動せずに plan/snapshot の不整合を検証する。
++    // internal constructor を使う fixture は本番選択経路で作れない不正入力も意図的に組み立てる。
++    public sealed class BuildContentProjectionTests
++    {
++        private static BuildContentCandidate Candidate(string stable, string logical, string guid) =>
++            new BuildContentCandidate(stable, logical, guid, new BuildProvenance("fixture", stable));
++        private static BuildDependencySnapshot Closure(string guid, string path, string shared = "Assets/Shared.mat") =>
++            new BuildDependencySnapshot(guid, path, new[] {
++                new BuildDependencyEntry(guid, path), new BuildDependencyEntry("shared", shared) });
++
++        [Test]
++        public void SelectedRootsShareClosureButExcludeUnselectedVariant()
++        {
++            // 入力順を逆にしても root は stable key 順。未選択 Variant は閉包に入れず、
++            // 複数 root が共有する Material は一度だけ残ることを同時に確認する。
++            var a = Candidate("a", "scene", "a-guid");
++            var b = Candidate("b", "object", "b-guid");
++            var omitted = Candidate("c", "object", "c-guid");
++            var plan = new BuildPlan(new BuildRequest(Array.Empty<BuildTag>()), new[] { b, a },
++                new[] { new BuildContentExclusion(omitted, BuildExclusionReasonCode.ValueNotSelected, "Representation", "Low") });
++            var tags = new Dictionary<string, IReadOnlyList<BuildTag>> {
++                [b.StableKey] = new[] { new BuildTag("Representation", "High") } };
++            var snapshot = new BuildMaterializationSnapshot(new[] { omitted, b, a }, tags,
++                Array.Empty<BuildContentRequirement>(), new[] {
++                    Closure("c-guid", "Assets/Omitted.prefab"), Closure("b-guid", "Assets/B.prefab"),
++                    Closure("a-guid", "Assets/A.unity") });
++            var result = BuildContentProjection.Create(plan, snapshot);
++            Assert.That(result.IsValid, Is.True);
++            Assert.That(result.Roots.Select(x => x.Path), Is.EqualTo(new[] { "Assets/A.unity", "Assets/B.prefab" }));
++            Assert.That(result.Roots.Select(x => x.Representation), Is.EqualTo(new[] { "", "High" }));
++            Assert.That(result.Files.Select(x => x.Path), Does.Not.Contain("Assets/Omitted.prefab"));
++            Assert.That(result.Files.Count(x => x.Path == "Assets/Shared.mat"), Is.EqualTo(1));
++        }
++
++        [Test]
++        public void StructuralMismatchAndPhysicalCollisionArePreflightIssues()
++        {
++            // 共有依存とは異なり、候補二つが同じ physical key を所有するのは入力衝突。
++            var a = Candidate("a", "one", "same");
++            var b = Candidate("b", "two", "same");
++            var plan = new BuildPlan(new BuildRequest(Array.Empty<BuildTag>()), new[] { a, b },
++                Array.Empty<BuildContentExclusion>());
++            var snapshot = new BuildMaterializationSnapshot(new[] { a, b },
++                new Dictionary<string, IReadOnlyList<BuildTag>>(), Array.Empty<BuildContentRequirement>(),
++                new[] { Closure("same", "Assets/A.prefab") });
++            var result = BuildContentProjection.Create(plan, snapshot);
++            Assert.That(result.Issues.Select(x => x.Code), Does.Contain(BuildContentIssueCode.PhysicalKeyCollision));
++        }
++
++        [Test]
++        public void MissingAndInconsistentRootAreReportedWithoutAssetDatabase()
++        {
++            // 閉包 root の GUID/path 不整合と閉包欠損を、Unity I/O 前の issue として返す。
++            var selected = Candidate("a", "one", "guid-a");
++            var plan = new BuildPlan(new BuildRequest(Array.Empty<BuildTag>()), new[] { selected },
++                Array.Empty<BuildContentExclusion>());
++            var snapshot = new BuildMaterializationSnapshot(new[] { selected },
++                new Dictionary<string, IReadOnlyList<BuildTag>>(), Array.Empty<BuildContentRequirement>(),
++                new[] { new BuildDependencySnapshot("guid-a", "Assets/A.prefab",
++                    new[] { new BuildDependencyEntry("other", "Assets/A.prefab") }) });
++            Assert.That(BuildContentProjection.Create(plan, snapshot).Issues.Select(x => x.Code),
++                Does.Contain(BuildContentIssueCode.RootMismatch));
++            var missing = new BuildMaterializationSnapshot(new[] { selected },
++                new Dictionary<string, IReadOnlyList<BuildTag>>(), Array.Empty<BuildContentRequirement>(),
++                Array.Empty<BuildDependencySnapshot>());
++            Assert.That(BuildContentProjection.Create(plan, missing).Issues.Select(x => x.Code),
++                Does.Contain(BuildContentIssueCode.MissingClosure));
++        }
++
++        [Test]
++        public void AdapterFailureWritesPreflightAndOutcomeWithoutPublishing()
++        {
++            // fake port が build 中に失敗しても report を残し、content/{identity} は公開しない。
++            var selected = Candidate("a", "one", "guid-a");
++            var plan = new BuildPlan(new BuildRequest(Array.Empty<BuildTag>()), new[] { selected },
++                Array.Empty<BuildContentExclusion>());
++            var snapshot = new BuildMaterializationSnapshot(new[] { selected },
++                new Dictionary<string, IReadOnlyList<BuildTag>>(), Array.Empty<BuildContentRequirement>(),
++                new[] { Closure("guid-a", "Assets/A.prefab") });
++            var root = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "artifacts", "bs2b"));
++            var result = new BuildContentCoordinator(new FailingAdapter()).Build(
++                new BuildContentRequest(plan, snapshot, "failure-fixture", root));
++            Assert.That(result.IsSuccess, Is.False);
++            Assert.That(result.Issues.Select(x => x.Code), Does.Contain(BuildContentIssueCode.BuildFailure));
++            Assert.That(File.Exists(result.PreflightPath), Is.True);
++            Assert.That(File.Exists(result.OutcomePath), Is.True);
++            Assert.That(Directory.Exists(Path.Combine(root, "content", result.Identity)), Is.False);
++        }
++
++        private sealed class FailingAdapter : IContentDirectoryAdapter
++        {
++            public void ValidateTarget() { }
++            public ContentDirectoryBuild Build(BuildContentProjectionResult projection, string identity, string workspace) =>
++                throw new IOException("fixture failure");
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentProjectionTests.cs.meta b/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentProjectionTests.cs.meta
+new file mode 100644
+index 0000000..86fb54d
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentProjectionTests.cs.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: 6b1cc765e6bb226f420de97097ddecf9
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Tests/Editor/OneStarMaker.Tests.Editor.asmdef b/unity/Assets/OneStarMaker/Tests/Editor/OneStarMaker.Tests.Editor.asmdef
+index 91a92fd..bb2895a 100644
+--- a/unity/Assets/OneStarMaker/Tests/Editor/OneStarMaker.Tests.Editor.asmdef
++++ b/unity/Assets/OneStarMaker/Tests/Editor/OneStarMaker.Tests.Editor.asmdef
+@@ -3,6 +3,7 @@
+     "rootNamespace": "OneStarMaker.Tests.Editor",
+     "references": [
+         "OneStarMaker.Build.Materialization",
++        "OneStarMaker.Build.Content",
+         "OneStarMaker.Build.Selection",
+         "OneStarMaker.Editor",
+         "OneStarMaker.Runtime",

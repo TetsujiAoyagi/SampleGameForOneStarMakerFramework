@@ -4,7 +4,7 @@
 - status: Phase C/C' GO、Phase D develop マージ判断待ち
 - branch: `codex/bs2b-content-directory-build`
 - implementation base commit: `ef3ad21`
-- implementation head commit: `c0fff31`
+- implementation head commit: `c445f49`
 - risk: high（生成物形式、Editor build、Runtime 受渡し）
 - owner: BS2b 主担当 / Codex
 - created: 2026-09-17
@@ -12,7 +12,8 @@
 - harvest to: `unity/Assets/Docs/Architecture/18-asset-description.md`、`13-resource-system.md`、`20-variant-checkout-workflow.md`
 - Phase A snapshot: `docs/handoff/evidence/bs2b/phase-a-snapshot.md`、2026-09-17 07:58 JST、SHA-256 `d18f4af428c18cb4ac1ee3807d9f8ea051d3f1906972c8685875ac0888f7da41`
 - Phase B result snapshot: `docs/handoff/evidence/bs2b/phase-b-result-v2.md`、2026-09-17 09:43 JST、SHA-256 `34408e677b340aeacf2995392b9624f1f30b67dd07c1a2ee2f5052db4999df4c`。`78cd163` 対象の旧 snapshot とレビュー結果は無効化。
-- evidence / C' snapshot: `docs/handoff/evidence/bs2b/manifest-v2.md`、2026-09-17 09:43 JST、SHA-256 `9fc9ac1b2f2484f9761fc0ded5aca2810ba168937d0fd72cc22d92ac5e32caf2`。
+- Phase B comment addendum: `docs/handoff/evidence/bs2b/phase-b-comments-v3.md`、2026-09-17 12:35 JST、SHA-256 `12156ca42257ad8a921ac2c984e6821fb7b352505ab5f25200d820cb63d57d29`。
+- evidence / C' snapshot: `docs/handoff/evidence/bs2b/manifest-v4.md`、2026-09-17 13:02 JST、SHA-256 `4468fb33cc39b72c38bfd1f0d889fb270e0ba0f45582b746cc0a74ea8bab2836`。`manifest-v2.md` は `c0fff31` の判定用に保持。
 
 ## 1. 目的、現在地、対象外
 
@@ -80,7 +81,7 @@ Phase C は実装 base/head の完全 diff と生ログを固定し、構造レ�
 - A2 architecture: GPT-5.6 Sol / OpenAI、A1 を読んだ独立レビュー。root discovery 未固定、複数表現の実証不足、file/API/port map 不足を採用し、§3-4 に反映。
 - A2 alternative: GPT-5.6 Terra / OpenAI、A0 と現行 contract のみを読む独立構成案。固定 build workspace の再利用、Unity manifest pointer と report/Player metadata location、active target の検査、成功 directory の全量 publish を採用。Player build 実行と metadata 注入は BS4 のため BS2b に入れない。Unity 内部 manifest の parse は採用しない。
 - A3: program §4 の 2026-09-17 不在時委任に基づき主担当 GPT-6 Astra が上記採否を統合して凍結。高リスクのため A2 2件を実施。両レビューは OpenAI 系列なので強化条件の異ベンダー予約は満たさず、C' で可能なら未関与系列を使い、不可なら独立性制約と記録する。
-- Phase B: 実装済み。初回 C/C' は `78cd163` を対象に実施。C の条件7指摘を採用し、`c0fff31` へ修正したため初回結果は無効。C/C' を新 head で再実施する。
+- Phase B: 実装済み。初回 C/C' は `78cd163` を対象に実施。C の条件7指摘を採用し、`c0fff31` へ修正したため初回結果は無効。その後、依頼に従い `c445f49` で日本語コメントを追加し、同じ凍結条件で C/C' を再実施した。
 
 ## 6. Phase B 実装結果
 
@@ -89,6 +90,7 @@ Phase C は実装 base/head の完全 diff と生ログを固定し、構造レ�
 - 未実行: Unity Editor コンパイル確認、バッチテスト、実 Content Directory build。Editor は未接続で、sandbox 内の PowerShell 起動が停止したため、Phase C の batch 経路で確認する。
 - 機械検査: `pwsh -NoProfile -File tools/contract-audit.ps1` を sandbox 外で実行、exit 0、変更 Unity `.cs` 9件、違反なし。`git diff --check` exit 0。
 - Phase B 担当・モデル: 独立 context の subagent、GPT-5.6 Sol / OpenAI。commit 固定は主担当 GPT-6 Astra。
+- 追加依頼: `c445f49` で BS2b の Unity C# 9 ファイルに日本語コメントを 106 行追加し、英語コメント 3 行を置き換えた。責務、入力境界、所有権、build identity、失敗時の片付け、テストの証明範囲を説明した。C# の非コメント行変更は 0。
 
 ## 7. Phase C
 
@@ -104,12 +106,22 @@ Phase C は実装 base/head の完全 diff と生ログを固定し、構造レ�
 - 新規コンテキスト GPT-5.6 Terra / OpenAI の findings-first 構造→機能レビュー: 現在の問いを阻害する欠陥 0、GO。配置と asmdef edge は凍結 map に一致し、全条件を固定 diff と生証拠で確認した。
 - 後続入力: Unity `Library/BuildInstructions/*.buildinst` 7 ファイルがテスト cleanup 警告に残る。Library cache であり、公開 content / source asset ではない。BS2b の凍結条件の違反ではないため修正範囲を拡張しない。
 
+### 日本語コメント追加後の `c445f49` 再レビュー
+
+- 最初の v3 bundle は base→head の Git 差分に以前の HANDOFF review-record と証拠ファイルを混入させた。C' が blind 入力違反として NO-GO と指摘し、採用した。この v3 判定は無効とし、実装 path の完全差分とコメント差分だけを載せた `manifest-v4.md` で C/C' を新規コンテキストからやり直した。
+- v4 入力: base `ef3ad21`、head `c445f49`、Phase A/B snapshot と B addendum、`.gitignore` と `unity/Assets/OneStarMaker` の全実装差分 / stat / name-status、`c0fff31` からのコメント差分、生 XML / Unity log、2 回分の preflight / outcome。`manifest-v4.md` は以前の C/C' 所見を含まない。
+- 全 EditMode 761/761 成功、失敗 0、skip 0。Unity log の終了コード 0、固定 workspace の実 build 2 回。`contract-audit.ps1` exit 0。C# 非コメント行変更 0。
+- Phase C 担当 GPT-5.6 Terra / OpenAI: 構造→機能レビュー、現在の問いを阻害する欠陥 0、GO。日本語コメントが隣接実装の契約と一致し、公開 API / asmdef / Runtime 振る舞いに変更がないことを確認。
+- 後続入力: projection の閉包は preflight / report に使い、Unity build は生成 root から依存を解決する。将来の任意 asset 変更まで閉包同一性を保証する要件は BS2b の凍結範囲外。
+
 ## 8. Phase C'
 
 新規コンテキスト GPT-5.5 / OpenAI が `manifest-v2.md` の blind bundle のみで独立監査した。初回 C/C' の所見と現在の可変 HANDOFF は渡さなかった。構造・常時契約・全受け入れ条件について現在の問いを阻害する欠陥 0、GO。Unity log で 2 回の `BuildPipeline.BuildContentDirectory` と両 identity を確認し、生 XML の 761/761 成功を確認した。
 
 後続入力は、outcome JSON の選択 / root / closure 欄は空で preflight に詳細があること、実 Object 型検証と汎用サブアセットは BS3、変更 matrix を含む増分保証は本条件外、の 3 件。いずれも凍結条件違反ではない。C と C' の重複した blocking finding は 0。両レビューとも OpenAI 系列で、異ベンダー独立性の強化条件は満たしていないことを記録する。
 
+`c445f49` 対象の v4 blind bundle でも新規コンテキスト GPT-5.5 / OpenAI が独立監査し、現在の問いを阻害する欠陥 0、GO とした。v3 bundle の混入は v4 の実装 path 限定差分で解消した。ハッシュ、761/761 の生 XML、2 回の成功 report、コメント差分の非コメント行 0 と日本語コメントの正確性を確認した。後続入力は B addendum の「v3 manifest」という古い表記で、凍結条件や blind 監査を阻害しないため v4 snapshot は変更しない。
+
 ## 9. Phase D
 
-Phase C / C' の GO を記録し、base `develop` の PR を準備する。develop マージは人間の判断を待つ。
+Phase C / C' の GO を記録。base `develop` の PR #60 を更新する。develop マージは人間の判断を待つ。
