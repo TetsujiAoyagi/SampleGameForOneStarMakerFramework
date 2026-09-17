@@ -75,10 +75,11 @@ namespace OneStarMaker.Editor.Build.Content
                     throw new InvalidOperationException("Unity Content BuildReport failed: " + report?.summary.result);
                 var manifest = Path.Combine(workspace, "BuildManifestHash.txt");
                 if (!File.Exists(manifest)) throw new InvalidOperationException("Unity manifest pointer missing.");
-                // Unity owns the report/metadata layout. Keep its location, not its internal file list.
-                var metadata = Path.GetFullPath(report.summary.outputPath);
+                // Unity accepts the content output folder as a previousBuildReportDirectories input.
+                // The report's summary.outputPath is not guaranteed to identify that folder.
+                var metadata = Path.GetFullPath(workspace);
                 if (!Directory.Exists(metadata))
-                    throw new InvalidOperationException("Unity report output directory missing: " + metadata);
+                    throw new InvalidOperationException("Unity content output directory missing: " + metadata);
                 return new ContentDirectoryBuild(
                     report.summary.result + "|" + report.summary.platform + "|" + report.summary.totalSize,
                     manifest, metadata);
@@ -88,7 +89,16 @@ namespace OneStarMaker.Editor.Build.Content
                 if (File.Exists(Path.Combine(Application.dataPath, "OneStarMakerGenerated", "BS2b", identity, Marker)))
                     AssetDatabase.DeleteAsset(markerPath);
                 AssetDatabase.DeleteAsset(folder);
+                DeleteIfEmpty(GeneratedRoot);
+                DeleteIfEmpty("Assets/OneStarMakerGenerated");
             }
+        }
+
+        private static void DeleteIfEmpty(string assetFolder)
+        {
+            if (!AssetDatabase.IsValidFolder(assetFolder)) return;
+            var absolute = Path.Combine(Application.dataPath, assetFolder.Substring("Assets/".Length));
+            if (Directory.GetFileSystemEntries(absolute).Length == 0) AssetDatabase.DeleteAsset(assetFolder);
         }
 
         private static void CleanupOrphans()

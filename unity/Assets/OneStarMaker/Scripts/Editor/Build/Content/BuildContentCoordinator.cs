@@ -62,7 +62,7 @@ namespace OneStarMaker.Editor.Build.Content
                 var built = _adapter.Build(projection, identity, workspace);
                 if (!Directory.Exists(workspace) || !File.Exists(built.ManifestPointer) ||
                     !Directory.Exists(built.MetadataPath) || !Contained(workspace, built.ManifestPointer) ||
-                    !Contained(workspace, built.MetadataPath))
+                    (!SamePath(workspace, built.MetadataPath) && !Contained(workspace, built.MetadataPath)))
                     throw new InvalidOperationException("Unity build report or manifest metadata is missing.");
                 if (Directory.Exists(staging) || Directory.Exists(final))
                     throw new IOException("Build identity output already exists.");
@@ -71,6 +71,7 @@ namespace OneStarMaker.Editor.Build.Content
                 var metadata = Path.Combine(staging, Path.GetRelativePath(workspace, built.MetadataPath));
                 if (!File.Exists(manifest) || !Directory.Exists(metadata))
                     throw new IOException("Staging copy missed Unity metadata.");
+                Directory.CreateDirectory(Path.GetDirectoryName(final)!);
                 Directory.Move(staging, final);
                 published = true;
                 var success = new BuildContentResult(identity, preflight, outcome, final,

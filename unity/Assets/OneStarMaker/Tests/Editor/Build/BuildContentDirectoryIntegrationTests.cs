@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -13,6 +14,7 @@ using Unity.Loading;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace OneStarMaker.Tests.Editor.Build
 {
@@ -22,15 +24,18 @@ namespace OneStarMaker.Tests.Editor.Build
         private string _folder = "";
         private string _copy = "";
 
-        [TearDown]
-        public void Cleanup()
+        [UnityTearDown]
+        public IEnumerator Cleanup()
         {
+            if (EditorApplication.isPlaying) yield return new ExitPlayMode();
             if (_folder.Length != 0) AssetDatabase.DeleteAsset(_folder);
             if (_copy.Length != 0 && Directory.Exists(_copy)) Directory.Delete(_copy, true);
+            DeleteIfEmpty(FixtureParent);
+            DeleteIfEmpty("Assets/OneStarMakerGenerated");
         }
 
-        [Test]
-        public void ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirectory()
+        [UnityTest]
+        public IEnumerator ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirectory()
         {
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.StandaloneWindows64 ||
                 EditorUserBuildSettings.standaloneBuildSubtarget != StandaloneBuildSubtarget.Player)
@@ -48,7 +53,10 @@ namespace OneStarMaker.Tests.Editor.Build
                 File.WriteAllBytes(Path.Combine(Application.dataPath, texturePath.Substring("Assets/".Length)), texture.EncodeToPNG());
                 UnityEngine.Object.DestroyImmediate(texture);
                 AssetDatabase.ImportAsset(texturePath);
-                var mat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+                var shader = Shader.Find("Universal Render Pipeline/Lit");
+                if (shader == null) shader = Shader.Find("Standard");
+                if (shader == null) throw new InvalidOperationException("Fixture shader is unavailable.");
+                var mat = new Material(shader);
                 mat.mainTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
                 var matPath = _folder + "/Shared.mat";
                 AssetDatabase.CreateAsset(mat, matPath);
@@ -100,25 +108,33 @@ namespace OneStarMaker.Tests.Editor.Build
                 Assert.That(Directory.Exists(result.MetadataPath), Is.True);
                 Assert.That(File.ReadAllText(result.PreflightPath), Does.Contain(result.Identity));
                 Assert.That(File.ReadAllText(result.OutcomePath), Does.Contain(result.Identity));
-                _copy = Path.Combine(artifacts, "integration-copy-" + Guid.NewGuid().ToString("N"));
+                _copy = Path.Combine(artifacts, "integration-copy-" + result.Identity);
                 Copy(result.ContentPath!, _copy);
-                var handle = ContentLoadManager.RegisterContentDirectory(_copy);
-                Assert.That(handle.IsValid, Is.True);
-                try
-                {
-                    var roots = ContentLoadManager.GetRootAssets<BuildContentRoot>(handle);
-                    Assert.That(roots.Length, Is.EqualTo(1));
-                    Assert.That(roots[0].BuildIdentity, Is.EqualTo(result.Identity));
-                    Assert.That(roots[0].Entries.Count, Is.EqualTo(4));
-                    Assert.That(roots[0].Entries.Count(x => x.LogicalKey == "shared-logical"), Is.EqualTo(2));
-                    Assert.That(roots[0].Entries.Where(x => x.LogicalKey == "shared-logical")
-                        .Select(x => x.Representation), Is.EquivalentTo(new[] { "High", "Low" }));
-                    Assert.That(roots[0].Entries.Single(x => x.Kind == BuildContentKind.Scene).SceneId, Is.Not.EqualTo(default(LoadableSceneId)));
-                    Assert.That(roots[0].Entries.Where(x => x.Kind == BuildContentKind.Object).All(x => x.Object != null), Is.True);
-                }
-                finally { ContentLoadManager.UnregisterContentDirectory(handle); }
             }
-            finally { EditorSceneManager.RestoreSceneManagerSetup(previous); }
+            finally
+            {
+                if (previous.Any(x => x.isActive)) EditorSceneManager.RestoreSceneManagerSetup(previous);
+                else EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                if (_folder.Length != 0) { AssetDatabase.DeleteAsset(_folder); _folder = ""; }
+            }
+            yield return new EnterPlayMode();
+            var handle = ContentLoadManager.RegisterContentDirectory(_copy);
+            Assert.That(handle.IsValid, Is.True);
+            try
+            {
+                var roots = ContentLoadManager.GetRootAssets<BuildContentRoot>(handle);
+                Assert.That(roots.Length, Is.EqualTo(1));
+                Assert.That(roots[0].BuildIdentity,
+                    Is.EqualTo(Path.GetFileName(_copy).Substring("integration-copy-".Length)));
+                Assert.That(roots[0].Entries.Count, Is.EqualTo(4));
+                Assert.That(roots[0].Entries.Count(x => x.LogicalKey == "shared-logical"), Is.EqualTo(2));
+                Assert.That(roots[0].Entries.Where(x => x.LogicalKey == "shared-logical")
+                    .Select(x => x.Representation), Is.EquivalentTo(new[] { "High", "Low" }));
+                Assert.That(roots[0].Entries.Single(x => x.Kind == BuildContentKind.Scene).SceneId, Is.Not.EqualTo(default(LoadableSceneId)));
+                Assert.That(roots[0].Entries.Where(x => x.Kind == BuildContentKind.Object).All(x => x.Object != null), Is.True);
+            }
+            finally { ContentLoadManager.UnregisterContentDirectory(handle); }
+            yield return new ExitPlayMode();
         }
 
         private static void Copy(string source, string target)
@@ -138,6 +154,12 @@ namespace OneStarMaker.Tests.Editor.Build
                 if (!AssetDatabase.IsValidFolder(next)) AssetDatabase.CreateFolder(parent, segment);
                 parent = next;
             }
+        }
+        private static void DeleteIfEmpty(string assetFolder)
+        {
+            if (!AssetDatabase.IsValidFolder(assetFolder)) return;
+            var absolute = Path.Combine(Application.dataPath, assetFolder.Substring("Assets/".Length));
+            if (Directory.GetFileSystemEntries(absolute).Length == 0) AssetDatabase.DeleteAsset(assetFolder);
         }
     }
 }

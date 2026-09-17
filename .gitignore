@@ -52,6 +52,7 @@ tools/**/.vs/
 !unity/Assets/Packages/**
 
 # Build artifacts
+artifacts/bs2b/
 *.dll.mdb
 *.pdb
 *.mdb
