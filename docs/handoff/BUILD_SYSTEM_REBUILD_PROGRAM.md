@@ -1,7 +1,7 @@
 # BuildSystem刷新 — 全体計画と継続開発の引継ぎ
 
 - type: program
-- status: 継続中。次はBS2b Phase A。個別スライスの実装凍結ではない。
+- status: 継続中。BS2b Phase D 完了、次はBS2c Phase A。個別スライスの実装凍結ではない。
 - branch: `codex/build-system-program`（本program文書の整備用。各実装は専用ブランチ）
 - planning base: `65d1b91`（2026-09-17のdevelop）
 - risk: high（後続の build 出力、runtime identity、所有者・寿命の設計に関係する）
@@ -29,25 +29,25 @@ Unity 6.6 Content Directoriesを用いて、content選択、build、Runtimeロ�
   IL2CPP/AOT、HTTP、処理中native loadの取消、全incremental matrixの保証ではない。
   `unity/Assets/CD0Spike/`はPhase D（`bda2ed7`）で削除済み。本番adapterとして復元せず、履歴の実証と公開文書を設計入力にする。
 - BS1: 完了。Unity非依存のselection coreを実装済み。
-- BS2a: 完了。SceneResource production materializationを実装済み。既存build/Runtime経路へは未接続。
-- BS2b以降: 未着手。旧Addressables経路は残存し、Player build可を現行の前提にしない。
+- BS2a: 完了。SceneResource production materializationを実装済み。旧build/Runtime経路へは未接続。
+- BS2b: 完了。成功planと対応snapshotからContent Directoryを生成し、単一rootとreportを渡す。
+  Scene・Prefab・Texture fixture、同一workspace再build、移設後root discoveryを実証した。
+- BS2c以降: 未着手。旧Addressables経路は残存し、Player build可を現行の前提にしない。
 
 実行順序:
 
 ```text
-U66 → CD0 → BS1 → BS2a                 完了
-                       ↓
-                     BS2b              Content Directory build
-                       ↓
-                     BS2c              SampleGameの選択policyと入力配線
-                       ↓
-                     BS3               Runtime backendとEditor Play
-                       ↓
-                     BS4               Player build / bootstrap
-                       ↓
-                     DIST              配信・local cache・開発workflow
-                       ↓
-                     RET               旧経路の廃止
+U66 → CD0 → BS1 → BS2a → BS2b          完了
+                              ↓
+                             BS2c       SampleGameの選択policyと入力配線
+                               ↓
+                             BS3        Runtime backendとEditor Play
+                               ↓
+                             BS4        Player build / bootstrap
+                               ↓
+                             DIST       配信・local cache・開発workflow
+                               ↓
+                             RET        旧経路の廃止
 ```
 
 BS2cは今回明示した接続工程の名前。既存の完了sliceや実装済み機能ではない。
@@ -100,37 +100,17 @@ program全体の責務境界:
 
 ### BS2b — Content Directory build
 
-答える問い: 成功したplanと対応するsnapshotから、Sceneと代表非Sceneを含むContent Directoryを生成できるか。
+完了。成功した `BuildPlan` と対応する `BuildMaterializationSnapshot` から、Scene と代表非 Scene を
+含む Content Directory を固定 StandaloneWindows64 Player target で生成できる。
+純粋な projection が選択候補と既存閉包を照合し、Editor adapter が一時 root と実 build を所有する。
+単一 directory に同じ logical asset の異なる表現を入れ、`BuildContentRoot` に論理対応と Unity の
+loadable ID を保存する。preflight/outcome report、build identity、manifest pointer を対応付ける。
+同じ workspace の再 build、移設後の単一 root discovery を Scene・Prefab・Texture fixture で検証した。
 
-- 中核の入力は成功した`BuildPlan`と対応する`BuildMaterializationSnapshot`を基本とする。
-  SceneResourceMap走査は呼出側adapterに置き、中核からSceneAssetDescription、Scene固有タグやprovider名を解釈しない。
-- 候補とclosureの対応付け・検証はUnity Content Directories API / AssetDatabaseを呼ばない中核に置き、fixtureで単体検証する。
-  root生成、AssetDatabase操作、Content Directory build、生成物cleanupはEditor adapterへ隔離し、実buildで統合検証する。
-  build orchestrationとEditor adapterはOSMのEditor/Build配下へ新設する。Playerがdeserializeするroot/受渡しmetadata型は
-  必要最小のRuntime側assemblyへ置き、UnityEditor依存を持たせない。具体配置・asmdef依存・owner・test境界はBS2b Phase Aで固定する。
-  `CD0Spike`は復元しない。責務の違いはclass/adapterで分離し、実directory生成までを一つのsliceで証明する。
-- 選択済み候補を既存snapshotの依存閉包へ対応付ける。Variantの再選択や依存閉包の再計算はしない。
-  planとsnapshotの対応不整合や必要なclosure欠落はbuild前に失敗させる。
-- 既存friend test assemblyで、PrefabとTextureをrootとする非Scene snapshot fixtureを作る。
-  本番Prefab/Texture Description、汎用factory、source登録機構の追加は不要。
-- 同じbuild中核でSceneと非Sceneを処理し、選択外Variant、共有依存、欠損、入力順序変更を検証する。
-  異なるrootが依存ファイルを共有するケースと、複数候補が同じphysical keyを持つケースを混同しない。
-- root生成・一時生成物のowner/path/cleanup、固定target/subtarget、出力先、build identity、incremental/hash、reportの形式をPhase Aで決める。
-  選択・除外と理由、issueをbuild前に確認できるreportを持ち、失敗した成果物を成功出力として公開しない。
-  成功buildと対応するContent BuildReportを後続へ渡す。全incremental matrixを無条件に追加せず、保証する範囲を固定する。
-- build出力にcatalog/address等が必要でも、ファイルGUIDだけで任意のRuntimeロード対象を識別できるとは宣言しない。
-- **成果物形式はBS2bが所有する。** Phase Aで、同一logical assetの複数表現を同一directoryへ格納するか別directoryに分けるか、
-  起動時に表現を区別する情報の格納場所とRuntimeへの受渡し口、logical/表現/ロード先の対応を必須決定事項として凍結する。
-  初期の単一directory方針との整合、build identityとBuildReportの対応、成果物へ保持するmetadataの範囲も固定する。
-  この最小の受渡し契約をBS2cへ先送りしない。将来の全種別schemaやサブアセットlocator全体の実装を要求するものではない。
-- 取得済み成果物からの起動は、ローカルのproduction materialization成功を要求しない。
-  BS2bが成果物または保持するローカルmetadataへ必要な論理対応情報を渡す契約を決め、BS3がその入力だけで解決・起動する。
-  BS2aのsource/依存欠損時にsnapshotを返さない契約は緩めない。source欠損での一連の実証はDISTが所有する。
-
-最低条件は、固定targetと凍結したincremental保証範囲でSceneと代表非Sceneの実directoryが生成され、
-Scene固有の前提が消費側へ漏れず、成果物・論理対応情報・BuildReportの対応を確認できること。
-fixtureによる成功はconsumer境界の実証に限定し、本番source収集、source合成、サブアセットロードの成立とは記録しない。
-Content Directoryのpartition、target/subtarget、output、incremental/hash等の詳細はBS2bのPhase Aが所有する。
+本番 Scene graph の選択 policy と入力配線は BS2c、source に依存しない Runtime 解決・登録・寿命は BS3、
+Player 統合は BS4、source 欠損で取得済み成果物から起動する一連の実証は DIST が所有する。
+非 Scene Description の本番 source と汎用サブアセット locator は実需要のある後続 slice で扱う。
+実装済みの build 契約は [18. AssetDescription](../../unity/Assets/Docs/Architecture/18-asset-description.md) を正とする。
 
 ### BS2c — SampleGameの選択policyと入力配線
 
@@ -247,8 +227,8 @@ asset単位のHTTP遅延fetch、delta patch、CDN最適化は後続の専用拡�
 
 ## 4. 別セッションへの引継ぎ・レビュー・停止規則
 
-- BS2b開始時は本書と現行実装を読み、§3のBS2b条件をslice HANDOFFの受け入れ条件へ転記する。
-  本書に書かれていないbuild詳細を実装中に決めず、Phase Aで解決する。
+- 次のBS2c開始時は本書と現行実装を読み、§3のBS2c条件をslice HANDOFFの受け入れ条件へ転記する。
+  本書に書かれていない選択policyと配線の詳細はBS2c Phase Aで解決する。
 - 各sliceは`osm-workflow`に従い、1 slice / 1 branch / 1 HANDOFF、PR baseはdevelopとする。
   実装base/headとPhase A snapshotを固定し、Phase境界では新規セッションへ規定の入力を渡す。
 - 新しいasmdef参照、公開API、永続化形式、所有者・寿命の変更は該当sliceのPhase Aで明示する。

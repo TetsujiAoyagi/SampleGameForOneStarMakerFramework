@@ -177,9 +177,32 @@ Selection core は引き続き Unity / AssetDatabase / Addressables を参照し
   tag provider は snapshot 所有で、未知 candidate には空のタグ集合を返す。
 
 既存の `VariantWhitelistBuilder` と Addressables build 経路は変更しておらず、
-この adapter にはまだ接続されていない。Content Directories build、runtime の directory 管理、
-Player build も未実装であり、materialization の成功をそれらの成立と同一視しない。
+この adapter にはまだ接続されていない。BS2b の Content Directory build は別入口として実装済みだが、
+本番の SceneResource graph からの選択配線、runtime の directory 管理、Player build は未実装である。
+materialization の成功だけをこれらの成立と同一視しない。
 `FindDependency` の lookup key は canonical lowercase GUID を渡す契約である。
+
+### 選択済み content の Content Directory build（現況）
+
+`Editor/Build/Content/` の `BuildContentCoordinator` は成功した `BuildPlan` と対応する
+`BuildMaterializationSnapshot` を受け取る。純粋な projection が stable / logical / physical key、
+root と依存閉包を照合し、欠損・衝突を build 前の構造化 issue にする。選択 policy と依存閉包は
+再計算しない。Unity API を使う root 生成と build は Editor adapter に隔離している。
+
+- 固定 target は StandaloneWindows64 Player。`artifacts/bs2b/work/<target>/<content-set>/` を
+  再 build 用 workspace とし、成功した directory 一式を build identity ごとの
+  `artifacts/bs2b/content/<identity>/` へ staging を経て公開する。失敗成果物は成功 path として返さない。
+- 生成した単一 `BuildContentRoot` に schema version、build identity、target と entry 配列を保存する。
+  entry は logical key、stable key、`Representation`、Scene / Object 種別と Unity の
+  `LoadableSceneId` / `Loadable<UnityEngine.Object>` を持つ。複数表現を同一 directory に格納できる。
+  ファイル GUID 単独を Object の load identity としない。
+- preflight report は選択・除外理由・root・閉包・issue、outcome report は成否・summary・公開 path・
+  `BuildManifestHash.txt` と metadata directory を同じ identity に結び付ける。Unity 内部ファイルを
+  OSM の公開 protocol として解釈しない。
+- Scene、Prefab、Texture と同じ logical key の High / Low 表現を含む fixture で実 build を確認した。
+  同じ workspace で 2 回 build し、公開 directory の移設後に PlayMode で単一 root を登録・発見した。
+  これは consumer 境界の検証であり、本番非 Scene Description、型付き load、サブアセット一般化、
+  Runtime の所有・解放、Player への接続を証明しない。
 
 ---
 
@@ -220,6 +243,8 @@ Player build も未実装であり、materialization の成功をそれらの成
 - BuildSystem: `unity/Assets/OneStarMaker/Scripts/Editor/Build/`
 - Pure selection: `unity/Assets/OneStarMaker/Scripts/Editor/Build/Selection/`
 - Production materialization: `unity/Assets/OneStarMaker/Scripts/Editor/Build/Materialization/`
+- Content Directory build: `unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/`
+- Build content root: `unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/`
 - Scene 連携: `unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneResource.cs`, `SceneResourceMap.cs`
 - 既存資料: [13. リソースシステム](13-resource-system.md)（AssetType は cache 用メタとして採用済み。AssetResidentCache(常駐キャッシュ + per-category budget)実装済み）
 - ワークフロー: [20. Variant チェックアウトワークフロー](20-variant-checkout-workflow.md)
