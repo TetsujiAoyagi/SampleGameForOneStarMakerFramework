@@ -1,19 +1,21 @@
 # BS2c — SampleGame の選択 policy と Content Directory 入力
 
 - type: slice
-- status: B（A3 凍結済み）
+- status: Phase C/C' 完了（Phase D 判断待ち）
 - branch: `codex/bs2c-samplegame-selection`
 - implementation base commit: `16650d7`
-- implementation head commit: 未作成
+- implementation head commit: `2859ec0`
 - risk: high（本番 Scene graph、選択 cardinality、Editor build 入力）
 - owner: BS2c 担当
 - created: 2026-09-17
 - expires: BS2c Phase D。遅くとも 2026-10-17 に前提を再確認
 - harvest to: `unity/Assets/Docs/Architecture/18-asset-description.md`、`20-variant-checkout-workflow.md`
-- Phase A snapshot path / id: 本文 §1–5、A2 commit `56f1afe`
-- Phase A snapshot generated at / hash: 2026-09-17、SHA256 `29CBB61FDBA51C7D374DB4EA64830D276A130DA10569DDAEB64F665D30ABDE2C`
-- Phase B result snapshot path / id / generated at / hash: 未作成
-- evidence bundle path / id / generated at / hash: 未作成
+- Phase A snapshot path / id: `artifacts/bs2c-review/phase-a-frozen.md`、commit `5967bbe` 内の A3 記録済み HANDOFF（§1–5）。A1/A2 入力版は `56f1afe`
+- Phase A snapshot generated at / hash: 2026-09-17、SHA256 `34935152EFAD3DB08BE3522E9F050A0D681A12AA5B5F42BADB54CF963AC1498B`
+- Phase B result snapshot path / id: `artifacts/bs2c-review/phase-b-result.md`
+- Phase B result snapshot generated at / hash: 2026-09-18、SHA256 `BAF9D3679A95ECF6FE7DBBE81F6FB0A1678CC19852BEB1461659D11A0F166F88`
+- evidence bundle path / id: `artifacts/bs2c-review/`、base `16650d7` / head `2859ec0`。完全 diff SHA256 `4FB80B644F0EE2B14753434E7BA9513B53FE2854AA77138954D74267EBA08BA1`
+- evidence bundle generated at / hash: 2026-09-18、C' blind bundle の各ファイル SHA256 は `artifacts/bs2c-blind/manifest.txt`。manifest SHA256 `71AE8D54A553C707DBACB4B2D40DAF7FE5990FBC5D274D96C4AC5C9278126B57`
 - C' blind bundle path / id / generated at / hash: 未作成
 
 ## 1. 目的、現況、対象外
@@ -37,7 +39,7 @@
 
 - Season schema は `Spring`、`Summer`、`Autumn`、`Winter`。`SceneResource.Parent` の祖先にある季節 node から membership を決める。季節名や Identity の接頭辞では子孫を推測しない。季節外の bootstrap/共通 Scene は Season タグを持たず、各 build へ含める。重複 Identity、親参照の循環、map 外参照、親子の相互不一致、孤立 node、複数季節 membership は選択前に失敗として報告する。
 - Representation は既存 materialization の `Full`（空 Variant）と `Whitebox` を使う。未知 Variant は error。個別 Scene へのタグ複製は行わない。例外 metadata は project policy の明示的な入力として設け、初期値は空にする。例外なしで現 graph を説明できない場合は A3 前に具体例と所有者を決める。
-- `BuildRequest` の `Representation` は materializer のタグ検証に使う。共通 Full を Spring Whitebox に含めつつ季節 Full を除くため、SampleGame 固有の `SeasonalMode` タグを季節候補だけに付ける。Spring Whitebox の request は `Representation={Full,Whitebox}`、`SeasonalMode={Whitebox}`、`Season={Spring}`。Spring Full は `Representation={Full}`、`SeasonalMode={Full}`、`Season={Spring}`。全季節 Full は Season の4値。Full+Whitebox は両表現と両 mode を要求する。この二重タグの意味を SampleGame の選択診断とテストに明記する。BS2b の preflight は request と requirements を出力しないため、その report だけを選択根拠としない。
+- `BuildRequest` の `Representation` は materializer のタグ検証に使う。共通 Full を Spring Whitebox に含めつつ季節 Full を除くため、SampleGame 固有の `SeasonalMode` タグを **Full と Whitebox の両候補を持つ季節 logical group** の候補に付ける。Full のみの季節 companion は切替対象ではなく、`SeasonalMode` を付けず各 mode に残す。Spring Whitebox の request は `Representation={Full,Whitebox}`、`SeasonalMode={Whitebox}`、`Season={Spring}`。Spring Full は `Representation={Full}`、`SeasonalMode={Full}`、`Season={Spring}`。全季節 Full は Season の4値。Full+Whitebox は両表現と両 mode を要求する。この二重タグの意味、必須 logical group と cardinality を SampleGame の選択診断とテストに明記する。BS2b の preflight は request と requirements を出力しないため、その report だけを選択根拠としない。
 - requirement は SceneResource の payload 宣言を根拠に、選択した季節の group と季節外の group に限定して新たに作る。payload が空の構造ノード（例: `Season_Spring`）には requirement を置かない。payload が宣言されているのに materialization 候補が欠ければ失敗とし、黙って optional にしない。単一表現は `ExactlyOne`、二表現同梱の季節 group は `OneOrMore` とし、Full と Whitebox の双方が存在する group について双方が選ばれることを project policy が検証する。materializer snapshot の `Requirements` と `Candidates`、依存閉包は変更せず、snapshot の `Requirements` を selector に丸ごと渡さない。
 - 選択や materialization が失敗した場合は build を開始しない。成功 plan の全候補は選択または除外として残し、BS2b projection の整合検査を通す。除外には既存の tag/value 理由を残す。
 - 三つの代表 build と Full+Whitebox の plan 検査、逆順入力の決定性、共通 content、季節外 requirement、欠損 Variant、重複、誤った親子、例外 metadata の単体テストを持つ。
@@ -75,18 +77,36 @@ A0/A1 主担当: Codex / GPT-6 Astra。A2: 独立 architecture gate は別セッ
 - A2 architecture gate: 親子 membership と project policy の分離を推奨。全 map の `ExactlyOne` を request 範囲に絞り、二表現では cardinality を変える。materialization snapshot は変更せず BS2b に渡す。共通 Full と Whitebox-only の選択は selector の AND/OR semantics に注意。採用: `SeasonalMode` を使い、Framework の public selector API 変更を避ける。
 - A2 独立レビュー: BS2b report だけでは request/requirement を説明できない、空 payload node の扱いが曖昧、pure policy の Unity Object 依存とテスト配置が曖昧、graph 相互整合検証が不足、と指摘。すべて採用し、上記受け入れ条件と責務マップを更新した。
 - A3 統合・採否・凍結: A2 の指摘をすべて採用した上記境界を、2026-09-17 にユーザーが明示承認。以後の設計変更は Phase A revision とする。
+- Phase C の文面確認: `SeasonalMode` をすべての季節候補へ付けると読む余地を指摘。A3 の「季節候補だけに付ける」は付与先の制限であり、全季節候補への付与義務ではない。Full のみの季節 companion は切替対象外で両 mode に必要という既存受け入れ条件を明確化した。最低条件、責務配置、後続境界を変えないため Phase A revision は発生しない。
 
 ## 6. Phase B 実装結果
 
-未着手。
+- 実装: `SeasonSceneSelectionPolicy` が immutable graph record、既存 candidate/provider、request から Season/SeasonalMode と scoped requirements を生成する。`SampleGameContentBuild` が SceneResourceMap を複製し、既存 materializer → selector → BS2b coordinator へ接続し、必須 logical group/cardinality を選択診断へ出す。専用 test asmdef と policy の合成 graph テストを追加した。
+- HANDOFF との差: Full のみの季節 companion には `SeasonalMode` を付けず、Whitebox build でも共通 content と同様に残す。切替対象は Whitebox 候補を持つ logical group。例外 metadata の入口は policy の `seasonOverrides`（初期値は空）。成果物 schema や Framework API は変更していない。
+- 実装 head: `2859ec0`（`16650d7` との差分）。C' の凍結条件違反指摘を受け、二表現 group の cardinality 判定を修正し、同一 Full 二候補の異常系を追加した。
+- Phase B 機械確認: `pwsh tools/contract-audit.ps1` は違反なし。Unity 生成済み compiler response file を使った `SampleGame.DependOnAll.Editor` と `SampleGame.Tests.Editor` の直接コンパイルは成功。
+- 未実行: Unity バッチテストと Content Directory build は Phase C。既存の人間所有 Unity Editor PID 31664 が同 project を保持しており、ライブ Editor の最終 refresh/compile は未確認。今回起動した重複 Editor PID 11844 は終了した。
+- Phase B 担当・モデル: Codex / GPT-6 Astra。
 
 ## 7. Phase C
 
-未実施。
+- 旧 head `f745c9e` のレビューは GPT-5.6 Sol が PASS と判定したが、C' の別モデル blind 監査が二表現 cardinality の凍結条件違反を発見した。旧 C/C' 結果は新 head `2859ec0` へ持ち越さない。
+- 新 head `2859ec0` の担当は Codex / GPT-5.6 Sol。Phase B の GPT-6 Astra と異なる新規読み取り専用セッションで、旧レビュー結論を入力せず構造から確認した。
+- 構造: A3 の pure policy、Editor 入口、専用 test asmdef に変更を収め、Game Editor → Framework Editor の既定 3 edge 以外の依存と Framework API/schema は変更なし。全差分 628 行を構造レビューし、責務・寿命・配置の blocker はなし。
+- 機械検査: `contract-audit.ps1` 違反なし。専用 EditMode 14/14、全 EditMode 775/775。全回帰は最終 head と同一ハッシュのソースを隔離作業ツリーへ写して実行し、その後 worktree head を `2859ec0` に切り替えた。既存の人間所有 Editor は終了していない。
+- 実 build: head `2859ec0` の隔離 Unity 作業ツリーで全季節 Full（required/selected 441/441）、Spring Full（114/114）、Spring Whitebox（114/114）、Spring Full+Whitebox（114/168）を実行。4 件とも `Succeeded` outcome と Content Directory を確認し、選択診断に request、required group/cardinality、除外理由を記録。
+- 現在の問いを阻害する findings: なし。A3 の `SeasonalMode` 文言は付与先の制限であり全季節候補への付与義務ではない。Full のみの季節 companion を両 mode に残す実装は凍結条件と整合。
+- 後続への入力・残存リスク: 本番 graph のあらゆる異常状態を実 build で発生させたわけではない。合成 graph のテストで主要な失敗経路を確認。Runtime load / directory 登録・寿命は BS3、Player bootstrap / stripping は BS4。
+- 判定: PASS。
 
 ## 8. Phase C'
 
-未実施。
+- 旧 head `f745c9e` の blind 監査は GPT-5.6 Terra の新規 Codex CLI セッションで実施。二表現 mode の `OneOrMore` 判定が「候補数 > 1」だったため Full 二候補だけでも `ExactlyOne` を回避する凍結条件違反を発見し、FAIL。現 head の修正と異常系テストへ反映した。
+- findings ledger: severity blocker、category semantic、unique、accepted。発見 Phase C' / Codex GPT-5.6 Terra。根拠は A3 の「二表現同梱の季節 group は OneOrMore」、旧 policy の `nodeCandidates.Length > 1`。bucket は現在の問いを阻害する欠陥。修正 commit `2859ec0` で Full と Whitebox の双方がある group だけを `OneOrMore` にし、Full 二候補・Whitebox なしのテストを追加した。
+- 新 head `2859ec0` の blind bundle は `artifacts/bs2c-blind/`、SHA256 manifest は上記。凍結 Phase A snapshot、Phase B result、完全 diff、生テスト・実 build ログ、Phase C 前の契約監査だけを収録し、C の結論と可変 HANDOFF を含めない。
+- 担当 Codex / GPT-5.6 Terra。Phase B/C の両モデルと異なる新規読み取り専用セッション。manifest の 13 ファイルを SHA256 照合し、blind bundle と必要な workflow 指示だけを読んだ。構造、graph・選択の失敗経路、二表現 cardinality、4 build を独立に確認。
+- 現在の問いを阻害する findings: なし。後続への入力: 将来の SceneResourceMap の root/季節 identifier と候補 identity の変化は、この validation 契約を満たす必要がある。Runtime / Player / 配布は凍結済み後続スライス。
+- 判定: PASS。C と C' の独立結果は一致し、残存 blocker はなし。
 
 ## 9. Phase D
 
