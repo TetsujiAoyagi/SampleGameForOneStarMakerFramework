@@ -1,7 +1,7 @@
 # BS2b — Content Directory build
 
 - type: slice
-- status: Phase C/C' GO、Phase D develop マージ判断待ち
+- status: Phase A3 凍結（実装前）
 - branch: `codex/bs2b-content-directory-build`
 - implementation base commit: `ef3ad21`
 - implementation head commit: `c0fff31`
@@ -11,8 +11,8 @@
 - expires: 2026-10-17。Phase D で判断し、残す契約を公開面へ harvest する。
 - harvest to: `unity/Assets/Docs/Architecture/18-asset-description.md`、`13-resource-system.md`、`20-variant-checkout-workflow.md`
 - Phase A snapshot: `docs/handoff/evidence/bs2b/phase-a-snapshot.md`、2026-09-17 07:58 JST、SHA-256 `d18f4af428c18cb4ac1ee3807d9f8ea051d3f1906972c8685875ac0888f7da41`
-- Phase B result snapshot: `docs/handoff/evidence/bs2b/phase-b-result-v2.md`、2026-09-17 09:43 JST、SHA-256 `34408e677b340aeacf2995392b9624f1f30b67dd07c1a2ee2f5052db4999df4c`。`78cd163` 対象の旧 snapshot とレビュー結果は無効化。
-- evidence / C' snapshot: `docs/handoff/evidence/bs2b/manifest-v2.md`、2026-09-17 09:43 JST、SHA-256 `9fc9ac1b2f2484f9761fc0ded5aca2810ba168937d0fd72cc22d92ac5e32caf2`。
+- Phase B result snapshot: このファイル。hash は HANDOFF と evidence manifest に記録する。
+- evidence / C' snapshot: 各 Phase で固定後に path、時刻、SHA-256 を記録する。
 
 ## 1. 目的、現在地、対象外
 
@@ -80,11 +80,11 @@ Phase C は実装 base/head の完全 diff と生ログを固定し、構造レ�
 - A2 architecture: GPT-5.6 Sol / OpenAI、A1 を読んだ独立レビュー。root discovery 未固定、複数表現の実証不足、file/API/port map 不足を採用し、§3-4 に反映。
 - A2 alternative: GPT-5.6 Terra / OpenAI、A0 と現行 contract のみを読む独立構成案。固定 build workspace の再利用、Unity manifest pointer と report/Player metadata location、active target の検査、成功 directory の全量 publish を採用。Player build 実行と metadata 注入は BS4 のため BS2b に入れない。Unity 内部 manifest の parse は採用しない。
 - A3: program §4 の 2026-09-17 不在時委任に基づき主担当 GPT-6 Astra が上記採否を統合して凍結。高リスクのため A2 2件を実施。両レビューは OpenAI 系列なので強化条件の異ベンダー予約は満たさず、C' で可能なら未関与系列を使い、不可なら独立性制約と記録する。
-- Phase B: 実装済み。初回 C/C' は `78cd163` を対象に実施。C の条件7指摘を採用し、`c0fff31` へ修正したため初回結果は無効。C/C' を新 head で再実施する。
+- Phase B/C/C': 未着手。C' 用に A/B/C 未関与モデルを予約する。
 
 ## 6. Phase B 実装結果
 
-- 実装: `340376f`、`78cd163`、`c0fff31`。Unity I/O を使わない projection、構造化 issue、Editor build orchestration / adapter、単一 Runtime root、preflight/outcome report、Prefab/Texture fixture を含むテストを追加した。新 asmdef は Phase A の依存方向に配置した。Selection assembly の internal constructor は既存 Editor test assembly へ限定公開し、無効な plan fixture も検証可能にした。初回 C の差戻し後、projection 専用型を internal に限定し、同一 workspace の連続 build、各 manifest/report、公開 directory の file と移設後 root の検証を統合テストに追加した。
+- 実装: `340376f` と `78cd163`。Unity I/O を使わない projection、構造化 issue、Editor build orchestration / adapter、単一 Runtime root、preflight/outcome report、Prefab/Texture fixture を含むテストを追加した。新 asmdef は Phase A の依存方向に配置した。Selection assembly の internal constructor は既存 Editor test assembly へ限定公開し、無効な plan fixture も検証可能にした。
 - HANDOFF との差: build report の受渡し位置は Unity content 出力 directory を用いる。Unity 6.6 の `previousBuildReportDirectories` は build 出力 folder も受け付ける。Player 注入は BS4 のまま。
 - 未実行: Unity Editor コンパイル確認、バッチテスト、実 Content Directory build。Editor は未接続で、sandbox 内の PowerShell 起動が停止したため、Phase C の batch 経路で確認する。
 - 機械検査: `pwsh -NoProfile -File tools/contract-audit.ps1` を sandbox 外で実行、exit 0、変更 Unity `.cs` 9件、違反なし。`git diff --check` exit 0。
@@ -92,24 +92,18 @@ Phase C は実装 base/head の完全 diff と生ログを固定し、構造レ�
 
 ## 7. Phase C
 
-### 初回レビューと差戻し
-
-`78cd163` 対象の初回 Phase C（GPT-5.6 Terra / OpenAI）は NO-GO とした。P1 / semantic / unique として、条件7の同一 workspace 再 build と実 directory の Scene・Prefab・Texture、除外 root、共有依存の検証が不足していた。P2 / semantic / unique として、internal pure core の補助型 `ProjectedContent` と `BuildContentProjectionResult` が public だった。いずれも採用し、`c0fff31` で補った。初回 C'（GPT-5.5 / OpenAI）は GO だったが、対象 diff を変更したため両方の初回判定を無効化した。
-
-### `c0fff31` の再レビュー
-
-- 入力: `manifest-v2.md` の同一固定 bundle。base `ef3ad21`、head `c0fff31`。Phase A / B snapshot、完全 diff / stat / name-status、Unity 生ログ / XML、2 回分の preflight / outcome を含む。
-- 機械検査: `contract-audit.ps1` exit 0、Unity 側変更 `.cs` 9件に機械判定違反なし。`git diff --check` exit 0。`docs-audit.ps1` exit 0、§7/§8 の定型的な警告 2 件。
-- Unity 6000.6.0f1 StandaloneWindows64 Player、全 EditMode 761/761 成功・失敗 0・skip 0。Unity log の終了コード 0。BS2b 限定 5/5 成功。統合テストは固定 workspace で 2 回の実 Content Directory build と各 report / manifest、公開 directory のファイル、移設後の単一 root、Scene / Object entry、2 表現、除外 root 不在を確認した。preflight の共有 material と両 build identity が outcome に一致した。
-- 新規コンテキスト GPT-5.6 Terra / OpenAI の findings-first 構造→機能レビュー: 現在の問いを阻害する欠陥 0、GO。配置と asmdef edge は凍結 map に一致し、全条件を固定 diff と生証拠で確認した。
-- 後続入力: Unity `Library/BuildInstructions/*.buildinst` 7 ファイルがテスト cleanup 警告に残る。Library cache であり、公開 content / source asset ではない。BS2b の凍結条件の違反ではないため修正範囲を拡張しない。
+未着手。
 
 ## 8. Phase C'
 
-新規コンテキスト GPT-5.5 / OpenAI が `manifest-v2.md` の blind bundle のみで独立監査した。初回 C/C' の所見と現在の可変 HANDOFF は渡さなかった。構造・常時契約・全受け入れ条件について現在の問いを阻害する欠陥 0、GO。Unity log で 2 回の `BuildPipeline.BuildContentDirectory` と両 identity を確認し、生 XML の 761/761 成功を確認した。
-
-後続入力は、outcome JSON の選択 / root / closure 欄は空で preflight に詳細があること、実 Object 型検証と汎用サブアセットは BS3、変更 matrix を含む増分保証は本条件外、の 3 件。いずれも凍結条件違反ではない。C と C' の重複した blocking finding は 0。両レビューとも OpenAI 系列で、異ベンダー独立性の強化条件は満たしていないことを記録する。
+未着手。
 
 ## 9. Phase D
 
-Phase C / C' の GO を記録し、base `develop` の PR を準備する。develop マージは人間の判断を待つ。
+人間の develop マージ判断を待つ。
+
+## Phase B addendum for implementation head c0fff31
+
+- Projection-only data types ProjectedContent and BuildContentProjectionResult are internal.
+- The integration test builds the same content set twice using the fixed workspace, verifies distinct published identities and both reports/manifests, then copies the published directory and checks the registered root in PlayMode.
+- Focused Unity tests: 5 passed, 0 failed. Full Unity EditMode: 761 passed, 0 failed, 0 skipped. Raw results and log are in the evidence bundle.

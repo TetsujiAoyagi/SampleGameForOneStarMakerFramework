@@ -1,0 +1,1326 @@
+diff --git a/.gitignore b/.gitignore
+index 2f1db90..e878f4a 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -52,6 +52,7 @@ tools/**/.vs/
+ !unity/Assets/Packages/**
+ 
+ # Build artifacts
++artifacts/bs2b/
+ *.dll.mdb
+ *.pdb
+ *.mdb
+@@ -65,4 +66,4 @@ docs/planning/**
+ docs/debugstudio/**
+ 
+ # agent個別設定
+-*.codex
+\ No newline at end of file
++*.codex
+diff --git a/docs/handoff/BS2B_CONTENT_DIRECTORY_BUILD.md b/docs/handoff/BS2B_CONTENT_DIRECTORY_BUILD.md
+new file mode 100644
+index 0000000..b4f0b9f
+--- /dev/null
++++ b/docs/handoff/BS2B_CONTENT_DIRECTORY_BUILD.md
+@@ -0,0 +1,98 @@
++# BS2b — Content Directory build
++
++- type: slice
++- status: Phase A3 凍結（実装前）
++- branch: `codex/bs2b-content-directory-build`
++- implementation base commit: `ef3ad21`
++- implementation head commit: 未生成
++- risk: high（生成物形式、Editor build、Runtime 受渡し）
++- owner: BS2b 主担当 / Codex
++- created: 2026-09-17
++- expires: 2026-10-17。Phase D で判断し、残す契約を公開面へ harvest する。
++- harvest to: `unity/Assets/Docs/Architecture/18-asset-description.md`、`13-resource-system.md`、`20-variant-checkout-workflow.md`
++- Phase A snapshot: `docs/handoff/evidence/bs2b/phase-a-snapshot.md`、2026-09-17 07:58 JST、SHA-256 `d18f4af428c18cb4ac1ee3807d9f8ea051d3f1906972c8685875ac0888f7da41`
++- Phase B / evidence / C' snapshot: 各 Phase で固定後に path、時刻、SHA-256 を記録する。
++
++## 1. 目的、現在地、対象外
++
++問いは「成功した BuildPlan と対応する BuildMaterializationSnapshot から、Scene と代表非 Scene を含む Content Directory を生成できるか」。BS1 は選択を、BS2a は SceneResource の候補と依存閉包を生成済み。Build 経路と Runtime 経路は未接続。旧 Addressables build は維持する。
++
++対象外は SampleGame の本番選択 policy（BS2c）、Runtime 登録・解決・寿命（BS3）、Player（BS4）、配信と cache（DIST）、旧経路廃止（RET）、非 Scene Description の本番実装、同一ファイル内サブアセットの汎用 locator。`CD0Spike` は復元しない。
++
++## 2. A0: 入力、制約、未決事項
++
++- 入力は成功済み `BuildPlan` と同一候補集合を持つ `BuildMaterializationSnapshot`。選択をやり直さず、`AssetDatabase.GetDependencies` で閉包を再計算しない。snapshot は Scene 専用の tag provider 名を持つが、build consumer はそれを解釈しない。
++- 候補は `StableKey`、`LogicalKey`、ファイル GUID の `PhysicalKey` を持つ。閉包は root GUID / path と各依存 GUID / path。異なる root の共有依存は許し、二つの候補が同じ physical key を所有することは許さない。
++- 既存 snapshot constructor は internal。非 Scene の Prefab / Texture fixture は既存 friend test assembly で作り、本番 factory や source 登録を増やさない。
++- 常時契約: Game → Framework、一方向依存、asmdef edge は設計判断、Editor コードを Runtime に置かない、Unity C# の `#nullable enable`、`record` 禁止、偽 null、SceneState と AssetOwner の維持。
++- 未決事項は build root の参照表現、Content BuildReport の保存形式、生成・出力 path の所有、固定 target/subtarget、増分保証、論理対応 metadata の形式。以下 A1 で決め、A2 で検証する。
++
++## 3. A1: 意思決定境界
++
++### 進める最低条件
++
++固定 target/subtarget の一つの Content Directory を、成功した plan と対応 snapshot から Scene・Prefab・Texture fixture について実生成する。build consumer は Scene 固有情報を使わない。選択された logical/representation/load target と成果物および対応する Content BuildReport が同じ build identity に紐づくことを検証する。
++
++### 受け入れ条件
++
++1. Unity I/O のない中核が plan と snapshot の候補対応を stable/physical/logical key で検証し、選択 root と既存閉包だけを canonical 化する。欠損、余分な selected candidate、root/path/GUID 不整合、同一 physical key 衝突を build 前の構造化 issue にする。入力順序で結果を変えない。
++2. Scene と非 Scene の選択候補を同じ中核で扱う。非選択 Variant の root は含めず、選択 root が共有する依存ファイルは保持する。closure の共有と候補 physical key の衝突を区別する。
++3. Editor adapter が生成 root を作り、選択 root の Scene `LoadableSceneId` と Object `LoadableObjectId` を格納する。root は build identity を持つ。catalog 内のロード用 identity は Unity が作る reference とし、ファイル GUID 単独を任意 Object のロード identity と呼ばない。
++4. 同一 logical asset の複数表現を一つの directory に格納できる形式とする。表現は候補の `Representation` tag を snapshot から読み取って metadata に保存するが、tag provider 名と Scene 語彙には依存しない。tag の無い候補は空表現として保存する。BS2b は複数表現の選択 policy を変更しない。
++5. runtime 側の単一 `BuildContentRoot : ScriptableObject` に schema version、build identity、target と entry 配列を保持する。entry は logical key、stable key、表現値、種類（Scene/Object）、その index に対応する `LoadableSceneId` / `Loadable<UnityEngine.Object>` を持つ。Object の Unity reference は file ID を含む `LoadableObjectId` から Editor で構築する。BS3 は local directory の登録後に `ContentLoadManager.GetRootAssets<BuildContentRoot>(handle)` が厳密に 1 件であることを確かめ、この root だけで logical→load target を復元する。本番 source 再走査や別 sidecar は要求しない。サブアセット一般化と型検証は BS3。
++6. build 前 report は選択、除外理由、issue、root/closure、target、identity を機械可読で示す。失敗時は成功出力を公開しない。成功時は Unity `Content BuildReport` と同じ identity を持つ root、summary、Unity manifest pointer (`BuildManifestHash.txt`) と report/metadata directory location を返す。Unity 内部ファイル一覧を解釈しない。
++7. 実 directory の Scene、Prefab、Texture root と非選択 root の不在、共有依存、root metadata の対応を統合検証する。別 logical の共有依存に加え、同じ logical の異なる physical key を持つ 2 候補を `OneOrMore` の非 Scene fixture で選択し、異なる表現、root entry と loadable ID が同じ directory にあることを検証する。directory を新しい local path へ複写し、登録・単一 root discovery・identity 照合を source 再走査なしで確認する。固定 target/subtarget に限定し、incremental は同じ build workspace への再 build 成功と report の対応まで保証する。content hash の安定性や変更 matrix は保証しない。
++
++### 成果物・I/O の凍結案
++
++- partition は選択済み content の単一 directory。固定 target と content set 名に対応する `artifacts/bs2b/work/<target>/<content-set>/` を Unity の再 build workspace として反復利用する。成功後、完全な directory 一式を `artifacts/bs2b/content/<build-id>/` へ staging 経由で複写・原子的に publish する。build-id は UTC timestamp と乱数の衝突しない識別子。content set 名は呼出側が指定する安定した ASCII 識別子で、path segment として検証する。指定できる root は `artifacts/bs2b` 配下へ正規化・制限する。既存成功 directory を上書きしない。
++- `Assets/OneStarMakerGenerated/BS2b/<build-id>/` の生成 root は Editor adapter が所有する一時資産。成功・失敗いずれも AssetDatabase で削除し、孤児は次回開始時に ownership marker を確認して限定 cleanup する。非生成 assets は削除しない。
++- target は Windows Standalone 64 bit、subtarget は Player。Editor の active target が一致しない場合は build 前に失敗させ、自動切替しない。compression は Uncompressed、BuildContentOptions.None。対象 platform が無い環境では NO-GO と記録する。
++- `Content BuildReport` は Unity 返却 object と生成 report/metadata directory の存在を検査し、summary を記録する。Unity 内部形式を OSM 外部 protocol にしない。build identity は root、OSM report と Unity build `name` に一致させる。Player metadata location は BS4 へ渡すが、Player build への注入自体は BS4 の責務。
++- report は preflight と outcome を別ファイルへ書く。Unity build は固定 workspace で行い、成功と metadata 検証後に全 content file を staging へ複写して final directory へ移す。失敗した workspace は診断と再試行のため保持するが成功 path として返さない。失敗 staging だけを限定 cleanup する。出力先の containment と既存 directory 保護を行う。
++
++### 判定と停止規則
++
++GO は最低条件と全受け入れ条件が同一固定 target の生テスト、実 build、report/manifest 検査で成立し、現在の問いに致命的反証がない場合。未達は NO-GO。スパイクではないため CONDITIONAL ACCEPT は使わない。条件成立後は後続課題を owner に渡して止める。A3 後の追加は凍結済み条件または常時契約違反に限り、他は後続 slice へ移す。
++
++## 4. 責務マップと配置案
++
++| ファイル / assembly | 責務、変更理由、所有者・寿命、依存、テスト境界 | 現在 / 予想行数 |
++| --- | --- | --- |
++| `Editor/Build/Content/BuildContentProjection.cs` / 新 Editor asmdef | `OneStarMaker.Editor.Build.Content` の internal pure core。plan/snapshot 照合、closure canonical 化、issue。呼出し中だけの immutable data。Selection と Materialization に依存し Unity I/O 無し。friend tests で全分岐。 | 新規 / 250 |
++| `Editor/Build/Content/BuildContentCoordinator.cs` / 同 asmdef | 同 namespace の public build 入口と internal `IContentDirectoryAdapter` port。preflight→Unity build→検査→publish と失敗 staging cleanup。1 run の所有者。projection と port に依存。fake port で失敗経路を検証。 | 新規 / 200 |
++| `Editor/Build/Content/UnityContentDirectoryAdapter.cs` / 同 asmdef | 同 namespace の internal adapter。AssetDatabase、root 生成、Unity BuildPipeline、report。Editor I/O と生成 root の限定 cleanup の所有。実 build test。 | 新規 / 250 |
++| `Editor/Build/Content/BuildContentReport.cs` / 同 asmdef | 同 namespace の public request/result/report と internal JSON serializer。preflight issue、選択・除外・closure、outcome の immutable snapshot。1 run 寿命。純粋テスト。 | 新規 / 150 |
++| `Runtime/BuildContent/BuildContentRoot.cs` / Runtime asmdef | `OneStarMaker.Runtime.BuildContent` の public sealed root と entry 読取 API、Editor adapter が呼ぶ public 初期化口。Unity に serialize する Scene/Object reference と identity。build artifact 寿命。Editor 依存なし。 | 新規 / 150 |
++| `Tests/Editor/Build/BuildContentProjectionTests.cs` / 既存 friend asmdef | Scene/Prefab/Texture fixture、欠損・衝突・順序・共有依存。 | 新規 / 250 |
++| `Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs` / 既存 friend asmdef | 一時 fixture の実 build、root/report 確認、複数表現と移設後の discovery、cleanup。 | 新規 / 220 |
++
++新しい Editor asmdef は `Selection`、`Materialization`、`Runtime` を参照する。`Tests.Editor` から新 asmdef への参照を追加する。いずれもこの Phase A の明示判断とし、他の edge は増やさない。Runtime asmdef の中に Editor API は置かない。root の serialized field は Unity artifact lifetime。`AssetOwner` は Runtime load の BS3 で扱い、build 中の一時資源とは混同しない。500 行警報は現計画では発火しないが、実装時に増えるなら再評価する。
++
++## 5. 実装、テスト、レビュー
++
++順序: projection と純粋テスト → runtime 受渡し型 → Editor adapter / coordinator → 実 build fixture → Phase C。SceneResourceMap の走査や policy を consumer に入れない。中核で Unity API が必要、追加 public API / asmdef edge / owner が必要、root 形式が成立しない場合は Phase A revision へ戻す。
++
++Phase C は実装 base/head の完全 diff と生ログを固定し、構造レビューを機能レビューより先に行う。`pwsh tools/contract-audit.ps1`、Editor を閉じて sandbox 外の `pwsh tools/run-tests.ps1`、必要な実 build を実行する。C' は新規セッションかつ B/C と異なるモデルの blind audit とする。
++
++- A0/A1 主担当: Codex / GPT-6 Astra（OpenAI）
++- A2 architecture: GPT-5.6 Sol / OpenAI、A1 を読んだ独立レビュー。root discovery 未固定、複数表現の実証不足、file/API/port map 不足を採用し、§3-4 に反映。
++- A2 alternative: GPT-5.6 Terra / OpenAI、A0 と現行 contract のみを読む独立構成案。固定 build workspace の再利用、Unity manifest pointer と report/Player metadata location、active target の検査、成功 directory の全量 publish を採用。Player build 実行と metadata 注入は BS4 のため BS2b に入れない。Unity 内部 manifest の parse は採用しない。
++- A3: program §4 の 2026-09-17 不在時委任に基づき主担当 GPT-6 Astra が上記採否を統合して凍結。高リスクのため A2 2件を実施。両レビューは OpenAI 系列なので強化条件の異ベンダー予約は満たさず、C' で可能なら未関与系列を使い、不可なら独立性制約と記録する。
++- Phase B/C/C': 未着手。C' 用に A/B/C 未関与モデルを予約する。
++
++## 6. Phase B 実装結果
++
++未着手。
++
++## 7. Phase C
++
++未着手。
++
++## 8. Phase C'
++
++未着手。
++
++## 9. Phase D
++
++人間の develop マージ判断を待つ。
+diff --git a/docs/handoff/evidence/bs2b/phase-a-snapshot.md b/docs/handoff/evidence/bs2b/phase-a-snapshot.md
+new file mode 100644
+index 0000000..9ded4ef
+--- /dev/null
++++ b/docs/handoff/evidence/bs2b/phase-a-snapshot.md
+@@ -0,0 +1,97 @@
++# BS2b — Content Directory build
++
++- type: slice
++- status: Phase A3 凍結（実装前）
++- branch: `codex/bs2b-content-directory-build`
++- implementation base commit: `ef3ad21`
++- implementation head commit: 未生成
++- risk: high（生成物形式、Editor build、Runtime 受渡し）
++- owner: BS2b 主担当 / Codex
++- created: 2026-09-17
++- expires: 2026-10-17。Phase D で判断し、残す契約を公開面へ harvest する。
++- harvest to: `unity/Assets/Docs/Architecture/18-asset-description.md`、`13-resource-system.md`、`20-variant-checkout-workflow.md`
++- Phase A / B / evidence / C' snapshot: 各 Phase で固定後に path、時刻、SHA-256 を記録する。
++
++## 1. 目的、現在地、対象外
++
++問いは「成功した BuildPlan と対応する BuildMaterializationSnapshot から、Scene と代表非 Scene を含む Content Directory を生成できるか」。BS1 は選択を、BS2a は SceneResource の候補と依存閉包を生成済み。Build 経路と Runtime 経路は未接続。旧 Addressables build は維持する。
++
++対象外は SampleGame の本番選択 policy（BS2c）、Runtime 登録・解決・寿命（BS3）、Player（BS4）、配信と cache（DIST）、旧経路廃止（RET）、非 Scene Description の本番実装、同一ファイル内サブアセットの汎用 locator。`CD0Spike` は復元しない。
++
++## 2. A0: 入力、制約、未決事項
++
++- 入力は成功済み `BuildPlan` と同一候補集合を持つ `BuildMaterializationSnapshot`。選択をやり直さず、`AssetDatabase.GetDependencies` で閉包を再計算しない。snapshot は Scene 専用の tag provider 名を持つが、build consumer はそれを解釈しない。
++- 候補は `StableKey`、`LogicalKey`、ファイル GUID の `PhysicalKey` を持つ。閉包は root GUID / path と各依存 GUID / path。異なる root の共有依存は許し、二つの候補が同じ physical key を所有することは許さない。
++- 既存 snapshot constructor は internal。非 Scene の Prefab / Texture fixture は既存 friend test assembly で作り、本番 factory や source 登録を増やさない。
++- 常時契約: Game → Framework、一方向依存、asmdef edge は設計判断、Editor コードを Runtime に置かない、Unity C# の `#nullable enable`、`record` 禁止、偽 null、SceneState と AssetOwner の維持。
++- 未決事項は build root の参照表現、Content BuildReport の保存形式、生成・出力 path の所有、固定 target/subtarget、増分保証、論理対応 metadata の形式。以下 A1 で決め、A2 で検証する。
++
++## 3. A1: 意思決定境界
++
++### 進める最低条件
++
++固定 target/subtarget の一つの Content Directory を、成功した plan と対応 snapshot から Scene・Prefab・Texture fixture について実生成する。build consumer は Scene 固有情報を使わない。選択された logical/representation/load target と成果物および対応する Content BuildReport が同じ build identity に紐づくことを検証する。
++
++### 受け入れ条件
++
++1. Unity I/O のない中核が plan と snapshot の候補対応を stable/physical/logical key で検証し、選択 root と既存閉包だけを canonical 化する。欠損、余分な selected candidate、root/path/GUID 不整合、同一 physical key 衝突を build 前の構造化 issue にする。入力順序で結果を変えない。
++2. Scene と非 Scene の選択候補を同じ中核で扱う。非選択 Variant の root は含めず、選択 root が共有する依存ファイルは保持する。closure の共有と候補 physical key の衝突を区別する。
++3. Editor adapter が生成 root を作り、選択 root の Scene `LoadableSceneId` と Object `LoadableObjectId` を格納する。root は build identity を持つ。catalog 内のロード用 identity は Unity が作る reference とし、ファイル GUID 単独を任意 Object のロード identity と呼ばない。
++4. 同一 logical asset の複数表現を一つの directory に格納できる形式とする。表現は候補の `Representation` tag を snapshot から読み取って metadata に保存するが、tag provider 名と Scene 語彙には依存しない。tag の無い候補は空表現として保存する。BS2b は複数表現の選択 policy を変更しない。
++5. runtime 側の単一 `BuildContentRoot : ScriptableObject` に schema version、build identity、target と entry 配列を保持する。entry は logical key、stable key、表現値、種類（Scene/Object）、その index に対応する `LoadableSceneId` / `Loadable<UnityEngine.Object>` を持つ。Object の Unity reference は file ID を含む `LoadableObjectId` から Editor で構築する。BS3 は local directory の登録後に `ContentLoadManager.GetRootAssets<BuildContentRoot>(handle)` が厳密に 1 件であることを確かめ、この root だけで logical→load target を復元する。本番 source 再走査や別 sidecar は要求しない。サブアセット一般化と型検証は BS3。
++6. build 前 report は選択、除外理由、issue、root/closure、target、identity を機械可読で示す。失敗時は成功出力を公開しない。成功時は Unity `Content BuildReport` と同じ identity を持つ root、summary、Unity manifest pointer (`BuildManifestHash.txt`) と report/metadata directory location を返す。Unity 内部ファイル一覧を解釈しない。
++7. 実 directory の Scene、Prefab、Texture root と非選択 root の不在、共有依存、root metadata の対応を統合検証する。別 logical の共有依存に加え、同じ logical の異なる physical key を持つ 2 候補を `OneOrMore` の非 Scene fixture で選択し、異なる表現、root entry と loadable ID が同じ directory にあることを検証する。directory を新しい local path へ複写し、登録・単一 root discovery・identity 照合を source 再走査なしで確認する。固定 target/subtarget に限定し、incremental は同じ build workspace への再 build 成功と report の対応まで保証する。content hash の安定性や変更 matrix は保証しない。
++
++### 成果物・I/O の凍結案
++
++- partition は選択済み content の単一 directory。固定 target と content set 名に対応する `artifacts/bs2b/work/<target>/<content-set>/` を Unity の再 build workspace として反復利用する。成功後、完全な directory 一式を `artifacts/bs2b/content/<build-id>/` へ staging 経由で複写・原子的に publish する。build-id は UTC timestamp と乱数の衝突しない識別子。content set 名は呼出側が指定する安定した ASCII 識別子で、path segment として検証する。指定できる root は `artifacts/bs2b` 配下へ正規化・制限する。既存成功 directory を上書きしない。
++- `Assets/OneStarMakerGenerated/BS2b/<build-id>/` の生成 root は Editor adapter が所有する一時資産。成功・失敗いずれも AssetDatabase で削除し、孤児は次回開始時に ownership marker を確認して限定 cleanup する。非生成 assets は削除しない。
++- target は Windows Standalone 64 bit、subtarget は Player。Editor の active target が一致しない場合は build 前に失敗させ、自動切替しない。compression は Uncompressed、BuildContentOptions.None。対象 platform が無い環境では NO-GO と記録する。
++- `Content BuildReport` は Unity 返却 object と生成 report/metadata directory の存在を検査し、summary を記録する。Unity 内部形式を OSM 外部 protocol にしない。build identity は root、OSM report と Unity build `name` に一致させる。Player metadata location は BS4 へ渡すが、Player build への注入自体は BS4 の責務。
++- report は preflight と outcome を別ファイルへ書く。Unity build は固定 workspace で行い、成功と metadata 検証後に全 content file を staging へ複写して final directory へ移す。失敗した workspace は診断と再試行のため保持するが成功 path として返さない。失敗 staging だけを限定 cleanup する。出力先の containment と既存 directory 保護を行う。
++
++### 判定と停止規則
++
++GO は最低条件と全受け入れ条件が同一固定 target の生テスト、実 build、report/manifest 検査で成立し、現在の問いに致命的反証がない場合。未達は NO-GO。スパイクではないため CONDITIONAL ACCEPT は使わない。条件成立後は後続課題を owner に渡して止める。A3 後の追加は凍結済み条件または常時契約違反に限り、他は後続 slice へ移す。
++
++## 4. 責務マップと配置案
++
++| ファイル / assembly | 責務、変更理由、所有者・寿命、依存、テスト境界 | 現在 / 予想行数 |
++| --- | --- | --- |
++| `Editor/Build/Content/BuildContentProjection.cs` / 新 Editor asmdef | `OneStarMaker.Editor.Build.Content` の internal pure core。plan/snapshot 照合、closure canonical 化、issue。呼出し中だけの immutable data。Selection と Materialization に依存し Unity I/O 無し。friend tests で全分岐。 | 新規 / 250 |
++| `Editor/Build/Content/BuildContentCoordinator.cs` / 同 asmdef | 同 namespace の public build 入口と internal `IContentDirectoryAdapter` port。preflight→Unity build→検査→publish と失敗 staging cleanup。1 run の所有者。projection と port に依存。fake port で失敗経路を検証。 | 新規 / 200 |
++| `Editor/Build/Content/UnityContentDirectoryAdapter.cs` / 同 asmdef | 同 namespace の internal adapter。AssetDatabase、root 生成、Unity BuildPipeline、report。Editor I/O と生成 root の限定 cleanup の所有。実 build test。 | 新規 / 250 |
++| `Editor/Build/Content/BuildContentReport.cs` / 同 asmdef | 同 namespace の public request/result/report と internal JSON serializer。preflight issue、選択・除外・closure、outcome の immutable snapshot。1 run 寿命。純粋テスト。 | 新規 / 150 |
++| `Runtime/BuildContent/BuildContentRoot.cs` / Runtime asmdef | `OneStarMaker.Runtime.BuildContent` の public sealed root と entry 読取 API、Editor adapter が呼ぶ public 初期化口。Unity に serialize する Scene/Object reference と identity。build artifact 寿命。Editor 依存なし。 | 新規 / 150 |
++| `Tests/Editor/Build/BuildContentProjectionTests.cs` / 既存 friend asmdef | Scene/Prefab/Texture fixture、欠損・衝突・順序・共有依存。 | 新規 / 250 |
++| `Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs` / 既存 friend asmdef | 一時 fixture の実 build、root/report 確認、複数表現と移設後の discovery、cleanup。 | 新規 / 220 |
++
++新しい Editor asmdef は `Selection`、`Materialization`、`Runtime` を参照する。`Tests.Editor` から新 asmdef への参照を追加する。いずれもこの Phase A の明示判断とし、他の edge は増やさない。Runtime asmdef の中に Editor API は置かない。root の serialized field は Unity artifact lifetime。`AssetOwner` は Runtime load の BS3 で扱い、build 中の一時資源とは混同しない。500 行警報は現計画では発火しないが、実装時に増えるなら再評価する。
++
++## 5. 実装、テスト、レビュー
++
++順序: projection と純粋テスト → runtime 受渡し型 → Editor adapter / coordinator → 実 build fixture → Phase C。SceneResourceMap の走査や policy を consumer に入れない。中核で Unity API が必要、追加 public API / asmdef edge / owner が必要、root 形式が成立しない場合は Phase A revision へ戻す。
++
++Phase C は実装 base/head の完全 diff と生ログを固定し、構造レビューを機能レビューより先に行う。`pwsh tools/contract-audit.ps1`、Editor を閉じて sandbox 外の `pwsh tools/run-tests.ps1`、必要な実 build を実行する。C' は新規セッションかつ B/C と異なるモデルの blind audit とする。
++
++- A0/A1 主担当: Codex / GPT-6 Astra（OpenAI）
++- A2 architecture: GPT-5.6 Sol / OpenAI、A1 を読んだ独立レビュー。root discovery 未固定、複数表現の実証不足、file/API/port map 不足を採用し、§3-4 に反映。
++- A2 alternative: GPT-5.6 Terra / OpenAI、A0 と現行 contract のみを読む独立構成案。固定 build workspace の再利用、Unity manifest pointer と report/Player metadata location、active target の検査、成功 directory の全量 publish を採用。Player build 実行と metadata 注入は BS4 のため BS2b に入れない。Unity 内部 manifest の parse は採用しない。
++- A3: program §4 の 2026-09-17 不在時委任に基づき主担当 GPT-6 Astra が上記採否を統合して凍結。高リスクのため A2 2件を実施。両レビューは OpenAI 系列なので強化条件の異ベンダー予約は満たさず、C' で可能なら未関与系列を使い、不可なら独立性制約と記録する。
++- Phase B/C/C': 未着手。C' 用に A/B/C 未関与モデルを予約する。
++
++## 6. Phase B 実装結果
++
++未着手。
++
++## 7. Phase C
++
++未着手。
++
++## 8. Phase C'
++
++未着手。
++
++## 9. Phase D
++
++人間の develop マージ判断を待つ。
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content.meta b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content.meta
+new file mode 100644
+index 0000000..dd7612b
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: cc65ad2705cb9b111328aa6342d7f991
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/AssemblyInfo.cs b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/AssemblyInfo.cs
+new file mode 100644
+index 0000000..4d80345
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/AssemblyInfo.cs
+@@ -0,0 +1,5 @@
++#nullable enable
++
++using System.Runtime.CompilerServices;
++
++[assembly: InternalsVisibleTo("OneStarMaker.Tests.Editor")]
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/AssemblyInfo.cs.meta b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/AssemblyInfo.cs.meta
+new file mode 100644
+index 0000000..61f4349
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/AssemblyInfo.cs.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: 03bea75d13dc24d167c6610c5bee9bdc
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentCoordinator.cs b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentCoordinator.cs
+new file mode 100644
+index 0000000..d793ce2
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentCoordinator.cs
+@@ -0,0 +1,124 @@
++#nullable enable
++
++using System;
++using System.IO;
++using System.Linq;
++using UnityEngine;
++
++namespace OneStarMaker.Editor.Build.Content
++{
++    internal sealed class ContentDirectoryBuild
++    {
++        public ContentDirectoryBuild(string summary, string manifestPointer, string metadataPath)
++        { Summary = summary; ManifestPointer = manifestPointer; MetadataPath = metadataPath; }
++        public string Summary { get; }
++        public string ManifestPointer { get; }
++        public string MetadataPath { get; }
++    }
++
++    internal interface IContentDirectoryAdapter
++    {
++        void ValidateTarget();
++        ContentDirectoryBuild Build(BuildContentProjectionResult projection, string identity, string workspace);
++    }
++
++    public sealed class BuildContentCoordinator
++    {
++        internal const string TargetName = "StandaloneWindows64-Player";
++        private readonly IContentDirectoryAdapter _adapter;
++        public BuildContentCoordinator() : this(new UnityContentDirectoryAdapter()) { }
++        internal BuildContentCoordinator(IContentDirectoryAdapter adapter) => _adapter = adapter;
++
++        public BuildContentResult Build(BuildContentRequest request)
++        {
++            if (request == null) throw new ArgumentNullException(nameof(request));
++            ValidateSegment(request.ContentSet);
++            var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
++            var approvedRoot = Path.GetFullPath(Path.Combine(projectRoot, "..", "artifacts", "bs2b"));
++            var root = Path.GetFullPath(request.ArtifactsRoot);
++            if (!SamePath(approvedRoot, root) && !Contained(approvedRoot, root))
++                throw new ArgumentException("Output root must be inside artifacts/bs2b.");
++            var identity = DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffZ") + "-" + Guid.NewGuid().ToString("N");
++            var reportDirectory = Child(root, "reports", identity);
++            var preflight = Path.Combine(reportDirectory, "preflight.json");
++            var outcome = Path.Combine(reportDirectory, "outcome.json");
++            var workspace = Child(root, "work", TargetName, request.ContentSet);
++            var staging = Child(root, "staging", identity);
++            var final = Child(root, "content", identity);
++            var projection = BuildContentProjection.Create(request.Plan, request.Snapshot);
++            BuildContentReport.WritePreflight(preflight, identity, TargetName, request.ContentSet, request.Plan, projection);
++            if (!projection.IsValid)
++            {
++                var failure = new BuildContentResult(identity, preflight, outcome, null, null, null,
++                    "Preflight failed", projection.Issues.ToArray());
++                BuildContentReport.WriteOutcome(outcome, failure);
++                return failure;
++            }
++            var published = false;
++            try
++            {
++                _adapter.ValidateTarget();
++                Directory.CreateDirectory(workspace);
++                var built = _adapter.Build(projection, identity, workspace);
++                if (!Directory.Exists(workspace) || !File.Exists(built.ManifestPointer) ||
++                    !Directory.Exists(built.MetadataPath) || !Contained(workspace, built.ManifestPointer) ||
++                    (!SamePath(workspace, built.MetadataPath) && !Contained(workspace, built.MetadataPath)))
++                    throw new InvalidOperationException("Unity build report or manifest metadata is missing.");
++                if (Directory.Exists(staging) || Directory.Exists(final))
++                    throw new IOException("Build identity output already exists.");
++                CopyDirectory(workspace, staging);
++                var manifest = Path.Combine(staging, Path.GetRelativePath(workspace, built.ManifestPointer));
++                var metadata = Path.Combine(staging, Path.GetRelativePath(workspace, built.MetadataPath));
++                if (!File.Exists(manifest) || !Directory.Exists(metadata))
++                    throw new IOException("Staging copy missed Unity metadata.");
++                Directory.CreateDirectory(Path.GetDirectoryName(final)!);
++                Directory.Move(staging, final);
++                published = true;
++                var success = new BuildContentResult(identity, preflight, outcome, final,
++                    Path.Combine(final, Path.GetRelativePath(workspace, built.ManifestPointer)),
++                    Path.Combine(final, Path.GetRelativePath(workspace, built.MetadataPath)), built.Summary,
++                    Array.Empty<BuildContentIssue>());
++                BuildContentReport.WriteOutcome(outcome, success);
++                return success;
++            }
++            catch (Exception ex)
++            {
++                if (Directory.Exists(staging)) Directory.Delete(staging, true);
++                if (published && Directory.Exists(final)) Directory.Delete(final, true);
++                var failure = new BuildContentResult(identity, preflight, outcome, null, null, null,
++                    ex.ToString(), new[] { new BuildContentIssue(BuildContentIssueCode.BuildFailure, identity, ex.Message) });
++                BuildContentReport.WriteOutcome(outcome, failure);
++                return failure;
++            }
++        }
++
++        private static void ValidateSegment(string segment)
++        {
++            if (string.IsNullOrEmpty(segment) || segment.Length > 64 ||
++                segment.Any(c => !(c >= 'a' && c <= 'z') && !(c >= 'A' && c <= 'Z') &&
++                                 !(c >= '0' && c <= '9') && c != '-' && c != '_'))
++                throw new ArgumentException("Content set must be a safe ASCII path segment.");
++        }
++        private static string Child(string root, params string[] parts)
++        {
++            var result = Path.GetFullPath(Path.Combine(new[] { root }.Concat(parts).ToArray()));
++            if (!Contained(root, result)) throw new IOException("Output escapes artifacts root.");
++            return result;
++        }
++        private static bool Contained(string root, string path) =>
++            Path.GetFullPath(path).StartsWith(Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) +
++                Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
++        private static bool SamePath(string a, string b) =>
++            string.Equals(Path.GetFullPath(a).TrimEnd(Path.DirectorySeparatorChar),
++                Path.GetFullPath(b).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase);
++
++        private static void CopyDirectory(string source, string target)
++        {
++            Directory.CreateDirectory(target);
++            foreach (var directory in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
++                Directory.CreateDirectory(Path.Combine(target, Path.GetRelativePath(source, directory)));
++            foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
++                File.Copy(file, Path.Combine(target, Path.GetRelativePath(source, file)));
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentCoordinator.cs.meta b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentCoordinator.cs.meta
+new file mode 100644
+index 0000000..c446621
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentCoordinator.cs.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: 15ce4186ef4cc76890ea35482f4443bd
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentProjection.cs b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentProjection.cs
+new file mode 100644
+index 0000000..999f23e
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentProjection.cs
+@@ -0,0 +1,150 @@
++#nullable enable
++
++using System;
++using System.Collections.Generic;
++using System.Linq;
++using OneStarMaker.Build.Selection;
++using OneStarMaker.Editor.Build.Materialization;
++
++namespace OneStarMaker.Editor.Build.Content
++{
++    public enum BuildContentIssueCode
++    {
++        MissingCandidate, ExtraSelectedCandidate, CandidateMismatch, PhysicalKeyCollision,
++        MissingClosure, DuplicateClosure, RootMismatch, DependencyMismatch, PathCollision,
++        InvalidRepresentation, BuildFailure
++    }
++
++    public sealed class BuildContentIssue
++    {
++        public BuildContentIssue(BuildContentIssueCode code, string key, string detail)
++        { Code = code; Key = key; Detail = detail; }
++        public BuildContentIssueCode Code { get; }
++        public string Key { get; }
++        public string Detail { get; }
++    }
++
++    internal sealed class ProjectedContent
++    {
++        internal ProjectedContent(BuildContentCandidate candidate, string path, string representation,
++            IReadOnlyList<BuildDependencyEntry> closure)
++        { Candidate = candidate; Path = path; Representation = representation; Closure = closure; }
++        public BuildContentCandidate Candidate { get; }
++        public string Path { get; }
++        public string Representation { get; }
++        public IReadOnlyList<BuildDependencyEntry> Closure { get; }
++    }
++
++    internal sealed class BuildContentProjectionResult
++    {
++        internal BuildContentProjectionResult(IEnumerable<ProjectedContent> roots,
++            IEnumerable<BuildDependencyEntry> files, IEnumerable<BuildContentIssue> issues)
++        {
++            Roots = Array.AsReadOnly(roots.ToArray());
++            Files = Array.AsReadOnly(files.ToArray());
++            Issues = Array.AsReadOnly(issues.ToArray());
++        }
++        public IReadOnlyList<ProjectedContent> Roots { get; }
++        public IReadOnlyList<BuildDependencyEntry> Files { get; }
++        public IReadOnlyList<BuildContentIssue> Issues { get; }
++        public bool IsValid => Issues.Count == 0;
++    }
++
++    // No Unity I/O: this layer consumes only the frozen plan and materialization snapshot.
++    internal static class BuildContentProjection
++    {
++        public static BuildContentProjectionResult Create(BuildPlan plan, BuildMaterializationSnapshot snapshot)
++        {
++            if (plan == null) throw new ArgumentNullException(nameof(plan));
++            if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
++            var issues = new List<BuildContentIssue>();
++            var roots = new List<ProjectedContent>();
++            var files = new Dictionary<string, string>(StringComparer.Ordinal);
++            var fileGuids = new Dictionary<string, string>(StringComparer.Ordinal);
++            var all = snapshot.Candidates.GroupBy(x => x.StableKey, StringComparer.Ordinal)
++                .ToDictionary(x => x.Key, x => x.ToArray(), StringComparer.Ordinal);
++            var selected = plan.SelectedContent.OrderBy(x => x.StableKey, StringComparer.Ordinal).ToArray();
++            var selectedKeys = new HashSet<string>(selected.Select(x => x.StableKey), StringComparer.Ordinal);
++            var excludedKeys = new HashSet<string>(plan.ExcludedContent.Select(x => x.Candidate.StableKey), StringComparer.Ordinal);
++            foreach (var group in selected.GroupBy(x => x.StableKey, StringComparer.Ordinal))
++                if (group.Count() > 1 || excludedKeys.Contains(group.Key))
++                    issues.Add(new BuildContentIssue(BuildContentIssueCode.CandidateMismatch, group.Key, "Candidate occurs more than once in plan."));
++            foreach (var exclusion in plan.ExcludedContent)
++            {
++                var candidate = exclusion.Candidate;
++                if (!all.TryGetValue(candidate.StableKey, out var matches))
++                    issues.Add(new BuildContentIssue(BuildContentIssueCode.MissingCandidate, candidate.StableKey, "Excluded candidate absent from snapshot."));
++                else if (matches.Length != 1 || !Same(candidate, matches[0]))
++                    issues.Add(new BuildContentIssue(BuildContentIssueCode.CandidateMismatch, candidate.StableKey, "Excluded candidate keys mismatch."));
++            }
++            foreach (var candidate in snapshot.Candidates)
++                if (!selectedKeys.Contains(candidate.StableKey) && !excludedKeys.Contains(candidate.StableKey))
++                    issues.Add(new BuildContentIssue(BuildContentIssueCode.MissingCandidate, candidate.StableKey, "Plan omits snapshot candidate."));
++            var physical = new Dictionary<string, string>(StringComparer.Ordinal);
++            foreach (var group in snapshot.Candidates.GroupBy(x => x.PhysicalKey, StringComparer.Ordinal))
++                if (group.Select(x => x.StableKey).Distinct(StringComparer.Ordinal).Count() > 1)
++                    issues.Add(new BuildContentIssue(BuildContentIssueCode.PhysicalKeyCollision, group.Key, "Snapshot candidate ownership collision."));
++            foreach (var candidate in selected)
++            {
++                if (!all.TryGetValue(candidate.StableKey, out var matches))
++                {
++                    issues.Add(new BuildContentIssue(BuildContentIssueCode.ExtraSelectedCandidate, candidate.StableKey, "Selected candidate absent from snapshot."));
++                    continue;
++                }
++                if (matches.Length != 1 || !Same(candidate, matches[0]))
++                {
++                    issues.Add(new BuildContentIssue(BuildContentIssueCode.CandidateMismatch, candidate.StableKey, "Stable, logical or physical key mismatch."));
++                    continue;
++                }
++                if (physical.TryGetValue(candidate.PhysicalKey, out var owner))
++                    issues.Add(new BuildContentIssue(BuildContentIssueCode.PhysicalKeyCollision, candidate.PhysicalKey, owner + "/" + candidate.StableKey));
++                else physical.Add(candidate.PhysicalKey, candidate.StableKey);
++
++                var closures = snapshot.Dependencies.Where(x => x.RootGuid == candidate.PhysicalKey).ToArray();
++                if (closures.Length != 1)
++                {
++                    issues.Add(new BuildContentIssue(closures.Length == 0 ? BuildContentIssueCode.MissingClosure : BuildContentIssueCode.DuplicateClosure,
++                        candidate.StableKey, candidate.PhysicalKey));
++                    continue;
++                }
++                var closure = closures[0];
++                if (!Valid(closure.RootGuid, closure.RootPath) || closure.RootGuid != candidate.PhysicalKey)
++                    issues.Add(new BuildContentIssue(BuildContentIssueCode.RootMismatch, candidate.StableKey, closure.RootPath));
++                var entries = closure.Entries.OrderBy(x => x.Path, StringComparer.Ordinal)
++                    .ThenBy(x => x.Guid, StringComparer.Ordinal).ToArray();
++                if (!entries.Any(x => x.Guid == closure.RootGuid && x.Path == closure.RootPath))
++                    issues.Add(new BuildContentIssue(BuildContentIssueCode.RootMismatch, candidate.StableKey, "Root absent from closure."));
++                var localGuids = new Dictionary<string, string>(StringComparer.Ordinal);
++                foreach (var entry in entries)
++                {
++                    if (!Valid(entry.Guid, entry.Path) || (localGuids.TryGetValue(entry.Guid, out var path) && path != entry.Path))
++                        issues.Add(new BuildContentIssue(BuildContentIssueCode.DependencyMismatch, candidate.StableKey, entry.Guid + ":" + entry.Path));
++                    else localGuids[entry.Guid] = entry.Path;
++                    if (files.TryGetValue(entry.Path, out var guid) && guid != entry.Guid)
++                        issues.Add(new BuildContentIssue(BuildContentIssueCode.PathCollision, entry.Path, guid + "/" + entry.Guid));
++                    else files[entry.Path] = entry.Guid;
++                    if (fileGuids.TryGetValue(entry.Guid, out var existingPath) && existingPath != entry.Path)
++                        issues.Add(new BuildContentIssue(BuildContentIssueCode.DependencyMismatch, entry.Guid,
++                            existingPath + "/" + entry.Path));
++                    else fileGuids[entry.Guid] = entry.Path;
++                }
++                var tags = snapshot.TagProviders.SelectMany(x => x.GetTags(matches[0]))
++                    .Where(x => x.Dimension == "Representation").Select(x => x.Value).Distinct(StringComparer.Ordinal).ToArray();
++                if (tags.Length > 1 || tags.Any(string.IsNullOrEmpty))
++                    issues.Add(new BuildContentIssue(BuildContentIssueCode.InvalidRepresentation, candidate.StableKey, "Ambiguous representation."));
++                roots.Add(new ProjectedContent(candidate, closure.RootPath, tags.Length == 1 ? tags[0]! : "",
++                    Array.AsReadOnly(entries)));
++            }
++            return new BuildContentProjectionResult(roots,
++                files.OrderBy(x => x.Key, StringComparer.Ordinal).Select(x => new BuildDependencyEntry(x.Value, x.Key)),
++                issues.OrderBy(x => x.Code).ThenBy(x => x.Key, StringComparer.Ordinal).ThenBy(x => x.Detail, StringComparer.Ordinal));
++        }
++
++        private static bool Same(BuildContentCandidate a, BuildContentCandidate b) =>
++            a.StableKey == b.StableKey && a.LogicalKey == b.LogicalKey && a.PhysicalKey == b.PhysicalKey;
++
++        private static bool Valid(string guid, string path) =>
++            !string.IsNullOrWhiteSpace(guid) && !string.IsNullOrWhiteSpace(path) &&
++            path.StartsWith("Assets/", StringComparison.Ordinal) && !path.Contains("..") && !path.Contains('\\');
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentProjection.cs.meta b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentProjection.cs.meta
+new file mode 100644
+index 0000000..a5b2c02
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentProjection.cs.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: f67b8e577d04882ce2f5aeab76d45e80
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentReport.cs b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentReport.cs
+new file mode 100644
+index 0000000..6eaa041
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentReport.cs
+@@ -0,0 +1,86 @@
++#nullable enable
++
++using System;
++using System.IO;
++using System.Linq;
++using OneStarMaker.Build.Selection;
++using UnityEngine;
++
++namespace OneStarMaker.Editor.Build.Content
++{
++    public sealed class BuildContentRequest
++    {
++        public BuildContentRequest(BuildPlan plan, OneStarMaker.Editor.Build.Materialization.BuildMaterializationSnapshot snapshot,
++            string contentSet, string artifactsRoot)
++        { Plan = plan; Snapshot = snapshot; ContentSet = contentSet; ArtifactsRoot = artifactsRoot; }
++        public BuildPlan Plan { get; }
++        public OneStarMaker.Editor.Build.Materialization.BuildMaterializationSnapshot Snapshot { get; }
++        public string ContentSet { get; }
++        public string ArtifactsRoot { get; }
++    }
++
++    public sealed class BuildContentResult
++    {
++        public BuildContentResult(string identity, string preflightPath, string outcomePath, string? contentPath,
++            string? manifestPointer, string? metadataPath, string summary, BuildContentIssue[] issues)
++        { Identity = identity; PreflightPath = preflightPath; OutcomePath = outcomePath; ContentPath = contentPath;
++          ManifestPointer = manifestPointer; MetadataPath = metadataPath; Summary = summary; Issues = issues; }
++        public string Identity { get; }
++        public string PreflightPath { get; }
++        public string OutcomePath { get; }
++        public string? ContentPath { get; }
++        public string? ManifestPointer { get; }
++        public string? MetadataPath { get; }
++        public string Summary { get; }
++        public BuildContentIssue[] Issues { get; }
++        public bool IsSuccess => ContentPath != null && Issues.Length == 0;
++    }
++
++    [Serializable] internal sealed class ContentReportFile
++    {
++        public string identity = "";
++        public string target = "";
++        public string contentSet = "";
++        public string[] selected = Array.Empty<string>();
++        public string[] excluded = Array.Empty<string>();
++        public string[] roots = Array.Empty<string>();
++        public string[] closure = Array.Empty<string>();
++        public string[] issues = Array.Empty<string>();
++        public string summary = "";
++        public string contentPath = "";
++        public string manifestPointer = "";
++        public string metadataPath = "";
++    }
++
++    internal static class BuildContentReport
++    {
++        public static void WritePreflight(string path, string identity, string target, string contentSet,
++            BuildPlan plan, BuildContentProjectionResult projection)
++        {
++            Write(path, new ContentReportFile {
++                identity = identity, target = target, contentSet = contentSet,
++                selected = plan.SelectedContent.Select(x => x.StableKey + "|" + x.LogicalKey + "|" + x.PhysicalKey).ToArray(),
++                excluded = plan.ExcludedContent.Select(x => x.Candidate.StableKey + "|" + x.ReasonCode + "|" + x.Dimension + "|" + x.Value).ToArray(),
++                roots = projection.Roots.Select(x => x.Candidate.StableKey + "|" + x.Path + "|" + x.Representation).ToArray(),
++                closure = projection.Files.Select(x => x.Guid + "|" + x.Path).ToArray(),
++                issues = projection.Issues.Select(x => x.Code + "|" + x.Key + "|" + x.Detail).ToArray()
++            });
++        }
++
++        public static void WriteOutcome(string path, BuildContentResult result)
++        {
++            Write(path, new ContentReportFile {
++                identity = result.Identity, target = BuildContentCoordinator.TargetName,
++                summary = result.Summary, contentPath = result.ContentPath ?? "",
++                manifestPointer = result.ManifestPointer ?? "", metadataPath = result.MetadataPath ?? "",
++                issues = result.Issues.Select(x => x.Code + "|" + x.Key + "|" + x.Detail).ToArray()
++            });
++        }
++
++        private static void Write(string path, ContentReportFile data)
++        {
++            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
++            File.WriteAllText(path, JsonUtility.ToJson(data, true));
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentReport.cs.meta b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentReport.cs.meta
+new file mode 100644
+index 0000000..e3441c7
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentReport.cs.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: 955a54006e8386a8ee2f080c1b0d1e8a
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/OneStarMaker.Build.Content.asmdef b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/OneStarMaker.Build.Content.asmdef
+new file mode 100644
+index 0000000..8afd63a
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/OneStarMaker.Build.Content.asmdef
+@@ -0,0 +1,14 @@
++{
++    "name": "OneStarMaker.Build.Content",
++    "rootNamespace": "OneStarMaker.Editor.Build.Content",
++    "references": ["OneStarMaker.Build.Selection", "OneStarMaker.Build.Materialization", "OneStarMaker.Runtime"],
++    "includePlatforms": ["Editor"],
++    "excludePlatforms": [],
++    "allowUnsafeCode": false,
++    "overrideReferences": false,
++    "precompiledReferences": [],
++    "autoReferenced": false,
++    "defineConstraints": [],
++    "versionDefines": [],
++    "noEngineReferences": false
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/OneStarMaker.Build.Content.asmdef.meta b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/OneStarMaker.Build.Content.asmdef.meta
+new file mode 100644
+index 0000000..a20e157
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/OneStarMaker.Build.Content.asmdef.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: de3564a71c842e539859ed3b53b5eb1b
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/UnityContentDirectoryAdapter.cs b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/UnityContentDirectoryAdapter.cs
+new file mode 100644
+index 0000000..efffd6a
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/UnityContentDirectoryAdapter.cs
+@@ -0,0 +1,131 @@
++#nullable enable
++
++using System;
++using System.Collections.Generic;
++using System.IO;
++using System.Linq;
++using OneStarMaker.Runtime.BuildContent;
++using Unity.Loading;
++using UnityEditor;
++using UnityEditor.Build.Reporting;
++using UnityEngine;
++
++namespace OneStarMaker.Editor.Build.Content
++{
++    internal sealed class UnityContentDirectoryAdapter : IContentDirectoryAdapter
++    {
++        private const string GeneratedRoot = "Assets/OneStarMakerGenerated/BS2b";
++        private const string Marker = "bs2b-owner.marker";
++
++        public void ValidateTarget()
++        {
++            if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.StandaloneWindows64 ||
++                EditorUserBuildSettings.standaloneBuildSubtarget != StandaloneBuildSubtarget.Player)
++                throw new InvalidOperationException("BS2b requires active StandaloneWindows64 Player target.");
++        }
++
++        public ContentDirectoryBuild Build(BuildContentProjectionResult projection, string identity, string workspace)
++        {
++            ValidateTarget();
++            CleanupOrphans();
++            var folder = GeneratedRoot + "/" + identity;
++            EnsureFolder(folder);
++            var markerPath = folder + "/" + Marker;
++            File.WriteAllText(Path.Combine(Application.dataPath, "OneStarMakerGenerated", "BS2b", identity, Marker), identity);
++            AssetDatabase.Refresh();
++            try
++            {
++                var entries = new List<BuildContentEntry>();
++                foreach (var item in projection.Roots)
++                {
++                    if (AssetDatabase.AssetPathToGUID(item.Path) != item.Candidate.PhysicalKey)
++                        throw new InvalidOperationException("Root GUID/path changed after materialization: " + item.Path);
++                    if (item.Path.EndsWith(".unity", StringComparison.OrdinalIgnoreCase))
++                    {
++                        var sceneId = LoadableSceneIdEditorUtility.CreateLoadableSceneId(item.Path);
++                        entries.Add(new BuildContentEntry(item.Candidate.LogicalKey, item.Candidate.StableKey,
++                            item.Representation, sceneId));
++                    }
++                    else
++                    {
++                        var asset = AssetDatabase.LoadMainAssetAtPath(item.Path);
++                        if (asset == null) throw new InvalidOperationException("Root asset missing: " + item.Path);
++                        var objectId = LoadableObjectIdEditorUtility.CreateLoadableObjectId(asset);
++                        entries.Add(new BuildContentEntry(item.Candidate.LogicalKey, item.Candidate.StableKey,
++                            item.Representation, new Loadable<UnityEngine.Object>(objectId)));
++                    }
++                }
++                var root = ScriptableObject.CreateInstance<BuildContentRoot>();
++                root.Initialize(identity, BuildContentCoordinator.TargetName, entries);
++                var rootPath = folder + "/BuildContentRoot.asset";
++                AssetDatabase.CreateAsset(root, rootPath);
++                EditorUtility.SetDirty(root);
++                AssetDatabase.SaveAssetIfDirty(root);
++                AssetDatabase.ImportAsset(rootPath, ImportAssetOptions.ForceUpdate);
++                var loaded = AssetDatabase.LoadAssetAtPath<BuildContentRoot>(rootPath);
++                if (loaded == null || loaded.BuildIdentity != identity || loaded.Entries.Count != entries.Count)
++                    throw new InvalidOperationException("Generated root did not retain its serialized identities.");
++                var parameters = new BuildContentDirectoryParameters {
++                    outputPath = workspace, rootAssetPaths = new[] { rootPath }, name = identity,
++                    compression = BuildCompression.Uncompressed, options = BuildContentOptions.None,
++                    extraScriptingDefines = Array.Empty<string>()
++                };
++                var report = BuildPipeline.BuildContentDirectory(parameters);
++                if (report == null || report.summary.result != BuildResult.Succeeded)
++                    throw new InvalidOperationException("Unity Content BuildReport failed: " + report?.summary.result);
++                var manifest = Path.Combine(workspace, "BuildManifestHash.txt");
++                if (!File.Exists(manifest)) throw new InvalidOperationException("Unity manifest pointer missing.");
++                // Unity accepts the content output folder as a previousBuildReportDirectories input.
++                // The report's summary.outputPath is not guaranteed to identify that folder.
++                var metadata = Path.GetFullPath(workspace);
++                if (!Directory.Exists(metadata))
++                    throw new InvalidOperationException("Unity content output directory missing: " + metadata);
++                return new ContentDirectoryBuild(
++                    report.summary.result + "|" + report.summary.platform + "|" + report.summary.totalSize,
++                    manifest, metadata);
++            }
++            finally
++            {
++                if (File.Exists(Path.Combine(Application.dataPath, "OneStarMakerGenerated", "BS2b", identity, Marker)))
++                    AssetDatabase.DeleteAsset(markerPath);
++                AssetDatabase.DeleteAsset(folder);
++                DeleteIfEmpty(GeneratedRoot);
++                DeleteIfEmpty("Assets/OneStarMakerGenerated");
++            }
++        }
++
++        private static void DeleteIfEmpty(string assetFolder)
++        {
++            if (!AssetDatabase.IsValidFolder(assetFolder)) return;
++            var absolute = Path.Combine(Application.dataPath, assetFolder.Substring("Assets/".Length));
++            if (Directory.GetFileSystemEntries(absolute).Length == 0) AssetDatabase.DeleteAsset(assetFolder);
++        }
++
++        private static void CleanupOrphans()
++        {
++            if (!AssetDatabase.IsValidFolder(GeneratedRoot)) return;
++            foreach (var guid in AssetDatabase.FindAssets("t:DefaultAsset", new[] { GeneratedRoot }))
++            {
++                var path = AssetDatabase.GUIDToAssetPath(guid);
++                if (Path.GetDirectoryName(path)?.Replace('\\', '/') != GeneratedRoot ||
++                    !AssetDatabase.IsValidFolder(path)) continue;
++                var marker = path + "/" + Marker;
++                var diskPath = Path.Combine(Application.dataPath, "OneStarMakerGenerated", "BS2b",
++                    Path.GetFileName(path), Marker);
++                if (File.Exists(diskPath) && File.ReadAllText(diskPath) == Path.GetFileName(path))
++                    AssetDatabase.DeleteAsset(path);
++            }
++        }
++
++        private static void EnsureFolder(string path)
++        {
++            var parent = "Assets";
++            foreach (var segment in path.Substring("Assets/".Length).Split('/'))
++            {
++                var next = parent + "/" + segment;
++                if (!AssetDatabase.IsValidFolder(next)) AssetDatabase.CreateFolder(parent, segment);
++                parent = next;
++            }
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/UnityContentDirectoryAdapter.cs.meta b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/UnityContentDirectoryAdapter.cs.meta
+new file mode 100644
+index 0000000..1718aab
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/UnityContentDirectoryAdapter.cs.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: d1e9063e0c9331c6bab4ee4e4425c309
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Selection/AssemblyInfo.cs b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Selection/AssemblyInfo.cs
+new file mode 100644
+index 0000000..4d80345
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Selection/AssemblyInfo.cs
+@@ -0,0 +1,5 @@
++#nullable enable
++
++using System.Runtime.CompilerServices;
++
++[assembly: InternalsVisibleTo("OneStarMaker.Tests.Editor")]
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Selection/AssemblyInfo.cs.meta b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Selection/AssemblyInfo.cs.meta
+new file mode 100644
+index 0000000..a163e25
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Selection/AssemblyInfo.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 0c3c1d0e82de45d3a0807f54c15bb7ac
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent.meta
+new file mode 100644
+index 0000000..2325d4c
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: 1965827ea52c64c99383bf337ce8a66c
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/BuildContentRoot.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/BuildContentRoot.cs
+new file mode 100644
+index 0000000..bf83189
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/BuildContentRoot.cs
+@@ -0,0 +1,69 @@
++#nullable enable
++
++using System;
++using System.Collections.Generic;
++using Unity.Loading;
++using UnityEngine;
++
++namespace OneStarMaker.Runtime.BuildContent
++{
++    public enum BuildContentKind { Scene, Object }
++
++    [Serializable]
++    public sealed class BuildContentEntry
++    {
++        [SerializeField] private string _logicalKey = "";
++        [SerializeField] private string _stableKey = "";
++        [SerializeField] private string _representation = "";
++        [SerializeField] private BuildContentKind _kind;
++        [SerializeField] private LoadableSceneId _sceneId;
++        [SerializeField] private Loadable<UnityEngine.Object>? _object;
++
++        public string LogicalKey => _logicalKey;
++        public string StableKey => _stableKey;
++        public string Representation => _representation;
++        public BuildContentKind Kind => _kind;
++        public LoadableSceneId SceneId => _sceneId;
++        public Loadable<UnityEngine.Object>? Object => _object;
++
++        public BuildContentEntry(string logicalKey, string stableKey, string representation,
++            LoadableSceneId sceneId)
++        {
++            _logicalKey = logicalKey; _stableKey = stableKey; _representation = representation;
++            _kind = BuildContentKind.Scene; _sceneId = sceneId;
++        }
++
++        public BuildContentEntry(string logicalKey, string stableKey, string representation,
++            Loadable<UnityEngine.Object> loadable)
++        {
++            _logicalKey = logicalKey; _stableKey = stableKey; _representation = representation;
++            _kind = BuildContentKind.Object; _object = loadable;
++        }
++    }
++
++    public sealed class BuildContentRoot : ScriptableObject
++    {
++        public const int CurrentSchemaVersion = 1;
++        [SerializeField] private int _schemaVersion;
++        [SerializeField] private string _buildIdentity = "";
++        [SerializeField] private string _target = "";
++        [SerializeField] private BuildContentEntry[] _entries = Array.Empty<BuildContentEntry>();
++
++        public int SchemaVersion => _schemaVersion;
++        public string BuildIdentity => _buildIdentity;
++        public string Target => _target;
++        public IReadOnlyList<BuildContentEntry> Entries => Array.AsReadOnly(_entries);
++
++        public void Initialize(string buildIdentity, string target, IReadOnlyList<BuildContentEntry> entries)
++        {
++            if (string.IsNullOrEmpty(buildIdentity) || string.IsNullOrEmpty(target) || entries == null)
++                throw new ArgumentException("Build root requires identity, target and entries.");
++            _schemaVersion = CurrentSchemaVersion;
++            _buildIdentity = buildIdentity;
++            _target = target;
++            _entries = new BuildContentEntry[entries.Count];
++            for (var i = 0; i < entries.Count; i++)
++                _entries[i] = entries[i] ?? throw new ArgumentException("Null content entry.", nameof(entries));
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/BuildContentRoot.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/BuildContentRoot.cs.meta
+new file mode 100644
+index 0000000..0a787ab
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/BuildContentRoot.cs.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: ec18c45e724e212178f46da10e121d63
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs b/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs
+new file mode 100644
+index 0000000..49d5b9c
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs
+@@ -0,0 +1,187 @@
++#nullable enable
++
++using System;
++using System.Collections;
++using System.Collections.Generic;
++using System.IO;
++using System.Linq;
++using NUnit.Framework;
++using OneStarMaker.Build.Selection;
++using OneStarMaker.Editor.Build.Content;
++using OneStarMaker.Editor.Build.Materialization;
++using OneStarMaker.Runtime.BuildContent;
++using Unity.Loading;
++using UnityEditor;
++using UnityEditor.SceneManagement;
++using UnityEngine;
++using UnityEngine.TestTools;
++
++namespace OneStarMaker.Tests.Editor.Build
++{
++    public sealed class BuildContentDirectoryIntegrationTests
++    {
++        private const string FixtureParent = "Assets/OneStarMakerGenerated/BS2bTests";
++        private string _folder = "";
++        private string _copy = "";
++
++        [UnityTearDown]
++        public IEnumerator Cleanup()
++        {
++            if (EditorApplication.isPlaying) yield return new ExitPlayMode();
++            if (_folder.Length != 0) AssetDatabase.DeleteAsset(_folder);
++            if (_copy.Length != 0 && Directory.Exists(_copy)) Directory.Delete(_copy, true);
++            DeleteIfEmpty(FixtureParent);
++            DeleteIfEmpty("Assets/OneStarMakerGenerated");
++        }
++
++        [UnityTest]
++        public IEnumerator ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirectory()
++        {
++            if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.StandaloneWindows64 ||
++                EditorUserBuildSettings.standaloneBuildSubtarget != StandaloneBuildSubtarget.Player)
++                Assert.Ignore("BS2b fixture requires StandaloneWindows64 Player target.");
++            EnsureFolder(FixtureParent);
++            _folder = FixtureParent + "/" + Guid.NewGuid().ToString("N");
++            EnsureFolder(_folder);
++            var previous = EditorSceneManager.GetSceneManagerSetup();
++            try
++            {
++                var texture = new Texture2D(2, 2);
++                texture.SetPixels(new[] { Color.red, Color.red, Color.red, Color.red });
++                texture.Apply();
++                var texturePath = _folder + "/Texture.png";
++                File.WriteAllBytes(Path.Combine(Application.dataPath, texturePath.Substring("Assets/".Length)), texture.EncodeToPNG());
++                UnityEngine.Object.DestroyImmediate(texture);
++                AssetDatabase.ImportAsset(texturePath);
++                var shader = Shader.Find("Universal Render Pipeline/Lit");
++                if (shader == null) shader = Shader.Find("Standard");
++                if (shader == null) throw new InvalidOperationException("Fixture shader is unavailable.");
++                var mat = new Material(shader);
++                mat.mainTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
++                var matPath = _folder + "/Shared.mat";
++                AssetDatabase.CreateAsset(mat, matPath);
++                var paths = new[] { _folder + "/Scene.unity", _folder + "/High.prefab",
++                    _folder + "/Low.prefab", texturePath, _folder + "/Excluded.prefab" };
++                var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
++                var sceneObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
++                sceneObject.GetComponent<Renderer>().sharedMaterial = mat;
++                EditorSceneManager.SaveScene(scene, paths[0]);
++                UnityEngine.Object.DestroyImmediate(sceneObject);
++                for (var i = 1; i <= 2; i++)
++                {
++                    var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
++                    go.GetComponent<Renderer>().sharedMaterial = mat;
++                    PrefabUtility.SaveAsPrefabAsset(go, paths[i]);
++                    UnityEngine.Object.DestroyImmediate(go);
++                }
++                var excluded = new GameObject("Excluded");
++                PrefabUtility.SaveAsPrefabAsset(excluded, paths[4]);
++                UnityEngine.Object.DestroyImmediate(excluded);
++                EditorSceneManager.SaveScene(scene, paths[0]);
++                AssetDatabase.SaveAssets();
++
++                var candidates = paths.Select((path, i) => new BuildContentCandidate("fixture-" + i,
++                    i == 1 || i == 2 ? "shared-logical" : "logical-" + i,
++                    AssetDatabase.AssetPathToGUID(path), new BuildProvenance("fixture", path))).ToArray();
++                var tags = new Dictionary<string, IReadOnlyList<BuildTag>> {
++                    [candidates[1].StableKey] = new[] { new BuildTag("Representation", "High") },
++                    [candidates[2].StableKey] = new[] { new BuildTag("Representation", "Low") },
++                    [candidates[4].StableKey] = new[] { new BuildTag("Representation", "Excluded") }
++                };
++                var closures = paths.Select((path, i) => new BuildDependencySnapshot(candidates[i].PhysicalKey, path,
++                    AssetDatabase.GetDependencies(path).Where(p => p.StartsWith("Assets/", StringComparison.Ordinal))
++                        .Select(p => new BuildDependencyEntry(AssetDatabase.AssetPathToGUID(p), p)))).ToArray();
++                var snapshot = new BuildMaterializationSnapshot(candidates, tags,
++                    new[] { new BuildContentRequirement("shared-logical", BuildContentCardinality.OneOrMore) }, closures);
++                var selection = new BuildTagSelector().Select(new BuildRequest(new[] {
++                        new BuildTag("Representation", "High"), new BuildTag("Representation", "Low") }),
++                    snapshot.Candidates, snapshot.TagProviders,
++                    new BuildSelectionPolicy(new BuildTagSchema(new[] {
++                        new KeyValuePair<string, IEnumerable<string>>("Representation", new[] { "High", "Low", "Excluded" })
++                    }), snapshot.Requirements));
++                Assert.That(selection.IsSuccess, Is.True);
++                var artifacts = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "artifacts", "bs2b"));
++                var workspace = Path.Combine(artifacts, "work", BuildContentCoordinator.TargetName, "fixture");
++                var request = new BuildContentRequest(selection.Plan!, snapshot, "fixture", artifacts);
++                var coordinator = new BuildContentCoordinator();
++                var first = coordinator.Build(request);
++                Assert.That(first.IsSuccess, Is.True, first.Summary);
++                Assert.That(File.Exists(Path.Combine(workspace, "BuildManifestHash.txt")), Is.True);
++                var result = coordinator.Build(request);
++                Assert.That(result.IsSuccess, Is.True, result.Summary);
++                Assert.That(File.Exists(Path.Combine(workspace, "BuildManifestHash.txt")), Is.True);
++                Assert.That(result.Identity, Is.Not.EqualTo(first.Identity));
++                Assert.That(result.ContentPath, Is.Not.EqualTo(first.ContentPath));
++                Assert.That(File.Exists(first.ManifestPointer), Is.True);
++                Assert.That(File.Exists(result.ManifestPointer), Is.True);
++                Assert.That(Directory.Exists(first.MetadataPath), Is.True);
++                Assert.That(Directory.Exists(result.MetadataPath), Is.True);
++                Assert.That(File.ReadAllText(first.PreflightPath), Does.Contain(first.Identity));
++                Assert.That(File.ReadAllText(first.OutcomePath), Does.Contain(first.Identity));
++                Assert.That(File.ReadAllText(result.PreflightPath), Does.Contain(result.Identity));
++                Assert.That(File.ReadAllText(result.OutcomePath), Does.Contain(result.Identity));
++                Assert.That(File.ReadAllText(result.PreflightPath), Does.Contain(matPath));
++                Assert.That(File.ReadAllText(result.PreflightPath), Does.Contain("ValueNotSelected"));
++                Assert.That(Directory.GetFiles(result.ContentPath!, "*.cf").Length, Is.GreaterThan(0));
++                Assert.That(Directory.GetFiles(result.ContentPath!, "*.resS").Length, Is.GreaterThan(0));
++                _copy = Path.Combine(artifacts, "integration-copy-" + result.Identity);
++                Copy(result.ContentPath!, _copy);
++            }
++            finally
++            {
++                if (previous.Any(x => x.isActive)) EditorSceneManager.RestoreSceneManagerSetup(previous);
++                else EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
++                if (_folder.Length != 0) { AssetDatabase.DeleteAsset(_folder); _folder = ""; }
++            }
++            yield return new EnterPlayMode();
++            var handle = ContentLoadManager.RegisterContentDirectory(_copy);
++            Assert.That(handle.IsValid, Is.True);
++            try
++            {
++                var roots = ContentLoadManager.GetRootAssets<BuildContentRoot>(handle);
++                Assert.That(roots.Length, Is.EqualTo(1));
++                Assert.That(roots[0].BuildIdentity,
++                    Is.EqualTo(Path.GetFileName(_copy).Substring("integration-copy-".Length)));
++                Assert.That(roots[0].Entries.Count, Is.EqualTo(4));
++                Assert.That(roots[0].Entries.Select(x => x.StableKey),
++                    Is.EquivalentTo(new[] { "fixture-0", "fixture-1", "fixture-2", "fixture-3" }));
++                Assert.That(roots[0].Entries.All(x => x.StableKey != "fixture-4"), Is.True);
++                Assert.That(roots[0].Entries.Single(x => x.StableKey == "fixture-0").Kind,
++                    Is.EqualTo(BuildContentKind.Scene));
++                Assert.That(roots[0].Entries.Where(x => x.StableKey != "fixture-0").All(x => x.Kind == BuildContentKind.Object), Is.True);
++                Assert.That(roots[0].Entries.Count(x => x.LogicalKey == "shared-logical"), Is.EqualTo(2));
++                Assert.That(roots[0].Entries.Where(x => x.LogicalKey == "shared-logical")
++                    .Select(x => x.Representation), Is.EquivalentTo(new[] { "High", "Low" }));
++                Assert.That(roots[0].Entries.Single(x => x.Kind == BuildContentKind.Scene).SceneId, Is.Not.EqualTo(default(LoadableSceneId)));
++                Assert.That(roots[0].Entries.Where(x => x.Kind == BuildContentKind.Object).All(x => x.Object != null), Is.True);
++            }
++            finally { ContentLoadManager.UnregisterContentDirectory(handle); }
++            yield return new ExitPlayMode();
++        }
++
++        private static void Copy(string source, string target)
++        {
++            Directory.CreateDirectory(target);
++            foreach (var directory in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
++                Directory.CreateDirectory(Path.Combine(target, Path.GetRelativePath(source, directory)));
++            foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
++                File.Copy(file, Path.Combine(target, Path.GetRelativePath(source, file)));
++        }
++        private static void EnsureFolder(string path)
++        {
++            var parent = "Assets";
++            foreach (var segment in path.Substring("Assets/".Length).Split('/'))
++            {
++                var next = parent + "/" + segment;
++                if (!AssetDatabase.IsValidFolder(next)) AssetDatabase.CreateFolder(parent, segment);
++                parent = next;
++            }
++        }
++        private static void DeleteIfEmpty(string assetFolder)
++        {
++            if (!AssetDatabase.IsValidFolder(assetFolder)) return;
++            var absolute = Path.Combine(Application.dataPath, assetFolder.Substring("Assets/".Length));
++            if (Directory.GetFileSystemEntries(absolute).Length == 0) AssetDatabase.DeleteAsset(assetFolder);
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs.meta b/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs.meta
+new file mode 100644
+index 0000000..886c50a
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: ef6fd0b2e1f60e7ef6837e2eba1b3fb9
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentProjectionTests.cs b/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentProjectionTests.cs
+new file mode 100644
+index 0000000..adfc259
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentProjectionTests.cs
+@@ -0,0 +1,104 @@
++#nullable enable
++
++using System;
++using System.Collections.Generic;
++using System.Linq;
++using System.IO;
++using NUnit.Framework;
++using OneStarMaker.Build.Selection;
++using OneStarMaker.Editor.Build.Content;
++using OneStarMaker.Editor.Build.Materialization;
++using UnityEngine;
++
++namespace OneStarMaker.Tests.Editor.Build
++{
++    public sealed class BuildContentProjectionTests
++    {
++        private static BuildContentCandidate Candidate(string stable, string logical, string guid) =>
++            new BuildContentCandidate(stable, logical, guid, new BuildProvenance("fixture", stable));
++        private static BuildDependencySnapshot Closure(string guid, string path, string shared = "Assets/Shared.mat") =>
++            new BuildDependencySnapshot(guid, path, new[] {
++                new BuildDependencyEntry(guid, path), new BuildDependencyEntry("shared", shared) });
++
++        [Test]
++        public void SelectedRootsShareClosureButExcludeUnselectedVariant()
++        {
++            var a = Candidate("a", "scene", "a-guid");
++            var b = Candidate("b", "object", "b-guid");
++            var omitted = Candidate("c", "object", "c-guid");
++            var plan = new BuildPlan(new BuildRequest(Array.Empty<BuildTag>()), new[] { b, a },
++                new[] { new BuildContentExclusion(omitted, BuildExclusionReasonCode.ValueNotSelected, "Representation", "Low") });
++            var tags = new Dictionary<string, IReadOnlyList<BuildTag>> {
++                [b.StableKey] = new[] { new BuildTag("Representation", "High") } };
++            var snapshot = new BuildMaterializationSnapshot(new[] { omitted, b, a }, tags,
++                Array.Empty<BuildContentRequirement>(), new[] {
++                    Closure("c-guid", "Assets/Omitted.prefab"), Closure("b-guid", "Assets/B.prefab"),
++                    Closure("a-guid", "Assets/A.unity") });
++            var result = BuildContentProjection.Create(plan, snapshot);
++            Assert.That(result.IsValid, Is.True);
++            Assert.That(result.Roots.Select(x => x.Path), Is.EqualTo(new[] { "Assets/A.unity", "Assets/B.prefab" }));
++            Assert.That(result.Roots.Select(x => x.Representation), Is.EqualTo(new[] { "", "High" }));
++            Assert.That(result.Files.Select(x => x.Path), Does.Not.Contain("Assets/Omitted.prefab"));
++            Assert.That(result.Files.Count(x => x.Path == "Assets/Shared.mat"), Is.EqualTo(1));
++        }
++
++        [Test]
++        public void StructuralMismatchAndPhysicalCollisionArePreflightIssues()
++        {
++            var a = Candidate("a", "one", "same");
++            var b = Candidate("b", "two", "same");
++            var plan = new BuildPlan(new BuildRequest(Array.Empty<BuildTag>()), new[] { a, b },
++                Array.Empty<BuildContentExclusion>());
++            var snapshot = new BuildMaterializationSnapshot(new[] { a, b },
++                new Dictionary<string, IReadOnlyList<BuildTag>>(), Array.Empty<BuildContentRequirement>(),
++                new[] { Closure("same", "Assets/A.prefab") });
++            var result = BuildContentProjection.Create(plan, snapshot);
++            Assert.That(result.Issues.Select(x => x.Code), Does.Contain(BuildContentIssueCode.PhysicalKeyCollision));
++        }
++
++        [Test]
++        public void MissingAndInconsistentRootAreReportedWithoutAssetDatabase()
++        {
++            var selected = Candidate("a", "one", "guid-a");
++            var plan = new BuildPlan(new BuildRequest(Array.Empty<BuildTag>()), new[] { selected },
++                Array.Empty<BuildContentExclusion>());
++            var snapshot = new BuildMaterializationSnapshot(new[] { selected },
++                new Dictionary<string, IReadOnlyList<BuildTag>>(), Array.Empty<BuildContentRequirement>(),
++                new[] { new BuildDependencySnapshot("guid-a", "Assets/A.prefab",
++                    new[] { new BuildDependencyEntry("other", "Assets/A.prefab") }) });
++            Assert.That(BuildContentProjection.Create(plan, snapshot).Issues.Select(x => x.Code),
++                Does.Contain(BuildContentIssueCode.RootMismatch));
++            var missing = new BuildMaterializationSnapshot(new[] { selected },
++                new Dictionary<string, IReadOnlyList<BuildTag>>(), Array.Empty<BuildContentRequirement>(),
++                Array.Empty<BuildDependencySnapshot>());
++            Assert.That(BuildContentProjection.Create(plan, missing).Issues.Select(x => x.Code),
++                Does.Contain(BuildContentIssueCode.MissingClosure));
++        }
++
++        [Test]
++        public void AdapterFailureWritesPreflightAndOutcomeWithoutPublishing()
++        {
++            var selected = Candidate("a", "one", "guid-a");
++            var plan = new BuildPlan(new BuildRequest(Array.Empty<BuildTag>()), new[] { selected },
++                Array.Empty<BuildContentExclusion>());
++            var snapshot = new BuildMaterializationSnapshot(new[] { selected },
++                new Dictionary<string, IReadOnlyList<BuildTag>>(), Array.Empty<BuildContentRequirement>(),
++                new[] { Closure("guid-a", "Assets/A.prefab") });
++            var root = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "artifacts", "bs2b"));
++            var result = new BuildContentCoordinator(new FailingAdapter()).Build(
++                new BuildContentRequest(plan, snapshot, "failure-fixture", root));
++            Assert.That(result.IsSuccess, Is.False);
++            Assert.That(result.Issues.Select(x => x.Code), Does.Contain(BuildContentIssueCode.BuildFailure));
++            Assert.That(File.Exists(result.PreflightPath), Is.True);
++            Assert.That(File.Exists(result.OutcomePath), Is.True);
++            Assert.That(Directory.Exists(Path.Combine(root, "content", result.Identity)), Is.False);
++        }
++
++        private sealed class FailingAdapter : IContentDirectoryAdapter
++        {
++            public void ValidateTarget() { }
++            public ContentDirectoryBuild Build(BuildContentProjectionResult projection, string identity, string workspace) =>
++                throw new IOException("fixture failure");
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentProjectionTests.cs.meta b/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentProjectionTests.cs.meta
+new file mode 100644
+index 0000000..86fb54d
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentProjectionTests.cs.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: 6b1cc765e6bb226f420de97097ddecf9
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Tests/Editor/OneStarMaker.Tests.Editor.asmdef b/unity/Assets/OneStarMaker/Tests/Editor/OneStarMaker.Tests.Editor.asmdef
+index 91a92fd..bb2895a 100644
+--- a/unity/Assets/OneStarMaker/Tests/Editor/OneStarMaker.Tests.Editor.asmdef
++++ b/unity/Assets/OneStarMaker/Tests/Editor/OneStarMaker.Tests.Editor.asmdef
+@@ -3,6 +3,7 @@
+     "rootNamespace": "OneStarMaker.Tests.Editor",
+     "references": [
+         "OneStarMaker.Build.Materialization",
++        "OneStarMaker.Build.Content",
+         "OneStarMaker.Build.Selection",
+         "OneStarMaker.Editor",
+         "OneStarMaker.Runtime",

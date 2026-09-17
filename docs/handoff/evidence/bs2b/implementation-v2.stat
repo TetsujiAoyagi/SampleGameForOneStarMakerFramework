@@ -1,0 +1,27 @@
+ .gitignore                                         |   3 +-
+ docs/handoff/BS2B_CONTENT_DIRECTORY_BUILD.md       |  98 +++++++++++
+ docs/handoff/evidence/bs2b/phase-a-snapshot.md     |  97 +++++++++++
+ .../OneStarMaker/Scripts/Editor/Build/Content.meta |   8 +
+ .../Scripts/Editor/Build/Content/AssemblyInfo.cs   |   5 +
+ .../Editor/Build/Content/AssemblyInfo.cs.meta      |   7 +
+ .../Build/Content/BuildContentCoordinator.cs       | 124 ++++++++++++++
+ .../Build/Content/BuildContentCoordinator.cs.meta  |   7 +
+ .../Editor/Build/Content/BuildContentProjection.cs | 150 +++++++++++++++++
+ .../Build/Content/BuildContentProjection.cs.meta   |   7 +
+ .../Editor/Build/Content/BuildContentReport.cs     |  86 ++++++++++
+ .../Build/Content/BuildContentReport.cs.meta       |   7 +
+ .../Content/OneStarMaker.Build.Content.asmdef      |  14 ++
+ .../Content/OneStarMaker.Build.Content.asmdef.meta |   7 +
+ .../Build/Content/UnityContentDirectoryAdapter.cs  | 131 +++++++++++++++
+ .../Content/UnityContentDirectoryAdapter.cs.meta   |   7 +
+ .../Scripts/Editor/Build/Selection/AssemblyInfo.cs |   5 +
+ .../Editor/Build/Selection/AssemblyInfo.cs.meta    |   2 +
+ .../OneStarMaker/Scripts/Runtime/BuildContent.meta |   8 +
+ .../Runtime/BuildContent/BuildContentRoot.cs       |  69 ++++++++
+ .../Runtime/BuildContent/BuildContentRoot.cs.meta  |   7 +
+ .../Build/BuildContentDirectoryIntegrationTests.cs | 187 +++++++++++++++++++++
+ .../BuildContentDirectoryIntegrationTests.cs.meta  |   7 +
+ .../Editor/Build/BuildContentProjectionTests.cs    | 104 ++++++++++++
+ .../Build/BuildContentProjectionTests.cs.meta      |   7 +
+ .../Tests/Editor/OneStarMaker.Tests.Editor.asmdef  |   1 +
+ 26 files changed, 1154 insertions(+), 1 deletion(-)

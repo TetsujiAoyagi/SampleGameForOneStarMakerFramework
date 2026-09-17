@@ -1,0 +1,32 @@
+{
+    "identity": "20260917T003406945Z-7d2dde5a555244d382c823057239c368",
+    "target": "StandaloneWindows64-Player",
+    "contentSet": "fixture",
+    "selected": [
+        "fixture-0|logical-0|5f02562a84639e844ab3eeb7fa0db3bc",
+        "fixture-1|shared-logical|c265abb185c225b4e878b199ab028886",
+        "fixture-2|shared-logical|7394e07f58f838c47b423f06544ff116",
+        "fixture-3|logical-3|b803ba706a265e340ab11f7ce874952e"
+    ],
+    "excluded": [
+        "fixture-4|ValueNotSelected|Representation|Excluded"
+    ],
+    "roots": [
+        "fixture-0|Assets/OneStarMakerGenerated/BS2bTests/dd9b36186b4a4e8b8328b13a63273598/Scene.unity|",
+        "fixture-1|Assets/OneStarMakerGenerated/BS2bTests/dd9b36186b4a4e8b8328b13a63273598/High.prefab|High",
+        "fixture-2|Assets/OneStarMakerGenerated/BS2bTests/dd9b36186b4a4e8b8328b13a63273598/Low.prefab|Low",
+        "fixture-3|Assets/OneStarMakerGenerated/BS2bTests/dd9b36186b4a4e8b8328b13a63273598/Texture.png|"
+    ],
+    "closure": [
+        "c265abb185c225b4e878b199ab028886|Assets/OneStarMakerGenerated/BS2bTests/dd9b36186b4a4e8b8328b13a63273598/High.prefab",
+        "7394e07f58f838c47b423f06544ff116|Assets/OneStarMakerGenerated/BS2bTests/dd9b36186b4a4e8b8328b13a63273598/Low.prefab",
+        "5f02562a84639e844ab3eeb7fa0db3bc|Assets/OneStarMakerGenerated/BS2bTests/dd9b36186b4a4e8b8328b13a63273598/Scene.unity",
+        "476d81cbc32d4d9479a606614ef2f4b4|Assets/OneStarMakerGenerated/BS2bTests/dd9b36186b4a4e8b8328b13a63273598/Shared.mat",
+        "b803ba706a265e340ab11f7ce874952e|Assets/OneStarMakerGenerated/BS2bTests/dd9b36186b4a4e8b8328b13a63273598/Texture.png"
+    ],
+    "issues": [],
+    "summary": "",
+    "contentPath": "",
+    "manifestPointer": "",
+    "metadataPath": ""
+}

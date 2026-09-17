@@ -1,0 +1,14 @@
+{
+    "identity": "20260917T003406945Z-7d2dde5a555244d382c823057239c368",
+    "target": "StandaloneWindows64-Player",
+    "contentSet": "",
+    "selected": [],
+    "excluded": [],
+    "roots": [],
+    "closure": [],
+    "issues": [],
+    "summary": "Succeeded|StandaloneWindows64|1030322",
+    "contentPath": "D:\\repositories\\unity\\SampleGameForOneStarMakerFramework\\artifacts\\bs2b\\content\\20260917T003406945Z-7d2dde5a555244d382c823057239c368",
+    "manifestPointer": "D:\\repositories\\unity\\SampleGameForOneStarMakerFramework\\artifacts\\bs2b\\content\\20260917T003406945Z-7d2dde5a555244d382c823057239c368\\BuildManifestHash.txt",
+    "metadataPath": "D:\\repositories\\unity\\SampleGameForOneStarMakerFramework\\artifacts\\bs2b\\content\\20260917T003406945Z-7d2dde5a555244d382c823057239c368\\."
+}
