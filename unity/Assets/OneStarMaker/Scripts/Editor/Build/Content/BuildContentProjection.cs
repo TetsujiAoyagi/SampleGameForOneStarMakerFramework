@@ -24,9 +24,9 @@ namespace OneStarMaker.Editor.Build.Content
         public string Detail { get; }
     }
 
-    public sealed class ProjectedContent
+    internal sealed class ProjectedContent
     {
-        public ProjectedContent(BuildContentCandidate candidate, string path, string representation,
+        internal ProjectedContent(BuildContentCandidate candidate, string path, string representation,
             IReadOnlyList<BuildDependencyEntry> closure)
         { Candidate = candidate; Path = path; Representation = representation; Closure = closure; }
         public BuildContentCandidate Candidate { get; }
@@ -35,9 +35,9 @@ namespace OneStarMaker.Editor.Build.Content
         public IReadOnlyList<BuildDependencyEntry> Closure { get; }
     }
 
-    public sealed class BuildContentProjectionResult
+    internal sealed class BuildContentProjectionResult
     {
-        public BuildContentProjectionResult(IEnumerable<ProjectedContent> roots,
+        internal BuildContentProjectionResult(IEnumerable<ProjectedContent> roots,
             IEnumerable<BuildDependencyEntry> files, IEnumerable<BuildContentIssue> issues)
         {
             Roots = Array.AsReadOnly(roots.ToArray());

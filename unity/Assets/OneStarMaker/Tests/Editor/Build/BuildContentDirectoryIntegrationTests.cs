@@ -101,13 +101,29 @@ namespace OneStarMaker.Tests.Editor.Build
                     }), snapshot.Requirements));
                 Assert.That(selection.IsSuccess, Is.True);
                 var artifacts = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "artifacts", "bs2b"));
+                var workspace = Path.Combine(artifacts, "work", BuildContentCoordinator.TargetName, "fixture");
                 var request = new BuildContentRequest(selection.Plan!, snapshot, "fixture", artifacts);
-                var result = new BuildContentCoordinator().Build(request);
+                var coordinator = new BuildContentCoordinator();
+                var first = coordinator.Build(request);
+                Assert.That(first.IsSuccess, Is.True, first.Summary);
+                Assert.That(File.Exists(Path.Combine(workspace, "BuildManifestHash.txt")), Is.True);
+                var result = coordinator.Build(request);
                 Assert.That(result.IsSuccess, Is.True, result.Summary);
+                Assert.That(File.Exists(Path.Combine(workspace, "BuildManifestHash.txt")), Is.True);
+                Assert.That(result.Identity, Is.Not.EqualTo(first.Identity));
+                Assert.That(result.ContentPath, Is.Not.EqualTo(first.ContentPath));
+                Assert.That(File.Exists(first.ManifestPointer), Is.True);
                 Assert.That(File.Exists(result.ManifestPointer), Is.True);
+                Assert.That(Directory.Exists(first.MetadataPath), Is.True);
                 Assert.That(Directory.Exists(result.MetadataPath), Is.True);
+                Assert.That(File.ReadAllText(first.PreflightPath), Does.Contain(first.Identity));
+                Assert.That(File.ReadAllText(first.OutcomePath), Does.Contain(first.Identity));
                 Assert.That(File.ReadAllText(result.PreflightPath), Does.Contain(result.Identity));
                 Assert.That(File.ReadAllText(result.OutcomePath), Does.Contain(result.Identity));
+                Assert.That(File.ReadAllText(result.PreflightPath), Does.Contain(matPath));
+                Assert.That(File.ReadAllText(result.PreflightPath), Does.Contain("ValueNotSelected"));
+                Assert.That(Directory.GetFiles(result.ContentPath!, "*.cf").Length, Is.GreaterThan(0));
+                Assert.That(Directory.GetFiles(result.ContentPath!, "*.resS").Length, Is.GreaterThan(0));
                 _copy = Path.Combine(artifacts, "integration-copy-" + result.Identity);
                 Copy(result.ContentPath!, _copy);
             }
@@ -127,6 +143,12 @@ namespace OneStarMaker.Tests.Editor.Build
                 Assert.That(roots[0].BuildIdentity,
                     Is.EqualTo(Path.GetFileName(_copy).Substring("integration-copy-".Length)));
                 Assert.That(roots[0].Entries.Count, Is.EqualTo(4));
+                Assert.That(roots[0].Entries.Select(x => x.StableKey),
+                    Is.EquivalentTo(new[] { "fixture-0", "fixture-1", "fixture-2", "fixture-3" }));
+                Assert.That(roots[0].Entries.All(x => x.StableKey != "fixture-4"), Is.True);
+                Assert.That(roots[0].Entries.Single(x => x.StableKey == "fixture-0").Kind,
+                    Is.EqualTo(BuildContentKind.Scene));
+                Assert.That(roots[0].Entries.Where(x => x.StableKey != "fixture-0").All(x => x.Kind == BuildContentKind.Object), Is.True);
                 Assert.That(roots[0].Entries.Count(x => x.LogicalKey == "shared-logical"), Is.EqualTo(2));
                 Assert.That(roots[0].Entries.Where(x => x.LogicalKey == "shared-logical")
                     .Select(x => x.Representation), Is.EquivalentTo(new[] { "High", "Low" }));
