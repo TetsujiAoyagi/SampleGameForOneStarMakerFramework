@@ -9,6 +9,18 @@ namespace SampleGame.DependOnAll.Editor.Build
 {
     public enum SeasonContentMode { Full, Whitebox, FullAndWhitebox }
 
+    public sealed class SeasonSelectionResult
+    {
+        public SeasonSelectionResult(BuildPlanResult selection, IReadOnlyList<BuildContentRequirement> requirements)
+        {
+            Selection = selection;
+            Requirements = requirements;
+        }
+
+        public BuildPlanResult Selection { get; }
+        public IReadOnlyList<BuildContentRequirement> Requirements { get; }
+    }
+
     // Unity object の寿命から切り離した、1回の build 用 graph 入力。
     public sealed class SeasonSceneNode
     {
@@ -32,6 +44,12 @@ namespace SampleGame.DependOnAll.Editor.Build
         private static readonly string[] Roots = { "InGameScene", "OutGameScene" };
 
         public BuildPlanResult Select(IEnumerable<SeasonSceneNode> nodes,
+            IEnumerable<BuildContentCandidate> candidates, IEnumerable<IBuildTagProvider> sourceProviders,
+            IEnumerable<string> selectedSeasons, SeasonContentMode mode,
+            IReadOnlyDictionary<string, string>? seasonOverrides = null)
+            => SelectDetailed(nodes, candidates, sourceProviders, selectedSeasons, mode, seasonOverrides).Selection;
+
+        public SeasonSelectionResult SelectDetailed(IEnumerable<SeasonSceneNode> nodes,
             IEnumerable<BuildContentCandidate> candidates, IEnumerable<IBuildTagProvider> sourceProviders,
             IEnumerable<string> selectedSeasons, SeasonContentMode mode,
             IReadOnlyDictionary<string, string>? seasonOverrides = null)
@@ -114,7 +132,7 @@ namespace SampleGame.DependOnAll.Editor.Build
                 new BuildSelectionPolicy(schema, requirements));
             if (result.IsSuccess && mode == SeasonContentMode.FullAndWhitebox)
                 VerifyDual(result.Plan!, byLogical, memberships, chosen, providerSnapshot);
-            return result;
+            return new SeasonSelectionResult(result, Array.AsReadOnly(requirements.ToArray()));
         }
 
         private static KeyValuePair<string, IEnumerable<string>> Dimension(string key, IEnumerable<string> values) =>

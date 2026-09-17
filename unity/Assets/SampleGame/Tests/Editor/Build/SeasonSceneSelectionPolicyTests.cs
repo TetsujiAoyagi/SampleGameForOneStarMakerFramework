@@ -74,6 +74,74 @@ namespace SampleGame.Tests.Editor.Build
             Assert.That(result.Plan!.SelectedContent.Select(x => x.LogicalKey), Does.Contain("Summer_Cell"));
         }
 
+        [Test]
+        public void ReversedInputs_ProduceTheSameSelectionAndRequirements()
+        {
+            var policy = new SeasonSceneSelectionPolicy();
+            var forward = policy.SelectDetailed(Graph, Candidates(), new[] { new RepresentationProvider() },
+                new[] { "Spring", "Summer" }, SeasonContentMode.FullAndWhitebox);
+            var reversed = policy.SelectDetailed(Graph.Reverse(), Candidates().Reverse(),
+                new[] { new RepresentationProvider() }, new[] { "Summer", "Spring" },
+                SeasonContentMode.FullAndWhitebox);
+            Assert.That(forward.Selection.IsSuccess, Is.True, Format(forward.Selection));
+            Assert.That(reversed.Selection.IsSuccess, Is.True, Format(reversed.Selection));
+            Assert.That(reversed.Selection.Plan!.SelectedContent.Select(x => x.StableKey),
+                Is.EqualTo(forward.Selection.Plan!.SelectedContent.Select(x => x.StableKey)));
+            Assert.That(reversed.Selection.Plan.ExcludedContent.Select(x => x.Candidate.StableKey),
+                Is.EqualTo(forward.Selection.Plan.ExcludedContent.Select(x => x.Candidate.StableKey)));
+            Assert.That(reversed.Requirements.Select(x => x.LogicalKey + ":" + x.Cardinality),
+                Is.EqualTo(forward.Requirements.Select(x => x.LogicalKey + ":" + x.Cardinality)));
+        }
+
+        [Test]
+        public void Requirements_AreScopedAndDualCellAllowsBothRepresentations()
+        {
+            var detail = new SeasonSceneSelectionPolicy().SelectDetailed(Graph, Candidates(),
+                new[] { new RepresentationProvider() }, new[] { "Spring" }, SeasonContentMode.FullAndWhitebox);
+            Assert.That(detail.Selection.IsSuccess, Is.True, Format(detail.Selection));
+            Assert.That(detail.Requirements.Select(x => x.LogicalKey),
+                Is.EqualTo(new[] { "Spring_Cell", "Spring_Environment", "Title" }));
+            Assert.That(detail.Requirements.Select(x => x.Cardinality),
+                Is.EqualTo(new[] { BuildContentCardinality.OneOrMore,
+                    BuildContentCardinality.ExactlyOne, BuildContentCardinality.ExactlyOne }));
+        }
+
+        [Test]
+        public void UnknownRepresentation_FailsBeforeSelection()
+        {
+            var candidates = Candidates().Select(x => x.StableKey == "Spring_Cell/Whitebox"
+                ? Candidate("Spring_Cell", "Unknown") : x).ToArray();
+            Assert.Throws<InvalidOperationException>(() => new SeasonSceneSelectionPolicy().Select(Graph,
+                candidates, new[] { new RepresentationProvider() }, new[] { "Spring" }, SeasonContentMode.Full));
+        }
+
+        [Test]
+        public void DuplicateSceneIdentity_FailsBeforeSelection()
+        {
+            Assert.Throws<InvalidOperationException>(() => Select(Graph.Concat(new[] { Graph[0] }).ToArray(),
+                SeasonContentMode.Full, "Spring"));
+        }
+
+        [Test]
+        public void OrphanScene_FailsBeforeSelection()
+        {
+            var orphan = Graph.Concat(new[] { new SeasonSceneNode("Orphan", null, Array.Empty<string>(), false) });
+            Assert.Throws<InvalidOperationException>(() => Select(orphan.ToArray(), SeasonContentMode.Full, "Spring"));
+        }
+
+        [Test]
+        public void ParentCycle_FailsBeforeSelection()
+        {
+            var cycle = Graph.Select(x => x.Identity == "Season_Spring"
+                ? new SeasonSceneNode(x.Identity, "Spring_Cell", x.Children, x.HasPayload)
+                : x.Identity == "Spring_Cell"
+                    ? new SeasonSceneNode(x.Identity, "Season_Spring", new[] { "Season_Spring" }, x.HasPayload)
+                    : x.Identity == "InGameScene"
+                        ? new SeasonSceneNode(x.Identity, null, new[] { "Season_Summer" }, x.HasPayload)
+                        : x).ToArray();
+            Assert.Throws<InvalidOperationException>(() => Select(cycle, SeasonContentMode.Full, "Spring"));
+        }
+
         private static BuildPlanResult Select(SeasonSceneNode[] graph, SeasonContentMode mode, params string[] seasons) =>
             new SeasonSceneSelectionPolicy().Select(graph, Candidates(), new[] { new RepresentationProvider() }, seasons, mode);
 

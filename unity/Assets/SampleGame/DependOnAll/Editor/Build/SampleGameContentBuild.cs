@@ -42,14 +42,18 @@ namespace SampleGame.DependOnAll.Editor.Build
                 throw new InvalidOperationException("Materialization failed: " +
                     string.Join("; ", materialized.Issues.Select(x => x.Code + ":" + x.SubjectKey)));
             var graph = CopyGraph(map);
-            var selection = new SeasonSceneSelectionPolicy().Select(graph,
+            var detail = new SeasonSceneSelectionPolicy().SelectDetailed(graph,
                 materialized.Snapshot.Candidates, materialized.Snapshot.TagProviders, seasons, mode);
+            var selection = detail.Selection;
             if (selection.Plan == null)
                 throw new InvalidOperationException("Selection failed: " +
                     string.Join("; ", selection.Issues.Select(x => x.Code + ":" + x.SubjectKey)));
             var plan = selection.Plan;
             Debug.Log("[BS2c] request=" + string.Join(",", plan.Request.Selections.Select(x => x.Dimension + "=" + x.Value)) +
-                " selected=" + plan.SelectedContent.Count + " excluded=" + plan.ExcludedContent.Count);
+                " required=" + detail.Requirements.Count + " selected=" + plan.SelectedContent.Count +
+                " excluded=" + plan.ExcludedContent.Count);
+            foreach (var requirement in detail.Requirements)
+                Debug.Log("[BS2c] required " + requirement.LogicalKey + " / " + requirement.Cardinality);
             foreach (var exclusion in plan.ExcludedContent)
                 Debug.Log("[BS2c] excluded " + exclusion.Candidate.LogicalKey + " / " +
                     exclusion.Dimension + "=" + exclusion.Value + " / " + exclusion.ReasonCode);
