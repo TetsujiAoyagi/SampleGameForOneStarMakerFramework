@@ -3,6 +3,7 @@
     "rootNamespace": "OneStarMaker.Tests.Editor",
     "references": [
         "OneStarMaker.Build.Materialization",
+        "OneStarMaker.Build.Content",
         "OneStarMaker.Build.Selection",
         "OneStarMaker.Editor",
         "OneStarMaker.Runtime",

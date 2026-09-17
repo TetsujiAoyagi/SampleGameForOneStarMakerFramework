@@ -69,6 +69,14 @@ build、登録、load、unload、release、unregister、欠損 directory から�
 は未実証である。要求取消は native abort と同一視せず、発行済み処理の終端を単一 owner
 が受け取ってから資源を解放する設計を後続 runtime backend の条件とする。
 
+BS2b では、成功した選択 plan と materialization snapshot から Scene・Prefab・Texture の
+Content Directory を実生成する Editor build 経路を追加した。成果物内の単一
+`BuildContentRoot` が logical key・表現・Unity loadable ID の対応を保持し、移設した
+directory の登録後にも取得できる。これは build と受渡しの成立範囲であり、現行
+`IAssetManagement` や `AddressableBackend` の差し替えではない。directory 登録から
+実 load・解放・unregister までの owner と `AssetOwner` に沿った寿命管理は後続の
+Runtime 接続で決める（[18. AssetDescription §4](18-asset-description.md#4-buildsystem-との接続)）。
+
 ---
 
 ## 3. 設計思想
