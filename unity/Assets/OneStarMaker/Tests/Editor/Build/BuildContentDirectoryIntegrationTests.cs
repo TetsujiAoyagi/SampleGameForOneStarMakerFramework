@@ -25,7 +25,7 @@ namespace OneStarMaker.Tests.Editor.Build
     // PlayMode で移設先だけを登録することで、AssetDatabase 上の source に依存した見かけの成功を避ける。
     public sealed class BuildContentDirectoryIntegrationTests
     {
-        private const string FixtureParent = "Assets/OneStarMakerGenerated/BS2bTests";
+        private const string FixtureParent = "Assets/OneStarMakerGenerated/BS3Tests";
         private string _folder = "";
         private string _copy = "";
 
@@ -110,7 +110,8 @@ namespace OneStarMaker.Tests.Editor.Build
                         new KeyValuePair<string, IEnumerable<string>>("Representation", new[] { "High", "Low", "Excluded" })
                     }), snapshot.Requirements));
                 Assert.That(selection.IsSuccess, Is.True);
-                var artifacts = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "artifacts", "bs2b"));
+                // 実 build の生成物はこのテスト専用領域へ置き、過去の検証ログを上書きしない。
+                var artifacts = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "TestResults", "bs3-fixture"));
                 var workspace = Path.Combine(artifacts, "work", BuildContentCoordinator.TargetName, "fixture");
                 var request = new BuildContentRequest(selection.Plan!, snapshot, "fixture", artifacts);
                 var coordinator = new BuildContentCoordinator();
