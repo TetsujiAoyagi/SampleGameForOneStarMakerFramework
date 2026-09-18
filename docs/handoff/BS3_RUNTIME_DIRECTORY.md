@@ -1,10 +1,10 @@
 # BS3 Runtime directory とロード対象
 
 - type: slice
-- status: B（Phase A revision 3 凍結・Phase B revision 11 修正中）
+- status: D（Phase A revision 3 凍結、Phase B/C/C' revision 11 完了・人間のマージ判断待ち）
 - branch: `codex/bs3-runtime-directory`
 - implementation base commit: `25a5024d310347ef9ce67128636a06e0e0fb5172`
-- implementation head commit: revision 11 の実装固定後に記録
+- implementation head commit: `f8fc698965ee3a2595754a02d66397edd67133af`
 - risk: high（公開 API、寿命、Unity Content Loading、取消）
 - owner: BuildSystem 主担当
 - created: 2026-09-18
@@ -13,11 +13,11 @@
 - Phase A snapshot path / id: `artifacts/bs3-phase-a/phase-a-r3.md`（旧 snapshot は revision 1/2 記録）
 - Phase A snapshot generated at: 2026-09-19 JST
 - Phase A snapshot hash: SHA-256 `70E6E7897366327C74F425A24D1FDD174F4735123F083EB961629693DF0B1E47`
-- Phase B result snapshot path / id: revision 11 の実装固定後に生成
+- Phase B result snapshot path / id: `artifacts/bs3-phase-b/phase-b-r11.md`
 - Phase B result snapshot generated at: 2026-09-19 JST
-- Phase B result snapshot hash: revision 11 の実装固定後に記録
-- evidence bundle path / id: Phase C 開始前に固定
-- C' blind bundle path / id: Phase C 開始前に固定
+- Phase B result snapshot hash: SHA-256 `CD1C12F719500AC9AE94BF2F3A02D9764A33FED230696A38F436EF85735120BE`
+- evidence bundle path / id: `artifacts/bs3-phase-c/evidence-r11/manifest.md`、SHA-256 `8586177B1E44F7BB109ACE048E62F4A6B1E6C999E84A0AB552E7457298F20C3F`（2026-09-19 02:31 JST）
+- C' blind bundle path / id: `artifacts/bs3-phase-c/blind/bundle-r11.md`、SHA-256 `36E4D1809683703F6D03AE8A33D2B714F20A96F48B59705C6F4FDD76605D81B1`（2026-09-19 02:31 JST）
 
 ## 1. A0 入力、目的、境界
 
@@ -170,15 +170,19 @@ Phase B は実装前に停止した。旧 snapshot は設計として保持し�
 
 ## 5. Phase B 実装結果
 
-最終実装結果は revision 11 の Phase B snapshot に固定する。実 build target、canonical path、実アプリ旧/新起動、削除 gate の revision 単位排他、起動検証失敗時の停止を確認する。過去 revision の作業経緯は commit history に残る。
+最終実装結果は `artifacts/bs3-phase-b/phase-b-r11.md` に固定した。実 build target、canonical path、実アプリ旧/新起動、削除 gate の revision 単位排他、起動検証失敗時の停止を確認した。過去 revision の作業経緯は commit history に残る。
 
 ## 6. Phase C
 
-revision 11 の固定実装差分、Unity 生 XML/log、契約監査、文書監査を同じ証拠束へ封じてからレビューする。旧 head の所見は現 head の判定へ流用しない。
+GPT-5.6 Sol の新規セッションで固定 base/head、Phase A/B snapshot、`evidence-r11` をレビューし、**GO**。六最低条件と常時契約を阻害する欠陥は未発見。Index・gate・native adapter・session・AssetManagement owner/cache・SceneDirector・initializer の配置は凍結責務マップに適合する。session 424 行は規模判断のトリガーだが、索引・排他・native・owner を別型に分けている。取消後の native terminal 回収、owner/cache token、live instance の `ResourcesInUse`→解放→retry、Scene unload 終端、登録失敗 rollback、不正な明示 mode で AfterSceneLoad が進まないことを照合した。
+
+Unity 6000.6.0f1 の規定 runner を八 filter で実行し、合計 137/137、failed/skipped 0、全 runner exit 0。実 build→移設→source fixture 削除→Scene/Prefab/Texture load と既定/明示 Play 起動を統合 1/1 で確認。不正起動設定と既存 bootstrap 回帰は 2/2。`contract-audit.ps1` は exit 0、`docs-audit.ps1` は exit 0 と作業中 HANDOFF の警告 1 件。後続入力は別 process 削除排他・物理削除を DIST、通常 Play 停止の完全 drain を RET、Player bootstrap と source 不在 graph metadata を BS4 とする。旧 head の所見は現 head に流用していない。
 
 ## 7. Phase C' 独立監査
 
-Phase C 開始前に、同じ base/head と事前証拠だけの blind bundle を生成する。新規セッションと異なるモデルで監査する。
+GPT-5.6 Luna の新規セッションで、C の結論と可変 HANDOFF を含まない `bundle-r11` を盲検監査し、**GO**。B の GPT-6 Astra、C の GPT-5.6 Sol と異なるモデルを使用した。Phase A には GPT-5 系列が関与しているため、強化条件については**独立性制約あり**と記録し、人間の Phase D 判断へ渡す。固定 diff、八 runner の生 XML/log、機械監査、責務と寿命、失敗・取消・再試行を確認し、凍結条件または常時契約に対する blocker は未発見。
+
+後続入力: 起動時に表現を固定する現在の経路では扱わないが、同一 session で Whitebox 要求が Full entry に fallback した後に Full を別要求すると、Scene 台帳の要求値不一致で `EntryAmbiguous` になり得る。BS4 で表現固定の公開契約を再確認し、同一 session 内の表現切替が必要なら別スライスとして設計する。Player bootstrap、別 process 排他、物理削除、通常 Editor 停止時の完全 drain は C と同じく未確認。session 424 行は将来の構造整理候補。現 BS3 の起動固定・単一表現の受け入れ条件は満たす。
 
 ## 8. Phase D
 
