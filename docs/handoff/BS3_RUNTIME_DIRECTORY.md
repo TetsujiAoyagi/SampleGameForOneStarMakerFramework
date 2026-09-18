@@ -1,7 +1,7 @@
 # BS3 Runtime directory とロード対象
 
 - type: slice
-- status: C（Phase A revision 3 凍結・Phase B revision 8 固定、C/C' 再監査待ち）
+- status: C（Phase A revision 3 凍結・Phase B revision 9 固定作業中、C/C' 再監査待ち）
 - branch: `codex/bs3-runtime-directory`
 - implementation base commit: `25a5024d310347ef9ce67128636a06e0e0fb5172`
 - implementation head commit: 最終レビュー証拠の生成時に固定
@@ -13,9 +13,9 @@
 - Phase A snapshot path / id: `artifacts/bs3-phase-a/phase-a-r3.md`（旧 snapshot は revision 1/2 記録）
 - Phase A snapshot generated at: 2026-09-19 JST
 - Phase A snapshot hash: SHA-256 `70E6E7897366327C74F425A24D1FDD174F4735123F083EB961629693DF0B1E47`
-- Phase B result snapshot path / id: `artifacts/bs3-phase-b/phase-b-r8.md`
+- Phase B result snapshot path / id: `artifacts/bs3-phase-b/phase-b-r9.md`（実装 head 固定後に生成）
 - Phase B result snapshot generated at: 2026-09-19 JST
-- Phase B result snapshot hash: SHA-256 `076EFEC853B582C33933384B17BF7E9EDEE3D2D06A25A7A4A0DF2A548C719FCE`
+- Phase B result snapshot hash: 実装 head 固定後に記録
 - evidence bundle path / id: Phase C 開始前に固定
 - C' blind bundle path / id: Phase C 開始前に固定
 
@@ -170,11 +170,11 @@ Phase B は実装前に停止した。旧 snapshot は設計として保持し�
 
 ## 5. Phase B 実装結果
 
-最終実装結果は `artifacts/bs3-phase-b/phase-b-r8.md`。code head `4cdc0a4` は実 build target、canonical path、実アプリ旧/新起動の統合テストを含む。過去 revision の作業経緯は commit history に残る。
+最終実装結果は `artifacts/bs3-phase-b/phase-b-r9.md` に固定する。実 build target、canonical path、実アプリ旧/新起動の統合テストに加え、新規 index policy の nullable 表現値を署名に明示する。過去 revision の作業経緯は commit history に残る。
 
 ## 6. Phase C
 
-revision 8 の固定実装差分、Unity 生 XML/log、契約監査、文書監査を同じ証拠束へ封じてからレビューする。旧 head の所見は現 head の判定へ流用しない。
+revision 9 の固定実装差分、Unity 生 XML/log、契約監査、文書監査を同じ証拠束へ封じてからレビューする。旧 head の所見は現 head の判定へ流用しない。
 
 ## 7. Phase C' 独立監査
 
