@@ -43,6 +43,9 @@ namespace OneStarMaker.Tests.Editor.Build
         }
 
         [UnityTest]
+        // Content build を二度行い、実アプリの PlayMode を二度往復するため、既定の180秒では
+        // Editor の再コンパイルが重なったときにテスト本体を中断する。無期限待機にはしない。
+        [Timeout(360000)]
         public IEnumerator ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirectory()
         {
             // Phase A で固定した target/subtarget だけを検証する。異なる環境では勝手に切り替えない。

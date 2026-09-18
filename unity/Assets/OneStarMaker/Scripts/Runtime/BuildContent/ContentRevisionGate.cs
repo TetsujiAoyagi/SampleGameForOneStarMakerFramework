@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace OneStarMaker.Runtime.BuildContent
@@ -10,7 +11,7 @@ namespace OneStarMaker.Runtime.BuildContent
     {
         private static readonly object Sync = new();
         private static Registration? _registration;
-        private static Deletion? _deletion;
+        private static readonly List<Deletion> Deletions = new();
 
         public static bool TryAcquireDelete(string buildIdentity, string target, string absolutePath,
             out ContentDeletionLease? lease, out ContentDirectoryFailureCode rejection)
@@ -20,16 +21,18 @@ namespace OneStarMaker.Runtime.BuildContent
             { rejection = ContentDirectoryFailureCode.InvalidConfiguration; return false; }
             lock (Sync)
             {
-                if (_deletion != null)
+                if (Deletions.Exists(value => SameRevisionOrPath(value.Identity, value.Target, value.Path,
+                    buildIdentity, target, path)))
                 { rejection = ContentDirectoryFailureCode.DeletionInProgress; return false; }
-                if (_registration != null)
+                if (_registration != null && SameRevisionOrPath(_registration.Identity, _registration.Target,
+                    _registration.Path, buildIdentity, target, path))
                 {
                     rejection = _registration.Path == path && (_registration.Identity != buildIdentity || _registration.Target != target)
                         ? ContentDirectoryFailureCode.PathInUse : ContentDirectoryFailureCode.RevisionBusy;
                     return false;
                 }
                 var deletion = new Deletion(buildIdentity, target, path);
-                _deletion = deletion;
+                Deletions.Add(deletion);
                 lease = new ContentDeletionLease(() => ReleaseDeletion(deletion));
                 rejection = default;
                 return true;
@@ -42,7 +45,10 @@ namespace OneStarMaker.Runtime.BuildContent
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Content directory registration input is invalid.", buildIdentity, target);
             lock (Sync)
             {
-                if (_deletion != null) throw new ContentDirectoryException(ContentDirectoryFailureCode.DeletionInProgress, "A content directory deletion is in progress.", buildIdentity, target);
+                if (Deletions.Exists(value => SameRevisionOrPath(value.Identity, value.Target, value.Path,
+                    buildIdentity, target, path)))
+                    throw new ContentDirectoryException(ContentDirectoryFailureCode.DeletionInProgress,
+                        "A content directory deletion is in progress.", buildIdentity, target);
                 if (_registration != null)
                 {
                     var code = _registration.Path == path && (_registration.Identity != buildIdentity || _registration.Target != target)
@@ -79,9 +85,15 @@ namespace OneStarMaker.Runtime.BuildContent
         {
             lock (Sync)
             {
-                if (ReferenceEquals(_deletion, deletion)) _deletion = null;
+                Deletions.Remove(deletion);
             }
         }
+
+        // 単一の active session 制約は、無関係な revision の物理削除まで止める理由にならない。
+        // identity または実 path が同じ場合だけ利用と削除を排他し、別 identity で同じ path を削る抜け道も塞ぐ。
+        private static bool SameRevisionOrPath(string identity, string target, string path,
+            string otherIdentity, string otherTarget, string otherPath)
+            => (identity == otherIdentity && target == otherTarget) || path == otherPath;
 
         private sealed class Registration { internal Registration(string i, string t, string p) { Identity=i; Target=t; Path=p; } internal string Identity {get;} internal string Target {get;} internal string Path {get;} }
         internal sealed class Deletion { internal Deletion(string i, string t, string p) { Identity=i; Target=t; Path=p; } internal string Identity {get;} internal string Target {get;} internal string Path {get;} }

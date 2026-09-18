@@ -42,6 +42,11 @@ namespace OneStarMaker.Tests.BuildContent
                     path, out var otherLease, out var otherReason), Is.False);
                 Assert.That(otherLease, Is.Null);
                 Assert.That(otherReason, Is.EqualTo(ContentDirectoryFailureCode.PathInUse));
+
+                Assert.That(ContentRevisionGate.TryAcquireDelete("build-a", "StandaloneWindows64",
+                    path + "-moved", out var movedLease, out var movedReason), Is.False);
+                Assert.That(movedLease, Is.Null);
+                Assert.That(movedReason, Is.EqualTo(ContentDirectoryFailureCode.RevisionBusy));
             }
             Assert.That(ContentRevisionGate.TryAcquireDelete("build-a", "StandaloneWindows64",
                 path, out var releasedLease, out _), Is.True);
@@ -67,20 +72,24 @@ namespace OneStarMaker.Tests.BuildContent
         }
 
         [Test]
-        public void AnotherDeleteLease_AlwaysReportsDeletionInProgress()
+        public void UnrelatedRevision_CanBeDeletedWhileAnotherRevisionIsRegisteredOrDeleting()
         {
             var path = "C:\\content-directory-gate-" + Guid.NewGuid().ToString("N");
             var otherPath = "C:\\content-directory-gate-" + Guid.NewGuid().ToString("N");
-            Assert.That(ContentRevisionGate.TryAcquireDelete("build-a", "StandaloneWindows64", path,
-                out var lease, out _), Is.True);
-            try
+            using (ContentRevisionGate.Reserve("build-a", "StandaloneWindows64", path))
             {
+                // 登録中でも別 identity/path の削除は許可する。削除中の path の登録は拒否する。
                 Assert.That(ContentRevisionGate.TryAcquireDelete("build-b", "StandaloneWindows64", otherPath,
-                    out var blocked, out var reason), Is.False);
-                Assert.That(blocked, Is.Null);
-                Assert.That(reason, Is.EqualTo(ContentDirectoryFailureCode.DeletionInProgress));
+                    out var lease, out _), Is.True);
+                try
+                {
+                    Assert.That(ContentRevisionGate.TryAcquireDelete("build-c", "StandaloneWindows64", otherPath,
+                        out var blocked, out var reason), Is.False);
+                    Assert.That(blocked, Is.Null);
+                    Assert.That(reason, Is.EqualTo(ContentDirectoryFailureCode.DeletionInProgress));
+                }
+                finally { lease!.Dispose(); }
             }
-            finally { lease!.Dispose(); }
         }
     }
 }
