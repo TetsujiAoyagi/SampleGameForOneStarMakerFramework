@@ -1,0 +1,499 @@
+VBCSCompilerPreWarmer: pre-warm launched (dotnet PID 32608)
+VBCSCompiler prewarm took 66.23 ms
+[Licensing::Module] Trying to connect to existing licensing client channel...
+Built from '6000.6/respin/6000.6.0f1-fa21a270ab12' branch; Version is '6000.6.0f1 (f7f8ed4d1e24) revision 16251117'; Using compiler version '194234433'; Build Type 'Release'
+[Licensing::IpcConnector] Channel LicenseClient-void doesn't exist
+OS: 'Windows 11  (10.0.26200) Core' Language: 'ja' Physical Memory: 16316 MB
+BatchMode: 1, IsHumanControllingUs: 0, StartBugReporterOnCrash: 0, Is64bit: 1
+System  architecture: x64
+Process architecture: x64
+Date: 2026-09-18T17:10:24Z
+[Licensing::Module] Successfully launched the LicensingClient (PId: 34396)
+
+COMMAND LINE ARGUMENTS:
+D:\UnityEditor\6000.6.0f1\Editor\Unity.exe
+-batchmode
+-projectPath
+D:\repositories\unity\SampleGameForOneStarMakerFramework\unity
+-runTests
+-testPlatform
+EditMode
+-testResults
+D:\repositories\unity\SampleGameForOneStarMakerFramework\TestResults\results-ContentDirectoryIndexTests-20260919-021023.xml
+-logFile
+D:\repositories\unity\SampleGameForOneStarMakerFramework\TestResults\unity-ContentDirectoryIndexTests-20260919-021023.log
+-testFilter
+ContentDirectoryIndexTests
+Successfully changed project path to: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity
+D:/repositories/unity/SampleGameForOneStarMakerFramework/unity
+[UnityMemory] Configuration Parameters - Can be set up in boot.config
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-nav-mesh-worker=65536"
+    "memorysetup-temp-allocator-size-audio-worker=65536"
+    "memorysetup-temp-allocator-size-cloud-worker=32768"
+    "memorysetup-temp-allocator-size-gfx=262144"
+    "memorysetup-remapper-allocator-initial-capacity=32768"
+    "memorysetup-temp-allocator-size-preload-manager=33554432"
+    "memorysetup-allocator-temp-initial-block-size-main=262144"
+    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+    "memorysetup-temp-allocator-size-job-worker=262144"
+    "memorysetup-temp-allocator-size-background-worker=32768"
+    "memorysetup-bucket-allocator-granularity=16"
+    "memorysetup-bucket-allocator-bucket-count=8"
+    "memorysetup-bucket-allocator-block-size=33554432"
+    "memorysetup-bucket-allocator-block-count=8"
+    "memorysetup-main-allocator-block-size=16777216"
+    "memorysetup-thread-allocator-block-size=16777216"
+    "memorysetup-main-allocator-mimalloc-enabled=1"
+    "memorysetup-gfx-main-allocator-block-size=16777216"
+    "memorysetup-gfx-thread-allocator-block-size=16777216"
+    "memorysetup-cache-allocator-block-size=4194304"
+    "memorysetup-typetree-allocator-block-size=2097152"
+    "memorysetup-profiler-bucket-allocator-granularity=16"
+    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+    "memorysetup-profiler-bucket-allocator-block-size=33554432"
+    "memorysetup-profiler-bucket-allocator-block-count=8"
+    "memorysetup-profiler-allocator-block-size=16777216"
+    "memorysetup-profiler-editor-allocator-block-size=1048576"
+    "memorysetup-temp-allocator-size-main=16777216"
+    "memorysetup-job-temp-allocator-block-size=2097152"
+    "memorysetup-job-temp-allocator-block-size-background=1048576"
+    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+Logging is directed to a specific file, skipping project log.
+Player connection [34704]  Target information:
+
+Player connection [34704]  * "[IP] 192.168.1.9 [Port] 55504 [Flags] 2 [Guid] 3249761704 [EditorId] 3249761704 [Version] 1048832 [Id] WindowsEditor(7,DESKTOP-U4E3PM1) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
+
+Player connection [34704] Host joined multi-casting on [225.0.0.222:54997]...
+Player connection [34704] Host joined alternative multi-casting on [225.0.0.222:34997]...
+Input System module state changed to: Initialized.
+[Physics::Module] Initialized fallback backend.
+[Physics::Module] Id: 0xdecafbad
+[Package Manager] Connected to IPC stream "Upm-33876" after 1.0 seconds.
+[Licensing::Module] Licensing is not yet initialized.
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-void" at "2026-09-18T17:10:25.335215Z"
+[Licensing::Client] Code 10 while verifying Licensing Client signature (process Id: 34396, path: "D:/UnityEditor/6000.6.0f1/Editor/Data/Resources/Licensing/Client/Unity.Licensing.Client.exe")
+[Licensing::Module] LicensingClient has failed validation; ignoring
+[Licensing::Client] Handshaking with LicensingClient:
+  Version:                 1.18.3+d7ffd15
+  Session Id:              e19ed3c4f9884711a03af1db2dd83597
+  Correlation Id:          35380f7d4333ae25e7b5e85268de0100
+  External correlation Id: 6847771084344913170
+  Machine Id:              ALR1Ic4uZ9EdQzr0pucorcGNQXM=
+[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-void" (connect: 1.29s, validation: 0.06s, handshake: 1.41s)
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-void-notifications" at "2026-09-18T17:10:26.8034587Z"
+[Licensing::Module] Connected to LicensingClient (PId: 34396, launch time: 0.01, total connection time: 2.75s)
+[Licensing::Module] Error: Access token is unavailable; failed to update
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: F4-FHTT-UPW9-SBMJ-JZ5Q-XXXX
+  Product: Unity Personal
+  Type: ULF
+  Expiration: Unlimited
+[Licensing::Module] License group:
+  Id: 720108-UnityPersXXXX
+  Product: Unity Personal
+  Type: Assigned
+  Expiration: Unlimited
+[Licensing::Client] Successfully updated license, isAsync: True, time: 0.01
+[Licensing::Module] Licensing Background thread has ended after 2.78s
+[Licensing::Module] Licensing is initialized (took 1.55s).
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: F4-FHTT-UPW9-SBMJ-JZ5Q-XXXX
+  Product: Unity Personal
+  Type: ULF
+  Expiration: Unlimited
+[Licensing::Module] License group:
+  Id: 720108-UnityPersXXXX
+  Product: Unity Personal
+  Type: Assigned
+  Expiration: Unlimited
+Library Redirect Path: Library/
+Launching Unity Data Store - D:/UnityEditor/6000.6.0f1/Editor/Data/Tools/Unity.DataStore.exe 
+Unity Data Store artifact dir = Library/DataStore, working dir = D:/repositories/unity/SampleGameForOneStarMakerFramework/unity[Physics::Module] Selected backend.
+[Physics::Module] Name: PhysX
+[Physics::Module] Id: 0xf2b8ea05
+[Physics::Module] SDK Version: 4.1.2
+[Physics::Module] Integration Version: 1.0.0
+[Physics::Module] Threading Mode: Multi-Threaded
+Unity Data Store running and initialised
+Refreshing native plugins compatible for Editor in 5.96 ms, found 0 plugins.
+Initialize engine version: 6000.6.0f1 (f7f8ed4d1e24)
+[EntityIdStore] init: VM path (explicit commit), pageSize=4096, blockCount=1048576, entitiesPerBlock=256, slots reserved=4294967296 bytes
+[Subsystems] Discovering subsystems at path D:/UnityEditor/6000.6.0f1/Editor/Data/Resources/UnitySubsystems
+[Subsystems] Discovering subsystems at path D:/repositories/unity/SampleGameForOneStarMakerFramework/unity/Assets
+GfxDevice: creating device client; kGfxThreadingModeNonThreaded
+Direct3D:
+    Version:  Direct3D 11.0 [level 11.1]
+    Renderer: NVIDIA GeForce RTX 2070 SUPER (ID=0x1e84)
+    Vendor:   NVIDIA
+    VRAM:     7989 MB
+    Driver:   32.0.16.1088
+Initialize mono
+Mono path[0] = 'D:/UnityEditor/6000.6.0f1/Editor/Data/Managed'
+Mono path[1] = 'D:/UnityEditor/6000.6.0f1/Editor/Data/BCLExtensions/runtime/netstandard2.1'
+Mono path[2] = 'D:/UnityEditor/6000.6.0f1/Editor/Data/MonoBleedingEdge/lib/mono/unityjit-win32'
+Mono config path = 'D:/UnityEditor/6000.6.0f1/Editor/Data/MonoBleedingEdge/etc'
+Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56876
+CodeReloadManager initialized
+ImportWorker Server TCP listen port: 0
+AcceleratorClientConnectionCallback - disconnected - :0
+Begin MonoManager ReloadAssembly
+Registering precompiled unity dll's ...
+Register platform support module: D:/UnityEditor/6000.6.0f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport/UnityEditor.WindowsStandalone.Extensions.dll
+Registered in 0.004275 seconds.
+Native extension for WindowsStandalone target not found
+Package Manager log level set to [2]
+ScheduleIndexationOnStartup MainProcess:False IndexOnStartup:True
+Scripting: successfully reloaded assembly
+- Finished resetting the current domain, in  3.539 seconds
+Domain Reload Profiling: 4439ms
+	BeginReloadAssembly (187ms)
+		CreateAndSetChildDomain (3ms)
+	RebuildCommonClasses (6ms)
+	RebuildNativeTypeToScriptingClass (21ms)
+	initialDomainReloadingComplete (109ms)
+	LoadAllAssembliesAndSetupDomain (576ms)
+		LoadAssemblies (175ms)
+		TypeCache.Refresh (416ms)
+			TypeCache.ScanAssembly (399ms)
+		AnalyzeDomain (1ms)
+	FinalizeReload (3541ms)
+		SetupLoadedEditorAssemblies (0ms)
+			BeforeProcessingInitializeOnLoad (139ms)
+			ProcessInitializeOnLoadAttributes (139ms)
+			ProcessInitializeOnLoadMethodAttributes (2937ms)
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: F4-FHTT-UPW9-SBMJ-JZ5Q-XXXX
+  Product: Unity Personal
+  Type: ULF
+  Expiration: Unlimited
+[Licensing::Module] License group:
+  Id: 720108-UnityPersXXXX
+  Product: Unity Personal
+  Type: Assigned
+  Expiration: Unlimited
+Application.AssetDatabase Initial Refresh Start
+[Package Manager] Restoring resolved packages state from cache
+[Licensing::Client] Successfully resolved entitlement details
+[Package Manager] Registered 80 packages:
+  Packages from [https://packages.unity.com]:
+    com.unity.addressables@2.11.2 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.addressables@42676f2a154e)
+    com.unity.ads@4.19.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.ads@dbd68e7e78e9)
+    com.unity.ai.navigation@2.0.14 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.ai.navigation@134dd6a3b97b)
+    com.unity.analytics@3.8.2 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.analytics@c9d14a6bdec6)
+    com.unity.collab-proxy@2.13.6 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.collab-proxy@4628d2ba6ea4)
+    com.unity.ide.rider@3.0.39 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.ide.rider@4504839d03f7)
+    com.unity.ide.visualstudio@2.0.26 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.ide.visualstudio@a99d56dec63f)
+    com.unity.inputsystem@1.20.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.inputsystem@7a4e1a2a8194)
+    com.unity.pipeline@0.4.0-exp.1 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.pipeline@f49636739437)
+    com.unity.project-auditor-rules@1.0.3 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.project-auditor-rules@1fa74fdf90ed)
+    com.unity.purchasing@5.4.2 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.purchasing@290a16a9a099)
+    com.unity.visualscripting@1.9.12 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.visualscripting@4edfcc09512f)
+    com.unity.xr.legacyinputhelpers@3.0.1 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.xr.legacyinputhelpers@3f62d634f63b)
+    com.unity.services.core@1.18.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.services.core@3464cb68d709)
+    com.unity.nuget.mono-cecil@1.11.6 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.nuget.mono-cecil@ecb9724e46ff)
+    com.unity.nuget.newtonsoft-json@3.2.2 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.nuget.newtonsoft-json@4dfd81071c64)
+    com.unity.splines@2.9.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.splines@e6e1d5900acc)
+    com.unity.services.analytics@6.3.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.services.analytics@cde4e6cf92f9)
+    com.unity.profiling.core@1.0.3 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.profiling.core@8a49f7027d06)
+    com.unity.scriptablebuildpipeline@3.0.3 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.scriptablebuildpipeline@61526b33bf2c)
+    com.unity.searcher@4.9.5 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.searcher@a463122f2c00)
+    com.unity.settings-manager@2.1.1 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.settings-manager@0b8638c5ce86)
+  Built-in packages:
+    com.unity.2d.sprite@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.2d.sprite@947350d67f82)
+    com.unity.2d.tilemap@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.2d.tilemap@639ca1d99254)
+    com.unity.cinemachine@6.6.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.cinemachine@f53aa49b3acc)
+    com.unity.multiplayer.center@2.0.1 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.multiplayer.center@549886182930)
+    com.unity.render-pipelines.universal@17.6.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.render-pipelines.universal@8457e85b8184)
+    com.unity.test-framework@1.8.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.test-framework@7a3849e09bd0)
+    com.unity.timeline@6.6.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.timeline@281d5f7e7d7d)
+    com.unity.ugui@2.6.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.ugui@23caec89ae27)
+    com.unity.modules.accessibility@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.accessibility)
+    com.unity.modules.adaptiveperformance@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.adaptiveperformance)
+    com.unity.modules.ai@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.ai)
+    com.unity.modules.androidjni@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.androidjni)
+    com.unity.modules.animation@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.animation)
+    com.unity.modules.assetbundle@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.assetbundle)
+    com.unity.modules.audio@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.audio)
+    com.unity.modules.cloth@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.cloth)
+    com.unity.modules.director@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.director)
+    com.unity.modules.imageconversion@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.imageconversion)
+    com.unity.modules.imgui@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.imgui)
+    com.unity.modules.jsonserialize@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.jsonserialize)
+    com.unity.modules.particlesystem@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.particlesystem)
+    com.unity.modules.physics@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.physics)
+    com.unity.modules.physics2d@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.physics2d)
+    com.unity.modules.physicscore2d@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.physicscore2d)
+    com.unity.modules.screencapture@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.screencapture)
+    com.unity.modules.terrain@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.terrain)
+    com.unity.modules.terrainphysics@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.terrainphysics)
+    com.unity.modules.tetgen@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.tetgen)
+    com.unity.modules.tilemap@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.tilemap)
+    com.unity.modules.ui@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.ui)
+    com.unity.modules.uielements@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.uielements)
+    com.unity.modules.umbra@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.umbra)
+    com.unity.modules.unityanalytics@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.unityanalytics)
+    com.unity.modules.unitywebrequest@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.unitywebrequest)
+    com.unity.modules.unitywebrequestassetbundle@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.unitywebrequestassetbundle)
+    com.unity.modules.unitywebrequestaudio@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.unitywebrequestaudio)
+    com.unity.modules.unitywebrequesttexture@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.unitywebrequesttexture)
+    com.unity.modules.unitywebrequestwww@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.unitywebrequestwww)
+    com.unity.modules.vectorgraphics@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.vectorgraphics)
+    com.unity.modules.vehicles@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.vehicles)
+    com.unity.modules.video@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.video)
+    com.unity.modules.wind@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.wind)
+    com.unity.modules.xr@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.xr)
+    com.unity.modules.subsystems@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.subsystems)
+    com.unity.modules.hierarchycore@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.modules.hierarchycore)
+    com.unity.ext.nunit@2.1.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.ext.nunit@0198eae3b53e)
+    com.unity.render-pipelines.core@17.6.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.render-pipelines.core@2d66c71e606e)
+    com.unity.shadergraph@17.6.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.shadergraph@ef6135652377)
+    com.unity.render-pipelines.universal-config@17.6.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.render-pipelines.universal-config@561422b74439)
+    com.unity.burst@2.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.burst@626e66ab421b)
+    com.unity.collections@6.6.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.collections@10fff0607388)
+    com.unity.mathematics@1.4.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.mathematics@8306a64d0cd6)
+    com.unity.graph-authoring@1.0.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.graph-authoring@cfd2588851ee)
+    com.unity.test-framework.performance@6.6.0 (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.unity.test-framework.performance@0a60b857a52e)
+  Git packages:
+    com.annulusgames.lit-motion@https://github.com/annulusgames/LitMotion.git?path=src/LitMotion/Assets/LitMotion (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.annulusgames.lit-motion@2317f5d282a9)
+    com.cysharp.csprojmodifier@https://github.com/Cysharp/CsprojModifier.git?path=src/CsprojModifier/Assets/CsprojModifier (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.cysharp.csprojmodifier@939808655b39)
+    com.cysharp.unitask@https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.cysharp.unitask@360e370345b9)
+    com.github-glitchenzo.nugetforunity@https://github.com/GlitchEnzo/NuGetForUnity.git?path=/src/NuGetForUnity (location: D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Library\PackageCache\com.github-glitchenzo.nugetforunity@1c1553136be4)
+[Package Manager] com.unity.analytics is deprecated: This package is deprecated and won't be compatible with future Unity versions. It will only receive critical updates, with no new features or bug fixes. Migrate to Unity Analytics: https://docs.unity.com/en-us/analytics
+[Subsystems] No new subsystems found in resolved package list.
+[Package Manager] Done registering packages in 0.04 seconds
+Assembly reference Packages/com.unity.cinemachine/Editor/Samples/ExposeHDRPInternals/HDRP-Editor-ref.asmref has no target assembly definition
+Assembly reference Packages/com.unity.cinemachine/Editor/Samples/ExposeHDRPInternals/HDRP-Editor-ref.asmref has no target assembly definition
+Starting: D:\UnityEditor\6000.6.0f1\Editor\Data\Tools\BuildPipeline\bee_backend.exe --ipc --defer-dag-verification --dagfile="Library/Bee/1900b0aEDbg.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssemblies
+WorkingDir: D:/repositories/unity/SampleGameForOneStarMakerFramework/unity
+ExitCode: 0 Duration: 2s407ms
+[1444/1925  0s] ILPP-Configuration Library/ilpp-configuration.nevergeneratedoutput
+*** Tundra build success (2.23 seconds), 1 items updated, 1925 evaluated
+DisplayProgressbar: Compiling Scripts
+Total cache size 267210888
+Total cache size after purge 267210888, took 00:00:00.8843325
+AssetDatabase: script compilation time: 6.604434s
+Begin MonoManager ReloadAssembly
+Assembly reference Packages/com.unity.cinemachine/Editor/Samples/ExposeHDRPInternals/HDRP-Editor-ref.asmref has no target assembly definition
+'Packages/com.unity.render-pipelines.core/Editor/Deprecated.cs' contains partial class of Unity.Object, exactly 1 of the partial classes needs to be in a file with the same filename. This is to know the one that can be referenced from ie. GameObjects
+'Packages/com.unity.render-pipelines.core/Editor/Deprecated.cs' contains partial class of Unity.Object, exactly 1 of the partial classes needs to be in a file with the same filename. This is to know the one that can be referenced from ie. GameObjects
+'Packages/com.unity.cinemachine/Editor/Editors/CinemachineVirtualCameraBaseEditor.cs' contains partial class of Unity.Object, exactly 1 of the partial classes needs to be in a file with the same filename. This is to know the one that can be referenced from ie. GameObjects
+'Packages/com.unity.cinemachine/Editor/Obsolete/CinemachineVirtualCameraBaseEditor.cs' contains partial class of Unity.Object, exactly 1 of the partial classes needs to be in a file with the same filename. This is to know the one that can be referenced from ie. GameObjects
+Refreshing native plugins compatible for Editor in 23.37 ms, found 4 plugins.
+Native extension for WindowsStandalone target not found
+Start HTTP server: port:7800
+ScheduleIndexationOnStartup MainProcess:True IndexOnStartup:True
+Scripting: successfully reloaded assembly
+- Finished resetting the current domain, in  3.714 seconds
+Domain Reload Profiling: 8909ms
+	BeginReloadAssembly (408ms)
+		DisableScriptedObjects (36ms)
+		CreateAndSetChildDomain (71ms)
+	RebuildCommonClasses (13ms)
+	RebuildNativeTypeToScriptingClass (23ms)
+	initialDomainReloadingComplete (235ms)
+	LoadAllAssembliesAndSetupDomain (4516ms)
+		LoadAssemblies (3478ms)
+		TypeCache.Refresh (532ms)
+			TypeCache.ScanAssembly (505ms)
+		AnalyzeDomain (207ms)
+			BuildScriptInfoCaches (193ms)
+			ResolveRequiredComponents (11ms)
+	FinalizeReload (3715ms)
+		SetupLoadedEditorAssemblies (0ms)
+			LogAssemblyErrors (3ms)
+			BeforeProcessingInitializeOnLoad (177ms)
+			ProcessInitializeOnLoadAttributes (2592ms)
+			ProcessInitializeOnLoadMethodAttributes (185ms)
+			AfterProcessingInitializeOnLoad (20ms)
+			EditorAssembliesLoaded (3ms)
+		AwakeInstancesAfterBackupRestoration (42ms)
+Starting new worker id: 0 with log in D:/repositories/unity/SampleGameForOneStarMakerFramework/unity/Logs/AssetImportWorkerHW0.log
+
+Asset Pipeline Refresh (id=baafd48815b21b749be1951f5a8accca): Total: 21.066 seconds - Initiated by InitialRefreshV2(ForceSynchronousImport)
+	(Values over 0.05ms)
+	Summary:
+		Imports: total=0 (actual=0, local cache=0, cache server=0)
+		Asset DB Process Time: managed=0 ms, native=8494 ms
+		Asset DB Callback time: managed=57 ms, native=65 ms
+		Scripting: domain reloads=1, domain reload time=5457 ms, compile time=6608 ms, other=382 ms
+		Project Asset Count: scripts=3594, non-scripts=5189
+		Asset File Changes: new=0, changed=0, moved=0, deleted=0
+		Scan Filter Count: 0
+	InvokePackagesCallback: 69.364ms
+	ApplyChangesToAssetFolders: 1.413ms
+	Scan: 2573.725ms
+	Collect global state as custom dependencies: 42.549ms
+	CategorizeScriptCompilationAssets: 1169.841ms
+	ProcessAssetsWithTransientArtifactChanges: 194.321ms
+	CategorizeAssets: 127.675ms
+	CompileScripts: 6608.010ms
+	ImportOutOfDateAssets: 3806.940ms (3785.920ms without children)
+		ReloadNativeAssets: 0.689ms
+		UnloadImportedAssets: 4.084ms
+		EnsureUptoDateAssetsAreRegisteredWithGuidPM: 2.792ms
+		ImportSchedulerStart: 13.450ms
+	PostProcessAllAssets: 57.863ms
+		MonoPostProcessAllAssets: 57.752ms
+			UniversalRenderPipelineGlobalSettingsPostprocessor.OnPostprocessAllAssets 25.416ms
+			SyncVS.PostprocessSyncProject 5.558ms
+			WindowAssetPostprocessingWatcher.OnPostprocessAllAssets 2.307ms
+			SpeedTree9Postprocessor.OnPostprocessAllAssets 2.051ms
+			EditModeScopePostprocessor.OnPostprocessAllAssets 1.060ms
+			RenderPipelineGlobalSettingsPostprocessor.OnPostprocessAllAssets 0.870ms
+			ShaderReflectionAssetPostProcessor.OnPostprocessAllAssets 0.524ms
+			AssetDatabaseCallbacks.OnPostprocessAllAssets 0.401ms
+			DomainReloadProcessor.OnPostprocessAllAssets 0.396ms
+			InputActionAssetPostprocessor.OnPostprocessAllAssets 0.363ms
+			CinemachineSettings.OnPostprocessAllAssets 0.357ms
+			AssetPostprocessorProxy.OnPostprocessAllAssets 0.316ms
+			ReferencedClipsPostProcessor.OnPostprocessAllAssets 0.267ms
+			TerrainToolbarOverlayPostProcessor.OnPostprocessAllAssets 0.263ms
+			ProjectSettingsPostprocessor.OnPostprocessAllAssets 0.160ms
+	UnloadStreamsBegin: 2.910ms
+	PersistCurrentRevisions: 0.284ms
+	GenerateScriptTypeHashes: 2.734ms
+	GenerateScriptTypeSerializationHashes: 5.424ms
+	Untracked: 6383.627ms
+
+Application.AssetDatabase Initial Refresh End
+Launched and connected shader compiler UnityShaderCompiler.exe after 0.07 seconds
+Scanning for USB devices : 12.563ms
+Initializing Unity extensions:
+Worker ready: AssetImportWorkerHW0 0
+[MODES] ModeService[none].Initialize
+[MODES] ModeService[none].LoadModes
+[MODES] Loading mode Default (0) for mode-current-id-SampleGame
+Unloading 29 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 10818 unused Assets / (10.9 MB). Loaded Objects now: 12087.
+Memory consumption went from 0.53 GB to 0.51 GB.
+Total: 21.912900 ms (FindLiveObjects: 1.295200 ms CreateObjectMapping: 1.151000 ms MarkObjects: 11.874300 ms  DeleteObjects: 7.211500 ms)
+
+[Project] Loading completed in 42.940 seconds
+	Project init time: 				41.786 seconds
+		Template init time: 		0.000 seconds
+		Package Manager init time: 		2.567 seconds
+		Asset Database init time: 		4.441 seconds
+		Global illumination init time: 	0.025 seconds
+		Assemblies load time: 			4.610 seconds
+		Unity extensions init time: 	0.040 seconds
+		Asset Database refresh time: 	21.067 seconds
+	Scene opening time: 			0.832 seconds
+##utp:{"type":"ProjectInfo","version":2,"phase":"Immediate","time":1789751466908,"processId":33876,"projectLoad":42.9398251,"projectInit":41.7860216,"templateInit":0.0,"packageManagerInit":2.5670637,"assetDatabaseInit":4.4406689,"globalIlluminationInit":0.0253157,"assembliesLoad":4.6104234,"unityExtensionsInit":0.0398635,"assetDatabaseRefresh":21.0672729,"sceneOpening":0.8318185}
+##utp:{"type":"EditorInfo","version":2,"phase":"Immediate","time":1789751466908,"processId":33876,"editorVersion":"6000.6.0f1 (f7f8ed4d1e24)","branch":"6000.6/respin/6000.6.0f1-fa21a270ab12","buildType":"Release","platform":"Windows"}
+[Licensing::Client] Successfully resolved entitlement details
+Running tests for ExecutionSettings with details:
+targetPlatform = 
+playerHeartbeatTimeout = 600
+filters[0] = 
+   Filter with settings:
+   testMode = EditMode
+   targetPlatform = 
+   testNames = null
+   groupNames = ContentDirectoryIndexTests
+   categoryNames = null
+   assemblyNames = null
+ignoreTests = {}
+featureFlags = null
+
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+UnityEditor.TestTools.TestRunner.CommandLineTest.Executer:InitializeAndExecuteRun (string[]) (at ./Library/PackageCache/com.unity.test-framework@7a3849e09bd0/UnityEditor.TestRunner/CommandLineTest/Executer.cs:53)
+UnityEditor.TestTools.TestRunner.CommandLineTest.TestStarter:InitializeAndExecuteRun () (at ./Library/PackageCache/com.unity.test-framework@7a3849e09bd0/UnityEditor.TestRunner/CommandLineTest/TestStarter.cs:64)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: ./Library/PackageCache/com.unity.test-framework@7a3849e09bd0/UnityEditor.TestRunner/CommandLineTest/Executer.cs Line: 53)
+
+Start Indexing on Editor startup
+[Indexing] Starting Initial Indexing for Assets
+[UnityConnectServicesConfig] config is NOT valid, switching to default
+Created GICache directory at C:/Users/void/AppData/LocalLow/Unity/Caches/GiCache. Took: 0.037s, timestamps: [42.943 - 42.980]
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Client] Successfully resolved entitlement details
+Unloading 15 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 18 unused Assets / (50.3 KB). Loaded Objects now: 12250.
+Memory consumption went from 0.54 GB to 0.54 GB.
+Total: 17.697000 ms (FindLiveObjects: 1.020600 ms CreateObjectMapping: 0.452700 ms MarkObjects: 15.728000 ms  DeleteObjects: 0.129400 ms)
+
+Executing IPrebuildSetup for: Unity.PerformanceTesting.Editor.TestRunBuilder.
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+UnityEditor.TestTools.TestRunner.TestRun.Tasks.BuildActionTaskBase`1/<ExecuteMethods>d__8<UnityEngine.TestTools.IPrebuildSetup>:MoveNext () (at ./Library/PackageCache/com.unity.test-framework@7a3849e09bd0/UnityEditor.TestRunner/TestRun/Tasks/BuildActionTaskBase.cs:48)
+UnityEditor.TestTools.TestRunner.TestRun.Tasks.BuildActionTaskBase`1/<Execute>d__7<UnityEngine.TestTools.IPrebuildSetup>:MoveNext () (at ./Library/PackageCache/com.unity.test-framework@7a3849e09bd0/UnityEditor.TestRunner/TestRun/Tasks/BuildActionTaskBase.cs:34)
+UnityEditor.TestTools.TestRunner.TestRun.TestJobRunner:ExecuteStep () (at ./Library/PackageCache/com.unity.test-framework@7a3849e09bd0/UnityEditor.TestRunner/TestRun/TestJobRunner.cs:194)
+UnityEditor.TestTools.TestRunner.TestRun.TestJobRunner:ExecuteCallback () (at ./Library/PackageCache/com.unity.test-framework@7a3849e09bd0/UnityEditor.TestRunner/TestRun/TestJobRunner.cs:129)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: ./Library/PackageCache/com.unity.test-framework@7a3849e09bd0/UnityEditor.TestRunner/TestRun/Tasks/BuildActionTaskBase.cs Line: 48)
+
+Saving results to: C:/Users/void/AppData/LocalLow/DefaultCompany/SampleGame\TestResults.xml
+Saving results to: D:\repositories\unity\SampleGameForOneStarMakerFramework\TestResults\results-ContentDirectoryIndexTests-20260919-021023.xml
+Executing IPostBuildCleanup for: Unity.PerformanceTesting.Editor.TestRunBuilder.
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+UnityEditor.TestTools.TestRunner.TestRun.Tasks.BuildActionTaskBase`1/<ExecuteMethods>d__8<UnityEngine.TestTools.IPostBuildCleanup>:MoveNext () (at ./Library/PackageCache/com.unity.test-framework@7a3849e09bd0/UnityEditor.TestRunner/TestRun/Tasks/BuildActionTaskBase.cs:48)
+UnityEditor.TestTools.TestRunner.TestRun.Tasks.BuildActionTaskBase`1/<Execute>d__7<UnityEngine.TestTools.IPostBuildCleanup>:MoveNext () (at ./Library/PackageCache/com.unity.test-framework@7a3849e09bd0/UnityEditor.TestRunner/TestRun/Tasks/BuildActionTaskBase.cs:34)
+UnityEditor.TestTools.TestRunner.TestRun.TestJobRunner:ExecuteStep () (at ./Library/PackageCache/com.unity.test-framework@7a3849e09bd0/UnityEditor.TestRunner/TestRun/TestJobRunner.cs:194)
+UnityEditor.TestTools.TestRunner.TestRun.TestJobRunner:ExecuteCallback () (at ./Library/PackageCache/com.unity.test-framework@7a3849e09bd0/UnityEditor.TestRunner/TestRun/TestJobRunner.cs:129)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: ./Library/PackageCache/com.unity.test-framework@7a3849e09bd0/UnityEditor.TestRunner/TestRun/Tasks/BuildActionTaskBase.cs Line: 48)
+
+Unloading 0 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 0 unused Assets / (Unknown). Loaded Objects now: 12251.
+Memory consumption went from 0.54 GB to 0.54 GB.
+Total: 17.396800 ms (FindLiveObjects: 0.689600 ms CreateObjectMapping: 0.400100 ms MarkObjects: 15.973500 ms  DeleteObjects: 0.029600 ms)
+
+DisplayProgressbar: Undo
+Test run completed. Exiting with code 0 (Ok). Run completed.
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:Log (object)
+UnityEditor.TestTools.TestRunner.CommandLineTest.Executer:ExitApplication (UnityEditor.TestTools.TestRunner.CommandLineTest.Executer/ReturnCodes,string) (at ./Library/PackageCache/com.unity.test-framework@7a3849e09bd0/UnityEditor.TestRunner/CommandLineTest/Executer.cs:81)
+UnityEditor.TestTools.TestRunner.CommandLineTest.Executer:ExitIfRunIsCompleted () (at ./Library/PackageCache/com.unity.test-framework@7a3849e09bd0/UnityEditor.TestRunner/CommandLineTest/Executer.cs:74)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions ()
+
+(Filename: ./Library/PackageCache/com.unity.test-framework@7a3849e09bd0/UnityEditor.TestRunner/CommandLineTest/Executer.cs Line: 81)
+
+MonoPathRemapper: Attempts to remap: 99868; Successful remaps: 24786
+Serialized file version minimum: 23, current 23
+Pipeline Server stopped
+[Physics::Module] Cleanup current backend.
+[Physics::Module] Id: 0xf2b8ea05
+Input System module state changed to: ShutdownInProgress.
+Input Polling Thread exited.
+Input System module state changed to: Shutdown.
+[Licensing::IpcConnector] LicenseClient-void-notifications channel disconnected successfully.
+[Licensing::IpcConnector] LicenseClient-void channel disconnected successfully.
+Lingering sessions upon destruction of worker manager
+Unity Data Store service was successfully shut down
+UDS shutting down local client system
+AcceleratorClientConnectionCallback - disconnected - :0
+Cleanup mono
+CodeReloadManager destroyed
+Checking for leaked weakptr:
+  Found no leaked weakptrs.
+[Package Manager] Server process was shutdown
+##utp:{"type":"MemoryLeaks","version":2,"phase":"Immediate","time":1789751474970,"processId":33876,"allocatedMemory":20199673,"memoryLabels":[{"Default":276756},{"Permanent":15516},{"NewDelete":73447},{"Thread":4197944},{"Manager":34373},{"VertexData":8},{"Geometry":816},{"Texture":24},{"Shader":853608},{"Material":24},{"GfxDevice":55968},{"Animation":952},{"Audio":696},{"FreeType":8},{"FontEngine":736},{"Physics":1970},{"Physics2D":16},{"Serialization":16768},{"Input":42840},{"JobScheduler":256},{"TextLib":336},{"Mono":48},{"MonoCode":64},{"ScriptingNativeRuntime":1393544},{"BaseObject":49680},{"Resource":1208},{"Renderer":2376},{"Transform":4685},{"File":25279},{"WebCam":616},{"Culling":32},{"Terrain":11442},{"Wind":24},{"STL":40},{"String":589559},{"StaticString":3808},{"Utility":2674806},{"Curl":2478},{"PoolAlloc":2264},{"AI":80},{"TypeTree":14869},{"ScriptManager":12640},{"CodeReload":448},{"RuntimeInitializeOnLoadManager":64},{"Sprites":102},{"SpriteAtlas":120},{"GI":7816},{"Director":8296},{"CloudService":288},{"WebRequest":552},{"VR":49650},{"SceneManager":608},{"Video":208},{"LazyScriptCache":32},{"Camera":729},{"Secure":2377},{"SerializationCache":9256},{"APIUpdating":10320},{"Subsystems":336},{"VirtualTexturing":57888},{"StaticSafetyDebugInfo":278528},{"Analytics":464},{"Hierarchy":1188},{"UIElements":40},{"CoreStats":14456},{"Identifiers":7152},{"Gui":128},{"EditorUtility":157211},{"VersionControl":8},{"Undo":931},{"AssetDatabase":9170010},{"AssetImporter":40},{"EditorGi":328},{"UnityConnect":40465},{"Upm":1912},{"UpmDiagnostics":8},{"AssetCompliance":96},{"DrivenProperties":72},{"LocalIPC":210},{"ProfilerEditor":9746},{"CoreBusinessMetrics":3202},{"Windowing":456},{"Licensing":1264},{"AssetReference":32},{"IPCStream":32}]}

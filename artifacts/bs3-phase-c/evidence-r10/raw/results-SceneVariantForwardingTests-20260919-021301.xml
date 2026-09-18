@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="6" result="Passed" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-09-18 17:13:26Z" end-time="2026-09-18 17:13:26Z" duration="0.1946576">
+  <test-suite type="TestSuite" id="1000" name="SampleGame" fullname="SampleGame" runstate="Runnable" testcasecount="802" result="Passed" start-time="2026-09-18 17:13:26Z" end-time="2026-09-18 17:13:26Z" duration="0.194658" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="Assembly" id="1658" name="OneStarMaker.Tests.dll" fullname="D:/repositories/unity/SampleGameForOneStarMakerFramework/unity/Library/ScriptAssemblies/OneStarMaker.Tests.dll" runstate="Runnable" testcasecount="565" result="Passed" start-time="2026-09-18 17:13:26Z" end-time="2026-09-18 17:13:26Z" duration="0.160886" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="24196" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="1659" name="OneStarMaker" fullname="OneStarMaker" runstate="Runnable" testcasecount="565" result="Passed" start-time="2026-09-18 17:13:26Z" end-time="2026-09-18 17:13:26Z" duration="0.131283" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1660" name="Tests" fullname="OneStarMaker.Tests" runstate="Runnable" testcasecount="565" result="Passed" start-time="2026-09-18 17:13:26Z" end-time="2026-09-18 17:13:26Z" duration="0.118012" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1664" name="SceneSystem" fullname="OneStarMaker.Tests.SceneSystem" runstate="Runnable" testcasecount="103" result="Passed" start-time="2026-09-18 17:13:26Z" end-time="2026-09-18 17:13:26Z" duration="0.102202" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestFixture" id="1363" name="SceneVariantForwardingTests" fullname="OneStarMaker.Tests.SceneSystem.SceneVariantForwardingTests" classname="OneStarMaker.Tests.SceneSystem.SceneVariantForwardingTests" runstate="Runnable" testcasecount="6" result="Passed" start-time="2026-09-18 17:13:26Z" end-time="2026-09-18 17:13:26Z" duration="0.097595" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1364" name="Constructor_NullVariant_Throws" fullname="OneStarMaker.Tests.SceneSystem.SceneVariantForwardingTests.Constructor_NullVariant_Throws" methodname="Constructor_NullVariant_Throws" classname="OneStarMaker.Tests.SceneSystem.SceneVariantForwardingTests" runstate="Runnable" seed="1264763911" result="Passed" start-time="2026-09-18 17:13:26Z" end-time="2026-09-18 17:13:26Z" duration="0.024333" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1370" name="DirectoryMode_RoutesSelectedRepresentationWithoutAddressablesFallback" fullname="OneStarMaker.Tests.SceneSystem.SceneVariantForwardingTests.DirectoryMode_RoutesSelectedRepresentationWithoutAddressablesFallback" methodname="DirectoryMode_RoutesSelectedRepresentationWithoutAddressablesFallback" classname="OneStarMaker.Tests.SceneSystem.SceneVariantForwardingTests" runstate="Runnable" seed="913640841" result="Passed" start-time="2026-09-18 17:13:26Z" end-time="2026-09-18 17:13:26Z" duration="0.020762" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-suite type="ParameterizedMethod" id="1368" name="Load_ForwardsExactVariantAndPreservesDefaultFallback" fullname="OneStarMaker.Tests.SceneSystem.SceneVariantForwardingTests.Load_ForwardsExactVariantAndPreservesDefaultFallback" classname="OneStarMaker.Tests.SceneSystem.SceneVariantForwardingTests" runstate="Runnable" testcasecount="3" result="Passed" start-time="2026-09-18 17:13:26Z" end-time="2026-09-18 17:13:26Z" duration="0.016845" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1365" name="Load_ForwardsExactVariantAndPreservesDefaultFallback(&quot;&quot;,&quot;aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&quot;)" fullname="OneStarMaker.Tests.SceneSystem.SceneVariantForwardingTests.Load_ForwardsExactVariantAndPreservesDefaultFallback(&quot;&quot;,&quot;aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&quot;)" methodname="Load_ForwardsExactVariantAndPreservesDefaultFallback" classname="OneStarMaker.Tests.SceneSystem.SceneVariantForwardingTests" runstate="Runnable" seed="76164702" result="Passed" start-time="2026-09-18 17:13:26Z" end-time="2026-09-18 17:13:26Z" duration="0.006302" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1366" name="Load_ForwardsExactVariantAndPreservesDefaultFallback(&quot;Whitebox&quot;,&quot;bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&quot;)" fullname="OneStarMaker.Tests.SceneSystem.SceneVariantForwardingTests.Load_ForwardsExactVariantAndPreservesDefaultFallback(&quot;Whitebox&quot;,&quot;bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&quot;)" methodname="Load_ForwardsExactVariantAndPreservesDefaultFallback" classname="OneStarMaker.Tests.SceneSystem.SceneVariantForwardingTests" runstate="Runnable" seed="1905084017" result="Passed" start-time="2026-09-18 17:13:26Z" end-time="2026-09-18 17:13:26Z" duration="0.001324" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1367" name="Load_ForwardsExactVariantAndPreservesDefaultFallback(&quot;Missing&quot;,&quot;aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&quot;)" fullname="OneStarMaker.Tests.SceneSystem.SceneVariantForwardingTests.Load_ForwardsExactVariantAndPreservesDefaultFallback(&quot;Missing&quot;,&quot;aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&quot;)" methodname="Load_ForwardsExactVariantAndPreservesDefaultFallback" classname="OneStarMaker.Tests.SceneSystem.SceneVariantForwardingTests" runstate="Runnable" seed="1841104167" result="Passed" start-time="2026-09-18 17:13:26Z" end-time="2026-09-18 17:13:26Z" duration="0.005186" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+              </test-suite>
+              <test-case id="1369" name="Load_LogicalNodeWithoutPayload_DoesNotCallBackend" fullname="OneStarMaker.Tests.SceneSystem.SceneVariantForwardingTests.Load_LogicalNodeWithoutPayload_DoesNotCallBackend" methodname="Load_LogicalNodeWithoutPayload_DoesNotCallBackend" classname="OneStarMaker.Tests.SceneSystem.SceneVariantForwardingTests" runstate="Runnable" seed="445852536" result="Passed" start-time="2026-09-18 17:13:26Z" end-time="2026-09-18 17:13:26Z" duration="0.015198" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[Saving results to: C:/Users/void/AppData/LocalLow/DefaultCompany/SampleGame\TestResults.xml
+]]></output>
+              </test-case>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>
