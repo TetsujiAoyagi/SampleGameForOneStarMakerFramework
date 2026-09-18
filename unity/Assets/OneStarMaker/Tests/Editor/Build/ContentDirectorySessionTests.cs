@@ -188,6 +188,43 @@ namespace OneStarMaker.Tests.Editor.Build
         }
 
         [Test]
+        public async Task NativeLoadFailures_AreMappedToPublicReasonCode()
+        {
+            var path = Path.Combine(Path.GetTempPath(), "osm-content-session-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(path);
+            var asset = AssetDatabase.LoadMainAssetAtPath("Assets/TutorialInfo/Icons/URP.png");
+            Assert.That(asset, Is.Not.Null);
+            Assert.That(AssetDatabase.TryGetGUIDAndLocalFileIdentifier(asset, out var guid, out long localId), Is.True);
+            var root = ScriptableObject.CreateInstance<BuildContentRoot>();
+            root.Initialize("build", "StandaloneWindows64", new[] {
+                new BuildContentEntry("scene", "scene-stable", "Full", LoadableSceneIdEditorUtility.CreateLoadableSceneId(ScenePath)),
+                new BuildContentEntry("object", "object-stable", "Full",
+                    new Loadable<UnityEngine.Object>(LoadableObjectIdEditorUtility.CreateLoadableObjectId(asset)), guid, localId)
+            });
+            var native = new FakeNativeDirectory(root) { ThrowOnLoad = true };
+            try
+            {
+                var session = ContentDirectorySession.Register(path, "build", "StandaloneWindows64", native);
+                var objectError = Assert.ThrowsAsync<ContentDirectoryException>(async () =>
+                    await session.LoadAssetAsync<Texture2D>("object", "Full", CancellationToken.None));
+                var sceneError = Assert.ThrowsAsync<ContentDirectoryException>(async () =>
+                    await session.LoadSceneAsync("scene", "Full", default, CancellationToken.None));
+                var prefabError = Assert.ThrowsAsync<ContentDirectoryException>(async () =>
+                    await session.InstantiateAsync("object", "Full", null, false, CancellationToken.None));
+                foreach (var error in new[] { objectError, sceneError, prefabError })
+                {
+                    Assert.That(error!.Code, Is.EqualTo(ContentDirectoryFailureCode.OperationFailed));
+                    Assert.That(error.InnerException, Is.TypeOf<InvalidOperationException>());
+                    Assert.That(error.BuildIdentity, Is.EqualTo("build"));
+                    Assert.That(error.Representation, Is.EqualTo("Full"));
+                }
+                await session.CloseAsync();
+                Assert.That(native.UnregisterCount, Is.EqualTo(1));
+            }
+            finally { UnityEngine.Object.DestroyImmediate(root); Directory.Delete(path); }
+        }
+
+        [Test]
         public void InvalidRoot_RollsBackAndAllowsSamePathRetry()
         {
             var path = Path.Combine(Path.GetTempPath(), "osm-content-session-" + Guid.NewGuid().ToString("N"));
@@ -500,6 +537,7 @@ namespace OneStarMaker.Tests.Editor.Build
             internal int FailUnregisterCount;
             internal int FailUnloadCount;
             internal int RootCount = 1;
+            internal bool ThrowOnLoad;
             internal IBackendInstance? InstanceResult;
             internal UniTaskCompletionSource<IBackendInstance>? PendingInstanceResult;
             internal UniTaskCompletionSource? PendingUnloadCompletion;
@@ -511,7 +549,8 @@ namespace OneStarMaker.Tests.Editor.Build
                 UnregisterCount++;
                 if (FailUnregisterCount-- > 0) throw new InvalidOperationException("fake unregister failure");
             }
-            public UniTask<IBackendScene> LoadSceneAsync(BuildContentEntry entry, SceneLoadOptions options) => SceneResult.Task;
+            public UniTask<IBackendScene> LoadSceneAsync(BuildContentEntry entry, SceneLoadOptions options)
+                => ThrowOnLoad ? throw new InvalidOperationException("fake scene load failure") : SceneResult.Task;
             public UniTask UnloadSceneAsync(IBackendScene scene)
             {
                 UnloadCount++;
@@ -519,9 +558,11 @@ namespace OneStarMaker.Tests.Editor.Build
                 return PendingUnloadCompletion?.Task ?? UniTask.CompletedTask;
             }
             public UniTask<IBackendAsset> LoadObjectAsync<T>(BuildContentEntry entry) where T : UnityEngine.Object
-                => ObjectResult != null ? UniTask.FromResult(ObjectResult) : throw new NotSupportedException();
+                => ThrowOnLoad ? throw new InvalidOperationException("fake object load failure")
+                    : ObjectResult != null ? UniTask.FromResult(ObjectResult) : throw new NotSupportedException();
             public UniTask<IBackendInstance> InstantiateAsync(BuildContentEntry entry, Transform? parent, bool worldSpace)
-                => PendingInstanceResult != null ? PendingInstanceResult.Task : InstanceResult != null ? UniTask.FromResult(InstanceResult!) : throw new NotSupportedException();
+                => ThrowOnLoad ? throw new InvalidOperationException("fake instantiate failure")
+                    : PendingInstanceResult != null ? PendingInstanceResult.Task : InstanceResult != null ? UniTask.FromResult(InstanceResult!) : throw new NotSupportedException();
             public void Release(IBackendAsset asset)
             {
                 ReleaseCount++;

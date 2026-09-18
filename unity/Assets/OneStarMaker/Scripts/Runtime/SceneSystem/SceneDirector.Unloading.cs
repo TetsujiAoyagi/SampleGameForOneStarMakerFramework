@@ -460,7 +460,7 @@ namespace OneStarMaker.Runtime.SceneSystem
             }
 
             // 空 Payload の論理ノード（InGameScene / InGameSession 等）は
-            // PerformUnitySceneLoad が AddressablesLoaded=false・RootObjects 空で返す。
+            // PerformUnitySceneLoad が BackendSceneLoaded=false・RootObjects 空で返す。
             // 実体の無い名前で UnloadSceneAsync すると "Scene to unload is invalid" になるためスキップする。
             var unityScene = SceneManager.GetSceneByName(sceneIdentify);
             if (!unityScene.IsValid() || !unityScene.isLoaded)

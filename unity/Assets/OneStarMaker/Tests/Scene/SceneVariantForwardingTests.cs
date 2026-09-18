@@ -115,7 +115,7 @@ namespace OneStarMaker.Tests.SceneSystem
             internal ExposedDirector(ISceneFactory factory, Runtime.UISystem.UICommon ui, SceneResourceMap map, IAssetManagement assets, string variant, bool useContentDirectory = false)
                 : base(factory, ui, map, new NoLoadingDisplay(), assets, variant, useContentDirectory) { }
 
-            internal UniTask<(bool AddressablesLoaded, GameObject[] RootObjects)> Load(SceneResource resource)
+            internal UniTask<(bool BackendSceneLoaded, GameObject[] RootObjects)> Load(SceneResource resource)
                 => PerformUnitySceneLoad(resource.Identity, resource, 100);
         }
 

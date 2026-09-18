@@ -142,6 +142,13 @@ namespace OneStarMaker.Runtime.BuildContent
                 }
                 return new SessionAsset(asset, ReleaseToken);
             }
+            catch (ContentDirectoryException) { throw; }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch (Exception ex)
+            {
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.OperationFailed,
+                    "Content object load failed.", BuildIdentity, Target, logicalKey, representation, ex);
+            }
             finally { if (!terminalCleanupOwnsCounter) CompleteOperation(); }
         }
 
@@ -168,6 +175,13 @@ namespace OneStarMaker.Runtime.BuildContent
                 }
                 Interlocked.Increment(ref _liveTokens); return new SessionScene(scene, _backend, ReleaseToken);
             }
+            catch (ContentDirectoryException) { throw; }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch (Exception ex)
+            {
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.OperationFailed,
+                    "Content scene load failed.", BuildIdentity, Target, sceneIdentity, representation, ex);
+            }
             finally { if (!terminalCleanupOwnsCounter) CompleteOperation(); }
         }
 
@@ -190,6 +204,13 @@ namespace OneStarMaker.Runtime.BuildContent
                     ct.ThrowIfCancellationRequested();
                 }
                 Interlocked.Increment(ref _liveTokens); return new SessionInstance(instance, _backend, ReleaseToken);
+            }
+            catch (ContentDirectoryException) { throw; }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch (Exception ex)
+            {
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.OperationFailed,
+                    "Content prefab instantiation failed.", BuildIdentity, Target, logicalKey, representation, ex);
             }
             finally { if (!terminalCleanupOwnsCounter) CompleteOperation(); }
         }
