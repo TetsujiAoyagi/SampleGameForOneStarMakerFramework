@@ -1,0 +1,8 @@
+
+対象: D:\repositories\unity\SampleGameForOneStarMakerFramework
+tracked な md（ベンダー同梱を除く）: 100 ファイル / 13888 行
+  うち作業台 docs/handoff/: 6 ファイル
+
+WARN  [検査3] docs/handoff/BS3_RUNTIME_DIRECTORY.md は §7(C) / §8(C') が両方埋まっている。harvest して git rm する頃合い
+検査1・2 に違反なし。
+警告 1 件（exit code には影響しない）。
