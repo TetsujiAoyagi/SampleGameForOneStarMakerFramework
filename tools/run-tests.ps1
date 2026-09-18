@@ -18,9 +18,9 @@
     -testFilter に渡す値。既定は空 = 全 EditMode テストを実行する。
 
     既存ドキュメントは全体回帰に -testFilter "OneStarMaker.Tests" を使っていたが踏襲しない。
-    OneStarMaker.Tests.Editor は別 asmdef でありながら namespace が入れ子のため
-    部分一致でたまたま拾えているだけで、namespace を切り出した瞬間に静かに漏れる。
-    フィルタは絞り込みたいときだけのオプトインとする。
+    namespace filter は全件性を保証しない。OneStarMaker.Tests.Editor は現在
+    部分一致で拾われるが、namespace を切り出すと漏れ得る。全件回帰は空 filter、
+    限定検証は結果 XML の実行テスト名と件数で対象集合を確認する。
 
 .PARAMETER Platform
     -testPlatform に渡す値。既定 EditMode。
@@ -38,13 +38,13 @@
 
 .EXAMPLE
     ./tools/run-tests.ps1
-    全 EditMode テストを 1 プロセスで実行する。Phase C の毎回必須ではない。
-    リポジトリ全体回帰を HANDOFF または人間が明示したときだけ使う。
+    全 EditMode テストを 1 プロセスで実行する。実装変更を伴うスライスの
+    Phase C 最終判定ではこれを標準とする。適用除外は HANDOFF に理由と代替証拠を書く。
 
 .EXAMPLE
     ./tools/run-tests.ps1 -Filter OneStarMaker.Tests.AssetManagement
-    AssetManagement のテストだけ実行する。Phase C の発見用は HANDOFF が書いた
-    安い filter に限り、判定必須は GO 候補 head でまとめて実行する。
+    AssetManagement のテストだけ実行する。差し戻し中の確認や、影響範囲の
+    限定検証に使う。成功しても全件回帰の代替にはしない。
 
 .OUTPUTS
     exit 0 = 成功（1件以上実行され failed 0）

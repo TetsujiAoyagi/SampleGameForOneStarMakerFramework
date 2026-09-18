@@ -63,8 +63,9 @@ Phase A では implementation base commit と Phase A snapshot を記録する�
 ## 5. テストとレビュー計画
 
 - 単体テスト:
-- 発見用 `-Filter`（差し戻し中に繰り返してよい安い経路）:
-- 判定必須テスト（GO 候補 head で実行。コマンド / filter / Player の別を明記）:
+- 差し戻し中の起点 `-Filter`（C が根拠付きで変更可。受け入れ条件の追加ではない）:
+- 判定必須テスト（GO 候補 head。実装変更スライスは最終全 EditMode 回帰が標準）:
+- 全 EditMode 回帰の適用除外（理由と代替証拠。無ければ `なし`）:
 - 統合・Unity テスト:
 - 機械検査:
 - A0/A1 主担当・モデル・ベンダー:
@@ -88,9 +89,10 @@ Phase A では implementation base commit と Phase A snapshot を記録する�
 - 構造適合:
 - 現在の問いを阻害する findings（違反する凍結済み条件 / 常時契約を併記）:
 - 後続スライスへ移送する findings:
-- 実行したテストコマンドと `-Filter`:
-- テスト結果:
+- 実行したテストコマンドと `-Filter`、対象を選んだ理由:
+- テスト結果（XML 上の実行テスト名と件数）:
 - 判定必須のうち未実行:
+- 重い検証を発見段階で限定実行した場合の理由と範囲:
 - 未確認事項:
 - 担当・モデル:
 
@@ -105,7 +107,7 @@ Phase A では implementation base commit と Phase A snapshot を記録する�
 - 残存リスク:
 - 監査できなかった範囲:
 - 独立性:
-- Phase C 結論の事前閲覧・設計実装への関与:
+- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与:
 - 担当・モデル:
 
 ## 9. Phase D
