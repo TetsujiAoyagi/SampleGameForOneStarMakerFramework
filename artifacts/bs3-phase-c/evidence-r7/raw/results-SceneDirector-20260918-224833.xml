@@ -1,0 +1,688 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="63" result="Passed" total="63" passed="63" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.535908">
+  <test-suite type="TestSuite" id="1000" name="SampleGame" fullname="SampleGame" runstate="Runnable" testcasecount="801" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.535908" total="63" passed="63" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="Assembly" id="1657" name="OneStarMaker.Tests.dll" fullname="D:/repositories/unity/SampleGameForOneStarMakerFramework/unity/Library/ScriptAssemblies/OneStarMaker.Tests.dll" runstate="Runnable" testcasecount="564" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.495575" total="63" passed="63" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="17308" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="1658" name="OneStarMaker" fullname="OneStarMaker" runstate="Runnable" testcasecount="564" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.481045" total="63" passed="63" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1659" name="Tests" fullname="OneStarMaker.Tests" runstate="Runnable" testcasecount="564" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.467439" total="63" passed="63" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1663" name="SceneSystem" fullname="OneStarMaker.Tests.SceneSystem" runstate="Runnable" testcasecount="103" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.443109" total="62" passed="62" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestFixture" id="1264" name="SceneDirectorAddSceneTests" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorAddSceneTests" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorAddSceneTests" runstate="Runnable" testcasecount="7" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.099825" total="7" passed="7" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1269" name="AddScene_AfterOnLoadedTask_IsExecuted" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorAddSceneTests.AddScene_AfterOnLoadedTask_IsExecuted" methodname="AddScene_AfterOnLoadedTask_IsExecuted" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorAddSceneTests" runstate="Runnable" seed="1997540970" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.063987" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1271" name="AddScene_OnDemandChild_LoadsNecessaryAlwaysSiblingOnly" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorAddSceneTests.AddScene_OnDemandChild_LoadsNecessaryAlwaysSiblingOnly" methodname="AddScene_OnDemandChild_LoadsNecessaryAlwaysSiblingOnly" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorAddSceneTests" runstate="Runnable" seed="48845923" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.003929" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1265" name="AddScene_SingleScene_ReachesStable" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorAddSceneTests.AddScene_SingleScene_ReachesStable" methodname="AddScene_SingleScene_ReachesStable" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorAddSceneTests" runstate="Runnable" seed="754887411" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.001813" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1270" name="AddScene_ThreeLevelOnDemandLeaf_LoadsAncestorsAndLeafToStable" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorAddSceneTests.AddScene_ThreeLevelOnDemandLeaf_LoadsAncestorsAndLeafToStable" methodname="AddScene_ThreeLevelOnDemandLeaf_LoadsAncestorsAndLeafToStable" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorAddSceneTests" runstate="Runnable" seed="1526737248" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.001915" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1267" name="AddScene_WithNecessaryChild_LoadsChildAutomatically" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorAddSceneTests.AddScene_WithNecessaryChild_LoadsChildAutomatically" methodname="AddScene_WithNecessaryChild_LoadsChildAutomatically" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorAddSceneTests" runstate="Runnable" seed="1582378008" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.001695" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1268" name="AddScene_WithOnDemandChild_DoesNotLoadChild" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorAddSceneTests.AddScene_WithOnDemandChild_DoesNotLoadChild" methodname="AddScene_WithOnDemandChild_DoesNotLoadChild" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorAddSceneTests" runstate="Runnable" seed="1014293529" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.001588" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1266" name="AddScene_WithParent_LoadsParentFirst" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorAddSceneTests.AddScene_WithParent_LoadsParentFirst" methodname="AddScene_WithParent_LoadsParentFirst" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorAddSceneTests" runstate="Runnable" seed="368523691" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.001649" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1272" name="SceneDirectorCancellationTests" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorCancellationTests" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorCancellationTests" runstate="Runnable" testcasecount="7" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.060998" total="7" passed="7" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1273" name="AddScene_CancelDuringPreLoad_CleansUp" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorCancellationTests.AddScene_CancelDuringPreLoad_CleansUp" methodname="AddScene_CancelDuringPreLoad_CleansUp" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorCancellationTests" runstate="Runnable" seed="1006320733" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.012145" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1274" name="AddScene_CancelDuringPreLoad_NoThrowIfUnloadSceneCanceled" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorCancellationTests.AddScene_CancelDuringPreLoad_NoThrowIfUnloadSceneCanceled" methodname="AddScene_CancelDuringPreLoad_NoThrowIfUnloadSceneCanceled" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorCancellationTests" runstate="Runnable" seed="1331133846" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.011800" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1279" name="CleanupCanceledScene_CallsAfterUnLoad" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorCancellationTests.CleanupCanceledScene_CallsAfterUnLoad" methodname="CleanupCanceledScene_CallsAfterUnLoad" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorCancellationTests" runstate="Runnable" seed="2091372897" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.002701" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1277" name="PendingUnload_ClearedOnCancelCleanup" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorCancellationTests.PendingUnload_ClearedOnCancelCleanup" methodname="PendingUnload_ClearedOnCancelCleanup" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorCancellationTests" runstate="Runnable" seed="960647214" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.004601" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1276" name="UnloadScene_AfterPNR_RegistersPendingUnload" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorCancellationTests.UnloadScene_AfterPNR_RegistersPendingUnload" methodname="UnloadScene_AfterPNR_RegistersPendingUnload" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorCancellationTests" runstate="Runnable" seed="1622123475" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.014892" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1278" name="UnloadScene_AfterPreLoadNonCancellationException_DoesNotThrow" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorCancellationTests.UnloadScene_AfterPreLoadNonCancellationException_DoesNotThrow" methodname="UnloadScene_AfterPreLoadNonCancellationException_DoesNotThrow" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorCancellationTests" runstate="Runnable" seed="1179081881" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.006525" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1275" name="UnloadScene_DuringPreLoadWindow_CancelsViaLoadCts" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorCancellationTests.UnloadScene_DuringPreLoadWindow_CancelsViaLoadCts" methodname="UnloadScene_DuringPreLoadWindow_CancelsViaLoadCts" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorCancellationTests" runstate="Runnable" seed="710740989" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.003523" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1280" name="SceneDirectorConcurrentAddSceneTests" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorConcurrentAddSceneTests" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorConcurrentAddSceneTests" runstate="Runnable" testcasecount="6" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.021953" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1285" name="Concurrent_AddSameCellTwice_SecondAwaiterCompletesOnlyAfterStable" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorConcurrentAddSceneTests.Concurrent_AddSameCellTwice_SecondAwaiterCompletesOnlyAfterStable" methodname="Concurrent_AddSameCellTwice_SecondAwaiterCompletesOnlyAfterStable" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorConcurrentAddSceneTests" runstate="Runnable" seed="150770018" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.004421" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1283" name="Concurrent_AddTwoCells_SharedParentUnitySceneLoadsExactlyOnce" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorConcurrentAddSceneTests.Concurrent_AddTwoCells_SharedParentUnitySceneLoadsExactlyOnce" methodname="Concurrent_AddTwoCells_SharedParentUnitySceneLoadsExactlyOnce" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorConcurrentAddSceneTests" runstate="Runnable" seed="1329432876" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.003222" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1286" name="Concurrent_AddTwoCells_UnloadOneDuringParentLoad_Converges" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorConcurrentAddSceneTests.Concurrent_AddTwoCells_UnloadOneDuringParentLoad_Converges" methodname="Concurrent_AddTwoCells_UnloadOneDuringParentLoad_Converges" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorConcurrentAddSceneTests" runstate="Runnable" seed="2097606230" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.002552" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1284" name="Concurrent_AddTwoCells_WhileParentPreLoading_WaitsAndPreLoadsOnce" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorConcurrentAddSceneTests.Concurrent_AddTwoCells_WhileParentPreLoading_WaitsAndPreLoadsOnce" methodname="Concurrent_AddTwoCells_WhileParentPreLoading_WaitsAndPreLoadsOnce" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorConcurrentAddSceneTests" runstate="Runnable" seed="1357277347" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.003096" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1282" name="Concurrent_AddTwoCells_WhileParentUnitySceneLoading_BothReachStable" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorConcurrentAddSceneTests.Concurrent_AddTwoCells_WhileParentUnitySceneLoading_BothReachStable" methodname="Concurrent_AddTwoCells_WhileParentUnitySceneLoading_BothReachStable" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorConcurrentAddSceneTests" runstate="Runnable" seed="1936137101" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.002103" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1281" name="Sequential_AddTwoCells_SharedParentLoadsOnce" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorConcurrentAddSceneTests.Sequential_AddTwoCells_SharedParentLoadsOnce" methodname="Sequential_AddTwoCells_SharedParentLoadsOnce" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorConcurrentAddSceneTests" runstate="Runnable" seed="142818841" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.002823" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1287" name="SceneDirectorFailedLoadCleanupTests" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests" runstate="Runnable" testcasecount="12" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.121069" total="12" passed="12" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1290" name="AddScene_ChildPreLoadFails_WaitsSibling_ThenCleansBoth" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests.AddScene_ChildPreLoadFails_WaitsSibling_ThenCleansBoth" methodname="AddScene_ChildPreLoadFails_WaitsSibling_ThenCleansBoth" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests" runstate="Runnable" seed="1063924933" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.004804" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1288" name="AddScene_OnLoadedException_RemovesScene_AndAllowsReAdd" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests.AddScene_OnLoadedException_RemovesScene_AndAllowsReAdd" methodname="AddScene_OnLoadedException_RemovesScene_AndAllowsReAdd" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests" runstate="Runnable" seed="29573001" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.002621" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1289" name="AddScene_StabledException_KeepsStableScene_WithoutPending" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests.AddScene_StabledException_KeepsStableScene_WithoutPending" methodname="AddScene_StabledException_KeepsStableScene_WithoutPending" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests" runstate="Runnable" seed="1878603601" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.002416" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1293" name="AddScene_ViewInException_RemovesInitializingScene_AndAllowsReAdd" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests.AddScene_ViewInException_RemovesInitializingScene_AndAllowsReAdd" methodname="AddScene_ViewInException_RemovesInitializingScene_AndAllowsReAdd" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests" runstate="Runnable" seed="1353012928" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.025765" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1291" name="IncrementalChild_LoadException_CleansChild_KeepsParent" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests.IncrementalChild_LoadException_CleansChild_KeepsParent" methodname="IncrementalChild_LoadException_CleansChild_KeepsParent" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests" runstate="Runnable" seed="361759898" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.010865" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[[SceneDirector] Incremental load failed: Child: System.InvalidOperationException: Incremental OnLoaded failure
+  at OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests+<>c.<IncrementalChild_LoadException_CleansChild_KeepsParent>b__3_2 (System.Threading.CancellationToken _) [0x00000] in D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Assets\OneStarMaker\Tests\Scene\SceneDirectorFailedLoadCleanupTests.cs:132 
+  at (wrapper delegate-invoke) System.Func`2[System.Threading.CancellationToken,Cysharp.Threading.Tasks.UniTask].invoke_TResult_T(System.Threading.CancellationToken)
+  at OneStarMaker.Tests.SceneSystem.TestDoubles.TestSceneBase.OnLoadedImpl (System.Threading.CancellationToken ct) [0x0002f] in D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Assets\OneStarMaker\Tests\Scene\TestDoubles\TestSceneBase.cs:52 
+  at Cysharp.Threading.Tasks.UniTask+ExceptionResultSource.GetResult (System.Int16 token) [0x0001e] in .\Library\PackageCache\com.cysharp.unitask@360e370345b9\Runtime\UniTask.Factory.cs:326 
+  at Cysharp.Threading.Tasks.UniTask+Awaiter.GetResult () [0x00015] in .\Library\PackageCache\com.cysharp.unitask@360e370345b9\Runtime\UniTask.cs:316 
+  at OneStarMaker.Runtime.SceneSystem.SceneBase.ExecuteLoaded (System.Threading.CancellationToken ct) [0x00029] in D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Assets\OneStarMaker\Scripts\Runtime\SceneSystem\SceneBase.cs:160 
+  at Cysharp.Threading.Tasks.UniTask+ExceptionResultSource.GetResult (System.Int16 token) [0x0001e] in .\Library\PackageCache\com.cysharp.unitask@360e370345b9\Runtime\UniTask.Factory.cs:326 
+  at Cysharp.Threading.Tasks.UniTask+Awaiter.GetResult () [0x00015] in .\Library\PackageCache\com.cysharp.unitask@360e370345b9\Runtime\UniTask.cs:316 
+  at OneStarMaker.Runtime.SceneSystem.SceneDirector.LoadUnitySceneCore (System.String sceneIdentify, OneStarMaker.Runtime.SceneSystem.SceneBase sceneBase, System.Threading.CancellationToken ct, System.Boolean isLoadChildScene, System.Int32 priority) [0x003d5] in D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Assets\OneStarMaker\Scripts\Runtime\SceneSystem\SceneDirector.Loading.cs:563 
+  at Cysharp.Threading.Tasks.UniTask+ExceptionResultSource.GetResult (System.Int16 token) [0x0001e] in .\Library\PackageCache\com.cysharp.unitask@360e370345b9\Runtime\UniTask.Factory.cs:326 
+  at Cysharp.Threading.Tasks.UniTask+Awaiter.GetResult () [0x00015] in .\Library\PackageCache\com.cysharp.unitask@360e370345b9\Runtime\UniTask.cs:316 
+  at OneStarMaker.Runtime.SceneSystem.SceneDirector.LoadUnityScene (System.String sceneIdentify, OneStarMaker.Runtime.SceneSystem.SceneBase sceneBase, System.Threading.CancellationToken ct, System.Boolean isLoadChildScene, System.Int32 priority) [0x0012d] in D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Assets\OneStarMaker\Scripts\Runtime\SceneSystem\SceneDirector.Loading.cs:491 
+  at Cysharp.Threading.Tasks.UniTaskCompletionSource.GetResult (System.Int16 token) [0x0002d] in .\Library\PackageCache\com.cysharp.unitask@360e370345b9\Runtime\UniTaskCompletionSource.cs:649 
+  at Cysharp.Threading.Tasks.UniTask+Awaiter.GetResult () [0x00015] in .\Library\PackageCache\com.cysharp.unitask@360e370345b9\Runtime\UniTask.cs:316 
+  at OneStarMaker.Runtime.SceneSystem.SceneDirector.LoadUnityScene (System.String sceneIdentify, OneStarMaker.Runtime.SceneSystem.SceneBase sceneBase, System.Threading.CancellationToken ct, System.Boolean isLoadChildScene, System.Int32 priority) [0x001c1] in D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Assets\OneStarMaker\Scripts\Runtime\SceneSystem\SceneDirector.Loading.cs:498 
+  at Cysharp.Threading.Tasks.UniTask+ExceptionResultSource.GetResult (System.Int16 token) [0x0001e] in .\Library\PackageCache\com.cysharp.unitask@360e370345b9\Runtime\UniTask.Factory.cs:326 
+  at Cysharp.Threading.Tasks.UniTask+Awaiter.GetResult () [0x00015] in .\Library\PackageCache\com.cysharp.unitask@360e370345b9\Runtime\UniTask.cs:316 
+  at OneStarMaker.Runtime.SceneSystem.SceneDirector.IncrementalLoadAsync (System.String childIdentify, OneStarMaker.Runtime.SceneSystem.SceneBase childBase, System.Threading.CancellationToken ct, System.Boolean isLoadChildScene) [0x00058] in D:\repositories\unity\SampleGameForOneStarMakerFramework\unity\Assets\OneStarMaker\Scripts\Runtime\SceneSystem\SceneDirector.Loading.cs:601 
+]]></output>
+              </test-case>
+              <test-case id="1298" name="Recover_ResumeHookKeepsFailing_ClearsPendingAndLogsLeftover" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests.Recover_ResumeHookKeepsFailing_ClearsPendingAndLogsLeftover" methodname="Recover_ResumeHookKeepsFailing_ClearsPendingAndLogsLeftover" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests" runstate="Runnable" seed="1183600852" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.029829" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[InvalidOperationException: PreUnload always fails
+OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests+<>c.<Recover_ResumeHookKeepsFailing_ClearsPendingAndLogsLeftover>b__10_4 () (at Assets/OneStarMaker/Tests/Scene/SceneDirectorFailedLoadCleanupTests.cs:455)
+OneStarMaker.Tests.SceneSystem.TestDoubles.TestSceneBase.OnPreUnLoadedImpl () (at Assets/OneStarMaker/Tests/Scene/TestDoubles/TestSceneBase.cs:64)
+OneStarMaker.Runtime.SceneSystem.SceneBase.ContinuePreUnLoadFromCurrent () (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneBase.cs:188)
+Cysharp.Threading.Tasks.UniTask+ExceptionResultSource.GetResult (System.Int16 token) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.Factory.cs:326)
+Cysharp.Threading.Tasks.UniTask+Awaiter.GetResult () (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:316)
+OneStarMaker.Runtime.SceneSystem.SceneBase.ExecutePreUnLoad () (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneBase.cs:172)
+Cysharp.Threading.Tasks.UniTask+ExceptionResultSource.GetResult (System.Int16 token) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.Factory.cs:326)
+Cysharp.Threading.Tasks.UniTask+Awaiter.GetResult () (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:316)
+OneStarMaker.Runtime.SceneSystem.SceneDirector.PhasePreUnload (System.String sceneIdentify) (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.Unloading.cs:241)
+Cysharp.Threading.Tasks.UniTask+ExceptionResultSource.GetResult (System.Int16 token) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.Factory.cs:326)
+Cysharp.Threading.Tasks.UniTask+Awaiter.GetResult () (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:316)
+OneStarMaker.Runtime.SceneSystem.SceneDirector.RemoveSceneCore (System.String sceneIdentify) (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.Unloading.cs:213)
+Cysharp.Threading.Tasks.UniTask+ExceptionResultSource.GetResult (System.Int16 token) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.Factory.cs:326)
+Cysharp.Threading.Tasks.UniTask+Awaiter.GetResult () (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:316)
+OneStarMaker.Runtime.SceneSystem.SceneDirector.RemoveScene (System.String sceneIdentify) (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.Unloading.cs:132)
+OneStarMaker.Runtime.SceneSystem.SceneDirector.RemoveScene (System.String sceneIdentify) (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.Unloading.cs:149)
+Cysharp.Threading.Tasks.UniTask+ExceptionResultSource.GetResult (System.Int16 token) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.Factory.cs:326)
+Cysharp.Threading.Tasks.UniTask+Awaiter.GetResult () (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:316)
+OneStarMaker.Runtime.SceneSystem.SceneDirector.RemoveSceneOrResume (System.String sceneIdentify) (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.FailedLoadCleanup.cs:290)
+UnityEngine.Debug:LogException(Exception)
+OneStarMaker.Runtime.SceneSystem.<RemoveSceneOrResume>d__8:MoveNext() (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.FailedLoadCleanup.cs:294)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder:Start(<RemoveSceneOrResume>d__8&) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/AsyncUniTaskMethodBuilder.cs:111)
+OneStarMaker.Runtime.SceneSystem.SceneDirector:RemoveSceneOrResume(String)
+OneStarMaker.Runtime.SceneSystem.<RecoverFailedLoadAsync>d__0:MoveNext() (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.FailedLoadCleanup.cs:53)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder:Start(<RecoverFailedLoadAsync>d__0&) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/AsyncUniTaskMethodBuilder.cs:111)
+OneStarMaker.Runtime.SceneSystem.SceneDirector:RecoverFailedLoadAsync(List`1)
+OneStarMaker.Runtime.SceneSystem.<AddSceneCore>d__13:MoveNext() (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.Loading.cs:301)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`1:Run() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:189)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation(Object) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1:TrySetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTaskCompletionSource.cs:167)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`1:SetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:210)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder:SetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/AsyncUniTaskMethodBuilder.cs:59)
+OneStarMaker.Runtime.SceneSystem.<LoadUnityScene>d__16:MoveNext() (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.Loading.cs:503)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`1:Run() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:189)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation(Object) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1:TrySetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTaskCompletionSource.cs:167)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`1:SetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:210)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder:SetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/AsyncUniTaskMethodBuilder.cs:59)
+OneStarMaker.Runtime.SceneSystem.<LoadUnitySceneCore>d__17:MoveNext() (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.Loading.cs:587)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`1:Run() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:189)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation(Object) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1:TrySetResult(ValueTuple`2) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2:SetResult(ValueTuple`2) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:328)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder`1:SetResult(ValueTuple`2) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/AsyncUniTaskMethodBuilder.cs:201)
+OneStarMaker.Tests.SceneSystem.TestDoubles.<PerformUnitySceneLoad>d__27:MoveNext() (at Assets/OneStarMaker/Tests/Scene/TestDoubles/TestableSceneDirector.cs:108)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2:Run() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation(Object) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSource:TrySignalCompletion(UniTaskStatus) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTaskCompletionSource.cs:721)
+Cysharp.Threading.Tasks.UniTaskCompletionSource:TrySetResult() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTaskCompletionSource.cs:612)
+OneStarMaker.Tests.SceneSystem.<<Recover_ResumeHookKeepsFailing_ClearsPendingAndLogsLeftover>b__10_0>d:MoveNext() (at Assets/OneStarMaker/Tests/Scene/SceneDirectorFailedLoadCleanupTests.cs:469)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`1:Run() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:189)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation(Object) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1:TrySetResult(Object) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.WaitUntilPromise:MoveNext() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.WaitUntil.cs:159)
+Cysharp.Threading.Tasks.Internal.PlayerLoopRunner:RunCore() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/Internal/PlayerLoopRunner.cs:175)
+Cysharp.Threading.Tasks.Internal.PlayerLoopRunner:Update() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/Internal/PlayerLoopRunner.cs:145)
+Cysharp.Threading.Tasks.Internal.PlayerLoopRunner:Run() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/Internal/PlayerLoopRunner.cs:104)
+
+InvalidOperationException: PreUnload always fails
+OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests+<>c.<Recover_ResumeHookKeepsFailing_ClearsPendingAndLogsLeftover>b__10_4 () (at Assets/OneStarMaker/Tests/Scene/SceneDirectorFailedLoadCleanupTests.cs:455)
+OneStarMaker.Tests.SceneSystem.TestDoubles.TestSceneBase.OnPreUnLoadedImpl () (at Assets/OneStarMaker/Tests/Scene/TestDoubles/TestSceneBase.cs:64)
+OneStarMaker.Runtime.SceneSystem.SceneBase.ContinuePreUnLoadFromCurrent () (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneBase.cs:188)
+Cysharp.Threading.Tasks.UniTask+ExceptionResultSource.GetResult (System.Int16 token) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.Factory.cs:326)
+Cysharp.Threading.Tasks.UniTask+Awaiter.GetResult () (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:316)
+OneStarMaker.Runtime.SceneSystem.SceneDirector.ResumeUnloadFromCurrentState (System.String sceneIdentify) (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.FailedLoadCleanup.cs:258)
+Cysharp.Threading.Tasks.UniTask+ExceptionResultSource.GetResult (System.Int16 token) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.Factory.cs:326)
+Cysharp.Threading.Tasks.UniTask+Awaiter.GetResult () (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:316)
+OneStarMaker.Runtime.SceneSystem.SceneDirector.RemoveSceneOrResume (System.String sceneIdentify) (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.FailedLoadCleanup.cs:302)
+UnityEngine.Debug:LogException(Exception)
+OneStarMaker.Runtime.SceneSystem.<RemoveSceneOrResume>d__8:MoveNext() (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.FailedLoadCleanup.cs:307)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder:Start(<RemoveSceneOrResume>d__8&) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/AsyncUniTaskMethodBuilder.cs:111)
+OneStarMaker.Runtime.SceneSystem.SceneDirector:RemoveSceneOrResume(String)
+OneStarMaker.Runtime.SceneSystem.<RecoverFailedLoadAsync>d__0:MoveNext() (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.FailedLoadCleanup.cs:53)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder:Start(<RecoverFailedLoadAsync>d__0&) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/AsyncUniTaskMethodBuilder.cs:111)
+OneStarMaker.Runtime.SceneSystem.SceneDirector:RecoverFailedLoadAsync(List`1)
+OneStarMaker.Runtime.SceneSystem.<AddSceneCore>d__13:MoveNext() (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.Loading.cs:301)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`1:Run() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:189)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation(Object) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1:TrySetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTaskCompletionSource.cs:167)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`1:SetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:210)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder:SetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/AsyncUniTaskMethodBuilder.cs:59)
+OneStarMaker.Runtime.SceneSystem.<LoadUnityScene>d__16:MoveNext() (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.Loading.cs:503)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`1:Run() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:189)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation(Object) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1:TrySetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTaskCompletionSource.cs:167)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`1:SetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:210)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder:SetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/AsyncUniTaskMethodBuilder.cs:59)
+OneStarMaker.Runtime.SceneSystem.<LoadUnitySceneCore>d__17:MoveNext() (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.Loading.cs:587)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`1:Run() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:189)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation(Object) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1:TrySetResult(ValueTuple`2) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2:SetResult(ValueTuple`2) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:328)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder`1:SetResult(ValueTuple`2) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/AsyncUniTaskMethodBuilder.cs:201)
+OneStarMaker.Tests.SceneSystem.TestDoubles.<PerformUnitySceneLoad>d__27:MoveNext() (at Assets/OneStarMaker/Tests/Scene/TestDoubles/TestableSceneDirector.cs:108)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`2:Run() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:313)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation(Object) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSource:TrySignalCompletion(UniTaskStatus) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTaskCompletionSource.cs:721)
+Cysharp.Threading.Tasks.UniTaskCompletionSource:TrySetResult() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTaskCompletionSource.cs:612)
+OneStarMaker.Tests.SceneSystem.<<Recover_ResumeHookKeepsFailing_ClearsPendingAndLogsLeftover>b__10_0>d:MoveNext() (at Assets/OneStarMaker/Tests/Scene/SceneDirectorFailedLoadCleanupTests.cs:469)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`1:Run() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:189)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation(Object) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1:TrySetResult(Object) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTaskCompletionSource.cs:139)
+Cysharp.Threading.Tasks.WaitUntilPromise:MoveNext() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.WaitUntil.cs:159)
+Cysharp.Threading.Tasks.Internal.PlayerLoopRunner:RunCore() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/Internal/PlayerLoopRunner.cs:175)
+Cysharp.Threading.Tasks.Internal.PlayerLoopRunner:Update() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/Internal/PlayerLoopRunner.cs:145)
+Cysharp.Threading.Tasks.Internal.PlayerLoopRunner:Run() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/Internal/PlayerLoopRunner.cs:104)
+
+[SceneDirector] Failed-load recovery left TestScene in PreUnloading
+]]></output>
+              </test-case>
+              <test-case id="1299" name="Recover_ResumeHookKeepsFailing_DoesNotSkipSiblingCleanup" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests.Recover_ResumeHookKeepsFailing_DoesNotSkipSiblingCleanup" methodname="Recover_ResumeHookKeepsFailing_DoesNotSkipSiblingCleanup" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests" runstate="Runnable" seed="1936875680" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.012415" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[InvalidOperationException: ChildA PreUnload always fails
+OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests+<>c.<Recover_ResumeHookKeepsFailing_DoesNotSkipSiblingCleanup>b__11_3 () (at Assets/OneStarMaker/Tests/Scene/SceneDirectorFailedLoadCleanupTests.cs:509)
+OneStarMaker.Tests.SceneSystem.TestDoubles.TestSceneBase.OnPreUnLoadedImpl () (at Assets/OneStarMaker/Tests/Scene/TestDoubles/TestSceneBase.cs:64)
+OneStarMaker.Runtime.SceneSystem.SceneBase.ContinuePreUnLoadFromCurrent () (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneBase.cs:188)
+Cysharp.Threading.Tasks.UniTask+ExceptionResultSource.GetResult (System.Int16 token) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.Factory.cs:326)
+Cysharp.Threading.Tasks.UniTask+Awaiter.GetResult () (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:316)
+OneStarMaker.Runtime.SceneSystem.SceneDirector.ResumeUnloadFromCurrentState (System.String sceneIdentify) (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.FailedLoadCleanup.cs:258)
+Cysharp.Threading.Tasks.UniTask+ExceptionResultSource.GetResult (System.Int16 token) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.Factory.cs:326)
+Cysharp.Threading.Tasks.UniTask+Awaiter.GetResult () (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:316)
+OneStarMaker.Runtime.SceneSystem.SceneDirector.ClassifyOrResumeCreatedScene (System.String id, System.Collections.Generic.Dictionary`2[TKey,TValue] created, System.Collections.Generic.List`1[T] activeRoots, System.Collections.Generic.List`1[T] stillLoading) (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.FailedLoadCleanup.cs:124)
+Cysharp.Threading.Tasks.UniTask+ExceptionResultSource.GetResult (System.Int16 token) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.Factory.cs:326)
+Cysharp.Threading.Tasks.UniTask+Awaiter.GetResult () (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:316)
+OneStarMaker.Runtime.SceneSystem.SceneDirector.RecoverFailedLoadAsync (System.Collections.Generic.List`1[T] newlyCreatedScenes) (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.FailedLoadCleanup.cs:42)
+UnityEngine.Debug:LogException(Exception)
+OneStarMaker.Runtime.SceneSystem.<RecoverFailedLoadAsync>d__0:MoveNext() (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.FailedLoadCleanup.cs:47)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder:Start(<RecoverFailedLoadAsync>d__0&) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/AsyncUniTaskMethodBuilder.cs:111)
+OneStarMaker.Runtime.SceneSystem.SceneDirector:RecoverFailedLoadAsync(List`1)
+OneStarMaker.Runtime.SceneSystem.<AddSceneCore>d__13:MoveNext() (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.Loading.cs:301)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`1:Run() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:189)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation(Object) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1:TrySetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTaskCompletionSource.cs:167)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`1:SetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:210)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder:SetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/AsyncUniTaskMethodBuilder.cs:59)
+OneStarMaker.Runtime.SceneSystem.<LoadUnityScene>d__16:MoveNext() (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.Loading.cs:503)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`1:Run() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:189)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation(Object) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1:TrySetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTaskCompletionSource.cs:167)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`1:SetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:210)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder:SetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/AsyncUniTaskMethodBuilder.cs:59)
+OneStarMaker.Runtime.SceneSystem.<LoadUnitySceneCore>d__17:MoveNext() (at Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.Loading.cs:587)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`1:Run() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:189)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation(Object) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1:TrySetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTaskCompletionSource.cs:167)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`1:SetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:210)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder:SetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/AsyncUniTaskMethodBuilder.cs:59)
+OneStarMaker.Runtime.UISystem.<AddUIView>d__13:MoveNext() (at Assets/OneStarMaker/Scripts/Runtime/UISystem/UICommon.cs:162)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`1:Run() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:189)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation(Object) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSourceCore`1:TrySetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTaskCompletionSource.cs:167)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`1:SetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:210)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder:SetException(Exception) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/AsyncUniTaskMethodBuilder.cs:59)
+OneStarMaker.Tests.SceneSystem.<ViewIn>d__3:MoveNext() (at Assets/OneStarMaker/Tests/Scene/SceneDirectorFailedLoadCleanupTests.cs:635)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTask`1:Run() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/StateMachineRunner.cs:189)
+Cysharp.Threading.Tasks.AwaiterActions:Continuation(Object) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.cs:25)
+Cysharp.Threading.Tasks.UniTaskCompletionSource:TrySignalCompletion(UniTaskStatus) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTaskCompletionSource.cs:721)
+Cysharp.Threading.Tasks.UniTaskCompletionSource:TrySetResult() (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTaskCompletionSource.cs:612)
+OneStarMaker.Tests.SceneSystem.<<Recover_ResumeHookKeepsFailing_DoesNotSkipSiblingCleanup>b__11_0>d:MoveNext() (at Assets/OneStarMaker/Tests/Scene/SceneDirectorFailedLoadCleanupTests.cs:527)
+Cysharp.Threading.Tasks.CompilerServices.AsyncUniTaskMethodBuilder:Start(<<Recover_ResumeHookKeepsFailing_DoesNotSkipSiblingCleanup>b__11_0>d&) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/CompilerServices/AsyncUniTaskMethodBuilder.cs:111)
+OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests:<Recover_ResumeHookKeepsFailing_DoesNotSkipSiblingCleanup>b__11_0()
+Cysharp.Threading.Tasks.UniTask:ToCoroutine(Func`1) (at ./Library/PackageCache/com.cysharp.unitask@360e370345b9/Runtime/UniTask.Bridge.cs:14)
+OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests:Recover_ResumeHookKeepsFailing_DoesNotSkipSiblingCleanup() (at Assets/OneStarMaker/Tests/Scene/SceneDirectorFailedLoadCleanupTests.cs:490)
+UnityEditor.EditorApplication:Internal_CallUpdateFunctions()
+
+[SceneDirector] Failed-load recovery left ChildA in PreUnloading
+]]></output>
+              </test-case>
+              <test-case id="1297" name="Recover_ResumesFailedAfterUnload_AndAllowsReAdd" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests.Recover_ResumesFailedAfterUnload_AndAllowsReAdd" methodname="Recover_ResumesFailedAfterUnload_AndAllowsReAdd" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests" runstate="Runnable" seed="1635752352" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.007185" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1295" name="Recover_ResumesFailedPreUnload_AndAllowsReAdd" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests.Recover_ResumesFailedPreUnload_AndAllowsReAdd" methodname="Recover_ResumesFailedPreUnload_AndAllowsReAdd" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests" runstate="Runnable" seed="863087180" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.005130" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1296" name="Recover_ResumesFailedUnityUnload_AndAllowsReAdd" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests.Recover_ResumesFailedUnityUnload_AndAllowsReAdd" methodname="Recover_ResumesFailedUnityUnload_AndAllowsReAdd" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests" runstate="Runnable" seed="889722363" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.004527" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1292" name="UnloadScene_DuringFailedAdd_DoesNotLeavePending" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests.UnloadScene_DuringFailedAdd_DoesNotLeavePending" methodname="UnloadScene_DuringFailedAdd_DoesNotLeavePending" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests" runstate="Runnable" seed="16514055" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.004205" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1294" name="UnloadScene_DuringInitializing_RemovesScene_AndAllowsReAdd" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests.UnloadScene_DuringInitializing_RemovesScene_AndAllowsReAdd" methodname="UnloadScene_DuringInitializing_RemovesScene_AndAllowsReAdd" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorFailedLoadCleanupTests" runstate="Runnable" seed="1378129292" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.004594" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1300" name="SceneDirectorGuardTests" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorGuardTests" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorGuardTests" runstate="Runnable" testcasecount="3" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.009896" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1301" name="AddScene_DuplicateCall_Skips" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorGuardTests.AddScene_DuplicateCall_Skips" methodname="AddScene_DuplicateCall_Skips" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorGuardTests" runstate="Runnable" seed="1877997945" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.001974" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1303" name="UnloadScene_AlreadyUnloading_Skips" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorGuardTests.UnloadScene_AlreadyUnloading_Skips" methodname="UnloadScene_AlreadyUnloading_Skips" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorGuardTests" runstate="Runnable" seed="1391877749" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.001790" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1302" name="UnloadScene_NonexistentScene_NoOp" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorGuardTests.UnloadScene_NonexistentScene_NoOp" methodname="UnloadScene_NonexistentScene_NoOp" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorGuardTests" runstate="Runnable" seed="1688161780" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.004153" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <reason>
+                  <message><![CDATA[]]></message>
+                </reason>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1304" name="SceneDirectorLoadOptionsTests" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorLoadOptionsTests" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorLoadOptionsTests" runstate="Runnable" testcasecount="6" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.021719" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1306" name="AddScene_DefaultPriority_Is100" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorLoadOptionsTests.AddScene_DefaultPriority_Is100" methodname="AddScene_DefaultPriority_Is100" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorLoadOptionsTests" runstate="Runnable" seed="229615290" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.002683" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1307" name="AddScene_Priority_AppliedToParentLoad" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorLoadOptionsTests.AddScene_Priority_AppliedToParentLoad" methodname="AddScene_Priority_AppliedToParentLoad" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorLoadOptionsTests" runstate="Runnable" seed="381056041" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.001827" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1305" name="AddScene_PriorityArgument_ReachesUnitySceneLoad" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorLoadOptionsTests.AddScene_PriorityArgument_ReachesUnitySceneLoad" methodname="AddScene_PriorityArgument_ReachesUnitySceneLoad" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorLoadOptionsTests" runstate="Runnable" seed="1060197757" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.001640" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1309" name="AddScene_TelemetryLevelDefault_RemainsSummary" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorLoadOptionsTests.AddScene_TelemetryLevelDefault_RemainsSummary" methodname="AddScene_TelemetryLevelDefault_RemainsSummary" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorLoadOptionsTests" runstate="Runnable" seed="369497081" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.006524" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1308" name="AddScene_TelemetryLevelVerbose_EmitsVerboseRecord" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorLoadOptionsTests.AddScene_TelemetryLevelVerbose_EmitsVerboseRecord" methodname="AddScene_TelemetryLevelVerbose_EmitsVerboseRecord" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorLoadOptionsTests" runstate="Runnable" seed="1734505524" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.002781" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1310" name="UnloadScene_TelemetryLevelVerbose_EmitsVerboseRecord" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorLoadOptionsTests.UnloadScene_TelemetryLevelVerbose_EmitsVerboseRecord" methodname="UnloadScene_TelemetryLevelVerbose_EmitsVerboseRecord" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorLoadOptionsTests" runstate="Runnable" seed="162939424" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.002598" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1311" name="SceneDirectorMiscTests" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorMiscTests" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorMiscTests" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.026348" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1314" name="AddScene_LoadAndUnloadAndReload_Works" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorMiscTests.AddScene_LoadAndUnloadAndReload_Works" methodname="AddScene_LoadAndUnloadAndReload_Works" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorMiscTests" runstate="Runnable" seed="233848856" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.012751" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1315" name="AddScene_MultipleIndependentScenes_BothLoadable" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorMiscTests.AddScene_MultipleIndependentScenes_BothLoadable" methodname="AddScene_MultipleIndependentScenes_BothLoadable" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorMiscTests" runstate="Runnable" seed="1777887865" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.002648" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1312" name="AddScene_Progress_ReportsAllPhases" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorMiscTests.AddScene_Progress_ReportsAllPhases" methodname="AddScene_Progress_ReportsAllPhases" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorMiscTests" runstate="Runnable" seed="1102981093" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.003246" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1313" name="Dispose_ReleasesAllScenes" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorMiscTests.Dispose_ReleasesAllScenes" methodname="Dispose_ReleasesAllScenes" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorMiscTests" runstate="Runnable" seed="688752307" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.001664" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1316" name="UnloadScene_ChildOnly_ParentRemains" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorMiscTests.UnloadScene_ChildOnly_ParentRemains" methodname="UnloadScene_ChildOnly_ParentRemains" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorMiscTests" runstate="Runnable" seed="2088263352" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.002771" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1317" name="SceneDirectorTransitionTests" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests" runstate="Runnable" testcasecount="14" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.064320" total="14" passed="14" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1322" name="ClearHistory_MakesGoBackUnavailable" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests.ClearHistory_MakesGoBackUnavailable" methodname="ClearHistory_MakesGoBackUnavailable" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests" runstate="Runnable" seed="551112354" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.005636" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1329" name="ExecuteTransitionPlan_StreamByDistanceCandidate_UsesCommonGuard" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests.ExecuteTransitionPlan_StreamByDistanceCandidate_UsesCommonGuard" methodname="ExecuteTransitionPlan_StreamByDistanceCandidate_UsesCommonGuard" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests" runstate="Runnable" seed="110602161" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.014177" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1319" name="GoBack_RestoresPreviousScene_AndConsumesHistory" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests.GoBack_RestoresPreviousScene_AndConsumesHistory" methodname="GoBack_RestoresPreviousScene_AndConsumesHistory" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests" runstate="Runnable" seed="1599056407" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.002940" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1328" name="GoBack_StreamByDistanceCandidate_FailsBeforeMutatingHistory" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests.GoBack_StreamByDistanceCandidate_FailsBeforeMutatingHistory" methodname="GoBack_StreamByDistanceCandidate_FailsBeforeMutatingHistory" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests" runstate="Runnable" seed="1103193418" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.004327" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1320" name="GoBack_WithEmptyHistory_ThrowsInvalidOperationException" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests.GoBack_WithEmptyHistory_ThrowsInvalidOperationException" methodname="GoBack_WithEmptyHistory_ThrowsInvalidOperationException" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests" runstate="Runnable" seed="1212957412" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.002133" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1324" name="SwitchScene_CanceledAfterPointOfNoReturn_CompletesTransition" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests.SwitchScene_CanceledAfterPointOfNoReturn_CompletesTransition" methodname="SwitchScene_CanceledAfterPointOfNoReturn_CompletesTransition" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests" runstate="Runnable" seed="1383802826" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.003993" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1323" name="SwitchScene_CanceledWhileShowing_DoesNotChangeScenesOrHistory" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests.SwitchScene_CanceledWhileShowing_DoesNotChangeScenesOrHistory" methodname="SwitchScene_CanceledWhileShowing_DoesNotChangeScenesOrHistory" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests" runstate="Runnable" seed="1190835295" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.004735" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1331" name="SwitchScene_DestroyedResource_IsNotRejectedByR3" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests.SwitchScene_DestroyedResource_IsNotRejectedByR3" methodname="SwitchScene_DestroyedResource_IsNotRejectedByR3" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests" runstate="Runnable" seed="758491767" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.001884" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1327" name="SwitchScene_FlagOffResources_AreAllowed" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests.SwitchScene_FlagOffResources_AreAllowed" methodname="SwitchScene_FlagOffResources_AreAllowed" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests" runstate="Runnable" seed="660104286" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.003690" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1318" name="SwitchScene_ReplacesScene_AndRecordsHistory" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests.SwitchScene_ReplacesScene_AndRecordsHistory" methodname="SwitchScene_ReplacesScene_AndRecordsHistory" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests" runstate="Runnable" seed="169541694" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.002243" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1325" name="SwitchScene_StreamByDistanceCandidate_RejectsFromAndTo" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests.SwitchScene_StreamByDistanceCandidate_RejectsFromAndTo" methodname="SwitchScene_StreamByDistanceCandidate_RejectsFromAndTo" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests" runstate="Runnable" seed="388519414" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.004825" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1326" name="SwitchScene_StreamByDistanceCandidate_RejectsWithEmptyVolume" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests.SwitchScene_StreamByDistanceCandidate_RejectsWithEmptyVolume" methodname="SwitchScene_StreamByDistanceCandidate_RejectsWithEmptyVolume" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests" runstate="Runnable" seed="813664021" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.002587" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1330" name="SwitchScene_UnregisteredIdentity_IsNotRejectedByR3" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests.SwitchScene_UnregisteredIdentity_IsNotRejectedByR3" methodname="SwitchScene_UnregisteredIdentity_IsNotRejectedByR3" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests" runstate="Runnable" seed="1543841739" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.001636" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1321" name="SwitchScene_WithoutSource_DoesNotRecordHistory" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests.SwitchScene_WithoutSource_DoesNotRecordHistory" methodname="SwitchScene_WithoutSource_DoesNotRecordHistory" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorTransitionTests" runstate="Runnable" seed="1129705311" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.002242" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1332" name="SceneDirectorUnloadSceneTests" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorUnloadSceneTests" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorUnloadSceneTests" runstate="Runnable" testcasecount="2" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.006010" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1333" name="UnloadScene_StableScene_RemovesAndDisposes" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorUnloadSceneTests.UnloadScene_StableScene_RemovesAndDisposes" methodname="UnloadScene_StableScene_RemovesAndDisposes" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorUnloadSceneTests" runstate="Runnable" seed="816836659" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.002601" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1334" name="UnloadScene_WithChildren_UnloadsInPostOrder" fullname="OneStarMaker.Tests.SceneSystem.SceneDirectorUnloadSceneTests.UnloadScene_WithChildren_UnloadsInPostOrder" methodname="UnloadScene_WithChildren_UnloadsInPostOrder" classname="OneStarMaker.Tests.SceneSystem.SceneDirectorUnloadSceneTests" runstate="Runnable" seed="804935971" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.001845" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+          </test-suite>
+          <test-suite type="TestSuite" id="1660" name="UpdateSystem" fullname="OneStarMaker.Tests.UpdateSystem" runstate="Runnable" testcasecount="61" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.010594" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestFixture" id="1066" name="UpdateSystemHostTests" fullname="OneStarMaker.Tests.UpdateSystem.UpdateSystemHostTests" classname="OneStarMaker.Tests.UpdateSystem.UpdateSystemHostTests" runstate="Runnable" testcasecount="1" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.008284" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1067" name="TryConsumeActivationRequest_BeforeSceneDirectorBinding_ReturnsFalse" fullname="OneStarMaker.Tests.UpdateSystem.UpdateSystemHostTests.TryConsumeActivationRequest_BeforeSceneDirectorBinding_ReturnsFalse" methodname="TryConsumeActivationRequest_BeforeSceneDirectorBinding_ReturnsFalse" classname="OneStarMaker.Tests.UpdateSystem.UpdateSystemHostTests" runstate="Runnable" seed="363378220" result="Passed" start-time="2026-09-18 13:49:46Z" end-time="2026-09-18 13:49:46Z" duration="0.006897" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[Saving results to: C:/Users/void/AppData/LocalLow/DefaultCompany/SampleGame\TestResults.xml
+]]></output>
+              </test-case>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>
