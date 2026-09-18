@@ -66,6 +66,14 @@ namespace OneStarMaker.Tests.Editor.Build
                 Assert.That(missing!.Code, Is.EqualTo(ContentDirectoryFailureCode.InvalidConfiguration));
                 Assert.That(native.UnregisterCount, Is.Zero);
 
+                var malformed = Assert.Throws<ContentDirectoryException>(() =>
+                    ContentDirectorySession.Register(path + "\0", "build", "StandaloneWindows64", native));
+                Assert.That(malformed!.Code, Is.EqualTo(ContentDirectoryFailureCode.InvalidConfiguration));
+                Assert.That(ContentRevisionGate.TryAcquireDelete("build", "StandaloneWindows64", path + "\0",
+                    out var malformedLease, out var rejection), Is.False);
+                Assert.That(malformedLease, Is.Null);
+                Assert.That(rejection, Is.EqualTo(ContentDirectoryFailureCode.InvalidConfiguration));
+
                 Directory.CreateDirectory(path);
                 native.RootCount = 0;
                 var noRoot = Assert.Throws<ContentDirectoryException>(() =>
@@ -132,6 +140,37 @@ namespace OneStarMaker.Tests.Editor.Build
 
                 native.PendingUnloadCompletion.TrySetResult();
                 await session.CloseAsync();
+                Assert.That(native.UnregisterCount, Is.EqualTo(1));
+            }
+            finally { UnityEngine.Object.DestroyImmediate(root); Directory.Delete(path); }
+        }
+
+        [Test]
+        public async Task NormalUnloadAndClose_JoinOneNativeUnloadBeforeUnregister()
+        {
+            var path = Path.Combine(Path.GetTempPath(), "osm-content-session-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(path);
+            var root = CreateRoot();
+            var native = new FakeNativeDirectory(root) { PendingUnloadCompletion = new UniTaskCompletionSource() };
+            try
+            {
+                var session = ContentDirectorySession.Register(path, "build", "StandaloneWindows64", native);
+                var assets = new AssetManagement();
+                assets.InstallContentDirectory(session);
+                native.SceneResult.TrySetResult(new FakeScene());
+                await assets.LoadContentSceneAsync("scene", "Full");
+
+                var normalUnload = assets.UnloadSceneAsync("scene").AsTask();
+                var close = assets.CloseContentDirectoryAsync().AsTask();
+                Assert.That(native.UnloadCount, Is.EqualTo(1), "両 caller は同じ native unload を待つ");
+                Assert.That(normalUnload.IsCompleted, Is.False);
+                Assert.That(close.IsCompleted, Is.False);
+                Assert.That(native.UnregisterCount, Is.Zero, "native terminal より前に登録を返さない");
+
+                native.PendingUnloadCompletion.TrySetResult();
+                await normalUnload;
+                await close;
+                Assert.That(native.UnloadCount, Is.EqualTo(1));
                 Assert.That(native.UnregisterCount, Is.EqualTo(1));
             }
             finally { UnityEngine.Object.DestroyImmediate(root); Directory.Delete(path); }

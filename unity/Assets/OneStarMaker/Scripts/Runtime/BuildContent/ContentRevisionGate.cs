@@ -58,8 +58,15 @@ namespace OneStarMaker.Runtime.BuildContent
         private static bool TryNormalize(string identity, string target, string path, out string normalized)
         {
             normalized = string.Empty;
-            if (string.IsNullOrWhiteSpace(identity) || string.IsNullOrWhiteSpace(target) || string.IsNullOrWhiteSpace(path) || !Path.IsPathRooted(path)) return false;
-            try { normalized = Path.GetFullPath(path); return true; } catch (Exception) { return false; }
+            if (string.IsNullOrWhiteSpace(identity) || string.IsNullOrWhiteSpace(target) || string.IsNullOrWhiteSpace(path)) return false;
+            try
+            {
+                if (!Path.IsPathRooted(path)) return false;
+                normalized = Path.GetFullPath(path);
+                return true;
+            }
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+            { return false; }
         }
 
         private static void ReleaseDeletion(Deletion deletion)

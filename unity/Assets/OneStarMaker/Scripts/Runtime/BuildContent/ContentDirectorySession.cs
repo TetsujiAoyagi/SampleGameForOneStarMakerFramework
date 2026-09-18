@@ -67,9 +67,21 @@ namespace OneStarMaker.Runtime.BuildContent
 
         internal static ContentDirectorySession Register(string path, string identity, string target, IContentNativeDirectory backend)
         {
-            if (!Path.IsPathRooted(path) || !Directory.Exists(path))
-                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Content directory path must be an existing absolute directory.", identity, target);
-            var normalized = Path.GetFullPath(path);
+            string normalized;
+            try
+            {
+                if (!Path.IsPathRooted(path))
+                    throw new ArgumentException("Directory path must be absolute.", nameof(path));
+                normalized = Path.GetFullPath(path);
+            }
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,
+                    "Content directory path is invalid.", identity, target, innerException: ex);
+            }
+            if (!Directory.Exists(normalized))
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,
+                    "Content directory path must exist.", identity, target);
             lock (RollbackSync)
             {
                 // 登録失敗時の native handle は session が所有し、gate には予約だけを残す。
@@ -332,7 +344,57 @@ namespace OneStarMaker.Runtime.BuildContent
         private sealed class SessionInstance : IBackendInstance, IBackendAsset, IContentDirectoryToken
         { private IBackendInstance? _inner; private readonly IContentNativeDirectory _backend; private readonly Action _release; internal SessionInstance(IBackendInstance inner,IContentNativeDirectory backend,Action release){_inner=inner;_backend=backend;_release=release;} public GameObject? Instance=>_inner?.Instance; public UnityEngine.Object? Asset=>Instance; public bool IsValid=>_inner is IBackendAsset a && a.IsValid; internal void Release(){if(_inner is IBackendAsset a)_backend.Release(a);_inner=null;_release();} }
         private sealed class SessionScene : IBackendScene, IContentDirectoryToken
-        { private IBackendScene? _inner; private readonly IContentNativeDirectory _backend; private readonly Action _release; internal SessionScene(IBackendScene inner,IContentNativeDirectory backend,Action release){_inner=inner;_backend=backend;_release=release;} public bool IsLoaded=>_inner?.IsLoaded==true; public string Name=>_inner?.Name ?? string.Empty; public GameObject[] GetRootGameObjects()=>_inner?.GetRootGameObjects() ?? Array.Empty<GameObject>(); internal async UniTask Unload(){if(_inner!=null){await _backend.UnloadSceneAsync(_inner);_inner=null;_release();}} internal void ReleaseAfterShutdown(){if(_inner==null)return;_inner=null;_release();} }
+        {
+            private IBackendScene? _inner;
+            private readonly IContentNativeDirectory _backend;
+            private readonly Action _release;
+            private UniTaskCompletionSource? _unloadCompletion;
+
+            internal SessionScene(IBackendScene inner, IContentNativeDirectory backend, Action release)
+            { _inner = inner; _backend = backend; _release = release; }
+
+            public bool IsLoaded => _inner?.IsLoaded == true;
+            public string Name => _inner?.Name ?? string.Empty;
+            public GameObject[] GetRootGameObjects() => _inner?.GetRootGameObjects() ?? Array.Empty<GameObject>();
+            internal bool HasPendingUnload => _unloadCompletion != null;
+
+            internal UniTask Unload()
+            {
+                if (_inner == null) return UniTask.CompletedTask;
+                if (_unloadCompletion != null) return _unloadCompletion.Task;
+                // 通常 unload・明示 close・同期終了が同じ native terminal を共有する。
+                // token は成功した最後の一回だけ返し、失敗時は再試行できるよう保持する。
+                var completion = new UniTaskCompletionSource();
+                _unloadCompletion = completion;
+                UnloadCore(completion).Forget();
+                return completion.Task;
+            }
+
+            private async UniTaskVoid UnloadCore(UniTaskCompletionSource completion)
+            {
+                try
+                {
+                    await _backend.UnloadSceneAsync(_inner!);
+                    _inner = null;
+                    _release();
+                    _unloadCompletion = null;
+                    completion.TrySetResult();
+                }
+                catch (Exception ex)
+                {
+                    // 完了通知で再開した caller が即座に retry できるよう、先に単一飛行状態を外す。
+                    if (ReferenceEquals(_unloadCompletion, completion)) _unloadCompletion = null;
+                    completion.TrySetException(ex);
+                }
+            }
+
+            internal void ReleaseAfterShutdown()
+            {
+                if (_inner == null) return;
+                _inner = null;
+                _release();
+            }
+        }
 
         public void Release(IBackendAsset asset)
         {
@@ -355,7 +417,8 @@ namespace OneStarMaker.Runtime.BuildContent
             if (scene is not SessionScene sessionScene) return;
             // Unity が既に解体した Scene は token だけ返す。まだ loaded なら非同期 unload の
             // terminal を監視し、同期終了が先に unregister しないよう pending に数える。
-            if (!sessionScene.IsLoaded) { sessionScene.ReleaseAfterShutdown(); return; }
+            if (!sessionScene.IsLoaded && !sessionScene.HasPendingUnload)
+            { sessionScene.ReleaseAfterShutdown(); return; }
             BeginOperation();
             DrainShutdownScene(sessionScene).Forget();
         }

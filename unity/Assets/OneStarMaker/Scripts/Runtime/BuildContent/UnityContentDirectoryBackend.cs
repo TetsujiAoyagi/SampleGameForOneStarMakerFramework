@@ -81,7 +81,16 @@ namespace OneStarMaker.Runtime.BuildContent
         {
             if (scene is not DirectoryScene directoryScene || !directoryScene.Scene.IsValid() || !directoryScene.Scene.isLoaded) return;
             var operation = SceneManager.UnloadSceneAsync(directoryScene.Scene);
-            if (operation != null) await operation;
+            if (operation == null)
+            {
+                // 開始失敗を完了として扱うと session が scene token と登録予約を返してしまう。
+                if (directoryScene.Scene.IsValid() && directoryScene.Scene.isLoaded)
+                    throw new ContentDirectoryException(ContentDirectoryFailureCode.OperationFailed,
+                        "Content scene unload did not start.");
+                directoryScene.MarkUnloaded();
+                return;
+            }
+            await operation;
             directoryScene.MarkUnloaded();
         }
 

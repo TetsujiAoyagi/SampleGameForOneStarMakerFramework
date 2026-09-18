@@ -812,10 +812,22 @@ namespace OneStarMaker.Runtime
             var path = config.GetString("content:directoryPath", string.Empty);
             var identity = config.GetString("content:buildIdentity", string.Empty);
             var representation = config.GetString("content:representation", string.Empty);
-            if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(identity) || string.IsNullOrWhiteSpace(representation)
-                || !Path.IsPathRooted(path))
+            if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(identity) || string.IsNullOrWhiteSpace(representation))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Directory mode requires absolute directoryPath, buildIdentity, and representation.");
-            var fullPath = Path.GetFullPath(path);
+            string fullPath;
+            try
+            {
+                if (!Path.IsPathRooted(path))
+                    throw new ArgumentException("Directory path must be absolute.", nameof(path));
+                fullPath = Path.GetFullPath(path);
+            }
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                // 不正な絶対 path も公開失敗契約の InvalidConfiguration に揃える。
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,
+                    "Content directory path is invalid.", identity, "StandaloneWindows64",
+                    representation: representation, innerException: ex);
+            }
             if (!Directory.Exists(fullPath))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Configured content directory does not exist.", identity, "StandaloneWindows64", representation: representation);
             return new ContentDirectoryConfiguration(fullPath, identity, representation);
