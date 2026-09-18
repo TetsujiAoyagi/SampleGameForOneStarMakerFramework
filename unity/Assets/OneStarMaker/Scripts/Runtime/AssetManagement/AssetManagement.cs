@@ -15,7 +15,7 @@ namespace OneStarMaker.Runtime.AssetManagement
     /// <summary>
     /// アセットとシーンのロード寿命をスコープ付きで一元管理する。
     /// </summary>
-    public sealed class AssetManagement : IAssetManagement, IAssetDiagnostics
+    public sealed partial class AssetManagement : IAssetManagement, IAssetDiagnostics
     {
         private readonly IAssetBackend _backend;
         private readonly IAssetResidentCache? _cache;
@@ -128,7 +128,14 @@ namespace OneStarMaker.Runtime.AssetManagement
                 return;
             }
 
-            await _backend.UnloadSceneAsync(scene.Backend, ct);
+            if (_contentDirectory != null && scene.Backend is IContentDirectoryToken)
+            {
+                await _contentDirectory.UnloadSceneAsync(scene.Backend);
+            }
+            else
+            {
+                await _backend.UnloadSceneAsync(scene.Backend, ct);
+            }
             _registry.MarkSceneUnloaded(sceneIdentity);
         }
 
@@ -197,12 +204,15 @@ namespace OneStarMaker.Runtime.AssetManagement
             // Shutdown 契約:
             // Application.quitting / Play Mode 終了では Unity が先に Scene を解体している。
             // その状態で Addressables.UnloadSceneAsync を呼ぶと
-            // 「Cannot find handle for scene」になり得るため、backend Unload は一切行わない。
-            // 台帳上の Scene を MarkUnloaded し、所有アセットと App スコープ資産を同期で一気に落とす。
+            // 「Cannot find handle for scene」になり得るため、旧 backend は unload しない。
+            // directory Scene がまだ生存している場合だけ session に非同期 terminal 回収を任せ、
+            // 同期で token を返して早期 unregister しない。台帳と owner 資産は同期で閉じる。
             foreach (var scene in _registry.GetScenes())
             {
                 if (!scene.IsUnloaded)
                 {
+                    if (_contentDirectory != null && scene.Backend is IContentDirectoryToken)
+                        _contentDirectory.ReleaseSceneAfterUnityShutdown(scene.Backend);
                     _registry.MarkSceneUnloaded(scene.Identity);
                 }
             }
@@ -214,7 +224,7 @@ namespace OneStarMaker.Runtime.AssetManagement
         {
             foreach (var loaded in _registry.ReleaseAllAssets())
             {
-                _backend.Release(loaded.Backend);
+                ReleaseBackend(loaded.Backend);
             }
 
             _cache?.Clear();
@@ -288,12 +298,24 @@ namespace OneStarMaker.Runtime.AssetManagement
         {
             if (_cache != null && !loaded.IsInstance)
             {
-                _cache.Store(loaded.Key, loaded.Type, loaded.Backend);
+                _cache.Store(loaded.Key, loaded.Type, loaded.Backend,
+                    loaded.Backend is IContentDirectoryToken ? ReleaseBackend : null);
             }
             else
             {
-                _backend.Release(loaded.Backend);
+                ReleaseBackend(loaded.Backend);
             }
+        }
+
+        private void ReleaseBackend(IBackendAsset asset)
+        {
+            if (_contentDirectory != null && asset is IContentDirectoryToken)
+            {
+                _contentDirectory.Release(asset);
+                return;
+            }
+
+            _backend.Release(asset);
         }
 
         /// <summary>

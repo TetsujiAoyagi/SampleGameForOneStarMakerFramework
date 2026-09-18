@@ -52,7 +52,7 @@
 | バジェット計上 | **キャッシュ内 (refcount 0) のみ**。使用中アセットは計上しない。**総メモリ上限は保証しない**（責務はスコープ設計側） |
 | キャッシュ対象 | `LoadAssetAsync` / `LoadAppAssetSync` のアセットのみ。**シーンと `InstantiateAsync` のインスタンスは対象外** |
 | バジェット未定義の AssetType | キャッシュせず即解放（明示オプトイン方式。バジェットを定義しない限り従来挙動） |
-| 公開 API | `IAssetManagement` は変更しない。既存呼び出し元は無変更で従来挙動のまま |
+| 公開 API | `IAssetManagement` に Content Directory 用の型付き Object / Scene / Prefab 入口を追加。既存 Addressables API の署名と既定挙動は維持 |
 | テレメトリ結合 | `AssetResidentCache.GetSnapshot()` をテレメトリ層がポーリング（配線は次パス）。AssetManagement にリアクティブ依存（R3）を持ち込まない判断 |
 
 ### Unity 6.6 Content Directories の実証済み境界
@@ -69,13 +69,24 @@ build、登録、load、unload、release、unregister、欠損 directory から�
 は未実証である。要求取消は native abort と同一視せず、発行済み処理の終端を単一 owner
 が受け取ってから資源を解放する設計を後続 runtime backend の条件とする。
 
-BS2b では、成功した選択 plan と materialization snapshot から Scene・Prefab・Texture の
-Content Directory を実生成する Editor build 経路を追加した。成果物内の単一
-`BuildContentRoot` が logical key・表現・Unity loadable ID の対応を保持し、移設した
-directory の登録後にも取得できる。これは build と受渡しの成立範囲であり、現行
-`IAssetManagement` や `AddressableBackend` の差し替えではない。directory 登録から
-実 load・解放・unregister までの owner と `AssetOwner` に沿った寿命管理は後続の
-Runtime 接続で決める（[18. AssetDescription §4](18-asset-description.md#4-buildsystem-との接続)）。
+BS2b の Editor build 経路は、成功した選択 plan と materialization snapshot から
+Scene・Prefab・Texture の Content Directory を生成する。成果物内の単一
+`BuildContentRoot` が logical key・表現・Unity loadable ID の対応を保持する。
+BS3 では、この root を Runtime で検証・索引化し、移設先 directory から型付きで
+load・解放・unregister する経路を追加した。既定の Addressables backend は残る。
+
+directory session が Unity 登録 handle、発行済み native 処理、root、unregister を所有する。
+`AssetManagement` は `AssetOwner` 台帳と resident cache の唯一の owner であり、
+directory 由来の token が session 利用権を保持する。caller の取消は native abort ではない。
+発行済み処理が終端してから、不要になった成功結果と依存資源を回収する。明示 close は
+新規受付を止めて処理を drain し、live owner/Prefab instance が残れば `ResourcesInUse`
+として登録を保ち、解放後の再試行を許す。cache entry も解放前は revision の利用中とみなす。
+
+`ContentRevisionGate` は同一 process 内で identity と正規化 absolute path による
+利用・削除 lease を排他する。無関係な revision の削除は妨げず、同じ実 path を別 identity
+として削除することは拒否する。物理削除と別 process の排他は DIST の責務。
+通常の Play 停止は同期 shutdown と terminal callback に依存し、明示 `CloseAsync` と
+同じ完全 drain を保証しない。Player bootstrap は BS4 の責務である。
 
 ---
 
@@ -143,6 +154,10 @@ public interface IAssetManagement
         CancellationToken ct = default);
     UniTask UnloadSceneAsync(string sceneIdentity, CancellationToken ct = default);
     UniTask<GameObject> InstantiateAsync(AssetKey key, Transform? parent = null, bool worldSpace = false, CancellationToken ct = default);
+    UniTask<IAssetHandle<T>> LoadContentAssetAsync<T>(string logicalKey, string representation, AssetOwner owner, CancellationToken ct = default)
+        where T : UnityEngine.Object;
+    UniTask<ISceneHandle> LoadContentSceneAsync(string sceneIdentity, string representation, SceneLoadOptions options = default, CancellationToken ct = default);
+    UniTask<GameObject> InstantiateContentAsync(string logicalKey, string representation, Transform? parent = null, bool worldSpace = false, CancellationToken ct = default);
     void Release(IAssetHandle handle);
     void ReleaseScene(string sceneIdentity);
     void ReleaseAll();

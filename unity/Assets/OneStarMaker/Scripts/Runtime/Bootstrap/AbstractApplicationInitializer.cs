@@ -16,6 +16,7 @@ using OneStarMaker.Foundation.Telemetry;
 using OneStarMaker.Runtime.DebugSocketServices;
 using OneStarMaker.Runtime.AssetDescriptions;
 using OneStarMaker.Runtime.AssetManagement;
+using OneStarMaker.Runtime.BuildContent;
 using OneStarMaker.Runtime.Config;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.UpdateSystem;
@@ -63,6 +64,10 @@ namespace OneStarMaker.Runtime
     /// </summary>
     public abstract class AbstractApplicationInitializer
     {
+        // build root は Unity の BuildTarget と Player subtarget を一つの文字列で保存する。
+        // Editor 側の Content Directory 出力名を変更する場合は、この照合値も同時に更新する。
+        private const string ContentDirectoryTarget = "StandaloneWindows64-Player";
+
         // ─── Fields ───
 
         private AppConfig? _config;
@@ -82,6 +87,9 @@ namespace OneStarMaker.Runtime
         /// Application.quitting 時に ReleaseAppAll で App 常駐分を解放する。
         /// </summary>
         private IAssetManagement? _assetManagement;
+        private ContentDirectoryConfiguration? _contentDirectoryConfiguration;
+        private ContentDirectorySession? _contentDirectorySession;
+        private bool _beforeSceneLoadSucceeded;
 
         /// <summary>LoadUICommonAsync でロードした UICommon シーンのハンドル。</summary>
         private ISceneHandle? _uiSceneHandle;
@@ -137,13 +145,20 @@ namespace OneStarMaker.Runtime
         /// </summary>
         protected static void BootstrapBeforeSceneLoad(AbstractApplicationInitializer instance)
         {
+            instance._beforeSceneLoadSucceeded = false;
             try
             {
                 instance.InitializeBeforeSceneLoad();
+                instance._beforeSceneLoadSucceeded = true;
             }
             catch (Exception ex)
             {
                 Debug.LogException(ex);
+                // 起動設定の検証失敗後に残った AssetManagement/CTS を根拠として
+                // AfterSceneLoad が既定 Addressables へ進むと、明示 directory 指定を黙って無視する。
+                // 元の失敗を保持したまま部分初期化だけを回収し、次フェーズを閉じる。
+                try { instance.ReleaseAll(); }
+                catch (Exception cleanupException) { Debug.LogException(cleanupException); }
             }
         }
 
@@ -152,6 +167,11 @@ namespace OneStarMaker.Runtime
         /// </summary>
         protected static void BootstrapAfterSceneLoad(AbstractApplicationInitializer instance)
         {
+            if (!instance._beforeSceneLoadSucceeded)
+            {
+                Debug.LogError("[AppInit] BeforeSceneLoad が失敗したため AfterSceneLoad をスキップします。");
+                return;
+            }
             try
             {
                 instance.InitializeAfterSceneLoad().Forget();
@@ -183,6 +203,7 @@ namespace OneStarMaker.Runtime
 
                 // Config を構築（ConfigFile → 環境変数 → コマンドライン引数 の優先順）
                 _config = BuildConfig();
+                _contentDirectoryConfiguration = ReadContentDirectoryConfiguration(_config);
 
                 // Updater は scene object の Awake register を受ける必要があるため、
                 // BeforeSceneLoad の時点で install しておく。
@@ -269,6 +290,32 @@ namespace OneStarMaker.Runtime
                 var sceneVariant = ResolveSceneVariant()
                     ?? throw new InvalidOperationException("ResolveSceneVariant returned null.");
 
+                var useContentDirectory = _contentDirectoryConfiguration != null;
+                if (_contentDirectoryConfiguration != null)
+                {
+                    startupStage = "register-content-directory";
+                    var configuration = _contentDirectoryConfiguration;
+                    var session = ContentDirectorySession.Register(
+                        configuration.Path, configuration.BuildIdentity, ContentDirectoryTarget);
+                    try
+                    {
+                        if (_assetManagement is not AssetManagement.AssetManagement assetManagement)
+                            throw new InvalidOperationException("The configured asset manager cannot install a content directory session.");
+                        assetManagement.InstallContentDirectory(session);
+                    }
+                    catch
+                    {
+                        // field に保存する前の失敗でも登録済み directory を閉じる。
+                        // cleanup が失敗した場合も元の起動失敗を診断できるよう両方を記録する。
+                        try { await session.CloseAsync(); }
+                        catch (Exception cleanupException)
+                        { Debug.LogError($"[AppInit] Content directory cleanup after install failure failed: {cleanupException}"); }
+                        throw;
+                    }
+                    _contentDirectorySession = session;
+                    sceneVariant = configuration.Representation;
+                }
+
                 startupStage = "create-scene-director";
                 _sceneDirector = new SceneDirector(
                     sceneFactory,
@@ -276,7 +323,8 @@ namespace OneStarMaker.Runtime
                     _sceneResourceMap,
                     CreateLoadingDisplay(),
                     _assetManagement,
-                    sceneVariant);
+                    sceneVariant,
+                    useContentDirectory);
                 _updateSystemHost?.BindSceneDirector(_sceneDirector);
 
                 if (_sceneDirector == null)
@@ -301,6 +349,21 @@ namespace OneStarMaker.Runtime
             catch (Exception ex)
             {
                 Debug.LogError($"[AppInit] AfterSceneLoad failed at stage '{startupStage}': {ex}");
+                if (_assetManagement is AssetManagement.AssetManagement directoryAssetManagement
+                    && _contentDirectorySession != null)
+                {
+                    try
+                    {
+                        // 起動途中の directory は initializer が所有する。失敗時も root/native token を残さず、
+                        // close 側の ResourcesInUse 判定や cleanup 失敗は元の起動例外を隠さず記録する。
+                        await directoryAssetManagement.CloseContentDirectoryAsync();
+                        _contentDirectorySession = null;
+                    }
+                    catch (Exception closeException)
+                    {
+                        Debug.LogError($"[AppInit] Content directory cleanup after startup failure also failed: {closeException}");
+                    }
+                }
                 try
                 {
                     // 派生側が OnServicesInitializing で常駐リソースを確保している場合、
@@ -659,6 +722,7 @@ namespace OneStarMaker.Runtime
         /// </summary>
         private void ReleaseAll()
         {
+            _beforeSceneLoadSucceeded = false;
             Application.quitting -= OnApplicationQuitting;
 
             // まず framework service 側へ停止を通知する。
@@ -678,15 +742,18 @@ namespace OneStarMaker.Runtime
             _cts = null;
 
             _config = null;
+            _contentDirectoryConfiguration = null;
 
             // 論理台帳のみ。AssetManagement の Scene Unload は誘発しない。
             _sceneDirector?.Dispose();
             _sceneDirector = null;
 
-            // Shutdown: Scene backend Unload なし・同期で全アセット解放
-            // （UICommon / SceneResourceMap / Config / 各 Scene 所有分を含む）
+            // Shutdown: 旧 Addressables Scene は再 unload せず、同期で全 owner 資産を解放。
+            // directory Scene がまだ生存中なら session が非同期終端まで登録を保持する。
             _assetManagement?.ReleaseAll();
             _assetManagement = null;
+            _contentDirectorySession?.BeginSynchronousShutdown();
+            _contentDirectorySession = null;
 
             _sceneResourceMap = null;
 
@@ -751,6 +818,39 @@ namespace OneStarMaker.Runtime
         /// 空文字の場合は全環境変数を対象とする。
         /// </summary>
         protected virtual string GetEnvironmentVariablePrefix() => "";
+
+        private static ContentDirectoryConfiguration? ReadContentDirectoryConfiguration(AppConfig config)
+        {
+            var mode = config.GetString("content:runtimeMode", "addressables");
+            if (string.Equals(mode, "addressables", StringComparison.Ordinal)) return null;
+            if (!string.Equals(mode, "directory", StringComparison.Ordinal))
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "content:runtimeMode must be addressables or directory.");
+            if (!Application.isEditor || !Application.isPlaying)
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Content Directory runtime mode is only available in Editor Play Mode.");
+            var path = config.GetString("content:directoryPath", string.Empty);
+            var identity = config.GetString("content:buildIdentity", string.Empty);
+            var representation = config.GetString("content:representation", string.Empty);
+            if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(identity) || string.IsNullOrWhiteSpace(representation))
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Directory mode requires absolute directoryPath, buildIdentity, and representation.");
+            // 起動、登録、削除 gate が同じ canonical path を使う。文字列 alias が
+            // 別 revision と見なされると、使用中 directory の削除許可が誤る。
+            if (!ContentRevisionGate.TryNormalize(identity, ContentDirectoryTarget, path, out var fullPath))
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,
+                    "Content directory path is invalid.", identity, ContentDirectoryTarget,
+                    representation: representation);
+            if (!Directory.Exists(fullPath))
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Configured content directory does not exist.", identity, ContentDirectoryTarget, representation: representation);
+            return new ContentDirectoryConfiguration(fullPath, identity, representation);
+        }
+
+        private sealed class ContentDirectoryConfiguration
+        {
+            internal ContentDirectoryConfiguration(string path, string buildIdentity, string representation)
+            { Path = path; BuildIdentity = buildIdentity; Representation = representation; }
+            internal string Path { get; }
+            internal string BuildIdentity { get; }
+            internal string Representation { get; }
+        }
 
         /// <summary>
         /// 追加サービスの初期化。Phase 2 以降で HostedService 登録や DI コンテナ構築を行う。

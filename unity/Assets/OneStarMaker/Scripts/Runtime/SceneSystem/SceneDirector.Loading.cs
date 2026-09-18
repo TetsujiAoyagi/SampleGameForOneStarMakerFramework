@@ -518,9 +518,9 @@ namespace OneStarMaker.Runtime.SceneSystem
             // PreLoaded → Loading: Addressable ロード開始
             TransitionSceneState(sceneIdentify, sceneBase, SceneState.Loading);
 
-            var (addressablesLoaded, rootObjects) = await PerformUnitySceneLoad(sceneIdentify, sceneBase.SceneResource, priority);
+            var (backendSceneLoaded, rootObjects) = await PerformUnitySceneLoad(sceneIdentify, sceneBase.SceneResource, priority);
             // Phase 2/3 で AssetManagement 経由の Unload/Release が必要かどうかを記録
-            _currentScenes[sceneIdentify].AddressablesSceneLoaded = addressablesLoaded;
+            _currentScenes[sceneIdentify].BackendSceneLoaded = backendSceneLoaded;
 
             // Loading → Loaded → WaitLoadChildScene
             TransitionSceneState(sceneIdentify, sceneBase, SceneState.Loaded);
@@ -617,13 +617,13 @@ namespace OneStarMaker.Runtime.SceneSystem
         /// Unity Scene をロードし、RootGameObjects を返す。
         /// テスト時にオーバーライドして Addressables / SceneManager 依存を排除する。
         ///
-        /// <para>戻り値の AddressablesLoaded:</para>
+        /// <para>戻り値の BackendSceneLoaded:</para>
         /// <list type="bullet">
         ///   <item>true — 本メソッド内で LoadSceneAsync した。Phase 2/3 で AssetManagement 経由の Unload/Release が必要。</item>
         ///   <item>false — Editor 等で既に SceneManager にロード済み。SceneManager.UnloadSceneAsync でアンロード。</item>
         /// </list>
         /// </summary>
-        protected virtual async UniTask<(bool AddressablesLoaded, GameObject[] RootObjects)>
+        protected virtual async UniTask<(bool BackendSceneLoaded, GameObject[] RootObjects)>
             PerformUnitySceneLoad(string sceneIdentify, SceneResource sceneResource, int priority)
         {
             var unityScene = SceneManager.GetSceneByName(sceneIdentify);
@@ -645,12 +645,10 @@ namespace OneStarMaker.Runtime.SceneSystem
                 }
 
                 // sceneIdentity は呼び出し側（メソッド引数）を正とし、variant には混ぜない。
-                var sceneHandle = await _assetManagement.LoadSceneAsync(
-                    sceneIdentify,
-                    sceneAssetDescription,
-                    _sceneVariant,
-                    new SceneLoadOptions(LoadSceneMode.Additive, activateOnLoad: true, priority: priority),
-                    CancellationToken.None);
+                var options = new SceneLoadOptions(LoadSceneMode.Additive, activateOnLoad: true, priority: priority);
+                var sceneHandle = _useContentDirectory
+                    ? await _assetManagement.LoadContentSceneAsync(sceneIdentify, _sceneVariant, options, CancellationToken.None)
+                    : await _assetManagement.LoadSceneAsync(sceneIdentify, sceneAssetDescription, _sceneVariant, options, CancellationToken.None);
                 return (true, sceneHandle.GetRootGameObjects());
             }
 

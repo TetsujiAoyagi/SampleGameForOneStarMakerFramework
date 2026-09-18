@@ -5,16 +5,21 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using Cysharp.Threading.Tasks;
 using NUnit.Framework;
 using OneStarMaker.Build.Selection;
 using OneStarMaker.Editor.Build.Content;
 using OneStarMaker.Editor.Build.Materialization;
+using OneStarMaker.Runtime;
 using OneStarMaker.Runtime.BuildContent;
+using OneStarMaker.Runtime.AssetManagement;
 using Unity.Loading;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.TestTools;
+using UnityEngine.SceneManagement;
 
 namespace OneStarMaker.Tests.Editor.Build
 {
@@ -22,7 +27,7 @@ namespace OneStarMaker.Tests.Editor.Build
     // PlayMode で移設先だけを登録することで、AssetDatabase 上の source に依存した見かけの成功を避ける。
     public sealed class BuildContentDirectoryIntegrationTests
     {
-        private const string FixtureParent = "Assets/OneStarMakerGenerated/BS2bTests";
+        private const string FixtureParent = "Assets/OneStarMakerGenerated/BS3Tests";
         private string _folder = "";
         private string _copy = "";
 
@@ -38,6 +43,9 @@ namespace OneStarMaker.Tests.Editor.Build
         }
 
         [UnityTest]
+        // Content build を二度行い、実アプリの PlayMode を二度往復するため、既定の180秒では
+        // Editor の再コンパイルが重なったときにテスト本体を中断する。無期限待機にはしない。
+        [Timeout(360000)]
         public IEnumerator ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirectory()
         {
             // Phase A で固定した target/subtarget だけを検証する。異なる環境では勝手に切り替えない。
@@ -107,7 +115,8 @@ namespace OneStarMaker.Tests.Editor.Build
                         new KeyValuePair<string, IEnumerable<string>>("Representation", new[] { "High", "Low", "Excluded" })
                     }), snapshot.Requirements));
                 Assert.That(selection.IsSuccess, Is.True);
-                var artifacts = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "artifacts", "bs2b"));
+                // 実 build の生成物はこのテスト専用領域へ置き、過去の検証ログを上書きしない。
+                var artifacts = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "TestResults", "bs3-fixture"));
                 var workspace = Path.Combine(artifacts, "work", BuildContentCoordinator.TargetName, "fixture");
                 var request = new BuildContentRequest(selection.Plan!, snapshot, "fixture", artifacts);
                 var coordinator = new BuildContentCoordinator();
@@ -147,6 +156,13 @@ namespace OneStarMaker.Tests.Editor.Build
                 if (_folder.Length != 0) { AssetDatabase.DeleteAsset(_folder); _folder = ""; }
             }
             yield return new EnterPlayMode();
+            var defaultBootstrap = GetBootstrapState();
+            for (var frame = 0; frame < 1800 && defaultBootstrap.director.GetValue(defaultBootstrap.initializer) == null; frame++)
+                yield return null;
+            Assert.That(defaultBootstrap.director.GetValue(defaultBootstrap.initializer), Is.Not.Null,
+                "既定 Addressables mode で SceneDirector が生成されていない");
+            Assert.That(defaultBootstrap.session.GetValue(defaultBootstrap.initializer), Is.Null,
+                "明示指定なしで Content Directory が登録された");
             // ContentLoadManager の登録は PlayMode 側で行う。copy に必要な file が欠ければここで失敗する。
             var handle = ContentLoadManager.RegisterContentDirectory(_copy);
             Assert.That(handle.IsValid, Is.True);
@@ -172,7 +188,101 @@ namespace OneStarMaker.Tests.Editor.Build
                 Assert.That(roots[0].Entries.Where(x => x.Kind == BuildContentKind.Object).All(x => x.Object != null), Is.True);
             }
             finally { ContentLoadManager.UnregisterContentDirectory(handle); }
+            // source fixture は既に削除済み。登録済み root の Unity locator から実際の Scene/Object を
+            // 取得して解放し、Editor の AssetDatabase 側で成功したように見える経路を除外する。
+            yield return UniTask.ToCoroutine(async () =>
+            {
+                var identity = Path.GetFileName(_copy).Substring("integration-copy-".Length);
+                var session = ContentDirectorySession.Register(_copy, identity, BuildContentCoordinator.TargetName);
+                var assets = new AssetManagement();
+                assets.InstallContentDirectory(session);
+                IAssetHandle<GameObject>? prefab = null;
+                IAssetHandle<Texture2D>? texture = null;
+                GameObject? instance = null;
+                var sceneLoaded = false;
+                try
+                {
+                    prefab = await assets.LoadContentAssetAsync<GameObject>("shared-logical", "High", AssetOwner.Manual);
+                    Assert.That(prefab.Value, Is.Not.Null);
+                    texture = await assets.LoadContentAssetAsync<Texture2D>("logical-3", "Full", AssetOwner.Manual);
+                    Assert.That(texture.Value, Is.Not.Null);
+                    instance = await assets.InstantiateContentAsync("shared-logical", "Low");
+                    Assert.That(instance, Is.Not.Null);
+                    var sceneHandle = await assets.LoadContentSceneAsync("logical-0", "Full",
+                        new SceneLoadOptions(LoadSceneMode.Additive));
+                    sceneLoaded = true;
+                    Assert.That(sceneHandle.IsLoaded, Is.True);
+                }
+                finally
+                {
+                    if (sceneLoaded)
+                    {
+                        await assets.UnloadSceneAsync("logical-0");
+                        assets.ReleaseScene("logical-0");
+                    }
+                    if (instance != null)
+                    {
+                        UnityEngine.Object.Destroy(instance);
+                        // Destroy はフレーム末尾で確定する。破棄通知が owner token を返す前に
+                        // close を呼ぶと ResourcesInUse が正しく返るので、実際の破棄を待つ。
+                        await UniTask.WaitUntil(() => instance == null);
+                    }
+                    if (prefab != null) assets.Release(prefab);
+                    if (texture != null) assets.Release(texture);
+                    await session.CloseAsync();
+                }
+            });
             yield return new ExitPlayMode();
+
+            // 二度目の Play は SampleGame の実 bootstrap に環境変数を渡す。
+            // Framework test から Game asmdef を参照せず、起動済み instance の状態だけを見る。
+            var names = new[] { "SAMPLEGAME_CONTENT__RUNTIMEMODE", "SAMPLEGAME_CONTENT__DIRECTORYPATH",
+                "SAMPLEGAME_CONTENT__BUILDIDENTITY", "SAMPLEGAME_CONTENT__REPRESENTATION" };
+            var previousValues = names.Select(Environment.GetEnvironmentVariable).ToArray();
+            Environment.SetEnvironmentVariable(names[0], "directory");
+            Environment.SetEnvironmentVariable(names[1], _copy);
+            Environment.SetEnvironmentVariable(names[2], Path.GetFileName(_copy).Substring("integration-copy-".Length));
+            Environment.SetEnvironmentVariable(names[3], "High");
+            try
+            {
+                yield return new EnterPlayMode();
+                var bootstrap = GetBootstrapState();
+                for (var frame = 0; frame < 1800 &&
+                    (bootstrap.session.GetValue(bootstrap.initializer) == null ||
+                     bootstrap.director.GetValue(bootstrap.initializer) == null); frame++)
+                    yield return null;
+                Assert.That(bootstrap.session.GetValue(bootstrap.initializer), Is.Not.Null,
+                    "明示 directory mode の起動 stage が登録を完了していない");
+                Assert.That(bootstrap.director.GetValue(bootstrap.initializer), Is.Not.Null,
+                    "directory mode で SceneDirector が生成されていない");
+                Assert.That(ContentRevisionGate.TryAcquireDelete(
+                    Path.GetFileName(_copy).Substring("integration-copy-".Length), BuildContentCoordinator.TargetName,
+                    _copy, out var lease, out var rejection), Is.False);
+                Assert.That(lease, Is.Null);
+                Assert.That(rejection, Is.EqualTo(ContentDirectoryFailureCode.RevisionBusy));
+                yield return new ExitPlayMode();
+            }
+            finally
+            {
+                for (var i = 0; i < names.Length; i++) Environment.SetEnvironmentVariable(names[i], previousValues[i]);
+            }
+        }
+
+        private static (object initializer, FieldInfo session, FieldInfo director) GetBootstrapState()
+        {
+            // Game→Framework の依存方向を守るためテスト asmdef に Game 参照を追加しない。
+            // 実アプリの静的 bootstrap instance と既存 private state を検証時だけ観測する。
+            var type = Type.GetType("SampleGame.DependOnAll.AppInitializer, SampleGame.DependOnAll");
+            Assert.That(type, Is.Not.Null, "実アプリの起動型が読み込まれていない");
+            var initializer = type!.GetField("s_instance", BindingFlags.Static | BindingFlags.NonPublic)?.GetValue(null);
+            var session = typeof(AbstractApplicationInitializer).GetField("_contentDirectorySession",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            var director = typeof(AbstractApplicationInitializer).GetField("_sceneDirector",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(initializer, Is.Not.Null);
+            Assert.That(session, Is.Not.Null);
+            Assert.That(director, Is.Not.Null);
+            return (initializer!, session!, director!);
         }
 
         private static void Copy(string source, string target)

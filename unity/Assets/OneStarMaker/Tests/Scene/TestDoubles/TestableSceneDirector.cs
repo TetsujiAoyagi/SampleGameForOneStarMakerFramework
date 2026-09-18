@@ -80,7 +80,7 @@ namespace OneStarMaker.Tests.SceneSystem.TestDoubles
                 => UniTask.CompletedTask;
         }
 
-        protected override async UniTask<(bool AddressablesLoaded, GameObject[] RootObjects)>
+        protected override async UniTask<(bool BackendSceneLoaded, GameObject[] RootObjects)>
             PerformUnitySceneLoad(string sceneIdentify, SceneResource sceneResource, int priority)
         {
             LastLoadPriorities[sceneIdentify] = priority;

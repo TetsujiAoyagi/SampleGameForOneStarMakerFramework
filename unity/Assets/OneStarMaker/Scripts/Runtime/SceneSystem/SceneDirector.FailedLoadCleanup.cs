@@ -264,7 +264,7 @@ namespace OneStarMaker.Runtime.SceneSystem
                     await PhaseAfterUnloadAndDispose(sceneIdentify);
                     break;
                 case SceneState.Unloading:
-                    await PerformUnitySceneUnload(sceneIdentify, pair.AddressablesSceneLoaded);
+                    await PerformUnitySceneUnload(sceneIdentify, pair.BackendSceneLoaded);
                     if (_currentScenes.TryGetValue(sceneIdentify, out pair)
                         && pair.SceneBase.Lifecycle.State == SceneState.Unloading)
                     {

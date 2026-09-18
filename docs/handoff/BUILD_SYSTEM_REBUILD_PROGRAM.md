@@ -1,7 +1,7 @@
 # BuildSystem刷新 — 全体計画と継続開発の引継ぎ
 
 - type: program
-- status: 継続中。BS2c Phase D 完了、次はBS3 Phase A。個別スライスの実装凍結ではない。
+- status: 継続中。BS3 Phase D 完了、次はBS4 Phase A。個別スライスの実装凍結ではない。
 - branch: `codex/build-system-program`（本program文書の整備用。各実装は専用ブランチ）
 - planning base: `65d1b91`（2026-09-17のdevelop）
 - risk: high（後続の build 出力、runtime identity、所有者・寿命の設計に関係する）
@@ -22,7 +22,7 @@ Unity 6.6 Content Directoriesを用いて、content選択、build、Runtimeロ�
 本書だけで後続を開始でき、未追跡PREや過去の会話を必須入力にしない。
 先のAssetDescription拡張programは本書へ統合し、別正本として残さない。
 
-現在地（2026-09-18）:
+現在地（2026-09-19）:
 
 - U66: 完了。`ProjectVersion.txt`は6000.6.0f1。バージョン移行を再実行しない。
 - CD0: 完了、限定実証によるCONDITIONAL採用。Mono/High strippingでroot・Object・Sceneの往復と移設を実証。
@@ -33,23 +33,22 @@ Unity 6.6 Content Directoriesを用いて、content選択、build、Runtimeロ�
 - BS2b: 完了。成功planと対応snapshotからContent Directoryを生成し、単一rootとreportを渡す。
   Scene・Prefab・Texture fixture、同一workspace再build、移設後root discoveryを実証した。
 - BS2c: 完了。SampleGame の本番 SceneResource graph から季節・表現を選択し、四つの Editor Content Directory build を確認した。
-- BS3以降: 未着手。旧Addressables経路は残存し、Player build可を現行の前提にしない。
+- BS3: 完了。Runtime の root 索引と型付き Scene/Object/Prefab load、owner/cache と session 寿命、同一 process の revision 削除排他、Editor Play の明示切替を確認した。既定 Addressables 起動は残す。
+- BS4以降: 未着手。Player bootstrap と source 不在 graph metadata、および起動時表現固定と同一 session の別表現要求の境界確認は BS4、物理削除と別 process 排他は DIST、通常 Play 停止時の完全 drain は RET の入力とする。Player build可を現行の前提にしない。
 
 実行順序:
 
 ```text
-U66 → CD0 → BS1 → BS2a → BS2b → BS2c   完了
-                                      ↓
-                                     BS3  Runtime backendとEditor Play
-                                      ↓
-                                     BS4  Player build / bootstrap
-                                      ↓
-                                    DIST  配信・local cache・開発workflow
-                                      ↓
-                                     RET  旧経路の廃止
+U66 → CD0 → BS1 → BS2a → BS2b → BS2c → BS3   完了
+                                            ↓
+                                           BS4  Player build / bootstrap
+                                            ↓
+                                          DIST  配信・local cache・開発workflow
+                                            ↓
+                                           RET  旧経路の廃止
 ```
 
-BS2c の実装済み契約は公開 Architecture §18 に記す。
+BS2c / BS3 の実装済み契約は公開 Architecture §18 と §13 に記す。
 独立して進められる調査は並行可能だが、未確定の上流形式へ依存する実装は先行させない。
 非Scene本番拡張は実需要時に担当sliceを挿入し、全型の実装を本線の必須条件にはしない。
 
@@ -133,7 +132,7 @@ BS2bの受渡し契約では表せない要件が判明した場合は、BS2bの
 
 答える問い: build済みlocal contentをsource再走査なしに解決・ロードし、利用資源と登録を一貫した寿命で解放できるか。
 
-Phase Aで必ず次を決め、実装HANDOFFへ固定する。
+BS3 Phase A では次を実装 HANDOFF に固定し、Phase C/C' で検証した。
 
 - ファイルidentityとロード対象identityの関係。サブアセットを表現可能なlocator、永続化形式、互換性の境界。
   具体的なMesh型の実装が後続でも、ファイルGUIDだけを唯一の汎用Object IDにしない。
@@ -147,12 +146,12 @@ Phase Aで必ず次を決め、実装HANDOFFへ固定する。
 - directory登録からroot discovery、load、全依存解放、unregisterまでを所有する単一ownerと、失敗・再試行・shutdownの順序。
   callerの取消をnative abortと同一視せず、発行済み処理の終端をownerが受け取りdrainしてから解放する。
   directory ownerはbackend/session側の責務とし、`IAssetManagement`へ登録・物理削除APIを当然には追加しない。
-  公開面を変える必要があれば、BS3 Phase Aで変更内容と既存呼出側への影響を明示する。
+  公開面の追加は BS3 Phase A で既存呼出側への影響を確認した。
 - resident cacheにあるbackend資源もdirectory依存として扱い、使用中・cache内・処理中の資源を残してunregisterしない。
-- revisionの利用開始と物理削除の排他契約はBS3 Phase Aが所有する。directory ownerが登録・処理中・resident cacheを含む
+- revisionの利用開始と物理削除の排他契約はBS3 Phase Aで固定した。directory ownerが登録・処理中・resident cacheを含む
   利用保護を管理し、DISTが削除する間は新規利用・再登録を許さない。単なる「未使用か照会してから削除」にはしない。
   削除側は排他的な削除許可を取得し、完了または失敗の確定まで保持する。具体的なport、状態遷移、例外時の解除、
-  対象process範囲はBS3 Phase Aで固定し、競合をfake削除側で検証する。物理ファイル削除そのものはDISTが担当する。
+  対象process範囲はBS3 Phase Aで同一processに固定し、競合をfake削除側で検証した。物理ファイル削除そのものはDISTが担当する。
 - BS2cの表現方針に従う起動時選択とEditor Playの接続。実行中切替UIは追加しない。
   高水準Scene lifecycleを維持し、Addressables backendとの移行期間の配線・切替を明示する。
 
@@ -226,8 +225,8 @@ asset単位のHTTP遅延fetch、delta patch、CDN最適化は後続の専用拡�
 
 ## 4. 別セッションへの引継ぎ・レビュー・停止規則
 
-- 次のBS3開始時は本書と現行実装、公開 Architecture §18 を読み、§3のBS3条件をslice HANDOFFの受け入れ条件へ転記する。
-  Runtime の identity・登録・寿命の詳細はBS3 Phase Aで解決する。
+- 次のBS4開始時は本書と現行実装、公開 Architecture §13 / §18 / §4 を読み、BS3 の Runtime 入力・寿命境界を前提に Player bootstrap の受け入れ条件を slice HANDOFF へ固定する。
+  BS3 の実装とレビュー記録は PR #63 とその commit history に残す。未追跡 PRE や削除済み slice HANDOFF を必須入力にしない。
 - 各sliceは`osm-workflow`に従い、1 slice / 1 branch / 1 HANDOFF、PR baseはdevelopとする。
   実装base/headとPhase A snapshotを固定し、Phase境界では新規セッションへ規定の入力を渡す。
 - 新しいasmdef参照、公開API、永続化形式、所有者・寿命の変更は該当sliceのPhase Aで明示する。

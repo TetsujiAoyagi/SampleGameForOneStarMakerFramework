@@ -40,6 +40,11 @@ namespace OneStarMaker.Runtime.AssetManagement
             return new AssetKey(AddressPrefix + address, address, InferType(address));
         }
 
+        // directory key は Addressables の address ではない。カテゴリは拡張子推測せず
+        // build root の明示 metadata を使い、cache budget と実取得型の照合を分離する。
+        internal static AssetKey FromContentDirectory(string canonical, AssetType category)
+            => new AssetKey(canonical, canonical, category);
+
         /// <summary>AssetDescription と variant からキーを作る。</summary>
         public static AssetKey FromDescription(AssetDescription desc, string variant = "")
         {

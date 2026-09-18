@@ -2,6 +2,7 @@
 
 using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.AssetManagement.Internal;
+using System;
 
 namespace OneStarMaker.Runtime.AssetManagement.Cache
 {
@@ -14,7 +15,10 @@ namespace OneStarMaker.Runtime.AssetManagement.Cache
         bool TryTake(string key, out IBackendAsset asset);
 
         /// <summary>refcount 0 のアセットを退避する。バジェット超過分は effectiveFrequency 最小からエビクトされる。</summary>
-        void Store(string key, AssetType type, IBackendAsset asset);
+        void Store(string key, AssetType type, IBackendAsset asset, Action<IBackendAsset>? release = null);
+
+        /// <summary>指定 origin の常駐 entry だけを解放する。directory close は他 backend の cache を触れない。</summary>
+        void EvictByPrefix(string prefix);
 
         /// <summary>全エントリをエビクトする（ReleaseAll 用）。</summary>
         void Clear();

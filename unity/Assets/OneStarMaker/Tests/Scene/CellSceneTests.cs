@@ -190,7 +190,7 @@ namespace OneStarMaker.Tests.SceneSystem
             public RootObjectsSceneDirector(ISceneFactory factory, UICommon ui, SceneResourceMap map, IAssetManagement assets)
                 : base(factory, ui, map, assets) { }
 
-            protected override async UniTask<(bool AddressablesLoaded, GameObject[] RootObjects)> PerformUnitySceneLoad(
+            protected override async UniTask<(bool BackendSceneLoaded, GameObject[] RootObjects)> PerformUnitySceneLoad(
                 string identity,
                 SceneResource resource,
                 int priority)

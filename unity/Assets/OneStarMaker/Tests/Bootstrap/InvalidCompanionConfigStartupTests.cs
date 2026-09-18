@@ -22,11 +22,33 @@ namespace OneStarMaker.Tests.Bootstrap
     public sealed class InvalidCompanionConfigStartupTests
     {
         private const string EnvironmentKey = "S4ATEST_WORLD__CELLCOMPANIONSET";
+        private const string ContentModeKey = "S4ATEST_CONTENT__RUNTIMEMODE";
 
         [TearDown]
         public void TearDown()
         {
             Environment.SetEnvironmentVariable(EnvironmentKey, null);
+            Environment.SetEnvironmentVariable(ContentModeKey, null);
+        }
+
+        [Test]
+        public void InvalidContentMode_StopsBeforeAfterSceneLoadWithoutAddressablesFallback()
+        {
+            Environment.SetEnvironmentVariable(ContentModeKey, "unknown-mode");
+            var initializer = new TestInitializer();
+            try
+            {
+                LogAssert.Expect(LogType.Exception, new Regex("content:runtimeMode must be addressables or directory"));
+                initializer.RunBefore();
+
+                LogAssert.Expect(LogType.Error, new Regex("BeforeSceneLoad が失敗したため AfterSceneLoad をスキップ"));
+                initializer.RunAfter();
+
+                Assert.That(initializer.FactoryEntered, Is.False);
+                Assert.That(initializer.HasSceneDirector, Is.False);
+                Assert.That(initializer.HasAssetManagement, Is.False);
+            }
+            finally { initializer.RunCleanup(); }
         }
 
         [Test]
@@ -70,6 +92,7 @@ namespace OneStarMaker.Tests.Bootstrap
             internal bool FactoryEntered { get; private set; }
             internal string FailureStage { get; private set; } = string.Empty;
             internal bool HasSceneDirector => SceneDirector != null;
+            internal bool HasAssetManagement => AssetManagement != null;
 
             internal void RunBefore() => BootstrapBeforeSceneLoad(this);
             internal void RunAfter() => BootstrapAfterSceneLoad(this);
