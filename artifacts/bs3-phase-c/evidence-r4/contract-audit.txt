@@ -1,0 +1,7 @@
+
+対象: D:\repositories\unity\SampleGameForOneStarMakerFramework
+Unity側 .cs（ベンダー同梱を除く）: 498 ファイル
+検査1 の差分: 25 ファイル（基点 origin/develop = 25a5024）
+
+機械で判定できる契約に違反なし。
+設計判断（責務配置・寿命・依存・UpdateSystem 登録・偽 null）は対象外。
