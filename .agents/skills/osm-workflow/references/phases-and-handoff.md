@@ -28,6 +28,7 @@
 - **このスライスが答える問い:** 次スライスの候補として扱ってよいかを判定できる、一つの問いにする。
 - **進める最低条件:** GO に必要な証拠だけを列挙する。スパイクで CONDITIONAL ACCEPT を使う場合は、その判定に必要な証拠も列挙する。
 - **受け入れ条件:** 進める最低条件を構成する観測可能な詳細とする。別の完了バーを作らない。
+- **発見用テストと判定必須テスト:** Phase A は安い `-Filter`（fake / 単体に近い経路）と、GO に必要な判定必須テスト（PlayMode 統合、実 bootstrap、Player / IL2CPP など）を本文で分ける。分けないと Phase C は毎回の差し戻しで判定必須まで繰り返す。
 - **ここでは答えない問い:** 所有する後続スライスの HANDOFF または program 名を項目ごとに明記する。
 - **停止規則:** 進める最低条件を満たし、現在の問いに致命的な反証がなければ終了する。最低条件未達のまま終了しない。スパイクに限り、HANDOFF 本文で判定基準を定義した CONDITIONAL ACCEPT を正常な成功判定として扱える。
 
@@ -69,9 +70,10 @@ A3 でこの境界を凍結した後、finding が現スライスを阻害でき
 - 500行、3責務、または50%以上の増加が見込まれる箇所への分割または非分割判断
 - 新しい責務を置くファイルと、その配置、依存、所有者、寿命、テスト境界を選んだ理由
 - 新しい中核ロジックに対する単体テスト方針
+- 発見用 `-Filter` と判定必須テスト（PlayMode 統合、Player / IL2CPP などを含む）
 - 実装上の制約をリンクではなく本文へ転記
 - Phase Bの実装結果と未実行事項
-- Phase Cの evidence id、構造適合、違反根拠を伴う現在の問いを阻害する指摘、後続スライスへ移送する指摘、テスト結果、未確認事項
+- Phase Cの種別（発見 / 判定）、evidence id、構造適合、違反根拠を伴う現在の問いを阻害する指摘、後続スライスへ移送する指摘、実行したテストコマンド、テスト結果、判定必須のうち未実行、未確認事項
 - Phase C'の blind audit bundle、違反根拠を伴う現在の問いを阻害する指摘、後続スライスへ移送する指摘、監査結果、独立性
 - 各Phaseで使用した担当とモデル
 
@@ -91,8 +93,9 @@ A3 でこの境界を凍結した後、finding が現スライスを阻害でき
 
 詳細は [レビュー証拠と指摘記録](review-evidence.md) を正とする。
 
-- Phase C と C' は同じ implementation base / head commit と evidence bundle を使う。
-- Phase C' に可変な HANDOFF 全文を渡さない。凍結した Phase A snapshot、Phase B の実装結果、完全 diff、生のテスト結果、Phase C より前の機械検査だけを渡す。
-- Phase C の結論、指摘、疑念候補は C' 完了まで隔離する。
-- C と C' の所見は Phase D で初めて突き合わせる。
-- 差し戻し等でレビュー対象の implementation head または対象 diff が変わった場合は旧 bundle と C' 結果を無効にし、新しい対象で C と C' をやり直す。HANDOFF へレビュー結果だけを追記した commit は implementation head を更新せず、再実行条件にしない。
+- 判定 C と C' は同じ implementation base / head commit と判定 evidence bundle を使う。
+- Phase C' に可変な HANDOFF 全文を渡さない。凍結した Phase A snapshot、Phase B の実装結果、完全 diff、判定 C の生テスト結果、判定 C より前の機械検査だけを渡す。
+- 判定 C の結論、指摘、疑念候補は C' 完了まで隔離する。
+- 判定 C と C' の所見は Phase D で初めて突き合わせる。
+- 発見 C は C' を起動しない。構造レビューと安い filter の ledger だけを返す。
+- 差し戻し等でレビュー対象の implementation head または対象 diff が変わった場合は旧判定 bundle と C' 結果を無効にし、新しい対象で判定必須テスト・判定 C・C' をやり直す。発見 C の差し戻しだけでは C' をやり直さない。HANDOFF へレビュー結果だけを追記した commit は implementation head を更新せず、再実行条件にしない。

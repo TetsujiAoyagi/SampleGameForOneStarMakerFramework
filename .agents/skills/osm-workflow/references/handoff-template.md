@@ -63,6 +63,8 @@ Phase A では implementation base commit と Phase A snapshot を記録する�
 ## 5. テストとレビュー計画
 
 - 単体テスト:
+- 発見用 `-Filter`（差し戻し中に繰り返してよい安い経路）:
+- 判定必須テスト（GO 候補 head で実行。コマンド / filter / Player の別を明記）:
 - 統合・Unity テスト:
 - 機械検査:
 - A0/A1 主担当・モデル・ベンダー:
@@ -81,11 +83,14 @@ Phase A では implementation base commit と Phase A snapshot を記録する�
 
 ## 7. Phase C
 
+- 種別: 発見 / 判定
 - evidence bundle id / hash:
 - 構造適合:
 - 現在の問いを阻害する findings（違反する凍結済み条件 / 常時契約を併記）:
 - 後続スライスへ移送する findings:
+- 実行したテストコマンドと `-Filter`:
 - テスト結果:
+- 判定必須のうち未実行:
 - 未確認事項:
 - 担当・モデル:
 

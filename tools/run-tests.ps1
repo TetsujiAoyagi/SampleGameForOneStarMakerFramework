@@ -38,11 +38,13 @@
 
 .EXAMPLE
     ./tools/run-tests.ps1
-    全 EditMode テストを実行する（Phase C の回帰判定はこれ）。
+    全 EditMode テストを 1 プロセスで実行する。Phase C の毎回必須ではない。
+    リポジトリ全体回帰を HANDOFF または人間が明示したときだけ使う。
 
 .EXAMPLE
     ./tools/run-tests.ps1 -Filter OneStarMaker.Tests.AssetManagement
-    AssetManagement のテストだけ実行する。
+    AssetManagement のテストだけ実行する。Phase C の発見用は HANDOFF が書いた
+    安い filter に限り、判定必須は GO 候補 head でまとめて実行する。
 
 .OUTPUTS
     exit 0 = 成功（1件以上実行され failed 0）

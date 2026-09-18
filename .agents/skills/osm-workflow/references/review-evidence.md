@@ -13,7 +13,7 @@ Phase C と C' は同じ実装を評価する。レビュー開始時に次を�
 
 implementation head はレビュー対象の実装差分を固定する値であり、HANDOFF に C/C' の結果だけを追記した review-record commit とは分ける。staged diff や可変な作業ツリーだけを正本にしない。差し戻し等で実装対象の diff が変わった場合は新しい implementation head で bundle を作り直し、古い結果と混ぜない。
 
-Phase A snapshot、Phase B result snapshot、evidence bundle、C' blind audit bundle は、それぞれ path / id、生成時刻、hash を manifest に記録する。C と C' の入力 bundle は、どちらかのレビューを開始する前に同じ snapshot と evidence から生成する。
+Phase A snapshot、Phase B result snapshot、evidence bundle、C' blind audit bundle は、それぞれ path / id、生成時刻、hash を manifest に記録する。判定 C と C' の入力 bundle は、どちらかのレビューを開始する前に同じ snapshot と判定 evidence から生成する。発見 C だけの XML を C' に渡さない。
 
 ## Phase C の入力
 
@@ -37,9 +37,9 @@ C' へ渡す入力は Phase C の入力から生成するが、次を含めな�
 - facade、旧 identifier、factory test gap のような探索先の例示
 - Phase C 後に追加された誘導的な説明
 
-C' は凍結した Phase A snapshot、Phase B の実装結果、Phase C と同じ evidence bundle だけから独立に findings を出す。監査完了後に人間または Phase D 担当が C と C' を初めて突き合わせる。
+C' は凍結した Phase A snapshot、Phase B の実装結果、判定 C と同じ evidence bundle だけから独立に findings を出す。監査完了後に人間または Phase D 担当が判定 C と C' を初めて突き合わせる。
 
-差し戻し等でレビュー対象の implementation head または対象 diff が変わった場合は、その対象に対する旧 C/C' 結果を無効とする。新しい snapshot と bundle を作り、両レビューを新しい対象へやり直す。HANDOFF へのレビュー記録だけを変更した場合は evidence 対象を更新しない。
+差し戻し等でレビュー対象の implementation head または対象 diff が変わった場合は、その対象に対する旧判定 C / C' 結果を無効とする。新しい snapshot と判定 evidence を作り、判定 C と C' を新しい対象へやり直す。HANDOFF へのレビュー記録だけを変更した場合は evidence 対象を更新しない。発見 C の差し戻しだけでは C' を起動しない。
 
 ## 機械検査と意味レビュー
 
@@ -49,6 +49,24 @@ C' は凍結した Phase A snapshot、Phase B の実装結果、Phase C と同�
 - 意味判定が必要な flag の例: 破棄されうる `UnityEngine.Object` に対する偽 null パターン、公開 API に露出したログ実装型
 
 GUID、asmdef、保護 YAML などの検査は、変更種類と過去の実害に応じて実行する。全スライスへ無条件に増やさない。
+
+## 発見 C と判定 C
+
+Phase C は検出を止めない。高いのは Unity 起動と PlayMode / Player であり、差し戻しのたびにそれを繰り返さない。
+
+- **発見 C:** 構造レビューをテストより先に行う。凍結失敗経路を一通り返し、最初の blocker で止めない。構造または常時契約だけで NO-GO なら Unity を起動しない。Unity が要る場合のコマンドは HANDOFF の発見用 `-Filter` に限り、可能な限り 1 プロセスとする。発見 C は ledger を返す。GO にも独立監査済みにもしない。
+- **判定 C:** 進める最低条件の証拠になるテストだけを、GO 候補 head で実行する。Phase A が判定必須の filter / Player / 統合を列挙する。空 filter の全 EditMode はリポジトリ全体回帰が明示されたときだけであり、毎回の Phase C 必須ではない。
+- **C':** 判定 evidence が揃った head でのみ開始する。発見 C の安い XML だけを盲検入力にしない。
+- **判定後の head 変更:** 実装差分が変わった head では HANDOFF の判定必須テストをやり直す。旧判定 XML と旧 C/C' は無効。影響範囲を理由に必須テストを省略しない。review-record だけの commit は head を動かさない。
+
+BS4 の Player / IL2CPP / stripping は判定必須に属する。Editor の fake や session テストは発見に使える。必須 Player 検証の未実行は GO に置き換えない。
+
+使ってはいけない implicit な読み替え:
+
+- 発見 C の exit 0 をスライス GO にする。
+- `OneStarMaker.Tests` だけを filter にして Editor 統合を実行済みとする。
+- 判定テスト後に実装を直し、旧 XML で C' する。
+- 構造レビューを飛ばして先に長い Unity を起動する。
 
 ## findings ledger
 
