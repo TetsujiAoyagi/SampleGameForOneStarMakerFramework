@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="2" result="Passed" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-09-18 06:17:18Z" end-time="2026-09-18 06:17:18Z" duration="0.1119014">
+  <test-suite type="TestSuite" id="1000" name="SampleGame" fullname="SampleGame" runstate="Runnable" testcasecount="783" result="Passed" start-time="2026-09-18 06:17:18Z" end-time="2026-09-18 06:17:18Z" duration="0.111901" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="Assembly" id="1654" name="OneStarMaker.Tests.dll" fullname="D:/repositories/unity/SampleGameForOneStarMakerFramework/unity/Library/ScriptAssemblies/OneStarMaker.Tests.dll" runstate="Runnable" testcasecount="561" result="Passed" start-time="2026-09-18 06:17:18Z" end-time="2026-09-18 06:17:18Z" duration="0.090345" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="32980" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="1655" name="OneStarMaker" fullname="OneStarMaker" runstate="Runnable" testcasecount="561" result="Passed" start-time="2026-09-18 06:17:18Z" end-time="2026-09-18 06:17:18Z" duration="0.083478" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1656" name="Tests" fullname="OneStarMaker.Tests" runstate="Runnable" testcasecount="561" result="Passed" start-time="2026-09-18 06:17:18Z" end-time="2026-09-18 06:17:18Z" duration="0.077256" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1665" name="BuildContent" fullname="OneStarMaker.Tests.BuildContent" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-09-18 06:17:18Z" end-time="2026-09-18 06:17:18Z" duration="0.048877" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestFixture" id="1597" name="ContentRevisionGateTests" fullname="OneStarMaker.Tests.BuildContent.ContentRevisionGateTests" classname="OneStarMaker.Tests.BuildContent.ContentRevisionGateTests" runstate="Runnable" testcasecount="2" result="Passed" start-time="2026-09-18 06:17:18Z" end-time="2026-09-18 06:17:18Z" duration="0.047149" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1599" name="ActiveRevision_BlocksDeletionByIdentityAndPhysicalPath" fullname="OneStarMaker.Tests.BuildContent.ContentRevisionGateTests.ActiveRevision_BlocksDeletionByIdentityAndPhysicalPath" methodname="ActiveRevision_BlocksDeletionByIdentityAndPhysicalPath" classname="OneStarMaker.Tests.BuildContent.ContentRevisionGateTests" runstate="Runnable" seed="526224786" result="Passed" start-time="2026-09-18 06:17:18Z" end-time="2026-09-18 06:17:18Z" duration="0.022581" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1598" name="DeleteLease_RejectsConcurrentRegistrationAndReleasesInFinallyScope" fullname="OneStarMaker.Tests.BuildContent.ContentRevisionGateTests.DeleteLease_RejectsConcurrentRegistrationAndReleasesInFinallyScope" methodname="DeleteLease_RejectsConcurrentRegistrationAndReleasesInFinallyScope" classname="OneStarMaker.Tests.BuildContent.ContentRevisionGateTests" runstate="Runnable" seed="528364942" result="Passed" start-time="2026-09-18 06:17:18Z" end-time="2026-09-18 06:17:18Z" duration="0.003759" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[Saving results to: C:/Users/void/AppData/LocalLow/DefaultCompany/SampleGame\TestResults.xml
+]]></output>
+              </test-case>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

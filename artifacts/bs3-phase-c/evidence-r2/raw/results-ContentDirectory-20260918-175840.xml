@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="11" result="Passed" total="11" passed="11" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-09-18 08:59:09Z" end-time="2026-09-18 09:00:01Z" duration="52.5595201">
+  <test-suite type="TestSuite" id="1000" name="SampleGame" fullname="SampleGame" runstate="Runnable" testcasecount="789" result="Passed" start-time="2026-09-18 08:59:09Z" end-time="2026-09-18 09:00:01Z" duration="52.559520" total="11" passed="11" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="Assembly" id="1656" name="OneStarMaker.Tests.dll" fullname="D:/repositories/unity/SampleGameForOneStarMakerFramework/unity/Library/ScriptAssemblies/OneStarMaker.Tests.dll" runstate="Runnable" testcasecount="563" result="Passed" start-time="2026-09-18 08:59:09Z" end-time="2026-09-18 08:59:09Z" duration="0.069182" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="3592" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="1657" name="OneStarMaker" fullname="OneStarMaker" runstate="Runnable" testcasecount="563" result="Passed" start-time="2026-09-18 08:59:09Z" end-time="2026-09-18 08:59:09Z" duration="0.062431" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1658" name="Tests" fullname="OneStarMaker.Tests" runstate="Runnable" testcasecount="563" result="Passed" start-time="2026-09-18 08:59:09Z" end-time="2026-09-18 08:59:09Z" duration="0.056404" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1667" name="BuildContent" fullname="OneStarMaker.Tests.BuildContent" runstate="Runnable" testcasecount="6" result="Passed" start-time="2026-09-18 08:59:09Z" end-time="2026-09-18 08:59:09Z" duration="0.043006" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestFixture" id="1594" name="ContentDirectoryIndexTests" fullname="OneStarMaker.Tests.BuildContent.ContentDirectoryIndexTests" classname="OneStarMaker.Tests.BuildContent.ContentDirectoryIndexTests" runstate="Runnable" testcasecount="3" result="Passed" start-time="2026-09-18 08:59:09Z" end-time="2026-09-18 08:59:09Z" duration="0.041154" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1596" name="DuplicateLogicalRepresentationKind_IsRejected" fullname="OneStarMaker.Tests.BuildContent.ContentDirectoryIndexTests.DuplicateLogicalRepresentationKind_IsRejected" methodname="DuplicateLogicalRepresentationKind_IsRejected" classname="OneStarMaker.Tests.BuildContent.ContentDirectoryIndexTests" runstate="Runnable" seed="1070900753" result="Passed" start-time="2026-09-18 08:59:09Z" end-time="2026-09-18 08:59:09Z" duration="0.020394" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1595" name="SceneResolution_FallsBackOnlyToFull" fullname="OneStarMaker.Tests.BuildContent.ContentDirectoryIndexTests.SceneResolution_FallsBackOnlyToFull" methodname="SceneResolution_FallsBackOnlyToFull" classname="OneStarMaker.Tests.BuildContent.ContentDirectoryIndexTests" runstate="Runnable" seed="73969390" result="Passed" start-time="2026-09-18 08:59:09Z" end-time="2026-09-18 08:59:09Z" duration="0.001428" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1597" name="UntaggedLegacyEntry_IsIndexedAsFull" fullname="OneStarMaker.Tests.BuildContent.ContentDirectoryIndexTests.UntaggedLegacyEntry_IsIndexedAsFull" methodname="UntaggedLegacyEntry_IsIndexedAsFull" classname="OneStarMaker.Tests.BuildContent.ContentDirectoryIndexTests" runstate="Runnable" seed="1404588124" result="Passed" start-time="2026-09-18 08:59:09Z" end-time="2026-09-18 08:59:09Z" duration="0.000391" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+    <test-suite type="Assembly" id="1916" name="OneStarMaker.Tests.Editor.dll" fullname="D:/repositories/unity/SampleGameForOneStarMakerFramework/unity/Library/ScriptAssemblies/OneStarMaker.Tests.Editor.dll" runstate="Runnable" testcasecount="211" result="Passed" start-time="2026-09-18 08:59:09Z" end-time="2026-09-18 09:00:01Z" duration="52.468173" total="8" passed="8" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="3592" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="1917" name="OneStarMaker" fullname="OneStarMaker" runstate="Runnable" testcasecount="211" result="Passed" start-time="2026-09-18 08:59:09Z" end-time="2026-09-18 09:00:01Z" duration="52.464272" total="8" passed="8" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1918" name="Tests" fullname="OneStarMaker.Tests" runstate="Runnable" testcasecount="211" result="Passed" start-time="2026-09-18 08:59:09Z" end-time="2026-09-18 09:00:01Z" duration="52.452765" total="8" passed="8" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1919" name="Editor" fullname="OneStarMaker.Tests.Editor" runstate="Runnable" testcasecount="211" result="Passed" start-time="2026-09-18 08:59:09Z" end-time="2026-09-18 09:00:01Z" duration="52.450057" total="8" passed="8" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestSuite" id="1922" name="Build" fullname="OneStarMaker.Tests.Editor.Build" runstate="Runnable" testcasecount="107" result="Passed" start-time="2026-09-18 08:59:09Z" end-time="2026-09-18 09:00:01Z" duration="52.446053" total="8" passed="8" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-suite type="TestFixture" id="1800" name="BuildContentDirectoryIntegrationTests" fullname="OneStarMaker.Tests.Editor.Build.BuildContentDirectoryIntegrationTests" classname="OneStarMaker.Tests.Editor.Build.BuildContentDirectoryIntegrationTests" runstate="Runnable" testcasecount="1" result="Passed" start-time="2026-09-18 08:59:09Z" end-time="2026-09-18 09:00:01Z" duration="52.357813" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1801" name="ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirectory" fullname="OneStarMaker.Tests.Editor.Build.BuildContentDirectoryIntegrationTests.ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirectory" methodname="ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirectory" classname="OneStarMaker.Tests.Editor.Build.BuildContentDirectoryIntegrationTests" runstate="Runnable" seed="652364700" result="Passed" start-time="2026-09-18 08:59:09Z" end-time="2026-09-18 09:00:01Z" duration="52.355032" asserts="0">
+                  <properties>
+                    <property name="_JOINTYPE" value="UnityCombinatorial" />
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Pipeline: No RuntimePipelineManager components found in build scenes. Pipeline will be disabled in Player builds.
+Pipeline: No RuntimePipelineManager components found in build scenes. Pipeline will be disabled in Player builds.
+[AppInit] DebugSocket configured. mode=Connect, endpoint=ws://127.0.0.1:5011/debugsocket/, autoStart=True, sendLogs=True, sendTelemetry=True.
+[AppInit] AfterSceneLoad: loading UICommon.
+[AppInit] AfterSceneLoad: loading SceneResourceMap.
+[AppInit] Starting DebugSocket transport. mode=Connect, endpoint=ws://127.0.0.1:5011/debugsocket/, autoStart=True.
+[DebugSocket] Starting outbound client transport. endpoint=ws://127.0.0.1:5011/debugsocket/
+[DebugSocket] Connecting to DebugStudio server. endpoint=ws://127.0.0.1:5011/debugsocket/
+[AppInit] DebugSocket transport start sequence finished. mode=Connect, isRunning=True.
+[AppInit] SceneResourceMap に未登録のシーンをスキップ: 
+[AppInit] SceneResourceMap に未登録のシーンをスキップ: UIScene
+]]></output>
+                </test-case>
+              </test-suite>
+              <test-suite type="TestFixture" id="1865" name="ContentDirectorySessionTests" fullname="OneStarMaker.Tests.Editor.Build.ContentDirectorySessionTests" classname="OneStarMaker.Tests.Editor.Build.ContentDirectorySessionTests" runstate="Runnable" testcasecount="7" result="Passed" start-time="2026-09-18 09:00:01Z" end-time="2026-09-18 09:00:01Z" duration="0.083138" total="7" passed="7" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1866" name="CancelledSceneLoad_DrainsNativeCompletionBeforeUnregister" fullname="OneStarMaker.Tests.Editor.Build.ContentDirectorySessionTests.CancelledSceneLoad_DrainsNativeCompletionBeforeUnregister" methodname="CancelledSceneLoad_DrainsNativeCompletionBeforeUnregister" classname="OneStarMaker.Tests.Editor.Build.ContentDirectorySessionTests" runstate="Runnable" seed="1779209698" result="Passed" start-time="2026-09-18 09:00:01Z" end-time="2026-09-18 09:00:01Z" duration="0.015232" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1871" name="ConcurrentCallers_ShareOneAssetAndOneSceneToken" fullname="OneStarMaker.Tests.Editor.Build.ContentDirectorySessionTests.ConcurrentCallers_ShareOneAssetAndOneSceneToken" methodname="ConcurrentCallers_ShareOneAssetAndOneSceneToken" classname="OneStarMaker.Tests.Editor.Build.ContentDirectorySessionTests" runstate="Runnable" seed="801335749" result="Passed" start-time="2026-09-18 09:00:01Z" end-time="2026-09-18 09:00:01Z" duration="0.033276" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1870" name="FailedRegistrationRollback_IsRetriedOnNextRegistration" fullname="OneStarMaker.Tests.Editor.Build.ContentDirectorySessionTests.FailedRegistrationRollback_IsRetriedOnNextRegistration" methodname="FailedRegistrationRollback_IsRetriedOnNextRegistration" classname="OneStarMaker.Tests.Editor.Build.ContentDirectorySessionTests" runstate="Runnable" seed="1081882187" result="Passed" start-time="2026-09-18 09:00:01Z" end-time="2026-09-18 09:00:01Z" duration="0.005314" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1867" name="InvalidRoot_RollsBackAndAllowsSamePathRetry" fullname="OneStarMaker.Tests.Editor.Build.ContentDirectorySessionTests.InvalidRoot_RollsBackAndAllowsSamePathRetry" methodname="InvalidRoot_RollsBackAndAllowsSamePathRetry" classname="OneStarMaker.Tests.Editor.Build.ContentDirectorySessionTests" runstate="Runnable" seed="1119795054" result="Passed" start-time="2026-09-18 09:00:01Z" end-time="2026-09-18 09:00:01Z" duration="0.002080" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1868" name="LiveInstance_RejectsCloseUntilOwnerReleasesIt" fullname="OneStarMaker.Tests.Editor.Build.ContentDirectorySessionTests.LiveInstance_RejectsCloseUntilOwnerReleasesIt" methodname="LiveInstance_RejectsCloseUntilOwnerReleasesIt" classname="OneStarMaker.Tests.Editor.Build.ContentDirectorySessionTests" runstate="Runnable" seed="635495687" result="Passed" start-time="2026-09-18 09:00:01Z" end-time="2026-09-18 09:00:01Z" duration="0.005138" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1872" name="ResidentCache_ReleasesDirectoryTokenAtClose" fullname="OneStarMaker.Tests.Editor.Build.ContentDirectorySessionTests.ResidentCache_ReleasesDirectoryTokenAtClose" methodname="ResidentCache_ReleasesDirectoryTokenAtClose" classname="OneStarMaker.Tests.Editor.Build.ContentDirectorySessionTests" runstate="Runnable" seed="493428457" result="Passed" start-time="2026-09-18 09:00:01Z" end-time="2026-09-18 09:00:01Z" duration="0.009344" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1869" name="UnregisterFailure_KeepsDeleteBlockedAndCloseCanRetry" fullname="OneStarMaker.Tests.Editor.Build.ContentDirectorySessionTests.UnregisterFailure_KeepsDeleteBlockedAndCloseCanRetry" methodname="UnregisterFailure_KeepsDeleteBlockedAndCloseCanRetry" classname="OneStarMaker.Tests.Editor.Build.ContentDirectorySessionTests" runstate="Runnable" seed="1321285400" result="Passed" start-time="2026-09-18 09:00:01Z" end-time="2026-09-18 09:00:01Z" duration="0.008466" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Saving results to: C:/Users/void/AppData/LocalLow/DefaultCompany/SampleGame\TestResults.xml
+]]></output>
+                </test-case>
+              </test-suite>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

@@ -1,0 +1,2812 @@
+diff --git a/artifacts/bs3-phase-a/phase-a-r2.md b/artifacts/bs3-phase-a/phase-a-r2.md
+new file mode 100644
+index 0000000..b12ef69
+--- /dev/null
++++ b/artifacts/bs3-phase-a/phase-a-r2.md
+@@ -0,0 +1,177 @@
++# BS3 Runtime directory とロード対象
++
++- type: slice
++- status: B（Phase A revision 2 凍結済み、実装待ち）
++- branch: `codex/bs3-runtime-directory`
++- implementation base commit: `25a5024d310347ef9ce67128636a06e0e0fb5172`
++- implementation head commit: 未生成
++- risk: high（公開 API、寿命、Unity Content Loading、取消）
++- owner: BuildSystem 主担当
++- created: 2026-09-18
++- expires: BS3 Phase D
++- harvest to: `unity/Assets/Docs/Architecture/13-resource-system.md`、`18-asset-description.md`、必要なら起動文書
++- Phase A snapshot path / id: `artifacts/bs3-phase-a/phase-a-r2.md`（旧 `phase-a.md` は revision 1 記録）
++- Phase A snapshot generated at: 2026-09-18 JST
++- Phase A snapshot hash: revision 2 snapshot 生成後に記録
++- Phase B result snapshot path / id: 未生成
++- evidence bundle path / id: 未生成
++- C' blind bundle path / id: 未生成
++
++## 1. A0 入力、目的、境界
++
++### このスライスが答える問い
++
++ビルド済みの local Content Directory を source 再走査なしに解決・ロードし、処理中・利用中・cache 内の資源を残さずに unregister できるか。
++
++### 現況
++
++- BS2b の `BuildContentRoot` schema v1 は build identity、target、logical/stable key、representation、Scene/Object 種別、`LoadableSceneId` または `Loadable<Object>` を保存する。Editor integration は移設後の単一 root discovery まで実証し、型付きロードと寿命は未実証。
++- BS2c は本番 Scene graph の候補と Full/Whitebox 同梱を選択し、Content Directory build へ接続済み。
++- `AssetManagement` は Addressables backend と `AssetOwner` 台帳、resident cache を持つ。既存 Scene lifecycle は `SceneResource` と `SceneAssetDescription` を渡す。`AssetKey` の拡張子分類は型検証ではない。
++- 起動時 `AbstractApplicationInitializer` は Config 自体を Addressables から読み、AssetManagement を先に作る。Player bootstrap は BS4 が所有する。
++- `artifacts/bs2c-*` 等の既存検証ログと未追跡 PRE は変更・追加しない。
++
++### 常時制約と対象外
++
++- Game → Framework の一方向、asmdef edge 無断追加なし、SceneState 14 値の順序保持、`IAssetManagement` と `AssetOwner` がロード入口、`ILogger<T>` 公開面、Unity 偽 null、`#nullable enable`、Unity C# の `record` 禁止。
++- Editor/Runtime 分離。Scene/Prefab/Addressables の変更は限定し、Editor 操作は `osm-unity-editor` に従う。
++- 物理削除と remote install は DIST、Player bootstrap と code 保持は BS4、本番非 Scene Description と Mesh subasset の build source は需要別後続 slice、旧 Addressables 経路廃止は RET。
++- source 欠損の全経路を通す end-to-end 実証は DIST。ただし BS3 の登録・解決そのものに local `SceneResourceMap` materialization を要求しない。
++
++### A0 未決事項
++
++1. `Loadable<Object>` に保持された Unity load ID と、外部に説明できる file/object locator、schema 互換性の関係。
++2. `SceneAssetDescription` を要求する既存 Scene API と directory の logical 解決を、Scene lifecycle を壊さずに接続する位置。
++3. sync bootstrap、Prefab instance、cache、in-flight operation が unregister を阻む範囲。
++4. revision 削除許可を同一 process 内でどう原子的に管理するか。process 外保護は DIST に渡すか。
++
++## 2. A1 設計初稿（A2 レビュー対象）
++
++### 進める最低条件と受け入れ条件
++
++1. **解決と identity**: root の schema / identity / target / entry 整合性を登録時に検証し、`logical key + representation + kind` が一意の選択済み対象だけを返す。未知 key、曖昧選択、欠損、型不一致は reason code 付き失敗。Scene 専用の default fallback を Object に適用しない。file GUID は build 入力単位、Object load ID は Unity の local file ID を含む別単位とし、同一ファイルの複数 Object を表現できる locator を schema に確保する。既存 v1 root の扱いを A3 で固定する。
++2. **ロードと寿命**: `IAssetManagement` と `AssetOwner` を通し、Scene は load→unload→scene-owned release、Object は load→owner release、Prefab instance は GameObject 破棄→instance release とする。代表 Prefab/Texture fixture と Scene を実 directory から取得する。要求型を実取得 Object に照合し、`AssetType` のカテゴリは cache budget 用 metadata とする。
++3. **単一 directory owner**: backend/session owner が register、root discovery、load、in-flight 終端、全依存解放、unregister を順序付ける。登録失敗を rollback して同一/別 path で再試行可能。caller 取消は native 操作の終了とみなさず、遅延成功資源を owner が回収する。resident cache の entry も revision 利用中とみなす。明示 close は新規受付を止め、発行済み処理を drain する。caller が所有する live instance/handle があれば `ResourcesInUse` で登録を維持し、caller の解放後に再試行する。live Scene と cache を解放した後にだけ unregister する。同期 `Application.quitting` は best effort とし、完全 drain を GO と偽らない。
++4. **削除排他**: 同一 process 内で revision identity ごとに active 利用 lease と排他的 delete lease を原子的に切り替える。delete lease 保持中は登録・新規利用不可。利用中・登録中・処理中・cache 内は delete lease を拒否する。delete lease は削除成功/失敗の確定まで保持し、失敗でも必ず解除する。物理 I/O は DIST 側。別 process の同時利用保護はこの slice で保証しない旨を API に明示する。
++5. **起動時選択**: Full/Whitebox 同時同梱時に一度選んだ表現を Scene lifecycle へ渡し、高水準の Scene 遷移順序を維持する。Editor Play は local directory を明示選択したときだけ新 backend を使い、旧 Addressables 起動を移行期間の既定として残す。実行中切替 UI は設けない。
++6. **失敗検証**: 欠損 directory/root/entry、登録失敗→再試行、取消後完了、owner 解放、cache eviction、明示 close の cleanup（live instance 拒否→owner 解放→retry を含む）、削除競合を fake と Unity integration で確認する。source 再走査を暗黙 fallback にしない。
++
++### 判定・停止規則
++
++- GO: 上記六条件が同一固定 base/head の証拠で成立し、常時契約違反がない。
++- NO-GO: いずれか未達。最低条件を増やして延期しない。
++- この問いを阻害しない新規課題は BS4、DIST、RET または需要別非 Scene slice へ送る。例外的な scope 変更はユーザーが置き換える条件または期限・検証予算を指定して Phase A revision を再開する。
++
++### 責務配置の初稿
++
++| 配置 | 責務、所有者・寿命、テスト境界 | 見積 |
++|---|---|---|
++| `Runtime/BuildContent/BuildContentRoot.cs`（現78行） | Serialized な load 対象 locator と明示 metadata。永続化契約のみ。Editor I/O やロード状態を持たない。schema 変更なら +40〜80行。 | 120〜160行 |
++| `Runtime/BuildContent/ContentDirectoryIndex.cs`（新規） | root 検証と logical/representation/kind 解決。immutable、directory session 寿命。Unity I/O なしの単体テスト。 | 180〜250行 |
++| `Runtime/BuildContent/ContentDirectorySession.cs`（新規） | register/root discovery/unregister、処理中・live・cache の drain。process 内 revision 利用保護。Unity adapter を port に分離して fake テスト。 | 250〜400行 |
++| `Runtime/BuildContent/UnityContentDirectoryBackend.cs`（新規） | Unity.Loading 呼出と native handle を専有。I/O と依存解放順の integration テスト。 | 200〜350行 |
++| `Runtime/AssetManagement/AssetManagement.cs`（現376行） | 既存 owner 台帳と cache の再利用、新 backend への明示 route。+80〜130行を予想。500行に近づくため route 抽出または二つの backend mode で責務を保つ。 | 456〜506行 |
++| `Runtime/Bootstrap/AbstractApplicationInitializer.cs`（現838行）と SampleGame `DependOnAll` | Editor Play の起動時設定と既存 lifecycle への一度だけの選択を配線。config の Addressables 先行読みは維持。+20〜50行に抑え、新規 directory 管理ロジックを置かない。 | 858〜888行 |
++| `Editor/Build/Content/UnityContentDirectoryAdapter.cs` | locator/schema v2 を出力する場合だけ変更。AssetDatabase 依存は Editor 内。 | 要精査 |
++
++上記は配置候補であり、API の署名・schema version・ファイル数・行数は A2 の所見と Unity API 調査後 A3 で固定する。新規 asmdef は作らず既存 Runtime/Editor 境界に置く方針。公開 API を追加する場合も `IAssetManagement` に directory の登録や物理削除は置かず、backend/session 側の口に限定する。既存呼出側は Addressables mode のまま機能する。
++
++### Phase B/C/C' の予定
++
++- B: pure index と lease 状態機械→Unity adapter→AssetManagement/Scene bridge→Editor Play 接続の順。Unity Editor の対象限定操作・compile 確認まで。`pwsh tools/contract-audit.ps1`。テスト/Build は未実行と記録。
++- C: B と異なるモデルの新規セッション。固定 commit の完全 diff で構造レビュー後、Editor を閉じて承認済み sandbox 外で `pwsh tools/run-tests.ps1 -Filter ...`、必要な Content Directory build/integration、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`。結果 XML の1件以上・failed 0を確認。
++- C': B/C と異なるモデルの新規セッションで blind bundle を監査。Phase C の結論は含めない。未確保なら独立監査済みと記録しない。
++- A0/A1 主担当: Codex GPT-6 Astra（OpenAI）。A2/A3 と C' の実績は後記。
++
++## 3. A2 独立レビュー
++
++同じ A1 入力版を別々に渡し、相互の所見を見せずに実施した。テストはこのレビューでは未実行。
++
++- A0 のみからの代替構成: GPT-5.6 Sol（OpenAI）。pure index、Unity adapter、directory session、既存 owner 台帳の分離を提案。採用。同期 teardown と source metadata の境界を A3 で明示する。
++- アーキテクチャゲート: GPT-5.6 Sol（OpenAI）。scene bridge、typed port と revision key、二重寿命台帳、同期 shutdown、locator/schema、process 全域の delete lease の六件が A3 blocker。全件採用。責務マップの per-file 依存/公開面/規模も追記する。
++- Unity/動作レビュー: GPT-5.6 Terra（OpenAI）。CD0 で実証した Unity API を再利用し、caller 取消から native 完了を切り離すこと、source を消した移設 directory の実ロード、fake deletion race を要求。採用。sync bootstrap は旧 Addressables のままにする。
++- 不採用: なし。後続へ保留: cross-process delete exclusion、Mesh subasset の build source 一般化、Player 起動と code stripping（それぞれ DIST、需要別 slice、BS4）。
++- A3 最終照合: GPT-5.6 Sol が六件の closure を再確認。通常停止・Scene metadata・instance ownership・delete path の追補を採用し、最低条件の shutdown 文言を明示 close の `ResourcesInUse`/retry 契約へ揃えた。
++- revision 2: Phase B 担当 GPT-5.6 Terra が実装前に起動設定と公開失敗型の未決を発見して停止。主担当が §4.7 を追加。GPT-5.6 Sol の architecture 再照合は blocker なし。GPT-5.6 Terra の behavior レビューが AppConfig の大小文字、AfterSceneLoad 登録時点、Editor guard、削除拒否 code、診断 field を指摘し、全件採用した。追加範囲は既存の六最低条件の起動・失敗・排他の具体化であり、program の目的や予算を拡張しない。
++
++## 4. A3 凍結対象の設計判断
++
++Program に記録された不在時委任を適用し、A2 の通常判断は主担当が統合した。以下が A1 の曖昧な候補記述に優先する凍結済み実装契約である。
++
++### 4.1 identity と永続化
++
++- file identity は canonical GUID。load target identity は `LoadableSceneId` または `LoadableObjectId` であり、後者は Unity の GUID と local file ID を含む。Runtime は Unity ID を opaque として扱い、GUID のみから Object をロードしない。schema v1 の `Loadable<Object>` は既にこの ID を保持するので、v1 は既存 Scene と main Object のロードを許可する。v1 Object のカテゴリは `Other`、診断用 file/local ID は不明として扱い、型は実取得 Object で検査する。
++- schema v2 は既存 field を残し、Object entry に file GUID、local file ID、`AssetType` とは独立した明示カテゴリを追加する。Editor adapter は `TryGetGUIDAndLocalFileIdentifier` と `CreateLoadableObjectId` を同じ Object から取得して格納する。main asset だけを出す現在の materialization の選択制約は変えない。将来 subasset が候補になっても、同じ file GUID の異なる local ID を表せる保存形式である。v1/v2 以外を `UnsupportedSchema` で拒否する。v2 の空・不正 locator、Scene に Object locator がある等の kind 不整合は登録時に拒否する。
++- root は一件だけ。登録 API の expected build identity/target を root と照合し、path の basename は identity に使わない。現在の target は `StandaloneWindows64` のみ。`(logical key, representation, kind)` 重複、stable key 重複、空 key、無効 Unity ID は構造化 issue として session を rollback する。build report/metadata directory は照合できる場合に読むが、Runtime 起動の必須入力は build済み local directory と expected identity/target で、source `SceneResourceMap` の materialization は行わない。
++
++### 4.2 解決と公開入口
++
++- `ContentDirectoryIndex` は immutable な pure policy。選択済み root entries だけを読み、`(logical key, representation, kind)` を引く。Scene で要求 representation が欠ける場合だけ `Full` に fallback する。両方なければ `EntryMissing`。Object は完全一致のみ。同一 logical key の二表現同梱を許し、曖昧な key だけの要求は受け付けない。カテゴリは cache budget 用で、`typeof(T).IsInstanceOfType(actual)` と Unity の偽 null でロード型を検証する。
++- `IAssetManagement` に directory 専用の `LoadContentAssetAsync<T>(logicalKey, representation, owner, ct)`、`LoadContentSceneAsync(sceneIdentity, representation, options, ct)`、`InstantiateContentAsync(logicalKey, representation, parent, worldSpace, ct)` を追加する。登録/削除 API は追加しない。既存メソッド・呼出側・Addressables key はそのまま。directory mode 未選択時の専用メソッドは `DirectoryNotRegistered`、旧メソッドは従来経路を使う。`LoadAppAssetSync` は directory に流さず既存 Addressables bootstrap 専用とする。
++- `SceneDirector` は起動時に固定した directory mode のときだけ `LoadContentSceneAsync(sceneIdentity, selectedRepresentation, ...)` を呼び、`SceneResource` は graph と lifecycle metadata のみに使う。payload 0 の論理 Scene node は従来どおり Unity scene をロードしない。既に `SceneManager` に載る Scene は従来の扱い。directory entry 欠損時は Addressables に fallback しない。`AddressablesLoaded` 等の内部名は backend がロードしたかを表す名前へ変更する。UI/config/SceneResourceMap の bootstrap 同期取得は移行期間 Addressables を維持する。
++- 現 slice の高水準 Scene lifecycle には Runtime の `SceneResourceMap` と payload の有無が必要で、これは移行期間 Addressables から取得する。directory mode の Scene 対象を payload の参照先から解決してはならず、payload 有りの node は必ず root index の logical identity から解決する。payload 0 は Scene 実体なしの論理 node として従来どおり扱う。source の AssetDatabase/materialization は一切起動しない。取得済み content だけで graph metadata も含めて起動する経路は DIST/BS4 に渡す。
++
++### 4.3 owner、取消、close
++
++- session は Unity directory handle、root、native 発行済み操作、revision 利用 lease と unregister を所有する。`AssetManagement` は `AssetOwner` の registry と resident cache を唯一の正本として所有する。session は owner の複製台帳を持たない。代わりに directory origin の backend token が session lease を保持し、registry/cache/in-flight から解放または eviction された時に返す。cache key と registry key は `directory + build identity + target + logical key + representation + kind + locator` を含み、Addressables key と別 namespace にする。異なる revision の token は共有しない。
++- `IAssetBackend` の address string port は旧 Addressables 用に残す。directory 用に typed entry と revision token を受け取る internal port を別に置く。Object は root に埋め込まれた同じ `Loadable<Object>` を native 完了まで保持し、成功後の実型を検査する。複数 owner は一つの backend token を registry で共有し、最後の owner 解放まで `Release()` しない。Prefab は `GameObject` の元 asset token を instance の生存中も保持し、GameObject 破棄時に instance を解放してから元 token を解放する。Scene は `LoadableSceneId` で `SceneManager.LoadSceneAsync`、正常 unload は `SceneManager.UnloadSceneAsync` の終端を待って token を返す。
++- caller の ct は waiter の待ちだけを取り消す。発行済み native operation 自体へ渡さない。operation は成功/失敗の terminal まで session が追跡する。全 waiter が去った成功 Object は直ちに `Release()`、成功 Scene は unload terminal まで追跡する。失敗と取消の後も session は残存 token を掃除し、retry を許す。既存 Addressables `_inFlight` の第一 caller ct 問題も directory route に流用しない。
++- `CloseAsync` は新規受付停止→native operation terminal→abandoned result cleanup→live Scene unload→owner が解放済みか確認→resident cache の当該 revision entry eviction→root を含む全 token release→unregister の順。正常 close は idempotent。Prefab instance とその GameObject は Scene/呼出側が所有し、session が勝手に破棄しない。live instance/owner handle が残る場合は `ResourcesInUse` を返し、session を登録状態に維持して owner が破棄/解放した後の retry を許す。別 origin の Addressables entry は eviction しない。登録失敗は register handle が有効なら unregister まで rollback し、同一 path/別 path の retry を可能にする。
++- `IAssetManagement.ReleaseAll` と `Application.quitting` の同期契約は維持する。同期 shutdown は新規受付停止と同期解放を開始し、既に発行した native operation が残れば terminal callback で cleanup/unregister する。callback 前には delete lease を許さない。process 終了で callback が実行できない場合は OS の process 終了に任せ、正常 `CloseAsync` 完了と偽らない。Unity は Play 停止を同期で進めるため、通常の Editor 停止で awaitable close 完了を保証しない。GO の shutdown cleanup 証拠は Play 中に明示 `CloseAsync` を呼んだテストで terminal と unregister を観測する。起動済み Scene が Unity によって先に解体された場合は無効 Scene への unload を呼ばない。通常 Play 停止の完全 drain は後続 RET の Editor workflow 置換条件として記録する。
++
++### 4.4 revision 利用と物理削除の排他
++
++- process-global `ContentRevisionGate` は `(expected build identity, target)` を identity とし、登録予約に正規化 absolute path を結び付ける。同 identity に別 path が同時登録されたら拒否する。同 path の重複登録も拒否し、v1 は process 内で単一 active directory session とする。path は移設後に変わり得るため恒久 revision ID にしない。
++- 状態は `Free → Registering → Active → Closing → Free` と `Free → Deleting → Free`。全遷移を同一 lock で原子的に行う。`TryAcquireDelete(identity,target,path)` は待たずに拒否理由を返し、成功時に `IDisposable` delete lease を返す。`Deleting` 中は register/new use を拒否。delete lease は DIST が物理削除の成功/失敗を確定するまで保持し、`finally` で dispose する。使用中、処理中、cache 内、登録中は `Free` に移らない。delete lease 自体は削除を実行しない。
++- gate は identity と canonical path の双方を索引にし、いずれかが登録・利用・削除中なら別 identity を名乗っても同じ path の削除許可を出さない。process 全体で active session は一つだけ。DIST は install metadata の identity/target と削除する実 path の一致を検証してからこの port を呼ぶ契約とし、未登録 revision も指定できる。BS3 fake delete はこの不一致と競合を検証する。gate は disk 上の metadata 自体の真正性を判定せず、DIST の物理削除責務を奪わない。
++- この gate は同一 process 内だけの排他である。別 process の file 使用、OS file lock、remote install と disk budget は DIST が所有する。DIST は process 間の delete 安全性を必要とする場合、同じ port の外側に lock を加える。
++
++### 4.5 変更規模と停止条件
++
++- `AssetManagement`（376行）は directory 専用 port を注入/呼出する薄い route のみ追加し、native handle や revision gate を持たせない。500行を超えるなら partial/専用 coordinator を分ける。`AbstractApplicationInitializer`（838行）には選択済み directory session の生成/close 呼出のみを追加し、登録状態機械を置かない。既存の長さを増やす理由は起動順序の所有者がここだからであり、処理詳細を移す。
++- Phase B 中に v1 の Unity API が計画どおり利用できない、必要な asmdef edge が増える、予定外の owner/状態/API が要る、または async close と同期終了をこの契約で安全に実装できない場合は Phase A revision に戻す。
++
++### 4.6 確定した責務マップとテスト境界
++
++| ファイル / namespace / asmdef | 変更理由・責務・依存・所有者・公開面 | 現在→予想行数 / 検証 |
++|---|---|---|
++| `Runtime/BuildContent/BuildContentRoot.cs` / `OneStarMaker.Runtime.BuildContent` / 既存 Runtime | schema v2 の serialized locator/category。Unity.Loading の値と primitive だけに依存。root は directory content が所有し session 終了まで。公開 DTO の追加 field のみ。 | 78→150。v1/v2 roundtrip、locator の Editor 出力。 |
++| `Runtime/BuildContent/ContentDirectoryIndex.cs` / 同 namespace / 既存 Runtime | pure policy。root entry を immutable map に投影し、検証と Scene fallback/厳密 Object 解決。Unity I/O なし。session 寿命、internal。 | 0→250。mock entry による単体テスト。 |
++| `Runtime/BuildContent/ContentRevisionGate.cs` / 同 namespace / 既存 Runtime | process-global 登録予約・利用/削除 lease 状態機械。native API なし、process 寿命。DIST 接続に必要な最小公開 facade と internal state。 | 0→220。fake delete race、例外解除。 |
++| `Runtime/BuildContent/ContentDirectorySession.cs` / 同 namespace / 既存 Runtime | index、gate、native adapter、owner 台帳の協調。directory handle と pending 操作を所有。登録から close まで。`IAssetManagement` には公開しない。 | 0→350。fake native terminal 制御。3責務に見えるため policy/index、gate、Unity adapter と分離して orchestration に限定。 |
++| `Runtime/BuildContent/UnityContentDirectoryBackend.cs` / 同 namespace / 既存 Runtime | `ContentLoadManager`、`Loadable<Object>`、SceneManager の Unity I/O と native token。session にのみ返す internal port。Unity Editor API へ依存しない。 | 0→300。移設後 PlayMode integration。 |
++| `Runtime/AssetManagement/AssetManagement.cs` と `IAssetManagement.cs` / 既存 Runtime | 既存 registry/cache の唯一の owner。directory mode route と三つの公開 overload、revision-qualified key。session へ使用 token を返す。 | 376→480、interface 79→110。owner/cache/取消の単体テスト。500行を超えれば route を internal partial に抽出。 |
++| `Runtime/AssetManagement/Cache/AssetResidentCache.cs` / 既存 Runtime | origin/session ごとの eviction を可能にし、cache 保持中は token lease を維持する。既存 Addressables entry も同じ API で保持。 | 218→260。eviction/clear と lease callback。 |
++| `Runtime/SceneSystem/SceneDirector.Loading.cs` / 既存 Runtime | directory mode の Scene API 呼分けと backend-owned 名称の修正。既存 lifecycle と空 payload node の責務を維持。 | 685→705〜725。Scene load/unload 順。 |
++| `Runtime/Bootstrap/AbstractApplicationInitializer.cs` と SampleGame `DependOnAll` / 既存 Runtime と Game | 起動時の mode/path/identity/target/representation を選び、一つの session の開始・終了を配線。Game 固有設定は SampleGame、Framework に季節名を持ち込まない。 | 838→880、Game 側 310→340〜370。Editor Play で旧/新を切替確認。 |
++| `Editor/Build/Content/UnityContentDirectoryAdapter.cs` / 既存 Editor asmdef | main Object から v2 file/local locator と category を作り、root に保存。Editor I/O はここだけ。 | 152→182〜212。Content Directory を実 build。 |
++
++全ファイルの新規または編集 Unity C# は `#nullable enable` で始める。runtime から Editor asmdef を参照せず、asmdef edge は増やさない。新規中核ロジックが fake/単体テスト不能になった場合、別の Helper へ逃がさず配置を Phase A で再検討する。
++
++### 4.7 Phase A revision 2: 起動入力と失敗契約
++
++Phase B は実装前に停止した。旧 snapshot は設計として保持し、以下を追加した新 snapshot を Phase B 入力にする。
++
++- 設定元は既存 `AppConfig` の JSON→環境変数→コマンドライン優先順。新キーは `content:runtimeMode`（未指定/`addressables` または `directory`）、`content:directoryPath`、`content:buildIdentity`、`content:representation`。キー名は既存 AppConfig と同じ大小文字非区別、mode 値と representation 値は ordinal 完全一致とし、未知 mode は起動失敗。`addressables` は既定で他の三キーを読まず、現行呼出側の動作を維持する。
++- `directory` mode は Editor Play だけで有効にする。`Application.isEditor && Application.isPlaying` で guard し、Player 等では `InvalidConfiguration` で拒否する。三キーすべて非空を要求し、target は現 slice 固定 `StandaloneWindows64`。directoryPath は rooted absolute path だけを受け付け、`Path.GetFullPath` で正規化する。相対 path、URL、存在しない path、identity/target 不一致は起動失敗とし、Addressables へ暗黙 fallback しない。実行中変更は読まない。Player 入力の生成と path 基準は BS4 が所有する。
++- `content:representation` は root に保存された文字列をそのまま要求する。`Full` と `Whitebox` の選択は呼出側の明示入力であり、Framework は季節や `assets:sceneVariant` の空文字を変換しない。`assets:sceneVariant` は旧 Addressables scene route にだけ使う。Scene fallback は明示した representation が root にない場合の `Full` entry に限る。SampleGame の `AppInitializer` と既存 `app-config.json` は既定 Addressables のまま維持し、Editor Play の明示選択は既存 AppConfig の環境変数/コマンドラインで行う。tracked config を一時書換・復元する実装は追加しない。
++- `AbstractApplicationInitializer` は `BuildConfig` の直後（BeforeSceneLoad）に mode と値を一回読み、構文を検証する。ContentLoadManager の登録と root 検証は AfterSceneLoad の `resolve-scene-variant` の直後、`create-scene-director` の直前の `register-content-directory` stage で行う。Config/UI/SceneResourceMap の Addressables bootstrap はその前に終える。SceneDirector の最初の directory load より前に session を install する。起動失敗時は session の rollback/close を試み、その失敗も記録して元の例外を隠さない。派生 `AppInitializer` の新しい override は不要。単一 session は initializer が所有し、明示 close と同期終了で回収する。
++- 失敗は公開 `ContentDirectoryException : InvalidOperationException` と公開 `ContentDirectoryFailureCode` で表す。最低限の code は `InvalidConfiguration`, `DirectoryNotRegistered`, `RegistrationFailed`, `InvalidRoot`, `UnsupportedSchema`, `IdentityMismatch`, `TargetMismatch`, `EntryMissing`, `EntryAmbiguous`, `TypeMismatch`, `OperationFailed`, `ResourcesInUse`, `RevisionBusy`, `PathInUse`, `DeletionInProgress`。exception は `Code`、`BuildIdentity`、`Target`、`LogicalKey`、`Representation` を nullable string で持ち、内部原因は InnerException。取消は通常の `OperationCanceledException` を保ち、失敗 code に畳まない。root index は pure result/issue を使い、公開境界でこの例外へ写す。`IAssetManagement` の既存メソッドが投げる例外は変更しない。
++- 公開削除口は `ContentRevisionGate.TryAcquireDelete(buildIdentity,target,absolutePath,out ContentDeletionLease? lease,out ContentDirectoryFailureCode rejection)` とし、成功時の lease を DIST が `finally`/`using` で解放する。`ContentRevisionGate` が唯一の process-global 状態を持つ public static 型で、session 用の登録予約/解放メソッドは internal とする。拒否時の lease は null、同じ path が別 identity で使用中なら `PathInUse`、同 identity の使用中なら `RevisionBusy`、削除中なら `DeletionInProgress`、入力不正なら `InvalidConfiguration` を返す。`ContentDeletionLease` は物理削除を行わない。identity/target/path の検証責任と process 内排他は §4.4 に従う。未登録 revision に対する外部 install metadata の検証は DIST の責務。
++- これらを新規公開 API として Phase A で承認する。`IAssetManagement` の三つの directory load 追加以外に既存 API の署名は変更しない。`AssetManagement` の実装を直接 bootstrap が構成する既存経路に session install 用 internal method を追加し、Game 側に新しい asmdef edge を要求しない。
++
++## 5. Phase B 実装結果
++
++未実施。
++
++## 6. Phase C
++
++未実施。
++
++## 7. Phase C' 独立監査
++
++未実施。
++
++## 8. Phase D
++
++人間のマージ判断待ち。Phase D の委任は受けていない。
+diff --git a/artifacts/bs3-phase-a/phase-a.md b/artifacts/bs3-phase-a/phase-a.md
+new file mode 100644
+index 0000000..a39c774
+--- /dev/null
++++ b/artifacts/bs3-phase-a/phase-a.md
+@@ -0,0 +1,164 @@
++# BS3 Runtime directory とロード対象
++
++- type: slice
++- status: B（Phase A3 凍結済み、実装待ち）
++- branch: `codex/bs3-runtime-directory`
++- implementation base commit: `25a5024d310347ef9ce67128636a06e0e0fb5172`
++- implementation head commit: 未生成
++- risk: high（公開 API、寿命、Unity Content Loading、取消）
++- owner: BuildSystem 主担当
++- created: 2026-09-18
++- expires: BS3 Phase D
++- harvest to: `unity/Assets/Docs/Architecture/13-resource-system.md`、`18-asset-description.md`、必要なら起動文書
++- Phase A snapshot path / id: `artifacts/bs3-phase-a/phase-a.md`
++- Phase A snapshot generated at: 2026-09-18 JST
++- Phase A snapshot hash: 下記 SHA-256 を snapshot 生成後に記録
++- Phase B result snapshot path / id: 未生成
++- evidence bundle path / id: 未生成
++- C' blind bundle path / id: 未生成
++
++## 1. A0 入力、目的、境界
++
++### このスライスが答える問い
++
++ビルド済みの local Content Directory を source 再走査なしに解決・ロードし、処理中・利用中・cache 内の資源を残さずに unregister できるか。
++
++### 現況
++
++- BS2b の `BuildContentRoot` schema v1 は build identity、target、logical/stable key、representation、Scene/Object 種別、`LoadableSceneId` または `Loadable<Object>` を保存する。Editor integration は移設後の単一 root discovery まで実証し、型付きロードと寿命は未実証。
++- BS2c は本番 Scene graph の候補と Full/Whitebox 同梱を選択し、Content Directory build へ接続済み。
++- `AssetManagement` は Addressables backend と `AssetOwner` 台帳、resident cache を持つ。既存 Scene lifecycle は `SceneResource` と `SceneAssetDescription` を渡す。`AssetKey` の拡張子分類は型検証ではない。
++- 起動時 `AbstractApplicationInitializer` は Config 自体を Addressables から読み、AssetManagement を先に作る。Player bootstrap は BS4 が所有する。
++- `artifacts/bs2c-*` 等の既存検証ログと未追跡 PRE は変更・追加しない。
++
++### 常時制約と対象外
++
++- Game → Framework の一方向、asmdef edge 無断追加なし、SceneState 14 値の順序保持、`IAssetManagement` と `AssetOwner` がロード入口、`ILogger<T>` 公開面、Unity 偽 null、`#nullable enable`、Unity C# の `record` 禁止。
++- Editor/Runtime 分離。Scene/Prefab/Addressables の変更は限定し、Editor 操作は `osm-unity-editor` に従う。
++- 物理削除と remote install は DIST、Player bootstrap と code 保持は BS4、本番非 Scene Description と Mesh subasset の build source は需要別後続 slice、旧 Addressables 経路廃止は RET。
++- source 欠損の全経路を通す end-to-end 実証は DIST。ただし BS3 の登録・解決そのものに local `SceneResourceMap` materialization を要求しない。
++
++### A0 未決事項
++
++1. `Loadable<Object>` に保持された Unity load ID と、外部に説明できる file/object locator、schema 互換性の関係。
++2. `SceneAssetDescription` を要求する既存 Scene API と directory の logical 解決を、Scene lifecycle を壊さずに接続する位置。
++3. sync bootstrap、Prefab instance、cache、in-flight operation が unregister を阻む範囲。
++4. revision 削除許可を同一 process 内でどう原子的に管理するか。process 外保護は DIST に渡すか。
++
++## 2. A1 設計初稿（A2 レビュー対象）
++
++### 進める最低条件と受け入れ条件
++
++1. **解決と identity**: root の schema / identity / target / entry 整合性を登録時に検証し、`logical key + representation + kind` が一意の選択済み対象だけを返す。未知 key、曖昧選択、欠損、型不一致は reason code 付き失敗。Scene 専用の default fallback を Object に適用しない。file GUID は build 入力単位、Object load ID は Unity の local file ID を含む別単位とし、同一ファイルの複数 Object を表現できる locator を schema に確保する。既存 v1 root の扱いを A3 で固定する。
++2. **ロードと寿命**: `IAssetManagement` と `AssetOwner` を通し、Scene は load→unload→scene-owned release、Object は load→owner release、Prefab instance は GameObject 破棄→instance release とする。代表 Prefab/Texture fixture と Scene を実 directory から取得する。要求型を実取得 Object に照合し、`AssetType` のカテゴリは cache budget 用 metadata とする。
++3. **単一 directory owner**: backend/session owner が register、root discovery、load、in-flight 終端、全依存解放、unregister を順序付ける。登録失敗を rollback して同一/別 path で再試行可能。caller 取消は native 操作の終了とみなさず、遅延成功資源を owner が回収する。resident cache の entry も revision 利用中とみなす。明示 close は新規受付を止め、発行済み処理を drain する。caller が所有する live instance/handle があれば `ResourcesInUse` で登録を維持し、caller の解放後に再試行する。live Scene と cache を解放した後にだけ unregister する。同期 `Application.quitting` は best effort とし、完全 drain を GO と偽らない。
++4. **削除排他**: 同一 process 内で revision identity ごとに active 利用 lease と排他的 delete lease を原子的に切り替える。delete lease 保持中は登録・新規利用不可。利用中・登録中・処理中・cache 内は delete lease を拒否する。delete lease は削除成功/失敗の確定まで保持し、失敗でも必ず解除する。物理 I/O は DIST 側。別 process の同時利用保護はこの slice で保証しない旨を API に明示する。
++5. **起動時選択**: Full/Whitebox 同時同梱時に一度選んだ表現を Scene lifecycle へ渡し、高水準の Scene 遷移順序を維持する。Editor Play は local directory を明示選択したときだけ新 backend を使い、旧 Addressables 起動を移行期間の既定として残す。実行中切替 UI は設けない。
++6. **失敗検証**: 欠損 directory/root/entry、登録失敗→再試行、取消後完了、owner 解放、cache eviction、明示 close の cleanup（live instance 拒否→owner 解放→retry を含む）、削除競合を fake と Unity integration で確認する。source 再走査を暗黙 fallback にしない。
++
++### 判定・停止規則
++
++- GO: 上記六条件が同一固定 base/head の証拠で成立し、常時契約違反がない。
++- NO-GO: いずれか未達。最低条件を増やして延期しない。
++- この問いを阻害しない新規課題は BS4、DIST、RET または需要別非 Scene slice へ送る。例外的な scope 変更はユーザーが置き換える条件または期限・検証予算を指定して Phase A revision を再開する。
++
++### 責務配置の初稿
++
++| 配置 | 責務、所有者・寿命、テスト境界 | 見積 |
++|---|---|---|
++| `Runtime/BuildContent/BuildContentRoot.cs`（現78行） | Serialized な load 対象 locator と明示 metadata。永続化契約のみ。Editor I/O やロード状態を持たない。schema 変更なら +40〜80行。 | 120〜160行 |
++| `Runtime/BuildContent/ContentDirectoryIndex.cs`（新規） | root 検証と logical/representation/kind 解決。immutable、directory session 寿命。Unity I/O なしの単体テスト。 | 180〜250行 |
++| `Runtime/BuildContent/ContentDirectorySession.cs`（新規） | register/root discovery/unregister、処理中・live・cache の drain。process 内 revision 利用保護。Unity adapter を port に分離して fake テスト。 | 250〜400行 |
++| `Runtime/BuildContent/UnityContentDirectoryBackend.cs`（新規） | Unity.Loading 呼出と native handle を専有。I/O と依存解放順の integration テスト。 | 200〜350行 |
++| `Runtime/AssetManagement/AssetManagement.cs`（現376行） | 既存 owner 台帳と cache の再利用、新 backend への明示 route。+80〜130行を予想。500行に近づくため route 抽出または二つの backend mode で責務を保つ。 | 456〜506行 |
++| `Runtime/Bootstrap/AbstractApplicationInitializer.cs`（現838行）と SampleGame `DependOnAll` | Editor Play の起動時設定と既存 lifecycle への一度だけの選択を配線。config の Addressables 先行読みは維持。+20〜50行に抑え、新規 directory 管理ロジックを置かない。 | 858〜888行 |
++| `Editor/Build/Content/UnityContentDirectoryAdapter.cs` | locator/schema v2 を出力する場合だけ変更。AssetDatabase 依存は Editor 内。 | 要精査 |
++
++上記は配置候補であり、API の署名・schema version・ファイル数・行数は A2 の所見と Unity API 調査後 A3 で固定する。新規 asmdef は作らず既存 Runtime/Editor 境界に置く方針。公開 API を追加する場合も `IAssetManagement` に directory の登録や物理削除は置かず、backend/session 側の口に限定する。既存呼出側は Addressables mode のまま機能する。
++
++### Phase B/C/C' の予定
++
++- B: pure index と lease 状態機械→Unity adapter→AssetManagement/Scene bridge→Editor Play 接続の順。Unity Editor の対象限定操作・compile 確認まで。`pwsh tools/contract-audit.ps1`。テスト/Build は未実行と記録。
++- C: B と異なるモデルの新規セッション。固定 commit の完全 diff で構造レビュー後、Editor を閉じて承認済み sandbox 外で `pwsh tools/run-tests.ps1 -Filter ...`、必要な Content Directory build/integration、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`。結果 XML の1件以上・failed 0を確認。
++- C': B/C と異なるモデルの新規セッションで blind bundle を監査。Phase C の結論は含めない。未確保なら独立監査済みと記録しない。
++- A0/A1 主担当: Codex GPT-6 Astra（OpenAI）。A2/A3 と C' の実績は後記。
++
++## 3. A2 独立レビュー
++
++同じ A1 入力版を別々に渡し、相互の所見を見せずに実施した。テストはこのレビューでは未実行。
++
++- A0 のみからの代替構成: GPT-5.6 Sol（OpenAI）。pure index、Unity adapter、directory session、既存 owner 台帳の分離を提案。採用。同期 teardown と source metadata の境界を A3 で明示する。
++- アーキテクチャゲート: GPT-5.6 Sol（OpenAI）。scene bridge、typed port と revision key、二重寿命台帳、同期 shutdown、locator/schema、process 全域の delete lease の六件が A3 blocker。全件採用。責務マップの per-file 依存/公開面/規模も追記する。
++- Unity/動作レビュー: GPT-5.6 Terra（OpenAI）。CD0 で実証した Unity API を再利用し、caller 取消から native 完了を切り離すこと、source を消した移設 directory の実ロード、fake deletion race を要求。採用。sync bootstrap は旧 Addressables のままにする。
++- 不採用: なし。後続へ保留: cross-process delete exclusion、Mesh subasset の build source 一般化、Player 起動と code stripping（それぞれ DIST、需要別 slice、BS4）。
++- A3 最終照合: GPT-5.6 Sol が六件の closure を再確認。通常停止・Scene metadata・instance ownership・delete path の追補を採用し、最低条件の shutdown 文言を明示 close の `ResourcesInUse`/retry 契約へ揃えた。
++
++## 4. A3 凍結対象の設計判断
++
++Program に記録された不在時委任を適用し、A2 の通常判断は主担当が統合した。以下が A1 の曖昧な候補記述に優先する凍結済み実装契約である。
++
++### 4.1 identity と永続化
++
++- file identity は canonical GUID。load target identity は `LoadableSceneId` または `LoadableObjectId` であり、後者は Unity の GUID と local file ID を含む。Runtime は Unity ID を opaque として扱い、GUID のみから Object をロードしない。schema v1 の `Loadable<Object>` は既にこの ID を保持するので、v1 は既存 Scene と main Object のロードを許可する。v1 Object のカテゴリは `Other`、診断用 file/local ID は不明として扱い、型は実取得 Object で検査する。
++- schema v2 は既存 field を残し、Object entry に file GUID、local file ID、`AssetType` とは独立した明示カテゴリを追加する。Editor adapter は `TryGetGUIDAndLocalFileIdentifier` と `CreateLoadableObjectId` を同じ Object から取得して格納する。main asset だけを出す現在の materialization の選択制約は変えない。将来 subasset が候補になっても、同じ file GUID の異なる local ID を表せる保存形式である。v1/v2 以外を `UnsupportedSchema` で拒否する。v2 の空・不正 locator、Scene に Object locator がある等の kind 不整合は登録時に拒否する。
++- root は一件だけ。登録 API の expected build identity/target を root と照合し、path の basename は identity に使わない。現在の target は `StandaloneWindows64` のみ。`(logical key, representation, kind)` 重複、stable key 重複、空 key、無効 Unity ID は構造化 issue として session を rollback する。build report/metadata directory は照合できる場合に読むが、Runtime 起動の必須入力は build済み local directory と expected identity/target で、source `SceneResourceMap` の materialization は行わない。
++
++### 4.2 解決と公開入口
++
++- `ContentDirectoryIndex` は immutable な pure policy。選択済み root entries だけを読み、`(logical key, representation, kind)` を引く。Scene で要求 representation が欠ける場合だけ `Full` に fallback する。両方なければ `EntryMissing`。Object は完全一致のみ。同一 logical key の二表現同梱を許し、曖昧な key だけの要求は受け付けない。カテゴリは cache budget 用で、`typeof(T).IsInstanceOfType(actual)` と Unity の偽 null でロード型を検証する。
++- `IAssetManagement` に directory 専用の `LoadContentAssetAsync<T>(logicalKey, representation, owner, ct)`、`LoadContentSceneAsync(sceneIdentity, representation, options, ct)`、`InstantiateContentAsync(logicalKey, representation, parent, worldSpace, ct)` を追加する。登録/削除 API は追加しない。既存メソッド・呼出側・Addressables key はそのまま。directory mode 未選択時の専用メソッドは `DirectoryNotRegistered`、旧メソッドは従来経路を使う。`LoadAppAssetSync` は directory に流さず既存 Addressables bootstrap 専用とする。
++- `SceneDirector` は起動時に固定した directory mode のときだけ `LoadContentSceneAsync(sceneIdentity, selectedRepresentation, ...)` を呼び、`SceneResource` は graph と lifecycle metadata のみに使う。payload 0 の論理 Scene node は従来どおり Unity scene をロードしない。既に `SceneManager` に載る Scene は従来の扱い。directory entry 欠損時は Addressables に fallback しない。`AddressablesLoaded` 等の内部名は backend がロードしたかを表す名前へ変更する。UI/config/SceneResourceMap の bootstrap 同期取得は移行期間 Addressables を維持する。
++- 現 slice の高水準 Scene lifecycle には Runtime の `SceneResourceMap` と payload の有無が必要で、これは移行期間 Addressables から取得する。directory mode の Scene 対象を payload の参照先から解決してはならず、payload 有りの node は必ず root index の logical identity から解決する。payload 0 は Scene 実体なしの論理 node として従来どおり扱う。source の AssetDatabase/materialization は一切起動しない。取得済み content だけで graph metadata も含めて起動する経路は DIST/BS4 に渡す。
++
++### 4.3 owner、取消、close
++
++- session は Unity directory handle、root、native 発行済み操作、revision 利用 lease と unregister を所有する。`AssetManagement` は `AssetOwner` の registry と resident cache を唯一の正本として所有する。session は owner の複製台帳を持たない。代わりに directory origin の backend token が session lease を保持し、registry/cache/in-flight から解放または eviction された時に返す。cache key と registry key は `directory + build identity + target + logical key + representation + kind + locator` を含み、Addressables key と別 namespace にする。異なる revision の token は共有しない。
++- `IAssetBackend` の address string port は旧 Addressables 用に残す。directory 用に typed entry と revision token を受け取る internal port を別に置く。Object は root に埋め込まれた同じ `Loadable<Object>` を native 完了まで保持し、成功後の実型を検査する。複数 owner は一つの backend token を registry で共有し、最後の owner 解放まで `Release()` しない。Prefab は `GameObject` の元 asset token を instance の生存中も保持し、GameObject 破棄時に instance を解放してから元 token を解放する。Scene は `LoadableSceneId` で `SceneManager.LoadSceneAsync`、正常 unload は `SceneManager.UnloadSceneAsync` の終端を待って token を返す。
++- caller の ct は waiter の待ちだけを取り消す。発行済み native operation 自体へ渡さない。operation は成功/失敗の terminal まで session が追跡する。全 waiter が去った成功 Object は直ちに `Release()`、成功 Scene は unload terminal まで追跡する。失敗と取消の後も session は残存 token を掃除し、retry を許す。既存 Addressables `_inFlight` の第一 caller ct 問題も directory route に流用しない。
++- `CloseAsync` は新規受付停止→native operation terminal→abandoned result cleanup→live Scene unload→owner が解放済みか確認→resident cache の当該 revision entry eviction→root を含む全 token release→unregister の順。正常 close は idempotent。Prefab instance とその GameObject は Scene/呼出側が所有し、session が勝手に破棄しない。live instance/owner handle が残る場合は `ResourcesInUse` を返し、session を登録状態に維持して owner が破棄/解放した後の retry を許す。別 origin の Addressables entry は eviction しない。登録失敗は register handle が有効なら unregister まで rollback し、同一 path/別 path の retry を可能にする。
++- `IAssetManagement.ReleaseAll` と `Application.quitting` の同期契約は維持する。同期 shutdown は新規受付停止と同期解放を開始し、既に発行した native operation が残れば terminal callback で cleanup/unregister する。callback 前には delete lease を許さない。process 終了で callback が実行できない場合は OS の process 終了に任せ、正常 `CloseAsync` 完了と偽らない。Unity は Play 停止を同期で進めるため、通常の Editor 停止で awaitable close 完了を保証しない。GO の shutdown cleanup 証拠は Play 中に明示 `CloseAsync` を呼んだテストで terminal と unregister を観測する。起動済み Scene が Unity によって先に解体された場合は無効 Scene への unload を呼ばない。通常 Play 停止の完全 drain は後続 RET の Editor workflow 置換条件として記録する。
++
++### 4.4 revision 利用と物理削除の排他
++
++- process-global `ContentRevisionGate` は `(expected build identity, target)` を identity とし、登録予約に正規化 absolute path を結び付ける。同 identity に別 path が同時登録されたら拒否する。同 path の重複登録も拒否し、v1 は process 内で単一 active directory session とする。path は移設後に変わり得るため恒久 revision ID にしない。
++- 状態は `Free → Registering → Active → Closing → Free` と `Free → Deleting → Free`。全遷移を同一 lock で原子的に行う。`TryAcquireDelete(identity,target,path)` は待たずに拒否理由を返し、成功時に `IDisposable` delete lease を返す。`Deleting` 中は register/new use を拒否。delete lease は DIST が物理削除の成功/失敗を確定するまで保持し、`finally` で dispose する。使用中、処理中、cache 内、登録中は `Free` に移らない。delete lease 自体は削除を実行しない。
++- gate は identity と canonical path の双方を索引にし、いずれかが登録・利用・削除中なら別 identity を名乗っても同じ path の削除許可を出さない。process 全体で active session は一つだけ。DIST は install metadata の identity/target と削除する実 path の一致を検証してからこの port を呼ぶ契約とし、未登録 revision も指定できる。BS3 fake delete はこの不一致と競合を検証する。gate は disk 上の metadata 自体の真正性を判定せず、DIST の物理削除責務を奪わない。
++- この gate は同一 process 内だけの排他である。別 process の file 使用、OS file lock、remote install と disk budget は DIST が所有する。DIST は process 間の delete 安全性を必要とする場合、同じ port の外側に lock を加える。
++
++### 4.5 変更規模と停止条件
++
++- `AssetManagement`（376行）は directory 専用 port を注入/呼出する薄い route のみ追加し、native handle や revision gate を持たせない。500行を超えるなら partial/専用 coordinator を分ける。`AbstractApplicationInitializer`（838行）には選択済み directory session の生成/close 呼出のみを追加し、登録状態機械を置かない。既存の長さを増やす理由は起動順序の所有者がここだからであり、処理詳細を移す。
++- Phase B 中に v1 の Unity API が計画どおり利用できない、必要な asmdef edge が増える、予定外の owner/状態/API が要る、または async close と同期終了をこの契約で安全に実装できない場合は Phase A revision に戻す。
++
++### 4.6 確定した責務マップとテスト境界
++
++| ファイル / namespace / asmdef | 変更理由・責務・依存・所有者・公開面 | 現在→予想行数 / 検証 |
++|---|---|---|
++| `Runtime/BuildContent/BuildContentRoot.cs` / `OneStarMaker.Runtime.BuildContent` / 既存 Runtime | schema v2 の serialized locator/category。Unity.Loading の値と primitive だけに依存。root は directory content が所有し session 終了まで。公開 DTO の追加 field のみ。 | 78→150。v1/v2 roundtrip、locator の Editor 出力。 |
++| `Runtime/BuildContent/ContentDirectoryIndex.cs` / 同 namespace / 既存 Runtime | pure policy。root entry を immutable map に投影し、検証と Scene fallback/厳密 Object 解決。Unity I/O なし。session 寿命、internal。 | 0→250。mock entry による単体テスト。 |
++| `Runtime/BuildContent/ContentRevisionGate.cs` / 同 namespace / 既存 Runtime | process-global 登録予約・利用/削除 lease 状態機械。native API なし、process 寿命。DIST 接続に必要な最小公開 facade と internal state。 | 0→220。fake delete race、例外解除。 |
++| `Runtime/BuildContent/ContentDirectorySession.cs` / 同 namespace / 既存 Runtime | index、gate、native adapter、owner 台帳の協調。directory handle と pending 操作を所有。登録から close まで。`IAssetManagement` には公開しない。 | 0→350。fake native terminal 制御。3責務に見えるため policy/index、gate、Unity adapter と分離して orchestration に限定。 |
++| `Runtime/BuildContent/UnityContentDirectoryBackend.cs` / 同 namespace / 既存 Runtime | `ContentLoadManager`、`Loadable<Object>`、SceneManager の Unity I/O と native token。session にのみ返す internal port。Unity Editor API へ依存しない。 | 0→300。移設後 PlayMode integration。 |
++| `Runtime/AssetManagement/AssetManagement.cs` と `IAssetManagement.cs` / 既存 Runtime | 既存 registry/cache の唯一の owner。directory mode route と三つの公開 overload、revision-qualified key。session へ使用 token を返す。 | 376→480、interface 79→110。owner/cache/取消の単体テスト。500行を超えれば route を internal partial に抽出。 |
++| `Runtime/AssetManagement/Cache/AssetResidentCache.cs` / 既存 Runtime | origin/session ごとの eviction を可能にし、cache 保持中は token lease を維持する。既存 Addressables entry も同じ API で保持。 | 218→260。eviction/clear と lease callback。 |
++| `Runtime/SceneSystem/SceneDirector.Loading.cs` / 既存 Runtime | directory mode の Scene API 呼分けと backend-owned 名称の修正。既存 lifecycle と空 payload node の責務を維持。 | 685→705〜725。Scene load/unload 順。 |
++| `Runtime/Bootstrap/AbstractApplicationInitializer.cs` と SampleGame `DependOnAll` / 既存 Runtime と Game | 起動時の mode/path/identity/target/representation を選び、一つの session の開始・終了を配線。Game 固有設定は SampleGame、Framework に季節名を持ち込まない。 | 838→880、Game 側 310→340〜370。Editor Play で旧/新を切替確認。 |
++| `Editor/Build/Content/UnityContentDirectoryAdapter.cs` / 既存 Editor asmdef | main Object から v2 file/local locator と category を作り、root に保存。Editor I/O はここだけ。 | 152→182〜212。Content Directory を実 build。 |
++
++全ファイルの新規または編集 Unity C# は `#nullable enable` で始める。runtime から Editor asmdef を参照せず、asmdef edge は増やさない。新規中核ロジックが fake/単体テスト不能になった場合、別の Helper へ逃がさず配置を Phase A で再検討する。
++
++## 5. Phase B 実装結果
++
++未実施。
++
++## 6. Phase C
++
++未実施。
++
++## 7. Phase C' 独立監査
++
++未実施。
++
++## 8. Phase D
++
++人間のマージ判断待ち。Phase D の委任は受けていない。
+diff --git a/artifacts/bs3-phase-b/phase-b.md b/artifacts/bs3-phase-b/phase-b.md
+new file mode 100644
+index 0000000..f0948e0
+--- /dev/null
++++ b/artifacts/bs3-phase-b/phase-b.md
+@@ -0,0 +1,28 @@
++# BS3 Phase B 実装結果
++
++- 入力: `artifacts/bs3-phase-a/phase-a-r2.md`（A3 凍結版）
++- branch: `codex/bs3-runtime-directory`
++- implementation base: `25a5024d310347ef9ce67128636a06e0e0fb5172`
++- 実装担当: GPT-5.6 Terra と主担当 GPT-6 Astra
++- 実装対象: schema v2 locator/category、root index、Content Directory session/native port、revision/delete gate、AssetManagement owner/cache/Scene route、Editor Play 起動配線、SceneDirector の固定 representation
++
++## 変更と境界
++
++- root は v1/v2、expected identity/target、entry の種別と locator を登録時に検証する。Object は完全一致、Scene のみ Full fallback とした。
++- `ContentDirectorySession` は register から unregister までの process 内予約を持つ。caller 取消後も native terminal を観測し、成功資源を解放してから close する。Unity I/O は `IContentNativeDirectory` を通し、fake で terminal と rollback を検証できる。
++- `AssetManagement` の既存 Addressables API は維持し、directory 専用の三つの API を追加した。registry/cache の owner 台帳を再利用し、directory token の native 解放を session へ戻す。cache key に path、identity、target、entry、locator を入れる。
++- Editor Play の明示 config だけ directory mode を選択する。SceneResource の graph/payload metadata と同期 bootstrap は既存経路を使い、Scene 本体だけ directory entry の logical identity からロードする。
++- `ContentRevisionGate.TryAcquireDelete` は物理削除を行わず、同一 process の active session と delete lease の競合を拒否する。
++
++## Phase B での確認
++
++- Unity Editor 6000.6.0f1 の `recompile` / `recompile_status`: `completed`, `failed=false`, errors 0。
++- `pwsh tools/contract-audit.ps1`: exit 0、機械契約違反なし。
++- Unity バッチテストと Content Directory build は未実行。Phase C に渡す。
++- Unity Editor はこの作業で起動した PID 7612 を通常終了し、対象外の SampleGame `.meta` 5件は復元した。
++
++## Phase C の必須検証
++
++- source fixture を削除して移設した実 directory から Scene、Prefab、Texture、二表現をロード・解放する。
++- fake session の登録失敗 rollback、取消後 terminal、close/unregister、delete lease 競合を実行する。
++- 全テストは規定の `pwsh tools/run-tests.ps1` に `-Filter` を使い、結果 XML の tests > 0 / failed = 0 を確認する。
+diff --git a/docs/handoff/BS3_RUNTIME_DIRECTORY.md b/docs/handoff/BS3_RUNTIME_DIRECTORY.md
+new file mode 100644
+index 0000000..09ff195
+--- /dev/null
++++ b/docs/handoff/BS3_RUNTIME_DIRECTORY.md
+@@ -0,0 +1,179 @@
++# BS3 Runtime directory とロード対象
++
++- type: slice
++- status: C（Phase B 実装・Editor コンパイル確認済み）
++- branch: `codex/bs3-runtime-directory`
++- implementation base commit: `25a5024d310347ef9ce67128636a06e0e0fb5172`
++- implementation head commit: 未生成
++- risk: high（公開 API、寿命、Unity Content Loading、取消）
++- owner: BuildSystem 主担当
++- created: 2026-09-18
++- expires: BS3 Phase D
++- harvest to: `unity/Assets/Docs/Architecture/13-resource-system.md`、`18-asset-description.md`、必要なら起動文書
++- Phase A snapshot path / id: `artifacts/bs3-phase-a/phase-a-r2.md`（旧 `phase-a.md` は revision 1 記録）
++- Phase A snapshot generated at: 2026-09-18 JST
++- Phase A snapshot hash: SHA-256 `0DEA239D630F5F40487C53F5733377DBA4FB80D1CE86A85EA0D0C54303CD72D9`
++- Phase B result snapshot path / id: `artifacts/bs3-phase-b/phase-b.md`
++- Phase B result snapshot generated at: 2026-09-18 JST
++- Phase B result snapshot hash: SHA-256 `A7F5461EAC5E816BDF35C91BA0EDF9D29397E8C05088E917C9C63326E8499D6D`
++- evidence bundle path / id: 未生成
++- C' blind bundle path / id: 未生成
++
++## 1. A0 入力、目的、境界
++
++### このスライスが答える問い
++
++ビルド済みの local Content Directory を source 再走査なしに解決・ロードし、処理中・利用中・cache 内の資源を残さずに unregister できるか。
++
++### 現況
++
++- BS2b の `BuildContentRoot` schema v1 は build identity、target、logical/stable key、representation、Scene/Object 種別、`LoadableSceneId` または `Loadable<Object>` を保存する。Editor integration は移設後の単一 root discovery まで実証し、型付きロードと寿命は未実証。
++- BS2c は本番 Scene graph の候補と Full/Whitebox 同梱を選択し、Content Directory build へ接続済み。
++- `AssetManagement` は Addressables backend と `AssetOwner` 台帳、resident cache を持つ。既存 Scene lifecycle は `SceneResource` と `SceneAssetDescription` を渡す。`AssetKey` の拡張子分類は型検証ではない。
++- 起動時 `AbstractApplicationInitializer` は Config 自体を Addressables から読み、AssetManagement を先に作る。Player bootstrap は BS4 が所有する。
++- `artifacts/bs2c-*` 等の既存検証ログと未追跡 PRE は変更・追加しない。
++
++### 常時制約と対象外
++
++- Game → Framework の一方向、asmdef edge 無断追加なし、SceneState 14 値の順序保持、`IAssetManagement` と `AssetOwner` がロード入口、`ILogger<T>` 公開面、Unity 偽 null、`#nullable enable`、Unity C# の `record` 禁止。
++- Editor/Runtime 分離。Scene/Prefab/Addressables の変更は限定し、Editor 操作は `osm-unity-editor` に従う。
++- 物理削除と remote install は DIST、Player bootstrap と code 保持は BS4、本番非 Scene Description と Mesh subasset の build source は需要別後続 slice、旧 Addressables 経路廃止は RET。
++- source 欠損の全経路を通す end-to-end 実証は DIST。ただし BS3 の登録・解決そのものに local `SceneResourceMap` materialization を要求しない。
++
++### A0 未決事項
++
++1. `Loadable<Object>` に保持された Unity load ID と、外部に説明できる file/object locator、schema 互換性の関係。
++2. `SceneAssetDescription` を要求する既存 Scene API と directory の logical 解決を、Scene lifecycle を壊さずに接続する位置。
++3. sync bootstrap、Prefab instance、cache、in-flight operation が unregister を阻む範囲。
++4. revision 削除許可を同一 process 内でどう原子的に管理するか。process 外保護は DIST に渡すか。
++
++## 2. A1 設計初稿（A2 レビュー対象）
++
++### 進める最低条件と受け入れ条件
++
++1. **解決と identity**: root の schema / identity / target / entry 整合性を登録時に検証し、`logical key + representation + kind` が一意の選択済み対象だけを返す。未知 key、曖昧選択、欠損、型不一致は reason code 付き失敗。Scene 専用の default fallback を Object に適用しない。file GUID は build 入力単位、Object load ID は Unity の local file ID を含む別単位とし、同一ファイルの複数 Object を表現できる locator を schema に確保する。既存 v1 root の扱いを A3 で固定する。
++2. **ロードと寿命**: `IAssetManagement` と `AssetOwner` を通し、Scene は load→unload→scene-owned release、Object は load→owner release、Prefab instance は GameObject 破棄→instance release とする。代表 Prefab/Texture fixture と Scene を実 directory から取得する。要求型を実取得 Object に照合し、`AssetType` のカテゴリは cache budget 用 metadata とする。
++3. **単一 directory owner**: backend/session owner が register、root discovery、load、in-flight 終端、全依存解放、unregister を順序付ける。登録失敗を rollback して同一/別 path で再試行可能。caller 取消は native 操作の終了とみなさず、遅延成功資源を owner が回収する。resident cache の entry も revision 利用中とみなす。明示 close は新規受付を止め、発行済み処理を drain する。caller が所有する live instance/handle があれば `ResourcesInUse` で登録を維持し、caller の解放後に再試行する。live Scene と cache を解放した後にだけ unregister する。同期 `Application.quitting` は best effort とし、完全 drain を GO と偽らない。
++4. **削除排他**: 同一 process 内で revision identity ごとに active 利用 lease と排他的 delete lease を原子的に切り替える。delete lease 保持中は登録・新規利用不可。利用中・登録中・処理中・cache 内は delete lease を拒否する。delete lease は削除成功/失敗の確定まで保持し、失敗でも必ず解除する。物理 I/O は DIST 側。別 process の同時利用保護はこの slice で保証しない旨を API に明示する。
++5. **起動時選択**: Full/Whitebox 同時同梱時に一度選んだ表現を Scene lifecycle へ渡し、高水準の Scene 遷移順序を維持する。Editor Play は local directory を明示選択したときだけ新 backend を使い、旧 Addressables 起動を移行期間の既定として残す。実行中切替 UI は設けない。
++6. **失敗検証**: 欠損 directory/root/entry、登録失敗→再試行、取消後完了、owner 解放、cache eviction、明示 close の cleanup（live instance 拒否→owner 解放→retry を含む）、削除競合を fake と Unity integration で確認する。source 再走査を暗黙 fallback にしない。
++
++### 判定・停止規則
++
++- GO: 上記六条件が同一固定 base/head の証拠で成立し、常時契約違反がない。
++- NO-GO: いずれか未達。最低条件を増やして延期しない。
++- この問いを阻害しない新規課題は BS4、DIST、RET または需要別非 Scene slice へ送る。例外的な scope 変更はユーザーが置き換える条件または期限・検証予算を指定して Phase A revision を再開する。
++
++### 責務配置の初稿
++
++| 配置 | 責務、所有者・寿命、テスト境界 | 見積 |
++|---|---|---|
++| `Runtime/BuildContent/BuildContentRoot.cs`（現78行） | Serialized な load 対象 locator と明示 metadata。永続化契約のみ。Editor I/O やロード状態を持たない。schema 変更なら +40〜80行。 | 120〜160行 |
++| `Runtime/BuildContent/ContentDirectoryIndex.cs`（新規） | root 検証と logical/representation/kind 解決。immutable、directory session 寿命。Unity I/O なしの単体テスト。 | 180〜250行 |
++| `Runtime/BuildContent/ContentDirectorySession.cs`（新規） | register/root discovery/unregister、処理中・live・cache の drain。process 内 revision 利用保護。Unity adapter を port に分離して fake テスト。 | 250〜400行 |
++| `Runtime/BuildContent/UnityContentDirectoryBackend.cs`（新規） | Unity.Loading 呼出と native handle を専有。I/O と依存解放順の integration テスト。 | 200〜350行 |
++| `Runtime/AssetManagement/AssetManagement.cs`（現376行） | 既存 owner 台帳と cache の再利用、新 backend への明示 route。+80〜130行を予想。500行に近づくため route 抽出または二つの backend mode で責務を保つ。 | 456〜506行 |
++| `Runtime/Bootstrap/AbstractApplicationInitializer.cs`（現838行）と SampleGame `DependOnAll` | Editor Play の起動時設定と既存 lifecycle への一度だけの選択を配線。config の Addressables 先行読みは維持。+20〜50行に抑え、新規 directory 管理ロジックを置かない。 | 858〜888行 |
++| `Editor/Build/Content/UnityContentDirectoryAdapter.cs` | locator/schema v2 を出力する場合だけ変更。AssetDatabase 依存は Editor 内。 | 要精査 |
++
++上記は配置候補であり、API の署名・schema version・ファイル数・行数は A2 の所見と Unity API 調査後 A3 で固定する。新規 asmdef は作らず既存 Runtime/Editor 境界に置く方針。公開 API を追加する場合も `IAssetManagement` に directory の登録や物理削除は置かず、backend/session 側の口に限定する。既存呼出側は Addressables mode のまま機能する。
++
++### Phase B/C/C' の予定
++
++- B: pure index と lease 状態機械→Unity adapter→AssetManagement/Scene bridge→Editor Play 接続の順。Unity Editor の対象限定操作・compile 確認まで。`pwsh tools/contract-audit.ps1`。テスト/Build は未実行と記録。
++- C: B と異なるモデルの新規セッション。固定 commit の完全 diff で構造レビュー後、Editor を閉じて承認済み sandbox 外で `pwsh tools/run-tests.ps1 -Filter ...`、必要な Content Directory build/integration、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`。結果 XML の1件以上・failed 0を確認。
++- C': B/C と異なるモデルの新規セッションで blind bundle を監査。Phase C の結論は含めない。未確保なら独立監査済みと記録しない。
++- A0/A1 主担当: Codex GPT-6 Astra（OpenAI）。A2/A3 と C' の実績は後記。
++
++## 3. A2 独立レビュー
++
++同じ A1 入力版を別々に渡し、相互の所見を見せずに実施した。テストはこのレビューでは未実行。
++
++- A0 のみからの代替構成: GPT-5.6 Sol（OpenAI）。pure index、Unity adapter、directory session、既存 owner 台帳の分離を提案。採用。同期 teardown と source metadata の境界を A3 で明示する。
++- アーキテクチャゲート: GPT-5.6 Sol（OpenAI）。scene bridge、typed port と revision key、二重寿命台帳、同期 shutdown、locator/schema、process 全域の delete lease の六件が A3 blocker。全件採用。責務マップの per-file 依存/公開面/規模も追記する。
++- Unity/動作レビュー: GPT-5.6 Terra（OpenAI）。CD0 で実証した Unity API を再利用し、caller 取消から native 完了を切り離すこと、source を消した移設 directory の実ロード、fake deletion race を要求。採用。sync bootstrap は旧 Addressables のままにする。
++- 不採用: なし。後続へ保留: cross-process delete exclusion、Mesh subasset の build source 一般化、Player 起動と code stripping（それぞれ DIST、需要別 slice、BS4）。
++- A3 最終照合: GPT-5.6 Sol が六件の closure を再確認。通常停止・Scene metadata・instance ownership・delete path の追補を採用し、最低条件の shutdown 文言を明示 close の `ResourcesInUse`/retry 契約へ揃えた。
++- revision 2: Phase B 担当 GPT-5.6 Terra が実装前に起動設定と公開失敗型の未決を発見して停止。主担当が §4.7 を追加。GPT-5.6 Sol の architecture 再照合は blocker なし。GPT-5.6 Terra の behavior レビューが AppConfig の大小文字、AfterSceneLoad 登録時点、Editor guard、削除拒否 code、診断 field を指摘し、全件採用した。追加範囲は既存の六最低条件の起動・失敗・排他の具体化であり、program の目的や予算を拡張しない。
++
++## 4. A3 凍結対象の設計判断
++
++Program に記録された不在時委任を適用し、A2 の通常判断は主担当が統合した。以下が A1 の曖昧な候補記述に優先する凍結済み実装契約である。
++
++### 4.1 identity と永続化
++
++- file identity は canonical GUID。load target identity は `LoadableSceneId` または `LoadableObjectId` であり、後者は Unity の GUID と local file ID を含む。Runtime は Unity ID を opaque として扱い、GUID のみから Object をロードしない。schema v1 の `Loadable<Object>` は既にこの ID を保持するので、v1 は既存 Scene と main Object のロードを許可する。v1 Object のカテゴリは `Other`、診断用 file/local ID は不明として扱い、型は実取得 Object で検査する。
++- schema v2 は既存 field を残し、Object entry に file GUID、local file ID、`AssetType` とは独立した明示カテゴリを追加する。Editor adapter は `TryGetGUIDAndLocalFileIdentifier` と `CreateLoadableObjectId` を同じ Object から取得して格納する。main asset だけを出す現在の materialization の選択制約は変えない。将来 subasset が候補になっても、同じ file GUID の異なる local ID を表せる保存形式である。v1/v2 以外を `UnsupportedSchema` で拒否する。v2 の空・不正 locator、Scene に Object locator がある等の kind 不整合は登録時に拒否する。
++- root は一件だけ。登録 API の expected build identity/target を root と照合し、path の basename は identity に使わない。現在の target は `StandaloneWindows64` のみ。`(logical key, representation, kind)` 重複、stable key 重複、空 key、無効 Unity ID は構造化 issue として session を rollback する。build report/metadata directory は照合できる場合に読むが、Runtime 起動の必須入力は build済み local directory と expected identity/target で、source `SceneResourceMap` の materialization は行わない。
++
++### 4.2 解決と公開入口
++
++- `ContentDirectoryIndex` は immutable な pure policy。選択済み root entries だけを読み、`(logical key, representation, kind)` を引く。Scene で要求 representation が欠ける場合だけ `Full` に fallback する。両方なければ `EntryMissing`。Object は完全一致のみ。同一 logical key の二表現同梱を許し、曖昧な key だけの要求は受け付けない。カテゴリは cache budget 用で、`typeof(T).IsInstanceOfType(actual)` と Unity の偽 null でロード型を検証する。
++- `IAssetManagement` に directory 専用の `LoadContentAssetAsync<T>(logicalKey, representation, owner, ct)`、`LoadContentSceneAsync(sceneIdentity, representation, options, ct)`、`InstantiateContentAsync(logicalKey, representation, parent, worldSpace, ct)` を追加する。登録/削除 API は追加しない。既存メソッド・呼出側・Addressables key はそのまま。directory mode 未選択時の専用メソッドは `DirectoryNotRegistered`、旧メソッドは従来経路を使う。`LoadAppAssetSync` は directory に流さず既存 Addressables bootstrap 専用とする。
++- `SceneDirector` は起動時に固定した directory mode のときだけ `LoadContentSceneAsync(sceneIdentity, selectedRepresentation, ...)` を呼び、`SceneResource` は graph と lifecycle metadata のみに使う。payload 0 の論理 Scene node は従来どおり Unity scene をロードしない。既に `SceneManager` に載る Scene は従来の扱い。directory entry 欠損時は Addressables に fallback しない。`AddressablesLoaded` 等の内部名は backend がロードしたかを表す名前へ変更する。UI/config/SceneResourceMap の bootstrap 同期取得は移行期間 Addressables を維持する。
++- 現 slice の高水準 Scene lifecycle には Runtime の `SceneResourceMap` と payload の有無が必要で、これは移行期間 Addressables から取得する。directory mode の Scene 対象を payload の参照先から解決してはならず、payload 有りの node は必ず root index の logical identity から解決する。payload 0 は Scene 実体なしの論理 node として従来どおり扱う。source の AssetDatabase/materialization は一切起動しない。取得済み content だけで graph metadata も含めて起動する経路は DIST/BS4 に渡す。
++
++### 4.3 owner、取消、close
++
++- session は Unity directory handle、root、native 発行済み操作、revision 利用 lease と unregister を所有する。`AssetManagement` は `AssetOwner` の registry と resident cache を唯一の正本として所有する。session は owner の複製台帳を持たない。代わりに directory origin の backend token が session lease を保持し、registry/cache/in-flight から解放または eviction された時に返す。cache key と registry key は `directory + build identity + target + logical key + representation + kind + locator` を含み、Addressables key と別 namespace にする。異なる revision の token は共有しない。
++- `IAssetBackend` の address string port は旧 Addressables 用に残す。directory 用に typed entry と revision token を受け取る internal port を別に置く。Object は root に埋め込まれた同じ `Loadable<Object>` を native 完了まで保持し、成功後の実型を検査する。複数 owner は一つの backend token を registry で共有し、最後の owner 解放まで `Release()` しない。Prefab は `GameObject` の元 asset token を instance の生存中も保持し、GameObject 破棄時に instance を解放してから元 token を解放する。Scene は `LoadableSceneId` で `SceneManager.LoadSceneAsync`、正常 unload は `SceneManager.UnloadSceneAsync` の終端を待って token を返す。
++- caller の ct は waiter の待ちだけを取り消す。発行済み native operation 自体へ渡さない。operation は成功/失敗の terminal まで session が追跡する。全 waiter が去った成功 Object は直ちに `Release()`、成功 Scene は unload terminal まで追跡する。失敗と取消の後も session は残存 token を掃除し、retry を許す。既存 Addressables `_inFlight` の第一 caller ct 問題も directory route に流用しない。
++- `CloseAsync` は新規受付停止→native operation terminal→abandoned result cleanup→live Scene unload→owner が解放済みか確認→resident cache の当該 revision entry eviction→root を含む全 token release→unregister の順。正常 close は idempotent。Prefab instance とその GameObject は Scene/呼出側が所有し、session が勝手に破棄しない。live instance/owner handle が残る場合は `ResourcesInUse` を返し、session を登録状態に維持して owner が破棄/解放した後の retry を許す。別 origin の Addressables entry は eviction しない。登録失敗は register handle が有効なら unregister まで rollback し、同一 path/別 path の retry を可能にする。
++- `IAssetManagement.ReleaseAll` と `Application.quitting` の同期契約は維持する。同期 shutdown は新規受付停止と同期解放を開始し、既に発行した native operation が残れば terminal callback で cleanup/unregister する。callback 前には delete lease を許さない。process 終了で callback が実行できない場合は OS の process 終了に任せ、正常 `CloseAsync` 完了と偽らない。Unity は Play 停止を同期で進めるため、通常の Editor 停止で awaitable close 完了を保証しない。GO の shutdown cleanup 証拠は Play 中に明示 `CloseAsync` を呼んだテストで terminal と unregister を観測する。起動済み Scene が Unity によって先に解体された場合は無効 Scene への unload を呼ばない。通常 Play 停止の完全 drain は後続 RET の Editor workflow 置換条件として記録する。
++
++### 4.4 revision 利用と物理削除の排他
++
++- process-global `ContentRevisionGate` は `(expected build identity, target)` を identity とし、登録予約に正規化 absolute path を結び付ける。同 identity に別 path が同時登録されたら拒否する。同 path の重複登録も拒否し、v1 は process 内で単一 active directory session とする。path は移設後に変わり得るため恒久 revision ID にしない。
++- 状態は `Free → Registering → Active → Closing → Free` と `Free → Deleting → Free`。全遷移を同一 lock で原子的に行う。`TryAcquireDelete(identity,target,path)` は待たずに拒否理由を返し、成功時に `IDisposable` delete lease を返す。`Deleting` 中は register/new use を拒否。delete lease は DIST が物理削除の成功/失敗を確定するまで保持し、`finally` で dispose する。使用中、処理中、cache 内、登録中は `Free` に移らない。delete lease 自体は削除を実行しない。
++- gate は identity と canonical path の双方を索引にし、いずれかが登録・利用・削除中なら別 identity を名乗っても同じ path の削除許可を出さない。process 全体で active session は一つだけ。DIST は install metadata の identity/target と削除する実 path の一致を検証してからこの port を呼ぶ契約とし、未登録 revision も指定できる。BS3 fake delete はこの不一致と競合を検証する。gate は disk 上の metadata 自体の真正性を判定せず、DIST の物理削除責務を奪わない。
++- この gate は同一 process 内だけの排他である。別 process の file 使用、OS file lock、remote install と disk budget は DIST が所有する。DIST は process 間の delete 安全性を必要とする場合、同じ port の外側に lock を加える。
++
++### 4.5 変更規模と停止条件
++
++- `AssetManagement`（376行）は directory 専用 port を注入/呼出する薄い route のみ追加し、native handle や revision gate を持たせない。500行を超えるなら partial/専用 coordinator を分ける。`AbstractApplicationInitializer`（838行）には選択済み directory session の生成/close 呼出のみを追加し、登録状態機械を置かない。既存の長さを増やす理由は起動順序の所有者がここだからであり、処理詳細を移す。
++- Phase B 中に v1 の Unity API が計画どおり利用できない、必要な asmdef edge が増える、予定外の owner/状態/API が要る、または async close と同期終了をこの契約で安全に実装できない場合は Phase A revision に戻す。
++
++### 4.6 確定した責務マップとテスト境界
++
++| ファイル / namespace / asmdef | 変更理由・責務・依存・所有者・公開面 | 現在→予想行数 / 検証 |
++|---|---|---|
++| `Runtime/BuildContent/BuildContentRoot.cs` / `OneStarMaker.Runtime.BuildContent` / 既存 Runtime | schema v2 の serialized locator/category。Unity.Loading の値と primitive だけに依存。root は directory content が所有し session 終了まで。公開 DTO の追加 field のみ。 | 78→150。v1/v2 roundtrip、locator の Editor 出力。 |
++| `Runtime/BuildContent/ContentDirectoryIndex.cs` / 同 namespace / 既存 Runtime | pure policy。root entry を immutable map に投影し、検証と Scene fallback/厳密 Object 解決。Unity I/O なし。session 寿命、internal。 | 0→250。mock entry による単体テスト。 |
++| `Runtime/BuildContent/ContentRevisionGate.cs` / 同 namespace / 既存 Runtime | process-global 登録予約・利用/削除 lease 状態機械。native API なし、process 寿命。DIST 接続に必要な最小公開 facade と internal state。 | 0→220。fake delete race、例外解除。 |
++| `Runtime/BuildContent/ContentDirectorySession.cs` / 同 namespace / 既存 Runtime | index、gate、native adapter、owner 台帳の協調。directory handle と pending 操作を所有。登録から close まで。`IAssetManagement` には公開しない。 | 0→350。fake native terminal 制御。3責務に見えるため policy/index、gate、Unity adapter と分離して orchestration に限定。 |
++| `Runtime/BuildContent/UnityContentDirectoryBackend.cs` / 同 namespace / 既存 Runtime | `ContentLoadManager`、`Loadable<Object>`、SceneManager の Unity I/O と native token。session にのみ返す internal port。Unity Editor API へ依存しない。 | 0→300。移設後 PlayMode integration。 |
++| `Runtime/AssetManagement/AssetManagement.cs` と `IAssetManagement.cs` / 既存 Runtime | 既存 registry/cache の唯一の owner。directory mode route と三つの公開 overload、revision-qualified key。session へ使用 token を返す。 | 376→480、interface 79→110。owner/cache/取消の単体テスト。500行を超えれば route を internal partial に抽出。 |
++| `Runtime/AssetManagement/Cache/AssetResidentCache.cs` / 既存 Runtime | origin/session ごとの eviction を可能にし、cache 保持中は token lease を維持する。既存 Addressables entry も同じ API で保持。 | 218→260。eviction/clear と lease callback。 |
++| `Runtime/SceneSystem/SceneDirector.Loading.cs` / 既存 Runtime | directory mode の Scene API 呼分けと backend-owned 名称の修正。既存 lifecycle と空 payload node の責務を維持。 | 685→705〜725。Scene load/unload 順。 |
++| `Runtime/Bootstrap/AbstractApplicationInitializer.cs` と SampleGame `DependOnAll` / 既存 Runtime と Game | 起動時の mode/path/identity/target/representation を選び、一つの session の開始・終了を配線。Game 固有設定は SampleGame、Framework に季節名を持ち込まない。 | 838→880、Game 側 310→340〜370。Editor Play で旧/新を切替確認。 |
++| `Editor/Build/Content/UnityContentDirectoryAdapter.cs` / 既存 Editor asmdef | main Object から v2 file/local locator と category を作り、root に保存。Editor I/O はここだけ。 | 152→182〜212。Content Directory を実 build。 |
++
++全ファイルの新規または編集 Unity C# は `#nullable enable` で始める。runtime から Editor asmdef を参照せず、asmdef edge は増やさない。新規中核ロジックが fake/単体テスト不能になった場合、別の Helper へ逃がさず配置を Phase A で再検討する。
++
++### 4.7 Phase A revision 2: 起動入力と失敗契約
++
++Phase B は実装前に停止した。旧 snapshot は設計として保持し、以下を追加した新 snapshot を Phase B 入力にする。
++
++- 設定元は既存 `AppConfig` の JSON→環境変数→コマンドライン優先順。新キーは `content:runtimeMode`（未指定/`addressables` または `directory`）、`content:directoryPath`、`content:buildIdentity`、`content:representation`。キー名は既存 AppConfig と同じ大小文字非区別、mode 値と representation 値は ordinal 完全一致とし、未知 mode は起動失敗。`addressables` は既定で他の三キーを読まず、現行呼出側の動作を維持する。
++- `directory` mode は Editor Play だけで有効にする。`Application.isEditor && Application.isPlaying` で guard し、Player 等では `InvalidConfiguration` で拒否する。三キーすべて非空を要求し、target は現 slice 固定 `StandaloneWindows64`。directoryPath は rooted absolute path だけを受け付け、`Path.GetFullPath` で正規化する。相対 path、URL、存在しない path、identity/target 不一致は起動失敗とし、Addressables へ暗黙 fallback しない。実行中変更は読まない。Player 入力の生成と path 基準は BS4 が所有する。
++- `content:representation` は root に保存された文字列をそのまま要求する。`Full` と `Whitebox` の選択は呼出側の明示入力であり、Framework は季節や `assets:sceneVariant` の空文字を変換しない。`assets:sceneVariant` は旧 Addressables scene route にだけ使う。Scene fallback は明示した representation が root にない場合の `Full` entry に限る。SampleGame の `AppInitializer` と既存 `app-config.json` は既定 Addressables のまま維持し、Editor Play の明示選択は既存 AppConfig の環境変数/コマンドラインで行う。tracked config を一時書換・復元する実装は追加しない。
++- `AbstractApplicationInitializer` は `BuildConfig` の直後（BeforeSceneLoad）に mode と値を一回読み、構文を検証する。ContentLoadManager の登録と root 検証は AfterSceneLoad の `resolve-scene-variant` の直後、`create-scene-director` の直前の `register-content-directory` stage で行う。Config/UI/SceneResourceMap の Addressables bootstrap はその前に終える。SceneDirector の最初の directory load より前に session を install する。起動失敗時は session の rollback/close を試み、その失敗も記録して元の例外を隠さない。派生 `AppInitializer` の新しい override は不要。単一 session は initializer が所有し、明示 close と同期終了で回収する。
++- 失敗は公開 `ContentDirectoryException : InvalidOperationException` と公開 `ContentDirectoryFailureCode` で表す。最低限の code は `InvalidConfiguration`, `DirectoryNotRegistered`, `RegistrationFailed`, `InvalidRoot`, `UnsupportedSchema`, `IdentityMismatch`, `TargetMismatch`, `EntryMissing`, `EntryAmbiguous`, `TypeMismatch`, `OperationFailed`, `ResourcesInUse`, `RevisionBusy`, `PathInUse`, `DeletionInProgress`。exception は `Code`、`BuildIdentity`、`Target`、`LogicalKey`、`Representation` を nullable string で持ち、内部原因は InnerException。取消は通常の `OperationCanceledException` を保ち、失敗 code に畳まない。root index は pure result/issue を使い、公開境界でこの例外へ写す。`IAssetManagement` の既存メソッドが投げる例外は変更しない。
++- 公開削除口は `ContentRevisionGate.TryAcquireDelete(buildIdentity,target,absolutePath,out ContentDeletionLease? lease,out ContentDirectoryFailureCode rejection)` とし、成功時の lease を DIST が `finally`/`using` で解放する。`ContentRevisionGate` が唯一の process-global 状態を持つ public static 型で、session 用の登録予約/解放メソッドは internal とする。拒否時の lease は null、同じ path が別 identity で使用中なら `PathInUse`、同 identity の使用中なら `RevisionBusy`、削除中なら `DeletionInProgress`、入力不正なら `InvalidConfiguration` を返す。`ContentDeletionLease` は物理削除を行わない。identity/target/path の検証責任と process 内排他は §4.4 に従う。未登録 revision に対する外部 install metadata の検証は DIST の責務。
++- これらを新規公開 API として Phase A で承認する。`IAssetManagement` の三つの directory load 追加以外に既存 API の署名は変更しない。`AssetManagement` の実装を直接 bootstrap が構成する既存経路に session install 用 internal method を追加し、Game 側に新しい asmdef edge を要求しない。
++
++## 5. Phase B 実装結果
++
++`artifacts/bs3-phase-b/phase-b.md` に実装結果と未実行事項を固定した。Unity Editor のコンパイルと contract audit は通過。バッチテストと実 Content Directory build は Phase C で実施する。
++
++## 6. Phase C
++
++未実施。
++
++## 7. Phase C' 独立監査
++
++未実施。
++
++## 8. Phase D
++
++人間のマージ判断待ち。Phase D の委任は受けていない。
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentCoordinator.cs b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentCoordinator.cs
+index 50f8371..16b892b 100644
+--- a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentCoordinator.cs
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/BuildContentCoordinator.cs
+@@ -41,9 +41,13 @@ public BuildContentResult Build(BuildContentRequest request)
+             ValidateSegment(request.ContentSet);
+             var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+             var approvedRoot = Path.GetFullPath(Path.Combine(projectRoot, "..", "artifacts", "bs2b"));
++            var testRoot = Path.GetFullPath(Path.Combine(projectRoot, "..", "TestResults", "bs3-fixture"));
+             var root = Path.GetFullPath(request.ArtifactsRoot);
+-            if (!SamePath(approvedRoot, root) && !Contained(approvedRoot, root))
+-                throw new ArgumentException("Output root must be inside artifacts/bs2b.");
++            // 実 directory の検証は build を伴うが、既存の検証ログを増減させない。
++            // テスト専用 root だけを追加で許し、任意の workspace path への出力は引き続き拒む。
++            if (!SamePath(approvedRoot, root) && !Contained(approvedRoot, root)
++                && !SamePath(testRoot, root) && !Contained(testRoot, root))
++                throw new ArgumentException("Output root must be inside artifacts/bs2b or TestResults/bs3-fixture.");
+             var identity = DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffZ") + "-" + Guid.NewGuid().ToString("N");
+             var reportDirectory = Child(root, "reports", identity);
+             var preflight = Path.Combine(reportDirectory, "preflight.json");
+diff --git a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/UnityContentDirectoryAdapter.cs b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/UnityContentDirectoryAdapter.cs
+index f943a74..84687af 100644
+--- a/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/UnityContentDirectoryAdapter.cs
++++ b/unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/UnityContentDirectoryAdapter.cs
+@@ -5,6 +5,7 @@
+ using System.IO;
+ using System.Linq;
+ using OneStarMaker.Runtime.BuildContent;
++using OneStarMaker.Runtime.AssetManagement;
+ using Unity.Loading;
+ using UnityEditor;
+ using UnityEditor.Build.Reporting;
+@@ -57,12 +58,17 @@ public ContentDirectoryBuild Build(BuildContentProjectionResult projection, stri
+                     else
+                     {
+                         // Object ID は main asset の local file ID を含む Unity reference から作る。
+-                        // 汎用サブアセット locator と型検証は BS3 の責務。
++                        // 現在の build 入力は main asset のみ。GUID と local file ID を同じ Object から取り、
++                        // 将来 subasset を候補にしても file 単位の GUID だけで誤解決しない形で保存する。
+                         var asset = AssetDatabase.LoadMainAssetAtPath(item.Path);
+                         if (asset == null) throw new InvalidOperationException("Root asset missing: " + item.Path);
++                        if (!AssetDatabase.TryGetGUIDAndLocalFileIdentifier(asset, out var fileGuid, out long localFileId)
++                            || string.IsNullOrWhiteSpace(fileGuid) || localFileId == 0)
++                            throw new InvalidOperationException("Root asset has no stable file/object locator: " + item.Path);
+                         var objectId = LoadableObjectIdEditorUtility.CreateLoadableObjectId(asset);
+                         entries.Add(new BuildContentEntry(item.Candidate.LogicalKey, item.Candidate.StableKey,
+-                            item.Representation, new Loadable<UnityEngine.Object>(objectId)));
++                            item.Representation, new Loadable<UnityEngine.Object>(objectId), fileGuid, localFileId,
++                            ClassifyCategory(asset)));
+                     }
+                 }
+                 var root = ScriptableObject.CreateInstance<BuildContentRoot>();
+@@ -148,5 +154,13 @@ private static void EnsureFolder(string path)
+                 parent = next;
+             }
+         }
++
++        private static AssetType ClassifyCategory(UnityEngine.Object asset)
++        {
++            if (asset is GameObject) return AssetType.Prefab;
++            if (asset is Texture) return AssetType.Texture;
++            if (asset is AudioClip) return AssetType.Audio;
++            return AssetType.Other;
++        }
+     }
+ }
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/Abstractions/AssetKey.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/Abstractions/AssetKey.cs
+index 4046f80..faf91be 100644
+--- a/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/Abstractions/AssetKey.cs
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/Abstractions/AssetKey.cs
+@@ -40,6 +40,11 @@ public static AssetKey FromAddress(string address)
+             return new AssetKey(AddressPrefix + address, address, InferType(address));
+         }
+ 
++        // directory key は Addressables の address ではない。カテゴリは拡張子推測せず
++        // build root の明示 metadata を使い、cache budget と実取得型の照合を分離する。
++        internal static AssetKey FromContentDirectory(string canonical, AssetType category)
++            => new AssetKey(canonical, canonical, category);
++
+         /// <summary>AssetDescription と variant からキーを作る。</summary>
+         public static AssetKey FromDescription(AssetDescription desc, string variant = "")
+         {
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/AssetManagement.ContentDirectory.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/AssetManagement.ContentDirectory.cs
+new file mode 100644
+index 0000000..508e208
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/AssetManagement.ContentDirectory.cs
+@@ -0,0 +1,120 @@
++#nullable enable
++
++using System;
++using System.Threading;
++using Cysharp.Threading.Tasks;
++using OneStarMaker.Runtime.AssetManagement.Internal;
++using OneStarMaker.Runtime.BuildContent;
++using UnityEngine;
++
++namespace OneStarMaker.Runtime.AssetManagement
++{
++    public sealed partial class AssetManagement
++    {
++        private IContentDirectoryBackend? _contentDirectory;
++        private readonly SemaphoreSlim _contentAssetLoadGate = new(1, 1);
++        private readonly SemaphoreSlim _contentSceneLoadGate = new(1, 1);
++
++        internal void InstallContentDirectory(IContentDirectoryBackend session)
++        {
++            if (_contentDirectory != null) throw new InvalidOperationException("A content directory session is already installed.");
++            _contentDirectory = session ?? throw new ArgumentNullException(nameof(session));
++            _contentDirectory.ConfigureCacheEviction(EvictContentDirectoryCache);
++        }
++
++        internal async UniTask CloseContentDirectoryAsync()
++        {
++            var directory = RequireContentDirectory();
++            // native terminal より先に scene 台帳を列挙すると、遅れて成功した Scene が列挙から漏れる。
++            // 受付停止と terminal 待ちの後、唯一の owner 台帳にある Scene を unload する。
++            await directory.StopAndDrainAsync();
++            foreach (var scene in _registry.GetScenes())
++            {
++                if (!scene.IsUnloaded && scene.Backend is IContentDirectoryToken)
++                {
++                    await directory.UnloadSceneAsync(scene.Backend);
++                    _registry.MarkSceneUnloaded(scene.Identity);
++                    ReleaseScene(scene.Identity);
++                }
++            }
++            await directory.CloseAsync();
++            _contentDirectory = null;
++        }
++
++        public async UniTask<IAssetHandle<T>> LoadContentAssetAsync<T>(string logicalKey, string representation, AssetOwner owner, CancellationToken ct = default) where T : UnityEngine.Object
++        {
++            var directory = RequireContentDirectory();
++            var key = directory.GetObjectKey(logicalKey, representation);
++            // registry を確認してから native load と Acquire を終えるまで直列化する。
++            // 同時 caller が別 token を発行すると、後着 token は台帳に採用されず解放不能になる。
++            await _contentAssetLoadGate.WaitAsync(ct);
++            try
++            {
++                AssetRegistry.LoadedAsset loaded;
++                if (_registry.TryGetAsset(key.Canonical, out var existing))
++                {
++                    // 共有 token は最初の caller が指定した型を記憶しない。二人目も実 Object で検査する。
++                    var actual = existing.Backend.Asset;
++                    if (actual == null || !typeof(T).IsInstanceOfType(actual))
++                        throw new ContentDirectoryException(ContentDirectoryFailureCode.TypeMismatch, "Loaded content does not match the requested type.", directory.BuildIdentity, directory.Target, logicalKey, representation);
++                    loaded = _registry.Acquire(key.Canonical, key, existing.Backend, owner, key.Type, false);
++                }
++                else if (_cache != null && _cache.TryTake(key.Canonical, out var cached))
++                {
++                    var actual = cached.Asset;
++                    if (actual == null || !typeof(T).IsInstanceOfType(actual))
++                    {
++                        directory.Release(cached);
++                        throw new ContentDirectoryException(ContentDirectoryFailureCode.TypeMismatch, "Cached content does not match the requested type.", directory.BuildIdentity, directory.Target, logicalKey, representation);
++                    }
++                    loaded = _registry.Acquire(key.Canonical, key, cached, owner, key.Type, false);
++                }
++                else
++                    loaded = _registry.Acquire(key.Canonical, key, await directory.LoadAssetAsync<T>(logicalKey, representation, ct), owner, key.Type, false);
++                AttachDestroyReleaseIfNeeded(owner);
++                return new AssetHandle<T>(loaded, owner);
++            }
++            finally { _contentAssetLoadGate.Release(); }
++        }
++
++        public async UniTask<ISceneHandle> LoadContentSceneAsync(string sceneIdentity, string representation, SceneLoadOptions options = default, CancellationToken ct = default)
++        {
++            var directory = RequireContentDirectory();
++            await _contentSceneLoadGate.WaitAsync(ct);
++            try
++            {
++                if (_registry.TryGetScene(sceneIdentity, out var existing) && !existing.IsUnloaded) return new SceneHandle(sceneIdentity, existing.Backend);
++                var scene = await directory.LoadSceneAsync(sceneIdentity, representation, options, ct);
++                _registry.AddScene(sceneIdentity, scene);
++                return new SceneHandle(sceneIdentity, scene);
++            }
++            finally { _contentSceneLoadGate.Release(); }
++        }
++
++        public async UniTask<GameObject> InstantiateContentAsync(string logicalKey, string representation, Transform? parent = null, bool worldSpace = false, CancellationToken ct = default)
++        {
++            var directory = RequireContentDirectory();
++            var backendInstance = await directory.InstantiateAsync(logicalKey, representation, parent, worldSpace, ct);
++            var instance = backendInstance.Instance;
++            if (instance == null)
++                throw new ContentDirectoryException(ContentDirectoryFailureCode.OperationFailed, "Content prefab instantiation returned null.", directory.BuildIdentity, directory.Target, logicalKey, representation);
++            var owner = AssetOwner.Bind(instance);
++            if (backendInstance is IBackendAsset backendAsset)
++            {
++                var source = directory.GetObjectKey(logicalKey, representation);
++                _registry.Acquire(source.Canonical + ":instance:" + owner.GameObjectId, source, backendAsset, owner, AssetType.Prefab, true);
++            }
++            AttachDestroyReleaseIfNeeded(owner);
++            return instance;
++        }
++
++        private IContentDirectoryBackend RequireContentDirectory()
++            => _contentDirectory ?? throw new ContentDirectoryException(ContentDirectoryFailureCode.DirectoryNotRegistered, "No Content Directory session is installed.");
++
++        private void EvictContentDirectoryCache()
++        {
++            if (_contentDirectory == null) return;
++            _cache?.EvictByPrefix(_contentDirectory.CachePrefix);
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/AssetManagement.ContentDirectory.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/AssetManagement.ContentDirectory.cs.meta
+new file mode 100644
+index 0000000..446762f
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/AssetManagement.ContentDirectory.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 920d4dc8a0a3276408a9853bce62b8a5
+\ No newline at end of file
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/AssetManagement.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/AssetManagement.cs
+index 30aef16..10a2c0c 100644
+--- a/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/AssetManagement.cs
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/AssetManagement.cs
+@@ -15,7 +15,7 @@ namespace OneStarMaker.Runtime.AssetManagement
+     /// <summary>
+     /// アセットとシーンのロード寿命をスコープ付きで一元管理する。
+     /// </summary>
+-    public sealed class AssetManagement : IAssetManagement, IAssetDiagnostics
++    public sealed partial class AssetManagement : IAssetManagement, IAssetDiagnostics
+     {
+         private readonly IAssetBackend _backend;
+         private readonly IAssetResidentCache? _cache;
+@@ -128,7 +128,14 @@ public async UniTask UnloadSceneAsync(string sceneIdentity, CancellationToken ct
+                 return;
+             }
+ 
+-            await _backend.UnloadSceneAsync(scene.Backend, ct);
++            if (_contentDirectory != null && scene.Backend is IContentDirectoryToken)
++            {
++                await _contentDirectory.UnloadSceneAsync(scene.Backend);
++            }
++            else
++            {
++                await _backend.UnloadSceneAsync(scene.Backend, ct);
++            }
+             _registry.MarkSceneUnloaded(sceneIdentity);
+         }
+ 
+@@ -203,6 +210,8 @@ public void ReleaseAll()
+             {
+                 if (!scene.IsUnloaded)
+                 {
++                    if (_contentDirectory != null && scene.Backend is IContentDirectoryToken)
++                        _contentDirectory.ReleaseSceneAfterUnityShutdown(scene.Backend);
+                     _registry.MarkSceneUnloaded(scene.Identity);
+                 }
+             }
+@@ -214,7 +223,7 @@ private void ReleaseAllAssetsNow()
+         {
+             foreach (var loaded in _registry.ReleaseAllAssets())
+             {
+-                _backend.Release(loaded.Backend);
++                ReleaseBackend(loaded.Backend);
+             }
+ 
+             _cache?.Clear();
+@@ -288,12 +297,24 @@ private void ReleaseOrStore(AssetRegistry.LoadedAsset loaded)
+         {
+             if (_cache != null && !loaded.IsInstance)
+             {
+-                _cache.Store(loaded.Key, loaded.Type, loaded.Backend);
++                _cache.Store(loaded.Key, loaded.Type, loaded.Backend,
++                    loaded.Backend is IContentDirectoryToken ? ReleaseBackend : null);
+             }
+             else
+             {
+-                _backend.Release(loaded.Backend);
++                ReleaseBackend(loaded.Backend);
++            }
++        }
++
++        private void ReleaseBackend(IBackendAsset asset)
++        {
++            if (_contentDirectory != null && asset is IContentDirectoryToken)
++            {
++                _contentDirectory.Release(asset);
++                return;
+             }
++
++            _backend.Release(asset);
+         }
+ 
+         /// <summary>
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/Cache/AssetResidentCache.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/Cache/AssetResidentCache.cs
+index b3367a1..3f6c91f 100644
+--- a/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/Cache/AssetResidentCache.cs
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/Cache/AssetResidentCache.cs
+@@ -71,17 +71,17 @@ public bool TryTake(string key, out IBackendAsset asset)
+         }
+ 
+         /// <inheritdoc />
+-        public void Store(string key, AssetType type, IBackendAsset asset)
++        public void Store(string key, AssetType type, IBackendAsset asset, Action<IBackendAsset>? release = null)
+         {
+             if (!asset.IsValid)
+             {
+-                _releaseAsset(asset);
++                (release ?? _releaseAsset)(asset);
+                 return;
+             }
+ 
+             if (_budgetProvider.GetBudgetBytes(type) <= 0)
+             {
+-                _releaseAsset(asset);
++                (release ?? _releaseAsset)(asset);
+                 return;
+             }
+ 
+@@ -99,7 +99,7 @@ public void Store(string key, AssetType type, IBackendAsset asset)
+                 _accessCarryover.Remove(key);
+             }
+ 
+-            var newEntry = new CacheEntry(key, type, asset, estimatedBytes, accessCount, now);
++            var newEntry = new CacheEntry(key, type, asset, estimatedBytes, accessCount, now, release ?? _releaseAsset);
+             _entries[key] = newEntry;
+             AddResidentBytes(type, estimatedBytes);
+ 
+@@ -111,7 +111,7 @@ public void Clear()
+         {
+             foreach (var entry in _entries.Values)
+             {
+-                _releaseAsset(entry.Backend);
++                entry.Release(entry.Backend);
+             }
+ 
+             _entries.Clear();
+@@ -119,6 +119,21 @@ public void Clear()
+             _accessCarryover.Clear();
+         }
+ 
++        public void EvictByPrefix(string prefix)
++        {
++            var keys = new List<string>();
++            foreach (var pair in _entries)
++                if (pair.Key.StartsWith(prefix, StringComparison.Ordinal)) keys.Add(pair.Key);
++            foreach (var key in keys)
++            {
++                var entry = _entries[key];
++                _entries.Remove(key);
++                SubtractResidentBytes(entry.Type, entry.EstimatedBytes);
++                entry.Release(entry.Backend);
++                _evictionCount++;
++            }
++        }
++
+         /// <inheritdoc />
+         public CacheStatsSnapshot GetSnapshot()
+         {
+@@ -141,7 +156,7 @@ private void EvictWhileOverBudget(AssetType type)
+ 
+                 _entries.Remove(victimKey);
+                 SubtractResidentBytes(victim.Type, victim.EstimatedBytes);
+-                _releaseAsset(victim.Backend);
++                victim.Release(victim.Backend);
+                 _evictionCount++;
+             }
+         }
+@@ -196,7 +211,7 @@ private void RemoveEntry(CacheEntry entry)
+         {
+             _entries.Remove(entry.Key);
+             SubtractResidentBytes(entry.Type, entry.EstimatedBytes);
+-            _releaseAsset(entry.Backend);
++            entry.Release(entry.Backend);
+         }
+ 
+         private void AddResidentBytes(AssetType type, long bytes)
+@@ -238,7 +253,8 @@ private static long DefaultEstimateBytes(UnityEngine.Object? asset)
+                 IBackendAsset backend,
+                 long estimatedBytes,
+                 int accessCount,
+-                double lastAccessTime)
++                double lastAccessTime,
++                Action<IBackendAsset> release)
+             {
+                 Key = key;
+                 Type = type;
+@@ -246,6 +262,7 @@ private static long DefaultEstimateBytes(UnityEngine.Object? asset)
+                 EstimatedBytes = estimatedBytes;
+                 AccessCount = accessCount;
+                 LastAccessTime = lastAccessTime;
++                Release = release;
+             }
+ 
+             public string Key { get; }
+@@ -259,6 +276,7 @@ private static long DefaultEstimateBytes(UnityEngine.Object? asset)
+             public int AccessCount { get; }
+ 
+             public double LastAccessTime { get; }
++            public Action<IBackendAsset> Release { get; }
+         }
+     }
+ }
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/Cache/IAssetResidentCache.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/Cache/IAssetResidentCache.cs
+index 10b4581..24d62aa 100644
+--- a/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/Cache/IAssetResidentCache.cs
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/Cache/IAssetResidentCache.cs
+@@ -2,6 +2,7 @@
+ 
+ using OneStarMaker.Runtime.AssetManagement;
+ using OneStarMaker.Runtime.AssetManagement.Internal;
++using System;
+ 
+ namespace OneStarMaker.Runtime.AssetManagement.Cache
+ {
+@@ -14,7 +15,10 @@ internal interface IAssetResidentCache
+         bool TryTake(string key, out IBackendAsset asset);
+ 
+         /// <summary>refcount 0 のアセットを退避する。バジェット超過分は effectiveFrequency 最小からエビクトされる。</summary>
+-        void Store(string key, AssetType type, IBackendAsset asset);
++        void Store(string key, AssetType type, IBackendAsset asset, Action<IBackendAsset>? release = null);
++
++        /// <summary>指定 origin の常駐 entry だけを解放する。directory close は他 backend の cache を触れない。</summary>
++        void EvictByPrefix(string prefix);
+ 
+         /// <summary>全エントリをエビクトする（ReleaseAll 用）。</summary>
+         void Clear();
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/IAssetManagement.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/IAssetManagement.cs
+index 3dd733b..e16b126 100644
+--- a/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/IAssetManagement.cs
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/IAssetManagement.cs
+@@ -3,6 +3,7 @@
+ using System.Threading;
+ using Cysharp.Threading.Tasks;
+ using OneStarMaker.Runtime.AssetDescriptions;
++using OneStarMaker.Runtime.BuildContent;
+ using UnityEngine;
+ 
+ namespace OneStarMaker.Runtime.AssetManagement
+@@ -16,6 +17,13 @@ public interface IAssetManagement
+         UniTask<IAssetHandle<T>> LoadAssetAsync<T>(AssetKey key, AssetOwner owner, CancellationToken ct = default)
+             where T : Object;
+ 
++        UniTask<IAssetHandle<T>> LoadContentAssetAsync<T>(string logicalKey, string representation, AssetOwner owner, CancellationToken ct = default)
++            where T : Object;
++
++        UniTask<ISceneHandle> LoadContentSceneAsync(string sceneIdentity, string representation, SceneLoadOptions options = default, CancellationToken ct = default);
++
++        UniTask<GameObject> InstantiateContentAsync(string logicalKey, string representation, Transform? parent = null, bool worldSpace = false, CancellationToken ct = default);
++
+         /// <summary>Bootstrap 用に App スコープで同期ロードする。</summary>
+         IAssetHandle<T> LoadAppAssetSync<T>(AssetKey key) where T : Object;
+ 
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/Internal/IContentDirectoryBackend.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/Internal/IContentDirectoryBackend.cs
+new file mode 100644
+index 0000000..23d3aa9
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/Internal/IContentDirectoryBackend.cs
+@@ -0,0 +1,32 @@
++#nullable enable
++
++using System.Threading;
++using System;
++using Cysharp.Threading.Tasks;
++using OneStarMaker.Runtime.BuildContent;
++using UnityEngine;
++
++namespace OneStarMaker.Runtime.AssetManagement.Internal
++{
++    internal interface IContentDirectoryToken { }
++
++    /// <summary>Addressables の文字列 port と分離した、revision 固定の Content Directory port。</summary>
++    internal interface IContentDirectoryBackend
++    {
++        string BuildIdentity { get; }
++        string Target { get; }
++        string CachePrefix { get; }
++        AssetKey GetObjectKey(string logicalKey, string representation);
++        UniTask<IBackendAsset> LoadAssetAsync<T>(string logicalKey, string representation, CancellationToken ct)
++            where T : UnityEngine.Object;
++        UniTask<IBackendScene> LoadSceneAsync(string sceneIdentity, string representation, SceneLoadOptions options, CancellationToken ct);
++        UniTask<IBackendInstance> InstantiateAsync(string logicalKey, string representation, Transform? parent, bool worldSpace, CancellationToken ct);
++        UniTask UnloadSceneAsync(IBackendScene scene);
++        void ReleaseSceneAfterUnityShutdown(IBackendScene scene);
++        void Release(IBackendAsset asset);
++        void ConfigureCacheEviction(Action evictRevisionEntries);
++        UniTask StopAndDrainAsync();
++        UniTask CloseAsync();
++        void BeginSynchronousShutdown();
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/Internal/IContentDirectoryBackend.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/Internal/IContentDirectoryBackend.cs.meta
+new file mode 100644
+index 0000000..a01f554
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement/Internal/IContentDirectoryBackend.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 86f7d0b1eea49cc4db677af55c6ac949
+\ No newline at end of file
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Bootstrap/AbstractApplicationInitializer.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/Bootstrap/AbstractApplicationInitializer.cs
+index ee0cede..917e442 100644
+--- a/unity/Assets/OneStarMaker/Scripts/Runtime/Bootstrap/AbstractApplicationInitializer.cs
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Bootstrap/AbstractApplicationInitializer.cs
+@@ -16,6 +16,7 @@
+ using OneStarMaker.Runtime.DebugSocketServices;
+ using OneStarMaker.Runtime.AssetDescriptions;
+ using OneStarMaker.Runtime.AssetManagement;
++using OneStarMaker.Runtime.BuildContent;
+ using OneStarMaker.Runtime.Config;
+ using OneStarMaker.Runtime.SceneSystem;
+ using OneStarMaker.Runtime.UpdateSystem;
+@@ -82,6 +83,8 @@ public abstract class AbstractApplicationInitializer
+         /// Application.quitting 時に ReleaseAppAll で App 常駐分を解放する。
+         /// </summary>
+         private IAssetManagement? _assetManagement;
++        private ContentDirectoryConfiguration? _contentDirectoryConfiguration;
++        private ContentDirectorySession? _contentDirectorySession;
+ 
+         /// <summary>LoadUICommonAsync でロードした UICommon シーンのハンドル。</summary>
+         private ISceneHandle? _uiSceneHandle;
+@@ -183,6 +186,7 @@ private void InitializeBeforeSceneLoad()
+ 
+                 // Config を構築（ConfigFile → 環境変数 → コマンドライン引数 の優先順）
+                 _config = BuildConfig();
++                _contentDirectoryConfiguration = ReadContentDirectoryConfiguration(_config);
+ 
+                 // Updater は scene object の Awake register を受ける必要があるため、
+                 // BeforeSceneLoad の時点で install しておく。
+@@ -269,6 +273,32 @@ private async UniTaskVoid InitializeAfterSceneLoad()
+                 var sceneVariant = ResolveSceneVariant()
+                     ?? throw new InvalidOperationException("ResolveSceneVariant returned null.");
+ 
++                var useContentDirectory = _contentDirectoryConfiguration != null;
++                if (_contentDirectoryConfiguration != null)
++                {
++                    startupStage = "register-content-directory";
++                    var configuration = _contentDirectoryConfiguration;
++                    var session = ContentDirectorySession.Register(
++                        configuration.Path, configuration.BuildIdentity, "StandaloneWindows64");
++                    try
++                    {
++                        if (_assetManagement is not AssetManagement.AssetManagement assetManagement)
++                            throw new InvalidOperationException("The configured asset manager cannot install a content directory session.");
++                        assetManagement.InstallContentDirectory(session);
++                    }
++                    catch
++                    {
++                        // field に保存する前の失敗でも登録済み directory を閉じる。
++                        // cleanup が失敗した場合も元の起動失敗を診断できるよう両方を記録する。
++                        try { await session.CloseAsync(); }
++                        catch (Exception cleanupException)
++                        { Debug.LogError($"[AppInit] Content directory cleanup after install failure failed: {cleanupException}"); }
++                        throw;
++                    }
++                    _contentDirectorySession = session;
++                    sceneVariant = configuration.Representation;
++                }
++
+                 startupStage = "create-scene-director";
+                 _sceneDirector = new SceneDirector(
+                     sceneFactory,
+@@ -276,7 +306,8 @@ private async UniTaskVoid InitializeAfterSceneLoad()
+                     _sceneResourceMap,
+                     CreateLoadingDisplay(),
+                     _assetManagement,
+-                    sceneVariant);
++                    sceneVariant,
++                    useContentDirectory);
+                 _updateSystemHost?.BindSceneDirector(_sceneDirector);
+ 
+                 if (_sceneDirector == null)
+@@ -301,6 +332,21 @@ private async UniTaskVoid InitializeAfterSceneLoad()
+             catch (Exception ex)
+             {
+                 Debug.LogError($"[AppInit] AfterSceneLoad failed at stage '{startupStage}': {ex}");
++                if (_assetManagement is AssetManagement.AssetManagement directoryAssetManagement
++                    && _contentDirectorySession != null)
++                {
++                    try
++                    {
++                        // 起動途中の directory は initializer が所有する。失敗時も root/native token を残さず、
++                        // close 側の ResourcesInUse 判定や cleanup 失敗は元の起動例外を隠さず記録する。
++                        await directoryAssetManagement.CloseContentDirectoryAsync();
++                        _contentDirectorySession = null;
++                    }
++                    catch (Exception closeException)
++                    {
++                        Debug.LogError($"[AppInit] Content directory cleanup after startup failure also failed: {closeException}");
++                    }
++                }
+                 try
+                 {
+                     // 派生側が OnServicesInitializing で常駐リソースを確保している場合、
+@@ -678,6 +724,7 @@ private void ReleaseAll()
+             _cts = null;
+ 
+             _config = null;
++            _contentDirectoryConfiguration = null;
+ 
+             // 論理台帳のみ。AssetManagement の Scene Unload は誘発しない。
+             _sceneDirector?.Dispose();
+@@ -687,6 +734,8 @@ private void ReleaseAll()
+             // （UICommon / SceneResourceMap / Config / 各 Scene 所有分を含む）
+             _assetManagement?.ReleaseAll();
+             _assetManagement = null;
++            _contentDirectorySession?.BeginSynchronousShutdown();
++            _contentDirectorySession = null;
+ 
+             _sceneResourceMap = null;
+ 
+@@ -752,6 +801,35 @@ protected virtual string GetConfigFilePath()
+         /// </summary>
+         protected virtual string GetEnvironmentVariablePrefix() => "";
+ 
++        private static ContentDirectoryConfiguration? ReadContentDirectoryConfiguration(AppConfig config)
++        {
++            var mode = config.GetString("content:runtimeMode", "addressables");
++            if (string.Equals(mode, "addressables", StringComparison.Ordinal)) return null;
++            if (!string.Equals(mode, "directory", StringComparison.Ordinal))
++                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "content:runtimeMode must be addressables or directory.");
++            if (!Application.isEditor || !Application.isPlaying)
++                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Content Directory runtime mode is only available in Editor Play Mode.");
++            var path = config.GetString("content:directoryPath", string.Empty);
++            var identity = config.GetString("content:buildIdentity", string.Empty);
++            var representation = config.GetString("content:representation", string.Empty);
++            if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(identity) || string.IsNullOrWhiteSpace(representation)
++                || !Path.IsPathRooted(path))
++                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Directory mode requires absolute directoryPath, buildIdentity, and representation.");
++            var fullPath = Path.GetFullPath(path);
++            if (!Directory.Exists(fullPath))
++                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Configured content directory does not exist.", identity, "StandaloneWindows64", representation: representation);
++            return new ContentDirectoryConfiguration(fullPath, identity, representation);
++        }
++
++        private sealed class ContentDirectoryConfiguration
++        {
++            internal ContentDirectoryConfiguration(string path, string buildIdentity, string representation)
++            { Path = path; BuildIdentity = buildIdentity; Representation = representation; }
++            internal string Path { get; }
++            internal string BuildIdentity { get; }
++            internal string Representation { get; }
++        }
++
+         /// <summary>
+         /// 追加サービスの初期化。Phase 2 以降で HostedService 登録や DI コンテナ構築を行う。
+         /// </summary>
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/BuildContentRoot.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/BuildContentRoot.cs
+index f009a8d..6ace2f6 100644
+--- a/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/BuildContentRoot.cs
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/BuildContentRoot.cs
+@@ -4,10 +4,11 @@
+ using System.Collections.Generic;
+ using Unity.Loading;
+ using UnityEngine;
++using OneStarMaker.Runtime.AssetManagement;
+ 
+ namespace OneStarMaker.Runtime.BuildContent
+ {
+-    // Unity Content Directory に保存する entry の load 先。型付き解決は BS3 で扱う。
++    // Unity Content Directory に保存する entry の種別。型付き検査はロード後の実 Object で行う。
+     public enum BuildContentKind { Scene, Object }
+ 
+     [Serializable]
+@@ -21,6 +22,9 @@ public sealed class BuildContentEntry
+         [SerializeField] private BuildContentKind _kind;
+         [SerializeField] private LoadableSceneId _sceneId;
+         [SerializeField] private Loadable<UnityEngine.Object>? _object;
++        [SerializeField] private string _fileGuid = "";
++        [SerializeField] private long _localFileId;
++        [SerializeField] private AssetType _category = AssetType.Other;
+ 
+         public string LogicalKey => _logicalKey;
+         public string StableKey => _stableKey;
+@@ -28,6 +32,9 @@ public sealed class BuildContentEntry
+         public BuildContentKind Kind => _kind;
+         public LoadableSceneId SceneId => _sceneId;
+         public Loadable<UnityEngine.Object>? Object => _object;
++        public string FileGuid => _fileGuid;
++        public long LocalFileId => _localFileId;
++        public AssetType Category => _category;
+ 
+         public BuildContentEntry(string logicalKey, string stableKey, string representation,
+             LoadableSceneId sceneId)
+@@ -38,19 +45,22 @@ public sealed class BuildContentEntry
+         }
+ 
+         public BuildContentEntry(string logicalKey, string stableKey, string representation,
+-            Loadable<UnityEngine.Object> loadable)
++            Loadable<UnityEngine.Object> loadable, string fileGuid = "", long localFileId = 0,
++            AssetType category = AssetType.Other)
+         {
+             _logicalKey = logicalKey; _stableKey = stableKey; _representation = representation;
+             _kind = BuildContentKind.Object; _object = loadable;
++            _fileGuid = fileGuid; _localFileId = localFileId; _category = category;
+         }
+     }
+ 
+     // Content Directory に厳密に1件同梱する root asset。
+     // 登録後の Runtime はこの serialized 情報だけで logical→load target を復元できる。
+-    // AssetOwner による登録・解放の寿命管理は BS3 の責務であり、この型は対応 metadata のみ保持する。
++    // AssetOwner による登録・解放の寿命は session と AssetManagement が管理し、
++    // この型は移設後も解決可能な metadata だけを保持する。
+     public sealed class BuildContentRoot : ScriptableObject
+     {
+-        public const int CurrentSchemaVersion = 1;
++        public const int CurrentSchemaVersion = 2;
+         [SerializeField] private int _schemaVersion;
+         [SerializeField] private string _buildIdentity = "";
+         [SerializeField] private string _target = "";
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentDirectoryException.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentDirectoryException.cs
+new file mode 100644
+index 0000000..12bfd22
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentDirectoryException.cs
+@@ -0,0 +1,32 @@
++#nullable enable
++
++using System;
++
++namespace OneStarMaker.Runtime.BuildContent
++{
++    public enum ContentDirectoryFailureCode
++    {
++        InvalidConfiguration, DirectoryNotRegistered, RegistrationFailed, InvalidRoot,
++        UnsupportedSchema, IdentityMismatch, TargetMismatch, EntryMissing, EntryAmbiguous,
++        TypeMismatch, OperationFailed, ResourcesInUse, RevisionBusy, PathInUse, DeletionInProgress,
++    }
++
++    /// <summary>Content Directory の公開境界で返す、再試行可否を判断できる失敗情報。</summary>
++    public sealed class ContentDirectoryException : InvalidOperationException
++    {
++        public ContentDirectoryException(ContentDirectoryFailureCode code, string message,
++            string? buildIdentity = null, string? target = null, string? logicalKey = null,
++            string? representation = null, Exception? innerException = null)
++            : base(message, innerException)
++        {
++            Code = code; BuildIdentity = buildIdentity; Target = target;
++            LogicalKey = logicalKey; Representation = representation;
++        }
++
++        public ContentDirectoryFailureCode Code { get; }
++        public string? BuildIdentity { get; }
++        public string? Target { get; }
++        public string? LogicalKey { get; }
++        public string? Representation { get; }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentDirectoryException.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentDirectoryException.cs.meta
+new file mode 100644
+index 0000000..806503c
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentDirectoryException.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 0b7366b578fc3244584167873d656ae7
+\ No newline at end of file
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentDirectoryIndex.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentDirectoryIndex.cs
+new file mode 100644
+index 0000000..f7d29f5
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentDirectoryIndex.cs
+@@ -0,0 +1,128 @@
++#nullable enable
++
++using System;
++using System.Collections.Generic;
++using System.Text;
++using OneStarMaker.Runtime.AssetManagement;
++using Unity.Loading;
++
++namespace OneStarMaker.Runtime.BuildContent
++{
++    // root の検証と logical 解決は I/O/公開例外を持たない。session がこの issue を
++    // 公開失敗型へ変換するため、純粋な索引を Unity native backend なしで検証できる。
++    internal readonly struct ContentDirectoryIssue
++    {
++        internal ContentDirectoryIssue(ContentDirectoryFailureCode code, string message,
++            string? logicalKey = null, string? representation = null)
++        { Code = code; Message = message; LogicalKey = logicalKey; Representation = representation; }
++
++        internal ContentDirectoryFailureCode Code { get; }
++        internal string Message { get; }
++        internal string? LogicalKey { get; }
++        internal string? Representation { get; }
++    }
++
++    internal sealed class ContentDirectoryIndex
++    {
++        private readonly Dictionary<string, BuildContentEntry> _entries;
++
++        private ContentDirectoryIndex(Dictionary<string, BuildContentEntry> entries) => _entries = entries;
++
++        internal static bool TryCreate(BuildContentRoot? root, string expectedIdentity, string expectedTarget,
++            out ContentDirectoryIndex? index, out ContentDirectoryIssue issue)
++        {
++            index = null;
++            if (root == null)
++            { issue = new(ContentDirectoryFailureCode.InvalidRoot, "Content root is null."); return false; }
++            if (root.SchemaVersion is not 1 and not 2)
++            { issue = new(ContentDirectoryFailureCode.UnsupportedSchema, "Unsupported content root schema."); return false; }
++            if (!string.Equals(root.BuildIdentity, expectedIdentity, StringComparison.Ordinal))
++            { issue = new(ContentDirectoryFailureCode.IdentityMismatch, "Content root identity does not match the requested directory."); return false; }
++            if (!string.Equals(root.Target, expectedTarget, StringComparison.Ordinal))
++            { issue = new(ContentDirectoryFailureCode.TargetMismatch, "Content root target does not match the requested directory."); return false; }
++
++            var entries = new Dictionary<string, BuildContentEntry>(StringComparer.Ordinal);
++            var stable = new HashSet<string>(StringComparer.Ordinal);
++            foreach (var entry in root.Entries)
++            {
++                if (entry == null || string.IsNullOrWhiteSpace(entry.LogicalKey) || string.IsNullOrWhiteSpace(entry.StableKey)
++                    || (entry.Representation != null && entry.Representation.Length != 0 && string.IsNullOrWhiteSpace(entry.Representation)))
++                { issue = new(ContentDirectoryFailureCode.InvalidRoot, "Content root contains an incomplete entry."); return false; }
++                if (!stable.Add(entry.StableKey))
++                { issue = new(ContentDirectoryFailureCode.InvalidRoot, "Content root contains a duplicate stable key."); return false; }
++                if (!Enum.IsDefined(typeof(BuildContentKind), entry.Kind))
++                { issue = new(ContentDirectoryFailureCode.InvalidRoot, "Content entry kind is invalid.", entry.LogicalKey, entry.Representation); return false; }
++                if (entry.Kind == BuildContentKind.Scene && entry.SceneId.Equals(default(LoadableSceneId)))
++                { issue = new(ContentDirectoryFailureCode.InvalidRoot, "Scene entry has no loadable scene locator.", entry.LogicalKey, entry.Representation); return false; }
++                // Unity serializer は Scene の未使用 Loadable field を default wrapper として復元する。
++                // 実際に有効な Object ID を含む場合だけ kind 不整合とする。
++                if (entry.Kind == BuildContentKind.Scene
++                    && ((entry.Object != null && !entry.Object.LoadableObjectId.Equals(default(LoadableObjectId)))
++                        || !string.IsNullOrEmpty(entry.FileGuid) || entry.LocalFileId != 0))
++                { issue = new(ContentDirectoryFailureCode.InvalidRoot, "Scene entry contains an object locator.", entry.LogicalKey, entry.Representation); return false; }
++                if (entry.Kind == BuildContentKind.Object && entry.Object == null)
++                { issue = new(ContentDirectoryFailureCode.InvalidRoot, "Object entry has no loadable locator.", entry.LogicalKey, entry.Representation); return false; }
++                if (entry.Kind == BuildContentKind.Object && !entry.SceneId.Equals(default(LoadableSceneId)))
++                { issue = new(ContentDirectoryFailureCode.InvalidRoot, "Object entry contains a scene locator.", entry.LogicalKey, entry.Representation); return false; }
++                if (entry.Kind == BuildContentKind.Object && entry.Object != null
++                    && entry.Object.LoadableObjectId.Equals(default(LoadableObjectId)))
++                { issue = new(ContentDirectoryFailureCode.InvalidRoot, "Object entry has an invalid Unity loadable locator.", entry.LogicalKey, entry.Representation); return false; }
++                if (root.SchemaVersion == 2 && entry.Kind == BuildContentKind.Object
++                    && (!IsCanonicalGuid(entry.FileGuid) || entry.LocalFileId == 0))
++                { issue = new(ContentDirectoryFailureCode.InvalidRoot, "Schema v2 object entry has no file/object locator.", entry.LogicalKey, entry.Representation); return false; }
++
++                var key = Key(entry.LogicalKey, EffectiveRepresentation(entry.Representation), entry.Kind);
++                if (!entries.TryAdd(key, entry))
++                { issue = new(ContentDirectoryFailureCode.EntryAmbiguous, "Content root contains duplicate logical entries.", entry.LogicalKey, entry.Representation); return false; }
++            }
++            index = new ContentDirectoryIndex(entries);
++            issue = default;
++            return true;
++        }
++
++        internal bool TryResolveObject(string logicalKey, string representation, out BuildContentEntry? entry, out ContentDirectoryIssue issue)
++            => TryResolve(logicalKey, representation, BuildContentKind.Object, false, out entry, out issue);
++
++        internal bool TryResolveScene(string logicalKey, string representation, out BuildContentEntry? entry, out ContentDirectoryIssue issue)
++            => TryResolve(logicalKey, representation, BuildContentKind.Scene, true, out entry, out issue);
++
++        private bool TryResolve(string logicalKey, string representation, BuildContentKind kind, bool allowFullFallback,
++            out BuildContentEntry? entry, out ContentDirectoryIssue issue)
++        {
++            if (_entries.TryGetValue(Key(logicalKey, representation, kind), out entry))
++            { issue = default; return true; }
++            if (allowFullFallback && !string.Equals(representation, "Full", StringComparison.Ordinal)
++                && _entries.TryGetValue(Key(logicalKey, "Full", kind), out entry))
++            { issue = default; return true; }
++            entry = null;
++            issue = new(ContentDirectoryFailureCode.EntryMissing, "No matching content entry is registered.", logicalKey, representation);
++            return false;
++        }
++
++        internal static string CacheKey(string path, string identity, string target, BuildContentEntry entry)
++            => string.Concat(CachePrefix(path, identity, target), Part(entry.LogicalKey), ":",
++                Part(EffectiveRepresentation(entry.Representation)), ":", entry.Kind, ":",
++                Part(entry.FileGuid), ":", entry.LocalFileId, ":",
++                Part(entry.Object?.LoadableObjectId.ToString() ?? string.Empty));
++
++        internal static string CachePrefix(string path, string identity, string target)
++            => string.Concat("directory:", Part(path), ":", Part(identity), ":", Part(target), ":");
++
++        private static bool IsCanonicalGuid(string value)
++        {
++            if (value == null || value.Length != 32) return false;
++            foreach (var ch in value)
++                if (!((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f'))) return false;
++            return true;
++        }
++
++        // 区切り文字を含む logical key でも別 revision の token と衝突させない。
++        private static string Part(string value) => Convert.ToBase64String(Encoding.UTF8.GetBytes(value ?? string.Empty));
++
++        // 旧 build の未タグ entry は空文字。Full として索引化し、Object の厳密一致を維持する。
++        private static string EffectiveRepresentation(string value) => string.IsNullOrEmpty(value) ? "Full" : value;
++
++        private static string Key(string logicalKey, string representation, BuildContentKind kind)
++            => string.Concat(logicalKey, "\u001f", representation, "\u001f", kind);
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentDirectoryIndex.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentDirectoryIndex.cs.meta
+new file mode 100644
+index 0000000..4c97051
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentDirectoryIndex.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 65aaa1ce42575104d94e5c75be418a5a
+\ No newline at end of file
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentDirectorySession.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentDirectorySession.cs
+new file mode 100644
+index 0000000..f569437
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentDirectorySession.cs
+@@ -0,0 +1,240 @@
++#nullable enable
++
++using System;
++using System.IO;
++using System.Threading;
++using Cysharp.Threading.Tasks;
++using OneStarMaker.Runtime.AssetManagement;
++using OneStarMaker.Runtime.AssetManagement.Internal;
++using Unity.Loading;
++using UnityEngine;
++
++namespace OneStarMaker.Runtime.BuildContent
++{
++    /// <summary>一つの登録 directory の root、native handle、発行済み token と unregister を所有する。</summary>
++    internal sealed class ContentDirectorySession : IContentDirectoryBackend
++    {
++        private readonly string _path;
++        private readonly IDisposable _reservation;
++        private readonly bool _registered;
++        private readonly ContentDirectoryIndex _index;
++        private readonly IContentNativeDirectory _backend;
++        private int _liveTokens;
++        private int _pendingOperations;
++        private UniTaskCompletionSource? _operationsDrained;
++        private bool _accepting = true;
++        private bool _closed;
++        private Exception? _closeFailure;
++        private Action? _evictCache;
++
++        private ContentDirectorySession(string path, string identity, string target, IDisposable reservation,
++            ContentDirectoryIndex index, IContentNativeDirectory backend)
++        { _path=path; BuildIdentity=identity; Target=target; _reservation=reservation; _registered=true; _index=index; _backend=backend; }
++
++        public string BuildIdentity { get; }
++        public string Target { get; }
++        public string CachePrefix => ContentDirectoryIndex.CachePrefix(_path, BuildIdentity, Target);
++
++        public AssetKey GetObjectKey(string logicalKey, string representation)
++        {
++            var entry = ResolveObject(logicalKey, representation);
++            return AssetKey.FromContentDirectory(ContentDirectoryIndex.CacheKey(_path, BuildIdentity, Target, entry), entry.Category);
++        }
++
++        private BuildContentEntry ResolveObject(string logicalKey, string representation)
++        {
++            if (_index.TryResolveObject(logicalKey, representation, out var entry, out var issue)) return entry!;
++            throw ToException(issue);
++        }
++
++        private BuildContentEntry ResolveScene(string logicalKey, string representation)
++        {
++            if (_index.TryResolveScene(logicalKey, representation, out var entry, out var issue)) return entry!;
++            throw ToException(issue);
++        }
++
++        private ContentDirectoryException ToException(ContentDirectoryIssue issue)
++            => new(issue.Code, issue.Message, BuildIdentity, Target, issue.LogicalKey, issue.Representation);
++
++        public void ConfigureCacheEviction(Action evictRevisionEntries) => _evictCache = evictRevisionEntries;
++
++        internal static ContentDirectorySession Register(string path, string identity, string target)
++            => Register(path, identity, target, new UnityContentDirectoryBackend());
++
++        internal static ContentDirectorySession Register(string path, string identity, string target, IContentNativeDirectory backend)
++        {
++            if (!Path.IsPathRooted(path) || !Directory.Exists(path))
++                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Content directory path must be an existing absolute directory.", identity, target);
++            var normalized = Path.GetFullPath(path);
++            var reservation = ContentRevisionGate.Reserve(identity, target, normalized);
++            var registered = false;
++            try
++            {
++                registered = backend.Register(normalized);
++                if (!registered) throw new ContentDirectoryException(ContentDirectoryFailureCode.RegistrationFailed, "Content directory registration returned an invalid handle.", identity, target);
++                var roots = backend.GetRoots();
++                if (roots.Length != 1 || roots[0] == null)
++                    throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidRoot, "Content directory must contain exactly one BuildContentRoot.", identity, target);
++                if (!ContentDirectoryIndex.TryCreate(roots[0], identity, target, out var index, out var issue))
++                    throw new ContentDirectoryException(issue.Code, issue.Message, identity, target, issue.LogicalKey, issue.Representation);
++                return new ContentDirectorySession(normalized, identity, target, reservation, index!, backend);
++            }
++            catch (Exception ex)
++            {
++                try
++                {
++                    if (registered) backend.Unregister();
++                    reservation.Dispose();
++                }
++                catch (Exception cleanupException)
++                {
++                    // native 登録が残ったまま lease を返すと、別処理が物理削除を許可される。
++                    // 予約は gate に残し、次の登録時に同じ backend の unregister を再試行する。
++                    ContentRevisionGate.RetainFailedRollback(reservation, () => { backend.Unregister(); reservation.Dispose(); });
++                    throw new ContentDirectoryException(ContentDirectoryFailureCode.RegistrationFailed,
++                        "Content directory registration rollback failed.", identity, target,
++                        innerException: new AggregateException(ex, cleanupException));
++                }
++                if (ex is ContentDirectoryException) throw;
++                throw new ContentDirectoryException(ContentDirectoryFailureCode.RegistrationFailed, "Content directory registration failed.", identity, target, innerException: ex);
++            }
++        }
++
++        public async UniTask<IBackendAsset> LoadAssetAsync<T>(string logicalKey, string representation, CancellationToken ct) where T : UnityEngine.Object
++        {
++            EnsureAccepting(); ct.ThrowIfCancellationRequested();
++            BeginOperation();
++            var terminalCleanupOwnsCounter = false;
++            try
++            {
++                // 呼出側の取消は Unity のロード自体を止めない。遅れて成功した資源を回収するまで
++                // directory を unregister すると、native handle の寿命が逆転する。
++                var operation = _backend.LoadObjectAsync<T>(ResolveObject(logicalKey, representation)).Preserve();
++                IBackendAsset asset;
++                try { asset = await operation.AttachExternalCancellation(ct); }
++                catch (OperationCanceledException) when (ct.IsCancellationRequested)
++                { terminalCleanupOwnsCounter = true; DrainAbandonedAsset(operation).Forget(); throw; }
++                Interlocked.Increment(ref _liveTokens);
++                if (ct.IsCancellationRequested) { _backend.Release(asset); Interlocked.Decrement(ref _liveTokens); ct.ThrowIfCancellationRequested(); }
++                return new SessionAsset(asset, ReleaseToken);
++            }
++            finally { if (!terminalCleanupOwnsCounter) CompleteOperation(); }
++        }
++
++        public async UniTask<IBackendScene> LoadSceneAsync(string sceneIdentity, string representation, SceneLoadOptions options, CancellationToken ct)
++        {
++            EnsureAccepting(); ct.ThrowIfCancellationRequested();
++            BeginOperation();
++            var terminalCleanupOwnsCounter = false;
++            try
++            {
++                var operation = _backend.LoadSceneAsync(ResolveScene(sceneIdentity, representation), options).Preserve();
++                IBackendScene scene;
++                try { scene = await operation.AttachExternalCancellation(ct); }
++                catch (OperationCanceledException) when (ct.IsCancellationRequested)
++                { terminalCleanupOwnsCounter = true; DrainAbandonedScene(operation).Forget(); throw; }
++                if (ct.IsCancellationRequested)
++                {
++                    await _backend.UnloadSceneAsync(scene);
++                    ct.ThrowIfCancellationRequested();
++                }
++                Interlocked.Increment(ref _liveTokens); return new SessionScene(scene, _backend, ReleaseToken);
++            }
++            finally { if (!terminalCleanupOwnsCounter) CompleteOperation(); }
++        }
++
++        public async UniTask<IBackendInstance> InstantiateAsync(string logicalKey, string representation, Transform? parent, bool worldSpace, CancellationToken ct)
++        {
++            EnsureAccepting(); ct.ThrowIfCancellationRequested();
++            BeginOperation();
++            var terminalCleanupOwnsCounter = false;
++            try
++            {
++                var operation = _backend.InstantiateAsync(ResolveObject(logicalKey, representation), parent, worldSpace).Preserve();
++                IBackendInstance instance;
++                try { instance = await operation.AttachExternalCancellation(ct); }
++                catch (OperationCanceledException) when (ct.IsCancellationRequested)
++                { terminalCleanupOwnsCounter = true; DrainAbandonedInstance(operation).Forget(); throw; }
++                if (ct.IsCancellationRequested)
++                {
++                    if (instance is IBackendAsset abandoned) _backend.Release(abandoned);
++                    ct.ThrowIfCancellationRequested();
++                }
++                Interlocked.Increment(ref _liveTokens); return new SessionInstance(instance, _backend, ReleaseToken);
++            }
++            finally { if (!terminalCleanupOwnsCounter) CompleteOperation(); }
++        }
++
++        public async UniTask CloseAsync()
++        {
++            await StopAndDrainAsync();
++            _evictCache?.Invoke();
++            if (Volatile.Read(ref _liveTokens) != 0)
++                throw new ContentDirectoryException(ContentDirectoryFailureCode.ResourcesInUse, "Content directory still has live asset, scene, cache, or instance tokens.", BuildIdentity, Target);
++            CloseNow();
++            if (_closeFailure != null)
++                throw new ContentDirectoryException(ContentDirectoryFailureCode.OperationFailed,
++                    "Content directory unregister failed; the registration is retained for retry.", BuildIdentity, Target,
++                    innerException: _closeFailure);
++        }
++
++        public async UniTask StopAndDrainAsync()
++        {
++            _accepting=false;
++            var drained = _operationsDrained;
++            if (Volatile.Read(ref _pendingOperations) != 0 && drained != null) await drained.Task;
++        }
++
++        public void BeginSynchronousShutdown() { _accepting=false; if (Volatile.Read(ref _liveTokens)==0 && Volatile.Read(ref _pendingOperations)==0) CloseNow(); }
++
++        private void EnsureAccepting()
++        {
++            if (!_accepting || _closed) throw new ContentDirectoryException(ContentDirectoryFailureCode.DirectoryNotRegistered, "Content directory is not accepting new loads.", BuildIdentity, Target);
++        }
++        private async UniTaskVoid DrainAbandonedAsset(UniTask<IBackendAsset> operation)
++        { try { _backend.Release(await operation); } catch (Exception) { } finally { CompleteOperation(); } }
++        private async UniTaskVoid DrainAbandonedScene(UniTask<IBackendScene> operation)
++        { try { await _backend.UnloadSceneAsync(await operation); } catch (Exception) { } finally { CompleteOperation(); } }
++        private async UniTaskVoid DrainAbandonedInstance(UniTask<IBackendInstance> operation)
++        { try { if (await operation is IBackendAsset asset) _backend.Release(asset); } catch (Exception) { } finally { CompleteOperation(); } }
++        private void BeginOperation()
++        {
++            if (Interlocked.Increment(ref _pendingOperations) == 1) _operationsDrained = new UniTaskCompletionSource();
++        }
++        private void CompleteOperation()
++        {
++            if (Interlocked.Decrement(ref _pendingOperations) != 0) return;
++            _operationsDrained?.TrySetResult();
++            if (!_accepting && Volatile.Read(ref _liveTokens) == 0) CloseNow();
++        }
++        private void ReleaseToken() { if (Interlocked.Decrement(ref _liveTokens)==0 && !_accepting && Volatile.Read(ref _pendingOperations)==0) CloseNow(); }
++        private void CloseNow()
++        {
++            if (_closed) return;
++            try
++            {
++                if (_registered) _backend.Unregister();
++                _closed = true;
++                _closeFailure = null;
++                _reservation.Dispose();
++            }
++            catch (Exception ex) { _closeFailure = ex; }
++        }
++
++        private sealed class SessionAsset : IBackendAsset, IContentDirectoryToken
++        { private IBackendAsset? _inner; private readonly Action _release; internal SessionAsset(IBackendAsset inner, Action release){_inner=inner;_release=release;} public UnityEngine.Object? Asset=>_inner?.Asset; public bool IsValid=>_inner?.IsValid==true; internal void Release(IContentNativeDirectory backend){if(_inner!=null){backend.Release(_inner);_inner=null;_release();}} }
++        private sealed class SessionInstance : IBackendInstance, IBackendAsset, IContentDirectoryToken
++        { private IBackendInstance? _inner; private readonly IContentNativeDirectory _backend; private readonly Action _release; internal SessionInstance(IBackendInstance inner,IContentNativeDirectory backend,Action release){_inner=inner;_backend=backend;_release=release;} public GameObject? Instance=>_inner?.Instance; public UnityEngine.Object? Asset=>Instance; public bool IsValid=>_inner is IBackendAsset a && a.IsValid; internal void Release(){if(_inner is IBackendAsset a)_backend.Release(a);_inner=null;_release();} }
++        private sealed class SessionScene : IBackendScene, IContentDirectoryToken
++        { private IBackendScene? _inner; private readonly IContentNativeDirectory _backend; private readonly Action _release; internal SessionScene(IBackendScene inner,IContentNativeDirectory backend,Action release){_inner=inner;_backend=backend;_release=release;} public bool IsLoaded=>_inner?.IsLoaded==true; public string Name=>_inner?.Name ?? string.Empty; public GameObject[] GetRootGameObjects()=>_inner?.GetRootGameObjects() ?? Array.Empty<GameObject>(); internal async UniTask Unload(){if(_inner!=null){await _backend.UnloadSceneAsync(_inner);_inner=null;_release();}} internal void ReleaseAfterShutdown(){if(_inner==null)return;_inner=null;_release();} }
++
++        public void Release(IBackendAsset asset) { if(asset is SessionAsset a)a.Release(_backend); else if(asset is SessionInstance i)i.Release(); }
++        public UniTask UnloadSceneAsync(IBackendScene scene) => scene is SessionScene s ? s.Unload() : UniTask.CompletedTask;
++        public void ReleaseSceneAfterUnityShutdown(IBackendScene scene)
++        {
++            // Application.quitting/Play Mode 終了では Unity が Scene を解体済みのことがある。
++            // 再度 UnloadSceneAsync せず台帳 token だけ返し、残る native operation の terminal は別に待つ。
++            if (scene is SessionScene sessionScene) sessionScene.ReleaseAfterShutdown();
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentDirectorySession.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentDirectorySession.cs.meta
+new file mode 100644
+index 0000000..944bf30
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentDirectorySession.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: bf5077be0c4d00a499741ffad826d771
+\ No newline at end of file
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentRevisionGate.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentRevisionGate.cs
+new file mode 100644
+index 0000000..c209882
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentRevisionGate.cs
+@@ -0,0 +1,107 @@
++#nullable enable
++
++using System;
++using System.IO;
++
++namespace OneStarMaker.Runtime.BuildContent
++{
++    /// <summary>process 内だけで directory revision の登録、利用、削除を直列化する。</summary>
++    public static class ContentRevisionGate
++    {
++        private static readonly object Sync = new();
++        private static Registration? _registration;
++        private static Deletion? _deletion;
++
++        public static bool TryAcquireDelete(string buildIdentity, string target, string absolutePath,
++            out ContentDeletionLease? lease, out ContentDirectoryFailureCode rejection)
++        {
++            lease = null;
++            if (!TryNormalize(buildIdentity, target, absolutePath, out var path))
++            { rejection = ContentDirectoryFailureCode.InvalidConfiguration; return false; }
++            lock (Sync)
++            {
++                if (_deletion != null)
++                { rejection = ContentDirectoryFailureCode.DeletionInProgress; return false; }
++                if (_registration != null)
++                {
++                    rejection = _registration.Path == path && (_registration.Identity != buildIdentity || _registration.Target != target)
++                        ? ContentDirectoryFailureCode.PathInUse : ContentDirectoryFailureCode.RevisionBusy;
++                    return false;
++                }
++                var deletion = new Deletion(buildIdentity, target, path);
++                _deletion = deletion;
++                lease = new ContentDeletionLease(() => ReleaseDeletion(deletion));
++                rejection = default;
++                return true;
++            }
++        }
++
++        internal static IDisposable Reserve(string buildIdentity, string target, string absolutePath)
++        {
++            if (!TryNormalize(buildIdentity, target, absolutePath, out var path))
++                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Content directory registration input is invalid.", buildIdentity, target);
++            lock (Sync)
++            {
++                // root 検証失敗後の native unregister が失敗した場合は登録予約を残す。
++                // 次の登録試行で cleanup を再試行し、成功するまで削除 lease を渡さない。
++                if (_registration?.RetryCleanup != null)
++                {
++                    try { _registration.RetryCleanup(); }
++                    catch (Exception ex)
++                    {
++                        throw new ContentDirectoryException(ContentDirectoryFailureCode.RegistrationFailed,
++                            "Earlier content directory rollback is still pending.", buildIdentity, target, innerException: ex);
++                    }
++                }
++                if (_deletion != null) throw new ContentDirectoryException(ContentDirectoryFailureCode.DeletionInProgress, "A content directory deletion is in progress.", buildIdentity, target);
++                if (_registration != null)
++                {
++                    var code = _registration.Path == path && (_registration.Identity != buildIdentity || _registration.Target != target)
++                        ? ContentDirectoryFailureCode.PathInUse : ContentDirectoryFailureCode.RevisionBusy;
++                    throw new ContentDirectoryException(code, "A content directory is already registered in this process.", buildIdentity, target);
++                }
++                var registration = new Registration(buildIdentity, target, path);
++                _registration = registration;
++                return new RegistrationLease(registration);
++            }
++        }
++
++        internal static void RetainFailedRollback(IDisposable lease, Action retryCleanup)
++        {
++            if (lease is not RegistrationLease registrationLease)
++                throw new ArgumentException("Unknown content directory reservation.", nameof(lease));
++            lock (Sync)
++            {
++                if (registrationLease.Value != null && ReferenceEquals(_registration, registrationLease.Value))
++                    _registration.RetryCleanup = retryCleanup;
++            }
++        }
++
++        private static bool TryNormalize(string identity, string target, string path, out string normalized)
++        {
++            normalized = string.Empty;
++            if (string.IsNullOrWhiteSpace(identity) || string.IsNullOrWhiteSpace(target) || string.IsNullOrWhiteSpace(path) || !Path.IsPathRooted(path)) return false;
++            try { normalized = Path.GetFullPath(path); return true; } catch (Exception) { return false; }
++        }
++
++        private static void ReleaseDeletion(Deletion deletion)
++        {
++            lock (Sync)
++            {
++                if (ReferenceEquals(_deletion, deletion)) _deletion = null;
++            }
++        }
++
++        private sealed class Registration { internal Registration(string i, string t, string p) { Identity=i; Target=t; Path=p; } internal string Identity {get;} internal string Target {get;} internal string Path {get;} internal Action? RetryCleanup {get;set;} }
++        internal sealed class Deletion { internal Deletion(string i, string t, string p) { Identity=i; Target=t; Path=p; } internal string Identity {get;} internal string Target {get;} internal string Path {get;} }
++        private sealed class RegistrationLease : IDisposable { private Registration? _value; internal RegistrationLease(Registration value)=>_value=value; internal Registration? Value => _value; public void Dispose(){ lock(Sync){ if(_value != null && ReferenceEquals(_registration,_value)) _registration=null; _value=null; } } }
++    }
++
++    /// <summary>物理削除そのものは行わず、DIST が finally まで保持する process 内 delete lease。</summary>
++    public sealed class ContentDeletionLease : IDisposable
++    {
++        private Action? _release;
++        internal ContentDeletionLease(Action release) => _release = release;
++        public void Dispose() { var release = _release; _release = null; release?.Invoke(); }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentRevisionGate.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentRevisionGate.cs.meta
+new file mode 100644
+index 0000000..22df2f8
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/ContentRevisionGate.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: bc7eeb819c6b7194d9716ecc03714ea9
+\ No newline at end of file
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/UnityContentDirectoryBackend.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/UnityContentDirectoryBackend.cs
+new file mode 100644
+index 0000000..bcbc252
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/UnityContentDirectoryBackend.cs
+@@ -0,0 +1,117 @@
++#nullable enable
++
++using System;
++using Cysharp.Threading.Tasks;
++using OneStarMaker.Runtime.AssetManagement;
++using OneStarMaker.Runtime.AssetManagement.Internal;
++using Unity.Loading;
++using UnityEngine;
++using UnityEngine.SceneManagement;
++
++namespace OneStarMaker.Runtime.BuildContent
++{
++    // Unity の非同期処理は caller の取消後にも完了する。session はこの port を通じて
++    // terminal を観測し、遅れて届く成功 handle を必ず解放してから unregister する。
++    internal interface IContentNativeDirectory
++    {
++        bool Register(string path);
++        BuildContentRoot[] GetRoots();
++        void Unregister();
++        UniTask<IBackendAsset> LoadObjectAsync<T>(BuildContentEntry entry) where T : UnityEngine.Object;
++        UniTask<IBackendScene> LoadSceneAsync(BuildContentEntry entry, SceneLoadOptions options);
++        UniTask<IBackendInstance> InstantiateAsync(BuildContentEntry entry, Transform? parent, bool worldSpace);
++        void Release(IBackendAsset asset);
++        UniTask UnloadSceneAsync(IBackendScene scene);
++    }
++
++    /// <summary>native Loadable と SceneManager の handle を token 化し、Release の順序を session へ返す。</summary>
++    internal sealed class UnityContentDirectoryBackend : IContentNativeDirectory
++    {
++        private ContentDirectoryHandle _handle;
++        public bool Register(string path) { _handle = ContentLoadManager.RegisterContentDirectory(path); return _handle.IsValid; }
++        public BuildContentRoot[] GetRoots() => ContentLoadManager.GetRootAssets<BuildContentRoot>(_handle);
++        public void Unregister() { if (_handle.IsValid) ContentLoadManager.UnregisterContentDirectory(_handle); _handle = default; }
++
++        public async UniTask<IBackendAsset> LoadObjectAsync<T>(BuildContentEntry entry) where T : UnityEngine.Object
++        {
++            var loadable = entry.Object ?? throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidRoot, "Object entry has no loadable locator.");
++            var loaded = await loadable.LoadAsync();
++            if (loaded == null || !typeof(T).IsInstanceOfType(loaded))
++            {
++                loadable.Release();
++                throw new ContentDirectoryException(ContentDirectoryFailureCode.TypeMismatch, "Loaded content does not match the requested type.", logicalKey: entry.LogicalKey, representation: entry.Representation);
++            }
++            return new DirectoryAsset(loadable, loaded);
++        }
++
++        public async UniTask<IBackendScene> LoadSceneAsync(BuildContentEntry entry, SceneLoadOptions options)
++        {
++            var operation = SceneManager.LoadSceneAsync(entry.SceneId, new LoadSceneParameters(options.LoadMode));
++            if (operation == null) throw new ContentDirectoryException(ContentDirectoryFailureCode.OperationFailed, "Content scene load did not start.", logicalKey: entry.LogicalKey, representation: entry.Representation);
++            operation.allowSceneActivation = options.ActivateOnLoad;
++            await operation;
++            var scene = SceneManager.GetSceneByLoadableSceneId(entry.SceneId);
++            if (!scene.IsValid() || !scene.isLoaded)
++                throw new ContentDirectoryException(ContentDirectoryFailureCode.OperationFailed, "Content scene did not become loaded.", logicalKey: entry.LogicalKey, representation: entry.Representation);
++            return new DirectoryScene(scene);
++        }
++
++        public async UniTask<IBackendInstance> InstantiateAsync(BuildContentEntry entry, Transform? parent, bool worldSpace)
++        {
++            var asset = await LoadObjectAsync<GameObject>(entry);
++            var prefab = asset.Asset as GameObject;
++            if (prefab == null) { Release(asset); throw new ContentDirectoryException(ContentDirectoryFailureCode.TypeMismatch, "Content entry is not a prefab.", logicalKey: entry.LogicalKey, representation: entry.Representation); }
++            return new DirectoryInstance(UnityEngine.Object.Instantiate(prefab, parent, worldSpace), asset);
++        }
++
++        public void Release(IBackendAsset asset)
++        {
++            if (asset is DirectoryAsset directoryAsset) directoryAsset.Release();
++            else if (asset is DirectoryInstance instance) instance.Release();
++        }
++
++        public async UniTask UnloadSceneAsync(IBackendScene scene)
++        {
++            if (scene is not DirectoryScene directoryScene || !directoryScene.Scene.IsValid() || !directoryScene.Scene.isLoaded) return;
++            var operation = SceneManager.UnloadSceneAsync(directoryScene.Scene);
++            if (operation != null) await operation;
++            directoryScene.MarkUnloaded();
++        }
++
++        private sealed class DirectoryAsset : IBackendAsset
++        {
++            private Loadable<UnityEngine.Object>? _loadable;
++            private UnityEngine.Object? _asset;
++            internal DirectoryAsset(Loadable<UnityEngine.Object> loadable, UnityEngine.Object asset) { _loadable=loadable; _asset=asset; }
++            public UnityEngine.Object? Asset => _asset;
++            public bool IsValid => _loadable != null && _asset != null;
++            internal void Release() { if (_loadable != null) _loadable.Release(); _loadable=null; _asset=null; }
++        }
++        private sealed class DirectoryInstance : IBackendInstance, IBackendAsset
++        {
++            private IBackendAsset? _source;
++            internal DirectoryInstance(GameObject instance, IBackendAsset source) { Instance=instance; _source=source; }
++            public GameObject? Instance { get; private set; }
++            public UnityEngine.Object? Asset => Instance;
++            public bool IsValid => _source != null && Instance != null;
++            internal void Release()
++            {
++                // GameObject は呼出側または Scene が所有する。破棄通知の後に元 prefab の
++                // loadable token を返すだけで、backend が GameObject を先回りして Destroy しない。
++                Instance = null;
++                if (_source is DirectoryAsset source) source.Release();
++                _source = null;
++            }
++        }
++        private sealed class DirectoryScene : IBackendScene
++        {
++            internal DirectoryScene(Scene scene) => Scene=scene;
++            internal Scene Scene { get; }
++            private bool _unloaded;
++            public bool IsLoaded => !_unloaded && Scene.IsValid() && Scene.isLoaded;
++            public string Name => Scene.name;
++            public GameObject[] GetRootGameObjects() => IsLoaded ? Scene.GetRootGameObjects() : Array.Empty<GameObject>();
++            internal void MarkUnloaded()=>_unloaded=true;
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/UnityContentDirectoryBackend.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/UnityContentDirectoryBackend.cs.meta
+new file mode 100644
+index 0000000..d609244
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/UnityContentDirectoryBackend.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 77290f7937442ec449569517ae2d7c31
+\ No newline at end of file
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.FailedLoadCleanup.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.FailedLoadCleanup.cs
+index dd57ebe..faaeb1e 100644
+--- a/unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.FailedLoadCleanup.cs
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.FailedLoadCleanup.cs
+@@ -264,7 +264,7 @@ private async UniTask ResumeUnloadFromCurrentState(string sceneIdentify)
+                     await PhaseAfterUnloadAndDispose(sceneIdentify);
+                     break;
+                 case SceneState.Unloading:
+-                    await PerformUnitySceneUnload(sceneIdentify, pair.AddressablesSceneLoaded);
++                    await PerformUnitySceneUnload(sceneIdentify, pair.BackendSceneLoaded);
+                     if (_currentScenes.TryGetValue(sceneIdentify, out pair)
+                         && pair.SceneBase.Lifecycle.State == SceneState.Unloading)
+                     {
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.Loading.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.Loading.cs
+index f447138..d5e4e24 100644
+--- a/unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.Loading.cs
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.Loading.cs
+@@ -520,7 +520,7 @@ static async UniTaskVoid Core(UniTask t)
+ 
+             var (addressablesLoaded, rootObjects) = await PerformUnitySceneLoad(sceneIdentify, sceneBase.SceneResource, priority);
+             // Phase 2/3 で AssetManagement 経由の Unload/Release が必要かどうかを記録
+-            _currentScenes[sceneIdentify].AddressablesSceneLoaded = addressablesLoaded;
++            _currentScenes[sceneIdentify].BackendSceneLoaded = addressablesLoaded;
+ 
+             // Loading → Loaded → WaitLoadChildScene
+             TransitionSceneState(sceneIdentify, sceneBase, SceneState.Loaded);
+@@ -645,12 +645,10 @@ static async UniTaskVoid Core(UniTask t)
+                 }
+ 
+                 // sceneIdentity は呼び出し側（メソッド引数）を正とし、variant には混ぜない。
+-                var sceneHandle = await _assetManagement.LoadSceneAsync(
+-                    sceneIdentify,
+-                    sceneAssetDescription,
+-                    _sceneVariant,
+-                    new SceneLoadOptions(LoadSceneMode.Additive, activateOnLoad: true, priority: priority),
+-                    CancellationToken.None);
++                var options = new SceneLoadOptions(LoadSceneMode.Additive, activateOnLoad: true, priority: priority);
++                var sceneHandle = _useContentDirectory
++                    ? await _assetManagement.LoadContentSceneAsync(sceneIdentify, _sceneVariant, options, CancellationToken.None)
++                    : await _assetManagement.LoadSceneAsync(sceneIdentify, sceneAssetDescription, _sceneVariant, options, CancellationToken.None);
+                 return (true, sceneHandle.GetRootGameObjects());
+             }
+ 
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.Unloading.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.Unloading.cs
+index d54eec7..68c1619 100644
+--- a/unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.Unloading.cs
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.Unloading.cs
+@@ -256,7 +256,7 @@ private async UniTask PhaseUnityUnload(string sceneIdentify)
+             }
+ 
+             TransitionSceneState(sceneIdentify, pair.SceneBase, SceneState.Unloading);
+-            await PerformUnitySceneUnload(sceneIdentify, pair.AddressablesSceneLoaded);
++            await PerformUnitySceneUnload(sceneIdentify, pair.BackendSceneLoaded);
+             TransitionSceneState(sceneIdentify, pair.SceneBase, SceneState.Unloaded);
+         }
+ 
+@@ -390,7 +390,7 @@ private async UniTask CleanupCanceledScene(string sceneIdentify)
+             }
+ 
+             // Unity Scene のアンロード（キャンセル窓内のため通常は Handle が null で no-op）
+-            await PerformUnitySceneUnload(sceneIdentify, pair.AddressablesSceneLoaded);
++            await PerformUnitySceneUnload(sceneIdentify, pair.BackendSceneLoaded);
+ 
+             // PreLoad で確保したリソースを解放する（LoadCanceled → AfterUnloading）
+             await pair.SceneBase.ExecuteAfterUnLoad();
+@@ -442,17 +442,17 @@ private async UniTask RunThreePhaseUnload(List<string> sceneIds)
+         /// Unity Scene をアンロードする。
+         /// テスト時にオーバーライドして Addressables / SceneManager 依存を排除する。
+         ///
+-        /// <para>AssetManagement 経由でロードしたシーン（addressablesSceneLoaded=true）は
++        /// <para>AssetManagement 経由でロードしたシーン（backendSceneLoaded=true）は
+         /// AssetManagement.UnloadSceneAsync を呼ぶ（Phase 2）。
+         /// Editor 既存シーン等（false）は SceneManager.UnloadSceneAsync にフォールバックする。
+         /// Payload 空の論理ノードは Unity Scene 実体を持たないため、UnloadSceneAsync を呼ばない。</para>
+         /// </summary>
+         /// <param name="sceneIdentify">対象シーンの Identity。</param>
+-        /// <param name="addressablesSceneLoaded">PerformUnitySceneLoad の戻り値 AddressablesLoaded。</param>
++        /// <param name="backendSceneLoaded">PerformUnitySceneLoad の戻り値。backend 経由でロード済みなら true。</param>
+         protected virtual async UniTask PerformUnitySceneUnload(
+-            string sceneIdentify, bool addressablesSceneLoaded)
++            string sceneIdentify, bool backendSceneLoaded)
+         {
+-            if (addressablesSceneLoaded)
++            if (backendSceneLoaded)
+             {
+                 // Phase 2: Unity Scene アンロードのみ。所有アセット Release は Phase 3
+                 await _assetManagement.UnloadSceneAsync(sceneIdentify);
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.cs
+index c5c8a0c..90f022b 100644
+--- a/unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.cs
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneDirector.cs
+@@ -37,7 +37,7 @@ private class ScenePair
+             /// Phase 2/3 で AssetManagement 経由の Unload/Release に使用する。
+             /// Editor 既存シーン等で SceneManager から取得した場合は false。
+             /// </summary>
+-            public bool AddressablesSceneLoaded { get; set; }
++            public bool BackendSceneLoaded { get; set; }
+ 
+             /// <summary>
+             /// AddScene のキャンセル窓内でのみ有効な CTS。
+@@ -76,6 +76,7 @@ public SceneHistoryEntry(string fromSceneId, string toSceneId)
+         private readonly SceneResourceMap _sceneResourceMap;
+         private readonly ILoadingDisplay _loadingDisplay;
+         private readonly string _sceneVariant;
++        private readonly bool _useContentDirectory;
+ 
+         /// <summary>
+         /// Addressables Load / Release 管理。PerformUnitySceneLoad/Unload および Phase 3 Release に使用。
+@@ -118,7 +119,8 @@ public SceneHistoryEntry(string fromSceneId, string toSceneId)
+             SceneResourceMap sceneResourceMap,
+             ILoadingDisplay loadingDisplay,
+             IAssetManagement assetManagement,
+-            string sceneVariant = "")
++            string sceneVariant = "",
++            bool useContentDirectory = false)
+         {
+             _sceneFactory = sceneFactory ?? throw new ArgumentNullException(nameof(sceneFactory));
+             _uiCommon = uiCommon ?? throw new ArgumentNullException(nameof(uiCommon));
+@@ -126,6 +128,7 @@ public SceneHistoryEntry(string fromSceneId, string toSceneId)
+             _loadingDisplay = loadingDisplay ?? throw new ArgumentNullException(nameof(loadingDisplay));
+             _assetManagement = assetManagement ?? throw new ArgumentNullException(nameof(assetManagement));
+             _sceneVariant = sceneVariant ?? throw new ArgumentNullException(nameof(sceneVariant));
++            _useContentDirectory = useContentDirectory;
+         }
+ 
+         // ─── IDisposable ───
+diff --git a/unity/Assets/OneStarMaker/Tests/BuildContent.meta b/unity/Assets/OneStarMaker/Tests/BuildContent.meta
+new file mode 100644
+index 0000000..917e88d
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/BuildContent.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: db38aa95aab8bc54eb1463032beddbd3
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData:
++  assetBundleName:
++  assetBundleVariant:
+diff --git a/unity/Assets/OneStarMaker/Tests/BuildContent/ContentDirectoryIndexTests.cs b/unity/Assets/OneStarMaker/Tests/BuildContent/ContentDirectoryIndexTests.cs
+new file mode 100644
+index 0000000..88a0295
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/BuildContent/ContentDirectoryIndexTests.cs
+@@ -0,0 +1,63 @@
++#nullable enable
++
++using System;
++using NUnit.Framework;
++using OneStarMaker.Runtime.BuildContent;
++using Unity.Loading;
++using UnityEditor;
++using UnityEngine;
++
++namespace OneStarMaker.Tests.BuildContent
++{
++    public sealed class ContentDirectoryIndexTests
++    {
++        private const string ScenePath = "Assets/OneStarMaker/Scenes/UISystem/UIScene.unity";
++
++        [Test]
++        public void SceneResolution_FallsBackOnlyToFull()
++        {
++            var sceneId = LoadableSceneIdEditorUtility.CreateLoadableSceneId(ScenePath);
++            var root = ScriptableObject.CreateInstance<BuildContentRoot>();
++            root.Initialize("build", "StandaloneWindows64", new[] {
++                new BuildContentEntry("scene", "full", "Full", sceneId),
++                new BuildContentEntry("scene", "whitebox", "Whitebox", sceneId),
++            });
++            Assert.That(ContentDirectoryIndex.TryCreate(root, "build", "StandaloneWindows64", out var index, out _), Is.True);
++            Assert.That(index!.TryResolveScene("scene", "Missing", out var scene, out _), Is.True);
++            Assert.That(scene!.StableKey, Is.EqualTo("full"));
++            Assert.That(index.TryResolveObject("scene", "Missing", out _, out var issue), Is.False);
++            Assert.That(issue.Code, Is.EqualTo(ContentDirectoryFailureCode.EntryMissing));
++            UnityEngine.Object.DestroyImmediate(root);
++        }
++
++        [Test]
++        public void DuplicateLogicalRepresentationKind_IsRejected()
++        {
++            var sceneId = LoadableSceneIdEditorUtility.CreateLoadableSceneId(ScenePath);
++            var root = ScriptableObject.CreateInstance<BuildContentRoot>();
++            root.Initialize("build", "StandaloneWindows64", new[] {
++                new BuildContentEntry("scene", "one", "Full", sceneId),
++                new BuildContentEntry("scene", "two", "Full", sceneId),
++            });
++
++            Assert.That(ContentDirectoryIndex.TryCreate(root, "build", "StandaloneWindows64", out _, out var issue), Is.False);
++            Assert.That(issue.Code, Is.EqualTo(ContentDirectoryFailureCode.EntryAmbiguous));
++            UnityEngine.Object.DestroyImmediate(root);
++        }
++
++        [Test]
++        public void UntaggedLegacyEntry_IsIndexedAsFull()
++        {
++            var sceneId = LoadableSceneIdEditorUtility.CreateLoadableSceneId(ScenePath);
++            var root = ScriptableObject.CreateInstance<BuildContentRoot>();
++            root.Initialize("build", "StandaloneWindows64", new[] {
++                new BuildContentEntry("scene", "stable", "", sceneId)
++            });
++
++            Assert.That(ContentDirectoryIndex.TryCreate(root, "build", "StandaloneWindows64", out var index, out _), Is.True);
++            Assert.That(index!.TryResolveScene("scene", "Full", out var scene, out _), Is.True);
++            Assert.That(scene!.StableKey, Is.EqualTo("stable"));
++            UnityEngine.Object.DestroyImmediate(root);
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Tests/BuildContent/ContentDirectoryIndexTests.cs.meta b/unity/Assets/OneStarMaker/Tests/BuildContent/ContentDirectoryIndexTests.cs.meta
+new file mode 100644
+index 0000000..43faa81
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/BuildContent/ContentDirectoryIndexTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 7db6ed1a9f8a495438a01245cacca58e
+\ No newline at end of file
+diff --git a/unity/Assets/OneStarMaker/Tests/BuildContent/ContentRevisionGateTests.cs b/unity/Assets/OneStarMaker/Tests/BuildContent/ContentRevisionGateTests.cs
+new file mode 100644
+index 0000000..268f8d4
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/BuildContent/ContentRevisionGateTests.cs
+@@ -0,0 +1,68 @@
++#nullable enable
++
++using System;
++using NUnit.Framework;
++using OneStarMaker.Runtime.BuildContent;
++
++namespace OneStarMaker.Tests.BuildContent
++{
++    public sealed class ContentRevisionGateTests
++    {
++        [Test]
++        public void DeleteLease_RejectsConcurrentRegistrationAndReleasesInFinallyScope()
++        {
++            const string path = "C:\\content-directory-gate-test";
++            Assert.That(ContentRevisionGate.TryAcquireDelete("build", "StandaloneWindows64", path, out var lease, out var rejection), Is.True, rejection.ToString());
++            try
++            {
++                var exception = Assert.Throws<ContentDirectoryException>(() => ContentRevisionGate.Reserve("build", "StandaloneWindows64", path));
++                Assert.That(exception!.Code, Is.EqualTo(ContentDirectoryFailureCode.DeletionInProgress));
++            }
++            finally
++            {
++                lease!.Dispose();
++            }
++
++            using (ContentRevisionGate.Reserve("build", "StandaloneWindows64", path)) { }
++        }
++
++        [Test]
++        public void ActiveRevision_BlocksDeletionByIdentityAndPhysicalPath()
++        {
++            var path = "C:\\content-directory-gate-" + Guid.NewGuid().ToString("N");
++            using (ContentRevisionGate.Reserve("build-a", "StandaloneWindows64", path))
++            {
++                Assert.That(ContentRevisionGate.TryAcquireDelete("build-a", "StandaloneWindows64",
++                    path, out var sameLease, out var sameReason), Is.False);
++                Assert.That(sameLease, Is.Null);
++                Assert.That(sameReason, Is.EqualTo(ContentDirectoryFailureCode.RevisionBusy));
++
++                // identity を偽っても同じ物理 path の削除許可を得られない。
++                Assert.That(ContentRevisionGate.TryAcquireDelete("build-b", "StandaloneWindows64",
++                    path, out var otherLease, out var otherReason), Is.False);
++                Assert.That(otherLease, Is.Null);
++                Assert.That(otherReason, Is.EqualTo(ContentDirectoryFailureCode.PathInUse));
++            }
++            Assert.That(ContentRevisionGate.TryAcquireDelete("build-a", "StandaloneWindows64",
++                path, out var releasedLease, out _), Is.True);
++            releasedLease!.Dispose();
++        }
++
++        [Test]
++        public void AnotherDeleteLease_AlwaysReportsDeletionInProgress()
++        {
++            var path = "C:\\content-directory-gate-" + Guid.NewGuid().ToString("N");
++            var otherPath = "C:\\content-directory-gate-" + Guid.NewGuid().ToString("N");
++            Assert.That(ContentRevisionGate.TryAcquireDelete("build-a", "StandaloneWindows64", path,
++                out var lease, out _), Is.True);
++            try
++            {
++                Assert.That(ContentRevisionGate.TryAcquireDelete("build-b", "StandaloneWindows64", otherPath,
++                    out var blocked, out var reason), Is.False);
++                Assert.That(blocked, Is.Null);
++                Assert.That(reason, Is.EqualTo(ContentDirectoryFailureCode.DeletionInProgress));
++            }
++            finally { lease!.Dispose(); }
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Tests/BuildContent/ContentRevisionGateTests.cs.meta b/unity/Assets/OneStarMaker/Tests/BuildContent/ContentRevisionGateTests.cs.meta
+new file mode 100644
+index 0000000..49acf6d
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/BuildContent/ContentRevisionGateTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: af88df5388875fa49b53b2319bb61022
+\ No newline at end of file
+diff --git a/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs b/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs
+index 877748f..82bf170 100644
+--- a/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs
++++ b/unity/Assets/OneStarMaker/Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs
+@@ -5,16 +5,19 @@
+ using System.Collections.Generic;
+ using System.IO;
+ using System.Linq;
++using Cysharp.Threading.Tasks;
+ using NUnit.Framework;
+ using OneStarMaker.Build.Selection;
+ using OneStarMaker.Editor.Build.Content;
+ using OneStarMaker.Editor.Build.Materialization;
+ using OneStarMaker.Runtime.BuildContent;
++using OneStarMaker.Runtime.AssetManagement;
+ using Unity.Loading;
+ using UnityEditor;
+ using UnityEditor.SceneManagement;
+ using UnityEngine;
+ using UnityEngine.TestTools;
++using UnityEngine.SceneManagement;
+ 
+ namespace OneStarMaker.Tests.Editor.Build
+ {
+@@ -22,7 +25,7 @@ namespace OneStarMaker.Tests.Editor.Build
+     // PlayMode で移設先だけを登録することで、AssetDatabase 上の source に依存した見かけの成功を避ける。
+     public sealed class BuildContentDirectoryIntegrationTests
+     {
+-        private const string FixtureParent = "Assets/OneStarMakerGenerated/BS2bTests";
++        private const string FixtureParent = "Assets/OneStarMakerGenerated/BS3Tests";
+         private string _folder = "";
+         private string _copy = "";
+ 
+@@ -107,7 +110,8 @@ public IEnumerator ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirec
+                         new KeyValuePair<string, IEnumerable<string>>("Representation", new[] { "High", "Low", "Excluded" })
+                     }), snapshot.Requirements));
+                 Assert.That(selection.IsSuccess, Is.True);
+-                var artifacts = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "artifacts", "bs2b"));
++                // 実 build の生成物はこのテスト専用領域へ置き、過去の検証ログを上書きしない。
++                var artifacts = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "TestResults", "bs3-fixture"));
+                 var workspace = Path.Combine(artifacts, "work", BuildContentCoordinator.TargetName, "fixture");
+                 var request = new BuildContentRequest(selection.Plan!, snapshot, "fixture", artifacts);
+                 var coordinator = new BuildContentCoordinator();
+@@ -172,6 +176,50 @@ public IEnumerator ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirec
+                 Assert.That(roots[0].Entries.Where(x => x.Kind == BuildContentKind.Object).All(x => x.Object != null), Is.True);
+             }
+             finally { ContentLoadManager.UnregisterContentDirectory(handle); }
++            // source fixture は既に削除済み。登録済み root の Unity locator から実際の Scene/Object を
++            // 取得して解放し、Editor の AssetDatabase 側で成功したように見える経路を除外する。
++            yield return UniTask.ToCoroutine(async () =>
++            {
++                var identity = Path.GetFileName(_copy).Substring("integration-copy-".Length);
++                var session = ContentDirectorySession.Register(_copy, identity, BuildContentCoordinator.TargetName);
++                var assets = new AssetManagement();
++                assets.InstallContentDirectory(session);
++                IAssetHandle<GameObject>? prefab = null;
++                IAssetHandle<Texture2D>? texture = null;
++                GameObject? instance = null;
++                var sceneLoaded = false;
++                try
++                {
++                    prefab = await assets.LoadContentAssetAsync<GameObject>("shared-logical", "High", AssetOwner.Manual);
++                    Assert.That(prefab.Value, Is.Not.Null);
++                    texture = await assets.LoadContentAssetAsync<Texture2D>("logical-3", "Full", AssetOwner.Manual);
++                    Assert.That(texture.Value, Is.Not.Null);
++                    instance = await assets.InstantiateContentAsync("shared-logical", "Low");
++                    Assert.That(instance, Is.Not.Null);
++                    var sceneHandle = await assets.LoadContentSceneAsync("logical-0", "Full",
++                        new SceneLoadOptions(LoadSceneMode.Additive));
++                    sceneLoaded = true;
++                    Assert.That(sceneHandle.IsLoaded, Is.True);
++                }
++                finally
++                {
++                    if (sceneLoaded)
++                    {
++                        await assets.UnloadSceneAsync("logical-0");
++                        assets.ReleaseScene("logical-0");
++                    }
++                    if (instance != null)
++                    {
++                        UnityEngine.Object.Destroy(instance);
++                        // Destroy はフレーム末尾で確定する。破棄通知が owner token を返す前に
++                        // close を呼ぶと ResourcesInUse が正しく返るので、実際の破棄を待つ。
++                        await UniTask.WaitUntil(() => instance == null);
++                    }
++                    if (prefab != null) assets.Release(prefab);
++                    if (texture != null) assets.Release(texture);
++                    await session.CloseAsync();
++                }
++            });
+             yield return new ExitPlayMode();
+         }
+ 
+diff --git a/unity/Assets/OneStarMaker/Tests/Editor/Build/ContentDirectorySessionTests.cs b/unity/Assets/OneStarMaker/Tests/Editor/Build/ContentDirectorySessionTests.cs
+new file mode 100644
+index 0000000..97320ef
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/Editor/Build/ContentDirectorySessionTests.cs
+@@ -0,0 +1,336 @@
++#nullable enable
++
++using System;
++using System.IO;
++using System.Threading;
++using System.Threading.Tasks;
++using Cysharp.Threading.Tasks;
++using NUnit.Framework;
++using OneStarMaker.Runtime.AssetManagement;
++using OneStarMaker.Runtime.AssetManagement.Cache;
++using OneStarMaker.Runtime.AssetManagement.Internal;
++using OneStarMaker.Runtime.BuildContent;
++using UnityEditor;
++using Unity.Loading;
++using UnityEngine;
++
++namespace OneStarMaker.Tests.Editor.Build
++{
++    public sealed class ContentDirectorySessionTests
++    {
++        private const string ScenePath = "Assets/OneStarMaker/Scenes/UISystem/UIScene.unity";
++
++        [Test]
++        public async Task CancelledSceneLoad_DrainsNativeCompletionBeforeUnregister()
++        {
++            var path = Path.Combine(Path.GetTempPath(), "osm-content-session-" + Guid.NewGuid().ToString("N"));
++            Directory.CreateDirectory(path);
++            var root = CreateRoot();
++            var native = new FakeNativeDirectory(root);
++            try
++            {
++                var session = ContentDirectorySession.Register(path, "build", "StandaloneWindows64", native);
++                using var cts = new CancellationTokenSource();
++                var load = session.LoadSceneAsync("scene", "Full", default, cts.Token).AsTask();
++                cts.Cancel();
++                try { await load; Assert.Fail("取消した caller の待機が成功した"); }
++                catch (OperationCanceledException) { }
++
++                var close = session.CloseAsync().AsTask();
++                Assert.That(close.IsCompleted, Is.False, "caller の取消は native terminal ではない");
++                Assert.That(native.UnregisterCount, Is.Zero);
++
++                native.SceneResult.TrySetResult(new FakeScene());
++                await close;
++                Assert.That(native.UnloadCount, Is.EqualTo(1));
++                Assert.That(native.UnregisterCount, Is.EqualTo(1));
++            }
++            finally
++            {
++                UnityEngine.Object.DestroyImmediate(root);
++                Directory.Delete(path);
++            }
++        }
++
++        [Test]
++        public void InvalidRoot_RollsBackAndAllowsSamePathRetry()
++        {
++            var path = Path.Combine(Path.GetTempPath(), "osm-content-session-" + Guid.NewGuid().ToString("N"));
++            Directory.CreateDirectory(path);
++            var wrong = CreateRoot("wrong");
++            var correct = CreateRoot();
++            try
++            {
++                var first = new FakeNativeDirectory(wrong);
++                var failure = Assert.Throws<ContentDirectoryException>(() =>
++                    ContentDirectorySession.Register(path, "build", "StandaloneWindows64", first));
++                Assert.That(failure!.Code, Is.EqualTo(ContentDirectoryFailureCode.IdentityMismatch));
++                Assert.That(first.UnregisterCount, Is.EqualTo(1));
++
++                var next = new FakeNativeDirectory(correct);
++                var session = ContentDirectorySession.Register(path, "build", "StandaloneWindows64", next);
++                session.CloseAsync().GetAwaiter().GetResult();
++                Assert.That(next.UnregisterCount, Is.EqualTo(1));
++            }
++            finally
++            {
++                UnityEngine.Object.DestroyImmediate(wrong);
++                UnityEngine.Object.DestroyImmediate(correct);
++                Directory.Delete(path);
++            }
++        }
++
++        [Test]
++        public async Task LiveInstance_RejectsCloseUntilOwnerReleasesIt()
++        {
++            var path = Path.Combine(Path.GetTempPath(), "osm-content-session-" + Guid.NewGuid().ToString("N"));
++            Directory.CreateDirectory(path);
++            var asset = AssetDatabase.LoadMainAssetAtPath("Assets/TutorialInfo/Icons/URP.png");
++            Assert.That(asset, Is.Not.Null);
++            Assert.That(AssetDatabase.TryGetGUIDAndLocalFileIdentifier(asset, out var guid, out long localId), Is.True);
++            var root = ScriptableObject.CreateInstance<BuildContentRoot>();
++            root.Initialize("build", "StandaloneWindows64", new[] {
++                new BuildContentEntry("object", "stable", "Full",
++                    new Loadable<UnityEngine.Object>(LoadableObjectIdEditorUtility.CreateLoadableObjectId(asset)), guid, localId)
++            });
++            var native = new FakeNativeDirectory(root) { InstanceResult = new FakeInstance() };
++            try
++            {
++                var session = ContentDirectorySession.Register(path, "build", "StandaloneWindows64", native);
++                var instance = await session.InstantiateAsync("object", "Full", null, false, CancellationToken.None);
++                try
++                {
++                    await session.CloseAsync();
++                    Assert.Fail("生存中の instance を持つ directory が閉じられた");
++                }
++                catch (ContentDirectoryException ex)
++                {
++                    Assert.That(ex.Code, Is.EqualTo(ContentDirectoryFailureCode.ResourcesInUse));
++                }
++                Assert.That(native.UnregisterCount, Is.Zero);
++
++                session.Release((IBackendAsset)instance);
++                await session.CloseAsync();
++                Assert.That(native.ReleaseCount, Is.EqualTo(1));
++                Assert.That(native.UnregisterCount, Is.EqualTo(1));
++            }
++            finally
++            {
++                if (native.InstanceResult?.Instance != null)
++                    UnityEngine.Object.DestroyImmediate(native.InstanceResult.Instance);
++                UnityEngine.Object.DestroyImmediate(root);
++                Directory.Delete(path);
++            }
++        }
++
++        [Test]
++        public async Task UnregisterFailure_KeepsDeleteBlockedAndCloseCanRetry()
++        {
++            var path = Path.Combine(Path.GetTempPath(), "osm-content-session-" + Guid.NewGuid().ToString("N"));
++            Directory.CreateDirectory(path);
++            var root = CreateRoot();
++            var native = new FakeNativeDirectory(root) { FailUnregisterCount = 1 };
++            try
++            {
++                var session = ContentDirectorySession.Register(path, "build", "StandaloneWindows64", native);
++                var failure = Assert.ThrowsAsync<ContentDirectoryException>(async () => await session.CloseAsync());
++                Assert.That(failure!.Code, Is.EqualTo(ContentDirectoryFailureCode.OperationFailed));
++                Assert.That(ContentRevisionGate.TryAcquireDelete("build", "StandaloneWindows64", path,
++                    out var blocked, out var reason), Is.False);
++                Assert.That(blocked, Is.Null);
++                Assert.That(reason, Is.EqualTo(ContentDirectoryFailureCode.RevisionBusy));
++
++                await session.CloseAsync();
++                Assert.That(native.UnregisterCount, Is.EqualTo(2));
++                Assert.That(ContentRevisionGate.TryAcquireDelete("build", "StandaloneWindows64", path,
++                    out var lease, out _), Is.True);
++                lease!.Dispose();
++            }
++            finally
++            {
++                UnityEngine.Object.DestroyImmediate(root);
++                Directory.Delete(path);
++            }
++        }
++
++        [Test]
++        public void FailedRegistrationRollback_IsRetriedOnNextRegistration()
++        {
++            var path = Path.Combine(Path.GetTempPath(), "osm-content-session-" + Guid.NewGuid().ToString("N"));
++            Directory.CreateDirectory(path);
++            var wrong = CreateRoot("wrong");
++            var right = CreateRoot();
++            try
++            {
++                var first = new FakeNativeDirectory(wrong) { FailUnregisterCount = 1 };
++                var failure = Assert.Throws<ContentDirectoryException>(() =>
++                    ContentDirectorySession.Register(path, "build", "StandaloneWindows64", first));
++                Assert.That(failure!.Code, Is.EqualTo(ContentDirectoryFailureCode.RegistrationFailed));
++                Assert.That(ContentRevisionGate.TryAcquireDelete("build", "StandaloneWindows64", path,
++                    out var blocked, out _), Is.False);
++                Assert.That(blocked, Is.Null);
++
++                var second = new FakeNativeDirectory(right);
++                var session = ContentDirectorySession.Register(path, "build", "StandaloneWindows64", second);
++                session.CloseAsync().GetAwaiter().GetResult();
++                Assert.That(first.UnregisterCount, Is.EqualTo(2));
++                Assert.That(second.UnregisterCount, Is.EqualTo(1));
++            }
++            finally
++            {
++                UnityEngine.Object.DestroyImmediate(wrong);
++                UnityEngine.Object.DestroyImmediate(right);
++                Directory.Delete(path);
++            }
++        }
++
++        [Test]
++        public async Task ConcurrentCallers_ShareOneAssetAndOneSceneToken()
++        {
++            var directory = new FakeDirectoryPort();
++            var assets = new AssetManagement();
++            assets.InstallContentDirectory(directory);
++            var texture = new Texture2D(1, 1);
++            try
++            {
++                var firstAsset = assets.LoadContentAssetAsync<Texture2D>("object", "Full", AssetOwner.Manual).AsTask();
++                var secondAsset = assets.LoadContentAssetAsync<Texture2D>("object", "Full", AssetOwner.Manual).AsTask();
++                Assert.That(directory.AssetLoads, Is.EqualTo(1));
++                directory.AssetResult.TrySetResult(new FakeAsset(texture));
++                var handleA = await firstAsset;
++                var handleB = await secondAsset;
++                Assert.That(handleA.Value, Is.SameAs(handleB.Value));
++                assets.Release(handleA);
++                assets.Release(handleB);
++                Assert.That(directory.AssetReleases, Is.EqualTo(1));
++
++                var firstScene = assets.LoadContentSceneAsync("scene", "Full").AsTask();
++                var secondScene = assets.LoadContentSceneAsync("scene", "Full").AsTask();
++                Assert.That(directory.SceneLoads, Is.EqualTo(1));
++                directory.SceneResult.TrySetResult(new FakeScene());
++                Assert.That((await firstScene).IsLoaded, Is.True);
++                Assert.That((await secondScene).IsLoaded, Is.True);
++                await assets.UnloadSceneAsync("scene");
++                assets.ReleaseScene("scene");
++                Assert.That(directory.SceneUnloads, Is.EqualTo(1));
++                await assets.CloseContentDirectoryAsync();
++            }
++            finally { UnityEngine.Object.DestroyImmediate(texture); }
++        }
++
++        [Test]
++        public async Task ResidentCache_ReleasesDirectoryTokenAtClose()
++        {
++            var directory = new FakeDirectoryPort();
++            var cache = new AssetResidentCache(new FixedBudget(), 300f, _ => Assert.Fail("directory token を Addressables 側へ返した"), _ => 1L, () => 0d);
++            var assets = new AssetManagement(new AddressableBackend(), cache);
++            assets.InstallContentDirectory(directory);
++            var texture = new Texture2D(1, 1);
++            try
++            {
++                directory.AssetResult.TrySetResult(new FakeAsset(texture));
++                var handle = await assets.LoadContentAssetAsync<Texture2D>("object", "Full", AssetOwner.Manual);
++                assets.Release(handle);
++                Assert.That(directory.AssetReleases, Is.Zero, "resident cache も directory の利用中 token として保持する");
++
++                await assets.CloseContentDirectoryAsync();
++                Assert.That(directory.AssetReleases, Is.EqualTo(1));
++            }
++            finally { UnityEngine.Object.DestroyImmediate(texture); }
++        }
++
++        private static BuildContentRoot CreateRoot(string identity = "build")
++        {
++            var root = ScriptableObject.CreateInstance<BuildContentRoot>();
++            root.Initialize(identity, "StandaloneWindows64", new[] {
++                new BuildContentEntry("scene", "stable", "Full", LoadableSceneIdEditorUtility.CreateLoadableSceneId(ScenePath))
++            });
++            return root;
++        }
++
++        private sealed class FakeNativeDirectory : IContentNativeDirectory
++        {
++            private readonly BuildContentRoot _root;
++            internal FakeNativeDirectory(BuildContentRoot root) => _root = root;
++            internal readonly UniTaskCompletionSource<IBackendScene> SceneResult = new();
++            internal int UnloadCount;
++            internal int UnregisterCount;
++            internal int ReleaseCount;
++            internal int FailUnregisterCount;
++            internal IBackendInstance? InstanceResult;
++            public bool Register(string path) => true;
++            public BuildContentRoot[] GetRoots() => new[] { _root };
++            public void Unregister()
++            {
++                UnregisterCount++;
++                if (FailUnregisterCount-- > 0) throw new InvalidOperationException("fake unregister failure");
++            }
++            public UniTask<IBackendScene> LoadSceneAsync(BuildContentEntry entry, SceneLoadOptions options) => SceneResult.Task;
++            public UniTask UnloadSceneAsync(IBackendScene scene) { UnloadCount++; return UniTask.CompletedTask; }
++            public UniTask<IBackendAsset> LoadObjectAsync<T>(BuildContentEntry entry) where T : UnityEngine.Object => throw new NotSupportedException();
++            public UniTask<IBackendInstance> InstantiateAsync(BuildContentEntry entry, Transform? parent, bool worldSpace)
++                => InstanceResult != null ? UniTask.FromResult(InstanceResult!) : throw new NotSupportedException();
++            public void Release(IBackendAsset asset)
++            {
++                ReleaseCount++;
++                if (asset is FakeInstance instance && instance.Instance != null)
++                    UnityEngine.Object.DestroyImmediate(instance.Instance);
++            }
++        }
++
++        private sealed class FakeInstance : IBackendInstance, IBackendAsset
++        {
++            public GameObject? Instance { get; } = new("fake-content-instance");
++            public UnityEngine.Object? Asset => Instance;
++            public bool IsValid => Instance != null;
++        }
++
++        private sealed class FakeScene : IBackendScene, IContentDirectoryToken
++        {
++            public bool IsLoaded => true;
++            public string Name => "fake";
++            public GameObject[] GetRootGameObjects() => Array.Empty<GameObject>();
++        }
++
++        private sealed class FakeAsset : IBackendAsset, IContentDirectoryToken
++        {
++            internal FakeAsset(Texture2D asset) => Asset = asset;
++            public UnityEngine.Object? Asset { get; }
++            public bool IsValid => Asset != null;
++        }
++
++        private sealed class FakeDirectoryPort : IContentDirectoryBackend
++        {
++            internal readonly UniTaskCompletionSource<IBackendAsset> AssetResult = new();
++            internal readonly UniTaskCompletionSource<IBackendScene> SceneResult = new();
++            internal int AssetLoads;
++            internal int SceneLoads;
++            internal int AssetReleases;
++            internal int SceneUnloads;
++            private Action? _evict;
++            public string BuildIdentity => "build";
++            public string Target => "StandaloneWindows64";
++            public string CachePrefix => "directory:test:";
++            public AssetKey GetObjectKey(string logicalKey, string representation)
++                => AssetKey.FromContentDirectory(CachePrefix + logicalKey + ":" + representation, AssetType.Other);
++            public UniTask<IBackendAsset> LoadAssetAsync<T>(string logicalKey, string representation, CancellationToken ct) where T : UnityEngine.Object
++            { AssetLoads++; return AssetResult.Task; }
++            public UniTask<IBackendScene> LoadSceneAsync(string sceneIdentity, string representation, SceneLoadOptions options, CancellationToken ct)
++            { SceneLoads++; return SceneResult.Task; }
++            public UniTask<IBackendInstance> InstantiateAsync(string logicalKey, string representation, Transform? parent, bool worldSpace, CancellationToken ct)
++                => throw new NotSupportedException();
++            public UniTask UnloadSceneAsync(IBackendScene scene) { SceneUnloads++; return UniTask.CompletedTask; }
++            public void ReleaseSceneAfterUnityShutdown(IBackendScene scene) { }
++            public void Release(IBackendAsset asset) => AssetReleases++;
++            public void ConfigureCacheEviction(Action evictRevisionEntries) => _evict = evictRevisionEntries;
++            public UniTask StopAndDrainAsync() => UniTask.CompletedTask;
++            public UniTask CloseAsync() { _evict?.Invoke(); return UniTask.CompletedTask; }
++            public void BeginSynchronousShutdown() { }
++        }
++
++        private sealed class FixedBudget : IBudgetProvider
++        {
++            public long GetBudgetBytes(AssetType type) => 1024;
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Tests/Editor/Build/ContentDirectorySessionTests.cs.meta b/unity/Assets/OneStarMaker/Tests/Editor/Build/ContentDirectorySessionTests.cs.meta
+new file mode 100644
+index 0000000..3cea6e4
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/Editor/Build/ContentDirectorySessionTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: a1e5674305388b14fb57c3e7dcba091a
+\ No newline at end of file
+diff --git a/unity/Assets/OneStarMaker/Tests/Scene/SceneVariantForwardingTests.cs b/unity/Assets/OneStarMaker/Tests/Scene/SceneVariantForwardingTests.cs
+index 462c81a..ce65b29 100644
+--- a/unity/Assets/OneStarMaker/Tests/Scene/SceneVariantForwardingTests.cs
++++ b/unity/Assets/OneStarMaker/Tests/Scene/SceneVariantForwardingTests.cs
+@@ -7,6 +7,7 @@
+ using NUnit.Framework;
+ using OneStarMaker.Runtime.AssetDescriptions;
+ using OneStarMaker.Runtime.AssetManagement;
++using OneStarMaker.Runtime.AssetManagement.Internal;
+ using OneStarMaker.Runtime.SceneSystem;
+ using OneStarMaker.Tests.AssetManagement;
+ using OneStarMaker.Tests.SceneSystem.Helpers;
+@@ -69,6 +70,27 @@ public async Task Load_LogicalNodeWithoutPayload_DoesNotCallBackend()
+             director.Dispose();
+         }
+ 
++        [Test]
++        public async Task DirectoryMode_RoutesSelectedRepresentationWithoutAddressablesFallback()
++        {
++            var backend = new FakeAssetBackend();
++            var assets = new Runtime.AssetManagement.AssetManagement(backend);
++            var directory = new DirectoryScenePort();
++            assets.InstallContentDirectory(directory);
++            var resource = CreateResource("DirectoryScene", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
++            var map = SceneTestHelper.CreateSceneResourceMap(resource);
++            CreatedSOs.Add(map);
++            var director = new ExposedDirector(Factory, UICommon, map, assets, "Whitebox", true);
++
++            await director.Load(resource);
++
++            Assert.That(directory.SceneIdentity, Is.EqualTo("DirectoryScene"));
++            Assert.That(directory.Representation, Is.EqualTo("Whitebox"));
++            Assert.That(backend.LoadSceneCallCount, Is.Zero);
++            director.Dispose();
++            await assets.CloseContentDirectoryAsync();
++        }
++
+         private SceneResource CreateResource(string identity, string defaultGuid, string whiteboxGuid)
+         {
+             var resource = SceneTestHelper.CreateSceneResource(identity);
+@@ -90,13 +112,45 @@ private static void SetDescription(SceneResource resource, SceneAssetDescription
+ 
+         private sealed class ExposedDirector : SceneDirector
+         {
+-            internal ExposedDirector(ISceneFactory factory, Runtime.UISystem.UICommon ui, SceneResourceMap map, IAssetManagement assets, string variant)
+-                : base(factory, ui, map, new NoLoadingDisplay(), assets, variant) { }
++            internal ExposedDirector(ISceneFactory factory, Runtime.UISystem.UICommon ui, SceneResourceMap map, IAssetManagement assets, string variant, bool useContentDirectory = false)
++                : base(factory, ui, map, new NoLoadingDisplay(), assets, variant, useContentDirectory) { }
+ 
+             internal UniTask<(bool AddressablesLoaded, GameObject[] RootObjects)> Load(SceneResource resource)
+                 => PerformUnitySceneLoad(resource.Identity, resource, 100);
+         }
+ 
++        private sealed class DirectoryScenePort : IContentDirectoryBackend
++        {
++            public string BuildIdentity => "build";
++            public string Target => "StandaloneWindows64";
++            public string CachePrefix => "directory:test:";
++            public string? SceneIdentity { get; private set; }
++            public string? Representation { get; private set; }
++            public AssetKey GetObjectKey(string logicalKey, string representation) => throw new NotSupportedException();
++            public UniTask<IBackendAsset> LoadAssetAsync<T>(string logicalKey, string representation, System.Threading.CancellationToken ct) where T : UnityEngine.Object => throw new NotSupportedException();
++            public UniTask<IBackendScene> LoadSceneAsync(string sceneIdentity, string representation, SceneLoadOptions options, System.Threading.CancellationToken ct)
++            {
++                SceneIdentity = sceneIdentity;
++                Representation = representation;
++                return UniTask.FromResult<IBackendScene>(new DirectoryScene());
++            }
++            public UniTask<IBackendInstance> InstantiateAsync(string logicalKey, string representation, Transform? parent, bool worldSpace, System.Threading.CancellationToken ct) => throw new NotSupportedException();
++            public UniTask UnloadSceneAsync(IBackendScene scene) => UniTask.CompletedTask;
++            public void ReleaseSceneAfterUnityShutdown(IBackendScene scene) { }
++            public void Release(IBackendAsset asset) { }
++            public void ConfigureCacheEviction(Action evictRevisionEntries) { }
++            public UniTask StopAndDrainAsync() => UniTask.CompletedTask;
++            public UniTask CloseAsync() => UniTask.CompletedTask;
++            public void BeginSynchronousShutdown() { }
++        }
++
++        private sealed class DirectoryScene : IBackendScene, IContentDirectoryToken
++        {
++            public bool IsLoaded => true;
++            public string Name => "DirectoryScene";
++            public GameObject[] GetRootGameObjects() => Array.Empty<GameObject>();
++        }
++
+         private sealed class NoLoadingDisplay : ILoadingDisplay
+         {
+             public UniTask Show(LoadingDisplayType type, System.Threading.CancellationToken ct) => UniTask.CompletedTask;

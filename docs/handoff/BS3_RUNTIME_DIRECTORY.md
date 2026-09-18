@@ -4,7 +4,7 @@
 - status: C（Phase B 実装・Editor コンパイル確認済み）
 - branch: `codex/bs3-runtime-directory`
 - implementation base commit: `25a5024d310347ef9ce67128636a06e0e0fb5172`
-- implementation head commit: 未生成
+- implementation head commit: `de160e1559a67e09c489b155717826f0bab6ab0f`
 - risk: high（公開 API、寿命、Unity Content Loading、取消）
 - owner: BuildSystem 主担当
 - created: 2026-09-18
@@ -13,11 +13,11 @@
 - Phase A snapshot path / id: `artifacts/bs3-phase-a/phase-a-r2.md`（旧 `phase-a.md` は revision 1 記録）
 - Phase A snapshot generated at: 2026-09-18 JST
 - Phase A snapshot hash: SHA-256 `0DEA239D630F5F40487C53F5733377DBA4FB80D1CE86A85EA0D0C54303CD72D9`
-- Phase B result snapshot path / id: `artifacts/bs3-phase-b/phase-b.md`
+- Phase B result snapshot path / id: `artifacts/bs3-phase-b/phase-b-r2.md`
 - Phase B result snapshot generated at: 2026-09-18 JST
-- Phase B result snapshot hash: SHA-256 `A7F5461EAC5E816BDF35C91BA0EDF9D29397E8C05088E917C9C63326E8499D6D`
-- evidence bundle path / id: 未生成
-- C' blind bundle path / id: 未生成
+- Phase B result snapshot hash: SHA-256 `4EE0C3C9DEE96D80A88EF6386ABB65FC6835AE4B91E33E8A7F79E8F4BA14847D`
+- evidence bundle path / id: `artifacts/bs3-phase-c/evidence-r2/manifest.md`、SHA-256 `C88910B3DA91DD8A017AAEDAE98D1912851CE8955551E53CD5D2AD8E881FEE4D`
+- C' blind bundle path / id: `artifacts/bs3-phase-c/blind/bundle-r2.md`、SHA-256 `EB557C36731DC32B10542352620784174735AC6C84DD2D51A7E04F7380086DE7`
 
 ## 1. A0 入力、目的、境界
 
@@ -164,15 +164,19 @@ Phase B は実装前に停止した。旧 snapshot は設計として保持し�
 
 ## 5. Phase B 実装結果
 
-`artifacts/bs3-phase-b/phase-b.md` に実装結果と未実行事項を固定した。Unity Editor のコンパイルと contract audit は通過。バッチテストと実 Content Directory build は Phase C で実施する。
+初版は `artifacts/bs3-phase-b/phase-b.md`、初回 C/C' の指摘を修正した実装結果は `artifacts/bs3-phase-b/phase-b-r2.md` に固定した。Unity Editor のコンパイルと contract audit は通過。バッチテストと実 Content Directory build は Phase C で実施した。
 
 ## 6. Phase C
 
-未実施。
+固定 implementation base/head の証拠は `artifacts/bs3-phase-c/evidence-r2/manifest.md`。revision 2 のレビューは進行中。
+
+初回 C/C' は `990c153` に対し NO-GO。native unregister 失敗後の reservation 解除、並行 load の token 消失、bootstrap rollback 漏れ、Prefab instance 所有権、pure index 契約、delete rejection code の違反を発見した。修正 commit は `de160e1`。実装 head が変わったため旧判定は無効。
+
+revision 2 の機械検証は Unity 6000.6.0f1 の規定経路で、ContentDirectory 11/11、実 directory integration 1/1、SceneVariantForwarding 6/6、ContentRevisionGate 3/3、SceneDirector 63/63、AssetManagement 39/39。いずれも failed 0、結果 XML と生ログは新証拠束に複写済み。contract audit と docs audit は exit 0。docs audit の HANDOFF warning は既知。
 
 ## 7. Phase C' 独立監査
 
-未実施。
+`artifacts/bs3-phase-c/blind/bundle-r2.md` を Phase C 所見なしで生成済み。revision 2 の独立監査は進行中。初回 C' は旧 head の NO-GO であり新 head の判定には使わない。
 
 ## 8. Phase D
 
