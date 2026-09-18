@@ -22,10 +22,11 @@ namespace OneStarMaker.Tests.BuildContent
                 new BuildContentEntry("scene", "full", "Full", sceneId),
                 new BuildContentEntry("scene", "whitebox", "Whitebox", sceneId),
             });
-            var index = ContentDirectoryIndex.Create(root, "build", "StandaloneWindows64");
-
-            Assert.That(index.ResolveScene("scene", "Missing").StableKey, Is.EqualTo("full"));
-            Assert.Throws<ContentDirectoryException>(() => index.ResolveObject("scene", "Missing"));
+            Assert.That(ContentDirectoryIndex.TryCreate(root, "build", "StandaloneWindows64", out var index, out _), Is.True);
+            Assert.That(index!.TryResolveScene("scene", "Missing", out var scene, out _), Is.True);
+            Assert.That(scene!.StableKey, Is.EqualTo("full"));
+            Assert.That(index.TryResolveObject("scene", "Missing", out _, out var issue), Is.False);
+            Assert.That(issue.Code, Is.EqualTo(ContentDirectoryFailureCode.EntryMissing));
             UnityEngine.Object.DestroyImmediate(root);
         }
 
@@ -39,8 +40,8 @@ namespace OneStarMaker.Tests.BuildContent
                 new BuildContentEntry("scene", "two", "Full", sceneId),
             });
 
-            var exception = Assert.Throws<ContentDirectoryException>(() => ContentDirectoryIndex.Create(root, "build", "StandaloneWindows64"));
-            Assert.That(exception!.Code, Is.EqualTo(ContentDirectoryFailureCode.EntryAmbiguous));
+            Assert.That(ContentDirectoryIndex.TryCreate(root, "build", "StandaloneWindows64", out _, out var issue), Is.False);
+            Assert.That(issue.Code, Is.EqualTo(ContentDirectoryFailureCode.EntryAmbiguous));
             UnityEngine.Object.DestroyImmediate(root);
         }
 
@@ -53,8 +54,9 @@ namespace OneStarMaker.Tests.BuildContent
                 new BuildContentEntry("scene", "stable", "", sceneId)
             });
 
-            var index = ContentDirectoryIndex.Create(root, "build", "StandaloneWindows64");
-            Assert.That(index.ResolveScene("scene", "Full").StableKey, Is.EqualTo("stable"));
+            Assert.That(ContentDirectoryIndex.TryCreate(root, "build", "StandaloneWindows64", out var index, out _), Is.True);
+            Assert.That(index!.TryResolveScene("scene", "Full", out var scene, out _), Is.True);
+            Assert.That(scene!.StableKey, Is.EqualTo("stable"));
             UnityEngine.Object.DestroyImmediate(root);
         }
     }

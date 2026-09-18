@@ -12,6 +12,8 @@ namespace OneStarMaker.Runtime.AssetManagement
     public sealed partial class AssetManagement
     {
         private IContentDirectoryBackend? _contentDirectory;
+        private readonly SemaphoreSlim _contentAssetLoadGate = new(1, 1);
+        private readonly SemaphoreSlim _contentSceneLoadGate = new(1, 1);
 
         internal void InstallContentDirectory(IContentDirectoryBackend session)
         {
@@ -23,8 +25,9 @@ namespace OneStarMaker.Runtime.AssetManagement
         internal async UniTask CloseContentDirectoryAsync()
         {
             var directory = RequireContentDirectory();
-            // Scene registry remains AssetManagement's only ownership ledger. Close asks the session to
-            // unload registered directory scenes first, then lets the session reject still-live owners.
+            // native terminal より先に scene 台帳を列挙すると、遅れて成功した Scene が列挙から漏れる。
+            // 受付停止と terminal 待ちの後、唯一の owner 台帳にある Scene を unload する。
+            await directory.StopAndDrainAsync();
             foreach (var scene in _registry.GetScenes())
             {
                 if (!scene.IsUnloaded && scene.Backend is IContentDirectoryToken)
@@ -42,38 +45,50 @@ namespace OneStarMaker.Runtime.AssetManagement
         {
             var directory = RequireContentDirectory();
             var key = directory.GetObjectKey(logicalKey, representation);
-            AssetRegistry.LoadedAsset loaded;
-            if (_registry.TryGetAsset(key.Canonical, out var existing))
+            // registry を確認してから native load と Acquire を終えるまで直列化する。
+            // 同時 caller が別 token を発行すると、後着 token は台帳に採用されず解放不能になる。
+            await _contentAssetLoadGate.WaitAsync(ct);
+            try
             {
-                // 共有 token は最初の caller が指定した型を記憶しない。二人目も実 Object で検査する。
-                var actual = existing.Backend.Asset;
-                if (actual == null || !typeof(T).IsInstanceOfType(actual))
-                    throw new ContentDirectoryException(ContentDirectoryFailureCode.TypeMismatch, "Loaded content does not match the requested type.", directory.BuildIdentity, directory.Target, logicalKey, representation);
-                loaded = _registry.Acquire(key.Canonical, key, existing.Backend, owner, key.Type, false);
-            }
-            else if (_cache != null && _cache.TryTake(key.Canonical, out var cached))
-            {
-                var actual = cached.Asset;
-                if (actual == null || !typeof(T).IsInstanceOfType(actual))
+                AssetRegistry.LoadedAsset loaded;
+                if (_registry.TryGetAsset(key.Canonical, out var existing))
                 {
-                    directory.Release(cached);
-                    throw new ContentDirectoryException(ContentDirectoryFailureCode.TypeMismatch, "Cached content does not match the requested type.", directory.BuildIdentity, directory.Target, logicalKey, representation);
+                    // 共有 token は最初の caller が指定した型を記憶しない。二人目も実 Object で検査する。
+                    var actual = existing.Backend.Asset;
+                    if (actual == null || !typeof(T).IsInstanceOfType(actual))
+                        throw new ContentDirectoryException(ContentDirectoryFailureCode.TypeMismatch, "Loaded content does not match the requested type.", directory.BuildIdentity, directory.Target, logicalKey, representation);
+                    loaded = _registry.Acquire(key.Canonical, key, existing.Backend, owner, key.Type, false);
                 }
-                loaded = _registry.Acquire(key.Canonical, key, cached, owner, key.Type, false);
+                else if (_cache != null && _cache.TryTake(key.Canonical, out var cached))
+                {
+                    var actual = cached.Asset;
+                    if (actual == null || !typeof(T).IsInstanceOfType(actual))
+                    {
+                        directory.Release(cached);
+                        throw new ContentDirectoryException(ContentDirectoryFailureCode.TypeMismatch, "Cached content does not match the requested type.", directory.BuildIdentity, directory.Target, logicalKey, representation);
+                    }
+                    loaded = _registry.Acquire(key.Canonical, key, cached, owner, key.Type, false);
+                }
+                else
+                    loaded = _registry.Acquire(key.Canonical, key, await directory.LoadAssetAsync<T>(logicalKey, representation, ct), owner, key.Type, false);
+                AttachDestroyReleaseIfNeeded(owner);
+                return new AssetHandle<T>(loaded, owner);
             }
-            else
-                loaded = _registry.Acquire(key.Canonical, key, await directory.LoadAssetAsync<T>(logicalKey, representation, ct), owner, key.Type, false);
-            AttachDestroyReleaseIfNeeded(owner);
-            return new AssetHandle<T>(loaded, owner);
+            finally { _contentAssetLoadGate.Release(); }
         }
 
         public async UniTask<ISceneHandle> LoadContentSceneAsync(string sceneIdentity, string representation, SceneLoadOptions options = default, CancellationToken ct = default)
         {
             var directory = RequireContentDirectory();
-            if (_registry.TryGetScene(sceneIdentity, out var existing) && !existing.IsUnloaded) return new SceneHandle(sceneIdentity, existing.Backend);
-            var scene = await directory.LoadSceneAsync(sceneIdentity, representation, options, ct);
-            _registry.AddScene(sceneIdentity, scene);
-            return new SceneHandle(sceneIdentity, scene);
+            await _contentSceneLoadGate.WaitAsync(ct);
+            try
+            {
+                if (_registry.TryGetScene(sceneIdentity, out var existing) && !existing.IsUnloaded) return new SceneHandle(sceneIdentity, existing.Backend);
+                var scene = await directory.LoadSceneAsync(sceneIdentity, representation, options, ct);
+                _registry.AddScene(sceneIdentity, scene);
+                return new SceneHandle(sceneIdentity, scene);
+            }
+            finally { _contentSceneLoadGate.Release(); }
         }
 
         public async UniTask<GameObject> InstantiateContentAsync(string logicalKey, string representation, Transform? parent = null, bool worldSpace = false, CancellationToken ct = default)

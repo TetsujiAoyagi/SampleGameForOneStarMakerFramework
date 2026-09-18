@@ -280,9 +280,21 @@ namespace OneStarMaker.Runtime
                     var configuration = _contentDirectoryConfiguration;
                     var session = ContentDirectorySession.Register(
                         configuration.Path, configuration.BuildIdentity, "StandaloneWindows64");
-                    if (_assetManagement is not AssetManagement.AssetManagement assetManagement)
-                        throw new InvalidOperationException("The configured asset manager cannot install a content directory session.");
-                    assetManagement.InstallContentDirectory(session);
+                    try
+                    {
+                        if (_assetManagement is not AssetManagement.AssetManagement assetManagement)
+                            throw new InvalidOperationException("The configured asset manager cannot install a content directory session.");
+                        assetManagement.InstallContentDirectory(session);
+                    }
+                    catch
+                    {
+                        // field に保存する前の失敗でも登録済み directory を閉じる。
+                        // cleanup が失敗した場合も元の起動失敗を診断できるよう両方を記録する。
+                        try { await session.CloseAsync(); }
+                        catch (Exception cleanupException)
+                        { Debug.LogError($"[AppInit] Content directory cleanup after install failure failed: {cleanupException}"); }
+                        throw;
+                    }
                     _contentDirectorySession = session;
                     sceneVariant = configuration.Representation;
                 }

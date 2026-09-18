@@ -21,7 +21,7 @@ namespace OneStarMaker.Runtime.BuildContent
             lock (Sync)
             {
                 if (_deletion != null)
-                { rejection = _deletion.Path == path ? ContentDirectoryFailureCode.DeletionInProgress : ContentDirectoryFailureCode.RevisionBusy; return false; }
+                { rejection = ContentDirectoryFailureCode.DeletionInProgress; return false; }
                 if (_registration != null)
                 {
                     rejection = _registration.Path == path && (_registration.Identity != buildIdentity || _registration.Target != target)
@@ -42,6 +42,17 @@ namespace OneStarMaker.Runtime.BuildContent
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Content directory registration input is invalid.", buildIdentity, target);
             lock (Sync)
             {
+                // root 検証失敗後の native unregister が失敗した場合は登録予約を残す。
+                // 次の登録試行で cleanup を再試行し、成功するまで削除 lease を渡さない。
+                if (_registration?.RetryCleanup != null)
+                {
+                    try { _registration.RetryCleanup(); }
+                    catch (Exception ex)
+                    {
+                        throw new ContentDirectoryException(ContentDirectoryFailureCode.RegistrationFailed,
+                            "Earlier content directory rollback is still pending.", buildIdentity, target, innerException: ex);
+                    }
+                }
                 if (_deletion != null) throw new ContentDirectoryException(ContentDirectoryFailureCode.DeletionInProgress, "A content directory deletion is in progress.", buildIdentity, target);
                 if (_registration != null)
                 {
@@ -52,6 +63,17 @@ namespace OneStarMaker.Runtime.BuildContent
                 var registration = new Registration(buildIdentity, target, path);
                 _registration = registration;
                 return new RegistrationLease(registration);
+            }
+        }
+
+        internal static void RetainFailedRollback(IDisposable lease, Action retryCleanup)
+        {
+            if (lease is not RegistrationLease registrationLease)
+                throw new ArgumentException("Unknown content directory reservation.", nameof(lease));
+            lock (Sync)
+            {
+                if (registrationLease.Value != null && ReferenceEquals(_registration, registrationLease.Value))
+                    _registration.RetryCleanup = retryCleanup;
             }
         }
 
@@ -70,9 +92,9 @@ namespace OneStarMaker.Runtime.BuildContent
             }
         }
 
-        private sealed class Registration { internal Registration(string i, string t, string p) { Identity=i; Target=t; Path=p; } internal string Identity {get;} internal string Target {get;} internal string Path {get;} }
+        private sealed class Registration { internal Registration(string i, string t, string p) { Identity=i; Target=t; Path=p; } internal string Identity {get;} internal string Target {get;} internal string Path {get;} internal Action? RetryCleanup {get;set;} }
         internal sealed class Deletion { internal Deletion(string i, string t, string p) { Identity=i; Target=t; Path=p; } internal string Identity {get;} internal string Target {get;} internal string Path {get;} }
-        private sealed class RegistrationLease : IDisposable { private Registration? _value; internal RegistrationLease(Registration value)=>_value=value; public void Dispose(){ lock(Sync){ if(_value != null && ReferenceEquals(_registration,_value)) _registration=null; _value=null; } } }
+        private sealed class RegistrationLease : IDisposable { private Registration? _value; internal RegistrationLease(Registration value)=>_value=value; internal Registration? Value => _value; public void Dispose(){ lock(Sync){ if(_value != null && ReferenceEquals(_registration,_value)) _registration=null; _value=null; } } }
     }
 
     /// <summary>物理削除そのものは行わず、DIST が finally まで保持する process 内 delete lease。</summary>

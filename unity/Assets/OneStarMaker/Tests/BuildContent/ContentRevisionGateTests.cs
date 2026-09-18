@@ -47,5 +47,22 @@ namespace OneStarMaker.Tests.BuildContent
                 path, out var releasedLease, out _), Is.True);
             releasedLease!.Dispose();
         }
+
+        [Test]
+        public void AnotherDeleteLease_AlwaysReportsDeletionInProgress()
+        {
+            var path = "C:\\content-directory-gate-" + Guid.NewGuid().ToString("N");
+            var otherPath = "C:\\content-directory-gate-" + Guid.NewGuid().ToString("N");
+            Assert.That(ContentRevisionGate.TryAcquireDelete("build-a", "StandaloneWindows64", path,
+                out var lease, out _), Is.True);
+            try
+            {
+                Assert.That(ContentRevisionGate.TryAcquireDelete("build-b", "StandaloneWindows64", otherPath,
+                    out var blocked, out var reason), Is.False);
+                Assert.That(blocked, Is.Null);
+                Assert.That(reason, Is.EqualTo(ContentDirectoryFailureCode.DeletionInProgress));
+            }
+            finally { lease!.Dispose(); }
+        }
     }
 }

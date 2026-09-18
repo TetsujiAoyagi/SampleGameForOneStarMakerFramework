@@ -7,6 +7,7 @@ using Cysharp.Threading.Tasks;
 using NUnit.Framework;
 using OneStarMaker.Runtime.AssetDescriptions;
 using OneStarMaker.Runtime.AssetManagement;
+using OneStarMaker.Runtime.AssetManagement.Internal;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Tests.AssetManagement;
 using OneStarMaker.Tests.SceneSystem.Helpers;
@@ -69,6 +70,27 @@ namespace OneStarMaker.Tests.SceneSystem
             director.Dispose();
         }
 
+        [Test]
+        public async Task DirectoryMode_RoutesSelectedRepresentationWithoutAddressablesFallback()
+        {
+            var backend = new FakeAssetBackend();
+            var assets = new Runtime.AssetManagement.AssetManagement(backend);
+            var directory = new DirectoryScenePort();
+            assets.InstallContentDirectory(directory);
+            var resource = CreateResource("DirectoryScene", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+            var map = SceneTestHelper.CreateSceneResourceMap(resource);
+            CreatedSOs.Add(map);
+            var director = new ExposedDirector(Factory, UICommon, map, assets, "Whitebox", true);
+
+            await director.Load(resource);
+
+            Assert.That(directory.SceneIdentity, Is.EqualTo("DirectoryScene"));
+            Assert.That(directory.Representation, Is.EqualTo("Whitebox"));
+            Assert.That(backend.LoadSceneCallCount, Is.Zero);
+            director.Dispose();
+            await assets.CloseContentDirectoryAsync();
+        }
+
         private SceneResource CreateResource(string identity, string defaultGuid, string whiteboxGuid)
         {
             var resource = SceneTestHelper.CreateSceneResource(identity);
@@ -90,11 +112,43 @@ namespace OneStarMaker.Tests.SceneSystem
 
         private sealed class ExposedDirector : SceneDirector
         {
-            internal ExposedDirector(ISceneFactory factory, Runtime.UISystem.UICommon ui, SceneResourceMap map, IAssetManagement assets, string variant)
-                : base(factory, ui, map, new NoLoadingDisplay(), assets, variant) { }
+            internal ExposedDirector(ISceneFactory factory, Runtime.UISystem.UICommon ui, SceneResourceMap map, IAssetManagement assets, string variant, bool useContentDirectory = false)
+                : base(factory, ui, map, new NoLoadingDisplay(), assets, variant, useContentDirectory) { }
 
             internal UniTask<(bool AddressablesLoaded, GameObject[] RootObjects)> Load(SceneResource resource)
                 => PerformUnitySceneLoad(resource.Identity, resource, 100);
+        }
+
+        private sealed class DirectoryScenePort : IContentDirectoryBackend
+        {
+            public string BuildIdentity => "build";
+            public string Target => "StandaloneWindows64";
+            public string CachePrefix => "directory:test:";
+            public string? SceneIdentity { get; private set; }
+            public string? Representation { get; private set; }
+            public AssetKey GetObjectKey(string logicalKey, string representation) => throw new NotSupportedException();
+            public UniTask<IBackendAsset> LoadAssetAsync<T>(string logicalKey, string representation, System.Threading.CancellationToken ct) where T : UnityEngine.Object => throw new NotSupportedException();
+            public UniTask<IBackendScene> LoadSceneAsync(string sceneIdentity, string representation, SceneLoadOptions options, System.Threading.CancellationToken ct)
+            {
+                SceneIdentity = sceneIdentity;
+                Representation = representation;
+                return UniTask.FromResult<IBackendScene>(new DirectoryScene());
+            }
+            public UniTask<IBackendInstance> InstantiateAsync(string logicalKey, string representation, Transform? parent, bool worldSpace, System.Threading.CancellationToken ct) => throw new NotSupportedException();
+            public UniTask UnloadSceneAsync(IBackendScene scene) => UniTask.CompletedTask;
+            public void ReleaseSceneAfterUnityShutdown(IBackendScene scene) { }
+            public void Release(IBackendAsset asset) { }
+            public void ConfigureCacheEviction(Action evictRevisionEntries) { }
+            public UniTask StopAndDrainAsync() => UniTask.CompletedTask;
+            public UniTask CloseAsync() => UniTask.CompletedTask;
+            public void BeginSynchronousShutdown() { }
+        }
+
+        private sealed class DirectoryScene : IBackendScene, IContentDirectoryToken
+        {
+            public bool IsLoaded => true;
+            public string Name => "DirectoryScene";
+            public GameObject[] GetRootGameObjects() => Array.Empty<GameObject>();
         }
 
         private sealed class NoLoadingDisplay : ILoadingDisplay

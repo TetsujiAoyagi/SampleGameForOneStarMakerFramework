@@ -24,6 +24,7 @@ namespace OneStarMaker.Runtime.BuildContent
         private UniTaskCompletionSource? _operationsDrained;
         private bool _accepting = true;
         private bool _closed;
+        private Exception? _closeFailure;
         private Action? _evictCache;
 
         private ContentDirectorySession(string path, string identity, string target, IDisposable reservation,
@@ -36,9 +37,24 @@ namespace OneStarMaker.Runtime.BuildContent
 
         public AssetKey GetObjectKey(string logicalKey, string representation)
         {
-            var entry = _index.ResolveObject(logicalKey, representation);
+            var entry = ResolveObject(logicalKey, representation);
             return AssetKey.FromContentDirectory(ContentDirectoryIndex.CacheKey(_path, BuildIdentity, Target, entry), entry.Category);
         }
+
+        private BuildContentEntry ResolveObject(string logicalKey, string representation)
+        {
+            if (_index.TryResolveObject(logicalKey, representation, out var entry, out var issue)) return entry!;
+            throw ToException(issue);
+        }
+
+        private BuildContentEntry ResolveScene(string logicalKey, string representation)
+        {
+            if (_index.TryResolveScene(logicalKey, representation, out var entry, out var issue)) return entry!;
+            throw ToException(issue);
+        }
+
+        private ContentDirectoryException ToException(ContentDirectoryIssue issue)
+            => new(issue.Code, issue.Message, BuildIdentity, Target, issue.LogicalKey, issue.Representation);
 
         public void ConfigureCacheEviction(Action evictRevisionEntries) => _evictCache = evictRevisionEntries;
 
@@ -59,13 +75,26 @@ namespace OneStarMaker.Runtime.BuildContent
                 var roots = backend.GetRoots();
                 if (roots.Length != 1 || roots[0] == null)
                     throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidRoot, "Content directory must contain exactly one BuildContentRoot.", identity, target);
-                return new ContentDirectorySession(normalized, identity, target, reservation, ContentDirectoryIndex.Create(roots[0], identity, target), backend);
+                if (!ContentDirectoryIndex.TryCreate(roots[0], identity, target, out var index, out var issue))
+                    throw new ContentDirectoryException(issue.Code, issue.Message, identity, target, issue.LogicalKey, issue.Representation);
+                return new ContentDirectorySession(normalized, identity, target, reservation, index!, backend);
             }
             catch (Exception ex)
             {
-                // unregister 自体が失敗しても process 内の予約を閉じ込めず、同じ revision の再試行を許す。
-                try { if (registered) backend.Unregister(); }
-                finally { reservation.Dispose(); }
+                try
+                {
+                    if (registered) backend.Unregister();
+                    reservation.Dispose();
+                }
+                catch (Exception cleanupException)
+                {
+                    // native 登録が残ったまま lease を返すと、別処理が物理削除を許可される。
+                    // 予約は gate に残し、次の登録時に同じ backend の unregister を再試行する。
+                    ContentRevisionGate.RetainFailedRollback(reservation, () => { backend.Unregister(); reservation.Dispose(); });
+                    throw new ContentDirectoryException(ContentDirectoryFailureCode.RegistrationFailed,
+                        "Content directory registration rollback failed.", identity, target,
+                        innerException: new AggregateException(ex, cleanupException));
+                }
                 if (ex is ContentDirectoryException) throw;
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.RegistrationFailed, "Content directory registration failed.", identity, target, innerException: ex);
             }
@@ -80,7 +109,7 @@ namespace OneStarMaker.Runtime.BuildContent
             {
                 // 呼出側の取消は Unity のロード自体を止めない。遅れて成功した資源を回収するまで
                 // directory を unregister すると、native handle の寿命が逆転する。
-                var operation = _backend.LoadObjectAsync<T>(_index.ResolveObject(logicalKey, representation)).Preserve();
+                var operation = _backend.LoadObjectAsync<T>(ResolveObject(logicalKey, representation)).Preserve();
                 IBackendAsset asset;
                 try { asset = await operation.AttachExternalCancellation(ct); }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -99,7 +128,7 @@ namespace OneStarMaker.Runtime.BuildContent
             var terminalCleanupOwnsCounter = false;
             try
             {
-                var operation = _backend.LoadSceneAsync(_index.ResolveScene(sceneIdentity, representation), options).Preserve();
+                var operation = _backend.LoadSceneAsync(ResolveScene(sceneIdentity, representation), options).Preserve();
                 IBackendScene scene;
                 try { scene = await operation.AttachExternalCancellation(ct); }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -121,7 +150,7 @@ namespace OneStarMaker.Runtime.BuildContent
             var terminalCleanupOwnsCounter = false;
             try
             {
-                var operation = _backend.InstantiateAsync(_index.ResolveObject(logicalKey, representation), parent, worldSpace).Preserve();
+                var operation = _backend.InstantiateAsync(ResolveObject(logicalKey, representation), parent, worldSpace).Preserve();
                 IBackendInstance instance;
                 try { instance = await operation.AttachExternalCancellation(ct); }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -138,13 +167,22 @@ namespace OneStarMaker.Runtime.BuildContent
 
         public async UniTask CloseAsync()
         {
-            _accepting=false;
-            var drained = _operationsDrained;
-            if (Volatile.Read(ref _pendingOperations) != 0 && drained != null) await drained.Task;
+            await StopAndDrainAsync();
             _evictCache?.Invoke();
             if (Volatile.Read(ref _liveTokens) != 0)
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.ResourcesInUse, "Content directory still has live asset, scene, cache, or instance tokens.", BuildIdentity, Target);
             CloseNow();
+            if (_closeFailure != null)
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.OperationFailed,
+                    "Content directory unregister failed; the registration is retained for retry.", BuildIdentity, Target,
+                    innerException: _closeFailure);
+        }
+
+        public async UniTask StopAndDrainAsync()
+        {
+            _accepting=false;
+            var drained = _operationsDrained;
+            if (Volatile.Read(ref _pendingOperations) != 0 && drained != null) await drained.Task;
         }
 
         public void BeginSynchronousShutdown() { _accepting=false; if (Volatile.Read(ref _liveTokens)==0 && Volatile.Read(ref _pendingOperations)==0) CloseNow(); }
@@ -173,9 +211,14 @@ namespace OneStarMaker.Runtime.BuildContent
         private void CloseNow()
         {
             if (_closed) return;
-            _closed=true;
-            try { if (_registered) _backend.Unregister(); }
-            finally { _reservation.Dispose(); }
+            try
+            {
+                if (_registered) _backend.Unregister();
+                _closed = true;
+                _closeFailure = null;
+                _reservation.Dispose();
+            }
+            catch (Exception ex) { _closeFailure = ex; }
         }
 
         private sealed class SessionAsset : IBackendAsset, IContentDirectoryToken

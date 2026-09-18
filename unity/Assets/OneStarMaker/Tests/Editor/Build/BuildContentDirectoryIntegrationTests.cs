@@ -208,10 +208,15 @@ namespace OneStarMaker.Tests.Editor.Build
                         await assets.UnloadSceneAsync("logical-0");
                         assets.ReleaseScene("logical-0");
                     }
-                    if (instance != null) UnityEngine.Object.Destroy(instance);
+                    if (instance != null)
+                    {
+                        UnityEngine.Object.Destroy(instance);
+                        // Destroy はフレーム末尾で確定する。破棄通知が owner token を返す前に
+                        // close を呼ぶと ResourcesInUse が正しく返るので、実際の破棄を待つ。
+                        await UniTask.WaitUntil(() => instance == null);
+                    }
                     if (prefab != null) assets.Release(prefab);
                     if (texture != null) assets.Release(texture);
-                    await UniTask.Yield();
                     await session.CloseAsync();
                 }
             });

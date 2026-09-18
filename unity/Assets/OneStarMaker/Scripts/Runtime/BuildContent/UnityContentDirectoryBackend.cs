@@ -94,7 +94,14 @@ namespace OneStarMaker.Runtime.BuildContent
             public GameObject? Instance { get; private set; }
             public UnityEngine.Object? Asset => Instance;
             public bool IsValid => _source != null && Instance != null;
-            internal void Release() { if (Instance != null) UnityEngine.Object.Destroy(Instance); Instance=null; if (_source is DirectoryAsset source) source.Release(); _source=null; }
+            internal void Release()
+            {
+                // GameObject は呼出側または Scene が所有する。破棄通知の後に元 prefab の
+                // loadable token を返すだけで、backend が GameObject を先回りして Destroy しない。
+                Instance = null;
+                if (_source is DirectoryAsset source) source.Release();
+                _source = null;
+            }
         }
         private sealed class DirectoryScene : IBackendScene
         {

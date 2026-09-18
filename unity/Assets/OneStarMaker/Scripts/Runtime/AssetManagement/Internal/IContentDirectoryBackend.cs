@@ -25,6 +25,7 @@ namespace OneStarMaker.Runtime.AssetManagement.Internal
         void ReleaseSceneAfterUnityShutdown(IBackendScene scene);
         void Release(IBackendAsset asset);
         void ConfigureCacheEviction(Action evictRevisionEntries);
+        UniTask StopAndDrainAsync();
         UniTask CloseAsync();
         void BeginSynchronousShutdown();
     }
