@@ -59,5 +59,25 @@ namespace OneStarMaker.Tests.BuildContent
             Assert.That(scene!.StableKey, Is.EqualTo("stable"));
             UnityEngine.Object.DestroyImmediate(root);
         }
+
+        [Test]
+        public void SeparatorInLogicalFields_DoesNotMergeDistinctEntries()
+        {
+            var sceneId = LoadableSceneIdEditorUtility.CreateLoadableSceneId(ScenePath);
+            var root = ScriptableObject.CreateInstance<BuildContentRoot>();
+            root.Initialize("build", "StandaloneWindows64", new[] {
+                new BuildContentEntry("a\u001fb", "one", "c", sceneId),
+                new BuildContentEntry("a", "two", "b\u001fc", sceneId),
+            });
+            try
+            {
+                Assert.That(ContentDirectoryIndex.TryCreate(root, "build", "StandaloneWindows64", out var index, out _), Is.True);
+                Assert.That(index!.TryResolveScene("a\u001fb", "c", out var first, out _), Is.True);
+                Assert.That(index.TryResolveScene("a", "b\u001fc", out var second, out _), Is.True);
+                Assert.That(first!.StableKey, Is.EqualTo("one"));
+                Assert.That(second!.StableKey, Is.EqualTo("two"));
+            }
+            finally { UnityEngine.Object.DestroyImmediate(root); }
+        }
     }
 }

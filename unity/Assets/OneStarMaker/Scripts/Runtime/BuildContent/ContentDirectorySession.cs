@@ -310,13 +310,37 @@ namespace OneStarMaker.Runtime.BuildContent
         private sealed class SessionScene : IBackendScene, IContentDirectoryToken
         { private IBackendScene? _inner; private readonly IContentNativeDirectory _backend; private readonly Action _release; internal SessionScene(IBackendScene inner,IContentNativeDirectory backend,Action release){_inner=inner;_backend=backend;_release=release;} public bool IsLoaded=>_inner?.IsLoaded==true; public string Name=>_inner?.Name ?? string.Empty; public GameObject[] GetRootGameObjects()=>_inner?.GetRootGameObjects() ?? Array.Empty<GameObject>(); internal async UniTask Unload(){if(_inner!=null){await _backend.UnloadSceneAsync(_inner);_inner=null;_release();}} internal void ReleaseAfterShutdown(){if(_inner==null)return;_inner=null;_release();} }
 
-        public void Release(IBackendAsset asset) { if(asset is SessionAsset a)a.Release(_backend); else if(asset is SessionInstance i)i.Release(); }
+        public void Release(IBackendAsset asset)
+        {
+            // owner/cache 台帳は callback 前に entry を外す。native Release が失敗した token は
+            // session に移して保持し、close retry で再解放するまで gate の予約を返さない。
+            if (asset is SessionAsset a)
+            {
+                try { a.Release(_backend); }
+                catch (Exception) { _failedCleanups.Add(() => { a.Release(_backend); return UniTask.CompletedTask; }); }
+            }
+            else if (asset is SessionInstance i)
+            {
+                try { i.Release(); }
+                catch (Exception) { _failedCleanups.Add(() => { i.Release(); return UniTask.CompletedTask; }); }
+            }
+        }
         public UniTask UnloadSceneAsync(IBackendScene scene) => scene is SessionScene s ? s.Unload() : UniTask.CompletedTask;
         public void ReleaseSceneAfterUnityShutdown(IBackendScene scene)
         {
-            // Application.quitting/Play Mode 終了では Unity が Scene を解体済みのことがある。
-            // 再度 UnloadSceneAsync せず台帳 token だけ返し、残る native operation の terminal は別に待つ。
-            if (scene is SessionScene sessionScene) sessionScene.ReleaseAfterShutdown();
+            if (scene is not SessionScene sessionScene) return;
+            // Unity が既に解体した Scene は token だけ返す。まだ loaded なら非同期 unload の
+            // terminal を監視し、同期終了が先に unregister しないよう pending に数える。
+            if (!sessionScene.IsLoaded) { sessionScene.ReleaseAfterShutdown(); return; }
+            BeginOperation();
+            DrainShutdownScene(sessionScene).Forget();
+        }
+
+        private async UniTaskVoid DrainShutdownScene(SessionScene scene)
+        {
+            try { await scene.Unload(); }
+            catch (Exception) { _failedCleanups.Add(() => scene.Unload()); }
+            finally { CompleteOperation(); }
         }
     }
 }

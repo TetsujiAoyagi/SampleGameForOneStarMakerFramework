@@ -119,8 +119,20 @@ namespace OneStarMaker.Runtime.SceneSystem
             SceneResourceMap sceneResourceMap,
             ILoadingDisplay loadingDisplay,
             IAssetManagement assetManagement,
-            string sceneVariant = "",
-            bool useContentDirectory = false)
+            string sceneVariant = "")
+            : this(sceneFactory, uiCommon, sceneResourceMap, loadingDisplay, assetManagement, sceneVariant, false)
+        {
+        }
+
+        // 公開 constructor の署名を維持し、起動配線だけが mode を固定する。
+        internal SceneDirector(
+            ISceneFactory sceneFactory,
+            UICommon uiCommon,
+            SceneResourceMap sceneResourceMap,
+            ILoadingDisplay loadingDisplay,
+            IAssetManagement assetManagement,
+            string sceneVariant,
+            bool useContentDirectory)
         {
             _sceneFactory = sceneFactory ?? throw new ArgumentNullException(nameof(sceneFactory));
             _uiCommon = uiCommon ?? throw new ArgumentNullException(nameof(uiCommon));

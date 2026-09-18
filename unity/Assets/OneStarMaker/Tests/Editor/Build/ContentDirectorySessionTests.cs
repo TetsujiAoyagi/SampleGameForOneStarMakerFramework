@@ -53,6 +53,90 @@ namespace OneStarMaker.Tests.Editor.Build
         }
 
         [Test]
+        public void MissingDirectoryAndMissingRoot_FailBeforeActiveRegistration()
+        {
+            var path = Path.Combine(Path.GetTempPath(), "osm-content-session-" + Guid.NewGuid().ToString("N"));
+            var root = CreateRoot();
+            var native = new FakeNativeDirectory(root);
+            try
+            {
+                var missing = Assert.Throws<ContentDirectoryException>(() =>
+                    ContentDirectorySession.Register(path, "build", "StandaloneWindows64", native));
+                Assert.That(missing!.Code, Is.EqualTo(ContentDirectoryFailureCode.InvalidConfiguration));
+                Assert.That(native.UnregisterCount, Is.Zero);
+
+                Directory.CreateDirectory(path);
+                native.RootCount = 0;
+                var noRoot = Assert.Throws<ContentDirectoryException>(() =>
+                    ContentDirectorySession.Register(path, "build", "StandaloneWindows64", native));
+                Assert.That(noRoot!.Code, Is.EqualTo(ContentDirectoryFailureCode.InvalidRoot));
+                Assert.That(native.UnregisterCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+                if (Directory.Exists(path)) Directory.Delete(path);
+            }
+        }
+
+        [Test]
+        public async Task OwnerReleaseFailure_IsRetainedAndCloseCanRetry()
+        {
+            var path = Path.Combine(Path.GetTempPath(), "osm-content-session-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(path);
+            var asset = AssetDatabase.LoadMainAssetAtPath("Assets/TutorialInfo/Icons/URP.png");
+            Assert.That(asset, Is.Not.Null);
+            Assert.That(AssetDatabase.TryGetGUIDAndLocalFileIdentifier(asset, out var guid, out long localId), Is.True);
+            var root = ScriptableObject.CreateInstance<BuildContentRoot>();
+            root.Initialize("build", "StandaloneWindows64", new[] {
+                new BuildContentEntry("object", "stable", "Full",
+                    new Loadable<UnityEngine.Object>(LoadableObjectIdEditorUtility.CreateLoadableObjectId(asset)), guid, localId)
+            });
+            var native = new FakeNativeDirectory(root) { FailReleaseCount = 2 };
+            var texture = new Texture2D(1, 1);
+            native.ObjectResult = new FakeAsset(texture);
+            try
+            {
+                var session = ContentDirectorySession.Register(path, "build", "StandaloneWindows64", native);
+                var token = await session.LoadAssetAsync<Texture2D>("object", "Full", CancellationToken.None);
+                session.Release(token);
+                var failed = Assert.ThrowsAsync<ContentDirectoryException>(async () => await session.CloseAsync());
+                Assert.That(failed!.Code, Is.EqualTo(ContentDirectoryFailureCode.OperationFailed));
+                Assert.That(native.UnregisterCount, Is.Zero);
+                await session.CloseAsync();
+                Assert.That(native.ReleaseCount, Is.EqualTo(3));
+                Assert.That(native.UnregisterCount, Is.EqualTo(1));
+            }
+            finally { UnityEngine.Object.DestroyImmediate(texture); UnityEngine.Object.DestroyImmediate(root); Directory.Delete(path); }
+        }
+
+        [Test]
+        public async Task SynchronousShutdown_WaitsForLiveSceneUnloadTerminal()
+        {
+            var path = Path.Combine(Path.GetTempPath(), "osm-content-session-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(path);
+            var root = CreateRoot();
+            var native = new FakeNativeDirectory(root) { PendingUnloadCompletion = new UniTaskCompletionSource() };
+            try
+            {
+                var session = ContentDirectorySession.Register(path, "build", "StandaloneWindows64", native);
+                native.SceneResult.TrySetResult(new FakeScene());
+                var scene = await session.LoadSceneAsync("scene", "Full", default, CancellationToken.None);
+                session.ReleaseSceneAfterUnityShutdown(scene);
+                session.BeginSynchronousShutdown();
+                Assert.That(native.UnregisterCount, Is.Zero);
+                Assert.That(ContentRevisionGate.TryAcquireDelete("build", "StandaloneWindows64", path,
+                    out var blocked, out _), Is.False);
+                Assert.That(blocked, Is.Null);
+
+                native.PendingUnloadCompletion.TrySetResult();
+                await session.CloseAsync();
+                Assert.That(native.UnregisterCount, Is.EqualTo(1));
+            }
+            finally { UnityEngine.Object.DestroyImmediate(root); Directory.Delete(path); }
+        }
+
+        [Test]
         public void InvalidRoot_RollsBackAndAllowsSamePathRetry()
         {
             var path = Path.Combine(Path.GetTempPath(), "osm-content-session-" + Guid.NewGuid().ToString("N"));
@@ -361,12 +445,16 @@ namespace OneStarMaker.Tests.Editor.Build
             internal int UnloadCount;
             internal int UnregisterCount;
             internal int ReleaseCount;
+            internal int FailReleaseCount;
             internal int FailUnregisterCount;
             internal int FailUnloadCount;
+            internal int RootCount = 1;
             internal IBackendInstance? InstanceResult;
             internal UniTaskCompletionSource<IBackendInstance>? PendingInstanceResult;
+            internal UniTaskCompletionSource? PendingUnloadCompletion;
+            internal IBackendAsset? ObjectResult;
             public bool Register(string path) => true;
-            public BuildContentRoot[] GetRoots() => new[] { _root };
+            public BuildContentRoot[] GetRoots() => RootCount == 0 ? Array.Empty<BuildContentRoot>() : new[] { _root };
             public void Unregister()
             {
                 UnregisterCount++;
@@ -377,14 +465,16 @@ namespace OneStarMaker.Tests.Editor.Build
             {
                 UnloadCount++;
                 if (FailUnloadCount-- > 0) throw new InvalidOperationException("fake unload failure");
-                return UniTask.CompletedTask;
+                return PendingUnloadCompletion?.Task ?? UniTask.CompletedTask;
             }
-            public UniTask<IBackendAsset> LoadObjectAsync<T>(BuildContentEntry entry) where T : UnityEngine.Object => throw new NotSupportedException();
+            public UniTask<IBackendAsset> LoadObjectAsync<T>(BuildContentEntry entry) where T : UnityEngine.Object
+                => ObjectResult != null ? UniTask.FromResult(ObjectResult) : throw new NotSupportedException();
             public UniTask<IBackendInstance> InstantiateAsync(BuildContentEntry entry, Transform? parent, bool worldSpace)
                 => PendingInstanceResult != null ? PendingInstanceResult.Task : InstanceResult != null ? UniTask.FromResult(InstanceResult!) : throw new NotSupportedException();
             public void Release(IBackendAsset asset)
             {
                 ReleaseCount++;
+                if (FailReleaseCount-- > 0) throw new InvalidOperationException("fake release failure");
             }
         }
 

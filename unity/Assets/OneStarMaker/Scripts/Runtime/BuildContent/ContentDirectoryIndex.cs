@@ -123,6 +123,7 @@ namespace OneStarMaker.Runtime.BuildContent
         private static string EffectiveRepresentation(string value) => string.IsNullOrEmpty(value) ? "Full" : value;
 
         private static string Key(string logicalKey, string representation, BuildContentKind kind)
-            => string.Concat(logicalKey, "\u001f", representation, "\u001f", kind);
+            // 入力に区切り文字を含めても組キーが別組と衝突しない形式にする。
+            => string.Concat(Part(logicalKey), ":", Part(representation), ":", kind);
     }
 }

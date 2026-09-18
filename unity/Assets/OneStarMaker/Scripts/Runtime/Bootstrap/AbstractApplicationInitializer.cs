@@ -730,8 +730,8 @@ namespace OneStarMaker.Runtime
             _sceneDirector?.Dispose();
             _sceneDirector = null;
 
-            // Shutdown: Scene backend Unload なし・同期で全アセット解放
-            // （UICommon / SceneResourceMap / Config / 各 Scene 所有分を含む）
+            // Shutdown: 旧 Addressables Scene は再 unload せず、同期で全 owner 資産を解放。
+            // directory Scene がまだ生存中なら session が非同期終端まで登録を保持する。
             _assetManagement?.ReleaseAll();
             _assetManagement = null;
             _contentDirectorySession?.BeginSynchronousShutdown();

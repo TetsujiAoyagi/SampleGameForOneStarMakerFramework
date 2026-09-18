@@ -204,8 +204,9 @@ namespace OneStarMaker.Runtime.AssetManagement
             // Shutdown 契約:
             // Application.quitting / Play Mode 終了では Unity が先に Scene を解体している。
             // その状態で Addressables.UnloadSceneAsync を呼ぶと
-            // 「Cannot find handle for scene」になり得るため、backend Unload は一切行わない。
-            // 台帳上の Scene を MarkUnloaded し、所有アセットと App スコープ資産を同期で一気に落とす。
+            // 「Cannot find handle for scene」になり得るため、旧 backend は unload しない。
+            // directory Scene がまだ生存している場合だけ session に非同期 terminal 回収を任せ、
+            // 同期で token を返して早期 unregister しない。台帳と owner 資産は同期で閉じる。
             foreach (var scene in _registry.GetScenes())
             {
                 if (!scene.IsUnloaded)
