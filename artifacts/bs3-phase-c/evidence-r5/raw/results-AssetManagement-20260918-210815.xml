@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="39" result="Passed" total="39" passed="39" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.2514362">
+  <test-suite type="TestSuite" id="1000" name="SampleGame" fullname="SampleGame" runstate="Runnable" testcasecount="799" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.251436" total="39" passed="39" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="Assembly" id="1657" name="OneStarMaker.Tests.dll" fullname="D:/repositories/unity/SampleGameForOneStarMakerFramework/unity/Library/ScriptAssemblies/OneStarMaker.Tests.dll" runstate="Runnable" testcasecount="564" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.214401" total="39" passed="39" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="31500" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="1658" name="OneStarMaker" fullname="OneStarMaker" runstate="Runnable" testcasecount="564" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.207417" total="39" passed="39" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1659" name="Tests" fullname="OneStarMaker.Tests" runstate="Runnable" testcasecount="564" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.201710" total="39" passed="39" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1670" name="AssetManagement" fullname="OneStarMaker.Tests.AssetManagement" runstate="Runnable" testcasecount="39" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.188366" total="39" passed="39" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestFixture" id="1614" name="AssetManagementCacheTests" fullname="OneStarMaker.Tests.AssetManagement.AssetManagementCacheTests" classname="OneStarMaker.Tests.AssetManagement.AssetManagementCacheTests" runstate="Runnable" testcasecount="6" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.085504" total="6" passed="6" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1615" name="Cache_LoadReleaseLoad_ReusesBackendWithoutRelease" fullname="OneStarMaker.Tests.AssetManagement.AssetManagementCacheTests.Cache_LoadReleaseLoad_ReusesBackendWithoutRelease" methodname="Cache_LoadReleaseLoad_ReusesBackendWithoutRelease" classname="OneStarMaker.Tests.AssetManagement.AssetManagementCacheTests" runstate="Runnable" seed="1213229160" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.042524" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1620" name="Cache_OverBudget_EvictsToBackendReleasedAssets" fullname="OneStarMaker.Tests.AssetManagement.AssetManagementCacheTests.Cache_OverBudget_EvictsToBackendReleasedAssets" methodname="Cache_OverBudget_EvictsToBackendReleasedAssets" classname="OneStarMaker.Tests.AssetManagement.AssetManagementCacheTests" runstate="Runnable" seed="1193348241" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.007201" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1617" name="InstantiateAsync_ReleasesImmediatelyWithoutCaching" fullname="OneStarMaker.Tests.AssetManagement.AssetManagementCacheTests.InstantiateAsync_ReleasesImmediatelyWithoutCaching" methodname="InstantiateAsync_ReleasesImmediatelyWithoutCaching" classname="OneStarMaker.Tests.AssetManagement.AssetManagementCacheTests" runstate="Runnable" seed="423440857" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.006501" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1616" name="NoCache_ReleaseImmediatelyCallsBackend" fullname="OneStarMaker.Tests.AssetManagement.AssetManagementCacheTests.NoCache_ReleaseImmediatelyCallsBackend" methodname="NoCache_ReleaseImmediatelyCallsBackend" classname="OneStarMaker.Tests.AssetManagement.AssetManagementCacheTests" runstate="Runnable" seed="2112699235" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.001595" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1619" name="ReleaseAll_ReleasesCachedAssetsViaClear" fullname="OneStarMaker.Tests.AssetManagement.AssetManagementCacheTests.ReleaseAll_ReleasesCachedAssetsViaClear" methodname="ReleaseAll_ReleasesCachedAssetsViaClear" classname="OneStarMaker.Tests.AssetManagement.AssetManagementCacheTests" runstate="Runnable" seed="1346898430" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.003939" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1618" name="SceneOwnedAsset_StoredOnReleaseScene_AndReusedOnNextLoad" fullname="OneStarMaker.Tests.AssetManagement.AssetManagementCacheTests.SceneOwnedAsset_StoredOnReleaseScene_AndReusedOnNextLoad" methodname="SceneOwnedAsset_StoredOnReleaseScene_AndReusedOnNextLoad" classname="OneStarMaker.Tests.AssetManagement.AssetManagementCacheTests" runstate="Runnable" seed="1441978634" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.002106" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1621" name="AssetManagementTests" fullname="OneStarMaker.Tests.AssetManagement.AssetManagementTests" classname="OneStarMaker.Tests.AssetManagement.AssetManagementTests" runstate="Runnable" testcasecount="13" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.051588" total="13" passed="13" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1629" name="App_ReleaseAll" fullname="OneStarMaker.Tests.AssetManagement.AssetManagementTests.App_ReleaseAll" methodname="App_ReleaseAll" classname="OneStarMaker.Tests.AssetManagement.AssetManagementTests" runstate="Runnable" seed="530126947" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.001823" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1631" name="App_SameKey_Twice_ReleaseAll" fullname="OneStarMaker.Tests.AssetManagement.AssetManagementTests.App_SameKey_Twice_ReleaseAll" methodname="App_SameKey_Twice_ReleaseAll" classname="OneStarMaker.Tests.AssetManagement.AssetManagementTests" runstate="Runnable" seed="1885299375" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.001607" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1623" name="Asset_Dedup_AcrossOwners" fullname="OneStarMaker.Tests.AssetManagement.AssetManagementTests.Asset_Dedup_AcrossOwners" methodname="Asset_Dedup_AcrossOwners" classname="OneStarMaker.Tests.AssetManagement.AssetManagementTests" runstate="Runnable" seed="1921881495" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.002071" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1622" name="Asset_Load_Dedup" fullname="OneStarMaker.Tests.AssetManagement.AssetManagementTests.Asset_Load_Dedup" methodname="Asset_Load_Dedup" classname="OneStarMaker.Tests.AssetManagement.AssetManagementTests" runstate="Runnable" seed="375620494" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.002030" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1624" name="Asset_Variant_Distinct" fullname="OneStarMaker.Tests.AssetManagement.AssetManagementTests.Asset_Variant_Distinct" methodname="Asset_Variant_Distinct" classname="OneStarMaker.Tests.AssetManagement.AssetManagementTests" runstate="Runnable" seed="1010152415" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.002753" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1633" name="InstantiateAsync_ReleasesOnGameObjectDestroy" fullname="OneStarMaker.Tests.AssetManagement.AssetManagementTests.InstantiateAsync_ReleasesOnGameObjectDestroy" methodname="InstantiateAsync_ReleasesOnGameObjectDestroy" classname="OneStarMaker.Tests.AssetManagement.AssetManagementTests" runstate="Runnable" seed="63727081" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.001453" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1634" name="Manual_Release" fullname="OneStarMaker.Tests.AssetManagement.AssetManagementTests.Manual_Release" methodname="Manual_Release" classname="OneStarMaker.Tests.AssetManagement.AssetManagementTests" runstate="Runnable" seed="1122982534" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.001561" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1625" name="Scene_Load_Unload" fullname="OneStarMaker.Tests.AssetManagement.AssetManagementTests.Scene_Load_Unload" methodname="Scene_Load_Unload" classname="OneStarMaker.Tests.AssetManagement.AssetManagementTests" runstate="Runnable" seed="2131369717" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.007843" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1632" name="Scene_Release_Scoped" fullname="OneStarMaker.Tests.AssetManagement.AssetManagementTests.Scene_Release_Scoped" methodname="Scene_Release_Scoped" classname="OneStarMaker.Tests.AssetManagement.AssetManagementTests" runstate="Runnable" seed="164629515" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.001893" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1628" name="Scene_ReleaseAll_SkipsBackendUnload_AndReleasesAssets" fullname="OneStarMaker.Tests.AssetManagement.AssetManagementTests.Scene_ReleaseAll_SkipsBackendUnload_AndReleasesAssets" methodname="Scene_ReleaseAll_SkipsBackendUnload_AndReleasesAssets" classname="OneStarMaker.Tests.AssetManagement.AssetManagementTests" runstate="Runnable" seed="536323567" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.001946" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1627" name="Scene_ReleaseScene_WhileStillLoaded_Throws" fullname="OneStarMaker.Tests.AssetManagement.AssetManagementTests.Scene_ReleaseScene_WhileStillLoaded_Throws" methodname="Scene_ReleaseScene_WhileStillLoaded_Throws" classname="OneStarMaker.Tests.AssetManagement.AssetManagementTests" runstate="Runnable" seed="2025691070" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.002594" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1630" name="Scene_SameKey_Twice_FullyReleased" fullname="OneStarMaker.Tests.AssetManagement.AssetManagementTests.Scene_SameKey_Twice_FullyReleased" methodname="Scene_SameKey_Twice_FullyReleased" classname="OneStarMaker.Tests.AssetManagement.AssetManagementTests" runstate="Runnable" seed="517804476" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.004986" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1626" name="Scene_Unload_Then_ReleaseScene_DoesNotUnloadAgain" fullname="OneStarMaker.Tests.AssetManagement.AssetManagementTests.Scene_Unload_Then_ReleaseScene_DoesNotUnloadAgain" methodname="Scene_Unload_Then_ReleaseScene_DoesNotUnloadAgain" classname="OneStarMaker.Tests.AssetManagement.AssetManagementTests" runstate="Runnable" seed="326479396" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.002278" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1635" name="AssetOwnerLookupTests" fullname="OneStarMaker.Tests.AssetManagement.AssetOwnerLookupTests" classname="OneStarMaker.Tests.AssetManagement.AssetOwnerLookupTests" runstate="Runnable" testcasecount="10" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.032803" total="10" passed="10" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1640" name="DescriptionKey_GetOwnedAssets_ReturnsKeyWithoutThrowing" fullname="OneStarMaker.Tests.AssetManagement.AssetOwnerLookupTests.DescriptionKey_GetOwnedAssets_ReturnsKeyWithoutThrowing" methodname="DescriptionKey_GetOwnedAssets_ReturnsKeyWithoutThrowing" classname="OneStarMaker.Tests.AssetManagement.AssetOwnerLookupTests" runstate="Runnable" seed="868548013" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.006894" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1637" name="GameObjectOwner_GetOwnersAndDestroyRelease" fullname="OneStarMaker.Tests.AssetManagement.AssetOwnerLookupTests.GameObjectOwner_GetOwnersAndDestroyRelease" methodname="GameObjectOwner_GetOwnersAndDestroyRelease" classname="OneStarMaker.Tests.AssetManagement.AssetOwnerLookupTests" runstate="Runnable" seed="246077479" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.003394" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1642" name="InstantiatedAsset_GetOwnedAssets_ReturnsSourcePrefabKey" fullname="OneStarMaker.Tests.AssetManagement.AssetOwnerLookupTests.InstantiatedAsset_GetOwnedAssets_ReturnsSourcePrefabKey" methodname="InstantiatedAsset_GetOwnedAssets_ReturnsSourcePrefabKey" classname="OneStarMaker.Tests.AssetManagement.AssetOwnerLookupTests" runstate="Runnable" seed="759871194" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.001687" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1641" name="MixedKeyForms_GetOwnedAssets_ReturnsBoth" fullname="OneStarMaker.Tests.AssetManagement.AssetOwnerLookupTests.MixedKeyForms_GetOwnedAssets_ReturnsBoth" methodname="MixedKeyForms_GetOwnedAssets_ReturnsBoth" classname="OneStarMaker.Tests.AssetManagement.AssetOwnerLookupTests" runstate="Runnable" seed="1664442046" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.002861" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1645" name="ReleaseHandle_AppSyncLoad_RemovesAppOwner" fullname="OneStarMaker.Tests.AssetManagement.AssetOwnerLookupTests.ReleaseHandle_AppSyncLoad_RemovesAppOwner" methodname="ReleaseHandle_AppSyncLoad_RemovesAppOwner" classname="OneStarMaker.Tests.AssetManagement.AssetOwnerLookupTests" runstate="Runnable" seed="910987282" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.001782" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1643" name="ReleaseHandle_NonManualOwner_RemovesThatOwner" fullname="OneStarMaker.Tests.AssetManagement.AssetOwnerLookupTests.ReleaseHandle_NonManualOwner_RemovesThatOwner" methodname="ReleaseHandle_NonManualOwner_RemovesThatOwner" classname="OneStarMaker.Tests.AssetManagement.AssetOwnerLookupTests" runstate="Runnable" seed="1019069049" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.001399" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1644" name="ReleaseHandle_SharedKey_RemovesOnlyOwnHandleOwner" fullname="OneStarMaker.Tests.AssetManagement.AssetOwnerLookupTests.ReleaseHandle_SharedKey_RemovesOnlyOwnHandleOwner" methodname="ReleaseHandle_SharedKey_RemovesOnlyOwnHandleOwner" classname="OneStarMaker.Tests.AssetManagement.AssetOwnerLookupTests" runstate="Runnable" seed="2140371963" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.002973" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1638" name="SameOwner_DoubleAcquire_PartialRelease" fullname="OneStarMaker.Tests.AssetManagement.AssetOwnerLookupTests.SameOwner_DoubleAcquire_PartialRelease" methodname="SameOwner_DoubleAcquire_PartialRelease" classname="OneStarMaker.Tests.AssetManagement.AssetOwnerLookupTests" runstate="Runnable" seed="571205685" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.002645" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1636" name="SceneOwner_GetOwnersAndReleaseScene" fullname="OneStarMaker.Tests.AssetManagement.AssetOwnerLookupTests.SceneOwner_GetOwnersAndReleaseScene" methodname="SceneOwner_GetOwnersAndReleaseScene" classname="OneStarMaker.Tests.AssetManagement.AssetOwnerLookupTests" runstate="Runnable" seed="395113433" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.002022" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1639" name="UnloadedKey_GetOwners_ReturnsEmptyList" fullname="OneStarMaker.Tests.AssetManagement.AssetOwnerLookupTests.UnloadedKey_GetOwners_ReturnsEmptyList" methodname="UnloadedKey_GetOwners_ReturnsEmptyList" classname="OneStarMaker.Tests.AssetManagement.AssetOwnerLookupTests" runstate="Runnable" seed="471576761" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.001948" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1646" name="AssetResidentCacheTests" fullname="OneStarMaker.Tests.AssetManagement.AssetResidentCacheTests" classname="OneStarMaker.Tests.AssetManagement.AssetResidentCacheTests" runstate="Runnable" testcasecount="10" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.014809" total="10" passed="10" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1656" name="Clear_ReleasesAllEntries_AndResidentBytesBecomeZero" fullname="OneStarMaker.Tests.AssetManagement.AssetResidentCacheTests.Clear_ReleasesAllEntries_AndResidentBytesBecomeZero" methodname="Clear_ReleasesAllEntries_AndResidentBytesBecomeZero" classname="OneStarMaker.Tests.AssetManagement.AssetResidentCacheTests" runstate="Runnable" seed="1088767363" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.004382" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1655" name="Store_InvalidAsset_ReleasesImmediately_AndDoesNotCache" fullname="OneStarMaker.Tests.AssetManagement.AssetResidentCacheTests.Store_InvalidAsset_ReleasesImmediately_AndDoesNotCache" methodname="Store_InvalidAsset_ReleasesImmediately_AndDoesNotCache" classname="OneStarMaker.Tests.AssetManagement.AssetResidentCacheTests" runstate="Runnable" seed="1096740271" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.000893" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1649" name="Store_OverBudget_EvictsLowestEffectiveFrequencyEntry" fullname="OneStarMaker.Tests.AssetManagement.AssetResidentCacheTests.Store_OverBudget_EvictsLowestEffectiveFrequencyEntry" methodname="Store_OverBudget_EvictsLowestEffectiveFrequencyEntry" classname="OneStarMaker.Tests.AssetManagement.AssetResidentCacheTests" runstate="Runnable" seed="1248192902" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.000654" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1652" name="Store_OverBudget_EvictsOnlyMatchingAssetType" fullname="OneStarMaker.Tests.AssetManagement.AssetResidentCacheTests.Store_OverBudget_EvictsOnlyMatchingAssetType" methodname="Store_OverBudget_EvictsOnlyMatchingAssetType" classname="OneStarMaker.Tests.AssetManagement.AssetResidentCacheTests" runstate="Runnable" seed="907888659" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.000763" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1650" name="Store_OverBudget_TimeDecay_KeepsRecentlyAccessedEntry" fullname="OneStarMaker.Tests.AssetManagement.AssetResidentCacheTests.Store_OverBudget_TimeDecay_KeepsRecentlyAccessedEntry" methodname="Store_OverBudget_TimeDecay_KeepsRecentlyAccessedEntry" classname="OneStarMaker.Tests.AssetManagement.AssetResidentCacheTests" runstate="Runnable" seed="1447614488" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.000804" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1654" name="Store_SingleAssetOverBudget_IsReleasedImmediately" fullname="OneStarMaker.Tests.AssetManagement.AssetResidentCacheTests.Store_SingleAssetOverBudget_IsReleasedImmediately" methodname="Store_SingleAssetOverBudget_IsReleasedImmediately" classname="OneStarMaker.Tests.AssetManagement.AssetResidentCacheTests" runstate="Runnable" seed="1311850575" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.000557" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1647" name="Store_Then_TryTake_Hit_ReturnsSameBackend_AndHitCountIsOne" fullname="OneStarMaker.Tests.AssetManagement.AssetResidentCacheTests.Store_Then_TryTake_Hit_ReturnsSameBackend_AndHitCountIsOne" methodname="Store_Then_TryTake_Hit_ReturnsSameBackend_AndHitCountIsOne" classname="OneStarMaker.Tests.AssetManagement.AssetResidentCacheTests" runstate="Runnable" seed="152691828" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.000445" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1651" name="Store_TryTake_Store_CarriesAccessCount_AndPrefersOverNewcomer" fullname="OneStarMaker.Tests.AssetManagement.AssetResidentCacheTests.Store_TryTake_Store_CarriesAccessCount_AndPrefersOverNewcomer" methodname="Store_TryTake_Store_CarriesAccessCount_AndPrefersOverNewcomer" classname="OneStarMaker.Tests.AssetManagement.AssetResidentCacheTests" runstate="Runnable" seed="128093107" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.000462" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1653" name="Store_ZeroBudgetType_ReleasesImmediately_WithoutEvictionCount" fullname="OneStarMaker.Tests.AssetManagement.AssetResidentCacheTests.Store_ZeroBudgetType_ReleasesImmediately_WithoutEvictionCount" methodname="Store_ZeroBudgetType_ReleasesImmediately_WithoutEvictionCount" classname="OneStarMaker.Tests.AssetManagement.AssetResidentCacheTests" runstate="Runnable" seed="1185796852" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.000372" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1648" name="TryTake_Miss_IncreasesMissCount" fullname="OneStarMaker.Tests.AssetManagement.AssetResidentCacheTests.TryTake_Miss_IncreasesMissCount" methodname="TryTake_Miss_IncreasesMissCount" classname="OneStarMaker.Tests.AssetManagement.AssetResidentCacheTests" runstate="Runnable" seed="1095951239" result="Passed" start-time="2026-09-18 12:08:49Z" end-time="2026-09-18 12:08:49Z" duration="0.000378" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[Saving results to: C:/Users/void/AppData/LocalLow/DefaultCompany/SampleGame\TestResults.xml
+]]></output>
+              </test-case>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>
