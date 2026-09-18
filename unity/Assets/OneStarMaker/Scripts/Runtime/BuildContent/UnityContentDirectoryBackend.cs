@@ -61,7 +61,14 @@ namespace OneStarMaker.Runtime.BuildContent
             var asset = await LoadObjectAsync<GameObject>(entry);
             var prefab = asset.Asset as GameObject;
             if (prefab == null) { Release(asset); throw new ContentDirectoryException(ContentDirectoryFailureCode.TypeMismatch, "Content entry is not a prefab.", logicalKey: entry.LogicalKey, representation: entry.Representation); }
-            return new DirectoryInstance(UnityEngine.Object.Instantiate(prefab, parent, worldSpace), asset);
+            try { return new DirectoryInstance(UnityEngine.Object.Instantiate(prefab, parent, worldSpace), asset); }
+            catch
+            {
+                // Instantiate が失敗しても元 prefab の loadable token は発行済み。
+                // 返却 token がないため session には任せられず、この境界で解放する。
+                Release(asset);
+                throw;
+            }
         }
 
         public void Release(IBackendAsset asset)

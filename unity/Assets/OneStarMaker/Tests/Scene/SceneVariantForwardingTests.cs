@@ -140,6 +140,7 @@ namespace OneStarMaker.Tests.SceneSystem
             public void Release(IBackendAsset asset) { }
             public void ConfigureCacheEviction(Action evictRevisionEntries) { }
             public UniTask StopAndDrainAsync() => UniTask.CompletedTask;
+            public void EnsureAccepting() { }
             public UniTask CloseAsync() => UniTask.CompletedTask;
             public void BeginSynchronousShutdown() { }
         }

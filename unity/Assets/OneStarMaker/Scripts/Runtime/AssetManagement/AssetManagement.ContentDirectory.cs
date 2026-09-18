@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using OneStarMaker.Runtime.AssetManagement.Internal;
@@ -14,6 +15,7 @@ namespace OneStarMaker.Runtime.AssetManagement
         private IContentDirectoryBackend? _contentDirectory;
         private readonly SemaphoreSlim _contentAssetLoadGate = new(1, 1);
         private readonly SemaphoreSlim _contentSceneLoadGate = new(1, 1);
+        private readonly Dictionary<string, string> _contentSceneRepresentations = new(StringComparer.Ordinal);
 
         internal void InstallContentDirectory(IContentDirectoryBackend session)
         {
@@ -25,9 +27,12 @@ namespace OneStarMaker.Runtime.AssetManagement
         internal async UniTask CloseContentDirectoryAsync()
         {
             var directory = RequireContentDirectory();
+            await _contentAssetLoadGate.WaitAsync();
+            await _contentSceneLoadGate.WaitAsync();
+            try { await directory.StopAndDrainAsync(); }
+            finally { _contentSceneLoadGate.Release(); _contentAssetLoadGate.Release(); }
             // native terminal より先に scene 台帳を列挙すると、遅れて成功した Scene が列挙から漏れる。
             // 受付停止と terminal 待ちの後、唯一の owner 台帳にある Scene を unload する。
-            await directory.StopAndDrainAsync();
             foreach (var scene in _registry.GetScenes())
             {
                 if (!scene.IsUnloaded && scene.Backend is IContentDirectoryToken)
@@ -39,6 +44,7 @@ namespace OneStarMaker.Runtime.AssetManagement
             }
             await directory.CloseAsync();
             _contentDirectory = null;
+            _contentSceneRepresentations.Clear();
         }
 
         public async UniTask<IAssetHandle<T>> LoadContentAssetAsync<T>(string logicalKey, string representation, AssetOwner owner, CancellationToken ct = default) where T : UnityEngine.Object
@@ -50,6 +56,7 @@ namespace OneStarMaker.Runtime.AssetManagement
             await _contentAssetLoadGate.WaitAsync(ct);
             try
             {
+                directory.EnsureAccepting();
                 AssetRegistry.LoadedAsset loaded;
                 if (_registry.TryGetAsset(key.Canonical, out var existing))
                 {
@@ -83,9 +90,19 @@ namespace OneStarMaker.Runtime.AssetManagement
             await _contentSceneLoadGate.WaitAsync(ct);
             try
             {
-                if (_registry.TryGetScene(sceneIdentity, out var existing) && !existing.IsUnloaded) return new SceneHandle(sceneIdentity, existing.Backend);
+                directory.EnsureAccepting();
+                if (_registry.TryGetScene(sceneIdentity, out var existing) && !existing.IsUnloaded)
+                {
+                    // Scene 台帳は identity 単位。異なる表現を同じ Scene と偽って返さない。
+                    if (!_contentSceneRepresentations.TryGetValue(sceneIdentity, out var loadedRepresentation)
+                        || !string.Equals(loadedRepresentation, representation, StringComparison.Ordinal))
+                        throw new ContentDirectoryException(ContentDirectoryFailureCode.EntryAmbiguous,
+                            "Scene identity is already loaded with a different representation.", directory.BuildIdentity, directory.Target, sceneIdentity, representation);
+                    return new SceneHandle(sceneIdentity, existing.Backend);
+                }
                 var scene = await directory.LoadSceneAsync(sceneIdentity, representation, options, ct);
                 _registry.AddScene(sceneIdentity, scene);
+                _contentSceneRepresentations[sceneIdentity] = representation;
                 return new SceneHandle(sceneIdentity, scene);
             }
             finally { _contentSceneLoadGate.Release(); }
