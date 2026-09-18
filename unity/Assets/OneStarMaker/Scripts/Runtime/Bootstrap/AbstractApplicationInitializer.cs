@@ -89,6 +89,7 @@ namespace OneStarMaker.Runtime
         private IAssetManagement? _assetManagement;
         private ContentDirectoryConfiguration? _contentDirectoryConfiguration;
         private ContentDirectorySession? _contentDirectorySession;
+        private bool _beforeSceneLoadSucceeded;
 
         /// <summary>LoadUICommonAsync でロードした UICommon シーンのハンドル。</summary>
         private ISceneHandle? _uiSceneHandle;
@@ -144,13 +145,20 @@ namespace OneStarMaker.Runtime
         /// </summary>
         protected static void BootstrapBeforeSceneLoad(AbstractApplicationInitializer instance)
         {
+            instance._beforeSceneLoadSucceeded = false;
             try
             {
                 instance.InitializeBeforeSceneLoad();
+                instance._beforeSceneLoadSucceeded = true;
             }
             catch (Exception ex)
             {
                 Debug.LogException(ex);
+                // 起動設定の検証失敗後に残った AssetManagement/CTS を根拠として
+                // AfterSceneLoad が既定 Addressables へ進むと、明示 directory 指定を黙って無視する。
+                // 元の失敗を保持したまま部分初期化だけを回収し、次フェーズを閉じる。
+                try { instance.ReleaseAll(); }
+                catch (Exception cleanupException) { Debug.LogException(cleanupException); }
             }
         }
 
@@ -159,6 +167,11 @@ namespace OneStarMaker.Runtime
         /// </summary>
         protected static void BootstrapAfterSceneLoad(AbstractApplicationInitializer instance)
         {
+            if (!instance._beforeSceneLoadSucceeded)
+            {
+                Debug.LogError("[AppInit] BeforeSceneLoad が失敗したため AfterSceneLoad をスキップします。");
+                return;
+            }
             try
             {
                 instance.InitializeAfterSceneLoad().Forget();
@@ -709,6 +722,7 @@ namespace OneStarMaker.Runtime
         /// </summary>
         private void ReleaseAll()
         {
+            _beforeSceneLoadSucceeded = false;
             Application.quitting -= OnApplicationQuitting;
 
             // まず framework service 側へ停止を通知する。
