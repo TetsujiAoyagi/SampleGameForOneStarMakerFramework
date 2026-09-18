@@ -32,7 +32,8 @@ namespace OneStarMaker.Tests.Editor.Build
                 using var cts = new CancellationTokenSource();
                 var load = session.LoadSceneAsync("scene", "Full", default, cts.Token).AsTask();
                 cts.Cancel();
-                Assert.ThrowsAsync<OperationCanceledException>(async () => await load);
+                try { await load; Assert.Fail("取消した caller の待機が成功した"); }
+                catch (OperationCanceledException) { }
 
                 var close = session.CloseAsync().AsTask();
                 Assert.That(close.IsCompleted, Is.False, "caller の取消は native terminal ではない");

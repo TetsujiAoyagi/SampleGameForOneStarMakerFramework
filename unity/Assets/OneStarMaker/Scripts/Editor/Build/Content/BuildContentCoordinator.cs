@@ -41,9 +41,13 @@ namespace OneStarMaker.Editor.Build.Content
             ValidateSegment(request.ContentSet);
             var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
             var approvedRoot = Path.GetFullPath(Path.Combine(projectRoot, "..", "artifacts", "bs2b"));
+            var testRoot = Path.GetFullPath(Path.Combine(projectRoot, "..", "TestResults", "bs3-fixture"));
             var root = Path.GetFullPath(request.ArtifactsRoot);
-            if (!SamePath(approvedRoot, root) && !Contained(approvedRoot, root))
-                throw new ArgumentException("Output root must be inside artifacts/bs2b.");
+            // 実 directory の検証は build を伴うが、既存の検証ログを増減させない。
+            // テスト専用 root だけを追加で許し、任意の workspace path への出力は引き続き拒む。
+            if (!SamePath(approvedRoot, root) && !Contained(approvedRoot, root)
+                && !SamePath(testRoot, root) && !Contained(testRoot, root))
+                throw new ArgumentException("Output root must be inside artifacts/bs2b or TestResults/bs3-fixture.");
             var identity = DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffZ") + "-" + Guid.NewGuid().ToString("N");
             var reportDirectory = Child(root, "reports", identity);
             var preflight = Path.Combine(reportDirectory, "preflight.json");
