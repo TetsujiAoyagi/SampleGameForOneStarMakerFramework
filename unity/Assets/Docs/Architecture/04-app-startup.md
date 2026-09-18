@@ -196,18 +196,25 @@ private void ReleaseAll()
 ### 起動シーケンスにはエラーハンドリングを入れる
 
 ```csharp
-// BeforeSceneLoad / AfterSceneLoad の Bootstrap メソッドは try-catch で囲む
+// BeforeSceneLoad の失敗を次フェーズへ渡し、部分初期化を回収する
 protected static void BootstrapBeforeSceneLoad(AbstractApplicationInitializer instance)
 {
+    instance._beforeSceneLoadSucceeded = false;
     try
     {
         instance.InitializeBeforeSceneLoad();
+        instance._beforeSceneLoadSucceeded = true;
     }
     catch (Exception ex)
     {
         Debug.LogException(ex);
+        try { instance.ReleaseAll(); }
+        catch (Exception cleanupException) { Debug.LogException(cleanupException); }
     }
 }
+
+// BootstrapAfterSceneLoad は成功フラグが false なら非同期初期化を開始しない。
+// 不正な明示設定を既定 Addressables 起動として扱わない。
 
 // AfterSceneLoad の async 本体も catch で例外を捕捉
 private async UniTaskVoid InitializeAfterSceneLoad()
@@ -286,6 +293,19 @@ protected override string GetEnvironmentVariablePrefix() => "MYAPP_";
 ### 制限事項
 
 - JSON パーサは標準 JSON のみ対応（コメント非対応）。
+
+### Content Directory の起動時選択
+
+`content:runtimeMode` は未指定または `addressables` が既定で、既存の起動経路を保つ。
+`directory` は Editor Play でのみ有効。`content:directoryPath`、
+`content:buildIdentity`、`content:representation` を明示し、directory path は存在する
+absolute local path とする。値は BeforeSceneLoad で一度検証する。未知 mode、欠損・相対 path、
+存在しない directory、identity/target 不一致は起動失敗として扱い、Addressables へ
+暗黙 fallback しない。BeforeSceneLoad で失敗した起動回は AfterSceneLoad を開始しない。
+
+directory session は AfterSceneLoad の SceneDirector 構築前に登録する。起動時に選んだ
+representation は Scene lifecycle の間固定する。UI/config/SceneResourceMap の bootstrap は
+移行期間中 Addressables から取得する。Player の Content Directory bootstrap は BS4 の範囲。
 
 ## 4.8 起動時 Scene Variant と職種 companion set
 

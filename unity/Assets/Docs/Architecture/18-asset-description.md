@@ -178,7 +178,8 @@ Selection core は引き続き Unity / AssetDatabase / Addressables を参照し
 
 既存の `VariantWhitelistBuilder` と Addressables build 経路は変更していない。
 SampleGame の Editor 入口は本番の `SceneResourceMap` を materialize し、後述の project policy で選択して
-Content Directory build へ渡す。Runtime の directory 管理と Player build は未実装である。
+Content Directory build へ渡す。Runtime の directory 管理は BS3 で実装済み。
+Player build と bootstrap は BS4 の対象である。
 materialization や Editor build の成功だけをこれらの成立と同一視しない。
 `FindDependency` の lookup key は canonical lowercase GUID を渡す契約である。
 
@@ -201,8 +202,37 @@ root と依存閉包を照合し、欠損・衝突を build 前の構造化 issu
   OSM の公開 protocol として解釈しない。
 - Scene、Prefab、Texture と同じ logical key の High / Low 表現を含む fixture で実 build を確認した。
   同じ workspace で 2 回 build し、公開 directory の移設後に PlayMode で単一 root を登録・発見した。
-  これは consumer 境界の検証であり、本番非 Scene Description、型付き load、サブアセット一般化、
-  Runtime の所有・解放、Player への接続を証明しない。
+  この build 側 fixture だけでは本番非 Scene Description、型付き load、サブアセット一般化、
+  Runtime の所有・解放、Player への接続を証明しない。型付き Runtime load と寿命は次節の BS3 で検証した。
+
+### Runtime の Content Directory 解決とロード（現況）
+
+`Runtime/BuildContent/` の `ContentDirectorySession` は、移設済み local directory を
+登録して単一の `BuildContentRoot` を発見する。schema、build identity、target、entry と
+Unity locator を登録時に検証し、`ContentDirectoryIndex` は選択済み entry だけを
+`logical key + representation + kind` で索引化する。schema v1 の未記録 representation
+は `Full` として扱う。Scene は要求表現が欠ける場合だけ `Full` entry へ fallback し、
+Object は完全一致で解決する。Unity の実型を load 後に検証し、欠損・曖昧選択・型不一致は
+`ContentDirectoryException` の reason code で返す。source の AssetDatabase や
+materialization を Runtime で再実行しない。
+
+`IAssetManagement` の `LoadContentAssetAsync<T>`、`LoadContentSceneAsync`、
+`InstantiateContentAsync` が型付きの入口である。既存の Addressables 入口は維持する。
+`AssetManagement` が owner 台帳と resident cache を所有し、directory token は session の
+利用権を保持する。取消した caller の代わりに native operation の終端まで session が追跡し、
+明示 close では live resource の解放を待ってから unregister する。同一 process の
+revision 削除は `ContentRevisionGate.TryAcquireDelete` の lease を必要とする。
+
+Editor Play は AppConfig の `content:runtimeMode=directory` を明示したときだけこの経路を
+使い、起動時に一度選んだ表現を Scene lifecycle に渡す。既定は Addressables。
+directory path、build identity、representation の欠損や不整合は起動失敗であり、
+Addressables へ暗黙 fallback しない。UI/config/SceneResourceMap の bootstrap 取得は
+移行期間の Addressables 経路を使う。Player での directory 起動、source 不在の graph metadata、
+物理削除と別 process 排他はそれぞれ BS4 / DIST の後続範囲である。
+同一 session 内で Whitebox 要求を Full entry へ fallback した後に、同じ Scene identity を
+Full として別要求すると台帳の要求表現が異なり `EntryAmbiguous` になり得る。現行の
+Editor Play は起動時に表現を固定する。同一 session の表現切替を必要とする場合は
+BS4 で契約を再確認し、別スライスで設計する。
 
 ### SampleGame の季節選択と Editor build（現況）
 
@@ -215,7 +245,7 @@ Framework の selection core と成果物 schema に季節名を持ち込まな�
 - requirement は要求した季節と共通 content の payload group に限る。通常は `ExactlyOne`。Full と Whitebox の両候補がある季節 group を同梱する場合だけ `OneOrMore` にし、両表現の候補が採用されたことも照合する。
 - Editor メニュー `Tools/OSM/Content/` に全季節 Full、Spring Full、Spring Whitebox、Spring Full And Whitebox の入口がある。選択した必須 group、候補、除外理由をログへ出し、成功 plan と対応 snapshot を既存の `BuildContentCoordinator` へ渡す。専用 EditMode テストと、本番 graph による四つの Content Directory build を確認済み。
 
-この入口は Editor の content 生成用である。生成 directory の Runtime 登録・ロード・寿命管理、Editor Play 接続、Player bootstrap は後続工程が担う。
+この入口は Editor の content 生成用である。生成 directory の Runtime 登録・ロード・寿命管理と Editor Play 接続は BS3 の上記経路が担う。Player bootstrap は BS4 が担う。
 
 ---
 
@@ -257,7 +287,7 @@ Framework の selection core と成果物 schema に季節名を持ち込まな�
 - Pure selection: `unity/Assets/OneStarMaker/Scripts/Editor/Build/Selection/`
 - Production materialization: `unity/Assets/OneStarMaker/Scripts/Editor/Build/Materialization/`
 - Content Directory build: `unity/Assets/OneStarMaker/Scripts/Editor/Build/Content/`
-- Build content root: `unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/`
+- Build content root と Runtime directory owner / index / gate: `unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/`
 - SampleGame selection と Editor 入口: `unity/Assets/SampleGame/DependOnAll/Editor/Build/`
 - Scene 連携: `unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneResource.cs`, `SceneResourceMap.cs`
 - 既存資料: [13. リソースシステム](13-resource-system.md)（AssetType は cache 用メタとして採用済み。AssetResidentCache(常駐キャッシュ + per-category budget)実装済み）
