@@ -37,7 +37,11 @@ namespace OneStarMaker.Runtime.BuildContent
                     throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidRoot, "Content entry kind is invalid.", expectedIdentity, expectedTarget, entry.LogicalKey, entry.Representation);
                 if (entry.Kind == BuildContentKind.Scene && entry.SceneId.Equals(default(Unity.Loading.LoadableSceneId)))
                     throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidRoot, "Scene entry has no loadable scene locator.", expectedIdentity, expectedTarget, entry.LogicalKey, entry.Representation);
-                if (entry.Kind == BuildContentKind.Scene && (entry.Object != null || !string.IsNullOrEmpty(entry.FileGuid) || entry.LocalFileId != 0))
+                // Unity serializer は Scene entry の未使用 Loadable field を default wrapper として
+                // 復元することがある。有効な Object ID が入った場合だけ kind 不整合とみなす。
+                if (entry.Kind == BuildContentKind.Scene
+                    && ((entry.Object != null && !entry.Object.LoadableObjectId.Equals(default(Unity.Loading.LoadableObjectId)))
+                        || !string.IsNullOrEmpty(entry.FileGuid) || entry.LocalFileId != 0))
                     throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidRoot, "Scene entry contains an object locator.", expectedIdentity, expectedTarget, entry.LogicalKey, entry.Representation);
                 if (entry.Kind == BuildContentKind.Object && entry.Object == null)
                     throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidRoot, "Object entry has no loadable locator.", expectedIdentity, expectedTarget, entry.LogicalKey, entry.Representation);
