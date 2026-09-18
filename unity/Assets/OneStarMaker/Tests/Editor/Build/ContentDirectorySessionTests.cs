@@ -13,6 +13,7 @@ using OneStarMaker.Runtime.BuildContent;
 using UnityEditor;
 using Unity.Loading;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace OneStarMaker.Tests.Editor.Build
 {
@@ -131,6 +132,56 @@ namespace OneStarMaker.Tests.Editor.Build
 
                 native.PendingUnloadCompletion.TrySetResult();
                 await session.CloseAsync();
+                Assert.That(native.UnregisterCount, Is.EqualTo(1));
+            }
+            finally { UnityEngine.Object.DestroyImmediate(root); Directory.Delete(path); }
+        }
+
+        [Test]
+        public async Task NullInstanceResult_ReleasesIssuedTokenBeforeFailure()
+        {
+            var path = Path.Combine(Path.GetTempPath(), "osm-content-session-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(path);
+            var asset = AssetDatabase.LoadMainAssetAtPath("Assets/TutorialInfo/Icons/URP.png");
+            Assert.That(asset, Is.Not.Null);
+            Assert.That(AssetDatabase.TryGetGUIDAndLocalFileIdentifier(asset, out var guid, out long localId), Is.True);
+            var root = ScriptableObject.CreateInstance<BuildContentRoot>();
+            root.Initialize("build", "StandaloneWindows64", new[] {
+                new BuildContentEntry("object", "stable", "Full",
+                    new Loadable<UnityEngine.Object>(LoadableObjectIdEditorUtility.CreateLoadableObjectId(asset)), guid, localId)
+            });
+            var native = new FakeNativeDirectory(root) { InstanceResult = new FakeNullInstance() };
+            try
+            {
+                var session = ContentDirectorySession.Register(path, "build", "StandaloneWindows64", native);
+                var assets = new AssetManagement();
+                assets.InstallContentDirectory(session);
+                var error = Assert.ThrowsAsync<ContentDirectoryException>(async () =>
+                    await assets.InstantiateContentAsync("object", "Full"));
+                Assert.That(error!.Code, Is.EqualTo(ContentDirectoryFailureCode.OperationFailed));
+                await assets.CloseContentDirectoryAsync();
+                Assert.That(native.ReleaseCount, Is.EqualTo(1));
+                Assert.That(native.UnregisterCount, Is.EqualTo(1));
+            }
+            finally { UnityEngine.Object.DestroyImmediate(root); Directory.Delete(path); }
+        }
+
+        [Test]
+        public async Task DeferredSceneActivation_IsRejectedBeforeNativeOperation()
+        {
+            var path = Path.Combine(Path.GetTempPath(), "osm-content-session-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(path);
+            var root = CreateRoot();
+            var native = new FakeNativeDirectory(root);
+            try
+            {
+                var session = ContentDirectorySession.Register(path, "build", "StandaloneWindows64", native);
+                var options = new SceneLoadOptions(LoadSceneMode.Additive, activateOnLoad: false);
+                var error = Assert.ThrowsAsync<ContentDirectoryException>(async () =>
+                    await session.LoadSceneAsync("scene", "Full", options, CancellationToken.None));
+                Assert.That(error!.Code, Is.EqualTo(ContentDirectoryFailureCode.InvalidConfiguration));
+                await session.CloseAsync();
+                Assert.That(native.UnloadCount, Is.Zero);
                 Assert.That(native.UnregisterCount, Is.EqualTo(1));
             }
             finally { UnityEngine.Object.DestroyImmediate(root); Directory.Delete(path); }
@@ -483,6 +534,13 @@ namespace OneStarMaker.Tests.Editor.Build
             public GameObject? Instance { get; } = new("fake-content-instance");
             public UnityEngine.Object? Asset => Instance;
             public bool IsValid => Instance != null;
+        }
+
+        private sealed class FakeNullInstance : IBackendInstance, IBackendAsset
+        {
+            public GameObject? Instance => null;
+            public UnityEngine.Object? Asset => null;
+            public bool IsValid => false;
         }
 
         private sealed class FakeScene : IBackendScene, IContentDirectoryToken

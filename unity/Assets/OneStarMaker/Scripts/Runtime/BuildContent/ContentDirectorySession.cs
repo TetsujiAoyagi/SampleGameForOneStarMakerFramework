@@ -148,6 +148,9 @@ namespace OneStarMaker.Runtime.BuildContent
         public async UniTask<IBackendScene> LoadSceneAsync(string sceneIdentity, string representation, SceneLoadOptions options, CancellationToken ct)
         {
             EnsureAccepting(); ct.ThrowIfCancellationRequested();
+            if (!options.ActivateOnLoad)
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,
+                    "Deferred scene activation is not supported by content directory loads.", BuildIdentity, Target, sceneIdentity, representation);
             BeginOperation();
             var terminalCleanupOwnsCounter = false;
             try

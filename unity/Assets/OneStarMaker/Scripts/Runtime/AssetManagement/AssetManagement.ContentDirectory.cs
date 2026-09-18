@@ -87,6 +87,11 @@ namespace OneStarMaker.Runtime.AssetManagement
         public async UniTask<ISceneHandle> LoadContentSceneAsync(string sceneIdentity, string representation, SceneLoadOptions options = default, CancellationToken ct = default)
         {
             var directory = RequireContentDirectory();
+            // activation を保留すると native operation が terminal に達せず、返却 handle も渡せない。
+            // この公開入口では完了まで所有するため、保留要求は開始前に拒否する。
+            if (!options.ActivateOnLoad)
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,
+                    "Deferred scene activation is not supported by content directory loads.", directory.BuildIdentity, directory.Target, sceneIdentity, representation);
             await _contentSceneLoadGate.WaitAsync(ct);
             try
             {
@@ -114,7 +119,12 @@ namespace OneStarMaker.Runtime.AssetManagement
             var backendInstance = await directory.InstantiateAsync(logicalKey, representation, parent, worldSpace, ct);
             var instance = backendInstance.Instance;
             if (instance == null)
+            {
+                // session は Instantiate の成功時点で live token を発行済み。GameObject が
+                // 得られなくても token を返してから失敗を報告する。
+                if (backendInstance is IBackendAsset failedAsset) directory.Release(failedAsset);
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.OperationFailed, "Content prefab instantiation returned null.", directory.BuildIdentity, directory.Target, logicalKey, representation);
+            }
             var owner = AssetOwner.Bind(instance);
             if (backendInstance is IBackendAsset backendAsset)
             {
