@@ -49,6 +49,24 @@ namespace OneStarMaker.Tests.BuildContent
         }
 
         [Test]
+        public void TrailingSeparatorAndWindowsCaseAlias_StayOnOneRevisionPath()
+        {
+            var path = "C:\\Content-Directory-Gate-" + Guid.NewGuid().ToString("N");
+            using (ContentRevisionGate.Reserve("build-a", "StandaloneWindows64", path))
+            {
+                Assert.That(ContentRevisionGate.TryAcquireDelete("build-b", "StandaloneWindows64",
+                    path + "\\", out var aliasLease, out var aliasReason), Is.False);
+                Assert.That(aliasLease, Is.Null);
+                Assert.That(aliasReason, Is.EqualTo(ContentDirectoryFailureCode.PathInUse));
+
+                Assert.That(ContentRevisionGate.TryAcquireDelete("build-b", "StandaloneWindows64",
+                    path.ToLowerInvariant(), out var caseLease, out var caseReason), Is.False);
+                Assert.That(caseLease, Is.Null);
+                Assert.That(caseReason, Is.EqualTo(ContentDirectoryFailureCode.PathInUse));
+            }
+        }
+
+        [Test]
         public void AnotherDeleteLease_AlwaysReportsDeletionInProgress()
         {
             var path = "C:\\content-directory-gate-" + Guid.NewGuid().ToString("N");

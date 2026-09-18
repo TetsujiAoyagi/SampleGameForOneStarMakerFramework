@@ -55,14 +55,20 @@ namespace OneStarMaker.Runtime.BuildContent
             }
         }
 
-        private static bool TryNormalize(string identity, string target, string path, out string normalized)
+        internal static bool TryNormalize(string identity, string target, string path, out string normalized)
         {
             normalized = string.Empty;
             if (string.IsNullOrWhiteSpace(identity) || string.IsNullOrWhiteSpace(target) || string.IsNullOrWhiteSpace(path)) return false;
             try
             {
                 if (!Path.IsPathRooted(path)) return false;
-                normalized = Path.GetFullPath(path);
+                var full = Path.GetFullPath(path);
+                var root = Path.GetPathRoot(full)!;
+                // 同じ物理 directory の末尾 separator・Windows 大小文字 alias を一つの
+                // revision path に畳む。root 自体の separator は落とさない。
+                full = full.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                if (full.Length < root.Length) full = root;
+                normalized = Path.DirectorySeparatorChar == '\\' ? full.ToUpperInvariant() : full;
                 return true;
             }
             catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)

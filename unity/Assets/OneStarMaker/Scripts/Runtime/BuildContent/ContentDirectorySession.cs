@@ -67,18 +67,9 @@ namespace OneStarMaker.Runtime.BuildContent
 
         internal static ContentDirectorySession Register(string path, string identity, string target, IContentNativeDirectory backend)
         {
-            string normalized;
-            try
-            {
-                if (!Path.IsPathRooted(path))
-                    throw new ArgumentException("Directory path must be absolute.", nameof(path));
-                normalized = Path.GetFullPath(path);
-            }
-            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
-            {
+            if (!ContentRevisionGate.TryNormalize(identity, target, path, out var normalized))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,
-                    "Content directory path is invalid.", identity, target, innerException: ex);
-            }
+                    "Content directory path is invalid.", identity, target);
             if (!Directory.Exists(normalized))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,
                     "Content directory path must exist.", identity, target);

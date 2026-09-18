@@ -5,11 +5,13 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using Cysharp.Threading.Tasks;
 using NUnit.Framework;
 using OneStarMaker.Build.Selection;
 using OneStarMaker.Editor.Build.Content;
 using OneStarMaker.Editor.Build.Materialization;
+using OneStarMaker.Runtime;
 using OneStarMaker.Runtime.BuildContent;
 using OneStarMaker.Runtime.AssetManagement;
 using Unity.Loading;
@@ -151,6 +153,13 @@ namespace OneStarMaker.Tests.Editor.Build
                 if (_folder.Length != 0) { AssetDatabase.DeleteAsset(_folder); _folder = ""; }
             }
             yield return new EnterPlayMode();
+            var defaultBootstrap = GetBootstrapState();
+            for (var frame = 0; frame < 1800 && defaultBootstrap.director.GetValue(defaultBootstrap.initializer) == null; frame++)
+                yield return null;
+            Assert.That(defaultBootstrap.director.GetValue(defaultBootstrap.initializer), Is.Not.Null,
+                "既定 Addressables mode で SceneDirector が生成されていない");
+            Assert.That(defaultBootstrap.session.GetValue(defaultBootstrap.initializer), Is.Null,
+                "明示指定なしで Content Directory が登録された");
             // ContentLoadManager の登録は PlayMode 側で行う。copy に必要な file が欠ければここで失敗する。
             var handle = ContentLoadManager.RegisterContentDirectory(_copy);
             Assert.That(handle.IsValid, Is.True);
@@ -221,6 +230,56 @@ namespace OneStarMaker.Tests.Editor.Build
                 }
             });
             yield return new ExitPlayMode();
+
+            // 二度目の Play は SampleGame の実 bootstrap に環境変数を渡す。
+            // Framework test から Game asmdef を参照せず、起動済み instance の状態だけを見る。
+            var names = new[] { "SAMPLEGAME_CONTENT__RUNTIMEMODE", "SAMPLEGAME_CONTENT__DIRECTORYPATH",
+                "SAMPLEGAME_CONTENT__BUILDIDENTITY", "SAMPLEGAME_CONTENT__REPRESENTATION" };
+            var previousValues = names.Select(Environment.GetEnvironmentVariable).ToArray();
+            Environment.SetEnvironmentVariable(names[0], "directory");
+            Environment.SetEnvironmentVariable(names[1], _copy);
+            Environment.SetEnvironmentVariable(names[2], Path.GetFileName(_copy).Substring("integration-copy-".Length));
+            Environment.SetEnvironmentVariable(names[3], "High");
+            try
+            {
+                yield return new EnterPlayMode();
+                var bootstrap = GetBootstrapState();
+                for (var frame = 0; frame < 1800 &&
+                    (bootstrap.session.GetValue(bootstrap.initializer) == null ||
+                     bootstrap.director.GetValue(bootstrap.initializer) == null); frame++)
+                    yield return null;
+                Assert.That(bootstrap.session.GetValue(bootstrap.initializer), Is.Not.Null,
+                    "明示 directory mode の起動 stage が登録を完了していない");
+                Assert.That(bootstrap.director.GetValue(bootstrap.initializer), Is.Not.Null,
+                    "directory mode で SceneDirector が生成されていない");
+                Assert.That(ContentRevisionGate.TryAcquireDelete(
+                    Path.GetFileName(_copy).Substring("integration-copy-".Length), BuildContentCoordinator.TargetName,
+                    _copy, out var lease, out var rejection), Is.False);
+                Assert.That(lease, Is.Null);
+                Assert.That(rejection, Is.EqualTo(ContentDirectoryFailureCode.RevisionBusy));
+                yield return new ExitPlayMode();
+            }
+            finally
+            {
+                for (var i = 0; i < names.Length; i++) Environment.SetEnvironmentVariable(names[i], previousValues[i]);
+            }
+        }
+
+        private static (object initializer, FieldInfo session, FieldInfo director) GetBootstrapState()
+        {
+            // Game→Framework の依存方向を守るためテスト asmdef に Game 参照を追加しない。
+            // 実アプリの静的 bootstrap instance と既存 private state を検証時だけ観測する。
+            var type = Type.GetType("SampleGame.DependOnAll.AppInitializer, SampleGame.DependOnAll");
+            Assert.That(type, Is.Not.Null, "実アプリの起動型が読み込まれていない");
+            var initializer = type!.GetField("s_instance", BindingFlags.Static | BindingFlags.NonPublic)?.GetValue(null);
+            var session = typeof(AbstractApplicationInitializer).GetField("_contentDirectorySession",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            var director = typeof(AbstractApplicationInitializer).GetField("_sceneDirector",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(initializer, Is.Not.Null);
+            Assert.That(session, Is.Not.Null);
+            Assert.That(director, Is.Not.Null);
+            return (initializer!, session!, director!);
         }
 
         private static void Copy(string source, string target)

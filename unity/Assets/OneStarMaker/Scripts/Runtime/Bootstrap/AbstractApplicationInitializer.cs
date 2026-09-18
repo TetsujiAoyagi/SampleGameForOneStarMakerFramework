@@ -64,6 +64,10 @@ namespace OneStarMaker.Runtime
     /// </summary>
     public abstract class AbstractApplicationInitializer
     {
+        // build root は Unity の BuildTarget と Player subtarget を一つの文字列で保存する。
+        // Editor 側の Content Directory 出力名を変更する場合は、この照合値も同時に更新する。
+        private const string ContentDirectoryTarget = "StandaloneWindows64-Player";
+
         // ─── Fields ───
 
         private AppConfig? _config;
@@ -279,7 +283,7 @@ namespace OneStarMaker.Runtime
                     startupStage = "register-content-directory";
                     var configuration = _contentDirectoryConfiguration;
                     var session = ContentDirectorySession.Register(
-                        configuration.Path, configuration.BuildIdentity, "StandaloneWindows64");
+                        configuration.Path, configuration.BuildIdentity, ContentDirectoryTarget);
                     try
                     {
                         if (_assetManagement is not AssetManagement.AssetManagement assetManagement)
@@ -814,22 +818,14 @@ namespace OneStarMaker.Runtime
             var representation = config.GetString("content:representation", string.Empty);
             if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(identity) || string.IsNullOrWhiteSpace(representation))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Directory mode requires absolute directoryPath, buildIdentity, and representation.");
-            string fullPath;
-            try
-            {
-                if (!Path.IsPathRooted(path))
-                    throw new ArgumentException("Directory path must be absolute.", nameof(path));
-                fullPath = Path.GetFullPath(path);
-            }
-            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
-            {
-                // 不正な絶対 path も公開失敗契約の InvalidConfiguration に揃える。
+            // 起動、登録、削除 gate が同じ canonical path を使う。文字列 alias が
+            // 別 revision と見なされると、使用中 directory の削除許可が誤る。
+            if (!ContentRevisionGate.TryNormalize(identity, ContentDirectoryTarget, path, out var fullPath))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,
-                    "Content directory path is invalid.", identity, "StandaloneWindows64",
-                    representation: representation, innerException: ex);
-            }
+                    "Content directory path is invalid.", identity, ContentDirectoryTarget,
+                    representation: representation);
             if (!Directory.Exists(fullPath))
-                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Configured content directory does not exist.", identity, "StandaloneWindows64", representation: representation);
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Configured content directory does not exist.", identity, ContentDirectoryTarget, representation: representation);
             return new ContentDirectoryConfiguration(fullPath, identity, representation);
         }
 
