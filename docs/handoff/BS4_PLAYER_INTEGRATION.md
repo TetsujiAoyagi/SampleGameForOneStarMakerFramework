@@ -1,7 +1,7 @@
 # BS4 — Player integration HANDOFF
 
 - type: slice
-- status: A0（設計入力の固定中）
+- status: A3 frozen（Phase B 入力）
 - branch: `codex/bs4-player-integration`
 - implementation base commit: `ea7acf7` (`develop`, 2026-09-19)
 - implementation head commit: 未作成
@@ -10,7 +10,7 @@
 - created: 2026-09-19
 - expires: BS4 Phase D。2026-10-19 までに継続条件を再確認する。
 - harvest to: `unity/Assets/Docs/Architecture/04-app-startup.md`、`13-resource-system.md`、`18-asset-description.md`
-- Phase A snapshot / Phase B result / evidence bundle / C' blind bundle: Phase ごとに固定し path・時刻・hash を追記する。
+- Phase A snapshot: `TestResults/bs4/review/a3-frozen/phase-a.md`（tracked HANDOFF の A3 frozen commit と同内容）
 
 ## A0 — 同一入力 packet
 
@@ -105,11 +105,58 @@ map copy の直接依存が content Scene を Player へ取り込む、`previous
 
 ## A2 — 独立レビュー
 
-同じ入力版の A1 を複数モデルへ渡し、うち一件をアーキテクチャゲートに指定する。A0 のみからの代替案も別担当で検討する。C' 用の未関与モデルを予約する。
+入力は commit `f82e98f` / SHA256 `D758CBEC2091F61DF74A758A4012F52181DFFDDC74A7798F43B94D1894F3BB04` で固定した。
+
+- A0 代替構成（Terra）: UIScene 単体では config/map の Addressables 先行依存と初回 Scene load 不足を解けない、plain config・source 非依存 graph・明示 AddScene・High/IL2CPP Player proof が必要。採用。薄い catalog 新設は現行 SceneFactory が `SceneResource` を要求するため即採用せず、複写 graph closure と BuildReport 排除検査を先に使う。
+- architecture gate（Sol）: 成功時 awaitable close 不在、Editor build/publish/orchestration の責務混在、一時 Resources/StreamingAssets の crash recovery 不在、protected API 未確定を blocker。全て採用。
+- runtime/build failure（Astra）: Player config provider 列に Addressables が残る、成功 close/Before failure exit 不在、GameObject だけでは content-only managed type の stripping を証明しない、Object root の重複検査不足、production + fixture 合成責務不足を指摘。全て採用。
+
+独立性: 三担当は互いの所見を見ず、architecture/runtime は同じ A1 commit を使用。C' にはこれらと Phase B/C に未関与の担当を使う。
 
 ## A3 — 統合・凍結
 
-レビュー所見の採否、凍結 snapshot と hash を記入する。program の委任に基づく技術判断は主担当が理由を記録する。
+program の委任に基づき上記を全件採用し、次を A1 の上書き条件として凍結する。
+
+### 起動 state machine と公開境界
+
+Framework に追加する protected 面は次だけとする。名称の微調整は可、意味・順序を変える場合は Phase A を再開する。
+
+- `UseRequiredPlayerFileConfiguration`（bool）: true のとき provider 列は **必須 plain JSON → environment → command line**。既存 Addressables JSON providerを作らず、remote catalog も読まない。生成 JSON は通常 app-config の必要値（debug無効、telemetry設定、world companion set等）も含む。
+- `GetRequiredPlayerConfigurationPath()` / `LoadPlayerSceneResourceMap()`: SampleGame composition root が `Application.streamingAssetsPath/bs4-runtime.json` と `Resources.Load<SceneResourceMap>(...)` を供給する。directory Player の UICommon は Scene 0 の component を必須とし、Addressables fallbackを禁止する。
+- `OnPlayerContentReadyAsync(IAssetManagement, CancellationToken)` と `OnPlayerContentStartupFailedAsync(stage, exception)`: Game側 smoke policy。前者は Director が logical first scene を stable にした後に一度だけ呼ぶ。後者は Before / After の両失敗を stage付きで受ける。Editor / addressables mode は既定 no-op。
+- Framework は config の `content:firstScene` を directory modeで必須とし、session install→director構築→`AddScene(firstScene)` の順に実行する。Game側は Framework state を直接変更しない。
+
+成功 smoke owner は SampleGame `PlayerContentSmoke`（App lifetime）。順序は Prefab load→instantiate→content-only componentのserialized値/動作確認→instance destroy完了→handle release→論理Scene unload→`AssetManagement.CloseContentDirectoryAsync()`成功→success receiptをatomic write→`Application.Quit(0)`。失敗は新規 load 停止、所有済み資源を逆順解放、close/drainを試行し failure receipt、`Application.Quit(nonzero)`。`Application.quitting` / synchronous shutdown は非常時 fallbackで、success signal に使わない。外部 harness timeout / receipt欠損 / process crash は失敗。
+
+### Editor build の責務分離と一時状態
+
+- `SampleGamePlayerBuildCoordinator`（orchestration、約120行）: content build→input validation→project mutation→BuildPipeline adapter→verification→publish を順序付けるだけ。
+- `PlayerBuildProjectMutation`（Unity Editor transaction、約180行）: 固定 path `Assets/Resources/BS4/<identity>/SceneResourceMap.asset` と `Assets/StreamingAssets/bs4-runtime.json`、PlayerSettings backend/stripping、Addressables BuildWithPlayer、definesを所有。identity marker が一致する self-owned stale stateだけを開始前cleanupし、未知/marker不一致は拒否。全設定とassetを finallyで復元し、interrupt/re-entryを fake/Editor testする。
+- `UnityPlayerBuildAdapter`（約100行）: bootstrap Scene一件、DetailedBuildReport、fixed Windows64 Player、`previousBuildReportDirectories` と IL2CPP/High を確認して `BuildPipeline.BuildPlayer`。BuildPipeline port は internal fake可能。
+- `PlayerBuildPublisher`（filesystem transaction、約140行）: identity別未存在 staging/final、content 一回 copy、config/receipt/outcome、同一volume rename。旧成功を変更しない。filesystem port は internal fake可能。
+- `PlayerBuildReportVerifier` は selected **全 root GUID（Scene/Object）** と Player packed contents の交差を検査し、DetailedBuildReport / packed情報が空なら失敗。bootstrapとの共有 dependency は許すが selected root 自体の重複は許さない。検査集合を receipt に保存。
+
+一時 graph は map と参照する全 `SceneResource` closure を BS4 pathへ複写し参照を複写先へ張り直す。payload `AssetReference` は locator として残す。selected Scene/Object root GUID が Playerへ混入した時点で Phase A revisionへ戻し、薄い catalogを設計する。null/external graph定義は build前に拒否する。本番 assetを編集しない。
+
+### fixture と code 保持
+
+BS4専用 Editor fixture adapter が production materialization snapshot に一つの Prefab candidateを合成する。ownership marker、logical key `bs4:fixture:prefab`、requested representation、期待 serialized token を固定し、production Description型は追加しない。Prefabは bootstrap/map/Resourcesから参照されない `Bs4ContentOnlyProbe` componentを持つ。smokeは component型をcompile-timeで直接参照せず、component名とserialized token、SendMessageで動作を観測し、偶然の静的root化を避ける。`previousBuildReportDirectories` の型情報、Player stripping report、実Player挙動を保持証拠とする。明示link.xmlは実 buildで不足が判明した型だけ追加する。
+
+論理初回 Scene は Spring Full build の `Title`（graph上の関係と選択存在をpreflightで検証）とする。別表現要求は専用 failure run で `EntryAmbiguous` 等の構造化失敗を確認する。
+
+### failure / cleanup table
+
+- config前: sessionなし。failure receiptと非ゼロ終了。
+- register後 / install前: session `CloseAsync`。
+- install / director後: Director dispose、AssetManagement close。
+- first scene後: SceneDirector正式 unload後にclose。
+- fixture load/instance後: instance→handle→scene→closeの逆順。
+- Editor build mutation中: self-owned asset/settingsをfinally復元。異常終了後は次回marker一致時だけ回収。
+- publish中: stagingのみcleanup可能、final/過去成功は不変。receipt完成前は成功扱いしない。
+
+### 凍結後の境界
+
+新 asmdef edgeは追加しない。Editor型はinternal。通常 Player / EditorのAddressables既定を維持する。新しい graph abstraction、公開API、owner、永続schema、fixture合成方式が上記で成立しない場合、Phase B内で代案を決めずPhase A revisionへ戻す。A3後の例外承認はなし。
 
 ## Phase B / C / C' / D
 
