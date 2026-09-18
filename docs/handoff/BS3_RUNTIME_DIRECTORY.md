@@ -1,7 +1,7 @@
 # BS3 Runtime directory とロード対象
 
 - type: slice
-- status: B（Phase A revision 2 凍結済み、実装待ち）
+- status: C（Phase B 実装・Editor コンパイル確認済み）
 - branch: `codex/bs3-runtime-directory`
 - implementation base commit: `25a5024d310347ef9ce67128636a06e0e0fb5172`
 - implementation head commit: 未生成
@@ -13,7 +13,9 @@
 - Phase A snapshot path / id: `artifacts/bs3-phase-a/phase-a-r2.md`（旧 `phase-a.md` は revision 1 記録）
 - Phase A snapshot generated at: 2026-09-18 JST
 - Phase A snapshot hash: SHA-256 `0DEA239D630F5F40487C53F5733377DBA4FB80D1CE86A85EA0D0C54303CD72D9`
-- Phase B result snapshot path / id: 未生成
+- Phase B result snapshot path / id: `artifacts/bs3-phase-b/phase-b.md`
+- Phase B result snapshot generated at: 2026-09-18 JST
+- Phase B result snapshot hash: SHA-256 `A7F5461EAC5E816BDF35C91BA0EDF9D29397E8C05088E917C9C63326E8499D6D`
 - evidence bundle path / id: 未生成
 - C' blind bundle path / id: 未生成
 
@@ -162,7 +164,7 @@ Phase B は実装前に停止した。旧 snapshot は設計として保持し�
 
 ## 5. Phase B 実装結果
 
-未実施。
+`artifacts/bs3-phase-b/phase-b.md` に実装結果と未実行事項を固定した。Unity Editor のコンパイルと contract audit は通過。バッチテストと実 Content Directory build は Phase C で実施する。
 
 ## 6. Phase C
 

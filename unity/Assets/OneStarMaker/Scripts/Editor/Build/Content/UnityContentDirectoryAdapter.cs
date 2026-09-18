@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using OneStarMaker.Runtime.BuildContent;
+using OneStarMaker.Runtime.AssetManagement;
 using Unity.Loading;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
@@ -57,12 +58,17 @@ namespace OneStarMaker.Editor.Build.Content
                     else
                     {
                         // Object ID は main asset の local file ID を含む Unity reference から作る。
-                        // 汎用サブアセット locator と型検証は BS3 の責務。
+                        // 現在の build 入力は main asset のみ。GUID と local file ID を同じ Object から取り、
+                        // 将来 subasset を候補にしても file 単位の GUID だけで誤解決しない形で保存する。
                         var asset = AssetDatabase.LoadMainAssetAtPath(item.Path);
                         if (asset == null) throw new InvalidOperationException("Root asset missing: " + item.Path);
+                        if (!AssetDatabase.TryGetGUIDAndLocalFileIdentifier(asset, out var fileGuid, out long localFileId)
+                            || string.IsNullOrWhiteSpace(fileGuid) || localFileId == 0)
+                            throw new InvalidOperationException("Root asset has no stable file/object locator: " + item.Path);
                         var objectId = LoadableObjectIdEditorUtility.CreateLoadableObjectId(asset);
                         entries.Add(new BuildContentEntry(item.Candidate.LogicalKey, item.Candidate.StableKey,
-                            item.Representation, new Loadable<UnityEngine.Object>(objectId)));
+                            item.Representation, new Loadable<UnityEngine.Object>(objectId), fileGuid, localFileId,
+                            ClassifyCategory(asset)));
                     }
                 }
                 var root = ScriptableObject.CreateInstance<BuildContentRoot>();
@@ -147,6 +153,14 @@ namespace OneStarMaker.Editor.Build.Content
                 if (!AssetDatabase.IsValidFolder(next)) AssetDatabase.CreateFolder(parent, segment);
                 parent = next;
             }
+        }
+
+        private static AssetType ClassifyCategory(UnityEngine.Object asset)
+        {
+            if (asset is GameObject) return AssetType.Prefab;
+            if (asset is Texture) return AssetType.Texture;
+            if (asset is AudioClip) return AssetType.Audio;
+            return AssetType.Other;
         }
     }
 }

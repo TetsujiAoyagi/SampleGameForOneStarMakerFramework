@@ -37,7 +37,7 @@ namespace OneStarMaker.Runtime.SceneSystem
             /// Phase 2/3 で AssetManagement 経由の Unload/Release に使用する。
             /// Editor 既存シーン等で SceneManager から取得した場合は false。
             /// </summary>
-            public bool AddressablesSceneLoaded { get; set; }
+            public bool BackendSceneLoaded { get; set; }
 
             /// <summary>
             /// AddScene のキャンセル窓内でのみ有効な CTS。
@@ -76,6 +76,7 @@ namespace OneStarMaker.Runtime.SceneSystem
         private readonly SceneResourceMap _sceneResourceMap;
         private readonly ILoadingDisplay _loadingDisplay;
         private readonly string _sceneVariant;
+        private readonly bool _useContentDirectory;
 
         /// <summary>
         /// Addressables Load / Release 管理。PerformUnitySceneLoad/Unload および Phase 3 Release に使用。
@@ -118,7 +119,8 @@ namespace OneStarMaker.Runtime.SceneSystem
             SceneResourceMap sceneResourceMap,
             ILoadingDisplay loadingDisplay,
             IAssetManagement assetManagement,
-            string sceneVariant = "")
+            string sceneVariant = "",
+            bool useContentDirectory = false)
         {
             _sceneFactory = sceneFactory ?? throw new ArgumentNullException(nameof(sceneFactory));
             _uiCommon = uiCommon ?? throw new ArgumentNullException(nameof(uiCommon));
@@ -126,6 +128,7 @@ namespace OneStarMaker.Runtime.SceneSystem
             _loadingDisplay = loadingDisplay ?? throw new ArgumentNullException(nameof(loadingDisplay));
             _assetManagement = assetManagement ?? throw new ArgumentNullException(nameof(assetManagement));
             _sceneVariant = sceneVariant ?? throw new ArgumentNullException(nameof(sceneVariant));
+            _useContentDirectory = useContentDirectory;
         }
 
         // ─── IDisposable ───

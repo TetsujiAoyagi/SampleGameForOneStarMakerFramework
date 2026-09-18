@@ -71,17 +71,17 @@ namespace OneStarMaker.Runtime.AssetManagement.Cache
         }
 
         /// <inheritdoc />
-        public void Store(string key, AssetType type, IBackendAsset asset)
+        public void Store(string key, AssetType type, IBackendAsset asset, Action<IBackendAsset>? release = null)
         {
             if (!asset.IsValid)
             {
-                _releaseAsset(asset);
+                (release ?? _releaseAsset)(asset);
                 return;
             }
 
             if (_budgetProvider.GetBudgetBytes(type) <= 0)
             {
-                _releaseAsset(asset);
+                (release ?? _releaseAsset)(asset);
                 return;
             }
 
@@ -99,7 +99,7 @@ namespace OneStarMaker.Runtime.AssetManagement.Cache
                 _accessCarryover.Remove(key);
             }
 
-            var newEntry = new CacheEntry(key, type, asset, estimatedBytes, accessCount, now);
+            var newEntry = new CacheEntry(key, type, asset, estimatedBytes, accessCount, now, release ?? _releaseAsset);
             _entries[key] = newEntry;
             AddResidentBytes(type, estimatedBytes);
 
@@ -111,12 +111,27 @@ namespace OneStarMaker.Runtime.AssetManagement.Cache
         {
             foreach (var entry in _entries.Values)
             {
-                _releaseAsset(entry.Backend);
+                entry.Release(entry.Backend);
             }
 
             _entries.Clear();
             _residentBytes.Clear();
             _accessCarryover.Clear();
+        }
+
+        public void EvictByPrefix(string prefix)
+        {
+            var keys = new List<string>();
+            foreach (var pair in _entries)
+                if (pair.Key.StartsWith(prefix, StringComparison.Ordinal)) keys.Add(pair.Key);
+            foreach (var key in keys)
+            {
+                var entry = _entries[key];
+                _entries.Remove(key);
+                SubtractResidentBytes(entry.Type, entry.EstimatedBytes);
+                entry.Release(entry.Backend);
+                _evictionCount++;
+            }
         }
 
         /// <inheritdoc />
@@ -141,7 +156,7 @@ namespace OneStarMaker.Runtime.AssetManagement.Cache
 
                 _entries.Remove(victimKey);
                 SubtractResidentBytes(victim.Type, victim.EstimatedBytes);
-                _releaseAsset(victim.Backend);
+                victim.Release(victim.Backend);
                 _evictionCount++;
             }
         }
@@ -196,7 +211,7 @@ namespace OneStarMaker.Runtime.AssetManagement.Cache
         {
             _entries.Remove(entry.Key);
             SubtractResidentBytes(entry.Type, entry.EstimatedBytes);
-            _releaseAsset(entry.Backend);
+            entry.Release(entry.Backend);
         }
 
         private void AddResidentBytes(AssetType type, long bytes)
@@ -238,7 +253,8 @@ namespace OneStarMaker.Runtime.AssetManagement.Cache
                 IBackendAsset backend,
                 long estimatedBytes,
                 int accessCount,
-                double lastAccessTime)
+                double lastAccessTime,
+                Action<IBackendAsset> release)
             {
                 Key = key;
                 Type = type;
@@ -246,6 +262,7 @@ namespace OneStarMaker.Runtime.AssetManagement.Cache
                 EstimatedBytes = estimatedBytes;
                 AccessCount = accessCount;
                 LastAccessTime = lastAccessTime;
+                Release = release;
             }
 
             public string Key { get; }
@@ -259,6 +276,7 @@ namespace OneStarMaker.Runtime.AssetManagement.Cache
             public int AccessCount { get; }
 
             public double LastAccessTime { get; }
+            public Action<IBackendAsset> Release { get; }
         }
     }
 }

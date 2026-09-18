@@ -4,10 +4,11 @@ using System;
 using System.Collections.Generic;
 using Unity.Loading;
 using UnityEngine;
+using OneStarMaker.Runtime.AssetManagement;
 
 namespace OneStarMaker.Runtime.BuildContent
 {
-    // Unity Content Directory に保存する entry の load 先。型付き解決は BS3 で扱う。
+    // Unity Content Directory に保存する entry の種別。型付き検査はロード後の実 Object で行う。
     public enum BuildContentKind { Scene, Object }
 
     [Serializable]
@@ -21,6 +22,9 @@ namespace OneStarMaker.Runtime.BuildContent
         [SerializeField] private BuildContentKind _kind;
         [SerializeField] private LoadableSceneId _sceneId;
         [SerializeField] private Loadable<UnityEngine.Object>? _object;
+        [SerializeField] private string _fileGuid = "";
+        [SerializeField] private long _localFileId;
+        [SerializeField] private AssetType _category = AssetType.Other;
 
         public string LogicalKey => _logicalKey;
         public string StableKey => _stableKey;
@@ -28,6 +32,9 @@ namespace OneStarMaker.Runtime.BuildContent
         public BuildContentKind Kind => _kind;
         public LoadableSceneId SceneId => _sceneId;
         public Loadable<UnityEngine.Object>? Object => _object;
+        public string FileGuid => _fileGuid;
+        public long LocalFileId => _localFileId;
+        public AssetType Category => _category;
 
         public BuildContentEntry(string logicalKey, string stableKey, string representation,
             LoadableSceneId sceneId)
@@ -38,19 +45,22 @@ namespace OneStarMaker.Runtime.BuildContent
         }
 
         public BuildContentEntry(string logicalKey, string stableKey, string representation,
-            Loadable<UnityEngine.Object> loadable)
+            Loadable<UnityEngine.Object> loadable, string fileGuid = "", long localFileId = 0,
+            AssetType category = AssetType.Other)
         {
             _logicalKey = logicalKey; _stableKey = stableKey; _representation = representation;
             _kind = BuildContentKind.Object; _object = loadable;
+            _fileGuid = fileGuid; _localFileId = localFileId; _category = category;
         }
     }
 
     // Content Directory に厳密に1件同梱する root asset。
     // 登録後の Runtime はこの serialized 情報だけで logical→load target を復元できる。
-    // AssetOwner による登録・解放の寿命管理は BS3 の責務であり、この型は対応 metadata のみ保持する。
+    // AssetOwner による登録・解放の寿命は session と AssetManagement が管理し、
+    // この型は移設後も解決可能な metadata だけを保持する。
     public sealed class BuildContentRoot : ScriptableObject
     {
-        public const int CurrentSchemaVersion = 1;
+        public const int CurrentSchemaVersion = 2;
         [SerializeField] private int _schemaVersion;
         [SerializeField] private string _buildIdentity = "";
         [SerializeField] private string _target = "";

@@ -520,7 +520,7 @@ namespace OneStarMaker.Runtime.SceneSystem
 
             var (addressablesLoaded, rootObjects) = await PerformUnitySceneLoad(sceneIdentify, sceneBase.SceneResource, priority);
             // Phase 2/3 で AssetManagement 経由の Unload/Release が必要かどうかを記録
-            _currentScenes[sceneIdentify].AddressablesSceneLoaded = addressablesLoaded;
+            _currentScenes[sceneIdentify].BackendSceneLoaded = addressablesLoaded;
 
             // Loading → Loaded → WaitLoadChildScene
             TransitionSceneState(sceneIdentify, sceneBase, SceneState.Loaded);
@@ -645,12 +645,10 @@ namespace OneStarMaker.Runtime.SceneSystem
                 }
 
                 // sceneIdentity は呼び出し側（メソッド引数）を正とし、variant には混ぜない。
-                var sceneHandle = await _assetManagement.LoadSceneAsync(
-                    sceneIdentify,
-                    sceneAssetDescription,
-                    _sceneVariant,
-                    new SceneLoadOptions(LoadSceneMode.Additive, activateOnLoad: true, priority: priority),
-                    CancellationToken.None);
+                var options = new SceneLoadOptions(LoadSceneMode.Additive, activateOnLoad: true, priority: priority);
+                var sceneHandle = _useContentDirectory
+                    ? await _assetManagement.LoadContentSceneAsync(sceneIdentify, _sceneVariant, options, CancellationToken.None)
+                    : await _assetManagement.LoadSceneAsync(sceneIdentify, sceneAssetDescription, _sceneVariant, options, CancellationToken.None);
                 return (true, sceneHandle.GetRootGameObjects());
             }
 

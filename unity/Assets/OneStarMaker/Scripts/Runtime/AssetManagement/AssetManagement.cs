@@ -15,7 +15,7 @@ namespace OneStarMaker.Runtime.AssetManagement
     /// <summary>
     /// アセットとシーンのロード寿命をスコープ付きで一元管理する。
     /// </summary>
-    public sealed class AssetManagement : IAssetManagement, IAssetDiagnostics
+    public sealed partial class AssetManagement : IAssetManagement, IAssetDiagnostics
     {
         private readonly IAssetBackend _backend;
         private readonly IAssetResidentCache? _cache;
@@ -128,7 +128,14 @@ namespace OneStarMaker.Runtime.AssetManagement
                 return;
             }
 
-            await _backend.UnloadSceneAsync(scene.Backend, ct);
+            if (_contentDirectory != null && scene.Backend is IContentDirectoryToken)
+            {
+                await _contentDirectory.UnloadSceneAsync(scene.Backend);
+            }
+            else
+            {
+                await _backend.UnloadSceneAsync(scene.Backend, ct);
+            }
             _registry.MarkSceneUnloaded(sceneIdentity);
         }
 
@@ -203,6 +210,8 @@ namespace OneStarMaker.Runtime.AssetManagement
             {
                 if (!scene.IsUnloaded)
                 {
+                    if (_contentDirectory != null && scene.Backend is IContentDirectoryToken)
+                        _contentDirectory.ReleaseSceneAfterUnityShutdown(scene.Backend);
                     _registry.MarkSceneUnloaded(scene.Identity);
                 }
             }
@@ -214,7 +223,7 @@ namespace OneStarMaker.Runtime.AssetManagement
         {
             foreach (var loaded in _registry.ReleaseAllAssets())
             {
-                _backend.Release(loaded.Backend);
+                ReleaseBackend(loaded.Backend);
             }
 
             _cache?.Clear();
@@ -288,12 +297,24 @@ namespace OneStarMaker.Runtime.AssetManagement
         {
             if (_cache != null && !loaded.IsInstance)
             {
-                _cache.Store(loaded.Key, loaded.Type, loaded.Backend);
+                _cache.Store(loaded.Key, loaded.Type, loaded.Backend,
+                    loaded.Backend is IContentDirectoryToken ? ReleaseBackend : null);
             }
             else
             {
-                _backend.Release(loaded.Backend);
+                ReleaseBackend(loaded.Backend);
             }
+        }
+
+        private void ReleaseBackend(IBackendAsset asset)
+        {
+            if (_contentDirectory != null && asset is IContentDirectoryToken)
+            {
+                _contentDirectory.Release(asset);
+                return;
+            }
+
+            _backend.Release(asset);
         }
 
         /// <summary>

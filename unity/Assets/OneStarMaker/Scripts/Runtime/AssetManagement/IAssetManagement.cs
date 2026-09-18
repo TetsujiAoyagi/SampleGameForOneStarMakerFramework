@@ -3,6 +3,7 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using OneStarMaker.Runtime.AssetDescriptions;
+using OneStarMaker.Runtime.BuildContent;
 using UnityEngine;
 
 namespace OneStarMaker.Runtime.AssetManagement
@@ -15,6 +16,13 @@ namespace OneStarMaker.Runtime.AssetManagement
         /// <summary>指定キーのアセットを非同期ロードし、owner の寿命に紐付ける。</summary>
         UniTask<IAssetHandle<T>> LoadAssetAsync<T>(AssetKey key, AssetOwner owner, CancellationToken ct = default)
             where T : Object;
+
+        UniTask<IAssetHandle<T>> LoadContentAssetAsync<T>(string logicalKey, string representation, AssetOwner owner, CancellationToken ct = default)
+            where T : Object;
+
+        UniTask<ISceneHandle> LoadContentSceneAsync(string sceneIdentity, string representation, SceneLoadOptions options = default, CancellationToken ct = default);
+
+        UniTask<GameObject> InstantiateContentAsync(string logicalKey, string representation, Transform? parent = null, bool worldSpace = false, CancellationToken ct = default);
 
         /// <summary>Bootstrap 用に App スコープで同期ロードする。</summary>
         IAssetHandle<T> LoadAppAssetSync<T>(AssetKey key) where T : Object;

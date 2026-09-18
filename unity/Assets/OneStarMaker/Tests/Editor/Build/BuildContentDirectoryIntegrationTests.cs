@@ -5,16 +5,19 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Cysharp.Threading.Tasks;
 using NUnit.Framework;
 using OneStarMaker.Build.Selection;
 using OneStarMaker.Editor.Build.Content;
 using OneStarMaker.Editor.Build.Materialization;
 using OneStarMaker.Runtime.BuildContent;
+using OneStarMaker.Runtime.AssetManagement;
 using Unity.Loading;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.TestTools;
+using UnityEngine.SceneManagement;
 
 namespace OneStarMaker.Tests.Editor.Build
 {
@@ -172,6 +175,45 @@ namespace OneStarMaker.Tests.Editor.Build
                 Assert.That(roots[0].Entries.Where(x => x.Kind == BuildContentKind.Object).All(x => x.Object != null), Is.True);
             }
             finally { ContentLoadManager.UnregisterContentDirectory(handle); }
+            // source fixture は既に削除済み。登録済み root の Unity locator から実際の Scene/Object を
+            // 取得して解放し、Editor の AssetDatabase 側で成功したように見える経路を除外する。
+            yield return UniTask.ToCoroutine(async () =>
+            {
+                var identity = Path.GetFileName(_copy).Substring("integration-copy-".Length);
+                var session = ContentDirectorySession.Register(_copy, identity, BuildContentCoordinator.TargetName);
+                var assets = new AssetManagement();
+                assets.InstallContentDirectory(session);
+                IAssetHandle<GameObject>? prefab = null;
+                IAssetHandle<Texture2D>? texture = null;
+                GameObject? instance = null;
+                var sceneLoaded = false;
+                try
+                {
+                    prefab = await assets.LoadContentAssetAsync<GameObject>("shared-logical", "High", AssetOwner.Manual);
+                    Assert.That(prefab.Value, Is.Not.Null);
+                    texture = await assets.LoadContentAssetAsync<Texture2D>("logical-3", "Full", AssetOwner.Manual);
+                    Assert.That(texture.Value, Is.Not.Null);
+                    instance = await assets.InstantiateContentAsync("shared-logical", "Low");
+                    Assert.That(instance, Is.Not.Null);
+                    var sceneHandle = await assets.LoadContentSceneAsync("logical-0", "Full",
+                        new SceneLoadOptions(LoadSceneMode.Additive));
+                    sceneLoaded = true;
+                    Assert.That(sceneHandle.IsLoaded, Is.True);
+                }
+                finally
+                {
+                    if (sceneLoaded)
+                    {
+                        await assets.UnloadSceneAsync("logical-0");
+                        assets.ReleaseScene("logical-0");
+                    }
+                    if (instance != null) UnityEngine.Object.Destroy(instance);
+                    if (prefab != null) assets.Release(prefab);
+                    if (texture != null) assets.Release(texture);
+                    await UniTask.Yield();
+                    await session.CloseAsync();
+                }
+            });
             yield return new ExitPlayMode();
         }
 
