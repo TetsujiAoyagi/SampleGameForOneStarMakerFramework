@@ -120,7 +120,7 @@ namespace OneStarMaker.Runtime.BuildContent
         private static string Part(string value) => Convert.ToBase64String(Encoding.UTF8.GetBytes(value ?? string.Empty));
 
         // 旧 build の未タグ entry は空文字。Full として索引化し、Object の厳密一致を維持する。
-        private static string EffectiveRepresentation(string value) => string.IsNullOrEmpty(value) ? "Full" : value;
+        private static string EffectiveRepresentation(string? value) => string.IsNullOrEmpty(value) ? "Full" : value;
 
         private static string Key(string logicalKey, string representation, BuildContentKind kind)
             // 入力に区切り文字を含めても組キーが別組と衝突しない形式にする。
