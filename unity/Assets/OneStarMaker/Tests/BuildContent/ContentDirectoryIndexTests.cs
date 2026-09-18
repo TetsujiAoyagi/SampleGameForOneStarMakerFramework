@@ -43,5 +43,19 @@ namespace OneStarMaker.Tests.BuildContent
             Assert.That(exception!.Code, Is.EqualTo(ContentDirectoryFailureCode.EntryAmbiguous));
             UnityEngine.Object.DestroyImmediate(root);
         }
+
+        [Test]
+        public void UntaggedLegacyEntry_IsIndexedAsFull()
+        {
+            var sceneId = LoadableSceneIdEditorUtility.CreateLoadableSceneId(ScenePath);
+            var root = ScriptableObject.CreateInstance<BuildContentRoot>();
+            root.Initialize("build", "StandaloneWindows64", new[] {
+                new BuildContentEntry("scene", "stable", "", sceneId)
+            });
+
+            var index = ContentDirectoryIndex.Create(root, "build", "StandaloneWindows64");
+            Assert.That(index.ResolveScene("scene", "Full").StableKey, Is.EqualTo("stable"));
+            UnityEngine.Object.DestroyImmediate(root);
+        }
     }
 }

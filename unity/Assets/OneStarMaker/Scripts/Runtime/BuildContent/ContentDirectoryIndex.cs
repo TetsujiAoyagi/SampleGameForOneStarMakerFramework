@@ -29,7 +29,7 @@ namespace OneStarMaker.Runtime.BuildContent
             foreach (var entry in root.Entries)
             {
                 if (entry == null || string.IsNullOrWhiteSpace(entry.LogicalKey) || string.IsNullOrWhiteSpace(entry.StableKey)
-                    || string.IsNullOrWhiteSpace(entry.Representation))
+                    || (entry.Representation != null && entry.Representation.Length != 0 && string.IsNullOrWhiteSpace(entry.Representation)))
                     throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidRoot, "Content root contains an incomplete entry.", expectedIdentity, expectedTarget);
                 if (!stable.Add(entry.StableKey))
                     throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidRoot, "Content root contains a duplicate stable key.", expectedIdentity, expectedTarget);
@@ -49,7 +49,7 @@ namespace OneStarMaker.Runtime.BuildContent
                 if (root.SchemaVersion == 2 && entry.Kind == BuildContentKind.Object
                     && (!IsCanonicalGuid(entry.FileGuid) || entry.LocalFileId == 0))
                     throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidRoot, "Schema v2 object entry has no file/object locator.", expectedIdentity, expectedTarget, entry.LogicalKey, entry.Representation);
-                var key = Key(entry.LogicalKey, entry.Representation, entry.Kind);
+                var key = Key(entry.LogicalKey, EffectiveRepresentation(entry.Representation), entry.Kind);
                 if (!entries.TryAdd(key, entry))
                     throw new ContentDirectoryException(ContentDirectoryFailureCode.EntryAmbiguous, "Content root contains duplicate logical entries.", expectedIdentity, expectedTarget, entry.LogicalKey, entry.Representation);
             }
@@ -80,7 +80,7 @@ namespace OneStarMaker.Runtime.BuildContent
 
         internal static string CacheKey(string path, string identity, string target, BuildContentEntry entry)
             => string.Concat(CachePrefix(path, identity, target),
-                Part(entry.LogicalKey), ":", Part(entry.Representation), ":", entry.Kind, ":",
+                Part(entry.LogicalKey), ":", Part(EffectiveRepresentation(entry.Representation)), ":", entry.Kind, ":",
                 Part(entry.FileGuid), ":", entry.LocalFileId, ":",
                 Part(entry.Object?.LoadableObjectId.ToString() ?? string.Empty));
 
@@ -89,6 +89,10 @@ namespace OneStarMaker.Runtime.BuildContent
 
         // 利用者の logical key に区切り文字が含まれても別 revision の token を共有しない。
         private static string Part(string value) => Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
+
+        // 旧 build の未タグ entry は空文字で保存される。Runtime ではそれを Full として
+        // 索引化し、Object でも「選択した表現への厳密一致」という規則を維持する。
+        private static string EffectiveRepresentation(string value) => string.IsNullOrEmpty(value) ? "Full" : value;
 
         private static string Key(string logicalKey, string representation, BuildContentKind kind)
             => string.Concat(logicalKey, "\u001f", representation, "\u001f", kind);
