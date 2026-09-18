@@ -1,10 +1,10 @@
 # BS3 Runtime directory とロード対象
 
 - type: slice
-- status: B（Phase A revision 3 凍結・Phase B revision 10 修正中）
+- status: B（Phase A revision 3 凍結・Phase B revision 11 修正中）
 - branch: `codex/bs3-runtime-directory`
 - implementation base commit: `25a5024d310347ef9ce67128636a06e0e0fb5172`
-- implementation head commit: revision 10 の実装固定後に記録
+- implementation head commit: revision 11 の実装固定後に記録
 - risk: high（公開 API、寿命、Unity Content Loading、取消）
 - owner: BuildSystem 主担当
 - created: 2026-09-18
@@ -13,9 +13,9 @@
 - Phase A snapshot path / id: `artifacts/bs3-phase-a/phase-a-r3.md`（旧 snapshot は revision 1/2 記録）
 - Phase A snapshot generated at: 2026-09-19 JST
 - Phase A snapshot hash: SHA-256 `70E6E7897366327C74F425A24D1FDD174F4735123F083EB961629693DF0B1E47`
-- Phase B result snapshot path / id: revision 10 の実装固定後に生成
+- Phase B result snapshot path / id: revision 11 の実装固定後に生成
 - Phase B result snapshot generated at: 2026-09-19 JST
-- Phase B result snapshot hash: revision 10 の実装固定後に記録
+- Phase B result snapshot hash: revision 11 の実装固定後に記録
 - evidence bundle path / id: Phase C 開始前に固定
 - C' blind bundle path / id: Phase C 開始前に固定
 
@@ -170,11 +170,11 @@ Phase B は実装前に停止した。旧 snapshot は設計として保持し�
 
 ## 5. Phase B 実装結果
 
-最終実装結果は revision 10 の Phase B snapshot に固定する。実 build target、canonical path、実アプリ旧/新起動、削除 gate の revision 単位排他を確認する。過去 revision の作業経緯は commit history に残る。
+最終実装結果は revision 11 の Phase B snapshot に固定する。実 build target、canonical path、実アプリ旧/新起動、削除 gate の revision 単位排他、起動検証失敗時の停止を確認する。過去 revision の作業経緯は commit history に残る。
 
 ## 6. Phase C
 
-revision 10 の固定実装差分、Unity 生 XML/log、契約監査、文書監査を同じ証拠束へ封じてからレビューする。旧 head の所見は現 head の判定へ流用しない。
+revision 11 の固定実装差分、Unity 生 XML/log、契約監査、文書監査を同じ証拠束へ封じてからレビューする。旧 head の所見は現 head の判定へ流用しない。
 
 ## 7. Phase C' 独立監査
 
