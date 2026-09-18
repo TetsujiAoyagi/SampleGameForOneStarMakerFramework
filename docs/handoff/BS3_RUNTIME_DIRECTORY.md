@@ -1,23 +1,23 @@
 # BS3 Runtime directory とロード対象
 
 - type: slice
-- status: C（Phase B 実装・Editor コンパイル確認済み）
+- status: C（Phase A revision 3 凍結・Phase B revision 8 固定、C/C' 再監査待ち）
 - branch: `codex/bs3-runtime-directory`
 - implementation base commit: `25a5024d310347ef9ce67128636a06e0e0fb5172`
-- implementation head commit: `de160e1559a67e09c489b155717826f0bab6ab0f`
+- implementation head commit: 最終レビュー証拠の生成時に固定
 - risk: high（公開 API、寿命、Unity Content Loading、取消）
 - owner: BuildSystem 主担当
 - created: 2026-09-18
 - expires: BS3 Phase D
 - harvest to: `unity/Assets/Docs/Architecture/13-resource-system.md`、`18-asset-description.md`、必要なら起動文書
-- Phase A snapshot path / id: `artifacts/bs3-phase-a/phase-a-r2.md`（旧 `phase-a.md` は revision 1 記録）
-- Phase A snapshot generated at: 2026-09-18 JST
-- Phase A snapshot hash: SHA-256 `0DEA239D630F5F40487C53F5733377DBA4FB80D1CE86A85EA0D0C54303CD72D9`
-- Phase B result snapshot path / id: `artifacts/bs3-phase-b/phase-b-r2.md`
-- Phase B result snapshot generated at: 2026-09-18 JST
-- Phase B result snapshot hash: SHA-256 `4EE0C3C9DEE96D80A88EF6386ABB65FC6835AE4B91E33E8A7F79E8F4BA14847D`
-- evidence bundle path / id: `artifacts/bs3-phase-c/evidence-r2/manifest.md`、SHA-256 `C88910B3DA91DD8A017AAEDAE98D1912851CE8955551E53CD5D2AD8E881FEE4D`
-- C' blind bundle path / id: `artifacts/bs3-phase-c/blind/bundle-r2.md`、SHA-256 `EB557C36731DC32B10542352620784174735AC6C84DD2D51A7E04F7380086DE7`
+- Phase A snapshot path / id: `artifacts/bs3-phase-a/phase-a-r3.md`（旧 snapshot は revision 1/2 記録）
+- Phase A snapshot generated at: 2026-09-19 JST
+- Phase A snapshot hash: SHA-256 `70E6E7897366327C74F425A24D1FDD174F4735123F083EB961629693DF0B1E47`
+- Phase B result snapshot path / id: `artifacts/bs3-phase-b/phase-b-r8.md`
+- Phase B result snapshot generated at: 2026-09-19 JST
+- Phase B result snapshot hash: SHA-256 `076EFEC853B582C33933384B17BF7E9EDEE3D2D06A25A7A4A0DF2A548C719FCE`
+- evidence bundle path / id: Phase C 開始前に固定
+- C' blind bundle path / id: Phase C 開始前に固定
 
 ## 1. A0 入力、目的、境界
 
@@ -104,7 +104,7 @@ Program に記録された不在時委任を適用し、A2 の通常判断は主
 
 - file identity は canonical GUID。load target identity は `LoadableSceneId` または `LoadableObjectId` であり、後者は Unity の GUID と local file ID を含む。Runtime は Unity ID を opaque として扱い、GUID のみから Object をロードしない。schema v1 の `Loadable<Object>` は既にこの ID を保持するので、v1 は既存 Scene と main Object のロードを許可する。v1 Object のカテゴリは `Other`、診断用 file/local ID は不明として扱い、型は実取得 Object で検査する。
 - schema v2 は既存 field を残し、Object entry に file GUID、local file ID、`AssetType` とは独立した明示カテゴリを追加する。Editor adapter は `TryGetGUIDAndLocalFileIdentifier` と `CreateLoadableObjectId` を同じ Object から取得して格納する。main asset だけを出す現在の materialization の選択制約は変えない。将来 subasset が候補になっても、同じ file GUID の異なる local ID を表せる保存形式である。v1/v2 以外を `UnsupportedSchema` で拒否する。v2 の空・不正 locator、Scene に Object locator がある等の kind 不整合は登録時に拒否する。
-- root は一件だけ。登録 API の expected build identity/target を root と照合し、path の basename は identity に使わない。現在の target は `StandaloneWindows64` のみ。`(logical key, representation, kind)` 重複、stable key 重複、空 key、無効 Unity ID は構造化 issue として session を rollback する。build report/metadata directory は照合できる場合に読むが、Runtime 起動の必須入力は build済み local directory と expected identity/target で、source `SceneResourceMap` の materialization は行わない。
+- root は一件だけ。登録 API の expected build identity/target を root と照合し、path の basename は identity に使わない。現在の directory root target は `StandaloneWindows64-Player` のみ。`(logical key, representation, kind)` 重複、stable key 重複、空 key、無効 Unity ID は構造化 issue として session を rollback する。build report/metadata directory は照合できる場合に読むが、Runtime 起動の必須入力は build済み local directory と expected identity/target で、source `SceneResourceMap` の materialization は行わない。
 
 ### 4.2 解決と公開入口
 
@@ -155,29 +155,32 @@ Program に記録された不在時委任を適用し、A2 の通常判断は主
 Phase B は実装前に停止した。旧 snapshot は設計として保持し、以下を追加した新 snapshot を Phase B 入力にする。
 
 - 設定元は既存 `AppConfig` の JSON→環境変数→コマンドライン優先順。新キーは `content:runtimeMode`（未指定/`addressables` または `directory`）、`content:directoryPath`、`content:buildIdentity`、`content:representation`。キー名は既存 AppConfig と同じ大小文字非区別、mode 値と representation 値は ordinal 完全一致とし、未知 mode は起動失敗。`addressables` は既定で他の三キーを読まず、現行呼出側の動作を維持する。
-- `directory` mode は Editor Play だけで有効にする。`Application.isEditor && Application.isPlaying` で guard し、Player 等では `InvalidConfiguration` で拒否する。三キーすべて非空を要求し、target は現 slice 固定 `StandaloneWindows64`。directoryPath は rooted absolute path だけを受け付け、`Path.GetFullPath` で正規化する。相対 path、URL、存在しない path、identity/target 不一致は起動失敗とし、Addressables へ暗黙 fallback しない。実行中変更は読まない。Player 入力の生成と path 基準は BS4 が所有する。
+- `directory` mode は Editor Play だけで有効にする。`Application.isEditor && Application.isPlaying` で guard し、Player 等では `InvalidConfiguration` で拒否する。三キーすべて非空を要求し、directory root target は現 slice 固定 `StandaloneWindows64-Player`。directoryPath は rooted absolute path だけを受け付け、`Path.GetFullPath` で正規化する。相対 path、URL、存在しない path、identity/target 不一致は起動失敗とし、Addressables へ暗黙 fallback しない。実行中変更は読まない。Player 入力の生成と path 基準は BS4 が所有する。
 - `content:representation` は root に保存された文字列をそのまま要求する。`Full` と `Whitebox` の選択は呼出側の明示入力であり、Framework は季節や `assets:sceneVariant` の空文字を変換しない。`assets:sceneVariant` は旧 Addressables scene route にだけ使う。Scene fallback は明示した representation が root にない場合の `Full` entry に限る。SampleGame の `AppInitializer` と既存 `app-config.json` は既定 Addressables のまま維持し、Editor Play の明示選択は既存 AppConfig の環境変数/コマンドラインで行う。tracked config を一時書換・復元する実装は追加しない。
 - `AbstractApplicationInitializer` は `BuildConfig` の直後（BeforeSceneLoad）に mode と値を一回読み、構文を検証する。ContentLoadManager の登録と root 検証は AfterSceneLoad の `resolve-scene-variant` の直後、`create-scene-director` の直前の `register-content-directory` stage で行う。Config/UI/SceneResourceMap の Addressables bootstrap はその前に終える。SceneDirector の最初の directory load より前に session を install する。起動失敗時は session の rollback/close を試み、その失敗も記録して元の例外を隠さない。派生 `AppInitializer` の新しい override は不要。単一 session は initializer が所有し、明示 close と同期終了で回収する。
 - 失敗は公開 `ContentDirectoryException : InvalidOperationException` と公開 `ContentDirectoryFailureCode` で表す。最低限の code は `InvalidConfiguration`, `DirectoryNotRegistered`, `RegistrationFailed`, `InvalidRoot`, `UnsupportedSchema`, `IdentityMismatch`, `TargetMismatch`, `EntryMissing`, `EntryAmbiguous`, `TypeMismatch`, `OperationFailed`, `ResourcesInUse`, `RevisionBusy`, `PathInUse`, `DeletionInProgress`。exception は `Code`、`BuildIdentity`、`Target`、`LogicalKey`、`Representation` を nullable string で持ち、内部原因は InnerException。取消は通常の `OperationCanceledException` を保ち、失敗 code に畳まない。root index は pure result/issue を使い、公開境界でこの例外へ写す。`IAssetManagement` の既存メソッドが投げる例外は変更しない。
 - 公開削除口は `ContentRevisionGate.TryAcquireDelete(buildIdentity,target,absolutePath,out ContentDeletionLease? lease,out ContentDirectoryFailureCode rejection)` とし、成功時の lease を DIST が `finally`/`using` で解放する。`ContentRevisionGate` が唯一の process-global 状態を持つ public static 型で、session 用の登録予約/解放メソッドは internal とする。拒否時の lease は null、同じ path が別 identity で使用中なら `PathInUse`、同 identity の使用中なら `RevisionBusy`、削除中なら `DeletionInProgress`、入力不正なら `InvalidConfiguration` を返す。`ContentDeletionLease` は物理削除を行わない。identity/target/path の検証責任と process 内排他は §4.4 に従う。未登録 revision に対する外部 install metadata の検証は DIST の責務。
 - これらを新規公開 API として Phase A で承認する。`IAssetManagement` の三つの directory load 追加以外に既存 API の署名は変更しない。`AssetManagement` の実装を直接 bootstrap が構成する既存経路に session install 用 internal method を追加し、Game 側に新しい asmdef edge を要求しない。
 
+### 4.8 Phase A revision 3: 実 build target との照合
+
+独立 Phase C は実アプリの Editor Play 起動時選択の証拠不足を見つけた。検証を加えると、BS2b build root の target `StandaloneWindows64-Player` と initializer の期待値 `StandaloneWindows64` が異なり、登録に失敗した。前者は Unity の `BuildTarget.StandaloneWindows64` と `StandaloneBuildSubtarget.Player` の組であり、既存 build 出力を変更せず Runtime の期待値を合わせる。変更する凍結判断は §4.1/§4.7 の target 値だけで、六つの最低条件、公開 API、asmdef、寿命、対象外は維持する。
+
+独立 architecture gate GPT-5.6 Sol は責務/互換の blocker なし、behavior GPT-5.6 Terra も target 変更に blocker なしと判定し、既定 Addressables の実アプリ観測を要求した。採用し、同一 integration で旧/新両 mode の bootstrap を確認する。path の末尾 separator と Windows の大小文字 alias は既存 §4.4 の canonical path 契約により同一 revision とする。不採用なし。Phase A revision 3 snapshot が詳細の正本である。
+
 ## 5. Phase B 実装結果
 
-初版は `artifacts/bs3-phase-b/phase-b.md`、初回 C/C' の指摘を修正した実装結果は `artifacts/bs3-phase-b/phase-b-r2.md` に固定した。Unity Editor のコンパイルと contract audit は通過。バッチテストと実 Content Directory build は Phase C で実施した。
+最終実装結果は `artifacts/bs3-phase-b/phase-b-r8.md`。code head `4cdc0a4` は実 build target、canonical path、実アプリ旧/新起動の統合テストを含む。過去 revision の作業経緯は commit history に残る。
 
 ## 6. Phase C
 
-固定 implementation base/head の証拠は `artifacts/bs3-phase-c/evidence-r2/manifest.md`。revision 2 のレビューは進行中。
-
-初回 C/C' は `990c153` に対し NO-GO。native unregister 失敗後の reservation 解除、並行 load の token 消失、bootstrap rollback 漏れ、Prefab instance 所有権、pure index 契約、delete rejection code の違反を発見した。修正 commit は `de160e1`。実装 head が変わったため旧判定は無効。
-
-revision 2 の機械検証は Unity 6000.6.0f1 の規定経路で、ContentDirectory 11/11、実 directory integration 1/1、SceneVariantForwarding 6/6、ContentRevisionGate 3/3、SceneDirector 63/63、AssetManagement 39/39。いずれも failed 0、結果 XML と生ログは新証拠束に複写済み。contract audit と docs audit は exit 0。docs audit の HANDOFF warning は既知。
+revision 8 の固定実装差分、Unity 生 XML/log、契約監査、文書監査を同じ証拠束へ封じてからレビューする。旧 head の所見は現 head の判定へ流用しない。
 
 ## 7. Phase C' 独立監査
 
-`artifacts/bs3-phase-c/blind/bundle-r2.md` を Phase C 所見なしで生成済み。revision 2 の独立監査は進行中。初回 C' は旧 head の NO-GO であり新 head の判定には使わない。
+Phase C 開始前に、同じ base/head と事前証拠だけの blind bundle を生成する。新規セッションと異なるモデルで監査する。
 
 ## 8. Phase D
 
 人間のマージ判断待ち。Phase D の委任は受けていない。
+
