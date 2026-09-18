@@ -12,7 +12,7 @@
 - harvest to: `unity/Assets/Docs/Architecture/13-resource-system.md`、`18-asset-description.md`、必要なら起動文書
 - Phase A snapshot path / id: `artifacts/bs3-phase-a/phase-a-r2.md`（旧 `phase-a.md` は revision 1 記録）
 - Phase A snapshot generated at: 2026-09-18 JST
-- Phase A snapshot hash: SHA-256 `0DEA239D630F5F40487C53F5733377DBA4FB80D1CE86A85EA0D0C54303CD72D9`
+- Phase A snapshot hash: revision 2 snapshot 生成後に記録
 - Phase B result snapshot path / id: 未生成
 - evidence bundle path / id: 未生成
 - C' blind bundle path / id: 未生成
