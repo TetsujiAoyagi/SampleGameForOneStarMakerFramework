@@ -1,16 +1,16 @@
 # BS4 — Player integration HANDOFF
 
 - type: slice
-- status: A3 revision 6 frozen（外部 UXML の generated serializer 保持を追加）
+- status: Phase C / C' GO、Phase D のユーザー判断待ち
 - branch: `codex/bs4-player-integration`
 - implementation base commit: `ea7acf7` (`develop`, 2026-09-19)
-- implementation head commit: 未作成
+- implementation head commit: `c5e07973ab8f3a55e7e0e30e62cf964d522812a4`
 - risk: high（起動、Player packaging、code stripping と AOT）
 - owner: BS4 主担当
 - created: 2026-09-19
 - expires: BS4 Phase D。2026-10-19 までに継続条件を再確認する。
 - harvest to: `unity/Assets/Docs/Architecture/04-app-startup.md`、`13-resource-system.md`、`18-asset-description.md`
-- Phase A snapshot: `TestResults/bs4/review/a3-frozen/phase-a.md`（tracked HANDOFF の A3 frozen commit と同内容）
+- Phase A snapshot: `TestResults/bs4/review-final-c5e0797/phase-a-frozen.md`（revision 9 frozen commit `d8cff96` と同内容、local review evidence）
 
 ## A0 — 同一入力 packet
 
@@ -294,4 +294,29 @@ failure hookはrequired directory Player modeのときだけ呼ぶ。Before/Afte
 
 ## Phase B / C / C' / D
 
-各 Phase の実績、固定 commit と証拠、未実行事項、判定を順次記入する。Phase D のマージ判断はユーザーへ渡す。
+### Phase B — 実装
+
+- `ea7acf7` を base に、BS4 専用の content build → input/report 検証 → fixed Windows x64 Player build → transactional publish を実装した。最終実装 head は `c5e07973ab8f3a55e7e0e30e62cf964d522812a4`。
+- runtime config は Player build transaction が `StreamingAssets/bs4-runtime.json` を生成し、identity / target / directory / logical first Scene / representation を起動時に検証する。通常 Player / Editor の Addressables 既定は維持する。
+- Player は生成 bootstrap Scene 一件、IL2CPP、High stripping に固定した。対応する成功 Content BuildReport directory を `previousBuildReportDirectories` に渡し、selected root GUID の Player packed assets 混入を拒否する。publisher は content root を一回だけ配置し、Unity の `_BackUpThisFolder_ButDontShipItWithYourGame` root を shipping tree から除外する。
+- smoke は BS3 の登録・利用寿命を変更せず、UICommon ready → directory 登録 → 初回 Scene stable →代表 Prefab load / instantiate / verify / destroy / release → Scene unload → directory close の10段階を immutable snapshot と schema v2 receipt に残す。失敗時は完了済み段階だけを記録し、cleanup の二次例外でも元の失敗を保持する。
+- revision 1〜9 の調査で必要になった変更は各 revision と独立レビューへ戻して凍結した。最終 C' で `UICommon` の `PanelRenderer` callback に Unity 偽 null 違反が見つかり、`c5e0797` で明示的な `!= null` 判定へ修正した。責務・公開 API・asmdef edge・BS3 owner 契約は変更していないため、新しい設計判断には該当しない。
+
+### Phase C — 検証
+
+- 判定: **GO**。独立担当は `gpt-5.6-terra`、最終 packet だけを入力として base/head、manifest、実装、全 receipt を再検証した。blocker / 未解決 finding はなし。
+- 最終 evidence packet: `TestResults/bs4/review-final-c5e0797/`（local / ignored、PR へ同梱しない）。`SHA256SUMS.txt` の SHA-256 は `dc1d10bf0a2999114f9f3942f098a8183b5694fbf3373e4ca75b1ca4996cfb39`。
+- 全 EditMode: `833 / 833` 成功、failed 0、skipped 0。最終 full run 内で BS3 directory integration が PlayMode へ2回入り成功した。`contract-audit.ps1`、`docs-audit.ps1`、`git diff --check ea7acf7..c5e0797` も成功。
+- 必須 Player: identity `20260919T090932577Z-fe99152ce1f745e68e41f21b9e6f8bb7`、`StandaloneWindows64-Player`、IL2CPP、High、実行 exit 0。shipping bytes `130444107`、backup root 0、content root 1、unknown managed type 0、`ResourcesInUse` 0。schema v2 の10段階を順序どおり完了した。
+- 最初の最終全回帰は最初の PlayMode 遷移で進捗停止し XML を生成しなかったため無効 evidence とした。残留 process / lock を終了・除去し、次の clean run が6.1分で上記 833 / 833 を生成した。
+
+### Phase C' — 独立監査
+
+- 判定: **GO**。Phase A/B/C に未関与の `gpt-5.5`（xhigh）が `ea7acf7..c5e0797` と最終 packet を adversarial review した。P0 / P1 / P2 はなし。
+- manifest 全件、BuildReport / Player / content outcome の identity、実 Player log、directory PlayMode test、touched Unity C# 22ファイルの偽 null を再検証した。先行 NO GO だった `UICommon` callback は最終 head で解消済み。
+
+### Phase D — ユーザー判断へ移管
+
+- merge は未実行。`develop` 宛て PR を Phase D 入力とし、merge / 差し戻しをユーザーが判断する。
+- `artifacts/bs4/`、`TestResults/` の snapshot・差分・生ログは local review evidence として固定し、恒久 PR には含めない。未追跡 PRE 文書と既存検証ログは変更・追加していない。
+- 公開 Architecture §4・§13・§18 の harvest は Phase D merge 後の成立契約だけを対象とする。BS4 PR では作業中の証拠や未成立の推測を公開文書へ転記しない。
