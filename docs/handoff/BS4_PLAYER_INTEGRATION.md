@@ -240,6 +240,19 @@ revision 5 の clean build / 実 Player でも同じ field が null となり、
 
 revision 5 の activation、compile universe、bootstrap、dedup、failure契約は変更しない。独立再レビューは architecture / runtime-build とも条件付きPASS。linkerがwildcardを受理したこと、全 `Unknown managed type referenced` の消失、通常経路回帰、完全なsuccess sequenceを条件とし、別moduleの欠落または再失敗なら自動的に保持範囲を拡大せずPhase Aへ戻る。revision 6を凍結する。
 
+### Phase A revision 7 — representative Prefab の単一 native load（2026-09-19）
+
+revision 6 Player は `Unknown managed type referenced` 0件となり、`Title` と OutGame closure の起動を通過した。代表fixtureの `LoadContentAssetAsync<GameObject>` 成功後、同じ entry に `InstantiateContentAsync` を続けると Unity `Loadable` が同じ `ObjectLoadOperation` の二回目awaitを拒否した。これはstrippingやfixture欠損ではなく、serialized locator一件を二つの独立native load tokenとして扱ったsmoke手順の誤りである。
+
+採用案: smokeは一回のgeneric loadで得た `handle.Value` から `UnityEngine.Object.Instantiate` し、serialized token / component動作を検査する。instanceのDestroy完了後にhandleをReleaseする。これにより Content Directory由来Prefabのload、IL2CPP generic呼出し、content-only component型とserialized値、実体化と解放を一つのnative tokenで実証する。
+
+- BS3のsession、registry、cache、public `InstantiateContentAsync` の意味や実装は変更しない。複数loadの共有lease設計をBS4 smoke都合で追加しない。
+- `InstantiateContentAsync` 自体の再設計・同一entry重複load policyは後続のRuntime契約課題として送る。BS4最低条件は一回のload tokenからの代表Prefab実体化で満たす。
+- failure時もinstance Destroy完了を待ち、次にhandleをReleaseしてからFrameworkのscene unload / directory closeへ戻る既存の逆順cleanupを維持する。
+- 新Playerでfixture動作、正式unload、awaited close、success receipt、exit 0まで確認する。既存のrevision 6受入条件も全て維持する。
+
+新public API、asmdef edge、owner、永続schemaは増やさない。revision 7を凍結し、独立再レビューでBS3寿命契約とcode保持証拠を確認する。
+
 ## Phase B / C / C' / D
 
 各 Phase の実績、固定 commit と証拠、未実行事項、判定を順次記入する。Phase D のマージ判断はユーザーへ渡す。
