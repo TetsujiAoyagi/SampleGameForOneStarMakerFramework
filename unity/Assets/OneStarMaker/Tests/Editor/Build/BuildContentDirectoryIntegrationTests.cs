@@ -155,7 +155,9 @@ namespace OneStarMaker.Tests.Editor.Build
                 Assert.That(Directory.GetFiles(result.ContentPath!, "*.resS").Length, Is.GreaterThan(0));
                 _copy = Path.Combine(artifacts, "integration-copy-" + result.Identity);
                 Copy(result.ContentPath!, _copy);
-                _deliveryRoot = Path.Combine(artifacts, "delivery-" + result.Identity);
+                // 配信 fixture は checkout の深さに依存させない。Windows Mono の file open
+                // 制限に build identity と staging 名が重なるため、専有する短い一時 root を使う。
+                _deliveryRoot = Path.Combine(Path.GetTempPath(), "osm-dist-integration", Guid.NewGuid().ToString("N"));
                 var published = ContentTransportPublisher.Publish(result, Path.Combine(_deliveryRoot, "published"));
                 _manifestDigest = HashFile(Path.Combine(published, "transport.json"));
                 // 本物の HTTP response を installer に渡す。Unity へ URL や staging を渡さず、

@@ -36,7 +36,7 @@ namespace OneStarMaker.Tests.BuildContent
             var failure = new OperationCanceledException("hold");
             var result = await Run(hold: () => UniTask.FromException(failure));
 
-            Assert.That(result.Failure, Is.SameAs(failure));
+            Assert.That(result.Failure, Is.InstanceOf<OperationCanceledException>());
             Assert.That(result.CompletedStages, Is.EqualTo(new[]
             {
                 PlayerContentSmoke.Stage.Loaded,

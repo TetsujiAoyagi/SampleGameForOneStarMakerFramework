@@ -5,9 +5,12 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using NUnit.Framework;
 using OneStarMaker.Runtime.BuildContent;
 using OneStarMaker.Runtime.BuildContent.Distribution;
+using OneStarMaker.Runtime.AssetManagement.Internal;
+using Unity.Loading;
 using UnityEngine;
 
 namespace OneStarMaker.Tests.BuildContent.Distribution
@@ -104,6 +107,7 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
                 Directory.CreateDirectory(contentPath);
                 var heldPath = Path.Combine(contentPath, "held.bin");
                 File.WriteAllText(heldPath, "bytes");
+                File.SetAttributes(heldPath, FileAttributes.ReadOnly);
                 ContentDeliveryFiles.WriteJson(
                     Path.Combine(revisionRoot, "receipt.json"),
                     new ContentInstallReceipt
@@ -116,18 +120,21 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
                     });
                 var store = new ContentCacheStore(root);
 
-                using (new FileStream(heldPath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                {
-                    var failure = Assert.Throws<ContentDeliveryException>(() => store.Evict(0));
-                    Assert.That(failure!.Code, Is.EqualTo(ContentDeliveryFailureCode.BudgetUnsatisfied));
+                var failure = Assert.Throws<ContentDeliveryException>(() => store.Evict(0));
+                Assert.That(failure!.Code, Is.EqualTo(ContentDeliveryFailureCode.BudgetUnsatisfied));
 
-                    using (store.AcquireTransaction())
-                    {
-                        var conflict = Assert.Throws<ContentDeliveryException>(() =>
-                            store.EnsureCapacityUnsafe(0, long.MaxValue, "set", "revision"));
-                        Assert.That(conflict!.Code, Is.EqualTo(ContentDeliveryFailureCode.InstallConflict));
-                    }
+                using (store.AcquireTransaction())
+                {
+                    var conflict = Assert.Throws<ContentDeliveryException>(() =>
+                        store.EnsureCapacityUnsafe(0, long.MaxValue, "set", "revision"));
+                    Assert.That(conflict!.Code, Is.EqualTo(ContentDeliveryFailureCode.InstallConflict));
                 }
+
+                // Windows の recursive delete は read-only file を物理削除できない。
+                // 属性を戻した後の明示 retry だけが tombstone cleanup を完了する。
+                var tombstoneFile = Directory.GetFiles(
+                    Path.Combine(root, "tombstone"), "held.bin", SearchOption.AllDirectories)[0];
+                File.SetAttributes(tombstoneFile, FileAttributes.Normal);
 
                 var retry = store.Evict(0);
                 Assert.That(retry, Has.Some.Property("Status").EqualTo(ContentDeleteStatus.Deleted));
@@ -137,6 +144,8 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
             {
                 if (Directory.Exists(root))
                 {
+                    foreach (var file in Directory.GetFiles(root, "*", SearchOption.AllDirectories))
+                        File.SetAttributes(file, FileAttributes.Normal);
                     Directory.Delete(root, true);
                 }
             }
@@ -339,7 +348,13 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
                 Directory.Delete(fixture.Root, true);
                 deletion!.Dispose();
 
-                Assert.Throws<ContentDeliveryException>(() => ContentDirectorySession.RegisterVerified(verified, null!));
+                var backend = new TrackingNativeDirectory();
+                var error = Assert.Throws<ContentDirectoryException>(
+                    () => ContentDirectorySession.RegisterVerified(verified, backend));
+                Assert.That(error!.Code, Is.EqualTo(ContentDirectoryFailureCode.RegistrationFailed));
+                Assert.That(error.InnerException, Is.TypeOf<ContentDeliveryException>());
+                Assert.That(backend.RegisterCalls, Is.Zero,
+                    "予約後の managed metadata 再検証が失敗した場合は native 登録へ進まない");
             }
             finally
             {
@@ -466,6 +481,29 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
                 _heldMarker?.Dispose();
                 _heldMarker = null;
             }
+        }
+
+        private sealed class TrackingNativeDirectory : IContentNativeDirectory
+        {
+            internal int RegisterCalls { get; private set; }
+
+            public bool Register(string path)
+            {
+                RegisterCalls++;
+                return true;
+            }
+
+            public BuildContentRoot[] GetRoots() => throw new InvalidOperationException();
+            public void Unregister() => throw new InvalidOperationException();
+            public UniTask<IBackendAsset> LoadObjectAsync<T>(BuildContentEntry entry)
+                where T : UnityEngine.Object => throw new InvalidOperationException();
+            public UniTask<IBackendScene> LoadSceneAsync(BuildContentEntry entry, SceneLoadOptions options) =>
+                throw new InvalidOperationException();
+            public UniTask<IBackendInstance> InstantiateAsync(
+                BuildContentEntry entry, Transform? parent, bool worldSpace) =>
+                throw new InvalidOperationException();
+            public void Release(IBackendAsset asset) => throw new InvalidOperationException();
+            public UniTask UnloadSceneAsync(IBackendScene scene) => throw new InvalidOperationException();
         }
     }
 }
