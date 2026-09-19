@@ -15,7 +15,7 @@ namespace SampleGame.DependOnAll.Editor.Build
         private const string ProbeRoot = "Assets/OneStarMakerGenerated/BS4";
         private const string ProbeMarker = "Assets/OneStarMakerGenerated/BS4/.bs4-fixture-owner";
         private const string MapPath = "Assets/OneStarMakerCommon/SceneMap/SceneResourceMap.asset";
-        private const string BootstrapScene = "Assets/OneStarMaker/Scenes/UIScene.unity";
+        internal const string BootstrapScene = "Assets/OneStarMaker/Scenes/UISystem/UIScene.unity";
 
         [MenuItem("Tools/OSM/Content/Build BS4 Spring Player")]
         private static void BuildMenu() => Build();

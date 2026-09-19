@@ -6,6 +6,7 @@ using NUnit.Framework;
 using OneStarMaker.Build.Selection;
 using OneStarMaker.Editor.Build.Materialization;
 using SampleGame.DependOnAll.Editor.Build;
+using UnityEditor;
 
 namespace OneStarMaker.Tests.Editor.Build
 {
@@ -53,6 +54,12 @@ namespace OneStarMaker.Tests.Editor.Build
         public void ParseSelectedPhysicalGuid_NonCanonicalValue_IsRejected(string selected)
         {
             Assert.Throws<InvalidOperationException>(() => SampleGamePlayerBuildCoordinator.ParseSelectedPhysicalGuid(selected));
+        }
+
+        [Test]
+        public void BootstrapScene_IsARealProjectAsset()
+        {
+            Assert.That(AssetDatabase.AssetPathToGUID(SampleGamePlayerBuildCoordinator.BootstrapScene), Is.Not.Empty);
         }
 
         private static BuildContentCandidate Candidate(string stable, string logical, string physical) =>
