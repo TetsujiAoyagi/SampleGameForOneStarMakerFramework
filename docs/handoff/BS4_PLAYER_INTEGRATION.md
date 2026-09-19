@@ -1,7 +1,7 @@
 # BS4 — Player integration HANDOFF
 
 - type: slice
-- status: A3 revision 5 frozen（content / Player compile define 対応を改訂）
+- status: A3 revision 6 frozen（外部 UXML の generated serializer 保持を追加）
 - branch: `codex/bs4-player-integration`
 - implementation base commit: `ea7acf7` (`develop`, 2026-09-19)
 - implementation head commit: 未作成
@@ -226,6 +226,19 @@ revision 4 Player は UICommon bootstrap、directory登録、`Title` native Scen
 - `Title` とOutGame依存がStableへ到達し、fixture、正式unload、awaited close、receipt、exit 0まで成功した新Playerだけを因果的な受入証拠とする。再びVisualTreeAssetがnullなら仮説棄却・NO GOとする。
 
 独立レビューではarchitecture担当（Sol）が上記latched activation、通常経路回帰、clean rebuild条件でPASS。runtime/build担当（Astra）はconfig file存在をmarkerにする初案をfallback blockerとして指摘し、configとは独立した同梱markerを必須化した。主担当は生成bootstrap Scene名をそのmarkerとして採用し、revision 5を凍結する。公開API・asmdef edgeは増やさない。
+
+### Phase A revision 6 — content-only UXML serializer の保持（2026-09-19）
+
+revision 5 の clean build / 実 Player でも同じ field が null となり、define 不一致仮説は棄却した。Player 生ログには field 検査より先に `Unknown managed type referenced: UnityEngine.UIElementsModule UnityEngine.UIElements.VisualElement/UxmlSerializedData` があり、Content Directory に UXML file が存在していても、その serialized data を復元する Unity UI Toolkit 側の generated managed type が High stripping で Player から失われていることを確認した。これは「実 Player で欠ける型だけ明示保持する」というA3条件に該当する。
+
+採用案: SampleGame の `Assets` 配下に `link.xml` を一件置き、`UnityEngine.UIElementsModule` の `UnityEngine.UIElements.*` を保持する。UXML が参照する built-in element ごとの nested `UxmlSerializedData` は content 側だけに現れ、Player source の静的解析から完全な集合を列挙できない。現在の link.xml 書式は末尾 wildcard の type prefix を単位とするため、UIElements namespace を最小の安定境界とする。Game / Framework assembly、他の Unity module、content-only fixture型は保持対象へ追加しない。
+
+- Player は引き続き IL2CPP / High。`previousBuildReportDirectories` と fixture の実挙動による content-only Game 型保持の証明は維持する。
+- link.xml には、外部 Content Directory の UXML serializer 群が Player の静的 root から到達不能である判断理由を日本語コメントで残す。
+- 新 identity で content と Player を再 build し、`Unknown managed type referenced` が消えること、`Title` が Stable へ到達すること、fixture動作、正式 unload、awaited close、success receipt、exit 0を必須とする。
+- namespace 単位保持のサイズ最適化や、Unity が content build metadata から generated serializer を自動保持できる将来版への移行は後続課題。BS4では実行成立と明示境界を優先し、全 assembly 保持には広げない。
+
+revision 5 の activation、compile universe、bootstrap、dedup、failure契約は変更しない。実Playerログで原因が確定したためrevision 6を凍結し、独立再レビューで保持境界と受入証拠を確認する。
 
 ## Phase B / C / C' / D
 
