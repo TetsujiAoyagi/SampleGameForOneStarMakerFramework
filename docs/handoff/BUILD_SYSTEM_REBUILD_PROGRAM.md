@@ -1,7 +1,7 @@
 # BuildSystem刷新 — 全体計画と継続開発の引継ぎ
 
 - type: program
-- status: 継続中。BS4 Phase D 完了、次はDIST Phase A。個別スライスの実装凍結ではない。
+- status: 継続中。BS4 Phase D 完了、DIST Phase A を `DIST_CONTENT_DELIVERY.md` で進行中。個別スライスの実装凍結ではない。
 - branch: `codex/build-system-program`（本program文書の整備用。各実装は専用ブランチ）
 - planning base: `65d1b91`（2026-09-17のdevelop）
 - risk: high（後続の build 出力、runtime identity、所有者・寿命の設計に関係する）
@@ -35,7 +35,7 @@ Unity 6.6 Content Directoriesを用いて、content選択、build、Runtimeロ�
 - BS2c: 完了。SampleGame の本番 SceneResource graph から季節・表現を選択し、四つの Editor Content Directory build を確認した。
 - BS3: 完了。Runtime の root 索引と型付き Scene/Object/Prefab load、owner/cache と session 寿命、同一 process の revision 削除排他、Editor Play の明示切替を確認した。既定 Addressables 起動は残す。
 - BS4: 完了。対応する Content BuildReport から固定 Windows x64 IL2CPP / High Player を作り、selected content の二重同梱を拒否し、生成 bootstrap、起動時表現固定、論理初回 Scene、代表 Prefab、明示 close を実 Player で確認した。
-- DIST以降: 未着手。取得済み成果物だけからの起動、物理削除と別 process 排他は DIST、通常 Play 停止時の完全 drain は RET の入力とする。
+- DIST: Phase A 進行中。専用branch `codex/dist-content-delivery`、自己完結した `DIST_CONTENT_DELIVERY.md` を正本とする。取得済み成果物だけからの起動、物理削除と別 process 排他を扱う。通常 Play 停止時の完全 drain は RET の入力とする。
 
 実行順序:
 
