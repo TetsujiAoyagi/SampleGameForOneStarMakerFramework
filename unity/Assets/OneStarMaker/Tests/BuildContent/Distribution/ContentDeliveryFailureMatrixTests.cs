@@ -188,7 +188,7 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
                 var request = new ContentInstallRequest(digest, "set", "revision", Target,
                     "6000.6.0f1", 2, 1024 * 1024);
 
-                var error = Assert.ThrowsAsync<ContentDeliveryException>(async () =>
+                var error = await CaptureException<ContentDeliveryException>(async () =>
                     await new ContentInstaller(new ContentCacheStore(cacheRoot)).InstallAsync(
                         request, source, CancellationToken.None));
 
@@ -400,6 +400,16 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
         private static string Hash(byte[] bytes)
         {
             return ContentDeliveryFiles.Sha256(bytes);
+        }
+
+        private static async Task<TException> CaptureException<TException>(Func<Task> action)
+            where TException : Exception
+        {
+            Exception? failure = null;
+            try { await action(); }
+            catch (Exception exception) { failure = exception; }
+            Assert.That(failure, Is.InstanceOf<TException>());
+            return (TException)failure!;
         }
 
         private static string CreateTemporaryDirectory()

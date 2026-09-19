@@ -32,13 +32,20 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
             using var source = new HttpContentArtifactSource(server.BaseUri);
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
-            var readTask = ReadToEnd(source, "transport.json", cancellation.Token);
-            await headersSent.Task;
-            cancellation.Cancel();
+            try
+            {
+                var readTask = ReadToEnd(source, "transport.json", cancellation.Token);
+                await headersSent.Task;
+                cancellation.Cancel();
 
-            Assert.ThrowsAsync<OperationCanceledException>(async () => await readTask);
-            releaseServer.TrySetResult(true);
-            await server.Completion;
+                await CaptureException<OperationCanceledException>(async () => await readTask);
+            }
+            finally
+            {
+                cancellation.Cancel();
+                releaseServer.TrySetResult(true);
+                await server.Completion;
+            }
         }
 
         [Test]
@@ -57,7 +64,7 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
                 }, expectedRequests: 2);
                 using var source = new HttpContentArtifactSource(server.BaseUri);
 
-                var exception = Assert.ThrowsAsync<ContentDeliveryException>(async () =>
+                var exception = await CaptureException<ContentDeliveryException>(async () =>
                     await Install(root, manifest, manifestBytes, source));
 
                 Assert.That(exception!.Code, Is.EqualTo(ContentDeliveryFailureCode.IntegrityMismatch));
@@ -81,7 +88,7 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
                 var request = new ContentInstallRequest(new string('a', 64), "set", "revision", Target,
                     UnityVersion, 2, 1024 * 1024);
 
-                var exception = Assert.ThrowsAsync<ContentDeliveryException>(async () =>
+                var exception = await CaptureException<ContentDeliveryException>(async () =>
                     await new ContentInstaller(new ContentCacheStore(root)).InstallAsync(
                         request, source, CancellationToken.None));
 
@@ -115,7 +122,7 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
                 var badManifest = CreateManifest("next", nextPayload, sha256: new string('0', 64));
                 var badManifestBytes = Serialize(badManifest);
 
-                var failure = Assert.ThrowsAsync<ContentDeliveryException>(async () =>
+                var failure = await CaptureException<ContentDeliveryException>(async () =>
                     await InstallFromServer(root, badManifest, badManifestBytes, nextPayload));
 
                 Assert.That(failure!.Code, Is.EqualTo(ContentDeliveryFailureCode.IntegrityMismatch));
@@ -191,6 +198,16 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
             using var output = new MemoryStream();
             await stream.CopyToAsync(output, 81920, cancellationToken);
             return output.ToArray();
+        }
+
+        private static async Task<TException> CaptureException<TException>(Func<Task> action)
+            where TException : Exception
+        {
+            Exception? failure = null;
+            try { await action(); }
+            catch (Exception exception) { failure = exception; }
+            Assert.That(failure, Is.InstanceOf<TException>());
+            return (TException)failure!;
         }
 
         private static async Task WriteResponse(Stream stream, int status, byte[] body, int contentLength)
