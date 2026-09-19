@@ -1,7 +1,7 @@
 # BS4 — Player integration HANDOFF
 
 - type: slice
-- status: A3 revision 2 frozen（Phase B input。revision 1 は ownership gap で再開）
+- status: A3 revision 4 frozen（Phase B/C で判明した bootstrap Scene 名の前提を改訂）
 - branch: `codex/bs4-player-integration`
 - implementation base commit: `ea7acf7` (`develop`, 2026-09-19)
 - implementation head commit: 未作成
@@ -200,6 +200,19 @@ revision 3独立再レビューはarchitecture担当（Sol）、runtime/build担
 - friend利用箇所は `Bs4FixtureComposer` だけであることをPhase Cの機械検査で確認する。
 
 主担当は全て採用しrevision 3を凍結。他の凍結条件は変更しない。
+
+### Phase A revision 4 — bootstrap runtime Scene 名（2026-09-19）
+
+実 Windows IL2CPP Player は build 成功後、`load-ui-common` で failure receipt を残して終了した。production `UIScene.unity` は `UICommon` root/component を持つが、既存 `LoadUICommonAsync` は active Scene の**名前**が `UICommon` の場合だけロード済み component を使う。runtime Scene 名は asset filename `UIScene` 由来なので、revision 3 の「production UIScene を直接一件指定」は成立しなかった。最低条件の bootstrap 前提に関わるため Phase A を再開した。
+
+採用案: `PlayerBuildProjectMutation` の identity marker 配下へ production `Assets/OneStarMaker/Scenes/UISystem/UIScene.unity` を `Assets/Resources/BS4/<identity>/UICommon.unity` として複写し、その生成 Scene 一件だけを Player Scene 0 にする。production Scene は変更しない。生成 Scene は content plan/snapshotや sibling content directoryへ加えず、Player mutation lifetimeだけで所有する。
+
+- build前に source存在、copy成功、sourceと異なる生成GUID、生成 Scene内の `UICommon` root/component と EventSystem を Editorで検査する。
+- Player reportで production source GUID不在、生成bootstrap GUIDが意図したScene入力として一回だけ存在、selected全root GUID不在を検査する。Resources配置による二重格納を推測せずpacked evidenceで拒否する。
+- receiptは生成build input pathとlogical runtime Scene名 `UICommon` を記録する。logical first Scene `Title` の登録・unload対象へbootstrapを含めない。
+- markerはcopy前に作成済みとし、設定復元の一部が失敗しても生成asset cleanupを独立finallyで試行する。production Scene / metaは削除・書換しない。
+
+独立再レビューはarchitecture担当（Sol）、runtime/build担当（Astra）とも上記条件付きPASS。主担当は全条件を採用しrevision 4を凍結。新runtime API、asmdef edge、code保持方式、他のrevision 3条件は変更しない。旧 failure receiptはdiscovery evidenceとして分離し、GO判定には新build/runだけを使う。
 
 ## Phase B / C / C' / D
 
