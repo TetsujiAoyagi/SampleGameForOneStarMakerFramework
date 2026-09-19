@@ -75,11 +75,11 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
                 var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
                 return new ResponseStream(stream, response, deadline, cancellationToken);
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            catch (Exception ex) when (cancellationToken.IsCancellationRequested)
             {
                 response?.Dispose();
                 deadline.Dispose();
-                throw;
+                throw new OperationCanceledException("Artifact request was canceled.", ex, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -121,8 +121,11 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
                     linked.Token.ThrowIfCancellationRequested();
                     return await _inner.ReadAsync(buffer, offset, count, linked.Token).ConfigureAwait(false);
                 }
-                catch (Exception ex) when (ex is OperationCanceledException or IOException or ObjectDisposedException)
+                catch (Exception ex) when (ex is OperationCanceledException or IOException or ObjectDisposedException
+                    or WebException or HttpRequestException)
                 {
+                    // Unity Mono の中断した HTTP stream は WebException を返す場合がある。
+                    // OS/handler の例外型で caller cancellation の公開契約を変えない。
                     if (cancellationToken.IsCancellationRequested) throw new OperationCanceledException(cancellationToken);
                     if (_requestCancellation.IsCancellationRequested) throw new OperationCanceledException(_requestCancellation);
                     throw new ContentDeliveryException(ContentDeliveryFailureCode.TransportFailure,
