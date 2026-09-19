@@ -34,7 +34,7 @@
 複数スライスに跨る計画（構図の正本、空間プロトコルの Plan など）も作業台に置いてよい。ただし harvest 先と期限を本文に書くこと。作業指示だけに限らない。
 §7 / §8 を持たない長期計画は検査3 の網に掛からない。harvest 期限を本文に書くこと。
 
-**いま `docs/handoff/` にある進行中正本は 6 つである。**
+**いま `docs/handoff/` にある進行中正本は 5 つである。**
 
 | ファイル | 役割 | 実装キューか |
 |---|---|---|
@@ -43,7 +43,6 @@
 | `BUILD_SYSTEM_REBUILD_PROGRAM.md` | BuildSystem刷新の全体順序・現在地・AssetDescription拡張・不在時の継続開発方針 | U66/CD0/BS1/BS2a/BS2b/BS2c/BS3/BS4完了。次はDIST→RET。各slice着手時HANDOFFの入力正本。RET Phase Dでharvestして削除する |
 | `REVIEW_WORKFLOW_EFFICIENCY.md` | 外部モデルレビューの実測と、次のPhase Cで残す比較項目 | いいえ。普遍契約はSkillへharvest済み。残る実測後に削除する |
 | `REVIEW_WORKFLOW_EFFICIENCY_ASSESSMENT.md` | 上記への独立評価（Claude / Grok）と採否記録 | いいえ。次のPhase Cで残る仮説を検証後、調査記録ごと削除する |
-| `WORKFLOW_SENDBACK_GUIDANCE.md` | BS4 差し戻し過多の診断と、A再開 / B適応 / スパイク / 後続の Skill 改善案 | いいえ。Astra が osm-workflow Skill へ harvest したあと削除する |
 
 Streaming の M-1〜M-4 は完了し、決定を公開面へ harvest して、移行計画と各着手時 HANDOFF を削除済み。完了済み HANDOFF は復活させない。
 
