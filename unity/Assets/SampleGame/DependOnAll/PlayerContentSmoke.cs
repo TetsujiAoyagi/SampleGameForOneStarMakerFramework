@@ -1,0 +1,56 @@
+#nullable enable
+#if OSM_BS4_PLAYER
+using System;
+using System.IO;
+using System.Text;
+using System.Threading;
+using Cysharp.Threading.Tasks;
+using OneStarMaker.Foundation.Config;
+using OneStarMaker.Runtime.AssetManagement;
+using UnityEngine;
+
+namespace SampleGame.DependOnAll
+{
+    internal static class PlayerContentSmoke
+    {
+        internal static async UniTask RunAsync(IAssetManagement assets, AppConfig config, CancellationToken ct)
+        {
+            var representation = config.GetString("content:representation", string.Empty);
+            var token = config.GetString("content:probeToken", string.Empty);
+            if (representation.Length == 0 || token.Length == 0) throw new InvalidOperationException("BS4 probe configuration is incomplete.");
+            IAssetHandle<GameObject>? handle = null;
+            GameObject? instance = null;
+            try
+            {
+                handle = await assets.LoadContentAssetAsync<GameObject>("bs4:fixture:prefab", representation, AssetOwner.Manual, ct);
+                if (handle.Value == null) throw new InvalidOperationException("BS4 probe Prefab load returned null.");
+                instance = await assets.InstantiateContentAsync("bs4:fixture:prefab", representation, ct: ct);
+                Component? probe = null;
+                foreach (var component in instance.GetComponents<Component>())
+                    if (component != null && component.GetType().Name == "Bs4ContentOnlyProbe") { probe = component; break; }
+                if (probe == null) throw new InvalidOperationException("Bs4ContentOnlyProbe was stripped or missing.");
+                var field = probe.GetType().GetField("serializedToken", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                if (!string.Equals(field?.GetValue(probe) as string, token, StringComparison.Ordinal)) throw new InvalidOperationException("BS4 probe token mismatch.");
+                instance.SendMessage("VerifyBs4Probe", token, SendMessageOptions.RequireReceiver);
+            }
+            finally
+            {
+                if (instance != null) { UnityEngine.Object.Destroy(instance); while (instance != null) await UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate); }
+                if (handle != null) assets.Release(handle);
+            }
+        }
+
+        internal static void WriteReceipt(bool succeeded, string stage, Exception? error)
+        {
+            var root = Path.GetDirectoryName(Application.dataPath) ?? Application.persistentDataPath;
+            var path = Path.Combine(root, "bs4-smoke-receipt.json");
+            var temp = path + ".tmp";
+            File.WriteAllText(temp, JsonUtility.ToJson(new Receipt { schemaVersion = 1, succeeded = succeeded, stage = stage, error = error?.ToString() ?? "" }, true), new UTF8Encoding(false));
+            if (File.Exists(path)) File.Replace(temp, path, null);
+            else File.Move(temp, path);
+        }
+
+        [Serializable] private sealed class Receipt { public int schemaVersion; public bool succeeded; public string stage = ""; public string error = ""; }
+    }
+}
+#endif

@@ -357,12 +357,22 @@ namespace OneStarMaker.Runtime
                 {
                     startupStage = "load-player-first-scene";
                     await _sceneDirector.AddScene(_contentDirectoryConfiguration.FirstScene, null, ct);
+                    startupStage = "run-player-content-smoke";
                     await OnPlayerContentReadyAsync(_assetManagement, ct);
+                    startupStage = "unload-player-first-scene";
+                    await _sceneDirector.UnloadScene(_contentDirectoryConfiguration.FirstScene);
+                    startupStage = "close-player-content-directory";
+                    if (_assetManagement is not AssetManagement.AssetManagement playerAssets)
+                        throw new InvalidOperationException("Player content requires the framework asset manager.");
+                    await playerAssets.CloseContentDirectoryAsync();
+                    _contentDirectorySession = null;
+                    startupStage = "complete-player-content-smoke";
+                    await OnPlayerContentShutdownCompletedAsync();
                 }
 
                 success = true;
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (!UseRequiredPlayerFileConfiguration)
             {
                 // アプリ終了によるキャンセル — 正常
                 success = true; // キャンセルは失敗ではない
@@ -917,6 +927,9 @@ namespace OneStarMaker.Runtime
         }
 
         protected virtual UniTask OnPlayerContentReadyAsync(IAssetManagement assetManagement, CancellationToken ct)
+            => UniTask.CompletedTask;
+
+        protected virtual UniTask OnPlayerContentShutdownCompletedAsync()
             => UniTask.CompletedTask;
 
         protected virtual UniTask OnPlayerContentStartupFailedAsync(string stage, Exception exception)

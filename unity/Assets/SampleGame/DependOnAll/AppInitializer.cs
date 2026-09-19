@@ -10,6 +10,10 @@ using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.UpdateSystem.Api;
 using SampleGame.InGame.Streaming;
 using System;
+using System.IO;
+using System.Threading;
+using Cysharp.Threading.Tasks;
+using OneStarMaker.Runtime.AssetManagement;
 using UnityEngine;
 using RuntimeCameraSystem = OneStarMaker.Runtime.CameraSystem.Core.CameraSystem;
 
@@ -97,6 +101,23 @@ namespace SampleGame.DependOnAll
 
         protected override string GetEnvironmentVariablePrefix()
             => "SAMPLEGAME_";
+
+#if OSM_BS4_PLAYER
+        protected override bool UseRequiredPlayerFileConfiguration => true;
+        protected override string GetRequiredPlayerConfigurationPath() => Path.Combine(Application.streamingAssetsPath, "bs4-runtime.json");
+        protected override SceneResourceMap LoadPlayerSceneResourceMap()
+        {
+            var identity = Config?.GetString("content:buildIdentity", string.Empty) ?? string.Empty;
+            var value = Resources.Load<SceneResourceMap>("BS4/" + identity + "/SceneResourceMap");
+            return value != null ? value : throw new InvalidOperationException("BS4 SceneResourceMap is missing.");
+        }
+        protected override UniTask OnPlayerContentReadyAsync(IAssetManagement assets, CancellationToken ct) =>
+            PlayerContentSmoke.RunAsync(assets, Config!, ct);
+        protected override UniTask OnPlayerContentShutdownCompletedAsync()
+        { PlayerContentSmoke.WriteReceipt(true, "completed", null); Application.Quit(0); return UniTask.CompletedTask; }
+        protected override UniTask OnPlayerContentStartupFailedAsync(string stage, Exception exception)
+        { PlayerContentSmoke.WriteReceipt(false, stage, exception); Application.Quit(1); return UniTask.CompletedTask; }
+#endif
 
         /// <summary>
         /// Framework の AfterSceneLoad 処理は、サービス初期化後にも SceneDirector 構築や初回シーン追加を行う。
