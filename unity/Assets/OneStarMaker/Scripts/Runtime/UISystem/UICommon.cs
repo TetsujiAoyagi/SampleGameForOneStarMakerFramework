@@ -59,12 +59,18 @@ namespace OneStarMaker.Runtime.UISystem
         {
             // PanelRenderer は root を直接公開しないため、UIReloadCallback 経由で受け取る。
             // root が初期化済みなら登録直後に同期的に呼ばれる。
-            _panelRenderer?.RegisterUIReloadCallback(OnPanelReload);
+            if (_panelRenderer != null)
+            {
+                _panelRenderer.RegisterUIReloadCallback(OnPanelReload);
+            }
         }
 
         private void OnDisable()
         {
-            _panelRenderer?.UnregisterUIReloadCallback(OnPanelReload);
+            if (_panelRenderer != null)
+            {
+                _panelRenderer.UnregisterUIReloadCallback(OnPanelReload);
+            }
             if (_panelRenderer != null && _layerContainers == null)
                 _panelReady.TrySetException(new InvalidOperationException("UICommon was disabled before its panel became ready."));
         }
