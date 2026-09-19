@@ -8,7 +8,7 @@ namespace OneStarMaker.Runtime.BuildContent
     {
         InvalidConfiguration, DirectoryNotRegistered, RegistrationFailed, InvalidRoot,
         UnsupportedSchema, IdentityMismatch, TargetMismatch, EntryMissing, EntryAmbiguous,
-        TypeMismatch, OperationFailed, ResourcesInUse, RevisionBusy, PathInUse, DeletionInProgress,
+        TypeMismatch, OperationFailed, ResourcesInUse, RevisionBusy, PathInUse, DeletionInProgress, RevisionLockUnavailable,
     }
 
     /// <summary>Content Directory の公開境界で返す、再試行可否を判断できる失敗情報。</summary>

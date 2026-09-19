@@ -101,14 +101,14 @@ namespace SampleGame.DependOnAll.Editor.Build
         private static string RuntimeJson(string identity, string representation, string token) => JsonUtility.ToJson(new RuntimeConfig
         {
             content = new ContentConfig { schemaVersion = 1, runtimeMode = "directory", buildIdentity = identity,
-                target = "StandaloneWindows64-Player", relativeDirectory = "content", firstScene = "Title", representation = representation, probeToken = token },
+                contentSet = "bs4-spring-full", target = "StandaloneWindows64-Player", relativeDirectory = "content", firstScene = "Title", representation = representation, probeToken = token },
             debugSocket = new DebugConfig { enabled = false },
             telemetry = new TelemetryConfig { profiler = new ProfilerConfig { enabled = true } },
             world = new WorldConfig { cellCompanionSet = "Full" }
         }, true);
 
         [Serializable] private sealed class RuntimeConfig { public ContentConfig content = new(); public DebugConfig debugSocket = new(); public TelemetryConfig telemetry = new(); public WorldConfig world = new(); }
-        [Serializable] private sealed class ContentConfig { public int schemaVersion; public string runtimeMode=""; public string buildIdentity=""; public string target=""; public string relativeDirectory=""; public string firstScene=""; public string representation=""; public string probeToken=""; }
+        [Serializable] private sealed class ContentConfig { public int schemaVersion; public string runtimeMode=""; public string buildIdentity=""; public string contentSet=""; public string target=""; public string relativeDirectory=""; public string firstScene=""; public string representation=""; public string probeToken=""; }
         [Serializable] private sealed class DebugConfig { public bool enabled; }
         [Serializable] private sealed class TelemetryConfig { public ProfilerConfig profiler = new(); }
         [Serializable] private sealed class ProfilerConfig { public bool enabled; }

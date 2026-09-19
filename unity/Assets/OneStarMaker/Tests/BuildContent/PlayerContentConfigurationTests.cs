@@ -41,6 +41,16 @@ namespace OneStarMaker.Tests.BuildContent
         }
 
         [Test]
+        public void Resolve_WrongContentSetOverride_IsRejectedBeforeInstalledIo()
+        {
+            var baked = new PlayerBakedContentConfiguration(Config("content", "StandaloneWindows64-Player", "baked-set"));
+            var merged = Config("content", "StandaloneWindows64-Player", "other-set");
+            var error = Assert.Throws<ContentDirectoryException>(() =>
+                PlayerContentConfiguration.Resolve(baked, merged, Path.GetTempPath(), "StandaloneWindows64-Player"));
+            Assert.That(error!.Code, Is.EqualTo(ContentDirectoryFailureCode.InvalidConfiguration));
+        }
+
+        [Test]
         public void RequiredJson_MissingOrInvalid_IsRejected()
         {
             var root = Path.Combine(Path.GetTempPath(), "osm-bs4-required", Guid.NewGuid().ToString("N"));
@@ -70,12 +80,13 @@ namespace OneStarMaker.Tests.BuildContent
             Assert.Throws<InvalidOperationException>(() => StageHarness.Validate(0, 99));
         }
 
-        private static AppConfig Config(string relative, string target) => new(new IConfigProvider[]
+        private static AppConfig Config(string relative, string target, string contentSet = "set") => new(new IConfigProvider[]
         {
             new DictionaryProvider(new Dictionary<string, string>
             {
                 ["content:schemaVersion"] = "1", ["content:relativeDirectory"] = relative,
                 ["content:buildIdentity"] = "identity", ["content:target"] = target,
+                ["content:runtimeMode"] = "directory", ["content:contentSet"] = contentSet,
                 ["content:representation"] = "Full", ["content:firstScene"] = "Title",
             }),
         });

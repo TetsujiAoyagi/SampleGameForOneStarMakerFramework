@@ -43,7 +43,7 @@ namespace SampleGame.DependOnAll
                     // Unity Loadable は同じ locator の operation を二度 await できない。Manual handle を
                     // clone の破棄完了まで保持し、一回の native load から代表 Prefab を実体化する。
                     instance = UnityEngine.Object.Instantiate(handle!.Value);
-                    return UniTask.CompletedTask;
+                    return HoldForDeliveryProbeAsync(config, ct);
                 },
                 () =>
                 {
@@ -70,6 +70,16 @@ namespace SampleGame.DependOnAll
                     if (handle != null) assets.Release(handle);
                     return UniTask.CompletedTask;
                 });
+        }
+
+        private static async UniTask HoldForDeliveryProbeAsync(AppConfig config,CancellationToken ct)
+        {
+            var root=config.GetString("content:holdSignalRoot",string.Empty);
+            if(root.Length==0)return;
+            var full=Path.GetFullPath(root);Directory.CreateDirectory(full);var ready=Path.Combine(full,"ready.signal");var release=Path.Combine(full,"release.signal");
+            File.WriteAllText(ready,"ready",new UTF8Encoding(false));var deadline=DateTime.UtcNow.AddSeconds(120);
+            while(!File.Exists(release))
+            { ct.ThrowIfCancellationRequested();if(DateTime.UtcNow>=deadline)throw new TimeoutException("Content delivery hold signal timed out.");await UniTask.Yield(PlayerLoopTiming.Update,ct); }
         }
 
         internal static async UniTask<Result> RunSequenceAsync(

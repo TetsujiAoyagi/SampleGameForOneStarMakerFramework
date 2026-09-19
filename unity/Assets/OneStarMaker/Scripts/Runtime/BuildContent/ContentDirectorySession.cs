@@ -9,6 +9,7 @@ using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.AssetManagement.Internal;
 using Unity.Loading;
 using UnityEngine;
+using OneStarMaker.Runtime.BuildContent.Distribution;
 
 namespace OneStarMaker.Runtime.BuildContent
 {
@@ -73,6 +74,21 @@ namespace OneStarMaker.Runtime.BuildContent
             if (!Directory.Exists(normalized))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,
                     "Content directory path must exist.", identity, target);
+            if (InstalledRevisionVerifier.LooksManaged(normalized))
+            {
+                var parent=Directory.GetParent(normalized) ?? throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,"Managed content root is invalid.",identity,target);
+                var receipt=ContentDeliveryFiles.ReadJson<ContentInstallReceipt>(Path.Combine(parent.FullName,"receipt.json"));
+                var verified=InstalledRevisionVerifier.Verify(parent.FullName,receipt.manifestSha256,receipt.contentSet,identity,target);
+                return RegisterVerified(verified,backend);
+            }
+            return RegisterCore(normalized,identity,target,backend,null);
+        }
+
+        internal static ContentDirectorySession RegisterVerified(VerifiedInstalledRevision verified, IContentNativeDirectory backend)
+            => RegisterCore(verified.ContentPath,verified.Identity,verified.Target,backend,verified);
+
+        private static ContentDirectorySession RegisterCore(string normalized,string identity,string target,IContentNativeDirectory backend,VerifiedInstalledRevision? verified)
+        {
             lock (RollbackSync)
             {
                 // 登録失敗時の native handle は session が所有し、gate には予約だけを残す。
@@ -91,6 +107,7 @@ namespace OneStarMaker.Runtime.BuildContent
             var registered = false;
             try
             {
+                if(verified!=null) InstalledRevisionVerifier.VerifyInsideLease(verified.RevisionRoot,verified.ManifestSha256,verified.ContentSet,verified.Identity,verified.Target);
                 registered = backend.Register(normalized);
                 if (!registered) throw new ContentDirectoryException(ContentDirectoryFailureCode.RegistrationFailed, "Content directory registration returned an invalid handle.", identity, target);
                 var roots = backend.GetRoots();
