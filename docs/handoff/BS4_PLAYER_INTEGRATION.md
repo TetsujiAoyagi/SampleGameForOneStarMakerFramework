@@ -1,7 +1,7 @@
 # BS4 — Player integration HANDOFF
 
 - type: slice
-- status: A3 revision 4 frozen（Phase B/C で判明した bootstrap Scene 名の前提を改訂）
+- status: A3 revision 5 frozen（content / Player compile define 対応を改訂）
 - branch: `codex/bs4-player-integration`
 - implementation base commit: `ea7acf7` (`develop`, 2026-09-19)
 - implementation head commit: 未作成
@@ -213,6 +213,19 @@ revision 3独立再レビューはarchitecture担当（Sol）、runtime/build担
 - markerはcopy前に作成済みとし、設定復元の一部が失敗しても生成asset cleanupを独立finallyで試行する。production Scene / metaは削除・書換しない。
 
 独立再レビューはarchitecture担当（Sol）、runtime/build担当（Astra）とも上記条件付きPASS。主担当は全条件を採用しrevision 4を凍結。新runtime API、asmdef edge、code保持方式、他のrevision 3条件は変更しない。旧 failure receiptはdiscovery evidenceとして分離し、GO判定には新build/runだけを使う。
+
+### Phase A revision 5 — content / Player compile universe（2026-09-19）
+
+revision 4 Player は UICommon bootstrap、directory登録、`Title` native Scene loadまで成功したが、`Title` が必要とする `OutGameScene` の `OutGameBackgroundView._visualTreeAsset` が null となり停止した。preflightとContent Directory metadataには当該 `OutGameBackground.uxml` と依存fileが存在する。一方、contentは通常define、Playerだけは `OSM_BS4_PLAYER` を加えて同じruntime/Game assemblyを別条件でcompileしていた。metadata存在だけで原因確定とはしないが、対応するcontentとPlayerのcompile universe不一致を残したままGO判定しない。
+
+採用案: `OSM_BS4_PLAYER` 条件compileとPlayerのextra defineを全廃し、bootstrap/config/smoke codeは通常assemblyへ常時compileする。BS4 modeはconfig fileの存在ではなく、Player build transactionが生成したScene 0のruntime名 `UICommon` と `!Application.isEditor` を `BeforeSceneLoad` 冒頭で一度だけlatched markerとする。これによりBS4成果物でconfigが欠損・不正でも通常Addressablesへfallbackせずrequired providerで失敗する。通常Editor/Playerは既存Addressables経路を維持し、環境変数やcommand lineだけでBS4 modeへ入らない。latched値はSubsystemRegistrationだけでresetする。
+
+- contentとPlayerを新identityでclean rebuildし、同じ通常define集合であることを記録する。過去content/metadataを再利用しない。
+- `OSM_BS4_PLAYER` がsource/build optionsに残らないことを機械検査する。smoke codeはprobe型をcompile-time参照しないため、content-only code保持の実証方法は維持する。
+- generated bootstrap markerでmode選択後はrequired JSONの欠損、不正schema/mode/identity/target/path/firstScene/representationをfail-closedとし、途中でmodeを再評価しない。
+- `Title` とOutGame依存がStableへ到達し、fixture、正式unload、awaited close、receipt、exit 0まで成功した新Playerだけを因果的な受入証拠とする。再びVisualTreeAssetがnullなら仮説棄却・NO GOとする。
+
+独立レビューではarchitecture担当（Sol）が上記latched activation、通常経路回帰、clean rebuild条件でPASS。runtime/build担当（Astra）はconfig file存在をmarkerにする初案をfallback blockerとして指摘し、configとは独立した同梱markerを必須化した。主担当は生成bootstrap Scene名をそのmarkerとして採用し、revision 5を凍結する。公開API・asmdef edgeは増やさない。
 
 ## Phase B / C / C' / D
 
