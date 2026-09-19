@@ -297,11 +297,18 @@ protected override string GetEnvironmentVariablePrefix() => "MYAPP_";
 ### Content Directory の起動時選択
 
 `content:runtimeMode` は未指定または `addressables` が既定で、既存の起動経路を保つ。
-`directory` は Editor Play と、専用 runtime config を組み込んだ directory Player で有効。`content:directoryPath`、
-`content:buildIdentity`、`content:representation` を明示し、directory path は存在する
-absolute local path とする。値は BeforeSceneLoad で一度検証する。未知 mode、欠損・相対 path、
-存在しない directory、identity/target 不一致は起動失敗として扱い、Addressables へ
-暗黙 fallback しない。BeforeSceneLoad で失敗した起動回は AfterSceneLoad を開始しない。
+`directory` は Editor Play と、専用 runtime config を組み込んだ directory Player の明示経路である。
+未知 mode、必須値の欠損、不一致は起動失敗とし、Addressables へ暗黙 fallback しない。
+BeforeSceneLoad で失敗した起動回は AfterSceneLoad を開始しない。
+
+package-relative directory を使う従来経路は維持する。DIST が管理する install を使う場合は
+`content:installedRevisionPath` と `content:manifestSha256` を pair で指定し、片方だけの指定は拒否する。
+Player では required JSON から固定した `schemaVersion`、`runtimeMode`、`contentSet`、`buildIdentity`、
+`target`、`representation`、`firstScene`、`relativeDirectory`、`probeToken` を起動時に保持し、
+環境変数や command line との不一致を拒否する。この protected-key 契約は Player に限り、
+Editor Play は明示された install result の identity と digest を使う。
+installed override は receipt、受信した transport manifest bytes の digest、contentSet、revision、target、
+全 content files を照合してから登録する。target は `StandaloneWindows64-Player` に固定する。
 
 directory session は AfterSceneLoad の SceneDirector 構築前に登録する。起動時に選んだ
 representation は Scene lifecycle の間固定する。通常の Editor / Player は UI/config/SceneResourceMap を
@@ -310,10 +317,17 @@ Addressables から取得する。directory Player は生成した `UICommon` bo
 ロードする。この mode は生成 bootstrap Scene の runtime 名と Player 実行で latch し、環境変数や
 command line だけでは有効にならない。
 
+事前検証の結果は利用 lease ではない。directory session は登録 reservation を取得した後に
+installed revision を再検証し、成功した場合だけ native 登録へ進む。登録、発行済み native operation、
+root、token、drain、unregister は引き続き `ContentDirectorySession` が所有する。
+
 directory Player の正常終了は、UICommon ready、directory 登録、初回 Scene stable、代表 Object の
 load / instantiate / verify / destroy / release、初回 Scene unload、directory close の順序を完了してから
 行う。完了段階は immutable snapshot と schema v2 receipt に記録する。fixture failure でも instance と
 handle を finally で回収し、実際に完了した段階だけを記録する。
+
+診断用 hold は代表 Prefab の検証後から destroy 前までに限り、有限 deadline と明示 signal で解除する。
+失敗、取消、timeout の場合も instance と handle は既存の `finally` で回収する。
 
 ## 4.8 起動時 Scene Variant と職種 companion set
 

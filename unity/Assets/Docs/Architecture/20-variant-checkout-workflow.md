@@ -36,6 +36,17 @@ Content Directory build と、SampleGame の本番 SceneResource graph からの
 
 チェックアウト自体（`git sparse-checkout` 等）は手動。Framework は「何を Checkout すべきか」のレポート生成と、ローカル/リモートのハイブリッド解決を担う。
 
+### 文書の適用範囲
+
+本書の profile、whitelist、checkout report、hybrid Play Mode Script、remote Addressables catalog、
+旧 Player build は既存 Addressables workflow の契約である。DIST Content Delivery は、完成済み
+Content Directory を local/LAN directory、HTTP、installed offline から検証済み disk cache へ導入し、
+Editor Play または対応 Player へ接続する並行経路を提供する。旧 workflow の削除、既定切替、
+serialized 設定の移行は RET が所有するため、本書の旧手順を参照 0 だけで削除しない。
+
+DIST は source checkout を代行しない。sourceFiles の Missing / Changed / Complete は編集可能性の案内であり、
+未 checkout asset の直接編集を可能にしない。取得済み content からの実行と source の編集可否を分けて扱う。
+
 ---
 
 ## 2. 全体像
@@ -98,6 +109,17 @@ flowchart TB
 ---
 
 ## 3. 開発者の手順
+
+### DIST Content Delivery を使う場合
+
+1. **Tools/OSM/Content/Delivery** で Local/LAN directory、HTTP base URL、Installed offline のいずれかを明示選択する。
+2. manifest digest、contentSet、revision、cache root、disk budget を入力して **Prepare** を実行する。target は `StandaloneWindows64-Player` 固定であり、入力項目ではない。Local/LAN と HTTP は同じ manifest/file 検証と install を通る。Offline は既知 digest の installed revision を完全再検証する。
+3. Prepare の結果で requested revision と installed revision の一致を確認する。revision 名の大小を新旧判定に使わず、remote の latest を取得したとは表示しない。
+4. **Use For Next Play** は検証済み install の identity、representation、installed root、manifest digest を次回以降の起動へ適用する。Play 中の適用は拒否する。**Reset** は bridge 自身が設定した値だけを元へ戻す。
+5. sourceFiles の Missing / Changed は checkout 案内として扱う。取得済み content が完全なら対応 Player の起動を止めない。編集が必要な asset は VCS で手動 checkout する。
+
+検証用 loopback HTTP endpoint は開発 fixture であり、本番配信 service ではない。認証、署名、latest channel、
+公開 CDN の運用はこの手順に含めない。
 
 ### 3.1 Variant プロファイルの選択
 
@@ -216,6 +238,19 @@ $env:UNITY_PATH = "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe"
 ---
 
 ## 7. 設定キー早見表
+
+### DIST directory 起動
+
+| キー | 用途 |
+|---|---|
+| `content:runtimeMode=directory` | directory backend の明示選択 |
+| `content:installedRevisionPath` | DIST managed revision root。manifest digest と pair 必須 |
+| `content:manifestSha256` | 受信 transport manifest bytes の固定 digest |
+| `content:buildIdentity` | installed manifest revision と一致させる identity |
+| `content:representation` | 起動中に固定する表現 |
+
+managed pair は legacy `content:directoryPath` より優先して検証する。既存 package-relative directory と
+Addressables 既定経路は RET の判断まで維持する。
 
 ### AppConfig（`app-config.json`）
 

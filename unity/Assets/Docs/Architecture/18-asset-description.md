@@ -236,6 +236,24 @@ Full として別要求すると台帳の要求表現が異なり `EntryAmbiguou
 Editor Play と directory Player は起動時に表現を固定する。同一 session の表現切替は提供しない。
 切替が必要なら別スライスで設計する。
 
+### 配信用 transport の公開境界
+
+`ContentTransportPublisher` は成功した Content Directory build result と preflight の identity を照合し、
+公開 directory の opaque files と OSM transport manifest v1 を staging へ生成して公開する。
+BuildReport の内容を配信層で独自に再検証するものではない。manifest の `files` は配信する content subtree の
+完全な集合であり、各 path、size、SHA-256 を記録する。`sourceFiles` は build 時の選択依存閉包を
+path/hash で案内する metadata であり、転送先 path、Unity load identity、Runtime 起動条件には使わない。
+
+consumer は manifest の contentSet/revision、固定 target `StandaloneWindows64-Player`、互換 schema と
+受信 bytes の digest を照合する。配信層は logical key、Variant、Unity Object の依存解決を再実装せず、
+install 後の `content` directory を既存の `ContentDirectorySession` へ渡す。manifest の revision は
+既存 BuildIdentity と同値であり、revision 文字列の大小を鮮度の根拠にしない。
+
+source 診断は取得済み install の固定 digest を再検証してから `Assets/` / `Packages/` の案内対象を
+Missing / Changed / Complete に分類する。Missing / Changed は source を編集できるかの案内であり、
+検証済み content からの Player 起動を拒否する条件ではない。未 checkout Scene を Hierarchy で
+直接編集できることは意味しない。
+
 ### SampleGame の季節選択と Editor build（現況）
 
 `SampleGame/DependOnAll/Editor/Build/` の `SeasonSceneSelectionPolicy` が project 固有の選択を担い、
@@ -274,6 +292,8 @@ Framework の selection core と成果物 schema に季節名を持ち込まな�
 
 ## 6. 既知の制約・落とし穴
 
+- transport v1 の SHA-256 pin は bytes 同一性を保証するが、配信元の真正性を単独では保証しない。署名、認証、latest channel、delta/resume、CDN、他 target は後続範囲である。
+- sourceFiles は案内 metadata である。Runtime は source AssetDatabase、materialization、checkout report を再走査しない。
 - `AssetDescription` を SO に変えてはいけない（埋め込み構造が壊れる、§3 参照）。
 - フィールド名変更時は `[FormerlySerializedAs]` を必ず付け、Editor 側の `FindPropertyRelative` は新名へ追従させる。
 - Payload は primary GUID のみ宣言。子依存は Addressables 任せ。

@@ -54,6 +54,7 @@
 | バジェット未定義の AssetType | キャッシュせず即解放（明示オプトイン方式。バジェットを定義しない限り従来挙動） |
 | 公開 API | `IAssetManagement` に Content Directory 用の型付き Object / Scene / Prefab 入口を追加。既存 Addressables API の署名と既定挙動は維持 |
 | テレメトリ結合 | `AssetResidentCache.GetSnapshot()` をテレメトリ層がポーリング（配線は次パス）。AssetManagement にリアクティブ依存（R3）を持ち込まない判断 |
+| 配信 cache | transport の取得・検証・disk budget・known-good pin・物理削除は DIST が所有。`AssetResidentCache` のメモリ budget と混同しない |
 
 ### Unity 6.6 Content Directories の実証済み境界
 
@@ -84,12 +85,39 @@ directory 由来の token が session 利用権を保持する。caller の取�
 新規受付を止めて処理を drain し、live owner/Prefab instance が残れば `ResourcesInUse`
 として登録を保ち、解放後の再試行を許す。cache entry も解放前は revision の利用中とみなす。
 
-`ContentRevisionGate` は同一 process 内で identity と正規化 absolute path による
-利用・削除 lease を排他する。無関係な revision の削除は妨げず、同じ実 path を別 identity
-として削除することは拒否する。物理削除と別 process の排他は DIST の責務。
+`ContentRevisionGate` は identity+target と正規化 absolute path の双方について、
+同一 process の token と同一 Windows user の process lease を束ねる。登録側は shared read lease を
+session の reservation から drain / unregister 完了まで保持し、削除側は exclusive lease を
+物理削除の成功または失敗が確定するまで保持する。待ち合わせはせず、競合は busy、
+lock I/O failure は fail closed とする。別 Windows user、非 NTFS cache、外部 tool による変更は保証範囲外である。
+検証済み snapshot は所有 token ではないため、session は reservation 取得後、native 登録前に
+receipt、manifest、全 files を再検証する。`AssetManagement` は従来どおり owner 台帳と
+resident cache を所有し、DIST の利用台帳を別に作らない。
 通常の Play 停止は同期 shutdown と terminal callback に依存し、明示 `CloseAsync` と
 同じ完全 drain を保証しない。directory Player の検証経路は代表 resource を解放し、Scene を
 unload してから明示 close を await する。通常 Player 全般の停止契約へは拡張しない。
+
+### DIST transport と disk cache の境界
+
+OSM transport manifest v1 は UTF-8 JSON で、product、contentSet、revision、
+固定 target `StandaloneWindows64-Player`、Unity version、root schema、player config schema、
+content files と案内用 sourceFiles を持つ。request は受信した manifest bytes の SHA-256 を pin し、
+consumer は再 serialization した JSON を同一性の根拠にしない。Unity 内部 manifest と
+Content BuildReport は opaque な build 成果物であり、外部 transport protocol ではない。
+
+install は caller が明示した local NTFS cache の `staging` で全 file の size/hash と集合を検証し、
+同一 volume の rename で immutable な `installed/<contentSet>/<revision>` を公開する。partial、取消、
+timeout、404、切断、hash mismatch は active install にしない。同じ revision の異なる manifest は
+上書きしない。HTTP と local directory は同じ validation/install 経路を使い、Runtime は network から起動しない。
+
+disk cache の transaction は install、inspect、known-good pin、eviction、cleanup を同じ root 内で
+直列化する。budget は installed、staging、tombstone の実 file bytes と新規 request の予約を数える。
+known-good、今回 request、利用 lease を持つ revision を強制削除しない。known-good は register/load 成功後に
+caller が明示的に昇格し、install 成功だけでは昇格しない。
+
+物理削除は root 包含、receipt、marker を検証し、exclusive delete lease を取得してから tombstone へ
+rename する。tombstone は再登録できず、物理削除失敗時は次回 cleanup の対象になる。失敗時も lease を
+解放する。破損 receipt や pin は削除候補として黙って無視せず、削除を停止する構造化失敗として扱う。
 
 ---
 
