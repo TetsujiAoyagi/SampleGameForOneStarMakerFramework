@@ -923,6 +923,16 @@ namespace OneStarMaker.Runtime
         private ContentDirectoryConfiguration? ReadContentDirectoryConfiguration(AppConfig config)
         {
             var mode = config.GetString("content:runtimeMode", "addressables");
+            if (UseRequiredPlayerFileConfiguration)
+            {
+                var baked=_bakedPlayerContent ?? throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,"Baked Player content configuration is unavailable.");
+                // protected 値は mode 分岐より先に照合する。addressables override で検査を迂回させない。
+                if(!string.Equals(mode,baked.RuntimeMode,StringComparison.Ordinal))
+                    throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,"Protected Player runtime mode was overridden.",baked.BuildIdentity,ContentDirectoryTarget);
+                var hasRoot=config.GetString("content:installedRevisionPath",string.Empty).Length>0;
+                var hasDigest=config.GetString("content:manifestSha256",string.Empty).Length>0;
+                if(hasRoot!=hasDigest)throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,"Installed revision path and manifest digest must be provided together.",baked.BuildIdentity,ContentDirectoryTarget);
+            }
             if (string.Equals(mode, "addressables", StringComparison.Ordinal)) return null;
             if (!string.Equals(mode, "directory", StringComparison.Ordinal))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "content:runtimeMode must be addressables or directory.");

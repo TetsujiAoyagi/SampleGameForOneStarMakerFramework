@@ -17,6 +17,28 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
         public async Task<ContentInstallResult> InstallAsync(ContentInstallRequest request,
             IContentArtifactSource source, CancellationToken cancellationToken)
         {
+            try { return await InstallCore(request, source, cancellationToken); }
+            catch (OperationCanceledException) { throw; }
+            catch (ContentDeliveryException) { throw; }
+            catch (ContentDirectoryException ex)
+            {
+                var busy = ex.Code is ContentDirectoryFailureCode.RevisionBusy or ContentDirectoryFailureCode.DeletionInProgress;
+                throw new ContentDeliveryException(busy ? ContentDeliveryFailureCode.Busy : ContentDeliveryFailureCode.LockUnavailable,
+                    "Install revision lease is unavailable.", ex);
+            }
+            catch (OverflowException ex)
+            {
+                throw new ContentDeliveryException(ContentDeliveryFailureCode.BudgetUnsatisfied, "Install size overflowed.", ex);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                throw new ContentDeliveryException(ContentDeliveryFailureCode.IoFailure, "Content install I/O failed.", ex);
+            }
+        }
+
+        private async Task<ContentInstallResult> InstallCore(ContentInstallRequest request,
+            IContentArtifactSource source, CancellationToken cancellationToken)
+        {
             // admission から rename まで直列化し、同じ空き容量の二重予約を防ぐ。
             using (_store.AcquireTransaction())
             {
@@ -26,7 +48,9 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
                 ContentTransportManifest dto;
                 try
                 {
-                    dto = JsonUtility.FromJson<ContentTransportManifest>(Encoding.UTF8.GetString(manifestBytes))
+                    var json = new UTF8Encoding(false, true).GetString(manifestBytes);
+                    ContentManifestValidation.ValidateRequiredFields(json);
+                    dto = JsonUtility.FromJson<ContentTransportManifest>(json)
                           ?? throw new FormatException();
                 }
                 catch (Exception ex)
@@ -47,13 +71,31 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
                         return new ContentInstallResult(final, Path.Combine(final, "content"), manifest, true);
                     }
                 }
-                _store.EnsureCapacityUnsafe(manifest.TotalBytes, request.DiskBudgetBytes,
-                    manifest.ContentSet, manifest.Revision);
+                var receipt = new ContentInstallReceipt
+                {
+                    manifestSha256 = digest,
+                    contentSet = manifest.ContentSet,
+                    revision = manifest.Revision,
+                    target = manifest.Target,
+                    installedUtc = DateTime.UtcNow.ToString("O")
+                };
                 var staging = Path.Combine(_store.RootPath, "staging", Guid.NewGuid().ToString("N"));
+                var marker = new ContentStagingMarker
+                {
+                    cacheRoot = _store.RootPath, stagingRoot = staging,
+                    contentSet = manifest.ContentSet, revision = manifest.Revision,
+                };
+                var metadataBytes = checked((long)manifestBytes.Length
+                    + Encoding.UTF8.GetByteCount(JsonUtility.ToJson(receipt, true))
+                    + Encoding.UTF8.GetByteCount(JsonUtility.ToJson(marker, true)));
+                var reservedBytes = checked(manifest.TotalBytes + metadataBytes);
+                _store.EnsureCapacityUnsafe(reservedBytes, request.DiskBudgetBytes,
+                    manifest.ContentSet, manifest.Revision);
                 try
                 {
                     var content = Path.Combine(staging, "content");
                     Directory.CreateDirectory(content);
+                    ContentDeliveryFiles.WriteJson(Path.Combine(staging, "staging-owner.json"), marker);
                     File.WriteAllBytes(Path.Combine(staging, "transport.json"), manifestBytes);
                     foreach (var file in manifest.Files)
                     {
@@ -65,12 +107,12 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
                         await CopyExact(input, output, file.size, cancellationToken);
                     }
                     ContentDeliveryFiles.VerifyTree(content, manifest);
-                    ContentDeliveryFiles.WriteJson(Path.Combine(staging, "receipt.json"),
-                        new ContentInstallReceipt { manifestSha256=digest, contentSet=manifest.ContentSet,
-                            revision=manifest.Revision, target=manifest.Target, installedUtc=DateTime.UtcNow.ToString("O") });
+                    ContentDeliveryFiles.WriteJson(Path.Combine(staging, "receipt.json"), receipt);
                     Directory.CreateDirectory(Path.GetDirectoryName(final)!);
                     // 同じ volume の rename だけを公開点にし、final の部分更新を作らない。
                     Directory.Move(staging, final);
+                    // ownership marker は opaque な install metadata として残す。
+                    // 公開後の cleanup failure で成功した immutable install を失敗へ変えない。
                     return new ContentInstallResult(final, Path.Combine(final, "content"), manifest, false);
                 }
                 catch (OperationCanceledException ex) { CleanupAfterFailure(staging, ex); throw; }

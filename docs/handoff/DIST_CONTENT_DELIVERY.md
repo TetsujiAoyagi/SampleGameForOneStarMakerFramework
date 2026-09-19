@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: slice
-- status: B（Phase A r3 凍結済み、実装開始）
+- status: B（Phase A r4 凍結済み、発見CからB適応へ差し戻し）
 - branch: `codex/dist-content-delivery`
 - implementation base commit: `3c6769ad3af53c3cbe050894b7040b4eaa268e8d`
 - implementation head commit: 未到達
@@ -12,9 +12,9 @@
 - created: 2026-09-19
 - expires: DIST Phase D。2026-10-19 に未完なら再確認
 - harvest to: Architecture `04-app-startup.md`、`13-resource-system.md`、`18-asset-description.md`、`20-variant-checkout-workflow.md`
-- Phase A snapshot: `artifacts/bs2b/dist-evidence/a3-r3/phase-a.md`（local evidence、PRへ同梱しない）
-- Phase A snapshot generated at: `2026-09-19T12:15:39.9290051Z`
-- Phase A snapshot SHA256: `b010b8da08f3fc838617c7b82b376d598baa87f84fa9b5f8c56cee0b80d0484c`
+- Phase A snapshot: `artifacts/bs2b/dist-evidence/a3-r4/phase-a.md`（local evidence、PRへ同梱しない）
+- Phase A snapshot generated at: `2026-09-19T14:33:19.5428001Z`
+- Phase A snapshot SHA256: `f3bd5e4086f44c336410f85f0cd43263f64dba3b90372a0684a8141adc20ed57`
 - Phase B result / evidence / C' blind bundle: 未到達
 
 ## 1. A0 — 目的・現況・制約
@@ -184,11 +184,31 @@ Protocol補足: content subtree の実 file 集合は manifest files と完全�
 
 ## 6. Phase B 実装結果
 
-未着手。
+### Phase A revision 4（公開consumer API、凍結）
+
+Editor offline/source診断からinternal verifier/codecへ依存しない公開境界が必要なためAを再開した。M1〜M5・owner/state/asmdef・永続schema・判定必須は変更しない。
+
+- `ContentCacheStore.ValidateInstalled(string revisionRoot, string manifestSha256, string contentSet, string revision, string target) -> ContentInstallResult` を追加。storeのcache root内の正規installed/set/revisionに限定し、caller期待値をgate read lease内で完全検証してAlreadyInstalled=trueを返す。通信/mutation/pin昇格なし。leaseは返却前に解放、register時再検証を維持。
+- `ContentSourceAdvisor.InspectInstalled(ContentInstallResult installed, string projectRoot) -> ContentSourceAdvice` を追加。固定resultのidentity/target/digestでread lease内再検証してsourceFilesを読み、既存Inspectへ委譲。string rootだけを取る公開overloadは禁止。sourceはprojectRoot内Assets/Packages相対pathに限定して読み取り、変更しない。
+- 両公開境界は既定ContentDeliveryExceptionへ正規化。lock競合=Busy、lock I/O=LockUnavailable、receipt/manifest/sourceFiles不正=InvalidManifest/IntegrityMismatch、診断file I/O=IoFailure。Missing/Changedは正常advice。source診断側のI/O失敗も取得済みresultを破棄せず表示し、Player起動の拒否条件へ転用しない。installed metadata自体の検証失敗とは分離する。
+- A2: gpt-5.6-terra（既存A担当へ固定r3+API差分のみ）。public failure分類を明記する1 blockerを採用。他のowner/lease/公開範囲は妥当と確認。元提案SHA256 `9ab10b1575708b9438111ba3da36080a77b6932bafeb88719a653be6953d9fcb`。A3: 主担当がprogram委任内で採用・凍結。内部へのfriend追加/Editor側独自検証複製案は不採用。
+- tests: wrong cache root/digest/set、欠損metadata、read中delete拒否、sourceMissing/Changed、返却後delete→register拒否。既存条件の確認で新完了バーなし。
+
+初回実装 head `38b8baaef87effa926884b8d5d62e19f19ee0811`。担当gpt-5.6-sol（新規context）。transport/install/cache/gate、baked config、Editor UI/bridge/publisher、process probe、testsを追加。contract-audit/diff-check PASS。Unity compile/必須実証は未実行。B result snapshotは `artifacts/bs2b/dist-evidence/discovery-38b8baa/phase-b-result.md`、hashは同bundle manifestに固定。probeのdotnet build --no-restoreはNETSDK1004でcompile前に終了、成功証拠に含めない。
+
+既存Editor PID34948が作業開始前から長時間busyのため、未保存状態不明のまま強制終了していない。検証用worktreeを `artifacts/bs2b/dist-validation` に作成（初回はWindows長いpathで失敗し、今回限りcore.longpaths=trueで再作成）。同worktreeのEditorでcompileを確認する。既存PRE/検証ログを編集しない。
+
+修正Bでは主担当gpt-6-astraもpublisherの整形、実HTTP/local installを既存Scene/Object統合fixtureへ接続、Player buildからtransport publishへの接続を実装した。このため以後の固定headの発見/判定Cは新規contextのgpt-5.6-terraへ移し、Bの両担当モデルとの相違を維持する。既存gpt-6-astraのCは初回head38の発見と検証入口調査までの記録とし、最終判定へ流用しない。C'は未関与gpt-5.5を維持する。
 
 ## 7. Phase C
 
-未実施。判定必須はすべて未実行。GO ではない。
+発見Cのみ実施。担当gpt-6-astra（Bと異なる、新規context）。base `3c6769ad3af53c3cbe050894b7040b4eaa268e8d` / head `38b8baaef87effa926884b8d5d62e19f19ee0811`。
+入力bundle `artifacts/bs2b/dist-evidence/discovery-38b8baa`、manifest SHA256 `e85298b1ed5e20446aa1fa8d5ab33355868e2497b98462728d3de36c558e04f1`。frozen A/B result/完全diff/stat/name-status/機械監査を固定。全入力hash一致をreviewerが確認。
+所見 `c-findings.md` SHA256 `4b1ab100215bea9ebd336f92315a2dd0c5e5bd67e0c3fa20592fbd447289d45b`。構造のassembly方向/基本責務配置は概ね適合、失敗境界と実証接続が未充足。
+
+C01〜C14は全件frozen条件に根拠を持つ現slice欠陥として採用しB適応へ差戻し（修正待ち）: identity segment/path境界、staging/tombstone登録authority、ancestor reparse、receipt意味/配置と削除直前検証、known-good pin検証、HTTP body timeout/取消、Player mode保護、consumer互換性定数、budget metadata/overflow/候補理由、staging回復、Editor reload所有情報、source診断/offline検証、必須JSON field、公開例外分類。
+検証入口照合でM1の実HTTP/install→実load未接続と、M4のPlayer hold取消がinstantiate成功記録前に例外を返しclone破棄を飛ばす欠陥を追加採用した。前者は既存統合fixtureを接続、後者はbehavior確認後〜destroy前へ移すB適応とする。
+後続へ送る新要求なし。判定必須はすべて未実行。発見段階で重い検証未実行、GO/C'なし。修正収束後の新headで判定Cを行う。
 
 ## 8. Phase C'
 

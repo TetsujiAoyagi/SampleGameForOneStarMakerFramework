@@ -43,7 +43,7 @@ namespace SampleGame.DependOnAll
                     // Unity Loadable は同じ locator の operation を二度 await できない。Manual handle を
                     // clone の破棄完了まで保持し、一回の native load から代表 Prefab を実体化する。
                     instance = UnityEngine.Object.Instantiate(handle!.Value);
-                    return HoldForDeliveryProbeAsync(config, ct);
+                    return UniTask.CompletedTask;
                 },
                 () =>
                 {
@@ -59,6 +59,7 @@ namespace SampleGame.DependOnAll
                         throw new InvalidOperationException("BS4 probe behavior did not report success.");
                     return UniTask.CompletedTask;
                 },
+                () => HoldForDeliveryProbeAsync(config, ct),
                 async () =>
                 {
                     if (instance == null) return;
@@ -72,20 +73,31 @@ namespace SampleGame.DependOnAll
                 });
         }
 
-        private static async UniTask HoldForDeliveryProbeAsync(AppConfig config,CancellationToken ct)
+        private static async UniTask HoldForDeliveryProbeAsync(AppConfig config, CancellationToken ct)
         {
-            var root=config.GetString("content:holdSignalRoot",string.Empty);
-            if(root.Length==0)return;
-            var full=Path.GetFullPath(root);Directory.CreateDirectory(full);var ready=Path.Combine(full,"ready.signal");var release=Path.Combine(full,"release.signal");
-            File.WriteAllText(ready,"ready",new UTF8Encoding(false));var deadline=DateTime.UtcNow.AddSeconds(120);
-            while(!File.Exists(release))
-            { ct.ThrowIfCancellationRequested();if(DateTime.UtcNow>=deadline)throw new TimeoutException("Content delivery hold signal timed out.");await UniTask.Yield(PlayerLoopTiming.Update,ct); }
+            var root = config.GetString("content:holdSignalRoot", string.Empty);
+            if (root.Length == 0) return;
+
+            var full = Path.GetFullPath(root);
+            Directory.CreateDirectory(full);
+            var ready = Path.Combine(full, "ready.signal");
+            var release = Path.Combine(full, "release.signal");
+            File.WriteAllText(ready, "ready", new UTF8Encoding(false));
+            var deadline = DateTime.UtcNow.AddSeconds(120);
+            while (!File.Exists(release))
+            {
+                ct.ThrowIfCancellationRequested();
+                if (DateTime.UtcNow >= deadline)
+                    throw new TimeoutException("Content delivery hold signal timed out.");
+                await UniTask.Yield(PlayerLoopTiming.Update, ct);
+            }
         }
 
         internal static async UniTask<Result> RunSequenceAsync(
             Func<UniTask> load,
             Func<UniTask> instantiate,
             Func<UniTask> verify,
+            Func<UniTask> hold,
             Func<UniTask> destroy,
             Func<UniTask> release)
         {
@@ -103,6 +115,9 @@ namespace SampleGame.DependOnAll
                 completed.Add(Stage.Instantiated);
                 await verify();
                 completed.Add(Stage.BehaviorVerified);
+                // 診断用 hold は代表 behavior の成立後だけに置く。取消や期限切れでも
+                // instantiated は既に確定しているため、finally が clone と handle を必ず回収する。
+                await hold();
             }
             catch (Exception ex) { failure = ex; }
             finally

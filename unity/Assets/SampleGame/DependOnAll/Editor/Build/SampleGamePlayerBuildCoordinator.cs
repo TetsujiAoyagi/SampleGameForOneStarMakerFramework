@@ -38,6 +38,10 @@ namespace SampleGame.DependOnAll.Editor.Build
                 var artifactsRoot = Path.GetFullPath(Path.Combine(projectRoot, "..", "artifacts", "bs4"));
                 var playerWork = Path.Combine(artifactsRoot, "work", result.Identity);
                 Directory.CreateDirectory(playerWork);
+                // 生成 probe の source が finally で消える前に閉包と hash を採取する。
+                // 配信用成果物と Player は同じ build identity を持ち、相互変換しない。
+                var transportPath = ContentTransportPublisher.Publish(result,
+                    Path.Combine(artifactsRoot, "transport", result.Identity));
                 var exe = Path.Combine(playerWork, "SampleGame.exe");
                 var runtimeJson = RuntimeJson(result.Identity, representation, token);
                 using (var mutation = new PlayerBuildProjectMutation(result.Identity, runtimeJson))
@@ -52,6 +56,8 @@ namespace SampleGame.DependOnAll.Editor.Build
                     var receipt = JsonUtility.ToJson(new BuildReceipt
                     {
                         identity = result.Identity, contentReportPath = result.OutcomePath,
+                        transportPath = transportPath,
+                        transportManifestSha256 = HashFile(Path.Combine(transportPath, "transport.json")),
                         target = "StandaloneWindows64-Player",
                         playerBuildGuid = verification.BuildGuid, backend = "IL2CPP", stripping = "High",
                         scenes = new[] { bootstrap.Path }, bootstrapSceneName = "UICommon", checkedRootGuids = verification.CheckedGuids,
@@ -113,6 +119,27 @@ namespace SampleGame.DependOnAll.Editor.Build
         [Serializable] private sealed class TelemetryConfig { public ProfilerConfig profiler = new(); }
         [Serializable] private sealed class ProfilerConfig { public bool enabled; }
         [Serializable] private sealed class WorldConfig { public string cellCompanionSet = ""; }
-        [Serializable] private sealed class BuildReceipt { public string identity=""; public string target=""; public string contentReportPath=""; public string playerBuildGuid=""; public string backend=""; public string stripping=""; public string[] scenes=Array.Empty<string>(); public string bootstrapSceneName=""; public string[] checkedRootGuids=Array.Empty<string>(); }
+        private static string HashFile(string path)
+        {
+            using var stream = File.OpenRead(path);
+            using var hash = System.Security.Cryptography.SHA256.Create();
+            return string.Concat(hash.ComputeHash(stream).Select(x => x.ToString("x2")));
+        }
+
+        [Serializable]
+        private sealed class BuildReceipt
+        {
+            public string identity = "";
+            public string target = "";
+            public string contentReportPath = "";
+            public string transportPath = "";
+            public string transportManifestSha256 = "";
+            public string playerBuildGuid = "";
+            public string backend = "";
+            public string stripping = "";
+            public string[] scenes = Array.Empty<string>();
+            public string bootstrapSceneName = "";
+            public string[] checkedRootGuids = Array.Empty<string>();
+        }
     }
 }

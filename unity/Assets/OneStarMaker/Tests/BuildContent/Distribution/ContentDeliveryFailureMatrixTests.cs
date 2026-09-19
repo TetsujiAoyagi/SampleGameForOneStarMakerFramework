@@ -1,32 +1,381 @@
 #nullable enable
-using System;using System.IO;using NUnit.Framework;using OneStarMaker.Runtime.BuildContent;using OneStarMaker.Runtime.BuildContent.Distribution;
+using System;
+using System.IO;
+using System.Text;
+using NUnit.Framework;
+using OneStarMaker.Runtime.BuildContent;
+using OneStarMaker.Runtime.BuildContent.Distribution;
+using UnityEngine;
+
 namespace OneStarMaker.Tests.BuildContent.Distribution
 {
     public sealed class ContentDeliveryFailureMatrixTests
     {
-        [TestCase("set","other","StandaloneWindows64-Player","6000.6.0f1",ContentDeliveryFailureCode.IdentityMismatch)]
-        [TestCase("set","revision","OtherTarget","6000.6.0f1",ContentDeliveryFailureCode.TargetMismatch)]
-        [TestCase("set","revision","StandaloneWindows64-Player","other",ContentDeliveryFailureCode.CompatibilityMismatch)]
-        public void ManifestMismatch_ReturnsStructuredFailure(string set,string revision,string target,string unity,ContentDeliveryFailureCode expected)
-        {var value=Manifest();var request=new ContentInstallRequest(Hash,set,revision,target,unity,2,100);var ex=Assert.Throws<ContentDeliveryException>(()=>ContentManifestValidation.Validate(value,Hash,request));Assert.That(ex!.Code,Is.EqualTo(expected));}
+        private const string Target = "StandaloneWindows64-Player";
+        private const string PlaceholderHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
-        [Test]public void CacheTransaction_ConcurrentInspectorReturnsBusy()
-        {var root=Temp();try{var store=new ContentCacheStore(root);using(store.AcquireTransaction()){var ex=Assert.Throws<ContentDeliveryException>(()=>store.Inspect());Assert.That(ex!.Code,Is.EqualTo(ContentDeliveryFailureCode.Busy));}}finally{Directory.Delete(root,true);}}
+        [TestCase("set", "other", Target, "6000.6.0f1", ContentDeliveryFailureCode.IdentityMismatch)]
+        [TestCase("set", "revision", "OtherTarget", "6000.6.0f1", ContentDeliveryFailureCode.TargetMismatch)]
+        [TestCase("set", "revision", Target, "other", ContentDeliveryFailureCode.CompatibilityMismatch)]
+        public void ManifestMismatch_ReturnsStructuredFailure(
+            string set, string revision, string target, string unity, ContentDeliveryFailureCode expected)
+        {
+            var request = new ContentInstallRequest(PlaceholderHash, set, revision, target, unity, 2, 100);
+            var error = Assert.Throws<ContentDeliveryException>(
+                () => ContentManifestValidation.Validate(CreateManifest(), PlaceholderHash, request));
+            Assert.That(error!.Code, Is.EqualTo(expected));
+        }
 
-        [Test]public void CorruptReceipt_StopsEvictionInsteadOfBecomingADeleteCandidate()
-        {var root=Temp();try{var revision=Path.Combine(root,"installed","set","revision");Directory.CreateDirectory(revision);File.WriteAllText(Path.Combine(revision,"receipt.json"),"{");var ex=Assert.Throws<ContentDeliveryException>(()=>new ContentCacheStore(root).Evict(0));Assert.That(ex!.Code,Is.EqualTo(ContentDeliveryFailureCode.InstallConflict));}finally{Directory.Delete(root,true);}}
+        [Test]
+        public void CacheTransaction_ConcurrentInspectorReturnsBusy()
+        {
+            var root = CreateTemporaryDirectory();
+            try
+            {
+                var store = new ContentCacheStore(root);
+                using (store.AcquireTransaction())
+                {
+                    var error = Assert.Throws<ContentDeliveryException>(() => store.Inspect());
+                    Assert.That(error!.Code, Is.EqualTo(ContentDeliveryFailureCode.Busy));
+                }
+            }
+            finally
+            {
+                Directory.Delete(root, true);
+            }
+        }
 
-        [Test]public void ReadLease_BlocksDeleteAndReleaseAllowsRetry()
-        {var path=Path.Combine(Temp(),"content");Directory.CreateDirectory(path);try{using(ContentRevisionGate.AcquireRead("revision","StandaloneWindows64-Player",path)){Assert.That(ContentRevisionGate.TryAcquireDelete("revision","StandaloneWindows64-Player",path,out _,out var rejection),Is.False);Assert.That(rejection,Is.EqualTo(ContentDirectoryFailureCode.RevisionBusy));}Assert.That(ContentRevisionGate.TryAcquireDelete("revision","StandaloneWindows64-Player",path,out var lease,out _),Is.True);lease!.Dispose();}finally{Directory.Delete(Directory.GetParent(path)!.FullName,true);}}
+        [Test]
+        public void CorruptReceipt_StopsEvictionInsteadOfBecomingADeleteCandidate()
+        {
+            var root = CreateTemporaryDirectory();
+            try
+            {
+                var revisionRoot = Path.Combine(root, "installed", "set", "revision");
+                Directory.CreateDirectory(revisionRoot);
+                File.WriteAllText(Path.Combine(revisionRoot, "receipt.json"), "{");
+                var error = Assert.Throws<ContentDeliveryException>(() => new ContentCacheStore(root).Evict(0));
+                Assert.That(error!.Code, Is.EqualTo(ContentDeliveryFailureCode.InstallConflict));
+            }
+            finally
+            {
+                Directory.Delete(root, true);
+            }
+        }
 
-        [Test]public void DeleteFailure_LeavesOwnedTombstoneAndNextEvictionRetriesCleanup()
-        {var root=Temp();try{var revision=Path.Combine(root,"installed","set","revision");Directory.CreateDirectory(Path.Combine(revision,"content"));File.WriteAllText(Path.Combine(revision,"content","held.bin"),"bytes");ContentDeliveryFiles.WriteJson(Path.Combine(revision,"receipt.json"),new ContentInstallReceipt{contentSet="set",revision="revision",target="StandaloneWindows64-Player",manifestSha256=Hash,installedUtc=DateTime.UtcNow.ToString("O")});var store=new ContentCacheStore(root);using(var held=new FileStream(Path.Combine(revision,"content","held.bin"),FileMode.Open,FileAccess.Read,FileShare.Read)){var failure=Assert.Throws<ContentDeliveryException>(()=>store.Evict(0));Assert.That(failure!.Code,Is.EqualTo(ContentDeliveryFailureCode.BudgetUnsatisfied));}var retry=store.Evict(0);Assert.That(retry,Has.Some.Property("Status").EqualTo(ContentDeleteStatus.Deleted));Assert.That(Directory.GetDirectories(Path.Combine(root,"tombstone")),Is.Empty);}finally{if(Directory.Exists(root))Directory.Delete(root,true);}}
+        [Test]
+        public void ReadLease_BlocksDeleteAndReleaseAllowsRetry()
+        {
+            var parent = CreateTemporaryDirectory();
+            var contentPath = Path.Combine(parent, "content");
+            Directory.CreateDirectory(contentPath);
+            try
+            {
+                using (ContentRevisionGate.AcquireRead("revision", Target, contentPath))
+                {
+                    Assert.That(
+                        ContentRevisionGate.TryAcquireDelete("revision", Target, contentPath, out _, out var rejection),
+                        Is.False);
+                    Assert.That(rejection, Is.EqualTo(ContentDirectoryFailureCode.RevisionBusy));
+                }
 
-        [Test]public void VerificationToReservationGap_DeleteCanWinButNativeRegistrationDoesNotStart()
-        {var root=Temp();try{var content=Path.Combine(root,"content");Directory.CreateDirectory(content);var payload=new byte[]{1};File.WriteAllBytes(Path.Combine(content,"file"),payload);var manifest=Manifest();manifest.files[0].sha256=ContentDeliveryFiles.Sha256(payload);var bytes=System.Text.Encoding.UTF8.GetBytes(UnityEngine.JsonUtility.ToJson(manifest));var digest=ContentDeliveryFiles.Sha256(bytes);File.WriteAllBytes(Path.Combine(root,"transport.json"),bytes);ContentDeliveryFiles.WriteJson(Path.Combine(root,"receipt.json"),new ContentInstallReceipt{contentSet="set",revision="revision",target="StandaloneWindows64-Player",manifestSha256=digest,installedUtc=DateTime.UtcNow.ToString("O")});var verified=InstalledRevisionVerifier.Verify(root,digest,"set","revision","StandaloneWindows64-Player");Assert.That(ContentRevisionGate.TryAcquireDelete("revision","StandaloneWindows64-Player",content,out var deletion,out _),Is.True);Directory.Delete(root,true);deletion!.Dispose();Assert.Throws<ContentDeliveryException>(()=>ContentDirectorySession.RegisterVerified(verified,null!));}finally{if(Directory.Exists(root))Directory.Delete(root,true);}}
+                Assert.That(
+                    ContentRevisionGate.TryAcquireDelete("revision", Target, contentPath, out var lease, out _),
+                    Is.True);
+                lease!.Dispose();
+            }
+            finally
+            {
+                Directory.Delete(parent, true);
+            }
+        }
 
-        private const string Hash="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-        private static string Temp(){var path=Path.Combine(Path.GetTempPath(),"osm-dist-matrix",Guid.NewGuid().ToString("N"));Directory.CreateDirectory(path);return path;}
-        private static ContentTransportManifest Manifest()=>new(){version=1,product="OneStarMaker",contentSet="set",revision="revision",target="StandaloneWindows64-Player",unityVersion="6000.6.0f1",rootSchemaVersion=2,playerConfigSchemaVersion=1,files=new[]{new ContentTransportFile{path="file",size=1,sha256=Hash}}};
+        [Test]
+        public void DeleteFailure_LeavesOwnedTombstoneAndNextEvictionRetriesCleanup()
+        {
+            var root = CreateTemporaryDirectory();
+            try
+            {
+                var revisionRoot = Path.Combine(root, "installed", "set", "revision");
+                var contentPath = Path.Combine(revisionRoot, "content");
+                Directory.CreateDirectory(contentPath);
+                var heldPath = Path.Combine(contentPath, "held.bin");
+                File.WriteAllText(heldPath, "bytes");
+                ContentDeliveryFiles.WriteJson(
+                    Path.Combine(revisionRoot, "receipt.json"),
+                    new ContentInstallReceipt
+                    {
+                        contentSet = "set",
+                        revision = "revision",
+                        target = Target,
+                        manifestSha256 = PlaceholderHash,
+                        installedUtc = DateTime.UtcNow.ToString("O"),
+                    });
+                var store = new ContentCacheStore(root);
+
+                using (new FileStream(heldPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    var failure = Assert.Throws<ContentDeliveryException>(() => store.Evict(0));
+                    Assert.That(failure!.Code, Is.EqualTo(ContentDeliveryFailureCode.BudgetUnsatisfied));
+                }
+
+                var retry = store.Evict(0);
+                Assert.That(retry, Has.Some.Property("Status").EqualTo(ContentDeleteStatus.Deleted));
+                Assert.That(Directory.GetDirectories(Path.Combine(root, "tombstone")), Is.Empty);
+            }
+            finally
+            {
+                if (Directory.Exists(root))
+                {
+                    Directory.Delete(root, true);
+                }
+            }
+        }
+
+        [TestCase("wrong-cache", "digest", "set")]
+        [TestCase("cache", "wrong-digest", "set")]
+        [TestCase("cache", "digest", "wrong-set")]
+        public void ValidateInstalled_WrongAuthorityInput_IsRejected(
+            string cacheChoice, string digestChoice, string setChoice)
+        {
+            var parent = CreateTemporaryDirectory();
+            try
+            {
+                var cacheRoot = Path.Combine(parent, "cache");
+                var fixture = CreateInstalled(cacheRoot, Array.Empty<ContentSourceFile>());
+                var selectedRoot = cacheChoice == "cache" ? cacheRoot : Path.Combine(parent, "other-cache");
+                var digest = digestChoice == "digest" ? fixture.Digest : new string('f', 64);
+                var contentSet = setChoice == "set" ? "set" : "other";
+
+                var error = Assert.Throws<ContentDeliveryException>(
+                    () => new ContentCacheStore(selectedRoot).ValidateInstalled(
+                        fixture.Root, digest, contentSet, "revision", Target));
+
+                Assert.That(
+                    error!.Code,
+                    Is.AnyOf(ContentDeliveryFailureCode.InstallConflict, ContentDeliveryFailureCode.IntegrityMismatch));
+            }
+            finally
+            {
+                Directory.Delete(parent, true);
+            }
+        }
+
+        [Test]
+        public void ValidateInstalled_ResultDoesNotAuthorizeRegistrationAfterDeletion()
+        {
+            var cacheRoot = CreateTemporaryDirectory();
+            try
+            {
+                var fixture = CreateInstalled(cacheRoot, Array.Empty<ContentSourceFile>());
+                var installed = new ContentCacheStore(cacheRoot).ValidateInstalled(
+                    fixture.Root, fixture.Digest, "set", "revision", Target);
+                Directory.Delete(installed.RevisionRoot, true);
+
+                var error = Assert.Throws<ContentDirectoryException>(
+                    () => ContentDirectorySession.Register(installed.ContentPath, "revision", Target, null!));
+                Assert.That(error!.Code, Is.EqualTo(ContentDirectoryFailureCode.InvalidConfiguration));
+            }
+            finally
+            {
+                if (Directory.Exists(cacheRoot))
+                {
+                    Directory.Delete(cacheRoot, true);
+                }
+            }
+        }
+
+        [Test]
+        public void InspectInstalled_ReportsMissingAndChangedWithoutInvalidatingInstall()
+        {
+            var cacheRoot = CreateTemporaryDirectory();
+            var projectRoot = CreateTemporaryDirectory();
+            try
+            {
+                Directory.CreateDirectory(Path.Combine(projectRoot, "Assets"));
+                File.WriteAllText(Path.Combine(projectRoot, "Assets", "changed.txt"), "new");
+                var sources = new[]
+                {
+                    new ContentSourceFile
+                    {
+                        path = "Assets/missing.txt",
+                        sha256 = Hash(Encoding.UTF8.GetBytes("missing")),
+                    },
+                    new ContentSourceFile
+                    {
+                        path = "Assets/changed.txt",
+                        sha256 = Hash(Encoding.UTF8.GetBytes("old")),
+                    },
+                };
+                var fixture = CreateInstalled(cacheRoot, sources);
+                var installed = new ContentCacheStore(cacheRoot).ValidateInstalled(
+                    fixture.Root, fixture.Digest, "set", "revision", Target);
+
+                var advice = ContentSourceAdvisor.InspectInstalled(installed, projectRoot);
+                Assert.That(advice.Status, Is.EqualTo(ContentSourceStatus.Missing));
+                Assert.That(advice.Paths, Does.Contain("Assets/missing.txt"));
+                Assert.That(Directory.Exists(installed.RevisionRoot), Is.True, "source 診断は成果物を破棄しない");
+
+                File.WriteAllText(Path.Combine(projectRoot, "Assets", "missing.txt"), "missing");
+                advice = ContentSourceAdvisor.InspectInstalled(installed, projectRoot);
+                Assert.That(advice.Status, Is.EqualTo(ContentSourceStatus.Changed));
+                Assert.That(advice.Paths, Does.Contain("Assets/changed.txt"));
+            }
+            finally
+            {
+                Directory.Delete(cacheRoot, true);
+                Directory.Delete(projectRoot, true);
+            }
+        }
+
+        [Test]
+        public void InspectInstalled_TamperedSourceFiles_IsRejectedBeforeSourceInspection()
+        {
+            var cacheRoot = CreateTemporaryDirectory();
+            var projectRoot = CreateTemporaryDirectory();
+            try
+            {
+                var fixture = CreateInstalled(
+                    cacheRoot,
+                    new[] { new ContentSourceFile { path = "Assets/source.txt", sha256 = PlaceholderHash } });
+                var installed = new ContentCacheStore(cacheRoot).ValidateInstalled(
+                    fixture.Root, fixture.Digest, "set", "revision", Target);
+                var manifest = CreateManifest();
+                manifest.sourceFiles = new[]
+                {
+                    new ContentSourceFile { path = "../outside.txt", sha256 = PlaceholderHash },
+                };
+                File.WriteAllText(Path.Combine(fixture.Root, "transport.json"), JsonUtility.ToJson(manifest));
+
+                var error = Assert.Throws<ContentDeliveryException>(
+                    () => ContentSourceAdvisor.InspectInstalled(installed, projectRoot));
+                Assert.That(error!.Code, Is.EqualTo(ContentDeliveryFailureCode.IntegrityMismatch));
+            }
+            finally
+            {
+                Directory.Delete(cacheRoot, true);
+                Directory.Delete(projectRoot, true);
+            }
+        }
+
+        [Test]
+        public void InspectInstalled_InvalidSourceFilesCannotProduceInstalledAuthority()
+        {
+            var cacheRoot = CreateTemporaryDirectory();
+            try
+            {
+                var fixture = CreateInstalled(
+                    cacheRoot,
+                    new[] { new ContentSourceFile { path = "../outside.txt", sha256 = PlaceholderHash } });
+
+                var error = Assert.Throws<ContentDeliveryException>(
+                    () => new ContentCacheStore(cacheRoot).ValidateInstalled(
+                        fixture.Root, fixture.Digest, "set", "revision", Target));
+
+                Assert.That(error!.Code, Is.EqualTo(ContentDeliveryFailureCode.InvalidManifest));
+            }
+            finally
+            {
+                Directory.Delete(cacheRoot, true);
+            }
+        }
+
+        [Test]
+        public void VerificationToReservationGap_DeleteCanWinButNativeRegistrationDoesNotStart()
+        {
+            var root = CreateTemporaryDirectory();
+            try
+            {
+                var fixture = CreateInstalled(root, Array.Empty<ContentSourceFile>());
+                var verified = InstalledRevisionVerifier.Verify(
+                    fixture.Root, fixture.Digest, "set", "revision", Target);
+                Assert.That(
+                    ContentRevisionGate.TryAcquireDelete("revision", Target, verified.ContentPath, out var deletion, out _),
+                    Is.True);
+                Directory.Delete(fixture.Root, true);
+                deletion!.Dispose();
+
+                Assert.Throws<ContentDeliveryException>(() => ContentDirectorySession.RegisterVerified(verified, null!));
+            }
+            finally
+            {
+                if (Directory.Exists(root))
+                {
+                    Directory.Delete(root, true);
+                }
+            }
+        }
+
+        private static InstalledFixture CreateInstalled(string cacheRoot, ContentSourceFile[] sources)
+        {
+            var revisionRoot = Path.Combine(cacheRoot, "installed", "set", "revision");
+            var contentPath = Path.Combine(revisionRoot, "content");
+            Directory.CreateDirectory(contentPath);
+            var payload = new byte[] { 1 };
+            File.WriteAllBytes(Path.Combine(contentPath, "file"), payload);
+            var manifest = CreateManifest();
+            manifest.files[0].sha256 = Hash(payload);
+            manifest.sourceFiles = sources;
+            var manifestBytes = Encoding.UTF8.GetBytes(JsonUtility.ToJson(manifest));
+            var digest = Hash(manifestBytes);
+            File.WriteAllBytes(Path.Combine(revisionRoot, "transport.json"), manifestBytes);
+            ContentDeliveryFiles.WriteJson(
+                Path.Combine(revisionRoot, "receipt.json"),
+                new ContentInstallReceipt
+                {
+                    version = 1,
+                    manifestSha256 = digest,
+                    contentSet = "set",
+                    revision = "revision",
+                    target = Target,
+                    installedUtc = DateTime.UtcNow.ToString("O"),
+                });
+            return new InstalledFixture(revisionRoot, digest);
+        }
+
+        private static ContentTransportManifest CreateManifest()
+        {
+            return new ContentTransportManifest
+            {
+                version = 1,
+                product = "OneStarMaker",
+                contentSet = "set",
+                revision = "revision",
+                target = Target,
+                unityVersion = "6000.6.0f1",
+                rootSchemaVersion = 2,
+                playerConfigSchemaVersion = 1,
+                files = new[]
+                {
+                    new ContentTransportFile { path = "file", size = 1, sha256 = PlaceholderHash },
+                },
+                sourceFiles = Array.Empty<ContentSourceFile>(),
+            };
+        }
+
+        private static string Hash(byte[] bytes)
+        {
+            return ContentDeliveryFiles.Sha256(bytes);
+        }
+
+        private static string CreateTemporaryDirectory()
+        {
+            var path = Path.Combine(Path.GetTempPath(), "osm-dist-matrix", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(path);
+            return path;
+        }
+
+        private readonly struct InstalledFixture
+        {
+            internal InstalledFixture(string root, string digest)
+            {
+                Root = root;
+                Digest = digest;
+            }
+
+            internal string Root { get; }
+
+            internal string Digest { get; }
+        }
     }
 }
