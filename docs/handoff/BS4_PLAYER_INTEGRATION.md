@@ -242,16 +242,17 @@ revision 5 の activation、compile universe、bootstrap、dedup、failure契約
 
 ### Phase A revision 7 — representative Prefab の単一 native load（2026-09-19）
 
-revision 6 Player は `Unknown managed type referenced` 0件となり、`Title` と OutGame closure の起動を通過した。代表fixtureの `LoadContentAssetAsync<GameObject>` 成功後、同じ entry に `InstantiateContentAsync` を続けると Unity `Loadable` が同じ `ObjectLoadOperation` の二回目awaitを拒否した。これはstrippingやfixture欠損ではなく、serialized locator一件を二つの独立native load tokenとして扱ったsmoke手順の誤りである。
+revision 6 Player は `Unknown managed type referenced` 0件となり、`Title` と OutGame closure の起動を通過した。代表fixtureの `LoadContentAssetAsync<GameObject>` 成功後、同じ entry に `InstantiateContentAsync` を続けると Unity `Loadable` が同じ `ObjectLoadOperation` の二回目awaitを拒否した。これはstrippingやfixture欠損ではなく、公開loadとinstantiateを同じserialized locatorへ連続適用すると再現する既知のRuntime制約である。単独instantiateや一般の複数instanceまで不成立とは判定しない。
 
 採用案: smokeは一回のgeneric loadで得た `handle.Value` から `UnityEngine.Object.Instantiate` し、serialized token / component動作を検査する。instanceのDestroy完了後にhandleをReleaseする。これにより Content Directory由来Prefabのload、IL2CPP generic呼出し、content-only component型とserialized値、実体化と解放を一つのnative tokenで実証する。
 
 - BS3のsession、registry、cache、public `InstantiateContentAsync` の意味や実装は変更しない。複数loadの共有lease設計をBS4 smoke都合で追加しない。
-- `InstantiateContentAsync` 自体の再設計・同一entry重複load policyは後続のRuntime契約課題として送る。BS4最低条件は一回のload tokenからの代表Prefab実体化で満たす。
+- `InstantiateContentAsync` 単独と既存handle後の挙動を分けた特性化、同一entry重複load policyは後続のRuntime契約課題として送る。BS4最低条件は一回のload tokenからの代表Prefab実体化で満たし、このAPIの成立証拠にはしない。
 - failure時もinstance Destroy完了を待ち、次にhandleをReleaseしてからFrameworkのscene unload / directory closeへ戻る既存の逆順cleanupを維持する。
+- content-only probeは検証成功時だけ専用flagを変更し、smokeがSendMessage後にreflectionでtrueを読む。エラーログだけに依存せず、method実行の肯定的signalをreceipt前に確認する。
 - 新Playerでfixture動作、正式unload、awaited close、success receipt、exit 0まで確認する。既存のrevision 6受入条件も全て維持する。
 
-新public API、asmdef edge、owner、永続schemaは増やさない。revision 7を凍結し、独立再レビューでBS3寿命契約とcode保持証拠を確認する。
+新public API、asmdef edge、owner、永続schemaは増やさない。独立再レビューはarchitecture / runtime-buildとも上記の限定と、clone Destroy完了→handle一回Release→正式unload→closeの順序を条件にPASS。revision 7を凍結する。
 
 ## Phase B / C / C' / D
 
