@@ -268,6 +268,22 @@ revision 7 の新Playerでは、`Unknown managed type referenced` は0件のま�
 
 runtime独立レビューは、rendererなし通常構成、token先行取得、callback先行/後着、共有completionとcaller取消の分離、破棄/構築例外の終端を条件にPASS。architecture独立レビューもownerをUICommonに留め、callback成功後だけのlatched readiness、disable/destroy終端、通常/BS4両経路の回帰を条件にPASS。全条件を採用しrevision 8を凍結する。
 
+### Phase A revision 9 — shipping tree、段階receipt、失敗経路証拠（2026-09-19）
+
+revision 8 の実Playerは起動からcloseまで成功したが、発見Cで二つの凍結済み条件違反が判明した。第一に、publish処理がUnityのPlayer work treeを再帰的に全コピーし、最終成果物へ`*_BackUpThisFolder_ButDontShipItWithYourGame`を含めた。これは「contentを一回だけ持つ配布可能なPlayer package」とpublish transactionの最低条件を満たさない。第二に、成功receiptが最終状態だけを持ち、bootstrap以後の各必須段階を一つの実行として追跡できなかった。またA1で要求したconfig、report対応、dedup、publisher失敗の単体証拠が不足した。よってPhase Aを再開する。
+
+採用する設計は次のとおり。
+
+1. `PlayerBuildPublisher`はPlayer work tree直下だけを列挙し、Unity予約名のsuffix `_BackUpThisFolder_ButDontShipItWithYourGame` に一致するdirectoryを最終stagingへコピーしない。suffix比較は大文字小文字を区別せず、root直下だけへ適用する。通常file、`*_Data`、`MonoBleedingEdge`等は従来どおり再帰copyする。copy元を削除せず、staging失敗時だけstagingをcleanupし、既存finalと過去成功を変更しない。filesystem portに列挙とfile copyを分け、除外、cleanup、既存final不変をUnity非依存testで固定する。将来のplatform別補助成果物一般化は後続Player packaging sliceへ送る。
+2. Framework ownerはdirectory Playerで完了段階のordered listを起動一回だけ保持する。順序は `ui-common-ready`、`content-directory-registered`、`first-scene-stable`、`fixture-loaded`、`fixture-instantiated`、`fixture-behavior-verified`、`fixture-destroyed`、`fixture-handle-released`、`first-scene-unloaded`、`content-directory-closed` とする。Frameworkが所有する段階はFrameworkが追加し、fixture ownerは自分の5段階だけを成功後に返す。成功receipt schema v2はこの全列と`completed`をatomic writeし、最後のclose後だけexit 0へ進む。failure receiptもその時点までのcompleted stages、失敗stage、例外を残して非ゼロexitする。通常Editor/Addressables経路はreceiptを作らず従来挙動を維持する。
+3. protected hookは新設済みのBS4拡張面なので、このrevisionでstage snapshotを引数・戻り値へ追加する。resource owner操作は派生へ渡さず、公開`IAssetManagement`面、asmdef edge、SceneState、session ownershipは変更しない。snapshotはcopyして渡し、派生側からFrameworkの進行記録を変更できないようにする。fixture失敗時もinstance destroyとhandle releaseは従来どおりfinallyで完了させるが、成功段階としてreceiptへ記録するのは実際に完了した操作だけとする。
+4. 起点testに、`PlayerContentConfiguration`のschema/target/path escape、`RequiredJsonFileConfigProvider`のmissing/invalid JSON、`PlayerBuildInputValidator`のidentity/target/path不一致、`PlayerBuildReportVerifier`のselected root混入/bootstrap pack数、`PlayerBuildPublisher`の予約directory除外/staging cleanup/final不変を加える。BuildReport依存部分はpacked GUIDとpack名のpure policyへ抽出し、production `Verify`も同じpolicyを通る。テスト都合の公開APIや新asmdef参照は増やさない。
+5. 判定Cは新identityでcontentとWindows x64 IL2CPP / High Playerをclean buildし、最終packageに予約backup directoryが0件、sibling contentが1件、build receiptのidentity/target/report対応が一致することを機械確認する。その最終packageを実行し、exit 0、schema v2 success receiptの上記ordered stages完全一致、`Unknown managed type referenced` 0件、`ResourcesInUse` 0件を必須証拠とする。失敗契約は上記unit testsで決定的に検証し、失敗専用Playerを組合せごとに再buildすることは要求しない。最終headの全EditMode、contract audit、docs auditも従来どおり必須とする。
+
+不採用案は、publish後にbackupを削除する方式（不完全なfinalが一時成立する）、名前に`BackUp`を含む任意directoryの広域除外（Unity予約名以上を落とす）、ログ文言だけから段階を推測する方式（receiptの自己完結性がない）、全失敗条件ごとのIL2CPP再build（pure policyで閉じる失敗に対して非決定的かつ過大）である。
+
+revision 9 の停止規則は、二件の独立レビューで責務・寿命・証拠境界を確認し、採否をここへ記録して凍結すること。実装中にUnityが別の非shipping rootを生成する、stageを既存ownerで記録できない、またはBuildReportからpure policy入力を安定導出できない場合はPhase B内で拡張せずPhase Aへ戻す。他のrevision 1〜8条件と後続移送先は変更しない。
+
 ## Phase B / C / C' / D
 
 各 Phase の実績、固定 commit と証拠、未実行事項、判定を順次記入する。Phase D のマージ判断はユーザーへ渡す。
