@@ -34,8 +34,10 @@ namespace SampleGame.DependOnAll.Editor.Build
             if (File.Exists(_configPath)) throw new InvalidOperationException("StreamingAssets BS4 config is not self-owned.");
             _backend = PlayerSettings.GetScriptingBackend(NamedBuildTarget.Standalone);
             _stripping = PlayerSettings.GetManagedStrippingLevel(NamedBuildTarget.Standalone);
-            _addressableSettings = AddressableAssetSettingsDefaultObject.Settings
-                ?? throw new InvalidOperationException("Addressables settings are missing.");
+            var addressableSettings = AddressableAssetSettingsDefaultObject.Settings;
+            if (addressableSettings == null)
+                throw new InvalidOperationException("Addressables settings are missing.");
+            _addressableSettings = addressableSettings;
             _buildAddressables = _addressableSettings.BuildAddressablesWithPlayerBuild;
             try
             {
@@ -78,8 +80,9 @@ namespace SampleGame.DependOnAll.Editor.Build
 
         internal void CopyGraphClosure(string sourceMapPath)
         {
-            var sourceMap = AssetDatabase.LoadAssetAtPath<SceneResourceMap>(sourceMapPath)
-                ?? throw new InvalidOperationException("Production SceneResourceMap is missing.");
+            var sourceMap = AssetDatabase.LoadAssetAtPath<SceneResourceMap>(sourceMapPath);
+            if (sourceMap == null)
+                throw new InvalidOperationException("Production SceneResourceMap is missing.");
             var replacements = new Dictionary<UnityEngine.Object, UnityEngine.Object>();
             foreach (var source in sourceMap.SceneResources)
             {
