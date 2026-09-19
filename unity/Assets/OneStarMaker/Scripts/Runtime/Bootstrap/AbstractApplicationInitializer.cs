@@ -134,6 +134,7 @@ namespace OneStarMaker.Runtime
                 // Application / SystemInfo はメインスレッド専用。Welcome 組み立て前に焼き込む。
                 UnitySessionAttributes.Capture();
                 instance.ReleaseAll();
+                instance._beforeSceneLoadFailure = null;
             }
             catch (Exception ex)
             {
@@ -182,6 +183,7 @@ namespace OneStarMaker.Runtime
                     instance.OnPlayerContentStartupFailedAsync(
                         "before-scene-load",
                         instance._beforeSceneLoadFailure).GetAwaiter().GetResult();
+                    instance._beforeSceneLoadFailure = null;
                 }
                 return;
             }
@@ -779,7 +781,6 @@ namespace OneStarMaker.Runtime
         private void ReleaseAll()
         {
             _beforeSceneLoadSucceeded = false;
-            _beforeSceneLoadFailure = null;
             Application.quitting -= OnApplicationQuitting;
 
             // まず framework service 側へ停止を通知する。

@@ -98,12 +98,17 @@ namespace SampleGame.DependOnAll.Editor.Build
         {
             content = new ContentConfig { schemaVersion = 1, runtimeMode = "directory", buildIdentity = identity,
                 target = "StandaloneWindows64-Player", relativeDirectory = "content", firstScene = "Title", representation = representation, probeToken = token },
-            debugSocket = new DebugConfig { enabled = false }
+            debugSocket = new DebugConfig { enabled = false },
+            telemetry = new TelemetryConfig { profiler = new ProfilerConfig { enabled = true } },
+            world = new WorldConfig { cellCompanionSet = "Full" }
         }, true);
 
-        [Serializable] private sealed class RuntimeConfig { public ContentConfig content = new(); public DebugConfig debugSocket = new(); }
+        [Serializable] private sealed class RuntimeConfig { public ContentConfig content = new(); public DebugConfig debugSocket = new(); public TelemetryConfig telemetry = new(); public WorldConfig world = new(); }
         [Serializable] private sealed class ContentConfig { public int schemaVersion; public string runtimeMode=""; public string buildIdentity=""; public string target=""; public string relativeDirectory=""; public string firstScene=""; public string representation=""; public string probeToken=""; }
         [Serializable] private sealed class DebugConfig { public bool enabled; }
+        [Serializable] private sealed class TelemetryConfig { public ProfilerConfig profiler = new(); }
+        [Serializable] private sealed class ProfilerConfig { public bool enabled; }
+        [Serializable] private sealed class WorldConfig { public string cellCompanionSet = ""; }
         [Serializable] private sealed class BuildReceipt { public string identity=""; public string contentReportPath=""; public string playerBuildGuid=""; public string backend=""; public string stripping=""; public string[] scenes=Array.Empty<string>(); public string[] checkedRootGuids=Array.Empty<string>(); }
     }
 }

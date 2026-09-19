@@ -26,14 +26,14 @@ namespace OneStarMaker.Runtime.BuildContent
             var configuredTarget = config.GetString("content:target", string.Empty);
             var representation = config.GetString("content:representation", string.Empty);
             var firstScene = config.GetString("content:firstScene", string.Empty);
-            if (Path.IsPathRooted(relative) || string.IsNullOrWhiteSpace(relative) || string.IsNullOrWhiteSpace(identity)
+            if (System.IO.Path.IsPathRooted(relative) || string.IsNullOrWhiteSpace(relative) || string.IsNullOrWhiteSpace(identity)
                 || string.IsNullOrWhiteSpace(configuredTarget) || string.IsNullOrWhiteSpace(representation) || string.IsNullOrWhiteSpace(firstScene))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Player content configuration is incomplete.");
             if (!string.Equals(configuredTarget, target, StringComparison.Ordinal))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.TargetMismatch, "Player content target does not match this executable.", identity, target);
-            var root = Path.GetFullPath(installRoot);
-            var resolved = Path.GetFullPath(Path.Combine(root, relative));
-            if (!resolved.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            var root = System.IO.Path.GetFullPath(installRoot);
+            var resolved = System.IO.Path.GetFullPath(System.IO.Path.Combine(root, relative));
+            if (!resolved.StartsWith(root + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Player content directory escapes its install root.", identity, target);
             return new PlayerContentConfiguration(resolved, identity, representation, firstScene);
         }
