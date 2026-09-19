@@ -52,6 +52,7 @@ namespace SampleGame.DependOnAll.Editor.Build
                     var receipt = JsonUtility.ToJson(new BuildReceipt
                     {
                         identity = result.Identity, contentReportPath = result.OutcomePath,
+                        target = "StandaloneWindows64-Player",
                         playerBuildGuid = verification.BuildGuid, backend = "IL2CPP", stripping = "High",
                         scenes = new[] { bootstrap.Path }, bootstrapSceneName = "UICommon", checkedRootGuids = verification.CheckedGuids,
                     }, true);
@@ -112,6 +113,6 @@ namespace SampleGame.DependOnAll.Editor.Build
         [Serializable] private sealed class TelemetryConfig { public ProfilerConfig profiler = new(); }
         [Serializable] private sealed class ProfilerConfig { public bool enabled; }
         [Serializable] private sealed class WorldConfig { public string cellCompanionSet = ""; }
-        [Serializable] private sealed class BuildReceipt { public string identity=""; public string contentReportPath=""; public string playerBuildGuid=""; public string backend=""; public string stripping=""; public string[] scenes=Array.Empty<string>(); public string bootstrapSceneName=""; public string[] checkedRootGuids=Array.Empty<string>(); }
+        [Serializable] private sealed class BuildReceipt { public string identity=""; public string target=""; public string contentReportPath=""; public string playerBuildGuid=""; public string backend=""; public string stripping=""; public string[] scenes=Array.Empty<string>(); public string bootstrapSceneName=""; public string[] checkedRootGuids=Array.Empty<string>(); }
     }
 }

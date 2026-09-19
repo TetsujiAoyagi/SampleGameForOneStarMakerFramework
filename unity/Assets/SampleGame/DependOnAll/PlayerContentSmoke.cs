@@ -30,47 +30,85 @@ namespace SampleGame.DependOnAll
             var token = config.GetString("content:probeToken", string.Empty);
             IAssetHandle<GameObject>? handle = null;
             GameObject? instance = null;
+            return await RunSequenceAsync(
+                async () =>
+                {
+                    if (representation.Length == 0 || token.Length == 0)
+                        throw new InvalidOperationException("BS4 probe configuration is incomplete.");
+                    handle = await assets.LoadContentAssetAsync<GameObject>("bs4:fixture:prefab", representation, AssetOwner.Manual, ct);
+                    if (handle.Value == null) throw new InvalidOperationException("BS4 probe Prefab load returned null.");
+                },
+                () =>
+                {
+                    // Unity Loadable は同じ locator の operation を二度 await できない。Manual handle を
+                    // clone の破棄完了まで保持し、一回の native load から代表 Prefab を実体化する。
+                    instance = UnityEngine.Object.Instantiate(handle!.Value);
+                    return UniTask.CompletedTask;
+                },
+                () =>
+                {
+                    Component? probe = null;
+                    foreach (var component in instance!.GetComponents<Component>())
+                        if (component != null && component.GetType().Name == "Bs4ContentOnlyProbe") { probe = component; break; }
+                    if (probe == null) throw new InvalidOperationException("Bs4ContentOnlyProbe was stripped or missing.");
+                    var field = probe.GetType().GetField("serializedToken", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                    if (!string.Equals(field?.GetValue(probe) as string, token, StringComparison.Ordinal)) throw new InvalidOperationException("BS4 probe token mismatch.");
+                    instance.SendMessage("VerifyBs4Probe", token, SendMessageOptions.RequireReceiver);
+                    var succeeded = probe.GetType().GetField("verificationSucceeded", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                    if (succeeded?.GetValue(probe) is not bool value || !value)
+                        throw new InvalidOperationException("BS4 probe behavior did not report success.");
+                    return UniTask.CompletedTask;
+                },
+                async () =>
+                {
+                    if (instance == null) return;
+                    UnityEngine.Object.Destroy(instance);
+                    while (instance != null) await UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate);
+                },
+                () =>
+                {
+                    if (handle != null) assets.Release(handle);
+                    return UniTask.CompletedTask;
+                });
+        }
+
+        internal static async UniTask<Result> RunSequenceAsync(
+            Func<UniTask> load,
+            Func<UniTask> instantiate,
+            Func<UniTask> verify,
+            Func<UniTask> destroy,
+            Func<UniTask> release)
+        {
             Exception? failure = null;
             var completed = new List<Stage>();
+            var loaded = false;
+            var instantiated = false;
             try
             {
-                if (representation.Length == 0 || token.Length == 0)
-                    throw new InvalidOperationException("BS4 probe configuration is incomplete.");
-                handle = await assets.LoadContentAssetAsync<GameObject>("bs4:fixture:prefab", representation, AssetOwner.Manual, ct);
-                if (handle.Value == null) throw new InvalidOperationException("BS4 probe Prefab load returned null.");
+                await load();
+                loaded = true;
                 completed.Add(Stage.Loaded);
-                // Unity Loadable は同じ locator の operation を二度 await できない。Manual handle を
-                // clone の破棄完了まで保持し、一回の native load から代表 Prefab を実体化する。
-                instance = UnityEngine.Object.Instantiate(handle.Value);
+                await instantiate();
+                instantiated = true;
                 completed.Add(Stage.Instantiated);
-                Component? probe = null;
-                foreach (var component in instance.GetComponents<Component>())
-                    if (component != null && component.GetType().Name == "Bs4ContentOnlyProbe") { probe = component; break; }
-                if (probe == null) throw new InvalidOperationException("Bs4ContentOnlyProbe was stripped or missing.");
-                var field = probe.GetType().GetField("serializedToken", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-                if (!string.Equals(field?.GetValue(probe) as string, token, StringComparison.Ordinal)) throw new InvalidOperationException("BS4 probe token mismatch.");
-                instance.SendMessage("VerifyBs4Probe", token, SendMessageOptions.RequireReceiver);
-                var succeeded = probe.GetType().GetField("verificationSucceeded", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-                if (succeeded?.GetValue(probe) is not bool value || !value)
-                    throw new InvalidOperationException("BS4 probe behavior did not report success.");
+                await verify();
                 completed.Add(Stage.BehaviorVerified);
             }
             catch (Exception ex) { failure = ex; }
             finally
             {
-                if (instance != null)
+                if (instantiated)
                 {
                     try
                     {
-                        UnityEngine.Object.Destroy(instance);
-                        while (instance != null) await UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate);
+                        await destroy();
                         completed.Add(Stage.Destroyed);
                     }
                     catch (Exception cleanupException) { failure = Combine(failure, cleanupException); }
                 }
-                if (handle != null)
+                if (loaded)
                 {
-                    try { assets.Release(handle); completed.Add(Stage.HandleReleased); }
+                    try { await release(); completed.Add(Stage.HandleReleased); }
                     catch (Exception cleanupException) { failure = Combine(failure, cleanupException); }
                 }
             }
