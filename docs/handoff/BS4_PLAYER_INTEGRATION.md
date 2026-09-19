@@ -258,14 +258,15 @@ revision 6 Player は `Unknown managed type referenced` 0件となり、`Title` 
 
 revision 7 の新Playerでは、`Unknown managed type referenced` は0件のままだったが、`Title` closure追加が `PanelRenderer.UIReloadCallback` より先に走り、UI Toolkit root未初期化で失敗した。revision 6では同じ経路を通過しており、bootstrap Scene load済みとpanel readyを同一視した非決定的な起動順が原因である。
 
-採用案: `UICommon` が callbackで構築するlayer containerをready条件とするinternal async waitを持ち、initializerは`LoadUICommonAsync`直後、サービスやScene追加より前にそれをawaitする。固定フレーム数や時間待機は使わず、既にreadyなら同期完了し、未readyならcallbackによる状態変化を待つ。initializerの既存lifetime tokenで取消可能にする。
+採用案: `UICommon` が callbackで構築するlayer containerをready条件とするinternal async waitを持ち、initializerは`LoadUICommonAsync`直後、サービスやScene追加より前にそれをawaitする。固定フレーム数や時間待機は使わず、既にreadyなら同期完了し、未readyならcallbackによる状態変化を待つ。initializerの既存lifetime tokenをUI取得前に確定し、caller取消は共有completionを壊さず待機者だけを終端させる。
 
-- UICommonは引き続きroot/layerのowner。SceneDirectorやGame側へPanelRendererを公開しない。
+- UICommonは引き続きroot/layerのowner。SceneDirectorやGame側へPanelRendererを公開しない。callbackでlayer構築と再接続が成功した後だけreadyを通知し、破棄または構築例外はwaiterを失敗終端へ送る。
+- legacy CanvasだけでPanelRenderer未設定の通常構成は待機不要。BS4 directory PlayerではPanelRendererを必須として明示失敗する。
 - public API、asmdef edge、SceneState、Update順序を変えない。通常Addressables bootstrapも同じready境界を通り、既にcallback済みなら追加フレームを消費しない。
 - stageを `wait-ui-common-ready` としてfailure receiptへ残す。外部Player harness timeout / receipt欠損は従来どおり失敗で、ready未到達をGOへ読み替えない。
 - 新Playerでready後のTitle Stable、revision 7 fixture、正式unload、awaited close、success receipt、exit 0を確認する。revision 6/7の全条件を維持する。
 
-revision 8を凍結し、独立再レビューでUI owner境界、取消、通常経路への影響を確認する。
+runtime独立レビューは、rendererなし通常構成、token先行取得、callback先行/後着、共有completionとcaller取消の分離、破棄/構築例外の終端を条件にPASS。architecture独立レビューもownerをUICommonに留め、callback成功後だけのlatched readiness、disable/destroy終端、通常/BS4両経路の回帰を条件にPASS。全条件を採用しrevision 8を凍結する。
 
 ## Phase B / C / C' / D
 
