@@ -10,7 +10,9 @@ using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.UpdateSystem.Api;
 using SampleGame.InGame.Streaming;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using OneStarMaker.Runtime.AssetManagement;
@@ -118,12 +120,53 @@ namespace SampleGame.DependOnAll
             var value = Resources.Load<SceneResourceMap>("BS4/" + identity + "/SceneResourceMap");
             return value != null ? value : throw new InvalidOperationException("BS4 SceneResourceMap is missing.");
         }
-        protected override UniTask OnPlayerContentReadyAsync(IAssetManagement assets, CancellationToken ct) =>
-            PlayerContentSmoke.RunAsync(assets, Config!, ct);
-        protected override UniTask OnPlayerContentShutdownCompletedAsync()
-        { PlayerContentSmoke.WriteReceipt(true, "completed", null); Application.Quit(0); return UniTask.CompletedTask; }
-        protected override UniTask OnPlayerContentStartupFailedAsync(string stage, Exception exception)
-        { PlayerContentSmoke.WriteReceipt(false, stage, exception); Application.Quit(1); return UniTask.CompletedTask; }
+        protected override async UniTask<PlayerContentFixtureResult> OnPlayerContentReadyAsync(IAssetManagement assets, CancellationToken ct)
+        {
+            var result = await PlayerContentSmoke.RunAsync(assets, Config!, ct);
+            return new PlayerContentFixtureResult(result.CompletedStages.Select(ToPlayerContentStage).ToArray(), result.Failure);
+        }
+
+        protected override UniTask OnPlayerContentShutdownCompletedAsync(IReadOnlyList<PlayerContentStage> completedStages)
+        {
+            PlayerContentSmoke.WriteReceipt(true, "completed", completedStages.Select(ToReceiptStage).ToArray(), null);
+            Application.Quit(0);
+            return UniTask.CompletedTask;
+        }
+
+        protected override UniTask OnPlayerContentStartupFailedAsync(
+            string stage,
+            Exception exception,
+            IReadOnlyList<PlayerContentStage> completedStages)
+        {
+            PlayerContentSmoke.WriteReceipt(false, stage, completedStages.Select(ToReceiptStage).ToArray(), exception);
+            Application.Quit(1);
+            return UniTask.CompletedTask;
+        }
+
+        private static PlayerContentStage ToPlayerContentStage(PlayerContentSmoke.Stage stage) => stage switch
+        {
+            PlayerContentSmoke.Stage.Loaded => PlayerContentStage.FixtureLoaded,
+            PlayerContentSmoke.Stage.Instantiated => PlayerContentStage.FixtureInstantiated,
+            PlayerContentSmoke.Stage.BehaviorVerified => PlayerContentStage.FixtureBehaviorVerified,
+            PlayerContentSmoke.Stage.Destroyed => PlayerContentStage.FixtureDestroyed,
+            PlayerContentSmoke.Stage.HandleReleased => PlayerContentStage.FixtureHandleReleased,
+            _ => throw new ArgumentOutOfRangeException(nameof(stage), stage, null),
+        };
+
+        private static string ToReceiptStage(PlayerContentStage stage) => stage switch
+        {
+            PlayerContentStage.UiCommonReady => "ui-common-ready",
+            PlayerContentStage.ContentDirectoryRegistered => "content-directory-registered",
+            PlayerContentStage.FirstSceneStable => "first-scene-stable",
+            PlayerContentStage.FixtureLoaded => "fixture-loaded",
+            PlayerContentStage.FixtureInstantiated => "fixture-instantiated",
+            PlayerContentStage.FixtureBehaviorVerified => "fixture-behavior-verified",
+            PlayerContentStage.FixtureDestroyed => "fixture-destroyed",
+            PlayerContentStage.FixtureHandleReleased => "fixture-handle-released",
+            PlayerContentStage.FirstSceneUnloaded => "first-scene-unloaded",
+            PlayerContentStage.ContentDirectoryClosed => "content-directory-closed",
+            _ => throw new ArgumentOutOfRangeException(nameof(stage), stage, null),
+        };
 
         /// <summary>
         /// Framework の AfterSceneLoad 処理は、サービス初期化後にも SceneDirector 構築や初回シーン追加を行う。

@@ -180,9 +180,11 @@ namespace OneStarMaker.Runtime
                     // BeforeSceneLoad は同期 callback なので、AfterSceneLoad で非同期の失敗通知を起動する。
                     // この経路の派生 hook は receipt と exit code を同期的に確定して返す契約。
                     // fire-and-forget にすると config 欠損時の証拠が process 終了に負ける。
-                    instance.OnPlayerContentStartupFailedAsync(
-                        "before-scene-load",
-                        instance._beforeSceneLoadFailure).GetAwaiter().GetResult();
+                    if (ShouldNotifyPlayerContentFailure(instance.UseRequiredPlayerFileConfiguration))
+                        instance.OnPlayerContentStartupFailedAsync(
+                            "before-scene-load",
+                            instance._beforeSceneLoadFailure,
+                            Array.Empty<PlayerContentStage>()).GetAwaiter().GetResult();
                     instance._beforeSceneLoadFailure = null;
                 }
                 return;
@@ -261,6 +263,7 @@ namespace OneStarMaker.Runtime
         private async UniTaskVoid InitializeAfterSceneLoad()
         {
             var startupStage = "load-ui-common";
+            var playerContentStages = new List<PlayerContentStage>();
             var span = AppTelemetry.StartSpan(Foundation.Core.TelemetryStartType.AppStartup, null);
             var success = false;
             CancellationToken ct = default;
@@ -282,6 +285,8 @@ namespace OneStarMaker.Runtime
 
                 startupStage = "wait-ui-common-ready";
                 await uiCommon.WaitForPanelReadyAsync(UseRequiredPlayerFileConfiguration, ct);
+                if (UseRequiredPlayerFileConfiguration)
+                    playerContentStages.Add(PlayerContentStage.UiCommonReady);
 
                 startupStage = "load-scene-resource-map";
                 Debug.Log("[AppInit] AfterSceneLoad: loading SceneResourceMap.");
@@ -336,6 +341,8 @@ namespace OneStarMaker.Runtime
                     }
                     _contentDirectorySession = session;
                     sceneVariant = configuration.Representation;
+                    if (UseRequiredPlayerFileConfiguration)
+                        playerContentStages.Add(PlayerContentStage.ContentDirectoryRegistered);
                 }
 
                 startupStage = "create-scene-director";
@@ -365,17 +372,22 @@ namespace OneStarMaker.Runtime
                 {
                     startupStage = "load-player-first-scene";
                     await _sceneDirector.AddScene(_contentDirectoryConfiguration.FirstScene, null, ct);
+                    playerContentStages.Add(PlayerContentStage.FirstSceneStable);
                     startupStage = "run-player-content-smoke";
-                    await OnPlayerContentReadyAsync(_assetManagement, ct);
+                    var fixtureResult = await OnPlayerContentReadyAsync(_assetManagement, ct);
+                    AppendFixtureStages(playerContentStages, fixtureResult.CompletedStages);
+                    if (fixtureResult.Failure != null) throw fixtureResult.Failure;
                     startupStage = "unload-player-first-scene";
                     await _sceneDirector.UnloadScene(_contentDirectoryConfiguration.FirstScene);
+                    playerContentStages.Add(PlayerContentStage.FirstSceneUnloaded);
                     startupStage = "close-player-content-directory";
                     if (_assetManagement is not AssetManagement.AssetManagement playerAssets)
                         throw new InvalidOperationException("Player content requires the framework asset manager.");
                     await playerAssets.CloseContentDirectoryAsync();
                     _contentDirectorySession = null;
+                    playerContentStages.Add(PlayerContentStage.ContentDirectoryClosed);
                     startupStage = "complete-player-content-smoke";
-                    await OnPlayerContentShutdownCompletedAsync();
+                    await OnPlayerContentShutdownCompletedAsync(playerContentStages.ToArray());
                 }
 
                 success = true;
@@ -396,6 +408,7 @@ namespace OneStarMaker.Runtime
                     {
                         // failure receipt より先に正式 unload を完了し、directory tokenを返す。
                         await _sceneDirector.UnloadScene(_contentDirectoryConfiguration.FirstScene);
+                        playerContentStages.Add(PlayerContentStage.FirstSceneUnloaded);
                     }
                     catch (Exception unloadException)
                     {
@@ -411,6 +424,7 @@ namespace OneStarMaker.Runtime
                         // close 側の ResourcesInUse 判定や cleanup 失敗は元の起動例外を隠さず記録する。
                         await directoryAssetManagement.CloseContentDirectoryAsync();
                         _contentDirectorySession = null;
+                        playerContentStages.Add(PlayerContentStage.ContentDirectoryClosed);
                     }
                     catch (Exception closeException)
                     {
@@ -424,7 +438,8 @@ namespace OneStarMaker.Runtime
                     // Framework 自身の ReleaseAll をここで呼ぶと診断用状態まで一律に失うため、
                     // 所有者である派生クラスへ限定的な回収機会を渡す。
                     OnAfterSceneLoadInitializationFailed(startupStage, ex);
-                    await OnPlayerContentStartupFailedAsync(startupStage, ex);
+                    if (ShouldNotifyPlayerContentFailure(UseRequiredPlayerFileConfiguration))
+                        await OnPlayerContentStartupFailedAsync(startupStage, ex, playerContentStages.ToArray());
                 }
                 catch (Exception cleanupException)
                 {
@@ -947,13 +962,63 @@ namespace OneStarMaker.Runtime
         {
         }
 
-        protected virtual UniTask OnPlayerContentReadyAsync(IAssetManagement assetManagement, CancellationToken ct)
+        protected enum PlayerContentStage
+        {
+            UiCommonReady,
+            ContentDirectoryRegistered,
+            FirstSceneStable,
+            FixtureLoaded,
+            FixtureInstantiated,
+            FixtureBehaviorVerified,
+            FixtureDestroyed,
+            FixtureHandleReleased,
+            FirstSceneUnloaded,
+            ContentDirectoryClosed,
+        }
+
+        protected sealed class PlayerContentFixtureResult
+        {
+            public PlayerContentFixtureResult(IReadOnlyList<PlayerContentStage> completedStages, Exception? failure)
+            {
+                CompletedStages = completedStages?.ToArray() ?? throw new ArgumentNullException(nameof(completedStages));
+                Failure = failure;
+            }
+
+            public IReadOnlyList<PlayerContentStage> CompletedStages { get; }
+            public Exception? Failure { get; }
+        }
+
+        protected static void AppendFixtureStages(List<PlayerContentStage> destination, IReadOnlyList<PlayerContentStage> stages)
+        {
+            if (destination == null) throw new ArgumentNullException(nameof(destination));
+            if (stages == null) throw new ArgumentNullException(nameof(stages));
+            var allowed = new[] { PlayerContentStage.FixtureLoaded, PlayerContentStage.FixtureInstantiated,
+                PlayerContentStage.FixtureBehaviorVerified, PlayerContentStage.FixtureDestroyed,
+                PlayerContentStage.FixtureHandleReleased };
+            var previous = -1;
+            foreach (var stage in stages)
+            {
+                var index = Array.IndexOf(allowed, stage);
+                if (index <= previous)
+                    throw new InvalidOperationException("Fixture completion stages must be a unique ordered subsequence.");
+                destination.Add(stage);
+                previous = index;
+            }
+        }
+
+        internal static bool ShouldNotifyPlayerContentFailure(bool useRequiredPlayerFileConfiguration) =>
+            useRequiredPlayerFileConfiguration;
+
+        protected virtual UniTask<PlayerContentFixtureResult> OnPlayerContentReadyAsync(IAssetManagement assetManagement, CancellationToken ct)
+            => UniTask.FromResult(new PlayerContentFixtureResult(Array.Empty<PlayerContentStage>(), null));
+
+        protected virtual UniTask OnPlayerContentShutdownCompletedAsync(IReadOnlyList<PlayerContentStage> completedStages)
             => UniTask.CompletedTask;
 
-        protected virtual UniTask OnPlayerContentShutdownCompletedAsync()
-            => UniTask.CompletedTask;
-
-        protected virtual UniTask OnPlayerContentStartupFailedAsync(string stage, Exception exception)
+        protected virtual UniTask OnPlayerContentStartupFailedAsync(
+            string stage,
+            Exception exception,
+            IReadOnlyList<PlayerContentStage> completedStages)
             => UniTask.CompletedTask;
 
         /// <summary>
