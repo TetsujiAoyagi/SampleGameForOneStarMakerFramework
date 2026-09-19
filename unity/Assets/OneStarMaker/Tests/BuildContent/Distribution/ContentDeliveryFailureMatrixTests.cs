@@ -9,8 +9,8 @@ using Cysharp.Threading.Tasks;
 using NUnit.Framework;
 using OneStarMaker.Runtime.BuildContent;
 using OneStarMaker.Runtime.BuildContent.Distribution;
+using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.AssetManagement.Internal;
-using Unity.Loading;
 using UnityEngine;
 
 namespace OneStarMaker.Tests.BuildContent.Distribution
