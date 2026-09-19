@@ -15,6 +15,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using OneStarMaker.Runtime.AssetManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using RuntimeCameraSystem = OneStarMaker.Runtime.CameraSystem.Core.CameraSystem;
 
 namespace SampleGame.DependOnAll
@@ -37,6 +38,7 @@ namespace SampleGame.DependOnAll
         private ProfilerUiCostCollector? _profilerUiCostCollector;
         private ProfilerTelemetryEmitter? _profilerTelemetryEmitter;
         private bool _profilerQuittingHandlerRegistered;
+        private bool _useBs4PlayerMode;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void Sub()
@@ -44,12 +46,16 @@ namespace SampleGame.DependOnAll
             // Domain Reload 無効時も前セッションの常駐 Host を先に片付けてから Framework を初期化する。
             s_instance.ReleaseCameraSystem();
             s_instance.ReleaseProfilerTelemetry();
+            s_instance._useBs4PlayerMode = false;
             BootstrapSubsystemRegistration(s_instance);
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Before()
         {
+            // BS4固有の生成bootstrap Scene名をconfigとは独立した成果物markerとして一度だけ読む。
+            // config欠損時も通常Addressablesへ戻さず、required providerでfail-closedにする。
+            s_instance._useBs4PlayerMode = IsBs4PlayerMode(Application.isEditor, SceneManager.GetActiveScene().name);
             BootstrapBeforeSceneLoad(s_instance);
 
             // CameraSystem は Addressables・SceneDirector・UICommon を必要としない。
@@ -102,8 +108,9 @@ namespace SampleGame.DependOnAll
         protected override string GetEnvironmentVariablePrefix()
             => "SAMPLEGAME_";
 
-#if OSM_BS4_PLAYER
-        protected override bool UseRequiredPlayerFileConfiguration => true;
+        protected override bool UseRequiredPlayerFileConfiguration => _useBs4PlayerMode;
+        private static bool IsBs4PlayerMode(bool isEditor, string activeSceneName) =>
+            !isEditor && string.Equals(activeSceneName, "UICommon", StringComparison.Ordinal);
         protected override string GetRequiredPlayerConfigurationPath() => Path.Combine(Application.streamingAssetsPath, "bs4-runtime.json");
         protected override SceneResourceMap LoadPlayerSceneResourceMap()
         {
@@ -117,7 +124,6 @@ namespace SampleGame.DependOnAll
         { PlayerContentSmoke.WriteReceipt(true, "completed", null); Application.Quit(0); return UniTask.CompletedTask; }
         protected override UniTask OnPlayerContentStartupFailedAsync(string stage, Exception exception)
         { PlayerContentSmoke.WriteReceipt(false, stage, exception); Application.Quit(1); return UniTask.CompletedTask; }
-#endif
 
         /// <summary>
         /// Framework の AfterSceneLoad 処理は、サービス初期化後にも SceneDirector 構築や初回シーン追加を行う。

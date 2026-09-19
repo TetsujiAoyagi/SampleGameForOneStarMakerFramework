@@ -1,5 +1,4 @@
 #nullable enable
-#if OSM_BS4_PLAYER
 using System;
 using System.IO;
 using System.Text;
@@ -53,4 +52,3 @@ namespace SampleGame.DependOnAll
         [Serializable] private sealed class Receipt { public int schemaVersion; public bool succeeded; public string stage = ""; public string error = ""; }
     }
 }
-#endif

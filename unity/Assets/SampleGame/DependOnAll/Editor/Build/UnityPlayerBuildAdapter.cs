@@ -20,7 +20,7 @@ namespace SampleGame.DependOnAll.Editor.Build
                 target = BuildTarget.StandaloneWindows64,
                 subtarget = (int)StandaloneBuildSubtarget.Player,
                 options = BuildOptions.DetailedBuildReport,
-                extraScriptingDefines = new[] { "OSM_BS4_PLAYER" },
+                extraScriptingDefines = Array.Empty<string>(),
             };
             // Unity 6.6 API。reflection は旧 Editor で黙って落とさず、存在しなければ build 前に拒否する。
             object boxed = options;
