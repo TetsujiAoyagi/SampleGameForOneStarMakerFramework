@@ -1,7 +1,7 @@
 # BS4 — Player integration HANDOFF
 
 - type: slice
-- status: A3 frozen（Phase B 入力）
+- status: A3 revision 2 frozen（Phase B input。revision 1 は ownership gap で再開）
 - branch: `codex/bs4-player-integration`
 - implementation base commit: `ea7acf7` (`develop`, 2026-09-19)
 - implementation head commit: 未作成
@@ -157,6 +157,27 @@ BS4専用 Editor fixture adapter が production materialization snapshot に一�
 ### 凍結後の境界
 
 新 asmdef edgeは追加しない。Editor型はinternal。通常 Player / EditorのAddressables既定を維持する。新しい graph abstraction、公開API、owner、永続schema、fixture合成方式が上記で成立しない場合、Phase B内で代案を決めずPhase A revisionへ戻す。A3後の例外承認はなし。
+
+### Phase A revision 2 — graceful close ownership（2026-09-19）
+
+Phase B runtime commit `3e667d8` 後、SampleGame callback が受け取る `IAssetManagement` には directory close がなく、実装型の `CloseContentDirectoryAsync` は Framework internal であると判明した。SampleGameへ public close APIまたは friend accessを追加すると、session ownerをFrameworkに固定したBS3契約とA3に反する。この finding は「成功 receipt 前の awaited close」という最低条件を阻害するため Phase A を再開した。
+
+採用する ownership は次のとおり。
+
+1. `OnPlayerContentReadyAsync` は代表 content の load / instantiate / component動作確認 / instance destroy / handle releaseだけを担当し、成功なら戻る。directory sessionやSceneDirectorを所有しない。
+2. Framework `AbstractApplicationInitializer` が callback成功後、起動した logical first Scene を `SceneDirector.UnloadScene` の正式経路で unloadし、次に実装型 `AssetManagement.CloseContentDirectoryAsync()` を awaitする。session fieldをnullにした後で `OnPlayerContentShutdownCompletedAsync()` を呼ぶ。
+3. SampleGame は completion hookで success receiptをatomic writeし `Application.Quit(0)`。failure hookはFrameworkが逆順cleanup / awaited closeを試した後に呼び、failure receiptと非ゼロexitを行う。close自体が失敗した場合もsuccess completionへ進まない。
+4. Frameworkは `IAssetManagement` や `AssetManagement` のpublic面を増やさない。追加protected hookは completion通知だけで、resource owner操作を派生へ公開しない。Editor/addressables modeはno-opで従来どおり継続する。
+5. BeforeSceneLoad failureは例外を保持し、AfterSceneLoad callbackからfailure hookを非同期起動する。failure hookがreceipt/exitを完了するまでFrameworkが別の起動処理を開始しない。
+
+独立再レビュー: revision 1 の architecture担当（Sol）は、Framework が既に concrete AssetManagement / session / Director / first scene を所有するため、public API・friend・asmdef edge無しで実行可能として PASS。runtime担当（Astra）も順序を PASS とし、次を必須実装条件として追加した。
+
+- directory Player の `OperationCanceledException` は成功扱いにせず、逆順cleanup、failure receipt、非ゼロexitへ送る。通常 Editor/addressables shutdownの既存意味は維持する。
+- fixture callbackは失敗時も `finally` で instance destroy完了とhandle releaseを済ませてからthrowする。live tokenをFramework closeへ残さない。
+- Before failure例外は部分 `ReleaseAll` で消さず、failure hook通知後または次のSubsystemRegistrationで消す。
+- shutdown stageを scene unload / directory close / completion receipt に分け、close成功後だけsession fieldをnullにする。二次cleanup失敗は元のstage/例外を隠さない。
+
+主担当は全て採用。revision 2 を凍結し、他のA3条件は変更しない。
 
 ## Phase B / C / C' / D
 

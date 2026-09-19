@@ -89,6 +89,7 @@ namespace OneStarMaker.Runtime
         private IAssetManagement? _assetManagement;
         private ContentDirectoryConfiguration? _contentDirectoryConfiguration;
         private ContentDirectorySession? _contentDirectorySession;
+        private Exception? _beforeSceneLoadFailure;
         private bool _beforeSceneLoadSucceeded;
 
         /// <summary>LoadUICommonAsync でロードした UICommon シーンのハンドル。</summary>
@@ -146,6 +147,7 @@ namespace OneStarMaker.Runtime
         protected static void BootstrapBeforeSceneLoad(AbstractApplicationInitializer instance)
         {
             instance._beforeSceneLoadSucceeded = false;
+            instance._beforeSceneLoadFailure = null;
             try
             {
                 instance.InitializeBeforeSceneLoad();
@@ -153,6 +155,7 @@ namespace OneStarMaker.Runtime
             }
             catch (Exception ex)
             {
+                instance._beforeSceneLoadFailure = ex;
                 Debug.LogException(ex);
                 // 起動設定の検証失敗後に残った AssetManagement/CTS を根拠として
                 // AfterSceneLoad が既定 Addressables へ進むと、明示 directory 指定を黙って無視する。
@@ -170,6 +173,14 @@ namespace OneStarMaker.Runtime
             if (!instance._beforeSceneLoadSucceeded)
             {
                 Debug.LogError("[AppInit] BeforeSceneLoad が失敗したため AfterSceneLoad をスキップします。");
+                if (instance._beforeSceneLoadFailure != null)
+                {
+                    // Player smoke は config 欠損も process failure として観測する必要がある。
+                    // BeforeSceneLoad は同期 callback なので、AfterSceneLoad で非同期の失敗通知を起動する。
+                    instance.OnPlayerContentStartupFailedAsync(
+                        "before-scene-load",
+                        instance._beforeSceneLoadFailure).Forget();
+                }
                 return;
             }
             try
@@ -742,6 +753,7 @@ namespace OneStarMaker.Runtime
         private void ReleaseAll()
         {
             _beforeSceneLoadSucceeded = false;
+            _beforeSceneLoadFailure = null;
             Application.quitting -= OnApplicationQuitting;
 
             // まず framework service 側へ停止を通知する。
