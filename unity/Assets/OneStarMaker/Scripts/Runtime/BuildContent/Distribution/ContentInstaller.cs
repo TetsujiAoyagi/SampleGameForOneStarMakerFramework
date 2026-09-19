@@ -119,10 +119,11 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
                 catch (ContentDeliveryException ex) { CleanupAfterFailure(staging, ex); throw; }
                 catch (Exception ex)
                 {
-                    try { CleanupAfterFailure(staging, ex); }
-                    catch (ContentDeliveryException wrapped) { throw wrapped; }
-                    throw new ContentDeliveryException(ContentDeliveryFailureCode.IoFailure,
+                    CleanupAfterFailure(staging, ex);
+                    var wrapped = new ContentDeliveryException(ContentDeliveryFailureCode.IoFailure,
                         "Content install failed before publication.", ex);
+                    CopyCleanupDiagnostics(ex, wrapped);
+                    throw wrapped;
                 }
             }
         }
@@ -168,14 +169,17 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
             try { Directory.Delete(staging, true); }
             catch (Exception cleanup)
             {
-                // cancellation は標準例外のまま返し、cleanup 診断も Data に保持する。
-                if (primary is OperationCanceledException)
-                { primary.Data["ContentDeliveryCleanupFailure"] = cleanup; return; }
-                var code = primary is ContentDeliveryException delivery
-                    ? delivery.Code : ContentDeliveryFailureCode.IoFailure;
-                throw new ContentDeliveryException(code, primary.Message,
-                    new AggregateException(primary, cleanup));
+                // 元の failure/code/stack を置き換えず、caller が残留 staging を特定して
+                // 次回 cleanup の対象にできる診断だけを同じ例外へ付加する。
+                primary.Data["ContentDeliveryCleanupFailure"] = cleanup;
+                primary.Data["ContentDeliveryStagingPath"] = staging;
             }
+        }
+
+        private static void CopyCleanupDiagnostics(Exception source, Exception destination)
+        {
+            foreach (var key in new[] { "ContentDeliveryCleanupFailure", "ContentDeliveryStagingPath" })
+                if (source.Data.Contains(key)) destination.Data[key] = source.Data[key];
         }
     }
 }

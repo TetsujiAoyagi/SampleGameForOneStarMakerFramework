@@ -202,13 +202,7 @@ Editor offline/source診断からinternal verifier/codecへ依存しない公開
 
 ## 7. Phase C
 
-発見Cのみ実施。担当gpt-6-astra（Bと異なる、新規context）。base `3c6769ad3af53c3cbe050894b7040b4eaa268e8d` / head `38b8baaef87effa926884b8d5d62e19f19ee0811`。
-入力bundle `artifacts/bs2b/dist-evidence/discovery-38b8baa`、manifest SHA256 `e85298b1ed5e20446aa1fa8d5ab33355868e2497b98462728d3de36c558e04f1`。frozen A/B result/完全diff/stat/name-status/機械監査を固定。全入力hash一致をreviewerが確認。
-所見 `c-findings.md` SHA256 `4b1ab100215bea9ebd336f92315a2dd0c5e5bd67e0c3fa20592fbd447289d45b`。構造のassembly方向/基本責務配置は概ね適合、失敗境界と実証接続が未充足。
-
-C01〜C14は全件frozen条件に根拠を持つ現slice欠陥として採用しB適応へ差戻し（修正待ち）: identity segment/path境界、staging/tombstone登録authority、ancestor reparse、receipt意味/配置と削除直前検証、known-good pin検証、HTTP body timeout/取消、Player mode保護、consumer互換性定数、budget metadata/overflow/候補理由、staging回復、Editor reload所有情報、source診断/offline検証、必須JSON field、公開例外分類。
-検証入口照合でM1の実HTTP/install→実load未接続と、M4のPlayer hold取消がinstantiate成功記録前に例外を返しclone破棄を飛ばす欠陥を追加採用した。前者は既存統合fixtureを接続、後者はbehavior確認後〜destroy前へ移すB適応とする。
-後続へ送る新要求なし。判定必須はすべて未実行。発見段階で重い検証未実行、GO/C'なし。修正収束後の新headで判定Cを行う。
+判定未実施。発見レビューの履歴はlocal evidenceへ保存し、blind auditへ所見を混入させない。最終implementation headと判定必須の生結果を固定した後、この欄へ判定を記録する。
 
 ## 8. Phase C'
 

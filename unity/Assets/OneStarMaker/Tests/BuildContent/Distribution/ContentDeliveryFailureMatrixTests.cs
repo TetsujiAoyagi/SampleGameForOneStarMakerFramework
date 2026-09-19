@@ -1,7 +1,10 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using OneStarMaker.Runtime.BuildContent;
 using OneStarMaker.Runtime.BuildContent.Distribution;
@@ -117,6 +120,13 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
                 {
                     var failure = Assert.Throws<ContentDeliveryException>(() => store.Evict(0));
                     Assert.That(failure!.Code, Is.EqualTo(ContentDeliveryFailureCode.BudgetUnsatisfied));
+
+                    using (store.AcquireTransaction())
+                    {
+                        var conflict = Assert.Throws<ContentDeliveryException>(() =>
+                            store.EnsureCapacityUnsafe(0, long.MaxValue, "set", "revision"));
+                        Assert.That(conflict!.Code, Is.EqualTo(ContentDeliveryFailureCode.InstallConflict));
+                    }
                 }
 
                 var retry = store.Evict(0);
@@ -153,11 +163,45 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
 
                 Assert.That(
                     error!.Code,
-                    Is.AnyOf(ContentDeliveryFailureCode.InstallConflict, ContentDeliveryFailureCode.IntegrityMismatch));
+                    Is.EqualTo(ContentDeliveryFailureCode.InstallConflict)
+                        .Or.EqualTo(ContentDeliveryFailureCode.IntegrityMismatch));
             }
             finally
             {
                 Directory.Delete(parent, true);
+            }
+        }
+
+        [Test]
+        public async Task InstallFailure_WithStagingCleanupFailure_PreservesPrimaryAndReportsPath()
+        {
+            var cacheRoot = CreateTemporaryDirectory();
+            var payload = Encoding.UTF8.GetBytes("actual");
+            var manifest = CreateManifest();
+            manifest.files[0].size = payload.Length;
+            manifest.files[0].sha256 = new string('0', 64);
+            var manifestBytes = Encoding.UTF8.GetBytes(JsonUtility.ToJson(manifest));
+            var digest = Hash(manifestBytes);
+            using var source = new CleanupBlockingSource(cacheRoot, manifestBytes, payload);
+            try
+            {
+                var request = new ContentInstallRequest(digest, "set", "revision", Target,
+                    "6000.6.0f1", 2, 1024 * 1024);
+
+                var error = Assert.ThrowsAsync<ContentDeliveryException>(async () =>
+                    await new ContentInstaller(new ContentCacheStore(cacheRoot)).InstallAsync(
+                        request, source, CancellationToken.None));
+
+                Assert.That(error!.Code, Is.EqualTo(ContentDeliveryFailureCode.IntegrityMismatch));
+                Assert.That(error.Data["ContentDeliveryCleanupFailure"], Is.TypeOf<IOException>());
+                var staging = error.Data["ContentDeliveryStagingPath"] as string;
+                Assert.That(staging, Is.Not.Null.And.Not.Empty);
+                Assert.That(Directory.Exists(staging!), Is.True);
+            }
+            finally
+            {
+                source.Dispose();
+                if (Directory.Exists(cacheRoot)) Directory.Delete(cacheRoot, true);
             }
         }
 
@@ -376,6 +420,42 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
             internal string Root { get; }
 
             internal string Digest { get; }
+        }
+
+        private sealed class CleanupBlockingSource : IContentArtifactSource
+        {
+            private readonly string _cacheRoot;
+            private readonly IReadOnlyDictionary<string, byte[]> _values;
+            private FileStream? _heldMarker;
+
+            internal CleanupBlockingSource(string cacheRoot, byte[] manifest, byte[] payload)
+            {
+                _cacheRoot = cacheRoot;
+                _values = new Dictionary<string, byte[]>
+                {
+                    { "transport.json", manifest },
+                    { "content/file", payload },
+                };
+            }
+
+            public Task<Stream> OpenReadAsync(string relativePath, CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (relativePath == "content/file")
+                {
+                    var stagingRoot = Path.Combine(_cacheRoot, "staging");
+                    var staging = Directory.GetDirectories(stagingRoot)[0];
+                    _heldMarker = new FileStream(Path.Combine(staging, "staging-owner.json"),
+                        FileMode.Open, FileAccess.Read, FileShare.Read);
+                }
+                return Task.FromResult<Stream>(new MemoryStream(_values[relativePath], writable: false));
+            }
+
+            public void Dispose()
+            {
+                _heldMarker?.Dispose();
+                _heldMarker = null;
+            }
         }
     }
 }

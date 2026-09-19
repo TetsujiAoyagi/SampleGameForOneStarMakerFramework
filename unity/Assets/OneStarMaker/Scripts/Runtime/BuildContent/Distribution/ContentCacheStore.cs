@@ -195,6 +195,8 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
             var results = new List<ContentDeleteResult>();
             CleanupStaging(results);
             CleanupTombstones(results);
+            if (requestedKey != null)
+                RejectRequestedTombstone(requestedKey);
             var snapshot = InspectUnsafe();
             if (snapshot.CorruptPaths.Count != 0)
                 throw new ContentDeliveryException(ContentDeliveryFailureCode.InstallConflict, "A corrupt receipt prevents safe eviction.");
@@ -233,6 +235,30 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
                 throw failure;
             }
             return results;
+        }
+
+        private void RejectRequestedTombstone(string requestedKey)
+        {
+            foreach (var directory in Directories(Path.Combine(_root, "tombstone")))
+            {
+                try
+                {
+                    var marker = ContentDeliveryFiles.ReadJson<Tombstone>(Path.Combine(directory, "marker.json"));
+                    if (marker.version == 1 && marker.contentSet + "\n" + marker.revision == requestedKey)
+                    {
+                        // cleanup に失敗した旧 bytes が残る間は、同じ identity を別 digest で
+                        // 再公開させない。cleanup 成功後は directory 自体が消えるため再試行できる。
+                        throw new ContentDeliveryException(ContentDeliveryFailureCode.InstallConflict,
+                            "A tombstone for the requested revision still requires cleanup.");
+                    }
+                }
+                catch (ContentDeliveryException) { throw; }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    throw new ContentDeliveryException(ContentDeliveryFailureCode.InstallConflict,
+                        "A remaining tombstone cannot be inspected safely.", ex);
+                }
+            }
         }
 
         private static ContentDeleteResult Rejected(string key, ContentDirectoryFailureCode rejection)
