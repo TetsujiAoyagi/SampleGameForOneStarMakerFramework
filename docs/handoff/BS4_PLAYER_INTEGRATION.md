@@ -229,16 +229,16 @@ revision 4 Player は UICommon bootstrap、directory登録、`Title` native Scen
 
 ### Phase A revision 6 — content-only UXML serializer の保持（2026-09-19）
 
-revision 5 の clean build / 実 Player でも同じ field が null となり、define 不一致仮説は棄却した。Player 生ログには field 検査より先に `Unknown managed type referenced: UnityEngine.UIElementsModule UnityEngine.UIElements.VisualElement/UxmlSerializedData` があり、Content Directory に UXML file が存在していても、その serialized data を復元する Unity UI Toolkit 側の generated managed type が High stripping で Player から失われていることを確認した。これは「実 Player で欠ける型だけ明示保持する」というA3条件に該当する。
+revision 5 の clean build / 実 Player でも同じ field が null となり、define 不一致仮説は棄却した。Player 生ログには field 検査より先に `Unknown managed type referenced: UnityEngine.UIElementsModule UnityEngine.UIElements.VisualElement/UxmlSerializedData` があり、Content Directory に UXML file が存在していても、その serialized data を復元する Unity UI Toolkit 側の generated managed type を Player が解決できないことを観測した。High stripping による欠落と整合するため、「実 Player で欠ける型だけ明示保持する」というA3条件に従って修正し、再実行で因果を判定する。
 
-採用案: SampleGame の `Assets` 配下に `link.xml` を一件置き、`UnityEngine.UIElementsModule` の `UnityEngine.UIElements.*` を保持する。UXML が参照する built-in element ごとの nested `UxmlSerializedData` は content 側だけに現れ、Player source の静的解析から完全な集合を列挙できない。現在の link.xml 書式は末尾 wildcard の type prefix を単位とするため、UIElements namespace を最小の安定境界とする。Game / Framework assembly、他の Unity module、content-only fixture型は保持対象へ追加しない。
+採用案: SampleGame の `Assets` 配下に `link.xml` を一件置き、`UnityEngine.UIElementsModule` の `UnityEngine.UIElements.*` を保持する。UXML が参照する built-in element ごとの nested `UxmlSerializedData` は content 側だけに現れ、Player source の静的解析から完全な集合を列挙できない。現在の link.xml の末尾 wildcardを使い、個別型列挙より保守性を優先した広めの UIElements namespace 境界とする。Game / Framework assembly、他の Unity module、content-only fixture型は保持対象へ追加しない。
 
 - Player は引き続き IL2CPP / High。`previousBuildReportDirectories` と fixture の実挙動による content-only Game 型保持の証明は維持する。
 - link.xml には、外部 Content Directory の UXML serializer 群が Player の静的 root から到達不能である判断理由を日本語コメントで残す。
 - 新 identity で content と Player を再 build し、`Unknown managed type referenced` が消えること、`Title` が Stable へ到達すること、fixture動作、正式 unload、awaited close、success receipt、exit 0を必須とする。
-- namespace 単位保持のサイズ最適化や、Unity が content build metadata から generated serializer を自動保持できる将来版への移行は後続課題。BS4では実行成立と明示境界を優先し、全 assembly 保持には広げない。
+- namespace 単位保持は通常の SampleGame Player にも適用される。Player size差を受入証拠に記録する。より小さい generated serializer 集合の導出や、Unity が content build metadata から自動保持できる将来版への移行は後続課題とし、削除時は同じ High stripping Title Player proofを必須にする。BS4では実行成立と明示境界を優先し、全 assembly 保持には広げない。
 
-revision 5 の activation、compile universe、bootstrap、dedup、failure契約は変更しない。実Playerログで原因が確定したためrevision 6を凍結し、独立再レビューで保持境界と受入証拠を確認する。
+revision 5 の activation、compile universe、bootstrap、dedup、failure契約は変更しない。独立再レビューは architecture / runtime-build とも条件付きPASS。linkerがwildcardを受理したこと、全 `Unknown managed type referenced` の消失、通常経路回帰、完全なsuccess sequenceを条件とし、別moduleの欠落または再失敗なら自動的に保持範囲を拡大せずPhase Aへ戻る。revision 6を凍結する。
 
 ## Phase B / C / C' / D
 
