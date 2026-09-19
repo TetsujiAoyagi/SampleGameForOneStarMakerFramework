@@ -44,7 +44,10 @@ namespace SampleGame.DependOnAll.Editor.Build
                 {
                     mutation.CopyGraphClosure(MapPath);
                     var report = new UnityPlayerBuildAdapter().Build(BootstrapScene, exe, result.MetadataPath!);
-                    var verification = PlayerBuildReportVerifier.Verify(report, input.Preflight.roots);
+                    // preflight.selected は stable|logical|physicalGuid。roots は path を含むため
+                    // BuildReport の sourceAssetGUID と比較できず、重複検査が常に空振りになる。
+                    var selectedRootGuids = input.Preflight.selected.Select(ParseSelectedPhysicalGuid).ToArray();
+                    var verification = PlayerBuildReportVerifier.Verify(report, selectedRootGuids);
                     var receipt = JsonUtility.ToJson(new BuildReceipt
                     {
                         identity = result.Identity, contentReportPath = result.OutcomePath,
@@ -59,6 +62,14 @@ namespace SampleGame.DependOnAll.Editor.Build
                 if (File.Exists(ProbeMarker) && File.ReadAllText(ProbeMarker) == "BS4-FIXTURE-V1")
                     AssetDatabase.DeleteAsset(ProbeRoot);
             }
+        }
+
+        private static string ParseSelectedPhysicalGuid(string value)
+        {
+            var fields = value.Split('|');
+            if (fields.Length != 3 || fields[2].Length != 32)
+                throw new InvalidOperationException("Selected content report entry has no canonical physical GUID: " + value);
+            return fields[2];
         }
 
         private static void CreateProbe(string token)

@@ -177,9 +177,11 @@ namespace OneStarMaker.Runtime
                 {
                     // Player smoke は config 欠損も process failure として観測する必要がある。
                     // BeforeSceneLoad は同期 callback なので、AfterSceneLoad で非同期の失敗通知を起動する。
+                    // この経路の派生 hook は receipt と exit code を同期的に確定して返す契約。
+                    // fire-and-forget にすると config 欠損時の証拠が process 終了に負ける。
                     instance.OnPlayerContentStartupFailedAsync(
                         "before-scene-load",
-                        instance._beforeSceneLoadFailure).Forget();
+                        instance._beforeSceneLoadFailure).GetAwaiter().GetResult();
                 }
                 return;
             }
@@ -380,6 +382,20 @@ namespace OneStarMaker.Runtime
             catch (Exception ex)
             {
                 Debug.LogError($"[AppInit] AfterSceneLoad failed at stage '{startupStage}': {ex}");
+                if (_sceneDirector != null && _contentDirectoryConfiguration != null
+                    && _contentDirectoryConfiguration.FirstScene.Length != 0
+                    && _sceneDirector.IsSceneLoaded(_contentDirectoryConfiguration.FirstScene))
+                {
+                    try
+                    {
+                        // failure receipt より先に正式 unload を完了し、directory tokenを返す。
+                        await _sceneDirector.UnloadScene(_contentDirectoryConfiguration.FirstScene);
+                    }
+                    catch (Exception unloadException)
+                    {
+                        Debug.LogError($"[AppInit] Player first scene cleanup also failed: {unloadException}");
+                    }
+                }
                 if (_assetManagement is AssetManagement.AssetManagement directoryAssetManagement
                     && _contentDirectorySession != null)
                 {
