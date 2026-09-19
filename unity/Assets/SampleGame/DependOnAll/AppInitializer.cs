@@ -10,7 +10,14 @@ using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.UpdateSystem.Api;
 using SampleGame.InGame.Streaming;
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using Cysharp.Threading.Tasks;
+using OneStarMaker.Runtime.AssetManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using RuntimeCameraSystem = OneStarMaker.Runtime.CameraSystem.Core.CameraSystem;
 
 namespace SampleGame.DependOnAll
@@ -33,6 +40,7 @@ namespace SampleGame.DependOnAll
         private ProfilerUiCostCollector? _profilerUiCostCollector;
         private ProfilerTelemetryEmitter? _profilerTelemetryEmitter;
         private bool _profilerQuittingHandlerRegistered;
+        private bool _useBs4PlayerMode;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void Sub()
@@ -40,12 +48,16 @@ namespace SampleGame.DependOnAll
             // Domain Reload 無効時も前セッションの常駐 Host を先に片付けてから Framework を初期化する。
             s_instance.ReleaseCameraSystem();
             s_instance.ReleaseProfilerTelemetry();
+            s_instance._useBs4PlayerMode = false;
             BootstrapSubsystemRegistration(s_instance);
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Before()
         {
+            // BS4固有の生成bootstrap Scene名をconfigとは独立した成果物markerとして一度だけ読む。
+            // config欠損時も通常Addressablesへ戻さず、required providerでfail-closedにする。
+            s_instance._useBs4PlayerMode = IsBs4PlayerMode(Application.isEditor, SceneManager.GetActiveScene().name);
             BootstrapBeforeSceneLoad(s_instance);
 
             // CameraSystem は Addressables・SceneDirector・UICommon を必要としない。
@@ -97,6 +109,64 @@ namespace SampleGame.DependOnAll
 
         protected override string GetEnvironmentVariablePrefix()
             => "SAMPLEGAME_";
+
+        protected override bool UseRequiredPlayerFileConfiguration => _useBs4PlayerMode;
+        private static bool IsBs4PlayerMode(bool isEditor, string activeSceneName) =>
+            !isEditor && string.Equals(activeSceneName, "UICommon", StringComparison.Ordinal);
+        protected override string GetRequiredPlayerConfigurationPath() => Path.Combine(Application.streamingAssetsPath, "bs4-runtime.json");
+        protected override SceneResourceMap LoadPlayerSceneResourceMap()
+        {
+            var identity = Config?.GetString("content:buildIdentity", string.Empty) ?? string.Empty;
+            var value = Resources.Load<SceneResourceMap>("BS4/" + identity + "/SceneResourceMap");
+            return value != null ? value : throw new InvalidOperationException("BS4 SceneResourceMap is missing.");
+        }
+        protected override async UniTask<PlayerContentFixtureResult> OnPlayerContentReadyAsync(IAssetManagement assets, CancellationToken ct)
+        {
+            var result = await PlayerContentSmoke.RunAsync(assets, Config!, ct);
+            return new PlayerContentFixtureResult(result.CompletedStages.Select(ToPlayerContentStage).ToArray(), result.Failure);
+        }
+
+        protected override UniTask OnPlayerContentShutdownCompletedAsync(IReadOnlyList<PlayerContentStage> completedStages)
+        {
+            PlayerContentSmoke.WriteReceipt(true, "completed", completedStages.Select(ToReceiptStage).ToArray(), null);
+            Application.Quit(0);
+            return UniTask.CompletedTask;
+        }
+
+        protected override UniTask OnPlayerContentStartupFailedAsync(
+            string stage,
+            Exception exception,
+            IReadOnlyList<PlayerContentStage> completedStages)
+        {
+            PlayerContentSmoke.WriteReceipt(false, stage, completedStages.Select(ToReceiptStage).ToArray(), exception);
+            Application.Quit(1);
+            return UniTask.CompletedTask;
+        }
+
+        private static PlayerContentStage ToPlayerContentStage(PlayerContentSmoke.Stage stage) => stage switch
+        {
+            PlayerContentSmoke.Stage.Loaded => PlayerContentStage.FixtureLoaded,
+            PlayerContentSmoke.Stage.Instantiated => PlayerContentStage.FixtureInstantiated,
+            PlayerContentSmoke.Stage.BehaviorVerified => PlayerContentStage.FixtureBehaviorVerified,
+            PlayerContentSmoke.Stage.Destroyed => PlayerContentStage.FixtureDestroyed,
+            PlayerContentSmoke.Stage.HandleReleased => PlayerContentStage.FixtureHandleReleased,
+            _ => throw new ArgumentOutOfRangeException(nameof(stage), stage, null),
+        };
+
+        private static string ToReceiptStage(PlayerContentStage stage) => stage switch
+        {
+            PlayerContentStage.UiCommonReady => "ui-common-ready",
+            PlayerContentStage.ContentDirectoryRegistered => "content-directory-registered",
+            PlayerContentStage.FirstSceneStable => "first-scene-stable",
+            PlayerContentStage.FixtureLoaded => "fixture-loaded",
+            PlayerContentStage.FixtureInstantiated => "fixture-instantiated",
+            PlayerContentStage.FixtureBehaviorVerified => "fixture-behavior-verified",
+            PlayerContentStage.FixtureDestroyed => "fixture-destroyed",
+            PlayerContentStage.FixtureHandleReleased => "fixture-handle-released",
+            PlayerContentStage.FirstSceneUnloaded => "first-scene-unloaded",
+            PlayerContentStage.ContentDirectoryClosed => "content-directory-closed",
+            _ => throw new ArgumentOutOfRangeException(nameof(stage), stage, null),
+        };
 
         /// <summary>
         /// Framework の AfterSceneLoad 処理は、サービス初期化後にも SceneDirector 構築や初回シーン追加を行う。

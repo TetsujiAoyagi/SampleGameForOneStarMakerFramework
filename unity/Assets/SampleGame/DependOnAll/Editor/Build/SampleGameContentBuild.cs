@@ -35,6 +35,10 @@ namespace SampleGame.DependOnAll.Editor.Build
             "spring-full-whitebox");
 
         public static void Build(IReadOnlyList<string> seasons, SeasonContentMode mode, string contentSet)
+            => BuildResult(seasons, mode, contentSet);
+
+        internal static BuildContentResult BuildResult(IReadOnlyList<string> seasons, SeasonContentMode mode, string contentSet,
+            Func<BuildPlan, BuildMaterializationSnapshot, (BuildPlan Plan, BuildMaterializationSnapshot Snapshot)>? compose = null)
         {
             // 実アセットから候補を作り、シーン階層の複製で季節を決めてから選択する。
             // 途中で失敗した計画はビルド処理へ渡さない。
@@ -52,6 +56,13 @@ namespace SampleGame.DependOnAll.Editor.Build
                 throw new InvalidOperationException("Selection failed: " +
                     string.Join("; ", selection.Issues.Select(x => x.Code + ":" + x.SubjectKey)));
             var plan = selection.Plan;
+            var snapshot = materialized.Snapshot;
+            if (compose != null)
+            {
+                var composed = compose(plan, snapshot);
+                plan = composed.Plan;
+                snapshot = composed.Snapshot;
+            }
             // 必須群と除外理由を残し、ビルドログから選択根拠を追えるようにする。
             Debug.Log(LogPrefix + "request=" + string.Join(",", plan.Request.Selections.Select(x => x.Dimension + "=" + x.Value)) +
                 " required=" + detail.Requirements.Count + " selected=" + plan.SelectedContent.Count +
@@ -65,10 +76,11 @@ namespace SampleGame.DependOnAll.Editor.Build
             var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
             var artifactsRoot = Path.GetFullPath(Path.Combine(projectRoot, "..", "artifacts", "bs2b"));
             var result = new BuildContentCoordinator().Build(
-                new BuildContentRequest(plan, materialized.Snapshot, contentSet, artifactsRoot));
+                new BuildContentRequest(plan, snapshot, contentSet, artifactsRoot));
             if (!result.IsSuccess)
                 throw new InvalidOperationException("Content Directory build failed: " + result.OutcomePath + " / " + result.Summary);
             Debug.Log(LogPrefix + "Content Directory: " + result.ContentPath + " / outcome: " + result.OutcomePath);
+            return result;
         }
 
         private static IReadOnlyList<SeasonSceneNode> CopyGraph(SceneResourceMap map)

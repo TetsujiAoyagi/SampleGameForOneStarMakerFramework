@@ -63,10 +63,12 @@ build、登録、load、unload、release、unregister、欠損 directory から�
 への移設が成立した。Content build report の `ScriptsOnlyCache.yaml` は
 `BuildPlayerOptions.previousBuildReportDirectories` の入力として受理された。
 
-これは後続 BuildSystem の backend 候補を認める限定実証であり、現行
-`IAssetManagement` / `AddressableBackend` を置き換えた事実ではない。IL2CPP/AOT、
-本番 SceneResource graph、HTTP 配信、処理中 native load の取消、全 incremental matrix
-は未実証である。要求取消は native abort と同一視せず、発行済み処理の終端を単一 owner
+これは BuildSystem の backend 候補を認めた限定実証であり、現行
+`IAssetManagement` / `AddressableBackend` を置き換えた事実ではない。後続の BS4 では、
+本番 SceneResource graph から選択した content と Windows x64 IL2CPP / High stripping Player を
+同じ build identity で対応付け、directory 登録、論理初回 Scene、代表 Prefab、明示 close までを
+実 Player で確認した。HTTP 配信、処理中 native load の取消、全 incremental matrix は未実証である。
+要求取消は native abort と同一視せず、発行済み処理の終端を単一 owner
 が受け取ってから資源を解放する設計を後続 runtime backend の条件とする。
 
 BS2b の Editor build 経路は、成功した選択 plan と materialization snapshot から
@@ -86,7 +88,8 @@ directory 由来の token が session 利用権を保持する。caller の取�
 利用・削除 lease を排他する。無関係な revision の削除は妨げず、同じ実 path を別 identity
 として削除することは拒否する。物理削除と別 process の排他は DIST の責務。
 通常の Play 停止は同期 shutdown と terminal callback に依存し、明示 `CloseAsync` と
-同じ完全 drain を保証しない。Player bootstrap は BS4 の責務である。
+同じ完全 drain を保証しない。directory Player の検証経路は代表 resource を解放し、Scene を
+unload してから明示 close を await する。通常 Player 全般の停止契約へは拡張しない。
 
 ---
 

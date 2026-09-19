@@ -89,6 +89,7 @@ namespace OneStarMaker.Runtime
         private IAssetManagement? _assetManagement;
         private ContentDirectoryConfiguration? _contentDirectoryConfiguration;
         private ContentDirectorySession? _contentDirectorySession;
+        private Exception? _beforeSceneLoadFailure;
         private bool _beforeSceneLoadSucceeded;
 
         /// <summary>LoadUICommonAsync でロードした UICommon シーンのハンドル。</summary>
@@ -133,6 +134,7 @@ namespace OneStarMaker.Runtime
                 // Application / SystemInfo はメインスレッド専用。Welcome 組み立て前に焼き込む。
                 UnitySessionAttributes.Capture();
                 instance.ReleaseAll();
+                instance._beforeSceneLoadFailure = null;
             }
             catch (Exception ex)
             {
@@ -146,6 +148,7 @@ namespace OneStarMaker.Runtime
         protected static void BootstrapBeforeSceneLoad(AbstractApplicationInitializer instance)
         {
             instance._beforeSceneLoadSucceeded = false;
+            instance._beforeSceneLoadFailure = null;
             try
             {
                 instance.InitializeBeforeSceneLoad();
@@ -153,6 +156,7 @@ namespace OneStarMaker.Runtime
             }
             catch (Exception ex)
             {
+                instance._beforeSceneLoadFailure = ex;
                 Debug.LogException(ex);
                 // 起動設定の検証失敗後に残った AssetManagement/CTS を根拠として
                 // AfterSceneLoad が既定 Addressables へ進むと、明示 directory 指定を黙って無視する。
@@ -170,6 +174,19 @@ namespace OneStarMaker.Runtime
             if (!instance._beforeSceneLoadSucceeded)
             {
                 Debug.LogError("[AppInit] BeforeSceneLoad が失敗したため AfterSceneLoad をスキップします。");
+                if (instance._beforeSceneLoadFailure != null)
+                {
+                    // Player smoke は config 欠損も process failure として観測する必要がある。
+                    // BeforeSceneLoad は同期 callback なので、AfterSceneLoad で非同期の失敗通知を起動する。
+                    // この経路の派生 hook は receipt と exit code を同期的に確定して返す契約。
+                    // fire-and-forget にすると config 欠損時の証拠が process 終了に負ける。
+                    if (ShouldNotifyPlayerContentFailure(instance.UseRequiredPlayerFileConfiguration))
+                        instance.OnPlayerContentStartupFailedAsync(
+                            "before-scene-load",
+                            instance._beforeSceneLoadFailure,
+                            Array.Empty<PlayerContentStage>()).GetAwaiter().GetResult();
+                    instance._beforeSceneLoadFailure = null;
+                }
                 return;
             }
             try
@@ -246,6 +263,7 @@ namespace OneStarMaker.Runtime
         private async UniTaskVoid InitializeAfterSceneLoad()
         {
             var startupStage = "load-ui-common";
+            var playerContentStages = new List<PlayerContentStage>();
             var span = AppTelemetry.StartSpan(Foundation.Core.TelemetryStartType.AppStartup, null);
             var success = false;
             CancellationToken ct = default;
@@ -254,24 +272,33 @@ namespace OneStarMaker.Runtime
 
             try
             {
+                if (_cts == null)
+                    throw new InvalidOperationException("BeforeSceneLoad lifetime token is unavailable.");
+                ct = _cts.Token;
                 startupStage = "load-remote-catalog";
-                await TryLoadRemoteCatalogAsync();
+                if (!UseRequiredPlayerFileConfiguration)
+                    await TryLoadRemoteCatalogAsync();
 
                 startupStage = "load-ui-common";
                 Debug.Log("[AppInit] AfterSceneLoad: loading UICommon.");
                 var uiCommon = await LoadUICommonAsync();
 
+                startupStage = "wait-ui-common-ready";
+                await uiCommon.WaitForPanelReadyAsync(UseRequiredPlayerFileConfiguration, ct);
+                if (UseRequiredPlayerFileConfiguration)
+                    playerContentStages.Add(PlayerContentStage.UiCommonReady);
+
                 startupStage = "load-scene-resource-map";
                 Debug.Log("[AppInit] AfterSceneLoad: loading SceneResourceMap.");
-                _sceneResourceMap = await LoadSceneResourceMapAsync();
+                _sceneResourceMap = UseRequiredPlayerFileConfiguration
+                    ? LoadPlayerSceneResourceMap()
+                    : await LoadSceneResourceMapAsync();
 
                 if (_assetManagement == null || _cts == null)
                 {
                     Debug.LogError("[AppInit] BeforeSceneLoad が未完了のため AfterSceneLoad をスキップします。");
                     return;
                 }
-
-                ct = _cts.Token;
 
                 // Framework 標準の長寿命サービスを先に起動する。
                 // 派生クラスが OnServicesInitializing を override しても、
@@ -314,6 +341,8 @@ namespace OneStarMaker.Runtime
                     }
                     _contentDirectorySession = session;
                     sceneVariant = configuration.Representation;
+                    if (UseRequiredPlayerFileConfiguration)
+                        playerContentStages.Add(PlayerContentStage.ContentDirectoryRegistered);
                 }
 
                 startupStage = "create-scene-director";
@@ -339,9 +368,31 @@ namespace OneStarMaker.Runtime
                 startupStage = "register-loaded-scenes";
                 await RegisterAlreadyLoadedScenes(ct);
 
+                if (_contentDirectoryConfiguration != null && _contentDirectoryConfiguration.FirstScene.Length != 0)
+                {
+                    startupStage = "load-player-first-scene";
+                    await _sceneDirector.AddScene(_contentDirectoryConfiguration.FirstScene, null, ct);
+                    playerContentStages.Add(PlayerContentStage.FirstSceneStable);
+                    startupStage = "run-player-content-smoke";
+                    var fixtureResult = await OnPlayerContentReadyAsync(_assetManagement, ct);
+                    AppendFixtureStages(playerContentStages, fixtureResult.CompletedStages);
+                    if (fixtureResult.Failure != null) throw fixtureResult.Failure;
+                    startupStage = "unload-player-first-scene";
+                    await _sceneDirector.UnloadScene(_contentDirectoryConfiguration.FirstScene);
+                    playerContentStages.Add(PlayerContentStage.FirstSceneUnloaded);
+                    startupStage = "close-player-content-directory";
+                    if (_assetManagement is not AssetManagement.AssetManagement playerAssets)
+                        throw new InvalidOperationException("Player content requires the framework asset manager.");
+                    await playerAssets.CloseContentDirectoryAsync();
+                    _contentDirectorySession = null;
+                    playerContentStages.Add(PlayerContentStage.ContentDirectoryClosed);
+                    startupStage = "complete-player-content-smoke";
+                    await OnPlayerContentShutdownCompletedAsync(playerContentStages.ToArray());
+                }
+
                 success = true;
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (!UseRequiredPlayerFileConfiguration)
             {
                 // アプリ終了によるキャンセル — 正常
                 success = true; // キャンセルは失敗ではない
@@ -349,6 +400,21 @@ namespace OneStarMaker.Runtime
             catch (Exception ex)
             {
                 Debug.LogError($"[AppInit] AfterSceneLoad failed at stage '{startupStage}': {ex}");
+                if (_sceneDirector != null && _contentDirectoryConfiguration != null
+                    && _contentDirectoryConfiguration.FirstScene.Length != 0
+                    && _sceneDirector.IsSceneLoaded(_contentDirectoryConfiguration.FirstScene))
+                {
+                    try
+                    {
+                        // failure receipt より先に正式 unload を完了し、directory tokenを返す。
+                        await _sceneDirector.UnloadScene(_contentDirectoryConfiguration.FirstScene);
+                        playerContentStages.Add(PlayerContentStage.FirstSceneUnloaded);
+                    }
+                    catch (Exception unloadException)
+                    {
+                        Debug.LogError($"[AppInit] Player first scene cleanup also failed: {unloadException}");
+                    }
+                }
                 if (_assetManagement is AssetManagement.AssetManagement directoryAssetManagement
                     && _contentDirectorySession != null)
                 {
@@ -358,6 +424,7 @@ namespace OneStarMaker.Runtime
                         // close 側の ResourcesInUse 判定や cleanup 失敗は元の起動例外を隠さず記録する。
                         await directoryAssetManagement.CloseContentDirectoryAsync();
                         _contentDirectorySession = null;
+                        playerContentStages.Add(PlayerContentStage.ContentDirectoryClosed);
                     }
                     catch (Exception closeException)
                     {
@@ -371,6 +438,8 @@ namespace OneStarMaker.Runtime
                     // Framework 自身の ReleaseAll をここで呼ぶと診断用状態まで一律に失うため、
                     // 所有者である派生クラスへ限定的な回収機会を渡す。
                     OnAfterSceneLoadInitializationFailed(startupStage, ex);
+                    if (ShouldNotifyPlayerContentFailure(UseRequiredPlayerFileConfiguration))
+                        await OnPlayerContentStartupFailedAsync(startupStage, ex, playerContentStages.ToArray());
                 }
                 catch (Exception cleanupException)
                 {
@@ -434,6 +503,9 @@ namespace OneStarMaker.Runtime
                     }
                 }
             }
+
+            if (UseRequiredPlayerFileConfiguration)
+                throw new InvalidOperationException("The Player bootstrap scene must contain UICommon; Addressables fallback is forbidden.");
 
             var address = GetUICommonPrefabAddress();
             // UICommon は SceneDirector 管理外の App 常駐シーン。ReleaseAppAll で解放される
@@ -664,10 +736,15 @@ namespace OneStarMaker.Runtime
         {
             var providers = new List<IConfigProvider>(3);
 
-            var configPath = GetConfigFilePath();
-            if (!string.IsNullOrEmpty(configPath))
+            if (UseRequiredPlayerFileConfiguration)
             {
-                providers.Add(new JsonFileConfigProvider(configPath, _assetManagement!));
+                providers.Add(new RequiredJsonFileConfigProvider(GetRequiredPlayerConfigurationPath()));
+            }
+            else
+            {
+                var configPath = GetConfigFilePath();
+                if (!string.IsNullOrEmpty(configPath))
+                    providers.Add(new JsonFileConfigProvider(configPath, _assetManagement!));
             }
 
             var envPrefix = GetEnvironmentVariablePrefix();
@@ -812,6 +889,16 @@ namespace OneStarMaker.Runtime
         protected virtual string GetConfigFilePath()
             => string.Empty;
 
+        /// <summary>BS4 Player だけが Addressables 前に必須 plain JSON を読む。</summary>
+        protected virtual bool UseRequiredPlayerFileConfiguration => false;
+
+        protected virtual string GetRequiredPlayerConfigurationPath()
+            => throw new InvalidOperationException("A Player configuration path is required.");
+
+        /// <summary>Player package に複写した graph metadata を返す。source/AssetDatabase は使わない。</summary>
+        protected virtual SceneResourceMap LoadPlayerSceneResourceMap()
+            => throw new InvalidOperationException("A Player scene resource map is required.");
+
         /// <summary>
         /// 環境変数のプレフィックスを返す（例: "ONESM_"）。
         /// プレフィックスに一致する環境変数のみが読み込まれる。
@@ -819,14 +906,21 @@ namespace OneStarMaker.Runtime
         /// </summary>
         protected virtual string GetEnvironmentVariablePrefix() => "";
 
-        private static ContentDirectoryConfiguration? ReadContentDirectoryConfiguration(AppConfig config)
+        private ContentDirectoryConfiguration? ReadContentDirectoryConfiguration(AppConfig config)
         {
             var mode = config.GetString("content:runtimeMode", "addressables");
             if (string.Equals(mode, "addressables", StringComparison.Ordinal)) return null;
             if (!string.Equals(mode, "directory", StringComparison.Ordinal))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "content:runtimeMode must be addressables or directory.");
             if (!Application.isEditor || !Application.isPlaying)
+            {
+                if (!UseRequiredPlayerFileConfiguration)
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Content Directory runtime mode is only available in Editor Play Mode.");
+                var player = PlayerContentConfiguration.Read(config, Path.GetDirectoryName(Application.dataPath)!, ContentDirectoryTarget);
+                if (!Directory.Exists(player.Path))
+                    throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Configured Player content directory does not exist.", player.Identity, ContentDirectoryTarget);
+                return new ContentDirectoryConfiguration(player.Path, player.Identity, player.Representation, player.FirstScene);
+            }
             var path = config.GetString("content:directoryPath", string.Empty);
             var identity = config.GetString("content:buildIdentity", string.Empty);
             var representation = config.GetString("content:representation", string.Empty);
@@ -840,16 +934,17 @@ namespace OneStarMaker.Runtime
                     representation: representation);
             if (!Directory.Exists(fullPath))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Configured content directory does not exist.", identity, ContentDirectoryTarget, representation: representation);
-            return new ContentDirectoryConfiguration(fullPath, identity, representation);
+            return new ContentDirectoryConfiguration(fullPath, identity, representation, string.Empty);
         }
 
         private sealed class ContentDirectoryConfiguration
         {
-            internal ContentDirectoryConfiguration(string path, string buildIdentity, string representation)
-            { Path = path; BuildIdentity = buildIdentity; Representation = representation; }
+            internal ContentDirectoryConfiguration(string path, string buildIdentity, string representation, string firstScene)
+            { Path = path; BuildIdentity = buildIdentity; Representation = representation; FirstScene = firstScene; }
             internal string Path { get; }
             internal string BuildIdentity { get; }
             internal string Representation { get; }
+            internal string FirstScene { get; }
         }
 
         /// <summary>
@@ -866,6 +961,65 @@ namespace OneStarMaker.Runtime
         protected virtual void OnAfterSceneLoadInitializationFailed(string stage, Exception exception)
         {
         }
+
+        protected enum PlayerContentStage
+        {
+            UiCommonReady,
+            ContentDirectoryRegistered,
+            FirstSceneStable,
+            FixtureLoaded,
+            FixtureInstantiated,
+            FixtureBehaviorVerified,
+            FixtureDestroyed,
+            FixtureHandleReleased,
+            FirstSceneUnloaded,
+            ContentDirectoryClosed,
+        }
+
+        protected sealed class PlayerContentFixtureResult
+        {
+            public PlayerContentFixtureResult(IReadOnlyList<PlayerContentStage> completedStages, Exception? failure)
+            {
+                CompletedStages = completedStages?.ToArray() ?? throw new ArgumentNullException(nameof(completedStages));
+                Failure = failure;
+            }
+
+            public IReadOnlyList<PlayerContentStage> CompletedStages { get; }
+            public Exception? Failure { get; }
+        }
+
+        protected static void AppendFixtureStages(List<PlayerContentStage> destination, IReadOnlyList<PlayerContentStage> stages)
+        {
+            if (destination == null) throw new ArgumentNullException(nameof(destination));
+            if (stages == null) throw new ArgumentNullException(nameof(stages));
+            var allowed = new[] { PlayerContentStage.FixtureLoaded, PlayerContentStage.FixtureInstantiated,
+                PlayerContentStage.FixtureBehaviorVerified, PlayerContentStage.FixtureDestroyed,
+                PlayerContentStage.FixtureHandleReleased };
+            var previous = -1;
+            foreach (var stage in stages)
+            {
+                var index = Array.IndexOf(allowed, stage);
+                if (index <= previous)
+                    throw new InvalidOperationException("Fixture completion stages must be a unique ordered subsequence.");
+                destination.Add(stage);
+                previous = index;
+            }
+        }
+
+        internal static bool ShouldNotifyPlayerContentFailure(bool useRequiredPlayerFileConfiguration) =>
+            useRequiredPlayerFileConfiguration;
+
+        protected virtual UniTask<PlayerContentFixtureResult> OnPlayerContentReadyAsync(IAssetManagement assetManagement, CancellationToken ct)
+            => UniTask.FromResult(new PlayerContentFixtureResult(Array.Empty<PlayerContentStage>(), null));
+
+        protected virtual UniTask OnPlayerContentShutdownCompletedAsync(IReadOnlyList<PlayerContentStage> completedStages)
+            => UniTask.CompletedTask;
+
+        protected virtual UniTask OnPlayerContentStartupFailedAsync(
+            string stage,
+            Exception exception,
+            IReadOnlyList<PlayerContentStage> completedStages)
+            => UniTask.CompletedTask;
 
         /// <summary>
         /// Framework 標準の logger factory を作る。

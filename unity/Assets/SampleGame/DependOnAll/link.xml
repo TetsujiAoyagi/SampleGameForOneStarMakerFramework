@@ -1,0 +1,6 @@
+<linker>
+  <assembly fullname="UnityEngine.UIElementsModule">
+    <!-- 外部 Content Directory の UXML だけが参照する Unity built-in serializer 群は、Player の静的解析から到達できない。別moduleの欠落はこの境界へ自動追加しない。 -->
+    <type fullname="UnityEngine.UIElements.*" preserve="all" />
+  </assembly>
+</linker>
