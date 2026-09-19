@@ -104,7 +104,7 @@ namespace OneStarMaker.Tests.Editor.Build
         private static string Report(string identity, BuildContentResult result, string target = "StandaloneWindows64-Player") => JsonUtility.ToJson(new PlayerContentReportData
         { identity = identity, target = target, contentPath = result.ContentPath!, manifestPointer = result.ManifestPointer!, metadataPath = result.MetadataPath! });
 
-        private enum FailurePoint { None, Copy, Write, Move }
+        public enum FailurePoint { None, Copy, Write, Move }
 
         private sealed class FailingFileSystem : IPlayerBuildFileSystem
         {
