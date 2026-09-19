@@ -23,7 +23,9 @@ namespace SampleGame.DependOnAll
             {
                 handle = await assets.LoadContentAssetAsync<GameObject>("bs4:fixture:prefab", representation, AssetOwner.Manual, ct);
                 if (handle.Value == null) throw new InvalidOperationException("BS4 probe Prefab load returned null.");
-                instance = await assets.InstantiateContentAsync("bs4:fixture:prefab", representation, ct: ct);
+                // Unity Loadable は同じ locator の operation を二度 await できない。Manual handle を
+                // clone の破棄完了まで保持し、一回の native load から代表 Prefab を実体化する。
+                instance = UnityEngine.Object.Instantiate(handle.Value);
                 Component? probe = null;
                 foreach (var component in instance.GetComponents<Component>())
                     if (component != null && component.GetType().Name == "Bs4ContentOnlyProbe") { probe = component; break; }
@@ -31,6 +33,9 @@ namespace SampleGame.DependOnAll
                 var field = probe.GetType().GetField("serializedToken", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
                 if (!string.Equals(field?.GetValue(probe) as string, token, StringComparison.Ordinal)) throw new InvalidOperationException("BS4 probe token mismatch.");
                 instance.SendMessage("VerifyBs4Probe", token, SendMessageOptions.RequireReceiver);
+                var succeeded = probe.GetType().GetField("verificationSucceeded", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                if (succeeded?.GetValue(probe) is not bool value || !value)
+                    throw new InvalidOperationException("BS4 probe behavior did not report success.");
             }
             finally
             {
