@@ -254,6 +254,19 @@ revision 6 Player は `Unknown managed type referenced` 0件となり、`Title` 
 
 新public API、asmdef edge、owner、永続schemaは増やさない。独立再レビューはarchitecture / runtime-buildとも上記の限定と、clone Destroy完了→handle一回Release→正式unload→closeの順序を条件にPASS。revision 7を凍結する。
 
+### Phase A revision 8 — UICommon panel readiness（2026-09-19）
+
+revision 7 の新Playerでは、`Unknown managed type referenced` は0件のままだったが、`Title` closure追加が `PanelRenderer.UIReloadCallback` より先に走り、UI Toolkit root未初期化で失敗した。revision 6では同じ経路を通過しており、bootstrap Scene load済みとpanel readyを同一視した非決定的な起動順が原因である。
+
+採用案: `UICommon` が callbackで構築するlayer containerをready条件とするinternal async waitを持ち、initializerは`LoadUICommonAsync`直後、サービスやScene追加より前にそれをawaitする。固定フレーム数や時間待機は使わず、既にreadyなら同期完了し、未readyならcallbackによる状態変化を待つ。initializerの既存lifetime tokenで取消可能にする。
+
+- UICommonは引き続きroot/layerのowner。SceneDirectorやGame側へPanelRendererを公開しない。
+- public API、asmdef edge、SceneState、Update順序を変えない。通常Addressables bootstrapも同じready境界を通り、既にcallback済みなら追加フレームを消費しない。
+- stageを `wait-ui-common-ready` としてfailure receiptへ残す。外部Player harness timeout / receipt欠損は従来どおり失敗で、ready未到達をGOへ読み替えない。
+- 新Playerでready後のTitle Stable、revision 7 fixture、正式unload、awaited close、success receipt、exit 0を確認する。revision 6/7の全条件を維持する。
+
+revision 8を凍結し、独立再レビューでUI owner境界、取消、通常経路への影響を確認する。
+
 ## Phase B / C / C' / D
 
 各 Phase の実績、固定 commit と証拠、未実行事項、判定を順次記入する。Phase D のマージ判断はユーザーへ渡す。
