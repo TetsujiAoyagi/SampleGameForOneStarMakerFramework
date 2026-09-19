@@ -178,8 +178,8 @@ Selection core は引き続き Unity / AssetDatabase / Addressables を参照し
 
 既存の `VariantWhitelistBuilder` と Addressables build 経路は変更していない。
 SampleGame の Editor 入口は本番の `SceneResourceMap` を materialize し、後述の project policy で選択して
-Content Directory build へ渡す。Runtime の directory 管理は BS3 で実装済み。
-Player build と bootstrap は BS4 の対象である。
+Content Directory build へ渡す。Runtime の directory 管理は BS3、Player build と bootstrap は BS4 で
+実装済みである。
 materialization や Editor build の成功だけをこれらの成立と同一視しない。
 `FindDependency` の lookup key は canonical lowercase GUID を渡す契約である。
 
@@ -223,16 +223,18 @@ materialization を Runtime で再実行しない。
 明示 close では live resource の解放を待ってから unregister する。同一 process の
 revision 削除は `ContentRevisionGate.TryAcquireDelete` の lease を必要とする。
 
-Editor Play は AppConfig の `content:runtimeMode=directory` を明示したときだけこの経路を
-使い、起動時に一度選んだ表現を Scene lifecycle に渡す。既定は Addressables。
+Editor Play と専用 directory Player は AppConfig の `content:runtimeMode=directory` を明示したときだけ
+この経路を使い、起動時に一度選んだ表現を Scene lifecycle に渡す。通常起動の既定は Addressables。
 directory path、build identity、representation の欠損や不整合は起動失敗であり、
-Addressables へ暗黙 fallback しない。UI/config/SceneResourceMap の bootstrap 取得は
-移行期間の Addressables 経路を使う。Player での directory 起動、source 不在の graph metadata、
-物理削除と別 process 排他はそれぞれ BS4 / DIST の後続範囲である。
+Addressables へ暗黙 fallback しない。directory Player は build transaction が生成した bootstrap Scene、
+graph metadata、runtime config を使い、対応 Content BuildReport directory を Player build へ渡す。
+Player Scene は bootstrap 一件に固定し、選択済み content root GUID の packed assets 混入を拒否する。
+publish 後の shipping tree は content root 一件だけを持ち、Unity の backup directory は除外する。
+物理削除、取得済み成果物だけからの起動と別 process 排他は DIST の後続範囲である。
 同一 session 内で Whitebox 要求を Full entry へ fallback した後に、同じ Scene identity を
 Full として別要求すると台帳の要求表現が異なり `EntryAmbiguous` になり得る。現行の
-Editor Play は起動時に表現を固定する。同一 session の表現切替を必要とする場合は
-BS4 で契約を再確認し、別スライスで設計する。
+Editor Play と directory Player は起動時に表現を固定する。同一 session の表現切替は提供しない。
+切替が必要なら別スライスで設計する。
 
 ### SampleGame の季節選択と Editor build（現況）
 
@@ -245,7 +247,7 @@ Framework の selection core と成果物 schema に季節名を持ち込まな�
 - requirement は要求した季節と共通 content の payload group に限る。通常は `ExactlyOne`。Full と Whitebox の両候補がある季節 group を同梱する場合だけ `OneOrMore` にし、両表現の候補が採用されたことも照合する。
 - Editor メニュー `Tools/OSM/Content/` に全季節 Full、Spring Full、Spring Whitebox、Spring Full And Whitebox の入口がある。選択した必須 group、候補、除外理由をログへ出し、成功 plan と対応 snapshot を既存の `BuildContentCoordinator` へ渡す。専用 EditMode テストと、本番 graph による四つの Content Directory build を確認済み。
 
-この入口は Editor の content 生成用である。生成 directory の Runtime 登録・ロード・寿命管理と Editor Play 接続は BS3 の上記経路が担う。Player bootstrap は BS4 が担う。
+この入口は Editor の content 生成用である。生成 directory の Runtime 登録・ロード・寿命管理と Editor Play 接続は BS3、固定 Windows x64 Player build と bootstrap は BS4 の上記経路が担う。
 
 ---
 

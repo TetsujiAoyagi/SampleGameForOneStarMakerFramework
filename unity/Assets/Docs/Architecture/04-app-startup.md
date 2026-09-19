@@ -297,15 +297,23 @@ protected override string GetEnvironmentVariablePrefix() => "MYAPP_";
 ### Content Directory の起動時選択
 
 `content:runtimeMode` は未指定または `addressables` が既定で、既存の起動経路を保つ。
-`directory` は Editor Play でのみ有効。`content:directoryPath`、
+`directory` は Editor Play と、専用 runtime config を組み込んだ directory Player で有効。`content:directoryPath`、
 `content:buildIdentity`、`content:representation` を明示し、directory path は存在する
 absolute local path とする。値は BeforeSceneLoad で一度検証する。未知 mode、欠損・相対 path、
 存在しない directory、identity/target 不一致は起動失敗として扱い、Addressables へ
 暗黙 fallback しない。BeforeSceneLoad で失敗した起動回は AfterSceneLoad を開始しない。
 
 directory session は AfterSceneLoad の SceneDirector 構築前に登録する。起動時に選んだ
-representation は Scene lifecycle の間固定する。UI/config/SceneResourceMap の bootstrap は
-移行期間中 Addressables から取得する。Player の Content Directory bootstrap は BS4 の範囲。
+representation は Scene lifecycle の間固定する。通常の Editor / Player は UI/config/SceneResourceMap を
+Addressables から取得する。directory Player は生成した `UICommon` bootstrap Scene と graph metadata、
+`StreamingAssets/bs4-runtime.json` を使い、対応する local content directory を登録して論理初回 Scene を
+ロードする。この mode は生成 bootstrap Scene の runtime 名と Player 実行で latch し、環境変数や
+command line だけでは有効にならない。
+
+directory Player の正常終了は、UICommon ready、directory 登録、初回 Scene stable、代表 Object の
+load / instantiate / verify / destroy / release、初回 Scene unload、directory close の順序を完了してから
+行う。完了段階は immutable snapshot と schema v2 receipt に記録する。fixture failure でも instance と
+handle を finally で回収し、実際に完了した段階だけを記録する。
 
 ## 4.8 起動時 Scene Variant と職種 companion set
 
