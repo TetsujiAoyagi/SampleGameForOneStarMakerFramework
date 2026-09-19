@@ -179,6 +179,28 @@ Phase B runtime commit `3e667d8` 後、SampleGame callback が受け取る `IAss
 
 主担当は全て採用。revision 2 を凍結し、他のA3条件は変更しない。
 
+### Phase A revision 3 — fixture composition boundary（2026-09-19）
+
+Phase Bで、`BuildMaterializationSnapshot` と `BuildPlan` の constructor がそれぞれ別assemblyのinternalであり、SampleGame Editorのfixture adapterはproduction結果へcandidateを正規合成できないと判明した。projectionはplan/snapshotの完全対応を要求し、Season policyは全candidateにScene graph nodeを要求するため、reflectionやproduction graph改変で迂回しない。この finding は代表非Sceneを同一directoryでPlayer検証する最低条件を阻害するためPhase Aを再開した。
+
+採用案: `OneStarMaker.Build.Selection` と `OneStarMaker.Build.Materialization` の各 `AssemblyInfo.cs` に `[InternalsVisibleTo("SampleGame.DependOnAll.Editor")]` を追加する。SampleGame Editor内の `Bs4FixtureComposer` が既存結果を列挙し、新fixture candidate/tag/requirement/dependencyを加えた新snapshotと、同じcandidateをselectedへ加えた新planをconstructorで再構築する。
+
+- asmdef参照は既にSampleGame Editor→両Framework Editor assemblyに存在し、新edgeは作らない。Runtime/Game→Frameworkの方向を変えない。
+- friendはEditor composition root一assemblyに限定し、Runtime/public APIを増やさない。Framework側にproject固有fixture語彙を置かない。
+- composerはproduction plan/snapshotを変更せずimmutableな新結果を返し、同一stable/logical/physical key、requirement、tag、closureの衝突を明示検査する。fixtureは常にselectedで、projectionが全対応を再検証する。
+- friend面の利用はこのcomposer一箇所に限定する機械検査をPhase Cへ加える。汎用source合成APIは非Scene本番需要の後続sliceへ送り、BS4では公開しない。
+
+代替のContent coordinatorへのfixture特例、reflection、Scene graphへの偽node、constructorのpublic化は不採用。責務または公開面を広げ、production policyをfixture都合で汚すため。
+
+revision 3独立再レビューはarchitecture担当（Sol）、runtime/build担当（Astra）ともPASS。次を必須実装条件として採用する。
+
+- composerはstable/logical/root physical GUID、requirement logical key、dependency root GUIDの所有衝突とtag dimension/value競合を先に拒否する。共有依存はGUID/path一致なら許可する。
+- production request / selected / excluded / provenance / tags / requirements / closuresを保持し、Player要求representationのfixture一件だけをselectedへ追加する。composer自身がfixtureの常時採用とExactlyOneを保証する。projectionは対応・閉包を再検査するがselection policyを再実行した証拠にはしない。
+- reportはfixtureをBS4 composerによる明示追加と記録し、Season policyが非Sceneを選択したとは主張しない。
+- friend利用箇所は `Bs4FixtureComposer` だけであることをPhase Cの機械検査で確認する。
+
+主担当は全て採用しrevision 3を凍結。他の凍結条件は変更しない。
+
 ## Phase B / C / C' / D
 
 各 Phase の実績、固定 commit と証拠、未実行事項、判定を順次記入する。Phase D のマージ判断はユーザーへ渡す。
