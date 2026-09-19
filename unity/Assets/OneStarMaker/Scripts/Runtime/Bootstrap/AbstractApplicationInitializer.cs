@@ -269,6 +269,9 @@ namespace OneStarMaker.Runtime
 
             try
             {
+                if (_cts == null)
+                    throw new InvalidOperationException("BeforeSceneLoad lifetime token is unavailable.");
+                ct = _cts.Token;
                 startupStage = "load-remote-catalog";
                 if (!UseRequiredPlayerFileConfiguration)
                     await TryLoadRemoteCatalogAsync();
@@ -276,6 +279,9 @@ namespace OneStarMaker.Runtime
                 startupStage = "load-ui-common";
                 Debug.Log("[AppInit] AfterSceneLoad: loading UICommon.");
                 var uiCommon = await LoadUICommonAsync();
+
+                startupStage = "wait-ui-common-ready";
+                await uiCommon.WaitForPanelReadyAsync(UseRequiredPlayerFileConfiguration, ct);
 
                 startupStage = "load-scene-resource-map";
                 Debug.Log("[AppInit] AfterSceneLoad: loading SceneResourceMap.");
@@ -288,8 +294,6 @@ namespace OneStarMaker.Runtime
                     Debug.LogError("[AppInit] BeforeSceneLoad が未完了のため AfterSceneLoad をスキップします。");
                     return;
                 }
-
-                ct = _cts.Token;
 
                 // Framework 標準の長寿命サービスを先に起動する。
                 // 派生クラスが OnServicesInitializing を override しても、

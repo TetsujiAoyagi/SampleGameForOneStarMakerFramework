@@ -53,6 +53,7 @@ namespace OneStarMaker.Runtime.UISystem
         private VisualElement[]? _layerContainers;
         private VisualElement? _panelRoot;
         private int _panelVersion = -1;
+        private readonly UniTaskCompletionSource _panelReady = new();
 
         private void OnEnable()
         {
@@ -64,6 +65,13 @@ namespace OneStarMaker.Runtime.UISystem
         private void OnDisable()
         {
             _panelRenderer?.UnregisterUIReloadCallback(OnPanelReload);
+            if (_panelRenderer != null && _layerContainers == null)
+                _panelReady.TrySetException(new InvalidOperationException("UICommon was disabled before its panel became ready."));
+        }
+
+        private void OnDestroy()
+        {
+            _panelReady.TrySetException(new ObjectDisposedException(nameof(UICommon)));
         }
 
         private void OnPanelReload(PanelRenderer renderer, VisualElement root, int version)
@@ -77,8 +85,32 @@ namespace OneStarMaker.Runtime.UISystem
             _panelVersion = version;
             _panelRoot = root;
 
-            BuildLayerContainers(root);
-            ReattachToolkitEntries();
+            try
+            {
+                BuildLayerContainers(root);
+                ReattachToolkitEntries();
+                // 外部 Scene の UI を追加できるのは、layer 構築と既存 View の再接続が完了した後だけ。
+                _panelReady.TrySetResult();
+            }
+            catch (Exception exception)
+            {
+                // callback内の例外をログだけにせず、bootstrap waiterも同じ原因で終端させる。
+                _panelReady.TrySetException(exception);
+                throw;
+            }
+        }
+
+        internal UniTask WaitForPanelReadyAsync(bool required, CancellationToken ct)
+        {
+            if (_panelRenderer == null)
+            {
+                if (required)
+                    throw new InvalidOperationException("Directory Player bootstrap requires UICommon PanelRenderer.");
+                return UniTask.CompletedTask;
+            }
+            if (_layerContainers != null) return UniTask.CompletedTask;
+            // caller の取消で共有 completion を cancel せず、後続の waiter と callback を生かす。
+            return _panelReady.Task.AttachExternalCancellation(ct);
         }
 
         /// <summary>
