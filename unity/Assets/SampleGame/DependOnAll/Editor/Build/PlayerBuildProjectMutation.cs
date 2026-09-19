@@ -6,7 +6,9 @@ using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.AddressableAssets.Settings;
 using UnityEditor.AddressableAssets;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using OneStarMaker.Runtime.SceneSystem;
 
 namespace SampleGame.DependOnAll.Editor.Build
@@ -49,6 +51,31 @@ namespace SampleGame.DependOnAll.Editor.Build
 
         internal string AssetRoot => _assetRoot;
 
+        internal BootstrapSceneCopy CopyBootstrapScene(string sourcePath)
+        {
+            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(sourcePath) == null)
+                throw new InvalidOperationException("Production bootstrap Scene is missing: " + sourcePath);
+            var sourceGuid = AssetDatabase.AssetPathToGUID(sourcePath);
+            var targetPath = _assetRoot + "/UICommon.unity";
+            if (!AssetDatabase.CopyAsset(sourcePath, targetPath))
+                throw new IOException("Failed to copy bootstrap Scene: " + sourcePath);
+            var targetGuid = AssetDatabase.AssetPathToGUID(targetPath);
+            if (string.IsNullOrEmpty(targetGuid) || string.Equals(sourceGuid, targetGuid, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Generated bootstrap Scene has no independent GUID.");
+
+            var scene = EditorSceneManager.OpenScene(targetPath, OpenSceneMode.Additive);
+            try
+            {
+                var roots = scene.GetRootGameObjects();
+                var uiRoots = Array.FindAll(roots, root => root.name == "UICommon" && root.GetComponent<OneStarMaker.Runtime.UISystem.UICommon>() != null);
+                var eventSystems = Array.FindAll(roots, root => root.GetComponentInChildren<EventSystem>(true) != null);
+                if (uiRoots.Length != 1 || eventSystems.Length == 0)
+                    throw new InvalidOperationException("Generated bootstrap Scene must contain exactly one UICommon root and an EventSystem.");
+            }
+            finally { EditorSceneManager.CloseScene(scene, true); }
+            return new BootstrapSceneCopy(targetPath, sourceGuid, targetGuid);
+        }
+
         internal void CopyGraphClosure(string sourceMapPath)
         {
             var sourceMap = AssetDatabase.LoadAssetAtPath<SceneResourceMap>(sourceMapPath)
@@ -83,15 +110,19 @@ namespace SampleGame.DependOnAll.Editor.Build
         public void Dispose()
         {
             if (_disposed) return; _disposed = true;
-            PlayerSettings.SetScriptingBackend(NamedBuildTarget.Standalone, _backend);
-            PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Standalone, _stripping);
-            _addressableSettings.BuildAddressablesWithPlayerBuild = _buildAddressables;
-            if (AssetDatabase.LoadMainAssetAtPath(_configPath) != null || File.Exists(_configPath))
-                AssetDatabase.DeleteAsset(_configPath);
-            var marker = Path.Combine(_assetRoot, Marker);
-            if (Directory.Exists(_assetRoot) && File.Exists(marker) && File.ReadAllText(marker) == _identity)
-                AssetDatabase.DeleteAsset(_assetRoot);
-            AssetDatabase.Refresh();
+            try
+            {
+                PlayerSettings.SetScriptingBackend(NamedBuildTarget.Standalone, _backend);
+                PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Standalone, _stripping);
+                _addressableSettings.BuildAddressablesWithPlayerBuild = _buildAddressables;
+            }
+            finally
+            {
+                if (AssetDatabase.LoadMainAssetAtPath(_configPath) != null || File.Exists(_configPath)) AssetDatabase.DeleteAsset(_configPath);
+                var marker = Path.Combine(_assetRoot, Marker);
+                if (Directory.Exists(_assetRoot) && File.Exists(marker) && File.ReadAllText(marker) == _identity) AssetDatabase.DeleteAsset(_assetRoot);
+                AssetDatabase.Refresh();
+            }
         }
 
         private static void RejectOrCleanStale(string root, string identity)
@@ -101,5 +132,14 @@ namespace SampleGame.DependOnAll.Editor.Build
             if (!File.Exists(marker) || File.ReadAllText(marker) != identity) throw new InvalidOperationException("BS4 generated asset ownership mismatch.");
             Directory.Delete(root, true);
         }
+    }
+
+    internal readonly struct BootstrapSceneCopy
+    {
+        internal BootstrapSceneCopy(string path, string sourceGuid, string generatedGuid)
+        { Path = path; SourceGuid = sourceGuid; GeneratedGuid = generatedGuid; }
+        internal string Path { get; }
+        internal string SourceGuid { get; }
+        internal string GeneratedGuid { get; }
     }
 }

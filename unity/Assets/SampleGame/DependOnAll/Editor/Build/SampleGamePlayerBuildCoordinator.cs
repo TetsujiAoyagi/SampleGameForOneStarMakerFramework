@@ -43,16 +43,17 @@ namespace SampleGame.DependOnAll.Editor.Build
                 using (var mutation = new PlayerBuildProjectMutation(result.Identity, runtimeJson))
                 {
                     mutation.CopyGraphClosure(MapPath);
-                    var report = new UnityPlayerBuildAdapter().Build(BootstrapScene, exe, result.MetadataPath!);
+                    var bootstrap = mutation.CopyBootstrapScene(BootstrapScene);
+                    var report = new UnityPlayerBuildAdapter().Build(bootstrap.Path, exe, result.MetadataPath!);
                     // preflight.selected は stable|logical|physicalGuid。roots は path を含むため
                     // BuildReport の sourceAssetGUID と比較できず、重複検査が常に空振りになる。
                     var selectedRootGuids = input.Preflight.selected.Select(ParseSelectedPhysicalGuid).ToArray();
-                    var verification = PlayerBuildReportVerifier.Verify(report, selectedRootGuids);
+                    var verification = PlayerBuildReportVerifier.Verify(report, selectedRootGuids, bootstrap.SourceGuid, bootstrap.GeneratedGuid);
                     var receipt = JsonUtility.ToJson(new BuildReceipt
                     {
                         identity = result.Identity, contentReportPath = result.OutcomePath,
                         playerBuildGuid = verification.BuildGuid, backend = "IL2CPP", stripping = "High",
-                        scenes = new[] { BootstrapScene }, checkedRootGuids = verification.CheckedGuids,
+                        scenes = new[] { bootstrap.Path }, bootstrapSceneName = "UICommon", checkedRootGuids = verification.CheckedGuids,
                     }, true);
                     return new PlayerBuildPublisher().Publish(artifactsRoot, result.Identity, playerWork, result.ContentPath!, receipt);
                 }
@@ -111,6 +112,6 @@ namespace SampleGame.DependOnAll.Editor.Build
         [Serializable] private sealed class TelemetryConfig { public ProfilerConfig profiler = new(); }
         [Serializable] private sealed class ProfilerConfig { public bool enabled; }
         [Serializable] private sealed class WorldConfig { public string cellCompanionSet = ""; }
-        [Serializable] private sealed class BuildReceipt { public string identity=""; public string contentReportPath=""; public string playerBuildGuid=""; public string backend=""; public string stripping=""; public string[] scenes=Array.Empty<string>(); public string[] checkedRootGuids=Array.Empty<string>(); }
+        [Serializable] private sealed class BuildReceipt { public string identity=""; public string contentReportPath=""; public string playerBuildGuid=""; public string backend=""; public string stripping=""; public string[] scenes=Array.Empty<string>(); public string bootstrapSceneName=""; public string[] checkedRootGuids=Array.Empty<string>(); }
     }
 }
