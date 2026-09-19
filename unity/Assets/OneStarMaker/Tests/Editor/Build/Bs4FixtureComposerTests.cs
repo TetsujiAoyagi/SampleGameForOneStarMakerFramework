@@ -39,6 +39,22 @@ namespace OneStarMaker.Tests.Editor.Build
             Assert.Throws<InvalidOperationException>(() => Bs4FixtureComposer.Compose(plan, snapshot, source.PhysicalKey, "Assets/Probe.prefab", "Full", "token"));
         }
 
+        [Test]
+        public void ParseSelectedPhysicalGuid_StableKeyContainsSeparators_ReturnsTrailingGuid()
+        {
+            const string guid = "f1e2d3c4b5a697887766554433221100";
+            var selected = "osm-build-candidate-v1|11:PlayerScene4:Full32:" + guid + "|PlayerScene|" + guid;
+
+            Assert.That(SampleGamePlayerBuildCoordinator.ParseSelectedPhysicalGuid(selected), Is.EqualTo(guid));
+        }
+
+        [TestCase("missing-separator")]
+        [TestCase("stable|logical|not-a-guid")]
+        public void ParseSelectedPhysicalGuid_NonCanonicalValue_IsRejected(string selected)
+        {
+            Assert.Throws<InvalidOperationException>(() => SampleGamePlayerBuildCoordinator.ParseSelectedPhysicalGuid(selected));
+        }
+
         private static BuildContentCandidate Candidate(string stable, string logical, string physical) =>
             new(stable, logical, physical, new BuildProvenance("test", logical));
         private static BuildDependencySnapshot Dependency(string guid, string path) =>

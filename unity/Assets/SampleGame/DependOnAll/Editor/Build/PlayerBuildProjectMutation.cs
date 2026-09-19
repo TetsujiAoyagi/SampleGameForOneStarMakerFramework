@@ -86,9 +86,11 @@ namespace SampleGame.DependOnAll.Editor.Build
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Standalone, _backend);
             PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Standalone, _stripping);
             _addressableSettings.BuildAddressablesWithPlayerBuild = _buildAddressables;
-            if (File.Exists(_configPath)) File.Delete(_configPath);
+            if (AssetDatabase.LoadMainAssetAtPath(_configPath) != null || File.Exists(_configPath))
+                AssetDatabase.DeleteAsset(_configPath);
             var marker = Path.Combine(_assetRoot, Marker);
-            if (Directory.Exists(_assetRoot) && File.Exists(marker) && File.ReadAllText(marker) == _identity) Directory.Delete(_assetRoot, true);
+            if (Directory.Exists(_assetRoot) && File.Exists(marker) && File.ReadAllText(marker) == _identity)
+                AssetDatabase.DeleteAsset(_assetRoot);
             AssetDatabase.Refresh();
         }
 

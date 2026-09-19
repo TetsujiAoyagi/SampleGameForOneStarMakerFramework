@@ -64,12 +64,14 @@ namespace SampleGame.DependOnAll.Editor.Build
             }
         }
 
-        private static string ParseSelectedPhysicalGuid(string value)
+        internal static string ParseSelectedPhysicalGuid(string value)
         {
-            var fields = value.Split('|');
-            if (fields.Length != 3 || fields[2].Length != 32)
+            // stable key 自体が `|` を含むため、固定 index ではなく末尾の canonical physical GUID を読む。
+            var separator = value.LastIndexOf('|');
+            var physicalGuid = separator >= 0 ? value.Substring(separator + 1) : string.Empty;
+            if (physicalGuid.Length != 32 || physicalGuid.Any(c => !Uri.IsHexDigit(c)))
                 throw new InvalidOperationException("Selected content report entry has no canonical physical GUID: " + value);
-            return fields[2];
+            return physicalGuid;
         }
 
         private static void CreateProbe(string token)
