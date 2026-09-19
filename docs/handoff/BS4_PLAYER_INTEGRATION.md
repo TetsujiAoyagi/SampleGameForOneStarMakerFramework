@@ -284,6 +284,14 @@ revision 8 の実Playerは起動からcloseまで成功したが、発見Cで二
 
 revision 9 の停止規則は、二件の独立レビューで責務・寿命・証拠境界を確認し、採否をここへ記録して凍結すること。実装中にUnityが別の非shipping rootを生成する、stageを既存ownerで記録できない、またはBuildReportからpure policy入力を安定導出できない場合はPhase B内で拡張せずPhase Aへ戻す。他のrevision 1〜8条件と後続移送先は変更しない。
 
+独立A2ではarchitecture担当（Sol）とruntime/build担当（Astra）が同じblockerを指摘した。通常の戻り値ではfixture途中例外時にfinallyで成功したdestroy/release段階をFrameworkへ返せず、failure receiptの事実性とowner境界を同時に満たせない。runtime/build担当は加えて、現行failure hookの無条件呼出しが通常Addressables失敗でもreceipt/Quitを起こす点と、partial failure/cleanup/normal modeのtest不足を指摘した。全件を採用する。
+
+A3ではstage transportを次のように具体化して凍結する。Frameworkのprotected nested enumに上記10段階を閉じた値として定義し、fixture hookは`completed fixture stages`と`Exception?`を持つimmutable resultを**必ず正常return**する。fixture内部はprimary failureを保持してfinallyへ進み、destroy/releaseの各成功直後に自分のlocal listへ追加する。cleanupも失敗した場合はprimaryを先頭に保持したaggregate failureを返す。Frameworkはresultを受け、許可されたfixture5値の順序・重複なしを検証して自分のlistへcopyし、failureがあれば元の`run-player-content-smoke`境界からthrowする。したがって派生へmutable recorderを渡さない。failure cleanupでFramework自身がscene unloadまたはdirectory closeを成功させた場合も、その操作直後に各stageを追加する。success/failure hookへはFramework listのreadonly copyを渡す。
+
+failure hookはrequired directory Player modeのときだけ呼ぶ。Before/After Scene failureとも通常Editor/Addressablesではreceiptも`Application.Quit`も行わず既存cleanupへ進む。stage result policyのunit testは、fixture成功、途中失敗後のcleanup成功、cleanup二次失敗、順序/重複/非fixture値拒否を確認する。initializer側はdirectory modeでだけfailure hookを呼ぶ条件をtest可能なpure predicateに閉じる。publisherはroot直下directoryだけを除外し、同名fileと下位同名directoryを保持する。copy/write/rename失敗時は元例外を保持し、staging cleanup失敗を追加診断にして既存finalを不変とする。BuildReport policyはpack名とGUID集合の対応を入力にし、同一pack内重複行を一pack、異なるpackを二packとして判定する。
+
+このA3統合で両A2 blockerを解消した。上記修正版を同じ二担当へ再確認し、PASS後にrevision 9を凍結する。人間判断を要する範囲変更はなく、programの委任に基づき主担当が採用した。
+
 ## Phase B / C / C' / D
 
 各 Phase の実績、固定 commit と証拠、未実行事項、判定を順次記入する。Phase D のマージ判断はユーザーへ渡す。
