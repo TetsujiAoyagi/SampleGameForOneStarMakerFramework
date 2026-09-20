@@ -6,7 +6,7 @@
 - status: `B`
 - branch: `codex/ret-retire-addressables-build`
 - implementation base commit: `356767ff082ae7ddf5f8c9ce0c992b7e2185178f`
-- implementation head commit: `a77cbaf4a2cf29e86468d57fad28d4018221d336`
+- implementation head commit: `e21ff0fe47ef8026688fcf215b4f6435331f0dc3`
 - risk: `high`（Addressables、公開 API、serialized 参照、所有者・寿命）
 - owner: RET 主担当 / Cursor Grok 4.6
 - created: 2026-09-20
