@@ -230,7 +230,7 @@ Addressables へ暗黙 fallback しない。directory Player は build transacti
 graph metadata、runtime config を使い、対応 Content BuildReport directory を Player build へ渡す。
 Player Scene は bootstrap 一件に固定し、選択済み content root GUID の packed assets 混入を拒否する。
 publish 後の shipping tree は content root 一件だけを持ち、Unity の backup directory は除外する。
-物理削除、取得済み成果物だけからの起動と別 process 排他は DIST の後続範囲である。
+物理削除、取得済み成果物だけからの起動、別 process の OS lease は DIST が所有する。disk cache と known-good の契約は `13-resource-system.md`、installed override と Player 起動は `04-app-startup.md` を正とする。
 同一 session 内で Whitebox 要求を Full entry へ fallback した後に、同じ Scene identity を
 Full として別要求すると台帳の要求表現が異なり `EntryAmbiguous` になり得る。現行の
 Editor Play と directory Player は起動時に表現を固定する。同一 session の表現切替は提供しない。

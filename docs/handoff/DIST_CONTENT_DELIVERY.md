@@ -3,19 +3,21 @@
 ## 0. メタデータ
 
 - type: slice
-- status: B（Phase A r4 凍結済み、発見CからB適応へ差し戻し）
+- status: D（C/C' PASS、マージ待ち。明示指示まで merge しない）
 - branch: `codex/dist-content-delivery`
 - implementation base commit: `3c6769ad3af53c3cbe050894b7040b4eaa268e8d`
-- implementation head commit: 未到達
+- implementation head commit: `3a95c0389356480090f8a6e81940ab692d061deb`
 - risk: high（永続化、別 process 排他、物理削除、Player 起動）
 - owner: DIST 主担当 / Codex
 - created: 2026-09-19
-- expires: DIST Phase D。2026-10-19 に未完なら再確認
+- expires: DIST Phase D マージ。2026-10-19 に未マージなら再確認
 - harvest to: Architecture `04-app-startup.md`、`13-resource-system.md`、`18-asset-description.md`、`20-variant-checkout-workflow.md`
 - Phase A snapshot: `artifacts/bs2b/dist-evidence/a3-r4/phase-a.md`（local evidence、PRへ同梱しない）
 - Phase A snapshot generated at: `2026-09-19T14:33:19.5428001Z`
 - Phase A snapshot SHA256: `f3bd5e4086f44c336410f85f0cd43263f64dba3b90372a0684a8141adc20ed57`
-- Phase B result / evidence / C' blind bundle: 未到達
+- Phase B result / evidence / C' blind bundle: `artifacts/bs2b/dist-evidence/candidate-3a95c03/`（local evidence、PRへ同梱しない）
+- Phase B result SHA256: `2bc483fe796c2fbc04138038adb272bfff25265de60dc724476c02d570a31fe2`
+- evidence full.diff SHA256: `74eae27ba3d0f93b0f0136d6f6c92a971724aadaf1fd99d5f202579e65a9fe73`
 
 ## 1. A0 — 目的・現況・制約
 
@@ -200,111 +202,51 @@ Editor offline/source診断からinternal verifier/codecへ依存しない公開
 
 修正Bでは主担当gpt-6-astraもpublisherの整形、実HTTP/local installを既存Scene/Object統合fixtureへ接続、Player buildからtransport publishへの接続を実装した。このため以後の固定headの発見/判定Cは新規contextのgpt-5.6-terraへ移し、Bの両担当モデルとの相違を維持する。既存gpt-6-astraのCは初回head38の発見と検証入口調査までの記録とし、最終判定へ流用しない。C'は未関与gpt-5.5を維持する。
 
+最終実装 head は `3a95c0389356480090f8a6e81940ab692d061deb`。IL2CPP NTFS、PlayBridge の Process 固定、同一 revision の既存 final 再利用を含む。判定 evidence は `artifacts/bs2b/dist-evidence/candidate-3a95c03/`。レビュー記録だけの commit は implementation head に含めない。
+
 ## 7. Phase C
 
-判定未実施。発見レビューの履歴はlocal evidenceへ保存し、blind auditへ所見を混入させない。最終implementation headと判定必須の生結果を固定した後、この欄へ判定を記録する。
+- 種別: 判定
+- 判定: **GO**（ユーザー報告。詳細 ledger は未受領）
+- 担当・モデル: fresh `gpt-5.6-terra`。ASTRA は使わない。旧 head `2c4de6c` の GO は最終マージ根拠にしない。
+- evidence bundle: `artifacts/bs2b/dist-evidence/candidate-3a95c03/`（PR へ同梱しない）
+- implementation base: `3c6769ad3af53c3cbe050894b7040b4eaa268e8d`
+- implementation head: `3a95c0389356480090f8a6e81940ab692d061deb`
+- Phase A snapshot SHA-256: `f3bd5e4086f44c336410f85f0cd43263f64dba3b90372a0684a8141adc20ed57`
+- Phase B result SHA-256: `2bc483fe796c2fbc04138038adb272bfff25265de60dc724476c02d570a31fe2`
+- full.diff SHA-256: `74eae27ba3d0f93b0f0136d6f6c92a971724aadaf1fd99d5f202579e65a9fe73`
+- 構造適合: 公開 Architecture §4 / §13 / §18 / §20 の DIST 境界と実装 head を照合。新 asmdef edge なし。
+- 現在の問いを阻害する findings: なし
+- 後続スライスへ移送する findings: Editor Play 中の Apply/Reset は `not-in-play` 記録のみ。Domain Reload 実測なし。第2 revision は first transport の書き換えコピー。process-probe の追加 exclusive-read が `IOException` で落ちた記録。
+- 実行したテスト: `pwsh tools/run-tests.ps1 -WithGraphics`（空 filter）。total 876 passed 876 failed 0 skipped 0。XML `results-all-20260920-182002.xml` SHA-256 `947a2c21f7b7231a2bee6df167361a22d88b89e7330479504864d48926b4839e`、log SHA-256 `bd78e48a13e530e7f53a5b9d1815a0632a56b794bc970e2f601fd2501302ae13`。
+- 判定必須のうち未実行: なし。Windows x64 IL2CPP High Player identity `20260920T100415450Z-afcd528e7d0947a982789d6ec793d34f`、source-free hold smoke と第2 revision 失敗後の hold なし再起動を含む。
+- 未確認事項: 詳細 C ledger 本文。Play 中拒否の実 Play 遷移。実 Domain Reload。
 
 ## 8. Phase C'
 
-未実施。blind bundle 未生成。
+- 担当方式: AI
+- 判定: **PASS**（ユーザー報告。同じテストは再実行していない）
+- 担当・モデル: 未関与 `gpt-5.5`
+- blind audit bundle: `artifacts/bs2b/dist-evidence/candidate-3a95c03/`
+- 確認範囲: 凍結 A snapshot、中立 B result、完全 diff、XML/log、install/evict/matrix/workflow/Player receipts。live HANDOFF と C 所見は読んでいない。
+- 現在の問いを阻害する findings: なし
+- 後続スライスへ移送する findings: Editor Play 中拒否の実 Play 未入。Domain Reload 未実行。第2 revision は coordinator 新規 publish ではない。process-probe の追加 read `IOException`。
+- 残存リスク: 強化独立性は同一ベンダー制約あり。blind とモデル相違の最低条件は満たす。
+- 監査できなかった範囲: live HANDOFF、他 candidate、chat 履歴、テスト再実行、`judgement-helpers`（実装 head 外）
+- 独立性: B（sol / astra / Grok）および判定 C（terra）と異なるモデル。新規セッション。C 所見を入力にしていない。
+- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: なし
 
 ## 9. Phase D
 
-ユーザーのマージ判断待ちとなるのは C/C' 完了後。現時点で未到達、merge 禁止。
+C GO と C' PASS を突き合わせた。凍結済み M1〜M5 の阻害欠陥は残っていない。
 
-## 10. Grok への継続 checkpoint（2026-09-20 06:36 JST）
+- マージ判断: ユーザーが明示するまで merge しない。本 PR は `develop` 宛て。
+- harvest: 公開 Architecture §4 / §13 / §18 / §20 へ成立契約を反映済み。`18-asset-description.md` の「DIST は後続」を現況へ直した。`BUILD_SYSTEM_REBUILD_PROGRAM.md` の現在地を DIST C/C' PASS・マージ待ちへ更新した。
+- 削除確認: 本 HANDOFF はマージ後に `git rm` する。レビュー evidence と DistJudgement helper、Player shipping は tracked にしない。
 
-クレジット都合による担当交代用の checkpoint。ここまでの変更は専用 branch
-`codex/dist-content-delivery` に commit 済みで、working tree は clean。引継ぎ時点の
-implementation 候補 head は `98f6ac13859b6a17d284403f69fd6286140e4064`、base は
-`3c6769ad3af53c3cbe050894b7040b4eaa268e8d`。この head はまだ判定 C の GO ではなく、
-PR も未作成、merge は禁止のままである。Cursor agent を使う場合は `AGENTS.md` の常時契約どおり
-Grok 系モデルを明示し、`osm-workflow` と `osm-unity-editor` を読み直して続行する。
+## 10. 残作業
 
-### 完了済み
+マージはユーザーの明示指示まで行わない。マージ後に本 HANDOFF を削除する。
+`artifacts/bs2b/dist-evidence/`、Player shipping、DistJudgement helper は PR に同梱しない。
+レビュー記録 commit は implementation head `3a95c03` を更新しない。
 
-- Phase A revision 4 は `artifacts/bs2b/dist-evidence/a3-r4/phase-a.md` に固定済み。
-  SHA-256 は `f3bd5e4086f44c336410f85f0cd43263f64dba3b90372a0684a8141adc20ed57`。
-- Runtime transport/install/cache/gate、Player installed override、Editor Delivery window/Play bridge、
-  publisher、process probe、テスト、Architecture 04/13/18/20 の契約反映を実装済み。
-- HTTP source の限定検証は head `de0fcd4` で 4/4 PASS。現候補へ影響する後続変更は
-  test fixture と文書だけだが、最終判定では下記の全件結果を正とする。
-- 現候補 head の限定 Unity 検証は 22/22 PASS、failed/skipped 0。
-  command は `pwsh tools/run-tests.ps1 -WithGraphics -Filter
-  'ContentDeliveryFailureMatrixTests;PlayerContentSmokeSequenceTests;BuildContentDirectoryIntegrationTests'`。
-  生ログ/XML は隔離 checkout の `TestResults/*-20260920-062054.*`。実 HTTP/local install、
-  managed directory からの Scene/Prefab/Texture load、利用中削除拒否、物理削除失敗後の
-  tombstone cleanup retry を含む。
-- 現候補 head から build した `ContentDeliveryProbe` で、別 process の shared read、削除拒否、
-  delete 中の read 拒否、正常解放、process crash 後解放を PASS。結果は
-  `artifacts/bs2b/dist-evidence/candidate-98f6ac1/process-probe.json`。
-- `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` は exit 0。
-  docs audit の warning はこの HANDOFF が harvest 前であることだけ。
-- 判定候補 bundle の途中成果物は ignored の
-  `artifacts/bs2b/dist-evidence/candidate-98f6ac1/` にある。`phase-a.md`、`full.diff`、
-  `stat.txt`、`name-status.txt`、audit 出力、process probe を含む。まだ最終 manifest は作らない。
-
-### 現在実行中
-
-隔離 worktree `artifacts/bs2b/dist-validation` の head を `98f6ac1` に固定し、次を sandbox 外で実行中。
-
-```powershell
-pwsh tools/run-tests.ps1 -WithGraphics
-```
-
-生ログは `artifacts/bs2b/dist-validation/TestResults/unity-all-20260920-062612.log`、予定 XML は
-同 directory の `results-all-20260920-062612.xml`。引継ぎ時点では Unity が進行中で XML は未生成。
-所要時間だけで停止せず、終了後に exit、XML の total/passed/failed/skipped、必須 test 名を確認する。
-成功時は log/XML を `candidate-98f6ac1` へコピーする。失敗時は判定 C に分類を返し、B 適応後の
-新 head で限定確認→全件をやり直す。人間所有の元 Editor PID 34948 は停止しない。
-
-隔離 worktree には Unity import による既知の meta/設定ノイズがある。main worktree へコピーしない。
-検証終了後は同 worktree の tracked noise だけを元の commit 内容へ戻す。対象は MobileDependencyResolver
-の pdb.meta 5件、SampleGame の Build/Tests 関連 meta 5件、`Assets/Settings/PC_RPAsset.asset`。
-
-### 必須の残作業（順序を維持）
-
-1. 上記全 EditMode 回帰を回収する。空 filter、graphics 有り、failed/skipped 0 が必須。
-2. 同じ最終 head の新規 Windows x64 / IL2CPP / stripping High Player を
-   `SampleGamePlayerBuildCoordinator.Build()` で build する。実 build identity、build receipt、
-   transport path、raw `transport.json` の SHA-256、shipping copy の inventory を固定する。
-   build 中にだけ存在する probe source が finally で削除されたことも確認する。
-3. その transport を loopback HTTP で配信し、production `ContentInstaller` で短い local NTFS cache に
-   install する。Unity に URL を渡さず、検証済み installed revision path と manifest digest の pair
-   だけを渡す。local source も同じ manifest で install し、bytes 一致を記録する。
-4. Player の shipping files だけを別 directory へ複写し、content package と source project を同梱せず、
-   installed pair から起動する。smoke receipt schema v2 の bootstrap、登録、初回 Scene stable、
-  代表 Prefab load/instantiate/behavior、destroy/release、Scene unload、directory close の全段階、
-   exit 0 を確認する。
-5. Player が behavior 検証後の hold 中に、同じ production cache の `Evict(0)` を実行する。
-   対象は pin 前の同一 revision。`BudgetUnsatisfied` と `DeletionResults` の DeferredBusy を記録し、
-   release signal 後に Player が正常 close/exit してからだけ `MarkKnownGood` する。
-6. 二つ目の実 Content revision を使い、first revision を known-good のまま、interrupted body、missing、
-   hash mismatch、target mismatch、revision mismatch を production installer に通す。どの失敗も final へ
-   staging promotion/登録せず、旧 receipt/bytes/pin hash が不変であることを記録する。その後同じ正しい
-   transport の明示 retry を成功させ、最後に旧 source-free Player をもう一度 exit 0 で起動する。
-7. Editor workflow を reflection/Editor API で代表操作し、Local/LAN、HTTP、Installed offline の Prepare、
-   requested revision 一致、Missing/Changed の具体的 source path 表示、Use For Next Play、domain reload を
-   またぐ ledger、Reset が自己値だけを復元すること、Play 中拒否を記録する。新 public API は追加しない。
-8. 同一 implementation head の生ログ/XML/Player receipts/manifests/hash/inventory/commands を
-   `candidate-<head>` にまとめ、生成時刻・base/head・各 SHA-256 を持つ manifest を作る。
-   Phase B result は所見を含まない中立記述にする。
-9. 判定 C 担当は fresh `gpt-5.6-terra` の `/root/dist_c_final`。最終 bundle で M1〜M5 を判定させる。
-   blocker があれば B へ戻す。GO 前に C' を開始しない。
-10. 判定 evidence が全部揃った最終 head だけを、fresh `gpt-5.5` の blind C' に渡す。
-    入力は frozen A snapshot、中立 B result、完全 diff、生 evidence、判定 C より前の機械検査だけ。
-    C の finding/結論や可変 HANDOFF 全文を渡さない。
-11. C/C' 後にこの HANDOFF の §7/§8、`BUILD_SYSTEM_REBUILD_PROGRAM.md` を事実どおり更新し、
-    docs/contract audit を再実行する。不要な review evidence は PR に追加しない。
-12. `develop` 宛て PR を作成して URL と検証結果をユーザーへ渡す。Phase D の merge 判断はユーザーが行う。
-    明示指示があるまで merge しない。
-
-### 注意事項
-
-- `artifacts/bs2b/dist-evidence/` は local immutable review evidence。PR に恒久同梱しない。
-- 未追跡 PRE 文書と既存検証ログは変更・追加しない。新証拠は新規 path にだけ作る。
-- 以前の全件実行 `20260920-004504` は async test deadlock で無効、`20260920-055814` は
-  870/874 で失敗した旧 head の診断証拠。最終成功証拠へ混ぜない。
-- `artifacts/bs2b/dist-evidence/dist-http-server.ps1` は未追跡の検証 helper 草案。production code ではない。
-  使用前に path confinement と終了方法を確認し、必要なら既存 .NET probe の `serve` を使う。
-- Phase B/C/C' のモデル相違と blind 条件を維持する。Cursor agent は必ず Grok 系を明示する。

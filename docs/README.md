@@ -40,8 +40,8 @@
 |---|---|---|
 | `SEASON_WORLD_DESIGN.md` | 世界構図・実証・スライス順序 | 着手時 HANDOFF を切るまでの正本。スライス表の順で切る |
 | `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b 完了。S-4c〜d 着手時 HANDOFF の入力正本。S-4d の Phase D で harvest して削除する |
-| `BUILD_SYSTEM_REBUILD_PROGRAM.md` | BuildSystem刷新の全体順序・現在地・AssetDescription拡張・不在時の継続開発方針 | U66/CD0/BS1/BS2a/BS2b/BS2c/BS3/BS4完了。次はDIST→RET。各slice着手時HANDOFFの入力正本。RET Phase Dでharvestして削除する |
-| `DIST_CONTENT_DELIVERY.md` | 配信・local cache・開発workflowのスライス | DISTの進行中正本。Phase Dで成立契約をharvestして削除する |
+| `BUILD_SYSTEM_REBUILD_PROGRAM.md` | BuildSystem刷新の全体順序・現在地・AssetDescription拡張・不在時の継続開発方針 | U66/CD0/BS1/BS2a/BS2b/BS2c/BS3/BS4完了。DIST は C/C' PASS・マージ待ち。次はRET。各slice着手時HANDOFFの入力正本。RET Phase Dでharvestして削除する |
+| `DIST_CONTENT_DELIVERY.md` | 配信・local cache・開発workflowのスライス | C/C' PASS。マージ後に本ファイルを削除する |
 | `REVIEW_WORKFLOW_EFFICIENCY.md` | 外部モデルレビューの実測と、次のPhase Cで残す比較項目 | いいえ。普遍契約はSkillへharvest済み。残る実測後に削除する |
 | `REVIEW_WORKFLOW_EFFICIENCY_ASSESSMENT.md` | 上記への独立評価（Claude / Grok）と採否記録 | いいえ。次のPhase Cで残る仮説を検証後、調査記録ごと削除する |
 

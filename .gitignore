@@ -53,6 +53,7 @@ tools/**/.vs/
 
 # Build artifacts
 artifacts/bs2b/
+artifacts/bs4/
 *.dll.mdb
 *.pdb
 *.mdb
