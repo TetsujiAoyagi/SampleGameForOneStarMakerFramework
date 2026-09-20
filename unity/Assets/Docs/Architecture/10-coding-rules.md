@@ -22,7 +22,7 @@
 |---|---|
 | 処理が全部同期 | **async にしない。** 同期メソッドとして定義する |
 | Addressable の同期ロード | `WaitForCompletion()` を使う（公式 API） |
-| UniTask を同期的に待つ必要がある | `.GetAwaiter().GetResult()` |
+| UniTask を同期的に待つ必要がある | 完了済みなら `.GetAwaiter().GetResult()`。未完了の UniTask では throw する。PlayerLoop 待ちは同期 API にする |
 | 完了を待たない（fire-and-forget） | `.Forget()` を明示的に使う。エラーログを残す |
 | クリーンアップ処理 | `CancellationToken.None` を渡す |
 

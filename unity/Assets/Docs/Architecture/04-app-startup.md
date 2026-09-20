@@ -88,8 +88,8 @@ Play Mode 終了時は Unity が先に Scene を解体する。そのあとで `
 Initializer.ReleaseAll()
   ├── cancel CTS / stop services
   ├── SceneDirector.Dispose()       … 論理 Scene 台帳と SceneBase のみ破棄（AM Unload は呼ばない）
-  ├── AssetManagement.ReleaseAll()  … directory Scene は ReleaseSceneAfterUnityShutdown。Addressables Scene Unload は呼ばない
-  ├── CompleteContentDirectoryPlayStopAsync() … StopAndDrain、shutdown scene terminal、cache 退避、unregister、OS read lease 解放
+  ├── AssetManagement.ReleaseAll()  … directory Scene は token だけ返す。Addressables Scene Unload も native UnloadSceneAsync も呼ばない
+  ├── CompleteContentDirectoryPlayStop() … 受付停止、cache 退避、unregister、OS read lease 解放。UniTask.GetResult は使わない
   ├── UICommon 等の残存 GO 破棄
   └── AppTelemetry.Shutdown()
 ```
@@ -170,11 +170,14 @@ public static Config CreateSettings()
 
 ### UniTask の同期待ちが必要な場合は `.GetAwaiter().GetResult()` を使う
 
+完了済みの UniTask に対してだけ使う。未完了の UniTask で `GetResult` すると throw する（`Task.Result` のような完了待ちではない）。
+Play 停止の directory drain は PlayerLoop 待ちを含むので、`GetResult` せず同期の `CompleteContentDirectoryPlayStop` で閉じる。
+
 ```csharp
 // ✗ バグ: 待てていない（Awaiter を取得して捨てているだけ）
 host.StartServicesAsync(token).GetAwaiter();
 
-// ✓ 同期的に完了を待つ
+// ✓ 同期的に完了を待つ（完了済み、または完了まで PlayerLoop を必要としない場合）
 host.StartServicesAsync(token).GetAwaiter().GetResult();
 
 // ✓ 完了を待たない場合は明示的に Forget

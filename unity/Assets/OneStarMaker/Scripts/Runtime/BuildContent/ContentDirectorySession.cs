@@ -431,6 +431,40 @@ namespace OneStarMaker.Runtime.BuildContent
             DrainShutdownScene(sessionScene).Forget();
         }
 
+        public void ReleaseSceneTokenAfterPlayStop(IBackendScene scene)
+        {
+            if (scene is not SessionScene sessionScene) return;
+            // Play 停止では Unity が Play Mode ごと Scene を解体する。native UnloadSceneAsync は
+            // PlayerLoop が要るのでここでは起こさず、token だけ返して lease 解放へ進む。
+            sessionScene.ReleaseAfterShutdown();
+        }
+
+        public void CompletePlayStop()
+        {
+            _accepting = false;
+            _evictCache?.Invoke();
+            // pending native Unload は待たない。quit 中に PlayerLoop で進めると同期待ちは死鎖する。
+            CloseNowForPlayStop();
+        }
+
+        private void CloseNowForPlayStop()
+        {
+            if (_closed) return;
+            Exception? failure = null;
+            try
+            {
+                if (_registered) _backend.Unregister();
+            }
+            catch (Exception ex) { failure = ex; }
+            try
+            {
+                _reservation.Dispose();
+                _closed = true;
+                _closeFailure = failure;
+            }
+            catch (Exception ex) { _closeFailure = failure ?? ex; }
+        }
+
         private async UniTaskVoid DrainShutdownScene(SessionScene scene)
         {
             try { await scene.Unload(); }

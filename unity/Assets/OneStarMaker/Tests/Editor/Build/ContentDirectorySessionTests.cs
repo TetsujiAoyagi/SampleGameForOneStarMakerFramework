@@ -506,11 +506,36 @@ namespace OneStarMaker.Tests.Editor.Build
             directory.SceneResult.TrySetResult(new FakeScene());
             await assets.LoadContentSceneAsync("scene", "Full");
             assets.ReleaseAll();
-            await assets.CompleteContentDirectoryPlayStopAsync();
+            assets.CompleteContentDirectoryPlayStop();
             Assert.That(directory.SceneUnloads, Is.EqualTo(0));
             Assert.That(directory.ShutdownSceneReleases, Is.EqualTo(1));
             Assert.That(directory.CloseCount, Is.EqualTo(1));
             Assert.That(directory.StopCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task PlayStop_StillLoadedNativeScene_UnregistersWithoutUnloadAndReleasesLease()
+        {
+            var path = Path.Combine(Path.GetTempPath(), "osm-content-session-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(path);
+            var root = CreateRoot();
+            var native = new FakeNativeDirectory(root) { PendingUnloadCompletion = new UniTaskCompletionSource() };
+            try
+            {
+                var session = ContentDirectorySession.Register(path, "build", "StandaloneWindows64", native);
+                var assets = new AssetManagement();
+                assets.InstallContentDirectory(session);
+                native.SceneResult.TrySetResult(new FakeScene());
+                await assets.LoadContentSceneAsync("scene", "Full");
+                assets.ReleaseAll();
+                assets.CompleteContentDirectoryPlayStop();
+                Assert.That(native.UnloadCount, Is.EqualTo(0));
+                Assert.That(native.UnregisterCount, Is.EqualTo(1));
+                Assert.That(ContentRevisionGate.TryAcquireDelete("build", "StandaloneWindows64", path,
+                    out var lease, out _), Is.True);
+                lease!.Dispose();
+            }
+            finally { UnityEngine.Object.DestroyImmediate(root); Directory.Delete(path); }
         }
 
         [Test]
@@ -679,6 +704,7 @@ namespace OneStarMaker.Tests.Editor.Build
                 => throw new NotSupportedException();
             public UniTask UnloadSceneAsync(IBackendScene scene) { SceneUnloads++; return UniTask.CompletedTask; }
             public void ReleaseSceneAfterUnityShutdown(IBackendScene scene) { ShutdownSceneReleases++; }
+            public void ReleaseSceneTokenAfterPlayStop(IBackendScene scene) { ShutdownSceneReleases++; }
             public void Release(IBackendAsset asset) => AssetReleases++;
             public void ConfigureCacheEviction(Action evictRevisionEntries) => _evict = evictRevisionEntries;
             public UniTask StopAndDrainAsync() { _accepting = false; StopCount++; return UniTask.CompletedTask; }
@@ -688,6 +714,7 @@ namespace OneStarMaker.Tests.Editor.Build
                     "directory stopped");
             }
             public UniTask CloseAsync() { CloseCount++; _evict?.Invoke(); return UniTask.CompletedTask; }
+            public void CompletePlayStop() { _accepting = false; StopCount++; CloseCount++; _evict?.Invoke(); }
             public void BeginSynchronousShutdown() { }
         }
 

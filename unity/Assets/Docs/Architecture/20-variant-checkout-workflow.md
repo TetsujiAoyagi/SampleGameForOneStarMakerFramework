@@ -79,7 +79,7 @@ flowchart TB
 | Editor | `SampleGameContentBuild` + bootstrap composer | 季節選択のあと UICommon / SceneResourceMap を Content Directory へ合成 |
 | Editor | `ContentDeliveryWindow` / `ContentDeliveryPlayBridge` | verified install を次 Play へ。未選択は fail-closed |
 | Runtime | `AbstractApplicationInitializer` | 未指定 mode は pair が無ければ失敗。directory 時は Content 入口で bootstrap |
-| Runtime | `AssetManagement.CompleteContentDirectoryPlayStopAsync` | Play 停止の完全 drain。`UnloadSceneAsync` は使わない |
+| Runtime | `AssetManagement.CompleteContentDirectoryPlayStop` | Play 停止の同期 drain。`UnloadSceneAsync` は使わない |
 | Editor | BS4 Player coordinator | 通常 Player。`VariantPlayerBuild` メニューは案内のみ |
 
 ### retired 在庫（通常手順ではない）

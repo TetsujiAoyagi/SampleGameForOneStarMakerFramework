@@ -137,11 +137,13 @@ namespace OneStarMaker.Tests.SceneSystem
             public UniTask<IBackendInstance> InstantiateAsync(string logicalKey, string representation, Transform? parent, bool worldSpace, System.Threading.CancellationToken ct) => throw new NotSupportedException();
             public UniTask UnloadSceneAsync(IBackendScene scene) => UniTask.CompletedTask;
             public void ReleaseSceneAfterUnityShutdown(IBackendScene scene) { }
+            public void ReleaseSceneTokenAfterPlayStop(IBackendScene scene) { }
             public void Release(IBackendAsset asset) { }
             public void ConfigureCacheEviction(Action evictRevisionEntries) { }
             public UniTask StopAndDrainAsync() => UniTask.CompletedTask;
             public void EnsureAccepting() { }
             public UniTask CloseAsync() => UniTask.CompletedTask;
+            public void CompletePlayStop() { }
             public void BeginSynchronousShutdown() { }
         }
 

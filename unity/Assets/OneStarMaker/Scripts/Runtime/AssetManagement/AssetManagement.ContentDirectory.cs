@@ -47,18 +47,21 @@ namespace OneStarMaker.Runtime.AssetManagement
             _contentSceneRepresentations.Clear();
         }
 
-        internal async UniTask CompleteContentDirectoryPlayStopAsync()
+        // Play 停止は Application.quitting の同期 ReleaseAll から呼ばれる。
+        // UniTask.GetResult は未完了なら throw するだけで待たない。native UnloadSceneAsync を
+        // ここで待つと PlayerLoop 待ちになり、同じメインスレッドで死鎖しうる。
+        internal void CompleteContentDirectoryPlayStop()
         {
             if (_contentDirectory == null) return;
-            var directory = _contentDirectory;
-            await _contentAssetLoadGate.WaitAsync();
-            await _contentSceneLoadGate.WaitAsync();
-            try { await directory.StopAndDrainAsync(); }
-            finally { _contentSceneLoadGate.Release(); _contentAssetLoadGate.Release(); }
-            // Play 停止では Unity が Scene を先に解体している。明示 close の UnloadSceneAsync は使わない。
-            await directory.CloseAsync();
+            _contentDirectory.CompletePlayStop();
             _contentDirectory = null;
             _contentSceneRepresentations.Clear();
+        }
+
+        internal UniTask CompleteContentDirectoryPlayStopAsync()
+        {
+            CompleteContentDirectoryPlayStop();
+            return UniTask.CompletedTask;
         }
 
         public async UniTask<IAssetHandle<T>> LoadContentAssetAsync<T>(string logicalKey, string representation, AssetOwner owner, CancellationToken ct = default) where T : UnityEngine.Object

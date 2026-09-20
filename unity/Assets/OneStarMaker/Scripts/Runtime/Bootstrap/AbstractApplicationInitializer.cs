@@ -884,12 +884,12 @@ namespace OneStarMaker.Runtime
             _sceneDirector = null;
 
             // Shutdown: 旧 Addressables Scene は再 unload せず、同期で全 owner 資産を解放。
-            // directory の完全 drain は AM が待ち、Initializer は session へ同期 shutdown だけを投げない。
+            // directory の完全 drain は AM が同じスタックで終える。UniTask.GetResult は使わない。
             if (_assetManagement is AssetManagement.AssetManagement directoryAssets)
             {
                 directoryAssets.ReleaseAll();
                 if (_contentDirectorySession != null)
-                    directoryAssets.CompleteContentDirectoryPlayStopAsync().GetAwaiter().GetResult();
+                    directoryAssets.CompleteContentDirectoryPlayStop();
             }
             else
             {

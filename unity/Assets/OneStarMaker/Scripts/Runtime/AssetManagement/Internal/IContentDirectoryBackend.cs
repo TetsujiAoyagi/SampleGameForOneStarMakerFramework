@@ -23,11 +23,13 @@ namespace OneStarMaker.Runtime.AssetManagement.Internal
         UniTask<IBackendInstance> InstantiateAsync(string logicalKey, string representation, Transform? parent, bool worldSpace, CancellationToken ct);
         UniTask UnloadSceneAsync(IBackendScene scene);
         void ReleaseSceneAfterUnityShutdown(IBackendScene scene);
+        void ReleaseSceneTokenAfterPlayStop(IBackendScene scene);
         void Release(IBackendAsset asset);
         void ConfigureCacheEviction(Action evictRevisionEntries);
         UniTask StopAndDrainAsync();
         void EnsureAccepting();
         UniTask CloseAsync();
+        void CompletePlayStop();
         void BeginSynchronousShutdown();
     }
 }
