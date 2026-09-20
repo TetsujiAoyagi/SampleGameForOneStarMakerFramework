@@ -14,15 +14,13 @@ WorldCompanion の Addressables 登録、Player の `DoNotBuildWithPlayer` で�
 
 ---
 
----
-
 ## 目次
 
 1. [概要](#1-概要)
 2. [全体像](#2-全体像)
-3. [開発者の手順](#3-開発者の手順)
-4. [リモート PC（配信側）運用](#4-リモート-pc配信側運用)
-5. [リビジョンずれ時の対処](#5-リビジョンずれ時の対処)
+3. [開発者の手順](#3-開発者の手順retired通常手順ではない)
+4. [リモート PC（配信側）運用](#4-リモート-pc配信側運用retired通常手順ではない)
+5. [リビジョンずれ時の対処](#5-リビジョンずれ時の対処retired通常手順ではない)
 6. [制約事項](#6-制約事項)
 7. [設定キー早見表](#7-設定キー早見表)
 8. [関連ドキュメント](#8-関連ドキュメント)
@@ -51,67 +49,59 @@ DIST Content Delivery は完成済み Content Directory を local/LAN directory�
 DIST は source checkout を代行しない。sourceFiles の Missing / Changed / Complete は編集可能性の案内であり、
 未 checkout asset の直接編集を可能にしない。取得済み content からの実行と source の編集可否を分けて扱う。
 
-DIST は source checkout を代行しない。sourceFiles の Missing / Changed / Complete は編集可能性の案内であり、
-未 checkout asset の直接編集を可能にしない。取得済み content からの実行と source の編集可否を分けて扱う。
-
 ---
 
 ## 2. 全体像
 
 ```mermaid
 flowchart TB
-    subgraph devPC ["開発者PC"]
-        selectProfile["ProjectSettingsでVariantプロファイル選択"]
-        checkoutReport["CheckoutReportで必要パス確認"]
-        sparseCheckout["git sparse-checkout等で手動Checkout"]
-        registerHybrid["Register Hybrid Play Mode Script"]
-        hybridPlay["Editor Play: ローカル完結分はAssetDatabase"]
-        playerBuild["Build Player Active Variant"]
-        selectProfile --> checkoutReport
-        checkoutReport --> sparseCheckout
-        sparseCheckout --> hybridPlay
-        registerHybrid --> hybridPlay
-        selectProfile --> playerBuild
+    subgraph usual ["通常経路"]
+        contentBuild["Tools/OSM/Content build"]
+        delivery["Delivery Prepare + Use For Next Play"]
+        dirPlay["Editor directory Play"]
+        bs4["BS4 Player"]
+        contentBuild --> delivery
+        delivery --> dirPlay
+        delivery --> bs4
     end
 
-    subgraph remotePC ["リモートPC"]
-        setupRemote["Setup Remote Distribution"]
-        rebuildScript["tools/rebuild-remote.ps1"]
-        serveScript["tools/serve-addressables.ps1"]
-        httpServe["HTTP配信 catalog.json + bundles"]
-        setupRemote --> rebuildScript
-        rebuildScript --> serveScript
-        serveScript --> httpServe
+    subgraph retired ["retired 在庫。通常入口ではない"]
+        hybrid["Hybrid Play / Checkout Report"]
+        remote["rebuild-remote / serve-addressables"]
+        overlay["Variant Player overlay"]
     end
-
-    hybridPlay -->|"未取得分はリモートカタログ"| httpServe
-    playerBuild -->|"未取得分はリモートカタログ"| httpServe
-    rebuildScript -->|"git pull + バッチビルド"| httpServe
 ```
 
-### 中核コンポーネント
+### 中核コンポーネント（現況）
 
 | レイヤ | 型 / ツール | 役割 |
 |---|---|---|
-| Editor | `AssetDependencyClosure` | アセットの依存閉包を計算し、ローカル完結性（閉包メンバーが全てディスク上に存在するか）を判定 |
-| Editor | `BuildVariantProfile` 拡張 | `RemoteCatalogUrl` / `FirstSceneIdentify` / `RemoteGroupName` を追加 |
-| Editor | `DeveloperVariantSettings` | UserSettings（VCS 外）に開発者ごとの Active プロファイルを保存 |
-| Editor | `VariantCheckoutReportWindow` | Included アセットを LocalComplete / RemoteResolve / Error に 3 分類。Checkout 必要パスをクリップボードへコピー |
-| Editor | `VariantHybridPlayModeScript` | Play 時、閉包完結分のみローカルカタログへ載せ、欠損分は一時除外してリモート解決へ |
-| Editor | `VariantFilteringBuildScript` | リモートビルド時 `RemoteGroupName` 指定で Remote Catalog を一時有効化 |
-| Editor | `VariantPlayerBuild` | Active Variant でプレイヤービルド。`FirstSceneIdentify` を app-config.json へ一時反映 |
-| Runtime | `RemoteCatalogRuntimeBridge` | Editor → Runtime のリモートカタログ URL ブリッジ |
-| Runtime | `AbstractApplicationInitializer.TryLoadRemoteCatalogAsync` | 起動時にリモートカタログを追加ロード |
-| 外部 | `tools/rebuild-remote.ps1` / `tools/serve-addressables.ps1` | リモート PC の自動リビルド + HTTP 配信 |
+| Editor | `SampleGameContentBuild` + bootstrap composer | 季節選択のあと UICommon / SceneResourceMap を Content Directory へ合成 |
+| Editor | `ContentDeliveryWindow` / `ContentDeliveryPlayBridge` | verified install を次 Play へ。未選択は fail-closed |
+| Runtime | `AbstractApplicationInitializer` | 未指定 mode は pair が無ければ失敗。directory 時は Content 入口で bootstrap |
+| Runtime | `AssetManagement.CompleteContentDirectoryPlayStopAsync` | Play 停止の完全 drain。`UnloadSceneAsync` は使わない |
+| Editor | BS4 Player coordinator | 通常 Player。`VariantPlayerBuild` メニューは案内のみ |
+
+### retired 在庫（通常手順ではない）
+
+| レイヤ | 型 / ツール | 現状 |
+|---|---|---|
+| Editor | `VariantCheckoutReportWindow` / Hybrid registrar / Remote setup | メニューは案内 no-op。本体 mutation は呼ばない |
+| Editor | `VariantHybridPlayModeScript` / `VariantFilteringBuildScript` | group mutation をせず base Fast/Packed へ委譲する警告経路 |
+| Editor | `VariantPlayerBuild` | メニューは app-config を書き換えない |
+| Runtime | `RemoteCatalogRuntimeBridge` / `TryLoadRemoteCatalogAsync` | 通常起動から切断。injector は代入しない |
+| 外部 | `tools/rebuild-remote.ps1` / `tools/serve-addressables.ps1` | 失敗案内のみ |
+
+`SceneVariantEditorInjector` と明示 `addressables` の SceneVariant 選択は互換 rollback 用に残す。
+directory の representation は `content:representation` だけを使う。
 
 ### 設計上の要点
 
-- **Editor の Addressables は「アセットは常にローカルにある」前提**で動く。欠損分のリモート倒しは AddressableGroup 設定ではなく、**Play Mode Script（カタログ生成のカスタマイズ）**で実現する。
-- **ローカル完結の判定はアセット単体ではなく依存閉包全体**で行う。シーンだけ Checkout 済みでも、参照 Material / Texture が欠損していれば LocalComplete にならない。
-- **共有 VCS ファイル**（`AddressableAssetSettings`, `app-config.json`）は恒久変更せず、Build / Play 中のみ一時変更 + スナップショット復元する。
-- **Scene 0 差し替えではなく論理初回シーン注入**を採用する（Build Settings の Bootstrap シーンを維持し、コンテンツ二重化を避ける）。
-- **リモートビルドの鮮度維持**（自動リビルド運用）が前提。鮮度が崩れるとリビジョン乖離警告が出る。
-- **Unity Accelerator** はソースアセットのインポート結果キャッシュであり、本機構の代替にはならない。併用は有効。
+- **通常 Play は verified Content Directory** であり、source checkout 完了を起動条件にしない。
+- **明示 `addressables`** だけが Addressables 互換口。未指定は pair が無ければ失敗する。
+- **旧 Hybrid / remote catalog / Variant overlay** は残ファイルとして残し、参照 0 だけで削除しない。
+- **Addressables package** は `AddressableBackend`、serialized `AssetReference`、WorldCompanion、Player `DoNotBuildWithPlayer` が使う。
+- **Unity Accelerator** はソースアセットのインポート結果キャッシュであり、Content Directory の代替にはならない。
 
 ---
 
@@ -209,7 +199,9 @@ $env:UNITY_PATH = "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe"
 
 ---
 
-## 5. リビジョンずれ時の対処
+## 5. リビジョンずれ時の対処（retired。通常手順ではない）
+
+通常起動はリモート catalog を追加ロードしない。以下は旧 Hybrid / remote catalog 経路の在庫である。
 
 リモートビルド時、`VariantFilteringBuildScript` が成果物ディレクトリへ `build-info.json`（`revision`, `builtAtUtc`）を出力する。
 
@@ -286,22 +278,23 @@ managed pair は legacy `content:directoryPath` より優先して検証する�
 | `RemoteGroupName` | リモート配信ビルド時の同期先グループ。空 = ローカルグループ |
 | `TargetAddressablesGroupName` | ローカル whitelist 同期先グループ |
 
-### Editor メニュー一覧
+### Editor メニュー一覧（retired。案内 no-op）
 
-| メニュー | 用途 |
+| メニュー | 現状 |
 |---|---|
-| Project Settings > OneStarMaker > Variant | Active プロファイル選択 |
-| OneStarMaker > Variant > Checkout Report | Checkout レポート / パスコピー |
-| OneStarMaker > Addressables > Register Hybrid Play Mode Script | Hybrid Play Mode DataBuilder 登録（初回） |
-| OneStarMaker > Addressables > Setup Remote Distribution | リモート配信構成のワンショット生成 |
-| OneStarMaker > Build > Build Player (Active Variant) | Active Variant でプレイヤービルド |
+| Project Settings > OneStarMaker > Variant | SceneVariant 互換 rollback 用。directory の representation には使わない |
+| OneStarMaker > Variant > Checkout Report | 案内のみ |
+| OneStarMaker > Addressables > Register Hybrid Play Mode Script | 案内のみ。DataBuilders を変えない |
+| OneStarMaker > Addressables > Setup Remote Distribution | 案内のみ。Addressables 設定を変えない |
+| OneStarMaker > Build > Build Player (Active Variant) | 案内のみ。app-config を書き換えない |
+| Tools > OSM > Content / Delivery | 通常入口 |
 
-### 外部スクリプト
+### 外部スクリプト（retired）
 
-| パス | 用途 |
+| パス | 現状 |
 |---|---|
-| `tools/rebuild-remote.ps1` | git pull + Unity バッチビルド |
-| `tools/serve-addressables.ps1` | Addressables 成果物の HTTP 配信 |
+| `tools/rebuild-remote.ps1` | 失敗案内。Content build へ置換 |
+| `tools/serve-addressables.ps1` | 失敗案内。Delivery HTTP へ置換 |
 
 ---
 

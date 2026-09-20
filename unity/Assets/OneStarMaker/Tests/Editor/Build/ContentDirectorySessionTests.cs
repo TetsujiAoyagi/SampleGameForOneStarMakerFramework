@@ -512,6 +512,9 @@ namespace OneStarMaker.Tests.Editor.Build
             Assert.That(directory.CloseCount, Is.EqualTo(1));
             Assert.That(directory.StopCount, Is.EqualTo(1));
         }
+
+        [Test]
+        public async Task SceneIdentity_CannotAliasAnotherRepresentation()
         {
             var directory = new FakeDirectoryPort();
             var assets = new AssetManagement();
