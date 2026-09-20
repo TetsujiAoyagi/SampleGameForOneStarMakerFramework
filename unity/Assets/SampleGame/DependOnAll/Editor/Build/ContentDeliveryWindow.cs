@@ -115,8 +115,8 @@ namespace SampleGame.DependOnAll.Editor.Build
                 {
                     _status += "Source diagnosis unavailable: " + ex.Message + "\nVerified content remains prepared.";
                 }
-                _status += "\nSource files are needed for editing and the existing Editor bootstrap. "
-                    + "A matching BS4 Player can run without them using SAMPLEGAME_CONTENT__INSTALLEDREVISIONPATH="
+                _status += "\nSource files are needed for editing. Usual Editor Play uses the prepared install via Use For Next Play. "
+                    + "A matching BS4 Player can run without source files using SAMPLEGAME_CONTENT__INSTALLEDREVISIONPATH="
                     + result.RevisionRoot + " and SAMPLEGAME_CONTENT__MANIFESTSHA256=" + result.ManifestSha256 + ".";
             }
             catch (Exception ex)

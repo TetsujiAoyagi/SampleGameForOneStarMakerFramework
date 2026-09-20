@@ -35,7 +35,8 @@ Unity 6.6 Content Directoriesを用いて、content選択、build、Runtimeロ�
 - BS2c: 完了。SampleGame の本番 SceneResource graph から季節・表現を選択し、四つの Editor Content Directory build を確認した。
 - BS3: 完了。Runtime の root 索引と型付き Scene/Object/Prefab load、owner/cache と session 寿命、同一 process の revision 削除排他、Editor Play の明示切替を確認した。既定 Addressables 起動は残す。
 - BS4: 完了。対応する Content BuildReport から固定 Windows x64 IL2CPP / High Player を作り、selected content の二重同梱を拒否し、生成 bootstrap、起動時表現固定、論理初回 Scene、代表 Prefab、明示 close を実 Player で確認した。
-- DIST: 完了。PR #68 を `develop` `356767ff082ae7ddf5f8c9ce0c992b7e2185178f` へマージ。実装 head は `3a95c0389356480090f8a6e81940ab692d061deb`。取得済み成果物だけからの起動、物理削除と別 process 排他は成立。slice HANDOFF は Phase D 残りで削除済み。通常 Play 停止時の完全 drain と source なし complete Editor bootstrap は RET の入力とする。
+- DIST: 完了。PR #68 を `develop` `356767ff082ae7ddf5f8c9ce0c992b7e2185178f` へマージ。実装 head は `3a95c0389356480090f8a6e81940ab692d061deb`。
+- RET: 進行中。専用 branch `codex/ret-retire-addressables-build`。旧 Addressables build/dev workflow の通常経路切断と directory 既定起動。
 
 実行順序:
 

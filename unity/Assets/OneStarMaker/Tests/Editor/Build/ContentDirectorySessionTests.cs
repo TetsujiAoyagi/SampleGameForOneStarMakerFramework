@@ -498,7 +498,20 @@ namespace OneStarMaker.Tests.Editor.Build
         }
 
         [Test]
-        public async Task SceneIdentity_CannotAliasAnotherRepresentation()
+        public async Task PlayStop_ReleaseAllThenComplete_SkipsUnloadAndCloses()
+        {
+            var directory = new FakeDirectoryPort();
+            var assets = new AssetManagement();
+            assets.InstallContentDirectory(directory);
+            directory.SceneResult.TrySetResult(new FakeScene());
+            await assets.LoadContentSceneAsync("scene", "Full");
+            assets.ReleaseAll();
+            await assets.CompleteContentDirectoryPlayStopAsync();
+            Assert.That(directory.SceneUnloads, Is.EqualTo(0));
+            Assert.That(directory.ShutdownSceneReleases, Is.EqualTo(1));
+            Assert.That(directory.CloseCount, Is.EqualTo(1));
+            Assert.That(directory.StopCount, Is.EqualTo(1));
+        }
         {
             var directory = new FakeDirectoryPort();
             var assets = new AssetManagement();
@@ -645,6 +658,9 @@ namespace OneStarMaker.Tests.Editor.Build
             internal int SceneLoads;
             internal int AssetReleases;
             internal int SceneUnloads;
+            internal int ShutdownSceneReleases;
+            internal int StopCount;
+            internal int CloseCount;
             private Action? _evict;
             private bool _accepting = true;
             public string BuildIdentity => "build";
@@ -659,16 +675,16 @@ namespace OneStarMaker.Tests.Editor.Build
             public UniTask<IBackendInstance> InstantiateAsync(string logicalKey, string representation, Transform? parent, bool worldSpace, CancellationToken ct)
                 => throw new NotSupportedException();
             public UniTask UnloadSceneAsync(IBackendScene scene) { SceneUnloads++; return UniTask.CompletedTask; }
-            public void ReleaseSceneAfterUnityShutdown(IBackendScene scene) { }
+            public void ReleaseSceneAfterUnityShutdown(IBackendScene scene) { ShutdownSceneReleases++; }
             public void Release(IBackendAsset asset) => AssetReleases++;
             public void ConfigureCacheEviction(Action evictRevisionEntries) => _evict = evictRevisionEntries;
-            public UniTask StopAndDrainAsync() { _accepting = false; return UniTask.CompletedTask; }
+            public UniTask StopAndDrainAsync() { _accepting = false; StopCount++; return UniTask.CompletedTask; }
             public void EnsureAccepting()
             {
                 if (!_accepting) throw new ContentDirectoryException(ContentDirectoryFailureCode.DirectoryNotRegistered,
                     "directory stopped");
             }
-            public UniTask CloseAsync() { _evict?.Invoke(); return UniTask.CompletedTask; }
+            public UniTask CloseAsync() { CloseCount++; _evict?.Invoke(); return UniTask.CompletedTask; }
             public void BeginSynchronousShutdown() { }
         }
 

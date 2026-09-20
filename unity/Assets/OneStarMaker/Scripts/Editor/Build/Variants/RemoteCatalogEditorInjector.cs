@@ -30,8 +30,7 @@ namespace OneStarMaker.Editor.Build
         /// </summary>
         static RemoteCatalogEditorInjector()
         {
-            OneStarMaker.Runtime.AssetManagement.RemoteCatalogRuntimeBridge.EditorRemoteCatalogUrlResolver =
-                () => DeveloperVariantSettings.instance.GetActiveRemoteCatalogUrl();
+            // 通常 Play からリモート catalog URL を注入しない。明示 addressables rollback も catalog 追加ロードしない。
         }
     }
 }

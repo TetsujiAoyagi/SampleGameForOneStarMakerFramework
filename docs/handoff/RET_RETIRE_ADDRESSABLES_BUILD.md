@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`
+- status: `B`
 - branch: `codex/ret-retire-addressables-build`
 - implementation base commit: `356767ff082ae7ddf5f8c9ce0c992b7e2185178f`
-- implementation head commit: 未到達
+- implementation head commit: 未記録（B 実装 commit 後に追記）
 - risk: `high`（Addressables、公開 API、serialized 参照、所有者・寿命）
 - owner: RET 主担当 / Cursor Grok 4.6
 - created: 2026-09-20
@@ -15,7 +15,10 @@
 - Phase A snapshot path: `artifacts/bs2b/ret-evidence/phase-a/snapshot.md`（ignored。PR に入れない）
 - Phase A snapshot generated at: `2026-09-20T13:18:50.8198390Z`
 - Phase A snapshot hash: `1fda4f266d561c57f968c6aeab43e4e2655fa1d1aad63652575be33eb75d76a9`
-- Phase B result / evidence / C' blind bundle: 未到達
+- Phase B result snapshot path: `artifacts/bs2b/ret-evidence/phase-b/result.md`（ignored。PR に入れない）
+- Phase B result snapshot generated at: `2026-09-20T13:50:00Z`
+- Phase B result snapshot hash: `f8f8637bc060eb595cc573a48c9f8c650d217d6179d4c49e23de99ff27da6975`
+- Phase C evidence / C' blind bundle: 未到達
 
 本文へ転記した常時制約: Game → Framework の一方向。asmdef 参照の無断追加禁止。アセットは `IAssetManagement` と `AssetOwner`。SceneState の既存14値は減らさず並べ替えない。公開ログは `ILogger<T>`。Update は `UpdateSystemRuntime`。1システムの例外で他を止めない。Editor コードを Runtime アセンブリに置かない。Unity 側 C# は先頭 `#nullable enable`、`record` 禁止、破棄可能 Unity Object は `== null` / `!= null`。テストに `Task.Delay` / `Thread.Sleep` 禁止。`unity test` / `unity run` 禁止。テストは `pwsh tools/run-tests.ps1`（Windows は sandbox 外）。参照 0 を削除理由にしない。PR base は develop。Phase D merge はユーザー明示まで禁止。cursor-agent は Grok 系のみ。ASTRA は使わない。DIST の install / known-good / OS lease / source-free Player を作り直さない。
 
@@ -176,8 +179,8 @@ A2 代替構成（Session Binding）のうち、PlayBridge を通常 Editor 接�
 - A2 architecture gate: gpt-5.6-sol（OpenAI）。同一 A0+A1。指摘を他レビューへ渡していない
 - A2 代替構成: Composer 2.5。A0 のみ。初稿未読
 - A3 統合: 主担当 Grok 4.6。program 委任（2026-09-17）に従い採否
-- C' 予約: Anthropic Claude 系（A/B/C に未関与）
-- 強化条件: A は Grok + OpenAI + Composer。Claude を C' に残した
+- C' 予約: ユーザー指示により GPT 系。Claude は利用不可。ASTRA は使わない。
+- 強化条件: A は Grok + OpenAI + Composer。C' に未関与ベンダーを残せていない（独立性制約あり）。
 
 ### A2 ledger（採否）
 
@@ -198,11 +201,20 @@ A2 代替構成（Session Binding）のうち、PlayBridge を通常 Editor 接�
 | `EditorPlayTeardownCoordinator` | 代替構成 | 不採用 | Editor→Runtime 公開 API と B3 に反する |
 | signing/CDN/Mesh/package 全廃/flake | 両方 | 後続 | 対象外 |
 
-C' 予約: Claude。ASTRA 不使用。
+C' 実績予定: GPT 系（ユーザー指示）。A2 architecture gate が同一ベンダーのため `独立性制約あり`。ASTRA 不使用。
 
 ## 6. Phase B 実装結果
 
-未実施
+実装した。テストは未実行（Phase C）。
+
+- bootstrap composer を季節選択のあと `compose` で接続。logical key は `DirectoryBootstrapKeys`。
+- 未指定 `content:runtimeMode` は verified pair が無ければ BeforeSceneLoad で失敗。directory Editor Play は Content 入口で UICommon / Map を読む。
+- Play 停止は `ReleaseAll` のあと `CompleteContentDirectoryPlayStopAsync` を待つ。明示 close の `UnloadSceneAsync` は使わない。
+- 旧メニュー 4 つ、Hybrid/Filtering、remote batch、catalog/revision injector、`rebuild-remote.ps1` / `serve-addressables.ps1` は案内 no-op。
+- Architecture §4 / §13 / §18 / §20 を現況へ更新。`contract-audit` / `docs-audit` は通過。Editor Pipeline `ready`。
+- B 適応: Framework は SampleGame key を知らない（protected virtual）。新 public API なし。`VariantRemoteBuildBatch` も CLI 入口のため案内終了。
+
+未実行: 全 EditMode、Editor Play、DIST install 回帰、BS4 Player。
 
 ## 7. Phase C
 

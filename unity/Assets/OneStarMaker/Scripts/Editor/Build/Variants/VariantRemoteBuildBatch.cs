@@ -71,92 +71,10 @@ namespace OneStarMaker.Editor.Build
         /// </remarks>
         public static void Build()
         {
-            try
-            {
-                var profilePath = ResolveVariantProfilePath();
-                Debug.Log($"{LogPrefix} BuildVariantProfile path: {profilePath}");
-
-                var settings = AddressableAssetSettingsDefaultObject.Settings;
-                if (settings == null)
-                {
-                    Debug.LogError(
-                        $"{LogPrefix} AddressableAssetSettings が見つかりません。" +
-                        "Addressables グループを作成してから再度実行してください。");
-                    EditorApplication.Exit(1);
-                    return;
-                }
-
-                var profile = AssetDatabase.LoadAssetAtPath<BuildVariantProfile>(profilePath);
-                if (profile == null)
-                {
-                    Debug.LogError(
-                        $"{LogPrefix} BuildVariantProfile を読み込めません: {profilePath}");
-                    EditorApplication.Exit(1);
-                    return;
-                }
-
-                var builder = settings.DataBuilders
-                    .OfType<VariantFilteringBuildScript>()
-                    .FirstOrDefault();
-                if (builder == null)
-                {
-                    Debug.LogError(
-                        $"{LogPrefix} DataBuilders 内に VariantFilteringBuildScript が見つかりません。" +
-                        "Addressables Settings に Variant Filtering Build Script を登録してください。");
-                    EditorApplication.Exit(1);
-                    return;
-                }
-
-                var serializedBuilder = new SerializedObject(builder);
-                var activeProfileProperty = serializedBuilder.FindProperty("_activeProfile");
-                if (activeProfileProperty == null)
-                {
-                    Debug.LogError(
-                        $"{LogPrefix} VariantFilteringBuildScript の _activeProfile プロパティが見つかりません。");
-                    EditorApplication.Exit(1);
-                    return;
-                }
-
-                activeProfileProperty.objectReferenceValue = profile;
-                serializedBuilder.ApplyModifiedPropertiesWithoutUndo();
-                EditorUtility.SetDirty(builder);
-
-                var builderIndex = settings.DataBuilders.IndexOf(builder);
-                if (builderIndex < 0)
-                {
-                    Debug.LogError(
-                        $"{LogPrefix} VariantFilteringBuildScript の DataBuilders 内 index を取得できません。");
-                    EditorApplication.Exit(1);
-                    return;
-                }
-
-                settings.ActivePlayerDataBuilderIndex = builderIndex;
-                AssetDatabase.SaveAssets();
-
-                Debug.Log(
-                    $"{LogPrefix} Active Player Data Builder を VariantFilteringBuildScript (index={builderIndex}) に設定しました。" +
-                    $" Profile='{profile.name}'");
-
-                AddressableAssetSettings.BuildPlayerContent(
-                    out UnityEditor.AddressableAssets.Build.AddressablesPlayerBuildResult result);
-
-                if (!string.IsNullOrEmpty(result.Error))
-                {
-                    Debug.LogError($"{LogPrefix} BuildPlayerContent failed: {result.Error}");
-                    EditorApplication.Exit(1);
-                    return;
-                }
-
-                Debug.Log(
-                    $"{LogPrefix} Build succeeded. Duration={result.Duration:F2}s, " +
-                    $"OutputPath={result.OutputPath}, LocationCount={result.LocationCount}");
-                EditorApplication.Exit(0);
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"{LogPrefix} Unhandled exception: {ex}");
-                EditorApplication.Exit(1);
-            }
+            Debug.LogError(
+                $"{LogPrefix} Remote Addressables batch build is retired. " +
+                "Use Tools/OSM/Content build and Content Delivery. Addressables groups are not mutated.");
+            EditorApplication.Exit(1);
         }
 
         /// <summary>

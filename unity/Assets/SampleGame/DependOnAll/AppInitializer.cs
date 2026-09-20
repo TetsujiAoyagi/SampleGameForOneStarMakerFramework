@@ -101,6 +101,9 @@ namespace SampleGame.DependOnAll
         protected override string GetSceneResourceMapAddress()
             => "Assets/OneStarMakerCommon/SceneMap/SceneResourceMap.asset";
 
+        protected override string GetDirectoryBootstrapSceneLogicalKey() => DirectoryBootstrapKeys.UiCommonScene;
+        protected override string GetDirectoryBootstrapMapLogicalKey() => DirectoryBootstrapKeys.SceneResourceMap;
+
         protected override ILoadingDisplay CreateLoadingDisplay()
             => new NullLoadingDisplay();
 

@@ -57,20 +57,9 @@ namespace OneStarMaker.Editor.Build
         [MenuItem("OneStarMaker/Addressables/Setup Remote Distribution")]
         public static void Setup()
         {
-            var settings = AddressableAssetSettingsDefaultObject.Settings;
-            if (settings == null)
-            {
-                Debug.LogError(
-                    $"{LogPrefix} AddressableAssetSettings が見つかりません。" +
-                    "Addressables グループを作成してから再度実行してください。");
-                return;
-            }
-
-            EnsureRemoteAddressablesProfile(settings);
-            EnsureRemoteDistributionGroup(settings);
-            EnsureRemoteFullProfile();
-            SaveAddressablesSettings(settings);
-            LogCompletionGuide();
+            Debug.LogWarning(
+                "[VariantRemoteBuildSetup] Remote Addressables setup is retired. " +
+                "Use Content publish + Tools/OSM/Content Delivery. Addressables profiles and groups are not mutated.");
         }
 
         /// <summary>

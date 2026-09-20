@@ -1,17 +1,18 @@
 # 20. Variant チェックアウト厳選ワークフロー
 
-> ステータス: 実装済み (2026-07-05)
+> ステータス: 旧 Addressables checkout / Hybrid Play / remote catalog / Variant Player overlay は
+> 通常経路から切断した（2026-09-20）。メニューと CLI は置換案内のみ。
+> 通常手順は Content Directory build、DIST Delivery、directory Play、BS4 Player である。
 > 前提資料: [18. AssetDescription](18-asset-description.md)
 
-> Unity `6000.6.0f1` への移行は採用済み。ただし現行 Addressables Player build は、
-> `BuildVariantProfile.SceneVariant` と whitelist の既存不整合で停止することが確認されている。
-> Editor compile / EditMode test の成功を Player / Season 互換の証拠にはしない。現行経路の
-> 修復または後続 BuildSystem への置換が完了するまでは、Player build 可を前提にしない。
-
-Content Directory build と、SampleGame の本番 SceneResource graph からの季節・表現選択は Editor 側の別入口として実装済みである。
-本書の Addressables checkout、Hybrid Play、Player build 経路はまだ置換していない。削除と既定切替は RET が所有する。
+Content Directory build と、SampleGame の本番 SceneResource graph からの季節・表現選択は Editor 側の入口である。
 新経路の選択規則と build 入口は [18. AssetDescription](18-asset-description.md#samplegame-の季節選択と-editor-build現況) を正とする。
 Runtime load と寿命は [13. リソースシステム](13-resource-system.md)、起動と Player / installed override は [4. アプリ起動シーケンス](04-app-startup.md) を正とする。
+
+`com.unity.addressables` 2.11.2 は残す。残存 owner は `AddressableBackend`、serialized `AssetReference`、
+WorldCompanion の Addressables 登録、Player の `DoNotBuildWithPlayer` である。package 削除は後続スライス。
+
+---
 
 ---
 
@@ -30,20 +31,25 @@ Runtime load と寿命は [13. リソースシステム](13-resource-system.md)�
 
 ## 1. 概要
 
-巨大なアセットリポジトリを全員がフル Checkout する必要はない。本ワークフローは、既存の `AssetPayload.Variant` を **チェックアウト厳選タグ** として活用し、開発者が選んだ `BuildVariantProfile` に応じて次を実現する。
+巨大なアセットリポジトリを全員がフル Checkout する必要はない、という旧 Addressables workflow の意図は残る。
+通常の実行と Player は Content Directory と DIST install が担い、source checkout は編集用である。
 
-- **ローカルに Checkout 済み**かつ**依存閉包が完結**するアセット → `AssetDatabase` 直読み（Editor Play）またはローカル Addressables カタログ
-- **未 Checkout**または**閉包欠損**のアセット → リモート PC でビルド済みの Addressables バンドルからストリーミング
+旧経路が実現していた次の分担は、通常入口としては使わない。
 
-チェックアウト自体（`git sparse-checkout` 等）は手動。Framework は「何を Checkout すべきか」のレポート生成と、ローカル/リモートのハイブリッド解決を担う。
+- **ローカルに Checkout 済み**かつ**依存閉包が完結**するアセット → 旧 Hybrid Play の AssetDatabase 直読み
+- **未 Checkout**または**閉包欠損**のアセット → 旧リモート Addressables catalog
+
+チェックアウト自体（`git sparse-checkout` 等）は手動のまま。Framework の Checkout Report メニューは案内のみ。
 
 ### 文書の適用範囲
 
 本書の profile、whitelist、checkout report、hybrid Play Mode Script、remote Addressables catalog、
-旧 Player build は既存 Addressables workflow の契約である。DIST Content Delivery は、完成済み
-Content Directory を local/LAN directory、HTTP、installed offline から検証済み disk cache へ導入し、
-Editor Play または対応 Player へ接続する並行経路を提供する。旧 workflow の削除、既定切替、
-serialized 設定の移行は RET が所有するため、本書の旧手順を参照 0 だけで削除しない。
+旧 Player build は **意図的に廃止した通常経路** の在庫である。残ファイルを参照 0 だけで削除しない。
+DIST Content Delivery は完成済み Content Directory を local/LAN directory、HTTP、installed offline から
+検証済み disk cache へ導入し、Editor Play または対応 Player へ接続する。
+
+DIST は source checkout を代行しない。sourceFiles の Missing / Changed / Complete は編集可能性の案内であり、
+未 checkout asset の直接編集を可能にしない。取得済み content からの実行と source の編集可否を分けて扱う。
 
 DIST は source checkout を代行しない。sourceFiles の Missing / Changed / Complete は編集可能性の案内であり、
 未 checkout asset の直接編集を可能にしない。取得済み content からの実行と source の編集可否を分けて扱う。
@@ -109,7 +115,11 @@ flowchart TB
 
 ---
 
-## 3. 開発者の手順
+## 3. 開発者の手順（retired。通常手順ではない）
+
+通常の Editor Play は **Tools > OSM > Content** で Content Directory を作り、Delivery で install し、
+**Use For Next Play** してから Play する。Player は BS4 coordinator。以下の旧メニューは案内を出すだけで
+group snapshot / app-config overlay / Remote プロファイル生成 / catalog 追加ロードを実行しない。
 
 ### DIST Content Delivery を使う場合
 
@@ -167,7 +177,10 @@ flowchart TB
 
 ---
 
-## 4. リモート PC（配信側）運用
+## 4. リモート PC（配信側）運用（retired。通常手順ではない）
+
+通常の配信は Content publish と Delivery HTTP/local install である。`tools/rebuild-remote.ps1` と
+`tools/serve-addressables.ps1` は失敗案内のみ。
 
 ### 4.1 初回セットアップ
 
@@ -244,6 +257,8 @@ $env:UNITY_PATH = "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe"
 
 | キー | 用途 |
 |---|---|
+| `content:runtimeMode` 未指定 | Editor Play は verified pair が無ければ失敗。pair があれば directory |
+| `content:runtimeMode=addressables` | Addressables 互換・rollback |
 | `content:runtimeMode=directory` | directory backend の明示選択 |
 | `content:installedRevisionPath` | DIST managed revision root。manifest digest と pair 必須 |
 | `content:manifestSha256` | 受信 transport manifest bytes の固定 digest |
@@ -251,7 +266,7 @@ $env:UNITY_PATH = "C:\Program Files\Unity\Hub\Editor\<version>\Editor\Unity.exe"
 | `content:representation` | 起動中に固定する表現 |
 
 managed pair は legacy `content:directoryPath` より優先して検証する。既存 package-relative directory と
-Addressables 既定経路は RET の判断まで維持する。
+明示 `addressables` は互換 rollback。未指定の通常 Editor Play は Delivery pair が無ければ失敗する。
 
 ### AppConfig（`app-config.json`）
 

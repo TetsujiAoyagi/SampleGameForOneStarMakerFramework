@@ -276,9 +276,13 @@ namespace OneStarMaker.Runtime
                 if (_cts == null)
                     throw new InvalidOperationException("BeforeSceneLoad lifetime token is unavailable.");
                 ct = _cts.Token;
-                startupStage = "load-remote-catalog";
-                if (!UseRequiredPlayerFileConfiguration)
-                    await TryLoadRemoteCatalogAsync();
+                // 旧リモート Addressables catalog 追加ロードは通常起動から外した。
+
+                if (_contentDirectoryConfiguration != null && !UseRequiredPlayerFileConfiguration)
+                {
+                    startupStage = "register-content-directory";
+                    await InstallConfiguredContentDirectoryAsync();
+                }
 
                 startupStage = "load-ui-common";
                 Debug.Log("[AppInit] AfterSceneLoad: loading UICommon.");
@@ -293,7 +297,9 @@ namespace OneStarMaker.Runtime
                 Debug.Log("[AppInit] AfterSceneLoad: loading SceneResourceMap.");
                 _sceneResourceMap = UseRequiredPlayerFileConfiguration
                     ? LoadPlayerSceneResourceMap()
-                    : await LoadSceneResourceMapAsync();
+                    : _contentDirectoryConfiguration != null
+                        ? await LoadDirectorySceneResourceMapAsync()
+                        : await LoadSceneResourceMapAsync();
 
                 if (_assetManagement == null || _cts == null)
                 {
@@ -319,33 +325,15 @@ namespace OneStarMaker.Runtime
                     ?? throw new InvalidOperationException("ResolveSceneVariant returned null.");
 
                 var useContentDirectory = _contentDirectoryConfiguration != null;
-                if (_contentDirectoryConfiguration != null)
+                if (_contentDirectoryConfiguration != null && _contentDirectorySession == null)
                 {
                     startupStage = "register-content-directory";
-                    var configuration = _contentDirectoryConfiguration;
-                    var session = configuration.VerifiedRevision != null
-                        ? ContentDirectorySession.RegisterVerified(configuration.VerifiedRevision, new UnityContentDirectoryBackend())
-                        : ContentDirectorySession.Register(configuration.Path, configuration.BuildIdentity, ContentDirectoryTarget);
-                    try
-                    {
-                        if (_assetManagement is not AssetManagement.AssetManagement assetManagement)
-                            throw new InvalidOperationException("The configured asset manager cannot install a content directory session.");
-                        assetManagement.InstallContentDirectory(session);
-                    }
-                    catch
-                    {
-                        // field に保存する前の失敗でも登録済み directory を閉じる。
-                        // cleanup が失敗した場合も元の起動失敗を診断できるよう両方を記録する。
-                        try { await session.CloseAsync(); }
-                        catch (Exception cleanupException)
-                        { Debug.LogError($"[AppInit] Content directory cleanup after install failure failed: {cleanupException}"); }
-                        throw;
-                    }
-                    _contentDirectorySession = session;
-                    sceneVariant = configuration.Representation;
-                    if (UseRequiredPlayerFileConfiguration)
-                        playerContentStages.Add(PlayerContentStage.ContentDirectoryRegistered);
+                    await InstallConfiguredContentDirectoryAsync();
                 }
+                if (_contentDirectoryConfiguration != null)
+                    sceneVariant = _contentDirectoryConfiguration.Representation;
+                if (UseRequiredPlayerFileConfiguration && _contentDirectorySession != null)
+                    playerContentStages.Add(PlayerContentStage.ContentDirectoryRegistered);
 
                 startupStage = "create-scene-director";
                 _sceneDirector = new SceneDirector(
@@ -509,20 +497,36 @@ namespace OneStarMaker.Runtime
             if (UseRequiredPlayerFileConfiguration)
                 throw new InvalidOperationException("The Player bootstrap scene must contain UICommon; Addressables fallback is forbidden.");
 
-            var address = GetUICommonPrefabAddress();
-            // UICommon は SceneDirector 管理外の App 常駐シーン。ReleaseAppAll で解放される
-            // bool / int / SceneReleaseMode の並びを位置引数で固定しないとオーバーロードが曖昧になる
-            var desc = new SceneAssetDescription();
-            desc.AddPayload(string.Empty, new AssetReference(address));
-            _uiSceneHandle = await _assetManagement!.LoadSceneAsync(
-                "UICommon",
-                desc,
-                string.Empty,
-                new SceneLoadOptions(LoadSceneMode.Additive, activateOnLoad: true, priority: 100));
+            string bootstrapIdentity;
+            if (_contentDirectoryConfiguration != null)
+            {
+                var logicalKey = GetDirectoryBootstrapSceneLogicalKey();
+                if (string.IsNullOrEmpty(logicalKey))
+                    throw new InvalidOperationException("Directory Editor Play requires a bootstrap Scene logical key.");
+                bootstrapIdentity = logicalKey;
+                _uiSceneHandle = await _assetManagement!.LoadContentSceneAsync(
+                    logicalKey,
+                    "Full",
+                    new SceneLoadOptions(LoadSceneMode.Additive, activateOnLoad: true, priority: 100));
+            }
+            else
+            {
+                bootstrapIdentity = GetUICommonPrefabAddress();
+                // UICommon は SceneDirector 管理外の App 常駐シーン。ReleaseAppAll で解放される
+                // bool / int / SceneReleaseMode の並びを位置引数で固定しないとオーバーロードが曖昧になる
+                var desc = new SceneAssetDescription();
+                desc.AddPayload(string.Empty, new AssetReference(bootstrapIdentity));
+                _uiSceneHandle = await _assetManagement!.LoadSceneAsync(
+                    "UICommon",
+                    desc,
+                    string.Empty,
+                    new SceneLoadOptions(LoadSceneMode.Additive, activateOnLoad: true, priority: 100));
+            }
+
             var go = _uiSceneHandle.GetRootGameObjects().FirstOrDefault();
             if (go == null)
             {
-                throw new InvalidOperationException($"UICommon scene has no root object: {address}");
+                throw new InvalidOperationException($"UICommon scene has no root object: {bootstrapIdentity}");
             }
             go.name = "[UICommon]";
             _uiCommonObject = go;
@@ -531,12 +535,52 @@ namespace OneStarMaker.Runtime
             if (uiCommon == null)
             {
                 throw new InvalidOperationException(
-                    $"UICommon component not found on prefab: {address}");
+                    $"UICommon component not found on prefab: {bootstrapIdentity}");
             }
 
             EnsureEventSystem();
 
             return uiCommon;
+        }
+
+        private async UniTask InstallConfiguredContentDirectoryAsync()
+        {
+            var configuration = _contentDirectoryConfiguration
+                ?? throw new InvalidOperationException("Content directory configuration is unavailable.");
+            var session = configuration.VerifiedRevision != null
+                ? ContentDirectorySession.RegisterVerified(configuration.VerifiedRevision, new UnityContentDirectoryBackend())
+                : ContentDirectorySession.Register(configuration.Path, configuration.BuildIdentity, ContentDirectoryTarget);
+            try
+            {
+                if (_assetManagement is not AssetManagement.AssetManagement assetManagement)
+                    throw new InvalidOperationException("The configured asset manager cannot install a content directory session.");
+                assetManagement.InstallContentDirectory(session);
+            }
+            catch
+            {
+                // field に保存する前の失敗でも登録済み directory を閉じる。
+                // cleanup が失敗した場合も元の起動失敗を診断できるよう両方を記録する。
+                try { await session.CloseAsync(); }
+                catch (Exception cleanupException)
+                { Debug.LogError($"[AppInit] Content directory cleanup after install failure failed: {cleanupException}"); }
+                throw;
+            }
+            _contentDirectorySession = session;
+        }
+
+        private async UniTask<SceneResourceMap> LoadDirectorySceneResourceMapAsync()
+        {
+            var logicalKey = GetDirectoryBootstrapMapLogicalKey();
+            if (string.IsNullOrEmpty(logicalKey))
+                throw new InvalidOperationException("Directory Editor Play requires a bootstrap SceneResourceMap logical key.");
+            var handle = await _assetManagement!.LoadContentAssetAsync<SceneResourceMap>(
+                logicalKey,
+                "Full",
+                AssetOwner.App);
+            var value = handle.Value;
+            if (value == null)
+                throw new InvalidOperationException($"SceneResourceMap not found: {logicalKey}");
+            return value;
         }
 
         private async UniTask<SceneResourceMap> LoadSceneResourceMapAsync()
@@ -840,10 +884,19 @@ namespace OneStarMaker.Runtime
             _sceneDirector = null;
 
             // Shutdown: 旧 Addressables Scene は再 unload せず、同期で全 owner 資産を解放。
-            // directory Scene がまだ生存中なら session が非同期終端まで登録を保持する。
-            _assetManagement?.ReleaseAll();
+            // directory の完全 drain は AM が待ち、Initializer は session へ同期 shutdown だけを投げない。
+            if (_assetManagement is AssetManagement.AssetManagement directoryAssets)
+            {
+                directoryAssets.ReleaseAll();
+                if (_contentDirectorySession != null)
+                    directoryAssets.CompleteContentDirectoryPlayStopAsync().GetAwaiter().GetResult();
+            }
+            else
+            {
+                _assetManagement?.ReleaseAll();
+                _contentDirectorySession?.BeginSynchronousShutdown();
+            }
             _assetManagement = null;
-            _contentDirectorySession?.BeginSynchronousShutdown();
             _contentDirectorySession = null;
 
             _sceneResourceMap = null;
@@ -893,6 +946,12 @@ namespace OneStarMaker.Runtime
         /// <summary>SceneResourceMap の Addressable アドレスを返す。</summary>
         protected abstract string GetSceneResourceMapAddress();
 
+        /// <summary>Editor directory Play が Content Directory から読む UICommon Scene の logical key。</summary>
+        protected virtual string GetDirectoryBootstrapSceneLogicalKey() => string.Empty;
+
+        /// <summary>Editor directory Play が Content Directory から読む SceneResourceMap の logical key。</summary>
+        protected virtual string GetDirectoryBootstrapMapLogicalKey() => string.Empty;
+
         /// <summary>ローディング表示の実装を返す。</summary>
         protected abstract ILoadingDisplay CreateLoadingDisplay();
 
@@ -922,18 +981,31 @@ namespace OneStarMaker.Runtime
 
         private ContentDirectoryConfiguration? ReadContentDirectoryConfiguration(AppConfig config)
         {
-            var mode = config.GetString("content:runtimeMode", "addressables");
+            var specified = config.ContainsKey("content:runtimeMode");
+            var mode = specified ? config.GetString("content:runtimeMode") : string.Empty;
+            var installedRoot=config.GetString("content:installedRevisionPath",string.Empty);
+            var installedDigest=config.GetString("content:manifestSha256",string.Empty);
             if (UseRequiredPlayerFileConfiguration)
             {
                 var baked=_bakedPlayerContent ?? throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,"Baked Player content configuration is unavailable.");
                 // protected 値は mode 分岐より先に照合する。addressables override で検査を迂回させない。
                 if(!string.Equals(mode,baked.RuntimeMode,StringComparison.Ordinal))
                     throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,"Protected Player runtime mode was overridden.",baked.BuildIdentity,ContentDirectoryTarget);
-                var hasRoot=config.GetString("content:installedRevisionPath",string.Empty).Length>0;
-                var hasDigest=config.GetString("content:manifestSha256",string.Empty).Length>0;
+                var hasRoot=installedRoot.Length>0;
+                var hasDigest=installedDigest.Length>0;
                 if(hasRoot!=hasDigest)throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,"Installed revision path and manifest digest must be provided together.",baked.BuildIdentity,ContentDirectoryTarget);
             }
             if (string.Equals(mode, "addressables", StringComparison.Ordinal)) return null;
+            if ((installedRoot.Length==0)!=(installedDigest.Length==0))
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,"Installed revision path and manifest digest must be provided together.");
+            if (!specified)
+            {
+                // 未指定は Delivery の verified pair があるときだけ directory。known-good は見ない。
+                if (installedRoot.Length==0)
+                    throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,
+                        "content:runtimeMode is required unless a verified installed revision pair is provided.");
+                mode = "directory";
+            }
             if (!string.Equals(mode, "directory", StringComparison.Ordinal))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "content:runtimeMode must be addressables or directory.");
             if (!Application.isEditor || !Application.isPlaying)
@@ -946,9 +1018,6 @@ namespace OneStarMaker.Runtime
                     throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Configured Player content directory does not exist.", player.Identity, ContentDirectoryTarget);
                 return new ContentDirectoryConfiguration(player.Path, player.Identity, player.Representation, player.FirstScene,player.VerifiedRevision);
             }
-            var installedRoot=config.GetString("content:installedRevisionPath",string.Empty);
-            var installedDigest=config.GetString("content:manifestSha256",string.Empty);
-            if((installedRoot.Length==0)!=(installedDigest.Length==0))throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,"Installed revision path and manifest digest must be provided together.");
             var path = config.GetString("content:directoryPath", string.Empty);
             var identity = config.GetString("content:buildIdentity", string.Empty);
             var representation = config.GetString("content:representation", string.Empty);

@@ -93,9 +93,11 @@ lock I/O failure は fail closed とする。別 Windows user、非 NTFS cache�
 検証済み snapshot は所有 token ではないため、session は reservation 取得後、native 登録前に
 receipt、manifest、全 files を再検証する。`AssetManagement` は従来どおり owner 台帳と
 resident cache を所有し、DIST の利用台帳を別に作らない。
-通常の Play 停止は同期 shutdown と terminal callback に依存し、明示 `CloseAsync` と
-同じ完全 drain を保証しない。directory Player の検証経路は代表 resource を解放し、Scene を
-unload してから明示 close を await する。通常 Player 全般の停止契約へは拡張しない。
+通常の Play 停止は Runtime `ReleaseAll` のあと、internal の play-stop 完了待ちが `StopAndDrain`、
+shutdown scene terminal、cache 退避、unregister、OS read lease 解放まで終わる。directory Scene は
+`ReleaseSceneAfterUnityShutdown` を使い、Play 停止で `UnloadSceneAsync` も Addressables
+`UnloadSceneAsync` も呼ばない。明示 close は新規受付を止めて処理を drain し、live owner/Prefab instance が残れば `ResourcesInUse`
+として登録を保ち、解放後の再試行を許す。cache entry も解放前は revision の利用中とみなす。
 
 ### DIST transport と disk cache の境界
 
@@ -203,10 +205,11 @@ public interface IAssetManagement
 |---|---|---|---|
 | `UnloadSceneAsync` | 通常 gameplay（SceneDirector Phase 2） | する | await 可能 |
 | `ReleaseScene` | 所有アセット解放（Phase 3）。未 Unload Scene 本体が残っていると例外 | しない | 同期 |
-| `ReleaseAll` | quitting / SubsystemRegistration の Shutdown。Unity 解体済み前提 | **しない**（台帳 MarkUnloaded のみ） | **同期** |
+| `ReleaseAll` | quitting / SubsystemRegistration の Shutdown。Unity 解体済み前提 | **しない**（directory は `ReleaseSceneAfterUnityShutdown`。Addressables Unload は呼ばない） | **同期** のあと play-stop 完了を待つ |
 
 Play Mode 終了で `Addressables.UnloadSceneAsync` を呼ぶと `Cannot find handle for scene` になり得るため、
-`ReleaseAll` は意図的に backend Scene Unload を行わない。`.Forget()` による非同期 Unload も持たない。
+`ReleaseAll` は意図的に Addressables backend Scene Unload を行わない。directory の完全 drain は
+続けて internal play-stop 完了待ちが所有する。`.Forget()` による非同期 Unload も持たない。
 
 ### IResourceHandle / IResourceCache（不採用: 独立レイヤー案）
 

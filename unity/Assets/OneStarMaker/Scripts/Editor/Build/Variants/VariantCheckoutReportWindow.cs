@@ -96,7 +96,9 @@ namespace OneStarMaker.Editor.Build
         [MenuItem("OneStarMaker/Variant/Checkout Report")]
         public static void Open()
         {
-            GetWindow<VariantCheckoutReportWindow>("Variant Checkout Report");
+            Debug.LogWarning(
+                "[VariantCheckoutReportWindow] Checkout Report is retired. " +
+                "Use ContentSourceAdvisor / Tools/OSM/Content Delivery. Addressables groups are not scanned.");
         }
 
         /// <summary>

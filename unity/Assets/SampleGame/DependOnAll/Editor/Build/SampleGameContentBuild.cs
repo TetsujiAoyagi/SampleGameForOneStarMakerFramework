@@ -57,6 +57,9 @@ namespace SampleGame.DependOnAll.Editor.Build
                     string.Join("; ", selection.Issues.Select(x => x.Code + ":" + x.SubjectKey)));
             var plan = selection.Plan;
             var snapshot = materialized.Snapshot;
+            var bootstrap = ComposeBootstrap(snapshot, plan);
+            plan = bootstrap.Plan;
+            snapshot = bootstrap.Snapshot;
             if (compose != null)
             {
                 var composed = compose(plan, snapshot);
@@ -81,6 +84,28 @@ namespace SampleGame.DependOnAll.Editor.Build
                 throw new InvalidOperationException("Content Directory build failed: " + result.OutcomePath + " / " + result.Summary);
             Debug.Log(LogPrefix + "Content Directory: " + result.ContentPath + " / outcome: " + result.OutcomePath);
             return result;
+        }
+
+        private static SampleGameBootstrapComposition ComposeBootstrap(BuildMaterializationSnapshot snapshot, BuildPlan plan)
+        {
+            var uiGuid = RequireGuid(SampleGameBootstrapContentComposer.UiCommonPath);
+            var mapGuid = RequireGuid(SampleGameBootstrapContentComposer.SceneResourceMapPath);
+            var issues = new List<BuildMaterializationIssue>();
+            var builder = new AssetDependencySnapshotBuilder(new UnityAssetDatabaseGateway());
+            var uiClosure = builder.Build(uiGuid, SampleGameBootstrapContentComposer.UiCommonLogicalKey, issues);
+            var mapClosure = builder.Build(mapGuid, SampleGameBootstrapContentComposer.SceneResourceMapLogicalKey, issues);
+            if (issues.Count != 0 || uiClosure == null || mapClosure == null)
+                throw new InvalidOperationException("Bootstrap materialization failed: " +
+                    string.Join("; ", issues.Select(x => x.Code + ":" + x.SubjectKey)));
+            return SampleGameBootstrapContentComposer.Compose(plan, snapshot, uiGuid, uiClosure, mapGuid, mapClosure);
+        }
+
+        private static string RequireGuid(string path)
+        {
+            var guid = AssetDatabase.AssetPathToGUID(path);
+            if (string.IsNullOrEmpty(guid))
+                throw new InvalidOperationException("Bootstrap asset is missing: " + path);
+            return guid.ToLowerInvariant();
         }
 
         private static IReadOnlyList<SeasonSceneNode> CopyGraph(SceneResourceMap map)

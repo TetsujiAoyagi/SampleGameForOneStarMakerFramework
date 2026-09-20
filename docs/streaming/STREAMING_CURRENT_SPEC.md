@@ -99,7 +99,7 @@ S-4b の 216 Cell と関連 SceneResource は一回限りの生成で確定し�
 - 将来、格子の再生成や一括置換が必要になった場合は、新しい設計スライスで対象集合、手編集保護、検査、撤去までを定義する
 - S-4b の生成時・撤去時の生出力は `artifacts/s-4b-p2/` と `artifacts/s-4b-p3/` に残す
 
-§20 の Variant 機構（`VariantFilteringBuildScript` / whitelist / Hybrid Play / `TryLoadRemoteCatalogAsync` / `RemoteCatalogRuntimeBridge`）は実装済み。所在は `OneStarMaker/Scripts/Editor/Build/Variants/`。データ（タグ・グループ・プロファイル）は流し込まれていない。
+§20 の旧 Variant 機構（`VariantFilteringBuildScript` / whitelist / Hybrid Play / `TryLoadRemoteCatalogAsync` / `RemoteCatalogRuntimeBridge`）は通常経路から切断済み。ファイルは残るがメニュー/CLI は案内のみ。所在は `OneStarMaker/Scripts/Editor/Build/Variants/`。
 
 ---
 

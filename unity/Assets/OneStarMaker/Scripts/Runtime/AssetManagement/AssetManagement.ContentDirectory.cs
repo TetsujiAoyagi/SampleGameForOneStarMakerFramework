@@ -47,6 +47,20 @@ namespace OneStarMaker.Runtime.AssetManagement
             _contentSceneRepresentations.Clear();
         }
 
+        internal async UniTask CompleteContentDirectoryPlayStopAsync()
+        {
+            if (_contentDirectory == null) return;
+            var directory = _contentDirectory;
+            await _contentAssetLoadGate.WaitAsync();
+            await _contentSceneLoadGate.WaitAsync();
+            try { await directory.StopAndDrainAsync(); }
+            finally { _contentSceneLoadGate.Release(); _contentAssetLoadGate.Release(); }
+            // Play 停止では Unity が Scene を先に解体している。明示 close の UnloadSceneAsync は使わない。
+            await directory.CloseAsync();
+            _contentDirectory = null;
+            _contentSceneRepresentations.Clear();
+        }
+
         public async UniTask<IAssetHandle<T>> LoadContentAssetAsync<T>(string logicalKey, string representation, AssetOwner owner, CancellationToken ct = default) where T : UnityEngine.Object
         {
             var directory = RequireContentDirectory();
