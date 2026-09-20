@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `B`
+- status: `B`（B 適応 `4c218be`。判定 C 未完。人間が C/C' 続行を指示）
 - branch: `codex/ret-retire-addressables-build`
 - implementation base commit: `356767ff082ae7ddf5f8c9ce0c992b7e2185178f`
-- implementation head commit: `fb7d6d3f67211bef800e085ebb5e14b4a7b5f538`
+- implementation head commit: `4c218beded8899dc14cc92da55aacf863ec45c29`
 - risk: `high`（Addressables、公開 API、serialized 参照、所有者・寿命）
 - owner: RET 主担当 / Cursor Grok 4.6
 - created: 2026-09-20
@@ -18,7 +18,7 @@
 - Phase B result snapshot path: `artifacts/bs2b/ret-evidence/phase-b/result.md`（ignored。PR に入れない）
 - Phase B result snapshot generated at: `2026-09-20T13:50:00Z`
 - Phase B result snapshot hash: `889b1e6ce422e724c5181608f4b989cc02ca4db426019b7015719cf71a908c5c`
-- Phase C evidence / C' blind bundle: 未到達
+- Phase C evidence / C' blind bundle: 未到達（GO 候補 head `4c218be`。判定必須はこれから）
 
 本文へ転記した常時制約: Game → Framework の一方向。asmdef 参照の無断追加禁止。アセットは `IAssetManagement` と `AssetOwner`。SceneState の既存14値は減らさず並べ替えない。公開ログは `ILogger<T>`。Update は `UpdateSystemRuntime`。1システムの例外で他を止めない。Editor コードを Runtime アセンブリに置かない。Unity 側 C# は先頭 `#nullable enable`、`record` 禁止、破棄可能 Unity Object は `== null` / `!= null`。テストに `Task.Delay` / `Thread.Sleep` 禁止。`unity test` / `unity run` 禁止。テストは `pwsh tools/run-tests.ps1`（Windows は sandbox 外）。参照 0 を削除理由にしない。PR base は develop。Phase D merge はユーザー明示まで禁止。cursor-agent は Grok 系のみ。ASTRA は使わない。DIST の install / known-good / OS lease / source-free Player を作り直さない。
 
@@ -60,6 +60,7 @@
 - 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。
 - A3 後の例外承認: なし
 - 未決事項: Play 停止待ちが quit 中に死鎖することが実装で判明した場合は A 再開（寿命契約）。それ以外の新事実は phases-and-handoff の分類に従う。
+- 未決事項の分類（2026-09-21。A3 本文は変更しない）: UniTask `GetResult` は完了待ちしない。人間が C/C' 続行を指示したため、入口・所有者・公開 API を変えず **B 適応**（同期 token drop + `CompletePlayStop`）。`playModeStateChanged` / Editor teardown / ブロック待ちは使っていない。
 
 ### A3 で閉じた設計
 
@@ -209,22 +210,39 @@ C' 実績予定: GPT 系（ユーザー指示）。A2 architecture gate が同�
 
 - bootstrap composer を季節選択のあと `compose` で接続。logical key は `DirectoryBootstrapKeys`。
 - 未指定 `content:runtimeMode` は verified pair が無ければ BeforeSceneLoad で失敗。directory Editor Play は Content 入口で UICommon / Map を読む。
-- Play 停止は `ReleaseAll` のあと `CompleteContentDirectoryPlayStopAsync` を待つ。明示 close の `UnloadSceneAsync` は使わない。
+- Play 停止は `ReleaseAll` のあと同期の `CompleteContentDirectoryPlayStop` で閉じる。明示 close の `UnloadSceneAsync` は使わない。
 - 旧メニュー 4 つ、Hybrid/Filtering、remote batch、catalog/revision injector、`rebuild-remote.ps1` / `serve-addressables.ps1` は案内 no-op。
 - Architecture §4 / §13 / §18 / §20 を現況へ更新。`contract-audit` / `docs-audit` は通過。Editor Pipeline `ready`。
 - B 適応: Framework は SampleGame key を知らない（protected virtual）。新 public API なし。`VariantRemoteBuildBatch` も CLI 入口のため案内終了。`SampleGame.DependOnAll.Editor` が Runtime の `DirectoryBootstrapKeys` を見るため、同 Game 内の `SampleGame.DependOnAll` 参照を追加（新 asmdef ファイルは作らない。Game→Framework 逆転ではない）。`RetiredAddressablesMenuNoOpTests` は `Tests.Editor` が `Unity.Addressables.Editor` を参照しない既存境界に合わせ、settings 件数を reflection で読む。`BuildContentDirectoryIntegrationTests` は 1 回目 Play に明示 `addressables` を渡し、2 回目 directory Play 用に本番と同じ bootstrap を fixture へ合成する。未指定＝Addressables の前提と bootstrap 無し fixture は RET 後の fail-closed と衝突した。同じテストの `Directory.Move(staging)` が Access Denied になることがあり、全件後に Unity が XML 出力済みでも終了しないことがある。再実行で緑になっても GO にしない。
+- B 適応（`4c218be`、人間が C/C' 続行を指示）: UniTask `GetResult` は未完了なら throw する。Play 停止は `ReleaseSceneTokenAfterPlayStop` で token だけ返し、`CompletePlayStop` が同じスタックで unregister と OS lease を終える。native `UnloadSceneAsync` も Editor teardown も `playModeStateChanged` も足さない。公開 `IAssetManagement` なし。差し戻し確認 `pwsh tools/run-tests.ps1 -Filter ContentDirectorySessionTests -WithGraphics` は 20/20。これは判定必須の代替ではない。
 
 未実行: 全 EditMode、Editor Play、DIST install 回帰、BS4 Player。
 
 ## 7. Phase C
 
-未実施
+- 種別: 判定 C 未完。GO 候補 head は `4c218beded8899dc14cc92da55aacf863ec45c29`。発見 C の所見を B result に転載しない。
+- evidence bundle id / hash: 未生成
+- 担当・モデル: 判定 C は Composer 系（B の Grok とは別）。差し戻し確認の filter は Grok。
+- 構造適合: 判定 C が head `4c218be` で行う。
+- 現在の問いを阻害する findings: 未判定。
+- 後続スライスへ移送する findings:
+  - WorldCompanion / Addressables full-suite flake は対象外のまま。直さない。
+  - 全件 XML 出力後に Unity が終了しないこと、`Directory.Move(staging)` Access Denied、再実行で失敗理由が変わることは環境残骸。再起動や掃除のあとに一度通っても GO にしない。
+- 実行したテストコマンド（差し戻し確認。判定必須ではない）: `pwsh tools/run-tests.ps1 -Filter ContentDirectorySessionTests -WithGraphics`
+- テスト結果: 20/20。XML `TestResults/results-ContentDirectorySessionTests-20260921-002915.xml`。所要 3.7 分。
+- 旧全件 XML `TestResults/results-all-20260920-230853.xml` は head `4c218be` の合格証拠にしない。
+- 判定必須のうち未実行: 全 EditMode（空 filter）、Editor Play（source-free directory → 初回 Scene stable → Stop → delete lease）、DIST install / known-good / 使用中削除拒否、BS4 Windows x64 IL2CPP High source-free Player。
+- `PC_RPAsset.asset`: dirty なら戻す。
 
 ## 8. Phase C'
 
-未実施
+未実施。判定 evidence が揃った head でのみ開始する。
 
 ## 9. Phase D
 
-未実施
+未実施。マージ禁止のまま。
+
+## 10. A revision 入力（superseded）
+
+2026-09-21 の A 再開案は、人間が C/C' 続行を指示したため採用していない。実装は B 適応 `4c218be`。U1〜U7 は書き換えていない。
 )
