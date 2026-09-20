@@ -5,7 +5,11 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using NUnit.Framework;
 using OneStarMaker.Build.Selection;
@@ -13,6 +17,7 @@ using OneStarMaker.Editor.Build.Content;
 using OneStarMaker.Editor.Build.Materialization;
 using OneStarMaker.Runtime;
 using OneStarMaker.Runtime.BuildContent;
+using OneStarMaker.Runtime.BuildContent.Distribution;
 using OneStarMaker.Runtime.AssetManagement;
 using Unity.Loading;
 using UnityEditor;
@@ -30,6 +35,9 @@ namespace OneStarMaker.Tests.Editor.Build
         private const string FixtureParent = "Assets/OneStarMakerGenerated/BS3Tests";
         private string _folder = "";
         private string _copy = "";
+        private string _deliveryRoot = "";
+        private string _installedRoot = "";
+        private string _manifestDigest = "";
 
         [UnityTearDown]
         public IEnumerator Cleanup()
@@ -38,6 +46,7 @@ namespace OneStarMaker.Tests.Editor.Build
             if (EditorApplication.isPlaying) yield return new ExitPlayMode();
             if (_folder.Length != 0) AssetDatabase.DeleteAsset(_folder);
             if (_copy.Length != 0 && Directory.Exists(_copy)) Directory.Delete(_copy, true);
+            if (_deliveryRoot.Length != 0 && Directory.Exists(_deliveryRoot)) Directory.Delete(_deliveryRoot, true);
             DeleteIfEmpty(FixtureParent);
             DeleteIfEmpty("Assets/OneStarMakerGenerated");
         }
@@ -55,6 +64,25 @@ namespace OneStarMaker.Tests.Editor.Build
             EnsureFolder(FixtureParent);
             _folder = FixtureParent + "/" + Guid.NewGuid().ToString("N");
             EnsureFolder(_folder);
+            var contentEnvNames = new[]
+            {
+                "SAMPLEGAME_CONTENT__RUNTIMEMODE", "SAMPLEGAME_CONTENT__INSTALLEDREVISIONPATH",
+                "SAMPLEGAME_CONTENT__BUILDIDENTITY", "SAMPLEGAME_CONTENT__REPRESENTATION",
+                "SAMPLEGAME_CONTENT__MANIFESTSHA256"
+            };
+            var previousContentEnv = contentEnvNames
+                .Select(name => Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.Process))
+                .ToArray();
+            var previousUserContentEnv = contentEnvNames
+                .Select(name => Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.User))
+                .ToArray();
+            foreach (var name in contentEnvNames)
+            {
+                Environment.SetEnvironmentVariable(name, null, EnvironmentVariableTarget.Process);
+                Environment.SetEnvironmentVariable(name, null, EnvironmentVariableTarget.User);
+            }
+            try
+            {
             var previous = EditorSceneManager.GetSceneManagerSetup();
             try
             {
@@ -146,6 +174,33 @@ namespace OneStarMaker.Tests.Editor.Build
                 Assert.That(Directory.GetFiles(result.ContentPath!, "*.resS").Length, Is.GreaterThan(0));
                 _copy = Path.Combine(artifacts, "integration-copy-" + result.Identity);
                 Copy(result.ContentPath!, _copy);
+                // 配信 fixture は checkout の深さに依存させない。Windows Mono の file open
+                // 制限に build identity と staging 名が重なるため、専有する短い一時 root を使う。
+                _deliveryRoot = Path.Combine(Path.GetTempPath(), "osm-dist-integration", Guid.NewGuid().ToString("N"));
+                var published = ContentTransportPublisher.Publish(result, Path.Combine(_deliveryRoot, "published"));
+                _manifestDigest = HashFile(Path.Combine(published, "transport.json"));
+                // 本物の HTTP response を installer に渡す。Unity へ URL や staging を渡さず、
+                // 完全検証された installed directory を後段の実 load に使う。
+                yield return UniTask.ToCoroutine(async () =>
+                {
+                    var installRequest = new ContentInstallRequest(_manifestDigest, "fixture", result.Identity,
+                        BuildContentCoordinator.TargetName, Application.unityVersion, 2, long.MaxValue);
+                    using var server = new LoopbackArtifactServer(published);
+                    using var remote = new HttpContentArtifactSource(server.BaseUri);
+                    var remoteStore = new ContentCacheStore(Path.Combine(_deliveryRoot, "http-cache"));
+                    var installed = await new ContentInstaller(remoteStore).InstallAsync(installRequest, remote,
+                        CancellationToken.None);
+                    _installedRoot = installed.RevisionRoot;
+                    using var local = new LocalContentArtifactSource(published);
+                    var localStore = new ContentCacheStore(Path.Combine(_deliveryRoot, "local-cache"));
+                    var localInstalled = await new ContentInstaller(localStore).InstallAsync(installRequest, local,
+                        CancellationToken.None);
+                    Assert.That(localInstalled.ManifestSha256, Is.EqualTo(installed.ManifestSha256));
+                    foreach (var file in Directory.GetFiles(installed.ContentPath, "*", SearchOption.AllDirectories))
+                        Assert.That(HashFile(Path.Combine(localInstalled.ContentPath,
+                            Path.GetRelativePath(installed.ContentPath, file))), Is.EqualTo(HashFile(file)));
+                    Assert.That(server.RequestCount, Is.GreaterThan(1));
+                });
             }
             finally
             {
@@ -193,7 +248,9 @@ namespace OneStarMaker.Tests.Editor.Build
             yield return UniTask.ToCoroutine(async () =>
             {
                 var identity = Path.GetFileName(_copy).Substring("integration-copy-".Length);
-                var session = ContentDirectorySession.Register(_copy, identity, BuildContentCoordinator.TargetName);
+                var verified = InstalledRevisionVerifier.Verify(_installedRoot, _manifestDigest,
+                    "fixture", identity, BuildContentCoordinator.TargetName);
+                var session = ContentDirectorySession.RegisterVerified(verified, new UnityContentDirectoryBackend());
                 var assets = new AssetManagement();
                 assets.InstallContentDirectory(session);
                 IAssetHandle<GameObject>? prefab = null;
@@ -212,6 +269,11 @@ namespace OneStarMaker.Tests.Editor.Build
                         new SceneLoadOptions(LoadSceneMode.Additive));
                     sceneLoaded = true;
                     Assert.That(sceneHandle.IsLoaded, Is.True);
+                    // pin の候補除外ではなく、実 session/owner が保持する lease で削除を拒否する。
+                    var eviction = Assert.Throws<ContentDeliveryException>(() =>
+                        new ContentCacheStore(Path.Combine(_deliveryRoot, "http-cache")).Evict(0));
+                    Assert.That(eviction!.Code, Is.EqualTo(ContentDeliveryFailureCode.BudgetUnsatisfied));
+                    Assert.That(Directory.Exists(_installedRoot), Is.True);
                 }
                 finally
                 {
@@ -231,18 +293,19 @@ namespace OneStarMaker.Tests.Editor.Build
                     if (texture != null) assets.Release(texture);
                     await session.CloseAsync();
                 }
+                var store = new ContentCacheStore(Path.Combine(_deliveryRoot, "http-cache"));
+                store.MarkKnownGood(store.ValidateInstalled(_installedRoot, _manifestDigest,
+                    "fixture", identity, BuildContentCoordinator.TargetName));
             });
             yield return new ExitPlayMode();
 
             // 二度目の Play は SampleGame の実 bootstrap に環境変数を渡す。
             // Framework test から Game asmdef を参照せず、起動済み instance の状態だけを見る。
-            var names = new[] { "SAMPLEGAME_CONTENT__RUNTIMEMODE", "SAMPLEGAME_CONTENT__DIRECTORYPATH",
-                "SAMPLEGAME_CONTENT__BUILDIDENTITY", "SAMPLEGAME_CONTENT__REPRESENTATION" };
-            var previousValues = names.Select(Environment.GetEnvironmentVariable).ToArray();
-            Environment.SetEnvironmentVariable(names[0], "directory");
-            Environment.SetEnvironmentVariable(names[1], _copy);
-            Environment.SetEnvironmentVariable(names[2], Path.GetFileName(_copy).Substring("integration-copy-".Length));
-            Environment.SetEnvironmentVariable(names[3], "High");
+            Environment.SetEnvironmentVariable(contentEnvNames[0], "directory", EnvironmentVariableTarget.Process);
+            Environment.SetEnvironmentVariable(contentEnvNames[1], _installedRoot, EnvironmentVariableTarget.Process);
+            Environment.SetEnvironmentVariable(contentEnvNames[2], Path.GetFileName(_copy).Substring("integration-copy-".Length), EnvironmentVariableTarget.Process);
+            Environment.SetEnvironmentVariable(contentEnvNames[3], "High", EnvironmentVariableTarget.Process);
+            Environment.SetEnvironmentVariable(contentEnvNames[4], _manifestDigest, EnvironmentVariableTarget.Process);
             try
             {
                 yield return new EnterPlayMode();
@@ -257,15 +320,25 @@ namespace OneStarMaker.Tests.Editor.Build
                     "directory mode で SceneDirector が生成されていない");
                 Assert.That(ContentRevisionGate.TryAcquireDelete(
                     Path.GetFileName(_copy).Substring("integration-copy-".Length), BuildContentCoordinator.TargetName,
-                    _copy, out var lease, out var rejection), Is.False);
+                    Path.Combine(_installedRoot, "content"), out var lease, out var rejection), Is.False);
                 Assert.That(lease, Is.Null);
                 Assert.That(rejection, Is.EqualTo(ContentDirectoryFailureCode.RevisionBusy));
                 yield return new ExitPlayMode();
             }
             finally
             {
-                for (var i = 0; i < names.Length; i++) Environment.SetEnvironmentVariable(names[i], previousValues[i]);
+                foreach (var name in contentEnvNames)
+                    Environment.SetEnvironmentVariable(name, null, EnvironmentVariableTarget.Process);
             }
+        }
+        finally
+        {
+            for (var i = 0; i < contentEnvNames.Length; i++)
+            {
+                Environment.SetEnvironmentVariable(contentEnvNames[i], previousContentEnv[i], EnvironmentVariableTarget.Process);
+                Environment.SetEnvironmentVariable(contentEnvNames[i], previousUserContentEnv[i], EnvironmentVariableTarget.User);
+            }
+        }
         }
 
         private static (object initializer, FieldInfo session, FieldInfo director) GetBootstrapState()
@@ -283,6 +356,72 @@ namespace OneStarMaker.Tests.Editor.Build
             Assert.That(session, Is.Not.Null);
             Assert.That(director, Is.Not.Null);
             return (initializer!, session!, director!);
+        }
+
+        private static string HashFile(string path)
+        {
+            using var stream = File.OpenRead(path);
+            using var hash = System.Security.Cryptography.SHA256.Create();
+            return string.Concat(hash.ComputeHash(stream).Select(x => x.ToString("x2")));
+        }
+
+        // この fixture 専用の loopback server。停止は listener の取消で通知し、
+        // 時間待ちに依存せず全 response と worker の終了を所有者が回収する。
+        private sealed class LoopbackArtifactServer : IDisposable
+        {
+            private readonly HttpListener _listener = new();
+            private readonly Task _worker;
+            private int _requestCount;
+            private bool _stopping;
+            public Uri BaseUri { get; }
+            public int RequestCount => Volatile.Read(ref _requestCount);
+
+            public LoopbackArtifactServer(string root)
+            {
+                var portReservation = new TcpListener(IPAddress.Loopback, 0);
+                portReservation.Start();
+                var port = ((IPEndPoint)portReservation.LocalEndpoint).Port;
+                portReservation.Stop();
+                BaseUri = new Uri("http://127.0.0.1:" + port + "/");
+                _listener.Prefixes.Add(BaseUri.AbsoluteUri);
+                _listener.Start();
+                _worker = Task.Run(async () =>
+                {
+                    try
+                    {
+                        while (_listener.IsListening)
+                        {
+                            var context = await _listener.GetContextAsync();
+                            try
+                            {
+                                var relative = Uri.UnescapeDataString(context.Request.Url!.AbsolutePath.TrimStart('/'));
+                                var file = Path.GetFullPath(Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar)));
+                                if (!file.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                                    || !File.Exists(file))
+                                {
+                                    context.Response.StatusCode = 404;
+                                    continue;
+                                }
+                                Interlocked.Increment(ref _requestCount);
+                                context.Response.ContentLength64 = new FileInfo(file).Length;
+                                using var stream = File.OpenRead(file);
+                                await stream.CopyToAsync(context.Response.OutputStream);
+                            }
+                            finally { context.Response.Close(); }
+                        }
+                    }
+                    catch (HttpListenerException) when (_stopping) { }
+                    catch (ObjectDisposedException) when (_stopping) { }
+                });
+            }
+
+            public void Dispose()
+            {
+                _stopping = true;
+                _listener.Stop();
+                _listener.Close();
+                _worker.GetAwaiter().GetResult();
+            }
         }
 
         private static void Copy(string source, string target)

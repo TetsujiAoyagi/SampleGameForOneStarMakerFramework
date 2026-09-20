@@ -6,12 +6,34 @@ using System.IO;
 
 namespace OneStarMaker.Runtime.BuildContent
 {
-    /// <summary>process 内だけで directory revision の登録、利用、削除を直列化する。</summary>
+    /// <summary>process 内 ledger と user-local OS lease で revision の登録、利用、削除を調停する。</summary>
     public static class ContentRevisionGate
     {
         private static readonly object Sync = new();
         private static Registration? _registration;
         private static readonly List<Deletion> Deletions = new();
+        private static readonly List<Registration> Reads = new();
+
+        internal static IDisposable AcquireRead(string buildIdentity, string target, string absolutePath)
+        {
+            if (!TryNormalize(buildIdentity, target, absolutePath, out var path))
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,
+                    "Content read lease input is invalid.", buildIdentity, target);
+            lock (Sync)
+            {
+                if (Deletions.Exists(value => SameRevisionOrPath(value.Identity, value.Target,
+                        value.Path, buildIdentity, target, path)))
+                    throw new ContentDirectoryException(ContentDirectoryFailureCode.DeletionInProgress,
+                        "A content deletion is in progress.", buildIdentity, target);
+                var process = AcquireProcessRead(buildIdentity, target, path, "read");
+                var value = new Registration(buildIdentity, target, path);
+                Reads.Add(value);
+                return new CompositeLease(process, () =>
+                {
+                    lock (Sync) Reads.Remove(value);
+                });
+            }
+        }
 
         public static bool TryAcquireDelete(string buildIdentity, string target, string absolutePath,
             out ContentDeletionLease? lease, out ContentDirectoryFailureCode rejection)
@@ -31,9 +53,23 @@ namespace OneStarMaker.Runtime.BuildContent
                         ? ContentDirectoryFailureCode.PathInUse : ContentDirectoryFailureCode.RevisionBusy;
                     return false;
                 }
+                if (Reads.Exists(value => SameRevisionOrPath(value.Identity, value.Target, value.Path,
+                        buildIdentity, target, path)))
+                { rejection = ContentDirectoryFailureCode.RevisionBusy; return false; }
+                RevisionProcessLease? process;
+                try
+                {
+                    if (!RevisionProcessLease.TryAcquireDelete(buildIdentity, target, path, out process))
+                    { rejection = ContentDirectoryFailureCode.RevisionBusy; return false; }
+                }
+                catch (ContentDirectoryException exception)
+                {
+                    rejection = exception.Code;
+                    return false;
+                }
                 var deletion = new Deletion(buildIdentity, target, path);
                 Deletions.Add(deletion);
-                lease = new ContentDeletionLease(() => ReleaseDeletion(deletion));
+                lease = new ContentDeletionLease(() => { process!.Dispose(); ReleaseDeletion(deletion); });
                 rejection = default;
                 return true;
             }
@@ -56,8 +92,31 @@ namespace OneStarMaker.Runtime.BuildContent
                     throw new ContentDirectoryException(code, "A content directory is already registered in this process.", buildIdentity, target);
                 }
                 var registration = new Registration(buildIdentity, target, path);
+                var process = AcquireProcessRead(buildIdentity, target, path, "registration");
                 _registration = registration;
-                return new RegistrationLease(registration);
+                return new CompositeLease(process, new RegistrationLease(registration).Dispose);
+            }
+        }
+
+        private static RevisionProcessLease AcquireProcessRead(string buildIdentity, string target,
+            string path, string operation)
+        {
+            try
+            {
+                return RevisionProcessLease.AcquireRead(buildIdentity, target, path);
+            }
+            catch (IOException exception) when (RevisionProcessLease.IsSharingViolation(exception))
+            {
+                // process 内 ledger に見えない別 process の排他削除も busy として扱う。
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.DeletionInProgress,
+                    $"A content deletion blocks the revision {operation} lock.", buildIdentity, target,
+                    innerException: exception);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.RevisionLockUnavailable,
+                    $"Revision {operation} lock is unavailable.", buildIdentity, target,
+                    innerException: exception);
             }
         }
 
@@ -95,9 +154,52 @@ namespace OneStarMaker.Runtime.BuildContent
             string otherIdentity, string otherTarget, string otherPath)
             => (identity == otherIdentity && target == otherTarget) || path == otherPath;
 
-        private sealed class Registration { internal Registration(string i, string t, string p) { Identity=i; Target=t; Path=p; } internal string Identity {get;} internal string Target {get;} internal string Path {get;} }
-        internal sealed class Deletion { internal Deletion(string i, string t, string p) { Identity=i; Target=t; Path=p; } internal string Identity {get;} internal string Target {get;} internal string Path {get;} }
-        private sealed class RegistrationLease : IDisposable { private Registration? _value; internal RegistrationLease(Registration value)=>_value=value; internal Registration? Value => _value; public void Dispose(){ lock(Sync){ if(_value != null && ReferenceEquals(_registration,_value)) _registration=null; _value=null; } } }
+        private sealed class Registration
+        {
+            internal Registration(string identity, string target, string path)
+            { Identity = identity; Target = target; Path = path; }
+            internal string Identity { get; }
+            internal string Target { get; }
+            internal string Path { get; }
+        }
+
+        internal sealed class Deletion
+        {
+            internal Deletion(string identity, string target, string path)
+            { Identity = identity; Target = target; Path = path; }
+            internal string Identity { get; }
+            internal string Target { get; }
+            internal string Path { get; }
+        }
+
+        private sealed class RegistrationLease : IDisposable
+        {
+            private Registration? _value;
+            internal RegistrationLease(Registration value) => _value = value;
+            public void Dispose()
+            {
+                lock (Sync)
+                {
+                    if (_value != null && ReferenceEquals(_registration, _value)) _registration = null;
+                    _value = null;
+                }
+            }
+        }
+
+        private sealed class CompositeLease : IDisposable
+        {
+            private IDisposable? _inner;
+            private Action? _release;
+            internal CompositeLease(IDisposable inner, Action release)
+            { _inner = inner; _release = release; }
+            public void Dispose()
+            {
+                var release = _release;
+                _release = null;
+                try { release?.Invoke(); }
+                finally { _inner?.Dispose(); _inner = null; }
+            }
+        }
     }
 
     /// <summary>物理削除そのものは行わず、DIST が finally まで保持する process 内 delete lease。</summary>

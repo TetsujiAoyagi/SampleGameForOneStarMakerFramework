@@ -230,11 +230,29 @@ Addressables へ暗黙 fallback しない。directory Player は build transacti
 graph metadata、runtime config を使い、対応 Content BuildReport directory を Player build へ渡す。
 Player Scene は bootstrap 一件に固定し、選択済み content root GUID の packed assets 混入を拒否する。
 publish 後の shipping tree は content root 一件だけを持ち、Unity の backup directory は除外する。
-物理削除、取得済み成果物だけからの起動と別 process 排他は DIST の後続範囲である。
+物理削除、取得済み成果物だけからの起動、別 process の OS lease は DIST が所有する。disk cache と known-good の契約は `13-resource-system.md`、installed override と Player 起動は `04-app-startup.md` を正とする。
 同一 session 内で Whitebox 要求を Full entry へ fallback した後に、同じ Scene identity を
 Full として別要求すると台帳の要求表現が異なり `EntryAmbiguous` になり得る。現行の
 Editor Play と directory Player は起動時に表現を固定する。同一 session の表現切替は提供しない。
 切替が必要なら別スライスで設計する。
+
+### 配信用 transport の公開境界
+
+`ContentTransportPublisher` は成功した Content Directory build result と preflight の identity を照合し、
+公開 directory の opaque files と OSM transport manifest v1 を staging へ生成して公開する。
+BuildReport の内容を配信層で独自に再検証するものではない。manifest の `files` は配信する content subtree の
+完全な集合であり、各 path、size、SHA-256 を記録する。`sourceFiles` は build 時の選択依存閉包を
+path/hash で案内する metadata であり、転送先 path、Unity load identity、Runtime 起動条件には使わない。
+
+consumer は manifest の contentSet/revision、固定 target `StandaloneWindows64-Player`、互換 schema と
+受信 bytes の digest を照合する。配信層は logical key、Variant、Unity Object の依存解決を再実装せず、
+install 後の `content` directory を既存の `ContentDirectorySession` へ渡す。manifest の revision は
+既存 BuildIdentity と同値であり、revision 文字列の大小を鮮度の根拠にしない。
+
+source 診断は取得済み install の固定 digest を再検証してから `Assets/` / `Packages/` の案内対象を
+Missing / Changed / Complete に分類する。Missing / Changed は source を編集できるかの案内であり、
+検証済み content からの Player 起動を拒否する条件ではない。未 checkout Scene を Hierarchy で
+直接編集できることは意味しない。
 
 ### SampleGame の季節選択と Editor build（現況）
 
@@ -274,6 +292,8 @@ Framework の selection core と成果物 schema に季節名を持ち込まな�
 
 ## 6. 既知の制約・落とし穴
 
+- transport v1 の SHA-256 pin は bytes 同一性を保証するが、配信元の真正性を単独では保証しない。署名、認証、latest channel、delta/resume、CDN、他 target は後続範囲である。
+- sourceFiles は案内 metadata である。Runtime は source AssetDatabase、materialization、checkout report を再走査しない。
 - `AssetDescription` を SO に変えてはいけない（埋め込み構造が壊れる、§3 参照）。
 - フィールド名変更時は `[FormerlySerializedAs]` を必ず付け、Editor 側の `FindPropertyRelative` は新名へ追従させる。
 - Payload は primary GUID のみ宣言。子依存は Addressables 任せ。

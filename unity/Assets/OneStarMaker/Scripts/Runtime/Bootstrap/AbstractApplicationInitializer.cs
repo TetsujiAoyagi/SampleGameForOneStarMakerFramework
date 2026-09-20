@@ -89,6 +89,7 @@ namespace OneStarMaker.Runtime
         private IAssetManagement? _assetManagement;
         private ContentDirectoryConfiguration? _contentDirectoryConfiguration;
         private ContentDirectorySession? _contentDirectorySession;
+        private PlayerBakedContentConfiguration? _bakedPlayerContent;
         private Exception? _beforeSceneLoadFailure;
         private bool _beforeSceneLoadSucceeded;
 
@@ -322,8 +323,9 @@ namespace OneStarMaker.Runtime
                 {
                     startupStage = "register-content-directory";
                     var configuration = _contentDirectoryConfiguration;
-                    var session = ContentDirectorySession.Register(
-                        configuration.Path, configuration.BuildIdentity, ContentDirectoryTarget);
+                    var session = configuration.VerifiedRevision != null
+                        ? ContentDirectorySession.RegisterVerified(configuration.VerifiedRevision, new UnityContentDirectoryBackend())
+                        : ContentDirectorySession.Register(configuration.Path, configuration.BuildIdentity, ContentDirectoryTarget);
                     try
                     {
                         if (_assetManagement is not AssetManagement.AssetManagement assetManagement)
@@ -738,7 +740,11 @@ namespace OneStarMaker.Runtime
 
             if (UseRequiredPlayerFileConfiguration)
             {
-                providers.Add(new RequiredJsonFileConfigProvider(GetRequiredPlayerConfigurationPath()));
+                var captured = new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
+                new RequiredJsonFileConfigProvider(GetRequiredPlayerConfigurationPath()).Load(captured);
+                var required = new AppConfig(new IConfigProvider[] { new CapturedConfigProvider(captured) });
+                _bakedPlayerContent = new PlayerBakedContentConfiguration(required);
+                providers.Add(new CapturedConfigProvider(captured));
             }
             else
             {
@@ -753,6 +759,13 @@ namespace OneStarMaker.Runtime
             providers.Add(new CommandLineConfigProvider());
 
             return new AppConfig(providers);
+        }
+
+        private sealed class CapturedConfigProvider : IConfigProvider
+        {
+            private readonly IReadOnlyDictionary<string,string> _values;
+            internal CapturedConfigProvider(IReadOnlyDictionary<string,string> values)=>_values=values;
+            public void Load(Dictionary<string,string> store){foreach(var value in _values)store[value.Key]=value.Value;}
         }
 
         /// <summary>
@@ -817,6 +830,7 @@ namespace OneStarMaker.Runtime
 
             _cts?.Dispose();
             _cts = null;
+            _bakedPlayerContent = null;
 
             _config = null;
             _contentDirectoryConfiguration = null;
@@ -909,6 +923,16 @@ namespace OneStarMaker.Runtime
         private ContentDirectoryConfiguration? ReadContentDirectoryConfiguration(AppConfig config)
         {
             var mode = config.GetString("content:runtimeMode", "addressables");
+            if (UseRequiredPlayerFileConfiguration)
+            {
+                var baked=_bakedPlayerContent ?? throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,"Baked Player content configuration is unavailable.");
+                // protected 値は mode 分岐より先に照合する。addressables override で検査を迂回させない。
+                if(!string.Equals(mode,baked.RuntimeMode,StringComparison.Ordinal))
+                    throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,"Protected Player runtime mode was overridden.",baked.BuildIdentity,ContentDirectoryTarget);
+                var hasRoot=config.GetString("content:installedRevisionPath",string.Empty).Length>0;
+                var hasDigest=config.GetString("content:manifestSha256",string.Empty).Length>0;
+                if(hasRoot!=hasDigest)throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,"Installed revision path and manifest digest must be provided together.",baked.BuildIdentity,ContentDirectoryTarget);
+            }
             if (string.Equals(mode, "addressables", StringComparison.Ordinal)) return null;
             if (!string.Equals(mode, "directory", StringComparison.Ordinal))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "content:runtimeMode must be addressables or directory.");
@@ -916,35 +940,46 @@ namespace OneStarMaker.Runtime
             {
                 if (!UseRequiredPlayerFileConfiguration)
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Content Directory runtime mode is only available in Editor Play Mode.");
-                var player = PlayerContentConfiguration.Read(config, Path.GetDirectoryName(Application.dataPath)!, ContentDirectoryTarget);
+                var baked=_bakedPlayerContent ?? throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,"Baked Player content configuration is unavailable.");
+                var player = PlayerContentConfiguration.Resolve(baked,config, Path.GetDirectoryName(Application.dataPath)!, ContentDirectoryTarget);
                 if (!Directory.Exists(player.Path))
                     throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Configured Player content directory does not exist.", player.Identity, ContentDirectoryTarget);
-                return new ContentDirectoryConfiguration(player.Path, player.Identity, player.Representation, player.FirstScene);
+                return new ContentDirectoryConfiguration(player.Path, player.Identity, player.Representation, player.FirstScene,player.VerifiedRevision);
             }
+            var installedRoot=config.GetString("content:installedRevisionPath",string.Empty);
+            var installedDigest=config.GetString("content:manifestSha256",string.Empty);
+            if((installedRoot.Length==0)!=(installedDigest.Length==0))throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,"Installed revision path and manifest digest must be provided together.");
             var path = config.GetString("content:directoryPath", string.Empty);
             var identity = config.GetString("content:buildIdentity", string.Empty);
             var representation = config.GetString("content:representation", string.Empty);
-            if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(identity) || string.IsNullOrWhiteSpace(representation))
+            if ((string.IsNullOrWhiteSpace(path)&&installedRoot.Length==0) || string.IsNullOrWhiteSpace(identity) || string.IsNullOrWhiteSpace(representation))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Directory mode requires absolute directoryPath, buildIdentity, and representation.");
             // 起動、登録、削除 gate が同じ canonical path を使う。文字列 alias が
             // 別 revision と見なされると、使用中 directory の削除許可が誤る。
+            if(installedRoot.Length>0)
+            {
+                var set=OneStarMaker.Runtime.BuildContent.Distribution.ContentDeliveryFiles.ReadJson<OneStarMaker.Runtime.BuildContent.Distribution.ContentInstallReceipt>(Path.Combine(installedRoot,"receipt.json")).contentSet;
+                var verified=OneStarMaker.Runtime.BuildContent.Distribution.InstalledRevisionVerifier.Verify(installedRoot,installedDigest,set,identity,ContentDirectoryTarget);
+                return new ContentDirectoryConfiguration(verified.ContentPath,identity,representation,string.Empty,verified);
+            }
             if (!ContentRevisionGate.TryNormalize(identity, ContentDirectoryTarget, path, out var fullPath))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,
                     "Content directory path is invalid.", identity, ContentDirectoryTarget,
                     representation: representation);
             if (!Directory.Exists(fullPath))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Configured content directory does not exist.", identity, ContentDirectoryTarget, representation: representation);
-            return new ContentDirectoryConfiguration(fullPath, identity, representation, string.Empty);
+            return new ContentDirectoryConfiguration(fullPath, identity, representation, string.Empty,null);
         }
 
         private sealed class ContentDirectoryConfiguration
         {
-            internal ContentDirectoryConfiguration(string path, string buildIdentity, string representation, string firstScene)
-            { Path = path; BuildIdentity = buildIdentity; Representation = representation; FirstScene = firstScene; }
+            internal ContentDirectoryConfiguration(string path, string buildIdentity, string representation, string firstScene,OneStarMaker.Runtime.BuildContent.Distribution.VerifiedInstalledRevision? verifiedRevision)
+            { Path = path; BuildIdentity = buildIdentity; Representation = representation; FirstScene = firstScene;VerifiedRevision=verifiedRevision; }
             internal string Path { get; }
             internal string BuildIdentity { get; }
             internal string Representation { get; }
             internal string FirstScene { get; }
+            internal OneStarMaker.Runtime.BuildContent.Distribution.VerifiedInstalledRevision? VerifiedRevision { get; }
         }
 
         /// <summary>

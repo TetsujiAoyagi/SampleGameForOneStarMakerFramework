@@ -31,6 +31,36 @@ namespace OneStarMaker.Tests.BuildContent
         }
 
         [Test]
+        public async Task HoldFailure_AfterBehaviorVerification_StillDestroysAndReleases()
+        {
+            var failure = new OperationCanceledException("hold");
+            var result = await Run(hold: () => UniTask.FromException(failure));
+
+            Assert.That(result.Failure, Is.InstanceOf<OperationCanceledException>());
+            Assert.That(result.CompletedStages, Is.EqualTo(new[]
+            {
+                PlayerContentSmoke.Stage.Loaded,
+                PlayerContentSmoke.Stage.Instantiated,
+                PlayerContentSmoke.Stage.BehaviorVerified,
+                PlayerContentSmoke.Stage.Destroyed,
+                PlayerContentSmoke.Stage.HandleReleased
+            }));
+        }
+
+        [Test]
+        public async Task Hold_RunsBetweenBehaviorVerificationAndDestroy()
+        {
+            var calls = new List<string>();
+            var result = await Run(
+                verify: () => Record(calls, "verify"),
+                hold: () => Record(calls, "hold"),
+                destroy: () => Record(calls, "destroy"));
+
+            Assert.That(result.Failure, Is.Null);
+            Assert.That(calls, Is.EqualTo(new[] { "verify", "hold", "destroy" }));
+        }
+
+        [Test]
         public async Task PrimaryAndCleanupFailures_ArePreservedInOrder()
         {
             var primary = new InvalidOperationException("verify");
@@ -48,13 +78,21 @@ namespace OneStarMaker.Tests.BuildContent
 
         private static UniTask<PlayerContentSmoke.Result> Run(
             Func<UniTask>? verify = null,
+            Func<UniTask>? hold = null,
             Func<UniTask>? destroy = null,
             Func<UniTask>? release = null) => PlayerContentSmoke.RunSequenceAsync(
                 () => UniTask.CompletedTask,
                 () => UniTask.CompletedTask,
                 verify ?? (() => UniTask.CompletedTask),
+                hold ?? (() => UniTask.CompletedTask),
                 destroy ?? (() => UniTask.CompletedTask),
                 release ?? (() => UniTask.CompletedTask));
+
+        private static UniTask Record(ICollection<string> calls, string value)
+        {
+            calls.Add(value);
+            return UniTask.CompletedTask;
+        }
 
         private static IReadOnlyList<Exception> Flatten(Exception exception)
         {
