@@ -4,6 +4,7 @@
     "references": [
         "SampleGame.OutGame",
         "SampleGame.InGame",
+        "SampleGame.DependOnAll",
         "OneStarMaker.Runtime",
         "OneStarMaker.Editor",
         "OneStarMaker.Build.Selection",
