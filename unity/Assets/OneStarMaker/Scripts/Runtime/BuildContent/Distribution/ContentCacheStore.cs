@@ -70,9 +70,7 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
             _root = Path.GetFullPath(cacheRoot).TrimEnd(Path.DirectorySeparatorChar);
             if (_root.Length < Path.GetPathRoot(cacheRoot)!.Length) _root = Path.GetPathRoot(cacheRoot)!;
             ContentDeliveryFiles.RejectReparseAncestors(Path.GetPathRoot(_root)!, _root);
-            var drive = new DriveInfo(Path.GetPathRoot(_root)!);
-            if (drive.DriveType == DriveType.Network || !string.Equals(drive.DriveFormat, "NTFS", StringComparison.OrdinalIgnoreCase))
-                throw new ContentDeliveryException(ContentDeliveryFailureCode.CompatibilityMismatch, "DIST cache requires local NTFS.");
+            ContentLocalNtfs.Require(_root, "DIST cache requires local NTFS.");
         }
 
         public string RootPath => _root;

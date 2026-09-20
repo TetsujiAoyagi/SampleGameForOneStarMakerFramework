@@ -61,9 +61,7 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
             if (!IsPublishedRoot(root, set, revision))
                 throw new ContentDeliveryException(ContentDeliveryFailureCode.InstallConflict,
                     "Only an installed revision root can be registered.");
-            var drive = new DriveInfo(Path.GetPathRoot(root)!);
-            if (drive.DriveType == DriveType.Network || !string.Equals(drive.DriveFormat, "NTFS", StringComparison.OrdinalIgnoreCase))
-                throw new ContentDeliveryException(ContentDeliveryFailureCode.CompatibilityMismatch, "Installed content requires local NTFS.");
+            ContentLocalNtfs.Require(root, "Installed content requires local NTFS.");
             ContentDeliveryFiles.RejectReparseAncestors(Path.GetPathRoot(root)!, root);
             var receipt = ContentDeliveryFiles.ReadJson<ContentInstallReceipt>(Path.Combine(root, "receipt.json"));
             if (receipt.version != 1 || receipt.manifestSha256 != digest || receipt.contentSet != set
