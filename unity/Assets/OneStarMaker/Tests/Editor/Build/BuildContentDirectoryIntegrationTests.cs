@@ -210,14 +210,16 @@ namespace OneStarMaker.Tests.Editor.Build
                 else EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
                 if (_folder.Length != 0) { AssetDatabase.DeleteAsset(_folder); _folder = ""; }
             }
+            // 未指定 runtimeMode は fail-closed。Addressables 互換口は明示指定だけ。
+            Environment.SetEnvironmentVariable(contentEnvNames[0], "addressables", EnvironmentVariableTarget.Process);
             yield return new EnterPlayMode();
             var defaultBootstrap = GetBootstrapState();
             for (var frame = 0; frame < 1800 && defaultBootstrap.director.GetValue(defaultBootstrap.initializer) == null; frame++)
                 yield return null;
             Assert.That(defaultBootstrap.director.GetValue(defaultBootstrap.initializer), Is.Not.Null,
-                "既定 Addressables mode で SceneDirector が生成されていない");
+                "明示 addressables mode で SceneDirector が生成されていない");
             Assert.That(defaultBootstrap.session.GetValue(defaultBootstrap.initializer), Is.Null,
-                "明示指定なしで Content Directory が登録された");
+                "明示 addressables で Content Directory が登録された");
             // ContentLoadManager の登録は PlayMode 側で行う。copy に必要な file が欠ければここで失敗する。
             var handle = ContentLoadManager.RegisterContentDirectory(_copy);
             Assert.That(handle.IsValid, Is.True);
