@@ -26,9 +26,11 @@ namespace OneStarMaker.Runtime.AssetManagement.Internal
         void ReleaseSceneTokenAfterPlayStop(IBackendScene scene);
         void Release(IBackendAsset asset);
         void ConfigureCacheEviction(Action evictRevisionEntries);
+        // 明示 close 専用。Play 停止から呼んではならない。
         UniTask StopAndDrainAsync();
         void EnsureAccepting();
         UniTask CloseAsync();
+        // Play 停止専用。StopAndDrainAsync を呼んではならない。pending native を待たない。
         void CompletePlayStop();
         void BeginSynchronousShutdown();
     }

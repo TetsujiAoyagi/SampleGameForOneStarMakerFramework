@@ -93,11 +93,14 @@ lock I/O failure は fail closed とする。別 Windows user、非 NTFS cache�
 検証済み snapshot は所有 token ではないため、session は reservation 取得後、native 登録前に
 receipt、manifest、全 files を再検証する。`AssetManagement` は従来どおり owner 台帳と
 resident cache を所有し、DIST の利用台帳を別に作らない。
-通常の Play 停止は Runtime `ReleaseAll` のあと、internal の play-stop 完了待ちが `StopAndDrain`、
-shutdown scene terminal、cache 退避、unregister、OS read lease 解放まで終わる。directory Scene は
-`ReleaseSceneAfterUnityShutdown` を使い、Play 停止で `UnloadSceneAsync` も Addressables
-`UnloadSceneAsync` も呼ばない。明示 close は新規受付を止めて処理を drain し、live owner/Prefab instance が残れば `ResourcesInUse`
-として登録を保ち、解放後の再試行を許す。cache entry も解放前は revision の利用中とみなす。
+通常の Play 停止は Runtime `ReleaseAll` のあと、同じスタックで同期の play-stop 完了が終わる。
+directory Scene は `ReleaseSceneTokenAfterPlayStop` で token だけ返し、`ReleaseSceneAfterUnityShutdown`
+は使わない。native `UnloadSceneAsync` も Addressables `UnloadSceneAsync` も呼ばない。
+完了は受付停止、cache 退避、unregister、OS read lease 解放であり、`StopAndDrain` も pending native
+も待たない。`UniTask.GetResult` で待たない。明示 close は新規受付を止めて `StopAndDrain` し、
+残 Scene を unload する。live owner/Prefab instance が残れば `ResourcesInUse` として登録を保ち、
+解放後の再試行を許す。cache entry も解放前は revision の利用中とみなす。Play 停止と明示 close を
+同じ「完全 drain」として書かない。
 
 ### DIST transport と disk cache の境界
 
@@ -205,11 +208,12 @@ public interface IAssetManagement
 |---|---|---|---|
 | `UnloadSceneAsync` | 通常 gameplay（SceneDirector Phase 2） | する | await 可能 |
 | `ReleaseScene` | 所有アセット解放（Phase 3）。未 Unload Scene 本体が残っていると例外 | しない | 同期 |
-| `ReleaseAll` | quitting / SubsystemRegistration の Shutdown。Unity 解体済み前提 | **しない**（directory は `ReleaseSceneAfterUnityShutdown`。Addressables Unload は呼ばない） | **同期** のあと play-stop 完了を待つ |
+| `ReleaseAll` | quitting / SubsystemRegistration の Shutdown。Unity 解体済み前提 | **しない**（directory は `ReleaseSceneTokenAfterPlayStop`。Addressables Unload は呼ばない） | **同期**。続けて `CompletePlayStop`（`StopAndDrain` は待たない） |
 
 Play Mode 終了で `Addressables.UnloadSceneAsync` を呼ぶと `Cannot find handle for scene` になり得るため、
-`ReleaseAll` は意図的に Addressables backend Scene Unload を行わない。directory の完全 drain は
-続けて internal play-stop 完了待ちが所有する。`.Forget()` による非同期 Unload も持たない。
+`ReleaseAll` は意図的に Addressables backend Scene Unload を行わない。directory の Play 停止完了は
+続けて同期 `CompletePlayStop` が所有し、`StopAndDrain` は明示 close だけが使う。`.Forget()` による
+非同期 Unload も持たない。
 
 ### IResourceHandle / IResourceCache（不採用: 独立レイヤー案）
 

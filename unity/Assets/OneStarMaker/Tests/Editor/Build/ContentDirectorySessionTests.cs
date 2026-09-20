@@ -511,6 +511,7 @@ namespace OneStarMaker.Tests.Editor.Build
             Assert.That(directory.ShutdownSceneReleases, Is.EqualTo(1));
             Assert.That(directory.CloseCount, Is.EqualTo(1));
             Assert.That(directory.StopCount, Is.EqualTo(1));
+            Assert.That(directory.DrainCount, Is.EqualTo(0));
         }
 
         [Test]
@@ -551,6 +552,7 @@ namespace OneStarMaker.Tests.Editor.Build
             Assert.That(error!.Code, Is.EqualTo(ContentDirectoryFailureCode.EntryAmbiguous));
             Assert.That(directory.SceneLoads, Is.EqualTo(1));
             await assets.CloseContentDirectoryAsync();
+            Assert.That(directory.DrainCount, Is.GreaterThanOrEqualTo(1));
         }
 
         [Test]
@@ -688,6 +690,7 @@ namespace OneStarMaker.Tests.Editor.Build
             internal int SceneUnloads;
             internal int ShutdownSceneReleases;
             internal int StopCount;
+            internal int DrainCount;
             internal int CloseCount;
             private Action? _evict;
             private bool _accepting = true;
@@ -707,7 +710,7 @@ namespace OneStarMaker.Tests.Editor.Build
             public void ReleaseSceneTokenAfterPlayStop(IBackendScene scene) { ShutdownSceneReleases++; }
             public void Release(IBackendAsset asset) => AssetReleases++;
             public void ConfigureCacheEviction(Action evictRevisionEntries) => _evict = evictRevisionEntries;
-            public UniTask StopAndDrainAsync() { _accepting = false; StopCount++; return UniTask.CompletedTask; }
+            public UniTask StopAndDrainAsync() { _accepting = false; StopCount++; DrainCount++; return UniTask.CompletedTask; }
             public void EnsureAccepting()
             {
                 if (!_accepting) throw new ContentDirectoryException(ContentDirectoryFailureCode.DirectoryNotRegistered,

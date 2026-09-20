@@ -62,8 +62,8 @@
 │  │  Profiler … DebugProfilerView, FrameTimeSampler    │     │
 │  └─────────────────────────────────────────────┘     │
 │                                                              │
-│  Editor … SceneGraph Editor / Build (Variants,               │
-│           AssetDescriptions, Addressables)                   │
+│  Editor … SceneGraph Editor / Content build / Delivery /     │
+│           旧 Addressables 案内                                │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -133,7 +133,7 @@ Game.Common ──→ Foundation, Runtime
 | §17 | （欠番 — Variant BuildScript レビューは未保存のまま失われた） | — |
 | §18 | AssetDescription — 目的・有用性・実装 | [18-asset-description.md](Docs/Architecture/18-asset-description.md) |
 | §19 | （欠番 — AssetResidentCache 施行表。施行完了につき設計判断は §13 へ集約） | — |
-| §20 | Variant チェックアウトワークフロー | [20-variant-checkout-workflow.md](Docs/Architecture/20-variant-checkout-workflow.md) |
+| §20 | Content Directory / Delivery と旧 Addressables 在庫 | [20-variant-checkout-workflow.md](Docs/Architecture/20-variant-checkout-workflow.md) |
 | §21 | SceneStreaming — **現状**（格子キー。到着点ではない） | [21-scene-streaming.md](Docs/Architecture/21-scene-streaming.md) |
 | §22 | （予約 — HLOD / Proxy ティア。21-scene-streaming.md §12 参照） | — |
 | §23 | CameraSystem — カメラシステム設計（実装済み。Play 目視判定が未了） | [23-camera-system.md](Docs/Architecture/23-camera-system.md) |
@@ -165,7 +165,7 @@ Game.Common ──→ Foundation, Runtime
 
 > **Phase 1 完了後の追加実装（フェーズ表の枠外で進行したもの）:**
 > テレメトリ v2 + DebugSocket / DebugStudio 連携（§12, §15, §28）、AssetManagement + AssetResidentCache（§13）、
-> UpdateSystem（正本 `docs/updater/UPDATER_CURRENT_SPEC.md`）、Variant ビルド / チェックアウトワークフロー（§18, §20）、
+> UpdateSystem（正本 `docs/updater/UPDATER_CURRENT_SPEC.md`）、Content Directory / DIST Delivery（§13, §18, §20）、
 > SceneStreaming 現状（§21 / `docs/streaming/`。到着契約は §34）。
 
 ---
@@ -181,7 +181,7 @@ Game.Common ──→ Foundation, Runtime
 | ログ | Debug.Log / DebugService | **ZLogger + `ILogger<T>` / `ILoggerFactory`** | 構造化ログと rolling file / realtime stream の分離 |
 | 文字列構築 | string.Format / $"" | **ZString**（ホットパス限定） | GC Alloc ゼロ。毎フレーム・毎遷移パスで使用 |
 | テレメトリ | なし | **`AppTelemetry` + lightweight Trace/Span + DebugSocket envelope** | Unity hot path の zero-allocation を優先しつつ、DebugStudio.App は観測と export UI、`DebugStudio.Export` は Elastic 向け export contract / writer を担当 |
-| アセット | Addressables | **Addressables**（継続） | — |
+| アセット | Addressables | **Content Directory（通常）+ Addressables 2.11.2（互換）** | 旧 BuildSystem は案内のみ。package は残存 owner 用 |
 | UI | uGUI | **uGUI**（継続、Phase 4 で UI Toolkit 段階移行） | まず動くもの優先 |
 | 入力 | Unity InputSystem | **Unity InputSystem**（継続） | — |
 
