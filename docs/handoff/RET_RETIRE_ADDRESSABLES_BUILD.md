@@ -6,7 +6,7 @@
 - status: `B`
 - branch: `codex/ret-retire-addressables-build`
 - implementation base commit: `356767ff082ae7ddf5f8c9ce0c992b7e2185178f`
-- implementation head commit: `9672ae726c554b35db34607e11b87a96b54e66a9`
+- implementation head commit: `67079fab9dd2059d79729afb5c9ab5d81bf479b4`
 - risk: `high`（Addressables、公開 API、serialized 参照、所有者・寿命）
 - owner: RET 主担当 / Cursor Grok 4.6
 - created: 2026-09-20
@@ -212,7 +212,7 @@ C' 実績予定: GPT 系（ユーザー指示）。A2 architecture gate が同�
 - Play 停止は `ReleaseAll` のあと `CompleteContentDirectoryPlayStopAsync` を待つ。明示 close の `UnloadSceneAsync` は使わない。
 - 旧メニュー 4 つ、Hybrid/Filtering、remote batch、catalog/revision injector、`rebuild-remote.ps1` / `serve-addressables.ps1` は案内 no-op。
 - Architecture §4 / §13 / §18 / §20 を現況へ更新。`contract-audit` / `docs-audit` は通過。Editor Pipeline `ready`。
-- B 適応: Framework は SampleGame key を知らない（protected virtual）。新 public API なし。`VariantRemoteBuildBatch` も CLI 入口のため案内終了。`SampleGame.DependOnAll.Editor` が Runtime の `DirectoryBootstrapKeys` を見るため、同 Game 内の `SampleGame.DependOnAll` 参照を追加（新 asmdef ファイルは作らない。Game→Framework 逆転ではない）。バッチ全件は Editor Pipeline `ready` では見えなかった CS0103 で停止した。
+- B 適応: Framework は SampleGame key を知らない（protected virtual）。新 public API なし。`VariantRemoteBuildBatch` も CLI 入口のため案内終了。`SampleGame.DependOnAll.Editor` が Runtime の `DirectoryBootstrapKeys` を見るため、同 Game 内の `SampleGame.DependOnAll` 参照を追加（新 asmdef ファイルは作らない。Game→Framework 逆転ではない）。`RetiredAddressablesMenuNoOpTests` は `Tests.Editor` が `Unity.Addressables.Editor` を参照しない既存境界に合わせ、settings 件数を reflection で読む。バッチ全件は Editor Pipeline `ready` では見えなかった CS0103 / CS0234 で、テスト XML まで到達せず停止した。
 
 未実行: 全 EditMode、Editor Play、DIST install 回帰、BS4 Player。
 
