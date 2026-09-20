@@ -6,7 +6,7 @@
 - status: `B`
 - branch: `codex/ret-retire-addressables-build`
 - implementation base commit: `356767ff082ae7ddf5f8c9ce0c992b7e2185178f`
-- implementation head commit: 未記録（B 実装 commit 後に追記）
+- implementation head commit: `a77cbaf4a2cf29e86468d57fad28d4018221d336`
 - risk: `high`（Addressables、公開 API、serialized 参照、所有者・寿命）
 - owner: RET 主担当 / Cursor Grok 4.6
 - created: 2026-09-20
@@ -17,7 +17,7 @@
 - Phase A snapshot hash: `1fda4f266d561c57f968c6aeab43e4e2655fa1d1aad63652575be33eb75d76a9`
 - Phase B result snapshot path: `artifacts/bs2b/ret-evidence/phase-b/result.md`（ignored。PR に入れない）
 - Phase B result snapshot generated at: `2026-09-20T13:50:00Z`
-- Phase B result snapshot hash: `f8f8637bc060eb595cc573a48c9f8c650d217d6179d4c49e23de99ff27da6975`
+- Phase B result snapshot hash: `889b1e6ce422e724c5181608f4b989cc02ca4db426019b7015719cf71a908c5c`
 - Phase C evidence / C' blind bundle: 未到達
 
 本文へ転記した常時制約: Game → Framework の一方向。asmdef 参照の無断追加禁止。アセットは `IAssetManagement` と `AssetOwner`。SceneState の既存14値は減らさず並べ替えない。公開ログは `ILogger<T>`。Update は `UpdateSystemRuntime`。1システムの例外で他を止めない。Editor コードを Runtime アセンブリに置かない。Unity 側 C# は先頭 `#nullable enable`、`record` 禁止、破棄可能 Unity Object は `== null` / `!= null`。テストに `Task.Delay` / `Thread.Sleep` 禁止。`unity test` / `unity run` 禁止。テストは `pwsh tools/run-tests.ps1`（Windows は sandbox 外）。参照 0 を削除理由にしない。PR base は develop。Phase D merge はユーザー明示まで禁止。cursor-agent は Grok 系のみ。ASTRA は使わない。DIST の install / known-good / OS lease / source-free Player を作り直さない。
