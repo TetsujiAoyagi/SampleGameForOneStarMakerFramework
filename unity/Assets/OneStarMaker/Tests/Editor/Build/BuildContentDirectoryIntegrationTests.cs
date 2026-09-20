@@ -64,6 +64,25 @@ namespace OneStarMaker.Tests.Editor.Build
             EnsureFolder(FixtureParent);
             _folder = FixtureParent + "/" + Guid.NewGuid().ToString("N");
             EnsureFolder(_folder);
+            var contentEnvNames = new[]
+            {
+                "SAMPLEGAME_CONTENT__RUNTIMEMODE", "SAMPLEGAME_CONTENT__INSTALLEDREVISIONPATH",
+                "SAMPLEGAME_CONTENT__BUILDIDENTITY", "SAMPLEGAME_CONTENT__REPRESENTATION",
+                "SAMPLEGAME_CONTENT__MANIFESTSHA256"
+            };
+            var previousContentEnv = contentEnvNames
+                .Select(name => Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.Process))
+                .ToArray();
+            var previousUserContentEnv = contentEnvNames
+                .Select(name => Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.User))
+                .ToArray();
+            foreach (var name in contentEnvNames)
+            {
+                Environment.SetEnvironmentVariable(name, null, EnvironmentVariableTarget.Process);
+                Environment.SetEnvironmentVariable(name, null, EnvironmentVariableTarget.User);
+            }
+            try
+            {
             var previous = EditorSceneManager.GetSceneManagerSetup();
             try
             {
@@ -282,15 +301,11 @@ namespace OneStarMaker.Tests.Editor.Build
 
             // 二度目の Play は SampleGame の実 bootstrap に環境変数を渡す。
             // Framework test から Game asmdef を参照せず、起動済み instance の状態だけを見る。
-            var names = new[] { "SAMPLEGAME_CONTENT__RUNTIMEMODE", "SAMPLEGAME_CONTENT__INSTALLEDREVISIONPATH",
-                "SAMPLEGAME_CONTENT__BUILDIDENTITY", "SAMPLEGAME_CONTENT__REPRESENTATION",
-                "SAMPLEGAME_CONTENT__MANIFESTSHA256" };
-            var previousValues = names.Select(Environment.GetEnvironmentVariable).ToArray();
-            Environment.SetEnvironmentVariable(names[0], "directory");
-            Environment.SetEnvironmentVariable(names[1], _installedRoot);
-            Environment.SetEnvironmentVariable(names[2], Path.GetFileName(_copy).Substring("integration-copy-".Length));
-            Environment.SetEnvironmentVariable(names[3], "High");
-            Environment.SetEnvironmentVariable(names[4], _manifestDigest);
+            Environment.SetEnvironmentVariable(contentEnvNames[0], "directory", EnvironmentVariableTarget.Process);
+            Environment.SetEnvironmentVariable(contentEnvNames[1], _installedRoot, EnvironmentVariableTarget.Process);
+            Environment.SetEnvironmentVariable(contentEnvNames[2], Path.GetFileName(_copy).Substring("integration-copy-".Length), EnvironmentVariableTarget.Process);
+            Environment.SetEnvironmentVariable(contentEnvNames[3], "High", EnvironmentVariableTarget.Process);
+            Environment.SetEnvironmentVariable(contentEnvNames[4], _manifestDigest, EnvironmentVariableTarget.Process);
             try
             {
                 yield return new EnterPlayMode();
@@ -312,8 +327,18 @@ namespace OneStarMaker.Tests.Editor.Build
             }
             finally
             {
-                for (var i = 0; i < names.Length; i++) Environment.SetEnvironmentVariable(names[i], previousValues[i]);
+                foreach (var name in contentEnvNames)
+                    Environment.SetEnvironmentVariable(name, null, EnvironmentVariableTarget.Process);
             }
+        }
+        finally
+        {
+            for (var i = 0; i < contentEnvNames.Length; i++)
+            {
+                Environment.SetEnvironmentVariable(contentEnvNames[i], previousContentEnv[i], EnvironmentVariableTarget.Process);
+                Environment.SetEnvironmentVariable(contentEnvNames[i], previousUserContentEnv[i], EnvironmentVariableTarget.User);
+            }
+        }
         }
 
         private static (object initializer, FieldInfo session, FieldInfo director) GetBootstrapState()

@@ -54,9 +54,10 @@ namespace SampleGame.DependOnAll.Editor.Build
                     Array.Resize(ref ledger.installed, ledger.installed.Length + 1);
                     index = ledger.keys.Length - 1;
                     ledger.keys[index] = key;
-                    ledger.previous[index] = Environment.GetEnvironmentVariable(key) ?? "<null>";
+                    ledger.previous[index] = Environment.GetEnvironmentVariable(key, EnvironmentVariableTarget.Process) ?? "<null>";
                 }
-                Environment.SetEnvironmentVariable(key, values[i]);
+                // User/Machine へ書くと次の Editor/Player が暗黙の directory mode になる。
+                Environment.SetEnvironmentVariable(key, values[i], EnvironmentVariableTarget.Process);
                 ledger.installed[index] = values[i];
             }
             SessionState.SetString(LedgerKey, JsonUtility.ToJson(ledger));
@@ -70,9 +71,10 @@ namespace SampleGame.DependOnAll.Editor.Build
             for (var i = 0; i < ledger.keys.Length; i++)
             {
                 // 自分が適用した値を他者が変更した場合は、その新しい値を巻き戻さない。
-                if (Environment.GetEnvironmentVariable(ledger.keys[i]) == ledger.installed[i])
+                if (Environment.GetEnvironmentVariable(ledger.keys[i], EnvironmentVariableTarget.Process) == ledger.installed[i])
                     Environment.SetEnvironmentVariable(ledger.keys[i],
-                        ledger.previous[i] == "<null>" ? null : ledger.previous[i]);
+                        ledger.previous[i] == "<null>" ? null : ledger.previous[i],
+                        EnvironmentVariableTarget.Process);
             }
             SessionState.EraseString(LedgerKey);
         }
