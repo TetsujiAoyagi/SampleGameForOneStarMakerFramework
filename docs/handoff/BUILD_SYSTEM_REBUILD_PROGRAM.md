@@ -1,7 +1,7 @@
 # BuildSystem刷新 — 全体計画と継続開発の引継ぎ
 
 - type: program
-- status: 継続中。BS4 Phase D 完了。DIST は C/C' PASS、マージ待ち。次は RET。個別スライスの実装凍結ではない。
+- status: 継続中。BS4 / DIST Phase D 完了。次は RET。個別スライスの実装凍結ではない。
 - branch: `codex/build-system-program`（本program文書の整備用。各実装は専用ブランチ）
 - planning base: `65d1b91`（2026-09-17のdevelop）
 - risk: high（後続の build 出力、runtime identity、所有者・寿命の設計に関係する）
@@ -22,7 +22,7 @@ Unity 6.6 Content Directoriesを用いて、content選択、build、Runtimeロ�
 本書だけで後続を開始でき、未追跡PREや過去の会話を必須入力にしない。
 先のAssetDescription拡張programは本書へ統合し、別正本として残さない。
 
-現在地（2026-09-19）:
+現在地（2026-09-20）:
 
 - U66: 完了。`ProjectVersion.txt`は6000.6.0f1。バージョン移行を再実行しない。
 - CD0: 完了、限定実証によるCONDITIONAL採用。Mono/High strippingでroot・Object・Sceneの往復と移設を実証。
@@ -35,14 +35,14 @@ Unity 6.6 Content Directoriesを用いて、content選択、build、Runtimeロ�
 - BS2c: 完了。SampleGame の本番 SceneResource graph から季節・表現を選択し、四つの Editor Content Directory build を確認した。
 - BS3: 完了。Runtime の root 索引と型付き Scene/Object/Prefab load、owner/cache と session 寿命、同一 process の revision 削除排他、Editor Play の明示切替を確認した。既定 Addressables 起動は残す。
 - BS4: 完了。対応する Content BuildReport から固定 Windows x64 IL2CPP / High Player を作り、selected content の二重同梱を拒否し、生成 bootstrap、起動時表現固定、論理初回 Scene、代表 Prefab、明示 close を実 Player で確認した。
-- DIST: C/C' PASS、マージ待ち。専用branch `codex/dist-content-delivery`、implementation head `3a95c0389356480090f8a6e81940ab692d061deb`。取得済み成果物だけからの起動、物理削除と別 process 排他を扱う。通常 Play 停止時の完全 drain は RET の入力とする。マージ後に `DIST_CONTENT_DELIVERY.md` を削除する。
+- DIST: 完了。PR #68 を `develop` `356767ff082ae7ddf5f8c9ce0c992b7e2185178f` へマージ。実装 head は `3a95c0389356480090f8a6e81940ab692d061deb`。取得済み成果物だけからの起動、物理削除と別 process 排他は成立。slice HANDOFF は Phase D 残りで削除済み。通常 Play 停止時の完全 drain と source なし complete Editor bootstrap は RET の入力とする。
 
 実行順序:
 
 ```text
 U66 → CD0 → BS1 → BS2a → BS2b → BS2c → BS3 → BS4   完了
                                                   ↓
-                                                DIST  C/C' PASS・マージ待ち
+                                                DIST  完了
                                             ↓
                                            RET  旧経路の廃止
 ```
@@ -224,7 +224,8 @@ asset単位のHTTP遅延fetch、delta patch、CDN最適化は後続の専用拡�
 
 ## 4. 別セッションへの引継ぎ・レビュー・停止規則
 
-- 次の RET 開始時は本書と現行実装、公開 Architecture §13 / §18 / §4 / §20 を読み、DIST の install / known-good / 別 process lease と BS4 の Player identity を前提に旧経路廃止の受け入れ条件を slice HANDOFF へ固定する。
+- RET は slice HANDOFF `docs/handoff/RET_RETIRE_ADDRESSABLES_BUILD.md` を正とする。本書を実装 HANDOFF として直接使わない。
+  公開 Architecture §13 / §18 / §4 / §20 と DIST の install / known-good / 別 process lease、BS4 の Player identity を前提にする。
   DIST の実装 head は `3a95c03`。未追跡 PRE や削除済み slice HANDOFF を必須入力にしない。
 - 各sliceは`osm-workflow`に従い、1 slice / 1 branch / 1 HANDOFF、PR baseはdevelopとする。
   実装base/headとPhase A snapshotを固定し、Phase境界では新規セッションへ規定の入力を渡す。

@@ -9,8 +9,9 @@
 > 修復または後続 BuildSystem への置換が完了するまでは、Player build 可を前提にしない。
 
 Content Directory build と、SampleGame の本番 SceneResource graph からの季節・表現選択は Editor 側の別入口として実装済みである。
-本書の Addressables checkout、Hybrid Play、Player build 経路はまだ置換していない。
-新経路の選択規則と build 入口は [18. AssetDescription](18-asset-description.md#samplegame-の季節選択と-editor-build現況) に記す。Runtime load と Player 接続は後続工程で扱う。
+本書の Addressables checkout、Hybrid Play、Player build 経路はまだ置換していない。削除と既定切替は RET が所有する。
+新経路の選択規則と build 入口は [18. AssetDescription](18-asset-description.md#samplegame-の季節選択と-editor-build現況) を正とする。
+Runtime load と寿命は [13. リソースシステム](13-resource-system.md)、起動と Player / installed override は [4. アプリ起動シーケンス](04-app-startup.md) を正とする。
 
 ---
 
