@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: slice
-- status: B（A3 凍結。文書実装中）
+- status: C（判定 GO。C' は人間予約で未実施。マージしない）
 - branch: `cursor/wcd-world-proof-a0-c6d7`
 - implementation base commit: `23b1098e6b9c1d9b04543d2cdabfe3f0a82cffcb`
-- implementation head commit: （B 完了時に記入）
+- implementation head commit: `a7219c76bbe1ece8662c50e951a846240f8b7175`
 - risk: high（世界の証明表、後続スライス所有、Addressables 残面、build identity に触れる）
 - owner: WCD 主担当。A0 / A1 / A3 は本セッション。A2 は独立 subagent
 - created: 2026-09-21
@@ -281,17 +281,32 @@ Phase B から Phase A へ差し戻す条件: 新しい公開 API、所有者、
 - 実装: A3 凍結どおり、§3 の文書だけを置換した。`.cs` / `.asset` / `.unity` は無し。
 - HANDOFF との差: §18 目的節の「Addressables カタログ構成で完結」は第二用途の直後にあり、置換後も偽になるため同じ M4 対象の矛盾として直した。B 適応。新 harvest 対象は増やしていない。
 - 未実行: 公式 `pwsh tools/docs-audit.ps1`（この環境に pwsh が無い）。C で python stand-in と禁止語 grep を行う。
-- implementation head commit: （この B commit）
+- implementation head commit: `a7219c76bbe1ece8662c50e951a846240f8b7175`
 - Phase B 担当・モデル・ベンダー: Cursor Grok 4.6 / 本セッション
 
 ## 7. Phase C
 
-未着手
+- 種別: 発見 + 判定（文書スライス。同じ head）
+- evidence: implementation base `23b1098` / head `a7219c7`。公式 `docs-audit.ps1` は pwsh 不在で未実行。python stand-in 検査0/1/2 は error 0。禁止語 grep は W-5/W-6 で通常手段 0。diff に `.cs` / `.asset` / `.unity` なし
+- 構造適合: §3 マップと一致。計画外責務なし。S-4c Lighting 本文と谷の構図は無変更
+- 現在の問いを阻害する findings: なし
+- 後続スライスへ移送する findings:
+  1. 判定時 HANDOFF の head 欄がプレースホルダだった（本記録 commit で埋めた。implementation head は動かさない）
+  2. `docs-audit.ps1` は禁止語 grep を実装していない。依拠する記述と実物の差は後続の文書検査改善。WCD の欠陥ではない
+- 実行したテスト: python stand-in of docs-audit、W-5/W-6/GOALS/§13/§18 の句 grep
+- 判定必須のうち未実行: 公式 `pwsh tools/docs-audit.ps1`
+- 未確認事項: なし（EditMode は A3 適用除外）
+- 判定: **GO**
+- 担当・モデル: 発見+判定 Claude Sonnet 5（fresh subagent）。B（Grok）と異なる。C' は起動していない
 
 ## 8. Phase C'
 
-未着手
+- 担当方式: 人間（予約）
+- 判定: 未実施。人間の回答前に AI は PASS を記録しない
+- 確認範囲: 未着手
+- 残存リスク: A2-3 は A1 を読み越した独立性制約あり。C' は A/B/C 未関与の人間
+- 担当・モデル: 人間
 
 ## 9. Phase D
 
-未着手
+未着手。判定 C は GO。C' 未実施。マージは人間の明示まで行わない。
