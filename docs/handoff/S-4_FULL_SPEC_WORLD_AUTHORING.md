@@ -40,8 +40,7 @@ VFX アーティスト、プランナーが同じ Cell を別 Scene で並行制
 対象外:
 
 - S-5 の Tunnel 内装と季節遷移演出。
-- S-6 の1季節1 Addressables groupへの再編。
-- S-7 の季節別 checkout / remote catalog 実証。
+- W-5 / W-6 の文面は WCD が所有。S-6 / S-7 実装スライスは廃止。季節 partition と部分 Checkout 再燃は対象外。
 - 全216 Cellの完成ライティングとベイク。
 - S-8 の演奏レイヤ作り込みと HandAuthored 昇格。
 - S-9 の全域ストリーミング性能判断。

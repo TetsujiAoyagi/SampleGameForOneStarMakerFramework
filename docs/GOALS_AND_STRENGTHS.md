@@ -23,7 +23,7 @@
 | 1 | **入れ子の寿命は必ずある**（プロセス > セッション > 画面 > 個体）。どの構造を寿命の正本にするか、人間がそれを読めるか | DI コンテナのスコープ階層（request / session / application） | SceneGraph = スコープ木、SceneDirector 親子 + LoadType |
 | 2 | **Ready の契約**。「これが使える状態になった」を誰がいつ保証するか | readiness / liveness の考え方 | SceneState `Stable`、親が子の Ready 前提を保証（[05-scene.md §5.6](../unity/Assets/Docs/Architecture/05-scene.md)） |
 | 3 | **依存の方向**。ゲーム固有コードが基盤の内臓に触れない構造を、規約でなく機械で守れるか | モジュール / レイヤ境界 | asmdef 一方向依存 + DependOnAll 単一配線点 |
-| 4 | **部分的な作業空間**。全体を実体化せずに一部だけ触って検証できるか | sparse checkout 的な発想 | Variant / Checkout、Hybrid Play、どの Scene からでも Play |
+| 4 | **部分的な作業空間**。全体を実体化せずに一部だけ触って検証できるか | sparse checkout 的な発想 | Content Directory の選択 build、DIST の取得済み revision、どの Scene からでも Play。旧 Hybrid / リモートカタログは通常入口ではない |
 | 5 | **観測が本体を汚さない**こと | 非侵襲な観測側の分離 | Telemetry sink 非伝播、DebugStudio をゲーム外へ |
 
 隣接業界で 1〜3 に共通語彙があるのは、HTTP のような **強制的に共通な実行形状** があったからである。ゲームにはその強制がなく、各タイトルが毎回再導出してタイトルと一緒に捨てる。**木の形が違うだけで、木があること自体は共通** — ここに気づいて共通部分の問題文を書くことが、この repo の目標である。
@@ -41,7 +41,7 @@ OSM 側の寄せ方:
 - Game 層はコンストラクタ注入のみ。依存は型シグネチャで自明（[03-di.md](../unity/Assets/Docs/Architecture/03-di.md)）
 - 配線は `DependOnAll`（`AppInitializer` + `GameSceneFactory`）の単一出口
 - コード境界は Foundation → Runtime → Debug、InGame ↔ OutGame 禁止を **asmdef で運用**
-- アセットは Addressables 経由を正とする（規律の領域が残る点は §3）
+- 通常経路は Content Directory。Addressables は互換 backend（規律の領域が残る点は §3）
 
 「他エンジンの境界を移植した」のではなく、**依存を型と配線点に現す**ことを目標にしている。
 
@@ -62,7 +62,7 @@ OSM 側の寄せ方:
 
 ### 2.4 失敗と却下理由が読める
 
-「なぜ今は手動 DI か」「なぜ WorldPartition 級は作らないか」「なぜ Addressables を正とするか」が、決定日・再評価条件つきで残っている（[03-di.md](../unity/Assets/Docs/Architecture/03-di.md) 等）。**却下理由が読めることは、FW 本体より長期の資産になりうる。**
+「なぜ今は手動 DI か」「なぜ WorldPartition 級は作らないか」が、決定日・再評価条件つきで残っている（[03-di.md](../unity/Assets/Docs/Architecture/03-di.md) 等）。旧通常経路は Addressables だった。再評価して通常を Content Directory にした現況は [13-resource-system.md](../unity/Assets/Docs/Architecture/13-resource-system.md) と [20-variant-checkout-workflow.md](../unity/Assets/Docs/Architecture/20-variant-checkout-workflow.md)。**却下理由が読めることは、FW 本体より長期の資産になりうる。**
 
 ---
 
@@ -124,3 +124,4 @@ OSM 側の寄せ方:
 | 2026-08-27 | §3 の「InGame 階層は Factory 未配線のスケルトン」が実装に追い越されていたため修正 |
 | 2026-08-29 | Streaming の到着契約（§34）を次に読むものへ追加 |
 | 2026-08-29 | Streaming の現状仕様を次に読むものへ追加（到着契約 §34 と並べる） |
+| 2026-09-21 | 部分的作業空間の対応物と通常アセット経路を Content Directory / DIST の現況へ直した（WCD） |

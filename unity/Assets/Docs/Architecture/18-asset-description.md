@@ -30,7 +30,7 @@ Variant は「同じ論理アセットに対する制作・検証用の差し替
 
 **重要:** Variant の第一目的は **編集ワークフローの差し替え**であり、実行中の切替 UI ではない。起動時に一度だけ Scene payload Variant を決める配線は実装済み（[§4.8](04-app-startup.md#48-起動時-scene-variant-と職種-companion-set)）。本機構（Build / カタログ）の必須要件ではない。
 
-**第二用途: チェックアウト厳選タグ。** 上記に加え、Variant を「どの開発領域のアセットを手元に置くか」を示すタグとしても活用できる。`DeveloperVariantSettings` で選択した `BuildVariantProfile` の whitelist に一致する Payload をローカル Checkout 対象とし、未取得分はリモート Addressables カタログからストリーミングする開発ワークフローが本リポジトリに実装済みである（詳細は [20. Variant チェックアウト厳選ワークフロー](20-variant-checkout-workflow.md)）。
+**第二用途: 手元範囲のタグ。** Variant を「どの開発領域のアセットを手元に置くか」を示すタグとしても使える。実行の通常入口は DIST の検証済み installed revision であり、sourceFiles の Missing / Changed は編集可否の案内である。リモート Addressables カタログから欠損を埋めて Play する手順は旧経路である（詳細は [20. Variant チェックアウト厳選ワークフロー](20-variant-checkout-workflow.md)）。
 
 ただし Variant の**本来の軸**は品質・制作段階（`Whitebox` / `Full` 等）であり、領域軸（`OutGame` 等）と 1 つの文字列に無秩序に混在させると運用が破綻しうる。Framework は Variant 名を**完全一致**でしか解釈しないため、命名規約はプロジェクト側で統一すること。
 
@@ -39,7 +39,7 @@ Variant は「同じ論理アセットに対する制作・検証用の差し替
 | 領域タグ（単独） | `OutGame`, `InGame` |
 | 領域 + 品質の複合 | `OutGame_Whitebox`, `InGame_Full` |
 
-本機構は **Build / Play 時の Addressables カタログ構成**で完結する。ランタイムで作業者が Variant を切り替える UI ではない。起動時に一度だけ Scene payload Variant を決めて `SceneDirector` へ渡す配線は実装済み（[§4.8](04-app-startup.md#48-起動時-scene-variant-と職種-companion-set)、[§5.4](05-scene.md#54-iloadingdisplayローディング表示)）。実行中の切替口は無い。
+本機構の通常入口は Content Directory の選択と起動時の表現固定である。ランタイムで作業者が Variant を切り替える UI ではない。起動時に一度だけ Scene payload Variant を決めて `SceneDirector` へ渡す配線は実装済み（[§4.8](04-app-startup.md#48-起動時-scene-variant-と職種-companion-set)、[§5.4](05-scene.md#54-iloadingdisplayローディング表示)）。実行中の切替口は無い。旧 Addressables カタログ構成は残ファイルとしてあり、通常手順ではない。
 
 ---
 

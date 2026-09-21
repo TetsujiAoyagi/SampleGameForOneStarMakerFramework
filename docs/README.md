@@ -39,8 +39,8 @@
 | ファイル | 役割 | 実装キューか |
 |---|---|---|
 | `SEASON_WORLD_DESIGN.md` | 世界構図・実証・スライス順序 | 着手時 HANDOFF を切るまでの正本。スライス表の順で切る。W-5 / W-6 / S-6 / S-7 の Addressables 語彙は WCD が所有する |
-| `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b 完了。S-4c は WCD の M2 を満たしてから着手する。S-4d の Phase D で harvest して削除する |
-| `WCD_WORLD_PROOF_REBASE.md` | RET 後の世界証明（W-5 / W-6 / S-6 / S-7）を Content Directory + DIST へ載せ替える計画スライス | A1 初稿。A2 未着手。実装キューではない。U1 は現行契約の読み替え |
+| `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b 完了。S-4c は WCD GO のあと着手してよい。S-4d の Phase D で harvest して削除する |
+| `WCD_WORLD_PROOF_REBASE.md` | RET 後の世界証明（W-5 / W-6 / S-6 / S-7）を Content Directory + DIST へ載せ替える計画スライス | A3 凍結。B は文書。S-4c は本スライス GO のあと着手してよい |
 | `REVIEW_WORKFLOW_EFFICIENCY.md` | 外部モデルレビューの実測と、次のPhase Cで残す比較項目 | いいえ。普遍契約はSkillへharvest済み。残る実測後に削除する |
 | `REVIEW_WORKFLOW_EFFICIENCY_ASSESSMENT.md` | 上記への独立評価（Claude / Grok）と採否記録 | いいえ。次のPhase Cで残る仮説を検証後、調査記録ごと削除する |
 

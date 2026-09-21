@@ -3,16 +3,16 @@
 ## 0. メタデータ
 
 - type: slice
-- status: A（A1 初稿。A2 未着手）
+- status: B（A3 凍結。文書実装中）
 - branch: `cursor/wcd-world-proof-a0-c6d7`
 - implementation base commit: `23b1098e6b9c1d9b04543d2cdabfe3f0a82cffcb`
-- implementation head commit: （未到達。B が文書差分を出したとき）
+- implementation head commit: （B 完了時に記入）
 - risk: high（世界の証明表、後続スライス所有、Addressables 残面、build identity に触れる）
-- owner: WCD 主担当。A0 / A1 は本セッション
+- owner: WCD 主担当。A0 / A1 / A3 は本セッション。A2 は独立 subagent
 - created: 2026-09-21
 - expires: 本スライス Phase D。2026-10-21 に未マージなら再確認
 - harvest to: `docs/handoff/SEASON_WORLD_DESIGN.md`、`docs/handoff/S-4_FULL_SPEC_WORLD_AUTHORING.md`、偽と確定した公開面だけ `docs/GOALS_AND_STRENGTHS.md` / Architecture §13 / §18 / §20 §9 / `docs/README.md`。未実装の新契約を公開面へ移さない
-- Phase A snapshot: 未作成（A3 凍結時）
+- Phase A snapshot: 本ファイルの A3 凍結節。生成は A3 commit
 - Phase B result / evidence / C' blind bundle: 未作成
 
 BuildSystem program と DIST / RET の完了 HANDOFF は復活させない。入力は現行公開 Architecture と残っている世界計画、RET 後続、本パケットだけとする。
@@ -211,7 +211,26 @@ A3 凍結後、M1〜M5 の文面が作業台と指定公開面に入ったら GO
 
 - A3 後の例外承認: なし
 - 本文へ転記した実装制約: §1 制約。新公開 API / 所有者 / 寿命 / asmdef は不要。
-- 未決事項: A1 採否済み。A2 / A3 が覆すまで開かない。S-5 へ送った問いと未所有の再燃は未決ではなく後続。
+- 未決事項: A3 で凍結。S-5 へ送った問いと未所有の再燃は後続。
+
+### A2 結果と A3 採否
+
+同じ A1 版 `f364764`。互いの指摘は渡していない。ChatGPT は使っていない。
+
+| 担当 | モデル | 観点 | 判定 |
+|---|---|---|---|
+| A2-1 | Claude Sonnet 5 | architecture-gates | BLOCKER 0。A1 OK |
+| A2-2 | Gemini 3.8 Flash | 世界計画 / S-5 漏れ | BLOCKER 0。漏れは封じ込め |
+| A2-3 | Claude Opus | A0 だけの代替 | 1+2 ハイブリッドを提案。§2 を読み越したため **独立性制約あり**。設計解としては不採用、文言制約だけ採用 |
+
+採否:
+
+- U1〜U5 は A1 のまま凍結する。W-5 / W-6 全体の降格はしない。partition スライスは切らない。
+- A2-1 LATER: W-6 の表から D-5（明示失敗と旧季節復帰）を無言で消さない。**採用。** M1 の W-6 に「出し方と旧季節復帰の所有は S-5（D-5）」を残す。
+- A2-3 の「満たせない半分を所有未定へ降格」: 旧グループハッシュ不変と delta を W-5 の成立条件にしない、は A1 既定。所有未定の新項目は作らず、§20 の DIST 後続（delta/resume）と S-5 に既にある。**欠陥としては不採用。** B は「旧主張と等価ではない」を表に残す。
+- A2-3 汚染: 代替レビューは A1 を見ていない保証ができない。A2-1 / A2-2 が独立に BLOCKER 0 なので凍結は進める。
+
+A3 凍結担当: Cursor Grok 4.6 / 本セッション。人間が目的・範囲を変えていない。ユーザーは Phase C まで承認なし進行を明示した。
 
 ## 3. 責務マップ
 
@@ -259,7 +278,11 @@ Phase B から Phase A へ差し戻す条件: 新しい公開 API、所有者、
 
 ## 6. Phase B 実装結果
 
-未着手
+- 実装: A3 凍結どおり、§3 の文書だけを置換した。`.cs` / `.asset` / `.unity` は無し。
+- HANDOFF との差: §18 目的節の「Addressables カタログ構成で完結」は第二用途の直後にあり、置換後も偽になるため同じ M4 対象の矛盾として直した。B 適応。新 harvest 対象は増やしていない。
+- 未実行: 公式 `pwsh tools/docs-audit.ps1`（この環境に pwsh が無い）。C で python stand-in と禁止語 grep を行う。
+- implementation head commit: （この B commit）
+- Phase B 担当・モデル・ベンダー: Cursor Grok 4.6 / 本セッション
 
 ## 7. Phase C
 

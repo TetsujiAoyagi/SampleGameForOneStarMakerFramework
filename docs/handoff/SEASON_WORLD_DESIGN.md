@@ -145,12 +145,12 @@ M-1〜M-4 の境界を戻さず、S-4b で 9×6×4 と修飾付き identity を 
 
 | ワークフロー | 実現手段（全変奏共通） |
 |---|---|
-| 2 職種の同時編集 | 全セルに床 `*_Cell_*.unity`（地形職）+ 印 `*_Environment_*.unity`（置き物職）。同じ地点を 2 人が同時に触ってもファイルが違うので衝突しない。**ただし衝突しないのは中身。** `SceneResourceMap.asset`、`Season_*.asset` の `_children`、Addressables 設定は構造変更のたびに全員が触る 1 ファイル。構造は生成器が単独で触る |
+| 2 職種の同時編集 | 全セルに床 `*_Cell_*.unity`（地形職）+ 印 `*_Environment_*.unity`（置き物職）。同じ地点を 2 人が同時に触ってもファイルが違うので衝突しない。**ただし衝突しないのは中身。** `SceneResourceMap.asset`、`Season_*.asset` の `_children` は構造変更のたびに全員が触る 1 ファイル。構造は生成器が単独で触る。旧 Addressables 設定も残るが通常 Content build 入口ではない |
 | 再生成しても編集が残る | 昇格済み identity = `HandAuthored`（`AuthoredRoot` を R-6 が保護）/ それ以外 = `Generated`。**判定は S-8a 以降**（S-4 時点は昇格 0） |
-| 単独ビルド | 1 変奏 = 1 Addressables グループ。見証の頂きを差し替え → その変奏だけ再ビルド → 他 3 変奏のバンドルはハッシュ不変。**共有 Lit / Primitive / Tunnel は季節グループに入れない**（Common 側） |
-| 単独チェックアウト | 1 変奏 = 1 Variant タグ。手元に無い変奏はリモートカタログから解決、解決不能ならトンネル出口で明示失敗し旧季節へ復帰（D-5 継承）。隔離は空隙ではなく **候補集合の排他**（常駐季節が 1 つ） |
+| 単独ビルド | 1 つの contentSet は 1 回の選択。現行入口は All Seasons Full / Spring Full / Spring Whitebox / Spring Full And Whitebox。その再 build は別 contentSet または別 build identity の公開 directory を書き換えない。同一 contentSet の成功成果物は identity ごとの公開先に残る。DIST は同じ revision の内容差し替えを拒否する。共有 Lit / Primitive / Tunnel は選択に含まれればその directory に入る。同一 directory 内の季節グループ単位ハッシュ不変は現行契約にない。旧 Addressables グループのハッシュ独立とも等価ではない。delta 配信は DIST 後続で未所有 |
+| 取得済み content からの実行 | DIST が検証した installed revision だけを登録する。sourceFiles の Missing / Changed は編集可否の案内であり、リモート Addressables カタログから欠損を埋めて Play しない。その revision に含まれない季節への遷移は明示失敗とし、出し方と旧季節復帰は S-5（D-5）。Framework は VCS checkout を代行しない。部分 Checkout + リモート補完は未所有。隔離は空隙ではなく **候補集合の排他**（常駐季節が 1 つ） |
 | ストリーミング | 全域で動く。S-9 は純政策ベンチマークと実コンテンツ横断を分け、**実コンテンツ計測（§21 A-1〜A-5）は変奏 II（夏）の背コリドー**で取る |
-| イテレーション | ループ実演: 印を 1 個編集 → 保存 → 生成器再実行（昇格分は消えない）→ Play → 変奏単独の差分ビルド |
+| イテレーション | ループ実演: 印を 1 個編集 → 保存 → 生成器再実行（昇格分は消えない）→ Play → 選んだ contentSet の再 build |
 
 **正本 policy（2 段）:**
 
@@ -194,7 +194,7 @@ Checkout の入口（次の変奏を要求する唯一の正規経路）であ�
 
 ## 6. スライス順序
 
-順序: **M-1〜M-4（完了）→ S-4 → S-5 → (S-6, S-7) → S-8a（春）→ S-9 → S-8b〜d（他変奏）**。
+順序: **M-1〜M-4（完了）→ S-4 → S-5 → S-8a（春）→ S-9 → S-8b〜d（他変奏）**。S-6 / S-7 実装スライスは WCD で廃止。現行 Content build と DIST が担う。
 1 スライス = 1 ブランチ = 1 HANDOFF（着手時に切り出す）。
 
 Editor 操作境界（正本は `.agents/skills/osm-unity-editor/SKILL.md`）は全スライスに適用する（人間が開いた Editor への CLI のみ可、Unity.exe 起動・テスト実行・YAML 手編集は禁止、テストは Phase C。Cloud では Unity CLI を叩かない）。`record` 禁止・`#nullable enable`・破棄されうる `UnityEngine.Object` への `?.` / `??` 禁止も同様。
@@ -205,9 +205,9 @@ Editor 操作境界（正本は `.agents/skills/osm-unity-editor/SKILL.md`）は
 |---|---|---|
 | 前提（完了） | M-1〜M-4: 体積の口、生成器 identity key、候補フラグによる R-3、セル型の SampleGame 移動 | 現況は [STREAMING_CURRENT_SPEC.md](../streaming/STREAMING_CURRENT_SPEC.md)。完了済み HANDOFF は harvest 後に削除済み |
 | S-4 | 谷の生成と季節スワップ（本体） | Season_* 4 ノード、`World` を置き換え。接頭辞はファイル名。候補集合の差し替え。初期 policy は全 Generated。**既存 16 セルは全廃**（下節。移送しない）。identity → `SceneBase` の結線を名前文法から外す。**M-3 で着地した R-3 が修飾付き identity でも効くことを維持する。** スポーンを `(0,4)` へ移すのは N-1 と同スライス。**頭で 1 季節 9×6 だけ生成して生成器 1 回の実時間を測り、M を維持するか裁定する** |
-| S-5 | トンネルと季節遷移 | §5 の契約。N-3 の内装はここで実測 |
-| S-6 | 1 変奏 = 1 Addressables グループ | Tunnel と共有 Lit / Primitive は専用季節グループに入れない |
-| S-7 | 1 変奏 = 1 Variant タグ + 未チェックアウト経路 | §20 の既存機構にデータを流す。新機構なし |
+| S-5 | トンネルと季節遷移 | §5 の契約。N-3 の内装はここで実測。1 Player で四季を持つか、`all-full` 起動か複数登録かは S-5 の A0 |
+| S-6 | 廃止（WCD） | 1 変奏 = 1 Addressables グループは現行契約にない。Content Directory の contentSet 選択が担う |
+| S-7 | 廃止（WCD） | 未チェックアウト経路は DIST。部分 Checkout 再燃は Architecture §20 どおり未所有 |
 | S-8a | 春の演奏レイヤ | 線沿い + 見証。ここで 4 動詞は出荷可能。`HandEditProbe` とスキャフォールド宣言の退役は春で開始してよい |
 | S-9 | Streaming の計測と撤退判断（下記 S-9a〜c） | 純政策ベンチマーク → 変奏 II 背コリドーで §21 T-07〜T-09 → 結果に基づく最適化・撤退判断。y=4 未昇格を確認してから S-9b を測る。それまで T-07〜T-09 凍結 |
 | S-8b〜d | 夏・秋・冬の演奏レイヤ | 品質バー W-7。動詞の証明条件ではない |
@@ -299,8 +299,8 @@ S-4b で Season_* 4ノードが `World` を置き換え、全セルに Environme
 | W-2 | identity 重複 0 | SceneResourceMap 生成時の Duplicate 警告 0 |
 | W-3 | 遷移の排他 | 旧季節の in-flight 0 → 新季節 Add。重畳 0。同時に Stable な `Season_*` は 1 つ。desired が完全に入れ替わる |
 | W-4 | 編集が消えない | 生成器 2 回のあと、昇格済み stamp 全生存（Environment 増加分含む）。**判定は S-8a 以降**（S-4 時点は昇格 0 なので空振りする） |
-| W-5 | 単独ビルド | 1 季節リビルドで他 3 季節バンドルのハッシュ不変。見証の頂きが変わる。共有 Lit は季節グループ外 |
-| W-6 | 単独チェックアウト | ローカル欠落季節がリモート解決 or 明示失敗 + 旧季節復帰 |
+| W-5 | 単独ビルド | 選んだ contentSet の再 build が別 identity の公開 directory を書き換えない。グループ単位ハッシュ不変は主張しない |
+| W-6 | 取得済み content からの実行 | 検証済み installed revision だけを登録。欠損はリモートカタログで埋めない。含まれない季節は明示失敗（S-5 / D-5） |
 | W-7 | 品質バー | §2 の 4 項目を人が目視（自動化しない）。S-8a 時点では春について見る。全変奏は S-8d |
 | W-8 | 計測 | S-9a の 1,000 / 10,000 候補で control-plane 予算内。S-9b の変奏 II 背コリドーで §21 A-1〜A-5と着手時 HANDOFF の数値予算を満たす。実コンテンツ計測中の desired はすべて Generated。workload manifest と S-9c の判断記録がある |
 | W-9 | 空間の口 | 完了済み M-1〜M-4 の境界を維持し、名前から座標を復元して desired を組んでいない。修飾付き候補にも R-3 が効く |
