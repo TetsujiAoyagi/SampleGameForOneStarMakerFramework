@@ -251,10 +251,10 @@ managed pair は legacy `content:directoryPath` より優先して検証する�
 RET 完了後も次は残る。本書の通常手順にはしない。
 
 - ADDR-RETIRE: Addressables package と serialized `AssetReference` の全廃は未確認。残存 owner は冒頭の表。WorldCompanion の Addressables 登録と flake、Player の `DoNotBuildWithPlayer` を含む。衛生スライスと混ぜない。
-- ADDR-HYGIENE: Active Player DataBuilder がまだ `VariantFilteringBuildScript`。`TryLoadRemoteCatalogAsync` は呼び出し切断済みの死コード。retired メニュー / CLI / batch / DataBuilder / settings 反射の試験はメニュー 4 つ以外が未証明。`CompleteContentDirectoryPlayStopAsync` は参照 0 でも削除しない。本スライスは settings mutation をしない。
-- 配信運用拡張（signing、latest channel、CDN、delta/resume）は DIST v1 に含めない。同一 directory 内の季節グループ単位ハッシュ不変もここに含まれ、WCD は主張しない。
+- ADDR-HYGIENE: Active Player DataBuilder がまだ `VariantFilteringBuildScript`。`TryLoadRemoteCatalogAsync` は呼び出し切断済みの死コード。retired メニュー / CLI / batch / DataBuilder / settings 反射の試験はメニュー 4 つ以外が未証明。`CompleteContentDirectoryPlayStopAsync` は参照 0 でも削除しない。settings mutation は衛生スライスの仕事であり、未着手。
+- 配信運用拡張（signing、latest channel、CDN、delta/resume）は DIST v1 に含めない。同一 directory 内の季節グループ単位ハッシュ不変もここに含まれ、現行契約では主張しない。
 - 非 Scene Description / Mesh は実需要が出た種別だけの専用 slice。
 - 部分 Checkout 開発の再燃は未所有。世界計画の S-7 実装スライスは廃止し、通常の未取得実行は DIST が担う。
-- 1 Player で四季を持つか、`all-full` 起動か複数 directory 登録かは S-5 の A0。WCD は切らない。
+- 1 Player で四季を持つか、`all-full` 起動か複数 directory 登録かは S-5 の A0。
 
 > 注: 旧「17. Variant BuildScript レビュー」はファイル未保存のまま失われたため欠番。whitelist BuildScript の設計判断は実装（`Editor/Build/Variants/`）と本書の在庫表を正とする。
