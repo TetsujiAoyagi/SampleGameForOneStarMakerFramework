@@ -34,12 +34,13 @@
 複数スライスに跨る計画（構図の正本、空間プロトコルの Plan など）も作業台に置いてよい。ただし harvest 先と期限を本文に書くこと。作業指示だけに限らない。
 §7 / §8 を持たない長期計画は検査3 の網に掛からない。harvest 期限を本文に書くこと。
 
-**いま `docs/handoff/` にある進行中正本は 4 つである。**
+**いま `docs/handoff/` にある進行中正本は 5 つである。**
 
 | ファイル | 役割 | 実装キューか |
 |---|---|---|
-| `SEASON_WORLD_DESIGN.md` | 世界構図・実証・スライス順序 | 着手時 HANDOFF を切るまでの正本。スライス表の順で切る |
-| `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b 完了。S-4c〜d 着手時 HANDOFF の入力正本。S-4d の Phase D で harvest して削除する |
+| `SEASON_WORLD_DESIGN.md` | 世界構図・実証・スライス順序 | 着手時 HANDOFF を切るまでの正本。スライス表の順で切る。W-5 / W-6 / S-6 / S-7 の Addressables 語彙は WCD が所有する |
+| `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b 完了。S-4c は WCD の M2 を満たしてから着手する。S-4d の Phase D で harvest して削除する |
+| `WCD_WORLD_PROOF_REBASE.md` | RET 後の世界証明（W-5 / W-6 / S-6 / S-7）を Content Directory + DIST へ載せ替える計画スライス | A0 固定。A1 未着手。実装キューではない。U1 が要実装なら後続を切る |
 | `REVIEW_WORKFLOW_EFFICIENCY.md` | 外部モデルレビューの実測と、次のPhase Cで残す比較項目 | いいえ。普遍契約はSkillへharvest済み。残る実測後に削除する |
 | `REVIEW_WORKFLOW_EFFICIENCY_ASSESSMENT.md` | 上記への独立評価（Claude / Grok）と採否記録 | いいえ。次のPhase Cで残る仮説を検証後、調査記録ごと削除する |
 
