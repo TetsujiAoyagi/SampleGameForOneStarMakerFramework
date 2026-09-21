@@ -3,12 +3,12 @@
 ## 0. メタデータ
 
 - type: slice
-- status: A（A0 固定。A1 未着手）
+- status: A（A1 初稿。A2 未着手）
 - branch: `cursor/wcd-world-proof-a0-c6d7`
 - implementation base commit: `23b1098e6b9c1d9b04543d2cdabfe3f0a82cffcb`
-- implementation head commit: （未到達。A0 は計画パケットのみ）
+- implementation head commit: （未到達。B が文書差分を出したとき）
 - risk: high（世界の証明表、後続スライス所有、Addressables 残面、build identity に触れる）
-- owner: WCD 主担当。A0 は本セッション
+- owner: WCD 主担当。A0 / A1 は本セッション
 - created: 2026-09-21
 - expires: 本スライス Phase D。2026-10-21 に未マージなら再確認
 - harvest to: `docs/handoff/SEASON_WORLD_DESIGN.md`、`docs/handoff/S-4_FULL_SPEC_WORLD_AUTHORING.md`、偽と確定した公開面だけ `docs/GOALS_AND_STRENGTHS.md` / Architecture §13 / §18 / §20 §9 / `docs/README.md`。未実装の新契約を公開面へ移さない
@@ -103,7 +103,7 @@ RET 発見レビューが後続へ送った残件（指摘 1 の lease 逆転は
 - 旧 Addressables checkout / Hybrid / remote catalog は通常入口ではない。残ファイルを参照 0 だけで削除しない。
 - Unity テストと Content Directory build は Phase C。A0 は実行しない。
 
-### 未決事項（A0 は選ばない）
+### 未決事項（A0 は選ばない。A1 採否は §2）
 
 | # | 論点 | 閉じる loc |
 |---|---|---|
@@ -115,53 +115,147 @@ RET 発見レビューが後続へ送った残件（指摘 1 の lease 逆転は
 
 ## 2. 意思決定と受け入れ境界
 
-- このスライスが答える問い: 上記 §1。一つの問いであり、Lighting や package 全廃と束ねない。
-- 進める最低条件:
-  - M1: W-5 / W-6 / S-6 / S-7 が、現行 Content Directory + DIST の言葉で書き換えられるか、所有未定の後続へ明示降格される。Addressables グループ / リモートカタログを通常入口として残さない。
-  - M2: S-4c の着手条件から Addressables グループ前提を外す。S-4c に本スライスの残件、package 全廃、季節 partition 実装を混ぜない。
-  - M3: RET 後続 1（DataBuilder 残置）の owner を名前付き後続へ移す。2（死コード）と 4（試験範囲）も同じ後続か、別の名前付き後続へ移す。3 は削除しない。
-  - M4: RET 後にすでに偽である公開面の主張を列挙し、本スライス harvest か後続かを分ける。偽のまま「今真」として残さない判断を A1 が書く。
-  - M5: A1 が U1〜U5 を採否する。A0 の競合する読みを、根拠なしに 1 つへ畳まない。
-- 受け入れ条件: A1 が M1〜M5 の観測可能な詳細を書く。A0 は別の完了バーを作らない。
-- ここでは答えない問いと所有する後続:
-  - Addressables package 全廃 → `§20` 後続（仮称 ADDR-RETIRE）。残存 owner は冒頭の表。
-  - DataBuilder 残置、死コード、メニュー試験 → 仮称 ADDR-HYGIENE。A1 が ADDR-RETIRE へ折るか分ける。
-  - 新しい季節 partition の実装 → A1 が U1=要実装と判定したときだけ切る。仮称 CD-SEASON-PARTITION。本スライスでは切らない。
-  - 部分 Checkout 開発の再燃 → `§20` は未所有のまま。A1 が W-6 を DIST 読み替えにしたら、再燃は別問として未所有を維持する。
-  - S-4c Lighting / RenderEnvironment → 既存 `S-4_FULL_SPEC_WORLD_AUTHORING.md`。本スライス GO のあと着手してよい。
-  - S-5 / S-8 / S-9、配信運用拡張、非 Scene Description → 既存世界計画と `§20` 後続。
-- 判定定義: A3 凍結後の本スライスは、M1〜M5 を世界計画と作業台表へ書いたら GO。実装未着手は NO-GO ではない。U1 が要実装でも、後続スライスを切って本スライスを終われる。CONDITIONAL ACCEPT は使わない。
-- 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ終了する。最低条件未達のまま終了しない。新しい不確実性は後続へ送る。
+- このスライスが答える問い: §1。一つの問いであり、Lighting や package 全廃と束ねない。
+- A1 の答え: **現行の contentSet / revision / 単一 directory 契約で主張できる。世界計画と偽になった公開面の文面を直す。新しい partition backend は切らない。W-5 / W-6 は降格しない。**
+
+### A1 採否（U1〜U5）
+
+根拠は現行メニューと公開契約であり、旧 Addressables グループの形を残すための最安解ではない。
+
+**U1 = 案 1（読み替え）。案 2（降格）と案 3（新 partition）は不採用。**
+
+- 現行入口は `all-full` / `spring-full` / `spring-whitebox` / `spring-full-whitebox`。公開先は build identity ごとの directory。同じ target/contentSet の workspace は再利用するが、成功成果物は identity 別に残る。
+- 「1 季節だけリビルド」は `Build Spring Full` で既にできる。その build は `all-full` の公開 directory を出力先にしない。
+- 捨てる旧主張: 1 つの Addressables カタログ内で 4 季節グループのハッシュが独立する。共有 Lit / Primitive / Tunnel を Common グループへ逃がす。これは現行 CD に無い。同じ意味を backend で再現するのは新 partition であり、今の問いの成立に不要。
+- 降格しない理由: 部分的作業空間は GOALS の 5 問の 1 つで、RET 後に対応物が空になると Framework の主張が死ぬ。現行契約で言い直せる。
+- 送る問い（S-5）: session は process あたり directory 1 つ（`ContentRevisionGate`「already registered in this process」）。`spring-full` だけでは夏へ遷移できない。S-5 が 1 Player で四季を持つなら `all-full` 相当を起動条件にするか、複数登録 / partition をその A0 で切る。WCD は先回りしない。
+- 他季節の単独 Content build メニュー（Summer Full 等）は無い。選択 policy は四季を扱える。メニュー追加は SampleGame 入口の後続であり、CD-SEASON-PARTITION ではない。本スライスの完了条件にしない。
+
+**U2 = DIST 読み替え。部分 Checkout 再燃は未所有のまま。**
+
+- 手元に無い季節の source は `sourceFiles` の Missing / Changed。Framework は VCS checkout しない。
+- 実行は、その季節を含む検証済み revision があるときだけ。リモート Addressables カタログで欠損を埋めない。
+- 含まれない季節への遷移は明示失敗。失敗の出し方は S-5 が所有する。
+- S-7 実装スライスは廃止する。W-6 の文面と DIST が担う。`§20` の「部分 Checkout 開発の再燃は未所有」は維持する。sparse checkout + リモート補完は W-6 ではない。
+
+**U3 = 本スライス B で、下表の偽主張だけ harvest する。**
+
+今すでに偽で、この問いの「今真」に必要なものに限る。S-5 用の未決、§33 構図、未実装 partition は触らない。
+
+**U4 = 要実装ではない。CD-SEASON-PARTITION は切らない。**
+
+S-5 が「1 session のまま季節単位で独立 rebuild した成果物を差し込む」を要求したとき、その A0 の入力にする。WCD の後続としては予約しない。
+
+**U5 = ADDR-HYGIENE に分離。ADDR-RETIRE と混ぜない。**
+
+RET は「旧 BuildSystem 廃止」と「package 全廃」を分けた。DataBuilder 残置は Unity Packed Mode の警告経路で、`AssetReference` / WorldCompanion の残存 owner とは別の変更理由。ADDR-HYGIENE は DataBuilder index、`TryLoadRemoteCatalogAsync` 死コード、メニュー / CLI / 反射試験。`CompleteContentDirectoryPlayStopAsync` は削除しない。本スライス B で mutation しない。
+
+### 進める最低条件
+
+A0 の M1〜M5 を維持する。別の完了バーを足さない。
+
+### 受け入れ条件（M1〜M5 の観測可能な詳細）
+
+**M1** — `SEASON_WORLD_DESIGN.md` を次の文面へ置換する（意味を変えて言い換えない）。
+
+- W-5 単独ビルド: 1 つの contentSet は 1 回の選択である。現行入口は All Seasons Full / Spring Full / Spring Whitebox / Spring Full And Whitebox。その contentSet の再 build は、別 contentSet または別 build identity の公開 directory を書き換えない。同一 contentSet の成功成果物は identity ごとの公開先に残る。DIST は同じ revision の内容差し替えを拒否する。共有 Lit / Primitive / Tunnel は選択に含まれればその directory に入り、Addressables の Common グループとしては分けない。同一 directory 内の季節グループ単位ハッシュ不変は現行契約にない。
+- W-6 行の名前は「取得済み content からの実行」にする。DIST が検証した installed revision だけを登録する。sourceFiles の Missing / Changed は編集可否の案内であり、リモート Addressables カタログから欠損を埋めて Play しない。その revision に含まれない季節への遷移は明示失敗とする（所有は S-5）。Framework は VCS checkout を代行しない。部分 Checkout + リモート補完は未所有。
+- スライス表の S-6 / S-7 は廃止し、「WCD。現行 Content build と DIST が担う」と書く。順序は `S-4c → S-4d → S-5 → S-8a → S-9 → S-8b〜d`。
+- 検証マトリクスの実現手段列から Addressables グループ / リモートカタログを通常手段として残さない。
+- 構図、座標、216 Cell、品質バー、S-5 トンネル契約の本文は変えない。
+
+**M2** — `S-4_FULL_SPEC_WORLD_AUTHORING.md`:
+
+- 対象外の「S-6 の 1 季節 1 Addressables group」「S-7 の季節別 checkout / remote catalog」を、「W-5 / W-6 は WCD が文面を所有。S-6 / S-7 実装スライスは廃止。季節 partition と部分 Checkout 再燃は対象外」へ置換する。
+- 順序 `S-4a -> S-4b -> S-4c -> S-4d -> S-5` のあとに S-6 / S-7 を必須工程として残さない。
+- S-4c の公開 API・検証方針に Addressables グループ再編を足さない。Lighting / VFX の本文は変えない。
+
+**M3** — Architecture `20-variant-checkout-workflow.md` §9:
+
+- ADDR-HYGIENE を名前付き後続にする。対象は Active Player DataBuilder の `VariantFilteringBuildScript` 残置、`TryLoadRemoteCatalogAsync` 死コード、retired メニュー / CLI / batch / DataBuilder / settings 反射試験。
+- `CompleteContentDirectoryPlayStopAsync` は参照 0 でも削除しないと書く。
+- ADDR-RETIRE は package / serialized `AssetReference` / WorldCompanion / `DoNotBuildWithPlayer` のまま。HYGIENE と混ぜないと書く。
+- 「部分 Checkout 開発の再燃は未所有」を残す。世界計画 S-7 との食い違いは「S-7 廃止」で解消する。
+
+**M4** — 本スライス B が直す公開面（これ以外の harvest を B で増やさない）:
+
+| 箇所 | 今の偽 | 置換 |
+|---|---|---|
+| `docs/GOALS_AND_STRENGTHS.md` §1 行 4 | Variant / Checkout、Hybrid Play | Content Directory の選択 build、DIST の取得済み revision、どの Scene からでも Play。旧 Hybrid / リモートカタログは通常入口ではない |
+| 同 2.1 箇条 | アセットは Addressables 経由を正 | 通常経路は Content Directory。Addressables は互換 backend |
+| 同 2.4 | 「なぜ Addressables を正とするか」を現行の決定として並べる | 旧通常経路は Addressables。再評価して通常を Content Directory にした、と現況にする。手動 DI と WorldPartition の却下記録は残す |
+| Architecture §13「既定の Addressables backend は残る」 | 通常 Play が directory なのに既定と読める | 通常 Play は directory。Addressables backend は明示互換口として残る |
+| Architecture §18 第二用途段落 | リモートカタログ workflow が実装済みの通常開発手順 | 第二用途の意図（Variant を手元範囲のタグにする）は残す。実行の通常入口は DIST の installed revision。リモート Addressables ストリーミングは旧経路。詳細は §20 |
+
+`unity/Assets/README.md` の AssetManagement / Content Directory 節は RET 後の現況と一致している。B で触らない。未実装の季節 partition をどの公開面にも実装済みと書かない。
+
+**M5** — 本節の U1〜U5 採否が A3 で凍結される。A2 は同じこの版を見る。
+
+### ここでは答えない問いと所有する後続
+
+- ADDR-RETIRE: package 全廃。残存 owner は §20 冒頭。
+- ADDR-HYGIENE: U5。本スライスのあと、S-4c と並行して切ってよい。S-4c の blocker ではない。
+- 部分 Checkout 再燃: 未所有。
+- 他季節の単独 Content build メニュー: SampleGame 入口の後続。Framework 契約ではない。
+- 複数 directory 登録 / 季節 partition: S-5 の A0 が必要と書いたときだけ。WCD は切らない。
+- S-4c Lighting / RenderEnvironment: 本スライス GO のあと着手してよい。
+- S-5 / S-8 / S-9、配信運用拡張、非 Scene Description: 既存世界計画と §20 後続。
+
+### 判定定義
+
+A3 凍結後、M1〜M5 の文面が作業台と指定公開面に入ったら GO。Unity コード差分が無いことは NO-GO ではない。CONDITIONAL ACCEPT は使わない。
+
+### 停止規則
+
+進める最低条件を満たし、現在の問いに致命的な反証がなければ終了する。最低条件未達のまま終了しない。新しい不確実性は後続へ送る。
+
 - A3 後の例外承認: なし
-- 本文へ転記した実装制約: §1 制約。
-- 未決事項: §1 の U1〜U5。
+- 本文へ転記した実装制約: §1 制約。新公開 API / 所有者 / 寿命 / asmdef は不要。
+- 未決事項: A1 採否済み。A2 / A3 が覆すまで開かない。S-5 へ送った問いと未所有の再燃は未決ではなく後続。
 
 ## 3. 責務マップ
 
-A1 で書く。A0 はファイル配置を決めない。
+すべて文書。新しい型、asmdef、Scene / Prefab は置かない。変更理由は一つ（世界証明と公開現況を RET 後の通常入口へ揃える）。ファイルを分ける理由は層（作業台 program / 公開目標 / 公開 Architecture）であり、独立した設計判断を増やさない。
 
-想定する変更対象は作業台と、A1 が harvest すると書いた公開面だけである。新しい Runtime / Editor 型、asmdef、Scene / Prefab は A0 の対象にしない。
+| ファイル | 現在行 | 予想増分 | 責務 | 所有者・寿命 | 公開面 | テスト境界 | 分割 |
+|---|---|---|---|---|---|---|---|
+| `docs/handoff/WCD_WORLD_PROOF_REBASE.md` | 本パケット | A2/A3 記録 +40 以内 | スライス境界と採否 | 本スライス。Phase D で削除 | 作業台 | なし | 非分割。計画の正本 |
+| `docs/handoff/SEASON_WORLD_DESIGN.md` | 342 | +40 / −30 目安。50% 未満 | 世界の証明表とスライス順。構図は触らない | 世界 program。S-4d 以降も残る | 作業台 | grep: W-5/W-6 節に「Addressables グループ」「リモートカタログ」を通常手段として残さない | 非分割。同じ証明表 |
+| `docs/handoff/S-4_FULL_SPEC_WORLD_AUTHORING.md` | 386 | ±20 | S-4 対象外と順序だけ。Lighting/VFX は触らない | S-4 program | 作業台 | S-6/S-7 を必須工程として残していない | 非分割 |
+| `docs/README.md` | 66 | ±5 | 作業台表の WCD / S-4c 行 | 公開方針 | 公開 | 正本 5 件 | 非分割 |
+| `docs/GOALS_AND_STRENGTHS.md` | 126 | ±15 | 5 問の現況対応物 | 公開目標 | 公開 | 行 4 と 2.1 / 2.4 が directory 現況 | 非分割。目標宣言の 3 箇所だけ |
+| `unity/Assets/Docs/Architecture/13-resource-system.md` | 532 | ±8 | CD 段落の「既定 backend」誤読 | 公開 Architecture | 公開 | 当該文が「通常 Play は directory」 | 非分割。1 文 |
+| `unity/Assets/Docs/Architecture/18-asset-description.md` | 323 | ±20 | 第二用途を旧経路へ直す | 公開 Architecture | 公開 | 「実装済みの通常手順」としてリモートカタログを残さない | 非分割。1 段落 |
+| `unity/Assets/Docs/Architecture/20-variant-checkout-workflow.md` | 259 | ±25 | §9 の後続所有 | 公開 Architecture | 公開 | ADDR-HYGIENE / ADDR-RETIRE / 未所有再燃が分かれている | 非分割 |
+
+500 行を超える既存 §13 は、今回 +8 と 1 責務なので分割しない。3 責務混在は、層が違うファイルへ既に分かれている。
 
 ## 4. 実装計画
 
-A1 で書く。A0 の順序だけ固定する。
+1. A2 がこの A1 版だけを見る。ChatGPT は使わない。
+2. A3 で採否を凍結する。覆すなら Phase A revision。B に実装を入れない。
+3. B は §3 のファイルだけを直す。禁止語の機械 grep と `docs-audit` まで。Unity Editor / テスト / Content build は実行しない。
+4. 発見 C / 判定 C は文書差分。コードが無ければ全 EditMode 回帰は適用除外。
 
-1. A1 が M1〜M5 の詳細、U1〜U5 の採否案、変更ファイル一覧、テスト方針を書く。
-2. A2 は同じ A1 版を独立に見る。少なくとも 1 件は architecture-gates。ChatGPT は使わない。
-3. A3 で採否を凍結する。U1=要実装なら後続スライス名だけを本文へ残し、B に実装を入れない。
-4. B は凍結した世界計画の文面と、A3 が本スライス harvest とした公開面だけを直す。
-5. 発見 C / 判定 C は文書差分と `docs-audit`。Unity コードが無いなら全 EditMode 回帰は適用除外し、理由と代替証拠を A1 が書く。
+順序: 世界計画（M1）→ S-4 対象外（M2）→ §20 §9（M3）→ 公開 harvest（M4）→ README 表。
 
-Phase B から Phase A へ差し戻す条件: 新しい公開 API、所有者、寿命、asmdef、季節 partition、Addressables 設定 mutation が必要になったとき。
+Phase B から Phase A へ差し戻す条件: 新しい公開 API、所有者、寿命、asmdef、季節 partition、Addressables 設定 mutation、S-5 トンネル仕様の確定、Summer Full メニュー追加が「問いに答えるため必要」になったとき。
+
+対象外を維持する方法: B の diff に `.cs` / `.asset` / `.unity` を含めない。S-4c 本文と谷の構図を編集しない。
 
 ## 5. テストとレビュー計画
 
-- 単体テスト: A1。文書スライスならコードテストを必須にしない。
-- 差し戻し中の起点 filter: A1。
-- 判定必須テスト: A1。コード差分が無い場合の全 EditMode 適用除外は、理由と `docs-audit` を代替証拠として A1 が書く。
-- 機械検査: `pwsh tools/docs-audit.ps1`。コードを触ったら `pwsh tools/contract-audit.ps1` も必須。
-- A0 主担当・モデル・ベンダー: Cursor Grok 4.6 / 本セッション。OpenAI 系列は使っていない。
-- A2 / A3 / C / C': 未割当。A2 は ChatGPT を前提にしない。C' 用の未関与担当は A1 で予約し、A2 で全系統を使い切らない。
+- 単体テスト: なし。中核は文面契約であり、新しい実行ロジックが無い。
+- 差し戻し中の起点 filter: なし。文書 grep。
+- 判定必須: `pwsh tools/docs-audit.ps1`。次の禁止を作業台の W-5/W-6 節と GOALS の当該箇所から落とす: 通常手段としての「Addressables グループ」「リモートカタログから Play」。
+- 全 EditMode 回帰の適用除外: 本スライス B が Unity コードを変えない場合。理由は実行経路が変わらないこと。代替証拠は docs-audit と禁止語 grep、diff に `.cs` が無いこと。B がコードを触ったら除外を破棄し、空 filter の全 EditMode を判定必須に戻す。
+- 統合・Unity テスト: なし。
+- 機械検査: `docs-audit`。コードを触ったら `contract-audit` も必須。
+- A0 / A1 主担当・モデル・ベンダー: Cursor Grok 4.6 / 本セッション。OpenAI 系列は使っていない。
+- A2: 同じこの版。観点 1 は architecture-gates（新 API / partition / Game→FW / 層の越境）。観点 2 は世界計画と S-5 への漏れ（W-5 が 1 session 四季を黙って要求していないか）。ChatGPT は使わない。担当モデルは A2 開始時に選ぶ。
+- A3: 主担当が採否。人間の目的変更が無ければ program 委任内で凍結してよい。
+- C' 予約: 人間。AI にする場合は A2 / B / C 未使用の系列。A2 で全系統を使い切らない。
+- 独立性の強化条件: C' を人間にしたのでモデル相違は適用しない。A2 は B より前なので、B/C のモデルは未定のまま残す。
 
 ## 6. Phase B 実装結果
 
