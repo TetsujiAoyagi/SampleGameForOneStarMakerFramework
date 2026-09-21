@@ -1,7 +1,7 @@
 # S-4 フルスペック World 制作基盤
 
 > type: program
-> status: 発注者承認済み。S-4a / S-4b は develop へマージ済み。S-4c〜d 着手時 HANDOFF の入力正本。S-4b の現況は Architecture §18 / §21 / §27 と STREAMING_CURRENT_SPEC へ harvest 済み。
+> status: 発注者承認済み。S-4a / S-4b は develop へマージ済み。S-4c の実装 HANDOFF は `S-4c_WORLD_LIGHTING.md`。S-4d 着手時は本書と S-4c HANDOFF を入力にする。S-4b の現況は Architecture §18 / §21 / §27 と STREAMING_CURRENT_SPEC へ harvest 済み。
 > branch: `codex/s-4-full-spec-plan`
 > implementation base commit: `1502ffc`
 > risk: high
