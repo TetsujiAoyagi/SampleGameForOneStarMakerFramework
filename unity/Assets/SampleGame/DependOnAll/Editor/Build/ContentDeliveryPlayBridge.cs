@@ -21,8 +21,8 @@ namespace SampleGame.DependOnAll.Editor.Build
             if (EditorApplication.isPlayingOrWillChangePlaymode)
                 throw new InvalidOperationException("Content delivery settings cannot change during Play.");
 
-            // Prepare 後にも directory は外部から変更できる。環境変数を書き換える直前に
-            // root/digest/identity/contentSet を public consumer 境界で再検証する。
+            // Use For Next Play だけが次の Editor Play の verified pair になる。
+            // 未適用のままでは runtimeMode 未指定の fail-closed になり、known-good は読まない。
             var revisionRoot = Path.GetFullPath(root);
             var revisionDirectory = new DirectoryInfo(revisionRoot);
             var setDirectory = revisionDirectory.Parent;

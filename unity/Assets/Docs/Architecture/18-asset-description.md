@@ -176,10 +176,11 @@ Selection core は引き続き Unity / AssetDatabase / Addressables を参照し
 - AssetDatabase I/O は狭い gateway に隔離し、mapping・依存閉包の正規化とは責務を分ける。
   tag provider は snapshot 所有で、未知 candidate には空のタグ集合を返す。
 
-既存の `VariantWhitelistBuilder` と Addressables build 経路は変更していない。
-SampleGame の Editor 入口は本番の `SceneResourceMap` を materialize し、後述の project policy で選択して
-Content Directory build へ渡す。Runtime の directory 管理は BS3、Player build と bootstrap は BS4 で
-実装済みである。
+既存の `VariantWhitelistBuilder` と Addressables build 経路は通常入口から切断した。メニューと CLI は
+置換案内のみで group mutation を実行しない。SampleGame の Editor 入口は本番の `SceneResourceMap` を
+materialize し、後述の project policy で選択して Content Directory build へ渡す。季節 policy のあと
+bootstrap Scene と SceneResourceMap を compose する。Runtime の directory 管理は BS3、Player build と
+Player bootstrap は BS4、配信は DIST で実装済みである。
 materialization や Editor build の成功だけをこれらの成立と同一視しない。
 `FindDependency` の lookup key は canonical lowercase GUID を渡す契約である。
 
@@ -223,10 +224,14 @@ materialization を Runtime で再実行しない。
 明示 close では live resource の解放を待ってから unregister する。同一 process の
 revision 削除は `ContentRevisionGate.TryAcquireDelete` の lease を必要とする。
 
-Editor Play と専用 directory Player は AppConfig の `content:runtimeMode=directory` を明示したときだけ
-この経路を使い、起動時に一度選んだ表現を Scene lifecycle に渡す。通常起動の既定は Addressables。
+Editor Play は Delivery の verified pair、または明示 `content:runtimeMode=directory` で
+この経路を使い、起動時に一度選んだ表現を Scene lifecycle に渡す。未指定は pair が無ければ失敗する。
+明示 `addressables` だけが Addressables 互換口である。
 directory path、build identity、representation の欠損や不整合は起動失敗であり、
-Addressables へ暗黙 fallback しない。directory Player は build transaction が生成した bootstrap Scene、
+Addressables へ暗黙 fallback しない。SampleGame の Content build は季節選択のあと、UICommon Scene と
+SceneResourceMap を bootstrap content entry として同じ directory に合成する。DIST の transport
+`files` 規則と install レイアウトは変えない。
+directory Player は build transaction が生成した bootstrap Scene、
 graph metadata、runtime config を使い、対応 Content BuildReport directory を Player build へ渡す。
 Player Scene は bootstrap 一件に固定し、選択済み content root GUID の packed assets 混入を拒否する。
 publish 後の shipping tree は content root 一件だけを持ち、Unity の backup directory は除外する。

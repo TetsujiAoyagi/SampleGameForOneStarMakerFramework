@@ -28,42 +28,9 @@ namespace OneStarMaker.Editor.Build
         [MenuItem("OneStarMaker/Addressables/Register Hybrid Play Mode Script")]
         public static void Register()
         {
-            var settings = AddressableAssetSettingsDefaultObject.Settings;
-            if (settings == null)
-            {
-                Debug.LogError(
-                    "[VariantHybridPlayModeRegistrar] AddressableAssetSettings が見つかりません。" +
-                    "Addressables グループを作成してから再度実行してください。");
-                return;
-            }
-
-            if (settings.DataBuilders.Any(builder => builder is VariantHybridPlayModeScript))
-            {
-                Debug.Log(
-                    "[VariantHybridPlayModeRegistrar] VariantHybridPlayModeScript は既に DataBuilders に登録済みです。");
-                return;
-            }
-
-            EnsureDataBuildersFolderExists();
-
-            var builder = ScriptableObject.CreateInstance<VariantHybridPlayModeScript>();
-            AssetDatabase.CreateAsset(builder, BuilderAssetPath);
-            AssetDatabase.SaveAssets();
-
-            if (!settings.AddDataBuilder(builder))
-            {
-                settings.DataBuilders.Add(builder);
-                settings.SetDirty(
-                    AddressableAssetSettings.ModificationEvent.BatchModification,
-                    builder,
-                    postEvent: true,
-                    settingsModified: true);
-            }
-
-            Debug.Log(
-                "[VariantHybridPlayModeRegistrar] Variant Hybrid Play Mode Script を登録しました。\n" +
-                "Addressables Settings の Play Mode Script ドロップダウンから " +
-                "'Variant Hybrid Play Mode Script' を選択してください。");
+            Debug.LogWarning(
+                "[VariantHybridPlayModeRegistrar] Hybrid Play Mode registration is retired. " +
+                "Use Tools/OSM/Content Delivery Use For Next Play. Addressables DataBuilders are not mutated.");
         }
 
         /// <summary>

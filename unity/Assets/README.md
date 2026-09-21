@@ -18,7 +18,7 @@
 | Reactive | **R3 1.3.0** + ObservableCollections |
 | Tween | **LitMotion** |
 | Logging | **ZLogger 2.5.10** + **Microsoft.Extensions.Logging**（`ILogger<T>` / `ILoggerFactory`） |
-| Asset Management | **Addressables 2.9.1** |
+| Asset Management | **Content Directory（通常）** + **Addressables 2.11.2**（互換 backend / 残存 owner） |
 | UI | **uGUI**（Phase 4 で UI Toolkit 段階移行予定） |
 | Input | **Unity InputSystem** |
 | NuGet | **NuGetForUnity** |
@@ -53,7 +53,7 @@ Assets/
 │       └── Build/
 │           ├── Selection/       … OneStarMaker.Build.Selection (Editor-only pure leaf)
 │           ├── Materialization/ … OneStarMaker.Build.Materialization (Editor-only adapter)
-│           └── その他           … OneStarMaker.Editor。Variant / AssetDescription / Addressables 同期
+│           └── その他           … OneStarMaker.Editor。Content build / Delivery / 旧 Addressables 案内
 ├── OneStarMaker/Tests/          ← Tests / Tests.Editor asmdef
 │   └── Scene, AssetManagement, UpdateSystem, Build のテスト
 │
@@ -132,10 +132,12 @@ Microsoft.Extensions.Configuration 互換のキー形式（`:` 区切り）。
 OTel 互換の TraceId/SpanId を持つ軽量スパン計測。JSONL ファイル出力 + DebugSocket 経由で外部ツール DebugStudio（`tools/DebugStudio`）へストリーム。詳細は [12-telemetry.md](Docs/Architecture/12-telemetry.md)。
 
 ### AssetManagement（アセット管理）
-Addressables を `IAssetManagement` / `IAssetBackend` で隠蔽。LFU + 時間減衰の常駐キャッシュ `AssetResidentCache`（AssetType 別バジェット）を内蔵。詳細は [13-resource-system.md](Docs/Architecture/13-resource-system.md)。
+通常経路は Content Directory。Addressables は `IAssetManagement` / `IAssetBackend` の互換口として残る。
+LFU + 時間減衰の常駐キャッシュ `AssetResidentCache`（AssetType 別バジェット）を内蔵。詳細は [13-resource-system.md](Docs/Architecture/13-resource-system.md)。
 
-### Variant ビルド / チェックアウトワークフロー（Editor ツール）
-Variant タグによる whitelist ビルド、部分チェックアウト + ローカル/リモート Addressables ハイブリッド解決。詳細は [20-variant-checkout-workflow.md](Docs/Architecture/20-variant-checkout-workflow.md)。
+### Content Directory / Delivery（Editor ツール）
+季節選択の Content Directory build、DIST Delivery の verified install、directory Play、BS4 Player が通常入口。
+旧 Hybrid / Remote / Variant Player overlay は案内のみ。詳細は [20-variant-checkout-workflow.md](Docs/Architecture/20-variant-checkout-workflow.md)。
 
 ### UpdateSystem（フレームスケジューラ）
 MonoBehaviour.Update によらない更新基盤（Layer / Coordinator / Job System バックエンド）。正本仕様は `docs/updater/UPDATER_CURRENT_SPEC.md`（リポジトリルート）。
@@ -153,7 +155,7 @@ MonoBehaviour.Update によらない更新基盤（Layer / Coordinator / Job Sys
 
 **Phase 3 実装済み:** `AppInitializer`, `GameSceneFactory`, `NullLoadingDisplay`, `TitleScene`
 
-**フェーズ表の枠外で完了した追加実装:** テレメトリ v2 + DebugSocket / DebugStudio 連携、AssetManagement + AssetResidentCache、UpdateSystem、Variant ビルド / チェックアウトワークフロー（詳細は [ARCHITECTURE.md](ARCHITECTURE.md) の開発フェーズ欄を参照）
+**フェーズ表の枠外で完了した追加実装:** テレメトリ v2 + DebugSocket / DebugStudio 連携、AssetManagement + AssetResidentCache、UpdateSystem、Content Directory / DIST Delivery（詳細は [ARCHITECTURE.md](ARCHITECTURE.md) の開発フェーズ欄を参照）
 
 ---
 
@@ -186,4 +188,4 @@ MonoBehaviour.Update によらない更新基盤（Layer / Coordinator / Job Sys
 
 1. Unity 6.6 (6000.6.0f1) で **`unity/`** フォルダを開く
 2. NuGetForUnity が自動で NuGet パッケージを復元する
-3. Addressables は Variant ビルドシステムで構成済み（whitelist ビルド / ハイブリッド Play Mode。手順は [20-variant-checkout-workflow.md](Docs/Architecture/20-variant-checkout-workflow.md)）
+3. 通常 Play は **Tools > OSM > Content** で Content Directory を作り、Delivery で **Use For Next Play** する。Addressables package は互換口として残る。旧 Hybrid / Remote メニューは案内のみ。手順は [20-variant-checkout-workflow.md](Docs/Architecture/20-variant-checkout-workflow.md)

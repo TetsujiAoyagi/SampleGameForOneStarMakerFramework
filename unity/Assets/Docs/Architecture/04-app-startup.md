@@ -88,8 +88,8 @@ Play Mode 終了時は Unity が先に Scene を解体する。そのあとで `
 Initializer.ReleaseAll()
   ├── cancel CTS / stop services
   ├── SceneDirector.Dispose()       … 論理 Scene 台帳と SceneBase のみ破棄（AM Unload は呼ばない）
-  ├── AssetManagement.ReleaseAll()  … 未 Unload Scene を台帳上 MarkUnloaded + 全アセットを同期解放
-  │                                   （Addressables Scene Unload は呼ばない）
+  ├── AssetManagement.ReleaseAll()  … directory Scene は token だけ返す。Addressables Scene Unload も native UnloadSceneAsync も呼ばない
+  ├── CompleteContentDirectoryPlayStop() … 受付停止、cache 退避、unregister、OS read lease 解放。UniTask.GetResult は使わない
   ├── UICommon 等の残存 GO 破棄
   └── AppTelemetry.Shutdown()
 ```
@@ -170,11 +170,14 @@ public static Config CreateSettings()
 
 ### UniTask の同期待ちが必要な場合は `.GetAwaiter().GetResult()` を使う
 
+完了済みの UniTask に対してだけ使う。未完了の UniTask で `GetResult` すると throw する（`Task.Result` のような完了待ちではない）。
+Play 停止の directory drain は PlayerLoop 待ちを含むので、`GetResult` せず同期の `CompleteContentDirectoryPlayStop` で閉じる。
+
 ```csharp
 // ✗ バグ: 待てていない（Awaiter を取得して捨てているだけ）
 host.StartServicesAsync(token).GetAwaiter();
 
-// ✓ 同期的に完了を待つ
+// ✓ 同期的に完了を待つ（完了済み、または完了まで PlayerLoop を必要としない場合）
 host.StartServicesAsync(token).GetAwaiter().GetResult();
 
 // ✓ 完了を待たない場合は明示的に Forget
@@ -296,8 +299,8 @@ protected override string GetEnvironmentVariablePrefix() => "MYAPP_";
 
 ### Content Directory の起動時選択
 
-`content:runtimeMode` は未指定または `addressables` が既定で、既存の起動経路を保つ。
-`directory` は Editor Play と、専用 runtime config を組み込んだ directory Player の明示経路である。
+`content:runtimeMode` 未指定の Editor Play は Delivery「Use For Next Play」の verified installed pair が無ければ BeforeSceneLoad で失敗する。pair があれば directory。明示 `addressables` だけが Addressables 互換口。未知 mode は失敗する。known-good の自動適用はしない。app-config の未指定を directory に書き換えない。
+`directory` は Editor Play（verified pair または明示 directoryPath）と、専用 runtime config を組み込んだ directory Player の経路である。
 未知 mode、必須値の欠損、不一致は起動失敗とし、Addressables へ暗黙 fallback しない。
 BeforeSceneLoad で失敗した起動回は AfterSceneLoad を開始しない。
 
@@ -310,11 +313,13 @@ Editor Play は明示された install result の identity と digest を使う�
 installed override は receipt、受信した transport manifest bytes の digest、contentSet、revision、target、
 全 content files を照合してから登録する。target は `StandaloneWindows64-Player` に固定する。
 
-directory session は AfterSceneLoad の SceneDirector 構築前に登録する。起動時に選んだ
-representation は Scene lifecycle の間固定する。通常の Editor / Player は UI/config/SceneResourceMap を
-Addressables から取得する。directory Player は生成した `UICommon` bootstrap Scene と graph metadata、
+directory session は AfterSceneLoad で UICommon / SceneResourceMap より先に登録する。起動時に選んだ
+representation は Scene lifecycle の間固定する。通常の Editor directory Play は UICommon Scene と
+SceneResourceMap を Content Directory の bootstrap entry（SampleGame 固定 logical key）から読む。
+明示 `addressables` の互換起動だけが Addressables から UI/config/SceneResourceMap を取得する。
+directory Player は生成した `UICommon` bootstrap Scene と graph metadata、
 `StreamingAssets/bs4-runtime.json` を使い、対応する local content directory を登録して論理初回 Scene を
-ロードする。この mode は生成 bootstrap Scene の runtime 名と Player 実行で latch し、環境変数や
+ロードする。この Player mode は生成 bootstrap Scene の runtime 名と Player 実行で latch し、環境変数や
 command line だけでは有効にならない。
 
 事前検証の結果は利用 lease ではない。directory session は登録 reservation を取得した後に
@@ -345,9 +350,9 @@ JSON `assets:sceneVariant`  <  環境変数  <  コマンドライン
 
 - key 欠落時は空文字。trim や大小文字変換はしない。
 - Player は AppConfig だけを読む。Editor resolver をコンパイルしない。
-- Editor では active `BuildVariantProfile.SceneVariant` が config より優先する。`SceneVariantRuntimeBridge.EditorSceneVariantResolver` の戻り値 `null` は active profile なし（config へ戻る）、`""` は Production profile の明示選択。この二つを混ぜない。
-- Player build 中、`VariantPlayerBuild` は active profile の Scene Variant を `app-config.json` の同 key へ一時 upsert する（最低優先の JSON 値）。元ファイルは `byte[]` で退避し、成否や例外にかかわらず `finally` で byte-for-byte 復元する。制御文字は JSON escape する。
-- 空でない `BuildVariantProfile.SceneVariant` は、同 profile の whitelist に ordinal 完全一致で含まれなければ settings / Editor startup / Player build を失敗させる。不整合を default へ隠さない。
+- Editor では active `BuildVariantProfile.SceneVariant` が config より優先する。`SceneVariantRuntimeBridge.EditorSceneVariantResolver` の戻り値 `null` は active profile なし（config へ戻る）、`""` は Production profile の明示選択。この二つを混ぜない。directory Play の representation は `content:representation` だけを使い、profile SceneVariant を暗黙入力しない。
+- Player の通常経路は BS4 coordinator。旧 `VariantPlayerBuild` メニューは案内のみで `app-config.json` を書き換えない。
+- 空でない `BuildVariantProfile.SceneVariant` は、同 profile の whitelist に ordinal 完全一致で含まれなければ settings / Editor startup を失敗させる。不整合を default へ隠さない。
 
 `Production.asset` の Scene Variant は空、whitelist に Whitebox を含めない。`WorldWhitebox.asset` は Scene Variant `Whitebox`、whitelist は `""` と `"Whitebox"`。
 

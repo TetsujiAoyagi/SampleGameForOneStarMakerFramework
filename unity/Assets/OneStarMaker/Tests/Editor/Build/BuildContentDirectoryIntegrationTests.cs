@@ -16,6 +16,7 @@ using OneStarMaker.Build.Selection;
 using OneStarMaker.Editor.Build.Content;
 using OneStarMaker.Editor.Build.Materialization;
 using OneStarMaker.Runtime;
+using SampleGame.DependOnAll.Editor.Build;
 using OneStarMaker.Runtime.BuildContent;
 using OneStarMaker.Runtime.BuildContent.Distribution;
 using OneStarMaker.Runtime.AssetManagement;
@@ -143,10 +144,23 @@ namespace OneStarMaker.Tests.Editor.Build
                         new KeyValuePair<string, IEnumerable<string>>("Representation", new[] { "High", "Low", "Excluded" })
                     }), snapshot.Requirements));
                 Assert.That(selection.IsSuccess, Is.True);
+                // 2回目 Play は実 AppInitializer の directory 起動なので、本番と同じ bootstrap を合成する。
+                var bootstrapIssues = new List<BuildMaterializationIssue>();
+                var bootstrapBuilder = new AssetDependencySnapshotBuilder(new UnityAssetDatabaseGateway());
+                var uiGuid = AssetDatabase.AssetPathToGUID(SampleGameBootstrapContentComposer.UiCommonPath).ToLowerInvariant();
+                var mapGuid = AssetDatabase.AssetPathToGUID(SampleGameBootstrapContentComposer.SceneResourceMapPath).ToLowerInvariant();
+                var uiClosure = bootstrapBuilder.Build(uiGuid, SampleGameBootstrapContentComposer.UiCommonLogicalKey, bootstrapIssues);
+                var mapClosure = bootstrapBuilder.Build(mapGuid, SampleGameBootstrapContentComposer.SceneResourceMapLogicalKey, bootstrapIssues);
+                Assert.That(bootstrapIssues, Is.Empty);
+                Assert.That(uiClosure, Is.Not.Null);
+                Assert.That(mapClosure, Is.Not.Null);
+                var bootstrap = SampleGameBootstrapContentComposer.Compose(
+                    selection.Plan!, snapshot, uiGuid, uiClosure!, mapGuid, mapClosure!);
+                snapshot = bootstrap.Snapshot;
                 // 実 build の生成物はこのテスト専用領域へ置き、過去の検証ログを上書きしない。
                 var artifacts = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "TestResults", "bs3-fixture"));
                 var workspace = Path.Combine(artifacts, "work", BuildContentCoordinator.TargetName, "fixture");
-                var request = new BuildContentRequest(selection.Plan!, snapshot, "fixture", artifacts);
+                var request = new BuildContentRequest(bootstrap.Plan, snapshot, "fixture", artifacts);
                 var coordinator = new BuildContentCoordinator();
                 // 同じ target/contentSet の workspace へ連続 build。公開先は identity ごとに別 directory。
                 // 両 report と manifest を確認し、2 回目が前回の成功 path を上書きしないことを示す。
@@ -210,36 +224,44 @@ namespace OneStarMaker.Tests.Editor.Build
                 else EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
                 if (_folder.Length != 0) { AssetDatabase.DeleteAsset(_folder); _folder = ""; }
             }
+            // 未指定 runtimeMode は fail-closed。Addressables 互換口は明示指定だけ。
+            Environment.SetEnvironmentVariable(contentEnvNames[0], "addressables", EnvironmentVariableTarget.Process);
             yield return new EnterPlayMode();
             var defaultBootstrap = GetBootstrapState();
             for (var frame = 0; frame < 1800 && defaultBootstrap.director.GetValue(defaultBootstrap.initializer) == null; frame++)
                 yield return null;
             Assert.That(defaultBootstrap.director.GetValue(defaultBootstrap.initializer), Is.Not.Null,
-                "既定 Addressables mode で SceneDirector が生成されていない");
+                "明示 addressables mode で SceneDirector が生成されていない");
             Assert.That(defaultBootstrap.session.GetValue(defaultBootstrap.initializer), Is.Null,
-                "明示指定なしで Content Directory が登録された");
+                "明示 addressables で Content Directory が登録された");
             // ContentLoadManager の登録は PlayMode 側で行う。copy に必要な file が欠ければここで失敗する。
             var handle = ContentLoadManager.RegisterContentDirectory(_copy);
             Assert.That(handle.IsValid, Is.True);
             try
             {
                 var roots = ContentLoadManager.GetRootAssets<BuildContentRoot>(handle);
-                // 単一 root と identity を照合し、Scene/Prefab/Texture の4 entry、High/Low の2表現、
+                // 単一 root と identity を照合し、fixture 4 entry + bootstrap 2 entry、High/Low の2表現、
                 // 非選択 root の不在を source 再走査なしで検証する。実 Object の型付き load は BS3 に渡す。
                 Assert.That(roots.Length, Is.EqualTo(1));
                 Assert.That(roots[0].BuildIdentity,
                     Is.EqualTo(Path.GetFileName(_copy).Substring("integration-copy-".Length)));
-                Assert.That(roots[0].Entries.Count, Is.EqualTo(4));
+                var bootstrapSceneKey = SampleGameBootstrapContentComposer.UiCommonLogicalKey + "/Full";
+                var bootstrapMapKey = SampleGameBootstrapContentComposer.SceneResourceMapLogicalKey + "/Full";
+                Assert.That(roots[0].Entries.Count, Is.EqualTo(6));
                 Assert.That(roots[0].Entries.Select(x => x.StableKey),
-                    Is.EquivalentTo(new[] { "fixture-0", "fixture-1", "fixture-2", "fixture-3" }));
+                    Is.EquivalentTo(new[] { "fixture-0", "fixture-1", "fixture-2", "fixture-3", bootstrapSceneKey, bootstrapMapKey }));
                 Assert.That(roots[0].Entries.All(x => x.StableKey != "fixture-4"), Is.True);
                 Assert.That(roots[0].Entries.Single(x => x.StableKey == "fixture-0").Kind,
                     Is.EqualTo(BuildContentKind.Scene));
-                Assert.That(roots[0].Entries.Where(x => x.StableKey != "fixture-0").All(x => x.Kind == BuildContentKind.Object), Is.True);
+                Assert.That(roots[0].Entries.Single(x => x.StableKey == bootstrapSceneKey).Kind,
+                    Is.EqualTo(BuildContentKind.Scene));
+                Assert.That(roots[0].Entries.Where(x => x.StableKey != "fixture-0" && x.StableKey != bootstrapSceneKey)
+                    .All(x => x.Kind == BuildContentKind.Object), Is.True);
                 Assert.That(roots[0].Entries.Count(x => x.LogicalKey == "shared-logical"), Is.EqualTo(2));
                 Assert.That(roots[0].Entries.Where(x => x.LogicalKey == "shared-logical")
                     .Select(x => x.Representation), Is.EquivalentTo(new[] { "High", "Low" }));
-                Assert.That(roots[0].Entries.Single(x => x.Kind == BuildContentKind.Scene).SceneId, Is.Not.EqualTo(default(LoadableSceneId)));
+                Assert.That(roots[0].Entries.Where(x => x.Kind == BuildContentKind.Scene)
+                    .All(x => x.SceneId != default(LoadableSceneId)), Is.True);
                 Assert.That(roots[0].Entries.Where(x => x.Kind == BuildContentKind.Object).All(x => x.Object != null), Is.True);
             }
             finally { ContentLoadManager.UnregisterContentDirectory(handle); }

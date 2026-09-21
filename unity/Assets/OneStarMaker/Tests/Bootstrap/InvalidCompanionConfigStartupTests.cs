@@ -23,12 +23,55 @@ namespace OneStarMaker.Tests.Bootstrap
     {
         private const string EnvironmentKey = "S4ATEST_WORLD__CELLCOMPANIONSET";
         private const string ContentModeKey = "S4ATEST_CONTENT__RUNTIMEMODE";
+        private const string InstalledPathKey = "S4ATEST_CONTENT__INSTALLEDREVISIONPATH";
+        private const string ManifestKey = "S4ATEST_CONTENT__MANIFESTSHA256";
 
         [TearDown]
         public void TearDown()
         {
             Environment.SetEnvironmentVariable(EnvironmentKey, null);
             Environment.SetEnvironmentVariable(ContentModeKey, null);
+            Environment.SetEnvironmentVariable(InstalledPathKey, null);
+            Environment.SetEnvironmentVariable(ManifestKey, null);
+        }
+
+        [Test]
+        public void UnspecifiedContentMode_StopsBeforeAfterSceneLoadWithoutAddressablesFallback()
+        {
+            var initializer = new TestInitializer();
+            try
+            {
+                LogAssert.Expect(LogType.Exception, new Regex("content:runtimeMode is required unless a verified installed revision pair is provided"));
+                initializer.RunBefore();
+
+                LogAssert.Expect(LogType.Error, new Regex("BeforeSceneLoad が失敗したため AfterSceneLoad をスキップ"));
+                initializer.RunAfter();
+
+                Assert.That(initializer.FactoryEntered, Is.False);
+                Assert.That(initializer.HasSceneDirector, Is.False);
+                Assert.That(initializer.HasAssetManagement, Is.False);
+            }
+            finally { initializer.RunCleanup(); }
+        }
+
+        [Test]
+        public void OneSidedInstalledPair_StopsBeforeAfterSceneLoadWithoutAddressablesFallback()
+        {
+            Environment.SetEnvironmentVariable(InstalledPathKey, @"C:\osm-missing-revision");
+            var initializer = new TestInitializer();
+            try
+            {
+                LogAssert.Expect(LogType.Exception, new Regex("Installed revision path and manifest digest must be provided together"));
+                initializer.RunBefore();
+
+                LogAssert.Expect(LogType.Error, new Regex("BeforeSceneLoad が失敗したため AfterSceneLoad をスキップ"));
+                initializer.RunAfter();
+
+                Assert.That(initializer.FactoryEntered, Is.False);
+                Assert.That(initializer.HasSceneDirector, Is.False);
+                Assert.That(initializer.HasAssetManagement, Is.False);
+            }
+            finally { initializer.RunCleanup(); }
         }
 
         [Test]
@@ -55,6 +98,7 @@ namespace OneStarMaker.Tests.Bootstrap
         public async Task InvalidConfig_FailsBeforeDirectorAndReleasesLoadedAppAssets()
         {
             Environment.SetEnvironmentVariable(EnvironmentKey, "invalid");
+            Environment.SetEnvironmentVariable(ContentModeKey, "addressables");
             var initializer = new TestInitializer();
             initializer.RunBefore();
 

@@ -43,78 +43,11 @@ namespace OneStarMaker.Editor.Build
         /// <inheritdoc />
         protected override TResult BuildDataImplementation<TResult>(AddressablesDataBuilderInput builderInput)
         {
-            // 前回ビルドがクラッシュ等で中断された場合、残存 snapshot を先に復元する。
             AddressablesGroupSnapshot.RestorePending(builderInput.AddressableSettings);
-
-            if (_activeProfile == null)
-            {
-                var message = "[VariantFilteringBuildScript] Active BuildVariantProfile is not assigned.";
-                Debug.LogError(message);
-                return AddressableAssetBuildResult.CreateResult<TResult>(null, 0, message);
-            }
-
-            var timer = Stopwatch.StartNew();
-            // using 終了時に Addressables グループを元に戻す。
-            using var snapshot = AddressablesGroupSnapshot.Capture(builderInput.AddressableSettings);
-
-            // リモート配信ビルド(RemoteGroupName 指定時)は Remote Catalog を一時的に有効化する。
-            // snapshot が元のフラグを保持しているため、ビルド後(using 終了)に自動で復元される。
-            if (!string.IsNullOrEmpty(_activeProfile.RemoteGroupName))
-            {
-                builderInput.AddressableSettings.BuildRemoteCatalog = true;
-                Debug.Log(
-                    $"[VariantFilteringBuildScript] Remote distribution build: enabled Remote Catalog and syncing to group '{_activeProfile.RemoteGroupName}'.");
-            }
-
-            var whitelistResult = VariantWhitelistBuilder.Build(_activeProfile);
-
-            // Apply 前でも AssetDatabase パスで GUID の対応関係は確認できる。
-            LogBuildReport(builderInput.AddressableSettings, whitelistResult);
-
-            if (whitelistResult.HasErrors)
-            {
-                var message = "[VariantFilteringBuildScript] Build aborted due to whitelist validation errors.";
-                Debug.LogError(message);
-                return AddressableAssetBuildResult.CreateResult<TResult>(null, 0, message);
-            }
-
-            AddressablesGroupSyncFilter.Apply(
-                builderInput.AddressableSettings,
-                _activeProfile,
-                whitelistResult,
-                snapshot);
-            // 同期先グループ未検出など、Filter 側で Errors が追加される場合がある。
-            if (whitelistResult.HasErrors)
-            {
-                LogBuildReport(builderInput.AddressableSettings, whitelistResult);
-                var message = "[VariantFilteringBuildScript] Build aborted due to Addressables group sync errors.";
-                Debug.LogError(message);
-                return AddressableAssetBuildResult.CreateResult<TResult>(null, 0, message);
-            }
-
-            builderInput.AddressableSettings.SetDirty(
-                AddressableAssetSettings.ModificationEvent.BatchModification,
-                null,
-                postEvent: false,
-                settingsModified: true);
-            // 一時変更をディスクへ書き出してから Packed Build に進む。
-            AssetDatabase.SaveAssets();
-
-            // BuildScriptPackedMode の標準ビルドへ委譲する。
-            var result = base.BuildDataImplementation<TResult>(builderInput);
-            if (result != null)
-            {
-                result.Duration = timer.Elapsed.TotalSeconds;
-            }
-
-            // リモート配信ビルド時は、ビルド元リビジョンを build-info.json として出力する。
-            // 起動時のリビジョンずれ検知(WarnOnRevisionMismatchAsync)が参照する。
-            if (result != null && !string.IsNullOrEmpty(_activeProfile.RemoteGroupName))
-            {
-                TryWriteBuildInfo();
-            }
-
-            return result;
+            Debug.LogWarning(
+                "[VariantFilteringBuildScript] Variant whitelist Addressables build is retired. " +
+                "Use Tools/OSM/Content build, Delivery, and BS4 Player. Packed Mode proceeds without group mutation.");
+            return base.BuildDataImplementation<TResult>(builderInput);
         }
 
         /// <summary>

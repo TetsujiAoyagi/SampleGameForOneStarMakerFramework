@@ -31,7 +31,7 @@ namespace OneStarMaker.Editor.Build
         /// </summary>
         static LocalRevisionEditorInjector()
         {
-            OneStarMaker.Runtime.AssetManagement.RemoteCatalogRuntimeBridge.EditorLocalRevisionResolver = TryGetGitHead;
+            // 通常 Play から git HEAD を remote catalog 比較へ注入しない。
         }
 
         /// <summary>

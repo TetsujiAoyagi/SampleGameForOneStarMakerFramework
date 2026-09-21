@@ -24,22 +24,9 @@ namespace OneStarMaker.Editor.Build
         [MenuItem("OneStarMaker/Build/Build Player (Active Variant)")]
         public static void BuildActiveVariant()
         {
-            var profile = DeveloperVariantSettings.instance.GetActiveProfile();
-            if (profile == null)
-            {
-                Debug.LogError("[VariantPlayerBuild] active BuildVariantProfile が未選択です。");
-                return;
-            }
-
-            try
-            {
-                profile.ThrowIfSceneVariantInvalid();
-                BuildWithOverlay(profile, GetFullPath(AppConfigAssetPath), new UnityPlayerBuildBackend());
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"[VariantPlayerBuild] build failed: {ex}");
-            }
+            Debug.LogWarning(
+                "[VariantPlayerBuild] Active Variant Player overlay is retired. " +
+                "Use the BS4 Player coordinator. app-config.json is not mutated.");
         }
 
         internal static void BuildWithOverlay(BuildVariantProfile profile, string configFullPath, IVariantPlayerBuildBackend backend)
