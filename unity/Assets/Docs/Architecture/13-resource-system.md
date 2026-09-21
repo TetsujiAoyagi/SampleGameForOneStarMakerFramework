@@ -76,7 +76,7 @@ BS2b の Editor build 経路は、成功した選択 plan と materialization sn
 Scene・Prefab・Texture の Content Directory を生成する。成果物内の単一
 `BuildContentRoot` が logical key・表現・Unity loadable ID の対応を保持する。
 BS3 では、この root を Runtime で検証・索引化し、移設先 directory から型付きで
-load・解放・unregister する経路を追加した。既定の Addressables backend は残る。
+load・解放・unregister する経路を追加した。通常 Play は directory。Addressables backend は明示互換口として残る。
 
 directory session が Unity 登録 handle、発行済み native 処理、root、unregister を所有する。
 `AssetManagement` は `AssetOwner` 台帳と resident cache の唯一の owner であり、
