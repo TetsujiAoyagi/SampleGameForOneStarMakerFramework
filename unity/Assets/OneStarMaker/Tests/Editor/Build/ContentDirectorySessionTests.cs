@@ -540,6 +540,40 @@ namespace OneStarMaker.Tests.Editor.Build
         }
 
         [Test]
+        public async Task PlayStop_UnregisterFailure_KeepsDeleteBlockedUntilNextRegisterRetries()
+        {
+            var path = Path.Combine(Path.GetTempPath(), "osm-content-session-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(path);
+            var root = CreateRoot();
+            var first = new FakeNativeDirectory(root) { FailUnregisterCount = 1 };
+            try
+            {
+                var session = ContentDirectorySession.Register(path, "build", "StandaloneWindows64", first);
+                var assets = new AssetManagement();
+                assets.InstallContentDirectory(session);
+                first.SceneResult.TrySetResult(new FakeScene());
+                await assets.LoadContentSceneAsync("scene", "Full");
+                assets.ReleaseAll();
+                assets.CompleteContentDirectoryPlayStop();
+                Assert.That(first.UnloadCount, Is.EqualTo(0));
+                Assert.That(first.UnregisterCount, Is.EqualTo(1));
+                Assert.That(ContentRevisionGate.TryAcquireDelete("build", "StandaloneWindows64", path,
+                    out var blocked, out var reason), Is.False);
+                Assert.That(blocked, Is.Null);
+                Assert.That(reason, Is.EqualTo(ContentDirectoryFailureCode.RevisionBusy));
+
+                var second = new FakeNativeDirectory(root);
+                var retry = ContentDirectorySession.Register(path, "build", "StandaloneWindows64", second);
+                Assert.That(first.UnregisterCount, Is.EqualTo(2));
+                await retry.CloseAsync();
+                Assert.That(ContentRevisionGate.TryAcquireDelete("build", "StandaloneWindows64", path,
+                    out var lease, out _), Is.True);
+                lease!.Dispose();
+            }
+            finally { UnityEngine.Object.DestroyImmediate(root); Directory.Delete(path); }
+        }
+
+        [Test]
         public async Task SceneIdentity_CannotAliasAnotherRepresentation()
         {
             var directory = new FakeDirectoryPort();

@@ -450,19 +450,22 @@ namespace OneStarMaker.Runtime.BuildContent
         private void CloseNowForPlayStop()
         {
             if (_closed) return;
-            Exception? failure = null;
             try
             {
                 if (_registered) _backend.Unregister();
-            }
-            catch (Exception ex) { failure = ex; }
-            try
-            {
-                _reservation.Dispose();
                 _closed = true;
-                _closeFailure = failure;
+                _closeFailure = null;
+                _reservation.Dispose();
             }
-            catch (Exception ex) { _closeFailure = failure ?? ex; }
+            catch (Exception ex)
+            {
+                _closeFailure = ex;
+                // unregister 失敗のまま lease を返すと、native 登録が残った状態で物理削除が通る。
+                // Play 停止後は AssetManagement が session を捨てるので、明示 close の再試行は残らない。
+                // 予約は gate に残し、次の登録で同じ backend の unregister を再試行する。
+                lock (RollbackSync)
+                    _pendingRollback ??= () => { _backend.Unregister(); _reservation.Dispose(); };
+            }
         }
 
         private async UniTaskVoid DrainShutdownScene(SessionScene scene)
