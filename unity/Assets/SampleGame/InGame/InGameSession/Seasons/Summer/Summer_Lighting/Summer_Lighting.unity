@@ -164,7 +164,7 @@ GameObject:
   - component: {fileID: 1337014709}
   - component: {fileID: 1337014711}
   m_Layer: 0
-  m_Name: Summer_Lighting
+  m_Name: SeasonSun
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

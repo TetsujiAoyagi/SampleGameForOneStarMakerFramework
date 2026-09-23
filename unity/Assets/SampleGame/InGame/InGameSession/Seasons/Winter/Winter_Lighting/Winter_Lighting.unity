@@ -132,7 +132,7 @@ GameObject:
   - component: {fileID: 767324486}
   - component: {fileID: 767324488}
   m_Layer: 0
-  m_Name: Winter_Lighting
+  m_Name: SeasonSun
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

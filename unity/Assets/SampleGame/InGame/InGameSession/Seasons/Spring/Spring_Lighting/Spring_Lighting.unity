@@ -164,7 +164,7 @@ GameObject:
   - component: {fileID: 1890967575}
   - component: {fileID: 1890967577}
   m_Layer: 0
-  m_Name: Spring_Lighting
+  m_Name: SeasonSun
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

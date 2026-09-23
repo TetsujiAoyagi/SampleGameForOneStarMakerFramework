@@ -5,10 +5,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `B`（A3 凍結済み。実装進行中。骨格のみ）
+- status: `B`（実装結果記入済み。判定 C 未実施）
 - branch: `cursor/s-4c-world-lighting-a3-4a38`
 - implementation base commit: `553b7b150e13245b369d75dc4baa12d86e9559aa`
-- implementation head commit: （Phase B で追記）
+- implementation head commit: `f8044a0177bb9ccf2eca560b57a69677110c4a67`（`S-4C実装のファーストコミット`。HANDOFF / docs-audit だけの後続 commit は head に含めない）
 - risk: `high`
 - owner: Phase B は人間
 - created: 2026-09-21
@@ -22,7 +22,7 @@
 - A2 結果: `A2-architecture.md` / `A2-lifecycle.md` / `A2-alternative.md`
 - A3 決定: `artifacts/s-4c-phase-a/A3-frozen.md`
 - Phase B 手順の読み順: 本 HANDOFF が正本。人間向け詳細手順は `artifacts/s-4c-phase-a/PHASE_B_PLAYBOOK.md`（矛盾したら HANDOFF）。2026-09-22 に Playbook をフィールド・判定順・現行骨格の直し方まで詳細化した
-- Phase B result snapshot path / id: （未到達）
+- Phase B result snapshot path / id: 本 HANDOFF §6（2026-09-23 記入。別ファイル snapshot は未作成）
 - evidence bundle / C' blind bundle: （未到達）
 
 ## 1. 目的と対象外
@@ -488,13 +488,13 @@ B 適応でよい例: `Find` の具体メソッド名、コメント、テスト
   - `SeasonLightingPresetTableTests`
   - `GameSceneFactory` の引数契約と `Spring_Lighting_4_2` companion 分類
   - Validator の負値拒否
-  - B5 後: Cell Lighting Directional 0 の Editor テスト 1 件
+  - B5 後: `CellLightingSceneTests.RepresentativeCellLightingScenes_HaveNoDirectional_AndAtLeastOnePoint`（`(4,2)` `(5,2)` の Directional 0・Point 1 以上）
 
 - 差し戻し中の起点 `-Filter`:
   ```
-  RenderEnvironmentLeaseTests|SeasonLightingPresetTableTests|GameSceneFactoryTests|GameSceneLoggingTests
+  RenderEnvironmentLeaseTests|SeasonLightingPresetTableTests|GameSceneFactoryTests|GameSceneLoggingTests|CellLightingSceneTests
   ```
-  Cell Lighting 検査を足したらそのテスト名を根拠付きで追加してよい。
+  Cell Lighting 検査は凍結済み受け入れ条件（Directional 0）の確認のため起点に含める。
 
 - 判定必須テスト:
   1. 最終の全 EditMode 回帰（空 filter）。`pwsh tools/run-tests.ps1`。Editor を閉じてから。Windows なら sandbox 外。
@@ -543,11 +543,31 @@ B 適応でよい例: `Find` の具体メソッド名、コメント、テスト
 
 ## 6. Phase B 実装結果
 
-- 実装: 進行中。B1 lease / B2 Unity sink / B3 配線まで。B5 コンテンツと bake は未着手
-- HANDOFF との差: ファイル配置を `Rendering/Environments/{Abstractions,Implements,internal}` へ分けた（B 適応。公開 namespace・公開集合は不変）。World Workspace の companion 親フォルダ定数が `InGameSession/World/Seasons` を見ていたのを、実 Cell のある `InGameSession/Seasons` へ直した（B 適応。公開 API・寿命は不変）。World Workspace Create は SceneGraph Editor / Layout を通さない（現行の事実。S-4c では直さない。後続へ）
-- 未実行: Unity テスト未実行。bake 未実行。contract-audit 未実行。SeasonSun 未配置。Cell Lighting 2 件未作成
-- implementation head commit:
-- Phase B 担当・モデル・ベンダー: 人間。B3 配線は Cursor Grok 4.6 / xAI（2026-09-23）
+- 実装:
+  - B1–B4: Framework `IRenderEnvironment` / `RenderEnvironmentLease` / `UnityRenderEnvironmentSink` / `RenderEnvironmentState`。公開 namespace は `OneStarMaker.Runtime.Rendering.Environments`。配置は `Rendering/Environments/{Abstractions,Implements,internal}`。
+  - App 寿命: `AppInitializer.InitializeRenderEnvironment` が `new RenderEnvironment(new UnityRenderEnvironmentSink())`。`ReleaseRenderEnvironment` は Camera 解放と独立。`Application.quitting` でも呼ぶ。
+  - `GameSceneFactory` が `IRenderEnvironment` を受け、四季 `*_Lighting` は `SeasonLightingScene`。`Spring_Lighting_4_2` は親が `StreamByDistance` なら `CellCompanionScene`（lease なし）。
+  - `SeasonLightingScene.OnLoadedImpl` は FindSeasonSun → preset lookup → Acquire → BindSun / Apply。Acquire 後の失敗だけ Dispose して throw。`OnPreUnLoadedImpl` で Dispose。
+  - `SeasonLightingPresetTable` は HANDOFF §2.3 の凍結値。`PlayerScene.ApplyDemoLook` は削除。SampleGame `.cs` の `RenderSettings` 代入は 0。
+  - テストコード（未実行）: `RenderEnvironmentLeaseTests`（stale / Environment.Dispose / BindSun 前 Apply を含む）、`SeasonLightingPresetTableTests`、`GameSceneLoggingTests` の Factory 引数と companion 分類。
+  - B5 コンテンツ: World Workspace で `Spring_Lighting_4_2` / `Spring_Lighting_5_2` を作成（Create 後の Map / parent / Addressables / Graph 辺は 4_2 で確認済み）。各 Scene に Point `LocalFill` 1 つ、Directional 0。`(4,2)` は `(1165, 4, 665)` range 80 intensity 200 青、`(5,2)` は `(1415, 4, 665)` range 60 intensity 55 赤。Mode は Mixed。
+  - 四季 Season Lighting に Directional を配置。GameObject 名は `SeasonSun` 完全一致。euler / color / intensity は preset 表と一致。親は `SeasonLightingRoot`。
+  - bake: 代表 7 Scene が同一 `LightingData.asset`（guid `0f7e7f4f5b3c44742a12ac17804d764e`、`Spring_Lighting/Spring_Lighting/` 配下）を参照。ReflectionProbe-0.exr あり。独立 lightmap `.exr` はリポジトリ上に無い。
+  - B6: `contract-audit` 違反なし。`docs-audit` は artifacts が個別 HANDOFF パスを指していた検査2を、パス表記を外して解消（exit 0）。Framework Scripts の季節語はコメントの否定文のみ。
+- HANDOFF との差（B 適応。契約・公開集合・preset 数値は不変）:
+  - ファイル配置を `Rendering/Environments/{Abstractions,Implements,internal}` へ分けた。
+  - World Workspace の companion 親フォルダ定数を実 Cell のある `InGameSession/Seasons` へ直した。
+  - World Workspace Create は SceneGraph Editor / Layout を通さない（現行の事実。S-4c では直さない。後続へ）。
+  - LocalFill の range / intensity は見証用に B 適応で上げた（上限 80 内）。色は青/赤の識別用。
+  - `Spring_Representative.lighting` は作っていない。7 Scene の `m_LightingSettings` は未割り当て（`fileID: 0`）。bake は Editor 既定の Lighting Settings で走った。
+- 境界の目視（最低条件 6 / B5.11）: **未記録。** 人間から `(4,2)` → 東 `(5,2)` の明白な段差の有無を受け取っていない。Play での確認は Content Directory 未指定で BeforeSceneLoad 失敗（`content:runtimeMode`）。これは S-4c では直さない。Editor の 7 Scene 目視が正。
+- B5.12（Cell Lighting を閉じても sun/fog が春のまま）: **OK。** 人間確認（2026-09-23）。`Spring_Lighting` を残して `_4_2` / `_5_2` だけ閉じた。LocalFill（Point）だけ消え、Scene ビューの太陽の向きと全体の明るさは閉じる前と同じ。Lighting ウィンドウの Sun Source は空のまま（`RenderSettings.sun` 未割り当て。lease もここは書かない）。Editor の Fog / Ambient は Unity 既定のままで、閉じる前後で変わらない。春 preset の Fog / Ambient は Play の Apply 対象であり、この項目では見ない。
+- 発見した残件（C が先に見る）:
+  - Spring 太陽は Mixed、夏/秋/冬は Realtime。Lightmap Static はオフ（`m_StaticEditorFlags: 0`）。
+  - Cell Lighting Directional 0 の EditMode テストは `CellLightingSceneTests` を追加済み。Unity 上の実行は未実施。
+- 未実行: Unity テスト未実行（全 EditMode 回帰も Play Mode 手動も未実施。Phase C の判定必須）。Phase C を B では走らせない。
+- implementation head commit: `f8044a0177bb9ccf2eca560b57a69677110c4a67`
+- Phase B 担当・モデル・ベンダー: 人間。B3 配線・Create 検証・docs-audit 直し・本 §6 記入は Cursor Grok 4.6 / xAI（2026-09-23）
 
 ## 7. Phase C
 
