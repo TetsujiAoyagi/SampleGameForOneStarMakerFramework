@@ -1,0 +1,7 @@
+S-4c mandatory EditMode test sets from HANDOFF §5:
+- RenderEnvironmentLeaseTests (including stale paths, Environment.Dispose, destroyed-bound-Light single-bind regression)
+- SeasonLightingPresetTableTests
+- GameSceneFactory / GameSceneLoggingTests
+- CellLightingSceneTests
+- UnityRenderEnvironmentSinkTests
+The final empty-filter run included all 909 EditMode cases across four assemblies. No exclusions.

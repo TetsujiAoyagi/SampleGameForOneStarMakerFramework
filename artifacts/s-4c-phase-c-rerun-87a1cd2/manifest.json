@@ -1,0 +1,260 @@
+{
+  "id": "s4c-phase-c-rerun-87a1cd2",
+  "generatedAt": "2026-09-24T08:36:19.5642801+09:00",
+  "branch": "cursor/s-4c-world-lighting-a3-4a38",
+  "implementationBase": "553b7b150e13245b369d75dc4baa12d86e9559aa",
+  "implementationHead": "87a1cd297a0b96bb9743b3e47654a27130ebcffe",
+  "reviewStartHead": "87a1cd297a0b96bb9743b3e47654a27130ebcffe",
+  "workingTreeTrackedAtReviewStart": "clean",
+  "previousReviewRecordHead": "c93cab004724fe6ed4f9b011edfbd852b5e879d9",
+  "phaseASnapshot": {
+    "frozenDecision": "phase-a-decisions.md",
+    "path": "../s-4c-phase-a/"
+  },
+  "phaseBResultSnapshot": {
+    "source": "HANDOFF §6 at implementation head",
+    "path": "phase-b-result.txt"
+  },
+  "priorEvidence": [
+    {
+      "relationship": "older discovery recheck; not reused for full regression",
+      "head": "1241c8e7b4e475f934fc8931ba783c755508ee2d",
+      "path": "../s-4c-phase-c-rediscovery-1241c8e/"
+    },
+    {
+      "relationship": "previous C decision; superseded implementation head",
+      "head": "c93cab004724fe6ed4f9b011edfbd852b5e879d9",
+      "path": "../s-4c-phase-c-decision-c93cab0/"
+    }
+  ],
+  "implementationDiff": {
+    "scope": "base..implementationHead",
+    "diffCheck": "Unity-generated YAML/meta blank-value trailing whitespace only",
+    "sha256": "FF277A21D31191D2EA831D321DBA6A96BA2C3F0AA84177C3376EEDE939EDDA7F",
+    "path": "implementation.diff",
+    "stat": "159 files changed, 108129 insertions(+), 85 deletions(-)"
+  },
+  "tests": [
+    {
+      "attempt": "first full run",
+      "command": "pwsh tools/run-tests.ps1",
+      "skipped": 0,
+      "failed": 1,
+      "result": "single transient AssetDatabase test-folder meta write log; preserved",
+      "filter": "",
+      "passed": 908,
+      "total": 909
+    },
+    {
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "command": "pwsh tools/run-tests.ps1 -Filter WorldCompanionRecoveryTests.ReservedResource_ExternallyGivenPayload_FailsClosed",
+      "total": 1
+    },
+    {
+      "failed": 0,
+      "skipped": 0,
+      "assemblies": {
+        "AddressablesDocExampleEditorTests": 1,
+        "OneStarMakerTestsEditor": 249,
+        "OneStarMakerTests": 645,
+        "SampleGameTestsEditor": 14
+      },
+      "runnerExitCode": 0,
+      "filter": "",
+      "command": "pwsh tools/run-tests.ps1",
+      "passed": 909,
+      "total": 909,
+      "attempt": "final full run"
+    }
+  ],
+  "audits": {
+    "sampleGameRenderSettings": {
+      "matches": 0,
+      "command": "rg \"RenderSettings\" unity/Assets/SampleGame --glob \"*.cs\""
+    },
+    "docsAudit": {
+      "exitCode": 0,
+      "command": "pwsh tools/docs-audit.ps1"
+    },
+    "frameworkSeasonTerms": {
+      "matches": 0,
+      "command": "rg \"Season|Spring|Summer|Autumn|Winter|季節\" unity/Assets/OneStarMaker/Scripts -g \"*.cs\""
+    },
+    "contractAudit": {
+      "exitCode": 0,
+      "command": "pwsh tools/contract-audit.ps1"
+    }
+  },
+  "editorPlay": {
+    "userVisibleBakeSeamAndCloseCellObservations": "accepted from HANDOFF §6; not re-requested",
+    "result": "not completed",
+    "reason": "Pipeline CLI version mismatch: project 0.4.0-exp.1, command requires >=0.6.0-exp.1",
+    "runtimeMode": "unchanged"
+  },
+  "verdict": "保留（検証証拠不足）。No GO/NO-GO. C-prime not started.",
+  "model": "Codex / GPT-6 (OpenAI)",
+  "files": [
+    {
+      "path": "all-editmode-results-attempt1.xml",
+      "bytes": 848411,
+      "sha256": "B327DC4E533CD54086F642E36646B8400697BC32BBE271CB5810029BD6CD04F3"
+    },
+    {
+      "path": "all-editmode-results.xml",
+      "bytes": 843293,
+      "sha256": "EDD17BA797A7214B08156739F810225858576F73699BF40AA00D8C098DE6813B"
+    },
+    {
+      "path": "all-editmode-run-attempt1.log",
+      "bytes": 5312148,
+      "sha256": "786592DAFEE273F1607BE12B65ADD751714BE45EC048A319BBE8E99BDAB81534"
+    },
+    {
+      "path": "all-editmode-run.log",
+      "bytes": 5221807,
+      "sha256": "8CC9E7D3A5DEEB9AFF0C507B6EF38364072348DEEB57B84AF48DFFC262A7789B"
+    },
+    {
+      "path": "base.txt",
+      "bytes": 42,
+      "sha256": "57416216502B96EB6B4EEFE23D31D32E9490E6E6B35E78FA98BC2269DAE9FCA1"
+    },
+    {
+      "path": "contract-audit-pre-review-entry.log",
+      "bytes": 356,
+      "sha256": "277011A6CA9E7798B50F5A518037FDC14667DEA5D229E120EC2ED172879FCBFD"
+    },
+    {
+      "path": "contract-audit.log",
+      "bytes": 506,
+      "sha256": "57879CF4A5C7F6F8774DF749A9E4150B8E7FD98464E8C2ACD7499349948EC861"
+    },
+    {
+      "path": "contract-audit.txt",
+      "bytes": 506,
+      "sha256": "57879CF4A5C7F6F8774DF749A9E4150B8E7FD98464E8C2ACD7499349948EC861"
+    },
+    {
+      "path": "diff-check.txt",
+      "bytes": 1017166,
+      "sha256": "0D69748E71411739A1713CF58D0ECA66B97C499FDDD05C6F982F857DD734D08F"
+    },
+    {
+      "path": "docs-audit-before-record.log",
+      "bytes": 229,
+      "sha256": "B617F9182F886D0CC788E475C26C2DC0B234FD8B41F818FF9F43174B31EB4E13"
+    },
+    {
+      "path": "docs-audit-pre-review-entry.log",
+      "bytes": 229,
+      "sha256": "757DF9C8B2E40B5667933F49C29BE6CD41333DE62E266F51085721E64BA7241D"
+    },
+    {
+      "path": "docs-audit.log",
+      "bytes": 229,
+      "sha256": "FC7191A8235C2BDFEC59509FBA49F4F2AF367744EA4A97B445D688C86DE07E67"
+    },
+    {
+      "path": "docs-audit.txt",
+      "bytes": 229,
+      "sha256": "FC7191A8235C2BDFEC59509FBA49F4F2AF367744EA4A97B445D688C86DE07E67"
+    },
+    {
+      "path": "editor-play-attempt.txt",
+      "bytes": 544,
+      "sha256": "31ED897E9F5306D96DF442C3B0C99E2EBA8DE05F4AD5BEDBC91D88801179FFD3"
+    },
+    {
+      "path": "frozen-contract.txt",
+      "bytes": 42959,
+      "sha256": "74868A712942F21291224CB2FE8C338D4F5235993F4DF84101C415ABEE71B61F"
+    },
+    {
+      "path": "grep-framework-season-terms.log",
+      "bytes": 0,
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+    },
+    {
+      "path": "grep-samplegame-render-settings.log",
+      "bytes": 0,
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+    },
+    {
+      "path": "head.txt",
+      "bytes": 42,
+      "sha256": "F4D7F4EB5079B28F6689710FC40C9FC7FF84F0C90F3D9476ECBD2F0F1A438FB3"
+    },
+    {
+      "path": "implementation.diff",
+      "bytes": 9536305,
+      "sha256": "FF277A21D31191D2EA831D321DBA6A96BA2C3F0AA84177C3376EEDE939EDDA7F"
+    },
+    {
+      "path": "isolated-transient-test-results.xml",
+      "bytes": 4585,
+      "sha256": "45E3C32C27E4D9325EBC1146AB0107BB3EF031102BEB0A6FF1E28CE08B3A11F2"
+    },
+    {
+      "path": "isolated-transient-test-run.log",
+      "bytes": 96370,
+      "sha256": "2EBB5BD812142496DDB2FDA3649803E13D3791270E4805F92ABAB6E52EE5C736"
+    },
+    {
+      "path": "name-status.txt",
+      "bytes": 13192,
+      "sha256": "A2C5A983B6F11D035BED5746975EEB8C2DD37DB759E6B765752227A18A70C3CB"
+    },
+    {
+      "path": "phase-a-a1-input.txt",
+      "bytes": 34581,
+      "sha256": "B7CE692F0F0EA04C4111C08BA429D443F3C92321D687420CAF047AFC4A28FA38"
+    },
+    {
+      "path": "phase-a-decisions.md",
+      "bytes": 3474,
+      "sha256": "9935AD1437DE37A173C57A1D969407697AAA75283A2204FA26E1D094B673EED7"
+    },
+    {
+      "path": "phase-b-result.txt",
+      "bytes": 4919,
+      "sha256": "9D618692DEFB266784DC8680F5A48D157AE2DEF3F66180F51EF8C5E809FCDAB6"
+    },
+    {
+      "path": "previous-phase-c-fix-hashes.txt",
+      "bytes": 462,
+      "sha256": "F4DD4933CB5F4DDB661DCE4E09366A9C8DABAE235EEF2677BBCCC3E654DFB056"
+    },
+    {
+      "path": "required-test-sets.txt",
+      "bytes": 407,
+      "sha256": "DA044B04D6CF4F17823500C293D80CC7CFF8656AC0F716461C5964691467DD75"
+    },
+    {
+      "path": "review-start-head.txt",
+      "bytes": 42,
+      "sha256": "F4D7F4EB5079B28F6689710FC40C9FC7FF84F0C90F3D9476ECBD2F0F1A438FB3"
+    },
+    {
+      "path": "stat.txt",
+      "bytes": 10146,
+      "sha256": "5767F8B14ACEA01FF0BB71EE464623316D70251A999521F5301F3DE9968FEC51"
+    },
+    {
+      "path": "status-at-review-start.txt",
+      "bytes": 175,
+      "sha256": "38CC953684F79ECC47FC81062910566BD6285C59A91134342D5131702C0B31BF"
+    },
+    {
+      "path": "test-cases.txt",
+      "bytes": 105638,
+      "sha256": "3BDEBB6EBAD6AD86EA14E4FF8CA08A0496A652D5A20D7DA39CFA6DA0C6012B1F"
+    },
+    {
+      "path": "test-side-effect.diff",
+      "bytes": 2823,
+      "sha256": "6A8AE25953F6E9BC809899586440EDEB96FD19421C1C2BC51B9F435C22FC038A"
+    }
+  ]
+}

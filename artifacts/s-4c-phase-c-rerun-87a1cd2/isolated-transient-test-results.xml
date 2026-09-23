@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="1" result="Passed" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-09-23 23:10:40Z" end-time="2026-09-23 23:10:45Z" duration="4.7367645">
+  <test-suite type="TestSuite" id="1000" name="SampleGame" fullname="SampleGame" runstate="Runnable" testcasecount="909" result="Passed" start-time="2026-09-23 23:10:40Z" end-time="2026-09-23 23:10:45Z" duration="4.736765" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="Assembly" id="2063" name="OneStarMaker.Tests.Editor.dll" fullname="D:/repositories/unity/SampleGameForOneStarMakerFramework/unity/Library/ScriptAssemblies/OneStarMaker.Tests.Editor.dll" runstate="Runnable" testcasecount="249" result="Passed" start-time="2026-09-23 23:10:40Z" end-time="2026-09-23 23:10:45Z" duration="4.667040" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="33600" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="2064" name="OneStarMaker" fullname="OneStarMaker" runstate="Runnable" testcasecount="249" result="Passed" start-time="2026-09-23 23:10:40Z" end-time="2026-09-23 23:10:45Z" duration="4.656757" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="2065" name="Tests" fullname="OneStarMaker.Tests" runstate="Runnable" testcasecount="249" result="Passed" start-time="2026-09-23 23:10:40Z" end-time="2026-09-23 23:10:45Z" duration="4.647389" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="2066" name="Editor" fullname="OneStarMaker.Tests.Editor" runstate="Runnable" testcasecount="249" result="Passed" start-time="2026-09-23 23:10:40Z" end-time="2026-09-23 23:10:45Z" duration="4.637564" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestSuite" id="2067" name="WorldAuthoring" fullname="OneStarMaker.Tests.Editor.WorldAuthoring" runstate="Runnable" testcasecount="73" result="Passed" start-time="2026-09-23 23:10:40Z" end-time="2026-09-23 23:10:45Z" duration="4.626365" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-suite type="TestFixture" id="1795" name="WorldCompanionRecoveryTests" fullname="OneStarMaker.Tests.Editor.WorldAuthoring.WorldCompanionRecoveryTests" classname="OneStarMaker.Tests.Editor.WorldAuthoring.WorldCompanionRecoveryTests" runstate="Runnable" testcasecount="32" result="Passed" start-time="2026-09-23 23:10:40Z" end-time="2026-09-23 23:10:45Z" duration="4.620339" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1815" name="ReservedResource_ExternallyGivenPayload_FailsClosed" fullname="OneStarMaker.Tests.Editor.WorldAuthoring.WorldCompanionRecoveryTests.ReservedResource_ExternallyGivenPayload_FailsClosed" methodname="ReservedResource_ExternallyGivenPayload_FailsClosed" classname="OneStarMaker.Tests.Editor.WorldAuthoring.WorldCompanionRecoveryTests" runstate="Runnable" seed="646078263" result="Passed" start-time="2026-09-23 23:10:40Z" end-time="2026-09-23 23:10:45Z" duration="4.587902" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[[SceneGraph Generate] [Warning] Node 'S4aTestd0ef9c96a750_Cell' is not referenced by any edge.
+[SceneGraph Generate] Successfully generated 1 SceneResources. Hash=1e50e0c73bb343a8
+World Workspace transaction disposed with a pending recovery journal.
+Saving results to: C:/Users/void/AppData/LocalLow/DefaultCompany/SampleGame\TestResults.xml
+]]></output>
+                </test-case>
+              </test-suite>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>
