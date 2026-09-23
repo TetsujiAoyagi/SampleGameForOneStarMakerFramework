@@ -15,6 +15,7 @@ namespace OneStarMaker.Runtime.Rendering.Environments
         private object? _ownerKey;
         private int _generation;
         private Light? _boundSun;
+        private bool _sunBound;
         private bool _disposed;
 
         public RenderEnvironment(IRenderEnvironmentSink sink)
@@ -62,6 +63,7 @@ namespace OneStarMaker.Runtime.Rendering.Environments
             }
 
             _boundSun = null;
+            _sunBound = false;
             _ownerKey = null;
             _generation++;
             _disposed = true;
@@ -75,7 +77,9 @@ namespace OneStarMaker.Runtime.Rendering.Environments
         {
             EnsureLeaseIsActive(generation);
 
-            if (_boundSun != null)
+            // 一度きりは参照の生存では判定しない。破棄済み Light は == null になり、
+            // 同じ lease の二度目 Bind が通ってしまう。
+            if (_sunBound)
             {
                 throw new InvalidOperationException("BindSun can be called once per lease.");
             }
@@ -87,6 +91,7 @@ namespace OneStarMaker.Runtime.Rendering.Environments
             }
 
             _boundSun = sun;
+            _sunBound = true;
         }
 
         /// <summary>
@@ -124,6 +129,7 @@ namespace OneStarMaker.Runtime.Rendering.Environments
 
             _sink.RestoreBaseline();
             _boundSun = null;
+            _sunBound = false;
             _ownerKey = null;
             _generation++;
         }

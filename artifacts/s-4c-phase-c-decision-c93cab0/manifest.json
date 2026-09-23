@@ -1,0 +1,229 @@
+{
+  "id": "s4c-decision-c-c93cab0",
+  "generatedAt": "2026-09-24T07:15:58.7249253+09:00",
+  "phase": "判定 C / 証拠不足による保留",
+  "model": "Codex / GPT-6 (OpenAI)",
+  "implementationBase": "553b7b150e13245b369d75dc4baa12d86e9559aa",
+  "implementationHead": "c93cab004724fe6ed4f9b011edfbd852b5e879d9",
+  "branch": "cursor/s-4c-world-lighting-a3-4a38",
+  "workingTreeAtStart": "clean",
+  "reviewRecord": "uncommitted HANDOFF and evidence only",
+  "previousEvidence": {
+    "path": "../s-4c-phase-c-rediscovery-1241c8e/manifest.json",
+    "implementationHead": "1241c8e7b4e475f934fc8931ba783c755508ee2d",
+    "resultReuse": "No old test XML reused for decision; previous diff hash verified",
+    "delta": "evidence/HANDOFF records and three code comments"
+  },
+  "phaseASnapshot": {
+    "path": "../s-4c-phase-a/",
+    "sourceGeneratedAt": "2026-09-21",
+    "decisions": "phase-a-decisions.md",
+    "supportingA1": "phase-a-a1-input.txt",
+    "contract": "phase-a-contract.txt",
+    "contractSource": "HEAD at review start, sections 0-5; includes A3 incorporated decisions; not represented as a historical A1 snapshot",
+    "capturedAt": "2026-09-24T07:15:58.7249253+09:00"
+  },
+  "phaseBResultSnapshot": {
+    "path": "phase-b-result.txt",
+    "source": "fixed head section 6",
+    "generatedAt": "2026-09-24T07:15:58.7249253+09:00"
+  },
+  "checks": {
+    "contractAudit": 0,
+    "docsAudit": 1,
+    "sampleGameRenderSettingsMatches": 0,
+    "frameworkSeasonTermMatches": 0
+  },
+  "tests": {
+    "command": "pwsh tools/run-tests.ps1",
+    "filter": "",
+    "platform": "EditMode",
+    "withGraphics": false,
+    "unityVersion": "6000.6.0f1",
+    "runnerExit": 0,
+    "unityExit": 0,
+    "total": 908,
+    "passed": 908,
+    "failed": 0,
+    "skipped": 0,
+    "requiredSubsetCount": 34,
+    "assemblyCounts": [
+      644,
+      249,
+      14,
+      1
+    ],
+    "xml": "all-editmode-results.xml",
+    "rawLog": "all-editmode-run.log"
+  },
+  "unverified": [
+    "Play Mode: both representative cells unload while spring fog/sun persist, then baked floor reloads"
+  ],
+  "decision": "保留。GO / NO-GO 未確定",
+  "blindAuditBundle": {
+    "status": "not generated; mandatory decision evidence incomplete"
+  },
+  "cPrime": "not started",
+  "files": [
+    {
+      "path": "all-editmode-results.xml",
+      "bytes": 846753,
+      "sha256": "1A6312FD5492DDC20B1485EB61ADA8B662C3E64887CC9C05A846CB5CE0642ED1"
+    },
+    {
+      "path": "all-editmode-run.log",
+      "bytes": 5337016,
+      "sha256": "A492E3E6301986B284F2211D06FD96B346A98265E86DC62A538634C95BCE972A"
+    },
+    {
+      "path": "bake-scene-references.txt",
+      "bytes": 3067,
+      "sha256": "01B2FF9079E4CF71127ED4AC0F3A9DAE3BC26E59B21EF8C607569245515436EA"
+    },
+    {
+      "path": "bake-tracked-assets.txt",
+      "bytes": 3612,
+      "sha256": "24D5132D7D2DDB259121D5E29459F3EC0A8998855F94028370A0A9323C862BB0"
+    },
+    {
+      "path": "base.txt",
+      "bytes": 42,
+      "sha256": "57416216502B96EB6B4EEFE23D31D32E9490E6E6B35E78FA98BC2269DAE9FCA1"
+    },
+    {
+      "path": "contract-audit.txt",
+      "bytes": 435,
+      "sha256": "713B06B90C99ED688AD281621A0E86F0E00A348D41511EA8562C597C12FC0BAA"
+    },
+    {
+      "path": "csharp-line-counts.txt",
+      "bytes": 1797,
+      "sha256": "77BC2C008864916E4E1C6200E97E3B32B41179F0D14AE79161F5A0AB049CA051"
+    },
+    {
+      "path": "diff-check.txt",
+      "bytes": 97204,
+      "sha256": "B777E318ACFF8B0EEDAF0EB9064A234610124D0C676F1AEC30FDC01DDDACC52E"
+    },
+    {
+      "path": "docs-audit-after-record.txt",
+      "bytes": 456,
+      "sha256": "8DF87B9DCAE5C01CEF52B106C9D25BDF52217017FCAB5522409E1575A8E3EFD3"
+    },
+    {
+      "path": "docs-audit-before-record.txt",
+      "bytes": 506,
+      "sha256": "DC10747DA9B07F7EDB95F328485C46332A44FCC7A2A405CACC2DBB3038DFE8DF"
+    },
+    {
+      "path": "docs-audit-final.txt",
+      "bytes": 456,
+      "sha256": "8DF87B9DCAE5C01CEF52B106C9D25BDF52217017FCAB5522409E1575A8E3EFD3"
+    },
+    {
+      "path": "editor-operation.txt",
+      "bytes": 516,
+      "sha256": "58C3759D118394BDFD6F85354AB492243C49861D5C7A93F2037DD661003986D4"
+    },
+    {
+      "path": "framework-season-result.txt",
+      "bytes": 19,
+      "sha256": "321953CFB6ABA5F05E3FB66401D98BFFB4BB0B16CE37A800F86C8A8C790EFD8D"
+    },
+    {
+      "path": "head.txt",
+      "bytes": 42,
+      "sha256": "8DAB2E16C7A8D5375BB69A1E6159516F9DD011ABE42AC3C7A543BB6D24206221"
+    },
+    {
+      "path": "implementation.diff",
+      "bytes": 1427413,
+      "sha256": "880A9D393D9D7E0734020FDA5DEE3201700951513D62263FCB8CF73FEF9FEB1A"
+    },
+    {
+      "path": "name-status.txt",
+      "bytes": 11052,
+      "sha256": "B50B8DB2AE6ADA34C0336923548CC664B8ABFE6B8502F9A55F240746F4399927"
+    },
+    {
+      "path": "phase-a-a1-input.txt",
+      "bytes": 34581,
+      "sha256": "B7CE692F0F0EA04C4111C08BA429D443F3C92321D687420CAF047AFC4A28FA38"
+    },
+    {
+      "path": "phase-a-contract.txt",
+      "bytes": 42709,
+      "sha256": "A8733C059D1AE089625E11CA756680138B2747CF1B66A915EFF2F471A7517120"
+    },
+    {
+      "path": "phase-a-decisions.md",
+      "bytes": 3474,
+      "sha256": "9935AD1437DE37A173C57A1D969407697AAA75283A2204FA26E1D094B673EED7"
+    },
+    {
+      "path": "phase-b-result.txt",
+      "bytes": 4919,
+      "sha256": "9D618692DEFB266784DC8680F5A48D157AE2DEF3F66180F51EF8C5E809FCDAB6"
+    },
+    {
+      "path": "previous-evidence-hashes.txt",
+      "bytes": 651,
+      "sha256": "288CB4D472F7E75B2E036F07DB97CE4E51D9821A6A7B35DF702B7F3D9ED1B3F7"
+    },
+    {
+      "path": "previous-head-code.diff",
+      "bytes": 3002,
+      "sha256": "CE20155BF335401FE63F26E92CA9835E9696500FEF0F42877A6699340E658E47"
+    },
+    {
+      "path": "required-test-sets.txt",
+      "bytes": 573,
+      "sha256": "4CE4FF1DBBC17B1937AFFC5C8CAEE70BF220802CB739DD8EEBC1C4E82A7530F9"
+    },
+    {
+      "path": "review-notes.md",
+      "bytes": 6731,
+      "sha256": "D7F0F4492A7FEC778490B53B3A19A70F37F3217E4A985E9405E523A30A2D41DB"
+    },
+    {
+      "path": "samplegame-rendersettings-result.txt",
+      "bytes": 19,
+      "sha256": "321953CFB6ABA5F05E3FB66401D98BFFB4BB0B16CE37A800F86C8A8C790EFD8D"
+    },
+    {
+      "path": "stat.txt",
+      "bytes": 8053,
+      "sha256": "A1512545908C230F5CD2A1DD913B89BCD4BC21C303A076262AA21C3B225A8346"
+    },
+    {
+      "path": "status-after-bundle-directory.txt",
+      "bytes": 138,
+      "sha256": "7DA9DCA1A385F8EFDF1D9B0E331972116757863BA764135A4FD0D4F862F86223"
+    },
+    {
+      "path": "status-at-completion.txt",
+      "bytes": 85,
+      "sha256": "D76924709032BC217893A445CC87991ADF0853667B1A5E48EEEA75878F40B736"
+    },
+    {
+      "path": "status-at-review-start.txt",
+      "bytes": 162,
+      "sha256": "2F11B2A1FC766B4D998AAD1BE9772205EF822643F950B5F7DD99B68EA5F46337"
+    },
+    {
+      "path": "test-cases.txt",
+      "bytes": 112791,
+      "sha256": "566A7E36B298737E40CF3E3A7AF35D0DF04E53FB960EB766AA662E8EEC13B035"
+    },
+    {
+      "path": "test-command-result.txt",
+      "bytes": 502,
+      "sha256": "D737CFA20F6E3DD0719D2FE994931EE404612CF08DBF53102444A03C44C2A704"
+    },
+    {
+      "path": "test-generated-rpasset.diff",
+      "bytes": 2747,
+      "sha256": "BCE8B4C6E7CA35A05777005F7A2458D5A544E6650F0E17A5F3CFF83AA60B6C58"
+    }
+  ]
+}

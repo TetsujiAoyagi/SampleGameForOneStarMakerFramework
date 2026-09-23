@@ -4,7 +4,7 @@
 - Implementation base: `553b7b150e13245b369d75dc4baa12d86e9559aa`
 - Implementation head: `1241c8e7b4e475f934fc8931ba783c755508ee2d`
 - Generated for discovery-C recheck: 2026-09-24 (Asia/Tokyo)
-- Source of truth: `docs/handoff/S-4c_WORLD_LIGHTING.md`, §6 Phase B implementation result, corrected by the remediation recorded on this head.
+- Source of truth: the slice HANDOFF §6 Phase B implementation result, corrected by the remediation recorded on this head. The individual HANDOFF path was removed on 2026-09-24 so this tracked note does not fail docs-audit inspection 2. The previous snapshot SHA-256 was `87429090DB5F56BEB1433AF855D6666D0980476F95F1671CF793A10877C82C93`.
 
 ## Implementation and content state
 

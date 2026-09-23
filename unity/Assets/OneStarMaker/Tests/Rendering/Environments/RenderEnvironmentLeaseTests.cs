@@ -163,6 +163,28 @@ namespace OneStarMaker.Tests.Rendering.Environments
         }
 
         [Test]
+        public void BindSun_AfterBoundLightDestroyed_Throws()
+        {
+            var sun = CreateSun();
+            var lease = _environment.Acquire("a");
+            lease.BindSun(sun);
+            UnityEngine.Object.DestroyImmediate(_sunGo);
+            _sunGo = null;
+
+            var replacementGo = new GameObject("replacement-sun");
+            try
+            {
+                var replacement = replacementGo.AddComponent<Light>();
+                replacement.type = LightType.Directional;
+                Assert.Throws<InvalidOperationException>(() => lease.BindSun(replacement));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(replacementGo);
+            }
+        }
+
+        [Test]
         public void BindSun_NullLight_Throws()
         {
             var lease = _environment.Acquire("a");

@@ -1,0 +1,14 @@
+
+Algorithm : SHA256
+Hash      : D65129BB7E64D639C87EC13A2BF4169A244EF9FD93AA565421B61F3C7BD08FEA
+Path      : D:\repositories\unity\SampleGameForOneStarMakerFramework\artifacts\s-4c-phase-c-rediscovery-1241c8e\implementation.diff
+
+Algorithm : SHA256
+Hash      : B7CE692F0F0EA04C4111C08BA429D443F3C92321D687420CAF047AFC4A28FA38
+Path      : D:\repositories\unity\SampleGameForOneStarMakerFramework\artifacts\s-4c-phase-a\A1-snapshot.md
+
+Algorithm : SHA256
+Hash      : 9935AD1437DE37A173C57A1D969407697AAA75283A2204FA26E1D094B673EED7
+Path      : D:\repositories\unity\SampleGameForOneStarMakerFramework\artifacts\s-4c-phase-a\A3-frozen.md
+
+
