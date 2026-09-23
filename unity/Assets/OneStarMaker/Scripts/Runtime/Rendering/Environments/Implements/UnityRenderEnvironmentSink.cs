@@ -40,7 +40,7 @@ namespace OneStarMaker.Runtime.Rendering.Environments
             _ambientEquatorColor = RenderSettings.ambientEquatorColor;
             _ambientGroundColor = RenderSettings.ambientGroundColor;
             _ambientIntensity = RenderSettings.ambientIntensity;
-            // Apply が RenderSettings.sun を差し替える。解放後に Season Scene が消えると偽 null が残る。
+            // Apply が RenderSettings.sun を差し替える。解放後に 該当 Scene が消えると偽 null が残る。
             _sun = RenderSettings.sun;
             _captured = true;
         }

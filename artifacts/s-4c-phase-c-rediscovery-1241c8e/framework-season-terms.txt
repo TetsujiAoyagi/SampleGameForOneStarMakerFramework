@@ -1,0 +1,3 @@
+unity/Assets/OneStarMaker/Scripts\Runtime\Rendering\Environments\RenderEnvironmentState.cs:    /// グローバル見た目の純データ。Framework は季節語を持たない。
+unity/Assets/OneStarMaker/Scripts\Runtime\Rendering\Environments\Implements\RenderEnvironment.cs:    /// ここには季節語も URP 型も持たない。「誰が書いてよいか」と世代番号だけを決める。
+unity/Assets/OneStarMaker/Scripts\Runtime\Rendering\Environments\Implements\UnityRenderEnvironmentSink.cs:            // Apply が RenderSettings.sun を差し替える。解放後に Season Scene が消えると偽 null が残る。

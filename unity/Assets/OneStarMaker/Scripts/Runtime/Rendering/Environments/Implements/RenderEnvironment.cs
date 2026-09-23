@@ -7,7 +7,7 @@ namespace OneStarMaker.Runtime.Rendering.Environments
 {
     /// <summary>
     /// App 寿命の単一 owner 調停。実装置への書き込みは <see cref="IRenderEnvironmentSink"/> に委譲する。
-    /// ここには季節語も URP 型も持たない。「誰が書いてよいか」と世代番号だけを決める。
+    /// ここには URP 型も持たない。「誰が書いてよいか」と世代番号だけを決める。
     /// </summary>
     public sealed class RenderEnvironment : IRenderEnvironment, IDisposable
     {

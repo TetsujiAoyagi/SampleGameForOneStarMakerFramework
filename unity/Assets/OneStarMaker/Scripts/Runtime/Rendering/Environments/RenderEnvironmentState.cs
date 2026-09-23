@@ -5,7 +5,7 @@ using UnityEngine;
 namespace OneStarMaker.Runtime.Rendering.Environments
 {
     /// <summary>
-    /// グローバル見た目の純データ。Framework は季節語を持たない。
+    /// グローバル見た目の純データ
     /// FogMode / AmbientMode はここには置かず、Unity sink が四季共通値を書く。
     /// GlobalVolumeWeight は将来の共通 Volume 用。S-4c の Unity sink は読まない。
     /// </summary>

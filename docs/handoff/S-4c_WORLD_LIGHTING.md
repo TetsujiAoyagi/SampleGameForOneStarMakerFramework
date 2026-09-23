@@ -8,7 +8,7 @@
 - status: `B`（実装結果記入済み。判定 C 未実施）
 - branch: `cursor/s-4c-world-lighting-a3-4a38`
 - implementation base commit: `553b7b150e13245b369d75dc4baa12d86e9559aa`
-- implementation head commit: `f8044a0177bb9ccf2eca560b57a69677110c4a67`（`S-4C実装のファーストコミット`。HANDOFF / docs-audit だけの後続 commit は head に含めない）
+- implementation head commit: `1241c8e7b4e475f934fc8931ba783c755508ee2d`（差し戻し修正・代表 bake を含む実装 head）
 - risk: `high`
 - owner: Phase B は人間
 - created: 2026-09-21
@@ -552,22 +552,20 @@ B 適応でよい例: `Find` の具体メソッド名、コメント、テスト
   - テストコード（未実行）: `RenderEnvironmentLeaseTests`（stale / Environment.Dispose / BindSun 前 Apply を含む）、`SeasonLightingPresetTableTests`、`GameSceneLoggingTests` の Factory 引数と companion 分類。
   - B5 コンテンツ: World Workspace で `Spring_Lighting_4_2` / `Spring_Lighting_5_2` を作成（Create 後の Map / parent / Addressables / Graph 辺は 4_2 で確認済み）。各 Scene に Point `LocalFill` 1 つ、Directional 0。`(4,2)` は `(1165, 4, 665)` range 80 intensity 200 青、`(5,2)` は `(1415, 4, 665)` range 60 intensity 55 赤。Mode は Mixed。
   - 四季 Season Lighting に Directional を配置。GameObject 名は `SeasonSun` 完全一致。euler / color / intensity は preset 表と一致。親は `SeasonLightingRoot`。
-  - bake: 代表 7 Scene が同一 `LightingData.asset`（guid `0f7e7f4f5b3c44742a12ac17804d764e`、`Spring_Lighting/Spring_Lighting/` 配下）を参照。ReflectionProbe-0.exr あり。独立 lightmap `.exr` はリポジトリ上に無い。
+  - bake: `Spring_Representative.lighting`（guid `f770f1b668c369745a58960828ef9a23`）を代表 7 Scene だけに割当。baked GI on、realtime GI off、Mixed Bake Mode Subtractive、resolution 0.5、max 512、sample counts direct / indirect / environment = 32 / 64 / 64。7 Scene は同じ `LightingData.asset`（guid `0f7e7f4f5b3c44742a12ac17804d764e`）を参照し、`Lightmap-0..3_comp_light.exr` / `_comp_dir.png` を保存。
   - B6: `contract-audit` 違反なし。`docs-audit` は artifacts が個別 HANDOFF パスを指していた検査2を、パス表記を外して解消（exit 0）。Framework Scripts の季節語はコメントの否定文のみ。
 - HANDOFF との差（B 適応。契約・公開集合・preset 数値は不変）:
   - ファイル配置を `Rendering/Environments/{Abstractions,Implements,internal}` へ分けた。
   - World Workspace の companion 親フォルダ定数を実 Cell のある `InGameSession/Seasons` へ直した。
   - World Workspace Create は SceneGraph Editor / Layout を通さない（現行の事実。S-4c では直さない。後続へ）。
   - LocalFill の range / intensity は見証用に B 適応で上げた（上限 80 内）。色は青/赤の識別用。
-  - `Spring_Representative.lighting` は作っていない。7 Scene の `m_LightingSettings` は未割り当て（`fileID: 0`）。bake は Editor 既定の Lighting Settings で走った。
-- 境界の目視（最低条件 6 / B5.11）: **未記録。** 人間から `(4,2)` → 東 `(5,2)` の明白な段差の有無を受け取っていない。Play での確認は Content Directory 未指定で BeforeSceneLoad 失敗（`content:runtimeMode`）。これは S-4c では直さない。Editor の 7 Scene 目視が正。
+  - `Spring_Representative.lighting` は上記の限定設定で作成・割当済み。Lighting Settings を変更したのは代表 7 Scene のみ。
+- 境界の目視（最低条件 6 / B5.11）: 人間が確認、境界に明白な明暗差なし。Play での確認は Content Directory 未指定で BeforeSceneLoad 失敗（`content:runtimeMode`）。これは S-4c では直さない。Editor の 7 Scene 目視が正。
 - B5.12（Cell Lighting を閉じても sun/fog が春のまま）: **OK。** 人間確認（2026-09-23）。`Spring_Lighting` を残して `_4_2` / `_5_2` だけ閉じた。LocalFill（Point）だけ消え、Scene ビューの太陽の向きと全体の明るさは閉じる前と同じ。Lighting ウィンドウの Sun Source は空のまま（`RenderSettings.sun` 未割り当て。lease もここは書かない）。Editor の Fog / Ambient は Unity 既定のままで、閉じる前後で変わらない。春 preset の Fog / Ambient は Play の Apply 対象であり、この項目では見ない。
-- 発見した残件（C が先に見る）:
-  - Spring 太陽は Mixed、夏/秋/冬は Realtime。Lightmap Static はオフ（`m_StaticEditorFlags: 0`）。
-  - Cell Lighting Directional 0 の EditMode テストは `CellLightingSceneTests` を追加済み。Unity 上の実行は未実施。
-- 未実行: Unity テスト未実行（全 EditMode 回帰も Play Mode 手動も未実施。Phase C の判定必須）。Phase C を B では走らせない。
-- implementation head commit: `f8044a0177bb9ccf2eca560b57a69677110c4a67`
-- Phase B 担当・モデル・ベンダー: 人間。B3 配線・Create 検証・docs-audit 直し・本 §6 記入は Cursor Grok 4.6 / xAI（2026-09-23）
+- 修正後のコンテンツ事実: 春 `SeasonSun` は Mixed のまま Contribute GI（`m_StaticEditorFlags: 1`）。2 Full Cell と 2 Environment の MeshRenderer 17 件が Contribute GI、`(4,2)` Ground も flags 1。Cell Lighting は各 Point 1、Directional 0。Season sun の Lightmap Static を混同せず、GI contribution flags を明示した。
+- テスト: 差し戻し起点 filter は 34 件成功（2026-09-24、XML は §7.1 evidence bundle に記録）。全 EditMode 回帰および Play Mode 手動は未実行（判定 C 用）。
+- implementation head commit: `1241c8e7b4e475f934fc8931ba783c755508ee2d`
+- Phase B 担当・モデル・ベンダー: 人間。差し戻し修正、bake、限定 filter は Cursor Grok 4.7 / xAI（2026-09-24）
 
 ## 7. Phase C
 
@@ -605,7 +603,31 @@ B 適応でよい例: `Find` の具体メソッド名、コメント、テスト
   - 春 `SeasonSun` の `m_Lightmapping: 1` は `LightmapBakeType.Mixed`。夏/秋/冬の `4` は Realtime。モードは変えない。
   - SceneResource `.asset` の Addressables 個別登録はしていない。既存の `Spring_Cell_4_2` / `Spring_Environment_4_2` の `.asset` も Local Group に無く、Map の直接参照と `.unity` entry が現行である。
   - 差し戻し起点 filter は 34 件すべて成功（2026-09-24、`pwsh tools/run-tests.ps1 -Filter RenderEnvironmentLeaseTests|SeasonLightingPresetTableTests|GameSceneFactoryTests|GameSceneLoggingTests|CellLightingSceneTests|UnityRenderEnvironmentSinkTests`、XML `TestResults/results-RenderEnvironmentLeaseTests-SeasonLightingPresetTableTests-GameSceneFactoryTests-GameSceneLoggingTests-CellLightingSceneTests-UnityRenderEnvironmentSinkTests-20260924-042040.xml`）。全 EditMode 回帰と Play Mode 手動は未実行。発見 C のやり直しは別モデル。
-  - bake 実施（2026-09-24）。`Spring_Representative.lighting`（guid `f770f1b668c369745a58960828ef9a23`）を 7 Scene だけが共有。baked GI オン、realtime GI オフ、Mixed Bake Mode は Subtractive、解像度 0.5、最大 512、direct 32 / indirect 64 / environment 64。春 `SeasonSun` は Mixed のまま Contribute GI（`m_StaticEditorFlags: 1`）。両 Full Cell と両 Environment の MeshRenderer 17 件に Contribute GI。`(4,2)` の Ground は flags 1。生成物は `Spring_Lighting/Spring_Lighting/` の Lightmap-0..3 `_comp_light.exr` と `_comp_dir.png`、および既存 `LightingData.asset` の更新。7 Scene 以外の `m_LightingSettings` は `{fileID: 0}` のまま。 seam の人間目視（最低条件 6）は未記録。
+- bake 実施（2026-09-24）。`Spring_Representative.lighting`（guid `f770f1b668c369745a58960828ef9a23`）を 7 Scene だけが共有。baked GI オン、realtime GI オフ、Mixed Bake Mode は Subtractive、解像度 0.5、最大 512、direct 32 / indirect 64 / environment 64。春 `SeasonSun` は Mixed のまま Contribute GI（`m_StaticEditorFlags: 1`）。両 Full Cell と両 Environment の MeshRenderer 17 件に Contribute GI。`(4,2)` の Ground は flags 1。生成物は `Spring_Lighting/Spring_Lighting/` の Lightmap-0..3 `_comp_light.exr` と `_comp_dir.png`、および既存 `LightingData.asset` の更新。7 Scene 以外の `m_LightingSettings` は `{fileID: 0}` のまま。 seam の人間目視（最低条件 6）は §6 に記録済み。
+
+### 7.1 発見 C 再確認（修正後 head）
+
+- 種別: 発見 C の再確認。GO 判定 / 判定 C / C' は未実施。
+- implementation base / head: `553b7b150e13245b369d75dc4baa12d86e9559aa` → `1241c8e7b4e475f934fc8931ba783c755508ee2d`（branch HEAD と一致、作業ツリー clean）。
+- evidence bundle id / path: `s4c-discovery-c-rediscovery-1241c8e` / `artifacts/s-4c-phase-c-rediscovery-1241c8e/`。完全 diff、stat、name-status、固定 SHA、A3 snapshot と Phase B result snapshot、機械検査ログ、限定 filter の生ログ/XML を収録。
+- bundle generated at: `2026-09-24T05:38:10.1490850+09:00`。
+- 完全 diff SHA-256: `D65129BB7E64D639C87EC13A2BF4169A244EF9FD93AA565421B61F3C7BD08FEA`。規模: 110 files、+11,971 / −85 行（履歴中の Phase A と前回 discovery evidence もこの base→head 完全差分に含む）。
+- 構造適合: Framework / SampleGame / `DependOnAll` の配置と依存方向は維持。修正差分は sink baseline 復元、Sink EditMode テスト、7 Scene の LightingSettings / GI contribution / bake artifacts。新しい公開 API・所有者・寿命・asmdef は無い。
+- 前回 finding の状態:
+  - F-C1 解消: `Spring_Representative.lighting` を作成し、代表7 Sceneのみ同 GUID の LightingSettings / LightingData を参照。設定に baked GI on / realtime GI off。代表 bake 出力として Lightmap-0..3 の `_comp_light.exr` / `_comp_dir.png` がある。春 sun は Mixed + Contribute GI、Full Cell / Environment の 17 MeshRenderer に Contribute GI。7 Sceneの構成がファイル差分で整合する。
+  - F-C2 / F-C3 解消: sink が ambient sky / equator / ground / intensity と `RenderSettings.sun` を capture / restore し、`UnityRenderEnvironmentSinkTests` が Trilight 復元および null sun 復元を確認。
+  - F-C4 解消: Spring の `m_Lightmapping: 1` は Unity enum `LightmapBakeType.Mixed`。HANDOFF §6 が意図した Mixed と一致する。数字 `1` を Realtime と解釈した前回所見は誤り。
+  - 旧 F-C5 撤回（false positive）: SceneResource `.asset` を Addressables Group に個別登録する契約はない。SceneResourceMap が `_4_2` / `_5_2` asset GUID を直接参照し、対応 Scene `.unity` GUID が Local Group にある。既存 Full Cell / Environment resource と同じ構成であり、Player 起動失敗の記録だけから登録欠落とはいえない。
+- 現在の問いを阻害する未解決事項:
+- 再確認後の状態（2026-09-24）:
+  - R-C1 解消: 人間が `(4,2)` → 東 `(5,2)` の床境界を目視し、§6 に「境界に明白な明暗差なし」と記録した。スクリーンショットは作成していない。
+  - R-C2 は本コミットに含むコメント修正で対応。Framework Runtime Rendering の3コメントから検索語を除き、作業ツリーで同じ `rg` は 0 件。今回の evidence bundle は旧固定 head `1241c8e` を対象とするため、このコメント修正を含む新 head の完全な再監査ではない。
+- 現在の問いを阻害する未解決事項: なし。今回の bundle は旧固定 head `1241c8e` に対する再確認記録であり、本コミットを含む head の再確認は未実施。
+- 後続スライスへ移送する findings: なし。
+- 実行したテスト: Phase B 修正時の限定起点 filter。HANDOFF記載の XML を bundle に複製し hash 固定。`34 passed / 0 failed`。新しいテスト起動はしていない。全 EditMode 回帰は未実行。
+- 機械検査（新 head の bundle に結果を保存）: `contract-audit` exit 0（20 C# 差分）、`docs-audit` exit 0、SampleGame `RenderSettings` grep 0件、Framework season-term grep 3件（すべてコメント）。`git diff --check` は Unity 生成 YAML / `.meta` の空値行 trailing whitespace のみ。
+- 未確認事項: 春の runtime Play 表示と fog / sun、Cell companion の live unload / reload と baked floor 再ロード、全 EditMode 回帰。
+- 担当・モデル: Codex / GPT-6。Phase B 修正は Cursor Grok 4.7 と記録。C' は未実施。
 
 ## 8. Phase C'
 
