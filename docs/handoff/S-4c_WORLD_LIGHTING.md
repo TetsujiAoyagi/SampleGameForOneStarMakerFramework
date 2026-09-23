@@ -492,9 +492,9 @@ B 適応でよい例: `Find` の具体メソッド名、コメント、テスト
 
 - 差し戻し中の起点 `-Filter`:
   ```
-  RenderEnvironmentLeaseTests|SeasonLightingPresetTableTests|GameSceneFactoryTests|GameSceneLoggingTests|CellLightingSceneTests
+  RenderEnvironmentLeaseTests|SeasonLightingPresetTableTests|GameSceneFactoryTests|GameSceneLoggingTests|CellLightingSceneTests|UnityRenderEnvironmentSinkTests
   ```
-  Cell Lighting 検査は凍結済み受け入れ条件（Directional 0）の確認のため起点に含める。
+  Cell Lighting 検査は凍結済み受け入れ条件（Directional 0）の確認のため起点に含める。`UnityRenderEnvironmentSinkTests` は最低条件 1 の baseline 復帰（ambient 成分と sun）の確認に必要だったため、差し戻しの起点へ足した。受け入れ条件の追加ではない。
 
 - 判定必須テスト:
   1. 最終の全 EditMode 回帰（空 filter）。`pwsh tools/run-tests.ps1`。Editor を閉じてから。Windows なら sandbox 外。
@@ -571,16 +571,41 @@ B 適応でよい例: `Find` の具体メソッド名、コメント、テスト
 
 ## 7. Phase C
 
-- 種別: 未実施
-- evidence bundle id / hash:
-- 構造適合:
+- 種別: 発見 C（GO 判定・判定 C・C' は未実施）
+- implementation base / head: `553b7b150e13245b369d75dc4baa12d86e9559aa` → `f8044a0177bb9ccf2eca560b57a69677110c4a67`。レビュー開始時 HEAD / 作業ツリー状態は bundle の `head.txt` / `status.txt`。
+- evidence bundle id / path: `s4c-discovery-c-f8044a0` / `artifacts/s-4c-phase-c-discovery/`
+- bundle generated at: `2026-09-23T23:49:51.7595533+09:00`（初回 manifest 時刻。機械検査結果を同 bundle に追加後の固定）
+- implementation diff SHA-256: `FECE5C68CCC2B5EF213821D8092CDED166AB0339BA76AED7A5B378BBA69C9ED2`（`implementation.diff`）
+- stat SHA-256: `41DED8A819375463AA81A8EF94AA90C3B676CAAEC2B9A1D81F6F7A87769D1D64`
+- name-status SHA-256: `5296299DD3A8C17CCA7E640D426F5528044E01BB3DC73D2FCB7DFC0BE7CE4C3A`
+- diff 規模: 81 files、+4,678 / −63 行。レビュー対象は base→implementation head の完全差分。現在の HEAD は `599026430c84615c43315c792e6cf145f9da98a9` で、HANDOFF のみを含む後続 review-record commit。
+- 構造適合: lease / sink は Framework Runtime Rendering、season preset / scene adapter は SampleGame、全体配線は `DependOnAll` の `AppInitializer` / `GameSceneFactory` にあり、計画した Game → Framework 依存を維持。Unity Sink のみが `RenderSettings` を書き、SampleGame C# の `RenderSettings` は 0 件。Framework Scripts の季節語は否定的なコメント 2 件のみ。新しい中核ロジックには Fake sink 中心の lease テストがあり、実装配置から Unity 非依存テストが可能。行数と 81 ファイルの多くは Scene / 生成アセットと Phase A・HANDOFF artifact で、独立責務をまとめた新規 facade / helper は見つからない。
+- 機械検査（2026-09-23、対象 commit 固定後）:
+  - `pwsh tools/contract-audit.ps1`: exit 0。検査対象 19 C# 差分、違反なし。
+  - `pwsh tools/docs-audit.ps1`: exit 0。検査 1・2 に違反なし。
+  - `rg "RenderSettings" unity/Assets/SampleGame --glob "*.cs"`: 0 件。
+  - `rg "Season|Spring|Summer|Autumn|Winter|季節" unity/Assets/OneStarMaker/Scripts -g "*.cs"`: コメントの否定文 2 件（`RenderEnvironmentState.cs`, `RenderEnvironment.cs`）。Framework に季節ロジックなし。
+  - `git diff --check base..head`: Unity 生成 YAML / `.meta` の空値行に trailing whitespace を報告。意味のあるコード行ではなく、別の hard gate 違反とは判定しない。
 - 現在の問いを阻害する findings:
-- 後続スライスへ移送する findings:
-- 実行したテストコマンド:
-- テスト結果:
-- 判定必須のうち未実行:
-- 未確認事項:
-- 担当・モデル:
+  1. **F-C1 — 凍結条件 5 と受け入れ条件「代表 7 Scene の LightingData / lightmap が commit 済み」を満たす bake 証拠を確認できない。** 7 Scene の `m_LightingDataAsset` は同じ GUID を参照するが、`Spring_Representative.lighting` は存在せず、全 7 Scene の `m_LightingSettings` は `{fileID: 0}`。追跡可能な bake 出力は共通 `LightingData.asset` と `ReflectionProbe-0.exr` だけで、lightmap `.exr` は無い。加えて Full Cell の Renderer は `m_ReceiveGI: 1` だが、対象 GameObject の `m_StaticEditorFlags: 0`、Light は `m_Lightmapping: 1`（Realtime）であり、凍結手順の Lightmap Static が Scene 由来 Light に適用されていない。現証拠だけでは 2 Cell に bake 済み床が載ること・7 Scene が意図した設定で bake されたことを立証できず、最低条件 5、および最低条件 7 の reload 観測前提を阻害する。**修正先分類: Phase B 適応**（意図した Lighting Settings と static / bake 寄与設定を Editor で対象 7 Scene のみへ反映し、対象 bake 生成物を記録する。凍結した責務・公開面・寿命・問いは変えない）。
+  2. **F-C2 — Ambient baseline が要求した値へ戻らない。** `UnityRenderEnvironmentSink.CaptureBaseline` は `RenderSettings.ambientLight` を保存する一方、`Apply` は `ambientMode = Flat` を設定する。`RestoreBaseline` は `ambientMode` を保存値へ戻すが `ambientLight` を書き戻すだけで、もとの `ambientMode` に対応する `ambientSkyColor` / equator / ground 等は capture・restore しない。たとえば baseline が `Skybox` で、Apply 後に元の `ambientLight` と `Skybox` を戻しても Skybox 評価が元の ambient 値を復元する保証はなく、baseline 復帰契約を満たせない。これは最低条件 1 の「解放で baseline に戻る」と受け入れ条件の baseline capture / restore に対するコード上の欠陥。**修正先分類: Phase B 適応**（実際の照明方式に応じた baseline 項目を capture / restore し、Fake / sink の確認を追加。契約範囲内）。
+  3. **F-C3 — Sink.Apply は `RenderSettings.sun` を変更するが、baseline に保存・復元していない。** `RestoreBaseline` の対象は fog と ambient のみで、`RenderSettings.sun` は残る Light への参照を保持し得る。lease 解放後に Season Scene が unload されると Unity 偽 null 参照が残り、以前の sun が存在した場合の baseline も復元しない。凍結条件 1 の baseline 復帰と公開 sink の sole-I/O 契約に対する欠陥。**修正先分類: Phase B 適応**（sink が変更する global `RenderSettings.sun` を capture / restore。新しい所有者や寿命は導入しない）。
+  4. **F-C4 — 春 `SeasonSun` の Editor light mode が Realtime。** `Spring_Lighting.unity` は `m_Lightmapping: 1`（Realtime）であるが、minimum 条件 5 の代表 multi-scene bake は同じ authored sun を使う前提。HANDOFF §6 は春 Mixed、他季節 Realtime と記録する一方、コミットされた YAML は春も Realtime。Lightmap Static 手順も未反映。条件 5 の焼き込み光源と Phase B 結果の不一致であり、F-C1 の設定欠落を個別に可視化する。**修正先分類: Phase B 適応**（Spring sun の既定モードを凍結された bake 意図へ合わせる）。
+  5. **F-C5 — Live Cell Companion の SceneResource `.asset` が Addressables Local Group に登録されていない。** Group には companion Scene `.unity` の GUID `8382f8…`（および `_5_2` の Scene GUID）はあるが、resource asset GUID `22b75b99b54ad7a40864460bf17806e9` / `9019351cd64025141aa5e42f2f58e559` の entry はない。`SceneResourceMap` は Addressables 経由で SceneResource を引くため、Scene entry だけでは Player の live cell-companion load を構成できない。凍結条件 7 の unload → 戻る → baked 床再ロードを阻害する。`content:runtimeMode` 未指定で fail-closed した記録はこれと別件であり、起動契約を緩めずに解決できる。**修正先分類: Phase B 適応**（2 resource asset を既存 companion と同じ Local content 経路へ追加し、限定 load 検証を行う）。
+- 後続スライスへ移送する findings: なし（今回は現在の問いを阻害するコード / content 欠陥を確認）。
+- 撤回した指摘: 初稿で Resource GUID 未突合のまま F-C5 を撤回したが、その撤回は誤り。Scene GUID と SceneResource `.asset` GUID は別で、後者は Local Group に存在しないことを meta GUID で確認し、F-C5 として復帰。
+- 既知残件の分類: `Spring_Representative.lighting` 未作成・7 Scene の Lighting Settings 未割当は F-C1 の blocker に含めた。Sun GameObject 名の B §6 記載は全四季が `SeasonSun`、FindSeasonSun は完全一致のため問題ではない。`(4,2)`→東`(5,2)` seam の目視記録は最低条件 6 未確認のまま。Cell Lighting を閉じた後の確認は §6 の記録上 sun/明るさ維持 OK（fog / ambient の春 preset 観測ではない）。Editor Play が `content:runtimeMode` 未指定で fail-closed した件は凍結契約を緩める理由にしない。
+- 実行したテストコマンド: なし。ユーザー指示に従い全 EditMode 回帰および限定テストを実行せず。Unity Play Mode 手動も実行せず。
+- テスト結果: 未実行。
+- 判定必須のうち未実行: 全 EditMode 回帰、Play Mode 手動、限定起点 filter。
+- 未確認事項: seam の人間目視（最低条件 6）、7 Scene の正しい設定による bake 完成と baked 床、復帰後の baked 床再ロード（F-C1 に伴い未立証）、Live Content Directory から両 companion resource / Scene を解決・load できること（F-C4）、Play 時の春 sun / fog preset。差分以外の Unity 実行時挙動。
+- 担当・モデル: Phase C 主担当 Codex / GPT-6。Phase B の記載担当 Cursor Grok 4.6 / xAI とは異なるモデル。C' は未起動。
+- 差し戻し修正（2026-09-24、Cursor Grok 4.7。発見のやり直しではない）:
+  - `UnityRenderEnvironmentSink` の baseline に ambient sky / equator / ground / intensity と `RenderSettings.sun` を追加。確認は `UnityRenderEnvironmentSinkTests`。
+  - 春 `SeasonSun` の `m_Lightmapping: 1` は `LightmapBakeType.Mixed`。夏/秋/冬の `4` は Realtime。モードは変えない。
+  - SceneResource `.asset` の Addressables 個別登録はしていない。既存の `Spring_Cell_4_2` / `Spring_Environment_4_2` の `.asset` も Local Group に無く、Map の直接参照と `.unity` entry が現行である。
+  - 差し戻し起点 filter は 34 件すべて成功（2026-09-24、`pwsh tools/run-tests.ps1 -Filter RenderEnvironmentLeaseTests|SeasonLightingPresetTableTests|GameSceneFactoryTests|GameSceneLoggingTests|CellLightingSceneTests|UnityRenderEnvironmentSinkTests`、XML `TestResults/results-RenderEnvironmentLeaseTests-SeasonLightingPresetTableTests-GameSceneFactoryTests-GameSceneLoggingTests-CellLightingSceneTests-UnityRenderEnvironmentSinkTests-20260924-042040.xml`）。全 EditMode 回帰と Play Mode 手動は未実行。発見 C のやり直しは別モデル。
+  - bake 実施（2026-09-24）。`Spring_Representative.lighting`（guid `f770f1b668c369745a58960828ef9a23`）を 7 Scene だけが共有。baked GI オン、realtime GI オフ、Mixed Bake Mode は Subtractive、解像度 0.5、最大 512、direct 32 / indirect 64 / environment 64。春 `SeasonSun` は Mixed のまま Contribute GI（`m_StaticEditorFlags: 1`）。両 Full Cell と両 Environment の MeshRenderer 17 件に Contribute GI。`(4,2)` の Ground は flags 1。生成物は `Spring_Lighting/Spring_Lighting/` の Lightmap-0..3 `_comp_light.exr` と `_comp_dir.png`、および既存 `LightingData.asset` の更新。7 Scene 以外の `m_LightingSettings` は `{fileID: 0}` のまま。 seam の人間目視（最低条件 6）は未記録。
 
 ## 8. Phase C'
 

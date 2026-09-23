@@ -20,6 +20,11 @@ namespace OneStarMaker.Runtime.Rendering.Environments
         private float _fogDensity;
         private AmbientMode _ambientMode;
         private Color _ambientLight;
+        private Color _ambientSkyColor;
+        private Color _ambientEquatorColor;
+        private Color _ambientGroundColor;
+        private float _ambientIntensity;
+        private Light _sun = null!;
 
         public void CaptureBaseline()
         {
@@ -29,6 +34,14 @@ namespace OneStarMaker.Runtime.Rendering.Environments
             _fogDensity = RenderSettings.fogDensity;
             _ambientMode = RenderSettings.ambientMode;
             _ambientLight = RenderSettings.ambientLight;
+            // Apply は Flat と ambientLight だけを書く。Skybox / Trilight の評価は
+            // sky / equator / ground / intensity 側にあるので、ambientLight だけ戻しても baseline にならない。
+            _ambientSkyColor = RenderSettings.ambientSkyColor;
+            _ambientEquatorColor = RenderSettings.ambientEquatorColor;
+            _ambientGroundColor = RenderSettings.ambientGroundColor;
+            _ambientIntensity = RenderSettings.ambientIntensity;
+            // Apply が RenderSettings.sun を差し替える。解放後に Season Scene が消えると偽 null が残る。
+            _sun = RenderSettings.sun;
             _captured = true;
         }
 
@@ -70,6 +83,17 @@ namespace OneStarMaker.Runtime.Rendering.Environments
             RenderSettings.fogDensity = _fogDensity;
             RenderSettings.ambientMode = _ambientMode;
             RenderSettings.ambientLight = _ambientLight;
+            RenderSettings.ambientSkyColor = _ambientSkyColor;
+            RenderSettings.ambientEquatorColor = _ambientEquatorColor;
+            RenderSettings.ambientGroundColor = _ambientGroundColor;
+            RenderSettings.ambientIntensity = _ambientIntensity;
+            // Flat のとき ambientLight が評価色。先に書いた sky を Flat 用の色で上書きしないよう、最後に戻す。
+            if (_ambientMode == AmbientMode.Flat)
+            {
+                RenderSettings.ambientLight = _ambientLight;
+            }
+
+            RenderSettings.sun = _sun;
         }
     }
 }

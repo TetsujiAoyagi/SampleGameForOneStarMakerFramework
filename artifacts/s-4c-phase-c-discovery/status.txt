@@ -1,0 +1,5 @@
+## cursor/s-4c-world-lighting-a3-4a38...origin/cursor/s-4c-world-lighting-a3-4a38
+?? artifacts/s-4c-phase-c-discovery.diff
+?? artifacts/s-4c-phase-c-discovery.name-status.txt
+?? artifacts/s-4c-phase-c-discovery.stat.txt
+?? artifacts/s-4c-phase-c-discovery.status.txt
