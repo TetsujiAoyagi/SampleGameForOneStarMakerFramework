@@ -1,7 +1,7 @@
 # S-4c A3 凍結記録
 
 - frozen: 2026-09-21
-- 正本: `docs/handoff/S-4c_WORLD_LIGHTING.md`
+- 正本: S-4c HANDOFF（作業台。個別ファイル名は公開面から指さない）
 - A2 入力版: `artifacts/s-4c-phase-a/A1-snapshot.md`
 - 人間承認: 本スライスは「A3 まで進めて人間が B をやる」依頼。A3 統合は主担当が行い、例外承認欄は `なし`
 

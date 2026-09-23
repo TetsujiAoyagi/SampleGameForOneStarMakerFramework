@@ -4,7 +4,7 @@
 - slice: S-4c
 - created: 2026-09-21
 - implementation base (planned branch point): `553b7b150e13245b369d75dc4baa12d86e9559aa` (`origin/develop`)
-- input sources: `docs/handoff/S-4_FULL_SPEC_WORLD_AUTHORING.md` §5 / §10 / §11, `docs/handoff/SEASON_WORLD_DESIGN.md` N-2, Architecture §24 REN-08 / D-1 / §9, Architecture §23 §8 Volume 境界, Architecture §5.13 companion 分類, 現行コード調査
+- input sources: S-4 Full Spec（World Authoring）§5 / §10 / §11、Season World Design N-2、Architecture §24 REN-08 / D-1 / §9、Architecture §23 §8 Volume 境界、Architecture §5.13 companion 分類、現行コード調査
 - このファイルは A1/A2 の共通入力である。A2 の代替構成レビューは A1 を読まない。
 
 ## 1. 現況

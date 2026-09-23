@@ -1,6 +1,6 @@
 # S-4c Phase B 手順書（人間用・詳細）
 
-正本は `docs/handoff/S-4c_WORLD_LIGHTING.md`。食い違ったら HANDOFF。このファイルは「何を・どの順で・どの判定を書くか」だけを増やす。
+正本は S-4c HANDOFF。食い違ったら HANDOFF。このファイルは「何を・どの順で・どの判定を書くか」だけを増やす。
 
 想定: ローカル Unity 6000.6.0f1、このリポジトリの `unity/`、ブランチ `cursor/s-4c-world-lighting-a3-4a38`。Cloud では bake できない。
 
