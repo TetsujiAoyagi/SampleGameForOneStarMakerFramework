@@ -6,7 +6,9 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
 {
     internal sealed class WorldCompanionCreationPlan
     {
-        private const string WorldRoot = "Assets/SampleGame/InGame/InGameSession/World";
+        // 実 Cell / Environment は Architecture §27 どおり InGameSession/Seasons 配下。
+        // World/ は Scene 用 C# の置き場であり、親 Cell フォルダではない。
+        private const string SessionRoot = "Assets/SampleGame/InGame/InGameSession";
         private const string NodeRoot = "Assets/SceneGraphData/Nodes/Cells";
         private const string ResourceOutputFolder = "Assets/OneStarMakerCommon/SceneMap";
         private const string MapPath = "Assets/OneStarMakerCommon/SceneMap/SceneResourceMap.asset";
@@ -53,7 +55,7 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
             };
             var identity = selection.CompanionIdentity(roleToken);
             var parentIdentity = selection.CellIdentity;
-            var folder = $"{WorldRoot}/Seasons/{selection.Season}/Cells/{parentIdentity}/{identity}";
+            var folder = $"{SessionRoot}/Seasons/{selection.Season}/Cells/{parentIdentity}/{identity}";
             return new WorldCompanionCreationPlan(
                 identity,
                 parentIdentity,

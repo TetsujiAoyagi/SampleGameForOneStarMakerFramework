@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using OneStarMaker.Runtime.CameraSystem.Abstractions;
+using OneStarMaker.Runtime.Rendering.Environments;
 using OneStarMaker.Tests.CameraSystem;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Tests.SceneSystem.Helpers;
@@ -35,14 +36,20 @@ namespace OneStarMaker.Tests.SampleGame
         [Test]
         public void Constructor_NullLoggerFactory_Throws()
         {
-            Assert.Throws<ArgumentNullException>(() => new GameSceneFactory(null!, null!, null!, CellCompanionSet.Full));
+            Assert.Throws<ArgumentNullException>(
+                () => new GameSceneFactory(null!, null!, null!, CellCompanionSet.Full, new FakeRenderEnvironmentForFactory()));
         }
 
         [Test]
         public void Constructor_NullCameraSystem_Throws()
         {
             Assert.Throws<ArgumentNullException>(
-                () => new GameSceneFactory(NullLoggerFactory.Instance, null!, new NoopCameraBackgroundApplier(), CellCompanionSet.Full));
+                () => new GameSceneFactory(
+                    NullLoggerFactory.Instance,
+                    null!,
+                    new NoopCameraBackgroundApplier(),
+                    CellCompanionSet.Full,
+                    new FakeRenderEnvironmentForFactory()));
         }
 
         [Test]
@@ -51,7 +58,12 @@ namespace OneStarMaker.Tests.SampleGame
             var cameraSystem = new RuntimeCameraSystem(new FakeCameraBackend());
 
             Assert.Throws<ArgumentNullException>(
-                () => new GameSceneFactory(NullLoggerFactory.Instance, cameraSystem, null!, CellCompanionSet.Full));
+                () => new GameSceneFactory(
+                    NullLoggerFactory.Instance,
+                    cameraSystem,
+                    null!,
+                    CellCompanionSet.Full,
+                    new FakeRenderEnvironmentForFactory()));
         }
 
         [Test]
@@ -108,6 +120,32 @@ namespace OneStarMaker.Tests.SampleGame
             Assert.That(scene, Is.Not.TypeOf<CellCompanionScene>());
         }
 
+        [Test]
+        public void Constructor_NullRenderEnvironment_Throws()
+        {
+            var cameraSystem = new RuntimeCameraSystem(new FakeCameraBackend());
+
+            Assert.Throws<ArgumentNullException>(
+                () => new GameSceneFactory(
+                    NullLoggerFactory.Instance,
+                    cameraSystem,
+                    new NoopCameraBackgroundApplier(),
+                    CellCompanionSet.Full,
+                    null!));
+        }
+
+        [Test]
+        public void CreateSceneClass_SpringLightingCellChild_ReturnsCompanionScene()
+        {
+            var factory = CreateFactory(NullLoggerFactory.Instance);
+            var parent = SceneTestHelper.CreateSceneResource("opaque-parent", streamByDistance: true);
+            var child = SceneTestHelper.CreateSceneResource("Spring_Lighting_4_2", parent: parent);
+
+            var scene = factory.CreateSceneClass(child, new StubSceneQuery(), new StubSceneController());
+
+            Assert.That(scene, Is.TypeOf<CellCompanionScene>());
+        }
+
         [TestCase(CellCompanionSet.Full)]
         [TestCase(CellCompanionSet.Planner)]
         [TestCase(CellCompanionSet.Lighting)]
@@ -134,7 +172,16 @@ namespace OneStarMaker.Tests.SampleGame
                 loggerFactory,
                 cameraSystem,
                 new NoopCameraBackgroundApplier(),
-                companionSet);
+                companionSet,
+                new FakeRenderEnvironmentForFactory());
+        }
+
+        private sealed class FakeRenderEnvironmentForFactory : IRenderEnvironment
+        {
+            public bool HasActiveOwner => false;
+
+            public RenderEnvironmentLease Acquire(object ownerKey)
+                => throw new NotImplementedException();
         }
 
         private sealed class NoopCameraBackgroundApplier : ICameraBackgroundApplier

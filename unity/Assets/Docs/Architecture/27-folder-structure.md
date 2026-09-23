@@ -204,6 +204,8 @@ Assets/SceneGraphData/Nodes/Cells/{identity}.asset
 
 正本は `SceneNodeData` と `SceneGraphEdges`。`SceneResource` / Map は標準 `SceneResourceGenerator.Generate` の投影物であり、Workspace が生成物だけを手で upsert してはならない。payload は空 Variant、`LoadType.OnDemand`、`Volume = zero`、`StreamByDistance = false`。座標は Editor 入力にだけ使い、runtime が identity から復元しない。
 
+Workspace は SceneGraph Editor を通らない。`SceneGraphViewModel` / `SceneGraphEditorWindow` / `SceneGraphLayout` は更新せず、Undo も積まない。開いている GraphView は古いままになり、Layout に位置が無いノードは再読込すると `(0,0)` に出る。Play が読むのは Map 側なので、作成の成否は Editor ウィンドウでは判定しない。Editor から同じ identity を作り直さない。
+
 Cell / Environment / season Lighting / 大型 Event はこの口では作れない。既存の部分成果物を adopt / repair / overwrite しない。衝突があれば無変更で失敗する。
 
 ### pending journal が残ったとき
@@ -222,5 +224,6 @@ Editor open の途中で Unity API が失敗したときの完全復元は対象
 
 | 日付 | 内容 |
 |---|---|
+| 2026-09-23 | World Workspace は SceneGraph Editor / Layout を通らない現況を追加 |
 | 2026-09-09 | World Workspace の配置、Generate 投影、pending journal の調査手順を追加 |
 | 2026-07-27 | 初版。Assembly 軸と Scene 同居軸を文書化 |

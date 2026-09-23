@@ -6,6 +6,7 @@ using OneStarMaker.Runtime.CameraSystem.Abstractions;
 using OneStarMaker.Runtime.CameraSystem.BackgroundApplier;
 using OneStarMaker.Runtime.CameraSystem.Cinemachine;
 using OneStarMaker.Runtime.CameraSystem.Hosting;
+using OneStarMaker.Runtime.Rendering.Environments;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.UpdateSystem.Api;
 using SampleGame.InGame.Streaming;
@@ -36,6 +37,8 @@ namespace SampleGame.DependOnAll
         private CameraSystemUpdateElement? _cameraUpdateElement;
         private CameraBackgroundApplier? _cameraBackgroundApplier;
         private bool _cameraQuittingHandlerRegistered;
+        private RenderEnvironment? _renderEnvironment;
+        private bool _renderEnvironmentQuittingHandlerRegistered;
 
         private ProfilerUiCostCollector? _profilerUiCostCollector;
         private ProfilerTelemetryEmitter? _profilerTelemetryEmitter;
@@ -47,6 +50,7 @@ namespace SampleGame.DependOnAll
         {
             // Domain Reload 無効時も前セッションの常駐 Host を先に片付けてから Framework を初期化する。
             s_instance.ReleaseCameraSystem();
+            s_instance.ReleaseRenderEnvironment();
             s_instance.ReleaseProfilerTelemetry();
             s_instance._useBs4PlayerMode = false;
             BootstrapSubsystemRegistration(s_instance);
@@ -66,6 +70,7 @@ namespace SampleGame.DependOnAll
             if (s_instance.UpdateCoordinator != null)
             {
                 s_instance.InitializeCameraSystem();
+                s_instance.InitializeRenderEnvironment();
                 s_instance.InitializeProfilerTelemetry();
             }
         }
@@ -88,11 +93,15 @@ namespace SampleGame.DependOnAll
             var companionSet = CellCompanionSetParser.Parse(
                 keyExists ? config.GetString(key) : null,
                 keyExists);
+            var renderEnvironment = _renderEnvironment
+                ?? throw new InvalidOperationException(
+                    "RenderEnvironment is not initialized. Ensure BeforeSceneLoad completed successfully.");
             return new GameSceneFactory(
                 loggerFactory,
                 _cameraSystem,
                 _cameraBackgroundApplier,
-                companionSet);
+                companionSet,
+                renderEnvironment);
         }
 
         protected override string GetUICommonPrefabAddress()
@@ -179,6 +188,7 @@ namespace SampleGame.DependOnAll
         protected override void OnAfterSceneLoadInitializationFailed(string stage, Exception exception)
         {
             ReleaseCameraSystem();
+            ReleaseRenderEnvironment();
             ReleaseProfilerTelemetry();
         }
 
@@ -284,6 +294,35 @@ namespace SampleGame.DependOnAll
 
             _cameraSystemHost?.Dispose();
             _cameraSystemHost = null;
+        }
+
+        private void InitializeRenderEnvironment()
+        {
+            if (_renderEnvironment != null)
+            {
+                return;
+            }
+
+            _renderEnvironment = new RenderEnvironment(new UnityRenderEnvironmentSink());
+            if (_renderEnvironmentQuittingHandlerRegistered)
+            {
+                return;
+            }
+
+            Application.quitting += ReleaseRenderEnvironment;
+            _renderEnvironmentQuittingHandlerRegistered = true;
+        }
+
+        /// <summary>
+        /// App 常駐の RenderEnvironment 解放。Camera の Release には埋め込まない。
+        /// Dispose は冪等のため、SubsystemRegistration と Application.quitting の双方から安全に呼べる。
+        /// </summary>
+        private void ReleaseRenderEnvironment()
+        {
+            Application.quitting -= ReleaseRenderEnvironment;
+            _renderEnvironmentQuittingHandlerRegistered = false;
+            _renderEnvironment?.Dispose();
+            _renderEnvironment = null;
         }
 
         /// <summary>

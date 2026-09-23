@@ -5,7 +5,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（A3 凍結済み。Phase B 着手可）
+- status: `B`（A3 凍結済み。実装進行中。骨格のみ）
 - branch: `cursor/s-4c-world-lighting-a3-4a38`
 - implementation base commit: `553b7b150e13245b369d75dc4baa12d86e9559aa`
 - implementation head commit: （Phase B で追記）
@@ -14,14 +14,14 @@
 - created: 2026-09-21
 - A3 frozen: 2026-09-21
 - expires: S-4d の Phase D 完了時
-- harvest to: Architecture §24（REN-08 現況）、§05（Season Lighting lease）、§23 Volume 境界の確認、§27 フォルダ（Cell Lighting 2 件）、STREAMING には距離政策を足さない
+- harvest to: Architecture §24（REN-08 現況）、§05（Season Lighting lease）、§23 Volume 境界の確認、§27 フォルダ（Cell Lighting 2 件）、§11（Workspace は SceneGraph Editor を通さない現況）、STREAMING には距離政策を足さない
 - Phase A snapshot path: `artifacts/s-4c-phase-a/`
 - Phase A snapshot generated at: 2026-09-21
 - Phase A snapshot hash: A1-snapshot `38be0c9de7a839e4ddb4d2615d1cd1bae39db0c5d961d2df6df10da1d750ca12`（A2 入力。A3 本文はこの HANDOFF）
 - A2 入力: `artifacts/s-4c-phase-a/A0-packet.md` + `A1-snapshot.md`
 - A2 結果: `A2-architecture.md` / `A2-lifecycle.md` / `A2-alternative.md`
 - A3 決定: `artifacts/s-4c-phase-a/A3-frozen.md`
-- Phase B 手順の読み順: 本 HANDOFF が正本。人間向けチェックリストは `artifacts/s-4c-phase-a/PHASE_B_PLAYBOOK.md`（矛盾したら HANDOFF）
+- Phase B 手順の読み順: 本 HANDOFF が正本。人間向け詳細手順は `artifacts/s-4c-phase-a/PHASE_B_PLAYBOOK.md`（矛盾したら HANDOFF）。2026-09-22 に Playbook をフィールド・判定順・現行骨格の直し方まで詳細化した
 - Phase B result snapshot path / id: （未到達）
 - evidence bundle / C' blind bundle: （未到達）
 
@@ -68,6 +68,7 @@
   - 品質バー（3 秒で主題と変奏が分かる）の完成目視 → S-8
   - TimeOfDay 時計 → REN-08 残り / P-R6
   - Camera skybox material の季節別差し替え → 後続。本スライスは fog / ambient / sun で変奏を載せる
+  - World Workspace 作成が SceneGraph Editor（ViewModel / Layout / 開いている GraphView）を更新しないこと → 後続。本スライスは Node + Edges + Generate まで。Editor 可視化の同期は問わない
 
 - 判定定義:
   - GO: 進める最低条件 1〜7 を満たし、常時契約違反が無い。
@@ -141,7 +142,7 @@ identity 完全一致。未知 identity は `SeasonLightingScene` が **Acquire 
 
 ### 2.4 凍結する公開 API（Framework）
 
-配置 namespace: `OneStarMaker.Runtime.Rendering`
+配置 namespace: `OneStarMaker.Runtime.Rendering.Environments`
 
 A3 で公開集合を明示する（CameraSystem が `ICameraBackend` / `CinemachineCameraBackend` を公開するのと同型）。`IRenderingSystem` は作らない。
 
@@ -217,18 +218,21 @@ public sealed class RenderEnvironment : IRenderEnvironment, IDisposable
 
 | ファイル | 責務（一文） | 変更理由 | 所有者・寿命 | 入力/出力依存 | 層 | 公開面 | テスト境界 | 配置理由 | 行数目安 |
 |---|---|---|---|---|---|---|---|---|---|
-| `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/RenderEnvironmentState.cs` | グローバル見た目の純データ | REN-08 前倒し | 値型。寿命なし | Unity `Vector3`/`Color` のみ | Policy | 公開 struct | 値の Validate を Environment 側で | CameraSystem の Geometry と同様、Runtime 配下に Rendering フォルダを新設。Framework/SampleGame・公開 API の差がある | ~50 |
-| `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/IRenderEnvironment.cs` | 単一 owner の取得口 | 公開 API 限定追加 | App | なし | 公開 API | 公開 interface | Fake 実装で | 同上 | ~20 |
-| `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/IRenderEnvironmentSink.cs` | state を装置へ翻訳する口 | policy と I/O を分ける | App（実装次第） | Light / RenderSettings | 公開面は interface。Unity I/O は実装 | 公開 interface（テスト差し替え） | Fake sink | CameraSystem の `ICameraBackend` と同型 | ~20 |
-| `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/RenderEnvironmentLease.cs` | generation token と Apply/Dispose | stale 耐性 | lease オブジェクト。App 上の世代 | RenderEnvironment 内部 | Policy | 公開 sealed | 純 C# | Handle を独立型にしないと token 照合が埋もれる | ~80 |
-| `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/RenderEnvironment.cs` | 単一 owner と generation の調停 | 同時 1 Season | App lifetime。`AppInitializer` が生成・破棄 | sink | Policy + orchestration | 公開 sealed | Fake sink で Unity なし | CameraSystem 本体に相当。Host GO は持たない | ~120 |
-| `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/RenderEnvironmentValidator.cs` | state の fail-closed 検証 | 負の intensity 等を装置へ流さない | なし（純関数） | state のみ | Policy | internal | 純 C# | Environment に検証を混ぜるとテストと調停が混線する | ~40 |
-| `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/UnityRenderEnvironmentSink.cs` | Light と RenderSettings への反映と baseline 復元 | 唯一の Unity I/O | App。RenderSettings はプロセスグローバル | `Light`, `RenderSettings` | Unity I/O | **公開** sealed（`AppInitializer` が `new`） | Play/Edit は薄い。主検証は Fake | URP 型を使わない。Runtime 既存 UnityEngine 依存の範囲。internal にしない（DependOnAll から new するため） | ~80 |
+| `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/RenderEnvironmentState.cs` | グローバル見た目の純データ | REN-08 前倒し | 値型。寿命なし | Unity `Vector3`/`Color` のみ | Policy | 公開 struct | 値の Validate を Environment 側で | CameraSystem の Geometry と同様、Runtime 配下に Rendering/Environments。Framework/SampleGame・公開 API の差がある | ~50 |
+| `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/IRenderEnvironment.cs` | 単一 owner の取得口 | 公開 API 限定追加 | App | なし | 公開 API | 公開 interface | Fake 実装で | 同上 | ~20 |
+| `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/IRenderEnvironmentSink.cs` | state を装置へ翻訳する口 | policy と I/O を分ける | App（実装次第） | Light / RenderSettings | 公開面は interface。Unity I/O は実装 | 公開 interface（テスト差し替え） | Fake sink | CameraSystem の `ICameraBackend` と同型 | ~20 |
+| `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/RenderEnvironmentLease.cs` | generation token と Apply/Dispose | stale 耐性 | lease オブジェクト。App 上の世代 | RenderEnvironment 内部 | Policy | 公開 sealed | 純 C# | Handle を独立型にしないと token 照合が埋もれる | ~80 |
+| `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/RenderEnvironment.cs` | 単一 owner と generation の調停 | 同時 1 Season | App lifetime。`AppInitializer` が生成・破棄 | sink | Policy + orchestration | 公開 sealed | Fake sink で Unity なし | CameraSystem 本体に相当。Host GO は持たない。namespace は親と同じ | ~120 |
+| `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/internal/RenderEnvironmentValidator.cs` | state の fail-closed 検証 | 負の intensity 等を装置へ流さない | なし（純関数） | state のみ | Policy | internal | 純 C# | Environment に検証を混ぜるとテストと調停が混線する | ~40 |
+| `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/UnityRenderEnvironmentSink.cs` | Light と RenderSettings への反映と baseline 復元 | 唯一の Unity I/O | App。RenderSettings はプロセスグローバル | `Light`, `RenderSettings` | Unity I/O | **公開** sealed（`AppInitializer` が `new`） | Play/Edit は薄い。主検証は Fake | URP 型を使わない。Runtime 既存 UnityEngine 依存の範囲。internal にしない（DependOnAll から new するため） | ~80 |
 | `unity/Assets/SampleGame/InGame/InGameSession/World/SeasonLightingPresetTable.cs` | identity → state | 季節語を Game に閉じる | なし（静的表） | なし | Policy（Game） | internal | 純 C# | SeasonLightingScene に表を直書きすると Scene 寿命と数値が混ざる | ~80 |
-| `unity/Assets/OneStarMaker/Tests/Rendering/RenderEnvironmentLeaseTests.cs` | 単一 owner / stale / restore | 最低条件 1 | テスト寿命 | Fake sink | テスト | なし | EditMode 純 C# | Camera テストと同配置 | ~250 |
+| `unity/Assets/OneStarMaker/Tests/Rendering/Environments/RenderEnvironmentLeaseTests.cs` | 単一 owner / stale / restore | 最低条件 1 | テスト寿命 | Fake sink | テスト | なし | EditMode 純 C# | Camera テストと同配置 | ~250 |
+| `unity/Assets/OneStarMaker/Tests/Rendering/Environments/FakeRenderEnvironmentSink.cs` | sink 呼び出しの記録 | 最低条件 1 の装置差し替え | テスト寿命 | なし | テスト | なし | EditMode | Runtime にテスト型を置かない | ~40 |
 | `unity/Assets/OneStarMaker/Tests/SampleGame/SeasonLightingPresetTableTests.cs` | 四季表の固定値 | 最低条件 3 の入力 | テスト寿命 | なし | テスト | なし | EditMode | SampleGame テスト | ~80 |
 
-Rendering フォルダ新設の理由: Framework / SampleGame ではなく、CameraSystem と並ぶ Runtime サブシステム境界。Helpers/Managers ではない。
+Rendering/Environments フォルダ新設の理由: Framework / SampleGame ではなく、CameraSystem と並ぶ Runtime サブシステム境界。Helpers/Managers ではない。公開 namespace は `OneStarMaker.Runtime.Rendering.Environments` で凍結済み。ファイル配置だけ CameraSystem に合わせてサブフォルダへ分けた（B 適応。公開集合・asmdef・寿命は不変）。
+
+作業ツリーの `Implments` は typo。Phase B で Unity Project 窓から `Implements` にリネームする（`.meta` GUID を保つ）。
 
 `RenderEnvironmentLease` と `RenderEnvironment` は変更理由が近いが、token 型を Environment の inner class にすると公開 API が読みにくい。行数警報（500 / 3 責務 / 50%）は単体では未達。非分割: `Lease` を独立ファイルにするのは公開 Handle のためであり、行数削減のための委譲ではない。
 
@@ -257,15 +261,45 @@ Rendering フォルダ新設の理由: Framework / SampleGame ではなく、Cam
 
 ## 4. 実装計画（Phase B 手順書）
 
-Phase B 担当は **この節の順序** で進める。設計判断が必要になったら止まる。Unity テストは実行しない。
+Phase B 担当は **この節の順序** で進める。設計判断が必要になったら止まる。Unity テストは実行しない。フィールド一覧・判定順・現行骨格の直し方は Playbook。契約が衝突したらこの HANDOFF。
+
+### 4.0 1 枚で見る流れ
+
+```text
+SeasonLightingScene.OnLoadedImpl
+  1. SeasonSun を RootObjects から name 完全一致で探す（まだ lease を取らない）
+  2. SeasonLightingPresetTable.TryGet（未知なら throw。まだ lease を取らない）
+  3. IRenderEnvironment.Acquire(this) → RenderEnvironmentLease
+  4. lease.BindSun(sun) → lease.Apply(state)
+       RenderEnvironment が generation を確認し、Validator のあと
+       IRenderEnvironmentSink.Apply へ渡す
+         Fake: 回数を記録するだけ（B1）
+         Unity: Light + RenderSettings へ書く（B2）
+
+SeasonLightingScene.OnPreUnLoadedImpl
+  lease.Dispose → 番号が一致するときだけ RestoreBaseline、owner を空け、generation++
+```
+
+同時に権利証を持てるのは 1 件。二件目の `Acquire` は即 `InvalidOperationException`。古い lease の Dispose は新しい owner を消さない。
+
+内部フィールド（公開 API には出さない。B 適応）:
+
+| 型 | フィールド |
+|---|---|
+| `RenderEnvironment` | `_sink`, `_ownerKey`, `_generation`（初期 0）, `_boundSun`, `_disposed` |
+| `RenderEnvironmentLease` | `_environment`, `Generation`（Acquire 時のコピー。以後変えない） |
+| Lease → Environment の internal | `BindSunFromLease` / `ApplyFromLease` / `ReleaseFromLease` |
+
+matching Dispose と `RenderEnvironment.Dispose` は、Restore のあと **必ず `_generation++`** する。これを忘れると stale 4 手が壊れる。
 
 ### 4.1 変更対象（コード）
 
-1. Runtime Rendering 新規 7 ファイル（State, 2 interface, Lease, Environment, Validator, Unity sink）
-2. SampleGame preset 表
-3. `SeasonLightingScene` / `PlayerScene` / `GameSceneFactory` / `AppInitializer`
-4. Factory テスト + lease テスト + preset テスト
-5. Editor コンテンツ: 4 Season Lighting の `SeasonSun`、2 Cell Lighting、代表 bake
+1. Runtime `Rendering/Environments`（公開 4 + Implements 2 + internal Validator）
+2. Tests `Rendering/Environments`（Fake sink + lease テスト）
+3. SampleGame preset 表
+4. `SeasonLightingScene` / `PlayerScene` / `GameSceneFactory` / `AppInitializer`
+5. Factory テスト + preset テスト
+6. Editor コンテンツ: 4 Season Lighting の `SeasonSun`、2 Cell Lighting、代表 bake
 
 ### 4.2 順序
 
@@ -273,14 +307,21 @@ Phase B 担当は **この節の順序** で進める。設計判断が必要に
 
 - ローカルで `tools/unity-editor.cmd status`。閉じていれば ProjectVersion 6000.6.0f1 の Editor をこの `unity/` で開く。Cloud なら B0 をスキップし、C# だけ書いてコンテンツ手順を実装結果に「未実行」と書く。人間 B はローカル必須（bake があるため）。
 - 既存 Editor が別 project なら接続しない。
-- `git status` がこのブランチで clean なことを確認してからコンテンツ以外の C# を書く。
+- `git status` がこのブランチであることを確認する。Rendering 骨格の dirty は残してよい。
+- フォルダ `Implments` を Unity Project 窓で `Implements` にリネームする。
 
 **B1. Fake で lease を先に通す（Unity Scene を開かない）**
 
-1. `RenderEnvironmentState` と `RenderEnvironmentValidator` を書く。Validate 失敗は `ArgumentOutOfRangeException`。
-2. `IRenderEnvironmentSink` のテスト用 `FakeRenderEnvironmentSink` を Tests アセンブリへ置く（Runtime にテスト型を置かない）。記録: `CaptureCount`, `RestoreCount`, `Applies` リスト, 最後の `Light` 参照は持たず `SunBound` bool だけ。
-3. `RenderEnvironment` + `RenderEnvironmentLease` を書く。
-4. `RenderEnvironmentLeaseTests` を書く。最低ケース:
+現行骨格は空実装と誤った Fake がある。部分修正より Playbook §7 の完成形へ置き換える。
+
+1. `RenderEnvironmentState` と `RenderEnvironmentValidator` を書く。Validator は `void Validate(in RenderEnvironmentState)`。失敗は `ArgumentOutOfRangeException`（負の intensity / density / 色、weight の 0..1 外）。bool を返さない。
+2. `FakeRenderEnvironmentSink` を Tests アセンブリへ置く（Runtime にテスト型を置かない）。記録: `CaptureCount`, `RestoreCount`, `Applies` リスト, `SunBound` bool。**Validator を呼ばない。sun から state を組み立てない。渡された state をリストへ追加するだけ。**
+3. `RenderEnvironment` + `RenderEnvironmentLease` を書く。Lease は Environment へ委譲するだけ。`_currentState` を Lease に持たない。
+4. 判定順は Playbook §5。要約:
+   - `Acquire`: null owner → 破棄済み → 既に owner → Capture → owner セット → `new Lease(this, _generation)`。失敗したら Capture も owner も変えない。
+   - `ReleaseFromLease`（lease.Dispose）: 番号不一致 or owner なし → no-op。一致なら Restore、Light 参照破棄、owner クリア、`_generation++`。
+   - `RenderEnvironment.Dispose`: owner がいれば Restore 1 回、owner クリア、`_generation++`、破棄フラグ。以降その lease の Apply は throw、Dispose は Restore を増やすな。
+5. `RenderEnvironmentLeaseTests` を書く。最低ケース:
    - `Acquire_First_Succeeds_AndHasOwner`
    - `Acquire_Second_Throws_AndKeepsFirstOwner`
    - `Dispose_Matching_ClearsOwner_AndRestoresBaseline`
@@ -296,7 +337,7 @@ Phase B 担当は **この節の順序** で進める。設計判断が必要に
    - `Validate_NegativeIntensity_Throws`
    - `DisposeEnvironment_WithActiveLease_RestoresOnce_AndLeaseDisposeIsNoOp`
      `RenderEnvironment.Dispose` のあと、同じ lease の `Apply` は throw、`Dispose` は Restore を増やさない。
-5. ここで `pwsh tools/run-tests.ps1` は **まだ走らせない**。コンパイルは Editor が開いていれば確認してよい。
+6. ここで `pwsh tools/run-tests.ps1` は **まだ走らせない**。コンパイルは Editor が開いていれば確認してよい。
 
 **Light を EditMode でどう扱うか（凍結）:** `BindSun` の引数型は `Light` のままにする。純 C# テストは `BindSun` を呼ばずに失敗経路を見るテストと、Tests 内で `GameObject` + `Light` を一時生成できる EditMode テストを分ける。`RenderEnvironmentLeaseTests` は Fake sink 中心のクラスに、`#if` で分けない。Light が必要なケースは同ファイルで `new GameObject` + `AddComponent<Light>()` し、TearDown で `DestroyImmediate`。これは Camera テストが stub `Object` を作るのと同型。DontDestroyOnLoad は使わない。
 
@@ -312,26 +353,27 @@ Phase B 担当は **この節の順序** で進める。設計判断が必要に
 
 **B3. App 配線**
 
-`AppInitializer`:
+`AppInitializer`（行の場所は現行ファイル基準）:
 
-- フィールド `_renderEnvironment`。
-- `InitializeCameraSystem` の直後（Factory より前）に `new RenderEnvironment(new UnityRenderEnvironmentSink())`。
-- `CreateSceneFactory` の引数に渡す。未初期化なら `InvalidOperationException`。
-- **独立** メソッド `ReleaseRenderEnvironment` を作る。`ReleaseCameraSystem` に埋め込まない。
-- 呼び先: `Sub`（SubsystemRegistration）、`Application.quitting`、`OnAfterSceneLoadInitializationFailed`。Camera の Release と同じタイミングで呼ぶが、別メソッド。
-- `RenderEnvironment.Dispose`: active owner がいれば Restore 1 回、owner クリア、generation を進める。
-- 破棄順: Scene がもう Environment を使わない状態で呼ぶ。相互依存は無いので Camera の前後どちらでもよいが、両方を同じ失敗ハンドラから呼ぶ。
+- フィールド `_renderEnvironment` と `_renderEnvironmentQuittingHandlerRegistered`。
+- `Before()` の `InitializeCameraSystem();` の直後に独立メソッド `InitializeRenderEnvironment()`。中で `new RenderEnvironment(new UnityRenderEnvironmentSink())`。`ReleaseCameraSystem` に埋め込まない。
+- `CreateSceneFactory` の `new GameSceneFactory(...)` に渡す。未初期化なら `InvalidOperationException`。
+- **独立** メソッド `ReleaseRenderEnvironment`。中で `_renderEnvironment?.Dispose(); _renderEnvironment = null;`。quitting ハンドラもここで外す。
+- 呼び先: `Sub()`（`ReleaseCameraSystem();` の隣）、`Application.quitting`、`OnAfterSceneLoadInitializationFailed`（同じく Camera の隣）。同じタイミング、別メソッド。
+- 破棄順: Scene がもう Environment を使わない状態で呼ぶ。相互依存は無いので Camera の前後どちらでもよいが、両方を同じ失敗ハンドラから呼ぶ。Host GO は作らない。
 
 `GameSceneFactory`:
 
-- 必須引数 `IRenderEnvironment renderEnvironment`。null は `ArgumentNullException`。
-- `Spring_Lighting` 他 3 件の constructor に渡す。
-- 他 Scene は受け取らない。
+- 必須引数 `IRenderEnvironment renderEnvironment` を既存 4 引数の後ろへ。null は `ArgumentNullException`。
+- `Spring_Lighting` / `Summer_Lighting` / `Autumn_Lighting` / `Winter_Lighting` の constructor にだけ渡す。
+- `Spring_Lighting_4_2` は switch に出さない。親が `StreamByDistance` なら既存分岐で `CellCompanionScene`。
 
 `SeasonLightingScene`（`OnLoadedImpl` 例外は PreUnLoad を通らない）:
 
 ```
-sun = Find SeasonSun（name 完全一致、Directional、Unity 偽 null ではない）
+sun = RootObjects を回し GetComponentsInChildren<Light> から
+      name 完全一致 "SeasonSun" かつ Directional かつ Unity 偽 null ではないもの
+FindRootComponent<Light>() は使わない（最初の Light が SeasonSun とは限らない）
 見つからなければ throw（まだ Acquire しない）
 if (!SeasonLightingPresetTable.TryGet(identity, out state)) throw（まだ Acquire しない）
 _lease = _renderEnvironment.Acquire(this)
@@ -351,13 +393,13 @@ OnPreUnLoadedImpl:
 
 成功時は finally で Dispose しない。`OnAfterUnLoadedImpl` に Dispose を足して PreUnLoad 失敗を救う逃げはしない。
 
-`Find` は `SceneBase` の RootObjects / 既存の root 検索に合わせる。新しい反射を増やすな。
+新しい反射を増やすな。`SceneBase` に Find ヘルパーを足さない。
 
-`PlayerScene`: `ApplyDemoLook` メソッドと呼び出しを削除。`RenderSettings` using が不要なら取り除く。Camera bind は残す。
+`PlayerScene`: `ApplyDemoLook` メソッドと呼び出しを **まるごと** 削除する。中の Camera clear も消す（AppInitializer / InGameScene の既定が残る）。`RenderSettings` 参照が Game 層に残っていたら失敗。Camera bind は残す。
 
 **B4. テスト更新**
 
-- `GameSceneFactory` の全 constructor 呼び出しに Fake `IRenderEnvironment` を足す。null 拒否テストを 1 件追加。
+- `GameSceneFactory` の全 constructor 呼び出しに Fake `IRenderEnvironment` を足す。null 拒否テストを 1 件追加。Factory 用 Fake は `Acquire` を実装しなくてよい（生成契約だけ見る）。lease テストの Fake sink と混ぜない。
 - `CreateSceneClass_SeasonLightingWithoutCellParent_IsNotCompanion` を維持。
 - 追加: 親が `StreamByDistance` の `Spring_Lighting_4_2` は `CellCompanionScene`（lease を取らない）。
 - Cell Lighting 2 Scene 作成後、`OneStarMaker.Tests.Editor` に Directional 本数 0・Point 1 以上を数える EditMode を 1 件。Scene がまだ無い B4 時点では書かず、B5 の直後に足す。
@@ -501,11 +543,11 @@ B 適応でよい例: `Find` の具体メソッド名、コメント、テスト
 
 ## 6. Phase B 実装結果
 
-- 実装: 未着手
-- HANDOFF との差: 未着手
-- 未実行: 未着手
+- 実装: 進行中。B1 lease / B2 Unity sink / B3 配線まで。B5 コンテンツと bake は未着手
+- HANDOFF との差: ファイル配置を `Rendering/Environments/{Abstractions,Implements,internal}` へ分けた（B 適応。公開 namespace・公開集合は不変）。World Workspace の companion 親フォルダ定数が `InGameSession/World/Seasons` を見ていたのを、実 Cell のある `InGameSession/Seasons` へ直した（B 適応。公開 API・寿命は不変）。World Workspace Create は SceneGraph Editor / Layout を通さない（現行の事実。S-4c では直さない。後続へ）
+- 未実行: Unity テスト未実行。bake 未実行。contract-audit 未実行。SeasonSun 未配置。Cell Lighting 2 件未作成
 - implementation head commit:
-- Phase B 担当・モデル・ベンダー:
+- Phase B 担当・モデル・ベンダー: 人間。B3 配線は Cursor Grok 4.6 / xAI（2026-09-23）
 
 ## 7. Phase C
 
