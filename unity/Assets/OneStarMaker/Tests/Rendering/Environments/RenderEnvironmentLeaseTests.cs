@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Reflection;
 using NUnit.Framework;
 using OneStarMaker.Runtime.Rendering.Environments;
 using UnityEngine;
@@ -48,6 +49,35 @@ namespace OneStarMaker.Tests.Rendering.Environments
             Assert.That(_environment.HasActiveOwner, Is.True);
             Assert.That(_sink.CaptureCount, Is.EqualTo(1));
             Assert.That(_sink.RestoreCount, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void State_ExposesValuesAsGetOnlyProperties()
+        {
+            var stateType = typeof(RenderEnvironmentState);
+            var propertyNames = new[]
+            {
+                nameof(RenderEnvironmentState.SunEulerDegrees),
+                nameof(RenderEnvironmentState.SunColor),
+                nameof(RenderEnvironmentState.SunIntensity),
+                nameof(RenderEnvironmentState.AmbientSkyColor),
+                nameof(RenderEnvironmentState.FogEnabled),
+                nameof(RenderEnvironmentState.FogColor),
+                nameof(RenderEnvironmentState.FogDensity),
+                nameof(RenderEnvironmentState.GlobalVolumeWeight)
+            };
+
+            foreach (var propertyName in propertyNames)
+            {
+                var property = stateType.GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
+
+                Assert.That(property, Is.Not.Null, propertyName);
+                Assert.That(property!.SetMethod, Is.Null, propertyName);
+                Assert.That(
+                    stateType.GetField(propertyName, BindingFlags.Instance | BindingFlags.Public),
+                    Is.Null,
+                    propertyName);
+            }
         }
 
         [Test]

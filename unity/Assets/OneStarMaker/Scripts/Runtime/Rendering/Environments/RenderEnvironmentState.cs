@@ -11,14 +11,14 @@ namespace OneStarMaker.Runtime.Rendering.Environments
     /// </summary>
     public readonly struct RenderEnvironmentState
     {
-        public readonly Vector3 SunEulerDegrees;
-        public readonly Color SunColor;
-        public readonly float SunIntensity;
-        public readonly Color AmbientSkyColor;
-        public readonly bool FogEnabled;
-        public readonly Color FogColor;
-        public readonly float FogDensity;
-        public readonly float GlobalVolumeWeight;
+        public Vector3 SunEulerDegrees { get; }
+        public Color SunColor { get; }
+        public float SunIntensity { get; }
+        public Color AmbientSkyColor { get; }
+        public bool FogEnabled { get; }
+        public Color FogColor { get; }
+        public float FogDensity { get; }
+        public float GlobalVolumeWeight { get; }
 
         public RenderEnvironmentState(
             Vector3 sunEulerDegrees,
