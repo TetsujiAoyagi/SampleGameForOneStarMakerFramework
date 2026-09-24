@@ -23,7 +23,7 @@
 - A3 決定: `artifacts/s-4c-phase-a/A3-frozen.md`
 - Phase B 手順の読み順: 本 HANDOFF が正本。人間向け詳細手順は `artifacts/s-4c-phase-a/PHASE_B_PLAYBOOK.md`（矛盾したら HANDOFF）。2026-09-22 に Playbook をフィールド・判定順・現行骨格の直し方まで詳細化した
 - Phase B result snapshot path / id: `artifacts/s-4c-phase-cprime-blind-3cdba44-20260925/implementation/phase-b-result.txt`。
-- evidence bundle: `artifacts/s-4c-phase-cprime-restart-20260925/blind-bundle.zip`（SHA-256 `70ECB250AD62418B43333BA4FEC6EF9E503B1663FB71984F63853862C5371EB8`。旧 uncompressed bundle のpayloadを保持し、ZIP展開後に21件すべての内部 hashを検証）。過去の試行は §8.1–8.2。
+- evidence bundle: `artifacts/s-4c-phase-cprime-restart-20260925/blind-bundle.archive`（ZIP byte stream、SHA-256 `70ECB250AD62418B43333BA4FEC6EF9E503B1663FB71984F63853862C5371EB8`。Git LFS対象外にし、展開後に21件すべての内部hashを検証）。過去の試行は §8.1–8.2。
 
 ## 1. 目的と対象外
 
@@ -733,8 +733,9 @@ B 適応でよい例: `Find` の具体メソッド名、コメント、テスト
 
 ### 8.3 ZIP 再梱包と新規監査依頼
 
-- 監査入力: `artifacts/s-4c-phase-cprime-restart-20260925/blind-bundle.zip`。outer SHA-256 は `70ECB250AD62418B43333BA4FEC6EF9E503B1663FB71984F63853862C5371EB8`。PowerShell で展開し、外部 hash、内部 `manifest.json` / `manifest.sha256`、manifest記載21 payloadを照合、すべて一致。
-- 引継ぎ資料と貼り付け用prompt: `artifacts/s-4c-phase-cprime-restart-20260925/HANDOFF.md` / `PROMPT-ja.md`。新規 GPT-5.5 session では ZIP のみを監査入力にし、セッション内の実モデルが GPT-5.5 と確認できなければ内容評価前に停止する。
+- 直近の問題: `.zip` は `.gitattributes` で Git LFS 対象のため、新task worktreeには131 byteのLFS pointerが展開されていた。内容監査には進まず、転送問題と判定した。
+- 監査入力: `artifacts/s-4c-phase-cprime-restart-20260925/blind-bundle.archive`。outer SHA-256 は `70ECB250AD62418B43333BA4FEC6EF9E503B1663FB71984F63853862C5371EB8`。`.archive` はLFS属性なし。作成元では展開後に内部hashを検証済み。新task worktreeでもouter hashを再確認する。
+- 引継ぎ資料と貼り付け用prompt: `artifacts/s-4c-phase-cprime-restart-20260925/HANDOFF.md` / `PROMPT-ja.md`。実モデルが Phase B (Grok 4.7) と Phase C (GPT-6) の両方と異なることを確認する。GPT-5.5という厳密なlabelは必須条件ではない。
 - base/head: `553b7b150e13245b369d75dc4baa12d86e9559aa` → `3cdba44c4de89a1c5f14de9ab2731bf152ef8f76`。
 - 公式 C' の担当モデル・独立性・所見・残存リスク・判定: 未実施。新規監査の完了後に追記する。
 

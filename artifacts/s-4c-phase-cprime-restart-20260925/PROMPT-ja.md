@@ -2,22 +2,22 @@
 
 ## モデル条件
 
-監査を始める前に、このセッションで実際に選択されているモデル名を確認し、最初に報告してください。**GPT-5.5 でなければ、bundle の中身を読む前に停止**し、「モデル条件未達のため公式 C' 未実施」とだけ判定してください。モデル名を推測したり、依頼文から推定したりしないでください。
+監査を始める前に、このセッションで実際に選択されているモデル名を確認し、最初に報告してください。Phase B は Grok 4.7、Phase C は GPT-6 です。この新規セッションのモデルが両方と異なるなら、GPT-5.5 という厳密な表示でなくても監査を続けてください。実際に確認できたモデル名だけを記録し、モデル名を推測したり依頼文から推定したりしないでください。同じモデルだと確認できた場合だけ、bundle を読む前に停止し「モデル条件未達のため公式 C' 未実施」と報告してください。
 
 ## 入力と完全性確認
 
 唯一の監査入力は次の ZIP です。
 
-`artifacts/s-4c-phase-cprime-restart-20260925/blind-bundle.zip`
+`artifacts/s-4c-phase-cprime-restart-20260925/blind-bundle.archive` (ZIP byte stream; extension intentionally avoids Git LFS)
 
-1. 付属ファイル `blind-bundle.zip.sha256` と ZIP 本体の SHA-256 を照合してください。期待値は `70ECB250AD62418B43333BA4FEC6EF9E503B1663FB71984F63853862C5371EB8` です。
-2. ZIP を一時ディレクトリへ展開し、内部 `manifest.json` の SHA-256 を `manifest.sha256` と照合してください。
+1. 付属ファイル `blind-bundle.archive.sha256` と archive 本体の SHA-256 を照合してください。期待値は `70ECB250AD62418B43333BA4FEC6EF9E503B1663FB71984F63853862C5371EB8` です。
+2. PowerShell `Expand-Archive` を使う場合は、archiveを作成した一時ディレクトリ内の `blind-bundle.zip` へコピーしてから展開してください。内部 `manifest.json` の SHA-256 を `manifest.sha256` と照合してください。
 3. manifest の全 `contents[]` について、展開後の raw bytes の SHA-256 と byte size を照合してください。全21件が一致した場合だけ監査を続行してください。不一致があれば内容評価に進まず、該当ファイルと実測値を示して「証跡完全性 blocker / 監査未実施」と報告してください。
 4. 展開先を再帰削除する場合、削除前に絶対パスが自分で作成した一時ディレクトリ内にあることを確認してください。
 
 ## 盲検性
 
-監査対象は ZIP 内の資料だけです。ZIP の外にある引継ぎ資料、可変なスライス HANDOFF、過去の監査報告、以前の会話、追加のリポジトリファイルを読まないでください。ZIP 内の `PROMPT-ja.md` も過去の資料です。判断基準は frozen Phase A、固定 diff、テスト生結果、machine output を参照してください。
+監査対象は archive 内の資料だけです。archive の外にある引継ぎ資料、可変なスライス HANDOFF、過去の監査報告、以前の会話、追加のリポジトリファイルを読まないでください。archive 内の `PROMPT-ja.md` も過去の資料です。判断基準は frozen Phase A、固定 diff、テスト生結果、machine output を参照してください。
 
 ## 監査
 
