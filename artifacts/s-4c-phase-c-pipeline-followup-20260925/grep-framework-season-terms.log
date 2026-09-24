@@ -1,0 +1,3 @@
+command: rg "Season|Spring|Summer|Autumn|Winter|季節" unity/Assets/OneStarMaker/Scripts -g "*.cs"
+exit: 1
+meaning: no matches

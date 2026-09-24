@@ -1,0 +1,1 @@
+var player = UnityEngine.Object.FindFirstObjectByType<SampleGame.InGame.Player.FlyController>(); return player == null ? "player=null" : "position=" + player.Position + " yaw=" + player.transform.eulerAngles.y + " input=" + player.InputEnabled;

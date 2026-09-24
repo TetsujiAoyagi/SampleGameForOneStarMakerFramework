@@ -1,0 +1,3 @@
+command: rg "RenderSettings" unity/Assets/SampleGame --glob "*.cs"
+exit: 1
+meaning: no matches

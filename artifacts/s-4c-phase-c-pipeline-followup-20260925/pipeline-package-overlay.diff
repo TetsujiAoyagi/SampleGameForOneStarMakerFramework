@@ -1,0 +1,26 @@
+diff --git a/unity/Packages/manifest.json b/unity/Packages/manifest.json
+index c003c33..f831afa 100644
+--- a/unity/Packages/manifest.json
++++ b/unity/Packages/manifest.json
+@@ -16,7 +16,7 @@
+     "com.unity.ide.visualstudio": "2.0.26",
+     "com.unity.inputsystem": "1.20.0",
+     "com.unity.multiplayer.center": "2.0.1",
+-    "com.unity.pipeline": "0.4.0-exp.1",
++    "com.unity.pipeline": "0.7.0-exp.1",
+     "com.unity.project-auditor-rules": "1.0.3",
+     "com.unity.purchasing": "5.4.2",
+     "com.unity.render-pipelines.universal": "17.6.0",
+diff --git a/unity/Packages/packages-lock.json b/unity/Packages/packages-lock.json
+index 2beba11..520d845 100644
+--- a/unity/Packages/packages-lock.json
++++ b/unity/Packages/packages-lock.json
+@@ -193,7 +193,7 @@
+       "url": "https://packages.unity.com"
+     },
+     "com.unity.pipeline": {
+-      "version": "0.4.0-exp.1",
++      "version": "0.7.0-exp.1",
+       "depth": 0,
+       "source": "registry",
+       "dependencies": {

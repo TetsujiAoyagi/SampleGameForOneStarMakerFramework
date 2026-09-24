@@ -674,6 +674,22 @@ B 適応でよい例: `Find` の具体メソッド名、コメント、テスト
 - Editor / Play 未確認: 最低条件7のruntime観測は未実施。正しい project / Unity 6000.6.0f1 を起動したが、Editor Pipeline `0.4.0-exp.1` が CLI `command list_open_scenes` に必要な `0.6.0-exp.1` 以降より古く、コマンドが拒否された。Play 中の cell unload/reload と fog/sun / baked floor は観測できず。package upgrade はせず、`content:runtimeMode` 契約も変更していない。試行ログは bundle。§6 の seam / close 後確認は未確認扱いにしない。
 - 判定: **Phase C 保留（検証証拠不足）。GO / NO-GO は確定しない。** 全 EditMode と機械検査は成功したが、最低条件7の必須 Play runtime 観測が未完了。阻害欠陥は未検出。後続入力は上記分類。C' は起動しない。
 - テストの `PC_RPAsset.asset` 再シリアライズ差分は bundle に保存後、implementation head の内容へ復元。今回の review record のみを別 commit にする。
+
+### 7.5 Pipeline 更新後の Phase C 追補（2026-09-25、Codex / GPT-6）
+
+- 対象実装は §7.4 と同じ `87a1cd297a0b96bb9743b3e47654a27130ebcffe`。現在の review-record HEAD は `d550832b934910b3f40b084e2dd09058298d3824`。Phase A / B snapshot、構造レビュー、差分、C' を起動しない規則は §7.4 の固定記録を引き継ぐ。
+- 追補 evidence: `artifacts/s-4c-phase-c-pipeline-followup-20260925/`。manifest SHA-256 `2DB249373E6510A3EF27F34AE89C442330C22E138F4327D513B6F64BEFCD5D06`（`manifest.sha256`）。§7.4 の判定 bundle を書き換えず、今回の実行証拠を別束に固定した。
+- Unity `6000.6.0f1`。ユーザーが `com.unity.pipeline` を `0.4.0-exp.1` から `0.7.0-exp.1` へ更新して Editor / Pipeline 操作を可能にした。manifest / lock の変更はユーザーの未コミット差分として保持し、この記録コミットへ含めない。実装コード、`content:runtimeMode`、fail-closed 起動契約は変更していない。Spring Full content revision `20260924T141708718Z-8e6155e6a2a449128189a1c1a1d28d7e` を既存の Content Delivery 検証経路で準備・適用し、Title からゲームへ遷移した。
+- Play 観測: 14:53 UTC 頃、25 Scene が open。Player は `(1319.15, 4.48, 984.51)` で `(5,3)`、`Spring_Cell_5_2` / `Spring_Environment_5_2` / `Spring_Lighting_5_2` がロード済み。`Spring_Cell_5_2` の `Ground.lightmapIndex=0`、`LightmapSettings.lightmaps.Length=2`、scale/offset が非ゼロ。これは target Cell resident 中の baked lightmap 割当を示す。
+- 同 snapshot および両 target Cell の unload 後 snapshot で `RenderSettings` は Spring preset と一致: fog enabled / `ExponentialSquared` / `(0.750, 0.820, 0.880, 1.000)` / density `0.0015`; ambient `Flat` / sky `(0.180, 0.220, 0.280, 1.000)`; sun `SeasonSun` / rotation `(15,330,0)` / color `(1.000,0.850,0.700,1.000)` / intensity `0.8`。
+- 人間確認: ユーザーは `(4,2)` と `(5,2)` の両方を訪問し、その後両方を Unload 状態にしたと報告。後続の Pipeline Scene snapshot は `Spring_Lighting` を保持しつつ両 target Cell と companion を含まない状態だった。旧 §6 の seam と Cell Lighting close 観測は今回も確認済みとして採用し、再要求していない。
+- 未確認: Unload 後に target Cell へ戻ったときの baked 床再表示。`Ground.lightmapIndex=0` の証拠は unload 前の resident snapshotであり、reload 後へ読み替えない。Pipeline の `FlyController.Teleport` probe は位置を維持できず、この条件の証拠から除外した。目視再確認が得られないため最低条件 7 の必須証拠不足として扱う。
+- 判定必須全 EditMode 回帰: Windows Editor を閉じ、`pwsh tools/run-tests.ps1` を Filter 空で実行。Unity exit 0、909 passed / 0 failed / 0 skipped、XML duration 682.287 秒。assembly は `OneStarMaker.Tests` 645、`OneStarMaker.Tests.Editor` 249、`SampleGame.Tests.Editor` 14、`Unity.Addressables.DocExampleCode.Editor.Tests` 1。生ログ `all-editmode-run.log` と XML `all-editmode-results.xml` を保存。
+- 機械検査: `pwsh tools/contract-audit.ps1` exit 0（違反なし）、`pwsh tools/docs-audit.ps1` exit 0（本追補後に再実行）、指定 SampleGame `RenderSettings` grep と Framework season-term grep はいずれも0件。
+- `PC_RPAsset.asset` の Unity 再シリアライズ差分は bundle に退避して implementation head に復元済み。`unity/UserSettings/OSMContentDelivery.json` も開始時のバックアップへ復元。package manifest / lock 以外のユーザー変更は残していない。
+- 現在の問いを阻害する実装欠陥: 今回の証拠から新たに確定したものはなし。後続スライス向け入力: §7.4 の分類を維持。Phase C は **保留（必須 runtime 証拠不足）**。GO / NO-GO を確定しない。保留理由は Unload 後の baked 床 reload 観測不足であり、実装修正の差戻しではない。C' は未起動。
+- 担当・モデル: Codex / GPT-6。test environment の Pipeline package overlay とログ、XML、runtime probe は追補 evidence bundle に固定。
+
 ## 8. Phase C'
 
 - 担当方式: 未実施
