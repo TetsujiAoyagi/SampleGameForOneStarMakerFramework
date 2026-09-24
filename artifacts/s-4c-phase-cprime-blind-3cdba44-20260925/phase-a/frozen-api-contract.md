@@ -1,6 +1,6 @@
 # Frozen API contract from the canonical Phase A HANDOFF
 
-The A3 freeze record identifies `docs/handoff/S-4c_WORLD_LIGHTING.md` as the canonical handoff. This immutable excerpt preserves its pre-implementation API clauses without including Phase C/C' review records.
+The A3 freeze record says the slice handoff is canonical. This immutable excerpt preserves its pre-implementation API clauses without including Phase C/C' review records.
 
 ## `RenderEnvironmentState` member representation (canonical HANDOFF §2.2)
 

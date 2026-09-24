@@ -5,7 +5,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C'`（修正 head `3cdba44` で Phase C GO。GPT-5.5 による新 head の独立監査待ち）
+- status: `C'`（修正 head `3cdba44` で Phase C GO。直近 C' 試行はpayload hash不一致とモデル条件未確認で未実施扱い。ZIP再梱包し新規監査待ち）
 - branch: `cursor/s-4c-world-lighting-a3-4a38`
 - implementation base commit: `553b7b150e13245b369d75dc4baa12d86e9559aa`
 - implementation head commit: `3cdba44c4de89a1c5f14de9ab2731bf152ef8f76`（state API 形状修正後。Phase C 判定対象は §7.7）
@@ -23,7 +23,7 @@
 - A3 決定: `artifacts/s-4c-phase-a/A3-frozen.md`
 - Phase B 手順の読み順: 本 HANDOFF が正本。人間向け詳細手順は `artifacts/s-4c-phase-a/PHASE_B_PLAYBOOK.md`（矛盾したら HANDOFF）。2026-09-22 に Playbook をフィールド・判定順・現行骨格の直し方まで詳細化した
 - Phase B result snapshot path / id: `artifacts/s-4c-phase-cprime-blind-3cdba44-20260925/implementation/phase-b-result.txt`。
-- evidence bundle: `artifacts/s-4c-phase-cprime-blind-3cdba44-20260925/manifest.json`（SHA-256 `080D0D4E16534E45A42EDACA9151BA5F760B2B18C045DBB1A9FBF69F16CBC356`、固定 base/head の完全 diff、Phase A snapshot、判定テスト生結果、機械検査を収録）。旧 head の C' blind bundle と監査記録は §8.1。
+- evidence bundle: `artifacts/s-4c-phase-cprime-restart-20260925/blind-bundle.zip`（SHA-256 `70ECB250AD62418B43333BA4FEC6EF9E503B1663FB71984F63853862C5371EB8`。旧 uncompressed bundle のpayloadを保持し、ZIP展開後に21件すべての内部 hashを検証）。過去の試行は §8.1–8.2。
 
 ## 1. 目的と対象外
 
@@ -724,11 +724,19 @@ B 適応でよい例: `Find` の具体メソッド名、コメント、テスト
 - 旧 bundle は Phase A API excerpt を欠き、A1 初稿の namespace 記述が最終正本を誤読させた。新 bundle は HANDOFF の凍結 API clauses を所見なしの固定 excerpt として収録する。
 - 判定: **モデル条件未達のため補助監査のみ。公式 C' 未実施。**
 
-### 8.2 修正 head の独立監査
+### 8.2 修正 head の旧 bundle 監査試行
 
-- 担当方式: 新規 GPT-5.5 Codex task による AI 監査を依頼。開始前の blind bundle は `artifacts/s-4c-phase-cprime-blind-3cdba44-20260925/manifest.json`（manifest SHA-256 `080D0D4E16534E45A42EDACA9151BA5F760B2B18C045DBB1A9FBF69F16CBC356`）。
+- 担当・モデル: 新規 task として依頼したが、報告で可視とされたのは Codex / GPT-5 based（厳密な内部 model ID は不明）。GPT-5.5 のモデル条件を確認できず、公式 C' とは扱わない。
+- 対象: base `553b7b150e13245b369d75dc4baa12d86e9559aa` → head `3cdba44c4de89a1c5f14de9ab2731bf152ef8f76`、uncompressed bundle `artifacts/s-4c-phase-cprime-blind-3cdba44-20260925/`。
+- 判定: manifest 自身の hash は一致したが、7 payload (`phase-b-result.txt`, `frozen-api-contract.md`, `revision-1.md`, `PROMPT-ja.md`, runtime 2件、EditMode summary) の raw-byte hash が監査側 worktree で不一致。Git の改行変換が起きた可能性がある。bundle の完全性を証明できないため **監査未実施** とする。監査内容の所見は C' 完了結果に採用しない。
+- 是正: 元 bundle を ZIP にして、outer archive と、展開後の manifest/payload hash を再検証する。詳細は §8.3。
+
+### 8.3 ZIP 再梱包と新規監査依頼
+
+- 監査入力: `artifacts/s-4c-phase-cprime-restart-20260925/blind-bundle.zip`。outer SHA-256 は `70ECB250AD62418B43333BA4FEC6EF9E503B1663FB71984F63853862C5371EB8`。PowerShell で展開し、外部 hash、内部 `manifest.json` / `manifest.sha256`、manifest記載21 payloadを照合、すべて一致。
+- 引継ぎ資料と貼り付け用prompt: `artifacts/s-4c-phase-cprime-restart-20260925/HANDOFF.md` / `PROMPT-ja.md`。新規 GPT-5.5 session では ZIP のみを監査入力にし、セッション内の実モデルが GPT-5.5 と確認できなければ内容評価前に停止する。
 - base/head: `553b7b150e13245b369d75dc4baa12d86e9559aa` → `3cdba44c4de89a1c5f14de9ab2731bf152ef8f76`。
-- 独立監査結果・担当モデル・独立性・未確認範囲: 監査完了後に記録する。
+- 公式 C' の担当モデル・独立性・所見・残存リスク・判定: 未実施。新規監査の完了後に追記する。
 
 ## 9. Phase D
 
