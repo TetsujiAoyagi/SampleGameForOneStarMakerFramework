@@ -5,10 +5,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C`（§7.4 判定保留：全 EditMode 909件成功。Play必須観測未完了。GO / NO-GO 未確定、C' 未実施）
+- status: `C'`（修正 head `3cdba44` で Phase C GO。GPT-5.5 による新 head の独立監査待ち）
 - branch: `cursor/s-4c-world-lighting-a3-4a38`
 - implementation base commit: `553b7b150e13245b369d75dc4baa12d86e9559aa`
-- implementation head commit: `87a1cd297a0b96bb9743b3e47654a27130ebcffe`（今回の Phase C 判定対象。review record は §7.4）
+- implementation head commit: `3cdba44c4de89a1c5f14de9ab2731bf152ef8f76`（state API 形状修正後。Phase C 判定対象は §7.7）
 - risk: `high`
 - owner: Phase B は人間
 - created: 2026-09-21
@@ -22,8 +22,8 @@
 - A2 結果: `A2-architecture.md` / `A2-lifecycle.md` / `A2-alternative.md`
 - A3 決定: `artifacts/s-4c-phase-a/A3-frozen.md`
 - Phase B 手順の読み順: 本 HANDOFF が正本。人間向け詳細手順は `artifacts/s-4c-phase-a/PHASE_B_PLAYBOOK.md`（矛盾したら HANDOFF）。2026-09-22 に Playbook をフィールド・判定順・現行骨格の直し方まで詳細化した
-- Phase B result snapshot path / id: 本 HANDOFF §6。今回の固定版は `artifacts/s-4c-phase-c-rerun-87a1cd2/phase-b-result.txt`（source: implementation head 時点の §6）。
-- evidence bundle: `artifacts/s-4c-phase-c-rerun-87a1cd2/manifest.json`。C' blind bundle: 未生成（Phase C 保留につき起動しない）。
+- Phase B result snapshot path / id: `artifacts/s-4c-phase-cprime-blind-3cdba44-20260925/implementation/phase-b-result.txt`。
+- evidence bundle: `artifacts/s-4c-phase-cprime-blind-3cdba44-20260925/manifest.json`（SHA-256 `080D0D4E16534E45A42EDACA9151BA5F760B2B18C045DBB1A9FBF69F16CBC356`、固定 base/head の完全 diff、Phase A snapshot、判定テスト生結果、機械検査を収録）。旧 head の C' blind bundle と監査記録は §8.1。
 
 ## 1. 目的と対象外
 
@@ -35,6 +35,8 @@
 
 - このスライスが答える問い: App lifetime の単一 RenderEnvironment が lease で **sun / ambient / fog** を所有でき、Spring `(4,2)` `(5,2)` の multi-scene bake が Scene 単位の着脱として成立するか。共通 Volume の実行時所有（`Volume.weight`）はこの問いの判定に含めない。
 
+- **Phase A revision 1（2026-09-25、人間承認）**: Content Directory を操作して対象リソースを配信・適用できず、凍結最低条件7の「Unload 後に Cell へ戻ると baked 床が再ロードされる」を観測できなかった。早期完了を優先し、最低条件7から再訪後の baked 床確認を削除する。これは未確認を成功扱いする変更ではなく、現在の問いの境界を狭める明示的な例外承認である。置換条件は「Cell Unload 中も Season Lighting の lease により春 preset の fog / sun が維持される」であり、§7.5 の実行時観測を証拠とする。Content Directory の準備・配信・適用、および Unload 後の再訪時に baked 床が復帰することは後続の Content Directory / streaming 検証へ移送する。本 revision は他の最低条件、受け入れ条件、実装責務を変更しない。
+
 - 進める最低条件:
   1. 純 C# テストが、単一 owner・二件目即失敗・stale Dispose / stale Apply が新 owner を消さないこと、解放で baseline に戻ることを示す。
   2. Game 層（少なくとも `PlayerScene`）から `RenderSettings` 代入が消えている。
@@ -42,7 +44,7 @@
   4. `Spring_Lighting_4_2` と `Spring_Lighting_5_2` が World Workspace で作られ、Directional Light を持たず、global sun / sky / fog / global Volume を書き換えない。
   5. 代表 7 Scene（Season Lighting + 両 Cell + 両 Environment + 両 Cell Lighting）を同時に開いた Progressive bake の lightmap が commit されている。
   6. 人間が `(4,2)` / `(5,2)` 境界で明白な lightmap seam が無いことを HANDOFF 実装結果へ記録する。
-  7. Phase C が次を観測できる: Cell を Unload しても fog/sun は春 preset のまま（lease は Season Lighting が持つ）。同じ Cell を戻すと baked 床が再ロードされる。
+  7. Phase C が Cell を Unload しても fog/sun は春 preset のままであることを観測できる（lease は Season Lighting が持つ）。Unload 後の再訪で baked 床が再ロードされることは revision 1 により本スライスの最低条件から除外し、後続の Content Directory / streaming 検証へ移送する。
 
 - 受け入れ条件（上記の観測可能な詳細。別バーにしない）:
   - `IRenderEnvironment.Acquire(object ownerKey)` は空きなら lease を返す。既に owner がいるなら `InvalidOperationException`。暗黙の待ち・上書きはしない。
@@ -71,11 +73,11 @@
   - World Workspace 作成が SceneGraph Editor（ViewModel / Layout / 開いている GraphView）を更新しないこと → 後続。本スライスは Node + Edges + Generate まで。Editor 可視化の同期は問わない
 
 - 判定定義:
-  - GO: 進める最低条件 1〜7 を満たし、常時契約違反が無い。
+  - GO: 進める最低条件 1〜7（Phase A revision 1 適用後）を満たし、常時契約違反が無い。
   - NO-GO: 最低条件未達、または Game→Framework 逆転、SceneState 変更、URP asmdef 追加、一時生成器復活、216 bake。
   - CONDITIONAL ACCEPT: 使わない（スパイクではない）。
 
-- 停止規則: 最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。
+- 停止規則: Phase A revision 1 適用後の最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。
 
 - A3 後の例外承認: なし
 
@@ -498,7 +500,7 @@ B 適応でよい例: `Find` の具体メソッド名、コメント、テスト
 
 - 判定必須テスト:
   1. 最終の全 EditMode 回帰（空 filter）。`pwsh tools/run-tests.ps1`。Editor を閉じてから。Windows なら sandbox 外。
-  2. Play Mode 手動（判定 C）: `world:cellCompanionSet=Lighting` または Full。Spring 起動。スポーンから `(4,2)` `(5,2)` へ。fog/sun が春 preset。UnloadRadius 外へ出て **両 Cell が落ちても fog/sun は春のまま**（消えたら lease を Cell 側で捨てている）。戻って baked 床が載る。二重 Season は EditMode の二件目失敗で足りる。
+  2. Play Mode 手動（判定 C、Phase A revision 1）: `world:cellCompanionSet=Lighting` または Full。Spring 起動。スポーンから `(4,2)` `(5,2)` へ。fog/sun が春 preset。UnloadRadius 外へ出て **両 Cell が落ちても fog/sun は春のまま**（消えたら lease を Cell 側で捨てている）。Unload 後の再訪・baked 床再表示は本スライスの判定必須から除外し、後続 Content Directory / streaming 検証へ移送する。二重 Season は EditMode の二件目失敗で足りる。
   3. 機械検査: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、季節語 grep、SampleGame `RenderSettings` grep。
 
 - 全 EditMode 回帰の適用除外: なし。
@@ -690,11 +692,43 @@ B 適応でよい例: `Find` の具体メソッド名、コメント、テスト
 - 現在の問いを阻害する実装欠陥: 今回の証拠から新たに確定したものはなし。後続スライス向け入力: §7.4 の分類を維持。Phase C は **保留（必須 runtime 証拠不足）**。GO / NO-GO を確定しない。保留理由は Unload 後の baked 床 reload 観測不足であり、実装修正の差戻しではない。C' は未起動。
 - 担当・モデル: Codex / GPT-6。test environment の Pipeline package overlay とログ、XML、runtime probe は追補 evidence bundle に固定。
 
+### 7.6 Phase A revision 1 適用後の判定（2026-09-25）
+
+- 変更承認: ユーザーが「じゃあ外して」と明示。Phase A revision 1 として §2 の最低条件7および§5の判定必須 Play 手順を更新した。A3 snapshot と過去の判定記録は履歴として保持する。
+- 境界変更: 最低条件7は「Cell Unload 中も Season Lighting lease が春の fog / sun を維持する」までとする。Unload 後に再訪して baked 床が再表示されることは成功扱いせず、未確認のまま現在の最低条件から除外した。
+- 移送先: Content Directory の生成・選択・配信・適用と、その経路を通した Cell / companion の再訪・baked 床復帰は、後続の Content Directory / streaming 検証で扱う。fail-closed 起動契約や実装はこの revision で変更しない。
+- 判定証拠: §7.5 の runtime snapshot は、対象 Cell を Unload した後も `Spring_Lighting` が resident で、fog / sun / ambient が Spring preset と一致したことを記録している。これは改訂後の最低条件7を満たす。baked floor の再訪確認は未実施のまま明示的にスコープ外。
+- 他の最低条件: 1〜6 は §7.4 / §7.5 の固定 evidence と記録を引き継ぐ。最終 EditMode 回帰 909/909 pass、contract-audit と docs-audit exit 0。§6 の seam / Cell Lighting close 確認済み記録を引き継ぐ。
+- 阻害欠陥: revision 後の最低条件または常時契約に対する未解決 blocker は記録されていない。
+- 判定: **Phase C GO（revision 1 の境界で完了）。** これは unload 後の再訪・baked 床再表示を検証済みとする判定ではない。C' は未実施であり、Phase D の独立確認・harvest・HANDOFF 削除は未完了。
+- 担当・モデル: Phase A revision の例外承認はユーザー。記録更新と Phase C 再判定は Codex / GPT-6。
+
+### 7.7 `RenderEnvironmentState` API 形状修正後の判定（2026-09-25）
+
+- 対象固定: implementation base `553b7b150e13245b369d75dc4baa12d86e9559aa`、implementation head `3cdba44c4de89a1c5f14de9ab2731bf152ef8f76`。実装差分は公開 readonly field を凍結済み get-only property に合わせ、API 形状を検査する EditMode test を追加したもの。namespace、owner / lease、寿命、preset、Unity sink、Scene / bake に変更なし。
+- Phase C 前回所見の対応: §8.1 の追加監査で `RenderEnvironmentState` の public readonly fields が §2.2 の get-only property 契約と異なる点は正しい。8値を get-only property に変更し、public field がなく setter もないことを確認する `State_ExposesValuesAsGetOnlyProperties` を追加した。namespace の指摘は誤りで、A3 が正本とする §2.4 は `OneStarMaker.Runtime.Rendering.Environments` を凍結しており、実装と一致する。
+- 構造レビュー: 既存の責務配置と依存方向を維持。変更は値型の公開メンバー表現と、その公開形状を固定するテストのみ。新規依存、asmdef、所有者、寿命、facade はない。
+- 判定必須全 EditMode 回帰: `pwsh -NoProfile -File tools/run-tests.ps1`、filter 空、Unity `6000.6.0f1`、exit 0。910 total / 910 passed / 0 failed / 0 skipped。新 API 形状 test を含む。生ログと XML は `artifacts/s-4c-phase-cprime-blind-3cdba44-20260925/tests/`。
+- 機械検査: `pwsh -NoProfile -File tools/contract-audit.ps1` exit 0。`pwsh -NoProfile -File tools/docs-audit.ps1` exit 0。
+- runtime 条件7: Pipeline 生ログと fog / sun / ambient の unload 観測は §7.5 の implementation head `87a1cd2` 時点の取得物である。今回の差分は値の格納表現だけで runtime ロジックを変えない。証拠の取得 head は偽らず、新 head の bundle に旧 head provenance を明記した。改訂後条件の挙動を示す入力として引き継ぐ。
+- 阻害欠陥: 修正 head では凍結済み条件または常時契約への未解決違反なし。判定: **Phase C GO**。C' は次節の新 bundle で独立監査する。
+- 担当・モデル: Codex / GPT-6。
+
 ## 8. Phase C'
 
-- 担当方式: 未実施
-- 判定: 未実施
-- 担当・モデル:
+### 8.1 旧 head supplemental audit attempt（2026-09-25）
+
+- 担当・モデル: Codex / GPT-5 と表示されたセッション。依頼した GPT-5.5 との一致を確認できず、モデル要件未達。公式 C' 監査済みとは扱わない。
+- 対象: bundle `s4c-phase-cprime-blind-20260925`、base `553b7b1` / head `87a1cd2`。報告は payload hash 整合を確認した。
+- 所見: namespace 不一致の指摘は誤り。A3 は HANDOFF を正本とし、凍結された HANDOFF §2.4 と実装の namespace はともに `OneStarMaker.Runtime.Rendering.Environments`。`RenderEnvironmentState` を public readonly fields にしていた点は HANDOFF §2.2 の get-only property 条件に違反しており、実欠陥として受理し §7.7 の head で修正した。
+- 旧 bundle は Phase A API excerpt を欠き、A1 初稿の namespace 記述が最終正本を誤読させた。新 bundle は HANDOFF の凍結 API clauses を所見なしの固定 excerpt として収録する。
+- 判定: **モデル条件未達のため補助監査のみ。公式 C' 未実施。**
+
+### 8.2 修正 head の独立監査
+
+- 担当方式: 新規 GPT-5.5 Codex task による AI 監査を依頼。開始前の blind bundle は `artifacts/s-4c-phase-cprime-blind-3cdba44-20260925/manifest.json`（manifest SHA-256 `080D0D4E16534E45A42EDACA9151BA5F760B2B18C045DBB1A9FBF69F16CBC356`）。
+- base/head: `553b7b150e13245b369d75dc4baa12d86e9559aa` → `3cdba44c4de89a1c5f14de9ab2731bf152ef8f76`。
+- 独立監査結果・担当モデル・独立性・未確認範囲: 監査完了後に記録する。
 
 ## 9. Phase D
 

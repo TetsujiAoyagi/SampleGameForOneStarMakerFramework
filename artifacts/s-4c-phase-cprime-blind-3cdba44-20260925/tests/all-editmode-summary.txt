@@ -1,0 +1,10 @@
+Command: pwsh -NoProfile -File tools/run-tests.ps1
+Filter: empty (all EditMode tests)
+Unity: 6000.6.0f1
+Unity exit: 0
+Total: 910
+Passed: 910
+Failed: 0
+Skipped: 0
+XML: tests/all-editmode-results.xml
+Raw log: tests/all-editmode-run.log

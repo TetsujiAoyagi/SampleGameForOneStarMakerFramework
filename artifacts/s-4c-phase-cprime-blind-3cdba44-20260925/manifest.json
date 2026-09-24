@@ -1,0 +1,131 @@
+{
+  "id": "s-4c-phase-cprime-blind-3cdba44-20260925",
+  "generatedAt": "2026-09-24T22:25:42.2912542Z",
+  "purpose": "Phase C prime blind audit",
+  "implementationBase": "553b7b150e13245b369d75dc4baa12d86e9559aa",
+  "implementationHead": "3cdba44c4de89a1c5f14de9ab2731bf152ef8f76",
+  "sourceEvidence": {
+    "phaseBResult": "implementation/phase-b-result.txt",
+    "decisionTests": "tests/all-editmode-results.xml and tests/all-editmode-run.log",
+    "phaseARevision": "human-approved revision 1, 2026-09-25",
+    "runtimeEvidence": "Prior head 87a1cd2, explicitly marked in runtime/provenance.txt"
+  },
+  "exclusions": [
+    "artifacts/s-4c-phase-* (review process records; frozen Phase A inputs are supplied in phase-a/)",
+    "docs/handoff/S-4c_WORLD_LIGHTING.md (mutable HANDOFF contains review findings and verdicts)"
+  ],
+  "contents": [
+    {
+      "path": "implementation/implementation.diff",
+      "bytes": 200798,
+      "sha256": "9E50ABCDFE760FF9205D0BE2A30A8CA2FE74815DDF2AB1A126A18F48C5C3BDFC"
+    },
+    {
+      "path": "implementation/name-status.txt",
+      "bytes": 9321,
+      "sha256": "4F63BA46B0BD3A1180427058BD9D7E435DAAE6096B67A892084F52F54299A4F8"
+    },
+    {
+      "path": "implementation/phase-b-result.txt",
+      "bytes": 889,
+      "sha256": "6EA2056993B47AFBC7C33CE949A4861ED75DAADA8374CEF0457A21BC3A3AF315"
+    },
+    {
+      "path": "implementation/stat.txt",
+      "bytes": 6068,
+      "sha256": "BC5843B85A4E6A2B27DE163C323A3E207DB8819AEBDF0E068DF39A4BB208755F"
+    },
+    {
+      "path": "machine/contract-audit.log",
+      "bytes": 1088,
+      "sha256": "0182069EB1456AD934CD85BDB3DBDFDA543D2DD3F5604C9DA8F97ED01FBE0F0C"
+    },
+    {
+      "path": "machine/docs-audit.log",
+      "bytes": 229,
+      "sha256": "DE5C9E5FA25F9575ABB0C9D3BC45E803F46B35B83C7BFA3DAA1AB643F64B9621"
+    },
+    {
+      "path": "phase-a/A0-packet.md",
+      "bytes": 10899,
+      "sha256": "490162AFEC0FE304CE672C732FFE5BD210340528342AA76006A8D975B55A235E"
+    },
+    {
+      "path": "phase-a/A1-snapshot.md",
+      "bytes": 34581,
+      "sha256": "B7CE692F0F0EA04C4111C08BA429D443F3C92321D687420CAF047AFC4A28FA38"
+    },
+    {
+      "path": "phase-a/A2-alternative.md",
+      "bytes": 971,
+      "sha256": "A8502F4516E87BBE6E847EB3B8942C4F7578177B096822F28417C59D591C6598"
+    },
+    {
+      "path": "phase-a/A2-architecture.md",
+      "bytes": 1707,
+      "sha256": "9494A91EFE7F64D89AFCC779B5C71A9A7FAF87D4E54E1168717F2BEE8BDB24A8"
+    },
+    {
+      "path": "phase-a/A2-lifecycle.md",
+      "bytes": 1526,
+      "sha256": "B2278A72D4C2AA96519EB5699777E27BA69131FB78D2DC283FD9FC2A4E3B4587"
+    },
+    {
+      "path": "phase-a/A3-frozen.md",
+      "bytes": 3474,
+      "sha256": "9935AD1437DE37A173C57A1D969407697AAA75283A2204FA26E1D094B673EED7"
+    },
+    {
+      "path": "phase-a/frozen-api-contract.md",
+      "bytes": 1526,
+      "sha256": "8FF7B91C3401800FE0CF8A4174E75256331CEDA4BA10FE0B292EACFB01887742"
+    },
+    {
+      "path": "phase-a/revision-1.md",
+      "bytes": 2127,
+      "sha256": "504C52ED29E7BAB92D6E5981F2F5A2200E59384D83DD72B429382B1AEF92A93F"
+    },
+    {
+      "path": "PROMPT-ja.md",
+      "bytes": 1223,
+      "sha256": "0CF6B453D539B8B7DB644B54D91858E44D8CC3995B93F8DA725C5A381481BD15"
+    },
+    {
+      "path": "runtime/pipeline-command-outputs-prior-head.txt",
+      "bytes": 14265,
+      "sha256": "B3600763536061DE31749A6F929CBB3CAE4D4222AB479913BDA549B69951B322"
+    },
+    {
+      "path": "runtime/provenance.txt",
+      "bytes": 483,
+      "sha256": "3337F15E5FC5E2EC88A451BF1FE03A7F061B136E9302F21B8ABEC26419E6C1A5"
+    },
+    {
+      "path": "runtime/runtime-observations-prior-head.txt",
+      "bytes": 1434,
+      "sha256": "20EE85A5679B1ABB504AA3A5119575C5823501647352C629D98B628D56B1194E"
+    },
+    {
+      "path": "tests/all-editmode-results.xml",
+      "bytes": 851366,
+      "sha256": "21F0ED0BD678DDBA7CF4CEB375F1C2935B13603D0575A5A6A1298BEE5652F356"
+    },
+    {
+      "path": "tests/all-editmode-run.log",
+      "bytes": 5595528,
+      "sha256": "CE84EBCDF922DB13C41A16BD1BFAA387767660B3558433479CE739ECD4E48EC7"
+    },
+    {
+      "path": "tests/all-editmode-summary.txt",
+      "bytes": 235,
+      "sha256": "1BC004CB8F1C52646196D6232D43674AC756B002AFB6D25FA3E89417F6109CFD"
+    }
+  ],
+  "implementationDelta": {
+    "kind": "complete product implementation delta",
+    "command": "git diff --binary 553b7b150e13245b369d75dc4baa12d86e9559aa 3cdba44c4de89a1c5f14de9ab2731bf152ef8f76 -- . :(exclude)artifacts/s-4c-phase-* :(exclude)docs/handoff/S-4c_WORLD_LIGHTING.md",
+    "diff": "implementation/implementation.diff",
+    "stat": "implementation/stat.txt",
+    "nameStatus": "implementation/name-status.txt"
+  }
+}
