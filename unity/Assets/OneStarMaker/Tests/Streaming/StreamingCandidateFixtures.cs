@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.Streaming;
-using SampleGame.InGame.World;
 using UnityEngine;
 
 namespace OneStarMaker.Tests.Streaming
@@ -24,6 +23,9 @@ namespace OneStarMaker.Tests.Streaming
         public const float DefaultCellHeight = 10f;
 
         public static readonly Vector3 Origin = Vector3.zero;
+
+        // アプリの CellIdentity.Format と同じ `Cell_{x}_{y}`。このフィクスチャは SampleGame を参照しない。
+        public static string FormatCellIdentity(int x, int y) => string.Concat("Cell_", x, "_", y);
 
         public static Vector3 CellCenter(int x, int y, float cellSize = DefaultCellSize)
             => Origin + new Vector3((x + 0.5f) * cellSize, 0f, (y + 0.5f) * cellSize);
@@ -54,7 +56,7 @@ namespace OneStarMaker.Tests.Streaming
             {
                 var cell = cells[i];
                 candidates.Add(new StreamingCandidate(
-                    CellIdentity.Format(cell.x, cell.y),
+                    FormatCellIdentity(cell.x, cell.y),
                     CellVolume(cell.x, cell.y, cellSize)));
             }
 

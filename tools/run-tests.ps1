@@ -24,8 +24,9 @@
 
 .PARAMETER Platform
     -testPlatform に渡す値。既定 EditMode。
-    OneStarMaker.Tests / OneStarMaker.Tests.Editor は共に includePlatforms: ["Editor"] のため
-    EditMode で全件がカバーされる。
+    OneStarMaker.Tests / OneStarMaker.Tests.Editor / SampleGame.Tests / SampleGame.Tests.Editor は
+    includePlatforms: ["Editor"] のため EditMode で全件がカバーされる。
+    フレームワークのテストアセンブリは SampleGame を参照しない。
 
 .PARAMETER UnityRoot
     Unity のインストール親ディレクトリ。環境差分はここだけ。

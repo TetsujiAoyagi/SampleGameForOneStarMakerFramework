@@ -5,7 +5,6 @@ using NUnit.Framework;
 using OneStarMaker.Runtime.AssetDescriptions;
 using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.SceneSystem;
-using SampleGame.InGame.World;
 using OneStarMaker.Tests.AssetManagement;
 using OneStarMaker.Tests.SceneSystem.Helpers;
 using OneStarMaker.Tests.SceneSystem.TestDoubles;
@@ -120,7 +119,8 @@ namespace OneStarMaker.Tests.SceneSystem
             {
                 for (var y = 0; y < gridHeight; y++)
                 {
-                    var cellId = CellIdentity.Format(x, y);
+                    // 格子 identity はアプリの Cell_{x}_{y} と同じ文字列にする。フレームワークテストは CellIdentity 型を参照しない。
+                    var cellId = string.Concat("Cell_", x, "_", y);
                     var cellRes = SceneTestHelper.CreateSceneResource(cellId, LoadType.OnDemand, worldRes);
                     SceneTestHelper.AddChild(worldRes, cellRes);
                     cellResources[index++] = cellRes;

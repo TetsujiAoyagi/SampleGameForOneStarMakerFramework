@@ -1,17 +1,14 @@
 {
-    "name": "SampleGame.Tests.Editor",
-    "rootNamespace": "SampleGame.Tests.Editor",
+    "name": "SampleGame.Tests",
+    "rootNamespace": "SampleGame.Tests",
     "references": [
-        "SampleGame.DependOnAll.Editor",
+        "SampleGame.Common",
+        "SampleGame.InGame",
         "SampleGame.OutGame",
-        "OneStarMaker.Build.Selection",
-        "OneStarMaker.Build.Materialization",
-        "OneStarMaker.Build.Content",
-        "OneStarMaker.Editor",
+        "SampleGame.DependOnAll",
         "OneStarMaker.Foundation",
         "OneStarMaker.Runtime",
-        "Unity.Addressables",
-        "Unity.ResourceManager",
+        "OneStarMaker.Tests",
         "UniTask"
     ],
     "includePlatforms": [
@@ -22,6 +19,9 @@
     "overrideReferences": true,
     "precompiledReferences": [
         "nunit.framework.dll",
+        "R3.dll",
+        "ObservableCollections.dll",
+        "ZLogger.dll",
         "Microsoft.Extensions.Logging.dll",
         "Microsoft.Extensions.Logging.Abstractions.dll"
     ],

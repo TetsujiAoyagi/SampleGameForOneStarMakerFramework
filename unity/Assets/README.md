@@ -54,15 +54,16 @@ Assets/
 │           ├── Selection/       … OneStarMaker.Build.Selection (Editor-only pure leaf)
 │           ├── Materialization/ … OneStarMaker.Build.Materialization (Editor-only adapter)
 │           └── その他           … OneStarMaker.Editor。Content build / Delivery / 旧 Addressables 案内
-├── OneStarMaker/Tests/          ← Tests / Tests.Editor asmdef
-│   └── Scene, AssetManagement, UpdateSystem, Build のテスト
+├── OneStarMaker/Tests/          ← OneStarMaker.Tests / Tests.Editor（Game を参照しない）
+│   └── Scene, AssetManagement, UpdateSystem, Build のフレームワークテスト
 │
 ├── SampleGame/                  ← ゲーム固有実装
 │   ├── DependOnAll/             … AppInitializer, GameSceneFactory, NullLoadingDisplay
 │   ├── Common/                  … ゲーム共通サービス・シーン定義（未実装）
 │   ├── OutGame/
 │   │   └── Title/TitleScene.cs  … タイトル画面
-│   └── InGame/                  … インゲーム（未実装）
+│   ├── InGame/                  … インゲーム（未実装）
+│   └── Tests/                   … SampleGame.Tests / Tests.Editor（アプリの EditMode）
 │
 └── Docs/Architecture/           ← 設計ドキュメント群（§3〜§20 + 移行記録。索引は ARCHITECTURE.md）
 ```
@@ -83,8 +84,10 @@ OneStarMaker.Build.Selection  (Editor-only pure leaf — assembly参照なし)
        │
 OneStarMaker.Build.Materialization ──► Selection + Runtime + Unity.Addressables (Editor-only)
        ▲
-OneStarMaker.Tests.Editor ────┘ (Selection も直接参照)
+OneStarMaker.Tests.Editor ────┘ (Selection も直接参照。SampleGame は参照しない)
 
+SampleGame.Tests ──→ Common, InGame, OutGame, DependOnAll, Foundation, Runtime, OneStarMaker.Tests
+SampleGame.Tests.Editor ──→ DependOnAll.Editor, OutGame, Foundation, Runtime, Editor, Build.*
 SampleGame.DependOnAll ──→ Common, InGame, OutGame, Foundation, Runtime, Debug
 SampleGame.InGame      ──→ Common, Foundation, Runtime
 SampleGame.OutGame     ──→ Common, Foundation, Runtime
