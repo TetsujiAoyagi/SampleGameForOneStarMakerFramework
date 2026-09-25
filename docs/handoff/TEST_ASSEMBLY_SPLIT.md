@@ -1,7 +1,7 @@
 # Test assembly split
 
 - type: `slice`
-- status: `C'`
+- status: `B`（friend 不足を修正し、ローカルで全 EditMode が通った。独立した判定 C の再記録はしていない）
 - branch: `cursor/split-framework-app-tests-a5ed`
 - implementation base commit: `bc73119`
 - implementation head commit: `3467fad9dfaf2af101d99c0c3a9742724eeedee8`
@@ -100,8 +100,8 @@
 ## 6. Phase B 実装結果
 
 - 実装: SampleGame を参照するテストを `unity/Assets/SampleGame/Tests` へ移した。`OneStarMaker.Tests` と `OneStarMaker.Tests.Editor` から SampleGame 参照を削除した。格子フィクスチャは `Cell_{x}_{y}` をローカル生成する。friend は移先アセンブリへ付け替えた。Runtime / Build.Selection / Build.Materialization / Build.Content には、移した Editor テストが既に使っていた internal を `SampleGame.Tests.Editor` へ見せる friend を追加した。
-- HANDOFF との差: なし。
-- 未実行: Unity Editor がこの環境に無い。コンパイル確認と EditMode は未実行。`contract-audit.ps1` は実装ツリーに対して違反なし。
+- HANDOFF との差: 初回実装は Runtime の friend を `SampleGame.Tests.Editor` にだけ付けた。移した EditMode は `SceneBase.Initialize` / `ExecuteLoaded` と `AssetManagement(IAssetBackend)` を呼ぶため、受け入れ条件どおり `SampleGame.Tests` にも同じ friend を付けた。新しい本番 API は増やしていない。Phase A は再開していない。
+- 未実行: なし。friend 追加後に `contract-audit.ps1` は違反なし。全 EditMode の結果は「## 7」に書いた。
 - implementation head commit: `3467fad9dfaf2af101d99c0c3a9742724eeedee8`
 - Phase B 担当: このセッションの実装担当（Grok）
 
@@ -110,14 +110,14 @@
 - 種別: 発見。判定 C は未実施。GO ではない
 - evidence bundle id / hash: 固定 diff `bc73119..3467fad9dfaf2af101d99c0c3a9742724eeedee8`。`contract-audit.ps1` は head で違反なし。生テスト XML は無い
 - 構造適合: フレームワークテスト asmdef から SampleGame 参照は 0。移したテストは SampleGame 型か SampleGame のシーンパスを対象にする。残った格子フィクスチャは `Cell_{x}_{y}` をローカル生成する。アプリテストからフレームワークへの参照だけが増えている
-- 現在の問いを阻害する findings: なし
+- 現在の問いを阻害する findings: 修正前はローカルの全 EditMode がコンパイルエラー 5 件で停止した（`CellSceneTests` の `Initialize` / `ExecuteLoaded` が不可視、`InvalidCompanionConfigStartupTests` の `AssetManagement` コンストラクタ引数不一致）。受け入れ条件「移したテストが見ていた internal を移先アセンブリへ friend する」への違反。`OneStarMaker.Runtime` に `InternalsVisibleTo("SampleGame.Tests")` を追加して修正した。修正後の再実行では阻害する findings は残っていない
 - 後続スライスへ移送する findings: namespace が `OneStarMaker.Tests.*` のままであること。`RetiredAddressablesMenuNoOpTests` の設定ファイルパス。どちらも HANDOFF の対象外と一致する
-- 実行したテストコマンドと `-Filter`: 未実行。Unity Editor が環境に無い。Cloud へ Unity を入れて接続済みにはしない
-- テスト結果: 未実行
-- 判定必須のうち未実行: 全 EditMode（空 filter）
-- 重い検証を発見段階で限定実行した場合の理由と範囲: なし
-- 未確認事項: コンパイル、EditMode。このため判定 C は開始しない
-- 担当・モデル: 発見 C は実装と別セッションの Claude Sonnet。GO 判定はしていない
+- 実行したテストコマンドと `-Filter`: 修正後に `pwsh tools/run-tests.ps1`（Filter なし、EditMode 全件）。Unity 6000.6.0f1。ライセンス接続は成功。この実行は修正を入れた同じセッションであり、独立した判定 C ではない
+- テスト結果: exit 0。total 910、passed 910、failed 0、skipped 0。XML は `TestResults/results-all-20260926-051558.xml`（所要 21.9 分）
+- 判定必須のうち未実行: なし
+- 重い検証を発見段階で限定実行した場合の理由と範囲: なし。差し戻し確認として先に `CellSceneTests|InvalidCompanionConfigStartupTests` を 12/12 で通してから、全件を実行した
+- 未確認事項: この全件結果を、修正に関与していない担当が判定 C として再記録すること
+- 担当・モデル: 発見 C は実装と別セッションの Claude Sonnet。friend 修正と全件再実行はこのセッションの Grok。GO の独立判定はしていない
 
 ## 8. Phase C'
 
@@ -127,8 +127,8 @@
 - 判定: 構造の問いは PASS。全 EditMode は未監査のため、スライス全体の GO にはしない
 - 現在の問いを阻害する findings: なし
 - 後続スライスへ移送する findings: 新規 `.meta` の行末空白。既存 Unity meta と同じ空フィールド表記で、依存契約の違反ではない
-- 残存リスク: Unity 上のコンパイルと全 EditMode は未実行
-- 監査できなかった範囲: 全 EditMode（実行件数 > 0、failed 0、skipped 0）
+- 残存リスク: 監査時点の head ではコンパイルと全 EditMode が未実行だった。その後のローカル実行で friend 不足が分かり、修正後の空 filter は 910/910 で通った。この C' はその修正後 head を監査していない
+- 監査できなかった範囲: 監査時点の全 EditMode。修正後の 910 件は「## 7」の再実行であり、この C' の入力ではない
 - 独立性: Phase B は Grok、発見 C は Claude Sonnet、C' は GPT の別セッション。C' には発見 C の結論を渡していない
 - 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: なし
 - 担当・モデル: GPT
