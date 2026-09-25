@@ -125,7 +125,7 @@ A3 でこの境界を凍結した後、finding が現スライスを阻害でき
 詳細は [レビュー証拠と指摘記録](review-evidence.md) を正とする。
 
 - 判定 C と C' は同じ implementation base / head commit と判定 evidence bundle を使う。C' が同じテストを重複実行することは必須にしない。
-- Phase C' に可変な HANDOFF 全文を渡さない。凍結した Phase A snapshot、所見を含まない Phase B の実装結果、完全 diff、判定必須テストの生結果、操作・目視の一次観察の原記録、判定 C より前の機械検査だけを渡す。原記録の扱いは [レビュー証拠](review-evidence.md) に従う。
+- Phase C' に可変な HANDOFF 全文を渡さない。凍結した Phase A snapshot、所見を含まない Phase B の実装結果、完全 diff、判定必須テストの生結果、凍結条件が求める場合の操作・目視の一次観察の原記録、判定 C より前の機械検査だけを渡す。原記録の扱いは [レビュー証拠](review-evidence.md) に従う。
 - 発見 C と判定 C の結論、指摘、疑念候補、誘導的な説明は C' 完了まで隔離する。B result へ発見 C の所見を転載しない。
 - 判定 C と C' の所見は Phase D で初めて突き合わせる。
 - 発見 C は C' を起動しない。テスト未実行でも構造・契約の ledger を返してよい。GO 判定はしない。
