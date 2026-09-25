@@ -1,7 +1,7 @@
 # Test assembly split
 
 - type: `slice`
-- status: `C`
+- status: `C'`
 - branch: `cursor/split-framework-app-tests-a5ed`
 - implementation base commit: `bc73119`
 - implementation head commit: `3467fad9dfaf2af101d99c0c3a9742724eeedee8`
@@ -19,9 +19,9 @@
 - evidence bundle path / id: `artifacts/test-assembly-split-phase-c/`
 - evidence bundle generated at: Phase C 開始時
 - evidence bundle hash: Phase C で記入
-- C' blind bundle path / id: 未作成
-- C' blind bundle generated at: 未作成
-- C' blind bundle hash: 未作成
+- C' blind bundle path / id: `/tmp/cprime-blind`（phase-a-and-b.md、diff-stat、name-status、contract-audit.txt。実装 diff は `bc73119..3467fad`）
+- C' blind bundle generated at: 2026-09-25T15:35:27Z
+- C' blind bundle hash: `dccb746f980c0385514eb1effb4e70c5db5a0b62dc767eff5b783fbfe1da1297`（phase-a-and-b.md）
 
 ## 1. 目的と対象外
 
@@ -121,11 +121,17 @@
 
 ## 8. Phase C'
 
-- 判定: 未実施
-- blind audit bundle: 未作成
-- 独立性: 未実施
-- 発見 C / 判定 C 結論の事前閲覧: 該当なし（未開始）
-- 開始しない理由: 判定必須の全 EditMode 生結果が無い。テスト未実行の bundle では C' を開始しない
+- 担当方式: AI
+- blind audit bundle id / hash: `/tmp/cprime-blind`。phase-a-and-b.md の hash は `dccb746f980c0385514eb1effb4e70c5db5a0b62dc767eff5b783fbfe1da1297`。入力は凍結した Phase A/B と `bc73119..3467fad` の diff と contract-audit 出力
+- 確認範囲・方法: asmdef の参照方向、移したテストの subject、friend 属性、編集した C# の機械契約を目視と機械検査で確認
+- 判定: 構造の問いは PASS。全 EditMode は未監査のため、スライス全体の GO にはしない
+- 現在の問いを阻害する findings: なし
+- 後続スライスへ移送する findings: 新規 `.meta` の行末空白。既存 Unity meta と同じ空フィールド表記で、依存契約の違反ではない
+- 残存リスク: Unity 上のコンパイルと全 EditMode は未実行
+- 監査できなかった範囲: 全 EditMode（実行件数 > 0、failed 0、skipped 0）
+- 独立性: Phase B は Grok、発見 C は Claude Sonnet、C' は GPT の別セッション。C' には発見 C の結論を渡していない
+- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: なし
+- 担当・モデル: GPT
 
 ## 9. Phase D
 
