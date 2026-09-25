@@ -4,7 +4,7 @@
 - status: `C`
 - branch: `cursor/split-framework-app-tests-a5ed`
 - implementation base commit: `bc73119`
-- implementation head commit: 実装 commit の SHA。レビュー記録だけの commit は head にしない
+- implementation head commit: `3467fad9dfaf2af101d99c0c3a9742724eeedee8`
 - risk: `high`（テスト asmdef の依存向き）
 - owner: 実装担当（このスライス）
 - created: 2026-09-25
@@ -102,22 +102,22 @@
 - 実装: SampleGame を参照するテストを `unity/Assets/SampleGame/Tests` へ移した。`OneStarMaker.Tests` と `OneStarMaker.Tests.Editor` から SampleGame 参照を削除した。格子フィクスチャは `Cell_{x}_{y}` をローカル生成する。friend は移先アセンブリへ付け替えた。Runtime / Build.Selection / Build.Materialization / Build.Content には、移した Editor テストが既に使っていた internal を `SampleGame.Tests.Editor` へ見せる friend を追加した。
 - HANDOFF との差: なし。
 - 未実行: Unity Editor がこの環境に無い。コンパイル確認と EditMode は未実行。`contract-audit.ps1` は実装ツリーに対して違反なし。
-- implementation head commit: 実装 commit 後にこの欄へ SHA を書く。レビュー記録 commit では更新しない
+- implementation head commit: `3467fad9dfaf2af101d99c0c3a9742724eeedee8`
 - Phase B 担当: このセッションの実装担当（Grok）
 
 ## 7. Phase C
 
-- 種別: 発見
-- evidence bundle id / hash: 実装 head 固定後に記入
-- 構造適合: 発見 C の結果を記入
-- 現在の問いを阻害する findings: 未記入
-- 後続スライスへ移送する findings: 未記入
-- 実行したテストコマンドと `-Filter`: 未実行。Unity Editor が無い
+- 種別: 発見。判定 C は未実施。GO ではない
+- evidence bundle id / hash: 固定 diff `bc73119..3467fad9dfaf2af101d99c0c3a9742724eeedee8`。`contract-audit.ps1` は head で違反なし。生テスト XML は無い
+- 構造適合: フレームワークテスト asmdef から SampleGame 参照は 0。移したテストは SampleGame 型か SampleGame のシーンパスを対象にする。残った格子フィクスチャは `Cell_{x}_{y}` をローカル生成する。アプリテストからフレームワークへの参照だけが増えている
+- 現在の問いを阻害する findings: なし
+- 後続スライスへ移送する findings: namespace が `OneStarMaker.Tests.*` のままであること。`RetiredAddressablesMenuNoOpTests` の設定ファイルパス。どちらも HANDOFF の対象外と一致する
+- 実行したテストコマンドと `-Filter`: 未実行。Unity Editor が環境に無い。Cloud へ Unity を入れて接続済みにはしない
 - テスト結果: 未実行
-- 判定必須のうち未実行: 全 EditMode
+- 判定必須のうち未実行: 全 EditMode（空 filter）
 - 重い検証を発見段階で限定実行した場合の理由と範囲: なし
-- 未確認事項: コンパイル、EditMode
-- 担当・モデル: 発見 C は実装担当と別モデル
+- 未確認事項: コンパイル、EditMode。このため判定 C は開始しない
+- 担当・モデル: 発見 C は実装と別セッションの Claude Sonnet。GO 判定はしていない
 
 ## 8. Phase C'
 
@@ -125,6 +125,7 @@
 - blind audit bundle: 未作成
 - 独立性: 未実施
 - 発見 C / 判定 C 結論の事前閲覧: 該当なし（未開始）
+- 開始しない理由: 判定必須の全 EditMode 生結果が無い。テスト未実行の bundle では C' を開始しない
 
 ## 9. Phase D
 
