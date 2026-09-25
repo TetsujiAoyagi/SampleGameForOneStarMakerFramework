@@ -6,3 +6,5 @@ using System.Runtime.CompilerServices;
 // 本番の plan 生成経路や公開 API は増やさない。
 [assembly: InternalsVisibleTo("OneStarMaker.Tests.Editor")]
 [assembly: InternalsVisibleTo("SampleGame.DependOnAll.Editor")]
+// アプリの build テストが internal な BuildPlan コンストラクタで不正計画を作る。
+[assembly: InternalsVisibleTo("SampleGame.Tests.Editor")]

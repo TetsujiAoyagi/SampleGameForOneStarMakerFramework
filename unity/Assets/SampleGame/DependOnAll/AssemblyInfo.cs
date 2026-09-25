@@ -2,4 +2,4 @@
 
 using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("OneStarMaker.Tests")]
+[assembly: InternalsVisibleTo("SampleGame.Tests")]

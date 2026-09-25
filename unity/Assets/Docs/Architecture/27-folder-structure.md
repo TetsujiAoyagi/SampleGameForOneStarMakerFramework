@@ -39,7 +39,8 @@ Assets/
 │   ├── DependOnAll/               ← 配線だけ集約（Composition Root）
 │   ├── Common/                    ← In/Out 共通
 │   ├── InGame/                    ← ←→ OutGame は参照禁止
-│   └── OutGame/
+│   ├── OutGame/
+│   └── Tests/                     ← SampleGame.Tests / Tests.Editor。FW テストからは参照しない
 │
 └── OneStarMaker/                  ← 汎用 FW（下の層・Game を知らない）
     ├── Scripts/
@@ -47,7 +48,7 @@ Assets/
     │   ├── Runtime/               ← → Foundation のみ
     │   ├── Debug/                 ← → Foundation + Runtime（重い依存隔離）
     │   └── Editor/                ← エディタ専用
-    └── Tests/
+    └── Tests/                     ← OneStarMaker.Tests / Tests.Editor。Game を参照しない
 ```
 
 ### 2.2 依存の向き（参照してよい方向 = 下向き）
@@ -70,9 +71,11 @@ Assets/
 
 禁止:
 
-- OneStarMaker → Game
+- OneStarMaker → Game（`OneStarMaker.Tests` と `OneStarMaker.Tests.Editor` も含む）
 - 同階層横断（例: `InGame` → `OutGame`）。共有は `Common` へ
 - Assembly 循環依存
+
+アプリの EditMode テストは `SampleGame.Tests` と `SampleGame.Tests.Editor` に置く。フレームワークのテストヘルパーが要るときは `SampleGame.Tests` → `OneStarMaker.Tests` の向きだけを使う。
 
 詳細な asmdef ルールは [ARCHITECTURE.md §2](../../ARCHITECTURE.md#2-レイヤー構造と-assembly-依存ルール) を正とする。
 
