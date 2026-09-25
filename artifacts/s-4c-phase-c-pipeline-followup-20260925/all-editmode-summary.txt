@@ -1,0 +1,17 @@
+Command: pwsh tools/run-tests.ps1
+Filter: empty (all EditMode)
+Host: Windows; Unity Editor closed before run
+Unity: 6000.6.0f1
+Unity process exit: 0
+Runner exit: 0
+Result: 909 passed, 0 failed, 0 skipped
+XML start: 2026-09-24 15:10:19Z
+XML end: 2026-09-24 15:21:42Z
+XML duration: 682.2871346 seconds
+Assemblies:
+  OneStarMaker.Tests.dll: 645/645
+  OneStarMaker.Tests.Editor.dll: 249/249
+  SampleGame.Tests.Editor.dll: 14/14
+  Unity.Addressables.DocExampleCode.Editor.Tests.dll: 1/1
+XML: all-editmode-results.xml
+Log: all-editmode-run.log

@@ -1,6 +1,6 @@
 # 24. RenderingSystem — レンダリングシステム構想
 
-> ステータス: 構想段階・骨子（実装前・要件未確定）(2026-07-08)
+> ステータス: RenderWorld は構想段階。RenderEnvironment の最小 lease / sink 骨格は S-4c で実装済み（2026-09-25）。
 > 前提資料: [13. リソースシステム](13-resource-system.md) / [UpdateSystem 正本](../../../../docs/updater/UPDATER_CURRENT_SPEC.md) / [21. SceneStreaming](21-scene-streaming.md) / [23. CameraSystem](23-camera-system.md)
 > 関連計画書: なし（TDD 計画は判定ゲート（§5）の結果を踏まえて作成する）
 
@@ -279,6 +279,17 @@ public interface IRenderEnvironment
 - 各機能は「純 C# の状態ポリシー（テスト対象）+ URP への薄いアダプタ（Light / RenderSettings / Volume コンポーネント反映）」の組で追加する。CameraSystem の Volume weight クロスフェード（weight 計算純 C# + Host 反映）と同じ型
 - 機能間の合成（例: 時刻の太陽色 × 天候の減光）が必要になった時点で合成ポリシーを設計する。先回りの合成フレームワークは作らない（時期尚早な抽象化の回避）
 - **Volume の所有権境界**: View 固有の Volume（論理カメラ毎のポストエフェクト）は CameraSystem §8 の所有。全 View 共通の環境 Volume は RenderEnvironment の所有。同一 Volume を両者が触ることを禁止する
+
+### 9.1 S-4c で実証した最小実装
+
+S-4c は、季節という Game 層の都合を Framework の policy に持ち込まず、次の最小境界を実装した。
+
+- `RenderEnvironment` は App lifetime の単一 owner を lease と generation token で調停する。二件目の取得は即時失敗し、stale lease の `Apply` / `Dispose` が新しい owner を壊さない。
+- `IRenderEnvironmentSink` は policy と Unity I/O の境界であり、Unity 側の実装だけが `Light` と `RenderSettings` を変更する。lease 解放時は capture した baseline を復元する。
+- SampleGame の `SeasonLightingScene` は季節 preset を解決してから lease を取得し、Unload 時に解放する。季節名は Framework の公開面へ出さない。
+- Spring の `(4,2)` / `(5,2)` は Season Lighting、Cell、Environment、Cell Lighting を同時 bake する代表入力として扱う。Cell Lighting は局所光のみを持ち、global sun / sky / fog を所有しない。
+
+S-4c の完了判断では、代表 bake の構造・実行時 lease 維持・EditMode 回帰を確認した。隣接 Cell 境界の seam については人間の「明白な明暗差なし」という観察記録はあるが、C' bundle 内の独立証拠としては不十分だった。追加の Scene 目視を行っても実装上の新しい問いに答えず、残存リスクを有意に減らさないと人間が判断したため、未確認の証拠不足を明記したまま受け入れた。この判断は seam が無いことの新たな証明ではなく、追加確認の費用対効果に関する完了判断である。
 
 ---
 

@@ -1,0 +1,8 @@
+Command: pwsh tools/docs-audit.ps1
+Exit code: 1
+Captured tool stdout (2026-09-24, HANDOFF追記前):
+対象: D:\repositories\unity\SampleGameForOneStarMakerFramework
+tracked な md（ベンダー同梱を除く）: 90 ファイル / 15232 行
+  うち作業台 docs/handoff/: 5 ファイル
+ERROR [検査2] artifacts/s-4c-phase-c-rediscovery-1241c8e/phase-b-result.md:7 公開面が個別の HANDOFF に依存している → docs/handoff/S-4c_WORLD_LIGHTING.md
+違反 1 件。方針は docs/README.md。

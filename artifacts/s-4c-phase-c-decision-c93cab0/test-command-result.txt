@@ -1,0 +1,17 @@
+Command: pwsh tools/run-tests.ps1
+Filter: empty (no -testFilter passed)
+Platform: EditMode
+Graphics: default -nographics
+Sandbox: require_escalated
+Implementation head: c93cab004724fe6ed4f9b011edfbd852b5e879d9
+Unity: 6000.6.0f1
+Unity exit: 0
+Runner exit: 0
+Elapsed: 13.1 minutes
+Total: 908
+Passed: 908
+Failed: 0
+Skipped: 0
+Source XML: TestResults/results-all-20260924-070058.xml
+Source raw log: TestResults/unity-all-20260924-070058.log
+XML test interval: 2026-09-23 22:02:45Z .. 2026-09-23 22:13:41Z

@@ -1,0 +1,10 @@
+
+Name                                                                      Count
+----                                                                      -----
+OneStarMaker.Tests.Editor.WorldAuthoring.CellLightingSceneTests               1
+OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests        13
+OneStarMaker.Tests.Rendering.Environments.UnityRenderEnvironmentSinkTests     2
+OneStarMaker.Tests.SampleGame.GameSceneFactoryTests                          13
+OneStarMaker.Tests.SampleGame.SeasonLightingPresetTableTests                  5
+
+

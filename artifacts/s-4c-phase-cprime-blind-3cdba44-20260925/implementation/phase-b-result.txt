@@ -1,0 +1,7 @@
+S-4c Phase B implementation result snapshot
+Implementation base: 553b7b150e13245b369d75dc4baa12d86e9559aa
+Implementation head: 3cdba44c4de89a1c5f14de9ab2731bf152ef8f76
+
+The Framework public API is in OneStarMaker.Runtime.Rendering.Environments. RenderEnvironmentState is a readonly struct with a constructor and public get-only properties for all eight frozen values. Runtime ownership, lease lifetime, preset values, Unity sink behavior, and content assets follow the frozen HANDOFF and revision 1 boundary. The EditMode suite includes an API-shape regression that checks every frozen value is exposed as a get-only property and not as a public field.
+
+Phase B did not change SceneState, LoadType, asmdef references, package dependencies, ownership, or runtime behavior. The implementation diff is captured in implementation.diff. Validation outputs are included in machine/ and tests/.

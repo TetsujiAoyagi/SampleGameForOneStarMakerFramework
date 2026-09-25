@@ -221,6 +221,12 @@ ViewModel は View と Model の仲介。Undo/Redo は ViewModel のコマンド
 3. Payload[0] に SceneAsset がセットされている間は Identity TextField を無効化（readonly）
 4. Payload[0] がクリアされたらアンロック
 
+### 11.6.5 他の書き手（World Workspace）
+
+職種 companion の日常作成口は SceneGraph Editor ではない。`WorldCompanionCreationTransaction` が `SceneNodeData` と `SceneGraphEdges` を直接足し、同じ `SceneResourceGenerator.Generate` で Map を投影する。ViewModel コマンド、Layout、開いている GraphView、Unity Undo は通らない。
+
+そのため Create 直後に SceneGraph Editor を開いても、ノードが見えない／原点に重なる／ウィンドウが古いまま、があり得る。階層の正本は Edges、位置は Layout、Play の正本は Map で、三者は今は自動では揃わない。Editor から同じ identity を作り直して「見た目を直す」ことはしない。
+
 ## 11.7 バリデーション
 
 | # | チェック | タイミング | 重大度 |
@@ -363,4 +369,5 @@ A: ノードドラッグ              → Layouts/ のみ             → 階層
 B: エッジ変更                  → Graphs/ のみ              → レイアウトは無傷
 A: Payload SceneAsset 変更     → Nodes/X.asset のみ        → 別ノードなら安全
 B: D&D で新ノード追加          → Nodes/X.asset + Edges     → ノード名が異なれば安全
+C: World Workspace companion   → Nodes + Edges + Generate  → Layout / Editor Window は未更新
 ```

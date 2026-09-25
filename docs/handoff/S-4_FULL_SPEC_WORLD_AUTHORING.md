@@ -1,7 +1,7 @@
 # S-4 フルスペック World 制作基盤
 
 > type: program
-> status: 発注者承認済み。S-4a / S-4b は develop へマージ済み。S-4c〜d 着手時 HANDOFF の入力正本。S-4b の現況は Architecture §18 / §21 / §27 と STREAMING_CURRENT_SPEC へ harvest 済み。
+> status: 発注者承認済み。S-4a / S-4b / S-4c は完了。S-4d 着手時は本書と、S-4c から harvest 済みの Architecture §24 / §27 を入力にする。S-4b の現況は Architecture §18 / §21 / §27 と STREAMING_CURRENT_SPEC へ harvest 済み。
 > branch: `codex/s-4-full-spec-plan`
 > implementation base commit: `1502ffc`
 > risk: high
@@ -380,6 +380,6 @@ version: 1.0.0-beta.6
 単体テスト境界を固定する。500行、3責務、50%以上増加の警報が出た場合は、分割または非分割の理由を
 HANDOFFへ書く。本書にない公開API、依存、状態、所有者が必要になったらPhase Bで決めずPhase Aへ戻す。
 
-S-4dのPhase Dで、現況となった契約をArchitecture §05 / §18 / §24 / §27とStreaming現状仕様へharvestし、
+S-4dのPhase Dで、S-4d固有の現況となった契約をArchitecture §05 / §18 / §24 / §27とStreaming現状仕様へharvestし、
 本書と完了済みS-4a〜d HANDOFFを削除する。後続S-5が必要とするSeason排他controllerの公開面だけは、
 harvest後のArchitecture文書を参照する。

@@ -3,6 +3,7 @@
 using Microsoft.Extensions.Logging;
 using OneStarMaker.Runtime.CameraSystem.Abstractions;
 using OneStarMaker.Runtime.CameraSystem.Hosting;
+using OneStarMaker.Runtime.Rendering.Environments;
 using OneStarMaker.Runtime.SceneSystem;
 using SampleGame.InGame.World;
 using SampleGame.InGame.Streaming;
@@ -21,6 +22,7 @@ namespace SampleGame.DependOnAll
         private readonly ICameraBackgroundApplier _cameraBackgroundApplier;
         private readonly ICameraSystem _cameraSystem;
         private readonly CellCompanionSet _companionSet;
+        private readonly IRenderEnvironment _renderEnvironment;
         /// <summary>
         /// Bootstrap が構成した唯一の <see cref="ILoggerFactory"/> を受け取る。
         /// Game 層で <see cref="OneStarMaker.Foundation.Logging.AppLoggerFactory"/> を再生成すると、
@@ -31,7 +33,8 @@ namespace SampleGame.DependOnAll
             ILoggerFactory loggerFactory,
             ICameraSystem cameraSystem,
             ICameraBackgroundApplier backgroundApplier,
-            CellCompanionSet companionSet)
+            CellCompanionSet companionSet,
+            IRenderEnvironment renderEnvironment)
         {
             _loggerFactory = loggerFactory ?? throw new System.ArgumentNullException(nameof(loggerFactory));
             // OutGame は MainView の背景を初期化するため、CameraSystem と applier は任意依存ではない。
@@ -40,6 +43,7 @@ namespace SampleGame.DependOnAll
             _cameraSystem = cameraSystem ?? throw new System.ArgumentNullException(nameof(cameraSystem));
             _cameraBackgroundApplier = backgroundApplier ?? throw new System.ArgumentNullException(nameof(backgroundApplier));
             _companionSet = companionSet;
+            _renderEnvironment = renderEnvironment ?? throw new System.ArgumentNullException(nameof(renderEnvironment));
         }
 
         public SceneBase? CreateSceneClass(SceneResource sceneResource, ISceneQuery sceneQuery, ISceneController sceneController)
@@ -81,10 +85,10 @@ namespace SampleGame.DependOnAll
                 "Season_Summer" => new InGame.World.SeasonScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
                 "Season_Autumn" => new InGame.World.SeasonScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
                 "Season_Winter" => new InGame.World.SeasonScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
-                "Spring_Lighting" => new InGame.World.SeasonLightingScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
-                "Summer_Lighting" => new InGame.World.SeasonLightingScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
-                "Autumn_Lighting" => new InGame.World.SeasonLightingScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
-                "Winter_Lighting" => new InGame.World.SeasonLightingScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
+                "Spring_Lighting" => new InGame.World.SeasonLightingScene(sceneResource, sceneQuery, sceneController, _loggerFactory, _renderEnvironment),
+                "Summer_Lighting" => new InGame.World.SeasonLightingScene(sceneResource, sceneQuery, sceneController, _loggerFactory, _renderEnvironment),
+                "Autumn_Lighting" => new InGame.World.SeasonLightingScene(sceneResource, sceneQuery, sceneController, _loggerFactory, _renderEnvironment),
+                "Winter_Lighting" => new InGame.World.SeasonLightingScene(sceneResource, sceneQuery, sceneController, _loggerFactory, _renderEnvironment),
                 "Result" => new InGame.Result.ResultScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
                 "HpGauge" => new HpGaugeScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
                 "ConfirmDialog" => new ConfirmDialogScene(sceneResource, sceneQuery, sceneController, _loggerFactory),

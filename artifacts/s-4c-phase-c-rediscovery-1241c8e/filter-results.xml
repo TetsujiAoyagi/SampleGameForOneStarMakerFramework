@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="34" result="Passed" total="34" passed="34" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.418738">
+  <test-suite type="TestSuite" id="1000" name="SampleGame" fullname="SampleGame" runstate="Runnable" testcasecount="908" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.418738" total="34" passed="34" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="Assembly" id="1752" name="OneStarMaker.Tests.dll" fullname="D:/repositories/unity/SampleGameForOneStarMakerFramework/unity/Library/ScriptAssemblies/OneStarMaker.Tests.dll" runstate="Runnable" testcasecount="644" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.239721" total="33" passed="33" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="6388" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="1753" name="OneStarMaker" fullname="OneStarMaker" runstate="Runnable" testcasecount="644" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.211000" total="33" passed="33" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1754" name="Tests" fullname="OneStarMaker.Tests" runstate="Runnable" testcasecount="644" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.170544" total="33" passed="33" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1760" name="Rendering" fullname="OneStarMaker.Tests.Rendering" runstate="Runnable" testcasecount="15" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.073433" total="15" passed="15" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestSuite" id="1761" name="Environments" fullname="OneStarMaker.Tests.Rendering.Environments" runstate="Runnable" testcasecount="15" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.072017" total="15" passed="15" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-suite type="TestFixture" id="1409" name="RenderEnvironmentLeaseTests" fullname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests" classname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests" runstate="Runnable" testcasecount="13" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.058572" total="13" passed="13" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1410" name="Acquire_First_Succeeds_AndHasOwner" fullname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests.Acquire_First_Succeeds_AndHasOwner" methodname="Acquire_First_Succeeds_AndHasOwner" classname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests" runstate="Runnable" seed="270086485" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.021143" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1417" name="Acquire_NullOwner_Throws" fullname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests.Acquire_NullOwner_Throws" methodname="Acquire_NullOwner_Throws" classname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests" runstate="Runnable" seed="718841638" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.003349" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1411" name="Acquire_Second_Throws_AndKeepsFirstOwner" fullname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests.Acquire_Second_Throws_AndKeepsFirstOwner" methodname="Acquire_Second_Throws_AndKeepsFirstOwner" classname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests" runstate="Runnable" seed="2046885020" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.000449" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1418" name="Apply_BeforeBindSun_Throws" fullname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests.Apply_BeforeBindSun_Throws" methodname="Apply_BeforeBindSun_Throws" classname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests" runstate="Runnable" seed="2071610396" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.000856" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1414" name="Apply_OnDisposedLease_Throws_AndDoesNotMutateSink" fullname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests.Apply_OnDisposedLease_Throws_AndDoesNotMutateSink" methodname="Apply_OnDisposedLease_Throws_AndDoesNotMutateSink" classname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests" runstate="Runnable" seed="260023432" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.001920" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1415" name="Apply_StaleLeaseAfterNewOwnerApply_Throws_AndDoesNotMutateNewOwner" fullname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests.Apply_StaleLeaseAfterNewOwnerApply_Throws_AndDoesNotMutateNewOwner" methodname="Apply_StaleLeaseAfterNewOwnerApply_Throws_AndDoesNotMutateNewOwner" classname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests" runstate="Runnable" seed="1764435418" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.001655" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1420" name="BindSun_NullLight_Throws" fullname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests.BindSun_NullLight_Throws" methodname="BindSun_NullLight_Throws" classname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests" runstate="Runnable" seed="277309121" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.000374" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1419" name="BindSun_Twice_Throws" fullname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests.BindSun_Twice_Throws" methodname="BindSun_Twice_Throws" classname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests" runstate="Runnable" seed="95288350" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.000447" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1412" name="Dispose_Matching_ClearsOwner_AndRestoresBaseline" fullname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests.Dispose_Matching_ClearsOwner_AndRestoresBaseline" methodname="Dispose_Matching_ClearsOwner_AndRestoresBaseline" classname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests" runstate="Runnable" seed="1669361699" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.000276" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1413" name="Dispose_StaleAfterNewOwner_DoesNotClearNewOwner_AndDoesNotRestore" fullname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests.Dispose_StaleAfterNewOwner_DoesNotClearNewOwner_AndDoesNotRestore" methodname="Dispose_StaleAfterNewOwner_DoesNotClearNewOwner_AndDoesNotRestore" classname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests" runstate="Runnable" seed="75101356" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.000298" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1416" name="Dispose_Twice_IsIdempotent" fullname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests.Dispose_Twice_IsIdempotent" methodname="Dispose_Twice_IsIdempotent" classname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests" runstate="Runnable" seed="1092375668" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.001076" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1422" name="DisposeEnvironment_WithActiveLease_RestoresOnce_AndLeaseDisposeIsNoOp" fullname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests.DisposeEnvironment_WithActiveLease_RestoresOnce_AndLeaseDisposeIsNoOp" methodname="DisposeEnvironment_WithActiveLease_RestoresOnce_AndLeaseDisposeIsNoOp" classname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests" runstate="Runnable" seed="931690989" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.000564" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1421" name="Validate_NegativeIntensity_Throws" fullname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests.Validate_NegativeIntensity_Throws" methodname="Validate_NegativeIntensity_Throws" classname="OneStarMaker.Tests.Rendering.Environments.RenderEnvironmentLeaseTests" runstate="Runnable" seed="585176826" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.000498" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+              </test-suite>
+              <test-suite type="TestFixture" id="1423" name="UnityRenderEnvironmentSinkTests" fullname="OneStarMaker.Tests.Rendering.Environments.UnityRenderEnvironmentSinkTests" classname="OneStarMaker.Tests.Rendering.Environments.UnityRenderEnvironmentSinkTests" runstate="Runnable" testcasecount="2" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.010747" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1425" name="RestoreBaseline_NullSun_DoesNotLeaveDestroyedSun" fullname="OneStarMaker.Tests.Rendering.Environments.UnityRenderEnvironmentSinkTests.RestoreBaseline_NullSun_DoesNotLeaveDestroyedSun" methodname="RestoreBaseline_NullSun_DoesNotLeaveDestroyedSun" classname="OneStarMaker.Tests.Rendering.Environments.UnityRenderEnvironmentSinkTests" runstate="Runnable" seed="483638712" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.004789" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1424" name="RestoreBaseline_TrilightAndSun_ReturnsCapturedComponents" fullname="OneStarMaker.Tests.Rendering.Environments.UnityRenderEnvironmentSinkTests.RestoreBaseline_TrilightAndSun_ReturnsCapturedComponents" methodname="RestoreBaseline_TrilightAndSun_ReturnsCapturedComponents" classname="OneStarMaker.Tests.Rendering.Environments.UnityRenderEnvironmentSinkTests" runstate="Runnable" seed="1889197535" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.003149" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+              </test-suite>
+            </test-suite>
+          </test-suite>
+          <test-suite type="TestSuite" id="1759" name="SampleGame" fullname="OneStarMaker.Tests.SampleGame" runstate="Runnable" testcasecount="32" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.045502" total="18" passed="18" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestFixture" id="1373" name="GameSceneFactoryTests" fullname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests" classname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests" runstate="Runnable" testcasecount="13" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.027160" total="13" passed="13" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1376" name="Constructor_NullCameraBackgroundApplier_Throws" fullname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests.Constructor_NullCameraBackgroundApplier_Throws" methodname="Constructor_NullCameraBackgroundApplier_Throws" classname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests" runstate="Runnable" seed="1972398548" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.009347" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1375" name="Constructor_NullCameraSystem_Throws" fullname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests.Constructor_NullCameraSystem_Throws" methodname="Constructor_NullCameraSystem_Throws" classname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests" runstate="Runnable" seed="1679332525" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.000700" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1374" name="Constructor_NullLoggerFactory_Throws" fullname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests.Constructor_NullLoggerFactory_Throws" methodname="Constructor_NullLoggerFactory_Throws" classname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests" runstate="Runnable" seed="868270394" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.000303" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1381" name="Constructor_NullRenderEnvironment_Throws" fullname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests.Constructor_NullRenderEnvironment_Throws" methodname="Constructor_NullRenderEnvironment_Throws" classname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests" runstate="Runnable" seed="1329992414" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.000378" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1378" name="CreateSceneClass_CellIdentity_ReturnsDemoCellScene" fullname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests.CreateSceneClass_CellIdentity_ReturnsDemoCellScene" methodname="CreateSceneClass_CellIdentity_ReturnsDemoCellScene" classname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests" runstate="Runnable" seed="171936502" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.004950" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-suite type="ParameterizedMethod" id="1387" name="CreateSceneClass_InGameSession_ForwardsCompanionSet" fullname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests.CreateSceneClass_InGameSession_ForwardsCompanionSet" classname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests" runstate="Runnable" testcasecount="4" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.004067" total="4" passed="4" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1383" name="CreateSceneClass_InGameSession_ForwardsCompanionSet(Full)" fullname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests.CreateSceneClass_InGameSession_ForwardsCompanionSet(Full)" methodname="CreateSceneClass_InGameSession_ForwardsCompanionSet" classname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests" runstate="Runnable" seed="1596503281" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.001039" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1384" name="CreateSceneClass_InGameSession_ForwardsCompanionSet(Planner)" fullname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests.CreateSceneClass_InGameSession_ForwardsCompanionSet(Planner)" methodname="CreateSceneClass_InGameSession_ForwardsCompanionSet" classname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests" runstate="Runnable" seed="474788460" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.000193" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1385" name="CreateSceneClass_InGameSession_ForwardsCompanionSet(Lighting)" fullname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests.CreateSceneClass_InGameSession_ForwardsCompanionSet(Lighting)" methodname="CreateSceneClass_InGameSession_ForwardsCompanionSet" classname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests" runstate="Runnable" seed="1946728304" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.000183" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1386" name="CreateSceneClass_InGameSession_ForwardsCompanionSet(Vfx)" fullname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests.CreateSceneClass_InGameSession_ForwardsCompanionSet(Vfx)" methodname="CreateSceneClass_InGameSession_ForwardsCompanionSet" classname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests" runstate="Runnable" seed="1897511487" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.000193" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+              </test-suite>
+              <test-case id="1380" name="CreateSceneClass_SeasonLightingWithoutCellParent_IsNotCompanion" fullname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests.CreateSceneClass_SeasonLightingWithoutCellParent_IsNotCompanion" methodname="CreateSceneClass_SeasonLightingWithoutCellParent_IsNotCompanion" classname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests" runstate="Runnable" seed="1650711527" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.000658" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1382" name="CreateSceneClass_SpringLightingCellChild_ReturnsCompanionScene" fullname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests.CreateSceneClass_SpringLightingCellChild_ReturnsCompanionScene" methodname="CreateSceneClass_SpringLightingCellChild_ReturnsCompanionScene" classname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests" runstate="Runnable" seed="1260551828" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.000564" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1379" name="CreateSceneClass_StructuralCellChild_ReturnsCompanionScene" fullname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests.CreateSceneClass_StructuralCellChild_ReturnsCompanionScene" methodname="CreateSceneClass_StructuralCellChild_ReturnsCompanionScene" classname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests" runstate="Runnable" seed="1744163148" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.000308" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1377" name="CreateSceneClass_UnknownIdentity_ReturnsNull" fullname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests.CreateSceneClass_UnknownIdentity_ReturnsNull" methodname="CreateSceneClass_UnknownIdentity_ReturnsNull" classname="OneStarMaker.Tests.SampleGame.GameSceneFactoryTests" runstate="Runnable" seed="1055816172" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.000345" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1403" name="SeasonLightingPresetTableTests" fullname="OneStarMaker.Tests.SampleGame.SeasonLightingPresetTableTests" classname="OneStarMaker.Tests.SampleGame.SeasonLightingPresetTableTests" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.006343" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1406" name="TryGet_Autumn_MatchesFrozenValues" fullname="OneStarMaker.Tests.SampleGame.SeasonLightingPresetTableTests.TryGet_Autumn_MatchesFrozenValues" methodname="TryGet_Autumn_MatchesFrozenValues" classname="OneStarMaker.Tests.SampleGame.SeasonLightingPresetTableTests" runstate="Runnable" seed="4350780" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.001750" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1404" name="TryGet_Spring_MatchesFrozenValues" fullname="OneStarMaker.Tests.SampleGame.SeasonLightingPresetTableTests.TryGet_Spring_MatchesFrozenValues" methodname="TryGet_Spring_MatchesFrozenValues" classname="OneStarMaker.Tests.SampleGame.SeasonLightingPresetTableTests" runstate="Runnable" seed="916561164" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.000301" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1405" name="TryGet_Summer_MatchesFrozenValues" fullname="OneStarMaker.Tests.SampleGame.SeasonLightingPresetTableTests.TryGet_Summer_MatchesFrozenValues" methodname="TryGet_Summer_MatchesFrozenValues" classname="OneStarMaker.Tests.SampleGame.SeasonLightingPresetTableTests" runstate="Runnable" seed="1955595698" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.000304" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1408" name="TryGet_Unknown_ReturnsFalse" fullname="OneStarMaker.Tests.SampleGame.SeasonLightingPresetTableTests.TryGet_Unknown_ReturnsFalse" methodname="TryGet_Unknown_ReturnsFalse" classname="OneStarMaker.Tests.SampleGame.SeasonLightingPresetTableTests" runstate="Runnable" seed="477224117" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.000766" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1407" name="TryGet_Winter_MatchesFrozenValues" fullname="OneStarMaker.Tests.SampleGame.SeasonLightingPresetTableTests.TryGet_Winter_MatchesFrozenValues" methodname="TryGet_Winter_MatchesFrozenValues" classname="OneStarMaker.Tests.SampleGame.SeasonLightingPresetTableTests" runstate="Runnable" seed="61570833" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.000364" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+    <test-suite type="Assembly" id="2062" name="OneStarMaker.Tests.Editor.dll" fullname="D:/repositories/unity/SampleGameForOneStarMakerFramework/unity/Library/ScriptAssemblies/OneStarMaker.Tests.Editor.dll" runstate="Runnable" testcasecount="249" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.099731" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="6388" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="2063" name="OneStarMaker" fullname="OneStarMaker" runstate="Runnable" testcasecount="249" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.082738" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="2064" name="Tests" fullname="OneStarMaker.Tests" runstate="Runnable" testcasecount="249" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.065876" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="2065" name="Editor" fullname="OneStarMaker.Tests.Editor" runstate="Runnable" testcasecount="249" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.049087" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestSuite" id="2066" name="WorldAuthoring" fullname="OneStarMaker.Tests.Editor.WorldAuthoring" runstate="Runnable" testcasecount="73" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.020578" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-suite type="TestFixture" id="1769" name="CellLightingSceneTests" fullname="OneStarMaker.Tests.Editor.WorldAuthoring.CellLightingSceneTests" classname="OneStarMaker.Tests.Editor.WorldAuthoring.CellLightingSceneTests" runstate="Runnable" testcasecount="1" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.012914" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1770" name="RepresentativeCellLightingScenes_HaveNoDirectional_AndAtLeastOnePoint" fullname="OneStarMaker.Tests.Editor.WorldAuthoring.CellLightingSceneTests.RepresentativeCellLightingScenes_HaveNoDirectional_AndAtLeastOnePoint" methodname="RepresentativeCellLightingScenes_HaveNoDirectional_AndAtLeastOnePoint" classname="OneStarMaker.Tests.Editor.WorldAuthoring.CellLightingSceneTests" runstate="Runnable" seed="705776977" result="Passed" start-time="2026-09-23 19:21:09Z" end-time="2026-09-23 19:21:09Z" duration="0.011579" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Saving results to: C:/Users/void/AppData/LocalLow/DefaultCompany/SampleGame\TestResults.xml
+]]></output>
+                </test-case>
+              </test-suite>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

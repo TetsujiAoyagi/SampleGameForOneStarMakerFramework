@@ -34,6 +34,7 @@ MonoBehaviour:
   _parent: {fileID: 11400000, guid: 8869a9ddf028f36448023ccb0edb991c, type: 2}
   _children:
   - {fileID: 11400000, guid: e7a7c1b77396b4c459234b8a6f8a7e59, type: 2}
+  - {fileID: 11400000, guid: 9019351cd64025141aa5e42f2f58e559, type: 2}
   _volume:
     m_Center: {x: 1375, y: 5.5, z: 625}
     m_Extent: {x: 122.5, y: 5.5, z: 122.5}

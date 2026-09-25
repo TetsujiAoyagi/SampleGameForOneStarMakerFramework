@@ -1,0 +1,10 @@
+
+Algorithm : SHA256
+Hash      : E5A5204948CB9C0C6AAAC283BFF8B2B5F725CF678559EDA52ED95A43D5E55C6F
+Path      : D:\repositories\unity\SampleGameForOneStarMakerFramework\artifacts\s-4c-phase-c-rediscovery-1241c8e\manifest.json
+
+Algorithm : SHA256
+Hash      : C043A3B0482F61060B7D6A8BB5140165A12840BC5BB76D4A7D8184B96C95FC62
+Path      : D:\repositories\unity\SampleGameForOneStarMakerFramework\artifacts\s-4c-phase-c-rediscovery-1241c8e\phase-b-result.md
+
+

@@ -1,0 +1,544 @@
+# S-4c World Lighting — HANDOFF
+
+> Phase B の正本。ここに無い公開 API・依存・所有者・寿命・失敗契約は実装しない。衝突したら Phase A へ返す。
+
+## 0. メタデータ
+
+- type: `slice`
+- status: `B`（実装結果記入済み。判定 C 未実施）
+- branch: `cursor/s-4c-world-lighting-a3-4a38`
+- implementation base commit: `553b7b150e13245b369d75dc4baa12d86e9559aa`
+- implementation head commit: `1241c8e7b4e475f934fc8931ba783c755508ee2d`（差し戻し修正・代表 bake を含む実装 head）
+- risk: `high`
+- owner: Phase B は人間
+- created: 2026-09-21
+- A3 frozen: 2026-09-21
+- expires: S-4d の Phase D 完了時
+- harvest to: Architecture §24（REN-08 現況）、§05（Season Lighting lease）、§23 Volume 境界の確認、§27 フォルダ（Cell Lighting 2 件）、§11（Workspace は SceneGraph Editor を通さない現況）、STREAMING には距離政策を足さない
+- Phase A snapshot path: `artifacts/s-4c-phase-a/`
+- Phase A snapshot generated at: 2026-09-21
+- Phase A snapshot hash: A1-snapshot `38be0c9de7a839e4ddb4d2615d1cd1bae39db0c5d961d2df6df10da1d750ca12`（A2 入力。A3 本文はこの HANDOFF）
+- A2 入力: `artifacts/s-4c-phase-a/A0-packet.md` + `A1-snapshot.md`
+- A2 結果: `A2-architecture.md` / `A2-lifecycle.md` / `A2-alternative.md`
+- A3 決定: `artifacts/s-4c-phase-a/A3-frozen.md`
+- Phase B 手順の読み順: 本 HANDOFF が正本。人間向け詳細手順は `artifacts/s-4c-phase-a/PHASE_B_PLAYBOOK.md`（矛盾したら HANDOFF）。2026-09-22 に Playbook をフィールド・判定順・現行骨格の直し方まで詳細化した
+- Phase B result snapshot path / id: 本 HANDOFF §6（2026-09-23 記入。別ファイル snapshot は未作成）
+- evidence bundle / C' blind bundle: （未到達）
+
+## 1. 目的と対象外
+
+- 目的: 季節グローバル照明の単一オーナー（lease）を Framework に置き、PlayerScene の `RenderSettings` 直書きを廃し、Spring 代表 2 Cell で multi-scene bake を成立させる。
+- 対象外: `IRenderingSystem` / RenderWorld / BRG、24h TimeOfDay、Weather 合成、全 216 bake、Light Probe 再評価（S-9）、VFX / Events（S-4d）、Tunnel 遷移（S-5）、新しい LoadType / SceneState、Framework への季節語、一時生成器の復活、Whitebox bake、URP パッケージ追加。
+- 現況: A0 packet `artifacts/s-4c-phase-a/A0-packet.md` に固定。Season Lighting 4 件は空 scaffold。Cell Lighting 0 件。`PlayerScene.ApplyDemoLook` が fog / ambient を直書き。Runtime は URP 非参照。
+
+## 2. 意思決定と受け入れ境界
+
+- このスライスが答える問い: App lifetime の単一 RenderEnvironment が lease で **sun / ambient / fog** を所有でき、Spring `(4,2)` `(5,2)` の multi-scene bake が Scene 単位の着脱として成立するか。共通 Volume の実行時所有（`Volume.weight`）はこの問いの判定に含めない。
+
+- 進める最低条件:
+  1. 純 C# テストが、単一 owner・二件目即失敗・stale Dispose / stale Apply が新 owner を消さないこと、解放で baseline に戻ることを示す。
+  2. Game 層（少なくとも `PlayerScene`）から `RenderSettings` 代入が消えている。
+  3. 四季の `SeasonLightingScene` が Load で lease を取り preset を Apply し、Unload で解放する。二件目の Season Lighting が Load したら失敗する。
+  4. `Spring_Lighting_4_2` と `Spring_Lighting_5_2` が World Workspace で作られ、Directional Light を持たず、global sun / sky / fog / global Volume を書き換えない。
+  5. 代表 7 Scene（Season Lighting + 両 Cell + 両 Environment + 両 Cell Lighting）を同時に開いた Progressive bake の lightmap が commit されている。
+  6. 人間が `(4,2)` / `(5,2)` 境界で明白な lightmap seam が無いことを HANDOFF 実装結果へ記録する。
+  7. Phase C が次を観測できる: Cell を Unload しても fog/sun は春 preset のまま（lease は Season Lighting が持つ）。同じ Cell を戻すと baked 床が再ロードされる。
+
+- 受け入れ条件（上記の観測可能な詳細。別バーにしない）:
+  - `IRenderEnvironment.Acquire(object ownerKey)` は空きなら lease を返す。既に owner がいるなら `InvalidOperationException`。暗黙の待ち・上書きはしない。
+  - lease は整数 generation を token として持つ。Dispose は generation 一致のときだけ owner を空ける。不一致は no-op。
+  - Dispose 済み lease の `Apply` は `InvalidOperationException`。新 owner の state は変わらない。
+  - 同一 lease の二度目の Dispose は no-op。
+  - `RenderEnvironmentState` は struct（`record` 禁止）。フィールドは本節の表に固定した値だけ。
+  - SampleGame の preset 表が四季 identity → state を返す。Framework は Spring 等の語を持たない。
+  - Unity sink は `Light`（bind された太陽）と `RenderSettings`（fog / ambient）へ書く。`Volume.weight` の URP 型操作は **しない**（後述裁定）。
+  - `SeasonLightingScene` は `OnLoadedImpl` で **Acquire の前に** `SeasonSun` 探索と preset lookup を済ませる。欠ける太陽・未知 identity では lease を取らない。Acquire 後の失敗だけ `try/catch` で Dispose してから throw（`OnLoadedImpl` 例外は `OnPreUnLoadedImpl` を通らない）。成功時は `_lease` を保持し、`OnPreUnLoadedImpl` で Dispose。
+  - `PlayerScene.ApplyDemoLook` を削除する。Camera clear / background は CameraSystem 側の既存設定を残し、RenderEnvironment は触らない。
+  - Cell Lighting 2 件の Scene 内に `LightType.Directional` が 0。local Point を各 1 以上置く。
+  - bake 対象 Scene 以外の `.unity` を再シリアライズしない。Whitebox は焼かない。
+  - Light Probe 共有は受け入れ事実として実装結果と S-9 送り状に書く。本スライスで Probe 方式を変えない。
+
+- ここでは答えない問いと所有する後続スライス:
+  - URP `Volume.weight` を Framework adapter が直接書くこと、共通 Volume の実行時所有 → 後続 `RenderEnvironment Volume 反映`（本スライスは authored Volume を Scene に置いてよいが、Runtime は触らない。lease 所有の GO 判定に Volume を使わない）
+  - S-4d は `Spring_Lighting_4_2` / `Spring_Lighting_5_2` を再作成しない（本スライスが作る）
+  - 直列季節切替のあいだ RenderSettings が Capture 時点へ一瞬戻ること → S-5
+  - 季節遷移シーケンスでの lease 受け渡し → S-5
+  - 全 Cell bake / Probe 再評価 / 共有 Probe のメモリ → S-9
+  - VFX Graph、Atmosphere VFX、Events、major Event → S-4d
+  - 品質バー（3 秒で主題と変奏が分かる）の完成目視 → S-8
+  - TimeOfDay 時計 → REN-08 残り / P-R6
+  - Camera skybox material の季節別差し替え → 後続。本スライスは fog / ambient / sun で変奏を載せる
+  - World Workspace 作成が SceneGraph Editor（ViewModel / Layout / 開いている GraphView）を更新しないこと → 後続。本スライスは Node + Edges + Generate まで。Editor 可視化の同期は問わない
+
+- 判定定義:
+  - GO: 進める最低条件 1〜7 を満たし、常時契約違反が無い。
+  - NO-GO: 最低条件未達、または Game→Framework 逆転、SceneState 変更、URP asmdef 追加、一時生成器復活、216 bake。
+  - CONDITIONAL ACCEPT: 使わない（スパイクではない）。
+
+- 停止規則: 最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。
+
+- A3 後の例外承認: なし
+
+- 本文へ転記した実装制約:
+  - Unity 側 C# で `record` 禁止。編集する `.cs` 先頭に `#nullable enable`。
+  - 破棄されうる `UnityEngine.Object`（`Light` 含む）は `== null` / `!= null`。`?.` / `??` / `is null` / `ReferenceEquals` を使わない。
+  - 公開ログは `ILogger<T>`。`ZLogger*` 型を公開面に出さない。既存 `SeasonLightingScene` の ZLog 呼び出しパターンは維持してよい。
+  - asmdef 参照を追加しない。特に `Unity.RenderPipelines.*` を Runtime / InGame / DependOnAll に足さない。
+  - `SceneState` 14 値を減らさない・並べ替えない。LoadType を増やさない。
+  - Framework（`unity/Assets/OneStarMaker/`）に `Season|Spring|Summer|Autumn|Winter|季節` を出さない。
+  - 依存配線は `AppInitializer` と `GameSceneFactory` のみ。Service Locator 禁止。
+  - Scene / Prefab / SceneResource / Addressables はローカル Editor + `tools/unity-editor.cmd`。YAML 手編集禁止。Cloud では Unity CLI を叩かない。
+  - Cell Lighting の作成は既存 World Workspace（`OneStarMaker/World Workspace`）だけ。S-4b 生成器を復活させない。
+  - テストで `Task.Delay` / `Thread.Sleep` 禁止。
+  - Phase B は `pwsh tools/contract-audit.ps1` まで。`pwsh tools/run-tests.ps1` と Addressables build は Phase C。
+
+- 未決事項: なし（A3 で閉じた）
+
+### 2.1 A1 裁定（A2 が見る版）
+
+| 論点 | 裁定 | 理由 |
+|---|---|---|
+| Cell Lighting 2 件の作成 | **S-4c が World Workspace で作る** | bake 入力が S-4c の最低条件。S-4d §6.2 の 6 Scene は S-4 完了在庫であり、S-4d は VFX/Events 4 件を足す。2 Lighting を再作成しない |
+| URP asmdef | **足さない** | Volume.weight 実行時操作は現在の問いの判定に不要。authored Volume を Scene に置いてロードで乗せる。policy の `GlobalVolumeWeight` は Fake sink が記録し、Unity sink は無視する（コメントで理由を残す） |
+| 太陽 Light の所有者 | **各 Season Lighting Scene の authored `SeasonSun`** | bake 光源と Play 光源を一致させる。DontDestroyOnLoad Host に太陽を置くと bake と乖離する |
+| preset 置き場 | **SampleGame 純 C# 表** | Framework が季節語を知ってはならない。Framework は Validate + lease + sink |
+| 取得/解放フック | **OnLoadedImpl / OnPreUnLoadedImpl** | Light bind に RootObjects が要る。NecessaryAlways なので Season Add 中に見た目が載る |
+| Camera background | **RenderEnvironment は触らない** | CameraSystem 所有。`ApplyDemoLook` ごと削除し、InGameScene / AppInitializer の既存 clear を残す |
+| TimeOfDay 時計 | **やらない** | 静的季節 preset が REN-08 前倒しの最小。時計は P-R6 |
+| 二件目 owner | **例外で即失敗** | spec「即失敗」。Try で false を返すと呼び出し側が無視し得る |
+| Volume 所有境界 | **Camera 固有は CameraSystem のまま。全 View 共通は Season Lighting Scene の authored global Volume。Runtime は共通 Volume をコードから作らない** | 境界を文書と Scene 配置で守る。同一 Volume を CameraSystem と RenderEnvironment が触ることを禁止 |
+
+### 2.2 凍結する `RenderEnvironmentState`
+
+Unity 側は `record` 禁止のため、readonly struct + コンストラクタ。`init` は `IsExternalInit` が Runtime 内部にしか無いので **使わない**。プロパティは get-only。
+
+| フィールド | 型 | 意味 | 制約 |
+|---|---|---|---|
+| `SunEulerDegrees` | `Vector3` | 太陽の euler（度）。X=pitch、Y=yaw、Z=0 | Z は 0 に正規化してよい |
+| `SunColor` | `Color` | 太陽色 | RGB 0..1 を推奨。Validate は負を拒否 |
+| `SunIntensity` | `float` | `Light.intensity` | `>= 0` |
+| `AmbientSkyColor` | `Color` | `RenderSettings.ambientLight`（Flat） | 負を拒否 |
+| `FogEnabled` | `bool` | fog on/off | |
+| `FogColor` | `Color` | fog 色 | 負を拒否 |
+| `FogDensity` | `float` | ExponentialSquared の density | `>= 0` |
+| `GlobalVolumeWeight` | `float` | 将来の共通 Volume weight | `0..1`。Unity sink は S-4c で適用しない |
+
+`FogMode` は state に持たない。Unity sink は常に `FogMode.ExponentialSquared` を書く。これは四季共通の製品判断であり、preset 差分にしない。
+
+`RenderSettings.ambientMode` は sink が常に `AmbientMode.Flat` を書く。
+
+### 2.3 凍結する四季 preset（SampleGame）
+
+identity 完全一致。未知 identity は `SeasonLightingScene` が **Acquire 前に** 失敗する。
+
+| Identity | SunEuler | SunColor | Intensity | AmbientSky | FogEnabled | FogColor | FogDensity | VolumeWeight |
+|---|---|---|---|---|---|---|---|---|
+| `Spring_Lighting` | `(15, -30, 0)` | `(1.00, 0.85, 0.70)` | `0.80` | `(0.18, 0.22, 0.28)` | true | `(0.75, 0.82, 0.88)` | `0.0015` | `1` |
+| `Summer_Lighting` | `(50, 40, 0)` | `(1.00, 0.98, 0.90)` | `1.30` | `(0.28, 0.30, 0.32)` | true | `(0.70, 0.78, 0.85)` | `0.0040` | `1` |
+| `Autumn_Lighting` | `(8, 50, 0)` | `(1.00, 0.55, 0.25)` | `0.70` | `(0.18, 0.13, 0.08)` | true | `(0.55, 0.38, 0.22)` | `0.0025` | `1` |
+| `Winter_Lighting` | `(70, 0, 0)` | `(0.95, 0.97, 1.00)` | `0.50` | `(0.68, 0.70, 0.74)` | true | `(0.90, 0.92, 0.95)` | `0.0020` | `1` |
+
+数値の微調整は **B 適応にしない**。見た目が致命的に反証する場合だけ Phase A 再開。
+
+### 2.4 凍結する公開 API（Framework）
+
+配置 namespace: `OneStarMaker.Runtime.Rendering.Environments`
+
+A3 で公開集合を明示する（CameraSystem が `ICameraBackend` / `CinemachineCameraBackend` を公開するのと同型）。`IRenderingSystem` は作らない。
+
+**公開:**
+
+- `RenderEnvironmentState`（readonly struct）
+- `IRenderEnvironment`
+- `RenderEnvironmentLease`
+- `IRenderEnvironmentSink`
+- `RenderEnvironment`（sealed。`IDisposable`。constructor は `IRenderEnvironmentSink` 必須）
+- `UnityRenderEnvironmentSink`（sealed。`AppInitializer` が `new` する。internal にしない）
+
+**internal:**
+
+- `RenderEnvironmentValidator`
+
+```csharp
+public readonly struct RenderEnvironmentState
+{
+    public RenderEnvironmentState(
+        Vector3 sunEulerDegrees,
+        Color sunColor,
+        float sunIntensity,
+        Color ambientSkyColor,
+        bool fogEnabled,
+        Color fogColor,
+        float fogDensity,
+        float globalVolumeWeight);
+}
+
+public sealed class RenderEnvironmentLease : IDisposable
+{
+    public int Generation { get; }
+    public void BindSun(Light sun);
+    public void Apply(in RenderEnvironmentState state);
+    public void Dispose();
+}
+
+public interface IRenderEnvironment
+{
+    bool HasActiveOwner { get; }
+    RenderEnvironmentLease Acquire(object ownerKey);
+}
+
+public interface IRenderEnvironmentSink
+{
+    void CaptureBaseline();
+    void Apply(in RenderEnvironmentState state, Light sun);
+    void RestoreBaseline();
+}
+
+public sealed class RenderEnvironment : IRenderEnvironment, IDisposable
+{
+    public RenderEnvironment(IRenderEnvironmentSink sink);
+}
+```
+
+契約の追加（A3）:
+
+- `IRenderEnvironmentSink.Apply` の `Light` は **nullable にしない**。lease が Bind 済みだけを渡す。実装は `sun == null`（Unity 偽 null）なら例外。`sun?.` は禁止。
+- `Acquire` 成功時に sink.`CaptureBaseline()`。matching Dispose で `RestoreBaseline()` と bound Light 参照の破棄。stale Dispose では Restore も Light 破棄もしない。
+- `RenderEnvironment.Dispose`（App 回収）: まだ owner がいれば Restore **1 回**、owner クリア、**generation を進める**。以降その lease の `Apply` / matching Dispose は stale（Apply は throw、Dispose は no-op）。二重 Dispose 安全。
+- `BindSun` 前の `Apply` は失敗。`BindSun` は lease 生存中に 1 回。二度目は失敗。matching Dispose 後は Light を保持しない。
+- `ownerKey == null` は `ArgumentNullException`。token は generation。
+- static / Service Locator は設けない。
+- `InternalsVisibleTo("SampleGame.DependOnAll")` は足さない。
+
+## 3. 責務マップ
+
+行数は 2026-09-21 の HEAD。予想は純増の目安。
+
+### 3.1 新規
+
+| ファイル | 責務（一文） | 変更理由 | 所有者・寿命 | 入力/出力依存 | 層 | 公開面 | テスト境界 | 配置理由 | 行数目安 |
+|---|---|---|---|---|---|---|---|---|---|
+| `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/RenderEnvironmentState.cs` | グローバル見た目の純データ | REN-08 前倒し | 値型。寿命なし | Unity `Vector3`/`Color` のみ | Policy | 公開 struct | 値の Validate を Environment 側で | CameraSystem の Geometry と同様、Runtime 配下に Rendering/Environments。Framework/SampleGame・公開 API の差がある | ~50 |
+| `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/IRenderEnvironment.cs` | 単一 owner の取得口 | 公開 API 限定追加 | App | なし | 公開 API | 公開 interface | Fake 実装で | 同上 | ~20 |
+| `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/IRenderEnvironmentSink.cs` | state を装置へ翻訳する口 | policy と I/O を分ける | App（実装次第） | Light / RenderSettings | 公開面は interface。Unity I/O は実装 | 公開 interface（テスト差し替え） | Fake sink | CameraSystem の `ICameraBackend` と同型 | ~20 |
+| `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/RenderEnvironmentLease.cs` | generation token と Apply/Dispose | stale 耐性 | lease オブジェクト。App 上の世代 | RenderEnvironment 内部 | Policy | 公開 sealed | 純 C# | Handle を独立型にしないと token 照合が埋もれる | ~80 |
+| `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/RenderEnvironment.cs` | 単一 owner と generation の調停 | 同時 1 Season | App lifetime。`AppInitializer` が生成・破棄 | sink | Policy + orchestration | 公開 sealed | Fake sink で Unity なし | CameraSystem 本体に相当。Host GO は持たない。namespace は親と同じ | ~120 |
+| `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/internal/RenderEnvironmentValidator.cs` | state の fail-closed 検証 | 負の intensity 等を装置へ流さない | なし（純関数） | state のみ | Policy | internal | 純 C# | Environment に検証を混ぜるとテストと調停が混線する | ~40 |
+| `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/UnityRenderEnvironmentSink.cs` | Light と RenderSettings への反映と baseline 復元 | 唯一の Unity I/O | App。RenderSettings はプロセスグローバル | `Light`, `RenderSettings` | Unity I/O | **公開** sealed（`AppInitializer` が `new`） | Play/Edit は薄い。主検証は Fake | URP 型を使わない。Runtime 既存 UnityEngine 依存の範囲。internal にしない（DependOnAll から new するため） | ~80 |
+| `unity/Assets/SampleGame/InGame/InGameSession/World/SeasonLightingPresetTable.cs` | identity → state | 季節語を Game に閉じる | なし（静的表） | なし | Policy（Game） | internal | 純 C# | SeasonLightingScene に表を直書きすると Scene 寿命と数値が混ざる | ~80 |
+| `unity/Assets/OneStarMaker/Tests/Rendering/Environments/RenderEnvironmentLeaseTests.cs` | 単一 owner / stale / restore | 最低条件 1 | テスト寿命 | Fake sink | テスト | なし | EditMode 純 C# | Camera テストと同配置 | ~250 |
+| `unity/Assets/OneStarMaker/Tests/Rendering/Environments/FakeRenderEnvironmentSink.cs` | sink 呼び出しの記録 | 最低条件 1 の装置差し替え | テスト寿命 | なし | テスト | なし | EditMode | Runtime にテスト型を置かない | ~40 |
+| `unity/Assets/OneStarMaker/Tests/SampleGame/SeasonLightingPresetTableTests.cs` | 四季表の固定値 | 最低条件 3 の入力 | テスト寿命 | なし | テスト | なし | EditMode | SampleGame テスト | ~80 |
+
+Rendering/Environments フォルダ新設の理由: Framework / SampleGame ではなく、CameraSystem と並ぶ Runtime サブシステム境界。Helpers/Managers ではない。公開 namespace は `OneStarMaker.Runtime.Rendering.Environments` で凍結済み。ファイル配置だけ CameraSystem に合わせてサブフォルダへ分けた（B 適応。公開集合・asmdef・寿命は不変）。
+
+作業ツリーの `Implments` は typo。Phase B で Unity Project 窓から `Implements` にリネームする（`.meta` GUID を保つ）。
+
+`RenderEnvironmentLease` と `RenderEnvironment` は変更理由が近いが、token 型を Environment の inner class にすると公開 API が読みにくい。行数警報（500 / 3 責務 / 50%）は単体では未達。非分割: `Lease` を独立ファイルにするのは公開 Handle のためであり、行数削減のための委譲ではない。
+
+### 3.2 既存変更
+
+| ファイル | 現在行 | 予想増減 | 責務 | 変更理由 | 分割判断 |
+|---|---|---|---|---|---|
+| `SeasonLightingScene.cs` | 42 | +70 | 季節 Lighting の寿命で lease を持つ | scaffold を本番にする | 非分割。SceneBase 1 ファイル 1 Scene。追加分は Load/Unload orchestration のみ。preset 表と lease プロトコルは別型 |
+| `PlayerScene.cs` | 229 | -25 | 飛行プレイヤー。描画オーナーではない | `ApplyDemoLook` 削除 | 非分割。削除のみ |
+| `GameSceneFactory.cs` | 95 | +20 | 唯一の Scene 生成 | `IRenderEnvironment` を SeasonLighting へ渡す | 非分割。DependOnAll の配線 |
+| `AppInitializer.cs` | 383 | +50 | Composition Root | RenderEnvironment の生成・破棄・Factory 注入 | 非分割。CameraSystem 初期化に隣接して追加。50% 未満 |
+| `GameSceneLoggingTests.cs`（Factory テスト） | 287 | +40 | Factory 契約 | 新必須引数と null 拒否 | 非分割 |
+| 四季 `*_Lighting.unity` | 空 root | Editor で `SeasonSun`（Directional）と任意の global Volume GO | authored 太陽 | YAML 手編集しない | コンテンツ |
+| `Spring_Lighting_4_2` / `_5_2` | 不在 | World Workspace で作成 + local Point | bake 入力 | 既存 creator | コンテンツ |
+| 代表 Cell / Environment `.unity` の lighting data | 未ベイク | bake 出力のみ | lightmap | 対象 7 Scene 以外を保存しない | コンテンツ |
+
+`AppInitializer` は既に CameraSystem と Profiler の寿命を持つ。RenderEnvironment 追加は「App 常駐サービスの生成破棄」という同じ変更理由。新しい Host GO は作らない。3 責務警報は発火し得るが、Composition Root を分割すると配線が散るため **非分割**。理由: 依存の唯一の集約場所が DependOnAll である（Architecture §3）。
+
+### 3.3 明示的に触らない
+
+- `CameraSystemHost` / `VolumeCrossfade` / CAM-07
+- `SessionSeasonController`（Lighting は既に NecessaryAlways）
+- `CellCompanionScene`（Cell Lighting も構造的 child のまま）
+- World Workspace の作成トランザクション実装（使うだけ）
+- `SceneDirector` / `SceneState` / Streaming 政策
+
+## 4. 実装計画（Phase B 手順書）
+
+Phase B 担当は **この節の順序** で進める。設計判断が必要になったら止まる。Unity テストは実行しない。フィールド一覧・判定順・現行骨格の直し方は Playbook。契約が衝突したらこの HANDOFF。
+
+### 4.0 1 枚で見る流れ
+
+```text
+SeasonLightingScene.OnLoadedImpl
+  1. SeasonSun を RootObjects から name 完全一致で探す（まだ lease を取らない）
+  2. SeasonLightingPresetTable.TryGet（未知なら throw。まだ lease を取らない）
+  3. IRenderEnvironment.Acquire(this) → RenderEnvironmentLease
+  4. lease.BindSun(sun) → lease.Apply(state)
+       RenderEnvironment が generation を確認し、Validator のあと
+       IRenderEnvironmentSink.Apply へ渡す
+         Fake: 回数を記録するだけ（B1）
+         Unity: Light + RenderSettings へ書く（B2）
+
+SeasonLightingScene.OnPreUnLoadedImpl
+  lease.Dispose → 番号が一致するときだけ RestoreBaseline、owner を空け、generation++
+```
+
+同時に権利証を持てるのは 1 件。二件目の `Acquire` は即 `InvalidOperationException`。古い lease の Dispose は新しい owner を消さない。
+
+内部フィールド（公開 API には出さない。B 適応）:
+
+| 型 | フィールド |
+|---|---|
+| `RenderEnvironment` | `_sink`, `_ownerKey`, `_generation`（初期 0）, `_boundSun`, `_disposed` |
+| `RenderEnvironmentLease` | `_environment`, `Generation`（Acquire 時のコピー。以後変えない） |
+| Lease → Environment の internal | `BindSunFromLease` / `ApplyFromLease` / `ReleaseFromLease` |
+
+matching Dispose と `RenderEnvironment.Dispose` は、Restore のあと **必ず `_generation++`** する。これを忘れると stale 4 手が壊れる。
+
+### 4.1 変更対象（コード）
+
+1. Runtime `Rendering/Environments`（公開 4 + Implements 2 + internal Validator）
+2. Tests `Rendering/Environments`（Fake sink + lease テスト）
+3. SampleGame preset 表
+4. `SeasonLightingScene` / `PlayerScene` / `GameSceneFactory` / `AppInitializer`
+5. Factory テスト + preset テスト
+6. Editor コンテンツ: 4 Season Lighting の `SeasonSun`、2 Cell Lighting、代表 bake
+
+### 4.2 順序
+
+**B0. 準備**
+
+- ローカルで `tools/unity-editor.cmd status`。閉じていれば ProjectVersion 6000.6.0f1 の Editor をこの `unity/` で開く。Cloud なら B0 をスキップし、C# だけ書いてコンテンツ手順を実装結果に「未実行」と書く。人間 B はローカル必須（bake があるため）。
+- 既存 Editor が別 project なら接続しない。
+- `git status` がこのブランチであることを確認する。Rendering 骨格の dirty は残してよい。
+- フォルダ `Implments` を Unity Project 窓で `Implements` にリネームする。
+
+**B1. Fake で lease を先に通す（Unity Scene を開かない）**
+
+現行骨格は空実装と誤った Fake がある。部分修正より Playbook §7 の完成形へ置き換える。
+
+1. `RenderEnvironmentState` と `RenderEnvironmentValidator` を書く。Validator は `void Validate(in RenderEnvironmentState)`。失敗は `ArgumentOutOfRangeException`（負の intensity / density / 色、weight の 0..1 外）。bool を返さない。
+2. `FakeRenderEnvironmentSink` を Tests アセンブリへ置く（Runtime にテスト型を置かない）。記録: `CaptureCount`, `RestoreCount`, `Applies` リスト, `SunBound` bool。**Validator を呼ばない。sun から state を組み立てない。渡された state をリストへ追加するだけ。**
+3. `RenderEnvironment` + `RenderEnvironmentLease` を書く。Lease は Environment へ委譲するだけ。`_currentState` を Lease に持たない。
+4. 判定順は Playbook §5。要約:
+   - `Acquire`: null owner → 破棄済み → 既に owner → Capture → owner セット → `new Lease(this, _generation)`。失敗したら Capture も owner も変えない。
+   - `ReleaseFromLease`（lease.Dispose）: 番号不一致 or owner なし → no-op。一致なら Restore、Light 参照破棄、owner クリア、`_generation++`。
+   - `RenderEnvironment.Dispose`: owner がいれば Restore 1 回、owner クリア、`_generation++`、破棄フラグ。以降その lease の Apply は throw、Dispose は Restore を増やすな。
+5. `RenderEnvironmentLeaseTests` を書く。最低ケース:
+   - `Acquire_First_Succeeds_AndHasOwner`
+   - `Acquire_Second_Throws_AndKeepsFirstOwner`
+   - `Dispose_Matching_ClearsOwner_AndRestoresBaseline`
+   - `Dispose_StaleAfterNewOwner_DoesNotClearNewOwner_AndDoesNotRestore`
+     Arrange は必ず 4 手: `Acquire(A)` → `Dispose(A)` → `Acquire(B)` → `Dispose(A)`。二件目 throw 中の Dispose を stale と誤らない。
+   - `Apply_OnDisposedLease_Throws_AndDoesNotMutateSink`
+   - `Apply_StaleLeaseAfterNewOwnerApply_Throws_AndDoesNotMutateNewOwner`
+   - `Dispose_Twice_IsIdempotent`
+   - `Acquire_NullOwner_Throws`
+   - `Apply_BeforeBindSun_Throws`
+   - `BindSun_Twice_Throws`
+   - `BindSun_NullLight_Throws`
+   - `Validate_NegativeIntensity_Throws`
+   - `DisposeEnvironment_WithActiveLease_RestoresOnce_AndLeaseDisposeIsNoOp`
+     `RenderEnvironment.Dispose` のあと、同じ lease の `Apply` は throw、`Dispose` は Restore を増やさない。
+6. ここで `pwsh tools/run-tests.ps1` は **まだ走らせない**。コンパイルは Editor が開いていれば確認してよい。
+
+**Light を EditMode でどう扱うか（凍結）:** `BindSun` の引数型は `Light` のままにする。純 C# テストは `BindSun` を呼ばずに失敗経路を見るテストと、Tests 内で `GameObject` + `Light` を一時生成できる EditMode テストを分ける。`RenderEnvironmentLeaseTests` は Fake sink 中心のクラスに、`#if` で分けない。Light が必要なケースは同ファイルで `new GameObject` + `AddComponent<Light>()` し、TearDown で `DestroyImmediate`。これは Camera テストが stub `Object` を作るのと同型。DontDestroyOnLoad は使わない。
+
+**B2. Unity sink**
+
+- `UnityRenderEnvironmentSink`:
+  - `CaptureBaseline` で fog / fogMode / fogColor / fogDensity / ambientMode / ambientLight をフィールドに保存。`Light` の baseline は持たない（Scene とともに消える）。
+  - `Apply`: `sun == null` なら何も書かず例外（Environment 側で先に弾く）。`sun != null` なら `sun == null` の Unity 偽 null を再確認し、破棄済みなら例外。rotation は `Quaternion.Euler(state.SunEulerDegrees)`。`sun.color` / `intensity` / `type` は変更してよいが、`type` を Directional 以外へは変えない（authored が Directional であることだけ確認し、違えば例外）。
+  - `RenderSettings.fog` 等を state どおり書く。`FogMode.ExponentialSquared`、`AmbientMode.Flat` 固定。
+  - `GlobalVolumeWeight` は読まない。コメント: 「S-4c は URP 参照を足さない。weight は preset と Fake の観測用。」
+  - `RestoreBaseline` は Capture した RenderSettings だけ戻す。
+- Runtime に URP using を書かない。
+
+**B3. App 配線**
+
+`AppInitializer`（行の場所は現行ファイル基準）:
+
+- フィールド `_renderEnvironment` と `_renderEnvironmentQuittingHandlerRegistered`。
+- `Before()` の `InitializeCameraSystem();` の直後に独立メソッド `InitializeRenderEnvironment()`。中で `new RenderEnvironment(new UnityRenderEnvironmentSink())`。`ReleaseCameraSystem` に埋め込まない。
+- `CreateSceneFactory` の `new GameSceneFactory(...)` に渡す。未初期化なら `InvalidOperationException`。
+- **独立** メソッド `ReleaseRenderEnvironment`。中で `_renderEnvironment?.Dispose(); _renderEnvironment = null;`。quitting ハンドラもここで外す。
+- 呼び先: `Sub()`（`ReleaseCameraSystem();` の隣）、`Application.quitting`、`OnAfterSceneLoadInitializationFailed`（同じく Camera の隣）。同じタイミング、別メソッド。
+- 破棄順: Scene がもう Environment を使わない状態で呼ぶ。相互依存は無いので Camera の前後どちらでもよいが、両方を同じ失敗ハンドラから呼ぶ。Host GO は作らない。
+
+`GameSceneFactory`:
+
+- 必須引数 `IRenderEnvironment renderEnvironment` を既存 4 引数の後ろへ。null は `ArgumentNullException`。
+- `Spring_Lighting` / `Summer_Lighting` / `Autumn_Lighting` / `Winter_Lighting` の constructor にだけ渡す。
+- `Spring_Lighting_4_2` は switch に出さない。親が `StreamByDistance` なら既存分岐で `CellCompanionScene`。
+
+`SeasonLightingScene`（`OnLoadedImpl` 例外は PreUnLoad を通らない）:
+
+```
+sun = RootObjects を回し GetComponentsInChildren<Light> から
+      name 完全一致 "SeasonSun" かつ Directional かつ Unity 偽 null ではないもの
+FindRootComponent<Light>() は使わない（最初の Light が SeasonSun とは限らない）
+見つからなければ throw（まだ Acquire しない）
+if (!SeasonLightingPresetTable.TryGet(identity, out state)) throw（まだ Acquire しない）
+_lease = _renderEnvironment.Acquire(this)
+try {
+  _lease.BindSun(sun)
+  _lease.Apply(state)
+} catch {
+  _lease.Dispose()
+  _lease = null
+  throw
+}
+
+OnPreUnLoadedImpl:
+  _lease?.Dispose()  // C# の lease 参照。Light には ?. を使わない
+  _lease = null
+```
+
+成功時は finally で Dispose しない。`OnAfterUnLoadedImpl` に Dispose を足して PreUnLoad 失敗を救う逃げはしない。
+
+新しい反射を増やすな。`SceneBase` に Find ヘルパーを足さない。
+
+`PlayerScene`: `ApplyDemoLook` メソッドと呼び出しを **まるごと** 削除する。中の Camera clear も消す（AppInitializer / InGameScene の既定が残る）。`RenderSettings` 参照が Game 層に残っていたら失敗。Camera bind は残す。
+
+**B4. テスト更新**
+
+- `GameSceneFactory` の全 constructor 呼び出しに Fake `IRenderEnvironment` を足す。null 拒否テストを 1 件追加。Factory 用 Fake は `Acquire` を実装しなくてよい（生成契約だけ見る）。lease テストの Fake sink と混ぜない。
+- `CreateSceneClass_SeasonLightingWithoutCellParent_IsNotCompanion` を維持。
+- 追加: 親が `StreamByDistance` の `Spring_Lighting_4_2` は `CellCompanionScene`（lease を取らない）。
+- Cell Lighting 2 Scene 作成後、`OneStarMaker.Tests.Editor` に Directional 本数 0・Point 1 以上を数える EditMode を 1 件。Scene がまだ無い B4 時点では書かず、B5 の直後に足す。
+
+**B5. Editor コンテンツ（YAML 手編集禁止）**
+
+対象を限定する。広範な再生成はしない。
+
+0. Lighting window の Auto Generate を **off**。Hierarchy に載っている Scene 全部が bake 対象になる。
+1. World Workspace で Spring、座標 `(4,2)`、職種 Lighting、payload Full。optional が欠けるので Create。`Spring_Lighting_4_2`。`(5,2)` も同様。Create 直後の Empty Scene に Directional が混ざっていないか見てから `LocalFill` を足す。
+2. 各 Season Lighting Scene（4 件）を開き、空の `SeasonLightingRoot` 配下へ `SeasonSun`（Directional）。rotation/color/intensity は preset 表と同じ。Lightmap Static オン。
+3. 任意: 同じ Scene に global Volume GO（isGlobal）。Runtime は触らない。
+4. 各 Cell Lighting に `LocalFill` Point を 1 つ。`(4,2)` は見証付近（Cell 中心、地上 4m 目安）、`(5,2)` は隣接 Cell 中心。range ≤ 80。**Directional は 0。** Hierarchy で確認。
+5. Lighting Settings: `Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Representative.lighting`。代表 7 Scene だけに割り当て。bakedGI on、realtime GI off。他 Scene の LightingSettings は触らない。
+6. bake 用 Hierarchy の作り方（World Workspace の Lighting Open のまま焼かない）:
+   - 先に **どれか 1 つの Full Cell を `OpenSceneMode.Single` で開いて** 他を閉じる。
+   - Whitebox パス（`.../Variants/Whitebox/Spring_Cell_*`）を開かない。
+   - 次の 7 件だけを Additive で開く:
+     - `Spring_Lighting`
+     - `Spring_Cell_4_2`（Full）
+     - `Spring_Environment_4_2`
+     - `Spring_Lighting_4_2`
+     - `Spring_Cell_5_2`
+     - `Spring_Environment_5_2`
+     - `Spring_Lighting_5_2`
+   - Hierarchy がこの 7 件だけであることを目視。8 件目があれば閉じる。
+7. Generate Lighting。失敗したらまず LightingSettings / 光源欠落。計画外 API が必要なら停止。
+8. 開いている 7 Scene だけ保存。**Save All しない。**
+9. `git status` で Whitebox `.unity` や他 Cell が dirty なら破棄して戻す。
+10. commit してよいもの:
+    - `Spring_Representative.lighting` と `.meta`
+    - 7× `.unity` の LightingSettings / LightingData 参照
+    - 各 Scene 近傍の `LightingData.asset` / lightmap `.exr` と `.meta`
+    - 新規 2 Cell Lighting の scene / resource / node / map / Addressables 差分
+    - `Library/` は不可。7 件以外の `.unity` は不可
+11. 境界の目視: `(4,2)` から東の `(5,2)`。明白な明るさ段差が無いかを HANDOFF §6 に書く。スクショは任意（`artifacts/s-4c-phase-b/`）。
+12. Editor で Cell Lighting を閉じても sun/fog が春のままであること。
+13. B4 で後回しにした Directional 0 の EditMode テストを足す。
+
+**B6. 機械検査**
+
+```text
+pwsh tools/contract-audit.ps1
+pwsh tools/docs-audit.ps1
+```
+
+grep 自己確認（契約）:
+
+```text
+rg "RenderSettings" unity/Assets/SampleGame --glob "*.cs"
+rg "Season|Spring|Summer|Autumn|Winter|季節" unity/Assets/OneStarMaker/Scripts -g "*.cs"
+```
+
+Game 層の `RenderSettings` は 0 件。Framework の季節語は 0 件。Unity sink の `RenderSettings` は Runtime Rendering にだけあってよい。
+
+**B7. 完了報告**
+
+HANDOFF §6 に実装、差、未実行（テスト未実行を明記）、head SHA を書く。Phase C を自分で走らせない。
+
+### 4.3 Phase B から Phase A へ差し戻す条件
+
+- 凍結済み公開集合以外の型・asmdef・Host 太陽が必要
+- URP / 新規 asmdef が必要
+- DontDestroyOnLoad の Play 用太陽 Host が必要になった（A3 で不採用）
+- `SceneState` / LoadType 変更が必要
+- Cell Lighting を `CellCompanionScene` 以外の型にしないと local 非干渉を守れない
+- World Workspace では 2 件を作れない
+- bake が 7 Scene 以外の GUID を大量に変える
+- preset 数値を変えないと「季節が見えない」が致命的（見た目の微調整は再開対象）
+- 中核の lease を Unity なしでテストできない配置になった
+
+B 適応でよい例: `Find` の具体メソッド名、コメント、テスト関数の分割、Light の range 微調整、LightingSettings の sample 数、生成された lightmap ファイル名。
+
+### 4.4 対象外を維持する方法
+
+- Rendering フォルダに RenderWorld / Archetype を置かない。
+- `SeasonLightingPresetTable` 以外に季節語を Runtime へコピーしない。
+- bake 前に Hierarchy で開いている Scene を確認する。Spring 以外を開かない。
+- World Workspace の Create は Lighting optional 1 件ずつ。VFX/Events を作らない。
+- `PlayerScene` から fog を「一時的に残す」逃げをしない。
+
+## 5. テストとレビュー計画
+
+- 単体テスト:
+  - `RenderEnvironmentLeaseTests`（必須。最低条件 1。stale 4 手と Environment.Dispose を含む）
+  - `SeasonLightingPresetTableTests`
+  - `GameSceneFactory` の引数契約と `Spring_Lighting_4_2` companion 分類
+  - Validator の負値拒否
+  - B5 後: `CellLightingSceneTests.RepresentativeCellLightingScenes_HaveNoDirectional_AndAtLeastOnePoint`（`(4,2)` `(5,2)` の Directional 0・Point 1 以上）
+
+- 差し戻し中の起点 `-Filter`:
+  ```
+  RenderEnvironmentLeaseTests|SeasonLightingPresetTableTests|GameSceneFactoryTests|GameSceneLoggingTests|CellLightingSceneTests|UnityRenderEnvironmentSinkTests
+  ```
+  Cell Lighting 検査は凍結済み受け入れ条件（Directional 0）の確認のため起点に含める。`UnityRenderEnvironmentSinkTests` は最低条件 1 の baseline 復帰（ambient 成分と sun）の確認に必要だったため、差し戻しの起点へ足した。受け入れ条件の追加ではない。
+
+- 判定必須テスト:
+  1. 最終の全 EditMode 回帰（空 filter）。`pwsh tools/run-tests.ps1`。Editor を閉じてから。Windows なら sandbox 外。
+  2. Play Mode 手動（判定 C）: `world:cellCompanionSet=Lighting` または Full。Spring 起動。スポーンから `(4,2)` `(5,2)` へ。fog/sun が春 preset。UnloadRadius 外へ出て **両 Cell が落ちても fog/sun は春のまま**（消えたら lease を Cell 側で捨てている）。戻って baked 床が載る。二重 Season は EditMode の二件目失敗で足りる。
+  3. 機械検査: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、季節語 grep、SampleGame `RenderSettings` grep。
+
+- 全 EditMode 回帰の適用除外: なし。
+
+- 統合・Unity テスト: 新規 PlayMode 自動テストは必須にしない。
+
+- 機械検査: contract-audit、docs-audit、上記 grep。
+
+- A0/A1 主担当・モデル・ベンダー: Cursor Grok 4.6 / xAI
+- A2 独立レビュー:
+  - アーキテクチャゲート: 独立エージェント / Grok 系 inherit / `A2-architecture.md`
+  - 寿命・bake: 独立エージェント / Grok 系 inherit / `A2-lifecycle.md`
+  - A0 のみ代替構成: 独立エージェント / Grok 系 inherit / `A2-alternative.md`（A1 未読）
+- A3 統合担当・モデル・採否: 本セッションの主担当（Grok 4.6）。採否は `artifacts/s-4c-phase-a/A3-frozen.md`
+- C' 用に予約した担当・モデル・ベンダー: **Claude 系または GPT 系**、新規セッション、blind audit bundle。Phase A は Grok 系のみ。
+- 独立性の強化条件を満たせない場合の理由: A2 は同一クラウドセッションの別エージェントで、モデル系列が主担当と同じ。`独立性制約あり`。C' で系列を分ける。A2 同士は互いの指摘を見ていない。
+
+### 5.1 A3 採否
+
+詳細と理由は `artifacts/s-4c-phase-a/A3-frozen.md`。要約:
+
+| 指摘 | 判定 |
+|---|---|
+| F-1 Composition Root が internal sink を new できない | **採用**。`UnityRenderEnvironmentSink` と `IRenderEnvironmentSink` を公開 |
+| F-2 公開集合の freeze | **採用**。§2.4 に列挙 |
+| F-3 / S4C-A2-02 App Dispose が generation を進める | **採用** |
+| F-4 matching Dispose で Light 参照を捨てる | **採用** |
+| F-5 問いから Volume 実行時所有を外す | **採用** |
+| F-6 / Acquire 前に preset lookup | **採用** |
+| F-7 独立 `ReleaseRenderEnvironment` | **採用** |
+| F-8 SeasonLightingScene 分割 | **保留（後続）**。今は非分割 |
+| F-9 太陽を Restore しない | **保留（S-5）** |
+| S4C-A2-01 OnLoadedImpl の try/catch | **採用** |
+| S4C-A2-03 直列切替の空白 | **後続 S-5** |
+| S4C-A2-04 Light `?.` | **採用**（コメント。API の Light は non-null） |
+| S4C-A2-05 stale Arrange と追加テスト | **採用** |
+| S4C-A2-06 Directional 0 の EditMode | **採用** |
+| S4C-A2-07 bake Hierarchy / commit 列挙 | **採用** |
+| S4C-A2-08 条件 7 の文言 | **採用** |
+| S4C-A2-09 BindSun は lease | **確認。変更なし** |
+| 代替 A（Host 太陽） | **不採用**。bake と Play を同じ authored `SeasonSun` にする。Host は公開面と寿命を増やす。lease の純 C# は Fake sink で足りる |
+
+

@@ -1,0 +1,5 @@
+Editor attempt evidence:
+- Unity Editor opened for the exact repository project at Unity 6000.6.0f1; PID 36492, ready.
+- tools/unity-editor.cmd command list_open_scenes failed because installed com.unity.pipeline is 0.4.0-exp.1; CLI requires 0.6.0-exp.1 or later.
+- No Play interaction or runtime observation could be performed. Project package version and content:runtimeMode contract were not changed.
+- Graceful `unity close <project> --timeout 30` attempted; CLI reported PID 36492, closed=false, method=none, exit 1. No force close used.

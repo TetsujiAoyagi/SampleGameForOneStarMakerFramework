@@ -1,0 +1,39 @@
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/RenderEnvironment.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/RenderEnvironment.cs
+index 26233e6..15ec8d2 100644
+--- a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/RenderEnvironment.cs
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/RenderEnvironment.cs
+@@ -7,7 +7,7 @@ namespace OneStarMaker.Runtime.Rendering.Environments
+ {
+     /// <summary>
+     /// App 寿命の単一 owner 調停。実装置への書き込みは <see cref="IRenderEnvironmentSink"/> に委譲する。
+-    /// ここには季節語も URP 型も持たない。「誰が書いてよいか」と世代番号だけを決める。
++    /// ここには URP 型も持たない。「誰が書いてよいか」と世代番号だけを決める。
+     /// </summary>
+     public sealed class RenderEnvironment : IRenderEnvironment, IDisposable
+     {
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/UnityRenderEnvironmentSink.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/UnityRenderEnvironmentSink.cs
+index b803113..b8b322b 100644
+--- a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/UnityRenderEnvironmentSink.cs
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/UnityRenderEnvironmentSink.cs
+@@ -40,7 +40,7 @@ public void CaptureBaseline()
+             _ambientEquatorColor = RenderSettings.ambientEquatorColor;
+             _ambientGroundColor = RenderSettings.ambientGroundColor;
+             _ambientIntensity = RenderSettings.ambientIntensity;
+-            // Apply が RenderSettings.sun を差し替える。解放後に Season Scene が消えると偽 null が残る。
++            // Apply が RenderSettings.sun を差し替える。解放後に 該当 Scene が消えると偽 null が残る。
+             _sun = RenderSettings.sun;
+             _captured = true;
+         }
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/RenderEnvironmentState.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/RenderEnvironmentState.cs
+index 8d1f53f..341dc6b 100644
+--- a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/RenderEnvironmentState.cs
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/RenderEnvironmentState.cs
+@@ -5,7 +5,7 @@
+ namespace OneStarMaker.Runtime.Rendering.Environments
+ {
+     /// <summary>
+-    /// グローバル見た目の純データ。Framework は季節語を持たない。
++    /// グローバル見た目の純データ
+     /// FogMode / AmbientMode はここには置かず、Unity sink が四季共通値を書く。
+     /// GlobalVolumeWeight は将来の共通 Volume 用。S-4c の Unity sink は読まない。
+     /// </summary>

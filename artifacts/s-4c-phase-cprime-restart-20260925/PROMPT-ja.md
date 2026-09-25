@@ -1,0 +1,38 @@
+あなたは S-4c World Lighting の Phase C' 独立監査担当です。これは新規セッションで行い、実装や HANDOFF の編集はしないでください。
+
+## モデル条件
+
+監査を始める前に、このセッションで実際に選択されているモデル名を確認し、最初に報告してください。Phase B は Grok 4.7、Phase C は GPT-6 です。この新規セッションのモデルが両方と異なるなら、GPT-5.5 という厳密な表示でなくても監査を続けてください。実際に確認できたモデル名だけを記録し、モデル名を推測したり依頼文から推定したりしないでください。同じモデルだと確認できた場合だけ、bundle を読む前に停止し「モデル条件未達のため公式 C' 未実施」と報告してください。
+
+## 入力と完全性確認
+
+唯一の監査入力は次の ZIP です。
+
+`artifacts/s-4c-phase-cprime-restart-20260925/blind-bundle.archive` (ZIP byte stream; extension intentionally avoids Git LFS)
+
+1. 付属ファイル `blind-bundle.archive.sha256` と archive 本体の SHA-256 を照合してください。期待値は `70ECB250AD62418B43333BA4FEC6EF9E503B1663FB71984F63853862C5371EB8` です。
+2. PowerShell `Expand-Archive` を使う場合は、archiveを作成した一時ディレクトリ内の `blind-bundle.zip` へコピーしてから展開してください。内部 `manifest.json` の SHA-256 を `manifest.sha256` と照合してください。
+3. manifest の全 `contents[]` について、展開後の raw bytes の SHA-256 と byte size を照合してください。全21件が一致した場合だけ監査を続行してください。不一致があれば内容評価に進まず、該当ファイルと実測値を示して「証跡完全性 blocker / 監査未実施」と報告してください。
+4. 展開先を再帰削除する場合、削除前に絶対パスが自分で作成した一時ディレクトリ内にあることを確認してください。
+
+## 盲検性
+
+監査対象は archive 内の資料だけです。archive の外にある引継ぎ資料、可変なスライス HANDOFF、過去の監査報告、以前の会話、追加のリポジトリファイルを読まないでください。archive 内の `PROMPT-ja.md` も過去の資料です。判断基準は frozen Phase A、固定 diff、テスト生結果、machine output を参照してください。
+
+## 監査
+
+- Base/head は `553b7b150e13245b369d75dc4baa12d86e9559aa` → `3cdba44c4de89a1c5f14de9ab2731bf152ef8f76` です。
+- 凍結済み条件・常時契約との違反が、現在の問いを阻害する blocker かを判定してください。新しい不確実性は後続スライス入力へ分類してください。
+- runtime 証拠は provenance を確認してください。観測時の head と現 head が異なる場合、その事実を保ったまま、実装差分が証拠の適用性へ及ぼす影響を判断してください。
+- テスト XML/log の集合と件数、machine checks、実装差分の構造・失敗経路を確認してください。
+- 「未確認」「監査できなかった範囲」と残存リスクを明記してください。
+- ファイルは変更せず、日本語で簡潔に報告してください。
+
+## 出力形式
+
+1. 実際に確認できたモデル名とモデル条件の判定
+2. Bundle 完全性（ZIP / manifest / payload件数）
+3. 結論（PASS / blocker / モデル条件等により監査未実施）
+4. blocker（凍結条件・常時契約の具体的根拠つき）
+5. 後続スライス入力
+6. 未監査範囲・残存リスク

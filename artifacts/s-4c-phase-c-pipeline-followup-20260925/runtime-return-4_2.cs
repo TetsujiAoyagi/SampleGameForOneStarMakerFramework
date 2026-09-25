@@ -1,0 +1,1 @@
+var player = UnityEngine.Object.FindFirstObjectByType<SampleGame.InGame.Player.FlyController>(); if (player == null) return "player=null"; player.InputEnabled = false; player.Teleport(new UnityEngine.Vector3(1125f, 28f, 625f), UnityEngine.Vector3.forward); return "focus=" + player.Position + " input=" + player.InputEnabled;

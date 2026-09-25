@@ -1,0 +1,98 @@
+{
+  "id": "s4c-phase-c-pipeline-followup-20260925",
+  "generatedAt": "2026-09-25T00:28:49.5394383+09:00",
+  "branch": "cursor/s-4c-world-lighting-a3-4a38",
+  "reviewRecordHeadBeforeFollowup": "d550832b934910b3f40b084e2dd09058298d3824",
+  "implementationBase": "553b7b150e13245b369d75dc4baa12d86e9559aa",
+  "implementationHead": "87a1cd297a0b96bb9743b3e47654a27130ebcffe",
+  "previousDecisionEvidence": {
+    "id": "s4c-phase-c-rerun-87a1cd2",
+    "path": "../s-4c-phase-c-rerun-87a1cd2/",
+    "manifestSha256": "A215F280012393FE51897A28180739730E17936834A69CCEAB49BFFB0BDF1EEA"
+  },
+  "phaseASnapshot": {
+    "path": "../s-4c-phase-a/",
+    "manifestSha256": "58701619956456F6CC6008F488ECC20460303EECB543D27359F3125EDDA5FF7D",
+    "frozenA3": "A3-frozen.md",
+    "frozenA3Sha256": "9935AD1437DE37A173C57A1D969407697AAA75283A2204FA26E1D094B673EED7"
+  },
+  "phaseBResultSnapshot": {
+    "path": "../s-4c-phase-c-rerun-87a1cd2/phase-b-result.txt",
+    "sha256": "9D618692DEFB266784DC8680F5A48D157AE2DEF3F66180F51EF8C5E809FCDAB6"
+  },
+  "implementationDiff": {
+    "path": "../s-4c-phase-c-rerun-87a1cd2/implementation.diff",
+    "sha256": "FF277A21D31191D2EA831D321DBA6A96BA2C3F0AA84177C3376EEDE939EDDA7F"
+  },
+  "environmentOverlay": {
+    "package": "com.unity.pipeline",
+    "version": "0.7.0-exp.1",
+    "source": "user uncommitted workspace changes; excluded from review-record commit",
+    "diff": "pipeline-package-overlay.diff",
+    "diffSha256": "B9EF6D4020B08C6F9C226E0BE5947016900C8416560EF93B4D4F90A355C9DC49",
+    "manifestSha256": "7B8B9C0C4EE7425961DD686BD98D517B1D638D4E347EABA44E88C3231F89F8B2",
+    "lockSha256": "FDCEB6347A7C5BB242B4DB75AA349A0E62EC8CCC54B46EB7FCFC95ED5BD47B3B"
+  },
+  "editor": {
+    "unityVersion": "6000.6.0f1",
+    "play": "Title to Home succeeded; runtime snapshots captured in play-observations.md",
+    "contentRevision": "20260924T141708718Z-8e6155e6a2a449128189a1c1a1d28d7e",
+    "runtimeModeContract": "unchanged; fail-closed"
+  },
+  "tests": {
+    "command": "pwsh tools/run-tests.ps1",
+    "platform": "EditMode",
+    "filter": "",
+    "passed": 909,
+    "failed": 0,
+    "skipped": 0,
+    "unityExitCode": 0,
+    "runnerExitCode": 0,
+    "xmlDurationSeconds": 682.2871346,
+    "xml": {
+      "path": "all-editmode-results.xml",
+      "sha256": "4D5FB522C506E5DBA96ED0B7BE55070A0CA6989D269EFD25DEE5A9A363C58668"
+    },
+    "log": {
+      "path": "all-editmode-run.log",
+      "sha256": "437ECF5AF94B2010BF8AB18AF8CF07477237AA5ECD8210981F0D6B2F1F9406D7"
+    },
+    "summary": "all-editmode-summary.txt"
+  },
+  "audits": {
+    "contractAudit": { "command": "pwsh tools/contract-audit.ps1", "exitCode": 0, "path": "contract-audit.log", "sha256": "277011A6CA9E7798B50F5A518037FDC14667DEA5D229E120EC2ED172879FCBFD" },
+    "docsAudit": { "command": "pwsh tools/docs-audit.ps1", "exitCode": 0, "path": "docs-audit.log", "sha256": "4FD3758FDFCCC56F28085FA29EF2941F0BA30F377806A5BD9D0E7FD2BCB6A255" },
+    "sampleGameRenderSettingsGrep": { "matches": 0, "rgExitCode": 1, "path": "grep-samplegame-render-settings.log", "sha256": "75F1D7C1CBD383CA127EA8742F6DB9A03E67F4BF12AB5A03810BD673A14CFD71" },
+    "frameworkSeasonTermsGrep": { "matches": 0, "rgExitCode": 1, "path": "grep-framework-season-terms.log", "sha256": "C145A350D2B2AB881C8938606B2FDF74D1283E063EFC244D172E379FCFAA73A6" }
+  },
+  "runtimeObservations": {
+    "path": "play-observations.md",
+    "sha256": "2FE7F43554F3214C6D645EB4657D53B974762AD29B6EC7886A263C929813B7A7",
+    "directSnapshots": "pre-unload Cell 5_2 lightmap assignment; Spring fog/sun/ambient both resident and after both target Cells absent",
+    "userReported": "visited (4,2) and (5,2), then unloaded both",
+    "unverified": "return after unload and baked-floor reload",
+    "temporaryProbeCode": [
+      { "path": "runtime-cell-lightmap-inspection.cs", "sha256": "2B8B6C43DDF768C6986C854C22843B5CC38B77C9D21613EC1D00A477CF0A7FF4" },
+      { "path": "runtime-focus-4_2.cs", "sha256": "963BA5DE152EB3A5D13435312D6BA589B5778A8DC6A7DFC4EEFC860ADFBD025B" },
+      { "path": "runtime-inspection.cs", "sha256": "049CA130D67357CA58EE06C44A82792CD4B4E5D1141A03B2735C785A103D6F03" },
+      { "path": "runtime-player-inspection.cs", "sha256": "07BE481AC13FFDF5693464BDED6FBB261E9EA3035761C756AF337EB132F991CA" },
+      { "path": "runtime-restore-input.cs", "sha256": "6A750287F81609BC350ACA33399B98443B0B9DC595AF65A96092C693E75E0764" },
+      { "path": "runtime-return-4_2.cs", "sha256": "8EA42E3C2D2BE157931759FEA6195A2AA31C4BD6F1571ABB1DEFB84543D6D3A9" }
+    ]
+  },
+  "sideEffects": {
+    "pcRpAssetDiffSha256": "6A8AE25953F6E9BC809899586440EDEB96FD19421C1C2BC51B9F435C22FC038A",
+    "pcRpAsset": "captured then restored to HEAD",
+    "originalContentDeliverySettings": "OSMContentDelivery-before-updated-pipeline.json; restored to unity/UserSettings/OSMContentDelivery.json"
+  },
+  "verdict": "保留（必須 runtime 証拠不足）。GO/NO-GO not established; C-prime not started.",
+  "model": "Codex / GPT-6 (OpenAI)",
+  "filesSha256": {
+    "all-editmode-results.xml": "4D5FB522C506E5DBA96ED0B7BE55070A0CA6989D269EFD25DEE5A9A363C58668",
+    "all-editmode-run.log": "437ECF5AF94B2010BF8AB18AF8CF07477237AA5ECD8210981F0D6B2F1F9406D7",
+    "play-observations.md": "2FE7F43554F3214C6D645EB4657D53B974762AD29B6EC7886A263C929813B7A7",
+    "pipeline-package-overlay.diff": "B9EF6D4020B08C6F9C226E0BE5947016900C8416560EF93B4D4F90A355C9DC49",
+    "docs-audit.log": "4FD3758FDFCCC56F28085FA29EF2941F0BA30F377806A5BD9D0E7FD2BCB6A255"
+  },
+  "fileHashList": "files.sha256 contains hashes for every evidence payload file except manifest.json and files.sha256 itself"
+}

@@ -1,0 +1,3 @@
+## cursor/s-4c-world-lighting-a3-4a38...origin/cursor/s-4c-world-lighting-a3-4a38 [ahead 2]
+ M docs/handoff/S-4c_WORLD_LIGHTING.md
+?? artifacts/s-4c-phase-c-rerun-87a1cd2/

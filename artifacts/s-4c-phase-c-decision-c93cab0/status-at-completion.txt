@@ -1,0 +1,2 @@
+ M docs/handoff/S-4c_WORLD_LIGHTING.md
+?? artifacts/s-4c-phase-c-decision-c93cab0/

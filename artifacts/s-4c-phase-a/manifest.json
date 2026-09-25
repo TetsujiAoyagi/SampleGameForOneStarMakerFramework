@@ -1,0 +1,17 @@
+{
+  "slice": "S-4c",
+  "branch": "cursor/s-4c-world-lighting-a3-4a38",
+  "implementationBase": "553b7b150e13245b369d75dc4baa12d86e9559aa",
+  "a0": "A0-packet.md",
+  "a1Snapshot": "A1-snapshot.md",
+  "a2": [
+    "A2-architecture.md",
+    "A2-lifecycle.md",
+    "A2-alternative.md"
+  ],
+  "a3": "A3-frozen.md",
+  "handoff": "docs/handoff/S-4c_WORLD_LIGHTING.md",
+  "playbook": "PHASE_B_PLAYBOOK.md",
+  "cPrimeReserved": "Claude or GPT family, new session",
+  "a2Independence": "same-session Grok inherit; reviewers did not see each other; 独立性制約あり"
+}

@@ -1,0 +1,5227 @@
+diff --git a/docs/README.md b/docs/README.md
+index c893f7a..40df67c 100644
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -34,12 +34,13 @@
+ 複数スライスに跨る計画（構図の正本、空間プロトコルの Plan など）も作業台に置いてよい。ただし harvest 先と期限を本文に書くこと。作業指示だけに限らない。
+ §7 / §8 を持たない長期計画は検査3 の網に掛からない。harvest 期限を本文に書くこと。
+ 
+-**いま `docs/handoff/` にある進行中正本は 4 つである。**
++**いま `docs/handoff/` にある進行中正本は 5 つである。**
+ 
+ | ファイル | 役割 | 実装キューか |
+ |---|---|---|
+ | `SEASON_WORLD_DESIGN.md` | 世界構図・実証・スライス順序 | 着手時 HANDOFF を切るまでの正本。スライス表の順で切る。W-5 / W-6 は Content Directory / DIST。S-6 / S-7 実装スライスは廃止済み |
+-| `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b 完了。S-4c は着手してよい。S-4d の Phase D で harvest して削除する |
++| `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b 完了。S-4c の実装正本は `S-4c_WORLD_LIGHTING.md`。S-4d の Phase D で harvest して削除する |
++| `S-4c_WORLD_LIGHTING.md` | S-4c World Lighting のスライス HANDOFF | はい。A3 凍結後は Phase B の正本 |
+ | `REVIEW_WORKFLOW_EFFICIENCY.md` | 外部モデルレビューの実測と、次のPhase Cで残す比較項目 | いいえ。普遍契約はSkillへharvest済み。残る実測後に削除する |
+ | `REVIEW_WORKFLOW_EFFICIENCY_ASSESSMENT.md` | 上記への独立評価（Claude / Grok）と採否記録 | いいえ。次のPhase Cで残る仮説を検証後、調査記録ごと削除する |
+ 
+diff --git a/docs/handoff/S-4_FULL_SPEC_WORLD_AUTHORING.md b/docs/handoff/S-4_FULL_SPEC_WORLD_AUTHORING.md
+index 52120c6..98cf46e 100644
+--- a/docs/handoff/S-4_FULL_SPEC_WORLD_AUTHORING.md
++++ b/docs/handoff/S-4_FULL_SPEC_WORLD_AUTHORING.md
+@@ -1,7 +1,7 @@
+ # S-4 フルスペック World 制作基盤
+ 
+ > type: program
+-> status: 発注者承認済み。S-4a / S-4b は develop へマージ済み。S-4c〜d 着手時 HANDOFF の入力正本。S-4b の現況は Architecture §18 / §21 / §27 と STREAMING_CURRENT_SPEC へ harvest 済み。
++> status: 発注者承認済み。S-4a / S-4b は develop へマージ済み。S-4c の実装 HANDOFF は `S-4c_WORLD_LIGHTING.md`。S-4d 着手時は本書と S-4c HANDOFF を入力にする。S-4b の現況は Architecture §18 / §21 / §27 と STREAMING_CURRENT_SPEC へ harvest 済み。
+ > branch: `codex/s-4-full-spec-plan`
+ > implementation base commit: `1502ffc`
+ > risk: high
+diff --git a/unity/Assets/AddressableAssetsData/AssetGroups/Default Local Group.asset b/unity/Assets/AddressableAssetsData/AssetGroups/Default Local Group.asset
+index a8140c8..2855de3 100644
+--- a/unity/Assets/AddressableAssetsData/AssetGroups/Default Local Group.asset	
++++ b/unity/Assets/AddressableAssetsData/AssetGroups/Default Local Group.asset	
+@@ -1740,6 +1740,11 @@ MonoBehaviour:
+     m_ReadOnly: 0
+     m_SerializedLabels: []
+     FlaggedDuringContentUpdateRestriction: 0
++  - m_GUID: 8382f8f3717bb2c40837a39bc5dff95c
++    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.unity
++    m_ReadOnly: 0
++    m_SerializedLabels: []
++    FlaggedDuringContentUpdateRestriction: 0
+   - m_GUID: 839afdb2df7e9e74584acc75e4bae95b
+     m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_4_3/Summer_Cell_4_3.unity
+     m_ReadOnly: 0
+@@ -2695,6 +2700,11 @@ MonoBehaviour:
+     m_ReadOnly: 0
+     m_SerializedLabels: []
+     FlaggedDuringContentUpdateRestriction: 0
++  - m_GUID: ca8cec10777a4644ea2e0947a8d66682
++    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.unity
++    m_ReadOnly: 0
++    m_SerializedLabels: []
++    FlaggedDuringContentUpdateRestriction: 0
+   - m_GUID: cb03d14b54e92354eb3add66e8347f2e
+     m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_1_3/Variants/Whitebox/Summer_Cell_1_3.unity
+     m_ReadOnly: 0
+diff --git a/unity/Assets/Docs/Architecture/11-scene-graph-editor.md b/unity/Assets/Docs/Architecture/11-scene-graph-editor.md
+index 7b026a5..6fff281 100644
+--- a/unity/Assets/Docs/Architecture/11-scene-graph-editor.md
++++ b/unity/Assets/Docs/Architecture/11-scene-graph-editor.md
+@@ -221,6 +221,12 @@ ViewModel は View と Model の仲介。Undo/Redo は ViewModel のコマンド
+ 3. Payload[0] に SceneAsset がセットされている間は Identity TextField を無効化（readonly）
+ 4. Payload[0] がクリアされたらアンロック
+ 
++### 11.6.5 他の書き手（World Workspace）
++
++職種 companion の日常作成口は SceneGraph Editor ではない。`WorldCompanionCreationTransaction` が `SceneNodeData` と `SceneGraphEdges` を直接足し、同じ `SceneResourceGenerator.Generate` で Map を投影する。ViewModel コマンド、Layout、開いている GraphView、Unity Undo は通らない。
++
++そのため Create 直後に SceneGraph Editor を開いても、ノードが見えない／原点に重なる／ウィンドウが古いまま、があり得る。階層の正本は Edges、位置は Layout、Play の正本は Map で、三者は今は自動では揃わない。Editor から同じ identity を作り直して「見た目を直す」ことはしない。
++
+ ## 11.7 バリデーション
+ 
+ | # | チェック | タイミング | 重大度 |
+@@ -363,4 +369,5 @@ A: ノードドラッグ              → Layouts/ のみ             → 階層
+ B: エッジ変更                  → Graphs/ のみ              → レイアウトは無傷
+ A: Payload SceneAsset 変更     → Nodes/X.asset のみ        → 別ノードなら安全
+ B: D&D で新ノード追加          → Nodes/X.asset + Edges     → ノード名が異なれば安全
++C: World Workspace companion   → Nodes + Edges + Generate  → Layout / Editor Window は未更新
+ ```
+diff --git a/unity/Assets/Docs/Architecture/27-folder-structure.md b/unity/Assets/Docs/Architecture/27-folder-structure.md
+index 6e588ef..136d17d 100644
+--- a/unity/Assets/Docs/Architecture/27-folder-structure.md
++++ b/unity/Assets/Docs/Architecture/27-folder-structure.md
+@@ -204,6 +204,8 @@ Assets/SceneGraphData/Nodes/Cells/{identity}.asset
+ 
+ 正本は `SceneNodeData` と `SceneGraphEdges`。`SceneResource` / Map は標準 `SceneResourceGenerator.Generate` の投影物であり、Workspace が生成物だけを手で upsert してはならない。payload は空 Variant、`LoadType.OnDemand`、`Volume = zero`、`StreamByDistance = false`。座標は Editor 入力にだけ使い、runtime が identity から復元しない。
+ 
++Workspace は SceneGraph Editor を通らない。`SceneGraphViewModel` / `SceneGraphEditorWindow` / `SceneGraphLayout` は更新せず、Undo も積まない。開いている GraphView は古いままになり、Layout に位置が無いノードは再読込すると `(0,0)` に出る。Play が読むのは Map 側なので、作成の成否は Editor ウィンドウでは判定しない。Editor から同じ identity を作り直さない。
++
+ Cell / Environment / season Lighting / 大型 Event はこの口では作れない。既存の部分成果物を adopt / repair / overwrite しない。衝突があれば無変更で失敗する。
+ 
+ ### pending journal が残ったとき
+@@ -222,5 +224,6 @@ Editor open の途中で Unity API が失敗したときの完全復元は対象
+ 
+ | 日付 | 内容 |
+ |---|---|
++| 2026-09-23 | World Workspace は SceneGraph Editor / Layout を通らない現況を追加 |
+ | 2026-09-09 | World Workspace の配置、Generate 投影、pending journal の調査手順を追加 |
+ | 2026-07-27 | 初版。Assembly 軸と Scene 同居軸を文書化 |
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering.meta
+new file mode 100644
+index 0000000..3868940
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: 1ec94f8575c41534f9f6abe7ba8f4804
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments.meta
+new file mode 100644
+index 0000000..a2d2b5c
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: 8cccfe5acfce04a478176d414fcf32f2
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Abstractions.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Abstractions.meta
+new file mode 100644
+index 0000000..0891964
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Abstractions.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: a43243b1628b77f4684420c199f2c799
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Abstractions/IRenderEnvironment.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Abstractions/IRenderEnvironment.cs
+new file mode 100644
+index 0000000..f15c1f1
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Abstractions/IRenderEnvironment.cs
+@@ -0,0 +1,21 @@
++#nullable enable
++
++namespace OneStarMaker.Runtime.Rendering.Environments
++{
++    /// <summary>
++    /// App 寿命の単一環境オーナー窓口。同時に権利証を持てるのは 1 件だけで、
++    /// 二件目の <see cref="Acquire"/> は待たず即失敗する。
++    /// Game 層は装置（RenderSettings / Light）へ直接書かず、ここから lease を取る。
++    /// </summary>
++    public interface IRenderEnvironment
++    {
++        /// <summary>いま権利証を持っている owner がいるか。待ち行列は持たない。</summary>
++        bool HasActiveOwner { get; }
++
++        /// <summary>
++        /// 空きなら lease を返す。既に owner がいる、または Environment 破棄後は失敗する。
++        /// 成功時に sink が baseline を Capture する。暗黙の上書きはしない。
++        /// </summary>
++        RenderEnvironmentLease Acquire(object ownerKey);
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Abstractions/IRenderEnvironment.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Abstractions/IRenderEnvironment.cs.meta
+new file mode 100644
+index 0000000..a30470e
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Abstractions/IRenderEnvironment.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 8549c92d3574e204bb09aa2329564e20
+\ No newline at end of file
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Abstractions/IRenderEnvironmentSink.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Abstractions/IRenderEnvironmentSink.cs
+new file mode 100644
+index 0000000..f4a0c18
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Abstractions/IRenderEnvironmentSink.cs
+@@ -0,0 +1,32 @@
++#nullable enable
++
++using UnityEngine;
++
++namespace OneStarMaker.Runtime.Rendering.Environments
++{
++    /// <summary>
++    /// ポリシー層（RenderEnvironment）が決めた state を、実装置へ翻訳する境界。
++    /// CameraSystem の <c>ICameraBackend</c> と同型。ポリシー層は RenderSettings を直接触らない。
++    /// </summary>
++    public interface IRenderEnvironmentSink
++    {
++        /// <summary>
++        /// いまの装置状態を退避する。Acquire 成功時に一度だけ呼ぶ。
++        /// 太陽 Light は Scene とともに消えるので、ここには残さない。
++        /// </summary>
++        void CaptureBaseline();
++
++        /// <summary>
++        /// state を太陽と fog / ambient へ書く。
++        /// <paramref name="sun"/> は nullable にしない。lease が Bind 済みだけを渡す。
++        /// 実装は Unity 偽 null（<c>sun == null</c>）なら何も書かず例外。
++        /// </summary>
++        void Apply(in RenderEnvironmentState state, Light sun);
++
++        /// <summary>
++        /// Capture した装置状態へ戻す。matching Dispose と App 回収で呼ぶ。
++        /// stale Dispose からは呼ばない。
++        /// </summary>
++        void RestoreBaseline();
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Abstractions/IRenderEnvironmentSink.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Abstractions/IRenderEnvironmentSink.cs.meta
+new file mode 100644
+index 0000000..6340478
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Abstractions/IRenderEnvironmentSink.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: a297986c003c7794fb0d3cd3e4c9890d
+\ No newline at end of file
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements.meta
+new file mode 100644
+index 0000000..9a1f7c2
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: af36d2f4871101e4a835875d900404ec
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/RenderEnvironment.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/RenderEnvironment.cs
+new file mode 100644
+index 0000000..9ffd649
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/RenderEnvironment.cs
+@@ -0,0 +1,145 @@
++#nullable enable
++
++using System;
++using UnityEngine;
++
++namespace OneStarMaker.Runtime.Rendering.Environments
++{
++    /// <summary>
++    /// App 寿命の単一 owner 調停。実装置への書き込みは <see cref="IRenderEnvironmentSink"/> に委譲する。
++    /// ここには URP 型も持たない。「誰が書いてよいか」と世代番号だけを決める。
++    /// </summary>
++    public sealed class RenderEnvironment : IRenderEnvironment, IDisposable
++    {
++        private readonly IRenderEnvironmentSink _sink;
++        private object? _ownerKey;
++        private int _generation;
++        private Light? _boundSun;
++        private bool _sunBound;
++        private bool _disposed;
++
++        public RenderEnvironment(IRenderEnvironmentSink sink)
++        {
++            _sink = sink ?? throw new ArgumentNullException(nameof(sink));
++        }
++
++        public bool HasActiveOwner => _ownerKey != null;
++
++        public RenderEnvironmentLease Acquire(object ownerKey)
++        {
++            if (ownerKey == null)
++            {
++                throw new ArgumentNullException(nameof(ownerKey));
++            }
++
++            if (_disposed)
++            {
++                throw new ObjectDisposedException(nameof(RenderEnvironment));
++            }
++
++            // 二件目は待たない。Try で false を返すと呼び出し側が無視し得るので即例外。
++            if (_ownerKey != null)
++            {
++                throw new InvalidOperationException(
++                    "RenderEnvironment already has an active owner. A second Acquire fails immediately.");
++            }
++
++            _sink.CaptureBaseline();
++            _ownerKey = ownerKey;
++            return new RenderEnvironmentLease(this, _generation);
++        }
++
++        public void Dispose()
++        {
++            if (_disposed)
++            {
++                return;
++            }
++
++            // App 回収。生き残り lease を stale にするため、Restore の有無にかかわらず世代を進める。
++            if (_ownerKey != null)
++            {
++                _sink.RestoreBaseline();
++            }
++
++            _boundSun = null;
++            _sunBound = false;
++            _ownerKey = null;
++            _generation++;
++            _disposed = true;
++        }
++
++        /// <summary>
++        /// lease 経由の Bind。番号が今の世代と一致するときだけ太陽を覚える。
++        /// Light は Scene 所有のまま。ここは参照を持つだけで Destroy しない。
++        /// </summary>
++        internal void BindSunFromLease(int generation, Light sun)
++        {
++            EnsureLeaseIsActive(generation);
++
++            // 一度きりは参照の生存では判定しない。破棄済み Light は == null になり、
++            // 同じ lease の二度目 Bind が通ってしまう。
++            if (_sunBound)
++            {
++                throw new InvalidOperationException("BindSun can be called once per lease.");
++            }
++
++            // Unity 偽 null。is null / ?. だと破棄済み Light を通してしまう。
++            if (sun == null)
++            {
++                throw new ArgumentNullException(nameof(sun));
++            }
++
++            _boundSun = sun;
++            _sunBound = true;
++        }
++
++        /// <summary>
++        /// lease 経由の Apply。権利証が生きていて Bind 済みのときだけ sink へ流す。
++        /// 負値は装置へ出さず Validator で閉じる。
++        /// </summary>
++        internal void ApplyFromLease(int generation, in RenderEnvironmentState state)
++        {
++            EnsureLeaseIsActive(generation);
++
++            if (_boundSun == null)
++            {
++                throw new InvalidOperationException("BindSun must be called before Apply.");
++            }
++
++            RenderEnvironmentValidator.Validate(state);
++            _sink.Apply(state, _boundSun);
++        }
++
++        /// <summary>
++        /// lease.Dispose。番号不一致や二度目は no-op。
++        /// 一致したときだけ Restore し、参照を捨て、世代を進めて古い権利証を無効化する。
++        /// </summary>
++        internal void ReleaseFromLease(int generation)
++        {
++            if (_disposed)
++            {
++                return;
++            }
++
++            if (generation != _generation || _ownerKey == null)
++            {
++                return;
++            }
++
++            _sink.RestoreBaseline();
++            _boundSun = null;
++            _sunBound = false;
++            _ownerKey = null;
++            _generation++;
++        }
++
++        private void EnsureLeaseIsActive(int generation)
++        {
++            if (_disposed || generation != _generation || _ownerKey == null)
++            {
++                throw new InvalidOperationException("This RenderEnvironmentLease is no longer active.");
++            }
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/RenderEnvironment.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/RenderEnvironment.cs.meta
+new file mode 100644
+index 0000000..416750e
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/RenderEnvironment.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 8e6ab0ad995f4d348bf9d401c6a9381e
+\ No newline at end of file
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/UnityRenderEnvironmentSink.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/UnityRenderEnvironmentSink.cs
+new file mode 100644
+index 0000000..b8b322b
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/UnityRenderEnvironmentSink.cs
+@@ -0,0 +1,99 @@
++#nullable enable
++
++using System;
++using UnityEngine;
++using UnityEngine.Rendering;
++
++namespace OneStarMaker.Runtime.Rendering.Environments
++{
++    /// <summary>
++    /// RenderSettings と bind された太陽 Light への唯一の Unity I/O。
++    /// 世代番号や owner は見ない。呼ばれたら装置へ書く／退避した装置へ戻すだけ。
++    /// S-4c は URP 参照を足さない。GlobalVolumeWeight は preset と Fake の観測用で、ここでは適用しない。
++    /// </summary>
++    public sealed class UnityRenderEnvironmentSink : IRenderEnvironmentSink
++    {
++        private bool _captured;
++        private bool _fog;
++        private FogMode _fogMode;
++        private Color _fogColor;
++        private float _fogDensity;
++        private AmbientMode _ambientMode;
++        private Color _ambientLight;
++        private Color _ambientSkyColor;
++        private Color _ambientEquatorColor;
++        private Color _ambientGroundColor;
++        private float _ambientIntensity;
++        private Light _sun = null!;
++
++        public void CaptureBaseline()
++        {
++            _fog = RenderSettings.fog;
++            _fogMode = RenderSettings.fogMode;
++            _fogColor = RenderSettings.fogColor;
++            _fogDensity = RenderSettings.fogDensity;
++            _ambientMode = RenderSettings.ambientMode;
++            _ambientLight = RenderSettings.ambientLight;
++            // Apply は Flat と ambientLight だけを書く。Skybox / Trilight の評価は
++            // sky / equator / ground / intensity 側にあるので、ambientLight だけ戻しても baseline にならない。
++            _ambientSkyColor = RenderSettings.ambientSkyColor;
++            _ambientEquatorColor = RenderSettings.ambientEquatorColor;
++            _ambientGroundColor = RenderSettings.ambientGroundColor;
++            _ambientIntensity = RenderSettings.ambientIntensity;
++            // Apply が RenderSettings.sun を差し替える。解放後に 該当 Scene が消えると偽 null が残る。
++            _sun = RenderSettings.sun;
++            _captured = true;
++        }
++
++        public void Apply(in RenderEnvironmentState state, Light sun)
++        {
++            if (sun == null)
++            {
++                throw new ArgumentNullException(nameof(sun));
++            }
++
++            if (sun.type != LightType.Directional)
++            {
++                throw new InvalidOperationException("Bound sun must be LightType.Directional.");
++            }
++
++            sun.transform.rotation = Quaternion.Euler(state.SunEulerDegrees);
++            sun.color = state.SunColor;
++            sun.intensity = state.SunIntensity;
++
++            RenderSettings.sun = sun;
++            RenderSettings.fog = state.FogEnabled;
++            RenderSettings.fogMode = FogMode.ExponentialSquared;
++            RenderSettings.fogColor = state.FogColor;
++            RenderSettings.fogDensity = state.FogDensity;
++            RenderSettings.ambientMode = AmbientMode.Flat;
++            RenderSettings.ambientLight = state.AmbientSkyColor;
++        }
++
++        public void RestoreBaseline()
++        {
++            if (!_captured)
++            {
++                return;
++            }
++
++            RenderSettings.fog = _fog;
++            RenderSettings.fogMode = _fogMode;
++            RenderSettings.fogColor = _fogColor;
++            RenderSettings.fogDensity = _fogDensity;
++            RenderSettings.ambientMode = _ambientMode;
++            RenderSettings.ambientLight = _ambientLight;
++            RenderSettings.ambientSkyColor = _ambientSkyColor;
++            RenderSettings.ambientEquatorColor = _ambientEquatorColor;
++            RenderSettings.ambientGroundColor = _ambientGroundColor;
++            RenderSettings.ambientIntensity = _ambientIntensity;
++            // Flat のとき ambientLight が評価色。先に書いた sky を Flat 用の色で上書きしないよう、最後に戻す。
++            if (_ambientMode == AmbientMode.Flat)
++            {
++                RenderSettings.ambientLight = _ambientLight;
++            }
++
++            RenderSettings.sun = _sun;
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/UnityRenderEnvironmentSink.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/UnityRenderEnvironmentSink.cs.meta
+new file mode 100644
+index 0000000..9d0149d
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements/UnityRenderEnvironmentSink.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: a11136504a49a0c4c828ad6c0624b927
+\ No newline at end of file
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/RenderEnvironmentLease.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/RenderEnvironmentLease.cs
+new file mode 100644
+index 0000000..f1d3cb3
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/RenderEnvironmentLease.cs
+@@ -0,0 +1,41 @@
++#nullable enable
++
++using System;
++using UnityEngine;
++
++namespace OneStarMaker.Runtime.Rendering.Environments
++{
++    /// <summary>
++    /// 環境書き込みの権利証。token は整数 <see cref="Generation"/> で、
++    /// Dispose 後や新しい owner のあとでは Apply は失敗し、Dispose は新しい owner を消さない。
++    /// 本体の状態は持たず <see cref="RenderEnvironment"/> へ委譲する。
++    /// </summary>
++    public sealed class RenderEnvironmentLease : IDisposable
++    {
++        private readonly RenderEnvironment _environment;
++
++        internal RenderEnvironmentLease(RenderEnvironment environment, int generation)
++        {
++            _environment = environment;
++            Generation = generation;
++        }
++
++        /// <summary>Acquire 時点の世代番号。以後変えない。照合は Environment 側が行う。</summary>
++        public int Generation { get; }
++
++        public void BindSun(Light sun)
++        {
++            _environment.BindSunFromLease(Generation, sun);
++        }
++
++        public void Apply(in RenderEnvironmentState state)
++        {
++            _environment.ApplyFromLease(Generation, state);
++        }
++
++        public void Dispose()
++        {
++            _environment.ReleaseFromLease(Generation);
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/RenderEnvironmentLease.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/RenderEnvironmentLease.cs.meta
+new file mode 100644
+index 0000000..d3683b2
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/RenderEnvironmentLease.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 0e4f7db12a5e4964f9ba602c053d9e32
+\ No newline at end of file
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/RenderEnvironmentState.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/RenderEnvironmentState.cs
+new file mode 100644
+index 0000000..60d0f99
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/RenderEnvironmentState.cs
+@@ -0,0 +1,43 @@
++#nullable enable
++
++using UnityEngine;
++
++namespace OneStarMaker.Runtime.Rendering.Environments
++{
++    /// <summary>
++    /// グローバル見た目の純データ
++    /// FogMode / AmbientMode はここには置かず、Unity sink が四季共通値を書く。
++    /// GlobalVolumeWeight は将来の共通 Volume 用。S-4c の Unity sink は読まない。
++    /// </summary>
++    public readonly struct RenderEnvironmentState
++    {
++        public Vector3 SunEulerDegrees { get; }
++        public Color SunColor { get; }
++        public float SunIntensity { get; }
++        public Color AmbientSkyColor { get; }
++        public bool FogEnabled { get; }
++        public Color FogColor { get; }
++        public float FogDensity { get; }
++        public float GlobalVolumeWeight { get; }
++
++        public RenderEnvironmentState(
++            Vector3 sunEulerDegrees,
++            Color sunColor,
++            float sunIntensity,
++            Color ambientSkyColor,
++            bool fogEnabled,
++            Color fogColor,
++            float fogDensity,
++            float globalVolumeWeight)
++        {
++            SunEulerDegrees = sunEulerDegrees;
++            SunColor = sunColor;
++            SunIntensity = sunIntensity;
++            AmbientSkyColor = ambientSkyColor;
++            FogEnabled = fogEnabled;
++            FogColor = fogColor;
++            FogDensity = fogDensity;
++            GlobalVolumeWeight = globalVolumeWeight;
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/RenderEnvironmentState.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/RenderEnvironmentState.cs.meta
+new file mode 100644
+index 0000000..7f4e15e
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/RenderEnvironmentState.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 9e82fd472be35e446a09adf67f6faf48
+\ No newline at end of file
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/internal.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/internal.meta
+new file mode 100644
+index 0000000..d913e9c
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/internal.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: d88a7893de9e12744aaed72390e09207
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/internal/RenderEnvironmentValidator.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/internal/RenderEnvironmentValidator.cs
+new file mode 100644
+index 0000000..6db3ded
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/internal/RenderEnvironmentValidator.cs
+@@ -0,0 +1,44 @@
++#nullable enable
++
++using System;
++using UnityEngine;
++
++namespace OneStarMaker.Runtime.Rendering.Environments
++{
++    /// <summary>
++    /// 負の intensity などを装置へ流さない fail-closed。
++    /// Environment.Apply の手前だけが呼ぶ。Fake sink は検証しない（記録専用）。
++    /// </summary>
++    internal static class RenderEnvironmentValidator
++    {
++        public static void Validate(in RenderEnvironmentState state)
++        {
++            if (state.SunIntensity < 0f)
++            {
++                throw new ArgumentOutOfRangeException(nameof(state), "SunIntensity must be >= 0.");
++            }
++
++            if (state.FogDensity < 0f)
++            {
++                throw new ArgumentOutOfRangeException(nameof(state), "FogDensity must be >= 0.");
++            }
++
++            if (state.GlobalVolumeWeight < 0f || state.GlobalVolumeWeight > 1f)
++            {
++                throw new ArgumentOutOfRangeException(nameof(state), "GlobalVolumeWeight must be in 0..1.");
++            }
++
++            RejectNegativeColor(state.SunColor, nameof(state.SunColor));
++            RejectNegativeColor(state.AmbientSkyColor, nameof(state.AmbientSkyColor));
++            RejectNegativeColor(state.FogColor, nameof(state.FogColor));
++        }
++
++        private static void RejectNegativeColor(Color color, string name)
++        {
++            if (color.r < 0f || color.g < 0f || color.b < 0f || color.a < 0f)
++            {
++                throw new ArgumentOutOfRangeException(name, "Color channels must not be negative.");
++            }
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/internal/RenderEnvironmentValidator.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/internal/RenderEnvironmentValidator.cs.meta
+new file mode 100644
+index 0000000..346ddfe
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/internal/RenderEnvironmentValidator.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 75ef889c856c870429b32d630bcc19ff
+\ No newline at end of file
+diff --git a/unity/Assets/OneStarMaker/Tests/Editor/WorldAuthoring/CellLightingSceneTests.cs b/unity/Assets/OneStarMaker/Tests/Editor/WorldAuthoring/CellLightingSceneTests.cs
+new file mode 100644
+index 0000000..64fc5fd
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/Editor/WorldAuthoring/CellLightingSceneTests.cs
+@@ -0,0 +1,92 @@
++#nullable enable
++
++using NUnit.Framework;
++using UnityEditor.SceneManagement;
++using UnityEngine;
++using UnityEngine.SceneManagement;
++
++namespace OneStarMaker.Tests.Editor.WorldAuthoring
++{
++    /// <summary>
++    /// Cell Lighting は局所 fill だけを持つ。Directional が居ると季節太陽と二重に焼ける。
++    /// </summary>
++    [TestFixture]
++    public sealed class CellLightingSceneTests
++    {
++        private static readonly string[] ScenePaths =
++        {
++            "Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.unity",
++            "Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.unity",
++        };
++
++        [Test]
++        public void RepresentativeCellLightingScenes_HaveNoDirectional_AndAtLeastOnePoint()
++        {
++            var original = EditorSceneManager.GetSceneManagerSetup();
++            try
++            {
++                foreach (var path in ScenePaths)
++                {
++                    var scene = SceneManager.GetSceneByPath(path);
++                    var openedHere = false;
++                    if (!scene.IsValid() || !scene.isLoaded)
++                    {
++                        scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Additive);
++                        openedHere = true;
++                    }
++
++                    try
++                    {
++                        Assert.That(scene.IsValid() && scene.isLoaded, Is.True, path);
++
++                        var directional = 0;
++                        var point = 0;
++                        foreach (var root in scene.GetRootGameObjects())
++                        {
++                            if (root == null)
++                            {
++                                continue;
++                            }
++
++                            var lights = root.GetComponentsInChildren<Light>(true);
++                            foreach (var light in lights)
++                            {
++                                if (light == null)
++                                {
++                                    continue;
++                                }
++
++                                if (light.type == LightType.Directional)
++                                {
++                                    directional++;
++                                }
++
++                                if (light.type == LightType.Point)
++                                {
++                                    point++;
++                                }
++                            }
++                        }
++
++                        Assert.That(directional, Is.EqualTo(0), path);
++                        Assert.That(point, Is.GreaterThanOrEqualTo(1), path);
++                    }
++                    finally
++                    {
++                        if (openedHere && scene.IsValid() && scene.isLoaded)
++                        {
++                            Assert.That(EditorSceneManager.CloseScene(scene, removeScene: true), Is.True, path);
++                        }
++                    }
++                }
++            }
++            finally
++            {
++                if (original.Length > 0)
++                {
++                    EditorSceneManager.RestoreSceneManagerSetup(original);
++                }
++            }
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Tests/Editor/WorldAuthoring/CellLightingSceneTests.cs.meta b/unity/Assets/OneStarMaker/Tests/Editor/WorldAuthoring/CellLightingSceneTests.cs.meta
+new file mode 100644
+index 0000000..a13a8ae
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/Editor/WorldAuthoring/CellLightingSceneTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 9c4e1a7b2d8f4065a0e3b5c7d9f1a246
+diff --git a/unity/Assets/OneStarMaker/Tests/Editor/WorldAuthoring/WorldWorkspaceSelectionTests.cs b/unity/Assets/OneStarMaker/Tests/Editor/WorldAuthoring/WorldWorkspaceSelectionTests.cs
+index 0bdf34b..239e7cf 100644
+--- a/unity/Assets/OneStarMaker/Tests/Editor/WorldAuthoring/WorldWorkspaceSelectionTests.cs
++++ b/unity/Assets/OneStarMaker/Tests/Editor/WorldAuthoring/WorldWorkspaceSelectionTests.cs
+@@ -102,8 +102,8 @@ public void CreatePlan_CalculatesQualifiedPaths(string roleName, string identity
+             var plan = WorldCompanionCreationPlan.Create(selection);
+             Assert.That(plan.Identity, Is.EqualTo(identity));
+             Assert.That(plan.ParentIdentity, Is.EqualTo("Spring_Cell_8_5"));
+-            Assert.That(plan.ScenePath, Is.EqualTo($"Assets/SampleGame/InGame/InGameSession/World/Seasons/Spring/Cells/Spring_Cell_8_5/{identity}/{identity}.unity"));
+-            Assert.That(plan.ResourcePath, Is.EqualTo($"Assets/SampleGame/InGame/InGameSession/World/Seasons/Spring/Cells/Spring_Cell_8_5/{identity}/{identity}.asset"));
++            Assert.That(plan.ScenePath, Is.EqualTo($"Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_8_5/{identity}/{identity}.unity"));
++            Assert.That(plan.ResourcePath, Is.EqualTo($"Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_8_5/{identity}/{identity}.asset"));
+             Assert.That(plan.NodePath, Is.EqualTo($"Assets/SceneGraphData/Nodes/Cells/{identity}.asset"));
+         }
+ 
+diff --git a/unity/Assets/OneStarMaker/Tests/Rendering.meta b/unity/Assets/OneStarMaker/Tests/Rendering.meta
+new file mode 100644
+index 0000000..3ef53b6
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/Rendering.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: 3658b8c3cda511b48b77aca242d821c7
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/OneStarMaker/Tests/Rendering/Environments.meta b/unity/Assets/OneStarMaker/Tests/Rendering/Environments.meta
+new file mode 100644
+index 0000000..8c73250
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/Rendering/Environments.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: c3b90f0f8ed0fc346ab64ad21acea83a
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/OneStarMaker/Tests/Rendering/Environments/FakeRenderEnvironmentSink.cs b/unity/Assets/OneStarMaker/Tests/Rendering/Environments/FakeRenderEnvironmentSink.cs
+new file mode 100644
+index 0000000..2ca3d76
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/Rendering/Environments/FakeRenderEnvironmentSink.cs
+@@ -0,0 +1,34 @@
++#nullable enable
++
++using System;
++using System.Collections.Generic;
++using OneStarMaker.Runtime.Rendering.Environments;
++using UnityEngine;
++
++namespace OneStarMaker.Tests.Rendering.Environments
++{
++    public sealed class FakeRenderEnvironmentSink : IRenderEnvironmentSink
++    {
++        private readonly List<RenderEnvironmentState> _applies = new();
++
++        public int CaptureCount { get; private set; }
++        public int RestoreCount { get; private set; }
++        public bool SunBound { get; private set; }
++        public IReadOnlyList<RenderEnvironmentState> Applies => _applies;
++
++        public void CaptureBaseline() => CaptureCount++;
++
++        public void RestoreBaseline() => RestoreCount++;
++
++        public void Apply(in RenderEnvironmentState state, Light sun)
++        {
++            if (sun == null)
++            {
++                throw new ArgumentNullException(nameof(sun));
++            }
++
++            SunBound = true;
++            _applies.Add(state);
++        }
++    }
++}
+\ No newline at end of file
+diff --git a/unity/Assets/OneStarMaker/Tests/Rendering/Environments/FakeRenderEnvironmentSink.cs.meta b/unity/Assets/OneStarMaker/Tests/Rendering/Environments/FakeRenderEnvironmentSink.cs.meta
+new file mode 100644
+index 0000000..16c5f4e
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/Rendering/Environments/FakeRenderEnvironmentSink.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: ba257474261a1b24196847d5263959bf
+\ No newline at end of file
+diff --git a/unity/Assets/OneStarMaker/Tests/Rendering/Environments/RenderEnvironmentLeaseTests.cs b/unity/Assets/OneStarMaker/Tests/Rendering/Environments/RenderEnvironmentLeaseTests.cs
+new file mode 100644
+index 0000000..ad446e9
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/Rendering/Environments/RenderEnvironmentLeaseTests.cs
+@@ -0,0 +1,274 @@
++#nullable enable
++
++using System;
++using System.Reflection;
++using NUnit.Framework;
++using OneStarMaker.Runtime.Rendering.Environments;
++using UnityEngine;
++
++namespace OneStarMaker.Tests.Rendering.Environments
++{
++    /// <summary>
++    /// 単一 owner・stale 権利証・Environment 回収が Fake sink 上で閉じることを見る。
++    /// Unity Scene は開かない。Bind が要るケースだけ一時 Light を作る。
++    /// </summary>
++    [TestFixture]
++    public sealed class RenderEnvironmentLeaseTests
++    {
++        private FakeRenderEnvironmentSink _sink = null!;
++        private RenderEnvironment _environment = null!;
++        private GameObject? _sunGo;
++
++        [SetUp]
++        public void SetUp()
++        {
++            // テストごとに新しい組。Dispose 済み Environment は Acquire できず、
++            // sink の回数も前のテストから漏れない。
++            _sink = new FakeRenderEnvironmentSink();
++            _environment = new RenderEnvironment(_sink);
++        }
++
++        [TearDown]
++        public void TearDown()
++        {
++            // DisposeEnvironment テストは本体を先に Dispose する。二重 Dispose は no-op である必要がある。
++            _environment.Dispose();
++            if (_sunGo != null)
++            {
++                UnityEngine.Object.DestroyImmediate(_sunGo);
++                _sunGo = null;
++            }
++        }
++
++        [Test]
++        public void Acquire_First_Succeeds_AndHasOwner()
++        {
++            var lease = _environment.Acquire("a");
++
++            Assert.That(lease, Is.Not.Null);
++            Assert.That(_environment.HasActiveOwner, Is.True);
++            Assert.That(_sink.CaptureCount, Is.EqualTo(1));
++            Assert.That(_sink.RestoreCount, Is.EqualTo(0));
++        }
++
++        [Test]
++        public void State_ExposesValuesAsGetOnlyProperties()
++        {
++            var stateType = typeof(RenderEnvironmentState);
++            var propertyNames = new[]
++            {
++                nameof(RenderEnvironmentState.SunEulerDegrees),
++                nameof(RenderEnvironmentState.SunColor),
++                nameof(RenderEnvironmentState.SunIntensity),
++                nameof(RenderEnvironmentState.AmbientSkyColor),
++                nameof(RenderEnvironmentState.FogEnabled),
++                nameof(RenderEnvironmentState.FogColor),
++                nameof(RenderEnvironmentState.FogDensity),
++                nameof(RenderEnvironmentState.GlobalVolumeWeight)
++            };
++
++            foreach (var propertyName in propertyNames)
++            {
++                var property = stateType.GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
++
++                Assert.That(property, Is.Not.Null, propertyName);
++                Assert.That(property!.SetMethod, Is.Null, propertyName);
++                Assert.That(
++                    stateType.GetField(propertyName, BindingFlags.Instance | BindingFlags.Public),
++                    Is.Null,
++                    propertyName);
++            }
++        }
++
++        [Test]
++        public void Acquire_Second_Throws_AndKeepsFirstOwner()
++        {
++            var first = _environment.Acquire("a");
++
++            Assert.Throws<InvalidOperationException>(() => _environment.Acquire("b"));
++            Assert.That(_environment.HasActiveOwner, Is.True);
++            Assert.That(_sink.CaptureCount, Is.EqualTo(1));
++            Assert.That(first.Generation, Is.EqualTo(0));
++        }
++
++        [Test]
++        public void Dispose_Matching_ClearsOwner_AndRestoresBaseline()
++        {
++            var lease = _environment.Acquire("a");
++            lease.Dispose();
++
++            Assert.That(_environment.HasActiveOwner, Is.False);
++            Assert.That(_sink.RestoreCount, Is.EqualTo(1));
++        }
++
++        [Test]
++        public void Dispose_StaleAfterNewOwner_DoesNotClearNewOwner_AndDoesNotRestore()
++        {
++            var leaseA = _environment.Acquire("a");
++            leaseA.Dispose();
++            var leaseB = _environment.Acquire("b");
++            leaseA.Dispose();
++
++            Assert.That(_environment.HasActiveOwner, Is.True);
++            Assert.That(_sink.RestoreCount, Is.EqualTo(1));
++            Assert.That(leaseB.Generation, Is.EqualTo(1));
++        }
++
++        [Test]
++        public void Apply_OnDisposedLease_Throws_AndDoesNotMutateSink()
++        {
++            var sun = CreateSun();
++            var lease = _environment.Acquire("a");
++            lease.BindSun(sun);
++            lease.Apply(ValidState());
++            lease.Dispose();
++
++            Assert.That(_sink.Applies.Count, Is.EqualTo(1));
++            Assert.Throws<InvalidOperationException>(() => lease.Apply(ValidState()));
++            Assert.That(_sink.Applies.Count, Is.EqualTo(1));
++        }
++
++        [Test]
++        public void Apply_StaleLeaseAfterNewOwnerApply_Throws_AndDoesNotMutateNewOwner()
++        {
++            var sun = CreateSun();
++            var leaseA = _environment.Acquire("a");
++            leaseA.BindSun(sun);
++            leaseA.Apply(ValidState());
++            leaseA.Dispose();
++
++            var leaseB = _environment.Acquire("b");
++            leaseB.BindSun(sun);
++            var stateB = new RenderEnvironmentState(
++                new Vector3(50f, 40f, 0f),
++                new Color(1f, 0.98f, 0.90f),
++                1.30f,
++                new Color(0.28f, 0.30f, 0.32f),
++                true,
++                new Color(0.70f, 0.78f, 0.85f),
++                0.0040f,
++                1f);
++            leaseB.Apply(stateB);
++
++            Assert.Throws<InvalidOperationException>(() => leaseA.Apply(ValidState()));
++            Assert.That(_sink.Applies.Count, Is.EqualTo(2));
++            Assert.That(_sink.Applies[1].SunIntensity, Is.EqualTo(1.30f));
++        }
++
++        [Test]
++        public void Dispose_Twice_IsIdempotent()
++        {
++            var lease = _environment.Acquire("a");
++            lease.Dispose();
++
++            Assert.DoesNotThrow(() => lease.Dispose());
++            Assert.That(_sink.RestoreCount, Is.EqualTo(1));
++        }
++
++        [Test]
++        public void Acquire_NullOwner_Throws()
++        {
++            Assert.Throws<ArgumentNullException>(() => _environment.Acquire(null!));
++            Assert.That(_environment.HasActiveOwner, Is.False);
++            Assert.That(_sink.CaptureCount, Is.EqualTo(0));
++        }
++
++        [Test]
++        public void Apply_BeforeBindSun_Throws()
++        {
++            var lease = _environment.Acquire("a");
++
++            Assert.Throws<InvalidOperationException>(() => lease.Apply(ValidState()));
++            Assert.That(_sink.Applies.Count, Is.EqualTo(0));
++        }
++
++        [Test]
++        public void BindSun_Twice_Throws()
++        {
++            var sun = CreateSun();
++            var lease = _environment.Acquire("a");
++            lease.BindSun(sun);
++
++            Assert.Throws<InvalidOperationException>(() => lease.BindSun(sun));
++        }
++
++        [Test]
++        public void BindSun_AfterBoundLightDestroyed_Throws()
++        {
++            var sun = CreateSun();
++            var lease = _environment.Acquire("a");
++            lease.BindSun(sun);
++            UnityEngine.Object.DestroyImmediate(_sunGo);
++            _sunGo = null;
++
++            var replacementGo = new GameObject("replacement-sun");
++            try
++            {
++                var replacement = replacementGo.AddComponent<Light>();
++                replacement.type = LightType.Directional;
++                Assert.Throws<InvalidOperationException>(() => lease.BindSun(replacement));
++            }
++            finally
++            {
++                UnityEngine.Object.DestroyImmediate(replacementGo);
++            }
++        }
++
++        [Test]
++        public void BindSun_NullLight_Throws()
++        {
++            var lease = _environment.Acquire("a");
++
++            Assert.Throws<ArgumentNullException>(() => lease.BindSun(null!));
++        }
++
++        [Test]
++        public void Validate_NegativeIntensity_Throws()
++        {
++            var bad = new RenderEnvironmentState(
++                Vector3.zero,
++                Color.white,
++                -1f,
++                Color.white,
++                false,
++                Color.white,
++                0f,
++                1f);
++
++            Assert.Throws<ArgumentOutOfRangeException>(() => RenderEnvironmentValidator.Validate(bad));
++        }
++
++        [Test]
++        public void DisposeEnvironment_WithActiveLease_RestoresOnce_AndLeaseDisposeIsNoOp()
++        {
++            var sun = CreateSun();
++            var lease = _environment.Acquire("a");
++            lease.BindSun(sun);
++            lease.Apply(ValidState());
++            _environment.Dispose();
++
++            Assert.That(_sink.RestoreCount, Is.EqualTo(1));
++            Assert.Throws<InvalidOperationException>(() => lease.Apply(ValidState()));
++            lease.Dispose();
++            Assert.That(_sink.RestoreCount, Is.EqualTo(1));
++        }
++
++        private Light CreateSun()
++        {
++            _sunGo = new GameObject("test-sun");
++            var light = _sunGo.AddComponent<Light>();
++            light.type = LightType.Directional;
++            return light;
++        }
++
++        private static RenderEnvironmentState ValidState() => new(
++            sunEulerDegrees: new Vector3(15f, -30f, 0f),
++            sunColor: new Color(1f, 0.85f, 0.70f),
++            sunIntensity: 0.80f,
++            ambientSkyColor: new Color(0.18f, 0.22f, 0.28f),
++            fogEnabled: true,
++            fogColor: new Color(0.75f, 0.82f, 0.88f),
++            fogDensity: 0.0015f,
++            globalVolumeWeight: 1f);
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Tests/Rendering/Environments/RenderEnvironmentLeaseTests.cs.meta b/unity/Assets/OneStarMaker/Tests/Rendering/Environments/RenderEnvironmentLeaseTests.cs.meta
+new file mode 100644
+index 0000000..7dface9
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/Rendering/Environments/RenderEnvironmentLeaseTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 4bc8c346b70091d459c1d951866dcc6b
+\ No newline at end of file
+diff --git a/unity/Assets/OneStarMaker/Tests/Rendering/Environments/UnityRenderEnvironmentSinkTests.cs b/unity/Assets/OneStarMaker/Tests/Rendering/Environments/UnityRenderEnvironmentSinkTests.cs
+new file mode 100644
+index 0000000..ea9bfa9
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/Rendering/Environments/UnityRenderEnvironmentSinkTests.cs
+@@ -0,0 +1,175 @@
++#nullable enable
++
++using System.Collections.Generic;
++using NUnit.Framework;
++using OneStarMaker.Runtime.Rendering.Environments;
++using UnityEngine;
++using UnityEngine.Rendering;
++
++namespace OneStarMaker.Tests.Rendering.Environments
++{
++    /// <summary>
++    /// Unity sink が Apply で書き換えた ambient 成分と sun を、capture 時点へ戻すことを見る。
++    /// Editor の RenderSettings は SetUp で退避し、TearDown で戻す。
++    /// </summary>
++    [TestFixture]
++    public sealed class UnityRenderEnvironmentSinkTests
++    {
++        private AmbientMode _savedMode;
++        private Color _savedAmbientLight;
++        private Color _savedSky;
++        private Color _savedEquator;
++        private Color _savedGround;
++        private float _savedIntensity;
++        private bool _savedFog;
++        private FogMode _savedFogMode;
++        private Color _savedFogColor;
++        private float _savedFogDensity;
++        private Light _savedSun = null!;
++        private GameObject? _baselineGo;
++        private GameObject? _seasonGo;
++        private readonly List<Light> _disabledDirectionals = new();
++
++        [SetUp]
++        public void SetUp()
++        {
++            _savedMode = RenderSettings.ambientMode;
++            _savedAmbientLight = RenderSettings.ambientLight;
++            _savedSky = RenderSettings.ambientSkyColor;
++            _savedEquator = RenderSettings.ambientEquatorColor;
++            _savedGround = RenderSettings.ambientGroundColor;
++            _savedIntensity = RenderSettings.ambientIntensity;
++            _savedFog = RenderSettings.fog;
++            _savedFogMode = RenderSettings.fogMode;
++            _savedFogColor = RenderSettings.fogColor;
++            _savedFogDensity = RenderSettings.fogDensity;
++            _savedSun = RenderSettings.sun;
++        }
++
++        [TearDown]
++        public void TearDown()
++        {
++            RenderSettings.ambientMode = _savedMode;
++            RenderSettings.ambientLight = _savedAmbientLight;
++            RenderSettings.ambientSkyColor = _savedSky;
++            RenderSettings.ambientEquatorColor = _savedEquator;
++            RenderSettings.ambientGroundColor = _savedGround;
++            RenderSettings.ambientIntensity = _savedIntensity;
++            RenderSettings.fog = _savedFog;
++            RenderSettings.fogMode = _savedFogMode;
++            RenderSettings.fogColor = _savedFogColor;
++            RenderSettings.fogDensity = _savedFogDensity;
++            RenderSettings.sun = _savedSun;
++
++            if (_baselineGo != null)
++            {
++                Object.DestroyImmediate(_baselineGo);
++                _baselineGo = null;
++            }
++
++            if (_seasonGo != null)
++            {
++                Object.DestroyImmediate(_seasonGo);
++                _seasonGo = null;
++            }
++
++            foreach (var light in _disabledDirectionals)
++            {
++                if (light != null)
++                {
++                    light.enabled = true;
++                }
++            }
++
++            _disabledDirectionals.Clear();
++        }
++
++        [Test]
++        public void RestoreBaseline_TrilightAndSun_ReturnsCapturedComponents()
++        {
++            var baselineSun = CreateLight("baseline-sun", ref _baselineGo);
++            var seasonSun = CreateLight("season-sun", ref _seasonGo);
++            var sky = new Color(0.11f, 0.22f, 0.33f);
++            var equator = new Color(0.44f, 0.55f, 0.66f);
++            var ground = new Color(0.70f, 0.15f, 0.05f);
++
++            RenderSettings.ambientMode = AmbientMode.Trilight;
++            RenderSettings.ambientSkyColor = sky;
++            RenderSettings.ambientEquatorColor = equator;
++            RenderSettings.ambientGroundColor = ground;
++            RenderSettings.ambientIntensity = 0.35f;
++            RenderSettings.fog = false;
++            RenderSettings.sun = baselineSun;
++
++            var sink = new UnityRenderEnvironmentSink();
++            sink.CaptureBaseline();
++            sink.Apply(FlatState(), seasonSun);
++
++            Assert.That(RenderSettings.ambientMode, Is.EqualTo(AmbientMode.Flat));
++            Assert.That(RenderSettings.sun, Is.EqualTo(seasonSun));
++
++            sink.RestoreBaseline();
++
++            Assert.That(RenderSettings.ambientMode, Is.EqualTo(AmbientMode.Trilight));
++            Assert.That(RenderSettings.ambientSkyColor, Is.EqualTo(sky));
++            Assert.That(RenderSettings.ambientEquatorColor, Is.EqualTo(equator));
++            Assert.That(RenderSettings.ambientGroundColor, Is.EqualTo(ground));
++            Assert.That(RenderSettings.ambientIntensity, Is.EqualTo(0.35f));
++            Assert.That(RenderSettings.fog, Is.False);
++            Assert.That(RenderSettings.sun, Is.EqualTo(baselineSun));
++        }
++
++        [Test]
++        public void RestoreBaseline_NullSun_DoesNotLeaveDestroyedSun()
++        {
++            // sun の getter は未設定だと一番明るい Directional を返す。
++            // 既存の Directional を止めてからでないと、capture が null を観測できない。
++            foreach (var light in Object.FindObjectsByType<Light>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
++            {
++                if (light.type != LightType.Directional || !light.enabled)
++                {
++                    continue;
++                }
++
++                light.enabled = false;
++                _disabledDirectionals.Add(light);
++            }
++
++            RenderSettings.sun = null;
++            Assert.That(RenderSettings.sun == null, Is.True);
++
++            var seasonSun = CreateLight("season-sun", ref _seasonGo);
++            var sink = new UnityRenderEnvironmentSink();
++            sink.CaptureBaseline();
++            sink.Apply(FlatState(), seasonSun);
++            Assert.That(RenderSettings.sun, Is.EqualTo(seasonSun));
++
++            sink.RestoreBaseline();
++            Object.DestroyImmediate(_seasonGo);
++            _seasonGo = null;
++
++            // 破棄済み Light への偽 null が残ると、== null は真でも C# 参照は残る。
++            var restored = RenderSettings.sun;
++            Assert.That(restored == null, Is.True);
++            Assert.That((object)restored == null, Is.True);
++        }
++
++        private static Light CreateLight(string name, ref GameObject? holder)
++        {
++            holder = new GameObject(name);
++            var light = holder.AddComponent<Light>();
++            light.type = LightType.Directional;
++            return light;
++        }
++
++        private static RenderEnvironmentState FlatState() => new(
++            sunEulerDegrees: new Vector3(15f, -30f, 0f),
++            sunColor: new Color(1f, 0.85f, 0.70f),
++            sunIntensity: 0.80f,
++            ambientSkyColor: new Color(0.18f, 0.22f, 0.28f),
++            fogEnabled: true,
++            fogColor: new Color(0.75f, 0.82f, 0.88f),
++            fogDensity: 0.0015f,
++            globalVolumeWeight: 1f);
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Tests/Rendering/Environments/UnityRenderEnvironmentSinkTests.cs.meta b/unity/Assets/OneStarMaker/Tests/Rendering/Environments/UnityRenderEnvironmentSinkTests.cs.meta
+new file mode 100644
+index 0000000..95c1b62
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/Rendering/Environments/UnityRenderEnvironmentSinkTests.cs.meta
+@@ -0,0 +1,11 @@
++fileFormatVersion: 2
++guid: 6e1c8a4b9d2047f0a3b5c8d7e2f10493
++MonoImporter:
++  externalObjects: {}
++  serializedVersion: 2
++  defaultReferences: []
++  executionOrder: 0
++  icon: {instanceID: 0}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/OneStarMaker/Tests/SampleGame/GameSceneLoggingTests.cs b/unity/Assets/OneStarMaker/Tests/SampleGame/GameSceneLoggingTests.cs
+index 03b39f4..1b07e7a 100644
+--- a/unity/Assets/OneStarMaker/Tests/SampleGame/GameSceneLoggingTests.cs
++++ b/unity/Assets/OneStarMaker/Tests/SampleGame/GameSceneLoggingTests.cs
+@@ -7,6 +7,7 @@
+ using Microsoft.Extensions.Logging.Abstractions;
+ using NUnit.Framework;
+ using OneStarMaker.Runtime.CameraSystem.Abstractions;
++using OneStarMaker.Runtime.Rendering.Environments;
+ using OneStarMaker.Tests.CameraSystem;
+ using OneStarMaker.Runtime.SceneSystem;
+ using OneStarMaker.Tests.SceneSystem.Helpers;
+@@ -35,14 +36,20 @@ public sealed class GameSceneFactoryTests
+         [Test]
+         public void Constructor_NullLoggerFactory_Throws()
+         {
+-            Assert.Throws<ArgumentNullException>(() => new GameSceneFactory(null!, null!, null!, CellCompanionSet.Full));
++            Assert.Throws<ArgumentNullException>(
++                () => new GameSceneFactory(null!, null!, null!, CellCompanionSet.Full, new FakeRenderEnvironmentForFactory()));
+         }
+ 
+         [Test]
+         public void Constructor_NullCameraSystem_Throws()
+         {
+             Assert.Throws<ArgumentNullException>(
+-                () => new GameSceneFactory(NullLoggerFactory.Instance, null!, new NoopCameraBackgroundApplier(), CellCompanionSet.Full));
++                () => new GameSceneFactory(
++                    NullLoggerFactory.Instance,
++                    null!,
++                    new NoopCameraBackgroundApplier(),
++                    CellCompanionSet.Full,
++                    new FakeRenderEnvironmentForFactory()));
+         }
+ 
+         [Test]
+@@ -51,7 +58,12 @@ public void Constructor_NullCameraBackgroundApplier_Throws()
+             var cameraSystem = new RuntimeCameraSystem(new FakeCameraBackend());
+ 
+             Assert.Throws<ArgumentNullException>(
+-                () => new GameSceneFactory(NullLoggerFactory.Instance, cameraSystem, null!, CellCompanionSet.Full));
++                () => new GameSceneFactory(
++                    NullLoggerFactory.Instance,
++                    cameraSystem,
++                    null!,
++                    CellCompanionSet.Full,
++                    new FakeRenderEnvironmentForFactory()));
+         }
+ 
+         [Test]
+@@ -108,6 +120,32 @@ public void CreateSceneClass_SeasonLightingWithoutCellParent_IsNotCompanion()
+             Assert.That(scene, Is.Not.TypeOf<CellCompanionScene>());
+         }
+ 
++        [Test]
++        public void Constructor_NullRenderEnvironment_Throws()
++        {
++            var cameraSystem = new RuntimeCameraSystem(new FakeCameraBackend());
++
++            Assert.Throws<ArgumentNullException>(
++                () => new GameSceneFactory(
++                    NullLoggerFactory.Instance,
++                    cameraSystem,
++                    new NoopCameraBackgroundApplier(),
++                    CellCompanionSet.Full,
++                    null!));
++        }
++
++        [Test]
++        public void CreateSceneClass_SpringLightingCellChild_ReturnsCompanionScene()
++        {
++            var factory = CreateFactory(NullLoggerFactory.Instance);
++            var parent = SceneTestHelper.CreateSceneResource("opaque-parent", streamByDistance: true);
++            var child = SceneTestHelper.CreateSceneResource("Spring_Lighting_4_2", parent: parent);
++
++            var scene = factory.CreateSceneClass(child, new StubSceneQuery(), new StubSceneController());
++
++            Assert.That(scene, Is.TypeOf<CellCompanionScene>());
++        }
++
+         [TestCase(CellCompanionSet.Full)]
+         [TestCase(CellCompanionSet.Planner)]
+         [TestCase(CellCompanionSet.Lighting)]
+@@ -134,7 +172,16 @@ public void CreateSceneClass_InGameSession_ForwardsCompanionSet(CellCompanionSet
+                 loggerFactory,
+                 cameraSystem,
+                 new NoopCameraBackgroundApplier(),
+-                companionSet);
++                companionSet,
++                new FakeRenderEnvironmentForFactory());
++        }
++
++        private sealed class FakeRenderEnvironmentForFactory : IRenderEnvironment
++        {
++            public bool HasActiveOwner => false;
++
++            public RenderEnvironmentLease Acquire(object ownerKey)
++                => throw new NotImplementedException();
+         }
+ 
+         private sealed class NoopCameraBackgroundApplier : ICameraBackgroundApplier
+diff --git a/unity/Assets/OneStarMaker/Tests/SampleGame/SeasonLightingPresetTableTests.cs b/unity/Assets/OneStarMaker/Tests/SampleGame/SeasonLightingPresetTableTests.cs
+new file mode 100644
+index 0000000..acc8d49
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/SampleGame/SeasonLightingPresetTableTests.cs
+@@ -0,0 +1,104 @@
++#nullable enable
++
++using NUnit.Framework;
++using SampleGame.InGame.World;
++using UnityEngine;
++
++namespace OneStarMaker.Tests.SampleGame
++{
++    [TestFixture]
++    public sealed class SeasonLightingPresetTableTests
++    {
++        [Test]
++        public void TryGet_Spring_MatchesFrozenValues()
++        {
++            Assert.That(SeasonLightingPresetTable.TryGet("Spring_Lighting", out var state), Is.True);
++            AssertState(
++                state,
++                new Vector3(15f, -30f, 0f),
++                new Color(1.00f, 0.85f, 0.70f),
++                0.80f,
++                new Color(0.18f, 0.22f, 0.28f),
++                true,
++                new Color(0.75f, 0.82f, 0.88f),
++                0.0015f,
++                1f);
++        }
++
++        [Test]
++        public void TryGet_Summer_MatchesFrozenValues()
++        {
++            Assert.That(SeasonLightingPresetTable.TryGet("Summer_Lighting", out var state), Is.True);
++            AssertState(
++                state,
++                new Vector3(50f, 40f, 0f),
++                new Color(1.00f, 0.98f, 0.90f),
++                1.30f,
++                new Color(0.28f, 0.30f, 0.32f),
++                true,
++                new Color(0.70f, 0.78f, 0.85f),
++                0.0040f,
++                1f);
++        }
++
++        [Test]
++        public void TryGet_Autumn_MatchesFrozenValues()
++        {
++            Assert.That(SeasonLightingPresetTable.TryGet("Autumn_Lighting", out var state), Is.True);
++            AssertState(
++                state,
++                new Vector3(8f, 50f, 0f),
++                new Color(1.00f, 0.55f, 0.25f),
++                0.70f,
++                new Color(0.18f, 0.13f, 0.08f),
++                true,
++                new Color(0.55f, 0.38f, 0.22f),
++                0.0025f,
++                1f);
++        }
++
++        [Test]
++        public void TryGet_Winter_MatchesFrozenValues()
++        {
++            Assert.That(SeasonLightingPresetTable.TryGet("Winter_Lighting", out var state), Is.True);
++            AssertState(
++                state,
++                new Vector3(70f, 0f, 0f),
++                new Color(0.95f, 0.97f, 1.00f),
++                0.50f,
++                new Color(0.68f, 0.70f, 0.74f),
++                true,
++                new Color(0.90f, 0.92f, 0.95f),
++                0.0020f,
++                1f);
++        }
++
++        [Test]
++        public void TryGet_Unknown_ReturnsFalse()
++        {
++            Assert.That(SeasonLightingPresetTable.TryGet("Spring_Lighting_4_2", out var state), Is.False);
++            Assert.That(state, Is.EqualTo(default(OneStarMaker.Runtime.Rendering.Environments.RenderEnvironmentState)));
++        }
++
++        private static void AssertState(
++            OneStarMaker.Runtime.Rendering.Environments.RenderEnvironmentState state,
++            Vector3 sunEuler,
++            Color sunColor,
++            float intensity,
++            Color ambient,
++            bool fogEnabled,
++            Color fogColor,
++            float fogDensity,
++            float volumeWeight)
++        {
++            Assert.That(state.SunEulerDegrees, Is.EqualTo(sunEuler));
++            Assert.That(state.SunColor, Is.EqualTo(sunColor));
++            Assert.That(state.SunIntensity, Is.EqualTo(intensity).Within(1e-5f));
++            Assert.That(state.AmbientSkyColor, Is.EqualTo(ambient));
++            Assert.That(state.FogEnabled, Is.EqualTo(fogEnabled));
++            Assert.That(state.FogColor, Is.EqualTo(fogColor));
++            Assert.That(state.FogDensity, Is.EqualTo(fogDensity).Within(1e-6f));
++            Assert.That(state.GlobalVolumeWeight, Is.EqualTo(volumeWeight).Within(1e-5f));
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Tests/SampleGame/SeasonLightingPresetTableTests.cs.meta b/unity/Assets/OneStarMaker/Tests/SampleGame/SeasonLightingPresetTableTests.cs.meta
+new file mode 100644
+index 0000000..b4d01b5
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/SampleGame/SeasonLightingPresetTableTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 8d5e2c0a4b7f4913ae6c1d9f0b3e7a52
+diff --git a/unity/Assets/OneStarMakerCommon/SceneMap/SceneResourceMap.asset b/unity/Assets/OneStarMakerCommon/SceneMap/SceneResourceMap.asset
+index 8bc3fa5..53c5879 100644
+--- a/unity/Assets/OneStarMakerCommon/SceneMap/SceneResourceMap.asset
++++ b/unity/Assets/OneStarMakerCommon/SceneMap/SceneResourceMap.asset
+@@ -243,6 +243,8 @@ MonoBehaviour:
+   - {fileID: 11400000, guid: 4f91a6104bac4ed4db0f2dd6bc332816, type: 2}
+   - {fileID: 11400000, guid: c3ec9715d7242b94886ad8a1287faaef, type: 2}
+   - {fileID: 11400000, guid: 58bb9a8661f3f2844ac4460122479dc8, type: 2}
++  - {fileID: 11400000, guid: 22b75b99b54ad7a40864460bf17806e9, type: 2}
++  - {fileID: 11400000, guid: 9019351cd64025141aa5e42f2f58e559, type: 2}
+   - {fileID: 11400000, guid: 486ed8cee435039438fa405cf5fd75f4, type: 2}
+   - {fileID: 11400000, guid: 47afd18b017a0c34f826846039736764, type: 2}
+   - {fileID: 11400000, guid: 37a48ab7c370baf4b81b26e489a834c4, type: 2}
+@@ -462,4 +464,4 @@ MonoBehaviour:
+   - {fileID: 11400000, guid: 89d939d031db8984b98fd6e23d7fdae6, type: 2}
+   - {fileID: 11400000, guid: 32083e46bc7f7ed4b999c83b5ebd54d8, type: 2}
+   - {fileID: 11400000, guid: 2f2362783d3e36c468d7c4d4f51fda4d, type: 2}
+-  _generateHash: 3e11cef76279cd62
++  _generateHash: 301f845cbbec9f5f
+diff --git a/unity/Assets/SampleGame/DependOnAll/AppInitializer.cs b/unity/Assets/SampleGame/DependOnAll/AppInitializer.cs
+index e86d39d..7cc97da 100644
+--- a/unity/Assets/SampleGame/DependOnAll/AppInitializer.cs
++++ b/unity/Assets/SampleGame/DependOnAll/AppInitializer.cs
+@@ -6,6 +6,7 @@
+ using OneStarMaker.Runtime.CameraSystem.BackgroundApplier;
+ using OneStarMaker.Runtime.CameraSystem.Cinemachine;
+ using OneStarMaker.Runtime.CameraSystem.Hosting;
++using OneStarMaker.Runtime.Rendering.Environments;
+ using OneStarMaker.Runtime.SceneSystem;
+ using OneStarMaker.Runtime.UpdateSystem.Api;
+ using SampleGame.InGame.Streaming;
+@@ -36,6 +37,8 @@ public sealed class AppInitializer : AbstractApplicationInitializer
+         private CameraSystemUpdateElement? _cameraUpdateElement;
+         private CameraBackgroundApplier? _cameraBackgroundApplier;
+         private bool _cameraQuittingHandlerRegistered;
++        private RenderEnvironment? _renderEnvironment;
++        private bool _renderEnvironmentQuittingHandlerRegistered;
+ 
+         private ProfilerUiCostCollector? _profilerUiCostCollector;
+         private ProfilerTelemetryEmitter? _profilerTelemetryEmitter;
+@@ -47,6 +50,7 @@ private static void Sub()
+         {
+             // Domain Reload 無効時も前セッションの常駐 Host を先に片付けてから Framework を初期化する。
+             s_instance.ReleaseCameraSystem();
++            s_instance.ReleaseRenderEnvironment();
+             s_instance.ReleaseProfilerTelemetry();
+             s_instance._useBs4PlayerMode = false;
+             BootstrapSubsystemRegistration(s_instance);
+@@ -66,6 +70,7 @@ private static void Before()
+             if (s_instance.UpdateCoordinator != null)
+             {
+                 s_instance.InitializeCameraSystem();
++                s_instance.InitializeRenderEnvironment();
+                 s_instance.InitializeProfilerTelemetry();
+             }
+         }
+@@ -88,11 +93,15 @@ protected override ISceneFactory CreateSceneFactory()
+             var companionSet = CellCompanionSetParser.Parse(
+                 keyExists ? config.GetString(key) : null,
+                 keyExists);
++            var renderEnvironment = _renderEnvironment
++                ?? throw new InvalidOperationException(
++                    "RenderEnvironment is not initialized. Ensure BeforeSceneLoad completed successfully.");
+             return new GameSceneFactory(
+                 loggerFactory,
+                 _cameraSystem,
+                 _cameraBackgroundApplier,
+-                companionSet);
++                companionSet,
++                renderEnvironment);
+         }
+ 
+         protected override string GetUICommonPrefabAddress()
+@@ -179,6 +188,7 @@ protected override UniTask OnPlayerContentShutdownCompletedAsync(IReadOnlyList<P
+         protected override void OnAfterSceneLoadInitializationFailed(string stage, Exception exception)
+         {
+             ReleaseCameraSystem();
++            ReleaseRenderEnvironment();
+             ReleaseProfilerTelemetry();
+         }
+ 
+@@ -286,6 +296,35 @@ private void ReleaseCameraSystem()
+             _cameraSystemHost = null;
+         }
+ 
++        private void InitializeRenderEnvironment()
++        {
++            if (_renderEnvironment != null)
++            {
++                return;
++            }
++
++            _renderEnvironment = new RenderEnvironment(new UnityRenderEnvironmentSink());
++            if (_renderEnvironmentQuittingHandlerRegistered)
++            {
++                return;
++            }
++
++            Application.quitting += ReleaseRenderEnvironment;
++            _renderEnvironmentQuittingHandlerRegistered = true;
++        }
++
++        /// <summary>
++        /// App 常駐の RenderEnvironment 解放。Camera の Release には埋め込まない。
++        /// Dispose は冪等のため、SubsystemRegistration と Application.quitting の双方から安全に呼べる。
++        /// </summary>
++        private void ReleaseRenderEnvironment()
++        {
++            Application.quitting -= ReleaseRenderEnvironment;
++            _renderEnvironmentQuittingHandlerRegistered = false;
++            _renderEnvironment?.Dispose();
++            _renderEnvironment = null;
++        }
++
+         /// <summary>
+         /// profiler テレメトリ送出を常駐させる。送出は元々 <c>DebugProfilerView.Update()</c> にあったが、
+         /// あの View は uGUI Canvas が無いため一度も生成されず、ProfilerSummary / GcSpike / UiCost が
+diff --git a/unity/Assets/SampleGame/DependOnAll/Editor/WorldAuthoring/WorldCompanionCreationPlan.cs b/unity/Assets/SampleGame/DependOnAll/Editor/WorldAuthoring/WorldCompanionCreationPlan.cs
+index 70ec1a0..1bdb20a 100644
+--- a/unity/Assets/SampleGame/DependOnAll/Editor/WorldAuthoring/WorldCompanionCreationPlan.cs
++++ b/unity/Assets/SampleGame/DependOnAll/Editor/WorldAuthoring/WorldCompanionCreationPlan.cs
+@@ -6,7 +6,9 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
+ {
+     internal sealed class WorldCompanionCreationPlan
+     {
+-        private const string WorldRoot = "Assets/SampleGame/InGame/InGameSession/World";
++        // 実 Cell / Environment は Architecture §27 どおり InGameSession/Seasons 配下。
++        // World/ は Scene 用 C# の置き場であり、親 Cell フォルダではない。
++        private const string SessionRoot = "Assets/SampleGame/InGame/InGameSession";
+         private const string NodeRoot = "Assets/SceneGraphData/Nodes/Cells";
+         private const string ResourceOutputFolder = "Assets/OneStarMakerCommon/SceneMap";
+         private const string MapPath = "Assets/OneStarMakerCommon/SceneMap/SceneResourceMap.asset";
+@@ -53,7 +55,7 @@ internal static WorldCompanionCreationPlan Create(WorldWorkspaceSelection select
+             };
+             var identity = selection.CompanionIdentity(roleToken);
+             var parentIdentity = selection.CellIdentity;
+-            var folder = $"{WorldRoot}/Seasons/{selection.Season}/Cells/{parentIdentity}/{identity}";
++            var folder = $"{SessionRoot}/Seasons/{selection.Season}/Cells/{parentIdentity}/{identity}";
+             return new WorldCompanionCreationPlan(
+                 identity,
+                 parentIdentity,
+diff --git a/unity/Assets/SampleGame/DependOnAll/GameSceneFactory.cs b/unity/Assets/SampleGame/DependOnAll/GameSceneFactory.cs
+index 0aea8a2..388bc6d 100644
+--- a/unity/Assets/SampleGame/DependOnAll/GameSceneFactory.cs
++++ b/unity/Assets/SampleGame/DependOnAll/GameSceneFactory.cs
+@@ -3,6 +3,7 @@
+ using Microsoft.Extensions.Logging;
+ using OneStarMaker.Runtime.CameraSystem.Abstractions;
+ using OneStarMaker.Runtime.CameraSystem.Hosting;
++using OneStarMaker.Runtime.Rendering.Environments;
+ using OneStarMaker.Runtime.SceneSystem;
+ using SampleGame.InGame.World;
+ using SampleGame.InGame.Streaming;
+@@ -21,6 +22,7 @@ public sealed class GameSceneFactory : ISceneFactory
+         private readonly ICameraBackgroundApplier _cameraBackgroundApplier;
+         private readonly ICameraSystem _cameraSystem;
+         private readonly CellCompanionSet _companionSet;
++        private readonly IRenderEnvironment _renderEnvironment;
+         /// <summary>
+         /// Bootstrap が構成した唯一の <see cref="ILoggerFactory"/> を受け取る。
+         /// Game 層で <see cref="OneStarMaker.Foundation.Logging.AppLoggerFactory"/> を再生成すると、
+@@ -31,7 +33,8 @@ public sealed class GameSceneFactory : ISceneFactory
+             ILoggerFactory loggerFactory,
+             ICameraSystem cameraSystem,
+             ICameraBackgroundApplier backgroundApplier,
+-            CellCompanionSet companionSet)
++            CellCompanionSet companionSet,
++            IRenderEnvironment renderEnvironment)
+         {
+             _loggerFactory = loggerFactory ?? throw new System.ArgumentNullException(nameof(loggerFactory));
+             // OutGame は MainView の背景を初期化するため、CameraSystem と applier は任意依存ではない。
+@@ -40,6 +43,7 @@ public sealed class GameSceneFactory : ISceneFactory
+             _cameraSystem = cameraSystem ?? throw new System.ArgumentNullException(nameof(cameraSystem));
+             _cameraBackgroundApplier = backgroundApplier ?? throw new System.ArgumentNullException(nameof(backgroundApplier));
+             _companionSet = companionSet;
++            _renderEnvironment = renderEnvironment ?? throw new System.ArgumentNullException(nameof(renderEnvironment));
+         }
+ 
+         public SceneBase? CreateSceneClass(SceneResource sceneResource, ISceneQuery sceneQuery, ISceneController sceneController)
+@@ -81,10 +85,10 @@ public sealed class GameSceneFactory : ISceneFactory
+                 "Season_Summer" => new InGame.World.SeasonScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
+                 "Season_Autumn" => new InGame.World.SeasonScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
+                 "Season_Winter" => new InGame.World.SeasonScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
+-                "Spring_Lighting" => new InGame.World.SeasonLightingScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
+-                "Summer_Lighting" => new InGame.World.SeasonLightingScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
+-                "Autumn_Lighting" => new InGame.World.SeasonLightingScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
+-                "Winter_Lighting" => new InGame.World.SeasonLightingScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
++                "Spring_Lighting" => new InGame.World.SeasonLightingScene(sceneResource, sceneQuery, sceneController, _loggerFactory, _renderEnvironment),
++                "Summer_Lighting" => new InGame.World.SeasonLightingScene(sceneResource, sceneQuery, sceneController, _loggerFactory, _renderEnvironment),
++                "Autumn_Lighting" => new InGame.World.SeasonLightingScene(sceneResource, sceneQuery, sceneController, _loggerFactory, _renderEnvironment),
++                "Winter_Lighting" => new InGame.World.SeasonLightingScene(sceneResource, sceneQuery, sceneController, _loggerFactory, _renderEnvironment),
+                 "Result" => new InGame.Result.ResultScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
+                 "HpGauge" => new HpGaugeScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
+                 "ConfirmDialog" => new ConfirmDialogScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/PlayerScene/PlayerScene.cs b/unity/Assets/SampleGame/InGame/InGameSession/PlayerScene/PlayerScene.cs
+index 268d9b7..aabceea 100644
+--- a/unity/Assets/SampleGame/InGame/InGameSession/PlayerScene/PlayerScene.cs
++++ b/unity/Assets/SampleGame/InGame/InGameSession/PlayerScene/PlayerScene.cs
+@@ -27,7 +27,6 @@ public sealed class PlayerScene : SceneBase
+     {
+         private readonly ILogger<PlayerScene> _logger;
+         private readonly ICameraSystem _cameraSystem;
+-        private readonly ICameraBackgroundApplier _cameraBackgroundApplier;
+ 
+         private PlayerRigBindings? _rig;
+         private FlyController? _flyer;
+@@ -50,8 +49,11 @@ public sealed class PlayerScene : SceneBase
+             _logger = loggerFactory.CreateLogger<PlayerScene>();
+             // CameraSystem は任意依存ではない。Composition Root で失敗を確定させ、破棄済み Host への遅延事故を防ぐ。
+             _cameraSystem = cameraSystem ?? throw new System.ArgumentNullException(nameof(cameraSystem));
+-            _cameraBackgroundApplier = cameraBackgroundApplier
+-                ?? throw new System.ArgumentNullException(nameof(cameraBackgroundApplier));
++            // Camera clear は AppInitializer / InGameScene が所有する。ここでは fog を書かない。
++            if (cameraBackgroundApplier == null)
++            {
++                throw new System.ArgumentNullException(nameof(cameraBackgroundApplier));
++            }
+             _logger.ZLogInformation($"Create PlayerScene");
+         }
+ 
+@@ -166,7 +168,6 @@ private async UniTaskVoid BootstrapAsync(CancellationToken ct)
+                     _sessionServices,
+                     _flyer,
+                     WorldCellCatalog.SpawnPosition());
+-                ApplyDemoLook();
+ 
+                 _logger.ZLogInformation($"Player ready at Cell stream spawn {WorldCellCatalog.SpawnPosition()}");
+             }
+@@ -198,32 +199,5 @@ private async UniTaskVoid BootstrapAsync(CancellationToken ct)
+ 
+             return SceneQuery.GetLoadedScene(parent.Identity) as IInGameSessionServices;
+         }
+-
+-        /// <summary>
+-        /// 実証用の単純な空模様。季節テーマは捨てたので固定トーンにする。
+-        /// Fog / Ambient は暫定で RenderSettings 直書き（環境オーナーは将来 Environment 子シーン側へ）。
+-        /// </summary>
+-        private void ApplyDemoLook()
+-        {
+-            try
+-            {
+-                var sky = new Color(0.45f, 0.7f, 0.95f);
+-                _cameraBackgroundApplier.SetClearFlag(
+-                    _cameraSystem.MainView,
+-                    ClearFlag.Color,
+-                    sky);
+-
+-                RenderSettings.fog = true;
+-                RenderSettings.fogMode = FogMode.ExponentialSquared;
+-                RenderSettings.fogColor = new Color(0.75f, 0.85f, 0.95f);
+-                RenderSettings.fogDensity = 0.0035f;
+-                RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+-                RenderSettings.ambientLight = Color.Lerp(sky, Color.white, 0.4f);
+-            }
+-            catch (Exception ex)
+-            {
+-                _logger.ZLogWarning($"ApplyDemoLook failed: {ex.Message}");
+-            }
+-        }
+     }
+ }
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Autumn_Lighting/Autumn_Lighting.unity b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Autumn_Lighting/Autumn_Lighting.unity
+index 3b27bbc..f47e25a 100644
+--- a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Autumn_Lighting/Autumn_Lighting.unity
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Autumn_Lighting/Autumn_Lighting.unity
+@@ -119,6 +119,151 @@ NavMeshSettings:
+     debug:
+       m_Flags: 0
+   m_NavMeshData: {fileID: 0}
++--- !u!1 &196191653
++GameObject:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  serializedVersion: 6
++  m_Component:
++  - component: {fileID: 196191654}
++  - component: {fileID: 196191656}
++  - component: {fileID: 196191655}
++  - component: {fileID: 196191657}
++  m_Layer: 0
++  m_Name: SeasonSun
++  m_TagString: Untagged
++  m_Icon: {fileID: 0}
++  m_NavMeshLayer: 0
++  m_StaticEditorFlags: 0
++  m_IsActive: 1
++--- !u!4 &196191654
++Transform:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 196191653}
++  serializedVersion: 2
++  m_LocalRotation: {x: 0.06322083, y: 0.42158878, z: -0.029480355, w: 0.9041001}
++  m_LocalPosition: {x: 0, y: 0, z: 0}
++  m_LocalScale: {x: 1, y: 1, z: 1}
++  m_ConstrainProportionsScale: 0
++  m_Children: []
++  m_Father: {fileID: 1520845343}
++  m_LocalEulerAnglesHint: {x: 8, y: 50, z: 0}
++--- !u!114 &196191655
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 196191653}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
++  m_Name: 
++  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
++  m_UsePipelineSettings: 1
++  m_AdditionalLightsShadowResolutionTier: 2
++  m_CustomShadowLayers: 0
++  m_LightCookieSize: {x: 1, y: 1}
++  m_LightCookieOffset: {x: 0, y: 0}
++  m_SoftShadowQuality: 0
++  m_RenderingLayersMask:
++    serializedVersion: 0
++    m_Bits: 1
++  m_ShadowRenderingLayersMask:
++    serializedVersion: 0
++    m_Bits: 1
++  m_Version: 4
++  m_LightLayerMask: 1
++  m_ShadowLayerMask: 1
++  m_RenderingLayers: 1
++  m_ShadowRenderingLayers: 1
++--- !u!108 &196191656
++Light:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 196191653}
++  m_Enabled: 1
++  serializedVersion: 13
++  m_Type: 1
++  m_Color: {r: 1, g: 0.55, b: 0.25, a: 1}
++  m_Intensity: 0.7
++  m_Range: 10
++  m_SpotAngle: 30
++  m_InnerSpotAngle: 21.80208
++  m_CookieSize2D: {x: 0.5, y: 0.5}
++  m_Shadows:
++    m_Type: 0
++    m_Resolution: -1
++    m_CustomResolution: -1
++    m_Strength: 1
++    m_Bias: 0.05
++    m_NormalBias: 0.4
++    m_NearPlane: 0.2
++    m_CullingMatrixOverride:
++      e00: 1
++      e01: 0
++      e02: 0
++      e03: 0
++      e10: 0
++      e11: 1
++      e12: 0
++      e13: 0
++      e20: 0
++      e21: 0
++      e22: 1
++      e23: 0
++      e30: 0
++      e31: 0
++      e32: 0
++      e33: 1
++    m_UseCullingMatrixOverride: 0
++  m_Cookie: {fileID: 0}
++  m_DrawHalo: 0
++  m_Flare: {fileID: 0}
++  m_RenderMode: 0
++  m_CullingMask:
++    serializedVersion: 2
++    m_Bits: 4294967295
++  m_RenderingLayerMask: 1
++  m_Lightmapping: 4
++  m_LightShadowCasterMode: 0
++  m_AreaSize: {x: 1, y: 1}
++  m_BounceIntensity: 1
++  m_ColorTemperature: 6570
++  m_UseColorTemperature: 0
++  m_BoundingSphereOverride: {x: 0, y: 0, z: 0, w: 0}
++  m_UseBoundingSphereOverride: 0
++  m_UseViewFrustumForShadowCasterCull: 1
++  m_ForceVisible: 0
++  m_ShapeRadius: 0.025
++  m_ShadowAngle: 0
++  m_LightUnit: 1
++  m_LuxAtDistance: 1
++  m_EnableSpotReflector: 1
++--- !u!114 &196191657
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 196191653}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: 172515602e62fb746b5d573b38a5fe58, type: 3}
++  m_Name: 
++  m_EditorClassIdentifier: Unity.RenderPipelines.Core.Runtime::UnityEngine.Rendering.Volume
++  m_IsGlobal: 1
++  priority: 0
++  blendDistance: 0
++  weight: 1
++  sharedProfile: {fileID: 0}
+ --- !u!1 &1520845342
+ GameObject:
+   m_ObjectHideFlags: 0
+@@ -147,7 +292,8 @@ Transform:
+   m_LocalPosition: {x: 0, y: 0, z: 0}
+   m_LocalScale: {x: 1, y: 1, z: 1}
+   m_ConstrainProportionsScale: 0
+-  m_Children: []
++  m_Children:
++  - {fileID: 196191654}
+   m_Father: {fileID: 0}
+   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+ --- !u!1660057539 &9223372036854775807
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Cell_4_2.asset b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Cell_4_2.asset
+index bba7fc4..fdc3739 100644
+--- a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Cell_4_2.asset
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Cell_4_2.asset
+@@ -34,6 +34,7 @@ MonoBehaviour:
+   _parent: {fileID: 11400000, guid: 8869a9ddf028f36448023ccb0edb991c, type: 2}
+   _children:
+   - {fileID: 11400000, guid: 22bb1009ad9cba448a3b15df9e2cd9f0, type: 2}
++  - {fileID: 11400000, guid: 22b75b99b54ad7a40864460bf17806e9, type: 2}
+   _volume:
+     m_Center: {x: 1125, y: 24.5, z: 625}
+     m_Extent: {x: 122.5, y: 24.5, z: 122.5}
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Cell_4_2.unity b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Cell_4_2.unity
+index 24dbaee..0dc6356 100644
+--- a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Cell_4_2.unity
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Cell_4_2.unity
+@@ -93,8 +93,8 @@ LightmapSettings:
+     m_ExportTrainingData: 0
+     m_TrainingDataDestination: TrainingData
+     m_LightProbeSampleCountMultiplier: 4
+-  m_LightingDataAsset: {fileID: 20201, guid: 0000000000000000f000000000000000, type: 0}
+-  m_LightingSettings: {fileID: 0}
++  m_LightingDataAsset: {fileID: 112000004, guid: 0f7e7f4f5b3c44742a12ac17804d764e, type: 2}
++  m_LightingSettings: {fileID: 4890085278179872738, guid: f770f1b668c369745a58960828ef9a23, type: 2}
+ --- !u!196 &4
+ NavMeshSettings:
+   serializedVersion: 2
+@@ -135,7 +135,7 @@ GameObject:
+   m_TagString: Untagged
+   m_Icon: {fileID: 0}
+   m_NavMeshLayer: 0
+-  m_StaticEditorFlags: 0
++  m_StaticEditorFlags: 1
+   m_IsActive: 1
+ --- !u!4 &220105024
+ Transform:
+@@ -225,7 +225,7 @@ GameObject:
+   m_TagString: Untagged
+   m_Icon: {fileID: 0}
+   m_NavMeshLayer: 0
+-  m_StaticEditorFlags: 0
++  m_StaticEditorFlags: 1
+   m_IsActive: 1
+ --- !u!4 &340298990
+ Transform:
+@@ -315,7 +315,7 @@ GameObject:
+   m_TagString: Untagged
+   m_Icon: {fileID: 0}
+   m_NavMeshLayer: 0
+-  m_StaticEditorFlags: 0
++  m_StaticEditorFlags: 1
+   m_IsActive: 1
+ --- !u!4 &612480582
+ Transform:
+@@ -405,7 +405,7 @@ GameObject:
+   m_TagString: Untagged
+   m_Icon: {fileID: 0}
+   m_NavMeshLayer: 0
+-  m_StaticEditorFlags: 0
++  m_StaticEditorFlags: 1
+   m_IsActive: 1
+ --- !u!4 &1571787932
+ Transform:
+@@ -495,7 +495,7 @@ GameObject:
+   m_TagString: Untagged
+   m_Icon: {fileID: 0}
+   m_NavMeshLayer: 0
+-  m_StaticEditorFlags: 0
++  m_StaticEditorFlags: 1
+   m_IsActive: 1
+ --- !u!4 &1673874815
+ Transform:
+@@ -585,7 +585,7 @@ GameObject:
+   m_TagString: Untagged
+   m_Icon: {fileID: 0}
+   m_NavMeshLayer: 0
+-  m_StaticEditorFlags: 0
++  m_StaticEditorFlags: 1
+   m_IsActive: 1
+ --- !u!4 &1729203032
+ Transform:
+@@ -714,7 +714,7 @@ GameObject:
+   m_TagString: Untagged
+   m_Icon: {fileID: 0}
+   m_NavMeshLayer: 0
+-  m_StaticEditorFlags: 0
++  m_StaticEditorFlags: 1
+   m_IsActive: 1
+ --- !u!4 &2137585153
+ Transform:
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Environment_4_2/Spring_Environment_4_2.unity b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Environment_4_2/Spring_Environment_4_2.unity
+index bc0584b..7dd565f 100644
+--- a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Environment_4_2/Spring_Environment_4_2.unity
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Environment_4_2/Spring_Environment_4_2.unity
+@@ -93,8 +93,8 @@ LightmapSettings:
+     m_ExportTrainingData: 0
+     m_TrainingDataDestination: TrainingData
+     m_LightProbeSampleCountMultiplier: 4
+-  m_LightingDataAsset: {fileID: 20201, guid: 0000000000000000f000000000000000, type: 0}
+-  m_LightingSettings: {fileID: 0}
++  m_LightingDataAsset: {fileID: 112000008, guid: 0f7e7f4f5b3c44742a12ac17804d764e, type: 2}
++  m_LightingSettings: {fileID: 4890085278179872738, guid: f770f1b668c369745a58960828ef9a23, type: 2}
+ --- !u!196 &4
+ NavMeshSettings:
+   serializedVersion: 2
+@@ -169,7 +169,7 @@ GameObject:
+   m_TagString: Untagged
+   m_Icon: {fileID: 0}
+   m_NavMeshLayer: 0
+-  m_StaticEditorFlags: 0
++  m_StaticEditorFlags: 1
+   m_IsActive: 1
+ --- !u!4 &1526761755
+ Transform:
+@@ -259,7 +259,7 @@ GameObject:
+   m_TagString: Untagged
+   m_Icon: {fileID: 0}
+   m_NavMeshLayer: 0
+-  m_StaticEditorFlags: 0
++  m_StaticEditorFlags: 1
+   m_IsActive: 1
+ --- !u!4 &1947131934
+ Transform:
+@@ -349,7 +349,7 @@ GameObject:
+   m_TagString: Untagged
+   m_Icon: {fileID: 0}
+   m_NavMeshLayer: 0
+-  m_StaticEditorFlags: 0
++  m_StaticEditorFlags: 1
+   m_IsActive: 1
+ --- !u!4 &1953389644
+ Transform:
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2.meta b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2.meta
+new file mode 100644
+index 0000000..b6c30cd
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: d909a763c3abc8b40a31aba429cfc84b
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.asset b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.asset
+new file mode 100644
+index 0000000..ffcf314
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.asset
+@@ -0,0 +1,32 @@
++%YAML 1.1
++%TAG !u! tag:unity3d.com,2011:
++--- !u!114 &11400000
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 0}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: a55e49cc16182ed438f81c6b1032b83c, type: 3}
++  m_Name: Spring_Lighting_4_2
++  m_EditorClassIdentifier: OneStarMaker.Runtime::OneStarMaker.Runtime.SceneSystem.SceneResource
++  _identity: Spring_Lighting_4_2
++  _sceneAssetDescription:
++    _loadType: 0
++    _payloads:
++    - Reference:
++        m_AssetGUID: 8382f8f3717bb2c40837a39bc5dff95c
++        m_SubObjectName: 
++        m_SubObjectType: 
++        m_SubObjectGUID: 
++        m_EditorAssetChanged: 0
++      Variant: 
++    SceneIdentity: 
++  _parent: {fileID: 11400000, guid: 0f4e1535f59a5fd4997c201e28bb076d, type: 2}
++  _children: []
++  _volume:
++    m_Center: {x: 0, y: 0, z: 0}
++    m_Extent: {x: 0, y: 0, z: 0}
++  _streamByDistance: 0
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.asset.meta b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.asset.meta
+new file mode 100644
+index 0000000..76649f7
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.asset.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: 22b75b99b54ad7a40864460bf17806e9
++NativeFormatImporter:
++  externalObjects: {}
++  mainObjectFileID: 11400000
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.unity b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.unity
+new file mode 100644
+index 0000000..c5c49bd
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.unity
+@@ -0,0 +1,253 @@
++%YAML 1.1
++%TAG !u! tag:unity3d.com,2011:
++--- !u!29 &1
++OcclusionCullingSettings:
++  m_ObjectHideFlags: 0
++  serializedVersion: 2
++  m_OcclusionBakeSettings:
++    smallestOccluder: 5
++    smallestHole: 0.25
++    backfaceThreshold: 100
++  m_SceneGUID: 00000000000000000000000000000000
++  m_OcclusionCullingData: {fileID: 0}
++--- !u!104 &2
++RenderSettings:
++  m_ObjectHideFlags: 0
++  serializedVersion: 10
++  m_Fog: 0
++  m_FogColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
++  m_FogMode: 3
++  m_FogDensity: 0.01
++  m_LinearFogStart: 0
++  m_LinearFogEnd: 300
++  m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
++  m_AmbientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
++  m_AmbientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
++  m_AmbientIntensity: 1
++  m_AmbientMode: 0
++  m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
++  m_SkyboxMaterial: {fileID: 10304, guid: 0000000000000000f000000000000000, type: 0}
++  m_HaloStrength: 0.5
++  m_FlareStrength: 1
++  m_FlareFadeSpeed: 3
++  m_HaloTexture: {fileID: 0}
++  m_SpotCookie: {fileID: 10001, guid: 0000000000000000e000000000000000, type: 0}
++  m_DefaultReflectionMode: 0
++  m_DefaultReflectionResolution: 128
++  m_ReflectionBounces: 1
++  m_ReflectionIntensity: 1
++  m_CustomReflection: {fileID: 0}
++  m_Sun: {fileID: 0}
++  m_UseRadianceAmbientProbe: 0
++--- !u!157 &3
++LightmapSettings:
++  m_ObjectHideFlags: 0
++  serializedVersion: 13
++  m_BakeOnSceneLoad: 0
++  m_GISettings:
++    serializedVersion: 2
++    m_BounceScale: 1
++    m_IndirectOutputScale: 1
++    m_AlbedoBoost: 1
++    m_EnvironmentLightingMode: 0
++    m_EnableBakedLightmaps: 1
++    m_EnableRealtimeLightmaps: 0
++  m_LightmapEditorSettings:
++    serializedVersion: 12
++    m_Resolution: 2
++    m_BakeResolution: 40
++    m_AtlasSize: 1024
++    m_AO: 0
++    m_AOMaxDistance: 1
++    m_CompAOExponent: 1
++    m_CompAOExponentDirect: 0
++    m_ExtractAmbientOcclusion: 0
++    m_Padding: 2
++    m_LightmapParameters: {fileID: 0}
++    m_LightmapsBakeMode: 1
++    m_TextureCompression: 1
++    m_ReflectionCompression: 2
++    m_MixedBakeMode: 2
++    m_BakeBackend: 2
++    m_PVRSampling: 1
++    m_PVRDirectSampleCount: 32
++    m_PVRSampleCount: 512
++    m_PVRBounces: 2
++    m_PVREnvironmentSampleCount: 256
++    m_PVREnvironmentReferencePointCount: 2048
++    m_PVRFilteringMode: 1
++    m_PVRDenoiserTypeDirect: 2
++    m_PVRDenoiserTypeIndirect: 2
++    m_PVRDenoiserTypeAO: 2
++    m_PVRFilterTypeDirect: 0
++    m_PVRFilterTypeIndirect: 0
++    m_PVRFilterTypeAO: 0
++    m_PVREnvironmentMIS: 1
++    m_PVRCulling: 1
++    m_PVRFilteringGaussRadiusDirect: 1
++    m_PVRFilteringGaussRadiusIndirect: 1
++    m_PVRFilteringGaussRadiusAO: 1
++    m_PVRFilteringAtrousPositionSigmaDirect: 0.5
++    m_PVRFilteringAtrousPositionSigmaIndirect: 2
++    m_PVRFilteringAtrousPositionSigmaAO: 1
++    m_ExportTrainingData: 0
++    m_TrainingDataDestination: TrainingData
++    m_LightProbeSampleCountMultiplier: 4
++  m_LightingDataAsset: {fileID: 112000006, guid: 0f7e7f4f5b3c44742a12ac17804d764e, type: 2}
++  m_LightingSettings: {fileID: 4890085278179872738, guid: f770f1b668c369745a58960828ef9a23, type: 2}
++--- !u!196 &4
++NavMeshSettings:
++  serializedVersion: 2
++  m_ObjectHideFlags: 0
++  m_BuildSettings:
++    serializedVersion: 3
++    agentTypeID: 0
++    agentRadius: 0.5
++    agentHeight: 2
++    agentSlope: 45
++    agentClimb: 0.4
++    ledgeDropHeight: 0
++    maxJumpAcrossDistance: 0
++    minRegionArea: 2
++    manualCellSize: 0
++    cellSize: 0.16666667
++    manualTileSize: 0
++    tileSize: 256
++    buildHeightMesh: 0
++    maxJobWorkers: 0
++    preserveTilesOutsideBounds: 0
++    debug:
++      m_Flags: 0
++  m_NavMeshData: {fileID: 0}
++--- !u!1 &603373517
++GameObject:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  serializedVersion: 6
++  m_Component:
++  - component: {fileID: 603373520}
++  - component: {fileID: 603373519}
++  - component: {fileID: 603373518}
++  m_Layer: 0
++  m_Name: LocalFill
++  m_TagString: Untagged
++  m_Icon: {fileID: 0}
++  m_NavMeshLayer: 0
++  m_StaticEditorFlags: 2147483647
++  m_IsActive: 1
++--- !u!114 &603373518
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 603373517}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
++  m_Name: 
++  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
++  m_UsePipelineSettings: 1
++  m_AdditionalLightsShadowResolutionTier: 2
++  m_CustomShadowLayers: 0
++  m_LightCookieSize: {x: 1, y: 1}
++  m_LightCookieOffset: {x: 0, y: 0}
++  m_SoftShadowQuality: 0
++  m_RenderingLayersMask:
++    serializedVersion: 0
++    m_Bits: 1
++  m_ShadowRenderingLayersMask:
++    serializedVersion: 0
++    m_Bits: 1
++  m_Version: 4
++  m_LightLayerMask: 1
++  m_ShadowLayerMask: 1
++  m_RenderingLayers: 1
++  m_ShadowRenderingLayers: 1
++--- !u!108 &603373519
++Light:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 603373517}
++  m_Enabled: 1
++  serializedVersion: 13
++  m_Type: 2
++  m_Color: {r: 0, g: 0.24736929, b: 1, a: 1}
++  m_Intensity: 200
++  m_Range: 80
++  m_SpotAngle: 30
++  m_InnerSpotAngle: 21.80208
++  m_CookieSize2D: {x: 0.5, y: 0.5}
++  m_Shadows:
++    m_Type: 0
++    m_Resolution: -1
++    m_CustomResolution: -1
++    m_Strength: 1
++    m_Bias: 0.05
++    m_NormalBias: 0.4
++    m_NearPlane: 0.2
++    m_CullingMatrixOverride:
++      e00: 1
++      e01: 0
++      e02: 0
++      e03: 0
++      e10: 0
++      e11: 1
++      e12: 0
++      e13: 0
++      e20: 0
++      e21: 0
++      e22: 1
++      e23: 0
++      e30: 0
++      e31: 0
++      e32: 0
++      e33: 1
++    m_UseCullingMatrixOverride: 0
++  m_Cookie: {fileID: 0}
++  m_DrawHalo: 0
++  m_Flare: {fileID: 0}
++  m_RenderMode: 0
++  m_CullingMask:
++    serializedVersion: 2
++    m_Bits: 4294967295
++  m_RenderingLayerMask: 1
++  m_Lightmapping: 1
++  m_LightShadowCasterMode: 0
++  m_AreaSize: {x: 1, y: 1}
++  m_BounceIntensity: 0
++  m_ColorTemperature: 6570
++  m_UseColorTemperature: 0
++  m_BoundingSphereOverride: {x: 0, y: 0, z: 0, w: 0}
++  m_UseBoundingSphereOverride: 0
++  m_UseViewFrustumForShadowCasterCull: 1
++  m_ForceVisible: 0
++  m_ShapeRadius: 0.025
++  m_ShadowAngle: 0
++  m_LightUnit: 1
++  m_LuxAtDistance: 1
++  m_EnableSpotReflector: 1
++--- !u!4 &603373520
++Transform:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 603373517}
++  serializedVersion: 2
++  m_LocalRotation: {x: 0.40821788, y: -0.23456968, z: 0.10938163, w: 0.8754261}
++  m_LocalPosition: {x: 1165, y: 4, z: 665}
++  m_LocalScale: {x: 1, y: 1, z: 1}
++  m_ConstrainProportionsScale: 0
++  m_Children: []
++  m_Father: {fileID: 0}
++  m_LocalEulerAnglesHint: {x: 50, y: -30, z: 0}
++--- !u!1660057539 &9223372036854775807
++SceneRoots:
++  m_ObjectHideFlags: 0
++  m_Roots:
++  - {fileID: 603373520}
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.unity.meta b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.unity.meta
+new file mode 100644
+index 0000000..6ee6db8
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.unity.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: 8382f8f3717bb2c40837a39bc5dff95c
++DefaultImporter:
++  externalObjects: {}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Cell_5_2.asset b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Cell_5_2.asset
+index 4b1c288..f4fb11f 100644
+--- a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Cell_5_2.asset
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Cell_5_2.asset
+@@ -34,6 +34,7 @@ MonoBehaviour:
+   _parent: {fileID: 11400000, guid: 8869a9ddf028f36448023ccb0edb991c, type: 2}
+   _children:
+   - {fileID: 11400000, guid: e7a7c1b77396b4c459234b8a6f8a7e59, type: 2}
++  - {fileID: 11400000, guid: 9019351cd64025141aa5e42f2f58e559, type: 2}
+   _volume:
+     m_Center: {x: 1375, y: 5.5, z: 625}
+     m_Extent: {x: 122.5, y: 5.5, z: 122.5}
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Cell_5_2.unity b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Cell_5_2.unity
+index 1d63f46..c2aaf68 100644
+--- a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Cell_5_2.unity
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Cell_5_2.unity
+@@ -93,8 +93,8 @@ LightmapSettings:
+     m_ExportTrainingData: 0
+     m_TrainingDataDestination: TrainingData
+     m_LightProbeSampleCountMultiplier: 4
+-  m_LightingDataAsset: {fileID: 20201, guid: 0000000000000000f000000000000000, type: 0}
+-  m_LightingSettings: {fileID: 0}
++  m_LightingDataAsset: {fileID: 112000012, guid: 0f7e7f4f5b3c44742a12ac17804d764e, type: 2}
++  m_LightingSettings: {fileID: 4890085278179872738, guid: f770f1b668c369745a58960828ef9a23, type: 2}
+ --- !u!196 &4
+ NavMeshSettings:
+   serializedVersion: 2
+@@ -135,7 +135,7 @@ GameObject:
+   m_TagString: Untagged
+   m_Icon: {fileID: 0}
+   m_NavMeshLayer: 0
+-  m_StaticEditorFlags: 0
++  m_StaticEditorFlags: 1
+   m_IsActive: 1
+ --- !u!4 &684550577
+ Transform:
+@@ -225,7 +225,7 @@ GameObject:
+   m_TagString: Untagged
+   m_Icon: {fileID: 0}
+   m_NavMeshLayer: 0
+-  m_StaticEditorFlags: 0
++  m_StaticEditorFlags: 1
+   m_IsActive: 1
+ --- !u!4 &754987353
+ Transform:
+@@ -316,7 +316,7 @@ GameObject:
+   m_TagString: Untagged
+   m_Icon: {fileID: 0}
+   m_NavMeshLayer: 0
+-  m_StaticEditorFlags: 0
++  m_StaticEditorFlags: 1
+   m_IsActive: 1
+ --- !u!4 &910595533
+ Transform:
+@@ -463,7 +463,7 @@ GameObject:
+   m_TagString: Untagged
+   m_Icon: {fileID: 0}
+   m_NavMeshLayer: 0
+-  m_StaticEditorFlags: 0
++  m_StaticEditorFlags: 1
+   m_IsActive: 1
+ --- !u!4 &1186708681
+ Transform:
+@@ -553,7 +553,7 @@ GameObject:
+   m_TagString: Untagged
+   m_Icon: {fileID: 0}
+   m_NavMeshLayer: 0
+-  m_StaticEditorFlags: 0
++  m_StaticEditorFlags: 1
+   m_IsActive: 1
+ --- !u!4 &1791273552
+ Transform:
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Environment_5_2/Spring_Environment_5_2.unity b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Environment_5_2/Spring_Environment_5_2.unity
+index 2de9aa9..d8404b2 100644
+--- a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Environment_5_2/Spring_Environment_5_2.unity
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Environment_5_2/Spring_Environment_5_2.unity
+@@ -93,8 +93,8 @@ LightmapSettings:
+     m_ExportTrainingData: 0
+     m_TrainingDataDestination: TrainingData
+     m_LightProbeSampleCountMultiplier: 4
+-  m_LightingDataAsset: {fileID: 20201, guid: 0000000000000000f000000000000000, type: 0}
+-  m_LightingSettings: {fileID: 0}
++  m_LightingDataAsset: {fileID: 112000010, guid: 0f7e7f4f5b3c44742a12ac17804d764e, type: 2}
++  m_LightingSettings: {fileID: 4890085278179872738, guid: f770f1b668c369745a58960828ef9a23, type: 2}
+ --- !u!196 &4
+ NavMeshSettings:
+   serializedVersion: 2
+@@ -135,7 +135,7 @@ GameObject:
+   m_TagString: Untagged
+   m_Icon: {fileID: 0}
+   m_NavMeshLayer: 0
+-  m_StaticEditorFlags: 0
++  m_StaticEditorFlags: 1
+   m_IsActive: 1
+ --- !u!4 &9860906
+ Transform:
+@@ -258,7 +258,7 @@ GameObject:
+   m_TagString: Untagged
+   m_Icon: {fileID: 0}
+   m_NavMeshLayer: 0
+-  m_StaticEditorFlags: 0
++  m_StaticEditorFlags: 1
+   m_IsActive: 1
+ --- !u!4 &1101975998
+ Transform:
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2.meta b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2.meta
+new file mode 100644
+index 0000000..698311a
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: bc20500eaacc7234e954b99d7a21dd4a
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.asset b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.asset
+new file mode 100644
+index 0000000..f9f734d
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.asset
+@@ -0,0 +1,32 @@
++%YAML 1.1
++%TAG !u! tag:unity3d.com,2011:
++--- !u!114 &11400000
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 0}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: a55e49cc16182ed438f81c6b1032b83c, type: 3}
++  m_Name: Spring_Lighting_5_2
++  m_EditorClassIdentifier: OneStarMaker.Runtime::OneStarMaker.Runtime.SceneSystem.SceneResource
++  _identity: Spring_Lighting_5_2
++  _sceneAssetDescription:
++    _loadType: 0
++    _payloads:
++    - Reference:
++        m_AssetGUID: ca8cec10777a4644ea2e0947a8d66682
++        m_SubObjectName: 
++        m_SubObjectType: 
++        m_SubObjectGUID: 
++        m_EditorAssetChanged: 0
++      Variant: 
++    SceneIdentity: 
++  _parent: {fileID: 11400000, guid: f1d76e26c5317cb43a883961c42f63e5, type: 2}
++  _children: []
++  _volume:
++    m_Center: {x: 0, y: 0, z: 0}
++    m_Extent: {x: 0, y: 0, z: 0}
++  _streamByDistance: 0
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.asset.meta b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.asset.meta
+new file mode 100644
+index 0000000..822576a
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.asset.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: 9019351cd64025141aa5e42f2f58e559
++NativeFormatImporter:
++  externalObjects: {}
++  mainObjectFileID: 11400000
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.unity b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.unity
+new file mode 100644
+index 0000000..7a78b83
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.unity
+@@ -0,0 +1,253 @@
++%YAML 1.1
++%TAG !u! tag:unity3d.com,2011:
++--- !u!29 &1
++OcclusionCullingSettings:
++  m_ObjectHideFlags: 0
++  serializedVersion: 2
++  m_OcclusionBakeSettings:
++    smallestOccluder: 5
++    smallestHole: 0.25
++    backfaceThreshold: 100
++  m_SceneGUID: 00000000000000000000000000000000
++  m_OcclusionCullingData: {fileID: 0}
++--- !u!104 &2
++RenderSettings:
++  m_ObjectHideFlags: 0
++  serializedVersion: 10
++  m_Fog: 0
++  m_FogColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
++  m_FogMode: 3
++  m_FogDensity: 0.01
++  m_LinearFogStart: 0
++  m_LinearFogEnd: 300
++  m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
++  m_AmbientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
++  m_AmbientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
++  m_AmbientIntensity: 1
++  m_AmbientMode: 0
++  m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
++  m_SkyboxMaterial: {fileID: 10304, guid: 0000000000000000f000000000000000, type: 0}
++  m_HaloStrength: 0.5
++  m_FlareStrength: 1
++  m_FlareFadeSpeed: 3
++  m_HaloTexture: {fileID: 0}
++  m_SpotCookie: {fileID: 10001, guid: 0000000000000000e000000000000000, type: 0}
++  m_DefaultReflectionMode: 0
++  m_DefaultReflectionResolution: 128
++  m_ReflectionBounces: 1
++  m_ReflectionIntensity: 1
++  m_CustomReflection: {fileID: 0}
++  m_Sun: {fileID: 0}
++  m_UseRadianceAmbientProbe: 0
++--- !u!157 &3
++LightmapSettings:
++  m_ObjectHideFlags: 0
++  serializedVersion: 13
++  m_BakeOnSceneLoad: 0
++  m_GISettings:
++    serializedVersion: 2
++    m_BounceScale: 1
++    m_IndirectOutputScale: 1
++    m_AlbedoBoost: 1
++    m_EnvironmentLightingMode: 0
++    m_EnableBakedLightmaps: 1
++    m_EnableRealtimeLightmaps: 0
++  m_LightmapEditorSettings:
++    serializedVersion: 12
++    m_Resolution: 2
++    m_BakeResolution: 40
++    m_AtlasSize: 1024
++    m_AO: 0
++    m_AOMaxDistance: 1
++    m_CompAOExponent: 1
++    m_CompAOExponentDirect: 0
++    m_ExtractAmbientOcclusion: 0
++    m_Padding: 2
++    m_LightmapParameters: {fileID: 0}
++    m_LightmapsBakeMode: 1
++    m_TextureCompression: 1
++    m_ReflectionCompression: 2
++    m_MixedBakeMode: 2
++    m_BakeBackend: 2
++    m_PVRSampling: 1
++    m_PVRDirectSampleCount: 32
++    m_PVRSampleCount: 512
++    m_PVRBounces: 2
++    m_PVREnvironmentSampleCount: 256
++    m_PVREnvironmentReferencePointCount: 2048
++    m_PVRFilteringMode: 1
++    m_PVRDenoiserTypeDirect: 2
++    m_PVRDenoiserTypeIndirect: 2
++    m_PVRDenoiserTypeAO: 2
++    m_PVRFilterTypeDirect: 0
++    m_PVRFilterTypeIndirect: 0
++    m_PVRFilterTypeAO: 0
++    m_PVREnvironmentMIS: 1
++    m_PVRCulling: 1
++    m_PVRFilteringGaussRadiusDirect: 1
++    m_PVRFilteringGaussRadiusIndirect: 1
++    m_PVRFilteringGaussRadiusAO: 1
++    m_PVRFilteringAtrousPositionSigmaDirect: 0.5
++    m_PVRFilteringAtrousPositionSigmaIndirect: 2
++    m_PVRFilteringAtrousPositionSigmaAO: 1
++    m_ExportTrainingData: 0
++    m_TrainingDataDestination: TrainingData
++    m_LightProbeSampleCountMultiplier: 4
++  m_LightingDataAsset: {fileID: 112000002, guid: 0f7e7f4f5b3c44742a12ac17804d764e, type: 2}
++  m_LightingSettings: {fileID: 4890085278179872738, guid: f770f1b668c369745a58960828ef9a23, type: 2}
++--- !u!196 &4
++NavMeshSettings:
++  serializedVersion: 2
++  m_ObjectHideFlags: 0
++  m_BuildSettings:
++    serializedVersion: 3
++    agentTypeID: 0
++    agentRadius: 0.5
++    agentHeight: 2
++    agentSlope: 45
++    agentClimb: 0.4
++    ledgeDropHeight: 0
++    maxJumpAcrossDistance: 0
++    minRegionArea: 2
++    manualCellSize: 0
++    cellSize: 0.16666667
++    manualTileSize: 0
++    tileSize: 256
++    buildHeightMesh: 0
++    maxJobWorkers: 0
++    preserveTilesOutsideBounds: 0
++    debug:
++      m_Flags: 0
++  m_NavMeshData: {fileID: 0}
++--- !u!1 &1863204948
++GameObject:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  serializedVersion: 6
++  m_Component:
++  - component: {fileID: 1863204951}
++  - component: {fileID: 1863204950}
++  - component: {fileID: 1863204949}
++  m_Layer: 0
++  m_Name: LocalFill
++  m_TagString: Untagged
++  m_Icon: {fileID: 0}
++  m_NavMeshLayer: 0
++  m_StaticEditorFlags: 2147483647
++  m_IsActive: 1
++--- !u!114 &1863204949
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 1863204948}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
++  m_Name: 
++  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
++  m_UsePipelineSettings: 1
++  m_AdditionalLightsShadowResolutionTier: 2
++  m_CustomShadowLayers: 0
++  m_LightCookieSize: {x: 1, y: 1}
++  m_LightCookieOffset: {x: 0, y: 0}
++  m_SoftShadowQuality: 0
++  m_RenderingLayersMask:
++    serializedVersion: 0
++    m_Bits: 1
++  m_ShadowRenderingLayersMask:
++    serializedVersion: 0
++    m_Bits: 1
++  m_Version: 4
++  m_LightLayerMask: 1
++  m_ShadowLayerMask: 1
++  m_RenderingLayers: 1
++  m_ShadowRenderingLayers: 1
++--- !u!108 &1863204950
++Light:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 1863204948}
++  m_Enabled: 1
++  serializedVersion: 13
++  m_Type: 2
++  m_Color: {r: 1, g: 0, b: 0, a: 1}
++  m_Intensity: 55
++  m_Range: 60
++  m_SpotAngle: 30
++  m_InnerSpotAngle: 21.80208
++  m_CookieSize2D: {x: 0.5, y: 0.5}
++  m_Shadows:
++    m_Type: 0
++    m_Resolution: -1
++    m_CustomResolution: -1
++    m_Strength: 1
++    m_Bias: 0.05
++    m_NormalBias: 0.4
++    m_NearPlane: 0.2
++    m_CullingMatrixOverride:
++      e00: 1
++      e01: 0
++      e02: 0
++      e03: 0
++      e10: 0
++      e11: 1
++      e12: 0
++      e13: 0
++      e20: 0
++      e21: 0
++      e22: 1
++      e23: 0
++      e30: 0
++      e31: 0
++      e32: 0
++      e33: 1
++    m_UseCullingMatrixOverride: 0
++  m_Cookie: {fileID: 0}
++  m_DrawHalo: 0
++  m_Flare: {fileID: 0}
++  m_RenderMode: 0
++  m_CullingMask:
++    serializedVersion: 2
++    m_Bits: 4294967295
++  m_RenderingLayerMask: 1
++  m_Lightmapping: 1
++  m_LightShadowCasterMode: 0
++  m_AreaSize: {x: 1, y: 1}
++  m_BounceIntensity: 0
++  m_ColorTemperature: 6570
++  m_UseColorTemperature: 0
++  m_BoundingSphereOverride: {x: 0, y: 0, z: 0, w: 0}
++  m_UseBoundingSphereOverride: 0
++  m_UseViewFrustumForShadowCasterCull: 1
++  m_ForceVisible: 0
++  m_ShapeRadius: 0.025
++  m_ShadowAngle: 0
++  m_LightUnit: 1
++  m_LuxAtDistance: 1
++  m_EnableSpotReflector: 1
++--- !u!4 &1863204951
++Transform:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 1863204948}
++  serializedVersion: 2
++  m_LocalRotation: {x: 0.36599812, y: 0.45315394, z: -0.2113091, w: 0.78488564}
++  m_LocalPosition: {x: 1415, y: 4, z: 665}
++  m_LocalScale: {x: 1, y: 1, z: 1}
++  m_ConstrainProportionsScale: 0
++  m_Children: []
++  m_Father: {fileID: 0}
++  m_LocalEulerAnglesHint: {x: 50, y: 60, z: 0}
++--- !u!1660057539 &9223372036854775807
++SceneRoots:
++  m_ObjectHideFlags: 0
++  m_Roots:
++  - {fileID: 1863204951}
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.unity.meta b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.unity.meta
+new file mode 100644
+index 0000000..ebed63f
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.unity.meta
+@@ -0,0 +1,7 @@
++fileFormatVersion: 2
++guid: ca8cec10777a4644ea2e0947a8d66682
++DefaultImporter:
++  externalObjects: {}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting.meta b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting.meta
+new file mode 100644
+index 0000000..e10b82f
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: 028349c332271c0439a09e0a391ac3c1
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting.unity b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting.unity
+index cedde25..d664b73 100644
+--- a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting.unity
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting.unity
+@@ -93,8 +93,8 @@ LightmapSettings:
+     m_ExportTrainingData: 0
+     m_TrainingDataDestination: TrainingData
+     m_LightProbeSampleCountMultiplier: 4
+-  m_LightingDataAsset: {fileID: 20201, guid: 0000000000000000f000000000000000, type: 0}
+-  m_LightingSettings: {fileID: 0}
++  m_LightingDataAsset: {fileID: 112000014, guid: 0f7e7f4f5b3c44742a12ac17804d764e, type: 2}
++  m_LightingSettings: {fileID: 4890085278179872738, guid: f770f1b668c369745a58960828ef9a23, type: 2}
+ --- !u!196 &4
+ NavMeshSettings:
+   serializedVersion: 2
+@@ -147,9 +147,155 @@ Transform:
+   m_LocalPosition: {x: 0, y: 0, z: 0}
+   m_LocalScale: {x: 1, y: 1, z: 1}
+   m_ConstrainProportionsScale: 0
+-  m_Children: []
++  m_Children:
++  - {fileID: 1890967574}
+   m_Father: {fileID: 0}
+   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
++--- !u!1 &1890967573
++GameObject:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  serializedVersion: 6
++  m_Component:
++  - component: {fileID: 1890967574}
++  - component: {fileID: 1890967576}
++  - component: {fileID: 1890967575}
++  - component: {fileID: 1890967577}
++  m_Layer: 0
++  m_Name: SeasonSun
++  m_TagString: Untagged
++  m_Icon: {fileID: 0}
++  m_NavMeshLayer: 0
++  m_StaticEditorFlags: 1
++  m_IsActive: 1
++--- !u!4 &1890967574
++Transform:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 1890967573}
++  serializedVersion: 2
++  m_LocalRotation: {x: 0.12607859, y: -0.2566048, z: 0.03378265, w: 0.9576622}
++  m_LocalPosition: {x: 0, y: 0, z: 0}
++  m_LocalScale: {x: 1, y: 1, z: 1}
++  m_ConstrainProportionsScale: 0
++  m_Children: []
++  m_Father: {fileID: 636735215}
++  m_LocalEulerAnglesHint: {x: 15, y: -30, z: 0}
++--- !u!114 &1890967575
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 1890967573}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
++  m_Name: 
++  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
++  m_UsePipelineSettings: 1
++  m_AdditionalLightsShadowResolutionTier: 2
++  m_CustomShadowLayers: 0
++  m_LightCookieSize: {x: 1, y: 1}
++  m_LightCookieOffset: {x: 0, y: 0}
++  m_SoftShadowQuality: 0
++  m_RenderingLayersMask:
++    serializedVersion: 0
++    m_Bits: 1
++  m_ShadowRenderingLayersMask:
++    serializedVersion: 0
++    m_Bits: 1
++  m_Version: 4
++  m_LightLayerMask: 1
++  m_ShadowLayerMask: 1
++  m_RenderingLayers: 1
++  m_ShadowRenderingLayers: 1
++--- !u!108 &1890967576
++Light:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 1890967573}
++  m_Enabled: 1
++  serializedVersion: 13
++  m_Type: 1
++  m_Color: {r: 1, g: 0.85, b: 0.7, a: 1}
++  m_Intensity: 0.8
++  m_Range: 10
++  m_SpotAngle: 30
++  m_InnerSpotAngle: 21.80208
++  m_CookieSize2D: {x: 0.5, y: 0.5}
++  m_Shadows:
++    m_Type: 0
++    m_Resolution: -1
++    m_CustomResolution: -1
++    m_Strength: 1
++    m_Bias: 0.05
++    m_NormalBias: 0.4
++    m_NearPlane: 0.2
++    m_CullingMatrixOverride:
++      e00: 1
++      e01: 0
++      e02: 0
++      e03: 0
++      e10: 0
++      e11: 1
++      e12: 0
++      e13: 0
++      e20: 0
++      e21: 0
++      e22: 1
++      e23: 0
++      e30: 0
++      e31: 0
++      e32: 0
++      e33: 1
++    m_UseCullingMatrixOverride: 0
++  m_Cookie: {fileID: 0}
++  m_DrawHalo: 0
++  m_Flare: {fileID: 0}
++  m_RenderMode: 0
++  m_CullingMask:
++    serializedVersion: 2
++    m_Bits: 4294967295
++  m_RenderingLayerMask: 1
++  m_Lightmapping: 1
++  m_LightShadowCasterMode: 0
++  m_AreaSize: {x: 1, y: 1}
++  m_BounceIntensity: 1
++  m_ColorTemperature: 6570
++  m_UseColorTemperature: 0
++  m_BoundingSphereOverride: {x: 0, y: 0, z: 0, w: 0}
++  m_UseBoundingSphereOverride: 0
++  m_UseViewFrustumForShadowCasterCull: 1
++  m_ForceVisible: 0
++  m_ShapeRadius: 0.025
++  m_ShadowAngle: 0
++  m_LightUnit: 1
++  m_LuxAtDistance: 1
++  m_EnableSpotReflector: 1
++--- !u!114 &1890967577
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 1890967573}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: 172515602e62fb746b5d573b38a5fe58, type: 3}
++  m_Name: 
++  m_EditorClassIdentifier: Unity.RenderPipelines.Core.Runtime::UnityEngine.Rendering.Volume
++  m_IsGlobal: 1
++  priority: 0
++  blendDistance: 0
++  weight: 1
++  sharedProfile: {fileID: 0}
+ --- !u!1660057539 &9223372036854775807
+ SceneRoots:
+   m_ObjectHideFlags: 0
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/LightingData.asset b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/LightingData.asset
+new file mode 100644
+index 0000000000000000000000000000000000000000..1203fa0a795f46f0b6b29dce9bc8b40385538a14
+GIT binary patch
+literal 24753
+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
+
+literal 0
+HcmV?d00001
+
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/LightingData.asset.meta b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/LightingData.asset.meta
+new file mode 100644
+index 0000000..3e3c77a
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/LightingData.asset.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: 0f7e7f4f5b3c44742a12ac17804d764e
++NativeFormatImporter:
++  externalObjects: {}
++  mainObjectFileID: 6475696996188705980
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_dir.png b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_dir.png
+new file mode 100644
+index 0000000..62c6d0a
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_dir.png
+@@ -0,0 +1,3 @@
++version https://git-lfs.github.com/spec/v1
++oid sha256:8e92c531ab88eb759f62f1d1521f9b52a1aad6a0236f1939542214aa0323fa3a
++size 22263
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_dir.png.meta b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_dir.png.meta
+new file mode 100644
+index 0000000..abc1d1b
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_dir.png.meta
+@@ -0,0 +1,119 @@
++fileFormatVersion: 2
++guid: 93b729f5a55ccd941a686c2aa8826fa2
++TextureImporter:
++  internalIDToNameTable: []
++  externalObjects: {}
++  serializedVersion: 13
++  mipmaps:
++    mipMapMode: 0
++    enableMipMap: 1
++    sRGBTexture: 0
++    linearTexture: 0
++    fadeOut: 0
++    borderMipMap: 0
++    mipMapsPreserveCoverage: 0
++    alphaTestReferenceValue: 0.5
++    mipMapFadeDistanceStart: 1
++    mipMapFadeDistanceEnd: 3
++  bumpmap:
++    convertToNormalMap: 0
++    externalNormalMap: 0
++    heightScale: 0.25
++    normalMapFilter: 0
++    flipGreenChannel: 0
++  isReadable: 0
++  streamingMipmaps: 1
++  streamingMipmapsPriority: 0
++  vTOnly: 0
++  ignoreMipmapLimit: 0
++  grayScaleToAlpha: 0
++  generateCubemap: 6
++  cubemapConvolution: 0
++  seamlessCubemap: 0
++  textureFormat: 1
++  maxTextureSize: 2048
++  textureSettings:
++    serializedVersion: 2
++    filterMode: 1
++    aniso: 3
++    mipBias: 0
++    wrapU: 1
++    wrapV: 1
++    wrapW: 1
++  nPOTScale: 1
++  lightmap: 0
++  compressionQuality: 50
++  spriteMode: 0
++  spriteExtrude: 1
++  spriteMeshType: 1
++  alignment: 0
++  spritePivot: {x: 0.5, y: 0.5}
++  spritePixelsToUnits: 100
++  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
++  spriteGenerateFallbackPhysicsShape: 1
++  alphaUsage: 1
++  alphaIsTransparency: 0
++  spriteTessellationMethod: 0
++  spriteTessellationDetail: -1
++  spriteGeometrySubdivision: -1
++  textureType: 12
++  textureShape: 1
++  singleChannelComponent: 0
++  flipbookRows: 1
++  flipbookColumns: 1
++  maxTextureSizeSet: 0
++  compressionQualitySet: 0
++  textureFormatSet: 0
++  ignorePngGamma: 0
++  applyGammaDecoding: 0
++  swizzle: 50462976
++  cookieLightType: 0
++  platformSettings:
++  - serializedVersion: 4
++    buildTarget: DefaultTexturePlatform
++    maxTextureSize: 2048
++    resizeAlgorithm: 0
++    textureFormat: -1
++    textureCompression: 2
++    compressionQuality: 50
++    crunchedCompression: 0
++    allowsAlphaSplitting: 0
++    overridden: 0
++    ignorePlatformSupport: 0
++    androidETC2FallbackOverride: 0
++    forceMaximumCompressionQuality_BC6H_BC7: 0
++  - serializedVersion: 4
++    buildTarget: Standalone
++    maxTextureSize: 2048
++    resizeAlgorithm: 0
++    textureFormat: -1
++    textureCompression: 1
++    compressionQuality: 50
++    crunchedCompression: 0
++    allowsAlphaSplitting: 0
++    overridden: 0
++    ignorePlatformSupport: 0
++    androidETC2FallbackOverride: 0
++    forceMaximumCompressionQuality_BC6H_BC7: 0
++  spriteSheet:
++    serializedVersion: 2
++    sprites: []
++    outline: []
++    customData: 
++    physicsShape: []
++    bones: []
++    spriteID: 
++    internalID: 0
++    vertices: []
++    indices: 
++    edges: []
++    weights: []
++    secondaryTextures: []
++    spriteCustomMetadata:
++      entries: []
++    nameFileIdTable: {}
++  mipmapLimitGroupName: 
++  pSDRemoveMatte: 0
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_light.exr b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_light.exr
+new file mode 100644
+index 0000000..2ed8ac5
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_light.exr
+@@ -0,0 +1,3 @@
++version https://git-lfs.github.com/spec/v1
++oid sha256:7a07a54e14997834efe96558d13fb43f3b931d3955b802dae067d1225f5fd123
++size 466247
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_light.exr.meta b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_light.exr.meta
+new file mode 100644
+index 0000000..9f54d28
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_light.exr.meta
+@@ -0,0 +1,119 @@
++fileFormatVersion: 2
++guid: 8a4a61f4c445f9b4a9e570f48f82fedb
++TextureImporter:
++  internalIDToNameTable: []
++  externalObjects: {}
++  serializedVersion: 13
++  mipmaps:
++    mipMapMode: 0
++    enableMipMap: 1
++    sRGBTexture: 1
++    linearTexture: 0
++    fadeOut: 0
++    borderMipMap: 0
++    mipMapsPreserveCoverage: 0
++    alphaTestReferenceValue: 0.5
++    mipMapFadeDistanceStart: 1
++    mipMapFadeDistanceEnd: 3
++  bumpmap:
++    convertToNormalMap: 0
++    externalNormalMap: 0
++    heightScale: 0.25
++    normalMapFilter: 0
++    flipGreenChannel: 0
++  isReadable: 0
++  streamingMipmaps: 1
++  streamingMipmapsPriority: 0
++  vTOnly: 0
++  ignoreMipmapLimit: 0
++  grayScaleToAlpha: 0
++  generateCubemap: 6
++  cubemapConvolution: 0
++  seamlessCubemap: 0
++  textureFormat: 1
++  maxTextureSize: 2048
++  textureSettings:
++    serializedVersion: 2
++    filterMode: 1
++    aniso: 3
++    mipBias: 0
++    wrapU: 1
++    wrapV: 1
++    wrapW: 1
++  nPOTScale: 1
++  lightmap: 0
++  compressionQuality: 50
++  spriteMode: 0
++  spriteExtrude: 1
++  spriteMeshType: 1
++  alignment: 0
++  spritePivot: {x: 0.5, y: 0.5}
++  spritePixelsToUnits: 100
++  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
++  spriteGenerateFallbackPhysicsShape: 1
++  alphaUsage: 0
++  alphaIsTransparency: 0
++  spriteTessellationMethod: 0
++  spriteTessellationDetail: -1
++  spriteGeometrySubdivision: -1
++  textureType: 6
++  textureShape: 1
++  singleChannelComponent: 0
++  flipbookRows: 1
++  flipbookColumns: 1
++  maxTextureSizeSet: 0
++  compressionQualitySet: 0
++  textureFormatSet: 0
++  ignorePngGamma: 0
++  applyGammaDecoding: 0
++  swizzle: 50462976
++  cookieLightType: 0
++  platformSettings:
++  - serializedVersion: 4
++    buildTarget: DefaultTexturePlatform
++    maxTextureSize: 2048
++    resizeAlgorithm: 0
++    textureFormat: -1
++    textureCompression: 2
++    compressionQuality: 50
++    crunchedCompression: 0
++    allowsAlphaSplitting: 0
++    overridden: 0
++    ignorePlatformSupport: 0
++    androidETC2FallbackOverride: 0
++    forceMaximumCompressionQuality_BC6H_BC7: 0
++  - serializedVersion: 4
++    buildTarget: Standalone
++    maxTextureSize: 2048
++    resizeAlgorithm: 0
++    textureFormat: -1
++    textureCompression: 1
++    compressionQuality: 50
++    crunchedCompression: 0
++    allowsAlphaSplitting: 0
++    overridden: 0
++    ignorePlatformSupport: 0
++    androidETC2FallbackOverride: 0
++    forceMaximumCompressionQuality_BC6H_BC7: 0
++  spriteSheet:
++    serializedVersion: 2
++    sprites: []
++    outline: []
++    customData: 
++    physicsShape: []
++    bones: []
++    spriteID: 
++    internalID: 0
++    vertices: []
++    indices: 
++    edges: []
++    weights: []
++    secondaryTextures: []
++    spriteCustomMetadata:
++      entries: []
++    nameFileIdTable: {}
++  mipmapLimitGroupName: 
++  pSDRemoveMatte: 0
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_dir.png b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_dir.png
+new file mode 100644
+index 0000000..94b49f2
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_dir.png
+@@ -0,0 +1,3 @@
++version https://git-lfs.github.com/spec/v1
++oid sha256:b83428d9f6dc3a2661a32633eb590aa5308b2c4dcf2c621848e3a6323cef36dc
++size 1203
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_dir.png.meta b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_dir.png.meta
+new file mode 100644
+index 0000000..0a76314
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_dir.png.meta
+@@ -0,0 +1,119 @@
++fileFormatVersion: 2
++guid: 6b11997ebed8eb84aab70b0941729a6a
++TextureImporter:
++  internalIDToNameTable: []
++  externalObjects: {}
++  serializedVersion: 13
++  mipmaps:
++    mipMapMode: 0
++    enableMipMap: 1
++    sRGBTexture: 0
++    linearTexture: 0
++    fadeOut: 0
++    borderMipMap: 0
++    mipMapsPreserveCoverage: 0
++    alphaTestReferenceValue: 0.5
++    mipMapFadeDistanceStart: 1
++    mipMapFadeDistanceEnd: 3
++  bumpmap:
++    convertToNormalMap: 0
++    externalNormalMap: 0
++    heightScale: 0.25
++    normalMapFilter: 0
++    flipGreenChannel: 0
++  isReadable: 0
++  streamingMipmaps: 1
++  streamingMipmapsPriority: 0
++  vTOnly: 0
++  ignoreMipmapLimit: 0
++  grayScaleToAlpha: 0
++  generateCubemap: 6
++  cubemapConvolution: 0
++  seamlessCubemap: 0
++  textureFormat: 1
++  maxTextureSize: 2048
++  textureSettings:
++    serializedVersion: 2
++    filterMode: 1
++    aniso: 3
++    mipBias: 0
++    wrapU: 1
++    wrapV: 1
++    wrapW: 1
++  nPOTScale: 1
++  lightmap: 0
++  compressionQuality: 50
++  spriteMode: 0
++  spriteExtrude: 1
++  spriteMeshType: 1
++  alignment: 0
++  spritePivot: {x: 0.5, y: 0.5}
++  spritePixelsToUnits: 100
++  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
++  spriteGenerateFallbackPhysicsShape: 1
++  alphaUsage: 1
++  alphaIsTransparency: 0
++  spriteTessellationMethod: 0
++  spriteTessellationDetail: -1
++  spriteGeometrySubdivision: -1
++  textureType: 12
++  textureShape: 1
++  singleChannelComponent: 0
++  flipbookRows: 1
++  flipbookColumns: 1
++  maxTextureSizeSet: 0
++  compressionQualitySet: 0
++  textureFormatSet: 0
++  ignorePngGamma: 0
++  applyGammaDecoding: 0
++  swizzle: 50462976
++  cookieLightType: 0
++  platformSettings:
++  - serializedVersion: 4
++    buildTarget: DefaultTexturePlatform
++    maxTextureSize: 2048
++    resizeAlgorithm: 0
++    textureFormat: -1
++    textureCompression: 2
++    compressionQuality: 50
++    crunchedCompression: 0
++    allowsAlphaSplitting: 0
++    overridden: 0
++    ignorePlatformSupport: 0
++    androidETC2FallbackOverride: 0
++    forceMaximumCompressionQuality_BC6H_BC7: 0
++  - serializedVersion: 4
++    buildTarget: Standalone
++    maxTextureSize: 2048
++    resizeAlgorithm: 0
++    textureFormat: -1
++    textureCompression: 1
++    compressionQuality: 50
++    crunchedCompression: 0
++    allowsAlphaSplitting: 0
++    overridden: 0
++    ignorePlatformSupport: 0
++    androidETC2FallbackOverride: 0
++    forceMaximumCompressionQuality_BC6H_BC7: 0
++  spriteSheet:
++    serializedVersion: 2
++    sprites: []
++    outline: []
++    customData: 
++    physicsShape: []
++    bones: []
++    spriteID: 
++    internalID: 0
++    vertices: []
++    indices: 
++    edges: []
++    weights: []
++    secondaryTextures: []
++    spriteCustomMetadata:
++      entries: []
++    nameFileIdTable: {}
++  mipmapLimitGroupName: 
++  pSDRemoveMatte: 0
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_light.exr b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_light.exr
+new file mode 100644
+index 0000000..d66ab4a
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_light.exr
+@@ -0,0 +1,3 @@
++version https://git-lfs.github.com/spec/v1
++oid sha256:f5ea6e4b1d946649c3126d22f9c4fd1a2a94c8ce0757811e190e6e663474a074
++size 7624
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_light.exr.meta b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_light.exr.meta
+new file mode 100644
+index 0000000..0de4c87
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_light.exr.meta
+@@ -0,0 +1,119 @@
++fileFormatVersion: 2
++guid: 4ae270d7e5d529643977b014d66fcf09
++TextureImporter:
++  internalIDToNameTable: []
++  externalObjects: {}
++  serializedVersion: 13
++  mipmaps:
++    mipMapMode: 0
++    enableMipMap: 1
++    sRGBTexture: 1
++    linearTexture: 0
++    fadeOut: 0
++    borderMipMap: 0
++    mipMapsPreserveCoverage: 0
++    alphaTestReferenceValue: 0.5
++    mipMapFadeDistanceStart: 1
++    mipMapFadeDistanceEnd: 3
++  bumpmap:
++    convertToNormalMap: 0
++    externalNormalMap: 0
++    heightScale: 0.25
++    normalMapFilter: 0
++    flipGreenChannel: 0
++  isReadable: 0
++  streamingMipmaps: 1
++  streamingMipmapsPriority: 0
++  vTOnly: 0
++  ignoreMipmapLimit: 0
++  grayScaleToAlpha: 0
++  generateCubemap: 6
++  cubemapConvolution: 0
++  seamlessCubemap: 0
++  textureFormat: 1
++  maxTextureSize: 2048
++  textureSettings:
++    serializedVersion: 2
++    filterMode: 1
++    aniso: 3
++    mipBias: 0
++    wrapU: 1
++    wrapV: 1
++    wrapW: 1
++  nPOTScale: 1
++  lightmap: 0
++  compressionQuality: 50
++  spriteMode: 0
++  spriteExtrude: 1
++  spriteMeshType: 1
++  alignment: 0
++  spritePivot: {x: 0.5, y: 0.5}
++  spritePixelsToUnits: 100
++  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
++  spriteGenerateFallbackPhysicsShape: 1
++  alphaUsage: 0
++  alphaIsTransparency: 0
++  spriteTessellationMethod: 0
++  spriteTessellationDetail: -1
++  spriteGeometrySubdivision: -1
++  textureType: 6
++  textureShape: 1
++  singleChannelComponent: 0
++  flipbookRows: 1
++  flipbookColumns: 1
++  maxTextureSizeSet: 0
++  compressionQualitySet: 0
++  textureFormatSet: 0
++  ignorePngGamma: 0
++  applyGammaDecoding: 0
++  swizzle: 50462976
++  cookieLightType: 0
++  platformSettings:
++  - serializedVersion: 4
++    buildTarget: DefaultTexturePlatform
++    maxTextureSize: 2048
++    resizeAlgorithm: 0
++    textureFormat: -1
++    textureCompression: 2
++    compressionQuality: 50
++    crunchedCompression: 0
++    allowsAlphaSplitting: 0
++    overridden: 0
++    ignorePlatformSupport: 0
++    androidETC2FallbackOverride: 0
++    forceMaximumCompressionQuality_BC6H_BC7: 0
++  - serializedVersion: 4
++    buildTarget: Standalone
++    maxTextureSize: 2048
++    resizeAlgorithm: 0
++    textureFormat: -1
++    textureCompression: 1
++    compressionQuality: 50
++    crunchedCompression: 0
++    allowsAlphaSplitting: 0
++    overridden: 0
++    ignorePlatformSupport: 0
++    androidETC2FallbackOverride: 0
++    forceMaximumCompressionQuality_BC6H_BC7: 0
++  spriteSheet:
++    serializedVersion: 2
++    sprites: []
++    outline: []
++    customData: 
++    physicsShape: []
++    bones: []
++    spriteID: 
++    internalID: 0
++    vertices: []
++    indices: 
++    edges: []
++    weights: []
++    secondaryTextures: []
++    spriteCustomMetadata:
++      entries: []
++    nameFileIdTable: {}
++  mipmapLimitGroupName: 
++  pSDRemoveMatte: 0
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_dir.png b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_dir.png
+new file mode 100644
+index 0000000..ec3d381
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_dir.png
+@@ -0,0 +1,3 @@
++version https://git-lfs.github.com/spec/v1
++oid sha256:ebfcb968b7de19d9258e8ee158ce64340c46bffd28d7741bf0fe304f9dd27bfb
++size 806
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_dir.png.meta b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_dir.png.meta
+new file mode 100644
+index 0000000..679a386
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_dir.png.meta
+@@ -0,0 +1,119 @@
++fileFormatVersion: 2
++guid: 4a41b299b9bc3004fa476eee2380891b
++TextureImporter:
++  internalIDToNameTable: []
++  externalObjects: {}
++  serializedVersion: 13
++  mipmaps:
++    mipMapMode: 0
++    enableMipMap: 1
++    sRGBTexture: 0
++    linearTexture: 0
++    fadeOut: 0
++    borderMipMap: 0
++    mipMapsPreserveCoverage: 0
++    alphaTestReferenceValue: 0.5
++    mipMapFadeDistanceStart: 1
++    mipMapFadeDistanceEnd: 3
++  bumpmap:
++    convertToNormalMap: 0
++    externalNormalMap: 0
++    heightScale: 0.25
++    normalMapFilter: 0
++    flipGreenChannel: 0
++  isReadable: 0
++  streamingMipmaps: 1
++  streamingMipmapsPriority: 0
++  vTOnly: 0
++  ignoreMipmapLimit: 0
++  grayScaleToAlpha: 0
++  generateCubemap: 6
++  cubemapConvolution: 0
++  seamlessCubemap: 0
++  textureFormat: 1
++  maxTextureSize: 2048
++  textureSettings:
++    serializedVersion: 2
++    filterMode: 1
++    aniso: 3
++    mipBias: 0
++    wrapU: 1
++    wrapV: 1
++    wrapW: 1
++  nPOTScale: 1
++  lightmap: 0
++  compressionQuality: 50
++  spriteMode: 0
++  spriteExtrude: 1
++  spriteMeshType: 1
++  alignment: 0
++  spritePivot: {x: 0.5, y: 0.5}
++  spritePixelsToUnits: 100
++  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
++  spriteGenerateFallbackPhysicsShape: 1
++  alphaUsage: 1
++  alphaIsTransparency: 0
++  spriteTessellationMethod: 0
++  spriteTessellationDetail: -1
++  spriteGeometrySubdivision: -1
++  textureType: 12
++  textureShape: 1
++  singleChannelComponent: 0
++  flipbookRows: 1
++  flipbookColumns: 1
++  maxTextureSizeSet: 0
++  compressionQualitySet: 0
++  textureFormatSet: 0
++  ignorePngGamma: 0
++  applyGammaDecoding: 0
++  swizzle: 50462976
++  cookieLightType: 0
++  platformSettings:
++  - serializedVersion: 4
++    buildTarget: DefaultTexturePlatform
++    maxTextureSize: 2048
++    resizeAlgorithm: 0
++    textureFormat: -1
++    textureCompression: 2
++    compressionQuality: 50
++    crunchedCompression: 0
++    allowsAlphaSplitting: 0
++    overridden: 0
++    ignorePlatformSupport: 0
++    androidETC2FallbackOverride: 0
++    forceMaximumCompressionQuality_BC6H_BC7: 0
++  - serializedVersion: 4
++    buildTarget: Standalone
++    maxTextureSize: 2048
++    resizeAlgorithm: 0
++    textureFormat: -1
++    textureCompression: 1
++    compressionQuality: 50
++    crunchedCompression: 0
++    allowsAlphaSplitting: 0
++    overridden: 0
++    ignorePlatformSupport: 0
++    androidETC2FallbackOverride: 0
++    forceMaximumCompressionQuality_BC6H_BC7: 0
++  spriteSheet:
++    serializedVersion: 2
++    sprites: []
++    outline: []
++    customData: 
++    physicsShape: []
++    bones: []
++    spriteID: 
++    internalID: 0
++    vertices: []
++    indices: 
++    edges: []
++    weights: []
++    secondaryTextures: []
++    spriteCustomMetadata:
++      entries: []
++    nameFileIdTable: {}
++  mipmapLimitGroupName: 
++  pSDRemoveMatte: 0
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_light.exr b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_light.exr
+new file mode 100644
+index 0000000..61191d6
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_light.exr
+@@ -0,0 +1,3 @@
++version https://git-lfs.github.com/spec/v1
++oid sha256:68127e434e10f9b60dce30f3eab499d687c80edd1daaa49f6ce2e4f339677e4a
++size 4974
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_light.exr.meta b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_light.exr.meta
+new file mode 100644
+index 0000000..7d7a05c
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_light.exr.meta
+@@ -0,0 +1,119 @@
++fileFormatVersion: 2
++guid: b9202f7dce29add41b216b3afc2c2fb5
++TextureImporter:
++  internalIDToNameTable: []
++  externalObjects: {}
++  serializedVersion: 13
++  mipmaps:
++    mipMapMode: 0
++    enableMipMap: 1
++    sRGBTexture: 1
++    linearTexture: 0
++    fadeOut: 0
++    borderMipMap: 0
++    mipMapsPreserveCoverage: 0
++    alphaTestReferenceValue: 0.5
++    mipMapFadeDistanceStart: 1
++    mipMapFadeDistanceEnd: 3
++  bumpmap:
++    convertToNormalMap: 0
++    externalNormalMap: 0
++    heightScale: 0.25
++    normalMapFilter: 0
++    flipGreenChannel: 0
++  isReadable: 0
++  streamingMipmaps: 1
++  streamingMipmapsPriority: 0
++  vTOnly: 0
++  ignoreMipmapLimit: 0
++  grayScaleToAlpha: 0
++  generateCubemap: 6
++  cubemapConvolution: 0
++  seamlessCubemap: 0
++  textureFormat: 1
++  maxTextureSize: 2048
++  textureSettings:
++    serializedVersion: 2
++    filterMode: 1
++    aniso: 3
++    mipBias: 0
++    wrapU: 1
++    wrapV: 1
++    wrapW: 1
++  nPOTScale: 1
++  lightmap: 0
++  compressionQuality: 50
++  spriteMode: 0
++  spriteExtrude: 1
++  spriteMeshType: 1
++  alignment: 0
++  spritePivot: {x: 0.5, y: 0.5}
++  spritePixelsToUnits: 100
++  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
++  spriteGenerateFallbackPhysicsShape: 1
++  alphaUsage: 0
++  alphaIsTransparency: 0
++  spriteTessellationMethod: 0
++  spriteTessellationDetail: -1
++  spriteGeometrySubdivision: -1
++  textureType: 6
++  textureShape: 1
++  singleChannelComponent: 0
++  flipbookRows: 1
++  flipbookColumns: 1
++  maxTextureSizeSet: 0
++  compressionQualitySet: 0
++  textureFormatSet: 0
++  ignorePngGamma: 0
++  applyGammaDecoding: 0
++  swizzle: 50462976
++  cookieLightType: 0
++  platformSettings:
++  - serializedVersion: 4
++    buildTarget: DefaultTexturePlatform
++    maxTextureSize: 2048
++    resizeAlgorithm: 0
++    textureFormat: -1
++    textureCompression: 2
++    compressionQuality: 50
++    crunchedCompression: 0
++    allowsAlphaSplitting: 0
++    overridden: 0
++    ignorePlatformSupport: 0
++    androidETC2FallbackOverride: 0
++    forceMaximumCompressionQuality_BC6H_BC7: 0
++  - serializedVersion: 4
++    buildTarget: Standalone
++    maxTextureSize: 2048
++    resizeAlgorithm: 0
++    textureFormat: -1
++    textureCompression: 1
++    compressionQuality: 50
++    crunchedCompression: 0
++    allowsAlphaSplitting: 0
++    overridden: 0
++    ignorePlatformSupport: 0
++    androidETC2FallbackOverride: 0
++    forceMaximumCompressionQuality_BC6H_BC7: 0
++  spriteSheet:
++    serializedVersion: 2
++    sprites: []
++    outline: []
++    customData: 
++    physicsShape: []
++    bones: []
++    spriteID: 
++    internalID: 0
++    vertices: []
++    indices: 
++    edges: []
++    weights: []
++    secondaryTextures: []
++    spriteCustomMetadata:
++      entries: []
++    nameFileIdTable: {}
++  mipmapLimitGroupName: 
++  pSDRemoveMatte: 0
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_dir.png b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_dir.png
+new file mode 100644
+index 0000000..8c9d5bf
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_dir.png
+@@ -0,0 +1,3 @@
++version https://git-lfs.github.com/spec/v1
++oid sha256:f9da1b49449090d55dddd9d59f57964fab062a794929aec53b6b62408b25b276
++size 19678
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_dir.png.meta b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_dir.png.meta
+new file mode 100644
+index 0000000..5ecc46c
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_dir.png.meta
+@@ -0,0 +1,119 @@
++fileFormatVersion: 2
++guid: 3b9ad5ac02235d947adcf20a2c171440
++TextureImporter:
++  internalIDToNameTable: []
++  externalObjects: {}
++  serializedVersion: 13
++  mipmaps:
++    mipMapMode: 0
++    enableMipMap: 1
++    sRGBTexture: 0
++    linearTexture: 0
++    fadeOut: 0
++    borderMipMap: 0
++    mipMapsPreserveCoverage: 0
++    alphaTestReferenceValue: 0.5
++    mipMapFadeDistanceStart: 1
++    mipMapFadeDistanceEnd: 3
++  bumpmap:
++    convertToNormalMap: 0
++    externalNormalMap: 0
++    heightScale: 0.25
++    normalMapFilter: 0
++    flipGreenChannel: 0
++  isReadable: 0
++  streamingMipmaps: 1
++  streamingMipmapsPriority: 0
++  vTOnly: 0
++  ignoreMipmapLimit: 0
++  grayScaleToAlpha: 0
++  generateCubemap: 6
++  cubemapConvolution: 0
++  seamlessCubemap: 0
++  textureFormat: 1
++  maxTextureSize: 2048
++  textureSettings:
++    serializedVersion: 2
++    filterMode: 1
++    aniso: 3
++    mipBias: 0
++    wrapU: 1
++    wrapV: 1
++    wrapW: 1
++  nPOTScale: 1
++  lightmap: 0
++  compressionQuality: 50
++  spriteMode: 0
++  spriteExtrude: 1
++  spriteMeshType: 1
++  alignment: 0
++  spritePivot: {x: 0.5, y: 0.5}
++  spritePixelsToUnits: 100
++  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
++  spriteGenerateFallbackPhysicsShape: 1
++  alphaUsage: 1
++  alphaIsTransparency: 0
++  spriteTessellationMethod: 0
++  spriteTessellationDetail: -1
++  spriteGeometrySubdivision: -1
++  textureType: 12
++  textureShape: 1
++  singleChannelComponent: 0
++  flipbookRows: 1
++  flipbookColumns: 1
++  maxTextureSizeSet: 0
++  compressionQualitySet: 0
++  textureFormatSet: 0
++  ignorePngGamma: 0
++  applyGammaDecoding: 0
++  swizzle: 50462976
++  cookieLightType: 0
++  platformSettings:
++  - serializedVersion: 4
++    buildTarget: DefaultTexturePlatform
++    maxTextureSize: 2048
++    resizeAlgorithm: 0
++    textureFormat: -1
++    textureCompression: 2
++    compressionQuality: 50
++    crunchedCompression: 0
++    allowsAlphaSplitting: 0
++    overridden: 0
++    ignorePlatformSupport: 0
++    androidETC2FallbackOverride: 0
++    forceMaximumCompressionQuality_BC6H_BC7: 0
++  - serializedVersion: 4
++    buildTarget: Standalone
++    maxTextureSize: 2048
++    resizeAlgorithm: 0
++    textureFormat: -1
++    textureCompression: 1
++    compressionQuality: 50
++    crunchedCompression: 0
++    allowsAlphaSplitting: 0
++    overridden: 0
++    ignorePlatformSupport: 0
++    androidETC2FallbackOverride: 0
++    forceMaximumCompressionQuality_BC6H_BC7: 0
++  spriteSheet:
++    serializedVersion: 2
++    sprites: []
++    outline: []
++    customData: 
++    physicsShape: []
++    bones: []
++    spriteID: 
++    internalID: 0
++    vertices: []
++    indices: 
++    edges: []
++    weights: []
++    secondaryTextures: []
++    spriteCustomMetadata:
++      entries: []
++    nameFileIdTable: {}
++  mipmapLimitGroupName: 
++  pSDRemoveMatte: 0
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_light.exr b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_light.exr
+new file mode 100644
+index 0000000..f8b72fd
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_light.exr
+@@ -0,0 +1,3 @@
++version https://git-lfs.github.com/spec/v1
++oid sha256:ede00fe864b64bbd64d182649f5c69a6e3eae79a9fe5e3c9c5c298b014efd801
++size 439800
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_light.exr.meta b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_light.exr.meta
+new file mode 100644
+index 0000000..0f93163
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_light.exr.meta
+@@ -0,0 +1,119 @@
++fileFormatVersion: 2
++guid: 24fddc8db931b3048b9ba84c6f609be4
++TextureImporter:
++  internalIDToNameTable: []
++  externalObjects: {}
++  serializedVersion: 13
++  mipmaps:
++    mipMapMode: 0
++    enableMipMap: 1
++    sRGBTexture: 1
++    linearTexture: 0
++    fadeOut: 0
++    borderMipMap: 0
++    mipMapsPreserveCoverage: 0
++    alphaTestReferenceValue: 0.5
++    mipMapFadeDistanceStart: 1
++    mipMapFadeDistanceEnd: 3
++  bumpmap:
++    convertToNormalMap: 0
++    externalNormalMap: 0
++    heightScale: 0.25
++    normalMapFilter: 0
++    flipGreenChannel: 0
++  isReadable: 0
++  streamingMipmaps: 1
++  streamingMipmapsPriority: 0
++  vTOnly: 0
++  ignoreMipmapLimit: 0
++  grayScaleToAlpha: 0
++  generateCubemap: 6
++  cubemapConvolution: 0
++  seamlessCubemap: 0
++  textureFormat: 1
++  maxTextureSize: 2048
++  textureSettings:
++    serializedVersion: 2
++    filterMode: 1
++    aniso: 3
++    mipBias: 0
++    wrapU: 1
++    wrapV: 1
++    wrapW: 1
++  nPOTScale: 1
++  lightmap: 0
++  compressionQuality: 50
++  spriteMode: 0
++  spriteExtrude: 1
++  spriteMeshType: 1
++  alignment: 0
++  spritePivot: {x: 0.5, y: 0.5}
++  spritePixelsToUnits: 100
++  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
++  spriteGenerateFallbackPhysicsShape: 1
++  alphaUsage: 0
++  alphaIsTransparency: 0
++  spriteTessellationMethod: 0
++  spriteTessellationDetail: -1
++  spriteGeometrySubdivision: -1
++  textureType: 6
++  textureShape: 1
++  singleChannelComponent: 0
++  flipbookRows: 1
++  flipbookColumns: 1
++  maxTextureSizeSet: 0
++  compressionQualitySet: 0
++  textureFormatSet: 0
++  ignorePngGamma: 0
++  applyGammaDecoding: 0
++  swizzle: 50462976
++  cookieLightType: 0
++  platformSettings:
++  - serializedVersion: 4
++    buildTarget: DefaultTexturePlatform
++    maxTextureSize: 2048
++    resizeAlgorithm: 0
++    textureFormat: -1
++    textureCompression: 2
++    compressionQuality: 50
++    crunchedCompression: 0
++    allowsAlphaSplitting: 0
++    overridden: 0
++    ignorePlatformSupport: 0
++    androidETC2FallbackOverride: 0
++    forceMaximumCompressionQuality_BC6H_BC7: 0
++  - serializedVersion: 4
++    buildTarget: Standalone
++    maxTextureSize: 2048
++    resizeAlgorithm: 0
++    textureFormat: -1
++    textureCompression: 1
++    compressionQuality: 50
++    crunchedCompression: 0
++    allowsAlphaSplitting: 0
++    overridden: 0
++    ignorePlatformSupport: 0
++    androidETC2FallbackOverride: 0
++    forceMaximumCompressionQuality_BC6H_BC7: 0
++  spriteSheet:
++    serializedVersion: 2
++    sprites: []
++    outline: []
++    customData: 
++    physicsShape: []
++    bones: []
++    spriteID: 
++    internalID: 0
++    vertices: []
++    indices: 
++    edges: []
++    weights: []
++    secondaryTextures: []
++    spriteCustomMetadata:
++      entries: []
++    nameFileIdTable: {}
++  mipmapLimitGroupName: 
++  pSDRemoveMatte: 0
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/ReflectionProbe-0.exr b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/ReflectionProbe-0.exr
+new file mode 100644
+index 0000000..3fb087e
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/ReflectionProbe-0.exr
+@@ -0,0 +1,3 @@
++version https://git-lfs.github.com/spec/v1
++oid sha256:5168a4c68cef64b3b3191519ae6b564475aaef253bf92fa1b06e6ea23e0bfaf9
++size 171106
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/ReflectionProbe-0.exr.meta b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/ReflectionProbe-0.exr.meta
+new file mode 100644
+index 0000000..7844855
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/ReflectionProbe-0.exr.meta
+@@ -0,0 +1,119 @@
++fileFormatVersion: 2
++guid: 8c094b2d6bafcdc43b2c3157516470c3
++TextureImporter:
++  internalIDToNameTable: []
++  externalObjects: {}
++  serializedVersion: 13
++  mipmaps:
++    mipMapMode: 0
++    enableMipMap: 1
++    sRGBTexture: 1
++    linearTexture: 0
++    fadeOut: 0
++    borderMipMap: 0
++    mipMapsPreserveCoverage: 0
++    alphaTestReferenceValue: 0.5
++    mipMapFadeDistanceStart: 1
++    mipMapFadeDistanceEnd: 3
++  bumpmap:
++    convertToNormalMap: 0
++    externalNormalMap: 0
++    heightScale: 0.25
++    normalMapFilter: 0
++    flipGreenChannel: 0
++  isReadable: 0
++  streamingMipmaps: 0
++  streamingMipmapsPriority: 0
++  vTOnly: 0
++  ignoreMipmapLimit: 0
++  grayScaleToAlpha: 0
++  generateCubemap: 6
++  cubemapConvolution: 1
++  seamlessCubemap: 1
++  textureFormat: 1
++  maxTextureSize: 2048
++  textureSettings:
++    serializedVersion: 2
++    filterMode: 2
++    aniso: 0
++    mipBias: 0
++    wrapU: 1
++    wrapV: 1
++    wrapW: 1
++  nPOTScale: 1
++  lightmap: 0
++  compressionQuality: 50
++  spriteMode: 0
++  spriteExtrude: 1
++  spriteMeshType: 1
++  alignment: 0
++  spritePivot: {x: 0.5, y: 0.5}
++  spritePixelsToUnits: 100
++  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
++  spriteGenerateFallbackPhysicsShape: 1
++  alphaUsage: 1
++  alphaIsTransparency: 0
++  spriteTessellationMethod: 0
++  spriteTessellationDetail: -1
++  spriteGeometrySubdivision: -1
++  textureType: 0
++  textureShape: 2
++  singleChannelComponent: 0
++  flipbookRows: 1
++  flipbookColumns: 1
++  maxTextureSizeSet: 0
++  compressionQualitySet: 0
++  textureFormatSet: 0
++  ignorePngGamma: 0
++  applyGammaDecoding: 0
++  swizzle: 50462976
++  cookieLightType: 0
++  platformSettings:
++  - serializedVersion: 4
++    buildTarget: DefaultTexturePlatform
++    maxTextureSize: 2048
++    resizeAlgorithm: 0
++    textureFormat: -1
++    textureCompression: 1
++    compressionQuality: 100
++    crunchedCompression: 0
++    allowsAlphaSplitting: 0
++    overridden: 0
++    ignorePlatformSupport: 0
++    androidETC2FallbackOverride: 0
++    forceMaximumCompressionQuality_BC6H_BC7: 0
++  - serializedVersion: 4
++    buildTarget: Standalone
++    maxTextureSize: 2048
++    resizeAlgorithm: 0
++    textureFormat: -1
++    textureCompression: 1
++    compressionQuality: 50
++    crunchedCompression: 0
++    allowsAlphaSplitting: 0
++    overridden: 0
++    ignorePlatformSupport: 0
++    androidETC2FallbackOverride: 0
++    forceMaximumCompressionQuality_BC6H_BC7: 0
++  spriteSheet:
++    serializedVersion: 2
++    sprites: []
++    outline: []
++    customData: 
++    physicsShape: []
++    bones: []
++    spriteID: 
++    internalID: 0
++    vertices: []
++    indices: 
++    edges: []
++    weights: []
++    secondaryTextures: []
++    spriteCustomMetadata:
++      entries: []
++    nameFileIdTable: {}
++  mipmapLimitGroupName: 
++  pSDRemoveMatte: 0
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Representative.lighting b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Representative.lighting
+new file mode 100644
+index 0000000..e41b97e
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Representative.lighting
+@@ -0,0 +1,77 @@
++%YAML 1.1
++%TAG !u! tag:unity3d.com,2011:
++--- !u!850595691 &4890085278179872738
++LightingSettings:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_Name: Spring_Representative
++  serializedVersion: 10
++  m_EnableBakedLightmaps: 1
++  m_EnableRealtimeLightmaps: 0
++  m_RealtimeEnvironmentLighting: 1
++  m_BounceScale: 1
++  m_AlbedoBoost: 1
++  m_IndirectOutputScale: 1
++  m_UsingShadowmask: 0
++  m_BakeBackend: 1
++  m_LightmapMaxSize: 512
++  m_LightmapSizeFixed: 0
++  m_UseMipmapLimits: 1
++  m_BakeResolution: 0.5
++  m_Padding: 2
++  m_LightmapCompression: 3
++  m_LightmapPackingMode: 0
++  m_LightmapPackingMethod: 1
++  m_XAtlasPackingAttempts: 16384
++  m_XAtlasBruteForce: 0
++  m_XAtlasBlockAlign: 0
++  m_XAtlasRepackUnderutilizedLightmaps: 1
++  m_AO: 0
++  m_AOMaxDistance: 1
++  m_CompAOExponent: 1
++  m_CompAOExponentDirect: 0
++  m_ExtractAO: 0
++  m_MixedBakeMode: 1
++  m_LightmapsBakeMode: 1
++  m_FilterMode: 1
++  m_LightmapParameters: {fileID: 15204, guid: 0000000000000000f000000000000000, type: 0}
++  m_ExportTrainingData: 0
++  m_EnableWorkerProcessBaking: 1
++  m_TrainingDataDestination: TrainingData
++  m_RealtimeResolution: 2
++  m_ForceWhiteAlbedo: 0
++  m_ForceUpdates: 0
++  m_PVRCulling: 1
++  m_PVRSampling: 1
++  m_PVRDirectSampleCount: 32
++  m_PVRSampleCount: 64
++  m_PVREnvironmentSampleCount: 64
++  m_PVREnvironmentReferencePointCount: 2048
++  m_LightProbeSampleCountMultiplier: 4
++  m_PVRBounces: 2
++  m_PVRMinBounces: 2
++  m_PVREnvironmentImportanceSampling: 1
++  m_PVRFilteringMode: 1
++  m_PVRDenoiserTypeDirect: 2
++  m_PVRDenoiserTypeIndirect: 2
++  m_PVRDenoiserTypeAO: 2
++  m_PVRFilterTypeDirect: 0
++  m_PVRFilterTypeIndirect: 0
++  m_PVRFilterTypeAO: 0
++  m_PVRFilteringGaussRadiusDirect: 1
++  m_PVRFilteringGaussRadiusIndirect: 1
++  m_PVRFilteringGaussRadiusAO: 1
++  m_PVRFilteringAtrousPositionSigmaDirect: 0.5
++  m_PVRFilteringAtrousPositionSigmaIndirect: 2
++  m_PVRFilteringAtrousPositionSigmaAO: 1
++  m_RespectSceneVisibilityWhenBakingGI: 0
++  m_DirectLightSamplingMode: 2
++  m_DirectRISCandidateCount: 4
++  m_IndirectLightSamplingMode: 1
++  m_IndirectRISCandidateCount: 1
++  m_LightAccelerationStructure: 0
++  m_LightGridMaxCells: 262144
++  m_DirectEmissiveSamplingMode: 2
++  m_IndirectEmissiveSamplingMode: 1
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Representative.lighting.meta b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Representative.lighting.meta
+new file mode 100644
+index 0000000..1fe1dc2
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Representative.lighting.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: f770f1b668c369745a58960828ef9a23
++NativeFormatImporter:
++  externalObjects: {}
++  mainObjectFileID: 4890085278179872738
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Summer_Lighting/Summer_Lighting.unity b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Summer_Lighting/Summer_Lighting.unity
+index 4defde4..132cd81 100644
+--- a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Summer_Lighting/Summer_Lighting.unity
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Summer_Lighting/Summer_Lighting.unity
+@@ -147,9 +147,155 @@ Transform:
+   m_LocalPosition: {x: 0, y: 0, z: 0}
+   m_LocalScale: {x: 1, y: 1, z: 1}
+   m_ConstrainProportionsScale: 0
+-  m_Children: []
++  m_Children:
++  - {fileID: 1337014708}
+   m_Father: {fileID: 0}
+   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
++--- !u!1 &1337014707
++GameObject:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  serializedVersion: 6
++  m_Component:
++  - component: {fileID: 1337014708}
++  - component: {fileID: 1337014710}
++  - component: {fileID: 1337014709}
++  - component: {fileID: 1337014711}
++  m_Layer: 0
++  m_Name: SeasonSun
++  m_TagString: Untagged
++  m_Icon: {fileID: 0}
++  m_NavMeshLayer: 0
++  m_StaticEditorFlags: 0
++  m_IsActive: 1
++--- !u!4 &1337014708
++Transform:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 1337014707}
++  serializedVersion: 2
++  m_LocalRotation: {x: 0.39713123, y: 0.30997548, z: -0.14454393, w: 0.8516508}
++  m_LocalPosition: {x: 0, y: 0, z: 0}
++  m_LocalScale: {x: 1, y: 1, z: 1}
++  m_ConstrainProportionsScale: 0
++  m_Children: []
++  m_Father: {fileID: 710262589}
++  m_LocalEulerAnglesHint: {x: 50, y: 40, z: 0}
++--- !u!114 &1337014709
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 1337014707}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
++  m_Name: 
++  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
++  m_UsePipelineSettings: 1
++  m_AdditionalLightsShadowResolutionTier: 2
++  m_CustomShadowLayers: 0
++  m_LightCookieSize: {x: 1, y: 1}
++  m_LightCookieOffset: {x: 0, y: 0}
++  m_SoftShadowQuality: 0
++  m_RenderingLayersMask:
++    serializedVersion: 0
++    m_Bits: 1
++  m_ShadowRenderingLayersMask:
++    serializedVersion: 0
++    m_Bits: 1
++  m_Version: 4
++  m_LightLayerMask: 1
++  m_ShadowLayerMask: 1
++  m_RenderingLayers: 1
++  m_ShadowRenderingLayers: 1
++--- !u!108 &1337014710
++Light:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 1337014707}
++  m_Enabled: 1
++  serializedVersion: 13
++  m_Type: 1
++  m_Color: {r: 1, g: 0.98, b: 0.9, a: 1}
++  m_Intensity: 1.3
++  m_Range: 10
++  m_SpotAngle: 30
++  m_InnerSpotAngle: 21.80208
++  m_CookieSize2D: {x: 0.5, y: 0.5}
++  m_Shadows:
++    m_Type: 0
++    m_Resolution: -1
++    m_CustomResolution: -1
++    m_Strength: 1
++    m_Bias: 0.05
++    m_NormalBias: 0.4
++    m_NearPlane: 0.2
++    m_CullingMatrixOverride:
++      e00: 1
++      e01: 0
++      e02: 0
++      e03: 0
++      e10: 0
++      e11: 1
++      e12: 0
++      e13: 0
++      e20: 0
++      e21: 0
++      e22: 1
++      e23: 0
++      e30: 0
++      e31: 0
++      e32: 0
++      e33: 1
++    m_UseCullingMatrixOverride: 0
++  m_Cookie: {fileID: 0}
++  m_DrawHalo: 0
++  m_Flare: {fileID: 0}
++  m_RenderMode: 0
++  m_CullingMask:
++    serializedVersion: 2
++    m_Bits: 4294967295
++  m_RenderingLayerMask: 1
++  m_Lightmapping: 4
++  m_LightShadowCasterMode: 0
++  m_AreaSize: {x: 1, y: 1}
++  m_BounceIntensity: 1
++  m_ColorTemperature: 6570
++  m_UseColorTemperature: 0
++  m_BoundingSphereOverride: {x: 0, y: 0, z: 0, w: 0}
++  m_UseBoundingSphereOverride: 0
++  m_UseViewFrustumForShadowCasterCull: 1
++  m_ForceVisible: 0
++  m_ShapeRadius: 0.025
++  m_ShadowAngle: 0
++  m_LightUnit: 1
++  m_LuxAtDistance: 1
++  m_EnableSpotReflector: 1
++--- !u!114 &1337014711
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 1337014707}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: 172515602e62fb746b5d573b38a5fe58, type: 3}
++  m_Name: 
++  m_EditorClassIdentifier: Unity.RenderPipelines.Core.Runtime::UnityEngine.Rendering.Volume
++  m_IsGlobal: 1
++  priority: 0
++  blendDistance: 0
++  weight: 1
++  sharedProfile: {fileID: 0}
+ --- !u!1660057539 &9223372036854775807
+ SceneRoots:
+   m_ObjectHideFlags: 0
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Winter_Lighting/Winter_Lighting.unity b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Winter_Lighting/Winter_Lighting.unity
+index 2ad9b5f..627b60c 100644
+--- a/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Winter_Lighting/Winter_Lighting.unity
++++ b/unity/Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Winter_Lighting/Winter_Lighting.unity
+@@ -119,6 +119,151 @@ NavMeshSettings:
+     debug:
+       m_Flags: 0
+   m_NavMeshData: {fileID: 0}
++--- !u!1 &767324484
++GameObject:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  serializedVersion: 6
++  m_Component:
++  - component: {fileID: 767324485}
++  - component: {fileID: 767324487}
++  - component: {fileID: 767324486}
++  - component: {fileID: 767324488}
++  m_Layer: 0
++  m_Name: SeasonSun
++  m_TagString: Untagged
++  m_Icon: {fileID: 0}
++  m_NavMeshLayer: 0
++  m_StaticEditorFlags: 0
++  m_IsActive: 1
++--- !u!4 &767324485
++Transform:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 767324484}
++  serializedVersion: 2
++  m_LocalRotation: {x: 0.5735764, y: 0, z: 0, w: 0.8191521}
++  m_LocalPosition: {x: 0, y: 0, z: 0}
++  m_LocalScale: {x: 1, y: 1, z: 1}
++  m_ConstrainProportionsScale: 0
++  m_Children: []
++  m_Father: {fileID: 1552635580}
++  m_LocalEulerAnglesHint: {x: 70, y: 0, z: 0}
++--- !u!114 &767324486
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 767324484}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
++  m_Name: 
++  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
++  m_UsePipelineSettings: 1
++  m_AdditionalLightsShadowResolutionTier: 2
++  m_CustomShadowLayers: 0
++  m_LightCookieSize: {x: 1, y: 1}
++  m_LightCookieOffset: {x: 0, y: 0}
++  m_SoftShadowQuality: 0
++  m_RenderingLayersMask:
++    serializedVersion: 0
++    m_Bits: 1
++  m_ShadowRenderingLayersMask:
++    serializedVersion: 0
++    m_Bits: 1
++  m_Version: 4
++  m_LightLayerMask: 1
++  m_ShadowLayerMask: 1
++  m_RenderingLayers: 1
++  m_ShadowRenderingLayers: 1
++--- !u!108 &767324487
++Light:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 767324484}
++  m_Enabled: 1
++  serializedVersion: 13
++  m_Type: 1
++  m_Color: {r: 0.95, g: 0.97, b: 1, a: 1}
++  m_Intensity: 0.5
++  m_Range: 10
++  m_SpotAngle: 30
++  m_InnerSpotAngle: 21.80208
++  m_CookieSize2D: {x: 0.5, y: 0.5}
++  m_Shadows:
++    m_Type: 0
++    m_Resolution: -1
++    m_CustomResolution: -1
++    m_Strength: 1
++    m_Bias: 0.05
++    m_NormalBias: 0.4
++    m_NearPlane: 0.2
++    m_CullingMatrixOverride:
++      e00: 1
++      e01: 0
++      e02: 0
++      e03: 0
++      e10: 0
++      e11: 1
++      e12: 0
++      e13: 0
++      e20: 0
++      e21: 0
++      e22: 1
++      e23: 0
++      e30: 0
++      e31: 0
++      e32: 0
++      e33: 1
++    m_UseCullingMatrixOverride: 0
++  m_Cookie: {fileID: 0}
++  m_DrawHalo: 0
++  m_Flare: {fileID: 0}
++  m_RenderMode: 0
++  m_CullingMask:
++    serializedVersion: 2
++    m_Bits: 4294967295
++  m_RenderingLayerMask: 1
++  m_Lightmapping: 4
++  m_LightShadowCasterMode: 0
++  m_AreaSize: {x: 1, y: 1}
++  m_BounceIntensity: 1
++  m_ColorTemperature: 6570
++  m_UseColorTemperature: 0
++  m_BoundingSphereOverride: {x: 0, y: 0, z: 0, w: 0}
++  m_UseBoundingSphereOverride: 0
++  m_UseViewFrustumForShadowCasterCull: 1
++  m_ForceVisible: 0
++  m_ShapeRadius: 0.025
++  m_ShadowAngle: 0
++  m_LightUnit: 1
++  m_LuxAtDistance: 1
++  m_EnableSpotReflector: 1
++--- !u!114 &767324488
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 767324484}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: 172515602e62fb746b5d573b38a5fe58, type: 3}
++  m_Name: 
++  m_EditorClassIdentifier: Unity.RenderPipelines.Core.Runtime::UnityEngine.Rendering.Volume
++  m_IsGlobal: 1
++  priority: 0
++  blendDistance: 0
++  weight: 1
++  sharedProfile: {fileID: 0}
+ --- !u!1 &1552635579
+ GameObject:
+   m_ObjectHideFlags: 0
+@@ -147,7 +292,8 @@ Transform:
+   m_LocalPosition: {x: 0, y: 0, z: 0}
+   m_LocalScale: {x: 1, y: 1, z: 1}
+   m_ConstrainProportionsScale: 0
+-  m_Children: []
++  m_Children:
++  - {fileID: 767324485}
+   m_Father: {fileID: 0}
+   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+ --- !u!1660057539 &9223372036854775807
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/World/SeasonLightingPresetTable.cs b/unity/Assets/SampleGame/InGame/InGameSession/World/SeasonLightingPresetTable.cs
+new file mode 100644
+index 0000000..70025dd
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/World/SeasonLightingPresetTable.cs
+@@ -0,0 +1,68 @@
++#nullable enable
++
++using OneStarMaker.Runtime.Rendering.Environments;
++using UnityEngine;
++
++namespace SampleGame.InGame.World
++{
++    /// <summary>
++    /// 季節 Lighting の identity → 見た目 state。
++    /// 数値は HANDOFF 凍結値。Framework 側へ季節語を出さないための Game 層の表。
++    /// </summary>
++    internal static class SeasonLightingPresetTable
++    {
++        public static bool TryGet(string identity, out RenderEnvironmentState state)
++        {
++            switch (identity)
++            {
++                case "Spring_Lighting":
++                    state = new RenderEnvironmentState(
++                        sunEulerDegrees: new Vector3(15f, -30f, 0f),
++                        sunColor: new Color(1.00f, 0.85f, 0.70f),
++                        sunIntensity: 0.80f,
++                        ambientSkyColor: new Color(0.18f, 0.22f, 0.28f),
++                        fogEnabled: true,
++                        fogColor: new Color(0.75f, 0.82f, 0.88f),
++                        fogDensity: 0.0015f,
++                        globalVolumeWeight: 1f);
++                    return true;
++                case "Summer_Lighting":
++                    state = new RenderEnvironmentState(
++                        sunEulerDegrees: new Vector3(50f, 40f, 0f),
++                        sunColor: new Color(1.00f, 0.98f, 0.90f),
++                        sunIntensity: 1.30f,
++                        ambientSkyColor: new Color(0.28f, 0.30f, 0.32f),
++                        fogEnabled: true,
++                        fogColor: new Color(0.70f, 0.78f, 0.85f),
++                        fogDensity: 0.0040f,
++                        globalVolumeWeight: 1f);
++                    return true;
++                case "Autumn_Lighting":
++                    state = new RenderEnvironmentState(
++                        sunEulerDegrees: new Vector3(8f, 50f, 0f),
++                        sunColor: new Color(1.00f, 0.55f, 0.25f),
++                        sunIntensity: 0.70f,
++                        ambientSkyColor: new Color(0.18f, 0.13f, 0.08f),
++                        fogEnabled: true,
++                        fogColor: new Color(0.55f, 0.38f, 0.22f),
++                        fogDensity: 0.0025f,
++                        globalVolumeWeight: 1f);
++                    return true;
++                case "Winter_Lighting":
++                    state = new RenderEnvironmentState(
++                        sunEulerDegrees: new Vector3(70f, 0f, 0f),
++                        sunColor: new Color(0.95f, 0.97f, 1.00f),
++                        sunIntensity: 0.50f,
++                        ambientSkyColor: new Color(0.68f, 0.70f, 0.74f),
++                        fogEnabled: true,
++                        fogColor: new Color(0.90f, 0.92f, 0.95f),
++                        fogDensity: 0.0020f,
++                        globalVolumeWeight: 1f);
++                    return true;
++                default:
++                    state = default;
++                    return false;
++            }
++        }
++    }
++}
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/World/SeasonLightingPresetTable.cs.meta b/unity/Assets/SampleGame/InGame/InGameSession/World/SeasonLightingPresetTable.cs.meta
+new file mode 100644
+index 0000000..c9c4a02
+--- /dev/null
++++ b/unity/Assets/SampleGame/InGame/InGameSession/World/SeasonLightingPresetTable.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 7c4e1a9b2d8f4e0a9c3b5d7e1f2a4b6c
+diff --git a/unity/Assets/SampleGame/InGame/InGameSession/World/SeasonLightingScene.cs b/unity/Assets/SampleGame/InGame/InGameSession/World/SeasonLightingScene.cs
+index 3d9406a..53e4611 100644
+--- a/unity/Assets/SampleGame/InGame/InGameSession/World/SeasonLightingScene.cs
++++ b/unity/Assets/SampleGame/InGame/InGameSession/World/SeasonLightingScene.cs
+@@ -1,33 +1,65 @@
+ #nullable enable
+ 
++using System;
+ using System.Threading;
+ using Cysharp.Threading.Tasks;
+ using Microsoft.Extensions.Logging;
++using OneStarMaker.Runtime.Rendering.Environments;
+ using OneStarMaker.Runtime.SceneSystem;
++using UnityEngine;
+ using ZLogger;
+ 
+ namespace SampleGame.InGame.World
+ {
+     /// <summary>
+-    /// 季節 Lighting の空 scaffold。S-4c の lease は書かない。
+-    /// Factory が未知 identity で null を返さないための受け皿。
++    /// 季節 Lighting の寿命で RenderEnvironment の lease を持つ。
++    /// 太陽探索と preset lookup に失敗したら lease を取らない。
++    /// OnLoadedImpl の例外は PreUnLoad を通らないため、Acquire 後の失敗はここで返す。
+     /// </summary>
+     public sealed class SeasonLightingScene : SceneBase
+     {
+         private readonly ILogger<SeasonLightingScene> _logger;
++        private readonly IRenderEnvironment _renderEnvironment;
++        private RenderEnvironmentLease? _lease;
+ 
+         public SeasonLightingScene(
+             SceneResource sceneResource,
+             ISceneQuery sceneQuery,
+             ISceneController sceneController,
+-            ILoggerFactory loggerFactory)
++            ILoggerFactory loggerFactory,
++            IRenderEnvironment renderEnvironment)
+             : base(sceneResource, sceneQuery, sceneController)
+         {
+             _logger = loggerFactory.CreateLogger<SeasonLightingScene>();
++            _renderEnvironment = renderEnvironment
++                ?? throw new ArgumentNullException(nameof(renderEnvironment));
+             _logger.ZLogInformation($"Create SeasonLightingScene {sceneResource.Identity}");
+         }
+ 
+-        protected override UniTask OnLoadedImpl(CancellationToken ct) => UniTask.CompletedTask;
++        protected override UniTask OnLoadedImpl(CancellationToken ct)
++        {
++            var sun = FindSeasonSun();
++            if (!SeasonLightingPresetTable.TryGet(SceneResource.Identity, out var state))
++            {
++                throw new InvalidOperationException(
++                    $"Unknown season lighting identity: {SceneResource.Identity}.");
++            }
++
++            _lease = _renderEnvironment.Acquire(this);
++            try
++            {
++                _lease.BindSun(sun);
++                _lease.Apply(state);
++            }
++            catch
++            {
++                _lease.Dispose();
++                _lease = null;
++                throw;
++            }
++
++            return UniTask.CompletedTask;
++        }
+ 
+         protected override UniTask OnStabledImpl()
+         {
+@@ -35,8 +67,52 @@ protected override UniTask OnStabledImpl()
+             return UniTask.CompletedTask;
+         }
+ 
+-        protected override UniTask OnPreUnLoadedImpl() => UniTask.CompletedTask;
++        protected override UniTask OnPreUnLoadedImpl()
++        {
++            if (_lease != null)
++            {
++                _lease.Dispose();
++                _lease = null;
++            }
++
++            return UniTask.CompletedTask;
++        }
+ 
+         protected override UniTask OnAfterUnLoadedImpl() => UniTask.CompletedTask;
++
++        private Light FindSeasonSun()
++        {
++            foreach (var root in RootObjects)
++            {
++                if (root == null)
++                {
++                    continue;
++                }
++
++                var lights = root.GetComponentsInChildren<Light>(true);
++                foreach (var light in lights)
++                {
++                    if (light == null)
++                    {
++                        continue;
++                    }
++
++                    if (light.gameObject.name != "SeasonSun")
++                    {
++                        continue;
++                    }
++
++                    if (light.type != LightType.Directional)
++                    {
++                        continue;
++                    }
++
++                    return light;
++                }
++            }
++
++            throw new InvalidOperationException(
++                $"SeasonSun Directional Light was not found in {SceneResource.Identity}.");
++        }
+     }
+ }
+diff --git a/unity/Assets/SceneGraphData/Graphs/Total.asset b/unity/Assets/SceneGraphData/Graphs/Total.asset
+index 5ebc691..a936333 100644
+--- a/unity/Assets/SceneGraphData/Graphs/Total.asset
++++ b/unity/Assets/SceneGraphData/Graphs/Total.asset
+@@ -463,6 +463,8 @@ MonoBehaviour:
+   - {fileID: 11400000, guid: 4fc4edf425bdfb44781d845243a299a0, type: 2}
+   - {fileID: 11400000, guid: e91c975bd8fdac64b828fb665daf2381, type: 2}
+   - {fileID: 11400000, guid: 757d493832b2e00439e08c1e8c4252a2, type: 2}
++  - {fileID: 11400000, guid: c05a1b69b1b59f24093b84ac160a86ce, type: 2}
++  - {fileID: 11400000, guid: b8e47eceb48199a4ca7c293a81466fc9, type: 2}
+   _edges:
+   - Parent: {fileID: 11400000, guid: df564375ee5fe5e40a95fc972ded7081, type: 2}
+     Child: {fileID: 11400000, guid: b5502d478be8a9043b77f4b09867e67e, type: 2}
+@@ -1358,3 +1360,7 @@ MonoBehaviour:
+     Child: {fileID: 11400000, guid: e91c975bd8fdac64b828fb665daf2381, type: 2}
+   - Parent: {fileID: 11400000, guid: e91c975bd8fdac64b828fb665daf2381, type: 2}
+     Child: {fileID: 11400000, guid: 757d493832b2e00439e08c1e8c4252a2, type: 2}
++  - Parent: {fileID: 11400000, guid: d9cedc71fb543ba4a9a3d530be417ee3, type: 2}
++    Child: {fileID: 11400000, guid: c05a1b69b1b59f24093b84ac160a86ce, type: 2}
++  - Parent: {fileID: 11400000, guid: 6c30c3de857038c44a4922e2a61020e1, type: 2}
++    Child: {fileID: 11400000, guid: b8e47eceb48199a4ca7c293a81466fc9, type: 2}
+diff --git a/unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_4_2.asset b/unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_4_2.asset
+new file mode 100644
+index 0000000..5c32c2a
+--- /dev/null
++++ b/unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_4_2.asset
+@@ -0,0 +1,24 @@
++%YAML 1.1
++%TAG !u! tag:unity3d.com,2011:
++--- !u!114 &11400000
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 0}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: d5563bd9cdc08aa488a2912019372f27, type: 3}
++  m_Name: Spring_Lighting_4_2
++  m_EditorClassIdentifier: OneStarMaker.Editor::OneStarMaker.Editor.SceneGraph.SceneNodeData
++  _identity: Spring_Lighting_4_2
++  _loadType: 0
++  _payloads:
++  - Reference:
++      m_AssetGUID: 8382f8f3717bb2c40837a39bc5dff95c
++      m_SubObjectName: 
++      m_SubObjectType: 
++      m_SubObjectGUID: 
++      m_EditorAssetChanged: 0
++    Variant: 
+diff --git a/unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_4_2.asset.meta b/unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_4_2.asset.meta
+new file mode 100644
+index 0000000..60e0d67
+--- /dev/null
++++ b/unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_4_2.asset.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: c05a1b69b1b59f24093b84ac160a86ce
++NativeFormatImporter:
++  externalObjects: {}
++  mainObjectFileID: 11400000
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_5_2.asset b/unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_5_2.asset
+new file mode 100644
+index 0000000..b77d2db
+--- /dev/null
++++ b/unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_5_2.asset
+@@ -0,0 +1,24 @@
++%YAML 1.1
++%TAG !u! tag:unity3d.com,2011:
++--- !u!114 &11400000
++MonoBehaviour:
++  m_ObjectHideFlags: 0
++  m_CorrespondingSourceObject: {fileID: 0}
++  m_PrefabInstance: {fileID: 0}
++  m_PrefabAsset: {fileID: 0}
++  m_GameObject: {fileID: 0}
++  m_Enabled: 1
++  m_EditorHideFlags: 0
++  m_Script: {fileID: 11500000, guid: d5563bd9cdc08aa488a2912019372f27, type: 3}
++  m_Name: Spring_Lighting_5_2
++  m_EditorClassIdentifier: OneStarMaker.Editor::OneStarMaker.Editor.SceneGraph.SceneNodeData
++  _identity: Spring_Lighting_5_2
++  _loadType: 0
++  _payloads:
++  - Reference:
++      m_AssetGUID: ca8cec10777a4644ea2e0947a8d66682
++      m_SubObjectName: 
++      m_SubObjectType: 
++      m_SubObjectGUID: 
++      m_EditorAssetChanged: 0
++    Variant: 
+diff --git a/unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_5_2.asset.meta b/unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_5_2.asset.meta
+new file mode 100644
+index 0000000..5459fb0
+--- /dev/null
++++ b/unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_5_2.asset.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: b8e47eceb48199a4ca7c293a81466fc9
++NativeFormatImporter:
++  externalObjects: {}
++  mainObjectFileID: 11400000
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 

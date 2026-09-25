@@ -1,0 +1,7 @@
+Command: tools\unity-editor.cmd command list_open_scenes
+Exit code: 1
+Error: このエディターの Unity Pipeline パッケージが古いため、コマンドラインを解析できません。unity pipeline upgrade で 0.6.0-exp.1 以降に更新してください。
+
+Initial status: port 7800 / ready / D:\repositories\unity\SampleGameForOneStarMakerFramework\unity / 6000.6.0f1 / PID 31640.
+Before batch test: tools\unity-editor.cmd status returned no editor (exit 1).
+No forced termination was performed.

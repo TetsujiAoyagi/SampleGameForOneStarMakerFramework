@@ -1,0 +1,1694 @@
+artifacts/s-4c-phase-c-discovery/implementation.diff:1616: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:1619: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:1628: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:1635: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2229: trailing whitespace.
++--- a/unity/Assets/AddressableAssetsData/AssetGroups/Default Local Group.asset	
+artifacts/s-4c-phase-c-discovery/implementation.diff:2230: trailing whitespace.
+++++ b/unity/Assets/AddressableAssetsData/AssetGroups/Default Local Group.asset	
+artifacts/s-4c-phase-c-discovery/implementation.diff:2262: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2270: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2283: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2285: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2289: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2292: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2309: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2310: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2311: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2323: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2324: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2325: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2337: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2338: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2339: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2434: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2435: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2436: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2806: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2807: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2808: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2882: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2894: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2895: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2896: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2908: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2909: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:2910: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3218: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3231: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3235: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3245: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3250: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3296: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3453: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3487: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3496: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3500: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3593: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3619: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3635: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3641: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3645: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3729: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3823: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3892: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3893: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3894: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3921: trailing whitespace.
+++        m_SubObjectName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3922: trailing whitespace.
+++        m_SubObjectType: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3923: trailing whitespace.
+++        m_SubObjectGUID: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3925: trailing whitespace.
+++      Variant: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3926: trailing whitespace.
+++    SceneIdentity: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3944: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3945: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:3946: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4102: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4216: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4217: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4218: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4268: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4269: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4270: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4297: trailing whitespace.
+++        m_SubObjectName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4298: trailing whitespace.
+++        m_SubObjectType: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4299: trailing whitespace.
+++        m_SubObjectGUID: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4301: trailing whitespace.
+++      Variant: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4302: trailing whitespace.
+++    SceneIdentity: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4320: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4321: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4322: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4478: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4592: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4593: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4594: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4606: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4607: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4608: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4675: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4769: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4908: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4909: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:4910: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5027: trailing whitespace.
+++    customData: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5030: trailing whitespace.
+++    spriteID: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5033: trailing whitespace.
+++    indices: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5040: trailing whitespace.
+++  mipmapLimitGroupName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5042: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5043: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5044: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5102: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5196: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5258: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5352: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5460: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5469: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5484: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5499: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5525: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5531: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5543: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5628: trailing whitespace.
+++      m_SubObjectName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5629: trailing whitespace.
+++      m_SubObjectType: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5630: trailing whitespace.
+++      m_SubObjectGUID: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5632: trailing whitespace.
+++    Variant: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5644: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5645: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5646: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5672: trailing whitespace.
+++      m_SubObjectName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5673: trailing whitespace.
+++      m_SubObjectType: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5674: trailing whitespace.
+++      m_SubObjectGUID: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5676: trailing whitespace.
+++    Variant: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5688: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5689: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-discovery/implementation.diff:5690: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:2: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:4: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:6: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:8: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:10: trailing whitespace.
+++--- a/unity/Assets/AddressableAssetsData/AssetGroups/Default Local Group.asset	
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:12: trailing whitespace.
++++++ b/unity/Assets/AddressableAssetsData/AssetGroups/Default Local Group.asset	
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:14: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:16: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:18: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:20: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:22: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:24: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:26: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:28: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:30: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:32: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:34: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:36: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:38: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:40: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:42: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:44: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:46: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:48: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:50: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:52: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:54: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:56: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:58: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:60: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:62: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:64: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:66: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:68: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:70: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:72: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:74: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:76: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:78: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:80: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:82: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:84: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:86: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:88: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:90: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:92: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:94: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:96: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:98: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:100: trailing whitespace.
++++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:102: trailing whitespace.
++++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:104: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:106: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:108: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:110: trailing whitespace.
++++        m_SubObjectName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:112: trailing whitespace.
++++        m_SubObjectType: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:114: trailing whitespace.
++++        m_SubObjectGUID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:116: trailing whitespace.
++++      Variant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:118: trailing whitespace.
++++    SceneIdentity: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:120: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:122: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:124: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:126: trailing whitespace.
++++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:128: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:130: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:132: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:134: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:136: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:138: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:140: trailing whitespace.
++++        m_SubObjectName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:142: trailing whitespace.
++++        m_SubObjectType: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:144: trailing whitespace.
++++        m_SubObjectGUID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:146: trailing whitespace.
++++      Variant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:148: trailing whitespace.
++++    SceneIdentity: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:150: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:152: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:154: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:156: trailing whitespace.
++++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:158: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:160: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:162: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:164: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:166: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:168: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:170: trailing whitespace.
++++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:172: trailing whitespace.
++++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:174: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:176: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:178: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:180: trailing whitespace.
++++    customData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:182: trailing whitespace.
++++    spriteID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:184: trailing whitespace.
++++    indices: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:186: trailing whitespace.
++++  mipmapLimitGroupName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:188: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:190: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:192: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:194: trailing whitespace.
++++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:196: trailing whitespace.
++++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:198: trailing whitespace.
++++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:200: trailing whitespace.
++++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:202: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:204: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:206: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:208: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:210: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:212: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:214: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:216: trailing whitespace.
++++      m_SubObjectName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:218: trailing whitespace.
++++      m_SubObjectType: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:220: trailing whitespace.
++++      m_SubObjectGUID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:222: trailing whitespace.
++++    Variant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:224: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:226: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:228: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:230: trailing whitespace.
++++      m_SubObjectName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:232: trailing whitespace.
++++      m_SubObjectType: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:234: trailing whitespace.
++++      m_SubObjectGUID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:236: trailing whitespace.
++++    Variant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:238: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:240: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:242: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:244: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:246: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:248: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:250: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:252: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:254: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:256: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:258: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:260: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:262: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:264: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:266: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:268: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:270: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:272: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:274: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:276: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:278: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:280: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:282: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:284: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:286: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:288: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:290: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:292: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:294: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:296: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:298: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:300: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:302: trailing whitespace.
+++        m_SubObjectName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:304: trailing whitespace.
+++        m_SubObjectType: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:306: trailing whitespace.
+++        m_SubObjectGUID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:308: trailing whitespace.
+++      Variant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:310: trailing whitespace.
+++    SceneIdentity: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:312: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:314: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:316: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:318: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:320: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:322: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:324: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:326: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:328: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:330: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:332: trailing whitespace.
+++        m_SubObjectName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:334: trailing whitespace.
+++        m_SubObjectType: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:336: trailing whitespace.
+++        m_SubObjectGUID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:338: trailing whitespace.
+++      Variant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:340: trailing whitespace.
+++    SceneIdentity: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:342: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:344: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:346: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:348: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:350: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:352: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:354: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:356: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:358: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:360: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:362: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:364: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:366: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:368: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:370: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:372: trailing whitespace.
+++    customData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:374: trailing whitespace.
+++    spriteID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:376: trailing whitespace.
+++    indices: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:378: trailing whitespace.
+++  mipmapLimitGroupName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:380: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:382: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:384: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:386: trailing whitespace.
+++    customData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:388: trailing whitespace.
+++    spriteID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:390: trailing whitespace.
+++    indices: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:392: trailing whitespace.
+++  mipmapLimitGroupName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:394: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:396: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:398: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:400: trailing whitespace.
+++    customData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:402: trailing whitespace.
+++    spriteID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:404: trailing whitespace.
+++    indices: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:406: trailing whitespace.
+++  mipmapLimitGroupName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:408: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:410: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:412: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:414: trailing whitespace.
+++    customData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:416: trailing whitespace.
+++    spriteID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:418: trailing whitespace.
+++    indices: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:420: trailing whitespace.
+++  mipmapLimitGroupName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:422: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:424: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:426: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:428: trailing whitespace.
+++    customData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:430: trailing whitespace.
+++    spriteID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:432: trailing whitespace.
+++    indices: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:434: trailing whitespace.
+++  mipmapLimitGroupName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:436: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:438: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:440: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:442: trailing whitespace.
+++    customData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:444: trailing whitespace.
+++    spriteID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:446: trailing whitespace.
+++    indices: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:448: trailing whitespace.
+++  mipmapLimitGroupName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:450: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:452: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:454: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:456: trailing whitespace.
+++    customData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:458: trailing whitespace.
+++    spriteID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:460: trailing whitespace.
+++    indices: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:462: trailing whitespace.
+++  mipmapLimitGroupName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:464: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:466: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:468: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:470: trailing whitespace.
+++    customData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:472: trailing whitespace.
+++    spriteID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:474: trailing whitespace.
+++    indices: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:476: trailing whitespace.
+++  mipmapLimitGroupName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:478: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:480: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:482: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:484: trailing whitespace.
+++    customData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:486: trailing whitespace.
+++    spriteID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:488: trailing whitespace.
+++    indices: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:490: trailing whitespace.
+++  mipmapLimitGroupName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:492: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:494: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:496: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:498: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:500: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:502: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:504: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:506: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:508: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:510: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:512: trailing whitespace.
+++      m_SubObjectName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:514: trailing whitespace.
+++      m_SubObjectType: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:516: trailing whitespace.
+++      m_SubObjectGUID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:518: trailing whitespace.
+++    Variant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:520: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:522: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:524: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:526: trailing whitespace.
+++      m_SubObjectName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:528: trailing whitespace.
+++      m_SubObjectType: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:530: trailing whitespace.
+++      m_SubObjectGUID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:532: trailing whitespace.
+++    Variant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:534: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:536: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/diff-check.txt:538: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/filter-run.log:93: trailing whitespace.
++Player connection [24556]  * "[IP] 192.168.1.7 [Port] 55504 [Flags] 2 [Guid] 1208993322 [EditorId] 1208993322 [Version] 1048832 [Id] WindowsEditor(7,DESKTOP-U4E3PM1) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/filter-run.log:113: trailing whitespace.
++Launching Unity Data Store - D:/UnityEditor/6000.6.0f1/Editor/Data/Tools/Unity.DataStore.exe 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/filter-run.log:391: trailing whitespace.
++targetPlatform = 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/filter-run.log:393: trailing whitespace.
++filters[0] = 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/filter-run.log:396: trailing whitespace.
++   targetPlatform = 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:3251: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:3254: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:3263: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:3270: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:3864: trailing whitespace.
+++--- a/unity/Assets/AddressableAssetsData/AssetGroups/Default Local Group.asset	
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:3865: trailing whitespace.
++++++ b/unity/Assets/AddressableAssetsData/AssetGroups/Default Local Group.asset	
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:3897: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:3905: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:3918: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:3920: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:3924: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:3927: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:3944: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:3945: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:3946: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:3958: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:3959: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:3960: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:3972: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:3973: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:3974: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:4069: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:4070: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:4071: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:4441: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:4442: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:4443: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:4517: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:4529: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:4530: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:4531: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:4543: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:4544: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:4545: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:4853: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:4866: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:4870: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:4880: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:4885: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:4931: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5088: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5122: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5131: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5135: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5228: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5254: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5270: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5276: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5280: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5364: trailing whitespace.
++++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5458: trailing whitespace.
++++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5527: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5528: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5529: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5556: trailing whitespace.
++++        m_SubObjectName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5557: trailing whitespace.
++++        m_SubObjectType: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5558: trailing whitespace.
++++        m_SubObjectGUID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5560: trailing whitespace.
++++      Variant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5561: trailing whitespace.
++++    SceneIdentity: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5579: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5580: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5581: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5737: trailing whitespace.
++++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5851: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5852: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5853: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5903: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5904: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5905: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5932: trailing whitespace.
++++        m_SubObjectName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5933: trailing whitespace.
++++        m_SubObjectType: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5934: trailing whitespace.
++++        m_SubObjectGUID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5936: trailing whitespace.
++++      Variant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5937: trailing whitespace.
++++    SceneIdentity: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5955: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5956: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:5957: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6113: trailing whitespace.
++++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6227: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6228: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6229: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6241: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6242: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6243: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6310: trailing whitespace.
++++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6404: trailing whitespace.
++++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6543: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6544: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6545: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6662: trailing whitespace.
++++    customData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6665: trailing whitespace.
++++    spriteID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6668: trailing whitespace.
++++    indices: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6675: trailing whitespace.
++++  mipmapLimitGroupName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6677: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6678: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6679: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6737: trailing whitespace.
++++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6831: trailing whitespace.
++++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6893: trailing whitespace.
++++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:6987: trailing whitespace.
++++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7095: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7104: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7119: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7134: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7160: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7166: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7178: trailing whitespace.
+++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7263: trailing whitespace.
++++      m_SubObjectName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7264: trailing whitespace.
++++      m_SubObjectType: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7265: trailing whitespace.
++++      m_SubObjectGUID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7267: trailing whitespace.
++++    Variant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7279: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7280: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7281: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7307: trailing whitespace.
++++      m_SubObjectName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7308: trailing whitespace.
++++      m_SubObjectType: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7309: trailing whitespace.
++++      m_SubObjectGUID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7311: trailing whitespace.
++++    Variant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7323: trailing whitespace.
++++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7324: trailing whitespace.
++++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7325: trailing whitespace.
++++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7519: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7522: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7531: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:7538: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8177: trailing whitespace.
++--- a/unity/Assets/AddressableAssetsData/AssetGroups/Default Local Group.asset	
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8178: trailing whitespace.
+++++ b/unity/Assets/AddressableAssetsData/AssetGroups/Default Local Group.asset	
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8210: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8218: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8231: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8233: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8237: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8240: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8257: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8258: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8259: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8271: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8272: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8273: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8285: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8286: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8287: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8382: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8383: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8384: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8778: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8779: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8780: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8960: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8972: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8973: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8974: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8986: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8987: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:8988: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:9471: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:9472: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:9473: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:9494: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:9507: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:9511: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:9521: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:9526: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:9572: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:9729: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:9763: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:9772: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:9776: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:9869: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:9895: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:9911: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:9917: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:9921: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10005: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10099: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10262: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10263: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10264: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10291: trailing whitespace.
+++        m_SubObjectName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10292: trailing whitespace.
+++        m_SubObjectType: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10293: trailing whitespace.
+++        m_SubObjectGUID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10295: trailing whitespace.
+++      Variant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10296: trailing whitespace.
+++    SceneIdentity: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10314: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10315: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10316: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10472: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10586: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10587: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10588: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10705: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10706: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10707: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10734: trailing whitespace.
+++        m_SubObjectName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10735: trailing whitespace.
+++        m_SubObjectType: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10736: trailing whitespace.
+++        m_SubObjectGUID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10738: trailing whitespace.
+++      Variant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10739: trailing whitespace.
+++    SceneIdentity: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10757: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10758: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10759: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:10915: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11029: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11030: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11031: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11043: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11044: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11045: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11114: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11208: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11359: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11360: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11361: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11478: trailing whitespace.
+++    customData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11481: trailing whitespace.
+++    spriteID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11484: trailing whitespace.
+++    indices: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11491: trailing whitespace.
+++  mipmapLimitGroupName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11493: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11494: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11495: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11612: trailing whitespace.
+++    customData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11615: trailing whitespace.
+++    spriteID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11618: trailing whitespace.
+++    indices: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11625: trailing whitespace.
+++  mipmapLimitGroupName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11627: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11628: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11629: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11746: trailing whitespace.
+++    customData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11749: trailing whitespace.
+++    spriteID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11752: trailing whitespace.
+++    indices: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11759: trailing whitespace.
+++  mipmapLimitGroupName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11761: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11762: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11763: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11880: trailing whitespace.
+++    customData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11883: trailing whitespace.
+++    spriteID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11886: trailing whitespace.
+++    indices: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11893: trailing whitespace.
+++  mipmapLimitGroupName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11895: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11896: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:11897: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12014: trailing whitespace.
+++    customData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12017: trailing whitespace.
+++    spriteID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12020: trailing whitespace.
+++    indices: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12027: trailing whitespace.
+++  mipmapLimitGroupName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12029: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12030: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12031: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12148: trailing whitespace.
+++    customData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12151: trailing whitespace.
+++    spriteID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12154: trailing whitespace.
+++    indices: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12161: trailing whitespace.
+++  mipmapLimitGroupName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12163: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12164: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12165: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12282: trailing whitespace.
+++    customData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12285: trailing whitespace.
+++    spriteID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12288: trailing whitespace.
+++    indices: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12295: trailing whitespace.
+++  mipmapLimitGroupName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12297: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12298: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12299: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12416: trailing whitespace.
+++    customData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12419: trailing whitespace.
+++    spriteID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12422: trailing whitespace.
+++    indices: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12429: trailing whitespace.
+++  mipmapLimitGroupName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12431: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12432: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12433: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12550: trailing whitespace.
+++    customData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12553: trailing whitespace.
+++    spriteID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12556: trailing whitespace.
+++    indices: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12563: trailing whitespace.
+++  mipmapLimitGroupName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12565: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12566: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12567: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12662: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12663: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12664: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12722: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12816: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12878: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:12972: trailing whitespace.
+++  m_Name: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:13080: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:13089: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:13104: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:13119: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:13145: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:13151: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:13163: trailing whitespace.
++ 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:13248: trailing whitespace.
+++      m_SubObjectName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:13249: trailing whitespace.
+++      m_SubObjectType: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:13250: trailing whitespace.
+++      m_SubObjectGUID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:13252: trailing whitespace.
+++    Variant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:13264: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:13265: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:13266: trailing whitespace.
+++  assetBundleVariant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:13292: trailing whitespace.
+++      m_SubObjectName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:13293: trailing whitespace.
+++      m_SubObjectType: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:13294: trailing whitespace.
+++      m_SubObjectGUID: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:13296: trailing whitespace.
+++    Variant: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:13308: trailing whitespace.
+++  userData: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:13309: trailing whitespace.
+++  assetBundleName: 
+artifacts/s-4c-phase-c-rediscovery-1241c8e/implementation.diff:13310: trailing whitespace.
+++  assetBundleVariant: 
+unity/Assets/OneStarMaker/Scripts/Runtime/Rendering.meta:6: trailing whitespace.
++  userData: 
+unity/Assets/OneStarMaker/Scripts/Runtime/Rendering.meta:7: trailing whitespace.
++  assetBundleName: 
+unity/Assets/OneStarMaker/Scripts/Runtime/Rendering.meta:8: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments.meta:6: trailing whitespace.
++  userData: 
+unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments.meta:7: trailing whitespace.
++  assetBundleName: 
+unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments.meta:8: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Abstractions.meta:6: trailing whitespace.
++  userData: 
+unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Abstractions.meta:7: trailing whitespace.
++  assetBundleName: 
+unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Abstractions.meta:8: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements.meta:6: trailing whitespace.
++  userData: 
+unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements.meta:7: trailing whitespace.
++  assetBundleName: 
+unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/Implements.meta:8: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/internal.meta:6: trailing whitespace.
++  userData: 
+unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/internal.meta:7: trailing whitespace.
++  assetBundleName: 
+unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Environments/internal.meta:8: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/OneStarMaker/Tests/Rendering.meta:6: trailing whitespace.
++  userData: 
+unity/Assets/OneStarMaker/Tests/Rendering.meta:7: trailing whitespace.
++  assetBundleName: 
+unity/Assets/OneStarMaker/Tests/Rendering.meta:8: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/OneStarMaker/Tests/Rendering/Environments.meta:6: trailing whitespace.
++  userData: 
+unity/Assets/OneStarMaker/Tests/Rendering/Environments.meta:7: trailing whitespace.
++  assetBundleName: 
+unity/Assets/OneStarMaker/Tests/Rendering/Environments.meta:8: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/OneStarMaker/Tests/Rendering/Environments/UnityRenderEnvironmentSinkTests.cs.meta:9: trailing whitespace.
++  userData: 
+unity/Assets/OneStarMaker/Tests/Rendering/Environments/UnityRenderEnvironmentSinkTests.cs.meta:10: trailing whitespace.
++  assetBundleName: 
+unity/Assets/OneStarMaker/Tests/Rendering/Environments/UnityRenderEnvironmentSinkTests.cs.meta:11: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Autumn_Lighting/Autumn_Lighting.unity:166: trailing whitespace.
++  m_Name: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Autumn_Lighting/Autumn_Lighting.unity:260: trailing whitespace.
++  m_Name: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2.meta:6: trailing whitespace.
++  userData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2.meta:7: trailing whitespace.
++  assetBundleName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2.meta:8: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.asset:21: trailing whitespace.
++        m_SubObjectName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.asset:22: trailing whitespace.
++        m_SubObjectType: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.asset:23: trailing whitespace.
++        m_SubObjectGUID: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.asset:25: trailing whitespace.
++      Variant: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.asset:26: trailing whitespace.
++    SceneIdentity: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.asset.meta:6: trailing whitespace.
++  userData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.asset.meta:7: trailing whitespace.
++  assetBundleName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.asset.meta:8: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.unity:150: trailing whitespace.
++  m_Name: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.unity.meta:5: trailing whitespace.
++  userData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.unity.meta:6: trailing whitespace.
++  assetBundleName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Lighting_4_2/Spring_Lighting_4_2.unity.meta:7: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2.meta:6: trailing whitespace.
++  userData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2.meta:7: trailing whitespace.
++  assetBundleName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2.meta:8: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.asset:21: trailing whitespace.
++        m_SubObjectName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.asset:22: trailing whitespace.
++        m_SubObjectType: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.asset:23: trailing whitespace.
++        m_SubObjectGUID: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.asset:25: trailing whitespace.
++      Variant: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.asset:26: trailing whitespace.
++    SceneIdentity: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.asset.meta:6: trailing whitespace.
++  userData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.asset.meta:7: trailing whitespace.
++  assetBundleName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.asset.meta:8: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.unity:150: trailing whitespace.
++  m_Name: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.unity.meta:5: trailing whitespace.
++  userData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.unity.meta:6: trailing whitespace.
++  assetBundleName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_5_2/Spring_Lighting_5_2/Spring_Lighting_5_2.unity.meta:7: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting.meta:6: trailing whitespace.
++  userData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting.meta:7: trailing whitespace.
++  assetBundleName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting.meta:8: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting.unity:198: trailing whitespace.
++  m_Name: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting.unity:292: trailing whitespace.
++  m_Name: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/LightingData.asset.meta:6: trailing whitespace.
++  userData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/LightingData.asset.meta:7: trailing whitespace.
++  assetBundleName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/LightingData.asset.meta:8: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_dir.png.meta:102: trailing whitespace.
++    customData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_dir.png.meta:105: trailing whitespace.
++    spriteID: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_dir.png.meta:108: trailing whitespace.
++    indices: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_dir.png.meta:115: trailing whitespace.
++  mipmapLimitGroupName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_dir.png.meta:117: trailing whitespace.
++  userData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_dir.png.meta:118: trailing whitespace.
++  assetBundleName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_dir.png.meta:119: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_light.exr.meta:102: trailing whitespace.
++    customData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_light.exr.meta:105: trailing whitespace.
++    spriteID: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_light.exr.meta:108: trailing whitespace.
++    indices: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_light.exr.meta:115: trailing whitespace.
++  mipmapLimitGroupName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_light.exr.meta:117: trailing whitespace.
++  userData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_light.exr.meta:118: trailing whitespace.
++  assetBundleName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-0_comp_light.exr.meta:119: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_dir.png.meta:102: trailing whitespace.
++    customData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_dir.png.meta:105: trailing whitespace.
++    spriteID: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_dir.png.meta:108: trailing whitespace.
++    indices: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_dir.png.meta:115: trailing whitespace.
++  mipmapLimitGroupName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_dir.png.meta:117: trailing whitespace.
++  userData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_dir.png.meta:118: trailing whitespace.
++  assetBundleName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_dir.png.meta:119: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_light.exr.meta:102: trailing whitespace.
++    customData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_light.exr.meta:105: trailing whitespace.
++    spriteID: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_light.exr.meta:108: trailing whitespace.
++    indices: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_light.exr.meta:115: trailing whitespace.
++  mipmapLimitGroupName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_light.exr.meta:117: trailing whitespace.
++  userData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_light.exr.meta:118: trailing whitespace.
++  assetBundleName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-1_comp_light.exr.meta:119: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_dir.png.meta:102: trailing whitespace.
++    customData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_dir.png.meta:105: trailing whitespace.
++    spriteID: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_dir.png.meta:108: trailing whitespace.
++    indices: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_dir.png.meta:115: trailing whitespace.
++  mipmapLimitGroupName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_dir.png.meta:117: trailing whitespace.
++  userData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_dir.png.meta:118: trailing whitespace.
++  assetBundleName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_dir.png.meta:119: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_light.exr.meta:102: trailing whitespace.
++    customData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_light.exr.meta:105: trailing whitespace.
++    spriteID: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_light.exr.meta:108: trailing whitespace.
++    indices: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_light.exr.meta:115: trailing whitespace.
++  mipmapLimitGroupName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_light.exr.meta:117: trailing whitespace.
++  userData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_light.exr.meta:118: trailing whitespace.
++  assetBundleName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-2_comp_light.exr.meta:119: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_dir.png.meta:102: trailing whitespace.
++    customData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_dir.png.meta:105: trailing whitespace.
++    spriteID: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_dir.png.meta:108: trailing whitespace.
++    indices: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_dir.png.meta:115: trailing whitespace.
++  mipmapLimitGroupName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_dir.png.meta:117: trailing whitespace.
++  userData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_dir.png.meta:118: trailing whitespace.
++  assetBundleName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_dir.png.meta:119: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_light.exr.meta:102: trailing whitespace.
++    customData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_light.exr.meta:105: trailing whitespace.
++    spriteID: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_light.exr.meta:108: trailing whitespace.
++    indices: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_light.exr.meta:115: trailing whitespace.
++  mipmapLimitGroupName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_light.exr.meta:117: trailing whitespace.
++  userData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_light.exr.meta:118: trailing whitespace.
++  assetBundleName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/Lightmap-3_comp_light.exr.meta:119: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/ReflectionProbe-0.exr.meta:102: trailing whitespace.
++    customData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/ReflectionProbe-0.exr.meta:105: trailing whitespace.
++    spriteID: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/ReflectionProbe-0.exr.meta:108: trailing whitespace.
++    indices: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/ReflectionProbe-0.exr.meta:115: trailing whitespace.
++  mipmapLimitGroupName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/ReflectionProbe-0.exr.meta:117: trailing whitespace.
++  userData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/ReflectionProbe-0.exr.meta:118: trailing whitespace.
++  assetBundleName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Lighting/Spring_Lighting/ReflectionProbe-0.exr.meta:119: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Representative.lighting.meta:6: trailing whitespace.
++  userData: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Representative.lighting.meta:7: trailing whitespace.
++  assetBundleName: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_Representative.lighting.meta:8: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Summer_Lighting/Summer_Lighting.unity:198: trailing whitespace.
++  m_Name: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Summer_Lighting/Summer_Lighting.unity:292: trailing whitespace.
++  m_Name: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Winter_Lighting/Winter_Lighting.unity:166: trailing whitespace.
++  m_Name: 
+unity/Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Winter_Lighting/Winter_Lighting.unity:260: trailing whitespace.
++  m_Name: 
+unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_4_2.asset:20: trailing whitespace.
++      m_SubObjectName: 
+unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_4_2.asset:21: trailing whitespace.
++      m_SubObjectType: 
+unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_4_2.asset:22: trailing whitespace.
++      m_SubObjectGUID: 
+unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_4_2.asset:24: trailing whitespace.
++    Variant: 
+unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_4_2.asset.meta:6: trailing whitespace.
++  userData: 
+unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_4_2.asset.meta:7: trailing whitespace.
++  assetBundleName: 
+unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_4_2.asset.meta:8: trailing whitespace.
++  assetBundleVariant: 
+unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_5_2.asset:20: trailing whitespace.
++      m_SubObjectName: 
+unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_5_2.asset:21: trailing whitespace.
++      m_SubObjectType: 
+unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_5_2.asset:22: trailing whitespace.
++      m_SubObjectGUID: 
+unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_5_2.asset:24: trailing whitespace.
++    Variant: 
+unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_5_2.asset.meta:6: trailing whitespace.
++  userData: 
+unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_5_2.asset.meta:7: trailing whitespace.
++  assetBundleName: 
+unity/Assets/SceneGraphData/Nodes/Cells/Spring_Lighting_5_2.asset.meta:8: trailing whitespace.
++  assetBundleVariant: 

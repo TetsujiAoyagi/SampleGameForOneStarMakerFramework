@@ -1,0 +1,9 @@
+warning: LF will be replaced by CRLF in docs/handoff/S-4c_WORLD_LIGHTING.md.
+The file will have its original line endings in your working directory
+
+対象: D:\repositories\unity\SampleGameForOneStarMakerFramework
+Unity側 .cs（ベンダー同梱を除く）: 550 ファイル
+検査1 の差分: 20 ファイル（基点 origin/develop = 553b7b1）
+
+機械で判定できる契約に違反なし。
+設計判断（責務配置・寿命・依存・UpdateSystem 登録・偽 null）は対象外。

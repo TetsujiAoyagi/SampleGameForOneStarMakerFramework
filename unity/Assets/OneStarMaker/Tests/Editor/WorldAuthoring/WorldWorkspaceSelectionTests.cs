@@ -102,8 +102,8 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             var plan = WorldCompanionCreationPlan.Create(selection);
             Assert.That(plan.Identity, Is.EqualTo(identity));
             Assert.That(plan.ParentIdentity, Is.EqualTo("Spring_Cell_8_5"));
-            Assert.That(plan.ScenePath, Is.EqualTo($"Assets/SampleGame/InGame/InGameSession/World/Seasons/Spring/Cells/Spring_Cell_8_5/{identity}/{identity}.unity"));
-            Assert.That(plan.ResourcePath, Is.EqualTo($"Assets/SampleGame/InGame/InGameSession/World/Seasons/Spring/Cells/Spring_Cell_8_5/{identity}/{identity}.asset"));
+            Assert.That(plan.ScenePath, Is.EqualTo($"Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_8_5/{identity}/{identity}.unity"));
+            Assert.That(plan.ResourcePath, Is.EqualTo($"Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_8_5/{identity}/{identity}.asset"));
             Assert.That(plan.NodePath, Is.EqualTo($"Assets/SceneGraphData/Nodes/Cells/{identity}.asset"));
         }
 

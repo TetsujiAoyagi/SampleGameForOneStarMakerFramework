@@ -1,0 +1,9 @@
+# Runtime observations supplied for independent audit
+
+- Unity `6000.6.0f1`; Play was active after Title → Home. The prepared Spring Full content revision was applied through the existing Content Delivery validation flow. `content:runtimeMode` behavior was not changed.
+- In a snapshot with `Spring_Cell_5_2`, `Spring_Environment_5_2`, and `Spring_Lighting_5_2` loaded, `LightmapSettings.lightmaps.Length=2`; `Ground.lightmapIndex=0` with non-zero scale/offset.
+- Runtime Spring environment values in the resident snapshot and a later snapshot after both target Cells were absent: fog enabled, `ExponentialSquared`, color `(0.750, 0.820, 0.880, 1.000)`, density `0.0015`; ambient mode `Flat`, sky `(0.180, 0.220, 0.280, 1.000)`; sun `SeasonSun`, rotation `(15,330,0)`, color `(1.000,0.850,0.700,1.000)`, intensity `0.8`.
+- Human operator reported visiting `(4,2)` and `(5,2)`, then unloading both. A later scene-list snapshot retained `Spring_Lighting` but contained neither target Cell nor its Cell Lighting companion.
+- Scope of these observations: the resident snapshot records lightmap assignment before unload; the later snapshot records the Spring environment while target Cells are absent. This file makes no claim about a post-unload return or baked-floor reappearance.
+
+Source: the direct snapshot facts in the Phase C runtime evidence captured 2026-09-25. This extract intentionally omits review conclusions and findings.

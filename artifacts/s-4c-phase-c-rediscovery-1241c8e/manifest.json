@@ -1,0 +1,50 @@
+{
+  "id": "s4c-discovery-c-rediscovery-1241c8e",
+  "generatedAt": "2026-09-24T05:38:10.1490850+09:00",
+  "branch": "cursor/s-4c-world-lighting-a3-4a38",
+  "implementationBase": "553b7b150e13245b369d75dc4baa12d86e9559aa",
+  "implementationHead": "1241c8e7b4e475f934fc8931ba783c755508ee2d",
+  "reviewStartHead": "1241c8e7b4e475f934fc8931ba783c755508ee2d",
+  "workingTreeAtReviewStart": "clean",
+  "phaseASnapshot": {
+    "path": "../s-4c-phase-a/A3-frozen.md",
+    "sha256": "9935AD1437DE37A173C57A1D969407697AAA75283A2204FA26E1D094B673EED7",
+    "supportingA1SnapshotSha256": "B7CE692F0F0EA04C4111C08BA429D443F3C92321D687420CAF047AFC4A28FA38"
+  },
+  "phaseBResultSnapshot": {
+    "path": "phase-b-result.md",
+    "sha256": "C043A3B0482F61060B7D6A8BB5140165A12840BC5BB76D4A7D8184B96C95FC62"
+  },
+  "diff": {
+    "path": "implementation.diff",
+    "sha256": "D65129BB7E64D639C87EC13A2BF4169A244EF9FD93AA565421B61F3C7BD08FEA",
+    "scope": "base..implementationHead"
+  },
+  "stat": {
+    "path": "stat.txt",
+    "sha256": "7E8319216E358EB80CD64CCF1CD7367EE047E34DCBC94E256FCD8A0C7E34A207"
+  },
+  "nameStatus": {
+    "path": "name-status.txt",
+    "sha256": "BD0E542EB4D95E83ED48A561C5320461318E82EA326B9FB0DF753F8C8FDFB57B"
+  },
+  "mechanicalChecks": {
+    "contractAudit": { "command": "pwsh tools/contract-audit.ps1", "exitCode": 0, "path": "contract-audit.txt", "sha256": "277011A6CA9E7798B50F5A518037FDC14667DEA5D229E120EC2ED172879FCBFD" },
+    "docsAudit": { "command": "pwsh tools/docs-audit.ps1", "exitCode": 0, "path": "docs-audit.txt", "sha256": "A00727079957F05A0F601DECB6E5A75E8D75071B18C7B8B7C8C9520A0DFAEAA8" },
+    "sampleGameRenderSettingsSearch": { "command": "rg \"RenderSettings\" unity/Assets/SampleGame --glob \"*.cs\"", "matches": 0, "path": "samplegame-rendersettings.txt", "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855" },
+    "frameworkSeasonSearch": { "command": "rg \"Season|Spring|Summer|Autumn|Winter|季節\" unity/Assets/OneStarMaker/Scripts -g \"*.cs\"", "matches": "comments only", "path": "framework-season-terms.txt", "sha256": "F31CE74B02052FDA54A37B837368EE4F9443B894B9F86F3F614BF20538725D27" },
+    "diffCheck": { "command": "git diff --check base..implementationHead", "path": "diff-check.txt", "result": "Unity-generated YAML/meta blank-value trailing whitespace only" }
+  },
+  "limitedTestEvidence": {
+    "command": "pwsh tools/run-tests.ps1 -Filter \"RenderEnvironmentLeaseTests|SeasonLightingPresetTableTests|GameSceneFactoryTests|GameSceneLoggingTests|CellLightingSceneTests|UnityRenderEnvironmentSinkTests\"",
+    "nunitXml": "filter-results.xml",
+    "nunitXmlSha256": "C0C09573C0668C01EE6C83A2D0ECD920AF3A5E4ECF0D2702FB11304CB0D08CE9",
+    "rawLog": "filter-run.log",
+    "rawLogSha256": "B68DBEB58757CBEE961243318F7E62ED9A0E8C2CFD829C00BE269FF94745EC10",
+    "passed": 34,
+    "failed": 0,
+    "scope": "limited discovery-C retest; not the full EditMode regression"
+  },
+  "model": "Codex / GPT-6",
+  "phase": "discovery-C recheck; no GO decision, no C-prime"
+}

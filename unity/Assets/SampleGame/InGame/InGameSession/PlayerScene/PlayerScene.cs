@@ -27,7 +27,6 @@ namespace SampleGame.InGame
     {
         private readonly ILogger<PlayerScene> _logger;
         private readonly ICameraSystem _cameraSystem;
-        private readonly ICameraBackgroundApplier _cameraBackgroundApplier;
 
         private PlayerRigBindings? _rig;
         private FlyController? _flyer;
@@ -50,8 +49,11 @@ namespace SampleGame.InGame
             _logger = loggerFactory.CreateLogger<PlayerScene>();
             // CameraSystem は任意依存ではない。Composition Root で失敗を確定させ、破棄済み Host への遅延事故を防ぐ。
             _cameraSystem = cameraSystem ?? throw new System.ArgumentNullException(nameof(cameraSystem));
-            _cameraBackgroundApplier = cameraBackgroundApplier
-                ?? throw new System.ArgumentNullException(nameof(cameraBackgroundApplier));
+            // Camera clear は AppInitializer / InGameScene が所有する。ここでは fog を書かない。
+            if (cameraBackgroundApplier == null)
+            {
+                throw new System.ArgumentNullException(nameof(cameraBackgroundApplier));
+            }
             _logger.ZLogInformation($"Create PlayerScene");
         }
 
@@ -166,7 +168,6 @@ namespace SampleGame.InGame
                     _sessionServices,
                     _flyer,
                     WorldCellCatalog.SpawnPosition());
-                ApplyDemoLook();
 
                 _logger.ZLogInformation($"Player ready at Cell stream spawn {WorldCellCatalog.SpawnPosition()}");
             }
@@ -197,33 +198,6 @@ namespace SampleGame.InGame
             }
 
             return SceneQuery.GetLoadedScene(parent.Identity) as IInGameSessionServices;
-        }
-
-        /// <summary>
-        /// 実証用の単純な空模様。季節テーマは捨てたので固定トーンにする。
-        /// Fog / Ambient は暫定で RenderSettings 直書き（環境オーナーは将来 Environment 子シーン側へ）。
-        /// </summary>
-        private void ApplyDemoLook()
-        {
-            try
-            {
-                var sky = new Color(0.45f, 0.7f, 0.95f);
-                _cameraBackgroundApplier.SetClearFlag(
-                    _cameraSystem.MainView,
-                    ClearFlag.Color,
-                    sky);
-
-                RenderSettings.fog = true;
-                RenderSettings.fogMode = FogMode.ExponentialSquared;
-                RenderSettings.fogColor = new Color(0.75f, 0.85f, 0.95f);
-                RenderSettings.fogDensity = 0.0035f;
-                RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-                RenderSettings.ambientLight = Color.Lerp(sky, Color.white, 0.4f);
-            }
-            catch (Exception ex)
-            {
-                _logger.ZLogWarning($"ApplyDemoLook failed: {ex.Message}");
-            }
         }
     }
 }
