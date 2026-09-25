@@ -69,7 +69,7 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 
 - 人間または AI が担当する。AI は新規セッションで開始する。発見 C と判定 C の結論、指摘、疑念候補、誘導的な説明を含まない blind audit bundle を読み、可変な HANDOFF 全文をそのまま入力にしない。
 - 判定 evidence が揃った最終 head でのみ開始する。同じテストを C' が重複実行することは必須にしない。
-- blind audit bundle は、凍結した Phase A snapshot、所見を含まない Phase B の実装結果、判定 C と同じ implementation base / head の完全 diff、判定必須テストの生結果、判定 C より前に生成した機械検査出力だけで構成する。B result へ発見 C の所見を転載して迂回しない。
+- blind audit bundle は、凍結した Phase A snapshot、所見を含まない Phase B の実装結果、判定 C と同じ implementation base / head の完全 diff、判定必須テストの生結果、操作・目視の一次観察の原記録、判定 C より前に生成した機械検査出力だけで構成する。原記録の扱いは [レビュー証拠](references/review-evidence.md) に従い、B result や原記録へ発見 C の所見を転載して迂回しない。
 - AI 担当のモデル相違条件、人間担当の確認記録と独立性の扱いは [Phase と HANDOFF](references/phases-and-handoff.md) に従う。人間の回答前に AI が PASS や完了を記録しない。
 - 受け入れ条件だけでなく、契約違反、構造劣化、未検証の失敗経路、Phase C 自体の見落としを探す。
 - 指摘を「凍結済み条件または常時契約への違反により現在の問いを阻害する欠陥」と「後続スライスの入力」に分け、根拠を記録する。後者を理由に現スライスを自動拡張しない。
