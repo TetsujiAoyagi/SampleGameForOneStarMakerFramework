@@ -39,12 +39,11 @@
 | ファイル | 役割 | 実装キューか |
 |---|---|---|
 | `SEASON_WORLD_DESIGN.md` | 世界構図・実証・スライス順序 | 着手時 HANDOFF を切るまでの正本。スライス表の順で切る。W-5 / W-6 は Content Directory / DIST。S-6 / S-7 実装スライスは廃止済み |
-| `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b 完了。S-4c の実装正本は `S-4c_WORLD_LIGHTING.md`。S-4d の Phase D で harvest して削除する |
-| `S-4c_WORLD_LIGHTING.md` | S-4c World Lighting のスライス HANDOFF | はい。A3 凍結後は Phase B の正本 |
+| `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b / S-4c 完了。S-4d は VFX / Events の着手時に HANDOFF を切る |
 | `REVIEW_WORKFLOW_EFFICIENCY.md` | 外部モデルレビューの実測と、次のPhase Cで残す比較項目 | いいえ。普遍契約はSkillへharvest済み。残る実測後に削除する |
 | `REVIEW_WORKFLOW_EFFICIENCY_ASSESSMENT.md` | 上記への独立評価（Claude / Grok）と採否記録 | いいえ。次のPhase Cで残る仮説を検証後、調査記録ごと削除する |
 
-Streaming の M-1〜M-4 は完了し、決定を公開面へ harvest して、移行計画と各着手時 HANDOFF を削除済み。完了済み HANDOFF は復活させない。
+Streaming の M-1〜M-4 と S-4c は完了し、決定を公開面へ harvest して、移行計画と各着手時 HANDOFF を削除済み。完了済み HANDOFF は復活させない。
 
 S-3 の記録は公開面 `docs/streaming/STREAMING_CURRENT_SPEC.md` に移した。**実装指示ではない。** 旧 `SEASON_LEVELS_IMPLEMENTATION.md` を復活させない。
 
