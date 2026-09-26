@@ -1,6 +1,6 @@
-# ローカル Artifact 認証情報
+# ローカル資格情報管理
 
-Windows の所有者は PowerShell 7 から、固定の `osm` profile を管理できる。
+Windowsの所有ユーザーが、PowerShell 7から固定プロファイル「osm」の資格情報を管理するためのツールです。現在の検証範囲はダミー鍵によるローカル操作です。
 
 ```powershell
 pwsh tools/artifacts.ps1 credentials set --profile osm
@@ -9,12 +9,16 @@ pwsh tools/artifacts.ps1 credentials set --profile osm --replace
 pwsh tools/artifacts.ps1 credentials remove --profile osm
 ```
 
-`set` と `--replace` は対話 console を必要とする。Access Key ID と Secret Access Key は echo しない prompt で入力する。鍵を引数、redirect した標準入力、ファイル、環境変数から渡す経路はない。通常の `set` は既存 profile を拒否し、`--replace` は既存 profile を必要とする。この段階では bucket を `osm-artifacts` に固定し、endpoint と token の参照情報は未設定のままにする。
+登録と置換は対話端末で行います。Access Key IDとSecret Access Keyは画面に表示せず入力を受け付けます。鍵をコマンド引数、リダイレクトした標準入力、ファイル、環境変数から渡すことはできません。通常の登録は既存プロファイルを拒否し、置換には既存プロファイルが必要です。バケットはosm-artifactsに固定し、接続先とトークンの参照情報は未設定のままです。
 
-暗号化した active record は Windows の `LocalApplicationData` Known Folder にある `OneStarMaker\Artifacts\credentials` 以下に置く。DPAPI の `CurrentUser` を使うため、別 Windows ユーザーや別 PC に blob をコピーしても利用できない。checkout や同期フォルダーにコピーしない。同じ Windows ユーザー権限を持つ別 process は復号可能なので、Windows account 自体を保護する。資格情報専用の directory と file は継承を切った制限 ACL を使う。既存の共有祖先 `OneStarMaker` や、その兄弟 directory の ACL は変更しない。
+保存先はWindowsのLocalApplicationData Known Folder配下の OneStarMaker/Artifacts/credentials です。保存レコード全体をDPAPIのCurrentUserで暗号化し、資格情報専用のフォルダとファイルはACLの継承を切って、所有ユーザー・SYSTEM・Administratorsだけに権限を与えます。既存の共有OneStarMakerフォルダや、その中の別機能のデータ・権限は変更しません。暗号化ファイルもcheckoutや同期フォルダへコピーしないでください。
 
-`status` は active record を復号・検証して安全なローカル metadata だけを表示する。R2 への接続や接続時刻は報告しない。終了 code 0 はローカル操作成功、2 は交換済みだが古い一時ファイルの掃除が保留、1 は失敗を表す。active が欠落・破損した場合は失敗し、backup を自動復元しない。backup や candidate を手動で active に改名せず、ローカル directory と ACL の状態を確認する。
+DPAPIはWindowsユーザーに結びつけて保存データを保護しますが、同じユーザー権限で動くAgentや別のプログラムからは復号できます。同ユーザーのAgentを隔離する仕組みではありません。今回、別Windowsユーザーによる復号拒否の実測は未確認です。他のPCへのファイルコピーを資格情報の移行手段にせず、その端末専用の鍵を用意する運用とします。
 
-`remove` は冪等で、この profile の active と厳密な命名規則に合う一時・backup のみを削除する。Cloudflare の token は失効しない。失効操作は所有者が Cloudflare 側で別途行う。
+状態表示はレコードを復号・検証し、安全なローカル情報だけを返します。鍵の値やR2接続の成功、接続確認日時は表示しません。終了コードは、0がローカル操作成功、2が置換確定済み・一時ファイルの清掃保留、1が失敗です。
 
-実 token の登録、使い捨て object による R2 読み書きと read-back、server 検証を伴う鍵交換、旧 token の失効確認は次のスライスの作業である。このツールは remote での鍵の有効性を主張しない。
+置換は候補を暗号化して再検証してから、同一フォルダ内で原子的に切り替えます。切替え前の失敗では旧レコードを保持し、切替え後の清掃失敗を「置換されなかった」とは扱いません。現行レコードが欠落・破損しているときは失敗し、バックアップを自動復元しません。候補やバックアップを手動で現行ファイルへ改名せず、保存先と権限の状態を確認してください。
+
+削除は対象プロファイルの現行ファイルと、厳密な命名規則に合う所有一時ファイル・バックアップだけを対象とします。すでに削除済みでも成功します。ローカル削除によってCloudflareのトークンは失効しません。サーバー側の失効は所有者が別途行います。
+
+実トークンの登録、使い捨てデータによるR2の読み書きと読戻し、サーバーでの検証を伴う鍵の切替え、旧トークンの失効確認は段2の作業です。このツールのローカル操作成功だけで、実R2鍵が有効とは判断しません。

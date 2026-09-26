@@ -1,116 +1,126 @@
-# Artifact Local Credentials — slice 0 HANDOFF
+# ローカル資格情報管理 — 段1（スライス0）HANDOFF
 
-## 0. Metadata
+## 0. メタデータ
 
-- type: `slice`
-- status: `B` — A3 frozen by owner approval on 2026-09-26; B then C/C' authorized
-- branch: `codex/artifact-local-credentials`
-- implementation base commit: `ae4b6e9b87c6690b16b83ca7d37af53def46f652`
-- implementation head commit: Phase B result commit (fixed SHA in the neutral Phase B snapshot and Phase C evidence)
-- risk: `high` (credential storage, filesystem authority, and fail-closed replacement; tests use dummy values only)
-- owner: OSM maintainers
+- type: slice
+- status: B — 2026-09-26に人間がA3を凍結し、B→C→C'を承認済み。
+- branch: codex/artifact-local-credentials
+- implementation base commit: ae4b6e9b87c6690b16b83ca7d37af53def46f652
+- implementation head commit: 最終実装の固定時に記録。レビュー記録だけのコミットと区別する。
+- risk: high — 資格情報、ファイル権限、失敗時の拒否と置換を扱う。検証にはダミー値だけを使う。
+- owner: OSM保守担当
 - created: 2026-09-26
 - expires: 2026-12-26
-- harvest to: `docs/README.md` for current usage and `tools/Artifacts/README.md` for operational contract, then delete this HANDOFF at Phase D
-- A2 review input: A1 draft SHA-256 `D01C6AD1B5D628A3227AA60C0A0522847B3D52E6C3AE8A013F2A15CFC518BCB4`
-- Phase A snapshot path / id, generated at, hash: pending A3 freeze; the frozen A0/A1/A2/A3 section of this file is the source
-- Phase B result snapshot: `C:/Users/void/AppData/Local/Temp/osm-credentials-20260926/phase-b.md`, generated 2026-09-26; hash recorded in Phase C evidence after the result commit. Evidence and C' blind bundle pending their respective phases.
+- harvest to: 現在の利用案内は docs/README.md、運用契約は tools/Artifacts/README.md。Phase Dのマージ時に必要な知見を反映し、このHANDOFFを削除する。
+- A2レビュー入力: A1初稿のSHA-256 D01C6AD1B5D628A3227AA60C0A0522847B3D52E6C3AE8A013F2A15CFC518BCB4
+- Phase A snapshot: 凍結コミット bef89538a30c9fbabefd6b8315cd9cd63bcf8341 の本ファイル。保存先 C:/Users/void/AppData/Local/Temp/osm-credentials-20260926/phase-a.md、生成時刻2026-09-26 11:36 JST、SHA-256 C9242D610D6D6716D0297123371CA161A1CD78AEB2F8BFE5B76C95285457DC84。
+- Phase B result snapshot: C:/Users/void/AppData/Local/Temp/osm-credentials-20260926/phase-b.md。最終版の生成時刻・ハッシュを判定証拠とともに記録する。
+- evidence bundle / C' blind bundle: 最終実装版の判定時に保存先・生成時刻・ハッシュを記録する。
 
-## 1. Purpose, present state, and exclusions (A0)
+ユーザーの指示により、本HANDOFF、README、コードコメントを日本語にする。以下は凍結済み条件の日本語訳であり、条件の追加・緩和ではない。英語で保存した凍結snapshotは、過去の入力を検証できるよう変更しない。
 
-The user's local stage 1 is program slice 0; local stage 2 is program slice 1. These numbering systems do not imply different scope.
+## 1. 目的・開始時点の状況・対象外（A0）
 
-The program at `docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` revision r1 freezes a Windows local parent-key boundary, not a slice implementation. No credential store or artifact command exists. The `osm-artifacts` R2 bucket is private, but no object credential or R2 connectivity is proven. The repository is public. This slice establishes only a local Windows credential lifecycle using **dummy S3 key pairs**. Its result may enable the separate local transport probe; it does not assert that any real R2 key works.
+ユーザーの「ローカル段1」はprogramの「スライス0」、「段2」は「スライス1」を指す。番号の違いで対象範囲を変えない。
 
-Out of scope: creating or entering real tokens, Cloudflare account or bucket changes, R2 calls, real Evidence/build uploads, cloud grants, package/transfer/signing commands, Unity or BuildSystem integration, OneDrive staging, and public distribution. Slice 1 owns authenticated local R2 connectivity and real-key read/write/read-back validation; the cloud part of slice 1 owns cloud grants and egress. Slice 2 owns final-object server protection and the artifact CLI contract. No real payload is uploaded before slice 2's server-side protection gate. The pending fourth program review comment remains a program revision matter.
+docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md のr1は、Windowsローカルの親資格情報について保存先・責務・セキュリティ境界を凍結したもので、個別実装の凍結ではなかった。A0時点では資格情報ストアとartifactコマンドは未実装。リポジトリは公開、R2のosm-artifactsバケットは非公開だが、オブジェクト資格情報とR2接続は未検証だった。本スライスは、**ダミーのS3鍵ペアだけ**でWindowsローカルの登録・保管・置換・削除を成立させる。実R2鍵の有効性は主張しない。
 
-Constraints carried into this slice: `CurrentUser` DPAPI only; encrypted files under `%LOCALAPPDATA%\OneStarMaker\Artifacts\credentials\`, outside the checkout and `D:\OneDrive\OSM-Artifacts`; owner-only administrative CLI; no plaintext fallback, child process carrying secrets, secret command-line arguments, persistent secret environment variables, Git payloads, ordinary logs, or secret-export command. Same-user processes can decrypt DPAPI material. Bucket-wide Object Read & Write authority can overwrite/delete; CLI rules cannot make it append-only. Token creation, revocation and incident response remain owner actions in Cloudflare. A local remove must explicitly say it does not revoke the token.
+対象外は、実トークンの発行・入力、Cloudflare設定変更、R2呼出し、実Evidence・実ビルドのアップロード、クラウド向けgrant、梱包・転送・署名コマンド、Unity/BuildSystem連携、OneDriveへの保存、公開配布。スライス1が実R2認証とread/write/read-back、クラウド側grantと外向き接続を担当する。スライス2がサーバー側の確定オブジェクト保護とartifact CLI契約を担当し、その保護が成立するまで実payloadをアップロードしない。未受領のprogramレビュー第4コメントはprogramの改訂で扱う。
 
-## 2. Frozen decision and acceptance boundary (A3 r1)
+引き継ぐ制約は次のとおり。
 
-**Question:** Can a Windows owner register, inspect safe metadata, replace, and locally remove a dummy R2 key pair with recoverable failure behavior and no persisted or emitted plaintext, without Unity or network access?
+- DPAPIはCurrentUserのみ。暗号化ファイルはWindowsのローカルユーザー領域 OneStarMaker/Artifacts/credentials/ に置き、checkoutと D:/OneDrive/OSM-Artifacts には置かない。
+- 管理CLIは所有ユーザーが利用する。平文保存への代替、秘密を含む子プロセス引数、引数・永続環境変数からの鍵入力、Gitへのpayload追加、通常ログへの秘密出力、秘密のexportコマンドを禁止する。
+- 同じWindowsユーザーのプロセスはDPAPIを復号できる。同ユーザーのAgentからの隔離とは主張しない。
+- バケット単位のObject Read & Write権限には上書き・削除能力がある。CLI規則だけで追記専用にはできない。
+- トークン発行・失効・事故対応はCloudflare所有者の責務。ローカル削除はサーバー側失効を行わないと表示する。
 
-**Minimum evidence for GO:** An independent local test run on Windows exercises registration, local-only status, replacement success/failure, tamper/decrypt refusal, and removal using only dummy sentinels; inspects the credential directory and captured outputs for nonexposure; and shows that no pre-existing repository changes were touched. The filesystem seam records zero writes outside the isolated fixture in tests, while a local execution observes writes only beneath the approved credential root. The result must identify any cross-user check that could not be executed as unverified; no scan of all OneDrive contents is required or claimed.
+## 2. 凍結済みの意思決定・受け入れ境界（A3 r1）
 
-The minimum consists of these observable acceptance conditions:
+**このスライスが答える問い:** Unityやネットワークなしで、Windows所有者がダミーR2鍵ペアの登録、安全な状態表示、置換、ローカル削除を行え、失敗時の保全と平文の保存・出力防止を確認できるか。
 
-1. `pwsh tools/artifacts.ps1 credentials set --profile osm` prompts for Access Key ID and Secret Access Key using masked interactive input. `--replace` replaces an existing profile; a normal `set` refuses an existing one. Both reject redirected/noninteractive input **before** prompting, with a finite failure and no mutation. The CLI never accepts key values through parameters, stdin pipes, environment variables, or files. Profile names are a restricted ASCII identifier, not a path. Only `osm` and its fixed private bucket/endpoint configuration need production support in this slice; tests can inject a private fake configuration.
-2. One DPAPI-encrypted active record contains the two S3 keys and safe metadata: profile, bucket, endpoint, generation label, creation/replacement time, and a nullable token ID/revocation reference (uncollected in this dummy-only slice). No sidecar metadata file or additional Cloudflare bearer token is accepted. `credentials status --profile osm` decrypts briefly, validates the whole record, emits only safe fields and **local-only; R2 connectivity unverified**, then discards plaintext. It fails on corrupt ciphertext and fabricates no connectivity timestamp.
-3. The production root derives from the Windows `LocalApplicationData` Known Folder, never from an environment-variable replacement. The storage implementation resolves the fixed descendant, rejects a root inside the checkout or known sync root, and refuses reparse points along **every ancestor and descendant** of its path. It creates directory/file ACLs limited to the current user, SYSTEM, and Administrators, with inheritance disabled; it refuses existing unsafe ACLs. DPAPI scope is `CurrentUser`. Unsupported OS, missing Known Folder, ACL setup failure, corrupt or foreign-user ciphertext, malformed record, and unsafe path all fail closed with nonzero exit and a generic diagnostic. There is no plaintext fallback. Tests may inject an internal path root; the public CLI and environment cannot select it.
-4. Before commit, local structural validation and an optional **test-only** fake callback run, then the writer encrypts a candidate in the same directory and verifies that candidate by decrypting and parsing it. The fake callback is never a remote validity claim and is unavailable through CLI/environment inputs. An exclusive local lock serializes mutations and times out after at most five seconds with no mutation. The existing active record is the only accepted record. Initial creation uses create-if-absent; replacement atomically exchanges the candidate for active on the same volume, and that exchange is the commit point. A failure before commit preserves the old active record. No temp or backup is auto-promoted. If active is missing but backup exists, reads fail closed. A post-commit cleanup failure is reported as **committed with cleanup pending**, not as an uncommitted failure; the active record remains authoritative. Restricted temp/backup cleanup and interruption recovery are explicit and tested at these boundaries.
-5. `credentials remove --profile osm` removes the local active record and safely identified owned temporary/backup files for that profile without touching unrelated files. It prints that Cloudflare revocation is **not** performed. A second removal has a documented idempotent result. Removal does not delete the directory tree or any unrelated profile. Neither replacement nor removal claims remote token revocation.
-6. Captured normal, verbose, error, tamper, and injected-failure output; exceptions; process arguments; and repository diff contain none of the dummy key sentinels. Status is nonsecret and local-only. Plaintext exists transiently in process memory during prompt/encryption; disposable buffers are cleared where the runtime permits, without claiming complete memory erasure.
+**進める最低条件:** 独立したWindows検証で、ダミー値の登録、ローカル状態表示、置換の成功・失敗、改ざん・復号失敗の拒否、削除を確認する。生成ファイルと捕捉した出力にダミー鍵がなく、既存のリポジトリ変更を壊していないことを示す。テストのファイル操作観測点で隔離fixture外への書込みがないことを記録し、実操作でも許可した保存先に限定されることを観察する。別ユーザー検証を実行できなければ未確認と記録する。OneDrive全体の走査は要求せず、全体を走査済みとも主張しない。
 
-**GO / NO-GO:** GO only when all minimum evidence is present and there is no counterexample to it. Otherwise NO-GO, with failed or unverified conditions named. This is an implementation slice, so there is no conditional acceptance. Stop after the above question is answered; do not expand this slice to R2 access or a token onboarding run.
+受け入れ条件は、上記最低条件を構成する次の6項目とする。
 
-**Human decision approved at A3:** The owner froze the local-only replacement rule on 2026-09-26. The test-only fake callback proves failed replacement preserves the old record; candidate verification and the atomic exchange define local success. A real key rotation is *not* complete until slice 1 performs disposable R2 read/write/read-back before switching and the owner separately confirms old-token revocation. No future decrypted-read API is added in slice 0; its shape belongs to slice 1. If a real-key flow needs different state, owner, lifetime, public API, or fail-closed behavior, reopen Phase A rather than adding it during B.
+1. **入力:** pwsh tools/artifacts.ps1 credentials set --profile osm はAccess Key IDとSecret Access Keyを非表示の対話入力で受け取る。--replaceで既存profileを置換し、通常のsetは既存profileを拒否する。リダイレクト・非対話入力はプロンプト前に有限時間で拒否し、保存状態を変更しない。鍵の引数・パイプ・環境変数・ファイル入力を受け付けない。profileはパスではなく制限したASCII識別子とし、本スライスの利用対象はosmのみ。テストだけが内部で隔離設定を注入できる。
+2. **レコードと状態表示:** 2つのS3鍵と、profile・bucket・endpoint・世代・作成/置換日時・任意のtoken ID/失効参照を単一のDPAPI暗号化activeレコードへ保存する。token IDは今回は収集せずnull。別のメタデータファイルやCloudflare bearer tokenは追加しない。credentials status --profile osm は短時間復号し、レコード全体を検証して安全な項目だけを表示し、平文を破棄する。local-only; R2 connectivity unverified を明示し、破損を拒否する。接続確認日時を捏造しない。
+3. **保存先と権限:** Windows Known FolderのLocalApplicationDataから固定保存先を解決し、環境変数の差替えを保存先指定として信頼しない。checkout・既知の同期先配下を拒否し、経路上のすべての祖先・対象のreparse pointを拒否する。資格情報用ディレクトリ・ファイルは現在ユーザー、SYSTEM、AdministratorsだけのACLとし継承を無効化する。既存の危険なACLは拒否する。DPAPIはCurrentUser。未対応OS、Known Folder不明、ACL設定失敗、破損・別ユーザーの暗号文、不正レコード、危険なパスは一般化した診断と非0終了で拒否し、平文へ代替しない。テスト用保存先の内部注入をCLI・環境変数へ公開しない。
+4. **置換と失敗境界:** ローカル構造検証とテスト専用fake callbackを確定前に実行し、同一ディレクトリへ候補を暗号化して復号・解析を確認する。fake成功をリモート有効性と扱わず、CLI・環境変数からfakeを指定できないようにする。排他ロックで変更を直列化し、最大5秒で無変更のタイムアウトとする。読む対象はactiveだけ。初回は既存時に失敗する作成、置換は同一volume内の原子的交換とし、この交換を確定点とする。確定前の失敗では旧activeを保全する。temp/backupを自動昇格しない。activeなし・backupありは読取りを拒否する。確定後の清掃失敗は「確定済み・清掃保留」と区別し、activeを正とする。所有temp/backupの限定清掃と中断時の回復をこの境界で検証する。
+5. **削除:** credentials remove --profile osm は、そのprofileのactiveと安全に識別できる所有temp/backupだけを削除し、無関係なファイルを触らない。Cloudflare失効を行わないと表示する。再削除の冪等な結果を文書化する。ディレクトリツリーや他profileを削除せず、置換・削除をサーバー失効と混同しない。
+6. **非露出:** 通常・verbose・エラー・改ざん・注入失敗時の出力、例外、プロセス引数、Git差分にダミー鍵がない。状態表示は非秘密かつローカル情報に限定する。入力・暗号化中のプロセスメモリには平文が存在する。破棄可能なバッファは可能な範囲で消去するが、メモリの完全消去は主張しない。
 
-**Other questions and owner:** Slice 1 local: real token onboarding, endpoint and authenticated probe, server-validated rotation, connectivity timestamp. Slice 1 cloud: each cloud agent's runtime grants and egress. Slice 2: permanent artifact command layout, manifest, server lock, retention and safe extraction. Program r1: pending fourth external comment and program-level decisions. None blocks a dummy-only slice 0 GO.
+**判定と停止:** 最低条件の証拠がすべて揃い、反証がないときだけGO。それ以外は失敗・未確認の条件を示してNO-GOとする。実装スライスなので条件付き合格は設けない。問いに答えたら終了し、実R2接続や実トークン登録へ広げない。
 
-**A3 exception rule:** After freeze, a new concern blocks this slice only if it demonstrates violation of the frozen minimum, its acceptance conditions, or `AGENTS.md`. Other work goes to its named successor. No scope expansion is approved. The external-only test substitution described below is approved.
+**人間のA3承認:** 2026-09-26に上記のローカル置換境界を凍結した。fakeで失敗時の旧値保全を検証し、候補検証と原子的交換でローカル成功を定義する。実鍵のrotationにはスライス1の切替え前read/write/read-backと、所有者による旧トークン失効確認が必要。本スライスでは将来の復号読取りAPIを追加しない。実鍵フローのために状態・所有者・寿命・公開API・拒否契約を変える場合は、B内で追加せずPhase Aへ戻す。
 
-## 3. Responsibility map and size estimate
+**後続へ送る問い:** スライス1ローカルが実トークン登録、endpoint、認証probe、サーバー検証付きrotation、接続日時を担当。スライス1クラウドが各Agentのgrantと外向き接続を担当。スライス2がartifactコマンド、manifest、サーバーロック、保持期間、安全な展開を担当。programが未受領コメントと全体判断を担当する。これらをダミー限定の本スライスの完了条件に追加しない。
 
-No existing credential files are present (current line count 0 for each proposed new file). The files below are outside Unity; no asmdef, Unity assembly, Scene, or engine dependency is introduced. The long-lived state owner is the Windows user profile; a CLI invocation owns decrypted material only until that process exits.
+**凍結後の例外:** 最低条件・受け入れ条件・AGENTS.md違反を示す場合だけ現スライスの阻害要因にする。それ以外は担当する後続へ送る。範囲拡大は承認されていない。後述の外部ツール検証によるUnity回帰の代替は承認済み。
 
-| Proposed file | Single responsibility and reason to change | Dependencies / boundary | Estimated new lines |
+## 3. 責務マップと規模見積り
+
+A0時点で各ファイルは新規（0行）。すべてUnity外に置き、asmdef・Unity assembly・Scene・engine依存を追加しない。永続状態の所有者はWindowsユーザー、復号した平文の寿命は各操作中だけとする。
+
+| ファイル | 責務・変更理由 | 依存・所有・テスト境界 | 予想増分 |
 | --- | --- | --- | ---: |
-| `tools/artifacts.ps1` | Windows launcher: parse `credentials set/status/remove`, reject noninteractive secret input, map safe exit codes. Changes with command UX. | Calls credential module; no S3 or Unity dependency. Does not own persisted secret. | 100–150 |
-| `tools/Artifacts/Credentials/CredentialStore.psm1` | Private record lifecycle: versioned serialization, DPAPI CurrentUser, candidate verification, atomic commit, and recovery. Changes with on-disk format or transaction behavior. | Imports PathAcl; no network, packaging, Unity, future read API, or public secret export. Plaintext lifetime is one local operation. | 300–450 |
-| `tools/Artifacts/Credentials/CredentialPathAcl.psm1` | Resolve the Known Folder path and enforce ACL/reparse safety. Changes with filesystem security policy, independently of serialization. | Windows filesystem/security APIs; returns validated path/handle, never key bytes. | 180–280 |
-| `tools/Artifacts/Credentials/CredentialCommands.psm1` | Coordinate prompt, local structural validation, safe status/removal messaging, and a private fake callback seam for tests. Changes with local lifecycle policy. | Imports Store; no real S3 adapter. Test callbacks and internal root injection are not exported or reachable through CLI/environment. | 180–260 |
-| `tools/Artifacts/tests/Credentials.Tests.ps1` | Deterministic dummy-key, PTY masked-input, and fault-injection checks plus output/file sentinel scan. | Test-only isolated path injection and fake callback; no real network. | 250–400 |
-| `tools/Artifacts/README.md` | Current CLI, local-only status semantics, recovery and owner revocation instructions after B. | Documentation only; never contains keys. | 50–90 |
+| tools/artifacts.ps1 | コマンド解析、非対話拒否、安全な終了コード。CLIの使い方が変わるときに変更する。 | Commandsを呼ぶ。永続秘密を所有せず、S3・Unityに依存しない。 | 100–150行 |
+| tools/Artifacts/Credentials/CredentialStore.psm1 | レコードの版・直列化・DPAPI・候補検証・原子的確定・回復。保存形式と更新契約を所有する。 | PathAclに依存。ネットワーク・梱包・将来の公開読取りAPIなし。平文は操作内だけ。 | 300–450行 |
+| tools/Artifacts/Credentials/CredentialPathAcl.psm1 | Known Folder解決、ACLとreparse安全性。ファイルシステムの安全条件が変わるときに変更する。 | Windows APIに依存。検証済みパスを扱い、鍵バイトを受け取らない。 | 180–280行 |
+| tools/Artifacts/Credentials/CredentialCommands.psm1 | 対話入力、ローカル検証、安全な表示の調整。 | Storeに依存。実S3 adapterなし。fake・保存先注入はテスト内部だけ。 | 180–260行 |
+| tools/Artifacts/tests/Credentials.Tests.ps1 | ダミー鍵・故障注入・生成物/出力走査。PTYはCの実CLI観察と組み合わせる。 | 隔離保存先とfake callback。実ネットワーク不要。 | 250–400行 |
+| tools/Artifacts/README.md | 実装済みCLI、ローカル状態、回復、所有者の失効責務を説明する。 | 文書だけ。鍵値を記載しない。 | 50–90行 |
 
-Expected total is roughly 1,060–1,630 lines including tests. Dependency direction is `launcher → Commands → Store → PathAcl`; no reverse imports. Only `set`, `status`, and `remove` are public CLI operations. PowerShell module exports are explicitly narrowed to the calls needed by the next layer; raw secret-read and test seams are not exported. The store may approach the 500-line warning; it remains one record-lifecycle responsibility while ACL policy/CLI orchestration are separate. If it crosses 500 lines, B records why it remains cohesive or returns an actual second change reason to Phase A. No existing file receives a 50% increase.
+合計見積りはテスト込み約1,060–1,630行。依存はlauncher→Commands→Store→PathAclの一方向で、逆importを作らない。公開CLIはset/status/removeのみ。モジュールexportは次の層に必要な呼出しだけに絞り、生の秘密読取りとテスト注入点を公開しない。Storeが500行を超える場合は、単一のレコード寿命責務として凝集している理由、または別責務をPhase Aへ返す理由を記録する。行数だけで分割しない。既存ファイルの50%以上の増加は計画しない。
 
-## 4. Implementation sequence and B stop points
+## 4. 実装順序とBの停止条件
 
-1. Implement Known Folder path/profile validation and ACL refusal with test-only internal injection of a private temporary root. Preserve pre-existing repository edits when comparing status before/after.
-2. Implement one active versioned encrypted record and atomic create/replace/remove. Verify the candidate before commit; never promote temp/backup files. Active missing with backup present is fail-closed. Report post-commit cleanup failure distinctly. Lock wait is bounded at five seconds with no mutation on timeout.
-3. Add masked interactive CLI and safe status/errors. Dummy tests exercise noninteractive rejection and a real PTY masked-input path using only dummy characters; capture echo absence and exit behavior.
-4. Add fault injection and sentinel scans. Document local-only behavior and the later real-token owner procedure as **future work**, not a completed onboarding step.
+1. 固定パス・profile・ACL拒否を実装する。テスト用保存先は内部注入とし、既存リポジトリ差分を保全する。
+2. 版付きの単一暗号化レコードと作成・置換・削除を実装する。候補を確定前に検証し、temp/backupを自動昇格しない。activeなし・backupありは拒否。確定後清掃失敗を別結果にし、ロック待機は5秒以内とする。
+3. 非表示入力CLIと安全な状態・エラー表示を実装する。ダミーだけで非対話拒否と実PTY入力を確認し、入力が表示されないことと終了結果を記録する。
+4. 故障注入と平文走査を加える。実トークンの所有者操作は後続作業と明示し、登録済みと書かない。
 
-Stop B and return to Phase A if the proposed modules cannot enforce the path/ACL or atomicity contract, or if a new state owner, public secret API, dependency, credential input route, or changed fail-closed rule is required. Fix implementation bugs within the map and record B adaptations. Never substitute `LocalMachine` DPAPI, weaker ACLs, a plaintext file, or an unreviewed package to keep moving.
+計画した責務配置でパス・ACL・原子性を守れない場合、新しい状態所有者・秘密公開API・依存・入力経路・拒否契約が必要な場合はBを止めてPhase Aへ返す。既存境界内の不具合はB適応で直し記録する。LocalMachine、弱いACL、平文ファイル、未レビューのpackageを回避策にしない。
 
-Tests use signals or an injected clock for timeout/cancellation, never `Task.Delay` or `Thread.Sleep`. Endpoint metadata remains null/unconfigured in this slice; do not invent a real account endpoint or request one from the owner. The bucket is fixed to `osm-artifacts`. Exit outcomes distinguish success, committed-with-cleanup-pending, and failure; none implies R2 authentication.
+テストの待機はシグナルまたは注入時刻で扱い、Task.Delay / Thread.Sleepを使わない。endpointはnull/未設定のままとし、実accountのendpointを捏造・要求しない。bucketはosm-artifacts固定。終了結果は成功・確定済み清掃保留・失敗を区別し、どれもR2認証の成功とは扱わない。
 
-## 5. Test, review, and evidence plan
+## 5. テスト・レビュー・証拠計画
 
-- **Unit and local integration:** Run `pwsh tools/Artifacts/tests/Credentials.Tests.ps1` with dummy sentinels. It covers encrypted round trip, status decrypt/validation and safe output, duplicate set refusal, successful replacement, fake callback failure before encryption, pre-commit failures preserving active, committed-with-cleanup-pending, active-missing/backup-present refusal, five-second lock timeout without mutation, tamper/decrypt error, wrong-user ciphertext where a second Windows account is available, unsafe ACL/reparse path including ancestors, noninteractive refusal, PTY masked input, remove/idempotence, and absence of secret bytes in persisted files, captured streams, and repository diff. A same-user re-encryption test does not count as a cross-user proof.
-- **Discovery C starting filter:** Re-run the credential test script with its focused case selector for the defect at hand (to be implemented in the test harness). The reviewer can broaden it when a frozen condition requires it, with rationale recorded. No Unity `-Filter` is applicable to this external tool.
-- **Decision C required:** Full credential script, `pwsh tools/contract-audit.ps1`, `pwsh tools/docs-audit.ps1`, and a repository status/diff comparison around credential operations. The standard final full EditMode regression is proposed as an exception: no Unity or Runtime files, asmdefs, packages, or build behavior change, and the external credential CLI has no Unity dependency. Its alternative evidence is full external credential tests plus contract/docs audits; Phase C must confirm the diff has stayed within that scope. If B changes Unity-facing code, this exception is invalid and Phase A must revisit the test plan.
-- **Verification route:** Phase C on local Windows with PowerShell 7 and a fixed implementation head, using an approved execution path outside the sandbox for DPAPI/ACL checks. A PTY harness launches the real CLI, writes dummy characters through its input channel, and captures echo absence, exit behavior and safe stdout/stderr; real keys are never sent through agent tooling. Execute the full script and captured CLI calls, then inspect case names/count, ciphertext and ACL checks, allowed-root filesystem writes, and before/after Git status. Save a findings-free raw results bundle with test streams after sentinel scan, case report, file/ACL observations, PTY transcript with dummy input excluded, and implementation base/head for C and C'. Do not save keys or encrypted credential blobs in evidence. Phase C' receives the frozen A snapshot, neutral B result, fixed complete diff, and these raw results, with C findings withheld.
-- **Known route and remaining unknowns:** PowerShell 7.6.5, .NET 8/10 SDKs, and an in-memory dummy `ProtectedData` CurrentUser round trip were observed before A3 through approved execution outside the sandbox. A PTY launched PowerShell with nonredirected input, accepted one dummy character via `Console.ReadKey(true)`, emitted no echo, and exited successfully. This proves the input route, not the eventual multi-character CLI, cancel path, file ACLs, recovery, or cross-user behavior. Those remain unverified until B/C. A sandboxed DPAPI attempt failed, so C must use the approved outside-sandbox route. If the actual masked CLI cannot be observed there, A3 must retain that as an explicit gap or provide a minimal harness before freezing. Cross-user execution may be unavailable; report it unverified rather than claiming a wrong-user pass.
-- **Human judgment:** A3 human freeze and eventual Phase D merge decision. No human visual/gameplay condition exists. Human entry of a real token is outside this slice.
-- **A0/A1 owner:** GPT-6 Sol / OpenAI (tool launch specification; no self-reported identity claim).
-- **A2 reviewers:** architecture-gate reviewer launched as GPT-5.6 Sol / OpenAI; separate A0-only alternative reviewer launched as GPT-5.6 Terra / OpenAI. Both were given the same A0 boundary, and the architecture review used A1 SHA-256 above. Their review was independent; the revised dispositions below were approved by the owner at A3.
-- **A2 accepted disposition:** Accept architecture points 1–8: encrypted metadata/status decryption; active/candidate/backup and commit/recovery rules; export/dependency/test-seam limits; Known Folder and ancestor reparse checks; actual DPAPI/PTY evidence route; bounded OneDrive claim via root/write seam; local-only fake validation; high-risk classification and additional A0-only review. Accept the A0-only review's separation of CLI, lifecycle, DPAPI, and filesystem slot concerns as the responsibility boundaries above. Do not adopt its suggestion that old active remains authoritative after an atomic commit merely because a later read fails: that conflicts with the explicit commit point; instead verify candidate before commit and fail closed if post-commit active cannot decrypt. Token ID stays nullable and uncollected here, and the future read API moves to slice 1. The owner approved these dispositions at A3.
-- **A3 disposition:** Owner approval received in this chat on 2026-09-26 (freeze and proceed through B/C/C'). Local-only replacement, external test substitution, and explicitly unverified cross-user check accepted. DPAPI and PTY routes were proven; implementation-specific ACL/recovery/prompt checks belong to B/C. Snapshot is the committed version of this HANDOFF at the A3 freeze commit; its exact bytes/hash are recorded separately to avoid self-reference.
-- **C' reservation:** choose a model different from B and C in a new session, or a human using the fixed blind bundle. Record actual identity and any independence limitation at execution; no reviewer is reserved by this draft.
+- **単体/ローカル統合:** pwsh tools/Artifacts/tests/Credentials.Tests.ps1 をダミーで実行する。暗号化往復、statusの復号・検証・非露出、重複登録拒否、置換成功、暗号化前fake失敗、確定前保全、確定後清掃保留、activeなし・backupあり拒否、5秒ロックタイムアウト、改ざん・復号エラー、危険なACL・祖先reparse、非対話拒否、PTY、削除と再削除、保存物・出力・Git差分の平文不在を検証する。別Windowsアカウントを利用できる場合は別ユーザー暗号文も確認する。同ユーザー内の暗号化は別ユーザー検証の代用にしない。
+- **発見Cの起点filter:** ハーネスのケース選択機能で修正対象を限定確認する。凍結条件の確認に必要ならCが根拠を記録して範囲を広げられる。Unityのfilterは適用しない。
+- **判定Cの必須項目:** 全資格情報テスト、pwsh tools/contract-audit.ps1、pwsh tools/docs-audit.ps1、資格情報操作前後のGit状態・差分比較。全EditMode回帰はA3承認済みの適用除外。Unity/Runtime、asmdef、package、build挙動を変更せず外部ツールだけを対象とするため、全外部テストと契約/文書監査を代替証拠とする。Unity側変更が入ったらこの除外は無効となり、Phase Aで検証計画を見直す。
+- **実行経路:** C担当がローカルWindows/PowerShell 7で固定headを検証する。DPAPI/ACLは承認済みsandbox外経路を使う。PTYで実CLIへダミー文字だけを入力し、入力非表示、終了コード、安全な出力を観測する。実鍵をAgentツールへ送らない。テスト名・件数、暗号文/ACLの検査、許可先への書込み、Git前後状態を生結果として保存する。
+- **証拠:** 平文走査後のstdout/stderr、ケース結果、ファイル/ACL観測、入力値を除いたPTY記録、base/headを保存する。鍵や暗号化資格情報blob自体は保存しない。C'には凍結A、所見を含まないB結果、固定完全diff、生結果だけを渡し、C所見を別に置く。
+- **A3時点の疎通:** PowerShell 7.6.5、.NET 8/10 SDK、通常ユーザーでのDPAPI CurrentUserダミー往復、PTYのConsole.ReadKey(true)による1文字非表示入力と正常終了を確認した。実装後の複数文字入力、取消、ACL、回復、別ユーザーはこの疎通だけでは確認しておらずB/Cの対象とする。sandboxでDPAPI失敗を観測済みのためCは通常ユーザー経路を使う。必須の実CLI観測ができない場合は成功に読み替えず、最小限の観測支援または明示した未達として扱う。別ユーザーの未確認はA3で許容済み。
+- **人間の判断:** A3凍結とPhase Dのマージ判断。ゲーム画面の主観評価は不要。実トークン入力は対象外。
+- **A0/A1:** GPT-6 Sol / OpenAI。モデル名は起動指定を記録し、自己申告で推定しない。
+- **A2:** アーキテクチャ担当GPT-5.6 Sol、A0だけを見る代替案担当GPT-5.6 Terra。共通A0境界を渡し、前者は上記A1ハッシュをレビューした。互いの所見を渡していない。
+- **A2採否:** 暗号化メタデータとstatusの復号、確定/回復規則、export/依存/テスト注入の制限、Known Folder/祖先reparse、DPAPI/PTY証拠経路、OneDrive主張の限定、ローカルfake検証、高リスク分類を採用した。CLI・寿命・DPAPI・ファイル保存の責務分離も採用。「原子的確定後の再読込み失敗でも旧activeを正とする」案は確定点と矛盾するため不採用とし、候補を事前検証して確定後復号不能なら拒否する。token IDはnull、将来の読取りAPIはスライス1へ送る。人間がA3で採否を承認済み。
+- **A3:** 2026-09-26にこのチャットで凍結とB→C→C'を承認。ローカル置換、外部テスト代替、別ユーザー未確認の扱いを含む。実装固有のACL/回復/入力の検証はB/Cで行う。凍結時のコミットとsnapshotを保持する。
+- **C'の独立性:** B・Cと異なるモデル、新規セッション、所見を含まない入力を使う。実施モデルと強化条件の制約は最終結果に記録する。
 
-## 6. Phase B result
+## 6. Phase B — 実装結果
 
-Implemented the Windows-only local credential CLI at `tools/artifacts.ps1` and the PathAcl → Store → Commands modules under `tools/Artifacts/Credentials/`. The one active record uses CurrentUser DPAPI, restricted ACLs, a bounded exclusive lock, candidate decrypt/parse verification, create-if-absent or same-directory atomic replacement, and explicit post-commit cleanup outcome. The CLI accepts only `credentials set/status/remove --profile osm`, masks interactive input, rejects redirected input, and emits local-only status. Added an isolated dummy-key test harness and `tools/Artifacts/README.md`. No Unity, R2, real token, or cloud operation was added.
+tools/artifacts.ps1 と tools/Artifacts/Credentials/ のPathAcl・Store・Commandsを実装した。単一activeレコードをCurrentUser DPAPIと制限ACLで保管し、排他ロック、候補の復号・解析検証、初回の重複拒否、同一ディレクトリ内の原子的置換、確定後清掃保留を扱う。CLIはcredentials set/status/remove --profile osmだけを受け付け、非表示入力、リダイレクト拒否、ローカル状態表示を行う。隔離したダミーテストとREADMEを追加。Unity・R2・実トークン・クラウド操作は追加していない。
 
-B adaptations: the existing `.gitignore` pattern `tools/**/artifacts/` also ignores `tools/Artifacts/` on Windows, so the specified source and README files are explicitly force-added without changing the ignore rule. PowerShell 7 parses the implementation files. A redirected `set` exited 1 before prompting. Limited dummy checks of encrypted round trip, replacement, fake-validation refusal, pre-commit preservation, post-commit cleanup outcome, active-missing/backup refusal, and idempotent removal each passed individually outside the sandbox. `pwsh tools/contract-audit.ps1` and `pwsh tools/docs-audit.ps1` passed in B.
+既存.gitignoreのtools/**/artifacts/がWindowsでソース用tools/Artifacts/も除外するため、対象ソース・テスト・READMEだけを明示的にforce-addした。ignore規則は変更していない。
 
-The B test harness was strengthened within the frozen filesystem and nonexposure responsibility: PathAcl and Store record every planned production write before mutation in a private test ledger and reject paths outside the selected root. Each case scans its generated files and captured streams/exceptions before fixture deletion; the harness also scans process arguments and the repository diff. A focused encrypted round trip, pre-commit failure, and CLI error/verbose-path check passed with this instrumentation. The real CLI's interactive normal output and PTY echo remain Phase C observations.
+PathAcl/Storeは変更直前に予定した書込み先を内部テスト台帳へ記録し、保存先外を拒否する。各ケースはfixtureの清掃前に生成ファイルと出力・例外を走査し、引数とGit差分も調べる。初回にはKnown Folder下の固定OneStarMaker/Artifacts/credentials階層の初期化だけを許可し、秘密レコード・ロック・候補・backup・清掃はcredentials配下に限定する。
 
-The approved fixed credential root needs its `OneStarMaker`, `Artifacts`, and `credentials` directories created on first use. PathAcl permits and logs initialization and ACL writes for precisely those three directories under the Known Folder; encrypted records, locks, candidates, backups, and cleanup remain confined to `credentials`. A production-shaped fixture with all three directories initially absent passed, alongside focused existing round-trip and pre-commit checks. This is initialization of the frozen destination, not another secret storage location.
+既存の共有OneStarMakerはreparse検査だけを行い、継承ACLやRevisionLocks等の兄弟データを変更しない。資格情報専用のArtifacts/credentialsには厳格なACLを要求する。全階層未作成、既存共有親と兄弟ACLの保全、危険な専用階層ACLの拒否をダミーfixtureで限定確認した。
 
-The Known Folder's existing `OneStarMaker` ancestor can contain unrelated data. Its reparse status is checked, but its inherited ACL is left unchanged; the credential-owned `Artifacts` and `credentials` directories retain strict ACL validation. A focused fixture with an existing shared parent and `RevisionLocks` sibling passed with the parent/sibling ACLs unchanged, and a fixture with an unsafe existing `Artifacts` ACL was refused. No existing production directory or sibling was deleted or rewritten in B.
+Bは構文検査、限定したダミー検証、契約/文書監査を実施した。全件テストと実PTYの最終判定はCが担当し、Bの限定成功を代用にしない。別ユーザーDPAPIは第二のWindowsアカウントが必要で、未確認を合格に読み替えない。Unity Editorのコンパイル・Unityバッチテストは未実施で、外部PowerShell/Markdownのみが差分対象。担当モデルはGPT-6 Sol / OpenAI（起動指定）。最終実装の追加結果とsnapshot hashは実装固定後に追記する。
 
-The full test script, live multi-character PTY path, five-second lock and unsafe path cases, cross-user DPAPI check, complete sentinel/output and repository-diff inspection, and Phase C/C' judgment remain unrun/unverified in B. The cross-user test needs a second Windows account and may remain unverified. No Unity Editor compilation or Unity batch test was run; the diff is external PowerShell and Markdown only. Executor: GPT-6 Sol / OpenAI (tool launch specification).
+保存レコードはJSONの項目集合、重複しない項目名、各値の単一型、完全なUTC日時を検証する。復号可能でも形式が不正なら拒否し、置換を拒否したときは現行暗号文のバイトを保持する。重要な境界判断を説明する日本語コメントをコードへ追加し、READMEと本HANDOFFを日本語にした。これらは既存の受け入れ条件を実装・説明する変更であり、実トークンやネットワーク操作を追加していない。
 
-## 7. Phase C
-
-未実施
-
-## 8. Phase C' blind audit
+## 7. Phase C — 一次レビュー
 
 未実施
 
-## 9. Phase D
+## 8. Phase C' — 盲検の独立監査
 
-Pending C/C' comparison and human merge decision. Harvest current instructions, then remove this HANDOFF.
+未実施
+
+## 9. Phase D — マージ判断
+
+最終版のC/C'突合と人間のマージ判断を待つ。今回はマージしない。マージ時に恒久的な知見を公開文書へ反映し、このHANDOFFを削除する。
