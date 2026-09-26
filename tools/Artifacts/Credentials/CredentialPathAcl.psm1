@@ -74,6 +74,13 @@ function Assert-OwnerAcl([string] $Path, [bool] $Directory) {
     if ($owner -ne [Security.Principal.WindowsIdentity]::GetCurrent().User.Value) { throw 'Credential operation unavailable.' }
 }
 
+function Assert-SharedParent([string] $Path) {
+    # OneStarMaker can predate this credential store and contain unrelated data.
+    # It remains an ancestor, while Artifacts and credentials are store-owned ACL boundaries.
+    Assert-NoReparse $Path
+    if (-not [IO.Directory]::Exists($Path)) { throw 'Credential operation unavailable.' }
+}
+
 function Assert-CredentialDirectoryInitialization([string] $Path, [string[]] $AllowedDirectories) {
     $full = [IO.Path]::GetFullPath($Path)
     if (-not @($AllowedDirectories | Where-Object { $full.Equals($_, [StringComparison]::OrdinalIgnoreCase) }).Count) {
@@ -131,6 +138,10 @@ function Initialize-CredentialRoot([string] $Root, [bool] $IsTestRoot, [string] 
             Assert-CredentialDirectoryInitialization $current $allowed
             [IO.Directory]::CreateDirectory($current) | Out-Null
             Set-OwnerAcl $current $true $Root $allowed
+        } elseif (-not $IsTestRoot -and $current.Equals($allowed[0], [StringComparison]::OrdinalIgnoreCase)) {
+            Assert-SharedParent $current
+        } elseif ($TestBase -and $current.Equals($allowed[0], [StringComparison]::OrdinalIgnoreCase)) {
+            Assert-SharedParent $current
         } else { Assert-OwnerAcl $current $true }
     }
 }

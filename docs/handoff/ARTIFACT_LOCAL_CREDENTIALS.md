@@ -99,6 +99,8 @@ The B test harness was strengthened within the frozen filesystem and nonexposure
 
 The approved fixed credential root needs its `OneStarMaker`, `Artifacts`, and `credentials` directories created on first use. PathAcl permits and logs initialization and ACL writes for precisely those three directories under the Known Folder; encrypted records, locks, candidates, backups, and cleanup remain confined to `credentials`. A production-shaped fixture with all three directories initially absent passed, alongside focused existing round-trip and pre-commit checks. This is initialization of the frozen destination, not another secret storage location.
 
+The Known Folder's existing `OneStarMaker` ancestor can contain unrelated data. Its reparse status is checked, but its inherited ACL is left unchanged; the credential-owned `Artifacts` and `credentials` directories retain strict ACL validation. A focused fixture with an existing shared parent and `RevisionLocks` sibling passed with the parent/sibling ACLs unchanged, and a fixture with an unsafe existing `Artifacts` ACL was refused. No existing production directory or sibling was deleted or rewritten in B.
+
 The full test script, live multi-character PTY path, five-second lock and unsafe path cases, cross-user DPAPI check, complete sentinel/output and repository-diff inspection, and Phase C/C' judgment remain unrun/unverified in B. The cross-user test needs a second Windows account and may remain unverified. No Unity Editor compilation or Unity batch test was run; the diff is external PowerShell and Markdown only. Executor: GPT-6 Sol / OpenAI (tool launch specification).
 
 ## 7. Phase C

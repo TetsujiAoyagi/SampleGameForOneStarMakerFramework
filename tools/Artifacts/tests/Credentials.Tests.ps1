@@ -68,7 +68,7 @@ function Run([string] $Name, [scriptblock] $Body) {
                 Assert ($write.Equals($root, [StringComparison]::OrdinalIgnoreCase) -or
                     $write.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase)) 'write escaped fixture'
             }
-            if ($Name -notin @('CLI rejects redirected input', 'CLI verbose and error output is safe', 'ancestor reparse is refused')) {
+            if ($Name -notin @('CLI rejects redirected input', 'CLI verbose and error output is safe', 'ancestor reparse is refused', 'unsafe dedicated directory is refused')) {
                 Assert ($script:writes.Count -gt 0) 'write ledger was empty'
             }
         } catch { $caseFailed = $true }
@@ -107,6 +107,36 @@ try {
         foreach ($write in $script:writes) {
             Assert (($write -in $allowed) -or $write.StartsWith($final + '\', [StringComparison]::OrdinalIgnoreCase)) 'write outside fixed initialization hierarchy'
         }
+    }
+    Run 'existing shared parent and sibling remain unchanged' {
+        [IO.Directory]::CreateDirectory($root) | Out-Null
+        $first = [IO.Path]::Combine($root, 'OneStarMaker')
+        $sibling = [IO.Path]::Combine($first, 'RevisionLocks')
+        [IO.Directory]::CreateDirectory($sibling) | Out-Null
+        $parentAclBefore = [IO.FileSystemAclExtensions]::GetAccessControl([IO.DirectoryInfo]::new($first)).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::All)
+        $siblingAclBefore = [IO.FileSystemAclExtensions]::GetAccessControl([IO.DirectoryInfo]::new($sibling)).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::All)
+        $final = [IO.Path]::Combine($first, 'Artifacts', 'credentials')
+        Invoke-StorePrivate { param($base, $target) $script:TestBase = $base; $script:TestRoot = $target } @($root, $final)
+        Write-CredentialRecord 'osm' $sentinelId $sentinelSecret $false | Out-Null
+        Assert ([IO.File]::Exists([IO.Path]::Combine($final, 'osm.active'))) 'active absent'
+        $parentAclAfter = [IO.FileSystemAclExtensions]::GetAccessControl([IO.DirectoryInfo]::new($first)).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::All)
+        $siblingAclAfter = [IO.FileSystemAclExtensions]::GetAccessControl([IO.DirectoryInfo]::new($sibling)).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::All)
+        Assert ($parentAclAfter -ceq $parentAclBefore) 'shared parent ACL changed'
+        Assert ($siblingAclAfter -ceq $siblingAclBefore) 'sibling ACL changed'
+        Assert ([IO.Directory]::Exists($sibling)) 'sibling deleted'
+        Assert (-not $script:writes.Contains($first) -and -not $script:writes.Contains($sibling)) 'shared path entered write ledger'
+    }
+    Run 'unsafe dedicated directory is refused' {
+        $first = [IO.Path]::Combine($root, 'OneStarMaker')
+        $second = [IO.Path]::Combine($first, 'Artifacts')
+        [IO.Directory]::CreateDirectory($second) | Out-Null
+        $final = [IO.Path]::Combine($second, 'credentials')
+        Invoke-StorePrivate { param($base, $target) $script:TestBase = $base; $script:TestRoot = $target } @($root, $final)
+        try { Write-CredentialRecord 'osm' $sentinelId $sentinelSecret $false | Out-Null; throw 'accepted unsafe directory' } catch {
+            Assert-SafeError $_
+            if ($_.Exception.Message -eq 'accepted unsafe directory') { throw }
+        }
+        Assert (-not [IO.Directory]::Exists($final)) 'credential directory created under unsafe parent'
     }
     Run 'duplicate set and successful replacement' {
         Write-CredentialRecord 'osm' $sentinelId $sentinelSecret $false | Out-Null
