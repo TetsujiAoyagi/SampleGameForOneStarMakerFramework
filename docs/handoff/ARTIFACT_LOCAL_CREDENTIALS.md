@@ -5,8 +5,8 @@
 - type: slice
 - status: D — B完了、最終版のC/C'はGO。人間のマージ判断待ち。マージ未実施。
 - branch: codex/artifact-local-credentials
-- implementation base commit: acb4beabc0378a58322e698881263406e03494d4（PR #76レビュー対応の起点。初回実装の起点はae4b6e9b87c6690b16b83ca7d37af53def46f652）。
-- implementation head commit: aa3f7ad915a75bd6c8ca23d9da4e7cf3c6512bb3。以後の本HANDOFFへの結果追記だけのコミットとは区別する。今回のC/C'結果は§10、初回結果は§7/8に記録する。
+- implementation base commit: 0c46a81ae6f28627a6b84bd4232ad2845452f4d6（PR #76の第2回レビュー対応の起点。初回実装の起点はae4b6e9b87c6690b16b83ca7d37af53def46f652）。
+- implementation head commit: 9d2cc5744d943e76ad879fde272daddec70ffbf0。以後の本HANDOFFへの結果追記だけのコミットとは区別する。現在のC/C'結果は§11、第1回レビュー対応は§10、初回実装は§7/8に記録する。
 - risk: high — 資格情報、ファイル権限、失敗時の拒否と置換を扱う。検証にはダミー値だけを使う。
 - owner: OSM保守担当
 - created: 2026-09-26
@@ -19,11 +19,16 @@
 - 取得・保持: 上記ローカルZIPをコピーし、SHA-256を照合して展開する。blind-manifest.txtの全16項目を照合する。保持期限は2026-12-26、保持担当はOSM保守担当。現時点ではローカル一時領域だけの保存であり、永続・遠隔保管は未実施。期限前の削除はしない。R2への転送やGitへのpayload追加は行っていない。
 - 初回Phase C判定原記録: 初回head別ディレクトリの c-private/c-decision-ja.txt、SHA-256 D864E0BF5B54A678538B4CE2A3B97F5FAB191CA9376B7F93BF3485041D5D912F。blind ZIPの外に保存。
 - 初回Phase C'最終結果: C:/Users/void/AppData/Local/Temp/osm-credentials-20260926/cprime-final-ja.md。生成2026-09-26 12:51 JST、SHA-256 DACB03C7B7525751F448D48F2281ECDA5058E95FAF7D80772FFD8A69E4A108DE。
-- 今回のPhase B result snapshot: C:/Users/void/AppData/Local/Temp/osm-pr76-noninteractive/phase-b.md。生成2026-09-26 13:32 JST、SHA-256 01FDD00916AFB3471A32A9BF6602770134013BD7ACC5286F9F071C7D8F92BC47。
-- 今回のevidence bundle / C' blind bundle: C:/Users/void/AppData/Local/Temp/osm-pr76-noninteractive/head-aa3f7ad915a75bd6c8ca23d9da4e7cf3c6512bb3/bundle/blind-audit-aa3f7ad915a75bd6c8ca23d9da4e7cf3c6512bb3.zip。生成2026-09-26T04:47:57.9943471Z、SHA-256 0DA9E00B72963FEA680ED1878DDD5B3EC3E0563A4ACB4DAF878DB4385BAAD0CC。
-- 今回の取得・保持: 上記ZIPをコピーし、SHA-256照合後に展開する。manifest.sha256のSHA-256は381A5FF27CA7E090324CA1DCB364928AE1A64D6F485AD28A890441FBBB1AED71、収録26ファイルを照合する。保持期限・担当・ローカル保存の制約は初回と同じ。凍結Aは初回と同一の固定コピーを収録し、可変HANDOFF・過去所見・C所見・旧headの失敗証拠は含めない。
-- 今回のPhase C原記録: 今回のhead別ディレクトリの c-private/phase-c-result.md、SHA-256 3D646458E01458DF2F400C771D8CBDF4B8B16E1809EE15564FC44D439704F31D。blind ZIPの外に保存。
-- 今回のPhase C'結果: C:/Users/void/AppData/Local/Temp/osm-pr76-noninteractive/cprime-aa3f7ad-result-ja.md、SHA-256 F18D55166D110DB0FF736AD08D2EDA663F7CB6E5C401B8FA7ED44B160F77CE30。
+- 第1回レビュー対応のPhase B result snapshot: C:/Users/void/AppData/Local/Temp/osm-pr76-noninteractive/phase-b.md。生成2026-09-26 13:32 JST、SHA-256 01FDD00916AFB3471A32A9BF6602770134013BD7ACC5286F9F071C7D8F92BC47。
+- 第1回レビュー対応のevidence bundle / C' blind bundle: C:/Users/void/AppData/Local/Temp/osm-pr76-noninteractive/head-aa3f7ad915a75bd6c8ca23d9da4e7cf3c6512bb3/bundle/blind-audit-aa3f7ad915a75bd6c8ca23d9da4e7cf3c6512bb3.zip。生成2026-09-26T04:47:57.9943471Z、SHA-256 0DA9E00B72963FEA680ED1878DDD5B3EC3E0563A4ACB4DAF878DB4385BAAD0CC。
+- 第1回レビュー対応の取得・保持: 上記ZIPをコピーし、SHA-256照合後に展開する。manifest.sha256のSHA-256は381A5FF27CA7E090324CA1DCB364928AE1A64D6F485AD28A890441FBBB1AED71、収録26ファイルを照合する。保持期限・担当・ローカル保存の制約は初回と同じ。
+- 第1回レビュー対応のPhase C原記録: 第1回のhead別ディレクトリの c-private/phase-c-result.md、SHA-256 3D646458E01458DF2F400C771D8CBDF4B8B16E1809EE15564FC44D439704F31D。blind ZIPの外に保存。
+- 第1回レビュー対応のPhase C'結果: C:/Users/void/AppData/Local/Temp/osm-pr76-noninteractive/cprime-aa3f7ad-result-ja.md、SHA-256 F18D55166D110DB0FF736AD08D2EDA663F7CB6E5C401B8FA7ED44B160F77CE30。
+- 現在のPhase B result snapshot: C:/Users/void/AppData/Local/Temp/osm-pr76-double-dash/phase-b.md。生成2026-09-26 14:11 JST、SHA-256 38ED458F530D2E20C18DFDDFF12BD591720094AE164DADF88B2ABDAE9CFF9C32。
+- 現在のevidence bundle / C' blind bundle: C:/Users/void/AppData/Local/Temp/osm-pr76-double-dash/head-9d2cc5744d943e76ad879fde272daddec70ffbf0/blind-audit-bundle.zip。生成2026-09-26T05:24:51.8189195Z、SHA-256 20BCE444D360A123EE9022D6A9177CB0AABA50CB203A1DFDFB78DC421DDBA4BC。
+- 現在の取得・保持: ZIPをコピーしSHA-256照合後に展開する。manifestのSHA-256はB1E9FFFE1C53EA1798C6D8F4ACDB97DCBB8BF12C3849E403963C88597A39390C、payload 28件を照合する。保持期限2026-12-26、保持担当OSM保守担当、ローカル一時保存のみという制約は変わらない。凍結Aは同一コピー、Bは中立結果、完全revision差分と最終関連sourceを収録し、可変HANDOFF・PR所見・過去所見・C所見は除外した。
+- 現在のPhase C原記録: 現在のhead別ディレクトリの c-private/phase-c-result.md、SHA-256 11BD84ECD3C10C57965138660A7C8FD7E474ABDC7ED239818866CDA957D764C9。blind ZIPの外に保存。
+- 現在のPhase C'結果: C:/Users/void/AppData/Local/Temp/osm-pr76-double-dash/cprime-9d2cc57-result-ja.md、SHA-256 97132F448DFAFDFC1655B7A13AA4D218D1B1F278D406D86196FD169745460E21。
 
 ユーザーの指示により、本HANDOFF、README、コードコメントを日本語にする。以下は凍結済み条件の日本語訳であり、条件の追加・緩和ではない。英語で保存した凍結snapshotは、過去の入力を検証できるよう変更しない。
 
@@ -152,9 +157,11 @@ Bは構文検査、限定したダミー検証、契約/文書監査を実施し
 
 ## 9. Phase D — マージ判断
 
-§10の修正後headでC/C'はいずれもGO、未解決の凍結条件違反はない。結果の突合は今回もC'完了後に行った。[PR #76](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/76)はdevelop向けに作成済みで、ユーザー承認に基づき今回の修正を同PRへ追加する。マージは行わない。人間のマージ判断を待ち、マージ時に恒久的な知見を公開文書へ反映して本HANDOFFを削除する。未マージなので、完了HANDOFFの保持によるdocs-auditのharvest警告は予定どおり。
+§11の修正後headでC/C'はいずれもGO、未解決の凍結条件違反はない。結果の突合は今回もC'完了後に行った。[PR #76](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/76)はdevelop向けに作成済みで、ユーザー承認に基づき今回の修正を同PRへ追加する。マージは行わない。人間のマージ判断を待ち、マージ時に恒久的な知見を公開文書へ反映して本HANDOFFを削除する。未マージなので、完了HANDOFFの保持によるdocs-auditのharvest警告は予定どおり。
 
-## 10. PR #76 外部レビュー対応 — 非対話起動の拒否
+## 10. PR #76 第1回レビュー対応 — 非対話起動の拒否
+
+以下はacb4bea..aa3f7adでの記録。後日の第2回レビューで二重ダッシュの未確認経路が判明したため、この時点のGOを現在のheadへ流用しない。修正と新しい判定は§11に記録する。
 
 [外部レビュー](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/76#issuecomment-5842966658)の指摘を採用した。コンソール付きpwshの非対話起動はリダイレクト判定だけでは検出できず、入力待ちになる。severity high / category semantic / unique / accepted、凍結条件1への違反であり、現在の問いを阻害する欠陥と分類した。既存Commandsの入力境界内で修正できるB適応なので、Phase Aの条件は変更していない。
 
@@ -180,3 +187,29 @@ Bは構文検査、限定したダミー検証、契約/文書監査を実施し
 - 危険なACLのactiveは削除も拒否され暗号文が残る点: 所有者による復旧・清掃手順を整理する。
 
 実鍵、実R2、Cloudflare変更、実payload転送は引き続き未実施。同一WindowsユーザーのAgentからの隔離を主張しない。今回の独立監査結果との突合後も未解決blockerはなく、マージ判断だけを人間に残す。
+
+## 11. PR #76 第2回レビュー対応 — ホスト解析規則との照合
+
+[第2回レビュー](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/76#issuecomment-5843337258)を採用した。前回の実装・18件テスト・C/C'では、pwshが非対話指定として受理する二重ダッシュを見落としていた。severity high / category semantic / unique / accepted、凍結条件1への違反として現在の問いを阻害する欠陥に分類した。前回のGOと修正済み報告はこの経路に対して不十分だった。
+
+**B（新規gpt-6-astra）:** PowerShell v7.6.5の公式GetSwitchKey、MatchSwitch、IsDashを直接照合した。入力引数をTrimし、slashまたは4種類のdashを1個除き、dashの場合のみ同一文字の2個目を除く。noniから完全形までをOrdinalIgnoreCaseで比較する。二重ダッシュだけでなく前後空白も同じ条件1のB適応として修正した。公式ソースへのリンクと日本語の理由説明をコード/READMEに追加した。Store、保存形式、所有者、依存、公開CLIは変更せず、Phase Aは再開していない。修正コミットは9d2cc5744d943e76ad879fde272daddec70ffbf0。
+
+回帰ケースは9種類の有効prefix×11種類の略語長×3種類の大小表記を確認し、BMPの25種類の空白を各prefixの前後で検査する。全二重prefix組合せ、三重prefix、短すぎる名前・余分な末尾なども検査する。製品判定だけを期待値にせず、実pwshのRead-Hostが非対話例外を返すことを識別する独立の実行経路で449通りを照合した。標準入力を閉じたこのhost検証は、実ConPTYの代用にはしていない。
+
+**C（新規gpt-5.6-sol）: GO、blocker 0件。** 0c46a81..9d2cc57の固定差分は3ファイル・40行追加/1行削除で、既存の入力責務とテスト境界内に収まる。構造確認後、同headの判定証拠を新たに取得した。
+
+- pwsh -NoProfile -File tools/Artifacts/tests/Credentials.Tests.ps1: 全18件成功、失敗0、exit 0。今回拡充した入力判定ケースを含む。
+- probe-host.ps1による実ホスト照合: 449件一致、不一致0、timeout 0、exit 0。有効表記297件、空白50件、二重prefix25件、三重prefix5件、名前境界72件。
+- contract-audit / docs-audit: exit 0。文書監査は未マージHANDOFFのharvest警告1件のみ。
+- 実ConPTY: --noni、--NonInteractive、同一em dashの二重、前後空白付き--noniを、activeなしのsetとactiveありのreplaceで直接確認。すべてプロンプト前に一般診断のみでexit 1。既存active/lockのSHA-256とACLが不変で、candidate/backupは0件。
+- 通常対話: ダミーset→非対話4表記の拒否→別ダミーでのmasked replace→safe status→removeを確認。入力echoなし、置換でactiveのハッシュが変化、削除後active/candidate/backupなし。再removeの成功も確認した。
+- 実使用したダミー6値の走査はcheckout、証拠、本番保存先、ZIP展開先で0一致。補助検証出力に含まれたダミー値のラベルは、入力値を除外する方針に従って項目名に置換した観測記録とし、CLIの出力と区別した。共有親とRevisionLocksは変更せず、Gitは同headで前後clean。
+
+**C'（新規gpt-6-sol）: GO、blocker 0件。** Cと同じbase/headのblind ZIPを受領コピーで検証し、ZIP/manifestと28 payload全件のハッシュ一致を確認した。凍結A、中立B、完全差分、最終source、生結果と一次観測を照合。C所見、PR本文/コメント、可変HANDOFF、過去所見は渡していない。全件テストの重複実行はしていない。B/C/C'のモデル相違・新規セッション・盲検性は充足するが、別系列・別ベンダーによる強化独立性は満たしていない。
+
+C'-01（低 / machine / unique / accepted）は、BとCの別実行が同じhost-matrix.jsonという名前を使ったための証拠識別の指摘で、凍結条件違反ではない。今回この台帳で対応を明確にした。B snapshotとbundleの内容は改変せず、それぞれの結果を保持する。
+
+- Bの限定実行: C:/Users/void/AppData/Local/Temp/osm-pr76-double-dash/host-matrix.json、SHA-256 DFE33FF68764F21BC57A156F6D7E6525D08707A2E81DA65DD4588E77069F7C4D。B snapshotの記載はこちらを指す。
+- Cの固定head実行・最終bundle収録: C:/Users/void/AppData/Local/Temp/osm-pr76-double-dash/head-9d2cc5744d943e76ad879fde272daddec70ffbf0/host-matrix.json、SHA-256 7E476CAD063FE1354CDF651686442E9E1AFDD4572046B190621A808705148D76。今回の最終判定はこちらを用いる。
+
+別WindowsユーザーDPAPIは凍結A3どおり未確認。Unity全EditModeは承認済みの外部ツール限定例外。§10の後続4点は段2のまま。実鍵・R2・Cloudflare・実payloadは扱わず、同一ユーザーのAgentからの隔離も主張しない。現在の結果の突合はC'完了後に実施し、マージ判断を人間に残す。
