@@ -3,7 +3,7 @@
 ## 0. Metadata
 
 - type: `slice`
-- status: `A` — A2 revised draft; human A3 freeze pending; Phase B is not authorized by this draft
+- status: `B` — A3 frozen by owner approval on 2026-09-26; B then C/C' authorized
 - branch: `codex/artifact-local-credentials`
 - implementation base commit: `ae4b6e9b87c6690b16b83ca7d37af53def46f652`
 - implementation head commit: pending Phase B
@@ -26,7 +26,7 @@ Out of scope: creating or entering real tokens, Cloudflare account or bucket cha
 
 Constraints carried into this slice: `CurrentUser` DPAPI only; encrypted files under `%LOCALAPPDATA%\OneStarMaker\Artifacts\credentials\`, outside the checkout and `D:\OneDrive\OSM-Artifacts`; owner-only administrative CLI; no plaintext fallback, child process carrying secrets, secret command-line arguments, persistent secret environment variables, Git payloads, ordinary logs, or secret-export command. Same-user processes can decrypt DPAPI material. Bucket-wide Object Read & Write authority can overwrite/delete; CLI rules cannot make it append-only. Token creation, revocation and incident response remain owner actions in Cloudflare. A local remove must explicitly say it does not revoke the token.
 
-## 2. Decision and acceptance boundary (A1 proposal)
+## 2. Frozen decision and acceptance boundary (A3 r1)
 
 **Question:** Can a Windows owner register, inspect safe metadata, replace, and locally remove a dummy R2 key pair with recoverable failure behavior and no persisted or emitted plaintext, without Unity or network access?
 
@@ -43,11 +43,11 @@ The minimum consists of these observable acceptance conditions:
 
 **GO / NO-GO:** GO only when all minimum evidence is present and there is no counterexample to it. Otherwise NO-GO, with failed or unverified conditions named. This is an implementation slice, so there is no conditional acceptance. Stop after the above question is answered; do not expand this slice to R2 access or a token onboarding run.
 
-**Human decision proposed for A3:** Freeze the local-only replacement rule here. The test-only fake callback proves failed replacement preserves the old record; candidate verification and the atomic exchange define local success. A real key rotation is *not* complete until slice 1 performs disposable R2 read/write/read-back before switching and the owner separately confirms old-token revocation. No future decrypted-read API is added in slice 0; its shape belongs to slice 1. If a real-key flow needs different state, owner, lifetime, public API, or fail-closed behavior, reopen Phase A rather than adding it during B.
+**Human decision approved at A3:** The owner froze the local-only replacement rule on 2026-09-26. The test-only fake callback proves failed replacement preserves the old record; candidate verification and the atomic exchange define local success. A real key rotation is *not* complete until slice 1 performs disposable R2 read/write/read-back before switching and the owner separately confirms old-token revocation. No future decrypted-read API is added in slice 0; its shape belongs to slice 1. If a real-key flow needs different state, owner, lifetime, public API, or fail-closed behavior, reopen Phase A rather than adding it during B.
 
 **Other questions and owner:** Slice 1 local: real token onboarding, endpoint and authenticated probe, server-validated rotation, connectivity timestamp. Slice 1 cloud: each cloud agent's runtime grants and egress. Slice 2: permanent artifact command layout, manifest, server lock, retention and safe extraction. Program r1: pending fourth external comment and program-level decisions. None blocks a dummy-only slice 0 GO.
 
-**A3 exception rule:** After freeze, a new concern blocks this slice only if it demonstrates violation of the frozen minimum, its acceptance conditions, or `AGENTS.md`. Other work goes to its named successor. No exception is approved in this draft.
+**A3 exception rule:** After freeze, a new concern blocks this slice only if it demonstrates violation of the frozen minimum, its acceptance conditions, or `AGENTS.md`. Other work goes to its named successor. No scope expansion is approved. The external-only test substitution described below is approved.
 
 ## 3. Responsibility map and size estimate
 
@@ -84,14 +84,14 @@ Tests use signals or an injected clock for timeout/cancellation, never `Task.Del
 - **Known route and remaining unknowns:** PowerShell 7.6.5, .NET 8/10 SDKs, and an in-memory dummy `ProtectedData` CurrentUser round trip were observed before A3 through approved execution outside the sandbox. A PTY launched PowerShell with nonredirected input, accepted one dummy character via `Console.ReadKey(true)`, emitted no echo, and exited successfully. This proves the input route, not the eventual multi-character CLI, cancel path, file ACLs, recovery, or cross-user behavior. Those remain unverified until B/C. A sandboxed DPAPI attempt failed, so C must use the approved outside-sandbox route. If the actual masked CLI cannot be observed there, A3 must retain that as an explicit gap or provide a minimal harness before freezing. Cross-user execution may be unavailable; report it unverified rather than claiming a wrong-user pass.
 - **Human judgment:** A3 human freeze and eventual Phase D merge decision. No human visual/gameplay condition exists. Human entry of a real token is outside this slice.
 - **A0/A1 owner:** GPT-6 Sol / OpenAI (tool launch specification; no self-reported identity claim).
-- **A2 reviewers:** architecture-gate reviewer launched as GPT-5.6 Sol / OpenAI; separate A0-only alternative reviewer launched as GPT-5.6 Terra / OpenAI. Both were given the same A0 boundary, and the architecture review used A1 SHA-256 above. Their review was independent; this revised draft is the integrator's disposition proposal, not A3 approval.
-- **A2 proposed disposition:** Accept architecture points 1–8: encrypted metadata/status decryption; active/candidate/backup and commit/recovery rules; export/dependency/test-seam limits; Known Folder and ancestor reparse checks; actual DPAPI/PTY evidence route; bounded OneDrive claim via root/write seam; local-only fake validation; high-risk classification and additional A0-only review. Accept the A0-only review's separation of CLI, lifecycle, DPAPI, and filesystem slot concerns as the responsibility boundaries above. Do not adopt its suggestion that old active remains authoritative after an atomic commit merely because a later read fails: that conflicts with the explicit commit point; instead verify candidate before commit and fail closed if post-commit active cannot decrypt. Token ID stays nullable and uncollected here, and the future read API moves to slice 1. None of these dispositions is frozen until human A3.
-- **A3 disposition:** pending human and primary integrator; confirm the proposed accept/reject reasons, resolve remaining verification-route gaps, and freeze a snapshot/hash before B.
+- **A2 reviewers:** architecture-gate reviewer launched as GPT-5.6 Sol / OpenAI; separate A0-only alternative reviewer launched as GPT-5.6 Terra / OpenAI. Both were given the same A0 boundary, and the architecture review used A1 SHA-256 above. Their review was independent; the revised dispositions below were approved by the owner at A3.
+- **A2 accepted disposition:** Accept architecture points 1–8: encrypted metadata/status decryption; active/candidate/backup and commit/recovery rules; export/dependency/test-seam limits; Known Folder and ancestor reparse checks; actual DPAPI/PTY evidence route; bounded OneDrive claim via root/write seam; local-only fake validation; high-risk classification and additional A0-only review. Accept the A0-only review's separation of CLI, lifecycle, DPAPI, and filesystem slot concerns as the responsibility boundaries above. Do not adopt its suggestion that old active remains authoritative after an atomic commit merely because a later read fails: that conflicts with the explicit commit point; instead verify candidate before commit and fail closed if post-commit active cannot decrypt. Token ID stays nullable and uncollected here, and the future read API moves to slice 1. The owner approved these dispositions at A3.
+- **A3 disposition:** Owner approval received in this chat on 2026-09-26 (freeze and proceed through B/C/C'). Local-only replacement, external test substitution, and explicitly unverified cross-user check accepted. DPAPI and PTY routes were proven; implementation-specific ACL/recovery/prompt checks belong to B/C. Snapshot is the committed version of this HANDOFF at the A3 freeze commit; its exact bytes/hash are recorded separately to avoid self-reference.
 - **C' reservation:** choose a model different from B and C in a new session, or a human using the fixed blind bundle. Record actual identity and any independence limitation at execution; no reviewer is reserved by this draft.
 
 ## 6. Phase B result
 
-Pending A3 freeze. Record implementation summary, deviations, unrun checks, head commit, and executor/model here without inserting C findings.
+Implementation authorized; pending B result. Record implementation summary, deviations, unrun checks, head commit, and executor/model here without inserting C findings.
 
 ## 7. Phase C
 
