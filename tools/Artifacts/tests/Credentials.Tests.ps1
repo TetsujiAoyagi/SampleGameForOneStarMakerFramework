@@ -1,11 +1,12 @@
-param([string] $Case = '*')
+param([string[]] $Case = @('*'))
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$storePath = Join-Path $PSScriptRoot '../Credentials/CredentialStore.psm1'
-$store = Import-Module $storePath -Force -PassThru
-$pathModule = $store.NestedModules | Where-Object Name -eq 'CredentialPathAcl' | Select-Object -First 1
 $commands = Import-Module (Join-Path $PSScriptRoot '../Credentials/CredentialCommands.psm1') -Force -PassThru
+$storePath = Join-Path $PSScriptRoot '../Credentials/CredentialStore.psm1'
+# Commands が読み込んだ Store の同じインスタンスを公開し、private fixture と公開関数を一致させる。
+$store = Import-Module $storePath -PassThru
+$pathModule = $store.NestedModules | Where-Object Name -eq 'CredentialPathAcl' | Select-Object -First 1
 $root = [IO.Path]::Combine([IO.Path]::GetTempPath(), 'osm-credential-test-' + [Guid]::NewGuid().ToString('N'))
 $script:passed = [Collections.Generic.List[string]]::new()
 $script:failed = [Collections.Generic.List[string]]::new()
@@ -58,7 +59,11 @@ function Reset-Fixture {
 function Run([string] $Name, [scriptblock] $Body) {
     # 書き込み台帳は Store/PathAcl の private hook。case ごとに初期化し、
     # 実ファイルと stream/例外の双方を消去前に検査する。
-    if ($Name -notlike $Case) { return }
+    $selected = $false
+    foreach ($pattern in $Case) {
+        if ($Name -like $pattern) { $selected = $true; break }
+    }
+    if (-not $selected) { return }
     Reset-Fixture
     $captured = @()
     $exceptionText = ''
@@ -269,6 +274,9 @@ try {
             @('pwsh.dll', '-NONI', '-NoProfile', '-File', 'artifacts.ps1'),
             @('pwsh.dll', '/noni', '-NoProfile', '-fi', 'artifacts.ps1'),
             @('pwsh.dll', '-ex', 'Bypass', '-NonInter', '-f', 'artifacts.ps1'),
+            @('pwsh.dll', (([string][char]0x2013) + 'NonInteractive'), '-File', 'artifacts.ps1'),
+            @('pwsh.dll', (([string][char]0x2014) + 'noni'), '-File', 'artifacts.ps1'),
+            @('pwsh.dll', (([string][char]0x2015) + 'NONI'), '-File', 'artifacts.ps1'),
             @('pwsh.dll', '-c', '& ./artifacts.ps1', '-noni')
         )) {
             Assert (Invoke-CommandsPrivate { param($argv) Test-NonInteractiveInvocation $argv } @(,$arguments)) 'noninteractive invocation accepted'
