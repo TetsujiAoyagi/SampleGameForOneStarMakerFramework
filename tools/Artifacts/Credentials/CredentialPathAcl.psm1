@@ -1,4 +1,11 @@
 Set-StrictMode -Version Latest
+$script:WriteLedger = $null
+
+function Assert-CredentialWrite([string] $Root, [string] $Path) {
+    $full = [IO.Path]::GetFullPath($Path)
+    if (-not (Test-Within $full $Root)) { throw 'Credential operation unavailable.' }
+    if ($null -ne $script:WriteLedger) { $script:WriteLedger.Add($full) }
+}
 
 function Assert-Windows {
     if (-not [OperatingSystem]::IsWindows()) { throw 'Credential operation unavailable.' }
@@ -67,8 +74,9 @@ function Assert-OwnerAcl([string] $Path, [bool] $Directory) {
     if ($owner -ne [Security.Principal.WindowsIdentity]::GetCurrent().User.Value) { throw 'Credential operation unavailable.' }
 }
 
-function Set-OwnerAcl([string] $Path, [bool] $Directory) {
+function Set-OwnerAcl([string] $Path, [bool] $Directory, [string] $Root) {
     $acl = New-OwnerAcl $Directory
+    Assert-CredentialWrite $Root $Path
     if ($Directory) { [IO.FileSystemAclExtensions]::SetAccessControl([IO.DirectoryInfo]::new($Path), $acl) }
     else { [IO.FileSystemAclExtensions]::SetAccessControl([IO.FileInfo]::new($Path), $acl) }
     Assert-OwnerAcl $Path $Directory
@@ -100,8 +108,9 @@ function Initialize-CredentialRoot([string] $Root, [bool] $IsTestRoot) {
         $current = [IO.Path]::Combine($current, $part)
         Assert-NoReparse $current
         if (-not [IO.Directory]::Exists($current)) {
+            Assert-CredentialWrite $Root $current
             [IO.Directory]::CreateDirectory($current) | Out-Null
-            Set-OwnerAcl $current $true
+            Set-OwnerAcl $current $true $Root
         } else { Assert-OwnerAcl $current $true }
     }
 }
@@ -111,6 +120,6 @@ function Assert-CredentialFile([string] $Path) {
     elseif ([IO.Directory]::Exists($Path)) { throw 'Credential operation unavailable.' }
 }
 
-function Set-CredentialFileAcl([string] $Path) { Set-OwnerAcl $Path $false }
+function Set-CredentialFileAcl([string] $Path, [string] $Root) { Set-OwnerAcl $Path $false $Root }
 
-Export-ModuleMember -Function Assert-Profile, Get-CredentialRoot, Initialize-CredentialRoot, Assert-CredentialFile, Set-CredentialFileAcl
+Export-ModuleMember -Function Assert-Profile, Get-CredentialRoot, Initialize-CredentialRoot, Assert-CredentialFile, Set-CredentialFileAcl, Assert-CredentialWrite

@@ -29,8 +29,9 @@ function Enter-StoreLock([hashtable] $Paths) {
     while ($true) {
         try {
             Assert-CredentialFile $Paths.Lock
+            Assert-CredentialWrite $Paths.Root $Paths.Lock
             $stream = [IO.FileStream]::new($Paths.Lock, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
-            Set-CredentialFileAcl $Paths.Lock
+            Set-CredentialFileAcl $Paths.Lock $Paths.Root
             return $stream
         } catch [IO.IOException] {
             if ($deadline.Elapsed -ge [TimeSpan]::FromSeconds(5)) { throw 'Credential operation unavailable.' }
@@ -89,6 +90,7 @@ function Get-OwnedFiles([hashtable] $Paths, [string] $Profile) {
 function Remove-OwnedFiles([hashtable] $Paths, [string] $Profile) {
     foreach ($file in Get-OwnedFiles $Paths $Profile) {
         Assert-CredentialFile $file
+        Assert-CredentialWrite $Paths.Root $file
         [IO.File]::Delete($file)
     }
 }
@@ -123,17 +125,20 @@ function Write-CredentialRecord([string] $Profile, [string] $AccessKeyId, [strin
         $cipher = Protect-Record $record
         $candidate = [IO.Path]::Combine($paths.Root, "$Profile.candidate.$([Guid]::NewGuid().ToString('N'))")
         try {
+            Assert-CredentialWrite $paths.Root $candidate
             $stream = [IO.FileStream]::new($candidate, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
             try { $stream.Write($cipher, 0, $cipher.Length); $stream.Flush($true) } finally { $stream.Dispose() }
-            Set-CredentialFileAcl $candidate
+            Set-CredentialFileAcl $candidate $paths.Root
             $verified = Unprotect-Record ([IO.File]::ReadAllBytes($candidate)) $Profile
             if ($verified.Generation -cne $record.Generation) { throw 'Credential operation unavailable.' }
             Invoke-Fault 'before-commit'
             if ($exists) {
                 $backup = [IO.Path]::Combine($paths.Root, "$Profile.backup.$([Guid]::NewGuid().ToString('N'))")
+                foreach ($changed in @($candidate, $paths.Active, $backup)) { Assert-CredentialWrite $paths.Root $changed }
                 [IO.File]::Replace($candidate, $paths.Active, $backup)
             } else {
                 # A missing active file is never recovered from a leftover backup.
+                foreach ($changed in @($candidate, $paths.Active)) { Assert-CredentialWrite $paths.Root $changed }
                 [IO.File]::Move($candidate, $paths.Active, $false)
             }
             $committed = $true
@@ -145,7 +150,7 @@ function Write-CredentialRecord([string] $Profile, [string] $AccessKeyId, [strin
         } finally { [Array]::Clear($cipher, 0, $cipher.Length) }
     } finally {
         if (-not $committed -and $candidate -and [IO.File]::Exists($candidate)) {
-            try { Assert-CredentialFile $candidate; [IO.File]::Delete($candidate) } catch { }
+            try { Assert-CredentialFile $candidate; Assert-CredentialWrite $paths.Root $candidate; [IO.File]::Delete($candidate) } catch { }
         }
         $lock.Dispose()
     }
@@ -169,7 +174,7 @@ function Remove-CredentialRecord([string] $Profile) {
     try {
         Assert-CredentialFile $paths.Active
         $present = [IO.File]::Exists($paths.Active)
-        if ($present) { [IO.File]::Delete($paths.Active) }
+        if ($present) { Assert-CredentialWrite $paths.Root $paths.Active; [IO.File]::Delete($paths.Active) }
         Remove-OwnedFiles $paths $Profile
         return $(if ($present) { 'removed' } else { 'already absent' })
     } finally { $lock.Dispose() }
