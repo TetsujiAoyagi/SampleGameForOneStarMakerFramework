@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: slice
-- status: B — 2026-09-26に人間がA3を凍結し、B→C→C'を承認済み。
+- status: D — B完了、最終版のC/C'はGO。人間のマージ判断待ち。マージ未実施。
 - branch: codex/artifact-local-credentials
 - implementation base commit: ae4b6e9b87c6690b16b83ca7d37af53def46f652
-- implementation head commit: 最終実装の固定時に記録。レビュー記録だけのコミットと区別する。
+- implementation head commit: 3a5126a2480d76ebbbe4c5c0ada538cea9172698。以後の本HANDOFFへの結果追記だけのコミットとは区別する。
 - risk: high — 資格情報、ファイル権限、失敗時の拒否と置換を扱う。検証にはダミー値だけを使う。
 - owner: OSM保守担当
 - created: 2026-09-26
@@ -14,8 +14,11 @@
 - harvest to: 現在の利用案内は docs/README.md、運用契約は tools/Artifacts/README.md。Phase Dのマージ時に必要な知見を反映し、このHANDOFFを削除する。
 - A2レビュー入力: A1初稿のSHA-256 D01C6AD1B5D628A3227AA60C0A0522847B3D52E6C3AE8A013F2A15CFC518BCB4
 - Phase A snapshot: 凍結コミット bef89538a30c9fbabefd6b8315cd9cd63bcf8341 の本ファイル。保存先 C:/Users/void/AppData/Local/Temp/osm-credentials-20260926/phase-a.md、生成時刻2026-09-26 11:36 JST、SHA-256 C9242D610D6D6716D0297123371CA161A1CD78AEB2F8BFE5B76C95285457DC84。
-- Phase B result snapshot: C:/Users/void/AppData/Local/Temp/osm-credentials-20260926/phase-b.md。最終版の生成時刻・ハッシュを判定証拠とともに記録する。
-- evidence bundle / C' blind bundle: 最終実装版の判定時に保存先・生成時刻・ハッシュを記録する。
+- Phase B result snapshot: C:/Users/void/AppData/Local/Temp/osm-credentials-20260926/phase-b.md。最終版生成2026-09-26 12:42 JST、SHA-256 1AB8A8339838BC2963B159CED58B9E3CFA3F6769CD89832C627498CD54876ABA。同一の固定コピーを下記ZIPに収録。
+- evidence bundle / C' blind bundle: C:/Users/void/AppData/Local/Temp/osm-credentials-20260926/head-3a5126a2480d76ebbbe4c5c0ada538cea9172698/blind-bundle.zip。生成2026-09-26T12:47:10.9511680+09:00、SHA-256 3E121DA9714817068A7D9BF862B3808A33431DF6D57A2A6BFFACA88A68D4BC81。
+- 取得・保持: 上記ローカルZIPをコピーし、SHA-256を照合して展開する。blind-manifest.txtの全16項目を照合する。保持期限は2026-12-26、保持担当はOSM保守担当。現時点ではローカル一時領域だけの保存であり、永続・遠隔保管は未実施。期限前の削除はしない。R2への転送やGitへのpayload追加は行っていない。
+- Phase C判定原記録: 上記head別ディレクトリの c-private/c-decision-ja.txt、SHA-256 D864E0BF5B54A678538B4CE2A3B97F5FAB191CA9376B7F93BF3485041D5D912F。blind ZIPの外に保存。
+- Phase C'最終結果: C:/Users/void/AppData/Local/Temp/osm-credentials-20260926/cprime-final-ja.md。生成2026-09-26 12:51 JST、SHA-256 DACB03C7B7525751F448D48F2281ECDA5058E95FAF7D80772FFD8A69E4A108DE。
 
 ユーザーの指示により、本HANDOFF、README、コードコメントを日本語にする。以下は凍結済み条件の日本語訳であり、条件の追加・緩和ではない。英語で保存した凍結snapshotは、過去の入力を検証できるよう変更しない。
 
@@ -109,18 +112,39 @@ PathAcl/Storeは変更直前に予定した書込み先を内部テスト台帳�
 
 既存の共有OneStarMakerはreparse検査だけを行い、継承ACLやRevisionLocks等の兄弟データを変更しない。資格情報専用のArtifacts/credentialsには厳格なACLを要求する。全階層未作成、既存共有親と兄弟ACLの保全、危険な専用階層ACLの拒否をダミーfixtureで限定確認した。
 
-Bは構文検査、限定したダミー検証、契約/文書監査を実施した。全件テストと実PTYの最終判定はCが担当し、Bの限定成功を代用にしない。別ユーザーDPAPIは第二のWindowsアカウントが必要で、未確認を合格に読み替えない。Unity Editorのコンパイル・Unityバッチテストは未実施で、外部PowerShell/Markdownのみが差分対象。担当モデルはGPT-6 Sol / OpenAI（起動指定）。最終実装の追加結果とsnapshot hashは実装固定後に追記する。
+Bは構文検査、限定したダミー検証、契約/文書監査を実施した。全件テストと実PTYの最終判定はCが担当し、Bの限定成功を代用にしない。別ユーザーDPAPIは第二のWindowsアカウントが必要で、未確認を合格に読み替えない。Unity Editorのコンパイル・Unityバッチテストは未実施で、外部PowerShell/Markdownのみが差分対象。担当モデルはGPT-6 Sol / OpenAI（起動指定）。コード実装の最終コミットは450a72296f440955854bfa50a1388708c0afa5c5、主担当の文書日本語化を含む判定headは3a5126a2480d76ebbbe4c5c0ada538cea9172698。snapshotは§0参照。
 
 保存レコードはJSONの項目集合、重複しない項目名、各値の単一型、完全なUTC日時を検証する。復号可能でも形式が不正なら拒否し、置換を拒否したときは現行暗号文のバイトを保持する。重要な境界判断を説明する日本語コメントをコードへ追加し、READMEと本HANDOFFを日本語にした。これらは既存の受け入れ条件を実装・説明する変更であり、実トークンやネットワーク操作を追加していない。
 
 ## 7. Phase C — 一次レビュー
 
-未実施
+**最終判定: GO。** 担当はGPT-5.6 Sol / OpenAI。Bと異なるモデルの新規セッションで、固定A/B入力と完全差分から構造確認を先に実施した。最終headは§0と同じ。launcher→Commands→Store→PathAclの依存、状態所有者、内部テスト注入、秘密をexportしない境界は凍結マップに一致し、Unity側変更はない。
+
+発見Cで扱った指摘と処置は次のとおり。すべて凍結条件内のB適応で、受け入れ範囲を拡大していない。
+
+- 条件6・最低条件: 書込み先の観測がfixture内列挙に限られ、清掃後の平文走査が空になる欠陥。内部の書込み台帳とケースごとの清掃前走査へ修正（0331d60）。
+- 条件1/3: 初回の固定三階層作成まで書込み境界で拒否する欠陥。固定ディレクトリ初期化だけを許可し、未作成三階層のテストを追加（3ea4547）。
+- 条件1/3: 既存の共有OneStarMakerにも専用ACLを要求し、実CLIの初回登録を拒否する欠陥。共有親を変更せず、専用Artifacts/credentialsへACL境界を限定（75d19e3）。当初の「親も今回作成した」という推定は、通常ユーザーでの再観察により撤回した。既存RevisionLocksを削除・変更する回避は行っていない。
+- 条件2/3に関するC'の指摘は§8の修正後、全判定を新headで再実行した。旧headの成功を流用していない。
+
+判定コマンドは、通常ユーザーの承認済み経路による pwsh -NoProfile -File tools/Artifacts/tests/Credentials.Tests.ps1（全件・filterなし）、tools/contract-audit.ps1、tools/docs-audit.ps1。資格情報テストは**17件実行・17件成功・失敗0**、監査はともにexit 0。ケース名と生結果はZIP内のcredentials-tests.raw.txtにある。不正日時、日時/鍵配列、余分・重複JSON項目など、復号可能な不正レコードを含む。
+
+同headの実PTYで初回set、replace 2回、status、remove、再removeを確認した。両入力プロンプトの非表示、成功exit 0、世代変更と作成日時維持、削除後statusの拒否を観測。専用ディレクトリ・active・lockのACLは所有ユーザー/SYSTEM/Administratorsのみで継承無効。保存ファイルと収録テキストに実行時ダミー値の平文はなく、削除後のactive・所有候補/backupはなし。実機でRevisionLocksの残存、fixtureで共有親/兄弟ACLの不変、Git前後のcleanを確認した。
+
+未解決blockerは0。全EditModeは凍結済みの外部ツール限定例外で未実行。別WindowsユーザーでのDPAPI拒否はA3許容どおり未確認。実R2、実トークン、サーバー失効、実payload転送は今回の証拠に含めない。
 
 ## 8. Phase C' — 盲検の独立監査
 
-未実施
+**最終判定: GO（強化独立性に制約あり）。** 担当はGPT-6 Astra / OpenAI。BのGPT-6 Sol、CのGPT-5.6 Solとは異なるモデル。新規セッションへ§0のblind ZIPだけを渡し、C所見・結論・探索候補、可変HANDOFF、過去の監査結果を渡していない。完全diff内の固定日本語HANDOFFと英語の凍結Aを照合し、翻訳による条件変更がないことも確認した。
+
+最初の監査は旧head 75d19e3 に対してNO-GOだった。CPrime-01（P2、条件2/3）として、日時の接頭辞検査とPowerShellの配列比較により、不正日時・日時配列・鍵配列がレコード検証を通る反例を確認。既存の型・形式検証責務内で厳密なJSON/単一型/完全UTC日時検証と拒否時の旧暗号文保全テストを追加した（450a722）。旧NO-GO記録は cprime-result-head-75d19e3.md（§0の作業ディレクトリ内、SHA-256 64E3EF7EDB67E636ADD175518CE3A5D017215F89E6F0030D5BED07ABDCA98A97）に保持する。
+
+最終監査はさらに新しいセッションで開始し、旧監査の所見も渡していない。受信先の新規ディレクトリへZIPをコピー・展開し、ZIPとmanifest全16ファイルのハッシュ一致、必須ファイルの実閲覧を確認した。凍結条件1〜6、完全差分、全17件の生結果、PTY/ACL/削除の一次観察を監査し、阻害する欠陥なし。全テストの重複実行はしていない。監査用一時領域だけでダングリングリンクのWindows API挙動を限定確認し、製品コード・実資格情報ストアは変更していない。
+
+モデル相違・新規セッション・盲検入力の最低条件は充足。別ベンダーClaude Codeは組織設定による403で利用不可だったため、全担当がOpenAI系列である。同系列に共通する見落としの可能性を、強化独立性の制約として人間のPhase D判断に残す。
+
+残存事項は、別ユーザーDPAPIの未実測、同Windowsユーザーからは復号可能であること、完全メモリ消去やOSクラッシュ全時点の保証をしないこと。実R2認証・rotation・失効・クラウドgrantは段2（スライス1）、確定オブジェクトのサーバー保護はスライス2へ送る。OneDrive全域の走査も主張しない。
 
 ## 9. Phase D — マージ判断
 
-最終版のC/C'突合と人間のマージ判断を待つ。今回はマージしない。マージ時に恒久的な知見を公開文書へ反映し、このHANDOFFを削除する。
+最終headのC/C'はいずれもGOで、未解決の凍結条件違反はない。結果の突合はC'完了後に行った。B、C、C'を完了し、実装・日本語コメント・日本語README/HANDOFF・検証結果をコミットする。push・PR作成・マージは今回行っていない。人間のマージ判断を待ち、マージ時に恒久的な知見を公開文書へ反映して本HANDOFFを削除する。未マージなので、C/C'欄が埋まったHANDOFFをまだ保持することによるdocs-auditのharvest警告は予定どおり。
