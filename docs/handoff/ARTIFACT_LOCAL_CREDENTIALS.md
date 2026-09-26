@@ -6,7 +6,7 @@
 - status: `B` — A3 frozen by owner approval on 2026-09-26; B then C/C' authorized
 - branch: `codex/artifact-local-credentials`
 - implementation base commit: `ae4b6e9b87c6690b16b83ca7d37af53def46f652`
-- implementation head commit: pending Phase B
+- implementation head commit: Phase B result commit (fixed SHA in the neutral Phase B snapshot and Phase C evidence)
 - risk: `high` (credential storage, filesystem authority, and fail-closed replacement; tests use dummy values only)
 - owner: OSM maintainers
 - created: 2026-09-26
@@ -14,7 +14,7 @@
 - harvest to: `docs/README.md` for current usage and `tools/Artifacts/README.md` for operational contract, then delete this HANDOFF at Phase D
 - A2 review input: A1 draft SHA-256 `D01C6AD1B5D628A3227AA60C0A0522847B3D52E6C3AE8A013F2A15CFC518BCB4`
 - Phase A snapshot path / id, generated at, hash: pending A3 freeze; the frozen A0/A1/A2/A3 section of this file is the source
-- Phase B result snapshot, evidence bundle, C' blind bundle path / id, generated at, hash: pending their respective phases
+- Phase B result snapshot: `C:/Users/void/AppData/Local/Temp/osm-credentials-20260926/phase-b.md`, generated 2026-09-26; hash recorded in Phase C evidence after the result commit. Evidence and C' blind bundle pending their respective phases.
 
 ## 1. Purpose, present state, and exclusions (A0)
 
@@ -91,7 +91,11 @@ Tests use signals or an injected clock for timeout/cancellation, never `Task.Del
 
 ## 6. Phase B result
 
-Implementation authorized; pending B result. Record implementation summary, deviations, unrun checks, head commit, and executor/model here without inserting C findings.
+Implemented the Windows-only local credential CLI at `tools/artifacts.ps1` and the PathAcl → Store → Commands modules under `tools/Artifacts/Credentials/`. The one active record uses CurrentUser DPAPI, restricted ACLs, a bounded exclusive lock, candidate decrypt/parse verification, create-if-absent or same-directory atomic replacement, and explicit post-commit cleanup outcome. The CLI accepts only `credentials set/status/remove --profile osm`, masks interactive input, rejects redirected input, and emits local-only status. Added an isolated dummy-key test harness and `tools/Artifacts/README.md`. No Unity, R2, real token, or cloud operation was added.
+
+B adaptations: the existing `.gitignore` pattern `tools/**/artifacts/` also ignores `tools/Artifacts/` on Windows, so the specified source and README files are explicitly force-added without changing the ignore rule. PowerShell 7 parses the implementation files. A redirected `set` exited 1 before prompting. Limited dummy checks of encrypted round trip, replacement, fake-validation refusal, pre-commit preservation, post-commit cleanup outcome, active-missing/backup refusal, and idempotent removal each passed individually outside the sandbox. `pwsh tools/contract-audit.ps1` and `pwsh tools/docs-audit.ps1` passed in B.
+
+The full test script, live multi-character PTY path, five-second lock and unsafe path cases, cross-user DPAPI check, complete sentinel/output and repository-diff inspection, and Phase C/C' judgment remain unrun/unverified in B. The cross-user test needs a second Windows account and may remain unverified. No Unity Editor compilation or Unity batch test was run; the diff is external PowerShell and Markdown only. Executor: GPT-6 Sol / OpenAI (tool launch specification).
 
 ## 7. Phase C
 
