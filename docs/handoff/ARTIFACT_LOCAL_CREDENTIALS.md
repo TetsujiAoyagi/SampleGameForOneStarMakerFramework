@@ -5,8 +5,8 @@
 - type: slice
 - status: D — B完了、最終版のC/C'はGO。人間のマージ判断待ち。マージ未実施。
 - branch: codex/artifact-local-credentials
-- implementation base commit: ae4b6e9b87c6690b16b83ca7d37af53def46f652
-- implementation head commit: 3a5126a2480d76ebbbe4c5c0ada538cea9172698。以後の本HANDOFFへの結果追記だけのコミットとは区別する。
+- implementation base commit: acb4beabc0378a58322e698881263406e03494d4（PR #76レビュー対応の起点。初回実装の起点はae4b6e9b87c6690b16b83ca7d37af53def46f652）。
+- implementation head commit: aa3f7ad915a75bd6c8ca23d9da4e7cf3c6512bb3。以後の本HANDOFFへの結果追記だけのコミットとは区別する。今回のC/C'結果は§10、初回結果は§7/8に記録する。
 - risk: high — 資格情報、ファイル権限、失敗時の拒否と置換を扱う。検証にはダミー値だけを使う。
 - owner: OSM保守担当
 - created: 2026-09-26
@@ -14,11 +14,16 @@
 - harvest to: 現在の利用案内は docs/README.md、運用契約は tools/Artifacts/README.md。Phase Dのマージ時に必要な知見を反映し、このHANDOFFを削除する。
 - A2レビュー入力: A1初稿のSHA-256 D01C6AD1B5D628A3227AA60C0A0522847B3D52E6C3AE8A013F2A15CFC518BCB4
 - Phase A snapshot: 凍結コミット bef89538a30c9fbabefd6b8315cd9cd63bcf8341 の本ファイル。保存先 C:/Users/void/AppData/Local/Temp/osm-credentials-20260926/phase-a.md、生成時刻2026-09-26 11:36 JST、SHA-256 C9242D610D6D6716D0297123371CA161A1CD78AEB2F8BFE5B76C95285457DC84。
-- Phase B result snapshot: C:/Users/void/AppData/Local/Temp/osm-credentials-20260926/phase-b.md。最終版生成2026-09-26 12:42 JST、SHA-256 1AB8A8339838BC2963B159CED58B9E3CFA3F6769CD89832C627498CD54876ABA。同一の固定コピーを下記ZIPに収録。
-- evidence bundle / C' blind bundle: C:/Users/void/AppData/Local/Temp/osm-credentials-20260926/head-3a5126a2480d76ebbbe4c5c0ada538cea9172698/blind-bundle.zip。生成2026-09-26T12:47:10.9511680+09:00、SHA-256 3E121DA9714817068A7D9BF862B3808A33431DF6D57A2A6BFFACA88A68D4BC81。
+- 初回Phase B result snapshot: C:/Users/void/AppData/Local/Temp/osm-credentials-20260926/phase-b.md。最終版生成2026-09-26 12:42 JST、SHA-256 1AB8A8339838BC2963B159CED58B9E3CFA3F6769CD89832C627498CD54876ABA。同一の固定コピーを初回ZIPに収録。
+- 初回evidence bundle / C' blind bundle: C:/Users/void/AppData/Local/Temp/osm-credentials-20260926/head-3a5126a2480d76ebbbe4c5c0ada538cea9172698/blind-bundle.zip。生成2026-09-26T12:47:10.9511680+09:00、SHA-256 3E121DA9714817068A7D9BF862B3808A33431DF6D57A2A6BFFACA88A68D4BC81。
 - 取得・保持: 上記ローカルZIPをコピーし、SHA-256を照合して展開する。blind-manifest.txtの全16項目を照合する。保持期限は2026-12-26、保持担当はOSM保守担当。現時点ではローカル一時領域だけの保存であり、永続・遠隔保管は未実施。期限前の削除はしない。R2への転送やGitへのpayload追加は行っていない。
-- Phase C判定原記録: 上記head別ディレクトリの c-private/c-decision-ja.txt、SHA-256 D864E0BF5B54A678538B4CE2A3B97F5FAB191CA9376B7F93BF3485041D5D912F。blind ZIPの外に保存。
-- Phase C'最終結果: C:/Users/void/AppData/Local/Temp/osm-credentials-20260926/cprime-final-ja.md。生成2026-09-26 12:51 JST、SHA-256 DACB03C7B7525751F448D48F2281ECDA5058E95FAF7D80772FFD8A69E4A108DE。
+- 初回Phase C判定原記録: 初回head別ディレクトリの c-private/c-decision-ja.txt、SHA-256 D864E0BF5B54A678538B4CE2A3B97F5FAB191CA9376B7F93BF3485041D5D912F。blind ZIPの外に保存。
+- 初回Phase C'最終結果: C:/Users/void/AppData/Local/Temp/osm-credentials-20260926/cprime-final-ja.md。生成2026-09-26 12:51 JST、SHA-256 DACB03C7B7525751F448D48F2281ECDA5058E95FAF7D80772FFD8A69E4A108DE。
+- 今回のPhase B result snapshot: C:/Users/void/AppData/Local/Temp/osm-pr76-noninteractive/phase-b.md。生成2026-09-26 13:32 JST、SHA-256 01FDD00916AFB3471A32A9BF6602770134013BD7ACC5286F9F071C7D8F92BC47。
+- 今回のevidence bundle / C' blind bundle: C:/Users/void/AppData/Local/Temp/osm-pr76-noninteractive/head-aa3f7ad915a75bd6c8ca23d9da4e7cf3c6512bb3/bundle/blind-audit-aa3f7ad915a75bd6c8ca23d9da4e7cf3c6512bb3.zip。生成2026-09-26T04:47:57.9943471Z、SHA-256 0DA9E00B72963FEA680ED1878DDD5B3EC3E0563A4ACB4DAF878DB4385BAAD0CC。
+- 今回の取得・保持: 上記ZIPをコピーし、SHA-256照合後に展開する。manifest.sha256のSHA-256は381A5FF27CA7E090324CA1DCB364928AE1A64D6F485AD28A890441FBBB1AED71、収録26ファイルを照合する。保持期限・担当・ローカル保存の制約は初回と同じ。凍結Aは初回と同一の固定コピーを収録し、可変HANDOFF・過去所見・C所見・旧headの失敗証拠は含めない。
+- 今回のPhase C原記録: 今回のhead別ディレクトリの c-private/phase-c-result.md、SHA-256 3D646458E01458DF2F400C771D8CBDF4B8B16E1809EE15564FC44D439704F31D。blind ZIPの外に保存。
+- 今回のPhase C'結果: C:/Users/void/AppData/Local/Temp/osm-pr76-noninteractive/cprime-aa3f7ad-result-ja.md、SHA-256 F18D55166D110DB0FF736AD08D2EDA663F7CB6E5C401B8FA7ED44B160F77CE30。
 
 ユーザーの指示により、本HANDOFF、README、コードコメントを日本語にする。以下は凍結済み条件の日本語訳であり、条件の追加・緩和ではない。英語で保存した凍結snapshotは、過去の入力を検証できるよう変更しない。
 
@@ -102,7 +107,7 @@ A0時点で各ファイルは新規（0行）。すべてUnity外に置き、asm
 - **A3:** 2026-09-26にこのチャットで凍結とB→C→C'を承認。ローカル置換、外部テスト代替、別ユーザー未確認の扱いを含む。実装固有のACL/回復/入力の検証はB/Cで行う。凍結時のコミットとsnapshotを保持する。
 - **C'の独立性:** B・Cと異なるモデル、新規セッション、所見を含まない入力を使う。実施モデルと強化条件の制約は最終結果に記録する。
 
-## 6. Phase B — 実装結果
+## 6. 初回Phase B — 実装結果
 
 tools/artifacts.ps1 と tools/Artifacts/Credentials/ のPathAcl・Store・Commandsを実装した。単一activeレコードをCurrentUser DPAPIと制限ACLで保管し、排他ロック、候補の復号・解析検証、初回の重複拒否、同一ディレクトリ内の原子的置換、確定後清掃保留を扱う。CLIはcredentials set/status/remove --profile osmだけを受け付け、非表示入力、リダイレクト拒否、ローカル状態表示を行う。隔離したダミーテストとREADMEを追加。Unity・R2・実トークン・クラウド操作は追加していない。
 
@@ -116,9 +121,9 @@ Bは構文検査、限定したダミー検証、契約/文書監査を実施し
 
 保存レコードはJSONの項目集合、重複しない項目名、各値の単一型、完全なUTC日時を検証する。復号可能でも形式が不正なら拒否し、置換を拒否したときは現行暗号文のバイトを保持する。重要な境界判断を説明する日本語コメントをコードへ追加し、READMEと本HANDOFFを日本語にした。これらは既存の受け入れ条件を実装・説明する変更であり、実トークンやネットワーク操作を追加していない。
 
-## 7. Phase C — 一次レビュー
+## 7. 初回Phase C — 一次レビュー
 
-**最終判定: GO。** 担当はGPT-5.6 Sol / OpenAI。Bと異なるモデルの新規セッションで、固定A/B入力と完全差分から構造確認を先に実施した。最終headは§0と同じ。launcher→Commands→Store→PathAclの依存、状態所有者、内部テスト注入、秘密をexportしない境界は凍結マップに一致し、Unity側変更はない。
+**初回判定: GO。** 対象headは3a5126a2480d76ebbbe4c5c0ada538cea9172698。担当はGPT-5.6 Sol / OpenAI。Bと異なるモデルの新規セッションで、固定A/B入力と完全差分から構造確認を先に実施した。launcher→Commands→Store→PathAclの依存、状態所有者、内部テスト注入、秘密をexportしない境界は凍結マップに一致し、Unity側変更はない。後日の外部レビューで未確認経路の欠陥が判明し、§10で修正・再判定した。
 
 発見Cで扱った指摘と処置は次のとおり。すべて凍結条件内のB適応で、受け入れ範囲を拡大していない。
 
@@ -133,9 +138,9 @@ Bは構文検査、限定したダミー検証、契約/文書監査を実施し
 
 未解決blockerは0。全EditModeは凍結済みの外部ツール限定例外で未実行。別WindowsユーザーでのDPAPI拒否はA3許容どおり未確認。実R2、実トークン、サーバー失効、実payload転送は今回の証拠に含めない。
 
-## 8. Phase C' — 盲検の独立監査
+## 8. 初回Phase C' — 盲検の独立監査
 
-**最終判定: GO（強化独立性に制約あり）。** 担当はGPT-6 Astra / OpenAI。BのGPT-6 Sol、CのGPT-5.6 Solとは異なるモデル。新規セッションへ§0のblind ZIPだけを渡し、C所見・結論・探索候補、可変HANDOFF、過去の監査結果を渡していない。完全diff内の固定日本語HANDOFFと英語の凍結Aを照合し、翻訳による条件変更がないことも確認した。
+**初回最終判定: GO（強化独立性に制約あり）。** 対象headは3a5126a2480d76ebbbe4c5c0ada538cea9172698。担当はGPT-6 Astra / OpenAI。BのGPT-6 Sol、CのGPT-5.6 Solとは異なるモデル。新規セッションへ§0の初回blind ZIPだけを渡し、C所見・結論・探索候補、可変HANDOFF、過去の監査結果を渡していない。完全diff内の固定日本語HANDOFFと英語の凍結Aを照合し、翻訳による条件変更がないことも確認した。今回の修正後の独立監査は§10を参照する。
 
 最初の監査は旧head 75d19e3 に対してNO-GOだった。CPrime-01（P2、条件2/3）として、日時の接頭辞検査とPowerShellの配列比較により、不正日時・日時配列・鍵配列がレコード検証を通る反例を確認。既存の型・形式検証責務内で厳密なJSON/単一型/完全UTC日時検証と拒否時の旧暗号文保全テストを追加した（450a722）。旧NO-GO記録は cprime-result-head-75d19e3.md（§0の作業ディレクトリ内、SHA-256 64E3EF7EDB67E636ADD175518CE3A5D017215F89E6F0030D5BED07ABDCA98A97）に保持する。
 
@@ -147,4 +152,31 @@ Bは構文検査、限定したダミー検証、契約/文書監査を実施し
 
 ## 9. Phase D — マージ判断
 
-最終headのC/C'はいずれもGOで、未解決の凍結条件違反はない。結果の突合はC'完了後に行った。B、C、C'を完了し、実装・日本語コメント・日本語README/HANDOFF・検証結果をコミットする。push・PR作成・マージは今回行っていない。人間のマージ判断を待ち、マージ時に恒久的な知見を公開文書へ反映して本HANDOFFを削除する。未マージなので、C/C'欄が埋まったHANDOFFをまだ保持することによるdocs-auditのharvest警告は予定どおり。
+§10の修正後headでC/C'はいずれもGO、未解決の凍結条件違反はない。結果の突合は今回もC'完了後に行った。[PR #76](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/76)はdevelop向けに作成済みで、ユーザー承認に基づき今回の修正を同PRへ追加する。マージは行わない。人間のマージ判断を待ち、マージ時に恒久的な知見を公開文書へ反映して本HANDOFFを削除する。未マージなので、完了HANDOFFの保持によるdocs-auditのharvest警告は予定どおり。
+
+## 10. PR #76 外部レビュー対応 — 非対話起動の拒否
+
+[外部レビュー](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/76#issuecomment-5842966658)の指摘を採用した。コンソール付きpwshの非対話起動はリダイレクト判定だけでは検出できず、入力待ちになる。severity high / category semantic / unique / accepted、凍結条件1への違反であり、現在の問いを阻害する欠陥と分類した。既存Commandsの入力境界内で修正できるB適応なので、Phase Aの条件は変更していない。
+
+**B（gpt-6-sol）:** 入力前に起動引数の非対話指定を確認する。完全形、短縮形、大文字小文字、Windowsのslash、PowerShellが受け付けるUnicodeダッシュ3種に対応し、固定CLI文法のもとで引数全体を安全側に拒否する。日本語の理由コメント、README、private判定の回帰テストを追加した。保存形式・Storeの責務・公開CLIは変更していない。修正コミットは6ee194cとaa3f7ad。
+
+**発見C（新規gpt-5.6-sol）:** 6ee194cの全件検証は18件中5件成功・13件失敗。追加したCommandsの強制importによりテストのStore参照と公開関数が不整合になる欠陥を確認した。また、非ASCIIダッシュによるPowerShell非対話指定の受理を確認した。前者は判定必須テスト未達（semantic / unique / accepted）、後者は条件1の同じ拒否経路の欠陥（semantic / unique / accepted）としてBへ一括差戻し。aa3f7adで同一Store参照を使うimport順とダッシュ対応を修正した。旧headの失敗記録は旧head別領域に保持し、合格証拠へ混ぜていない。
+
+**判定C（同じC担当）: GO。** acb4bea..aa3f7adの完全差分を固定し、構造を再確認した。3ファイル・55行追加/7行削除で既存責務内に収まり、依存・所有者・寿命・Unity側への変更なし。通常ユーザーの承認済み経路で次を確認した。
+
+- pwsh -NoProfile -File tools/Artifacts/tests/Credentials.Tests.ps1: 全18件成功、失敗0、exit 0。
+- tools/contract-audit.ps1、tools/docs-audit.ps1: ともにexit 0。文書監査は未マージHANDOFFのharvest警告1件のみ。
+- 実ConPTYの-NonInteractiveと-noniによる置換: 約1.134秒と1.123秒でexit 1、一般診断のみ、入力プロンプトなし。active/lockのハッシュとACLは前後不変。
+- 通常対話のダミーset/status/replace/removeと再remove: 成功、入力echoなし、旧新ダミー値の平文残留なし。作成日時維持・世代更新・ローカル削除の表示を確認。最後はlockのみでactive/candidate/backupなし。
+- Gitは同じheadで前後clean。Unity全EditModeは凍結済み適用除外。別ユーザーDPAPIはA3で許容した未確認のまま。
+
+**C'（新規gpt-6-astra）: GO、blocker 0件。** Cと同じbase/headのblind ZIPだけを入力とし、受領コピーのZIP/manifestおよび26ファイル全件のハッシュを確認した。凍結A、所見を含まないB結果、完全差分、最終ソース、生結果と一次観測を実閲覧し、18件のケース名と条件1〜6を照合した。C所見・疑念候補・PRコメント・可変HANDOFFは渡していない。全テストの重複実行はしていない。モデル名は起動指定を記録した。B/C/C'のモデル相違・新規セッション・盲検性は充足するが、同じOpenAI系列であり強化独立性には制約がある。
+
+**後続への引継ぎ:** 外部レビューが後続とした以下4点は、今回の非対話拒否修正に含めていない。段2（スライス1ローカル）の資格情報運用を担当するOSM保守担当へ引き継ぎ、着手時に条件と責務を具体化する。
+
+- 未作成の共有OneStarMakerにも専用ACLが付く点: 共有親の新規作成時のACL方針を整理する。
+- ロック取得後のACL設定失敗でハンドルが解放されない点: 例外時の解放責務を確認する。
+- 矢印キー等で入力が中止される点: 対話入力の操作仕様を整理する。
+- 危険なACLのactiveは削除も拒否され暗号文が残る点: 所有者による復旧・清掃手順を整理する。
+
+実鍵、実R2、Cloudflare変更、実payload転送は引き続き未実施。同一WindowsユーザーのAgentからの隔離を主張しない。今回の独立監査結果との突合後も未解決blockerはなく、マージ判断だけを人間に残す。
