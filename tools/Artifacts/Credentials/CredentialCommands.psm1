@@ -1,10 +1,25 @@
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'CredentialStore.psm1') -Force
 
+function Test-NonInteractiveInvocation([string[]] $ProcessArguments) {
+    # このCLIのスクリプト引数は固定文法で、-noni は受理しない。ホストの
+    # -File/-Command の短縮形を再解析せず、argv 全体を安全側で拒否する。
+    foreach ($argument in $ProcessArguments) {
+        if (-not ($argument.StartsWith('-') -or $argument.StartsWith('/'))) { continue }
+        $name = $argument.Substring(1)
+        if ($name.Length -ge 4 -and 'NonInteractive'.StartsWith($name, [StringComparison]::OrdinalIgnoreCase)) {
+            return $true
+        }
+    }
+    return $false
+}
+
 function Test-InteractiveInput {
-    # 秘密を含む入力が pipe やリダイレクト経由になる実行形態を先に拒否する。
+    # PTY 上の pwsh -NonInteractive は Console のリダイレクト値だけでは判別できず、
+    # ReadKey が待機する。秘密入力より前にホストの起動指定も確認する。
     return [OperatingSystem]::IsWindows() -and -not [Console]::IsInputRedirected -and
-        -not [Console]::IsOutputRedirected -and -not [Console]::IsErrorRedirected
+        -not [Console]::IsOutputRedirected -and -not [Console]::IsErrorRedirected -and
+        -not (Test-NonInteractiveInvocation ([Environment]::GetCommandLineArgs()))
 }
 
 function Read-MaskedValue([string] $Label) {

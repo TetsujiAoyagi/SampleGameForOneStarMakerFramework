@@ -5,6 +5,7 @@ $ErrorActionPreference = 'Stop'
 $storePath = Join-Path $PSScriptRoot '../Credentials/CredentialStore.psm1'
 $store = Import-Module $storePath -Force -PassThru
 $pathModule = $store.NestedModules | Where-Object Name -eq 'CredentialPathAcl' | Select-Object -First 1
+$commands = Import-Module (Join-Path $PSScriptRoot '../Credentials/CredentialCommands.psm1') -Force -PassThru
 $root = [IO.Path]::Combine([IO.Path]::GetTempPath(), 'osm-credential-test-' + [Guid]::NewGuid().ToString('N'))
 $script:passed = [Collections.Generic.List[string]]::new()
 $script:failed = [Collections.Generic.List[string]]::new()
@@ -16,6 +17,9 @@ $sentinelSecret = 'DUMMY_SECRET_' + [Guid]::NewGuid().ToString('N')
 
 function Invoke-StorePrivate([scriptblock] $Code, [object[]] $Values = @()) {
     return & $store $Code @Values
+}
+function Invoke-CommandsPrivate([scriptblock] $Code, [object[]] $Values = @()) {
+    return & $commands $Code @Values
 }
 function Assert([bool] $Condition, [string] $Message) { if (-not $Condition) { throw $Message } }
 function Assert-NoSentinel([string] $Text, [string] $Where) {
@@ -73,7 +77,7 @@ function Run([string] $Name, [scriptblock] $Body) {
                 Assert ($write.Equals($root, [StringComparison]::OrdinalIgnoreCase) -or
                     $write.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase)) 'write escaped fixture'
             }
-            if ($Name -notin @('CLI rejects redirected input', 'CLI verbose and error output is safe', 'ancestor reparse is refused', 'unsafe dedicated directory is refused')) {
+            if ($Name -notin @('CLI rejects redirected input', 'CLI verbose and error output is safe', 'noninteractive invocation is refused', 'ancestor reparse is refused', 'unsafe dedicated directory is refused')) {
                 Assert ($script:writes.Count -gt 0) 'write ledger was empty'
             }
         } catch { $caseFailed = $true }
@@ -258,6 +262,24 @@ try {
         $output = & pwsh @cliArgs 2>&1 | Out-String
         Assert ($LASTEXITCODE -ne 0) 'redirected CLI accepted'
         Assert-NoSentinel $output 'redirected CLI output'
+    }
+    Run 'noninteractive invocation is refused' {
+        foreach ($arguments in @(
+            @('pwsh.dll', '-NoProfile', '-NonInteractive', '-File', 'artifacts.ps1'),
+            @('pwsh.dll', '-NONI', '-NoProfile', '-File', 'artifacts.ps1'),
+            @('pwsh.dll', '/noni', '-NoProfile', '-fi', 'artifacts.ps1'),
+            @('pwsh.dll', '-ex', 'Bypass', '-NonInter', '-f', 'artifacts.ps1'),
+            @('pwsh.dll', '-c', '& ./artifacts.ps1', '-noni')
+        )) {
+            Assert (Invoke-CommandsPrivate { param($argv) Test-NonInteractiveInvocation $argv } @(,$arguments)) 'noninteractive invocation accepted'
+        }
+        foreach ($arguments in @(
+            @('pwsh.dll', '-c', 'Write-Output -NonInteractive'),
+            @('pwsh.dll', '-File', 'artifacts.ps1', 'noni'),
+            @('pwsh.dll', '-NoProfile', '-File', 'artifacts.ps1')
+        )) {
+            Assert (-not (Invoke-CommandsPrivate { param($argv) Test-NonInteractiveInvocation $argv } @(,$arguments))) 'unrelated argument refused'
+        }
     }
     Run 'CLI verbose and error output is safe' {
         $cli = [IO.Path]::GetFullPath([IO.Path]::Combine($PSScriptRoot, '..', '..', 'artifacts.ps1'))
