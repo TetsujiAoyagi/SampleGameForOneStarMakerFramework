@@ -3,7 +3,7 @@
 ## 0. Metadata
 
 - type: `program`
-- status: `A`
+- status: program進行中。r1境界凍結済み、ローカル段1（スライス0）の実装・検証完了、Phase D承認済み。後続スライスは未凍結。
 - program policy revision: `r1` — A3 boundary freeze; individual implementation slices are not frozen
 - branch: `codex/r2-artifact-workflow`
 - implementation base commit: `acaf6ab7462f8dd4fe63bbd958b9fc394845566b` (`develop`)
@@ -58,6 +58,21 @@ Unity is a replaceable build backend. The primary user/agent interface is an eng
 
 ## 3. Program slices
 
+### 現在の到達点と段2への引継ぎ
+
+ローカル段1（スライス0）は [PR #76](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/76) で実装・検証を完了し、人間がPhase Dを承認した。現在のCLIと運用契約は [ローカル資格情報管理README](../../tools/Artifacts/README.md) を正とする。完了した段1HANDOFFは削除し、証拠台帳はPR本文へ移した。programのr1境界は変更していない。
+
+ダミー鍵の登録・DPAPI CurrentUser保管・置換・削除・失敗時の保全・非露出はローカル検証済み。実鍵、R2接続、Cloudflare変更、実payload転送は未実施で、別WindowsユーザーDPAPIは未実測。同一ユーザーのAgentからの隔離は主張しない。
+
+次の作業は段2（スライス1ローカル）のPhase Aである。所有者はOSM保守担当。接続probe、実鍵の登録とサーバー検証付きrotationの凍結に加え、レビューから次の4点を引き継ぐ。段1の完了条件を追加するものではなく、着手時に責務と受け入れ条件を具体化する。
+
+- 共有OneStarMakerが未作成の場合の制限ACLと、既存共有親を変更しない方針の整理。
+- ロック取得後にACL設定が失敗したときのハンドル解放責務。
+- 矢印キー等で入力が中止される現在の挙動と、対話入力の操作仕様。
+- 危険なACLのactiveは削除も拒否され暗号文が残るため、所有者による復旧・清掃手順。
+
+以下はprogramのスライス分割である。スライス0の現在の実装は上記READMEを参照し、スライス1以降の詳細は各Phase Aで凍結する。
+
 0. **Local credential management.** Implement the Windows credential lifecycle described below before handling a real key. Prove registration, protected storage, redacted status/errors, replacement, and local removal using dummy credentials. Then the owner registers a bucket-scoped real credential through masked local input and the local transport probe validates it. No production credential is required for the storage implementation tests.
 1. **R2 transport and agent access proof.** Track local and cloud work separately. Upload only synthetic files to unique keys under `probe/`; prove authenticated access while ordinary unsigned requests are denied. A signed URL is a credential, not anonymous access. Verify download, SHA-256, ZIP extraction, upload, and read-back. The local prerequisite is owner credential setup; Codex egress is a prerequisite only for its cloud probe. Proposed cloud probe: per-object, short-lived signed GET/PUT URLs with the parent key held locally; this proves transport, not unattended credential issuance. Establish automated grant delivery/renewal before accepting routine unattended cloud use. Its absence does not block local completion.
 2. **Artifact contract and CLI wrapper.** Define the object key, manifest, checksums, upload/read-back behavior, retention metadata, and stable reference format. Cleanup may touch only keys created by the current run that have not been published in the ledger; no broad prefix deletion or deletion of referenced Evidence. Run-specific naming and hashes detect errors but do not enforce immutability. Before production, select and verify a server-enforced protection for finalized objects (for example R2 bucket locks or a trusted finalization service with agents limited to staging). Keep provider credentials outside Git. Test with synthetic payloads before connecting BuildSystem.
@@ -85,7 +100,9 @@ Each slice gets its own Phase A HANDOFF, branch, acceptance gates, and cleanup. 
 
 References: [R2 public buckets](https://developers.cloudflare.com/r2/buckets/public-buckets/), [R2 S3 compatibility](https://developers.cloudflare.com/r2/api/s3/api/), [R2 bucket locks](https://developers.cloudflare.com/r2/buckets/bucket-locks/).
 
-### Local key management design (to implement in slice 0)
+### 資格情報管理の設計入力と後続段の境界
+
+以下の設計入力のうちローカル保管・管理CLIはスライス0で実装済み。現在の実装契約は上記READMEを正とする。実鍵、転送/署名、接続確認日時、サーバー検証付きrotationはスライス1以降の未実装範囲であり、以下を現行機能の一覧とは扱わない。
 
 - **Storage:** use Windows DPAPI `CurrentUser` via .NET `ProtectedData`, with the encrypted credential file under `%LOCALAPPDATA%\OneStarMaker\Artifacts\credentials\`. Keep it outside the checkout and outside `D:\OneDrive\OSM-Artifacts`. Restrict directory/file ACLs to the owning user and required Windows administrators/system principals; never use the `LocalMachine` DPAPI scope or a project-stored encryption password. Fail closed on unsupported OS, decryption failure, or an unsafe storage path; no plaintext fallback.
 - **Scope:** create a dedicated local-machine R2 Object Read & Write credential for `osm-artifacts` only, with a recognizable owner/device label and a recorded token ID for revocation. Do not store a Global API Key or account administration credential. Treat its ability to overwrite/delete objects as real authority; the CLI's guardrails are not an R2 permission boundary.
@@ -98,7 +115,7 @@ References: [R2 public buckets](https://developers.cloudflare.com/r2/buckets/pub
 - **Implementation ownership:** proposed entry point `tools/artifacts.ps1`; separate Windows credential-store, S3 transfer/signing, and packaging responsibilities under `tools/Artifacts/`. The credential store owns encryption/filesystem lifecycle; the S3 adapter consumes credentials without exposing them; packaging never sees credentials. Unit checks use dummy secrets and a fake S3 adapter; actual key validation belongs to the explicit connectivity probe. Avoid adding Unity or BuildSystem dependencies to credential management.
 - **Completion evidence:** dummy-secret round trip; no plaintext persisted or emitted on success/failure; tampered/wrong-user store rejected; failed rotation retains the previous profile; successful replacement is atomic; local removal and remote revocation distinguished; no repository or OneDrive payload changes during credential operations. Record any cross-user check that could not actually be executed as unverified. Local connectivity is a separate gate using the owner's real token.
 
-DPAPI reference: [Microsoft data protection](https://learn.microsoft.com/en-us/dotnet/standard/security/how-to-use-data-protection). This is a concrete implementation proposal; no credential store or commands have been implemented yet.
+DPAPI reference: [Microsoft data protection](https://learn.microsoft.com/en-us/dotnet/standard/security/how-to-use-data-protection). ローカル保管と管理コマンドは実装済みで、実接続と後続機能の成立は別途検証する。
 
 ## 4. Local and cloud transport acceptance
 
