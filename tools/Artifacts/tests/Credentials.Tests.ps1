@@ -269,6 +269,37 @@ try {
         Assert-NoSentinel $output 'redirected CLI output'
     }
     Run 'noninteractive invocation is refused' {
+        # 公式ホスト解析の有限な接頭辞集合と全略語長を網羅する。実ホスト起動との
+        # 照合は別途行い、この回帰ではCLIの固定文法による安全側拒否も保持する。
+        $dashes = @('-', [string][char]0x2013, [string][char]0x2014, [string][char]0x2015)
+        $prefixes = @('/') + $dashes + @($dashes | ForEach-Object { $_ + $_ })
+        foreach ($prefix in $prefixes) {
+            foreach ($length in 4..14) {
+                foreach ($spelling in @('noninteractive', 'NONINTERACTIVE', 'NoNiNtErAcTiVe')) {
+                    $switch = $prefix + $spelling.Substring(0, $length)
+                    Assert (Invoke-CommandsPrivate { param($value) Test-NonInteractiveInvocation @('pwsh.dll', $value) } @($switch)) 'host spelling missed'
+                }
+            }
+            # Trim() が受理する全BMP空白を、先頭と末尾それぞれで確認する。
+            foreach ($code in 0..0xffff) {
+                if (-not [char]::IsWhiteSpace([char]$code)) { continue }
+                foreach ($switch in @(([string][char]$code + $prefix + 'noni'), ($prefix + 'noni' + [char]$code))) {
+                    Assert (Invoke-CommandsPrivate { param($value) Test-NonInteractiveInvocation @($value) } @($switch)) 'trimmed spelling missed'
+                }
+            }
+            foreach ($name in @('', 'n', 'no', 'non', 'noninteractivex', 'noni:true', 'noni=false', 'non interactive')) {
+                Assert (-not (Invoke-CommandsPrivate { param($value) Test-NonInteractiveInvocation @($value) } @($prefix + $name))) 'invalid name matched'
+            }
+        }
+        # 2個目を除けるのは同じdashだけ。slash重複、混在、3個以上は一致しない。
+        foreach ($first in (@('/') + $dashes)) {
+            foreach ($second in (@('/') + $dashes)) {
+                $expected = $first -ne '/' -and $first -ceq $second
+                $actual = Invoke-CommandsPrivate { param($value) Test-NonInteractiveInvocation @($value) } @($first + $second + 'noni')
+                Assert ($actual -eq $expected) 'duplicate prefix boundary'
+            }
+            Assert (-not (Invoke-CommandsPrivate { param($value) Test-NonInteractiveInvocation @($value) } @($first + $first + $first + 'noni'))) 'triple prefix matched'
+        }
         foreach ($arguments in @(
             @('pwsh.dll', '-NoProfile', '-NonInteractive', '-File', 'artifacts.ps1'),
             @('pwsh.dll', '-NONI', '-NoProfile', '-File', 'artifacts.ps1'),

@@ -4,12 +4,18 @@ Import-Module (Join-Path $PSScriptRoot 'CredentialStore.psm1') -Force
 function Test-NonInteractiveInvocation([string[]] $ProcessArguments) {
     # このCLIのスクリプト引数は固定文法で、-noni は受理しない。ホストの
     # -File/-Command の短縮形を再解析せず、argv 全体を安全側で拒否する。
-    # pwsh は Windows で en/em dash と horizontal bar もスイッチ接頭辞に受理する。
+    # PowerShell v7.6.5 の GetSwitchKey / MatchSwitch に合わせ、前後空白と同一dashの
+    # 二重接頭辞を正規化する。slashは1個、dashはASCII/en/em/horizontal barの4種。
+    # 根拠: https://github.com/PowerShell/PowerShell/blob/v7.6.5/src/Microsoft.PowerShell.ConsoleHost/host/msh/CommandLineParameterParser.cs
     foreach ($argument in $ProcessArguments) {
+        $argument = $argument.Trim()
         if ($argument.Length -lt 2 -or $argument[0] -notin @([char]'-', [char]'/', [char]0x2013, [char]0x2014, [char]0x2015)) {
             continue
         }
         $name = $argument.Substring(1)
+        if ($argument[0] -ne [char]'/' -and $name.Length -gt 0 -and $name[0] -eq $argument[0]) {
+            $name = $name.Substring(1)
+        }
         if ($name.Length -ge 4 -and 'NonInteractive'.StartsWith($name, [StringComparison]::OrdinalIgnoreCase)) {
             return $true
         }
