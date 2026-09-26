@@ -3,6 +3,7 @@ Import-Module (Join-Path $PSScriptRoot 'CredentialPathAcl.psm1') -Force
 
 # These values are set only by a test script running inside this module's private scope.
 $script:TestRoot = $null
+$script:TestBase = $null
 $script:Fault = $null
 $script:Clock = $null
 $script:FakeValidator = $null
@@ -10,8 +11,8 @@ $script:FakeValidator = $null
 function Get-Paths([string] $Profile, [bool] $Create) {
     Assert-Profile $Profile
     $root = Get-CredentialRoot $script:TestRoot
-    if ($Create) { Initialize-CredentialRoot $root ([bool]$script:TestRoot) }
-    elseif ([IO.Directory]::Exists($root)) { Initialize-CredentialRoot $root ([bool]$script:TestRoot) }
+    if ($Create) { Initialize-CredentialRoot $root ([bool]$script:TestRoot) $script:TestBase }
+    elseif ([IO.Directory]::Exists($root)) { Initialize-CredentialRoot $root ([bool]$script:TestRoot) $script:TestBase }
     return @{ Root = $root; Active = [IO.Path]::Combine($root, "$Profile.active"); Lock = [IO.Path]::Combine($root, "$Profile.lock") }
 }
 

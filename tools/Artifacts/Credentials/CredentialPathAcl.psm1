@@ -74,9 +74,18 @@ function Assert-OwnerAcl([string] $Path, [bool] $Directory) {
     if ($owner -ne [Security.Principal.WindowsIdentity]::GetCurrent().User.Value) { throw 'Credential operation unavailable.' }
 }
 
-function Set-OwnerAcl([string] $Path, [bool] $Directory, [string] $Root) {
+function Assert-CredentialDirectoryInitialization([string] $Path, [string[]] $AllowedDirectories) {
+    $full = [IO.Path]::GetFullPath($Path)
+    if (-not @($AllowedDirectories | Where-Object { $full.Equals($_, [StringComparison]::OrdinalIgnoreCase) }).Count) {
+        throw 'Credential operation unavailable.'
+    }
+    if ($null -ne $script:WriteLedger) { $script:WriteLedger.Add($full) }
+}
+
+function Set-OwnerAcl([string] $Path, [bool] $Directory, [string] $Root, [string[]] $AllowedDirectories) {
     $acl = New-OwnerAcl $Directory
-    Assert-CredentialWrite $Root $Path
+    if ($Directory) { Assert-CredentialDirectoryInitialization $Path $AllowedDirectories }
+    else { Assert-CredentialWrite $Root $Path }
     if ($Directory) { [IO.FileSystemAclExtensions]::SetAccessControl([IO.DirectoryInfo]::new($Path), $acl) }
     else { [IO.FileSystemAclExtensions]::SetAccessControl([IO.FileInfo]::new($Path), $acl) }
     Assert-OwnerAcl $Path $Directory
@@ -98,19 +107,30 @@ function Get-CredentialRoot([string] $TestRoot) {
     return $root
 }
 
-function Initialize-CredentialRoot([string] $Root, [bool] $IsTestRoot) {
+function Initialize-CredentialRoot([string] $Root, [bool] $IsTestRoot, [string] $TestBase) {
     Assert-NoReparse $Root
     $local = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
-    $base = if ($IsTestRoot) { [IO.Path]::GetDirectoryName($Root) } else { $local }
+    $base = if ($IsTestRoot) {
+        if ($TestBase) { [IO.Path]::GetFullPath($TestBase) } else { [IO.Path]::GetDirectoryName($Root) }
+    } else { $local }
+    [string[]]$allowed = if ($IsTestRoot -and -not $TestBase) { @($Root) }
+        else {
+            @(
+                [IO.Path]::Combine($base, 'OneStarMaker'),
+                [IO.Path]::Combine($base, 'OneStarMaker', 'Artifacts'),
+                [IO.Path]::Combine($base, 'OneStarMaker', 'Artifacts', 'credentials')
+            )
+        }
+    if (-not $Root.Equals($allowed[-1], [StringComparison]::OrdinalIgnoreCase)) { throw 'Credential operation unavailable.' }
     $current = $base
     $relative = [IO.Path]::GetRelativePath($base, $Root)
     foreach ($part in $relative.Split('\', [StringSplitOptions]::RemoveEmptyEntries)) {
         $current = [IO.Path]::Combine($current, $part)
         Assert-NoReparse $current
         if (-not [IO.Directory]::Exists($current)) {
-            Assert-CredentialWrite $Root $current
+            Assert-CredentialDirectoryInitialization $current $allowed
             [IO.Directory]::CreateDirectory($current) | Out-Null
-            Set-OwnerAcl $current $true $Root
+            Set-OwnerAcl $current $true $Root $allowed
         } else { Assert-OwnerAcl $current $true }
     }
 }
@@ -120,6 +140,6 @@ function Assert-CredentialFile([string] $Path) {
     elseif ([IO.Directory]::Exists($Path)) { throw 'Credential operation unavailable.' }
 }
 
-function Set-CredentialFileAcl([string] $Path, [string] $Root) { Set-OwnerAcl $Path $false $Root }
+function Set-CredentialFileAcl([string] $Path, [string] $Root) { Set-OwnerAcl $Path $false $Root @() }
 
 Export-ModuleMember -Function Assert-Profile, Get-CredentialRoot, Initialize-CredentialRoot, Assert-CredentialFile, Set-CredentialFileAcl, Assert-CredentialWrite

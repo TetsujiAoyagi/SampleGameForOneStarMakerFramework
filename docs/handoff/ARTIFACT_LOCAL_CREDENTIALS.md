@@ -97,6 +97,8 @@ B adaptations: the existing `.gitignore` pattern `tools/**/artifacts/` also igno
 
 The B test harness was strengthened within the frozen filesystem and nonexposure responsibility: PathAcl and Store record every planned production write before mutation in a private test ledger and reject paths outside the selected root. Each case scans its generated files and captured streams/exceptions before fixture deletion; the harness also scans process arguments and the repository diff. A focused encrypted round trip, pre-commit failure, and CLI error/verbose-path check passed with this instrumentation. The real CLI's interactive normal output and PTY echo remain Phase C observations.
 
+The approved fixed credential root needs its `OneStarMaker`, `Artifacts`, and `credentials` directories created on first use. PathAcl permits and logs initialization and ACL writes for precisely those three directories under the Known Folder; encrypted records, locks, candidates, backups, and cleanup remain confined to `credentials`. A production-shaped fixture with all three directories initially absent passed, alongside focused existing round-trip and pre-commit checks. This is initialization of the frozen destination, not another secret storage location.
+
 The full test script, live multi-character PTY path, five-second lock and unsafe path cases, cross-user DPAPI check, complete sentinel/output and repository-diff inspection, and Phase C/C' judgment remain unrun/unverified in B. The cross-user test needs a second Windows account and may remain unverified. No Unity Editor compilation or Unity batch test was run; the diff is external PowerShell and Markdown only. Executor: GPT-6 Sol / OpenAI (tool launch specification).
 
 ## 7. Phase C

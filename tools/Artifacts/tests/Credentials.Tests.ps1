@@ -43,7 +43,7 @@ function Assert-FixtureCleanOfSentinels {
     }
 }
 function Reset-Fixture {
-    Invoke-StorePrivate { param($value) $script:TestRoot = $value; $script:Fault = $null; $script:Clock = $null; $script:FakeValidator = $null } @($root)
+    Invoke-StorePrivate { param($value) $script:TestRoot = $value; $script:TestBase = $null; $script:Fault = $null; $script:Clock = $null; $script:FakeValidator = $null } @($root)
     if ([IO.Directory]::Exists($root)) { [IO.Directory]::Delete($root, $true) }
     $script:writes.Clear()
     & $pathModule { param($ledger) $script:WriteLedger = $ledger } $script:writes
@@ -88,6 +88,25 @@ try {
         $cipher = [IO.File]::ReadAllBytes([IO.Path]::Combine($root, 'osm.active'))
         Assert (-not ([Text.Encoding]::UTF8.GetString($cipher).Contains($sentinelId))) 'cipher ID'
         Assert (-not ([Text.Encoding]::UTF8.GetString($cipher).Contains($sentinelSecret))) 'cipher secret'
+    }
+    Run 'fixed three-level root initializes from missing directories' {
+        [IO.Directory]::CreateDirectory($root) | Out-Null
+        $first = [IO.Path]::Combine($root, 'OneStarMaker')
+        $second = [IO.Path]::Combine($first, 'Artifacts')
+        $final = [IO.Path]::Combine($second, 'credentials')
+        Assert (-not [IO.Directory]::Exists($first)) 'fixture already initialized'
+        Invoke-StorePrivate { param($base, $target) $script:TestBase = $base; $script:TestRoot = $target } @($root, $final)
+        Write-CredentialRecord 'osm' $sentinelId $sentinelSecret $false | Out-Null
+        Assert ([IO.File]::Exists([IO.Path]::Combine($final, 'osm.active'))) 'active outside fixed descendant'
+        Assert ((Get-CredentialStatus 'osm').Bucket -eq 'osm-artifacts') 'round trip under fixed root'
+        $allowed = @($first, $second, $final)
+        foreach ($path in $allowed) {
+            Assert ([IO.Directory]::Exists($path)) 'missing support directory'
+            Assert ($script:writes.Contains($path)) 'directory initialization absent from ledger'
+        }
+        foreach ($write in $script:writes) {
+            Assert (($write -in $allowed) -or $write.StartsWith($final + '\', [StringComparison]::OrdinalIgnoreCase)) 'write outside fixed initialization hierarchy'
+        }
     }
     Run 'duplicate set and successful replacement' {
         Write-CredentialRecord 'osm' $sentinelId $sentinelSecret $false | Out-Null
@@ -231,7 +250,7 @@ try {
     Write-Output "Cases: $($script:passed.Count + $script:failed.Count); passed: $($script:passed.Count); failed: $($script:failed.Count)"
     if ($script:failed.Count -gt 0 -or $script:passed.Count -eq 0) { exit 1 }
 } finally {
-    Invoke-StorePrivate { $script:TestRoot = $null; $script:Fault = $null; $script:Clock = $null; $script:FakeValidator = $null }
+    Invoke-StorePrivate { $script:TestRoot = $null; $script:TestBase = $null; $script:Fault = $null; $script:Clock = $null; $script:FakeValidator = $null }
     & $pathModule { $script:WriteLedger = $null }
     if ([IO.Directory]::Exists($root)) { [IO.Directory]::Delete($root, $true) }
 }
