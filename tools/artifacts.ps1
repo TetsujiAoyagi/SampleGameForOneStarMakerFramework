@@ -3,6 +3,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 try {
+    # 公開 CLI は固定 profile の三操作だけ。秘密値や test root を引数に取らない。
     if ($Arguments.Count -lt 4 -or $Arguments[0] -cne 'credentials' -or
         $Arguments[1] -cnotin @('set','status','remove') -or
         $Arguments[2] -cne '--profile' -or $Arguments[3] -cne 'osm') {
@@ -30,7 +31,7 @@ try {
     }
     exit 0
 } catch {
-    # Never include exception messages or stack traces: caller and system exceptions can contain secrets or paths.
+    # 例外文字列・stack trace には秘密やパスが混ざり得るため、一般診断だけ表示する。
     [Console]::Error.WriteLine('Credential operation failed.')
     exit 1
 }

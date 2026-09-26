@@ -2,11 +2,14 @@ Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'CredentialStore.psm1') -Force
 
 function Test-InteractiveInput {
+    # 秘密を含む入力が pipe やリダイレクト経由になる実行形態を先に拒否する。
     return [OperatingSystem]::IsWindows() -and -not [Console]::IsInputRedirected -and
         -not [Console]::IsOutputRedirected -and -not [Console]::IsErrorRedirected
 }
 
 function Read-MaskedValue([string] $Label) {
+    # ReadKey(true) でキーの echo を抑える。可変 char list は最後に消すが、
+    # 返却した .NET string の完全消去は保証できないため処理寿命を短くする。
     $chars = [Collections.Generic.List[char]]::new()
     try {
         [Console]::Write("${Label}: ")
@@ -35,7 +38,7 @@ function Read-MaskedValue([string] $Label) {
 }
 
 function Invoke-CredentialSet([string] $Profile, [bool] $Replace) {
-    # Reject redirection before the first prompt or any filesystem mutation.
+    # 最初の prompt とファイル操作より前に非対話入力を拒否する。
     if (-not (Test-InteractiveInput)) { throw 'Credential operation unavailable.' }
     $id = $null
     $secret = $null
@@ -47,6 +50,7 @@ function Invoke-CredentialSet([string] $Profile, [bool] $Replace) {
 }
 
 function Invoke-CredentialStatus([string] $Profile) {
+    # Store から受け取るのは安全な metadata のみ。接続時刻や R2 成功を捏造しない。
     $metadata = Get-CredentialStatus $Profile
     return @(
         "profile: $($metadata.Profile)", "bucket: $($metadata.Bucket)",

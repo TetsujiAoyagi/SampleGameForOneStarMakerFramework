@@ -12,6 +12,8 @@ $script:writes = [Collections.Generic.List[string]]::new()
 $sentinelId = 'DUMMY_ID_' + [Guid]::NewGuid().ToString('N')
 $sentinelSecret = 'DUMMY_SECRET_' + [Guid]::NewGuid().ToString('N')
 
+# 実鍵を要求せず毎回別のダミー値を生成する。失敗時も値や例外本文を出力しない。
+
 function Invoke-StorePrivate([scriptblock] $Code, [object[]] $Values = @()) {
     return & $store $Code @Values
 }
@@ -31,6 +33,7 @@ function Test-BytesContain([byte[]] $Haystack, [byte[]] $Needle) {
     return $false
 }
 function Assert-FixtureCleanOfSentinels {
+    # 各 case の fixture を消す前に、UTF-8/UTF-16 の平文痕跡を全生成物で走査する。
     if (-not [IO.Directory]::Exists($root)) { return }
     foreach ($file in [IO.Directory]::EnumerateFiles($root, '*', [IO.SearchOption]::AllDirectories)) {
         Assert-NoSentinel $file 'file path'
@@ -49,6 +52,8 @@ function Reset-Fixture {
     & $pathModule { param($ledger) $script:WriteLedger = $ledger } $script:writes
 }
 function Run([string] $Name, [scriptblock] $Body) {
+    # 書き込み台帳は Store/PathAcl の private hook。case ごとに初期化し、
+    # 実ファイルと stream/例外の双方を消去前に検査する。
     if ($Name -notlike $Case) { return }
     Reset-Fixture
     $captured = @()
@@ -200,6 +205,44 @@ try {
             if ($_.Exception.Message -eq 'accepted tamper') { throw }
         }
     }
+    Run 'decryptable malformed records refuse reads and replacement' {
+        # DPAPI で復号可能でも schema が壊れた active は拒否し、交換前の byte を守る。
+        Write-CredentialRecord 'osm' $sentinelId $sentinelSecret $false | Out-Null
+        $active = [IO.Path]::Combine($root, 'osm.active')
+        $now = [DateTimeOffset]::UtcNow.ToString('o')
+        foreach ($variant in @('invalid-created-date','invalid-updated-date','created-date-array','access-key-array','extra-field','duplicate-field')) {
+            $record = [pscustomobject]@{
+                Version = 1; Profile = 'osm'; Bucket = 'osm-artifacts'; Endpoint = $null
+                Generation = [Guid]::NewGuid().ToString('N'); CreatedUtc = $now; UpdatedUtc = $now
+                TokenReference = $null; AccessKeyId = $sentinelId; SecretAccessKey = $sentinelSecret
+            }
+            switch ($variant) {
+                'invalid-created-date' { $record.CreatedUtc = '2026-99-99TINVALID' }
+                'invalid-updated-date' { $record.UpdatedUtc = '2026-99-99TINVALID' }
+                'created-date-array' { $record.CreatedUtc = @($now, $now) }
+                'access-key-array' { $record.AccessKeyId = @($sentinelId, $sentinelId) }
+                'extra-field' { $record | Add-Member -NotePropertyName Unexpected -NotePropertyValue 'x' }
+            }
+            $json = $record | ConvertTo-Json -Compress -Depth 3
+            if ($variant -eq 'duplicate-field') { $json = $json.TrimEnd('}') + ',"Version":1}' }
+            $plain = [Text.Encoding]::UTF8.GetBytes($json)
+            try { $cipher = [Security.Cryptography.ProtectedData]::Protect($plain, $null, [Security.Cryptography.DataProtectionScope]::CurrentUser) }
+            finally { [Array]::Clear($plain, 0, $plain.Length) }
+            [IO.File]::WriteAllBytes($active, $cipher)
+            $before = [IO.File]::ReadAllBytes($active)
+            try { Get-CredentialStatus 'osm' | Out-Null; throw 'accepted malformed status' } catch {
+                Assert-SafeError $_
+                if ($_.Exception.Message -ne 'Credential operation unavailable.') { throw }
+            }
+            try { Write-CredentialRecord 'osm' ($sentinelId + 'R') ($sentinelSecret + 'R') $true | Out-Null; throw 'accepted malformed replacement' } catch {
+                Assert-SafeError $_
+                if ($_.Exception.Message -ne 'Credential operation unavailable.') { throw }
+            }
+            Assert ([Convert]::ToHexString($before) -ceq [Convert]::ToHexString([IO.File]::ReadAllBytes($active))) 'malformed active changed'
+            [Array]::Clear($cipher, 0, $cipher.Length)
+            [Array]::Clear($before, 0, $before.Length)
+        }
+    }
     Run 'remove is idempotent and leaves unrelated files' {
         Write-CredentialRecord 'osm' $sentinelId $sentinelSecret $false | Out-Null
         $unrelated = [IO.Path]::Combine($root, 'other.txt')
@@ -266,7 +309,7 @@ try {
             }
         } finally { [IO.Directory]::Delete($parent) }
     }
-    # Cross-user execution and PTY entry are recorded separately by Phase C when available.
+    # 別 Windows ユーザーと実 PTY の観察は Phase C の独立記録に委ねる。
     Assert-NoSentinel ([Environment]::CommandLine) 'process command line'
     Assert-NoSentinel (([Environment]::GetCommandLineArgs()) -join ' ') 'process arguments'
     $repo = [IO.Path]::GetFullPath([IO.Path]::Combine($PSScriptRoot, '..', '..', '..'))

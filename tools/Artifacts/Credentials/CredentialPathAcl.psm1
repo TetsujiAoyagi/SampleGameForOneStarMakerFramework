@@ -1,4 +1,5 @@
 Set-StrictMode -Version Latest
+# テストだけが注入する書き込み台帳。CLI や環境変数からは設定できない。
 $script:WriteLedger = $null
 
 function Assert-CredentialWrite([string] $Root, [string] $Path) {
@@ -25,6 +26,8 @@ function Test-Within([string] $Path, [string] $Parent) {
 }
 
 function Assert-NoReparse([string] $Path) {
+    # 最終ディレクトリだけでなく、ドライブ直下からの全祖先を確認する。
+    # 見落とした junction 経由で秘密ファイルが別の保存先へ逸脱するのを防ぐ。
     $full = [IO.Path]::GetFullPath($Path)
     $item = [IO.Path]::GetPathRoot($full)
     if (-not $item) { throw 'Credential operation unavailable.' }
@@ -42,6 +45,7 @@ function Assert-NoReparse([string] $Path) {
 }
 
 function New-OwnerAcl([bool] $Directory) {
+    # 新規の資格情報専用領域は継承を切り、現在ユーザー・SYSTEM・管理者に限定する。
     $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User
     $acl = if ($Directory) { [Security.AccessControl.DirectorySecurity]::new() } else { [Security.AccessControl.FileSecurity]::new() }
     $acl.SetAccessRuleProtection($true, $false)
@@ -55,6 +59,7 @@ function New-OwnerAcl([bool] $Directory) {
 }
 
 function Assert-OwnerAcl([string] $Path, [bool] $Directory) {
+    # 既存の資格情報専用領域を勝手に「修復」しない。意図外の ACE は拒否する。
     Assert-NoReparse $Path
     $acl = if ($Directory) { [IO.FileSystemAclExtensions]::GetAccessControl([IO.DirectoryInfo]::new($Path)) }
         else { [IO.FileSystemAclExtensions]::GetAccessControl([IO.FileInfo]::new($Path)) }
@@ -75,13 +80,15 @@ function Assert-OwnerAcl([string] $Path, [bool] $Directory) {
 }
 
 function Assert-SharedParent([string] $Path) {
-    # OneStarMaker can predate this credential store and contain unrelated data.
-    # It remains an ancestor, while Artifacts and credentials are store-owned ACL boundaries.
+    # OneStarMaker は既存の別機能と共有される。ここでは reparse のみ確認し、
+    # 既存 ACL や兄弟ディレクトリを変更しない。専用 ACL 境界は Artifacts 以下。
     Assert-NoReparse $Path
     if (-not [IO.Directory]::Exists($Path)) { throw 'Credential operation unavailable.' }
 }
 
 function Assert-CredentialDirectoryInitialization([string] $Path, [string[]] $AllowedDirectories) {
+    # 初回だけ最終 root の親も作るため、固定の三段に限って書き込みを許可する。
+    # ファイルの書き込み境界を広げるための例外ではない。
     $full = [IO.Path]::GetFullPath($Path)
     if (-not @($AllowedDirectories | Where-Object { $full.Equals($_, [StringComparison]::OrdinalIgnoreCase) }).Count) {
         throw 'Credential operation unavailable.'
@@ -103,6 +110,7 @@ function Get-CredentialRoot([string] $TestRoot) {
     if ($TestRoot) {
         $root = [IO.Path]::GetFullPath($TestRoot)
     } else {
+        # 環境変数 LOCALAPPDATA の置換値を信用せず Known Folder から導く。
         $local = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
         if (-not $local) { throw 'Credential operation unavailable.' }
         $root = [IO.Path]::Combine($local, 'OneStarMaker', 'Artifacts', 'credentials')

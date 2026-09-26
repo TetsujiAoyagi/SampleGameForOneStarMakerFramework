@@ -1,7 +1,7 @@
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'CredentialPathAcl.psm1') -Force
 
-# These values are set only by a test script running inside this module's private scope.
+# テストだけが module 内部へ注入する経路。export せず CLI・環境変数から到達させない。
 $script:TestRoot = $null
 $script:TestBase = $null
 $script:Fault = $null
@@ -26,6 +26,8 @@ function Get-Now {
 }
 
 function Enter-StoreLock([hashtable] $Paths) {
+    # ローカルの排他ロックで set/remove を直列化する。5 秒以内に取れなければ
+    # active の変更前に失敗し、待機を無期限にしない。
     $deadline = [Diagnostics.Stopwatch]::StartNew()
     while ($true) {
         try {
@@ -42,20 +44,63 @@ function Enter-StoreLock([hashtable] $Paths) {
 }
 
 function Assert-Record($Record, [string] $Profile) {
-    if ($null -eq $Record -or $Record.Version -cne 1 -or $Record.Profile -cne $Profile -or
-        $Record.Bucket -cne 'osm-artifacts' -or $null -ne $Record.Endpoint -or
-        $Record.Generation -cnotmatch '^[0-9a-f]{32}$' -or
-        $Record.CreatedUtc -cnotmatch '^\d{4}-\d\d-\d\dT' -or
-        $Record.UpdatedUtc -cnotmatch '^\d{4}-\d\d-\d\dT' -or
-        $null -ne $Record.TokenReference -or
-        $Record.AccessKeyId -cnotmatch '^[\x21-\x7e]{1,256}$' -or
-        $Record.SecretAccessKey -cnotmatch '^[\x21-\x7e]{1,256}$') { throw 'Credential operation unavailable.' }
+    # PowerShell の -match は配列に対して一致要素の配列を返す。
+    # そのまま否定比較すると不正な配列を通し得るため、値より先に型を検証する。
+    if ($null -eq $Record -or $Record.GetType() -ne [System.Management.Automation.PSCustomObject]) { throw 'Credential operation unavailable.' }
     $names = @($Record.PSObject.Properties.Name | Sort-Object)
     $expected = @('AccessKeyId','Bucket','CreatedUtc','Endpoint','Generation','Profile','SecretAccessKey','TokenReference','UpdatedUtc','Version') | Sort-Object
     if (($names -join ',') -cne ($expected -join ',')) { throw 'Credential operation unavailable.' }
+    if (($Record.Version -isnot [int] -and $Record.Version -isnot [long]) -or $Record.Version -ne 1 -or
+        $Record.Profile -isnot [string] -or $Record.Profile -cne $Profile -or
+        $Record.Bucket -isnot [string] -or $Record.Bucket -cne 'osm-artifacts' -or
+        $null -ne $Record.Endpoint -or $null -ne $Record.TokenReference -or
+        $Record.Generation -isnot [string] -or $Record.Generation -cnotmatch '^[0-9a-f]{32}$' -or
+        $Record.CreatedUtc -isnot [string] -or $Record.UpdatedUtc -isnot [string] -or
+        $Record.AccessKeyId -isnot [string] -or $Record.AccessKeyId -cnotmatch '^[\x21-\x7e]{1,256}$' -or
+        $Record.SecretAccessKey -isnot [string] -or $Record.SecretAccessKey -cnotmatch '^[\x21-\x7e]{1,256}$') {
+        throw 'Credential operation unavailable.'
+    }
+    # 接頭辞だけでは「2026-99-99TINVALID」も通る。完全な round-trip 書式と
+    # 実在する UTC 日時であることを確認し、更新時刻の逆行も拒否する。
+    [DateTimeOffset]$created = [DateTimeOffset]::MinValue
+    [DateTimeOffset]$updated = [DateTimeOffset]::MinValue
+    $culture = [Globalization.CultureInfo]::InvariantCulture
+    $style = [Globalization.DateTimeStyles]::None
+    if (-not [DateTimeOffset]::TryParseExact($Record.CreatedUtc, 'o', $culture, $style, [ref]$created) -or
+        -not [DateTimeOffset]::TryParseExact($Record.UpdatedUtc, 'o', $culture, $style, [ref]$updated) -or
+        $created.Offset -ne [TimeSpan]::Zero -or $updated.Offset -ne [TimeSpan]::Zero -or $updated -lt $created) {
+        throw 'Credential operation unavailable.'
+    }
+}
+
+function Assert-JsonSchema([string] $Json) {
+    # ConvertFrom-Json は重複キーを上書きするため、変換前の JSON で
+    # キーの重複・余分なキー・配列などの型違いを拒否する。
+    $document = [Text.Json.JsonDocument]::Parse($Json)
+    try {
+        if ($document.RootElement.ValueKind -ne [Text.Json.JsonValueKind]::Object) { throw 'Credential operation unavailable.' }
+        $strings = @('Profile','Bucket','Generation','CreatedUtc','UpdatedUtc','AccessKeyId','SecretAccessKey')
+        $nulls = @('Endpoint','TokenReference')
+        $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+        foreach ($property in $document.RootElement.EnumerateObject()) {
+            if (-not $seen.Add($property.Name)) { throw 'Credential operation unavailable.' }
+            if ($property.Name -cin $strings) {
+                if ($property.Value.ValueKind -ne [Text.Json.JsonValueKind]::String) { throw 'Credential operation unavailable.' }
+            } elseif ($property.Name -cin $nulls) {
+                if ($property.Value.ValueKind -ne [Text.Json.JsonValueKind]::Null) { throw 'Credential operation unavailable.' }
+            } elseif ($property.Name -ceq 'Version') {
+                if ($property.Value.ValueKind -ne [Text.Json.JsonValueKind]::Number -or $property.Value.GetInt32() -ne 1) {
+                    throw 'Credential operation unavailable.'
+                }
+            } else { throw 'Credential operation unavailable.' }
+        }
+        if ($seen.Count -ne 10) { throw 'Credential operation unavailable.' }
+    } finally { $document.Dispose() }
 }
 
 function Protect-Record($Record) {
+    # 平文 byte 配列はこの呼び出し内で消去する。PowerShell の文字列を
+    # 完全消去できるとは主張しない。DPAPI は CurrentUser のみを使う。
     $plain = $null
     try {
         $plain = [Text.Encoding]::UTF8.GetBytes(($Record | ConvertTo-Json -Compress -Depth 3))
@@ -64,10 +109,14 @@ function Protect-Record($Record) {
 }
 
 function Unprotect-Record([byte[]] $Cipher, [string] $Profile) {
+    # 復号できること自体は健全性の証明ではない。全フィールドを検証し、
+    # 呼び出し元には秘密を含む例外詳細を返さない。
     $plain = $null
     try {
         $plain = [Security.Cryptography.ProtectedData]::Unprotect($Cipher, $null, [Security.Cryptography.DataProtectionScope]::CurrentUser)
-        $record = [Text.Encoding]::UTF8.GetString($plain) | ConvertFrom-Json -Depth 3 -DateKind String
+        $json = [Text.Encoding]::UTF8.GetString($plain)
+        Assert-JsonSchema $json
+        $record = $json | ConvertFrom-Json -Depth 3 -DateKind String
         Assert-Record $record $Profile
         return $record
     } catch { throw 'Credential operation unavailable.' }
@@ -75,6 +124,7 @@ function Unprotect-Record([byte[]] $Cipher, [string] $Profile) {
 }
 
 function Read-Active([hashtable] $Paths, [string] $Profile) {
+    # backup/candidate は障害復旧用の残骸であり、active に昇格させない。
     Assert-CredentialFile $Paths.Active
     if (-not [IO.File]::Exists($Paths.Active)) { throw 'Credential operation unavailable.' }
     $cipher = [IO.File]::ReadAllBytes($Paths.Active)
@@ -98,6 +148,8 @@ function Remove-OwnedFiles([hashtable] $Paths, [string] $Profile) {
 
 function Write-CredentialRecord([string] $Profile, [string] $AccessKeyId, [string] $SecretAccessKey,
     [bool] $Replace) {
+    # 候補は同一ディレクトリに暗号化してから再復号・検証する。
+    # File.Replace/Move が commit 点で、それ以前の失敗は旧 active を保つ。
     $paths = Get-Paths $Profile $true
     $lock = Enter-StoreLock $paths
     $candidate = $null
@@ -138,12 +190,13 @@ function Write-CredentialRecord([string] $Profile, [string] $AccessKeyId, [strin
                 foreach ($changed in @($candidate, $paths.Active, $backup)) { Assert-CredentialWrite $paths.Root $changed }
                 [IO.File]::Replace($candidate, $paths.Active, $backup)
             } else {
-                # A missing active file is never recovered from a leftover backup.
+                # active が無い場合も残存 backup を復元元として扱わない。
                 foreach ($changed in @($candidate, $paths.Active)) { Assert-CredentialWrite $paths.Root $changed }
                 [IO.File]::Move($candidate, $paths.Active, $false)
             }
             $committed = $true
             try {
+                # commit 後の掃除失敗は「未反映」と報告しない。active は新世代が正本。
                 Invoke-Fault 'after-commit'
                 Remove-OwnedFiles $paths $Profile
                 return @{ Outcome = 'success' }
@@ -169,6 +222,8 @@ function Get-CredentialStatus([string] $Profile) {
 }
 
 function Remove-CredentialRecord([string] $Profile) {
+    # 対象 profile の厳密な命名規則に合う一時物だけ消す。
+    # ローカル削除は Cloudflare 上の token 失効を意味しない。
     $paths = Get-Paths $Profile $false
     if (-not [IO.Directory]::Exists($paths.Root)) { return 'already absent' }
     $lock = Enter-StoreLock $paths

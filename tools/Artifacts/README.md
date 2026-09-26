@@ -1,6 +1,6 @@
-# Local artifact credentials
+# ローカル Artifact 認証情報
 
-On Windows, the owner can manage the local `osm` profile with PowerShell 7:
+Windows の所有者は PowerShell 7 から、固定の `osm` profile を管理できる。
 
 ```powershell
 pwsh tools/artifacts.ps1 credentials set --profile osm
@@ -9,10 +9,12 @@ pwsh tools/artifacts.ps1 credentials set --profile osm --replace
 pwsh tools/artifacts.ps1 credentials remove --profile osm
 ```
 
-`set` and `--replace` require an interactive console. Both keys are typed into masked prompts; key arguments, redirected input, files and environment variables are unsupported. A normal `set` refuses an existing profile. `--replace` requires one. A profile holds the fixed private bucket `osm-artifacts`; endpoint and token reference remain unconfigured in this local-only slice.
+`set` と `--replace` は対話 console を必要とする。Access Key ID と Secret Access Key は echo しない prompt で入力する。鍵を引数、redirect した標準入力、ファイル、環境変数から渡す経路はない。通常の `set` は既存 profile を拒否し、`--replace` は既存 profile を必要とする。この段階では bucket を `osm-artifacts` に固定し、endpoint と token の参照情報は未設定のままにする。
 
-The encrypted active record is beneath the Windows `LocalApplicationData` Known Folder at `OneStarMaker\Artifacts\credentials`. It is bound to the current Windows user with DPAPI. The directory and files have restricted ACLs. Never copy the credential blob into the checkout or a sync folder; copying it does not make it portable. Same-user processes may still decrypt it, so protect the Windows account.
+暗号化した active record は Windows の `LocalApplicationData` Known Folder にある `OneStarMaker\Artifacts\credentials` 以下に置く。DPAPI の `CurrentUser` を使うため、別 Windows ユーザーや別 PC に blob をコピーしても利用できない。checkout や同期フォルダーにコピーしない。同じ Windows ユーザー権限を持つ別 process は復号可能なので、Windows account 自体を保護する。資格情報専用の directory と file は継承を切った制限 ACL を使う。既存の共有祖先 `OneStarMaker` や、その兄弟 directory の ACL は変更しない。
 
-`status` reports safe local metadata after decrypting and validating the active record. It does not contact R2 or report a connectivity timestamp. Exit 0 means the local operation succeeded; exit 2 means replacement committed but cleanup of old temporary/backup files is pending; exit 1 means failure. If the active record is absent or damaged, the command fails closed and does not restore a backup. Retry after checking the local directory and ACLs; do not rename backup or candidate files into active. `remove` is idempotent, clears only this profile's local active and owned temporary/backup files, and does **not** revoke a Cloudflare token. Token revocation remains an owner action in Cloudflare.
+`status` は active record を復号・検証して安全なローカル metadata だけを表示する。R2 への接続や接続時刻は報告しない。終了 code 0 はローカル操作成功、2 は交換済みだが古い一時ファイルの掃除が保留、1 は失敗を表す。active が欠落・破損した場合は失敗し、backup を自動復元しない。backup や candidate を手動で active に改名せず、ローカル directory と ACL の状態を確認する。
 
-Real-token onboarding, disposable R2 read/write/read-back, server-validated rotation, and old-token revocation are future work in the next slice. This tool makes no remote validity claim.
+`remove` は冪等で、この profile の active と厳密な命名規則に合う一時・backup のみを削除する。Cloudflare の token は失効しない。失効操作は所有者が Cloudflare 側で別途行う。
+
+実 token の登録、使い捨て object による R2 読み書きと read-back、server 検証を伴う鍵交換、旧 token の失効確認は次のスライスの作業である。このツールは remote での鍵の有効性を主張しない。
