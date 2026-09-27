@@ -42,7 +42,7 @@
 | `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b / S-4c 完了。S-4d は VFX / Events の着手時に HANDOFF を切る |
 | `REVIEW_WORKFLOW_EFFICIENCY.md` | 外部モデルレビューの実測と、次のPhase Cで残す比較項目 | いいえ。普遍契約はSkillへharvest済み。残る実測後に削除する |
 | `REVIEW_WORKFLOW_EFFICIENCY_ASSESSMENT.md` | 上記への独立評価（Claude / Grok）と採否記録 | いいえ。次のPhase Cで残る仮説を検証後、調査記録ごと削除する |
-| `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` | Artifact Storageの保存先・責務・セキュリティ境界と後続段 | r4の順序と安全境界をA3凍結。所有者端末の実鍵登録とsynthetic R2往復を確認済み。次はRoute proofで非公開性とBucket Lockを実測する。実Evidence / Build転送とCloud成立は未確認 |
+| `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` | Artifact Storageの保存先・責務・セキュリティ境界と後続段 | r4案とRoute proof HANDOFFは再レビュー待ちでA3未凍結。所有者端末の実鍵登録とsynthetic R2往復は確認済み。非公開性、Bucket Lock、実Evidence / Build転送、Cloud成立は未確認 |
 
 Streaming の M-1〜M-4 と S-4c は完了し、決定を公開面へ harvest して、移行計画と各着手時 HANDOFF を削除済み。テストアセンブリの分離も完了し、依存の向きは `unity/Assets/README.md` と `unity/Assets/Docs/Architecture/27-folder-structure.md` にある。完了済み HANDOFF は復活させない。
 

@@ -3,20 +3,20 @@
 ## 0. メタデータ
 
 - type: `slice`（R2候補のローカル必要条件を調べるspike）
-- status: A2統合済み。所有者端末でtoken登録とA3前の実R2疎通を確認。token対象bucket・公開設定・権限をowner確認済み。sliceのA3 snapshotは専用branchで固定する。Phase B以降は未着手
-- planning branch: `codex/artifact-storage-purpose-first`。programのA3採用後、専用`codex/artifact-storage-route-proof`へ移してsliceのA3 snapshotを固定する
-- implementation base commit: `6537446b85bf33056dcdd5b08840940761823711`（`develop`）
+- status: A2統合案・再レビュー待ち。A3凍結は解除済み。Phase B以降は未着手
+- branch: `codex/artifact-storage-route-proof`（program草案とA3前疎通を記録した`93d2a1c`から分岐）
+- candidate implementation base commit: `93d2a1c`（A3前疎通のbranch point。凍結解除は本review headに記録）
 - implementation head commit: 未到達
 - risk: `high`（初回の実鍵・実R2・bucket lock設定）
 - owner: OSM保守担当。Cloudflare設定とtoken発行/失効はaccount owner
 - created: 2026-09-27
 - expires: 2026-12-26
 - harvest to: 現行CLIの契約は`tools/Artifacts/README.md`、恒久的な保存/検証境界は適切な公開設計文書。probe固有の記録は削除
-- Phase A snapshot: A3採用版をcommit/hashで固定する。B result、C evidence、C' blind bundleは各Phaseで生成する
+- Phase A snapshot: 再レビューと人間のA3採否後にcommit/hashで固定する。B result、C evidence、C' blind bundleは各Phaseで生成する
 
 ## 1. A0 — 目的、現況、対象外
 
-目的は、R2を選定済みと扱う前に、既設の非公開`osm-artifacts`がローカルWindows Agentによる非公開・同一byteの受け渡しと、通常writerからのserver側保護という**必要条件**を満たすか実測すること。programのr4案と一緒にA3で採否を確認する。r4が不採用ならこのHANDOFFは凍結しない。
+目的は、R2を選定済みと扱う前に、既設の非公開`osm-artifacts`がローカルWindows Agentによる非公開・同一byteの受け渡しと、通常writerからのserver側保護という**必要条件**を満たすか実測すること。program r4とこのsliceの採否は再レビュー後にそれぞれA3で判断する。
 
 段1で`credentials set/status/remove`、DPAPI CurrentUser保管、原子的なローカル置換を実装済み。2026-09-27にownerが実R2 S3鍵をmasked登録し、`status`で現行profileを確認した。store recordのendpointは未設定で、非秘密のaccount固有endpointを限定probeの引数に渡す。A3前のsynthetic PUT/別process GET/照合/DELETEはowner端末で成功した。ownerはtokenが`osm-artifacts`のみにR2 Bucket Item Read/Writeを持ち、Public Development URL無効、Custom Domainsなしと画面で確認した。署名無しGET、Bucket Lockの実効性、Cloud到達性は未確認。GitHub Releaseのsynthetic probeはlocal/Cursor Cloudで成功したが非公開Evidenceの検証ではなく、Codex Cloudは当時のegress 403で失敗した。
 
@@ -55,12 +55,13 @@ Phase Cの差し戻し中は`Credentials.Tests.ps1`の新callback caseと新prob
 
 A3前の疎通: `pwsh`、.NET 8でのAWSSDK.S3 restore/buildと別pwshでのload、非秘密JSONの別process読取は2026-09-27の前案で確認した。ownerが実鍵をmasked登録した際、既存`Artifacts`ディレクトリの所有者不一致で初回登録が失敗した。空ディレクトリをowner端末で非再帰削除し、新規ACLへ実行ユーザーを明示的に設定する修正後、登録と`status`が成功した。owner端末の限定CLIで`probe/prea3/9ace5edb614d4203a6d71d6a8069e498.txt`の48 byteをPUTし、別`pwsh` processが認証GETしてSHA-256 `13cbdab75bf6856a24088bf26d230a2cd58ad3d6f1faacc86615bdb949c4e255`とmarkerを照合、同じwriterでDELETEした。ownerが提示したsanitized出力は`roundtrip: pass; ...; cleanup=removed`であり、別の読み取り専用CLIで`probe/prea3 empty: true`を確認した。初回probe実装にあった非IDisposable応答へのDispose呼出しによる失敗表示は修正済み。これらはowner端末から提示された出力であり、Agentが実鍵を直接扱った記録ではない。
 
-ownerはCloudflare画面でtokenのR2 Bucket Item Read/Writeが`osm-artifacts`だけを対象とし、Public Development URLが無効、Custom Domainsが空であることを確認した。A3前の認証付き経路は成立したが、署名無しGET、lock設定と通常writerへの強制力、Cloud到達性は未確認。Cでの本検証は§2のまま。DashboardのSettings→Bucket lock rulesでprefixを`probe/locked/`に限定し有限の保持期間を設定できることはCloudflare公式文書で確認した。owner権限と証拠受入方法はsliceのA3で固定する。
+ownerはCloudflare画面でtokenのR2 Bucket Item Read/Writeが`osm-artifacts`だけを対象とし、Public Development URLが無効、Custom Domainsが空であることを確認した。A3前の認証付き経路は成立したが、署名無しGET、lock設定と通常writerへの強制力、Cloud到達性は未確認。Cでの本検証案は§2のまま。DashboardのSettings→Bucket lock rulesでprefixを`probe/locked/`に限定し有限の保持期間を設定できることはCloudflare公式文書で確認した。owner権限と証拠受入方法は§5にA3確認案として記載した。
 
 ## 5. A2 / A3 と後続Phase
 
 - A0/A1: 本sessionのCodex（実際のmodel variantは未確認）。目的からの独立A0代替案は、R2を第一候補としつつSDK Adapter、server検証付きrotation、複数provider抽象を最初の条件にしない点で一致。レビュー担当の実モデル割当は未確認。
 - A2: 同一初稿SHA-256`9A85555C5FA37F24DE9DDADB66C94B195BF5313C0F19E18D07E08DA1E707D329`を、アーキテクチャと失敗/実行可能性の独立した担当がレビューした。両者のendpoint受渡し・callback・診断責務・raw実鍵出力の非保存・陽性対照・否定結果の終端・C' bundle分離の指摘を採用して§2〜4へ反映。programとsliceの別branch、A3前の実経路疎通の指摘も採用し、metadataとA3待機条件を修正した。モデル指定と実割当variantの一致は確認できないため多様性は未証明。未採用は「callbackをmoduleから非exportにする」案で、別moduleから呼ぶPowerShell関数はexportが必要なため。CLIに秘密取得コマンドは設けず、同一ユーザーが既にDPAPI復号可能な前提で、非記録の狭い内部APIとして扱う。
-- A3: ownerは方向を了承し、凍結前にR2 tokenを所有者端末のCLIへ登録してCLIから実R2を利用できることを条件とした。この条件は§4の限定preflightで達成した。`credentials` CLIは引き続きローカル保管のみ、実通信はA3前の使い捨てprobe CLIであり、汎用Artifact CLIの完成ではない。bucket限定権限・private設定のowner確認とlock ruleの設定責任・証拠受入方法を固定するまで、sliceのA3凍結とPhase B開始は宣言しない。program r4の判定とは別に記録する。
+- A3未実施: ownerは方向を概ね了承し、凍結前にR2 tokenを所有者端末のCLIへ登録してCLIから実R2を利用できることを条件とした。§4の限定preflightでこの条件を達成し、ownerはR2 Bucket Item Read/Writeの対象が`osm-artifacts`のみ、Public Development URL無効、Custom DomainsなしとCloudflare画面で確認した。その後、ownerは再レビューのため凍結解除を指示した。A2統合案にあるアーキテクチャ・失敗経路の指摘は採否候補として§2〜4へ反映済みだが、再レビュー後にprogramとsliceを別々にA3判断する。`credentials` CLIはローカル保管のみ、A3前の使い捨てprobe CLIは認証付き経路の予備確認であり、§2の署名無しGET、保護なし陽性対照、Bucket Lockの上書き/削除拒否は未検証。
+- A3で確認する操作・証拠受入案: ownerだけがCloudflare dashboardで`probe/locked/`限定の有限Bucket Lock ruleを設定し、rule名、prefix、保持期間、適用UTC、lifecycleとの関係、残存objectとruleの清掃予定を非秘密で記録する。通常writer tokenにBucket設定権限を追加しない。Agentは同一Windowsユーザーの別`pwsh` processを起動して§2のsynthetic probeとoffline試験を行い、非秘密のallowlist結果、固定base/head、前後のrepo status、raw test結果をcheckout/同期領域外の限定ACL bundleに保存する。Cはownerの設定記録を受理し、通信結果のhash・byte数・HTTP分類と陽性対照、lock時の再GETを突き合わせる。C'へは所見を含まない同一固定版のblind bundleを渡す。ownerがrule設定に到達できない場合はenvironment-blockedで止め、Agentが管理鍵を受け取って代行しない。
 - C'担当: Phase B/Cと異なるmodelの新規session、または人間。Phase Aに未関与の候補を残す。判定Cの固定base/head、raw結果とblind bundleを使う。
 - Phase B/C/C'/D: 未到達。各snapshot、実行結果、未確認、担当/モデル、採否を到達時に記録する。
