@@ -3,20 +3,20 @@
 ## 0. メタデータ
 
 - type: `slice`（R2候補のローカル必要条件を調べるspike）
-- status: A2統合案・再レビュー待ち。A3凍結は解除済み。Phase B以降は未着手
+- status: A3凍結済み。Phase B以降は未着手
 - branch: `codex/artifact-storage-route-proof`（program草案とA3前疎通を記録した`93d2a1c`から分岐）
-- candidate implementation base commit: `93d2a1c`（A3前疎通のbranch point。凍結解除は本review headに記録）
+- implementation base commit: `93d2a1c`（A3前疎通のbranch point）
 - implementation head commit: 未到達
 - risk: `high`（初回の実鍵・実R2・bucket lock設定）
 - owner: OSM保守担当。Cloudflare設定とtoken発行/失効はaccount owner
 - created: 2026-09-27
 - expires: 2026-12-26
 - harvest to: 現行CLIの契約は`tools/Artifacts/README.md`、恒久的な保存/検証境界は適切な公開設計文書。probe固有の記録は削除
-- Phase A snapshot: 再レビューと人間のA3採否後にcommit/hashで固定する。B result、C evidence、C' blind bundleは各Phaseで生成する
+- Phase A snapshot: この凍結版のcommit、生成UTC、SHA-256を凍結記録commitで固定する。B result、C evidence、C' blind bundleは各Phaseで生成する
 
 ## 1. A0 — 目的、現況、対象外
 
-目的は、R2を選定済みと扱う前に、既設の非公開`osm-artifacts`がローカルWindows Agentによる非公開・同一byteの受け渡しと、通常writerからのserver側保護という**必要条件**を満たすか実測すること。program r4とこのsliceの採否は再レビュー後にそれぞれA3で判断する。
+目的は、R2を選定済みと扱う前に、既設の非公開`osm-artifacts`がローカルWindows Agentによる非公開・同一byteの受け渡しと、通常writerからのserver側保護という**必要条件**を満たすか実測すること。program r4の順序・保護境界と、このsliceの受け入れ条件はそれぞれA3で凍結した。実能力の合否はPhase Cまで未判定。
 
 段1で`credentials set/status/remove`、DPAPI CurrentUser保管、原子的なローカル置換を実装済み。2026-09-27にownerが実R2 S3鍵をmasked登録し、`status`で現行profileを確認した。store recordのendpointは未設定で、非秘密のaccount固有endpointを限定probeの引数に渡す。A3前のsynthetic PUT/別process GET/照合/DELETEはowner端末で成功した。ownerはtokenが`osm-artifacts`のみにR2 Bucket Item Read/Writeを持ち、Public Development URL無効、Custom Domainsなしと画面で確認した。署名無しGET、Bucket Lockの実効性、Cloud到達性は未確認。GitHub Releaseのsynthetic probeはlocal/Cursor Cloudで成功したが非公開Evidenceの検証ではなく、Codex Cloudは当時のegress 403で失敗した。
 
@@ -31,7 +31,7 @@
 3. ownerはaccount設定権限で`probe/locked/`に限る有限のBucket Lock ruleを作り、全有効ruleのprefix、有効状態、保持条件（秒数/期限/Indefinite）、lifecycleとの関係を非秘密で記録する。このspikeでは新規objectのPUTから900〜86400秒保持する`Age` ruleだけを受け入れ、ownerは試験中に変更せず試験前後の設定を照合する。Date/Indefinite ruleや保持値不明は開始条件不足とする。試験後の残存synthetic objectとruleの後片付け時期も記録する。writer tokenにはbucket設定権限がないことをownerの権限設定で確認する。同じwriterがrule適用後にそのprefixへ**新規synthetic object**をPUTし、GET/hash一致を確認してから、異なるbyteで同一keyの上書きと削除を試みる。双方で保持期間内のS3 `Code=ObjectLockedByBucketPolicy`（403）を観測し、その後の認証GETで原hashが一致したときだけlockを認める。単なる403、接続不能、認証失敗、writer権限不足は成功に数えない。
 4. 実鍵、署名URL、Authorization header、HTTP body/header、SDK例外本文を通常出力・ログ・Git・子process引数に残さない。dummy sentinelによる正常/失敗/timeout/cancelの漏洩検査を行う。通信診断は既定で無効にし、実通信の結果はallowlistで構成した非秘密のkey、期待/観測hashと署名無しGETの期待長prefix hash・EOF状態、byte数、HTTP status分類、S3 `Code`、lock ruleの非秘密設定、実行UTC、cleanup状態、base/headだけを出す。結果schema外の出力は証拠への保存を拒否する。checkoutの意図しない変更がないことを前後で確認する。
 
-### 最低条件2〜4の判定詳細（A3未凍結）
+### 最低条件2〜4の判定詳細（A3凍結）
 
 | 対象 | 有限範囲と合格判定 |
 | --- | --- |
@@ -81,7 +81,7 @@ ownerはCloudflare画面でtokenのR2 Bucket Item Read/Writeが`osm-artifacts`�
 - A2追加レビュー追認（対象head `95a91a9898839b2d6b77bd46e993c656e0c63a30`、[同じGrok 4.7セッションの続き](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/80#issuecomment-5855320551)）: 新しい盲検レビューには数えない。番号付き最低条件2〜4と判定詳細の不一致、部分hashの誤合格、通常DELETEの二重期限、429の分類先、program旧r1の順序とCloudflare設定文を指摘された。条件本文に合格codeと本文読取条件を転記し、通常DELETE/確認は12操作の5分内、別30秒は途中失敗後の回復清掃だけに分けた。保護なし上書きの429再試行は1回で止める。program側は旧順序を歴史化し、公開設定維持とownerのlock rule追加を区別した。A3は未凍結。
 - A2追加レビュー最終追認（対象head `dd32c0c2e928d633a703b4a3e6dac919efce75ff`、[同じGrok 4.7セッションの続き](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/80#issuecomment-5855370773)）: 前回の指摘は閉じたとの評価を受けた。残る数値指定として署名無しGET本文の上限を8192 byteとし、上限超過・EOF未確認は`inconclusive`と明記した。この追認は新たな盲検レビューでもA3承認でもない。Grokレビューはここで終了し、programとsliceのA3採否は人間の判断に残す。
 - A2 Web GPT再レビュー（対象head `b509e9aa409855dc4f47d6591ec9ba2c657f7c14`、[PR #80 review](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/80#pullrequestreview-5330124050)）: 既存レビュー履歴を読んだ非盲検レビューで、モデルvariantは未確認。2件のP2を採用した。本文全体hash/byte数だけではobject＋追加byteの露出を判定できないため、transportに期待長Nの先頭hashとEOF/上限到達を追加し、合否はRouteProofに残した。Bucket Lockは新規objectの`Age` 900〜86400秒ruleに限定し、5分runに対する余裕、ownerの前後設定記録、単調時計での有効期間、失効・不明時の分類を固定した。offlineのprefix/長い拒否XML/途中失効caseを追加した。旧probeの復活や実R2操作はしない。A3は未凍結。
-- A3未実施: ownerは方向を概ね了承し、凍結前にR2 tokenを所有者端末のCLIへ登録してCLIから実R2を利用できることを条件とした。§4の限定preflightでこの条件を達成し、ownerはR2 Bucket Item Read/Writeの対象が`osm-artifacts`のみ、Public Development URL無効、Custom DomainsなしとCloudflare画面で確認した。その後、ownerは再レビューのため凍結解除を指示した。A2統合案にあるアーキテクチャ・失敗経路の指摘は採否候補として§2〜4へ反映済みだが、再レビュー後にprogramとsliceを別々にA3判断する。`credentials` CLIはローカル保管のみ、A3前の使い捨てprobe CLIは認証付き経路の予備確認であり、§2の署名無しGET、保護なし陽性対照、Bucket Lockの上書き/削除拒否は未検証。
-- A3で確認する操作・証拠受入案: ownerだけがCloudflare dashboardで全有効ruleのprefix、有効状態、保持条件を確認し、`probe/locked/`限定の`Age` 900〜86400秒ruleを設定する。rule名、試験前後の確認UTC、lifecycleとの関係、残存objectとruleの清掃予定も非秘密で記録する。通常writer tokenにBucket設定権限を追加しない。Agentは同一Windowsユーザーの別`pwsh` processを起動して§2のsynthetic probeとoffline試験を行い、非秘密のallowlist結果、固定base/head、前後のrepo status、raw test結果をcheckout/同期領域外の限定ACL bundleに保存する。Cはownerの全rule設定記録を受理し、通信結果の全体/prefix hash・byte数・EOF・HTTP分類・S3 `Code`と陽性対照、lock時の再GETを突き合わせる。C'へは所見を含まない同一固定版のblind bundleを渡す。ownerがrule設定に到達できない場合はenvironment-blockedで止め、Agentが管理鍵を受け取って代行しない。
+- A3統合・採否（2026-09-27）: ownerが本sessionでprogram r4とRoute proofのA3凍結を指示した。凍結前条件だったowner端末CLIへの実token登録とsynthetic PUT・別process GET/hash照合・DELETEは§4の限定preflightで達成済み。A2のアーキテクチャ、実行可能性、失敗経路、Grok、Web GPTの指摘は上記ledgerのとおり採用し§2〜4へ反映した。非export callback案はPowerShellのmodule境界上実行不能なので不採用。probe/credentials CLIのexit code共通化、Cloud/実payload/汎用providerの前倒しは現在の問いに不要として後続へ保留。未解決のA3 blockerはない。`credentials` CLIはローカル保管のみ、A3前probeは認証付き経路の予備確認に限り、署名無しGET、保護なし陽性対照、Bucket Lockの上書き/削除拒否は未検証のままPhase Cへ渡す。A3後の例外承認はなし。
+- A3の操作・証拠受入: ownerだけがCloudflare dashboardで全有効ruleのprefix、有効状態、保持条件を確認し、`probe/locked/`限定の`Age` 900〜86400秒ruleを設定する。rule名、試験前後の確認UTC、lifecycleとの関係、残存objectとruleの清掃予定も非秘密で記録する。通常writer tokenにBucket設定権限を追加しない。Agentは同一Windowsユーザーの別`pwsh` processを起動して§2のsynthetic probeとoffline試験を行い、非秘密のallowlist結果、固定base/head、前後のrepo status、raw test結果をcheckout/同期領域外の限定ACL bundleに保存する。Cはownerの全rule設定記録を受理し、通信結果の全体/prefix hash・byte数・EOF・HTTP分類・S3 `Code`と陽性対照、lock時の再GETを突き合わせる。C'へは所見を含まない同一固定版のblind bundleを渡す。ownerがrule設定に到達できない場合はenvironment-blockedで止め、Agentが管理鍵を受け取って代行しない。
 - C'担当: Phase B/Cと異なるmodelの新規session、または人間。Phase Aに未関与の候補を残す。判定Cの固定base/head、raw結果とblind bundleを使う。
 - Phase B/C/C'/D: 未到達。各snapshot、実行結果、未確認、担当/モデル、採否を到達時に記録する。

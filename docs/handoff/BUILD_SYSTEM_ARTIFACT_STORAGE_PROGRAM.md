@@ -3,9 +3,9 @@
 ## 0. Metadata
 
 - type: `program`
-- status: program進行中。ローカル段1（旧スライス0）はPhase D承認済み。r4は目的から再構成した再レビュー待ちの草案で、A3凍結を解除した。Route proofのPhase B、R2の本採用、実payload転送は未承認。
-- program policy revision: `r1` — prior A3 boundary; r4 is under renewed review and does not authorize implementation
-- proposed revision: `r4-review` — purpose-first route proof before production transport architecture
+- status: program進行中。ローカル段1（旧スライス0）はPhase D承認済み。r4の順序・保護境界はA3凍結済み。Route proofのPhase Bは別HANDOFFのA3で許可するが、R2の本採用と実payload転送は未承認。
+- program policy revision: `r4` — purpose-first route proof before production transport architecture; `r1` is historical review context
+- Phase A snapshot: この凍結版のcommit、生成UTC、SHA-256を凍結記録commitで固定する
 - branch: `codex/artifact-storage-purpose-first`（program草案）→ `codex/artifact-storage-route-proof`（再レビュー用head）
 - implementation base commit: `6537446b85bf33056dcdd5b08840940761823711` (`develop`)
 - implementation head commit: not applicable; no implementation changes are planned in this program document
@@ -19,7 +19,7 @@
 
 Choose and establish one artifact workflow that supports BuildSystem outputs and review Evidence, can be used by local work and remote Cursor / Codex agents, and does not require a human to move files between agents. Keep large binary payloads out of Git history; keep a small, stable pointer and hashes in Git.
 
-This is a multi-slice program, not an implementation HANDOFF. Revision r4 is under renewed review and is not frozen. The owner's local synthetic R2 round trip is proven; unsigned privacy, lock enforcement, and cloud capability are not. r1 below records the prior A3 boundary; r2/r3 record earlier, unapproved proposals. None of these sections authorizes the next implementation slice while r4 and its Route proof HANDOFF await review.
+This is a multi-slice program, not an implementation HANDOFF. Revision r4 freezes the order and protection boundaries; the Route proof slice has its own frozen A3 HANDOFF. The owner's local synthetic R2 round trip is proven; unsigned privacy, lock enforcement, and cloud capability are not. r1 below records the prior A3 boundary; r2/r3 record earlier, unapproved proposals. Only the Route proof HANDOFF authorizes its Phase B scope.
 
 The owner expects most reads and writes to be performed by local Windows agents. Prioritize a usable local credential store and transfer tool. Cloud agents are intended consumers and occasional producers through task-scoped grants, but R2 support is unverified; a continuously available cloud credential broker is not a prerequisite for the local workflow.
 
@@ -54,14 +54,14 @@ Unity is a replaceable build backend. The primary user/agent interface is an eng
 
 - Slice 1 local: actual R2 round trip and credential connectivity. Slice 1 cloud: each platform's credential delivery, unattended issuance/renewal, Codex egress configuration, and runtime grant handling. Cursor secret redaction is not permission reduction.
 - Slice 2: retention durations, concrete server-side protection and its lifecycle interaction, and finite numeric extraction limits. Lock verification gates all real payload uploads. Proposed cost controls (Standard storage and a measured budget alert) require implementation verification; no automatic retention deletion is authorized here.
-- Slice HANDOFFs: command syntax, exact file/class layout, and the detailed implementation/testing choices in section 3 are planning inputs, not frozen implementation instructions.
+- Slice HANDOFFs: command syntax, exact file/class layout, and detailed implementation/testing choices belong to each slice HANDOFF. The frozen Route proof HANDOFF is the implementation authority for the first slice.
 - The missing fourth inline review comment remains pending receipt. On receipt, record its disposition in a new program revision; do not mark unseen text resolved.
 
 ## 3. Program slices
 
 ### 現在の到達点と段2への引継ぎ
 
-ローカル段1（スライス0）は [PR #76](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/76) で実装・検証を完了し、人間がPhase Dを承認した。現在のCLIと運用契約は [ローカル資格情報管理README](../../tools/Artifacts/README.md) を正とする。完了した段1HANDOFFは削除し、証拠台帳はPR本文へ移した。段1の資格情報保管と秘密非記録の契約は維持する。r1のprovider選択と実施順はr4で再レビュー中であり、現行の凍結済み指示とは扱わない。
+ローカル段1（スライス0）は [PR #76](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/76) で実装・検証を完了し、人間がPhase Dを承認した。現在のCLIと運用契約は [ローカル資格情報管理README](../../tools/Artifacts/README.md) を正とする。完了した段1HANDOFFは削除し、証拠台帳はPR本文へ移した。段1の資格情報保管と秘密非記録の契約は維持する。r1のprovider選択と実施順は歴史的記録であり、現行の凍結済み指示はr4とRoute proof HANDOFFにある。
 
 ダミー鍵の登録・DPAPI CurrentUser保管・置換・削除・失敗時の保全・非露出はローカル検証済み。段1完了時に未実施だった実鍵登録とR2 synthetic往復は、2026-09-27のA3前疎通で実施した。所有者はCloudflare画面でtoken対象bucketと非公開設定を確認した。署名無しGET、Bucket Lock、実Evidence/Build転送、別WindowsユーザーDPAPIは未実測。同一ユーザーのAgentからの隔離は主張しない。
 
@@ -72,13 +72,13 @@ Unity is a replaceable build backend. The primary user/agent interface is an eng
 - 矢印キー等で入力が中止される現在の挙動と、対話入力の操作仕様。
 - 危険なACLのactiveは削除も拒否され暗号文が残るため、所有者による復旧・清掃手順。
 
-### r4案 — 目的からの再評価（再レビュー待ち、A3未凍結）
+### r4 — 目的からの再評価（A3凍結）
 
 このprogramの成果は、既存のBuild成果物とレビューEvidenceをGit外の非公開領域に置き、固定した参照と信頼済みhashから別セッションが人手の反復的なファイル運搬なしに取得・検証・必要な内容を閲覧できることである。ローカルWindows同一ユーザーから始め、Cursor CloudとCodex Cloudはそれぞれread/write/閲覧を別に判定する。Unity以外のbuild backendでも保存・取得を使えるようにする。実Evidenceの上書き・削除を通常のwriter権限からサーバー側で保護する。
 
 **選択の根拠:** R2は既設bucketとprefix lockを備え、owner端末からendpoint/実tokenでsynthetic objectのPUT・別process GET・DELETEが成立したため最初の候補とする。ownerはbucket限定tokenと公開設定を画面で確認した。ただし署名無しGET、lockの実効性、Cloud到達性は未確認である。公開GitHub Releaseは非公開Evidenceに適さず、ローカル共有ファイルだけではCloudの受け渡しとサーバー側保護を満たさない。GitHub Actions artifactはworkflow runに結びつく有期限の保管なので、任意のローカルAgentが成果物を反復的にpublishする主経路としては採用しない。候補選択を覆す実測が出たときだけ、別の非公開object storeや認証付き中継を比較する。選定理由は[Cloudflare Bucket Locks](https://developers.cloudflare.com/r2/buckets/bucket-locks/)、[R2 S3互換性](https://developers.cloudflare.com/r2/api/s3/api/)、[GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases)、[GitHub workflow artifacts](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflow-artifacts/)の現行仕様と、§1の実測による。
 
-**提案する実施順:**
+**凍結した実施順:**
 
 1. **Route proof（新しい最初のslice）:** ownerがbucket限定のObject Read & Write tokenとendpointを用意し、対象bucketを確認する。既存DPAPI storeから同一process内で鍵を使用する、R2専用の限定診断で、`probe/`の小さなsynthetic bytesをlocal producerと別processのlocal readerがPUT/GETし、事前に固定したhashと一致させる。同じ存在keyの署名無し取得拒否を確認する。別のsynthetic keyを対象に、ownerが限定prefixへ設定したBucket Lockの下で、通常writerの上書き・削除拒否と原byteの維持を実測する。保護されない使い捨てkeyでは同じwriterの削除権限を確認し、単なる権限不足をlock成功と誤認しない。storeは暗号化済みprofileの寿命だけを、診断はR2通信・hash照合・非秘密結果だけを、ownerはbucket設定とlock ruleだけを所有する。通常writerにはbucket設定権限を与えない。CLI本体、rotation、複数provider interfaceはこのprobeの完了条件にしない。この合格は**R2候補のローカル必要条件**の証拠であり、R2の全面採用を意味しない。token対象bucketが未確認なら検証待ちであってR2の不適合判定ではない。担当・証拠・停止規則は個別HANDOFFで凍結する。
 2. **最小のArtifact CLI:** route proofが成立したproviderで、明示入力のsnapshot/manifest/packaging、安全な取得と有限上限、信頼済みhash、非秘密の結果、unique key、server保護を伴う`publish`/`fetch`を実装する。`publish`はGit・HANDOFF・PRを更新せず、非秘密のledger候補を機械可読に返す。秘密の再入力なしで利用できることと、実鍵の失効・rotation・復旧を運用開始前に成立させる。上位の受け渡し契約はbytes、CLIだけが解釈する固定参照、hash、保護要件で記述し、R2 SDK型やCloudflare設定をBuild/Evidenceへ出さない。初回運用ではR2だけを扱い、第二providerを持たない段階でprovider registry、汎用URI、filesystem backendを必須化しない。R2のBucket Lockは標準S3 Object Lock APIではないため、別providerへの「同じ保護」の移植を仮定せず能力を検証する。[R2 S3互換表](https://developers.cloudflare.com/r2/api/s3/api/)
@@ -89,13 +89,15 @@ Unity is a replaceable build backend. The primary user/agent interface is an eng
 
 **判断を戻す条件:** Route proofの結果は`pass` / `provider-capability-failure` / `environment-blocked` / `inconclusive`を区別する。endpoint、token、必要権限、egress、lock設定の開始条件が欠けた場合は未実施またはenvironment-blockedとしてownerと再試行条件を記録し、R2不適合とは判定しない。開始条件が揃ってもR2のlocal route、private access、通常writerに対するserver側保護のいずれかが成立しない場合は、原因をnetwork/設定/サービス仕様に分けて記録し、補修できる設定か別providerかを新しいPhase Aで選ぶ。Cloudの到達・無人grantが成立しない場合は各platformの結果をunsupportedとしてprogram台帳に残し、Cloud側の経路を別に再選定する。ローカル限定運用の成立をprogram全体の完了にはしない。最初のprobeはR2選定の確定や、実Evidenceのupload許可にはならない。
 
-r4と最初のRoute proof HANDOFFのA3は別々に記録する。2026-09-27、ownerはr4の方向を概ね了承し、**凍結前にR2 tokenを所有者端末のCLIへ登録し、CLIからの実R2利用を確認する**条件を追加した。既存`credentials` CLIは鍵のローカル保管のみだが、使い捨てのA3前probe CLIでsynthetic PUT・別process GET/hash照合・DELETEが成功し、後続のprefix listも空だった。endpointは非秘密の引数、token値はchatやGitへ渡していない。ownerはtokenのR2 Bucket Item Read/Writeと対象`osm-artifacts`のみ、Custom Domainsなし、Public Development URL無効を画面で確認した。その後、ownerは**再レビューのため凍結を解除する**と指示した。実測と設定確認は再レビュー入力として残し、program r4もRoute proofもA3凍結済みと扱わず、次の採否までPhase Bを開始しない。
+r4と最初のRoute proof HANDOFFのA3は別々に記録する。2026-09-27、ownerはr4の方向を概ね了承し、**凍結前にR2 tokenを所有者端末のCLIへ登録し、CLIからの実R2利用を確認する**条件を追加した。既存`credentials` CLIは鍵のローカル保管のみだが、使い捨てのA3前probe CLIでsynthetic PUT・別process GET/hash照合・DELETEが成功し、後続のprefix listも空だった。endpointは非秘密の引数、token値はchatやGitへ渡していない。ownerはtokenのR2 Bucket Item Read/Writeと対象`osm-artifacts`のみ、Custom Domainsなし、Public Development URL無効を画面で確認した。その後、ownerは再レビューのため凍結を一度解除した。PR #80での再レビューを統合し、ownerが本sessionでr4とRoute proofのA3凍結を指示した。r4は実施順と保護境界の採用であり、R2採用の確定や実payload解禁ではない。署名無しGET、Bucket Lock、Cloud到達性は未検証で、各sliceのゲートに残る。
 
 **r4 Phase A review ledger（2026-09-27、再レビュー入力）:** 主担当のA1と独立A2が読んだ初稿のSHA-256は`3781F9AA4621C608E82AE1C7FFC9098E5E0F86B73C1676FACD1705EBDBDC12F2`。A0のみからの代替担当は、R2を第一候補としつつ、接続実証前のSDK Adapter、server検証付きrotation、複数provider抽象を必須にしない案を提示した。A2統合案ではRoute proofを先頭に置いた。アーキテクチャ担当はC'の固定取得記録の所有者、programとsliceの別A3、資格情報store/診断/account ownerの責務を指摘し、統合案へ反映した。実行可能性担当はprobe合格範囲の限定、環境未準備とprovider不適合の分離、Cloud未成立の記録、writerとlock管理者の権限分離を指摘し、統合案へ反映した。二担当は互いの所見を渡されず同一初稿を読んだ。指定したモデルと実際のvariantの一致は実測できないため、モデル多様性は確認済みと主張しない。再レビューで採否を改めて整理し、programとsliceそれぞれのA3判断を記録する。R2以外の運用provider即時実装、Cloud能力の暗黙の達成は提案していない。
 
 **r4追加レビュー（PR #80、対象head `9bdfc3e`）:** Grok 4.7の非盲検再レビューが、上の旧r1 provider選択文とr4の未採用境界の衝突を指摘した。歴史的r1の選択と、今も維持する保護条件を同じ段落で区別し、段1完了がprovider選定を凍結したとの読みを除いた。r2/r3は見出しどおり当時の未承認案として扱い、今回のRoute proofへ実装条件を追加しない。programとsliceのA3判断は引き続き別々に残る。
 
-**r4追加レビュー追認（PR #80、対象head `95a91a9`）:** 同じGrok 4.7セッションから、r1の旧順序と「Cloudflare設定は変更しない」という文がr4のRoute proofと衝突すると指摘された。前者を歴史的順序と明記し、後者は公開URL/domainを変えない条件と、ownerが限定Bucket Lock ruleを追加する操作に分けた。新たな盲検レビューとは数えず、r4とsliceのA3は未凍結のままにする。
+**r4追加レビュー追認（PR #80、対象head `95a91a9`）:** 同じGrok 4.7セッションから、r1の旧順序と「Cloudflare設定は変更しない」という文がr4のRoute proofと衝突すると指摘された。前者を歴史的順序と明記し、後者は公開URL/domainを変えない条件と、ownerが限定Bucket Lock ruleを追加する操作に分けた。新たな盲検レビューとは数えず、当時のA3採否入力とした。
+
+**r4 A3統合・採否（2026-09-27）:** ownerの凍結指示により、Route proofを最初のsliceとする順序、private bucketの公開禁止、synthetic-only gate、通常writerからのserver側保護を実payload前に実証する境界を採用した。A2の責務・実行可能性指摘とPR #80の歴史的r1記述に関する指摘を採用した。R2以外のprovider即時実装、Cloudの無人grant/到達をRoute proofの条件へ加える案は現在の問いに不要として保留し、各後続sliceで判断する。旧r1で受領していない第4 inline commentは未確認の歴史的論点として残し、受領時は内容を確認して必要なら新しいprogram revisionで扱う。Route proofの細目と受け入れは独立したA3 HANDOFFを正とする。A3後の例外承認はなし。
 
 ### r2案 — 最初に使える区切りと実施順
 
