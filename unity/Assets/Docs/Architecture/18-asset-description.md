@@ -1,6 +1,6 @@
 # 18. AssetDescription — 目的・有用性・実装
 
-本書は `OneStarMaker.Runtime.AssetDescriptions` の `AssetDescription` 系について、**何のために存在し、なぜ有用で、どう実装されているか**を整理する。Variant フィルタ BuildScript（[20. Variant チェックアウトワークフロー](20-variant-checkout-workflow.md) で使用）の前提知識でもある。
+本書は `OneStarMaker.Runtime.AssetDescriptions` の `AssetDescription` 系について、**何のために存在し、なぜ有用で、どう実装されているか**を整理する。通常の接続先は Content Directory の materialization / selection / build である。旧 Variant フィルタ BuildScript と Addressables checkout の残存範囲は [§20](20-variant-checkout-workflow.md) を参照する。
 
 ---
 
@@ -13,7 +13,7 @@
 - 1 つの論理アセットに対する複数の `AssetReference` を **Variant 付き**で保持する。
 - Editor / Build / Runtime が **同じ Payload 定義**を参照できるようにする。
 - Build 時に Payload を列挙できる **共通 API**（`IAssetPayloadProvider`）を提供する。
-- ソース（`.asset`）上では **全 Variant を保持**し、ビルド時だけ `BuildVariantProfile` のホワイトリストで catalog に入る Variant を制限する。
+- ソース（`.asset`）上では **全 Variant を保持**し、通常ビルドでは materialization snapshot と project selection policy から同梱する候補を選ぶ。`BuildVariantProfile` の whitelist は旧 Addressables 互換データであり、通常 Content Directory の選択入力ではない。
 
 ### Variant とは何か
 
@@ -26,9 +26,9 @@ Variant は「同じ論理アセットに対する制作・検証用の差し替
 | ライティングアーティスト | フルセット（`Full`） |
 | 実装中 | 仮 Scene / 仮 Prefab / 軽量 Prefab（`Temp`, `Proxy`） |
 
-空文字 `""` が「デフォルト Variant」。`SceneAssetDescription.Load` は指定 Variant が見つからなければ空文字にフォールバックする（`SceneAssetDescription.cs:71-88`）。
+ソースの空文字 `""` がデフォルト Variant で、Content Directory への materialization では `Representation=Full` に写す。通常の Scene load は directory 内の要求表現が無い場合だけ同じ directory の Full entry へ fallback する。`SceneAssetDescription.Load` の空文字 fallback は Addressables 互換ロード側の処理である。
 
-**重要:** Variant の第一目的は **編集ワークフローの差し替え**であり、実行中の切替 UI ではない。起動時に一度だけ Scene payload Variant を決める配線は実装済み（[§4.8](04-app-startup.md#48-起動時-scene-variant-と職種-companion-set)）。本機構（Build / カタログ）の必須要件ではない。
+**重要:** Variant の第一目的は **編集ワークフローの差し替え**であり、実行中の切替 UI ではない。起動時に一度だけ Scene payload Variant を決める配線は実装済み（[§4.8](04-app-startup.md#48-起動時-scene-variant-と職種-companion-set)）。実行中の表現切替は提供しない。
 
 **第二用途: 手元範囲のタグ。** Variant を「どの開発領域のアセットを手元に置くか」を示すタグとしても使える。実行の通常入口は DIST の検証済み installed revision であり、sourceFiles の Missing / Changed は編集可否の案内である。リモート Addressables カタログから欠損を埋めて Play する手順は旧経路である（詳細は [20. Variant チェックアウト厳選ワークフロー](20-variant-checkout-workflow.md)）。
 
@@ -47,16 +47,16 @@ Variant は「同じ論理アセットに対する制作・検証用の差し替
 
 ### メリット
 
-- **BuildScript が型を知らずに全参照を列挙できる。** `IAssetPayloadProvider.Payloads` だけ見ればよいので、対象アセットの種類が増えても BuildScript 側は変更不要。
-- **作業者ごとの `.asset` を分けずに済む。** 同じ論理アセットの差し替え候補を 1 箇所（Payload リスト）に並べ、ビルド内容は外側（`BuildVariantProfile`）で制御。
-- **登録漏れがビルド時に Error として出る。** Collector が走査経路を一本化し、必須 Description が whitelist 適用後に 0 件なら Error（`VariantWhitelistBuilder.cs:81-85`）。
+- **Payload 列挙の共通口を持つ。** `IAssetPayloadProvider.Payloads` に参照を集める。通常の production materializer が走査するのは SceneResourceMap であり、新しい Description 型が自動で build 対象になるわけではない。
+- **作業者ごとの `.asset` を分けずに済む。** 差し替え候補を Payload リストへ並べ、通常の同梱内容は外側の project selection policy で制御する。
+- **欠損や選択不整合を build 前に拒否する。** materialization / selection の構造化 Error があれば成功 snapshot / BuildPlan を公開しない（§4）。
 - **ソースは全 Variant を保持。** Git 差分を汚さず、Editor/開発中は全 Variant を参照可能（IK-B3）。
 
 ### 限界・注意
 
 - Variant 名の規約は Framework が強制しない。命名はプロジェクト規約として別途決める必要がある。
-- 子依存（Material/Texture 等）は whitelist に含めず、Addressables の dependency resolution に委譲（IK-B5）。Payload は **primary GUID のみ**を宣言する。
-- 起動時 Scene Variant は [§4.8](04-app-startup.md#48-起動時-scene-variant-と職種-companion-set) が所有する。本機構（checkout / packed カタログ）は実行中の切替口ではない。
+- Payload は **primary GUID のみ**を宣言する。通常 build は materializer が AssetDatabase 依存閉包を snapshot に固定し、Unity の Content Directory build へ渡す。Addressables 依存解決は互換側の話であり、通常 build の依存収集とは分ける。
+- 起動表現と互換 Scene Variant は [§4.8](04-app-startup.md#48-起動時-scene-variant-と職種-companion-set) が所有する。実行中の切替口ではない。
 - Editor の World Workspace は runtime fallback を使わず、`SceneResource.GetPayloads()` の ordinal 完全一致だけを要求する。必須 payload が無いときは一件も開かない。S-4b で全216 Cellに空文字と `Whitebox` の payloadを設定済みである。
 
 ---
@@ -80,8 +80,8 @@ SceneAssetDescription   ([Serializable])    SceneResource に埋め込まれる
 | `AssetPayload` | `[Serializable]` class | `AssetReference Reference` + `string Variant`。`[FormerlySerializedAs("SceneReference")]` 付き | `AssetPayload.cs` |
 | `IAssetPayloadProvider` | interface | `IReadOnlyList<AssetPayload> Payloads` + `string DisplayName` | `IAssetPayloadProvider.cs` |
 | `AssetDescription` | abstract `[Serializable]` class | Payload 列挙の共通基底。**SO ではない**（埋め込み用） | `AssetDescription.cs` |
-| `SceneAssetDescription` | `[Serializable]` class（基底継承） | シーンの Addressables ロード + Variant 対応 | `SceneAssetDescription.cs` |
-| `ScenePayload` | `[Obsolete]` alias（→ `AssetPayload`） | 後方互換 alias。実質未使用（[17 DESIGN-4]） | `ScenePayload.cs` |
+| `SceneAssetDescription` | `[Serializable]` class（基底継承） | シーン Payload 宣言 + Addressables 互換ロード | `SceneAssetDescription.cs` |
+| `ScenePayload` | `[Obsolete]` alias（→ `AssetPayload`） | 後方互換 alias。通常の新規 API には使わない | `ScenePayload.cs` |
 | `LoadType` | enum | OnDemand / NecessaryAlways / IncrementalAlways | `LoadType.cs` |
 
 ### なぜ ScriptableObject ではなく `[Serializable]` 基底なのか（設計の要）
@@ -99,45 +99,18 @@ SceneAssetDescription   ([Serializable])    SceneResource に埋め込まれる
 
 ## 4. BuildSystem との接続
 
-```
-BuildVariantProfile (SO)
-  ├─ VariantWhitelist: ["", "Full"] ...    同梱を許可する Variant 名
-  ├─ SceneResourceMap                      走査対象マップ
-  ├─ AlwaysIncludedAssets: AssetReference[] Variant 無関係に必ず同梱（Bootstrap 等）
-  └─ TargetAddressablesGroupName           whitelist 同期先グループ
-        │
-        ▼
-AssetDescriptionCollector
-  └─ SceneResourceMapSource                 SceneResource → SceneAssetDescription.Payloads を列挙
-        │ (IAssetPayloadProvider の列挙)
-        ▼
-VariantWhitelistBuilder
-  ├─ payload.Variant が whitelist 一致 → IncludedGuids
-  ├─ 不一致 → ExcludedGuids（managed - included）
-  ├─ AlwaysIncludedAssets → 無条件 IncludedGuids
-  └─ 必須 Description が 0 件同梱 → Error
-        │
-        ▼
-AddressablesGroupSnapshot (capture)
-        │
-AddressablesGroupSyncFilter
-  ├─ Included だが未登録 GUID → target group に一時追加
-  └─ managed かつ Excluded の entry → 一時削除
-        │
-        ▼
-BuildScriptPackedMode.BuildDataImplementation（標準ビルドへ委譲）
-        │
-        ▼
-AddressablesGroupSnapshot.Dispose (restore)  Editor の設定を元に戻す
-```
+通常の流れは `SceneResourceMap → production materialization → project selection → BuildContentCoordinator → Content Directory` である。Runtime の登録・ロード・寿命、BS4 Player、DIST は後述の各境界が所有する。
+
+旧 `BuildVariantProfile → Collector → VariantWhitelistBuilder → group snapshot/filter → Packed build` は通常入口から切断済みである。残存ファイル・案内のみのメニューは [§20](20-variant-checkout-workflow.md) に集約し、ここから再実行を指示しない。
 
 ### ホワイトリスト規則（要点）
 
-- whitelist は **完全一致**のみ。名前の意味は解釈しない（`VariantWhitelistBuilder.ResolveVariantWhitelist`）。
-- whitelist 空 = `{""}`（デフォルト Variant のみ）。最も安全な既定。
-- 複数 Variant 指定はフォールバックではなく **同時同梱**（一致した Payload は全部残す）。
-- 各必須 Description から最低 1 Payload が残ること。残らなければ Build Error。
-- 空 GUID / null Reference は Warning + 除外。
+以下は旧 whitelist の互換データ規則で、通常 build の選択規則ではない。
+
+- whitelist は完全一致、空ならデフォルト Variant のみ。
+- 複数 Variant は同時同梱を表し、fallback の指定ではない。
+- 必須 Description の選択を空にしない。空 GUID / null Reference は除外・診断する。
+- これらの旧規則を、通常の Content Directory selection policy の代わりにしない。
 
 ### Pure content-selection core（現況）
 
@@ -278,20 +251,17 @@ Framework の selection core と成果物 schema に季節名を持ち込まな�
 
 ### 新しい Variant を運用する
 
-`BuildVariantProfile._variantWhitelist` に名前を追加するだけ。Framework 側のコード変更は不要。Scene 側は `SceneAssetDescription` の Payload リストに該当 Variant の `AssetReference` を足す。
+Scene 側の Payload リストに参照と Variant を宣言し、通常経路では materialization と project selection policy が要求する表現を選択できるか確認する。現在の SampleGame の標準入口は Full / Whitebox（§4）であり、任意の名前を旧 whitelist に足すだけでは通常 build / Play へ接続されない。新しい選択規則が必要なら別スライスで採否を決める。選択済み content を build・install し、起動表現を固定する手順は [§20](20-variant-checkout-workflow.md) と [§4.8](04-app-startup.md#48-起動時-scene-variant-と職種-companion-set) を使う。
 
 ### Scene 以外のアセット種別を AssetDescription 化したくなったら
 
-1. `AssetDescription` を継承した `[Serializable]` クラス、または独立 SO を作る。`Payloads` を実装。
-2. その型を走査する `IAssetDescriptionSource` を追加（独立 SO なら `AssetDatabase.FindAssets` ベース）。
-3. `AssetDescriptionCollector.DefaultSources` に登録、または `Build(profile, additionalSources)` で注入。
-   - BuildScript / Whitelist ロジックは変更不要（`IAssetPayloadProvider` 経由のため）。
+現行の production materialization は SceneResourceMap を入力にする。Prefab / Texture を含む fixture build の成功は、本番の非 Scene Description の探索・選択が実装済みであることを意味しない。実需要が出たら、型と探索 adapter、logical / physical identity、依存閉包、選択要件の境界を別の実装 HANDOFF で決める。旧 `AssetDescriptionCollector` / `IAssetDescriptionSource` への登録だけを通常 Content Directory の拡張手順として使わない。
 - 注意: 計画段階で Prefab/Audio/Texture/Generic の個別 Description 型を作ったが、**実需要が出るまで作らない方針で剪定済み**。「あるけど使われない型」を増やさないこと。
   AssetType 自体は `AssetKey` のメタ情報として採用済みで、カテゴリ別 cache / budget の次パスで使用する。
 
 ### 起動時の Scene Variant
 
-起動時の一回解決は実装済み（[§4.8](04-app-startup.md#48-起動時-scene-variant-と職種-companion-set)）。`SceneAssetDescription.Load(variant)` は既に variant 引数を取る。実行中切替や第二の解決源は作らない。Play / Player の再起動が切替である。
+起動時の一回解決は実装済み（[§4.8](04-app-startup.md#48-起動時-scene-variant-と職種-companion-set)）。通常は `content:representation`、`SceneAssetDescription.Load(variant)` は Addressables 互換側である。実行中切替や第二の解決源は作らない。Play / Player の再起動が切替である。
 
 ---
 
@@ -301,8 +271,8 @@ Framework の selection core と成果物 schema に季節名を持ち込まな�
 - sourceFiles は案内 metadata である。Runtime は source AssetDatabase、materialization、checkout report を再走査しない。
 - `AssetDescription` を SO に変えてはいけない（埋め込み構造が壊れる、§3 参照）。
 - フィールド名変更時は `[FormerlySerializedAs]` を必ず付け、Editor 側の `FindPropertyRelative` は新名へ追従させる。
-- Payload は primary GUID のみ宣言。子依存は Addressables 任せ。
-- ビルド時の Addressables グループ変更は一時的（Snapshot で復元）。中断時の堅牢化は [17 DESIGN-2] が未対応。
+- Payload は primary GUID のみ宣言。通常 build の子依存は §4 の materialization snapshot と Content Directory build で扱う。
+- 旧 group snapshot/filter は通常入口から切断済み。旧経路の中断時堅牢性はここで検証済みとせず、再利用する場合も別途確認する。通常 build の前提作業として旧経路を復活させない。
 - `ScenePayload`（Obsolete alias）は実質未使用。削除候補。
 
 ---

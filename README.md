@@ -8,7 +8,7 @@ OneStarMaker 汎用フレームワーク + SampleGame ゲーム層 + DebugStudio
 
 ## 使用ライブラリ
 
-バージョンは `unity/Packages/manifest.json` および `unity/Assets/packages.config`（2026-06 時点）に準拠。
+以下のバージョン表は2026-06時点の記録。セットアップ時の依存定義は現行の `unity/Packages/manifest.json` / `unity/Packages/packages-lock.json` と `unity/Assets/packages.config` を正とする。
 
 ### Unity（UPM）— フレームワークで主に利用
 
@@ -67,15 +67,15 @@ SampleGameProject/
 
 | ブランチ | 役割 |
 |---|---|
-| `develop` | 実質の既定ブランチ。PR の base は常にこれ |
+| `develop` | GitHub の既定ブランチ・統合先。PR の base は常にこれ |
 | `main` | Initial commit のみ。リリースタグ用に空けてある |
-| `feat/*` `fix/*` `chore/*` | 1スライス = 1ブランチ。`develop` から切る |
+| `feat/*` `fix/*` `chore/*` `docs/*` | 1スライス = 1ブランチ。`develop` から切る |
 
 ```bash
 gh pr create --base develop
 ```
 
-`--base` を省くとホスティング側の既定（`main`）に向いてしまい、`develop` 以降の全履歴が差分に乗ってレビュー不能になる。
+GitHub の既定も `develop` だが、作業環境の既定値に依存せず `--base develop` を明示する。`main` を base にした PR は統合後の全履歴を含み得るため作らない。
 
 ## 環境
 
@@ -85,6 +85,10 @@ gh pr create --base develop
 | Unity    | **6.6 (6000.6.0f1)** |
 | .NET SDK | 8.0+（DebugStudio 用）  |
 
+
+## 通常の Play / Player
+
+通常の Editor Play は Content Directory build の後に transport publish と DIST Delivery の verified install を使うが、Editor Play 向け publish 入口は未整備である。BS4 Player は Player build 内で publish する別経路を使う。Addressables は互換 backend と残存 owner のために残り、旧 Hybrid / remote catalog / Variant Player overlay は通常手順ではない。詳細は [Content Directory / Delivery の手順](unity/Assets/Docs/Architecture/20-variant-checkout-workflow.md)を参照する。
 
 ## DebugStudio
 
