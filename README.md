@@ -88,7 +88,7 @@ GitHub の既定も `develop` だが、作業環境の既定値に依存せず `
 
 ## 通常の Play / Player
 
-通常経路は **Content Directory build → DIST Delivery の verified install → directory Play / BS4 Player**。Addressables は互換 backend と残存 owner のために残り、旧 Hybrid / remote catalog / Variant Player overlay は通常手順ではない。選択・取得・起動は [Content Directory / Delivery の手順](unity/Assets/Docs/Architecture/20-variant-checkout-workflow.md)を参照する。
+通常の Editor Play は Content Directory build の後に transport publish と DIST Delivery の verified install を使うが、Editor Play 向け publish 入口は未整備である。BS4 Player は Player build 内で publish する別経路を使う。Addressables は互換 backend と残存 owner のために残り、旧 Hybrid / remote catalog / Variant Player overlay は通常手順ではない。詳細は [Content Directory / Delivery の手順](unity/Assets/Docs/Architecture/20-variant-checkout-workflow.md)を参照する。
 
 ## DebugStudio
 

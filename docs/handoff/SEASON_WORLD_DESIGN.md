@@ -152,7 +152,7 @@ M-1〜M-4 の境界を戻さず、S-4b で 9×6×4 と修飾付き identity を 
 | 単独ビルド | 1 つの contentSet は 1 回の選択。現行入口は All Seasons Full / Spring Full / Spring Whitebox / Spring Full And Whitebox。その再 build は別 contentSet または別 build identity の公開 directory を書き換えない。同一 contentSet の成功成果物は identity ごとの公開先に残る。DIST は同じ revision の内容差し替えを拒否する。共有 Lit / Primitive / Tunnel は選択に含まれればその directory に入る。同一 directory 内の季節グループ単位ハッシュ不変は現行契約にない。旧 Addressables グループのハッシュ独立とも等価ではない。delta 配信は DIST 後続で未所有 |
 | 取得済み content からの実行 | DIST が検証した installed revision だけを登録する。sourceFiles の Missing / Changed は編集可否の案内であり、リモート Addressables カタログから欠損を埋めて Play しない。その revision に含まれない季節への遷移は明示失敗とし、出し方と旧季節復帰は S-5（D-5）。Framework は VCS checkout を代行しない。部分 Checkout + リモート補完は未所有。隔離は空隙ではなく **候補集合の排他**（常駐季節が 1 つ） |
 | ストリーミング | 全域で動く。S-9 は純政策ベンチマークと実コンテンツ横断を分け、**実コンテンツ計測（§21 A-1〜A-5）は変奏 II（夏）の背コリドー**で取る |
-| イテレーション | 印を1個編集 → 保存 → 選んだcontentSetを再build → 新revisionをverified installしてPlay。旧生成器は再実行しない。編集保護の独立した判定はW-4に残す |
+| イテレーション | 印を1個編集 → 保存 → 選んだcontentSetを再build。Editor Playには別途transport publishとverified installが必要だが、Editor向けpublish入口は未整備。旧生成器は再実行しない。編集保護の独立した判定はW-4に残す |
 
 **制作状態の方針（2 段。撤去済みpolicyコードの再導入指示ではない）:**
 
@@ -283,7 +283,7 @@ S-4b で Season_* 4ノードが `World` を置き換え、全セルに Environme
 | **M** | **9×6** | **216** | **54s** | **432** | **~432**（生成器 2 回ならその倍） |
 | L | 12×8 | 384 | 71s | 768 | ~768 |
 
-旧 4×4 は Cell 16 + Environment 4 + World ほかで `.unity` 20 枚前後だった。S-4b の現況は 9×6×4、652 Scene。
+旧 4×4 は Cell 16 + Environment 4 + World ほかで `.unity` 20 枚前後だった。S-4b 当時の基本生成結果は 9×6×4、652 Scene。
 `SceneResourceMap.asset` は 1 ファイルの平坦リストで、M ではエントリが数百になる（R-6 の構造衝突）。
 
 現在は [S-4 program](S-4_FULL_SPEC_WORLD_AUTHORING.md) §1 / §4で固定した9×6×4を生成済みで、一時生成器は撤去済みである。S-4bの基本652 Sceneは当時の生成結果で、後続の職種Scene追加後の総数ではない。生成時間による縮小判定や旧生成器の再実行を後続の受け入れ条件に戻さない。寸法変更や再生成が必要ならN-8の新しい制作スライスで判断する。

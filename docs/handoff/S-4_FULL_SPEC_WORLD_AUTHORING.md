@@ -143,7 +143,7 @@ Full / Whitebox は同じ Scene 名を使う。これにより、Editor で Whit
 
 - 起動時に一度選んだ表現を `SceneDirector` の Scene lifecycle に固定する。実行中に切り替えず、変更時は Play / Player を再起動する。
 - 通常の Content Directory 経路では `content:representation` の `Full` / `Whitebox` を使う。空の Scene payload Variant は build 時に `Representation=Full` へ写す。
-- `Tools/OSM/Content/Build Spring Whitebox` または `Build Spring Full And Whitebox` で必要な content を生成し、DIST の verified install と Delivery の「Use For Next Play」で起動対象を選ぶ。Player は BS4 coordinator の固定 config / bootstrap を使う。
+- `Tools/OSM/Content/Build Spring Whitebox` または `Build Spring Full And Whitebox` は Content Directory を生成する。Editor Play で使うには、その後の transport publish と DIST の verified install が必要だが、Editor Play 向け publish 入口は未整備である。Player は BS4 coordinator が Player build 内で publish する固定 config / bootstrap 経路を使う。
 - Scene の要求表現が無いときだけ、その directory 内の `Full` entry へ fallback する。Lighting / Events 等の Full のみの補助 Scene は Whitebox build にも含める。欠損を source や Addressables で埋めない。
 - 全 Cell が既定と `Whitebox` の2 payloadを持つことは S-4b で検査済み。
 
@@ -300,7 +300,7 @@ URP / mobile対応には制約が残るため、PC必須・Mobile安全停止を
 `Spring_Events_4_2`はCell内triggerからlocal VFXを起動する。
 `Spring_Event_MultiCellProof`はCell bundleとは独立してAdd / Unloadでき、Season Unloadで必ず回収される。
 
-Planner Playは§3.1のContent Directory選択・verified installで `content:representation=Whitebox` と
+Planner Playは§3.1の経路で `content:representation=Whitebox` と
 `world:cellCompanionSet=Planner` を使う。実証対象のEvents / VFXを含めたrevisionで、Environmentをロードしない状態のlocal / major event両方を実証する。
 
 ---

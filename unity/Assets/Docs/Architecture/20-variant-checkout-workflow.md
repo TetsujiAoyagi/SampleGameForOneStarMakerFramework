@@ -2,7 +2,8 @@
 
 > ステータス: 旧 Addressables checkout / Hybrid Play / remote catalog / Variant Player overlay は
 > 通常経路から切断した（2026-09-20）。メニューと CLI は置換案内のみ。
-> 通常手順は Content Directory build、DIST Delivery、directory Play、BS4 Player である。
+> 通常のEditor Playには、Content Directory buildの後にtransport publishを行い、DIST Deliveryでinstallする。
+> Editor Play向けpublish入口は未整備である。BS4 PlayerはPlayer build内でpublishする別経路を使う。
 > 前提資料: [18. AssetDescription](18-asset-description.md)
 
 Content Directory build と、SampleGame の本番 SceneResource graph からの季節・表現選択は Editor 側の入口である。
@@ -58,10 +59,11 @@ DIST は source checkout を代行しない。sourceFiles の Missing / Changed 
 flowchart TB
     subgraph usual ["通常経路"]
         contentBuild["Tools/OSM/Content build"]
+        publish["transport publish（Editor Play向け入口は未整備）"]
         delivery["Delivery Prepare + Use For Next Play"]
         dirPlay["Editor directory Play"]
         bs4["BS4 Player"]
-        contentBuild --> delivery
+        contentBuild --> publish --> delivery
         delivery --> dirPlay
         delivery --> bs4
     end
