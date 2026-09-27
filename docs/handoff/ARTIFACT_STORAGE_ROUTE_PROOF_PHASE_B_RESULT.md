@@ -4,8 +4,8 @@
 
 - Phase A snapshot: `328843ea521550af9da203315c2704d3d51cc8d0:docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF.md`
 - implementation base: `93d2a1c`
-- implementation head: `4500bec`
-- generated at: `2026-09-27T12:27:50.1376878Z`
+- implementation head: `e122a79`
+- generated at: `2026-09-27T12:31:45.9479822Z`
 - 担当: Codex / GPT-5（このsession。モデルvariantの追加割当は記録しない）
 
 ## 実装

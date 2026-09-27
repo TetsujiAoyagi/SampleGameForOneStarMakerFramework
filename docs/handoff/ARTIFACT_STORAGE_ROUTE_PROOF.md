@@ -6,7 +6,7 @@
 - status: A3凍結済み。Phase B完了、Phase C/C'以降は未着手
 - branch: `codex/artifact-storage-route-proof`（program草案とA3前疎通を記録した`93d2a1c`から分岐）
 - implementation base commit: `93d2a1c`（A3前疎通のbranch point）
-- implementation head commit: `4500bec`（Phase B実装commit。Phase Cの対象head）
+- implementation head commit: `e122a79`（Phase B実装commit。Phase Cの対象head）
 - risk: `high`（初回の実鍵・実R2・bucket lock設定）
 - owner: OSM保守担当。Cloudflare設定とtoken発行/失効はaccount owner
 - created: 2026-09-27
@@ -16,8 +16,8 @@
 - Phase A snapshot generated at: 2026-09-27T11:50:53Z
 - Phase A snapshot SHA-256: `0047F7DCCD10089CC75B902B5F64E5AC71C41D5F218FACDA46B31C8A645D858D`（上記commitのblob bytes）
 - Phase B result snapshot path / id: `docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md`
-- Phase B result snapshot generated at: `2026-09-27T12:27:50.1376878Z`
-- Phase B result snapshot SHA-256: `CD37407D79475859F08B5AB923B023179CC0BC718A73DDC396055D346F64B4E8`
+- Phase B result snapshot generated at: `2026-09-27T12:31:45.9479822Z`
+- Phase B result snapshot SHA-256: `7D9DCC474D45CCFA18B56C5298F88102DBEACCA03EADEE67CB74990124C734FB`
 - C evidence、C' blind bundle: 各Phaseで生成し、path / id、生成UTC、hashを追記する
 
 ## 1. A0 — 目的、現況、対象外
@@ -90,5 +90,5 @@ ownerはCloudflare画面でtokenのR2 Bucket Item Read/Writeが`osm-artifacts`�
 - A3統合・採否（2026-09-27）: ownerが本sessionでprogram r4とRoute proofのA3凍結を指示した。凍結前条件だったowner端末CLIへの実token登録とsynthetic PUT・別process GET/hash照合・DELETEは§4の限定preflightで達成済み。A2のアーキテクチャ、実行可能性、失敗経路、Grok、Web GPTの指摘は上記ledgerのとおり採用し§2〜4へ反映した。非export callback案はPowerShellのmodule境界上実行不能なので不採用。probe/credentials CLIのexit code共通化、Cloud/実payload/汎用providerの前倒しは現在の問いに不要として後続へ保留。未解決のA3 blockerはない。`credentials` CLIはローカル保管のみ、A3前probeは認証付き経路の予備確認に限り、署名無しGET、保護なし陽性対照、Bucket Lockの上書き/削除拒否は未検証のままPhase Cへ渡す。A3後の例外承認はなし。
 - A3の操作・証拠受入: ownerだけがCloudflare dashboardで全有効ruleのprefix、有効状態、保持条件を確認し、`probe/locked/`限定の`Age` 900〜86400秒ruleを設定する。rule名、試験前後の確認UTC、lifecycleとの関係、残存objectとruleの清掃予定も非秘密で記録する。通常writer tokenにBucket設定権限を追加しない。Agentは同一Windowsユーザーの別`pwsh` processを起動して§2のsynthetic probeとoffline試験を行い、非秘密のallowlist結果、固定base/head、前後のrepo status、raw test結果をcheckout/同期領域外の限定ACL bundleに保存する。Cはownerの全rule設定記録を受理し、通信結果の全体/prefix hash・byte数・EOF・HTTP分類・S3 `Code`と陽性対照、lock時の再GETを突き合わせる。C'へは所見を含まない同一固定版のblind bundleを渡す。ownerがrule設定に到達できない場合はenvironment-blockedで止め、Agentが管理鍵を受け取って代行しない。
 - C'担当: Phase B/Cと異なるmodelの新規session、または人間。Phase Aに未関与の候補を残す。判定Cの固定base/head、raw結果とblind bundleを使う。
-- Phase B: `4500bec` で実装完了。所見を含まない結果snapshotは `docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md` に固定し、SDK restore/buildと別process type load、Credentials 21件、RouteProof offline 8件、`contract-audit`、`docs-audit` の成功、実R2/Unity/Evidence/Build未実行、担当 `Codex / GPT-5` を記録した。snapshotのSHA-256は `CD37407D79475859F08B5AB923B023179CC0BC718A73DDC396055D346F64B4E8` である。
+- Phase B: `e122a79` で実装完了。所見を含まない結果snapshotは `docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md` に固定し、SDK restore/buildと別process type load、Credentials 21件、RouteProof offline 8件、`contract-audit`、`docs-audit` の成功、実R2/Unity/Evidence/Build未実行、担当 `Codex / GPT-5` を記録した。snapshotのSHA-256は `7D9DCC474D45CCFA18B56C5298F88102DBEACCA03EADEE67CB74990124C734FB` である。
 - Phase C/C'/D: 未到達。各snapshot、実行結果、未確認、担当/モデル、採否を到達時に記録する。
