@@ -48,8 +48,8 @@ function Assert-Observation($Observation) {
     foreach ($name in @('EofConfirmed','LimitReached','TimedOut','Redirected')) {
         if ($Observation.$name -isnot [bool]) { throw 'Invalid transport observation.' }
     }
-    if ($null -ne $Observation.HttpStatus -and ($Observation.HttpStatus -isnot [int] -or $Observation.HttpStatus -lt 100 -or $Observation.HttpStatus -gt 599)) { throw 'Invalid transport observation.' }
-    if ($null -ne $Observation.ByteCount -and ($Observation.ByteCount -isnot [int] -or $Observation.ByteCount -lt 0 -or $Observation.ByteCount -gt 8193)) { throw 'Invalid transport observation.' }
+    if ($null -ne $Observation.HttpStatus -and (($Observation.HttpStatus -isnot [int] -and $Observation.HttpStatus -isnot [long]) -or $Observation.HttpStatus -lt 100 -or $Observation.HttpStatus -gt 599)) { throw 'Invalid transport observation.' }
+    if ($null -ne $Observation.ByteCount -and (($Observation.ByteCount -isnot [int] -and $Observation.ByteCount -isnot [long]) -or $Observation.ByteCount -lt 0 -or $Observation.ByteCount -gt 8193)) { throw 'Invalid transport observation.' }
     foreach ($name in @('BodySha256','PrefixSha256')) {
         if ($null -ne $Observation.$name -and $Observation.$name -cnotmatch '^[0-9a-f]{64}$') { throw 'Invalid transport observation.' }
     }
@@ -209,8 +209,8 @@ try {
     $clock = [Diagnostics.Stopwatch]::StartNew()
     $unlockedKey = "probe/unlocked/$RunId/object.txt"
     $lockedKey = "probe/locked/$RunId/object.txt"
-    $original = [Text.Encoding]::ASCII.GetBytes("OSM-ROUTE-PROOF:$RunId:original")
-    $changed = [Text.Encoding]::ASCII.GetBytes("OSM-ROUTE-PROOF:$RunId:changed")
+    $original = [Text.Encoding]::ASCII.GetBytes("OSM-ROUTE-PROOF:${RunId}:original")
+    $changed = [Text.Encoding]::ASCII.GetBytes("OSM-ROUTE-PROOF:${RunId}:changed")
     $originalHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($original)).ToLowerInvariant()
     $changedHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($changed)).ToLowerInvariant()
     $records = [Collections.Generic.List[object]]::new()
@@ -265,20 +265,20 @@ try {
             if ($step.Phase -eq 'unsigned-get' -and $null -ne $observation -and $observation.BodySha256 -ceq $step.Hash) { $classification = 'provider-capability-failure' }
             elseif (($step.Phase -like 'locked-*') -and $lockedPut -and $null -ne $observation -and $observation.StatusClass -eq 'success') { $classification = 'provider-capability-failure' }
             else { $classification = 'inconclusive' }
-            $records.Add((New-ObservationRecord $classification $step.Phase $step.Op $step.Key $step.Hash $step.Bytes.Length $observation (if ($step.Phase -like 'locked-*') { 'retained-by-lock' } else { 'unconfirmed' }) $lockRule $base $head))
+            $records.Add((New-ObservationRecord $classification $step.Phase $step.Op $step.Key $step.Hash $step.Bytes.Length $observation $(if ($step.Phase -like 'locked-*') { 'retained-by-lock' } else { 'unconfirmed' }) $lockRule $base $head))
             break
         }
         $cleanup = if ($step.Phase -eq 'unlocked-delete') { 'removed' } elseif ($step.Phase -like 'locked-*') { 'retained-by-lock' } else { 'not-needed' }
         $records.Add((New-ObservationRecord 'pass' $step.Phase $step.Op $step.Key $step.Hash $step.Bytes.Length $observation $cleanup $lockRule $base $head))
     }
     if ($classification -eq 'pass' -and $records.Count -eq 12) {
-        $records.Add((New-ObservationRecord 'pass' 'complete' 'route-proof' $null $null 0 $null (if ($unlockedRemoved) { 'removed; locked object retained' } else { 'unconfirmed' }) $lockRule $base $head))
+        $records.Add((New-ObservationRecord 'pass' 'complete' 'route-proof' $null $null 0 $null $(if ($unlockedRemoved) { 'removed; locked object retained' } else { 'unconfirmed' }) $lockRule $base $head))
     } else {
         if ($unlockedPut -and -not $unlockedRemoved) {
             $cleanupObservation = Invoke-ChildOperation $Endpoint 'delete' $unlockedKey $changedHash $changed.Length $null $clock
             if ($null -eq $cleanupObservation -or $cleanupObservation.StatusClass -ne 'success') { $classification = 'inconclusive' }
         }
-        $records.Add((New-ObservationRecord $classification 'complete' 'route-proof' $null $null 0 $null (if ($lockedPut) { 'retained-by-lock' } else { 'unconfirmed' }) $lockRule $base $head))
+        $records.Add((New-ObservationRecord $classification 'complete' 'route-proof' $null $null 0 $null $(if ($lockedPut) { 'retained-by-lock' } else { 'unconfirmed' }) $lockRule $base $head))
     }
     foreach ($record in $records) { [Console]::WriteLine(($record | ConvertTo-Json -Compress -Depth 6)) }
     if ($original) { [Array]::Clear($original, 0, $original.Length) }
