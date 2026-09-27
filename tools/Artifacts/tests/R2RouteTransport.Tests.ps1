@@ -41,6 +41,30 @@ public sealed class PrefixThenCancelStream : Stream {
     try { return $readBody.Invoke($null, [object[]]@($stream, $ExpectedBytes, $source.Token, 8192, $false)) }
     finally { $source.Dispose() }
 }
+function Read-InterruptedTestBody([byte[]] $PrefixBytes, [int] $ExpectedBytes) {
+    $streamType = @'
+using System;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+public sealed class PrefixThenIOExceptionStream : Stream {
+    private readonly byte[] _prefix; private bool _sent;
+    public PrefixThenIOExceptionStream(byte[] prefix) { _prefix=prefix; }
+    public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken=default) {
+        if (!_sent) { _sent=true; _prefix.AsMemory().CopyTo(buffer); return ValueTask.FromResult(_prefix.Length); }
+        return ValueTask.FromException<int>(new IOException("test interruption"));
+    }
+    public override bool CanRead=>true; public override bool CanSeek=>false; public override bool CanWrite=>false;
+    public override long Length=>throw new NotSupportedException(); public override long Position { get=>throw new NotSupportedException(); set=>throw new NotSupportedException(); }
+    public override int Read(byte[] buffer,int offset,int count)=>throw new NotSupportedException();
+    public override void Flush()=>throw new NotSupportedException(); public override long Seek(long o,SeekOrigin so)=>throw new NotSupportedException();
+    public override void SetLength(long v)=>throw new NotSupportedException(); public override void Write(byte[] b,int o,int c)=>throw new NotSupportedException();
+}
+'@
+    Add-Type -TypeDefinition $streamType -ErrorAction Stop
+    $stream=[PrefixThenIOExceptionStream]::new($PrefixBytes)
+    return $readBody.Invoke($null, [object[]]@($stream,$ExpectedBytes,[Threading.CancellationToken]::None,8192,$false))
+}
 
 # <Code>を1024-byte read境界へまたがせても、本文ではなく安全なcode値だけを得ます。
 $errorBytes = [Text.Encoding]::UTF8.GetBytes(('x' * 1018) + '<Code> AccessDenied </Code><Message>must not be retained</Message>')
@@ -65,4 +89,10 @@ Assert ($cancelledBody.TimedOut -and -not $cancelledBody.EofConfirmed) 'cancelle
 Assert ($cancelledBody.PrefixSha256 -ceq $expectedPrefixHash) 'timeout discarded the already observed object prefix'
 Assert ($null -eq $cancelledBody.BodySha256) 'partial timeout received a full-body digest'
 
-[Console]::WriteLine('R2RouteTransport tests passed: 3')
+# 通信切断は期限timeoutとは別でも、到着済みprefixの証拠を失わせません。
+$interruptedBody=Read-InterruptedTestBody $objectPrefix $objectPrefix.Length
+Assert (-not $interruptedBody.TimedOut -and -not $interruptedBody.EofConfirmed) 'I/O interruption was reported as timeout or complete'
+Assert ($interruptedBody.PrefixSha256 -ceq $expectedPrefixHash) 'I/O interruption discarded the already observed prefix'
+Assert ($null -eq $interruptedBody.BodySha256) 'interrupted body received a full-body digest'
+
+[Console]::WriteLine('R2RouteTransport tests passed: 4')

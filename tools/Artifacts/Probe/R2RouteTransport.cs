@@ -288,6 +288,14 @@ public static class RouteTransport
                     : null;
                 return new BodyObservation(count, null, partialPrefixHash, false, false, errorCode?.Code, true);
             }
+            catch (IOException)
+            {
+                // deadline以外の切断でも、取得済みprefixは事実として残し、EOFと全体hashは主張しません。
+                var partialPrefixHash = prefixCount == expectedBytes
+                    ? Convert.ToHexString(prefix.GetCurrentHash()).ToLowerInvariant()
+                    : null;
+                return new BodyObservation(count, null, partialPrefixHash, false, false, errorCode?.Code, false);
+            }
 
             if (limitReached)
             {

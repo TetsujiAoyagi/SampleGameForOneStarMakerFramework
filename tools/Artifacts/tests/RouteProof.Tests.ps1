@@ -7,23 +7,27 @@ $script:passed = [Collections.Generic.List[string]]::new()
 $script:failed = [Collections.Generic.List[string]]::new()
 
 function Assert([bool] $Condition, [string] $Message) { if (-not $Condition) { throw $Message } }
-function Invoke-JsonEchoChild([string] $JsonLine) {
-    # OS上の別pwshへJSONを渡してstdoutから回収し、親側が実process出力をparseする境界を確認します。
+function Invoke-PwshCapture([string[]] $Arguments) {
     $info=[Diagnostics.ProcessStartInfo]::new(); $info.FileName='pwsh'; $info.UseShellExecute=$false
     $info.RedirectStandardOutput=$true; $info.RedirectStandardError=$true; $info.CreateNoWindow=$true
-    $jsonBase64=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($JsonLine))
-    $command="[Console]::WriteLine([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('$jsonBase64')))"
-    $encodedCommand=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
-    foreach($argument in @('-NoProfile','-EncodedCommand',$encodedCommand)){ [void]$info.ArgumentList.Add($argument) }
+    foreach($argument in $Arguments){ [void]$info.ArgumentList.Add($argument) }
     $process=[Diagnostics.Process]::new(); $process.StartInfo=$info
     try {
         if(-not $process.Start()){ throw 'JSON child process did not start' }
         $stdoutTask=$process.StandardOutput.ReadToEndAsync(); $stderrTask=$process.StandardError.ReadToEndAsync()
         if(-not $process.WaitForExit(10000)){ try{$process.Kill($true)}catch{}; throw 'JSON child process exceeded its test deadline' }
         if(-not $stdoutTask.Wait(1000) -or -not $stderrTask.Wait(1000)){ throw 'JSON child pipes were not drained' }
-        if($process.ExitCode -ne 0 -or $stderrTask.Result){ throw 'JSON child process did not produce a clean result' }
-        return $stdoutTask.Result
+        return [pscustomobject]@{ ExitCode=$process.ExitCode; Stdout=$stdoutTask.Result; Stderr=$stderrTask.Result }
     } finally { $process.Dispose() }
+}
+function Invoke-JsonEchoChild([string] $JsonLine) {
+    # OS上の別pwshへJSONを渡してstdoutから回収し、親側が実process出力をparseする境界を確認します。
+    $jsonBase64=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($JsonLine))
+    $command="[Console]::WriteLine([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('$jsonBase64')))"
+    $encodedCommand=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
+    $result=Invoke-PwshCapture @('-NoProfile','-EncodedCommand',$encodedCommand)
+    if($result.ExitCode -ne 0 -or $result.Stderr){ throw 'JSON child process did not produce a clean result' }
+    return $result.Stdout
 }
 function Run([string] $Name, [scriptblock] $Body) {
     if (-not (@($Case | Where-Object { $Name -like $_ }).Count -gt 0)) { return }
@@ -115,6 +119,46 @@ try {
         Assert ($expired -eq 0) 'expired child budget remained available'
         $script:RouteProofClock = $null
     }
+    Run 'stdout and stderr consume one shared pipe deadline' {
+        $script:pipeClockCalls=0; $script:pipeWaits=[Collections.Generic.List[int]]::new()
+        $script:RouteProofClock={ $script:pipeClockCalls++; if($script:pipeClockCalls -eq 1){[TimeSpan]::Zero}else{[TimeSpan]::FromSeconds(4)} }
+        $script:RouteProofTaskWaiter={ param($task,$milliseconds) $script:pipeWaits.Add($milliseconds); return $true }
+        Assert (Wait-RouteProofPipes ([Threading.Tasks.Task]::CompletedTask) ([Threading.Tasks.Task]::CompletedTask) 5000 ([TimeSpan]::Zero)) 'completed pipe reads failed'
+        Assert (($script:pipeWaits -join ',') -eq '5000,1000') "pipe waits did not share one 5-second budget: $($script:pipeWaits -join ',')"
+        $script:RouteProofClock=$null; $script:RouteProofTaskWaiter=$null
+    }
+    Run 'child stop requires parent exit and both redirected pipes to close' {
+        Assert (Test-RouteProofChildStopped $true $true $true) 'fully closed child was rejected'
+        Assert (-not (Test-RouteProofChildStopped $true $true $false)) 'live descendant retaining stderr was treated as stopped'
+        Assert (-not (Test-RouteProofChildStopped $false $true $true)) 'running parent was treated as stopped'
+    }
+    Run 'child PUT payload is bounded, hash checked and bound to the run marker' {
+        $runId='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'; $bytes=[Text.Encoding]::ASCII.GetBytes("OSM-ROUTE-PROOF:${runId}:original")
+        $hash=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
+        Assert (Test-ChildPayload 'put' $runId $hash $bytes.Length $bytes) 'valid run fixture rejected'
+        Assert (-not (Test-ChildPayload 'put' 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' $hash $bytes.Length $bytes)) 'fixture from another run accepted'
+        $oversized=[byte[]]::new(1025)
+        Assert (-not (Test-ChildPayload 'put' $runId $hash $oversized.Length $oversized)) 'oversized child fixture accepted'
+        Assert (-not (Test-ChildPayload 'authenticated-get' $runId $hash $bytes.Length $bytes)) 'non-PUT operation accepted a payload'
+    }
+    Run 'invalid implementation revision is not echoed to the result' {
+        $scriptPath=(Resolve-Path (Join-Path $PSScriptRoot '../Probe/RouteProof.ps1')).Path
+        $valid='0123456789abcdef0123456789abcdef01234567'; $invalid='z'*40
+        $child=Invoke-PwshCapture @('-NoProfile','-File',$scriptPath,'-Endpoint','https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com','-ImplementationBase',$invalid,'-ImplementationHead',$valid)
+        $record=$child.Stdout.Trim() | ConvertFrom-Json
+        Assert ($child.ExitCode -eq 3 -and $record.base -eq '' -and $record.head -ceq $valid) 'invalid revision leaked into fixed-schema result'
+        Assert (-not $child.Stdout.Contains($invalid)) 'untrusted revision text was reflected'
+    }
+    Run 'child rejects oversized PUT before credential access' {
+        $scriptPath=(Resolve-Path (Join-Path $PSScriptRoot '../Probe/RouteProof.ps1')).Path
+        $runId='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'; $bytes=[byte[]]::new(1025)
+        $hash=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
+        $valid='0123456789abcdef0123456789abcdef01234567'; $payload=[Convert]::ToBase64String($bytes)
+        $child=Invoke-PwshCapture @('-NoProfile','-File',$scriptPath,'-Endpoint','https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com','-Child','-Operation','put','-Key',"probe/unlocked/$runId/object.txt",'-ExpectedHash',$hash,'-ExpectedBytes','1025','-PayloadBase64',$payload,'-RunId',$runId,'-ImplementationBase',$valid,'-ImplementationHead',$valid)
+        $record=$child.Stdout.Trim() | ConvertFrom-Json
+        Assert ($child.ExitCode -eq 4 -and $record.StatusClass -eq 'inconclusive') 'child accepted or misclassified oversized PUT input'
+        Assert (-not $child.Stdout.Contains($payload)) 'invalid payload was echoed into child output'
+    }
     Run 'child result must describe the requested operation' {
         $script:RouteProofClock = { [TimeSpan]::Zero }
         $script:RouteProofChildRunner = { param($endpoint,$operation,$key,$hash,$bytes,$payload,$runId,$remaining,$deadline) Fake-Observation -Operation 'authenticated-get' }
@@ -202,7 +246,30 @@ try {
         Assert ($result.ExitCode -eq 0) "valid production loop failed: $(($result.Records.phase -join ','))"
         Assert ($result.Records.Count -eq 13 -and $result.Records[-1].phase -eq 'complete') 'full loop did not emit 12 operations plus completion'
         Assert (($result.Records | Where-Object { $_.phase -ne 'complete' } | Measure-Object).Count -eq 12) 'not all production operations were observed'
+        Assert (($result.Records | Where-Object { $_.phase -like 'locked-*' -and $_.phase -ne 'locked-confirm' } | Where-Object cleanup -ne 'unconfirmed' | Measure-Object).Count -eq 0) 'intermediate lock operation claimed retention before final GET'
+        Assert ($result.Records[-1].cleanup -eq 'removed; locked object retained') 'completed lock verification did not record final retention'
         $script:RouteProofClock=$null; $script:RouteProofChildRunner=$null; $script:fakeUnlockedDeleted=$false
+    }
+    Run 'locked object is unconfirmed when lock operations succeed' {
+        $runId='ffffffffffffffffffffffffffffffff'; $script:Base='0123456789abcdef0123456789abcdef01234567'; $script:Head='fedcba9876543210fedcba9876543210fedcba98'
+        $global:RouteProofTestChangedHash=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::ASCII.GetBytes("OSM-ROUTE-PROOF:${runId}:changed"))).ToLowerInvariant()
+        $script:RouteProofClock={ [TimeSpan]::Zero }; $script:fakeUnlockedDeleted=$false
+        $script:RouteProofChildRunner={
+            param($endpoint,$operation,$key,$hash,$bytes,$payload,$expectedRunId,$remaining,$deadline)
+            $status=200; $class='success'; $code=$null; $bodyHash=$hash; $prefixHash=$hash
+            if($operation -eq 'unsigned-get'){$status=403;$class='forbidden';$code='AccessDenied';$bodyHash='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';$prefixHash='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'}
+            elseif($operation -eq 'delete' -and $key -like 'probe/unlocked/*'){$status=204;$script:fakeUnlockedDeleted=$true}
+            elseif($operation -eq 'authenticated-get' -and $key -like 'probe/unlocked/*' -and $script:fakeUnlockedDeleted){$status=404;$class='not-found';$code='NoSuchKey';$bodyHash=$null;$prefixHash=$null}
+            $segments=@($key -split '/' | ForEach-Object {[uri]::EscapeDataString($_)});$method=$null;$uri=$null
+            if($operation -eq 'unsigned-get'){$method='GET';$uri=([uri]($endpoint+'/osm-artifacts/'+($segments -join '/'))).AbsoluteUri}
+            [pscustomobject]@{Operation=$operation;HttpStatus=$status;StatusClass=$class;S3Code=$code;ByteCount=$bytes;BodySha256=$bodyHash;PrefixSha256=$prefixHash;EofConfirmed=$true;LimitReached=$false;TimedOut=$false;Redirected=$false;Generation='0123456789abcdef0123456789abcdef';Method=$method;TargetUri=$uri;HasAuthHeader=$false;SignatureQueryPresent=$false;TargetChangingQueryPresent=$false}
+        }
+        $ruleHash='cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
+        $json=[pscustomobject]@{Prefix='probe/locked/';Enabled=$true;Kind='Age';RetentionSeconds=900;RuleCount=1;DateRules=0;IndefiniteRules=0;WriterCanConfigure=$false;LifecycleCompatible=$true;BeforeHash=$ruleHash;AfterHash=$ruleHash}|ConvertTo-Json -Compress
+        $result=Invoke-RouteProofLoop 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com' $runId $json
+        $failedLock=$result.Records | Where-Object phase -eq 'locked-overwrite' | Select-Object -First 1
+        Assert ($result.ExitCode -eq 4 -and $failedLock.cleanup -eq 'unconfirmed') 'lock success without re-GET was labeled retained'
+        $script:RouteProofClock=$null;$script:RouteProofChildRunner=$null;$script:fakeUnlockedDeleted=$false
     }
     Run 'ambiguous initial PUT still receives an independent recovery budget' {
         $runId = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'

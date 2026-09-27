@@ -26,6 +26,7 @@ $script:RouteProofClock = $null
 $script:RouteProofChildRunner = $null
 # child process全体の期限とtransport応答を別々に注入し、同じ主ループの停止境界を検査します。
 $script:RouteProofTransport = $null
+$script:RouteProofTaskWaiter = $null
 
 function Test-Endpoint([string] $Value) { return $Value -cmatch '^https://[0-9a-f]{32}\.r2\.cloudflarestorage\.com$' }
 function Test-Hash([string] $Value) { return $Value -cmatch '^[0-9a-f]{64}$' }
@@ -60,6 +61,46 @@ function Get-RemainingPipeWait([int] $ChildBudgetMilliseconds, [TimeSpan] $Child
     return [Math]::Max(0, [Math]::Min(5000, $ChildBudgetMilliseconds - [int]$childElapsed.TotalMilliseconds))
 }
 
+function Wait-RouteProofPipeTask($Task, [int] $Milliseconds) {
+    if ($Milliseconds -le 0) { return $false }
+    if ($null -ne $script:RouteProofTaskWaiter) { return [bool](& $script:RouteProofTaskWaiter $Task $Milliseconds) }
+    return [bool]$Task.Wait($Milliseconds)
+}
+
+function Wait-RouteProofPipes($StdoutTask, $StderrTask, [int] $ChildBudgetMilliseconds, [TimeSpan] $ChildStartedAt) {
+    # stdoutが期限を使った分だけstderrの待機時間を再計算し、二つのpipeで同じ残予算を共有します。
+    $remaining = Get-RemainingPipeWait $ChildBudgetMilliseconds $ChildStartedAt
+    if (-not (Wait-RouteProofPipeTask $StdoutTask $remaining)) { return $false }
+    $remaining = Get-RemainingPipeWait $ChildBudgetMilliseconds $ChildStartedAt
+    return (Wait-RouteProofPipeTask $StderrTask $remaining)
+}
+
+function Test-RouteProofChildStopped([bool] $ParentExited, [bool] $StdoutClosed, [bool] $StderrClosed) {
+    # redirected pipeのEOFが揃う前は、子孫がhandleを保持している可能性を除外できません。
+    return $ParentExited -and $StdoutClosed -and $StderrClosed
+}
+
+function Stop-RouteProofChild([Diagnostics.Process] $Process, $StdoutTask, $StderrTask) {
+    # 子は1操作だけを実行し、自身から別processを起動しません。終了時はprocess treeをkillし、
+    # rootの終了だけでなく両pipeのEOFも揃った場合に限って回復DELETEを許可します。
+    try { $Process.Kill($true) } catch { try { $Process.Kill() } catch { } }
+    try { return (Test-RouteProofChildStopped $Process.WaitForExit(0) $StdoutTask.IsCompleted $StderrTask.IsCompleted) }
+    catch { return $false }
+}
+
+function Get-SafeCommitId([string] $Value) {
+    if ($Value -cmatch '^[0-9a-f]{40}$') { return $Value }
+    return $null
+}
+
+function Test-ChildPayload([string] $OperationName, [string] $RunIdValue, [string] $ExpectedHashValue, [int] $ExpectedLength, [byte[]] $Payload) {
+    if ($OperationName -ne 'put') { return $null -eq $Payload }
+    if ($null -eq $Payload -or $ExpectedLength -lt 1 -or $ExpectedLength -gt 1024 -or $Payload.Length -ne $ExpectedLength) { return $false }
+    $actualHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($Payload)).ToLowerInvariant()
+    $fixture = [Text.Encoding]::ASCII.GetString($Payload)
+    return $actualHash -ceq $ExpectedHashValue -and $fixture -cmatch ('^OSM-ROUTE-PROOF:' + [regex]::Escape($RunIdValue) + ':(original|changed)$')
+}
+
 # 実行経路とoffline試験が共有する唯一の12操作ループです。時刻と子process境界だけを差し替えます。
 function Invoke-RouteProofLoop([string] $EndpointValue, [string] $RunIdValue, [string] $RuleJson) {
     $script:ActiveEndpoint = $EndpointValue
@@ -72,7 +113,7 @@ function Invoke-RouteProofLoop([string] $EndpointValue, [string] $RunIdValue, [s
     $originalHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($original)).ToLowerInvariant()
     $changedHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($changed)).ToLowerInvariant()
     $records = [Collections.Generic.List[object]]::new()
-    $classification = 'pass'; $unlockedCleanupRequired = $false; $unlockedRemoved = $false; $lockedPut = $false; $writerGeneration = $null
+    $classification = 'pass'; $unlockedCleanupRequired = $false; $unlockedRemoved = $false; $writerGeneration = $null
     $script:ChildTerminationConfirmed = $true
     $steps = @(
         @{ Op='put'; Key=$unlockedKey; Bytes=$original; Hash=$originalHash; Phase='unlocked-put' },
@@ -115,17 +156,18 @@ function Invoke-RouteProofLoop([string] $EndpointValue, [string] $RunIdValue, [s
             $passed = $false; $classification = 'inconclusive'
         } elseif ($passed -and $null -eq $writerGeneration) { $writerGeneration = $observation.Generation }
         if ($step.Phase -eq 'unlocked-delete-confirm' -and $passed) { $unlockedRemoved = $true }
-        if ($step.Phase -eq 'locked-put' -and $passed) { $lockedPut = $true }
         if (-not $passed) {
             if ($step.Phase -eq 'unsigned-get' -and $null -ne $observation -and $observation.PrefixSha256 -ceq $step.Hash) {
                 # 一度のprefix一致は内容露出として記録しますが、再現条件を満たさないため能力failureへは確定しません。
                 $classification = 'inconclusive'
             }
             else { $classification = 'inconclusive' }
-            $records.Add((New-ObservationRecord $classification $step.Phase $step.Op $step.Key $step.Hash $step.Bytes.Length $observation $(if ($step.Phase -like 'locked-*' -and $lockedPut) { 'retained-by-lock' } else { 'unconfirmed' }) $lockRule $script:Base $script:Head))
+            # PUT受理だけでは保持を証明しないため、途中失敗時のlock keyは明示的確認まで未確認にします。
+            $records.Add((New-ObservationRecord $classification $step.Phase $step.Op $step.Key $step.Hash $step.Bytes.Length $observation 'unconfirmed' $lockRule $script:Base $script:Head))
             break
         }
-        $cleanup = if ($step.Phase -eq 'unlocked-delete') { 'delete-sent; awaiting-confirmation' } elseif ($step.Phase -eq 'unlocked-delete-confirm') { 'removed' } elseif ($step.Phase -like 'locked-*') { 'retained-by-lock' } else { 'not-needed' }
+        # locked keyは最終authenticated GETまで存在・hashを照合中なので、中間行で保持確定を先取りしません。
+        $cleanup = if ($step.Phase -eq 'unlocked-delete') { 'delete-sent; awaiting-confirmation' } elseif ($step.Phase -eq 'unlocked-delete-confirm') { 'removed' } elseif ($step.Phase -like 'locked-*') { 'unconfirmed' } else { 'not-needed' }
         $records.Add((New-ObservationRecord 'pass' $step.Phase $step.Op $step.Key $step.Hash $step.Bytes.Length $observation $cleanup $lockRule $script:Base $script:Head))
     }
     if ($classification -eq 'pass' -and $records.Count -eq 12) {
@@ -291,6 +333,7 @@ function Invoke-ChildOperation(
     foreach ($argument in @('-NoProfile','-File',$PSCommandPath,'-Endpoint',$EndpointValue,'-Child','-Operation',$OperationName,'-Key',$KeyValue,'-ExpectedHash',$ExpectedHashValue,'-ExpectedBytes',[string]$Bytes,'-RunId',$ExpectedRunId,'-ImplementationBase',$script:Base,'-ImplementationHead',$script:Head)) { [void]$info.ArgumentList.Add($argument) }
     if ($Payload) { [void]$info.ArgumentList.Add('-PayloadBase64'); [void]$info.ArgumentList.Add($Payload) }
     $process = [Diagnostics.Process]::new(); $process.StartInfo = $info
+    $stdoutTask = $null; $stderrTask = $null
     try {
         if (-not $process.Start()) { return $null }
         # pipeを先に並行drainし、大きな出力で子が詰まることと終了後の同期ReadToEndを避けます。
@@ -298,16 +341,13 @@ function Invoke-ChildOperation(
         $stderrTask = $process.StandardError.ReadToEndAsync()
         $childStartedAt = Get-RouteElapsed
         if (-not $process.WaitForExit($remaining)) {
-            try { $process.Kill($true) } catch { try { $process.Kill() } catch { } }
             # deadline後に固定時間の終了待ちを足すと全体予算を越えるため、非待機で終了状態だけ確認します。
-            try { $script:ChildTerminationConfirmed = $process.WaitForExit(0) } catch { $script:ChildTerminationConfirmed = $false }
+            $script:ChildTerminationConfirmed = Stop-RouteProofChild $process $stdoutTask $stderrTask
             return $null
         }
         # run全体の経過ではなく、この子を起動した後の経過を同じ子予算から差し引きます。
-        $remainingForPipes = Get-RemainingPipeWait $remaining $childStartedAt
-        if (-not $stdoutTask.Wait($remainingForPipes) -or -not $stderrTask.Wait($remainingForPipes)) {
-            try { $process.Kill($true) } catch { try { $process.Kill() } catch { } }
-            try { $script:ChildTerminationConfirmed = $process.WaitForExit(0) } catch { $script:ChildTerminationConfirmed = $false }
+        if (-not (Wait-RouteProofPipes $stdoutTask $stderrTask $remaining $childStartedAt)) {
+            $script:ChildTerminationConfirmed = Stop-RouteProofChild $process $stdoutTask $stderrTask
             return $null
         }
         $stdout = $stdoutTask.GetAwaiter().GetResult().Trim()
@@ -323,9 +363,9 @@ function Invoke-ChildOperation(
         # 例外経路でも起動済みchildの生存を未確認のまま回復DELETEへ進ませません。
         try {
             if ($process.Id -gt 0 -and -not $process.HasExited) {
-                try { $process.Kill($true) } catch { try { $process.Kill() } catch { } }
-                $script:ChildTerminationConfirmed = $process.WaitForExit(0)
-            } else { $script:ChildTerminationConfirmed = $true }
+                $stopped = Stop-RouteProofChild $process $stdoutTask $stderrTask
+            } else { $stopped = $process.Id -gt 0 -and (Test-RouteProofChildStopped $true ($null -eq $stdoutTask -or $stdoutTask.IsCompleted) ($null -eq $stderrTask -or $stderrTask.IsCompleted)) }
+            $script:ChildTerminationConfirmed = $stopped
         } catch { $script:ChildTerminationConfirmed = $false }
         return $null
     } finally { $process.Dispose() }
@@ -365,10 +405,13 @@ $script:Base = $base; $script:Head = $head
 
 if ($Child) {
     try {
-            if (-not (Test-Endpoint $Endpoint) -or $ImplementationBase -cnotmatch '^[0-9a-f]{40}$' -or $ImplementationHead -cnotmatch '^[0-9a-f]{40}$' -or $Operation -notin @('put','authenticated-get','unsigned-get','delete') -or
+        if (-not (Test-Endpoint $Endpoint) -or $ImplementationBase -cnotmatch '^[0-9a-f]{40}$' -or $ImplementationHead -cnotmatch '^[0-9a-f]{40}$' -or $Operation -notin @('put','authenticated-get','unsigned-get','delete') -or
+            ($Operation -eq 'put' -and ([string]::IsNullOrEmpty($PayloadBase64) -or $PayloadBase64.Length -gt 1368)) -or
+            ($Operation -ne 'put' -and -not [string]::IsNullOrEmpty($PayloadBase64)) -or
             -not (Test-RunId $RunId) -or -not (Test-Key $Key $RunId) -or -not (Test-Hash $ExpectedHash) -or $ExpectedBytes -lt 1 -or $ExpectedBytes -gt 1024) { throw 'Invalid input.' }
-        $transportModule = Import-Module (Join-Path $PSScriptRoot 'R2RouteTransport.psm1') -Force -PassThru
         $payload = if ($PayloadBase64) { [Convert]::FromBase64String($PayloadBase64) } else { $null }
+        if (-not (Test-ChildPayload $Operation $RunId $ExpectedHash $ExpectedBytes $payload)) { throw 'Invalid input.' }
+        $transportModule = Import-Module (Join-Path $PSScriptRoot 'R2RouteTransport.psm1') -Force -PassThru
         $request = @{
             Endpoint = $Endpoint; Operation = $Operation; Key = $Key; Payload = $payload
             ExpectedBytes = $ExpectedBytes; DeadlineMilliseconds = 30000
@@ -400,6 +443,7 @@ try {
     foreach ($record in $result.Records) { [Console]::WriteLine(($record | ConvertTo-Json -Compress -Depth 6)) }
     exit $result.ExitCode
 } catch {
-    $record = New-ObservationRecord 'environment-blocked' 'input' 'input' $null $null 0 $null 'not-needed' $null $base $head
+    # 入力エラー時は未検証のrevision文字列を外へ反射せず、検証済みIDかnullだけを記録します。
+    $record = New-ObservationRecord 'environment-blocked' 'input' 'input' $null $null 0 $null 'not-needed' $null (Get-SafeCommitId $base) (Get-SafeCommitId $head)
     [Console]::WriteLine(($record | ConvertTo-Json -Compress -Depth 6)); exit 3
 }
