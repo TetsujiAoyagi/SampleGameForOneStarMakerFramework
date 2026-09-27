@@ -5,7 +5,9 @@
 - type: `program`
 - status: program進行中。ローカル段1（旧スライス0）はPhase D承認済み。r4の順序・保護境界はA3凍結済み。Route proofのPhase Bは別HANDOFFのA3で許可するが、R2の本採用と実payload転送は未承認。
 - program policy revision: `r4` — purpose-first route proof before production transport architecture; `r1` is historical review context
-- Phase A snapshot: この凍結版のcommit、生成UTC、SHA-256を凍結記録commitで固定する
+- Phase A snapshot path / id: `328843ea521550af9da203315c2704d3d51cc8d0:docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md`（`git show`で凍結本文を取得する）
+- Phase A snapshot generated at: 2026-09-27T11:50:53Z
+- Phase A snapshot SHA-256: `17A26E762AD7CF74878124BB34DDFC3B3DFA6207520CD8C8442C57990FC0BDFF`（上記commitのblob bytes）
 - branch: `codex/artifact-storage-purpose-first`（program草案）→ `codex/artifact-storage-route-proof`（再レビュー用head）
 - implementation base commit: `6537446b85bf33056dcdd5b08840940761823711` (`develop`)
 - implementation head commit: not applicable; no implementation changes are planned in this program document

@@ -12,7 +12,10 @@
 - created: 2026-09-27
 - expires: 2026-12-26
 - harvest to: 現行CLIの契約は`tools/Artifacts/README.md`、恒久的な保存/検証境界は適切な公開設計文書。probe固有の記録は削除
-- Phase A snapshot: この凍結版のcommit、生成UTC、SHA-256を凍結記録commitで固定する。B result、C evidence、C' blind bundleは各Phaseで生成する
+- Phase A snapshot path / id: `328843ea521550af9da203315c2704d3d51cc8d0:docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF.md`（`git show`で凍結本文を取得する）
+- Phase A snapshot generated at: 2026-09-27T11:50:53Z
+- Phase A snapshot SHA-256: `0047F7DCCD10089CC75B902B5F64E5AC71C41D5F218FACDA46B31C8A645D858D`（上記commitのblob bytes）
+- Phase B result、C evidence、C' blind bundle: 各Phaseで生成し、path / id、生成UTC、hashを追記する
 
 ## 1. A0 — 目的、現況、対象外
 
