@@ -45,8 +45,8 @@ WorldCompanion の Addressables 登録、Player の `DoNotBuildWithPlayer` で�
 
 本書の profile、whitelist、checkout report、hybrid Play Mode Script、remote Addressables catalog、
 旧 Player build は **意図的に廃止した通常経路** の在庫である。残ファイルを参照 0 だけで削除しない。
-DIST Content Delivery は完成済み Content Directory を local/LAN directory、HTTP、installed offline から
-検証済み disk cache へ導入し、Editor Play または対応 Player へ接続する。
+DIST Content Delivery は transport publish 済みの source を local/LAN directory、HTTP、installed offline から
+検証済み disk cache へ導入し、Editor Play へ接続する。BS4 Player build は別経路である。
 
 DIST は source checkout を代行しない。sourceFiles の Missing / Changed / Complete は編集可能性の案内であり、
 未 checkout asset の直接編集を可能にしない。取得済み content からの実行と source の編集可否を分けて扱う。
@@ -62,10 +62,12 @@ flowchart TB
         publish["transport publish（Editor Play向け入口は未整備）"]
         delivery["Delivery Prepare + Use For Next Play"]
         dirPlay["Editor directory Play"]
-        bs4["BS4 Player"]
         contentBuild --> publish --> delivery
         delivery --> dirPlay
-        delivery --> bs4
+        bs4Build["BS4 Player coordinator<br/>Content Directory build"]
+        bs4Publish["Player build 内で transport publish"]
+        bs4["BS4 Player"]
+        bs4Build --> bs4Publish --> bs4
     end
 
     subgraph retired ["retired 在庫。通常入口ではない"]

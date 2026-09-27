@@ -139,7 +139,7 @@ OTel 互換の TraceId/SpanId を持つ軽量スパン計測。JSONL ファイ�
 LFU + 時間減衰の常駐キャッシュ `AssetResidentCache`（AssetType 別バジェット）を内蔵。詳細は [13-resource-system.md](Docs/Architecture/13-resource-system.md)。
 
 ### Content Directory / Delivery（Editor ツール）
-季節選択の Content Directory build、DIST Delivery の verified install、directory Play、BS4 Player が通常入口。
+Editor directory Play は Content Directory build 後の transport publish と DIST Delivery の verified install を使う。Editor Play 向け publish 入口は未整備。BS4 Player は Player build 内で publish する別経路。
 旧 Hybrid / Remote / Variant Player overlay は案内のみ。詳細は [20-variant-checkout-workflow.md](Docs/Architecture/20-variant-checkout-workflow.md)。
 
 ### UpdateSystem（フレームスケジューラ）
@@ -185,4 +185,4 @@ MonoBehaviour.Update によらない更新基盤（Layer / Coordinator / Job Sys
 
 1. Unity 6.6 (6000.6.0f1) で **`unity/`** フォルダを開く
 2. NuGetForUnity が自動で NuGet パッケージを復元する
-3. 通常 Play は **Tools > OSM > Content** で Content Directory を作り、Delivery で **Use For Next Play** する。Addressables package は互換口として残る。旧 Hybrid / Remote メニューは案内のみ。手順は [20-variant-checkout-workflow.md](Docs/Architecture/20-variant-checkout-workflow.md)
+3. Editor directory Play には **Tools > OSM > Content** での Content Directory build に加え、transport publish と Delivery の verified install / **Use For Next Play** が必要。Editor Play 向け publish 入口は未整備なので、build メニューだけではこの手順は完了しない。BS4 Player は Player build 内で publish する。手順と現状の制約は [20-variant-checkout-workflow.md](Docs/Architecture/20-variant-checkout-workflow.md)
