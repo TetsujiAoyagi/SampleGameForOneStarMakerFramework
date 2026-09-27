@@ -37,9 +37,9 @@ DPAPIはWindowsユーザーに結びつけて保存データを保護します�
 
 ## Route proof（Phase B実装、実R2未実行）
 
-`Probe/RouteProof.ps1` はこのslice専用の限定診断です。親processはendpointだけを受け取り、`probe/unlocked/<run-id>/` と `probe/locked/<run-id>/` の各1 key、1操作1子`pwsh` process、各操作30秒・子process45秒・run全体5分の期限を使います。子processの引数に鍵を渡さず、`CredentialStore` の `Invoke-CredentialTransport` が同一process内の一回のcallbackへDPAPI復号値を限定して渡します。callbackから戻るのは閉じた非秘密transport観測だけです。
+`Probe/RouteProof.ps1` はこのslice専用の限定診断です。親processはendpointだけを受け取り、`probe/unlocked/<run-id>/` と `probe/locked/<run-id>/` の各1 key、1操作1子`pwsh` process、各操作30秒・子process45秒・run全体5分の期限を使います。各childもrun-idとkeyの一致を検証します。子processの引数に鍵を渡さず、`CredentialStore` の `Invoke-CredentialTransport` が同一process内の一回のcallbackへDPAPI復号値を限定して渡します。callbackから戻るのは閉じた非秘密transport観測だけです。offline testsは同じ12操作主ループを通り、時計・child runner・transport operationを差し替えて期限とcleanup分類を検査します。
 
-transportは`Probe/R2RouteTransport.csproj`の固定`AWSSDK.S3`依存を使います。認証PUT/GET/DELETEと、Authorizationおよび署名queryを付けないHTTP GETを分離し、本文は保存せず、EOF確認時だけ全体hash、期待長に達した場合だけ先頭hashを返します。SDK例外のMessage、HTTP本文、request/header、秘密は結果へ通しません。`artifacts/` は生成物でGit管理外です。
+transportは`Probe/R2RouteTransport.csproj`の固定`AWSSDK.S3`依存を使います。認証PUT/GET/DELETEと、Authorizationおよび署名queryを付けないHTTP GETを分離し、本文は保存せず、EOF確認時だけ全体hash、期待長に達した場合だけ先頭hashを返します。8193 byte目に達しても、それ以前に得た期待長prefix hashは残し、EOF未確認の全体hashは作りません。閉じた非秘密観測にunsigned requestのmethod、正規URI、Authorization/署名query/対象queryの有無を加え、RouteProofが意図したGETか照合します。HTTP 400/`InvalidArgument`はこのrevisionではprivate拒否と判定せず`inconclusive`です。SDK例外のMessage、HTTP本文、request/header、秘密は結果へ通しません。`artifacts/` は生成物でGit管理外です。
 
 所有者がCloudflareで`probe/locked/`の全有効ruleを確認し、次のような秘密を含まないJSONを手元で用意してから実R2を実行します。`BeforeHash` と `AfterHash` は設定全体の記録hashで、試験前後に同一であることを示します。通常writer tokenへBucket設定権限を追加しないでください。
 

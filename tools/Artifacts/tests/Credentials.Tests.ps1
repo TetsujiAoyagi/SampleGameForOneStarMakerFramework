@@ -87,7 +87,7 @@ function Run([string] $Name, [scriptblock] $Body) {
             }
         } catch { $caseFailed = $true }
     }
-    if ($caseFailed) { $script:failed.Add($Name) } else { $script:passed.Add($Name) }
+    if ($caseFailed) { $script:failed.Add($Name + ': ' + $exceptionText) } else { $script:passed.Add($Name) }
 }
 
 try {

@@ -45,6 +45,11 @@ function Invoke-R2RouteTransport {
             TimedOut = [bool]$result.TimedOut
             Redirected = [bool]$result.Redirected
             Generation = $Generation
+            RequestMethod = if ($null -eq $result.RequestMethod) { $null } else { [string]$result.RequestMethod }
+            RequestUri = if ($null -eq $result.RequestUri) { $null } else { [string]$result.RequestUri }
+            AuthorizationPresent = [bool]$result.AuthorizationPresent
+            SignatureQueryPresent = [bool]$result.SignatureQueryPresent
+            TargetChangingQueryPresent = [bool]$result.TargetChangingQueryPresent
         }
     } catch { throw 'Probe transport unavailable.' }
 }

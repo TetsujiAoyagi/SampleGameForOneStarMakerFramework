@@ -22,6 +22,11 @@ public sealed class TransportObservation
     public bool LimitReached { get; init; }
     public bool TimedOut { get; init; }
     public bool Redirected { get; init; }
+    public string? RequestMethod { get; init; }
+    public string? RequestUri { get; init; }
+    public bool AuthorizationPresent { get; init; }
+    public bool SignatureQueryPresent { get; init; }
+    public bool TargetChangingQueryPresent { get; init; }
 }
 
 public static class RouteTransport
@@ -144,15 +149,23 @@ public static class RouteTransport
         int expectedBytes,
         CancellationToken cancellation)
     {
+        // 署名無し経路はAWS SDKを通すと自動署名され得るため、独立したHttpClientで生成します。
+        // 400などの拒否を認証拒否と読み替えず、生成したmethod/URIと認証要素の有無だけを記録します。
         using var handler = new HttpClientHandler { AllowAutoRedirect = false };
         using var client = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
-        using var request = new HttpRequestMessage(HttpMethod.Get, BuildObjectUri(endpoint, key));
+        var objectUri = BuildObjectUri(endpoint, key);
+        using var request = new HttpRequestMessage(HttpMethod.Get, objectUri);
+        var hasAuthorization = request.Headers.Authorization is not null;
+        var hasSignatureQuery = objectUri.Query.Contains("X-Amz-", StringComparison.OrdinalIgnoreCase);
+        var hasTargetChangingQuery = objectUri.Query.Length > 0;
+        var requestMethod = request.Method.Method;
+        var requestUri = objectUri.AbsoluteUri;
         using var response = client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellation)
             .GetAwaiter().GetResult();
         var body = response.Content is null
             ? new BodyObservation(0, null, null, true, false, Array.Empty<byte>())
-            : ReadBody(response.Content.ReadAsStream(cancellation), expectedBytes, cancellation);
-        var code = ParseErrorCode(body.Bytes);
+            : ReadBody(response.Content.ReadAsStream(cancellation), expectedBytes, cancellation, UnsignedReadLimit);
+        var code = body.CapturedBytes is null ? null : ParseErrorCode(body.CapturedBytes);
         var status = (int)response.StatusCode;
         return new TransportObservation
         {
@@ -165,7 +178,12 @@ public static class RouteTransport
             PrefixSha256 = body.PrefixSha256,
             EofConfirmed = body.EofConfirmed,
             LimitReached = body.LimitReached,
-            Redirected = status is >= 300 and <= 399
+            Redirected = status is >= 300 and <= 399,
+            RequestMethod = requestMethod,
+            RequestUri = requestUri,
+            AuthorizationPresent = hasAuthorization,
+            SignatureQueryPresent = hasSignatureQuery,
+            TargetChangingQueryPresent = hasTargetChangingQuery
         };
     }
 
@@ -216,12 +234,17 @@ public static class RouteTransport
         return new Uri(endpoint + "/osm-artifacts/" + escaped, UriKind.Absolute);
     }
 
-    private static BodyObservation ReadBody(Stream stream, int expectedBytes, CancellationToken cancellation)
+    private static BodyObservation ReadBody(
+        Stream stream,
+        int expectedBytes,
+        CancellationToken cancellation,
+        int maximumBytes = UnsignedReadLimit)
     {
+        // 本文を蓄積せず、期待長までのprefixと全体hashだけを逐次計算します。
+        // 上限+1 byteを読んでEOF未確認を検出しつつ、その時点までに得たprefix証拠は保持します。
         using (stream)
         using (var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256))
         using (var prefix = IncrementalHash.CreateHash(HashAlgorithmName.SHA256))
-        using (var captured = new MemoryStream())
         {
             var buffer = new byte[1024];
             var count = 0;
@@ -232,7 +255,7 @@ public static class RouteTransport
                 cancellation.ThrowIfCancellationRequested();
                 var read = stream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellation).AsTask().GetAwaiter().GetResult();
                 if (read == 0) break;
-                var allowed = Math.Min(read, UnsignedReadLimit + 1 - count);
+                var allowed = Math.Min(read, maximumBytes + 1 - count);
                 if (allowed > 0)
                 {
                     digest.AppendData(buffer, 0, allowed);
@@ -242,10 +265,9 @@ public static class RouteTransport
                         prefix.AppendData(buffer, 0, prefixLength);
                         prefixCount += prefixLength;
                     }
-                    captured.Write(buffer, 0, allowed);
                     count += allowed;
                 }
-                if (count > UnsignedReadLimit)
+                if (count > maximumBytes)
                 {
                     limitReached = true;
                     break;
@@ -254,11 +276,14 @@ public static class RouteTransport
 
             if (limitReached)
             {
-                return new BodyObservation(count, null, null, false, true, captured.ToArray());
+                // 8193 byte目で止まっても、先頭N byteがobjectと一致した事実は露出判定に必要です。
+                var prefixHashAtLimit = prefixCount == expectedBytes
+                    ? Convert.ToHexString(prefix.GetHashAndReset()).ToLowerInvariant()
+                    : null;
+                return new BodyObservation(count, null, prefixHashAtLimit, false, true, null);
             }
 
-            var bytes = captured.ToArray();
-            var prefixHash = bytes.Length >= expectedBytes
+            var prefixHash = prefixCount == expectedBytes
                 ? Convert.ToHexString(prefix.GetHashAndReset()).ToLowerInvariant()
                 : null;
             return new BodyObservation(
@@ -267,7 +292,7 @@ public static class RouteTransport
                 prefixHash,
                 true,
                 false,
-                bytes);
+                null);
         }
     }
 
@@ -320,5 +345,5 @@ public static class RouteTransport
         string? PrefixSha256,
         bool EofConfirmed,
         bool LimitReached,
-        byte[] Bytes);
+        byte[]? CapturedBytes);
 }
