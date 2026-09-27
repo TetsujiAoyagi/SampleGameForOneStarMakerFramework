@@ -113,8 +113,8 @@ ownerはCloudflare画面でtokenのR2 Bucket Item Read/Writeが`osm-artifacts`�
 
 | 案 | 署名無しGETのGO条件候補 | 400/`InvalidArgument`の扱い | 必要な変更と残る限界 |
 | --- | --- | --- | --- |
-| A. 旧A3を維持 | 401/`Unauthorized`または403/`AccessDenied`、EOF・全体/prefix hash非一致等の旧条件すべて | 常に`inconclusive`。別の妥当な署名無し経路やrequest不具合の原因を調べ、同じ許可集合で再観測する | 受け入れ条件は不変。`93e1f95`の修正後head、request妥当性、証拠固定の不足は解消が必要。R2が別の拒否表現を返し続けるならGOできない |
-| B. 400を限定追加 | 旧条件に加え、**特定の**400/`InvalidArgument`が妥当な無認証GETへの認証拒否だと独立に確認でき、存在key・非露出・EOF等も満たす場合のみ | 原因未確定の現在の400は引き続き`inconclusive`。Message文字列単独では合格にしない | 許可集合、request妥当性の検査、offline失敗case、非秘密の診断項目、判定根拠をA3で明文化する必要がある。安全に区別できなければ案Aへ戻す |
+| A. 旧A3を維持 | **組として**401/`Unauthorized`または403/`AccessDenied`、EOF・全体/prefix hash非一致等の旧条件すべて | 常に`inconclusive`。別の妥当な署名無し経路やrequest不具合の原因を調べ、同じ許可集合で再観測する | 許可集合は不変だが、現行実装の旧A3不適合は修復が必要。R2が別の拒否表現を返し続けるならGOできない |
+| B. 400を限定追加 | 旧条件に加え、**特定の**400/`InvalidArgument`が妥当な無認証GETへの認証拒否だとproviderの一次説明等とrequest妥当性の両方で確認でき、存在key・非露出・EOF等も満たす場合のみ | 原因未確定の現在の400は引き続き`inconclusive`。Message文字列・同一400の反復・error本文hash・fake応答だけでは合格にしない | 具体的な許可(status, S3 Code)組、request妥当性の検査、offline失敗case、非秘密の診断項目と判定根拠をA3で明文化する。安全に区別できなければ400は許可しない |
 | C. 任意の非成功応答へ拡張 | 存在keyの認証GET後、署名無しGETが非2xxで本文hash非一致なら許可 | 現在の400を合格候補にし得る | malformed request、存在しない対象、redirect、proxy失敗等をprivate拒否と誤認する。元の能力証明を弱めるため、A1では採用を提案しないがA2の反例比較対象に残す |
 
 案A/Bのいずれでも、先頭N byte hashがobjectと一致する露出、EOF未確認、8192 byte超過、timeout、redirect、404/`NoSuchKey`、429/5xx、DNS/TLS/proxy不明、認証GET失敗、`Generation`不一致をGOにしない。`provider-capability-failure`は開始条件と陽性対照が成立した後の再現可能な内容露出またはlock強制力欠如に限る。意味不明な拒否は`inconclusive`、設定・権限等の準備不足は`environment-blocked`に分ける。現行Cの400はこの区別では能力否定でも非公開性の証明でもない。
@@ -122,9 +122,22 @@ ownerはCloudflare画面でtokenのR2 Bucket Item Read/Writeが`osm-artifacts`�
 ### A1 — 責務、検証経路、証拠固定の初稿
 
 - 判定を変えるなら`RouteProof.ps1`が許可status/S3 code、露出検知、失敗分類を所有し、`R2RouteTransport.cs`はrequest生成と非秘密の観測だけを返す。`CredentialStore.psm1`の秘密寿命、store schema、通常writer権限は変えない。案Bでは、既存観測からrequest妥当性を証明できるかをA2で審査し、不足する場合に限り非秘密の観測項目と型・値域を設計する。raw header/body、Authorization、SDK例外本文を証拠へ追加しない。
-- 現行物理行数は`RouteProof.ps1` 290、`R2RouteTransport.cs` 324、同`.psm1` 52、`RouteProof.Tests.ps1` 94、`CredentialStore.psm1` 334。案Aは判定コードの増分を原則0とし、案Bの増分は必要な非秘密観測を決めるまで未定とする。`RouteProof.ps1`は入力/子process/判定を既に持つため、新責務の混入と500行・3責務・50%増加の警報をA2のアーキテクチャレビューで評価し、分割/非分割理由をA3に残す。
+- 現行物理行数は`RouteProof.ps1` 290、`R2RouteTransport.cs` 324、同`.psm1` 52、`RouteProof.Tests.ps1` 94、`CredentialStore.psm1` 334。案Aは許可集合を変えないが、旧A3への判定適合修復と必要な回帰試験をPhase Bに含める。案Bの追加増分は必要な非秘密観測を決めるまで未定とする。`RouteProof.ps1`は入力/子process/判定を既に持つため、新責務の混入と500行・3責務・50%増加の警報をA2のアーキテクチャレビューで評価し、分割/非分割理由をA3に残す。
+- 旧A3適合の修復候補: 許可status/S3 Codeを独立集合でなく組で判定する。露出はEOFや全体hashだけに依存せず、上限到達・途中停止でも取得済みの期待長Nのprefix hash一致を優先して分類する。全体hash不一致・prefix一致の「object＋追加byte」を単なる`inconclusive`に落とさない。`provider-capability-failure`は1回の全体hash一致やlock操作のsuccess単独で確定せず、新run/keyの再現、同一`Generation`、保護なし陽性対照、lock保持有効性、変更後hashの再GET等を凍結条件どおり照合する。条件未充足や`Generation`不一致は能力否定より先に`inconclusive`とする。
+- 回復cleanupの修復候補: PUTの試行開始と応答不明を追跡する。本処理5分とは独立した合計30秒の回復DELETE＋認証GETによる`NoSuchKey`確認を設け、通常DELETEでも204だけで`removed`としない。確認不能・期限超過は`unconfirmed`を維持する。旧C resultの「DELETEで除去確認（204）」は旧A3の削除確認の一次証拠に数えない。
+- request妥当性の検査候補: 正規化した同一endpoint/bucket/key、GET、Authorizationと署名query無し、対象を変えるquery/header無し、redirect無しを、raw header/bodyを保存せずに確認する。静的な生成経路の検査と、後日の承認済み実観測でしか確かめられない事項を分ける。案Bの400を許すなら、providerの一次説明等とこの実観測の両方が揃うまでGOにしない。S3経路の拒否結果だけでbucket全体の非公開設定を証明した扱いにせず、ownerによるr2.dev Public Development URL無効・Custom Domainsなしの確認を維持する。
 - A2に渡す同一入力版には、このA0/A1、凍結A3、B result、C result、`e122a79..93e1f95`の実装差分を含める。少なくともアーキテクチャ/責務境界と、HTTP拒否意味・失敗分類/証拠の独立レビューを分ける。高リスクの代替案レビューにはA0のみを渡すことを検討する。各レビューの入力版hash、担当・モデル、独立性を記録し、A3で人間と採否・理由を統合する。
 - 判定Cの検証経路候補は、同一Windowsユーザーの別`pwsh` process、固定synthetic key、認証GETによる存在/byte/hash確認、無認証GET、保護なし陽性対照、ownerの非秘密lock設定記録、lock拒否・再GETである。実操作の担当、対象版、各観測の合否、期限、清掃、C/C'への受け渡しはA3前に条件ごとに再確認する。今回のA0/A1では疎通を再実行しない。
 - C resultの自己参照するfile hash欄を正本にしない。新たなsnapshotとbundleは、内容を確定した後に**別のmanifest**でpath、取得commit/blobまたはbundle id、生成UTC、byte長、SHA-256、hash対象のbyte定義を記録する。manifest自身を同じ欄でhashしない。Git blobなら`git show <commit>:<path>`のbyte列、ローカルfileなら保存したfile bytesと区別する。証拠が異なる版・改行へ転送された場合は受信側で再計算して照合する。B resultは所見なしの`e122a79` snapshotとして保持し、Cの修正を後付けしない。
-- `93e1f95`の実装候補を使う場合も、新A3後にPhase Bでそのheadとの差分と設計適合を確定し、所見のない新B resultを別snapshotとして作る。GO候補headに対するoffline suite、SDK build/別process load、契約・文書監査、実R2の全必須経路、固定diff/生結果を判定Cでやり直す。Unity側変更がない場合の全EditMode除外は理由とPowerShell/.NET代替証拠を新A3へ明記する。旧Cの認証PUT/GET観測を新headの合格証拠へ流用しない。判定CとC'には同じheadとevidenceを渡し、C'はGO候補が揃うまで起動しない。
+- 判定evidenceのmanifestには新A3 snapshotのcommit/path/blob、完全なimplementation base/head、実行前後の対象source status、実際に読み込むGit管理外DLLと依存成果物のhash、PowerShell/.NET実行版、run-id/UTC、固定schemaの一次観測・テスト生結果・owner設定記録を対応付ける候補とする。実装headと、結果文書を後から保存するdocs commitは別fieldとする。sourceまたは実行DLLが変わったrunを旧headの判定evidenceに混ぜず、受信者がhashと必須fileを検証し、不一致なら判定を停止する。owner ruleのbefore/afterはrun前に自己申告した同一hashだけでは足りず、実際の前後確認UTCと設定記録を別々に取得してCが照合する。
+- C' blind bundleには新A3条件、code-only完全diff、所見なしB result、固定された非秘密owner ledgerと一次観測、判定前の機械検査だけをallowlistで入れる。旧Cの判断、C中の修正理由、§5/§6の所見、PRレビューコメントを含む可変HANDOFFやdocs込みPR全差分は渡さない。C/C'は同じ固定sourceと一次観測を使うが、Cの判断はC'完了まで隔離する。
+- `93e1f95`の実装候補を使う場合も、新A3後にPhase Bでそのheadとの差分と設計適合を確定し、所見のない新B resultを別snapshotとして作る。GO候補headに対するoffline suite、SDK build/別process load、契約・文書監査、実R2の全必須経路、固定diff/生結果を判定Cでやり直す。offline suiteは個別判定関数だけでなく、実際のfixture生成、親子process/JSON往復、12操作主ループ、最終記録/exit、通常/回復cleanupをfake transport・子process・注入時計で通す。全体hash不一致/prefix一致、許可tupleの取り違え、400/malformed、`Generation`不一致、EOF/上限/子process停止、C中に判明した文字列展開・`$(if ...)`・Int64の回帰を含める。実時間sleepや別の判定実装を試験正本にしない。Unity側変更がない場合の全EditMode除外は理由とPowerShell/.NET代替証拠を新A3へ明記する。旧Cの認証PUT/GET観測を新headの合格証拠へ流用しない。判定CとC'には同じheadとevidenceを渡し、C'はGO候補が揃うまで起動しない。
 - A3再凍結前の停止規則: 案の採用、許可応答集合の変更、失敗分類の実装、実R2再試行はしない。A2所見と人間の採否で、案A/Bまたは別案、検証可能な最低条件と受け入れ詳細、必要なPhase B変更範囲、証拠manifest仕様を決めて新snapshotを凍結する。A2で案Bの400の意味を区別できないなら、400をGOへ読み替えない。
+
+### A2レビュー記録とA1初稿への反映（A3採否ではない）
+
+- [PR #80 review 5330483423](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/80#pullrequestreview-5330483423) は `e9738fd4ba37b8ca689660e24ff894b8a75587ec` の§6を対象とする Web ChatGPT / GPT-6 Astra Pro の静的レビュー。旧A2 ledgerとC所見を読んだ**非盲検**であり、独立盲検レビューやC'には数えない。コード変更、テスト、実R2操作はない。B/C resultのSHA-256再計算は本packetの値と一致した。
+- 指摘1（許可tuple、prefix露出、上限/timeout時の観測、能力否定の再現、世代照合）と指摘2（回復30秒、PUT結果不明、削除確認）は、旧A3の凍結済み条件との具体的な不適合をコードで確認した。A1のPhase B修復候補と回帰条件へ反映した。案Aでも許可集合の不変と実装修復を区別する。最終採否・分割はA3で行う。
+- 指摘3（production経路を通らないoffline試験と3件のC不具合）を、fakeによる主ループ・親子/JSON・cleanupの回帰候補へ反映した。指摘4（実行DLL/PATHとHEADのずれ、owner設定前後、blind bundleの混入）をmanifestとC/C'受渡し候補へ反映した。いずれも現在の必要条件と証拠の対応を回復する範囲であり、実装や証拠取得はA3後に行う。
+- 案Aを基準とする提案、案Bの条件付き保留、案Cの不採用提案は比較の入力として保留する。人間のA3採否ではない。公開経路のowner確認を維持し、S3 GETだけでbucket全体のprivateを宣言しない。PR本文の古い実装状態・件数はレビュー入口の説明driftであり、このHANDOFFの採否・実装head・証拠判定を上書きしない。
+- 残るA2: 同一の改訂A0/A1入力版に対し、アーキテクチャゲートを専門に見る独立レビューと、失敗分類/証拠の独立レビューを確保する。今回の非盲検所見を他の独立担当の入力へ混ぜない。レビュー後に主担当と人間が採用・不採用・保留を理由付きで統合してA3を再凍結する。
