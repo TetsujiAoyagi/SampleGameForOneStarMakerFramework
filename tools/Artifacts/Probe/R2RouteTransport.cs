@@ -163,16 +163,15 @@ public static class RouteTransport
         using var response = client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellation)
             .GetAwaiter().GetResult();
         var body = response.Content is null
-            ? new BodyObservation(0, null, null, true, false, Array.Empty<byte>())
-            : ReadBody(response.Content.ReadAsStream(cancellation), expectedBytes, cancellation, UnsignedReadLimit);
-        var code = body.CapturedBytes is null ? null : ParseErrorCode(body.CapturedBytes);
+            ? new BodyObservation(0, null, null, true, false, null)
+            : ReadBody(response.Content.ReadAsStream(cancellation), expectedBytes, cancellation, UnsignedReadLimit, captureS3Code: true);
         var status = (int)response.StatusCode;
         return new TransportObservation
         {
             Operation = "unsigned-get",
             HttpStatus = status,
             StatusClass = ClassifyStatus(status),
-            S3Code = code,
+            S3Code = body.S3Code,
             ByteCount = body.ByteCount,
             BodySha256 = body.BodySha256,
             PrefixSha256 = body.PrefixSha256,
@@ -238,7 +237,8 @@ public static class RouteTransport
         Stream stream,
         int expectedBytes,
         CancellationToken cancellation,
-        int maximumBytes = UnsignedReadLimit)
+        int maximumBytes = UnsignedReadLimit,
+        bool captureS3Code = false)
     {
         // 本文を蓄積せず、期待長までのprefixと全体hashだけを逐次計算します。
         // 上限+1 byteを読んでEOF未確認を検出しつつ、その時点までに得たprefix証拠は保持します。
@@ -250,6 +250,7 @@ public static class RouteTransport
             var count = 0;
             var prefixCount = 0;
             var limitReached = false;
+            var errorCode = captureS3Code ? new ErrorCodeScanner() : null;
             while (true)
             {
                 cancellation.ThrowIfCancellationRequested();
@@ -259,6 +260,7 @@ public static class RouteTransport
                 if (allowed > 0)
                 {
                     digest.AppendData(buffer, 0, allowed);
+                    errorCode?.Append(buffer, 0, allowed);
                     if (prefixCount < expectedBytes)
                     {
                         var prefixLength = Math.Min(allowed, expectedBytes - prefixCount);
@@ -280,7 +282,7 @@ public static class RouteTransport
                 var prefixHashAtLimit = prefixCount == expectedBytes
                     ? Convert.ToHexString(prefix.GetHashAndReset()).ToLowerInvariant()
                     : null;
-                return new BodyObservation(count, null, prefixHashAtLimit, false, true, null);
+                return new BodyObservation(count, null, prefixHashAtLimit, false, true, errorCode?.Code);
             }
 
             var prefixHash = prefixCount == expectedBytes
@@ -292,7 +294,62 @@ public static class RouteTransport
                 prefixHash,
                 true,
                 false,
-                null);
+                errorCode?.Code);
+        }
+    }
+
+    private sealed class ErrorCodeScanner
+    {
+        private const string OpeningTag = "<Code>";
+        private const string ClosingTag = "</Code>";
+        private readonly StringBuilder _openingCandidate = new();
+        private readonly StringBuilder _codeCandidate = new();
+        private bool _insideCode;
+        private bool _finished;
+
+        public string? Code { get; private set; }
+
+        public void Append(byte[] bytes, int offset, int count)
+        {
+            for (var index = offset; index < offset + count && !_finished; index++)
+            {
+                var value = bytes[index];
+                var character = value <= 0x7f ? (char)value : '\ufffd';
+                if (!_insideCode)
+                {
+                    _openingCandidate.Append(character);
+                    var candidate = _openingCandidate.ToString();
+                    if (candidate.EndsWith(OpeningTag, StringComparison.Ordinal))
+                    {
+                        _insideCode = true;
+                        _openingCandidate.Clear();
+                        continue;
+                    }
+
+                    while (_openingCandidate.Length > 0 &&
+                           !OpeningTag.StartsWith(_openingCandidate.ToString(), StringComparison.Ordinal))
+                    {
+                        _openingCandidate.Remove(0, 1);
+                    }
+                    continue;
+                }
+
+                _codeCandidate.Append(character);
+                if (_codeCandidate.Length > 80)
+                {
+                    // Code要素だけを短く保持し、本文やMessageをメモリに残さないよう上限で打ち切ります。
+                    _finished = true;
+                    _codeCandidate.Clear();
+                    continue;
+                }
+
+                var text = _codeCandidate.ToString();
+                if (!text.EndsWith(ClosingTag, StringComparison.Ordinal)) continue;
+                var code = text[..^ClosingTag.Length].Trim();
+                if (SafeErrorCode.IsMatch(code)) Code = code;
+                _finished = true;
+                _codeCandidate.Clear();
+            }
         }
     }
 
@@ -307,14 +364,6 @@ public static class RouteTransport
             S3Code = SafeCode(exception.ErrorCode),
             EofConfirmed = true
         };
-    }
-
-    private static string? ParseErrorCode(byte[] bytes)
-    {
-        if (bytes.Length == 0) return null;
-        var text = Encoding.UTF8.GetString(bytes);
-        var match = Regex.Match(text, "<Code>\\s*([A-Za-z][A-Za-z0-9]{0,63})\\s*</Code>", RegexOptions.CultureInvariant);
-        return match.Success ? SafeCode(match.Groups[1].Value) : null;
     }
 
     private static string? SafeCode(string? code) => code is not null && SafeErrorCode.IsMatch(code) ? code : null;
@@ -345,5 +394,5 @@ public static class RouteTransport
         string? PrefixSha256,
         bool EofConfirmed,
         bool LimitReached,
-        byte[]? CapturedBytes);
+        string? S3Code);
 }

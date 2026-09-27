@@ -8,8 +8,7 @@ param(
     [string] $PayloadBase64,
     [string] $RunId,
     [string] $LockRuleJson,
-    [switch] $Library,
-    [switch] $RunLoop
+    [switch] $Library
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -20,9 +19,10 @@ $script:ObservationProperties = @(
     'RequestMethod','RequestUri','AuthorizationPresent','SignatureQueryPresent','TargetChangingQueryPresent'
 )
 
-# 同じproduction loopをofflineで検査できるよう、時間・子process・通信の境界を差し替えます。
+# 実行とoffline試験で同じ主ループを使うため、時計と子process境界を注入可能にします。
 $script:RouteProofClock = $null
 $script:RouteProofChildRunner = $null
+# child process全体の期限とtransport応答を別々に注入し、同じ主ループの停止境界を検査します。
 $script:RouteProofTransport = $null
 
 function Test-Endpoint([string] $Value) { return $Value -cmatch '^https://[0-9a-f]{32}\.r2\.cloudflarestorage\.com$' }
@@ -30,7 +30,9 @@ function Test-Hash([string] $Value) { return $Value -cmatch '^[0-9a-f]{64}$' }
 function Test-RunId([string] $Value) { return $Value -cmatch '^[0-9a-f]{32}$' }
 function Test-Key([string] $Value, [string] $ExpectedRunId = '') {
     # childごとにrun-idとkeyの対応を検証し、別runへの誤書込みを拒否します。
-    return $Value -cmatch '^probe/(unlocked|locked)/[0-9a-f]{32}/[A-Za-z0-9._-]{1,64}$' -and
+    $validShape = $Value -cmatch '^probe/(unlocked|locked)/[0-9a-f]{32}/[A-Za-z0-9._-]{1,64}$'
+    $leaf = if ($validShape) { ($Value -split '/')[-1] } else { '' }
+    return $validShape -and $leaf -notin @('.','..') -and
         ([string]::IsNullOrEmpty($ExpectedRunId) -or $Value -match ('^probe/(unlocked|locked)/' + [regex]::Escape($ExpectedRunId) + '/')) -and
         $Value.IndexOfAny([char[]]([char]0..[char]31 + [char]127)) -lt 0
 }
@@ -50,6 +52,13 @@ function Invoke-RouteDelay([int] $Milliseconds) {
     Start-Sleep -Milliseconds $Milliseconds
 }
 
+function Get-RemainingPipeWait([int] $ChildBudgetMilliseconds, [TimeSpan] $ChildStartedAt) {
+    # Stopwatch基準と注入時計のどちらでも、子process開始後だけを子予算から差し引きます。
+    $childElapsed = (Get-RouteElapsed) - $ChildStartedAt
+    return [Math]::Max(0, [Math]::Min(5000, $ChildBudgetMilliseconds - [int]$childElapsed.TotalMilliseconds))
+}
+
+# 実行経路とoffline試験が共有する唯一の12操作ループです。時刻と子process境界だけを差し替えます。
 function Invoke-RouteProofLoop([string] $EndpointValue, [string] $RunIdValue, [string] $RuleJson) {
     $script:ActiveEndpoint = $EndpointValue
     $lockRule = Read-LockRule $RuleJson
@@ -61,7 +70,7 @@ function Invoke-RouteProofLoop([string] $EndpointValue, [string] $RunIdValue, [s
     $originalHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($original)).ToLowerInvariant()
     $changedHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($changed)).ToLowerInvariant()
     $records = [Collections.Generic.List[object]]::new()
-    $classification = 'pass'; $unlockedPut = $false; $unlockedRemoved = $false; $lockedPut = $false; $writerGeneration = $null
+    $classification = 'pass'; $unlockedCleanupRequired = $false; $unlockedRemoved = $false; $lockedPut = $false; $writerGeneration = $null
     $steps = @(
         @{ Op='put'; Key=$unlockedKey; Bytes=$original; Hash=$originalHash; Phase='unlocked-put' },
         @{ Op='authenticated-get'; Key=$unlockedKey; Bytes=$original; Hash=$originalHash; Phase='unlocked-authenticated-get' },
@@ -80,6 +89,8 @@ function Invoke-RouteProofLoop([string] $EndpointValue, [string] $RunIdValue, [s
         if ((Get-RouteElapsed) -ge [TimeSpan]::FromMinutes(5)) { $classification = 'inconclusive'; break }
         $payload = if ($step.Op -eq 'put') { [Convert]::ToBase64String($step.Bytes) } else { $null }
         $script:ActiveKey = $step.Key
+        # PUTを起動した時点でサーバーにobjectが作られた可能性があるため、応答結果を待たず清掃対象にします。
+        if ($step.Phase -eq 'unlocked-put') { $unlockedCleanupRequired = $true }
         $observation = Invoke-ChildOperation $EndpointValue $step.Op $step.Key $step.Hash $step.Bytes.Length $payload $RunIdValue
         if ($null -ne $observation -and $step.Phase -eq 'unlocked-overwrite' -and $observation.StatusClass -eq 'too-many-requests') {
             Invoke-RouteDelay 1000
@@ -100,29 +111,38 @@ function Invoke-RouteProofLoop([string] $EndpointValue, [string] $RunIdValue, [s
         if ($passed -and $null -ne $writerGeneration -and $observation.Generation -cne $writerGeneration) {
             $passed = $false; $classification = 'inconclusive'
         } elseif ($passed -and $null -eq $writerGeneration) { $writerGeneration = $observation.Generation }
-        if ($step.Phase -eq 'unlocked-put' -and $passed) { $unlockedPut = $true }
-        if ($step.Phase -eq 'unlocked-delete' -and $passed) { $unlockedRemoved = $true }
+        if ($step.Phase -eq 'unlocked-delete-confirm' -and $passed) { $unlockedRemoved = $true }
         if ($step.Phase -eq 'locked-put' -and $passed) { $lockedPut = $true }
         if (-not $passed) {
-            if ($step.Phase -eq 'unsigned-get' -and $null -ne $observation -and $observation.PrefixSha256 -ceq $step.Hash) { $classification = 'provider-capability-failure' }
+            if ($step.Phase -eq 'unsigned-get' -and $null -ne $observation -and $observation.PrefixSha256 -ceq $step.Hash) {
+                # 一度のprefix一致は内容露出として記録しますが、再現条件を満たさないため能力failureへは確定しません。
+                $classification = 'inconclusive'
+            }
             elseif (($step.Phase -like 'locked-*') -and $lockedPut -and $null -ne $observation -and $observation.StatusClass -eq 'success') { $classification = 'provider-capability-failure' }
             else { $classification = 'inconclusive' }
             $records.Add((New-ObservationRecord $classification $step.Phase $step.Op $step.Key $step.Hash $step.Bytes.Length $observation $(if ($step.Phase -like 'locked-*' -and $lockedPut) { 'retained-by-lock' } else { 'unconfirmed' }) $lockRule $script:Base $script:Head))
             break
         }
-        $cleanup = if ($step.Phase -eq 'unlocked-delete') { 'removed' } elseif ($step.Phase -like 'locked-*') { 'retained-by-lock' } else { 'not-needed' }
+        $cleanup = if ($step.Phase -eq 'unlocked-delete') { 'delete-sent; awaiting-confirmation' } elseif ($step.Phase -eq 'unlocked-delete-confirm') { 'removed' } elseif ($step.Phase -like 'locked-*') { 'retained-by-lock' } else { 'not-needed' }
         $records.Add((New-ObservationRecord 'pass' $step.Phase $step.Op $step.Key $step.Hash $step.Bytes.Length $observation $cleanup $lockRule $script:Base $script:Head))
     }
     if ($classification -eq 'pass' -and $records.Count -eq 12) {
         $records.Add((New-ObservationRecord 'pass' 'complete' 'route-proof' $null $null 0 $null $(if ($unlockedRemoved) { 'removed; locked object retained' } else { 'unconfirmed' }) $lockRule $script:Base $script:Head))
     } else {
-        if ($unlockedPut -and -not $unlockedRemoved) {
-            # PUT応答が曖昧でもkeyは存在し得るため、結果失敗後に同じrun内で清掃を試します。
+        if ($unlockedCleanupRequired -and -not $unlockedRemoved) {
+            # 本処理の5分期限とは別に合計30秒を確保し、DELETE応答だけでなくNoSuchKeyまで確認します。
+            $cleanupDeadline = (Get-RouteElapsed) + [TimeSpan]::FromSeconds(30)
             $script:ActiveKey = $unlockedKey
-            $cleanupObservation = Invoke-ChildOperation $EndpointValue 'delete' $unlockedKey $changedHash $changed.Length $null $RunIdValue
-            if ($null -eq $cleanupObservation -or $cleanupObservation.StatusClass -ne 'success') { $classification = 'inconclusive' }
+            $cleanupObservation = Invoke-ChildOperation $EndpointValue 'delete' $unlockedKey $changedHash $changed.Length $null $RunIdValue $cleanupDeadline
+            $records.Add((New-ObservationRecord $classification 'recovery-cleanup-delete' 'delete' $unlockedKey $changedHash $changed.Length $cleanupObservation 'unconfirmed' $lockRule $script:Base $script:Head))
+            if ($null -ne $cleanupObservation -and $cleanupObservation.StatusClass -eq 'success' -and (Get-RouteElapsed) -lt $cleanupDeadline) {
+                $confirmObservation = Invoke-ChildOperation $EndpointValue 'authenticated-get' $unlockedKey $changedHash $changed.Length $null $RunIdValue $cleanupDeadline
+                $unlockedRemoved = $null -ne $confirmObservation -and $confirmObservation.StatusClass -eq 'not-found' -and $confirmObservation.S3Code -ceq 'NoSuchKey'
+                $records.Add((New-ObservationRecord $classification 'recovery-cleanup-confirm' 'authenticated-get' $unlockedKey $changedHash $changed.Length $confirmObservation $(if ($unlockedRemoved) { 'removed' } else { 'unconfirmed' }) $lockRule $script:Base $script:Head))
+            }
+            if (-not $unlockedRemoved) { $classification = 'inconclusive' }
         }
-        $records.Add((New-ObservationRecord $classification 'complete' 'route-proof' $null $null 0 $null $(if ($lockedPut) { 'retained-by-lock' } else { 'unconfirmed' }) $lockRule $script:Base $script:Head))
+        $records.Add((New-ObservationRecord $classification 'complete' 'route-proof' $null $null 0 $null $(if ($unlockedRemoved) { 'removed' } else { 'unconfirmed' }) $lockRule $script:Base $script:Head))
     }
     [Array]::Clear($original, 0, $original.Length); [Array]::Clear($changed, 0, $changed.Length)
     $exit = switch ($classification) { 'pass' { 0 } 'provider-capability-failure' { 2 } 'environment-blocked' { 3 } default { 4 } }
@@ -231,13 +251,29 @@ function Invoke-ChildOperation(
     [string] $ExpectedHashValue,
     [int] $Bytes,
     [string] $Payload,
-    [string] $ExpectedRunId) {
+    [string] $ExpectedRunId,
+    [TimeSpan] $Deadline = [TimeSpan]::FromMinutes(5)) {
     $elapsed = Get-RouteElapsed
-    if ($elapsed -ge [TimeSpan]::FromMinutes(5)) { return $null }
-    # 45秒の子上限と残り5分予算の短い方を、起動からpipe回収まで共有します。
-    $remaining = [Math]::Min(45000, [int]([TimeSpan]::FromMinutes(5) - $elapsed).TotalMilliseconds)
+    if ($elapsed -ge $Deadline) { return $null }
+    # 45秒の子上限と呼び出し側deadlineまでの短い方を、起動からpipe回収まで共有します。
+    $remaining = [Math]::Min(45000, [int]($Deadline - $elapsed).TotalMilliseconds)
     if ($null -ne $script:RouteProofChildRunner) {
-        return & $script:RouteProofChildRunner $EndpointValue $OperationName $KeyValue $ExpectedHashValue $Bytes $Payload $ExpectedRunId $remaining
+        $observation = & $script:RouteProofChildRunner $EndpointValue $OperationName $KeyValue $ExpectedHashValue $Bytes $Payload $ExpectedRunId $remaining $Deadline
+        if ($null -eq $observation) { return $null }
+        try {
+            Assert-Observation $observation
+            if ($observation.Operation -cne $OperationName) { return $null }
+            return $observation
+        } catch { return $null }
+    }
+    if ($null -ne $script:RouteProofTransport) {
+        try {
+            $observation = & $script:RouteProofTransport $EndpointValue $OperationName $KeyValue $ExpectedHashValue $Bytes $Payload $ExpectedRunId $remaining $Deadline
+            if ($null -eq $observation) { return $null }
+            Assert-Observation $observation
+            if ($observation.Operation -cne $OperationName) { return $null }
+            return $observation
+        } catch { return $null }
     }
     $info = [Diagnostics.ProcessStartInfo]::new()
     $info.FileName = 'pwsh'; $info.UseShellExecute = $false; $info.CreateNoWindow = $true
@@ -247,26 +283,18 @@ function Invoke-ChildOperation(
     $process = [Diagnostics.Process]::new(); $process.StartInfo = $info
     try {
         if (-not $process.Start()) { return $null }
-        # pipeを先に並行drainし、子終了後のReadToEndによる無期限待ちを避けます。
-        # 大きなpipe出力でも子を止めないよう並行drainし、終了後の同期ReadToEndは避けます。
+        # pipeを先に並行drainし、大きな出力で子が詰まることと終了後の同期ReadToEndを避けます。
         $stdoutTask = $process.StandardOutput.ReadToEndAsync()
         $stderrTask = $process.StandardError.ReadToEndAsync()
+        $childStartedAt = Get-RouteElapsed
         if (-not $process.WaitForExit($remaining)) {
             try { $process.Kill($true) } catch { try { $process.Kill() } catch { } }
-            try { $process.WaitForExit(5000) } catch { }
+            # deadline後に固定時間の終了待ちを足すと全体予算を越えるため、非待機で終了状態だけ確認します。
+            try { [void]$process.WaitForExit(0) } catch { }
             return $null
         }
-        $remainingForPipes = [Math]::Max(0, [Math]::Min(5000, $remaining - [int](Get-RouteElapsed).TotalMilliseconds))
-        if (-not $stdoutTask.Wait($remainingForPipes) -or -not $stderrTask.Wait($remainingForPipes)) {
-            try { $process.Kill($true) } catch { try { $process.Kill() } catch { } }
-            return $null
-        }
-        $remainingForPipes = [Math]::Max(0, [Math]::Min(5000, $remaining - [int](Get-RouteElapsed).TotalMilliseconds))
-        if (-not $stdoutTask.Wait($remainingForPipes) -or -not $stderrTask.Wait($remainingForPipes)) {
-            try { $process.Kill($true) } catch { try { $process.Kill() } catch { } }
-            return $null
-        }
-        $remainingForPipes = [Math]::Max(0, [Math]::Min(5000, $remaining - [int](Get-RouteElapsed).TotalMilliseconds))
+        # run全体の経過ではなく、この子を起動した後の経過を同じ子予算から差し引きます。
+        $remainingForPipes = Get-RemainingPipeWait $remaining $childStartedAt
         if (-not $stdoutTask.Wait($remainingForPipes) -or -not $stderrTask.Wait($remainingForPipes)) {
             try { $process.Kill($true) } catch { try { $process.Kill() } catch { } }
             return $null
@@ -278,6 +306,7 @@ function Invoke-ChildOperation(
         if ($lines.Count -ne 1) { return $null }
         $observation = $lines[0] | ConvertFrom-Json
         Assert-Observation $observation
+        if ($observation.Operation -cne $OperationName) { return $null }
         return $observation
     } catch { return $null } finally { $process.Dispose() }
 }
@@ -315,19 +344,6 @@ $base = try { (git merge-base develop HEAD 2>$null).Trim() } catch { $null }
 $head = try { (git rev-parse HEAD 2>$null).Trim() } catch { $null }
 $script:Base = $base; $script:Head = $head
 
-if ($RunLoop) {
-    # テストも実運用と同じ12操作ループを通し、同じ分類とcleanupを確認します。
-    try {
-        if (-not (Test-Endpoint $Endpoint) -or -not (Test-RunId $RunId)) { throw 'Invalid input.' }
-        $result = Invoke-RouteProofLoop $Endpoint $RunId $LockRuleJson
-        foreach ($record in $result.Records) { [Console]::WriteLine(($record | ConvertTo-Json -Compress -Depth 6)) }
-        exit $result.ExitCode
-    } catch {
-        $record = New-ObservationRecord 'environment-blocked' 'input' 'input' $null $null 0 $null 'not-needed' $null $base $head
-        [Console]::WriteLine(($record | ConvertTo-Json -Compress -Depth 6)); exit 3
-    }
-}
-
 if ($Child) {
     try {
         if (-not (Test-Endpoint $Endpoint) -or $Operation -notin @('put','authenticated-get','unsigned-get','delete') -or
@@ -340,8 +356,7 @@ if ($Child) {
         }
         $callback = { param($id, $secret, $generation, $requestValue) Invoke-R2RouteTransport $id $secret $generation $requestValue }
         $storeModule = Import-Module (Join-Path $PSScriptRoot '../Credentials/CredentialStore.psm1') -Force -PassThru
-        if ($null -ne $script:RouteProofTransport) { $observation = & $script:RouteProofTransport $Operation $request }
-        else { $observation = Invoke-CredentialTransport 'osm' $callback $request }
+        $observation = Invoke-CredentialTransport 'osm' $callback $request
         Assert-Observation $observation
         [Console]::WriteLine(($observation | ConvertTo-Json -Compress -Depth 4))
         exit 0

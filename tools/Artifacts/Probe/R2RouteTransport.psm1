@@ -20,8 +20,10 @@ function Invoke-R2RouteTransport {
         [Parameter(Mandatory = $true)][hashtable] $Request
     )
     Import-RouteTransportAssembly
+    $keySegments = @($Request.Key -split '/')
     if ($Request.Endpoint -cnotmatch '^https://[0-9a-f]{32}\.r2\.cloudflarestorage\.com$' -or
         $Request.Key -cnotmatch '^probe/(unlocked|locked)/[0-9a-f]{32}/[A-Za-z0-9._-]{1,64}$' -or
+        $keySegments[-1] -in @('.','..') -or
         $Request.Operation -notin @('put','authenticated-get','unsigned-get','delete') -or
         $Request.ExpectedBytes -lt 1 -or $Request.ExpectedBytes -gt 1024 -or
         $Request.DeadlineMilliseconds -lt 1 -or $Request.DeadlineMilliseconds -gt 30000) {

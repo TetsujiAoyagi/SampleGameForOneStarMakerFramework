@@ -52,6 +52,7 @@ try {
         Assert (-not (Test-Hash 'not-a-hash')) 'invalid hash accepted'
         Assert (-not (Test-Key "probe/unlocked/0123456789abcdef0123456789abcdef/$([char]1)")) 'control character accepted'
         Assert (-not (Test-Key 'probe/locked/0123456789abcdef0123456789abcdef/object.txt' 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')) 'foreign run-id accepted'
+        Assert (-not (Test-Key 'probe/unlocked/0123456789abcdef0123456789abcdef/..')) 'dot-segment object key accepted'
     }
     Run 'unsigned exact object is not private' {
         $script:ActiveEndpoint='https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com'; $script:ActiveKey='probe/unlocked/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/object.txt'
@@ -85,6 +86,22 @@ try {
         Assert ((Get-StatusClass 404) -eq 'not-found' -and (Get-StatusClass 429) -eq 'too-many-requests' -and (Get-StatusClass 503) -eq 'server-error') 'status classification'
         Assert (-not (Test-AuthenticatedMatch (Fake-Observation -Operation 'authenticated-get' -HttpStatus 200 -StatusClass 'success' -S3Code $null -ByteCount 23 -BodySha256 $global:RouteProofTestExpectedHash -Generation 'fedcba9876543210fedcba9876543210') $global:RouteProofTestExpectedHash 23)) 'wrong generation accepted'
     }
+    Run 'pipe budget is measured from child start, not accumulated run time' {
+        $script:RouteProofClock = { [TimeSpan]::FromSeconds(80) }
+        $remaining = Get-RemainingPipeWait 45000 ([TimeSpan]::FromSeconds(50))
+        Assert ($remaining -eq 5000) 'prior operation time consumed the child pipe budget'
+        $script:RouteProofClock = { [TimeSpan]::FromSeconds(46) }
+        $expired = Get-RemainingPipeWait 45000 ([TimeSpan]::Zero)
+        Assert ($expired -eq 0) 'expired child budget remained available'
+        $script:RouteProofClock = $null
+    }
+    Run 'child result must describe the requested operation' {
+        $script:RouteProofClock = { [TimeSpan]::Zero }
+        $script:RouteProofChildRunner = { param($endpoint,$operation,$key,$hash,$bytes,$payload,$runId,$remaining,$deadline) Fake-Observation -Operation 'authenticated-get' }
+        $mismatch = Invoke-ChildOperation 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com' 'delete' 'probe/unlocked/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/object.txt' $global:RouteProofTestExpectedHash 23 $null 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+        Assert ($null -eq $mismatch) 'child operation mismatch was accepted'
+        $script:RouteProofClock = $null; $script:RouteProofChildRunner = $null
+    }
     Run 'result schema is closed and secret-free' {
         $record = New-ObservationRecord 'pass' 'offline' 'unsigned-get' 'probe/unlocked/0123456789abcdef0123456789abcdef/object.txt' $global:RouteProofTestExpectedHash 23 (Fake-Observation -BodySha256 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') 'not-needed' $null 'base' 'head'
         $names = @($record.PSObject.Properties.Name)
@@ -106,13 +123,13 @@ try {
         $script:Base='offline-base'; $script:Head='offline-head'
         $ruleHash = 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
         $script:RouteProofClock = { [TimeSpan]::Zero }
-        $script:RouteProofChildRunner = {
+        $script:RouteProofTransport = {
             param($endpoint,$operation,$key,$hash,$bytes,$payload,$expectedRunId,$remaining)
             if ($remaining -gt 300000) { throw 'run deadline exceeded' }
             if (-not (Test-Key $key $expectedRunId)) { throw 'child key/run mismatch' }
             $status = 200; $class = 'success'; $code = $null; $bodyHash = $hash; $prefixHash = $hash; $eof = $true
-            if ($operation -eq 'unsigned-get') { $status=403; $class='forbidden'; $code='AccessDenied'; $bodyHash='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'; $prefixHash='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }
-            elseif ($operation -eq 'authenticated-get' -and $key -like 'probe/unlocked/*' -and $script:fakeUnlockedDeleted -and $hash -eq $global:RouteProofTestChangedHash) { $status=404; $class='not-found'; $code='NoSuchKey'; $bodyHash=$null; $prefixHash=$null }
+            if ($operation -eq 'unsigned-get') { $status=403; $class='forbidden'; $code='AccessDenied'; $bodyHash='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'; $prefixHash=$hash }
+            elseif ($operation -eq 'authenticated-get' -and $key -like 'probe/unlocked/*' -and $script:fakeUnlockedDeleted) { $status=404; $class='not-found'; $code='NoSuchKey'; $bodyHash=$null; $prefixHash=$null }
             elseif ($operation -eq 'delete') { $status=204 }
             elseif ($key -like 'probe/locked/*' -and $operation -in @('put','delete') -and $hash -eq $global:RouteProofTestExpectedHash -and $operation -eq 'put') { $status=403; $class='forbidden'; $code='ObjectLockedByBucketPolicy' }
             elseif ($key -like 'probe/locked/*' -and $operation -eq 'delete' -and $hash -eq $global:RouteProofTestExpectedHash) { $status=403; $class='forbidden'; $code='ObjectLockedByBucketPolicy' }
@@ -129,10 +146,34 @@ try {
         $global:RouteProofTestChangedHash='efc900f91b1b41cf7ad4e882d7f697a1b05503dc58bc7f51af2d2a271d60ba33'; $global:RouteProofTestLockedChangedHash='efc900f91b1b41cf7ad4e882d7f697a1b05503dc58bc7f51af2d2a271d60ba33'; $global:RouteProofTestLockedOriginalHash='bcde92159116d1e36c9f98c9e2657f69d1935db4527e4203aa953f2cd67379b1'
         $json=[pscustomobject]@{Prefix='probe/locked/';Enabled=$true;Kind='Age';RetentionSeconds=900;RuleCount=1;DateRules=0;IndefiniteRules=0;WriterCanConfigure=$false;LifecycleCompatible=$true;BeforeHash=$ruleHash;AfterHash=$ruleHash}|ConvertTo-Json -Compress
         $result=Invoke-RouteProofLoop 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com' $runId $json
-        Assert ($result.ExitCode -eq 2) 'prefix exposure was not classified as a provider capability failure'
-        Assert ($result.Records.Count -eq 11 -and $result.Records[2].phase -eq 'unsigned-get' -and $result.Records[-1].phase -eq 'complete') ("production loop record count $($result.Records.Count), phases $(($result.Records.phase -join ',') )")
+        Assert ($result.ExitCode -eq 4) 'single-observation prefix exposure was promoted to a terminal capability failure'
+        Assert ($result.Records.Count -eq 6 -and $result.Records[2].phase -eq 'unsigned-get' -and $result.Records[3].phase -eq 'recovery-cleanup-delete' -and $result.Records[4].phase -eq 'recovery-cleanup-confirm' -and $result.Records[-1].phase -eq 'complete') ("production loop record count $($result.Records.Count), phases $(($result.Records.phase -join ',') )")
+        Assert ($result.Records[4].cleanup -eq 'removed' -and $result.Records[-1].cleanup -eq 'removed') 'cleanup was called removed without NoSuchKey confirmation'
         Assert ($script:fakeUnlockedDeleted) 'failed run did not attempt cleanup'
-        $script:RouteProofClock=$null; $script:RouteProofChildRunner=$null; $script:fakeUnlockedDeleted=$false
+        $script:RouteProofClock=$null; $script:RouteProofTransport=$null; $script:fakeUnlockedDeleted=$false
+    }
+    Run 'ambiguous initial PUT still receives an independent recovery budget' {
+        $runId = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+        $script:Base='offline-base'; $script:Head='offline-head'
+        $script:fakeElapsed = [TimeSpan]::FromMinutes(5) - [TimeSpan]::FromSeconds(1)
+        $script:RouteProofClock = { $script:fakeElapsed }
+        $script:RouteProofChildRunner = {
+            param($endpoint,$operation,$key,$hash,$bytes,$payload,$expectedRunId,$remaining,$deadline)
+            if ($operation -eq 'put') { $script:fakeElapsed += [TimeSpan]::FromSeconds(2); return $null }
+            if ($operation -eq 'authenticated-get') { Assert ($remaining -gt 0 -and $remaining -le 20000) 'cleanup confirmation did not use the remaining shared 30-second budget' }
+            else { Assert ($remaining -gt 0 -and $remaining -le 30000) 'recovery cleanup did not receive its separate 30-second budget' }
+            $status=204; $class='success'; $code=$null; $bodyHash=$hash; $prefixHash=$hash
+            if ($operation -eq 'delete') { $script:fakeElapsed += [TimeSpan]::FromSeconds(10) }
+            if ($operation -eq 'authenticated-get') { $status=404; $class='not-found'; $code='NoSuchKey'; $bodyHash=$null; $prefixHash=$null }
+            [pscustomobject]@{ Operation=$operation;HttpStatus=$status;StatusClass=$class;S3Code=$code;ByteCount=$bytes;BodySha256=$bodyHash;PrefixSha256=$prefixHash;EofConfirmed=$true;LimitReached=$false;TimedOut=$false;Redirected=$false;Generation='0123456789abcdef0123456789abcdef';RequestMethod=$null;RequestUri=$null;AuthorizationPresent=$false;SignatureQueryPresent=$false;TargetChangingQueryPresent=$false }
+        }
+        $ruleHash = 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
+        $json=[pscustomobject]@{Prefix='probe/locked/';Enabled=$true;Kind='Age';RetentionSeconds=900;RuleCount=1;DateRules=0;IndefiniteRules=0;WriterCanConfigure=$false;LifecycleCompatible=$true;BeforeHash=$ruleHash;AfterHash=$ruleHash}|ConvertTo-Json -Compress
+        $result=Invoke-RouteProofLoop 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com' $runId $json
+        Assert ($result.ExitCode -eq 4) 'ambiguous initial PUT was treated as a successful run'
+        Assert (($result.Records.phase -join ',') -eq 'unlocked-put,recovery-cleanup-delete,recovery-cleanup-confirm,complete') "unexpected recovery record order: $(($result.Records.phase -join ','))"
+        Assert ($result.Records[-1].cleanup -eq 'removed') 'ambiguous PUT cleanup was not confirmed'
+        $script:RouteProofClock=$null; $script:RouteProofChildRunner=$null
     }
 } catch { $script:failed.Add('test harness') }
 
