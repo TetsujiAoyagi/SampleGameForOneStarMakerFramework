@@ -3,10 +3,11 @@
 ## 0. Metadata
 
 - type: `program`
-- status: program進行中。r1境界凍結済み、ローカル段1（スライス0）の実装・検証完了、Phase D承認済み。後続スライスは未凍結。
+- status: program進行中。r1境界凍結済み、ローカル段1（スライス0）の実装・検証完了、Phase D承認済み。後続スライスは未凍結。r2案は再検討用・未承認。
 - program policy revision: `r1` — A3 boundary freeze; individual implementation slices are not frozen
-- branch: `codex/r2-artifact-workflow`
-- implementation base commit: `acaf6ab7462f8dd4fe63bbd958b9fc394845566b` (`develop`)
+- proposed revision: `r2-draft` — Evidence-first sequence and first-use milestone; A2 / A3 not completed
+- branch: `docs/artifact-evidence-first-plan`
+- implementation base commit: `0ba1961506c8f34c2cb4e1dd5efd35c9562bcc54` (`develop`)
 - implementation head commit: not applicable; no implementation changes are planned in this program document
 - risk: `normal`
 - owner: OSM maintainers
@@ -18,7 +19,7 @@
 
 Choose and establish one artifact workflow that supports BuildSystem outputs and review Evidence, can be used by local work and remote Cursor / Codex agents, and does not require a human to move files between agents. Keep large binary payloads out of Git history; keep a small, stable pointer and hashes in Git.
 
-This is a multi-slice program, not an implementation HANDOFF. Revision r1 freezes only the storage, responsibility, and security boundaries listed below, following the supplied freeze review and the owner's request to incorporate it. Detailed designs and acceptance proposals for individual slices still require their own Phase A review/freeze. No R2 connectivity or cloud capability is declared proven by this freeze.
+This is a multi-slice program, not an implementation HANDOFF. Revision r1 freezes only the storage, responsibility, and security boundaries listed below, following the supplied freeze review and the owner's request to incorporate it. Detailed designs and acceptance proposals for individual slices still require their own Phase A review/freeze. No R2 connectivity or cloud capability is declared proven by this freeze. The r2-draft in section 3 proposes a usable Evidence milestone before full BuildSystem UX integration; it does not replace the r1 freeze or authorize implementation before review and owner approval.
 
 The owner expects most reads and writes to be performed by local Windows agents. Prioritize a usable local credential store and transfer tool. Cloud agents are intended consumers and occasional producers through task-scoped grants, but R2 support is unverified; a continuously available cloud credential broker is not a prerequisite for the local workflow.
 
@@ -71,19 +72,45 @@ Unity is a replaceable build backend. The primary user/agent interface is an eng
 - 矢印キー等で入力が中止される現在の挙動と、対話入力の操作仕様。
 - 危険なACLのactiveは削除も拒否され暗号文が残るため、所有者による復旧・清掃手順。
 
+### r2案 — 最初に使える区切りと実施順
+
+> 再検討用のPhase A初稿であり、A2 / A3は未完了。現行r1の安全・責務境界と段1完了を維持する。以下の順序・最低条件は、承認後に各スライスの自己完結したHANDOFFへ切り出す設計入力であり、実装開始の指示ではない。
+
+先に答える問いは「既存のレビューEvidenceを、作成側から別セッションへ、人間のファイル運搬なしに渡して確認できるか」である。BuildSystem全体のUX整備を、この運用改善の前提にしない。
+
+スライス番号は既存参照を保つため変更せず、4を最小接続の4aと対応環境拡大の4bに分ける。提案順序は **0（完了）→ 1-local → 2（初回CLI）→ 4a → 一区切り**。各段は別HANDOFF / 別ブランチとする。
+
+| 対象 | 最初の区切りで扱うこと | 後続へ残すことと所有先 |
+|---|---|---|
+| 1-local | 既存の段2引継ぎ、実鍵の接続probe、サーバー検証付きrotation、syntheticな往復 | Cloudごとの接続・grant発行 / 更新は1-cloud。ローカル完了を待たせない |
+| 2（初回CLI） | `publish` / `fetch`、必要な検証結果、台帳、manifest、保持期限、安全な梱包・展開、実payload前のサーバー側保護 | 独立した`inspect` / `prune`コマンドと操作性拡充は2の後続スライス。保持・保護条件は延期しない |
+| 4a | 既存Evidence形式への薄い接続。成立を確認したローカルWindows環境で、別セッションが台帳から取得し、必要なログ・画像を確認 | 他環境への展開は4b。Build実行のorchestration、進捗・キャンセル等のUX統合は3 |
+
+4aへ進む最低条件案は次のとおり。各条件の担当、操作経路、観測、証拠の受け渡しは着手時Phase Aで具体化する。
+
+- 1-localと2の当該HANDOFFを完了する。非公開bucket、サーバー側の上書き・削除保護とlifecycle相互作用、信頼する台帳hash、安全な展開の有限上限、秘密の非記録を含む既存の安全条件を省かない。成立前は`probe/`のsyntheticデータだけを使う。
+- 作成側は固定base/headの既存Evidenceから所見を含まない入力を明示選択し、`publish`で新規keyへ保存・読戻し確認する。台帳更新は別操作とし、Cの所見をC'入力へ混ぜない。新しいEvidence形式やテスト再実行の仕組みは作らない。
+- 別セッションは作成側のstagingや元bundleを直接読む代わりに、台帳のkeyと期待hashから`fetch`し、同一性を検証して専用領域へ展開する。条件が求めるログと画像を、そのセッションの実際の閲覧経路で確認する。byte一致だけを目視確認済みと扱わない。
+- 所有者による初回鍵登録後、上記の往復に人間のファイルコピーやgrantの手渡しを要しない。まず既存の同一Windowsユーザーの信頼境界を使い、別セッション成功をCloud対応や同ユーザーAgent間の権限隔離の証明にしない。Cloudで行う場合は当該1-cloudの無人grant取得・更新を含む条件が別途必要である。
+
+**停止規則案:** 凍結した4aの最低条件を満たしたら、そのスライスを閉じて日常運用へ入れる。そこで世界実証（S-4d / S-5）の通常のPhase Aへ戻れる。3、4b、2の操作性拡充、全Cloud対応、常駐broker、GUIを追加の完了条件にしない。4a完了はprogram全体の完了でも、転送したEvidenceのC / C'合格でもない。
+
+残件の所有者はOSM保守担当とし、上表の所有スライスに残す。各Cloudのread / write / grant / 閲覧可否を個別に判定し、未成立はunsupportedとして残す。未達を人間の反復作業で埋めたり、段1を再開したりしない。新しい証拠により凍結条件・常時契約への違反が判明した場合の扱いは、既存ワークフローに従う。
+
 以下はprogramのスライス分割である。スライス0の現在の実装は上記READMEを参照し、スライス1以降の詳細は各Phase Aで凍結する。
 
 0. **Local credential management.** Implement the Windows credential lifecycle described below before handling a real key. Prove registration, protected storage, redacted status/errors, replacement, and local removal using dummy credentials. Then the owner registers a bucket-scoped real credential through masked local input and the local transport probe validates it. No production credential is required for the storage implementation tests.
 1. **R2 transport and agent access proof.** Track local and cloud work separately. Upload only synthetic files to unique keys under `probe/`; prove authenticated access while ordinary unsigned requests are denied. A signed URL is a credential, not anonymous access. Verify download, SHA-256, ZIP extraction, upload, and read-back. The local prerequisite is owner credential setup; Codex egress is a prerequisite only for its cloud probe. Proposed cloud probe: per-object, short-lived signed GET/PUT URLs with the parent key held locally; this proves transport, not unattended credential issuance. Establish automated grant delivery/renewal before accepting routine unattended cloud use. Its absence does not block local completion.
 2. **Artifact contract and CLI wrapper.** Define the object key, manifest, checksums, upload/read-back behavior, retention metadata, and stable reference format. Cleanup may touch only keys created by the current run that have not been published in the ledger; no broad prefix deletion or deletion of referenced Evidence. Run-specific naming and hashes detect errors but do not enforce immutability. Before production, select and verify a server-enforced protection for finalized objects (for example R2 bucket locks or a trusted finalization service with agents limited to staging). Keep provider credentials outside Git. Test with synthetic payloads before connecting BuildSystem.
-3. **BuildSystem UX integration.** Make an external CLI the primary interface for humans, local agents, and automation. Preserve existing build logic behind a Unity backend adapter and retain current output locations initially. The build orchestrator passes ordinary output paths and versioned metadata to the artifact CLI; it does not know credentials, S3, or ZIP internals. Provide progress, cancellation, stable exit codes, and machine-readable results. Unity GUI integration is an optional thin caller, never a required path. Any future standalone GUI calls the same CLI/application layer. Do not invent a second engine implementation now; establish and verify the boundary with a fake backend and plain file fixtures.
-4. **Evidence workflow integration.** Wrap and transport the existing review bundles. C and C' retrieve the same immutable findings-free judgment payload by key/hash, with findings kept separately. Verify each agent's actual image-viewing route and log interpretation here; successful byte storage alone does not prove visual review. Do not replace unavailable image inspection with recurring human file transfer.
+3. **BuildSystem UX integration.** In the r2 proposal, schedule this after the first-use Evidence milestone rather than making it a prerequisite for 4a. Make an external CLI the primary interface for humans, local agents, and automation. Preserve existing build logic behind a Unity backend adapter and retain current output locations initially. The build orchestrator passes ordinary output paths and versioned metadata to the artifact CLI; it does not know credentials, S3, or ZIP internals. Provide progress, cancellation, stable exit codes, and machine-readable results. Unity GUI integration is an optional thin caller, never a required path. Any future standalone GUI calls the same CLI/application layer. Do not invent a second engine implementation now; establish and verify the boundary with a fake backend and plain file fixtures.
+4. **Evidence workflow integration.** Wrap and transport the existing review bundles. C and C' retrieve the same immutable findings-free judgment payload by key/hash, with findings kept separately. Verify each agent's actual image-viewing route and log interpretation here; successful byte storage alone does not prove visual review. Do not replace unavailable image inspection with recurring human file transfer. The r2 proposal splits this into 4a, the minimal local connection after 1-local and 2, and 4b, later platform expansion after each applicable 1-cloud gate. Neither 3 nor all-cloud support is a prerequisite for 4a.
 
-Each slice gets its own Phase A HANDOFF, branch, acceptance gates, and cleanup. Prioritize slice 0 and the local part of slice 1. The local CLI/BuildSystem work may proceed after local credential and transport gates pass; unresolved cloud access is reported separately and must not be advertised as supported. Preserve both clouds' read/write probes as remaining work, without blocking the mostly local workflow on an always-on broker.
+Each slice gets its own Phase A HANDOFF, branch, acceptance gates, and cleanup. The proposed first-use path is local 1, initial 2, then 4a; slice 0 remains completed. The engine-independent artifact boundary applies from the first CLI, but full BuildSystem orchestration belongs to 3. Preserve 3, 4b, later slice 2 usability work, and both clouds' read/write probes as remaining work; unresolved cloud access must not be advertised as supported or block the mostly local workflow on an always-on broker. This proposed ordering requires the r2 review and owner approval above.
 
 ### Artifact CLI and package contract (slice 2)
 
-- **Daily commands:** `publish` packages explicitly selected inputs, hashes, uploads, verifies read-back, and emits a stable ledger entry only on success; it does not make anything public. `fetch` consumes a trusted ledger/key plus expected package SHA-256, downloads, verifies, and safely extracts. `inspect` shows manifest, sizes, retention, base/head, and verification status without running payloads. `prune` only presents deletion candidates from the current owner's runs that are expired and proven unreferenced. Unknown reference status or an active lock excludes a candidate; a candidate listing does not authorize deletion. Credential management and grant issuance remain separate administrative commands.
+- **Planned commands:** `publish` packages explicitly selected inputs, hashes, uploads, verifies read-back, and emits a stable ledger entry only on success; it does not make anything public. `fetch` consumes a trusted ledger/key plus expected package SHA-256, downloads, verifies, and safely extracts. `inspect` shows manifest, sizes, retention, base/head, and verification status without running payloads. `prune` only presents deletion candidates from the current owner's runs that are expired and proven unreferenced. Unknown reference status or an active lock excludes a candidate; a candidate listing does not authorize deletion. Credential management and grant issuance remain separate administrative commands.
+- **r2 first-use scope proposal:** require `publish` / `fetch` and their necessary verification status first; standalone `inspect` / `prune` remain later slice 2 work. Manifest, retention metadata, failure results, and every packaging, integrity, extraction, non-recording, and protection condition below still apply to the initial CLI. Deferring commands does not authorize automatic deletion or weaken real-payload gates.
 - **Trust anchor:** obtain the expected package hash from the fixed HANDOFF/PR ledger supplied for review, not from the same R2 package being verified. Evidence `fetch` rejects an absent or mismatching trusted hash before extraction. A matching hash proves identity with the referenced bytes, not that their producer or content is trustworthy. `inspect` without a ledger may show metadata only as unverified. Never execute fetched scripts or binaries as part of transfer/inspection.
 - **Package boundary:** only explicit input roots/file lists are eligible. Do not recursively collect a whole repository, user profile, credential store, or staging parent by default. Reject symlinks/reparse points and input paths escaping the selected roots; disallow credential/grant files. Snapshot eligible files into isolated staging before packaging so hashes describe the uploaded bytes. Credential exclusion is not a claim that arbitrary selected logs are secret-free.
 - **Safe extraction:** verify the outer archive hash first, then validate every entry before writing into a new private temporary directory. Reject absolute/drive/UNC paths, parent traversal, links/reparse entries, Windows alternate streams/reserved names, duplicate or case-colliding destinations, and any normalized path outside the extraction root. Bound compressed input, entry count, individual/total expanded bytes, and expansion ratio; enforce actual streamed-byte limits as well as header checks. Never overwrite existing files or extract directly into the checkout. On failure, remove only this operation's temporary output and return a nonzero result. Numeric limits are named settings with finite defaults to freeze in slice 2, appropriate to large builds, not silently unlimited.
@@ -139,7 +166,7 @@ If any Cloud Agent cannot satisfy an operation, classify that operation as unsup
 - Network: allow the account-specific R2 S3 hostname. Reads need GET/HEAD; writes need PUT and multipart uploads may also need POST. Confirm the platform's available method controls rather than assuming arbitrary per-method rules. Broader network permission does not grant R2 authorization. Runtime transfer connects to Cloudflare R2, not the OpenAI model API.
 - Routine operation after onboarding: producer packages existing outputs outside the repository, obtains a run-scoped grant, uploads and verifies read-back, then emits a stable ledger entry. Reviewer obtains a read grant for the fixed findings-free key, verifies its hash, and inspects the payload. Automated issuance/renewal is a prerequisite to calling this unattended; manual URL exchange is only a probe.
 
-Sources checked for this revision: [R2 presigned URLs](https://developers.cloudflare.com/r2/api/s3/presigned-urls/), [R2 temporary credentials](https://developers.cloudflare.com/r2/api/s3/temporary-credentials/), [Codex cloud environments](https://learn.chatgpt.com/docs/environments/cloud-environment), [Codex internet access](https://learn.chatgpt.com/docs/cloud/internet-access), and [Cursor secrets and network](https://cursor.com/docs/cloud-agent/security-network).
+Sources checked for r1 (not revalidated by this sequencing-only proposal): [R2 presigned URLs](https://developers.cloudflare.com/r2/api/s3/presigned-urls/), [R2 temporary credentials](https://developers.cloudflare.com/r2/api/s3/temporary-credentials/), [Codex cloud environments](https://learn.chatgpt.com/docs/environments/cloud-environment), [Codex internet access](https://learn.chatgpt.com/docs/cloud/internet-access), and [Cursor secrets and network](https://cursor.com/docs/cloud-agent/security-network).
 
 ### Supplied review disposition
 
