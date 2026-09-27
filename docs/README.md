@@ -34,7 +34,7 @@
 複数スライスに跨る計画（構図の正本、空間プロトコルの Plan など）も作業台に置いてよい。ただし harvest 先と期限を本文に書くこと。作業指示だけに限らない。
 §7 / §8 を持たない長期計画は検査3 の網に掛からない。harvest 期限を本文に書くこと。
 
-**進行中の program / research は次の5件。** 文書整合修正の一時作業は [DOCS_DRIFT_RECONCILIATION.md](handoff/DOCS_DRIFT_RECONCILIATION.md) に置き、その文書修正PRのPhase Dで本案内とともに削除する。
+**進行中の program / research は次の5件。**
 
 | ファイル | 役割 | 実装キューか |
 |---|---|---|
