@@ -7,6 +7,24 @@ $script:passed = [Collections.Generic.List[string]]::new()
 $script:failed = [Collections.Generic.List[string]]::new()
 
 function Assert([bool] $Condition, [string] $Message) { if (-not $Condition) { throw $Message } }
+function Invoke-JsonEchoChild([string] $JsonLine) {
+    # OS上の別pwshへJSONを渡してstdoutから回収し、親側が実process出力をparseする境界を確認します。
+    $info=[Diagnostics.ProcessStartInfo]::new(); $info.FileName='pwsh'; $info.UseShellExecute=$false
+    $info.RedirectStandardOutput=$true; $info.RedirectStandardError=$true; $info.CreateNoWindow=$true
+    $jsonBase64=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($JsonLine))
+    $command="[Console]::WriteLine([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('$jsonBase64')))"
+    $encodedCommand=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
+    foreach($argument in @('-NoProfile','-EncodedCommand',$encodedCommand)){ [void]$info.ArgumentList.Add($argument) }
+    $process=[Diagnostics.Process]::new(); $process.StartInfo=$info
+    try {
+        if(-not $process.Start()){ throw 'JSON child process did not start' }
+        $stdoutTask=$process.StandardOutput.ReadToEndAsync(); $stderrTask=$process.StandardError.ReadToEndAsync()
+        if(-not $process.WaitForExit(10000)){ try{$process.Kill($true)}catch{}; throw 'JSON child process exceeded its test deadline' }
+        if(-not $stdoutTask.Wait(1000) -or -not $stderrTask.Wait(1000)){ throw 'JSON child pipes were not drained' }
+        if($process.ExitCode -ne 0 -or $stderrTask.Result){ throw 'JSON child process did not produce a clean result' }
+        return $stdoutTask.Result
+    } finally { $process.Dispose() }
+}
 function Run([string] $Name, [scriptblock] $Body) {
     if (-not (@($Case | Where-Object { $Name -like $_ }).Count -gt 0)) { return }
     try { & $Body; $script:passed.Add($Name) } catch { $script:failed.Add($Name + ': ' + $_.Exception.Message) }
@@ -173,8 +191,9 @@ try {
             $method=$null; $uri=$null
             if ($operation -eq 'unsigned-get') { $method='GET'; $uri=([uri]($endpoint+'/osm-artifacts/'+($uriSegments -join '/'))).AbsoluteUri }
             $observation=[pscustomobject]@{ Operation=$operation;HttpStatus=$status;StatusClass=$class;S3Code=$code;ByteCount=$bytes;BodySha256=$bodyHash;PrefixSha256=$prefixHash;EofConfirmed=$true;LimitReached=$false;TimedOut=$false;Redirected=$false;Generation='0123456789abcdef0123456789abcdef';Method=$method;TargetUri=$uri;HasAuthHeader=$false;SignatureQueryPresent=$false;TargetChangingQueryPresent=$false }
-            # 子processが書く1行を模擬し、親側のJSON parseと閉じたschema検査を通します。
-            return $observation | ConvertTo-Json -Compress -Depth 4
+            # 別pwshが書いた1行を親へ戻し、実際のprocess stdoutとJSON parse/schema検査を通します。
+            $jsonLine=$observation | ConvertTo-Json -Compress -Depth 4
+            return Invoke-JsonEchoChild $jsonLine
         }
         $script:fakeUnlockedDeleted=$false
         $global:RouteProofTestLockedChangedHash=$global:RouteProofTestChangedHash

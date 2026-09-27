@@ -208,7 +208,8 @@ function Test-UnsignedPrivacy($Observation, [string] $Hash, [int] $Bytes) {
     $expectedUri = ([uri]($script:ActiveEndpoint + '/osm-artifacts/' + ($segments -join '/'))).AbsoluteUri
     if ($Observation.Method -cne 'GET' -or $Observation.TargetUri -cne $expectedUri -or
         $Observation.HasAuthHeader -or $Observation.SignatureQueryPresent -or $Observation.TargetChangingQueryPresent) { return $false }
-    # このrevisionでは401/Unauthorizedと403/AccessDeniedだけを許し、400 InvalidArgumentは常にinconclusiveです。
+    # status・class・S3 codeを同一応答の組として照合し、交差した矛盾値を拒否証拠にしません。
+    # 400 InvalidArgumentも許可集合へ加えず、観測経路の妥当性を示せない場合はinconclusiveです。
     $pairedDenial = ($Observation.HttpStatus -eq 401 -and $Observation.StatusClass -ceq 'unauthorized' -and $Observation.S3Code -ceq 'Unauthorized') -or
         ($Observation.HttpStatus -eq 403 -and $Observation.StatusClass -ceq 'forbidden' -and $Observation.S3Code -ceq 'AccessDenied')
     return $pairedDenial -and $Observation.EofConfirmed -and
