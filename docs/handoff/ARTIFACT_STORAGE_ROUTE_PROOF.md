@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`（R2候補のローカル必要条件を調べるspike）
-- status: A3凍結済み。Phase B完了、Phase C/C'以降は未着手
+- status: Phase B完了。Phase CはinconclusiveでGOなし。Phase A revision再開待ち（C'未着手）
 - branch: `codex/artifact-storage-route-proof`（program草案とA3前疎通を記録した`93d2a1c`から分岐）
 - implementation base commit: `93d2a1c`（A3前疎通のbranch point）
 - implementation head commit: `e122a79`（Phase B実装commit。Phase Cの対象head）
@@ -91,4 +91,7 @@ ownerはCloudflare画面でtokenのR2 Bucket Item Read/Writeが`osm-artifacts`�
 - A3の操作・証拠受入: ownerだけがCloudflare dashboardで全有効ruleのprefix、有効状態、保持条件を確認し、`probe/locked/`限定の`Age` 900〜86400秒ruleを設定する。rule名、試験前後の確認UTC、lifecycleとの関係、残存objectとruleの清掃予定も非秘密で記録する。通常writer tokenにBucket設定権限を追加しない。Agentは同一Windowsユーザーの別`pwsh` processを起動して§2のsynthetic probeとoffline試験を行い、非秘密のallowlist結果、固定base/head、前後のrepo status、raw test結果をcheckout/同期領域外の限定ACL bundleに保存する。Cはownerの全rule設定記録を受理し、通信結果の全体/prefix hash・byte数・EOF・HTTP分類・S3 `Code`と陽性対照、lock時の再GETを突き合わせる。C'へは所見を含まない同一固定版のblind bundleを渡す。ownerがrule設定に到達できない場合はenvironment-blockedで止め、Agentが管理鍵を受け取って代行しない。
 - C'担当: Phase B/Cと異なるmodelの新規session、または人間。Phase Aに未関与の候補を残す。判定Cの固定base/head、raw結果とblind bundleを使う。
 - Phase B: `e122a79` で実装完了。所見を含まない結果snapshotは `docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md` に固定し、SDK restore/buildと別process type load、Credentials 21件、RouteProof offline 8件、`contract-audit`、`docs-audit` の成功、実R2/Unity/Evidence/Build未実行、担当 `Codex / GPT-5` を記録した。snapshotのSHA-256は `7D9DCC474D45CCFA18B56C5298F88102DBEACCA03EADEE67CB74990124C734FB` である。
-- Phase C/C'/D: 未到達。各snapshot、実行結果、未確認、担当/モデル、採否を到達時に記録する。
+- Phase C（発見・判定）: Grok Bot / このsessionが、`93d2a1c` からPhase B head `e122a79` までを対象に確認した。構造、offline試験、SDK restore/build、別process type load、`contract-audit`、`docs-audit` は再実行して通過した。実R2では `unlocked-put` と認証GETまで通過したが、署名無しGETが HTTP 400 / S3 `InvalidArgument` / 非秘匿分類 `other`（応答中の非秘匿 error message は `Authorization`）で停止した。凍結条件が許可する `401 Unauthorized` または `403 AccessDenied` ではないため、内容露出もprovider capability failureも確定できず、exit 4 `inconclusive` とする。lock操作、固定evidence bundle、C' blind bundle、Unity/Evidence/Buildは未実施である。実R2の非秘匿owner lock ledgerも受理できる形では未固定である。結果文書は `docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_C_RESULT.md` にあるが、C中に`RouteProof.ps1`を修正したため、実際の検証候補headは`93e1f95`であり、Bの固定head `e122a79`とは分けて扱う。現branchのdocs-only tipは`65df09f`。結果文書の埋め込みfile SHA-256は現blobと一致せず、body hashの定義も含め、証拠固定は未完了である。
+- Phase Cの分類と停止: unsigned GETで観測された400は、凍結した許可codeを拡張するか、別の署名無し経路にするかを決めない限り判定できない。これは受け入れ条件・失敗分類の変更を伴うため、B適応やCの独断で処理せず、Phase Aを新revisionとして再開する。`93e1f95`のprobe修正はC中の検証候補に含まれるが、所見を含まないPhase B result snapshotへ取り込まず、次のAで扱う実装候補として保留する。Phase C'は起動しない。
+- Phase Bの終了: `e122a79`の実装と `docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md`（SHA-256 `7D9DCC474D45CCFA18B56C5298F88102DBEACCA03EADEE67CB74990124C734FB`）を今回のPhase B成果として閉じる。実R2の合否、Unity、Evidence、BuildはPhase Bの成果に含めない。
+- Phase A revisionの着手条件: 凍結A3 snapshot `328843ea521550af9da203315c2704d3d51cc8d0:docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF.md`、B result snapshot、C resultとこの記録を入力に、`400 InvalidArgument`を現行条件で不合格のまま扱うか、署名無しGETの許可応答・判定境界を再設計するかをA0/A1で比較する。条件、責務、証拠固定方法を変える場合はA2/A3をやり直してから実装・実R2へ進む。
