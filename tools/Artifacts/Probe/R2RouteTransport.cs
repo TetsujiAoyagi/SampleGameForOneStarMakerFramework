@@ -152,10 +152,10 @@ public static class RouteTransport
     {
         // 署名無し経路はAWS SDKを通すと自動署名され得るため、独立したHttpClientで生成します。
         // 400などの拒否を認証拒否と読み替えず、生成したmethod/URIと認証要素の有無だけを記録します。
-        using var handler = new HttpClientHandler { AllowAutoRedirect = false };
+        using var handler = CreateUnsignedHandler();
         using var client = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
-        var objectUri = BuildObjectUri(endpoint, key);
-        using var request = new HttpRequestMessage(HttpMethod.Get, objectUri);
+        using var request = CreateUnsignedRequest(endpoint, key);
+        var objectUri = request.RequestUri!;
         var hasAuthorization = request.Headers.Authorization is not null;
         var hasSignatureQuery = objectUri.Query.Contains("X-Amz-", StringComparison.OrdinalIgnoreCase);
         var hasTargetChangingQuery = objectUri.Query.Length > 0;
@@ -187,6 +187,13 @@ public static class RouteTransport
             TimedOut = body.TimedOut
         };
     }
+
+    // 実通信とoffline検査が同じrequest factoryを使い、URIやmethodの組み立てを試験用に複製しません。
+    private static HttpRequestMessage CreateUnsignedRequest(string endpoint, string key) =>
+        new(HttpMethod.Get, BuildObjectUri(endpoint, key));
+
+    // redirectは別hostへの意図しない追跡を防ぐ契約なので、handler生成も実通信と試験で共有します。
+    private static HttpClientHandler CreateUnsignedHandler() => new() { AllowAutoRedirect = false };
 
     private static TransportObservation Delete(
         string accessKeyId,

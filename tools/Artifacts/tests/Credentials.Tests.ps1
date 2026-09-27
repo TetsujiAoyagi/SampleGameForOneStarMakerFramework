@@ -132,6 +132,27 @@ try {
             throw 'leaking callback was accepted'
         } catch { Assert-SafeError $_ }
     }
+    Run 'transport timeout and cancellation preserve sentinel secrecy' {
+        $result = Write-CredentialRecord 'osm' $sentinelId $sentinelSecret $false
+        Assert ($result.Outcome -eq 'success') 'timeout fixture commit'
+        foreach ($failureKind in @('timeout','cancel')) {
+            try {
+                Invoke-CredentialTransport 'osm' {
+                    param($id, $secret, $generation, $request)
+                    # 期限・取消の例外本文だけでなく、失敗直前の各出力口も同じ秘密境界で遮断します。
+                    Write-Warning "warning $secret"
+                    Write-Verbose "verbose $id" -Verbose
+                    Write-Debug "debug $secret" -Debug
+                    Write-Information "information $id" -InformationAction Continue
+                    Write-Host "host $secret"
+                    [Console]::Error.WriteLine("console $id $secret")
+                    if ($failureKind -eq 'timeout') { throw [TimeoutException]::new("timeout $id $secret") }
+                    throw [OperationCanceledException]::new("cancel $id $secret")
+                } @{}
+                throw "$failureKind callback was accepted"
+            } catch { Assert-SafeError $_ }
+        }
+    }
     Run 'transport callback rejects secret-shaped result' {
         $result = Write-CredentialRecord 'osm' $sentinelId $sentinelSecret $false
         Assert ($result.Outcome -eq 'success') 'result fixture commit'

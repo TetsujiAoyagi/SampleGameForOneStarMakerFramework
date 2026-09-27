@@ -8,8 +8,25 @@ $assembly = [Reflection.Assembly]::LoadFrom([IO.Path]::GetFullPath($assemblyPath
 $type = $assembly.GetType('OneStarMaker.Artifacts.Probe.RouteTransport', $true)
 $readBody = $type.GetMethod('ReadBody', [Reflection.BindingFlags]'NonPublic,Static')
 if ($null -eq $readBody) { throw 'ReadBody test target unavailable.' }
+$requestFactory = $type.GetMethod('CreateUnsignedRequest', [Reflection.BindingFlags]'NonPublic,Static')
+$handlerFactory = $type.GetMethod('CreateUnsignedHandler', [Reflection.BindingFlags]'NonPublic,Static')
+if ($null -eq $requestFactory -or $null -eq $handlerFactory) { throw 'Unsigned request test target unavailable.' }
 
 function Assert([bool] $Condition, [string] $Message) { if (-not $Condition) { throw $Message } }
+
+# 本番のfactoryを直接呼び、fake observationの値だけでは隠れてしまうrequest生成契約を検査します。
+$endpoint = 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com'
+$key = 'probe/unlocked/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/object.txt'
+$request = $requestFactory.Invoke($null, [object[]]@($endpoint, $key))
+$handler = $handlerFactory.Invoke($null, [object[]]@())
+try {
+    Assert ($request.Method -eq [Net.Http.HttpMethod]::Get) 'unsigned request method was not GET'
+    Assert ($request.RequestUri.AbsoluteUri -ceq "$endpoint/osm-artifacts/$key") 'unsigned request URI was not the exact bucket/key path'
+    Assert ($request.RequestUri.Query.Length -eq 0) 'unsigned request added a query string'
+    Assert ($null -eq $request.Headers.Authorization) 'unsigned request added Authorization'
+    Assert (-not $handler.AllowAutoRedirect) 'unsigned handler follows redirects'
+} finally { $request.Dispose(); $handler.Dispose() }
+
 function Read-TestBody([byte[]] $Bytes, [int] $ExpectedBytes, [int] $Limit = 8192) {
     $stream = [IO.MemoryStream]::new($Bytes, $false)
     try { return $readBody.Invoke($null, [object[]]@($stream, $ExpectedBytes, [Threading.CancellationToken]::None, $Limit, $true)) }
@@ -95,4 +112,4 @@ Assert (-not $interruptedBody.TimedOut -and -not $interruptedBody.EofConfirmed) 
 Assert ($interruptedBody.PrefixSha256 -ceq $expectedPrefixHash) 'I/O interruption discarded the already observed prefix'
 Assert ($null -eq $interruptedBody.BodySha256) 'interrupted body received a full-body digest'
 
-[Console]::WriteLine('R2RouteTransport tests passed: 4')
+[Console]::WriteLine('R2RouteTransport tests passed: 5')

@@ -58,7 +58,7 @@ function Invoke-RouteDelay([int] $Milliseconds) {
 function Get-RemainingPipeWait([int] $ChildBudgetMilliseconds, [TimeSpan] $ChildStartedAt) {
     # Stopwatch基準と注入時計のどちらでも、子process開始後だけを子予算から差し引きます。
     $childElapsed = (Get-RouteElapsed) - $ChildStartedAt
-    return [Math]::Max(0, [Math]::Min(5000, $ChildBudgetMilliseconds - [int]$childElapsed.TotalMilliseconds))
+    return [Math]::Max(0, [Math]::Min(45000, $ChildBudgetMilliseconds - [int]$childElapsed.TotalMilliseconds))
 }
 
 function Wait-RouteProofPipeTask($Task, [int] $Milliseconds) {
@@ -80,11 +80,17 @@ function Test-RouteProofChildStopped([bool] $ParentExited, [bool] $StdoutClosed,
     return $ParentExited -and $StdoutClosed -and $StderrClosed
 }
 
-function Stop-RouteProofChild([Diagnostics.Process] $Process, $StdoutTask, $StderrTask) {
+function Stop-RouteProofChild([Diagnostics.Process] $Process, $StdoutTask, $StderrTask, [int] $ChildBudgetMilliseconds, [TimeSpan] $ChildStartedAt) {
     # 子は1操作だけを実行し、自身から別processを起動しません。終了時はprocess treeをkillし、
     # rootの終了だけでなく両pipeのEOFも揃った場合に限って回復DELETEを許可します。
     try { $Process.Kill($true) } catch { try { $Process.Kill() } catch { } }
-    try { return (Test-RouteProofChildStopped $Process.WaitForExit(0) $StdoutTask.IsCompleted $StderrTask.IsCompleted) }
+    try {
+        # kill後も同じ子process予算の残時間だけ終了とpipe EOFを待ち、固定の追加待機はしません。
+        $remaining = Get-RemainingPipeWait $ChildBudgetMilliseconds $ChildStartedAt
+        $parentExited = $Process.WaitForExit($remaining)
+        $pipesClosed = Wait-RouteProofPipes $StdoutTask $StderrTask $ChildBudgetMilliseconds $ChildStartedAt
+        return (Test-RouteProofChildStopped $parentExited $pipesClosed ($StdoutTask.IsCompleted -and $StderrTask.IsCompleted))
+    }
     catch { return $false }
 }
 
@@ -263,7 +269,9 @@ function Test-UnsignedPrivacy($Observation, [string] $Hash, [int] $Bytes) {
 function Test-LockRejection($Observation) {
     try { Assert-Observation $Observation } catch { return $false }
     return $Observation.HttpStatus -eq 403 -and $Observation.StatusClass -eq 'forbidden' -and
-        $Observation.S3Code -ceq 'ObjectLockedByBucketPolicy'
+        $Observation.S3Code -ceq 'ObjectLockedByBucketPolicy' -and
+        -not $Observation.TimedOut -and $Observation.EofConfirmed -and
+        -not $Observation.LimitReached -and -not $Observation.Redirected
 }
 
 function New-ObservationRecord(
@@ -340,14 +348,16 @@ function Invoke-ChildOperation(
         $stdoutTask = $process.StandardOutput.ReadToEndAsync()
         $stderrTask = $process.StandardError.ReadToEndAsync()
         $childStartedAt = Get-RouteElapsed
-        if (-not $process.WaitForExit($remaining)) {
-            # deadline後に固定時間の終了待ちを足すと全体予算を越えるため、非待機で終了状態だけ確認します。
-            $script:ChildTerminationConfirmed = Stop-RouteProofChild $process $stdoutTask $stderrTask
+        # 30秒の通信期限後に最大15秒を終了確認へ残し、子全体の上限45秒を越えません。
+        $terminationReserve = [Math]::Min(15000, [Math]::Max(1, [int]($remaining / 3)))
+        $operationWait = [Math]::Max(1, $remaining - $terminationReserve)
+        if (-not $process.WaitForExit($operationWait)) {
+            $script:ChildTerminationConfirmed = Stop-RouteProofChild $process $stdoutTask $stderrTask $remaining $childStartedAt
             return $null
         }
         # run全体の経過ではなく、この子を起動した後の経過を同じ子予算から差し引きます。
         if (-not (Wait-RouteProofPipes $stdoutTask $stderrTask $remaining $childStartedAt)) {
-            $script:ChildTerminationConfirmed = Stop-RouteProofChild $process $stdoutTask $stderrTask
+            $script:ChildTerminationConfirmed = Stop-RouteProofChild $process $stdoutTask $stderrTask $remaining $childStartedAt
             return $null
         }
         $stdout = $stdoutTask.GetAwaiter().GetResult().Trim()
@@ -363,7 +373,7 @@ function Invoke-ChildOperation(
         # 例外経路でも起動済みchildの生存を未確認のまま回復DELETEへ進ませません。
         try {
             if ($process.Id -gt 0 -and -not $process.HasExited) {
-                $stopped = Stop-RouteProofChild $process $stdoutTask $stderrTask
+                $stopped = Stop-RouteProofChild $process $stdoutTask $stderrTask $remaining $childStartedAt
             } else { $stopped = $process.Id -gt 0 -and (Test-RouteProofChildStopped $true ($null -eq $stdoutTask -or $stdoutTask.IsCompleted) ($null -eq $stderrTask -or $stderrTask.IsCompleted)) }
             $script:ChildTerminationConfirmed = $stopped
         } catch { $script:ChildTerminationConfirmed = $false }

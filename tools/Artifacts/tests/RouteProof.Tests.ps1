@@ -103,6 +103,9 @@ try {
     Run 'lock requires exact provider code' {
         Assert (Test-LockRejection (Fake-Observation -Operation 'put' -S3Code 'ObjectLockedByBucketPolicy')) 'lock rejection rejected'
         Assert (-not (Test-LockRejection (Fake-Observation -Operation 'put' -S3Code 'AccessDenied'))) 'generic 403 accepted'
+        Assert (-not (Test-LockRejection (Fake-Observation -Operation 'put' -S3Code 'ObjectLockedByBucketPolicy' -TimedOut $true -EofConfirmed $false))) 'timed out lock response accepted'
+        Assert (-not (Test-LockRejection (Fake-Observation -Operation 'put' -S3Code 'ObjectLockedByBucketPolicy' -LimitReached $true))) 'truncated lock response accepted'
+        Assert (-not (Test-LockRejection (Fake-Observation -Operation 'put' -S3Code 'ObjectLockedByBucketPolicy' -Redirected $true))) 'redirected lock response accepted'
     }
     Run 'timeout and transport failures are inconclusive' {
         $fake = Fake-Observation -StatusClass 'timeout' -HttpStatus 0 -S3Code $null -EofConfirmed $false -TimedOut $true
@@ -113,7 +116,7 @@ try {
     Run 'pipe budget is measured from child start, not accumulated run time' {
         $script:RouteProofClock = { [TimeSpan]::FromSeconds(80) }
         $remaining = Get-RemainingPipeWait 45000 ([TimeSpan]::FromSeconds(50))
-        Assert ($remaining -eq 5000) 'prior operation time consumed the child pipe budget'
+        Assert ($remaining -eq 15000) 'prior operation time consumed the child pipe budget'
         $script:RouteProofClock = { [TimeSpan]::FromSeconds(46) }
         $expired = Get-RemainingPipeWait 45000 ([TimeSpan]::Zero)
         Assert ($expired -eq 0) 'expired child budget remained available'
@@ -131,6 +134,19 @@ try {
         Assert (Test-RouteProofChildStopped $true $true $true) 'fully closed child was rejected'
         Assert (-not (Test-RouteProofChildStopped $true $true $false)) 'live descendant retaining stderr was treated as stopped'
         Assert (-not (Test-RouteProofChildStopped $false $true $true)) 'running parent was treated as stopped'
+
+        # 実際の子pwshを期限途中で停止し、Kill呼出し直後でなくprocess終了と両pipe完了まで待つことを確認します。
+        $info=[Diagnostics.ProcessStartInfo]::new(); $info.FileName='pwsh'; $info.UseShellExecute=$false
+        $info.RedirectStandardOutput=$true; $info.RedirectStandardError=$true; $info.CreateNoWindow=$true
+        [void]$info.ArgumentList.Add('-NoProfile'); [void]$info.ArgumentList.Add('-Command'); [void]$info.ArgumentList.Add('Start-Sleep -Seconds 30')
+        $process=[Diagnostics.Process]::new(); $process.StartInfo=$info
+        try {
+            Assert ($process.Start()) 'stop fixture child did not start'
+            $stdout=$process.StandardOutput.ReadToEndAsync(); $stderr=$process.StandardError.ReadToEndAsync()
+            $script:RouteProofClock=$null; Start-RouteClock; $childStarted=[TimeSpan]::Zero
+            $stopped=Stop-RouteProofChild $process $stdout $stderr 45000 $childStarted
+            Assert ($stopped -and $process.HasExited -and $stdout.IsCompleted -and $stderr.IsCompleted) 'kill returned before child and redirected pipes were confirmed stopped'
+        } finally { $script:RouteProofClock=$null; $process.Dispose() }
     }
     Run 'child PUT payload is bounded, hash checked and bound to the run marker' {
         $runId='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'; $bytes=[Text.Encoding]::ASCII.GetBytes("OSM-ROUTE-PROOF:${runId}:original")
