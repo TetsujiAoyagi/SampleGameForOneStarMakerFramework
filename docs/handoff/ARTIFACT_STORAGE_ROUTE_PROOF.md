@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`（R2候補のローカル必要条件を調べるspike）
-- status: Phase B完了。Phase CはinconclusiveでGOなし。Phase A revision再開待ち（C'未着手）
+- status: Phase B完了。Phase CはinconclusiveでGOなし。Phase A revision A0/A1初稿・未凍結（C'未着手）
 - branch: `codex/artifact-storage-route-proof`（program草案とA3前疎通を記録した`93d2a1c`から分岐）
 - implementation base commit: `93d2a1c`（A3前疎通のbranch point）
 - implementation head commit: `e122a79`（Phase B実装commit。Phase Cの対象head）
@@ -95,3 +95,36 @@ ownerはCloudflare画面でtokenのR2 Bucket Item Read/Writeが`osm-artifacts`�
 - Phase Cの分類と停止: unsigned GETで観測された400は、凍結した許可codeを拡張するか、別の署名無し経路にするかを決めない限り判定できない。これは受け入れ条件・失敗分類の変更を伴うため、B適応やCの独断で処理せず、Phase Aを新revisionとして再開する。`93e1f95`のprobe修正はC中の検証候補に含まれるが、所見を含まないPhase B result snapshotへ取り込まず、次のAで扱う実装候補として保留する。Phase C'は起動しない。
 - Phase Bの終了: `e122a79`の実装と `docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md`（SHA-256 `7D9DCC474D45CCFA18B56C5298F88102DBEACCA03EADEE67CB74990124C734FB`）を今回のPhase B成果として閉じる。実R2の合否、Unity、Evidence、BuildはPhase Bの成果に含めない。
 - Phase A revisionの着手条件: 凍結A3 snapshot `328843ea521550af9da203315c2704d3d51cc8d0:docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF.md`、B result snapshot、C resultとこの記録を入力に、`400 InvalidArgument`を現行条件で不合格のまま扱うか、署名無しGETの許可応答・判定境界を再設計するかをA0/A1で比較する。条件、責務、証拠固定方法を変える場合はA2/A3をやり直してから実装・実R2へ進む。
+
+## 6. Phase A revision — A0/A1 planning packet（初稿、未凍結）
+
+### A0 — 入力、問い、境界
+
+- 入力版: 旧A3は`328843ea521550af9da203315c2704d3d51cc8d0:docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF.md`（blob bytesのSHA-256 `0047F7DCCD10089CC75B902B5F64E5AC71C41D5F218FACDA46B31C8A645D858D`）。Phase B実装headは`e122a79`、所見を含まないB result現ファイルのSHA-256は`7D9DCC474D45CCFA18B56C5298F88102DBEACCA03EADEE67CB74990124C734FB`。Phase C候補headは`93e1f95`、現行docs記録headは`413b7cd`。`e122a79..93e1f95`には`RouteProof.ps1`の文字列展開、失敗記録、子process JSON数値型の修正がある。同じ実装head、同じ判定evidenceとして扱わない。
+- Cの観測記録: 認証PUT/GETは通過。存在keyへの署名無しGETはHTTP 400 / S3 `InvalidArgument`で止まり、C resultには非秘匿Message `Authorization`と記録された。これは旧A3の401/`Unauthorized`または403/`AccessDenied`に一致しないため`inconclusive`、GOなし。C resultには本文hash不一致とcleanup成功も書かれているが、固定evidence bundleは未生成であり、この文書だけを一次証拠に格上げしない。保護なし上書き・削除の陽性対照とBucket Lock系は未到達。
+- C result現ファイルの再計算SHA-256は`D9DEFD645EBCED07F0E7DABABA5973A85948A09C9340FDC8BFBD89B4C678AFFB`。本文末尾のfile SHA-256 `9fbbc5...`とは一致しない。body SHA-256は除外行・改行・文字コードを一意に定義していないため、現時点で検証済みhashとして採用しない。旧記録の誤った値は今回の照合履歴として残す。
+- このrevisionが答える問い: **既知の400/`InvalidArgument`をどの条件ならprivate objectへの署名無しアクセス拒否の証拠に数えられるか。その条件を安全かつ再現可能に観測できない場合、旧判定のままどこで停止するか。** この問いと、元sliceの「同一byte往復と通常writerへのBucket Lock強制力」は区別する。
+- 進める最低条件（A3候補）: 署名無しrequestが対象の存在keyに対する意図した無認証GETであること、認証GETとの対象版対応、内容非露出、応答の意味を判断する許可集合と曖昧時の分類、同じ固定実装headに結び付く一次証拠の取得経路を、A2が検査可能な形で定義する。元sliceのlock拒否や権限分離をこのrevisionの議論だけで達成扱いにしない。
+- 制約・対象外: 秘密、実R2、credentials、Unity、Evidence、BuildをA0/A1では操作しない。Message `Authorization`のみから拒否の意味やrequestの妥当性を断定しない。旧A3は履歴として固定し、改訂案を新しい受け入れ条件として適用しない。Cloud、実payload、provider一般化、継続retentionは元の後続所有先へ残す。
+- 未決事項: 400が無認証拒否を表すのか、request形式・endpoint・header等の不正を表すのか。C resultの観測がどの完全な実装差分とraw結果に対応するか。新たな通信なしに判断できない部分は未確認とする。
+- [Cloudflare R2 error codes](https://developers.cloudflare.com/r2/api/error-codes/)の現行表は認証欠落を401/`Unauthorized`、権限不足を403/`AccessDenied`として掲載する。観測された400/`InvalidArgument`/`Authorization`の意味をその表だけから認証拒否と確定できない。
+
+### A1 — 比較する判定案（採否未定）
+
+| 案 | 署名無しGETのGO条件候補 | 400/`InvalidArgument`の扱い | 必要な変更と残る限界 |
+| --- | --- | --- | --- |
+| A. 旧A3を維持 | 401/`Unauthorized`または403/`AccessDenied`、EOF・全体/prefix hash非一致等の旧条件すべて | 常に`inconclusive`。別の妥当な署名無し経路やrequest不具合の原因を調べ、同じ許可集合で再観測する | 受け入れ条件は不変。`93e1f95`の修正後head、request妥当性、証拠固定の不足は解消が必要。R2が別の拒否表現を返し続けるならGOできない |
+| B. 400を限定追加 | 旧条件に加え、**特定の**400/`InvalidArgument`が妥当な無認証GETへの認証拒否だと独立に確認でき、存在key・非露出・EOF等も満たす場合のみ | 原因未確定の現在の400は引き続き`inconclusive`。Message文字列単独では合格にしない | 許可集合、request妥当性の検査、offline失敗case、非秘密の診断項目、判定根拠をA3で明文化する必要がある。安全に区別できなければ案Aへ戻す |
+| C. 任意の非成功応答へ拡張 | 存在keyの認証GET後、署名無しGETが非2xxで本文hash非一致なら許可 | 現在の400を合格候補にし得る | malformed request、存在しない対象、redirect、proxy失敗等をprivate拒否と誤認する。元の能力証明を弱めるため、A1では採用を提案しないがA2の反例比較対象に残す |
+
+案A/Bのいずれでも、先頭N byte hashがobjectと一致する露出、EOF未確認、8192 byte超過、timeout、redirect、404/`NoSuchKey`、429/5xx、DNS/TLS/proxy不明、認証GET失敗、`Generation`不一致をGOにしない。`provider-capability-failure`は開始条件と陽性対照が成立した後の再現可能な内容露出またはlock強制力欠如に限る。意味不明な拒否は`inconclusive`、設定・権限等の準備不足は`environment-blocked`に分ける。現行Cの400はこの区別では能力否定でも非公開性の証明でもない。
+
+### A1 — 責務、検証経路、証拠固定の初稿
+
+- 判定を変えるなら`RouteProof.ps1`が許可status/S3 code、露出検知、失敗分類を所有し、`R2RouteTransport.cs`はrequest生成と非秘密の観測だけを返す。`CredentialStore.psm1`の秘密寿命、store schema、通常writer権限は変えない。案Bでは、既存観測からrequest妥当性を証明できるかをA2で審査し、不足する場合に限り非秘密の観測項目と型・値域を設計する。raw header/body、Authorization、SDK例外本文を証拠へ追加しない。
+- 現行物理行数は`RouteProof.ps1` 290、`R2RouteTransport.cs` 324、同`.psm1` 52、`RouteProof.Tests.ps1` 94、`CredentialStore.psm1` 334。案Aは判定コードの増分を原則0とし、案Bの増分は必要な非秘密観測を決めるまで未定とする。`RouteProof.ps1`は入力/子process/判定を既に持つため、新責務の混入と500行・3責務・50%増加の警報をA2のアーキテクチャレビューで評価し、分割/非分割理由をA3に残す。
+- A2に渡す同一入力版には、このA0/A1、凍結A3、B result、C result、`e122a79..93e1f95`の実装差分を含める。少なくともアーキテクチャ/責務境界と、HTTP拒否意味・失敗分類/証拠の独立レビューを分ける。高リスクの代替案レビューにはA0のみを渡すことを検討する。各レビューの入力版hash、担当・モデル、独立性を記録し、A3で人間と採否・理由を統合する。
+- 判定Cの検証経路候補は、同一Windowsユーザーの別`pwsh` process、固定synthetic key、認証GETによる存在/byte/hash確認、無認証GET、保護なし陽性対照、ownerの非秘密lock設定記録、lock拒否・再GETである。実操作の担当、対象版、各観測の合否、期限、清掃、C/C'への受け渡しはA3前に条件ごとに再確認する。今回のA0/A1では疎通を再実行しない。
+- C resultの自己参照するfile hash欄を正本にしない。新たなsnapshotとbundleは、内容を確定した後に**別のmanifest**でpath、取得commit/blobまたはbundle id、生成UTC、byte長、SHA-256、hash対象のbyte定義を記録する。manifest自身を同じ欄でhashしない。Git blobなら`git show <commit>:<path>`のbyte列、ローカルfileなら保存したfile bytesと区別する。証拠が異なる版・改行へ転送された場合は受信側で再計算して照合する。B resultは所見なしの`e122a79` snapshotとして保持し、Cの修正を後付けしない。
+- `93e1f95`の実装候補を使う場合も、新A3後にPhase Bでそのheadとの差分と設計適合を確定し、所見のない新B resultを別snapshotとして作る。GO候補headに対するoffline suite、SDK build/別process load、契約・文書監査、実R2の全必須経路、固定diff/生結果を判定Cでやり直す。Unity側変更がない場合の全EditMode除外は理由とPowerShell/.NET代替証拠を新A3へ明記する。旧Cの認証PUT/GET観測を新headの合格証拠へ流用しない。判定CとC'には同じheadとevidenceを渡し、C'はGO候補が揃うまで起動しない。
+- A3再凍結前の停止規則: 案の採用、許可応答集合の変更、失敗分類の実装、実R2再試行はしない。A2所見と人間の採否で、案A/Bまたは別案、検証可能な最低条件と受け入れ詳細、必要なPhase B変更範囲、証拠manifest仕様を決めて新snapshotを凍結する。A2で案Bの400の意味を区別できないなら、400をGOへ読み替えない。
