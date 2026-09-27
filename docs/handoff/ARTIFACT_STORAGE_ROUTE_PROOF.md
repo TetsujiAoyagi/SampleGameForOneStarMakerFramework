@@ -59,6 +59,6 @@ A3前の疎通: `pwsh`、.NET 8でのAWSSDK.S3 restore/buildと別pwshでのload
 
 - A0/A1: 本sessionのCodex（実際のmodel variantは未確認）。目的からの独立A0代替案は、R2を第一候補としつつSDK Adapter、server検証付きrotation、複数provider抽象を最初の条件にしない点で一致。レビュー担当の実モデル割当は未確認。
 - A2: 同一初稿SHA-256`9A85555C5FA37F24DE9DDADB66C94B195BF5313C0F19E18D07E08DA1E707D329`を、アーキテクチャと失敗/実行可能性の独立した担当がレビューした。両者のendpoint受渡し・callback・診断責務・raw実鍵出力の非保存・陽性対照・否定結果の終端・C' bundle分離の指摘を採用して§2〜4へ反映。programとsliceの別branch、A3前の実経路疎通の指摘も採用し、metadataとA3待機条件を修正した。モデル指定と実割当variantの一致は確認できないため多様性は未証明。未採用は「callbackをmoduleから非exportにする」案で、別moduleから呼ぶPowerShell関数はexportが必要なため。CLIに秘密取得コマンドは設けず、同一ユーザーが既にDPAPI復号可能な前提で、非記録の狭い内部APIとして扱う。
-- A3: ownerの採否・freezeは未実施。program r4の承認とは別の判定として記録する。未承認ではPhase Bを開始しない。
+- A3: ownerは方向を了承したが、凍結前にbucket限定R2 tokenを所有者端末のCLIへ登録し、CLIで実R2を利用できることを条件とした。既存CLIはローカル保管のみで通信は未実装、endpoint/tokenも未取得である。この条件と§4のA3前疎通が満たされるまでfreezeは未実施。program r4の判定とは別に記録し、未承認ではPhase Bを開始しない。
 - C'担当: Phase B/Cと異なるmodelの新規session、または人間。Phase Aに未関与の候補を残す。判定Cの固定base/head、raw結果とblind bundleを使う。
 - Phase B/C/C'/D: 未到達。各snapshot、実行結果、未確認、担当/モデル、採否を到達時に記録する。
