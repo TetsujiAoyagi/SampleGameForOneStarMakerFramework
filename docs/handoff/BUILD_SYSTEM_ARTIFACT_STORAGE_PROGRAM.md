@@ -3,11 +3,11 @@
 ## 0. Metadata
 
 - type: `program`
-- status: program進行中。r1境界凍結済み、ローカル段1（スライス0）の実装・検証完了、Phase D承認済み。後続スライスは未凍結。r2案はEvidence先行の再検討用。r3案はprovider境界の明確化を加えた再検討用で、再レビュー・A3承認は未了。
+- status: program進行中。r1境界凍結済み、ローカル段1（スライス0）の実装・検証完了、Phase D承認済み。r4案は目的から順序と最初の検証を再設計したA1/A2用草案で、A3承認は未了。r2/r3は以前の未承認案。
 - program policy revision: `r1` — A3 boundary freeze; individual implementation slices are not frozen
-- proposed revision: `r3-draft` — r2 Evidence-first sequence plus provider-neutral artifact boundary; awaits review and A3 approval
-- branch: `codex/artifact-provider-boundary`
-- implementation base commit: `a6f3b1beb2d9a999fb54af36783817963df8bf4d` (`develop`)
+- proposed revision: `r4-draft` — purpose-first feasibility gate before production transport architecture; awaits independent review and A3 approval
+- branch: `codex/artifact-storage-purpose-first`
+- implementation base commit: `6537446b85bf33056dcdd5b08840940761823711` (`develop`)
 - implementation head commit: not applicable; no implementation changes are planned in this program document
 - risk: `normal`
 - owner: OSM maintainers
@@ -19,7 +19,7 @@
 
 Choose and establish one artifact workflow that supports BuildSystem outputs and review Evidence, can be used by local work and remote Cursor / Codex agents, and does not require a human to move files between agents. Keep large binary payloads out of Git history; keep a small, stable pointer and hashes in Git.
 
-This is a multi-slice program, not an implementation HANDOFF. Revision r1 freezes only the storage, responsibility, and security boundaries listed below, following the supplied freeze review and the owner's request to incorporate it. Detailed designs and acceptance proposals for individual slices still require their own Phase A review/freeze. No R2 connectivity or cloud capability is declared proven by this freeze. The r2-draft in section 3 proposes a usable Evidence milestone before full BuildSystem UX integration; r3-draft adds a provider-neutral artifact boundary while retaining R2 as the first operational store. Neither draft replaces the r1 freeze or authorizes implementation before review and owner approval.
+This is a multi-slice program, not an implementation HANDOFF. Revision r1 remains the adopted boundary until the owner reviews the r4 proposal below. No R2 connectivity or cloud capability is proven. r2/r3 below record earlier, unapproved proposals; they do not authorize implementation. r4 explicitly reopens r1's provider and ordering choices at the owner's request while retaining its safety outcomes.
 
 The owner expects most reads and writes to be performed by local Windows agents. Prioritize a usable local credential store and transfer tool. Cloud agents are intended consumers and occasional producers through task-scoped grants, but R2 support is unverified; a continuously available cloud credential broker is not a prerequisite for the local workflow.
 
@@ -71,6 +71,27 @@ Unity is a replaceable build backend. The primary user/agent interface is an eng
 - ロック取得後にACL設定が失敗したときのハンドル解放責務。
 - 矢印キー等で入力が中止される現在の挙動と、対話入力の操作仕様。
 - 危険なACLのactiveは削除も拒否され暗号文が残るため、所有者による復旧・清掃手順。
+
+### r4案 — 目的からの再評価（A3未承認）
+
+このprogramの成果は、既存のBuild成果物とレビューEvidenceをGit外の非公開領域に置き、固定した参照と信頼済みhashから別セッションが人手の反復的なファイル運搬なしに取得・検証・必要な内容を閲覧できることである。ローカルWindows同一ユーザーから始め、Cursor CloudとCodex Cloudはそれぞれread/write/閲覧を別に判定する。Unity以外のbuild backendでも保存・取得を使えるようにする。実Evidenceの上書き・削除を通常のwriter権限からサーバー側で保護する。
+
+**選択の根拠:** R2は既設private bucketとprefix lockを備えるため最初の候補とするが、endpoint、token、実接続、lockの実効性、Cloud到達性はいずれも未確認である。公開GitHub Releaseは非公開Evidenceに適さず、ローカル共有ファイルだけではCloudの受け渡しとサーバー側保護を満たさない。GitHub Actions artifactはworkflow runに結びつく有期限の保管なので、任意のローカルAgentが成果物を反復的にpublishする主経路としては採用しない。候補選択を覆す実測が出たときだけ、別の非公開object storeや認証付き中継を比較する。選定理由は[Cloudflare Bucket Locks](https://developers.cloudflare.com/r2/buckets/bucket-locks/)、[R2 S3互換性](https://developers.cloudflare.com/r2/api/s3/api/)、[GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases)、[GitHub workflow artifacts](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflow-artifacts/)の現行仕様と、§1の実測による。
+
+**実施順の提案:**
+
+1. **Route proof（新しい最初のslice）:** ownerが一度だけbucket限定のObject Read & Write tokenとendpointを用意する。既存DPAPI storeから同一process内で鍵を使用する、R2専用の限定診断で、`probe/`の小さなsynthetic bytesをlocal producerと別processのlocal readerがPUT/GETし、事前に固定したhashと一致させる。同じ存在keyの署名無し取得拒否を確認する。別のsynthetic keyを対象に、ownerが限定prefixへ設定したBucket Lockの下で、通常writerの上書き・削除拒否と原byteの維持を実測する。保護されない使い捨てkeyでは同じwriterの削除権限を確認し、単なる権限不足をlock成功と誤認しない。storeは暗号化済みprofileの寿命だけを、診断はR2通信・hash照合・非秘密結果だけを、ownerはbucket設定とlock ruleだけを所有する。通常writerにはbucket設定権限を与えない。CLI本体、rotation、複数provider interfaceはこのprobeの完了条件にしない。この合格は**R2候補のローカル必要条件**の証拠であり、R2の全面採用を意味しない。token未作成は検証待ちであってR2の不適合判定ではない。担当・証拠・停止規則は個別HANDOFFで凍結する。
+2. **最小のArtifact CLI:** route proofが成立したproviderで、明示入力のsnapshot/manifest/packaging、安全な取得と有限上限、信頼済みhash、非秘密の結果、unique key、server保護を伴う`publish`/`fetch`を実装する。`publish`はGit・HANDOFF・PRを更新せず、非秘密のledger候補を機械可読に返す。秘密の再入力なしで利用できることと、実鍵の失効・rotation・復旧を運用開始前に成立させる。上位の受け渡し契約はbytes、CLIだけが解釈する固定参照、hash、保護要件で記述し、R2 SDK型やCloudflare設定をBuild/Evidenceへ出さない。初回運用ではR2だけを扱い、第二providerを持たない段階でprovider registry、汎用URI、filesystem backendを必須化しない。R2のBucket Lockは標準S3 Object Lock APIではないため、別providerへの「同じ保護」の移植を仮定せず能力を検証する。[R2 S3互換表](https://developers.cloudflare.com/r2/api/s3/api/)
+3. **Evidence first use:** 既存形式のfindings-free bundleを固定base/headに対して選び、保存前に入力一覧とpayloadを照合し、保護済みの新規keyでpublishする。ledger候補の確定・配置はpublishとは別責務とし、C' blind bundleの固定された取得記録にkey、期待SHA-256、base/head、manifest hashを含める。同一Windowsユーザーの別セッションがその期待hashでfetchし、必要なログと画像を実際に閲覧する。C'には所見入りの可変HANDOFF、PR本文、作成側stagingを取得案内として渡さない。これをローカル限定の初回運用区切りとする。
+4. **CloudとBuild:** 各Cloud環境のegress、無人grant取得・更新、限定権限、read/write、閲覧を個別に実証する。Cloudの未成立をローカル限定運用の成功に読み替えない。BuildSystemはUnityを交換可能なbackendとして外部CLIへ接続し、既存出力を扱う。大きいBuildで必要なmultipartと容量・費用上限はBuild統合前に実測する。[R2 upload methods](https://developers.cloudflare.com/r2/objects/upload-objects/)
+
+**r1から維持する条件:** private `osm-artifacts`、公開配布と内部保存の分離、Git外payloadと短い非秘密ledger、作成側とledger更新の分離、findings-freeな固定C/C'入力、同一ユーザーDPAPIの限界、秘密非記録、`probe/` synthetic-only gate、実payload前のserver側保護、参照済みEvidenceの上書き/削除禁止。providerと実施順だけを再審議し、保護条件を緩めない。Bucket管理者はlock ruleを変更可能であり、保護は通常writerに対するものとする。[Bucket Locks](https://developers.cloudflare.com/r2/buckets/bucket-locks/)
+
+**判断を戻す条件:** Route proofの結果は`pass` / `provider-capability-failure` / `environment-blocked` / `inconclusive`を区別する。endpoint、token、必要権限、egress、lock設定の開始条件が欠けた場合は未実施またはenvironment-blockedとしてownerと再試行条件を記録し、R2不適合とは判定しない。開始条件が揃ってもR2のlocal route、private access、通常writerに対するserver側保護のいずれかが成立しない場合は、原因をnetwork/設定/サービス仕様に分けて記録し、補修できる設定か別providerかを新しいPhase Aで選ぶ。Cloudの到達・無人grantが成立しない場合は各platformの結果をunsupportedとしてprogram台帳に残し、Cloud側の経路を別に再選定する。ローカル限定運用の成立をprogram全体の完了にはしない。最初のprobeはR2選定の確定や、実Evidenceのupload許可にはならない。
+
+r4と最初のRoute proof HANDOFFは同じreview sessionでownerに採否を確認できるが、programのA3とsliceのA3は別々に記録する。Route proofは当該HANDOFFのA3承認後にだけ開始する。program承認だけでtoken発行、lock設定、通信を始める指示とはしない。承認まではr1が現行であり、下記r2/r3案と同様に実装指示ではない。r4が採用されたら、r1との矛盾と古いr2/r3の叙述を整理して、program policy revisionと`docs/README.md`の次作業を更新する。
+
+**r4 Phase A review ledger（2026-09-27）:** 主担当のA1と独立A2が読んだ初稿のSHA-256は`3781F9AA4621C608E82AE1C7FFC9098E5E0F86B73C1676FACD1705EBDBDC12F2`。A0のみからの代替担当は、R2を第一候補としつつ、接続実証前のSDK Adapter、server検証付きrotation、複数provider抽象を必須にしない案を提示した。採用してRoute proofを先頭に置いた。アーキテクチャ担当はC'の固定取得記録の所有者、programとsliceの別A3、資格情報store/診断/account ownerの責務を指摘し、すべて採用して上記へ反映した。実行可能性担当はprobe合格範囲の限定、環境未準備とprovider不適合の分離、Cloud未成立の記録、writerとlock管理者の権限分離を指摘し、すべて採用した。二担当は互いの所見を渡されず同一初稿を読んだ。指定したモデルと実際のvariantの一致は実測できないため、モデル多様性は確認済みと主張しない。A3の人間の採否と凍結は未実施。r1安全条件の削除、R2以外の運用providerの即時実装、Cloud能力の暗黙の達成は提案しない。
 
 ### r2案 — 最初に使える区切りと実施順
 
