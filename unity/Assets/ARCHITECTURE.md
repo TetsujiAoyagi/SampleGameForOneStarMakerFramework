@@ -199,17 +199,17 @@ UniTask, R3, LitMotion, ZLogger, ZString は全て Cysharp 互換。ライブラ
 | 問題 | 原因 | 本設計での対策 |
 |---|---|---|
 | コンストラクタで Unity API + async 同期ブロック | 設計ルール不在 | §4.5: コンストラクタ軽量化ルール |
-| `.GetAwaiter()` で待てていない | 非同期の仕様への理解不足 | §10.2: async/await 規約 |
+| `.GetAwaiter()` で待てていない | 知識不足 | §10.2: async/await 規約 |
 | SceneState の二重管理 | オーナー不明確 | §5.2: SceneLifecycleManager に集約 |
 | `setSceneState` が internal で外部から呼べる | カプセル化不足 | §5.2: SceneLifecycleManager のみが変更可能 |
 | finally 内で既に削除済みの要素にアクセス | catch/finally の使い分け不適切 | §5.8: catch でキャンセル処理 |
-| キャンセル済みトークンでクリーンアップ実行 | ルール不在 | §5.8: CancellationToken.None |
+| キャンセル済みトークンでクリーンアップを実行 | ルール不在 | §5.8: CancellationToken.None |
 | DOTween と Delay の不一致 | Tween の待ち方の知識不足 | §6.4: LitMotion を直接 await |
 | Unload 時に ViewOut 未呼出 | 実装漏れ | §6.5: 明示的に ViewOut を呼ぶ |
 | UICommon ↔ SceneBase の双方向依存 | 設計ルール不在 | §6.6: SceneDirector を仲介者にする |
 | Forget した非同期のエラー消失 | ルール不在 | §5.8: エラーログを残す |
 | CancellationTokenSource の Dispose 漏れ | ルール不在 | §4.3 + §10.4: ReleaseAll + Dispose パターン |
-| Static Service Locator で NullReferenceException | コードの仕組みの問題 | §4.4: ISceneFactory 経由の手動 DI（正式採用） |
+| Static Service Locator で NullReferenceException | 設計パターンの問題 | §4.4: ISceneFactory 経由の手動 DI（正式採用） |
 | SceneDirector の Dispose 保証なし | ローカル変数で保持 | §4.3: Application.quitting + SubsystemRegistration 二重保護 |
 | StandaloneInputModule（旧 Input Manager） | 更新漏れ | §4.2: InputSystemUIInputModule に変更 |
 | private メソッドの camelCase/PascalCase 混在 | 規約不統一 | §10.1: PascalCase 統一 |
