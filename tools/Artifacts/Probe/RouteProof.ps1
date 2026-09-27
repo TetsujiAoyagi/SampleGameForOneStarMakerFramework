@@ -150,11 +150,15 @@ function Read-LockRule([string] $Json) {
     $names = @($rule.PSObject.Properties.Name)
     $expected = @('Prefix','Enabled','Kind','RetentionSeconds','RuleCount','DateRules','IndefiniteRules','WriterCanConfigure','LifecycleCompatible','BeforeHash','AfterHash')
     if ((($names | Sort-Object) -join ',') -cne (($expected | Sort-Object) -join ',') -or
-        $rule.Prefix -cne 'probe/locked/' -or $rule.Enabled -isnot [bool] -or -not $rule.Enabled -or
-        $rule.Kind -cne 'Age' -or $rule.RetentionSeconds -lt 900 -or $rule.RetentionSeconds -gt 86400 -or
-        $rule.RuleCount -ne 1 -or $rule.DateRules -ne 0 -or $rule.IndefiniteRules -ne 0 -or
+        $rule.Prefix -isnot [string] -or $rule.Prefix -cne 'probe/locked/' -or $rule.Enabled -isnot [bool] -or -not $rule.Enabled -or
+        $rule.Kind -isnot [string] -or $rule.Kind -cne 'Age' -or
+        (($rule.RetentionSeconds -isnot [int]) -and ($rule.RetentionSeconds -isnot [long])) -or $rule.RetentionSeconds -lt 900 -or $rule.RetentionSeconds -gt 86400 -or
+        (($rule.RuleCount -isnot [int]) -and ($rule.RuleCount -isnot [long])) -or $rule.RuleCount -ne 1 -or
+        (($rule.DateRules -isnot [int]) -and ($rule.DateRules -isnot [long])) -or $rule.DateRules -ne 0 -or
+        (($rule.IndefiniteRules -isnot [int]) -and ($rule.IndefiniteRules -isnot [long])) -or $rule.IndefiniteRules -ne 0 -or
         $rule.WriterCanConfigure -isnot [bool] -or $rule.WriterCanConfigure -or
         $rule.LifecycleCompatible -isnot [bool] -or -not $rule.LifecycleCompatible -or
+        $rule.BeforeHash -isnot [string] -or $rule.AfterHash -isnot [string] -or
         $rule.BeforeHash -cnotmatch '^[0-9a-f]{64}$' -or $rule.AfterHash -cne $rule.BeforeHash) {
         throw 'Lock rule record unavailable.'
     }
