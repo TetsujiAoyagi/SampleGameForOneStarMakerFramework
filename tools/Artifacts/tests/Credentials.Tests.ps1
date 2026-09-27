@@ -108,6 +108,41 @@ try {
         Assert (-not ([Text.Encoding]::UTF8.GetString($cipher).Contains($sentinelId))) 'cipher ID'
         Assert (-not ([Text.Encoding]::UTF8.GetString($cipher).Contains($sentinelSecret))) 'cipher secret'
     }
+    Run 'transport callback returns only safe metadata' {
+        $result = Write-CredentialRecord 'osm' $sentinelId $sentinelSecret $false
+        Assert ($result.Outcome -eq 'success') 'callback fixture commit'
+        $safe = Invoke-CredentialTransport 'osm' {
+            param($id, $secret, $generation, $request)
+            [pscustomobject]@{ Operation = 'fake'; Generation = $generation; Status = 'success'; Count = 0 }
+        } @{}
+        Assert ($safe.Operation -eq 'fake' -and $safe.Status -eq 'success' -and $safe.Generation -match '^[0-9a-f]{32}$') 'safe callback result'
+    }
+    Run 'transport callback blocks stream and exception leakage' {
+        $result = Write-CredentialRecord 'osm' $sentinelId $sentinelSecret $false
+        Assert ($result.Outcome -eq 'success') 'stream fixture commit'
+        try {
+            Invoke-CredentialTransport 'osm' {
+                param($id, $secret, $generation, $request)
+                Write-Warning "warning $secret"
+                Write-Verbose "verbose $id" -Verbose
+                Write-Host "host $secret"
+                [Console]::WriteLine("console $secret")
+                throw "exception $id $secret"
+            } @{}
+            throw 'leaking callback was accepted'
+        } catch { Assert-SafeError $_ }
+    }
+    Run 'transport callback rejects secret-shaped result' {
+        $result = Write-CredentialRecord 'osm' $sentinelId $sentinelSecret $false
+        Assert ($result.Outcome -eq 'success') 'result fixture commit'
+        try {
+            Invoke-CredentialTransport 'osm' {
+                param($id, $secret, $generation, $request)
+                [pscustomobject]@{ Status = 'success'; Detail = $secret }
+            } @{}
+            throw 'secret result was accepted'
+        } catch { Assert-SafeError $_ }
+    }
     Run 'fixed three-level root initializes from missing directories' {
         [IO.Directory]::CreateDirectory($root) | Out-Null
         $first = [IO.Path]::Combine($root, 'OneStarMaker')

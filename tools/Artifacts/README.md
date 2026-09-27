@@ -35,6 +35,24 @@ DPAPIはWindowsユーザーに結びつけて保存データを保護します�
 
 2026-09-27に使い捨てprobeで所有者端末のsynthetic PUT、別`pwsh` processの認証GET・SHA-256照合、DELETEと空prefixを確認しました。このprobeは通信本文・子process・cleanupの有限期限を備えていないため退役し、再実行用スクリプトと専用SDK projectを削除しました。この記録は署名無し取得拒否やBucket Lockの実効性を証明しません。これらは進行中のRoute proofで別に実測します。
 
+## Route proof（Phase B実装、実R2未実行）
+
+`Probe/RouteProof.ps1` はこのslice専用の限定診断です。親processはendpointだけを受け取り、`probe/unlocked/<run-id>/` と `probe/locked/<run-id>/` の各1 key、1操作1子`pwsh` process、各操作30秒・子process45秒・run全体5分の期限を使います。子processの引数に鍵を渡さず、`CredentialStore` の `Invoke-CredentialTransport` が同一process内の一回のcallbackへDPAPI復号値を限定して渡します。callbackから戻るのは閉じた非秘密transport観測だけです。
+
+transportは`Probe/R2RouteTransport.csproj`の固定`AWSSDK.S3`依存を使います。認証PUT/GET/DELETEと、Authorizationおよび署名queryを付けないHTTP GETを分離し、本文は保存せず、EOF確認時だけ全体hash、期待長に達した場合だけ先頭hashを返します。SDK例外のMessage、HTTP本文、request/header、秘密は結果へ通しません。`artifacts/` は生成物でGit管理外です。
+
+所有者がCloudflareで`probe/locked/`の全有効ruleを確認し、次のような秘密を含まないJSONを手元で用意してから実R2を実行します。`BeforeHash` と `AfterHash` は設定全体の記録hashで、試験前後に同一であることを示します。通常writer tokenへBucket設定権限を追加しないでください。
+
+```powershell
+dotnet restore tools/Artifacts/Probe/R2RouteTransport.csproj
+dotnet build tools/Artifacts/Probe/R2RouteTransport.csproj -c Release -o tools/Artifacts/Probe/artifacts/route-transport --no-restore
+pwsh -NoProfile -File tools/Artifacts/Probe/RouteProof.ps1 `
+  -Endpoint https://<32-hex-account-id>.r2.cloudflarestorage.com `
+  -LockRuleJson '{"Prefix":"probe/locked/","Enabled":true,"Kind":"Age","RetentionSeconds":900,"RuleCount":1,"DateRules":0,"IndefiniteRules":0,"WriterCanConfigure":false,"LifecycleCompatible":true,"BeforeHash":"<64-hex>","AfterHash":"<64-hex>"}'
+```
+
+Phase Bでは上記を実R2へ向けて実行せず、合否も宣言しません。実行時の出力は固定schemaの非秘密JSON Linesだけを保存し、`provider-capability-failure` は開始条件・陽性対照・再現性が揃った場合だけ意味を持ちます。lock対象は保持期限前に削除せず、`retained-by-lock` としてowner、rule、保持期限、清掃予定を別の非秘密台帳へ残します。`-Endpoint` は親だけが指定し、bucket、path、query、userinfo、port、別hostnameは受け付けません。
+
 ## 保守と検証
 
 依存は `tools/artifacts.ps1` → `CredentialCommands.psm1` → `CredentialStore.psm1` → `CredentialPathAcl.psm1` の一方向です。launcherはCLI解析と終了コード、Commandsは入力と安全な表示、Storeはレコード検証・DPAPI・原子的置換・回復、PathAclは保存先と権限検査を担当します。公開コマンドで秘密を読み出す機能はありません。テストの保存先・障害注入はモジュール内部に限定します。
@@ -43,6 +61,7 @@ WindowsのPowerShell 7で次を実行します。資格情報テストは毎回�
 
 ```powershell
 pwsh -NoProfile -File tools/Artifacts/tests/Credentials.Tests.ps1
+pwsh -NoProfile -File tools/Artifacts/tests/RouteProof.Tests.ps1
 pwsh -NoProfile -File tools/contract-audit.ps1
 pwsh -NoProfile -File tools/docs-audit.ps1
 ```
