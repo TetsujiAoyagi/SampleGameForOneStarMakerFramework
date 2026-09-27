@@ -10,7 +10,7 @@
 | 項目 | バージョン / 選定 |
 |---|---|
 | Unity | **6.6 (6000.6.0f1)** |
-| Render Pipeline | **URP 17.5.0** |
+| Render Pipeline | **URP 17.6.0** |
 | Scripting Backend | **IL2CPP** (Android) |
 | .NET | **.NET Standard 2.1** |
 | DI | **手動 DI**（コンストラクタ注入 + Factory 配線。コンテナ不採用 — [03-di.md](Docs/Architecture/03-di.md)） |
@@ -59,13 +59,13 @@ Assets/
 │
 ├── SampleGame/                  ← ゲーム固有実装
 │   ├── DependOnAll/             … AppInitializer, GameSceneFactory, NullLoadingDisplay
-│   ├── Common/                  … ゲーム共通サービス・シーン定義（未実装）
+│   ├── Common/                  … ゲーム共通の型・シーン定義
 │   ├── OutGame/
 │   │   └── Title/TitleScene.cs  … タイトル画面
-│   ├── InGame/                  … インゲーム（未実装）
+│   ├── InGame/                  … 四季 World / Cell / 職種 companion / Player
 │   └── Tests/                   … SampleGame.Tests / Tests.Editor（アプリの EditMode）
 │
-└── Docs/Architecture/           ← 設計ドキュメント群（§3〜§20 + 移行記録。索引は ARCHITECTURE.md）
+└── Docs/Architecture/           ← 設計ドキュメント群（現況・到着契約・移行記録。索引は ARCHITECTURE.md）
 ```
 
 ---
@@ -149,20 +149,14 @@ MonoBehaviour.Update によらない更新基盤（Layer / Coordinator / Job Sys
 
 ## 開発フェーズ
 
-| Phase | 内容 | 状態 |
-|---|---|---|
-| **Phase 1** | Framework 骨格（Config, Logging, Scene, UI, Editor） | ✅ 完了 |
-| **Phase 2** | Framework サービス（HostedService, Sound, Input） | 未着手 |
-| **Phase 3** | Game 基盤（起動処理, SceneFactory） | 🔧 一部完了 |
-| **Phase 4** | Game 実装 + UI 移行 | 未着手 |
-
-**Phase 3 実装済み:** `AppInitializer`, `GameSceneFactory`, `NullLoadingDisplay`, `TitleScene`
-
-**フェーズ表の枠外で完了した追加実装:** テレメトリ v2 + DebugSocket / DebugStudio 連携、AssetManagement + AssetResidentCache、UpdateSystem、Content Directory / DIST Delivery（詳細は [ARCHITECTURE.md](ARCHITECTURE.md) の開発フェーズ欄を参照）
+開発フェーズと未実装範囲は [ARCHITECTURE.md の開発フェーズ](ARCHITECTURE.md#12-開発フェーズ) を正とする。
+四季 World / SceneStreaming、Content Directory / DIST Delivery、S-4c の最小 RenderEnvironment と代表 bake、FW / アプリのテストアセンブリ分離は実装済みである。これは旧 STG の全ゲーム実装や RenderWorld 全体の完成を意味しない。
 
 ---
 
 ## 実装規模（2026-07-06 時点）
+
+以下は当時の測定記録であり、現在のファイル数・行数・実装範囲ではない。
 
 **OneStarMaker Framework: 約 192 ファイル / 約 21,000 行**（テスト含む）
 

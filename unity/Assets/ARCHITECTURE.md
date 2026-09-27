@@ -134,10 +134,10 @@ Game.Common ──→ Foundation, Runtime
 | §18 | AssetDescription — 目的・有用性・実装 | [18-asset-description.md](Docs/Architecture/18-asset-description.md) |
 | §19 | （欠番 — AssetResidentCache 施行表。施行完了につき設計判断は §13 へ集約） | — |
 | §20 | Content Directory / Delivery と旧 Addressables 在庫 | [20-variant-checkout-workflow.md](Docs/Architecture/20-variant-checkout-workflow.md) |
-| §21 | SceneStreaming — **現状**（格子キー。到着点ではない） | [21-scene-streaming.md](Docs/Architecture/21-scene-streaming.md) |
+| §21 | SceneStreaming — 設計記録（現行の identity / 体積経路は `docs/streaming/`） | [21-scene-streaming.md](Docs/Architecture/21-scene-streaming.md) |
 | §22 | （予約 — HLOD / Proxy ティア。21-scene-streaming.md §12 参照） | — |
 | §23 | CameraSystem — カメラシステム設計（実装済み。Play 目視判定が未了） | [23-camera-system.md](Docs/Architecture/23-camera-system.md) |
-| §24 | RenderingSystem — レンダリングシステム構想（構想段階・骨子） | [24-rendering-system.md](Docs/Architecture/24-rendering-system.md) |
+| §24 | RenderingSystem — RenderWorld は構想、最小 RenderEnvironment は S-4c で実装済み | [24-rendering-system.md](Docs/Architecture/24-rendering-system.md) |
 | §25 | （欠番 — DebugSocketService 分割施行表。施行完了。結果は `Runtime/DebugSocketServices/` の partial 構成そのもの） | — |
 | §26 | UpdateSystem × Async — 時間権威 | [26-update-async-time-authority.md](Docs/Architecture/26-update-async-time-authority.md) |
 | §27 | フォルダ構成戦略（Assembly × Scene 同居） | [27-folder-structure.md](Docs/Architecture/27-folder-structure.md) |
@@ -154,6 +154,8 @@ Game.Common ──→ Foundation, Runtime
 
 ## 12. 開発フェーズ
 
+下表は旧 STG 再設計の区分であり、四季 World の制作スライスや作業規約の Phase A〜D とは別である。表の未完了を InGame 全体の未実装と読まない。表外の現況は直下に示す。
+
 | Phase | 内容 | 成果物 | 状態 |
 |---|---|---|---|
 | **Phase 1** | Framework 骨格 + Editor ツール | Assembly 定義、SceneState、SceneLifecycleManager、SceneDirector（テスト付）、SceneBase、UICommon（6レイヤー + Blocker）、UIView（Debug レイヤー含む）、AbstractApplicationInitializer、Config（AppConfig + 3 Provider）、SceneResource / SceneResourceMap / SceneAssetDescription / ScenePayload / LoadType / SceneContext / SceneEvent / SceneLoadProgress / SceneTransitionPlan、**Scene Graph Editor（§11）**、**AppLoggerFactory（ZLogger ベースの `ILoggerFactory`）**、**テレメトリ基盤（§12: AppTelemetry + lightweight span + JsonFileTelemetrySink + DebugSocket / MessagePack export + ZString 最適化）** | ✅ 完了 |
@@ -166,7 +168,9 @@ Game.Common ──→ Foundation, Runtime
 > **Phase 1 完了後の追加実装（フェーズ表の枠外で進行したもの）:**
 > テレメトリ v2 + DebugSocket / DebugStudio 連携（§12, §15, §28）、AssetManagement + AssetResidentCache（§13）、
 > UpdateSystem（正本 `docs/updater/UPDATER_CURRENT_SPEC.md`）、Content Directory / DIST Delivery（§13, §18, §20）、
-> SceneStreaming 現状（§21 / `docs/streaming/`。到着契約は §34）。
+> SceneStreaming と四季 World（§21 / `docs/streaming/`。到着契約は §34）、
+> S-4c の最小 RenderEnvironment / Season Lighting と代表 Cell の bake（§24 §9.1）、
+> FW / アプリのテストアセンブリ分離（§27）。S-4c の完了は全 Cell への Lighting 標準装備、RenderWorld、seam の独立証明を含まない。
 
 ---
 
@@ -195,7 +199,7 @@ UniTask, R3, LitMotion, ZLogger, ZString は全て Cysharp 互換。ライブラ
 | 問題 | 原因 | 本設計での対策 |
 |---|---|---|
 | コンストラクタで Unity API + async 同期ブロック | 設計ルール不在 | §4.5: コンストラクタ軽量化ルール |
-| `.GetAwaiter()` で待てていない | 知識不足 | §10.2: async/await 規約 |
+| `.GetAwaiter()` で待てていない | 非同期の仕様への理解不足 | §10.2: async/await 規約 |
 | SceneState の二重管理 | オーナー不明確 | §5.2: SceneLifecycleManager に集約 |
 | `setSceneState` が internal で外部から呼べる | カプセル化不足 | §5.2: SceneLifecycleManager のみが変更可能 |
 | finally 内で既に削除済みの要素にアクセス | catch/finally の使い分け不適切 | §5.8: catch でキャンセル処理 |
@@ -205,7 +209,7 @@ UniTask, R3, LitMotion, ZLogger, ZString は全て Cysharp 互換。ライブラ
 | UICommon ↔ SceneBase の双方向依存 | 設計ルール不在 | §6.6: SceneDirector を仲介者にする |
 | Forget した非同期のエラー消失 | ルール不在 | §5.8: エラーログを残す |
 | CancellationTokenSource の Dispose 漏れ | ルール不在 | §4.3 + §10.4: ReleaseAll + Dispose パターン |
-| Static Service Locator で NullReferenceException | 設計パターンの問題 | §4.4: ISceneFactory 経由の手動 DI（正式採用） |
+| Static Service Locator で NullReferenceException | コードの仕組みの問題 | §4.4: ISceneFactory 経由の手動 DI（正式採用） |
 | SceneDirector の Dispose 保証なし | ローカル変数で保持 | §4.3: Application.quitting + SubsystemRegistration 二重保護 |
 | StandaloneInputModule（旧 Input Manager） | 更新漏れ | §4.2: InputSystemUIInputModule に変更 |
 | private メソッドの camelCase/PascalCase 混在 | 規約不統一 | §10.1: PascalCase 統一 |

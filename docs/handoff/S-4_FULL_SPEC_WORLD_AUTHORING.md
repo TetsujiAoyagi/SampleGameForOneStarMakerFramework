@@ -88,7 +88,7 @@ Cell 配下の全職種 Scene は `StreamByDistance = false`、`LoadType.OnDeman
 
 VFX Scene にゲーム進行 trigger を置かない。Events Scene が VFX の開始・停止を要求する。
 Scene を跨ぐ `GameObject` の直接参照は禁止し、event id、world position、service query、
-Addressable prefab で接続する。
+`IAssetManagement` で寿命を宣言してロードする prefab で接続する（§2.4）。
 
 ### 2.3 Event Scene の粒度
 
@@ -141,19 +141,13 @@ Full / Whitebox は同じ Scene 名を使う。これにより、Editor で Whit
 
 ### 3.1 Runtime Variant
 
-- `SceneDirector` に起動時固定の Scene Variant を渡す。
-- `PerformUnitySceneLoad` は空文字固定をやめ、その値を `IAssetManagement.LoadSceneAsync` へ渡す。
-- AppConfig key は `assets:sceneVariant`。空文字が Production、`Whitebox` が開発用。
-- Editor は active `BuildVariantProfile.SceneVariant` を config より優先して注入する。
-- Player は config file、環境変数、コマンドラインの既存優先順位を使う。
-- Variant は起動後に切り替えない。切替には Play / Player の再起動を要求する。
-- Cell の `SceneAssetDescription` は `""` と `"Whitebox"` の2 payloadを持つ。
-- `WorldWhitebox` BuildVariantProfile は `""` と `"Whitebox"` を含める。
-- Production Profile は Whitebox を含めない。
+- 起動時に一度選んだ表現を `SceneDirector` の Scene lifecycle に固定する。実行中に切り替えず、変更時は Play / Player を再起動する。
+- 通常の Content Directory 経路では `content:representation` の `Full` / `Whitebox` を使う。空の Scene payload Variant は build 時に `Representation=Full` へ写す。
+- `Tools/OSM/Content/Build Spring Whitebox` または `Build Spring Full And Whitebox` で必要な content を生成し、DIST の verified install と Delivery の「Use For Next Play」で起動対象を選ぶ。Player は BS4 coordinator の固定 config / bootstrap を使う。
+- Scene の要求表現が無いときだけ、その directory 内の `Full` entry へ fallback する。Lighting / Events 等の Full のみの補助 Scene は Whitebox build にも含める。欠損を source や Addressables で埋めない。
+- 全 Cell が既定と `Whitebox` の2 payloadを持つことは S-4b で検査済み。
 
-既存の「指定 Variant が無ければ空文字へ fallback」を維持する。そのため Whitebox 指定時も
-Lighting / Events 等は通常 payloadを使用できる。一方、全 Cell に Whitebox payload があることは
-S-4b の aggregate validation で必須にする。
+`assets:sceneVariant` と active `BuildVariantProfile.SceneVariant` による選択、Production / WorldWhitebox の whitelist は明示 Addressables 互換経路の設定であり、通常 directory Play の選択手順ではない。起動の正本は [§4.8](../../unity/Assets/Docs/Architecture/04-app-startup.md#48-起動時-scene-variant-と職種-companion-set)、選択・取得・Player は [§18](../../unity/Assets/Docs/Architecture/18-asset-description.md) / [§20](../../unity/Assets/Docs/Architecture/20-variant-checkout-workflow.md)。
 
 ### 3.2 Companion profile
 
@@ -241,10 +235,12 @@ S-4bではSpring初期化と排他controllerの入口までを実装した。Tun
 
 ## 5. S-4c — World Lighting
 
+> **完了。** 以下は後続制作が維持する境界。実装・検証範囲と seam の証拠不足を含む受け入れ判断は [Architecture §24 §9.1](../../unity/Assets/Docs/Architecture/24-rendering-system.md#91-s-4c-で実証した最小実装) を正とし、追加実装指示として扱わない。REN-08 の TimeOfDay 全体や RenderWorld の完成ではない。
+
 ### 5.1 Global owner
 
-Architecture §24のREN-08をこのスライスで前倒しし、`IRenderEnvironment`、
-`RenderEnvironmentState`、所有leaseをFrameworkへ追加する。
+`IRenderEnvironment`、`RenderEnvironmentState`、所有leaseの最小境界はFrameworkへ追加済み。
+SeasonのpresetはSampleGameが所有し、Frameworkへ季節語を持ち込まない。
 
 - App lifetimeのRenderEnvironmentは、同時に1つのSeason ownerだけを受け付ける。
 - `SeasonLightingScene`がLoad時にleaseを取得し、Unload時に解放する。
@@ -253,8 +249,8 @@ Architecture §24のREN-08をこのスライスで前倒しし、`IRenderEnviron
 - PlayerScene等から`RenderSettings`直接変更を除き、global stateをRenderEnvironmentへ集約する。
 - Camera固有VolumeはCameraSystem、全View共通VolumeはRenderEnvironmentが所有する。
 
-純C# policyはpresetからsun rotation / color / intensity、ambient、fog、global Volume weightを算出する。
-URP adapterだけが`Light`、`RenderSettings`、`Volume`へ反映する。
+実装済みのlease / sink境界では、Unity側のsinkだけが`Light`と`RenderSettings`へ反映し、lease解放で取得前のbaselineを復元する。
+TimeOfDay、天候、Volume合成等の後続機能を、この最小実装の完了に含めない。
 
 ### 5.2 Local Lighting
 
@@ -281,7 +277,7 @@ S-4でcommitするのは代表2 Cellのベイクデータだけ。全216 Cellの
 
 ### 6.1 VFX Graph
 
-- `com.unity.visualeffectgraph` `17.5.0`を追加し、URP package versionと揃える。
+- `com.unity.visualeffectgraph` の導入方針は維持する。旧指定 `17.5.0` は現行manifestの URP `17.6.0` と一致しない。採用versionは **S-4d Phase Aで互換性を確認して固定する未決事項** とし、本programから旧versionの追加を実行しない。
 - 必要なRuntime assembly referenceだけをSampleGame側asmdefへ追加する。
 - PC Qualityで描画を必須受入とする。
 - Mobileでは起動時にcapabilityを判定し、非対応なら`VisualEffect`を有効化せず、一度だけ診断ログを出す。
@@ -293,9 +289,9 @@ URP / mobile対応には制約が残るため、PC必須・Mobile安全停止を
 
 ### 6.2 実証Scene
 
-春に次の6 Scene / Resourceを追加する。
+春ではS-4cで作成済みのCell Lighting 2件を維持し、S-4dで残るVFX / Events 4件を追加する。
 
-- Cell Lighting: `Spring_Lighting_4_2`, `Spring_Lighting_5_2`
+- Cell Lighting（S-4cで作成済み）: `Spring_Lighting_4_2`, `Spring_Lighting_5_2`
 - VFX: `Spring_AtmosphereVFX`, `Spring_VFX_4_2`
 - Events: `Spring_Events_4_2`, `Spring_Event_MultiCellProof`
 
@@ -304,8 +300,8 @@ URP / mobile対応には制約が残るため、PC必須・Mobile安全停止を
 `Spring_Events_4_2`はCell内triggerからlocal VFXを起動する。
 `Spring_Event_MultiCellProof`はCell bundleとは独立してAdd / Unloadでき、Season Unloadで必ず回収される。
 
-Planner Playは `assets:sceneVariant=Whitebox` と `world:cellCompanionSet=Planner` を使い、
-Environmentをロードしない状態でlocal / major eventの両方を実証する。
+Planner Playは§3.1のContent Directory選択・verified installで `content:representation=Whitebox` と
+`world:cellCompanionSet=Planner` を使う。実証対象のEvents / VFXを含めたrevisionで、Environmentをロードしない状態のlocal / major event両方を実証する。
 
 ---
 
@@ -328,6 +324,7 @@ VFX Graph依存はSampleGame側に閉じ、OneStarMaker Runtimeの公開APIへ`V
 ## 11. 検証方針
 
 658 Sceneを個別に目視しない。破壊的生成と制作契約に必要な集約ゲートだけを行う。
+S-4a〜cは完了時の条件を残すもので、撤去済み生成器の再実行や完了HANDOFFの復活を要求しない。S-4cの判定範囲は§5冒頭のharvest先を参照する。
 
 ### S-4a
 
@@ -358,17 +355,11 @@ VFX Graph依存はSampleGame側に閉じ、OneStarMaker Runtimeの公開APIへ`V
 - Planner profileでEnvironmentをロードせずWhitebox上のEventが動く。
 - local EventはCell unload、major Eventは完了またはSeason unloadで回収される。
 
-各スライスのPhase B担当はUnityテストとAddressables buildを実行せず、終了時に
-`pwsh tools/contract-audit.ps1`まで行う。Phase CはEditorが閉じていることを確認し、
-`pwsh tools/run-tests.ps1`を実行する。Scene / SceneResource / Addressables操作は、人間が既に開いた
-EditorへUnity CLIで接続して行い、`.unity` / `.asset` YAMLを直接編集しない。
+操作権限の正本は [AGENTS.md](../../AGENTS.md) と [osm-unity-editor](../../.agents/skills/osm-unity-editor/SKILL.md)、テスト担当は [osm-workflow](../../.agents/skills/osm-workflow/SKILL.md)。旧CLIの固定versionや個人pathを前提にしない。
 
-Unity CLIは導入済みであり、再インストールしない。
+ローカルでは `tools/unity-editor.cmd status` で対象projectを確認し、必要なら正しい版・pathでEditorを起動してよい。人間の手動起動を待たない。Phase BはEditor操作・compile確認までとし、UnityテストとBuildはPhase Cへ渡す。Phase CはEditorを適切に閉じ、標準の `pwsh tools/run-tests.ps1` と必要なBuildを実行する。人間のEditorを強制終了しない。
 
-```text
-C:\Users\void\AppData\Local\Unity\bin\unity.exe
-version: 1.0.0-beta.6
-```
+`unity test` / `unity run`、CloudでのUnity CLI、Scene / asset YAML手編集は禁止。CLI更新・command discovery・承認範囲はSkillに従い、旧大量生成器を復活させない。
 
 ---
 
@@ -381,5 +372,5 @@ version: 1.0.0-beta.6
 HANDOFFへ書く。本書にない公開API、依存、状態、所有者が必要になったらPhase Bで決めずPhase Aへ戻す。
 
 S-4dのPhase Dで、S-4d固有の現況となった契約をArchitecture §05 / §18 / §24 / §27とStreaming現状仕様へharvestし、
-本書と完了済みS-4a〜d HANDOFFを削除する。後続S-5が必要とするSeason排他controllerの公開面だけは、
+本書とS-4d HANDOFFを削除する。S-4a〜c HANDOFFはharvest後に削除済みであり、復活させない。後続S-5が必要とするSeason排他controllerの公開面だけは、
 harvest後のArchitecture文書を参照する。

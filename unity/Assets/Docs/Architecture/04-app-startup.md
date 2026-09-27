@@ -10,65 +10,34 @@
 
 ```
 SubsystemRegistration  → 前回セッションのクリーンアップ（Domain Reload 無効対応）
-BeforeSceneLoad        → サービス群の同期初期化（Addressable WaitForCompletion）
-AfterSceneLoad         → ロード済みシーンの登録 + 初回シーンのロード
+BeforeSceneLoad        → 設定・サービス群の同期初期化（UI / Mapはまだロードしない）
+AfterSceneLoad         → content登録・UI / Map・Factory / Director構築 → 既存Scene登録・初回Sceneロード
 ```
 
 **設計意図:**
-- Bootstrap シーンを置かず、Build Settings の Scene 0 を初回シーンとする。
-- Editor でどのシーンから Play しても動作する（Play-from-any-scene）。
+- Editor Playはロード済みSceneを登録する。通常directory Playには検証済みcontentの準備が必要で、任意の未取得Sceneが自動取得されるわけではない。
+- 通常PlayerはBS4が生成する単一のUICommon bootstrap Sceneから開始し、固定configの論理`firstScene`をcontentからロードする。旧Build Settings Scene 0をそのままゲームの初回Sceneとする案内は使わない。
 - サービスの Dispose は `Application.quitting` で保証する（SubsystemRegistration で二重保護）。
 
 ## 4.2 クラス構造
 
-```
+```text
 AbstractApplicationInitializer (OneStarMaker.Runtime)
-  ├── BootstrapSubsystemRegistration()  … ReleaseAll（前回セッション解放）
-  ├── BootstrapBeforeSceneLoad()        … 同期初期化
-  │     ├── BuildConfig()               … 3ソース → AppConfig 生成
-  │     ├── EnsureEventSystem()         … InputSystemUIInputModule
-  │     ├── LoadUICommon()              … Addressable → WaitForCompletion → Instantiate
-  │     ├── LoadSceneResourceMap()      … Addressable → WaitForCompletion
-  │     ├── CreateSceneFactory()        … abstract（Game 層で実装）
-  │     └── new SceneDirector(...)
-  ├── BootstrapAfterSceneLoad()         … 非同期初期化
-  │     ├── OnServicesInitializing()    … virtual（Phase 2: HostedService 登録）
-  │     └── RegisterAlreadyLoadedScenes()  … Editor Play 済みシーンの登録
-  │
-  ├── GetUICommonPrefabAddress()        … abstract
-  ├── GetSceneResourceMapAddress()      … abstract
-  ├── CreateLoadingDisplay()            … abstract
-  ├── GetConfigFilePath()               … virtual（デフォルト: StreamingAssets/app-config.json）
-  └── GetEnvironmentVariablePrefix()    … virtual（デフォルト: ""）
-
-ApplicationInitializer (Game.DependOnAll)
-  └── 上記の abstract を実装
+  ├── BootstrapSubsystemRegistration() → ReleaseAll（前回セッション解放）
+  ├── BootstrapBeforeSceneLoad()
+  │     └── AssetManagement / AppConfig / directory設定 / logger / UpdateSystem等の準備
+  └── BootstrapAfterSceneLoad()
+        ├── Editor directoryのみ: sessionを先に登録
+        ├── UICommon / SceneResourceMapの取得
+        │     ├── Editor directory: contentのbootstrap entry
+        │     ├── BS4 Player: 生成済みUICommon / graph metadata
+        │     └── 明示Addressables互換: 互換ロード
+        ├── Framework・アプリサービス開始 → CreateSceneFactory()
+        ├── 起動表現確定（BS4はここでdirectory登録）→ SceneDirector構築
+        └── RegisterAlreadyLoadedScenes() / 必要な論理初回Sceneロード
 ```
 
-派生クラスの実装パターン:
-
-```csharp
-sealed class AppInitializer : AbstractApplicationInitializer
-{
-    static readonly AppInitializer s_instance = new();
-
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    static void Sub()    => BootstrapSubsystemRegistration(s_instance);
-
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
-    static void Before() => BootstrapBeforeSceneLoad(s_instance);
-
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-    static void After()  => BootstrapAfterSceneLoad(s_instance);
-
-    protected override ISceneFactory CreateSceneFactory() => new MySceneFactory(Config!);
-    protected override string GetUICommonPrefabAddress()  => "Assets/Prefabs/UICommon.prefab";
-    protected override string GetSceneResourceMapAddress() => "Assets/SceneMap/Map.asset";
-    protected override ILoadingDisplay CreateLoadingDisplay() => new MyLoadingDisplay();
-    protected override string GetConfigFilePath()         => Path.Combine(Application.streamingAssetsPath, "app-config.json");
-    protected override string GetEnvironmentVariablePrefix() => "ONESM_";
-}
-```
+実際の派生クラスは [SampleGameのAppInitializer](../../SampleGame/DependOnAll/AppInitializer.cs)、共通順序は [AbstractApplicationInitializer](../../OneStarMaker/Scripts/Runtime/Bootstrap/AbstractApplicationInitializer.cs) を参照する。3つのRuntimeInitializeOnLoadMethodから対応するBootstrap関数を呼ぶ。Editorのdirectory logical key、互換Addressables key、BS4のrequired file config / graph metadataを同じアドレスとして扱わない。残存するEditor設定読取と旧Variant検証の不一致候補は§4.7 / §4.8に分けて示す。
 
 ## 4.3 リソース解放の保証
 
@@ -234,20 +203,20 @@ private async UniTaskVoid InitializeAfterSceneLoad()
 ## 4.6 Play-from-any-scene（Editor 対応）
 
 `AfterSceneLoad` で `SceneManager.sceneCount` を走査し、既にロード済みのシーンを `SceneDirector.AddScene` で登録する。
-**Build Settings の Scene 0 を別途 `AddScene` する処理は持たない。** Editor で開いたシーンがそのまま初回シーンになる。
+Editorでは開いているSceneを初期登録の入力にする。通常directory Playでも、Content Directory / Deliveryの起動条件（§4.7）は先に満たす必要がある。
 
 - `AddScene` は冪等（既に登録済みならスキップ）。
 - `PerformUnitySceneLoad` が `SceneManager.GetSceneByName` でロード済みシーンを検出し、再ロードしない。
 - `SceneResourceMap` に未登録のシーン（テストシーン等）はスキップしてログ出力する。
-- ビルド時は Build Settings の Scene 0 が唯一の初回 Unity シーン。`RegisterAlreadyLoadedScenes` は Scene 0 を登録するだけで二重ロードは発生しない。
+- BS4 Playerは生成済みbootstrap Sceneと、そこからロードする論理`firstScene`を区別する。`RegisterAlreadyLoadedScenes`だけでPlayerの初期contentロードが完了するわけではない。
 
 ## 4.7 設定の読み込み（AppConfig）
 
-アプリケーション設定は3つのソースからレイヤード方式でマージする。後のソースが前のソースを上書きする。
+AppConfigはJSON・環境変数・コマンドラインをマージする。一般キーは後のソースが前のソースを上書きするが、**BS4 Playerのprotected keyは後述の固定値との不一致を拒否する**。JSONの取得方法もEditor / 互換とBS4 Playerで異なる。
 
 ```
 優先順位（低 → 高）:
-  1. JSON ファイル     … StreamingAssets/app-config.json
+  1. JSON              … GetConfigFilePathのkey / BS4のrequired file config
   2. 環境変数          … プレフィックス付き（例: ONESM_SERVER__PORT=8080）
   3. コマンドライン引数 … --Server.Port=8080
 ```
@@ -260,7 +229,8 @@ IConfigProvider                   … プロバイダインターフェース
 JsonConfigFlattener               … JSON 文字列を ":" 区切りへ展開する純粋ロジック
 ├── EnvironmentVariableConfigProvider … "__" → ":" 変換、プレフィックスフィルタ
 └── CommandLineConfigProvider     … --Key=Value / --Key Value / --Flag 形式
-Runtime.JsonFileConfigProvider    … Addressables 経由で JSON TextAsset を取得し、フラットキー化
+Runtime.JsonFileConfigProvider    … 残存するAddressables TextAsset設定読取（整合性の未決は下記）
+RequiredJsonFileConfigProvider    … BS4のbs4-runtime.jsonを必須読取・固定
 ```
 
 ### キー形式
@@ -289,7 +259,7 @@ protected override ISceneFactory CreateSceneFactory()
 
 // カスタマイズ
 protected override string GetConfigFilePath()
-    => Path.Combine(Application.streamingAssetsPath, "my-config.json");
+    => "Assets/SampleGame/Config/app-config.json"; // 現行Editor側providerはAddressables keyを取る。下記の未決に注意
 protected override string GetEnvironmentVariablePrefix() => "MYAPP_";
 ```
 
@@ -313,10 +283,10 @@ Editor Play は明示された install result の identity と digest を使う�
 installed override は receipt、受信した transport manifest bytes の digest、contentSet、revision、target、
 全 content files を照合してから登録する。target は `StandaloneWindows64-Player` に固定する。
 
-directory session は AfterSceneLoad で UICommon / SceneResourceMap より先に登録する。起動時に選んだ
+Editorのdirectory sessionはAfterSceneLoadでUICommon / SceneResourceMapより先に登録する。起動時に選んだ
 representation は Scene lifecycle の間固定する。通常の Editor directory Play は UICommon Scene と
 SceneResourceMap を Content Directory の bootstrap entry（SampleGame 固定 logical key）から読む。
-明示 `addressables` の互換起動だけが Addressables から UI/config/SceneResourceMap を取得する。
+UICommon / SceneResourceMapのAddressablesロードは明示`addressables`互換起動だけが使う。config読取には下記の実装整合の未決がある。
 directory Player は生成した `UICommon` bootstrap Scene と graph metadata、
 `StreamingAssets/bs4-runtime.json` を使い、対応する local content directory を登録して論理初回 Scene を
 ロードする。この Player mode は生成 bootstrap Scene の runtime 名と Player 実行で latch し、環境変数や
@@ -334,13 +304,17 @@ handle を finally で回収し、実際に完了した段階だけを記録す�
 診断用 hold は代表 Prefab の検証後から destroy 前までに限り、有限 deadline と明示 signal で解除する。
 失敗、取消、timeout の場合も instance と handle は既存の `finally` で回収する。
 
+**Editor設定読取の未決:** 現行`BuildConfig()`はdirectory選択判定より前に`JsonFileConfigProvider`を使い、SampleGameの`GetConfigFilePath()`はAddressables keyを返す。したがって「通常Editor起動はconfigもAddressablesを読まない」とは現況を断定できない。この依存を許容した残存ownerか、通常経路からの切断漏れかは未決であり、文書更新で採用・正当化しない。BS4のrequired file configとfail-closed条件は変更しない。
+
 ## 4.8 起動時 Scene Variant と職種 companion set
 
 Scene payload の Variant と Cell 職種のロード集合は、**起動時に一度だけ**決まる。Play Mode / Player の実行中に切り替えない。反映には再起動が必要。
 
 ### Scene Variant
 
-`AbstractApplicationInitializer` は `SceneDirector` を構築する直前に `ResolveSceneVariant()` を一度呼び、non-null の文字列を constructor へ渡す。null は拒否する。空文字 `""` は Production の正当な default payload である。
+**通常directory経路:** 最終的な表現は`content:representation`の`Full` / `Whitebox`を使う。Content buildで同梱し、Deliveryのverified installを選択して起動する。BS4 Playerではrequired configの固定表現と一致させる。active `BuildVariantProfile`を通常経路の選択手順にしない（[§18](18-asset-description.md) / [§20](20-variant-checkout-workflow.md)）。
+
+**Addressables互換経路:** `ResolveSceneVariant()`でnon-nullの文字列を解決する。nullは拒否し、空文字`""`はProductionの正当なdefault payloadとする。以下の優先順位・profile規則はこの互換設定の説明である。
 
 優先順位は既存 AppConfig と同じ（低 → 高）:
 
@@ -355,6 +329,8 @@ JSON `assets:sceneVariant`  <  環境変数  <  コマンドライン
 - 空でない `BuildVariantProfile.SceneVariant` は、同 profile の whitelist に ordinal 完全一致で含まれなければ settings / Editor startup を失敗させる。不整合を default へ隠さない。
 
 `Production.asset` の Scene Variant は空、whitelist に Whitebox を含めない。`WorldWhitebox.asset` は Scene Variant `Whitebox`、whitelist は `""` と `"Whitebox"`。
+
+**旧profile検証の未決:** 現行`InitializeAfterSceneLoad()`はdirectory表現を上書きする前に`ResolveSceneVariant()`を呼ぶ。Editor resolverは`DeveloperVariantSettings.GetActiveSceneVariant()`で旧profileを検証するため、不正な旧profileがdirectory起動へ影響する可能性がある。これは静的な不一致候補で、Unity再現・修正判断は未実施。有効な旧profileを通常起動の新しい必須条件にはしない。
 
 ### 職種 companion set
 

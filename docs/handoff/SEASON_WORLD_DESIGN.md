@@ -8,7 +8,7 @@
 > §33 の D-1（空隙で季節矩形を離す）/ 季節↔動詞 / identity に季節名を入れない、とは食い違う。世界については本書が新しい。§33 には退役表がある。本文 harvest は移行の口が通ってから行い、それまで §33 本文は書き換えない。
 > §7 / §8 は欠番（HANDOFF の Phase C / C' と番号を重ねない。スライス S-8 と節番号を混同しない）。harvest 期限は §12。`docs-audit.ps1` 検査3の対象にしない。
 
-実装エージェントへ: 本書は構図・実証・スライス順序の正本である。`CellIdentity.TryParse` を修飾対応すること、`StreamingConfig` に qualifier を足すこと、Backend デコレータで id を翻訳することは、**本書の指示ではない。** 距離判断は §34。格子キーを外す M-1〜M-4 は完了済み。既存 16 セルの全廃は **S-4**。
+実装エージェントへ: 本書は構図・実証・スライス順序の正本である。`CellIdentity.TryParse` を修飾対応すること、`StreamingConfig` に qualifier を足すこと、Backend デコレータで id を翻訳することは、**本書の指示ではない。** 距離判断は §34。格子キーを外す M-1〜M-4 は完了済み。既存 16 セルは **S-4b で全廃済み**。
 
 ---
 
@@ -35,6 +35,8 @@
 | 2026-08-29 | テーマ「主題と変奏」（時制 × 楽譜の混合）を承認 | §2 |
 | 2026-08-29 | 距離の正本を identity 文法にしない。空間の到着契約を公開面へ | [§34](../../unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md)。M-1〜M-4 は完了済み |
 
+上表は日付付きの裁定記録である。その後、[S-4 program](S-4_FULL_SPEC_WORLD_AUTHORING.md)で9×6×4を固定し、一回生成後に生成器を撤去した。現在の手順・完了状態は§6 / §9 / §11を参照する。
+
 ---
 
 ## 2. テーマ「主題と変奏」
@@ -60,9 +62,9 @@
 1. どの変奏でも、最初の 3 秒で「同じ場所（主題）だ」と分かり、続く 3 秒で「違う変奏だ」と分かる
 2. 判別の根拠は完成度パターンと光であり、色名ではない（グレースケール overhead でも I〜IV を区別できる）
 3. どの季節のどのセルを開いても、床（`*_Cell_*.unity`）と印（`*_Environment_*.unity`）の 2 ファイルがあり、どちらを開くべきか迷わない
-4. 生成器を再実行しても、昇格済み identity の演奏レイヤ（`AuthoredRoot` 配下）は 1 個も消えない（判定は **S-8a 以降**。S-4 時点は昇格 0）
+4. 昇格済み identity の演奏レイヤ（`AuthoredRoot` 配下）が 1 個も消えないという編集保護の要求は維持する。対象操作と判定手順はW-4で確定する。旧生成器による判定は撤去後に実行できないため、**S-8a 以降のW-4は判定方法未決**であり、合格・免除にはしない。
 
-変奏の密度・崩しを生成器パラメータで回す対象は、**まだ昇格していないセル**に限る。180 セルを先に `HandAuthored` にすると、パラメータは初回スキャフォールドにしか効かない。
+S-4bの初期配置は全件Generatedで、昇格の対象・順序は§4を維持する。生成器・制作policyコードは撤去済みであり、変奏調整のために再実行しない。将来の一括生成が必要ならN-8に従う。
 
 ---
 
@@ -72,12 +74,12 @@
 
 ```
       x0 x1 x2 x3 x4 x5 x6 x7 x8      1 セル = 250m。谷全体 2250m × 1500m
-y5  |  ^  ^  ^  ^  ^  ^  ^  ^  ^     ^ = 背（北の高まり。Generated の計測コリドー）
-y4  |  ~  ~  .  .  .  .  .  .  .     ~ = 線（源流は北西）
-y3  |  .  .  ~  ~  .  .  .  .  .
-y2  |  .  .  .  .  ◇  ~  ~  .  .     ◇ = 見証（曲がり角、局所 (4,2)。頂きが変奏の署名）
-y1  |  .  .  .  .  .  .  .  ~  ~     線は南東へ抜ける
-y0  |  .  .  .  .  .  .  .  .  .
+ y5 |  ^  ^  ^  ^  ^  ^  ^  ^  ^     ^ = 背（北の高まり。Generated の計測コリドー）
+ y4 |  ~  ~  .  .  .  .  .  .  .     ~ = 線（源流は北西）
+ y3 |  .  .  ~  ~  .  .  .  .  .
+ y2 |  .  .  .  .  ◇  ~  ~  .  .     ◇ = 見証（曲がり角、局所 (4,2)。頂きが変奏の署名）
+ y1 |  .  .  .  .  .  .  .  ~  ~     線は南東へ抜ける
+ y0 |  .  .  .  .  .  .  .  .  .
 ```
 
 - 線セル: `(0,4)(1,4)(2,3)(3,3)(4,2)(5,2)(6,2)(7,1)(8,1)`
@@ -87,9 +89,9 @@ y0  |  .  .  .  .  .  .  .  .  .
 - スポーン座標は春（変奏 I）の源流セル `(0,4)` 中心上空（構図の定点）。S-4b で `WorldCellCatalog.SpawnPosition` と初期 Ensure を同時に移行済み
 - 品質バー 1 の判定地点は演奏レイヤがある線上（見証 `(4,2)`、または線の途中 `(2,3)`）。スポーン `(0,4)` ではない。`(0,4)` は S-9 まで Generated（§4）
 
-この座標は **M 前提**（§9）。S-4 頭の実測で S（6×4）に落とすなら楽譜も書き直す。
+この座標は **採用済みの9×6（M）**。S-4bで生成済みであり、縮小判定を後続スライスへ再発注しない（§9）。
 
-格子座標は**生成器が AABB を焼く入力**であり、ランタイムが identity から復元するキーではない。
+格子座標は**SampleGameの制作配置の入力**であり、ランタイムがidentityから復元するキーではない。AABBはEditorがSceneのRendererから計算する（N-7）。
 
 ### 3.2 ディスク上の identity（SampleGame のフォルダ規約）
 
@@ -126,7 +128,7 @@ Main
 - **常駐する季節はトンネル遷移中を除き常に 1 つ。** 全季節が同じ AABB を占めるため、
   遷移は必ず「旧季節 Unload 完了 → 新季節 Add」の順。重畳を作らない
 - 実行時の不変条件: `Season_*` が Stable なのは高々 1 つ。破ったら失敗（ログ受入だけにしない）
-- トンネル以外からの季節 `AddScene` は禁止（デバッグ経路もこの関数を通す）
+- S-5での季節遷移要求はトンネル経由に限定する（デバッグ経路も同じ遷移口を通す）。S-4bで実装済みのSession初回Spring Ensure（N-1）とは区別する
 
 ### 3.4 空間プロトコルは本書の外
 
@@ -145,25 +147,25 @@ M-1〜M-4 の境界を戻さず、S-4b で 9×6×4 と修飾付き identity を 
 
 | ワークフロー | 実現手段（全変奏共通） |
 |---|---|
-| 2 職種の同時編集 | 全セルに床 `*_Cell_*.unity`（地形職）+ 印 `*_Environment_*.unity`（置き物職）。同じ地点を 2 人が同時に触ってもファイルが違うので衝突しない。**ただし衝突しないのは中身。** `SceneResourceMap.asset`、`Season_*.asset` の `_children` は構造変更のたびに全員が触る 1 ファイル。構造は生成器が単独で触る。旧 Addressables 設定も残るが通常 Content build 入口ではない |
-| 再生成しても編集が残る | 昇格済み identity = `HandAuthored`（`AuthoredRoot` を R-6 が保護）/ それ以外 = `Generated`。**判定は S-8a 以降**（S-4 時点は昇格 0） |
+| 2 職種の同時編集 | 全セルに床 `*_Cell_*.unity`（地形職）+ 印 `*_Environment_*.unity`（置き物職）。同じ地点を 2 人が同時に触ってもファイルが違うので衝突しない。**ただし衝突しないのは中身。** `SceneResourceMap.asset`、`Season_*.asset` の `_children` は構造変更のたびに全員が触る 1 ファイル。構造編集の担当は単独に固定し、現在の構造追加はWorld Workspaceのtransactionを使う。共有Map / 親子linkは競合対象として扱い、並行する構造編集で競合しないとは主張しない。旧 Addressables 設定も残るが通常 Content build 入口ではない |
+| 編集保護 | 昇格済みidentityの演奏レイヤを全て保護する要求は維持する。旧R-6生成器 / policyによる判定は撤去済みのため使わない。**S-8aでW-4の判定方法を決定するまで未達** |
 | 単独ビルド | 1 つの contentSet は 1 回の選択。現行入口は All Seasons Full / Spring Full / Spring Whitebox / Spring Full And Whitebox。その再 build は別 contentSet または別 build identity の公開 directory を書き換えない。同一 contentSet の成功成果物は identity ごとの公開先に残る。DIST は同じ revision の内容差し替えを拒否する。共有 Lit / Primitive / Tunnel は選択に含まれればその directory に入る。同一 directory 内の季節グループ単位ハッシュ不変は現行契約にない。旧 Addressables グループのハッシュ独立とも等価ではない。delta 配信は DIST 後続で未所有 |
 | 取得済み content からの実行 | DIST が検証した installed revision だけを登録する。sourceFiles の Missing / Changed は編集可否の案内であり、リモート Addressables カタログから欠損を埋めて Play しない。その revision に含まれない季節への遷移は明示失敗とし、出し方と旧季節復帰は S-5（D-5）。Framework は VCS checkout を代行しない。部分 Checkout + リモート補完は未所有。隔離は空隙ではなく **候補集合の排他**（常駐季節が 1 つ） |
 | ストリーミング | 全域で動く。S-9 は純政策ベンチマークと実コンテンツ横断を分け、**実コンテンツ計測（§21 A-1〜A-5）は変奏 II（夏）の背コリドー**で取る |
-| イテレーション | ループ実演: 印を 1 個編集 → 保存 → 生成器再実行（昇格分は消えない）→ Play → 選んだ contentSet の再 build |
+| イテレーション | 印を1個編集 → 保存 → 選んだcontentSetを再build → 新revisionをverified installしてPlay。旧生成器は再実行しない。編集保護の独立した判定はW-4に残す |
 
-**正本 policy（2 段）:**
+**制作状態の方針（2 段。撤去済みpolicyコードの再導入指示ではない）:**
 
 | 段階 | 領域 | policy | 備考 |
 |---|---|---|---|
-| 初期（S-4 生成直後） | 全セル（216） | `Generated` | 変奏パラメータを再実行で回せる。S-8 の目視より先に凍結しない |
+| 初期（S-4 生成直後） | 全セル（216） | `Generated` | S-4b生成時の状態。生成器の再実行口は無い。S-8の目視より先に昇格しない |
 | 昇格後 | 人が手を入れた identity のみ | `HandAuthored` | 目安は各変奏の線沿い 8〜10 + 見証周辺。**キーは座標ではなく修飾付き identity**。春の `(4,2)` を昇格しても夏の `(4,2)` は Generated のまま |
 | 固定 Generated | 各季節の背 `y=5` | 昇格禁止 | 計測の均質性 |
 | S-9 まで Generated | 各季節の `y=4` 行 | 昇格禁止（S-9 完了まで） | **中心距離**で y=5 中心から y=4 中心は 250m ≤ LoadRadius 375m。表面距離だと y=3 も desired に入り、線セル `(2,3)(3,3)` の昇格と W-8 が衝突する。距離の基準は [§34](../../unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md) §5。源流 `(0,4)(1,4)` の演奏は S-9 のあと |
 
 `HandAuthored` は「全セルを手作業で作る」ではない。初回は生成器のスキャフォールド、
-手を入れた identity だけ昇格する。「再生成しても編集が残る」はテーブル上の宣言ではなく、
-Generated → 編集 → 昇格、の遷移として実演する。
+手を入れたidentityだけ昇格する。Generated → 編集 → 昇格の実演と編集保護の証明は後続の要求であり、
+記録方法・判定手順をW-4で決める。撤去済みのpolicy型が現在も存在するとは扱わない。
 
 W-8 の前提: **実コンテンツの計測フライト中の desired はすべて Generated。** 純政策ベンチマークはシーンをロードせず、候補数と制御面の費用だけを変える。
 
@@ -172,7 +174,7 @@ W-8 の前提: **実コンテンツの計測フライト中の desired はすべ
 ## 5. トンネルと季節遷移
 
 トンネルは未取得季節を空隙で隔離する装置ではない。ロード隠蔽用の滞在空間であり、
-Checkout の入口（次の変奏を要求する唯一の正規経路）である。
+次の変奏を要求する入口である。取得・installはDISTの責務であり、トンネルがVCS checkoutや旧リモートカタログ補完を行う契約ではない。
 
 - `InGameSession` 直下・`NecessaryAlways`・常設 1 本（§33 D-4）
 - 物理位置は谷 AABB の外、かつ谷 AABB から **UnloadRadius（550m）以上**離す。
@@ -197,18 +199,18 @@ Checkout の入口（次の変奏を要求する唯一の正規経路）であ�
 順序: **M-1〜M-4（完了）→ S-4 → S-5 → S-8a（春）→ S-9 → S-8b〜d（他変奏）**。S-6 / S-7 実装スライスは WCD で廃止。現行 Content build と DIST が担う。
 1 スライス = 1 ブランチ = 1 HANDOFF（着手時に切り出す）。
 
-Editor 操作境界（正本は `.agents/skills/osm-unity-editor/SKILL.md`）は全スライスに適用する（人間が開いた Editor への CLI のみ可、Unity.exe 起動・テスト実行・YAML 手編集は禁止、テストは Phase C。Cloud では Unity CLI を叩かない）。`record` 禁止・`#nullable enable`・破棄されうる `UnityEngine.Object` への `?.` / `??` 禁止も同様。
+Editor操作は [AGENTS.md](../../AGENTS.md) と [osm-unity-editor](../../.agents/skills/osm-unity-editor/SKILL.md) を正とする。ローカルでは対象project / 版 / pathを確認し、必要ならEditorを起動してよい。人間の手動起動は前提でない。Phase BはEditor操作・compile確認まで、UnityテストとBuildはPhase C。`unity test` / `unity run`、CloudのUnity CLI、Scene / asset YAML手編集は禁止し、人間のEditorを強制終了しない。`record` 禁止・`#nullable enable`・破棄されうる `UnityEngine.Object` への `?.` / `??` 禁止も維持する。
 
 **退役:** S-3D（`CellIdentity` の修飾パース）。§34 が identity を不透明キーにすれば不要。復活させない。
 
 | # | 内容 | 補足 |
 |---|---|---|
 | 前提（完了） | M-1〜M-4: 体積の口、生成器 identity key、候補フラグによる R-3、セル型の SampleGame 移動 | 現況は [STREAMING_CURRENT_SPEC.md](../streaming/STREAMING_CURRENT_SPEC.md)。完了済み HANDOFF は harvest 後に削除済み |
-| S-4 | 谷の生成と季節スワップ（本体） | Season_* 4 ノード、`World` を置き換え。接頭辞はファイル名。候補集合の差し替え。初期 policy は全 Generated。**既存 16 セルは全廃**（下節。移送しない）。identity → `SceneBase` の結線を名前文法から外す。**M-3 で着地した R-3 が修飾付き identity でも効くことを維持する。** スポーンを `(0,4)` へ移すのは N-1 と同スライス。**頭で 1 季節 9×6 だけ生成して生成器 1 回の実時間を測り、M を維持するか裁定する** |
+| S-4 | 制作基盤（a / b / c完了、d未着手） | [S-4 program](S-4_FULL_SPEC_WORLD_AUTHORING.md)。4 Season・9×6×4・旧16 Cell撤去・Spring初回Ensure・名前文法からの分離・最小RenderEnvironment / 代表bakeは完了。候補フラグによるR-3を維持する。残るVFX / EventsはS-4dの着手時HANDOFFで扱う |
 | S-5 | トンネルと季節遷移 | §5 の契約。N-3 の内装はここで実測。1 Player で四季を持つか、`all-full` 起動か複数登録かは S-5 の A0 |
 | S-6 | 廃止（WCD） | 1 変奏 = 1 Addressables グループは現行契約にない。Content Directory の contentSet 選択が担う |
 | S-7 | 廃止（WCD） | 未チェックアウト経路は DIST。部分 Checkout 再燃は Architecture §20 どおり未所有 |
-| S-8a | 春の演奏レイヤ | 線沿い + 見証。ここで 4 動詞は出荷可能。`HandEditProbe` とスキャフォールド宣言の退役は春で開始してよい |
+| S-8a | 春の演奏レイヤ | 線沿い + 見証。4動詞の出荷判定にはW-4の判定方法の確定と実証が必要。`HandEditProbe`はS-4bで撤去済みで、復活させない |
 | S-9 | Streaming の計測と撤退判断（下記 S-9a〜c） | 純政策ベンチマーク → 変奏 II 背コリドーで §21 T-07〜T-09 → 結果に基づく最適化・撤退判断。y=4 未昇格を確認してから S-9b を測る。それまで T-07〜T-09 凍結 |
 | S-8b〜d | 夏・秋・冬の演奏レイヤ | 品質バー W-7。動詞の証明条件ではない |
 
@@ -219,15 +221,15 @@ Megacity は大きな workload の証拠であり、OSM の性能を代弁しな
 | 段 | 目的 | workload / 計測 | 完了条件 |
 |---|---|---|---|
 | **S-9a 純政策ベンチマーク** | `WorldStreamingController` 自体の候補数スケールと収束を、シーンロードの重さから分離する | FakeBackend で **1,000 / 10,000 候補**。単一 / 複数 Focus、静止 / 等速移動 / テレポート、desired 疎 / 密を分ける。Tick 時間、1 Tick の GC allocation、`IsLoaded` 照会数、最終 `desired = resident` までの時間、in-flight 上限時の backlog と最古要求待ち時間、starvation、duplicate request / stale completion / cancel 後残留を取る | workload ごとに反復数・中央値・p95 / p99を記録し、着手時 HANDOFF の control-plane 予算内。予算外なら S-9c の判断材料にし、S-9a 中に索引や Jobs を先回り実装しない |
-| **S-9b 実コンテンツ横断** | SceneDirector / Addressables / asset payload を含む実証 | 変奏 II（夏）の背 `y=5` を等速と高速で往復。§21 A-1〜A-5に加え、ロード時間 p50 / p95 / p99、停止後の収束時間、常駐 / in-flight / cancel / pending-unload、managed / native / asset memory peak と復帰、Addressables handle 残留を取る | `y=4` が未昇格で、計測中 desired がすべて Generated。A-1〜A-5と着手時 HANDOFF の数値予算を満たし、例外・集合不一致・リークが 0 |
-| **S-9c 撤退・最適化判断** | 数値から次の実装を選び、推測で設計を増やさない | S-9a / b の結果を、政策計算、`IsLoaded` 全件再照合、SceneDirector 状態遷移、Addressables / asset payload に分解する | 現状維持 / 空間索引＋ロード済み identity 列の取得口 / managed・native backend 比較 / SceneDirector 撤退ライン、のいずれかを根拠付きで決定。空間索引だけを入れて遠方 resident の Unload を漏らさない |
+| **S-9b 実コンテンツ横断** | SceneDirector / IAssetManagement / Content Directoryの通常経路とasset payloadを含む実証 | 変奏 II（夏）の背 `y=5` を等速と高速で往復。§21 A-1〜A-5に加え、ロード時間 p50 / p95 / p99、停止後の収束時間、常駐 / in-flight / cancel / pending-unload、managed / native / asset memory peak と復帰、通常経路のtoken / native resource / sessionの解放と残留を取る（互換Addressablesを別途測る場合はhandle残留も分けて記録する） | `y=4` が未昇格で、計測中 desired がすべて Generated。A-1〜A-5と着手時 HANDOFF の数値予算を満たし、例外・集合不一致・リークが 0 |
+| **S-9c 撤退・最適化判断** | 数値から次の実装を選び、推測で設計を増やさない | S-9a / b の結果を、政策計算、`IsLoaded` 全件再照合、SceneDirector状態遷移、Content Directory / asset payloadに分解する。明示Addressables互換の測定は通常経路と混ぜない | 現状維持 / 空間索引＋ロード済み identity 列の取得口 / managed・native backend 比較 / SceneDirector 撤退ライン、のいずれかを根拠付きで決定。空間索引だけを入れて遠方 resident の Unload を漏らさない |
 
 S-9a / b の結果には、比較可能性のため次の **workload manifest** を必ず添える。
 
 - 候補数、resident 数、同時 desired 数、Focus 数
 - `LoadRadius` / `UnloadRadius` / `maxInFlight`、Focus 速度と経路
-- セルごとの Addressables 容量とロード後メモリ（S-9b）
-- Unity / Addressables のバージョン、Editor / Player、quality tier、解像度、対象ハードウェア
+- contentSet / revision、選択表現、配信bytesとロード後メモリ（S-9b）。従来要求のセル別容量・メモリ帰属は、共有依存を含むContent Directoryでの観測方法をS-9b Phase Aで固定する。未定義のまま検査済みにしない
+- Unity / 使用backend・関連packageのバージョン、Editor / Player、quality tier、解像度、対象ハードウェア
 - cold / warm cache、測定時間、反復数、Development Build / Profiler 接続の有無
 
 S-9 の着手時 HANDOFF は S-9a〜c を 1 ブランチに詰め込まない。少なくとも「測定器と純政策ベンチマーク」「実コンテンツ計測」「判断記録」を責務として見積もり、500 行または 3 責務を超える見込みなら別スライス / 別ブランチへ切る。閾値は測定を見て後付けせず、各測定スライスの開始時にハードウェアと workload manifest とともに固定する。
@@ -271,7 +273,9 @@ S-4b で Season_* 4ノードが `World` を置き換え、全セルに Environme
 
 （§7 / §8 は欠番。スライス番号の S-8 と節番号を混同しない。「スライス S-8a」は春の演奏レイヤ。次は §9。）
 
-## 9. スケール（採用候補: M。S-4 頭で裁定）
+## 9. スケール（Mを採用・S-4bで生成済み）
+
+次の表は2026-08-29の比較時点の概算であり、現在のScene総数や再実行手順ではない。値は履歴として保持する。
 
 | 案 | 季節寸法 | 総セル | 長軸横断 (42 m/s) | `.unity` Cell+Env | 生成器のシーン開閉（目安） |
 |---|---|---:|---:|---:|---:|
@@ -282,12 +286,7 @@ S-4b で Season_* 4ノードが `World` を置き換え、全セルに Environme
 旧 4×4 は Cell 16 + Environment 4 + World ほかで `.unity` 20 枚前後だった。S-4b の現況は 9×6×4、652 Scene。
 `SceneResourceMap.asset` は 1 ファイルの平坦リストで、M ではエントリが数百になる（R-6 の構造衝突）。
 
-`WorldCellStreamingSliceCreator` は AuthoredRoot 確認のためにセル / Environment を 1 枚ずつ開いて閉じる。
-216 セルではこれが数百回になり、「イテレーションがどこでも簡単」のループ自体が重くなる。
-
-**S-4 の頭:** 9×6 を 1 季節だけ生成して生成器 1 回の実時間を測る。許容できなければ S に落とし、楽譜セル座標を再定義する。測らずに M をディスクへ焼かない。
-
-本書の楽譜座標は M 前提。S に落とすなら楽譜を書き直す。
+現在は [S-4 program](S-4_FULL_SPEC_WORLD_AUTHORING.md) §1 / §4で固定した9×6×4を生成済みで、一時生成器は撤去済みである。S-4bの基本652 Sceneは当時の生成結果で、後続の職種Scene追加後の総数ではない。生成時間による縮小判定や旧生成器の再実行を後続の受け入れ条件に戻さない。寸法変更や再生成が必要ならN-8の新しい制作スライスで判断する。
 
 ---
 
@@ -298,7 +297,7 @@ S-4b で Season_* 4ノードが `World` を置き換え、全セルに Environme
 | W-1 | FW に季節の語彙が無い | `unity/Assets/OneStarMaker/` を `Season\|Spring\|Summer\|Autumn\|Winter\|季節` で grep → 0 件 |
 | W-2 | identity 重複 0 | SceneResourceMap 生成時の Duplicate 警告 0 |
 | W-3 | 遷移の排他 | 旧季節の in-flight 0 → 新季節 Add。重畳 0。同時に Stable な `Season_*` は 1 つ。desired が完全に入れ替わる |
-| W-4 | 編集が消えない | 生成器 2 回のあと、昇格済み stamp 全生存（Environment 増加分含む）。**判定は S-8a 以降**（S-4 時点は昇格 0 なので空振りする） |
+| W-4 | 編集が消えない | **判定方法未決・未達。** 昇格済みの演奏レイヤとEnvironment増加分を全て保護する要求は維持する。旧「生成器2回＋stamp全生存」はN-8の撤去により実行不能。S-8a Phase Aで対象・前後比較・成功条件を固定するまで、合格にも免除にも扱わない |
 | W-5 | 単独ビルド | 選んだ contentSet の再 build が別 identity の公開 directory を書き換えない。グループ単位ハッシュ不変は主張しない |
 | W-6 | 取得済み content からの実行 | 検証済み installed revision だけを登録。欠損はリモートカタログで埋めない。含まれない季節は明示失敗（S-5 / D-5） |
 | W-7 | 品質バー | §2 の 4 項目を人が目視（自動化しない）。S-8a 時点では春について見る。全変奏は S-8d |
@@ -309,20 +308,22 @@ S-4b で Season_* 4ノードが `World` を置き換え、全セルに Environme
 
 ---
 
-## 11. 未決事項
+## 11. 未決事項と解決済みの前提
 
 | # | 論点 | 決定時期 |
 |---|---|---|
-| N-1 | 初回季節を誰が Ensure するか（トンネル始まりか、Session の初回 Ensure か）。**スポーンを `(0,4)` へ移すのはこれと同スライス。** 未決のまま `SpawnPosition` だけ動かさない | S-4 |
-| N-2 | RenderSettings の適用主体（Season シーンの Stable フックか、専用コンポーネントか） | S-4（N-1 と同時） |
+| N-1 | **解決済み:** Sessionの初回Spring Ensureと`WorldCellCatalog.SpawnPosition`の`(0,4)`移行はS-4bで実装済み。Tunnel遷移演出はS-5に残る | S-4b。現況はS-4 program §4.3 / STREAMING_CURRENT_SPEC |
+| N-2 | **解決済み:** SeasonLightingSceneがLoad時にleaseを取得し、Unity sinkがLight / RenderSettingsへ適用する。Unload時に解放・baseline復元する | S-4c。Architecture §24 §9.1 |
 | N-3 | トンネルの内装・滞在時間（ロード隠蔽の実測。距離条件は §5 で固定済み） | S-5 |
 | N-4 | Environment を距離政策の候補にしないこと（CCS: 距離の単位は Cell）。子は親 Stable 後の明示 Add のまま | 現状仕様で確認済み。S-4 でも維持する |
-| N-5 | 第三声部（照明職 `*_Lighting_*.unity`）を標準装備にするか | S-8 までに発注者判断。今回は 2 声部 |
+| N-5 | 第三声部（照明職 `*_Lighting_*.unity`）を標準装備にするか | 全Cellへの標準装備はS-8までに発注者判断。S-4cは代表2 Cellに追加済みであり、未実装扱いにも全域採用扱いにもしない |
 | N-6 | `unityyamlmerge` ドライバ設定（前提条件ではない） | 任意 |
 | N-7 | ~~AABB の置き場~~ **決定済み（M-1）: `SceneResource` 直下**（`_volume` ＋ `_streamByDistance`）。値は生成器が格子定数から焼くのではなく、Editor がシーン保存フックと全件メニューで `.unity` から自動計算する | [STREAMING_CURRENT_SPEC.md](../streaming/STREAMING_CURRENT_SPEC.md) に harvest 済み |
 | N-8 | **解決済み:** S-4b の生成器と制作 policy は生成後に撤去した。実証項目として復活させない。将来の一括生成は新しい制作スライスで扱う | S-4b |
-| N-9 | 体積収集の範囲。現状は全 `Renderer`（`includeInactive: true`）。Particle / 無効デバッグメッシュで中心が跳ね得る。規約が要るなら谷を焼くときに決める | S-4 |
-| N-10 | `WorldStreamingController.Candidates` 差し替え口。候補集合は丸ごと作り直す型。in-flight を抱えたまま集合だけ替えたくなったら WSC 側に口を足す | S-4 |
+| N-9 | 体積収集の範囲。現状は全 `Renderer`（`includeInactive: true`）。Particle / 無効デバッグメッシュで中心が跳ね得る。追加のVFX等が体積へ影響する場合の除外規約は未決 | S-4d等、該当する制作スライスのPhase A |
+| N-10 | `WorldStreamingController.Candidates` 差し替え口。候補集合は丸ごと作り直す型。現行はSeason枝ごとにdriver / 候補集合を作り直す。in-flightを保持した集合差し替えは未実装の拡張案であり、自動的に追加しない | 必要性が出たスライスのPhase A |
+
+W-4の未決はこの項目だけを保留する。日常のWorld Workspace編集・保存・content再buildを対象に保護を実証するか、一括生成自体が再び必要でN-8の新規制作スライスを先行させるかを所有者が裁定する。ここではいずれも採用しない。昇格対象・非昇格コリドー・編集保護要求を緩和しない。
 
 ---
 

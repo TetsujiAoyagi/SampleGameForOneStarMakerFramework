@@ -1,6 +1,6 @@
 # Streaming — 現状仕様
 
-> ステータス: **今動いている実装の正本**（2026-09-12）。到着点ではない。
+> ステータス: **今動いている実装の正本**（本文更新 2026-09-27。測定記録の対象日は§6）。到着点ではない。
 > 到着契約: [§34 OnDemand の空間政策](../../unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md)
 > 対照: [STREAMING_CURRENT_VS_IDEAL.md](STREAMING_CURRENT_VS_IDEAL.md)
 > 設計記録・チケット履歴: [§21](../../unity/Assets/Docs/Architecture/21-scene-streaming.md)
@@ -31,7 +31,7 @@ R-3 は候補フラグで検出する。セル型は SampleGame にあり、FW �
 | 本番レイアウト | 四季それぞれ 9×6、54 Cell。active Season の直下にある `StreamByDistance` 子だけを候補にする | `SeasonCandidateSelection` / `WorldCellCatalog` |
 | 格子定数 | `Origin = (0,0,0)` / `CellSize = 250` / `CellHeight = 96`。**制作座標・スポーン・HUD 用。距離政策は読まない** | `WorldCellCatalog` |
 | 体積 | `SceneResource._volume`（ワールド AABB）。`.unity` の全 Renderer の合併 ＋ 候補でない子の合併 | `SceneResource` |
-| 体積の収集範囲 | `SceneVolumeSceneReader` は全 `Renderer` を `includeInactive: true` で拾う。Particle / Trail / 無効デバッグメッシュを足して保存すると中心が跳ね得る。Collider のみは寄与しない。規約を足すなら S-4（世界稿 N-9） | 同上 |
+| 体積の収集範囲 | `SceneVolumeSceneReader` は全 `Renderer` を `includeInactive: true` で拾う。Particle / Trail / 無効デバッグメッシュを足して保存すると中心が跳ね得る。Collider のみは寄与しない。VFX等で収集範囲を変える場合は別途設計・検証する。除外規約を実装済みとしない | 同上 |
 | 候補フラグ | `SceneResource._streamByDistance`。Cell は true、Environment は false。幾何からは導出しない | 同上 |
 | 体積の焼き直し | シーン保存フック ＋ メニュー `OneStarMaker/Scene Volume/Recalculate All`。**書くのは体積だけ**でフラグには触らない | `SceneVolumeRecalculator` |
 | 半径 | `LoadRadius = 375` / `UnloadRadius = 550` / `MaxInFlight = 2` | 同上 |
@@ -40,8 +40,8 @@ R-3 は候補フラグで検出する。セル型は SampleGame にあり、FW �
 | 飛行速度 | `FlyController._moveSpeed = 42` m/s（ブースト 2.4 倍で約 100 m/s） | `FlyController.cs` |
 | 制作 policy | S-4b 生成物は全216 Cellが `Generated`。一回限りの生成器と policy コードは生成後に撤去済み | git 履歴 / 生成物 |
 | セル実体 | 四季×54。各 Cell は Full と Whitebox payload、Environment 子を持つ | `SampleGame/.../InGameSession/Seasons/` |
-| Variant | 全 Cell の既定 payloadは空文字、別 pathに `Whitebox` payloadを持つ。実行中切替はしない | `BuildVariantProfile` / SceneResource payloads |
-| Addressables | S-4b の652 Sceneを登録。生成後の検査は Scene/Resource/Graph/Map/Addressables の集合整合を対象とする | `AddressableAssetsData/` |
+| Variant / representation | 全 Cell のソースは空文字と `Whitebox` payload。通常 Content buildでは Full / Whiteboxを選択し、directory起動中は表現を固定する | SceneResource payloads / `SeasonSceneSelectionPolicy` / `content:representation`（旧profileは互換用） |
+| S-4b の登録記録 | 生成時の652 Sceneは Scene/Resource/Graph/Map/Addressables の集合整合を検査した。現在の総Scene数や通常build backendを示す値ではない | S-4b生成・撤去記録 / `AddressableAssetsData/` |
 | シーン木 | `InGameSession → Season_* → *_Lighting / *_Cell_{x}_{y} → *_Environment_{x}_{y}` | SeasonはOnDemand、LightingはNecessaryAlways |
 
 グリッド寸法の正本は `WorldCellCatalog` の const。旧 `WorldGridDefinition.asset` は生成器とともに撤去済みである。寸法変更は生成済みアセット全体に波及するため、新しい設計スライスで扱う。
@@ -55,7 +55,7 @@ R-3 は候補フラグで検出する。セル型は SampleGame にあり、FW �
 | `StreamingCandidate` | FW Runtime | identity ＋ `Bounds` の値型。空 identity / 空体積は例外 |
 | `StreamingCandidateSet` | FW Runtime | 候補列。**差し替えるときは丸ごと作り直す側。** 空集合と identity 重複は例外。防御的コピー |
 | `StreamingPolicySettings` | FW Runtime | 半径 2 つ ＋ `maxInFlight`。**ずっと不変な側。** 半径の順序と正値を検証 |
-| `WorldStreamingController` | FW Runtime | 毎 Tick 候補列を走査し、体積中心と注視点の距離で切る。desired / retain / ヒステリシス / in-flight / 距離順 priority。current は持たず `IsLoaded` で再照合（G-6）。**格子も名前文法も知らない**。`Candidates` 差し替え口は無い（集合は丸ごと作り直す。口が要るなら S-4 / N-10） |
+| `WorldStreamingController` | FW Runtime | 毎 Tick 候補列を走査し、体積中心と注視点の距離で切る。desired / retain / ヒステリシス / in-flight / 距離順 priority。current は持たず `IsLoaded` で再照合（G-6）。**格子も名前文法も知らない**。`Candidates` 差し替え口は無い（集合は丸ごと作り直す。in-flightを保持する新しい交換口は未採用。現行Season切替はdriverと集合を作り直す） |
 | `ISceneStreamingBackend` | FW Runtime | `RequestAdd` / `RequestRemove` / `IsLoaded`。SceneDirector 委譲 |
 | `ISceneVolumeQuery` | FW Runtime | `TryGetSceneVolume(identity, out Bounds)`。**未ロード**候補の体積を引く口。`ISceneQuery`（ロード済み専用）とは別。未登録 / フラグ off / 空体積を 1 つの `false` に畳む。失敗理由 enum は **開かない**（R-3 は query を使わない） |
 | `SceneResource` | FW Runtime | `_volume` / `_streamByDistance` を持つ。体積が空 = 空間に属さない（Title / Pause / Tunnel） |
@@ -99,16 +99,18 @@ S-4b の 216 Cell と関連 SceneResource は一回限りの生成で確定し�
 - 将来、格子の再生成や一括置換が必要になった場合は、新しい設計スライスで対象集合、手編集保護、検査、撤去までを定義する
 - S-4b の生成時・撤去時の生出力は `artifacts/s-4b-p2/` と `artifacts/s-4b-p3/` に残す
 
-§20 の旧 Variant 機構（`VariantFilteringBuildScript` / whitelist / Hybrid Play / `TryLoadRemoteCatalogAsync` / `RemoteCatalogRuntimeBridge`）は通常経路から切断済み。ファイルは残るがメニュー/CLI は案内のみ。所在は `OneStarMaker/Scripts/Editor/Build/Variants/`。
+通常の Content Directory build、DIST install、Play / Playerの手順は [§18](../../unity/Assets/Docs/Architecture/18-asset-description.md) / [§20](../../unity/Assets/Docs/Architecture/20-variant-checkout-workflow.md) を参照する。
+
+§20 の旧 Variant 機構（`VariantFilteringBuildScript` / whitelist / Hybrid Play / `TryLoadRemoteCatalogAsync` / `RemoteCatalogRuntimeBridge`）は通常経路から切断済み。ファイルは残るがメニュー/CLI は案内のみ。Editor側の在庫は `unity/Assets/OneStarMaker/Scripts/Editor/Build/Variants/`。Runtime側は Bootstrap / AssetManagement に残る。
 
 ---
 
 ## 6. テストと計測
 
 - テストは全て EditMode。WSC / MultiFocus / 統合、起動時 Season、職種 companion、World Workspace の transaction/recovery を検証する
-- 直近の全件実行（S-4b、2026-09-12）は **679 / 679 passed・failed 0**。Streaming 絞り込みは 122 / 122
+- **過去の実行記録（S-4b、2026-09-12）:** 全件 **679 / 679 passed・failed 0**、Streaming 絞り込み 122 / 122。現在HEADの件数・今回の再実行結果ではない
 - CI（GitHub Actions）は DebugStudio の `dotnet test` のみ。Unity テストはローカル `pwsh tools/run-tests.ps1`
-- [§21](../../unity/Assets/Docs/Architecture/21-scene-streaming.md) の T-07〜T-09（Play 実証・テレメトリ・受入判定）は未了。季節化のあとに取る
+- [§21](../../unity/Assets/Docs/Architecture/21-scene-streaming.md) の T-07〜T-09（Play 実証・テレメトリ・受入判定）は未了。後続の性能実証で、対象版・workload・予算を固定して取得する。季節化やS-4c完了だけで合格にしない
 
 ---
 
