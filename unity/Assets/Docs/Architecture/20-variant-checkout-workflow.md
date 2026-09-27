@@ -108,8 +108,17 @@ directory の representation は `content:representation` だけを使う。
 
 ## 3. 開発者の手順
 
-通常の Editor Play は **Tools > OSM > Content** で Content Directory を作り、Delivery で install し、
-**Use For Next Play** してから Play する。Player は BS4 coordinator。
+通常経路の成果物は Content Directory build の出力を `ContentTransportPublisher.Publish()` で配信用形式
+（`transport.json` + `content/`）へ公開したものを DIST Delivery で install する。**Content Directory build の
+出力だけでは Delivery の install source にならず、公開工程が必要**である。
+
+ただし、現在の `Tools/OSM/Content/Build ...` メニューは Content Directory を生成するだけで、通常 Editor Play
+向けに transport publish までは行わない。また `ContentTransportPublisher.Publish()` を呼び出す通常の単独メニューも
+まだない。したがって、Editor の通常 Play 手順は build から publish までの公開入口が未整備であり、この文書だけでは
+build 完了後に Delivery へ渡す手順を再現できない。BS4 Player coordinator は Player build 内で Content Directory を
+publish する別の経路である。
+
+publish 済み source を用意した後は、Delivery で install し、**Use For Next Play** してから Play する。
 
 旧メニュー（Checkout Report / Hybrid Play / Setup Remote Distribution / Build Player (Active Variant)）は
 案内を出すだけで、group snapshot / app-config overlay / Remote プロファイル生成 / catalog 追加ロードを実行しない。
@@ -117,11 +126,12 @@ directory の representation は `content:representation` だけを使う。
 
 ### DIST Content Delivery を使う場合
 
-1. **Tools/OSM/Content/Delivery** で Local/LAN directory、HTTP base URL、Installed offline のいずれかを明示選択する。
-2. manifest digest、contentSet、revision、cache root、disk budget を入力して **Prepare** を実行する。target は `StandaloneWindows64-Player` 固定であり、入力項目ではない。Local/LAN と HTTP は同じ manifest/file 検証と install を通る。Offline は既知 digest の installed revision を完全再検証する。
-3. Prepare の結果で requested revision と installed revision の一致を確認する。revision 名の大小を新旧判定に使わず、remote の latest を取得したとは表示しない。
-4. **Use For Next Play** は検証済み install の identity、representation、installed root、manifest digest を次回以降の起動へ適用する。Play 中の適用は拒否する。**Reset** は bridge 自身が設定した値だけを元へ戻す。
-5. sourceFiles の Missing / Changed は checkout 案内として扱う。取得済み content が完全なら対応 Player の起動を止めない。編集が必要な asset は VCS で手動 checkout する。
+1. `transport.json` と `content/` を含む publish 済み source を用意する。前段の通常 Editor Play 向け publish 入口は未整備である。
+2. **Tools/OSM/Content/Delivery** で Local/LAN directory、HTTP base URL、Installed offline のいずれかを明示選択する。
+3. manifest digest、contentSet、revision、cache root、disk budget を入力して **Prepare** を実行する。target は `StandaloneWindows64-Player` 固定であり、入力項目ではない。Local/LAN と HTTP は同じ manifest/file 検証と install を通る。Offline は既知 digest の installed revision を完全再検証する。
+4. Prepare の結果で requested revision と installed revision の一致を確認する。revision 名の大小を新旧判定に使わず、remote の latest を取得したとは表示しない。
+5. **Use For Next Play** は検証済み install の identity、representation、installed root、manifest digest を次回以降の起動へ適用する。Play 中の適用は拒否する。**Reset** は bridge 自身が設定した値だけを元へ戻す。
+6. sourceFiles の Missing / Changed は checkout 案内として扱う。取得済み content が完全なら対応 Player の起動を止めない。編集が必要な asset は VCS で手動 checkout する。
 
 検証用 loopback HTTP endpoint は開発 fixture であり、本番配信 service ではない。認証、署名、latest channel、
 公開 CDN の運用はこの手順に含めない。
