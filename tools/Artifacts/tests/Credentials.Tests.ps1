@@ -92,6 +92,11 @@ function Run([string] $Name, [scriptblock] $Body) {
 
 try {
     Run 'encrypted round trip and safe status' {
+        $currentOwner = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+        foreach ($directory in @($true, $false)) {
+            $newAcl = & $pathModule { param($kind) New-OwnerAcl $kind } $directory
+            Assert ($newAcl.GetOwner([Security.Principal.SecurityIdentifier]).Value -eq $currentOwner) 'new ACL does not explicitly own current user'
+        }
         $result = Write-CredentialRecord 'osm' $sentinelId $sentinelSecret $false
         Assert ($result.Outcome -eq 'success') 'initial commit'
         $status = Get-CredentialStatus 'osm'

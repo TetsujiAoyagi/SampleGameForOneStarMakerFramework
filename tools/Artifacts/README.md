@@ -1,6 +1,6 @@
 # ローカル資格情報管理
 
-Windowsの所有ユーザーが、PowerShell 7から固定プロファイル「osm」の資格情報を管理するためのツールです。実装済みはローカル段1（programのスライス0）で、現在の検証範囲はダミー鍵によるローカル操作です。
+Windowsの所有ユーザーが、PowerShell 7から固定プロファイル「osm」の資格情報を管理するためのツールです。`credentials` CLIはローカル段1（programのスライス0）です。2026-09-27に所有者端末で実R2鍵を登録し、後述の限定probeでsynthetic objectのR2往復を確認しました。一般のartifact転送CLIは未実装です。
 
 ```powershell
 pwsh tools/artifacts.ps1 credentials set --profile osm
@@ -17,6 +17,8 @@ pwsh tools/artifacts.ps1 credentials remove --profile osm
 
 保存先の祖先にreparse pointがある場合や、専用領域のACLが安全でない場合は操作を拒否し、平文保存へ切り替えません。共有OneStarMakerが未作成の場合は、その新規作成時にも制限ACLを設定します。既存共有親の扱いとは異なります。
 
+新規に作る専用ディレクトリとファイルは、ACLだけでなく所有者も実行ユーザーへ明示します。管理者権限の端末などでWindowsの既定所有者がAdministratorsになる場合でも、直後の安全検査と一致させるためです。既存の所有者不一致ディレクトリは自動修復しません。
+
 DPAPIはWindowsユーザーに結びつけて保存データを保護しますが、同じユーザー権限で動くAgentや別のプログラムからは復号できます。同ユーザーのAgentを隔離する仕組みではありません。今回、別Windowsユーザーによる復号拒否の実測は未確認です。他のPCへのファイルコピーを資格情報の移行手段にせず、その端末専用の鍵を用意する運用とします。
 
 状態表示はレコードを復号・検証し、安全なローカル情報だけを返します。鍵の値やR2接続の成功、接続確認日時は表示しません。終了コードは、0がローカル操作成功、2が置換確定済み・一時ファイルの清掃保留、1が失敗です。
@@ -27,7 +29,19 @@ DPAPIはWindowsユーザーに結びつけて保存データを保護します�
 
 安全でないACLのレコードは削除も拒否されるため、暗号文が残る場合があります。失敗を削除済みと扱わず、所有者が保存先と権限を確認してください。ディレクトリ全体や他機能のデータを清掃対象にしないでください。
 
-実トークンの登録、使い捨てデータによるR2の読み書きと読戻し、サーバーでの検証を伴う鍵の切替え、旧トークンの失効確認はローカル段2（programのスライス1のローカル範囲）の作業です。これは後続のArtifact CLIを扱うスライス2とは別です。このツールのローカル操作成功だけで、実R2鍵が有効とは判断しません。
+サーバーでの検証を伴う鍵の切替えと旧トークンの失効確認は後続作業です。このツールのローカル操作成功だけで、実R2鍵が有効とは判断しません。
+
+## A3前の限定R2疎通確認
+
+`PreA3RoundTrip.ps1`は設計凍結前に実経路を確かめるための使い捨てprobeです。`probe/prea3/`の小さなsynthetic objectだけをPUTし、別`pwsh` processで認証GET・SHA-256照合してからDELETEします。実EvidenceやBuildは扱えず、通常のpublish/fetchやBucket Lockの判定にも使いません。SDK例外、鍵、署名付きURLを通常出力しません。実行前に固定バージョンのSDK依存をビルドします。
+
+```powershell
+dotnet build tools/Artifacts/Probe/Probe.Dependencies.csproj -c Release -o tools/Artifacts/Probe/artifacts/sdk -p:BaseIntermediateOutputPath=artifacts/obj/ -p:MSBuildProjectExtensionsPath=artifacts/obj/
+pwsh -NoProfile -File tools/Artifacts/Probe/PreA3RoundTrip.ps1 -Endpoint https://<account-id>.r2.cloudflarestorage.com
+pwsh -NoProfile -File tools/Artifacts/Probe/PreA3RoundTrip.ps1 -Endpoint https://<account-id>.r2.cloudflarestorage.com -Mode empty
+```
+
+endpointだけが非秘密の引数です。登録済みのDPAPI profileを同一processで復号して使い、鍵は子processの引数・環境変数へ渡しません。成功時のkey/hash/byte数と清掃結果は非秘密のprobe記録です。失敗時に`cleanup=unconfirmed`なら、対象prefixの残存を確認するまで清掃済みと扱いません。2026-09-27の所有者端末では往復と空prefixを確認しました。ownerはCloudflare画面でtokenの対象が`osm-artifacts`のみ、Public Development URL無効、Custom Domainsなしと確認しました。署名無し取得拒否とBucket Lockの実効性はRoute proofで別に実測します。
 
 ## 保守と検証
 
