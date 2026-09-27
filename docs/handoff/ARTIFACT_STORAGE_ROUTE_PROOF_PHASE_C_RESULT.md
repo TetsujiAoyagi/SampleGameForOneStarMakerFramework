@@ -54,3 +54,5 @@
 - Unity / Evidence / Build転送
 - credentials set / replace
 - Phase C result file SHA-256: `9fbbc54203f4798df0b1da49b884873929b6392ce9883c301cd0ab4603d13e96`
+
+- Phase C result body SHA-256 (excluding this line): `3d8706a4e552c2295218ad061b779a27a6a8b8a4c6db6dae6fa4c1b8b6a11403`
