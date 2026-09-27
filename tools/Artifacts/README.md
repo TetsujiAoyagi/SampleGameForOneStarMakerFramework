@@ -33,15 +33,7 @@ DPAPIはWindowsユーザーに結びつけて保存データを保護します�
 
 ## A3前の限定R2疎通確認
 
-`PreA3RoundTrip.ps1`は設計凍結前に実経路を確かめるための使い捨てprobeです。`probe/prea3/`の小さなsynthetic objectだけをPUTし、別`pwsh` processで認証GET・SHA-256照合してからDELETEします。実EvidenceやBuildは扱えず、通常のpublish/fetchやBucket Lockの判定にも使いません。SDK例外、鍵、署名付きURLを通常出力しません。実行前に固定バージョンのSDK依存をビルドします。
-
-```powershell
-dotnet build tools/Artifacts/Probe/Probe.Dependencies.csproj -c Release -o tools/Artifacts/Probe/artifacts/sdk -p:BaseIntermediateOutputPath=artifacts/obj/ -p:MSBuildProjectExtensionsPath=artifacts/obj/
-pwsh -NoProfile -File tools/Artifacts/Probe/PreA3RoundTrip.ps1 -Endpoint https://<account-id>.r2.cloudflarestorage.com
-pwsh -NoProfile -File tools/Artifacts/Probe/PreA3RoundTrip.ps1 -Endpoint https://<account-id>.r2.cloudflarestorage.com -Mode empty
-```
-
-endpointだけが非秘密の引数です。登録済みのDPAPI profileを同一processで復号して使い、鍵は子processの引数・環境変数へ渡しません。成功時のkey/hash/byte数と清掃結果は非秘密のprobe記録です。失敗時に`cleanup=unconfirmed`なら、対象prefixの残存を確認するまで清掃済みと扱いません。2026-09-27の所有者端末では往復と空prefixを確認しました。ownerはCloudflare画面でtokenの対象が`osm-artifacts`のみ、Public Development URL無効、Custom Domainsなしと確認しました。署名無し取得拒否とBucket Lockの実効性はRoute proofで別に実測します。
+2026-09-27に使い捨てprobeで所有者端末のsynthetic PUT、別`pwsh` processの認証GET・SHA-256照合、DELETEと空prefixを確認しました。このprobeは通信本文・子process・cleanupの有限期限を備えていないため退役し、再実行用スクリプトと専用SDK projectを削除しました。この記録は署名無し取得拒否やBucket Lockの実効性を証明しません。これらは進行中のRoute proofで別に実測します。
 
 ## 保守と検証
 
