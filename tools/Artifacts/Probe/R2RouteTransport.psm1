@@ -47,9 +47,9 @@ function Invoke-R2RouteTransport {
             TimedOut = [bool]$result.TimedOut
             Redirected = [bool]$result.Redirected
             Generation = $Generation
-            RequestMethod = if ($null -eq $result.RequestMethod) { $null } else { [string]$result.RequestMethod }
-            RequestUri = if ($null -eq $result.RequestUri) { $null } else { [string]$result.RequestUri }
-            AuthorizationPresent = [bool]$result.AuthorizationPresent
+            Method = if ($null -eq $result.Method) { $null } else { [string]$result.Method }
+            TargetUri = if ($null -eq $result.TargetUri) { $null } else { [string]$result.TargetUri }
+            HasAuthHeader = [bool]$result.HasAuthHeader
             SignatureQueryPresent = [bool]$result.SignatureQueryPresent
             TargetChangingQueryPresent = [bool]$result.TargetChangingQueryPresent
         }

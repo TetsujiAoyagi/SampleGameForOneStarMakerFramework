@@ -37,9 +37,9 @@ DPAPIはWindowsユーザーに結びつけて保存データを保護します�
 
 ## Route proof（Phase B実装、実R2未実行）
 
-`Probe/RouteProof.ps1` はこのslice専用の限定診断です。親processはendpointだけを受け取り、`probe/unlocked/<run-id>/` と `probe/locked/<run-id>/` の各1 key、1操作1子`pwsh` process、各操作30秒・子process45秒・run全体5分の期限を使います。各childもrun-idとkeyの一致を検証します。子processの引数に鍵を渡さず、`CredentialStore` の `Invoke-CredentialTransport` が同一process内の一回のcallbackへDPAPI復号値を限定して渡します。callbackから戻るのは閉じた非秘密transport観測だけです。offline testsは同じ12操作主ループを通り、時計・child runner・transport操作を差し替えて期限・結果照合・cleanup分類を検査します。
+`Probe/RouteProof.ps1` はこのslice専用の限定診断です。親processはendpointとレビュー対象の`-ImplementationBase` / `-ImplementationHead`（40桁小文字hex commit ID）を受け取り、観測へ固定値を記録します。作業ツリーのHEADやdevelopとのmerge-baseを実行時に推測しません。`probe/unlocked/<run-id>/` と `probe/locked/<run-id>/` の各1 key、1操作1子`pwsh` process、各操作30秒・子process45秒・run全体5分の期限を使います。各childもrun-id/keyとrevisionの形式を検証します。子processの引数に鍵を渡さず、`CredentialStore` の `Invoke-CredentialTransport` が同一process内の一回のcallbackへDPAPI復号値を限定して渡します。callbackから戻るのは閉じた非秘密transport観測だけです。親processは子と同じ単一JSON行をschema検証し、offline testsは同じ12操作主ループとJSON境界を通して成功完走・期限・結果照合・cleanup分類を検査します。
 
-transportは`Probe/R2RouteTransport.csproj`の固定`AWSSDK.S3`依存を使います。認証PUT/GET/DELETEと、Authorizationおよび署名queryを付けないHTTP GETを分離し、本文は保存せず、EOF確認時だけ全体hash、期待長に達した場合だけ先頭hashを返します。8193 byte目に達しても、それ以前に得た期待長prefix hashは残し、EOF未確認の全体hashは作りません。unsigned応答のS3 `Code`要素は短い安全なcode値だけを逐次抽出し、Messageや本文全体は保持しません。閉じた非秘密観測にunsigned requestのmethod、正規URI、Authorization/署名query/対象queryの有無を加え、RouteProofが意図したGETか照合します。HTTP 400/`InvalidArgument`はこのrevisionではprivate拒否と判定せず`inconclusive`です。一度のprefix一致は内容露出として記録しますが、再現条件を満たすまではprovider capability failureと確定しません。SDK例外のMessage、HTTP本文、request/header、秘密は結果へ通しません。`artifacts/` は生成物でGit管理外です。
+transportは`Probe/R2RouteTransport.csproj`の固定`AWSSDK.S3`依存を使います。認証PUT/GET/DELETEと、Authorizationおよび署名queryを付けないHTTP GETを分離し、本文は保存せず、EOF確認時だけ全体hash、期待長に達した場合だけ先頭hashを返します。8193 byte目に達しても、それ以前に得た期待長prefix hashは残し、EOF未確認の全体hashは作りません。期限中にreadが中断されても、到着済みprefix hashを保ち、全体hashとEOF確認は未確定にします。unsigned応答のS3 `Code`要素は短い安全なcode値だけを逐次抽出し、Messageや本文全体は保持しません。閉じた非秘密観測にunsigned requestのmethod、正規URI、Authorization/署名query/対象queryの有無を加え、RouteProofが意図したGETか照合します。401/`unauthorized`/`Unauthorized`、または403/`forbidden`/`AccessDenied`という同一応答内の組だけを拒否証拠として許可し、交差したstatus/codeは許可しません。HTTP 400/`InvalidArgument`はprivate拒否と判定せず`inconclusive`です。一度のprefix一致は内容露出として記録しますが、再現条件を満たすまではprovider capability failureと確定しません。locked overwrite/deleteの成功応答だけでは保持機能の失敗へ昇格せず、状態確認できない場合は`inconclusive`です。期限後に子processの停止を確認できなければ、競合する回復DELETEを送らずcleanupを未確認にします。SDK例外のMessage、HTTP本文、request/header、秘密は結果へ通しません。`artifacts/` は生成物でGit管理外です。
 
 所有者がCloudflareで`probe/locked/`の全有効ruleを確認し、次のような秘密を含まないJSONを手元で用意してから実R2を実行します。`BeforeHash` と `AfterHash` は設定全体の記録hashで、試験前後に同一であることを示します。通常writer tokenへBucket設定権限を追加しないでください。
 
@@ -48,6 +48,8 @@ dotnet restore tools/Artifacts/Probe/R2RouteTransport.csproj
 dotnet build tools/Artifacts/Probe/R2RouteTransport.csproj -c Release -o tools/Artifacts/Probe/artifacts/route-transport --no-restore
 pwsh -NoProfile -File tools/Artifacts/Probe/RouteProof.ps1 `
   -Endpoint https://<32-hex-account-id>.r2.cloudflarestorage.com `
+  -ImplementationBase <40-hex-base-commit> `
+  -ImplementationHead <40-hex-implementation-head-commit> `
   -LockRuleJson '{"Prefix":"probe/locked/","Enabled":true,"Kind":"Age","RetentionSeconds":900,"RuleCount":1,"DateRules":0,"IndefiniteRules":0,"WriterCanConfigure":false,"LifecycleCompatible":true,"BeforeHash":"<64-hex>","AfterHash":"<64-hex>"}'
 ```
 

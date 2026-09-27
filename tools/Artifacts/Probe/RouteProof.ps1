@@ -8,6 +8,8 @@ param(
     [string] $PayloadBase64,
     [string] $RunId,
     [string] $LockRuleJson,
+    [string] $ImplementationBase,
+    [string] $ImplementationHead,
     [switch] $Library
 )
 Set-StrictMode -Version Latest
@@ -16,7 +18,7 @@ $ErrorActionPreference = 'Stop'
 $script:ObservationProperties = @(
     'Operation','HttpStatus','StatusClass','S3Code','ByteCount','BodySha256','PrefixSha256',
     'EofConfirmed','LimitReached','TimedOut','Redirected','Generation',
-    'RequestMethod','RequestUri','AuthorizationPresent','SignatureQueryPresent','TargetChangingQueryPresent'
+    'Method','TargetUri','HasAuthHeader','SignatureQueryPresent','TargetChangingQueryPresent'
 )
 
 # 実行とoffline試験で同じ主ループを使うため、時計と子process境界を注入可能にします。
@@ -71,6 +73,7 @@ function Invoke-RouteProofLoop([string] $EndpointValue, [string] $RunIdValue, [s
     $changedHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($changed)).ToLowerInvariant()
     $records = [Collections.Generic.List[object]]::new()
     $classification = 'pass'; $unlockedCleanupRequired = $false; $unlockedRemoved = $false; $lockedPut = $false; $writerGeneration = $null
+    $script:ChildTerminationConfirmed = $true
     $steps = @(
         @{ Op='put'; Key=$unlockedKey; Bytes=$original; Hash=$originalHash; Phase='unlocked-put' },
         @{ Op='authenticated-get'; Key=$unlockedKey; Bytes=$original; Hash=$originalHash; Phase='unlocked-authenticated-get' },
@@ -118,7 +121,6 @@ function Invoke-RouteProofLoop([string] $EndpointValue, [string] $RunIdValue, [s
                 # 一度のprefix一致は内容露出として記録しますが、再現条件を満たさないため能力failureへは確定しません。
                 $classification = 'inconclusive'
             }
-            elseif (($step.Phase -like 'locked-*') -and $lockedPut -and $null -ne $observation -and $observation.StatusClass -eq 'success') { $classification = 'provider-capability-failure' }
             else { $classification = 'inconclusive' }
             $records.Add((New-ObservationRecord $classification $step.Phase $step.Op $step.Key $step.Hash $step.Bytes.Length $observation $(if ($step.Phase -like 'locked-*' -and $lockedPut) { 'retained-by-lock' } else { 'unconfirmed' }) $lockRule $script:Base $script:Head))
             break
@@ -130,6 +132,11 @@ function Invoke-RouteProofLoop([string] $EndpointValue, [string] $RunIdValue, [s
         $records.Add((New-ObservationRecord 'pass' 'complete' 'route-proof' $null $null 0 $null $(if ($unlockedRemoved) { 'removed; locked object retained' } else { 'unconfirmed' }) $lockRule $script:Base $script:Head))
     } else {
         if ($unlockedCleanupRequired -and -not $unlockedRemoved) {
+            if (-not $script:ChildTerminationConfirmed) {
+                # 終了未確認のPUTが残る間は回復DELETEと競合し得るため、掃除を送らず未確認を維持します。
+                $classification = 'inconclusive'
+                $records.Add((New-ObservationRecord $classification 'recovery-cleanup' 'delete' $unlockedKey $changedHash $changed.Length $null 'unconfirmed; child termination unconfirmed' $lockRule $script:Base $script:Head))
+            } else {
             # 本処理の5分期限とは別に合計30秒を確保し、DELETE応答だけでなくNoSuchKeyまで確認します。
             $cleanupDeadline = (Get-RouteElapsed) + [TimeSpan]::FromSeconds(30)
             $script:ActiveKey = $unlockedKey
@@ -141,6 +148,7 @@ function Invoke-RouteProofLoop([string] $EndpointValue, [string] $RunIdValue, [s
                 $records.Add((New-ObservationRecord $classification 'recovery-cleanup-confirm' 'authenticated-get' $unlockedKey $changedHash $changed.Length $confirmObservation $(if ($unlockedRemoved) { 'removed' } else { 'unconfirmed' }) $lockRule $script:Base $script:Head))
             }
             if (-not $unlockedRemoved) { $classification = 'inconclusive' }
+            }
         }
         $records.Add((New-ObservationRecord $classification 'complete' 'route-proof' $null $null 0 $null $(if ($unlockedRemoved) { 'removed' } else { 'unconfirmed' }) $lockRule $script:Base $script:Head))
     }
@@ -171,11 +179,11 @@ function Assert-Observation($Observation) {
     foreach ($name in @('EofConfirmed','LimitReached','TimedOut','Redirected')) {
         if ($Observation.$name -isnot [bool]) { throw 'Invalid transport observation.' }
     }
-    foreach ($name in @('AuthorizationPresent','SignatureQueryPresent','TargetChangingQueryPresent')) {
+    foreach ($name in @('HasAuthHeader','SignatureQueryPresent','TargetChangingQueryPresent')) {
         if ($Observation.$name -isnot [bool]) { throw 'Invalid transport observation.' }
     }
-    if ($null -ne $Observation.RequestMethod -and $Observation.RequestMethod -isnot [string]) { throw 'Invalid transport observation.' }
-    if ($null -ne $Observation.RequestUri -and $Observation.RequestUri -isnot [string]) { throw 'Invalid transport observation.' }
+    if ($null -ne $Observation.Method -and $Observation.Method -isnot [string]) { throw 'Invalid transport observation.' }
+    if ($null -ne $Observation.TargetUri -and $Observation.TargetUri -isnot [string]) { throw 'Invalid transport observation.' }
     if ($null -ne $Observation.HttpStatus -and (($Observation.HttpStatus -isnot [int] -and $Observation.HttpStatus -isnot [long]) -or $Observation.HttpStatus -lt 100 -or $Observation.HttpStatus -gt 599)) { throw 'Invalid transport observation.' }
     if ($null -ne $Observation.ByteCount -and (($Observation.ByteCount -isnot [int] -and $Observation.ByteCount -isnot [long]) -or $Observation.ByteCount -lt 0 -or $Observation.ByteCount -gt 8193)) { throw 'Invalid transport observation.' }
     foreach ($name in @('BodySha256','PrefixSha256')) {
@@ -198,11 +206,12 @@ function Test-UnsignedPrivacy($Observation, [string] $Hash, [int] $Bytes) {
     # 拒否statusだけを信用せず、非秘密の観測が意図したGET生成経路と一致するか確認します。
     $segments = @($script:ActiveKey -split '/' | ForEach-Object { [uri]::EscapeDataString($_) })
     $expectedUri = ([uri]($script:ActiveEndpoint + '/osm-artifacts/' + ($segments -join '/'))).AbsoluteUri
-    if ($Observation.RequestMethod -cne 'GET' -or $Observation.RequestUri -cne $expectedUri -or
-        $Observation.AuthorizationPresent -or $Observation.SignatureQueryPresent -or $Observation.TargetChangingQueryPresent) { return $false }
+    if ($Observation.Method -cne 'GET' -or $Observation.TargetUri -cne $expectedUri -or
+        $Observation.HasAuthHeader -or $Observation.SignatureQueryPresent -or $Observation.TargetChangingQueryPresent) { return $false }
     # このrevisionでは401/Unauthorizedと403/AccessDeniedだけを許し、400 InvalidArgumentは常にinconclusiveです。
-    return $Observation.HttpStatus -in @(401,403) -and $Observation.StatusClass -in @('unauthorized','forbidden') -and
-        $Observation.S3Code -in @('Unauthorized','AccessDenied') -and $Observation.EofConfirmed -and
+    $pairedDenial = ($Observation.HttpStatus -eq 401 -and $Observation.StatusClass -ceq 'unauthorized' -and $Observation.S3Code -ceq 'Unauthorized') -or
+        ($Observation.HttpStatus -eq 403 -and $Observation.StatusClass -ceq 'forbidden' -and $Observation.S3Code -ceq 'AccessDenied')
+    return $pairedDenial -and $Observation.EofConfirmed -and
         -not $Observation.LimitReached -and -not $Observation.Redirected -and
         $null -ne $Observation.BodySha256 -and $Observation.BodySha256 -cne $Hash -and
         ($null -eq $Observation.PrefixSha256 -or $Observation.PrefixSha256 -cne $Hash)
@@ -257,19 +266,19 @@ function Invoke-ChildOperation(
     if ($elapsed -ge $Deadline) { return $null }
     # 45秒の子上限と呼び出し側deadlineまでの短い方を、起動からpipe回収まで共有します。
     $remaining = [Math]::Min(45000, [int]($Deadline - $elapsed).TotalMilliseconds)
-    if ($null -ne $script:RouteProofChildRunner) {
-        $observation = & $script:RouteProofChildRunner $EndpointValue $OperationName $KeyValue $ExpectedHashValue $Bytes $Payload $ExpectedRunId $remaining $Deadline
-        if ($null -eq $observation) { return $null }
+    if ($null -ne $script:RouteProofChildRunner -or $null -ne $script:RouteProofTransport) {
         try {
-            Assert-Observation $observation
-            if ($observation.Operation -cne $OperationName) { return $null }
-            return $observation
-        } catch { return $null }
-    }
-    if ($null -ne $script:RouteProofTransport) {
-        try {
-            $observation = & $script:RouteProofTransport $EndpointValue $OperationName $KeyValue $ExpectedHashValue $Bytes $Payload $ExpectedRunId $remaining $Deadline
-            if ($null -eq $observation) { return $null }
+            # offlineも本番と同じ単一JSON行の境界を通し、PowerShell objectの直接受渡しを許しません。
+            if ($null -ne $script:RouteProofChildRunner) {
+                $childResult = & $script:RouteProofChildRunner $EndpointValue $OperationName $KeyValue $ExpectedHashValue $Bytes $Payload $ExpectedRunId $remaining $Deadline
+            } else {
+                $childResult = & $script:RouteProofTransport $EndpointValue $OperationName $KeyValue $ExpectedHashValue $Bytes $Payload $ExpectedRunId $remaining $Deadline
+            }
+            if ($null -eq $childResult) { return $null }
+            if ($childResult -isnot [string]) { $childResult = $childResult | ConvertTo-Json -Compress -Depth 4 }
+            $lines = @($childResult.Trim() -split "`r?`n" | Where-Object { $_ -ne '' })
+            if ($lines.Count -ne 1) { return $null }
+            $observation = $lines[0] | ConvertFrom-Json
             Assert-Observation $observation
             if ($observation.Operation -cne $OperationName) { return $null }
             return $observation
@@ -278,7 +287,7 @@ function Invoke-ChildOperation(
     $info = [Diagnostics.ProcessStartInfo]::new()
     $info.FileName = 'pwsh'; $info.UseShellExecute = $false; $info.CreateNoWindow = $true
     $info.RedirectStandardOutput = $true; $info.RedirectStandardError = $true
-    foreach ($argument in @('-NoProfile','-File',$PSCommandPath,'-Endpoint',$EndpointValue,'-Child','-Operation',$OperationName,'-Key',$KeyValue,'-ExpectedHash',$ExpectedHashValue,'-ExpectedBytes',[string]$Bytes,'-RunId',$ExpectedRunId)) { [void]$info.ArgumentList.Add($argument) }
+    foreach ($argument in @('-NoProfile','-File',$PSCommandPath,'-Endpoint',$EndpointValue,'-Child','-Operation',$OperationName,'-Key',$KeyValue,'-ExpectedHash',$ExpectedHashValue,'-ExpectedBytes',[string]$Bytes,'-RunId',$ExpectedRunId,'-ImplementationBase',$script:Base,'-ImplementationHead',$script:Head)) { [void]$info.ArgumentList.Add($argument) }
     if ($Payload) { [void]$info.ArgumentList.Add('-PayloadBase64'); [void]$info.ArgumentList.Add($Payload) }
     $process = [Diagnostics.Process]::new(); $process.StartInfo = $info
     try {
@@ -290,13 +299,14 @@ function Invoke-ChildOperation(
         if (-not $process.WaitForExit($remaining)) {
             try { $process.Kill($true) } catch { try { $process.Kill() } catch { } }
             # deadline後に固定時間の終了待ちを足すと全体予算を越えるため、非待機で終了状態だけ確認します。
-            try { [void]$process.WaitForExit(0) } catch { }
+            try { $script:ChildTerminationConfirmed = $process.WaitForExit(0) } catch { $script:ChildTerminationConfirmed = $false }
             return $null
         }
         # run全体の経過ではなく、この子を起動した後の経過を同じ子予算から差し引きます。
         $remainingForPipes = Get-RemainingPipeWait $remaining $childStartedAt
         if (-not $stdoutTask.Wait($remainingForPipes) -or -not $stderrTask.Wait($remainingForPipes)) {
             try { $process.Kill($true) } catch { try { $process.Kill() } catch { } }
+            try { $script:ChildTerminationConfirmed = $process.WaitForExit(0) } catch { $script:ChildTerminationConfirmed = $false }
             return $null
         }
         $stdout = $stdoutTask.GetAwaiter().GetResult().Trim()
@@ -308,7 +318,16 @@ function Invoke-ChildOperation(
         Assert-Observation $observation
         if ($observation.Operation -cne $OperationName) { return $null }
         return $observation
-    } catch { return $null } finally { $process.Dispose() }
+    } catch {
+        # 例外経路でも起動済みchildの生存を未確認のまま回復DELETEへ進ませません。
+        try {
+            if ($process.Id -gt 0 -and -not $process.HasExited) {
+                try { $process.Kill($true) } catch { try { $process.Kill() } catch { } }
+                $script:ChildTerminationConfirmed = $process.WaitForExit(0)
+            } else { $script:ChildTerminationConfirmed = $true }
+        } catch { $script:ChildTerminationConfirmed = $false }
+        return $null
+    } finally { $process.Dispose() }
 }
 
 function Read-LockRule([string] $Json) {
@@ -340,13 +359,12 @@ function Read-LockRule([string] $Json) {
 
 if ($Library) { return }
 
-$base = try { (git merge-base develop HEAD 2>$null).Trim() } catch { $null }
-$head = try { (git rev-parse HEAD 2>$null).Trim() } catch { $null }
+$base = $ImplementationBase; $head = $ImplementationHead
 $script:Base = $base; $script:Head = $head
 
 if ($Child) {
     try {
-        if (-not (Test-Endpoint $Endpoint) -or $Operation -notin @('put','authenticated-get','unsigned-get','delete') -or
+            if (-not (Test-Endpoint $Endpoint) -or $ImplementationBase -cnotmatch '^[0-9a-f]{40}$' -or $ImplementationHead -cnotmatch '^[0-9a-f]{40}$' -or $Operation -notin @('put','authenticated-get','unsigned-get','delete') -or
             -not (Test-RunId $RunId) -or -not (Test-Key $Key $RunId) -or -not (Test-Hash $ExpectedHash) -or $ExpectedBytes -lt 1 -or $ExpectedBytes -gt 1024) { throw 'Invalid input.' }
         $transportModule = Import-Module (Join-Path $PSScriptRoot 'R2RouteTransport.psm1') -Force -PassThru
         $payload = if ($PayloadBase64) { [Convert]::FromBase64String($PayloadBase64) } else { $null }
@@ -365,7 +383,7 @@ if ($Child) {
             Operation = if ($Operation) { $Operation } else { 'input' }; HttpStatus = $null; StatusClass = 'inconclusive'
             S3Code = $null; ByteCount = $null; BodySha256 = $null; PrefixSha256 = $null
             EofConfirmed = $false; LimitReached = $false; TimedOut = $false; Redirected = $false; Generation = '00000000000000000000000000000000'
-            RequestMethod = $null; RequestUri = $null; AuthorizationPresent = $false
+            Method = $null; TargetUri = $null; HasAuthHeader = $false
             SignatureQueryPresent = $false; TargetChangingQueryPresent = $false
         }
         [Console]::WriteLine(($fallback | ConvertTo-Json -Compress -Depth 4)); exit 4
@@ -373,9 +391,10 @@ if ($Child) {
 }
 
 try {
-    if (-not (Test-Endpoint $Endpoint)) { throw 'Invalid endpoint.' }
+    if (-not (Test-Endpoint $Endpoint) -or $base -cnotmatch '^[0-9a-f]{40}$' -or $head -cnotmatch '^[0-9a-f]{40}$') { throw 'Invalid endpoint or implementation revision.' }
     if ($RunId) { if (-not (Test-RunId $RunId)) { throw 'Invalid run id.' } } else { $RunId = [Guid]::NewGuid().ToString('N') }
     $script:Base = $base; $script:Head = $head
+    $script:ChildTerminationConfirmed = $true
     $result = Invoke-RouteProofLoop $Endpoint $RunId $LockRuleJson
     foreach ($record in $result.Records) { [Console]::WriteLine(($record | ConvertTo-Json -Compress -Depth 6)) }
     exit $result.ExitCode

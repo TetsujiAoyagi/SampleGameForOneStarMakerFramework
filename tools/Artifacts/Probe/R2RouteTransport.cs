@@ -22,9 +22,9 @@ public sealed class TransportObservation
     public bool LimitReached { get; init; }
     public bool TimedOut { get; init; }
     public bool Redirected { get; init; }
-    public string? RequestMethod { get; init; }
-    public string? RequestUri { get; init; }
-    public bool AuthorizationPresent { get; init; }
+    public string? Method { get; init; }
+    public string? TargetUri { get; init; }
+    public bool HasAuthHeader { get; init; }
     public bool SignatureQueryPresent { get; init; }
     public bool TargetChangingQueryPresent { get; init; }
 }
@@ -134,7 +134,8 @@ public static class RouteTransport
                 BodySha256 = body.BodySha256,
                 PrefixSha256 = body.PrefixSha256,
                 EofConfirmed = body.EofConfirmed,
-                LimitReached = body.LimitReached
+                LimitReached = body.LimitReached,
+                TimedOut = body.TimedOut
             };
         }
         catch (AmazonS3Exception exception)
@@ -163,7 +164,7 @@ public static class RouteTransport
         using var response = client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellation)
             .GetAwaiter().GetResult();
         var body = response.Content is null
-            ? new BodyObservation(0, null, null, true, false, null)
+            ? new BodyObservation(0, null, null, true, false, null, false)
             : ReadBody(response.Content.ReadAsStream(cancellation), expectedBytes, cancellation, UnsignedReadLimit, captureS3Code: true);
         var status = (int)response.StatusCode;
         return new TransportObservation
@@ -178,11 +179,12 @@ public static class RouteTransport
             EofConfirmed = body.EofConfirmed,
             LimitReached = body.LimitReached,
             Redirected = status is >= 300 and <= 399,
-            RequestMethod = requestMethod,
-            RequestUri = requestUri,
-            AuthorizationPresent = hasAuthorization,
+            Method = requestMethod,
+            TargetUri = requestUri,
+            HasAuthHeader = hasAuthorization,
             SignatureQueryPresent = hasSignatureQuery,
-            TargetChangingQueryPresent = hasTargetChangingQuery
+            TargetChangingQueryPresent = hasTargetChangingQuery,
+            TimedOut = body.TimedOut
         };
     }
 
@@ -251,29 +253,40 @@ public static class RouteTransport
             var prefixCount = 0;
             var limitReached = false;
             var errorCode = captureS3Code ? new ErrorCodeScanner() : null;
-            while (true)
+            try
             {
-                cancellation.ThrowIfCancellationRequested();
-                var read = stream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellation).AsTask().GetAwaiter().GetResult();
-                if (read == 0) break;
-                var allowed = Math.Min(read, maximumBytes + 1 - count);
-                if (allowed > 0)
+                while (true)
                 {
-                    digest.AppendData(buffer, 0, allowed);
-                    errorCode?.Append(buffer, 0, allowed);
-                    if (prefixCount < expectedBytes)
+                    cancellation.ThrowIfCancellationRequested();
+                    var read = stream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellation).AsTask().GetAwaiter().GetResult();
+                    if (read == 0) break;
+                    var allowed = Math.Min(read, maximumBytes + 1 - count);
+                    if (allowed > 0)
                     {
-                        var prefixLength = Math.Min(allowed, expectedBytes - prefixCount);
-                        prefix.AppendData(buffer, 0, prefixLength);
-                        prefixCount += prefixLength;
+                        digest.AppendData(buffer, 0, allowed);
+                        errorCode?.Append(buffer, 0, allowed);
+                        if (prefixCount < expectedBytes)
+                        {
+                            var prefixLength = Math.Min(allowed, expectedBytes - prefixCount);
+                            prefix.AppendData(buffer, 0, prefixLength);
+                            prefixCount += prefixLength;
+                        }
+                        count += allowed;
                     }
-                    count += allowed;
+                    if (count > maximumBytes)
+                    {
+                        limitReached = true;
+                        break;
+                    }
                 }
-                if (count > maximumBytes)
-                {
-                    limitReached = true;
-                    break;
-                }
+            }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+            {
+                // 期限で読取が中断されても、既に到着した期待長prefixの露出証拠は捨てません。
+                var partialPrefixHash = prefixCount == expectedBytes
+                    ? Convert.ToHexString(prefix.GetCurrentHash()).ToLowerInvariant()
+                    : null;
+                return new BodyObservation(count, null, partialPrefixHash, false, false, errorCode?.Code, true);
             }
 
             if (limitReached)
@@ -282,7 +295,7 @@ public static class RouteTransport
                 var prefixHashAtLimit = prefixCount == expectedBytes
                     ? Convert.ToHexString(prefix.GetHashAndReset()).ToLowerInvariant()
                     : null;
-                return new BodyObservation(count, null, prefixHashAtLimit, false, true, errorCode?.Code);
+                return new BodyObservation(count, null, prefixHashAtLimit, false, true, errorCode?.Code, false);
             }
 
             var prefixHash = prefixCount == expectedBytes
@@ -294,7 +307,8 @@ public static class RouteTransport
                 prefixHash,
                 true,
                 false,
-                errorCode?.Code);
+                errorCode?.Code,
+                false);
         }
     }
 
@@ -394,5 +408,6 @@ public static class RouteTransport
         string? PrefixSha256,
         bool EofConfirmed,
         bool LimitReached,
-        string? S3Code);
+        string? S3Code,
+        bool TimedOut);
 }

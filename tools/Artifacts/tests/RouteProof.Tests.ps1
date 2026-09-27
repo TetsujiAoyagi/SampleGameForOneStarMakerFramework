@@ -23,20 +23,20 @@ function Fake-Observation(
     [bool] $LimitReached = $false,
     [bool] $TimedOut = $false,
     [bool] $Redirected = $false,
-    [object] $RequestMethod = 'GET',
-    [object] $RequestUri = $null,
-    [bool] $AuthorizationPresent = $false,
+    [object] $Method = 'GET',
+    [object] $TargetUri = $null,
+    [bool] $HasAuthHeader = $false,
     [bool] $SignatureQueryPresent = $false,
     [bool] $TargetChangingQueryPresent = $false,
     [string] $Generation = '0123456789abcdef0123456789abcdef') {
-    if ($null -eq $RequestUri) { $RequestUri = 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com/osm-artifacts/probe/unlocked/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/object.txt' }
+    if ($null -eq $TargetUri) { $TargetUri = 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com/osm-artifacts/probe/unlocked/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/object.txt' }
     [pscustomobject][ordered]@{
         Operation = $Operation; HttpStatus = $HttpStatus; StatusClass = $StatusClass; S3Code = $S3Code
         ByteCount = $ByteCount; BodySha256 = $BodySha256; PrefixSha256 = $PrefixSha256
         EofConfirmed = $EofConfirmed; LimitReached = $LimitReached; TimedOut = $TimedOut
         Redirected = $Redirected; Generation = $Generation
-        RequestMethod = $RequestMethod; RequestUri = $RequestUri
-        AuthorizationPresent = $AuthorizationPresent; SignatureQueryPresent = $SignatureQueryPresent; TargetChangingQueryPresent = $TargetChangingQueryPresent
+        Method = $Method; TargetUri = $TargetUri
+        HasAuthHeader = $HasAuthHeader; SignatureQueryPresent = $SignatureQueryPresent; TargetChangingQueryPresent = $TargetChangingQueryPresent
     }
 }
 
@@ -56,24 +56,26 @@ try {
     }
     Run 'unsigned exact object is not private' {
         $script:ActiveEndpoint='https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com'; $script:ActiveKey='probe/unlocked/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/object.txt'
-        $fake = Fake-Observation -BodySha256 $global:RouteProofTestExpectedHash -PrefixSha256 $global:RouteProofTestExpectedHash -ByteCount 23 -RequestMethod $null -RequestUri $null
+        $fake = Fake-Observation -BodySha256 $global:RouteProofTestExpectedHash -PrefixSha256 $global:RouteProofTestExpectedHash -ByteCount 23 -Method $null -TargetUri $null
         Assert (-not (Test-UnsignedPrivacy $fake $global:RouteProofTestExpectedHash 23)) 'exact object exposure accepted'
     }
     Run 'unsigned object plus bytes is not private' {
         $script:ActiveEndpoint='https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com'; $script:ActiveKey='probe/unlocked/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/object.txt'
-        $fake = Fake-Observation -BodySha256 $global:RouteProofTestExpectedHash -PrefixSha256 $global:RouteProofTestExpectedHash -ByteCount 29 -RequestMethod $null -RequestUri $null
+        $fake = Fake-Observation -BodySha256 $global:RouteProofTestExpectedHash -PrefixSha256 $global:RouteProofTestExpectedHash -ByteCount 29 -Method $null -TargetUri $null
         Assert (-not (Test-UnsignedPrivacy $fake $global:RouteProofTestExpectedHash 23)) 'appended object exposure accepted'
     }
     Run 'unsigned rejection requires EOF, code and different hash' {
         $script:ActiveEndpoint = 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com'
         $script:ActiveKey = 'probe/unlocked/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/object.txt'
         Assert (Test-UnsignedPrivacy (Fake-Observation -BodySha256 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') $global:RouteProofTestExpectedHash 23) 'valid denial rejected'
+        Assert (-not (Test-UnsignedPrivacy (Fake-Observation -HttpStatus 401 -StatusClass 'unauthorized' -S3Code 'AccessDenied') $global:RouteProofTestExpectedHash 23)) 'crossed 401/AccessDenied tuple accepted'
+        Assert (-not (Test-UnsignedPrivacy (Fake-Observation -HttpStatus 403 -StatusClass 'forbidden' -S3Code 'Unauthorized') $global:RouteProofTestExpectedHash 23)) 'crossed 403/Unauthorized tuple accepted'
         Assert (-not (Test-UnsignedPrivacy (Fake-Observation -S3Code 'SignatureDoesNotMatch') $global:RouteProofTestExpectedHash 23)) 'signature mismatch accepted'
         Assert (-not (Test-UnsignedPrivacy (Fake-Observation -LimitReached $true) $global:RouteProofTestExpectedHash 23)) 'bounded body accepted'
         Assert (-not (Test-UnsignedPrivacy (Fake-Observation -EofConfirmed $false) $global:RouteProofTestExpectedHash 23)) 'non-EOF body accepted'
         $sameBodyPrefixDiffers = Fake-Observation -HttpStatus 400 -StatusClass 'other' -S3Code 'InvalidArgument' -BodySha256 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' -PrefixSha256 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
         Assert (-not (Test-UnsignedPrivacy $sameBodyPrefixDiffers $global:RouteProofTestExpectedHash 23)) '400 InvalidArgument was treated as an allowed private denial'
-        $unsignedWithAuth = Fake-Observation -AuthorizationPresent $true
+        $unsignedWithAuth = Fake-Observation -HasAuthHeader $true
         Assert (-not (Test-UnsignedPrivacy $unsignedWithAuth $global:RouteProofTestExpectedHash 23)) 'signed request was treated as unsigned'
     }
     Run 'lock requires exact provider code' {
@@ -140,7 +142,7 @@ try {
             $requestUri=([uri]($endpoint+'/osm-artifacts/'+($uriSegments -join '/'))).AbsoluteUri
             $method=$null; $observedUri=$null
             if ($operation -eq 'unsigned-get') { $method='GET'; $observedUri=$requestUri }
-            [pscustomobject]@{ Operation=$operation;HttpStatus=$status;StatusClass=$class;S3Code=$code;ByteCount=$bytes;BodySha256=$bodyHash;PrefixSha256=$prefixHash;EofConfirmed=$eof;LimitReached=$false;TimedOut=$false;Redirected=$false;Generation=$generation;RequestMethod=$method;RequestUri=$observedUri;AuthorizationPresent=$false;SignatureQueryPresent=$false;TargetChangingQueryPresent=$false }
+            [pscustomobject]@{ Operation=$operation;HttpStatus=$status;StatusClass=$class;S3Code=$code;ByteCount=$bytes;BodySha256=$bodyHash;PrefixSha256=$prefixHash;EofConfirmed=$eof;LimitReached=$false;TimedOut=$false;Redirected=$false;Generation=$generation;Method=$method;TargetUri=$observedUri;HasAuthHeader=$false;SignatureQueryPresent=$false;TargetChangingQueryPresent=$false }
         }
         $script:fakeUnlockedDeleted=$false
         $global:RouteProofTestChangedHash='efc900f91b1b41cf7ad4e882d7f697a1b05503dc58bc7f51af2d2a271d60ba33'; $global:RouteProofTestLockedChangedHash='efc900f91b1b41cf7ad4e882d7f697a1b05503dc58bc7f51af2d2a271d60ba33'; $global:RouteProofTestLockedOriginalHash='bcde92159116d1e36c9f98c9e2657f69d1935db4527e4203aa953f2cd67379b1'
@@ -151,6 +153,37 @@ try {
         Assert ($result.Records[4].cleanup -eq 'removed' -and $result.Records[-1].cleanup -eq 'removed') 'cleanup was called removed without NoSuchKey confirmation'
         Assert ($script:fakeUnlockedDeleted) 'failed run did not attempt cleanup'
         $script:RouteProofClock=$null; $script:RouteProofTransport=$null; $script:fakeUnlockedDeleted=$false
+    }
+    Run 'production loop completes all twelve operations through the JSON boundary' {
+        $runId = 'dddddddddddddddddddddddddddddddd'
+        $script:Base='0123456789abcdef0123456789abcdef01234567'; $script:Head='fedcba9876543210fedcba9876543210fedcba98'
+        $ruleHash = 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
+        $global:RouteProofTestChangedHash=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::ASCII.GetBytes("OSM-ROUTE-PROOF:${runId}:changed"))).ToLowerInvariant()
+        $script:RouteProofClock = { [TimeSpan]::Zero }
+        $script:RouteProofChildRunner = {
+            param($endpoint,$operation,$key,$hash,$bytes,$payload,$expectedRunId,$remaining,$deadline)
+            if (-not (Test-Key $key $expectedRunId)) { throw 'child key/run mismatch' }
+            $status=200; $class='success'; $code=$null; $bodyHash=$hash; $prefixHash=$hash
+            if ($operation -eq 'unsigned-get') { $status=403; $class='forbidden'; $code='AccessDenied'; $bodyHash='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'; $prefixHash='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }
+            elseif ($operation -eq 'delete' -and $key -like 'probe/unlocked/*') { $status=204 }
+            elseif ($key -like 'probe/unlocked/*' -and $operation -eq 'authenticated-get' -and $script:fakeUnlockedDeleted) { $status=404; $class='not-found'; $code='NoSuchKey'; $bodyHash=$null; $prefixHash=$null }
+            elseif ($key -like 'probe/locked/*' -and (($operation -eq 'put' -and $hash -eq $global:RouteProofTestChangedHash) -or $operation -eq 'delete')) { $status=403; $class='forbidden'; $code='ObjectLockedByBucketPolicy' }
+            if ($operation -eq 'delete' -and $key -like 'probe/unlocked/*') { $script:fakeUnlockedDeleted=$true }
+            $uriSegments=@($key -split '/' | ForEach-Object { [uri]::EscapeDataString($_) })
+            $method=$null; $uri=$null
+            if ($operation -eq 'unsigned-get') { $method='GET'; $uri=([uri]($endpoint+'/osm-artifacts/'+($uriSegments -join '/'))).AbsoluteUri }
+            $observation=[pscustomobject]@{ Operation=$operation;HttpStatus=$status;StatusClass=$class;S3Code=$code;ByteCount=$bytes;BodySha256=$bodyHash;PrefixSha256=$prefixHash;EofConfirmed=$true;LimitReached=$false;TimedOut=$false;Redirected=$false;Generation='0123456789abcdef0123456789abcdef';Method=$method;TargetUri=$uri;HasAuthHeader=$false;SignatureQueryPresent=$false;TargetChangingQueryPresent=$false }
+            # 子processが書く1行を模擬し、親側のJSON parseと閉じたschema検査を通します。
+            return $observation | ConvertTo-Json -Compress -Depth 4
+        }
+        $script:fakeUnlockedDeleted=$false
+        $global:RouteProofTestLockedChangedHash=$global:RouteProofTestChangedHash
+        $json=[pscustomobject]@{Prefix='probe/locked/';Enabled=$true;Kind='Age';RetentionSeconds=900;RuleCount=1;DateRules=0;IndefiniteRules=0;WriterCanConfigure=$false;LifecycleCompatible=$true;BeforeHash=$ruleHash;AfterHash=$ruleHash}|ConvertTo-Json -Compress
+        $result=Invoke-RouteProofLoop 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com' $runId $json
+        Assert ($result.ExitCode -eq 0) "valid production loop failed: $(($result.Records.phase -join ','))"
+        Assert ($result.Records.Count -eq 13 -and $result.Records[-1].phase -eq 'complete') 'full loop did not emit 12 operations plus completion'
+        Assert (($result.Records | Where-Object { $_.phase -ne 'complete' } | Measure-Object).Count -eq 12) 'not all production operations were observed'
+        $script:RouteProofClock=$null; $script:RouteProofChildRunner=$null; $script:fakeUnlockedDeleted=$false
     }
     Run 'ambiguous initial PUT still receives an independent recovery budget' {
         $runId = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
@@ -165,7 +198,7 @@ try {
             $status=204; $class='success'; $code=$null; $bodyHash=$hash; $prefixHash=$hash
             if ($operation -eq 'delete') { $script:fakeElapsed += [TimeSpan]::FromSeconds(10) }
             if ($operation -eq 'authenticated-get') { $status=404; $class='not-found'; $code='NoSuchKey'; $bodyHash=$null; $prefixHash=$null }
-            [pscustomobject]@{ Operation=$operation;HttpStatus=$status;StatusClass=$class;S3Code=$code;ByteCount=$bytes;BodySha256=$bodyHash;PrefixSha256=$prefixHash;EofConfirmed=$true;LimitReached=$false;TimedOut=$false;Redirected=$false;Generation='0123456789abcdef0123456789abcdef';RequestMethod=$null;RequestUri=$null;AuthorizationPresent=$false;SignatureQueryPresent=$false;TargetChangingQueryPresent=$false }
+            [pscustomobject]@{ Operation=$operation;HttpStatus=$status;StatusClass=$class;S3Code=$code;ByteCount=$bytes;BodySha256=$bodyHash;PrefixSha256=$prefixHash;EofConfirmed=$true;LimitReached=$false;TimedOut=$false;Redirected=$false;Generation='0123456789abcdef0123456789abcdef';Method=$null;TargetUri=$null;HasAuthHeader=$false;SignatureQueryPresent=$false;TargetChangingQueryPresent=$false }
         }
         $ruleHash = 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
         $json=[pscustomobject]@{Prefix='probe/locked/';Enabled=$true;Kind='Age';RetentionSeconds=900;RuleCount=1;DateRules=0;IndefiniteRules=0;WriterCanConfigure=$false;LifecycleCompatible=$true;BeforeHash=$ruleHash;AfterHash=$ruleHash}|ConvertTo-Json -Compress
@@ -173,6 +206,17 @@ try {
         Assert ($result.ExitCode -eq 4) 'ambiguous initial PUT was treated as a successful run'
         Assert (($result.Records.phase -join ',') -eq 'unlocked-put,recovery-cleanup-delete,recovery-cleanup-confirm,complete') "unexpected recovery record order: $(($result.Records.phase -join ','))"
         Assert ($result.Records[-1].cleanup -eq 'removed') 'ambiguous PUT cleanup was not confirmed'
+        $script:RouteProofClock=$null; $script:RouteProofChildRunner=$null
+    }
+    Run 'unconfirmed child termination suppresses racing recovery cleanup' {
+        $runId='eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'; $script:Base='offline-base'; $script:Head='offline-head'
+        $script:RouteProofClock={ [TimeSpan]::Zero }
+        $script:RouteProofChildRunner={ param($endpoint,$operation) $script:ChildTerminationConfirmed=$false; return $null }
+        $ruleHash='cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
+        $json=[pscustomobject]@{Prefix='probe/locked/';Enabled=$true;Kind='Age';RetentionSeconds=900;RuleCount=1;DateRules=0;IndefiniteRules=0;WriterCanConfigure=$false;LifecycleCompatible=$true;BeforeHash=$ruleHash;AfterHash=$ruleHash}|ConvertTo-Json -Compress
+        $result=Invoke-RouteProofLoop 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com' $runId $json
+        Assert (($result.Records.phase -join ',') -eq 'unlocked-put,recovery-cleanup,complete') 'cleanup raced a child whose termination was not confirmed'
+        Assert ($result.Records[-1].cleanup -eq 'unconfirmed') 'unconfirmed child cleanup was reported removed'
         $script:RouteProofClock=$null; $script:RouteProofChildRunner=$null
     }
 } catch { $script:failed.Add('test harness') }
