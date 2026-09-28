@@ -2,7 +2,7 @@
 
 ## 0. 現在の入力
 
-- type: slice / status: revision 3 A3 凍結済み。旧 revision 2 は凍結のまま、旧 B 完了・旧 C は inconclusive。f256252 の source-first 修正を新 head 候補として固定し、新判定 C / C' は未実施。
+- type: slice / status: revision 3 A3 凍結済み。B head 31be639 の判定 C は locked 上書きの 409 / ObjectLockedByBucketPolicy で inconclusive。GO なし、C' 未実施。現在の証拠と停止位置は §11。
 - branch: codex/artifact-storage-route-proof / risk: high
 - owner: repository owner / created: 2026-09-29 JST / expires: Phase D または次の A revision
 - harvest to: tools/Artifacts/README.md、BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md の現況
@@ -17,7 +17,7 @@
 - レビュー統合済み候補: 2026-09-28T15:22:57Z、規範本文 SHA-256 662A26AED6B6010D7C9C115F21492A9134A82BE745CE427086DA0C598F03E380。これは承認前候補の識別子で、A3凍結記録ではない。
 - revision 3 A3 snapshot 生成 UTC: 2026-09-28T16:34:42Z。SHA-256（UTF-8 / LF）: F34E67FA3747F84C6C11759B2CA46D67303ED01A0DDBC69AE5777C859FF78F57。CRLF checkout では LF に正規化して照合する。固定 commit は本台帳・snapshot・docs/README.md を収録する docs-freeze-artifact-route-proof-a3-r3。確定 SHA は引継ぎ時に指定し、snapshot 自体へ自己 hash を埋め込まない。
 
-本文書と現行規範本文を入力とする。新たな commit 別 RESULT / FINAL / RERUN は増やさない。旧固定 snapshot・結果は過去の対象版の証拠として保存する。以下の §1〜§9 は revision 2 の履歴であり、revision 3 の採否・現況は §10 に記録する。
+本文書と現行規範本文を入力とする。新たな commit 別 RESULT / FINAL / RERUN は増やさない。旧固定 snapshot・結果は過去の対象版の証拠として保存する。以下の §1〜§9 は revision 2 の履歴であり、revision 3 の採否は §10、現在の判定 C は §11 に記録する。
 
 ## 1. A0 — 固定した現況と問い
 
@@ -149,3 +149,23 @@ A1 は [revision 3 規範本文](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION_3
 ### A3 凍結境界
 
 ownerの「Aをそのように直してA3凍結して、400受け入れます」を統合承認とし、A2 blocker の閉鎖後 2026-09-28T16:34:42Z に規範本文を A3 凍結した。snapshot SHA-256 と固定 commit は§0に記録する。凍結後も旧 revision 2 の snapshot は一切編集しない。A3完了はGOではなく、既知 timeout の局所修正、同じ新実装headでの限定・全回帰、12操作 live、Bucket Lockと前後設定の実観測、判定 C / 独立 C' がGOに残る。
+
+## 11. Revision 3 の判定 C — locked 上書きの 409
+
+担当は Codex / GPT-6 Astra、新規セッション。B（GPT-6 Sol）とのモデル相違を満たす。固定 base は `93d2a1c436361ef6ee702096a61087cde55319b4`、head は `31be639a968402e0bdf3f65fd9eda8d0d818dbf3`、実行時 docs tip は `34135d80a0f49def79b91db0797609cbc30bb49b`。A3 freeze commit `5172d597cd2725f3cff4305d9bddce237071c685` と §0 の revision 3 snapshot hash が一致した。B snapshot hash は `D60CCF4A1342DE0E5AF9D44E29CE193B11EDEB0DFA441A5C76F7D42916A0A6D2`。docs-only tip を実装 head にしていない。
+
+発見 C では全 repository diff / stat / name-status と source-first 差分を固定し、責務配置と失敗経路を先に照合した。RouteProof の単一 orchestration、transport の request・有限読み取り、CredentialStore の秘密寿命は分離され、Unity 側変更はない。400 の status/class/Code tuple、timeout、EOF、redirect、本文上限、全体・prefix hash、実 child 入口、Before/After 分離を確認した。凍結済み条件への具体的な実装 blocker は未発見。構造分割や新 API の追加は求めていない。
+
+判定用 offline 検証は Release/net8.0 build（警告0・エラー0）、Credentials 22件、RouteProof `-Case '*'` 26件、transport 7件、contract-audit、docs-audit が成功。コマンド・exit・case一覧・生ログは manifest に収録。初回 sandbox の Credentials は ACL 拒否、RouteProof は child 起動 timeout で失敗し、生ログを保持した。同じ試験を承認済み sandbox 外経路で実行して上記全件成功。Unity EditMode/PlayMode/build は A3 §5 の適用除外どおり未実行。
+
+新しい Before/After は C 自身が保存済み Cloudflare profile の read-only DOM から取得した。Settings は開始前 `2026-09-28T16:48:29.164Z`、終了後 `2026-09-28T16:54:20.555Z`。writer は開始前 `16:51:20.165Z`、終了後 `16:54:09.919Z`。r2.dev 無効、Custom Domains なし、全有効 lock rule は `probe_locked / probe/locked/ / Age 86400秒` の1件、lifecycle は7日後の multipart abort のみ、writer は対象 bucket の Item Write/Read のみで前後同一。画面URL・UTC・生DOM・観察者・清掃予定を保存し、before <= run start < run end <= after を照合した。設定・token の変更や owner への画像再提出依頼は行っていない。
+
+許可された1 runを `2026-09-28T16:53:16.6807729Z`〜`16:53:32.0530764Z`、15.371266秒で実行。run-id は `62bd4f1ab6b24a9d93026108ee5dae5c`、新 key は2個。unlocked PUT/認証GETの57 byte・hash一致、unsigned `400 / other / InvalidArgument`（113 byte、EOF、全体と期待長prefixのhash不一致）、上書き/変更hash GET、DELETE 204/NoSuchKey 404を通過した。限定400を認証拒否原因の証明にはしていない。同じ Generation の locked PUT/認証GETも成功した。
+
+次の locked 上書きは **`409 / other / ObjectLockedByBucketPolicy`**、EOF true、limitReached false。A3 §1(3) と `Test-LockRejection` は `403 / forbidden / ObjectLockedByBucketPolicy` を要求するため、probe は exit 4 / inconclusive で停止した。locked DELETE 拒否・最後の原hash GETは未到達。409を403へ書き換えず、再run・追加request・設定変更は行わない。これは凍結済み status 許可集合と実観測の不一致であり、現時点でコード欠陥や provider 能力否定を確定しない。許可集合を変更するなら A3 §6 に従い新 revision の A 判断が必要。C' は開始しない。
+
+unlocked は NoSuchKey まで確認済み。残存予定 key は `probe/locked/62bd4f1ab6b24a9d93026108ee5dae5c/object.txt`、保持実効性は unconfirmed。既設1日 rule を維持し、保守的な清掃可能時刻を run終了+86400秒の `2026-09-29T16:53:32.0530764Z`（JST 2026-09-30 01:53:32）と記録した。所有者の後続作業でその時刻以後に DELETE/NoSuchKey を確認する予定であり、清掃完了・自動清掃予約済みとはしていない。
+
+fresh pwsh の loaded assembly location/hash と実行前後 DLL・依存hashが一致。DLL SHA-256 は `ED3A6DE29DC34D3F88BEC55A8CAFDDBE2AC7051AB50F32F93F731633A0AE9909`。実行間に build/copy はない。source は build前と実行前後の `git diff --exit-code <head> -- tools/Artifacts .gitignore` が成功して同じ固定headと照合された。ただし収録用scriptのcase-insensitive globにより、前後manifestのFiles配列からtools/Artifacts sourceが抜けた。原manifestを変更せず、事後の `source-correspondence.json` に12ファイルのSHA-256・作業tree Git blob・固定head blob一致を補記した。事前source SHA一覧を取得済みとは主張しない。
+
+証拠id/path は `artifacts/route-proof-phase-c-31be639/`、manifest生成UTC `2026-09-28T16:55:38.8649494Z`。全差分・snapshot・build/load・全試験ログ・設定前後DOM・入力・live JSONL・実行物4ファイル・対応manifestを収録。生JSONL SHA-256 は `A2B8F962EA57B388AC88520CB87003D665D8369574554F0CDF3CD69C244E0FC5`。`files.sha256` 自体のSHA-256は `74CE1413AB3DA337814082333B8978F037B9180CEFDC4EB21D38E89ABFEC7A18`。同じローカルpathから取得し各行をSHA-256照合する。監査とPhase D終了まで保持し、artifactsはstage/commitしない。C' blind bundleは未生成、転送検証は未実施。結論は **inconclusive / GOなし**。
