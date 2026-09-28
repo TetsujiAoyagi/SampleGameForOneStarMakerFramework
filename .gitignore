@@ -40,6 +40,18 @@ tools/**/artifacts/
 tools/**/publish/
 tools/**/.vs/
 
+# Phase B artifact route proof source lives under the historical Artifacts
+# directory; keep only its generated artifacts/ output ignored.
+!tools/Artifacts/
+!tools/Artifacts/Probe/
+!tools/Artifacts/Probe/*.cs
+!tools/Artifacts/Probe/*.csproj
+!tools/Artifacts/Probe/*.ps1
+!tools/Artifacts/Probe/*.psm1
+!tools/Artifacts/tests/
+!tools/Artifacts/tests/*.ps1
+tools/Artifacts/Probe/artifacts/
+
 # Test coverage (Coverlet 等)
 **/coverage*.json
 **/coverage*.xml

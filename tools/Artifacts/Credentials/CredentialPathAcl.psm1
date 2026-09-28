@@ -48,6 +48,8 @@ function New-OwnerAcl([bool] $Directory) {
     # 新規の資格情報専用領域は継承を切り、現在ユーザー・SYSTEM・管理者に限定する。
     $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User
     $acl = if ($Directory) { [Security.AccessControl.DirectorySecurity]::new() } else { [Security.AccessControl.FileSecurity]::new() }
+    # 昇格トークンの既定所有者がAdministratorsでも、保存領域は実行ユーザーが所有する。
+    $acl.SetOwner($sid)
     $acl.SetAccessRuleProtection($true, $false)
     foreach ($identity in @($sid, [Security.Principal.SecurityIdentifier]::new('S-1-5-18'), [Security.Principal.SecurityIdentifier]::new('S-1-5-32-544'))) {
         $rights = [Security.AccessControl.FileSystemRights]::FullControl

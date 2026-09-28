@@ -87,11 +87,16 @@ function Run([string] $Name, [scriptblock] $Body) {
             }
         } catch { $caseFailed = $true }
     }
-    if ($caseFailed) { $script:failed.Add($Name) } else { $script:passed.Add($Name) }
+    if ($caseFailed) { $script:failed.Add($Name + ': ' + $exceptionText) } else { $script:passed.Add($Name) }
 }
 
 try {
     Run 'encrypted round trip and safe status' {
+        $currentOwner = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+        foreach ($directory in @($true, $false)) {
+            $newAcl = & $pathModule { param($kind) New-OwnerAcl $kind } $directory
+            Assert ($newAcl.GetOwner([Security.Principal.SecurityIdentifier]).Value -eq $currentOwner) 'new ACL does not explicitly own current user'
+        }
         $result = Write-CredentialRecord 'osm' $sentinelId $sentinelSecret $false
         Assert ($result.Outcome -eq 'success') 'initial commit'
         $status = Get-CredentialStatus 'osm'
@@ -102,6 +107,62 @@ try {
         $cipher = [IO.File]::ReadAllBytes([IO.Path]::Combine($root, 'osm.active'))
         Assert (-not ([Text.Encoding]::UTF8.GetString($cipher).Contains($sentinelId))) 'cipher ID'
         Assert (-not ([Text.Encoding]::UTF8.GetString($cipher).Contains($sentinelSecret))) 'cipher secret'
+    }
+    Run 'transport callback returns only safe metadata' {
+        $result = Write-CredentialRecord 'osm' $sentinelId $sentinelSecret $false
+        Assert ($result.Outcome -eq 'success') 'callback fixture commit'
+        $safe = Invoke-CredentialTransport 'osm' {
+            param($id, $secret, $generation, $request)
+            [pscustomobject]@{ Operation = 'fake'; Generation = $generation; Status = 'success'; Count = 0 }
+        } @{}
+        Assert ($safe.Operation -eq 'fake' -and $safe.Status -eq 'success' -and $safe.Generation -match '^[0-9a-f]{32}$') 'safe callback result'
+    }
+    Run 'transport callback blocks stream and exception leakage' {
+        $result = Write-CredentialRecord 'osm' $sentinelId $sentinelSecret $false
+        Assert ($result.Outcome -eq 'success') 'stream fixture commit'
+        try {
+            Invoke-CredentialTransport 'osm' {
+                param($id, $secret, $generation, $request)
+                Write-Warning "warning $secret"
+                Write-Verbose "verbose $id" -Verbose
+                Write-Host "host $secret"
+                [Console]::WriteLine("console $secret")
+                throw "exception $id $secret"
+            } @{}
+            throw 'leaking callback was accepted'
+        } catch { Assert-SafeError $_ }
+    }
+    Run 'transport timeout and cancellation preserve sentinel secrecy' {
+        $result = Write-CredentialRecord 'osm' $sentinelId $sentinelSecret $false
+        Assert ($result.Outcome -eq 'success') 'timeout fixture commit'
+        foreach ($failureKind in @('timeout','cancel')) {
+            try {
+                Invoke-CredentialTransport 'osm' {
+                    param($id, $secret, $generation, $request)
+                    # 期限・取消の例外本文だけでなく、失敗直前の各出力口も同じ秘密境界で遮断します。
+                    Write-Warning "warning $secret"
+                    Write-Verbose "verbose $id" -Verbose
+                    Write-Debug "debug $secret" -Debug
+                    Write-Information "information $id" -InformationAction Continue
+                    Write-Host "host $secret"
+                    [Console]::Error.WriteLine("console $id $secret")
+                    if ($failureKind -eq 'timeout') { throw [TimeoutException]::new("timeout $id $secret") }
+                    throw [OperationCanceledException]::new("cancel $id $secret")
+                } @{}
+                throw "$failureKind callback was accepted"
+            } catch { Assert-SafeError $_ }
+        }
+    }
+    Run 'transport callback rejects secret-shaped result' {
+        $result = Write-CredentialRecord 'osm' $sentinelId $sentinelSecret $false
+        Assert ($result.Outcome -eq 'success') 'result fixture commit'
+        try {
+            Invoke-CredentialTransport 'osm' {
+                param($id, $secret, $generation, $request)
+                [pscustomobject]@{ Status = 'success'; Detail = $secret }
+            } @{}
+            throw 'secret result was accepted'
+        } catch { Assert-SafeError $_ }
     }
     Run 'fixed three-level root initializes from missing directories' {
         [IO.Directory]::CreateDirectory($root) | Out-Null

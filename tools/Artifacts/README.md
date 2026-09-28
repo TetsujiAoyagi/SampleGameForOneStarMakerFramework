@@ -1,6 +1,6 @@
 # ローカル資格情報管理
 
-Windowsの所有ユーザーが、PowerShell 7から固定プロファイル「osm」の資格情報を管理するためのツールです。実装済みはローカル段1（programのスライス0）で、現在の検証範囲はダミー鍵によるローカル操作です。
+Windowsの所有ユーザーが、PowerShell 7から固定プロファイル「osm」の資格情報を管理するためのツールです。`credentials` CLIはローカル段1（programのスライス0）です。2026-09-27に所有者端末で実R2鍵を登録し、後述の限定probeでsynthetic objectのR2往復を確認しました。一般のartifact転送CLIは未実装です。
 
 ```powershell
 pwsh tools/artifacts.ps1 credentials set --profile osm
@@ -17,6 +17,8 @@ pwsh tools/artifacts.ps1 credentials remove --profile osm
 
 保存先の祖先にreparse pointがある場合や、専用領域のACLが安全でない場合は操作を拒否し、平文保存へ切り替えません。共有OneStarMakerが未作成の場合は、その新規作成時にも制限ACLを設定します。既存共有親の扱いとは異なります。
 
+新規に作る専用ディレクトリとファイルは、ACLだけでなく所有者も実行ユーザーへ明示します。管理者権限の端末などでWindowsの既定所有者がAdministratorsになる場合でも、直後の安全検査と一致させるためです。既存の所有者不一致ディレクトリは自動修復しません。
+
 DPAPIはWindowsユーザーに結びつけて保存データを保護しますが、同じユーザー権限で動くAgentや別のプログラムからは復号できます。同ユーザーのAgentを隔離する仕組みではありません。今回、別Windowsユーザーによる復号拒否の実測は未確認です。他のPCへのファイルコピーを資格情報の移行手段にせず、その端末専用の鍵を用意する運用とします。
 
 状態表示はレコードを復号・検証し、安全なローカル情報だけを返します。鍵の値やR2接続の成功、接続確認日時は表示しません。終了コードは、0がローカル操作成功、2が置換確定済み・一時ファイルの清掃保留、1が失敗です。
@@ -27,7 +29,33 @@ DPAPIはWindowsユーザーに結びつけて保存データを保護します�
 
 安全でないACLのレコードは削除も拒否されるため、暗号文が残る場合があります。失敗を削除済みと扱わず、所有者が保存先と権限を確認してください。ディレクトリ全体や他機能のデータを清掃対象にしないでください。
 
-実トークンの登録、使い捨てデータによるR2の読み書きと読戻し、サーバーでの検証を伴う鍵の切替え、旧トークンの失効確認はローカル段2（programのスライス1のローカル範囲）の作業です。これは後続のArtifact CLIを扱うスライス2とは別です。このツールのローカル操作成功だけで、実R2鍵が有効とは判断しません。
+サーバーでの検証を伴う鍵の切替えと旧トークンの失効確認は後続作業です。このツールのローカル操作成功だけで、実R2鍵が有効とは判断しません。
+
+## A3前の限定R2疎通確認
+
+2026-09-27に使い捨てprobeで所有者端末のsynthetic PUT、別`pwsh` processの認証GET・SHA-256照合、DELETEと空prefixを確認しました。このprobeは通信本文・子process・cleanupの有限期限を備えていないため退役し、再実行用スクリプトと専用SDK projectを削除しました。この事前記録単独では署名無し取得拒否やBucket Lockの実効性を証明しません。後述のRoute proofで別に実測しました。
+
+## Route proof（限定slice GO）
+
+`Probe/RouteProof.ps1` はこのslice専用の限定診断です。親processはendpointとレビュー対象の`-ImplementationBase` / `-ImplementationHead`（40桁小文字hex commit ID）を受け取り、観測へ固定値を記録します。作業ツリーのHEADやdevelopとのmerge-baseを実行時に推測しません。`probe/unlocked/<run-id>/` と `probe/locked/<run-id>/` の各1 key、1操作1子`pwsh` process、各操作30秒・子process45秒・run全体5分の期限を使います。各childはrun-id/keyとrevisionに加え、PUT fixtureの長さ・hash・run marker・original/changed識別を検証し、PUT以外のpayloadを拒否します。子processの引数に鍵を渡さず、`CredentialStore` の `Invoke-CredentialTransport` が同一process内の一回のcallbackへDPAPI復号値を限定して渡します。callbackから戻るのは閉じた非秘密transport観測だけです。親processは子と同じ単一JSON行をschema検証し、stdoutとstderrは子45秒の共有残予算で順に回収します。期限超過後はprocess終了と両pipeのEOFを確認できるまで回復cleanupを送りません。offline testsは同じ12操作主ループとJSON境界を通して成功完走・期限・結果照合・cleanup分類を検査します。
+
+transportは`Probe/R2RouteTransport.csproj`の固定`AWSSDK.S3`依存を使います。認証PUT/GET/DELETEと、Authorizationおよび署名queryを付けないHTTP GETを分離し、本文は保存せず、EOF確認時だけ全体hash、期待長に達した場合だけ先頭hashを返します。8193 byte目に達しても、それ以前に得た期待長prefix hashは残し、EOF未確認の全体hashは作りません。期限中の取消しやEOF前のI/O切断でも、到着済みprefix hashを保ち、全体hashとEOF確認は未確定にします。unsigned応答のS3 `Code`要素は短い安全なcode値だけを逐次抽出し、Messageや本文全体は保持しません。閉じた非秘密観測にunsigned requestのmethod、正規URI、Authorization/署名query/対象queryの有無を加え、RouteProofが意図したGETか照合します。401/`unauthorized`/`Unauthorized`、403/`forbidden`/`AccessDenied`、またはR2で観測した400/`other`/`InvalidArgument`という同一応答内の組を拒否証拠として許可し、交差したstatus/codeは許可しません。400は実際のstatusのまま記録し、正規GET・EOF・非露出hashの条件も同じく要求します。一度のprefix一致は内容露出として記録しますが、再現条件を満たすまではprovider capability failureと確定しません。Bucket Lock拒否は403/`forbidden`/`ObjectLockedByBucketPolicy`または実測した409/`other`/`ObjectLockedByBucketPolicy`の同一応答tupleだけを許可し、EOF・期限・redirect・本文上限と同一writerの条件を維持します。上書きとDELETEの双方の拒否後、最終の認証GETで元のbyte数・hashが一致して初めてprobeは完走します。locked overwrite/deleteの成功応答だけでは保持機能の失敗へ昇格せず、状態確認できない場合は`inconclusive`です。期限後に子processの停止を確認できなければ、競合する回復DELETEを送らずcleanupを未確認にします。SDK例外のMessage、HTTP本文、request/header、秘密は結果へ通しません。`artifacts/` は生成物でGit管理外です。
+
+実行前にCloudflareで`probe/locked/`の全有効ruleを確認し、次の10 fieldの秘密を含まない事前JSONを用意します。`BeforeHash`は実行前の原記録のSHA-256です。事後値は入力せず、probe出力の`lockRule.afterHash`は`null`です。実際のAfter設定は実行後に独立取得した原記録で照合します。通常writer tokenへBucket設定権限を追加しないでください。
+
+```powershell
+dotnet restore tools/Artifacts/Probe/R2RouteTransport.csproj
+dotnet build tools/Artifacts/Probe/R2RouteTransport.csproj -c Release -o tools/Artifacts/Probe/artifacts/route-transport --no-restore
+pwsh -NoProfile -File tools/Artifacts/Probe/RouteProof.ps1 `
+  -Endpoint https://<32-hex-account-id>.r2.cloudflarestorage.com `
+  -ImplementationBase <40-hex-base-commit> `
+  -ImplementationHead <40-hex-implementation-head-commit> `
+  -LockRuleJson '{"Prefix":"probe/locked/","Enabled":true,"Kind":"Age","RetentionSeconds":86400,"RuleCount":1,"DateRules":0,"IndefiniteRules":0,"WriterCanConfigure":false,"LifecycleCompatible":true,"BeforeHash":"<64-hex>"}'
+```
+
+固定実装head `9c46b5837796de23465f6d9c059bb326c2f06858` の2026-09-29 JSTの1 runは、別processの認証GET、同じ存在keyの正規unsigned GET、unlockedの上書き・削除・NoSuchKey、lockedの上書き・DELETE拒否、最後の原57 byte/hash GETまで12操作を完走しました。unsigned GETは400/`other`/`InvalidArgument`とEOF・非露出hashの組であり、object byteを返さなかったという限定観測です。400の原因や認証拒否という因果は未特定です。locked上書きとDELETEはいずれも409/`other`/`ObjectLockedByBucketPolicy`で、最終GETは原hashに一致しました。前後のprivate設定、全有効rule、writer権限、lifecycleは同一で、別モデルの独立監査もblockerなしでした。これはRoute proof sliceのGOであり、汎用Artifact CLI、実Evidence/Buildのupload、Cloud経路、R2の全面採用は後続の別判定です。
+
+SDK例外から作る認証操作の観測は、statusと安全なS3 Codeを返しますが、例外応答本文のEOF・上限・取消しを独立に実測した証拠ではありません。今回の限定live観測を異常系全般の保証に広げないでください。実行時の出力は固定schemaの非秘密JSON Linesだけを保存し、`provider-capability-failure` は開始条件・陽性対照・再現性が揃った場合だけ意味を持ちます。lock対象は保持期限前に削除せず、rule、保持期限、清掃予定を別の非秘密台帳へ残します。`-Endpoint` は親だけが指定し、bucket、path、query、userinfo、port、別hostnameは受け付けません。
 
 ## 保守と検証
 
@@ -37,6 +65,9 @@ WindowsのPowerShell 7で次を実行します。資格情報テストは毎回�
 
 ```powershell
 pwsh -NoProfile -File tools/Artifacts/tests/Credentials.Tests.ps1
+pwsh -NoProfile -File tools/Artifacts/tests/RouteProof.Tests.ps1
+dotnet build tools/Artifacts/Probe/R2RouteTransport.csproj -c Release -o tools/Artifacts/Probe/artifacts/route-transport --no-restore
+pwsh -NoProfile -File tools/Artifacts/tests/R2RouteTransport.Tests.ps1
 pwsh -NoProfile -File tools/contract-audit.ps1
 pwsh -NoProfile -File tools/docs-audit.ps1
 ```

@@ -236,4 +236,99 @@ function Remove-CredentialRecord([string] $Profile) {
     } finally { $lock.Dispose() }
 }
 
-Export-ModuleMember -Function Write-CredentialRecord, Get-CredentialStatus, Remove-CredentialRecord
+function Test-TransportValueSafe($Value, [string] $AccessKeyId, [string] $SecretAccessKey, [int] $Depth = 0) {
+    if ($Depth -gt 4 -or $null -eq $Value) { return ($Depth -le 4) }
+    if ($Value -is [string]) {
+        return -not $Value.Contains($AccessKeyId, [StringComparison]::Ordinal) -and
+            -not $Value.Contains($SecretAccessKey, [StringComparison]::Ordinal)
+    }
+    if ($Value -is [bool] -or $Value -is [byte] -or $Value -is [sbyte] -or
+        $Value -is [short] -or $Value -is [ushort] -or $Value -is [int] -or
+        $Value -is [uint] -or $Value -is [long] -or $Value -is [ulong] -or
+        $Value -is [decimal] -or $Value -is [double] -or $Value -is [float] -or
+        $Value -is [DateTime] -or $Value -is [DateTimeOffset] -or $Value -is [Guid]) {
+        return $true
+    }
+    if ($Value -is [byte[]]) { return $false }
+    if ($Value -is [Collections.IDictionary]) {
+        $entries = @($Value.GetEnumerator())
+        if ($entries.Count -gt 64) { return $false }
+        foreach ($entry in $entries) {
+            if ($entry.Key -isnot [string] -or $entry.Key -cnotmatch '^[A-Za-z][A-Za-z0-9_]{0,63}$' -or
+                $entry.Key -cmatch '(?i)(secret|accesskey|authorization|credential|exception|response|request|token)') {
+                return $false
+            }
+            if (-not (Test-TransportValueSafe $entry.Value $AccessKeyId $SecretAccessKey ($Depth + 1))) { return $false }
+        }
+        return $true
+    }
+    if ($Value -is [Collections.IEnumerable] -and $Value -isnot [string]) {
+        $items = @($Value)
+        if ($items.Count -gt 64) { return $false }
+        foreach ($item in $items) {
+            if (-not (Test-TransportValueSafe $item $AccessKeyId $SecretAccessKey ($Depth + 1))) { return $false }
+        }
+        return $true
+    }
+    $properties = @($Value.PSObject.Properties | Where-Object { $_.MemberType -in @('NoteProperty','Property','AliasProperty') })
+    if ($properties.Count -eq 0 -or $properties.Count -gt 64) { return $false }
+    foreach ($property in $properties) {
+        if ($property.Name -cnotmatch '^[A-Za-z][A-Za-z0-9_]{0,63}$' -or
+            $property.Name -cmatch '(?i)(secret|accesskey|authorization|credential|exception|response|request|token)') {
+            return $false
+        }
+        if (-not (Test-TransportValueSafe $property.Value $AccessKeyId $SecretAccessKey ($Depth + 1))) { return $false }
+    }
+    return $true
+}
+
+function Invoke-CredentialTransport([string] $Profile, [scriptblock] $Transport, [object] $Request) {
+    # R2/HTTPの責務はStoreへ持ち込まない。Storeは秘密を復号して、同一processの
+    # 一操作 callbackへだけ渡し、すべてのPowerShell streamを回収してから
+    # 固定された非秘密の値だけを呼び出し元へ返す。callbackの例外本文やSDK
+    # responseをそのまま通すと、失敗経路で秘密が漏れるため、形式違反も同じ
+    # 固定エラーへ畳み込む。
+    if ($Profile -cne 'osm' -or $Transport -isnot [scriptblock] -or $null -eq $Request) {
+        throw 'Credential operation unavailable.'
+    }
+    $paths = Get-Paths $Profile $false
+    $record = $null
+    $captured = $null
+    $consoleOut = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
+    $consoleError = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
+    $originalConsoleOut = [Console]::Out
+    $originalConsoleError = [Console]::Error
+    try {
+        $record = Read-Active $paths $Profile
+        # SDKのConsole出力はPowerShell streamのリダイレクト外へ出る。callback
+        # 中だけ専用writerへ向け、復元前に空であることも非秘密検査する。
+        [Console]::SetOut($consoleOut)
+        [Console]::SetError($consoleError)
+        try {
+            $captured = @(& $Transport $record.AccessKeyId $record.SecretAccessKey $record.Generation $Request *>&1)
+        } finally {
+            [Console]::SetOut($originalConsoleOut)
+            [Console]::SetError($originalConsoleError)
+        }
+        if ($consoleOut.ToString().Length -ne 0 -or $consoleError.ToString().Length -ne 0) {
+            throw 'Credential operation unavailable.'
+        }
+        if ($captured.Count -ne 1 -or -not (Test-TransportValueSafe $captured[0] $record.AccessKeyId $record.SecretAccessKey)) {
+            throw 'Credential operation unavailable.'
+        }
+        return $captured[0]
+    } catch {
+        throw 'Credential operation unavailable.'
+    } finally {
+        if ($record) {
+            $record.AccessKeyId = $null
+            $record.SecretAccessKey = $null
+        }
+        $record = $null
+        $captured = $null
+        $consoleOut.Dispose()
+        $consoleError.Dispose()
+    }
+}
+
+Export-ModuleMember -Function Write-CredentialRecord, Get-CredentialStatus, Remove-CredentialRecord, Invoke-CredentialTransport
