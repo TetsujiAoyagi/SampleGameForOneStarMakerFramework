@@ -73,6 +73,10 @@ try {
         Assert (-not (Test-Hash (('a' * 64) + "`n"))) 'hash with a final line feed accepted'
         Assert (Test-Key 'probe/unlocked/0123456789abcdef0123456789abcdef/object.txt') 'valid key rejected'
         Assert (-not (Test-Key ("probe/unlocked/0123456789abcdef0123456789abcdef/object.txt`n"))) 'key with a final line feed accepted'
+        $profile=[pscustomobject]@{Profile='osm';Bucket='osm-artifacts';Endpoint=$null;Generation='0123456789abcdef0123456789abcdef'}
+        Assert (Test-RouteProofCredentialStatus $profile) 'valid credential v1 record with its required null endpoint was rejected'
+        $profile.Endpoint='https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com'
+        Assert (-not (Test-RouteProofCredentialStatus $profile)) 'credential record accepted a non-null endpoint'
         Assert (-not (Test-Key 'probe/locked/0123456789abcdef0123456789abcdef/object.txt?x=1')) 'query accepted'
         Assert (Test-Hash '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef') 'valid hash rejected'
         Assert (-not (Test-Hash 'not-a-hash')) 'invalid hash accepted'

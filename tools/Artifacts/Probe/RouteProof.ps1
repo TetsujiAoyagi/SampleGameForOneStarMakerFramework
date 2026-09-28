@@ -33,6 +33,12 @@ $script:RouteProofTaskWaiter = $null
 function Test-Endpoint([string] $Value) { return $Value -cmatch '\Ahttps://[0-9a-f]{32}\.r2\.cloudflarestorage\.com\z' }
 function Test-Hash([string] $Value) { return $Value -cmatch '\A[0-9a-f]{64}\z' }
 function Test-RunId([string] $Value) { return $Value -cmatch '\A[0-9a-f]{32}\z' }
+function Test-RouteProofCredentialStatus($Value) {
+    # credential v1のEndpointはnull固定で、実probe endpointはCLI引数から別に受け取ります。
+    return $null -ne $Value -and $Value.Profile -is [string] -and $Value.Profile -ceq 'osm' -and
+        $Value.Bucket -is [string] -and $Value.Bucket -ceq 'osm-artifacts' -and $null -eq $Value.Endpoint -and
+        $Value.Generation -is [string] -and $Value.Generation -cmatch '\A[0-9a-f]{32}\z'
+}
 function Test-Key([string] $Value, [string] $ExpectedRunId = '') {
     # childごとにrun-idとkeyの対応を検証し、別runへの誤書込みを拒否します。
     $validShape = $Value -cmatch '\Aprobe/(unlocked|locked)/[0-9a-f]{32}/[A-Za-z0-9._-]{1,64}\z'
@@ -485,10 +491,9 @@ if ($Child) {
         }.GetNewClosure()
         $storeModule = Import-Module (Join-Path $PSScriptRoot '../Credentials/CredentialStore.psm1') -Force -PassThru
         try {
-            # 通信前に既存profileを復号検査し、欠落や対象不一致を環境条件として明示します。
+            # 通信前に既存profileを復号検査し、欠落や不一致を環境条件として明示します。
             $credentialStatus = Get-CredentialStatus 'osm'
-            if ($credentialStatus.Profile -cne 'osm' -or $credentialStatus.Bucket -cne 'osm-artifacts' -or
-                $credentialStatus.Endpoint -cne $Endpoint -or $credentialStatus.Generation -cnotmatch '\A[0-9a-f]{32}\z') {
+            if (-not (Test-RouteProofCredentialStatus $credentialStatus)) {
                 throw 'Credential profile does not match the requested route.'
             }
         } catch {

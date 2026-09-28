@@ -320,9 +320,12 @@ public static class RouteTransport
                 while (true)
                 {
                     cancellation.ThrowIfCancellationRequested();
-                    var read = stream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellation).AsTask().GetAwaiter().GetResult();
+                    // 読み取り後にbyte数だけ切り詰めず、streamへ要求するbuffer長で8193 byteを守ります。
+                    var remainingAllowance = maximumBytes + 1 - count;
+                    var requestedBytes = Math.Min(buffer.Length, remainingAllowance);
+                    var read = stream.ReadAsync(buffer.AsMemory(0, requestedBytes), cancellation).AsTask().GetAwaiter().GetResult();
                     if (read == 0) break;
-                    var allowed = Math.Min(read, maximumBytes + 1 - count);
+                    var allowed = read;
                     if (allowed > 0)
                     {
                         digest.AppendData(buffer, 0, allowed);

@@ -131,6 +131,38 @@ Assert ($errorBody.EofConfirmed -and -not $errorBody.LimitReached) 'bounded erro
 Assert ($errorBody.BodySha256 -ceq [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($errorBytes)).ToLowerInvariant()) 'full response digest changed'
 Assert ($null -eq $errorBody.GetType().GetProperty('CapturedBytes')) 'transport retained a response-body byte array'
 
+# read後に計上値だけを切り詰めず、上限+1 byteより先をstreamから消費しないことを実量で検査します。
+$countingStreamSource = @'
+using System;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+public sealed class RouteProofCountingReadStream : Stream {
+    private readonly byte[] _bytes; private int _position;
+    public int TotalBytesRead { get; private set; }
+    public int LargestRequestedBuffer { get; private set; }
+    public int LastRequestedBuffer { get; private set; }
+    public RouteProofCountingReadStream(byte[] bytes) { _bytes=bytes; }
+    public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken=default) {
+        LargestRequestedBuffer=Math.Max(LargestRequestedBuffer,buffer.Length);
+        LastRequestedBuffer=buffer.Length;
+        var count=Math.Min(buffer.Length,_bytes.Length-_position);
+        _bytes.AsMemory(_position,count).CopyTo(buffer); _position+=count; TotalBytesRead+=count;
+        return ValueTask.FromResult(count);
+    }
+    public override bool CanRead=>true; public override bool CanSeek=>false; public override bool CanWrite=>false;
+    public override long Length=>throw new NotSupportedException(); public override long Position { get=>_position; set=>throw new NotSupportedException(); }
+    public override int Read(byte[] buffer,int offset,int count)=>throw new NotSupportedException();
+    public override void Flush()=>throw new NotSupportedException(); public override long Seek(long o,SeekOrigin so)=>throw new NotSupportedException();
+    public override void SetLength(long v)=>throw new NotSupportedException(); public override void Write(byte[] b,int o,int c)=>throw new NotSupportedException();
+}
+'@
+Add-Type -TypeDefinition $countingStreamSource -ErrorAction Stop
+$countingStream=[RouteProofCountingReadStream]::new([byte[]]::new(20000))
+$boundedRead=$readBody.Invoke($null,[object[]]@($countingStream,32,[Threading.CancellationToken]::None,8192,$false))
+Assert ($boundedRead.ByteCount -eq 8193 -and $countingStream.TotalBytesRead -eq 8193) 'body cap reported less data than the stream actually consumed'
+Assert ($boundedRead.LimitReached -and $countingStream.LargestRequestedBuffer -le 1024 -and $countingStream.LastRequestedBuffer -eq 1) 'body cap requested bytes beyond the single overflow-detection byte'
+
 # 上限到達時はEOFや全体hashを偽らず、期待object長のprefix証拠だけを残します。
 $objectPrefix = [Text.Encoding]::ASCII.GetBytes('private-payload')
 $oversized = $objectPrefix + ([byte[]]::new(8193))
