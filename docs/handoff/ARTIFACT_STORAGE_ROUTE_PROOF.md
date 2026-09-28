@@ -105,7 +105,19 @@ commit時は変更したsource/test/docsだけ明示列挙する。
 
 ## 7. Phase C
 
-未実施
+担当: Codex / GPT-6 Astra。B（GPT-6 Sol）と異なるモデルの新規セッションで発見レビューと検証を実施。固定 base は 93d2a1c436361ef6ee702096a61087cde55319b4、implementation head は 8c1793ec507205d5134da5a9fd22b6d12c33cb56。A3 の UTF-8/LF hash を照合し、全 repository diff / stat / name-status と改訂差分を保存した。凍結済み責務配置・契約・失敗経路への具体的な実装 blocker は未発見。547行の orchestration は既存の単一操作ループ・期限・清掃責務に留まり、transport と秘密の寿命は別の既存境界に維持されている。
+
+オフライン検証は Release/net8.0 build（警告0・エラー0）、Credentials 22件、RouteProof `-Case '*'` 25件、transport 7件、contract-audit、docs-audit、完全実装 diff の `--check` が成功。Credentials は初回 sandbox の ACL 制約による17件失敗を保存し、承認済み sandbox 外経路で全22件成功。Unity は A3 の適用除外どおり未実行。全 repository diff の検査では旧 `ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_REVISION_RESULT_RERUN.md:44` の末尾空行警告のみを記録し、旧証拠を変更していない。
+
+owner のオンライン許可と今回提出された Cloudflare 設定・token scope の原画像2件を受領した。原画像を無加工で owner/SYSTEM のみの ACL を持つ `live-run` へ保存し、hash、受領・記録 UTC、観察者、取得方法を事前原記録へ記載した。画像には r2.dev 無効、Custom Domains なし、multipart abort 7日のみ、`probe/locked/` の Age 86400秒 rule 1件、対象 bucket の Item Read/Write のみを確認。既存profile、清掃予定と厳密な10 field入力も固定した。撮影 UTC は画像に埋め込まれておらず、受領 UTC と混同していない。
+
+2026-09-28T16:05:16.3540125Z〜16:05:24.3843680Z に sandbox 外で許可された1 runのみを実行した。run-id は `b01e9958a72e4e109250e89a4127d749`。unlocked PUT 200 → 別processの認証GET 200（57 byte・SHA-256一致）→ unsigned GET 400/InvalidArgument（113 byte、EOF確認、全体/prefix hashはobjectと異なる）で停止。回復DELETE 204 → GET 404/NoSuchKeyで削除を確認した。exit 4 / inconclusive。locked key は作成しておらず、今回の残存objectはない。追加のR2通信・profile/rule変更・同一試行の反復は行っていない。
+
+source・DLL・依存hashは実行直前/直後に照合し一致、間にbuildや実行物copyはない。今回の DLL SHA-256 は `E16BDA342C3E3254CA468EC9BF3DF24189D25B1E80D1D20C522C7454E1F2D7FC`。旧runの不明なDLL対応は遡及証明しない。今回の Before 原記録 SHA-256 は `72C1E074424A642C64F5A398DF0DD0D2DA35F3273A6DEB3D02756600A9A34C68`、生JSONLは `E5C88DC406F4CC7CF224DC6DD1B8C46179F43E592D9B07B53134FD98D63AA5A3`。
+
+証拠: `artifacts/route-proof-phase-c-8c1793e/`。最終 manifest `final-live-bundle.sha256` の SHA-256 は `F796DF5C4CA9741EABDA5F2B083F411F353A112955DAA091986EBE012B944D0A`。完全差分、snapshot、source/実行物hash、各生ログ・exit、原画像、Before、10 field入力、開始/終了UTC、実行前後Git状態を含む。ローカル証拠は本スライスの監査・Phase Dまで保持し、同じpathで取得してmanifestを照合する。artifactsはstage/commitしない。
+
+400はA3 §2.2/§5どおり inconclusive であり、非公開性成功・provider能力否定・コード欠陥確定へ読み替えない。locked経路未到達、独立した実Afterは未観測で、設定不変も主張しない。GO候補に必要な証拠が揃わないためC'は開始せず、GO / slice完了とはしていない。原因不明400だけを理由にBを再開せず、この1回で停止した。
 
 ## 8. Phase C'
 
