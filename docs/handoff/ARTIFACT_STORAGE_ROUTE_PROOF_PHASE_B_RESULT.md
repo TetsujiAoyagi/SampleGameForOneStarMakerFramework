@@ -1,37 +1,29 @@
 # Artifact Storage Route Proof — Phase B result
 
-この文書はPhase Bの実装結果だけを固定するsnapshotであり、Phase C/C'の所見・判定・疑念候補を含めない。
+この文書は凍結A3 revision 2に対するPhase Bの実装結果であり、Phase C/C'の所見・判定を含めない。
 
-- Phase A snapshot: `328843ea521550af9da203315c2704d3d51cc8d0:docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF.md`
-- implementation base: `93d2a1c`
-- implementation head: `e122a79`
-- generated at: `2026-09-27T12:31:45.9479822Z`
-- 担当: Codex / GPT-5（このsession。モデルvariantの追加割当は記録しない）
+- Phase A snapshot: `docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION.md`、UTF-8/LF SHA-256 `91BEA838FCE7C3C2092E7CA1B9DB58D896C1737CE502513E723B248F5C573217`、凍結commit `2af742ffc4f9cd27573759774d0ffff27b4876a5`。
+- implementation base: `93d2a1c436361ef6ee702096a61087cde55319b4`。今回の実装修正開始点: `da4e405a0c5019a2f0edd857e1a2c11b61432c34`。
+- implementation head: `bd7b7e5ea53073e8af962beb9a15223a8890875c`。作成UTC: `2026-09-28T15:45:19Z`。担当: Codex / GPT-6 Sol、Phase B。
 
-## 実装
+## B1: 有限なオフライン照合
 
-- `tools/Artifacts/Credentials/CredentialStore.psm1` に、profile `osm` のDPAPI recordを一操作中だけcallbackへ渡す限定export `Invoke-CredentialTransport` を追加した。callbackの全PowerShell streamとConsole出力を回収し、SDK response・例外本文・資格情報・byte配列を拒否する固定の非秘密戻り値検査を行う。
-- `tools/Artifacts/Probe/RouteProof.ps1` に、endpoint/key/hashの全体一致検査、12操作の1操作1子process、30秒操作・45秒子process・5分run期限、非秘密JSON Lines、unlocked陽性対照、unsigned privacy判定、lock拒否判定、世代一致、限定再試行、cleanup分類を実装した。
-- `tools/Artifacts/Probe/R2RouteTransport.psm1` と `R2RouteTransport.csproj` / `.cs` に、固定AWSSDK.S3のauthenticated PUT/GET/DELETEと署名無しHTTP GETを追加した。本文は保存せず、EOF時のhash、期待長prefix hash、byte数、status/S3 code、timeout/redirectだけを返す。
-- `tools/Artifacts/tests/RouteProof.Tests.ps1` にdummy/fakeのoffline試験を追加し、`Credentials.Tests.ps1` にcallbackの正常、PowerShell stream/Host/Console/例外、秘密戻り値拒否を追加した。
-- `tools/Artifacts/README.md` にPhase Bの入口、ownerの非秘密lock rule記録形式、実R2未実行、残存lock objectの扱いを追記した。
+旧B result `ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT_DA4E405.md` のDLL SHA-256は `274F47FA6835371ADEB02DBC48286200B5931CA97011BFC3E2298BBB702CC1CD`。固定bundleの `files.sha256` とB開始時の現存DLLは `5842970B2515EED5E2E56A93870AEBDCEF5D103951E4818DCAAD2E7ABB7C23E2`。旧run `artifacts/route-proof-phase-c-da4e405/live-run/probe-output.jsonl` のSHA-256は `A807B04350035FE4613F032950766C9AED6040642E8EB5D335117391C78EFF9E`。旧build logは成功だが、記載DLL hashとbundle/実体の不一致により旧runがどのDLLをロードしたか確定できない。今回のbuildで旧runを遡及証明しない。
 
-## Phase Bで実行した検証
+正規GETについて、(1) source・fixtureのmethod/同一key/segment escape済みURI、(2) Authorization/署名・対象変更queryの不在とredirect無効、(3) source→DLL load→child JSON→親判定の既存経路をオフラインで確認した。`CreateUnsignedRequest`はGETと`BuildObjectUri`を用い、`SendAsync`はそのrequestを送る。親は同じstepのkeyから期待URIを作り、観測したmethod/URI/auth/queryを照合する。既存transport回帰7件も通過した。正規条件への具体的違反は見つからず、400/InvalidArgumentの原因は未特定。GET経路の推測修正は行っていない。
 
-- `dotnet restore tools/Artifacts/Probe/R2RouteTransport.csproj`: exit 0
-- `dotnet build tools/Artifacts/Probe/R2RouteTransport.csproj -c Release -o tools/Artifacts/Probe/artifacts/route-transport --no-restore`: exit 0、warning 0、error 0
-- 別processの `pwsh -NoProfile` から `Assembly.LoadFrom` して `OneStarMaker.Artifacts.Probe.RouteTransport` を取得: 成功
-- `pwsh -NoProfile -File tools/Artifacts/tests/Credentials.Tests.ps1`: 21 cases passed、failed 0
-- `pwsh -NoProfile -File tools/Artifacts/tests/RouteProof.Tests.ps1`: 8 cases passed、failed 0
-- `pwsh -NoProfile -File tools/contract-audit.ps1`: exit 0
-- `pwsh -NoProfile -File tools/docs-audit.ps1`: exit 0
-- `git diff --cached --check`: エラーなし
+## B2/B3: 実装
 
-## Phase Bで未実行
+- `Read-LockRule`は厳密な10 fieldのBefore入力のみを受け取り、`AfterHash`混入・BeforeHash欠落/型不正・未知field・不正ruleを拒否する。出力の`lockRule.afterHash`は常にnull。正常な12操作ループでもnullを確認した。
+- `tools/Artifacts/README.md`の入力説明と実行例を10 fieldに更新した。実際のAfter設定はPhase Cが独立した事後原記録で照合する。
+- `RouteProof.Tests.ps1`の一時fixtureは本番`RouteProof.ps1`をbyte-identicalにコピーしてSHA-256一致を確認する。相対import先をtest専用store/transport moduleに限定し、別`pwsh -File <copy> -Child`を通す。正常childはexit 0・stdout 1 JSON・stderr空・operation/Generation一致。不正profileはexit 3、期限切れはexit 4で、いずれもtransport未呼出し。全経路でdummy secretの出力なし。test childの待機・終了・pipe回収には有限の期限を設けた。
 
-- 実R2へのPUT/認証GET/署名無しGET/上書き/DELETE、Bucket Lock ruleのowner設定確認、provider capabilityの合否判定
-- 実鍵の再入力・`credentials set`・`--replace`、Cloudflare管理権限の取得
-- Unity EditMode回帰、PlayMode、Addressables/Content Directory、Player Build
-- Phase Cの固定evidence bundle、Phase C'のblind audit bundle、実Evidence/Buildの転送
+## B4: オフライン検証と未実行
 
-実鍵、endpoint以外のaccount情報、Authorization、HTTP本文/header、SDK例外本文、秘密の引数/env/Git保存はPhase Bで扱っていない。実R2の合否やR2採用をこのsnapshotから宣言しない。
+- `RouteProof.Tests.ps1` の変更関連 `-Case` 限定回帰: 12件成功、0件失敗。`R2RouteTransport.Tests.ps1`: 7件成功、0件失敗。
+- `dotnet build tools/Artifacts/Probe/R2RouteTransport.csproj -c Release -o tools/Artifacts/Probe/artifacts/route-transport --no-restore`: 成功、警告0・エラー0。最初のsandbox実行は`obj`書込み拒否で失敗し、承認済みのsandbox外経路で同じcommandを再実行して成功。target net8.0、既存AWSSDK.S3 3.7.501.14、.NET SDK 10.0.401。buildは通信成功の証拠ではない。
+- `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、`git diff --check`: 成功。
+- 新buildの `R2RouteTransport.dll` SHA-256: `67EB1207A7CF9FF8D333A6E302EF069865418B4BD78F47A7A373B80646DDF6E3`。関連source `R2RouteTransport.cs`: `F9089FA32439FAFDEBD74F225328E575907E37EA028BA6926CB3629E75B08C8D`、`RouteProof.ps1`: `0031E946D0B5BC53CF0ED2E7E3E7F1F9FEF05AA26275372136D7382F4201A821`、test `RouteProof.Tests.ps1`: `A7B41E3D3B768260F979B8DC180A01BC49B296E7D7D43A849AF3459D318E0EC4`。
+- R2への通信、実profileやBucket Lock設定の変更、実After観測、Phase Cの全件判定回帰/固定evidence、Phase C'は未実行。Unity側に変更はなく、EditMode/PlayMode/buildも未実行。
+
+Bの引渡し条件を満たしたため、400未解決のままPhase Bを終了する。sliceのGO、R2採用、Phase C/C'完了を意味しない。
