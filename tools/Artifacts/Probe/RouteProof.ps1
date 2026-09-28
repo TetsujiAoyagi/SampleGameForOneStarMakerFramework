@@ -319,7 +319,7 @@ function Test-UnsignedPrivacy($Observation, [string] $Hash, [int] $Bytes) {
     $pairedDenial = ($Observation.HttpStatus -eq 401 -and $Observation.StatusClass -ceq 'unauthorized' -and $Observation.S3Code -ceq 'Unauthorized') -or
         ($Observation.HttpStatus -eq 403 -and $Observation.StatusClass -ceq 'forbidden' -and $Observation.S3Code -ceq 'AccessDenied') -or
         ($Observation.HttpStatus -eq 400 -and $Observation.StatusClass -ceq 'other' -and $Observation.S3Code -ceq 'InvalidArgument')
-    return $pairedDenial -and $Observation.EofConfirmed -and
+    return $pairedDenial -and -not $Observation.TimedOut -and $Observation.EofConfirmed -and
         -not $Observation.LimitReached -and -not $Observation.Redirected -and
         $null -ne $Observation.BodySha256 -and $Observation.BodySha256 -cne $Hash -and
         ($null -eq $Observation.PrefixSha256 -or $Observation.PrefixSha256 -cne $Hash)

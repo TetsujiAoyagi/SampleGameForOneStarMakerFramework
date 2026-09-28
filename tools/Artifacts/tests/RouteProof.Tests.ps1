@@ -117,6 +117,12 @@ try {
         $unsignedWithAuth = Fake-Observation -HasAuthHeader $true
         Assert (-not (Test-UnsignedPrivacy $unsignedWithAuth $global:RouteProofTestExpectedHash 23)) 'signed request was treated as unsigned'
     }
+    Run 'unsigned 400 timeout is not private even with EOF' {
+        $script:ActiveEndpoint = 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com'
+        $script:ActiveKey = 'probe/unlocked/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/object.txt'
+        $timedOutDenial = Fake-Observation -HttpStatus 400 -StatusClass 'other' -S3Code 'InvalidArgument' -TimedOut $true -EofConfirmed $true -BodySha256 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' -PrefixSha256 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
+        Assert (-not (Test-UnsignedPrivacy $timedOutDenial $global:RouteProofTestExpectedHash 23)) 'timed-out 400 InvalidArgument with EOF was accepted as private'
+    }
     Run 'credential callback closure binds production helpers' {
         $deadlineBudget = 30000
         $startTimestamp = [Diagnostics.Stopwatch]::GetTimestamp()
