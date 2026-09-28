@@ -10,6 +10,8 @@ param(
     [string] $LockRuleJson,
     [string] $ImplementationBase,
     [string] $ImplementationHead,
+    [ValidateRange(0,30000)][int] $OperationBudgetMilliseconds = 30000,
+    [long] $OperationStartTimestamp,
     [switch] $Library
 )
 Set-StrictMode -Version Latest
@@ -59,6 +61,27 @@ function Get-RemainingPipeWait([int] $ChildBudgetMilliseconds, [TimeSpan] $Child
     # Stopwatch基準と注入時計のどちらでも、子process開始後だけを子予算から差し引きます。
     $childElapsed = (Get-RouteElapsed) - $ChildStartedAt
     return [Math]::Max(0, [Math]::Min(45000, $ChildBudgetMilliseconds - [int]$childElapsed.TotalMilliseconds))
+}
+
+function Get-RouteProofChildBudgetSchedule([int] $ChildBudgetMilliseconds) {
+    # HTTP結果を子がJSONで返す時間と、timeout時にprocess treeを止める時間を45秒枠から先に確保します。
+    $total = [Math]::Max(0, [Math]::Min(45000, $ChildBudgetMilliseconds))
+    $terminationReserve = if ($total -eq 0) { 0 } else { [Math]::Min(15000, [Math]::Max(1, [int]($total / 3))) }
+    $processWait = [Math]::Max(0, $total - $terminationReserve)
+    $resultReserve = [Math]::Min(1000, $processWait)
+    $transportBudget = [Math]::Max(0, [Math]::Min(30000, $processWait - $resultReserve))
+    return [pscustomobject]@{
+        ProcessWaitMilliseconds = $processWait
+        TransportBudgetMilliseconds = $transportBudget
+        TerminationReserveMilliseconds = $terminationReserve
+        ResultReserveMilliseconds = $resultReserve
+    }
+}
+
+function Get-RemainingOperationBudget([int] $OperationBudgetMilliseconds, [double] $ElapsedMilliseconds) {
+    # child起動後のmodule importやcredential読取も30秒のoperation期限に含め、transportへ残時間だけを渡します。
+    if ($ElapsedMilliseconds -lt 0) { return 0 }
+    return [Math]::Max(0, [Math]::Min(30000, $OperationBudgetMilliseconds - [int]$ElapsedMilliseconds))
 }
 
 function Wait-RouteProofPipeTask($Task, [int] $Milliseconds) {
@@ -340,18 +363,25 @@ function Invoke-ChildOperation(
     $info.RedirectStandardOutput = $true; $info.RedirectStandardError = $true
     foreach ($argument in @('-NoProfile','-File',$PSCommandPath,'-Endpoint',$EndpointValue,'-Child','-Operation',$OperationName,'-Key',$KeyValue,'-ExpectedHash',$ExpectedHashValue,'-ExpectedBytes',[string]$Bytes,'-RunId',$ExpectedRunId,'-ImplementationBase',$script:Base,'-ImplementationHead',$script:Head)) { [void]$info.ArgumentList.Add($argument) }
     if ($Payload) { [void]$info.ArgumentList.Add('-PayloadBase64'); [void]$info.ArgumentList.Add($Payload) }
+    $budget = Get-RouteProofChildBudgetSchedule $remaining
+    $operationStartTimestamp = [Diagnostics.Stopwatch]::GetTimestamp()
+    [void]$info.ArgumentList.Add('-OperationStartTimestamp')
+    [void]$info.ArgumentList.Add($operationStartTimestamp.ToString([Globalization.CultureInfo]::InvariantCulture))
+    [void]$info.ArgumentList.Add('-OperationBudgetMilliseconds')
+    [void]$info.ArgumentList.Add([string]$budget.TransportBudgetMilliseconds)
     $process = [Diagnostics.Process]::new(); $process.StartInfo = $info
     $stdoutTask = $null; $stderrTask = $null
     try {
         if (-not $process.Start()) { return $null }
+        $childStartedAt = Get-RouteElapsed
+        # process起動に要した時間もrun予算から引き、45秒枠の外へ待機を延ばしません。
+        $remaining = [Math]::Min($remaining, [Math]::Max(0, [int]($Deadline - (Get-RouteElapsed)).TotalMilliseconds))
+        $terminationReserve = [Math]::Min(15000, [Math]::Max(1, [int]($remaining / 3)))
+        $budget.ProcessWaitMilliseconds = [Math]::Min($budget.ProcessWaitMilliseconds, [Math]::Max(0, $remaining - $terminationReserve))
         # pipeを先に並行drainし、大きな出力で子が詰まることと終了後の同期ReadToEndを避けます。
         $stdoutTask = $process.StandardOutput.ReadToEndAsync()
         $stderrTask = $process.StandardError.ReadToEndAsync()
-        $childStartedAt = Get-RouteElapsed
-        # 30秒の通信期限後に最大15秒を終了確認へ残し、子全体の上限45秒を越えません。
-        $terminationReserve = [Math]::Min(15000, [Math]::Max(1, [int]($remaining / 3)))
-        $operationWait = [Math]::Max(1, $remaining - $terminationReserve)
-        if (-not $process.WaitForExit($operationWait)) {
+        if (-not $process.WaitForExit($budget.ProcessWaitMilliseconds)) {
             $script:ChildTerminationConfirmed = Stop-RouteProofChild $process $stdoutTask $stderrTask $remaining $childStartedAt
             return $null
         }
@@ -415,7 +445,10 @@ $script:Base = $base; $script:Head = $head
 
 if ($Child) {
     try {
+        # 親が起動直前に採った単調時計を受け取り、起動とmodule loadもoperation期限へ含めます。
         if (-not (Test-Endpoint $Endpoint) -or $ImplementationBase -cnotmatch '^[0-9a-f]{40}$' -or $ImplementationHead -cnotmatch '^[0-9a-f]{40}$' -or $Operation -notin @('put','authenticated-get','unsigned-get','delete') -or
+            $OperationBudgetMilliseconds -lt 1 -or
+            $OperationStartTimestamp -lt 1 -or
             ($Operation -eq 'put' -and ([string]::IsNullOrEmpty($PayloadBase64) -or $PayloadBase64.Length -gt 1368)) -or
             ($Operation -ne 'put' -and -not [string]::IsNullOrEmpty($PayloadBase64)) -or
             -not (Test-RunId $RunId) -or -not (Test-Key $Key $RunId) -or -not (Test-Hash $ExpectedHash) -or $ExpectedBytes -lt 1 -or $ExpectedBytes -gt 1024) { throw 'Invalid input.' }
@@ -424,9 +457,18 @@ if ($Child) {
         $transportModule = Import-Module (Join-Path $PSScriptRoot 'R2RouteTransport.psm1') -Force -PassThru
         $request = @{
             Endpoint = $Endpoint; Operation = $Operation; Key = $Key; Payload = $payload
-            ExpectedBytes = $ExpectedBytes; DeadlineMilliseconds = 30000
+            ExpectedBytes = $ExpectedBytes; DeadlineMilliseconds = $OperationBudgetMilliseconds
         }
-        $callback = { param($id, $secret, $generation, $requestValue) Invoke-R2RouteTransport $id $secret $generation $requestValue }
+        $childOperationStart = $OperationStartTimestamp
+        $childOperationBudget = $OperationBudgetMilliseconds
+        $callback = {
+            param($id, $secret, $generation, $requestValue)
+            # Storeのprofile読取後、親がprocessを起動した時点からの単調時間を差し引いて残りだけ渡します。
+            $elapsed = [Diagnostics.Stopwatch]::GetElapsedTime($childOperationStart).TotalMilliseconds
+            $requestValue.DeadlineMilliseconds = Get-RemainingOperationBudget $childOperationBudget $elapsed
+            if ($requestValue.DeadlineMilliseconds -lt 1) { throw 'Operation deadline elapsed.' }
+            Invoke-R2RouteTransport $id $secret $generation $requestValue
+        }.GetNewClosure()
         $storeModule = Import-Module (Join-Path $PSScriptRoot '../Credentials/CredentialStore.psm1') -Force -PassThru
         $observation = Invoke-CredentialTransport 'osm' $callback $request
         Assert-Observation $observation

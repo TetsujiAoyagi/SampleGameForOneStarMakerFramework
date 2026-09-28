@@ -122,6 +122,23 @@ try {
         Assert ($expired -eq 0) 'expired child budget remained available'
         $script:RouteProofClock = $null
     }
+    Run 'transport timeout leaves result serialization and stop time inside the parent budget' {
+        $budget = Get-RouteProofChildBudgetSchedule 45000
+        Assert ($budget.ProcessWaitMilliseconds -eq 30000 -and $budget.TransportBudgetMilliseconds -eq 29000 -and
+            $budget.ResultReserveMilliseconds -eq 1000 -and $budget.TerminationReserveMilliseconds -eq 15000) '45-second child budget was not divided into transport, result, and termination windows'
+        $script:RouteProofClock = { [TimeSpan]::FromSeconds(5) }
+        $remaining = Get-RemainingOperationBudget $budget.TransportBudgetMilliseconds 5000
+        Assert ($remaining -eq 24000) 'child setup time was not deducted from transport timeout'
+        Assert ((5000 + $remaining) -le ($budget.ProcessWaitMilliseconds - $budget.ResultReserveMilliseconds)) 'parent may kill the child before its transport cancellation can be serialized'
+        $short = Get-RouteProofChildBudgetSchedule 30000
+        Assert ($short.ProcessWaitMilliseconds -eq 20000 -and $short.TransportBudgetMilliseconds -eq 19000) 'short remaining run budget exceeded its parent wait'
+        $expiredBudget = Get-RouteProofChildBudgetSchedule 0
+        Assert ($expiredBudget.ProcessWaitMilliseconds -eq 0 -and $expiredBudget.TransportBudgetMilliseconds -eq 0 -and $expiredBudget.TerminationReserveMilliseconds -eq 0) 'expired run budget created a child wait window'
+        $script:RouteProofClock = { [TimeSpan]::FromSeconds(30) }
+        Assert ((Get-RemainingOperationBudget 29000 30000) -eq 0) 'expired child operation retained transport time'
+        Assert ((Get-RemainingOperationBudget 29000 -1) -eq 0) 'future or invalid monotonic start timestamp extended the transport deadline'
+        $script:RouteProofClock = $null
+    }
     Run 'stdout and stderr consume one shared pipe deadline' {
         $script:pipeClockCalls=0; $script:pipeWaits=[Collections.Generic.List[int]]::new()
         $script:RouteProofClock={ $script:pipeClockCalls++; if($script:pipeClockCalls -eq 1){[TimeSpan]::Zero}else{[TimeSpan]::FromSeconds(4)} }
@@ -265,6 +282,15 @@ try {
         Assert (($result.Records | Where-Object { $_.phase -like 'locked-*' -and $_.phase -ne 'locked-confirm' } | Where-Object cleanup -ne 'unconfirmed' | Measure-Object).Count -eq 0) 'intermediate lock operation claimed retention before final GET'
         Assert ($result.Records[-1].cleanup -eq 'removed; locked object retained') 'completed lock verification did not record final retention'
         $script:RouteProofClock=$null; $script:RouteProofChildRunner=$null; $script:fakeUnlockedDeleted=$false
+    }
+    Run 'monotonic operation start timestamp is comparable in child pwsh' {
+        # 親の起動前timestampを子pwshへ引数で渡し、同じ時計基準で起動時間を測れることを実processで確認します。
+        $started=[Diagnostics.Stopwatch]::GetTimestamp()
+        $command='$start=[long]'+$started.ToString([Globalization.CultureInfo]::InvariantCulture)+'; [Console]::WriteLine([Diagnostics.Stopwatch]::GetElapsedTime($start).TotalMilliseconds.ToString([Globalization.CultureInfo]::InvariantCulture))'
+        $encoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
+        $result=Invoke-PwshCapture @('-NoProfile','-EncodedCommand',$encoded)
+        $elapsed=[double]::Parse($result.Stdout.Trim(),[Globalization.CultureInfo]::InvariantCulture)
+        Assert ($result.ExitCode -eq 0 -and -not $result.Stderr -and $elapsed -ge 0 -and $elapsed -lt 30000) 'parent monotonic timestamp was not safely observed by child pwsh'
     }
     Run 'locked object is unconfirmed when lock operations succeed' {
         $runId='ffffffffffffffffffffffffffffffff'; $script:Base='0123456789abcdef0123456789abcdef01234567'; $script:Head='fedcba9876543210fedcba9876543210fedcba98'
