@@ -108,6 +108,30 @@ try {
         $unsignedWithAuth = Fake-Observation -HasAuthHeader $true
         Assert (-not (Test-UnsignedPrivacy $unsignedWithAuth $global:RouteProofTestExpectedHash 23)) 'signed request was treated as unsigned'
     }
+    Run 'credential callback closure binds production helpers' {
+        $deadlineBudget = 30000
+        $startTimestamp = [Diagnostics.Stopwatch]::GetTimestamp()
+        $script:callbackTransportCalls = 0
+        $stubTransport = {
+            param($id, $secret, $generation, $requestValue)
+            $script:callbackTransportCalls++
+            [pscustomobject]@{ DeadlineMilliseconds = $requestValue.DeadlineMilliseconds; CredentialId = $id }
+        }
+        $callback = New-RouteProofCredentialCallback $startTimestamp $deadlineBudget $stubTransport
+        $request = [pscustomobject]@{ DeadlineMilliseconds = $deadlineBudget }
+        $callbackResult = & $callback 'dummy-id' 'dummy-secret' '0123456789abcdef0123456789abcdef' $request
+        Assert ($script:callbackTransportCalls -eq 1) 'credential callback did not invoke its injected transport'
+        Assert ($callbackResult.DeadlineMilliseconds -ge 1 -and $callbackResult.DeadlineMilliseconds -le $deadlineBudget) 'callback did not pass the bounded remaining deadline'
+        Assert ($callbackResult.CredentialId -ceq 'dummy-id') 'callback lost its bound transport invocation'
+
+        $script:callbackTransportCalls = 0
+        $expiredCallback = New-RouteProofCredentialCallback ($startTimestamp - [Diagnostics.Stopwatch]::Frequency * 40) 30000 $stubTransport
+        $expired = $false
+        try { & $expiredCallback 'dummy-id' 'dummy-secret' '0123456789abcdef0123456789abcdef' ([pscustomobject]@{ DeadlineMilliseconds = 30000 }) | Out-Null }
+        catch { $expired = $true }
+        Assert $expired 'expired callback did not stop before transport'
+        Assert ($script:callbackTransportCalls -eq 0) 'expired callback invoked transport after the operation deadline'
+    }
     Run 'lock requires exact provider code' {
         Assert (Test-LockRejection (Fake-Observation -Operation 'put' -S3Code 'ObjectLockedByBucketPolicy')) 'lock rejection rejected'
         Assert (-not (Test-LockRejection (Fake-Observation -Operation 'put' -S3Code 'AccessDenied'))) 'generic 403 accepted'

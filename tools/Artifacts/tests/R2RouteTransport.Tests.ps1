@@ -184,4 +184,4 @@ Assert (-not $interruptedBody.TimedOut -and -not $interruptedBody.EofConfirmed) 
 Assert ($interruptedBody.PrefixSha256 -ceq $expectedPrefixHash) 'I/O interruption discarded the already observed prefix'
 Assert ($null -eq $interruptedBody.BodySha256) 'interrupted body received a full-body digest'
 
-[Console]::WriteLine('R2RouteTransport tests passed: 5')
+[Console]::WriteLine('R2RouteTransport tests passed: 7')

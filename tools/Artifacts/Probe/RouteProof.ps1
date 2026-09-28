@@ -90,6 +90,22 @@ function Get-RemainingOperationBudget([int] $OperationBudgetMilliseconds, [doubl
     return [Math]::Max(0, [Math]::Min(30000, $OperationBudgetMilliseconds - [int]$ElapsedMilliseconds))
 }
 
+function New-RouteProofCredentialCallback([long] $StartTimestamp, [int] $OperationBudgetMilliseconds, [scriptblock] $TransportInvoker) {
+    # GetNewClosureはscript-local functionを取り込まないため、budget計算とtransportを先にscriptblockとして束縛します。
+    $budgetCalculator = (Get-Command Get-RemainingOperationBudget -CommandType Function -ErrorAction Stop).ScriptBlock
+    $childOperationStart = $StartTimestamp
+    $childOperationBudget = $OperationBudgetMilliseconds
+    $childTransportInvoker = $TransportInvoker
+    return {
+        param($id, $secret, $generation, $requestValue)
+        # Storeのprofile読取後、親がprocessを起動した時点からの単調時間を差し引いて残りだけ渡します。
+        $elapsed = [Diagnostics.Stopwatch]::GetElapsedTime($childOperationStart).TotalMilliseconds
+        $requestValue.DeadlineMilliseconds = & $budgetCalculator $childOperationBudget $elapsed
+        if ($requestValue.DeadlineMilliseconds -lt 1) { throw 'Operation deadline elapsed.' }
+        & $childTransportInvoker $id $secret $generation $requestValue
+    }.GetNewClosure()
+}
+
 function Wait-RouteProofPipeTask($Task, [int] $Milliseconds) {
     if ($Milliseconds -le 0) { return $false }
     if ($null -ne $script:RouteProofTaskWaiter) { return [bool](& $script:RouteProofTaskWaiter $Task $Milliseconds) }
@@ -479,16 +495,8 @@ if ($Child) {
             Endpoint = $Endpoint; Operation = $Operation; Key = $Key; Payload = $payload
             ExpectedBytes = $ExpectedBytes; DeadlineMilliseconds = $OperationBudgetMilliseconds
         }
-        $childOperationStart = $OperationStartTimestamp
-        $childOperationBudget = $OperationBudgetMilliseconds
-        $callback = {
-            param($id, $secret, $generation, $requestValue)
-            # Storeのprofile読取後、親がprocessを起動した時点からの単調時間を差し引いて残りだけ渡します。
-            $elapsed = [Diagnostics.Stopwatch]::GetElapsedTime($childOperationStart).TotalMilliseconds
-            $requestValue.DeadlineMilliseconds = Get-RemainingOperationBudget $childOperationBudget $elapsed
-            if ($requestValue.DeadlineMilliseconds -lt 1) { throw 'Operation deadline elapsed.' }
-            Invoke-R2RouteTransport $id $secret $generation $requestValue
-        }.GetNewClosure()
+        $transportInvoker = (Get-Command Invoke-R2RouteTransport -ErrorAction Stop).ScriptBlock
+        $callback = New-RouteProofCredentialCallback $OperationStartTimestamp $OperationBudgetMilliseconds $transportInvoker
         $storeModule = Import-Module (Join-Path $PSScriptRoot '../Credentials/CredentialStore.psm1') -Force -PassThru
         try {
             # 通信前に既存profileを復号検査し、欠落や不一致を環境条件として明示します。
