@@ -30,12 +30,12 @@ $script:RouteProofChildRunner = $null
 $script:RouteProofTransport = $null
 $script:RouteProofTaskWaiter = $null
 
-function Test-Endpoint([string] $Value) { return $Value -cmatch '^https://[0-9a-f]{32}\.r2\.cloudflarestorage\.com$' }
-function Test-Hash([string] $Value) { return $Value -cmatch '^[0-9a-f]{64}$' }
-function Test-RunId([string] $Value) { return $Value -cmatch '^[0-9a-f]{32}$' }
+function Test-Endpoint([string] $Value) { return $Value -cmatch '\Ahttps://[0-9a-f]{32}\.r2\.cloudflarestorage\.com\z' }
+function Test-Hash([string] $Value) { return $Value -cmatch '\A[0-9a-f]{64}\z' }
+function Test-RunId([string] $Value) { return $Value -cmatch '\A[0-9a-f]{32}\z' }
 function Test-Key([string] $Value, [string] $ExpectedRunId = '') {
     # childごとにrun-idとkeyの対応を検証し、別runへの誤書込みを拒否します。
-    $validShape = $Value -cmatch '^probe/(unlocked|locked)/[0-9a-f]{32}/[A-Za-z0-9._-]{1,64}$'
+    $validShape = $Value -cmatch '\Aprobe/(unlocked|locked)/[0-9a-f]{32}/[A-Za-z0-9._-]{1,64}\z'
     $leaf = if ($validShape) { ($Value -split '/')[-1] } else { '' }
     return $validShape -and $leaf -notin @('.','..') -and
         ([string]::IsNullOrEmpty($ExpectedRunId) -or $Value -match ('^probe/(unlocked|locked)/' + [regex]::Escape($ExpectedRunId) + '/')) -and
@@ -118,7 +118,7 @@ function Stop-RouteProofChild([Diagnostics.Process] $Process, $StdoutTask, $Stde
 }
 
 function Get-SafeCommitId([string] $Value) {
-    if ($Value -cmatch '^[0-9a-f]{40}$') { return $Value }
+    if ($Value -cmatch '\A[0-9a-f]{40}\z') { return $Value }
     return $null
 }
 
@@ -127,7 +127,7 @@ function Test-ChildPayload([string] $OperationName, [string] $RunIdValue, [strin
     if ($null -eq $Payload -or $ExpectedLength -lt 1 -or $ExpectedLength -gt 1024 -or $Payload.Length -ne $ExpectedLength) { return $false }
     $actualHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($Payload)).ToLowerInvariant()
     $fixture = [Text.Encoding]::ASCII.GetString($Payload)
-    return $actualHash -ceq $ExpectedHashValue -and $fixture -cmatch ('^OSM-ROUTE-PROOF:' + [regex]::Escape($RunIdValue) + ':(original|changed)$')
+    return $actualHash -ceq $ExpectedHashValue -and $fixture -cmatch ('\AOSM-ROUTE-PROOF:' + [regex]::Escape($RunIdValue) + ':(original|changed)\z')
 }
 
 # 実行経路とoffline試験が共有する唯一の12操作ループです。時刻と子process境界だけを差し替えます。
@@ -137,6 +137,10 @@ function Invoke-RouteProofLoop([string] $EndpointValue, [string] $RunIdValue, [s
     Start-RouteClock
     $unlockedKey = "probe/unlocked/$RunIdValue/object.txt"
     $lockedKey = "probe/locked/$RunIdValue/object.txt"
+    # 親でkeyの全体をもう一度検査し、未検証文字列が結果へ出る経路を作りません。
+    if (-not (Test-Key $unlockedKey $RunIdValue) -or -not (Test-Key $lockedKey $RunIdValue)) {
+        throw 'Invalid run key.'
+    }
     $original = [Text.Encoding]::ASCII.GetBytes("OSM-ROUTE-PROOF:${RunIdValue}:original")
     $changed = [Text.Encoding]::ASCII.GetBytes("OSM-ROUTE-PROOF:${RunIdValue}:changed")
     $originalHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($original)).ToLowerInvariant()
@@ -162,9 +166,12 @@ function Invoke-RouteProofLoop([string] $EndpointValue, [string] $RunIdValue, [s
         if ((Get-RouteElapsed) -ge [TimeSpan]::FromMinutes(5)) { $classification = 'inconclusive'; break }
         $payload = if ($step.Op -eq 'put') { [Convert]::ToBase64String($step.Bytes) } else { $null }
         $script:ActiveKey = $step.Key
-        # PUTを起動した時点でサーバーにobjectが作られた可能性があるため、応答結果を待たず清掃対象にします。
-        if ($step.Phase -eq 'unlocked-put') { $unlockedCleanupRequired = $true }
         $observation = Invoke-ChildOperation $EndpointValue $step.Op $step.Key $step.Hash $step.Bytes.Length $payload $RunIdValue
+        # 環境preflightで通信前に止まった場合を除き、PUT結果が不明でもremote objectを清掃対象にします。
+        if ($step.Phase -eq 'unlocked-put' -and
+            ($null -eq $observation -or $observation.StatusClass -ne 'environment-blocked')) {
+            $unlockedCleanupRequired = $true
+        }
         if ($null -ne $observation -and $step.Phase -eq 'unlocked-overwrite' -and $observation.StatusClass -eq 'too-many-requests') {
             Invoke-RouteDelay 1000
             $observation = Invoke-ChildOperation $EndpointValue $step.Op $step.Key $step.Hash $step.Bytes.Length $payload $RunIdValue
@@ -173,6 +180,12 @@ function Invoke-RouteProofLoop([string] $EndpointValue, [string] $RunIdValue, [s
             $observation = Invoke-ChildOperation $EndpointValue $step.Op $step.Key $step.Hash $step.Bytes.Length $payload $RunIdValue
         }
         $passed = $false
+        if ($null -ne $observation -and $observation.StatusClass -eq 'environment-blocked') {
+            # 資格情報profileの不在・不整合は通信結果に混ぜず、開始条件不足として記録します。
+            $classification = 'environment-blocked'
+            $records.Add((New-ObservationRecord $classification $step.Phase $step.Op $null $step.Hash $step.Bytes.Length $null 'not-needed' $lockRule $script:Base $script:Head))
+            break
+        }
         if ($null -ne $observation) {
             if ($step.Phase -eq 'unsigned-get') { $passed = Test-UnsignedPrivacy $observation $step.Hash $step.Bytes.Length }
             elseif ($step.Phase -in @('locked-overwrite','locked-delete')) { $passed = Test-LockRejection $observation }
@@ -245,8 +258,8 @@ function Assert-Observation($Observation) {
     $expectedNames = (($script:ObservationProperties | Sort-Object) -join ',')
     if ($actualNames -cne $expectedNames) { throw 'Invalid transport observation.' }
     if ($Observation.Operation -notin @('put','authenticated-get','unsigned-get','delete') -or
-        $Observation.StatusClass -notin @('success','unauthorized','forbidden','not-found','too-many-requests','server-error','redirect','other','timeout','transport-error','invalid-input') -or
-        $Observation.Generation -notmatch '^[0-9a-f]{32}$') { throw 'Invalid transport observation.' }
+        $Observation.StatusClass -notin @('success','unauthorized','forbidden','not-found','too-many-requests','server-error','redirect','other','timeout','transport-error','invalid-input','environment-blocked') -or
+        $Observation.Generation -notmatch '\A[0-9a-f]{32}\z') { throw 'Invalid transport observation.' }
     foreach ($name in @('EofConfirmed','LimitReached','TimedOut','Redirected')) {
         if ($Observation.$name -isnot [bool]) { throw 'Invalid transport observation.' }
     }
@@ -258,9 +271,9 @@ function Assert-Observation($Observation) {
     if ($null -ne $Observation.HttpStatus -and (($Observation.HttpStatus -isnot [int] -and $Observation.HttpStatus -isnot [long]) -or $Observation.HttpStatus -lt 100 -or $Observation.HttpStatus -gt 599)) { throw 'Invalid transport observation.' }
     if ($null -ne $Observation.ByteCount -and (($Observation.ByteCount -isnot [int] -and $Observation.ByteCount -isnot [long]) -or $Observation.ByteCount -lt 0 -or $Observation.ByteCount -gt 8193)) { throw 'Invalid transport observation.' }
     foreach ($name in @('BodySha256','PrefixSha256')) {
-        if ($null -ne $Observation.$name -and $Observation.$name -cnotmatch '^[0-9a-f]{64}$') { throw 'Invalid transport observation.' }
+        if ($null -ne $Observation.$name -and $Observation.$name -cnotmatch '\A[0-9a-f]{64}\z') { throw 'Invalid transport observation.' }
     }
-    if ($null -ne $Observation.S3Code -and $Observation.S3Code -cnotmatch '^[A-Za-z][A-Za-z0-9]{0,63}$') { throw 'Invalid transport observation.' }
+    if ($null -ne $Observation.S3Code -and $Observation.S3Code -cnotmatch '\A[A-Za-z][A-Za-z0-9]{0,63}\z') { throw 'Invalid transport observation.' }
 }
 
 function Test-AuthenticatedMatch($Observation, [string] $Hash, [int] $Bytes, [string] $ExpectedGeneration = $null) {
@@ -268,7 +281,7 @@ function Test-AuthenticatedMatch($Observation, [string] $Hash, [int] $Bytes, [st
     return $Observation.StatusClass -eq 'success' -and $Observation.HttpStatus -eq 200 -and
         $Observation.EofConfirmed -and -not $Observation.LimitReached -and
         $Observation.ByteCount -eq $Bytes -and $Observation.BodySha256 -ceq $Hash -and
-        $Observation.Generation -match '^[0-9a-f]{32}$' -and
+        $Observation.Generation -match '\A[0-9a-f]{32}\z' -and
         ($null -eq $ExpectedGeneration -or $Observation.Generation -ceq $ExpectedGeneration)
 }
 
@@ -311,7 +324,8 @@ function New-ObservationRecord(
     [string] $Head) {
     [pscustomobject][ordered]@{
         result = $Result; phase = $Phase; operation = $OperationName
-        key = $KeyValue; expectedHash = $ExpectedHashValue
+        key = if ([string]::IsNullOrEmpty($KeyValue)) { $null } else { $KeyValue }
+        expectedHash = $ExpectedHashValue
         observedHash = if ($null -eq $Observation) { $null } else { $Observation.BodySha256 }
         expectedBytes = $ExpectedBytesValue
         observedBytes = if ($null -eq $Observation) { $null } else { $Observation.ByteCount }
@@ -426,7 +440,7 @@ function Read-LockRule([string] $Json) {
         $rule.WriterCanConfigure -isnot [bool] -or $rule.WriterCanConfigure -or
         $rule.LifecycleCompatible -isnot [bool] -or -not $rule.LifecycleCompatible -or
         $rule.BeforeHash -isnot [string] -or $rule.AfterHash -isnot [string] -or
-        $rule.BeforeHash -cnotmatch '^[0-9a-f]{64}$' -or $rule.AfterHash -cne $rule.BeforeHash) {
+        $rule.BeforeHash -cnotmatch '\A[0-9a-f]{64}\z' -or $rule.AfterHash -cne $rule.BeforeHash) {
         throw 'Lock rule record unavailable.'
     }
     return [pscustomobject][ordered]@{
@@ -446,7 +460,7 @@ $script:Base = $base; $script:Head = $head
 if ($Child) {
     try {
         # 親が起動直前に採った単調時計を受け取り、起動とmodule loadもoperation期限へ含めます。
-        if (-not (Test-Endpoint $Endpoint) -or $ImplementationBase -cnotmatch '^[0-9a-f]{40}$' -or $ImplementationHead -cnotmatch '^[0-9a-f]{40}$' -or $Operation -notin @('put','authenticated-get','unsigned-get','delete') -or
+        if (-not (Test-Endpoint $Endpoint) -or $ImplementationBase -cnotmatch '\A[0-9a-f]{40}\z' -or $ImplementationHead -cnotmatch '\A[0-9a-f]{40}\z' -or $Operation -notin @('put','authenticated-get','unsigned-get','delete') -or
             $OperationBudgetMilliseconds -lt 1 -or
             $OperationStartTimestamp -lt 1 -or
             ($Operation -eq 'put' -and ([string]::IsNullOrEmpty($PayloadBase64) -or $PayloadBase64.Length -gt 1368)) -or
@@ -470,6 +484,24 @@ if ($Child) {
             Invoke-R2RouteTransport $id $secret $generation $requestValue
         }.GetNewClosure()
         $storeModule = Import-Module (Join-Path $PSScriptRoot '../Credentials/CredentialStore.psm1') -Force -PassThru
+        try {
+            # 通信前に既存profileを復号検査し、欠落や対象不一致を環境条件として明示します。
+            $credentialStatus = Get-CredentialStatus 'osm'
+            if ($credentialStatus.Profile -cne 'osm' -or $credentialStatus.Bucket -cne 'osm-artifacts' -or
+                $credentialStatus.Endpoint -cne $Endpoint -or $credentialStatus.Generation -cnotmatch '\A[0-9a-f]{32}\z') {
+                throw 'Credential profile does not match the requested route.'
+            }
+        } catch {
+            $blocked = [pscustomobject][ordered]@{
+                Operation = $Operation; HttpStatus = $null; StatusClass = 'environment-blocked'
+                S3Code = $null; ByteCount = $null; BodySha256 = $null; PrefixSha256 = $null
+                EofConfirmed = $false; LimitReached = $false; TimedOut = $false; Redirected = $false
+                Generation = '00000000000000000000000000000000'
+                Method = $null; TargetUri = $null; HasAuthHeader = $false
+                SignatureQueryPresent = $false; TargetChangingQueryPresent = $false
+            }
+            [Console]::WriteLine(($blocked | ConvertTo-Json -Compress -Depth 4)); exit 3
+        }
         $observation = Invoke-CredentialTransport 'osm' $callback $request
         Assert-Observation $observation
         [Console]::WriteLine(($observation | ConvertTo-Json -Compress -Depth 4))
@@ -487,7 +519,7 @@ if ($Child) {
 }
 
 try {
-    if (-not (Test-Endpoint $Endpoint) -or $base -cnotmatch '^[0-9a-f]{40}$' -or $head -cnotmatch '^[0-9a-f]{40}$') { throw 'Invalid endpoint or implementation revision.' }
+    if (-not (Test-Endpoint $Endpoint) -or $base -cnotmatch '\A[0-9a-f]{40}\z' -or $head -cnotmatch '\A[0-9a-f]{40}\z') { throw 'Invalid endpoint or implementation revision.' }
     if ($RunId) { if (-not (Test-RunId $RunId)) { throw 'Invalid run id.' } } else { $RunId = [Guid]::NewGuid().ToString('N') }
     $script:Base = $base; $script:Head = $head
     $script:ChildTerminationConfirmed = $true

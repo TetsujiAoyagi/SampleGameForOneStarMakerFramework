@@ -11,6 +11,10 @@ if ($null -eq $readBody) { throw 'ReadBody test target unavailable.' }
 $requestFactory = $type.GetMethod('CreateUnsignedRequest', [Reflection.BindingFlags]'NonPublic,Static')
 $handlerFactory = $type.GetMethod('CreateUnsignedHandler', [Reflection.BindingFlags]'NonPublic,Static')
 if ($null -eq $requestFactory -or $null -eq $handlerFactory) { throw 'Unsigned request test target unavailable.' }
+$redirectHandlerType = $assembly.GetType('OneStarMaker.Artifacts.Probe.RouteTransport+RedirectRejectingHandler', $true)
+$redirectClassifier = $type.GetMethod('IsRedirectRejection', [Reflection.BindingFlags]'NonPublic,Static')
+$clientFactoryMethod = $type.GetMethod('CreateClient', [Reflection.BindingFlags]'NonPublic,Static')
+if ($null -eq $redirectClassifier -or $null -eq $clientFactoryMethod) { throw 'Authenticated redirect guard test target unavailable.' }
 
 function Assert([bool] $Condition, [string] $Message) { if (-not $Condition) { throw $Message } }
 
@@ -26,6 +30,42 @@ try {
     Assert ($null -eq $request.Headers.Authorization) 'unsigned request added Authorization'
     Assert (-not $handler.AllowAutoRedirect) 'unsigned handler follows redirects'
 } finally { $request.Dispose(); $handler.Dispose() }
+
+# SDKのS3 redirect pipelineへ3xxを渡す前に止めるproduction handlerをfake応答で検査します。
+$sdkClient = $clientFactoryMethod.Invoke($null, [object[]]@('dummy-access-key', 'dummy-secret-key', 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com'))
+try {
+    Assert (-not $sdkClient.Config.AllowAutoRedirect) 'authenticated SDK config enables platform redirects'
+    Assert ($sdkClient.Config.MaxErrorRetry -eq 0) 'authenticated SDK config may retry a blocked redirect'
+    Assert ($sdkClient.Config.HttpClientFactory.GetType().Name -eq 'RedirectRejectingHttpClientFactory') 'authenticated SDK is not wired to the redirect guard'
+} finally { $sdkClient.Dispose() }
+$redirectFixtureSource = @'
+using System.Net;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
+public sealed class RouteProofRedirectFixture : HttpMessageHandler {
+    public int RequestCount { get; private set; }
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
+        RequestCount++;
+        var response = new HttpResponseMessage(HttpStatusCode.TemporaryRedirect);
+        response.Headers.Location = new System.Uri("https://different-host.invalid/redirected-object");
+        return Task.FromResult(response);
+    }
+}
+'@
+Add-Type -TypeDefinition $redirectFixtureSource -ErrorAction Stop
+$redirectHandler = [Activator]::CreateInstance($redirectHandlerType, $true)
+$redirectFixture = [RouteProofRedirectFixture]::new()
+$redirectHandler.InnerHandler = $redirectFixture
+$redirectClient = [Net.Http.HttpClient]::new($redirectHandler)
+$redirectRequest = [Net.Http.HttpRequestMessage]::new([Net.Http.HttpMethod]::Get, 'https://original-host.invalid/object')
+try {
+    $rejected = $false
+    try { [void]$redirectClient.SendAsync($redirectRequest).GetAwaiter().GetResult() }
+    catch { $rejected = [bool]$redirectClassifier.Invoke($null, [object[]]@($_.Exception)) }
+    Assert $rejected 'authenticated HTTP handler passed a 307 to the AWS SDK redirect pipeline'
+    Assert ($redirectFixture.RequestCount -eq 1) 'authenticated redirect guard issued more than the original request'
+} finally { $redirectRequest.Dispose(); $redirectClient.Dispose() }
 
 function Read-TestBody([byte[]] $Bytes, [int] $ExpectedBytes, [int] $Limit = 8192) {
     $stream = [IO.MemoryStream]::new($Bytes, $false)

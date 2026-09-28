@@ -68,7 +68,11 @@ try {
     Run 'strict endpoint and key grammar' {
         Assert (Test-Endpoint 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com') 'valid endpoint rejected'
         Assert (-not (Test-Endpoint 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com/')) 'endpoint slash accepted'
+        Assert (-not (Test-Endpoint "https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com`n")) 'endpoint with a final line feed accepted'
+        Assert (-not (Test-RunId (('a' * 32) + "`n"))) 'run id with a final line feed accepted'
+        Assert (-not (Test-Hash (('a' * 64) + "`n"))) 'hash with a final line feed accepted'
         Assert (Test-Key 'probe/unlocked/0123456789abcdef0123456789abcdef/object.txt') 'valid key rejected'
+        Assert (-not (Test-Key ("probe/unlocked/0123456789abcdef0123456789abcdef/object.txt`n"))) 'key with a final line feed accepted'
         Assert (-not (Test-Key 'probe/locked/0123456789abcdef0123456789abcdef/object.txt?x=1')) 'query accepted'
         Assert (Test-Hash '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef') 'valid hash rejected'
         Assert (-not (Test-Hash 'not-a-hash')) 'invalid hash accepted'
@@ -312,6 +316,20 @@ try {
         $failedLock=$result.Records | Where-Object phase -eq 'locked-overwrite' | Select-Object -First 1
         Assert ($result.ExitCode -eq 4 -and $failedLock.cleanup -eq 'unconfirmed') 'lock success without re-GET was labeled retained'
         $script:RouteProofClock=$null;$script:RouteProofChildRunner=$null;$script:fakeUnlockedDeleted=$false
+    }
+    Run 'environment-blocked credential preflight stops before a keyed observation' {
+        $runId='abababababababababababababababab'; $script:Base='0123456789abcdef0123456789abcdef01234567'; $script:Head='fedcba9876543210fedcba9876543210fedcba98'
+        $script:RouteProofClock={ [TimeSpan]::Zero }
+        $script:RouteProofChildRunner={
+            param($endpoint,$operation,$key,$hash,$bytes,$payload,$expectedRunId,$remaining,$deadline)
+            [pscustomobject]@{ Operation=$operation;HttpStatus=$null;StatusClass='environment-blocked';S3Code=$null;ByteCount=$null;BodySha256=$null;PrefixSha256=$null;EofConfirmed=$false;LimitReached=$false;TimedOut=$false;Redirected=$false;Generation='00000000000000000000000000000000';Method=$null;TargetUri=$null;HasAuthHeader=$false;SignatureQueryPresent=$false;TargetChangingQueryPresent=$false }
+        }
+        $ruleHash='cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
+        $json=[pscustomobject]@{Prefix='probe/locked/';Enabled=$true;Kind='Age';RetentionSeconds=900;RuleCount=1;DateRules=0;IndefiniteRules=0;WriterCanConfigure=$false;LifecycleCompatible=$true;BeforeHash=$ruleHash;AfterHash=$ruleHash}|ConvertTo-Json -Compress
+        $result=Invoke-RouteProofLoop 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com' $runId $json
+        Assert ($result.ExitCode -eq 3 -and $result.Records[0].result -eq 'environment-blocked') 'missing credential profile was not identified as environment-blocked'
+        Assert ($null -eq $result.Records[0].key -and $result.Records.Count -eq 2) "preflight failure exposed a key or continued the route: count=$($result.Records.Count), firstKey=$($result.Records[0].key), phases=$(($result.Records.phase -join ','))"
+        $script:RouteProofClock=$null; $script:RouteProofChildRunner=$null
     }
     Run 'ambiguous initial PUT still receives an independent recovery budget' {
         $runId = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'

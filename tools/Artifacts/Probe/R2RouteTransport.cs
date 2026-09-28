@@ -32,7 +32,7 @@ public sealed class TransportObservation
 public static class RouteTransport
 {
     private const int UnsignedReadLimit = 8192;
-    private static readonly Regex SafeErrorCode = new("^[A-Za-z][A-Za-z0-9]{0,63}$", RegexOptions.CultureInvariant);
+    private static readonly Regex SafeErrorCode = new("\\A[A-Za-z][A-Za-z0-9]{0,63}\\z", RegexOptions.CultureInvariant);
 
     public static TransportObservation Execute(
         string accessKeyId,
@@ -67,6 +67,17 @@ public static class RouteTransport
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
             return Failure(operation, "timeout", true);
+        }
+        catch (Exception exception) when (IsRedirectRejection(exception))
+        {
+            // HTTP層でredirect応答を止めた事実だけを返し、Location先へ署名付き要求を出しません。
+            return new TransportObservation
+            {
+                Operation = operation,
+                StatusClass = "redirect",
+                Redirected = true,
+                EofConfirmed = false
+            };
         }
         catch
         {
@@ -229,11 +240,55 @@ public static class RouteTransport
             ServiceURL = endpoint,
             AuthenticationRegion = "auto",
             ForcePathStyle = true,
+            // AWS SDK内部のS3 redirect処理より前にHTTP応答を遮断するfactoryを使います。
+            AllowAutoRedirect = false,
+            HttpClientFactory = new RedirectRejectingHttpClientFactory(),
+            MaxErrorRetry = 0,
             Timeout = Timeout.InfiniteTimeSpan,
             LogResponse = false,
             LogMetrics = false
         };
         return new AmazonS3Client(credentials, config);
+    }
+
+    private static bool IsRedirectRejection(Exception exception)
+    {
+        // SDKの層が例外を包んでも、Locationを遮断した例外だけをredirectとして識別します。
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is RedirectRejectedException) return true;
+        }
+        return false;
+    }
+
+    private sealed class RedirectRejectingHttpClientFactory : Amazon.Runtime.HttpClientFactory
+    {
+        public override HttpClient CreateHttpClient(Amazon.Runtime.IClientConfig clientConfig) =>
+            new(new RedirectRejectingHandler()) { Timeout = Timeout.InfiniteTimeSpan };
+    }
+
+    private sealed class RedirectRejectingHandler : DelegatingHandler
+    {
+        public RedirectRejectingHandler() : base(new HttpClientHandler { AllowAutoRedirect = false }) { }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            var response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if ((int)response.StatusCode is >= 300 and <= 399)
+            {
+                // SDKのS3 RedirectHandlerへ3xxを渡す前に破棄し、別hostでの再署名を防ぎます。
+                response.Dispose();
+                throw new RedirectRejectedException();
+            }
+            return response;
+        }
+    }
+
+    private sealed class RedirectRejectedException : HttpRequestException
+    {
+        public RedirectRejectedException() : base("Route proof does not follow redirects.") { }
     }
 
     private static Uri BuildObjectUri(string endpoint, string key)
