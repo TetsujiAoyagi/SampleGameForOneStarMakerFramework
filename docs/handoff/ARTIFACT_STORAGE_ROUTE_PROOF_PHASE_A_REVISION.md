@@ -1,153 +1,160 @@
-# Artifact Storage Route Proof — Phase A
+# Artifact Storage Route Proof — Phase A revision 2
 
-## 0. メタデータ
+## 0. 版と適用範囲
 
-- type: `slice`（R2候補のローカル必要条件を調べるspike）
-- status: Phase A revision A3凍結済み。Phase B適応中（C'未着手）
-- branch: `codex/artifact-storage-route-proof`（program草案とA3前疎通を記録した`93d2a1c`から分岐）
-- implementation base commit: `93d2a1c`（A3前疎通のbranch point）
-- implementation head commit: `e122a79`（Phase B実装commit。Phase Cの対象head）
-- risk: `high`（初回の実鍵・実R2・bucket lock設定）
-- owner: OSM保守担当。Cloudflare設定とtoken発行/失効はaccount owner
-- created: 2026-09-27
-- expires: 2026-12-26
-- harvest to: 現行CLIの契約は`tools/Artifacts/README.md`、恒久的な保存/検証境界は適切な公開設計文書。probe固有の記録は削除
-- Phase A snapshot path / id: `328843ea521550af9da203315c2704d3d51cc8d0:docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF.md`（`git show`で凍結本文を取得する）
-- Phase A snapshot generated at: 2026-09-27T11:50:53Z
-- Phase A snapshot SHA-256: `0047F7DCCD10089CC75B902B5F64E5AC71C41D5F218FACDA46B31C8A645D858D`（上記commitのblob bytes）
-- Phase B result snapshot path / id: `docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md`
-- Phase B result snapshot generated at: `2026-09-27T12:31:45.9479822Z`
-- Phase B result snapshot SHA-256: `7D9DCC474D45CCFA18B56C5298F88102DBEACCA03EADEE67CB74990124C734FB`
-- C evidence、C' blind bundle: 各Phaseで生成し、path / id、生成UTC、hashを追記する
+- type: slice の Phase A snapshot。進行台帳: ARTIFACT_STORAGE_ROUTE_PROOF.md。
+- revision: route-proof-a-r2 / A3 凍結済み。A2 指摘の統合と人間の承認が完了し、別セッションの B 入力とする。
+- frozen at: 2026-09-28T15:26:42Z。owner が「A3凍結しよ」と承認。承認後の変更は凍結状態の記録だけで、規範本文の受け入れ境界は承認候補と同一。
+- branch: codex/artifact-storage-route-proof / risk: high。
+- slice implementation base: 93d2a1c436361ef6ee702096a61087cde55319b4
+- 改訂の実装開始点: da4e405a0c5019a2f0edd857e1a2c11b61432c34
+- 計画開始時 docs tip: dfbed2fdd48027ccbdcaecbbd8124da30019a362
+- 新 implementation head / B result / 判定 evidence / C' bundle: 未生成。docs-only commit は実装 head にしない。
+- owner: repository owner。B は別セッションの SOL。C / C' は開始時に独立性条件で選ぶ。
+- created: 2026-09-29 JST。expires: Phase D または次の A revision。
+- harvest to: tools/Artifacts/README.md、BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md の現況。
+- snapshot の生成 UTC / SHA-256 / 固定 commit は進行台帳へ記録する。自己 hash は埋め込まない。
 
-## 1. A0 — 目的、現況、対象外
+本文が B の規範入力。旧 A3 の要件は以下へ再掲した。変更点は Before / After 証拠の分離と有限な B 作業であり、R2 合格条件の緩和ではない。旧 snapshot の議論・発見 C 所見を追加指示として取り込まない。
 
-目的は、R2を選定済みと扱う前に、既設の非公開`osm-artifacts`がローカルWindows Agentによる非公開・同一byteの受け渡しと、通常writerからのserver側保護という**必要条件**を満たすか実測すること。program r4の順序・保護境界と、このsliceの受け入れ条件はそれぞれA3で凍結した。実能力の合否はPhase Cまで未判定。
+## 1. 問い、最低条件、B の到達点
 
-段1で`credentials set/status/remove`、DPAPI CurrentUser保管、原子的なローカル置換を実装済み。2026-09-27にownerが実R2 S3鍵をmasked登録し、`status`で現行profileを確認した。store recordのendpointは未設定で、非秘密のaccount固有endpointを限定probeの引数に渡す。A3前のsynthetic PUT/別process GET/照合/DELETEはowner端末で成功した。ownerはtokenが`osm-artifacts`のみにR2 Bucket Item Read/Writeを持ち、Public Development URL無効、Custom Domainsなしと画面で確認した。署名無しGET、Bucket Lockの実効性、Cloud到達性は未確認。GitHub Releaseのsynthetic probeはlocal/Cursor Cloudで成功したが非公開Evidenceの検証ではなく、Codex Cloudは当時のegress 403で失敗した。
+この slice の問い: 既存 private R2 の osm-artifacts と通常 writer が、所有 Windows ユーザーの別 process 間で synthetic object を同一 byte で往復でき、非認証の同じ存在 key の GET が内容を返さず、限定 prefix の Bucket Lock が同じ writer の上書き・削除を拒否するか。
 
-対象外は実Evidence・実Buildのupload、一般向け`publish/fetch`とsafe extraction、鍵rotation/retired管理、Cloudの無人grant・read/write・画像閲覧、複数providerの登録/切替、Unity/BuildSystem変更、継続運用用retention決定である。Cloudflareのlock管理権限をAgentへ渡さない。このsliceの結果だけでR2採用確定や実payload解禁を宣言しない。
+GO の最低条件は四つ全ての実観測と、同じ implementation head / 実行物への対応である。
 
-このsliceが答える問い: **所有Windowsユーザーの二つの独立processが、既存DPAPI profileを用いてprivate R2上の小さなsynthetic objectを同一hashで往復し、同じ通常writerの上書き/削除が限定prefixのBucket Lockで拒否されるか。**
+1. 既存 DPAPI profile が正常で、writer は対象 bucket の Object Read / Write のみを持ち、private 設定・有限 lock rule の開始条件が成立する。
+2. unlocked PUT、別 process の認証 GET、正規 unsigned GET の拒否、上書き・変更 hash GET、DELETE・NoSuchKey 確認が成立する。
+3. 同じ Generation の新しい locked key で PUT / GET が成立し、保持内の上書きと DELETE がともに 403 / ObjectLockedByBucketPolicy、再 GET の原 hash が一致する。実際の前後設定に変化がない。
+4. 秘密を出力せず、期限・key 数・清掃制限を守り、source / DLL / 依存 / 生結果の対応と判定必須検証が揃う。
 
-## 2. 進める最低条件と判定
+**B の引渡し条件は §4 の実装・回帰と §5 のオフライン確認。B 完了は slice の GO / 完了ではない。** 正規 request に欠陥を確認できなければコードを変えず、400 の原因未特定・実経路未証明として B を引き渡す。400 が消えるまで実装を続けない。
 
-1. ownerがaccount固有S3 endpointと`osm-artifacts`だけに限定したObject Read & Write tokenを管理する。profileが無ければownerが自身の対話端末から既存CLIへmasked初回登録する。owner確認済みの正常なactiveがあれば、ACLとrecordを既存storeで検証して再利用し、再入力・`set`・`--replace`は行わない。破損、危険なACL、想定外のprofile/metadata、登録失敗では内容を推測・自動修復・上書きせず止める。token/secret/API管理鍵をchat、引数、env、Git、Evidenceに渡さない。ownerはbucketのprivate設定を確認する。endpointは親だけが非秘密の`-Endpoint`引数として各probe processに渡し、`^https://[0-9a-f]{32}\.r2\.cloudflarestorage\.com$`に全体一致させる。path、query、userinfo、port、管轄別hostnameは受け付けない。既設bucketのAPACはlocation hintであり管轄endpointではなく、A3前疎通で使ったaccount endpointに固定する。bucketは引数にせず、既存storeが検証する`osm-artifacts`に固定する。storeのv1 schema、既存credentialsコマンド、環境変数は変更しない。
-2. Agentが同じWindowsユーザーで一意な`probe/unlocked/<run-id>/` keyに固定synthetic bytesをPUTする。生成時に転送物から独立して保持したSHA-256を記録し、**別のpwsh process**が同じprofileで認証GETしてbyte数、hash、markerを一致させる。署名無しGETは同じ存在keyに対してAuthorizationと署名query無しで行い、期限内に本文をEOFまで読み切ったうえでS3 `Code=Unauthorized`（401）または`AccessDenied`（403）かつ本文hashがobjectと異なる場合だけ非公開性を認める。元objectと同じbyte列、またはそのbyte列に追加byteが続く応答は内容露出の観測とする。部分読取やtimeout、`SignatureDoesNotMatch`、404/`NoSuchKey`、redirect、429/5xx、DNS/TLS/proxy失敗、認証GETの認証失敗は成功に数えない。保護無しkeyは同じwriterが異なるbyteで同じkeyを上書きし、GETでhash変化を確認してからDELETEし、認証GETの`NoSuchKey`で削除確認する。
-3. ownerはaccount設定権限で`probe/locked/`に限る有限のBucket Lock ruleを作り、全有効ruleのprefix、有効状態、保持条件（秒数/期限/Indefinite）、lifecycleとの関係を非秘密で記録する。このspikeでは新規objectのPUTから900〜86400秒保持する`Age` ruleだけを受け入れ、ownerは試験中に変更せず試験前後の設定を照合する。Date/Indefinite ruleや保持値不明は開始条件不足とする。試験後の残存synthetic objectとruleの後片付け時期も記録する。writer tokenにはbucket設定権限がないことをownerの権限設定で確認する。同じwriterがrule適用後にそのprefixへ**新規synthetic object**をPUTし、GET/hash一致を確認してから、異なるbyteで同一keyの上書きと削除を試みる。双方で保持期間内のS3 `Code=ObjectLockedByBucketPolicy`（403）を観測し、その後の認証GETで原hashが一致したときだけlockを認める。単なる403、接続不能、認証失敗、writer権限不足は成功に数えない。
-4. 実鍵、署名URL、Authorization header、HTTP body/header、SDK例外本文を通常出力・ログ・Git・子process引数に残さない。dummy sentinelによる正常/失敗/timeout/cancelの漏洩検査を行う。通信診断は既定で無効にし、実通信の結果はallowlistで構成した非秘密のkey、期待/観測hashと署名無しGETの期待長prefix hash・EOF状態、byte数、HTTP status分類、S3 `Code`、lock ruleの非秘密設定、実行UTC、cleanup状態、base/headだけを出す。結果schema外の出力は証拠への保存を拒否する。checkoutの意図しない変更がないことを前後で確認する。
+今回の A / B は R2 通信禁止。read-only GET、設定参照、curl、SDK、管理 API も含む。owner が後で明示許可するまで C の live 部分は未実施で止める。A3 承認を通信許可と解釈しない。
 
-### 最低条件2〜4の判定詳細（A3凍結）
+対象外: 汎用 Artifact CLI / publish / fetch / safe extraction、実 Evidence / Build upload、Cloud、provider 変更、Worker / proxy / public domain、鍵再登録・rotation、credential schema、Unity / asmdef、SDK 更新、汎用 evidence framework。これらと代替 request 探索の所有者は BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md の最小 Artifact CLI / provider 再選定 Phase A。未証明の R2 を前提に後続実装を始めない。
 
-| 対象 | 有限範囲と合格判定 |
-| --- | --- |
-| synthetic fixture / key | ASCII markerとrun-idを含む各fixtureは1〜1024 byte。1 runで生成するremote keyは`probe/unlocked/<run-id>/...`と`probe/locked/<run-id>/...`の各1個、合計2個まで。上書き用の異なるfixtureは同じkeyに使う。run-idとkeyは厳密な全体一致検査を通し、制御文字を拒否する。 |
-| 通信 / 本文 / process | 成功経路は保護なしkeyのPUT→別process認証GET→署名無しGET→上書きPUT→認証GET→DELETE→削除確認GET、lock keyのPUT→認証GET→上書きPUT→DELETE→再GETの計12操作。1子processが1操作だけを行う。各操作はheaderと本文EOFを含め30秒以内で、非同期SDK呼出しとstream読取へ同じdeadlineのcancelを渡す。親は子`pwsh`を45秒以内に終了確認し、超過時は当該子processを終了確認する。run全体は5分の独立上限を持ち、残り時間を使い切ったら未了の子を終了確認して`inconclusive`へ進む。各操作が30秒以内でも全操作が5分内に完了する保証はない。byte上限は時間上限の代わりにしない。 |
-| cleanup | 保護なしkeyの通常DELETEと削除確認GETは上記12操作とrun 5分に含め、ここでの成功だけを陽性対照に数える。本処理が途中で失敗してkeyが残り得る場合に限り、別の30秒で回復清掃のDELETE・確認を試みる。結果確定までの最大はこの場合5分30秒で、回復清掃は失敗したrunをGOへ変えない。期限超過、通信不能、応答不明は`unconfirmed`とし、`removed`にしない。lock対象は保持期限前に削除せず`retained-by-lock`とkey/rule/保持期限/清掃予定を記録し、追加通信はしない。 |
-| 結果 | 外部出力は固定schemaの`result`、`phase`、`operation`、検証済み`key`、期待/観測hash・byte数、署名無しGETの先頭N byteのhash（Nは期待object長）とEOF/上限到達、HTTP status分類とS3 `Code`、非秘密の`generation`、lock rule設定、実行UTC、cleanup、base/headに限定する。各fieldの型・長さ・値域を検査し、余計なproperty、任意の例外文・SDK response・秘密を拒否する。未知のS3 `Code`は`^[A-Za-z][A-Za-z0-9]{0,63}$`に全体一致した列挙名だけを`inconclusive`へ記録し、Messageを出さない。入力前失敗は固定code/phaseのみとしkeyを出さない。`pass`はexit 0、`provider-capability-failure`は2、`environment-blocked`は3、`inconclusive`は4。cleanupが`unconfirmed`なら観測結果を残して`inconclusive`/exit 4にする。 |
-| privacy | 先に認証GETで同じ存在keyのhash/byte数を確認する。署名無しGETはAuthorization headerと`X-Amz-*`署名queryの無いrequestとし、本文を最大8192 byteまで期限内にEOFへ到達して読み切る。transportは本文全体hash・取得byte数・EOF・上限到達に加え、期待object長N（1〜1024）に達した場合だけ先頭N byteのhashを返す。RouteProofは先頭N byteのhashが期待hashと一致すれば、ちょうどN byteでも追加byte付きでも内容露出と判定する。合格にはS3 `Code=Unauthorized`（401）または`AccessDenied`（403）、EOF確認、全体hashが期待object hashと異なり、先頭N byte hashが存在する場合も期待hashと異なることを要する。本文は保存しない。N未満の部分hashは作らず、拒否のerror XMLがobjectより長いだけでは内容露出と扱わない。8193 byte目を受け取る、または8192 byteまででEOFを確認できない場合、先頭N byteがobjectと一致すれば内容露出、それ以外は`inconclusive`とし、`SignatureDoesNotMatch`・404/`NoSuchKey`・redirect・429/5xx・DNS/TLS/proxy・timeout・認証GETの認証失敗・許可リスト外codeは成功に数えない。 |
-| lock | 同じ`generation`の通常writerが保護なしkeyを上書き・GET・削除できた陽性対照を先に成立させる。ownerが全有効ruleを記録し、試験時は`probe/locked/`の`Age` ruleがちょうど1件、保持900〜86400秒で、空prefix、他prefix、`probe/unlocked/`に掛かるrule、Date/Indefiniteがないことを確認する。新規locked objectのPUT前にruleを確認し、PUT開始から単調時計で経過を測る。run上限300秒に対し保持は900秒以上なので600秒以上の余裕がある。各lock操作と否定判定前に経過時間が保持値未満であることを確認し、ownerの試験前後のrule設定記録を突き合わせる。適用後の新規PUT/認証GET、保持期間内の上書きとDELETEの双方がS3 `Code=ObjectLockedByBucketPolicy`（403）、再GETで原hash一致が全て揃ったときだけ成立。保持値不明やrule未準備は`environment-blocked`、PUT後に失効・変更・残存時間不明なら`inconclusive`とし、同じ失効keyでの再試行成功をprovider否定に数えない。保持が確認できない残存keyを`retained-by-lock`と記録せず`unconfirmed`にする。403単独、認証失敗、404/429/5xx、redirect、DNS/TLS、timeout、許可リスト外codeをlock成功に数えない。試験中はactiveを変更せず、各processの検証済みrecordの非秘密`Generation`を結果に含めて同一writerを対応付ける。 |
+## 2. 受け入れ契約
 
-`provider-capability-failure`は開始条件・陽性対照が成立し、必要能力の否定が再現できた場合だけとする。privacyの内容露出は新しいrun/keyで再現性を確認する。各processの`Generation`不一致、拒否原因不明、許可リスト外codeは`inconclusive`とし、rule記録や設定・接続・権限の準備不足は`environment-blocked`として未実施条件を残す。保護なしkeyの上書きが429/`TooManyRequests`なら1秒以上の書込み間隔を空けて1回だけ再試行し、再び429なら`inconclusive`とする。lock keyの上書きが1回成功しただけではproviderを否定せず、保持有効を再確認し1秒以上の書込み間隔を取った1回の再試行でも`ObjectLockedByBucketPolicy`にならず、再GETで変更後hashが確認できた場合だけ否定結果候補とする。両再試行はrunの5分内に含め、無制限に繰り返さない。3xxは追跡せず、署名済みrequestを別hostへ送らない。offlineのcontrolled transportではheader後の本文停止、指定byte数を返してEOFしない、子process停止、回復清掃停止、期待objectと同一・同一prefix＋追加byte・長い拒否XML、保持途中失効を注入し、期限・終了確認・分類を検査する。
+### 2.1 資格情報・宛先・fixture
 
-S3 `Code`と同一keyの書込み制限は[R2 error codes](https://developers.cloudflare.com/r2/api/error-codes/)、ruleの重なりと適用範囲は[Bucket Locks](https://developers.cloudflare.com/r2/buckets/bucket-locks/)、lock設定APIの非互換は[S3 API compatibility](https://developers.cloudflare.com/r2/api/s3/api/)、APAC location hintと管轄endpointの違いは[Data location](https://developers.cloudflare.com/r2/reference/data-location/)を参照する。lock ruleの判定にS3の`GetObjectLockConfiguration`/`PutObjectLockConfiguration`を使わない。
+- profile は既存 osm、bucket は osm-artifacts、credential v1 の Endpoint は null、Generation は小文字 hex 32 桁。正常 active を再利用し、set / replace / ACL 自動修復・再入力をしない。
+- endpoint は \Ahttps://[0-9a-f]{32}\.r2\.cloudflarestorage\.com\z のみ。path / query / userinfo / port / 別 jurisdiction host は拒否。実 account ID は既存の非秘密記録から読み、文書に複製しない。
+- 秘密は既存 store の同一 process callback 内だけ。chat / 引数 / env / Git / ログへ載せない。store は秘密の寿命・安全な戻り値の検査を所有する。
+- remote key は probe/unlocked/<run-id>/object.txt と probe/locked/<run-id>/object.txt の最大 2 個/run。run-id は小文字 hex 32 桁。fixture は ASCII OSM-ROUTE-PROOF:<run-id>:original と :changed、各 1〜1024 byte。送信前に hash を算出。既存 key / 実 payload を使わない。
 
-GOは1〜4の実測が揃い、通常writerとaccount設定者の権限分離も確認したときだけ。実R2未実行やowner設定未完了はGOにしない。試験結果は`pass`、`provider-capability-failure`、`environment-blocked`、`inconclusive`に分類する。開始条件と陽性対照が成立した後にprivacyまたはlockの必要能力が再現性をもって失敗した場合だけ、spikeの否定結果として`CONDITIONAL ACCEPT`で閉じ、R2を次段に進めずprogramの新Phase Aで経路を再選定する。token/endpoint/egress/lock ruleの準備不足は後二者として未実施条件と再試行責任者を残し、sliceも完了しない。このspikeは未実施のまま期限切れで完了扱いにしない。GOまたは上記の否定結果が得られたら終了し、CLI/Cloud/Buildまで範囲を伸ばさない。
+### 2.2 正規 unsigned GET と 400
 
-ここでは答えない問いと所有先: 反復利用できる`publish/fetch`、安全なpackage/extraction、信頼済みledgerはprogram r4の「最小のArtifact CLI」。実EvidenceとC/C'のログ/画像閲覧は「Evidence first use」。Cursor/Codex Cloudごとの無人grantと能力は「Cloud」。大きいBuildとmultipart、Unity以外のbackend実証は「Build」。実鍵rotation・失効/復旧は「最小のArtifact CLI」までに行い、このprobe成功だけで長期運用を開始しない。
+- URI は account endpoint + /osm-artifacts/ + key の各 segment の escape、method GET。Authorization / 署名 query / 対象変更 query なし。redirect 無効。同じ run/key の直前の認証 GET で byte 数・hash・Generation を照合する。
+- 合格 tuple は 401 / unauthorized / Unauthorized または 403 / forbidden / AccessDenied のみ。同一応答の HTTP status / status class / S3 Code を組で照合する。EOF 到達、全体 hash が object と異なること、取得済みの期待長 prefix hash も異なることを要する。
+- 400 / InvalidArgument は inconclusive。非公開性の成功、provider 能力否定、実装不具合の確定のどれにも読み替えない。
+- object と同じ先頭 N byte の hash は後続 byte・EOF・status にかかわらず内容露出の一次観測。N 未満の prefix hash を作らず、部分応答を拒否証拠にしない。
+- 本文は 8192 byte + 超過検出 1 byte まで。8193 byte 目、EOF 未確認、timeout、redirect、429 / 5xx、DNS / TLS / proxy、404 / NoSuchKey、SignatureDoesNotMatch、認証 GET 失敗、許可外 Code は非合格。本文・任意 header・SDK 例外は保存しない。
+- B 適応は上の正規条件への具体的違反をオフラインで示せた場合だけ。代替 host / path / query / method / 認証や、403 を得るための header 探索は含めない。
 
-## 3. A1 — 責務と実装境界
+### 2.3 Bucket Lock と前後証拠
 
-- `tools/Artifacts/Credentials/CredentialStore.psm1`（現在239物理行、+50〜80見込み）: profileのDPAPI/ACL検査と1操作中の秘密使用だけを所有。既存moduleの**CLIではない内部向けexport**を一つ追加し、同期したtrusted transport callbackを`&`で呼ぶ。dot-sourceせず、復号済みAccess Key ID/Secret Keyと非秘密`Generation`だけを引数に渡して秘密の寿命をstoreの1操作に閉じる。probe processごとに一度だけ呼び、child process/env/引数へ秘密を渡さない。callbackの戻り値は許可した非秘密schemaだけに絞り、例外/SDK response/資格情報objectを戻り値やstdoutへ通さない。失敗時は固定の非秘密errorに分類し、参照を操作終了時に解放する。Success streamの戻り値検査だけを秘密非記録の保証とせず、Warning/Verbose/Debug/Information/Host/Console、SDK loggingと例外の各出口を確認する。PowerShell module間で呼ぶにはexportが必要なので「非export」を安全境界とはしない。storeはR2、lock、hashを知らない。dummy sentinelで正常/失敗/timeout/cancel時の漏洩とファイル不変を確認する。同一Windowsユーザーからの隔離は主張しない。+50%未満、500行未満でも新しい秘密使用面として構造レビューする。
-- `tools/Artifacts/Probe/RouteProof.ps1`（新規、約120〜170行）: 非秘密の`-Endpoint`、固定profile、mode/key/hashを厳密に検証し、fixtureと事前hash、1操作1子processの起動・期限・終了確認、陽性対照/lock結果の判定、非秘密resultと終了codeを所有する。子processにはendpoint、key、期待hashなど非秘密引数だけを渡す。S3 SDKや資格情報を知らず、fake transportで判定を単体テストする。
-- `tools/Artifacts/Probe/R2RouteTransport.psm1`と同階層の小さな.NET project（新規、合計約180〜250行）: profile callback内のS3 client/HTTP request、PUT/GET/DELETE、署名無しrequest、deadlineを伝播するstream/応答破棄を所有する。返すのはoperation、HTTP status、S3 `Code`、取得byte数、EOF確認時だけの本文全体hash、期待長Nに達した場合の先頭N byte hash、EOF/上限到達、期限超過、redirectだけから成る閉じた非秘密の観測で、合否とexit codeは決めない。SDK例外からはstatusと`ErrorCode`だけを読み、Messageの文字列化・応答XML・Authorizationを結果へ通さない。署名無しGETの本文は有限byteで読み、EOF未確認の全体hashはnullにして本文を保存しない。通信診断は無効にし、raw出力を収集後redactする方式を使わない。bucket設定変更やprocess起動はしない。SDK型をprobe外へ公開せず、通信自体は実R2のsynthetic integrationで確認する。PowerShellと.NETの分担は同一process呼出しと秘密非記録を保つ範囲でBが最小化できるが、新たなowner/依存/public APIが必要ならAへ戻す。
-- `tools/Artifacts/tests/`（既存Credentials.Tests.ps1は390行、+40〜60、新規probe試験は約100〜160見込み）: 既存dummy/ACL回帰とcallbackの漏洩・失敗保全を確認。route判定と停止注入は変更理由が異なるので、probe試験は最初から別ファイルに置く。行数500を分離理由にしない。R2の成功をfake成功で代替しない。
-- `tools/Artifacts/README.md`（現在約44行、+20〜40見込み）: 診断の一時的な使い方、owner設定、実装済み/未検証、残存locked objectの扱いを記載。成功を一般CLIの完成と表現しない。
+- 既設 rule を再設定しない。全有効 rule は probe/locked/ の Age がちょうど 1 件、900〜86400 秒。空 / 他 / unlocked prefix、Date / Indefinite、保持不明を拒否する。writer に設定権限がなく lifecycle が妨げないことを owner の非秘密観測で確認する。
+- private 設定は Public Development URL（r2.dev）が無効、Custom Domains が空の両方。owner が試験前後に各項目を記録する。前に未成立・未確認なら environment-blocked で開始せず、後で変化・不明なら inconclusive、どちらも GO 不可。S3 GET の拒否で別公開経路の確認を代用しない。
+- 同じ Generation の unlocked 上書き・GET・削除の陽性対照が先。locked 操作は新規 PUT からの単調時間が保持内にあるときだけ有効。403 単独・権限不足を lock 成功にしない。
+- **起動前に未来の After 観測は存在しない。** -LockRuleJson は Prefix / Enabled / Kind / RetentionSeconds / RuleCount / DateRules / IndefiniteRules / WriterCanConfigure / LifecycleCompatible / BeforeHash の厳密な 10 field。AfterHash を含む入力は拒否する。BeforeHash は事前原記録の SHA-256（小文字 hex 64 桁）。他の型・値域は維持する。
+- probe 出力の lockRule.afterHash は null 固定。beforeHash をコピーしない。finalize command、post-state polling、設定取得用権限を増やさない。
+- C が実際の run 前後に独立取得された原記録を外側で束ねる。原記録には観察者、取得方法、取得 UTC、bucket/private 設定、全有効 rule、writer scope、lifecycle、残存 key の清掃予定を含める。before UTC <= run 開始 < run 終了 <= after UTC と設定値の同一性を検査する。時刻が異なるファイルの raw hash を同一にする必要はない。
+- probe の pass / exit 0 は 12 操作の技術的成功で、C の GO ではない。After 証拠不足、設定変更、保持失効・不明なら C は inconclusive、GO 不可。事前 hash の一致で補えない。
+- owner の観測原記録を受理し、C' に画像再評価までは要求しない。AI は非秘密記録の準備・整合検査を担当する。owner が前後観測を引き受ける確認は将来の live 再開時に一度行う。現時点で実施・合意済みとしない。
 
-このsliceのコードは`tools/Artifacts`内に限定し、Unity asmdef/API、`tools/DebugStudio`、BuildSystemを変更しない。CredentialStoreは鍵の寿命、診断はnetwork/判定、ownerはaccount設定を持つ。probeは後のCLIへそのまま昇格する前提にせず、必要な境界だけを次のPhase Aで選び直す。計画外の状態、永続schema、公開API、owner/依存の変更が必要ならBで独断せずAを再開する。
+### 2.4 実行・清掃・判定
 
-## 4. 実装・検証経路
+- 12 操作: unlocked PUT → 認証 GET → unsigned GET → 変更 PUT → 変更 GET → DELETE → NoSuchKey GET、locked 新規 PUT → 認証 GET → 変更 PUT 拒否 → DELETE 拒否 → 原 hash GET。1 child = 1 操作、本番ループは一つ。
+- operation は子起動・import・credential 読取・header/body EOF を含め 30 秒以内。parent の終了・stdout/stderr 回収は合計 45 秒以内、残時間共有。process tree 終了と両 pipe EOF を確認。run は 5 分。SDK 隠れ retry / redirect を禁止。
+- 失敗後 unlocked PUT が送られた可能性があれば、child 終了確認後だけ別枠合計 30 秒で DELETE + NoSuchKey GET。起動・待機・pipe を含む。204 単独、別 object hash だけでは removed にしない。終了未確認 child と清掃を競合させない。清掃成功でも run を合格に変えない。
+- locked key の保持前追加清掃をせず、key / rule / 期限 / 清掃予定を記録。保持未証明の残存物は unconfirmed。自動清掃機構を作らない。
+- 外部 JSON は既存 allowlist（result / phase / operation / 検証済み key / 期待・実測 hash・byte / prefix hash / EOF・上限 / status・Code / Generation / lockRule / UTC / cleanup / base・head）を維持。未知 Code は [A-Za-z][A-Za-z0-9]{0,63} の全体一致名のみ。raw message / body / header / 任意 property を拒否。
+- exit は pass 0、provider-capability-failure 2、environment-blocked 3、inconclusive 4。新 status enum は作らない。開始条件不足は environment-blocked、結果・清掃不明は inconclusive。「実経路未証明」は報告文であって新 runtime 値ではない。
+- unlocked 上書きの 429 / TooManyRequests は 1 秒以上後に一度だけ再試行し、再び429なら inconclusive。locked 上書きの成功後は保持有効を再確認し、1 秒以上後に一度だけ再試行して、原 hash からの変化を再 GET で確認するまで能力否定にしない。全体期限は伸ばさず、400 retry や新たな自動再現は足さない。DELETE の success 単独も能力否定にしない。
+- provider 能力否定の CONDITIONAL ACCEPT は、有効な開始条件・陽性対照の下で、内容露出なら別 run / 新 key で再現、lock なら保持内の禁止操作の再現と変更 hash / 削除を確認した実証に限る。現在は未到達。追加 live 再現は別途許可が必要。C が生結果から判断し、自動再現機構は増やさない。
+- GO は §1 と判定 C / C' が揃った場合のみ。CONDITIONAL ACCEPT は R2 採用成功でなく program 再選定への否定材料。inconclusive / environment-blocked / 時間切れは slice 完了ではない。
 
-Phase Bは既存storeからの限定的な同一process利用、限定R2診断、offlineのdummy/fake試験、READMEと`pwsh tools/contract-audit.ps1`を担当する。SDKは依存を固定し、秘密を扱う前にrestore/buildと別processからの型loadを確認する。Phase Bは実R2の合否を宣言しない。
+## 3. 責務・規模・配置
 
-Phase Cの差し戻し中は`Credentials.Tests.ps1`の新callback caseと別ファイルの新probe試験の失敗caseを起点に選ぶ。判定Cではそれぞれ空filterのoffline suite、既存activeの所有者確認とstore検証（未登録時だけownerの対話端末でmasked初回入力）、実R2のwrite/read/unsigned/unlocked delete/locked overwrite+delete、allowlist結果と原hash、`contract-audit`、`docs-audit`、固定diffの構造レビューを必須とする。offline suiteにはendpoint/SDK/key/hash/byte数/制御文字の不正入力、署名無しGETのexact object・object＋追加byte・objectを含まない長い拒否XMLとEOF/8192 byte境界、操作別の`NoSuchKey`、`TooManyRequests`、`ObjectLockedByBucketPolicy`、異なる`Generation`、rule不足と保持途中失効の分類、Success以外のPowerShell stream、Host/Console、SDK logging、例外Message、timeout/cancelにdummy sentinelを注入した非記録検査を含める。S3 `Code`は許可リスト値のままMessageだけにsentinelを置き、全出力にsentinelが出ないことを確認する。通信・本文・子process・cleanup停止のcontrolled transport検査は注入した時計と停止を通知するfake process/transportで有限終了と残存の分類を確認し、テストで`Task.Delay`/`Thread.Sleep`や30秒/45秒の実時間待機をしない。実鍵のraw出力を保存してからredactしない。実装変更はUnity側に一切及ばず、全EditMode回帰は適用除外とし、その理由と代替証拠はPhase A3で凍結した。PowerShell/.NET offline回帰と実R2で代替する。Unityコード・packageへ変更が必要ならAへ戻す。
+- tools/Artifacts/Probe/RouteProof.ps1（546 行、見込み -5〜+20）: policy と 12 操作 orchestration、process/期限/清掃。状態は run 寿命、store と transport に依存し Unity 非依存。変更は Before/After 分離と立証済み局所修正。既存 -Library / clock / child seam で試験する。500 行超だが新責務を入れず、判定だけの Helper 分割はしない。
+- R2RouteTransport.cs（486 行、既定増分 0）: SDK/HTTP request・cancel・有限 stream 観測、client/stream は操作寿命。秘密保管・GO 判定を持たない。具体的正規 request 欠陥のみ局所修正可。新 transport に置換しない。
+- R2RouteTransport.psm1（59 行、増分 0）/ csproj: DLL loading、.NET 8 / AWSSDK.S3 3.7.501.14 の既存境界。package/framework/build 構成を変更しない。
+- tools/Artifacts/tests/RouteProof.Tests.ps1（404 行、見込み +80〜140）: 実 child 入口と Before/After 試験。test 所有の一時 directory/process を case 後に破棄。500 行を超えても同じ runner の case/fixture に留め、汎用 fake R2 や evidence runner を作らない。
+- tests/R2RouteTransport.Tests.ps1（187 行、既定増分 0）: 必要な canonical request/read 回帰のみ。本番 factory/reader を使い判定をコピーしない。
+- CredentialStore と credentials CLI/tests は変更しない。DLL 対応・原記録は C 手順と小さな manifest の責務。runtime の Git 呼出し/evidence service を追加しない。
+- tools/Artifacts/README.md（開始時 73 行、見込み -5〜+10）: B2 の入力変更と同時に該当説明・実行例だけを更新し、AfterHash 事前入力を除く。実 After は C の外側で確認すること、既存 run は inconclusive / GO なしという現況を反映する。
+- 作業文書は現 HANDOFF・本 snapshot・既存汎用 Phase B result を更新する。commit 別 RESULT / FINAL / RERUN を増やさない。旧固定物の訂正は台帳の errata に置く。
 
-実行経路: ownerがCloudflare dashboardで非秘密endpointとbucket限定tokenの設定を確認する。未登録なら対話端末でmasked初回登録し、owner確認済みの正常activeなら再利用する。lockはownerが同dashboardで全有効ruleを確認し、`probe/locked/`限定の`Age` 900〜86400秒ruleを設定して通常writerとは異なる管理権限で保有する。ownerは試験前後のrule設定と不変を非秘密で記録する。Agentは同じWindowsユーザーの独立したpwsh processから限定診断を実行する。Cloudflare設定の証拠はtoken値を含まないownerの設定記録、通信証拠はallowlistの非秘密resultと保存前後のrepo statusとする。実鍵使用時のSDK/HTTP raw output、request/response、例外本文は保存しない。Cはcheckout/同期領域外の限定ACL evidence bundleに固定base/headとraw offline test結果、sanitized route result、固定diffを収録し、hash/場所/保持期限をHANDOFFに記す。Cの所見は別記録にする。C' blind bundleはA3 snapshot、所見のないB result、同じ固定diff、sanitized結果、C前の機械検査だけから別に生成し、path/hash/生成UTCを記録する。C'は別セッションでbundleを読み、Cの所見を受け取らない。lock済みobjectは期限前に削除せず、key、rule、保持期限、清掃予定とownerを非秘密台帳へ残す。spike終了時にtokenを残す場合は次sliceでの用途と失効担当をownerが明記し、経路を不採用にする場合はownerがremote失効を確認した後にlocal profileを削除する。local削除だけを失効と呼ばない。
+行数は目標でない。新責務・状態・依存・公開 API・汎用 module が必要なら A へ返す。小さく見せる分割・機械的改名・参照 0 による削除をしない。
 
-A3前の疎通: `pwsh`、.NET 8でのAWSSDK.S3 restore/buildと別pwshでのload、非秘密JSONの別process読取は2026-09-27の前案で確認した。ownerが実鍵をmasked登録した際、既存`Artifacts`ディレクトリの所有者不一致で初回登録が失敗した。空ディレクトリをowner端末で非再帰削除し、新規ACLへ実行ユーザーを明示的に設定する修正後、登録と`status`が成功した。owner端末の限定CLIで`probe/prea3/9ace5edb614d4203a6d71d6a8069e498.txt`の48 byteをPUTし、別`pwsh` processが認証GETしてSHA-256 `13cbdab75bf6856a24088bf26d230a2cd58ad3d6f1faacc86615bdb949c4e255`とmarkerを照合、同じwriterでDELETEした。ownerが提示したsanitized出力は`roundtrip: pass; ...; cleanup=removed`であり、別の読み取り専用CLIで`probe/prea3 empty: true`を確認した。初回probe実装にあった非IDisposable応答へのDispose呼出しによる失敗表示は修正済み。これらはowner端末から提示された出力であり、Agentが実鍵を直接扱った記録ではない。旧`PreA3RoundTrip.ps1`は通信本文、子process、cleanupに全体期限がないため再実行用入口から退役した。過去の疎通記録は維持するが、旧コードをRoute proofへ流用しない。
+## 4. SOL の B 作業と停止位置
 
-ownerはCloudflare画面でtokenのR2 Bucket Item Read/Writeが`osm-artifacts`だけを対象とし、Public Development URLが無効、Custom Domainsが空であることを確認した。A3前の認証付き経路は成立したが、署名無しGET、owner accountでのlock rule保存と通常writerへの強制力、Cloud到達性は未確認。DashboardのSettings→Bucket lock rulesでprefixと有限保持を設定できることはCloudflare公式文書で確認したにとどまる。ownerによる全有効ruleの確認と限定rule保存はPhase Cで初回確認する。ownerが担当し、不成立なら`environment-blocked`として止め、Agentは管理鍵を受け取らない。Cでの本検証案は§2のまま。owner権限と証拠受入方法は§5にA3確認案として記載した。
+### B1: 有限な原因照合
 
-## 5. A2 / A3 と後続Phase
+1. branch、tracked 差分、開始点の祖先関係を確認。既存成果を reset / checkout / rewrite で捨てず docs commit と実装を分ける。
+2. 台帳の source/DLL/bundle/run の path・hash と既存 build log を一度照合する。確定できない旧対応を新 build の合格証拠にせず、後から build して旧 run を遡及証明しない。
+3. 既存 source/fixture の request 生成 → SendAsync → child JSON → 判定を追う。method、同一 key、escaped URI、auth/query 不在、redirect 無効、loaded DLL 対応に限定し、最大 3 仮説のオフライン確認まで。公式公開文書は読めるが bucket/API へ接続しない。
+4. 条件違反を再現できた場合だけ修正＋回帰。なければ「正規条件への違反未発見、400 原因未特定」を記録して B2 へ。推測の header/endpoint 変更、診断だけの production field 追加、同じ調査の反復をしない。
 
-- A0/A1: 本sessionのCodex（実際のmodel variantは未確認）。目的からの独立A0代替案は、R2を第一候補としつつSDK Adapter、server検証付きrotation、複数provider抽象を最初の条件にしない点で一致。レビュー担当の実モデル割当は未確認。
-- A2: 同一初稿SHA-256`9A85555C5FA37F24DE9DDADB66C94B195BF5313C0F19E18D07E08DA1E707D329`を、アーキテクチャと失敗/実行可能性の独立した担当がレビューした。両者のendpoint受渡し・callback・診断責務・raw実鍵出力の非保存・陽性対照・否定結果の終端・C' bundle分離の指摘を採用して§2〜4へ反映。programとsliceの別branch、A3前の実経路疎通の指摘も採用し、metadataとA3待機条件を修正した。モデル指定と実割当variantの一致は確認できないため多様性は未証明。未採用は「callbackをmoduleから非exportにする」案で、別moduleから呼ぶPowerShell関数はexportが必要なため。CLIに秘密取得コマンドは設けず、同一ユーザーが既にDPAPI復号可能な前提で、非記録の狭い内部APIとして扱う。
-- A2再レビュー（対象head `9704a6d7eebc8349e46f5005667c525396e6d2ed`、静的レビュー）: 指摘A/Bを採用。旧preflightには操作/本文/子process/cleanupの全体期限がなく、入力検証前の失敗出力に`Key`を反射する経路がある。予備疎通は達成済みなので、旧entry pointと専用SDK projectを退役し、READMEの再実行手順を除去する。A/Bの失敗経路は新Route proofの§2判定表とoffline試験へ移し、旧コードを修正して再利用しない。指摘Cを採用。bool戻り値はSuccess streamしか制限しないため、別stream/Host/Console/SDK logging/例外へのsentinel試験を§3〜4に明記した。指摘Dを採用。既存activeの再利用と異常時fail closedを§2.1へ分け、同一writerの対応付けに既存の非秘密`Generation`を使う案とした。全面的な責務再設計、provider registry、Cloud/実payloadの前倒しは不採用（このsliceの問いに不要）。このレビューはA3承認ではない。
-- A2追加レビュー（対象head `9bdfc3e88ce86e43a0671007ffc52452284fb819`、[PR #80のGrok 4.7所見](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/80#issuecomment-5855225634)）: 旧A2採否を読んだレビューであり、盲検独立とは記録しない。拒否のS3 `Code`、12操作と親/子/run期限、曖昧な結果の分類、全有効ruleと同一`Generation`、transportの観測とprobeの判定の分離、`&` callback、別probe試験、owner設定のPhase C初回確認を採用し§2〜4へ反映。provider否定は再現性を要し、429や1度の上書き成功を即時否定にしない。probeとcredentials CLIのexit 2共通化は最小Artifact CLIへ送る。Cloudflare公開codeと実応答が異なる場合は列挙値だけを非秘密記録して`inconclusive`とし、許可リストの変更はPhase A改訂とする。A3凍結、Route proofのPhase B、実R2の署名無し/lock試験は未実施。
-- A2追加レビュー追認（対象head `95a91a9898839b2d6b77bd46e993c656e0c63a30`、[同じGrok 4.7セッションの続き](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/80#issuecomment-5855320551)）: 新しい盲検レビューには数えない。番号付き最低条件2〜4と判定詳細の不一致、部分hashの誤合格、通常DELETEの二重期限、429の分類先、program旧r1の順序とCloudflare設定文を指摘された。条件本文に合格codeと本文読取条件を転記し、通常DELETE/確認は12操作の5分内、別30秒は途中失敗後の回復清掃だけに分けた。保護なし上書きの429再試行は1回で止める。program側は旧順序を歴史化し、公開設定維持とownerのlock rule追加を区別した。A3は未凍結。
-- A2追加レビュー最終追認（対象head `dd32c0c2e928d633a703b4a3e6dac919efce75ff`、[同じGrok 4.7セッションの続き](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/80#issuecomment-5855370773)）: 前回の指摘は閉じたとの評価を受けた。残る数値指定として署名無しGET本文の上限を8192 byteとし、上限超過・EOF未確認は`inconclusive`と明記した。この追認は新たな盲検レビューでもA3承認でもない。Grokレビューはここで終了し、programとsliceのA3採否は人間の判断に残す。
-- A2 Web GPT再レビュー（対象head `b509e9aa409855dc4f47d6591ec9ba2c657f7c14`、[PR #80 review](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/80#pullrequestreview-5330124050)）: 既存レビュー履歴を読んだ非盲検レビューで、モデルvariantは未確認。2件のP2を採用した。本文全体hash/byte数だけではobject＋追加byteの露出を判定できないため、transportに期待長Nの先頭hashとEOF/上限到達を追加し、合否はRouteProofに残した。Bucket Lockは新規objectの`Age` 900〜86400秒ruleに限定し、5分runに対する余裕、ownerの前後設定記録、単調時計での有効期間、失効・不明時の分類を固定した。offlineのprefix/長い拒否XML/途中失効caseを追加した。旧probeの復活や実R2操作はしない。A3は未凍結。
-- 旧A3統合・採否（2026-09-27）: ownerが旧program r4とRoute proofのA3凍結を指示した。凍結前条件だったowner端末CLIへの実token登録とsynthetic PUT・別process GET/hash照合・DELETEは§4の限定preflightで達成済み。A2のアーキテクチャ、実行可能性、失敗経路、Grok、Web GPTの指摘は上記ledgerのとおり採用し§2〜4へ反映した。非export callback案はPowerShellのmodule境界上実行不能なので不採用。probe/credentials CLIのexit code共通化、Cloud/実payload/汎用providerの前倒しは現在の問いに不要として後続へ保留。未解決のA3 blockerはない。`credentials` CLIはローカル保管のみ、A3前probeは認証付き経路の予備確認に限り、署名無しGET、保護なし陽性対照、Bucket Lockの上書き/削除拒否は未検証のままPhase Cへ渡す。A3後の例外承認はなし。
-- A3の操作・証拠受入: ownerだけがCloudflare dashboardで全有効ruleのprefix、有効状態、保持条件を確認し、`probe/locked/`限定の`Age` 900〜86400秒ruleを設定する。rule名、試験前後の確認UTC、lifecycleとの関係、残存objectとruleの清掃予定も非秘密で記録する。通常writer tokenにBucket設定権限を追加しない。Agentは同一Windowsユーザーの別`pwsh` processを起動して§2のsynthetic probeとoffline試験を行い、非秘密のallowlist結果、固定base/head、前後のrepo status、raw test結果をcheckout/同期領域外の限定ACL bundleに保存する。Cはownerの全rule設定記録を受理し、通信結果の全体/prefix hash・byte数・EOF・HTTP分類・S3 `Code`と陽性対照、lock時の再GETを突き合わせる。C'へは所見を含まない同一固定版のblind bundleを渡す。ownerがrule設定に到達できない場合はenvironment-blockedで止め、Agentが管理鍵を受け取って代行しない。
-- C'担当: Phase B/Cと異なるmodelの新規session、または人間。Phase Aに未関与の候補を残す。判定Cの固定base/head、raw結果とblind bundleを使う。
-- Phase B: `e122a79` で実装完了。所見を含まない結果snapshotは `docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md` に固定し、SDK restore/buildと別process type load、Credentials 21件、RouteProof offline 8件、`contract-audit`、`docs-audit` の成功、実R2/Unity/Evidence/Build未実行、担当 `Codex / GPT-5` を記録した。snapshotのSHA-256は `7D9DCC474D45CCFA18B56C5298F88102DBEACCA03EADEE67CB74990124C734FB` である。
-- Phase C（発見・判定）: Grok Bot / このsessionが、`93d2a1c` からPhase B head `e122a79` までを対象に確認した。構造、offline試験、SDK restore/build、別process type load、`contract-audit`、`docs-audit` は再実行して通過した。実R2では `unlocked-put` と認証GETまで通過したが、署名無しGETが HTTP 400 / S3 `InvalidArgument` / 非秘匿分類 `other`（応答中の非秘匿 error message は `Authorization`）で停止した。凍結条件が許可する `401 Unauthorized` または `403 AccessDenied` ではないため、内容露出もprovider capability failureも確定できず、exit 4 `inconclusive` とする。lock操作、固定evidence bundle、C' blind bundle、Unity/Evidence/Buildは未実施である。実R2の非秘匿owner lock ledgerも受理できる形では未固定である。結果文書は `docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_C_RESULT.md` にあるが、C中に`RouteProof.ps1`を修正したため、実際の検証候補headは`93e1f95`であり、Bの固定head `e122a79`とは分けて扱う。現branchのdocs-only tipは`65df09f`。結果文書の埋め込みfile SHA-256は現blobと一致せず、body hashの定義も含め、証拠固定は未完了である。
-- Phase Cの分類と停止: unsigned GETで観測された400は、凍結した許可codeを拡張するか、別の署名無し経路にするかを決めない限り判定できない。これは受け入れ条件・失敗分類の変更を伴うため、B適応やCの独断で処理せず、Phase Aを新revisionとして再開する。`93e1f95`のprobe修正はC中の検証候補に含まれるが、所見を含まないPhase B result snapshotへ取り込まず、次のAで扱う実装候補として保留する。Phase C'は起動しない。
-- Phase Bの終了: `e122a79`の実装と `docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md`（SHA-256 `7D9DCC474D45CCFA18B56C5298F88102DBEACCA03EADEE67CB74990124C734FB`）を今回のPhase B成果として閉じる。実R2の合否、Unity、Evidence、BuildはPhase Bの成果に含めない。
-- Phase A revisionの着手条件: 凍結A3 snapshot `328843ea521550af9da203315c2704d3d51cc8d0:docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF.md`、B result snapshot、C resultとこの記録を入力に、`400 InvalidArgument`を現行条件で不合格のまま扱うか、署名無しGETの許可応答・判定境界を再設計するかをA0/A1で比較する。条件、責務、証拠固定方法を変える場合はA2/A3をやり直してから実装・実R2へ進む。
+### B2: Before / After 分離
 
-## 6. Phase A revision — A0/A1 planning packet（A3凍結）
+Read-LockRule の入力を §2.3 の 10 field、出力 afterHash は null にする。既存 fixture を合わせる。正常 Before、AfterHash 混入、BeforeHash 欠落/型不正、未知 field、不正 rule を試験する。正常ループでも afterHash が null のままを確認。設定の自動取得・finalize subcommand は足さない。
 
-### A0 — 入力、問い、境界
+同じ変更で tools/Artifacts/README.md の入力説明と実行例を 10 field に合わせ、afterHash=null / 実 After は C の原記録で照合する責任を明記する。古いコマンド例を Phase D まで残さない。
 
-- 入力版: 旧A3は`328843ea521550af9da203315c2704d3d51cc8d0:docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF.md`（blob bytesのSHA-256 `0047F7DCCD10089CC75B902B5F64E5AC71C41D5F218FACDA46B31C8A645D858D`）。Phase B実装headは`e122a79`、所見を含まないB result現ファイルのSHA-256は`7D9DCC474D45CCFA18B56C5298F88102DBEACCA03EADEE67CB74990124C734FB`。Phase C候補headは`93e1f95`。A0着手時のdocs記録headは`413b7cd`であり、その後の改訂入力とは区別する。`e122a79..93e1f95`には`RouteProof.ps1`の文字列展開、失敗記録、子process JSON数値型の修正がある。同じ実装head、同じ判定evidenceとして扱わない。
-- Cの観測記録: 認証PUT/GETは通過。存在keyへの署名無しGETはHTTP 400 / S3 `InvalidArgument`で止まり、C resultには非秘匿Message `Authorization`と記録された。これは旧A3の401/`Unauthorized`または403/`AccessDenied`に一致しないため`inconclusive`、GOなし。C resultには本文hash不一致とcleanup成功も書かれているが、固定evidence bundleは未生成であり、この文書だけを一次証拠に格上げしない。保護なし上書き・削除の陽性対照とBucket Lock系は未到達。
-- C result現ファイルの再計算SHA-256は`D9DEFD645EBCED07F0E7DABABA5973A85948A09C9340FDC8BFBD89B4C678AFFB`。本文末尾のfile SHA-256 `9fbbc5...`とは一致しない。body SHA-256は除外行・改行・文字コードを一意に定義していないため、現時点で検証済みhashとして採用しない。旧記録の誤った値は今回の照合履歴として残す。
-- このrevisionが答える問い: **既知の400/`InvalidArgument`をどの条件ならprivate objectへの署名無しアクセス拒否の証拠に数えられるか。その条件を安全かつ再現可能に観測できない場合、旧判定のままどこで停止するか。** この問いと、元sliceの「同一byte往復と通常writerへのBucket Lock強制力」は区別する。
-- 進める最低条件（A3凍結）: 400は案Aの旧許可集合に含めず常に`inconclusive`とする。署名無しGETが対象の存在keyへ向く妥当なrequestであること、認証GETと対象版を合わせること、本文非露出、EOF/timeout/上限を正しく分類すること、固定実装headに結び付く一次証拠を得ること。元sliceのlock拒否・権限分離をこのrevisionだけで達成扱いしない。
-- 受け入れ条件（最低条件の詳細）: (1) unsigned requestはaccount endpointの`/osm-artifacts/<escaped-key>`に対するGETとし、Authorization/署名query/対象変更queryを付けずredirectを追わない。実装のURI生成規則・method・認証要素なしをofflineで検査する。400の意味を新たに許可集合へ追加しない。(2) 認証GETで同一keyの存在・hash・byte数・Generationを先に確認する。(3) bodyが期待長N以上ならEOF未確認でもprefix hashを保持する。prefix一致は内容露出でGO不可。EOF時のみ全体hashを確定し本文を保存しない。(4) source/DLL、base/head、テスト生結果、owner前後設定を別manifestで対応付ける。(5) 12操作主ループ、JSON/process、deadline、cleanupを同じproduction loopでfake clock/runner/transportを用いて有限に検証する。
-- ここでは答えない問い: 400が別の妥当な署名無しrequestで認証拒否を意味するかは解決せず、常にinconclusiveとする。別HTTP経路・R2の一般化は後続「最小Artifact CLI」またはprogram再選定のPhase Aが所有する。
-- 進める最低条件（A3候補）: 署名無しrequestが対象の存在keyに対する意図した無認証GETであること、認証GETとの対象版対応、内容非露出、応答の意味を判断する許可集合と曖昧時の分類、同じ固定実装headに結び付く一次証拠の取得経路を、A2が検査可能な形で定義する。元sliceのlock拒否や権限分離をこのrevisionの議論だけで達成扱いにしない。
-- 制約・対象外: 秘密、実R2、credentials、Unity、Evidence、BuildをA0/A1では操作しない。Message `Authorization`のみから拒否の意味やrequestの妥当性を断定しない。旧A3は履歴として固定し、改訂案を新しい受け入れ条件として適用しない。Cloud、実payload、provider一般化、継続retentionは元の後続所有先へ残す。
-- 未決事項: 400が無認証拒否を表すのか、request形式・endpoint・header等の不正を表すのか。C resultの観測がどの完全な実装差分とraw結果に対応するか。新たな通信なしに判断できない部分は未確認とする。
-- [Cloudflare R2 error codes](https://developers.cloudflare.com/r2/api/error-codes/)の現行表は認証欠落を401/`Unauthorized`、権限不足を403/`AccessDenied`として掲載する。観測された400/`InvalidArgument`/`Authorization`の意味をその表だけから認証拒否と確定できない。
+### B3: 実 child 入口のオフライン回帰
 
-### A1 — 比較する判定案（採否未定）
+既存 RouteProof.Tests.ps1 の一時 fixture に **本番 RouteProof.ps1 の byte-identical copy** と、相対 import 先の test 専用 Credentials/CredentialStore.psm1、Probe/R2RouteTransport.psm1 を置く。copy と source の hash 一致を確認。production CLI option / env seam / 関数コピーは増やさない。
 
-| 案 | 署名無しGETのGO条件候補 | 400/`InvalidArgument`の扱い | 必要な変更と残る限界 |
-| --- | --- | --- | --- |
-| A. 旧A3を維持 | **組として**401/`Unauthorized`または403/`AccessDenied`、EOF・全体/prefix hash非一致等の旧条件すべて | 常に`inconclusive`。別の妥当な署名無し経路やrequest不具合の原因を調べ、同じ許可集合で再観測する | 許可集合は不変だが、現行実装の旧A3不適合は修復が必要。R2が別の拒否表現を返し続けるならGOできない |
-| B. 400を限定追加 | 旧条件に加え、**特定の**400/`InvalidArgument`が妥当な無認証GETへの認証拒否だとproviderの一次説明等とrequest妥当性の両方で確認でき、存在key・非露出・EOF等も満たす場合のみ | 原因未確定の現在の400は引き続き`inconclusive`。Message文字列・同一400の反復・error本文hash・fake応答だけでは合格にしない | 具体的な許可(status, S3 Code)組、request妥当性の検査、offline失敗case、非秘密の診断項目と判定根拠をA3で明文化する。安全に区別できなければ400は許可しない |
-| C. 任意の非成功応答へ拡張 | 存在keyの認証GET後、署名無しGETが非2xxで本文hash非一致なら許可 | 現在の400を合格候補にし得る | malformed request、存在しない対象、redirect、proxy失敗等をprivate拒否と誤認する。元の能力証明を弱めるため、A1では採用を提案しないがA2の反例比較対象に残す |
+- 別 pwsh の -File <copy> -Child を実際に起動。dummy endpoint/run-id/payload/hash/commit、起動 timestamp、余裕のある既存 operation budget を渡す。
+- dummy store は正規 Profile=osm / Bucket=osm-artifacts / Endpoint=null / Generation を返し、実 callback に dummy id/secret/Generation/request を渡す。dummy transport は operation と有効残時間を検査し固定 allowlist 観測だけ返す。実 store/DPAPI active/HTTP/実 DLL を fixture から呼べない配置にする。
+- 正常 child が exit 0 / stdout 1 JSON / stderr 空、operation/Generation 正しく、dummy secret が全出力にないこと。Endpoint=null を endpoint 引数と比較する退行と、closure の helper 未束縛の退行で失敗する構成にする。
+- 同 fixture の不正 profile は exit 3・transport 未呼出し、期限切れは inconclusive・transport 未呼出し。Task.Delay / Thread.Sleep は使わず timestamp/既存 clock 注入。process 待機は有限、timeout 時は当該 test child だけ終了・回収。
+- 12 操作を fake server で再実装しない。共有本番ループ＋実 JSON 境界の既存試験を再利用。store 本体の DPAPI/漏洩条件は Credentials.Tests が担う。
 
-案A/Bのいずれでも、署名無しGETの先頭N byte hashがobjectと一致すれば、EOF未確認・8192 byte上限到達・timeoutでも**内容露出の観測**として扱い、GOにしない。prefixが取得できない、または一致しないEOF未確認・上限到達・timeoutは`inconclusive`とし、露出と同じ分類へ読み替えない。redirect、404/`NoSuchKey`、429/5xx、DNS/TLS/proxy不明、認証GET失敗、`Generation`不一致もGOにしない。`provider-capability-failure`は開始条件と陽性対照が成立した後の再現可能な内容露出またはlock強制力欠如に限る。意味不明な拒否は`inconclusive`、設定・権限等の準備不足は`environment-blocked`に分ける。現行Cの400はこの区別では能力否定でも非公開性の証明でもない。
+### B4: 一度の引渡し
 
-### A1 — 責務、検証経路、証拠固定の初稿
+§5 の限定回帰・必要 compile・監査後に実装 head を固定する。B result は変更・理由・オフライン結果・未実行・400 の違反確認有無・版/hash のみ、C 所見を転載しない。新 build の DLL hash を正しく記録し、過去 hash に合わせる build 反復をしない。
 
-- 判定を変えるなら`RouteProof.ps1`が許可status/S3 code、露出検知、失敗分類を所有し、`R2RouteTransport.cs`はrequest生成と非秘密の観測だけを返す。`CredentialStore.psm1`の秘密寿命、store schema、通常writer権限は変えない。案Bでは、既存観測からrequest妥当性を証明できるかをA2で審査し、不足する場合に限り非秘密の観測項目と型・値域を設計する。raw header/body、Authorization、SDK例外本文を証拠へ追加しない。
-- 現行物理行数は`RouteProof.ps1` 290、`R2RouteTransport.cs` 324、同`.psm1` 52、`RouteProof.Tests.ps1` 94、`CredentialStore.psm1` 334。案Aは許可集合を変えないが、旧A3への判定適合修復と必要な回帰試験をPhase Bに含める。案Bの追加増分は必要な非秘密観測を決めるまで未定とする。`RouteProof.ps1`は入力/子process/判定を既に持つため、新責務の混入と500行・3責務・50%増加の警報をA2のアーキテクチャレビューで評価し、分割/非分割理由をA3に残す。
-- 旧A3適合の修復候補: 許可status/S3 Codeを独立集合でなく組で判定する。`R2RouteTransport.cs`は期待長N byteのprefixを積んだ後に8193 byte到達またはcancelで止まっても、そのprefix hashを返し、EOF未確認の全体hashはnullにする。N byte未満で止まればprefixもnullにする。`RouteProof.ps1`は本文byteを保存・再hashせず、返されたprefix hashと期待hashの一致から露出を判定する。全体hash不一致・prefix一致の「object＋追加byte」を単なる`inconclusive`に落とさない。`provider-capability-failure`は1回の全体hash一致やlock操作のsuccess単独で確定せず、新run/keyの再現、同一`Generation`、保護なし陽性対照、lock保持有効性、変更後hashの再GET等を凍結条件どおり照合する。条件未充足や`Generation`不一致は能力否定より先に`inconclusive`とする。
-- 回復cleanupの修復候補: PUT子processを起動した時点でkeyを清掃対象にし、応答不明でも除外しない。本処理5分を参照しない**合計30秒**の回復DELETE＋認証GETによる`NoSuchKey`確認を設け、その残予算を子processの起動・待機期限へ渡す。通常DELETEでも204だけで`removed`としない。回復確認は未到達の上書きfixtureのhash一致を成功条件としない。確認不能・期限超過は`unconfirmed`を維持する。旧C resultの「DELETEで除去確認（204）」は旧A3の削除確認の一次証拠に数えない。
-- 案Bに限るrequest妥当性の追加検査候補: 正規化した同一endpoint/bucket/key、GET、Authorizationと署名query無し、対象を変えるquery/header無し、redirect無しを、raw header/bodyを保存せずに確認する。静的な生成経路の検査と、後日の承認済み実観測でしか確かめられない事項を分ける。案Aでは新しいrequest観測schemaを必須にしない。案Bの400を許すなら、providerの一次説明等とこの実観測の両方が揃うまでGOにしない。S3経路の拒否結果だけでbucket全体の非公開設定を証明した扱いにせず、ownerによるr2.dev Public Development URL無効・Custom Domainsなしの確認を維持する。
-- A2に渡す同一入力版には、このA0/A1、凍結A3、B result、C result、`e122a79..93e1f95`の実装差分を含める。少なくともアーキテクチャ/責務境界と、HTTP拒否意味・失敗分類/証拠の独立レビューを分ける。高リスクの代替案レビューにはA0のみを渡すことを検討する。各レビューの入力版hash、担当・モデル、独立性を記録し、A3で人間と採否・理由を統合する。
-- 判定Cの検証経路候補は、同一Windowsユーザーの別`pwsh` process、固定synthetic key、認証GETによる存在/byte/hash確認、無認証GET、保護なし陽性対照、ownerの非秘密lock設定記録、lock拒否・再GETである。実操作の担当、対象版、各観測の合否、期限、清掃、C/C'への受け渡しはA3前に条件ごとに再確認する。今回のA0/A1では疎通を再実行しない。
-- C resultの自己参照するfile hash欄を正本にしない。新たなsnapshotとbundleは、内容を確定した後に**別のmanifest**でpath、取得commit/blobまたはbundle id、生成UTC、byte長、SHA-256、hash対象のbyte定義を記録する。manifest自身を同じ欄でhashしない。Git blobなら`git show <commit>:<path>`のbyte列、ローカルfileなら保存したfile bytesと区別する。証拠が異なる版・改行へ転送された場合は受信側で再計算して照合する。B resultは所見なしの`e122a79` snapshotとして保持し、Cの修正を後付けしない。
-- 判定evidenceのmanifestには新A3 snapshotのcommit/path/blob、完全なimplementation base/head、実行前後の対象source status、実際に読み込むGit管理外DLLと依存成果物のhash、PowerShell/.NET実行版、run-id/UTC、固定schemaの一次観測・テスト生結果・owner設定記録を対応付ける候補とする。実装headと、結果文書を後から保存するdocs commitは別fieldとする。sourceまたは実行DLLが変わったrunを旧headの判定evidenceに混ぜない。判定CはGO前にhashと必須fileを照合し、C'はCの判断を受け取らず同じmanifestを再検証する。不一致なら判定を停止する。owner ruleのbefore/afterはrun前に自己申告した同一hashだけでは足りず、実際の前後確認UTCと設定記録を別々に取得してCが照合する。
-- C' blind bundleには新A3条件、code-only完全diff、所見なしB result、固定された非秘密owner ledgerと一次観測、判定前の機械検査だけをallowlistで入れる。旧Cの判断、C中の修正理由、§5/§6の所見、PRレビューコメントを含む可変HANDOFFやdocs込みPR全差分は渡さない。C/C'は同じ固定sourceと一次観測を使うが、Cの判断はC'完了まで隔離する。
-- `93e1f95`の実装候補を使う場合も、新A3後にPhase Bでそのheadとの差分と設計適合を確定し、所見のない新B resultを別snapshotとして作る。GO候補headに対するoffline suite、SDK build/別process load、契約・文書監査、実R2の全必須経路、固定diff/生結果を判定Cでやり直す。offline suiteは個別判定関数だけでなく、実際のfixture生成、親子process/JSON往復、12操作主ループ、最終記録/exit、通常/回復cleanupをfake transport・子process・注入時計で通す。現行`-Library`は主ループ前にreturnするため、同じ`RouteProof.ps1`のループを関数にし、子process起動と時計だけを注入する候補とする。再試行の1秒間隔も注入時計で進め、実時間sleepや別の判定ループを試験正本にしない。新moduleや本番用CLI modeを追加せず、これ以上の依存・責務が必要ならPhase Aへ戻す。全体hash不一致/prefix一致、許可tupleの取り違え、400/malformed、`Generation`不一致、EOF/上限/子process停止、C中に判明した文字列展開・`$(if ...)`・Int64の回帰を含める。Unity側変更がない場合の全EditMode除外は理由とPowerShell/.NET代替証拠を新A3へ明記する。旧Cの認証PUT/GET観測を新headの合格証拠へ流用しない。判定CとC'には同じheadとevidenceを渡し、C'はGO候補が揃うまで起動しない。
-- A3後の停止規則: 凍結最低条件と受け入れ詳細を満たし、400を合格に読み替えず、致命的反証が無ければCへ進む。現行許可集合のまま400が続けば`inconclusive`で終了条件未達とする。新たな状態・依存・所有者・寿命・公開API、またはfail-closed契約変更が必要ならPhase Aへ戻る。
+ここで SOL の B は終了。live、GO、C' を始めない。未解決 400 だけを理由に B を再開しない。発見 C が凍結契約への具体的違反をまとめて返した場合だけ必要な B 適応をする。
 
-- 進める最低条件（A3凍結）: 400は旧許可集合に含めず常に`inconclusive`。妥当な同一key unsigned GET、認証GETとの対象版対応、本文非露出、EOF/timeout/上限の分類、固定headと一次証拠の対応を満たす。元sliceのlock拒否・権限分離はこのrevisionだけで達成扱いしない。
-- 受け入れ条件: (1) account endpointの`/osm-artifacts/<escaped-key>`へGETし、Authorization/署名query/対象変更queryなし、redirect無追跡。URI生成・method・認証要素なしをoffline検査し、400を追加許可しない。(2) unsigned前に認証GETで同一keyの存在/hash/byte数/Generation確認。(3) 期待長N以上のbodyではEOF未確認でもprefix hashを保持し、一致は露出扱い。EOF時のみ全体hashを確定、本文非保存。(4) source/DLL、base/head、テスト生結果、owner設定前後を別manifestで対応付ける。(5) productionの12操作主ループ、JSON/process、deadline、cleanupをfake clock/runner/transportで有限試験する。
-- ここでは答えない問い: 400の意味の別request経路での解明・一般化は後続「最小Artifact CLI」またはprogram再選定Phase A。
-### A3統合・採否（revision、2026-09-27）
+## 5. 検証・レビュー計画
 
-人間（owner）が「Phase A3凍結」を指示。以下の採否を凍結し、この文書の§6 A0/A1を実装対象とする。snapshotはこの内容確定後に生成する。A2再レビューは同一sessionで先行履歴を知る非盲検レビューであり、独立モデル系列は証明しない。
+現在の A はコード変更・build・テスト・R2 通信禁止。文書の read-only audit は実装テストと区別する。以下は A3 承認後の B/C 作業。
 
-- 所見A（案Bの400許可条件が十分に観測可能か）: **不採用として案Aを採用**。署名無しGETの正規URI生成、GET method、Authorization/署名query/対象変更queryなし、redirect無追跡はオフライン検査するが、これだけでCloudflareの400の意味を証明できるとは主張しない。provider一次説明とrequest妥当性を揃えても現revisionの条件を越えて許可集合を拡張しない。HTTP 400/`InvalidArgument`は常に`inconclusive`。理由: 現Cの400は能力拒否とmalformed requestを識別できず、追加許可の利益に対し誤合格リスクが大きい。代替endpoint/request形を試すための実R2探索は後続へ送る。
-- 所見B（RunIdとChild keyの結合）: **採用**。親が生成したrun-idを各child引数に渡し、childでkeyから抽出したrun-idとの一致を検査する。§2の厳密key契約の実装精度であり、状態/API/責務を増やさない。
-- 所見C（stdout/stderr回収が期限外にblockし得る）: **採用**。子起動から終了待ち・両pipe回収までを同じ残予算内に置き、超過時はprocess treeの終了を確認できない限り成功観測として扱わない。固定期限/停止規則の実装精度。孫process用の別機能や新process管理依存は作らず、許可された.NET process API内で実装する。
-- 所見D（8193 byte境界でprefix hash消失）: **採用**。A1候補どおり、上限到達・cancel時も期待長Nまで取得済みならprefix hashを返す。prefix一致はEOF未確認でも露出扱い、prefix不一致またはN未満はinconclusive。認証fixture上限1024 byteと署名無しbody上限8192 byteを分けて明記する。
-- 主ループ試験注入不足: **採用**。同じRouteProof主ループへclock、child runner、transport operationの差し替え口を設け、実装モードとoffline testが同一ループを通る。新しい独立module/helper責務は増やさず、公開CLI/API化もしない。既存script内で安全にできないと判明した時点でPhase A再開。
-- 証拠manifest/report増分: **必要最小限として採用**。固定版対応に要る項目だけをA3受け入れ条件に限定し、汎用evidence基盤や保存サービス実装はしない。期限・保持・外部配布改善は後続所有。
-- A2アーキテクチャ評価（Transport I/O/観測、RouteProof手順/合否の責務分担、判定helperだけを分割しない）を採用。新責務は既存ファイル内で境界を注入する範囲に限る。計画外の依存/責務が必要なら停止。
+### 限定回帰の起点
+
+- 新 case 名: child entry offline*、lock rule before evidence*。既存 credential callback*、production operation loop*、production loop completes*、lock rule*、unsigned/清掃/期限 case の変更関連を選ぶ。-Case string[] は PowerShell 内で渡す。0 件は成功にしない。
+- request 修正時は R2RouteTransport.Tests の factory / redirect / cap / cancel 回帰。この runner は filter がないので全 7 case を一度実行する。
+- 必要 compile: dotnet build tools/Artifacts/Probe/R2RouteTransport.csproj -c Release -o tools/Artifacts/Probe/artifacts/route-transport --no-restore。restore 必要なら記録し依存版を変えない。build を test/live 成功にしない。
+- B 完了時 pwsh tools/contract-audit.ps1、文書変更後 pwsh tools/docs-audit.ps1。差戻し確定中に最終判定一式を繰り返さない。
+
+### 判定 C の必須一式
+
+新規セッション・B と異なるモデルで実装 blocker のない head を選ぶ。C は slice base 93d2a1c... から最終実装 head の全 repository diff / stat / name-status を非盲検で保管し、改訂差分を da4e405... からも添える。docs tip を実装 head にしない。C' 用の完全実装 diff は同じ base/head の source/test/config/利用手順を欠落なく含む（現在は tools/Artifacts/** と .gitignore、削除・rename も含む）。全 name-status と照合し、進行文書の除外リストは C 側だけに残す。
+
+1. source と fixed head を照合して同じ Release/net8.0/package 版で一度 build。R2RouteTransport.dll、AWSSDK.Core.dll、AWSSDK.S3.dll、deps.json、関連 source の SHA-256、command/runtime/UTC/base/head を小さな manifest に残す。後の fresh pwsh で loaded assembly location/hash が一致することを確認。
+2. Credentials.Tests、RouteProof.Tests（-Case '*'）、R2RouteTransport.Tests 全件。生ログの case 名・件数・exit、build/load、docs-audit、contract-audit が必須。Unity 全 EditMode/PlayMode/build は除外: tools/Artifacts の PS/.NET のみで Unity/asmdef/assets 変更なし、上記全回帰を代替証拠とする。
+3. live 前後の source/DLL/依存/Git status を照合し間に build/copy を挟まない。不一致の run を当該 head の判定証拠にしない。JSON 自己申告 base/head だけでは対応の証明にならない。
+4. live は **別途明示許可と owner の前後観測引受けが揃うときだけ**。許可時に最終 head、1 run/最大 2 新 key/5 分+回復 30 秒、既設 rule、清掃予定を固定。profile/rule 再設定依頼ではない。AI の管理画面取得経路は未確認。初回確認は C live 開始前、取得不能なら開始せず担当合意へ戻す。
+5. 一度の正規 run が 400 なら回復清掃後 inconclusive で停止。同じ実行を再申請・反復し因果を推測しない。許可 tuple なら残り loop、lock 到達時は事後記録を照合。別経路探索・能力否定再現は一次観測と有限追加計画を人間へ返してから扱う。
+
+既知の経路: 所有 Windows ユーザー/既存 profile の認証 PUT/GET、unlocked 回復 DELETE/NoSuchKey は既存原記録で観測済み。新 head の成功、unsigned 拒否、lock 実効性、新前後観測は未確認。未実施を成功にしない。
+
+### C' と記録
+
+GO 候補の必須 evidence が揃うまで C' を開始しない。B/C と異なるモデル・新規セッション、可能なら A 未関与系列を予約。モデル実績は開始後に記録する。
+
+C' 入力は承認・凍結した本 snapshot、所見のない B result、上で定義した判定 C と同じ base/head の完全実装 diff、全必須生結果、非秘密一次原記録、判定 C 前の機械検査のみ。進行台帳、旧 C findings、A2 議論、旧 snapshot 内の C 所見を渡さず、本文にも C 所見を追記しない。docs/handoff 等の履歴差分から所見を逆流させない。進行文書の代わりに列挙済みの clean snapshot を渡す。
+
+artifacts は untracked のまま stage/commit 禁止。既存 tracked artifacts 191 件と過去履歴は削除・書換えしない。旧 bundle 原本は不変、errata は台帳のみ。Phase D で知見を harvest し重複作業文書を通常の前進 commit で整理。
+
+## 6. 分類と停止
+
+- B 適応: 固定条件への具体的違反を、同じ責務・依存・公開面の局所修正で直せる。証拠と回帰を添えて進む。
+- 有限な調査で停止: 正規違反を示せず 400 因果不明。B1 上限で止めて未証明を記録。合格化、無期限調査、自動再 run、推測修正は禁止。
+- A 再開: request / endpoint / 認証 / status 許可集合、security boundary、責務・依存・公開 API を変える必要がある。候補と同じ存在 object の非公開性を判定できる根拠を人間へ返し、採用前に実装しない。
+- 後続: CLI 一般化、Cloud、provider 選定、運用 retention、追加 diagnostics は program の担当 slice へ。将来有益なだけで本 B の blocker にしない。
+
+未決の事実は 400 の原因と実 R2 の能力であり、B が独自設計で埋める欄ではない。本改訂の承認は GO / C' 成功、live 再開許可を意味しない。
