@@ -315,9 +315,10 @@ function Test-UnsignedPrivacy($Observation, [string] $Hash, [int] $Bytes) {
     if ($Observation.Method -cne 'GET' -or $Observation.TargetUri -cne $expectedUri -or
         $Observation.HasAuthHeader -or $Observation.SignatureQueryPresent -or $Observation.TargetChangingQueryPresent) { return $false }
     # status・class・S3 codeを同一応答の組として照合し、交差した矛盾値を拒否証拠にしません。
-    # 400 InvalidArgumentも許可集合へ加えず、観測経路の妥当性を示せない場合はinconclusiveです。
+    # R2で観測した400/InvalidArgumentも、本文非露出と正規GETを確認できた場合に限り拒否とします。
     $pairedDenial = ($Observation.HttpStatus -eq 401 -and $Observation.StatusClass -ceq 'unauthorized' -and $Observation.S3Code -ceq 'Unauthorized') -or
-        ($Observation.HttpStatus -eq 403 -and $Observation.StatusClass -ceq 'forbidden' -and $Observation.S3Code -ceq 'AccessDenied')
+        ($Observation.HttpStatus -eq 403 -and $Observation.StatusClass -ceq 'forbidden' -and $Observation.S3Code -ceq 'AccessDenied') -or
+        ($Observation.HttpStatus -eq 400 -and $Observation.StatusClass -ceq 'other' -and $Observation.S3Code -ceq 'InvalidArgument')
     return $pairedDenial -and $Observation.EofConfirmed -and
         -not $Observation.LimitReached -and -not $Observation.Redirected -and
         $null -ne $Observation.BodySha256 -and $Observation.BodySha256 -cne $Hash -and

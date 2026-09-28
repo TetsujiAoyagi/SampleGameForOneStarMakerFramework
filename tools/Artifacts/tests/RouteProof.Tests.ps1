@@ -108,8 +108,12 @@ try {
         Assert (-not (Test-UnsignedPrivacy (Fake-Observation -S3Code 'SignatureDoesNotMatch') $global:RouteProofTestExpectedHash 23)) 'signature mismatch accepted'
         Assert (-not (Test-UnsignedPrivacy (Fake-Observation -LimitReached $true) $global:RouteProofTestExpectedHash 23)) 'bounded body accepted'
         Assert (-not (Test-UnsignedPrivacy (Fake-Observation -EofConfirmed $false) $global:RouteProofTestExpectedHash 23)) 'non-EOF body accepted'
-        $sameBodyPrefixDiffers = Fake-Observation -HttpStatus 400 -StatusClass 'other' -S3Code 'InvalidArgument' -BodySha256 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' -PrefixSha256 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
-        Assert (-not (Test-UnsignedPrivacy $sameBodyPrefixDiffers $global:RouteProofTestExpectedHash 23)) '400 InvalidArgument was treated as an allowed private denial'
+        $r2InvalidArgument = Fake-Observation -HttpStatus 400 -StatusClass 'other' -S3Code 'InvalidArgument' -BodySha256 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' -PrefixSha256 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
+        Assert (Test-UnsignedPrivacy $r2InvalidArgument $global:RouteProofTestExpectedHash 23) '400 InvalidArgument denial rejected'
+        Assert (-not (Test-UnsignedPrivacy (Fake-Observation -HttpStatus 400 -StatusClass 'other' -S3Code 'InvalidArgument' -BodySha256 $global:RouteProofTestExpectedHash) $global:RouteProofTestExpectedHash 23)) '400 with exact object body accepted'
+        Assert (-not (Test-UnsignedPrivacy (Fake-Observation -HttpStatus 400 -StatusClass 'other' -S3Code 'InvalidArgument' -PrefixSha256 $global:RouteProofTestExpectedHash) $global:RouteProofTestExpectedHash 23)) '400 with object prefix accepted'
+        Assert (-not (Test-UnsignedPrivacy (Fake-Observation -HttpStatus 400 -StatusClass 'other' -S3Code 'InvalidArgument' -EofConfirmed $false) $global:RouteProofTestExpectedHash 23)) '400 without EOF accepted'
+        Assert (-not (Test-UnsignedPrivacy (Fake-Observation -HttpStatus 400 -StatusClass 'other' -S3Code 'AccessDenied') $global:RouteProofTestExpectedHash 23)) 'unpaired 400 accepted'
         $unsignedWithAuth = Fake-Observation -HasAuthHeader $true
         Assert (-not (Test-UnsignedPrivacy $unsignedWithAuth $global:RouteProofTestExpectedHash 23)) 'signed request was treated as unsigned'
     }
@@ -383,7 +387,7 @@ Export-ModuleMember -Function Invoke-R2RouteTransport
             param($endpoint,$operation,$key,$hash,$bytes,$payload,$expectedRunId,$remaining,$deadline)
             if (-not (Test-Key $key $expectedRunId)) { throw 'child key/run mismatch' }
             $status=200; $class='success'; $code=$null; $bodyHash=$hash; $prefixHash=$hash
-            if ($operation -eq 'unsigned-get') { $status=403; $class='forbidden'; $code='AccessDenied'; $bodyHash='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'; $prefixHash='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }
+            if ($operation -eq 'unsigned-get') { $status=400; $class='other'; $code='InvalidArgument'; $bodyHash='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'; $prefixHash='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }
             elseif ($operation -eq 'delete' -and $key -like 'probe/unlocked/*') { $status=204 }
             elseif ($key -like 'probe/unlocked/*' -and $operation -eq 'authenticated-get' -and $script:fakeUnlockedDeleted) { $status=404; $class='not-found'; $code='NoSuchKey'; $bodyHash=$null; $prefixHash=$null }
             elseif ($key -like 'probe/locked/*' -and (($operation -eq 'put' -and $hash -eq $global:RouteProofTestChangedHash) -or $operation -eq 'delete')) { $status=403; $class='forbidden'; $code='ObjectLockedByBucketPolicy' }
@@ -402,6 +406,7 @@ Export-ModuleMember -Function Invoke-R2RouteTransport
         $result=Invoke-RouteProofLoop 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com' $runId $json
         Assert ($result.ExitCode -eq 0) "valid production loop failed: $(($result.Records.phase -join ','))"
         Assert ($result.Records.Count -eq 13 -and $result.Records[-1].phase -eq 'complete') 'full loop did not emit 12 operations plus completion'
+        Assert ($result.Records[2].httpStatus -eq 400 -and $result.Records[2].s3Code -ceq 'InvalidArgument') 'unsigned 400 was rewritten in the observation record'
         Assert (($result.Records | Where-Object { $_.phase -ne 'complete' } | Measure-Object).Count -eq 12) 'not all production operations were observed'
         Assert (($result.Records | Where-Object { $_.phase -like 'locked-*' -and $_.phase -ne 'locked-confirm' } | Where-Object cleanup -ne 'unconfirmed' | Measure-Object).Count -eq 0) 'intermediate lock operation claimed retention before final GET'
         Assert ($result.Records[-1].cleanup -eq 'removed; locked object retained') 'completed lock verification did not record final retention'
