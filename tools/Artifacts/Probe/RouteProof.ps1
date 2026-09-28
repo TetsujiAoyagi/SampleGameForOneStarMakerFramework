@@ -327,8 +327,10 @@ function Test-UnsignedPrivacy($Observation, [string] $Hash, [int] $Bytes) {
 
 function Test-LockRejection($Observation) {
     try { Assert-Observation $Observation } catch { return $false }
-    return $Observation.HttpStatus -eq 403 -and $Observation.StatusClass -eq 'forbidden' -and
-        $Observation.S3Code -ceq 'ObjectLockedByBucketPolicy' -and
+    # Bucket Lock の実測409も status/class/Code の組だけを許可し、汎用409へ広げません。
+    $pairedDenial = ($Observation.HttpStatus -eq 403 -and $Observation.StatusClass -ceq 'forbidden') -or
+        ($Observation.HttpStatus -eq 409 -and $Observation.StatusClass -ceq 'other')
+    return $pairedDenial -and $Observation.S3Code -ceq 'ObjectLockedByBucketPolicy' -and
         -not $Observation.TimedOut -and $Observation.EofConfirmed -and
         -not $Observation.LimitReached -and -not $Observation.Redirected
 }

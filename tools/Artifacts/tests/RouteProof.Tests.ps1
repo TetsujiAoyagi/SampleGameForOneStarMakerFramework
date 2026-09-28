@@ -148,11 +148,19 @@ try {
         Assert ($script:callbackTransportCalls -eq 0) 'expired callback invoked transport after the operation deadline'
     }
     Run 'lock requires exact provider code' {
-        Assert (Test-LockRejection (Fake-Observation -Operation 'put' -S3Code 'ObjectLockedByBucketPolicy')) 'lock rejection rejected'
+        Assert (Test-LockRejection (Fake-Observation -Operation 'put' -S3Code 'ObjectLockedByBucketPolicy')) '403 lock rejection rejected'
+        Assert (Test-LockRejection (Fake-Observation -Operation 'delete' -HttpStatus 409 -StatusClass 'other' -S3Code 'ObjectLockedByBucketPolicy')) '409 lock rejection rejected'
         Assert (-not (Test-LockRejection (Fake-Observation -Operation 'put' -S3Code 'AccessDenied'))) 'generic 403 accepted'
+        Assert (-not (Test-LockRejection (Fake-Observation -Operation 'put' -HttpStatus 409 -StatusClass 'other' -S3Code 'AccessDenied'))) 'generic 409 accepted'
+        Assert (-not (Test-LockRejection (Fake-Observation -Operation 'put' -HttpStatus 409 -StatusClass 'forbidden' -S3Code 'ObjectLockedByBucketPolicy'))) '409 with crossed class accepted'
+        Assert (-not (Test-LockRejection (Fake-Observation -Operation 'put' -HttpStatus 403 -StatusClass 'other' -S3Code 'ObjectLockedByBucketPolicy'))) '403 with crossed class accepted'
         Assert (-not (Test-LockRejection (Fake-Observation -Operation 'put' -S3Code 'ObjectLockedByBucketPolicy' -TimedOut $true -EofConfirmed $false))) 'timed out lock response accepted'
         Assert (-not (Test-LockRejection (Fake-Observation -Operation 'put' -S3Code 'ObjectLockedByBucketPolicy' -LimitReached $true))) 'truncated lock response accepted'
         Assert (-not (Test-LockRejection (Fake-Observation -Operation 'put' -S3Code 'ObjectLockedByBucketPolicy' -Redirected $true))) 'redirected lock response accepted'
+        Assert (-not (Test-LockRejection (Fake-Observation -Operation 'delete' -HttpStatus 409 -StatusClass 'other' -S3Code 'ObjectLockedByBucketPolicy' -TimedOut $true))) 'timed out 409 accepted'
+        Assert (-not (Test-LockRejection (Fake-Observation -Operation 'delete' -HttpStatus 409 -StatusClass 'other' -S3Code 'ObjectLockedByBucketPolicy' -EofConfirmed $false))) '409 without EOF accepted'
+        Assert (-not (Test-LockRejection (Fake-Observation -Operation 'delete' -HttpStatus 409 -StatusClass 'other' -S3Code 'ObjectLockedByBucketPolicy' -LimitReached $true))) '409 at limit accepted'
+        Assert (-not (Test-LockRejection (Fake-Observation -Operation 'delete' -HttpStatus 409 -StatusClass 'other' -S3Code 'ObjectLockedByBucketPolicy' -Redirected $true))) 'redirected 409 accepted'
     }
     Run 'timeout and transport failures are inconclusive' {
         $fake = Fake-Observation -StatusClass 'timeout' -HttpStatus 0 -S3Code $null -EofConfirmed $false -TimedOut $true
@@ -396,7 +404,11 @@ Export-ModuleMember -Function Invoke-R2RouteTransport
             if ($operation -eq 'unsigned-get') { $status=400; $class='other'; $code='InvalidArgument'; $bodyHash='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'; $prefixHash='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }
             elseif ($operation -eq 'delete' -and $key -like 'probe/unlocked/*') { $status=204 }
             elseif ($key -like 'probe/unlocked/*' -and $operation -eq 'authenticated-get' -and $script:fakeUnlockedDeleted) { $status=404; $class='not-found'; $code='NoSuchKey'; $bodyHash=$null; $prefixHash=$null }
-            elseif ($key -like 'probe/locked/*' -and (($operation -eq 'put' -and $hash -eq $global:RouteProofTestChangedHash) -or $operation -eq 'delete')) { $status=403; $class='forbidden'; $code='ObjectLockedByBucketPolicy' }
+            elseif ($key -like 'probe/locked/*' -and (($operation -eq 'put' -and $hash -eq $global:RouteProofTestChangedHash) -or $operation -eq 'delete')) { $status=409; $class='other'; $code='ObjectLockedByBucketPolicy' }
+            elseif ($operation -eq 'authenticated-get' -and $key -like 'probe/locked/*') {
+                $script:fakeLockedGetCount++
+                if ($script:fakeWrongFinalHash -and $script:fakeLockedGetCount -eq 2) { $bodyHash=$global:RouteProofTestChangedHash; $prefixHash=$global:RouteProofTestChangedHash }
+            }
             if ($operation -eq 'delete' -and $key -like 'probe/unlocked/*') { $script:fakeUnlockedDeleted=$true }
             $uriSegments=@($key -split '/' | ForEach-Object { [uri]::EscapeDataString($_) })
             $method=$null; $uri=$null
@@ -407,6 +419,7 @@ Export-ModuleMember -Function Invoke-R2RouteTransport
             return Invoke-JsonEchoChild $jsonLine
         }
         $script:fakeUnlockedDeleted=$false
+        $script:fakeWrongFinalHash=$false; $script:fakeLockedGetCount=0
         $global:RouteProofTestLockedChangedHash=$global:RouteProofTestChangedHash
         $json=[pscustomobject]@{Prefix='probe/locked/';Enabled=$true;Kind='Age';RetentionSeconds=900;RuleCount=1;DateRules=0;IndefiniteRules=0;WriterCanConfigure=$false;LifecycleCompatible=$true;BeforeHash=$ruleHash}|ConvertTo-Json -Compress
         $result=Invoke-RouteProofLoop 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com' $runId $json
@@ -414,10 +427,20 @@ Export-ModuleMember -Function Invoke-R2RouteTransport
         Assert ($result.Records.Count -eq 13 -and $result.Records[-1].phase -eq 'complete') 'full loop did not emit 12 operations plus completion'
         Assert ($result.Records[2].httpStatus -eq 400 -and $result.Records[2].s3Code -ceq 'InvalidArgument') 'unsigned 400 was rewritten in the observation record'
         Assert (($result.Records | Where-Object { $_.phase -ne 'complete' } | Measure-Object).Count -eq 12) 'not all production operations were observed'
+        $lockedOverwrite=$result.Records | Where-Object phase -eq 'locked-overwrite' | Select-Object -First 1
+        $lockedDelete=$result.Records | Where-Object phase -eq 'locked-delete' | Select-Object -First 1
+        $lockedConfirm=$result.Records | Where-Object phase -eq 'locked-confirm' | Select-Object -First 1
+        Assert ($lockedOverwrite.httpStatus -eq 409 -and $lockedOverwrite.statusClass -ceq 'other' -and $lockedOverwrite.s3Code -ceq 'ObjectLockedByBucketPolicy') 'locked overwrite did not preserve the 409 tuple'
+        Assert ($lockedDelete.httpStatus -eq 409 -and $lockedDelete.statusClass -ceq 'other' -and $lockedDelete.s3Code -ceq 'ObjectLockedByBucketPolicy') 'locked DELETE did not preserve the 409 tuple'
+        Assert ($lockedConfirm.observedHash -ceq $lockedConfirm.expectedHash -and $lockedConfirm.observedBytes -eq $lockedConfirm.expectedBytes) 'final authenticated GET did not confirm original bytes and hash'
         Assert (($result.Records | Where-Object { $_.phase -like 'locked-*' -and $_.phase -ne 'locked-confirm' } | Where-Object cleanup -ne 'unconfirmed' | Measure-Object).Count -eq 0) 'intermediate lock operation claimed retention before final GET'
         Assert ($result.Records[-1].cleanup -eq 'removed; locked object retained') 'completed lock verification did not record final retention'
         Assert (@($result.Records | Where-Object { $null -ne $_.lockRule -and $null -ne $_.lockRule.afterHash }).Count -eq 0) 'normal loop invented an After hash'
-        $script:RouteProofClock=$null; $script:RouteProofChildRunner=$null; $script:fakeUnlockedDeleted=$false
+        $script:fakeUnlockedDeleted=$false; $script:fakeWrongFinalHash=$true; $script:fakeLockedGetCount=0
+        $mismatch=Invoke-RouteProofLoop 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com' $runId $json
+        $failedConfirm=$mismatch.Records | Where-Object phase -eq 'locked-confirm' | Select-Object -First 1
+        Assert ($mismatch.ExitCode -eq 4 -and $failedConfirm.result -eq 'inconclusive' -and $mismatch.Records[-1].result -eq 'inconclusive') 'changed final GET hash was accepted as completed lock proof'
+        $script:RouteProofClock=$null; $script:RouteProofChildRunner=$null; $script:fakeUnlockedDeleted=$false; $script:fakeWrongFinalHash=$false; $script:fakeLockedGetCount=0
     }
     Run 'monotonic operation start timestamp is comparable in child pwsh' {
         # 親の起動前timestampを子pwshへ引数で渡し、同じ時計基準で起動時間を測れることを実processで確認します。
