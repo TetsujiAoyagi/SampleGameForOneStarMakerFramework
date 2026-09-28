@@ -35,3 +35,13 @@ Bの引渡し条件を満たしたため、400未解決のままPhase Bを終了
 - `RouteProof.Tests.ps1` の関連 `-Case @('unsigned*','timeout*','production loop completes*')`: 6件成功、0件失敗。全 `RouteProof.Tests.ps1`: 26件成功、0件失敗。`pwsh tools/contract-audit.ps1` と `git diff --check`: 成功。
 - 実装 head の SHA-256: `RouteProof.ps1` は `F70917424219EC6487199C6A5155B08729375959308902E4A63AC18653798CE4`、`RouteProof.Tests.ps1` は `5FFD39CBCF7F2123109D82FAE753E03B160650A6A2080911B6EE644430594B6B`。
 - README、transport、credential store、設定は変更していない。R2 通信、実 profile / Bucket Lock 設定の変更、実 After 観測、DLL build、Phase C の判定必須検証と固定 evidence、Phase C'、Unity の Editor compile / EditMode / PlayMode / build は未実行。今回の変更は PowerShell 2ファイルだけで、R2 の実経路や slice GO を証明しない。
+
+## Phase A revision 4 に対する局所 B 適応
+
+- Phase A snapshot: `docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION_4.md`、UTF-8/LF SHA-256 `C349E7281FD45673C08BFE702EEC003B634AC0C16DAA97EBAF8328083AAF34FA`、凍結commit `3022005b7275fa4ef557ee13811bcc56c7ece52f`。実装開始点 `31be639a968402e0bdf3f65fd9eda8d0d818dbf3`、開始時docs tip `3022005b7275fa4ef557ee13811bcc56c7ece52f`。
+- 実装 head: `9c46b5837796de23465f6d9c059bb326c2f06858`（2026-09-28T17:22:14Z）。以降の本 B result 更新commitはdocs-onlyであり、実装headに含めない。
+- revision 3 のlocked上書きで `409 / other / ObjectLockedByBucketPolicy` を観測したため、`Test-LockRejection`にこの正確な同一応答tupleを追加した。既存の `403 / forbidden / ObjectLockedByBucketPolicy` とtimeout・EOF・redirect・limit guardを維持し、汎用409やstatus/classの交差値は拒否する。production loopの同一Generation、保持内、陽性対照、最終認証GETの元byte数・hash照合は変更していない。
+- `RouteProof.Tests.ps1`で403/409の許可tuple、不許可Code・交差class・timeout・EOF不明・limit・redirectを確認した。本番12操作loopとJSON境界を通し、locked上書きとDELETEの両方が409でも元hash GET後に完走し、最終GETがchanged hashならinconclusiveになることを確認した。`tools/Artifacts/README.md`にも限定tupleと最終GET条件、旧runの未到達範囲を反映した。
+- 関連 `-Case @('lock*','production*','unsigned*','timeout*','transport timeout*','pipe budget*','stdout*','child stop*','ambiguous initial*','unconfirmed child*')`: 16件成功、0件失敗。`dotnet build tools/Artifacts/Probe/R2RouteTransport.csproj -c Release -o tools/Artifacts/Probe/artifacts/route-transport --no-restore`: 成功、警告0・エラー0。`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、`git diff --check`: 成功。
+- 実装 head 時点のSHA-256: `RouteProof.ps1` `EEC708C0BDC14650CCF7E6C0F1FD6521AD1149E7C25B237C09255508533572E4`、`RouteProof.Tests.ps1` `B305F3E6BCE312B247E14D82142121C81DCEB3984030085D987778A149AC3849`、`tools/Artifacts/README.md` `401BA80AC5A5F45A6A40BE38A4A760FAD8E774DAD3C8FF1407EAD971AEFC4BDE`、build後の `R2RouteTransport.dll` `EA45A0314056F88CBCDEEEBD9304D49A0B96C2B20B7C2B287462E9C924ADA7F6`。SHAは作業ツリーのファイルbyteに対する値。
+- R2RouteTransport.cs / SDK / CredentialStore / profile / ruleは変更していない。R2通信、実前後設定取得、Phase Cの全件回帰・live・GO判定、Phase C'、Unity Editor compile / EditMode / PlayMode / buildは未実行。今回のbuildとoffline回帰は実R2のLock実効性を証明しない。
