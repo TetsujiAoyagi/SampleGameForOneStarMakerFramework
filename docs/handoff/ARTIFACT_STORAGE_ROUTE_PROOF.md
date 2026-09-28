@@ -2,21 +2,22 @@
 
 ## 0. 現在の入力
 
-- type: slice / status: A3 凍結済み（revision 2）、Phase B 完了・Phase C 未開始
+- type: slice / status: revision 3 A3 凍結済み。旧 revision 2 は凍結のまま、旧 B 完了・旧 C は inconclusive。f256252 の source-first 修正を新 head 候補として固定し、新判定 C / C' は未実施。
 - branch: codex/artifact-storage-route-proof / risk: high
 - owner: repository owner / created: 2026-09-29 JST / expires: Phase D または次の A revision
 - harvest to: tools/Artifacts/README.md、BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md の現況
 - implementation base: 93d2a1c436361ef6ee702096a61087cde55319b4
 - 既存 implementation head / 新 B の開始点: da4e405a0c5019a2f0edd857e1a2c11b61432c34
 - A 開始時 docs tip: dfbed2fdd48027ccbdcaecbbd8124da30019a362
-- 新 implementation head: 8c1793ec507205d5134da5a9fd22b6d12c33cb56。B result: [ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md)、生成UTC 2026-09-28T15:51:57Z、SHA-256 2A274CD6A7197F973529A28374A100368D3A74087306DDDBFAA7654F4B100043。判定 evidence / C' bundle: 未生成。B resultを収録するdocs-only commitはimplementation headにしない。
-- Phase A 規範本文: [ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION.md](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION.md)。本台帳は議論・errata・進行を持ち、C' に渡さない。
+- 新 implementation head 候補: f256252f31bd90c308b63f97a301539ad7e1cfc8（source-first 修正）。旧 B head: 8c1793ec507205d5134da5a9fd22b6d12c33cb56。B result: [ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md)、生成UTC 2026-09-28T15:51:57Z、SHA-256 2A274CD6A7197F973529A28374A100368D3A74087306DDDBFAA7654F4B100043。新判定 evidence / C' bundle: 未生成。docs-only commitはimplementation headにしない。
+- 現行 Phase A 規範本文: [ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION_3.md](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION_3.md)。旧凍結規範: [ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION.md](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION.md)。本台帳は議論・errata・進行を持ち、C' に渡さない。
 - A3 snapshot 生成 UTC: 2026-09-28T15:26:42Z。
 - A3 snapshot SHA-256（UTF-8 / LF）: 91BEA838FCE7C3C2092E7CA1B9DB58D896C1737CE502513E723B248F5C573217。CRLF checkout では LF に正規化して照合する。Git blob: 16a78f2f46e902db0cab7f6a4a288f085faceeeb。
 - 固定 commit: 本文書と snapshot を収録する docs-freeze-artifact-route-proof-a3-r2。自己参照する commit SHA は本文へ埋め込まず、引継ぎプロンプトに確定 SHA を示す。凍結 snapshot の内容は以後変更しない。
 - レビュー統合済み候補: 2026-09-28T15:22:57Z、規範本文 SHA-256 662A26AED6B6010D7C9C115F21492A9134A82BE745CE427086DA0C598F03E380。これは承認前候補の識別子で、A3凍結記録ではない。
+- revision 3 A3 snapshot 生成 UTC: 2026-09-28T16:34:42Z。SHA-256（UTF-8 / LF）: F34E67FA3747F84C6C11759B2CA46D67303ED01A0DDBC69AE5777C859FF78F57。CRLF checkout では LF に正規化して照合する。固定 commit は本台帳・snapshot・docs/README.md を収録する docs-freeze-artifact-route-proof-a3-r3。確定 SHA は引継ぎ時に指定し、snapshot 自体へ自己 hash を埋め込まない。
 
-本文書と規範本文を現行入力とする。新たな commit 別 RESULT / FINAL / RERUN は増やさない。旧固定 snapshot・結果は過去の対象版の証拠として保存する。
+本文書と現行規範本文を入力とする。新たな commit 別 RESULT / FINAL / RERUN は増やさない。旧固定 snapshot・結果は過去の対象版の証拠として保存する。以下の §1〜§9 は revision 2 の履歴であり、revision 3 の採否・現況は §10 に記録する。
 
 ## 1. A0 — 固定した現況と問い
 
@@ -126,3 +127,25 @@ source・DLL・依存hashは実行直前/直後に照合し一致、間にbuild�
 ## 9. Phase D
 
 C/C' 突合・マージ・harvest 未実施。本改訂の作成を slice 完了としない。
+
+## 10. Phase A revision 3 — source-first 400 受け入れ
+
+### A0 / A1
+
+owner は、400 の原因を修正できなかった後に source を先に修正した事実を明示し、A をその事実に合わせて新 revision として A3 凍結し、400 を受け入れるよう指示した。追加のLockスクリーンショット提出は求めず、既設設定を維持したオンライン検証も許可した。主担当はこの指示を、同一の正規 unsigned GET が存在 object の内容を返さなかった実観測を限定合格に加える判断として固定した。「400を認証拒否の原因と確定」「旧 run を新 head の合格証拠とする」「A3だけでGO」とはしない。
+
+A0 の現況: 旧凍結 revision 2 の規範本文・SHAは§0のとおり不変。旧 B head 8c1793e の C live は認証PUT/GET、unsigned 400/InvalidArgument/EOF、回復清掃まで観測し、lockには未到達。旧 C の実測と原画像は `artifacts/route-proof-phase-c-8c1793e/` に保持。source-first commit f256252 は `RouteProof.ps1`、`RouteProof.Tests.ps1`、`tools/Artifacts/README.md` だけを変更し、400/other/InvalidArgument を guard 付きで受け入れる。新 head の判定 C / C' と Bucket Lock 実効性は未実施。今回の問いと最低条件・対象外・停止規則は新規範本文§1〜§6。400原因の解明は最低条件ではない。
+
+A1 は [revision 3 規範本文](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION_3.md) に自己完結して記載。source-first 候補の既知の `TimedOut=true / EofConfirmed=true` 誤合格余地を固定し、発見 C から必須の局所 B 適応と回帰に戻す。公開設定・全有効Lock rule・lifecycle・writer権限の前後観測経路は、主担当が保存済みCloudflare profileの管理画面で read-only 疎通確認し、非秘密記録 `artifacts/route-proof-phase-a-r3/settings-path-check.txt` を保存した。これは新 run の前後証拠ではない。新 run では C が同じ経路で時刻付き生テキストを取得し、設定を変更しない。
+
+### A2 独立レビューと採否
+
+- A0のみの代替構成: GPT-6 Luna / OpenAI、subagent `/root/a0_alternative`。限定非露出と認証原因の主張を分離し、旧8cのrunをf256のGOへ転用しない提案を採用。
+- A2 同一入力: revision 3 A1候補（UTF-8/LF SHA-256 `007923B153B18305157554F8553133C5EB91F6F2C1CB360574C75C7FB39BA088`）、本台帳の当時の§0/§1、AGENTS.md、workflow Skillと参照。レビュー相互の所見は非提示。architecture担当 GPT-6 Astra / OpenAI `/root/a2_arch_r3`、failure/evidence担当 GPT-5.6 Sol / OpenAI `/root/a2_evidence_r3`。architecture担当の初回読取には台帳§2以降の旧A2/旧C履歴が混入したが、新r3の他A2所見は参照していない。
+- 両レビューの設定取得経路 blocker: 採用。既提出のowner画像を将来の事後証拠にせず、主担当が in-app browser の Cloudflare bucket Settings と writer token 詳細を実際に閲覧した。規範本文§2.3に C の操作、観測項目、UTC・URL・DOM保存、認証喪失時の実行前停止を追記。両担当が自身の所見の閉鎖を確認。
+- failure/evidence担当の timeout guard blocker: 採用。f256252 の `Test-UnsignedPrivacy` に `TimedOut` 明示拒否がない具体的違反を規範本文§4へ固定し、§5に矛盾観測の非合格回帰を必須化。これは予定された局所 B 適応であり、400の合格集合を広げる追加設計ではない。担当が自身の所見の閉鎖を確認した。
+- その他の構造・旧run非転用・C'独立性・400の限定意味・停止規則は妥当と評価。不採用はなし。保留は400の因果と新headでのlock実効性で、GO判定へ偽装しない。
+
+### A3 凍結境界
+
+ownerの「Aをそのように直してA3凍結して、400受け入れます」を統合承認とし、A2 blocker の閉鎖後 2026-09-28T16:34:42Z に規範本文を A3 凍結した。snapshot SHA-256 と固定 commit は§0に記録する。凍結後も旧 revision 2 の snapshot は一切編集しない。A3完了はGOではなく、既知 timeout の局所修正、同じ新実装headでの限定・全回帰、12操作 live、Bucket Lockと前後設定の実観測、判定 C / 独立 C' がGOに残る。
