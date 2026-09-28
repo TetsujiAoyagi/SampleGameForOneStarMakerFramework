@@ -2,22 +2,23 @@
 
 ## 0. 現在の入力
 
-- type: slice / status: revision 3 A3 凍結済み。B head 31be639 の判定 C は locked 上書きの 409 / ObjectLockedByBucketPolicy で inconclusive。GO なし、C' 未実施。現在の証拠と停止位置は §11。
+- type: slice / status: revision 4 A3 凍結済み。revision 3 の B head 31be639 に対する判定 C は locked 上書きの409で inconclusive、§11に保存。revision 4 の局所 B / 新 C / C' は未実施。GOなし。
 - branch: codex/artifact-storage-route-proof / risk: high
 - owner: repository owner / created: 2026-09-29 JST / expires: Phase D または次の A revision
 - harvest to: tools/Artifacts/README.md、BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md の現況
 - implementation base: 93d2a1c436361ef6ee702096a61087cde55319b4
 - 既存 implementation head / 新 B の開始点: da4e405a0c5019a2f0edd857e1a2c11b61432c34
 - A 開始時 docs tip: dfbed2fdd48027ccbdcaecbbd8124da30019a362
-- 新 implementation head 候補: f256252f31bd90c308b63f97a301539ad7e1cfc8（source-first 修正）。旧 B head: 8c1793ec507205d5134da5a9fd22b6d12c33cb56。B result: [ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md)、生成UTC 2026-09-28T15:51:57Z、SHA-256 2A274CD6A7197F973529A28374A100368D3A74087306DDDBFAA7654F4B100043。新判定 evidence / C' bundle: 未生成。docs-only commitはimplementation headにしない。
-- 現行 Phase A 規範本文: [ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION_3.md](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION_3.md)。旧凍結規範: [ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION.md](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION.md)。本台帳は議論・errata・進行を持ち、C' に渡さない。
+- 最新の実装 head / revision 4 B開始点: 31be639a968402e0bdf3f65fd9eda8d0d818dbf3。旧 B head: 8c1793ec507205d5134da5a9fd22b6d12c33cb56。B result: [ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md)（局所適応を追記済み）。revision 4 の新判定 evidence / C' bundle: 未生成。docs-only commitはimplementation headにしない。
+- 現行 Phase A 規範本文: [ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION_4.md](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION_4.md)。旧凍結規範: [revision 3](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION_3.md)、[revision 2](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION.md)。本台帳は議論・errata・進行を持ち、C' に渡さない。
 - A3 snapshot 生成 UTC: 2026-09-28T15:26:42Z。
 - A3 snapshot SHA-256（UTF-8 / LF）: 91BEA838FCE7C3C2092E7CA1B9DB58D896C1737CE502513E723B248F5C573217。CRLF checkout では LF に正規化して照合する。Git blob: 16a78f2f46e902db0cab7f6a4a288f085faceeeb。
 - 固定 commit: 本文書と snapshot を収録する docs-freeze-artifact-route-proof-a3-r2。自己参照する commit SHA は本文へ埋め込まず、引継ぎプロンプトに確定 SHA を示す。凍結 snapshot の内容は以後変更しない。
 - レビュー統合済み候補: 2026-09-28T15:22:57Z、規範本文 SHA-256 662A26AED6B6010D7C9C115F21492A9134A82BE745CE427086DA0C598F03E380。これは承認前候補の識別子で、A3凍結記録ではない。
 - revision 3 A3 snapshot 生成 UTC: 2026-09-28T16:34:42Z。SHA-256（UTF-8 / LF）: F34E67FA3747F84C6C11759B2CA46D67303ED01A0DDBC69AE5777C859FF78F57。CRLF checkout では LF に正規化して照合する。固定 commit は本台帳・snapshot・docs/README.md を収録する docs-freeze-artifact-route-proof-a3-r3。確定 SHA は引継ぎ時に指定し、snapshot 自体へ自己 hash を埋め込まない。
+- revision 4 A3 snapshot 生成 UTC: 2026-09-28T17:05:32Z。SHA-256（UTF-8 / LF）: C349E7281FD45673C08BFE702EEC003B634AC0C16DAA97EBAF8328083AAF34FA。CRLF checkout では LF に正規化して照合する。固定 commit は本台帳・snapshot・docs/README.md を収録する docs-freeze-artifact-route-proof-a3-r4。確定 SHA は引継ぎ時に指定し、snapshot 自体へ自己 hash を埋め込まない。
 
-本文書と現行規範本文を入力とする。新たな commit 別 RESULT / FINAL / RERUN は増やさない。旧固定 snapshot・結果は過去の対象版の証拠として保存する。以下の §1〜§9 は revision 2 の履歴であり、revision 3 の採否は §10、現在の判定 C は §11 に記録する。
+本文書と現行規範本文を入力とする。新たな commit 別 RESULT / FINAL / RERUN は増やさない。旧固定 snapshot・結果は過去の対象版の証拠として保存する。§1〜§9 は revision 2 の履歴、§10〜§11 は revision 3、revision 4 の採否・現在の入力は §12 に記録する。
 
 ## 1. A0 — 固定した現況と問い
 
@@ -169,3 +170,22 @@ unlocked は NoSuchKey まで確認済み。残存予定 key は `probe/locked/6
 fresh pwsh の loaded assembly location/hash と実行前後 DLL・依存hashが一致。DLL SHA-256 は `ED3A6DE29DC34D3F88BEC55A8CAFDDBE2AC7051AB50F32F93F731633A0AE9909`。実行間に build/copy はない。source は build前と実行前後の `git diff --exit-code <head> -- tools/Artifacts .gitignore` が成功して同じ固定headと照合された。ただし収録用scriptのcase-insensitive globにより、前後manifestのFiles配列からtools/Artifacts sourceが抜けた。原manifestを変更せず、事後の `source-correspondence.json` に12ファイルのSHA-256・作業tree Git blob・固定head blob一致を補記した。事前source SHA一覧を取得済みとは主張しない。
 
 証拠id/path は `artifacts/route-proof-phase-c-31be639/`、manifest生成UTC `2026-09-28T16:55:38.8649494Z`。全差分・snapshot・build/load・全試験ログ・設定前後DOM・入力・live JSONL・実行物4ファイル・対応manifestを収録。生JSONL SHA-256 は `A2B8F962EA57B388AC88520CB87003D665D8369574554F0CDF3CD69C244E0FC5`。`files.sha256` 自体のSHA-256は `74CE1413AB3DA337814082333B8978F037B9180CEFDC4EB21D38E89ABFEC7A18`。同じローカルpathから取得し各行をSHA-256照合する。監査とPhase D終了まで保持し、artifactsはstage/commitしない。C' blind bundleは未生成、転送検証は未実施。結論は **inconclusive / GOなし**。
+
+## 12. Phase A revision 4 — Lock 409 の限定受け入れ
+
+### A0 / A1
+
+§11の同じhead・同じrunでは、限定400を通過しunlockedの全操作、locked PUT/認証GETまで成功したが、locked上書きで `409 / other / ObjectLockedByBucketPolicy` を観測した。Cloudflareの[公式エラー表](https://developers.cloudflare.com/r2/api/error-codes/)は同Codeを403と説明する。A3 revision 3の403条件を変更せずに409を合格とすることはできず、旧Cはinconclusiveのまま保持する。現スライスの問いは変えず、今答えていない locked DELETE 拒否・最終原hash GETを新headと新runで確かめる。
+
+A1 は [revision 4 規範本文](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION_4.md) に自己完結して記載。409/other/ObjectLockedByBucketPolicy を403/forbidden/同Codeに加えるが、両拒否操作の同一応答tuple、陽性対照、同じwriter Generation、保持内、最後の認証GETで原byte/hash、前後設定一致をすべて必須にする。statusやCode単独、旧partial run、probe exit 0だけではGOにしない。既存 profile・rule・SDK・transport・秘密の寿命・実payloadは変えない。新runの前後観測はCが確認済みの管理画面経路で取得し、ownerへ画像を再要求しない。
+
+### A2 独立レビューと採否
+
+- A0のみの代替案: GPT-6 Luna / OpenAI、subagent `/root/a0_lock409_alt`。A1非提示。旧runの409をGOにせずAを改訂し、正確なLock拒否tupleと未到達のDELETE/最終GETを要求する案を採用。旧keyで不足分だけ確認する案は不採用。旧runはsource SHA一覧の事前収録が不完全であり、判定C/C'に必要な同一最終headの12操作・完全な前後実行物対応を新runで揃える方を選んだ。
+- A2 同一入力版: revision 4 A1初稿（UTF-8/LF SHA-256 `5EE0424B7D1A01C605653D2E0E5A576EB3664E3C99DEA163A1253B68313BE3D8`）、本台帳§0/§11、AGENTS.mdとworkflow参照。architecture担当 GPT-6 Astra / OpenAI `/root/a2_arch_r4`、failure/evidence担当 GPT-5.6 Sol / OpenAI `/root/a2_failure_r4`。相互の所見は非提示。
+- architecture: blockerなし。409の判定policyを既存 `Test-LockRejection` に置き、transport / store / UI証拠責務を増やさない配置、限られたPS/.NET回帰、時刻付き前後観測を妥当と評価。任意明確化「今回の409対応ではtransportを変更せず、別の正規request違反が示されたときだけ§3を再照合」は採用し規範本文§4へ反映。
+- failure/evidence: 同一入力版で409をstatus単独にせず、上書きとDELETEの双方、最終原hash GET、陽性対照、新head・新run、C/C'を要求する設計にblockerなし。レビュー中に主担当が任意明確化を先に一時反映し初稿hashがずれたため、元の初稿へ戻して指定hashを再照合し、担当が同一入力版として閉鎖確認した。その後に任意明確化を統合した。内容上の不採用・保留指摘はない。
+
+### A3 凍結境界
+
+ownerの「GOになるまでやって」「これ以上私に何かを求めない」「全部承認なしですすめて」を、既設設定と元の問いを維持したこの限定改訂・新1 runへの統合承認として扱う。2026-09-28T17:05:32Z に規範本文をA3凍結した。snapshot SHA-256と固定commitは§0に記録する。これはGO/C'合格を意味しない。新Bは409 paired tupleだけを局所実装し、別セッションのCは新headの全判定と1 run、C'は必須証拠が揃った場合だけ独立監査する。旧snapshot/旧bundleは変更せず、artifactsはstage/commitしない。
