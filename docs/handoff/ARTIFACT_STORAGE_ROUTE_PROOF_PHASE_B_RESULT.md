@@ -27,3 +27,11 @@
 - R2への通信、実profileやBucket Lock設定の変更、実After観測、Phase Cの全件判定回帰/固定evidence、Phase C'は未実行。Unity側に変更はなく、EditMode/PlayMode/buildも未実行。
 
 Bの引渡し条件を満たしたため、400未解決のままPhase Bを終了する。sliceのGO、R2採用、Phase C/C'完了を意味しない。
+
+## Phase A revision 3 に対する局所 B 適応
+
+- Phase A snapshot: `docs/handoff/ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION_3.md`、UTF-8/LF SHA-256 `F34E67FA3747F84C6C11759B2CA46D67303ED01A0DDBC69AE5777C859FF78F57`、凍結 commit `5172d597cd2725f3cff4305d9bddce237071c685`。source-first 候補は `f256252f31bd90c308b63f97a301539ad7e1cfc8`。
+- 実装 head: `31be639a968402e0bdf3f65fd9eda8d0d818dbf3`（2026-09-28T16:42:10Z）。`Test-UnsignedPrivacy` の限定400判定に `-not $Observation.TimedOut` を追加した。`400 / other / InvalidArgument`、`EofConfirmed=true`、異なる本文・prefix hash でも `TimedOut=true` なら非合格になる回帰を追加した。既存の status/class/Code、EOF、上限、redirect、hash の判定は維持した。
+- `RouteProof.Tests.ps1` の関連 `-Case @('unsigned*','timeout*','production loop completes*')`: 6件成功、0件失敗。全 `RouteProof.Tests.ps1`: 26件成功、0件失敗。`pwsh tools/contract-audit.ps1` と `git diff --check`: 成功。
+- 実装 head の SHA-256: `RouteProof.ps1` は `F70917424219EC6487199C6A5155B08729375959308902E4A63AC18653798CE4`、`RouteProof.Tests.ps1` は `5FFD39CBCF7F2123109D82FAE753E03B160650A6A2080911B6EE644430594B6B`。
+- README、transport、credential store、設定は変更していない。R2 通信、実 profile / Bucket Lock 設定の変更、実 After 観測、DLL build、Phase C の判定必須検証と固定 evidence、Phase C'、Unity の Editor compile / EditMode / PlayMode / build は未実行。今回の変更は PowerShell 2ファイルだけで、R2 の実経路や slice GO を証明しない。
