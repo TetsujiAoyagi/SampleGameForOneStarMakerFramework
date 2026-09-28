@@ -42,7 +42,7 @@
 | `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b / S-4c 完了。S-4d は VFX / Events の着手時に HANDOFF を切る |
 | `REVIEW_WORKFLOW_EFFICIENCY.md` | 外部モデルレビューの実測と、次のPhase Cで残す比較項目 | いいえ。普遍契約はSkillへharvest済み。残る実測後に削除する |
 | `REVIEW_WORKFLOW_EFFICIENCY_ASSESSMENT.md` | 上記への独立評価（Claude / Grok）と採否記録 | いいえ。次のPhase Cで残る仮説を検証後、調査記録ごと削除する |
-| `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` | Artifact Storageの保存先・責務・セキュリティ境界と後続段 | program r4とRoute proof revision 2/3/4はA3凍結済み。revision 3の400限定受け入れはliveで通過したが、locked上書き409で停止。revision 4は409を正確なLock拒否tupleとして限定受け入れし、未到達のDELETE拒否・原hash GETを新runで検証する。新headの判定C/C'、Bucket Lock実効性、実Evidence / Build転送、Cloud成立は未確認。GOなし |
+| `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` | Artifact Storageの保存先・責務・セキュリティ境界と後続段 | program r4の順序・保護境界はA3凍結済み。Route proofは[PR #81](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/81)で限定slice GOとPhase Dを完了。次は最小Artifact CLIの着手時Phase A。実Evidence / Build転送、Cloud成立、R2の全面採用は未確認 |
 
 Streaming の M-1〜M-4 と S-4c は完了し、決定を公開面へ harvest して、移行計画と各着手時 HANDOFF を削除済み。テストアセンブリの分離も完了し、依存の向きは `unity/Assets/README.md` と `unity/Assets/Docs/Architecture/27-folder-structure.md` にある。完了済み HANDOFF は復活させない。
 

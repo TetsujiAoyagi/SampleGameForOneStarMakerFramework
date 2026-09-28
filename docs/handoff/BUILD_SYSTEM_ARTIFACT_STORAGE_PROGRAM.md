@@ -3,7 +3,7 @@
 ## 0. Metadata
 
 - type: `program`
-- status: program進行中。ローカル段1（旧スライス0）はPhase D承認済み。r4の順序・保護境界はA3凍結済み。Route proofのPhase Bは別HANDOFFのA3で許可するが、R2の本採用と実payload転送は未承認。
+- status: program進行中。ローカル段1（旧スライス0）とRoute proofはPhase D完了。r4の順序・保護境界はA3凍結済み。次は最小Artifact CLIの着手時Phase A。R2の本採用と実payload転送は未承認。
 - program policy revision: `r4` — purpose-first route proof before production transport architecture; `r1` is historical review context
 - Phase A snapshot path / id: `328843ea521550af9da203315c2704d3d51cc8d0:docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md`（`git show`で凍結本文を取得する）
 - Phase A snapshot generated at: 2026-09-27T11:50:53Z
@@ -21,7 +21,7 @@
 
 Choose and establish one artifact workflow that supports BuildSystem outputs and review Evidence, can be used by local work and remote Cursor / Codex agents, and does not require a human to move files between agents. Keep large binary payloads out of Git history; keep a small, stable pointer and hashes in Git.
 
-This is a multi-slice program, not an implementation HANDOFF. Revision r4 freezes the order and protection boundaries; the Route proof slice has its own frozen A3 HANDOFF. The owner's local synthetic R2 round trip is proven; unsigned privacy, lock enforcement, and cloud capability are not. r1 below records the prior A3 boundary; r2/r3 record earlier, unapproved proposals. Only the Route proof HANDOFF authorizes its Phase B scope.
+This is a multi-slice program, not an implementation HANDOFF. Revision r4 freezes the order and protection boundaries. The Route proof slice completed at [PR #81](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/81): synthetic same-key unsigned GET did not return object bytes, and the ordinary writer's locked overwrite and DELETE were rejected while the original object hash remained. The 400 response's cause is unproven, and cloud capability remains unverified. This local necessary-condition proof does not authorize real Evidence or Build uploads. r1 below records the prior A3 boundary; r2/r3 record earlier, unapproved proposals. The completed slice HANDOFF is retained in Git history and harvested into the Artifacts README.
 
 The owner expects most reads and writes to be performed by local Windows agents. Prioritize a usable local credential store and transfer tool. Cloud agents are intended consumers and occasional producers through task-scoped grants, but R2 support is unverified; a continuously available cloud credential broker is not a prerequisite for the local workflow.
 
@@ -32,7 +32,7 @@ Unity is a replaceable build backend. The primary user/agent interface is an eng
 - The repository is public. A synthetic GitHub Release probe was published at `artifact-probe-20260926` with a PNG, text log, ZIP, and SHA-256 manifest. Local unauthenticated download, hash verification, ZIP extraction, and content inspection passed.
 - Cursor Cloud downloaded all four probe files without GitHub authentication, verified all three payload hashes, compared ZIP contents to individually downloaded files, read marker `OSM-PROBE-20260926`, and opened the PNG. It reported the blue rectangle, orange circle, white background, and text `OSM PROBE 726`. Its worktree remained clean.
 - Codex Cloud could not reach GitHub. Its configured HTTPS proxy returned `403` to the CONNECT request; direct access also failed because DNS resolution was unavailable. The agent did not download or inspect any file. This is an outbound network policy failure, not evidence of a GitHub permission failure.
-- The Cloudflare account has an R2 Standard bucket named `osm-artifacts` in APAC. The owner registered an R2 S3 key pair in the local DPAPI profile on 2026-09-27 and confirmed a synthetic PUT, separate-process GET/hash match, and DELETE through the account S3 endpoint. A subsequent `probe/prea3/` list was empty. The owner confirmed the dashboard says the Public Development URL is disabled, Custom Domains has no domains, and the token grants R2 Bucket Item Read and Write for `osm-artifacts` only. The unsigned GET and server-side lock behavior still require Route proof verification.
+- The Cloudflare account has an R2 Standard bucket named `osm-artifacts` in APAC. The owner registered an R2 S3 key pair in the local DPAPI profile on 2026-09-27. The completed Route proof at [PR #81](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/81) observed a synthetic PUT, separate-process authenticated GET/hash match, same-key unsigned GET without object bytes, unlocked overwrite/DELETE/NoSuchKey, and locked overwrite/DELETE rejection with original-hash preservation. The Public Development URL was disabled, Custom Domains empty, and the writer token scoped to R2 Bucket Item Read and Write for `osm-artifacts` only before and after the run. The 400 cause and general provider adoption remain open.
 - The same synthetic files are available from the GitHub Release probe for transport testing; that release is not the proposed long-term store for frequent Build / Evidence runs.
 
 ## 2. Decision boundary
@@ -56,18 +56,18 @@ Unity is a replaceable build backend. The primary user/agent interface is an eng
 
 - Slice 1 local: actual R2 round trip and credential connectivity. Slice 1 cloud: each platform's credential delivery, unattended issuance/renewal, Codex egress configuration, and runtime grant handling. Cursor secret redaction is not permission reduction.
 - Slice 2: retention durations, concrete server-side protection and its lifecycle interaction, and finite numeric extraction limits. Lock verification gates all real payload uploads. Proposed cost controls (Standard storage and a measured budget alert) require implementation verification; no automatic retention deletion is authorized here.
-- Slice HANDOFFs: command syntax, exact file/class layout, and detailed implementation/testing choices belong to each slice HANDOFF. The frozen Route proof HANDOFF is the implementation authority for the first slice.
+- Slice HANDOFFs: command syntax, exact file/class layout, and detailed implementation/testing choices belong to each slice HANDOFF while it is active. The completed Route proof HANDOFF is available in [PR #81](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/81) history; its current tool behavior is in [tools/Artifacts/README.md](../../tools/Artifacts/README.md).
 - The missing fourth inline review comment remains pending receipt. On receipt, record its disposition in a new program revision; do not mark unseen text resolved.
 
 ## 3. Program slices
 
 ### 現在の到達点と段2への引継ぎ
 
-ローカル段1（スライス0）は [PR #76](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/76) で実装・検証を完了し、人間がPhase Dを承認した。現在のCLIと運用契約は [ローカル資格情報管理README](../../tools/Artifacts/README.md) を正とする。完了した段1HANDOFFは削除し、証拠台帳はPR本文へ移した。段1の資格情報保管と秘密非記録の契約は維持する。r1のprovider選択と実施順は歴史的記録であり、現行の凍結済み指示はr4とRoute proof HANDOFFにある。
+ローカル段1（スライス0）は [PR #76](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/76) で、Route proofは [PR #81](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/81) で実装・検証とPhase Dを完了した。現在のCLIとprobeの利用・制限は [Artifacts README](../../tools/Artifacts/README.md) を正とする。完了したslice HANDOFFは削除し、証拠台帳は各PR本文へ移す。r1のprovider選択と実施順は歴史的記録であり、現行の後続順序はr4を正とする。
 
-ダミー鍵の登録・DPAPI CurrentUser保管・置換・削除・失敗時の保全・非露出はローカル検証済み。段1完了時に未実施だった実鍵登録とR2 synthetic往復は、2026-09-27のA3前疎通で実施した。所有者はCloudflare画面でtoken対象bucketと非公開設定を確認した。署名無しGET、Bucket Lock、実Evidence/Build転送、別WindowsユーザーDPAPIは未実測。同一ユーザーのAgentからの隔離は主張しない。
+ダミー鍵の登録・DPAPI CurrentUser保管・置換・削除・失敗時の保全・非露出はローカル検証済み。段1完了時に未実施だった実鍵登録とR2 synthetic往復は、2026-09-27のA3前疎通で実施した。所有者はCloudflare画面でtoken対象bucketと非公開設定を確認した。署名無しGETの限定非露出と通常writerに対するBucket Lock実効性はRoute proofで確認した。実Evidence/Build転送、別WindowsユーザーDPAPIは未実測。同一ユーザーのAgentからの隔離は主張しない。
 
-旧r1での次段候補は段2（スライス1ローカル）だった。以下4点は後続へ引き継ぐが、現在の最初のスライスはr4のRoute proofである。サーバー検証付きrotationも最小Artifact CLIまでに扱い、Route proofの完了条件にはしない。
+旧r1での次段候補は段2（スライス1ローカル）だった。以下4点は後続へ引き継ぐ。r4の最初のRoute proofは完了し、次は最小Artifact CLIの着手時Phase Aである。サーバー検証付きrotationも最小Artifact CLIまでに扱い、完了済みRoute proofの条件へ遡及追加しない。
 
 - 共有OneStarMakerが未作成の場合の制限ACLと、既存共有親を変更しない方針の整理。
 - ロック取得後にACL設定が失敗したときのハンドル解放責務。
@@ -78,7 +78,7 @@ Unity is a replaceable build backend. The primary user/agent interface is an eng
 
 このprogramの成果は、既存のBuild成果物とレビューEvidenceをGit外の非公開領域に置き、固定した参照と信頼済みhashから別セッションが人手の反復的なファイル運搬なしに取得・検証・必要な内容を閲覧できることである。ローカルWindows同一ユーザーから始め、Cursor CloudとCodex Cloudはそれぞれread/write/閲覧を別に判定する。Unity以外のbuild backendでも保存・取得を使えるようにする。実Evidenceの上書き・削除を通常のwriter権限からサーバー側で保護する。
 
-**選択の根拠:** R2は既設bucketとprefix lockを備え、owner端末からendpoint/実tokenでsynthetic objectのPUT・別process GET・DELETEが成立したため最初の候補とする。ownerはbucket限定tokenと公開設定を画面で確認した。ただし署名無しGET、lockの実効性、Cloud到達性は未確認である。公開GitHub Releaseは非公開Evidenceに適さず、ローカル共有ファイルだけではCloudの受け渡しとサーバー側保護を満たさない。GitHub Actions artifactはworkflow runに結びつく有期限の保管なので、任意のローカルAgentが成果物を反復的にpublishする主経路としては採用しない。候補選択を覆す実測が出たときだけ、別の非公開object storeや認証付き中継を比較する。選定理由は[Cloudflare Bucket Locks](https://developers.cloudflare.com/r2/buckets/bucket-locks/)、[R2 S3互換性](https://developers.cloudflare.com/r2/api/s3/api/)、[GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases)、[GitHub workflow artifacts](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflow-artifacts/)の現行仕様と、§1の実測による。
+**選択の根拠:** R2は既設bucketとprefix lockを備え、owner端末からendpoint/実tokenでsynthetic objectのPUT・別process GET・DELETEが成立したため最初の候補とする。ownerはbucket限定tokenと公開設定を画面で確認した。後続のRoute proofで限定unsigned非露出と通常writerに対するlock実効性を確認した。Cloud到達性は未確認である。公開GitHub Releaseは非公開Evidenceに適さず、ローカル共有ファイルだけではCloudの受け渡しとサーバー側保護を満たさない。GitHub Actions artifactはworkflow runに結びつく有期限の保管なので、任意のローカルAgentが成果物を反復的にpublishする主経路としては採用しない。候補選択を覆す実測が出たときだけ、別の非公開object storeや認証付き中継を比較する。選定理由は[Cloudflare Bucket Locks](https://developers.cloudflare.com/r2/buckets/bucket-locks/)、[R2 S3互換性](https://developers.cloudflare.com/r2/api/s3/api/)、[GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases)、[GitHub workflow artifacts](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflow-artifacts/)の現行仕様と、§1の実測による。
 
 **凍結した実施順:**
 
@@ -91,7 +91,7 @@ Unity is a replaceable build backend. The primary user/agent interface is an eng
 
 **判断を戻す条件:** Route proofの結果は`pass` / `provider-capability-failure` / `environment-blocked` / `inconclusive`を区別する。endpoint、token、必要権限、egress、lock設定の開始条件が欠けた場合は未実施またはenvironment-blockedとしてownerと再試行条件を記録し、R2不適合とは判定しない。開始条件が揃ってもR2のlocal route、private access、通常writerに対するserver側保護のいずれかが成立しない場合は、原因をnetwork/設定/サービス仕様に分けて記録し、補修できる設定か別providerかを新しいPhase Aで選ぶ。Cloudの到達・無人grantが成立しない場合は各platformの結果をunsupportedとしてprogram台帳に残し、Cloud側の経路を別に再選定する。ローカル限定運用の成立をprogram全体の完了にはしない。最初のprobeはR2選定の確定や、実Evidenceのupload許可にはならない。
 
-r4と最初のRoute proof HANDOFFのA3は別々に記録する。2026-09-27、ownerはr4の方向を概ね了承し、**凍結前にR2 tokenを所有者端末のCLIへ登録し、CLIからの実R2利用を確認する**条件を追加した。既存`credentials` CLIは鍵のローカル保管のみだが、使い捨てのA3前probe CLIでsynthetic PUT・別process GET/hash照合・DELETEが成功し、後続のprefix listも空だった。endpointは非秘密の引数、token値はchatやGitへ渡していない。ownerはtokenのR2 Bucket Item Read/Writeと対象`osm-artifacts`のみ、Custom Domainsなし、Public Development URL無効を画面で確認した。その後、ownerは再レビューのため凍結を一度解除した。PR #80での再レビューを統合し、ownerが本sessionでr4とRoute proofのA3凍結を指示した。r4は実施順と保護境界の採用であり、R2採用の確定や実payload解禁ではない。署名無しGET、Bucket Lock、Cloud到達性は未検証で、各sliceのゲートに残る。
+r4と最初のRoute proof HANDOFFのA3は別々に記録した。2026-09-27、ownerはr4の方向を概ね了承し、**凍結前にR2 tokenを所有者端末のCLIへ登録し、CLIからの実R2利用を確認する**条件を追加した。既存`credentials` CLIは鍵のローカル保管のみだが、使い捨てのA3前probe CLIでsynthetic PUT・別process GET/hash照合・DELETEが成功し、後続のprefix listも空だった。endpointは非秘密の引数、token値はchatやGitへ渡していない。ownerはtokenのR2 Bucket Item Read/Writeと対象`osm-artifacts`のみ、Custom Domainsなし、Public Development URL無効を画面で確認した。その後、ownerは再レビューのため凍結を一度解除した。PR #80での再レビューを統合し、ownerがr4とRoute proofのA3凍結を指示した。r4は実施順と保護境界の採用であり、R2採用の確定や実payload解禁ではない。当時未検証だった署名無しGETとBucket Lockは後続のRoute proofで限定確認した。Cloud到達性は各sliceのゲートに残る。
 
 **r4 Phase A review ledger（2026-09-27、再レビュー入力）:** 主担当のA1と独立A2が読んだ初稿のSHA-256は`3781F9AA4621C608E82AE1C7FFC9098E5E0F86B73C1676FACD1705EBDBDC12F2`。A0のみからの代替担当は、R2を第一候補としつつ、接続実証前のSDK Adapter、server検証付きrotation、複数provider抽象を必須にしない案を提示した。A2統合案ではRoute proofを先頭に置いた。アーキテクチャ担当はC'の固定取得記録の所有者、programとsliceの別A3、資格情報store/診断/account ownerの責務を指摘し、統合案へ反映した。実行可能性担当はprobe合格範囲の限定、環境未準備とprovider不適合の分離、Cloud未成立の記録、writerとlock管理者の権限分離を指摘し、統合案へ反映した。二担当は互いの所見を渡されず同一初稿を読んだ。指定したモデルと実際のvariantの一致は実測できないため、モデル多様性は確認済みと主張しない。再レビューで採否を改めて整理し、programとsliceそれぞれのA3判断を記録する。R2以外の運用provider即時実装、Cloud能力の暗黙の達成は提案していない。
 
@@ -190,7 +190,7 @@ DPAPI reference: [Microsoft data protection](https://learn.microsoft.com/en-us/d
 
 ## 4. Historical r1/r2 transport and CLI proposals (superseded by r4 order)
 
-The following r1/r2 acceptance draft preceded the r4 Route proof. It is retained as design input for later slices, not as the first slice's frozen conditions. Route proof's conditions are in its own HANDOFF. The former local acceptance required slice 0's credential lifecycle checks and local synthetic upload/download, SHA-256, ZIP extraction, unsigned-access denial, and unchanged repository status. Former cloud support was accepted separately for each platform only when:
+The following r1/r2 acceptance draft preceded the r4 Route proof. It is retained as design input for later slices, not as the first slice's frozen conditions. Route proof's frozen conditions remain in the deleted HANDOFF's Git history at PR #81. The former local acceptance required slice 0's credential lifecycle checks and local synthetic upload/download, SHA-256, ZIP extraction, unsigned-access denial, and unchanged repository status. Former cloud support was accepted separately for each platform only when:
 
 - A disposable synthetic object is uploaded to the R2 bucket with a unique key and is not visible through an anonymous public URL.
 - Cursor Cloud and Codex Cloud each retrieve the same object in their own remote execution environment, verify SHA-256, extract the ZIP, and report the log marker. Record image-viewing capability separately for slice 4-cloud; its failure does not invalidate proven storage integrity or add a condition to 4-local.
@@ -224,7 +224,8 @@ r2案の指摘対応（2026-09-27）: [PR #77のA2レビュー](https://github.c
 
 ## 5. Known constraints and open decisions
 
-- Owner-local synthetic R2 access is proven by the A3 preflight PUT, separate-process GET/hash match, and DELETE. Unsigned privacy and Bucket Lock enforcement remain unproven until Route proof Phase C.
+- The completed Route proof at [PR #81](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/81) observed the local synthetic route, same-key unsigned GET without object bytes, and Bucket Lock rejection of ordinary-writer overwrite and DELETE with original-hash preservation. Its unsigned response was 400/`other`/`InvalidArgument`; the cause is unproven. The result is a local necessary-condition proof, not general R2 adoption or permission to upload real Evidence/Build outputs.
+- Route proofの保持中synthetic objectは2件。`probe/locked/62bd4f1ab6b24a9d93026108ee5dae5c/object.txt` は2026-09-30 01:53:32 JST以後、`probe/locked/b1b6dc2e6516486b94b95825d7fa7475/object.txt` は2026-09-30 05:37:47 JST以後に、各keyを個別にDELETEしてNoSuchKeyを確認する。現時点では両方未清掃。既設ruleや他objectには触れない。原証拠とhashはPR #81の台帳およびローカル未追跡bundleに保持する。
 - Codex Cloud's exact network configuration has not been changed. Its current environment rejected GitHub CONNECT with 403, while Cursor Cloud could retrieve GitHub assets.
 - R2 credentials for Cursor and Codex Cloud have not been created or configured. R2 object credentials are distinct from the broad Cloudflare API token; the intended credential must be bucket-scoped.
 - Confirm how long closed-PR evidence must remain readable before configuring automatic lifecycle deletion.
