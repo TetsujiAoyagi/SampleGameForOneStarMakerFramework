@@ -451,7 +451,7 @@ function Read-LockRule([string] $Json) {
     if ([string]::IsNullOrWhiteSpace($Json)) { throw 'Lock rule record unavailable.' }
     $rule = $Json | ConvertFrom-Json
     $names = @($rule.PSObject.Properties.Name)
-    $expected = @('Prefix','Enabled','Kind','RetentionSeconds','RuleCount','DateRules','IndefiniteRules','WriterCanConfigure','LifecycleCompatible','BeforeHash','AfterHash')
+    $expected = @('Prefix','Enabled','Kind','RetentionSeconds','RuleCount','DateRules','IndefiniteRules','WriterCanConfigure','LifecycleCompatible','BeforeHash')
     if ((($names | Sort-Object) -join ',') -cne (($expected | Sort-Object) -join ',') -or
         $rule.Prefix -isnot [string] -or $rule.Prefix -cne 'probe/locked/' -or $rule.Enabled -isnot [bool] -or -not $rule.Enabled -or
         $rule.Kind -isnot [string] -or $rule.Kind -cne 'Age' -or
@@ -461,8 +461,8 @@ function Read-LockRule([string] $Json) {
         (($rule.IndefiniteRules -isnot [int]) -and ($rule.IndefiniteRules -isnot [long])) -or $rule.IndefiniteRules -ne 0 -or
         $rule.WriterCanConfigure -isnot [bool] -or $rule.WriterCanConfigure -or
         $rule.LifecycleCompatible -isnot [bool] -or -not $rule.LifecycleCompatible -or
-        $rule.BeforeHash -isnot [string] -or $rule.AfterHash -isnot [string] -or
-        $rule.BeforeHash -cnotmatch '\A[0-9a-f]{64}\z' -or $rule.AfterHash -cne $rule.BeforeHash) {
+        $rule.BeforeHash -isnot [string] -or
+        $rule.BeforeHash -cnotmatch '\A[0-9a-f]{64}\z') {
         throw 'Lock rule record unavailable.'
     }
     return [pscustomobject][ordered]@{
@@ -470,7 +470,8 @@ function Read-LockRule([string] $Json) {
         retentionSeconds = [int]$rule.RetentionSeconds; ruleCount = [int]$rule.RuleCount
         dateRules = [int]$rule.DateRules; indefiniteRules = [int]$rule.IndefiniteRules
         writerCanConfigure = [bool]$rule.WriterCanConfigure; lifecycleCompatible = [bool]$rule.LifecycleCompatible
-        beforeHash = $rule.BeforeHash; afterHash = $rule.AfterHash
+        # 実際の事後設定はrun開始前には存在せず、外側の原記録で照合します。
+        beforeHash = $rule.BeforeHash; afterHash = $null
     }
 }
 

@@ -41,7 +41,7 @@ DPAPIはWindowsユーザーに結びつけて保存データを保護します�
 
 transportは`Probe/R2RouteTransport.csproj`の固定`AWSSDK.S3`依存を使います。認証PUT/GET/DELETEと、Authorizationおよび署名queryを付けないHTTP GETを分離し、本文は保存せず、EOF確認時だけ全体hash、期待長に達した場合だけ先頭hashを返します。8193 byte目に達しても、それ以前に得た期待長prefix hashは残し、EOF未確認の全体hashは作りません。期限中の取消しやEOF前のI/O切断でも、到着済みprefix hashを保ち、全体hashとEOF確認は未確定にします。unsigned応答のS3 `Code`要素は短い安全なcode値だけを逐次抽出し、Messageや本文全体は保持しません。閉じた非秘密観測にunsigned requestのmethod、正規URI、Authorization/署名query/対象queryの有無を加え、RouteProofが意図したGETか照合します。401/`unauthorized`/`Unauthorized`、または403/`forbidden`/`AccessDenied`という同一応答内の組だけを拒否証拠として許可し、交差したstatus/codeは許可しません。HTTP 400/`InvalidArgument`はprivate拒否と判定せず`inconclusive`です。一度のprefix一致は内容露出として記録しますが、再現条件を満たすまではprovider capability failureと確定しません。locked overwrite/deleteの成功応答だけでは保持機能の失敗へ昇格せず、状態確認できない場合は`inconclusive`です。期限後に子processの停止を確認できなければ、競合する回復DELETEを送らずcleanupを未確認にします。SDK例外のMessage、HTTP本文、request/header、秘密は結果へ通しません。`artifacts/` は生成物でGit管理外です。
 
-所有者がCloudflareで`probe/locked/`の全有効ruleを確認し、次のような秘密を含まないJSONを手元で用意してから実R2を実行します。`BeforeHash` と `AfterHash` は設定全体の記録hashで、試験前後に同一であることを示します。通常writer tokenへBucket設定権限を追加しないでください。
+所有者がCloudflareで`probe/locked/`の全有効ruleを確認し、次の10 fieldの秘密を含まない事前JSONを用意します。`BeforeHash`は実行前の原記録のSHA-256です。事後値は入力せず、probe出力の`lockRule.afterHash`は`null`です。実際のAfter設定はPhase Cが実行後の独立した原記録で照合します。通常writer tokenへBucket設定権限を追加しないでください。
 
 ```powershell
 dotnet restore tools/Artifacts/Probe/R2RouteTransport.csproj
@@ -50,7 +50,7 @@ pwsh -NoProfile -File tools/Artifacts/Probe/RouteProof.ps1 `
   -Endpoint https://<32-hex-account-id>.r2.cloudflarestorage.com `
   -ImplementationBase <40-hex-base-commit> `
   -ImplementationHead <40-hex-implementation-head-commit> `
-  -LockRuleJson '{"Prefix":"probe/locked/","Enabled":true,"Kind":"Age","RetentionSeconds":900,"RuleCount":1,"DateRules":0,"IndefiniteRules":0,"WriterCanConfigure":false,"LifecycleCompatible":true,"BeforeHash":"<64-hex>","AfterHash":"<64-hex>"}'
+  -LockRuleJson '{"Prefix":"probe/locked/","Enabled":true,"Kind":"Age","RetentionSeconds":900,"RuleCount":1,"DateRules":0,"IndefiniteRules":0,"WriterCanConfigure":false,"LifecycleCompatible":true,"BeforeHash":"<64-hex>"}'
 ```
 
 Phase Bでは上記を実R2へ向けて実行せず、合否も宣言しません。実行時の出力は固定schemaの非秘密JSON Linesだけを保存し、`provider-capability-failure` は開始条件・陽性対照・再現性が揃った場合だけ意味を持ちます。lock対象は保持期限前に削除せず、`retained-by-lock` としてowner、rule、保持期限、清掃予定を別の非秘密台帳へ残します。`-Endpoint` は親だけが指定し、bucket、path、query、userinfo、port、別hostnameは受け付けません。

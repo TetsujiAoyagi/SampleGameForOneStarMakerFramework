@@ -15,7 +15,12 @@ function Invoke-PwshCapture([string[]] $Arguments) {
     try {
         if(-not $process.Start()){ throw 'JSON child process did not start' }
         $stdoutTask=$process.StandardOutput.ReadToEndAsync(); $stderrTask=$process.StandardError.ReadToEndAsync()
-        if(-not $process.WaitForExit(10000)){ try{$process.Kill($true)}catch{}; throw 'JSON child process exceeded its test deadline' }
+        if(-not $process.WaitForExit(10000)){
+            try { $process.Kill($true) } catch {}
+            [void]$process.WaitForExit(5000)
+            [void]$stdoutTask.Wait(1000); [void]$stderrTask.Wait(1000)
+            throw 'JSON child process exceeded its test deadline'
+        }
         if(-not $stdoutTask.Wait(1000) -or -not $stderrTask.Wait(1000)){ throw 'JSON child pipes were not drained' }
         return [pscustomobject]@{ ExitCode=$process.ExitCode; Stdout=$stdoutTask.Result; Stderr=$stderrTask.Result }
     } finally { $process.Dispose() }
@@ -237,15 +242,102 @@ try {
         Assert ((($names | Sort-Object) -join ',') -ceq 'base,cleanup,eofConfirmed,executedUtc,expectedBytes,expectedHash,generation,head,httpStatus,key,limitReached,lockRule,observedBytes,observedHash,operation,phase,prefixHash,result,s3Code,statusClass') 'result schema changed'
         Assert (-not ($record | ConvertTo-Json -Compress).Contains('AccessKey')) 'secret field leaked'
     }
-    Run 'valid lock rule is accepted and date rules are refused' {
+    Run 'lock rule before evidence accepts ten fields and rejects invalid records' {
         $hash = 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
-        $json = [pscustomobject]@{ Prefix='probe/locked/'; Enabled=$true; Kind='Age'; RetentionSeconds=900; RuleCount=1; DateRules=0; IndefiniteRules=0; WriterCanConfigure=$false; LifecycleCompatible=$true; BeforeHash=$hash; AfterHash=$hash } | ConvertTo-Json -Compress
+        $json = [pscustomobject]@{ Prefix='probe/locked/'; Enabled=$true; Kind='Age'; RetentionSeconds=900; RuleCount=1; DateRules=0; IndefiniteRules=0; WriterCanConfigure=$false; LifecycleCompatible=$true; BeforeHash=$hash } | ConvertTo-Json -Compress
         $rule = Read-LockRule $json
         Assert ($rule.prefix -eq 'probe/locked/' -and $rule.retentionSeconds -eq 900) 'valid rule rejected'
+        Assert ($rule.beforeHash -ceq $hash -and $null -eq $rule.afterHash) 'future After hash was inferred from Before'
+        foreach ($badJson in @(
+            ($json.TrimEnd('}') + ',"AfterHash":"' + $hash + '"}'),
+            ($json -replace ',"BeforeHash":"[0-9a-f]{64}"',''),
+            ($json -replace '"BeforeHash":"[0-9a-f]{64}"','"BeforeHash":42'),
+            ($json.TrimEnd('}') + ',"Unknown":true}'),
+            ($json -replace '"Prefix":"probe/locked/"','"Prefix":"probe/unlocked/"')
+        )) {
+            $rejected = $false
+            try { Read-LockRule $badJson } catch { $rejected = $true }
+            Assert $rejected 'invalid Before evidence or rule was accepted'
+        }
         $bad = $json.Replace('"DateRules":0','"DateRules":1')
         $rejected = $false
         try { Read-LockRule $bad } catch { $rejected = $true }
         Assert $rejected 'date rule accepted'
+    }
+    Run 'child entry offline uses byte-identical production script and isolated modules' {
+        $source = (Resolve-Path (Join-Path $PSScriptRoot '../Probe/RouteProof.ps1')).Path
+        $fixture = Join-Path ([IO.Path]::GetTempPath()) ('route-proof-child-' + [Guid]::NewGuid().ToString('N'))
+        $probe = Join-Path $fixture 'Probe'
+        $credentials = Join-Path $fixture 'Credentials'
+        [void](New-Item -ItemType Directory -Path $probe,$credentials -Force)
+        try {
+            $copy = Join-Path $probe 'RouteProof.ps1'
+            Copy-Item -LiteralPath $source -Destination $copy
+            Assert ((Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash -ceq (Get-FileHash -LiteralPath $copy -Algorithm SHA256).Hash) 'production script copy differs'
+            # fixtureの相対import先はdummyのみ。実store、DPAPI、HTTP、DLLへ到達できません。
+            @'
+Set-StrictMode -Version Latest
+function Get-CredentialStatus([string] $Profile) {
+    if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'invalid-profile')) {
+        return [pscustomobject]@{Profile='wrong';Bucket='osm-artifacts';Endpoint=$null;Generation='0123456789abcdef0123456789abcdef'}
+    }
+    return [pscustomobject]@{Profile='osm';Bucket='osm-artifacts';Endpoint=$null;Generation='0123456789abcdef0123456789abcdef'}
+}
+function Invoke-CredentialTransport([string] $Profile, [scriptblock] $Callback, [hashtable] $Request) {
+    & $Callback 'dummy-id' 'dummy-secret-never-print' '0123456789abcdef0123456789abcdef' $Request
+}
+Export-ModuleMember -Function Get-CredentialStatus,Invoke-CredentialTransport
+'@ | Set-Content -LiteralPath (Join-Path $credentials 'CredentialStore.psm1') -Encoding utf8
+            @'
+Set-StrictMode -Version Latest
+$script:Marker = Join-Path $PSScriptRoot 'transport-called'
+function Invoke-R2RouteTransport {
+    param([string] $AccessKeyId, [string] $SecretAccessKey, [string] $Generation, [hashtable] $Request)
+    if ($AccessKeyId -cne 'dummy-id' -or $SecretAccessKey -cne 'dummy-secret-never-print' -or
+        $Generation -cne '0123456789abcdef0123456789abcdef' -or
+        $Request.Operation -cne 'unsigned-get' -or $Request.DeadlineMilliseconds -lt 1 -or
+        $Request.DeadlineMilliseconds -gt 30000) { throw 'Invalid dummy callback input.' }
+    Set-Content -LiteralPath $script:Marker -Value $Request.Operation
+    return [pscustomobject]@{
+        Operation='unsigned-get';HttpStatus=403;StatusClass='forbidden';S3Code='AccessDenied'
+        ByteCount=12;BodySha256='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+        PrefixSha256=$null;EofConfirmed=$true;LimitReached=$false;TimedOut=$false;Redirected=$false
+        Generation=$Generation;Method='GET';TargetUri=$null;HasAuthHeader=$false
+        SignatureQueryPresent=$false;TargetChangingQueryPresent=$false
+    }
+}
+Export-ModuleMember -Function Invoke-R2RouteTransport
+'@ | Set-Content -LiteralPath (Join-Path $probe 'R2RouteTransport.psm1') -Encoding utf8
+            $endpoint = 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com'
+            $runId = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+            $hash = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+            $commit = 'cccccccccccccccccccccccccccccccccccccccc'
+            $args = @('-NoProfile','-File',$copy,'-Endpoint',$endpoint,'-Child','-Operation','unsigned-get',
+                '-Key',"probe/unlocked/$runId/object.txt",'-ExpectedHash',$hash,'-ExpectedBytes','23',
+                '-RunId',$runId,'-ImplementationBase',$commit,'-ImplementationHead',$commit,
+                '-OperationBudgetMilliseconds','30000','-OperationStartTimestamp',
+                [string][Diagnostics.Stopwatch]::GetTimestamp())
+            $normal = Invoke-PwshCapture $args
+            $lines = @($normal.Stdout.Trim() -split "`r?`n" | Where-Object { $_ -ne '' })
+            Assert ($normal.ExitCode -eq 0 -and $lines.Count -eq 1 -and -not $normal.Stderr) 'normal child failed or emitted extra output'
+            $observation = $lines[0] | ConvertFrom-Json
+            Assert ($observation.Operation -ceq 'unsigned-get' -and $observation.Generation -ceq '0123456789abcdef0123456789abcdef') 'child observation mismatch'
+            Assert ((Test-Path -LiteralPath (Join-Path $probe 'transport-called'))) 'normal child did not call dummy transport'
+            Assert (-not (($normal.Stdout + $normal.Stderr) -like '*dummy-secret-never-print*')) 'dummy secret escaped'
+            Remove-Item -LiteralPath (Join-Path $probe 'transport-called')
+            [void](New-Item -ItemType File -Path (Join-Path $credentials 'invalid-profile'))
+            $args[-1] = [string][Diagnostics.Stopwatch]::GetTimestamp()
+            $invalid = Invoke-PwshCapture $args
+            Assert ($invalid.ExitCode -eq 3 -and -not $invalid.Stderr -and -not (Test-Path -LiteralPath (Join-Path $probe 'transport-called'))) 'invalid profile reached transport'
+            Assert (-not (($invalid.Stdout + $invalid.Stderr) -like '*dummy-secret-never-print*')) 'dummy secret escaped on blocked path'
+            Remove-Item -LiteralPath (Join-Path $credentials 'invalid-profile')
+            $args[-1] = [string]([Diagnostics.Stopwatch]::GetTimestamp() - 60 * [Diagnostics.Stopwatch]::Frequency)
+            $expired = Invoke-PwshCapture $args
+            Assert ($expired.ExitCode -eq 4 -and -not $expired.Stderr -and -not (Test-Path -LiteralPath (Join-Path $probe 'transport-called'))) 'expired child reached transport'
+            Assert (-not (($expired.Stdout + $expired.Stderr) -like '*dummy-secret-never-print*')) 'dummy secret escaped on expired path'
+        } finally {
+            Remove-Item -LiteralPath $fixture -Recurse -Force
+        }
     }
     Run 'production operation loop uses bounded injected boundaries' {
         $runId = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
@@ -273,7 +365,7 @@ try {
         }
         $script:fakeUnlockedDeleted=$false
         $global:RouteProofTestChangedHash='efc900f91b1b41cf7ad4e882d7f697a1b05503dc58bc7f51af2d2a271d60ba33'; $global:RouteProofTestLockedChangedHash='efc900f91b1b41cf7ad4e882d7f697a1b05503dc58bc7f51af2d2a271d60ba33'; $global:RouteProofTestLockedOriginalHash='bcde92159116d1e36c9f98c9e2657f69d1935db4527e4203aa953f2cd67379b1'
-        $json=[pscustomobject]@{Prefix='probe/locked/';Enabled=$true;Kind='Age';RetentionSeconds=900;RuleCount=1;DateRules=0;IndefiniteRules=0;WriterCanConfigure=$false;LifecycleCompatible=$true;BeforeHash=$ruleHash;AfterHash=$ruleHash}|ConvertTo-Json -Compress
+        $json=[pscustomobject]@{Prefix='probe/locked/';Enabled=$true;Kind='Age';RetentionSeconds=900;RuleCount=1;DateRules=0;IndefiniteRules=0;WriterCanConfigure=$false;LifecycleCompatible=$true;BeforeHash=$ruleHash}|ConvertTo-Json -Compress
         $result=Invoke-RouteProofLoop 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com' $runId $json
         Assert ($result.ExitCode -eq 4) 'single-observation prefix exposure was promoted to a terminal capability failure'
         Assert ($result.Records.Count -eq 6 -and $result.Records[2].phase -eq 'unsigned-get' -and $result.Records[3].phase -eq 'recovery-cleanup-delete' -and $result.Records[4].phase -eq 'recovery-cleanup-confirm' -and $result.Records[-1].phase -eq 'complete') ("production loop record count $($result.Records.Count), phases $(($result.Records.phase -join ',') )")
@@ -306,13 +398,14 @@ try {
         }
         $script:fakeUnlockedDeleted=$false
         $global:RouteProofTestLockedChangedHash=$global:RouteProofTestChangedHash
-        $json=[pscustomobject]@{Prefix='probe/locked/';Enabled=$true;Kind='Age';RetentionSeconds=900;RuleCount=1;DateRules=0;IndefiniteRules=0;WriterCanConfigure=$false;LifecycleCompatible=$true;BeforeHash=$ruleHash;AfterHash=$ruleHash}|ConvertTo-Json -Compress
+        $json=[pscustomobject]@{Prefix='probe/locked/';Enabled=$true;Kind='Age';RetentionSeconds=900;RuleCount=1;DateRules=0;IndefiniteRules=0;WriterCanConfigure=$false;LifecycleCompatible=$true;BeforeHash=$ruleHash}|ConvertTo-Json -Compress
         $result=Invoke-RouteProofLoop 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com' $runId $json
         Assert ($result.ExitCode -eq 0) "valid production loop failed: $(($result.Records.phase -join ','))"
         Assert ($result.Records.Count -eq 13 -and $result.Records[-1].phase -eq 'complete') 'full loop did not emit 12 operations plus completion'
         Assert (($result.Records | Where-Object { $_.phase -ne 'complete' } | Measure-Object).Count -eq 12) 'not all production operations were observed'
         Assert (($result.Records | Where-Object { $_.phase -like 'locked-*' -and $_.phase -ne 'locked-confirm' } | Where-Object cleanup -ne 'unconfirmed' | Measure-Object).Count -eq 0) 'intermediate lock operation claimed retention before final GET'
         Assert ($result.Records[-1].cleanup -eq 'removed; locked object retained') 'completed lock verification did not record final retention'
+        Assert (@($result.Records | Where-Object { $null -ne $_.lockRule -and $null -ne $_.lockRule.afterHash }).Count -eq 0) 'normal loop invented an After hash'
         $script:RouteProofClock=$null; $script:RouteProofChildRunner=$null; $script:fakeUnlockedDeleted=$false
     }
     Run 'monotonic operation start timestamp is comparable in child pwsh' {
@@ -339,7 +432,7 @@ try {
             [pscustomobject]@{Operation=$operation;HttpStatus=$status;StatusClass=$class;S3Code=$code;ByteCount=$bytes;BodySha256=$bodyHash;PrefixSha256=$prefixHash;EofConfirmed=$true;LimitReached=$false;TimedOut=$false;Redirected=$false;Generation='0123456789abcdef0123456789abcdef';Method=$method;TargetUri=$uri;HasAuthHeader=$false;SignatureQueryPresent=$false;TargetChangingQueryPresent=$false}
         }
         $ruleHash='cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
-        $json=[pscustomobject]@{Prefix='probe/locked/';Enabled=$true;Kind='Age';RetentionSeconds=900;RuleCount=1;DateRules=0;IndefiniteRules=0;WriterCanConfigure=$false;LifecycleCompatible=$true;BeforeHash=$ruleHash;AfterHash=$ruleHash}|ConvertTo-Json -Compress
+        $json=[pscustomobject]@{Prefix='probe/locked/';Enabled=$true;Kind='Age';RetentionSeconds=900;RuleCount=1;DateRules=0;IndefiniteRules=0;WriterCanConfigure=$false;LifecycleCompatible=$true;BeforeHash=$ruleHash}|ConvertTo-Json -Compress
         $result=Invoke-RouteProofLoop 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com' $runId $json
         $failedLock=$result.Records | Where-Object phase -eq 'locked-overwrite' | Select-Object -First 1
         Assert ($result.ExitCode -eq 4 -and $failedLock.cleanup -eq 'unconfirmed') 'lock success without re-GET was labeled retained'
@@ -353,7 +446,7 @@ try {
             [pscustomobject]@{ Operation=$operation;HttpStatus=$null;StatusClass='environment-blocked';S3Code=$null;ByteCount=$null;BodySha256=$null;PrefixSha256=$null;EofConfirmed=$false;LimitReached=$false;TimedOut=$false;Redirected=$false;Generation='00000000000000000000000000000000';Method=$null;TargetUri=$null;HasAuthHeader=$false;SignatureQueryPresent=$false;TargetChangingQueryPresent=$false }
         }
         $ruleHash='cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
-        $json=[pscustomobject]@{Prefix='probe/locked/';Enabled=$true;Kind='Age';RetentionSeconds=900;RuleCount=1;DateRules=0;IndefiniteRules=0;WriterCanConfigure=$false;LifecycleCompatible=$true;BeforeHash=$ruleHash;AfterHash=$ruleHash}|ConvertTo-Json -Compress
+        $json=[pscustomobject]@{Prefix='probe/locked/';Enabled=$true;Kind='Age';RetentionSeconds=900;RuleCount=1;DateRules=0;IndefiniteRules=0;WriterCanConfigure=$false;LifecycleCompatible=$true;BeforeHash=$ruleHash}|ConvertTo-Json -Compress
         $result=Invoke-RouteProofLoop 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com' $runId $json
         Assert ($result.ExitCode -eq 3 -and $result.Records[0].result -eq 'environment-blocked') 'missing credential profile was not identified as environment-blocked'
         Assert ($null -eq $result.Records[0].key -and $result.Records.Count -eq 2) "preflight failure exposed a key or continued the route: count=$($result.Records.Count), firstKey=$($result.Records[0].key), phases=$(($result.Records.phase -join ','))"
@@ -375,7 +468,7 @@ try {
             [pscustomobject]@{ Operation=$operation;HttpStatus=$status;StatusClass=$class;S3Code=$code;ByteCount=$bytes;BodySha256=$bodyHash;PrefixSha256=$prefixHash;EofConfirmed=$true;LimitReached=$false;TimedOut=$false;Redirected=$false;Generation='0123456789abcdef0123456789abcdef';Method=$null;TargetUri=$null;HasAuthHeader=$false;SignatureQueryPresent=$false;TargetChangingQueryPresent=$false }
         }
         $ruleHash = 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
-        $json=[pscustomobject]@{Prefix='probe/locked/';Enabled=$true;Kind='Age';RetentionSeconds=900;RuleCount=1;DateRules=0;IndefiniteRules=0;WriterCanConfigure=$false;LifecycleCompatible=$true;BeforeHash=$ruleHash;AfterHash=$ruleHash}|ConvertTo-Json -Compress
+        $json=[pscustomobject]@{Prefix='probe/locked/';Enabled=$true;Kind='Age';RetentionSeconds=900;RuleCount=1;DateRules=0;IndefiniteRules=0;WriterCanConfigure=$false;LifecycleCompatible=$true;BeforeHash=$ruleHash}|ConvertTo-Json -Compress
         $result=Invoke-RouteProofLoop 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com' $runId $json
         Assert ($result.ExitCode -eq 4) 'ambiguous initial PUT was treated as a successful run'
         Assert (($result.Records.phase -join ',') -eq 'unlocked-put,recovery-cleanup-delete,recovery-cleanup-confirm,complete') "unexpected recovery record order: $(($result.Records.phase -join ','))"
@@ -387,7 +480,7 @@ try {
         $script:RouteProofClock={ [TimeSpan]::Zero }
         $script:RouteProofChildRunner={ param($endpoint,$operation) $script:ChildTerminationConfirmed=$false; return $null }
         $ruleHash='cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
-        $json=[pscustomobject]@{Prefix='probe/locked/';Enabled=$true;Kind='Age';RetentionSeconds=900;RuleCount=1;DateRules=0;IndefiniteRules=0;WriterCanConfigure=$false;LifecycleCompatible=$true;BeforeHash=$ruleHash;AfterHash=$ruleHash}|ConvertTo-Json -Compress
+        $json=[pscustomobject]@{Prefix='probe/locked/';Enabled=$true;Kind='Age';RetentionSeconds=900;RuleCount=1;DateRules=0;IndefiniteRules=0;WriterCanConfigure=$false;LifecycleCompatible=$true;BeforeHash=$ruleHash}|ConvertTo-Json -Compress
         $result=Invoke-RouteProofLoop 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com' $runId $json
         Assert (($result.Records.phase -join ',') -eq 'unlocked-put,recovery-cleanup,complete') 'cleanup raced a child whose termination was not confirmed'
         Assert ($result.Records[-1].cleanup -eq 'unconfirmed') 'unconfirmed child cleanup was reported removed'
