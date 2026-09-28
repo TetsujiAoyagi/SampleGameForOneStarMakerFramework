@@ -2,14 +2,14 @@
 
 ## 0. 現在の入力
 
-- type: slice / status: revision 4 A3 凍結済み。revision 3 の B head 31be639 に対する判定 C は locked 上書きの409で inconclusive、§11に保存。revision 4 の局所 B / 新 C / C' は未実施。GOなし。
+- type: slice / status: revision 4 A3 凍結済み。revision 3 の判定 C は inconclusive のまま§11に保存。revision 4 の B・C・独立 C' は完了し、凍結A4の route-proof slice はGO。判定根拠と限界は§13。Phase Dとprogram全体の採用判定は未実施。
 - branch: codex/artifact-storage-route-proof / risk: high
 - owner: repository owner / created: 2026-09-29 JST / expires: Phase D または次の A revision
 - harvest to: tools/Artifacts/README.md、BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md の現況
 - implementation base: 93d2a1c436361ef6ee702096a61087cde55319b4
 - 既存 implementation head / 新 B の開始点: da4e405a0c5019a2f0edd857e1a2c11b61432c34
 - A 開始時 docs tip: dfbed2fdd48027ccbdcaecbbd8124da30019a362
-- 最新の実装 head / revision 4 B開始点: 31be639a968402e0bdf3f65fd9eda8d0d818dbf3。旧 B head: 8c1793ec507205d5134da5a9fd22b6d12c33cb56。B result: [ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md)（局所適応を追記済み）。revision 4 の新判定 evidence / C' bundle: 未生成。docs-only commitはimplementation headにしない。
+- 最新の実装 head: `9c46b5837796de23465f6d9c059bb326c2f06858`。revision 4 B開始点: `31be639a968402e0bdf3f65fd9eda8d0d818dbf3`。B result: [ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md)。revision 4 のC/C' evidence: `artifacts/route-proof-phase-c-9c46b58/`（untracked）。docs-only commitはimplementation headにしない。
 - 現行 Phase A 規範本文: [ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION_4.md](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION_4.md)。旧凍結規範: [revision 3](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION_3.md)、[revision 2](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION.md)。本台帳は議論・errata・進行を持ち、C' に渡さない。
 - A3 snapshot 生成 UTC: 2026-09-28T15:26:42Z。
 - A3 snapshot SHA-256（UTF-8 / LF）: 91BEA838FCE7C3C2092E7CA1B9DB58D896C1737CE502513E723B248F5C573217。CRLF checkout では LF に正規化して照合する。Git blob: 16a78f2f46e902db0cab7f6a4a288f085faceeeb。
@@ -18,7 +18,7 @@
 - revision 3 A3 snapshot 生成 UTC: 2026-09-28T16:34:42Z。SHA-256（UTF-8 / LF）: F34E67FA3747F84C6C11759B2CA46D67303ED01A0DDBC69AE5777C859FF78F57。CRLF checkout では LF に正規化して照合する。固定 commit は本台帳・snapshot・docs/README.md を収録する docs-freeze-artifact-route-proof-a3-r3。確定 SHA は引継ぎ時に指定し、snapshot 自体へ自己 hash を埋め込まない。
 - revision 4 A3 snapshot 生成 UTC: 2026-09-28T17:05:32Z。SHA-256（UTF-8 / LF）: C349E7281FD45673C08BFE702EEC003B634AC0C16DAA97EBAF8328083AAF34FA。CRLF checkout では LF に正規化して照合する。固定 commit は本台帳・snapshot・docs/README.md を収録する docs-freeze-artifact-route-proof-a3-r4。確定 SHA は引継ぎ時に指定し、snapshot 自体へ自己 hash を埋め込まない。
 
-本文書と現行規範本文を入力とする。新たな commit 別 RESULT / FINAL / RERUN は増やさない。旧固定 snapshot・結果は過去の対象版の証拠として保存する。§1〜§9 は revision 2 の履歴、§10〜§11 は revision 3、revision 4 の採否・現在の入力は §12 に記録する。
+本文書と現行規範本文を入力とする。新たな commit 別 RESULT / FINAL / RERUN は増やさない。旧固定 snapshot・結果は過去の対象版の証拠として保存する。§1〜§9 は revision 2 の履歴、§10〜§11 は revision 3、§12 は revision 4 の採否、§13 は revision 4 のC/C'判定を記録する。
 
 ## 1. A0 — 固定した現況と問い
 
@@ -189,3 +189,17 @@ A1 は [revision 4 規範本文](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION_4
 ### A3 凍結境界
 
 ownerの「GOになるまでやって」「これ以上私に何かを求めない」「全部承認なしですすめて」を、既設設定と元の問いを維持したこの限定改訂・新1 runへの統合承認として扱う。2026-09-28T17:05:32Z に規範本文をA3凍結した。snapshot SHA-256と固定commitは§0に記録する。これはGO/C'合格を意味しない。新Bは409 paired tupleだけを局所実装し、別セッションのCは新headの全判定と1 run、C'は必須証拠が揃った場合だけ独立監査する。旧snapshot/旧bundleは変更せず、artifactsはstage/commitしない。
+
+## 13. Revision 4 の判定 C / 独立 C' と結論
+
+実装 head は `9c46b5837796de23465f6d9c059bb326c2f06858`、実行前のdocs-only tipは `9c7a6ed4fa8c84a1ef9440cd2f2795a023554314`。凍結A4は `3022005b7275fa4ef557ee13811bcc56c7ece52f`、UTF-8/LF SHA-256は§0の `C349E7281FD45673C08BFE702EEC003B634AC0C16DAA97EBAF8328083AAF34FA`。C担当はBのSOLと異なるGPT-6 Astra。全repository差分と局所差分を確認し、責務・秘密境界・失敗経路に実装blockerを見つけなかった。CはBuild Release/net8.0（警告0・エラー0）、RouteProof 26件、R2RouteTransport 7件、Credentials 22件、contract/docs auditを通した。Credentialsのsandbox内実行はWindows ACLで失敗し、生ログを保存した。別途rootがsandbox外で22件をexit 0で実行し、その生ログを採用した。Unityの全test/buildはA4 §5の適用除外に従い未実行。
+
+Cの新1 runは `2026-09-28T20:37:29.4927558Z`〜`20:37:47.2375583Z`（17.7435855秒）、run-id `b1b6dc2e6516486b94b95825d7fa7475`、新key2個、同じwriter Generation `81eaf341034947f09f321824113ddff4`。unlockedのPUT→認証GET→正規unsigned GET→変更PUT/GET→DELETE→NoSuchKey GETを通過した。unsigned GETは `400 / other / InvalidArgument`、EOF true、limitReached false、全体と期待長prefixのhashが認証GETのobject hashと異なった。400の原因・認証拒否という因果は未特定であり、凍結A4が認める同じkeyの非露出観測としてのみ合格とした。
+
+lockedの新規PUT/認証GET後、上書きとDELETEは双方 `409 / other / ObjectLockedByBucketPolicy`、EOF true、limitReached false。最終認証GETは元の57 byte、SHA-256 `372f7644b62f6fd58125d9cce78977e860b5e0f0a7fa0190d496c8facee2517a` に一致した。12操作がexit 0で完走。unlocked keyはDELETE後のNoSuchKeyまで確認した。locked key `probe/locked/b1b6dc2e6516486b94b95825d7fa7475/object.txt` は既設保持中につき残す。保守的な清掃可能時刻は **2026-09-30 05:37:47 JST以後**（run終了+86400秒）。清掃・NoSuchKey確認は未実行であり、清掃完了とは扱わない。旧§11のlocked keyには触れていない。
+
+設定のread-only観測はrootの保存済みCloudflare in-app browserで取得し、Cの実行・判定と観察者を区別した。事前Settings `2026-09-28T19:34:15Z`、writer `19:34:35Z`、事後Settings `20:38:00Z`、writer `20:38:09Z`。事前からrunまでは約63分であり「直前撮影」とは呼ばない。A4の時刻順序と前後値の一致を満たす。両時点でCustom Domainsなし、r2.dev無効、全有効Lock ruleは `probe_locked / probe/locked/ / Age 86400秒` の1件、lifecycleはDefault Multipart Abort Rule 7日、writerは対象bucketのItem Read/Writeのみ。URL・UTC・該当DOMの原文抜粋をuntracked bundleに保存した。`BeforeHash`はrun前に作った `before-observation.json` のSHA-256を指し、同記録がSettings/writer原記録のhashを保持する。probeの`afterHash`はnull、実Afterは外側で独立取得した。設定・token・profileは変更していない。
+
+Cのoffline・live前・live後のmanifestは固定headのsource12件とDLL/依存/deps4件のSHA-256/Git blob一致を示す。fresh pwsh loadの3 assembly location/hashも一致し、間のbuild/copyはない。Cの照合結果は `artifacts/route-proof-phase-c-9c46b58/raw/evidence-consistency.json`、全生ログ・JSONL・設定原記録・実行物・差分は同bundleに保持する。blind bundleの `files.sha256` 自体のSHA-256は `134A0DD52004A872EE2934136F276EA995C0C2BEAAB5BFD30C9149E1A7C4BBE4`。証拠はPhase Dと再監査までローカル保持し、artifactsをstage/commitしない。
+
+C'はB/Cと異なるGPT-5.6 Terraの新規セッションで、凍結A4、所見なしB result、base→headの完全実装差分、生結果、前後原記録、実行物だけを収録したblind bundleを独立監査した。進行台帳・旧C所見を入力に含めない。`files.sha256`掲載30 payloadを全件照合し、12操作・400/409の限定tuple・最終原hash・前後時刻/設定・source/実行物・全offline gateについてblockerなしと報告した。独立報告は `artifacts/route-proof-phase-c-9c46b58/c-prime-report.md`（SHA-256 `85F602B7115EE47E1754DFB4FEDA3BF7994B335722DFA5246713EE4F4ED42883`）。C/C'を照合した結論は **凍結A4のroute-proof slice GO**。これは400の認証拒否原因の確定、全公開経路の普遍的証明、汎用R2採用・publish/fetch・program全体GO、Phase D完了を意味しない。
