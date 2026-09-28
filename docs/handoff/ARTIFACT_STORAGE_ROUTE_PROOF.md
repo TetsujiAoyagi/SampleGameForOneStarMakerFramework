@@ -9,7 +9,7 @@
 - implementation base: 93d2a1c436361ef6ee702096a61087cde55319b4
 - 既存 implementation head / 新 B の開始点: da4e405a0c5019a2f0edd857e1a2c11b61432c34
 - A 開始時 docs tip: dfbed2fdd48027ccbdcaecbbd8124da30019a362
-- 新 implementation head: bd7b7e5ea53073e8af962beb9a15223a8890875c。B result: [ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md)、生成UTC 2026-09-28T15:45:19Z、SHA-256 C84F7DCBDB5EF3623FEB21DFD2C3BA372BCEA6C21E9417B6D16B8AF7D8700913。判定 evidence / C' bundle: 未生成。B resultを収録するdocs-only commitはimplementation headにしない。
+- 新 implementation head: 8c1793ec507205d5134da5a9fd22b6d12c33cb56。B result: [ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_B_RESULT.md)、生成UTC 2026-09-28T15:51:57Z、SHA-256 2A274CD6A7197F973529A28374A100368D3A74087306DDDBFAA7654F4B100043。判定 evidence / C' bundle: 未生成。B resultを収録するdocs-only commitはimplementation headにしない。
 - Phase A 規範本文: [ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION.md](ARTIFACT_STORAGE_ROUTE_PROOF_PHASE_A_REVISION.md)。本台帳は議論・errata・進行を持ち、C' に渡さない。
 - A3 snapshot 生成 UTC: 2026-09-28T15:26:42Z。
 - A3 snapshot SHA-256（UTF-8 / LF）: 91BEA838FCE7C3C2092E7CA1B9DB58D896C1737CE502513E723B248F5C573217。CRLF checkout では LF に正規化して照合する。Git blob: 16a78f2f46e902db0cab7f6a4a288f085faceeeb。
@@ -101,7 +101,7 @@ commit時は変更したsource/test/docsだけ明示列挙する。
 
 ## 6. Phase B
 
-担当: Codex / GPT-6 Sol。revision 2 のB1〜B4を実施し、implementation headを bd7b7e5ea53073e8af962beb9a15223a8890875c に固定した。変更・理由・限定オフライン検証・未実行・source/DLL hashは§0の汎用B resultに記録。旧runのDLL対応は未確定で、正規GET条件への具体的違反は見つからず、400/InvalidArgumentの原因は未特定。実R2通信は行っていない。Bの引渡し条件を満たして終了し、slice GOやPhase C/C'の判定には読み替えない。
+担当: Codex / GPT-6 Sol。revision 2 のB1〜B4を実施し、implementation headを 8c1793ec507205d5134da5a9fd22b6d12c33cb56 に固定した。変更・理由・限定オフライン検証・未実行・source/DLL hashは§0の汎用B resultに記録。旧runのDLL対応は未確定で、正規GET条件への具体的違反は見つからず、400/InvalidArgumentの原因は未特定。実R2通信は行っていない。Bの引渡し条件を満たして終了し、slice GOやPhase C/C'の判定には読み替えない。
 
 ## 7. Phase C
 
