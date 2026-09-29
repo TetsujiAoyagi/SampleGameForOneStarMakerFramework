@@ -102,15 +102,26 @@ function Write-NewRecord([string]$TaskDirectory, [string]$Kind, [object]$Content
 
 function Start-Run([string]$TaskDirectory, [string]$Id, [string]$Head, [string]$StartedAt) {
     # 完了ファイルが無い中断は進行中のまま残す。成功した run として読まれることを防ぐ。
-    $folder = [IO.Path]::Combine($TaskDirectory, 'in-progress')
-    [IO.Directory]::CreateDirectory($folder) | Out-Null
-    $path = [IO.Path]::Combine($folder, "$Id.json")
-    $stream = [IO.FileStream]::new($path, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+    $lock = [IO.Path]::Combine($TaskDirectory, 'task.lock')
+    $held = [IO.FileStream]::new($lock, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
     try {
-        $bytes = [Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject ([ordered]@{ id=$Id; head=$Head; startedAt=$StartedAt; state='in-progress' })))
-        $stream.Write($bytes)
-        $stream.Flush($true)
-    } finally { $stream.Dispose() }
+        if (Test-TaskClosed $TaskDirectory) { throw 'taskはclose済みです。新しいtaskをinitしてください。' }
+        $folder = [IO.Path]::Combine($TaskDirectory, 'in-progress')
+        [IO.Directory]::CreateDirectory($folder) | Out-Null
+        $path = [IO.Path]::Combine($folder, "$Id.json")
+        $stream = [IO.FileStream]::new($path, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+        try {
+            $bytes = [Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject ([ordered]@{ id=$Id; head=$Head; startedAt=$StartedAt; state='in-progress' })))
+            $stream.Write($bytes)
+            $stream.Flush($true)
+        } finally { $stream.Dispose() }
+    } finally { $held.Dispose() }
+}
+
+function Begin-Run([string]$TaskDirectory, [object]$Current, [string]$Id, [string]$Head, [string]$StartedAt) {
+    # 中断しても旧入力を現行と誤認しないよう、開始状態より先に受領を失効させる。
+    [void](Set-RunCurrent $TaskDirectory $Current $Head $Id)
+    Start-Run $TaskDirectory $Id $Head $StartedAt
 }
 
 function Finish-Run([string]$TaskDirectory, [object]$Run) {
@@ -142,12 +153,20 @@ function Test-TaskClosed([string]$TaskDirectory) {
     return $true
 }
 
-function Read-Current([string]$TaskDirectory) {
-    $registrationPath = [IO.Path]::Combine($TaskDirectory, 'registration.json')
-    if (-not [IO.File]::Exists($registrationPath)) {
-        throw 'CURRENTが見つかりません: statusでtask-idを確認し、既存taskはrestore、新規作業だけinitを実行してください。'
+function Read-Registration([string]$TaskDirectory) {
+    $path = [IO.Path]::Combine($TaskDirectory, 'registration.json')
+    if (-not [IO.File]::Exists($path)) {
+        if (-not [IO.Directory]::Exists($TaskDirectory)) { throw 'CURRENTが見つかりません: statusでtask-idを確認し、既存taskはrestore、新規作業だけinitを実行してください。' }
+        throw 'registration.jsonがありません: 既存taskのinit/restoreはできません。taskディレクトリと原本を確認し、登録情報の復旧を判断してください。'
     }
-    $registration = Get-Content -LiteralPath $registrationPath -Raw -Encoding utf8 | ConvertFrom-Json -DateKind String
+    try { $registration = Get-Content -LiteralPath $path -Raw -Encoding utf8 | ConvertFrom-Json -DateKind String }
+    catch { throw 'registration.jsonが破損しています: init/restoreはできません。原本とtask識別を確認し、登録情報の復旧を判断してください。' }
+    if ($registration.schemaVersion -ne 1 -or -not $registration.taskId -or -not $registration.repoId -or -not $registration.owner) { throw 'registration.jsonが破損しています: init/restoreはできません。原本とtask識別を確認し、登録情報の復旧を判断してください。' }
+    return $registration
+}
+
+function Read-Current([string]$TaskDirectory) {
+    $registration = Read-Registration $TaskDirectory
     $path = [IO.Path]::Combine($TaskDirectory, 'CURRENT.json')
     if (-not [IO.File]::Exists($path)) { throw 'CURRENTが見つかりません: statusでtask-idを確認し、既存taskはrestore、新規作業だけinitを実行してください。' }
     $current = Get-Content -LiteralPath $path -Raw -Encoding utf8 | ConvertFrom-Json -Depth 40 -DateKind String
@@ -182,10 +201,10 @@ function Restore-Current([string]$TaskDirectory) {
     # CURRENT が欠落した場合だけ直前版を選ぶ。存在するファイルの読取失敗まで
     # 握りつぶすと、新しい参照を検査せずに巻き戻してしまう。
     if (Test-TaskClosed $TaskDirectory) { throw 'taskはclose済みです。新しいtaskをinitしてください。' }
+    $registration = Read-Registration $TaskDirectory
     $previous = [IO.Path]::Combine($TaskDirectory, 'CURRENT.previous')
     if (-not [IO.File]::Exists($previous)) { throw '復旧できる直前版がありません。' }
     $candidate = Get-Content -LiteralPath $previous -Raw -Encoding utf8 | ConvertFrom-Json -Depth 40 -DateKind String
-    $registration = Get-Content -LiteralPath ([IO.Path]::Combine($TaskDirectory, 'registration.json')) -Raw -Encoding utf8 | ConvertFrom-Json -DateKind String
     if ($candidate.schemaVersion -ne 1 -or $candidate.taskId -cne $registration.taskId -or $candidate.repoId -cne $registration.repoId -or -not $candidate.specId) { throw '復旧候補のtaskまたは仕様が一致しません。' }
     [void](Read-Record $TaskDirectory 'specifications' $candidate.specId)
     foreach ($adopted in @($candidate.adoptedRuns)) { [void](Read-Record $TaskDirectory 'runs' $adopted.id) }
@@ -322,4 +341,4 @@ function Set-CurrentNotes([string]$TaskDirectory, [object]$Current, [int]$Expect
     return Write-Current $TaskDirectory $Current $ExpectedRevision
 }
 
-Export-ModuleMember -Function Get-JsonHash,Get-RepositoryIdentity,Get-TaskDirectory,Initialize-Task,Publish-Handoff,Publish-BlindHandoff,Write-NewRecord,Read-Record,Test-TaskClosed,Read-Current,Write-Current,Restore-Current,Write-Closed,Start-Run,Finish-Run,Add-AdoptedRun,Edit-Reference,Set-RunCurrent,Set-CurrentNotes
+Export-ModuleMember -Function Get-JsonHash,Get-RepositoryIdentity,Get-TaskDirectory,Initialize-Task,Publish-Handoff,Publish-BlindHandoff,Write-NewRecord,Read-Record,Test-TaskClosed,Read-Current,Write-Current,Restore-Current,Write-Closed,Start-Run,Begin-Run,Finish-Run,Add-AdoptedRun,Edit-Reference,Set-RunCurrent,Set-CurrentNotes

@@ -130,7 +130,7 @@ try {
         $id = [Guid]::NewGuid().ToString('N')
         $started = [DateTimeOffset]::UtcNow
         $runClock = [Diagnostics.Stopwatch]::StartNew()
-        Start-Run $directory $id $head $started.ToString('o')
+        Begin-Run $directory $context.Current $id $head $started.ToString('o')
         $results = [Collections.Generic.List[object]]::new()
         $failure = $null
         $after = $null
@@ -144,7 +144,6 @@ try {
         $runClock.Stop()
         $run = New-RunResult -Spec $context.Spec -Current $context.Current -Task $Task -Stage $Stage -Scope $scope -After $after -Started $started -ElapsedMs $runClock.ElapsedMilliseconds -Id $id -PreviousRun $PreviousRun -Difference $Difference -Question $Question -StopWhen $StopWhen -Results @($results) -Failure $failure -ImplementationResult $ImplementationResult
         $record = Finish-Run $directory $run
-        [void](Set-RunCurrent $directory $context.Current $head $id)
         Write-Output "run=$id status=$($run.status) head=$head dirty=$(@($scope.Dirty).Count) recordHash=$($record.Hash)"
         return
     }

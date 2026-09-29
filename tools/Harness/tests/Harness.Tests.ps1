@@ -6,7 +6,7 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../RecordStore.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../GatePolicy.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../Adapters/LocalChecks.psm1') -Force
-$registered = @('repository identity and explicit task', 'CLI status and missing task', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'corrupt current is not overwritten', 'restore rejects dangling reference', 'run payload rejects old DLL and modification', 'failing step keeps record', 'run record carries identity and monotonic duration', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'close rejects in-progress run', 'blind input omits findings', 'blind handoff records receipt and review', 'child process result', 'new run invalidates prior judgment', 'close persists current references', 'terminal survives display update failure')
+$registered = @('repository identity and explicit task', 'CLI status and missing task', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'missing registration gives honest recovery guidance', 'corrupt current is not overwritten', 'restore rejects dangling reference', 'run payload rejects old DLL and modification', 'failing step keeps record', 'run record carries identity and monotonic duration', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'close rejects in-progress run', 'blind input omits findings', 'blind handoff records receipt and review', 'child process result', 'new run invalidates prior judgment', 'close persists current references', 'terminal survives display update failure')
 $selected = [Collections.Generic.List[string]]::new()
 $executed = [Collections.Generic.List[string]]::new()
 $failed = [Collections.Generic.List[string]]::new()
@@ -39,7 +39,7 @@ try {
     $spec = [ordered]@{ approved = $true; base = $base; testPolicy = 'local-gates-v1'; recordPolicy = 'external-current-v1' }
     $specRecord = Write-NewRecord $taskDirectory 'specifications' $spec
     $current = [pscustomobject]@{ schemaVersion = 1; repoId = $identity.Id; taskId = 'h1-transport-identity'; revision = 1; owner = 'test'; phase = 'B'; updatedAt = '2026-09-29T00:00:00Z'; specId = $specRecord.Id; adoptedRuns = @(); references = @(); selectedInputId = $null; judgmentInputId = $null; gateReceiptId = $null; nextAction = 'test' }
-    [IO.File]::WriteAllText([IO.Path]::Combine($taskDirectory, 'registration.json'), (ConvertTo-Json ([ordered]@{ taskId = 'h1-transport-identity'; repoId = $identity.Id })))
+    [IO.File]::WriteAllText([IO.Path]::Combine($taskDirectory, 'registration.json'), (ConvertTo-Json ([ordered]@{ schemaVersion=1; taskId = 'h1-transport-identity'; repoId = $identity.Id; owner='test' })))
     [IO.File]::WriteAllText([IO.Path]::Combine($taskDirectory, 'CURRENT.json'), (ConvertTo-Json $current -Depth 20))
 
     # SSH と HTTPS の origin を同じ保存先 ID に畳む。task-id のパス逸脱は拒否する。
@@ -115,6 +115,21 @@ try {
         [IO.File]::WriteAllText([IO.Path]::Combine($taskDirectory, 'closed.json'), (ConvertTo-Json ([ordered]@{ kind = 'closed'; closedAt = [DateTimeOffset]::UtcNow.ToString('o'); outcome = 'Abandoned' })))
         Reject { Restore-Current $taskDirectory } 'closed task reopened from previous'
         [IO.File]::Delete([IO.Path]::Combine($taskDirectory, 'closed.json'))
+    }
+    Run 'missing registration gives honest recovery guidance' {
+        $isolated = [IO.Path]::Combine($root, 'registration-loss')
+        [IO.Directory]::CreateDirectory($isolated) | Out-Null
+        [IO.File]::WriteAllText([IO.Path]::Combine($isolated, 'CURRENT.json'), '{}')
+        $message = ''
+        try { [void](Read-Current $isolated) } catch { $message = $_.Exception.Message }
+        Assert ($message.Contains('registration.json') -and $message.Contains('init/restoreはできません')) 'registration loss was misdiagnosed as CURRENT loss'
+        $message = ''
+        try { [void](Restore-Current $isolated) } catch { $message = $_.Exception.Message }
+        Assert ($message.Contains('registration.json') -and $message.Contains('restoreはできません')) 'restore did not explain missing registration'
+        [IO.File]::WriteAllText([IO.Path]::Combine($isolated, 'registration.json'), '{broken')
+        $message = ''
+        try { [void](Read-Current $isolated) } catch { $message = $_.Exception.Message }
+        Assert ($message.Contains('registration.jsonが破損') -and $message.Contains('原本')) 'corrupt registration did not give recovery guidance'
     }
     # 存在する CURRENT が読めないとき、例外の文面で復旧可否を決めず原本を保全する。
     Run 'corrupt current is not overwritten' {
@@ -299,7 +314,7 @@ try {
         $timed = Invoke-Process 'pwsh' @('-NoProfile', '-Command', 'while ($true) {}') $repo 1
         Assert ($timed.TimedOut -and $timed.ExitCode -ne 0 -and $timed.DurationMs -ge 1000) 'timeout did not return a failed process record'
     }
-    # 同じ task の新runでは、旧headの判定入力と受領を現行表示から外す。
+    # CLIと同じ開始経路で中断したrunは、旧判定入力を現行表示から外す。
     Run 'new run invalidates prior judgment' {
         $current = Read-Current $taskDirectory
         $current | Add-Member -NotePropertyName candidateHead -NotePropertyValue 'old-head' -Force
@@ -307,9 +322,12 @@ try {
         $current.selectedInputId = 'old-input'
         $current.judgmentInputId = 'old-input'
         $current.gateReceiptId = 'old-receipt'
-        $updated = Set-RunCurrent $taskDirectory $current $base 'new-run'
+        Begin-Run $taskDirectory $current 'new-run' $base ([DateTimeOffset]::UtcNow.ToString('o'))
+        $updated = Read-Current $taskDirectory
         Assert ($updated.phase -ceq 'B' -and $updated.candidateHead -ceq $base) 'new run did not reset phase/head'
         Assert (-not $updated.selectedInputId -and -not $updated.judgmentInputId -and -not $updated.gateReceiptId) 'old judgment remained selected'
+        Assert ([IO.File]::Exists([IO.Path]::Combine($taskDirectory, 'in-progress', 'new-run.json'))) 'interrupted run marker missing'
+        [void](Finish-Run $taskDirectory ([ordered]@{ id='new-run'; base=$base; head=$base; status='failed'; steps=@(); failure='fixture interrupted' }))
     }
     # CBlindは判定入力の同じIDを返し、別の固定receiptとreview参照を1回だけ残す。
     Run 'blind handoff records receipt and review' {
@@ -348,7 +366,7 @@ try {
     Run 'terminal survives display update failure' {
         $isolated = [IO.Path]::Combine($root, 'display-failure-task')
         [IO.Directory]::CreateDirectory($isolated) | Out-Null
-        [IO.File]::WriteAllText([IO.Path]::Combine($isolated, 'registration.json'), (ConvertTo-Json ([ordered]@{ taskId='isolated'; repoId=$identity.Id })))
+        [IO.File]::WriteAllText([IO.Path]::Combine($isolated, 'registration.json'), (ConvertTo-Json ([ordered]@{ schemaVersion=1; taskId='isolated'; repoId=$identity.Id; owner='test' })))
         [IO.File]::WriteAllText([IO.Path]::Combine($isolated, 'CURRENT.json'), (ConvertTo-Json ([ordered]@{ schemaVersion=1; revision=1; taskId='isolated'; repoId=$identity.Id; specId='fixture-spec'; phase='B'; references=@() })))
         $closed = Write-Closed $isolated 1 { param($latest) [ordered]@{ kind='closed'; closedAt=[DateTimeOffset]::UtcNow.ToString('o'); outcome='Abandoned' } } { throw 'fixture display failure' }
         Assert ($closed.outcome -ceq 'Abandoned' -and (Test-TaskClosed $isolated)) 'terminal record lost on display failure'
