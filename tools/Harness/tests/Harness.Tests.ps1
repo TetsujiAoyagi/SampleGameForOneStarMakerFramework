@@ -6,7 +6,7 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../RecordStore.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../GatePolicy.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../Adapters/LocalChecks.psm1') -Force
-$registered = @('repository identity and explicit task', 'CLI status and missing task', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'corrupt current is not overwritten', 'restore rejects dangling reference', 'run payload rejects old DLL and modification', 'failing step keeps record', 'run record carries identity and monotonic duration', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'close rejects in-progress run', 'blind input omits findings', 'blind handoff records receipt and review', 'child process result', 'close persists current references', 'terminal survives display update failure')
+$registered = @('repository identity and explicit task', 'CLI status and missing task', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'corrupt current is not overwritten', 'restore rejects dangling reference', 'run payload rejects old DLL and modification', 'failing step keeps record', 'run record carries identity and monotonic duration', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'close rejects in-progress run', 'blind input omits findings', 'blind handoff records receipt and review', 'child process result', 'new run invalidates prior judgment', 'close persists current references', 'terminal survives display update failure')
 $selected = [Collections.Generic.List[string]]::new()
 $executed = [Collections.Generic.List[string]]::new()
 $failed = [Collections.Generic.List[string]]::new()
@@ -298,6 +298,18 @@ try {
         Assert ($result.ExitCode -eq 0 -and $result.Stdout.Trim() -ceq 'OK' -and $result.DurationMs -ge 0 -and $result.LaunchMs -ge 0) 'child output'
         $timed = Invoke-Process 'pwsh' @('-NoProfile', '-Command', 'while ($true) {}') $repo 1
         Assert ($timed.TimedOut -and $timed.ExitCode -ne 0 -and $timed.DurationMs -ge 1000) 'timeout did not return a failed process record'
+    }
+    # 同じ task の新runでは、旧headの判定入力と受領を現行表示から外す。
+    Run 'new run invalidates prior judgment' {
+        $current = Read-Current $taskDirectory
+        $current | Add-Member -NotePropertyName candidateHead -NotePropertyValue 'old-head' -Force
+        $current.phase = 'CJudgment'
+        $current.selectedInputId = 'old-input'
+        $current.judgmentInputId = 'old-input'
+        $current.gateReceiptId = 'old-receipt'
+        $updated = Set-RunCurrent $taskDirectory $current $base 'new-run'
+        Assert ($updated.phase -ceq 'B' -and $updated.candidateHead -ceq $base) 'new run did not reset phase/head'
+        Assert (-not $updated.selectedInputId -and -not $updated.judgmentInputId -and -not $updated.gateReceiptId) 'old judgment remained selected'
     }
     # CBlindは判定入力の同じIDを返し、別の固定receiptとreview参照を1回だけ残す。
     Run 'blind handoff records receipt and review' {

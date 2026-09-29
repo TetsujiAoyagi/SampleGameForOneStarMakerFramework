@@ -305,6 +305,11 @@ function Edit-Reference([string]$TaskDirectory, [object]$Current, [string]$Actio
 
 function Set-RunCurrent([string]$TaskDirectory, [object]$Current, [string]$Head, [string]$RunId) {
     $Current.candidateHead = $Head
+    # 新しいrunを選んだ時点で旧判定入力・受領を現行として表示しない。
+    $Current.selectedInputId = $null
+    $Current.judgmentInputId = $null
+    $Current.gateReceiptId = $null
+    $Current.phase = 'B'
     $Current.nextAction = "run $RunId の結果を確認する"
     return Write-Current $TaskDirectory $Current $Current.revision
 }
