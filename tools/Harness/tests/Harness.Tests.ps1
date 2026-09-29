@@ -6,7 +6,7 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../RecordStore.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../GatePolicy.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../Adapters/LocalChecks.psm1') -Force
-$registered = @('repository identity and explicit task', 'CLI status and missing task', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'missing registration gives honest recovery guidance', 'corrupt current is not overwritten', 'restore rejects dangling reference', 'run payload rejects old DLL and modification', 'failing step keeps record', 'run record carries identity and monotonic duration', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'close rejects in-progress run', 'blind input omits findings', 'blind handoff records receipt and review', 'child process result', 'new run invalidates prior judgment', 'close persists current references', 'terminal survives display update failure')
+$registered = @('repository identity and explicit task', 'CLI status and missing task', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'missing registration gives honest recovery guidance', 'legacy reference restores with stable identity', 'corrupt current is not overwritten', 'restore rejects dangling reference', 'run payload rejects old DLL and modification', 'failing step keeps record', 'run record carries identity and monotonic duration', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'close rejects in-progress run', 'blind input omits findings', 'blind handoff records receipt and review', 'child process result', 'new run invalidates prior judgment', 'close persists current references', 'terminal survives display update failure')
 $selected = [Collections.Generic.List[string]]::new()
 $executed = [Collections.Generic.List[string]]::new()
 $failed = [Collections.Generic.List[string]]::new()
@@ -130,6 +130,22 @@ try {
         $message = ''
         try { [void](Read-Current $isolated) } catch { $message = $_.Exception.Message }
         Assert ($message.Contains('registration.jsonが破損') -and $message.Contains('原本')) 'corrupt registration did not give recovery guidance'
+    }
+    Run 'legacy reference restores with stable identity' {
+        $isolated = [IO.Path]::Combine($root, 'legacy-reference')
+        [IO.Directory]::CreateDirectory($isolated) | Out-Null
+        [IO.File]::WriteAllText([IO.Path]::Combine($isolated, 'registration.json'), (ConvertTo-Json ([ordered]@{ schemaVersion=1; taskId='legacy'; repoId=$identity.Id; owner='test' })))
+        $legacySpec = Write-NewRecord $isolated 'specifications' ([ordered]@{ base=$base })
+        [void](Write-NewRecord $isolated 'runs' ([ordered]@{ head=$base }) 'legacy-run')
+        $legacyRef = [ordered]@{ consumerId='CDiscovery'; purpose='review'; runId='legacy-run'; owner='test'; expiresAt='2026-12-01T00:00:00Z'; releasedAt=$null }
+        $candidate = [ordered]@{ schemaVersion=1; repoId=$identity.Id; taskId='legacy'; revision=1; updatedAt='2026-09-29T00:00:00Z'; owner='test'; phase='CDiscovery'; specId=$legacySpec.Id; candidateHead=$base; nextAction='old'; selectedInputId='old-input'; judgmentInputId=$null; gateReceiptId='old-receipt'; adoptedRuns=@(); references=@($legacyRef) }
+        [IO.File]::WriteAllText([IO.Path]::Combine($isolated, 'CURRENT.previous'), (ConvertTo-Json $candidate -Depth 20))
+        $candidate.revision = 2
+        [IO.File]::WriteAllText([IO.Path]::Combine($isolated, 'CURRENT.json'), (ConvertTo-Json $candidate -Depth 20))
+        $before = Read-Current $isolated
+        Assert ($before.references[0].referenceId -like 'legacy-*') 'legacy reference was not normalized'
+        $restored = Restore-Current $isolated
+        Assert ($restored.references[0].referenceId -ceq $before.references[0].referenceId -and $restored.phase -ceq 'B' -and -not $restored.gateReceiptId) 'legacy restore changed identity or retained gate'
     }
     # 存在する CURRENT が読めないとき、例外の文面で復旧可否を決めず原本を保全する。
     Run 'corrupt current is not overwritten' {

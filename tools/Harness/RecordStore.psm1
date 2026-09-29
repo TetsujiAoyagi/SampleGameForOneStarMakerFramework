@@ -181,13 +181,30 @@ function Read-Registration([string]$TaskDirectory) {
     return $registration
 }
 
+function Normalize-LegacyReferences([object]$Current) {
+    # pilot初期版の6項目参照だけを決定的なIDへ読み替える。未知の欠損は修復しない。
+    $index = 0
+    foreach ($ref in @($Current.references)) {
+        $names = @($ref.PSObject.Properties.Name)
+        if ('referenceId' -in $names) { $index++; continue }
+        $legacy = @('consumerId','purpose','runId','owner','expiresAt','releasedAt')
+        if (@($names | Where-Object { $_ -notin $legacy }).Count -gt 0 -or @($legacy | Where-Object { $_ -notin $names }).Count -gt 0 -or -not $ref.consumerId -or -not $ref.runId -or -not $ref.owner -or -not $ref.expiresAt) {
+            throw '参照schemaが不明です: 原本と参照先を確認し、復旧方針を判断してください。'
+        }
+        $key = [ordered]@{ taskId=$Current.taskId; index=$index; consumerId=$ref.consumerId; purpose=$ref.purpose; runId=$ref.runId; owner=$ref.owner; expiresAt=$ref.expiresAt; releasedAt=$ref.releasedAt }
+        $ref | Add-Member -NotePropertyName referenceId -NotePropertyValue ('legacy-' + (Get-JsonHash $key).Substring(0, 32))
+        $index++
+    }
+    return $Current
+}
+
 function Read-Current([string]$TaskDirectory) {
     $registration = Read-Registration $TaskDirectory
     $path = [IO.Path]::Combine($TaskDirectory, 'CURRENT.json')
     if (-not [IO.File]::Exists($path)) { throw 'CURRENTが見つかりません: statusでtask-idを確認し、既存taskはrestore、新規作業だけinitを実行してください。' }
     $current = Get-Content -LiteralPath $path -Raw -Encoding utf8 | ConvertFrom-Json -Depth 40 -DateKind String
     if ($current.schemaVersion -ne 1 -or $current.revision -lt 1 -or -not $current.specId -or $current.taskId -cne $registration.taskId -or $current.repoId -cne $registration.repoId) { throw 'CURRENTが破損またはtask識別不一致です。restoreで直前版を確認してください。' }
-    return $current
+    return Normalize-LegacyReferences $current
 }
 
 function Write-CurrentLocked([string]$TaskDirectory, [object]$Current, [int]$ExpectedRevision) {
@@ -226,6 +243,7 @@ function Restore-Current([string]$TaskDirectory) {
     if (-not [IO.File]::Exists($previous)) { throw '復旧できる直前版がありません。' }
     $candidate = Get-Content -LiteralPath $previous -Raw -Encoding utf8 | ConvertFrom-Json -Depth 40 -DateKind String
     if ($candidate.schemaVersion -ne 1 -or $candidate.taskId -cne $registration.taskId -or $candidate.repoId -cne $registration.repoId -or -not $candidate.specId) { throw '復旧候補のtaskまたは仕様が一致しません。' }
+    $candidate = Normalize-LegacyReferences $candidate
     [void](Read-Record $TaskDirectory 'specifications' $candidate.specId)
     foreach ($adopted in @($candidate.adoptedRuns)) { [void](Read-Record $TaskDirectory 'runs' $adopted.id) }
     # 採用欄以外のreview/defect参照も復旧候補の一部。対象runが欠落・改変されていれば戻さない。
