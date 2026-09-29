@@ -6,7 +6,7 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../RecordStore.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../GatePolicy.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../Adapters/LocalChecks.psm1') -Force
-$registered = @('repository identity and explicit task', 'CLI status and missing task', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'corrupt current is not overwritten', 'restore rejects dangling reference', 'run payload rejects old DLL and modification', 'failing step keeps record', 'run record carries identity and monotonic duration', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'blind input omits findings', 'child process result', 'close persists current references')
+$registered = @('repository identity and explicit task', 'CLI status and missing task', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'corrupt current is not overwritten', 'restore rejects dangling reference', 'run payload rejects old DLL and modification', 'failing step keeps record', 'run record carries identity and monotonic duration', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'close rejects in-progress run', 'blind input omits findings', 'child process result', 'close persists current references')
 $selected = [Collections.Generic.List[string]]::new()
 $executed = [Collections.Generic.List[string]]::new()
 $failed = [Collections.Generic.List[string]]::new()
@@ -298,6 +298,17 @@ try {
         Assert ($result.ExitCode -eq 0 -and $result.Stdout.Trim() -ceq 'OK' -and $result.DurationMs -ge 0 -and $result.LaunchMs -ge 0) 'child output'
         $timed = Invoke-Process 'pwsh' @('-NoProfile', '-Command', 'while ($true) {}') $repo 1
         Assert ($timed.TimedOut -and $timed.ExitCode -ne 0 -and $timed.DurationMs -ge 1000) 'timeout did not return a failed process record'
+    }
+    # closeは同じtask lockの下で進行中runを見て、終端recordの確定を拒否する。
+    Run 'close rejects in-progress run' {
+        $current = Read-Current $taskDirectory
+        Start-Run $taskDirectory 'close-pending' $base ([DateTimeOffset]::UtcNow.ToString('o'))
+        try {
+            Reject { Write-Closed $taskDirectory $current.revision { param($latest) @{ kind='closed'; closedAt=[DateTimeOffset]::UtcNow.ToString('o'); outcome='Abandoned' } } } 'close accepted an unfinished run'
+            Assert (-not [IO.File]::Exists([IO.Path]::Combine($taskDirectory, 'closed.json'))) 'close wrote a terminal record with an unfinished run'
+        } finally {
+            [void](Finish-Run $taskDirectory ([ordered]@{ id='close-pending'; base=$base; head=$base; status='failed'; steps=@(); failure='fixture ended' }))
+        }
     }
     # close は当時の参照を終端ファイルへ残し、以降の CURRENT 更新を拒否する。
     Run 'close persists current references' {

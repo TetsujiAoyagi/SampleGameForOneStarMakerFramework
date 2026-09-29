@@ -217,6 +217,10 @@ function Write-Closed([string]$TaskDirectory, [int]$ExpectedRevision, [scriptblo
     $held = [IO.FileStream]::new($lock, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
     try {
         if (Test-TaskClosed $TaskDirectory) { throw 'taskはclose済みです。' }
+        $inProgress = [IO.Path]::Combine($TaskDirectory, 'in-progress')
+        if ([IO.Directory]::Exists($inProgress) -and @([IO.Directory]::EnumerateFiles($inProgress, '*.json')).Count -gt 0) {
+            throw '未完了runがあります。完了recordまたは失敗recordを確定してからcloseしてください。'
+        }
         $current = Read-Current $TaskDirectory
         if ($current.revision -ne $ExpectedRevision) { throw 'close前にCURRENTが更新されました。currentを読み直してください。' }
         $record = & $BuildRecord $current
