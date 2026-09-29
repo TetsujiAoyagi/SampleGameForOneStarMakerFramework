@@ -163,8 +163,8 @@ function Write-Current([string]$TaskDirectory, [object]$Current, [int]$ExpectedR
 }
 
 function Restore-Current([string]$TaskDirectory) {
-    # 読める CURRENT が凍結仕様の差、または現行参照の喪失で拒否したときだけ復旧を中止する。
-    # ファイル欠落や破損は直前版で置き換え、選択と受領を無効にして phase を実装に戻す。
+    # CURRENT が欠落した場合だけ直前版を選ぶ。存在するファイルの読取失敗まで
+    # 握りつぶすと、新しい参照を検査せずに巻き戻してしまう。
     if (Test-TaskClosed $TaskDirectory) { throw 'taskはclose済みです。新しいtaskをinitしてください。' }
     $previous = [IO.Path]::Combine($TaskDirectory, 'CURRENT.previous')
     if (-not [IO.File]::Exists($previous)) { throw '復旧できる直前版がありません。' }
@@ -178,7 +178,7 @@ function Restore-Current([string]$TaskDirectory) {
     try {
         if (Test-TaskClosed $TaskDirectory) { throw 'taskはclose済みです。' }
         $revision = $candidate.revision
-        try {
+        if ([IO.File]::Exists([IO.Path]::Combine($TaskDirectory, 'CURRENT.json'))) {
             $current = Read-Current $TaskDirectory
             if ($current.specId -cne $candidate.specId) { throw '復旧候補の凍結仕様が現在と異なります。' }
             $oldRefs = @($candidate.references)
@@ -187,9 +187,6 @@ function Restore-Current([string]$TaskDirectory) {
                 if ($matching.Count -ne 1 -or (Get-JsonHash $matching[0]) -cne (Get-JsonHash $ref)) { throw '復旧候補が現行参照を失います。参照所有者と復旧方針を確認してください。' }
             }
             $revision = [Math]::Max($revision, $current.revision)
-        } catch {
-            # 欠落や破損の読取失敗は飲み、直前版で置き換える。仕様差と参照喪失だけは再送出する。
-            if ([IO.File]::Exists([IO.Path]::Combine($TaskDirectory, 'CURRENT.json')) -and ($_.Exception.Message -like '*凍結仕様*' -or $_.Exception.Message -like '*参照*')) { throw }
         }
         # 戻した revision は現行と直前版の大きいほうより 1 進める。古い番号の再適用を防ぐ。
         $candidate.revision = $revision + 1

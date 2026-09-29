@@ -6,7 +6,7 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../RecordStore.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../GatePolicy.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../Adapters/LocalChecks.psm1') -Force
-$registered = @('repository identity and explicit task', 'CLI status and missing task', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'blind input omits findings', 'child process result', 'close persists current references')
+$registered = @('repository identity and explicit task', 'CLI status and missing task', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'corrupt current is not overwritten', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'blind input omits findings', 'child process result', 'close persists current references')
 $selected = [Collections.Generic.List[string]]::new()
 $executed = [Collections.Generic.List[string]]::new()
 $failed = [Collections.Generic.List[string]]::new()
@@ -115,6 +115,16 @@ try {
         [IO.File]::WriteAllText([IO.Path]::Combine($taskDirectory, 'closed.json'), (ConvertTo-Json ([ordered]@{ kind = 'closed'; closedAt = [DateTimeOffset]::UtcNow.ToString('o'); outcome = 'Abandoned' })))
         Reject { Restore-Current $taskDirectory } 'closed task reopened from previous'
         [IO.File]::Delete([IO.Path]::Combine($taskDirectory, 'closed.json'))
+    }
+    # 存在する CURRENT が読めないとき、例外の文面で復旧可否を決めず原本を保全する。
+    Run 'corrupt current is not overwritten' {
+        $path = [IO.Path]::Combine($taskDirectory, 'CURRENT.json')
+        $before = [IO.File]::ReadAllText($path)
+        try {
+            [IO.File]::WriteAllText($path, '{broken')
+            Reject { Restore-Current $taskDirectory } 'corrupt current was silently overwritten'
+            Assert ([IO.File]::ReadAllText($path) -ceq '{broken') 'corrupt current changed after failed restore'
+        } finally { [IO.File]::WriteAllText($path, $before) }
     }
     # Unity を含む差分は、Artifacts だけの必須集合にしない。祖先でない base は拒否する。
     Run 'actual Git diff detects Unity' {

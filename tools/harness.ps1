@@ -105,11 +105,20 @@ try {
         $closed = Test-TaskClosed $directory
         Write-Output "task=$Task revision=$($context.Current.revision) owner=$($context.Current.owner) phase=$(if ($closed) {'closed'} else {$context.Current.phase})"
         Write-Output "A3=$($context.Spec.title) base=$($context.Spec.base) head=$($context.Current.candidateHead)"
+        Write-Output "specification=$($context.Current.specId) recordPath=$([IO.Path]::Combine($directory, 'specifications', "$($context.Current.specId).json")) recordHash=$($context.Spec.specHash)"
         Write-Output "question=$($context.Spec.question)"
         Write-Output "summary=$($context.Spec.summary) outOfScope=$($context.Spec.outOfScope) minimum=$($context.Spec.minimum)"
         Write-Output "unresolved=$($context.Current.unresolved -join '; ') blockers=$($context.Current.blockers -join '; ')"
         Write-Output "next=$($context.Current.nextAction) input=$($context.Current.selectedInputId) receipt=$($context.Current.gateReceiptId)"
-        foreach ($adopted in @($context.Current.adoptedRuns)) { Write-Output "adopted-run=$($adopted.id) reason=$($adopted.reason)" }
+        foreach ($adopted in @($context.Current.adoptedRuns)) {
+            $runRecord = Read-Record $directory 'runs' $adopted.id
+            if ($runRecord.content.specHash -cne $context.Spec.specHash) { throw "採用runの凍結仕様が一致しません: $($adopted.id)" }
+            Write-Output "adopted-run=$($adopted.id) reason=$($adopted.reason)"
+            Write-Output "run-record=$($runRecord.id) recordPath=$([IO.Path]::Combine($directory, 'runs', "$($runRecord.id).json")) recordHash=$($runRecord.hash) startedAt=$($runRecord.content.startedAt) status=$($runRecord.content.status)"
+            foreach ($step in @($runRecord.content.steps | Where-Object { $_.loadedPath })) {
+                Write-Output "loaded-binary=$($step.loadedPath) sha256=$($step.loadedHash)"
+            }
+        }
         return
     }
     if (Test-TaskClosed $directory) { throw 'taskはclose済みです。新しいtaskをinitしてください。' }
