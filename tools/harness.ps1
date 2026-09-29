@@ -110,6 +110,8 @@ try {
         foreach ($adopted in @($context.Current.adoptedRuns)) {
             $runRecord = Read-Record $directory 'runs' $adopted.id
             if ($runRecord.content.specHash -cne $context.Spec.specHash) { throw "採用runの凍結仕様が一致しません: $($adopted.id)" }
+            # 過去runは参照・保持のため残し、入口表示には現行headの採用分だけを出す。
+            if ($runRecord.content.head -cne $context.Current.candidateHead) { continue }
             Write-Output "adopted-run=$($adopted.id) reason=$($adopted.reason)"
             Write-Output "run-record=$($runRecord.id) recordPath=$([IO.Path]::Combine($directory, 'runs', "$($runRecord.id).json")) recordHash=$($runRecord.hash) startedAt=$($runRecord.content.startedAt) status=$($runRecord.content.status)"
             foreach ($step in @($runRecord.content.steps | Where-Object { $_.loadedPath })) {
