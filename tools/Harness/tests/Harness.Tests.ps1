@@ -6,7 +6,7 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../RecordStore.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../GatePolicy.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../Adapters/LocalChecks.psm1') -Force
-$registered = @('repository identity and explicit task', 'CLI status and missing task', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'corrupt current is not overwritten', 'restore rejects dangling reference', 'run payload rejects old DLL and modification', 'failing step keeps record', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'blind input omits findings', 'child process result', 'close persists current references')
+$registered = @('repository identity and explicit task', 'CLI status and missing task', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'corrupt current is not overwritten', 'restore rejects dangling reference', 'run payload rejects old DLL and modification', 'failing step keeps record', 'run record carries identity and monotonic duration', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'blind input omits findings', 'child process result', 'close persists current references')
 $selected = [Collections.Generic.List[string]]::new()
 $executed = [Collections.Generic.List[string]]::new()
 $failed = [Collections.Generic.List[string]]::new()
@@ -175,6 +175,15 @@ try {
         Assert ($step.cwd -ceq $repo -and @($step.logs).Count -gt 0 -and $step.logHash -and $step.timing.buildMs -ge 0) 'failed step lost evidence'
         Assert-RunPayload $taskDirectory ([pscustomobject]@{ id='failed-step-fixture'; steps=@($step) })
     }
+    # 壁時計が補正されても計測値は注入した単調時計の経過値を正とし、adapter版まで固定する。
+    Run 'run record carries identity and monotonic duration' {
+        $policySpec = [pscustomobject]@{ base=$base; specHash=$specRecord.Hash; testPolicy='local-gates-v1'; trialDays=7 }
+        $policyCurrent = [pscustomobject]@{ repoId=$identity.Id; specId=$specRecord.Id }
+        $scope = [pscustomobject]@{ Head=$base; Paths=@('tools/Harness/sample.ps1'); Dirty=@() }
+        $started = [DateTimeOffset]::UtcNow.AddHours(1)
+        $record = New-RunResult -Spec $policySpec -Current $policyCurrent -Task 'h1-transport-identity' -Stage 'discovery' -Scope $scope -After $scope -Started $started -ElapsedMs 123 -Id 'clock-fixture' -PreviousRun '' -Difference '初回' -Question 'identity' -StopWhen 'checked' -Results @() -Failure ''
+        Assert ($record.durationMs -eq 123 -and $record.repoId -ceq $identity.Id -and $record.suiteVersion -ceq 'local-gates-v1' -and $record.adapterVersion -ceq "git:$base") 'run identity or monotonic duration lost'
+    }
     # Unity を含む差分は、Artifacts だけの必須集合にしない。祖先でない base は拒否する。
     Run 'actual Git diff detects Unity' {
         [IO.Directory]::CreateDirectory([IO.Path]::Combine($repo, 'tools', 'Artifacts', 'tests')) | Out-Null
@@ -244,16 +253,19 @@ try {
     Run 'reference ownership and expiry' {
         $now = [DateTimeOffset]::UtcNow
         $external = [pscustomobject]@{ referenceId = 'x'; consumerId = 'defect-1'; purpose = 'defect'; runId = 'r'; owner = 'other'; expiresAt = $now.AddMinutes(-1).ToString('o'); releasedAt = $null }
-        Reject { Resolve-CloseReferences @($external) 'h1-transport-identity' $true $now } 'expired external reference accepted'
+        Reject { Resolve-CloseReferences @($external) 'h1-transport-identity' $true $now 'test' } 'expired external reference accepted'
         $external.expiresAt = $now.AddDays(2).ToString('o')
         $own = [pscustomobject]@{ referenceId = 'o'; consumerId = 'h1-transport-identity'; purpose = 'adopted-run'; runId = 'r'; owner = 'test'; expiresAt = $now.AddMinutes(-1).ToString('o'); releasedAt = $null }
-        $resolved = @(Resolve-CloseReferences @($external, $own) 'h1-transport-identity' $true $now)
+        $resolved = @(Resolve-CloseReferences @($external, $own) 'h1-transport-identity' $true $now 'test')
         Assert ($resolved.Count -eq 2 -and $resolved[0].releasedAt -eq $null -and $resolved[1].releasedAt) 'close did not preserve external reference or release own reference'
         $selfDefect = [pscustomobject]@{ referenceId = 'self-defect'; consumerId = 'h1-transport-identity'; purpose = 'defect'; runId = 'r'; owner = 'test'; expiresAt = $now.AddDays(2).ToString('o'); releasedAt = $null }
-        $kept = @(Resolve-CloseReferences @($selfDefect) 'h1-transport-identity' $true $now)
+        $kept = @(Resolve-CloseReferences @($selfDefect) 'h1-transport-identity' $true $now 'test')
         Assert ($kept.Count -eq 1 -and -not $kept[0].releasedAt) 'close released a defect reference owned by this task'
         $review = [pscustomobject]@{ referenceId = 'v'; consumerId = 'CDiscovery'; purpose = 'review'; runId = 'r'; owner = 'test'; expiresAt = $now.AddDays(1).ToString('o'); releasedAt = $null }
-        Reject { Resolve-CloseReferences @($review) 'h1-transport-identity' $false $now } 'open review accepted'
+        Reject { Resolve-CloseReferences @($review) 'h1-transport-identity' $false $now 'test' } 'open review accepted'
+        $externalReview = [pscustomobject]@{ referenceId = 'external-review'; consumerId = 'other-consumer'; purpose = 'review'; runId = 'r'; owner = 'other-owner'; expiresAt = $now.AddDays(2).ToString('o'); releasedAt = $null }
+        $preserved = @(Resolve-CloseReferences @($externalReview) 'h1-transport-identity' $true $now 'test')
+        Assert ($preserved.Count -eq 1 -and -not $preserved[0].releasedAt) 'close released another consumer review'
     }
     # 現行にだけある有効参照を、直前版へ戻して消すことはできない。
     Run 'restore preserves active references' {

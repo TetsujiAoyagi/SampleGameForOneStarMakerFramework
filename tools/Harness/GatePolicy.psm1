@@ -71,14 +71,15 @@ function Assert-CaseSets([string[]]$Registered, [string[]]$Selected, [string[]]$
     }
 }
 
-function Resolve-CloseReferences([object[]]$References, [string]$Task, [bool]$ReviewClosed, [DateTimeOffset]$ClosedAt) {
+function Resolve-CloseReferences([object[]]$References, [string]$Task, [bool]$ReviewClosed, [DateTimeOffset]$ClosedAt, [string]$TaskOwner) {
     # この task 自身の採用 run と、終了を明示したレビュー参照だけを閉じる。
     # 欠陥や他 consumer の参照は残す。期限切れの有効参照が1件でもあれば close しない。
     $resolved = [Collections.Generic.List[object]]::new()
     foreach ($item in $References) {
         $ref = $item | ConvertTo-Json -Depth 10 | ConvertFrom-Json -DateKind String
-        if (-not $ref.releasedAt -and $ref.purpose -ceq 'review' -and -not $ReviewClosed) { throw '進行中reviewがあります。終了済みなら-ReviewClosedで明示してください。' }
-        if (-not $ref.releasedAt -and (($ref.purpose -ceq 'adopted-run' -and $ref.consumerId -ceq $Task) -or ($ref.purpose -ceq 'review' -and $ReviewClosed))) { $ref.releasedAt = $ClosedAt.ToString('o') }
+        $ownReview = $ref.purpose -ceq 'review' -and $ref.owner -ceq $TaskOwner -and $ref.consumerId -cin @('CDiscovery','CJudgment','CBlind')
+        if (-not $ref.releasedAt -and $ownReview -and -not $ReviewClosed) { throw '進行中reviewがあります。終了済みなら-ReviewClosedで明示してください。' }
+        if (-not $ref.releasedAt -and (($ref.purpose -ceq 'adopted-run' -and $ref.consumerId -ceq $Task) -or ($ownReview -and $ReviewClosed))) { $ref.releasedAt = $ClosedAt.ToString('o') }
         if (-not $ref.releasedAt -and (!$ref.expiresAt -or [DateTimeOffset]::Parse($ref.expiresAt) -le $ClosedAt)) { throw "期限切れ参照があります: $($ref.referenceId)。所有者が解放または有限延長してください。" }
         $resolved.Add($ref)
     }
@@ -91,7 +92,8 @@ function New-RunResult([object]$Spec, [object]$Current, [string]$Task, [string]$
     $status = if ($Failure -or $failed -or -not $After -or $Scope.Head -cne $After.Head) { 'failed' } else { 'passed' }
     $dirtyAfter = if ($After) { @($After.Dirty | Where-Object { $_ }) } else { @('post-run scope unavailable') }
     $ended = [DateTimeOffset]::UtcNow
-    return [ordered]@{ schemaVersion = 1; id = $Id; taskId = $Task; base = $Spec.base; head = $Scope.Head; specId = $Current.specId; specHash = $Spec.specHash; stage = $Stage; changedPaths = @($Scope.Paths); dirtyBefore = @($Scope.Dirty); dirtyAfter = @($dirtyAfter); startedAt = $Started.ToString('o'); endedAt = $ended.ToString('o'); durationMs = $ElapsedMs; predecessor = $PreviousRun; difference = $Difference; question = $Question; stopWhen = $StopWhen; steps = @($Results); status = $status; failure = $Failure; implementationResult = '固定base/headの変更pathと実行結果を参照'; retainUntil = $Started.AddDays([double]$Spec.trialDays).ToString('o') }
+    # suiteはA3の固定policy版、adapterは同じrepository commitの実装版で特定する。
+    return [ordered]@{ schemaVersion = 1; id = $Id; repoId = $Current.repoId; taskId = $Task; base = $Spec.base; head = $Scope.Head; specId = $Current.specId; specHash = $Spec.specHash; suiteVersion = $Spec.testPolicy; adapterVersion = "git:$($Scope.Head)"; stage = $Stage; changedPaths = @($Scope.Paths); dirtyBefore = @($Scope.Dirty); dirtyAfter = @($dirtyAfter); startedAt = $Started.ToString('o'); endedAt = $ended.ToString('o'); durationMs = $ElapsedMs; predecessor = $PreviousRun; difference = $Difference; question = $Question; stopWhen = $StopWhen; steps = @($Results); status = $status; failure = $Failure; implementationResult = '固定base/headの変更pathと実行結果を参照'; retainUntil = $Started.AddDays([double]$Spec.trialDays).ToString('o') }
 }
 
 function Assert-HandoffCandidate([object]$Current, [string]$To) {
@@ -103,7 +105,7 @@ function New-CloseRecord([object]$Current, [string]$Task, [string]$Owner, [strin
     if (-not $Reason) { throw 'closeには-Reasonが必要です。' }
     if ($Owner -cne $Current.owner) { throw 'task ownerを-Ownerで明示してください。' }
     if ($Outcome -ceq 'Completed' -and (-not $Current.judgmentInputId -or -not $CReview -or -not $CBlindReview)) { throw 'Completedには判定入力とC/C′結果の明示が必要です。' }
-    $closedRefs = @(Resolve-CloseReferences @($Current.references) $Task $ReviewClosed $ClosedAt)
+    $closedRefs = @(Resolve-CloseReferences @($Current.references) $Task $ReviewClosed $ClosedAt $Owner)
     $retainUntil = $ClosedAt.AddDays(30)
     foreach ($ref in @($closedRefs | Where-Object { $_.expiresAt -and -not $_.releasedAt })) {
         $expiry = [DateTimeOffset]::Parse($ref.expiresAt)
