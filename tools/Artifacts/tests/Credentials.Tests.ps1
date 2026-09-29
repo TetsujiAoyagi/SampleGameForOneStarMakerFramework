@@ -1,4 +1,4 @@
-param([string[]] $Case = @('*'))
+param([string[]] $Case = @('*'), [string] $ResultPath = '')
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -10,6 +10,14 @@ $pathModule = $store.NestedModules | Where-Object Name -eq 'CredentialPathAcl' |
 $root = [IO.Path]::Combine([IO.Path]::GetTempPath(), 'osm-credential-test-' + [Guid]::NewGuid().ToString('N'))
 $script:passed = [Collections.Generic.List[string]]::new()
 $script:failed = [Collections.Generic.List[string]]::new()
+$script:selected = [Collections.Generic.List[string]]::new()
+$script:executed = [Collections.Generic.List[string]]::new()
+# 登録集合は -Case で選ばれた実行ではなく、ソース上の Run 呼び出しから取る。
+# フィルタで登録件数を縮めると、未実行の case が「元から無い」ように見える。
+$tokens=$null; $parseErrors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile($PSCommandPath,[ref]$tokens,[ref]$parseErrors)
+$script:registered=@($ast.FindAll({ param($node) $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -ceq 'Run' },$true) | ForEach-Object { $_.CommandElements[1].Value } | Where-Object { $_ -is [string] })
+if ($parseErrors.Count -gt 0 -or $script:registered.Count -eq 0) { throw 'Credential case registration unavailable.' }
 $script:writes = [Collections.Generic.List[string]]::new()
 $sentinelId = 'DUMMY_ID_' + [Guid]::NewGuid().ToString('N')
 $sentinelSecret = 'DUMMY_SECRET_' + [Guid]::NewGuid().ToString('N')
@@ -64,6 +72,7 @@ function Run([string] $Name, [scriptblock] $Body) {
         if ($Name -like $pattern) { $selected = $true; break }
     }
     if (-not $selected) { return }
+    $script:selected.Add($Name)
     Reset-Fixture
     $captured = @()
     $exceptionText = ''
@@ -87,6 +96,7 @@ function Run([string] $Name, [scriptblock] $Body) {
             }
         } catch { $caseFailed = $true }
     }
+    $script:executed.Add($Name)
     if ($caseFailed) { $script:failed.Add($Name + ': ' + $exceptionText) } else { $script:passed.Add($Name) }
 }
 
@@ -438,6 +448,10 @@ try {
     $diff = & git -C $repo diff --no-ext-diff --no-color HEAD 2>&1 | Out-String
     Assert ($LASTEXITCODE -eq 0) 'repository diff command'
     Assert-NoSentinel $diff 'repository diff'
+    if ($ResultPath) {
+        $result = [ordered]@{ registered = @($script:registered); selected = @($script:selected); executed = @($script:executed); failed = @($script:failed) }
+        [IO.File]::WriteAllText($ResultPath, (ConvertTo-Json -InputObject $result -Depth 5), [Text.UTF8Encoding]::new($false))
+    }
     $joined = (@($script:passed) + @($script:failed)) -join ','
     Assert (-not $joined.Contains($sentinelId) -and -not $joined.Contains($sentinelSecret)) 'case report secret'
     foreach ($name in $script:passed) { Write-Output "PASS $name" }

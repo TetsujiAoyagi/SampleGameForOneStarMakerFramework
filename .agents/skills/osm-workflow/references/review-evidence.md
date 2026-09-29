@@ -19,6 +19,8 @@ Phase A snapshot、Phase B result snapshot、evidence bundle、C' blind audit bu
 
 ## 保存先とリモートへの配布
 
+A3で `external-current-v1` を採用したtaskでは、Git外の固定recordを正本とし、`run` IDからpath/hash/時刻を機械表示する。Gitへの生成証拠追加と手転記hash台帳は使わない。H1は同一マシンの別worktreeまでを保証し、他マシン配布は成立済みと扱わない。未移行作業には以下の従来方式を維持する。
+
 evidence の固定は、全ての生ログ・画像・完全 diff を製品ブランチへコミットすることを意味しない。Git には対象 base / head、取得先と bundle id、hash、取得手順、保持期限を記した小さな台帳を残し、大きな payload は別の保存先へ置く形を優先する。台帳は進行中は HANDOFF に記録し、削除時は PR 本文等に取得情報を引き継ぐ。C' には C の所見を含まない独立した取得案内を渡し、取得のために PR 本文や可変 HANDOFF 全文を読ませない。
 
 保存先は、担当するリモート Agent が自身の権限とネットワークで取得・展開・hash 検証できることを確認して選ぶ。ローカルで取得した bundle の Release asset や CI で生成した artifact は候補であり、clone できるだけで添付も読めると仮定しない。保持期限は予定するレビュー・再監査期間を満たし、期限付きなら失効前の移管先と担当を決める。保存範囲は元リポジトリのアクセス範囲を広げない。

@@ -4,8 +4,8 @@ description: >-
   Use when editing Unity scenes, SceneResource assets, WorldCell generator menus,
   Addressables, or AuthoredRoot transforms in this OneStarMaker / SampleGame
   repository. Overrides upstream unity-cli for this repo: open the local Editor
-  when needed, then use named Pipeline commands or eval; keep batch tests/builds
-  in Phase C and never YAML-edit .unity when an Editor is reachable. Cloud agents
+  when needed, then use named Pipeline commands or eval; keep Unity batch tests/builds
+  in Phase C until an H2 contract adopts limited B tests. Never YAML-edit .unity when an Editor is reachable. Cloud agents
   without an Editor do not invoke the Unity CLI.
 ---
 
@@ -38,7 +38,7 @@ description: >-
 4. 名前付き command が足りないときだけ `tools/unity-editor.cmd eval <UTF-8 Base64>`。PowerShellなら `$encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($code))` で作る。
 5. S-4b P3 以降、`WorldCellStreamingSliceCreator` / `SeasonWorldGenerationCommand` メニューは HEAD に無い。Generate を再実行しない。
 
-## Phase B でやってはいけない
+## Phase B でやってはいけない（H2未適用）
 
 - `unity test`、`unity run`、`pwsh tools/run-tests.ps1`、Addressables ビルドの実行・判定（Phase Cに渡す）
 
@@ -52,4 +52,4 @@ description: >-
 
 ## テスト
 
-Phase B の実装エージェントはEditorでのコンパイル確認まで行えるが、テストは走らせず「テスト未実行」と報告する。Phase C はEditorを閉じてから `osm-workflow` に従い、標準 `run-tests.ps1` と必要なBuildを人間の在席を待たず実行してよい。`unity test` / `unity run` はPhase Cでも使わない。自分で起動したEditorだけを未保存変更の確認後に正常終了させ、人間が開いたEditorを強制終了しない。
+H2未適用のUnity作業では、Phase B の実装エージェントはEditorでのコンパイル確認まで行い、Unityテストは走らせず「未実行」と報告する。H1適用のArtifacts/Harness作業はUnityを変更せず、完了引渡し時のofflineテストをBで実行する。H2適用済みUnity作業のB限定テストは、そのA3 snapshotが実行経路を固定したときだけ許す。Phase C はEditorを閉じてから `osm-workflow` に従い、標準 `run-tests.ps1` と必要なBuildを人間の在席を待たず実行してよい。`unity test` / `unity run` はPhase Cでも使わない。自分で起動したEditorだけを未保存変更の確認後に正常終了させ、人間が開いたEditorを強制終了しない。

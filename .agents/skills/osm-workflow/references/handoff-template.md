@@ -1,5 +1,7 @@
 # HANDOFF テンプレート
 
+A3で `external-current-v1` を明示したtaskはこのtrackedテンプレートを複製しない。`pwsh tools/harness.ps1 current -Task <id>` で凍結仕様と最新状態を表示し、run/input/receipt IDから機械取得する。未移行作業には以下のテンプレートを引き続き使う。
+
 スライス用 HANDOFF はこの構造を基準にする。複数スライス計画や調査記録は `type` を変え、Phase 欄を持つスライス HANDOFF と混同しない。
 
 ## 0. メタデータ

@@ -1,10 +1,18 @@
-param()
+param([string] $AssemblyPath = '', [string] $ResultPath = '')
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$assemblyPath = Join-Path $PSScriptRoot '../Probe/artifacts/route-transport/R2RouteTransport.dll'
+if (-not $AssemblyPath) { $AssemblyPath = Join-Path $PSScriptRoot '../Probe/artifacts/route-transport/R2RouteTransport.dll' }
+$assemblyPath = [IO.Path]::GetFullPath($AssemblyPath)
 if (-not [IO.File]::Exists($assemblyPath)) { throw 'Build R2RouteTransport before running its transport tests.' }
+$beforeHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $assemblyPath).Hash.ToLowerInvariant()
 $assembly = [Reflection.Assembly]::LoadFrom([IO.Path]::GetFullPath($assemblyPath))
+$actualPath = $assembly.Location
+if (-not $actualPath -or -not [IO.Path]::GetFullPath($actualPath).Equals($assemblyPath, [StringComparison]::OrdinalIgnoreCase)) { throw 'Loaded DLL path differs from requested DLL.' }
+# Run 関数が無いので登録名はこの節の並びと一致する固定リスト。各節の直後に実行済みへ足し、
+# 途中で落ちると件数が足りず終了する。前後の hash と依存 DLL は、実際に読んだバイナリの証拠。
+$cases = @('unsigned-request', 'authenticated-redirect', 'error-code-across-chunks', 'bounded-read', 'limited-prefix', 'cancellation-prefix', 'interrupted-prefix')
+$executed = [Collections.Generic.List[string]]::new()
 $type = $assembly.GetType('OneStarMaker.Artifacts.Probe.RouteTransport', $true)
 $readBody = $type.GetMethod('ReadBody', [Reflection.BindingFlags]'NonPublic,Static')
 if ($null -eq $readBody) { throw 'ReadBody test target unavailable.' }
@@ -30,6 +38,7 @@ try {
     Assert ($null -eq $request.Headers.Authorization) 'unsigned request added Authorization'
     Assert (-not $handler.AllowAutoRedirect) 'unsigned handler follows redirects'
 } finally { $request.Dispose(); $handler.Dispose() }
+$executed.Add($cases[0])
 
 # SDKのS3 redirect pipelineへ3xxを渡す前に止めるproduction handlerをfake応答で検査します。
 $sdkClient = $clientFactoryMethod.Invoke($null, [object[]]@('dummy-access-key', 'dummy-secret-key', 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com'))
@@ -66,6 +75,7 @@ try {
     Assert $rejected 'authenticated HTTP handler passed a 307 to the AWS SDK redirect pipeline'
     Assert ($redirectFixture.RequestCount -eq 1) 'authenticated redirect guard issued more than the original request'
 } finally { $redirectRequest.Dispose(); $redirectClient.Dispose() }
+$executed.Add($cases[1])
 
 function Read-TestBody([byte[]] $Bytes, [int] $ExpectedBytes, [int] $Limit = 8192) {
     $stream = [IO.MemoryStream]::new($Bytes, $false)
@@ -130,6 +140,7 @@ Assert ($errorBody.S3Code -ceq 'AccessDenied') 'S3 error code was not extracted 
 Assert ($errorBody.EofConfirmed -and -not $errorBody.LimitReached) 'bounded error body did not reach EOF'
 Assert ($errorBody.BodySha256 -ceq [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($errorBytes)).ToLowerInvariant()) 'full response digest changed'
 Assert ($null -eq $errorBody.GetType().GetProperty('CapturedBytes')) 'transport retained a response-body byte array'
+$executed.Add($cases[2])
 
 # read後に計上値だけを切り詰めず、上限+1 byteより先をstreamから消費しないことを実量で検査します。
 $countingStreamSource = @'
@@ -162,6 +173,7 @@ $countingStream=[RouteProofCountingReadStream]::new([byte[]]::new(20000))
 $boundedRead=$readBody.Invoke($null,[object[]]@($countingStream,32,[Threading.CancellationToken]::None,8192,$false))
 Assert ($boundedRead.ByteCount -eq 8193 -and $countingStream.TotalBytesRead -eq 8193) 'body cap reported less data than the stream actually consumed'
 Assert ($boundedRead.LimitReached -and $countingStream.LargestRequestedBuffer -le 1024 -and $countingStream.LastRequestedBuffer -eq 1) 'body cap requested bytes beyond the single overflow-detection byte'
+$executed.Add($cases[3])
 
 # 上限到達時はEOFや全体hashを偽らず、期待object長のprefix証拠だけを残します。
 $objectPrefix = [Text.Encoding]::ASCII.GetBytes('private-payload')
@@ -171,17 +183,33 @@ Assert ($limitedBody.LimitReached -and -not $limitedBody.EofConfirmed) 'oversize
 Assert ($null -eq $limitedBody.BodySha256) 'limited body received a full-body digest'
 $expectedPrefixHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($objectPrefix)).ToLowerInvariant()
 Assert ($limitedBody.PrefixSha256 -ceq $expectedPrefixHash) 'object prefix digest was lost at the byte limit'
+$executed.Add($cases[4])
 
 # 遅延を使わず2回目のreadで期限を発火し、既に届いたprefix hashが残ることを確認します。
 $cancelledBody = Read-CancelledTestBody $objectPrefix $objectPrefix.Length
 Assert ($cancelledBody.TimedOut -and -not $cancelledBody.EofConfirmed) 'cancelled body was not classified as a partial timeout'
 Assert ($cancelledBody.PrefixSha256 -ceq $expectedPrefixHash) 'timeout discarded the already observed object prefix'
 Assert ($null -eq $cancelledBody.BodySha256) 'partial timeout received a full-body digest'
+$executed.Add($cases[5])
 
 # 通信切断は期限timeoutとは別でも、到着済みprefixの証拠を失わせません。
 $interruptedBody=Read-InterruptedTestBody $objectPrefix $objectPrefix.Length
 Assert (-not $interruptedBody.TimedOut -and -not $interruptedBody.EofConfirmed) 'I/O interruption was reported as timeout or complete'
 Assert ($interruptedBody.PrefixSha256 -ceq $expectedPrefixHash) 'I/O interruption discarded the already observed prefix'
 Assert ($null -eq $interruptedBody.BodySha256) 'interrupted body received a full-body digest'
+$executed.Add($cases[6])
 
-[Console]::WriteLine('R2RouteTransport tests passed: 7')
+$afterHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $actualPath).Hash.ToLowerInvariant()
+if ($beforeHash -cne $afterHash -or $executed.Count -ne $cases.Count) { throw 'Loaded DLL changed or cases were incomplete.' }
+$dependencies = @($assembly.GetReferencedAssemblies() | ForEach-Object {
+    $requested = $_
+    $loaded = [AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $_.GetName().Name -ceq $requested.Name } | Select-Object -First 1
+    if ($null -eq $loaded) { [ordered]@{ name = $requested.Name; status = 'not-loaded'; path = $null; hash = $null; moduleVersionId = $null } }
+    elseif ([string]::IsNullOrEmpty($loaded.Location)) { [ordered]@{ name = $requested.Name; status = 'in-memory'; path = $null; hash = $null; moduleVersionId = $loaded.ManifestModule.ModuleVersionId.ToString() } }
+    else { [ordered]@{ name = $requested.Name; status = 'loaded'; path = $loaded.Location; hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $loaded.Location).Hash.ToLowerInvariant(); moduleVersionId = $loaded.ManifestModule.ModuleVersionId.ToString() } }
+})
+if ($ResultPath) {
+    $result = [ordered]@{ registered = @($cases); selected = @($cases); executed = @($executed); failed = @(); loadedPath = $actualPath; loadedHashBefore = $beforeHash; loadedHashAfter = $afterHash; moduleVersionId = $assembly.ManifestModule.ModuleVersionId.ToString(); dependencies = @($dependencies) }
+    [IO.File]::WriteAllText($ResultPath, (ConvertTo-Json -InputObject $result -Depth 5), [Text.UTF8Encoding]::new($false))
+}
+[Console]::WriteLine("R2RouteTransport tests passed: $($executed.Count)")

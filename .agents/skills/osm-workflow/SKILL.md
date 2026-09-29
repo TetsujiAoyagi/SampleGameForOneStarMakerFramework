@@ -14,7 +14,7 @@ description: >-
 
 1. 現在のブランチ、差分、対象 HANDOFF を確認する。
 2. 自分が担当する Phase と成果物を特定する。
-3. 専用ブランチで作業する。`main` / `develop` に直接コミットしない。
+3. 専用ブランチで作業する。`main` / `develop` に直接コミットしない。A3で `external-current-v1` を採用した作業は `pwsh tools/harness.ps1 current -Task <id>` を唯一の作業入口とし、過去RESULTを探して補完しない。未移行作業は従来のHANDOFFを使う。
 4. PR の base は `develop` とする。
 
 Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](references/phases-and-handoff.md) を全文読む。ドキュメントを変更する場合は [ドキュメント方針](references/docs-policy.md) も全文読む。
@@ -40,7 +40,7 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 - 計画外の状態、依存、所有者、寿命、公開 API が必要になった場合、または計画した配置では中核ロジックを単体テストできない場合も実装を止める。Phase B 内で便宜的な Helper / Manager へ押し込まない。
 - コメントには、コードだけでは復元しにくい契約、判断理由、変更時の注意を残す。特に寿命・所有者・選択数・失敗境界や、一見省けそうな例外処理の理由を説明する。処理をそのまま言い換えるコメントや行数を満たすためのコメントは増やさない。読者に通じないスライス略号だけで説明せず、対象と理由を通常の言葉で書く。
 - Unity Editor、Scene、Prefab、Addressables等を扱う場合は `../osm-unity-editor/SKILL.md` を先に読む。
-- 対象を限定した Editor 操作とコンパイル確認は Phase B で行ってよい。Unity バッチテストと Addressables ビルドの実行・判定は Phase C の責任とし、Phase B では実行しない。完了時に未実行を明記する。
+- 対象を限定した Editor 操作とコンパイル確認は Phase B で行ってよい。Unity バッチテストと Addressables ビルドの実行・判定は Phase C の責任とし、H2未適用のPhase Bでは実行しない。H1適用済みのArtifacts/Harness作業は完了引渡し時に関連offline suiteのB exitを通す。中間commitやWIP救援にB exitを要求しない。H2適用後のUnity B限定テストは別途凍結した契約に従う。完了時に未実行を明記する。
 - 実装を終えたら `pwsh tools/contract-audit.ps1` を実行する。Editor のコンパイル確認を行えなかった場合は、その未確認を明記する。
 
 ## Phase C: レビューとテスト
@@ -54,7 +54,7 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 - `pwsh tools/contract-audit.ps1` を実行する。機械で判定できる契約はこれで済ませ、構造レビューは設計判断に集中する。
 - Phase C は欠陥発見と最終判定を分ける。詳細は [レビュー証拠](references/review-evidence.md) の「発見 C と判定 C」を正とする。目的は検証範囲の縮小ではなく、重い検証のタイミングをずらすことである。
 - 発見 C の欠陥も同じ分類で修正先を決める。B 適応で足りる違反は修正するが、Phase A 再開の理由にはしない。
-- **発見 C:** 固定した実装差分の構造・契約・凍結済み失敗経路を先に見る。確認可能な指摘は最初の blocker で止めず、凍結済み範囲でまとめる。テスト未実行の evidence でも発見レビューを開始してよい。GO 判定はしない。C' も起動しない。明確な差し戻しが決まった段階では、最終判定用の検証一式を実行しない。
+- **発見 C:** 固定した実装差分の構造・契約・凍結済み失敗経路を先に見る。H1適用taskの正規提出はB exit済みのdiscovery入力を使う。未テストWIP相談はassistで区別する。未移行作業は従来どおりテスト未実行のevidenceでも発見レビューを開始できる。GO 判定はしない。C' も起動しない。明確な差し戻しが決まった段階では、最終判定用の検証一式を実行しない。
 - 差し戻し中のテストは、修正箇所と影響する既存経路の確認に必要なものを `-Filter` 等で選ぶ。Phase A の起点 filter を使うが、凍結済み条件または常時契約の確認に必要なら根拠を記録して変更してよい。受け入れ条件の追加とは区別する。PlayMode 往復・Content Directory build・Player は通常は判定時にまとめる。当該欠陥の再現または修正確認に必要な場合は、理由と範囲を記録して限定実行できる。
 - **判定 C:** 未解決の blocker がなくなった GO 候補 head で、HANDOFF の判定必須テストを実行する。実装変更を伴うスライスでは最終の全 EditMode 回帰（空 filter）を標準とする。適用除外は Phase A で理由と代替証拠を明示する。同じ platform / graphics 条件でまとめられるテストは 1 プロセスに集約する。プロセス分離自体が検証条件なら維持する。XML の実行テスト名と件数で、必要な集合が収録されたことを確認する。
 - Unity Editor が閉じていることを確認してから `pwsh tools/run-tests.ps1` を実行する。自分で起動した Editor は未保存の変更を確認して正常終了させる。既存の人間所有 Editor を無断で強制終了しない。namespace filter は全件性を保証しない。全件回帰は空 filter、限定検証は XML で対象集合を確認する。
