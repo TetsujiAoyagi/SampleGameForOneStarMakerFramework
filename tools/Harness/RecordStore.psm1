@@ -221,12 +221,15 @@ function Write-Closed([string]$TaskDirectory, [int]$ExpectedRevision, [scriptblo
         if ($current.revision -ne $ExpectedRevision) { throw 'close前にCURRENTが更新されました。currentを読み直してください。' }
         $record = & $BuildRecord $current
         $path = [IO.Path]::Combine($TaskDirectory, 'closed.json')
-        $stream = [IO.FileStream]::new($path, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+        $temp = [IO.Path]::Combine($TaskDirectory, 'closed.' + [Guid]::NewGuid().ToString('N') + '.tmp')
+        $stream = [IO.FileStream]::new($temp, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
         try {
             $bytes = [Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject $record -Depth 40))
             $stream.Write($bytes)
             $stream.Flush($true)
         } finally { $stream.Dispose() }
+        # 完全に書けた一時ファイルだけを終端名へ昇格する。存在済みの終端は上書きしない。
+        [IO.File]::Move($temp, $path)
         return $record
     } finally { $held.Dispose() }
 }

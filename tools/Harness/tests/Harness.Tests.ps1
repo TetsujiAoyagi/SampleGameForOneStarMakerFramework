@@ -6,7 +6,7 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../RecordStore.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../GatePolicy.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../Adapters/LocalChecks.psm1') -Force
-$registered = @('repository identity and explicit task', 'CLI status and missing task', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'corrupt current is not overwritten', 'restore rejects dangling reference', 'run payload rejects old DLL and modification', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'blind input omits findings', 'child process result', 'close persists current references')
+$registered = @('repository identity and explicit task', 'CLI status and missing task', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'corrupt current is not overwritten', 'restore rejects dangling reference', 'run payload rejects old DLL and modification', 'failing step keeps record', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'blind input omits findings', 'child process result', 'close persists current references')
 $selected = [Collections.Generic.List[string]]::new()
 $executed = [Collections.Generic.List[string]]::new()
 $failed = [Collections.Generic.List[string]]::new()
@@ -167,6 +167,14 @@ try {
         [IO.File]::WriteAllText($log, 'tampered')
         Reject { Assert-RunPayload $taskDirectory $run } 'modified raw log accepted'
     }
+    # 子processの失敗でも実行引数・ログ・時間が固定stepに残り、原本を照合できる。
+    Run 'failing step keeps record' {
+        $step = Invoke-LocalStep $repo $taskDirectory 'failed-step-fixture' 'artifacts-local'
+        Assert ($step.status -ceq 'failed' -and $step.exitCode -ne 0) 'missing project unexpectedly succeeded'
+        Assert (@($step.argv).Count -eq 1 -and $step.argv[0].executable -ceq 'dotnet' -and @($step.argv[0].arguments).Count -gt 0) 'failed step lost command arguments'
+        Assert ($step.cwd -ceq $repo -and @($step.logs).Count -gt 0 -and $step.logHash -and $step.timing.buildMs -ge 0) 'failed step lost evidence'
+        Assert-RunPayload $taskDirectory ([pscustomobject]@{ id='failed-step-fixture'; steps=@($step) })
+    }
     # Unity を含む差分は、Artifacts だけの必須集合にしない。祖先でない base は拒否する。
     Run 'actual Git diff detects Unity' {
         [IO.Directory]::CreateDirectory([IO.Path]::Combine($repo, 'tools', 'Artifacts', 'tests')) | Out-Null
@@ -275,7 +283,9 @@ try {
     # 子プロセスの標準出力と終了コードを、期限付きで回収する。
     Run 'child process result' {
         $result = Invoke-Process 'pwsh' @('-NoProfile', '-Command', '[Console]::WriteLine("OK")') $repo 15
-        Assert ($result.ExitCode -eq 0 -and $result.Stdout.Trim() -ceq 'OK' -and $result.DurationMs -ge 0) 'child output'
+        Assert ($result.ExitCode -eq 0 -and $result.Stdout.Trim() -ceq 'OK' -and $result.DurationMs -ge 0 -and $result.LaunchMs -ge 0) 'child output'
+        $timed = Invoke-Process 'pwsh' @('-NoProfile', '-Command', 'while ($true) {}') $repo 1
+        Assert ($timed.TimedOut -and $timed.ExitCode -ne 0 -and $timed.DurationMs -ge 1000) 'timeout did not return a failed process record'
     }
     # close は当時の参照を終端ファイルへ残し、以降の CURRENT 更新を拒否する。
     Run 'close persists current references' {

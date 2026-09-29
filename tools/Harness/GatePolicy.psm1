@@ -85,13 +85,13 @@ function Resolve-CloseReferences([object[]]$References, [string]$Task, [bool]$Re
     return @($resolved)
 }
 
-function New-RunResult([object]$Spec, [object]$Current, [string]$Task, [string]$Stage, [object]$Scope, [object]$After, [DateTimeOffset]$Started, [string]$Id, [string]$PreviousRun, [string]$Difference, [string]$Question, [string]$StopWhen, [object[]]$Results, [string]$Failure) {
+function New-RunResult([object]$Spec, [object]$Current, [string]$Task, [string]$Stage, [object]$Scope, [object]$After, [DateTimeOffset]$Started, [long]$ElapsedMs, [string]$Id, [string]$PreviousRun, [string]$Difference, [string]$Question, [string]$StopWhen, [object[]]$Results, [string]$Failure) {
     # 事後のHEAD/dirtyを採れない実行は成功にしない。記録の寿命は凍結仕様の値を使う。
     $failed = @($Results | Where-Object { $_.status -cne 'passed' }).Count -gt 0
     $status = if ($Failure -or $failed -or -not $After -or $Scope.Head -cne $After.Head) { 'failed' } else { 'passed' }
     $dirtyAfter = if ($After) { @($After.Dirty | Where-Object { $_ }) } else { @('post-run scope unavailable') }
     $ended = [DateTimeOffset]::UtcNow
-    return [ordered]@{ schemaVersion = 1; id = $Id; taskId = $Task; base = $Spec.base; head = $Scope.Head; specId = $Current.specId; specHash = $Spec.specHash; stage = $Stage; changedPaths = @($Scope.Paths); dirtyBefore = @($Scope.Dirty); dirtyAfter = @($dirtyAfter); startedAt = $Started.ToString('o'); endedAt = $ended.ToString('o'); durationMs = [long]($ended - $Started).TotalMilliseconds; predecessor = $PreviousRun; difference = $Difference; question = $Question; stopWhen = $StopWhen; steps = @($Results); status = $status; failure = $Failure; implementationResult = '固定base/headの変更pathと実行結果を参照'; retainUntil = $Started.AddDays([double]$Spec.trialDays).ToString('o') }
+    return [ordered]@{ schemaVersion = 1; id = $Id; taskId = $Task; base = $Spec.base; head = $Scope.Head; specId = $Current.specId; specHash = $Spec.specHash; stage = $Stage; changedPaths = @($Scope.Paths); dirtyBefore = @($Scope.Dirty); dirtyAfter = @($dirtyAfter); startedAt = $Started.ToString('o'); endedAt = $ended.ToString('o'); durationMs = $ElapsedMs; predecessor = $PreviousRun; difference = $Difference; question = $Question; stopWhen = $StopWhen; steps = @($Results); status = $status; failure = $Failure; implementationResult = '固定base/headの変更pathと実行結果を参照'; retainUntil = $Started.AddDays([double]$Spec.trialDays).ToString('o') }
 }
 
 function Assert-HandoffCandidate([object]$Current, [string]$To) {

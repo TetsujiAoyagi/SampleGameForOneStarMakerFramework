@@ -23,14 +23,15 @@ function Invoke-Process([string]$FileName, [string[]]$Arguments, [string]$Workin
         $launchMs = $clock.ElapsedMilliseconds
         $stdout = $process.StandardOutput.ReadToEndAsync()
         $stderr = $process.StandardError.ReadToEndAsync()
-        if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+        $timedOut = -not $process.WaitForExit($TimeoutSeconds * 1000)
+        if ($timedOut) {
             try { $process.Kill($true) } catch {}
             [void]$process.WaitForExit(5000)
-            throw "processが期限を超えました: $FileName"
         }
-        [void]$stdout.Wait(5000); [void]$stderr.Wait(5000)
+        $stdoutReady = $stdout.Wait(5000)
+        $stderrReady = $stderr.Wait(5000)
         $clock.Stop()
-        return [pscustomobject]@{ ExitCode = $process.ExitCode; Stdout = $stdout.Result; Stderr = $stderr.Result; DurationMs = $clock.ElapsedMilliseconds; LaunchMs = $launchMs }
+        return [pscustomobject]@{ ExitCode = $(if ($timedOut -or -not $stdoutReady -or -not $stderrReady) { -1 } else { $process.ExitCode }); Stdout = $(if ($stdoutReady) { $stdout.Result } else { '[stdout collection incomplete]' }); Stderr = $(if ($stderrReady) { $stderr.Result } else { '[stderr collection incomplete]' }); DurationMs = $clock.ElapsedMilliseconds; LaunchMs = $launchMs; TimedOut = $timedOut; OutputComplete = ($stdoutReady -and $stderrReady) }
     } finally { $process.Dispose() }
 }
 
@@ -147,19 +148,30 @@ function Invoke-LocalStep([string]$Repo, [string]$TaskDirectory, [string]$RunId,
     $childLaunchMs = 0L
     $collectionMs = 0L
     $regressions = [Collections.Generic.List[object]]::new()
+    $registered = [Collections.Generic.List[string]]::new()
+    $selected = [Collections.Generic.List[string]]::new()
+    $executed = [Collections.Generic.List[string]]::new()
+    $logPaths = [Collections.Generic.List[string]]::new()
+    $exitCode = 0
+    $stepFailure = $null
+    $collectClock = $null
+    try {
     switch ($Name) {
         'artifacts-local' {
             $output = [IO.Path]::Combine($payload, 'build')
             # --no-restore は、実行の途中でパッケージ取得を始めないため。未復元なら build が失敗する。
-            $build = Invoke-Process 'dotnet' @('build', [IO.Path]::Combine($Repo, 'tools/Artifacts/Probe/R2RouteTransport.csproj'), '-c', 'Release', '-o', $output, '--no-restore', '--nologo') $Repo 600
+            $buildArgs = @('build', [IO.Path]::Combine($Repo, 'tools/Artifacts/Probe/R2RouteTransport.csproj'), '-c', 'Release', '-o', $output, '--no-restore', '--nologo')
+            $commands.Add([pscustomobject]@{ executable = 'dotnet'; arguments = @($buildArgs) })
+            $build = Invoke-Process 'dotnet' $buildArgs $Repo 600
             $buildMs = $build.DurationMs
             $childLaunchMs += $build.LaunchMs
-            $commands.Add(@('dotnet', 'build', [IO.Path]::Combine($Repo, 'tools/Artifacts/Probe/R2RouteTransport.csproj'), '-c', 'Release', '-o', $output, '--no-restore', '--nologo'))
             $collectClock = [Diagnostics.Stopwatch]::StartNew()
-            [IO.File]::WriteAllText([IO.Path]::Combine($payload, 'build.log'), $build.Stdout + $build.Stderr)
+            $buildLog = [IO.Path]::Combine($payload, 'build.log')
+            [IO.File]::WriteAllText($buildLog, $build.Stdout + $build.Stderr)
+            $logPaths.Add($buildLog)
             $collectClock.Stop(); $collectionMs += $collectClock.ElapsedMilliseconds
             # build に失敗した時点で case は無い。未実行の suite を成功件数に数えない。
-            if ($build.ExitCode -ne 0) { return [pscustomobject]@{ name = $Name; kind = 'test'; status = 'failed'; exitCode = $build.ExitCode; argv = @($commands); registered = @(); selected = @(); executed = @(); logHash = (Get-FileHash -Algorithm SHA256 ([IO.Path]::Combine($payload, 'build.log'))).Hash.ToLowerInvariant(); durationMs = $stepClock.ElapsedMilliseconds; timing = [ordered]@{ buildMs = $buildMs; childLaunchMs = $childLaunchMs; regressions = @(); collectionMs = $collectionMs } } }
+            if ($build.ExitCode -ne 0) { $exitCode = $build.ExitCode; throw 'buildが失敗または期限超過しました。' }
             $binary = [IO.Path]::Combine($output, 'R2RouteTransport.dll')
             if (-not [IO.File]::Exists($binary)) { throw 'build後のDLLがありません。' }
             $binaryBefore = (Get-FileHash -Algorithm SHA256 $binary).Hash.ToLowerInvariant()
@@ -170,13 +182,6 @@ function Invoke-LocalStep([string]$Repo, [string]$TaskDirectory, [string]$RunId,
         'docs-audit' { $scripts = @('DocsAudit') }
         default { throw "未知のstepです: $Name" }
     }
-    $registered = [Collections.Generic.List[string]]::new()
-    $selected = [Collections.Generic.List[string]]::new()
-    $executed = [Collections.Generic.List[string]]::new()
-    $totalMs = 0L
-    $exitCode = 0
-    $logPaths = [Collections.Generic.List[string]]::new()
-    if ($Name -ceq 'artifacts-local') { $logPaths.Add([IO.Path]::Combine($payload, 'build.log')) }
     foreach ($scriptName in $scripts) {
         $caseFile = [IO.Path]::Combine($payload, "$scriptName.cases.json")
         switch ($scriptName) {
@@ -187,15 +192,15 @@ function Invoke-LocalStep([string]$Repo, [string]$TaskDirectory, [string]$RunId,
             'ContractAudit' { $scriptPath = [IO.Path]::Combine($Repo, 'tools/contract-audit.ps1'); $args = @('-NoProfile', '-File', $scriptPath, '-HarnessTask', (Split-Path $TaskDirectory -Leaf)) }
             'DocsAudit' { $scriptPath = [IO.Path]::Combine($Repo, 'tools/docs-audit.ps1'); $args = @('-NoProfile', '-File', $scriptPath) }
         }
+        $commands.Add([pscustomobject]@{ executable = 'pwsh'; arguments = @($args) })
         $run = Invoke-Process 'pwsh' $args $Repo 600
-        $commands.Add(@('pwsh') + @($args))
         $childLaunchMs += $run.LaunchMs
         $regressions.Add([ordered]@{ name = $scriptName; wallMs = $run.DurationMs })
         $collectClock = [Diagnostics.Stopwatch]::StartNew()
         $log = [IO.Path]::Combine($payload, "$scriptName.log")
         [IO.File]::WriteAllText($log, $run.Stdout + $run.Stderr)
         $logPaths.Add($log)
-        $totalMs += $run.DurationMs
+        if ($run.TimedOut) { $stepFailure = "processが期限を超えました: $scriptName" }
         if ($run.ExitCode -ne 0) { $exitCode = $run.ExitCode }
         if ($Name -like '*audit') {
             # exit 0 でも、この1行が無い、または files=0 / errors>0 なら失敗。
@@ -243,7 +248,16 @@ function Invoke-LocalStep([string]$Repo, [string]$TaskDirectory, [string]$RunId,
         catch { $exitCode = 1 }
     }
     $logHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes((@($logPaths | ForEach-Object { (Get-FileHash -Algorithm SHA256 $_).Hash }) -join '|')))).ToLowerInvariant()
-    return [pscustomobject]@{ name = $Name; kind = $(if ($Name -like '*local') { 'test' } else { 'audit' }); status = $(if ($exitCode -eq 0) { 'passed' } else { 'failed' }); exitCode = $exitCode; argv = @($commands); cwd = $Repo; registered = @($registered); selected = @($selected); executed = @($executed); audit = $auditResult; logHash = $logHash; logs = @($logPaths | ForEach-Object { [IO.Path]::GetRelativePath($TaskDirectory, $_) }); binaryPath = $binary; binaryHashBefore = $binaryBefore; binaryHashAfter = $binaryAfter; loadedPath = $loadedPath; loadedHash = $loadedHash; moduleVersionId = $moduleVersionId; dependencies = @($dependencies); durationMs = $stepClock.ElapsedMilliseconds; timing = [ordered]@{ buildMs = $buildMs; childLaunchMs = $childLaunchMs; regressions = @($regressions); collectionMs = $collectionMs } }
+    return [pscustomobject]@{ name = $Name; kind = $(if ($Name -like '*local') { 'test' } else { 'audit' }); status = $(if ($exitCode -eq 0) { 'passed' } else { 'failed' }); exitCode = $exitCode; argv = @($commands.ToArray()); cwd = $Repo; registered = @($registered); selected = @($selected); executed = @($executed); audit = $auditResult; logHash = $logHash; logs = @($logPaths | ForEach-Object { [IO.Path]::GetRelativePath($TaskDirectory, $_) }); binaryPath = $binary; binaryHashBefore = $binaryBefore; binaryHashAfter = $binaryAfter; loadedPath = $loadedPath; loadedHash = $loadedHash; moduleVersionId = $moduleVersionId; dependencies = @($dependencies); durationMs = $stepClock.ElapsedMilliseconds; timing = [ordered]@{ buildMs = $buildMs; childLaunchMs = $childLaunchMs; regressions = @($regressions); collectionMs = $collectionMs }; failure = $stepFailure }
+    } catch {
+        if ($collectClock -and $collectClock.IsRunning) { $collectClock.Stop(); $collectionMs += $collectClock.ElapsedMilliseconds }
+        $stepFailure = $_.Exception.Message
+        $failureLog = [IO.Path]::Combine($payload, "$Name.failure.log")
+        [IO.File]::WriteAllText($failureLog, $stepFailure)
+        $logPaths.Add($failureLog)
+        $logHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes((@($logPaths | ForEach-Object { (Get-FileHash -Algorithm SHA256 $_).Hash }) -join '|')))).ToLowerInvariant()
+        return [pscustomobject]@{ name = $Name; kind = $(if ($Name -like '*local') { 'test' } else { 'audit' }); status = 'failed'; exitCode = $(if ($exitCode -ne 0) { $exitCode } else { -1 }); argv = @($commands.ToArray()); cwd = $Repo; registered = @($registered); selected = @($selected); executed = @($executed); audit = $auditResult; logHash = $logHash; logs = @($logPaths | ForEach-Object { [IO.Path]::GetRelativePath($TaskDirectory, $_) }); binaryPath = $binary; binaryHashBefore = $binaryBefore; binaryHashAfter = $binaryAfter; loadedPath = $loadedPath; loadedHash = $loadedHash; moduleVersionId = $moduleVersionId; dependencies = @($dependencies); durationMs = $stepClock.ElapsedMilliseconds; timing = [ordered]@{ buildMs = $buildMs; childLaunchMs = $childLaunchMs; regressions = @($regressions); collectionMs = $collectionMs }; failure = $stepFailure }
+    }
 }
 
 Export-ModuleMember -Function Invoke-Process,Get-GitScope,Test-GeneratedEvidencePath,Find-GeneratedEvidenceAdds,Invoke-LocalStep,Assert-RunPayload
