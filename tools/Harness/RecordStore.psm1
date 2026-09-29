@@ -106,6 +106,11 @@ function Start-Run([string]$TaskDirectory, [string]$Id, [string]$Head, [string]$
     $held = [IO.FileStream]::new($lock, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
     try {
         if (Test-TaskClosed $TaskDirectory) { throw 'taskはclose済みです。新しいtaskをinitしてください。' }
+        Write-InProgressMarker $TaskDirectory $Id $Head $StartedAt
+    } finally { $held.Dispose() }
+}
+
+function Write-InProgressMarker([string]$TaskDirectory, [string]$Id, [string]$Head, [string]$StartedAt) {
         $folder = [IO.Path]::Combine($TaskDirectory, 'in-progress')
         [IO.Directory]::CreateDirectory($folder) | Out-Null
         $path = [IO.Path]::Combine($folder, "$Id.json")
@@ -115,13 +120,24 @@ function Start-Run([string]$TaskDirectory, [string]$Id, [string]$Head, [string]$
             $stream.Write($bytes)
             $stream.Flush($true)
         } finally { $stream.Dispose() }
-    } finally { $held.Dispose() }
 }
 
-function Begin-Run([string]$TaskDirectory, [object]$Current, [string]$Id, [string]$Head, [string]$StartedAt) {
-    # 中断しても旧入力を現行と誤認しないよう、開始状態より先に受領を失効させる。
-    [void](Set-RunCurrent $TaskDirectory $Current $Head $Id)
-    Start-Run $TaskDirectory $Id $Head $StartedAt
+function Begin-Run([string]$TaskDirectory, [object]$Current, [string]$Id, [string]$Head, [string]$StartedAt, [scriptblock]$BeforeMarker = $null) {
+    # 旧入力失効と開始マーカーを同一lock区間に置き、closeが両者の間へ入らない。
+    $lock = [IO.Path]::Combine($TaskDirectory, 'task.lock')
+    $held = [IO.FileStream]::new($lock, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+    try {
+        if (Test-TaskClosed $TaskDirectory) { throw 'taskはclose済みです。新しいtaskをinitしてください。' }
+        $Current.candidateHead = $Head
+        $Current.selectedInputId = $null
+        $Current.judgmentInputId = $null
+        $Current.gateReceiptId = $null
+        $Current.phase = 'B'
+        $Current.nextAction = "run $Id の結果を確認する"
+        [void](Write-CurrentLocked $TaskDirectory $Current $Current.revision)
+        if ($BeforeMarker) { & $BeforeMarker }
+        Write-InProgressMarker $TaskDirectory $Id $Head $StartedAt
+    } finally { $held.Dispose() }
 }
 
 function Finish-Run([string]$TaskDirectory, [object]$Run) {
@@ -174,14 +190,7 @@ function Read-Current([string]$TaskDirectory) {
     return $current
 }
 
-function Write-Current([string]$TaskDirectory, [object]$Current, [int]$ExpectedRevision) {
-    # 排他のあとで close と revision を見なす。待ちの間に閉じられた更新は書かない。
-    # 直前版を残してから置き換える。凍結した仕様 id と task 識別は、この更新では変えられない。
-    if (Test-TaskClosed $TaskDirectory) { throw 'taskはclose済みです。新しいtaskをinitしてください。' }
-    $lock = [IO.Path]::Combine($TaskDirectory, 'task.lock')
-    $held = [IO.FileStream]::new($lock, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
-    try {
-        if (Test-TaskClosed $TaskDirectory) { throw 'taskはclose済みです。新しいtaskをinitしてください。' }
+function Write-CurrentLocked([string]$TaskDirectory, [object]$Current, [int]$ExpectedRevision) {
         $old = Read-Current $TaskDirectory
         if ($old.revision -ne $ExpectedRevision) { throw 'CURRENTのrevisionが古いです。currentを読み直してください。' }
         if ($Current.specId -cne $old.specId -or $Current.taskId -cne $old.taskId -or $Current.repoId -cne $old.repoId) { throw '凍結仕様またはtask識別はCURRENT更新で変更できません。' }
@@ -193,6 +202,17 @@ function Write-Current([string]$TaskDirectory, [object]$Current, [int]$ExpectedR
         [IO.File]::WriteAllText($temp, (ConvertTo-Json -InputObject $Current -Depth 40), [Text.UTF8Encoding]::new($false))
         [IO.File]::Copy($path, $previous, $true)
         [IO.File]::Move($temp, $path, $true)
+    return $Current
+}
+
+function Write-Current([string]$TaskDirectory, [object]$Current, [int]$ExpectedRevision) {
+    # 排他のあとで close と revision を見なす。凍結した仕様 id と task 識別は変えられない。
+    if (Test-TaskClosed $TaskDirectory) { throw 'taskはclose済みです。新しいtaskをinitしてください。' }
+    $lock = [IO.Path]::Combine($TaskDirectory, 'task.lock')
+    $held = [IO.FileStream]::new($lock, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+    try {
+        if (Test-TaskClosed $TaskDirectory) { throw 'taskはclose済みです。新しいtaskをinitしてください。' }
+        [void](Write-CurrentLocked $TaskDirectory $Current $ExpectedRevision)
     } finally { $held.Dispose() }
     return $Current
 }
@@ -322,17 +342,6 @@ function Edit-Reference([string]$TaskDirectory, [object]$Current, [string]$Actio
     return $ReferenceId
 }
 
-function Set-RunCurrent([string]$TaskDirectory, [object]$Current, [string]$Head, [string]$RunId) {
-    $Current.candidateHead = $Head
-    # 新しいrunを選んだ時点で旧判定入力・受領を現行として表示しない。
-    $Current.selectedInputId = $null
-    $Current.judgmentInputId = $null
-    $Current.gateReceiptId = $null
-    $Current.phase = 'B'
-    $Current.nextAction = "run $RunId の結果を確認する"
-    return Write-Current $TaskDirectory $Current $Current.revision
-}
-
 function Set-CurrentNotes([string]$TaskDirectory, [object]$Current, [int]$ExpectedRevision, [bool]$HasNextAction, [string]$NextAction, [bool]$HasUnresolved, [string[]]$Unresolved, [bool]$HasBlockers, [string[]]$Blockers) {
     if ($ExpectedRevision -ne $Current.revision) { throw '更新には一致する-ExpectedRevisionが必要です。currentを読み直してください。' }
     if ($HasNextAction) { $Current.nextAction = $NextAction }
@@ -341,4 +350,4 @@ function Set-CurrentNotes([string]$TaskDirectory, [object]$Current, [int]$Expect
     return Write-Current $TaskDirectory $Current $ExpectedRevision
 }
 
-Export-ModuleMember -Function Get-JsonHash,Get-RepositoryIdentity,Get-TaskDirectory,Initialize-Task,Publish-Handoff,Publish-BlindHandoff,Write-NewRecord,Read-Record,Test-TaskClosed,Read-Current,Write-Current,Restore-Current,Write-Closed,Start-Run,Begin-Run,Finish-Run,Add-AdoptedRun,Edit-Reference,Set-RunCurrent,Set-CurrentNotes
+Export-ModuleMember -Function Get-JsonHash,Get-RepositoryIdentity,Get-TaskDirectory,Initialize-Task,Publish-Handoff,Publish-BlindHandoff,Write-NewRecord,Read-Record,Test-TaskClosed,Read-Current,Write-Current,Restore-Current,Write-Closed,Start-Run,Begin-Run,Finish-Run,Add-AdoptedRun,Edit-Reference,Set-CurrentNotes

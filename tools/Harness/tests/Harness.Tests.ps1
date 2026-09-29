@@ -322,7 +322,11 @@ try {
         $current.selectedInputId = 'old-input'
         $current.judgmentInputId = 'old-input'
         $current.gateReceiptId = 'old-receipt'
-        Begin-Run $taskDirectory $current 'new-run' $base ([DateTimeOffset]::UtcNow.ToString('o'))
+        Begin-Run $taskDirectory $current 'new-run' $base ([DateTimeOffset]::UtcNow.ToString('o')) {
+            $during = Read-Current $taskDirectory
+            Reject { Write-Closed $taskDirectory $during.revision { param($latest) @{ kind='closed'; closedAt='now'; outcome='Abandoned' } } } 'close entered between CURRENT invalidation and run marker'
+            Assert (-not (Test-TaskClosed $taskDirectory)) 'close created terminal record during run start'
+        }
         $updated = Read-Current $taskDirectory
         Assert ($updated.phase -ceq 'B' -and $updated.candidateHead -ceq $base) 'new run did not reset phase/head'
         Assert (-not $updated.selectedInputId -and -not $updated.judgmentInputId -and -not $updated.gateReceiptId) 'old judgment remained selected'
