@@ -173,6 +173,12 @@ function Restore-Current([string]$TaskDirectory) {
     if ($candidate.schemaVersion -ne 1 -or $candidate.taskId -cne $registration.taskId -or $candidate.repoId -cne $registration.repoId -or -not $candidate.specId) { throw '復旧候補のtaskまたは仕様が一致しません。' }
     [void](Read-Record $TaskDirectory 'specifications' $candidate.specId)
     foreach ($adopted in @($candidate.adoptedRuns)) { [void](Read-Record $TaskDirectory 'runs' $adopted.id) }
+    # 採用欄以外のreview/defect参照も復旧候補の一部。対象runが欠落・改変されていれば戻さない。
+    foreach ($ref in @($candidate.references)) {
+        if (-not $ref.referenceId -or -not $ref.owner -or -not $ref.runId -or -not $ref.expiresAt) { throw '復旧候補の参照が不完全です。' }
+        [void]([DateTimeOffset]::Parse($ref.expiresAt))
+        [void](Read-Record $TaskDirectory 'runs' $ref.runId)
+    }
     $lock = [IO.Path]::Combine($TaskDirectory, 'task.lock')
     $held = [IO.FileStream]::new($lock, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
     try {
@@ -225,4 +231,56 @@ function Write-Closed([string]$TaskDirectory, [int]$ExpectedRevision, [scriptblo
     } finally { $held.Dispose() }
 }
 
-Export-ModuleMember -Function Get-JsonHash,Get-RepositoryIdentity,Get-TaskDirectory,Initialize-Task,Publish-Handoff,Write-NewRecord,Read-Record,Test-TaskClosed,Read-Current,Write-Current,Restore-Current,Write-Closed,Start-Run,Finish-Run
+function Add-AdoptedRun([string]$TaskDirectory, [object]$Current, [string]$RunId, [string]$Reason, [string]$SpecHash, [string]$RetainUntil = '') {
+    if (-not $RunId -or -not $Reason) { throw 'adoptには-RunIdと-Reasonが必要です。' }
+    $record = Read-Record $TaskDirectory 'runs' $RunId
+    if ($record.content.specHash -cne $SpecHash) { throw '別仕様のrunは採用できません。' }
+    if (@($Current.adoptedRuns | Where-Object id -eq $RunId).Count -gt 0) { throw '同じrunは採用済みです。' }
+    $now = [DateTimeOffset]::UtcNow
+    $expiry = if ($RetainUntil) { [DateTimeOffset]::Parse($RetainUntil).ToUniversalTime() } else { $now.AddDays(30) }
+    if ($expiry -le $now) { throw 'retainUntilは将来の時刻が必要です。' }
+    $Current.adoptedRuns = @($Current.adoptedRuns) + @([ordered]@{ id = $RunId; reason = $Reason; adoptedAt = $now.ToString('o') })
+    $Current.references = @($Current.references) + @([ordered]@{ referenceId = [Guid]::NewGuid().ToString('N'); consumerId = $Current.taskId; purpose = 'adopted-run'; runId = $RunId; owner = $Current.owner; expiresAt = $expiry.ToString('o'); releasedAt = $null })
+    return Write-Current $TaskDirectory $Current $Current.revision
+}
+
+function Edit-Reference([string]$TaskDirectory, [object]$Current, [string]$Action, [string]$Owner, [string]$RunId, [string]$ConsumerId, [string]$Purpose, [string]$ExpiresAt, [string]$ReferenceId) {
+    if (-not $Owner) { throw 'referenceには-Ownerが必要です。' }
+    if ($Action -ceq 'Add') {
+        if (-not $RunId -or -not $ConsumerId -or -not $ExpiresAt) { throw '参照追加には-RunId、-ConsumerId、-ExpiresAtが必要です。' }
+        [void](Read-Record $TaskDirectory 'runs' $RunId)
+        $expiry = [DateTimeOffset]::Parse($ExpiresAt).ToUniversalTime()
+        if ($expiry -le [DateTimeOffset]::UtcNow) { throw 'expiresAtは将来の有限時刻が必要です。' }
+        $ReferenceId = [Guid]::NewGuid().ToString('N')
+        $Current.references = @($Current.references) + @([ordered]@{ referenceId = $ReferenceId; consumerId = $ConsumerId; purpose = $Purpose; runId = $RunId; owner = $Owner; expiresAt = $expiry.ToString('o'); releasedAt = $null })
+    } else {
+        if (-not $ReferenceId) { throw '解放・延長には-ReferenceIdが必要です。' }
+        $matches = @($Current.references | Where-Object referenceId -eq $ReferenceId)
+        if ($matches.Count -ne 1 -or $matches[0].owner -cne $Owner -or $matches[0].releasedAt) { throw '所有する有効参照が見つかりません。' }
+        if ($Action -ceq 'Release') { $matches[0].releasedAt = [DateTimeOffset]::UtcNow.ToString('o') }
+        else {
+            if (-not $ExpiresAt) { throw '延長には-ExpiresAtが必要です。' }
+            $expiry = [DateTimeOffset]::Parse($ExpiresAt).ToUniversalTime()
+            if ($expiry -le [DateTimeOffset]::UtcNow) { throw 'expiresAtは将来の有限時刻が必要です。' }
+            $matches[0].expiresAt = $expiry.ToString('o')
+        }
+    }
+    [void](Write-Current $TaskDirectory $Current $Current.revision)
+    return $ReferenceId
+}
+
+function Set-RunCurrent([string]$TaskDirectory, [object]$Current, [string]$Head, [string]$RunId) {
+    $Current.candidateHead = $Head
+    $Current.nextAction = "run $RunId の結果を確認する"
+    return Write-Current $TaskDirectory $Current $Current.revision
+}
+
+function Set-CurrentNotes([string]$TaskDirectory, [object]$Current, [int]$ExpectedRevision, [bool]$HasNextAction, [string]$NextAction, [bool]$HasUnresolved, [string[]]$Unresolved, [bool]$HasBlockers, [string[]]$Blockers) {
+    if ($ExpectedRevision -ne $Current.revision) { throw '更新には一致する-ExpectedRevisionが必要です。currentを読み直してください。' }
+    if ($HasNextAction) { $Current.nextAction = $NextAction }
+    if ($HasUnresolved) { $Current.unresolved = @($Unresolved | Where-Object { $_ }) }
+    if ($HasBlockers) { $Current.blockers = @($Blockers | Where-Object { $_ }) }
+    return Write-Current $TaskDirectory $Current $ExpectedRevision
+}
+
+Export-ModuleMember -Function Get-JsonHash,Get-RepositoryIdentity,Get-TaskDirectory,Initialize-Task,Publish-Handoff,Write-NewRecord,Read-Record,Test-TaskClosed,Read-Current,Write-Current,Restore-Current,Write-Closed,Start-Run,Finish-Run,Add-AdoptedRun,Edit-Reference,Set-RunCurrent,Set-CurrentNotes

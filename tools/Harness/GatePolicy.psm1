@@ -85,6 +85,33 @@ function Resolve-CloseReferences([object[]]$References, [string]$Task, [bool]$Re
     return @($resolved)
 }
 
+function New-RunResult([object]$Spec, [object]$Current, [string]$Task, [string]$Stage, [object]$Scope, [object]$After, [DateTimeOffset]$Started, [string]$Id, [string]$PreviousRun, [string]$Difference, [string]$Question, [string]$StopWhen, [object[]]$Results, [string]$Failure) {
+    # 事後のHEAD/dirtyを採れない実行は成功にしない。記録の寿命は凍結仕様の値を使う。
+    $failed = @($Results | Where-Object { $_.status -cne 'passed' }).Count -gt 0
+    $status = if ($Failure -or $failed -or -not $After -or $Scope.Head -cne $After.Head) { 'failed' } else { 'passed' }
+    $dirtyAfter = if ($After) { @($After.Dirty | Where-Object { $_ }) } else { @('post-run scope unavailable') }
+    $ended = [DateTimeOffset]::UtcNow
+    return [ordered]@{ schemaVersion = 1; id = $Id; taskId = $Task; base = $Spec.base; head = $Scope.Head; specId = $Current.specId; specHash = $Spec.specHash; stage = $Stage; changedPaths = @($Scope.Paths); dirtyBefore = @($Scope.Dirty); dirtyAfter = @($dirtyAfter); startedAt = $Started.ToString('o'); endedAt = $ended.ToString('o'); durationMs = [long]($ended - $Started).TotalMilliseconds; predecessor = $PreviousRun; difference = $Difference; question = $Question; stopWhen = $StopWhen; steps = @($Results); status = $status; failure = $Failure; implementationResult = '固定base/headの変更pathと実行結果を参照'; retainUntil = $Started.AddDays([double]$Spec.trialDays).ToString('o') }
+}
+
+function Assert-HandoffCandidate([object]$Current, [string]$To) {
+    if ($To -ceq 'CJudgment' -and @($Current.blockers).Count -gt 0) { throw '未解決blockerがあります。' }
+}
+
+function New-CloseRecord([object]$Current, [string]$Task, [string]$Owner, [string]$Outcome, [string]$Reason, [string]$CReview, [string]$CBlindReview, [bool]$ReviewClosed, [DateTimeOffset]$ClosedAt) {
+    # 判定条件と参照期限から終端recordの値だけを作る。確定保存と競合検査はRecordStoreが行う。
+    if (-not $Reason) { throw 'closeには-Reasonが必要です。' }
+    if ($Owner -cne $Current.owner) { throw 'task ownerを-Ownerで明示してください。' }
+    if ($Outcome -ceq 'Completed' -and (-not $Current.judgmentInputId -or -not $CReview -or -not $CBlindReview)) { throw 'Completedには判定入力とC/C′結果の明示が必要です。' }
+    $closedRefs = @(Resolve-CloseReferences @($Current.references) $Task $ReviewClosed $ClosedAt)
+    $retainUntil = $ClosedAt.AddDays(30)
+    foreach ($ref in @($closedRefs | Where-Object { $_.expiresAt -and -not $_.releasedAt })) {
+        $expiry = [DateTimeOffset]::Parse($ref.expiresAt)
+        if ($expiry -gt $retainUntil) { $retainUntil = $expiry }
+    }
+    return [ordered]@{ kind = 'closed'; taskId = $Task; owner = $Owner; closedAt = $ClosedAt.ToString('o'); outcome = $Outcome; reason = $Reason; cReview = $CReview; cBlindReview = $CBlindReview; retainUntil = $retainUntil.ToString('o'); references = @($closedRefs) }
+}
+
 function Select-BlindInput([object]$Spec, [object]$Run, [string]$Kind, [string[]]$ChangedPaths, [string]$Diff = '') {
     if ($Kind -cnotin @('discovery', 'judgment')) { throw '入力種別が不正です。' }
     # 可変の CURRENT とレビュー所見は写さない。仕様本文、固定 base/head、差分、run の hash と step だけを残す。
@@ -104,4 +131,4 @@ function Select-BlindInput([object]$Spec, [object]$Run, [string]$Kind, [string[]
     }
 }
 
-Export-ModuleMember -Function Assert-ApprovedSpec,Get-RequiredSteps,Assert-RunForGate,Assert-CaseSets,Resolve-CloseReferences,Select-BlindInput
+Export-ModuleMember -Function Assert-ApprovedSpec,Get-RequiredSteps,Assert-RunForGate,New-RunResult,Assert-HandoffCandidate,Assert-CaseSets,Resolve-CloseReferences,New-CloseRecord,Select-BlindInput

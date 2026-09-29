@@ -20,6 +20,7 @@ function Invoke-Process([string]$FileName, [string[]]$Arguments, [string]$Workin
     $clock = [Diagnostics.Stopwatch]::StartNew()
     try {
         if (-not $process.Start()) { throw "processを起動できません: $FileName" }
+        $launchMs = $clock.ElapsedMilliseconds
         $stdout = $process.StandardOutput.ReadToEndAsync()
         $stderr = $process.StandardError.ReadToEndAsync()
         if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
@@ -29,7 +30,7 @@ function Invoke-Process([string]$FileName, [string[]]$Arguments, [string]$Workin
         }
         [void]$stdout.Wait(5000); [void]$stderr.Wait(5000)
         $clock.Stop()
-        return [pscustomobject]@{ ExitCode = $process.ExitCode; Stdout = $stdout.Result; Stderr = $stderr.Result; DurationMs = $clock.ElapsedMilliseconds }
+        return [pscustomobject]@{ ExitCode = $process.ExitCode; Stdout = $stdout.Result; Stderr = $stderr.Result; DurationMs = $clock.ElapsedMilliseconds; LaunchMs = $launchMs }
     } finally { $process.Dispose() }
 }
 
@@ -47,6 +48,10 @@ function Assert-RunPayload([string]$TaskDirectory, [object]$Run) {
         $actual = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes(($hashes -join '|')))).ToLowerInvariant()
         if ($actual -cne $step.logHash) { throw "生ログhashが一致しません: $($step.name)" }
         if ($step.binaryPath) {
+            $runPayload = [IO.Path]::GetFullPath([IO.Path]::Combine($TaskDirectory, 'payload', $Run.id)) + [IO.Path]::DirectorySeparatorChar
+            if (-not ([IO.Path]::GetFullPath($step.binaryPath)).StartsWith($runPayload, [StringComparison]::OrdinalIgnoreCase) -or
+                $step.loadedPath -cne $step.binaryPath -or $step.binaryHashBefore -cne $step.binaryHashAfter -or
+                $step.loadedHash -cne $step.binaryHashBefore) { throw '実ロードDLLがこのrunのbuildと一致しません。' }
             if (-not [IO.File]::Exists($step.loadedPath)) { throw '実ロードDLLが見つかりません。' }
             $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $step.loadedPath).Hash.ToLowerInvariant()
             if ($hash -cne $step.loadedHash -or $hash -cne $step.binaryHashAfter) { throw '実ロードDLLがrun後に変わりました。' }
@@ -124,6 +129,7 @@ function Find-GeneratedEvidenceAdds([string]$Repo, [string]$Base, [string]$Head)
 }
 
 function Invoke-LocalStep([string]$Repo, [string]$TaskDirectory, [string]$RunId, [string]$Name) {
+    $stepClock = [Diagnostics.Stopwatch]::StartNew()
     $payload = [IO.Path]::Combine($TaskDirectory, 'payload', $RunId)
     [IO.Directory]::CreateDirectory($payload) | Out-Null
     $sidecar = [IO.Path]::Combine($payload, "$Name.cases.json")
@@ -137,15 +143,23 @@ function Invoke-LocalStep([string]$Repo, [string]$TaskDirectory, [string]$RunId,
     $dependencies = @()
     $auditResult = $null
     $commands = [Collections.Generic.List[object]]::new()
+    $buildMs = 0L
+    $childLaunchMs = 0L
+    $collectionMs = 0L
+    $regressions = [Collections.Generic.List[object]]::new()
     switch ($Name) {
         'artifacts-local' {
             $output = [IO.Path]::Combine($payload, 'build')
             # --no-restore は、実行の途中でパッケージ取得を始めないため。未復元なら build が失敗する。
             $build = Invoke-Process 'dotnet' @('build', [IO.Path]::Combine($Repo, 'tools/Artifacts/Probe/R2RouteTransport.csproj'), '-c', 'Release', '-o', $output, '--no-restore', '--nologo') $Repo 600
-            $commands.Add(@('dotnet', 'build', 'tools/Artifacts/Probe/R2RouteTransport.csproj', '-c', 'Release', '-o', '<run-payload>/build', '--no-restore', '--nologo'))
+            $buildMs = $build.DurationMs
+            $childLaunchMs += $build.LaunchMs
+            $commands.Add(@('dotnet', 'build', [IO.Path]::Combine($Repo, 'tools/Artifacts/Probe/R2RouteTransport.csproj'), '-c', 'Release', '-o', $output, '--no-restore', '--nologo'))
+            $collectClock = [Diagnostics.Stopwatch]::StartNew()
             [IO.File]::WriteAllText([IO.Path]::Combine($payload, 'build.log'), $build.Stdout + $build.Stderr)
+            $collectClock.Stop(); $collectionMs += $collectClock.ElapsedMilliseconds
             # build に失敗した時点で case は無い。未実行の suite を成功件数に数えない。
-            if ($build.ExitCode -ne 0) { return [pscustomobject]@{ name = $Name; kind = 'test'; status = 'failed'; exitCode = $build.ExitCode; registered = @(); selected = @(); executed = @(); logHash = (Get-FileHash -Algorithm SHA256 ([IO.Path]::Combine($payload, 'build.log'))).Hash.ToLowerInvariant(); durationMs = $build.DurationMs } }
+            if ($build.ExitCode -ne 0) { return [pscustomobject]@{ name = $Name; kind = 'test'; status = 'failed'; exitCode = $build.ExitCode; argv = @($commands); registered = @(); selected = @(); executed = @(); logHash = (Get-FileHash -Algorithm SHA256 ([IO.Path]::Combine($payload, 'build.log'))).Hash.ToLowerInvariant(); durationMs = $stepClock.ElapsedMilliseconds; timing = [ordered]@{ buildMs = $buildMs; childLaunchMs = $childLaunchMs; regressions = @(); collectionMs = $collectionMs } } }
             $binary = [IO.Path]::Combine($output, 'R2RouteTransport.dll')
             if (-not [IO.File]::Exists($binary)) { throw 'build後のDLLがありません。' }
             $binaryBefore = (Get-FileHash -Algorithm SHA256 $binary).Hash.ToLowerInvariant()
@@ -174,7 +188,10 @@ function Invoke-LocalStep([string]$Repo, [string]$TaskDirectory, [string]$RunId,
             'DocsAudit' { $scriptPath = [IO.Path]::Combine($Repo, 'tools/docs-audit.ps1'); $args = @('-NoProfile', '-File', $scriptPath) }
         }
         $run = Invoke-Process 'pwsh' $args $Repo 600
-        $commands.Add(@('pwsh', '-NoProfile', '-File', ([IO.Path]::GetRelativePath($Repo, $scriptPath))))
+        $commands.Add(@('pwsh') + @($args))
+        $childLaunchMs += $run.LaunchMs
+        $regressions.Add([ordered]@{ name = $scriptName; wallMs = $run.DurationMs })
+        $collectClock = [Diagnostics.Stopwatch]::StartNew()
         $log = [IO.Path]::Combine($payload, "$scriptName.log")
         [IO.File]::WriteAllText($log, $run.Stdout + $run.Stderr)
         $logPaths.Add($log)
@@ -191,7 +208,7 @@ function Invoke-LocalStep([string]$Repo, [string]$TaskDirectory, [string]$RunId,
             }
         }
         if ($Name -like '*local') {
-            if (-not [IO.File]::Exists($caseFile)) { $exitCode = 1; continue }
+            if (-not [IO.File]::Exists($caseFile)) { $exitCode = 1; $collectClock.Stop(); $collectionMs += $collectClock.ElapsedMilliseconds; continue }
             $cases = Get-Content -LiteralPath $caseFile -Raw | ConvertFrom-Json
             foreach ($case in @($cases.registered)) { $registered.Add("$scriptName/$case") }
             foreach ($case in @($cases.selected)) { $selected.Add("$scriptName/$case") }
@@ -213,6 +230,7 @@ function Invoke-LocalStep([string]$Repo, [string]$TaskDirectory, [string]$RunId,
                 }
             }
         }
+        $collectClock.Stop(); $collectionMs += $collectClock.ElapsedMilliseconds
     }
     if ($binary) {
         # 実行中に DLL が差し替わったら、この step は失敗にする。
@@ -225,7 +243,7 @@ function Invoke-LocalStep([string]$Repo, [string]$TaskDirectory, [string]$RunId,
         catch { $exitCode = 1 }
     }
     $logHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes((@($logPaths | ForEach-Object { (Get-FileHash -Algorithm SHA256 $_).Hash }) -join '|')))).ToLowerInvariant()
-    return [pscustomobject]@{ name = $Name; kind = $(if ($Name -like '*local') { 'test' } else { 'audit' }); status = $(if ($exitCode -eq 0) { 'passed' } else { 'failed' }); exitCode = $exitCode; argv = @($commands); cwd = $Repo; registered = @($registered); selected = @($selected); executed = @($executed); audit = $auditResult; logHash = $logHash; logs = @($logPaths | ForEach-Object { [IO.Path]::GetRelativePath($TaskDirectory, $_) }); binaryPath = $binary; binaryHashBefore = $binaryBefore; binaryHashAfter = $binaryAfter; loadedPath = $loadedPath; loadedHash = $loadedHash; moduleVersionId = $moduleVersionId; dependencies = @($dependencies); durationMs = $totalMs }
+    return [pscustomobject]@{ name = $Name; kind = $(if ($Name -like '*local') { 'test' } else { 'audit' }); status = $(if ($exitCode -eq 0) { 'passed' } else { 'failed' }); exitCode = $exitCode; argv = @($commands); cwd = $Repo; registered = @($registered); selected = @($selected); executed = @($executed); audit = $auditResult; logHash = $logHash; logs = @($logPaths | ForEach-Object { [IO.Path]::GetRelativePath($TaskDirectory, $_) }); binaryPath = $binary; binaryHashBefore = $binaryBefore; binaryHashAfter = $binaryAfter; loadedPath = $loadedPath; loadedHash = $loadedHash; moduleVersionId = $moduleVersionId; dependencies = @($dependencies); durationMs = $stepClock.ElapsedMilliseconds; timing = [ordered]@{ buildMs = $buildMs; childLaunchMs = $childLaunchMs; regressions = @($regressions); collectionMs = $collectionMs } }
 }
 
 Export-ModuleMember -Function Invoke-Process,Get-GitScope,Test-GeneratedEvidencePath,Find-GeneratedEvidenceAdds,Invoke-LocalStep,Assert-RunPayload

@@ -6,7 +6,7 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../RecordStore.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../GatePolicy.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../Adapters/LocalChecks.psm1') -Force
-$registered = @('repository identity and explicit task', 'CLI status and missing task', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'corrupt current is not overwritten', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'blind input omits findings', 'child process result', 'close persists current references')
+$registered = @('repository identity and explicit task', 'CLI status and missing task', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'corrupt current is not overwritten', 'restore rejects dangling reference', 'run payload rejects old DLL and modification', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'blind input omits findings', 'child process result', 'close persists current references')
 $selected = [Collections.Generic.List[string]]::new()
 $executed = [Collections.Generic.List[string]]::new()
 $failed = [Collections.Generic.List[string]]::new()
@@ -125,6 +125,47 @@ try {
             Reject { Restore-Current $taskDirectory } 'corrupt current was silently overwritten'
             Assert ([IO.File]::ReadAllText($path) -ceq '{broken') 'corrupt current changed after failed restore'
         } finally { [IO.File]::WriteAllText($path, $before) }
+    }
+    # 直前版に残るreview/defect参照も、採用run以外を含めて実体を照合する。
+    Run 'restore rejects dangling reference' {
+        $path = [IO.Path]::Combine($taskDirectory, 'CURRENT.json')
+        $previous = [IO.Path]::Combine($taskDirectory, 'CURRENT.previous')
+        $before = [IO.File]::ReadAllText($path)
+        $beforePrevious = [IO.File]::ReadAllText($previous)
+        try {
+            $candidate = $before | ConvertFrom-Json -Depth 40 -DateKind String
+            $candidate.references = @([pscustomobject]@{ referenceId='dangling'; consumerId='defect'; purpose='defect'; runId='missing-run'; owner='owner'; expiresAt=[DateTimeOffset]::UtcNow.AddDays(1).ToString('o'); releasedAt=$null })
+            [IO.File]::WriteAllText($previous, (ConvertTo-Json -InputObject $candidate -Depth 40))
+            Reject { Restore-Current $taskDirectory } 'restore accepted missing referenced run'
+            Assert ([IO.File]::ReadAllText($path) -ceq $before) 'rejected restore changed CURRENT'
+        } finally {
+            [IO.File]::WriteAllText($path, $before)
+            [IO.File]::WriteAllText($previous, $beforePrevious)
+        }
+    }
+    # run IDごとの専用payload以外を読み込んだDLLと、確定後に書き換えた生ログを拒否する。
+    Run 'run payload rejects old DLL and modification' {
+        $runId = 'payload-fixture'
+        $folder = [IO.Path]::Combine($taskDirectory, 'payload', $runId)
+        [IO.Directory]::CreateDirectory($folder) | Out-Null
+        $binary = [IO.Path]::Combine($folder, 'test.dll')
+        $log = [IO.Path]::Combine($folder, 'test.log')
+        [IO.File]::WriteAllText($binary, 'new-binary')
+        [IO.File]::WriteAllText($log, 'pass')
+        $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $binary).Hash.ToLowerInvariant()
+        $logHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $log).Hash
+        $combined = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($logHash))).ToLowerInvariant()
+        $step = [pscustomobject]@{ name='artifacts-local'; logs=@("payload/$runId/test.log"); logHash=$combined; binaryPath=$binary; binaryHashBefore=$hash; binaryHashAfter=$hash; loadedPath=$binary; loadedHash=$hash; dependencies=@([pscustomobject]@{ status='memory'; name='fixture' }) }
+        $run = [pscustomobject]@{ id=$runId; steps=@($step) }
+        Assert-RunPayload $taskDirectory $run
+        $old = [IO.Path]::Combine($taskDirectory, 'payload', 'older-run', 'test.dll')
+        [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($old)) | Out-Null
+        [IO.File]::Copy($binary, $old)
+        $step.binaryPath = $old; $step.loadedPath = $old
+        Reject { Assert-RunPayload $taskDirectory $run } 'old run DLL accepted'
+        $step.binaryPath = $binary; $step.loadedPath = $binary
+        [IO.File]::WriteAllText($log, 'tampered')
+        Reject { Assert-RunPayload $taskDirectory $run } 'modified raw log accepted'
     }
     # Unity を含む差分は、Artifacts だけの必須集合にしない。祖先でない base は拒否する。
     Run 'actual Git diff detects Unity' {

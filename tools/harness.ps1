@@ -95,11 +95,7 @@ try {
     if ($Command -ceq 'current') {
         # 仕様本文はここでは変えない。未解決・blocker・次作業だけを、読んだ revision と一致するとき更新する。
         if ($PSBoundParameters.ContainsKey('NextAction') -or $PSBoundParameters.ContainsKey('Unresolved') -or $PSBoundParameters.ContainsKey('Blockers')) {
-            if ($ExpectedRevision -ne $context.Current.revision) { throw '更新には一致する-ExpectedRevisionが必要です。currentを読み直してください。' }
-            if ($PSBoundParameters.ContainsKey('NextAction')) { $context.Current.nextAction = $NextAction }
-            if ($PSBoundParameters.ContainsKey('Unresolved')) { $context.Current.unresolved = @($Unresolved | Where-Object { $_ }) }
-            if ($PSBoundParameters.ContainsKey('Blockers')) { $context.Current.blockers = @($Blockers | Where-Object { $_ }) }
-            Save-CurrentFor $context
+            [void](Set-CurrentNotes -TaskDirectory $directory -Current $context.Current -ExpectedRevision $ExpectedRevision -HasNextAction ($PSBoundParameters.ContainsKey('NextAction')) -NextAction $NextAction -HasUnresolved ($PSBoundParameters.ContainsKey('Unresolved')) -Unresolved $Unresolved -HasBlockers ($PSBoundParameters.ContainsKey('Blockers')) -Blockers $Blockers)
             $context = Get-Context
         }
         $closed = Test-TaskClosed $directory
@@ -143,58 +139,19 @@ try {
         } catch {
             $failure = $_.Exception.Message
         }
-        $failed = @($results | Where-Object { $_.status -cne 'passed' }).Count -gt 0
-        # 実行中に HEAD が動いたら、記録した head と終わった木が違うので失敗。
-        # 事後の dirty を読めなかった場合は空配列にせず、未採取だと分かる印を残す。
-        $status = if ($failure -or $failed -or -not $after -or $head -cne $after.Head) { 'failed' } else { 'passed' }
-        $dirtyAfter = [object[]]@()
-        if ($after) { $dirtyAfter = [object[]]@($after.Dirty | Where-Object { $_ }) }
-        else { $dirtyAfter = [object[]]@('post-run scope unavailable') }
-        $run = [ordered]@{ schemaVersion = 1; id = $id; taskId = $Task; base = $context.Spec.base; head = $head; specId = $context.Current.specId; specHash = $context.Spec.specHash; stage = $Stage; changedPaths = @($scope.Paths); dirtyBefore = @($scope.Dirty); dirtyAfter = $dirtyAfter; startedAt = $started.ToString('o'); endedAt = [DateTimeOffset]::UtcNow.ToString('o'); durationMs = [long]([DateTimeOffset]::UtcNow - $started).TotalMilliseconds; predecessor = $PreviousRun; difference = $Difference; question = $Question; stopWhen = $StopWhen; steps = @($results); status = $status; failure = $failure; implementationResult = '固定base/headの変更pathと実行結果を参照'; retainUntil = $started.AddDays(7).ToString('o') }
+        $run = New-RunResult -Spec $context.Spec -Current $context.Current -Task $Task -Stage $Stage -Scope $scope -After $after -Started $started -Id $id -PreviousRun $PreviousRun -Difference $Difference -Question $Question -StopWhen $StopWhen -Results @($results) -Failure $failure
         $record = Finish-Run $directory $run
-        $context.Current.candidateHead = $head
-        $context.Current.nextAction = "run $id の結果を確認する"
-        Save-CurrentFor $context
+        [void](Set-RunCurrent $directory $context.Current $head $id)
         Write-Output "run=$id status=$($run.status) head=$head dirty=$(@($scope.Dirty).Count) recordHash=$($record.Hash)"
         return
     }
     if ($Command -ceq 'adopt') {
-        # 採用は gate 通過ではない。失敗 run も、理由と将来の保持期限があれば残せる。
-        if (-not $RunId -or -not $Reason) { throw 'adoptには-RunIdと-Reasonが必要です。' }
-        $record = Read-Record $directory 'runs' $RunId
-        if ($record.content.specHash -cne $context.Spec.specHash) { throw '別仕様のrunは採用できません。' }
-        if (@($context.Current.adoptedRuns | Where-Object id -eq $RunId).Count -gt 0) { throw '同じrunは採用済みです。' }
-        if ($RetainUntil) { $expiry = [DateTimeOffset]::Parse($RetainUntil).ToUniversalTime() } else { $expiry = [DateTimeOffset]::UtcNow.AddDays(30) }
-        if ($expiry -le [DateTimeOffset]::UtcNow) { throw 'retainUntilは将来の時刻が必要です。' }
-        $context.Current.adoptedRuns = @($context.Current.adoptedRuns) + @([ordered]@{ id = $RunId; reason = $Reason; adoptedAt = [DateTimeOffset]::UtcNow.ToString('o') })
-        $context.Current.references = @($context.Current.references) + @([ordered]@{ referenceId = [Guid]::NewGuid().ToString('N'); consumerId = $Task; purpose = 'adopted-run'; runId = $RunId; owner = $context.Current.owner; expiresAt = $expiry.ToString('o'); releasedAt = $null })
-        Save-CurrentFor $context
+        [void](Add-AdoptedRun -TaskDirectory $directory -Current $context.Current -RunId $RunId -Reason $Reason -SpecHash $context.Spec.specHash -RetainUntil $RetainUntil)
         Write-Output "adopted $RunId; gate合格とは別です。"
         return
     }
     if ($Command -ceq 'reference') {
-        # 解放と延長は、未解放かつ owner が一致する参照だけ。期限は有限の未来だけを受け付ける。
-        if (-not $Owner) { throw 'referenceには-Ownerが必要です。' }
-        if ($Action -ceq 'Add') {
-            if (-not $RunId -or -not $ConsumerId -or -not $ExpiresAt) { throw '参照追加には-RunId、-ConsumerId、-ExpiresAtが必要です。' }
-            [void](Read-Record $directory 'runs' $RunId)
-            $expiry = [DateTimeOffset]::Parse($ExpiresAt).ToUniversalTime()
-            if ($expiry -le [DateTimeOffset]::UtcNow) { throw 'expiresAtは将来の有限時刻が必要です。' }
-            $ReferenceId = [Guid]::NewGuid().ToString('N')
-            $context.Current.references = @($context.Current.references) + @([ordered]@{ referenceId = $ReferenceId; consumerId = $ConsumerId; purpose = $Purpose; runId = $RunId; owner = $Owner; expiresAt = $expiry.ToString('o'); releasedAt = $null })
-        } else {
-            if (-not $ReferenceId) { throw '解放・延長には-ReferenceIdが必要です。' }
-            $matches = @($context.Current.references | Where-Object referenceId -eq $ReferenceId)
-            if ($matches.Count -ne 1 -or $matches[0].owner -cne $Owner -or $matches[0].releasedAt) { throw '所有する有効参照が見つかりません。' }
-            if ($Action -ceq 'Release') { $matches[0].releasedAt = [DateTimeOffset]::UtcNow.ToString('o') }
-            else {
-                if (-not $ExpiresAt) { throw '延長には-ExpiresAtが必要です。' }
-                $expiry = [DateTimeOffset]::Parse($ExpiresAt).ToUniversalTime()
-                if ($expiry -le [DateTimeOffset]::UtcNow) { throw 'expiresAtは将来の有限時刻が必要です。' }
-                $matches[0].expiresAt = $expiry.ToString('o')
-            }
-        }
-        Save-CurrentFor $context
+        $ReferenceId = Edit-Reference -TaskDirectory $directory -Current $context.Current -Action $Action -Owner $Owner -RunId $RunId -ConsumerId $ConsumerId -Purpose $Purpose -ExpiresAt $ExpiresAt -ReferenceId $ReferenceId
         Write-Output "reference=$ReferenceId action=$Action"
         return
     }
@@ -227,7 +184,7 @@ try {
         $requiredStage = if ($To -ceq 'CJudgment') { 'judgment' } else { 'discovery' }
         # discoveryで広い必須集合まで実行済みなら、同一headの結果を判定Cへ再利用する。
         # 判定入力の種別は渡し先と照合済みstep集合から決め、run名だけで狭めない。
-        if ($To -ceq 'CJudgment' -and @($context.Current.blockers).Count -gt 0) { throw '未解決blockerがあります。' }
+        Assert-HandoffCandidate $context.Current $To
         $steps = Get-RequiredSteps $context.Spec $scope.Paths $requiredStage
         Assert-RunForGate $run $context.Spec $scope.Head $steps
         Assert-RunPayload $directory $run
@@ -243,21 +200,9 @@ try {
         return
     }
     if ($Command -ceq 'close') {
-        if (-not $Reason) { throw 'closeには-Reasonが必要です。' }
-        if ($Owner -cne $context.Current.owner) { throw 'task ownerを-Ownerで明示してください。' }
-        if ($Outcome -ceq 'Completed' -and (-not $context.Current.judgmentInputId -or -not $CReview -or -not $CBlindReview)) { throw 'Completedには判定入力とC/C′結果の明示が必要です。' }
-        if ($ReviewClosed -and $Outcome -ceq 'Completed' -and (-not $CReview -or -not $CBlindReview)) { throw 'レビュー終了の明示にはC/C′結果が必要です。' }
         $closed = Write-Closed $directory $context.Current.revision {
             param($latest)
-            $closedAt = [DateTimeOffset]::UtcNow
-            $closedRefs = @(Resolve-CloseReferences @($latest.references) $Task ([bool]$ReviewClosed) $closedAt)
-            # 保持期限は閉じた時刻の30日後と、残っている参照期限の遅いほう。このコマンドは削除しない。
-            $retainUntil = $closedAt.AddDays(30)
-            foreach ($ref in @($closedRefs | Where-Object { $_.expiresAt -and -not $_.releasedAt })) {
-                $expiry = [DateTimeOffset]::Parse($ref.expiresAt)
-                if ($expiry -gt $retainUntil) { $retainUntil = $expiry }
-            }
-            return [ordered]@{ kind = 'closed'; taskId = $Task; owner = $Owner; closedAt = $closedAt.ToString('o'); outcome = $Outcome; reason = $Reason; cReview = $CReview; cBlindReview = $CBlindReview; retainUntil = $retainUntil.ToString('o'); references = @($closedRefs) }
+            New-CloseRecord -Current $latest -Task $Task -Owner $Owner -Outcome $Outcome -Reason $Reason -CReview $CReview -CBlindReview $CBlindReview -ReviewClosed ([bool]$ReviewClosed) -ClosedAt ([DateTimeOffset]::UtcNow)
         }
         Write-Output "closed $Task at $($closed.closedAt); 証拠削除はH3で判定します。"
         return
