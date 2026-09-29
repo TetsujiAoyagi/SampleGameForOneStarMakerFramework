@@ -8,7 +8,7 @@
 - **Phase C' — 独立監査:** 発見 C と判定 C の結論と疑念候補を含まない blind audit bundle から、残存リスクと見落としを監査する。
 - **Phase D — マージ判断:** 人間が結果を確認し、HANDOFF を harvest して削除する。
 
-1スライスを1ブランチ、1 HANDOFFの単位とする。Phase境界では新しいセッションを使い、過去の会話ではなく各 Phase に定義された snapshot と evidence bundle を入力にする。
+未移行作業は1スライスを1ブランチ、1 HANDOFFの単位とする。A3で `external-current-v1` を採用したArtifacts/Harness作業は、同じ単位の現行入力をGit外CURRENTで選択する。`pwsh tools/harness.ps1 current -Task <id>` が入口で、凍結仕様とrunはIDから解決する。移行を明示していない作業に新方式を暗黙適用しない。Phase境界では新しいセッションを使い、過去の会話ではなく各Phaseの固定入力を使う。
 
 ## Phase A の内部フロー
 

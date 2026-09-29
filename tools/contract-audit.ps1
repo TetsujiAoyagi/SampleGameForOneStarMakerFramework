@@ -62,7 +62,8 @@
 [CmdletBinding()]
 param(
     [string]$Root = (Split-Path -Parent (Split-Path -Parent $PSCommandPath)),
-    [string]$BaseRef = ''
+    [string]$BaseRef = '',
+    [string]$HarnessTask = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -73,6 +74,34 @@ if (-not (Test-Path (Join-Path $Root '.git'))) {
 
 $errors = @()
 $warnings = @()
+$harnessAudit = [ordered]@{ Applicable = $false; CheckedCommits = 0; CheckedIndex = 0; Rejected = 0; Base = $null; Head = $null }
+
+if ($HarnessTask) {
+    Import-Module (Join-Path $PSScriptRoot 'Harness/RecordStore.psm1') -Force
+    Import-Module (Join-Path $PSScriptRoot 'Harness/GatePolicy.psm1') -Force
+    Import-Module (Join-Path $PSScriptRoot 'Harness/Adapters/LocalChecks.psm1') -Force
+    $taskDirectory = Get-TaskDirectory $Root $HarnessTask
+    $current = Read-Current $taskDirectory
+    $specRecord = Read-Record $taskDirectory 'specifications' $current.specId
+    $spec = $specRecord.content
+    Assert-ApprovedSpec $HarnessTask $spec
+    if ($BaseRef -and $BaseRef -cne $spec.base) { throw '-BaseRefがA3固定baseと異なります。' }
+    $BaseRef = $spec.base
+    $headSha = (& git -C $Root rev-parse HEAD).Trim()
+    [void](Get-GitScope $Root $spec.base $headSha)
+    $harnessAudit.Applicable = $true
+    $harnessAudit.Base = $spec.base
+    $harnessAudit.Head = $headSha
+    $additions = Find-GeneratedEvidenceAdds $Root $spec.base $headSha
+    $harnessAudit.CheckedCommits = $additions.commits
+    $harnessAudit.CheckedIndex = $additions.indexAdds
+    foreach ($finding in $additions.findings) {
+        $errors += "[検査8] $($finding.source) が生成証拠をGitへ追加: $($finding.path)"
+        $harnessAudit.Rejected++
+    }
+} else {
+    Write-Host '検査8: not-applicable（-HarnessTaskを指定した適用taskだけ検査）'
+}
 
 # --- 検査対象の確定 ---------------------------------------------------------
 # ベンダー / Unity テンプレート同梱は対象外。こちらの契約を適用する筋合いが無く、
@@ -296,6 +325,8 @@ if (-not (Test-Path $sceneStateFull)) {
 Write-Host ''
 Write-Host "対象: $Root"
 Write-Host ("Unity側 .cs（ベンダー同梱を除く）: {0} ファイル" -f $csFiles.Count)
+Write-Host ("検査8: applicable={0} commits={1} indexAdds={2} rejected={3}" -f $harnessAudit.Applicable, $harnessAudit.CheckedCommits, $harnessAudit.CheckedIndex, $harnessAudit.Rejected)
+Write-Host ("AUDIT_RESULT kind=contract files={0} errors={1} warnings={2} checks=1,2,3,4,5,6,7,8 applicable8={3}" -f $csFiles.Count, $errors.Count, $warnings.Count, $harnessAudit.Applicable)
 if ($baseCommit) {
     Write-Host ("検査1 の差分: {0} ファイル（基点 {1} = {2}）" -f $changed.Count, $baseName, $baseCommit.Substring(0, 7))
 }

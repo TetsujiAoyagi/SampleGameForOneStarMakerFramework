@@ -1,10 +1,16 @@
-param([string[]] $Case = @('*'))
+param([string[]] $Case = @('*'), [string] $ResultPath = '')
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot '../Probe/RouteProof.ps1') -Library
 $script:passed = [Collections.Generic.List[string]]::new()
 $script:failed = [Collections.Generic.List[string]]::new()
+$script:selected = [Collections.Generic.List[string]]::new()
+$script:executed = [Collections.Generic.List[string]]::new()
+$tokens=$null; $parseErrors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile($PSCommandPath,[ref]$tokens,[ref]$parseErrors)
+$script:registered=@($ast.FindAll({ param($node) $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -ceq 'Run' },$true) | ForEach-Object { $_.CommandElements[1].Value } | Where-Object { $_ -is [string] })
+if ($parseErrors.Count -gt 0 -or $script:registered.Count -eq 0) { throw 'RouteProof case registration unavailable.' }
 
 function Assert([bool] $Condition, [string] $Message) { if (-not $Condition) { throw $Message } }
 function Invoke-PwshCapture([string[]] $Arguments) {
@@ -36,7 +42,9 @@ function Invoke-JsonEchoChild([string] $JsonLine) {
 }
 function Run([string] $Name, [scriptblock] $Body) {
     if (-not (@($Case | Where-Object { $Name -like $_ }).Count -gt 0)) { return }
+    $script:selected.Add($Name)
     try { & $Body; $script:passed.Add($Name) } catch { $script:failed.Add($Name + ': ' + $_.Exception.Message) }
+    $script:executed.Add($Name)
 }
 function Fake-Observation(
     [string] $Operation = 'unsigned-get',
@@ -522,6 +530,10 @@ Export-ModuleMember -Function Invoke-R2RouteTransport
     }
 } catch { $script:failed.Add('test harness') }
 
+if ($ResultPath) {
+    $result = [ordered]@{ registered = @($script:registered); selected = @($script:selected); executed = @($script:executed); failed = @($script:failed) }
+    [IO.File]::WriteAllText($ResultPath, (ConvertTo-Json -InputObject $result -Depth 5), [Text.UTF8Encoding]::new($false))
+}
 if ($script:failed.Count -gt 0) {
     [Console]::Error.WriteLine("RouteProof tests failed: $($script:failed -join ', ')")
     exit 1

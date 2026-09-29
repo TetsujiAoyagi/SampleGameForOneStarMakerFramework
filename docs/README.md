@@ -10,6 +10,8 @@
 
 例外は `docs/handoff/` である。進行中のスライスの作業指示と、複数スライスに跨る計画を置いてよい（実装を別セッション / 別ツールへ渡すため git worktree に持っていく必要がある）。**1 本に限らない。** 複数スライスに跨る計画を置くなら、harvest 先と期限を本文に書くこと。マージ時に harvest して削除するので、恒久的に積み上がることはない。
 
+H1適用をA3で明示したArtifacts/Harness作業では、Git外のCURRENTと固定仕様を正本にする。入口は `pwsh tools/harness.ps1 current -Task <id>`。Gitへの新しいPhase RESULT・REVISION・raw実行結果の追加はそのtaskの `pwsh tools/contract-audit.ps1 -HarnessTask <id>` が拒否する。未移行のprogram/Unity作業は従来のtracked HANDOFFと証拠規約を続け、通常のauditは新検査を `not-applicable` と表示する。適用taskの合格根拠に通常auditを流用しない。H1のCURRENT・runは同一Windowsユーザー/マシン内のLocalApplicationDataに置き、別マシン配布はまだ保証しない。
+
 ## 3つの層
 
 | 層 | 場所 | git | 寿命 |

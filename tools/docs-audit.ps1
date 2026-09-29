@@ -235,6 +235,7 @@ Write-Host ''
 Write-Host "対象: $Root"
 Write-Host ("tracked な md（ベンダー同梱を除く）: {0} ファイル / {1} 行" -f $ownMd.Count, $totalLines)
 Write-Host ("  うち作業台 docs/handoff/: {0} ファイル" -f $handoffs.Count)
+Write-Host ("AUDIT_RESULT kind=docs files={0} errors={1} warnings={2} checks=1,2,3" -f $ownMd.Count, $errors.Count, $warnings.Count)
 Write-Host ''
 
 foreach ($w in $warnings) { Write-Host "WARN  $w" -ForegroundColor Yellow }
