@@ -66,6 +66,22 @@ function Publish-Handoff([string]$TaskDirectory, [object]$Current, [object]$Inpu
     return [pscustomobject]@{ Input = $input; Receipt = $receipt }
 }
 
+function Publish-BlindHandoff([string]$TaskDirectory, [object]$Current, [object]$JudgmentInput, [string]$Task, [string]$RunId, [string]$Head, [string]$SpecHash) {
+    # CBlindは判定入力を再生成しない。同じ入力への再取得は受領と参照を増やさない。
+    if ($Current.phase -ceq 'CBlind' -and $Current.gateReceiptId) {
+        $existing = Read-Record $TaskDirectory 'receipts' $Current.gateReceiptId
+        if ($existing.content.to -cne 'CBlind' -or $existing.content.inputId -cne $JudgmentInput.id -or $existing.content.inputHash -cne $JudgmentInput.hash) { throw 'CBlindの既存受領が判定入力と一致しません。' }
+        return $existing
+    }
+    $receipt = Write-NewRecord $TaskDirectory 'receipts' ([ordered]@{ ready = $true; taskId = $Task; to = 'CBlind'; inputId = $JudgmentInput.id; inputHash = $JudgmentInput.hash; runId = $RunId; head = $Head; specHash = $SpecHash })
+    $Current.gateReceiptId = $receipt.Id
+    $Current.phase = 'CBlind'
+    $Current.references = @($Current.references) + @([ordered]@{ referenceId = [Guid]::NewGuid().ToString('N'); consumerId = 'CBlind'; purpose = 'review'; runId = $RunId; owner = $Current.owner; expiresAt = [DateTimeOffset]::UtcNow.AddDays(30).ToString('o'); releasedAt = $null })
+    $Current.nextAction = "固定入力 $($JudgmentInput.id) からCBlindを開始する"
+    [void](Write-Current $TaskDirectory $Current $Current.revision)
+    return $receipt
+}
+
 function Write-NewRecord([string]$TaskDirectory, [string]$Kind, [object]$Content, [string]$Id = '') {
     # CreateNew なので同じ id は二度書けない。hash は本文だけで、後から改ざんすると読取時に落ちる。
     if ([string]::IsNullOrWhiteSpace($Id)) { $Id = [Guid]::NewGuid().ToString('N') }
@@ -211,7 +227,7 @@ function Restore-Current([string]$TaskDirectory) {
     return $candidate
 }
 
-function Write-Closed([string]$TaskDirectory, [int]$ExpectedRevision, [scriptblock]$BuildRecord) {
+function Write-Closed([string]$TaskDirectory, [int]$ExpectedRevision, [scriptblock]$BuildRecord, [scriptblock]$BeforeDisplayWrite = $null) {
     # closed.json は新規作成のみ。排他のあとで revision を見なし、古い close が終端ファイルを作らないようにする。
     $lock = [IO.Path]::Combine($TaskDirectory, 'task.lock')
     $held = [IO.FileStream]::new($lock, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
@@ -234,6 +250,17 @@ function Write-Closed([string]$TaskDirectory, [int]$ExpectedRevision, [scriptblo
         } finally { $stream.Dispose() }
         # 完全に書けた一時ファイルだけを終端名へ昇格する。存在済みの終端は上書きしない。
         [IO.File]::Move($temp, $path)
+        # 終端recordが正本。CURRENT表示が書けなくてもcloseを取り消さない。
+        try {
+            if ($BeforeDisplayWrite) { & $BeforeDisplayWrite }
+            $current.phase = 'closed'
+            $current.nextAction = 'taskはclose済みです。新しいtaskをinitしてください。'
+            $current.revision = $ExpectedRevision + 1
+            $current.updatedAt = [DateTimeOffset]::UtcNow.ToString('o')
+            $displayTemp = [IO.Path]::Combine($TaskDirectory, 'CURRENT.' + [Guid]::NewGuid().ToString('N') + '.tmp')
+            [IO.File]::WriteAllText($displayTemp, (ConvertTo-Json -InputObject $current -Depth 40), [Text.UTF8Encoding]::new($false))
+            [IO.File]::Move($displayTemp, [IO.Path]::Combine($TaskDirectory, 'CURRENT.json'), $true)
+        } catch { Write-Warning "closed.jsonは確定しましたがCURRENT表示の更新に失敗しました: $($_.Exception.Message)" }
         return $record
     } finally { $held.Dispose() }
 }
@@ -290,4 +317,4 @@ function Set-CurrentNotes([string]$TaskDirectory, [object]$Current, [int]$Expect
     return Write-Current $TaskDirectory $Current $ExpectedRevision
 }
 
-Export-ModuleMember -Function Get-JsonHash,Get-RepositoryIdentity,Get-TaskDirectory,Initialize-Task,Publish-Handoff,Write-NewRecord,Read-Record,Test-TaskClosed,Read-Current,Write-Current,Restore-Current,Write-Closed,Start-Run,Finish-Run,Add-AdoptedRun,Edit-Reference,Set-RunCurrent,Set-CurrentNotes
+Export-ModuleMember -Function Get-JsonHash,Get-RepositoryIdentity,Get-TaskDirectory,Initialize-Task,Publish-Handoff,Publish-BlindHandoff,Write-NewRecord,Read-Record,Test-TaskClosed,Read-Current,Write-Current,Restore-Current,Write-Closed,Start-Run,Finish-Run,Add-AdoptedRun,Edit-Reference,Set-RunCurrent,Set-CurrentNotes

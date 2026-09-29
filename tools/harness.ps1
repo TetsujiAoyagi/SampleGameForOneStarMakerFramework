@@ -13,6 +13,7 @@ param(
     [string]$Difference = '',
     [string]$Question = '',
     [string]$StopWhen = '',
+    [string]$ImplementationResult = '',
     [string]$Reason = '',
     [ValidateSet('B','CDiscovery','CJudgment','CBlind')][string]$To = 'B',
     [ValidateSet('Completed','Abandoned')][string]$Outcome = 'Completed',
@@ -141,7 +142,7 @@ try {
             $failure = $_.Exception.Message
         }
         $runClock.Stop()
-        $run = New-RunResult -Spec $context.Spec -Current $context.Current -Task $Task -Stage $Stage -Scope $scope -After $after -Started $started -ElapsedMs $runClock.ElapsedMilliseconds -Id $id -PreviousRun $PreviousRun -Difference $Difference -Question $Question -StopWhen $StopWhen -Results @($results) -Failure $failure
+        $run = New-RunResult -Spec $context.Spec -Current $context.Current -Task $Task -Stage $Stage -Scope $scope -After $after -Started $started -ElapsedMs $runClock.ElapsedMilliseconds -Id $id -PreviousRun $PreviousRun -Difference $Difference -Question $Question -StopWhen $StopWhen -Results @($results) -Failure $failure -ImplementationResult $ImplementationResult
         $record = Finish-Run $directory $run
         [void](Set-RunCurrent $directory $context.Current $head $id)
         Write-Output "run=$id status=$($run.status) head=$head dirty=$(@($scope.Dirty).Count) recordHash=$($record.Hash)"
@@ -176,7 +177,8 @@ try {
             $required = Get-RequiredSteps $context.Spec $scope.Paths 'judgment'
             Assert-RunForGate $blindRun.content $context.Spec $scope.Head $required
             Assert-RunPayload $directory $blindRun.content
-            Write-Output "ready=true input=$($input.id) hash=$($input.hash) head=$($scope.Head)"
+            $blindReceipt = Publish-BlindHandoff $directory $context.Current $input $Task $input.content.runId $scope.Head $context.Spec.specHash
+            Write-Output "ready=true input=$($input.id) hash=$($input.hash) head=$($scope.Head) receipt=$($blindReceipt.id)"
             Write-Output "inputPath=$([IO.Path]::Combine($directory, 'inputs', "$($input.id).json"))"
             return
         }

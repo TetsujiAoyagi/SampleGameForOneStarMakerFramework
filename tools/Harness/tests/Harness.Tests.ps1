@@ -6,7 +6,7 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../RecordStore.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../GatePolicy.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../Adapters/LocalChecks.psm1') -Force
-$registered = @('repository identity and explicit task', 'CLI status and missing task', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'corrupt current is not overwritten', 'restore rejects dangling reference', 'run payload rejects old DLL and modification', 'failing step keeps record', 'run record carries identity and monotonic duration', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'close rejects in-progress run', 'blind input omits findings', 'child process result', 'close persists current references')
+$registered = @('repository identity and explicit task', 'CLI status and missing task', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'corrupt current is not overwritten', 'restore rejects dangling reference', 'run payload rejects old DLL and modification', 'failing step keeps record', 'run record carries identity and monotonic duration', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'close rejects in-progress run', 'blind input omits findings', 'blind handoff records receipt and review', 'child process result', 'close persists current references', 'terminal survives display update failure')
 $selected = [Collections.Generic.List[string]]::new()
 $executed = [Collections.Generic.List[string]]::new()
 $failed = [Collections.Generic.List[string]]::new()
@@ -18,7 +18,7 @@ function Reject([scriptblock]$Action, [string]$Message) {
 }
 function Run([string]$Name, [scriptblock]$Body) {
     $selected.Add($Name)
-    try { & $Body; $executed.Add($Name) } catch { $executed.Add($Name); $failed.Add("$Name`: $($_.Exception.Message)") }
+    try { & $Body; $executed.Add($Name) } catch { $executed.Add($Name); $failed.Add("$Name`: $($_.Exception.Message) $($_.ScriptStackTrace)") }
 }
 $root = [IO.Path]::Combine([IO.Path]::GetTempPath(), 'osm-harness-test-' + [Guid]::NewGuid().ToString('N'))
 $repo = [IO.Path]::Combine($root, 'repo')
@@ -243,7 +243,7 @@ try {
         $specObject = [pscustomobject]@{ id = $specRecord.Id; base = $base; specHash = $specRecord.Hash; text = 'approved A3' }
         $head = (& git -C $repo rev-parse HEAD).Trim()
         $steps = @('artifacts-local', 'harness-local', 'contract-audit', 'docs-audit')
-        $run = [pscustomobject]@{ id = 'r'; recordHash = 'h'; base = $base; head = $head; specHash = $specRecord.Hash; stage = 'discovery'; status = 'passed'; dirtyBefore = @(); dirtyAfter = @(); implementationResult = 'done'; steps = @($steps | ForEach-Object { [pscustomobject]@{ name = $_; status = 'passed'; registered = @('case'); selected = @('case'); executed = @('case') } }) }
+        $run = [pscustomobject]@{ id = 'r'; recordHash = 'h'; base = $base; head = $head; specHash = $specRecord.Hash; stage = 'discovery'; status = 'passed'; dirtyBefore = @(); dirtyAfter = @(); predecessor = 'earlier'; implementationResult = 'done'; steps = @($steps | ForEach-Object { [pscustomobject]@{ name = $_; status = 'passed'; registered = @('case'); selected = @('case'); executed = @('case') } }) }
         Assert-RunForGate $run $specObject $head $steps
         $input = Select-BlindInput $specObject $run 'judgment' @('tools/Harness/sample.ps1') 'diff'
         Assert ($input.inputKind -ceq 'judgment' -and $input.runId -ceq 'r') 'broad run was not reusable for judgment input'
@@ -286,7 +286,7 @@ try {
     # 固定入力へ写す項目に、レビュー所見のフィールドは含めない。
     Run 'blind input omits findings' {
         $specObject = [pscustomobject]@{ id = $specRecord.Id; specHash = $specRecord.Hash; base = $base; text = 'approved A3' }
-        $run = [pscustomobject]@{ id = 'r'; recordHash = 'hash'; head = 'head'; steps = @(); implementationResult = 'implemented'; cFinding = 'SENTINEL_C_FINDING' }
+        $run = [pscustomobject]@{ id = 'r'; recordHash = 'hash'; head = 'head'; steps = @(); predecessor = 'prior'; implementationResult = 'implemented'; cFinding = 'SENTINEL_C_FINDING' }
         $input = Select-BlindInput $specObject $run 'judgment' @('tools/Harness/sample.ps1')
         $json = ConvertTo-Json $input -Depth 10
         Assert (-not $json.Contains('SENTINEL_C_FINDING')) 'C finding leaked'
@@ -298,6 +298,17 @@ try {
         Assert ($result.ExitCode -eq 0 -and $result.Stdout.Trim() -ceq 'OK' -and $result.DurationMs -ge 0 -and $result.LaunchMs -ge 0) 'child output'
         $timed = Invoke-Process 'pwsh' @('-NoProfile', '-Command', 'while ($true) {}') $repo 1
         Assert ($timed.TimedOut -and $timed.ExitCode -ne 0 -and $timed.DurationMs -ge 1000) 'timeout did not return a failed process record'
+    }
+    # CBlindは判定入力の同じIDを返し、別の固定receiptとreview参照を1回だけ残す。
+    Run 'blind handoff records receipt and review' {
+        $input = Write-NewRecord $taskDirectory 'inputs' ([ordered]@{ inputKind='judgment'; runId='blind-fixture'; head=$base }) 'blind-input'
+        $inputRecord = Read-Record $taskDirectory 'inputs' $input.Id
+        $before = Read-Current $taskDirectory
+        $first = Publish-BlindHandoff $taskDirectory $before $inputRecord 'h1-transport-identity' 'blind-fixture' $base $specRecord.Hash
+        $after = Read-Current $taskDirectory
+        Assert ($first.Id -and $after.phase -ceq 'CBlind' -and @($after.references | Where-Object { $_.consumerId -ceq 'CBlind' -and -not $_.releasedAt }).Count -eq 1) 'CBlind receipt or review reference missing'
+        $again = Publish-BlindHandoff $taskDirectory $after $inputRecord 'h1-transport-identity' 'blind-fixture' $base $specRecord.Hash
+        Assert ($again.id -ceq $first.Id -and (Read-Current $taskDirectory).revision -eq $after.revision) 'CBlind reread created another receipt or reference'
     }
     # closeは同じtask lockの下で進行中runを見て、終端recordの確定を拒否する。
     Run 'close rejects in-progress run' {
@@ -318,7 +329,19 @@ try {
             [ordered]@{ kind='closed'; closedAt=[DateTimeOffset]::UtcNow.ToString('o'); outcome='Abandoned'; references=@($latest.references) }
         }
         Assert ((Test-TaskClosed $taskDirectory) -and @($closed.references | Where-Object referenceId -eq 'defect-ref').Count -eq 1) 'close omitted active reference'
+        Assert ((Read-Current $taskDirectory).phase -ceq 'closed') 'CURRENT display was not updated after terminal record'
         Reject { Write-Current $taskDirectory $current $current.revision } 'closed task accepted concurrent update'
+    }
+    # 表示更新が失敗しても終端ファイルは残り、status/restoreはcloseとして扱う。
+    Run 'terminal survives display update failure' {
+        $isolated = [IO.Path]::Combine($root, 'display-failure-task')
+        [IO.Directory]::CreateDirectory($isolated) | Out-Null
+        [IO.File]::WriteAllText([IO.Path]::Combine($isolated, 'registration.json'), (ConvertTo-Json ([ordered]@{ taskId='isolated'; repoId=$identity.Id })))
+        [IO.File]::WriteAllText([IO.Path]::Combine($isolated, 'CURRENT.json'), (ConvertTo-Json ([ordered]@{ schemaVersion=1; revision=1; taskId='isolated'; repoId=$identity.Id; specId='fixture-spec'; phase='B'; references=@() })))
+        $closed = Write-Closed $isolated 1 { param($latest) [ordered]@{ kind='closed'; closedAt=[DateTimeOffset]::UtcNow.ToString('o'); outcome='Abandoned' } } { throw 'fixture display failure' }
+        Assert ($closed.outcome -ceq 'Abandoned' -and (Test-TaskClosed $isolated)) 'terminal record lost on display failure'
+        Assert ((Read-Current $isolated).phase -ceq 'B') 'display unexpectedly changed after injected failure'
+        Reject { Restore-Current $isolated } 'closed task reopened after display failure'
     }
 } finally {
     # 掃除先が temp のこのテストディレクトリ以外なら削除しない。
