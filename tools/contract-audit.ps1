@@ -21,6 +21,11 @@
       検査5  Runtime アセンブリの Editor 依存 asmdef 単位で判定           → エラー
       検査6  GetInstanceID()                  Unity 6.5 で CS0619         → エラー
       検査7  公開面への ZLogger 型漏れ        判断が要るので              → 警告
+      検査8  生成証拠の Git 追加            適用 task の base..HEAD と index → エラー
+
+    検査8 は -HarnessTask を渡した適用作業だけが対象。途中 commit で足して後から
+    消した証拠も、commit ごとの追加として残る。未指定の通常検査は not-applicable
+    とし、その緑を適用作業の合格根拠に流用させない。
 
     検査1 だけが差分限定。未対応の既存ファイルが残っており（一括整備は別スライス）、
     全体検査にすると常時赤になって他の検査ごと無視されるため。
@@ -76,6 +81,8 @@ $errors = @()
 $warnings = @()
 $harnessAudit = [ordered]@{ Applicable = $false; CheckedCommits = 0; CheckedIndex = 0; Rejected = 0; Base = $null; Head = $null }
 
+# 適用作業のときだけ、凍結 base から HEAD までと index の追加を検査する。
+# 呼び出し側が別の -BaseRef を渡しても、承認済み仕様の base へ寄せてから見る。
 if ($HarnessTask) {
     Import-Module (Join-Path $PSScriptRoot 'Harness/RecordStore.psm1') -Force
     Import-Module (Join-Path $PSScriptRoot 'Harness/GatePolicy.psm1') -Force
@@ -326,6 +333,7 @@ Write-Host ''
 Write-Host "対象: $Root"
 Write-Host ("Unity側 .cs（ベンダー同梱を除く）: {0} ファイル" -f $csFiles.Count)
 Write-Host ("検査8: applicable={0} commits={1} indexAdds={2} rejected={3}" -f $harnessAudit.Applicable, $harnessAudit.CheckedCommits, $harnessAudit.CheckedIndex, $harnessAudit.Rejected)
+# Harness はこの1行だけを成否の機械入力にする。トークンの形を変えると、exit 0 でも失敗になる。
 Write-Host ("AUDIT_RESULT kind=contract files={0} errors={1} warnings={2} checks=1,2,3,4,5,6,7,8 applicable8={3}" -f $csFiles.Count, $errors.Count, $warnings.Count, $harnessAudit.Applicable)
 if ($baseCommit) {
     Write-Host ("検査1 の差分: {0} ファイル（基点 {1} = {2}）" -f $changed.Count, $baseName, $baseCommit.Substring(0, 7))

@@ -1,3 +1,7 @@
+# Git 外の現行入力と、一度書いたら上書きしない記録を置く。
+# 保存先は同一マシンの LocalApplicationData で、clone だけでは戻らない。
+# 更新されるのは CURRENT だけ。仕様・run・入力・受領は id 付きの不変ファイル。
+# 更新は task.lock の排他と revision の一致で直列化し、直前版を CURRENT.previous に残す。
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -8,6 +12,8 @@ function Get-JsonHash([object]$Value) {
 }
 
 function Get-RepositoryIdentity([string]$Repo) {
+    # SSH と HTTPS、末尾の .git、大文字小文字を同じ github.com/owner/repo に畳む。
+    # 別 worktree でも保存先 id が割れないようにする。GitHub 以外の origin は受けない。
     $remote = (& git -C $Repo remote get-url origin 2>$null)
     if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($remote)) { throw 'origin がありません。GitHub の origin を設定してから実行してください。' }
     $value = $remote.Trim()
@@ -22,6 +28,7 @@ function Get-RepositoryIdentity([string]$Repo) {
 }
 
 function Get-TaskDirectory([string]$Repo, [string]$Task, [string]$StoreRoot = '') {
+    # task-id をディレクトリ名に使う。英数字とハイフン以外は、保存先からの逸脱として拒否する。
     if ($Task -cnotmatch '^[a-z0-9][a-z0-9-]{0,63}$') { throw 'task-id は小文字英数字とハイフンのみ、64文字以内にしてください。' }
     $identity = Get-RepositoryIdentity $Repo
     if ([string]::IsNullOrWhiteSpace($StoreRoot)) {
@@ -31,6 +38,7 @@ function Get-TaskDirectory([string]$Repo, [string]$Task, [string]$StoreRoot = ''
 }
 
 function Initialize-Task([string]$TaskDirectory, [string]$Task, [string]$Owner, [object]$Identity, [object]$Spec) {
+    # registration は新規作成のみ。途中で落ちて CURRENT が無い task は、init の上書きも直前版の復旧もできない。
     if ([IO.Directory]::Exists($TaskDirectory)) { throw 'taskは登録済みです。status/currentを使い、欠落時はrestoreしてください。' }
     [IO.Directory]::CreateDirectory($TaskDirectory) | Out-Null
     $registration = [ordered]@{ schemaVersion = 1; taskId = $Task; repoId = $Identity.Id; owner = $Owner; createdAt = [DateTimeOffset]::UtcNow.ToString('o') }
@@ -44,6 +52,8 @@ function Initialize-Task([string]$TaskDirectory, [string]$Task, [string]$Owner, 
 }
 
 function Publish-Handoff([string]$TaskDirectory, [object]$Current, [object]$InputBody, [string]$Task, [string]$To, [string]$RunId, [string]$Head, [string]$SpecHash, [string]$Stage) {
+    # 入力と受領を書いてから CURRENT を更新する。revision が合わず更新が失敗しても、選択はディスクに残らない。
+    # レビュー参照は30日。close は終了の明示が無ければ、この参照があるため止まる。
     $input = Write-NewRecord $TaskDirectory 'inputs' $InputBody
     $receipt = Write-NewRecord $TaskDirectory 'receipts' ([ordered]@{ ready = $true; taskId = $Task; to = $To; inputId = $input.Id; inputHash = $input.Hash; runId = $RunId; head = $Head; specHash = $SpecHash })
     $Current.selectedInputId = $input.Id
@@ -57,6 +67,7 @@ function Publish-Handoff([string]$TaskDirectory, [object]$Current, [object]$Inpu
 }
 
 function Write-NewRecord([string]$TaskDirectory, [string]$Kind, [object]$Content, [string]$Id = '') {
+    # CreateNew なので同じ id は二度書けない。hash は本文だけで、後から改ざんすると読取時に落ちる。
     if ([string]::IsNullOrWhiteSpace($Id)) { $Id = [Guid]::NewGuid().ToString('N') }
     if ($Id -cnotmatch '^[a-zA-Z0-9-]+$') { throw 'record id が不正です。' }
     $folder = [IO.Path]::Combine($TaskDirectory, $Kind)
@@ -74,6 +85,7 @@ function Write-NewRecord([string]$TaskDirectory, [string]$Kind, [object]$Content
 }
 
 function Start-Run([string]$TaskDirectory, [string]$Id, [string]$Head, [string]$StartedAt) {
+    # 完了ファイルが無い中断は進行中のまま残す。成功した run として読まれることを防ぐ。
     $folder = [IO.Path]::Combine($TaskDirectory, 'in-progress')
     [IO.Directory]::CreateDirectory($folder) | Out-Null
     $path = [IO.Path]::Combine($folder, "$Id.json")
@@ -86,6 +98,7 @@ function Start-Run([string]$TaskDirectory, [string]$Id, [string]$Head, [string]$
 }
 
 function Finish-Run([string]$TaskDirectory, [object]$Run) {
+    # 不変の run を書いてから進行中ファイルを消す。書込前に落ちた実行は完了 record にならない。
     $path = [IO.Path]::Combine($TaskDirectory, 'in-progress', "$($Run.id).json")
     if (-not [IO.File]::Exists($path)) { throw '開始中runの状態がありません。' }
     $record = Write-NewRecord $TaskDirectory 'runs' $Run $Run.id
@@ -94,6 +107,7 @@ function Finish-Run([string]$TaskDirectory, [object]$Run) {
 }
 
 function Read-Record([string]$TaskDirectory, [string]$Kind, [string]$Id) {
+    # 保存時の hash を本文から再計算する。一致しないファイルは改ざんとみなし、中身を採用しない。
     if ($Id -cnotmatch '^[a-zA-Z0-9-]+$') { throw 'record id が不正です。' }
     $path = [IO.Path]::Combine($TaskDirectory, $Kind, "$Id.json")
     if (-not [IO.File]::Exists($path)) { throw "固定recordがありません: $Kind/$Id。statusで参照を確認してください。" }
@@ -126,6 +140,8 @@ function Read-Current([string]$TaskDirectory) {
 }
 
 function Write-Current([string]$TaskDirectory, [object]$Current, [int]$ExpectedRevision) {
+    # 排他のあとで close と revision を見なす。待ちの間に閉じられた更新は書かない。
+    # 直前版を残してから置き換える。凍結した仕様 id と task 識別は、この更新では変えられない。
     if (Test-TaskClosed $TaskDirectory) { throw 'taskはclose済みです。新しいtaskをinitしてください。' }
     $lock = [IO.Path]::Combine($TaskDirectory, 'task.lock')
     $held = [IO.FileStream]::new($lock, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
@@ -147,6 +163,8 @@ function Write-Current([string]$TaskDirectory, [object]$Current, [int]$ExpectedR
 }
 
 function Restore-Current([string]$TaskDirectory) {
+    # 読める CURRENT が凍結仕様の差、または現行参照の喪失で拒否したときだけ復旧を中止する。
+    # ファイル欠落や破損は直前版で置き換え、選択と受領を無効にして phase を実装に戻す。
     if (Test-TaskClosed $TaskDirectory) { throw 'taskはclose済みです。新しいtaskをinitしてください。' }
     $previous = [IO.Path]::Combine($TaskDirectory, 'CURRENT.previous')
     if (-not [IO.File]::Exists($previous)) { throw '復旧できる直前版がありません。' }
@@ -170,8 +188,10 @@ function Restore-Current([string]$TaskDirectory) {
             }
             $revision = [Math]::Max($revision, $current.revision)
         } catch {
+            # 欠落や破損の読取失敗は飲み、直前版で置き換える。仕様差と参照喪失だけは再送出する。
             if ([IO.File]::Exists([IO.Path]::Combine($TaskDirectory, 'CURRENT.json')) -and ($_.Exception.Message -like '*凍結仕様*' -or $_.Exception.Message -like '*参照*')) { throw }
         }
+        # 戻した revision は現行と直前版の大きいほうより 1 進める。古い番号の再適用を防ぐ。
         $candidate.revision = $revision + 1
         $candidate.updatedAt = [DateTimeOffset]::UtcNow.ToString('o')
         $candidate.selectedInputId = $null
@@ -189,6 +209,7 @@ function Restore-Current([string]$TaskDirectory) {
 }
 
 function Write-Closed([string]$TaskDirectory, [int]$ExpectedRevision, [scriptblock]$BuildRecord) {
+    # closed.json は新規作成のみ。排他のあとで revision を見なし、古い close が終端ファイルを作らないようにする。
     $lock = [IO.Path]::Combine($TaskDirectory, 'task.lock')
     $held = [IO.FileStream]::new($lock, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
     try {

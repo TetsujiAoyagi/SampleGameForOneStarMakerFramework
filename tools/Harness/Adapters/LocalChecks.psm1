@@ -1,8 +1,12 @@
+# 固定した base/head の Git 差分と、ローカルの offline suite を採取する。
+# 成否は exit code だけではなく、case 集合、監査の1行、実ロードした DLL の hash で残す。
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../GatePolicy.psm1') -Global
 
 function Invoke-Process([string]$FileName, [string[]]$Arguments, [string]$WorkingDirectory, [int]$TimeoutSeconds = 900) {
+    # 標準出力は待ってから読むとパイプが埋まり、プロセスが戻らない。先に非同期で読む。
+    # 期限超過はプロセスツリーを止める。Kill の失敗は、その直前に終了した競合として無視する。
     $info = [Diagnostics.ProcessStartInfo]::new()
     $info.FileName = $FileName
     $info.WorkingDirectory = $WorkingDirectory
@@ -30,6 +34,8 @@ function Invoke-Process([string]$FileName, [string[]]$Arguments, [string]$Workin
 }
 
 function Assert-RunPayload([string]$TaskDirectory, [object]$Run) {
+    # ログの相対パスが task ディレクトリの外を指せないようにする。
+    # logHash は各ファイル hash を並びのまま連結した値の hash。順番が変わると不一致になる。
     foreach ($step in @($Run.steps)) {
         $hashes = [Collections.Generic.List[string]]::new()
         foreach ($relative in @($step.logs)) {
@@ -53,6 +59,7 @@ function Assert-RunPayload([string]$TaskDirectory, [object]$Run) {
 }
 
 function Get-GitScope([string]$Repo, [string]$Base, [string]$Head) {
+    # 短縮 SHA と、候補の祖先でない base は受けない。作業ツリーの汚れは未追跡ファイルも含める。
     if ($Base -cnotmatch '^[a-f0-9]{40}$' -or $Head -cnotmatch '^[a-f0-9]{40}$') { throw 'base/headは完全なcommit SHAが必要です。' }
     foreach ($sha in @($Base, $Head)) {
         $check = Invoke-Process 'git' @('-C', $Repo, 'cat-file', '-t', $sha) $Repo 15
@@ -60,6 +67,8 @@ function Get-GitScope([string]$Repo, [string]$Base, [string]$Head) {
     }
     $ancestor = Invoke-Process 'git' @('-C', $Repo, 'merge-base', '--is-ancestor', $Base, $Head) $Repo 15
     if ($ancestor.ExitCode -ne 0) { throw '凍結baseは候補headの祖先ではありません。' }
+    # rename は状態・旧パス・新パスの3項になる。2項として読むとパスを取り違える。
+    # --no-renames で畳まず、追加・変更・削除・タイプ変更以外は未対応として拒否する。
     $diff = Invoke-Process 'git' @('-C', $Repo, 'diff', '--name-status', '-z', '--no-renames', $Base, $Head, '--') $Repo 30
     if ($diff.ExitCode -ne 0) { throw 'Git差分を取得できません。' }
     $parts = @($diff.Stdout.Split([char]0, [StringSplitOptions]::RemoveEmptyEntries))
@@ -75,6 +84,7 @@ function Get-GitScope([string]$Repo, [string]$Base, [string]$Head) {
 }
 
 function Test-GeneratedEvidencePath([string]$Path) {
+    # 実行が生成するログ、結果、Phase の RESULT。製品データや通常のソースは証拠パスに含めない。
     $path = $Path.Replace('\', '/')
     if ($path -match '(^|/)TestResults/' -or $path -match '^tools/Harness/(runs|payload|inputs|receipts|specifications)/') { return $true }
     if ($path -match '^docs/handoff/.*(RESULT|REVISION).*\.md$') { return $true }
@@ -83,6 +93,8 @@ function Test-GeneratedEvidencePath([string]$Path) {
 }
 
 function Find-GeneratedEvidenceAdds([string]$Repo, [string]$Base, [string]$Head) {
+    # 最終差分だけだと、追加したあと削除した証拠が見えなくなる。commit ごとに追加を見る。
+    # まだ commit していない index の追加も、同じ拒否にする。
     [void](Get-GitScope $Repo $Base $Head)
     $found = [Collections.Generic.List[object]]::new()
     $history = Invoke-Process 'git' @('-C', $Repo, 'rev-list', "$Base..$Head") $Repo 30
@@ -128,9 +140,11 @@ function Invoke-LocalStep([string]$Repo, [string]$TaskDirectory, [string]$RunId,
     switch ($Name) {
         'artifacts-local' {
             $output = [IO.Path]::Combine($payload, 'build')
+            # --no-restore は、実行の途中でパッケージ取得を始めないため。未復元なら build が失敗する。
             $build = Invoke-Process 'dotnet' @('build', [IO.Path]::Combine($Repo, 'tools/Artifacts/Probe/R2RouteTransport.csproj'), '-c', 'Release', '-o', $output, '--no-restore', '--nologo') $Repo 600
             $commands.Add(@('dotnet', 'build', 'tools/Artifacts/Probe/R2RouteTransport.csproj', '-c', 'Release', '-o', '<run-payload>/build', '--no-restore', '--nologo'))
             [IO.File]::WriteAllText([IO.Path]::Combine($payload, 'build.log'), $build.Stdout + $build.Stderr)
+            # build に失敗した時点で case は無い。未実行の suite を成功件数に数えない。
             if ($build.ExitCode -ne 0) { return [pscustomobject]@{ name = $Name; kind = 'test'; status = 'failed'; exitCode = $build.ExitCode; registered = @(); selected = @(); executed = @(); logHash = (Get-FileHash -Algorithm SHA256 ([IO.Path]::Combine($payload, 'build.log'))).Hash.ToLowerInvariant(); durationMs = $build.DurationMs } }
             $binary = [IO.Path]::Combine($output, 'R2RouteTransport.dll')
             if (-not [IO.File]::Exists($binary)) { throw 'build後のDLLがありません。' }
@@ -167,6 +181,8 @@ function Invoke-LocalStep([string]$Repo, [string]$TaskDirectory, [string]$RunId,
         $totalMs += $run.DurationMs
         if ($run.ExitCode -ne 0) { $exitCode = $run.ExitCode }
         if ($Name -like '*audit') {
+            # exit 0 でも、この1行が無い、または files=0 / errors>0 なら失敗。
+            # 契約検査は適用 task のときだけ applicable8 を要求し、未指定の緑を流用しない。
             $marker = @($run.Stdout -split "`n" | Where-Object { $_ -match '^AUDIT_RESULT ' })
             if ($marker.Count -ne 1 -or $marker[0] -notmatch 'files=(\d+) errors=(\d+) warnings=(\d+) checks=([0-9,]+)') { $exitCode = 1 }
             else {
@@ -182,6 +198,8 @@ function Invoke-LocalStep([string]$Repo, [string]$TaskDirectory, [string]$RunId,
             foreach ($case in @($cases.executed)) { $executed.Add("$scriptName/$case") }
             if (@($cases.failed).Count -gt 0) { $exitCode = 1 }
             if ($scriptName -ceq 'R2RouteTransport') {
+                # 依頼した DLL と、実際に読んだパス・実行前後の hash が一致するときだけ成功。
+                # ファイルとして載った依存だけ hash を再確認する。メモリ上の依存にパスは無い。
                 $loadedPath = $cases.loadedPath
                 $loadedHash = $cases.loadedHashAfter
                 $moduleVersionId = $cases.moduleVersionId
@@ -197,10 +215,12 @@ function Invoke-LocalStep([string]$Repo, [string]$TaskDirectory, [string]$RunId,
         }
     }
     if ($binary) {
+        # 実行中に DLL が差し替わったら、この step は失敗にする。
         $binaryAfter = (Get-FileHash -Algorithm SHA256 $binary).Hash.ToLowerInvariant()
         if ($binaryBefore -cne $binaryAfter) { $exitCode = 1 }
     }
     if ($Name -like '*local') {
+        # 集合不一致は run 全体を中断せず、この step を失敗として残す。他 step のログを失わない。
         try { Assert-CaseSets @($registered) @($selected) @($executed) $Name }
         catch { $exitCode = 1 }
     }

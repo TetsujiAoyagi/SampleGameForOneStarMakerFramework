@@ -12,6 +12,8 @@ $script:passed = [Collections.Generic.List[string]]::new()
 $script:failed = [Collections.Generic.List[string]]::new()
 $script:selected = [Collections.Generic.List[string]]::new()
 $script:executed = [Collections.Generic.List[string]]::new()
+# 登録集合は -Case で選ばれた実行ではなく、ソース上の Run 呼び出しから取る。
+# フィルタで登録件数を縮めると、未実行の case が「元から無い」ように見える。
 $tokens=$null; $parseErrors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile($PSCommandPath,[ref]$tokens,[ref]$parseErrors)
 $script:registered=@($ast.FindAll({ param($node) $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -ceq 'Run' },$true) | ForEach-Object { $_.CommandElements[1].Value } | Where-Object { $_ -is [string] })

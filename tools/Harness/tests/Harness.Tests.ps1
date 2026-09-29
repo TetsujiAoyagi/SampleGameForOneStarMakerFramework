@@ -1,4 +1,6 @@
 param([string]$ResultPath = '')
+# 登録名は下の Run と件数を一致させる。選択・実行がずれると終了コードを落とす。
+# 一時 Git とストアはテスト専用。掃除は temp 配下のこのディレクトリだけに限る。
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../RecordStore.psm1') -Force
@@ -40,12 +42,14 @@ try {
     [IO.File]::WriteAllText([IO.Path]::Combine($taskDirectory, 'registration.json'), (ConvertTo-Json ([ordered]@{ taskId = 'h1-transport-identity'; repoId = $identity.Id })))
     [IO.File]::WriteAllText([IO.Path]::Combine($taskDirectory, 'CURRENT.json'), (ConvertTo-Json $current -Depth 20))
 
+    # SSH と HTTPS の origin を同じ保存先 ID に畳む。task-id のパス逸脱は拒否する。
     Run 'repository identity and explicit task' {
         Assert ($identity.Canonical -ceq 'github.com/tetsujiaoyagi/samplegameforonestarmakerframework') 'SSH normalization'
         & git -C $repo remote set-url origin 'https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework.git'
         Assert ((Get-RepositoryIdentity $repo).Id -ceq $identity.Id) 'HTTPS normalization'
         Reject { Get-TaskDirectory $repo '../escape' $store } 'invalid task id accepted'
     }
+    # 登録済みは一覧し、未知の task は init せず status と restore を案内して失敗する。
     Run 'CLI status and missing task' {
         $cli = [IO.Path]::GetFullPath([IO.Path]::Combine($PSScriptRoot, '../../harness.ps1'))
         $listed = Invoke-Process 'pwsh' @('-NoProfile', '-File', $cli, 'status', '-Repo', $repo, '-StoreRoot', $store) $repo 15
@@ -53,10 +57,12 @@ try {
         $missing = Invoke-Process 'pwsh' @('-NoProfile', '-File', $cli, 'current', '-Repo', $repo, '-StoreRoot', $store, '-Task', 'missing') $repo 15
         Assert ($missing.ExitCode -ne 0 -and ($missing.Stdout + $missing.Stderr).Contains('status') -and ($missing.Stdout + $missing.Stderr).Contains('restore')) 'CLI missing task guidance failed'
     }
+    # 承認文面だけでは通さず、本文 hash が承認値と違う仕様を拒否する。
     Run 'forged A3 snapshot rejected' {
         $forged = [pscustomobject]@{ approved = $true; base = $base; testPolicy = 'local-gates-v1'; recordPolicy = 'external-current-v1'; text = 'Approved: 2026-09-29 by the human owner.' }
         Reject { Assert-ApprovedSpec 'h1-transport-identity' $forged } 'forged approval accepted'
     }
+    # 同じ id の上書きと、本文を改ざんしたあとの読取を拒否する。
     Run 'immutable record rejects corruption' {
         $record = Write-NewRecord $taskDirectory 'runs' ([ordered]@{ test = 'value' }) 'unit-run'
         Assert ((Read-Record $taskDirectory 'runs' 'unit-run').hash -ceq $record.Hash) 'record hash'
@@ -66,6 +72,7 @@ try {
         [IO.File]::WriteAllText($path, $raw)
         Reject { Read-Record $taskDirectory 'runs' 'unit-run' } 'modified record accepted'
     }
+    # 完了ファイルが無い中断は進行中のまま残し、失敗として閉じたときだけ run になる。
     Run 'run interruption remains identifiable' {
         Start-Run $taskDirectory 'interrupted' $base '2026-09-29T00:00:00Z'
         $marker = [IO.Path]::Combine($taskDirectory, 'in-progress', 'interrupted.json')
@@ -76,12 +83,14 @@ try {
         Assert (-not [IO.File]::Exists($marker)) 'completed marker remains'
         Assert ((Read-Record $taskDirectory 'runs' 'interrupted').content.status -ceq 'failed') 'failure record missing'
     }
+    # revision が一致しない引渡しは、入力を選択済みにしない。
     Run 'handoff does not select on failed save' {
         $stale = Read-Current $taskDirectory
         $stale.revision = 0
         Reject { Publish-Handoff $taskDirectory $stale ([ordered]@{ inputKind='discovery'; head=$base }) 'h1-transport-identity' 'CDiscovery' 'r' $base $specRecord.Hash 'discovery' } 'stale handoff accepted'
         Assert (-not (Read-Current $taskDirectory).selectedInputId) 'failed handoff selected input'
     }
+    # 古い revision の更新を拒否し、復旧は phase を戻して受領を無効にする。
     Run 'current revision and restore' {
         $one = Read-Current $taskDirectory
         $one.nextAction = 'second'
@@ -92,6 +101,7 @@ try {
         Assert ($restored.revision -eq 3 -and $restored.phase -ceq 'B' -and -not $restored.gateReceiptId) 'restore invalidates gate'
         Assert ($restored.nextAction -like '*再照合*') 'restore next action'
     }
+    # CURRENT の欠落は直前版で戻す。close 後の復旧は拒否する。
     Run 'missing current restores previous' {
         $current = Read-Current $taskDirectory
         $current.nextAction = 'before loss'
@@ -106,6 +116,7 @@ try {
         Reject { Restore-Current $taskDirectory } 'closed task reopened from previous'
         [IO.File]::Delete([IO.Path]::Combine($taskDirectory, 'closed.json'))
     }
+    # Unity を含む差分は、Artifacts だけの必須集合にしない。祖先でない base は拒否する。
     Run 'actual Git diff detects Unity' {
         [IO.Directory]::CreateDirectory([IO.Path]::Combine($repo, 'tools', 'Artifacts', 'tests')) | Out-Null
         [IO.File]::WriteAllText([IO.Path]::Combine($repo, 'tools', 'Artifacts', 'tests', 'sample.ps1'), 'test')
@@ -120,6 +131,7 @@ try {
         Reject { Get-RequiredSteps $specObject $scope.Paths 'discovery' } 'Unity changed with Artifacts-only claim'
         Reject { Get-GitScope $repo $head $base } 'nonancestor base accepted'
     }
+    # 後で削除した生成証拠も、途中 commit と index の追加として残る。製品 JSON は証拠パスにしない。
     Run 'history catches removed evidence' {
         $handoff = [IO.Path]::Combine($repo, 'docs', 'handoff')
         [IO.Directory]::CreateDirectory($handoff) | Out-Null
@@ -136,6 +148,7 @@ try {
         Assert (@($removed.findings | Where-Object { $_.path -ceq 'docs/handoff/PHASE_B_RESULT.md' }).Count -ge 1) 'intermediate evidence disappeared from history audit'
         Assert (-not (Test-GeneratedEvidencePath 'unity/Assets/product.json')) 'product JSON falsely rejected'
     }
+    # 必須 step の欠落、dirty、失敗、run 後の dirty 不明は、完了引渡しに使えない。
     Run 'gate requires exact run' {
         $specObject = [pscustomobject]@{ base = $base; specHash = $specRecord.Hash; testPolicy = 'local-gates-v1'; recordPolicy = 'external-current-v1' }
         $head = (& git -C $repo rev-parse HEAD).Trim()
@@ -150,12 +163,14 @@ try {
         Reject { Assert-RunForGate $run $specObject $head @('artifacts-local') } 'unknown post-run dirty state accepted'
         $run.dirtyAfter = @()
     }
+    # 件数だけでは通さず、重複と中身の不一致を拒否する。順序は問わない。
     Run 'case names and duplicates' {
         Assert-CaseSets @('a','b') @('b','a') @('a','b') 'fixture'
         Reject { Assert-CaseSets @('a','b') @('a','b') @('c','d') 'fixture' } 'equal-count mismatched execution accepted'
         Reject { Assert-CaseSets @('a','b') @('a','a') @('a','a') 'fixture' } 'duplicate selection accepted'
         Reject { Assert-CaseSets @('a','a') @('a','a') @('a','a') 'fixture' } 'duplicate registration accepted'
     }
+    # 広い集合を実行済みの discovery run は、判定入力の種別へ再利用できる。
     Run 'broad discovery run is reusable' {
         $specObject = [pscustomobject]@{ id = $specRecord.Id; base = $base; specHash = $specRecord.Hash; text = 'approved A3' }
         $head = (& git -C $repo rev-parse HEAD).Trim()
@@ -165,6 +180,8 @@ try {
         $input = Select-BlindInput $specObject $run 'judgment' @('tools/Harness/sample.ps1') 'diff'
         Assert ($input.inputKind -ceq 'judgment' -and $input.runId -ceq 'r') 'broad run was not reusable for judgment input'
     }
+    # 期限切れの他者参照は close を止める。自分の採用 run は終了し、欠陥参照は残す。
+    # 進行中のレビューは、終了の明示が無いと拒否する。
     Run 'reference ownership and expiry' {
         $now = [DateTimeOffset]::UtcNow
         $external = [pscustomobject]@{ referenceId = 'x'; consumerId = 'defect-1'; purpose = 'defect'; runId = 'r'; owner = 'other'; expiresAt = $now.AddMinutes(-1).ToString('o'); releasedAt = $null }
@@ -179,6 +196,7 @@ try {
         $review = [pscustomobject]@{ referenceId = 'v'; consumerId = 'CDiscovery'; purpose = 'review'; runId = 'r'; owner = 'test'; expiresAt = $now.AddDays(1).ToString('o'); releasedAt = $null }
         Reject { Resolve-CloseReferences @($review) 'h1-transport-identity' $false $now } 'open review accepted'
     }
+    # 現行にだけある有効参照を、直前版へ戻して消すことはできない。
     Run 'restore preserves active references' {
         $current = Read-Current $taskDirectory
         $current.references = @()
@@ -188,11 +206,13 @@ try {
         [void](Write-Current $taskDirectory $current $current.revision)
         Reject { Restore-Current $taskDirectory } 'restore lost an active defect reference'
     }
+    # 古い revision の close は、終端ファイルを作らない。
     Run 'close checks revision under lock' {
         $current = Read-Current $taskDirectory
         Reject { Write-Closed $taskDirectory ($current.revision - 1) { param($latest) @{ kind='closed'; closedAt='now'; outcome='Abandoned' } } } 'stale close accepted'
         Assert (-not (Test-TaskClosed $taskDirectory)) 'stale close created terminal record'
     }
+    # 固定入力へ写す項目に、レビュー所見のフィールドは含めない。
     Run 'blind input omits findings' {
         $specObject = [pscustomobject]@{ id = $specRecord.Id; specHash = $specRecord.Hash; base = $base; text = 'approved A3' }
         $run = [pscustomobject]@{ id = 'r'; recordHash = 'hash'; head = 'head'; steps = @(); implementationResult = 'implemented'; cFinding = 'SENTINEL_C_FINDING' }
@@ -201,10 +221,12 @@ try {
         Assert (-not $json.Contains('SENTINEL_C_FINDING')) 'C finding leaked'
         Assert ($input.inputKind -ceq 'judgment') 'input kind'
     }
+    # 子プロセスの標準出力と終了コードを、期限付きで回収する。
     Run 'child process result' {
         $result = Invoke-Process 'pwsh' @('-NoProfile', '-Command', '[Console]::WriteLine("OK")') $repo 15
         Assert ($result.ExitCode -eq 0 -and $result.Stdout.Trim() -ceq 'OK' -and $result.DurationMs -ge 0) 'child output'
     }
+    # close は当時の参照を終端ファイルへ残し、以降の CURRENT 更新を拒否する。
     Run 'close persists current references' {
         $current = Read-Current $taskDirectory
         $closed = Write-Closed $taskDirectory $current.revision {
@@ -215,6 +237,7 @@ try {
         Reject { Write-Current $taskDirectory $current $current.revision } 'closed task accepted concurrent update'
     }
 } finally {
+    # 掃除先が temp のこのテストディレクトリ以外なら削除しない。
     $resolved = [IO.Path]::GetFullPath($root)
     $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd([IO.Path]::DirectorySeparatorChar)
     if (-not $resolved.StartsWith($tempRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) -or [IO.Path]::GetFileName($resolved) -notlike 'osm-harness-test-*') { throw 'test cleanup target is outside its temp root' }

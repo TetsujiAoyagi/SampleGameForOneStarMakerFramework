@@ -36,12 +36,15 @@ Import-Module (Join-Path $PSScriptRoot 'Harness/RecordStore.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Harness/GatePolicy.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Harness/Adapters/LocalChecks.psm1') -Force
 
+# 適用作業の入口。現行仕様と採用 run は Git 外の CURRENT から読み、過去の RESULT ファイルは見ない。
+# init 以外は登録済み task だけを更新し、close 後の追記は拒否する。
 function Get-Head {
     $value = & git -C $Repo rev-parse HEAD
     if ($LASTEXITCODE -ne 0) { throw 'Git HEADを取得できません。' }
     return $value.Trim()
 }
 function Get-Context {
+    # 読むたびに凍結仕様の承認 hash を照合し直す。CURRENT の本文差し替えだけでは通さない。
     if (-not $Task) { throw '-Taskでtask-idを指定してください。' }
     $directory = Get-TaskDirectory $Repo $Task $StoreRoot
     $current = Read-Current $directory
@@ -61,6 +64,7 @@ try {
         foreach ($dir in [IO.Directory]::EnumerateDirectories($root)) {
             $id = [IO.Path]::GetFileName($dir)
             try {
+                # 1件の破損で一覧全体を落とさない。壊れた task は理由を出して次へ進む。
                 if (Test-TaskClosed $dir) { Write-Output "$id phase=closed next=新規taskをinit"; continue }
                 $current = Read-Current $dir
                 $expired = @($current.references | Where-Object { $_.expiresAt -and -not $_.releasedAt -and [DateTimeOffset]::Parse($_.expiresAt) -lt [DateTimeOffset]::UtcNow }).Count
@@ -72,6 +76,8 @@ try {
     if (-not $Task) { throw '-Taskでtask-idを指定してください。' }
     $directory = Get-TaskDirectory $Repo $Task $StoreRoot
     if ($Command -ceq 'init') {
+        # 承認文面と完全な base SHA は入口の形。本文 hash の一致は Assert-ApprovedSpec が見る。
+        # 登録済みディレクトリは上書きしない。欠落は restore、新規だけが init。
         if (-not $Owner -or -not $SpecFile) { throw 'initには-Ownerと承認済み-SpecFileが必要です。' }
         if ([IO.Directory]::Exists($directory)) { throw 'taskは登録済みです。status/currentを使い、欠落時はrestoreしてください。' }
         $text = [IO.File]::ReadAllText([IO.Path]::GetFullPath($SpecFile))
@@ -87,6 +93,7 @@ try {
     if ($Command -ceq 'restore') { $result = Restore-Current $directory; Write-Output "restored revision=$($result.revision); gateは再照合が必要です。"; return }
     $context = Get-Context
     if ($Command -ceq 'current') {
+        # 仕様本文はここでは変えない。未解決・blocker・次作業だけを、読んだ revision と一致するとき更新する。
         if ($PSBoundParameters.ContainsKey('NextAction') -or $PSBoundParameters.ContainsKey('Unresolved') -or $PSBoundParameters.ContainsKey('Blockers')) {
             if ($ExpectedRevision -ne $context.Current.revision) { throw '更新には一致する-ExpectedRevisionが必要です。currentを読み直してください。' }
             if ($PSBoundParameters.ContainsKey('NextAction')) { $context.Current.nextAction = $NextAction }
@@ -107,6 +114,7 @@ try {
     }
     if (Test-TaskClosed $directory) { throw 'taskはclose済みです。新しいtaskをinitしてください。' }
     if ($Command -ceq 'run') {
+        # 質問・停止条件・前回との差が空の再実行は残さない。初回だけ predecessor を省略できる。
         if (-not $Question -or -not $StopWhen -or -not $Difference) { throw 'runには前回との差・知りたい条件・停止条件を入力してください。初回は-Difference 初回です。' }
         if ($Difference -cne '初回' -and -not $PreviousRun) { throw '再実行には-PreviousRunが必要です。' }
         if ($PreviousRun) { [void](Read-Record $directory 'runs' $PreviousRun) }
@@ -120,12 +128,15 @@ try {
         $failure = $null
         $after = $null
         try {
+            # step が例外でも進行中のまま残さない。失敗 record を書いてから戻る。
             foreach ($step in $steps) { $results.Add((Invoke-LocalStep $Repo $directory $id $step)) }
             $after = Get-GitScope $Repo $context.Spec.base (Get-Head)
         } catch {
             $failure = $_.Exception.Message
         }
         $failed = @($results | Where-Object { $_.status -cne 'passed' }).Count -gt 0
+        # 実行中に HEAD が動いたら、記録した head と終わった木が違うので失敗。
+        # 事後の dirty を読めなかった場合は空配列にせず、未採取だと分かる印を残す。
         $status = if ($failure -or $failed -or -not $after -or $head -cne $after.Head) { 'failed' } else { 'passed' }
         $dirtyAfter = [object[]]@()
         if ($after) { $dirtyAfter = [object[]]@($after.Dirty | Where-Object { $_ }) }
@@ -139,6 +150,7 @@ try {
         return
     }
     if ($Command -ceq 'adopt') {
+        # 採用は gate 通過ではない。失敗 run も、理由と将来の保持期限があれば残せる。
         if (-not $RunId -or -not $Reason) { throw 'adoptには-RunIdと-Reasonが必要です。' }
         $record = Read-Record $directory 'runs' $RunId
         if ($record.content.specHash -cne $context.Spec.specHash) { throw '別仕様のrunは採用できません。' }
@@ -152,6 +164,7 @@ try {
         return
     }
     if ($Command -ceq 'reference') {
+        # 解放と延長は、未解放かつ owner が一致する参照だけ。期限は有限の未来だけを受け付ける。
         if (-not $Owner) { throw 'referenceには-Ownerが必要です。' }
         if ($Action -ceq 'Add') {
             if (-not $RunId -or -not $ConsumerId -or -not $ExpiresAt) { throw '参照追加には-RunId、-ConsumerId、-ExpiresAtが必要です。' }
@@ -177,6 +190,7 @@ try {
         return
     }
     if ($Command -ceq 'assist') {
+        # 調査依頼は常に未完成。ready を立てて、判定入力の代わりに使わせない。
         if (-not $Reason) { throw 'assistには-Reasonが必要です。' }
         Write-Output ([ordered]@{ taskId = $Task; ready = $false; phase = 'B'; reason = $Reason; candidateHead = $context.Current.candidateHead; adoptedRuns = @($context.Current.adoptedRuns) } | ConvertTo-Json -Depth 10)
         return
@@ -185,6 +199,7 @@ try {
         $scope = Get-GitScope $Repo $context.Spec.base (Get-Head)
         if (@($scope.Dirty).Count -gt 0) { throw "dirtyな作業ツリーです: $($scope.Dirty -join ', ')。commitするかtrialとして実行してください。" }
         if ($To -ceq 'CBlind') {
+            # 呼び出し側の run 指定では差し替えない。判定が残した入力 id だけを読む。
             if (-not $context.Current.judgmentInputId) { throw '判定Cの固定入力がありません。CJudgmentを先に確定してください。' }
             $input = Read-Record $directory 'inputs' $context.Current.judgmentInputId
             if ($input.content.inputKind -cne 'judgment' -or $input.content.head -cne $scope.Head -or $input.content.specHash -cne $context.Spec.specHash) { throw 'CBlind入力のhead/仕様/種別が一致しません。' }
@@ -227,6 +242,7 @@ try {
             param($latest)
             $closedAt = [DateTimeOffset]::UtcNow
             $closedRefs = @(Resolve-CloseReferences @($latest.references) $Task ([bool]$ReviewClosed) $closedAt)
+            # 保持期限は閉じた時刻の30日後と、残っている参照期限の遅いほう。このコマンドは削除しない。
             $retainUntil = $closedAt.AddDays(30)
             foreach ($ref in @($closedRefs | Where-Object { $_.expiresAt -and -not $_.releasedAt })) {
                 $expiry = [DateTimeOffset]::Parse($ref.expiresAt)

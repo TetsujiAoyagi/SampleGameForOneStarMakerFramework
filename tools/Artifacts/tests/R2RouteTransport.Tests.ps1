@@ -9,6 +9,8 @@ $beforeHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $assemblyPath).Hash.T
 $assembly = [Reflection.Assembly]::LoadFrom([IO.Path]::GetFullPath($assemblyPath))
 $actualPath = $assembly.Location
 if (-not $actualPath -or -not [IO.Path]::GetFullPath($actualPath).Equals($assemblyPath, [StringComparison]::OrdinalIgnoreCase)) { throw 'Loaded DLL path differs from requested DLL.' }
+# Run 関数が無いので登録名はこの節の並びと一致する固定リスト。各節の直後に実行済みへ足し、
+# 途中で落ちると件数が足りず終了する。前後の hash と依存 DLL は、実際に読んだバイナリの証拠。
 $cases = @('unsigned-request', 'authenticated-redirect', 'error-code-across-chunks', 'bounded-read', 'limited-prefix', 'cancellation-prefix', 'interrupted-prefix')
 $executed = [Collections.Generic.List[string]]::new()
 $type = $assembly.GetType('OneStarMaker.Artifacts.Probe.RouteTransport', $true)

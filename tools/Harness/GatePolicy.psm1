@@ -1,8 +1,11 @@
+# 完了引渡しに必要な実行と、run がその実行を満たすかの判定だけを置く。
+# 子プロセスや Git の採取は LocalChecks、保存は RecordStore。ここは仕様と run の突合。
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 function Assert-ApprovedSpec([string]$Task, [object]$Spec) {
-    # H1はこの1件のA3承認に固定する。新taskの採用は別A3とこのアンカー更新を要する。
+    # このパイロットで承認済みの仕様は1件。別 task を足すときは本文とこの hash をセットで更新する。
+    # 承認文面が揃っていても、本文全体の SHA-256 が違えば拒否する。
     $approvedHash = '8070e3e0a299f84500c00b574fd406e145ea50fb7ec5a7d92fc00f28e7a049a1'
     $approvedBase = '292129b563087c4dbff43dcd2d6ef71dd5db5b51'
     if ($Task -cne 'h1-transport-identity' -or $Spec.base -cne $approvedBase -or $Spec.testPolicy -cne 'local-gates-v1' -or $Spec.recordPolicy -cne 'external-current-v1' -or -not $Spec.approved) { throw 'このtaskに承認されたH1 A3仕様がありません。' }
@@ -12,6 +15,8 @@ function Assert-ApprovedSpec([string]$Task, [object]$Spec) {
 
 function Get-RequiredSteps([object]$Spec, [string[]]$ChangedPaths, [string]$Stage) {
     if ($Spec.testPolicy -cne 'local-gates-v1' -or $Spec.recordPolicy -cne 'external-current-v1') { throw 'H1適用済みの仕様ではありません。' }
+    # 変更パスから必須 step を決める。未知のパス（Unity を含む）は、触った面だけの成功に見せず拒否する。
+    # discovery は触った面と契約検査。judgment は差分が書類だけでも offline suite 4種すべてを要求する。
     $steps = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     foreach ($path in $ChangedPaths) {
         $path = $path.Replace('\', '/')
@@ -33,6 +38,8 @@ function Get-RequiredSteps([object]$Spec, [string[]]$ChangedPaths, [string]$Stag
 }
 
 function Assert-RunForGate([object]$Run, [object]$Spec, [string]$Head, [string[]]$RequiredSteps) {
+    # 採用は「この run を見る」であり、ここを通過したことではない。失敗 run も採用できるが引渡しには使えない。
+    # dirty の null は「汚れていない」ではなく未採取。空配列だけを清浄とみなす。
     if ($Run.specHash -cne $Spec.specHash -or $Run.base -cne $Spec.base -or $Run.head -cne $Head) { throw 'runの仕様またはbase/headが候補と一致しません。' }
     if ($null -eq $Run.dirtyBefore -or $null -eq $Run.dirtyAfter -or $Run.dirtyBefore -isnot [array] -or $Run.dirtyAfter -isnot [array]) { throw 'run前後のdirty状態が確定していません。' }
     if ($Run.dirtyBefore -or $Run.dirtyAfter) { throw 'dirtyなrunは完了引渡しに使えません。commitするかtrialとして実行してください。' }
@@ -47,6 +54,8 @@ function Assert-RunForGate([object]$Run, [object]$Spec, [string]$Head, [string[]
 }
 
 function Assert-CaseSets([string[]]$Registered, [string[]]$Selected, [string[]]$Executed, [string]$Name) {
+    # 登録・選択・実行は同じ集合。順序は問わず、空名と重複は件数を揃えても通せない。
+    # フィルタで実行を減らすと選択が登録より狭くなり、完了引渡しは失敗する。
     if ($Registered.Count -eq 0 -or $Selected.Count -eq 0 -or $Executed.Count -eq 0) { throw "case集合が空です: $Name" }
     foreach ($cases in @($Registered, $Selected, $Executed)) {
         if (@($cases | Where-Object { [string]::IsNullOrWhiteSpace($_) }).Count -gt 0 -or
@@ -63,6 +72,8 @@ function Assert-CaseSets([string[]]$Registered, [string[]]$Selected, [string[]]$
 }
 
 function Resolve-CloseReferences([object[]]$References, [string]$Task, [bool]$ReviewClosed, [DateTimeOffset]$ClosedAt) {
+    # この task 自身の採用 run と、終了を明示したレビュー参照だけを閉じる。
+    # 欠陥や他 consumer の参照は残す。期限切れの有効参照が1件でもあれば close しない。
     $resolved = [Collections.Generic.List[object]]::new()
     foreach ($item in $References) {
         $ref = $item | ConvertTo-Json -Depth 10 | ConvertFrom-Json -DateKind String
@@ -76,7 +87,7 @@ function Resolve-CloseReferences([object[]]$References, [string]$Task, [bool]$Re
 
 function Select-BlindInput([object]$Spec, [object]$Run, [string]$Kind, [string[]]$ChangedPaths, [string]$Diff = '') {
     if ($Kind -cnotin @('discovery', 'judgment')) { throw '入力種別が不正です。' }
-    # 可変CURRENTとC所見を列挙せず、固定項目だけを新しいrecordに写す。
+    # 可変の CURRENT とレビュー所見は写さない。仕様本文、固定 base/head、差分、run の hash と step だけを残す。
     return [ordered]@{
         inputKind = $Kind
         specId = $Spec.id
