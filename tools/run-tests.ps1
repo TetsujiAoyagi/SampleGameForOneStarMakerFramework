@@ -33,6 +33,7 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'Harness/UnityTestResult.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Harness/Adapters/UnityTestOutput.psm1') -Force
 
+# process の開始・終了待機は runner が所有する。offline テストはこの内部境界だけを差し替える。
 function Invoke-UnityTestProcess {
     param([string]$Executable, [string[]]$Arguments, [string]$WorkingDirectory)
     $info = [Diagnostics.ProcessStartInfo]::new()
@@ -50,7 +51,7 @@ function Invoke-UnityTestProcess {
         if (-not $process.Start()) { throw "Unity process を起動できません: $Executable" }
         $startedAt = [DateTimeOffset]::UtcNow.ToString('o')
         $elapsed.Start()
-        # Unity は子 process に制御を返すため、所有した process だけを期限なしで待つ。
+        # 起動呼び出しの完了はテスト完了ではない。開始した process の終了まで期限なしで待つ。
         $process.WaitForExit()
         $elapsed.Stop()
         $endedAt = [DateTimeOffset]::UtcNow.ToString('o')
@@ -66,6 +67,7 @@ function Test-UnityProjectLock {
     param([string]$ProjectPath)
     $lockFile = Join-Path $ProjectPath 'Temp/UnityLockfile'
     if (-not [IO.File]::Exists($lockFile)) { return }
+    # ファイルの存在だけでは残骸と稼働中の Editor を区別できない。
     try {
         $stream = [IO.File]::Open($lockFile, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
         $stream.Dispose()
@@ -88,6 +90,7 @@ function Invoke-UnityTestRun {
     $repoRoot = Split-Path -Parent $project
     $output = $null
     try {
+        # 保存先の確保を最初に行う。ここで失敗したら Unity を起動せず、step/marker も残せない。
         $root = if ($OutputRoot) { $OutputRoot } else { Join-Path $repoRoot 'TestResults' }
         $output = New-UnityTestOutput -OutputRoot $root
     } catch {
@@ -102,6 +105,7 @@ function Invoke-UnityTestRun {
     $process = [pscustomobject]@{ StartedAt=$null; EndedAt=$null; DurationMs=$null; ExitCode=$null; Failure='' }
     $orchestrationFailure = [Collections.Generic.List[string]]::new()
     try {
+        # 要求版と実ファイル版は別の観測値。明示 UnityExe でも要求版を ProjectVersion から残す。
         $versionFile = Join-Path $project 'ProjectSettings/ProjectVersion.txt'
         $versionText = [IO.File]::ReadAllText($versionFile)
         $match = [regex]::Match($versionText, '(?m)^m_EditorVersion:\s*(\S+)')
@@ -123,9 +127,11 @@ function Invoke-UnityTestRun {
         if ($Filter) { $arguments += @('-testFilter', $Filter) }
         $process = & $ProcessInvoker $executable ([string[]]$arguments) $repoRoot
         if ($process.Failure) { $orchestrationFailure.Add([string]$process.Failure) }
+    # 起動前の失敗も、確保済みディレクトリへ failed step として残す。
     } catch { $orchestrationFailure.Add($_.Exception.Message) }
 
     try {
+        # 生 XML/log を先に採取して policy に渡す。欠落を古い run のファイルで補わない。
         $evidence = Read-UnityTestOutput $output
         foreach ($item in $evidence.Failure) { $orchestrationFailure.Add($item) }
         $policy = Get-UnityTestResult -XmlText $evidence.XmlText -LogText $evidence.LogText -ProcessExitCode $process.ExitCode -OrchestrationFailure $orchestrationFailure.ToArray()
@@ -141,10 +147,12 @@ function Invoke-UnityTestRun {
             counts=$policy.counts; cases=@($policy.cases); compileErrors=@($policy.compileErrors)
             logs=@($evidence.Logs); logHash=$evidence.LogHash
         }
+        # marker は step が一度だけ保存された後の取得先通知。status の代用品ではない。
         $stepPath = Save-UnityTestStep -Output $output -Step $step
         [Console]::Out.WriteLine("UNITY_TEST_RESULT $stepPath")
         return [pscustomobject]@{ ExitCode=$policy.exitCode; StepPath=$stepPath; Status=$policy.status }
     } catch {
+        # 成功 XML があっても step を確定できなければ、成功を示す marker は出さない。
         [Console]::Error.WriteLine("Unity test の step を保存できません: $($_.Exception.Message)")
         return [pscustomobject]@{ ExitCode=1; StepPath=$null; Status='failed' }
     }

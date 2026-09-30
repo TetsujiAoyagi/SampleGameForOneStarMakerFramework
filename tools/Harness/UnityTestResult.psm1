@@ -19,6 +19,7 @@ function Get-UnityTestResult {
     $xmlEnded = $null
     $compileErrors = [Collections.Generic.List[string]]::new()
 
+    # XML が Passed でも C# compile 診断があれば veto する。既存 runner と同じ大小文字無視の部分一致。
     if ($null -eq $LogText) {
         $failure.Add('unity.log を読み取れません')
     } else {
@@ -35,6 +36,7 @@ function Get-UnityTestResult {
         $failure.Add('results.xml を読み取れません')
     } else {
         try {
+            # 生 XML は外部入力なので、DTD/外部実体を展開させずに document root を検査する。
             $settings = [Xml.XmlReaderSettings]::new()
             $settings.DtdProcessing = [Xml.DtdProcessing]::Prohibit
             $settings.XmlResolver = $null
@@ -51,6 +53,7 @@ function Get-UnityTestResult {
             $xmlEnded = if ($root.HasAttribute('end-time')) { $root.GetAttribute('end-time') } else { $null }
             $durationRaw = $root.GetAttribute('duration')
             $durationValue = [double]0
+            # XML の時刻は原値の観測であり、process 内部の開始 marker や準備時間ではない。
             if ($durationRaw -and [double]::TryParse($durationRaw, [Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$durationValue) -and [double]::IsFinite($durationValue) -and $durationValue -ge 0) {
                 $xmlDuration = $durationValue
             }
@@ -62,6 +65,7 @@ function Get-UnityTestResult {
                 $counts[$key] = $value
             }
             $observed = [ordered]@{ Passed=0; Failed=0; Skipped=0; Inconclusive=0 }
+            # root count は自己申告なので、全 leaf を順序と重複のまま別集計する。
             foreach ($node in $root.SelectNodes('.//test-case')) {
                 $result = $node.GetAttribute('result')
                 # PowerShell の ordered dictionary は大文字小文字を無視するため、XML の許容値を厳密に比較する。
@@ -72,6 +76,7 @@ function Get-UnityTestResult {
                     'Inconclusive' { $observed.Inconclusive++; break }
                     default        { throw "不明または欠落した test-case result: $result" }
                 }
+                # reason は skip 等の理由。Failed の failure/message をここへ混ぜず、生 XML を原本にする。
                 $reasonNode = $node.SelectSingleNode('./reason/message')
                 $cases.Add([ordered]@{
                     id=$node.GetAttribute('id'); name=$node.GetAttribute('name'); fullname=$node.GetAttribute('fullname')
@@ -79,6 +84,7 @@ function Get-UnityTestResult {
                 })
             }
             $counts.executed = $observed.Passed + $observed.Failed + $observed.Inconclusive
+            # 件数不一致でも root と leaf の観測値は残し、run のみ failed にする。
             if ($counts.total -ne $cases.Count -or $counts.total -ne ($counts.passed + $counts.failed + $counts.skipped + $counts.inconclusive) -or
                 $counts.passed -ne $observed.Passed -or $counts.failed -ne $observed.Failed -or
                 $counts.skipped -ne $observed.Skipped -or $counts.inconclusive -ne $observed.Inconclusive) {
@@ -98,6 +104,7 @@ function Get-UnityTestResult {
     if ($null -eq $ProcessExitCode) {
         $failure.Add('Unity process の終了コードを取得できません')
     } else {
+        # Windows アクセス違反は終了時に発生し得る。完成 XML/log 等の全条件を満たす場合だけ候補に残す。
         $exitValue = [long]$ProcessExitCode
         if ($exitValue -ne 0 -and $exitValue -ne -1073741819 -and $exitValue -ne 3221225477) {
             $failure.Add("Unity process が正常終了しませんでした: $exitValue")
