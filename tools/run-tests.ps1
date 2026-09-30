@@ -1,261 +1,165 @@
 <#
 .SYNOPSIS
-    Unity EditMode テストをバッチモードで実行し、機械判定可能な結果を返す。
-
+    Unity テストを実行し、XML、log、機械判定した step を保存する。
 .DESCRIPTION
-    docs/planning 配下に散っていた Unity.exe -batchmode -runTests の呼び出しを1本に固定化したもの。
-    過去の実測で判明した以下の罠を全て内包している:
-
-      * Unity.exe は即座に制御を返すため WaitForExit が必要
-        （SCENE_STREAMING_T02_HANDOFF_2026-07-06.md）
-      * テスト0件実行を成功扱いしてはならない（コンパイルエラーは0件として現れる）
-        （CAMERA_SYSTEM_BOOTSTRAP_EXECUTION_PLAN_2026-07-11.md）
-      * Editor を開いたままだとプロジェクトロックで失敗する
-        （SCENE_STREAMING_T02_HANDOFF_2026-07-06.md）
-      * マシンに複数の Unity が入っているため、パスは ProjectVersion.txt から導出する
-
+    各呼び出しを新しい GUID ディレクトリに保存する。結果の取得先は
+    UNITY_TEST_RESULT marker の step.json。status と exitCode を読んで合否を判断する。
 .PARAMETER Filter
-    -testFilter に渡す値。既定は空 = 全 EditMode テストを実行する。
-
-    既存ドキュメントは全体回帰に -testFilter "OneStarMaker.Tests" を使っていたが踏襲しない。
-    namespace filter は全件性を保証しない。OneStarMaker.Tests.Editor は現在
-    部分一致で拾われるが、namespace を切り出すと漏れ得る。全件回帰は空 filter、
-    限定検証は結果 XML の実行テスト名と件数で対象集合を確認する。
-
+    -testFilter の値。空なら全 EditMode テストを実行する。
 .PARAMETER Platform
-    -testPlatform に渡す値。既定 EditMode。
-    OneStarMaker.Tests / OneStarMaker.Tests.Editor / SampleGame.Tests / SampleGame.Tests.Editor は
-    includePlatforms: ["Editor"] のため EditMode で全件がカバーされる。
-    フレームワークのテストアセンブリは SampleGame を参照しない。
-
+    -testPlatform の値。既定は EditMode。
 .PARAMETER UnityRoot
-    Unity のインストール親ディレクトリ。環境差分はここだけ。
-
+    ProjectVersion.txt の版を探す Unity インストール親ディレクトリ。
 .PARAMETER UnityExe
-    Unity.exe を直接指定して UnityRoot / ProjectVersion 導出を上書きする。
-
+    実行ファイルを直接指定する。ProjectVersion の要求版とは別に記録する。
 .PARAMETER WithGraphics
-    -nographics を付けない。グラフィックスデバイスを要求するテストがある場合のみ。
-
-.EXAMPLE
-    ./tools/run-tests.ps1
-    全 EditMode テストを 1 プロセスで実行する。実装変更を伴うスライスの
-    Phase C 最終判定ではこれを標準とする。適用除外は HANDOFF に理由と代替証拠を書く。
-
-.EXAMPLE
-    ./tools/run-tests.ps1 -Filter OneStarMaker.Tests.AssetManagement
-    AssetManagement のテストだけ実行する。差し戻し中の確認や、影響範囲の
-    限定検証に使う。成功しても全件回帰の代替にはしない。
-
+    -nographics を付けない。
+.PARAMETER OutputRoot
+    保存先の親ディレクトリ。既定はリポジトリ直下 TestResults。
 .OUTPUTS
-    exit 0 = 成功（1件以上実行され failed 0）
-    exit 1 = 失敗（実行0件 / failed>0 / 起動不能 / ロック）
+    exit 0 = step の status が passed。exit 1 = failed、または保存不能。
 #>
-
 [CmdletBinding()]
 param(
-    [string]$Filter    = "",
-    [string]$Platform  = "EditMode",
-    [string]$UnityRoot = "D:\UnityEditor",
-    [string]$UnityExe  = "",
-    [switch]$WithGraphics
+    [string]$Filter = '',
+    [string]$Platform = 'EditMode',
+    [string]$UnityRoot = 'D:\UnityEditor',
+    [string]$UnityExe = '',
+    [switch]$WithGraphics,
+    [string]$OutputRoot = ''
 )
 
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot 'Harness/UnityTestResult.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Harness/Adapters/UnityTestOutput.psm1') -Force
 
-$repoRoot    = Split-Path -Parent $PSScriptRoot
-$projectPath = Join-Path $repoRoot 'unity'
-$resultsDir  = Join-Path $repoRoot 'TestResults'
-
-function Write-Section($text) {
-    Write-Host ""
-    Write-Host "=== $text ===" -ForegroundColor Cyan
-}
-
-function Fail($message) {
-    Write-Host ""
-    Write-Host "FAILED: $message" -ForegroundColor Red
-    exit 1
-}
-
-# ---------------------------------------------------------------------------
-# 1. Unity.exe の解決（ProjectVersion.txt から導出。ベタ書きしない）
-# ---------------------------------------------------------------------------
-Write-Section "Unity の解決"
-
-if ($UnityExe) {
-    if (-not (Test-Path $UnityExe)) { Fail "指定された Unity.exe が存在しません: $UnityExe" }
-    $unity = $UnityExe
-    Write-Host "Unity      : $unity （-UnityExe で明示指定）"
-}
-else {
-    $versionFile = Join-Path $projectPath 'ProjectSettings/ProjectVersion.txt'
-    if (-not (Test-Path $versionFile)) { Fail "ProjectVersion.txt が見つかりません: $versionFile" }
-
-    $versionLine = Select-String -Path $versionFile -Pattern '^m_EditorVersion:\s*(.+)$' | Select-Object -First 1
-    if (-not $versionLine) { Fail "ProjectVersion.txt から m_EditorVersion を読めませんでした" }
-
-    $editorVersion = $versionLine.Matches[0].Groups[1].Value.Trim()
-    $unity = Join-Path $UnityRoot "$editorVersion/Editor/Unity.exe"
-
-    if (-not (Test-Path $unity)) {
-        Write-Host "プロジェクトが要求する Unity が見つかりません: $unity" -ForegroundColor Red
-        Write-Host "要求バージョン: $editorVersion"
-        Write-Host "$UnityRoot にインストール済みのもの:"
-        if (Test-Path $UnityRoot) {
-            Get-ChildItem $UnityRoot -Directory | ForEach-Object { Write-Host "  - $($_.Name)" }
-        } else {
-            Write-Host "  （$UnityRoot が存在しない。-UnityRoot か -UnityExe を指定してください）"
-        }
-        Fail "バージョン不一致のまま実行すると原因不明の失敗になるため停止します"
-    }
-
-    Write-Host "Unity      : $unity"
-    Write-Host "バージョン : $editorVersion （ProjectVersion.txt から導出）"
-}
-
-Write-Host "プロジェクト: $projectPath"
-Write-Host "プラットフォーム: $Platform"
-Write-Host "フィルタ    : $(if ($Filter) { $Filter } else { '(なし = 全件)' })"
-
-# ---------------------------------------------------------------------------
-# 2. Editor 起動中の検出（ロックで落ちる前に明示エラーにする）
-# ---------------------------------------------------------------------------
-# UnityLockfile の「存在」は Editor 起動中の代理指標にすぎない。
-# Unity はバッチ実行の終了時にアクセス違反でクラッシュすることがあり（実測: 終了コード
-# -1073741819）、その場合ロックファイルが残骸として残って以降の実行を全部塞ぐ。
-# そのため存在ではなく「誰かが掴んでいるか」を排他オープンで実地に判定する。
-$lockFile = Join-Path $projectPath 'Temp/UnityLockfile'
-if (Test-Path $lockFile) {
-    $heldByProcess = $false
+# process の開始・終了待機は runner が所有する。offline テストはこの内部境界だけを差し替える。
+function Invoke-UnityTestProcess {
+    param([string]$Executable, [string[]]$Arguments, [string]$WorkingDirectory)
+    $info = [Diagnostics.ProcessStartInfo]::new()
+    $info.FileName = $Executable
+    $info.WorkingDirectory = $WorkingDirectory
+    $info.UseShellExecute = $false
+    $info.CreateNoWindow = $true
+    foreach ($argument in $Arguments) { [void]$info.ArgumentList.Add($argument) }
+    $process = [Diagnostics.Process]::new()
+    $process.StartInfo = $info
+    $startedAt = $null
+    $endedAt = $null
+    $elapsed = [Diagnostics.Stopwatch]::new()
     try {
-        $fs = [System.IO.File]::Open($lockFile, 'Open', 'ReadWrite', 'None')
-        $fs.Close()
-        $fs.Dispose()
+        if (-not $process.Start()) { throw "Unity process を起動できません: $Executable" }
+        $startedAt = [DateTimeOffset]::UtcNow.ToString('o')
+        $elapsed.Start()
+        # 起動呼び出しの完了はテスト完了ではない。開始した process の終了まで期限なしで待つ。
+        $process.WaitForExit()
+        $elapsed.Stop()
+        $endedAt = [DateTimeOffset]::UtcNow.ToString('o')
+        return [pscustomobject]@{ StartedAt=$startedAt; EndedAt=$endedAt; DurationMs=$elapsed.ElapsedMilliseconds; ExitCode=$process.ExitCode; Failure='' }
+    } catch {
+        $elapsed.Stop()
+        if ($null -ne $startedAt) { $endedAt = [DateTimeOffset]::UtcNow.ToString('o') }
+        return [pscustomobject]@{ StartedAt=$startedAt; EndedAt=$endedAt; DurationMs=$(if ($null -ne $startedAt) { $elapsed.ElapsedMilliseconds } else { $null }); ExitCode=$null; Failure=$_.Exception.Message }
+    } finally { $process.Dispose() }
+}
+
+function Test-UnityProjectLock {
+    param([string]$ProjectPath)
+    $lockFile = Join-Path $ProjectPath 'Temp/UnityLockfile'
+    if (-not [IO.File]::Exists($lockFile)) { return }
+    # ファイルの存在だけでは残骸と稼働中の Editor を区別できない。
+    try {
+        $stream = [IO.File]::Open($lockFile, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+        $stream.Dispose()
+    } catch [IO.IOException] {
+        throw "Unity Editor が project lock を保持しています: $lockFile"
     }
-    catch [System.IO.IOException] {
-        $heldByProcess = $true
+    # 前回の異常終了で残った非保持 lock だけを片付ける。
+    [IO.File]::Delete($lockFile)
+}
+
+function Invoke-UnityTestRun {
+    param(
+        [string]$Filter = '', [string]$Platform = 'EditMode', [string]$UnityRoot = 'D:\UnityEditor',
+        [string]$UnityExe = '', [bool]$WithGraphics = $false, [string]$OutputRoot = '',
+        [string]$ProjectPath = (Join-Path (Split-Path -Parent $PSScriptRoot) 'unity'),
+        [scriptblock]$ProcessInvoker = ${function:Invoke-UnityTestProcess}
+    )
+    $clock = [Diagnostics.Stopwatch]::StartNew()
+    $project = [IO.Path]::GetFullPath($ProjectPath)
+    $repoRoot = Split-Path -Parent $project
+    $output = $null
+    try {
+        # 保存先の確保を最初に行う。ここで失敗したら Unity を起動せず、step/marker も残せない。
+        $root = if ($OutputRoot) { $OutputRoot } else { Join-Path $repoRoot 'TestResults' }
+        $output = New-UnityTestOutput -OutputRoot $root
+    } catch {
+        [Console]::Error.WriteLine("Unity test の出力先を確保できません: $($_.Exception.Message)")
+        return [pscustomobject]@{ ExitCode=1; StepPath=$null; Status='failed' }
     }
 
-    if ($heldByProcess) {
-        Write-Host ""
-        Write-Host "Unity Editor がこのプロジェクトを開いています（$lockFile をプロセスが保持中）。" -ForegroundColor Red
-        Write-Host "バッチモードはプロジェクトロックを取得できないため失敗します。Editor を閉じてから再実行してください。"
-        Fail "Editor 起動中"
-    }
+    $requestedVersion = 'unknown'
+    $executableVersion = 'unknown'
+    $executable = ''
+    $arguments = @()
+    $process = [pscustomobject]@{ StartedAt=$null; EndedAt=$null; DurationMs=$null; ExitCode=$null; Failure='' }
+    $orchestrationFailure = [Collections.Generic.List[string]]::new()
+    try {
+        # 要求版と実ファイル版は別の観測値。明示 UnityExe でも要求版を ProjectVersion から残す。
+        $versionFile = Join-Path $project 'ProjectSettings/ProjectVersion.txt'
+        $versionText = [IO.File]::ReadAllText($versionFile)
+        $match = [regex]::Match($versionText, '(?m)^m_EditorVersion:\s*(\S+)')
+        if (-not $match.Success) { throw "ProjectVersion.txt から要求版を読めません: $versionFile" }
+        $requestedVersion = $match.Groups[1].Value
+        if ($UnityExe) {
+            $executable = [IO.Path]::GetFullPath($UnityExe)
+        } else {
+            $executable = [IO.Path]::GetFullPath((Join-Path $UnityRoot "$requestedVersion/Editor/Unity.exe"))
+        }
+        if (-not [IO.File]::Exists($executable)) { throw "Unity.exe が見つかりません: $executable" }
+        $fileVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo($executable).FileVersion
+        if ($fileVersion) { $executableVersion = $fileVersion }
+        Test-UnityProjectLock $project
+        $arguments = @('-batchmode', '-projectPath', $project, '-runTests', '-testPlatform', $Platform,
+            '-testResults', $output.XmlPath, '-logFile', $output.LogPath)
+        if (-not $WithGraphics) { $arguments = @('-nographics') + $arguments }
+        # Unity は空の -testFilter を渡すと 0 件になる。
+        if ($Filter) { $arguments += @('-testFilter', $Filter) }
+        $process = & $ProcessInvoker $executable ([string[]]$arguments) $repoRoot
+        if ($process.Failure) { $orchestrationFailure.Add([string]$process.Failure) }
+    # 起動前の失敗も、確保済みディレクトリへ failed step として残す。
+    } catch { $orchestrationFailure.Add($_.Exception.Message) }
 
-    Write-Host "残留していた UnityLockfile を削除しました（前回実行のクラッシュ残骸。プロセスは保持していない）。" -ForegroundColor Yellow
-    Remove-Item $lockFile -Force
-}
-
-# ---------------------------------------------------------------------------
-# 3. 出力先
-# ---------------------------------------------------------------------------
-if (-not (Test-Path $resultsDir)) { New-Item -ItemType Directory -Path $resultsDir | Out-Null }
-
-$stamp     = Get-Date -Format 'yyyyMMdd-HHmmss'
-$slug      = if ($Filter) { ($Filter -replace '[^A-Za-z0-9]+', '-').Trim('-') } else { 'all' }
-$resultXml = Join-Path $resultsDir "results-$slug-$stamp.xml"
-$logFile   = Join-Path $resultsDir "unity-$slug-$stamp.log"
-
-# ---------------------------------------------------------------------------
-# 4. 実行
-# ---------------------------------------------------------------------------
-Write-Section "実行"
-
-$unityArgs = @(
-    '-batchmode'
-    '-projectPath'; $projectPath
-    '-runTests'
-    '-testPlatform'; $Platform
-    '-testResults'; $resultXml
-    '-logFile'; $logFile
-)
-if (-not $WithGraphics) { $unityArgs = @('-nographics') + $unityArgs }
-# 空フィルタで -testFilter を渡すと 0 件になるため、値があるときだけ付ける
-if ($Filter) { $unityArgs += @('-testFilter'; $Filter) }
-
-Write-Host "全 EditMode 回帰は数分〜10分程度かかります（Timeout 系テストが実時間を消費するため）。"
-Write-Host "ログ: $logFile"
-Write-Host ""
-
-$sw = [System.Diagnostics.Stopwatch]::StartNew()
-
-# Unity.exe は起動直後に制御を返すため、プロセスハンドルを掴んで明示的に待つ。
-$proc = Start-Process -FilePath $unity -ArgumentList $unityArgs -PassThru
-$proc.WaitForExit()
-
-$sw.Stop()
-$unityExit = $proc.ExitCode
-Write-Host "Unity 終了コード: $unityExit （所要 $([math]::Round($sw.Elapsed.TotalMinutes, 1)) 分）"
-
-# ---------------------------------------------------------------------------
-# 5. コンパイルエラーの抽出（テスト0件の原因はたいていこれ）
-# ---------------------------------------------------------------------------
-$compileErrors = @()
-if (Test-Path $logFile) {
-    $compileErrors = Select-String -Path $logFile -Pattern 'error CS\d+' |
-        ForEach-Object { $_.Line.Trim() } |
-        Select-Object -Unique
-}
-
-if ($compileErrors.Count -gt 0) {
-    Write-Section "コンパイルエラー ($($compileErrors.Count) 件)"
-    $compileErrors | Select-Object -First 30 | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
-    if ($compileErrors.Count -gt 30) { Write-Host "  … 他 $($compileErrors.Count - 30) 件（$logFile 参照）" }
-}
-
-# ---------------------------------------------------------------------------
-# 6. 結果の判定
-# ---------------------------------------------------------------------------
-Write-Section "結果"
-
-if (-not (Test-Path $resultXml)) {
-    Write-Host "結果 XML が生成されませんでした: $resultXml" -ForegroundColor Red
-    Write-Host "Unity がテストを開始する前に落ちています。ログを確認してください: $logFile"
-    Fail "結果 XML なし"
-}
-
-[xml]$xml = Get-Content $resultXml
-$run = $xml.'test-run'
-
-$total   = [int]$run.total
-$passed  = [int]$run.passed
-$failed  = [int]$run.failed
-$skipped = [int]$run.skipped
-
-Write-Host "  total   : $total"
-Write-Host "  passed  : $passed"
-Write-Host "  failed  : $failed"
-Write-Host "  skipped : $skipped"
-Write-Host "  XML     : $resultXml"
-
-if ($failed -gt 0) {
-    Write-Section "失敗したテスト"
-    $xml.SelectNodes("//test-case[@result='Failed']") | ForEach-Object {
-        Write-Host "  ✗ $($_.fullname)" -ForegroundColor Red
-        $msg = $_.failure.message.'#cdata-section'
-        if ($msg) { Write-Host "      $(($msg -split "`n")[0].Trim())" -ForegroundColor DarkGray }
+    try {
+        # 生 XML/log を先に採取して policy に渡す。欠落を古い run のファイルで補わない。
+        $evidence = Read-UnityTestOutput $output
+        foreach ($item in $evidence.Failure) { $orchestrationFailure.Add($item) }
+        $policy = Get-UnityTestResult -XmlText $evidence.XmlText -LogText $evidence.LogText -ProcessExitCode $process.ExitCode -OrchestrationFailure $orchestrationFailure.ToArray()
+        $clock.Stop()
+        $step = [ordered]@{
+            schemaVersion=1; recordKind='unity-test-step'; invocationId=$output.InvocationId; name='unity-tests'; kind='test'
+            status=$policy.status; exitCode=$policy.exitCode; failure=@($policy.failure)
+            argv=@($arguments); cwd=$repoRoot; projectPath=$project; platform=$Platform; filter=$Filter; withGraphics=$WithGraphics
+            unity=[ordered]@{ executablePath=$executable; requestedVersion=$requestedVersion; executableVersion=$executableVersion }
+            process=[ordered]@{ startedAt=$process.StartedAt; endedAt=$process.EndedAt; exitCode=$process.ExitCode }
+            durationMs=$clock.ElapsedMilliseconds
+            timing=[ordered]@{ processDurationMs=$process.DurationMs; xmlDurationSeconds=$policy.xmlDurationSeconds; xmlStartedAt=$policy.xmlStartedAt; xmlEndedAt=$policy.xmlEndedAt; unityMarkers=[ordered]@{status='unknown'}; loadedAssemblies=[ordered]@{status='unknown'} }
+            counts=$policy.counts; cases=@($policy.cases); compileErrors=@($policy.compileErrors)
+            logs=@($evidence.Logs); logHash=$evidence.LogHash
+        }
+        # marker は step が一度だけ保存された後の取得先通知。status の代用品ではない。
+        $stepPath = Save-UnityTestStep -Output $output -Step $step
+        [Console]::Out.WriteLine("UNITY_TEST_RESULT $stepPath")
+        return [pscustomobject]@{ ExitCode=$policy.exitCode; StepPath=$stepPath; Status=$policy.status }
+    } catch {
+        # 成功 XML があっても step を確定できなければ、成功を示す marker は出さない。
+        [Console]::Error.WriteLine("Unity test の step を保存できません: $($_.Exception.Message)")
+        return [pscustomobject]@{ ExitCode=1; StepPath=$null; Status='failed' }
     }
 }
 
-# テスト0件を成功扱いしない。コンパイルエラーもフィルタの打ち間違いも0件として現れるため、
-# ここを緩めると「緑に見える壊れたビルド」を通してしまう。
-if ($total -eq 0) {
-    Write-Host ""
-    Write-Host "テストが1件も実行されていません。" -ForegroundColor Red
-    if ($compileErrors.Count -gt 0) {
-        Write-Host "原因: 上記のコンパイルエラー。"
-    } elseif ($Filter) {
-        Write-Host "原因: -Filter '$Filter' に一致するテストが無い可能性があります。"
-    } else {
-        Write-Host "原因: ログを確認してください: $logFile"
-    }
-    Fail "実行件数 0（成功扱いしない）"
+# dot-source は内部 process seam を使う offline テスト専用。公開 CLI は上の引数だけ。
+if ($MyInvocation.InvocationName -ne '.') {
+    $result = Invoke-UnityTestRun -Filter $Filter -Platform $Platform -UnityRoot $UnityRoot -UnityExe $UnityExe -WithGraphics ([bool]$WithGraphics) -OutputRoot $OutputRoot
+    exit $result.ExitCode
 }
-
-if ($failed -gt 0) { Fail "$failed 件のテストが失敗" }
-
-Write-Host ""
-Write-Host "OK: $passed / $total 件成功" -ForegroundColor Green
-exit 0
