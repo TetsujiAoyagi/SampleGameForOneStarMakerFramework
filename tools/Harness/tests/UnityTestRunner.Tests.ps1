@@ -51,6 +51,13 @@ Run 'unknown or absent case result' {
         Assert ($result.status -ceq 'failed' -and $null -eq $result.counts.total) 'unknown result accepted'
     }
 }
+Run 'case result requires exact casing' {
+    foreach ($value in @('passed','PASSED','pAssed','failed','FAILED','skipped','SKIPPED','inconclusive','INCONCLUSIVE')) {
+        $result = Policy (Xml 'Passed' (Case $value 'A') '1' '1' '0' '0' '0')
+        Assert ($result.status -ceq 'failed' -and $null -eq $result.counts.total) "case variant accepted: $value"
+    }
+    Assert ((Policy (Xml 'passed' (Case 'Passed' 'A') '1' '1' '0' '0' '0')).status -ceq 'failed') 'root casing accepted'
+}
 Run 'root failure with passed leaf' {
     Assert ((Policy (Xml 'Failed' (Case 'Passed' 'A') '1' '1' '0' '0' '0')).status -ceq 'failed') 'failed root accepted'
 }

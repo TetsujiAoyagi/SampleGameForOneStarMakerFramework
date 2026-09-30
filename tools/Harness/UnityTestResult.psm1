@@ -64,8 +64,14 @@ function Get-UnityTestResult {
             $observed = [ordered]@{ Passed=0; Failed=0; Skipped=0; Inconclusive=0 }
             foreach ($node in $root.SelectNodes('.//test-case')) {
                 $result = $node.GetAttribute('result')
-                if (-not $observed.Contains($result)) { throw "不明または欠落した test-case result: $result" }
-                $observed[$result]++
+                # PowerShell の ordered dictionary は大文字小文字を無視するため、XML の許容値を厳密に比較する。
+                switch -CaseSensitive ($result) {
+                    'Passed'       { $observed.Passed++; break }
+                    'Failed'       { $observed.Failed++; break }
+                    'Skipped'      { $observed.Skipped++; break }
+                    'Inconclusive' { $observed.Inconclusive++; break }
+                    default        { throw "不明または欠落した test-case result: $result" }
+                }
                 $reasonNode = $node.SelectSingleNode('./reason/message')
                 $cases.Add([ordered]@{
                     id=$node.GetAttribute('id'); name=$node.GetAttribute('name'); fullname=$node.GetAttribute('fullname')
