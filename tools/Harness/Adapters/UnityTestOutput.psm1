@@ -13,26 +13,44 @@ function New-UnityTestOutput {
     return [pscustomobject]@{
         InvocationId=$InvocationId.ToString(); Directory=$directory
         XmlPath=[IO.Path]::Combine($directory, 'results.xml'); LogPath=[IO.Path]::Combine($directory, 'unity.log')
+        ProgressPath=[IO.Path]::Combine($directory, 'observation-progress.json')
+        ObservationPath=[IO.Path]::Combine($directory, 'observation.json')
         StepPath=[IO.Path]::Combine($directory, 'step.json')
     }
 }
 
 function Read-UnityTestOutput {
-    param([psobject]$Output)
+    param([psobject]$Output, [bool]$ObserveUnity = $false)
     $failure = [Collections.Generic.List[string]]::new()
     $logs = [Collections.Generic.List[string]]::new()
     $hashes = [Collections.Generic.List[string]]::new()
     $xmlText = $null
     $logText = $null
+    $progressText = $null
+    $observationText = $null
+    $progressHash = $null
+    $observationHash = $null
     # 存在する生ファイルだけを XML→log の順で固定する。欠落は policy にも伝えて failed にする。
-    foreach ($entry in @(@('results.xml', $Output.XmlPath), @('unity.log', $Output.LogPath))) {
+    $entries = [Collections.Generic.List[object]]::new()
+    $entries.Add(@('results.xml', $Output.XmlPath))
+    $entries.Add(@('unity.log', $Output.LogPath))
+    if ($ObserveUnity) {
+        $entries.Add(@('observation-progress.json', $Output.ProgressPath))
+        $entries.Add(@('observation.json', $Output.ObservationPath))
+    }
+    foreach ($entry in $entries) {
         $name = $entry[0]
         $path = $entry[1]
         if (-not [IO.File]::Exists($path)) { $failure.Add("$name がありません"); continue }
         try {
             $content = [IO.File]::ReadAllText($path)
             $hash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([IO.File]::ReadAllBytes($path)))
-            if ($name -eq 'results.xml') { $xmlText = $content } else { $logText = $content }
+            switch ($name) {
+                'results.xml' { $xmlText = $content }
+                'unity.log' { $logText = $content }
+                'observation-progress.json' { $progressText = $content; $progressHash = $hash.ToLowerInvariant() }
+                'observation.json' { $observationText = $content; $observationHash = $hash.ToLowerInvariant() }
+            }
             $logs.Add($name)
             $hashes.Add($hash)
         } catch { $failure.Add("$name を読み取れません: $($_.Exception.Message)") }
@@ -41,7 +59,8 @@ function Read-UnityTestOutput {
     # 0 件でも空文字列の hash を持つが、成功した証拠という意味はない。
     $joined = [string]::Join('|', $hashes)
     $logHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($joined))).ToLowerInvariant()
-    return [pscustomobject]@{ XmlText=$xmlText; LogText=$logText; Failure=@($failure.ToArray()); Logs=@($logs.ToArray()); LogHash=$logHash }
+    return [pscustomobject]@{ XmlText=$xmlText; LogText=$logText; ProgressText=$progressText; ObservationText=$observationText
+        ProgressHash=$progressHash; ObservationHash=$observationHash; Failure=@($failure.ToArray()); Logs=@($logs.ToArray()); LogHash=$logHash }
 }
 
 function Save-UnityTestStep {

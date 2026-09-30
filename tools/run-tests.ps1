@@ -26,12 +26,14 @@ param(
     [string]$UnityRoot = 'D:\UnityEditor',
     [string]$UnityExe = '',
     [switch]$WithGraphics,
+    [switch]$ObserveUnity,
     [string]$OutputRoot = ''
 )
 
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'Harness/UnityTestResult.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Harness/Adapters/UnityTestOutput.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Harness/UnityObservationResult.psm1') -Force
 
 # process の開始・終了待機は runner が所有する。offline テストはこの内部境界だけを差し替える。
 function Invoke-UnityTestProcess {
@@ -46,20 +48,23 @@ function Invoke-UnityTestProcess {
     $process.StartInfo = $info
     $startedAt = $null
     $endedAt = $null
+    $processId = $null
     $elapsed = [Diagnostics.Stopwatch]::new()
     try {
         if (-not $process.Start()) { throw "Unity process を起動できません: $Executable" }
+        # 後から PID を読むと終了・破棄との競合で identity が失われるため、起動直後に固定する。
+        $processId = $process.Id
         $startedAt = [DateTimeOffset]::UtcNow.ToString('o')
         $elapsed.Start()
         # 起動呼び出しの完了はテスト完了ではない。開始した process の終了まで期限なしで待つ。
         $process.WaitForExit()
         $elapsed.Stop()
         $endedAt = [DateTimeOffset]::UtcNow.ToString('o')
-        return [pscustomobject]@{ StartedAt=$startedAt; EndedAt=$endedAt; DurationMs=$elapsed.ElapsedMilliseconds; ExitCode=$process.ExitCode; Failure='' }
+        return [pscustomobject]@{ Id=$processId; StartedAt=$startedAt; EndedAt=$endedAt; DurationMs=$elapsed.ElapsedMilliseconds; ExitCode=$process.ExitCode; Failure='' }
     } catch {
         $elapsed.Stop()
         if ($null -ne $startedAt) { $endedAt = [DateTimeOffset]::UtcNow.ToString('o') }
-        return [pscustomobject]@{ StartedAt=$startedAt; EndedAt=$endedAt; DurationMs=$(if ($null -ne $startedAt) { $elapsed.ElapsedMilliseconds } else { $null }); ExitCode=$null; Failure=$_.Exception.Message }
+        return [pscustomobject]@{ Id=$processId; StartedAt=$startedAt; EndedAt=$endedAt; DurationMs=$(if ($null -ne $startedAt) { $elapsed.ElapsedMilliseconds } else { $null }); ExitCode=$null; Failure=$_.Exception.Message }
     } finally { $process.Dispose() }
 }
 
@@ -81,7 +86,7 @@ function Test-UnityProjectLock {
 function Invoke-UnityTestRun {
     param(
         [string]$Filter = '', [string]$Platform = 'EditMode', [string]$UnityRoot = 'D:\UnityEditor',
-        [string]$UnityExe = '', [bool]$WithGraphics = $false, [string]$OutputRoot = '',
+        [string]$UnityExe = '', [bool]$WithGraphics = $false, [bool]$ObserveUnity = $false, [string]$OutputRoot = '',
         [string]$ProjectPath = (Join-Path (Split-Path -Parent $PSScriptRoot) 'unity'),
         [scriptblock]$ProcessInvoker = ${function:Invoke-UnityTestProcess}
     )
@@ -102,9 +107,10 @@ function Invoke-UnityTestRun {
     $executableVersion = 'unknown'
     $executable = ''
     $arguments = @()
-    $process = [pscustomobject]@{ StartedAt=$null; EndedAt=$null; DurationMs=$null; ExitCode=$null; Failure='' }
+    $process = [pscustomobject]@{ Id=$null; StartedAt=$null; EndedAt=$null; DurationMs=$null; ExitCode=$null; Failure='' }
     $orchestrationFailure = [Collections.Generic.List[string]]::new()
     try {
+        if ($ObserveUnity -and $Platform -cne 'EditMode') { throw '-ObserveUnity は EditMode 専用です' }
         # 要求版と実ファイル版は別の観測値。明示 UnityExe でも要求版を ProjectVersion から残す。
         $versionFile = Join-Path $project 'ProjectSettings/ProjectVersion.txt'
         $versionText = [IO.File]::ReadAllText($versionFile)
@@ -125,6 +131,7 @@ function Invoke-UnityTestRun {
         if (-not $WithGraphics) { $arguments = @('-nographics') + $arguments }
         # Unity は空の -testFilter を渡すと 0 件になる。
         if ($Filter) { $arguments += @('-testFilter', $Filter) }
+        if ($ObserveUnity) { $arguments += @('-osmTestInvocation', $output.InvocationId, '-osmTestObservation', $output.ObservationPath) }
         $process = & $ProcessInvoker $executable ([string[]]$arguments) $repoRoot
         if ($process.Failure) { $orchestrationFailure.Add([string]$process.Failure) }
     # 起動前の失敗も、確保済みディレクトリへ failed step として残す。
@@ -132,20 +139,41 @@ function Invoke-UnityTestRun {
 
     try {
         # 生 XML/log を先に採取して policy に渡す。欠落を古い run のファイルで補わない。
-        $evidence = Read-UnityTestOutput $output
+        $evidence = Read-UnityTestOutput $output -ObserveUnity $ObserveUnity
         foreach ($item in $evidence.Failure) { $orchestrationFailure.Add($item) }
         $policy = Get-UnityTestResult -XmlText $evidence.XmlText -LogText $evidence.LogText -ProcessExitCode $process.ExitCode -OrchestrationFailure $orchestrationFailure.ToArray()
+        $observation = $null
+        if ($ObserveUnity) {
+            # expected PID は Unity の自己申告から作らず、起動直後の process seam が返す値を使う。
+            $expectedPid = if ($null -ne $process.Id) { [int]$process.Id } else { 0 }
+            $requireReload = $Filter -ceq 'OneStarMaker.Tests.Editor.TestObservation.ObservationReloadTests.RealDomainReloadRoundTrip'
+            $observation = Get-UnityObservationResult -XmlText $evidence.XmlText -ObservationText $evidence.ObservationText -ProgressText $evidence.ProgressText -LogText $evidence.LogText -ExpectedInvocation $output.InvocationId -ExpectedProject $project -ExpectedPid $expectedPid -ExpectedPath $output.ObservationPath -RequireReload $requireReload
+            if ($observation.status -cne 'complete' -or $null -eq $process.ExitCode -or [long]$process.ExitCode -ne 0) {
+                $failures = [Collections.Generic.List[string]]::new()
+                foreach ($item in $policy.failure) { $failures.Add([string]$item) }
+                foreach ($item in $observation.failure) { $failures.Add([string]$item) }
+                if ($null -ne $process.ExitCode -and [long]$process.ExitCode -ne 0) { $failures.Add('観測 required は Unity process exit 0 が必要です') }
+                $policy.status = 'failed'; $policy.exitCode = 1; $policy.failure = @($failures.ToArray())
+            }
+        }
         $clock.Stop()
         $step = [ordered]@{
-            schemaVersion=1; recordKind='unity-test-step'; invocationId=$output.InvocationId; name='unity-tests'; kind='test'
+            schemaVersion=$(if ($ObserveUnity) { 2 } else { 1 }); recordKind='unity-test-step'; invocationId=$output.InvocationId; name='unity-tests'; kind='test'
             status=$policy.status; exitCode=$policy.exitCode; failure=@($policy.failure)
             argv=@($arguments); cwd=$repoRoot; projectPath=$project; platform=$Platform; filter=$Filter; withGraphics=$WithGraphics
             unity=[ordered]@{ executablePath=$executable; requestedVersion=$requestedVersion; executableVersion=$executableVersion }
             process=[ordered]@{ startedAt=$process.StartedAt; endedAt=$process.EndedAt; exitCode=$process.ExitCode }
             durationMs=$clock.ElapsedMilliseconds
-            timing=[ordered]@{ processDurationMs=$process.DurationMs; xmlDurationSeconds=$policy.xmlDurationSeconds; xmlStartedAt=$policy.xmlStartedAt; xmlEndedAt=$policy.xmlEndedAt; unityMarkers=[ordered]@{status='unknown'}; loadedAssemblies=[ordered]@{status='unknown'} }
+            timing=[ordered]@{ processDurationMs=$process.DurationMs; xmlDurationSeconds=$policy.xmlDurationSeconds; xmlStartedAt=$policy.xmlStartedAt; xmlEndedAt=$policy.xmlEndedAt
+                unityMarkers=$(if ($null -ne $observation -and $observation.status -ceq 'complete') { [ordered]@{status='observed'; clock=$observation.clock; path=$output.ObservationPath} } elseif ($ObserveUnity) { [ordered]@{status=$observation.status} } else { [ordered]@{status='unknown'} })
+                loadedAssemblies=$(if ($null -ne $observation -and $observation.status -ceq 'complete') { [ordered]@{status='observed'; assemblies=@($observation.assemblies); path=$output.ObservationPath} } elseif ($ObserveUnity) { [ordered]@{status=$observation.status} } else { [ordered]@{status='unknown'} }) }
             counts=$policy.counts; cases=@($policy.cases); compileErrors=@($policy.compileErrors)
             logs=@($evidence.Logs); logHash=$evidence.LogHash
+        }
+        if ($ObserveUnity) {
+            $step.process.id = $process.Id
+            $step.observation = [ordered]@{ required=$true; path=$output.ObservationPath; sha256=$evidence.ObservationHash
+                progressPath=$output.ProgressPath; progressSha256=$evidence.ProgressHash; status=$observation.status; failure=@($observation.failure) }
         }
         # marker は step が一度だけ保存された後の取得先通知。status の代用品ではない。
         $stepPath = Save-UnityTestStep -Output $output -Step $step
@@ -160,6 +188,6 @@ function Invoke-UnityTestRun {
 
 # dot-source は内部 process seam を使う offline テスト専用。公開 CLI は上の引数だけ。
 if ($MyInvocation.InvocationName -ne '.') {
-    $result = Invoke-UnityTestRun -Filter $Filter -Platform $Platform -UnityRoot $UnityRoot -UnityExe $UnityExe -WithGraphics ([bool]$WithGraphics) -OutputRoot $OutputRoot
+    $result = Invoke-UnityTestRun -Filter $Filter -Platform $Platform -UnityRoot $UnityRoot -UnityExe $UnityExe -WithGraphics ([bool]$WithGraphics) -ObserveUnity ([bool]$ObserveUnity) -OutputRoot $OutputRoot
     exit $result.ExitCode
 }
