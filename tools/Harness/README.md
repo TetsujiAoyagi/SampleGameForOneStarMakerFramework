@@ -1,5 +1,17 @@
 # Local Harness H1
 
+## Unity test runner の機械結果
+
+`pwsh tools/run-tests.ps1` は Unity EditMode テストの標準入口。`-Filter` を省略すると全 EditMode、指定すると限定実行になる。既存の `-Platform`、`-UnityRoot`、`-UnityExe`、`-WithGraphics` も使える。外部保存先は `-OutputRoot '<path with spaces>'` で指定し、省略時はリポジトリ直下の `TestResults` を使う。
+
+```powershell
+pwsh tools/run-tests.ps1 -OutputRoot 'C:\Test Evidence\Unity'
+```
+
+各 invocation は保存先の新しい GUID 子ディレクトリを所有し、`results.xml`、`unity.log`、`step.json` を置く。従来の `TestResults` 直下の XML glob は使えない。保存後に出る `UNITY_TEST_RESULT <step.jsonの絶対path>` は取得先を示す。成功判定は marker ではなく step の `status=passed` と `exitCode=0` を読む。runner の終了コードも同じ合否を返す。出力先確保や step 保存自体に失敗した場合は exit 1 で marker が出ない。途中終了で step がない run は未完了であり、XML だけでは採用しない。
+
+step v1 は今回の条件、Unity 実行ファイルと要求版、process の終了、XML の leaf 件数と結果、compile error、ログの hash を保存する。`durationMs` は invocation 全体の単調時計の経過、`timing.processDurationMs` は process 待機、XML の時刻と duration は原値である。Unity 内 marker と実ロード assembly は `unknown` と記録する。結果の対象集合が期待集合を満たすかという gate 判定や H1 の CURRENT/receipt への接続は、この runner にはない。
+
 H1はA3で適用を明示したArtifacts/Harness作業だけを扱う。同じWindowsユーザー・同じマシンの別worktreeから、task IDでGit外の現行入力を選ぶ。Unity変更、live Route Proof、別マシン配布、証拠削除はこの版の対象外。
 
 ```powershell
