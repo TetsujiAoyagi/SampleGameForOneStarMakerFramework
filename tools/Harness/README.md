@@ -18,6 +18,30 @@ step v1 は今回の条件、Unity 実行ファイルと要求版、process の�
 
 `durationMs` は invocation 全体の単調時計の経過、`timing.processDurationMs` は process 待機、XML の時刻と duration は原値である。Unity 内 marker と実ロード assembly は `unknown` と記録する。結果の対象集合が期待集合を満たすかという gate 判定や H1 の CURRENT/receipt への接続は、この runner にはない。
 
+## Unity 内観測（EditMode）
+
+`-ObserveUnity` は明示した EditMode invocation だけに Unity 内の観測を要求する。`PlayMode` と組み合わせた場合は Unity を起動せず failed step v2 を保存する。既定の非観測実行は従来の step v1、marker、argv、logHash、終了判定を使う。
+
+```powershell
+pwsh tools/run-tests.ps1 -ObserveUnity -Filter 'OneStarMaker.Tests.Editor.TestObservation.ObservationStateTests'
+```
+
+観測実行は同じ GUID ディレクトリに `observation-progress.json` と追加専用の最終 `observation.json` を保存する。step v2 の `process.id` は runner が起動した process の PID、`observation` は両ファイルの絶対 path・SHA-256・機械判定を持つ。`logs` の順序は `results.xml`、`unity.log`、`observation-progress.json`、`observation.json` で、実際に読めたファイルだけを含む。`logHash` はこの順に各 raw bytes の大文字 SHA-256 を `|` で連結し、その UTF-8 の小文字 SHA-256 を取る。step 自体と private `reload-settings.json` は含めない。
+
+`observation.json` の schema v1 は、invocation/project/PID、初回選択 leaf、started/finished callback、終端 leaf、domain と単調時計、実ロード assembly の FullName・Location・MVID と取得時の disk SHA-256 を記録する。選択 leaf の ID はその invocation 内だけで有効である。disk SHA-256 は取得時のファイル値で、ロード済みメモリ bytes の hash や import/準備時間は示さない。正常 reload では最初の選択を progress から復元し、domain ordinal と beforeReload/復帰を残す。
+
+観測 schema は未知のキーと必須キーの欠落を拒否する。assembly は開始時、実行中の各 reload 復帰時、終了時に取得し、各取得点で必須 assembly が揃っていることを確認する。別の取得点の assembly を補って成立させることはできない。
+
+観測の `complete` は記録の整合性と必要な callback が揃ったことを表し、テスト合格とは別に判定する。Failed のテストでも必要な記録が揃えば観測は complete になり、step は XML policy により failed になる。callback が欠けた未実行テストなどは観測も不成立となり、`terminal.failure` の拒否理由を step に残す。
+
+観測 required の exit 0 は、従来の XML/log policy と、同じ invocation の sidecar/progress、PID、seal、callback/終端/XML の leaf 集合、assembly、時計、観測器 error log veto がすべて合格し、Unity process が exit 0 の場合に限る。RunFinished 時点は候補で、終了時 seal が欠ける・書込が失敗する・seal 後に callback が来る場合は exit 1 とする。正常 reload の限定検証には `OneStarMaker.Tests.Editor.TestObservation.ObservationReloadTests.RealDomainReloadRoundTrip` を、故意欠測の限定検証には `OneStarMaker.Tests.Editor.TestObservation.ObservationFaultFixture.IntentionalMissingCallback` をそれぞれ単独 `-Filter` で使う。故意欠測 fixture は通常の全件では正常テストとして走り、明示単独 filter の観測時だけ callback を一つ落とす。
+
+reload fixture が Enter Play Mode 設定を変更する際は、変更前の値を同じ GUID ディレクトリの private `reload-settings.json` に保存し、fixture 終了時または Editor 終了時に復元する。復元失敗は観測失敗として残る。このファイルは設定復旧資料であり、test 結果の別正本ではない。
+
+設定復旧資料が欠落・破損している、別 invocation に属する、または復元未完了の場合は seal を拒否する。強制終了や Editor crash、実行途中にディスクへ保存された ProjectSettings の自動復旧は保証しない。終了時の復元処理と前後の正常値確認だけでは、これらの復旧を証明できないため、調査時は private 設定復旧資料を保持する。
+
+非観測実行でも reload fixture は Play Mode に入るが、Enter Play Mode 設定を変更しないため、実際の domain reload を保証しない。reload の証明には、上記の単独 filter と `-ObserveUnity` を使い、同じ invocation の reload 境界と復帰を確認する。
+
 H1はA3で適用を明示したArtifacts/Harness作業だけを扱う。同じWindowsユーザー・同じマシンの別worktreeから、task IDでGit外の現行入力を選ぶ。Unity変更、live Route Proof、別マシン配布、証拠削除はこの版の対象外。
 
 ```powershell

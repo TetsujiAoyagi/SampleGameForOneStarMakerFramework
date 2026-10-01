@@ -48,7 +48,9 @@ Assets/
     │   ├── Runtime/               ← → Foundation のみ
     │   ├── Debug/                 ← → Foundation + Runtime（重い依存隔離）
     │   └── Editor/                ← エディタ専用
+    │       └── TestObservation/   ← OneStarMaker.Editor.TestObservation（TestRunner にだけ依存）
     └── Tests/                     ← OneStarMaker.Tests / Tests.Editor。Game を参照しない
+        └── Editor/TestObservation/ ← OneStarMaker.Tests.TestObservation.Editor（観測器と TestRunner に依存）
 ```
 
 ### 2.2 依存の向き（参照してよい方向 = 下向き）
@@ -78,6 +80,8 @@ Assets/
 アプリの EditMode テストは `SampleGame.Tests` と `SampleGame.Tests.Editor` に置く。フレームワークのテストヘルパーが要るときは `SampleGame.Tests` → `OneStarMaker.Tests` の向きだけを使う。
 
 詳細な asmdef ルールは [ARCHITECTURE.md §2](../../ARCHITECTURE.md#2-レイヤー構造と-assembly-依存ルール) を正とする。
+
+Unity 内観測は専用の Editor assembly とテスト assembly に閉じる。両方とも `UnityEditor.TestRunner` / `UnityEngine.TestRunner` を参照し、Framework Runtime と Game を参照しない。Unity Test Framework 1.8.0 以上を有効化条件とし、テスト側には `UNITY_INCLUDE_TESTS` も必要である。詳細な実行・復旧の境界は [Harness README](../../../../tools/Harness/README.md#unity-内観測editmode) に置く。
 
 ---
 
