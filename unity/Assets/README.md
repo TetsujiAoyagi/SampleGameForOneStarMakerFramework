@@ -50,12 +50,14 @@ Assets/
 │   │   └── Profiler/            … DebugProfilerView, FrameTimeSampler, FrameTimeGraphRenderer
 │   └── Editor/
 │       ├── SceneGraph/          … OneStarMaker.Editor (→ Runtime)。Scene Graph Editor / SceneResource 生成
-│       └── Build/
-│           ├── Selection/       … OneStarMaker.Build.Selection (Editor-only pure leaf)
-│           ├── Materialization/ … OneStarMaker.Build.Materialization (Editor-only adapter)
-│           └── その他           … OneStarMaker.Editor。Content build / Delivery / 旧 Addressables 案内
+│       ├── Build/
+│       │   ├── Selection/       … OneStarMaker.Build.Selection (Editor-only pure leaf)
+│       │   ├── Materialization/ … OneStarMaker.Build.Materialization (Editor-only adapter)
+│       │   └── その他           … OneStarMaker.Editor。Content build / Delivery / 旧 Addressables 案内
+│       └── TestObservation/     … OneStarMaker.Editor.TestObservation（Unity Test Framework callback の観測）
 ├── OneStarMaker/Tests/          ← OneStarMaker.Tests / Tests.Editor（Game を参照しない）
-│   └── Scene, AssetManagement, UpdateSystem, Build のフレームワークテスト
+│   ├── Scene, AssetManagement, UpdateSystem, Build のフレームワークテスト
+│   └── Editor/TestObservation/  … OneStarMaker.Tests.TestObservation.Editor（観測器専用のテスト）
 │
 ├── SampleGame/                  ← ゲーム固有実装
 │   ├── DependOnAll/             … AppInitializer, GameSceneFactory, NullLoadingDisplay
@@ -86,6 +88,10 @@ OneStarMaker.Build.Materialization ──► Selection + Runtime + Unity.Address
        ▲
 OneStarMaker.Tests.Editor ────┘ (Selection も直接参照。SampleGame は参照しない)
 
+OneStarMaker.Editor.TestObservation ──► UnityEditor.TestRunner + UnityEngine.TestRunner
+       ▲
+OneStarMaker.Tests.TestObservation.Editor ──► 同じ TestRunner 2 assembly
+
 SampleGame.Tests ──→ Common, InGame, OutGame, DependOnAll, Foundation, Runtime, OneStarMaker.Tests
 SampleGame.Tests.Editor ──→ DependOnAll.Editor, OutGame, Foundation, Runtime, Editor, Build.*
 SampleGame.DependOnAll ──→ Common, InGame, OutGame, Foundation, Runtime, Debug
@@ -99,6 +105,7 @@ SampleGame.Common      ──→ Foundation, Runtime
 - Debug は TMP 等の重い依存を隔離。Game 層からは DependOnAll のみ参照
 - **DI コンテナは不採用（手動 DI 正式採用、2026-07-06 決定）**。依存配線は DependOnAll に集約
 - Game 層のクラスはコンストラクタ注入で依存を受け取る
+- TestObservation の 2 assembly は Editor 専用で、Framework Runtime / Game を参照しない。Unity Test Framework 1.8.0 以上で有効になり、テスト側は `UNITY_INCLUDE_TESTS` も必要。実行契約は [Harness README](../../tools/Harness/README.md#unity-内観測editmode) を参照
 
 ---
 
