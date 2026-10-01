@@ -26,7 +26,11 @@ namespace OneStarMaker.Editor.TestObservation
                 Debug.LogError("OSM_OBSERVATION_ERROR bootstrap: " + ex);
                 // progress が壊れて復帰できなくても、独立の設定記録が読めれば人間の Editor 設定だけは戻す。
                 try { EmergencyRestore(); }
-                catch (Exception restore) { Debug.LogError("OSM_OBSERVATION_ERROR emergency restore: " + restore); }
+                catch (Exception restore)
+                {
+                    if (state != null) { state.Fail("emergency restore failure: " + restore.Message); Persist(); }
+                    Debug.LogError("OSM_OBSERVATION_ERROR emergency restore: " + restore);
+                }
             }
         }
 
@@ -52,19 +56,24 @@ namespace OneStarMaker.Editor.TestObservation
                 TestObservationState.Create(id, fullProject, pid, Stopwatch.Frequency);
             state.Bootstrap(Guid.NewGuid().ToString(), DateTime.UtcNow.ToString("o"), Stopwatch.GetTimestamp(), Stopwatch.Frequency);
             Persist();
-            if (state.runStarted) { CaptureAssemblies(); Persist(); }
+            if (state.runStarted)
+            {
+                var domain = state.domains[state.domains.Count - 1];
+                CaptureAssemblies(domain.bootstrapUtc, domain.bootstrapTicks);
+                Persist();
+            }
             callbacks = new TestObservationCallbacks(state, Persist, filter);
             TestRunnerApi.RegisterTestCallback(callbacks);
             AssemblyReloadEvents.beforeAssemblyReload += BeforeReload;
             EditorApplication.quitting += Quit;
         }
 
-        internal static void CaptureAssemblies()
+        internal static void CaptureAssemblies(string utc, long ticks)
         {
             if (state == null) return;
             var names = state.selected.Select(x => x.assemblyName).Where(x => x != "");
-            state.AddAssemblies(LoadedAssemblyObservation.Capture(state.domains.Count - 1,
-                DateTime.UtcNow.ToString("o"), Stopwatch.GetTimestamp(), names));
+            // clock/domain の既存 stamp と同じ値に結び付け、追加 schema なしで必須 capture 地点を照合する。
+            state.AddAssemblies(LoadedAssemblyObservation.Capture(state.domains.Count - 1, utc, ticks, names));
         }
 
         internal static void Fail(string message)
@@ -118,11 +127,10 @@ namespace OneStarMaker.Editor.TestObservation
             if (state == null || writer == null) return;
             try
             {
-                if (File.Exists(writer.RecoveryPath)) throw new IOException("reload settings record が既にあります");
                 var record = new ReloadSettingsRecord { invocationId = state.invocationId,
                     projectPath = state.projectPath, enterPlayModeOptionsEnabled = EditorSettings.enterPlayModeOptionsEnabled,
                     enterPlayModeOptions = (int)EditorSettings.enterPlayModeOptions };
-                TestObservationWriter.WriteNew(writer.RecoveryPath, System.Text.Encoding.UTF8.GetBytes(JsonUtility.ToJson(record)));
+                writer.CreateRecovery(record);
                 EditorSettings.enterPlayModeOptionsEnabled = false;
             }
             catch (Exception ex) { Fail("reload settings 保存失敗: " + ex.Message); Debug.LogError("OSM_OBSERVATION_ERROR reload settings: " + ex); throw; }
@@ -130,17 +138,23 @@ namespace OneStarMaker.Editor.TestObservation
 
         internal static void RestoreReloadSettings()
         {
-            if (state == null || writer == null || !File.Exists(writer.RecoveryPath)) return;
+            if (state == null || writer == null) return;
             try
             {
-                var record = JsonUtility.FromJson<ReloadSettingsRecord>(File.ReadAllText(writer.RecoveryPath));
-                if (record == null || record.invocationId != state.invocationId || record.projectPath != state.projectPath)
-                    throw new IOException("reload settings record の identity が一致しません");
-                if (record.restored) return;
-                EditorSettings.enterPlayModeOptions = (EnterPlayModeOptions)record.enterPlayModeOptions;
-                EditorSettings.enterPlayModeOptionsEnabled = record.enterPlayModeOptionsEnabled;
-                record.restored = true;
-                TestObservationWriter.AtomicWrite(writer.RecoveryPath, System.Text.Encoding.UTF8.GetBytes(JsonUtility.ToJson(record)));
+                // 実行 callback はprogressに残る。fixture が実際に開始した invocation では、record 消失を
+                // 「最初から無かった」と解釈せず、終了時 seal を拒否する。
+                var record = writer.ReadRecovery(state.invocationId, state.projectPath, RecoveryExpected(state));
+                if (record == null) return;
+                if (!record.restored)
+                {
+                    EditorSettings.enterPlayModeOptions = (EnterPlayModeOptions)record.enterPlayModeOptions;
+                    EditorSettings.enterPlayModeOptionsEnabled = record.enterPlayModeOptionsEnabled;
+                    EnsureRestored(record);
+                    record.restored = true;
+                    writer.SaveRecovery(record);
+                }
+                var verified = writer.ReadRestoredRecovery(state.invocationId, state.projectPath);
+                EnsureRestored(verified);
             }
             catch (Exception ex) { Fail("reload settings 復元失敗: " + ex.Message); Debug.LogError("OSM_OBSERVATION_ERROR reload settings: " + ex); throw; }
         }
@@ -152,16 +166,33 @@ namespace OneStarMaker.Editor.TestObservation
             var path = Get(args, "-osmTestObservation");
             var project = Get(args, "-projectPath");
             if (path == "" || project == "" || !Path.IsPathFullyQualified(path)) return;
-            var recordPath = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(path)) ?? "", "reload-settings.json");
-            if (!File.Exists(recordPath)) return;
-            var record = JsonUtility.FromJson<ReloadSettingsRecord>(File.ReadAllText(recordPath));
-            if (record == null || record.invocationId != id.ToString() || record.projectPath != Path.GetFullPath(project))
-                throw new IOException("private recovery record の identity が一致しません");
-            if (record.restored) return;
-            EditorSettings.enterPlayModeOptions = (EnterPlayModeOptions)record.enterPlayModeOptions;
-            EditorSettings.enterPlayModeOptionsEnabled = record.enterPlayModeOptionsEnabled;
-            record.restored = true;
-            TestObservationWriter.AtomicWrite(recordPath, System.Text.Encoding.UTF8.GetBytes(JsonUtility.ToJson(record)));
+            var recoveryWriter = writer ?? new TestObservationWriter(path);
+            var record = recoveryWriter.ReadRecovery(id.ToString(), Path.GetFullPath(project),
+                state != null && RecoveryExpected(state));
+            if (record == null) return;
+            if (!record.restored)
+            {
+                EditorSettings.enterPlayModeOptions = (EnterPlayModeOptions)record.enterPlayModeOptions;
+                EditorSettings.enterPlayModeOptionsEnabled = record.enterPlayModeOptionsEnabled;
+                EnsureRestored(record);
+                record.restored = true;
+                recoveryWriter.SaveRecovery(record);
+            }
+            EnsureRestored(recoveryWriter.ReadRestoredRecovery(id.ToString(), Path.GetFullPath(project)));
+        }
+
+        internal static bool RecoveryExpected(TestObservationState observation)
+        {
+            const string fixture = "OneStarMaker.Tests.Editor.TestObservation.ObservationReloadTests.RealDomainReloadRoundTrip";
+            return observation.selected.Any(x => x.fullname == fixture &&
+                observation.events.Any(e => e.kind == "started" && e.id == x.id));
+        }
+
+        private static void EnsureRestored(ReloadSettingsRecord record)
+        {
+            if (EditorSettings.enterPlayModeOptionsEnabled != record.enterPlayModeOptionsEnabled ||
+                (int)EditorSettings.enterPlayModeOptions != record.enterPlayModeOptions)
+                throw new IOException("reload settings が元の値に復元されていません");
         }
 
         private static bool Has(string[] args, string name) => args.Any(x => string.Equals(x, name, StringComparison.OrdinalIgnoreCase));
@@ -172,11 +203,5 @@ namespace OneStarMaker.Editor.TestObservation
             return "";
         }
 
-        [Serializable] private sealed class ReloadSettingsRecord
-        {
-            public string invocationId = "", projectPath = "";
-            public bool enterPlayModeOptionsEnabled, restored;
-            public int enterPlayModeOptions;
-        }
     }
 }

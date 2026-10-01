@@ -1,6 +1,15 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# 閉じた v1 の各 object は必須キーだけを許す。未知キーを policy 側で追認しない。
+function Assert-ObservationKeys {
+    param([AllowNull()][object]$Value, [string[]]$Keys, [string]$Name)
+    if ($Value -isnot [Collections.IDictionary]) { throw "$Name が object ではありません" }
+    foreach ($key in $Keys) { if (-not $Value.Contains($key)) { throw "$Name に $key がありません" } }
+    # JSON の Count/Keys という名前が IDictionary の member を隠しても、実際の項目数で拒否する。
+    if ($Value.PSBase.Count -ne $Keys.Count) { throw "$Name に未凍結の key があります" }
+}
+
 # Unity process の外で、同じ invocation の生文字列だけを検査する。path の存在や process 起動は runner が所有する。
 function Get-UnityObservationResult {
     param(
@@ -25,9 +34,14 @@ function Get-UnityObservationResult {
         if ($terminal -isnot [Collections.IDictionary] -or $progress -isnot [Collections.IDictionary]) { throw 'JSON root が object ではありません' }
         foreach ($item in @(@('terminal',$terminal),@('progress',$progress))) {
             $name = $item[0]; $s = $item[1]
-            foreach ($key in @('schemaVersion','recordKind','invocationId','projectPath','processId','platform','status','failure','sealed','sealSequence','sequence','clock','domains','selected','events','results','assemblies','runStarted','runFinished')) {
-                if (-not $s.Contains($key)) { throw "$name に $key がありません" }
-            }
+            $closedKeys = @('schemaVersion','recordKind','invocationId','projectPath','processId','platform','status','failure','sealed','sealSequence','sequence','clock','domains','selected','events','results','assemblies')
+            Assert-ObservationKeys $s $closedKeys $name
+            Assert-ObservationKeys $s.clock @('status','frequency','runStartedTicks','runFinishedTicks','runStartedUtc','runFinishedUtc','durationMs') "$name.clock"
+            foreach ($node in @($s.domains)) { Assert-ObservationKeys $node @('ordinal','id','bootstrapUtc','bootstrapTicks','reloadBeforeUtc','reloadBeforeTicks') "$name.domains[]" }
+            foreach ($node in @($s.selected)) { Assert-ObservationKeys $node @('id','name','fullname','uniqueName','assemblyName','runState') "$name.selected[]" }
+            foreach ($node in @($s.events)) { Assert-ObservationKeys $node @('sequence','domainOrdinal','kind','id','result','label','utc','ticks') "$name.events[]" }
+            foreach ($node in @($s.results)) { Assert-ObservationKeys $node @('id','name','fullname','result','label') "$name.results[]" }
+            foreach ($node in @($s.assemblies)) { Assert-ObservationKeys $node @('domainOrdinal','observedAtUtc','ticks','fullName','location','loadedModuleVersionId','diskSha256','status','failure') "$name.assemblies[]" }
             if ($s.schemaVersion -ne 1 -or $s.recordKind -cne 'unity-test-observation' -or
                 $s.invocationId -cne $ExpectedInvocation -or $s.projectPath -cne $ExpectedProject -or
                 $s.processId -ne $ExpectedPid -or $ExpectedPid -le 0 -or $s.platform -cne 'EditMode') {
@@ -37,9 +51,8 @@ function Get-UnityObservationResult {
         # writer は同じ state を連続保存する。seal 後の callback は progress だけ進むので raw 同一性で拒否する。
         if ([string]$ObservationText -cne [string]$ProgressText) { throw 'terminal と progress が異なります' }
         if ($terminal.sealed -ne $true -or $terminal.sealSequence -ne $terminal.sequence -or
-            $terminal.sequence -le 0 -or $terminal.status -cne 'complete' -or
-            @($terminal.failure).Count -ne 0 -or $terminal.runStarted -ne $true -or $terminal.runFinished -ne $true) {
-            throw 'seal または complete state が成立しません'
+            $terminal.sequence -le 0 -or $terminal.status -cnotin @('complete','incomplete','invalid')) {
+            throw 'seal または observation status が成立しません'
         }
         if ($ExpectedPath) {
             $fullPath = [IO.Path]::GetFullPath($ExpectedPath)
@@ -48,10 +61,14 @@ function Get-UnityObservationResult {
                 throw 'terminal path と GUID directory が一致しません'
             }
         }
-        $clock = $terminal.clock
-        foreach ($key in @('status','frequency','runStartedTicks','runFinishedTicks','runStartedUtc','runFinishedUtc','durationMs')) {
-            if (-not $clock.Contains($key)) { throw "clock.$key がありません" }
+        if ($terminal.status -cne 'complete') {
+            # nonexecuted failed leaf の incomplete は状態分類として保存する。XML の Failed は別の policy が判定する。
+            foreach ($reason in @($terminal.failure)) { $failure.Add([string]$reason) }
+            $rawStatus = if ($status -ceq 'invalid' -or $terminal.status -ceq 'invalid') { 'invalid' } else { 'incomplete' }
+            return [pscustomobject]@{ status=$rawStatus; failure=@($failure.ToArray()); clock=$null; assemblies=$null }
         }
+        if (@($terminal.failure).Count -ne 0) { throw 'complete state に failure が含まれます' }
+        $clock = $terminal.clock
         if ($clock.status -cne 'observed' -or [long]$clock.frequency -le 0 -or
             [long]$clock.runStartedTicks -le 0 -or [long]$clock.runFinishedTicks -le [long]$clock.runStartedTicks -or
             [string]::IsNullOrEmpty($clock.runStartedUtc) -or [string]::IsNullOrEmpty($clock.runFinishedUtc)) {
@@ -147,6 +164,31 @@ function Get-UnityObservationResult {
             if (-not $assemblyNames.Contains($name)) { throw "必須 assembly がありません: $name" }
         }
         foreach ($s in $selected) { if (-not $assemblyNames.Contains([string]$s.assemblyName)) { throw "test assembly がありません: $($s.assemblyName)" } }
+        $runStartDomain = $null; $runFinishDomain = $null
+        foreach ($domain in $domains) {
+            if ([long]$domain.bootstrapTicks -le [long]$clock.runStartedTicks) { $runStartDomain = $domain }
+            if ([long]$domain.bootstrapTicks -le [long]$clock.runFinishedTicks) { $runFinishDomain = $domain }
+        }
+        if ($null -eq $runStartDomain -or $null -eq $runFinishDomain) { throw '実行時計に対応する domain がありません' }
+        $capturePoints = [Collections.Generic.List[object]]::new()
+        $capturePoints.Add([pscustomobject]@{ phase='RunStarted'; ordinal=$runStartDomain.ordinal; utc=$clock.runStartedUtc; ticks=[long]$clock.runStartedTicks })
+        foreach ($domain in $domains) {
+            if ($domain.ordinal -gt $runStartDomain.ordinal -and [long]$domain.bootstrapTicks -le [long]$clock.runFinishedTicks) {
+                $capturePoints.Add([pscustomobject]@{ phase='reload 復帰'; ordinal=$domain.ordinal; utc=$domain.bootstrapUtc; ticks=[long]$domain.bootstrapTicks })
+            }
+        }
+        $capturePoints.Add([pscustomobject]@{ phase='RunFinished'; ordinal=$runFinishDomain.ordinal; utc=$clock.runFinishedUtc; ticks=[long]$clock.runFinishedTicks })
+        $requiredNames = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+        foreach ($name in @('OneStarMaker.Editor.TestObservation','UnityEditor.TestRunner','UnityEngine.TestRunner')) { [void]$requiredNames.Add($name) }
+        foreach ($s in $selected) { [void]$requiredNames.Add([string]$s.assemblyName) }
+        foreach ($point in $capturePoints) {
+            # 既存 clock/domain の stamp と同じ assembly 群を要求し、別地点の集合を流用させない。
+            $group = @($assemblies | Where-Object { $_.domainOrdinal -eq $point.ordinal -and [long]$_.ticks -eq $point.ticks -and $_.observedAtUtc -ceq $point.utc })
+            if ($group.Count -eq 0) { throw "$($point.phase) の loaded assembly capture がありません" }
+            $names = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+            foreach ($item in $group) { [void]$names.Add(([string]$item.fullName).Split(',')[0]) }
+            foreach ($name in $requiredNames) { if (-not $names.Contains($name)) { throw "$($point.phase) の必須 assembly がありません: $name" } }
+        }
         if ($failure.Count -eq 0) { $status = 'complete' }
         return [pscustomobject]@{ status=$status; failure=@($failure.ToArray()); clock=$clock; assemblies=$assemblies }
     }

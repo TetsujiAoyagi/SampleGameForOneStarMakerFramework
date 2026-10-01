@@ -10,13 +10,17 @@ namespace OneStarMaker.Editor.TestObservation
     {
         private readonly TestObservationState state;
         private readonly Action persist;
+        private readonly Action<string, long> captureAssemblies;
         private readonly bool injectMissingStarted;
         private const string FaultCase = "OneStarMaker.Tests.Editor.TestObservation.ObservationFaultFixture.IntentionalMissingCallback";
 
-        internal TestObservationCallbacks(TestObservationState state, Action persist, string filter)
+        internal TestObservationCallbacks(TestObservationState state, Action persist, string filter,
+            Action<string, long>? captureAssemblies = null)
         {
             this.state = state;
             this.persist = persist;
+            // callback adapter の単体検査は process-global bootstrap へ書かず、同じ stamp の local state へ観測する。
+            this.captureAssemblies = captureAssemblies ?? TestObservationBootstrap.CaptureAssemblies;
             // 故障は明示した単独 filter の invocation だけに注入する。全件回帰へエラーログを漏らさない。
             injectMissingStarted = string.Equals(filter, FaultCase, StringComparison.Ordinal);
         }
@@ -26,7 +30,7 @@ namespace OneStarMaker.Editor.TestObservation
             var leaves = new List<TestLeaf>();
             WalkSelection(testsToRun, leaves);
             state.RunStarted(leaves, DateTime.UtcNow.ToString("o"), Stopwatch.GetTimestamp());
-            TestObservationBootstrap.CaptureAssemblies();
+            captureAssemblies(state.clock.runStartedUtc, state.clock.runStartedTicks);
             persist();
         }
 
@@ -49,11 +53,11 @@ namespace OneStarMaker.Editor.TestObservation
         public void RunFinished(ITestResultAdaptor result)
         {
             SplitResult(result, out var rootResult, out _);
-            if (rootResult != "Passed") TestObservationBootstrap.Fail("RunFinished root result が Passed ではありません: " + rootResult);
             var leaves = new List<TestResultLeaf>();
             WalkResults(result, leaves);
-            state.RunFinished(leaves, DateTime.UtcNow.ToString("o"), Stopwatch.GetTimestamp());
-            TestObservationBootstrap.CaptureAssemblies();
+            // root の Failed 自体は観測故障ではない。leaf/callback の欠測と結果矛盾を state で分ける。
+            state.RunFinished(leaves, DateTime.UtcNow.ToString("o"), Stopwatch.GetTimestamp(), rootResult);
+            captureAssemblies(state.clock.runFinishedUtc, state.clock.runFinishedTicks);
             // 完了は終了時 seal が決める。ここで terminal を作ると遅い callback を取り逃がす。
             persist();
         }

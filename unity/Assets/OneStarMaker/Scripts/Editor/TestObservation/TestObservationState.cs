@@ -58,7 +58,9 @@ namespace OneStarMaker.Editor.TestObservation
         public List<TestEvent> events = new List<TestEvent>();
         public List<TestResultLeaf> results = new List<TestResultLeaf>();
         public List<AssemblyObservation> assemblies = new List<AssemblyObservation>();
-        public bool runStarted, runFinished;
+        // 進行判定は凍結済み clock の原値から復元する。field にすると JsonUtility が閉じた v1 に余分なキーを出す。
+        internal bool runStarted => clock.runStartedTicks != 0 || !string.IsNullOrEmpty(clock.runStartedUtc);
+        internal bool runFinished => clock.runFinishedTicks != 0 || !string.IsNullOrEmpty(clock.runFinishedUtc) || clock.status == "observed";
 
         internal static TestObservationState Create(string invocation, string project, int pid, long frequency)
         {
@@ -103,7 +105,6 @@ namespace OneStarMaker.Editor.TestObservation
         internal void RunStarted(IEnumerable<TestLeaf> leaves, string utc, long ticks)
         {
             if (@sealed || runStarted || runFinished) { Fail("RunStarted が重複または seal 後です"); return; }
-            runStarted = true;
             clock.runStartedUtc = utc;
             clock.runStartedTicks = ticks;
             selected.AddRange(leaves);
@@ -129,10 +130,9 @@ namespace OneStarMaker.Editor.TestObservation
                 kind = kind, id = id, result = result, label = label, utc = utc, ticks = ticks });
         }
 
-        internal void RunFinished(IEnumerable<TestResultLeaf> leaves, string utc, long ticks)
+        internal void RunFinished(IEnumerable<TestResultLeaf> leaves, string utc, long ticks, string rootResult = "Passed")
         {
             if (@sealed || !runStarted || runFinished) { Fail("RunFinished が重複または範囲外です"); return; }
-            runFinished = true;
             clock.runFinishedUtc = utc;
             clock.runFinishedTicks = ticks;
             clock.durationMs = 1000.0 * (ticks - clock.runStartedTicks) / clock.frequency;
@@ -140,6 +140,7 @@ namespace OneStarMaker.Editor.TestObservation
             results.AddRange(leaves);
             sequence++;
             ValidateResults();
+            ValidateRootResult(rootResult);
             ValidateAssemblies();
             if (failure.Count == 0) status = "complete";
         }
@@ -164,6 +165,7 @@ namespace OneStarMaker.Editor.TestObservation
                 Fail("RunFinished の時計より後の domain/reload が含まれます");
             ValidateResults();
             ValidateAssemblies();
+            ValidateCaptureCoverage();
             sequence++;
             @sealed = true;
             sealSequence = sequence;
@@ -191,6 +193,21 @@ namespace OneStarMaker.Editor.TestObservation
             }
         }
 
+        private void ValidateRootResult(string rootResult)
+        {
+            if (!KnownResult(rootResult)) { Fail("未知の RunFinished root result です: " + rootResult); return; }
+            // root の Failed は通常の test failure でも起こる。観測の完全性と XML の成否を混ぜない。
+            // leaf に現れない suite/setup failure は観測結果が足りず incomplete、矛盾した root は invalid とする。
+            if (rootResult == "Passed" && results.Any(x => x.result == "Failed" || x.result == "Inconclusive"))
+                Fail("RunFinished root と leaf result が矛盾します");
+            if (rootResult == "Skipped" && results.Any(x => x.result != "Skipped"))
+                Fail("RunFinished root と leaf result が矛盾します");
+            if (rootResult == "Failed" && results.All(x => x.result != "Failed"))
+                Fail("RunFinished root failure に対応する leaf がありません", false);
+            if (rootResult == "Inconclusive" && results.All(x => x.result != "Inconclusive"))
+                Fail("RunFinished root inconclusive に対応する leaf がありません", false);
+        }
+
         private void ValidateAssemblies()
         {
             foreach (var item in assemblies)
@@ -203,6 +220,26 @@ namespace OneStarMaker.Editor.TestObservation
                 if (group.Select(x => x.location + "|" + x.loadedModuleVersionId + "|" + x.diskSha256)
                     .Distinct(StringComparer.Ordinal).Count() > 1) Fail("assembly identity が実行中に変化しました: " + group.Key);
             }
+        }
+
+        private void ValidateCaptureCoverage()
+        {
+            if (!runStarted || !runFinished || domains.Count == 0) return;
+            var start = domains.LastOrDefault(x => x.bootstrapTicks <= clock.runStartedTicks);
+            var finish = domains.LastOrDefault(x => x.bootstrapTicks <= clock.runFinishedTicks);
+            if (start == null || finish == null) { Fail("時計に対応する実行 domain がありません", false); return; }
+            RequireCapture(start.ordinal, clock.runStartedUtc, clock.runStartedTicks, "RunStarted");
+            // 初回選択より前の reload は実行中の capture 地点ではない。選択後の復帰は各 domain で必須。
+            foreach (var domain in domains.Where(x => x.ordinal > start.ordinal && x.bootstrapTicks <= clock.runFinishedTicks))
+                RequireCapture(domain.ordinal, domain.bootstrapUtc, domain.bootstrapTicks, "reload 復帰");
+            RequireCapture(finish.ordinal, clock.runFinishedUtc, clock.runFinishedTicks, "RunFinished");
+        }
+
+        private void RequireCapture(int ordinal, string utc, long ticks, string phase)
+        {
+            if (ticks <= 0 || string.IsNullOrEmpty(utc) ||
+                !assemblies.Any(x => x.domainOrdinal == ordinal && x.ticks == ticks && x.observedAtUtc == utc))
+                Fail(phase + " の loaded assembly capture が欠測しました", false);
         }
 
         private static bool KnownResult(string value) => value == "Passed" || value == "Failed" || value == "Skipped" || value == "Inconclusive";
