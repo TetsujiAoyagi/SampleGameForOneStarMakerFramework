@@ -2,18 +2,15 @@
 # 子プロセスや Git の採取は LocalChecks、保存は RecordStore。ここは仕様と run の突合。
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot 'ApprovedSpecifications.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'UnityGatePolicy.psm1') -Force
 
 function Assert-ApprovedSpec([string]$Task, [object]$Spec) {
-    # このパイロットで承認済みの仕様は1件。別 task を足すときは本文とこの hash をセットで更新する。
-    # 承認文面が揃っていても、本文全体の SHA-256 が違えば拒否する。
-    $approvedHash = '8070e3e0a299f84500c00b574fd406e145ea50fb7ec5a7d92fc00f28e7a049a1'
-    $approvedBase = '292129b563087c4dbff43dcd2d6ef71dd5db5b51'
-    if ($Task -cne 'h1-transport-identity' -or $Spec.base -cne $approvedBase -or $Spec.testPolicy -cne 'local-gates-v1' -or $Spec.recordPolicy -cne 'external-current-v1' -or -not $Spec.approved) { throw 'このtaskに承認されたH1 A3仕様がありません。' }
-    $actualHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($Spec.text))).ToLowerInvariant()
-    if ($actualHash -cne $approvedHash) { throw 'A3 snapshotのhashが承認値と一致しません。' }
+    Assert-ApprovedSpecification $Task $Spec
 }
 
 function Get-RequiredSteps([object]$Spec, [string[]]$ChangedPaths, [string]$Stage) {
+    if ($Spec.testPolicy -ceq 'unity-pilot-gates-v1') { return @(Get-UnityRequiredSteps $Spec $ChangedPaths $Stage) }
     if ($Spec.testPolicy -cne 'local-gates-v1' -or $Spec.recordPolicy -cne 'external-current-v1') { throw 'H1適用済みの仕様ではありません。' }
     # 変更パスから必須 step を決める。未知のパス（Unity を含む）は、触った面だけの成功に見せず拒否する。
     # discovery は触った面と契約検査。judgment は差分が書類だけでも offline suite 4種すべてを要求する。
@@ -44,6 +41,13 @@ function Assert-RunForGate([object]$Run, [object]$Spec, [string]$Head, [string[]
     if ($null -eq $Run.dirtyBefore -or $null -eq $Run.dirtyAfter -or $Run.dirtyBefore -isnot [array] -or $Run.dirtyAfter -isnot [array]) { throw 'run前後のdirty状態が確定していません。' }
     if ($Run.dirtyBefore -or $Run.dirtyAfter) { throw 'dirtyなrunは完了引渡しに使えません。commitするかtrialとして実行してください。' }
     if ($Run.status -cne 'passed') { throw '失敗または未完了のrunは採用できてもgateは通過できません。' }
+    $unityPilot = $Spec.PSObject.Properties['testPolicy'] -and $Spec.testPolicy -ceq 'unity-pilot-gates-v1'
+    if ($unityPilot) {
+        if ($Run.taskId -cne 'h2c-unity-gate' -or $Run.suiteVersion -cne $Spec.testPolicy -or $Run.specId -cne $Spec.id) { throw 'Unity pilot runのtask/policy/仕様IDが不一致です。' }
+        $requiredStage = if ($RequiredSteps -ccontains 'unity-editmode-full') { 'judgment' } else { 'discovery' }
+        if ($Run.stage -cne $requiredStage) { throw 'Unity pilotのB限定runとC全件runはprofile別の引渡しです。' }
+        if (@($Run.steps).Count -ne $RequiredSteps.Count) { throw 'step数が必須集合と一致しません。' }
+    }
     foreach ($name in $RequiredSteps) {
         $found = @($Run.steps | Where-Object { $_.name -ceq $name -and $_.status -ceq 'passed' })
         if ($found.Count -ne 1) { throw "必須stepが成功していません: $name" }
@@ -51,6 +55,7 @@ function Assert-RunForGate([object]$Run, [object]$Spec, [string]$Head, [string[]
             Assert-CaseSets @($found[0].registered) @($found[0].selected) @($found[0].executed) $name
         }
     }
+    if ($unityPilot -and @($Run.steps | Where-Object { $RequiredSteps -cnotcontains $_.name }).Count -gt 0) { throw '未知または重複stepがあります。' }
 }
 
 function Assert-CaseSets([string[]]$Registered, [string[]]$Selected, [string[]]$Executed, [string]$Name) {
