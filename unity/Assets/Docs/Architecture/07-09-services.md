@@ -8,17 +8,29 @@
 
 ### 7.1 構成
 
-```
-SoundService (MonoBehaviour, DontDestroyOnLoad)
-  ├── VoiceGroup … 同時再生数制限の定義（ScriptableObject）
-  └── SoundHolder … AudioClip のまとまり（ScriptableObject）
-```
+OneStarMaker.Runtime の SoundSystem は、呼び出し側が必要なときだけ作成する小さな再生口を提供する。
 
-### 7.2 ルール
+- `SoundHandle` は登録したバックエンド内の 1 始まりの値。`Invalid` は 0、`IsValid` は正の値かどうかだけを示す。登録の存在やクリップの生存を保証せず、別バックエンドへ渡すと同じ値の別クリップを指し得る。
+- `SoundPlayer` は借用した `ISoundBackend` へ handle と線形音量を転送する。バックエンドの破棄は行わない。
+- `UnitySoundBackend` は自分で作った host と固定本数の `AudioSource` を所有する。非空間再生で、同時再生数を超えると最も古いスロットを停止・クリップ解除して再利用する。`AudioListener` は追加しない。
+- `Register(AudioClip)` はクリップを借用し、登録順の handle を返す。登録は Dispose まで追加のみ。`ISoundBackend` は任意の差し替え口であり、他のミドルウェア実装の成立を保証するものではない。
 
-- VoiceGroup で同時再生数を制限し、上限超過時は優先度の低い音を停止する。
-- フェードアウトは `CancellationTokenSource` で管理し、Dispose 時に確実にキャンセルする。
-- SoundService は OneStarMaker.Runtime 層に置き、ゲーム固有の音定義は Game.Common 層で ScriptableObject として管理する。
+### 7.2 所有者と終了順序
+
+生成、登録、再生、Dispose はすべて Unity メインスレッドで行う。バックエンドはクリップをロード・解放・破棄しない。作成者は **すべての登録クリップをバックエンドの寿命全体にわたって保持する**。
+
+呼び出し側は `IAssetManagement` と `AssetOwner.Manual` で取得した `IAssetHandle<AudioClip>` を保持し、次の順序で終了する。
+
+1. `UnitySoundBackend.Dispose()` を呼ぶ。生存する全 source を同期的に Stop し、各 clip を null にし、登録表の参照と登録数を消してから所有 host を破棄する。
+2. 保持した各アセットハンドルを解放する。
+
+PlayMode の host の Destroy は遅延するが、clip と登録表の参照解除は Dispose が戻る前に完了する。`AssetOwner.App` は Dispose を `ReleaseAll` より先に実行する明示的な終了順序がある場合に限って使用できる。`Scene(id)` / `Bind(go)` の自動失効する所有者は対応しない。個々の登録解除 API はない。
+
+### 7.3 再生と失敗境界
+
+`Play` は有限の線形音量を [0,1] に制限する。NaN / ±Infinity、無効・未登録 handle、破棄済み登録クリップ、外部で破棄された host / source、Dispose 後は例外を作らず戻る。不正な音量と handle は現在の source を変更せず、スロット選択も進めない。Dispose は繰り返しても何もしない。Dispose 後の Register は `ObjectDisposedException`、null / Unity 破棄済み clip の Register は `ArgumentNullException`、正の handle 値を使い切った登録は変更前に拒否する。
+
+純粋な handle・スロット選択・転送とその割り当ては offline テスト、native の clip / volume 結合と置換・解放は実際の Unity component を作る EditMode テストを対象とする。呼び出し側の Dispose-before-release テストは順序の protocol fixture であり、`IAssetManagement` との統合証明ではない。component の状態から可聴出力や音質を推定せず、Play も可聴出力を保証しない。
 
 ---
 
