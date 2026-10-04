@@ -43,7 +43,9 @@ function Assert-RunForGate([object]$Run, [object]$Spec, [string]$Head, [string[]
     if ($Run.status -cne 'passed') { throw '失敗または未完了のrunは採用できてもgateは通過できません。' }
     $unityPilot = $Spec.PSObject.Properties['testPolicy'] -and $Spec.testPolicy -ceq 'unity-pilot-gates-v1'
     if ($unityPilot) {
-        if ($Run.taskId -cne 'h2c-unity-gate' -or $Run.suiteVersion -cne $Spec.testPolicy -or $Run.specId -cne $Spec.id) { throw 'Unity pilot runのtask/policy/仕様IDが不一致です。' }
+        # run の task と承認本文を結び、別revisionの承認値を取り違えた引渡しを拒否する。
+        Assert-ApprovedSpecification $Run.taskId $Spec
+        if ($Run.suiteVersion -cne $Spec.testPolicy -or $Run.specId -cne $Spec.id) { throw 'Unity pilot runのtask/policy/仕様IDが不一致です。' }
         $requiredStage = if ($RequiredSteps -ccontains 'unity-editmode-full') { 'judgment' } else { 'discovery' }
         if ($Run.stage -cne $requiredStage) { throw 'Unity pilotのB限定runとC全件runはprofile別の引渡しです。' }
         if (@($Run.steps).Count -ne $RequiredSteps.Count) { throw 'step数が必須集合と一致しません。' }

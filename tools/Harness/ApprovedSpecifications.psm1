@@ -25,6 +25,17 @@ function Get-ApprovedSpecification([string]$Task) {
                 scope = @('tools/Harness/**','tools/harness.ps1','tools/run-tests.ps1','tools/contract-audit.ps1','tools/docs-audit.ps1','AGENTS.md','.agents/skills/osm-workflow/**','.agents/skills/osm-unity-editor/**','docs/README.md','unity/Assets/OneStarMaker/Tests/Editor/TestObservation/ObservationStateTests.cs','unity/Assets/OneStarMaker/Tests/Editor/TestObservation/ObservationStateTests.cs.meta')
             }
         }
+        'h2c-unity-gate-r2' {
+            return [ordered]@{
+                task = $Task; textSha256 = '6fa8801ca35cd99a16679313e8737e64f03a2b7e9f35b784f90dc2a3f0f6914f'
+                approved = $true; base = '9828feb56e91e8907f350392bc0cde95b7921779'; testPolicy = 'unity-pilot-gates-v1'; recordPolicy = 'external-current-v1'
+                title = 'H2C-UNITY-GATE-R2'; question = '標準runnerのB限定Unity結果とC全EditModeを同じGit外recordへ接続し、欠測をreadyにせずblind監査へ渡せるか'
+                summary = '承認済み一taskのUnity adapter、固定集合、raw再検査、B限定許可'; outOfScope = 'H2d live probe・H3配布/削除・R2/Cloud・新Build/PlayMode/Player'
+                minimum = '凍結仕様h2c-a3-v2のM1〜M5を満たす'; trialDays = 7; adoptedDaysAfterClose = 30
+                profile = [ordered]@{ platform = 'EditMode'; observeUnity = $true; withGraphics = $false; project = 'unity'; requestedVersion = '6000.6.0f1'; environment = [ordered]@{ SAMPLEGAME_CONTENT__RUNTIMEMODE = 'addressables' }; limitedFilter = 'OneStarMaker.Tests.Editor.TestObservation.ObservationStateTests' }
+                scope = @('tools/Harness/**','tools/harness.ps1','tools/run-tests.ps1','tools/contract-audit.ps1','tools/docs-audit.ps1','AGENTS.md','.agents/skills/osm-workflow/**','.agents/skills/osm-unity-editor/**','docs/README.md','unity/Assets/OneStarMaker/Tests/Editor/TestObservation/ObservationStateTests.cs','unity/Assets/OneStarMaker/Tests/Editor/TestObservation/ObservationStateTests.cs.meta')
+            }
+        }
         default { throw "承認されていないtaskです: $Task" }
     }
 }
@@ -35,7 +46,7 @@ function New-ApprovedSpecification([string]$Task, [string]$Text) {
     if ($hash -cne $entry.textSha256) { throw 'A3 snapshotのhashが承認値と一致しません。' }
     $body = [ordered]@{}
     $keys = @('approved','title','question','summary','outOfScope','minimum','base','testPolicy','recordPolicy','trialDays','adoptedDaysAfterClose')
-    if ($Task -ceq 'h2c-unity-gate') { $keys += @('profile','scope') }
+    if ($entry.testPolicy -ceq 'unity-pilot-gates-v1') { $keys += @('profile','scope') }
     foreach ($key in $keys) { $body[$key] = $entry[$key] }
     $body.text = $Text
     return $body
@@ -48,7 +59,7 @@ function Assert-ApprovedSpecification([string]$Task, [object]$Spec) {
     if ($actual -cne $entry.textSha256) { throw 'A3 snapshotのhashが承認値と一致しません。' }
     # 承認本文の hash と、登録される構造化値の双方を照合する。mutable JSON の profile/範囲を採用しない。
     $keys = @('approved','title','question','summary','outOfScope','minimum','base','testPolicy','recordPolicy','trialDays','adoptedDaysAfterClose')
-    if ($Task -ceq 'h2c-unity-gate') { $keys += @('profile','scope') }
+    if ($entry.testPolicy -ceq 'unity-pilot-gates-v1') { $keys += @('profile','scope') }
     foreach ($key in $keys) {
         if ($Spec -is [Collections.IDictionary]) { if (-not $Spec.Contains($key)) { throw "仕様の$key がありません。" } }
         elseif ($null -eq $Spec.PSObject.Properties[$key]) { throw "仕様の$key がありません。" }

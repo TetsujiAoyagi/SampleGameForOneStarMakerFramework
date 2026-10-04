@@ -4,6 +4,7 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../Adapters/UnityChecks.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../UnityGatePolicy.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../Adapters/UnityTestOutput.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot '../ApprovedSpecifications.psm1') -Force
 $registered=[Collections.Generic.List[string]]::new(); $selected=[Collections.Generic.List[string]]::new(); $executed=[Collections.Generic.List[string]]::new(); $failed=[Collections.Generic.List[string]]::new()
 function Run([string]$Name,[scriptblock]$Body) {
     $script:registered.Add($Name)
@@ -322,21 +323,83 @@ Run 'adapter collects one fake child invocation and valid raw' {
         if([IO.Directory]::Exists($root)){[IO.Directory]::Delete($root,$true)}
     }
 }
-Run 'Unity gate rejects dirty old head wrong task and missing step' {
+Run 'approved Unity revisions bind exact task and specification' {
     Import-Module (Join-Path $PSScriptRoot '../GatePolicy.psm1') -Force
+    $approvalModule=(Get-Module GatePolicy).NestedModules | Where-Object Name -EQ 'ApprovedSpecifications'
+    $originalLookup=& $approvalModule { (Get-Command Get-ApprovedSpecification).ScriptBlock }
+    $fixtureText='portable Unity approval fixture'
+    $fixtureHash=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($fixtureText))).ToLowerInvariant()
+    $oldEntry=& $approvalModule { Get-ApprovedSpecification 'h2c-unity-gate' }
+    $newEntry=& $approvalModule { Get-ApprovedSpecification 'h2c-unity-gate-r2' }
+    Assert ($oldEntry.textSha256 -ceq '19d008f64ecae1e17ed5c3e071ca681480cde24ce49089f6a6b198892b743946' -and $oldEntry.base -ceq '2c29c99806788406551affba6cc795e67e614748') 'old approval values changed'
+    Assert ($newEntry.textSha256 -ceq '6fa8801ca35cd99a16679313e8737e64f03a2b7e9f35b784f90dc2a3f0f6914f' -and $newEntry.base -ceq '9828feb56e91e8907f350392bc0cde95b7921779' -and $newEntry.title -ceq 'H2C-UNITY-GATE-R2' -and $newEntry.minimum -ceq '凍結仕様h2c-a3-v2のM1〜M5を満たす') 'r2 approval values changed'
+    Assert (($oldEntry.profile | ConvertTo-Json -Depth 20 -Compress) -ceq ($newEntry.profile | ConvertTo-Json -Depth 20 -Compress) -and ($oldEntry.scope | ConvertTo-Json -Depth 20 -Compress) -ceq ($newEntry.scope | ConvertTo-Json -Depth 20 -Compress)) 'Unity approval scope/profile diverged'
     $required=@(Get-RequiredSteps $spec $path 'discovery')
-    $gateSpec=[pscustomobject]@{testPolicy='unity-pilot-gates-v1';recordPolicy='external-current-v1';specHash='sha';base='base';id='spec'}
     $steps=@($required | ForEach-Object {
         if($_ -like '*local'){[pscustomobject]@{name=$_;status='passed';registered=@('case');selected=@('case');executed=@('case')}}
         else{[pscustomobject]@{name=$_;status='passed'}}
     })
-    $run=[pscustomobject]@{taskId='h2c-unity-gate';suiteVersion='unity-pilot-gates-v1';specId='spec';specHash='sha';base='base';head='head';stage='discovery';status='passed';dirtyBefore=@();dirtyAfter=@();steps=$steps}
-    Assert-RunForGate $run $gateSpec 'head' $required
-    $run.dirtyBefore=@(' M file'); Reject { Assert-RunForGate $run $gateSpec 'head' $required } 'dirty accepted'; $run.dirtyBefore=@()
-    Reject { Assert-RunForGate $run $gateSpec 'old-head' $required } 'old head accepted'
-    $run.taskId='other'; Reject { Assert-RunForGate $run $gateSpec 'head' $required } 'wrong task accepted'; $run.taskId='h2c-unity-gate'
-    $run.steps=@($steps | Select-Object -Skip 1); Reject { Assert-RunForGate $run $gateSpec 'head' $required } 'missing step accepted'
-    $run.steps=$steps; $run.stage='judgment'; Reject { Assert-RunForGate $run $gateSpec 'head' $required } 'full-to-discovery accepted'
+    try {
+      # 実entryの固定値を先に検査し、ignored A3を要しない本文だけをmodule内で差し替える。
+      $global:unityApprovalFixtureHash=$fixtureHash
+      & $approvalModule {
+          Set-Item Function:script:Get-ApprovedSpecification -Value {
+              param([string]$Task)
+              $entry=switch -CaseSensitive ($Task) {
+                  'h2c-unity-gate' { $script:oldFixtureEntry }
+                  'h2c-unity-gate-r2' { $script:newFixtureEntry }
+                  default { throw "承認されていないtaskです: $Task" }
+              }
+              $copy=ConvertFrom-Json -InputObject (ConvertTo-Json -InputObject $entry -Depth 30) -AsHashtable -Depth 30
+              $copy.textSha256=$global:unityApprovalFixtureHash
+              return $copy
+          }
+      }
+      & $approvalModule {param($old,$new) $script:oldFixtureEntry=$old; $script:newFixtureEntry=$new} $oldEntry $newEntry
+      $specs=@{}
+      foreach($task in @('h2c-unity-gate','h2c-unity-gate-r2')) {
+        $candidate=[pscustomobject](& $approvalModule {param($task,$text) New-ApprovedSpecification $task $text} $task $fixtureText)
+        $candidate | Add-Member -NotePropertyName specHash -NotePropertyValue "hash-$task"
+        $candidate | Add-Member -NotePropertyName id -NotePropertyValue "spec-$task"
+        & $approvalModule {param($task,$candidate) Assert-ApprovedSpecification $task $candidate} $task $candidate
+        $specs[$task]=$candidate
+      }
+      foreach($task in @('h2c-unity-gate','h2c-unity-gate-r2')) {
+        $candidate=$specs[$task]
+        $run=[pscustomobject]@{taskId=$task;suiteVersion=$candidate.testPolicy;specId=$candidate.id;specHash=$candidate.specHash;base=$candidate.base;head='head';stage='discovery';status='passed';dirtyBefore=@();dirtyAfter=@();steps=$steps}
+        Assert-RunForGate $run $candidate 'head' $required
+        $run.dirtyBefore=@(' M file'); Reject { Assert-RunForGate $run $candidate 'head' $required } 'dirty accepted'; $run.dirtyBefore=@()
+        Reject { Assert-RunForGate $run $candidate 'old-head' $required } 'old head accepted'
+        $other=if($task -ceq 'h2c-unity-gate'){'h2c-unity-gate-r2'}else{'h2c-unity-gate'}
+        Reject { & $approvalModule {param($task,$candidate) Assert-ApprovedSpecification $task $candidate} $other $candidate } 'cross-task specification accepted'
+        $run.taskId=$other; Reject { Assert-RunForGate $run $candidate 'head' $required } 'cross-task run accepted'; $run.taskId=$task
+        $run.taskId='unknown-task'; Reject { Assert-RunForGate $run $candidate 'head' $required } 'unknown task accepted'; $run.taskId=$task
+        foreach($field in @('base','text','testPolicy','recordPolicy','profile','scope')) {
+            $altered=$candidate | ConvertTo-Json -Depth 30 | ConvertFrom-Json -Depth 30
+            switch($field) {
+                'base' {$altered.base='other-base'}
+                'text' {$altered.text+=' changed'}
+                'testPolicy' {$altered.testPolicy='local-gates-v1'}
+                'recordPolicy' {$altered.recordPolicy='other-policy'}
+                'profile' {$altered.profile.limitedFilter='Other.Filter'}
+                'scope' {$altered.scope=@('tools/Harness/**')}
+            }
+            Reject { & $approvalModule {param($task,$candidate) Assert-ApprovedSpecification $task $candidate} $task $altered } "$field mutation accepted"
+        }
+        foreach($field in @('base','text','profile','scope')) {
+            $altered=$candidate | ConvertTo-Json -Depth 30 | ConvertFrom-Json -AsHashtable -Depth 30
+            $altered.Remove($field)
+            Reject { & $approvalModule {param($task,$candidate) Assert-ApprovedSpecification $task $candidate} $task $altered } "$field missing accepted"
+        }
+        $run.base='other-base'; Reject { Assert-RunForGate $run $candidate 'head' $required } 'run base mutation accepted'
+        $run.base=$candidate.base; $run.specHash='other-hash'; Reject { Assert-RunForGate $run $candidate 'head' $required } 'run hash mutation accepted'
+        $run.specHash=$candidate.specHash; $run.steps=@($steps | Select-Object -Skip 1); Reject { Assert-RunForGate $run $candidate 'head' $required } 'missing step accepted'
+        $run.steps=$steps; $run.stage='judgment'; Reject { Assert-RunForGate $run $candidate 'head' $required } 'full-to-discovery accepted'
+      }
+    } finally {
+        & $approvalModule {param($original) Set-Item Function:script:Get-ApprovedSpecification -Value $original; Remove-Variable oldFixtureEntry,newFixtureEntry -Scope Script -ErrorAction SilentlyContinue} $originalLookup
+        Remove-Variable unityApprovalFixtureHash -Scope Global -ErrorAction SilentlyContinue
+    }
 }
 [Console]::WriteLine("Unity gate offline: $($executed.Count) executed, $($failed.Count) failed")
 if ($ResultPath) { [IO.File]::WriteAllText([IO.Path]::GetFullPath($ResultPath),(ConvertTo-Json -InputObject ([ordered]@{registered=@($registered);selected=@($selected);executed=@($executed);failed=@($failed)}) -Depth 6)) }

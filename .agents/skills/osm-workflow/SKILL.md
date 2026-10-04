@@ -46,7 +46,7 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 - 計画外の状態、依存、所有者、寿命、公開 API が必要になった場合、または計画した配置では中核ロジックを単体テストできない場合も実装を止める。Phase B 内で便宜的な Helper / Manager へ押し込まない。
 - コメントには、コードだけでは復元しにくい契約、判断理由、変更時の注意を残す。特に寿命・所有者・選択数・失敗境界や、一見省けそうな例外処理の理由を説明する。処理をそのまま言い換えるコメントや行数を満たすためのコメントは増やさない。読者に通じないスライス略号だけで説明せず、対象と理由を通常の言葉で書く。
 - Unity Editor、Scene、Prefab、Addressables等を扱う場合は `../osm-unity-editor/SKILL.md` を先に読む。
-- 対象を限定した Editor 操作とコンパイル確認は Phase B で行ってよい。Unity バッチテストと Addressables ビルドの実行・判定は Phase C の責任とし、H2未適用のPhase Bでは実行しない。H1適用済みのArtifacts/Harness作業は完了引渡し時に関連offline suiteのB exitを通す。中間commitやWIP救援にB exitを要求しない。H2cの `h2c-unity-gate` は承認済みprofileの `discovery` に限り、標準runnerで固定11件のB限定テストを許す。初回adapter疎通をCが代行した場合は同headのB exitとして記録し、形式だけの二重起動をしない。他taskのB限定許可は各A3で実行経路を凍結する。完了時に未実行を明記する。
+- 対象を限定した Editor 操作とコンパイル確認は Phase B で行ってよい。Unity バッチテストと Addressables ビルドの実行・判定は Phase C の責任とし、H2未適用のPhase Bでは実行しない。H1適用済みのArtifacts/Harness作業は完了引渡し時に関連offline suiteのB exitを通す。中間commitやWIP救援にB exitを要求しない。H2cの旧 `h2c-unity-gate` と再開task `h2c-unity-gate-r2` は各承認済みprofileの `discovery` に限り、標準runnerで固定11件のB限定テストを許す。現在の再開入口は `pwsh tools/harness.ps1 current -Task h2c-unity-gate-r2`。旧taskのCURRENT/承認値は保持し、旧入口は読取のみとする。初回adapter疎通をCが代行した場合は同headのB exitとして記録し、形式だけの二重起動をしない。他taskのB限定許可は各A3で実行経路を凍結する。完了時に未実行を明記する。
 - 実装を終えたら `pwsh tools/contract-audit.ps1` を実行する。Editor のコンパイル確認を行えなかった場合は、その未確認を明記する。
 
 ## Phase C: レビューとテスト

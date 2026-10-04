@@ -81,12 +81,12 @@ H1適用taskの契約検査は `pwsh tools/contract-audit.ps1 -HarnessTask <id>`
 
 ## H2c Unity pilot
 
-`h2c-unity-gate` の一taskだけを追加承認している。A3本文のSHA-256、完全base、`unity-pilot-gates-v1`、`external-current-v1`、固定profileと変更pathは `ApprovedSpecifications.psm1` にあり、init/current/run/handoffで再照合する。Git外の登録JSONを承認元にしない。H1の登録・run・非観測step v1はそのまま扱う。
+旧 `h2c-unity-gate` と再開task `h2c-unity-gate-r2` の二つの明示entryを承認している。現在の実装入口はr2で、旧taskのCURRENT・specification・run・承認値を保持し、旧入口は読取のみとする。A3本文のSHA-256、完全base、`unity-pilot-gates-v1`、`external-current-v1`、固定profileと変更pathはtask別に `ApprovedSpecifications.psm1` にあり、init/current/run/handoffで再照合する。Git外の登録JSONを承認元にしない。H1の登録・run・非観測step v1はそのまま扱う。
 
-入口は `pwsh tools/harness.ps1 current -Task h2c-unity-gate`。`discovery` はrunner/observation/adapter/Harnessのoffline suiteと両audit、固定filterの11件を要求する。`judgment` はoffline suiteと両audit、Artifacts suite、空filterの全EditModeを要求する。いずれも変更pathにかかわらず必須で、H1の変更path派生gateやUnity拒否を広げない。B限定runを判定Cに、C全件runを発見Cに流用しない。
+現在の入口は `pwsh tools/harness.ps1 current -Task h2c-unity-gate-r2`。r2の新規initには凍結済みh2c-a3-v2本文と承認済みbaseを使い、旧taskを上書きしない。`discovery` はrunner/observation/adapter/Harnessのoffline suiteと両audit、固定filterの11件を要求する。`judgment` はoffline suiteと両audit、Artifacts suite、空filterの全EditModeを要求する。いずれも変更pathにかかわらず必須で、H1の変更path派生gateやUnity拒否を広げない。B限定runを判定Cに、C全件runを発見Cに流用しない。
 
 Unity adapterは `tools/run-tests.ps1 -ObserveUnity -OutputRoot <task>/payload/<run>/unity` を一回呼び、限定profileのときだけ固定 `-Filter OneStarMaker.Tests.Editor.TestObservation.ObservationStateTests` を付ける。子processだけに `SAMPLEGAME_CONTENT__RUNTIMEMODE=addressables` を設定する。標準runnerのmarkerを唯一のstep取得先とし、stdout/stderrとstep v2、XML、Unity log、progress、最終observation、private復旧資料があればそのraw bytesを同runに保持する。失敗runも取得済みrawと理由を残すが、readyにはならない。固定timeoutによる正常進行中の中断はしない。
 
 保存済みUnity stepの引渡しは `Assert-UnityPayload` でpath/hash、runnerとrawのargv/project/PID/版、XML leaf、観測callback/clock/assembly取得地点、固定集合を再検査する。`observedAssemblies` は原observationのpath/hash参照であり、後日のLibrary DLL変更・消失で取得時の原観測を無効にしない。全件性は空filter起動と同一invocationの完全観測/XML一致、固定11件包含で判定する。未知assemblyの静的catalog照合やロード済みメモリbytesのhashは扱わない。
 
-初回adapter実機疎通はC担当が実行・記録する。B限定の実行が同一head、clean、承認profileを満たした場合はB exit証拠として使い、同じ11件を形式だけで二重起動しない。最終GOには判定Cの別profileで全EditModeと故意欠測負例、blind同入力の再検査が必要。WindowsのUnity実行は最初からsandbox外の承認済み経路を使い、Editor所有者とproject lockを確認する。
+初回adapter実機疎通はC担当が実行・記録する。B限定許可は旧taskとr2 taskの各承認済み `unity-pilot-gates-v1` `discovery` にだけ適用する。B限定の実行が同一head、clean、承認profileを満たした場合はB exit証拠として使い、同じ11件を形式だけで二重起動しない。最終GOには判定Cの別profileで全EditModeと故意欠測負例、blind同入力の再検査が必要。WindowsのUnity実行は最初からsandbox外の承認済み経路を使い、Editor所有者とproject lockを確認する。

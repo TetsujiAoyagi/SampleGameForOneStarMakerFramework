@@ -52,4 +52,4 @@ description: >-
 
 ## テスト
 
-H2未適用のUnity作業では、Phase B の実装エージェントはEditorでのコンパイル確認まで行い、Unityテストは走らせず「未実行」と報告する。H1適用のArtifacts/Harness作業はUnityを変更せず、完了引渡し時のofflineテストをBで実行する。H2cの `h2c-unity-gate` は `unity-pilot-gates-v1` の `discovery` に限り標準runnerの固定11件をB限定テストとして許す。初回adapter疎通はC担当が代行でき、同headのB exit証拠として扱う。他のUnity作業への許可は各A3 snapshotが経路を固定したときだけ成立する。Phase C はEditorを閉じてから `osm-workflow` に従い、標準 `run-tests.ps1` と必要なBuildを人間の在席を待たず実行してよい。`unity test` / `unity run` はPhase Cでも使わない。自分で起動したEditorだけを未保存変更の確認後に正常終了させ、人間が開いたEditorを強制終了しない。
+H2未適用のUnity作業では、Phase B の実装エージェントはEditorでのコンパイル確認まで行い、Unityテストは走らせず「未実行」と報告する。H1適用のArtifacts/Harness作業はUnityを変更せず、完了引渡し時のofflineテストをBで実行する。H2cの旧 `h2c-unity-gate` と再開task `h2c-unity-gate-r2` は各承認済み `unity-pilot-gates-v1` の `discovery` に限り標準runnerの固定11件をB限定テストとして許す。現在の再開入口は `pwsh tools/harness.ps1 current -Task h2c-unity-gate-r2`。旧taskのCURRENT/承認値は保持し、旧入口は読取のみとする。初回adapter疎通はC担当が代行でき、同headのB exit証拠として扱う。他のUnity作業への許可は各A3 snapshotが経路を固定したときだけ成立する。Phase C はEditorを閉じてから `osm-workflow` に従い、標準 `run-tests.ps1` と必要なBuildを人間の在席を待たず実行してよい。`unity test` / `unity run` はPhase Cでも使わない。自分で起動したEditorだけを未保存変更の確認後に正常終了させ、人間が開いたEditorを強制終了しない。

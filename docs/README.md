@@ -11,7 +11,7 @@
 例外は `docs/handoff/` である。進行中のスライスの作業指示と、複数スライスに跨る計画を置いてよい（実装を別セッション / 別ツールへ渡すため git worktree に持っていく必要がある）。**1 本に限らない。** 複数スライスに跨る計画を置くなら、harvest 先と期限を本文に書くこと。マージ時に harvest して削除するので、恒久的に積み上がることはない。
 
 H1適用をA3で明示したArtifacts/Harness作業では、Git外のCURRENTと固定仕様を正本にする。入口は `pwsh tools/harness.ps1 current -Task <id>`。Gitへの新しいPhase RESULT・REVISION・raw実行結果の追加はそのtaskの `pwsh tools/contract-audit.ps1 -HarnessTask <id>` が拒否する。未移行のprogram/Unity作業は従来のtracked HANDOFFと証拠規約を続け、通常のauditは新検査を `not-applicable` と表示する。適用taskの合格根拠に通常auditを流用しない。H1のCURRENT・runは同一Windowsユーザー/マシン内のLocalApplicationDataに置き、別マシン配布はまだ保証しない。
-H2cの `h2c-unity-gate` も承認済みの一taskとして同じGit外CURRENTを使い、標準runnerの固定11件と全EditModeの生結果をrun内payloadに保持する。B限定実行の許可はこのtask/profileだけに適用する。他taskはA3で移行を明示するまで従来方式を続ける。
+H2cの旧 `h2c-unity-gate` と再開task `h2c-unity-gate-r2` は、それぞれ承認済みのtaskとして同じGit外CURRENT方式を使い、標準runnerの固定11件と全EditModeの生結果をrun内payloadに保持する。現在の再開入口は `pwsh tools/harness.ps1 current -Task h2c-unity-gate-r2`。旧taskのCURRENTと承認値は保持し、旧入口は読取のみとする。B限定実行の許可は各taskの承認済み `unity-pilot-gates-v1` の `discovery` と固定profileに限る。他taskはA3で移行を明示するまで従来方式を続ける。
 
 ## 3つの層
 
