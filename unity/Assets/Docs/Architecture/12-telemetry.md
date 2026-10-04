@@ -370,6 +370,44 @@ finally
 5. **Receiver**
    - DebugStudio が `DebugSocketMessageType` ごとに decode し、store / export / UI に反映
 
+### incoming control の任意 catalog
+
+アプリが同期コマンドを内部呼出しと socket adapter で共有する場合は、
+App の composition root が `DebugCommandCatalog` を作り、初期登録を完了してから
+同じ instance を内部呼出し側と `CatalogDebugCommandDispatcher` へ明示的に渡す。
+この adapter は opt-in であり、default の `CreateDebugCommandDispatcher` と
+組込 `ping` / `runtime-diagnostics` の経路はそのまま使える。
+SampleGame に catalog が配線されているという意味ではない。
+
+catalog は handler の依存を取得・Dispose しない。
+closure は App 寿命の依存だけを保持し、Scene 所有オブジェクトの強参照登録は非対応。
+App 所有者は終了時に新規呼出しを止め、catalog / adapter への参照を破棄する。
+登録は初期化時に限定し、利用中の Register と並行アクセスは非対応である。
+
+TryExecute は呼出し側 thread で handler を同期実行する。
+Unity API を使う handler は main thread から呼び、socket 経路では既存の
+`MainThreadDebugCommandDispatcher` を維持する。内部呼出しも同じ thread 義務を負う。
+catalog に token はなく、必要な事前キャンセル判断は呼出し側で行う。
+adapter の token 検査時点で cancel 済みなら handler を呼ばず固定失敗 envelope を返す。
+検査後の競合と、開始済みの同期 handler の中断は保証しない。
+
+名前は Ordinal の完全一致で、空白を trim しない。空白だけの名前も非emptyとして登録できる。
+Register の null / empty 名は ArgumentException、null handler は ArgumentNullException、
+同名重複は InvalidOperationException になる。
+TryExecute の null / empty / 未登録名は handler を呼ばず false と固定失敗 result を返す。
+戻り値 bool は名前解決の成否であり、handler が失敗 result を返しても true になる。
+業務成否は `DebugCommandResult.Success` で読む。
+payload は opaque JSON 文字列のまま渡し、直接呼出しの null のみ empty へ正規化する。
+JSON parse は handler に強制しない。
+
+result のコンストラクタは null message / payload を empty にする。
+default(struct) の文字列値は null になり得るため、adapter はそれも empty に正規化する。
+adapter は RequestId、Success、Message、PayloadJson を既存 envelope へ転写し、
+null command は固定 missing 失敗 envelope にする。
+handler 例外は catalog / adapter の直接呼出しから呼出し側へ伝播する。
+実際に socket router を通る経路では、既存 router が例外を失敗 envelope に変換する。
+catalog は System のみ、adapter は wire DTO と UniTask に依存し、VM の採否に依存しない。
+同一 instance の共有 fixture は実アプリ配線や実 socket 往復の実証ではない。
 ### 期待効果
 
 - Unity 側 producer は transport 実装を直接持たずに済む。
