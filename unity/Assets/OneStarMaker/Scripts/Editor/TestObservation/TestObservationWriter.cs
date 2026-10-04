@@ -1,7 +1,9 @@
 #nullable enable
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Threading;
 using UnityEngine;
 
 namespace OneStarMaker.Editor.TestObservation
@@ -104,14 +106,68 @@ namespace OneStarMaker.Editor.TestObservation
 
         internal static void AtomicWrite(string path, byte[] bytes)
         {
+            AtomicWrite(path, bytes, (temp, destination) => File.Replace(temp, destination, null),
+                Thread.Sleep, null, File.Delete);
+        }
+
+        // The injected operations belong to this call only. Tests can move time forward and cause
+        // replacement faults without changing another observation writer's publication path.
+        internal static void AtomicWrite(string path, byte[] bytes, Action<string, string> replace,
+            Action<int> wait, Func<long>? elapsedMilliseconds, Action<string> deleteTemp)
+        {
             var temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             try
             {
                 WriteNew(temp, bytes);
-                if (File.Exists(path)) File.Replace(temp, path, null);
+                if (File.Exists(path))
+                {
+                    // The first decision is final: a failed replacement must never publish by Move.
+                    // Known ReplaceFile failures retain both pathnames; partial failures do not.
+                    var clock = Stopwatch.StartNew();
+                    IOException? lastFailure = null;
+                    for (var attempt = 1; ; attempt++)
+                    {
+                        if (attempt > 1 && (elapsedMilliseconds?.Invoke() ?? clock.ElapsedMilliseconds) >= 100)
+                            throw lastFailure!;
+                        try
+                        {
+                            replace(temp, path);
+                            break;
+                        }
+                        catch (IOException error) when (IsRetryableReplacement(error))
+                        {
+                            lastFailure = error;
+                            if (attempt >= 5 || !File.Exists(temp) || !File.Exists(path) ||
+                                (elapsedMilliseconds?.Invoke() ?? clock.ElapsedMilliseconds) >= 100)
+                                throw;
+                            wait(20);
+                            if (!File.Exists(temp) || !File.Exists(path) ||
+                                (elapsedMilliseconds?.Invoke() ?? clock.ElapsedMilliseconds) >= 100)
+                                throw;
+                        }
+                    }
+                }
                 else File.Move(temp, path);
             }
-            finally { if (File.Exists(temp)) File.Delete(temp); }
+            catch (Exception publicationError)
+            {
+                try { if (File.Exists(temp)) deleteTemp(temp); }
+                catch (Exception cleanupError)
+                {
+                    // Neither a failed publication nor a failed cleanup may disappear from the result.
+                    throw new AggregateException(publicationError, cleanupError);
+                }
+                throw;
+            }
+            if (File.Exists(temp)) deleteTemp(temp);
+        }
+
+        private static bool IsRetryableReplacement(IOException error)
+        {
+            if (Environment.OSVersion.Platform != PlatformID.Win32NT) return false;
+            return error.HResult == unchecked((int)0x80070020) ||
+                   error.HResult == unchecked((int)0x80070021) ||
+                   error.HResult == unchecked((int)0x80070497);
         }
 
         internal static void WriteNew(string path, byte[] bytes)

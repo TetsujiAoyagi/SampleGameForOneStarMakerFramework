@@ -111,6 +111,7 @@ public static class CliArgumentParser
         return """
 Usage:
   debugstudio-cli send --command <name> [--control-uri <ws-uri>] [--payload <json>] [--timeout-seconds <seconds>]
+  debugstudio-cli compare --input <file.ndjson> [--input <other.ndjson> ...] --baseline-session <id> --candidate-session <id> [--format text|json]
 
 Example:
   debugstudio-cli send --control-uri ws://127.0.0.1:5012/cli-control/ --command debugsocket.ping --payload "{}"

@@ -1,3 +1,4 @@
+using DebugStudio.Cli.Offline;
 using DebugStudio.Client;
 using DebugStudio.Contracts.Protocol;
 
@@ -7,6 +8,11 @@ internal static class Program
 {
     public static async Task<int> Main(string[] args)
     {
+        if (args.Length > 0 && string.Equals(args[0], "compare", StringComparison.OrdinalIgnoreCase))
+        {
+            return CompareCommand.Execute(args, Console.Out, Console.Error);
+        }
+
         var parseResult = CliArgumentParser.Parse(args);
         if (!parseResult.Success || parseResult.ShowUsage)
         {
