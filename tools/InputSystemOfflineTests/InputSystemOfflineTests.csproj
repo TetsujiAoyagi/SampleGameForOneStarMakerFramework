@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>OneStarMaker.InputSystemOfflineTests</RootNamespace>
+    <AssemblyName>InputSystemOfflineTests</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneState.cs" Link="Linked/SceneState.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/UpdateSystem/Layers/UpdateLayerIds.cs" Link="Linked/UpdateLayerIds.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputControlMap.cs" Link="Linked/InputControlMap.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionMapNames.cs" Link="Linked/InputActionMapNames.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionValueKind.cs" Link="Linked/InputActionValueKind.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionValue.cs" Link="Linked/InputActionValue.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputProfileId.cs" Link="Linked/InputProfileId.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionSlot.cs" Link="Linked/InputActionSlot.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionKindMap.cs" Link="Linked/InputActionKindMap.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputAcceptance.cs" Link="Linked/InputAcceptance.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputPublication.cs" Link="Linked/InputPublication.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/IInputDeviceReader.cs" Link="Linked/IInputDeviceReader.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/IInputMapControl.cs" Link="Linked/IInputMapControl.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionNameKey.cs" Link="Linked/InputActionNameKey.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputFrame.cs" Link="Linked/InputFrame.cs" />
+  </ItemGroup>
+</Project>
