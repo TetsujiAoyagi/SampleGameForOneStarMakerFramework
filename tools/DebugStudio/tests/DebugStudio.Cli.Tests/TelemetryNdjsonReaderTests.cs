@@ -149,13 +149,53 @@ public sealed class TelemetryNdjsonReaderTests : IDisposable
         Assert.Equal(2, input.Counts.ExactDuplicateRows);
     }
 
-    [Fact]
-    public void Read_optional_nonmetric_float_overflow_cannot_crash_typed_deduplication()
+    [Theory]
+    [InlineData("\"cpuTime\":null", "\"cpuTime\":1e400")]
+    [InlineData("\"payload\":null", "\"payload\":{\"fps\":1e400}")]
+    public void Read_optional_nonmetric_float_overflow_cannot_crash_typed_deduplication(string original, string replacement)
     {
-        var json = Json(Record("base", 1)).Replace("\"cpuTime\":null", "\"cpuTime\":1e100", StringComparison.Ordinal);
+        var json = Json(Record("base", 1)).Replace(original, replacement, StringComparison.Ordinal);
         var file = Write(json + "\n" + json + "\n" + Json(Record("next", 1)));
         var input = TelemetryNdjsonReader.Read(Options(file));
         Assert.Equal(1, input.Counts.ExactDuplicateRows);
+        var withoutSequence = Write(json.Replace("\"producerSequence\":1", "\"producerSequence\":null", StringComparison.Ordinal) + "\n" + Json(Record("next", 1)), "missing-sequence.ndjson");
+        Assert.Equal(2, TelemetryNdjsonReader.Read(Options(withoutSequence)).Counts.SelectedUniqueRows);
+    }
+
+    [Theory]
+    [InlineData("\"elapsedMs\":10", "\"elapsedMs\":0", "\"elapsedMs\":-0")]
+    [InlineData("\"cpuTime\":null", "\"cpuTime\":0", "\"cpuTime\":-0")]
+    [InlineData("\"payload\":null", "\"payload\":{\"fps\":0}", "\"payload\":{\"fps\":-0}")]
+    public void Read_signed_zero_is_equal_in_all_typed_floating_fields(string original, string positive, string negative)
+    {
+        var first = Json(Record("base", 1)).Replace(original, positive, StringComparison.Ordinal);
+        var second = Json(Record("base", 1)).Replace(original, negative, StringComparison.Ordinal);
+        var file = Write(first + "\n" + second + "\n" + Json(Record("next", 1)));
+        Assert.Equal(1, TelemetryNdjsonReader.Read(Options(file)).Counts.ExactDuplicateRows);
+    }
+
+    [Theory]
+    [InlineData("\"stream\":\"telemetry\"", "\"stream\":\"\\uD800\"")]
+    [InlineData("\"sessionId\":\"base\"", "\"sessionId\":\"\\uD800\"")]
+    [InlineData("\"payload\":null", "\"payload\":{\"stage\":\"\\uD800\"}")]
+    public void Command_malformed_surrogate_escapes_get_contextual_input_error(string original, string replacement)
+    {
+        var file = Write(Json(Record("base", 1)).Replace(original, replacement, StringComparison.Ordinal));
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        Assert.Equal(2, CompareCommand.Execute(Arguments(file, "json"), output, error));
+        Assert.Empty(output.ToString());
+        Assert.Contains($"'{file}':1", error.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_validates_envelopes_before_skipping_but_selected_only_duration_and_sequence_rules_stay_selected()
+    {
+        var other = Json(Record("elsewhere", 0)).Replace("\"elapsedMs\":10", "\"elapsedMs\":-1", StringComparison.Ordinal);
+        var file = Write(other + "\n" + Json(Record("base", 1)) + "\n" + Json(Record("next", 1)));
+        Assert.Equal(1, TelemetryNdjsonReader.Read(Options(file)).Counts.OtherSessionTelemetryRows);
+        Write(other.Replace("\"schemaVersion\":3", "\"schemaVersion\":2", StringComparison.Ordinal), "wrong-schema.ndjson");
+        Assert.Equal(2, Assert.Throws<ComparisonInputException>(() => TelemetryNdjsonReader.Read(Options(Path.Combine(directory, "wrong-schema.ndjson")))).ExitCode);
     }
 
     [Fact]
@@ -181,6 +221,7 @@ public sealed class TelemetryNdjsonReaderTests : IDisposable
     {
         var valid = Write(Json(Record("base", null)) + "\n" + Json(Record("next", 1)));
         var bad = openFailure ? Path.Combine(directory, "missing.ndjson") : Write("{invalid secret full line}", "bad.ndjson");
+        var before = File.ReadAllBytes(valid);
         using var output = new StringWriter();
         using var error = new StringWriter();
         var args = Arguments(valid, "text").Concat(new[] { "--input", bad }).ToArray();
@@ -188,6 +229,7 @@ public sealed class TelemetryNdjsonReaderTests : IDisposable
         Assert.Equal("", output.ToString());
         Assert.DoesNotContain("Warning", error.ToString(), StringComparison.Ordinal);
         Assert.DoesNotContain("secret full line", error.ToString(), StringComparison.Ordinal);
+        Assert.Equal(before, File.ReadAllBytes(valid));
         Assert.Single(error.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries));
     }
 

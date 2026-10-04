@@ -177,6 +177,11 @@ internal static class TelemetryNdjsonReader
             // JSON exception messages can contain source fragments; keep the original malformed row private.
             throw Invalid(location, $"Malformed JSON or wrong field type{(ex.Path is null ? "." : $" at {Escape(ex.Path)}.")}");
         }
+        catch (InvalidOperationException)
+        {
+            // JsonDocument defers decoding escaped strings; malformed surrogate escapes can fail on access.
+            throw Invalid(location, "Malformed JSON string or unrepresentable typed field.");
+        }
     }
 
     private static JsonElement Require(JsonElement root, string name, JsonValueKind kind, InputLocation location)
@@ -218,7 +223,8 @@ internal static class TelemetryNdjsonReader
             {
                 if (property.Name != "tags" || record.Tags is null)
                 {
-                    property.WriteTo(writer);
+                    writer.WritePropertyName(property.Name);
+                    WriteTypedValue(property.Value, writer);
                     continue;
                 }
 
@@ -235,6 +241,27 @@ internal static class TelemetryNdjsonReader
         }
 
         return StrictUtf8.GetString(buffer.ToArray());
+    }
+
+    private static void WriteTypedValue(JsonElement value, Utf8JsonWriter writer)
+    {
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var number) && number == 0)
+        {
+            // Typed floating-point equality equates +0 and -0, including optional payload fields.
+            writer.WriteNumberValue(0);
+        }
+        else if (value.ValueKind == JsonValueKind.Object)
+        {
+            writer.WriteStartObject();
+            foreach (var property in value.EnumerateObject())
+            {
+                writer.WritePropertyName(property.Name);
+                WriteTypedValue(property.Value, writer);
+            }
+
+            writer.WriteEndObject();
+        }
+        else value.WriteTo(writer);
     }
 
     internal static string Escape(string text) => string.Concat(text.Select(character => char.IsControl(character)

@@ -21,11 +21,21 @@ public sealed class OfflineCompareTests
         Assert.Equal(new[] { "a.ndjson", "a.ndjson" }, result.Options.InputFiles);
     }
 
+    [Fact]
+    public void Arguments_reject_identical_selected_ids_and_keep_default_text_format()
+    {
+        var args = new[] { "compare", "--input", "capture.ndjson", "--baseline-session", "same", "--candidate-session", "same" };
+        Assert.Equal(2, CompareArguments.Parse(args).ExitCode);
+        args[^1] = "Same";
+        Assert.Equal("text", CompareArguments.Parse(args).Options!.Format);
+    }
+
     [Theory]
     [InlineData("--format", "xml")]
     [InlineData("--unknown", "value")]
     [InlineData("--input", "-")]
     [InlineData("--input", "https://example.com/capture.ndjson")]
+    [InlineData("--input", "file:///tmp/capture.ndjson")]
     [InlineData("--candidate-session", "base")]
     [InlineData("--baseline-session", "")]
     public void Arguments_reject_invalid_values_or_repeated_singletons(string option, string value)
@@ -90,6 +100,21 @@ public sealed class OfflineCompareTests
     }
 
     [Fact]
+    public void Metrics_optional_null_keys_durations_and_empty_keys_are_exclusions_not_new_input_categories()
+    {
+        var report = Report(Span("base", "AppStartup", null, 10), Span("next", "AppStartup", "", 10),
+            Span("base", "SceneLoad", "scene", null), Span("next", "SceneLoad", null, null));
+        Assert.Empty(report.Startup);
+        Assert.Empty(report.Scenes);
+        Assert.Equal(1, report.BaselineCoverage.ExcludedStartupRows);
+        Assert.Equal(1, report.CandidateCoverage.ExcludedStartupRows);
+        Assert.Equal(1, report.BaselineCoverage.ExcludedSceneRows);
+        Assert.Equal(1, report.CandidateCoverage.ExcludedSceneRows);
+        Assert.Equal(4, report.InputCounts.SelectedUniqueRows);
+        Assert.Equal(4, report.Diagnostics.Count(diagnostic => diagnostic.Code.StartsWith("excluded-", StringComparison.Ordinal)));
+    }
+
+    [Fact]
     public void Metrics_even_median_is_overflow_safe_and_groups_sort_ordinal()
     {
         var report = Report(Span("base", "AppStartup", "a", double.MaxValue),
@@ -135,6 +160,12 @@ public sealed class OfflineCompareTests
             Assert.Contains("medianMs=1.5", text.ToString(), StringComparison.Ordinal);
             Assert.Contains("medianMs=n/a", text.ToString(), StringComparison.Ordinal);
             Assert.Contains("AppStartup: no observations", text.ToString(), StringComparison.Ordinal);
+            using var warnings = new StringWriter();
+            ComparisonReportWriter.WriteDiagnostics(report.Diagnostics, warnings);
+            Assert.Contains("capture\\u000a.ndjson", warnings.ToString(), StringComparison.Ordinal);
+            using var repeated = new StringWriter();
+            ComparisonReportWriter.Write(report, "text", repeated);
+            Assert.Equal(text.ToString(), repeated.ToString());
             using var json = new StringWriter();
             ComparisonReportWriter.Write(report, "json", json);
             using var document = JsonDocument.Parse(json.ToString());
