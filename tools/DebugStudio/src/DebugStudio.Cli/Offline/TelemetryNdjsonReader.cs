@@ -2,6 +2,7 @@
 
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using DebugStudio.Export.Models;
 
 namespace DebugStudio.Cli.Offline;
@@ -23,6 +24,12 @@ internal static class TelemetryNdjsonReader
 {
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
     private static readonly JsonSerializerOptions ModelOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
+    private static readonly JsonSerializerOptions EqualityOptions = new(ModelOptions)
+    {
+        // Non-metric optional floats can overflow their typed representation; equality still compares typed fields.
+        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
+    };
 
     internal static TelemetryInput Read(CompareOptions options)
     {
@@ -202,7 +209,7 @@ internal static class TelemetryNdjsonReader
     private static string TypedFields(TelemetryExportRecord record)
     {
         // Canonicalize typed fields only. Extension JSON is ignored; null and empty tags remain distinct.
-        var typed = JsonSerializer.SerializeToElement(record, ModelOptions);
+        var typed = JsonSerializer.SerializeToElement(record, EqualityOptions);
         using var buffer = new MemoryStream();
         using (var writer = new Utf8JsonWriter(buffer))
         {

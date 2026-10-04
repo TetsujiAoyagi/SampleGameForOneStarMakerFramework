@@ -66,4 +66,31 @@ public sealed class CliArgumentParserTests
         Assert.Equal(2, result.ExitCode);
         Assert.Contains("--command", result.ErrorMessage, StringComparison.Ordinal);
     }
+
+    [Theory]
+    [InlineData("--help")]
+    [InlineData("-h")]
+    [InlineData("help")]
+    public void Parse_global_help_preserves_exit_and_adds_compare_synopsis(string token)
+    {
+        var result = CliArgumentParser.Parse([token]);
+        Assert.False(result.Success);
+        Assert.True(result.ShowUsage);
+        Assert.Equal(0, result.ExitCode);
+        Assert.Null(result.Options);
+        Assert.Contains("debugstudio-cli send", CliArgumentParser.GetUsageText(), StringComparison.Ordinal);
+        Assert.Contains("debugstudio-cli compare", CliArgumentParser.GetUsageText(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Parse_send_case_insensitive_dispatch_and_errors_remain_unchanged()
+    {
+        var send = CliArgumentParser.Parse(["SeNd", "--command", "debugsocket.ping"]);
+        Assert.True(send.Success);
+        Assert.Equal(DebugStudioControlPlaneDefaults.DefaultControlUri, send.Options!.ControlUri);
+        Assert.Equal(2, CliArgumentParser.Parse(["send", "--command"]).ExitCode);
+        Assert.Equal(2, CliArgumentParser.Parse(["send", "--unknown", "value"]).ExitCode);
+        Assert.Equal(0, CliArgumentParser.Parse(["send", "--help"]).ExitCode);
+    }
+
 }

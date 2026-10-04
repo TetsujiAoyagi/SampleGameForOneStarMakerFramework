@@ -138,6 +138,75 @@ public sealed class TelemetryNdjsonReaderTests : IDisposable
         Assert.Equal(2, folder.ExitCode);
     }
 
+
+    [Fact]
+    public void Read_repeated_files_are_deduplicated_only_with_positive_selected_identity()
+    {
+        var file = Write(Json(Record("base", 1)) + "\n" + Json(Record("next", 1)));
+        var input = TelemetryNdjsonReader.Read(Options(file, file));
+        Assert.Equal(4, input.Counts.NonblankRows);
+        Assert.Equal(2, input.Counts.SelectedUniqueRows);
+        Assert.Equal(2, input.Counts.ExactDuplicateRows);
+    }
+
+    [Fact]
+    public void Read_optional_nonmetric_float_overflow_cannot_crash_typed_deduplication()
+    {
+        var json = Json(Record("base", 1)).Replace("\"cpuTime\":null", "\"cpuTime\":1e100", StringComparison.Ordinal);
+        var file = Write(json + "\n" + json + "\n" + Json(Record("next", 1)));
+        var input = TelemetryNdjsonReader.Read(Options(file));
+        Assert.Equal(1, input.Counts.ExactDuplicateRows);
+    }
+
+    [Fact]
+    public async Task Command_success_writes_summary_warnings_and_preserves_sources()
+    {
+        var file = Path.Combine(directory, "command.ndjson");
+        await new NdjsonTelemetryExportWriter().WriteAsync([Record("base", null), Record("next", 1)], file);
+        var before = await File.ReadAllBytesAsync(file);
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        var exit = CompareCommand.Execute(Arguments(file, "json"), output, error);
+        Assert.Equal(0, exit);
+        using var report = JsonDocument.Parse(output.ToString());
+        Assert.Equal(2, report.RootElement.GetProperty("inputCounts").GetProperty("selectedUniqueRows").GetInt64());
+        Assert.Contains("missing-sequence", error.ToString(), StringComparison.Ordinal);
+        Assert.Equal(before, await File.ReadAllBytesAsync(file));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Command_fatal_after_valid_rows_publishes_only_fatal_diagnostic(bool openFailure)
+    {
+        var valid = Write(Json(Record("base", null)) + "\n" + Json(Record("next", 1)));
+        var bad = openFailure ? Path.Combine(directory, "missing.ndjson") : Write("{invalid secret full line}", "bad.ndjson");
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        var args = Arguments(valid, "text").Concat(new[] { "--input", bad }).ToArray();
+        Assert.Equal(openFailure ? 1 : 2, CompareCommand.Execute(args, output, error));
+        Assert.Equal("", output.ToString());
+        Assert.DoesNotContain("Warning", error.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("secret full line", error.ToString(), StringComparison.Ordinal);
+        Assert.Single(error.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    [Fact]
+    public void Command_usage_error_has_only_fatal_message_and_help_exits_zero()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        Assert.Equal(2, CompareCommand.Execute(["compare"], output, error));
+        Assert.Equal("", output.ToString());
+        Assert.Single(error.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries));
+        error.GetStringBuilder().Clear();
+        Assert.Equal(0, CompareCommand.Execute(["compare", "--help"], output, error));
+        Assert.Contains(CompareArguments.Synopsis, error.ToString(), StringComparison.Ordinal);
+    }
+
+    private static string[] Arguments(string file, string format) => ["compare", "--input", file,
+        "--baseline-session", "base", "--candidate-session", "next", "--format", format];
+
     private string Write(string text, string name = "input.ndjson")
     {
         var file = Path.Combine(directory, name);
