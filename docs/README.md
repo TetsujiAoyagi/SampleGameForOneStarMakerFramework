@@ -8,16 +8,17 @@
 
 計画書・外部フレームワーク比較・発表資料は作者の手元にあるが、リポジトリには含めない。「昔こう決めた」「こう作る予定だった」という文書が同じ場所に積み上がると、読む側は**どれが今も有効なのか判定できなくなる**ためである。
 
-例外は `docs/handoff/` である。進行中のスライスの作業指示と、複数スライスに跨る計画を置いてよい（実装を別セッション / 別ツールへ渡すため git worktree に持っていく必要がある）。**1 本に限らない。** 複数スライスに跨る計画を置くなら、harvest 先と期限を本文に書くこと。マージ時に harvest して削除するので、恒久的に積み上がることはない。
+例外は `docs/handoff/` である。進行中のスライスの作業指示と、複数スライスに跨る計画を置いてよい（実装を別セッション / 別ツールへ渡すため git worktree に持っていく必要がある）。**1 本に限らない。** 複数スライスに跨る計画を置くなら、harvest 先と期限を本文に書くこと。完了したスライスはマージ時に harvest して削除する。進行中 program / 未承認候補は、計画文書のマージ後も owner・期限・harvest 先付きで保持し、解決・置換時に削除する。
 
 H1適用をA3で明示したArtifacts/Harness作業では、Git外のCURRENTと固定仕様を正本にする。入口は `pwsh tools/harness.ps1 current -Task <id>`。Gitへの新しいPhase RESULT・REVISION・raw実行結果の追加はそのtaskの `pwsh tools/contract-audit.ps1 -HarnessTask <id>` が拒否する。未移行のprogram/Unity作業は従来のtracked HANDOFFと証拠規約を続け、通常のauditは新検査を `not-applicable` と表示する。適用taskの合格根拠に通常auditを流用しない。H1のCURRENT・runは同一Windowsユーザー/マシン内のLocalApplicationDataに置き、別マシン配布はまだ保証しない。
+H2cの旧 `h2c-unity-gate` と再開task `h2c-unity-gate-r2` は、それぞれ承認済みのtaskとして同じGit外CURRENT方式を使い、標準runnerの固定11件と全EditModeの生結果をrun内payloadに保持する。現在の再開入口は `pwsh tools/harness.ps1 current -Task h2c-unity-gate-r2`。旧taskのCURRENTと承認値は保持し、旧入口は読取のみとする。B限定実行の許可は各taskの承認済み `unity-pilot-gates-v1` の `discovery` と固定profileに限る。他taskはA3で移行を明示するまで従来方式を続ける。
 
 ## 3つの層
 
 | 層 | 場所 | git | 寿命 |
 |---|---|---|---|
 | **公開面** | `README.md` / `unity/Assets/ARCHITECTURE.md` / `unity/Assets/Docs/Architecture/` / `docs/` 直下 / **`docs/updater/`**（UpdateSystem 正本仕様 + 視覚メモ） / **`docs/streaming/`**（Streaming 現状仕様 + 対照。到着契約は Architecture §34） / `protocol/` / `tools/**/README.md` | tracked | 永続。**今この瞬間に真であること** |
-| **作業台** | `docs/handoff/` | tracked | 進行中のスライス。複数スライスに跨る計画も置いてよい（harvest 先と期限を本文に書く）。マージ時に削除する |
+| **作業台** | `docs/handoff/` | tracked | 進行中のスライス。複数スライスに跨る計画も置いてよい（harvest 先と期限を本文に書く）。完了スライスはマージ時、進行中 program / 候補は解決・置換時に削除する |
 | **手元** | `docs/planning/` `docs/reference/` `docs/slides/` `docs/debugstudio/` `docs/agents/` | ignored | 無期限。公開面から参照しない。`docs/agents/` は現在のモデル・CLI割当だけを持ち、Phase契約の正本にしない |
 
 ## 公開面のルール
@@ -36,10 +37,11 @@ H1適用をA3で明示したArtifacts/Harness作業では、Git外のCURRENTと�
 複数スライスに跨る計画（構図の正本、空間プロトコルの Plan など）も作業台に置いてよい。ただし harvest 先と期限を本文に書くこと。作業指示だけに限らない。
 §7 / §8 を持たない長期計画は検査3 の網に掛からない。harvest 期限を本文に書くこと。
 
-**進行中の program / research は次の5件。**
+**進行中の program / research は次の6件。**
 
 | ファイル | 役割 | 実装キューか |
 |---|---|---|
+| `HLOD_PROGRAM.md` | 観測した問題→最小代替比較→条件付き aggregate pilot の必要性判断 | いいえ。PR #91 は文書修正 A3 のみ。Gate 0 / 1 で pilot なしの終了も可能。`HLOD_RESIDENT_PILOT.md` は未承認候補で、必要性が残った場合だけ新 A1 / A2 / A3 を行う。owner は root、期限は 2026-11-05 または置換 revision |
 | `SEASON_WORLD_DESIGN.md` | 世界構図・実証・スライス順序 | 着手時 HANDOFF を切るまでの正本。スライス表の順で切る。W-5 / W-6 は Content Directory / DIST。S-6 / S-7 実装スライスは廃止済み |
 | `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b / S-4c 完了。S-4d は VFX / Events の着手時に HANDOFF を切る |
 | `REVIEW_WORKFLOW_EFFICIENCY.md` | 外部モデルレビューの実測と、次のPhase Cで残す比較項目 | いいえ。普遍契約はSkillへharvest済み。残る実測後に削除する |
@@ -54,7 +56,7 @@ S-3 の記録は公開面 `docs/streaming/STREAMING_CURRENT_SPEC.md` に移し�
 
 **計画セッションに構図を確定させない。** 制約と品質バーと「答えてはいけない既定解」を渡し、設計セッションに構図を出させ、人が図を見てから座標をコードへ落とす。計画セッションに「全部書いて完成に見せる」を求めると、開いた論点は最安の合法解で埋まる（実例: 2026-08-27 に撤回した季節矩形レイアウト `0, 5, 12, 17`）。
 
-マージ時に次を行う（Phase D の完了条件）。
+完了したスライスのマージ時に次を行う（Phase D の完了条件）。進行中 program / 未承認候補の文書 PR では、owner・期限・harvest 先を保って作業台を保持し、解決・置換時に適用する。HLOD 計画の文書マージから未実装の表示・品質・性能を harvest しない。
 
 1. **harvest** — 恒久的な設計判断と、レビューで判明した不変条件を `Docs/Architecture/` 側へ移す
 2. **削除** — HANDOFF を `git rm` する

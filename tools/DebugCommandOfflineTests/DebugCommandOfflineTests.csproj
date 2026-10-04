@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>OneStarMaker.DebugCommandOfflineTests</RootNamespace>
+    <AssemblyName>DebugCommandOfflineTests</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/DebugCommands/DebugCommandResult.cs" Link="Linked/DebugCommandResult.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/DebugCommands/DebugCommandCatalog.cs" Link="Linked/DebugCommandCatalog.cs" />
+  </ItemGroup>
+</Project>

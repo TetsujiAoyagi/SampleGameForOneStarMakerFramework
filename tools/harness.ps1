@@ -36,6 +36,8 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'Harness/RecordStore.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Harness/GatePolicy.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Harness/Adapters/LocalChecks.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Harness/ApprovedSpecifications.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Harness/Adapters/UnityChecks.psm1') -Force
 
 # 適用作業の入口。現行仕様と採用 run は Git 外の CURRENT から読み、過去の RESULT ファイルは見ない。
 # init 以外は登録済み task だけを更新し、close 後の追記は拒否する。
@@ -57,6 +59,20 @@ function Get-Context {
     return [pscustomobject]@{ Directory = $directory; Current = $current; Spec = $spec }
 }
 function Save-CurrentFor([object]$Context) { [void](Write-Current $Context.Directory $Context.Current $Context.Current.revision) }
+function Get-AdoptedStepEvidenceLines([object]$Step) {
+    # Unity stepはoffline専用loadedPathを持たず、失敗時は観測も欠測する。形式を先に判定する。
+    if ($Step.PSObject.Properties['adapterKind'] -and $Step.adapterKind) {
+        if ($Step.adapterKind -cne 'unity-test-v2') { throw "未知adapterKindです: $($Step.adapterKind)" }
+        if ($Step.PSObject.Properties['observedAssemblies'] -and $null -ne $Step.observedAssemblies) {
+            "unity-observation=$($Step.observedAssemblies.path) sha256=$($Step.observedAssemblies.sha256)"
+        } else { 'unity-observation=missing' }
+        if ($Step.PSObject.Properties['payloads']) {
+            foreach ($item in @($Step.payloads)) { "unity-raw=$($item.role) path=$($item.path) sha256=$($item.sha256)" }
+        }
+    } elseif ($Step.PSObject.Properties['loadedPath'] -and $Step.loadedPath) {
+        "loaded-binary=$($Step.loadedPath) sha256=$($Step.loadedHash)"
+    }
+}
 try {
     if ($Command -ceq 'status') {
         $identity = Get-RepositoryIdentity $Repo
@@ -77,15 +93,14 @@ try {
     if (-not $Task) { throw '-Taskでtask-idを指定してください。' }
     $directory = Get-TaskDirectory $Repo $Task $StoreRoot
     if ($Command -ceq 'init') {
-        # 承認文面と完全な base SHA は入口の形。本文 hash の一致は Assert-ApprovedSpec が見る。
+        # 登録値は承認entryだけから生成し、外部JSONのprofileを信頼しない。
         # 登録済みディレクトリは上書きしない。欠落は restore、新規だけが init。
         if (-not $Owner -or -not $SpecFile) { throw 'initには-Ownerと承認済み-SpecFileが必要です。' }
         if ([IO.Directory]::Exists($directory)) { throw 'taskは登録済みです。status/currentを使い、欠落時はrestoreしてください。' }
         $text = [IO.File]::ReadAllText([IO.Path]::GetFullPath($SpecFile))
-        if ($text -cnotmatch 'Approved: 2026-09-29 by the human owner\.' -or $text -cnotmatch 'Implementation base: ([a-f0-9]{40})') { throw '承認済みA3 snapshotと完全base SHAが必要です。' }
-        $base = $Matches[1]
+        $spec = New-ApprovedSpecification $Task $text
+        $base = $spec.base
         $identity = Get-RepositoryIdentity $Repo
-        $spec = [ordered]@{ approved = $true; title = 'H1-PILOT-TRANSPORT-IDENTITY'; question = '過去RESULTを読まずに現行仕様と採用runから着手・判定できるか'; summary = 'Git外CURRENT、機械run、Artifacts/Harness限定のB exitとC entry'; outOfScope = 'Unity・R2 live・Route Proof本体・既存履歴の削除'; minimum = 'A3 snapshotのM1〜M6を満たす'; base = $base; testPolicy = 'local-gates-v1'; recordPolicy = 'external-current-v1'; trialDays = 7; adoptedDaysAfterClose = 30; text = $text }
         Assert-ApprovedSpec $Task ([pscustomobject]$spec)
         $specRecord = Initialize-Task $directory $Task $Owner $identity $spec
         Write-Output "initialized $Task spec=$($specRecord.Id) base=$base"
@@ -114,8 +129,8 @@ try {
             if ($runRecord.content.head -cne $context.Current.candidateHead) { continue }
             Write-Output "adopted-run=$($adopted.id) reason=$($adopted.reason)"
             Write-Output "run-record=$($runRecord.id) recordPath=$([IO.Path]::Combine($directory, 'runs', "$($runRecord.id).json")) recordHash=$($runRecord.hash) startedAt=$($runRecord.content.startedAt) status=$($runRecord.content.status)"
-            foreach ($step in @($runRecord.content.steps | Where-Object { $_.loadedPath })) {
-                Write-Output "loaded-binary=$($step.loadedPath) sha256=$($step.loadedHash)"
+            foreach ($step in @($runRecord.content.steps)) {
+                Get-AdoptedStepEvidenceLines $step
             }
         }
         return
@@ -138,7 +153,10 @@ try {
         $after = $null
         try {
             # step が例外でも進行中のまま残さない。失敗 record を書いてから戻る。
-            foreach ($step in $steps) { $results.Add((Invoke-LocalStep $Repo $directory $id $step)) }
+            foreach ($step in $steps) {
+                if ($step -like 'unity-editmode-*') { $results.Add((Invoke-UnityStep $Repo $directory $id $step $context.Spec)) }
+                else { $results.Add((Invoke-LocalStep $Repo $directory $id $step)) }
+            }
             $after = Get-GitScope $Repo $context.Spec.base (Get-Head)
         } catch {
             $failure = $_.Exception.Message
@@ -177,7 +195,7 @@ try {
             if ($blindRun.hash -cne $input.content.runHash) { throw 'CBlind入力が参照するrunが変わりました。' }
             $required = Get-RequiredSteps $context.Spec $scope.Paths 'judgment'
             Assert-RunForGate $blindRun.content $context.Spec $scope.Head $required
-            Assert-RunPayload $directory $blindRun.content
+            Assert-RunPayload $directory $blindRun.content $context.Spec $Repo
             $blindReceipt = Publish-BlindHandoff $directory $context.Current $input $Task $input.content.runId $scope.Head $context.Spec.specHash
             Write-Output "ready=true input=$($input.id) hash=$($input.hash) head=$($scope.Head) receipt=$($blindReceipt.id)"
             Write-Output "inputPath=$([IO.Path]::Combine($directory, 'inputs', "$($input.id).json"))"
@@ -192,7 +210,7 @@ try {
         Assert-HandoffCandidate $context.Current $To
         $steps = Get-RequiredSteps $context.Spec $scope.Paths $requiredStage
         Assert-RunForGate $run $context.Spec $scope.Head $steps
-        Assert-RunPayload $directory $run
+        Assert-RunPayload $directory $run $context.Spec $Repo
         $run | Add-Member -NotePropertyName recordHash -NotePropertyValue $record.hash -Force
         $diffResult = Invoke-Process 'git' @('-C', $Repo, 'diff', '--no-ext-diff', '--no-color', $context.Spec.base, $scope.Head, '--') $Repo 30
         if ($diffResult.ExitCode -ne 0) { throw '固定base/headの完全diffを取得できません。' }
