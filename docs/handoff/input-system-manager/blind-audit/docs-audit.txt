@@ -1,0 +1,7 @@
+
+対象: /workspace
+tracked な md（ベンダー同梱を除く）: 111 ファイル / 16617 行
+  うち作業台 docs/handoff/: 9 ファイル
+AUDIT_RESULT kind=docs files=111 errors=0 warnings=0 checks=1,2,3
+
+検査1・2 に違反なし。

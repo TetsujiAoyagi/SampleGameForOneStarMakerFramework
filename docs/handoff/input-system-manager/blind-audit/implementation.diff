@@ -1,0 +1,2413 @@
+diff --git a/docs/handoff/INPUT_SYSTEM_MANAGER.md b/docs/handoff/INPUT_SYSTEM_MANAGER.md
+new file mode 100644
+index 00000000..94578521
+--- /dev/null
++++ b/docs/handoff/INPUT_SYSTEM_MANAGER.md
+@@ -0,0 +1,271 @@
++# INPUT_SYSTEM_MANAGER
++
++- type: slice
++- status: B
++- branch: cursor/input-system-manager-159b
++- implementation base commit: 2c29c99806788406551affba6cc795e67e614748
++- implementation head commit: 未記入
++- risk: high
++- owner: 未割当（このクラウドセッションが A1 と実装を担当。A3 の人間はいない）
++- created: 2026-10-04
++- expires: 2026-11-04
++- harvest to: unity/Assets/Docs/Architecture/07-09-services.md の §8 と、unity/Assets/Docs/Architecture/32-accessibility-input-dof.md の「InputManager 待ち」の現状文。マージ時まで公開面は変えない
++- Phase A snapshot path / id: docs/handoff/input-system-manager/phase-a-snapshot.md
++- Phase A snapshot generated at: 2026-10-04T01:39:23Z
++- Phase A snapshot hash: 03ffdabf2100511bf4ee486b792d69a473d561ff110fbf6a5d8bc85142467c3a
++- Phase B result snapshot path / id: 未記入
++- Phase B result snapshot generated at: 未記入
++- Phase B result snapshot hash: 未記入
++- evidence bundle path / id: 未記入
++- evidence bundle generated at: 未記入
++- evidence bundle hash: 未記入
++- C' blind bundle path / id: 未記入
++- C' blind bundle generated at: 未記入
++- C' blind bundle hash: 未記入
++
++## 1. 目的と対象外
++
++- 目的: OneStarMaker の入力マネージャが、既存の Unity Input System アセットからアクション単位の現在値を読み、SceneState が Stable のあいだだけ公開し、それ以外では中立値を公開する。Player と UI はアクションマップの切替として持ち、プロファイル ID の枠だけを残す。
++- 対象外:
++  - SampleGame の FlyController の置換、および SampleGame や AppInitializer からこのマネージャへの接続
++  - Game.Common の NewStgCommonInput と、ゲーム固有アクション enum
++  - 二つ目の InputActionAsset
++  - UI のフォーカス、ヒント、ラベル、タブ順
++  - リマップ UI、触覚、ワールド巡回、片手プロファイルの中身
++  - AI による同じ値形の生成、疑似デバイス入力、キャラクターコントローラ
++  - ボタンのエッジ（押したフレームだけ真）の公開
++  - Vector3 / Quaternion の公開
++  - SceneDirector の購読と、どのシーンを操作対象にするかの決定
++  - アセットを IAssetManagement でロードすること
++  - 公開アーキテクチャ文書の更新（harvest は Phase D）
++  - オープンな PR #86（ScriptSystem）と PR #87（DebugStudio）のファイル
++- 現況:
++  - develop の HEAD は 2c29c99806788406551affba6cc795e67e614748。InputManager の実装は無い。
++  - [07-09-services.md](../../unity/Assets/Docs/Architecture/07-09-services.md) §8 は InputManager と InputObserver、その先の NewStgCommonInput を図にしている。コードにはどちらも無い。図は未着手の目標であり、このスライスはマネージャで止める。InputObserver という独立型は作らない。マップ切替と、マップが変わったときの R3 通知はマネージャが持つ。
++  - [32-accessibility-input-dof.md](../../unity/Assets/Docs/Architecture/32-accessibility-input-dof.md) はプロファイル本体を InputManager に置くが、「今やらない」にプロファイル / リマップ UI、ワールド巡回、UI の初期フォーカス、触覚を挙げている。片手は同時自由度を落とすことで、このスライスの仕事ではない。
++  - [SceneState.cs](../../unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneState.cs) の Stable = 8 のコメントは「ユーザー操作を受け付けられる唯一の状態」である。ユーザー制約と一致する。14 値の順序は変えない。
++  - Update の層順は UpdateLayerIds に Camera = 50、Streaming = 60 がある。ゲームプレイ用の共有定数は無い。UpdateBehaviourAdapter の既定 LayerOrder は 0。入力をそれらの前に置く定数は無かった。
++  - UpdateSystemHost は、不安定なシーンが残っているあいだ新規登録の active 化を止める。すでに active な Element の Update は止まらない。入力の公開をこの active 化ゲートだけに頼ると、遷移中に最後のサンプルが残る。公開の中立化は Element が Update を受け続けることが前提である。
++  - イベントの既存形は R3 である。SceneDirector は Subject でシーンイベントを流し、UI は ReactiveProperty を使う。毎フレームの値ストリームは無い。
++  - com.unity.inputsystem 1.20.0。ProjectSettings の activeInputHandler は 1（新しい Input System）。既存アセットは unity/Assets/InputSystem_Actions.inputactions。マップは Player と UI だけ。アクションの expectedControlType は Button、Vector2、それに UI の TrackedDevicePosition（Vector3）と TrackedDeviceOrientation（Quaternion）である。
++  - OneStarMaker.Runtime は既に Unity.InputSystem を参照している。asmdef の新規追加はしない。
++  - FlyController は Input System を直接読んでおり、このマネージャの消費者ではない。ファイルは変更しない。
++  - 上記のコードと文書は、合意した製品制約を否定していない。否定ではなく、文書の図より狭い実装で止める。
++
++## 2. 意思決定と受け入れ境界
++
++- このスライスが答える問い: ゲーム固有 enum を Runtime に置かず、既存アセットのアクション現在値を、Stable のあいだだけ割り当てなしで公開し、Player / UI の切替とプロファイル枠をマネージャに持たせられるか。
++- 進める最低条件:
++  1. 公開値はアクションの席であり、物理キーではない。Runtime にゲーム固有アクション enum と NewStgCommonInput が無い。
++  2. 渡された SceneState が Stable のとき、有効マップのサンプルが公開される。それ以外では全部の席が中立（X = 0、Y = 0）で、直前の Stable の量を残さない。
++  3. Player と UI の切替はマネージャのアクションマップ切替である。UI のフォーカス、ヒント、ラベル、タブ順は無い。
++  4. プロファイル ID の枠があり、受理されるのは既定 ID "default" だけである。未知の ID は拒否され、バインドは変わらない。片手プロファイルの中身、リマップ UI、触覚、ワールド巡回は無い。
++  5. サンプルは UpdateSystem の Update で、Layer 名 Input、LayerOrder -100 に登録できる。これは UpdateBehaviourAdapter の既定 0、Camera 50、Streaming 60 より前である。
++  6. サンプルと公開の定常経路で GC 割り当てが 0 である。
++  7. SampleGame と FlyController と AppInitializer は、このマネージャへ接続されていない。
++- 受け入れ条件（進める最低条件を構成する観測可能な詳細。別の完了バーにしない）:
++  1. 公開形 InputActionValue は Index、Map、Kind、X、Y を持つ。Kind は Button と Axis2 だけである。名前解決は文字列とマップの組で、毎フレームの公開読み取りはインデックスである。
++  2. SceneState の 14 値のうち IsAccepting が真なのは Stable だけである。未定義の整数も偽である。非 Stable の Sample はデバイスリーダーを呼ばず、公開バッファを席の識別子付きの零で書き直す。Stable に戻ったあとの値は、その時点のサンプルであり、遷移前の量ではない。
++  3. 有効マップ以外の席は、リーダーが非零を書いても公開時には零である。TrySetMap は Player と UI だけを受理し、変わったときだけ R3 の MapChanged を 1 回流す。同じマップの再設定はイベントを出さず、デバイスの Enable もやり直さない。
++  4. TrySelectProfile は InputProfileId.Default（値 "default"）だけを真にする。それ以外は偽で、ActiveProfile は Default のままである。
++  5. TryRegister は UpdateLayerIds.Input と InputLayerOrder で 1 回だけ成功する。LayerOrder 0 の Element より前の Update でサンプルが走る。
++  6. Release 構成のオフライン測定で、安定と非安定を含む 2000 回の Sample 経路の割り当てバイト数が 0 である。EditMode の同種測定は判定 C の対象である。
++  7. 差分に SampleGame、FlyController、AppInitializer の変更が無い。Runtime の InputSystem ソースに SampleGame、FlyController、NewStg、UnityEditor が無い。
++  8. 既存 inputactions を二つ目のアセットにせず、Player / UI の Button と Vector2 を席にする。Vector3 と Quaternion は席にせず、UnsupportedActionCount に数える。
++- ここでは答えない問いと所有する後続スライス（HANDOFF / program 名）:
++  - ゲーム固有 enum と SampleGame への接続: 後続スライス INPUT_GAME_ACTIONS
++  - どのシーンの SceneState を渡すか、SceneDirector 購読、起動時の TryRegister と active 化: 後続スライス INPUT_SCENE_BINDING
++  - アセットのロードと AssetOwner: 後続スライス INPUT_SCENE_BINDING
++  - 片手プロファイルの中身（巡回と決定 1 つ）: 後続スライス INPUT_ONE_HANDED_PROFILE
++  - リマップ UI と触覚: 後続スライス INPUT_BINDING_UI
++  - Vector3 / Quaternion を公開形に入れるか: 後続スライス INPUT_POSE_ACTIONS
++  - 同じ InputActionValue を出す AI: 後続スライス INPUT_AI_PRODUCER
++  - エッジ（押下フレーム）の公開: 後続スライス INPUT_ACTION_EDGES
++  - 他システムが InputLayerOrder 未満を選べないようにする強制: 後続スライス INPUT_LAYER_GUARD
++- 判定定義（GO / NO-GO。スパイクの場合だけ CONDITIONAL ACCEPT も定義）: 進める最低条件の証拠が揃い、その条件と常時契約への致命的な反証が無いとき GO。証拠が欠ける、または反証があるとき NO-GO。CONDITIONAL ACCEPT は使わない。このクラウドセッションは GO を記録しない。
++- 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。スパイクは上記で定義した場合だけ CONDITIONAL ACCEPT で終了できる。
++- A3 後の例外承認（人間、理由、置き換える既存条件または期限・検証予算。無ければ `なし`）: なし
++- 本文へ転記した実装制約:
++  - 依存は Game から Framework の一方向。このスライスは Runtime と、テスト用に OneStarMaker.Tests へ Unity.InputSystem を足すこと以外、asmdef を増やさない。Runtime は元から Unity.InputSystem を参照している。テストアセンブリの参照は推移しないため、公開コンストラクタが InputActionAsset を取る以上、テスト側の参照が要る。
++  - アセットは呼び出し側が所有する。マネージャは Destroy しない。Dispose では自分が有効にした Player と UI を両方無効にする。
++  - SceneState の既存 14 値は減らさず並べ替えない。状態変更の所有者は SceneLifecycleManager のままである。マネージャは渡された値を読むだけである。
++  - 公開 API に ZLogger 型を出さない。定常経路ではログしない。
++  - Update の登録先は UpdateSystem である。1 フレームの中では、入力 Element は Update でサンプルし、LateUpdate では公開値を変えない。
++  - 1 つの UpdateSystem の例外で他の Tick を止めない、は既存の UpdateCoordinator の契約である。サンプル定常経路は例外を投げない。
++  - Editor コードを Runtime に置かない。
++  - Unity 側の C# で record を使わない。
++  - 新規と編集した Unity 側 .cs の先頭は #nullable enable。
++  - 破棄されうる UnityEngine.Object には == null を使う。InputActionAsset はこれに該当する。InputActionMap と InputAction は UnityEngine.Object ではない。
++  - テストで Task.Delay と Thread.Sleep を使わない。
++  - 参照 0 を削除理由にしない。既存の FlyController は残す。
++  - PR の base は develop。main と develop へは push しない。
++- 未決事項: なし
++
++このスライスの凍結は、A2 の複数モデルレビューと A3 の採否を経ていない。ユーザーが、その未実施を記録したうえでこの本文を実装境界にするよう指示した。これは A3 の採否記録ではない。凍結後に設計判断が増える場合は実装を止め、本文の対象外へ送る。
++
++## 3. 責務マップ
++
++develop 時点の行数と、この凍結で置く行数。500 行、3 責務、既存ファイルの 50% 以上の増加は UpdateLayerIds だけが該当する。
++
++- UpdateLayerIds.cs（24 行 → 37 行、約 54% 増）
++  - 責務: Runtime が共有する Layer 名と順序の定数。
++  - 変更理由: 入力をゲームプレイ既定順と Camera より前に置く数を、呼び出し側のばらばらなリテラルにしない。
++  - 所有者・寿命: 定数。寿命はアプリのコンパイル単位。
++  - 依存: 無し。UnityEngine を参照しない。
++  - 公開面: Input、InputLayerOrder。既存の Camera と Streaming の値は変えない。
++  - テスト境界: オフラインで定数の大小を見る。
++  - 配置理由: 既存の共有表である。
++  - 非分割: 増分は定数 2 つと説明である。絶対行数は 37 で、表をファイル分割すると順序の所在が再び分かれる。分割しない。
++
++- InputControlMap.cs（新規 18 行）
++  - 責務: Player と UI の二値。
++  - 所有者・寿命: 値型。永続化しない。
++  - 依存: 無し。
++  - 公開面: enum。
++  - テスト境界: 未定義整数は拒否される。
++  - 配置: Runtime/InputSystem。ゲーム enum ではない。
++
++- InputActionMapNames.cs（新規 15 行）
++  - 責務: 既存アセットが既に持つマップ名 "Player" と "UI"。
++  - 公開面: 定数。アクション名は持たない。
++
++- InputActionValueKind.cs（新規 17 行）と InputActionValue.cs（新規 58 行）
++  - 責務: 公開するレベル。Button は X、Axis2 は X と Y。中立は両方 0。
++  - 所有者・寿命: 値型。バッファの要素。呼び出し側がコピーすれば Sample をまたいで残る。
++  - 依存: InputControlMap のみ。
++  - 公開面: 構造体。物理キーやデバイス ID は持たない。
++  - テスト境界: 等値と比較はオフラインで足りる。
++  - 配置理由: 後続の AI も同じ形を出す。デバイス型にしない。
++
++- InputProfileId.cs（新規 45 行）
++  - 責務: プロファイル枠。受理文字列は "default" だけ。
++  - 公開面: 構造体と Default。バインド適用メソッドは無い。
++  - テスト境界: 既定は真、それ以外は偽。
++
++- InputActionSlot.cs（新規 33 行）、InputActionNameKey.cs（新規 37 行）、InputActionKindMap.cs（新規 35 行）
++  - 責務: 束ね時の席、名前とマップの検索キー、expectedControlType から Kind への写像。
++  - 公開面: internal。
++  - 依存: 文字列比較のみ。Unity 型は使わない。
++  - テスト境界: Button と Vector2 だけが真。Vector3、Quaternion、大文字小文字の違いは偽。
++
++- InputAcceptance.cs（新規 18 行）
++  - 責務: SceneState が Stable のときだけ操作を公開する。
++  - 依存: SceneState。SceneLifecycleManager は呼ばない。
++  - テスト境界: 14 値と未定義整数。
++
++- InputPublication.cs（新規 58 行）
++  - 責務: 公開バッファを割り当てなしで零化、有効マップ以外を零化、同長のときだけコピーする。
++  - テスト境界: オフライン。長さ不一致はコピーしない。
++
++- IInputDeviceReader.cs（新規 15 行）、IInputMapControl.cs（新規 15 行）
++  - 責務: デバイス読み取りと、マップの有効化。AI の注入口にはしない。
++  - 公開面: internal。
++  - テスト境界: 偽リーダーでフレームを駆動する。
++
++- InputFrame.cs（新規 165 行）
++  - 責務: 公開スナップショット。有効マップ、プロファイル ID、渡された SceneState、サンプルバッファと公開バッファ。
++  - 変更理由: これらは同じ「今フレーム何を公開するか」を決める。
++  - 所有者・寿命: マネージャが生成し、マネージャと同時に捨てる。アセットは持たない。
++  - 依存: 上記の純粋型と SceneState。UnityEngine と R3 は参照しない。
++  - 公開面: internal。
++  - テスト境界: Unity 無しのオフライン実行。
++  - 配置理由: Policy を Unity I/O から離す。
++  - 非分割: プロファイル、マップ、受理、バッファは同じテスト方法（純粋関数）と同じ寿命である。プロファイルのバインド適用はここに置かない。行数は 500 未満で、50% 増加の対象になる既存ファイルでもない。分割しない。
++
++- InputActionAssetReader.cs（新規 135 行）
++  - 責務: InputActionAsset の Player / UI を束ね、Button と Vector2 だけを席にし、片方のマップだけを Enable する。
++  - 所有者・寿命: マネージャが所有する読み取り口。アセット自体の所有者は呼び出し側。Dispose 相当の Disable はマップを無効にするだけで、アセットは Destroy しない。
++  - 依存: UnityEngine.InputSystem。束ね時の List は許す。Read のループは割り当てない。
++  - 公開面: internal。
++  - テスト境界: Unity コンパイルが要る。この環境では未コンパイル。Kind の写像と、既存 JSON の形はオフラインで固定する。
++  - 配置理由: Unity I/O を InputFrame に混ぜない。
++
++- InputManager.cs（新規 243 行）
++  - 責務: フレーム、リーダー、R3 の MapChanged、Update 登録の接続。
++  - 所有者・寿命: 呼び出し側が new し Dispose する。DontDestroyOnLoad しない。シーンには属さない。
++  - 依存: InputFrame、リーダー、R3、UpdateCoordinator、UpdateLayerIds。
++  - 公開面: コンストラクタ（InputActionAsset）、ActiveMap、ActiveProfile、InteractionState、MapChanged、Published、ActionCount、UnsupportedActionCount、TryGetActionIndex、TryRead、SetInteractionState、TrySelectProfile、TrySetMap、TryRegister、Sample、Dispose。
++  - テスト境界: EditMode は偽リーダーと UpdateCoordinator で登録順、通知、中立化、割り当てを見る。内部コンストラクタは OneStarMaker.Tests にだけ見える。
++  - 配置理由: §8 のマネージャの場所。orchestration を Policy と分ける。
++  - 非分割: 入れ子の Update Element とテスト用の空マップ制御は、マネージャの寿命と登録のためだけの private 型である。外へ出すと公開面が増える。243 行で閾値未満。分割しない。
++
++- OneStarMaker.Tests.asmdef
++  - 変更理由: 公開コンストラクタの InputActionAsset をテストアセンブリが解決する。
++  - 依存: 参照配列へ Unity.InputSystem を 1 件追加する。Runtime の参照は変えない。
++  - テスト境界: テストアセンブリだけ。
++
++- OneStarMaker.Tests/InputSystem/InputManagerTests.cs（新規 240 行）
++  - 責務: マネージャの EditMode 検証。
++  - 依存: NUnit、R3、Runtime、Foundation。実時間待ちはしない。
++
++- tools/InputSystemOfflineTests
++  - 責務: Unity Editor 無しで純粋側を実行する。製品アセンブリではない。
++  - 依存: net8.0。連結コンパイルは SceneState、UpdateLayerIds、Unity を参照しない InputSystem のソースだけ。
++  - テスト境界: 割り当て、SceneState、既存 inputactions の JSON、ソースの禁則語。
++
++## 4. 実装計画
++
++- 変更対象: 上記のファイルだけ。既存 inputactions、SampleGame、AppInitializer、FlyController、アーキテクチャ文書、PR #86 と #87 のパスは変えない。
++- 順序: 純粋型、フレーム、アセットリーダー、マネージャ、EditMode テスト、オフライン実行、共有 Layer 定数。
++- Phase B から Phase A へ差し戻す条件: 凍結に無い状態、asmdef 参照、所有者、寿命、公開 API が必要になったとき。計画した配置で中核の公開規則をオフラインテストできなくなったとき。ゲーム固有 enum、二つ目のアセット、SampleGame 接続、プロファイル本体が必要になったときは実装せず対象外へ送る。
++- 対象外を維持する方法: マネージャはシーンを購読しない。アセットをロードしない。アクション名の enum を宣言しない。SampleGame のファイルを差分に入れない。Kind の写像は Button と Vector2 だけを真にする。
++
++## 5. テストとレビュー計画
++
++- 単体テスト: InputFrame と公開規則は tools/InputSystemOfflineTests を `dotnet run -c Release --project tools/InputSystemOfflineTests` で実行する。マネージャの登録と R3 は OneStarMaker.Tests.InputSystem。
++- 差し戻し中の起点 `-Filter`（C が根拠付きで変更可。受け入れ条件の追加ではない）: OneStarMaker.Tests.InputSystem
++- 判定必須テスト（GO 候補 head。実装変更スライスは最終全 EditMode 回帰が標準）: `pwsh tools/run-tests.ps1` をフィルタ無しで実行し、結果 XML の失敗 0 かつ実行 1 件以上。オフライン実行は判定必須の代替にしない。
++- 全 EditMode 回帰の適用除外（理由と代替証拠。無ければ `なし`）: なし
++- 統合・Unity テスト: 上記の全 EditMode。PlayMode と Player は凍結条件に無い。
++- 操作・実行時・目視条件の検証経路（条件ごとの担当、環境・初期状態、操作、観測と合否、対象版・保存証拠・C / C' への受け渡し。既存テストは参照で可）: プレイヤー操作は条件に無い。API 条件はテスト名で閉じる。
++- 未知の操作経路の疎通結果と、必要な検証支援・確認地点（未知経路が無い場合だけ `なし`。Phase C へ委譲する場合は「未確認。初回確認は Phase C」と理由・担当・確認地点、不成立時の対応）: なし
++- 人間の判断が必要な条件と合意した担当・証拠の受け入れ方（観察記録の受理 / 画像の独立再評価。無ければ `なし`）: なし
++- 機械検査: `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1`。
++- A0/A1 主担当・モデル・ベンダー: このクラウドセッション。Grok 4.7。xAI。
++- A2 独立レビューごとの観点・担当・モデル・ベンダー: 未実施。複数モデルへの独立レビューは、このクラウドセッションでは行っていない。
++- A3 統合担当・モデル・採否: 未実施。人間が指摘を採用、不採用、保留に分類していない。ユーザー指示により、その未実施を記録した本文を実装境界にした。
++- C' 用に予約した担当・モデル・ベンダー: Grok 以外の系列。新規セッション。このセッションは A と B に Grok 4.7 を使った。判定 C の Unity XML が同じ implementation head に付くまで C' は開始しない。
++- 独立性の強化条件を満たせない場合の理由: A2 を行っていないため、Phase A がモデル系列を使い切ってはいない。C' の予約は残っている。このセッションの自己確認を独立した Phase C または C' と呼ばない。
++
++## 6. Phase B 実装結果
++
++- 実装: 未実施
++- HANDOFF との差: 未実施
++- 未実行: 未実施
++- implementation head commit: 未実施
++- Phase B 担当・モデル・ベンダー: 未実施
++
++## 7. Phase C
++
++- 種別: 未実施
++- evidence bundle id / hash: 未実施
++- 構造適合: 未実施
++- 現在の問いを阻害する findings（違反する凍結済み条件 / 常時契約を併記）: 未実施
++- 後続スライスへ移送する findings: 未実施
++- 実行したテストコマンドと `-Filter`、対象を選んだ理由: 未実施
++- テスト結果（XML 上の実行テスト名と件数）: 未実施
++- 判定必須のうち未実行: 未実施
++- 重い検証を発見段階で限定実行した場合の理由と範囲: 未実施
++- 未確認事項: 未実施
++- 担当・モデル: 未実施
++
++## 8. Phase C'
++
++- 担当方式: 未実施
++- blind audit bundle id / hash: 未実施
++- 確認範囲・方法（全件機械検査 / 代表箇所の目視・操作等）: 未実施
++- 判定（人間担当は本人の明示回答まで未実施）: 未実施
++- 現在の問いを阻害する findings（違反する凍結済み条件 / 常時契約を併記）: 未実施
++- 後続スライスへ移送する findings: 未実施
++- 残存リスク: 未実施
++- 監査できなかった範囲: 未実施
++- 独立性: 未実施
++- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: 未実施
++- 担当・モデル: 未実施
++
++## 9. Phase D
++
++- C / C' の突合: 未実施
++- マージ判断: 未実施
++- harvest: 未実施
++- 削除確認: 未実施
+diff --git a/docs/handoff/input-system-manager/phase-a-snapshot.md b/docs/handoff/input-system-manager/phase-a-snapshot.md
+new file mode 100644
+index 00000000..e14ac808
+--- /dev/null
++++ b/docs/handoff/input-system-manager/phase-a-snapshot.md
+@@ -0,0 +1,273 @@
++<!-- phase-a-snapshot: frozen before implementation results. Do not append Phase B or Phase C findings to this file. -->
++
++# INPUT_SYSTEM_MANAGER
++
++- type: slice
++- status: B
++- branch: cursor/input-system-manager-159b
++- implementation base commit: 2c29c99806788406551affba6cc795e67e614748
++- implementation head commit: 未記入
++- risk: high
++- owner: 未割当（このクラウドセッションが A1 と実装を担当。A3 の人間はいない）
++- created: 2026-10-04
++- expires: 2026-11-04
++- harvest to: unity/Assets/Docs/Architecture/07-09-services.md の §8 と、unity/Assets/Docs/Architecture/32-accessibility-input-dof.md の「InputManager 待ち」の現状文。マージ時まで公開面は変えない
++- Phase A snapshot path / id: docs/handoff/input-system-manager/phase-a-snapshot.md
++- Phase A snapshot generated at: 2026-10-04T01:39:23Z
++- Phase A snapshot hash: 未記入
++- Phase B result snapshot path / id: 未記入
++- Phase B result snapshot generated at: 未記入
++- Phase B result snapshot hash: 未記入
++- evidence bundle path / id: 未記入
++- evidence bundle generated at: 未記入
++- evidence bundle hash: 未記入
++- C' blind bundle path / id: 未記入
++- C' blind bundle generated at: 未記入
++- C' blind bundle hash: 未記入
++
++## 1. 目的と対象外
++
++- 目的: OneStarMaker の入力マネージャが、既存の Unity Input System アセットからアクション単位の現在値を読み、SceneState が Stable のあいだだけ公開し、それ以外では中立値を公開する。Player と UI はアクションマップの切替として持ち、プロファイル ID の枠だけを残す。
++- 対象外:
++  - SampleGame の FlyController の置換、および SampleGame や AppInitializer からこのマネージャへの接続
++  - Game.Common の NewStgCommonInput と、ゲーム固有アクション enum
++  - 二つ目の InputActionAsset
++  - UI のフォーカス、ヒント、ラベル、タブ順
++  - リマップ UI、触覚、ワールド巡回、片手プロファイルの中身
++  - AI による同じ値形の生成、疑似デバイス入力、キャラクターコントローラ
++  - ボタンのエッジ（押したフレームだけ真）の公開
++  - Vector3 / Quaternion の公開
++  - SceneDirector の購読と、どのシーンを操作対象にするかの決定
++  - アセットを IAssetManagement でロードすること
++  - 公開アーキテクチャ文書の更新（harvest は Phase D）
++  - オープンな PR #86（ScriptSystem）と PR #87（DebugStudio）のファイル
++- 現況:
++  - develop の HEAD は 2c29c99806788406551affba6cc795e67e614748。InputManager の実装は無い。
++  - [07-09-services.md](../../unity/Assets/Docs/Architecture/07-09-services.md) §8 は InputManager と InputObserver、その先の NewStgCommonInput を図にしている。コードにはどちらも無い。図は未着手の目標であり、このスライスはマネージャで止める。InputObserver という独立型は作らない。マップ切替と、マップが変わったときの R3 通知はマネージャが持つ。
++  - [32-accessibility-input-dof.md](../../unity/Assets/Docs/Architecture/32-accessibility-input-dof.md) はプロファイル本体を InputManager に置くが、「今やらない」にプロファイル / リマップ UI、ワールド巡回、UI の初期フォーカス、触覚を挙げている。片手は同時自由度を落とすことで、このスライスの仕事ではない。
++  - [SceneState.cs](../../unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneState.cs) の Stable = 8 のコメントは「ユーザー操作を受け付けられる唯一の状態」である。ユーザー制約と一致する。14 値の順序は変えない。
++  - Update の層順は UpdateLayerIds に Camera = 50、Streaming = 60 がある。ゲームプレイ用の共有定数は無い。UpdateBehaviourAdapter の既定 LayerOrder は 0。入力をそれらの前に置く定数は無かった。
++  - UpdateSystemHost は、不安定なシーンが残っているあいだ新規登録の active 化を止める。すでに active な Element の Update は止まらない。入力の公開をこの active 化ゲートだけに頼ると、遷移中に最後のサンプルが残る。公開の中立化は Element が Update を受け続けることが前提である。
++  - イベントの既存形は R3 である。SceneDirector は Subject でシーンイベントを流し、UI は ReactiveProperty を使う。毎フレームの値ストリームは無い。
++  - com.unity.inputsystem 1.20.0。ProjectSettings の activeInputHandler は 1（新しい Input System）。既存アセットは unity/Assets/InputSystem_Actions.inputactions。マップは Player と UI だけ。アクションの expectedControlType は Button、Vector2、それに UI の TrackedDevicePosition（Vector3）と TrackedDeviceOrientation（Quaternion）である。
++  - OneStarMaker.Runtime は既に Unity.InputSystem を参照している。asmdef の新規追加はしない。
++  - FlyController は Input System を直接読んでおり、このマネージャの消費者ではない。ファイルは変更しない。
++  - 上記のコードと文書は、合意した製品制約を否定していない。否定ではなく、文書の図より狭い実装で止める。
++
++## 2. 意思決定と受け入れ境界
++
++- このスライスが答える問い: ゲーム固有 enum を Runtime に置かず、既存アセットのアクション現在値を、Stable のあいだだけ割り当てなしで公開し、Player / UI の切替とプロファイル枠をマネージャに持たせられるか。
++- 進める最低条件:
++  1. 公開値はアクションの席であり、物理キーではない。Runtime にゲーム固有アクション enum と NewStgCommonInput が無い。
++  2. 渡された SceneState が Stable のとき、有効マップのサンプルが公開される。それ以外では全部の席が中立（X = 0、Y = 0）で、直前の Stable の量を残さない。
++  3. Player と UI の切替はマネージャのアクションマップ切替である。UI のフォーカス、ヒント、ラベル、タブ順は無い。
++  4. プロファイル ID の枠があり、受理されるのは既定 ID "default" だけである。未知の ID は拒否され、バインドは変わらない。片手プロファイルの中身、リマップ UI、触覚、ワールド巡回は無い。
++  5. サンプルは UpdateSystem の Update で、Layer 名 Input、LayerOrder -100 に登録できる。これは UpdateBehaviourAdapter の既定 0、Camera 50、Streaming 60 より前である。
++  6. サンプルと公開の定常経路で GC 割り当てが 0 である。
++  7. SampleGame と FlyController と AppInitializer は、このマネージャへ接続されていない。
++- 受け入れ条件（進める最低条件を構成する観測可能な詳細。別の完了バーにしない）:
++  1. 公開形 InputActionValue は Index、Map、Kind、X、Y を持つ。Kind は Button と Axis2 だけである。名前解決は文字列とマップの組で、毎フレームの公開読み取りはインデックスである。
++  2. SceneState の 14 値のうち IsAccepting が真なのは Stable だけである。未定義の整数も偽である。非 Stable の Sample はデバイスリーダーを呼ばず、公開バッファを席の識別子付きの零で書き直す。Stable に戻ったあとの値は、その時点のサンプルであり、遷移前の量ではない。
++  3. 有効マップ以外の席は、リーダーが非零を書いても公開時には零である。TrySetMap は Player と UI だけを受理し、変わったときだけ R3 の MapChanged を 1 回流す。同じマップの再設定はイベントを出さず、デバイスの Enable もやり直さない。
++  4. TrySelectProfile は InputProfileId.Default（値 "default"）だけを真にする。それ以外は偽で、ActiveProfile は Default のままである。
++  5. TryRegister は UpdateLayerIds.Input と InputLayerOrder で 1 回だけ成功する。LayerOrder 0 の Element より前の Update でサンプルが走る。
++  6. Release 構成のオフライン測定で、安定と非安定を含む 2000 回の Sample 経路の割り当てバイト数が 0 である。EditMode の同種測定は判定 C の対象である。
++  7. 差分に SampleGame、FlyController、AppInitializer の変更が無い。Runtime の InputSystem ソースに SampleGame、FlyController、NewStg、UnityEditor が無い。
++  8. 既存 inputactions を二つ目のアセットにせず、Player / UI の Button と Vector2 を席にする。Vector3 と Quaternion は席にせず、UnsupportedActionCount に数える。
++- ここでは答えない問いと所有する後続スライス（HANDOFF / program 名）:
++  - ゲーム固有 enum と SampleGame への接続: 後続スライス INPUT_GAME_ACTIONS
++  - どのシーンの SceneState を渡すか、SceneDirector 購読、起動時の TryRegister と active 化: 後続スライス INPUT_SCENE_BINDING
++  - アセットのロードと AssetOwner: 後続スライス INPUT_SCENE_BINDING
++  - 片手プロファイルの中身（巡回と決定 1 つ）: 後続スライス INPUT_ONE_HANDED_PROFILE
++  - リマップ UI と触覚: 後続スライス INPUT_BINDING_UI
++  - Vector3 / Quaternion を公開形に入れるか: 後続スライス INPUT_POSE_ACTIONS
++  - 同じ InputActionValue を出す AI: 後続スライス INPUT_AI_PRODUCER
++  - エッジ（押下フレーム）の公開: 後続スライス INPUT_ACTION_EDGES
++  - 他システムが InputLayerOrder 未満を選べないようにする強制: 後続スライス INPUT_LAYER_GUARD
++- 判定定義（GO / NO-GO。スパイクの場合だけ CONDITIONAL ACCEPT も定義）: 進める最低条件の証拠が揃い、その条件と常時契約への致命的な反証が無いとき GO。証拠が欠ける、または反証があるとき NO-GO。CONDITIONAL ACCEPT は使わない。このクラウドセッションは GO を記録しない。
++- 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。スパイクは上記で定義した場合だけ CONDITIONAL ACCEPT で終了できる。
++- A3 後の例外承認（人間、理由、置き換える既存条件または期限・検証予算。無ければ `なし`）: なし
++- 本文へ転記した実装制約:
++  - 依存は Game から Framework の一方向。このスライスは Runtime と、テスト用に OneStarMaker.Tests へ Unity.InputSystem を足すこと以外、asmdef を増やさない。Runtime は元から Unity.InputSystem を参照している。テストアセンブリの参照は推移しないため、公開コンストラクタが InputActionAsset を取る以上、テスト側の参照が要る。
++  - アセットは呼び出し側が所有する。マネージャは Destroy しない。Dispose では自分が有効にした Player と UI を両方無効にする。
++  - SceneState の既存 14 値は減らさず並べ替えない。状態変更の所有者は SceneLifecycleManager のままである。マネージャは渡された値を読むだけである。
++  - 公開 API に ZLogger 型を出さない。定常経路ではログしない。
++  - Update の登録先は UpdateSystem である。1 フレームの中では、入力 Element は Update でサンプルし、LateUpdate では公開値を変えない。
++  - 1 つの UpdateSystem の例外で他の Tick を止めない、は既存の UpdateCoordinator の契約である。サンプル定常経路は例外を投げない。
++  - Editor コードを Runtime に置かない。
++  - Unity 側の C# で record を使わない。
++  - 新規と編集した Unity 側 .cs の先頭は #nullable enable。
++  - 破棄されうる UnityEngine.Object には == null を使う。InputActionAsset はこれに該当する。InputActionMap と InputAction は UnityEngine.Object ではない。
++  - テストで Task.Delay と Thread.Sleep を使わない。
++  - 参照 0 を削除理由にしない。既存の FlyController は残す。
++  - PR の base は develop。main と develop へは push しない。
++- 未決事項: なし
++
++このスライスの凍結は、A2 の複数モデルレビューと A3 の採否を経ていない。ユーザーが、その未実施を記録したうえでこの本文を実装境界にするよう指示した。これは A3 の採否記録ではない。凍結後に設計判断が増える場合は実装を止め、本文の対象外へ送る。
++
++## 3. 責務マップ
++
++develop 時点の行数と、この凍結で置く行数。500 行、3 責務、既存ファイルの 50% 以上の増加は UpdateLayerIds だけが該当する。
++
++- UpdateLayerIds.cs（24 行 → 37 行、約 54% 増）
++  - 責務: Runtime が共有する Layer 名と順序の定数。
++  - 変更理由: 入力をゲームプレイ既定順と Camera より前に置く数を、呼び出し側のばらばらなリテラルにしない。
++  - 所有者・寿命: 定数。寿命はアプリのコンパイル単位。
++  - 依存: 無し。UnityEngine を参照しない。
++  - 公開面: Input、InputLayerOrder。既存の Camera と Streaming の値は変えない。
++  - テスト境界: オフラインで定数の大小を見る。
++  - 配置理由: 既存の共有表である。
++  - 非分割: 増分は定数 2 つと説明である。絶対行数は 37 で、表をファイル分割すると順序の所在が再び分かれる。分割しない。
++
++- InputControlMap.cs（新規 18 行）
++  - 責務: Player と UI の二値。
++  - 所有者・寿命: 値型。永続化しない。
++  - 依存: 無し。
++  - 公開面: enum。
++  - テスト境界: 未定義整数は拒否される。
++  - 配置: Runtime/InputSystem。ゲーム enum ではない。
++
++- InputActionMapNames.cs（新規 15 行）
++  - 責務: 既存アセットが既に持つマップ名 "Player" と "UI"。
++  - 公開面: 定数。アクション名は持たない。
++
++- InputActionValueKind.cs（新規 17 行）と InputActionValue.cs（新規 58 行）
++  - 責務: 公開するレベル。Button は X、Axis2 は X と Y。中立は両方 0。
++  - 所有者・寿命: 値型。バッファの要素。呼び出し側がコピーすれば Sample をまたいで残る。
++  - 依存: InputControlMap のみ。
++  - 公開面: 構造体。物理キーやデバイス ID は持たない。
++  - テスト境界: 等値と比較はオフラインで足りる。
++  - 配置理由: 後続の AI も同じ形を出す。デバイス型にしない。
++
++- InputProfileId.cs（新規 45 行）
++  - 責務: プロファイル枠。受理文字列は "default" だけ。
++  - 公開面: 構造体と Default。バインド適用メソッドは無い。
++  - テスト境界: 既定は真、それ以外は偽。
++
++- InputActionSlot.cs（新規 33 行）、InputActionNameKey.cs（新規 37 行）、InputActionKindMap.cs（新規 35 行）
++  - 責務: 束ね時の席、名前とマップの検索キー、expectedControlType から Kind への写像。
++  - 公開面: internal。
++  - 依存: 文字列比較のみ。Unity 型は使わない。
++  - テスト境界: Button と Vector2 だけが真。Vector3、Quaternion、大文字小文字の違いは偽。
++
++- InputAcceptance.cs（新規 18 行）
++  - 責務: SceneState が Stable のときだけ操作を公開する。
++  - 依存: SceneState。SceneLifecycleManager は呼ばない。
++  - テスト境界: 14 値と未定義整数。
++
++- InputPublication.cs（新規 58 行）
++  - 責務: 公開バッファを割り当てなしで零化、有効マップ以外を零化、同長のときだけコピーする。
++  - テスト境界: オフライン。長さ不一致はコピーしない。
++
++- IInputDeviceReader.cs（新規 15 行）、IInputMapControl.cs（新規 15 行）
++  - 責務: デバイス読み取りと、マップの有効化。AI の注入口にはしない。
++  - 公開面: internal。
++  - テスト境界: 偽リーダーでフレームを駆動する。
++
++- InputFrame.cs（新規 165 行）
++  - 責務: 公開スナップショット。有効マップ、プロファイル ID、渡された SceneState、サンプルバッファと公開バッファ。
++  - 変更理由: これらは同じ「今フレーム何を公開するか」を決める。
++  - 所有者・寿命: マネージャが生成し、マネージャと同時に捨てる。アセットは持たない。
++  - 依存: 上記の純粋型と SceneState。UnityEngine と R3 は参照しない。
++  - 公開面: internal。
++  - テスト境界: Unity 無しのオフライン実行。
++  - 配置理由: Policy を Unity I/O から離す。
++  - 非分割: プロファイル、マップ、受理、バッファは同じテスト方法（純粋関数）と同じ寿命である。プロファイルのバインド適用はここに置かない。行数は 500 未満で、50% 増加の対象になる既存ファイルでもない。分割しない。
++
++- InputActionAssetReader.cs（新規 135 行）
++  - 責務: InputActionAsset の Player / UI を束ね、Button と Vector2 だけを席にし、片方のマップだけを Enable する。
++  - 所有者・寿命: マネージャが所有する読み取り口。アセット自体の所有者は呼び出し側。Dispose 相当の Disable はマップを無効にするだけで、アセットは Destroy しない。
++  - 依存: UnityEngine.InputSystem。束ね時の List は許す。Read のループは割り当てない。
++  - 公開面: internal。
++  - テスト境界: Unity コンパイルが要る。この環境では未コンパイル。Kind の写像と、既存 JSON の形はオフラインで固定する。
++  - 配置理由: Unity I/O を InputFrame に混ぜない。
++
++- InputManager.cs（新規 243 行）
++  - 責務: フレーム、リーダー、R3 の MapChanged、Update 登録の接続。
++  - 所有者・寿命: 呼び出し側が new し Dispose する。DontDestroyOnLoad しない。シーンには属さない。
++  - 依存: InputFrame、リーダー、R3、UpdateCoordinator、UpdateLayerIds。
++  - 公開面: コンストラクタ（InputActionAsset）、ActiveMap、ActiveProfile、InteractionState、MapChanged、Published、ActionCount、UnsupportedActionCount、TryGetActionIndex、TryRead、SetInteractionState、TrySelectProfile、TrySetMap、TryRegister、Sample、Dispose。
++  - テスト境界: EditMode は偽リーダーと UpdateCoordinator で登録順、通知、中立化、割り当てを見る。内部コンストラクタは OneStarMaker.Tests にだけ見える。
++  - 配置理由: §8 のマネージャの場所。orchestration を Policy と分ける。
++  - 非分割: 入れ子の Update Element とテスト用の空マップ制御は、マネージャの寿命と登録のためだけの private 型である。外へ出すと公開面が増える。243 行で閾値未満。分割しない。
++
++- OneStarMaker.Tests.asmdef
++  - 変更理由: 公開コンストラクタの InputActionAsset をテストアセンブリが解決する。
++  - 依存: 参照配列へ Unity.InputSystem を 1 件追加する。Runtime の参照は変えない。
++  - テスト境界: テストアセンブリだけ。
++
++- OneStarMaker.Tests/InputSystem/InputManagerTests.cs（新規 240 行）
++  - 責務: マネージャの EditMode 検証。
++  - 依存: NUnit、R3、Runtime、Foundation。実時間待ちはしない。
++
++- tools/InputSystemOfflineTests
++  - 責務: Unity Editor 無しで純粋側を実行する。製品アセンブリではない。
++  - 依存: net8.0。連結コンパイルは SceneState、UpdateLayerIds、Unity を参照しない InputSystem のソースだけ。
++  - テスト境界: 割り当て、SceneState、既存 inputactions の JSON、ソースの禁則語。
++
++## 4. 実装計画
++
++- 変更対象: 上記のファイルだけ。既存 inputactions、SampleGame、AppInitializer、FlyController、アーキテクチャ文書、PR #86 と #87 のパスは変えない。
++- 順序: 純粋型、フレーム、アセットリーダー、マネージャ、EditMode テスト、オフライン実行、共有 Layer 定数。
++- Phase B から Phase A へ差し戻す条件: 凍結に無い状態、asmdef 参照、所有者、寿命、公開 API が必要になったとき。計画した配置で中核の公開規則をオフラインテストできなくなったとき。ゲーム固有 enum、二つ目のアセット、SampleGame 接続、プロファイル本体が必要になったときは実装せず対象外へ送る。
++- 対象外を維持する方法: マネージャはシーンを購読しない。アセットをロードしない。アクション名の enum を宣言しない。SampleGame のファイルを差分に入れない。Kind の写像は Button と Vector2 だけを真にする。
++
++## 5. テストとレビュー計画
++
++- 単体テスト: InputFrame と公開規則は tools/InputSystemOfflineTests を `dotnet run -c Release --project tools/InputSystemOfflineTests` で実行する。マネージャの登録と R3 は OneStarMaker.Tests.InputSystem。
++- 差し戻し中の起点 `-Filter`（C が根拠付きで変更可。受け入れ条件の追加ではない）: OneStarMaker.Tests.InputSystem
++- 判定必須テスト（GO 候補 head。実装変更スライスは最終全 EditMode 回帰が標準）: `pwsh tools/run-tests.ps1` をフィルタ無しで実行し、結果 XML の失敗 0 かつ実行 1 件以上。オフライン実行は判定必須の代替にしない。
++- 全 EditMode 回帰の適用除外（理由と代替証拠。無ければ `なし`）: なし
++- 統合・Unity テスト: 上記の全 EditMode。PlayMode と Player は凍結条件に無い。
++- 操作・実行時・目視条件の検証経路（条件ごとの担当、環境・初期状態、操作、観測と合否、対象版・保存証拠・C / C' への受け渡し。既存テストは参照で可）: プレイヤー操作は条件に無い。API 条件はテスト名で閉じる。
++- 未知の操作経路の疎通結果と、必要な検証支援・確認地点（未知経路が無い場合だけ `なし`。Phase C へ委譲する場合は「未確認。初回確認は Phase C」と理由・担当・確認地点、不成立時の対応）: なし
++- 人間の判断が必要な条件と合意した担当・証拠の受け入れ方（観察記録の受理 / 画像の独立再評価。無ければ `なし`）: なし
++- 機械検査: `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1`。
++- A0/A1 主担当・モデル・ベンダー: このクラウドセッション。Grok 4.7。xAI。
++- A2 独立レビューごとの観点・担当・モデル・ベンダー: 未実施。複数モデルへの独立レビューは、このクラウドセッションでは行っていない。
++- A3 統合担当・モデル・採否: 未実施。人間が指摘を採用、不採用、保留に分類していない。ユーザー指示により、その未実施を記録した本文を実装境界にした。
++- C' 用に予約した担当・モデル・ベンダー: Grok 以外の系列。新規セッション。このセッションは A と B に Grok 4.7 を使った。判定 C の Unity XML が同じ implementation head に付くまで C' は開始しない。
++- 独立性の強化条件を満たせない場合の理由: A2 を行っていないため、Phase A がモデル系列を使い切ってはいない。C' の予約は残っている。このセッションの自己確認を独立した Phase C または C' と呼ばない。
++
++## 6. Phase B 実装結果
++
++- 実装: 未実施
++- HANDOFF との差: 未実施
++- 未実行: 未実施
++- implementation head commit: 未実施
++- Phase B 担当・モデル・ベンダー: 未実施
++
++## 7. Phase C
++
++- 種別: 未実施
++- evidence bundle id / hash: 未実施
++- 構造適合: 未実施
++- 現在の問いを阻害する findings（違反する凍結済み条件 / 常時契約を併記）: 未実施
++- 後続スライスへ移送する findings: 未実施
++- 実行したテストコマンドと `-Filter`、対象を選んだ理由: 未実施
++- テスト結果（XML 上の実行テスト名と件数）: 未実施
++- 判定必須のうち未実行: 未実施
++- 重い検証を発見段階で限定実行した場合の理由と範囲: 未実施
++- 未確認事項: 未実施
++- 担当・モデル: 未実施
++
++## 8. Phase C'
++
++- 担当方式: 未実施
++- blind audit bundle id / hash: 未実施
++- 確認範囲・方法（全件機械検査 / 代表箇所の目視・操作等）: 未実施
++- 判定（人間担当は本人の明示回答まで未実施）: 未実施
++- 現在の問いを阻害する findings（違反する凍結済み条件 / 常時契約を併記）: 未実施
++- 後続スライスへ移送する findings: 未実施
++- 残存リスク: 未実施
++- 監査できなかった範囲: 未実施
++- 独立性: 未実施
++- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: 未実施
++- 担当・モデル: 未実施
++
++## 9. Phase D
++
++- C / C' の突合: 未実施
++- マージ判断: 未実施
++- harvest: 未実施
++- 削除確認: 未実施
+diff --git a/tools/InputSystemOfflineTests/InputSystemOfflineTests.csproj b/tools/InputSystemOfflineTests/InputSystemOfflineTests.csproj
+new file mode 100644
+index 00000000..62708420
+--- /dev/null
++++ b/tools/InputSystemOfflineTests/InputSystemOfflineTests.csproj
+@@ -0,0 +1,27 @@
++<Project Sdk="Microsoft.NET.Sdk">
++  <PropertyGroup>
++    <OutputType>Exe</OutputType>
++    <TargetFramework>net8.0</TargetFramework>
++    <Nullable>enable</Nullable>
++    <ImplicitUsings>disable</ImplicitUsings>
++    <RootNamespace>OneStarMaker.InputSystemOfflineTests</RootNamespace>
++    <AssemblyName>InputSystemOfflineTests</AssemblyName>
++  </PropertyGroup>
++  <ItemGroup>
++    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneState.cs" Link="Linked/SceneState.cs" />
++    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/UpdateSystem/Layers/UpdateLayerIds.cs" Link="Linked/UpdateLayerIds.cs" />
++    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputControlMap.cs" Link="Linked/InputControlMap.cs" />
++    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionMapNames.cs" Link="Linked/InputActionMapNames.cs" />
++    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionValueKind.cs" Link="Linked/InputActionValueKind.cs" />
++    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionValue.cs" Link="Linked/InputActionValue.cs" />
++    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputProfileId.cs" Link="Linked/InputProfileId.cs" />
++    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionSlot.cs" Link="Linked/InputActionSlot.cs" />
++    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionKindMap.cs" Link="Linked/InputActionKindMap.cs" />
++    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputAcceptance.cs" Link="Linked/InputAcceptance.cs" />
++    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputPublication.cs" Link="Linked/InputPublication.cs" />
++    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/IInputDeviceReader.cs" Link="Linked/IInputDeviceReader.cs" />
++    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/IInputMapControl.cs" Link="Linked/IInputMapControl.cs" />
++    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionNameKey.cs" Link="Linked/InputActionNameKey.cs" />
++    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputFrame.cs" Link="Linked/InputFrame.cs" />
++  </ItemGroup>
++</Project>
+diff --git a/tools/InputSystemOfflineTests/Program.cs b/tools/InputSystemOfflineTests/Program.cs
+new file mode 100644
+index 00000000..808f553d
+--- /dev/null
++++ b/tools/InputSystemOfflineTests/Program.cs
+@@ -0,0 +1,364 @@
++#nullable enable
++
++using System;
++using System.Collections.Generic;
++using System.IO;
++using System.Text.Json;
++using OneStarMaker.Runtime.InputSystem;
++using OneStarMaker.Runtime.SceneSystem;
++using OneStarMaker.Runtime.UpdateSystem.Api;
++
++namespace OneStarMaker.InputSystemOfflineTests
++{
++    internal static class Program
++    {
++        private static int _passed;
++        private static int _failed;
++
++        private static int Main()
++        {
++            Run(nameof(SceneState_OnlyStableAccepts_AndTheFourteenValuesStayInOrder), SceneState_OnlyStableAccepts_AndTheFourteenValuesStayInOrder);
++            Run(nameof(LayerOrder_IsBeforeGameplayDefaultAndCamera), LayerOrder_IsBeforeGameplayDefaultAndCamera);
++            Run(nameof(KindMap_PublishesButtonAndVector2Only), KindMap_PublishesButtonAndVector2Only);
++            Run(nameof(Profile_AcceptsOnlyTheDefaultId), Profile_AcceptsOnlyTheDefaultId);
++            Run(nameof(Map_RejectsUndefinedValues), Map_RejectsUndefinedValues);
++            Run(nameof(Publication_KeepsActiveMapAndClearsStaleLevels), Publication_KeepsActiveMapAndClearsStaleLevels);
++            Run(nameof(Copy_LengthMismatchDoesNotPublishAPartialBuffer), Copy_LengthMismatchDoesNotPublishAPartialBuffer);
++            Run(nameof(Catalog_RejectsDuplicateNamesAndBrokenIndexes), Catalog_RejectsDuplicateNamesAndBrokenIndexes);
++            Run(nameof(Lookup_IsByActionNameAndMap), Lookup_IsByActionNameAndMap);
++            Run(nameof(Sample_DoesNotAllocate), Sample_DoesNotAllocate);
++            Run(nameof(ExistingAsset_HasPlayerAndUiAndDefersPoseActions), ExistingAsset_HasPlayerAndUiAndDefersPoseActions);
++            Run(nameof(RuntimeInputSources_DoNotNameTheGameOrTheEditor), RuntimeInputSources_DoNotNameTheGameOrTheEditor);
++
++            Console.WriteLine($"InputSystem offline: {_passed} passed, {_failed} failed, {_passed + _failed} executed");
++            return _failed == 0 && _passed > 0 ? 0 : 1;
++        }
++
++        private static void Run(string name, Action body)
++        {
++            try
++            {
++                body();
++                _passed++;
++                Console.WriteLine("PASS " + name);
++            }
++            catch (Exception ex)
++            {
++                _failed++;
++                Console.WriteLine("FAIL " + name);
++                Console.WriteLine(ex);
++            }
++        }
++
++        private static void SceneState_OnlyStableAccepts_AndTheFourteenValuesStayInOrder()
++        {
++            var expected = new[]
++            {
++                (SceneState.None, 0),
++                (SceneState.PreLoading, 1),
++                (SceneState.PreLoaded, 2),
++                (SceneState.Loading, 3),
++                (SceneState.Loaded, 4),
++                (SceneState.WaitLoadChildScene, 5),
++                (SceneState.Initializing, 6),
++                (SceneState.LoadCanceled, 7),
++                (SceneState.Stable, 8),
++                (SceneState.PreUnloading, 9),
++                (SceneState.PreUnloaded, 10),
++                (SceneState.Unloading, 11),
++                (SceneState.Unloaded, 12),
++                (SceneState.AfterUnloading, 13),
++            };
++            var actual = (SceneState[])Enum.GetValues(typeof(SceneState));
++            Equal(expected.Length, actual.Length, "SceneState count");
++            for (var i = 0; i < expected.Length; i++)
++            {
++                Equal(expected[i].Item1, actual[i], "SceneState order " + i);
++                Equal(expected[i].Item2, (int)actual[i], "SceneState value " + i);
++                Equal(expected[i].Item1 == SceneState.Stable, InputAcceptance.IsAccepting(actual[i]), "accept " + actual[i]);
++            }
++
++            True(!InputAcceptance.IsAccepting((SceneState)99), "undefined state");
++            True(!InputAcceptance.IsAccepting((SceneState)(-1)), "negative state");
++        }
++
++        private static void LayerOrder_IsBeforeGameplayDefaultAndCamera()
++        {
++            Equal("Input", UpdateLayerIds.Input, "layer id");
++            Equal(-100, UpdateLayerIds.InputLayerOrder, "input order");
++            True(UpdateLayerIds.InputLayerOrder < 0, "before adapter default 0");
++            True(UpdateLayerIds.InputLayerOrder < UpdateLayerIds.CameraLayerOrder, "before camera");
++            True(UpdateLayerIds.InputLayerOrder < UpdateLayerIds.StreamingLayerOrder, "before streaming");
++            Equal(50, UpdateLayerIds.CameraLayerOrder, "camera order unchanged");
++            Equal(60, UpdateLayerIds.StreamingLayerOrder, "streaming order unchanged");
++        }
++
++        private static void KindMap_PublishesButtonAndVector2Only()
++        {
++            True(InputActionKindMap.TryGetKind(InputActionKindMap.ButtonControl, out var button), "button");
++            Equal(InputActionValueKind.Button, button, "button kind");
++            True(InputActionKindMap.TryGetKind(InputActionKindMap.Axis2Control, out var axis), "axis");
++            Equal(InputActionValueKind.Axis2, axis, "axis kind");
++            True(!InputActionKindMap.TryGetKind("Vector3", out _), "vector3");
++            True(!InputActionKindMap.TryGetKind("Quaternion", out _), "quaternion");
++            True(!InputActionKindMap.TryGetKind("button", out _), "case");
++            True(!InputActionKindMap.TryGetKind(null, out _), "null");
++            True(!InputActionKindMap.TryGetKind(string.Empty, out _), "empty");
++        }
++
++        private static void Profile_AcceptsOnlyTheDefaultId()
++        {
++            var frame = NewFrame();
++            True(frame.TrySelectProfile(InputProfileId.Default), "static default");
++            True(frame.TrySelectProfile(new InputProfileId(InputProfileId.DefaultValue)), "same text");
++            True(!frame.TrySelectProfile(new InputProfileId("one-handed")), "one-handed");
++            True(!frame.TrySelectProfile(new InputProfileId(null)), "null");
++            True(!frame.TrySelectProfile(new InputProfileId(string.Empty)), "empty");
++            True(frame.ActiveProfile.Equals(InputProfileId.Default), "stays default");
++        }
++
++        private static void Map_RejectsUndefinedValues()
++        {
++            var frame = NewFrame();
++            Equal(InputControlMap.Player, frame.ActiveMap, "initial");
++            True(frame.TrySetMap(InputControlMap.UI, out var changed), "to ui");
++            True(changed, "ui changed");
++            True(frame.TrySetMap(InputControlMap.UI, out changed), "ui again");
++            True(!changed, "same map");
++            True(!frame.TrySetMap((InputControlMap)9, out changed), "undefined");
++            True(!changed, "undefined changed flag");
++            Equal(InputControlMap.UI, frame.ActiveMap, "stays ui");
++        }
++
++        private static void Publication_KeepsActiveMapAndClearsStaleLevels()
++        {
++            var reader = new FillReader();
++            var frame = NewFrame();
++            frame.SetInteractionState(SceneState.Stable);
++            frame.Sample(reader);
++            Equal(1, reader.Calls, "read once");
++            True(frame.TryRead(0, out var move), "move");
++            Equal(4f, move.X, "move x");
++            Equal(0, move.Index, "move index");
++            Equal(InputControlMap.Player, move.Map, "move map");
++            Equal(InputActionValueKind.Axis2, move.Kind, "move kind");
++            True(frame.TryRead(2, out var navigate), "navigate");
++            Equal(0f, navigate.X, "inactive x");
++            Equal(0f, navigate.Y, "inactive y");
++            Equal(InputControlMap.UI, navigate.Map, "navigate map");
++
++            frame.SetInteractionState(SceneState.Loading);
++            frame.Sample(reader);
++            Equal(1, reader.Calls, "no read while loading");
++            True(frame.TryRead(0, out move), "move after");
++            Equal(0f, move.X, "cleared x");
++            Equal(0f, move.Y, "cleared y");
++            Equal(0, move.Index, "index kept");
++            Equal(InputActionValueKind.Axis2, move.Kind, "kind kept");
++
++            reader.X = 8f;
++            frame.SetInteractionState(SceneState.Stable);
++            frame.Sample(reader);
++            True(frame.TryRead(0, out move), "fresh");
++            Equal(8f, move.X, "fresh x");
++        }
++
++        private static void Copy_LengthMismatchDoesNotPublishAPartialBuffer()
++        {
++            var destination = new InputActionValue[1];
++            destination[0] = new InputActionValue(3, InputControlMap.UI, InputActionValueKind.Button, 1f, 1f);
++            var source = new InputActionValue[2];
++            True(!InputPublication.TryCopy(source, destination), "mismatch");
++            Equal(1f, destination[0].X, "destination unchanged");
++            Equal(3, destination[0].Index, "identity unchanged");
++        }
++
++        private static void Catalog_RejectsDuplicateNamesAndBrokenIndexes()
++        {
++            Throws<ArgumentException>(() => new InputFrame(new[]
++            {
++                new InputActionSlot(0, InputControlMap.Player, InputActionValueKind.Button, "A"),
++                new InputActionSlot(1, InputControlMap.Player, InputActionValueKind.Button, "A"),
++            }));
++            Throws<ArgumentException>(() => new InputFrame(new[]
++            {
++                new InputActionSlot(1, InputControlMap.Player, InputActionValueKind.Button, "A"),
++            }));
++            Throws<ArgumentException>(() => new InputActionSlot(0, InputControlMap.Player, InputActionValueKind.Button, ""));
++        }
++
++        private static void Lookup_IsByActionNameAndMap()
++        {
++            var frame = NewFrame();
++            True(frame.TryGetActionIndex("Move", InputControlMap.Player, out var move), "move");
++            Equal(0, move, "move index");
++            True(!frame.TryGetActionIndex("Move", InputControlMap.UI, out _), "move is not ui");
++            True(frame.TryGetActionIndex("Submit", InputControlMap.UI, out var submit), "submit");
++            Equal(3, submit, "submit index");
++            True(!frame.TryGetActionIndex(null, InputControlMap.Player, out _), "null name");
++            True(!frame.TryRead(-1, out _), "negative");
++            True(!frame.TryRead(4, out _), "past end");
++        }
++
++        private static void Sample_DoesNotAllocate()
++        {
++            var reader = new FillReader();
++            var frame = NewFrame();
++            Exercise(frame, reader);
++            Exercise(frame, reader);
++            var before = GC.GetAllocatedBytesForCurrentThread();
++            for (var i = 0; i < 2000; i++)
++            {
++                Exercise(frame, reader);
++            }
++
++            var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
++            Equal(0L, allocated, "allocated bytes");
++        }
++
++        private static void Exercise(InputFrame frame, FillReader reader)
++        {
++            frame.SetInteractionState(SceneState.Stable);
++            frame.TrySetMap(InputControlMap.UI, out _);
++            frame.Sample(reader);
++            frame.TryGetActionIndex("Navigate", InputControlMap.UI, out _);
++            frame.SetInteractionState(SceneState.Loading);
++            frame.Sample(reader);
++            frame.TrySetMap(InputControlMap.Player, out _);
++            frame.TrySelectProfile(InputProfileId.Default);
++        }
++
++        private static void ExistingAsset_HasPlayerAndUiAndDefersPoseActions()
++        {
++            var path = Path.Combine(FindRepoRoot(), "unity", "Assets", "InputSystem_Actions.inputactions");
++            using var document = JsonDocument.Parse(File.ReadAllText(path));
++            var maps = document.RootElement.GetProperty("maps");
++            var names = new HashSet<string>(StringComparer.Ordinal);
++            var deferred = new HashSet<string>(StringComparer.Ordinal)
++            {
++                "TrackedDevicePosition",
++                "TrackedDeviceOrientation",
++            };
++            var deferredSeen = new HashSet<string>(StringComparer.Ordinal);
++            foreach (var map in maps.EnumerateArray())
++            {
++                var mapName = map.GetProperty("name").GetString();
++                True(mapName == InputActionMapNames.Player || mapName == InputActionMapNames.UI, "map " + mapName);
++                names.Add(mapName ?? string.Empty);
++                foreach (var action in map.GetProperty("actions").EnumerateArray())
++                {
++                    var actionName = action.GetProperty("name").GetString();
++                    var control = action.GetProperty("expectedControlType").GetString();
++                    var supported = InputActionKindMap.TryGetKind(control, out _);
++                    if (deferred.Contains(actionName ?? string.Empty))
++                    {
++                        True(!supported, actionName + " must stay unpublished");
++                        deferredSeen.Add(actionName ?? string.Empty);
++                    }
++                    else
++                    {
++                        True(supported, actionName + " control " + control);
++                    }
++                }
++            }
++
++            True(names.SetEquals(new[] { InputActionMapNames.Player, InputActionMapNames.UI }), "map set");
++            True(deferredSeen.SetEquals(deferred), "pose set");
++        }
++
++        private static void RuntimeInputSources_DoNotNameTheGameOrTheEditor()
++        {
++            var directory = Path.Combine(
++                FindRepoRoot(),
++                "unity",
++                "Assets",
++                "OneStarMaker",
++                "Scripts",
++                "Runtime",
++                "InputSystem");
++            var forbidden = new[] { "SampleGame", "FlyController", "NewStg", "UnityEditor" };
++            foreach (var file in Directory.GetFiles(directory, "*.cs"))
++            {
++                var text = File.ReadAllText(file);
++                foreach (var word in forbidden)
++                {
++                    True(text.IndexOf(word, StringComparison.Ordinal) < 0, Path.GetFileName(file) + " contains " + word);
++                }
++            }
++        }
++
++        private static InputFrame NewFrame()
++        {
++            return new InputFrame(new[]
++            {
++                new InputActionSlot(0, InputControlMap.Player, InputActionValueKind.Axis2, "Move"),
++                new InputActionSlot(1, InputControlMap.Player, InputActionValueKind.Button, "Attack"),
++                new InputActionSlot(2, InputControlMap.UI, InputActionValueKind.Axis2, "Navigate"),
++                new InputActionSlot(3, InputControlMap.UI, InputActionValueKind.Button, "Submit"),
++            });
++        }
++
++        private static string FindRepoRoot()
++        {
++            var dir = new DirectoryInfo(AppContext.BaseDirectory);
++            while (dir != null)
++            {
++                var candidate = Path.Combine(dir.FullName, "unity", "Assets", "InputSystem_Actions.inputactions");
++                if (File.Exists(candidate))
++                {
++                    return dir.FullName;
++                }
++
++                dir = dir.Parent;
++            }
++
++            throw new InvalidOperationException("リポジトリルートを見つけられません: " + AppContext.BaseDirectory);
++        }
++
++        private static void Equal<T>(T expected, T actual, string message)
++        {
++            if (!EqualityComparer<T>.Default.Equals(expected, actual))
++            {
++                throw new InvalidOperationException(message + " expected " + expected + " actual " + actual);
++            }
++        }
++
++        private static void True(bool condition, string message)
++        {
++            if (!condition)
++            {
++                throw new InvalidOperationException(message);
++            }
++        }
++
++        private static void Throws<T>(Action body)
++            where T : Exception
++        {
++            try
++            {
++                body();
++            }
++            catch (T)
++            {
++                return;
++            }
++
++            throw new InvalidOperationException("expected " + typeof(T).Name);
++        }
++
++        private sealed class FillReader : IInputDeviceReader
++        {
++            public int Calls;
++            public float X = 4f;
++
++            public void Read(Span<InputActionValue> destination)
++            {
++                Calls++;
++                for (var i = 0; i < destination.Length; i++)
++                {
++                    destination[i] = new InputActionValue(99, InputControlMap.UI, InputActionValueKind.Button, X, 7f);
++                }
++            }
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem.meta
+new file mode 100644
+index 00000000..51a13d2e
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: bb7a539c0fd7484a9e0acba369275844
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/IInputDeviceReader.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/IInputDeviceReader.cs
+new file mode 100644
+index 00000000..34b3e542
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/IInputDeviceReader.cs
+@@ -0,0 +1,15 @@
++#nullable enable
++
++using System;
++
++namespace OneStarMaker.Runtime.InputSystem
++{
++    /// <summary>
++    /// デバイス側の現在値を、呼び出し側が渡したバッファへ書く。
++    /// 毎フレームの実装は割り当てない。AI の代理入力はこのインターフェースへ流さない。
++    /// </summary>
++    internal interface IInputDeviceReader
++    {
++        void Read(Span<InputActionValue> destination);
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/IInputDeviceReader.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/IInputDeviceReader.cs.meta
+new file mode 100644
+index 00000000..2e1b9c7c
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/IInputDeviceReader.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: e77c6b2991ac470197e5c1a9e7db58d6
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/IInputMapControl.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/IInputMapControl.cs
+new file mode 100644
+index 00000000..b00e3405
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/IInputMapControl.cs
+@@ -0,0 +1,15 @@
++#nullable enable
++
++namespace OneStarMaker.Runtime.InputSystem
++{
++    /// <summary>
++    /// Player と UI のどちらか一方のアクションマップだけを有効にする。
++    /// 公開バッファの零化とは別で、デバイス側の有効マップを切り替える。
++    /// </summary>
++    internal interface IInputMapControl
++    {
++        void Apply(InputControlMap map);
++
++        void Disable();
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/IInputMapControl.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/IInputMapControl.cs.meta
+new file mode 100644
+index 00000000..ddb519e5
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/IInputMapControl.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: f41676fd374b4833aaa68f8913635811
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputAcceptance.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputAcceptance.cs
+new file mode 100644
+index 00000000..e20d2ea6
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputAcceptance.cs
+@@ -0,0 +1,18 @@
++#nullable enable
++
++using OneStarMaker.Runtime.SceneSystem;
++
++namespace OneStarMaker.Runtime.InputSystem
++{
++    /// <summary>
++    /// ユーザー操作を公開してよいか。SceneState のコメントどおり Stable だけが受理状態である。
++    /// 未定義の整数も受理しない。
++    /// </summary>
++    internal static class InputAcceptance
++    {
++        public static bool IsAccepting(SceneState state)
++        {
++            return state == SceneState.Stable;
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputAcceptance.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputAcceptance.cs.meta
+new file mode 100644
+index 00000000..268f066d
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputAcceptance.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: bbf5676b55764e13aeb8871586d6e033
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionAssetReader.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionAssetReader.cs
+new file mode 100644
+index 00000000..72b0fde0
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionAssetReader.cs
+@@ -0,0 +1,135 @@
++#nullable enable
++
++using System;
++using System.Collections.Generic;
++using UnityEngine;
++using UnityEngine.InputSystem;
++
++namespace OneStarMaker.Runtime.InputSystem
++{
++    /// <summary>
++    /// 呼び出し側が渡した InputActionAsset の Player / UI を読み、片方だけを有効にする。
++    /// アセットの生成と破棄は呼び出し側のままである。この型は Destroy しない。
++    /// expectedControlType が Button でも Vector2 でもないアクションは席にせず、件数だけ残す。
++    /// 既存アセットの TrackedDevicePosition / Orientation がそれに当たる。
++    /// </summary>
++    internal sealed class InputActionAssetReader : IInputDeviceReader, IInputMapControl
++    {
++        private readonly InputActionMap _playerMap;
++        private readonly InputActionMap _uiMap;
++        private readonly InputAction[] _actions;
++        private readonly InputActionSlot[] _slots;
++
++        public InputActionAssetReader(InputActionAsset asset)
++        {
++            // InputActionAsset は UnityEngine.Object なので、破棄済みを言語 null と取り違えない。
++            if (asset == null)
++            {
++                throw new ArgumentNullException(nameof(asset));
++            }
++
++            _playerMap = RequireMap(asset, InputActionMapNames.Player);
++            _uiMap = RequireMap(asset, InputActionMapNames.UI);
++
++            var actions = new List<InputAction>();
++            var slots = new List<InputActionSlot>();
++            var skipped = 0;
++            Append(_playerMap, InputControlMap.Player, actions, slots, ref skipped);
++            Append(_uiMap, InputControlMap.UI, actions, slots, ref skipped);
++            _actions = actions.ToArray();
++            _slots = slots.ToArray();
++            UnsupportedActionCount = skipped;
++            Apply(InputControlMap.Player);
++        }
++
++        public int UnsupportedActionCount { get; }
++
++        public InputActionSlot[] Slots => _slots;
++
++        public void Read(Span<InputActionValue> destination)
++        {
++            var count = _actions.Length < destination.Length ? _actions.Length : destination.Length;
++            for (var i = 0; i < count; i++)
++            {
++                var slot = _slots[i];
++                var action = _actions[i];
++                if (slot.Kind == InputActionValueKind.Button)
++                {
++                    var pressed = action.ReadValue<float>();
++                    destination[i] = new InputActionValue(slot.Index, slot.Map, slot.Kind, pressed, 0f);
++                    continue;
++                }
++
++                var axis = action.ReadValue<Vector2>();
++                destination[i] = new InputActionValue(slot.Index, slot.Map, slot.Kind, axis.x, axis.y);
++            }
++        }
++
++        public void Apply(InputControlMap map)
++        {
++            // 両方有効にしない。先に無効化してから、選んだマップだけを有効にする。
++            if (map == InputControlMap.UI)
++            {
++                _playerMap.Disable();
++                _uiMap.Enable();
++                return;
++            }
++
++            _uiMap.Disable();
++            _playerMap.Enable();
++        }
++
++        public void Disable()
++        {
++            _playerMap.Disable();
++            _uiMap.Disable();
++        }
++
++        private static InputActionMap RequireMap(InputActionAsset asset, string mapName)
++        {
++            // InputActionMap は UnityEngine.Object ではない。言語 null が欠落である。
++            var map = asset.FindActionMap(mapName, throwIfNotFound: false);
++            if (map == null)
++            {
++                throw new InvalidOperationException(
++                    $"InputActionAsset に {mapName} アクションマップが無い。");
++            }
++
++            return map;
++        }
++
++        private static void Append(
++            InputActionMap map,
++            InputControlMap controlMap,
++            List<InputAction> actions,
++            List<InputActionSlot> slots,
++            ref int skipped)
++        {
++            var defined = map.actions;
++            for (var i = 0; i < defined.Count; i++)
++            {
++                var action = defined[i];
++                if (action == null)
++                {
++                    throw new InvalidOperationException($"{controlMap} マップの {i} 番目のアクションが空です。");
++                }
++
++                if (!InputActionKindMap.TryGetKind(action.expectedControlType, out var kind))
++                {
++                    skipped++;
++                    continue;
++                }
++
++                var name = action.name;
++                if (string.IsNullOrEmpty(name))
++                {
++                    throw new InvalidOperationException($"{controlMap} マップに名前の無いアクションがあります。");
++                }
++
++                var index = slots.Count;
++                slots.Add(new InputActionSlot(index, controlMap, kind, name));
++                actions.Add(action);
++            }
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionAssetReader.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionAssetReader.cs.meta
+new file mode 100644
+index 00000000..6503eec6
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionAssetReader.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 091e07d0eee44792bc4f7edd60a716c7
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionKindMap.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionKindMap.cs
+new file mode 100644
+index 00000000..6f64b0b9
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionKindMap.cs
+@@ -0,0 +1,35 @@
++#nullable enable
++
++using System;
++
++namespace OneStarMaker.Runtime.InputSystem
++{
++    /// <summary>
++    /// Unity の expectedControlType 文字列を公開形へ写す。
++    /// 一致は序数比較である。Vector3 と Quaternion は写さず、呼び出し側が件数だけ数える。
++    /// </summary>
++    internal static class InputActionKindMap
++    {
++        internal const string ButtonControl = "Button";
++
++        internal const string Axis2Control = "Vector2";
++
++        public static bool TryGetKind(string? expectedControlType, out InputActionValueKind kind)
++        {
++            if (string.Equals(expectedControlType, ButtonControl, StringComparison.Ordinal))
++            {
++                kind = InputActionValueKind.Button;
++                return true;
++            }
++
++            if (string.Equals(expectedControlType, Axis2Control, StringComparison.Ordinal))
++            {
++                kind = InputActionValueKind.Axis2;
++                return true;
++            }
++
++            kind = default;
++            return false;
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionKindMap.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionKindMap.cs.meta
+new file mode 100644
+index 00000000..cf21b7bb
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionKindMap.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: e28920947fd44ed3b495a2a3f4e01e9a
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionMapNames.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionMapNames.cs
+new file mode 100644
+index 00000000..59c23ed6
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionMapNames.cs
+@@ -0,0 +1,15 @@
++#nullable enable
++
++namespace OneStarMaker.Runtime.InputSystem
++{
++    /// <summary>
++    /// マネージャが要求するアクションマップ名。
++    /// ゲーム固有のアクション名ではない。既存の InputSystem_Actions が既に持つ Player と UI である。
++    /// </summary>
++    public static class InputActionMapNames
++    {
++        public const string Player = "Player";
++
++        public const string UI = "UI";
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionMapNames.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionMapNames.cs.meta
+new file mode 100644
+index 00000000..8fd10f73
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionMapNames.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: bd5ea1c436694b32bb6222c509905b8b
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionNameKey.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionNameKey.cs
+new file mode 100644
+index 00000000..8fd82c94
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionNameKey.cs
+@@ -0,0 +1,37 @@
++#nullable enable
++
++using System;
++
++namespace OneStarMaker.Runtime.InputSystem
++{
++    /// <summary>
++    /// 名前とマップの組。文字列連結を避け、検索時に新しいキー文字列を作らない。
++    /// </summary>
++    internal readonly struct InputActionNameKey : IEquatable<InputActionNameKey>
++    {
++        public InputActionNameKey(string name, InputControlMap map)
++        {
++            Name = name;
++            Map = map;
++        }
++
++        public string Name { get; }
++
++        public InputControlMap Map { get; }
++
++        public bool Equals(InputActionNameKey other)
++        {
++            return Map == other.Map && string.Equals(Name, other.Name, StringComparison.Ordinal);
++        }
++
++        public override bool Equals(object? obj)
++        {
++            return obj is InputActionNameKey other && Equals(other);
++        }
++
++        public override int GetHashCode()
++        {
++            return HashCode.Combine(StringComparer.Ordinal.GetHashCode(Name), (int)Map);
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionNameKey.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionNameKey.cs.meta
+new file mode 100644
+index 00000000..c0b5e77e
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionNameKey.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 404dc302f04b404c87a86059bade4e53
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionSlot.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionSlot.cs
+new file mode 100644
+index 00000000..ef4fb223
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionSlot.cs
+@@ -0,0 +1,33 @@
++#nullable enable
++
++using System;
++
++namespace OneStarMaker.Runtime.InputSystem
++{
++    /// <summary>
++    /// 束ね時点で決まるアクションの席。名前は検索用で、毎フレームはインデックスを使う。
++    /// </summary>
++    internal readonly struct InputActionSlot
++    {
++        public InputActionSlot(int index, InputControlMap map, InputActionValueKind kind, string name)
++        {
++            if (string.IsNullOrEmpty(name))
++            {
++                throw new ArgumentException("アクション名が空です。", nameof(name));
++            }
++
++            Index = index;
++            Map = map;
++            Kind = kind;
++            Name = name;
++        }
++
++        public int Index { get; }
++
++        public InputControlMap Map { get; }
++
++        public InputActionValueKind Kind { get; }
++
++        public string Name { get; }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionSlot.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionSlot.cs.meta
+new file mode 100644
+index 00000000..3267ad62
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionSlot.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 9804aa462bb8409189525203f9251b30
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionValue.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionValue.cs
+new file mode 100644
+index 00000000..5036816c
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionValue.cs
+@@ -0,0 +1,58 @@
++#nullable enable
++
++using System;
++
++namespace OneStarMaker.Runtime.InputSystem
++{
++    /// <summary>
++    /// 1 アクションの公開値。レベルであり、押した瞬間のエッジではない。
++    /// インデックスはマネージャ生存中の束ね順で、物理キーではない。
++    /// </summary>
++    public readonly struct InputActionValue : IEquatable<InputActionValue>
++    {
++        public InputActionValue(int index, InputControlMap map, InputActionValueKind kind, float x, float y)
++        {
++            Index = index;
++            Map = map;
++            Kind = kind;
++            X = x;
++            Y = y;
++        }
++
++        public int Index { get; }
++
++        public InputControlMap Map { get; }
++
++        public InputActionValueKind Kind { get; }
++
++        /// <summary>Button では押下量、Axis2 では横成分。</summary>
++        public float X { get; }
++
++        /// <summary>Button では 0、Axis2 では縦成分。</summary>
++        public float Y { get; }
++
++        public static InputActionValue Neutral(int index, InputControlMap map, InputActionValueKind kind)
++        {
++            return new InputActionValue(index, map, kind, 0f, 0f);
++        }
++
++        public bool Equals(InputActionValue other)
++        {
++            return Index == other.Index
++                   && Map == other.Map
++                   && Kind == other.Kind
++                   && X == other.X
++                   && Y == other.Y;
++        }
++
++        public override bool Equals(object? obj)
++        {
++            return obj is InputActionValue other && Equals(other);
++        }
++
++        public override int GetHashCode()
++        {
++            return HashCode.Combine(Index, (int)Map, (int)Kind, X, Y);
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionValue.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionValue.cs.meta
+new file mode 100644
+index 00000000..9a40af31
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionValue.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: a72f9c7b23684f44891490166e957b61
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionValueKind.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionValueKind.cs
+new file mode 100644
+index 00000000..a62cb696
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionValueKind.cs
+@@ -0,0 +1,17 @@
++#nullable enable
++
++namespace OneStarMaker.Runtime.InputSystem
++{
++    /// <summary>
++    /// 公開するアクション値の形。物理コントロールの型名ではなく、消費者が読む値の種類である。
++    /// Vector3 と Quaternion は既存アセットに残るが、このスライスの公開形には入れない。
++    /// </summary>
++    public enum InputActionValueKind : byte
++    {
++        /// <summary>現在の押下量。X が 0 から 1、Y は 0。</summary>
++        Button = 0,
++
++        /// <summary>現在の二次元量。X と Y。</summary>
++        Axis2 = 1,
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionValueKind.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionValueKind.cs.meta
+new file mode 100644
+index 00000000..81d6662e
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputActionValueKind.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 79d41b0965064af2b95df405be5d996b
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputControlMap.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputControlMap.cs
+new file mode 100644
+index 00000000..b4206d38
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputControlMap.cs
+@@ -0,0 +1,18 @@
++#nullable enable
++
++namespace OneStarMaker.Runtime.InputSystem
++{
++    /// <summary>
++    /// プレイヤー操作と UI 操作のアクションマップ。
++    /// 物理キーではなく、既存 InputActionAsset のマップ名に対応する枠である。
++    /// 整数は保存しない。並びを変えるとマップ切替の判定が変わるため、値を足す場合はスライスを分ける。
++    /// </summary>
++    public enum InputControlMap
++    {
++        /// <summary>ゲームプレイ用マップ。既存アセットの "Player"。</summary>
++        Player = 0,
++
++        /// <summary>UI 用マップ。既存アセットの "UI"。フォーカスやタブ順はここではない。</summary>
++        UI = 1,
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputControlMap.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputControlMap.cs.meta
+new file mode 100644
+index 00000000..f6532128
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputControlMap.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 962d292e04b94827b62777b10e64bb9e
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputFrame.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputFrame.cs
+new file mode 100644
+index 00000000..c1286baa
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputFrame.cs
+@@ -0,0 +1,165 @@
++#nullable enable
++
++using System;
++using System.Collections.Generic;
++using OneStarMaker.Runtime.SceneSystem;
++
++namespace OneStarMaker.Runtime.InputSystem
++{
++    /// <summary>
++    /// 公開スナップショットの状態。デバイス I/O と R3 は持たない。
++    /// プロファイル ID、有効マップ、SceneState、バッファは同じ公開結果を決めるので同じ寿命に置く。
++    /// 値の配信は Observable にしない。毎フレームの OnNext は割り当てになり、ここが読むのはレベルだからである。
++    /// </summary>
++    internal sealed class InputFrame
++    {
++        private readonly InputActionSlot[] _slots;
++        private readonly InputActionValue[] _sampled;
++        private readonly InputActionValue[] _published;
++        private readonly Dictionary<InputActionNameKey, int> _lookup;
++        private InputControlMap _activeMap;
++        private InputProfileId _profile;
++        private SceneState _interactionState;
++
++        public InputFrame(InputActionSlot[] slots)
++        {
++            if (slots == null)
++            {
++                throw new ArgumentNullException(nameof(slots));
++            }
++
++            _slots = new InputActionSlot[slots.Length];
++            _lookup = new Dictionary<InputActionNameKey, int>(slots.Length);
++            for (var i = 0; i < slots.Length; i++)
++            {
++                var slot = slots[i];
++                if (string.IsNullOrEmpty(slot.Name))
++                {
++                    throw new ArgumentException($"スロット {i} のアクション名が空です。", nameof(slots));
++                }
++
++                if (slot.Index != i)
++                {
++                    throw new ArgumentException(
++                        $"スロット {i} の Index が {slot.Index} です。束ね順と一致させます。",
++                        nameof(slots));
++                }
++
++                if (slot.Map != InputControlMap.Player && slot.Map != InputControlMap.UI)
++                {
++                    throw new ArgumentException($"スロット {i} のマップが未定義です。", nameof(slots));
++                }
++
++                var key = new InputActionNameKey(slot.Name, slot.Map);
++                if (!_lookup.TryAdd(key, i))
++                {
++                    throw new ArgumentException(
++                        $"アクション '{slot.Name}' が {slot.Map} に重複しています。",
++                        nameof(slots));
++                }
++
++                _slots[i] = slot;
++            }
++
++            _sampled = new InputActionValue[_slots.Length];
++            _published = new InputActionValue[_slots.Length];
++            InputPublication.WriteNeutral(_slots, _sampled);
++            InputPublication.WriteNeutral(_slots, _published);
++            _activeMap = InputControlMap.Player;
++            _profile = InputProfileId.Default;
++            _interactionState = SceneState.None;
++        }
++
++        public int ActionCount => _slots.Length;
++
++        public InputControlMap ActiveMap => _activeMap;
++
++        public InputProfileId ActiveProfile => _profile;
++
++        public SceneState InteractionState => _interactionState;
++
++        public ReadOnlySpan<InputActionValue> Published => _published;
++
++        public bool TryGetActionIndex(string? actionName, InputControlMap map, out int index)
++        {
++            if (string.IsNullOrEmpty(actionName))
++            {
++                index = -1;
++                return false;
++            }
++
++            return _lookup.TryGetValue(new InputActionNameKey(actionName, map), out index);
++        }
++
++        public bool TryRead(int index, out InputActionValue value)
++        {
++            if ((uint)index >= (uint)_published.Length)
++            {
++                value = default;
++                return false;
++            }
++
++            value = _published[index];
++            return true;
++        }
++
++        public void SetInteractionState(SceneState state)
++        {
++            _interactionState = state;
++        }
++
++        /// <summary>
++        /// 既定以外は拒否し、現在の ID を変えない。バインドの差し替えはしない。
++        /// </summary>
++        public bool TrySelectProfile(InputProfileId requested)
++        {
++            if (!requested.Equals(InputProfileId.Default))
++            {
++                return false;
++            }
++
++            _profile = InputProfileId.Default;
++            return true;
++        }
++
++        public bool TrySetMap(InputControlMap map, out bool changed)
++        {
++            if (map != InputControlMap.Player && map != InputControlMap.UI)
++            {
++                changed = false;
++                return false;
++            }
++
++            changed = map != _activeMap;
++            _activeMap = map;
++            return true;
++        }
++
++        /// <summary>
++        /// Stable のときだけリーダーを呼ぶ。それ以外は公開バッファを零で書き直す。
++        /// リーダーを呼ばないのは、公開契約がデバイスサンプルを必要とせず、
++        /// 非 Stable 中に終わった押下を次の Stable へ持ち越さないためである。
++        /// 公開値はレベルなので、次の Stable ではその時点の量を読む。
++        /// </summary>
++        public void Sample(IInputDeviceReader reader)
++        {
++            if (reader == null)
++            {
++                throw new ArgumentNullException(nameof(reader));
++            }
++
++            if (!InputAcceptance.IsAccepting(_interactionState))
++            {
++                InputPublication.WriteNeutral(_slots, _published);
++                return;
++            }
++
++            reader.Read(_sampled);
++            InputPublication.KeepActiveMap(_activeMap, _slots, _sampled);
++            if (!InputPublication.TryCopy(_sampled, _published))
++            {
++                InputPublication.WriteNeutral(_slots, _published);
++            }
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputFrame.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputFrame.cs.meta
+new file mode 100644
+index 00000000..5aa5d3a3
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputFrame.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 98bf3059173e4268a6e38b06d9e5bad5
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputManager.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputManager.cs
+new file mode 100644
+index 00000000..39a5811a
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputManager.cs
+@@ -0,0 +1,247 @@
++#nullable enable
++
++using System;
++using OneStarMaker.Foundation.UpdateSystem;
++using OneStarMaker.Foundation.UpdateSystem.World;
++using OneStarMaker.Runtime.SceneSystem;
++using OneStarMaker.Runtime.UpdateSystem.Api;
++using R3;
++using UnityEngine.InputSystem;
++
++namespace OneStarMaker.Runtime.InputSystem
++{
++    /// <summary>
++    /// 入力マネージャ。アクションの現在値を Update の早い Layer で公開する。
++    /// ゲーム固有のアクション enum は知らない。ゲーム側のコントローラへは接続しない。
++    /// アセットは呼び出し側が所有し、このオブジェクトは Destroy しない。
++    /// Dispose では自分が有効にした Player / UI マップを両方無効にする。
++    /// </summary>
++    public sealed class InputManager : IDisposable
++    {
++        private readonly IInputDeviceReader _reader;
++        private readonly IInputMapControl _maps;
++        private readonly InputFrame _frame;
++        private readonly Subject<InputControlMap> _mapChanged;
++        private readonly InputUpdateElement _element;
++        private UpdateCoordinator? _coordinator;
++        private bool _registered;
++        private bool _disposed;
++
++        public InputManager(InputActionAsset asset)
++        {
++            var reader = new InputActionAssetReader(asset);
++            _reader = reader;
++            _maps = reader;
++            _frame = new InputFrame(reader.Slots);
++            UnsupportedActionCount = reader.UnsupportedActionCount;
++            _mapChanged = new Subject<InputControlMap>();
++            _element = new InputUpdateElement(this);
++        }
++
++        internal InputManager(IInputDeviceReader reader, InputActionSlot[] slots)
++        {
++            _reader = reader ?? throw new ArgumentNullException(nameof(reader));
++            _maps = NoMapControl.Instance;
++            _frame = new InputFrame(slots);
++            UnsupportedActionCount = 0;
++            _mapChanged = new Subject<InputControlMap>();
++            _element = new InputUpdateElement(this);
++        }
++
++        /// <summary>
++        /// Button / Vector2 以外として席にしなかったアクション数。束ね時に確定し、毎フレームは変えない。
++        /// </summary>
++        public int UnsupportedActionCount { get; }
++
++        public int ActionCount => _frame.ActionCount;
++
++        public InputControlMap ActiveMap => _frame.ActiveMap;
++
++        public InputProfileId ActiveProfile => _frame.ActiveProfile;
++
++        public SceneState InteractionState => _frame.InteractionState;
++
++        /// <summary>
++        /// マップが実際に変わったときだけ流す。現在値の毎フレーム配信ではない。
++        /// 購読者は現在のマップを <see cref="ActiveMap"/> で読む。
++        /// </summary>
++        public Observable<InputControlMap> MapChanged => _mapChanged;
++
++        /// <summary>
++        /// 直近の公開バッファ。次の <see cref="Sample"/> で上書きされる。
++        /// インデックスは <see cref="TryGetActionIndex"/> で一度解決し、毎フレームは数値で読む。
++        /// </summary>
++        public ReadOnlySpan<InputActionValue> Published => _frame.Published;
++
++        public bool TryGetActionIndex(string? actionName, InputControlMap map, out int index)
++        {
++            return _frame.TryGetActionIndex(actionName, map, out index);
++        }
++
++        public bool TryRead(int index, out InputActionValue value)
++        {
++            return _frame.TryRead(index, out value);
++        }
++
++        /// <summary>
++        /// 操作を受け付けるシーンの状態を、所有者から毎フレームまたは遷移のたびに渡す。
++        /// どのシーンを渡すかはゲーム側の判断なので、このスライスは SceneDirector を購読しない。
++        /// 未設定の初期値は None であり、公開値は中立のままである。
++        /// </summary>
++        public void SetInteractionState(SceneState state)
++        {
++            ThrowIfDisposed();
++            _frame.SetInteractionState(state);
++        }
++
++        /// <summary>
++        /// 既定プロファイルだけを選ぶ。それ以外は false で、バインドも ID も変えない。
++        /// </summary>
++        public bool TrySelectProfile(InputProfileId profileId)
++        {
++            ThrowIfDisposed();
++            return _frame.TrySelectProfile(profileId);
++        }
++
++        /// <summary>
++        /// Player と UI を切り替える。デバイス側の有効マップを先に変え、成功したあと公開状態を確定する。
++        /// 同じマップの再設定はイベントを出さない。
++        /// </summary>
++        public bool TrySetMap(InputControlMap map)
++        {
++            ThrowIfDisposed();
++            if (map != InputControlMap.Player && map != InputControlMap.UI)
++            {
++                return false;
++            }
++
++            // 同じマップの再指定では Enable をやり直さない。毎フレーム呼んでも割り当てない。
++            if (map == _frame.ActiveMap)
++            {
++                return true;
++            }
++
++            // デバイス側が失敗したら公開側のマップは変えない。
++            _maps.Apply(map);
++            if (!_frame.TrySetMap(map, out var changed))
++            {
++                return false;
++            }
++
++            if (changed)
++            {
++                _mapChanged.OnNext(map);
++            }
++
++            return true;
++        }
++
++        /// <summary>
++        /// Input Layer へ登録する。active 化は呼び出し側が行う。
++        /// シーン遷移中に Update が止まると最後の公開値が残るため、
++        /// 登録後は非 Stable のフレームでもこの Element の Update を止めてはならない。
++        /// </summary>
++        public bool TryRegister(UpdateCoordinator coordinator)
++        {
++            ThrowIfDisposed();
++            if (coordinator == null)
++            {
++                throw new ArgumentNullException(nameof(coordinator));
++            }
++
++            if (_registered)
++            {
++                return false;
++            }
++
++            var registered = coordinator.RegisterElement(
++                UpdateLayerIds.Input,
++                _element,
++                layerOrder: UpdateLayerIds.InputLayerOrder,
++                executionOrder: 0);
++            if (!registered)
++            {
++                return false;
++            }
++
++            _coordinator = coordinator;
++            _registered = true;
++            return true;
++        }
++
++        public void Sample()
++        {
++            ThrowIfDisposed();
++            _frame.Sample(_reader);
++        }
++
++        public void Dispose()
++        {
++            if (_disposed)
++            {
++                return;
++            }
++
++            _disposed = true;
++            if (_registered && _coordinator != null)
++            {
++                _coordinator.UnregisterElement(_element);
++                _registered = false;
++                _coordinator = null;
++            }
++
++            _maps.Disable();
++            _mapChanged.Dispose();
++        }
++
++        private void ThrowIfDisposed()
++        {
++            if (_disposed)
++            {
++                throw new ObjectDisposedException(nameof(InputManager));
++            }
++        }
++
++        /// <summary>
++        /// テスト用リーダーはアセットを持たない。マップの有効化先が無いので何もしない。
++        /// </summary>
++        private sealed class NoMapControl : IInputMapControl
++        {
++            public static readonly NoMapControl Instance = new NoMapControl();
++
++            public void Apply(InputControlMap map)
++            {
++            }
++
++            public void Disable()
++            {
++            }
++        }
++
++        /// <summary>
++        /// Update でだけサンプルする。LateUpdate ではカメラ消費前の値を動かさない。
++        /// </summary>
++        private sealed class InputUpdateElement : IUpdateElement
++        {
++            private readonly InputManager _manager;
++
++            public InputUpdateElement(InputManager manager)
++            {
++                _manager = manager;
++            }
++
++            public void OnElementStart()
++            {
++            }
++
++            public void OnElementUpdate(in UpdateFrameContext context)
++            {
++                _manager.Sample();
++            }
++
++            public void OnElementLateUpdate(in UpdateFrameContext context)
++            {
++            }
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputManager.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputManager.cs.meta
+new file mode 100644
+index 00000000..c46416ea
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputManager.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 79206cb6cafa4ad9b78c0609bdb9247d
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputProfileId.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputProfileId.cs
+new file mode 100644
+index 00000000..bbcc5e40
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputProfileId.cs
+@@ -0,0 +1,45 @@
++#nullable enable
++
++using System;
++
++namespace OneStarMaker.Runtime.InputSystem
++{
++    /// <summary>
++    /// 同じアクションに別バインドを当てるためのプロファイル枠。
++    /// このスライスが受け付けるのは <see cref="Default"/> だけである。
++    /// 片手用の中身、リマップ、触覚はここに置かない。未知の ID を選んでも既定バインドのふりをしない。
++    /// </summary>
++    public readonly struct InputProfileId : IEquatable<InputProfileId>
++    {
++        /// <summary>既存アセットの作者付けバインドを指す、唯一の受理 ID。</summary>
++        public const string DefaultValue = "default";
++
++        public static readonly InputProfileId Default = new InputProfileId(DefaultValue);
++
++        private readonly string? _value;
++
++        public InputProfileId(string? value)
++        {
++            _value = value;
++        }
++
++        public string Value => _value ?? string.Empty;
++
++        public bool IsEmpty => string.IsNullOrEmpty(_value);
++
++        public bool Equals(InputProfileId other)
++        {
++            return string.Equals(Value, other.Value, StringComparison.Ordinal);
++        }
++
++        public override bool Equals(object? obj)
++        {
++            return obj is InputProfileId other && Equals(other);
++        }
++
++        public override int GetHashCode()
++        {
++            return StringComparer.Ordinal.GetHashCode(Value);
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputProfileId.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputProfileId.cs.meta
+new file mode 100644
+index 00000000..130c9561
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputProfileId.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 9ab9b752c99a4139b09eb6a6cb6d9be8
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputPublication.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputPublication.cs
+new file mode 100644
+index 00000000..7efbfc17
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputPublication.cs
+@@ -0,0 +1,58 @@
++#nullable enable
++
++using System;
++
++namespace OneStarMaker.Runtime.InputSystem
++{
++    /// <summary>
++    /// 公開バッファの書き込み。割り当てをしない。
++    /// 非 Stable の値は直前の Stable サンプルを残さず、席の識別子だけを保って零にする。
++    /// </summary>
++    internal static class InputPublication
++    {
++        public static void WriteNeutral(ReadOnlySpan<InputActionSlot> slots, Span<InputActionValue> target)
++        {
++            var count = slots.Length < target.Length ? slots.Length : target.Length;
++            for (var i = 0; i < count; i++)
++            {
++                var slot = slots[i];
++                target[i] = InputActionValue.Neutral(slot.Index, slot.Map, slot.Kind);
++            }
++        }
++
++        /// <summary>
++        /// 有効マップ以外を零にし、有効マップの成分は残して席の識別子をカタログ側で上書きする。
++        /// リーダーが無効マップへ書いた値や、別マップ時代の残りを公開しない。
++        /// </summary>
++        public static void KeepActiveMap(
++            InputControlMap active,
++            ReadOnlySpan<InputActionSlot> slots,
++            Span<InputActionValue> sampled)
++        {
++            var count = slots.Length < sampled.Length ? slots.Length : sampled.Length;
++            for (var i = 0; i < count; i++)
++            {
++                var slot = slots[i];
++                if (slot.Map != active)
++                {
++                    sampled[i] = InputActionValue.Neutral(slot.Index, slot.Map, slot.Kind);
++                    continue;
++                }
++
++                var read = sampled[i];
++                sampled[i] = new InputActionValue(slot.Index, slot.Map, slot.Kind, read.X, read.Y);
++            }
++        }
++
++        public static bool TryCopy(ReadOnlySpan<InputActionValue> source, Span<InputActionValue> destination)
++        {
++            if (source.Length != destination.Length)
++            {
++                return false;
++            }
++
++            source.CopyTo(destination);
++            return true;
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputPublication.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputPublication.cs.meta
+new file mode 100644
+index 00000000..e5f756ff
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/InputSystem/InputPublication.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 2d9e7216b57d43e4ac5a828448be0a8f
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/UpdateSystem/Layers/UpdateLayerIds.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/UpdateSystem/Layers/UpdateLayerIds.cs
+index 9b475494..8872376a 100644
+--- a/unity/Assets/OneStarMaker/Scripts/Runtime/UpdateSystem/Layers/UpdateLayerIds.cs
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/UpdateSystem/Layers/UpdateLayerIds.cs
+@@ -4,17 +4,30 @@ namespace OneStarMaker.Runtime.UpdateSystem.Api
+ {
+     /// <summary>
+     /// Runtime サブシステム間で共有する UpdateSystem Layer の識別子と順序。
+-    /// 数値を Bootstrap ごとに書くと Camera Snapshot を読む Streaming より後に Camera を置く契約が崩れやすいため、
+-    /// Camera と Streaming の依存関係だけをここで明示する。
++    /// 数値を呼び出し側ごとに書くと、入力のサンプリングがゲームプレイや Camera より後ろに回り、
++    /// Camera Snapshot を読む Streaming が Camera より前に回る。
+     /// </summary>
+     public static class UpdateLayerIds
+     {
++        /// <summary>
++        /// 入力アクションをサンプリングし、公開バッファを更新する Layer。
++        /// ゲームプレイや Camera はこの公開値の消費者なので、この Layer より大きい順序で登録する。
++        /// </summary>
++        public const string Input = "Input";
++
+         /// <summary>Brain 更新・Modifier・Snapshot 確定を担当する Layer。</summary>
+         public const string Camera = "Camera";
+ 
+         /// <summary>確定済み Camera Snapshot を消費してストリーミングを更新する Layer。</summary>
+         public const string Streaming = "Streaming";
+ 
++        /// <summary>
++        /// 入力サンプリングは UpdateBehaviourAdapter の既定順序 0、Camera、Streaming より前に置く。
++        /// -100 は、既定のゲームプレイ登録より前であり、かつ Camera の 50 と衝突しない下限である。
++        /// ゲームプレイ側がこれ以下の順序を独自に選ぶと契約は崩れる。この定数はその下限を共有する。
++        /// </summary>
++        public const int InputLayerOrder = -100;
++
+         /// <summary>Gameplay の target 更新後、Streaming の Snapshot 消費前に Camera を実行する。</summary>
+         public const int CameraLayerOrder = 50;
+ 
+diff --git a/unity/Assets/OneStarMaker/Tests/InputSystem.meta b/unity/Assets/OneStarMaker/Tests/InputSystem.meta
+new file mode 100644
+index 00000000..d00d9fcc
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/InputSystem.meta
+@@ -0,0 +1,8 @@
++fileFormatVersion: 2
++guid: 5b016bb1585c424f865f7c7628e9a28c
++folderAsset: yes
++DefaultImporter:
++  externalObjects: {}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/OneStarMaker/Tests/InputSystem/InputManagerTests.cs b/unity/Assets/OneStarMaker/Tests/InputSystem/InputManagerTests.cs
+new file mode 100644
+index 00000000..036291c9
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/InputSystem/InputManagerTests.cs
+@@ -0,0 +1,240 @@
++#nullable enable
++
++using System;
++using System.Collections.Generic;
++using NUnit.Framework;
++using OneStarMaker.Foundation.UpdateSystem;
++using OneStarMaker.Foundation.UpdateSystem.World;
++using OneStarMaker.Runtime.InputSystem;
++using OneStarMaker.Runtime.SceneSystem;
++using OneStarMaker.Runtime.UpdateSystem.Api;
++using R3;
++
++namespace OneStarMaker.Tests.InputSystem
++{
++    /// <summary>
++    /// マネージャの公開、マップ通知、Update 順を、デバイス無しのリーダーで検証する。
++    /// アセットの ReadValue 経路は Unity がこのアセンブリをコンパイルできる環境の判定で確認する。
++    /// </summary>
++    [TestFixture]
++    public sealed class InputManagerTests
++    {
++        [Test]
++        public void Stable_PublishesActiveMap_AndDropsInactiveValues()
++        {
++            var reader = new FillReader();
++            using var manager = new InputManager(reader, SampleSlots());
++            manager.SetInteractionState(SceneState.Stable);
++
++            manager.Sample();
++
++            Assert.That(reader.Calls, Is.EqualTo(1));
++            Assert.That(manager.TryRead(0, out var move), Is.True);
++            Assert.That(move.X, Is.EqualTo(4f));
++            Assert.That(move.Map, Is.EqualTo(InputControlMap.Player));
++            Assert.That(move.Kind, Is.EqualTo(InputActionValueKind.Axis2));
++            Assert.That(move.Index, Is.EqualTo(0));
++            Assert.That(manager.TryRead(2, out var navigate), Is.True);
++            Assert.That(navigate.X, Is.EqualTo(0f));
++            Assert.That(navigate.Y, Is.EqualTo(0f));
++            Assert.That(navigate.Map, Is.EqualTo(InputControlMap.UI));
++        }
++
++        [Test]
++        public void NotStable_RewritesNeutralWithoutReadingTheDevice()
++        {
++            var reader = new FillReader();
++            using var manager = new InputManager(reader, SampleSlots());
++            manager.SetInteractionState(SceneState.Stable);
++            manager.Sample();
++            manager.SetInteractionState(SceneState.Loading);
++
++            manager.Sample();
++
++            Assert.That(reader.Calls, Is.EqualTo(1));
++            Assert.That(manager.TryRead(0, out var move), Is.True);
++            Assert.That(move.X, Is.EqualTo(0f));
++            Assert.That(move.Y, Is.EqualTo(0f));
++            Assert.That(move.Index, Is.EqualTo(0));
++            Assert.That(move.Kind, Is.EqualTo(InputActionValueKind.Axis2));
++        }
++
++        [Test]
++        public void ReturnToStable_PublishesTheNewLevel_NotThePreviousOne()
++        {
++            var reader = new FillReader();
++            using var manager = new InputManager(reader, SampleSlots());
++            manager.SetInteractionState(SceneState.Stable);
++            manager.Sample();
++            manager.SetInteractionState(SceneState.PreUnloading);
++            manager.Sample();
++            reader.X = 8f;
++            manager.SetInteractionState(SceneState.Stable);
++
++            manager.Sample();
++
++            Assert.That(manager.TryRead(0, out var move), Is.True);
++            Assert.That(move.X, Is.EqualTo(8f));
++        }
++
++        [Test]
++        public void UndefinedSceneState_IsNotAccepting()
++        {
++            var reader = new FillReader();
++            using var manager = new InputManager(reader, SampleSlots());
++            manager.SetInteractionState((SceneState)99);
++
++            manager.Sample();
++
++            Assert.That(reader.Calls, Is.EqualTo(0));
++            Assert.That(manager.TryRead(0, out var move), Is.True);
++            Assert.That(move.X, Is.EqualTo(0f));
++        }
++
++        [Test]
++        public void MapChange_NotifiesOnce_AndPublishesTheNewlyActiveMap()
++        {
++            var reader = new FillReader();
++            using var manager = new InputManager(reader, SampleSlots());
++            var seen = new List<InputControlMap>();
++            using var subscription = manager.MapChanged.Subscribe(seen.Add);
++            manager.SetInteractionState(SceneState.Stable);
++
++            Assert.That(manager.TrySetMap(InputControlMap.UI), Is.True);
++            Assert.That(manager.TrySetMap(InputControlMap.UI), Is.True);
++            manager.Sample();
++
++            Assert.That(seen, Is.EqualTo(new[] { InputControlMap.UI }));
++            Assert.That(manager.ActiveMap, Is.EqualTo(InputControlMap.UI));
++            Assert.That(manager.TryRead(2, out var navigate), Is.True);
++            Assert.That(navigate.X, Is.EqualTo(4f));
++            Assert.That(manager.TryRead(0, out var move), Is.True);
++            Assert.That(move.X, Is.EqualTo(0f));
++        }
++
++        [Test]
++        public void UnknownMap_AndUnknownProfile_LeaveTheCurrentSelection()
++        {
++            using var manager = new InputManager(new FillReader(), SampleSlots());
++
++            Assert.That(manager.TrySetMap((InputControlMap)9), Is.False);
++            Assert.That(manager.ActiveMap, Is.EqualTo(InputControlMap.Player));
++            Assert.That(manager.TrySelectProfile(new InputProfileId("one-handed")), Is.False);
++            Assert.That(manager.TrySelectProfile(InputProfileId.Default), Is.True);
++            Assert.That(manager.ActiveProfile.Value, Is.EqualTo(InputProfileId.DefaultValue));
++        }
++
++        [Test]
++        public void TryRegister_SamplesBeforeTheDefaultGameplayOrder()
++        {
++            var reader = new FillReader();
++            using var manager = new InputManager(reader, SampleSlots());
++            manager.SetInteractionState(SceneState.Stable);
++            var coordinator = new UpdateCoordinator();
++            var log = new List<string>();
++            var probe = new ProbeElement(log, () => reader.Calls > 0 ? "after-input" : "before-input");
++
++            Assert.That(manager.TryRegister(coordinator), Is.True);
++            Assert.That(manager.TryRegister(coordinator), Is.False);
++            Assert.That(
++                coordinator.RegisterElement("Gameplay", probe, layerOrder: 0, executionOrder: 0),
++                Is.True);
++            coordinator.ActivatePendingRegistrations();
++            coordinator.RunUpdate(0.016f, 0.016f);
++
++            Assert.That(log, Is.EqualTo(new[] { "after-input" }));
++            Assert.That(UpdateLayerIds.InputLayerOrder, Is.LessThan(0));
++            Assert.That(UpdateLayerIds.InputLayerOrder, Is.LessThan(UpdateLayerIds.CameraLayerOrder));
++        }
++
++        [Test]
++        public void Sample_DoesNotAllocate_OnTheStableOrNeutralPath()
++        {
++            var reader = new FillReader();
++            using var manager = new InputManager(reader, SampleSlots());
++            manager.SetInteractionState(SceneState.Stable);
++            manager.Sample();
++            manager.SetInteractionState(SceneState.Loading);
++            manager.Sample();
++            manager.SetInteractionState(SceneState.Stable);
++
++            var before = GC.GetAllocatedBytesForCurrentThread();
++            for (var i = 0; i < 1000; i++)
++            {
++                manager.Sample();
++                manager.SetInteractionState(SceneState.Loading);
++                manager.Sample();
++                manager.SetInteractionState(SceneState.Stable);
++            }
++
++            var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
++            Assert.That(allocated, Is.EqualTo(0));
++        }
++
++        [Test]
++        public void Dispose_IsIdempotent_AndRejectsFurtherSamples()
++        {
++            var manager = new InputManager(new FillReader(), SampleSlots());
++            manager.Dispose();
++            manager.Dispose();
++
++            Assert.Throws<ObjectDisposedException>(() => manager.Sample());
++        }
++
++        private static InputActionSlot[] SampleSlots()
++        {
++            return new[]
++            {
++                new InputActionSlot(0, InputControlMap.Player, InputActionValueKind.Axis2, "Move"),
++                new InputActionSlot(1, InputControlMap.Player, InputActionValueKind.Button, "Attack"),
++                new InputActionSlot(2, InputControlMap.UI, InputActionValueKind.Axis2, "Navigate"),
++                new InputActionSlot(3, InputControlMap.UI, InputActionValueKind.Button, "Submit"),
++            };
++        }
++
++        private sealed class FillReader : IInputDeviceReader
++        {
++            public int Calls;
++            public float X = 4f;
++
++            public void Read(Span<InputActionValue> destination)
++            {
++                Calls++;
++                for (var i = 0; i < destination.Length; i++)
++                {
++                    destination[i] = new InputActionValue(
++                        99,
++                        InputControlMap.UI,
++                        InputActionValueKind.Button,
++                        X,
++                        7f);
++                }
++            }
++        }
++
++        private sealed class ProbeElement : IUpdateElement
++        {
++            private readonly List<string> _log;
++            private readonly Func<string> _read;
++
++            public ProbeElement(List<string> log, Func<string> read)
++            {
++                _log = log;
++                _read = read;
++            }
++
++            public void OnElementStart()
++            {
++            }
++
++            public void OnElementUpdate(in UpdateFrameContext context)
++            {
++                _log.Add(_read());
++            }
++
++            public void OnElementLateUpdate(in UpdateFrameContext context)
++            {
++            }
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Tests/InputSystem/InputManagerTests.cs.meta b/unity/Assets/OneStarMaker/Tests/InputSystem/InputManagerTests.cs.meta
+new file mode 100644
+index 00000000..ed1e4e9d
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/InputSystem/InputManagerTests.cs.meta
+@@ -0,0 +1,2 @@
++fileFormatVersion: 2
++guid: 149ce4d17e0347a78c3ea4738f4b51cd
+diff --git a/unity/Assets/OneStarMaker/Tests/OneStarMaker.Tests.asmdef b/unity/Assets/OneStarMaker/Tests/OneStarMaker.Tests.asmdef
+index eef0fd8c..f3e71f60 100644
+--- a/unity/Assets/OneStarMaker/Tests/OneStarMaker.Tests.asmdef
++++ b/unity/Assets/OneStarMaker/Tests/OneStarMaker.Tests.asmdef
+@@ -11,7 +11,8 @@
+         "Unity.ResourceManager",
+         "UniTask",
+         "UniTask.Linq",
+-        "Unity.Cinemachine"
++        "Unity.Cinemachine",
++        "Unity.InputSystem"
+     ],
+     "includePlatforms": [
+         "Editor"

@@ -1,28 +1,29 @@
+<!-- phase-a-snapshot: frozen before implementation results. Do not append Phase B or Phase C findings to this file. -->
+
 # INPUT_SYSTEM_MANAGER
 
 - type: slice
-- status: C
+- status: B
 - branch: cursor/input-system-manager-159b
 - implementation base commit: 2c29c99806788406551affba6cc795e67e614748
-- implementation head commit: 3ad67c81499530301c1329fc28e70830179dd49a
+- implementation head commit: 未記入
 - risk: high
 - owner: 未割当（このクラウドセッションが A1 と実装を担当。A3 の人間はいない）
 - created: 2026-10-04
 - expires: 2026-11-04
 - harvest to: unity/Assets/Docs/Architecture/07-09-services.md の §8 と、unity/Assets/Docs/Architecture/32-accessibility-input-dof.md の「InputManager 待ち」の現状文。マージ時まで公開面は変えない
-- Phase A snapshot path / id: docs/handoff/INPUT_SYSTEM_MANAGER_PHASE_A.md
+- Phase A snapshot path / id: docs/handoff/input-system-manager/phase-a-snapshot.md
 - Phase A snapshot generated at: 2026-10-04T01:39:23Z
-- Phase A snapshot hash: 03ffdabf2100511bf4ee486b792d69a473d561ff110fbf6a5d8bc85142467c3a
-- Phase B result snapshot path / id: docs/handoff/input-system-manager/blind-audit/phase-b-result.md
-- Phase B result snapshot generated at: 2026-10-04T01:42:05Z
-- Phase B result snapshot hash: 40895f29a443f1bb28a742c5a486ad4aa96d269684606f533725d38e686d4a30
-- evidence bundle path / id: docs/handoff/input-system-manager/blind-audit
-- evidence bundle generated at: 2026-10-04T01:42:05Z
-- evidence bundle hash: 0bab4d5e2d384439fe63c0c44bc85701d4293b7d939bb5c5ab4a77a5e09d66c9
-- C' blind bundle path / id: docs/handoff/input-system-manager/blind-audit
-- C' blind bundle generated at: 2026-10-04T01:42:05Z
-- C' blind bundle hash: 0bab4d5e2d384439fe63c0c44bc85701d4293b7d939bb5c5ab4a77a5e09d66c9
-- C' blind bundle validity: 無効。Unity の結果 XML が同じ base / head に付くまで、判定 C の入力でも C' の入力でもない。XML は作っていない。
+- Phase A snapshot hash: 未記入
+- Phase B result snapshot path / id: 未記入
+- Phase B result snapshot generated at: 未記入
+- Phase B result snapshot hash: 未記入
+- evidence bundle path / id: 未記入
+- evidence bundle generated at: 未記入
+- evidence bundle hash: 未記入
+- C' blind bundle path / id: 未記入
+- C' blind bundle generated at: 未記入
+- C' blind bundle hash: 未記入
 
 ## 1. 目的と対象外
 
@@ -230,25 +231,25 @@ develop 時点の行数と、この凍結で置く行数。500 行、3 責務、
 
 ## 6. Phase B 実装結果
 
-- 実装: InputManager、公開値、Stable のときだけサンプルするフレーム、Player / UI のマップ切替、既定プロファイルだけを受理する枠、Update 層 Input / -100、オフライン実行、EditMode テストを置いた。SampleGame、FlyController、AppInitializer、既存 inputactions、アーキテクチャ文書は変更していない。implementation head は 3ad67c81499530301c1329fc28e70830179dd49a。
-- HANDOFF との差: Phase A snapshot のバイト列と hash は凍結時のままである。相対リンクが snapshot のディレクトリで切れたため、証拠コミットで docs/handoff/INPUT_SYSTEM_MANAGER_PHASE_A.md へ移した。この移動は implementation head に含めない。設計上の差は無い。
-- 未実行: Unity Editor がこの環境に無い。コンパイル確認、EditMode、`pwsh tools/run-tests.ps1` は未実行。InputActionAssetReader は Unity でコンパイルしていない。
-- implementation head commit: 3ad67c81499530301c1329fc28e70830179dd49a
-- Phase B 担当・モデル・ベンダー: このクラウドセッション。Grok 4.7。xAI。
+- 実装: 未実施
+- HANDOFF との差: 未実施
+- 未実行: 未実施
+- implementation head commit: 未実施
+- Phase B 担当・モデル・ベンダー: 未実施
 
 ## 7. Phase C
 
-- 種別: 発見。判定は未実施。GO ではない。
-- evidence bundle id / hash: input-system-manager-blind-audit / 0bab4d5e2d384439fe63c0c44bc85701d4293b7d939bb5c5ab4a77a5e09d66c9。manifest の hash。Unity XML が無いので、この bundle は完了した判定 bundle ではない。
-- 構造適合: 差分の型は凍結した責務マップと一致する。公開面は InputManager、InputActionValue、InputControlMap、InputProfileId、InputActionMapNames、UpdateLayerIds の Input 定数である。InputFrame は Unity と R3 を参照しない。アセットの読み取りは InputActionAssetReader にある。SampleGame への接続は無い。UpdateLayerIds は 24 行から 37 行（約 54%）で、非分割妥当。定数 2 つであり、絶対行数は閾値より小さい。InputManager は 247 行で、500 行にも 3 責務の分割トリガーにも達しない。入れ子の Element は登録のための private 型である。
-- 現在の問いを阻害する findings（違反する凍結済み条件 / 常時契約を併記）: この差分の静的確認では、凍結した進める最低条件または常時契約への違反を特定できなかった。これは独立レビューではなく、実装と同じセッションの確認である。
-- 後続スライスへ移送する findings: 新しい移送は無い。姿勢アクション、シーンの結び付け、ゲーム enum、片手プロファイル、AI、エッジ、レイヤ順序の強制は、凍結時の後続スライスのままである。
-- 実行したテストコマンドと `-Filter`、対象を選んだ理由: `dotnet run -c Release --project tools/InputSystemOfflineTests`。Unity 無しで公開規則、SceneState、割り当て、既存 inputactions の JSON を見るため。`pwsh -NoProfile -File tools/contract-audit.ps1` と `pwsh -NoProfile -File tools/docs-audit.ps1`（PowerShell 7.5.4）。Unity の `-Filter` は使っていない。
-- テスト結果（XML 上の実行テスト名と件数）: Unity の XML は無い。オフラインは 12 件実行、失敗 0、exit 0。名前は offline-tests.txt にある。contract-audit は errors=0 warnings=0。docs-audit は errors=0 warnings=0。
-- 判定必須のうち未実行: フィルタ無しの `pwsh tools/run-tests.ps1` による全 EditMode。この環境に Unity Editor が無く、起動していない。結果 XML は存在しない。
-- 重い検証を発見段階で限定実行した場合の理由と範囲: 限定実行はしていない。全 EditMode は始めから走らせていない。
-- 未確認事項: InputActionAssetReader の Unity コンパイル。本番の ReadValue 経路の割り当て。EditMode の割り当てテストは偽リーダーであり、アセットを生成しない。OneStarMaker.Tests.InputSystem の実行。GO は出していない。
-- 担当・モデル: このクラウドセッション。Grok 4.7。xAI。Phase C は実装と別モデル、別セッションである契約を満たしていない。独立した Phase C とは記録しない。
+- 種別: 未実施
+- evidence bundle id / hash: 未実施
+- 構造適合: 未実施
+- 現在の問いを阻害する findings（違反する凍結済み条件 / 常時契約を併記）: 未実施
+- 後続スライスへ移送する findings: 未実施
+- 実行したテストコマンドと `-Filter`、対象を選んだ理由: 未実施
+- テスト結果（XML 上の実行テスト名と件数）: 未実施
+- 判定必須のうち未実行: 未実施
+- 重い検証を発見段階で限定実行した場合の理由と範囲: 未実施
+- 未確認事項: 未実施
+- 担当・モデル: 未実施
 
 ## 8. Phase C'
 
