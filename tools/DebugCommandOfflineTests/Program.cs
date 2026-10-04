@@ -16,6 +16,8 @@ namespace OneStarMaker.DebugCommandOfflineTests
         {
             Run(nameof(Catalog_ExecutesExactName_AndKeepsPayload), Catalog_ExecutesExactName_AndKeepsPayload);
             Run(nameof(Catalog_RejectsEmptyDuplicateAndUnknown), Catalog_RejectsEmptyDuplicateAndUnknown);
+            Run(nameof(Catalog_BoundariesPreserveResolutionAndException), Catalog_BoundariesPreserveResolutionAndException);
+            Run(nameof(Result_NullAndDefaultHaveDistinctInitialization), Result_NullAndDefaultHaveDistinctInitialization);
             Run(nameof(Catalog_ExecuteDoesNotAllocate), Catalog_ExecuteDoesNotAllocate);
             Run(nameof(Sources_DoNotNameTheScriptMachineOrTheStudio), Sources_DoNotNameTheScriptMachineOrTheStudio);
 
@@ -63,6 +65,55 @@ namespace OneStarMaker.DebugCommandOfflineTests
             Equal("Debug command is not registered.", missing.Message, "unknown message");
         }
 
+        private static void Catalog_BoundariesPreserveResolutionAndException()
+        {
+            var catalog = new DebugCommandCatalog();
+            var calls = 0;
+            var callerThread = Environment.CurrentManagedThreadId;
+            DebugCommandHandler handler = payload =>
+            {
+                Equal(callerThread, Environment.CurrentManagedThreadId, "caller thread");
+                calls++;
+                return DebugCommandResult.Fail(payload);
+            };
+            Throws<ArgumentException>(() => catalog.Register(null!, handler));
+            Throws<ArgumentNullException>(() => catalog.Register("valid", null!));
+            catalog.Register(" exact ", handler);
+            catalog.Register(" ", handler);
+            foreach (var name in new[] { null!, "", "exact", " Exact ", "missing" })
+            {
+                True(!catalog.TryExecute(name, "opaque", out var missing), "resolved invalid name");
+                True(!missing.Success, "missing succeeded");
+                Equal("Debug command is not registered.", missing.Message, "missing message");
+                Equal("", missing.PayloadJson, "missing payload");
+            }
+            Equal(0, calls, "missing handler side effects");
+            True(catalog.TryExecute(" exact ", "not JSON", out var failed), "registered failure unresolved");
+            True(!failed.Success, "business failure succeeded");
+            Equal("not JSON", failed.Message, "opaque payload");
+            True(catalog.TryExecute(" ", null, out var empty), "whitespace name unresolved");
+            Equal("", empty.Message, "null payload");
+            Equal(2, calls, "handler calls");
+            Equal(2, catalog.Count, "registration count");
+            var expected = new InvalidOperationException("handler failed");
+            catalog.Register("throw", _ => throw expected);
+            try { catalog.TryExecute("throw", "", out _); }
+            catch (InvalidOperationException actual)
+            {
+                True(ReferenceEquals(expected, actual), "exception was replaced");
+                return;
+            }
+            throw new InvalidOperationException("handler exception was swallowed");
+        }
+
+        private static void Result_NullAndDefaultHaveDistinctInitialization()
+        {
+            var constructed = new DebugCommandResult(true, null, null);
+            Equal("", constructed.Message, "constructor message");
+            Equal("", constructed.PayloadJson, "constructor payload");
+            True(default(DebugCommandResult).Message == null, "default message");
+            True(default(DebugCommandResult).PayloadJson == null, "default payload");
+        }
         private static void Catalog_ExecuteDoesNotAllocate()
         {
             var catalog = new DebugCommandCatalog();

@@ -6,6 +6,8 @@ namespace OneStarMaker.Runtime.DebugCommands
     /// デバッグコマンドの結果。経路は持たない。
     /// 外部ツールの封筒へ載せるときも、プロセス内から読むときも、この値を使う。
     /// </summary>
+    /// <remarks>コンストラクタは null message / payload を empty にするが、default(struct) の文字列は null になり得る。
+    /// envelope adapter は default の文字列も empty へ正規化する。</remarks>
     public readonly struct DebugCommandResult
     {
         public DebugCommandResult(bool success, string? message, string? payloadJson)
@@ -15,6 +17,7 @@ namespace OneStarMaker.Runtime.DebugCommands
             PayloadJson = payloadJson ?? string.Empty;
         }
 
+        /// <summary>handler が返した業務成否。catalog の名前解決の成否とは独立する。</summary>
         public bool Success { get; }
 
         public string Message { get; }
