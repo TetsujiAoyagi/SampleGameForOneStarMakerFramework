@@ -106,6 +106,7 @@ namespace OneStarMaker.Runtime.InputSystem
         public void SetInteractionState(SceneState state)
         {
             _interactionState = state;
+            if (!InputAcceptance.IsAccepting(state)) Neutralize();
         }
 
         /// <summary>
@@ -131,8 +132,16 @@ namespace OneStarMaker.Runtime.InputSystem
             }
 
             changed = map != _activeMap;
+            if (changed) Neutralize();
             _activeMap = map;
             return true;
+        }
+
+        public void Neutralize()
+        {
+            // 保持済み span も即座に停止を観測する。配列を交換しない。
+            InputPublication.WriteNeutral(_slots, _sampled);
+            InputPublication.WriteNeutral(_slots, _published);
         }
 
         /// <summary>

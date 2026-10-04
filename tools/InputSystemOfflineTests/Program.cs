@@ -23,6 +23,7 @@ namespace OneStarMaker.InputSystemOfflineTests
             Run(nameof(Profile_AcceptsOnlyTheDefaultId), Profile_AcceptsOnlyTheDefaultId);
             Run(nameof(Map_RejectsUndefinedValues), Map_RejectsUndefinedValues);
             Run(nameof(Publication_KeepsActiveMapAndClearsStaleLevels), Publication_KeepsActiveMapAndClearsStaleLevels);
+            Run(nameof(ImmediateBoundaries_OverwriteRetainedSpan), ImmediateBoundaries_OverwriteRetainedSpan);
             Run(nameof(Copy_LengthMismatchDoesNotPublishAPartialBuffer), Copy_LengthMismatchDoesNotPublishAPartialBuffer);
             Run(nameof(Catalog_RejectsDuplicateNamesAndBrokenIndexes), Catalog_RejectsDuplicateNamesAndBrokenIndexes);
             Run(nameof(Lookup_IsByActionNameAndMap), Lookup_IsByActionNameAndMap);
@@ -161,6 +162,30 @@ namespace OneStarMaker.InputSystemOfflineTests
             frame.Sample(reader);
             True(frame.TryRead(0, out move), "fresh");
             Equal(8f, move.X, "fresh x");
+        }
+
+        private static void ImmediateBoundaries_OverwriteRetainedSpan()
+        {
+            var frame = NewFrame();
+            var reader = new FillReader();
+            frame.SetInteractionState(SceneState.Stable);
+            frame.Sample(reader);
+            var span = frame.Published;
+            frame.SetInteractionState(SceneState.Loading);
+            Equal(0f, span[0].X, "immediate stop");
+            Equal(0, span[0].Index, "identity retained");
+            frame.SetInteractionState(SceneState.Stable);
+            Equal(0f, span[0].X, "stable alone remains neutral");
+            frame.Sample(reader);
+            True(!frame.TrySetMap((InputControlMap)99, out _), "invalid map");
+            Equal(4f, span[0].X, "invalid preserves values");
+            frame.TrySetMap(InputControlMap.UI, out _);
+            Equal(0f, span[0].X, "immediate map change");
+            frame.Sample(reader);
+            Equal(4f, span[2].X, "new selected values");
+            frame.Neutralize();
+            Equal(0f, span[2].X, "owner disposal boundary");
+            Equal(2, span[2].Index, "ui identity retained");
         }
 
         private static void Copy_LengthMismatchDoesNotPublishAPartialBuffer()

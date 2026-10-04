@@ -1,272 +1,96 @@
-# INPUT_SYSTEM_MANAGER
+# PR #88 — Input level publication, integration revision r7
 
-- type: slice
-- status: C
-- branch: cursor/input-system-manager-159b
-- implementation base commit: 2c29c99806788406551affba6cc795e67e614748
-- implementation head commit: 3ad67c81499530301c1329fc28e70830179dd49a
-- risk: high
-- owner: 未割当（このクラウドセッションが A1 と実装を担当。A3 の人間はいない）
-- created: 2026-10-04
-- expires: 2026-11-04
-- harvest to: unity/Assets/Docs/Architecture/07-09-services.md の §8 と、unity/Assets/Docs/Architecture/32-accessibility-input-dof.md の「InputManager 待ち」の現状文。マージ時まで公開面は変えない
-- Phase A snapshot path / id: docs/handoff/INPUT_SYSTEM_MANAGER_PHASE_A.md
-- Phase A snapshot generated at: 2026-10-04T01:39:23Z
-- Phase A snapshot hash: 03ffdabf2100511bf4ee486b792d69a473d561ff110fbf6a5d8bc85142467c3a
-- Phase B result snapshot path / id: docs/handoff/input-system-manager/blind-audit/phase-b-result.md
-- Phase B result snapshot generated at: 2026-10-04T01:42:05Z
-- Phase B result snapshot hash: 40895f29a443f1bb28a742c5a486ad4aa96d269684606f533725d38e686d4a30
-- evidence bundle path / id: docs/handoff/input-system-manager/blind-audit
-- evidence bundle generated at: 2026-10-04T01:42:05Z
-- evidence bundle hash: 0bab4d5e2d384439fe63c0c44bc85701d4293b7d939bb5c5ab4a77a5e09d66c9
-- C' blind bundle path / id: docs/handoff/input-system-manager/blind-audit
-- C' blind bundle generated at: 2026-10-04T01:42:05Z
-- C' blind bundle hash: 0bab4d5e2d384439fe63c0c44bc85701d4293b7d939bb5c5ab4a77a5e09d66c9
-- C' blind bundle validity: 無効。Unity の結果 XML が同じ base / head に付くまで、判定 C の入力でも C' の入力でもない。XML は作っていない。
+## Metadata and authorization
 
-## 1. 目的と対象外
+- type: slice; risk: high (new public API, borrowed asset and registration lifetime).
+- PR branch: cursor/input-system-manager-159b; working branch: codex/pr88-closeout; target: develop.
+- Implementation base: 09242db5cd8cf2cd6695522dcd4cee5fcfc020f6. Published input: e08eb28f0205efeb7369c77e552796b00aa85ba1. Integration merge: 577f227ab3520fbf59ce13ab173c150cfe18f6ca. Final implementation head is fixed after this integration-only revision. Prior focused candidate: fac50645ab624df95212cef0531fabfdf9f221eb.
+- Owner: root integration; created2026-10-05; retain evidence through2026-11-05.
+- Harvest: existing unity/Assets/Docs/Architecture/07-09-services.md input section and 32-accessibility-input-dof.md current-status text; no new permanent document.
+- A snapshot: phase-a-frozen.md and phase-a-manifest.json after A2 dispositions. B/result/bundle hashes generated when those phases complete, not invented here. H1/H2 migration not adopted.
+- Human authorization: 「はよマージできるまでに持って行ってマージしてくれ」 explicitly authorizes necessary bounded repairs, review and individual merges of the remaining PRs. Root exercises that authorization for this scope; no new game feature or waiver of gates is implied.
 
-- 目的: OneStarMaker の入力マネージャが、既存の Unity Input System アセットからアクション単位の現在値を読み、SceneState が Stable のあいだだけ公開し、それ以外では中立値を公開する。Player と UI はアクションマップの切替として持ち、プロファイル ID の枠だけを残す。
-- 対象外:
-  - SampleGame の FlyController の置換、および SampleGame や AppInitializer からこのマネージャへの接続
-  - Game.Common の NewStgCommonInput と、ゲーム固有アクション enum
-  - 二つ目の InputActionAsset
-  - UI のフォーカス、ヒント、ラベル、タブ順
-  - リマップ UI、触覚、ワールド巡回、片手プロファイルの中身
-  - AI による同じ値形の生成、疑似デバイス入力、キャラクターコントローラ
-  - ボタンのエッジ（押したフレームだけ真）の公開
-  - Vector3 / Quaternion の公開
-  - SceneDirector の購読と、どのシーンを操作対象にするかの決定
-  - アセットを IAssetManagement でロードすること
-  - 公開アーキテクチャ文書の更新（harvest は Phase D）
-  - オープンな PR #86（ScriptSystem）と PR #87（DebugStudio）のファイル
-- 現況:
-  - develop の HEAD は 2c29c99806788406551affba6cc795e67e614748。InputManager の実装は無い。
-  - [07-09-services.md](../../unity/Assets/Docs/Architecture/07-09-services.md) §8 は InputManager と InputObserver、その先の NewStgCommonInput を図にしている。コードにはどちらも無い。図は未着手の目標であり、このスライスはマネージャで止める。InputObserver という独立型は作らない。マップ切替と、マップが変わったときの R3 通知はマネージャが持つ。
-  - [32-accessibility-input-dof.md](../../unity/Assets/Docs/Architecture/32-accessibility-input-dof.md) はプロファイル本体を InputManager に置くが、「今やらない」にプロファイル / リマップ UI、ワールド巡回、UI の初期フォーカス、触覚を挙げている。片手は同時自由度を落とすことで、このスライスの仕事ではない。
-  - [SceneState.cs](../../unity/Assets/OneStarMaker/Scripts/Runtime/SceneSystem/SceneState.cs) の Stable = 8 のコメントは「ユーザー操作を受け付けられる唯一の状態」である。ユーザー制約と一致する。14 値の順序は変えない。
-  - Update の層順は UpdateLayerIds に Camera = 50、Streaming = 60 がある。ゲームプレイ用の共有定数は無い。UpdateBehaviourAdapter の既定 LayerOrder は 0。入力をそれらの前に置く定数は無かった。
-  - UpdateSystemHost は、不安定なシーンが残っているあいだ新規登録の active 化を止める。すでに active な Element の Update は止まらない。入力の公開をこの active 化ゲートだけに頼ると、遷移中に最後のサンプルが残る。公開の中立化は Element が Update を受け続けることが前提である。
-  - イベントの既存形は R3 である。SceneDirector は Subject でシーンイベントを流し、UI は ReactiveProperty を使う。毎フレームの値ストリームは無い。
-  - com.unity.inputsystem 1.20.0。ProjectSettings の activeInputHandler は 1（新しい Input System）。既存アセットは unity/Assets/InputSystem_Actions.inputactions。マップは Player と UI だけ。アクションの expectedControlType は Button、Vector2、それに UI の TrackedDevicePosition（Vector3）と TrackedDeviceOrientation（Quaternion）である。
-  - OneStarMaker.Runtime は既に Unity.InputSystem を参照している。asmdef の新規追加はしない。
-  - FlyController は Input System を直接読んでおり、このマネージャの消費者ではない。ファイルは変更しない。
-  - 上記のコードと文書は、合意した製品制約を否定していない。否定ではなく、文書の図より狭い実装で止める。
+## A0 / decision and alternatives
 
-## 2. 意思決定と受け入れ境界
+Question: can an optional OSM input component publish indexed Button/Vector2 levels with an explicit owner, immediate stop boundary and standard Update registration, without knowing game actions or replacing Unity UI input?
 
-- このスライスが答える問い: ゲーム固有 enum を Runtime に置かず、既存アセットのアクション現在値を、Stable のあいだだけ割り当てなしで公開し、Player / UI の切替とプロファイル枠をマネージャに持たせられるか。
-- 進める最低条件:
-  1. 公開値はアクションの席であり、物理キーではない。Runtime にゲーム固有アクション enum と NewStgCommonInput が無い。
-  2. 渡された SceneState が Stable のとき、有効マップのサンプルが公開される。それ以外では全部の席が中立（X = 0、Y = 0）で、直前の Stable の量を残さない。
-  3. Player と UI の切替はマネージャのアクションマップ切替である。UI のフォーカス、ヒント、ラベル、タブ順は無い。
-  4. プロファイル ID の枠があり、受理されるのは既定 ID "default" だけである。未知の ID は拒否され、バインドは変わらない。片手プロファイルの中身、リマップ UI、触覚、ワールド巡回は無い。
-  5. サンプルは UpdateSystem の Update で、Layer 名 Input、LayerOrder -100 に登録できる。これは UpdateBehaviourAdapter の既定 0、Camera 50、Streaming 60 より前である。
-  6. サンプルと公開の定常経路で GC 割り当てが 0 である。
-  7. SampleGame と FlyController と AppInitializer は、このマネージャへ接続されていない。
-- 受け入れ条件（進める最低条件を構成する観測可能な詳細。別の完了バーにしない）:
-  1. 公開形 InputActionValue は Index、Map、Kind、X、Y を持つ。Kind は Button と Axis2 だけである。名前解決は文字列とマップの組で、毎フレームの公開読み取りはインデックスである。
-  2. SceneState の 14 値のうち IsAccepting が真なのは Stable だけである。未定義の整数も偽である。非 Stable の Sample はデバイスリーダーを呼ばず、公開バッファを席の識別子付きの零で書き直す。Stable に戻ったあとの値は、その時点のサンプルであり、遷移前の量ではない。
-  3. 有効マップ以外の席は、リーダーが非零を書いても公開時には零である。TrySetMap は Player と UI だけを受理し、変わったときだけ R3 の MapChanged を 1 回流す。同じマップの再設定はイベントを出さず、デバイスの Enable もやり直さない。
-  4. TrySelectProfile は InputProfileId.Default（値 "default"）だけを真にする。それ以外は偽で、ActiveProfile は Default のままである。
-  5. TryRegister は UpdateLayerIds.Input と InputLayerOrder で 1 回だけ成功する。LayerOrder 0 の Element より前の Update でサンプルが走る。
-  6. Release 構成のオフライン測定で、安定と非安定を含む 2000 回の Sample 経路の割り当てバイト数が 0 である。EditMode の同種測定は判定 C の対象である。
-  7. 差分に SampleGame、FlyController、AppInitializer の変更が無い。Runtime の InputSystem ソースに SampleGame、FlyController、NewStg、UnityEditor が無い。
-  8. 既存 inputactions を二つ目のアセットにせず、Player / UI の Button と Vector2 を席にする。Vector3 と Quaternion は席にせず、UnsupportedActionCount に数える。
-- ここでは答えない問いと所有する後続スライス（HANDOFF / program 名）:
-  - ゲーム固有 enum と SampleGame への接続: 後続スライス INPUT_GAME_ACTIONS
-  - どのシーンの SceneState を渡すか、SceneDirector 購読、起動時の TryRegister と active 化: 後続スライス INPUT_SCENE_BINDING
-  - アセットのロードと AssetOwner: 後続スライス INPUT_SCENE_BINDING
-  - 片手プロファイルの中身（巡回と決定 1 つ）: 後続スライス INPUT_ONE_HANDED_PROFILE
-  - リマップ UI と触覚: 後続スライス INPUT_BINDING_UI
-  - Vector3 / Quaternion を公開形に入れるか: 後続スライス INPUT_POSE_ACTIONS
-  - 同じ InputActionValue を出す AI: 後続スライス INPUT_AI_PRODUCER
-  - エッジ（押下フレーム）の公開: 後続スライス INPUT_ACTION_EDGES
-  - 他システムが InputLayerOrder 未満を選べないようにする強制: 後続スライス INPUT_LAYER_GUARD
-- 判定定義（GO / NO-GO。スパイクの場合だけ CONDITIONAL ACCEPT も定義）: 進める最低条件の証拠が揃い、その条件と常時契約への致命的な反証が無いとき GO。証拠が欠ける、または反証があるとき NO-GO。CONDITIONAL ACCEPT は使わない。このクラウドセッションは GO を記録しない。
-- 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。スパイクは上記で定義した場合だけ CONDITIONAL ACCEPT で終了できる。
-- A3 後の例外承認（人間、理由、置き換える既存条件または期限・検証予算。無ければ `なし`）: なし
-- 本文へ転記した実装制約:
-  - 依存は Game から Framework の一方向。このスライスは Runtime と、テスト用に OneStarMaker.Tests へ Unity.InputSystem を足すこと以外、asmdef を増やさない。Runtime は元から Unity.InputSystem を参照している。テストアセンブリの参照は推移しないため、公開コンストラクタが InputActionAsset を取る以上、テスト側の参照が要る。
-  - アセットは呼び出し側が所有する。マネージャは Destroy しない。Dispose では自分が有効にした Player と UI を両方無効にする。
-  - SceneState の既存 14 値は減らさず並べ替えない。状態変更の所有者は SceneLifecycleManager のままである。マネージャは渡された値を読むだけである。
-  - 公開 API に ZLogger 型を出さない。定常経路ではログしない。
-  - Update の登録先は UpdateSystem である。1 フレームの中では、入力 Element は Update でサンプルし、LateUpdate では公開値を変えない。
-  - 1 つの UpdateSystem の例外で他の Tick を止めない、は既存の UpdateCoordinator の契約である。サンプル定常経路は例外を投げない。
-  - Editor コードを Runtime に置かない。
-  - Unity 側の C# で record を使わない。
-  - 新規と編集した Unity 側 .cs の先頭は #nullable enable。
-  - 破棄されうる UnityEngine.Object には == null を使う。InputActionAsset はこれに該当する。InputActionMap と InputAction は UnityEngine.Object ではない。
-  - テストで Task.Delay と Thread.Sleep を使わない。
-  - 参照 0 を削除理由にしない。既存の FlyController は残す。
-  - PR の base は develop。main と develop へは push しない。
-- 未決事項: なし
+The original intended arrival policy describes this primitive. Direct Unity actions remain suitable for SampleGame's existing FlyController. A manager earns a distinct role only in cataloguing/publishing bounded values with deterministic neutralization; it is not a universal input/UI mode. Absence of a consumer alone is not a deletion or blocker reason. SampleGame WorldReady, cursor, debug teleport, UI module and FixedUpdate are separate owner policies, and the component is not claimed to solve or migrate them. Prior proposals for a mandatory new gameplay/UI research slice are rejected for this PR.
 
-このスライスの凍結は、A2 の複数モデルレビューと A3 の採否を経ていない。ユーザーが、その未実施を記録したうえでこの本文を実装境界にするよう指示した。これは A3 の採否記録ではない。凍結後に設計判断が増える場合は実装を止め、本文の対象外へ送る。
+Retain the original Player/UI map selection, Button/Vector2-only levels, default-only profile identifier, map-change notification and Input layer -100. Do not add edges, remapping, pose values, game enum, scene subscription, App readiness flag, asset loading, or automatic app wiring. The existing maps and profile names describe this limited component, not every supported Unity action type or a completed accessibility feature.
 
-## 3. 責務マップ
+## Acceptance and exact contracts
 
-develop 時点の行数と、この凍結で置く行数。500 行、3 責務、既存ファイルの 50% 以上の増加は UpdateLayerIds だけが該当する。
+1. Indexed lookup uses map+action name and stable slots. Only Button and Vector2 are published. Unsupported kinds are counted. Unknown map/profile requests do not mutate state, buffers, native maps or notifications. Same-map requests return true without re-enabling or notifying. Default profile selection does not rebind anything.
+2. Initial state None publishes neutral values. SetInteractionState(any non-Stable value) immediately neutralizes the shared published buffer, with slot identities retained, even before the next Sample and even if Update is not running. Returning to Stable stays neutral until Sample. A real map change neutralizes before native map mutation and notification; commit ActiveMap and notify only after native success. On native partial failure, propagate the original exception, keep neutral and mark an internal map-fault flag; best-effort disable both leased maps. Sample/deferred update while map-faulted does not read the asset. A later valid TrySetMap, including the previous ActiveMap, retries native selection; only success clears the flag, and same-map recovery does not notify a change. Invalid requests never clear the fault. No new public fault API. Dispose also neutralizes immediately. Previously acquired spans observe the neutral writes. Held controls may appear held after a new valid sample; no edge-suppression guarantee.
+3. Public registration is parameterless TryRegister(), calling UpdateSystemRuntime.RegisterElement with Input layer/order -100/execution0. Replace the newly introduced public coordinator overload; an internal test-only seam is optional, not the production path. No installed host or unsuccessful registration returns false and permits retry. A second call after successful registration returns false and does not register twice. Capture the actual coordinator to unregister that same element at Dispose. Calls are main-thread-only; owner creates manager after asset availability, registers after host installation and disposes before host teardown. The existing host governs first activation after SceneDirector binding/stability; manager does not force active registrations. Tests must observe pending/activation and subsequent registration requesting activation, rather than only calling raw coordinator directly.
+4. InputFrame owns only pure managed values; InputActionAssetReader owns native reads/map operations; InputManager owns orchestration, event and registration lease. Manager has an exclusive map-control lease over caller-private Player/UI maps. It never destroys the asset and cannot share those maps with PlayerInput, InputSystemUIInputModule or other controllers. Caller keeps the asset alive through manager.Dispose, obtaining real runtime assets through IAssetManagement with an appropriate AssetOwner at future composition. Owner disposes manager before releasing asset. No cloning or resource loader is introduced.
+5. Construct reader/catalog and fully validate InputFrame before native map mutation. Missing/invalid catalog validation leaves map enable states unchanged. Acquire the lease by enabling Player only after validation. If native enable itself throws, fail closed: attempt to disable both leased maps and rethrow the original failure; no successful manager escapes. This does not promise transactional restoration of externally shared maps (sharing violates the lease). Dispose neutralizes before unregister/disable, disables its maps, ends notifications and is idempotent. Explicit mutating API after disposal throws ObjectDisposedException; getters/TryRead expose neutral slots. The private deferred update adapter no-ops after disposal, so queued structural removal cannot sample again or disturb sibling elements.
+6. Native EditMode tests construct real in-memory InputActionAsset and InputSystem devices through public APIs. Observe Button/Vector2 values, map lookup/selection/enable state, unsupported kind/missing map, immediate neutral stop/switch/dispose, and cleanup without altering production assets. Use public InputSystem APIs with the existing PR's test-only Unity.InputSystem asmdef edge; do not add InputSystem.TestFramework or other edges. Separate fake/policy and native fixture files if helpful for cleanup and independent change reasons.
+7. After fixture setup and sufficient warmup, measure a bounded loop of real reader Sample, TryRead and span access with a current-thread Unity GC.Alloc ProfilerRecorder and a detected positive control. Both Stable and non-Stable steady paths allocate0 managed bytes; measure outside NUnit assertions/device setup/event queue updates. Tests actually execute reads and assert values before/after measurement. Existing fake allocation tests and offline pure tests remain useful, not substitutes for native proof.
+8. Existing public docs must accurately describe optional use, owner/create/register/dispose sequence, map lease, explicit SceneState supplier, Stable not equal WorldReady, Update-level snapshots not a FixedUpdate/edge guarantee, span overwrite lifetime and default profile limitation. No claim SampleGame uses the manager.
 
-- UpdateLayerIds.cs（24 行 → 37 行、約 54% 増）
-  - 責務: Runtime が共有する Layer 名と順序の定数。
-  - 変更理由: 入力をゲームプレイ既定順と Camera より前に置く数を、呼び出し側のばらばらなリテラルにしない。
-  - 所有者・寿命: 定数。寿命はアプリのコンパイル単位。
-  - 依存: 無し。UnityEngine を参照しない。
-  - 公開面: Input、InputLayerOrder。既存の Camera と Streaming の値は変えない。
-  - テスト境界: オフラインで定数の大小を見る。
-  - 配置理由: 既存の共有表である。
-  - 非分割: 増分は定数 2 つと説明である。絶対行数は 37 で、表をファイル分割すると順序の所在が再び分かれる。分割しない。
+GO only if all conditions are evidenced at final head, full required gates pass and C/C' find no blocker. Missing evidence is not success. Stop once this bounded question is answered. Future INPUT_SCENE_BINDING / INPUT_GAME_ACTIONS owns actual readiness, game/UI/FixedUpdate composition; INPUT_ONE_HANDED_PROFILE and other requested extensions need later design. Unrelated FlyController defects are not part of this PR.
 
-- InputControlMap.cs（新規 18 行）
-  - 責務: Player と UI の二値。
-  - 所有者・寿命: 値型。永続化しない。
-  - 依存: 無し。
-  - 公開面: enum。
-  - テスト境界: 未定義整数は拒否される。
-  - 配置: Runtime/InputSystem。ゲーム enum ではない。
+## Responsibility map and allowed edits
 
-- InputActionMapNames.cs（新規 15 行）
-  - 責務: 既存アセットが既に持つマップ名 "Player" と "UI"。
-  - 公開面: 定数。アクション名は持たない。
+- Runtime/InputSystem/InputFrame.cs (165lines; expected+20–40) and InputPublication.cs (58; expected small): managed publication/neutralization only, one-manager buffer lifetime; pure offline tests. Existing small value types remain unchanged unless required for these conditions.
+- InputActionAssetReader.cs (135; expected+20–40): native device reads, delayed lease activation and disable; caller-owned Unity asset. No game/Editor dependence.
+- InputManager.cs (247; expected similar): event/registration/disposal orchestration, parameterless public registration, borrowed reader/frame. No new public API beyond replacing registration signature and clarifying existing contracts. Private adapter belongs to same lifetime.
+- Tests/InputSystem/InputManagerTests.cs (240; expected350–450) and optional InputActionAssetReaderTests.cs/.meta: managed/public runtime registration and native reader tests, deterministic cleanup. Separate files by fixture responsibility; no line-count-only wrappers.
+- tools/InputSystemOfflineTests/Program.cs (364; expected+40–80): pure publication/state boundary tests. Project file only if linking existing allowed policy sources is necessary.
+- Existing PR changes UpdateLayerIds (24→37) and OneStarMaker.Tests.asmdef are accepted: two cohesive constants, and one test-only Unity.InputSystem reference. No additional asmdef or Runtime/Editor edge.
+- Existing architecture07-09 input section and32 current-status paragraph: harvest current limited behavior. Their pre-existing size does not justify wholesale restructuring.
+- Root owns tracked INPUT_SYSTEM_MANAGER.md, old PHASE_A and duplicate old evidence cleanup. Old published bytes preserved in Git history and ignored original-published-docs. B does not write review findings to tracked docs. D deletes completed HANDOFF after harvest.
 
-- InputActionValueKind.cs（新規 17 行）と InputActionValue.cs（新規 58 行）
-  - 責務: 公開するレベル。Button は X、Axis2 は X と Y。中立は両方 0。
-  - 所有者・寿命: 値型。バッファの要素。呼び出し側がコピーすれば Sample をまたいで残る。
-  - 依存: InputControlMap のみ。
-  - 公開面: 構造体。物理キーやデバイス ID は持たない。
-  - テスト境界: 等値と比較はオフラインで足りる。
-  - 配置理由: 後続の AI も同じ形を出す。デバイス型にしない。
+500lines/three independent responsibilities/50%growth are review alarms, not forced splits. Policy/native I/O/orchestration are already separate. Input layer constants stay together; native fixture can be separate from fake tests without introducing a generic helper folder.
 
-- InputProfileId.cs（新規 45 行）
-  - 責務: プロファイル枠。受理文字列は "default" だけ。
-  - 公開面: 構造体と Default。バインド適用メソッドは無い。
-  - テスト境界: 既定は真、それ以外は偽。
+## Implementation and verification
 
-- InputActionSlot.cs（新規 33 行）、InputActionNameKey.cs（新規 37 行）、InputActionKindMap.cs（新規 35 行）
-  - 責務: 束ね時の席、名前とマップの検索キー、expectedControlType から Kind への写像。
-  - 公開面: internal。
-  - 依存: 文字列比較のみ。Unity 型は使わない。
-  - テスト境界: Button と Vector2 だけが真。Vector3、Quaternion、大文字小文字の違いは偽。
+Unity C# first line #nullable enable; no record; UnityEngine.Object uses ==null/!=null; Game→Framework only; no SceneState change; no public ZLogger; no test Task.Delay/Thread.Sleep. No production Scene/Prefab/inputactions/Addressables edit. Asset acquisition is not implemented by this component. No SampleGame or host behavior changes.
 
-- InputAcceptance.cs（新規 18 行）
-  - 責務: SceneState が Stable のときだけ操作を公開する。
-  - 依存: SceneState。SceneLifecycleManager は呼ばない。
-  - テスト境界: 14 値と未定義整数。
+B implements and runs contract audit plus optional cheap offline verification, records Unity compile/test status honestly; no Unity batch tests in B. Fresh C reviews fixed structural/contract diff first. Focused discovery filter OneStarMaker.Tests.InputSystem is available if needed; no heavy suite while clear blockers remain. Final required commands on a fixed GO-candidate head:
 
-- InputPublication.cs（新規 58 行）
-  - 責務: 公開バッファを割り当てなしで零化、有効マップ以外を零化、同長のときだけコピーする。
-  - テスト境界: オフライン。長さ不一致はコピーしない。
+- dotnet run --project tools/InputSystemOfflineTests/InputSystemOfflineTests.csproj -c Release
+- pwsh tools/contract-audit.ps1 -BaseRef 09242db5cd8cf2cd6695522dcd4cee5fcfc020f6
+- pwsh tools/docs-audit.ps1
+- git diff --check
+- pwsh tools/run-tests.ps1 (emptyfilter, fullEditMode, Unity6000.6.0f1, nographics). No exemption.
 
-- IInputDeviceReader.cs（新規 15 行）、IInputMapControl.cs（新規 15 行）
-  - 責務: デバイス読み取りと、マップの有効化。AI の注入口にはしない。
-  - 公開面: internal。
-  - テスト境界: 偽リーダーでフレームを駆動する。
+Windows C uses require_escalated from firstUnity invocation, checks existingEditor/project, sets SAMPLEGAME_content__runtimeMode=addressables only in its childprocess for the repository's reload fixture. No permanent env modification. Successful path was established in92; revised native fixture execution is C, not yet verified at this snapshot. If infrastructure fails, preserve raw and make bounded fixture adaptations inside these dependencies; do not change acceptance silently. No PlayMode/Player/build/visual/UI quality condition is imposed by this primitive slice.
 
-- InputFrame.cs（新規 165 行）
-  - 責務: 公開スナップショット。有効マップ、プロファイル ID、渡された SceneState、サンプルバッファと公開バッファ。
-  - 変更理由: これらは同じ「今フレーム何を公開するか」を決める。
-  - 所有者・寿命: マネージャが生成し、マネージャと同時に捨てる。アセットは持たない。
-  - 依存: 上記の純粋型と SceneState。UnityEngine と R3 は参照しない。
-  - 公開面: internal。
-  - テスト境界: Unity 無しのオフライン実行。
-  - 配置理由: Policy を Unity I/O から離す。
-  - 非分割: プロファイル、マップ、受理、バッファは同じテスト方法（純粋関数）と同じ寿命である。プロファイルのバインド適用はここに置かない。行数は 500 未満で、50% 増加の対象になる既存ファイルでもない。分割しない。
+Known native shutdown stall investigation allowance alreadyUSED during92; no new diagnostics/dumps/cache purge/repeated unchanged fullrun. Require actual process termination and raw step result; never call forced exit success. Preserve failures separately.
 
-- InputActionAssetReader.cs（新規 135 行）
-  - 責務: InputActionAsset の Player / UI を束ね、Button と Vector2 だけを席にし、片方のマップだけを Enable する。
-  - 所有者・寿命: マネージャが所有する読み取り口。アセット自体の所有者は呼び出し側。Dispose 相当の Disable はマップを無効にするだけで、アセットは Destroy しない。
-  - 依存: UnityEngine.InputSystem。束ね時の List は許す。Read のループは割り当てない。
-  - 公開面: internal。
-  - テスト境界: Unity コンパイルが要る。この環境では未コンパイル。Kind の写像と、既存 JSON の形はオフラインで固定する。
-  - 配置理由: Unity I/O を InputFrame に混ぜない。
+Evidence: fixedbase/head complete diff/stat/name list; frozenA; neutralB; machinecommands/exits; native raw log/XML/step plus testnames/count/allocationvalues. Local ignored TestResults; ZIP transfer/extraction/hash/length verification before C/C'. Retain through2026-11-05 and put locator/hashes inPRbody. C uses new gpt-6-astra; B newgpt-6.1-sol; C' newgpt-5.6-sol with blind bundle, no C findings/mutableHANDOFF. Models actually used recorded after dispatch. Root handles D reconciliation/normalpush/exactheadmerge per user's authorization.
 
-- InputManager.cs（新規 243 行）
-  - 責務: フレーム、リーダー、R3 の MapChanged、Update 登録の接続。
-  - 所有者・寿命: 呼び出し側が new し Dispose する。DontDestroyOnLoad しない。シーンには属さない。
-  - 依存: InputFrame、リーダー、R3、UpdateCoordinator、UpdateLayerIds。
-  - 公開面: コンストラクタ（InputActionAsset）、ActiveMap、ActiveProfile、InteractionState、MapChanged、Published、ActionCount、UnsupportedActionCount、TryGetActionIndex、TryRead、SetInteractionState、TrySelectProfile、TrySetMap、TryRegister、Sample、Dispose。
-  - テスト境界: EditMode は偽リーダーと UpdateCoordinator で登録順、通知、中立化、割り当てを見る。内部コンストラクタは OneStarMaker.Tests にだけ見える。
-  - 配置理由: §8 のマネージャの場所。orchestration を Policy と分ける。
-  - 非分割: 入れ子の Update Element とテスト用の空マップ制御は、マネージャの寿命と登録のためだけの private 型である。外へ出すと公開面が増える。243 行で閾値未満。分割しない。
+## A2 / A3 dispositions
 
-- OneStarMaker.Tests.asmdef
-  - 変更理由: 公開コンストラクタの InputActionAsset をテストアセンブリが解決する。
-  - 依存: 参照配列へ Unity.InputSystem を 1 件追加する。Runtime の参照は変えない。
-  - テスト境界: テストアセンブリだけ。
+A1 gpt-6-sol; independentA2 same frozenphase-a2-input-r1.md: gpt-6-astra architecture andgpt-6.1-sol contract (exact models from root dispatch). Architecture's exact registration, validation-before-mutation and postdispose semantics are adopted above; test-onlyUnity.InputSystem edge approved. Contract's main-thread rule, full-constructor validation, neutral-before-native map operation, retry after partial failure, internal failure-seam tests and measurement exclusions are adopted. Optional suggestion that repeated registration return true is rejected in favor of original-style false for an already-registered instance, explicitly fixed above. Catalog validation recognizes supported expectedControlType values through the existing kind map; it does not promise validation of every malformed native binding before Unity resolves devices.
 
-- OneStarMaker.Tests/InputSystem/InputManagerTests.cs（新規 240 行）
-  - 責務: マネージャの EditMode 検証。
-  - 依存: NUnit、R3、Runtime、Foundation。実時間待ちはしない。
+Root freezes this revision under the user's explicit instruction to bring these PRs through necessary repairs and merge. This is delegated implementation judgment, not a claim that the human individually reviewed each A2 finding. Design does not add a game feature. The earlier missing A2/A3 record remains historical and is not relabeled. B/C/C'/D pending; their results will be recorded only after execution.
 
-- tools/InputSystemOfflineTests
-  - 責務: Unity Editor 無しで純粋側を実行する。製品アセンブリではない。
-  - 依存: net8.0。連結コンパイルは SceneState、UpdateLayerIds、Unity を参照しない InputSystem のソースだけ。
-  - テスト境界: 割り当て、SceneState、既存 inputactions の JSON、ソースの禁則語。
+## r3 integration metadata and bounded fixture execution
 
-## 4. 実装計画
+PR91 has merged to develop; the implementation base above is its exact merge commit. Public API, responsibility, lifetime, all eight acceptance conditions and mandatory final tests are unchanged from r2. This is integration metadata plus a fixture adaptation under section Implementation and verification, not a new runtime design or test waiver. Preserve r2 snapshot and all earlier failed raw.
 
-- 変更対象: 上記のファイルだけ。既存 inputactions、SampleGame、AppInitializer、FlyController、アーキテクチャ文書、PR #86 と #87 のパスは変えない。
-- 順序: 純粋型、フレーム、アセットリーダー、マネージャ、EditMode テスト、オフライン実行、共有 Layer 定数。
-- Phase B から Phase A へ差し戻す条件: 凍結に無い状態、asmdef 参照、所有者、寿命、公開 API が必要になったとき。計画した配置で中核の公開規則をオフラインテストできなくなったとき。ゲーム固有 enum、二つ目のアセット、SampleGame 接続、プロファイル本体が必要になったときは実装せず対象外へ送る。
-- 対象外を維持する方法: マネージャはシーンを購読しない。アセットをロードしない。アクション名の enum を宣言しない。SampleGame のファイルを差分に入れない。Kind の写像は Button と Vector2 だけを真にする。
+The native fixture runs serially on the main thread under the standard Unity EditMode runner; a parallel generic NUnit runner is not an accepted execution path. The package-shipped NUnit does not expose the NonParallelizable attribute, so isolation relies on this existing runner execution model rather than a new attribute or dependency. It temporarily installs a clone of InputSystem.settings, selects ProcessEventsManually and enables the package's public SetInternalFeatureFlag("RUN_PLAYER_UPDATES_IN_EDIT_MODE", true). It drives real queued Gamepad events through public InputSystem.Update, asserts native device/action values outside allocation measurement, and restores the original settings object on normal and partial-setup cleanup before destroying only its clone. No InputSystem.Reset, internal reflection, TestFramework dependency or production asset change is introduced. The revised fixture route is first checked by focused Phase C before the full final regression; success is not assumed here.
 
-## 5. テストとレビュー計画
+The execution checkout is C:/Users/void/.codex/worktrees/pr88-native/SampleGameForOneStarMakerFramework. The old pr87-phase-c checkout remains untouched after ambiguous native shutdown; no Library copy, cache purge or renewed shutdown-cause investigation is performed. New LFS files are hydrated from the existing object cache. Every successful run still requires actual process termination and its own valid raw result. Earlier failed tests/ambiguous termination stay failed.
 
-- 単体テスト: InputFrame と公開規則は tools/InputSystemOfflineTests を `dotnet run -c Release --project tools/InputSystemOfflineTests` で実行する。マネージャの登録と R3 は OneStarMaker.Tests.InputSystem。
-- 差し戻し中の起点 `-Filter`（C が根拠付きで変更可。受け入れ条件の追加ではない）: OneStarMaker.Tests.InputSystem
-- 判定必須テスト（GO 候補 head。実装変更スライスは最終全 EditMode 回帰が標準）: `pwsh tools/run-tests.ps1` をフィルタ無しで実行し、結果 XML の失敗 0 かつ実行 1 件以上。オフライン実行は判定必須の代替にしない。
-- 全 EditMode 回帰の適用除外（理由と代替証拠。無ければ `なし`）: なし
-- 統合・Unity テスト: 上記の全 EditMode。PlayMode と Player は凍結条件に無い。
-- 操作・実行時・目視条件の検証経路（条件ごとの担当、環境・初期状態、操作、観測と合否、対象版・保存証拠・C / C' への受け渡し。既存テストは参照で可）: プレイヤー操作は条件に無い。API 条件はテスト名で閉じる。
-- 未知の操作経路の疎通結果と、必要な検証支援・確認地点（未知経路が無い場合だけ `なし`。Phase C へ委譲する場合は「未確認。初回確認は Phase C」と理由・担当・確認地点、不成立時の対応）: なし
-- 人間の判断が必要な条件と合意した担当・証拠の受け入れ方（観察記録の受理 / 画像の独立再評価。無ければ `なし`）: なし
-- 機械検査: `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1`。
-- A0/A1 主担当・モデル・ベンダー: このクラウドセッション。Grok 4.7。xAI。
-- A2 独立レビューごとの観点・担当・モデル・ベンダー: 未実施。複数モデルへの独立レビューは、このクラウドセッションでは行っていない。
-- A3 統合担当・モデル・採否: 未実施。人間が指摘を採用、不採用、保留に分類していない。ユーザー指示により、その未実施を記録した本文を実装境界にした。
-- C' 用に予約した担当・モデル・ベンダー: Grok 以外の系列。新規セッション。このセッションは A と B に Grok 4.7 を使った。判定 C の Unity XML が同じ implementation head に付くまで C' は開始しない。
-- 独立性の強化条件を満たせない場合の理由: A2 を行っていないため、Phase A がモデル系列を使い切ってはいない。C' の予約は残っている。このセッションの自己確認を独立した Phase C または C' と呼ばない。
+Revision r4 is a bounded fixture execution annotation: replace the unavailable NUnit attribute with the standard runner's existing serial execution model. Public behavior, global-settings restoration, native observations, allocation and final full-regression acceptance remain unchanged. r3 snapshot and failed raw are retained.
+## r5 explicit human exception for this final candidate
 
-## 6. Phase B 実装結果
+The human was presented the final full EditMode result (983/983, zero failures/skips), native Stable/Loading zero-byte measurements, successful offline/audits, and the unconfirmed actual native termination with its exhausted investigation budget. The human explicitly answered: 「終了確認のみ例外化し、C’後にマージする」.
 
-- 実装: InputManager、公開値、Stable のときだけサンプルするフレーム、Player / UI のマップ切替、既定プロファイルだけを受理する枠、Update 層 Input / -100、オフライン実行、EditMode テストを置いた。SampleGame、FlyController、AppInitializer、既存 inputactions、アーキテクチャ文書は変更していない。implementation head は 3ad67c81499530301c1329fc28e70830179dd49a。
-- HANDOFF との差: Phase A snapshot のバイト列と hash は凍結時のままである。相対リンクが snapshot のディレクトリで切れたため、証拠コミットで docs/handoff/INPUT_SYSTEM_MANAGER_PHASE_A.md へ移した。この移動は implementation head に含めない。設計上の差は無い。
-- 未実行: Unity Editor がこの環境に無い。コンパイル確認、EditMode、`pwsh tools/run-tests.ps1` は未実行。InputActionAssetReader は Unity でコンパイルしていない。
-- implementation head commit: 3ad67c81499530301c1329fc28e70830179dd49a
-- Phase B 担当・モデル・ベンダー: このクラウドセッション。Grok 4.7。xAI。
+For PR88 implementation head 0d43b54a76f7a8f89eab269ff598723796d7e0ea and full invocation 541ab445-cea3-4e42-b432-9ae4fefd9ec4 only, actual Unity termination and the missing standard full step are excepted from the acceptance gate. This paragraph supersedes the earlier actual-termination requirement for that one invocation. It does not mark the process passed or the native shutdown issue fixed. Preserve original XML/log, abandoned-runner/termination records and null actual-exit status. No new native investigation or unchanged full-run retry is authorized.
 
-## 7. Phase C
+All eight functional/structural conditions, successful full XML with the required input cases and zero-byte measurements, offline/audits and independent C/C' review remain required. No compilation/test failure, skipped required case, missing observation, or unrelated defect is excepted. C' must audit this same fixed implementation and raw evidence before merge. This is the human's concrete acceptance decision about a known infrastructure risk, not a product redesign or a general exception for another PR. Historical r4 and its prior gate assessment remain retained separately.
+## r6 bounded allocation-observer adaptation and active candidate
 
-- 種別: 発見。判定は未実施。GO ではない。
-- evidence bundle id / hash: input-system-manager-blind-audit / 0bab4d5e2d384439fe63c0c44bc85701d4293b7d939bb5c5ab4a77a5e09d66c9。manifest の hash。Unity XML が無いので、この bundle は完了した判定 bundle ではない。
-- 構造適合: 差分の型は凍結した責務マップと一致する。公開面は InputManager、InputActionValue、InputControlMap、InputProfileId、InputActionMapNames、UpdateLayerIds の Input 定数である。InputFrame は Unity と R3 を参照しない。アセットの読み取りは InputActionAssetReader にある。SampleGame への接続は無い。UpdateLayerIds は 24 行から 37 行（約 54%）で、非分割妥当。定数 2 つであり、絶対行数は閾値より小さい。InputManager は 247 行で、500 行にも 3 責務の分割トリガーにも達しない。入れ子の Element は登録のための private 型である。
-- 現在の問いを阻害する findings（違反する凍結済み条件 / 常時契約を併記）: この差分の静的確認では、凍結した進める最低条件または常時契約への違反を特定できなかった。これは独立レビューではなく、実装と同じセッションの確認である。
-- 後続スライスへ移送する findings: 新しい移送は無い。姿勢アクション、シーンの結び付け、ゲーム enum、片手プロファイル、AI、エッジ、レイヤ順序の強制は、凍結時の後続スライスのままである。
-- 実行したテストコマンドと `-Filter`、対象を選んだ理由: `dotnet run -c Release --project tools/InputSystemOfflineTests`。Unity 無しで公開規則、SceneState、割り当て、既存 inputactions の JSON を見るため。`pwsh -NoProfile -File tools/contract-audit.ps1` と `pwsh -NoProfile -File tools/docs-audit.ps1`（PowerShell 7.5.4）。Unity の `-Filter` は使っていない。
-- テスト結果（XML 上の実行テスト名と件数）: Unity の XML は無い。オフラインは 12 件実行、失敗 0、exit 0。名前は offline-tests.txt にある。contract-audit は errors=0 warnings=0。docs-audit は errors=0 warnings=0。
-- 判定必須のうち未実行: フィルタ無しの `pwsh tools/run-tests.ps1` による全 EditMode。この環境に Unity Editor が無く、起動していない。結果 XML は存在しない。
-- 重い検証を発見段階で限定実行した場合の理由と範囲: 限定実行はしていない。全 EditMode は始めから走らせていない。
-- 未確認事項: InputActionAssetReader の Unity コンパイル。本番の ReadValue 経路の割り当て。EditMode の割り当てテストは偽リーダーであり、アセットを生成しない。OneStarMaker.Tests.InputSystem の実行。GO は出していない。
-- 担当・モデル: このクラウドセッション。Grok 4.7。xAI。Phase C は実装と別モデル、別セッションである契約を満たしていない。独立した Phase C とは記録しない。
+The same zero-allocation outcome in condition7 remains mandatory. Replace the observer in InputActionAssetReaderTests (Stable and Loading) and the existing InputManagerTests allocation case with the single ProfilerRecorder route specified here. Use Unity.Profiling.ProfilerRecorder(ProfilerCategory.Internal, GC.Alloc, capacity1, SumAllSamplesInFrame | CollectOnlyOnCurrentThread), initially stopped. Outside target measurement, validate recorder.Valid, Start/try/finally Stop a positive control new byte[4096] retained by GC.KeepAlive, assert the stopped sample allocation-event Count >0, then Reset and assert no retained sample. Start/try/finally Stop around the unchanged warmed Sample/TryRead/span loop only; assert stopped allocation-event Count0. Record UnitType, positiveEvents, targetEvents, 1000 iterations and actual value sums. GetSample(0).Count is allocation events; ProfilerRecorder.Count is aggregate samples. Never label sample.Value as bytes without an appropriate UnitType.
 
-## 8. Phase C'
+Keep all setup, native event updates, assertions, delegate creation and output outside target measurement. Stop/dispose on every path. Unavailable recorder, a zero positive control or nonzero target fails observation rather than being skipped. No new production API/owner/lifetime, global profiler setting, asmdef or fixture framework is introduced. This is B adaptation of the existing zero-allocation proof, not an additional product condition. Installed CoreModule APIs and the official Unity synchronous SumAllSamplesInFrame example define the route; initial native sensitivity is for focused C to validate. Older zero-only GC.GetAllocatedBytesForCurrentThread runs are historical and are not proof of observer sensitivity.
 
-- 担当方式: 未実施
-- blind audit bundle id / hash: 未実施
-- 確認範囲・方法（全件機械検査 / 代表箇所の目視・操作等）: 未実施
-- 判定（人間担当は本人の明示回答まで未実施）: 未実施
-- 現在の問いを阻害する findings（違反する凍結済み条件 / 常時契約を併記）: 未実施
-- 後続スライスへ移送する findings: 未実施
-- 残存リスク: 未実施
-- 監査できなかった範囲: 未実施
-- 独立性: 未実施
-- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: 未実施
-- 担当・モデル: 未実施
+Source/test changes require a newly fixed head and fresh mandatory full regression/C/C' before merge. The prior r5 exact-head/exact-invocation termination acceptance remains preserved as historical; it does not make a changed implementation or its tests pass. Old C judgment and unfinished C' input are superseded as current merge evidence. No renewed native-shutdown investigation is authorized. The safe edit checkout is C:/Users/void/.codex/worktrees/pr88-closeout/SampleGameForOneStarMakerFramework, branch codex/pr88-closeout; the two earlier ambiguous-shutdown checkouts remain untouched.
+## r7 final integration metadata
 
-## 9. Phase D
-
-- C / C' の突合: 未実施
-- マージ判断: 未実施
-- harvest: 未実施
-- 削除確認: 未実施
+PR86 has actually merged into develop at 09242db5cd8cf2cd6695522dcd4cee5fcfc020f6. This is the exact final implementation base above. Integrate it normally before one consolidated unpublished Input repair. The eight acceptance conditions, r6 observer, dependencies and lifetime are unchanged. The earlier revision paragraphs retain historical context; current execution uses pr88-closeout only. Focused fac5064 is historical evidence for that head. Final judgment requires full empty-filter regression, offline and audits at the newly fixed head, followed by same-bundle C and a fresh blind C'. No product gate is waived and no known-native-exit investigation is reopened.

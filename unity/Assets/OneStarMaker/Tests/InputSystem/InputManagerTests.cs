@@ -3,18 +3,21 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
+using Unity.Profiling;
 using OneStarMaker.Foundation.UpdateSystem;
 using OneStarMaker.Foundation.UpdateSystem.World;
 using OneStarMaker.Runtime.InputSystem;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.UpdateSystem.Api;
 using R3;
+using OneStarMaker.Runtime.UpdateSystem.Hosting;
+using System.Reflection;
 
 namespace OneStarMaker.Tests.InputSystem
 {
     /// <summary>
     /// マネージャの公開、マップ通知、Update 順を、デバイス無しのリーダーで検証する。
-    /// アセットの ReadValue 経路は Unity がこのアセンブリをコンパイルできる環境の判定で確認する。
+    /// native asset/device 経路は別 fixture が担当する。
     /// </summary>
     [TestFixture]
     public sealed class InputManagerTests
@@ -130,19 +133,34 @@ namespace OneStarMaker.Tests.InputSystem
             var reader = new FillReader();
             using var manager = new InputManager(reader, SampleSlots());
             manager.SetInteractionState(SceneState.Stable);
-            var coordinator = new UpdateCoordinator();
+            Assert.That(manager.TryRegister(), Is.False);
+            using var host = new UpdateSystemHost();
+            var coordinator = host.Coordinator;
             var log = new List<string>();
             var probe = new ProbeElement(log, () => reader.Calls > 0 ? "after-input" : "before-input");
 
-            Assert.That(manager.TryRegister(coordinator), Is.True);
-            Assert.That(manager.TryRegister(coordinator), Is.False);
+            Assert.That(manager.TryRegister(), Is.True);
+            Assert.That(manager.TryRegister(), Is.False);
             Assert.That(
                 coordinator.RegisterElement("Gameplay", probe, layerOrder: 0, executionOrder: 0),
                 Is.True);
+            coordinator.RunUpdate(0.016f, 0.016f);
+            Assert.That(reader.Calls, Is.Zero);
+            Assert.That(host.TryConsumeActivationRequest(), Is.False);
+            // この fixture は host gate の接続済み状態だけを注入し、SceneDirector の配線は所有しない。
+            typeof(UpdateSystemHost).GetField("_sceneDirectorBound", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .SetValue(host, true);
+            Assert.That(host.TryConsumeActivationRequest(), Is.True);
             coordinator.ActivatePendingRegistrations();
             coordinator.RunUpdate(0.016f, 0.016f);
 
             Assert.That(log, Is.EqualTo(new[] { "after-input" }));
+            Assert.That(host.TryConsumeActivationRequest(), Is.False);
+            using var second = new InputManager(new FillReader(), SampleSlots());
+            Assert.That(second.TryRegister(), Is.True);
+            Assert.That(host.TryConsumeActivationRequest(), Is.True);
+            manager.Dispose();
+            Assert.DoesNotThrow(() => coordinator.RunUpdate(0.016f, 0.016f));
             Assert.That(UpdateLayerIds.InputLayerOrder, Is.LessThan(0));
             Assert.That(UpdateLayerIds.InputLayerOrder, Is.LessThan(UpdateLayerIds.CameraLayerOrder));
         }
@@ -158,17 +176,44 @@ namespace OneStarMaker.Tests.InputSystem
             manager.Sample();
             manager.SetInteractionState(SceneState.Stable);
 
-            var before = GC.GetAllocatedBytesForCurrentThread();
-            for (var i = 0; i < 1000; i++)
+            const ProfilerRecorderOptions options =
+                ProfilerRecorderOptions.SumAllSamplesInFrame |
+                ProfilerRecorderOptions.CollectOnlyOnCurrentThread;
+            using var recorder = new ProfilerRecorder(ProfilerCategory.Internal, "GC.Alloc", 1, options);
+            Assert.That(recorder.Valid, Is.True);
+            recorder.Start();
+            try
             {
-                manager.Sample();
-                manager.SetInteractionState(SceneState.Loading);
-                manager.Sample();
-                manager.SetInteractionState(SceneState.Stable);
+                var positiveControl = new byte[4096];
+                GC.KeepAlive(positiveControl);
             }
-
-            var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-            Assert.That(allocated, Is.EqualTo(0));
+            finally
+            {
+                recorder.Stop();
+            }
+            var positiveEvents = recorder.Count == 0 ? 0L : recorder.GetSample(0).Count;
+            TestContext.WriteLine($"GC.Alloc unit={recorder.UnitType} positiveEvents={positiveEvents}");
+            Assert.That(positiveEvents, Is.GreaterThan(0L));
+            recorder.Reset();
+            Assert.That(recorder.Count, Is.Zero);
+            recorder.Start();
+            try
+            {
+                for (var i = 0; i < 1000; i++)
+                {
+                    manager.Sample();
+                    manager.SetInteractionState(SceneState.Loading);
+                    manager.Sample();
+                    manager.SetInteractionState(SceneState.Stable);
+                }
+            }
+            finally
+            {
+                recorder.Stop();
+            }
+            var targetEvents = recorder.Count == 0 ? 0L : recorder.GetSample(0).Count;
+            TestContext.WriteLine($"managed Stable/Loading: unit={recorder.UnitType}, positiveEvents={positiveEvents}, targetEvents={targetEvents}, iterations=1000");
+            Assert.That(targetEvents, Is.Zero);
         }
 
         [Test]
@@ -179,6 +224,81 @@ namespace OneStarMaker.Tests.InputSystem
             manager.Dispose();
 
             Assert.Throws<ObjectDisposedException>(() => manager.Sample());
+        }
+
+        [Test]
+        public void StopSwitchAndDispose_OverwritePreviouslyAcquiredSpanImmediately()
+        {
+            var manager = new InputManager(new FillReader(), SampleSlots());
+            manager.SetInteractionState(SceneState.Stable);
+            manager.Sample();
+            var span = manager.Published;
+            manager.SetInteractionState(SceneState.Loading);
+            Assert.That(span[0].X, Is.Zero);
+            manager.SetInteractionState(SceneState.Stable);
+            Assert.That(span[0].X, Is.Zero);
+            manager.Sample();
+            Assert.That(span[0].X, Is.EqualTo(4f));
+            manager.TrySetMap(InputControlMap.UI);
+            Assert.That(span[0].X, Is.Zero);
+            manager.Sample();
+            manager.Dispose();
+            Assert.That(span[2].X, Is.Zero);
+            Assert.Throws<ObjectDisposedException>(() => manager.TryRegister());
+            Assert.Throws<ObjectDisposedException>(() => manager.TrySetMap(InputControlMap.Player));
+            Assert.Throws<ObjectDisposedException>(() => manager.SetInteractionState(SceneState.Stable));
+            Assert.Throws<ObjectDisposedException>(() => manager.TrySelectProfile(InputProfileId.Default));
+        }
+
+        [Test]
+        public void PartialMapFailure_StopsReadsUntilValidSameMapRetry_WithoutNotification()
+        {
+            var reader = new FillReader();
+            var maps = new FaultMaps();
+            using var manager = new InputManager(reader, SampleSlots(), maps);
+            var notifications = 0;
+            using var subscription = manager.MapChanged.Subscribe(_ => notifications++);
+            manager.SetInteractionState(SceneState.Stable);
+            manager.Sample();
+            maps.Fail = true;
+            Assert.That(Assert.Throws<InvalidOperationException>(() => manager.TrySetMap(InputControlMap.UI)),
+                Is.SameAs(maps.Failure));
+            Assert.That(maps.DisableCalls, Is.EqualTo(1));
+            Assert.That(manager.ActiveMap, Is.EqualTo(InputControlMap.Player));
+            Assert.That(manager.Published[0].X, Is.Zero);
+            manager.Sample();
+            Assert.That(reader.Calls, Is.EqualTo(1));
+            Assert.That(manager.TrySetMap((InputControlMap)99), Is.False);
+            manager.Sample();
+            Assert.That(reader.Calls, Is.EqualTo(1));
+            maps.Fail = false;
+            Assert.That(manager.TrySetMap(InputControlMap.Player), Is.True);
+            Assert.That(notifications, Is.Zero);
+            manager.Sample();
+            Assert.That(reader.Calls, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void Constructor_ValidatesBeforeAcquiringLease_AndPreservesNativeFailure()
+        {
+            var maps = new FaultMaps();
+            Assert.Throws<ArgumentException>(() => new InputManager(new FillReader(), new[] {
+                new InputActionSlot(1, InputControlMap.Player, InputActionValueKind.Button, "Bad") }, maps));
+            Assert.That(maps.ApplyCalls, Is.Zero);
+            maps.Fail = true;
+            Assert.That(Assert.Throws<InvalidOperationException>(() =>
+                new InputManager(new FillReader(), SampleSlots(), maps)), Is.SameAs(maps.Failure));
+            Assert.That(maps.DisableCalls, Is.EqualTo(1));
+        }
+
+        private sealed class FaultMaps : IInputMapControl
+        {
+            public bool Fail;
+            public int ApplyCalls;
+            public int DisableCalls;
+            public readonly InvalidOperationException Failure = new InvalidOperationException("native failure");
+            public void Apply(InputControlMap map) { ApplyCalls++; if (Fail) throw Failure; }
+            public void Disable() { DisableCalls++; }
         }
 
         private static InputActionSlot[] SampleSlots()

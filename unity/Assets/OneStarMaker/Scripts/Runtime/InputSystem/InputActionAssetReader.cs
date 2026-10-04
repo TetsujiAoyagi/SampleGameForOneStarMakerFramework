@@ -39,7 +39,7 @@ namespace OneStarMaker.Runtime.InputSystem
             _actions = actions.ToArray();
             _slots = slots.ToArray();
             UnsupportedActionCount = skipped;
-            Apply(InputControlMap.Player);
+
         }
 
         public int UnsupportedActionCount { get; }
@@ -81,8 +81,9 @@ namespace OneStarMaker.Runtime.InputSystem
 
         public void Disable()
         {
-            _playerMap.Disable();
-            _uiMap.Disable();
+            // 一方が失敗しても他方の停止を試みる。
+            try { _playerMap.Disable(); }
+            finally { _uiMap.Disable(); }
         }
 
         private static InputActionMap RequireMap(InputActionAsset asset, string mapName)

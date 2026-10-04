@@ -11,9 +11,10 @@ using UnityEngine.InputSystem;
 namespace OneStarMaker.Runtime.InputSystem
 {
     /// <summary>
-    /// 入力マネージャ。アクションの現在値を Update の早い Layer で公開する。
+    /// 入力マネージャ。アクションの現在値を Update の早い Layer で公開する。全 API は main thread 専用。
     /// ゲーム固有のアクション enum は知らない。ゲーム側のコントローラへは接続しない。
-    /// アセットは呼び出し側が所有し、このオブジェクトは Destroy しない。
+    /// アセットは呼び出し側が所有し、Dispose まで生存させる。この型は Destroy しない。
+    /// Player/UI は専用 asset の排他的 lease で、PlayerInput や UI module と共有しない。
     /// Dispose では自分が有効にした Player / UI マップを両方無効にする。
     /// </summary>
     public sealed class InputManager : IDisposable
@@ -26,6 +27,7 @@ namespace OneStarMaker.Runtime.InputSystem
         private UpdateCoordinator? _coordinator;
         private bool _registered;
         private bool _disposed;
+        private bool _mapFaulted;
 
         public InputManager(InputActionAsset asset)
         {
@@ -36,16 +38,32 @@ namespace OneStarMaker.Runtime.InputSystem
             UnsupportedActionCount = reader.UnsupportedActionCount;
             _mapChanged = new Subject<InputControlMap>();
             _element = new InputUpdateElement(this);
+            try { _maps.Apply(InputControlMap.Player); }
+            catch
+            {
+                // 検証完了後の lease 取得失敗は閉じ、元の例外を維持する。
+                BestEffortDisable();
+                _mapChanged.Dispose();
+                throw;
+            }
         }
 
-        internal InputManager(IInputDeviceReader reader, InputActionSlot[] slots)
+        internal InputManager(IInputDeviceReader reader, InputActionSlot[] slots, IInputMapControl? maps = null)
         {
             _reader = reader ?? throw new ArgumentNullException(nameof(reader));
-            _maps = NoMapControl.Instance;
+            _maps = maps ?? NoMapControl.Instance;
             _frame = new InputFrame(slots);
             UnsupportedActionCount = 0;
             _mapChanged = new Subject<InputControlMap>();
             _element = new InputUpdateElement(this);
+            try { _maps.Apply(InputControlMap.Player); }
+            catch
+            {
+                // 検証完了後の lease 取得失敗は閉じ、元の例外を維持する。
+                BestEffortDisable();
+                _mapChanged.Dispose();
+                throw;
+            }
         }
 
         /// <summary>
@@ -68,7 +86,7 @@ namespace OneStarMaker.Runtime.InputSystem
         public Observable<InputControlMap> MapChanged => _mapChanged;
 
         /// <summary>
-        /// 直近の公開バッファ。次の <see cref="Sample"/> で上書きされる。
+        /// 直近の公開バッファ。Sample、停止、マップ変更、Dispose で上書きされる。
         /// インデックスは <see cref="TryGetActionIndex"/> で一度解決し、毎フレームは数値で読む。
         /// </summary>
         public ReadOnlySpan<InputActionValue> Published => _frame.Published;
@@ -116,13 +134,21 @@ namespace OneStarMaker.Runtime.InputSystem
             }
 
             // 同じマップの再指定では Enable をやり直さない。毎フレーム呼んでも割り当てない。
-            if (map == _frame.ActiveMap)
+            if (map == _frame.ActiveMap && !_mapFaulted)
             {
                 return true;
             }
 
-            // デバイス側が失敗したら公開側のマップは変えない。
-            _maps.Apply(map);
+            // native 操作より前に停止し、失敗後は選択の成功まで読み取りを再開しない。
+            _frame.Neutralize();
+            try { _maps.Apply(map); }
+            catch
+            {
+                _mapFaulted = true;
+                BestEffortDisable();
+                throw;
+            }
+            _mapFaulted = false;
             if (!_frame.TrySetMap(map, out var changed))
             {
                 return false;
@@ -137,33 +163,18 @@ namespace OneStarMaker.Runtime.InputSystem
         }
 
         /// <summary>
-        /// Input Layer へ登録する。active 化は呼び出し側が行う。
-        /// シーン遷移中に Update が止まると最後の公開値が残るため、
-        /// 登録後は非 Stable のフレームでもこの Element の Update を止めてはならない。
+        /// main thread で標準 runtime に登録する。host の scene 安定 gate が初回 activation を所有する。
+        /// host 未導入または登録失敗なら再試行でき、成功後の重複登録は false。
+        /// 所有者は host 終了前に Dispose する。
         /// </summary>
-        public bool TryRegister(UpdateCoordinator coordinator)
+        public bool TryRegister()
         {
             ThrowIfDisposed();
-            if (coordinator == null)
-            {
-                throw new ArgumentNullException(nameof(coordinator));
-            }
-
-            if (_registered)
-            {
-                return false;
-            }
-
-            var registered = coordinator.RegisterElement(
-                UpdateLayerIds.Input,
-                _element,
-                layerOrder: UpdateLayerIds.InputLayerOrder,
-                executionOrder: 0);
-            if (!registered)
-            {
-                return false;
-            }
-
+            if (_registered) return false;
+            var coordinator = UpdateSystemRuntime.Coordinator;
+            if (coordinator == null) return false;
+            if (!UpdateSystemRuntime.RegisterElement(UpdateLayerIds.Input, _element,
+                layerOrder: UpdateLayerIds.InputLayerOrder, executionOrder: 0)) return false;
             _coordinator = coordinator;
             _registered = true;
             return true;
@@ -172,6 +183,7 @@ namespace OneStarMaker.Runtime.InputSystem
         public void Sample()
         {
             ThrowIfDisposed();
+            if (_mapFaulted) return;
             _frame.Sample(_reader);
         }
 
@@ -182,6 +194,7 @@ namespace OneStarMaker.Runtime.InputSystem
                 return;
             }
 
+            _frame.Neutralize();
             _disposed = true;
             if (_registered && _coordinator != null)
             {
@@ -190,8 +203,14 @@ namespace OneStarMaker.Runtime.InputSystem
                 _coordinator = null;
             }
 
-            _maps.Disable();
-            _mapChanged.Dispose();
+            try { _maps.Disable(); }
+            finally { _mapChanged.Dispose(); }
+        }
+
+        private void BestEffortDisable()
+        {
+            try { _maps.Disable(); }
+            catch { /* 元の native 失敗が所有者の判断に必要なので置き換えない。 */ }
         }
 
         private void ThrowIfDisposed()
@@ -236,7 +255,8 @@ namespace OneStarMaker.Runtime.InputSystem
 
             public void OnElementUpdate(in UpdateFrameContext context)
             {
-                _manager.Sample();
+                // structural removal は遅延されるため Dispose 後の同フレーム callback を無害化する。
+                if (!_manager._disposed) _manager.Sample();
             }
 
             public void OnElementLateUpdate(in UpdateFrameContext context)
