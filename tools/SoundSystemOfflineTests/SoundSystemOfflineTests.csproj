@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>OneStarMaker.SoundSystemOfflineTests</RootNamespace>
+    <AssemblyName>SoundSystemOfflineTests</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundHandle.cs" Link="Linked/SoundHandle.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundVoiceRing.cs" Link="Linked/SoundVoiceRing.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/ISoundBackend.cs" Link="Linked/ISoundBackend.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundPlayer.cs" Link="Linked/SoundPlayer.cs" />
+  </ItemGroup>
+</Project>
