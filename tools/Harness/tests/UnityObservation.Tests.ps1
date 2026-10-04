@@ -1,11 +1,17 @@
+param([string]$ResultPath = '', [string]$Filter = '')
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '../../..')).Path
 . (Join-Path $repo 'tools/run-tests.ps1')
 $failed = [Collections.Generic.List[string]]::new(); $executed = 0
+$registered = [Collections.Generic.List[string]]::new(); $selected = [Collections.Generic.List[string]]::new(); $executedNames = [Collections.Generic.List[string]]::new()
 function Assert($condition,[string]$message) { if (-not $condition) { throw $message } }
 function Run([string]$name,[scriptblock]$body) {
+    $script:registered.Add($name)
+    if ($Filter -and $name -notlike "*$Filter*") { return }
+    $script:selected.Add($name)
     $script:executed++
+    $script:executedNames.Add($name)
     try { & $body; [Console]::WriteLine("PASS $name") }
     catch { $script:failed.Add("$name : $($_.Exception.Message)"); [Console]::Error.WriteLine("FAIL $name : $($_.Exception.Message)") }
 }
@@ -156,6 +162,7 @@ try {
     [void][IO.Directory]::CreateDirectory($root)
     $testProject=Join-Path $root 'project with space/unity'; [void][IO.Directory]::CreateDirectory((Join-Path $testProject 'ProjectSettings'))
     [IO.File]::WriteAllText((Join-Path $testProject 'ProjectSettings/ProjectVersion.txt'),'m_EditorVersion: 6000.6.0f1')
+    [IO.File]::WriteAllText((Join-Path $testProject 'ProjectSettings/EditorSettings.asset'),"EditorSettings:`n  m_EnterPlayModeOptionsEnabled: 1`n  m_EnterPlayModeOptions: 1`n  m_SerializeInlineMappingsOnOneLine: 1`n")
     $exe=Join-Path $root 'Unity Folder/Unity.exe'; [void][IO.Directory]::CreateDirectory((Split-Path $exe)); [IO.File]::WriteAllText($exe,'fixture')
     $out=Join-Path $root 'output with space'
     $fake={ param($binary,$argv,$cwd)
@@ -217,4 +224,5 @@ try {
     if ([IO.Directory]::Exists($resolved)) { [IO.Directory]::Delete($resolved,$true) }
 }
 [Console]::WriteLine("Unity observation offline: $executed executed, $($failed.Count) failed")
+if ($ResultPath) { [IO.File]::WriteAllText([IO.Path]::GetFullPath($ResultPath), (ConvertTo-Json -InputObject ([ordered]@{registered=@($registered);selected=@($selected);executed=@($executedNames);failed=@($failed)}) -Depth 6)) }
 if ($failed.Count -gt 0) { exit 1 }

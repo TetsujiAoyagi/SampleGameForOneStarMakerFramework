@@ -6,7 +6,7 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../RecordStore.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../GatePolicy.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../Adapters/LocalChecks.psm1') -Force
-$registered = @('repository identity and explicit task', 'CLI status and missing task', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'missing registration gives honest recovery guidance', 'legacy reference restores with stable identity', 'corrupt current is not overwritten', 'restore rejects dangling reference', 'run payload rejects old DLL and modification', 'failing step keeps record', 'run record carries identity and monotonic duration', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'close rejects in-progress run', 'blind input omits findings', 'blind handoff records receipt and review', 'child process result', 'new run invalidates prior judgment', 'close persists current references', 'terminal survives display update failure')
+$registered = @('repository identity and explicit task', 'CLI status and missing task', 'current displays failed Unity step without offline fields', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'missing registration gives honest recovery guidance', 'legacy reference restores with stable identity', 'corrupt current is not overwritten', 'restore rejects dangling reference', 'run payload rejects old DLL and modification', 'failing step keeps record', 'run record carries identity and monotonic duration', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'close rejects in-progress run', 'blind input omits findings', 'blind handoff records receipt and review', 'child process result', 'new run invalidates prior judgment', 'close persists current references', 'terminal survives display update failure')
 $selected = [Collections.Generic.List[string]]::new()
 $executed = [Collections.Generic.List[string]]::new()
 $failed = [Collections.Generic.List[string]]::new()
@@ -56,6 +56,22 @@ try {
         Assert ($listed.ExitCode -eq 0 -and $listed.Stdout.Contains('h1-transport-identity owner=test phase=B')) 'CLI status failed'
         $missing = Invoke-Process 'pwsh' @('-NoProfile', '-File', $cli, 'current', '-Repo', $repo, '-StoreRoot', $store, '-Task', 'missing') $repo 15
         Assert ($missing.ExitCode -ne 0 -and ($missing.Stdout + $missing.Stderr).Contains('status') -and ($missing.Stdout + $missing.Stderr).Contains('restore')) 'CLI missing task guidance failed'
+    }
+    # CLIの表示関数を単独実行し、失敗Unity stepにoffline専用項目と観測が無くても表示できることを確かめる。
+    Run 'current displays failed Unity step without offline fields' {
+        $cli = [IO.Path]::GetFullPath([IO.Path]::Combine($PSScriptRoot, '../../harness.ps1'))
+        $tokens = $null; $parseErrors = $null
+        $ast = [Management.Automation.Language.Parser]::ParseFile($cli, [ref]$tokens, [ref]$parseErrors)
+        Assert (@($parseErrors).Count -eq 0) 'CLI parse failed'
+        $functions = @($ast.FindAll({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq 'Get-AdoptedStepEvidenceLines' }, $true))
+        Assert ($functions.Count -eq 1) 'current display function missing'
+        Invoke-Expression $functions[0].Extent.Text
+        $unity = [pscustomobject]@{ adapterKind='unity-test-v2'; observedAssemblies=$null; payloads=@([pscustomobject]@{ role='editor-log'; path='payload/run/editor.log'; sha256=('a' * 64) }) }
+        $lines = @(Get-AdoptedStepEvidenceLines $unity)
+        Assert ($lines.Count -eq 2 -and $lines[0] -ceq 'unity-observation=missing' -and $lines[1].Contains('unity-raw=editor-log')) 'failed Unity evidence display'
+        $offline = [pscustomobject]@{ loadedPath='payload/run/tool.dll'; loadedHash=('b' * 64) }
+        Assert (@(Get-AdoptedStepEvidenceLines $offline)[0].Contains('loaded-binary=payload/run/tool.dll')) 'offline evidence display'
+        Reject { Get-AdoptedStepEvidenceLines ([pscustomobject]@{ adapterKind='unknown' }) } 'unknown adapter display accepted'
     }
     # 承認文面だけでは通さず、本文 hash が承認値と違う仕様を拒否する。
     Run 'forged A3 snapshot rejected' {
