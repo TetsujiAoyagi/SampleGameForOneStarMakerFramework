@@ -30,13 +30,34 @@ namespace OneStarMaker.Tests.SoundSystem
         }
 
         [Test]
-        public void Ring_ReusesTheOldestSlot()
+        public void Mix_StealsTheLowerVoice_AndFadesTheRegionWithoutFreeingIt()
         {
-            var cursor = 0;
-            Assert.That(SoundVoiceRing.Next(ref cursor, 3), Is.EqualTo(0));
-            Assert.That(SoundVoiceRing.Next(ref cursor, 3), Is.EqualTo(1));
-            Assert.That(SoundVoiceRing.Next(ref cursor, 3), Is.EqualTo(2));
-            Assert.That(SoundVoiceRing.Next(ref cursor, 3), Is.EqualTo(0));
+            var mix = new SoundMix(2);
+            var master = mix.Add(new SoundVolumeSettings(1f, 0, SoundReverb.Off));
+            var high = mix.TryPlay(master, 1f, 5);
+            var low = mix.TryPlay(master, 1f, 3);
+            Assert.That(mix.TryPlay(master, 1f, 2).IsValid, Is.False);
+
+            var mid = mix.TryPlay(master, 1f, 4);
+            Assert.That(mid.IsValid, Is.True);
+            mix.FadeVoice(low, 0f, 0f);
+            Assert.That(mix.IsActive(low.Slot), Is.True);
+            mix.FadeVoice(high, 0.5f, 0f);
+            Assert.That(mix.VoiceGain(high.Slot), Is.EqualTo(0.5f));
+
+            var reverb = new SoundReverb(0.4f, 1.5f, 0.8f, true);
+            mix.SetReverb(master, reverb);
+            Assert.That(mix.TryGetSettings(master, out var settings), Is.True);
+            Assert.That(settings.Reverb, Is.EqualTo(reverb));
+
+            mix.FadeVolume(master, 0f, 1f);
+            mix.Tick(0.5f);
+            Assert.That(mix.TryGetAudibleGain(master, out var audible), Is.True);
+            Assert.That(audible, Is.EqualTo(0.5f));
+            Assert.That(mix.IsActive(high.Slot), Is.True);
+            mix.FadeVoice(mid, 0f, 0.5f);
+            mix.Tick(0.5f);
+            Assert.That(mix.IsActive(mid.Slot), Is.False);
         }
 
         [Test]
@@ -61,11 +82,32 @@ namespace OneStarMaker.Tests.SoundSystem
             Assert.That(after, Is.EqualTo(before));
             Assert.That(backend.Calls, Is.EqualTo(2016));
             Assert.That(backend.Last, Is.EqualTo(handle));
-            Assert.That(backend.Volume, Is.EqualTo(0.5f));
+            Assert.That(backend.Gain, Is.EqualTo(0.5f));
 
             player.Play(SoundHandle.Invalid, 0f);
             Assert.That(backend.Last, Is.EqualTo(SoundHandle.Invalid));
-            Assert.That(backend.Volume, Is.EqualTo(0f));
+            Assert.That(backend.Gain, Is.EqualTo(0f));
+        }
+
+        [Test]
+        public void UnityBackend_FadesARegion_AndKeepsReverbOnIt()
+        {
+            using var backend = new UnitySoundBackend(1);
+            var region = backend.RegisterVolume(new SoundVolumeSettings(1f, 4, SoundReverb.Off));
+            Assert.That(backend.DefaultVolume.IsValid, Is.True);
+            Assert.That(region, Is.Not.EqualTo(backend.DefaultVolume));
+
+            backend.FadeVolume(region, 0f, 1f);
+            backend.Tick(0.5f);
+            Assert.That(backend.TryGetAudibleGain(region, out var audible), Is.True);
+            Assert.That(audible, Is.EqualTo(0.5f));
+
+            var reverb = new SoundReverb(0.25f, 2f, 1f, true);
+            backend.SetReverb(region, reverb);
+            Assert.That(backend.TryGetSettings(region, out var settings), Is.True);
+            Assert.That(settings.Priority, Is.EqualTo(4));
+            Assert.That(settings.Reverb, Is.EqualTo(reverb));
+            Assert.That(settings.Gain, Is.EqualTo(0f));
         }
 
         [Test]
@@ -124,13 +166,35 @@ namespace OneStarMaker.Tests.SoundSystem
         {
             public int Calls;
             public SoundHandle Last;
-            public float Volume;
+            public float Gain;
 
-            public void Play(SoundHandle handle, float volume)
+            public SoundVoiceId Play(SoundHandle handle, float gain)
             {
                 Calls++;
                 Last = handle;
-                Volume = volume;
+                Gain = gain;
+                return SoundVoiceId.Create(0, 1);
+            }
+
+            public SoundVoiceId Play(SoundHandle handle, SoundVolumeId volume, float gain, int priority)
+            {
+                return SoundVoiceId.Invalid;
+            }
+
+            public void FadeVolume(SoundVolumeId volume, float targetGain, float seconds)
+            {
+            }
+
+            public void FadeVoice(SoundVoiceId voice, float targetGain, float seconds)
+            {
+            }
+
+            public void SetReverb(SoundVolumeId volume, SoundReverb reverb)
+            {
+            }
+
+            public void Tick(float deltaTime)
+            {
             }
         }
     }

@@ -6,7 +6,8 @@ namespace OneStarMaker.Runtime.SoundSystem
 {
     /// <summary>
     /// 再生箇所が具象バックエンドを見ずに鳴らすための転送。
-    /// 無効なハンドルをここで落とさず、落とすかどうかはバックエンドが決める。転送自体は割り当てない。
+    /// 無効な識別子もそのまま渡し、鳴らすかどうかはバックエンドが決める。転送自体は割り当てない。
+    /// Tick は呼び出し側が進める。Update への登録はこの型では行わない。
     /// </summary>
     public sealed class SoundPlayer
     {
@@ -22,9 +23,34 @@ namespace OneStarMaker.Runtime.SoundSystem
             _backend = backend;
         }
 
-        public void Play(SoundHandle handle, float volume)
+        public SoundVoiceId Play(SoundHandle handle, float gain)
         {
-            _backend.Play(handle, volume);
+            return _backend.Play(handle, gain);
+        }
+
+        public SoundVoiceId Play(SoundHandle handle, SoundVolumeId volume, float gain, int priority)
+        {
+            return _backend.Play(handle, volume, gain, priority);
+        }
+
+        public void FadeVolume(SoundVolumeId volume, float targetGain, float seconds)
+        {
+            _backend.FadeVolume(volume, targetGain, seconds);
+        }
+
+        public void FadeVoice(SoundVoiceId voice, float targetGain, float seconds)
+        {
+            _backend.FadeVoice(voice, targetGain, seconds);
+        }
+
+        public void SetReverb(SoundVolumeId volume, SoundReverb reverb)
+        {
+            _backend.SetReverb(volume, reverb);
+        }
+
+        public void Tick(float deltaTime)
+        {
+            _backend.Tick(deltaTime);
         }
     }
 }
