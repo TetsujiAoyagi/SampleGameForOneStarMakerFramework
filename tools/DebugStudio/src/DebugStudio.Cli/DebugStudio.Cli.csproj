@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -11,6 +11,11 @@
   <ItemGroup>
     <ProjectReference Include="..\DebugStudio.Client\DebugStudio.Client.csproj" />
     <ProjectReference Include="..\DebugStudio.Contracts\DebugStudio.Contracts.csproj" />
+    <ProjectReference Include="..\DebugStudio.Export\DebugStudio.Export.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DebugStudio.Cli.Tests" />
   </ItemGroup>
 
 </Project>

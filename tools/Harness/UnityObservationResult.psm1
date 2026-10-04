@@ -10,6 +10,44 @@ function Assert-ObservationKeys {
     if ($Value.PSBase.Count -ne $Keys.Count) { throw "$Name に未凍結の key があります" }
 }
 
+function Assert-ObservationScalar([object]$Value, [string]$Kind, [string]$Name) {
+    # JSONの数値/真偽をPowerShellが暗黙変換すると、改変した原値を正常な観測として読んでしまう。
+    $valid = switch ($Kind) {
+        'string' { $Value -is [string] }
+        'integer' { $Value -is [int] -or $Value -is [long] }
+        'number' { $Value -is [int] -or $Value -is [long] -or $Value -is [double] -or $Value -is [decimal] }
+        'boolean' { $Value -is [bool] }
+        'array' { $Value -is [array] }
+        default { throw "未知の観測型です: $Kind" }
+    }
+    if (-not $valid) { throw "$Name のJSON型が不正です（$Kind）" }
+}
+
+function Assert-ObservationDtoTypes([object]$State, [string]$Name) {
+    foreach ($key in @('recordKind','invocationId','projectPath','platform','status')) { Assert-ObservationScalar $State[$key] 'string' "$Name.$key" }
+    foreach ($key in @('schemaVersion','processId','sealSequence','sequence')) { Assert-ObservationScalar $State[$key] 'integer' "$Name.$key" }
+    Assert-ObservationScalar $State.sealed 'boolean' "$Name.sealed"
+    foreach ($key in @('failure','domains','selected','events','results','assemblies')) { Assert-ObservationScalar $State[$key] 'array' "$Name.$key" }
+    foreach ($reason in $State.failure) { Assert-ObservationScalar $reason 'string' "$Name.failure[]" }
+    foreach ($key in @('status','runStartedUtc','runFinishedUtc')) { Assert-ObservationScalar $State.clock[$key] 'string' "$Name.clock.$key" }
+    foreach ($key in @('frequency','runStartedTicks','runFinishedTicks')) { Assert-ObservationScalar $State.clock[$key] 'integer' "$Name.clock.$key" }
+    Assert-ObservationScalar $State.clock.durationMs 'number' "$Name.clock.durationMs"
+    foreach ($node in $State.domains) {
+        foreach ($key in @('ordinal','bootstrapTicks','reloadBeforeTicks')) { Assert-ObservationScalar $node[$key] 'integer' "$Name.domains[].$key" }
+        foreach ($key in @('id','bootstrapUtc','reloadBeforeUtc')) { Assert-ObservationScalar $node[$key] 'string' "$Name.domains[].$key" }
+    }
+    foreach ($node in $State.selected) { foreach ($key in @('id','name','fullname','uniqueName','assemblyName','runState')) { Assert-ObservationScalar $node[$key] 'string' "$Name.selected[].$key" } }
+    foreach ($node in $State.events) {
+        foreach ($key in @('sequence','domainOrdinal','ticks')) { Assert-ObservationScalar $node[$key] 'integer' "$Name.events[].$key" }
+        foreach ($key in @('kind','id','result','label','utc')) { Assert-ObservationScalar $node[$key] 'string' "$Name.events[].$key" }
+    }
+    foreach ($node in $State.results) { foreach ($key in @('id','name','fullname','result','label')) { Assert-ObservationScalar $node[$key] 'string' "$Name.results[].$key" } }
+    foreach ($node in $State.assemblies) {
+        foreach ($key in @('domainOrdinal','ticks')) { Assert-ObservationScalar $node[$key] 'integer' "$Name.assemblies[].$key" }
+        foreach ($key in @('observedAtUtc','fullName','location','loadedModuleVersionId','diskSha256','status','failure')) { Assert-ObservationScalar $node[$key] 'string' "$Name.assemblies[].$key" }
+    }
+}
+
 # Unity process の外で、同じ invocation の生文字列だけを検査する。path の存在や process 起動は runner が所有する。
 function Get-UnityObservationResult {
     param(
@@ -29,8 +67,8 @@ function Get-UnityObservationResult {
         return [pscustomobject]@{ status=$status; failure=@($failure.ToArray()); clock=$null; assemblies=$null }
     }
     try {
-        $terminal = ConvertFrom-Json -InputObject ([string]$ObservationText) -AsHashtable -Depth 64
-        $progress = ConvertFrom-Json -InputObject ([string]$ProgressText) -AsHashtable -Depth 64
+        $terminal = ConvertFrom-Json -InputObject ([string]$ObservationText) -AsHashtable -DateKind String -Depth 64
+        $progress = ConvertFrom-Json -InputObject ([string]$ProgressText) -AsHashtable -DateKind String -Depth 64
         if ($terminal -isnot [Collections.IDictionary] -or $progress -isnot [Collections.IDictionary]) { throw 'JSON root が object ではありません' }
         foreach ($item in @(@('terminal',$terminal),@('progress',$progress))) {
             $name = $item[0]; $s = $item[1]
@@ -42,6 +80,7 @@ function Get-UnityObservationResult {
             foreach ($node in @($s.events)) { Assert-ObservationKeys $node @('sequence','domainOrdinal','kind','id','result','label','utc','ticks') "$name.events[]" }
             foreach ($node in @($s.results)) { Assert-ObservationKeys $node @('id','name','fullname','result','label') "$name.results[]" }
             foreach ($node in @($s.assemblies)) { Assert-ObservationKeys $node @('domainOrdinal','observedAtUtc','ticks','fullName','location','loadedModuleVersionId','diskSha256','status','failure') "$name.assemblies[]" }
+            Assert-ObservationDtoTypes $s $name
             if ($s.schemaVersion -ne 1 -or $s.recordKind -cne 'unity-test-observation' -or
                 $s.invocationId -cne $ExpectedInvocation -or $s.projectPath -cne $ExpectedProject -or
                 $s.processId -ne $ExpectedPid -or $ExpectedPid -le 0 -or $s.platform -cne 'EditMode') {
