@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: **A / A1 r2。A2 architecture 再確認・受け入れ境界レビュー済み、指摘反映。A3 未凍結。Phase B を開始する指示ではない。**
+- status: **A / A1 r3。r2 A2レビュー済み、追加PRレビューの明確化を反映。A3 未凍結。Phase B を開始する指示ではない。**
 - branch: `codex/hlod-resident-pilot`（PR base: `develop`）
 - implementation base commit: `2c29c99806788406551affba6cc795e67e614748`
 - implementation head commit: 未生成（現在は文書のみ）
@@ -38,7 +38,7 @@
 - **M1: 手製対応関係が明示される。** 2 detail group の ID / MeshRenderer membership / world bounds、proxy の coverage ID 集合 / membership / bounds が宣言される。null、空集合、同一 Renderer の重複・detail/proxy 跨ぎ、coverage の欠落・余分、無効 bounds / 閾値を登録前に拒否する。bounds の包含は数値検査、proxy が対象を代表するという意味上の対応は manifest と代表画像で確認する。
 - **M2: 有効な fixture の表示が排他的に切り替わる。** 初期は両 detail 群のみ。距離で Detail / Proxy を選び、dead band は直前の表示を維持する。各 main-camera rendering boundary で「全 detail on / 全 proxy off」またはその逆だけになる。閾値往復、帯域内の揺れ、遠近への直接移動を検証する。操作・画像の検証経路は §5 の未決事項が解けるまで成立済みとしない。
 - **M3: 表示以外の寿命を動かさない。** 変更は登録対象の `MeshRenderer.enabled` のみ。`GameObject.SetActive`、Collider.enabled、Scene load/unload、asset API、gameplay component の enable/disable を行わない。同居 Collider の enabled / raycast と gameplay sentinel の継続を前後で確認する。proxy は visual-only とし、proxy 配下に Collider を持たせない。primitive 由来の自動付与 Collider も authoring 時に除去し、その不在を fixture 検査で確認する。
-- **M4: 所有と終了が閉じる。** 無効 manifest / 既存 owner との Renderer 衝突 / Updater 未初期化なら、表示の変更なしに登録拒否し、途中取得を戻す。有効登録だけが enabled の変更権を持つ。disable / destroy は Updater 登録と表示 ownership を解放し、生存 Renderer は authored 初期表示に戻す。二重 cleanup、登録失敗後 cleanup、再登録で漏れ・旧 callback の適用を残さない。
+- **M4: 所有と終了が閉じる。** 無効 manifest / 既存 owner との Renderer 衝突 / Updater 未初期化なら、表示の変更なしに登録拒否し、途中取得を戻す。有効登録だけが enabled の変更権を持つ。disable / destroy は Updater 登録と表示 ownership を解放し、生存 Renderer は authored 初期表示に戻す。cleanup は自分が取得した項目だけを取り除き、別の有効 owner の項目を消さない。登録処理または cleanup 完了時点で取得済み owner が0なら ownership 表も空である。domain reload や試験用の全表 clear で漏れを隠さない。二重 cleanup、登録失敗後 cleanup、再登録で漏れ・旧 callback の適用を残さない。
 - **M5: 対象版の検証が読める。** 最終の全 EditMode 回帰、関連する実フレーム検証・代表画像、機械検査を同じ GO 候補 head の証拠として固定する。数値/構造の合格を画像の代用にせず、画像を全フレーム検査の代用にしない。
 
 判定: M1〜M5 が揃い、現在の問いに致命的な反証がなければ **GO**。不足または違反があれば **NO-GO / 未判定**。CONDITIONAL ACCEPT は定義しない。GO は段2の設計へ進める証拠であり、本番 HLOD 完成・性能向上・メモリ削減を意味しない。条件を満たしたら終了し、将来の問いを追加して引き延ばさない。
@@ -61,6 +61,8 @@ A3 後の例外承認: なし（A3 自体が未実施）。凍結後の blocker 
 | 初期表示 | 全 detail enabled=true、proxy enabled=false。全対象 GameObject は active、pilot component は初期 disabled（camera 注入後に enable）。shadow casting は Off、opaque material の静的 geometry。LODGroup / Animator 等の表示競合なし |
 
 detail は小さな2組の手置き primitive、proxy は両組の代表形を表す手置きの1 mesh。自動合成・簡略化はしない。上記 bounds は対応 Renderer.bounds を保守的に含むことを検証し、coverage bounds は両 detail bounds を含む。geometry は固定し、fixture root の移動・回転・スケール変更は実行中に行わない。
+
+本 pilot の bounds 入力契約として、宣言 bounds と包含検査に使う `Renderer.bounds` は center / size および算出した min / max の全成分が finite、size の各成分が0以上、かつ少なくとも1成分が0より大きいことを登録前に検証する。NaN / ±Infinity、負サイズ、全軸ゼロを拒否する。1軸または2軸がゼロの平面・線状 AABB は、それだけでは拒否しない。包含は各軸で `outer.min <= inner.min && inner.max <= outer.max` として境界一致を許容し、暗黙の epsilon、絶対値化、clamp による入力補正を行わない。不成立時は ownership / Updater 登録・表示変更へ進まない。これは本スライスで定める検証述語であり、既存の共通 validator が保証しているという主張ではない。
 
 manifest 外の Renderer、child 階層全体、全 Cell を自動収集しない。登録 owner が存在する間、他コンポーネントは対象 enabled を書き換えない。この制約は fixture authoring とテストで確認する。未知の第三者 writer を調停する汎用 arbitration は作らない。
 
@@ -85,7 +87,7 @@ Game → Framework の一方向、既存 asmdef 参照を維持する。Editor c
 | 予定ファイル（`unity/Assets/` から） | 一つの責務 / 変更理由 | 所有・依存・公開面・テスト境界 | 現在 → 予定行数 |
 |---|---|---|---|
 | `SampleGame/InGame/InGameSession/World/Hlod/ResidentHlodPolicy.cs` | 距離と前状態から表現を選ぶ policy。閾値の意味が変わるときだけ変更 | 値のみ、UnityEngine / Updater / 資産 API に非依存の internal 型。状態は owner が持ち、policy は決定的。Unity object なしの単体テスト | 0 → 50–90 |
-| `SampleGame/InGame/InGameSession/World/Hlod/ResidentHlodDisplay.cs` | 明示 Renderer 集合の表示 ownership と一括反映を担う Unity I/O | owner の Bind(go) 相当の寿命。内部の ownership 表は active owner の参照のみで cleanup 時に消す。取得時の検証・衝突拒否・enabled 反映・復元を同じ契約に閉じる。internal、Unity MeshRenderer のみ入力。asset/Scene API なし。EditMode で実 Renderer を使用 | 0 → 160–230 |
+| `SampleGame/InGame/InGameSession/World/Hlod/ResidentHlodDisplay.cs` | 明示 Renderer 集合の表示 ownership と一括反映を担う Unity I/O | 各 display instance は pilot の登録 scope が所有する。Renderer → 所有 display の表は本型の private static、表自体は managed domain と同寿命。項目は ownership 取得から登録失敗 rollback または OnDisable/OnDestroy cleanup 完了まで保持し、Updater activation 待ちも含む。AssetOwner.Bind / asset 寿命とは結びつけない。取得時の検証・衝突拒否・enabled 反映・復元を同じ契約に閉じる。internal、Unity MeshRenderer のみ入力。asset/Scene API なし。EditMode で実 Renderer を使用 | 0 → 160–230 |
 | `SampleGame/InGame/InGameSession/World/Hlod/ResidentHlodPilot.cs` | serialized manifest と camera を表示/policyへ結び、Updater 参加・終了を調停する orchestration | MonoBehaviour の public authoring 型、操作 API は必要最小限・内部テスト口。component と同寿命で asset 所有は取得しない。既存 Runtime/ Foundation API だけに依存。`OnEnable/OnDisable/OnDestroy` と `IUpdateElement/IMainThreadApplyElement`、純 policy と display へ委譲 | 0 → 150–220 |
 | `SampleGame/Tests/Rendering/ResidentHlodPolicyTests.cs` | 距離選択の境界・往復・不正値 | `SampleGame.Tests`、既存 IVT。pure values で検証 | 0 → 80–130 |
 | `SampleGame/Tests/Rendering/ResidentHlodDisplayTests.cs` | manifest/ownership/復元/Collider 不変の検証 | `SampleGame.Tests`（Editor-only）。一時 GameObject を所有し finally で cleanup | 0 → 180–280 |
@@ -111,7 +113,7 @@ Game → Framework の一方向、既存 asmdef 参照を維持する。Editor c
 ### 起点テストと判定必須
 
 - pure policy: near/far のちょうど境界、帯域内維持、遠近への直接移動、反復、NaN/Infinity/負値・逆順閾値。
-- display/owner: 正しい2→1、重複・null・bounds/coverage 不正の無変更拒否、owner衝突、Updater不在、未active登録からの終了、二重 cleanup、disable→enable、同居 Collider の raycast、proxy配下Collider不在、gameplay sentinel。
+- display/owner: 正しい2→1、重複・null・bounds/coverage 不正の無変更拒否、owner衝突、Updater不在、未active登録からの終了、二重 cleanup、disable→enable、同居 Collider の raycast、proxy配下Collider不在、gameplay sentinel。bounds は非有限 center/size・演算後の非有限 min/max・負サイズ・全軸ゼロを拒否し、ゼロ軸を持つ非空AABB・包含境界一致を受理、包含外を拒否する。別 owner 生存中の部分cleanupでその所有権が維持され、最後のcleanup後はExitPlayMode前と再入場の取得前に表が空であることを確認する。
 - 実フレーム: authored 初期表示→near→far→dead band→near を実 Updater で進め、main-camera render boundary 毎に排他集合を検査。再生終了・再入場でも owner/登録が残らないことを確認する。
 - 差し戻し中の起点: `pwsh tools/run-tests.ps1 -Filter SampleGame.Tests.Rendering.ResidentHlod`。画像/実フレーム対象を含むときは `-WithGraphics`。C は違反根拠に応じ filter を変更できる。
 - 判定必須: GO 候補 head で `pwsh tools/run-tests.ps1 -WithGraphics`（空 filter、最終全 EditMode 回帰）。同一条件で上記 frame tests も集約する。XMLのテスト名・件数・失敗・skipを確認し、0件や必須fixtureの Ignore を成功にしない。全 EditMode 除外: **なし**。
@@ -155,6 +157,7 @@ r1 の「test が host を所有する」は撤回する。EnterPlayMode では 
 - A0/A1 主担当・モデル・ベンダー: 主担当エージェント / 実行モデル識別子は未取得（推測で記入しない） / OpenAI
 - A2 独立レビュー: モデル指定 `gpt-6-astra` / OpenAI の担当が r1 architecture レビューと同じ指摘の r2 再確認を実施。別セッション・モデル指定 `gpt-6-sol` / OpenAI の担当が同じ r2 固定入力を独立に受け入れ境界・失敗経路観点で確認。記載したモデル名は起動時の指定で、実行側のモデルIDは未検証。いずれも読取のみ、Unity実行なし
 - A2 finding と採用/不採用/保留理由: **採用（M2/M4/M5の検証経路）**。r1のtest所有hostは実AppInitializerのglobal host / CameraSystemと競合し、SceneDirector未bindでactivationも成立しない。r2では§5の実アプリhost/Camera借用、通常registration/activation、test所有handleのみcleanupへ変更。runtimeの3責務分離・依存・表示ownerの境界は維持。r2のarchitecture再確認で当該指摘は設計/ソース上解消。受け入れ境界レビューでは追加blockerなし、M3を明確にするproxy配下Collider禁止・不在検査の提案を採用した。Unity実行/capture/evidence経路は未成立のまま。これらは主担当の採用案であり人間A3承認ではない
+- 追加PRレビュー採否（r3）: 旧 head `d8f3a188` の重複コメントを現行r2と照合。host指摘はr2で解消済みのため再設計しない。[ownership表の保持者・項目寿命](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/91#discussion_r4176050040) と [bounds述語](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/91#discussion_r4176050042) の明確化はM4/M1内の補足として採用。汎用SubsystemRegistration reset・Editor hook・全表clearによる正常化は不採用（生存ownerの取得状態を壊し、cleanup不良を隠し得るため）。Runtime/Editor依存追加や実装は行わない。r3は人間A3への候補であり、凍結済み条件の事後変更ではない。
 - A3 統合担当・人間の採否: 未実施。既存の着手依頼を、本書で初めて提示した条件の承認へ読み替えない
 - C' 予約担当・モデル・ベンダー: 未選定。B/Cと異なるモデル・新規session・blind bundleを守り、可能ならA未関与の系列を残す
 - 独立性の強化条件を満たせない場合: 実際に判明した段階で理由・残存リスクを記録し、人間判断を得る

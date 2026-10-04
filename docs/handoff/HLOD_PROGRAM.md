@@ -1,7 +1,7 @@
 # HLOD / Proxy 導入 program
 
 - type: `program`
-- status: **Phase A1 r2。A2 finding 反映・再確認済み、A3未凍結・未実装。** 各段の着手には個別 HANDOFF と A2 / 人間 A3 が必要。
+- status: **Phase A1 r3。r2 A2確認と追加PRレビューの明確化を反映、A3未凍結・未実装。** 各段の着手には個別 HANDOFF と A2 / 人間 A3 が必要。
 - owner: 主担当エージェント（計画・実装調整）、発注者（A3 / D 判断）
 - created: 2026-10-04
 - expires / harvest 期限: 2026-11-04 に継続要否を見直す。各段のマージ時に実証済み契約だけ harvest し、全段の完了・中止時に本書を削除する。
@@ -54,6 +54,6 @@
 
 ## 5. 現在の着手・未決事項
 
-この branch は段1の A1 文書化まで。r1 の独立 A2 で見つかった試験host競合を、既存実アプリhost / main cameraを借用するr2案へ修正した。r2のarchitecture再確認と独立した受け入れ境界レビューを実施し、proxyをvisual-onlyに限定する条件も追記した。人間 A3 の採否・検証経路合意、Phase B 実装、C / C' は未実施である。会話上の「最初の一歩を進める」は、新しい A3 条件の提示前の承認として扱わない。
+この branch は段1の A1 文書化まで。r1 の独立 A2 で見つかった試験host競合を、既存実アプリhost / main cameraを借用するr2案へ修正した。r2のarchitecture再確認と独立した受け入れ境界レビューを実施し、proxyをvisual-onlyに限定する条件も追記した。r3で追加PRレビューを照合し、表示ownershipの保持者・項目寿命とbounds入力述語を明確化した。人間 A3 の採否・検証経路合意、Phase B 実装、C / C' は未実施である。会話上の「最初の一歩を進める」は、新しい A3 条件の提示前の承認として扱わない。
 
 現在の cloud 作業環境には Unity Editor がなく、既存 GitHub CI は DebugStudio の .NET 検証のみ。Unity 実行・画像取得の経路は未成立。候補は許可済みの Unity 搭載 executor または発注者が選ぶ既存 runner であり、人間に毎回手動テストしてもらう前提にはしない。段1 HANDOFF で担当・環境・最初の確認地点・不成立時の扱いを A3 前に確定する。
