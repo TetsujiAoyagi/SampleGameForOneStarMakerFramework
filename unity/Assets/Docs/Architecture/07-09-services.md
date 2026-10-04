@@ -26,21 +26,21 @@ SoundService (MonoBehaviour, DontDestroyOnLoad)
 
 ### 8.1 構成
 
-```
-InputManager (OneStarMaker.Runtime)
-  └── InputObserver … ActionMap の切り替え、イベント配信
+`InputManager` は任意に導入する現在値の公開コンポーネントである。全 API は main thread で呼ぶ。SampleGame の既存コントローラは利用していない。`InputFrame` が純粋な managed 値、`InputActionAssetReader` が native read とマップ操作、manager が通知と登録 lease を所有する。Button / Vector2 を map + action 名で一度 index に解決し、以後 `TryRead` または `Published` span で読む。その他の型は公開せず `UnsupportedActionCount` に数える。
 
-NewStgCommonInput : InputManager (Game.Common)
-  └── ゲーム固有の Action を enum で型安全に公開
-      R3 の Observable でイベントを配信
-```
+### 8.2 所有者と寿命
 
-### 8.2 ルール
+- 所有者は `IAssetManagement` と適切な `AssetOwner` で自分専用の `InputActionAsset` を取得してから manager を生成する。manager は asset を clone / load / Destroy しない。
+- Player / UI マップ操作は排他的 lease である。同じマップを `PlayerInput`、`InputSystemUIInputModule`、他の controller と共有しない。全カタログ検証後に Player を有効化する。
+- main thread で host 導入後に parameterless `TryRegister()` を呼ぶ。Input layer は order -100 / execution 0。未導入または失敗は false で再試行可能、成功後の重複も false。初回 activation は host の SceneDirector 接続と scene 安定 gate に従う。
+- 所有者が対象 scene を選び `SetInteractionState` を渡す。初期 None、および Stable 以外への変更は即座に公開値を中立化する。Stable は WorldReady を意味しない。Stable に戻っただけでは中立を保ち、次の Sample で現在値を読む。
+- 所有者は host 終了と asset 解放より前に manager を Dispose する。Dispose は即座に中立化し、実際に登録した coordinator から解除し、両マップを無効化して通知を終了する。asset はそれまで生存させる。
 
-- `InputActionAsset` は Unity の Input System で管理する。
-- ActionMap の切り替え（Player ↔ UI）は `InputObserver.ChangeMode()` で行う。
-- ゲーム固有の Action 定義は Game.Common 層の enum で管理し、OneStarMaker.Runtime は enum を知らない。
-- イベント配信には R3 の `Observable` を使用する（旧プロジェクトの UniRx `IObservable` から移行）。
+### 8.3 公開値と選択
+
+`TrySetMap` は Player / UI だけを選ぶ。実変更は中立化後に native map を切り替え、成功後に ActiveMap と `MapChanged` を確定する。同じ map は再有効化や通知をしない。native 操作失敗は元の例外を伝え、中立を保って両マップの停止を試みる。以後 Sample は読まず、有効な選択の成功でだけ復旧する（以前の ActiveMap の再指定も再試行となる）。未知 map / profile は状態を変えない。profile は default ID だけで、リバインドや片腕プロファイルは未実装。
+
+`Published` は manager 一つの共有 buffer であり、Sample、停止、map 変更、Dispose による上書きまでが値の寿命である。保持済み span も中立化を観測する。Dispose 後の読み取りは中立 slot を返し、明示的な変更 API は `ObjectDisposedException`。Update の level snapshot であり、押下 edge や FixedUpdate 向けの同期を保証しない。再開後の sample では保持中の control が保持値として現れうる。ゲーム固有 enum、scene readiness、UI module と cursor のモードは所有者側の責任である。
 
 ---
 
