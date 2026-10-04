@@ -1,0 +1,22 @@
+ docs/handoff/SCRIPT_SYSTEM_INNER.md                | 206 ++++++++++++++
+ .../OneStarMaker/Scripts/Runtime/ScriptSystem.meta |   8 +
+ .../Runtime/ScriptSystem/ScriptInstruction.cs      |  86 ++++++
+ .../Runtime/ScriptSystem/ScriptInstruction.cs.meta |   2 +
+ .../Scripts/Runtime/ScriptSystem/ScriptMachine.cs  | 238 ++++++++++++++++
+ .../Runtime/ScriptSystem/ScriptMachine.cs.meta     |   2 +
+ .../Runtime/ScriptSystem/ScriptMachineStatus.cs    |  21 ++
+ .../ScriptSystem/ScriptMachineStatus.cs.meta       |   2 +
+ .../Scripts/Runtime/ScriptSystem/ScriptOpcode.cs   |  21 ++
+ .../Runtime/ScriptSystem/ScriptOpcode.cs.meta      |   2 +
+ .../Scripts/Runtime/ScriptSystem/ScriptProgram.cs  |  40 +++
+ .../Runtime/ScriptSystem/ScriptProgram.cs.meta     |   2 +
+ .../Runtime/ScriptSystem/ScriptRegisters.cs        |  74 +++++
+ .../Runtime/ScriptSystem/ScriptRegisters.cs.meta   |   2 +
+ .../Runtime/ScriptSystem/ScriptUpdateElement.cs    |  48 ++++
+ .../ScriptSystem/ScriptUpdateElement.cs.meta       |   2 +
+ unity/Assets/OneStarMaker/Tests/ScriptSystem.meta  |   8 +
+ .../Tests/ScriptSystem/ScriptMachineTests.cs       | 312 +++++++++++++++++++++
+ .../Tests/ScriptSystem/ScriptMachineTests.cs.meta  |   2 +
+ .../Tests/ScriptSystem/ScriptUpdateElementTests.cs | 122 ++++++++
+ .../ScriptSystem/ScriptUpdateElementTests.cs.meta  |   2 +
+ 21 files changed, 1202 insertions(+)

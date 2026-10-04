@@ -3,27 +3,27 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C`
+- status: `A`
 - branch: `cursor/script-system-inner-8619`
 - implementation base commit: `2c29c99806788406551affba6cc795e67e614748` (`develop`)
-- implementation head commit: `af6c5c9fa904847fe6abde214598bc4869dbfcc1`
+- implementation head commit: 未記入
 - risk: `high`
 - owner: OSM maintainers
 - created: 2026-10-04
 - expires: 2027-01-04
 - harvest to: マージ時に、命令番号・レジスタ所有・tick 非確保の契約だけを `unity/Assets/Docs/Architecture/` の新しい現況文書へ移す。移す前に公開面へ置かない。HANDOFF 自体は Phase D で削除する。
-- Phase A snapshot path / id: `5638b5c361faa761d08c869c20b45db1e0593707:docs/handoff/SCRIPT_SYSTEM_INNER.md`（`git show` で凍結本文を取得する。盲検用の複製は `docs/handoff/script-system-inner/blind-audit/phase-a-snapshot.md`）
-- Phase A snapshot generated at: 2026-10-04T00:42:53Z
-- Phase A snapshot hash: `cf7b709f6146c889a1142ad50ec8bef8a0610f85426b227785d1cca5506f5f6f`
-- Phase B result snapshot path / id: `docs/handoff/script-system-inner/blind-audit/phase-b-result.md`
-- Phase B result snapshot generated at: 2026-10-04T00:48:43Z
-- Phase B result snapshot hash: `8f03eb2d56c3e022238bb4b4b9ef69c262a6f485ddadb28c209f813cdffc4380`
-- evidence bundle path / id: `docs/handoff/script-system-inner/blind-audit`
-- evidence bundle generated at: 2026-10-04T00:48:43Z
-- evidence bundle hash: `2e5bce3c84e8f371431abeb63cd438043a501fba35e2814cfb7dff6e03702828`
-- C' blind bundle path / id: `docs/handoff/script-system-inner/blind-audit`（発見 C の結論を含まない入力。監査は未実施）
-- C' blind bundle generated at: 2026-10-04T00:48:43Z
-- C' blind bundle hash: `2e5bce3c84e8f371431abeb63cd438043a501fba35e2814cfb7dff6e03702828`
+- Phase A snapshot path / id: 未記入
+- Phase A snapshot generated at: 未記入
+- Phase A snapshot hash: 未記入
+- Phase B result snapshot path / id: 未記入
+- Phase B result snapshot generated at: 未記入
+- Phase B result snapshot hash: 未記入
+- evidence bundle path / id: 未記入
+- evidence bundle generated at: 未記入
+- evidence bundle hash: 未記入
+- C' blind bundle path / id: 未記入
+- C' blind bundle generated at: 未記入
+- C' blind bundle hash: 未記入
 
 このファイルが後からレビュー記録で変わっても、Phase A snapshot は凍結時点の git blob を指す。implementation head は実装差分の commit であり、レビュー記録だけの commit では更新しない。
 
@@ -164,25 +164,25 @@
 
 ## 6. Phase B 実装結果
 
-- 実装: `af6c5c9fa904847fe6abde214598bc4869dbfcc1` で、Runtime の `ScriptSystem` に 9 命令、プログラム、レジスタ、機械、Update 要素を追加した。テストは `OneStarMaker.Tests` の `ScriptSystem`。asmdef と SampleGame は変えていない。行数は命令 21、状態 21、命令値 86、プログラム 40、レジスタ 74、機械 238、要素 48、機械テスト 312、要素テスト 122。
-- HANDOFF との差: 公開メンバーと命令効果は表のまま。加減乗は private な `BinaryKind` で分岐する。メソッドグループをデリゲートにすると tick で確保しうるためで、命令や故障の契約は変えていない。
-- 未実行: Unity Editor のコンパイル。`ScriptUpdateElementTests`。`pwsh tools/run-tests.ps1`。
-- implementation head commit: `af6c5c9fa904847fe6abde214598bc4869dbfcc1`
-- Phase B 担当・モデル・ベンダー: このセッションの Grok 4.7。詳細は `docs/handoff/script-system-inner/blind-audit/phase-b-result.md`。
+- 実装: 未着手
+- HANDOFF との差: 未記入
+- 未実行: 未記入
+- implementation head commit: 未記入
+- Phase B 担当・モデル・ベンダー: 未記入
 
 ## 7. Phase C
 
-- 種別: 発見。判定 C は未実行。GO ではない。
-- evidence bundle id / hash: `docs/handoff/script-system-inner/blind-audit` / `2e5bce3c84e8f371431abeb63cd438043a501fba35e2814cfb7dff6e03702828`
-- 構造適合: 責務マップの 9 ファイルだけで、公開メンバーは凍結リストと一致する。asmdef、SampleGame、Debug、telemetry、Editor コードの差分は無い。`ScriptMachine` は 238 行で、500 行、3 責務、既存ファイルの 50% 増加は発火していない。命令適用という一つのアルゴリズムなので分割しない。private な `BinaryKind` は公開面を増やさない。機械の中核は Unity オブジェクトなしで実行できた。要素の接続テストはこの環境では実行していない。
-- 現在の問いを阻害する findings（違反する凍結済み条件 / 常時契約を併記）: なし。この発見レビューでは、凍結済みの最低条件・受け入れ条件・常時契約への違反として確定した欠陥は無い。
-- 後続スライスへ移送する findings: 同じレジスタを複数の機械が触ることを検出したり禁止したりしない。順序は呼び出し側の逐次 tick に従う。違反根拠は無く、所有は `SCRIPT_SYSTEM_OUTER_HOST`。命令番号を `contract-audit` は検査しない。番号を足すときの維持は `SCRIPT_SYSTEM_OPCODE_EXTENSION`。違反根拠は無い。
-- 実行したテストコマンドと `-Filter`、対象を選んだ理由: `pwsh tools/contract-audit.ps1`（常時契約の機械検査）。`pwsh tools/docs-audit.ps1`（HANDOFF を足したため）。リポジトリ外の一時 net8 プロジェクトで `ScriptMachineTests` を実行（HANDOFF が許す、Unity 参照の無い機械本体。要素テストは UpdateCoordinator が Unity パッケージ型に依存するため含めていない）。同じソースの Release で `Tick(32)` をウォームアップ後に 1000 回測った。起点 filter `OneStarMaker.Tests.ScriptSystem` の Unity 実行は、Unity がこの VM に無いため行っていない。
-- テスト結果（XML 上の実行テスト名と件数）: Unity の XML は無い。オフラインの機械テストは 18 件すべて成功。`Arithmetic_AddSubMul_WrapsWithoutThrowing`、`Budget_YieldsAndResumes`、`ConditionalJumps_BranchOnZeroAndNonZero`、`Constructors_RejectNullAndNegativeCount`、`Create_CopiesInstructions_SoLaterEditsDoNotAffectExecution`、`EarlierInstructionInTheSameTick_RemainsAfterALaterFault`、`EmptyProgram_Halts`、`FallingOffTheEnd_HaltsWithProgramCounterAtLength`、`InvalidJump_LatchesWithoutMovingProgramCounter`、`InvalidOpcode_Latches`、`InvalidRegister_DoesNotWriteAndLatches`、`Jump_SkipsTheNextInstruction`、`JumpToLength_HaltsInTheSameTickWhenBudgetRemains`、`LatchedTick_DoesNotMutateRegisters`、`LoadImmediate_WritesInt64_AndHaltLeavesProgramCounterOnTheHalt`、`Move_CopiesSourceIntoDestination`、`RejectedBudget_DoesNotChangeStatusOrProgramCounter`、`ZeroRegisters_CanHalt`。確保測定は sum 0、max 0。`contract-audit` と、証拠 Markdown を置く前の `docs-audit` は exit 0。証拠 Markdown を index に載せたあとの `docs-audit` も errors 0、warnings 0。
-- 判定必須のうち未実行: `pwsh tools/run-tests.ps1`（引数なし。`-Filter` を付けない EditMode が全件）。人間が Unity `6000.6.0f1` のある環境で、Editor を閉じたままこのコマンドを実行する。起点だけの確認なら `-Filter OneStarMaker.Tests.ScriptSystem` だが、それは判定の代替にしない。
-- 重い検証を発見段階で限定実行した場合の理由と範囲: Unity バッチは起動していない。差し戻しが決まったからではなく、この Linux VM に Unity Editor が無いため。
-- 未確認事項: Unity Editor 上のコンパイル。`ScriptUpdateElementTests` の実行。Unity のスクリプティング実装での確保バイト。net8 の測定とソース上の非確保を、Unity 実行の成功とは扱わない。
-- 担当・モデル: このセッションの Grok 4.7。Phase B と同じセッション、同じモデルであり、独立性は満たさない。発見だけを記録し、GO とは書かない。
+- 種別: 未着手
+- evidence bundle id / hash: 未記入
+- 構造適合: 未記入
+- 現在の問いを阻害する findings: 未記入
+- 後続スライスへ移送する findings: 未記入
+- 実行したテストコマンドと `-Filter`: 未記入
+- テスト結果: 未記入
+- 判定必須のうち未実行: 未記入
+- 重い検証を発見段階で限定実行した場合の理由と範囲: 未記入
+- 未確認事項: 未記入
+- 担当・モデル: 未記入
 
 ## 8. Phase C'
 
