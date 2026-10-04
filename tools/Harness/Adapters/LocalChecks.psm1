@@ -3,6 +3,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../GatePolicy.psm1') -Global
+Import-Module (Join-Path $PSScriptRoot 'UnityChecks.psm1') -Global
 
 function Invoke-Process([string]$FileName, [string[]]$Arguments, [string]$WorkingDirectory, [int]$TimeoutSeconds = 900) {
     # 標準出力は待ってから読むとパイプが埋まり、プロセスが戻らない。先に非同期で読む。
@@ -35,10 +36,16 @@ function Invoke-Process([string]$FileName, [string[]]$Arguments, [string]$Workin
     } finally { $process.Dispose() }
 }
 
-function Assert-RunPayload([string]$TaskDirectory, [object]$Run) {
+function Assert-RunPayload([string]$TaskDirectory, [object]$Run, [object]$Spec = $null, [string]$Repo = '') {
     # ログの相対パスが task ディレクトリの外を指せないようにする。
     # logHash は各ファイル hash を並びのまま連結した値の hash。順番が変わると不一致になる。
     foreach ($step in @($Run.steps)) {
+        # adapter種別を先に決める。Unity rawをoffline DLL存続検査へ流さない。
+        if ($step.PSObject.Properties['adapterKind'] -and $step.adapterKind -ceq 'unity-test-v2') {
+            [void](Assert-UnityPayload $Repo $TaskDirectory $Run.id $step $Spec)
+            continue
+        }
+        if ($step.PSObject.Properties['adapterKind'] -and $step.adapterKind) { throw "未知adapterKindです: $($step.adapterKind)" }
         $hashes = [Collections.Generic.List[string]]::new()
         foreach ($relative in @($step.logs)) {
             $path = [IO.Path]::GetFullPath([IO.Path]::Combine($TaskDirectory, $relative))
@@ -178,6 +185,9 @@ function Invoke-LocalStep([string]$Repo, [string]$TaskDirectory, [string]$RunId,
             $scripts = @('Credentials', 'RouteProof', 'R2RouteTransport')
         }
         'harness-local' { $scripts = @('Harness') }
+        'unity-runner-local' { $scripts = @('UnityTestRunner') }
+        'unity-observation-local' { $scripts = @('UnityObservation') }
+        'unity-adapter-local' { $scripts = @('UnityGate') }
         'contract-audit' { $scripts = @('ContractAudit') }
         'docs-audit' { $scripts = @('DocsAudit') }
         default { throw "未知のstepです: $Name" }
@@ -189,6 +199,9 @@ function Invoke-LocalStep([string]$Repo, [string]$TaskDirectory, [string]$RunId,
             'RouteProof' { $scriptPath = [IO.Path]::Combine($Repo, 'tools/Artifacts/tests/RouteProof.Tests.ps1'); $args = @('-NoProfile', '-File', $scriptPath, '-ResultPath', $caseFile) }
             'R2RouteTransport' { $scriptPath = [IO.Path]::Combine($Repo, 'tools/Artifacts/tests/R2RouteTransport.Tests.ps1'); $args = @('-NoProfile', '-File', $scriptPath, '-AssemblyPath', $binary, '-ResultPath', $caseFile) }
             'Harness' { $scriptPath = [IO.Path]::Combine($Repo, 'tools/Harness/tests/Harness.Tests.ps1'); $args = @('-NoProfile', '-File', $scriptPath, '-ResultPath', $caseFile) }
+            'UnityTestRunner' { $scriptPath = [IO.Path]::Combine($Repo, 'tools/Harness/tests/UnityTestRunner.Tests.ps1'); $args = @('-NoProfile', '-File', $scriptPath, '-ResultPath', $caseFile) }
+            'UnityObservation' { $scriptPath = [IO.Path]::Combine($Repo, 'tools/Harness/tests/UnityObservation.Tests.ps1'); $args = @('-NoProfile', '-File', $scriptPath, '-ResultPath', $caseFile) }
+            'UnityGate' { $scriptPath = [IO.Path]::Combine($Repo, 'tools/Harness/tests/UnityGate.Tests.ps1'); $args = @('-NoProfile', '-File', $scriptPath, '-ResultPath', $caseFile) }
             'ContractAudit' { $scriptPath = [IO.Path]::Combine($Repo, 'tools/contract-audit.ps1'); $args = @('-NoProfile', '-File', $scriptPath, '-HarnessTask', (Split-Path $TaskDirectory -Leaf)) }
             'DocsAudit' { $scriptPath = [IO.Path]::Combine($Repo, 'tools/docs-audit.ps1'); $args = @('-NoProfile', '-File', $scriptPath) }
         }

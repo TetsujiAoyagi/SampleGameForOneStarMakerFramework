@@ -1,3 +1,4 @@
+param([string]$ResultPath = '', [string]$Filter = '')
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '../../..')).Path
@@ -7,9 +8,16 @@ $repo = (Resolve-Path (Join-Path $PSScriptRoot '../../..')).Path
 # 実 Unity を起動しないため、XML と log の境界条件を短い fixture で固定できる。
 $failed = [Collections.Generic.List[string]]::new()
 $executed = 0
+$registered = [Collections.Generic.List[string]]::new()
+$selected = [Collections.Generic.List[string]]::new()
+$executedNames = [Collections.Generic.List[string]]::new()
 function Assert($condition, [string]$message) { if (-not $condition) { throw $message } }
 function Run([string]$name, [scriptblock]$body) {
+    $script:registered.Add($name)
+    if ($Filter -and $name -notlike "*$Filter*") { return }
+    $script:selected.Add($name)
     $script:executed++
+    $script:executedNames.Add($name)
     try { & $body; [Console]::WriteLine("PASS $name") }
     catch { $script:failed.Add("$name : $($_.Exception.Message)"); [Console]::Error.WriteLine("FAIL $name : $($_.Exception.Message)") }
 }
@@ -35,6 +43,16 @@ function Capture-UnityTestRun([hashtable]$parameters) {
         $capture.Dispose()
     }
     return [pscustomobject]@{ Result=$result; Stdout=$stdout }
+}
+Run 'observation argv uses long path only for writer temporary path' {
+    $short = 'C:\fixture\' + ('a' * 20) + '\observation.json'
+    Assert ((Get-UnityObservationArgumentPath $short) -ceq $short) 'short observation path changed'
+    $long = 'C:\fixture\' + ('a' * 180) + '\01234567-89ab-cdef-0123-456789abcdef\observation.json'
+    if ([OperatingSystem]::IsWindows()) {
+        Assert ((Get-UnityObservationArgumentPath $long) -ceq ('\\?\' + $long)) 'long observation path lacks Windows prefix'
+    } else {
+        Assert ((Get-UnityObservationArgumentPath $long) -ceq [IO.Path]::GetFullPath($long)) 'non-Windows observation path changed'
+    }
 }
 
 $passedXml = Xml 'Passed' (Case 'Passed' 'A') '1' '1' '0' '0' '0'
@@ -126,6 +144,10 @@ try {
     $project = Join-Path $root 'project with space/unity'
     [void][IO.Directory]::CreateDirectory((Join-Path $project 'ProjectSettings'))
     [IO.File]::WriteAllText((Join-Path $project 'ProjectSettings/ProjectVersion.txt'), 'm_EditorVersion: 6000.6.0f1')
+    $settingsPath = Join-Path $project 'ProjectSettings/EditorSettings.asset'
+    $script:settingsOriginal = "EditorSettings:`n  m_EnterPlayModeOptionsEnabled: 1`n  m_EnterPlayModeOptions: 1`n  m_SerializeInlineMappingsOnOneLine: 1`n  m_SomeOtherSetting: 7`n"
+    $script:settingsDrift = "EditorSettings:`n  m_EnterPlayModeOptionsEnabled: 1`n  m_EnterPlayModeOptions: 1`n  m_SomeOtherSetting: 7`n  m_UseLegacyHierarchy: 0`n"
+    [IO.File]::WriteAllText($settingsPath, $script:settingsOriginal)
     $exe = Join-Path $root 'Unity Folder/Unity.exe'
     [void][IO.Directory]::CreateDirectory((Split-Path -Parent $exe))
     [IO.File]::WriteAllText($exe, 'fixture')
@@ -229,6 +251,70 @@ try {
         $captured = Capture-UnityTestRun @{ ProjectPath=$project; UnityExe=$exe; OutputRoot=$outputRoot; ProcessInvoker=$intercept }
         Assert ($captured.Result.ExitCode -eq 1 -and $null -eq $captured.Result.StepPath -and $captured.Stdout -ceq '') 'step save failure passed or emitted marker'
     }
+    # 観測runnerの終了後だけ、同GUIDの復旧記録と二行差分を照合して取得前bytesを戻す。
+    Run 'observed runner restores only known EditorSettings serialization drift' {
+        [IO.File]::WriteAllText($settingsPath, $script:settingsOriginal)
+        $before = [IO.File]::ReadAllBytes($settingsPath)
+        $driftProcess = {
+            param($binary, $argv, $cwd)
+            $projectArg = $argv[[array]::IndexOf($argv, '-projectPath') + 1]
+            $obs = $argv[[array]::IndexOf($argv, '-osmTestObservation') + 1]
+            $id = $argv[[array]::IndexOf($argv, '-osmTestInvocation') + 1]
+            [IO.File]::WriteAllText((Join-Path $projectArg 'ProjectSettings/EditorSettings.asset'), $script:settingsDrift)
+            $record = [ordered]@{invocationId=$id;projectPath=$projectArg;enterPlayModeOptionsEnabled=$true;restored=$true;enterPlayModeOptions=1}
+            [IO.File]::WriteAllText((Join-Path (Split-Path $obs) 'reload-settings.json'), (ConvertTo-Json -InputObject $record -Compress))
+            return [pscustomobject]@{Id=1234;StartedAt='now';EndedAt='later';DurationMs=1;ExitCode=0;Failure=''}
+        }
+        $captured = Capture-UnityTestRun @{ ProjectPath=$project; UnityExe=$exe; OutputRoot=$outputRoot; ObserveUnity=$true; ProcessInvoker=$driftProcess }
+        $after = [IO.File]::ReadAllBytes($settingsPath)
+        Assert ([Linq.Enumerable]::SequenceEqual([byte[]]$before, [byte[]]$after)) 'known drift was not restored byte-for-byte'
+        Assert ($captured.Stdout -match 'OSM_EDITOR_SETTINGS beforeSha256=[0-9a-f]{64} afterSha256=[0-9a-f]{64} restoreSha256=[0-9a-f]{64} status=restored') 'cleanup hash observation missing'
+        Assert ($captured.Result.ExitCode -eq 1) 'missing observation sidecar was promoted to success'
+    }
+    # PID取得後のwait例外はprocess終端ではない。同じprivate復旧recordでもassetを戻さない。
+    Run 'unconfirmed Unity termination preserves EditorSettings drift' {
+        [IO.File]::WriteAllText($settingsPath, $script:settingsOriginal)
+        $unknownExit = {
+            param($binary, $argv, $cwd)
+            $projectArg = $argv[[array]::IndexOf($argv, '-projectPath') + 1]
+            $obs = $argv[[array]::IndexOf($argv, '-osmTestObservation') + 1]
+            $id = $argv[[array]::IndexOf($argv, '-osmTestInvocation') + 1]
+            [IO.File]::WriteAllText((Join-Path $projectArg 'ProjectSettings/EditorSettings.asset'), $script:settingsDrift)
+            $record = [ordered]@{invocationId=$id;projectPath=$projectArg;enterPlayModeOptionsEnabled=$true;restored=$true;enterPlayModeOptions=1}
+            [IO.File]::WriteAllText((Join-Path (Split-Path $obs) 'reload-settings.json'), (ConvertTo-Json -InputObject $record -Compress))
+            return [pscustomobject]@{Id=1234;StartedAt='started';EndedAt='catch-time';DurationMs=1;ExitCode=$null;Failure='wait failure; process termination is unknown'}
+        }
+        try {
+            $captured = Capture-UnityTestRun @{ ProjectPath=$project; UnityExe=$exe; OutputRoot=$outputRoot; ObserveUnity=$true; ProcessInvoker=$unknownExit }
+            $step = [IO.File]::ReadAllText($captured.Result.StepPath) | ConvertFrom-Json
+            Assert ([IO.File]::ReadAllText($settingsPath) -ceq $script:settingsDrift) 'unknown exit restored asset'
+            Assert ($captured.Result.ExitCode -eq 1 -and $step.status -ceq 'failed' -and $null -eq $step.process.exitCode) 'unknown exit promoted to success'
+            Assert ($captured.Stdout -match 'OSM_EDITOR_SETTINGS beforeSha256=[0-9a-f]{64} afterSha256=[0-9a-f]{64} restoreSha256=[0-9a-f]{64} status=rejected reason=termination-unconfirmed') 'unknown exit hashes/reason missing'
+            Assert ($step.failure -match '終了値を確認できず') 'unknown exit reason missing from raw step'
+        } finally { [IO.File]::WriteAllText($settingsPath, $script:settingsOriginal) }
+    }
+    # 未知差・別identity・復旧未完了は元bytesで上書きせず、failedとして残す。
+    Run 'observed cleanup rejects unknown drift and invalid recovery identity' {
+        $before = [Text.UTF8Encoding]::new($false).GetBytes($script:settingsOriginal)
+        $id = [Guid]::NewGuid().ToString()
+        $recordPath = Join-Path $root 'reload-settings-fixture.json'
+        $valid = [ordered]@{invocationId=$id;projectPath=$project;enterPlayModeOptionsEnabled=$true;restored=$true;enterPlayModeOptions=1}
+        foreach ($case in @('unknown','invocation','project','unfinished')) {
+            $record = [ordered]@{}; foreach ($key in $valid.Keys) { $record[$key] = $valid[$key] }
+            $afterText = $script:settingsDrift
+            switch ($case) {
+                'unknown' { $afterText = $afterText.Replace('m_SomeOtherSetting: 7','m_SomeOtherSetting: 8') }
+                'invocation' { $record.invocationId = [Guid]::NewGuid().ToString() }
+                'project' { $record.projectPath = 'C:\other\unity' }
+                'unfinished' { $record.restored = $false }
+            }
+            [IO.File]::WriteAllText($settingsPath, $afterText)
+            [IO.File]::WriteAllText($recordPath, (ConvertTo-Json -InputObject $record -Compress))
+            $result = Complete-ObservedEditorSettings $settingsPath $before $recordPath $id $project $true
+            Assert ($result.Status -ceq 'rejected' -and $result.Failure -and [IO.File]::ReadAllText($settingsPath) -ceq $afterText) "$case was restored or accepted"
+        }
+        [IO.File]::WriteAllText($settingsPath, $script:settingsOriginal)
+    }
 } finally {
     # fixture 自身の temp ディレクトリだけを消す。失敗時も user の出力を巻き込まない。
     $resolved = [IO.Path]::GetFullPath($root)
@@ -237,4 +323,5 @@ try {
     if ([IO.Directory]::Exists($resolved)) { [IO.Directory]::Delete($resolved, $true) }
 }
 [Console]::WriteLine("Unity runner offline: $executed executed, $($failed.Count) failed")
+if ($ResultPath) { [IO.File]::WriteAllText([IO.Path]::GetFullPath($ResultPath), (ConvertTo-Json -InputObject ([ordered]@{registered=@($registered);selected=@($selected);executed=@($executedNames);failed=@($failed)}) -Depth 6)) }
 if ($failed.Count -gt 0) { exit 1 }
