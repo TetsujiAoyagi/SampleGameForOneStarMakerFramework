@@ -36,10 +36,11 @@ H1適用をA3で明示したArtifacts/Harness作業では、Git外のCURRENTと�
 複数スライスに跨る計画（構図の正本、空間プロトコルの Plan など）も作業台に置いてよい。ただし harvest 先と期限を本文に書くこと。作業指示だけに限らない。
 §7 / §8 を持たない長期計画は検査3 の網に掛からない。harvest 期限を本文に書くこと。
 
-**進行中の program / research は次の5件。**
+**進行中の program / research は次の6件。**
 
 | ファイル | 役割 | 実装キューか |
 |---|---|---|
+| `HLOD_PROGRAM.md` | HLOD / Proxy の段階導入と最初の全常駐 pilot | Phase A1 初稿。段1の A2 / 人間 A3 と Unity 検証経路は未確定。段2以降は着手時に別 HANDOFF を切る |
 | `SEASON_WORLD_DESIGN.md` | 世界構図・実証・スライス順序 | 着手時 HANDOFF を切るまでの正本。スライス表の順で切る。W-5 / W-6 は Content Directory / DIST。S-6 / S-7 実装スライスは廃止済み |
 | `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b / S-4c 完了。S-4d は VFX / Events の着手時に HANDOFF を切る |
 | `REVIEW_WORKFLOW_EFFICIENCY.md` | 外部モデルレビューの実測と、次のPhase Cで残す比較項目 | いいえ。普遍契約はSkillへharvest済み。残る実測後に削除する |
