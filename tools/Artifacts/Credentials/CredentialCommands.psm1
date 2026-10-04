@@ -81,7 +81,10 @@ function Invoke-CredentialStatus([string] $Profile) {
         "endpoint: $(if ($null -eq $metadata.Endpoint) { 'unconfigured' } else { $metadata.Endpoint })",
         "generation: $($metadata.Generation)", "created UTC: $($metadata.CreatedUtc)",
         "updated UTC: $($metadata.UpdatedUtc)",
-        'token reference: uncollected', 'local-only; R2 connectivity unverified'
+        'token reference: uncollected',
+        "rotation state: $($metadata.State)",
+        "retired generation: $(if ($null -eq $metadata.RetiredGeneration) { 'none' } else { $metadata.RetiredGeneration })",
+        'local-only; R2 connectivity unverified'
     )
 }
 
@@ -90,4 +93,11 @@ function Invoke-CredentialRemove([string] $Profile) {
     return "$outcome; Cloudflare token revocation was not performed."
 }
 
-Export-ModuleMember -Function Invoke-CredentialSet, Invoke-CredentialStatus, Invoke-CredentialRemove
+function Read-CredentialRotationInput {
+    if (-not (Test-InteractiveInput)) { throw 'Credential operation unavailable.' }
+    $id = Read-MaskedValue 'New Access Key ID'
+    $secret = Read-MaskedValue 'New Secret Access Key'
+    return [pscustomobject]@{ AccessKeyId = $id; SecretAccessKey = $secret }
+}
+
+Export-ModuleMember -Function Invoke-CredentialSet, Invoke-CredentialStatus, Invoke-CredentialRemove, Read-CredentialRotationInput
