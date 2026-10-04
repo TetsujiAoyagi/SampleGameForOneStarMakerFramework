@@ -90,3 +90,23 @@ Unity adapterは `tools/run-tests.ps1 -ObserveUnity -OutputRoot <task>/payload/<
 保存済みUnity stepの引渡しは `Assert-UnityPayload` でpath/hash、runnerとrawのargv/project/PID/版、XML leaf、観測callback/clock/assembly取得地点、固定集合を再検査する。`observedAssemblies` は原observationのpath/hash参照であり、後日のLibrary DLL変更・消失で取得時の原観測を無効にしない。全件性は空filter起動と同一invocationの完全観測/XML一致、固定11件包含で判定する。未知assemblyの静的catalog照合やロード済みメモリbytesのhashは扱わない。
 
 初回adapter実機疎通はC担当が実行・記録する。B限定許可は旧taskとr2 taskの各承認済み `unity-pilot-gates-v1` `discovery` にだけ適用する。B限定の実行が同一head、clean、承認profileを満たした場合はB exit証拠として使い、同じ11件を形式だけで二重起動しない。最終GOには判定Cの別profileで全EditModeと故意欠測負例、blind同入力の再検査が必要。WindowsのUnity実行は最初からsandbox外の承認済み経路を使い、Editor所有者とproject lockを確認する。
+
+## 観測ファイルの保存とテスト資源の寿命
+
+`TestObservationWriter.AtomicWrite` は invocation が所有する同じflush済みtempを使う。保存先がなければMoveを一度だけ行う。既存保存先へのReplaceは、WindowsのIOExceptionでHRESULTが `0x80070020`、`0x80070021`、`0x80070497` の場合だけ再試行する。最大5 attempt、各retry前に20ms、最初のReplace開始から100ms未満で追加attemptを開始する。これは追加retryの開始期限であり、native I/O自体の終了時間の保証ではない。
+
+tempまたは保存先が消えた場合、部分変更を示すエラー、未分類の例外、永続競合は失敗になる。delete-then-moveへの切替や成功推測はしない。publicationとtemp cleanupの両方が失敗した場合は両例外を保持する。Progress/SaveRecoveryの同期保存だけがこの処理を使い、Terminal/CreateRecoveryは追加専用のまま。元の保存障害の外部actorやHRESULTを、日本語メッセージだけから確定していない。
+
+SampleGameのContent Directory統合fixtureは、HTTP/local installからsource disposeとserver worker終了までを一つのoperationとして登録してから開始する。TearDownはcancel、task終端の観測、delivery削除の順に進む。10秒のdeadlineで終端を確認できなければdeliveryの絶対pathを残して失敗にし、使用中の資源を強制解放・削除しない。取消要求だけを解放完了とみなさず、未消費のoperation faultとcleanup faultは保持する。独立したfixture/copy/空親のcleanupは引き続き試みる。
+
+## Unity終了時の既知native stallと調査の停止規則
+
+Unity 6000.6.0f1で、全EditModeの957件Passed・skip0・観測complete後にnative終了処理が停滞する事象が確認されている。各失敗runの二つのdumpはregister/stackが同じままCPU時間が増加し、停止位置 `Unity.dll+0x37d50c6` は一致PDBで `_mi_page_free_collect+0xc6` に解決した。呼出経路は `_mi_auto_process_done → mi_theap_collect → mi_theap_collect_ex → _mi_page_free_collect`。対象heapの必要bytesがなく、heap破損の起因、double-free、Unity/OSMどちらの関与も未確定である。
+
+製品・fixtureの寿命、native連携、観測/runner、Editor/Package環境を比較した限定調査では原因を確定できなかった。同じ実装・Editor・設定で行った正式再取得は、957件Passedと必須offline/auditの成功に加え、Unity/runner/Harnessの保持process handleがsignalになり、実exit0で自然終了した。native stallへの修復変更はなく、非再現を修復の因果証明とは扱わない。元の失敗run、dump、固定仕様・承認値はGit外の正規recordと原証拠に保持する。
+
+終了ログや `GetExitCodeProcess=0` だけでは終了完了と判断しない。この事象ではexitCode0でもprocess handleが未signalだった。正常終了の確認には保持handleのsignalと実終了コードを併用し、強制終了した取得は成功証拠にしない。
+
+**同じ事象の次回再開では、最初の1回だけ限定調査を行い、それ以上の原因調査を続けない。** 既存証拠との差分と同一症状かを確認し、追加取得が必要なら仮説・変更条件・観測・終了条件を先に記録して最大1回に限定する。同じ症状が続けば既知リスクとして受け入れ、追加dump、filter二分探索、無変更の全件run反復、別session/taskへの持越しで調査回数を増やさない。明示的な新しいユーザー指示なしに調査を再開しない。
+
+この停止規則は原因調査の予算であり、raw結果の書換えや自動ゲート緩和ではない。test失敗・欠測・compile errorなど別の不成立へ受容を広げず、未終了/強制終了はそのまま記録する。timeout延長、skip、Burst無効化、無差別cache削除を修復成功にしない。実行中はunity.log等だけを観察し、progress/sidecarを開かない。人間所有processを停止せず、過去のPID用停止スクリプトを再利用しない。
