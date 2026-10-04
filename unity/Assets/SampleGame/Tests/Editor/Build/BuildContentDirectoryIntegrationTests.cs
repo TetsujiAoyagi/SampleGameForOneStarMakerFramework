@@ -5,8 +5,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
-using System.Net.Sockets;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,17 +37,88 @@ namespace OneStarMaker.Tests.Editor.Build
         private string _deliveryRoot = "";
         private string _installedRoot = "";
         private string _manifestDigest = "";
+        private ContentInstallTestOperation? _installOperation;
+        internal Exception? LastCleanupFailure { get; private set; }
+        internal bool LastOperationDrained { get; private set; } = true;
+        internal Action? AfterDrainForTest { get; set; }
+
+        internal void StartInstallForTest(Func<CancellationToken, Task> callback)
+        {
+            if (_installOperation != null) throw new InvalidOperationException("Install operation already registered.");
+            _installOperation = new ContentInstallTestOperation(callback);
+            _installOperation.Start();
+        }
+
+        internal bool InstallRegisteredForTest => _installOperation != null;
+        internal bool InstallCompletedForTest => _installOperation!.IsCompleted;
+        internal void ObserveInstallForTest() => _installOperation!.ObserveTerminal();
+
+        internal void ConfigureCleanupForTest(string folder, string copy, string deliveryRoot)
+        {
+            _folder = folder;
+            _copy = copy;
+            _deliveryRoot = deliveryRoot;
+        }
 
         [UnityTearDown]
         public IEnumerator Cleanup()
         {
-            // assertion 失敗が PlayMode 中に起きても Editor に戻し、このテスト所有の fixture/copy のみ消す。
+            var cleanup = CleanupOwnedResources();
+            while (cleanup.MoveNext()) yield return cleanup.Current;
+            if (LastCleanupFailure != null) throw LastCleanupFailure;
+        }
+
+        // 回帰テストも同じ片付け経路を使う。停止未確認なら HTTP stream や transaction が
+        // file を保持しうるため、delivery 絶対 path を残して失敗を報告する。
+        internal IEnumerator CleanupOwnedResources(CancellationToken deadlineOverride = default)
+        {
+            var errors = new List<Exception>();
+            LastCleanupFailure = null;
+            LastOperationDrained = true;
+            if (_installOperation != null)
+            {
+                using var deadline = new CancellationTokenSource();
+                deadline.CancelAfter(TimeSpan.FromSeconds(10));
+                using var overrideRegistration = deadlineOverride.Register(deadline.Cancel);
+                DrainResult result = default;
+                Exception? drainFailure = null;
+                yield return UniTask.ToCoroutine(async () =>
+                {
+                    try { result = await _installOperation.CancelAndDrainAsync(deadline.Token); }
+                    catch (Exception exception) { drainFailure = exception; }
+                });
+                if (drainFailure != null) errors.Add(drainFailure);
+                LastOperationDrained = drainFailure == null && result.Completed;
+                if (result.Failure != null) errors.Add(result.Failure);
+                if (!LastOperationDrained)
+                    errors.Add(new TimeoutException("Install shutdown did not finish; delivery preserved: " +
+                        Path.GetFullPath(_deliveryRoot)));
+                else _installOperation = null;
+            }
+
+            // PlayMode を離れる前に drain し、main thread に戻る continuation を回収する。
             if (EditorApplication.isPlaying) yield return new ExitPlayMode();
-            if (_folder.Length != 0) AssetDatabase.DeleteAsset(_folder);
-            if (_copy.Length != 0 && Directory.Exists(_copy)) Directory.Delete(_copy, true);
-            if (_deliveryRoot.Length != 0 && Directory.Exists(_deliveryRoot)) Directory.Delete(_deliveryRoot, true);
-            DeleteIfEmpty(FixtureParent);
-            DeleteIfEmpty("Assets/OneStarMakerGenerated");
+            if (LastOperationDrained && AfterDrainForTest != null)
+                CaptureCleanup(errors, AfterDrainForTest);
+            CaptureCleanup(errors, () => { if (_folder.Length != 0) AssetDatabase.DeleteAsset(_folder); });
+            CaptureCleanup(errors, () => { if (_copy.Length != 0 && Directory.Exists(_copy)) Directory.Delete(_copy, true); });
+            if (LastOperationDrained)
+                CaptureCleanup(errors, () => { if (_deliveryRoot.Length != 0 && Directory.Exists(_deliveryRoot))
+                    Directory.Delete(_deliveryRoot, true); });
+            CaptureCleanup(errors, () => DeleteIfEmpty(FixtureParent));
+            CaptureCleanup(errors, () => DeleteIfEmpty("Assets/OneStarMakerGenerated"));
+            LastCleanupFailure = errors.Count switch
+            {
+                0 => null,
+                1 => errors[0],
+                _ => new AggregateException("Install and fixture cleanup failed.", errors)
+            };
+        }
+
+        private static void CaptureCleanup(List<Exception> errors, Action action)
+        {
+            try { action(); }
+            catch (Exception exception) { errors.Add(exception); }
         }
 
         [UnityTest]
@@ -195,26 +264,31 @@ namespace OneStarMaker.Tests.Editor.Build
                 _manifestDigest = HashFile(Path.Combine(published, "transport.json"));
                 // 本物の HTTP response を installer に渡す。Unity へ URL や staging を渡さず、
                 // 完全検証された installed directory を後段の実 load に使う。
-                yield return UniTask.ToCoroutine(async () =>
+                StartInstallForTest(async cancellation =>
                 {
                     var installRequest = new ContentInstallRequest(_manifestDigest, "fixture", result.Identity,
                         BuildContentCoordinator.TargetName, Application.unityVersion, 2, long.MaxValue);
-                    using var server = new LoopbackArtifactServer(published);
-                    using var remote = new HttpContentArtifactSource(server.BaseUri);
-                    var remoteStore = new ContentCacheStore(Path.Combine(_deliveryRoot, "http-cache"));
-                    var installed = await new ContentInstaller(remoteStore).InstallAsync(installRequest, remote,
-                        CancellationToken.None);
-                    _installedRoot = installed.RevisionRoot;
-                    using var local = new LocalContentArtifactSource(published);
-                    var localStore = new ContentCacheStore(Path.Combine(_deliveryRoot, "local-cache"));
-                    var localInstalled = await new ContentInstaller(localStore).InstallAsync(installRequest, local,
-                        CancellationToken.None);
-                    Assert.That(localInstalled.ManifestSha256, Is.EqualTo(installed.ManifestSha256));
-                    foreach (var file in Directory.GetFiles(installed.ContentPath, "*", SearchOption.AllDirectories))
-                        Assert.That(HashFile(Path.Combine(localInstalled.ContentPath,
-                            Path.GetRelativePath(installed.ContentPath, file))), Is.EqualTo(HashFile(file)));
-                    Assert.That(server.RequestCount, Is.GreaterThan(1));
+                    var server = new LoopbackArtifactServer(published, cancellation);
+                    await ContentInstallTestOperation.RunWithShutdownAsync(async () =>
+                    {
+                        using var remote = new HttpContentArtifactSource(server.BaseUri);
+                        var remoteStore = new ContentCacheStore(Path.Combine(_deliveryRoot, "http-cache"));
+                        var installed = await new ContentInstaller(remoteStore).InstallAsync(installRequest, remote,
+                            cancellation);
+                        _installedRoot = installed.RevisionRoot;
+                        using var local = new LocalContentArtifactSource(published);
+                        var localStore = new ContentCacheStore(Path.Combine(_deliveryRoot, "local-cache"));
+                        var localInstalled = await new ContentInstaller(localStore).InstallAsync(installRequest, local,
+                            cancellation);
+                        Assert.That(localInstalled.ManifestSha256, Is.EqualTo(installed.ManifestSha256));
+                        foreach (var file in Directory.GetFiles(installed.ContentPath, "*", SearchOption.AllDirectories))
+                            Assert.That(HashFile(Path.Combine(localInstalled.ContentPath,
+                                Path.GetRelativePath(installed.ContentPath, file))), Is.EqualTo(HashFile(file)));
+                        Assert.That(server.RequestCount, Is.GreaterThan(1));
+                    }, server.StopAsync);
                 });
+                yield return new WaitUntil(() => InstallCompletedForTest);
+                ObserveInstallForTest();
             }
             finally
             {
@@ -385,65 +459,6 @@ namespace OneStarMaker.Tests.Editor.Build
             using var stream = File.OpenRead(path);
             using var hash = System.Security.Cryptography.SHA256.Create();
             return string.Concat(hash.ComputeHash(stream).Select(x => x.ToString("x2")));
-        }
-
-        // この fixture 専用の loopback server。停止は listener の取消で通知し、
-        // 時間待ちに依存せず全 response と worker の終了を所有者が回収する。
-        private sealed class LoopbackArtifactServer : IDisposable
-        {
-            private readonly HttpListener _listener = new();
-            private readonly Task _worker;
-            private int _requestCount;
-            private bool _stopping;
-            public Uri BaseUri { get; }
-            public int RequestCount => Volatile.Read(ref _requestCount);
-
-            public LoopbackArtifactServer(string root)
-            {
-                var portReservation = new TcpListener(IPAddress.Loopback, 0);
-                portReservation.Start();
-                var port = ((IPEndPoint)portReservation.LocalEndpoint).Port;
-                portReservation.Stop();
-                BaseUri = new Uri("http://127.0.0.1:" + port + "/");
-                _listener.Prefixes.Add(BaseUri.AbsoluteUri);
-                _listener.Start();
-                _worker = Task.Run(async () =>
-                {
-                    try
-                    {
-                        while (_listener.IsListening)
-                        {
-                            var context = await _listener.GetContextAsync();
-                            try
-                            {
-                                var relative = Uri.UnescapeDataString(context.Request.Url!.AbsolutePath.TrimStart('/'));
-                                var file = Path.GetFullPath(Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar)));
-                                if (!file.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-                                    || !File.Exists(file))
-                                {
-                                    context.Response.StatusCode = 404;
-                                    continue;
-                                }
-                                Interlocked.Increment(ref _requestCount);
-                                context.Response.ContentLength64 = new FileInfo(file).Length;
-                                using var stream = File.OpenRead(file);
-                                await stream.CopyToAsync(context.Response.OutputStream);
-                            }
-                            finally { context.Response.Close(); }
-                        }
-                    }
-                    catch (HttpListenerException) when (_stopping) { }
-                    catch (ObjectDisposedException) when (_stopping) { }
-                });
-            }
-
-            public void Dispose()
-            {
-                _stopping = true;
-                _listener.Stop();
-                _listener.Close();
-                _worker.GetAwaiter().GetResult();
-            }
         }
 
         private static void Copy(string source, string target)

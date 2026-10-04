@@ -1,6 +1,19 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+function Get-UnityObservationArgumentPath([string]$ObservationPath) {
+    # Writer は progress を GUID suffix 付きの一時名へ原子的に保存する。
+    # その一時名だけが Win32 の従来長を超える場合、observer 引数だけを同一実体の長path表現にする。
+    # Unity native の XML/log 引数と、保存する原pathは通常の絶対pathを保つ。
+    $full = [IO.Path]::GetFullPath($ObservationPath)
+    if (-not [OperatingSystem]::IsWindows()) { return $full }
+    $progress = [IO.Path]::Combine([IO.Path]::GetDirectoryName($full), 'observation-progress.json')
+    if (($progress.Length + 1 + 32 + 4) -lt 260) { return $full }
+    if ($full.StartsWith('\\?\',[StringComparison]::Ordinal)) { return $full }
+    if ($full.StartsWith('\\',[StringComparison]::Ordinal)) { return '\\?\UNC\' + $full.Substring(2) }
+    return '\\?\' + $full
+}
+
 function New-UnityTestOutput {
     param([string]$OutputRoot, [guid]$InvocationId = [guid]::NewGuid())
     # 出力 root は共有しても、GUID 子ディレクトリは invocation が単独で所有する。
@@ -73,4 +86,4 @@ function Save-UnityTestStep {
     return $Output.StepPath
 }
 
-Export-ModuleMember -Function New-UnityTestOutput, Read-UnityTestOutput, Save-UnityTestStep
+Export-ModuleMember -Function New-UnityTestOutput, Read-UnityTestOutput, Save-UnityTestStep, Get-UnityObservationArgumentPath

@@ -83,6 +83,71 @@ function Test-UnityProjectLock {
     [IO.File]::Delete($lockFile)
 }
 
+function Get-EditorSettingsBytesHash([byte[]]$Bytes) {
+    return [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($Bytes)).ToLowerInvariant()
+}
+
+function Assert-EditorSettingsKnownDrift([byte[]]$Before, [byte[]]$After, [string]$RecoveryPath, [string]$InvocationId, [string]$Project) {
+    # private復旧記録は同一invocation/projectの設定復元を確認する材料であり、asset差分の許容を拡げる根拠にはしない。
+    if (-not [IO.File]::Exists($RecoveryPath)) { throw 'reload-settings原記録がありません' }
+    $record = ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($RecoveryPath)) -AsHashtable -DateKind String -Depth 8
+    $keys = @('invocationId','projectPath','enterPlayModeOptionsEnabled','restored','enterPlayModeOptions')
+    if ($record -isnot [Collections.IDictionary] -or $record.PSBase.Count -ne $keys.Count) { throw 'reload-settings原記録のkeyが不正です' }
+    foreach ($key in $keys) { if (-not $record.Contains($key)) { throw "reload-settings原記録に$keyがありません" } }
+    if ($record.invocationId -isnot [string] -or $record.projectPath -isnot [string] -or
+        $record.enterPlayModeOptionsEnabled -isnot [bool] -or $record.restored -isnot [bool] -or
+        ($record.enterPlayModeOptions -isnot [int] -and $record.enterPlayModeOptions -isnot [long]) -or
+        $record.invocationId -cne $InvocationId -or $record.projectPath -cne $Project -or -not $record.restored) {
+        throw 'reload-settings原記録の型・identity・復旧状態が不正です'
+    }
+    $utf8 = [Text.UTF8Encoding]::new($false, $true)
+    $beforeText = $utf8.GetString($Before); $afterText = $utf8.GetString($After)
+    $enabled = [regex]::Matches($beforeText, '(?m)^  m_EnterPlayModeOptionsEnabled: ([01])\r?$')
+    $options = [regex]::Matches($beforeText, '(?m)^  m_EnterPlayModeOptions: (-?[0-9]+)\r?$')
+    if ($enabled.Count -ne 1 -or $options.Count -ne 1 -or
+        $record.enterPlayModeOptionsEnabled -ne ($enabled[0].Groups[1].Value -ceq '1') -or
+        [long]$record.enterPlayModeOptions -ne [long]::Parse($options[0].Groups[1].Value)) {
+        throw 'reload-settings原記録と取得前EditorSettings設定が一致しません'
+    }
+    # 許すのはUnity 6000.6による既知の二行だけ。その他の値・順序・改行・byteはすべて一致を要求する。
+    $oldLine = '(?m)^  m_SerializeInlineMappingsOnOneLine: 1(?:\r?\n|$)'
+    $newLine = '(?m)^  m_UseLegacyHierarchy: 0(?:\r?\n|$)'
+    if ([regex]::Matches($beforeText, $oldLine).Count -ne 1 -or [regex]::Matches($afterText, $oldLine).Count -ne 0 -or
+        [regex]::Matches($beforeText, $newLine).Count -ne 0 -or [regex]::Matches($afterText, $newLine).Count -ne 1 -or
+        -not [string]::Equals([regex]::Replace($beforeText, $oldLine, ''), [regex]::Replace($afterText, $newLine, ''), [StringComparison]::Ordinal)) {
+        throw 'EditorSettings差分が既知二行に限定されません'
+    }
+}
+
+function Complete-ObservedEditorSettings([string]$Path, [byte[]]$Before, [string]$RecoveryPath, [string]$InvocationId, [string]$Project, [bool]$TerminalConfirmed) {
+    $beforeHash = Get-EditorSettingsBytesHash $Before
+    $afterHash = 'missing'; $restoreHash = 'missing'; $status = 'rejected'; $failure = ''; $reason = 'none'
+    try {
+        $after = [IO.File]::ReadAllBytes($Path)
+        $afterHash = Get-EditorSettingsBytesHash $after
+        $restoreHash = $afterHash
+        # WaitForExit失敗ではPIDがあってもUnityが稼働中かもしれない。終了値を得るまでassetを戻さない。
+        if (-not $TerminalConfirmed) { $reason = 'termination-unconfirmed'; throw 'Unity processの終了値を確認できずEditorSettingsを復元しません' }
+        if ($afterHash -ceq $beforeHash) { $status = 'unchanged' }
+        else {
+            Assert-EditorSettingsKnownDrift $Before $after $RecoveryPath $InvocationId $Project
+            # Unity終了後も再読取し、観測した差分以外へ変化していれば上書きしない。
+            if (-not [Linq.Enumerable]::SequenceEqual([byte[]][IO.File]::ReadAllBytes($Path), [byte[]]$after)) { throw 'EditorSettingsが検査後に変化しました' }
+            [IO.File]::WriteAllBytes($Path, $Before)
+            $restoreHash = Get-EditorSettingsBytesHash ([IO.File]::ReadAllBytes($Path))
+            if ($restoreHash -cne $beforeHash) { throw 'EditorSettings原bytes復元後のhashが一致しません' }
+            $status = 'restored'
+        }
+    } catch {
+        $failure = $_.Exception.Message
+        if ($reason -ceq 'none') { $reason = 'cleanup-rejected' }
+        try { if ([IO.File]::Exists($Path)) { $restoreHash = Get-EditorSettingsBytesHash ([IO.File]::ReadAllBytes($Path)) } }
+        catch { $restoreHash = 'unreadable' }
+    }
+    [Console]::Out.WriteLine("OSM_EDITOR_SETTINGS beforeSha256=$beforeHash afterSha256=$afterHash restoreSha256=$restoreHash status=$status reason=$reason")
+    return [pscustomobject]@{ Status=$status; Failure=$failure; BeforeSha256=$beforeHash; AfterSha256=$afterHash; RestoreSha256=$restoreHash }
+}
+
 function Invoke-UnityTestRun {
     param(
         [string]$Filter = '', [string]$Platform = 'EditMode', [string]$UnityRoot = 'D:\UnityEditor',
@@ -107,6 +172,8 @@ function Invoke-UnityTestRun {
     $executableVersion = 'unknown'
     $executable = ''
     $arguments = @()
+    $editorSettingsBefore = $null
+    $editorSettingsPath = Join-Path $project 'ProjectSettings/EditorSettings.asset'
     $process = [pscustomobject]@{ Id=$null; StartedAt=$null; EndedAt=$null; DurationMs=$null; ExitCode=$null; Failure='' }
     $orchestrationFailure = [Collections.Generic.List[string]]::new()
     try {
@@ -126,16 +193,22 @@ function Invoke-UnityTestRun {
         $fileVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo($executable).FileVersion
         if ($fileVersion) { $executableVersion = $fileVersion }
         Test-UnityProjectLock $project
+        if ($ObserveUnity) { $editorSettingsBefore = [IO.File]::ReadAllBytes($editorSettingsPath) }
         $arguments = @('-batchmode', '-projectPath', $project, '-runTests', '-testPlatform', $Platform,
             '-testResults', $output.XmlPath, '-logFile', $output.LogPath)
         if (-not $WithGraphics) { $arguments = @('-nographics') + $arguments }
         # Unity は空の -testFilter を渡すと 0 件になる。
         if ($Filter) { $arguments += @('-testFilter', $Filter) }
-        if ($ObserveUnity) { $arguments += @('-osmTestInvocation', $output.InvocationId, '-osmTestObservation', $output.ObservationPath) }
+        if ($ObserveUnity) { $arguments += @('-osmTestInvocation', $output.InvocationId, '-osmTestObservation', (Get-UnityObservationArgumentPath $output.ObservationPath)) }
         $process = & $ProcessInvoker $executable ([string[]]$arguments) $repoRoot
         if ($process.Failure) { $orchestrationFailure.Add([string]$process.Failure) }
     # 起動前の失敗も、確保済みディレクトリへ failed step として残す。
     } catch { $orchestrationFailure.Add($_.Exception.Message) }
+
+    if ($ObserveUnity -and $null -ne $editorSettingsBefore) {
+        $cleanup = Complete-ObservedEditorSettings $editorSettingsPath $editorSettingsBefore (Join-Path $output.Directory 'reload-settings.json') $output.InvocationId $project ($process.ExitCode -is [int])
+        if ($cleanup.Failure) { $orchestrationFailure.Add("EditorSettings cleanup拒否: $($cleanup.Failure)") }
+    }
 
     try {
         # 生 XML/log を先に採取して policy に渡す。欠落を古い run のファイルで補わない。
