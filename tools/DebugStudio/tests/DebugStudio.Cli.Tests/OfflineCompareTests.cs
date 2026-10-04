@@ -47,6 +47,61 @@ public sealed class OfflineCompareTests
     }
 
     [Theory]
+    [InlineData(@"\\server\share\capture.ndjson")]
+    [InlineData(@"\\?\UNC\server\share\capture.ndjson")]
+    [InlineData(@"\\?\C:\capture.ndjson")]
+    [InlineData(@"\\.\pipe\capture")]
+    [InlineData(@"\??\C:\capture.ndjson")]
+    [InlineData(@"\\??\C:\capture.ndjson")]
+    public void Arguments_and_command_reject_unc_and_device_paths_before_file_access(string path)
+    {
+        var args = new[] { "compare", "--input", path, "--baseline-session", "base", "--candidate-session", "next" };
+        var parsed = CompareArguments.Parse(args);
+        // Assert rejection first: a parser regression must fail without attempting to open the path.
+        Assert.Equal(2, parsed.ExitCode);
+        Assert.Null(parsed.Options);
+        Assert.Contains("explicit local file", parsed.Error!, StringComparison.Ordinal);
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        Assert.Equal(2, CompareCommand.Execute(args, output, error));
+        Assert.Empty(output.ToString());
+        Assert.Equal(parsed.Error + Environment.NewLine, error.ToString());
+    }
+
+    [Theory]
+    [InlineData("//server/share/capture.ndjson")]
+    [InlineData(@"/\server/share/capture.ndjson")]
+    [InlineData(@"\/server/share/capture.ndjson")]
+    public void Arguments_leading_slash_paths_follow_host_path_semantics(string path)
+    {
+        var result = CompareArguments.Parse(["compare", "--input", path, "--baseline-session", "base", "--candidate-session", "next"]);
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.Equal(2, result.ExitCode);
+            Assert.Null(result.Options);
+        }
+        else
+        {
+            Assert.Equal(0, result.ExitCode);
+            Assert.Equal(path, Assert.Single(result.Options!.InputFiles));
+        }
+    }
+
+    [Theory]
+    [InlineData(@"C:\captures\capture.ndjson")]
+    [InlineData("C:/captures/capture.ndjson")]
+    [InlineData("capture.ndjson")]
+    [InlineData("./captures/capture.ndjson")]
+    [InlineData(@"captures\capture.ndjson")]
+    [InlineData("/tmp/captures/capture.ndjson")]
+    public void Arguments_preserve_normal_drive_relative_and_posix_paths(string path)
+    {
+        var result = CompareArguments.Parse(["compare", "--input", path, "--baseline-session", "base", "--candidate-session", "next"]);
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal(path, Assert.Single(result.Options!.InputFiles));
+    }
+
+    [Theory]
     [InlineData("compare")]
     [InlineData("compare", "--input")]
     [InlineData("compare", "--input", "--baseline-session", "base")]

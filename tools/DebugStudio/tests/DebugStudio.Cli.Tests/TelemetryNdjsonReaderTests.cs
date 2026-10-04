@@ -188,14 +188,51 @@ public sealed class TelemetryNdjsonReaderTests : IDisposable
         Assert.Contains($"'{file}':1", error.ToString(), StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void Read_validates_envelopes_before_skipping_but_selected_only_duration_and_sequence_rules_stay_selected()
+    [Theory]
+    [InlineData(null, 0)]
+    [InlineData(null, -1)]
+    [InlineData("", 0)]
+    [InlineData("", -1)]
+    [InlineData("elsewhere", 0)]
+    [InlineData("elsewhere", -1)]
+    [InlineData("base", 0)]
+    [InlineData("base", -1)]
+    [InlineData("next", 0)]
+    [InlineData("next", -1)]
+    public void Read_rejects_nonpositive_telemetry_sequences_before_session_selection(string? session, long sequence)
     {
-        var other = Json(Record("elsewhere", 0)).Replace("\"elapsedMs\":10", "\"elapsedMs\":-1", StringComparison.Ordinal);
-        var file = Write(other + "\n" + Json(Record("base", 1)) + "\n" + Json(Record("next", 1)));
-        Assert.Equal(1, TelemetryNdjsonReader.Read(Options(file)).Counts.OtherSessionTelemetryRows);
-        Write(other.Replace("\"schemaVersion\":3", "\"schemaVersion\":2", StringComparison.Ordinal), "wrong-schema.ndjson");
-        Assert.Equal(2, Assert.Throws<ComparisonInputException>(() => TelemetryNdjsonReader.Read(Options(Path.Combine(directory, "wrong-schema.ndjson")))).ExitCode);
+        var file = Write(Json(Record("base", 1)) + "\n" + Json(Record("next", 1)) + "\n" + Json(Record(session, sequence)));
+        var error = Assert.Throws<ComparisonInputException>(() => TelemetryNdjsonReader.Read(Options(file)));
+        Assert.Equal(2, error.ExitCode);
+        Assert.Contains($"'{file}':3", error.Message, StringComparison.Ordinal);
+        Assert.Contains("producerSequence must be positive", error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Read_service_status_is_exempt_from_telemetry_sequence_validation(long sequence)
+    {
+        var service = Json(Record(null, sequence)).Replace("\"stream\":\"telemetry\"", "\"stream\":\"serviceStatus\"", StringComparison.Ordinal);
+        var file = Write(service + "\n" + Json(Record("base", 1)) + "\n" + Json(Record("next", 1)));
+        Assert.Equal(1, TelemetryNdjsonReader.Read(Options(file)).Counts.SkippedServiceStatusRows);
+    }
+
+    [Theory]
+    [InlineData("-1")]
+    [InlineData("1e400")]
+    public void Read_validates_envelopes_before_skipping_but_duration_and_deduplication_stay_selected(string elapsed)
+    {
+        var other = Json(Record("elsewhere", 1)).Replace("\"elapsedMs\":10", $"\"elapsedMs\":{elapsed}", StringComparison.Ordinal);
+        var unassigned = Json(Record(null, null)).Replace("\"elapsedMs\":10", $"\"elapsedMs\":{elapsed}", StringComparison.Ordinal);
+        // Different fields on a repeated unselected identity do not enter selected deduplication.
+        var file = Write(other + "\n" + Json(Record("elsewhere", 1)) + "\n" + unassigned + "\n" +
+            Json(Record("base", 1)) + "\n" + Json(Record("next", 1)));
+        var input = TelemetryNdjsonReader.Read(Options(file));
+        Assert.Equal(new InputAccounting(5, 0, 2, 0, 0, 1, 2, 0), input.Counts);
+        Assert.Single(input.Diagnostics, diagnostic => diagnostic.Code == "unassigned-session");
+        var invalid = Write(other.Replace("\"schemaVersion\":3", "\"schemaVersion\":2", StringComparison.Ordinal), "wrong-schema.ndjson");
+        Assert.Equal(2, Assert.Throws<ComparisonInputException>(() => TelemetryNdjsonReader.Read(Options(invalid))).ExitCode);
     }
 
     [Fact]

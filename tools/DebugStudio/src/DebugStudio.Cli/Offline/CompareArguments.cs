@@ -52,10 +52,10 @@ internal static class CompareArguments
             switch (option)
             {
                 case "--input":
-                    if (value == "-" || value.Contains("://", StringComparison.Ordinal) ||
+                    if (IsRemoteOrDevicePath(value) || value == "-" || value.Contains("://", StringComparison.Ordinal) ||
                         Uri.TryCreate(value, UriKind.Absolute, out var uri) && !uri.IsFile)
                     {
-                        return Error("The --input value must name an explicit local file, not stdin or a URL.");
+                        return Error("The --input value must name an explicit local file, not stdin, a URL, UNC path or Windows device namespace.");
                     }
 
                     files.Add(value);
@@ -85,6 +85,21 @@ internal static class CompareArguments
 
         return new(new(files.ToArray(), baseline, candidate, format), 0, null, false);
     }
+
+    private static bool IsRemoteOrDevicePath(string value)
+    {
+        // Reject Windows UNC/device spelling before any file-system call, even on another platform.
+        if (value.StartsWith(@"\\", StringComparison.Ordinal) || value.StartsWith(@"\??\", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        // Windows also treats forward or mixed leading separators as UNC. POSIX permits // paths.
+        return OperatingSystem.IsWindows() && value.Length >= 2 &&
+            IsWindowsSeparator(value[0]) && IsWindowsSeparator(value[1]);
+    }
+
+    private static bool IsWindowsSeparator(char value) => value is '\\' or '/';
 
     private static CompareParseResult Error(string message) => new(null, 2, message, true);
 }

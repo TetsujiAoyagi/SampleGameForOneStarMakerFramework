@@ -91,6 +91,12 @@ internal static class TelemetryNdjsonReader
                     continue;
                 }
 
+                // Sequence validity belongs to telemetry admission, before any session can be skipped.
+                if (record.ProducerSequence is <= 0)
+                {
+                    throw Invalid(location, "Telemetry producerSequence must be positive when present.");
+                }
+
                 if (string.IsNullOrEmpty(record.SessionId))
                 {
                     unassigned++;
@@ -111,7 +117,6 @@ internal static class TelemetryNdjsonReader
 
                 if (record.ProducerSequence is long sequence)
                 {
-                    if (sequence <= 0) throw Invalid(location, "Selected producerSequence must be positive when present.");
                     var identity = (record.SessionId, sequence);
                     var fields = TypedFields(record);
                     if (identities.TryGetValue(identity, out var prior))

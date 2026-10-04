@@ -20,7 +20,7 @@ debugstudio-cli compare --input rolling-001.ndjson --input rolling-002.ndjson --
 
 Use `--help` for the global synopsis, or `compare --help` for the comparison synopsis. Subcommand dispatch is case-insensitive. Options, formats, session IDs, stream/kind/name values and grouping keys use exact, case-sensitive matching. IDs are preserved without trimming and must be nonempty and distinct.
 
-`--input` is the only repeatable option. Every input must name an explicit local file. Directories, URLs, stdin, implicit discovery, repeated singleton options and positional extras are rejected. The default format is `text`; `json` is also supported. Comparison opens no network connection and never changes source files.
+`--input` is the only repeatable option. Every input must name an explicit local file. Directories, URLs, stdin, explicit UNC paths, Windows device namespaces, implicit discovery, repeated singleton options and positional extras are rejected. UNC/device syntax is rejected during argument parsing before file-system access; directories are checked when opening. The default format is `text`; `json` is also supported. Comparison uses local file I/O and never changes source files. It rejects explicit remote path syntax; mapped drives and reparse targets remain subject to the host file system.
 
 ### Capture admission
 
@@ -50,7 +50,7 @@ A positive selected `(sessionId, producerSequence)` identifies a row across over
 
 Conflicting typed fields for the same identity are fatal; no capture wins automatically. Typed equality includes session attributes: a rolling capture and later manual export can conflict if attributes were enriched later. Select nonconflicting inputs rather than expecting enrichment to be merged.
 
-Missing/null sequence is allowed, counted and warned about. Such rows are retained and cannot be proven unique; no identity is invented from timestamps, names or span IDs. Present nonpositive selected sequences are errors. Sequence gaps are not checked because producer order crosses logs and telemetry, and gaps do not prove telemetry loss.
+Missing/null sequence on selected telemetry is allowed, counted and warned about. Such rows are retained and cannot be proven unique; no identity is invented from timestamps, names or span IDs. Present nonpositive sequences on any telemetry row are errors before session selection; serviceStatus rows are exempt. Sequence gaps are not checked because producer order crosses logs and telemetry, and gaps do not prove telemetry loss.
 
 Successful nonblank-row accounting is disjoint:
 
