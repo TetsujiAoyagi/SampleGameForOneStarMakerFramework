@@ -83,6 +83,16 @@ Assets/
 
 Unity 内観測は専用の Editor assembly とテスト assembly に閉じる。両方とも `UnityEditor.TestRunner` / `UnityEngine.TestRunner` を参照し、Framework Runtime と Game を参照しない。Unity Test Framework 1.8.0 以上を有効化条件とし、テスト側には `UNITY_INCLUDE_TESTS` も必要である。詳細な実行・復旧の境界は [Harness README](../../../../tools/Harness/README.md#unity-内観測editmode) に置く。
 
+### 2.3 ScriptSystem（任意の数値命令 executor）
+
+`Runtime/ScriptSystem/`は、呼び出し側が C# で組み立てた数値命令を予算つきで進める任意の内側 executor である。通常のゲームイベントでは直接の型付き C# をまず比較対象にする。現在の9命令はメモリ上の意味だけを定め、言語・Event host・保存バイトコードの ABI は提供しない。
+
+`ScriptProgram` は入力命令の不変コピー、`ScriptRegisters` はゼロ初期化された `long[]` を持ち、どちらも呼び出し側が所有する。純粋な `ScriptMachine` は両者を借り、PC・状態・終端ラッチを所有する。呼び出し側は Tick とレジスタ変更を逐次化し、変更を Tick の間に行う。共有レジスタを使う機械同士の順序も呼び出し側が決める。
+
+`ScriptUpdateElement` は Update で固定予算の Tick を1回呼ぶ adapter で、Start / LateUpdate では命令を進めない。呼び出し側が Layer・寿命・Scene 所有を決め、`UpdateSystemRuntime` 経由で登録・解除し、解除後に借用した参照を手放す。`UpdateCoordinator` の直接利用は独立した決定的テストの seam である。
+
+非正の予算はラッチ後も `RejectedBudget` を返し、保存状態を変更しない。予算消費による `Yielded` は再開可能で、予算と同時に末尾へ着いた場合は次の正の Tick で自然終端を検出する。不正な使用レジスタ・実際に取る跳躍先・opcode は型付き故障にラッチし、故障命令の PC と書き込みを変更しない。それ以前の完了命令は保持し、後続 Update 要素の実行を妨げない。詳細な命令意味はソースの XML コメントと ScriptSystem テストに置く。
+
 ---
 
 ## 3. 軸 B — Scene ごとのフォルダ同居

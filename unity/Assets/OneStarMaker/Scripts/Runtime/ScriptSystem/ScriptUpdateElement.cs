@@ -7,8 +7,10 @@ namespace OneStarMaker.Runtime.ScriptSystem
 {
     /// <summary>
     /// UpdateSystem の Update で <see cref="ScriptMachine"/> を 1 回進める要素。
-    /// 登録は呼び出し側が UpdateCoordinator.RegisterElement で行う。
-    /// この型は Layer を選ばず、Coordinator を保持せず、バイトコードもレジスタも所有しない。
+    /// 実行時の登録・解除は呼び出し側が UpdateSystemRuntime を通して行い、
+    /// 解除を済ませてから借用した機械・プログラム・レジスタへの参照を手放す。
+    /// UpdateCoordinator の直接利用は、独立した決定的テストのための seam である。
+    /// この型は Layer・寿命・Scene 所有者を選ばず、機械を借りて固定予算で進めるだけである。
     /// </summary>
     public sealed class ScriptUpdateElement : IUpdateElement
     {

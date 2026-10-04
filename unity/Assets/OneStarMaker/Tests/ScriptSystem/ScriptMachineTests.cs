@@ -2,6 +2,7 @@
 
 using System;
 using NUnit.Framework;
+using Unity.Profiling;
 using OneStarMaker.Runtime.ScriptSystem;
 
 namespace OneStarMaker.Tests.ScriptSystem
@@ -284,6 +285,217 @@ namespace OneStarMaker.Tests.ScriptSystem
             Assert.Throws<ArgumentNullException>(() => new ScriptMachine(program, null!));
             Assert.Throws<ArgumentOutOfRangeException>(() => new ScriptRegisters(-1));
             Assert.Throws<ArgumentOutOfRangeException>(() => registers[1] = 1);
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void JumpToLength_AtExactBudget_YieldsBeforeNaturalEnd(bool useJump)
+        {
+            var registers = new ScriptRegisters(1);
+            var machine = Machine(registers, useJump
+                ? ScriptInstruction.Jump(1)
+                : ScriptInstruction.LoadImmediate(0, 4));
+
+            Assert.That(machine.Tick(1), Is.EqualTo(ScriptMachineStatus.Yielded));
+            Assert.That(machine.Status, Is.EqualTo(ScriptMachineStatus.Yielded));
+            Assert.That(machine.IsLatched, Is.False);
+            Assert.That(machine.ProgramCounter, Is.EqualTo(1));
+            Assert.That(machine.Tick(1), Is.EqualTo(ScriptMachineStatus.Halted));
+            Assert.That(machine.IsLatched, Is.True);
+            Assert.That(machine.ProgramCounter, Is.EqualTo(1));
+            Assert.That(machine.Tick(0), Is.EqualTo(ScriptMachineStatus.RejectedBudget));
+            Assert.That(machine.Tick(-1), Is.EqualTo(ScriptMachineStatus.RejectedBudget));
+            Assert.That(machine.Status, Is.EqualTo(ScriptMachineStatus.Halted));
+            Assert.That(machine.IsLatched, Is.True);
+            Assert.That(machine.ProgramCounter, Is.EqualTo(1));
+            Assert.That(machine.Tick(1), Is.EqualTo(ScriptMachineStatus.Halted));
+        }
+
+        [TestCase(true, true, -1L)]
+        [TestCase(true, true, 2L)]
+        [TestCase(true, false, -1L)]
+        [TestCase(true, false, 2L)]
+        [TestCase(false, true, -1L)]
+        [TestCase(false, true, 2L)]
+        [TestCase(false, false, -1L)]
+        [TestCase(false, false, 2L)]
+        public void ConditionalJump_InvalidTarget_IsValidatedOnlyWhenTaken(
+            bool jumpIfZero, bool taken, long target)
+        {
+            var registers = new ScriptRegisters(1);
+            registers[0] = jumpIfZero == taken ? 0 : 7;
+            var machine = Machine(registers, jumpIfZero
+                ? ScriptInstruction.JumpIfZero(0, target)
+                : ScriptInstruction.JumpIfNotZero(0, target));
+            var originalValue = registers[0];
+
+            Assert.That(machine.Tick(1), Is.EqualTo(taken
+                ? ScriptMachineStatus.InvalidJump
+                : ScriptMachineStatus.Yielded));
+            Assert.That(machine.ProgramCounter, Is.EqualTo(taken ? 0 : 1));
+            Assert.That(machine.IsLatched, Is.EqualTo(taken));
+            Assert.That(registers[0], Is.EqualTo(originalValue));
+            Assert.That(machine.Tick(1), Is.EqualTo(taken
+                ? ScriptMachineStatus.InvalidJump
+                : ScriptMachineStatus.Halted));
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void ConditionalJump_InvalidCondition_FaultsBeforeTarget(bool jumpIfZero)
+        {
+            var registers = new ScriptRegisters(1);
+            registers[0] = 9;
+            var machine = Machine(registers, jumpIfZero
+                ? ScriptInstruction.JumpIfZero(1, -1)
+                : ScriptInstruction.JumpIfNotZero(1, -1));
+
+            Assert.That(machine.Tick(1), Is.EqualTo(ScriptMachineStatus.InvalidRegister));
+            Assert.That(machine.IsLatched, Is.True);
+            Assert.That(machine.ProgramCounter, Is.EqualTo(0));
+            Assert.That(registers[0], Is.EqualTo(9L));
+        }
+
+        [TestCase(ScriptOpcode.Add, -1)]
+        [TestCase(ScriptOpcode.Add, 2)]
+        [TestCase(ScriptOpcode.Sub, -1)]
+        [TestCase(ScriptOpcode.Sub, 2)]
+        [TestCase(ScriptOpcode.Mul, -1)]
+        [TestCase(ScriptOpcode.Mul, 2)]
+        public void Arithmetic_InvalidDestination_PreservesEarlierWriteAndFaultPc(
+            ScriptOpcode opcode, int destination)
+        {
+            var registers = new ScriptRegisters(2);
+            registers[1] = 3;
+            var machine = Machine(registers,
+                ScriptInstruction.LoadImmediate(0, 4),
+                ScriptInstruction.FromRaw((byte)opcode, destination, 0, 1, 99));
+
+            Assert.That(machine.Tick(2), Is.EqualTo(ScriptMachineStatus.InvalidRegister));
+            Assert.That(machine.IsLatched, Is.True);
+            Assert.That(machine.ProgramCounter, Is.EqualTo(1));
+            Assert.That(registers[0], Is.EqualTo(4L));
+            Assert.That(registers[1], Is.EqualTo(3L));
+        }
+
+        [TestCase(ScriptMachineStatus.Halted)]
+        [TestCase(ScriptMachineStatus.InvalidRegister)]
+        [TestCase(ScriptMachineStatus.InvalidJump)]
+        [TestCase(ScriptMachineStatus.InvalidOpcode)]
+        public void RejectedBudget_AfterTerminalLatch_PreservesStoredResult(ScriptMachineStatus terminal)
+        {
+            var registers = new ScriptRegisters(1);
+            ScriptInstruction instruction;
+            switch (terminal)
+            {
+                case ScriptMachineStatus.Halted:
+                    instruction = ScriptInstruction.Halt();
+                    break;
+                case ScriptMachineStatus.InvalidRegister:
+                    instruction = ScriptInstruction.LoadImmediate(1, 9);
+                    break;
+                case ScriptMachineStatus.InvalidJump:
+                    instruction = ScriptInstruction.Jump(-1);
+                    break;
+                default:
+                    instruction = ScriptInstruction.FromRaw(255, 0, 0, 0, 9);
+                    break;
+            }
+
+            var machine = Machine(registers, ScriptInstruction.LoadImmediate(0, 4), instruction);
+            Assert.That(machine.Tick(2), Is.EqualTo(terminal));
+            registers[0] = 7;
+
+            Assert.That(machine.Tick(0), Is.EqualTo(ScriptMachineStatus.RejectedBudget));
+            Assert.That(machine.Tick(-1), Is.EqualTo(ScriptMachineStatus.RejectedBudget));
+            Assert.That(machine.Status, Is.EqualTo(terminal));
+            Assert.That(machine.IsLatched, Is.True);
+            Assert.That(machine.ProgramCounter, Is.EqualTo(1));
+            Assert.That(registers[0], Is.EqualTo(7L));
+            Assert.That(machine.Tick(1), Is.EqualTo(terminal));
+            Assert.That(machine.ProgramCounter, Is.EqualTo(1));
+            Assert.That(registers[0], Is.EqualTo(7L));
+        }
+
+        [Test]
+        public void RejectedBudget_AfterYield_PreservesResumableState()
+        {
+            var registers = new ScriptRegisters(1);
+            var machine = Machine(registers,
+                ScriptInstruction.LoadImmediate(0, 3), ScriptInstruction.LoadImmediate(0, 4));
+            machine.Tick(1);
+
+            Assert.That(machine.Tick(0), Is.EqualTo(ScriptMachineStatus.RejectedBudget));
+            Assert.That(machine.Tick(-1), Is.EqualTo(ScriptMachineStatus.RejectedBudget));
+            Assert.That(machine.Status, Is.EqualTo(ScriptMachineStatus.Yielded));
+            Assert.That(machine.IsLatched, Is.False);
+            Assert.That(machine.ProgramCounter, Is.EqualTo(1));
+            Assert.That(registers[0], Is.EqualTo(3L));
+            Assert.That(machine.Tick(1), Is.EqualTo(ScriptMachineStatus.Yielded));
+            Assert.That(registers[0], Is.EqualTo(4L));
+        }
+
+        [Test]
+        public void Tick_NonterminatingJumpLoop_AllocatesZeroManagedBytesAfterWarmup()
+        {
+            const int warmupIterations = 128;
+            const int measuredIterations = 1000;
+            const int budget = 16;
+            var registers = new ScriptRegisters(2);
+            registers[1] = 1;
+            var machine = Machine(registers, ScriptInstruction.Add(0, 0, 1), ScriptInstruction.Jump(0));
+            for (var i = 0; i < warmupIterations; i++)
+            {
+                machine.Tick(budget);
+            }
+
+            var initialValue = registers[0];
+            const ProfilerRecorderOptions options =
+                ProfilerRecorderOptions.SumAllSamplesInFrame |
+                ProfilerRecorderOptions.CollectOnlyOnCurrentThread;
+            using var recorder = new ProfilerRecorder(ProfilerCategory.Internal, "GC.Alloc", 1, options);
+            Assert.That(recorder.Valid, Is.True);
+            recorder.Start();
+            try
+            {
+                var positiveControl = new byte[4096];
+                GC.KeepAlive(positiveControl);
+            }
+            finally
+            {
+                recorder.Stop();
+            }
+            var positiveEvents = recorder.Count == 0 ? 0L : recorder.GetSample(0).Count;
+            TestContext.Out.WriteLine($"GC.Alloc unit={recorder.UnitType} positiveEvents={positiveEvents}");
+            Assert.That(positiveEvents, Is.GreaterThan(0L));
+            recorder.Reset();
+            Assert.That(recorder.Count, Is.Zero);
+
+            recorder.Start();
+            try
+            {
+                for (var i = 0; i < measuredIterations; i++)
+                {
+                    machine.Tick(budget);
+                }
+            }
+            finally
+            {
+                recorder.Stop();
+            }
+            var targetEvents = recorder.Count == 0 ? 0L : recorder.GetSample(0).Count;
+
+            TestContext.Out.WriteLine(
+                $"allocation test={nameof(Tick_NonterminatingJumpLoop_AllocatesZeroManagedBytesAfterWarmup)} " +
+                $"runtime={System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription} " +
+                $"unity={UnityEngine.Application.unityVersion} warmup={warmupIterations} " +
+                $"iterations={measuredIterations} budget={budget} unit={recorder.UnitType} positiveEvents={positiveEvents} targetEvents={targetEvents} " +
+                $"increments={registers[0] - initialValue} status={machine.Status}");
+            Assert.That(targetEvents, Is.Zero);
+            Assert.That(registers[0] - initialValue, Is.EqualTo(measuredIterations * (budget / 2)));
+            Assert.That(machine.Status, Is.EqualTo(ScriptMachineStatus.Yielded));
+            Assert.That(machine.IsLatched, Is.False);
+            Assert.That(machine.ProgramCounter, Is.EqualTo(0));
         }
 
         private static long Branch(long condition, bool jumpIfZero)

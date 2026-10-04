@@ -2,6 +2,7 @@
 
 using System;
 using NUnit.Framework;
+using Unity.Profiling;
 using OneStarMaker.Foundation.UpdateSystem;
 using OneStarMaker.Foundation.UpdateSystem.World;
 using OneStarMaker.Runtime.ScriptSystem;
@@ -99,6 +100,82 @@ namespace OneStarMaker.Tests.ScriptSystem
 
             Assert.Throws<ArgumentNullException>(() => new ScriptUpdateElement(null!, 1));
             Assert.Throws<ArgumentOutOfRangeException>(() => new ScriptUpdateElement(machine, 0));
+        }
+
+        [Test]
+        public void RegisteredUpdateAndLateUpdate_NonterminatingJumpLoop_AllocatesZeroManagedBytesAfterWarmup()
+        {
+            const int warmupIterations = 128;
+            const int measuredIterations = 1000;
+            const int budget = 16;
+            var registers = new ScriptRegisters(2);
+            registers[1] = 1;
+            var machine = new ScriptMachine(ScriptProgram.Create(new[]
+            {
+                ScriptInstruction.Add(0, 0, 1),
+                ScriptInstruction.Jump(0),
+            }), registers);
+            var element = new ScriptUpdateElement(machine, budget);
+            // Coordinator is the isolated registered execution seam; production callers use UpdateSystemRuntime.
+            var coordinator = new UpdateCoordinator();
+            coordinator.RegisterElement("Script", element);
+            coordinator.ActivatePendingRegistrations();
+            for (var i = 0; i < warmupIterations; i++)
+            {
+                coordinator.ActivatePendingRegistrations();
+                coordinator.RunUpdate(0.1f, 0.1f);
+                coordinator.RunLateUpdate(0.1f, 0.1f);
+            }
+
+            var initialValue = registers[0];
+            const ProfilerRecorderOptions options =
+                ProfilerRecorderOptions.SumAllSamplesInFrame |
+                ProfilerRecorderOptions.CollectOnlyOnCurrentThread;
+            using var recorder = new ProfilerRecorder(ProfilerCategory.Internal, "GC.Alloc", 1, options);
+            Assert.That(recorder.Valid, Is.True);
+            recorder.Start();
+            try
+            {
+                var positiveControl = new byte[4096];
+                GC.KeepAlive(positiveControl);
+            }
+            finally
+            {
+                recorder.Stop();
+            }
+            var positiveEvents = recorder.Count == 0 ? 0L : recorder.GetSample(0).Count;
+            TestContext.Out.WriteLine($"GC.Alloc unit={recorder.UnitType} positiveEvents={positiveEvents}");
+            Assert.That(positiveEvents, Is.GreaterThan(0L));
+            recorder.Reset();
+            Assert.That(recorder.Count, Is.Zero);
+
+            recorder.Start();
+            try
+            {
+                for (var i = 0; i < measuredIterations; i++)
+                {
+                    coordinator.ActivatePendingRegistrations();
+                    coordinator.RunUpdate(0.1f, 0.1f);
+                    coordinator.RunLateUpdate(0.1f, 0.1f);
+                }
+            }
+            finally
+            {
+                recorder.Stop();
+            }
+            var targetEvents = recorder.Count == 0 ? 0L : recorder.GetSample(0).Count;
+
+            TestContext.Out.WriteLine(
+                $"allocation test={nameof(RegisteredUpdateAndLateUpdate_NonterminatingJumpLoop_AllocatesZeroManagedBytesAfterWarmup)} " +
+                $"runtime={System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription} " +
+                $"unity={UnityEngine.Application.unityVersion} warmup={warmupIterations} " +
+                $"iterations={measuredIterations} budget={budget} unit={recorder.UnitType} positiveEvents={positiveEvents} targetEvents={targetEvents} " +
+                $"increments={registers[0] - initialValue} status={machine.Status}");
+            Assert.That(targetEvents, Is.Zero);
+            Assert.That(registers[0] - initialValue, Is.EqualTo(measuredIterations * (budget / 2)));
+            Assert.That(machine.Status, Is.EqualTo(ScriptMachineStatus.Yielded));
+            Assert.That(machine.IsLatched, Is.False);
+            Assert.That(machine.ProgramCounter, Is.EqualTo(0));
         }
 
         private sealed class RecordingElement : IUpdateElement

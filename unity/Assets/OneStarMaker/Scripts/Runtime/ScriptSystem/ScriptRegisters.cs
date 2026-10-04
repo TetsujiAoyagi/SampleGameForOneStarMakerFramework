@@ -7,7 +7,9 @@ namespace OneStarMaker.Runtime.ScriptSystem
     /// <summary>
     /// 呼び出し側が所有する int64 レジスタ配列。
     /// 配列の確保は構築時の一度だけで、VM は本数を変えない。
-    /// tick は例外を避けるためインデクサではなく内部の成否付き読み書きを使う。
+    /// Tick は不正 index を型付き故障にするため、内部の成否付き読み書きを使う。
+    /// 公開インデクサは範囲外を例外にする。呼び出し側は変更を Tick の間に限定し、
+    /// Tick と変更を逐次化する。共有する機械同士の実行順も呼び出し側が決める。
     /// </summary>
     public sealed class ScriptRegisters
     {

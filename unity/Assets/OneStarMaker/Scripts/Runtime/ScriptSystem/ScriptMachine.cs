@@ -7,8 +7,10 @@ namespace OneStarMaker.Runtime.ScriptSystem
     /// <summary>
     /// 呼び出し側のプログラムとレジスタを借りて、固定命令を予算つきで進める。
     /// tick は命令の読み取りとレジスタの読み書き、カウンタ更新だけを行う。
-    /// 故障を例外にすると、UpdateSystem の逐次実行が同じフレームの後続要素を止める。
-    /// ロックは持たない。同じレジスタを複数の機械で触る順序は、呼び出し側の逐次 tick が決める。
+    /// 不正オペランドは型付き結果として返すため、同じフレームの後続要素を止めない。
+    /// 機械は PC・状態・終端ラッチだけを所有し、プログラムとレジスタの寿命は呼び出し側が持つ。
+    /// 呼び出し側は Tick とレジスタ変更を逐次化し、変更は Tick の間に行う。並行実行は非対応。
+    /// 同じレジスタを複数の機械で触る場合も、呼び出し側が実行順を決める。
     /// </summary>
     public sealed class ScriptMachine
     {
@@ -31,16 +33,24 @@ namespace OneStarMaker.Runtime.ScriptSystem
 
         public bool IsLatched => _latched;
 
+        /// <summary>
+        /// 正の予算だけ命令を実行する。予算不足は終端ラッチより先に判定し、保存状態を変更しない。
+        /// 予算を使い切ると Yielded。末尾到達が最後の命令と同時なら、次の正の Tick で Halted にする。
+        /// Halt はその命令の PC、自然終端は命令数の PC にラッチする。
+        /// 使用レジスタ・実行する跳躍先・opcode の不正は型付き故障にラッチし、
+        /// 故障命令の PC と書き込み先を変えない。それ以前に完了した命令の結果は保持する。
+        /// </summary>
         public ScriptMachineStatus Tick(int instructionBudget)
         {
-            if (_latched)
-            {
-                return _status;
-            }
-
+            // 拒否された呼び出しは、終端の再確認を含め機械の状態に関与しない。
             if (instructionBudget < 1)
             {
                 return ScriptMachineStatus.RejectedBudget;
+            }
+
+            if (_latched)
+            {
+                return _status;
             }
 
             var executed = 0;
@@ -141,6 +151,7 @@ namespace OneStarMaker.Runtime.ScriptSystem
                 return false;
             }
 
+            // 条件レジスタは常に使うが、跳躍しない命令の target は未使用なので検証しない。
             var shouldJump = jumpWhenZero ? condition == 0 : condition != 0;
             if (!shouldJump)
             {

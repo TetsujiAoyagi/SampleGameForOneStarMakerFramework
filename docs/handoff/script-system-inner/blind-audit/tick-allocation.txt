@@ -1,1 +1,0 @@
-samples=1000 sum=0 max=0 register1=16016

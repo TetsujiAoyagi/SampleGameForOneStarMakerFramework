@@ -1,206 +1,59 @@
-# ScriptSystem 内側レイヤー
+# PR #86 ScriptSystem — Phase A3 frozen r4
 
-## 0. メタデータ
+## Metadata and decision boundary
 
-- type: `slice`
-- status: `C`
-- branch: `cursor/script-system-inner-8619`
-- implementation base commit: `2c29c99806788406551affba6cc795e67e614748` (`develop`)
-- implementation head commit: `af6c5c9fa904847fe6abde214598bc4869dbfcc1`
-- risk: `high`
-- owner: OSM maintainers
-- created: 2026-10-04
-- expires: 2027-01-04
-- harvest to: マージ時に、命令番号・レジスタ所有・tick 非確保の契約だけを `unity/Assets/Docs/Architecture/` の新しい現況文書へ移す。移す前に公開面へ置かない。HANDOFF 自体は Phase D で削除する。
-- Phase A snapshot path / id: `5638b5c361faa761d08c869c20b45db1e0593707:docs/handoff/SCRIPT_SYSTEM_INNER.md`（`git show` で凍結本文を取得する。盲検用の複製は `docs/handoff/script-system-inner/blind-audit/phase-a-snapshot.md`）
-- Phase A snapshot generated at: 2026-10-04T00:42:53Z
-- Phase A snapshot hash: `cf7b709f6146c889a1142ad50ec8bef8a0610f85426b227785d1cca5506f5f6f`
-- Phase B result snapshot path / id: `docs/handoff/script-system-inner/blind-audit/phase-b-result.md`
-- Phase B result snapshot generated at: 2026-10-04T00:48:43Z
-- Phase B result snapshot hash: `8f03eb2d56c3e022238bb4b4b9ef69c262a6f485ddadb28c209f813cdffc4380`
-- evidence bundle path / id: `docs/handoff/script-system-inner/blind-audit`
-- evidence bundle generated at: 2026-10-04T00:48:43Z
-- evidence bundle hash: `2e5bce3c84e8f371431abeb63cd438043a501fba35e2814cfb7dff6e03702828`
-- C' blind bundle path / id: `docs/handoff/script-system-inner/blind-audit`（発見 C の結論を含まない入力。監査は未実施）
-- C' blind bundle generated at: 2026-10-04T00:48:43Z
-- C' blind bundle hash: `2e5bce3c84e8f371431abeb63cd438043a501fba35e2814cfb7dff6e03702828`
+- Type: slice; status: **A3 frozen for repair**; risk: high (Framework public API).
+- Created: 2026-10-05 JST; expires: **2026-11-05** or replacement by a later A3 revision. Harvest destination: **`unity/Assets/Docs/Architecture/27-folder-structure.md` §2 (Assembly/Runtime component boundary)**. Add one compact ScriptSystem subsection there after judgment: optional numeric executor in Runtime, caller-owned program/registers and registration lifetime, pure machine versus Update adapter, budget/fault behavior summary, no host/serialized-bytecode ABI. Detailed per-opcode semantics remain in source XML comments and tests; do not create a new Architecture document.
+- PR: #86, `cursor/script-system-inner-8619` into `develop`; original PR head `81f95b7dce82e9ff10db06a373abb5c54bf1d899`; repair implementation base: **28f250c41bcc0308344612920ed7112b24df1f1c** (current develop including merged PR91; normal integration b9311b0da8e16248a1cdbb7f4b24b51378cbe5c3). Implementation head is set after B, not inferred from PR tip.
+- Fixed evidence locations for this integration: frozen Phase A snapshot `TestResults/pr86-integration/phase-a-frozen.md` (created only at A3 with timestamp and SHA-256); Phase B result `TestResults/pr86-integration/phase-b-result.md` (created after implementation with exact head and no C findings); judgment C evidence bundle `TestResults/pr86-integration/evidence/<run-id>/` (raw Unity log/XML, allocation measurements, audits, manifest with base/head/time/hash); blind C' input `TestResults/pr86-integration/blind/<run-id>/` (same fixed diff/raw evidence, excluding C findings). These are placeholders, not existing results. Root must arrange evidence availability to C/C' under the repository review-evidence policy; ignored local files are not automatically distributed through Git. The old tracked `docs/handoff/script-system-inner/blind-audit/` is historical head-specific evidence, not this run's output.
+- Owner: integration lead; B `gpt-6.1-sol`; C `gpt-6-astra` in a fresh session; C' `gpt-5.6-sol` in a fresh blind session, reserved. Phase D merge judgment belongs to the user-authorized integration lead. These are planned assignments, not completed phases. A2 inputs were the same frozen `phase-a2-input-r1.md`, reviewed independently by `gpt-6-astra` architecture and `gpt-6.1-sol` contract/premise per dispatch. No reviewer saw the other's report before writing.
+- A0 evidence: current PR source/HANDOFF and tests, `docs/GOALS_AND_STRENGTHS.md`, `script-zero-base.md` and `queue-reassessment-r2.md`. The earlier recommendation to defer VM is retained as a comparison, not adopted as a deletion/merge veto: the user has expressly asked to make this bounded foundation mergeable. No current game consumer is claimed.
+- Answered question: can a caller-owned numeric program/register bank be advanced by a bounded, allocation-free executor through the existing UpdateSystem, with typed script faults isolated from following elements? This is an optional **inner executor**, not an Event host or scripting language.
+- Target exclusions: no parser, persisted bytecode, serialization ABI/version guarantee, host input/output, Lua/native/plugin, non-C# author workflow, asset/Scene/Cell owner, new game feature/demo, DebugStudio/telemetry, new asmdef, DependOnAll change, or opcode extension. Direct typed C# remains the first comparison for normal game events. `Yielded` means budget exhaustion only.
+- GO: all minimum conditions below are proven on one final implementation head, C and blind C' find no violation of them or `AGENTS.md`. NO-GO if any required condition fails. No conditional acceptance. Stop at the inner executor and move any host/authoring/persistence question to a new named slice (`SCRIPT_SYSTEM_OUTER_HOST`, `SCRIPT_SYSTEM_TEXT_FRONTEND`, `SCRIPT_SYSTEM_HOST_CALLS`, `SCRIPT_SYSTEM_OPCODE_EXTENSION`, or `SCRIPT_SYSTEM_DEBUG_TELEMETRY` as applicable).
 
-このファイルが後からレビュー記録で変わっても、Phase A snapshot は凍結時点の git blob を指す。implementation head は実装差分の commit であり、レビュー記録だけの commit では更新しない。
+## Minimum conditions / executable contract
 
-## 1. 目的と対象外
+1. Preserve exactly the existing nine opcode meanings and current seven Runtime classes: `ScriptOpcode`, `ScriptMachineStatus`, `ScriptInstruction`, `ScriptProgram`, `ScriptRegisters`, `ScriptMachine`, `ScriptUpdateElement`. Existing public factory/value APIs remain the bounded unit; **do not add a public host, reset or format API**. Values 0–8 are current in-memory opcode meanings. `FromRaw` allows an unrecognized `byte` for runtime `InvalidOpcode`; it does not freeze a file format or append-only serialized ABI. Keep unchecked two's-complement overflow for Add/Sub/Mul. Unused operand fields are ignored.
+2. `ScriptProgram.Create` copies the input array, accepts empty, rejects null; `ScriptRegisters` owns a zero-initialized `long[]`, allows count 0, rejects negative count and out-of-range public indexer access outside Tick. Caller owns program/registers and can edit registers **between** ticks. Machine borrows both and owns only PC/status/latch. One caller serializes Tick and register mutation; concurrent Tick/mutation unsupported. Shared register banks need caller-defined sequential ordering. Do not use arbitrary runtime exception catching as script fault isolation.
+3. Tick semantics: invalid used register latches `InvalidRegister`, invalid taken jump target latches `InvalidJump`, unknown opcode latches `InvalidOpcode`; faulting instruction leaves PC in place and writes nothing, while earlier completed instructions in that Tick stay committed. Jump target `InstructionCount` is legal. Untaken conditional jump does **not** validate its unused target; condition register is always validated; a taken invalid target faults at that PC. Explicit Halt latches with PC on the Halt. Natural end latches Halted with PC at length. If the last instruction or jump-to-length exactly consumes budget, return nonlatched `Yielded`; next positive Tick detects natural end. `Yielded` resumes from current PC.
+4. **Budget precedes latch:** every `Tick(budget < 1)` returns `RejectedBudget` without changing stored Status, PC, latch, or registers, including after Halt/fault. The next positive Tick returns the stored terminal result. Fix current source's latch-before-budget order and cover both nonterminal and latched cases. No negative budget exception is thrown by Tick; `ScriptUpdateElement` construction still rejects a nonpositive fixed budget.
+5. `ScriptUpdateElement.OnElementUpdate` invokes Tick once at its fixed budget; Start and LateUpdate do not execute instructions or derive budget from deltaTime. Runtime consumers register/unregister through `UpdateSystemRuntime`; the direct `UpdateCoordinator` used in isolated deterministic tests is only a test seam. Activation happens before RunUpdate, and RunLateUpdate does not advance the machine. A script fault returns a status and cannot prevent a following element in the same frame from running. Caller unregisters before dropping the borrowed references; the adapter does not choose layer, lifetime, or Scene ownership.
+6. Warmed steady direct Tick and registered Update path each allocate **0 managed bytes during measured frames that execute instructions**. Use a bounded nonterminating jump program, warm machine/coordinator/activation, exclude setup and assertion cost, and record per-thread GC.Alloc event counts with a detected positive allocation control, exact test names, runtime and workload counts. Include the actual registered `RunUpdate` (and `RunLateUpdate` if claiming combined frame path). Repeatedly ticking a terminal latch is not acceptable evidence. Existing PR `tick-allocation.txt` (1000 direct samples, sum/max 0) is historical supplemental evidence only.
 
-- 目的: 呼び出し側が所有する数値レジスタ配列と、固定のバイトコードを、UpdateSystem の Update から C# VM が確保なしで進める内側レイヤーを置く。外側の「誰がどのスクリプトを走らせるか」は後続にする。
-- 対象外:
-  - Lua、ネイティブプラグイン、テキスト言語、パーサ、ビルド時コンパイル。
-  - C# オブジェクト、オブジェクト配列、クラスインスタンスをスクリプトへ渡すこと。
-  - DebugStudio、telemetry、SampleGame の配線、`DependOnAll`、新しい asmdef。
-  - 外側ホスト（シーン寿命、複数スクリプトの割当、アセットとしてのスクリプト）。
-  - 浮動小数レジスタ、除算、比較命令の追加、時間オペランド、Reset API、デバッガ。
-- 現況: リポジトリに ScriptSystem、バイトコード、Lua バインディングは無い。フレーム進行の正本は UpdateCoordinator で、1 フレームは `ActivatePendingRegistrations` → `RunUpdate` → `RunLateUpdate` → `ApplyMainThreadChanges` → `ApplyStructuralChanges`。managed 要素は `IUpdateElement`。`UpdateCoordinator.RegisterElement` が Layer への登録口である。CameraSystemUpdateElement は Runtime にあり、自分では Layer を選ばず、呼び出し側が登録する。
+## File scope and responsibility map
 
-## 2. 意思決定と受け入れ境界
+- Runtime files stay under `unity/Assets/OneStarMaker/Scripts/Runtime/ScriptSystem/`. `ScriptOpcode.cs`, `ScriptMachineStatus.cs`, `ScriptInstruction.cs`: public numeric/value semantics, no owner. `ScriptProgram.cs`: immutable copied code held by caller. `ScriptRegisters.cs`: caller-owned numeric state. `ScriptMachine.cs` (~238 lines before repair): pure execution policy, PC/latch, no Unity object or asset/Scene I/O. `ScriptUpdateElement.cs` (~48 lines): borrowed machine and UpdateSystem adapter, no registration owner. No split by opcode merely for line count; responsibilities/ownership/test seams are cohesive and below the 500-line trigger.
+- Tests: `unity/Assets/OneStarMaker/Tests/ScriptSystem/ScriptMachineTests.cs` and `ScriptUpdateElementTests.cs`. Extend only for budget-after-latch, conditional target taken/untaken, arithmetic destination fault/earlier write, exact-budget natural end, and nonterminal direct/registered allocation. Existing opcode and integration assertions remain. No new test assembly/asmdef edge.
+- Documentation allowed in B: update the PR's `docs/handoff/SCRIPT_SYSTEM_INNER.md` to the **new frozen terms** and add the small current-state subsection to **`unity/Assets/Docs/Architecture/27-folder-structure.md` §2** described above. These two documentation paths are the complete B documentation scope; do not invent a new Architecture document. Phase D verifies the harvest and removes the completed HANDOFF. Keep detailed opcode semantics in source XML comments/tests and evidence snapshots out of the product API. New/edited Unity `.cs` retains `#nullable enable`; no `record`, Runtime `UnityEditor`, or Unity fake-null issue is introduced.
+- Original PR diff also contains a blind-audit bundle. A final head change invalidates old head-specific test/C' verdicts; preserve historical evidence as historical, create fresh fixed-head evidence for C/C', and avoid presenting old output as current PASS.
 
-- このスライスが答える問い: テキスト言語を置かずに、呼び出し側所有の int64 レジスタと固定バイトコードを、UpdateSystem の Update から確保なしで実行する C# VM をフレームワークに置けるか。
-- 進める最低条件:
-  1. 下の命令セット、レジスタ、プログラム、機械、Update 要素が公開面として存在する。
-  2. `ScriptMachine.Tick` と `ScriptUpdateElement.OnElementUpdate` がヒープ確保をしない。
-  3. 要素を `UpdateCoordinator` に登録すると、活性化後の `RunUpdate` で機械が進み、`RunLateUpdate` では進まない。スクリプト故障は例外にならない。
-  4. 対象外に書いた言語、オブジェクト受け渡し、DebugStudio、telemetry、asmdef 追加、SampleGame 配線が差分に無い。
-- 受け入れ条件（進める最低条件を構成する観測可能な詳細。別の完了バーにしない）:
-  - レジスタは `ScriptRegisters`。要素は `long`。本数は呼び出し側が構築時に決める。0 本を許す。負数は構築時に `ArgumentOutOfRangeException`。中身の初期値は 0。呼び出し側は tick の外でインデクサから読み書きできる。範囲外インデクサは `ArgumentOutOfRangeException`。VM の tick はインデクサを使わず、失敗を状態で返す。
-  - バイトコードは `ScriptInstruction` の配列から `ScriptProgram.Create` がコピーした不変列。入力配列を後から書き換えてもプログラムは変わらない。`null` は `ArgumentNullException`。長さ 0 を許す。
-  - 機械はプログラムとレジスタを所有しない。参照を保持する。プログラムカウンタの初期値は 0。`Tick` 以外はカウンタもレジスタも進めない。
-  - 命令の数値と効果は次だけ。未使用オペランドは無視する。レジスタ番号の検査は実行時。符号化時には検査しない。
+## A2 disposition and integration authority
 
-    | 値 | 名前 | 効果 |
-    |---|---|---|
-    | 0 | Halt | `Halted` をラッチする。プログラムカウンタは動かさない。 |
-    | 1 | LoadImmediate | `regs[Destination] = Immediate`。その後カウンタを 1 進める。 |
-    | 2 | Move | `regs[Destination] = regs[Left]`。その後カウンタを 1 進める。 |
-    | 3 | Add | `regs[Destination] = unchecked(regs[Left] + regs[Right])`。その後カウンタを 1 進める。 |
-    | 4 | Sub | `regs[Destination] = unchecked(regs[Left] - regs[Right])`。その後カウンタを 1 進める。 |
-    | 5 | Mul | `regs[Destination] = unchecked(regs[Left] * regs[Right])`。その後カウンタを 1 進める。 |
-    | 6 | Jump | `Immediate` が `0` 以上かつ `InstructionCount` 以下ならカウンタをその位置へ移す。それ以外は `InvalidJump` をラッチし、カウンタは動かさない。 |
-    | 7 | JumpIfZero | `regs[Destination] == 0` なら Jump と同じ。そうでなければカウンタを 1 進める。 |
-    | 8 | JumpIfNotZero | `regs[Destination] != 0` なら Jump と同じ。そうでなければカウンタを 1 進める。 |
+- **Adopt, both reviewers:** bounded optional executor; direct C# comparison; budget-before-latch; exact-budget natural-end semantics; no serialized ABI; single-threaded borrowing; no new host/demo/API. Both explicitly support the pure policy/adapter split and final Unity verification.
+- **Adopt, contract reviewer:** only a taken conditional validates its jump target; a bad condition register always faults; a bad destination never partially writes. Allocation loops must use nonterminating work and exclude setup.
+- **Adopt, architecture reviewer:** production registration guidance names `UpdateSystemRuntime`; direct Coordinator is test-only. Caller deregisters before dropping the machine. Typed faults do not catch arbitrary runtime exceptions.
+- **Reject as current merge gate:** `script-zero-base.md` proposal to implement `Spring_Events_4_2` with a C# state machine before merging this requested inner executor. Retain it as the default *future Event slice comparison*. No finding requires a game demo, persisted ABI, or new language now. The two A2 reports raise no additional architecture blocker after these corrections.
+- This snapshot records the integration lead's adopted dispositions under the user's queue-level authorization. It does **not** claim the human reviewed each finding. Root must copy these terms into the actual tracked HANDOFF and record the A3 freeze revision/hash before B; the original PR HANDOFF itself says its earlier A2/A3 was not completed.
 
-  - ジャンプ先 `InstructionCount` は命令の直後、つまり自然終了位置として有効。次の取得で命令が無ければ `Halted`。明示 Halt のカウンタは Halt 命令の位置のまま。自然終了のカウンタは `InstructionCount`。どちらも状態は `Halted`。
-  - 加算・減算・乗算のあふれは unchecked の 2 の補数ラップ。例外にしない。
-  - レジスタ番号が `0` 未満または `Count` 以上なら、その命令は書き込まず `InvalidRegister` をラッチする。カウンタは動かさない。同じ tick でそれより前に完了した命令の書き込みは残す。
-  - 上表に無いオペコードは `InvalidOpcode` をラッチする。書き込まず、カウンタも動かさない。`ScriptInstruction.FromRaw` がこのバイト列を作る公開口である。テキストの解析はしない。
-  - `Halted`、`InvalidRegister`、`InvalidJump`、`InvalidOpcode` はラッチする。以降の `Tick` はレジスタもカウンタも変えず、同じ状態を返す。
-  - `Tick` の引数は今回実行してよい命令数。1 未満のとき戻り値は `RejectedBudget`。これは保存しない。カウンタ、レジスタ、以前の `Status` は変えない。次に 1 以上を渡せば続行する。
-  - 予算を使い切って停止していないとき、状態は `Yielded`。ラッチしない。カウンタは次命令を指す。次の `Tick` はそこから再開する。
-  - 故障も予算拒否も `Tick` は投げない。`null` や予算 1 未満やレジスタ本数の不正は、tick の外のコンストラクタが投げる。
-  - `ScriptUpdateElement` は機械と、Update 1 回あたりの予算（1 以上）を構築時に受け取る。`OnElementStart` と `OnElementLateUpdate` は命令を実行しない。`OnElementUpdate` は保存した予算で `Tick` を 1 回呼ぶ。`deltaTime` では予算を変えない。要素は Coordinator を保持せず、Layer 名を決めず、自分を登録しない。
-  - 登録した要素は `ActivatePendingRegistrations` のあと `RunUpdate` で進む。同じ Layer の後続要素は、スクリプトが故障状態でも引き続き Update を受ける。
-- ここでは答えない問いと所有する後続スライス（HANDOFF / program 名）:
-  - 非 C# 作者向けのテキストと、そのビルド時変換: `SCRIPT_SYSTEM_TEXT_FRONTEND`
-  - どのオブジェクトがどのプログラムを、どのシーン寿命で走らせるか: `SCRIPT_SYSTEM_OUTER_HOST`
-  - C# への呼び出し、オブジェクトや配列の受け渡し: `SCRIPT_SYSTEM_HOST_CALLS`
-  - 命令の追加（除算、比較、浮動小数、時間、Reset）: `SCRIPT_SYSTEM_OPCODE_EXTENSION`
-  - DebugStudio と telemetry への露出: `SCRIPT_SYSTEM_DEBUG_TELEMETRY`
-- 判定定義（GO / NO-GO。スパイクの場合だけ CONDITIONAL ACCEPT も定義）: 進める最低条件 1〜4 の観測が implementation head で揃えば GO。一つでも欠ければ NO-GO。CONDITIONAL ACCEPT は定義しない。
-- 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。対象外の問いに手を伸ばしたら停止する。
-- A3 後の例外承認（人間、理由、置き換える既存条件または期限・検証予算。無ければ `なし`）: `なし`
-- 本文へ転記した実装制約:
-  - 依存は Game から Framework の一方向。このスライスは asmdef 参照を足さない。新しいアセンブリを作らない。
-  - アセットは作らない。`IAssetManagement` と `AssetOwner` は使わない。
-  - `SceneState` は読まない、変えない。
-  - ログは出さない。`ILogger<T>` も `ZLogger` 型も公開面に出さない。
-  - フレーム進行は既存の UpdateSystem の順序のまま。要素の実装は `IUpdateElement`。登録は呼び出し側の `UpdateCoordinator.RegisterElement`。
-  - スクリプト故障は例外にしない。1 つの要素の例外で他要素の tick が止まる既存バックエンドの挙動を、故障の通知に使わない。
-  - Editor 用のコードと `UnityEditor` 参照を Runtime に置かない。
-  - Unity 側 C# で `record` を使わない。
-  - 新規 .cs の先頭は `#nullable enable`。
-  - このスライスは `UnityEngine.Object` を持たない。純粋 C# 参照の null は `== null` で見て、既存 Runtime と同じく `ArgumentNullException` にする。
-  - テストに `Task.Delay` と `Thread.Sleep` を置かない。
-  - 参照が無いことだけを理由に既存 API を消さない。このスライスは既存 API を削除しない。
-  - PR の base は `develop`。`main` と `develop` へ直接 push しない。
-  - 命令の数値は公開バイトコードである。このスライスのあとに並べ替え、欠番、値の変更をしない。追加は末尾だけとし、その追加は `SCRIPT_SYSTEM_OPCODE_EXTENSION` の仕事にする。
-- 未決事項: 製品挙動の未決は `なし`。手続きの欠落は「5. テストとレビュー計画」に書く。
+## Validation, evidence and stop rule
 
-### 手続きの欠落（A2 / A3）
+- B may make the bounded source/test/HANDOFF corrections and run `pwsh tools/contract-audit.ps1`; B does not claim Unity C. For diagnosis, C starts with `pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.ScriptSystem` and verifies XML test names/count.
+- Judgment C on final head requires `pwsh tools/run-tests.ps1` **without filter** (full EditMode; no exemption), `pwsh tools/contract-audit.ps1`, `pwsh tools/docs-audit.ps1`, `git diff --check`, plus current direct and registered allocation raw results. Run Unity via the approved outside-sandbox standard runner. If the complete full run is driven from a child process, pass `SAMPLEGAME_content__runtimeMode=addressables` to that child (observed requirement); do not infer success from an omitted variable. Inspect raw log and XML: >0 tests, 0 failures, required ScriptSystem tests actually executed. There is no repository-owned ScriptSystem offline suite command; the old temporary .NET/offline `script-machine-tests.txt` and `tick-allocation.txt` remain supplemental, not substitutes for Unity final evidence.
+- The known Unity native exit-stall investigation budget is **USED**. Do not repeat dump/process research. Apply the repository stop rule: distinguish completed XML and raw result from process exit, accept/report the known residual risk as specified, and run no new investigation without explicit new instruction.
+- C uses a fixed base/head evidence bundle and performs architecture review before functional judgment. C' is fresh `gpt-5.6-sol`, blind to C findings, using the same fixed diff and raw evidence. A changed implementation head invalidates judgment evidence and C'; collect anew on the new head. Stop implementation and reopen A if meeting these conditions needs an unplanned owner/lifetime, public API, asmdef dependency, serialized-format contract, or different responsibility placement. Do not broaden the completion bar for later Event questions.
 
-人間は、この作業を依頼したチャットで次を受諾済みである。二層のうち今切るのは内側だけ。中身は命令セットと、呼び出し側が所有するレジスタ配列。C# VM が UpdateSystem からバイトコードを tick し、tick 経路で確保しない。Lua、ネイティブプラグイン、C# オブジェクトの受け渡しはしない。レジスタは数値。非 C# 作者向けのテキストは後続のフロントエンドであり、このスライスの既定ではパーサもビルド時コンパイルも作らない。DebugStudio と telemetry には広げない。
+## Root freeze and distribution
 
-複数モデルによる A2 独立レビューは、このセッションでは実行していない。人間との採否会議としての A3 も実行していない。したがって A2 の指摘一覧と、採用・不採用・保留の記録は存在しない。上の命令番号、故障のラッチ、予算、配置は、受諾済みの箇条を実装できる粒度へ落とした A1 の本文である。独立レビューを経た凍結とは記録しない。
+Root adopts this bounded contract under the human request to finish and individually merge the remaining PRs. It authorizes the necessary corrections and independent phases; no claim of the human personally reviewing the A2 findings is made. Freeze is r4, dated 2026-10-05 JST. B updates the public Architecture subsection before final C; D only removes the completed HANDOFF after successful judgment.
 
-この本文に無い状態、依存、所有者、寿命、公開 API が実装中に必要になったら、Phase B は埋めずに停止する。
+Primary evidence root is D:/repositories/unity/SampleGameForOneStarMakerFramework/TestResults/pr86-integration. The final raw directory and complete fixed base/head diff are packaged with this immutable snapshot, its hash manifest and neutral B result; root verifies ZIP extraction hashes before both C and C' consume that same bundle. Review reports are kept outside raw. Root owns evidence retrieval/retention through 2026-11-05. Existing original-published-handoff.zip preserves old published HANDOFF and obsolete evidence, also retained in Git history. Root removes docs/handoff/script-system-inner/ from final product diff so obsolete judgments do not contaminate the blind input. No product behavior is removed by this record cleanup.
 
-独立に見られていないもの:
+A1 was gpt-6-sol. Both independent A2 reports and input remain immutable. Fresh B is gpt-6.1-sol, independent C gpt-6-astra and fresh blind C' gpt-5.6-sol. Any model self-identification discrepancy is subordinate to actual dispatch metadata. Preceding queue merges are integrated normally without rewriting published history; root records an integration-only metadata revision before final C if the base advances. Behavior changes require classified revision, not an implicit acceptance change. The known native exit investigation allowance remains exhausted across PRs/sessions. No unmodified full-suite retry, dump probe or cache purge for that symptom.
+Integration revision r3: PR86 is independent of the input and sound PRs, so its final verification can proceed against current develop while those integrations are pending. This changes only queue order and exact base; the six minimum conditions, public contract, responsibility map and mandatory gates are unchanged. Preserve r2 and historical evidence. Execution checkout: C:/Users/void/.codex/worktrees/pr86-repair/SampleGameForOneStarMakerFramework.
 
-- アーキテクチャゲート（フォルダ、責務、依存、所有者、寿命、テスト可能性）への別モデルのレビュー。
-- A0 だけを読んだ代替構成（Foundation へ置く、別 asmdef にする、レジスタを int32 にする、予算を deltaTime に比例させる）。
-- 命令 9 個で問いに足りるか、unchecked ラップを故障にすべきか。
-- C' に回すために残した未関与モデルからの事前レビュー。
+## r4 bounded allocation-observer adaptation
 
-## 3. 責務マップ
+The zero-managed-allocation outcome and executing workload remain unchanged. Observe it through Unity.Profiling.ProfilerRecorder for ProfilerCategory.Internal / GC.Alloc, capacity1, SumAllSamplesInFrame | CollectOnlyOnCurrentThread. Construct stopped, validate Valid outside the window, Start/try/finally Stop around a positive control new byte[4096] retained with GC.KeepAlive; after Stop assert GetSample(0).Count >0 (or 0 if no sample). Reset while stopped and assert the aggregate sample count is cleared. Start/try/finally Stop around the existing warmed synchronous workload only; after Stop assert allocation-event Count0. Record actual UnitType, positiveEvents, targetEvents, workload/increment/status facts. Do not label sample.Value as bytes unless its UnitType establishes that meaning. Zero allocation events after a working positive control establishes no managed allocations; prior GC.GetAllocatedBytesForCurrentThread output is historical and not accepted as measurement sensitivity proof.
 
-新規ファイルだけである。50% 増加の母体は無い。500 行、3 責務には、予想行数の範囲では届かない。機械は「凍結した命令列をレジスタへ適用する」という一つのアルゴリズムなので、命令ごとにファイルを割らない。
-
-| ファイル | 責務 | 変更理由 | 所有者・寿命 | 依存 | 公開面 | テスト境界 | 配置理由 | 現在行数 | 予想増分 |
-|---|---|---|---|---|---|---|---|---|---|
-| `unity/Assets/OneStarMaker/Scripts/Runtime/ScriptSystem/ScriptOpcode.cs` | 命令番号を固定する | バイトコードの互換面 | 値型。寿命はプログラムのコピーに従う | なし | enum の 0〜8 | 機械テストが番号を踏む | Runtime。スケジューラそのものではない | 0 | 40 |
-| `unity/Assets/OneStarMaker/Scripts/Runtime/ScriptSystem/ScriptMachineStatus.cs` | tick の結果番号を固定する | 故障と予算の公開面 | 値型 | なし | enum の 0〜6 | 機械テスト | 命令とは変わる理由が違う | 0 | 40 |
-| `unity/Assets/OneStarMaker/Scripts/Runtime/ScriptSystem/ScriptInstruction.cs` | 1 命令のオペランドを持つ値 | バイトコードの形 | 値型。プログラムがコピーを持つ | なし | 工場メソッドと `FromRaw` | 機械テスト | 実行と符号化を分ける | 0 | 80 |
-| `unity/Assets/OneStarMaker/Scripts/Runtime/ScriptSystem/ScriptProgram.cs` | 呼び出し側が渡した命令列の不変コピー | 実行中に列が変わらない契約 | 呼び出し側がオブジェクトを所有。中の配列は Create が確保し、tick では確保しない | なし | `Create` と命令数 | コピー後の改変が効かないこと | 機械が配列を所有しないため | 0 | 50 |
-| `unity/Assets/OneStarMaker/Scripts/Runtime/ScriptSystem/ScriptRegisters.cs` | 呼び出し側所有の int64 配列 | レジスタの寿命を VM から離す | 呼び出し側。構築時に一度だけ配列を確保する。シーン寿命や AssetOwner には載せない | なし | 本数とインデクサ。tick 用の内部読み書き | 範囲と初期値 | 機械と要素から共有する実体が要る | 0 | 80 |
-| `unity/Assets/OneStarMaker/Scripts/Runtime/ScriptSystem/ScriptMachine.cs` | 予算付きで命令を適用する | 内側 VM の中核 | 呼び出し側が機械を所有。プログラムとレジスタは借りる。カウンタとラッチは機械が持つ | 上記の型だけ | コンストラクタ、`Tick`、カウンタ、状態、ラッチ | Unity なしで結果を見る | ポリシーと Update 接続を混ぜない | 0 | 220 |
-| `unity/Assets/OneStarMaker/Scripts/Runtime/ScriptSystem/ScriptUpdateElement.cs` | Update で `Tick` を 1 回呼ぶ | UpdateSystem への接続 | 呼び出し側。登録中は UpdateElementRegistry が要素参照を持つ。バイトコードの寿命は変わらない | `IUpdateElement`、`ScriptMachine` | コンストラクタ、`Machine`、3 つの要素メソッド | Coordinator を 1 フレーム進める | Runtime の他要素と同じく、Foundation のスケジューラを消費する側 | 0 | 70 |
-| `unity/Assets/OneStarMaker/Tests/ScriptSystem/ScriptMachineTests.cs` | 命令・故障・予算・非投げ | 受け入れ条件の機械部分 | テスト | Runtime の ScriptSystem | テスト | Unity オブジェクト不要 | 既存の `OneStarMaker.Tests` | 0 | 320 |
-| `unity/Assets/OneStarMaker/Tests/ScriptSystem/ScriptUpdateElementTests.cs` | Update で進み LateUpdate では進まない。故障で後続が止まらない | 受け入れ条件の接続部分 | テスト | Foundation.UpdateSystem と ScriptSystem | テスト | EditMode | 既存テストアセンブリ。asmdef は変えない | 0 | 200 |
-
-フォルダを Runtime の `ScriptSystem` にした理由: Framework / Game の境界では Framework。Runtime / Editor の境界では Runtime。Foundation は Update のスケジューラ本体で、この VM はその消費者である。新しい asmdef は依存の判断になるので作らない。`OneStarMaker.Runtime` は既に Foundation を参照している。
-
-中核の単体テストは `ScriptMachine` に対して Unity オブジェクトなしで書ける。要素のテストだけが Coordinator を使う。Coordinator はシーンも AssetDatabase も要らない。
-
-公開 API は上表の型に限る。表に無い公開型や公開メンバーを実装で足さない。
-
-## 4. 実装計画
-
-- 変更対象: 責務マップの 9 ファイルと、Unity が参照を失わないための `.meta`。asmdef、SampleGame、`docs/updater/`、Architecture 公開面、DebugStudio、telemetry は変えない。
-- 順序: 命令と状態、命令値、プログラム、レジスタ、機械、要素、テスト。
-- Phase B から Phase A へ差し戻す条件: マップに無い状態、asmdef、所有者、寿命、公開 API が必要になったとき。機械を Unity オブジェクトなしでテストできないとき。故障を例外にする必要が出たとき。テキストの解析が無いと命令列を作れないとき。
-- 対象外を維持する方法: パーサ、Lua、ネイティブ、ログ、テレメトリ、ゲームの起動コードを追加しない。命令を 9 個から増やさない。
-
-## 5. テストとレビュー計画
-
-- 単体テスト: `ScriptMachineTests` がロード、移動、加減乗、ラップ、ジャンプ、条件ジャンプ、予算の再開、明示 Halt と自然終了のカウンタ差、不正レジスタ、不正ジャンプ、不正オペコード、ラッチ後の不変、予算 1 未満、空プログラム、Create 後の入力配列改変、コンストラクタの拒否を見る。`ScriptUpdateElementTests` が、登録と活性化のあと `RunUpdate` で進むこと、`RunLateUpdate` でカウンタが動かないこと、フレームをまたいで `Yielded` から再開すること、故障要素のあとに登録した要素が同じ Update で動くこと、要素コンストラクタの拒否を見る。
-- 差し戻し中の起点 `-Filter`（C が根拠付きで変更可。受け入れ条件の追加ではない）: `OneStarMaker.Tests.ScriptSystem`
-- 判定必須テスト（GO 候補 head。実装変更スライスは最終全 EditMode 回帰が標準）: `pwsh tools/run-tests.ps1` を `-Filter` なし、`-Platform EditMode` の既定で実行する。空 filter が全 EditMode。加えて `pwsh tools/contract-audit.ps1` と、文書を変えるため `pwsh tools/docs-audit.ps1`。
-- 全 EditMode 回帰の適用除外（理由と代替証拠。無ければ `なし`）: `なし`
-- 統合・Unity テスト: 要素テストが EditMode 上の Coordinator を使う。PlayMode、Player、Content Directory build は問いに不要。
-- 操作・実行時・目視条件の検証経路: 目視も画面操作も無い。観測はテストのアサーションと、tick 経路のソースに確保が無いことの読み取り。
-- 未知の操作経路の疎通結果と、必要な検証支援・確認地点: Unity バッチの実行環境は未確認。初回確認は判定 C。コマンドは上の `pwsh tools/run-tests.ps1`。このクラウド VM に Unity `6000.6.0f1` が無い、またはライセンスが通らない場合、判定 C は未実行のまま人間へ返す。テストランナーの新規整備はこのスライスに取り込まない。不成立を GO にも条件削除にも読み替えない。
-- 人間の判断が必要な条件と合意した担当・証拠の受け入れ方: `なし`
-- 機械検査: `pwsh tools/contract-audit.ps1`。差分の `#nullable enable`、Unity 側 `record` 禁止、テストの `Task.Delay` / `Thread.Sleep`、Runtime への Editor 依存。
-- オフラインで追加してよい観測: Unity 参照の無い機械本体と `ScriptMachineTests` を、リポジトリ外の一時 .NET プロジェクトでコンパイルして実行してよい。`Tick` の定常呼び出しについて `GC.GetAllocatedBytesForCurrentThread` が使えるホストなら、ウォームアップ後の確保バイト数を記録してよい。この結果は全 EditMode の代替にしない。一時プロジェクトはリポジトリへコミットしない。
-- A0/A1 主担当・モデル・ベンダー: このセッションの Grok 4.7。ベンダーはセッションの実行環境。
-- A2 独立レビューごとの観点・担当・モデル・ベンダー: 未実施。アーキテクチャゲート担当も未実施。
-- A3 統合担当・モデル・採否: 採否会議は未実施。人間がチャットで受諾したのは「1. 目的と対象外」の箇条と、内側だけをこのスライスで実装する判断。命令表への独立した採否は記録できない。
-- C' 用に予約した担当・モデル・ベンダー: 新規セッションの、このスライスの A/B/発見 C に関与していないモデル系列、または人間。このセッションは Grok を使うため、C' に Grok を予約しない。予約担当は起動しない。
-- 独立性の強化条件を満たせない場合の理由: A2 を走らせていないので、未関与モデルは残っている。C' 自体は判定材料が揃うまで開始しない。
-
-## 6. Phase B 実装結果
-
-- 実装: `af6c5c9fa904847fe6abde214598bc4869dbfcc1` で、Runtime の `ScriptSystem` に 9 命令、プログラム、レジスタ、機械、Update 要素を追加した。テストは `OneStarMaker.Tests` の `ScriptSystem`。asmdef と SampleGame は変えていない。行数は命令 21、状態 21、命令値 86、プログラム 40、レジスタ 74、機械 238、要素 48、機械テスト 312、要素テスト 122。
-- HANDOFF との差: 公開メンバーと命令効果は表のまま。加減乗は private な `BinaryKind` で分岐する。メソッドグループをデリゲートにすると tick で確保しうるためで、命令や故障の契約は変えていない。
-- 未実行: Unity Editor のコンパイル。`ScriptUpdateElementTests`。`pwsh tools/run-tests.ps1`。
-- implementation head commit: `af6c5c9fa904847fe6abde214598bc4869dbfcc1`
-- Phase B 担当・モデル・ベンダー: このセッションの Grok 4.7。詳細は `docs/handoff/script-system-inner/blind-audit/phase-b-result.md`。
-
-## 7. Phase C
-
-- 種別: 発見。判定 C は未実行。GO ではない。
-- evidence bundle id / hash: `docs/handoff/script-system-inner/blind-audit` / `2e5bce3c84e8f371431abeb63cd438043a501fba35e2814cfb7dff6e03702828`
-- 構造適合: 責務マップの 9 ファイルだけで、公開メンバーは凍結リストと一致する。asmdef、SampleGame、Debug、telemetry、Editor コードの差分は無い。`ScriptMachine` は 238 行で、500 行、3 責務、既存ファイルの 50% 増加は発火していない。命令適用という一つのアルゴリズムなので分割しない。private な `BinaryKind` は公開面を増やさない。機械の中核は Unity オブジェクトなしで実行できた。要素の接続テストはこの環境では実行していない。
-- 現在の問いを阻害する findings（違反する凍結済み条件 / 常時契約を併記）: なし。この発見レビューでは、凍結済みの最低条件・受け入れ条件・常時契約への違反として確定した欠陥は無い。
-- 後続スライスへ移送する findings: 同じレジスタを複数の機械が触ることを検出したり禁止したりしない。順序は呼び出し側の逐次 tick に従う。違反根拠は無く、所有は `SCRIPT_SYSTEM_OUTER_HOST`。命令番号を `contract-audit` は検査しない。番号を足すときの維持は `SCRIPT_SYSTEM_OPCODE_EXTENSION`。違反根拠は無い。
-- 実行したテストコマンドと `-Filter`、対象を選んだ理由: `pwsh tools/contract-audit.ps1`（常時契約の機械検査）。`pwsh tools/docs-audit.ps1`（HANDOFF を足したため）。リポジトリ外の一時 net8 プロジェクトで `ScriptMachineTests` を実行（HANDOFF が許す、Unity 参照の無い機械本体。要素テストは UpdateCoordinator が Unity パッケージ型に依存するため含めていない）。同じソースの Release で `Tick(32)` をウォームアップ後に 1000 回測った。起点 filter `OneStarMaker.Tests.ScriptSystem` の Unity 実行は、Unity がこの VM に無いため行っていない。
-- テスト結果（XML 上の実行テスト名と件数）: Unity の XML は無い。オフラインの機械テストは 18 件すべて成功。`Arithmetic_AddSubMul_WrapsWithoutThrowing`、`Budget_YieldsAndResumes`、`ConditionalJumps_BranchOnZeroAndNonZero`、`Constructors_RejectNullAndNegativeCount`、`Create_CopiesInstructions_SoLaterEditsDoNotAffectExecution`、`EarlierInstructionInTheSameTick_RemainsAfterALaterFault`、`EmptyProgram_Halts`、`FallingOffTheEnd_HaltsWithProgramCounterAtLength`、`InvalidJump_LatchesWithoutMovingProgramCounter`、`InvalidOpcode_Latches`、`InvalidRegister_DoesNotWriteAndLatches`、`Jump_SkipsTheNextInstruction`、`JumpToLength_HaltsInTheSameTickWhenBudgetRemains`、`LatchedTick_DoesNotMutateRegisters`、`LoadImmediate_WritesInt64_AndHaltLeavesProgramCounterOnTheHalt`、`Move_CopiesSourceIntoDestination`、`RejectedBudget_DoesNotChangeStatusOrProgramCounter`、`ZeroRegisters_CanHalt`。確保測定は sum 0、max 0。`contract-audit` と、証拠 Markdown を置く前の `docs-audit` は exit 0。証拠 Markdown を index に載せたあとの `docs-audit` も errors 0、warnings 0。
-- 判定必須のうち未実行: `pwsh tools/run-tests.ps1`（引数なし。`-Filter` を付けない EditMode が全件）。人間が Unity `6000.6.0f1` のある環境で、Editor を閉じたままこのコマンドを実行する。起点だけの確認なら `-Filter OneStarMaker.Tests.ScriptSystem` だが、それは判定の代替にしない。
-- 重い検証を発見段階で限定実行した場合の理由と範囲: Unity バッチは起動していない。差し戻しが決まったからではなく、この Linux VM に Unity Editor が無いため。
-- 未確認事項: Unity Editor 上のコンパイル。`ScriptUpdateElementTests` の実行。Unity のスクリプティング実装での確保バイト。net8 の測定とソース上の非確保を、Unity 実行の成功とは扱わない。
-- 担当・モデル: このセッションの Grok 4.7。Phase B と同じセッション、同じモデルであり、独立性は満たさない。発見だけを記録し、GO とは書かない。
-
-## 8. Phase C'
-
-- 担当方式: 未実施
-- blind audit bundle id / hash: 未記入
-- 確認範囲・方法: 未実施
-- 判定: 未実施
-- 現在の問いを阻害する findings: 未記入
-- 後続スライスへ移送する findings: 未記入
-- 残存リスク: 未記入
-- 監査できなかった範囲: 未記入
-- 独立性: 未記入
-- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: 未記入
-- 担当・モデル: 未実施
-
-## 9. Phase D
-
-- C / C' の突合: 未着手
-- マージ判断: 未着手
-- harvest: 未着手
-- 削除確認: 未着手
+This is a bounded B observation repair within condition6, not a new product owner/API/dependency or a weaker allocation condition. No new helper owner or asmdef edge. Keep each small recorder window private to its existing fixture; no global profiler settings or frame waits. Recorder is stopped/disposed even on failure. Positive-control failure, unavailable recorder or nonzero target means failed observation, never skip/success. Installed CoreModule exposes these APIs; official Unity SumAllSamplesInFrame documentation supplies the synchronous Stop/read pattern. First actual validation is focused C, then full mandatory regression at final head. Also remove only the six trailing spaces on empty values in the two newly added ScriptSystem folder meta files; GUID/content semantics unchanged. All other gates stay in effect.

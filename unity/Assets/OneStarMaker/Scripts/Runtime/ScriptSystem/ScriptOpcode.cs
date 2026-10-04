@@ -3,8 +3,8 @@
 namespace OneStarMaker.Runtime.ScriptSystem
 {
     /// <summary>
-    /// 内側 VM の命令番号。
-    /// バイトコードの互換面なので、並べ替え・欠番・値の変更をしない。追加は末尾だけにする。
+    /// 呼び出し側が組み立てる数値命令の、現在のメモリ上の番号。
+    /// 保存バイトコードやファイル形式の ABI・互換性を約束するものではない。
     /// </summary>
     public enum ScriptOpcode : byte
     {

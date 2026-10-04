@@ -75,8 +75,9 @@ namespace OneStarMaker.Runtime.ScriptSystem
         }
 
         /// <summary>
-        /// バイト列の公開口。テキストは解釈しない。
+        /// 数値 opcode とオペランドからメモリ上の命令を作る。保存形式やテキストは解釈しない。
         /// 表に無い番号もここでは受け、実行時に <see cref="ScriptMachineStatus.InvalidOpcode"/> とする。
+        /// 使用しないオペランド欄は検証しない。ファイル形式の ABI を定義する口ではない。
         /// </summary>
         public static ScriptInstruction FromRaw(byte opcode, int destination, int left, int right, long immediate)
         {
