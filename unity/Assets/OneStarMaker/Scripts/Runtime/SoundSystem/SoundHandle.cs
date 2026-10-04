@@ -5,9 +5,10 @@ using System;
 namespace OneStarMaker.Runtime.SoundSystem
 {
     /// <summary>
-    /// 登録済みの音を指す値。ゲーム固有の列挙型は受け取らない。
+    /// 登録済みの音を指す値。再生の引数はこれと音量だけで、文字列もゲーム固有の列挙型も受け取らない。
     /// バックエンドが登録時に返し、ゲームはその値を保持する。列挙型を使うならゲーム側の表の添字であり、この型へは変換しない。
-    /// 領域や優先度は別の引数である。0 は未登録。正の値だけが有効で、並びは登録順の 1 始まり。
+    /// 0 は未登録。正の値は構造上有効で、実際の登録の存在やクリップの寿命を保証しない。
+    /// 値は登録したバックエンド内の 1 始まりの順序。別バックエンドへ渡すと別クリップを指し得る。
     /// </summary>
     public readonly struct SoundHandle : IEquatable<SoundHandle>
     {
@@ -20,6 +21,7 @@ namespace OneStarMaker.Runtime.SoundSystem
 
         public static SoundHandle Invalid => default;
 
+        /// <summary>値が正かどうかだけを返す。登録や backend の生存確認ではない。</summary>
         public bool IsValid => _value > 0;
 
         internal int Value => _value;

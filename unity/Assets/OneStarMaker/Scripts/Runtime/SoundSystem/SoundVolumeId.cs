@@ -5,9 +5,9 @@ using System;
 namespace OneStarMaker.Runtime.SoundSystem
 {
     /// <summary>
-    /// ミックス上の領域。音量、優先度の既定、フェード、リバーブの設定をここに置く。
+    /// backend 内だけの論理ミックス経路。音量、優先度の既定、フェード、リバーブの設定をここに置く。
     /// ワールド座標の当たり領域ではない。リスナーの出入りで切り替える領域は後続で扱う。
-    /// 0 は無効。正の値は登録順の 1 始まり。
+    /// 0 は無効。正の値は登録順の 1 始まり。別 backend の値を渡すと別経路に一致し得る。
     /// </summary>
     public readonly struct SoundVolumeId : IEquatable<SoundVolumeId>
     {

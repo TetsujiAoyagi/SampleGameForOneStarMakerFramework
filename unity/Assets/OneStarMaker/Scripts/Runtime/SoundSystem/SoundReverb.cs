@@ -5,35 +5,42 @@ using System;
 namespace OneStarMaker.Runtime.SoundSystem
 {
     /// <summary>
-    /// 領域に載せるリバーブ。数値はバックエンドが解釈する。
-    /// Unity ネイティブは、登録時に名前を渡したミキサーの露出パラメータへ送る。
-    /// Enabled が偽のときはウェットを 0 として送り、エフェクトを閉じる。
+    /// voice ごとの Unity AudioReverbFilter 設定。共有バスの残響ではない。
+    /// レベルは millibel、減衰は秒、拡散は percent。default / Off は無効な効果を表す。
     /// </summary>
     public readonly struct SoundReverb : IEquatable<SoundReverb>
     {
-        public SoundReverb(float wet, float decaySeconds, float diffusion, bool enabled)
+        public SoundReverb(float reverbLevelMillibels, float decaySeconds, float diffusionPercent, bool enabled)
         {
-            Wet = wet;
-            DecaySeconds = decaySeconds;
-            Diffusion = diffusion;
+            // Disabled values are validated too; Off's zero fields are valid without native application.
+            if (float.IsNaN(reverbLevelMillibels) || float.IsInfinity(reverbLevelMillibels))
+                throw new ArgumentOutOfRangeException(nameof(reverbLevelMillibels));
+            if (float.IsNaN(decaySeconds) || float.IsInfinity(decaySeconds))
+                throw new ArgumentOutOfRangeException(nameof(decaySeconds));
+            if (float.IsNaN(diffusionPercent) || float.IsInfinity(diffusionPercent))
+                throw new ArgumentOutOfRangeException(nameof(diffusionPercent));
+
+            ReverbLevelMillibels = Math.Max(-10000f, Math.Min(2000f, reverbLevelMillibels));
+            DecaySeconds = Math.Max(0.1f, Math.Min(20f, decaySeconds));
+            DiffusionPercent = Math.Max(0f, Math.Min(100f, diffusionPercent));
             Enabled = enabled;
         }
 
         public static SoundReverb Off => default;
 
-        public float Wet { get; }
+        public float ReverbLevelMillibels { get; }
 
         public float DecaySeconds { get; }
 
-        public float Diffusion { get; }
+        public float DiffusionPercent { get; }
 
         public bool Enabled { get; }
 
         public bool Equals(SoundReverb other)
         {
-            return Wet == other.Wet
+            return ReverbLevelMillibels == other.ReverbLevelMillibels
                 && DecaySeconds == other.DecaySeconds
-                && Diffusion == other.Diffusion
+                && DiffusionPercent == other.DiffusionPercent
                 && Enabled == other.Enabled;
         }
 
@@ -44,7 +51,7 @@ namespace OneStarMaker.Runtime.SoundSystem
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(Wet, DecaySeconds, Diffusion, Enabled);
+            return HashCode.Combine(ReverbLevelMillibels, DecaySeconds, DiffusionPercent, Enabled);
         }
 
         public static bool operator ==(SoundReverb left, SoundReverb right)

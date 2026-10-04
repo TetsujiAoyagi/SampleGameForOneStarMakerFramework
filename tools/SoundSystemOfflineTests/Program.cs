@@ -17,6 +17,10 @@ namespace OneStarMaker.SoundSystemOfflineTests
             Run(nameof(Handle_DefaultIsInvalid_AndRegisteredValuesAreDense), Handle_DefaultIsInvalid_AndRegisteredValuesAreDense);
             Run(nameof(Mix_StealsOnlyTheLowerOrOlderVoice_AndFades), Mix_StealsOnlyTheLowerOrOlderVoice_AndFades);
             Run(nameof(Mix_PlayAndTick_DoNotAllocate), Mix_PlayAndTick_DoNotAllocate);
+            Run(nameof(Settings_ValidateFiniteInputsAndNativeUnits), Settings_ValidateFiniteInputsAndNativeUnits);
+            Run(nameof(Mix_InvalidCallsPreserveAdmissionAndFades), Mix_InvalidCallsPreserveAdmissionAndFades);
+            Run(nameof(Mix_EqualPriorityEvictsOldestAndGuardsGeneration), Mix_EqualPriorityEvictsOldestAndGuardsGeneration);
+            Run(nameof(Mix_InstantClampAndSteppedFades), Mix_InstantClampAndSteppedFades);
             Run(nameof(Player_ForwardsHandleAndVolume_WithoutAllocating), Player_ForwardsHandleAndVolume_WithoutAllocating);
             Run(nameof(Player_RejectsMissingBackend), Player_RejectsMissingBackend);
             Run(nameof(Sources_KeepClipTypesOffTheSharedPlaySurface), Sources_KeepClipTypesOffTheSharedPlaySurface);
@@ -116,6 +120,103 @@ namespace OneStarMaker.SoundSystemOfflineTests
 
             var after = GC.GetAllocatedBytesForCurrentThread();
             Equal(before, after, "mix allocated");
+        }
+
+        private static void Settings_ValidateFiniteInputsAndNativeUnits()
+        {
+            Equal(0f, new SoundVolumeSettings(-1f, 0, default).Gain, "low gain clamp");
+            Equal(1f, new SoundVolumeSettings(2f, 0, default).Gain, "high gain clamp");
+            foreach (var bad in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity })
+            {
+                Throws<ArgumentOutOfRangeException>(() => new SoundVolumeSettings(bad, 0, default));
+                foreach (var enabled in new[] { false, true })
+                {
+                    Throws<ArgumentOutOfRangeException>(() => new SoundReverb(bad, 1f, 100f, enabled));
+                    Throws<ArgumentOutOfRangeException>(() => new SoundReverb(0f, bad, 100f, enabled));
+                    Throws<ArgumentOutOfRangeException>(() => new SoundReverb(0f, 1f, bad, enabled));
+                }
+            }
+            var low = new SoundReverb(-20000f, -1f, -1f, true);
+            Equal(-10000f, low.ReverbLevelMillibels, "level minimum");
+            Equal(0.1f, low.DecaySeconds, "decay minimum");
+            Equal(0f, low.DiffusionPercent, "diffusion minimum");
+            var high = new SoundReverb(3000f, 30f, 200f, true);
+            Equal(2000f, high.ReverbLevelMillibels, "level maximum");
+            Equal(20f, high.DecaySeconds, "decay maximum");
+            Equal(100f, high.DiffusionPercent, "diffusion maximum");
+            True(!default(SoundReverb).Enabled && SoundReverb.Off == default, "Off/default");
+        }
+
+        private static void Mix_InvalidCallsPreserveAdmissionAndFades()
+        {
+            var mix = new SoundMix(2);
+            var route = mix.Add(new SoundVolumeSettings(1f, 7, default));
+            var first = mix.TryPlay(route, 0.8f, 2);
+            mix.FadeVolume(route, 0f, 2f);
+            mix.FadeVoice(first, 0.4f, 2f);
+            foreach (var bad in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity })
+            {
+                True(!mix.TryPlay(route, bad, 100).IsValid, "nonfinite admission");
+                mix.FadeVolume(route, bad, 0f);
+                mix.FadeVolume(route, 1f, bad);
+                mix.FadeVoice(first, bad, 0f);
+                mix.FadeVoice(first, 0f, bad);
+                mix.Tick(bad);
+            }
+            mix.Tick(-1f);
+            mix.Tick(0f);
+            mix.FadeVolume(route, 1f, -1f);
+            mix.FadeVoice(first, 0f, -1f);
+            mix.FadeVolume(SoundVolumeId.Invalid, 0f, 0f);
+            mix.SetReverb(SoundVolumeId.Invalid, new SoundReverb(0f, 1f, 100f, true));
+            mix.TryGetAudibleGain(route, out var gain);
+            Equal(1f, gain, "invalid tick/fade mutated route");
+            Equal(0.8f, mix.VoiceGain(first.Slot), "invalid voice fade mutated");
+            Equal(1, mix.TryPlay(route, 1f, 2).Slot, "rejection consumed empty slot");
+            mix.Tick(1f);
+            mix.TryGetAudibleGain(route, out gain);
+            Equal(0.5f, gain, "original route fade lost");
+            Equal(0.6f, mix.VoiceGain(first.Slot), "original voice fade lost");
+        }
+
+        private static void Mix_EqualPriorityEvictsOldestAndGuardsGeneration()
+        {
+            var mix = new SoundMix(2);
+            var route = mix.Add(default);
+            var first = mix.TryPlay(route, 1f, 2);
+            var second = mix.TryPlay(route, 1f, 2);
+            True(!mix.TryPlay(route, 1f, 1).IsValid, "lower admitted");
+            var replacement = mix.TryPlay(route, 1f, 2);
+            Equal(first.Slot, replacement.Slot, "oldest tie");
+            True(first != replacement, "generation reused");
+            mix.FadeVoice(first, 0f, 0f);
+            True(mix.IsActive(replacement.Slot), "stale ID released replacement");
+            mix.FadeVoice(replacement, 0f, 0f);
+            True(!mix.IsActive(replacement.Slot) && mix.IsActive(second.Slot), "release isolation");
+            var reused = mix.TryPlay(route, 1f, 0);
+            True(reused != replacement, "released generation reused");
+        }
+
+        private static void Mix_InstantClampAndSteppedFades()
+        {
+            var mix = new SoundMix(1);
+            var route = mix.Add(new SoundVolumeSettings(1f, 0, default));
+            var voice = mix.TryPlay(route, 2f, 0);
+            Equal(1f, mix.VoiceGain(voice.Slot), "voice high clamp");
+            mix.FadeVolume(route, -2f, 0f);
+            mix.TryGetAudibleGain(route, out var gain);
+            Equal(0f, gain, "instant route low clamp");
+            True(mix.IsActive(voice.Slot), "route zero releases voice");
+            mix.FadeVolume(route, 2f, 1f);
+            mix.FadeVoice(voice, 0f, 1f);
+            mix.Tick(0.25f);
+            mix.TryGetAudibleGain(route, out gain);
+            Equal(0.25f, gain, "route interpolation");
+            Equal(0.75f, mix.VoiceGain(voice.Slot), "voice interpolation");
+            mix.Tick(5f);
+            mix.TryGetAudibleGain(route, out gain);
+            Equal(1f, gain, "route overshoot");
+            True(!mix.IsActive(voice.Slot), "completed zero fade not released");
         }
 
         private static void Player_ForwardsHandleAndVolume_WithoutAllocating()

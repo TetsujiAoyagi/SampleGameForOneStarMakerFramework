@@ -15,7 +15,6 @@
     <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundVolumeSettings.cs" Link="Linked/SoundVolumeSettings.cs" />
     <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundFade.cs" Link="Linked/SoundFade.cs" />
     <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundMix.cs" Link="Linked/SoundMix.cs" />
-    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/UnityMixerParameters.cs" Link="Linked/UnityMixerParameters.cs" />
     <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/ISoundBackend.cs" Link="Linked/ISoundBackend.cs" />
     <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundPlayer.cs" Link="Linked/SoundPlayer.cs" />
   </ItemGroup>

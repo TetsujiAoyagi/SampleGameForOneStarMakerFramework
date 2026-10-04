@@ -1,133 +1,77 @@
-# SOUND_VOLUME
+# PR #90 — Phase A3 frozen r5
 
-公開文書のサウンド節は [07-09-services.md](../../unity/Assets/Docs/Architecture/07-09-services.md) にある。このスライスは当たり領域も VoiceGroup も実装しない。凍結時の計画は [SOUND_VOLUME_PHASE_A.md](SOUND_VOLUME_PHASE_A.md)。前段は [SOUND_SYSTEM.md](SOUND_SYSTEM.md)。
+## 0. Identity and adopted review decisions
 
-## 0. メタデータ
+- Type: slice; status: A3 frozen for final integration; risk: high (public mix policy/native resource lifetime); branch: `cursor/sound-volume-159b`; PR base: `develop` after #89 merge. Original stacked source head `f9df44c4c6c8128d6ab230197a29094e2f3ad0d7`, source base `d90273a2a11c9c90fbf26be8f901a6a98efdfda6`. Implementation base: `ef2f10ae8d7ef3dc81c12b8f84d0e7360ad8d333` (actually merged #89 including #88); implementation head/evidence/blind bundle pending their phases.
+- Owner: root for integration, A3 and Phase D. Date 2026-10-05 JST; expires 2026-11-05 or superseding revision. Harvest target `unity/Assets/Docs/Architecture/07-09-services.md`; remove HANDOFF at merge.
+- Inputs: source #90 and its original `SOUND_VOLUME*` HANDOFF, `phase-a-candidate.md`, both independent `phase-a2-*` reports from one A2 input, and root `phase-a-decisions.md`. Both A2 reviews approved an optional **logical** mix route, priority and time-injected fade while recommending source-only linear gain. Adopted. Root also adopts the bounded per-voice `AudioReverbFilter` alternative with explicit Unity 6000.6 units/defaults. Retire the newly unmerged `UnityMixerParameters` and named `AudioMixer.SetFloat`/cache path because they introduce a second gain/effect writer with ambiguous units and unrecoverable after-success failure, not because of zero references. No Unregister API: #89 whole-backend borrowing remains authoritative.
 
-- type: slice
-- status: C
-- branch: cursor/sound-volume-159b
-- implementation base commit: d90273a2a11c9c90fbf26be8f901a6a98efdfda6
-- implementation head commit: c22ef6edf030239fb361af9af295c2394d88e9b2
-- risk: normal
-- owner: 実装担当
-- created: 2026-10-04
-- expires: 未設定
-- harvest to: なし
-- Phase A snapshot path / id: docs/handoff/SOUND_VOLUME_PHASE_A.md
-- Phase A snapshot generated at: 2026-10-04
-- Phase A snapshot hash: 5e830f219180a8ed346bf84662d2e91ef0feb3b2e3d5a816cf5a38c30f47edcb
-- Phase B result snapshot path / id: 未実施
-- Phase B result snapshot generated at: 未実施
-- Phase B result snapshot hash: 未実施
-- evidence bundle path / id: 未実施
-- evidence bundle generated at: 未実施
-- evidence bundle hash: 未実施
-- C' blind bundle path / id: 未実施
-- C' blind bundle generated at: 未実施
-- C' blind bundle hash: 未実施
+## 1. A0 / question / alternatives
 
-A2 と A3 は未実施。この節 7 は実装と同じセッションの発見メモであり、GO ではない。
+Unity supplies `AudioSource` volume and `AudioMixerGroup` output routing. The source branch's `SoundMix` supplies deterministic priority admission, voice identity and injected-time fade, but names its logical bus `SoundVolume` and combines that policy with generic exposed-parameter writes. There is no SampleGame consumer or authored production mixer. A direct AudioSource/AudioMixer use is adequate for one producer; a small optional policy primitive is justified by repeatable admission/fade/route identity, provided native behavior is observed. A world-space collider, listener movement and a shared bus reverb tail are different requirements.
 
-## 1. 目的と対象外
+This slice answers: **can a backend-lifetime logical route with caller-owned mixer destination apply predictable source gain, voice priority and injected-time fades, with optional per-voice native reverb, without introducing a second writer of shared mixer parameters or compromising #89 clip cleanup?** GO needs pure policy proofs, actual native source/filter/group state, and final fixed-head C/C'. No audible quality or spatial behavior is inferred.
 
-- 目的: ミックスの領域を足し、その領域に音量、優先度、フェード、リバーブを載せられるようにする。Unity ではその領域を AudioMixerGroup へ流し、露出パラメータがあればリバーブと音量を送る。
-- 対象外: リスナーが空間へ出入りして切り替える当たり領域、領域ごとの同時再生数、VoiceGroup と SoundHolder、フェードごとの CancellationTokenSource、Update への自動登録、CRI と Wwise の本体、ミキサーアセットの作成、鳴っているかの聴取、公開文書の書き換え。
-- 現況: 前スライスは SoundHandle と音量だけで、空きが無ければ最も古いスロットを止めていた。そのリングは優先度の選択に置き換えた。
+Alternatives rejected for this slice: direct caller implementation (duplicates policy if more callers appear), exposed mixer parameter automation (second writer/failure recovery), and spatial trigger/room system (requires a concrete game event). `SoundVolume` naming can remain for source compatibility but its XML documentation says logical mix route, never geometric volume.
 
-## 2. 意思決定と受け入れ境界
+## 2. Frozen candidate API and behavioral contract
 
-- このスライスが答える問い: 優先度、フェード、リバーブを、クリップ再生の文字列引数にせず、ミックスの領域へ載せられるか。
-- 進める最低条件: 領域の識別子で再生先を指定でき、優先度の低い再生から止まり、フェードは注入した時間で進み、リバーブの数値は領域に残り、共有の再生口はミキサー型を持たない。
-- 受け入れ条件:
-  - 空きが無いとき、新しい音より高い優先度だけが鳴っていれば新しい音は鳴らない。それ以外は最も低い優先度を止め、同点は最も古いものを止める。
-  - 領域のフェードは再生スロットを空けない。再生のフェードが 0 に着いたらそのスロットを空ける。古い世代の再生へフェードしても復活しない。
-  - 2000 回の再生と Tick で追加割り当てが 0 である。
-  - ISoundBackend は AudioClip も AudioMixer も string も持たない。
-  - Unity の領域登録はミキサーグループと露出パラメータ名を受け、パラメータが無いときの音量フェードはソース音量に掛ける。パラメータが有るときはミキサーへ送り、ソース音量には掛けない。
-- ここでは答えない問いと所有する後続スライス: 空間の当たり領域、領域ごとの同時再生上限、Tick の Update 登録、ミキサーアセットでの実音確認、CRI と Wwise への同じ領域の対応、公開文書のフェード記述をトークン源から状態更新へ改めるか。
-- 判定定義: Unity 未実行のまま GO と書かない。GO は判定 C の全 EditMode 回帰の後だけ。
-- 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。
-- A3 後の例外承認: なし
-- 本文へ転記した実装制約: 領域はミックス上のバスであり、ワールドの当たり判定ではない。フェードの時間は Tick の引数で進む。フェードごとにトークン源は作らない。Dispose は入れ物を破棄し、遅れた再生は無効値で戻る。Unity オブジェクトの null 判定は == null。record は使わない。asmdef 参照は増やさない。
-- 未決事項: なし
+- Preserve the existing `SoundVolumeId`, `SoundVoiceId`, `SoundMix`, `SoundFade`, `SoundVolumeSettings`, `ISoundBackend`, `SoundPlayer` and `UnitySoundBackend` shapes where meaningful. `RegisterVolume(SoundVolumeSettings)` creates an explicitly **ungrouped** route. `RegisterVolume(AudioMixerGroup, SoundVolumeSettings)` replaces the original three-argument form; the `UnityMixerParameters` argument/type and the file disappear. This is a correction of an unmerged API. Null/destroyed configured group is rejected at registration (`ArgumentNullException` with Unity fake-null check); ungrouped creation is the only intentional no-group path. Routes are append-only until backend `Dispose`; no route removal API. `DefaultVolume` is the ungrouped route with initial gain 1, priority 0, reverb Off.
+- `SoundVolumeSettings(float gain, int priority, SoundReverb reverb)` retains its public shape. Gain is linear, finite input clamped to `[0,1]`; nonfinite constructor input throws `ArgumentOutOfRangeException` before state exists. Priority is an integer; larger wins. `SoundReverb` changes its newly unmerged constructor/schema to `SoundReverb(float reverbLevelMillibels, float decaySeconds, float diffusionPercent, bool enabled)` with named getters. Enabled finite values clamp to `[-10000,2000]` mB, `[0.1,20]` seconds and `[0,100]` percent, respectively; nonfinite throws `ArgumentOutOfRangeException`. `default(SoundReverb)`/`Off` means disabled and is valid despite its zero decay field. Route-level `SetReverb` accepts a validated value. This Unity-specific native setting is not a portable normalized wet mix or shared bus effect.
+- `ISoundBackend.Play(handle,gain)` uses DefaultVolume/default priority; `Play(handle,volume,gain,priority)` returns `SoundVoiceId.Invalid` on disposed backend, invalid/backend-foreign-by-contract handle, nonexistent route, destroyed clip/source/host, destroyed configured group, priority denial, or nonfinite gain. Finite voice gain clamps `[0,1]`. Rejected plays leave existing voices/slot age unchanged. A configured group is borrowed for the entire backend lifetime; caller does not destroy/reassign it before backend dispose. If it is externally destroyed, backend synchronously stops/clears affected route voices and rejects future plays on that route; it never silently reroutes those voices to the default output. Existing ungrouped route remains distinct.
+- Each voice has a separate child GameObject under the backend-owned host, with exactly one `AudioSource` and one `AudioReverbFilter`. This prevents one filter on a shared host from affecting unrelated voices. Every active source receives `source.volume = Clamp01(voiceGain) * Clamp01(routeGain)` whether a group is configured or not. `source.outputAudioMixerGroup` is the borrowed group or null for the explicitly ungrouped route. No `AudioMixer.SetFloat`, mixer parameter ownership, dB conversion, cache, restoration or duplicate-writer table. External mixer attenuation/effects remain caller-authored policy and are not included in OSM's logical gain guarantee.
+- For enabled reverb, set filter `reverbPreset = AudioReverbPreset.User` **before** numeric fields; write `reverbLevel` mB, `decayTime` seconds and `diffusion` percent plus explicit defaults: `dryLevel=0`, `room=0`, `roomHF=0`, `roomLF=0`, `decayHFRatio=0.5`, `reflectionsLevel=-10000`, `reflectionsDelay=0`, `reverbDelay=0.04`, `hfReference=5000`, `lfReference=250`, `density=100`. Then enable filter. For Off, disable and reset to those defaults so reused voices do not inherit the preceding route's effect. The filter belongs to that voice before its group; it is **not** one shared bus tail. These units/ranges were checked against official project-version references: [Unity 6000.6 manual](https://docs.unity3d.com/6000.6/Documentation/Manual/class-AudioReverbFilter.html) and [API](https://docs.unity3d.com/6000.6/Documentation/ScriptReference/AudioReverbFilter.html). Runtime property/getter behavior still needs Unity test evidence.
+- `SoundMix` owns admission and fade only. Empty slot wins; otherwise evict the lowest priority if it is no higher than incoming priority, oldest at tie; deny if all existing priorities are higher. Generation guards stale `SoundVoiceId`. A voice released by eviction, explicit `FadeVoice(voice,0,0)` or completed fade has its native source stopped and its `clip` and output group cleared, with reverb disabled/reset. No released/evicted voice may retain a borrowed clip. `FadeVolume` changes route gain without releasing a voice. Zero-second fade applies immediately; duration <0 or nonfinite is a no-op before state mutation; finite target gain clamps `[0,1]`, nonfinite target is a no-op. `FadeVoice` on stale/invalid ID is a no-op. `SetReverb` on an invalid route is a no-op, preserving source void-return pattern.
+- `Tick(float deltaTime)` is explicitly invoked by one main-thread backend owner; it is not automatically registered by this PR. Finite delta <0 or nonfinite is ignored without any mutation; zero delta leaves fade progress unchanged but may apply already-immediate state/cleanup. A deployed owner must register its update with `UpdateSystemRuntime` and honor the repository frame order. No separate MonoBehaviour loop is added. Play, Tick, fade and filter/source I/O are main-thread-only. Dispose is idempotent and synchronously stops/clears sources and clip table before host destruction, inheriting #89's `IAssetManagement` backend-lifetime borrow order. `SoundPlayer` never owns/disposes backend.
+- Natural one-shot completion uses the minimal native observation: on the **next caller-owned `Tick`**, reconcile any active voice whose `AudioSource.isPlaying == false` by releasing its mix slot, stopping/clearing its source clip and output group, and disabling/resetting its filter. Do not run this collection before `Play`/admission; same-frame capacity and priority are determined by `SoundMix`, so a headless `Play` that has not begun audible output does not immediately erase admission state. If headless playback never starts, the voice may be released at the next Tick; that is an explicitly accepted limitation, not audible success. The backend uses 2D nonlooping sources and owns native playback controls: production callers do not call `Pause`/`Stop` directly, since `!isPlaying` would then be interpreted as completion. Do not use `timeSamples > 0`, injected duration clocks or an implicit audio-device wait. A controlled native test may call `source.Stop` **only as a fixture** to force a stopped native source, then Tick and assert slot/clip cleanup; it does not make external Stop a supported production API. Actual elapsed audible natural end remains unproven in headless EditMode and is not claimed by that fixture.
 
-## 3. 責務マップ
+## 3. Responsibility and size
 
-- `SoundVolumeId.cs` 73 行。`SoundVoiceId.cs` 60 行。識別子。
-- `SoundReverb.cs` 60 行。`SoundVolumeSettings.cs` 41 行。領域に載せる数値。
-- `SoundFade.cs` 52 行。1 歩の補間。
-- `SoundMix.cs` 338 行。優先度、フェード、リバーブの状態。クリップもミキサーも知らない。
-- `UnityMixerParameters.cs` 35 行。露出パラメータ名。
-- `ISoundBackend.cs` 24 行。`SoundPlayer.cs` 56 行。共有口と転送。
-- `UnitySoundBackend.cs` 391 行。AudioSource とミキサーグループへの結線。状態機械は SoundMix に置いたので、これ以上は分割していない。
-- 試験はオフラインと EditMode。聴取はしない。
+- `SoundVolumeId.cs` (~73 source lines) and `SoundVoiceId.cs` (~60): backend-local typed identity/generation, pure and offline-testable. `SoundFade.cs` (~52): pure interpolation. `SoundVolumeSettings.cs` (~41) and `SoundReverb.cs` (~60): validated settings and explicit native units, no Unity object ownership.
+- `SoundMix.cs` (~338): pure admission, route/voice gain, fade and release state, expected ~350-420 after input validation. It must not inspect `AudioSource`, `AudioMixerGroup` or Editor objects. Above 3 responsibilities/50% growth triggers an architecture explanation, not automatic splitting; admission and fade share one voice state but Unity I/O remains outside.
+- `UnitySoundBackend.cs` (~391 source): backend-owned host/child voices, borrowed clip registry, borrowed group records, native assignment/filter cleanup, expected ~380-480 after removing SetFloat writer and adding voice layout. Source policy is in SoundMix. If unrelated native route I/O pushes it past 500 lines or mixes independent ownership, a small internal native voice adapter is permitted only by A3 responsibility map/revision, not a public manager. `UnityMixerParameters.cs` and `.meta` are removed for the contractual writer reason above. Existing `ISoundBackend.cs`/`SoundPlayer.cs` remain only as public typed forwarding (~24/~56); no middleware adapter is added.
+- Tests: `unity/Assets/OneStarMaker/Tests/SoundSystem/SoundSystemTests.cs` grows from ~source tests to native source/group/filter behavior, expected ~230-340; offline Program tests pure selection/fade/generation/finite/no-allocation. Editor-only fixture code stays in test assembly. No runtime Editor dependency/asmdef edge, new production mixer asset, SampleGame scene/prefab or new game feature. All touched Unity C# has `#nullable enable`, no `record`, and Unity fake-null comparisons.
 
-行数警報で分割する閾値には達していない。
+## 4. Native fixture and test feasibility
 
-## 4. 実装計画
+Pure tests cover route identities/defaults, priority denial/eviction/tie, stale voice, instant/stepped fades, finite input rejection and no mutation, zero delta and fixed-loop allocation. Native EditMode creates real `AudioClip`, backend voices and filter; asserts `AudioSource.volume`, `outputAudioMixerGroup`, filter User preset/all default and selected properties, independent concurrent voices, reuse/reset, destroyed group fail-closed and #89 borrowed clip cleanup. Component state proves configuration, not listening.
 
-- 変更対象: SoundSystem、EditMode 試験、オフライン試験、計画 snapshot、この HANDOFF。
-- 順序: 識別子、状態機械、共有口、Unity の結線、試験。
-- Phase B から Phase A へ差し戻す条件: 共有口にミキサー型や文字列の再生引数が必要になったとき。空間の当たり領域がこのスライスの最低条件になったとき。
-- 対象外を維持する方法: 当たり領域、VoiceGroup、SoundHolder、CRI、Wwise、Update 登録を追加しない。
+A real `AudioMixerGroup` is required to prove routing. There is no current mixer asset. The test assembly may reflect the Editor-only Unity API `UnityEditor.Audio.AudioMixerController.CreateMixerControllerAtPath(string)` found in UnityCsReference, at a bounded test path, then use `AssetDatabase.LoadAssetAtPath<AudioMixer>`/`FindMatchingGroups` and delete that test asset in `finally` with `AssetDatabase.DeleteAsset`. No YAML editing or Runtime→Editor edge. This is an **unconfirmed Unity 6000.6 execution path**; first C discovery owns invocation and raw evidence. If reflection is unavailable, C may use the repository's Editor workflow to author one bounded test fixture asset through the Editor, preserve its bytes/meta and update test references on a new final head. Re-run C/C' after that change. A fake/null group cannot satisfy routing proof. No human listening/quality gate is implied.
 
-## 5. テストとレビュー計画
+Native reconciliation proof is initially unconfirmed. The controlled fixture forces `source.Stop` after assignment, calls Tick, and asserts release/clear without `Task.Delay`/`Thread.Sleep`. An independently observed elapsed end may be recorded if the runner supports it, but the fixture does not assert audible playback or a real-time natural ending. The test must also verify that Play does not collect an immediately nonplaying source before admission and that the next Tick handles it consistently.
 
-- 単体テスト: オフライン実行ファイル。EditMode は同じ論理と Unity の領域登録。
-- 差し戻し中の起点 -Filter: OneStarMaker.Tests.SoundSystem
-- 判定必須テスト: 最終の全 EditMode 回帰。加えてオフライン実行ファイル。
-- 全 EditMode 回帰の適用除外: なし
-- 統合・Unity テスト: ミキサーを通した実音の聴取は判定必須に入れない。
-- 操作・実行時・目視条件の検証経路: なし
-- 未知の操作経路の疎通結果: なし
-- 人間の判断が必要な条件: なし
-- 機械検査: pwsh tools/contract-audit.ps1 と pwsh tools/docs-audit.ps1
-- A0/A1 主担当・モデル・ベンダー: この実装セッション。Grok。
-- A2 独立レビューごとの観点・担当・モデル・ベンダー: 未実施
-- A3 統合担当・モデル・採否: 未実施。依頼の次の一手を、ミックスの領域として凍結した。
-- C' 用に予約した担当・モデル・ベンダー: 未予約
-- 独立性の強化条件を満たせない場合の理由: A2 と C' をこのセッションでは開いていない。
+## 5. Execution boundary, gates and stop rule
 
-## 6. Phase B 実装結果
+B may prepare the bounded repair in its isolated checkout now against the fixed #89 whole-backend-borrow contract. Final judgment, retargeting and merge wait until #89 has merged: root records the exact merged base, normally integrates develop and reconciles the narrow shared sound files without rewriting published history, then freezes the final integration snapshot/head. Root keeps SOUND_VOLUME.md as the live snapshot and removes its obsolete PHASE_A duplicate, whose published bytes are already archived. #89 clip borrow/Dispose is not redesigned. Phase B stops for new public owner/state, asmdef dependency, materially different native reverb schema, or an acceptance-path failure requiring a new contract; bounded code/fixture repairs within A3 are B adaptation.
 
-- 実装: 領域、再生の世代、優先度による空き選択、Tick で進むフェード、リバーブの保持、Unity のミキサーグループ結線を追加した。最も古いスロットを無条件に止めるリングは外した。asmdef は変更していない。
-- HANDOFF との差: なし。
-- 未実行: Unity Editor のコンパイル確認と EditMode。ミキサーの SetFloat が実音に出るかは未確認。オフライン試験は UnitySoundBackend をコンパイルしない。
-- implementation head commit: c22ef6edf030239fb361af9af295c2394d88e9b2
-- Phase B 担当・モデル・ベンダー: この実装セッション。Grok。
+Discovery C starts with `-Filter OneStarMaker.Tests.SoundSystem` and the sound offline executable. On one fixed GO-candidate head: `pwsh tools/contract-audit.ps1`, `pwsh tools/docs-audit.ps1`, `git diff --check`, offline sound suite and standard `pwsh tools/run-tests.ps1` with empty EditMode filter; inspect XML test names/count, actual group/source/filter assertions and failures. No all-EditMode exemption. Unity batch test belongs to C through approved outside-sandbox path after checking Editor state. The first route fixture and natural-completion feasibility results must be recorded as confirmed/unconfirmed, never upgraded from API research alone. Native exit stall investigation budget has already been used; follow the existing stop rule without reinvestigation. No `unity test`/`unity run`.
 
-## 7. Phase C
+Phase B uses gpt-6.1-sol, independent C gpt-6-astra, fresh blind C' gpt-5.6-sol with fixed same implementation base/head and raw evidence, free of C findings. C reviews responsibility map before feature behavior; C' does not merely replay C. GO requires the minimum and all detailed native/pure conditions plus final tests and no C/C' blocker. NO-GO while any required observation is missing. After GO, stop this slice: spatial regions, shared bus reverb tail, audibility, authored production mixer, middleware and SampleGame music remain separately owned questions. Phase D merges into `develop`, harvests accurate Architecture §7 current behavior, and deletes HANDOFF.
 
-- 種別: 発見
-- evidence bundle id / hash: 未実施
-- 構造適合: 領域の数値は Runtime の SoundSystem にあり、ミキサー型は UnitySoundBackend と UnityMixerParameters に閉じている。SampleGame は参照していない。asmdef 参照は増えていない。
-- 現在の問いを阻害する findings: なし。この発見は実装と同じセッションであり、独立レビューではない。
-- 後続スライスへ移送する findings: 空間の当たり領域、領域ごとの同時再生上限、Tick を Update へ登録すること、ミキサーアセットを使った実音、CRI と Wwise、公開文書のトークン源によるフェード記述。
-- 実行したテストコマンドと -Filter: `dotnet run --project tools/SoundSystemOfflineTests/SoundSystemOfflineTests.csproj -c Release`。Unity の filter は使っていない。優先度、フェード、割り当ては Unity 無しで観測できるため。
-- テスト結果: オフライン 6 件実行、失敗 0、exit 0。名前は Handle_DefaultIsInvalid_AndRegisteredValuesAreDense、Mix_StealsOnlyTheLowerOrOlderVoice_AndFades、Mix_PlayAndTick_DoNotAllocate、Player_ForwardsHandleAndVolume_WithoutAllocating、Player_RejectsMissingBackend、Sources_KeepClipTypesOffTheSharedPlaySurface。contract-audit は errors=0 warnings=0。
-- 判定必須のうち未実行: 全 EditMode 回帰。Unity の SoundSystemTests も未実行。
-- 重い検証を発見段階で限定実行した場合の理由と範囲: Unity バッチは実行していない。
-- 未確認事項: Unity でのコンパイル、AudioMixer.SetFloat の実音、リスナーが無いときの聞こえ。GO ではない。
-- 担当・モデル: この実装セッション。Grok。
+## 6. Root A3 adoption, concrete fixture choices and parallel preparation
 
-## 8. Phase C'
+The human explicitly asked root to bring every remaining PR to merge, including zero-base evaluation and necessary repairs. Root adopts the two independent A2 dispositions above under that delegation; no claim is made that the human personally reviewed each report. A1 was gpt-6-sol; independent A2 architecture gpt-6-astra and A2 contract gpt-6.1-sol used the same r1 input. C' gpt-5.6-sol remains reserved. This slice keeps #89's frozen whole-backend borrowing; it does not publish or validate #89 by preparing these changes early. Root merges #89 first and resolves integration before C/C'.
 
-- 担当方式: 未実施
-- blind audit bundle id / hash: 未実施
-- 確認範囲・方法: 未実施
-- 判定: 未実施
-- 現在の問いを阻害する findings: 未実施
-- 後続スライスへ移送する findings: 未実施
-- 残存リスク: 未実施
-- 監査できなかった範囲: 未実施
-- 独立性: 未実施
-- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: 未実施
-- 担当・モデル: 未実施
+Precise native reset values: for Off or released voices, disable the per-voice filter, select User before writing, and reset reverbLevel=-10000 mB, decayTime=1 second and diffusion=100 percent, plus all other explicit defaults from section 2. Those disabled native baseline values are independent of default(SoundReverb)'s zero-valued data fields. Constructors reject nonfinite numeric inputs even when enabled=false; finite constructor values clamp normally, while default/Off stays a valid disabled value. These choices complete the disabled reset boundary without adding a shared effect writer.
 
-## 9. Phase D
+Destroyed configured groups are reconciled at the next valid Tick or next Play directed to that route, synchronously before that operation returns. No watcher or automatic update owner is implied. An invalid delta returns before any mutation. A missing owned native component is guarded with Unity fake-null comparisons; never dereference a destroyed source/filter. Zero-duration facade fades update the corresponding native values/cleanup before returning; gradual fade mathematics is proven in the pure layer, without requiring headless isPlaying=true.
 
-- C / C' の突合: 未実施
-- マージ判断: 未実施
-- harvest: 未実施
-- 削除確認: 未実施
+Allowed fixture placement: retain #89 core ownership/native cleanup tests in SoundSystemTests.cs (the prepared #89 B snapshot may be used as the dependency contract), and put distinct #90 pure-policy cases in SoundMixTests.cs plus meta and native route/filter/group cases in UnitySoundMixBackendTests.cs plus meta. This is separation by pure policy versus Editor/native I/O, not a line-count wrapper. No new asmdef dependency. The native mixer fixture uses only a new unique path Assets/OneStarMaker/Tests/SoundSystem/GeneratedMixer-<GuidN>.mixer, refuses an existing asset, creates through the Editor API, and deletes only its own asset/meta via AssetDatabase in guaranteed cleanup. First invocation remains unconfirmed and belongs to C. No serialized YAML edit or preexisting mixer overwrite.
+
+Evidence root: D:/repositories/unity/SampleGameForOneStarMakerFramework/TestResults/pr90-integration. Root owns retrieval/retention through 2026-11-05. Immutable A snapshot/manifest, neutral B result, complete final base/head diff and neutral raw mandatory checks are ZIP-packaged, extracted and hash/length verified for the same C/C' input; reports remain outside raw. Earlier source HANDOFF is preserved in original-published-handoff.zip and Git history. Final native execution uses child-process SAMPLEGAME_content__runtimeMode=addressables and the standard runner, first invocation escalated. Known native shutdown investigation budget is exhausted, including the repeated ambiguous #88 shutdown; do not probe/dump/cache-purge or rerun an unchanged full suite for it. Failed/forced/unconfirmed exits stay failed.
+
+Root permits isolated B preparation before #89 merge to avoid idle time while other PRs execute Unity tests. No final C, publication or PR90 merge occurs against the repair base alone. Root refreshes only integration metadata when the actual develop base advances; any public behavior/owner/asmdef change requires a classified Phase A revision. Existing SOUND_SYSTEM HANDOFF files inherited from #89 are not a new PR90 planning authority and are reconciled away through #89 integration before C. Architecture07-09 section7 receives truthful current contract in B before final C; D deletes only the completed SOUND_VOLUME live HANDOFF.
+## r3 bounded existing allocation-fixture observation repair
+
+In the existing Unity SoundSystemTests.Player_ForwardsHandleAndVolume_WithoutAllocating case, replace GC.GetAllocatedBytesForCurrentThread with one Unity GC.Alloc observation route. Use ProfilerRecorder(ProfilerCategory.Internal, GC.Alloc, capacity1, SumAllSamplesInFrame | CollectOnlyOnCurrentThread), constructed stopped. Assert Valid outside capture. Start/try/finally Stop a positive-control new byte[4096] kept alive with GC.KeepAlive; after Stop assert GetSample(0).Count >0 (zero if no aggregate sample). Reset while stopped and assert the stored aggregate count is clear. Start/try/finally Stop around the unchanged warmed forwarding workload only; then assert allocation-event Count0. Record actual UnitType, positiveEvents, targetEvents and existing workload facts; never label sample.Value as bytes unless its UnitType establishes that meaning. All assertions/setup/output remain outside the target window and the recorder is stopped/disposed even on failure.
+
+This repairs sensitivity of an existing test for an existing no-allocation claim; it adds no native AudioSource Play allocation gate, product behavior, public API, dependency, helper owner or new test framework. .NET offline measurements remain unchanged. A failed positive control, unavailable recorder or nonzero target is a test failure, never skipped/accepted as zero. The installed CoreModule APIs and official Unity synchronous SumAllSamplesInFrame example establish the API route; actual native observation is first confirmed by C. Existing integration dependencies and mandatory final gates remain unchanged.
+## r4 preliminary integration and first-native discovery
+
+Current merged develop09242db5cd8cf2cd6695522dcd4cee5fcfc020f6 is integrated normally as5514d00e79471ca3a64625fc5b7c84175ffd2562. The public/lifetime/policy/observer contracts above are unchanged. Root may fix a preliminary discovery head and run only the existing focused SoundSystem/native mixer fixture before PR89 merges, to confirm the previously unexecuted Editor fixture route. Final empty-filter regression and judgment C/C' remain after actual PR89 merge/integration on a newly fixed head. This discovery diff includes inherited SoundSystem foundation; it is not the final PR90-only review diff. Root must reconcile it with actual PR89 and preserve its final contracts. No approval or gate waiver is inferred from preliminary success.
+
+The repair checkout is the historical pr91-docs project. After commit/root detach, the branch may move into a safely terminated initialized execution checkout; root records the exact path when transferred. No parallel operation on one Unity project, no Library copy, no changes to ambiguous pr87-phase-c/pr88-native projects. Full is forbidden until root dispatches the actual final integrated head.
+
+## r5 final integration metadata
+
+PR89 has actually merged into develop as ef2f10ae8d7ef3dc81c12b8f84d0e7360ad8d333. Root integrates that exact base normally before fixing the final PR90-only head. Runtime/API, responsibility, lifetime, fixture and acceptance contracts remain unchanged from r4; this revision refreshes dependency and execution metadata only. Final execution checkout is C:/Users/void/.codex/worktrees/pr86-repair/SampleGameForOneStarMakerFramework, branch codex/pr90-contract-review. Preserve merged InputSystem and all prior develop content; reconcile away the completed inherited SOUND_SYSTEM HANDOFFs. SoundVoiceRing was replaced in original PR90 by SoundMix admission/priority policy; do not revive that internal replaced implementation. The final implementation head gets all mandatory checks and empty-filter EditMode regression plus independent C and fresh blind C'. Prior preliminary runs are historical discovery evidence, not final-head acceptance. No new native-exit exception or investigation budget is granted.

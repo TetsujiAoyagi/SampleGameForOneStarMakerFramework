@@ -3,9 +3,9 @@
 namespace OneStarMaker.Runtime.SoundSystem
 {
     /// <summary>
-    /// 再生の差し替え口。Unity ネイティブ、CRI、Wwise などの具象型がこれを実装する。
-    /// クリップ、キュー名、ミキサー型はここに置かない。領域の識別子と数値だけを渡す。
-    /// Play、Fade、Tick は割り当てない。時間は Tick の引数で進む。
+    /// 任意の再生差し替え口。ミドルウェアへの互換性を保証するものではない。
+    /// backend 内だけの登録値と論理ミックス経路を使う。Unity native 呼び出しはメインスレッド限定。
+    /// 時間は呼び出し側の Tick で進む。UpdateSystemRuntime への登録とフレーム順序はその所有者が守る。
     /// </summary>
     public interface ISoundBackend
     {

@@ -5,7 +5,7 @@ using System;
 namespace OneStarMaker.Runtime.SoundSystem
 {
     /// <summary>
-    /// 領域と再生スロットの状態。クリップもミキサーも知らない。
+    /// 論理ミックス経路と再生スロットの状態。クリップもミキサーも知らない。
     /// 空きが無ければ、新しい音より高い優先度だけが埋まっているとき新しい音を捨てる。
     /// それ以外は最も低い優先度を止め、同点なら最も古いものを止める。
     /// 領域のフェードはスロットを空けない。再生のフェードが 0 に着いたらそのスロットを空ける。
@@ -15,7 +15,7 @@ namespace OneStarMaker.Runtime.SoundSystem
         private readonly Voice[] _voices;
         private Volume[] _volumes;
         private int _volumeCount;
-        private int _sequence;
+        private long _sequence;
 
         public SoundMix(int voiceCount)
         {
@@ -34,9 +34,12 @@ namespace OneStarMaker.Runtime.SoundSystem
 
         public SoundVolumeId Add(SoundVolumeSettings settings)
         {
+            if (_volumeCount == int.MaxValue)
+                throw new InvalidOperationException("SoundVolumeId の登録上限です。");
+
             if (_volumeCount == _volumes.Length)
             {
-                var next = _volumeCount == 0 ? 4 : _volumeCount * 2;
+                var next = _volumeCount == 0 ? 4 : (int)Math.Min((long)_volumeCount * 2, int.MaxValue);
                 Array.Resize(ref _volumes, next);
             }
 
@@ -83,7 +86,7 @@ namespace OneStarMaker.Runtime.SoundSystem
 
         public void FadeVolume(SoundVolumeId volume, float targetGain, float seconds)
         {
-            if (!SoundVolumeIndex.TryGet(volume, _volumeCount, out var index))
+            if (!ValidFade(targetGain, seconds) || !SoundVolumeIndex.TryGet(volume, _volumeCount, out var index))
             {
                 return;
             }
@@ -96,7 +99,7 @@ namespace OneStarMaker.Runtime.SoundSystem
 
         public void FadeVoice(SoundVoiceId voice, float targetGain, float seconds)
         {
-            if (!TrySlot(voice, out var index))
+            if (!ValidFade(targetGain, seconds) || !TrySlot(voice, out var index))
             {
                 return;
             }
@@ -115,28 +118,29 @@ namespace OneStarMaker.Runtime.SoundSystem
 
         public SoundVoiceId TryPlay(SoundVolumeId volume, float gain, int priority)
         {
-            if (!SoundVolumeIndex.TryGet(volume, _volumeCount, out var volumeIndex))
+            var slot = SelectSlot(volume, gain, priority);
+            if (slot < 0)
             {
                 return SoundVoiceId.Invalid;
             }
+
+            return Occupy(slot, volume.Value - 1, Math.Max(0f, Math.Min(1f, gain)), priority);
+        }
+
+        // Native callers inspect the selected components before admission mutates age/generation.
+        internal int SelectSlot(SoundVolumeId volume, float gain, int priority)
+        {
+            if (float.IsNaN(gain) || float.IsInfinity(gain) ||
+                !SoundVolumeIndex.TryGet(volume, _volumeCount, out _))
+                return -1;
 
             var slot = FindFree();
-            if (slot < 0)
-            {
-                slot = FindVictim(priority);
-            }
-
-            if (slot < 0)
-            {
-                return SoundVoiceId.Invalid;
-            }
-
-            return Occupy(slot, volumeIndex, gain, priority);
+            return slot < 0 ? FindVictim(priority) : slot;
         }
 
         public void Tick(float deltaTime)
         {
-            if (deltaTime <= 0f)
+            if (deltaTime <= 0f || float.IsNaN(deltaTime) || float.IsInfinity(deltaTime))
             {
                 return;
             }
@@ -256,7 +260,7 @@ namespace OneStarMaker.Runtime.SoundSystem
         {
             var found = -1;
             var bestPriority = 0;
-            var bestSequence = 0;
+            var bestSequence = 0L;
             for (var i = 0; i < _voices.Length; i++)
             {
                 if (!_voices[i].Active)
@@ -282,7 +286,7 @@ namespace OneStarMaker.Runtime.SoundSystem
             return found;
         }
 
-        private bool TrySlot(SoundVoiceId voice, out int slot)
+        internal bool TrySlot(SoundVoiceId voice, out int slot)
         {
             slot = voice.Slot;
             if (!voice.IsValid || (uint)slot >= (uint)_voices.Length)
@@ -296,6 +300,7 @@ namespace OneStarMaker.Runtime.SoundSystem
 
         private static void StartFade(ref float current, ref float target, ref float speed, float next, float seconds)
         {
+            next = Math.Max(0f, Math.Min(1f, next));
             target = next;
             speed = SoundFade.Speed(current, next, seconds);
             if (speed <= 0f)
@@ -304,12 +309,18 @@ namespace OneStarMaker.Runtime.SoundSystem
             }
         }
 
+        internal static bool ValidFade(float target, float seconds)
+        {
+            return !float.IsNaN(target) && !float.IsInfinity(target) &&
+                !float.IsNaN(seconds) && !float.IsInfinity(seconds) && seconds >= 0f;
+        }
+
         private struct Voice
         {
             public int Generation;
             public bool Active;
             public int Priority;
-            public int Sequence;
+            public long Sequence;
             public int VolumeIndex;
             public float Current;
             public float Target;

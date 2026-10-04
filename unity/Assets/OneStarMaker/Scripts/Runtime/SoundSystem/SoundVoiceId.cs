@@ -7,6 +7,7 @@ namespace OneStarMaker.Runtime.SoundSystem
     /// <summary>
     /// いま鳴っている一つの再生。スロットを再利用したら世代が進み、古い値は無音になる。
     /// 優先度で弾けた再生は Invalid を返す。
+    /// backend 内だけの値であり、別 backend の値を渡してはいけない。
     /// </summary>
     public readonly struct SoundVoiceId : IEquatable<SoundVoiceId>
     {

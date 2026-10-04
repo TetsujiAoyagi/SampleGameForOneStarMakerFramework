@@ -8,6 +8,7 @@ namespace OneStarMaker.Runtime.SoundSystem
     /// 再生箇所が具象バックエンドを見ずに鳴らすための転送。
     /// 無効な識別子もそのまま渡し、鳴らすかどうかはバックエンドが決める。転送自体は割り当てない。
     /// Tick は呼び出し側が進める。Update への登録はこの型では行わない。
+    /// backend は借用するだけで所有・Dispose しない。Unity native 呼び出しはメインスレッド限定。
     /// </summary>
     public sealed class SoundPlayer
     {

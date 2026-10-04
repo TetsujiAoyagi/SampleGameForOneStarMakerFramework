@@ -7,16 +7,24 @@ using UnityEngine.Audio;
 namespace OneStarMaker.Runtime.SoundSystem
 {
     /// <summary>
-    /// Unity の AudioSource を固定本数だけ使い回し、領域ごとにミキサーグループへ流す。
-    /// 領域の音量フェードは、露出パラメータが有るときミキサーへ送り、ソースの音量には掛けない。
-    /// パラメータが無いときはソース音量に領域の音量を掛ける。二重に下げないため。
-    /// 優先度で捨てた再生と、破棄後の Play は無効な識別子で戻る。例外オブジェクトを作らないため。
-    /// 自然に鳴り終わったスロットは、再生位置が進んで止まっているときだけ空ける。
+    /// Optional fixed native voice pool with backend-local logical mix routes.
+    /// Construction, registration, playback, fades, Tick and disposal use Unity's main thread.
+    /// Source gain is voice gain times route gain; authored mixer effects remain caller policy.
     /// </summary>
+    /// <remarks>
+    /// The creator owns the backend and host. All clips and configured groups are borrowed until Dispose.
+    /// Obtain clips through IAssetManagement with AssetOwner.Manual; release IAssetHandle&lt;AudioClip&gt;
+    /// only after Dispose. App requires explicit Dispose-before-ReleaseAll ordering.
+    /// Scene(id) / Bind(go) auto-expiring owners are unsupported. No borrowed asset is released/destroyed here.
+    /// SoundPlayer borrows this backend. Register caller-owned Tick with UpdateSystemRuntime and honor its frame order.
+    /// Native Pause/Stop is backend-owned: nonplaying sources are collected at the next valid Tick.
+    /// Component configuration and Play do not guarantee audible output.
+    /// </remarks>
     public sealed class UnitySoundBackend : ISoundBackend, IDisposable
     {
         private readonly GameObject _host;
         private readonly AudioSource[] _voices;
+        private readonly AudioReverbFilter[] _filters;
         private readonly SoundMix _mix;
         private readonly SoundVolumeId _defaultVolume;
         private AudioClip[] _clips;
@@ -27,365 +35,289 @@ namespace OneStarMaker.Runtime.SoundSystem
         public UnitySoundBackend(int voiceCount)
         {
             if (voiceCount < 1)
-            {
-                throw new ArgumentOutOfRangeException(nameof(voiceCount), "同時再生数は 1 以上です。");
-            }
-
+                throw new ArgumentOutOfRangeException(nameof(voiceCount));
             var host = new GameObject("OSM Sound");
-            host.hideFlags = HideFlags.HideAndDontSave;
-            var voices = new AudioSource[voiceCount];
             try
             {
+                host.hideFlags = HideFlags.HideAndDontSave;
+                var voices = new AudioSource[voiceCount];
+                var filters = new AudioReverbFilter[voiceCount];
                 if (Application.isPlaying)
-                {
                     UnityEngine.Object.DontDestroyOnLoad(host);
-                }
-
                 for (var i = 0; i < voiceCount; i++)
                 {
-                    var source = host.AddComponent<AudioSource>();
+                    // A filter affects sources on its GameObject; each voice needs its own child.
+                    var child = new GameObject("Voice " + i);
+                    child.transform.SetParent(host.transform, false);
+                    child.hideFlags = HideFlags.HideAndDontSave;
+                    var source = child.AddComponent<AudioSource>();
                     source.playOnAwake = false;
                     source.loop = false;
                     source.spatialBlend = 0f;
                     voices[i] = source;
+                    filters[i] = child.AddComponent<AudioReverbFilter>();
+                    ApplyReverb(filters[i], SoundReverb.Off);
                 }
+                _host = host;
+                _voices = voices;
+                _filters = filters;
+                _clips = Array.Empty<AudioClip>();
+                _routes = new Route[4];
+                _mix = new SoundMix(voiceCount);
+                _defaultVolume = AddVolume(null, new SoundVolumeSettings(1f, 0, SoundReverb.Off));
             }
             catch
             {
                 DestroyHost(host);
                 throw;
             }
-
-            _host = host;
-            _voices = voices;
-            _clips = Array.Empty<AudioClip>();
-            _routes = new Route[4];
-            _mix = new SoundMix(voiceCount);
-            _defaultVolume = AddVolume(null!, new SoundVolumeSettings(1f, 0, SoundReverb.Off), default);
         }
 
+        /// <summary>Append-only borrowed clip count; zero after Dispose.</summary>
         public int RegisteredCount => _count;
-
+        /// <summary>Ungrouped route with initial gain 1, priority 0 and reverb Off.</summary>
         public SoundVolumeId DefaultVolume => _defaultVolume;
 
+        /// <summary>
+        /// Borrow a clip for this backend's lifetime and return a one-based backend-local handle.
+        /// Another backend's handle can alias another clip and must not be supplied.
+        /// </summary>
         public SoundHandle Register(AudioClip clip)
         {
             if (_disposed)
-            {
                 throw new ObjectDisposedException(nameof(UnitySoundBackend));
-            }
-
             if (clip == null)
-            {
                 throw new ArgumentNullException(nameof(clip));
-            }
-
+            if (_count == int.MaxValue)
+                throw new InvalidOperationException("SoundHandle registration limit reached.");
             if (_count == _clips.Length)
             {
-                var next = _count == 0 ? 4 : _count * 2;
+                var next = _count == 0 ? 4 : (int)Math.Min((long)_count * 2, int.MaxValue);
                 Array.Resize(ref _clips, next);
             }
-
-            _clips[_count] = clip;
-            _count++;
+            _clips[_count++] = clip;
             return SoundHandle.FromRegisteredCount(_count);
         }
 
+        /// <summary>Create an explicitly ungrouped, backend-local logical route, with no spatial region.</summary>
         public SoundVolumeId RegisterVolume(SoundVolumeSettings settings)
         {
             if (_disposed)
-            {
                 throw new ObjectDisposedException(nameof(UnitySoundBackend));
-            }
-
-            return AddVolume(null!, settings, default);
+            return AddVolume(null, settings);
         }
 
-        public SoundVolumeId RegisterVolume(AudioMixerGroup group, SoundVolumeSettings settings, UnityMixerParameters parameters)
+        /// <summary>
+        /// Borrow the destination until Dispose; caller must not destroy/reassign it during that lifetime.
+        /// Null/destroyed groups are rejected. External destruction fails closed at the next valid Tick or directed Play.
+        /// </summary>
+        public SoundVolumeId RegisterVolume(AudioMixerGroup group, SoundVolumeSettings settings)
         {
             if (_disposed)
-            {
                 throw new ObjectDisposedException(nameof(UnitySoundBackend));
-            }
-
-            return AddVolume(group, settings, parameters);
+            if (group == null)
+                throw new ArgumentNullException(nameof(group));
+            return AddVolume(group, settings);
         }
 
         public bool TryGetSettings(SoundVolumeId volume, out SoundVolumeSettings settings)
-        {
-            return _mix.TryGetSettings(volume, out settings);
-        }
-
+            => _mix.TryGetSettings(volume, out settings);
+        /// <summary>Current logical route gain, excluding caller-authored mixer attenuation.</summary>
         public bool TryGetAudibleGain(SoundVolumeId volume, out float gain)
-        {
-            return _mix.TryGetAudibleGain(volume, out gain);
-        }
+            => _mix.TryGetAudibleGain(volume, out gain);
 
         public SoundVoiceId Play(SoundHandle handle, float gain)
         {
-            var priority = 0;
-            if (_mix.TryGetSettings(_defaultVolume, out var settings))
-            {
-                priority = settings.Priority;
-            }
-
-            return Play(handle, _defaultVolume, gain, priority);
+            _mix.TryGetSettings(_defaultVolume, out var settings);
+            return Play(handle, _defaultVolume, gain, settings.Priority);
         }
 
+        /// <summary>
+        /// Admit by priority and clamp finite gain to [0,1]. Invalid input, destroyed native objects,
+        /// priority denial and Dispose return Invalid without consuming an admission slot.
+        /// </summary>
         public SoundVoiceId Play(SoundHandle handle, SoundVolumeId volume, float gain, int priority)
         {
-            if (_disposed || !SoundHandleIndex.TryGet(handle, _count, out var clipIndex))
-            {
+            if (_disposed || _host == null || float.IsNaN(gain) || float.IsInfinity(gain) ||
+                !SoundHandleIndex.TryGet(handle, _count, out var clipIndex) ||
+                !SoundVolumeIndex.TryGet(volume, _mix.VolumeCount, out var routeIndex))
                 return SoundVoiceId.Invalid;
-            }
-
             var clip = _clips[clipIndex];
             if (clip == null)
+                return SoundVoiceId.Invalid;
+            if (!RouteAlive(routeIndex))
             {
+                ClearRoute(routeIndex);
                 return SoundVoiceId.Invalid;
             }
-
-            CollectFinished();
+            // Never collect !isPlaying before admission: headless Play may not begin native output.
+            var slot = _mix.SelectSlot(volume, gain, priority);
+            if (slot < 0 || _voices[slot] == null || _filters[slot] == null)
+                return SoundVoiceId.Invalid;
             var voice = _mix.TryPlay(volume, gain, priority);
-            if (!voice.IsValid)
-            {
-                return voice;
-            }
-
-            var source = _voices[voice.Slot];
-            if (source == null)
-            {
-                _mix.Release(voice.Slot);
-                return SoundVoiceId.Invalid;
-            }
-
-            var volumeIndex = _mix.VolumeIndex(voice.Slot);
-            source.Stop();
+            ClearNative(slot); // Evicted clip/group/effect references end before rebinding.
+            var source = _voices[slot];
             source.clip = clip;
-            source.outputAudioMixerGroup = _routes[volumeIndex].Group;
-            source.volume = SourceGain(voice.Slot, volumeIndex);
+            source.outputAudioMixerGroup = _routes[routeIndex].Group;
+            source.volume = _mix.VoiceGain(slot) * _mix.RegionGain(routeIndex);
+            _mix.TryGetSettings(volume, out var settings);
+            ApplyReverb(_filters[slot], settings.Reverb);
             source.Play();
             return voice;
         }
 
         public void FadeVolume(SoundVolumeId volume, float targetGain, float seconds)
         {
-            if (_disposed)
-            {
+            if (_disposed || !SoundMix.ValidFade(targetGain, seconds) ||
+                !SoundVolumeIndex.TryGet(volume, _mix.VolumeCount, out _))
                 return;
-            }
-
             _mix.FadeVolume(volume, targetGain, seconds);
-            if (SoundVolumeIndex.TryGet(volume, _mix.VolumeCount, out var index))
-            {
-                ApplyRoute(index);
-            }
+            ApplyVoices(); // Instant fades reach native values before returning.
         }
-
         public void FadeVoice(SoundVoiceId voice, float targetGain, float seconds)
         {
-            if (_disposed)
-            {
+            if (_disposed || !SoundMix.ValidFade(targetGain, seconds) || !_mix.TrySlot(voice, out _))
                 return;
-            }
-
             _mix.FadeVoice(voice, targetGain, seconds);
             ApplyVoices();
         }
-
         public void SetReverb(SoundVolumeId volume, SoundReverb reverb)
         {
-            if (_disposed)
-            {
+            if (_disposed || !SoundVolumeIndex.TryGet(volume, _mix.VolumeCount, out _))
                 return;
-            }
-
             _mix.SetReverb(volume, reverb);
-            if (SoundVolumeIndex.TryGet(volume, _mix.VolumeCount, out var index))
-            {
-                ApplyRoute(index);
-            }
+            ApplyVoices();
         }
 
+        /// <summary>
+        /// Advance injected fades and reconcile stopped/destroyed native voices and destinations.
+        /// Negative/nonfinite delta is inert; zero permits cleanup without fade progress.
+        /// </summary>
         public void Tick(float deltaTime)
         {
-            if (_disposed)
-            {
+            if (_disposed || deltaTime < 0f || float.IsNaN(deltaTime) || float.IsInfinity(deltaTime))
                 return;
-            }
-
             _mix.Tick(deltaTime);
-            CollectFinished();
-            ApplyVoices();
-            for (var i = 0; i < _mix.VolumeCount; i++)
+            for (var i = 0; i < _voices.Length; i++)
             {
-                ApplyRoute(i);
+                if (_mix.IsActive(i) && (_host == null || _voices[i] == null || _filters[i] == null ||
+                    !RouteAlive(_mix.VolumeIndex(i)) || !_voices[i].isPlaying))
+                    _mix.Release(i);
             }
+            ApplyVoices();
         }
 
+        /// <summary>
+        /// Synchronously stop/clear native references and borrowed tables before destroying the owned host.
+        /// Deferred PlayMode destruction does not delay the caller's permission to release asset handles.
+        /// </summary>
         public void Dispose()
         {
             if (_disposed)
-            {
                 return;
-            }
-
             _disposed = true;
+            for (var i = 0; i < _voices.Length; i++)
+            {
+                _mix.Release(i);
+                ClearNative(i);
+            }
+            Array.Clear(_clips, 0, _clips.Length);
+            _clips = Array.Empty<AudioClip>();
+            _count = 0;
+            Array.Clear(_routes, 0, _routes.Length);
             DestroyHost(_host);
         }
 
-        private SoundVolumeId AddVolume(AudioMixerGroup group, SoundVolumeSettings settings, UnityMixerParameters parameters)
+        private SoundVolumeId AddVolume(AudioMixerGroup? group, SoundVolumeSettings settings)
         {
-            var id = _mix.Add(settings);
-            var index = id.Value - 1;
-            if (index >= _routes.Length)
+            if (_mix.VolumeCount == _routes.Length)
             {
-                var next = _routes.Length == 0 ? 4 : _routes.Length * 2;
-                while (next <= index)
-                {
-                    next *= 2;
-                }
-
+                var next = (int)Math.Min((long)_routes.Length * 2, int.MaxValue);
                 Array.Resize(ref _routes, next);
             }
-
-            var route = new Route
-            {
-                Gain = parameters.Gain,
-                Wet = parameters.ReverbWet,
-                Decay = parameters.ReverbDecay,
-                Diffusion = parameters.ReverbDiffusion,
-            };
-            if (group != null)
-            {
-                route.Group = group;
-                route.Mixer = group.audioMixer;
-            }
-
-            _routes[index] = route;
-            ApplyRoute(index);
+            var id = _mix.Add(settings);
+            _routes[id.Value - 1] = new Route { Group = group, Configured = group != null };
             return id;
         }
+        private bool RouteAlive(int index)
+            => !_routes[index].Configured || _routes[index].Group != null;
 
-        private void CollectFinished()
+        private void ClearRoute(int index)
         {
             for (var i = 0; i < _voices.Length; i++)
             {
-                if (!_mix.IsActive(i))
-                {
-                    continue;
-                }
-
-                var source = _voices[i];
-                if (source == null || (!source.isPlaying && source.timeSamples > 0))
+                if (_mix.IsActive(i) && _mix.VolumeIndex(i) == index)
                 {
                     _mix.Release(i);
+                    ClearNative(i);
                 }
             }
         }
-
         private void ApplyVoices()
         {
             for (var i = 0; i < _voices.Length; i++)
             {
-                var source = _voices[i];
-                if (source == null)
-                {
-                    continue;
-                }
-
+                if (_mix.IsActive(i) && (_host == null || _voices[i] == null || _filters[i] == null ||
+                    !RouteAlive(_mix.VolumeIndex(i))))
+                    _mix.Release(i);
                 if (!_mix.IsActive(i))
                 {
-                    if (source.isPlaying)
-                    {
-                        source.Stop();
-                    }
-
+                    ClearNative(i);
                     continue;
                 }
-
-                source.volume = SourceGain(i, _mix.VolumeIndex(i));
+                var route = _mix.VolumeIndex(i);
+                _voices[i].volume = _mix.VoiceGain(i) * _mix.RegionGain(route);
+                _mix.TryGetSettings(SoundVolumeId.FromRegisteredCount(route + 1), out var settings);
+                ApplyReverb(_filters[i], settings.Reverb);
             }
         }
-
-        private float SourceGain(int slot, int volumeIndex)
+        private void ClearNative(int slot)
         {
-            var voice = _mix.VoiceGain(slot);
-            if (!string.IsNullOrEmpty(_routes[volumeIndex].Gain))
+            var source = _voices[slot];
+            if (source != null)
             {
-                return voice;
+                source.Stop();
+                source.clip = null;
+                source.outputAudioMixerGroup = null;
             }
-
-            return voice * _mix.RegionGain(volumeIndex);
+            var filter = _filters[slot];
+            if (filter != null)
+                ApplyReverb(filter, SoundReverb.Off);
         }
-
-        private void ApplyRoute(int index)
+        private static void ApplyReverb(AudioReverbFilter filter, SoundReverb reverb)
         {
-            var route = _routes[index];
-            if (route.Mixer == null)
-            {
-                return;
-            }
-
-            var audible = _mix.RegionGain(index);
-            Push(route.Mixer, route.Gain, audible, ref route.SentGain, ref route.LastGain);
-            if (_mix.TryGetSettings(SoundVolumeId.FromRegisteredCount(index + 1), out var settings))
-            {
-                var reverb = settings.Reverb;
-                var wet = reverb.Enabled ? reverb.Wet : 0f;
-                Push(route.Mixer, route.Wet, wet, ref route.SentWet, ref route.LastWet);
-                Push(route.Mixer, route.Decay, reverb.DecaySeconds, ref route.SentDecay, ref route.LastDecay);
-                Push(route.Mixer, route.Diffusion, reverb.Diffusion, ref route.SentDiffusion, ref route.LastDiffusion);
-            }
-
-            _routes[index] = route;
+            filter.enabled = false;
+            // Presets overwrite numeric properties; choose User first, including disabled reset.
+            filter.reverbPreset = AudioReverbPreset.User;
+            filter.dryLevel = 0f;
+            filter.room = 0f;
+            filter.roomHF = 0f;
+            filter.roomLF = 0f;
+            filter.decayHFRatio = 0.5f;
+            filter.reflectionsLevel = -10000f;
+            filter.reflectionsDelay = 0f;
+            filter.reverbDelay = 0.04f;
+            filter.hfReference = 5000f;
+            filter.lfReference = 250f;
+            filter.density = 100f;
+            filter.reverbLevel = reverb.Enabled ? reverb.ReverbLevelMillibels : -10000f;
+            filter.decayTime = reverb.Enabled ? reverb.DecaySeconds : 1f;
+            filter.diffusion = reverb.Enabled ? reverb.DiffusionPercent : 100f;
+            filter.enabled = reverb.Enabled;
         }
-
-        private static void Push(AudioMixer mixer, string parameter, float value, ref bool sent, ref float last)
-        {
-            if (mixer == null || string.IsNullOrEmpty(parameter) || (sent && last == value))
-            {
-                return;
-            }
-
-            mixer.SetFloat(parameter, value);
-            last = value;
-            sent = true;
-        }
-
         private static void DestroyHost(GameObject host)
         {
             if (host == null)
-            {
                 return;
-            }
-
             if (Application.isPlaying)
-            {
                 UnityEngine.Object.Destroy(host);
-            }
             else
-            {
                 UnityEngine.Object.DestroyImmediate(host);
-            }
         }
-
         private struct Route
         {
-            public AudioMixerGroup Group;
-            public AudioMixer Mixer;
-            public string Gain;
-            public string Wet;
-            public string Decay;
-            public string Diffusion;
-            public bool SentGain;
-            public bool SentWet;
-            public bool SentDecay;
-            public bool SentDiffusion;
-            public float LastGain;
-            public float LastWet;
-            public float LastDecay;
-            public float LastDiffusion;
+            public AudioMixerGroup? Group;
+            public bool Configured;
         }
     }
 }

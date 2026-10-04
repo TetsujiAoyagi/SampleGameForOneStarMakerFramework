@@ -5,14 +5,18 @@ using System;
 namespace OneStarMaker.Runtime.SoundSystem
 {
     /// <summary>
-    /// 領域の初期設定。Gain は線形の音量、Priority は高いほど残る。
-    /// 短い再生 API は、この Priority をその領域の既定として使う。
+    /// 論理ミックス経路の初期設定。Gain は有限の線形音量 [0,1]、Priority は高いほど残る。
     /// </summary>
     public readonly struct SoundVolumeSettings : IEquatable<SoundVolumeSettings>
     {
         public SoundVolumeSettings(float gain, int priority, SoundReverb reverb)
         {
-            Gain = gain;
+            if (float.IsNaN(gain) || float.IsInfinity(gain))
+            {
+                throw new ArgumentOutOfRangeException(nameof(gain));
+            }
+
+            Gain = Math.Max(0f, Math.Min(1f, gain));
             Priority = priority;
             Reverb = reverb;
         }
