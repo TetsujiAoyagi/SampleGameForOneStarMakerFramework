@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>9.0</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>OneStarMaker.ScriptCommandOfflineTests</RootNamespace>
+    <AssemblyName>ScriptCommandOfflineTests</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ScriptSystem/ScriptOpcode.cs" Link="Linked/ScriptOpcode.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ScriptSystem/ScriptInstruction.cs" Link="Linked/ScriptInstruction.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ScriptSystem/ScriptProgram.cs" Link="Linked/ScriptProgram.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ScriptSystem/ScriptRegisters.cs" Link="Linked/ScriptRegisters.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ScriptSystem/ScriptMachineStatus.cs" Link="Linked/ScriptMachineStatus.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ScriptSystem/ScriptMachine.cs" Link="Linked/ScriptMachine.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ScriptSystem/ScriptHostRequest.cs" Link="Linked/ScriptHostRequest.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ScriptSystem/IScriptCommandHost.cs" Link="Linked/IScriptCommandHost.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ScriptSystem/ScriptCommandResult.cs" Link="Linked/ScriptCommandResult.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ScriptSystem/ScriptCommandRunState.cs" Link="Linked/ScriptCommandRunState.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ScriptSystem/ScriptCommandTimeSource.cs" Link="Linked/ScriptCommandTimeSource.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ScriptSystem/ScriptCommands.cs" Link="Linked/ScriptCommands.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ScriptSystem/ScriptCommandRunner.cs" Link="Linked/ScriptCommandRunner.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Foundation/UpdateSystem/Contracts/IUpdateElement.cs" Link="Linked/IUpdateElement.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Foundation/UpdateSystem/Contracts/UpdateFrameContext.cs" Link="Linked/UpdateFrameContext.cs" />
+    <Compile Include="../../unity/Assets/SampleGame/OutGame/HpGauge/HpGaugeScriptProgram.cs" Link="Linked/HpGaugeScriptProgram.cs" />
+    <Compile Include="../../unity/Assets/SampleGame/OutGame/HpGauge/HpGaugeScriptCommands.cs" Link="Linked/HpGaugeScriptCommands.cs" />
+  </ItemGroup>
+</Project>
