@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>OneStarMaker.SoundSystemOfflineTests</RootNamespace>
+    <AssemblyName>SoundSystemOfflineTests</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundHandle.cs" Link="Linked/SoundHandle.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundVolumeId.cs" Link="Linked/SoundVolumeId.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundVoiceId.cs" Link="Linked/SoundVoiceId.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundReverb.cs" Link="Linked/SoundReverb.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundVolumeSettings.cs" Link="Linked/SoundVolumeSettings.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundFade.cs" Link="Linked/SoundFade.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundMix.cs" Link="Linked/SoundMix.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/ISoundBackend.cs" Link="Linked/ISoundBackend.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundPlayer.cs" Link="Linked/SoundPlayer.cs" />
+  </ItemGroup>
+</Project>

@@ -11,7 +11,8 @@
         "Unity.ResourceManager",
         "UniTask",
         "UniTask.Linq",
-        "Unity.Cinemachine"
+        "Unity.Cinemachine",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [
         "Editor"

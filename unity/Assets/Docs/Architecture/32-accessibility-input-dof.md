@@ -1,6 +1,6 @@
 # 32. アクセシビリティ入力自由度の低減（片腕）
 
-> ステータス: **設計中**（2026-08-22）。方針は確定、実装は InputManager 待ち
+> ステータス: **設計中**。任意の InputManager は Button / Vector2 の level と Player / UI 選択を公開するが、profile は default ID のみ。片腕向けリマップ・トグル・巡回と SampleGame への組み込みは未実装。現行契約は [07-09-services.md](07-09-services.md) §8。
 > [ARCHITECTURE.md](../../ARCHITECTURE.md) に戻る
 > 関連: [30-accessibility-identity.md](30-accessibility-identity.md)、[31-accessibility-output-budget.md](31-accessibility-output-budget.md)、[07-09-services.md](07-09-services.md)
 
@@ -64,7 +64,7 @@ Hidden は巡回から除外する（`ExcludedFlags` に指定する。§30 §10
 
 | 項目 | 理由 |
 |---|---|
-| 入力プロファイル / リマップ UI | InputManager 未着手 |
+| 入力プロファイル / リマップ UI | default ID 以外と UI は未実装 |
 | ワールド巡回の実装 | [§30 S-2](30-accessibility-identity.md#15-実装スライス) の候補集合が先。加えて W-7（到達可能性）の供給元が無く、「拾えるが行けない」を候補から外せない |
 | UI の初期フォーカス配線 | **§30 に依存しないので単独で進められる。**最も安く出せる項目だが、今はしない |
 | 触覚ボタンの割り当て | 要求が無い |
