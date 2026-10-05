@@ -33,7 +33,8 @@ function Test-RevokedCredential($Observation, [string] $Generation) {
         $Observation.HttpStatus -in @(401,403) -and
         (($Observation.HttpStatus -eq 401 -and $Observation.StatusClass -ceq 'unauthorized') -or
          ($Observation.HttpStatus -eq 403 -and $Observation.StatusClass -ceq 'forbidden')) -and
-        $Observation.S3Code -cin @('InvalidAccessKeyId','InvalidToken','AccessDenied')
+        ($Observation.S3Code -cin @('InvalidAccessKeyId','InvalidToken','AccessDenied') -or
+         ($Observation.HttpStatus -eq 401 -and $Observation.S3Code -ceq 'Unauthorized'))
 }
 
 function Invoke-CredentialRotation([string] $ConfigPath) {

@@ -29,7 +29,7 @@ DPAPIはWindowsユーザーに結びつけて保存データを保護します�
 
 安全でないACLのレコードは削除も拒否されるため、暗号文が残る場合があります。失敗を削除済みと扱わず、所有者が保存先と権限を確認してください。ディレクトリ全体や他機能のデータを清掃対象にしないでください。
 
-`credentials rotate` は新しい鍵を対話端末でmasked入力し、使い捨てsynthetic keyへのPUT/GET/hash/DELETE/不存在を検証してから、新世代をactive、旧世代をretiredに原子的に切り替えます。切替え後は失効待ちでexit 2を返します。所有者が管理画面で対象の旧tokenだけを失効した後、非秘密の観察記録を使って`confirm-revocation`を実行します。旧鍵の401/403と安全な拒否code、新鍵の前後の陽性対照が揃って初めてretiredを清掃します。pending中は通常のset/removeと次のrotateを拒否します。失効前のcrashではpendingを保ち、壊れたactiveをbackupから自動復元しません。旧鍵の失効や、新鍵を使えない場合の再発行・masked再登録は所有者が管理画面と本CLIで明示的に行います。ローカルのstatusやset成功をR2接続成功とは扱いません。
+`credentials rotate` は新しい鍵を対話端末でmasked入力し、使い捨てsynthetic keyへのPUT/GET/hash/DELETE/不存在を検証してから、新世代をactive、旧世代をretiredに原子的に切り替えます。切替え後は失効待ちでexit 2を返します。所有者が管理画面で対象の旧tokenだけを失効した後、非秘密の観察記録を使って`confirm-revocation`を実行します。旧鍵の401/403と安全な拒否code（`InvalidAccessKeyId`、`InvalidToken`、`AccessDenied`）、または同じ応答の正確な401/`unauthorized`/`Unauthorized`と、新鍵の前後の陽性対照が揃って初めてretiredを清掃します。pending中は通常のset/removeと次のrotateを拒否します。失効前のcrashではpendingを保ち、壊れたactiveをbackupから自動復元しません。旧鍵の失効や、新鍵を使えない場合の再発行・masked再登録は所有者が管理画面と本CLIで明示的に行います。ローカルのstatusやset成功をR2接続成功とは扱いません。
 
 ## 最小Artifact CLI（synthetic限定）
 
