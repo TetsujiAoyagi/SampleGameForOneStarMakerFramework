@@ -17,6 +17,11 @@ namespace SampleGame.OutGame.ConfirmDialog
     /// </summary>
     public sealed class ConfirmDialogView : UIToolkitView
     {
+        private const string PanelName = "dialog-panel";
+        private const string MessageName = "message-label";
+        private const string OkName = "ok-button";
+        private const string CancelName = "cancel-button";
+
         private BehaviorRunner? _runner;
         private ConfirmDialogViewModel? _viewModel;
 
@@ -27,6 +32,9 @@ namespace SampleGame.OutGame.ConfirmDialog
         public override UILayer GetUILayer() => UILayer.Dialog;
 
         /// <inheritdoc />
+        protected override string? InitialFocusElementName => OkName;
+
+        /// <inheritdoc />
         protected override void OnRootCreated(VisualElement root)
         {
             _viewModel = new ConfirmDialogViewModel();
@@ -34,17 +42,20 @@ namespace SampleGame.OutGame.ConfirmDialog
             SetViewModel(_viewModel);
             _viewModel.Decided += HandleViewModelDecided;
 
-            var panel = root.Q<VisualElement>("dialog-panel")
+            var panel = root.Q<VisualElement>(PanelName)
                 ?? throw new InvalidOperationException("dialog-panel が見つかりません。");
-            var messageLabel = root.Q<Label>("message-label")
+            var messageLabel = root.Q<Label>(MessageName)
                 ?? throw new InvalidOperationException("message-label が見つかりません。");
-            var okButton = root.Q<Button>("ok-button")
+            var okButton = root.Q<Button>(OkName)
                 ?? throw new InvalidOperationException("ok-button が見つかりません。");
-            var cancelButton = root.Q<Button>("cancel-button")
+            var cancelButton = root.Q<Button>(CancelName)
                 ?? throw new InvalidOperationException("cancel-button が見つかりません。");
 
             Track(messageLabel.BindText(_viewModel.Message));
             Track(messageLabel.BindVisible(_viewModel.IsMessageVisible));
+            Track(UIAccessibilityText.Bind(messageLabel, _viewModel.Message));
+            Track(UIAccessibilityText.Set(okButton, "OK", "決定して閉じます"));
+            Track(UIAccessibilityText.Set(cancelButton, "Cancel", "取り消して閉じます"));
 
             panel.style.opacity = 0f;
             panel.style.scale = new Scale(new Vector3(0.8f, 0.8f, 1f));

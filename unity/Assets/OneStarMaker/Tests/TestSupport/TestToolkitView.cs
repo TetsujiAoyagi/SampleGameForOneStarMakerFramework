@@ -25,6 +25,8 @@ namespace OneStarMaker.Tests.UISystem.TestDoubles
 
         public Action? ViewDestroyed { get; set; }
 
+        public string? InitialFocusNameForTest { get; set; }
+
         /// <summary>テスト用 Root を注入する。</summary>
         /// <param name="root">差し替える VisualElement。</param>
         public void SetTestRoot(VisualElement root)
@@ -56,6 +58,9 @@ namespace OneStarMaker.Tests.UISystem.TestDoubles
         {
             return _layer;
         }
+
+        /// <inheritdoc/>
+        protected override string? InitialFocusElementName => InitialFocusNameForTest;
 
         protected override void OnViewDestroy()
         {

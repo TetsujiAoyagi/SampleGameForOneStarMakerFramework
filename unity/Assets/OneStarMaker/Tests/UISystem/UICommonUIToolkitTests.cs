@@ -65,8 +65,16 @@ namespace OneStarMaker.Tests.UISystem
 
             Assert.That(blocker.name, Is.EqualTo("Blocker_owner-1"));
             Assert.That(blocker.pickingMode, Is.EqualTo(PickingMode.Position));
+            Assert.That(blocker.focusable, Is.False);
+            Assert.That(blocker.tabIndex, Is.EqualTo(-1));
             Assert.That(blocker.style.position.value, Is.EqualTo(Position.Absolute));
             Assert.That(blocker.style.backgroundColor.value, Is.EqualTo(Color.clear));
+
+            var parent = new VisualElement();
+            var button = new Button { name = "ok", focusable = true, tabIndex = 1 };
+            parent.Add(blocker);
+            parent.Add(button);
+            Assert.That(UIToolkitInitialFocus.ListTabStops(parent), Is.EqualTo(new VisualElement[] { button }));
         }
 
         [Test]
