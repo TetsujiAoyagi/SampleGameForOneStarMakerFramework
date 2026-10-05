@@ -1,6 +1,6 @@
 # ローカル資格情報管理
 
-Windowsの所有ユーザーが、PowerShell 7から固定プロファイル「osm」の資格情報を管理するためのツールです。`credentials` CLIはローカル段1（programのスライス0）です。2026-09-27に所有者端末で実R2鍵を登録し、後述の限定probeでsynthetic objectのR2往復を確認しました。一般のartifact転送CLIは未実装です。
+Windowsの所有ユーザーが、PowerShell 7から固定プロファイル「osm」の資格情報とsynthetic artifactを扱うツールです。所有者端末で実R2鍵の登録と、synthetic限定の`publish` / 別sessionの`fetch` / `rotate` / `confirm-revocation`を検証済みです。実Evidence・実Buildの転送、Cloud、別ホストへの配布は未対応です。
 
 ```powershell
 pwsh tools/artifacts.ps1 credentials set --profile osm
@@ -29,7 +29,33 @@ DPAPIはWindowsユーザーに結びつけて保存データを保護します�
 
 安全でないACLのレコードは削除も拒否されるため、暗号文が残る場合があります。失敗を削除済みと扱わず、所有者が保存先と権限を確認してください。ディレクトリ全体や他機能のデータを清掃対象にしないでください。
 
-サーバーでの検証を伴う鍵の切替えと旧トークンの失効確認は後続作業です。このツールのローカル操作成功だけで、実R2鍵が有効とは判断しません。
+`credentials rotate` は新しい鍵を対話端末でmasked入力し、使い捨てsynthetic keyへのPUT/GET/hash/DELETE/不存在を検証してから、新世代をactive、旧世代をretiredに原子的に切り替えます。切替え後は失効待ちでexit 2を返します。所有者が管理画面で対象の旧tokenだけを失効した後、非秘密の観察記録を使って`confirm-revocation`を実行します。旧鍵の401/403と安全な拒否code（`InvalidAccessKeyId`、`InvalidToken`、`AccessDenied`）、または同じ応答の正確な401/`unauthorized`/`Unauthorized`と、新鍵の前後の陽性対照が揃って初めてretiredを清掃します。pending中は通常のset/removeと次のrotateを拒否します。失効前のcrashではpendingを保ち、壊れたactiveをbackupから自動復元しません。旧鍵の失効や、新鍵を使えない場合の再発行・masked再登録は所有者が管理画面と本CLIで明示的に行います。ローカルのstatusやset成功をR2接続成功とは扱いません。
+
+## 最小Artifact CLI（synthetic限定）
+
+```powershell
+dotnet build tools/Artifacts/Packaging/ArtifactPackaging.csproj -c Release -o tools/Artifacts/Packaging/artifacts/package
+dotnet build tools/Artifacts/Transport/R2ArtifactTransport.csproj -c Release -o tools/Artifacts/Transport/artifacts/transport
+
+pwsh tools/artifacts.ps1 publish --profile osm --config <absolute-config.json> --input-list <absolute-input-list.json> --base <40hex> --head <40hex>
+pwsh tools/artifacts.ps1 fetch --profile osm --config <absolute-config.json> --reference <opaque> --sha256 <64hex>
+pwsh tools/artifacts.ps1 credentials rotate --profile osm --config <absolute-config.json>
+pwsh tools/artifacts.ps1 credentials confirm-revocation --profile osm --config <absolute-config.json> --generation <retired32hex> --evidence <absolute-revocation.json>
+```
+
+`input-list` は `{"schemaVersion":1,"purpose":"synthetic","root":"<absolute>","files":["relative/file.txt"]}` です。1〜4096件のファイルだけを明示選択し、再帰収集しません。`purpose` はcallerの宣言であり、秘密検査ではありません。任意のログや実Evidenceをこの段階のCLIへ載せないでください。sourceをread lockで隔離snapshotし、その同じbytesからmanifest・ZIP・送信hashを作ります。相対path逸脱、reparse、秘密領域、重複、case衝突、上限違反を拒否します。
+
+`config` は `schemaVersion=1`, `profile="osm"`, `endpoint="https://<32hex>.r2.cloudflarestorage.com"`, `bucket="osm-artifacts"`, `repositoryId=<64hex>`, `prefix="probe/locked/"`, `retentionSeconds=86400`, `observedAt`, `validUntil`, `settingsEvidencePath`, `settingsEvidenceSha256` の厳密なJSONです。`observedAt` と `validUntil` はUTC round-tripで、24時間以内の有効区間に現在時刻が含まれる必要があります。設定原記録は、同じendpoint/bucket/prefix/retentionと、公開development URL無効、custom domain 0、writerに設定権限なし、bucket scopeのwriter、lock有効、age rule 1・date/indefinite rule 0、lifecycle compatibleを記録します。未確認の値は成功にしません。設定はowner/AIの観察であり、admin APIによる常時保証ではありません。
+
+`publish` は`probe/locked/<repositoryId>/<head>/<runId>/bundle.zip`にだけ保存します。別`pwsh` processでの認証GETと全byte/hash、同じsynthetic packageへの異なるbytes PUTとDELETEのlock拒否、再GETでの原byte/hash、`probe/unlocked/<runId>/control.txt`のwriter陽性対照を満たした場合だけledger候補を返します。結果・保護receipt・`operation-observations.json`はWindows Known Folder LocalApplicationDataの`OneStarMaker/Artifacts/transfers/<operation-id>/`に保存し、Gitへ自動追加しません。原観測は途中失敗でも保存し、status/code/byte/hash/世代と固定identityを含みます。lock拒否を検査したobjectは保持し、清掃目的のDELETEは行いません。失敗時のkeyとlocal pathは非秘密のresidueに残し、未確認を成功へ変更しません。1操作は最大10分、通信一回は最大120秒で、SDK retryとredirectを無効にします。
+
+`fetch` はconfigとopaque referenceのprofile/keyを照合し、**callerが別に渡した**期待package SHA-256とdownload全体を照合します。さらにmanifestと全entryのhash/path/byteを検証してから、新規private operation配下の`ready`へ切り替えます。既存stagingへ展開せず、取得物を実行しません。ZIPは最大256 MiB、JSONは1 MiB、entryは4096、単一展開は256 MiB、総展開は1 GiB、圧縮比は100までです。引数や出力に資格情報を含めません。
+
+転送のexitは0が検証完了、1が失敗・未確認です。rotationの切替え後/失効待ちは2であり、失効確認まで完了扱いしません。`confirm-revocation`成功は0、清掃保留は2、失敗・未確認は1です。既存credentialsのexit 0/1/2の意味は維持します。新commandの結果v1は`schemaVersion/operationId/operation/status/reasonCode/verification/ledger/outputPath/residue`を持つJSONです。失敗時のledgerとoutputPathはnullで、例外本文、SDK応答本文、秘密は表示しません。referenceは上位へopaqueな文字列として渡し、そこから期待package hashを補いません。
+
+同じ実物にlockの破壊試行を行うため、現在の経路はsynthetic-onlyです。実Evidence用prefix、Cloud/Build連携、H2d/H3は未対応です。R2の管理者が途中でpolicyを変更する脅威までは保証しません。実Evidenceの初回利用では、実payloadに破壊試行を行わない保護検証、prefixと保持方針、独立したledger確定、別session readerへの固定参照と期待hashの引渡しを別に定めます。
+
+検証済み実装は `caed8bae55c033673b75532dc650f0a3a3cedc48` です。85件のoffline testと3 buildに加え、実R2で設定の前後一致、synthetic publish、別session fetchと全entryのhash照合・安全展開、locked objectの上書き/DELETE拒否、新鍵の陽性対照を挟んだ旧鍵の401/`unauthorized`/`Unauthorized`拒否とretired清掃を確認しました。候補検証・切替・owner失効は旧実装 `4e83b7e7a4116fcf45c996b110b89515211da4b4` での観測です。その経路のsource不変性と、Git revision metadataだけを揃えた旧runtimeの完全再現・通常の最終runtimeへの復元を照合して接続し、ownerのtoken削除は反復していません。同じ固定証拠を使ったCと独立blind C′はGOで、ownerのPhase D判断も完了しました。C′は別モデル・新規sessionですが、同じOpenAI/GPT系列という独立性の制約があります。この合格はsynthetic限定であり、実payload利用の承認へ広げません。
 
 ## A3前の限定R2疎通確認
 
@@ -59,7 +85,7 @@ SDK例外から作る認証操作の観測は、statusと安全なS3 Codeを返�
 
 ## 保守と検証
 
-依存は `tools/artifacts.ps1` → `CredentialCommands.psm1` → `CredentialStore.psm1` → `CredentialPathAcl.psm1` の一方向です。launcherはCLI解析と終了コード、Commandsは入力と安全な表示、Storeはレコード検証・DPAPI・原子的置換・回復、PathAclは保存先と権限検査を担当します。公開コマンドで秘密を読み出す機能はありません。テストの保存先・障害注入はモジュール内部に限定します。
+既存credentialsの依存は `tools/artifacts.ps1` → `CredentialCommands.psm1` → `CredentialStore.psm1` → `CredentialPathAcl.psm1` / `CredentialRecord.psm1` の一方向です。新規転送はCLI→ArtifactCommands/ArtifactApplication→Packaging/Transport/Credentialsに分け、ArtifactPathsが別のprivate operation rootを管理します。StoreはDPAPI保存・原子的置換・世代競合、Recordはv1/v2 codec、Rotationはserver検証の順序を担当します。公開コマンドで秘密を読み出す機能はありません。テストの保存先・障害注入はモジュール内部に限定します。
 
 WindowsのPowerShell 7で次を実行します。資格情報テストは毎回生成するダミー値と隔離した保存先を使い、UnityやR2への接続は不要です。
 
@@ -68,6 +94,11 @@ pwsh -NoProfile -File tools/Artifacts/tests/Credentials.Tests.ps1
 pwsh -NoProfile -File tools/Artifacts/tests/RouteProof.Tests.ps1
 dotnet build tools/Artifacts/Probe/R2RouteTransport.csproj -c Release -o tools/Artifacts/Probe/artifacts/route-transport --no-restore
 pwsh -NoProfile -File tools/Artifacts/tests/R2RouteTransport.Tests.ps1
+dotnet build tools/Artifacts/Packaging/ArtifactPackaging.csproj -c Release -o tools/Artifacts/Packaging/artifacts/package
+dotnet build tools/Artifacts/Transport/R2ArtifactTransport.csproj -c Release -o tools/Artifacts/Transport/artifacts/transport
+pwsh -NoProfile -File tools/Artifacts/tests/ArtifactPackage.Tests.ps1
+pwsh -NoProfile -File tools/Artifacts/tests/ArtifactTransfer.Tests.ps1
+pwsh -NoProfile -File tools/Artifacts/tests/ArtifactRotation.Tests.ps1
 pwsh -NoProfile -File tools/contract-audit.ps1
 pwsh -NoProfile -File tools/docs-audit.ps1
 ```

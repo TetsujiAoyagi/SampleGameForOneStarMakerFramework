@@ -1,5 +1,6 @@
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'CredentialPathAcl.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'CredentialRecord.psm1') -Force
 
 # テストだけが module 内部へ注入する経路。export せず CLI・環境変数から到達させない。
 $script:TestRoot = $null
@@ -43,93 +44,19 @@ function Enter-StoreLock([hashtable] $Paths) {
     }
 }
 
-function Assert-Record($Record, [string] $Profile) {
-    # PowerShell の -match は配列に対して一致要素の配列を返す。
-    # そのまま否定比較すると不正な配列を通し得るため、値より先に型を検証する。
-    if ($null -eq $Record -or $Record.GetType() -ne [System.Management.Automation.PSCustomObject]) { throw 'Credential operation unavailable.' }
-    $names = @($Record.PSObject.Properties.Name | Sort-Object)
-    $expected = @('AccessKeyId','Bucket','CreatedUtc','Endpoint','Generation','Profile','SecretAccessKey','TokenReference','UpdatedUtc','Version') | Sort-Object
-    if (($names -join ',') -cne ($expected -join ',')) { throw 'Credential operation unavailable.' }
-    if (($Record.Version -isnot [int] -and $Record.Version -isnot [long]) -or $Record.Version -ne 1 -or
-        $Record.Profile -isnot [string] -or $Record.Profile -cne $Profile -or
-        $Record.Bucket -isnot [string] -or $Record.Bucket -cne 'osm-artifacts' -or
-        $null -ne $Record.Endpoint -or $null -ne $Record.TokenReference -or
-        $Record.Generation -isnot [string] -or $Record.Generation -cnotmatch '^[0-9a-f]{32}$' -or
-        $Record.CreatedUtc -isnot [string] -or $Record.UpdatedUtc -isnot [string] -or
-        $Record.AccessKeyId -isnot [string] -or $Record.AccessKeyId -cnotmatch '^[\x21-\x7e]{1,256}$' -or
-        $Record.SecretAccessKey -isnot [string] -or $Record.SecretAccessKey -cnotmatch '^[\x21-\x7e]{1,256}$') {
-        throw 'Credential operation unavailable.'
-    }
-    # 接頭辞だけでは「2026-99-99TINVALID」も通る。完全な round-trip 書式と
-    # 実在する UTC 日時であることを確認し、更新時刻の逆行も拒否する。
-    [DateTimeOffset]$created = [DateTimeOffset]::MinValue
-    [DateTimeOffset]$updated = [DateTimeOffset]::MinValue
-    $culture = [Globalization.CultureInfo]::InvariantCulture
-    $style = [Globalization.DateTimeStyles]::None
-    if (-not [DateTimeOffset]::TryParseExact($Record.CreatedUtc, 'o', $culture, $style, [ref]$created) -or
-        -not [DateTimeOffset]::TryParseExact($Record.UpdatedUtc, 'o', $culture, $style, [ref]$updated) -or
-        $created.Offset -ne [TimeSpan]::Zero -or $updated.Offset -ne [TimeSpan]::Zero -or $updated -lt $created) {
-        throw 'Credential operation unavailable.'
-    }
-}
-
-function Assert-JsonSchema([string] $Json) {
-    # ConvertFrom-Json は重複キーを上書きするため、変換前の JSON で
-    # キーの重複・余分なキー・配列などの型違いを拒否する。
-    $document = [Text.Json.JsonDocument]::Parse($Json)
-    try {
-        if ($document.RootElement.ValueKind -ne [Text.Json.JsonValueKind]::Object) { throw 'Credential operation unavailable.' }
-        $strings = @('Profile','Bucket','Generation','CreatedUtc','UpdatedUtc','AccessKeyId','SecretAccessKey')
-        $nulls = @('Endpoint','TokenReference')
-        $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-        foreach ($property in $document.RootElement.EnumerateObject()) {
-            if (-not $seen.Add($property.Name)) { throw 'Credential operation unavailable.' }
-            if ($property.Name -cin $strings) {
-                if ($property.Value.ValueKind -ne [Text.Json.JsonValueKind]::String) { throw 'Credential operation unavailable.' }
-            } elseif ($property.Name -cin $nulls) {
-                if ($property.Value.ValueKind -ne [Text.Json.JsonValueKind]::Null) { throw 'Credential operation unavailable.' }
-            } elseif ($property.Name -ceq 'Version') {
-                if ($property.Value.ValueKind -ne [Text.Json.JsonValueKind]::Number -or $property.Value.GetInt32() -ne 1) {
-                    throw 'Credential operation unavailable.'
-                }
-            } else { throw 'Credential operation unavailable.' }
-        }
-        if ($seen.Count -ne 10) { throw 'Credential operation unavailable.' }
-    } finally { $document.Dispose() }
-}
-
-function Protect-Record($Record) {
-    # 平文 byte 配列はこの呼び出し内で消去する。PowerShell の文字列を
-    # 完全消去できるとは主張しない。DPAPI は CurrentUser のみを使う。
-    $plain = $null
-    try {
-        $plain = [Text.Encoding]::UTF8.GetBytes(($Record | ConvertTo-Json -Compress -Depth 3))
-        return [Security.Cryptography.ProtectedData]::Protect($plain, $null, [Security.Cryptography.DataProtectionScope]::CurrentUser)
-    } finally { if ($plain) { [Array]::Clear($plain, 0, $plain.Length) } }
-}
-
-function Unprotect-Record([byte[]] $Cipher, [string] $Profile) {
-    # 復号できること自体は健全性の証明ではない。全フィールドを検証し、
-    # 呼び出し元には秘密を含む例外詳細を返さない。
-    $plain = $null
-    try {
-        $plain = [Security.Cryptography.ProtectedData]::Unprotect($Cipher, $null, [Security.Cryptography.DataProtectionScope]::CurrentUser)
-        $json = [Text.Encoding]::UTF8.GetString($plain)
-        Assert-JsonSchema $json
-        $record = $json | ConvertFrom-Json -Depth 3 -DateKind String
-        Assert-Record $record $Profile
-        return $record
-    } catch { throw 'Credential operation unavailable.' }
-    finally { if ($plain) { [Array]::Clear($plain, 0, $plain.Length) } }
+function Read-Envelope([hashtable] $Paths, [string] $Profile) {
+    Assert-CredentialFile $Paths.Active
+    if (-not [IO.File]::Exists($Paths.Active)) { throw 'Credential operation unavailable.' }
+    $cipher = [IO.File]::ReadAllBytes($Paths.Active)
+    try { return Unprotect-Envelope $cipher $Profile }
+    finally { [Array]::Clear($cipher, 0, $cipher.Length) }
 }
 
 function Read-Active([hashtable] $Paths, [string] $Profile) {
     # backup/candidate は障害復旧用の残骸であり、active に昇格させない。
     Assert-CredentialFile $Paths.Active
     if (-not [IO.File]::Exists($Paths.Active)) { throw 'Credential operation unavailable.' }
-    $cipher = [IO.File]::ReadAllBytes($Paths.Active)
-    try { return Unprotect-Record $cipher $Profile }
-    finally { [Array]::Clear($cipher, 0, $cipher.Length) }
+    return (Read-Envelope $Paths $Profile).Active
 }
 
 function Get-OwnedFiles([hashtable] $Paths, [string] $Profile) {
@@ -162,7 +89,9 @@ function Write-CredentialRecord([string] $Profile, [string] $AccessKeyId, [strin
         }
         if ($exists -and -not $Replace) { throw 'Credential operation unavailable.' }
         if ($Replace -and -not $exists) { throw 'Credential operation unavailable.' }
-        $old = if ($exists) { Read-Active $paths $Profile } else { $null }
+        $oldEnvelope = if ($exists) { Read-Envelope $paths $Profile } else { $null }
+        if ($oldEnvelope -and $null -ne $oldEnvelope.Retired) { throw 'Credential operation unavailable.' }
+        $old = if ($oldEnvelope) { $oldEnvelope.Active } else { $null }
         if ($AccessKeyId -cnotmatch '^[\x21-\x7e]{1,256}$' -or $SecretAccessKey -cnotmatch '^[\x21-\x7e]{1,256}$') {
             throw 'Credential operation unavailable.'
         }
@@ -175,15 +104,18 @@ function Write-CredentialRecord([string] $Profile, [string] $AccessKeyId, [strin
             UpdatedUtc = $now; TokenReference = $null; AccessKeyId = $AccessKeyId; SecretAccessKey = $SecretAccessKey
         }
         Assert-Record $record $Profile
-        $cipher = Protect-Record $record
+        $newValue = if ($oldEnvelope -and $oldEnvelope.Version -eq 2) {
+            [pscustomobject]@{ Version = 2; Active = $record; Retired = $null; TransitionId = $null }
+        } else { $record }
+        $cipher = Protect-Record $newValue
         $candidate = [IO.Path]::Combine($paths.Root, "$Profile.candidate.$([Guid]::NewGuid().ToString('N'))")
         try {
             Assert-CredentialWrite $paths.Root $candidate
             $stream = [IO.FileStream]::new($candidate, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
             try { $stream.Write($cipher, 0, $cipher.Length); $stream.Flush($true) } finally { $stream.Dispose() }
             Set-CredentialFileAcl $candidate $paths.Root
-            $verified = Unprotect-Record ([IO.File]::ReadAllBytes($candidate)) $Profile
-            if ($verified.Generation -cne $record.Generation) { throw 'Credential operation unavailable.' }
+            $verified = Unprotect-Envelope ([IO.File]::ReadAllBytes($candidate)) $Profile
+            if ($verified.Active.Generation -cne $record.Generation) { throw 'Credential operation unavailable.' }
             Invoke-Fault 'before-commit'
             if ($exists) {
                 $backup = [IO.Path]::Combine($paths.Root, "$Profile.backup.$([Guid]::NewGuid().ToString('N'))")
@@ -213,11 +145,15 @@ function Write-CredentialRecord([string] $Profile, [string] $AccessKeyId, [strin
 function Get-CredentialStatus([string] $Profile) {
     $paths = Get-Paths $Profile $false
     if (-not [IO.Directory]::Exists($paths.Root)) { throw 'Credential operation unavailable.' }
-    $record = Read-Active $paths $Profile
+    $envelope = Read-Envelope $paths $Profile
+    $record = $envelope.Active
     return [pscustomobject]@{
         Profile = $record.Profile; Bucket = $record.Bucket; Endpoint = $record.Endpoint
         Generation = $record.Generation; CreatedUtc = $record.CreatedUtc; UpdatedUtc = $record.UpdatedUtc
         TokenReference = $record.TokenReference
+        State = if ($null -eq $envelope.Retired) { 'stable' } else { 'pending-revocation' }
+        RetiredGeneration = if ($null -eq $envelope.Retired) { $null } else { $envelope.Retired.Generation }
+        TransitionId = $envelope.TransitionId
     }
 }
 
@@ -230,6 +166,7 @@ function Remove-CredentialRecord([string] $Profile) {
     try {
         Assert-CredentialFile $paths.Active
         $present = [IO.File]::Exists($paths.Active)
+        if ($present -and $null -ne (Read-Envelope $paths $Profile).Retired) { throw 'Credential operation unavailable.' }
         if ($present) { Assert-CredentialWrite $paths.Root $paths.Active; [IO.File]::Delete($paths.Active) }
         Remove-OwnedFiles $paths $Profile
         return $(if ($present) { 'removed' } else { 'already absent' })
@@ -292,20 +229,26 @@ function Invoke-CredentialTransport([string] $Profile, [scriptblock] $Transport,
         throw 'Credential operation unavailable.'
     }
     $paths = Get-Paths $Profile $false
-    $record = $null
+    $record = Read-Active $paths $Profile
+    return Invoke-RestrictedTransport $record $Transport $Request
+}
+
+function Invoke-RestrictedTransport($Record, [scriptblock] $Transport, [object] $Request) {
+    if ($null -eq $Record -or $Transport -isnot [scriptblock] -or $null -eq $Request) {
+        throw 'Credential operation unavailable.'
+    }
     $captured = $null
     $consoleOut = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
     $consoleError = [IO.StringWriter]::new([Globalization.CultureInfo]::InvariantCulture)
     $originalConsoleOut = [Console]::Out
     $originalConsoleError = [Console]::Error
     try {
-        $record = Read-Active $paths $Profile
         # SDKのConsole出力はPowerShell streamのリダイレクト外へ出る。callback
         # 中だけ専用writerへ向け、復元前に空であることも非秘密検査する。
         [Console]::SetOut($consoleOut)
         [Console]::SetError($consoleError)
         try {
-            $captured = @(& $Transport $record.AccessKeyId $record.SecretAccessKey $record.Generation $Request *>&1)
+            $captured = @(& $Transport $Record.AccessKeyId $Record.SecretAccessKey $Record.Generation $Request *>&1)
         } finally {
             [Console]::SetOut($originalConsoleOut)
             [Console]::SetError($originalConsoleError)
@@ -313,22 +256,142 @@ function Invoke-CredentialTransport([string] $Profile, [scriptblock] $Transport,
         if ($consoleOut.ToString().Length -ne 0 -or $consoleError.ToString().Length -ne 0) {
             throw 'Credential operation unavailable.'
         }
-        if ($captured.Count -ne 1 -or -not (Test-TransportValueSafe $captured[0] $record.AccessKeyId $record.SecretAccessKey)) {
+        if ($captured.Count -ne 1 -or -not (Test-TransportValueSafe $captured[0] $Record.AccessKeyId $Record.SecretAccessKey)) {
             throw 'Credential operation unavailable.'
         }
         return $captured[0]
     } catch {
         throw 'Credential operation unavailable.'
     } finally {
-        if ($record) {
-            $record.AccessKeyId = $null
-            $record.SecretAccessKey = $null
+        if ($Record) {
+            $Record.AccessKeyId = $null
+            $Record.SecretAccessKey = $null
         }
-        $record = $null
+        $Record = $null
         $captured = $null
         $consoleOut.Dispose()
         $consoleError.Dispose()
     }
 }
 
-Export-ModuleMember -Function Write-CredentialRecord, Get-CredentialStatus, Remove-CredentialRecord, Invoke-CredentialTransport
+function New-CredentialCandidate([string] $Profile, [string] $AccessKeyId, [string] $SecretAccessKey) {
+    $paths = Get-Paths $Profile $true
+    $lock = Enter-StoreLock $paths
+    try {
+        $envelope = Read-Envelope $paths $Profile
+        if ($null -ne $envelope.Retired -or $AccessKeyId -cnotmatch '^[\x21-\x7e]{1,256}$' -or
+            $SecretAccessKey -cnotmatch '^[\x21-\x7e]{1,256}$') { throw 'Credential operation unavailable.' }
+        $now = (Get-Now).ToUniversalTime().ToString('o')
+        $record = [pscustomobject]@{
+            Version = 1; Profile = $Profile; Bucket = 'osm-artifacts'; Endpoint = $null
+            Generation = [Guid]::NewGuid().ToString('N'); CreatedUtc = $now; UpdatedUtc = $now
+            TokenReference = $null; AccessKeyId = $AccessKeyId; SecretAccessKey = $SecretAccessKey
+        }
+        Assert-Record $record $Profile
+        $candidate = [IO.Path]::Combine($paths.Root, "$Profile.candidate.$([Guid]::NewGuid().ToString('N'))")
+        $cipher = Protect-Record $record
+        try {
+            Assert-CredentialWrite $paths.Root $candidate
+            $stream = [IO.FileStream]::new($candidate, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+            try { $stream.Write($cipher, 0, $cipher.Length); $stream.Flush($true) } finally { $stream.Dispose() }
+            Set-CredentialFileAcl $candidate $paths.Root
+            $verified = Unprotect-Record ([IO.File]::ReadAllBytes($candidate)) $Profile
+            if ($verified.Generation -cne $record.Generation) { throw 'Credential operation unavailable.' }
+            return [pscustomobject]@{ Path = $candidate; Generation = $record.Generation; ExpectedGeneration = $envelope.Active.Generation }
+        } finally { [Array]::Clear($cipher, 0, $cipher.Length) }
+    } finally { $lock.Dispose() }
+}
+
+function Read-Candidate([string] $Profile, [string] $Path) {
+    $paths = Get-Paths $Profile $false
+    if ($Path -cnotmatch ('\A' + [regex]::Escape($paths.Root) + '\\' + [regex]::Escape($Profile) + '\.candidate\.[0-9a-f]{32}\z')) {
+        throw 'Credential operation unavailable.'
+    }
+    Assert-CredentialFile $Path
+    if (-not [IO.File]::Exists($Path)) { throw 'Credential operation unavailable.' }
+    $cipher = [IO.File]::ReadAllBytes($Path)
+    try { return Unprotect-Record $cipher $Profile }
+    finally { [Array]::Clear($cipher, 0, $cipher.Length) }
+}
+
+function Invoke-CredentialCandidateTransport([string] $Profile, [string] $CandidatePath,
+    [scriptblock] $Transport, [object] $Request) {
+    $record = Read-Candidate $Profile $CandidatePath
+    return Invoke-RestrictedTransport $record $Transport $Request
+}
+
+function Invoke-CredentialRetiredTransport([string] $Profile, [string] $TransitionId,
+    [scriptblock] $Transport, [object] $Request) {
+    $paths = Get-Paths $Profile $false
+    $envelope = Read-Envelope $paths $Profile
+    if ($null -eq $envelope.Retired -or $envelope.TransitionId -cne $TransitionId) {
+        throw 'Credential operation unavailable.'
+    }
+    return Invoke-RestrictedTransport $envelope.Retired $Transport $Request
+}
+
+function Save-CredentialEnvelope([hashtable] $Paths, [string] $Profile, $Envelope) {
+    Assert-Envelope $Envelope $Profile
+    $candidate = [IO.Path]::Combine($Paths.Root, "$Profile.candidate.$([Guid]::NewGuid().ToString('N'))")
+    $backup = [IO.Path]::Combine($Paths.Root, "$Profile.backup.$([Guid]::NewGuid().ToString('N'))")
+    $cipher = Protect-Record $Envelope
+    $committed = $false
+    try {
+        Assert-CredentialWrite $Paths.Root $candidate
+        $stream = [IO.FileStream]::new($candidate, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+        try { $stream.Write($cipher, 0, $cipher.Length); $stream.Flush($true) } finally { $stream.Dispose() }
+        Set-CredentialFileAcl $candidate $Paths.Root
+        $verified = Unprotect-Envelope ([IO.File]::ReadAllBytes($candidate)) $Profile
+        if ($verified.Active.Generation -cne $Envelope.Active.Generation -or
+            $verified.TransitionId -cne $Envelope.TransitionId) { throw 'Credential operation unavailable.' }
+        Invoke-Fault 'before-commit'
+        foreach ($changed in @($candidate, $Paths.Active, $backup)) { Assert-CredentialWrite $Paths.Root $changed }
+        [IO.File]::Replace($candidate, $Paths.Active, $backup)
+        $committed = $true
+        try { Invoke-Fault 'after-commit'; Remove-OwnedFiles $Paths $Profile; return 'success' }
+        catch { return 'committed with cleanup pending' }
+    } finally {
+        [Array]::Clear($cipher, 0, $cipher.Length)
+        if (-not $committed -and [IO.File]::Exists($candidate)) {
+            try { Assert-CredentialWrite $Paths.Root $candidate; [IO.File]::Delete($candidate) } catch { }
+        }
+    }
+}
+
+function Set-CredentialCandidateActive([string] $Profile, [string] $CandidatePath,
+    [string] $ExpectedGeneration, [string] $CandidateGeneration) {
+    $paths = Get-Paths $Profile $false
+    $lock = Enter-StoreLock $paths
+    try {
+        $old = Read-Envelope $paths $Profile
+        if ($null -ne $old.Retired -or $old.Active.Generation -cne $ExpectedGeneration) {
+            throw 'Credential operation unavailable.'
+        }
+        $candidate = Read-Candidate $Profile $CandidatePath
+        if ($candidate.Generation -cne $CandidateGeneration) { throw 'Credential operation unavailable.' }
+        $envelope = [pscustomobject]@{ Version = 2; Active = $candidate; Retired = $old.Active
+            TransitionId = [Guid]::NewGuid().ToString('N') }
+        $outcome = Save-CredentialEnvelope $paths $Profile $envelope
+        return [pscustomobject]@{ Outcome = $outcome; TransitionId = $envelope.TransitionId
+            ActiveGeneration = $candidate.Generation; RetiredGeneration = $old.Active.Generation }
+    } finally { $lock.Dispose() }
+}
+
+function Confirm-CredentialRetired([string] $Profile, [string] $TransitionId,
+    [string] $ActiveGeneration, [string] $RetiredGeneration) {
+    $paths = Get-Paths $Profile $false
+    $lock = Enter-StoreLock $paths
+    try {
+        $old = Read-Envelope $paths $Profile
+        if ($null -eq $old.Retired -or $old.TransitionId -cne $TransitionId -or
+            $old.Active.Generation -cne $ActiveGeneration -or $old.Retired.Generation -cne $RetiredGeneration) {
+            throw 'Credential operation unavailable.'
+        }
+        $stable = [pscustomobject]@{ Version = 2; Active = $old.Active; Retired = $null; TransitionId = $null }
+        return Save-CredentialEnvelope $paths $Profile $stable
+    } finally { $lock.Dispose() }
+}
+
+Export-ModuleMember -Function Write-CredentialRecord, Get-CredentialStatus, Remove-CredentialRecord, Invoke-CredentialTransport,
+    New-CredentialCandidate, Invoke-CredentialCandidateTransport, Invoke-CredentialRetiredTransport,
+    Set-CredentialCandidateActive, Confirm-CredentialRetired
