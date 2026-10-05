@@ -6,10 +6,11 @@ namespace OneStarMaker.Runtime.ScriptSystem
 {
     /// <summary>
     /// 呼び出し側のプログラムとレジスタを借りて、固定命令を予算つきで進める。
-    /// tick は命令の読み取りとレジスタの読み書き、カウンタ更新だけを行う。
+    /// Tick は数値命令を実行し、host 命令では不透明な要求を発行して外側の完了を待つ。
+    /// host の副作用・時計・引数検査は持たず、数値命令経路には追加 allocation がない。
     /// 不正オペランドは型付き結果として返すため、同じフレームの後続要素を止めない。
-    /// 機械は PC・状態・終端ラッチだけを所有し、プログラムとレジスタの寿命は呼び出し側が持つ。
-    /// 呼び出し側は Tick とレジスタ変更を逐次化し、変更は Tick の間に行う。並行実行は非対応。
+    /// 機械は PC・状態・終端ラッチ・待機要求を所有し、プログラムとレジスタの寿命は呼び出し側が持つ。
+    /// 呼び出し側は Tick・要求完了・レジスタ変更を同一スレッドで逐次化する。並行実行は非対応。
     /// 同じレジスタを複数の機械で触る場合も、呼び出し側が実行順を決める。
     /// </summary>
     public sealed class ScriptMachine
@@ -19,6 +20,7 @@ namespace OneStarMaker.Runtime.ScriptSystem
         private int _programCounter;
         private ScriptMachineStatus _status;
         private bool _latched;
+        private ScriptHostRequest? _pendingHostRequest;
 
         public ScriptMachine(ScriptProgram program, ScriptRegisters registers)
         {
@@ -33,12 +35,41 @@ namespace OneStarMaker.Runtime.ScriptSystem
 
         public bool IsLatched => _latched;
 
+        public ScriptHostRequest? PendingHostRequest => _pendingHostRequest;
+
         /// <summary>
-        /// 正の予算だけ命令を実行する。予算不足は終端ラッチより先に判定し、保存状態を変更しない。
+        /// 現在の要求と同じ参照だけを1回受理する。成功は PC を1つ進め Ready、
+        /// 失敗は当該 PC の HostCommandFailed にラッチする。どちらも次命令は実行しない。
+        /// null・別機械・古い・完了済みの要求は、機械を変更せず拒否する。
+        /// </summary>
+        public bool TryCompleteHostCommand(ScriptHostRequest request, bool succeeded)
+        {
+            if (_latched || request == null || !ReferenceEquals(_pendingHostRequest, request))
+            {
+                return false;
+            }
+
+            _pendingHostRequest = null;
+            if (succeeded)
+            {
+                _programCounter++;
+                _status = ScriptMachineStatus.Ready;
+            }
+            else
+            {
+                Latch(ScriptMachineStatus.HostCommandFailed);
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// 正の予算だけ命令を実行する。予算不足は終端・host 待機より先に判定し、保存状態を変更しない。
         /// 予算を使い切ると Yielded。末尾到達が最後の命令と同時なら、次の正の Tick で Halted にする。
         /// Halt はその命令の PC、自然終端は命令数の PC にラッチする。
         /// 使用レジスタ・実行する跳躍先・opcode の不正は型付き故障にラッチし、
         /// 故障命令の PC と書き込み先を変えない。それ以前に完了した命令の結果は保持する。
+        /// host 到達は1命令分を消費して PC 不変で待機する。再 Tick は同じ要求を保ち、予算を消費しない。
         /// </summary>
         public ScriptMachineStatus Tick(int instructionBudget)
         {
@@ -51,6 +82,11 @@ namespace OneStarMaker.Runtime.ScriptSystem
             if (_latched)
             {
                 return _status;
+            }
+
+            if (_pendingHostRequest != null)
+            {
+                return ScriptMachineStatus.WaitingForHost;
             }
 
             var executed = 0;
@@ -67,6 +103,12 @@ namespace OneStarMaker.Runtime.ScriptSystem
                 {
                     case ScriptOpcode.Halt:
                         return Latch(ScriptMachineStatus.Halted);
+
+                    case ScriptOpcode.HostCommand:
+                        // 境界の初回到達だけで確保する。要求自身を完了 token とし、再発行しない。
+                        _pendingHostRequest = new ScriptHostRequest(instruction.Destination, instruction.Immediate);
+                        _status = ScriptMachineStatus.WaitingForHost;
+                        return _status;
 
                     case ScriptOpcode.LoadImmediate:
                         if (!TryWrite(instruction.Destination, instruction.Immediate))
