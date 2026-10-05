@@ -3,15 +3,22 @@
 namespace OneStarMaker.Runtime.SoundSystem
 {
     /// <summary>
-    /// 任意の再生差し替え口。クリップやキューの登録と寿命管理は具象バックエンドとその所有者が行う。
-    /// このインターフェースを提供するだけでは、他のミドルウェアでの実装成立は保証しない。
+    /// 任意の再生差し替え口。ミドルウェアへの互換性を保証するものではない。
+    /// backend 内だけの登録値と論理ミックス経路を使う。Unity native 呼び出しはメインスレッド限定。
+    /// 時間は呼び出し側の Tick で進む。UpdateSystemRuntime への登録とフレーム順序はその所有者が守る。
     /// </summary>
     public interface ISoundBackend
     {
-        /// <summary>
-        /// 登録したバックエンドのハンドルと線形音量を渡す、割り当てのない再生要求。
-        /// native バックエンドは Unity メインスレッドから呼ぶ。実際の可聴出力は保証しない。
-        /// </summary>
-        void Play(SoundHandle handle, float volume);
+        SoundVoiceId Play(SoundHandle handle, float gain);
+
+        SoundVoiceId Play(SoundHandle handle, SoundVolumeId volume, float gain, int priority);
+
+        void FadeVolume(SoundVolumeId volume, float targetGain, float seconds);
+
+        void FadeVoice(SoundVoiceId voice, float targetGain, float seconds);
+
+        void SetReverb(SoundVolumeId volume, SoundReverb reverb);
+
+        void Tick(float deltaTime);
     }
 }

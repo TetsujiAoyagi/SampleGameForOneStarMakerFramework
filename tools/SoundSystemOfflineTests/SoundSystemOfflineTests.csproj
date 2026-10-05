@@ -9,7 +9,12 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundHandle.cs" Link="Linked/SoundHandle.cs" />
-    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundVoiceRing.cs" Link="Linked/SoundVoiceRing.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundVolumeId.cs" Link="Linked/SoundVolumeId.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundVoiceId.cs" Link="Linked/SoundVoiceId.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundReverb.cs" Link="Linked/SoundReverb.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundVolumeSettings.cs" Link="Linked/SoundVolumeSettings.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundFade.cs" Link="Linked/SoundFade.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundMix.cs" Link="Linked/SoundMix.cs" />
     <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/ISoundBackend.cs" Link="Linked/ISoundBackend.cs" />
     <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/SoundSystem/SoundPlayer.cs" Link="Linked/SoundPlayer.cs" />
   </ItemGroup>

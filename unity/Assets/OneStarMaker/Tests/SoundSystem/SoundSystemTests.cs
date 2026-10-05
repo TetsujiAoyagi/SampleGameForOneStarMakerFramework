@@ -31,13 +31,14 @@ namespace OneStarMaker.Tests.SoundSystem
         }
 
         [Test]
-        public void Ring_ReusesTheOldestSlot()
+        public void EqualPriorityMix_ReusesTheOldestSlot()
         {
-            var cursor = 0;
-            Assert.That(SoundVoiceRing.Next(ref cursor, 3), Is.EqualTo(0));
-            Assert.That(SoundVoiceRing.Next(ref cursor, 3), Is.EqualTo(1));
-            Assert.That(SoundVoiceRing.Next(ref cursor, 3), Is.EqualTo(2));
-            Assert.That(SoundVoiceRing.Next(ref cursor, 3), Is.EqualTo(0));
+            var mix = new SoundMix(3);
+            var route = mix.Add(new SoundVolumeSettings(1f, 0, SoundReverb.Off));
+            Assert.That(mix.TryPlay(route, 1f, 0).Slot, Is.EqualTo(0));
+            Assert.That(mix.TryPlay(route, 1f, 0).Slot, Is.EqualTo(1));
+            Assert.That(mix.TryPlay(route, 1f, 0).Slot, Is.EqualTo(2));
+            Assert.That(mix.TryPlay(route, 1f, 0).Slot, Is.EqualTo(0));
         }
 
         [Test]
@@ -141,12 +142,13 @@ namespace OneStarMaker.Tests.SoundSystem
                 var handle = backend.Register(clip);
                 var voices = Field<AudioSource[]>(backend, "_voices");
                 backend.Play(handle, 0.4f);
-                var cursor = Field<int>(backend, "_cursor");
+                var mix = Field<SoundMix>(backend, "_mix");
+                var cursor = Sequence(mix);
                 Assert.DoesNotThrow(() => backend.Play(handle, gain));
                 Assert.That(voices[0].clip, Is.SameAs(clip));
                 Assert.That(voices[0].volume, Is.EqualTo(0.4f));
                 Assert.That(voices[1].clip == null, Is.True);
-                Assert.That(Field<int>(backend, "_cursor"), Is.EqualTo(cursor));
+                Assert.That(Sequence(mix), Is.EqualTo(cursor));
             }
             finally
             {
@@ -168,13 +170,14 @@ namespace OneStarMaker.Tests.SoundSystem
                 var source = Field<AudioSource[]>(backend, "_voices")[0];
                 backend.Play(live, 0.4f);
                 DestroyClip(deadClip);
-                var cursor = Field<int>(backend, "_cursor");
+                var mix = Field<SoundMix>(backend, "_mix");
+                var cursor = Sequence(mix);
                 Assert.DoesNotThrow(() => backend.Play(SoundHandle.Invalid, 1f));
                 Assert.DoesNotThrow(() => backend.Play(SoundHandle.FromRegisteredCount(3), 1f));
                 Assert.DoesNotThrow(() => backend.Play(dead, 1f));
                 Assert.That(source.clip, Is.SameAs(liveClip));
                 Assert.That(source.volume, Is.EqualTo(0.4f));
-                Assert.That(Field<int>(backend, "_cursor"), Is.EqualTo(cursor));
+                Assert.That(Sequence(mix), Is.EqualTo(cursor));
                 Assert.That(Field<AudioSource[]>(backend, "_voices")[1].clip == null, Is.True);
                 Assert.Throws<ArgumentNullException>(() => backend.Register(deadClip));
             }
@@ -196,15 +199,19 @@ namespace OneStarMaker.Tests.SoundSystem
             {
                 var handle = backend.Register(clip);
                 var source = Field<AudioSource[]>(backend, "_voices")[0];
+                var host = Field<GameObject>(backend, "_host");
                 backend.Play(handle, 0.4f);
                 if (destroyHost)
                 {
-                    UnityEngine.Object.DestroyImmediate(Field<GameObject>(backend, "_host"));
+                    UnityEngine.Object.DestroyImmediate(host);
                 }
                 else
                 {
-                    UnityEngine.Object.DestroyImmediate(source);
+                    // AudioReverbFilter requires AudioSource; destroy the owned voice child to remove both.
+                    UnityEngine.Object.DestroyImmediate(source.gameObject);
                 }
+                Assert.That(source == null, Is.True);
+                Assert.That(host == null, Is.EqualTo(destroyHost));
                 Assert.DoesNotThrow(() => backend.Play(handle, 1f));
                 Assert.DoesNotThrow(() => backend.Dispose());
                 Assert.That(backend.RegisteredCount, Is.Zero);
@@ -336,17 +343,26 @@ namespace OneStarMaker.Tests.SoundSystem
                 System.Reflection.BindingFlags.NonPublic)!;
             field.SetValue(backend, value);
         }
+        private static long Sequence(SoundMix mix) => (long)typeof(SoundMix)
+            .GetField("_sequence", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(mix)!;
         private sealed class RecordingBackend : ISoundBackend
         {
+            public SoundVoiceId Play(SoundHandle handle, SoundVolumeId volume, float gain, int priority) => SoundVoiceId.Invalid;
+            public void FadeVolume(SoundVolumeId volume, float targetGain, float seconds) { }
+            public void FadeVoice(SoundVoiceId voice, float targetGain, float seconds) { }
+            public void SetReverb(SoundVolumeId volume, SoundReverb reverb) { }
+            public void Tick(float deltaTime) { }
             public int Calls;
             public SoundHandle Last;
             public float Volume;
 
-            public void Play(SoundHandle handle, float volume)
+            public SoundVoiceId Play(SoundHandle handle, float volume)
             {
                 Calls++;
                 Last = handle;
                 Volume = volume;
+                return SoundVoiceId.Create(0, 1);
             }
         }
     }
