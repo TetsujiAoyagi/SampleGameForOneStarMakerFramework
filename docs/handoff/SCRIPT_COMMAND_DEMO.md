@@ -1,20 +1,20 @@
-# ScriptSystem command demo — Phase A1 r3
+# ScriptSystem command demo — C# / headless checkpoint
 
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（r3 A3 を C# / headless 先行範囲で凍結済み。共通 Framework / app 分離を条件に実装へ進む。UI接続・Unity最終検証は未完了）
+- status: `B checkpoint complete / C discovery reviewed`（C# / headless 先行範囲を実装・検証。確認済みの阻害指摘なし。UI接続・Unity最終検証・全体GOは未完了）
 - branch: `codex/script-usage-sample`
 - implementation base commit: `f0b4b1d022a213603d8ce52d036f31795a9eb2cd`（最新 develop）。B 開始用統合 head は `06ef1b09669122f587dc9749243a11a7a881d57c`。旧 planning base からの新着は Input / Sound のみで、Script / HP と常時契約に差分なし
-- implementation head commit: 未作成
+- implementation head commit: `0fea030efa6a91ca1091c6eeee5f359461194d6f`（tree `659ad976d1a833b23cf4db8c5affbd044f3840f4`）。以後のレビュー記録のみのcommitは実装headと区別する
 - A1 published draft: PR #94。r2 公開 head `1b992671`（文書のみ）。本 r3 はその責務分離 revision
 - risk: `high`（Framework 公開 API と view 所有の実行寿命を追加）
 - owner: root。A1 作成担当: plan_script_command_demo / OpenAI
 - created: 2026-10-04 UTC
 - expires: 2026-10-11 UTC または置換 revision。期限は再確認点であり自動承認ではない
 - harvest to: `unity/Assets/Docs/Architecture/27-folder-structure.md` §2.3。実装・検証した契約とサンプルの入口だけ反映し、完了時に本 HANDOFF を削除
-- Phase A snapshot: A2 配布時に本文の固定コピー・生成時刻・SHA-256 を作業管理側で記録する
-- Phase B result / evidence / C' blind bundle: 未作成
+- Phase A snapshot: bundle内 `a3-r3/A3_FROZEN.md`、SHA-256 `65d5c64d56b00b9fa9c46af6fc61af49771166b0fc29c6c754f5c26880eb3235`（2026-10-05固定）
+- Phase B result / evidence: 下記checkpoint bundleへ保存。C' blind bundleは未作成（添付はC発見所見を含むためblind用途ではない）
 - 作業方式: 従来の tracked HANDOFF。H1 / H2 / external-current-v1 は採用しない
 
 ## 1. A0 — 目的、現況、対象外
@@ -219,6 +219,22 @@ B→A停止条件: 上記外の API/状態/依存/所有者、複数command実�
 - A3: 2026-10-05 03:43 UTC、人間は、アプリ固有処理と再利用するFramework実装を分離し、詳細を主担当に任せて進めるよう指示。直前に提示した C# VM 境界・HP command・cloud 検証先行、Unity UI / 最終検証未完の進め方への条件付き承認である。主担当は r3 A2 の阻害指摘なしという結果を採用し、2026-10-05 03:56 UTC に C# / headless の既承認範囲を凍結した。承認済み境界を変えない詳細は委任の範囲で統合し、UI 経路未成立を C# 段の再承認要求へ戻さない。
 - C' の担当モデルは A2 / B / C 選定時に独立性を確保して予約し、推測で固定しない。
 
-## 7. Phase B / C / C' / D
+## 7. C# / headless checkpoint の実装・検証記録
 
-B はこの固定仕様から開始可能。C / C' / D は未実施。implementation head、結果 snapshot、判定 bundle、blind bundle、各モデルと独立性、必須テストの実行/未実行、現在の条件に対する違反根拠と後続入力、D の人間判断は到達時に追記する。A1 作成を実装・検証・承認と読み替えない。
+- B: 共通Frameworkのhost境界、runner / Wait / 時間選択 / 停止と、appのHP命令列 / Damage・Heal hostを実装した。UI / Scene / UXML / asmdef / assetは変更していない。実装担当のモデル指定はgpt-6.1-sol。実行側モデルIDは独立には検証していない。
+- 公開順: VM境界 `f6b43e75` → 共通runner `2e5a399a` → appとoffline target `0fea030e`。実装baseから23ファイル。testsの読みやすさのためoffline executableを目的別partial sourceへ分割し、production責務やAPIは増やしていない。
+- 最終公開headへfetchした後に再実行: .NET 8 / C# 9のoffline 17群、失敗0。実命令列の独立した2実行が各3 Damage / 3 Heal / 6 Wait / Halted。buildはwarning/error 0。
+- 18 production sourceをC# 9 / netstandard2.1でコンパイルしwarning/error 0。これはUnityコンパイルの代替ではない。
+- contract-auditは620 C#ファイル、docs-auditは111文書、どちらもerrors/warnings 0。通常diff / base→head固定diffのcheckも成功。
+- 補助B証拠: host probe 85 checks、runner probe 144 checks。source hashを最終sourceと照合したが、最終headの17群実行と混同しない。
+- 発見C: モデル指定gpt-6-astraの新規レビューが固定A3、完全diff、実source、最終headのraw、source hashesを確認。凍結M1/M2または常時契約への確認済み違反は0件、修正要求なし。報告SHA-256 `926ebe110f1717816b082d30623864100220906906701dcd2d436e96c5092968`。
+- M3 / M4: UI接続、稼働入口、Unity import / 新規.cs.meta、全EditMode回帰、操作・表示証拠は未実施。NUnit sourceは追加したがUnityで実行していない。判定C / C' / D、全体GO、merge承認はない。
+
+### 証拠の取得
+
+- bundle ID: `script-command-headless-0fea030e`。配布ファイル `ScriptCommand-Headless-0fea030e.zip`、51 payload + manifest、81,462 bytes。
+- ZIP SHA-256: `4ebbd718deb83ff6f527e316b10ace49dc0bc5898cddc3d06d52a4da87806297`。
+- manifest SHA-256: `0ef543e3360499e42adfa6d12f334bde37d28a7c18bfbe2cb65ce3da0ee09ea8`。
+- 利用者へのChatGPT添付として保管・受け渡す。cloud作業領域は永続保存とは扱わない。第三者agentがこの私有添付を取得できることは未確認であり、必要なら利用者が受け渡し先を指定して転送後に再検証する。
+- 展開後にmanifestの各path / size_bytes / sha256を照合する。最終再実行は `final/verification/`、固定A3は `a3-r3/`、発見所見は `discovery/`。sourceは上記実装commitから取得する。
+- 保管担当は主担当、予定保持期限2026-11-05（自動削除はしない）。C'用にこの所見付きarchiveを再利用せず、UI段の最終head・必須rawが揃ってから新しいblind bundleを作る。
