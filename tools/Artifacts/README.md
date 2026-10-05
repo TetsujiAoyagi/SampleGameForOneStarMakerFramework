@@ -1,6 +1,6 @@
 # ローカル資格情報管理
 
-Windowsの所有ユーザーが、PowerShell 7から固定プロファイル「osm」の資格情報とsynthetic artifactを扱うツールです。2026-09-27に所有者端末で実R2鍵を登録し、後述の限定probeでsynthetic objectのR2往復を確認しました。`publish` / `fetch` / `rotate` / `confirm-revocation` の実R2運用は未確認です。
+Windowsの所有ユーザーが、PowerShell 7から固定プロファイル「osm」の資格情報とsynthetic artifactを扱うツールです。所有者端末で実R2鍵の登録と、synthetic限定の`publish` / 別sessionの`fetch` / `rotate` / `confirm-revocation`を検証済みです。実Evidence・実Buildの転送、Cloud、別ホストへの配布は未対応です。
 
 ```powershell
 pwsh tools/artifacts.ps1 credentials set --profile osm
@@ -53,7 +53,9 @@ pwsh tools/artifacts.ps1 credentials confirm-revocation --profile osm --config <
 
 転送のexitは0が検証完了、1が失敗・未確認です。rotationの切替え後/失効待ちは2であり、失効確認まで完了扱いしません。`confirm-revocation`成功は0、清掃保留は2、失敗・未確認は1です。既存credentialsのexit 0/1/2の意味は維持します。新commandの結果v1は`schemaVersion/operationId/operation/status/reasonCode/verification/ledger/outputPath/residue`を持つJSONです。失敗時のledgerとoutputPathはnullで、例外本文、SDK応答本文、秘密は表示しません。referenceは上位へopaqueな文字列として渡し、そこから期待package hashを補いません。
 
-同じ実物にlockの破壊試行を行うため、現在の経路はsynthetic-onlyです。実Evidence用prefix、Cloud/Build連携、H2d/H3は未対応です。R2の管理者が途中でpolicyを変更する脅威までは保証しません。実R2のpublish/fetch、設定前後の原記録、token切替・失効の成立は判定Cで別に観察します。
+同じ実物にlockの破壊試行を行うため、現在の経路はsynthetic-onlyです。実Evidence用prefix、Cloud/Build連携、H2d/H3は未対応です。R2の管理者が途中でpolicyを変更する脅威までは保証しません。実Evidenceの初回利用では、実payloadに破壊試行を行わない保護検証、prefixと保持方針、独立したledger確定、別session readerへの固定参照と期待hashの引渡しを別に定めます。
+
+検証済み実装は `caed8bae55c033673b75532dc650f0a3a3cedc48` です。85件のoffline testと3 buildに加え、実R2で設定の前後一致、synthetic publish、別session fetchと全entryのhash照合・安全展開、locked objectの上書き/DELETE拒否、新鍵の陽性対照を挟んだ旧鍵の401/`unauthorized`/`Unauthorized`拒否とretired清掃を確認しました。候補検証・切替・owner失効は旧実装 `4e83b7e7a4116fcf45c996b110b89515211da4b4` での観測です。その経路のsource不変性と、Git revision metadataだけを揃えた旧runtimeの完全再現・通常の最終runtimeへの復元を照合して接続し、ownerのtoken削除は反復していません。同じ固定証拠を使ったCと独立blind C′はGOで、ownerのPhase D判断も完了しました。C′は別モデル・新規sessionですが、同じOpenAI/GPT系列という独立性の制約があります。この合格はsynthetic限定であり、実payload利用の承認へ広げません。
 
 ## A3前の限定R2疎通確認
 
