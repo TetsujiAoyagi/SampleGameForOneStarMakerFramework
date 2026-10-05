@@ -1,12 +1,13 @@
-# ScriptSystem command demo — Phase A1 r1
+# ScriptSystem command demo — Phase A1 r2
 
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（A1 初稿。A2 / 人間の A3 は未実施。実装着手指示ではない）
+- status: `A`（A2 指摘を反映・再確認済みの r2。人間の A3 は未完了。実装着手指示ではない）
 - branch: `codex/script-usage-sample`
 - implementation base commit: `09242db5cd8cf2cd6695522dcd4cee5fcfc020f6`
 - implementation head commit: 未作成
+- A1 published draft: PR #94、head `180ca70852792dae26361357cac7368d287e349a`（文書のみ）
 - risk: `high`（Framework 公開 API と view 所有の実行寿命を追加）
 - owner: root。A1 作成担当: plan_script_command_demo / OpenAI
 - created: 2026-10-04 UTC
@@ -92,19 +93,34 @@ cloud での M1 / M2 の純実行証拠は中間 checkpoint であり、M3 / M4 
 ### アプリの command と program
 
 - `HpGaugeScriptCommands` は固定の app enum（Damage / Heal / WaitMilliseconds）のみを解釈する。Damage / Heal は引数0のみ、WaitMilliseconds は非負 long のみ。未知 ID / 不正引数を副作用前に拒否する。
-- Damage / Heal は constructor で渡された型付き `Action` をそれぞれ1回呼ぶ。View が既存 ViewModel.Damage / Heal を渡す。Wait は秒数へ変換した待機指示を runner に返し、commands 自身は時計・タイマーを持たない。結果は即時完了 / 待機 / 拒否を区別する小さい app enum と待機値で足りる。
+- Damage / Heal は constructor で渡された型付き `Action` をそれぞれ1回呼ぶ。View が既存 ViewModel.Damage / Heal を渡す。Wait は秒数へ変換した待機指示を runner に返し、commands 自身は時計・タイマーを持たない。結果の公開形は下表で固定する。
 - `HpGaugeScriptProgram` は不変 program を1個組み立てる。r0=3、r1=1、Damage(0)、WaitMilliseconds(500)、Heal(0)、WaitMilliseconds(500)、Sub(r0,r0,r1)、JumpIfNotZero(r0, Damage位置)、Halt。9命令、2 registers。数値制御は実際に VM が行い、C# 側で3回を再現しない。
-- hp 改変例外は runner が現在要求を失敗完了させて終了する。副作用後の例外でも rollback / retry はしない。以後の host request を実行せず、他 Update 要素は継続する。
+- hp 改変例外は、runner がまだ live で同じ要求を所有するときだけ失敗完了させて終了する。Action 内で Stop / Dispose された後の return / throw は停止を上書きせず無処理。副作用後の例外でも rollback / retry はしない。以後の host request を実行せず、他 Update 要素は継続する。
 
 ### runner と UI 寿命
 
+公開面は次だけとする。テスト専用 machine 注入・register 公開・汎用 event 基盤を追加しない。
+
+| API | 契約 |
+|---|---|
+| `HpGaugeScriptCommands(Action damage, Action heal)` | null は構築時拒否。Run ごとに生成し、既存の型付き操作を借用する。 |
+| `HpGaugeScriptDispatchResult Dispatch(int commandId, long argument)` | 公開 readonly struct の getter は `Kind` と `double WaitSeconds`。`HpGaugeScriptDispatchKind` は `Completed / Wait / Rejected`。Wait のみ非負・有限秒数、他は0。result は内部生成で不整合値を作らせない。Action 例外は runner 境界へ伝える。 |
+| `HpGaugeScriptProgram.Program` / `RegisterCount` | 共有する不変 `ScriptProgram` と必要本数2の getter。 |
+| `HpGaugeScriptRunner(ScriptProgram program, int registerCount, HpGaugeScriptCommands commands, Action<HpGaugeScriptRunner, HpGaugeScriptRunState>? stateChanged = null, Action<HpGaugeScriptRunner>? releaseRegistration = null)` | null program / commands、負の本数を構築時拒否。毎回 private な新規 machine とゼロ初期化 registers を作り、外部へ返さない。program だけ共有可。任意 program / 本数を受けるため Wait(0) / 不正 command の直接テストが可能。構築時は Running、実行・通知・登録はしない。 |
+| `HpGaugeScriptRunState State { get; }` | read-only enum `Running / Waiting / Halted / Stopped / Failed`。Idle は runner がない View の表示。setter、Machine / Registers の getter は設けない。 |
+| `void Stop()` / `void Dispose()` | 同じ1回限りの停止処理。live なら Stopped、既に終端なら状態維持。gate は同期的に閉じ、通知・解除 callback の例外を外へ投げない。再開不可。再 Run は View が新 instance を作る。 |
+| `stateChanged` / `releaseRegistration` | 単一 observer と単一 owner callback。変更後の状態を通知し、終端時の解除要求は別 callback で必ず1回試みる。headless では両方省略可。View だけが Runtime API を呼ぶ。runner は登録 API / layer を所有しない。 |
+
 - `HpGaugeScriptRunner` は純 C# の `IUpdateElement` / IDisposable。1 instance が1 Run の machine / registers、現在要求、待機残量、停止 gate と状態通知を所有する。Framework の ScriptUpdateElement は内包・登録しない。
-- OnElementUpdate は停止 / pause gate を先に見る。待機中は正の有限 `context.UnscaledDeltaTime` だけを残量から減らし、満了なら同一要求を成功完了して return。負・NaN・infinity は進行に使わない。待機を開始したフレームの delta をさかのぼって加算しない。
-- それ以外は固定予算16で Tick を最大1回行う。新規要求を処理済みとして捕捉してから app command を始める。即時完了後も return。Wait(0) も開始時に成功完了して return。余剰 delta の持越し・一括 catch-up はない。
+- OnElementUpdate は停止 / pause / 同一 runner の更新再入 gate を先に見る。Action / observer からの再入 Update は無処理とし、更新 gate は finally で戻す。待機中は正の有限 `context.UnscaledDeltaTime` だけを残量から減らし、満了時は live と同一 pending 要求を確認して成功完了し、runner側の要求 / wait を消し、Waiting → Running に変更する。まだ live なら状態通知して return し、同じ Update で次の Tick は行わない。成功 ack 後は machine pending が null になることが正常なので、通知時に ack 前の pending 同一性を再要求しない。負・NaN・infinity は進行に使わない。待機を開始したフレームの delta をさかのぼって加算しない。
+- それ以外は固定予算16で Tick を最大1回行う。新規要求を処理済みとして捕捉してから app command を始める。dispatch の return と catch の両方で、live gate と捕捉要求 / 現在要求 / machine pending の参照同一性を再確認してから ack・待機設定・通知する。失効した場合は何もせず return。通知から戻った後に処理を続ける場合は live と現在の処理段階を再確認する。ack 前の要求処理なら pending 同一性も必要だが、ack 後は pending が消えるという成功後条件で判断する。即時完了後も return。Wait(0) も開始時に成功完了して return し、一時的な Waiting 通知は出さない。余剰 delta の持越し・一括 catch-up はない。
 - 登録 layer はアプリ固有の `HpGaugeScriptDemo`、layerOrder=0 / executionOrder=0。既定 scale=1 の独立 layer とし Gameplay pause を借用しない。UI の実時間用 unscaled delta を使うが、この layer 自体の pause は尊重する。layer の保持者は既存 Coordinator で App 寿命、view が所有するのは runner 登録だけである。停止時に layer 自体を削除しない。view が layer pause / scale を勝手に変更しない。標準 RegisterElement が layer を作成するため AppInitializer 変更は不要。layer 定義自体は Coordinator/App 寿命で空のまま残ってよく、runner / view の残存とは区別する。
 - Wait の500msは蓄積入力時間の下限であり、実表示はフレーム単位に量子化される。開始や完了後の別 Update 境界があるため、全体が厳密に3.000秒で終わるとは保証しない。
 - View は1つの active runner を保持し Run 時に生成・登録する。登録失敗なら停止・破棄して Failed 表示とし、直 Tick / MonoBehaviour.Update の迂回をしない。
-- 終端通知と Stop は view の共通 cleanup を通す。runner 自身の停止 gate を閉じてから通知 / unregister / app参照解放。古い runner の通知は current instance 同一性で拒否。非同期 completion callback は設けない。
+- 終端 / Stop / Dispose は runner の単一 close 処理へ集約する。最初に gate を閉じ、終端 State を確定し、現在要求 / wait を無効化する。その後、終端通知を try、`releaseRegistration(this)` を finally 内の別 try、commands・両 callback 参照の解除を最内の finally で行う。各 callback の例外を捕捉し、片方の失敗でも後続 cleanup を省略しない。close 再入は無処理。実行中 callback のローカル参照はその呼出しの unwind で解放される。
+- 状態 observer は constructor では呼ばず、State 変更時に同期呼出しする。通知再入中の追加通知は抑止し、Stop / Dispose の gate と cleanup 自体は即実行する。observer が throw した場合、まだ live なら Failed として close（失敗した observer の再通知なし）、既に停止済みなら終端状態を維持する。通知失敗を command の再 dispatch / retry にしない。通常更新の observer 例外と終端 cleanup callback 例外は `OnElementUpdate` の外へ逃がさない。実 scheduler が要素例外を隔離するとの仮定を置かない。
+- View は `releaseRegistration` の唯一の所有者として、渡された旧 runner そのものを Runtime API へ unregister 要求する。callback は try で unregister、finally で current が同じ旧 instance の場合だけ View の保持参照を解除する。通知では current instance 同一性で古い runner を拒否し、Run は current が未解除なら終端通知中も無処理。View の Stop / shutdown / Track cleanup も runner.Stop / Dispose を呼び、別経路で二重 unregister しない。登録失敗でも同じ停止境界を使い、登録成立前なら解除要求は不要。
+- unregister が throw した場合も gate と app 参照解放は成立させ、失敗は View の既存診断経路で記録する（診断失敗も runner の callback 境界で隔離）。実登録の除去成功は保証しない。停止済み runner が scheduler に残る可能性を cleanup 未達として記録し、基盤を修正済みと扱わない。非同期 completion callback / Tasks は設けない。
 - `HpGaugeView` は一度だけ Track に lifetime cleanup を登録する。scene pre-unload は view の shutdown 入口を呼び、新しい Run も拒否する。基底 OnDestroy を隠さず、OnViewDestroy だけを停止入口にしない。
 - manual Stop は再 Run 可、shutdown / Dispose は再 Run 不可。状態表示は Idle / Running / Waiting / Halted / Stopped / Failed の最小表示。既存 HP 表示バインディングへ command の個別 UI 処理を足さない。
 
@@ -120,7 +136,7 @@ cloud での M1 / M2 の純実行証拠は中間 checkpoint であり、M3 / M4 
 | 同 ScriptUpdateElement.cs | 既存動作維持、外側の完了責務のコメントだけ | 50 → +2〜5 |
 | OutGame/HpGauge/HpGaugeScriptProgram.cs（新規） | sample の不変命令列。app 全体で共有可能、ゲーム内容の変更でだけ変わる | 0 → 30〜45 |
 | 同 HpGaugeScriptCommands.cs（新規） | 固定3操作の引数検査・型付き app dispatch。借用 Action、Run 寿命。Unity 無し | 0 → 60〜85 |
-| 同 HpGaugeScriptRunner.cs（新規） | bounded Update / wait / fail / stop の orchestration。Run 所有。Foundation context と ScriptSystem と app commands のみ | 0 → 140〜190 |
+| 同 HpGaugeScriptRunner.cs（新規） | bounded Update / wait / fail / stop の orchestration。Run 所有。Foundation context と ScriptSystem と app commands のみ | 0 → 200〜280 |
 | 同 HpGaugeView.cs | UI binding と登録・view寿命接続。UI / Runtime API の外側 adapter | 64 → +65〜90 |
 | 同 HpGaugeScene.cs / HpGauge.uxml | pre-unload停止 / opt-in操作表示 | 52 / 11 → +5〜10 / +6〜10 |
 | Tests/ScriptSystem/ScriptHostCommandTests.cs（新規） | 純 VM request/ack/予算/故障。Framework test asmdef | 0 → 160〜220 |
@@ -130,7 +146,7 @@ cloud での M1 / M2 の純実行証拠は中間 checkpoint であり、M3 / M4 
 
 app の3中核型は既存 HpGauge namespace 内の限定された public API とする（独立 test assembly から直接利用）。新たな汎用 service interface / friend assembly / asmdef は作らない。program、dispatch、runner は変更理由・依存・テストが異なるため分け、class 数だけの新フォルダは作らない。
 
-50% 増加警報は小さい enum と View に該当する。enum は単一値契約のため非分割。View は UI/lifetime adapter のままにし、命令・時間・dispatch の本体は3新規型へ分離するので非分割。既存 ScriptMachineTests は524行なので host テストを新規ファイルに分ける。新規 runner が190行程度を越えて複数理由を持ち始めたら便宜的 Manager を作らず A に返す。
+50% 増加警報は小さい enum と View に該当する。enum は単一値契約のため非分割。View は UI/lifetime adapter のままにし、命令・時間・dispatch の本体は3新規型へ分離するので非分割。既存 ScriptMachineTests は524行なので host テストを新規ファイルに分ける。新規 runner が予想範囲を越え、独立した複数の変更理由を持ち始めたら便宜的 Manager を作らず A に返す。
 
 現 Phase A で作成する tracked 差分は本 HANDOFF だけ。docs/README.md の一覧は program/research 専用のため slice 行を足さない。上表は A3 後の候補であり今回実装しない。UI source 編集・Editor import の担当環境も A3 で確定する。
 
@@ -149,8 +165,9 @@ app の3中核型は既存 HpGauge namespace 内の限定された public API �
 3. raw HostCommand の ID/argument 使用・未使用欄無視、未知 opcode の従来 fault、終端と自然終端。
 4. 実 sample program の3巡 / 3 Damage / 3 Heal / 6 Wait / Halt。fake Actions で順序を確定する。
 5. 0.49秒では未完、0.5秒境界、Wait(0)、pause、unscaled と scaled の相違、無効 delta、開始フレームの delta 不採用、長いフレームでも command 一括実行なし。
-6. command 未知 ID / 不正引数 / Action 例外の fail-closed。例外後再実行なし、後続 Update 要素継続。
-7. Stop 中の待機、Stop→Run、active Run の二重押下、登録待ちの Stop、active 解除遅延中の Tick、古い通知、dispose後呼出し。新 machine/registers と同じ immutable program を確認。
+6. command 未知 ID / 不正引数 / Action 例外の fail-closed。副作用を1回行ってから throw しても変更は1回のみ、rollback / retry / 後続 command なし。Damage / Heal の Action が Stop→return、Stop→throw（Dispose も同じ）した場合は Stopped を維持し、ack / Waiting / Failed への上書き通知なし。
+7. Stop 中の待機、Stop→Run、active Run の二重押下、登録待ちの Stop、active 解除遅延中の Tick、古い通知、dispose後呼出し。新 machine/registers と同じ immutable program を確認（公開可変 getter を増やさず、同じ program の再実行が初期値から独立して進むことを観測）。
+8. Running / Waiting / 終端 observer の throw・Stop / Dispose 再入・Update 再入。通知失敗でも解除 callback が1回、app参照が解放され、終了状態を上書きしない。解除 callback の throw でも参照解放が成立し、実除去成功とは主張しない。例外隔離なしの同一更新ループで runner の次の別要素が呼ばれることを確認し、View 側では実 unregister と current 解除の finally 境界を検証する。
 
 cloud の範囲:
 
@@ -183,8 +200,8 @@ B→A停止条件: 上記外の API/状態/依存/所有者、複数command実�
 
 ## 6. Phase A レビュー状況
 
-- A1: 本 r1。A2へ同じ固定本文を配布予定。
-- A2: 未実施。公開 API / identity / 時間の独立レビューと、責務・寿命・依存・検証経路の architecture review を分担する。互いの findings を渡さない。
+- A1: r1 は Draft PR #94 に公開済み。本 r2 は A2 の2件への修正案。
+- A2: r1 の固定本文 SHA-256 `e42640feee3b7080984d09d0942a4422eb3d4b8923021734c9e1bf387590e841` を対象に独立レビュー済み。公開 runner 構築 / read-only 観測 / dispatch 結果の未固定と、Action・状態通知の再入 / 例外時の停止優先・cleanup 境界の不足を採用候補とし、本 r2 §3 / §5 で具体化した。M2 / M3 と他 Update 継続の常時契約に必要な補完で、汎用化や受入条件の免除はしない。モデル指定 gpt-6-astra の architecture 担当と gpt-6-sol の contract 担当が別セッションで r2固定本文（SHA-256 `0a29f1a0a47ff6dbecef453994ef22b350c9a0d12f799a85e7676a8d50b930b4`）を再確認し、各指摘の解消を確認した。追加の Waiting → Running / ack後pending消去の説明も反映。モデル名は起動時指定、実行側IDは未検証。これは設計/ソースの確認のみで、人間 A3 が採否を確定する。
 - A3: 未実施。人間の採否・未決経路の担当・証拠の扱いを記録するまで未凍結。
 - C' の担当モデルは A2 / B / C 選定時に独立性を確保して予約し、推測で固定しない。
 
