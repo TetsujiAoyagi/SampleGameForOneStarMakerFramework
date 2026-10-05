@@ -1,0 +1,52 @@
+{
+  "id": "ui-toolkit-a11y-focus-blind-53785e6c",
+  "generatedAt": "2026-10-05T14:17:15Z",
+  "implementationBase": "f0b4b1d022a213603d8ce52d036f31795a9eb2cd",
+  "implementationHead": "53785e6c9f5d45f1869f7409c4dc75aa16987865",
+  "cPrimeStart": "not-authorized",
+  "cPrimeStartReason": "Judgment EditMode XML is absent. This package excludes living HANDOFF text and Phase C conclusions, but it is not yet a judgment bundle.",
+  "contains": "Phase A snapshot, Phase B result without review findings, full diff of implementation head, contract-audit output, and the Unity runner step that failed before process start.",
+  "excludes": "Living HANDOFF, Phase C conclusions, suspicions, review notes, and any NUnit results XML.",
+  "files": [
+    {
+      "path": "phase-a-snapshot.md",
+      "sha256": "47da27388f6d99c29f92da4c0a24356a65fba79f995dd47d772ef1dbe975bed8",
+      "bytes": 12210
+    },
+    {
+      "path": "phase-b-result.md",
+      "sha256": "3223cb32c8a39e2f76f32ab9194f1c2947edb648b1f53eb9661a50742f27c697",
+      "bytes": 2477
+    },
+    {
+      "path": "implementation.diff",
+      "sha256": "ab3cb9c53d65d172b7d9e0ffaeda1920eeadbb339affaab7faca0d9b7f6b6a39",
+      "bytes": 40264
+    },
+    {
+      "path": "implementation.stat",
+      "sha256": "23657f35d10c579f82f37d457d02c39733f7af2ff4bb1cac4058e8660d4f9922",
+      "bytes": 1087
+    },
+    {
+      "path": "implementation.name-status",
+      "sha256": "b7e6457ce218f0fa2069f5fc582f9d76210bf35d9409c38c05c3f17edc28967e",
+      "bytes": 1190
+    },
+    {
+      "path": "contract-audit.txt",
+      "sha256": "6bef8de91ae2859dcb3c31693fd360092eac7e12ca05cd8b08f93fc3504195e2",
+      "bytes": 539
+    },
+    {
+      "path": "unity-editmode-attempt-step.json",
+      "sha256": "77ccaab244128e203c339452de644ab7349f75454dd2772d5a51b16d97c6f3cb",
+      "bytes": 1481
+    },
+    {
+      "path": "unity-tests.txt",
+      "sha256": "544c1c89080768455fc6cc5e3b167ba544c37537a0022714e8dc7432b8b1a819",
+      "bytes": 901
+    }
+  ]
+}

@@ -1,0 +1,970 @@
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/UISystem/UIAccessibilityText.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/UISystem/UIAccessibilityText.cs
+new file mode 100644
+index 00000000..f38c8568
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/UISystem/UIAccessibilityText.cs
+@@ -0,0 +1,145 @@
++#nullable enable
++
++using System;
++using System.Collections.Generic;
++using System.Runtime.CompilerServices;
++using R3;
++using UnityEngine.UIElements;
++
++namespace OneStarMaker.Runtime.UISystem
++{
++    /// <summary>
++    /// VisualElement に載せるアクセシビリティの名前とヒント。
++    /// </summary>
++    /// <remarks>
++    /// Unity 6000.6 の <see cref="VisualElement"/> は名前・ヒント用のプロパティを持たない。
++    /// この側表は要素とその寿命に閉じ、世界の個体レジストリ（意味アイデンティティ）や
++    /// <c>AssistiveSupport</c> には登録しない。読み上げと出力予算はここでは扱わない。
++    /// 戻り値の <see cref="IDisposable"/> を <see cref="UIToolkitView.Track{T}"/> へ渡すと、
++    /// View 破棄時にその代入だけが外れる。複数の代入はスタックで保持し、Dispose 順に依存しない。
++    /// </remarks>
++    public static class UIAccessibilityText
++    {
++        private sealed class Entry
++        {
++            public string? Name;
++            public string? Hint;
++        }
++
++        private sealed class TextAssignments
++        {
++            public readonly List<Entry> Entries = new();
++        }
++
++        private static readonly ConditionalWeakTable<VisualElement, TextAssignments> Table = new();
++
++        /// <summary>
++        /// 現在有効な名前とヒントを読む。未設定なら false。
++        /// </summary>
++        /// <param name="element">対象要素。</param>
++        /// <param name="name">名前。未設定なら null。</param>
++        /// <param name="hint">ヒント。名前だけでヒントが無い場合は null。</param>
++        /// <returns>代入が残っていれば true。</returns>
++        public static bool TryGet(VisualElement element, out string? name, out string? hint)
++        {
++            if (element == null)
++            {
++                throw new ArgumentNullException(nameof(element));
++            }
++
++            if (!Table.TryGetValue(element, out var stack) || stack.Entries.Count == 0)
++            {
++                name = null;
++                hint = null;
++                return false;
++            }
++
++            var top = stack.Entries[stack.Entries.Count - 1];
++            name = top.Name;
++            hint = top.Hint;
++            return true;
++        }
++
++        /// <summary>
++        /// 名前と任意のヒントを固定する。Dispose でこの代入だけを外す。
++        /// </summary>
++        /// <param name="element">対象要素。</param>
++        /// <param name="name">読み上げ名。空文字は許す。</param>
++        /// <param name="hint">補足。無ければ null。</param>
++        /// <returns>この代入を外す Disposable。</returns>
++        public static IDisposable Set(VisualElement element, string name, string? hint = null)
++        {
++            if (element == null)
++            {
++                throw new ArgumentNullException(nameof(element));
++            }
++
++            if (name == null)
++            {
++                throw new ArgumentNullException(nameof(name));
++            }
++
++            var entry = Push(element, name, hint);
++            return Disposable.Create(() => Remove(element, entry));
++        }
++
++        /// <summary>
++        /// 名前（と任意のヒント）を Observable に追従させる。Dispose で購読と代入を外す。
++        /// </summary>
++        /// <param name="element">対象要素。</param>
++        /// <param name="name">名前ソース。null 値は空文字として載せる。</param>
++        /// <param name="hint">ヒントソース。省略時はヒントを載せない。</param>
++        /// <returns>購読と代入を外す Disposable。</returns>
++        public static IDisposable Bind(
++            VisualElement element,
++            Observable<string> name,
++            Observable<string>? hint = null)
++        {
++            if (element == null)
++            {
++                throw new ArgumentNullException(nameof(element));
++            }
++
++            if (name == null)
++            {
++                throw new ArgumentNullException(nameof(name));
++            }
++
++            var entry = Push(element, string.Empty, null);
++            var nameSubscription = name.Subscribe(value => entry.Name = value ?? string.Empty);
++            var hintSubscription = hint?.Subscribe(value => entry.Hint = value);
++            return Disposable.Create(() =>
++            {
++                nameSubscription.Dispose();
++                hintSubscription?.Dispose();
++                Remove(element, entry);
++            });
++        }
++
++        private static Entry Push(VisualElement element, string? name, string? hint)
++        {
++            var stack = Table.GetOrCreateValue(element)!;
++            var entry = new Entry
++            {
++                Name = name,
++                Hint = hint,
++            };
++            stack.Entries.Add(entry);
++            return entry;
++        }
++
++        private static void Remove(VisualElement element, Entry entry)
++        {
++            if (!Table.TryGetValue(element, out var stack))
++            {
++                return;
++            }
++
++            stack.Entries.Remove(entry);
++            if (stack.Entries.Count == 0)
++            {
++                Table.Remove(element);
++            }
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/UISystem/UIAccessibilityText.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/UISystem/UIAccessibilityText.cs.meta
+new file mode 100644
+index 00000000..acce2a4f
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/UISystem/UIAccessibilityText.cs.meta
+@@ -0,0 +1,11 @@
++fileFormatVersion: 2
++guid: a40dc8a2050f4aada594e81093d47385
++MonoImporter:
++  externalObjects: {}
++  serializedVersion: 2
++  defaultReferences: []
++  executionOrder: 0
++  icon: {instanceID: 0}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/UISystem/UICommon.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/UISystem/UICommon.cs
+index fe08778d..c09cc28e 100644
+--- a/unity/Assets/OneStarMaker/Scripts/Runtime/UISystem/UICommon.cs
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/UISystem/UICommon.cs
+@@ -343,6 +343,9 @@ internal VisualElement CreateToolkitBlocker(string ownerId)
+             {
+                 name = $"Blocker_{ownerId}",
+                 pickingMode = PickingMode.Position,
++                // 背面のクリックは受けるが、タブ順には入れない。
++                focusable = false,
++                tabIndex = -1,
+             };
+ 
+             blocker.style.position = Position.Absolute;
+@@ -376,6 +379,9 @@ private async UniTask AddUIToolkitView(string ownerId, UIToolkitView view, Cance
+             try
+             {
+                 await view.ViewIn(ct);
++                // 入場演出が終わってからキーボードの初期位置を置く。
++                // 演出中に Focus すると、まだ見えていないボタンが決定対象になる。
++                view.ApplyInitialFocus();
+             }
+             catch (Exception)
+             {
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/UISystem/UIToolkitInitialFocus.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/UISystem/UIToolkitInitialFocus.cs
+new file mode 100644
+index 00000000..881ab3ce
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/UISystem/UIToolkitInitialFocus.cs
+@@ -0,0 +1,202 @@
++#nullable enable
++
++using System.Collections.Generic;
++using UnityEngine.UIElements;
++
++namespace OneStarMaker.Runtime.UISystem
++{
++    /// <summary>
++    /// Dialog / Modal の UI Toolkit ビューに対する初期フォーカス選択。
++    /// </summary>
++    /// <remarks>
++    /// タブ順は UITK の <c>focusable</c> と <c>tabIndex</c> だけで決める。
++    /// 正の tabIndex は昇順で tabIndex 0 より前、負の tabIndex はリングから外す。
++    /// 0 同士は子の深さ優先順。これは <see cref="VisualElementFocusRing"/> の比較と同じ規則だが、
++    /// エンジンのリングはレイアウト updater が HierarchyDisplayed を立てるまで候補を空にする。
++    /// ViewIn 完了直後はそのフラグがまだ無いことがあるため、ここでは style の display で判定する。
++    /// ViewOut で開く前のフォーカスへ戻す処理は、直前の focused 要素の所有者を別に持つ必要があり、ここでは行わない。
++    /// </remarks>
++    public static class UIToolkitInitialFocus
++    {
++        private readonly struct Candidate
++        {
++            public Candidate(VisualElement element, int order)
++            {
++                Element = element;
++                Order = order;
++            }
++
++            public VisualElement Element { get; }
++
++            public int Order { get; }
++        }
++
++        /// <summary>
++        /// Modal と Dialog だけ初期フォーカスの対象にする。
++        /// </summary>
++        /// <param name="layer">ビューのレイヤー。</param>
++        /// <returns>初期フォーカスを当てるレイヤーなら true。</returns>
++        public static bool ShouldApply(UIView.UILayer layer)
++        {
++            return layer == UIView.UILayer.Modal || layer == UIView.UILayer.Dialog;
++        }
++
++        /// <summary>
++        /// 名前付きの既定がタブ順に乗っていればそれを、無ければタブ順の先頭を返す。
++        /// </summary>
++        /// <param name="root">探索の根。根自身は候補に含めない。</param>
++        /// <param name="preferredName">優先する要素名。空なら先頭。</param>
++        /// <returns>フォーカス対象。候補が無ければ null。</returns>
++        public static VisualElement? Select(VisualElement root, string? preferredName)
++        {
++            if (root == null)
++            {
++                throw new System.ArgumentNullException(nameof(root));
++            }
++
++            if (!string.IsNullOrEmpty(preferredName))
++            {
++                var named = FindByName(root, preferredName);
++                if (named != null && IsTabStop(named))
++                {
++                    return named;
++                }
++            }
++
++            var stops = ListTabStops(root);
++            return stops.Count == 0 ? null : stops[0];
++        }
++
++        /// <summary>
++        /// <see cref="Select"/> の対象へ <see cref="Focusable.Focus"/> する。
++        /// パネル未参加の要素はフォーカスできないので false を返し、例外にはしない。
++        /// </summary>
++        /// <param name="root">探索の根。</param>
++        /// <param name="preferredName">優先する要素名。</param>
++        /// <returns>Focus を呼べたら true。</returns>
++        public static bool TryApply(VisualElement root, string? preferredName)
++        {
++            var target = Select(root, preferredName);
++            if (target == null || target.panel == null)
++            {
++                return false;
++            }
++
++            target.Focus();
++            return true;
++        }
++
++        /// <summary>
++        /// タブ順の要素を返す。テストと初期フォーカスが同じ規則を使う。
++        /// </summary>
++        /// <param name="root">探索の根。根自身は含めない。</param>
++        /// <returns>タブ順。</returns>
++        internal static List<VisualElement> ListTabStops(VisualElement root)
++        {
++            var candidates = new List<Candidate>();
++            if (IsEligibleBranch(root))
++            {
++                Collect(root, candidates);
++            }
++            candidates.Sort(Compare);
++            var result = new List<VisualElement>(candidates.Count);
++            for (var i = 0; i < candidates.Count; i++)
++            {
++                result.Add(candidates[i].Element);
++            }
++
++            return result;
++        }
++
++        private static void Collect(VisualElement parent, List<Candidate> into)
++        {
++            var hierarchy = parent.hierarchy;
++            var count = hierarchy.childCount;
++            for (var i = 0; i < count; i++)
++            {
++                var child = hierarchy[i];
++                if (!IsEligibleBranch(child))
++                {
++                    continue;
++                }
++
++                if (IsTabStop(child))
++                {
++                    into.Add(new Candidate(child, into.Count));
++                }
++
++                Collect(child, into);
++            }
++        }
++
++        private static int Compare(Candidate a, Candidate b)
++        {
++            var aIndex = a.Element.tabIndex;
++            var bIndex = b.Element.tabIndex;
++            var aPositive = aIndex > 0;
++            var bPositive = bIndex > 0;
++            if (aPositive && bPositive)
++            {
++                var byIndex = aIndex.CompareTo(bIndex);
++                if (byIndex != 0)
++                {
++                    return byIndex;
++                }
++
++                return a.Order.CompareTo(b.Order);
++            }
++
++            if (aPositive)
++            {
++                return -1;
++            }
++
++            if (bPositive)
++            {
++                return 1;
++            }
++
++            return a.Order.CompareTo(b.Order);
++        }
++
++        private static VisualElement? FindByName(VisualElement root, string name)
++        {
++            if (root.name == name)
++            {
++                return root;
++            }
++
++            return root.Q<VisualElement>(name);
++        }
++
++        private static bool IsTabStop(VisualElement element)
++        {
++            return element.focusable
++                && !element.delegatesFocus
++                && element.tabIndex >= 0
++                && IsEligibleBranch(element);
++        }
++
++        private static bool IsEligibleBranch(VisualElement element)
++        {
++            return element.enabledInHierarchy && IsDisplayed(element);
++        }
++
++        private static bool IsDisplayed(VisualElement element)
++        {
++            if (!element.visible)
++            {
++                return false;
++            }
++
++            // inline の none はパネル参加前でも分かる。resolvedStyle は USS 側の none を拾う。
++            var inline = element.style.display;
++            if (inline.keyword != StyleKeyword.Null && inline.value == DisplayStyle.None)
++            {
++                return false;
++            }
++
++            return element.resolvedStyle.display != DisplayStyle.None;
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/UISystem/UIToolkitInitialFocus.cs.meta b/unity/Assets/OneStarMaker/Scripts/Runtime/UISystem/UIToolkitInitialFocus.cs.meta
+new file mode 100644
+index 00000000..c0783911
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/UISystem/UIToolkitInitialFocus.cs.meta
+@@ -0,0 +1,11 @@
++fileFormatVersion: 2
++guid: d1f36516dd6b4c8bbb694a2154291bc8
++MonoImporter:
++  externalObjects: {}
++  serializedVersion: 2
++  defaultReferences: []
++  executionOrder: 0
++  icon: {instanceID: 0}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/OneStarMaker/Scripts/Runtime/UISystem/UIToolkitView.cs b/unity/Assets/OneStarMaker/Scripts/Runtime/UISystem/UIToolkitView.cs
+index 1e1c7a06..6c2c88ef 100644
+--- a/unity/Assets/OneStarMaker/Scripts/Runtime/UISystem/UIToolkitView.cs
++++ b/unity/Assets/OneStarMaker/Scripts/Runtime/UISystem/UIToolkitView.cs
+@@ -75,6 +75,26 @@ public void AssignVisualTreeAssetForEditor(VisualTreeAsset visualTreeAsset)
+         /// <param name="root">生成済み Root。</param>
+         protected virtual void OnRootCreated(VisualElement root) { }
+ 
++        /// <summary>
++        /// Dialog / Modal の ViewIn 完了後に優先してフォーカスする要素名。
++        /// null またはタブ順に乗れない名前のときは、タブ順の先頭へフォールバックする。
++        /// </summary>
++        protected virtual string? InitialFocusElementName => null;
++
++        /// <summary>
++        /// Modal / Dialog なら ViewIn 完了後の初期フォーカスを試みる。
++        /// パネルが無い要素では何もしない。ViewOut 時のフォーカス復帰は行わない。
++        /// </summary>
++        internal void ApplyInitialFocus()
++        {
++            if (!UIToolkitInitialFocus.ShouldApply(GetUILayer()))
++            {
++                return;
++            }
++
++            UIToolkitInitialFocus.TryApply(Root, InitialFocusElementName);
++        }
++
+         /// <summary>
+         /// ViewModel を紐付ける。GameObject 破棄時に自動 Dispose される。
+         /// </summary>
+diff --git a/unity/Assets/OneStarMaker/Tests/TestSupport/TestToolkitView.cs b/unity/Assets/OneStarMaker/Tests/TestSupport/TestToolkitView.cs
+index 94bdc7f7..c3818c6d 100644
+--- a/unity/Assets/OneStarMaker/Tests/TestSupport/TestToolkitView.cs
++++ b/unity/Assets/OneStarMaker/Tests/TestSupport/TestToolkitView.cs
+@@ -25,6 +25,8 @@ public sealed class TestToolkitView : UIToolkitView
+ 
+         public Action? ViewDestroyed { get; set; }
+ 
++        public string? InitialFocusNameForTest { get; set; }
++
+         /// <summary>テスト用 Root を注入する。</summary>
+         /// <param name="root">差し替える VisualElement。</param>
+         public void SetTestRoot(VisualElement root)
+@@ -57,6 +59,9 @@ public override UIView.UILayer GetUILayer()
+             return _layer;
+         }
+ 
++        /// <inheritdoc/>
++        protected override string? InitialFocusElementName => InitialFocusNameForTest;
++
+         protected override void OnViewDestroy()
+         {
+             ViewDestroyed?.Invoke();
+diff --git a/unity/Assets/OneStarMaker/Tests/UISystem/UIAccessibilityTextTests.cs b/unity/Assets/OneStarMaker/Tests/UISystem/UIAccessibilityTextTests.cs
+new file mode 100644
+index 00000000..0a9b37c5
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/UISystem/UIAccessibilityTextTests.cs
+@@ -0,0 +1,107 @@
++#nullable enable
++
++using System;
++using NUnit.Framework;
++using OneStarMaker.Runtime.UISystem;
++using OneStarMaker.Tests.UISystem.TestDoubles;
++using R3;
++using UnityEngine;
++using UnityEngine.UIElements;
++
++namespace OneStarMaker.Tests.UISystem
++{
++    /// <summary>
++    /// 要素ローカルのアクセシビリティ文言が、Track できる寿命で着脱できることを検証する。
++    /// </summary>
++    [TestFixture]
++    public sealed class UIAccessibilityTextTests
++    {
++        [Test]
++        public void Set_StoresNameAndHintUntilDisposed()
++        {
++            var element = new Button();
++
++            var subscription = UIAccessibilityText.Set(element, "OK", "決定して閉じます");
++
++            Assert.That(UIAccessibilityText.TryGet(element, out var name, out var hint), Is.True);
++            Assert.That(name, Is.EqualTo("OK"));
++            Assert.That(hint, Is.EqualTo("決定して閉じます"));
++
++            subscription.Dispose();
++
++            Assert.That(UIAccessibilityText.TryGet(element, out _, out _), Is.False);
++        }
++
++        [Test]
++        public void Set_RemovingMiddleEntryKeepsTheNewerText()
++        {
++            var element = new Label();
++            var first = UIAccessibilityText.Set(element, "先", "先のヒント");
++            var second = UIAccessibilityText.Set(element, "後", null);
++
++            first.Dispose();
++
++            Assert.That(UIAccessibilityText.TryGet(element, out var name, out var hint), Is.True);
++            Assert.That(name, Is.EqualTo("後"));
++            Assert.That(hint, Is.Null);
++
++            second.Dispose();
++
++            Assert.That(UIAccessibilityText.TryGet(element, out _, out _), Is.False);
++        }
++
++        [Test]
++        public void Bind_FollowsNameAndStopsAfterDispose()
++        {
++            var element = new Label();
++            var name = new ReactiveProperty<string>("回復しますか？");
++            var hint = new ReactiveProperty<string>("確認");
++
++            var subscription = UIAccessibilityText.Bind(element, name, hint);
++
++            Assert.That(UIAccessibilityText.TryGet(element, out var currentName, out var currentHint), Is.True);
++            Assert.That(currentName, Is.EqualTo("回復しますか？"));
++            Assert.That(currentHint, Is.EqualTo("確認"));
++
++            name.Value = "中止しますか？";
++            hint.Value = "再確認";
++
++            Assert.That(UIAccessibilityText.TryGet(element, out currentName, out currentHint), Is.True);
++            Assert.That(currentName, Is.EqualTo("中止しますか？"));
++            Assert.That(currentHint, Is.EqualTo("再確認"));
++
++            subscription.Dispose();
++            name.Value = "破棄後";
++
++            Assert.That(UIAccessibilityText.TryGet(element, out _, out _), Is.False);
++            name.Dispose();
++            hint.Dispose();
++        }
++
++        [Test]
++        public void Track_ClearsTextWhenViewIsDestroyed()
++        {
++            var element = new Button();
++            var gameObject = new GameObject("AccessibilityTrack");
++            var view = gameObject.AddComponent<TestToolkitView>();
++            view.TrackForTest(UIAccessibilityText.Set(element, "OK", "決定"));
++
++            typeof(UIToolkitView)
++                .GetMethod("OnDestroy", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
++                .Invoke(view, null);
++
++            Assert.That(UIAccessibilityText.TryGet(element, out _, out _), Is.False);
++            Object.DestroyImmediate(gameObject);
++        }
++
++        [Test]
++        public void Set_RejectsNullElementAndNullName()
++        {
++            var element = new Label();
++
++            Assert.Throws<ArgumentNullException>(() => UIAccessibilityText.Set(null!, "名前"));
++            Assert.Throws<ArgumentNullException>(() => UIAccessibilityText.Set(element, null!));
++            Assert.Throws<ArgumentNullException>(() => UIAccessibilityText.TryGet(null!, out _, out _));
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Tests/UISystem/UIAccessibilityTextTests.cs.meta b/unity/Assets/OneStarMaker/Tests/UISystem/UIAccessibilityTextTests.cs.meta
+new file mode 100644
+index 00000000..7bc63246
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/UISystem/UIAccessibilityTextTests.cs.meta
+@@ -0,0 +1,11 @@
++fileFormatVersion: 2
++guid: a48615eeadd34c7dbacbc61a6983ed8e
++MonoImporter:
++  externalObjects: {}
++  serializedVersion: 2
++  defaultReferences: []
++  executionOrder: 0
++  icon: {instanceID: 0}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/OneStarMaker/Tests/UISystem/UICommonUIToolkitTests.cs b/unity/Assets/OneStarMaker/Tests/UISystem/UICommonUIToolkitTests.cs
+index 86f113e2..44f2d859 100644
+--- a/unity/Assets/OneStarMaker/Tests/UISystem/UICommonUIToolkitTests.cs
++++ b/unity/Assets/OneStarMaker/Tests/UISystem/UICommonUIToolkitTests.cs
+@@ -65,8 +65,16 @@ public void CreateToolkitBlocker_SetsNamePickingModeAndFullscreenStyle()
+ 
+             Assert.That(blocker.name, Is.EqualTo("Blocker_owner-1"));
+             Assert.That(blocker.pickingMode, Is.EqualTo(PickingMode.Position));
++            Assert.That(blocker.focusable, Is.False);
++            Assert.That(blocker.tabIndex, Is.EqualTo(-1));
+             Assert.That(blocker.style.position.value, Is.EqualTo(Position.Absolute));
+             Assert.That(blocker.style.backgroundColor.value, Is.EqualTo(Color.clear));
++
++            var parent = new VisualElement();
++            var button = new Button { name = "ok", focusable = true, tabIndex = 1 };
++            parent.Add(blocker);
++            parent.Add(button);
++            Assert.That(UIToolkitInitialFocus.ListTabStops(parent), Is.EqualTo(new VisualElement[] { button }));
+         }
+ 
+         [Test]
+diff --git a/unity/Assets/OneStarMaker/Tests/UISystem/UIToolkitInitialFocusTests.cs b/unity/Assets/OneStarMaker/Tests/UISystem/UIToolkitInitialFocusTests.cs
+new file mode 100644
+index 00000000..d90bfe68
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/UISystem/UIToolkitInitialFocusTests.cs
+@@ -0,0 +1,154 @@
++#nullable enable
++
++using NUnit.Framework;
++using OneStarMaker.Runtime.UISystem;
++using OneStarMaker.Tests.UISystem.TestDoubles;
++using UnityEngine;
++using UnityEngine.UIElements;
++
++namespace OneStarMaker.Tests.UISystem
++{
++    /// <summary>
++    /// Dialog / Modal の初期フォーカスが、名前付き既定かタブ順の先頭になることを検証する。
++    /// </summary>
++    [TestFixture]
++    public sealed class UIToolkitInitialFocusTests
++    {
++        [Test]
++        public void ShouldApply_IsOnlyModalAndDialog()
++        {
++            Assert.That(UIToolkitInitialFocus.ShouldApply(UIView.UILayer.Background), Is.False);
++            Assert.That(UIToolkitInitialFocus.ShouldApply(UIView.UILayer.Normal), Is.False);
++            Assert.That(UIToolkitInitialFocus.ShouldApply(UIView.UILayer.Modal), Is.True);
++            Assert.That(UIToolkitInitialFocus.ShouldApply(UIView.UILayer.Dialog), Is.True);
++            Assert.That(UIToolkitInitialFocus.ShouldApply(UIView.UILayer.Loading), Is.False);
++            Assert.That(UIToolkitInitialFocus.ShouldApply(UIView.UILayer.Debug), Is.False);
++        }
++
++        [Test]
++        public void ListTabStops_OrdersPositiveTabIndexBeforeZeroAndSkipsNegative()
++        {
++            var root = new VisualElement();
++            var zero = Button("zero", 0);
++            var second = Button("second", 2);
++            var first = Button("first", 1);
++            var skipped = Button("skipped", -1);
++            var inert = new Label { name = "message", focusable = false, tabIndex = 0 };
++            root.Add(zero);
++            root.Add(second);
++            root.Add(first);
++            root.Add(skipped);
++            root.Add(inert);
++
++            var order = UIToolkitInitialFocus.ListTabStops(root);
++
++            Assert.That(order, Is.EqualTo(new VisualElement[] { first, second, zero }));
++        }
++
++        [Test]
++        public void Select_UsesNamedDefaultWhenItIsATabStop()
++        {
++            var root = new VisualElement();
++            var ok = Button("ok-button", 1);
++            var cancel = Button("cancel-button", 2);
++            root.Add(ok);
++            root.Add(cancel);
++
++            Assert.That(UIToolkitInitialFocus.Select(root, "cancel-button"), Is.SameAs(cancel));
++        }
++
++        [Test]
++        public void Select_FallsBackWhenNamedElementIsNotATabStop()
++        {
++            var root = new VisualElement();
++            var message = new Label { name = "message-label", focusable = true, tabIndex = -1 };
++            var ok = Button("ok-button", 1);
++            root.Add(message);
++            root.Add(ok);
++
++            Assert.That(UIToolkitInitialFocus.Select(root, "message-label"), Is.SameAs(ok));
++            Assert.That(UIToolkitInitialFocus.Select(root, "missing"), Is.SameAs(ok));
++        }
++
++        [Test]
++        public void ListTabStops_SkipsHiddenAndDisabledBranches()
++        {
++            var root = new VisualElement();
++            var hidden = new VisualElement();
++            hidden.style.display = DisplayStyle.None;
++            hidden.Add(Button("hidden-ok", 1));
++            var disabled = new VisualElement();
++            disabled.SetEnabled(false);
++            disabled.Add(Button("disabled-ok", 1));
++            var visible = Button("visible-ok", 1);
++            root.Add(hidden);
++            root.Add(disabled);
++            root.Add(visible);
++
++            Assert.That(UIToolkitInitialFocus.ListTabStops(root), Is.EqualTo(new VisualElement[] { visible }));
++        }
++
++        [Test]
++        public void TryApply_ReturnsFalseWhenTheTargetHasNoPanel()
++        {
++            var root = new VisualElement();
++            root.Add(Button("ok-button", 1));
++
++            Assert.That(UIToolkitInitialFocus.TryApply(root, "ok-button"), Is.False);
++        }
++
++        [Test]
++        public void ApplyInitialFocus_DoesNotThrowForDialogWithoutPanel()
++        {
++            var gameObject = new GameObject("FocusView");
++            var view = gameObject.AddComponent<TestToolkitView>();
++            var root = new VisualElement();
++            root.Add(Button("ok-button", 1));
++            view.SetTestRoot(root);
++            view.SetLayer(UIView.UILayer.Dialog);
++            view.InitialFocusNameForTest = "ok-button";
++
++            Assert.DoesNotThrow(() => view.ApplyInitialFocus());
++
++            view.SetLayer(UIView.UILayer.Normal);
++            Assert.DoesNotThrow(() => view.ApplyInitialFocus());
++            Object.DestroyImmediate(gameObject);
++        }
++
++        [Test]
++        public void TryApply_FocusesNamedButtonWhenDocumentPanelExists()
++        {
++            var settings = ScriptableObject.CreateInstance<PanelSettings>();
++            var gameObject = new GameObject("FocusDocument");
++            try
++            {
++                var document = gameObject.AddComponent<UIDocument>();
++                document.panelSettings = settings;
++                var root = document.rootVisualElement;
++                Assert.That(root, Is.Not.Null);
++                Assert.That(root!.panel, Is.Not.Null);
++
++                var button = Button("ok-button", 1);
++                root.Add(button);
++
++                Assert.That(UIToolkitInitialFocus.TryApply(root, "ok-button"), Is.True);
++                Assert.That(root.panel!.focusController.focusedElement, Is.SameAs(button));
++            }
++            finally
++            {
++                Object.DestroyImmediate(gameObject);
++                Object.DestroyImmediate(settings);
++            }
++        }
++
++        private static Button Button(string name, int tabIndex)
++        {
++            return new Button
++            {
++                name = name,
++                focusable = true,
++                tabIndex = tabIndex,
++            };
++        }
++    }
++}
+diff --git a/unity/Assets/OneStarMaker/Tests/UISystem/UIToolkitInitialFocusTests.cs.meta b/unity/Assets/OneStarMaker/Tests/UISystem/UIToolkitInitialFocusTests.cs.meta
+new file mode 100644
+index 00000000..55e1b26d
+--- /dev/null
++++ b/unity/Assets/OneStarMaker/Tests/UISystem/UIToolkitInitialFocusTests.cs.meta
+@@ -0,0 +1,11 @@
++fileFormatVersion: 2
++guid: 73e58597aaf04eefa5d6993ba41a2218
++MonoImporter:
++  externalObjects: {}
++  serializedVersion: 2
++  defaultReferences: []
++  executionOrder: 0
++  icon: {instanceID: 0}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
+diff --git a/unity/Assets/SampleGame/OutGame/ConfirmDialog/ConfirmDialog.uxml b/unity/Assets/SampleGame/OutGame/ConfirmDialog/ConfirmDialog.uxml
+index a961b021..c1d3407d 100644
+--- a/unity/Assets/SampleGame/OutGame/ConfirmDialog/ConfirmDialog.uxml
++++ b/unity/Assets/SampleGame/OutGame/ConfirmDialog/ConfirmDialog.uxml
+@@ -1,10 +1,10 @@
+ <ui:UXML xmlns:ui="UnityEngine.UIElements">
+     <ui:VisualElement style="flex-grow: 1; align-items: center; justify-content: center;">
+         <ui:VisualElement name="dialog-panel" style="width: 400px; background-color: rgb(45, 45, 50); border-radius: 8px; padding: 24px; align-items: center;">
+-            <ui:Label name="message-label" text="確認" style="font-size: 20px; margin-bottom: 24px; white-space: normal; -unity-text-align: middle-center;" />
++            <ui:Label name="message-label" text="確認" focusable="false" tabindex="-1" style="font-size: 20px; margin-bottom: 24px; white-space: normal; -unity-text-align: middle-center;" />
+             <ui:VisualElement style="flex-direction: row; justify-content: center;">
+-                <ui:Button name="ok-button" text="OK" style="width: 100px; height: 36px; margin-right: 16px;" />
+-                <ui:Button name="cancel-button" text="Cancel" style="width: 100px; height: 36px;" />
++                <ui:Button name="ok-button" text="OK" focusable="true" tabindex="1" style="width: 100px; height: 36px; margin-right: 16px;" />
++                <ui:Button name="cancel-button" text="Cancel" focusable="true" tabindex="2" style="width: 100px; height: 36px;" />
+             </ui:VisualElement>
+         </ui:VisualElement>
+     </ui:VisualElement>
+diff --git a/unity/Assets/SampleGame/OutGame/ConfirmDialog/ConfirmDialogView.cs b/unity/Assets/SampleGame/OutGame/ConfirmDialog/ConfirmDialogView.cs
+index b46e345f..bcd22a00 100644
+--- a/unity/Assets/SampleGame/OutGame/ConfirmDialog/ConfirmDialogView.cs
++++ b/unity/Assets/SampleGame/OutGame/ConfirmDialog/ConfirmDialogView.cs
+@@ -17,6 +17,11 @@ namespace SampleGame.OutGame.ConfirmDialog
+     /// </summary>
+     public sealed class ConfirmDialogView : UIToolkitView
+     {
++        private const string PanelName = "dialog-panel";
++        private const string MessageName = "message-label";
++        private const string OkName = "ok-button";
++        private const string CancelName = "cancel-button";
++
+         private BehaviorRunner? _runner;
+         private ConfirmDialogViewModel? _viewModel;
+ 
+@@ -26,6 +31,9 @@ public sealed class ConfirmDialogView : UIToolkitView
+         /// <inheritdoc />
+         public override UILayer GetUILayer() => UILayer.Dialog;
+ 
++        /// <inheritdoc />
++        protected override string? InitialFocusElementName => OkName;
++
+         /// <inheritdoc />
+         protected override void OnRootCreated(VisualElement root)
+         {
+@@ -34,17 +42,20 @@ protected override void OnRootCreated(VisualElement root)
+             SetViewModel(_viewModel);
+             _viewModel.Decided += HandleViewModelDecided;
+ 
+-            var panel = root.Q<VisualElement>("dialog-panel")
++            var panel = root.Q<VisualElement>(PanelName)
+                 ?? throw new InvalidOperationException("dialog-panel が見つかりません。");
+-            var messageLabel = root.Q<Label>("message-label")
++            var messageLabel = root.Q<Label>(MessageName)
+                 ?? throw new InvalidOperationException("message-label が見つかりません。");
+-            var okButton = root.Q<Button>("ok-button")
++            var okButton = root.Q<Button>(OkName)
+                 ?? throw new InvalidOperationException("ok-button が見つかりません。");
+-            var cancelButton = root.Q<Button>("cancel-button")
++            var cancelButton = root.Q<Button>(CancelName)
+                 ?? throw new InvalidOperationException("cancel-button が見つかりません。");
+ 
+             Track(messageLabel.BindText(_viewModel.Message));
+             Track(messageLabel.BindVisible(_viewModel.IsMessageVisible));
++            Track(UIAccessibilityText.Bind(messageLabel, _viewModel.Message));
++            Track(UIAccessibilityText.Set(okButton, "OK", "決定して閉じます"));
++            Track(UIAccessibilityText.Set(cancelButton, "Cancel", "取り消して閉じます"));
+ 
+             panel.style.opacity = 0f;
+             panel.style.scale = new Scale(new Vector3(0.8f, 0.8f, 1f));
+diff --git a/unity/Assets/SampleGame/Tests/Editor/OutGame/ConfirmDialogAccessibilityTests.cs b/unity/Assets/SampleGame/Tests/Editor/OutGame/ConfirmDialogAccessibilityTests.cs
+new file mode 100644
+index 00000000..1a32e828
+--- /dev/null
++++ b/unity/Assets/SampleGame/Tests/Editor/OutGame/ConfirmDialogAccessibilityTests.cs
+@@ -0,0 +1,79 @@
++#nullable enable
++
++using NUnit.Framework;
++using OneStarMaker.Runtime.UISystem;
++using SampleGame.OutGame.ConfirmDialog;
++using UnityEditor;
++using UnityEngine;
++using UnityEngine.UIElements;
++
++namespace SampleGame.Tests.Editor.OutGame
++{
++    /// <summary>
++    /// ConfirmDialog のタブ順と、メッセージ / OK / Cancel のアクセシビリティ名を検証する。
++    /// </summary>
++    [TestFixture]
++    public sealed class ConfirmDialogAccessibilityTests
++    {
++        private const string UxmlPath = "Assets/SampleGame/OutGame/ConfirmDialog/ConfirmDialog.uxml";
++
++        [Test]
++        public void Uxml_SetsTabOrderAndLeavesMessageOutOfTheRing()
++        {
++            var tree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(UxmlPath);
++            Assert.That(tree, Is.Not.Null);
++
++            var root = tree.CloneTree();
++            var message = root.Q<Label>("message-label");
++            var ok = root.Q<Button>("ok-button");
++            var cancel = root.Q<Button>("cancel-button");
++
++            Assert.That(message, Is.Not.Null);
++            Assert.That(ok, Is.Not.Null);
++            Assert.That(cancel, Is.Not.Null);
++            Assert.That(message!.focusable, Is.False);
++            Assert.That(message.tabIndex, Is.EqualTo(-1));
++            Assert.That(ok!.focusable, Is.True);
++            Assert.That(ok.tabIndex, Is.EqualTo(1));
++            Assert.That(cancel!.focusable, Is.True);
++            Assert.That(cancel.tabIndex, Is.EqualTo(2));
++            Assert.That(
++                UIToolkitInitialFocus.ListTabStops(root),
++                Is.EqualTo(new VisualElement[] { ok, cancel }));
++            Assert.That(UIToolkitInitialFocus.Select(root, "ok-button"), Is.SameAs(ok));
++        }
++
++        [Test]
++        public void View_AssignsAccessibilityTextAndClearsItOnDestroy()
++        {
++            var tree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(UxmlPath);
++            var gameObject = new GameObject("ConfirmDialogAccessibility");
++            var view = gameObject.AddComponent<ConfirmDialogView>();
++            view.AssignVisualTreeAssetForEditor(tree);
++            view.Initialize();
++
++            var message = view.Root.Q<Label>("message-label")
++                ?? throw new System.InvalidOperationException("message-label が見つかりません。");
++            var ok = view.Root.Q<Button>("ok-button")
++                ?? throw new System.InvalidOperationException("ok-button が見つかりません。");
++            var cancel = view.Root.Q<Button>("cancel-button")
++                ?? throw new System.InvalidOperationException("cancel-button が見つかりません。");
++
++            Assert.That(UIAccessibilityText.TryGet(message, out var messageName, out var messageHint), Is.True);
++            Assert.That(messageName, Is.EqualTo("HPを回復しますか？"));
++            Assert.That(messageHint, Is.Null);
++            Assert.That(UIAccessibilityText.TryGet(ok, out var okName, out var okHint), Is.True);
++            Assert.That(okName, Is.EqualTo("OK"));
++            Assert.That(okHint, Is.EqualTo("決定して閉じます"));
++            Assert.That(UIAccessibilityText.TryGet(cancel, out var cancelName, out var cancelHint), Is.True);
++            Assert.That(cancelName, Is.EqualTo("Cancel"));
++            Assert.That(cancelHint, Is.EqualTo("取り消して閉じます"));
++
++            Object.DestroyImmediate(gameObject);
++
++            Assert.That(UIAccessibilityText.TryGet(message, out _, out _), Is.False);
++            Assert.That(UIAccessibilityText.TryGet(ok, out _, out _), Is.False);
++            Assert.That(UIAccessibilityText.TryGet(cancel, out _, out _), Is.False);
++        }
++    }
++}
+diff --git a/unity/Assets/SampleGame/Tests/Editor/OutGame/ConfirmDialogAccessibilityTests.cs.meta b/unity/Assets/SampleGame/Tests/Editor/OutGame/ConfirmDialogAccessibilityTests.cs.meta
+new file mode 100644
+index 00000000..43cbc504
+--- /dev/null
++++ b/unity/Assets/SampleGame/Tests/Editor/OutGame/ConfirmDialogAccessibilityTests.cs.meta
+@@ -0,0 +1,11 @@
++fileFormatVersion: 2
++guid: a8b0964f0ca74a75b4a7b7310b4268b1
++MonoImporter:
++  externalObjects: {}
++  serializedVersion: 2
++  defaultReferences: []
++  executionOrder: 0
++  icon: {instanceID: 0}
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
