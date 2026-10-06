@@ -3,7 +3,7 @@
 ## 0. 状態と権限
 
 - type: slice
-- status: A（A1 proposed。未承認候補、実装キューではない）
+- status: A（A1 revised / A2 指摘を統合。A3 未承認、実装キューではない）
 - branch: `codex/ui-accessibility-button-plan` / PR base: `develop`
 - implementation base commit: `6d804ca637cf42fb876e602c8ccc0656cfbd255d`
 - implementation head commit: 未実装
@@ -12,7 +12,8 @@
 - created: 2026-10-06
 - expires: 2026-11-05 または置換 revision の成立時。期限時は owner が更新・廃止を判断する
 - harvest to: `unity/Assets/Docs/Architecture/06-ui.md`。実装後に実証した契約だけを移す
-- Phase A snapshot: A2 入力固定時に commit / 生成時刻 / hash を追記。A3 凍結 snapshot は未作成
+- A2 固定入力: 公開 commit `e3e27c69c91890ee3c19f03c140942514c0d34ef`、tree `5fdd5f55b2722cc119a63a259785dc5b90bc0961`。同一 tree のローカル `547dd6b04912cddbaccae6abfa65dd791e67e350` を 2026-10-06 16:15:51 UTC に固定
+- A2 入力本文 SHA-256: `f9c291c90d44bc56d2607690fe5c7c32d1470ef707b9f30c9d928131031ccefe`。本改稿はレビュー後の統合案であり、A3 凍結 snapshot は未作成
 - Phase B result / evidence / C' blind bundle: 未作成。各 Phase で取得先・時刻・hash を記録する
 
 現在の承認は、この cloud 上の文書作成・独立計画レビュー・Draft PR まで。
@@ -38,7 +39,7 @@ API が存在することは、本アプリの実機成功の証拠ではない�
 [AccessibilityNode](https://docs.unity3d.com/6000.6/Documentation/ScriptReference/Accessibility.AccessibilityNode.html) の表示要素からの独立性と WindowsPlayer 対応、[AccessibilityHierarchy](https://docs.unity3d.com/6000.6/Documentation/ScriptReference/Accessibility.AccessibilityHierarchy.html) の変更通知・主ウィンドウ限定を前提にする。
 
 対象外: World の §30 / §31、グローバル意味レジストリ、新描画木、汎用 Manager、uGUI backend、Input / Script / Sound の拡張、全画面対応、他 OS、配布・性能一般化。
-Toggle / Slider は「UI control 拡張候補」、設定の200%表示は「UI 設定候補」、modal の focus 復帰は「UI modal 候補」が所有する後続の問い。いずれも未承認で、新 A0〜A3 なしに着手しない。
+Toggle / Slider は「UI control 拡張候補」、設定の200%表示は「UI 設定候補」、modal の focus 復帰・背面経路は「UI modal 候補」が所有する後続の問い。自動 panel reload 復元・Narrator on 復元・任意 opacity / zero-size の広い style 行列は「UI projection resilience 候補」へ送る。いずれも未承認で、新 A0〜A3 なしに着手しない。
 
 ## 2. A1: 最低条件と停止位置
 
@@ -50,12 +51,12 @@ Toggle / Slider は「UI control 拡張候補」、設定の200%表示は「UI �
 - **機能 GO:** Gate 1 / 2、最終 head の判定必須テスト、C / C' が揃い、現在の問いへの blocker がないこと。最初の読み上げだけで後続 control へ進めない。
 - **未達 / blocked:** 未完了として原因と未確認を返す。経路がないことを成功・対象外・強行継続へ読み替えない。CONDITIONAL ACCEPT は設けない。
 
-受入詳細（Gate 2 を構成する条件）:
+受入詳細（最初の実証は Narrator を先に ON にし、既知の Title 親レイアウト・対象1個から始める）:
 
 1. 対象の名前と Button role を Narrator が読み、Narrator activate と通常の click / submit が同じ Action を1操作につき1回だけ実行する。
 2. 表示名・enabled の変更は共通モデルから通常 UI と node に反映される。再 focus 時に最新名を読み、無効状態で操作は発生しない。変更のたびに無条件 TTS を追加しない。
-3. 対象または祖先が非表示・無効、panel から detach、表示セッション終了、破棄後なら対象を探索・操作できない。enabledSelf だけで判定しない。
-4. detach / reattach、表示終了 / 再表示、Narrator off / on で現在の対象だけが復元される。古い callback を保持して呼んでも操作・再登録が起きず、二重購読・二重実行がない。
+3. 制御された show / hide と親 enabled 切替では非適格 node を公開しない。対象・祖先の display / visibility / enabled、panel 接続、表示セッションを同期時と invoke 直前に検査する。任意の CSS 変更を瞬時に検知する一般保証はしない（§3）。
+4. detach / reattach と明示した表示終了 / 再表示は新セッションにする。旧 callback は再表示後も無効。Narrator OFF、予期しない panel reload / modal / root disable では永久に現セッションを失効させ、ON / enable だけで自動復元しない。再試行は明示した close / reopen から行う。
 5. 通常表示・入力と既存の6レイヤー、Track の解放順序を壊さない。画面ごとに activeHierarchy を上書きせず、終了時に他者の hierarchy を消さない。
 
 ## 3. 共通モデルと backend の契約案
@@ -70,49 +71,51 @@ TryInvoke はモデルの enabled / disposal を守り、表示・祖先・世�
 
 ### UITK と Narrator の双方向接続
 
-- `UIToolkitView` に protected `BindAccessibleButton(Button, AccessibilityButtonBinding)` を追加する案。返る IDisposable は Track へ登録する。Button 引数は既存 UITK 専用層内だけに閉じる。
-- Runtime 内部の `UIToolkitButtonAccessibilityBinding` が、Name → Button.text / node.label、Enabled → Button.SetEnabled / node.state を同期し、通常 clicked と node.invoked を同じ guarded TryInvoke に結ぶ。別の NavigationSubmitEvent を重ねて送信しない。
-- 適用可否は、表示セッションが有効、現在世代、GameObject 有効、panel 接続、対象と祖先の resolved display / visibility、enabledInHierarchy を合わせて決める。祖先 opacity 0 と面積0の frame も非表示として除外する。単なる別要素との視覚的重なりの一般判定は対象外。
-- 不適格な node は isActive=false とし、enabled=false は Disabled 状態も同期する。無効化で通常入力も拒否する。解放時は node 除去・イベント解除・世代無効化を行う。
-- `GeometryChangedEvent` と attach / detach、モデル Changed を契機に同期する。祖先 style 変更をイベントだけで取りこぼさないよう、backend の一つの UpdateSystem 登録から main-thread apply で有効性と frame を差分確認する案とする。毎フレーム Q() や tree 再生成はしない。
-- frame は worldBound と panel の pixel scale から算出する。モデル値・可視性・frame の変更をまとめて通知し、変更がない tick は通知しない。active hierarchy の node 増減・frame 変更は SendLayoutChanged、表示開始は SendScreenChanged を使う。名前・enabled 更新時も同期後の layout 通知を行い、OS 上の結果は Gate 2 で確認する。
+- `UIToolkitView` に protected `BindAccessibleButton(Button, AccessibilityButtonBinding)` を追加する案。返る IDisposable は Track に登録。OnRootCreated 時は View 内の pending binding 集合に保持し、node・OS 接続はまだ作らない。Button 型は UITK 専用層に閉じる。
+- Runtime 内部の `UIToolkitButtonAccessibilityBinding` が、Name → Button.text / node.label、Enabled → Button.SetEnabled / node.state を同期する。通常 clicked と node.invoked は同じ guarded TryInvoke を呼ぶ。追加の NavigationSubmitEvent は送らない。
+- 各表示・接続セッションで不変の token を capture した新 delegate を作る。suspend 時は旧 token を永久失効し購読解除する。再接続で同じ token や mutable な「現在世代参照」だけの delegate を再利用しない。旧 delegate は再表示後も操作・再登録できない。
+- 同期時と invoke 直前に、現セッション、GameObject 有効、panel 接続、対象・祖先の resolved display / visibility、enabledInHierarchy を検査する。非適格 node は isActive=false、enabled=false は Disabled も反映。終了時は node 除去・イベント解除を行う。
+- 既知の fixture の親 hide / 無効操作ではモデル Enabled=true を保ち、親の style / enabled だけを変える。次の main-thread apply で resolved 値を確認して投影を同期し、その同期完了後に node 非公開・操作拒否を検査する。show / enable 後も同じ同期地点で再公開する。モデル無効化で祖先判定の欠陥を隠さず、反映前の瞬時同期は保証しない。
+- 外部から任意に変更された祖先 style は次の main-thread apply まで投影に遅延し得る。invoke は直前検査で即時拒否するが、それだけで一般的な不可視 node 非公開を保証しない。任意 style の即時同期・opacity 行列は本候補の実証範囲外。
+- モデル Changed、GeometryChangedEvent、attach / detach と、backend 一つの UpdateSystem main-thread apply で状態・frame を差分同期する。毎フレーム Q() / tree 再生成はしない。frame は worldBound と panel pixel scale を使用する。
+- active hierarchy の node 増減・frame・名前・enabled の変更後はまとめて SendLayoutChanged、表示開始は SendScreenChanged。無変更 tick は通知しない。通知の呼出しだけで OS の最新読み上げを証明したことにしない。
 
-### hierarchy の所有者と表示寿命
+### hierarchy 所有者と登録 handshake
 
-`UICommon` が内部 `UIToolkitAccessibilityBackend` を一つ所有し、その一つの AccessibilityHierarchy だけを AssistiveSupport へ接続する。scope は既存共通 UI ルートの App 寿命内。各 View は自分の明示 binding のみを提供し、backend を生成しない。
+UICommon が内部 `UIToolkitAccessibilityBackend` を一つ App 寿命内で所有し、一つの AccessibilityHierarchy だけを接続する。各 View は backend を作らない。明示 binding がない間は dormant とし、node 作成、activeHierarchy 設定、global OS event 購読、更新登録を行わない。
 
-- UICommon の Add は ViewIn 成功後に表示セッションを有効化する。Remove は ViewOut 開始前に無効化する。Add 失敗・キャンセルでも有効化しない。
-- Panel reload / detach では即時に該当 binding を無効化し、再接続時には現セッションの新世代として再投影する。同じ View の再表示も新世代にする。
-- UICommon disable では全表示投影と OS 購読を停止、enable では現在の entries から復元。View destroy は Track 経由で最終解放し、モデルを破棄する前に callback を止める。
-- Narrator off で Unity が activeHierarchy を解除するため、on 時は現在有効な binding のみから再接続する。終了時は activeHierarchy が自分のものの場合だけ解除する。
-- 他者の activeHierarchy が既にある場合は奪わず、競合を報告して本接続を停止する。複数 UICommon を調停する global registry は作らない。
-- UICommon の既存 entries に Modal〜Loading の背面遮断がある間は、背面の pilot 投影を停止する最小判定だけを行う。modal の focus stack / 復帰先決定は追加しない。
+1. UICommon.Add が Root を初期化して pending binding を得た後、Runtime 内部メソッドで View と backend を結ぶ。ViewIn 成功後に、同じ Add token、現在の entries 所属、未取消を再確認して表示セッションを確定する。entries は候補の所在であり有効性の権威ではない。
+2. BehaviorRunner が OperationCanceledException を吸収するため、await の正常 return だけで成功判定しない。`ct.IsCancellationRequested` と token 失効を確認し、遅れて完了した古い Add を再活性化しない。
+3. 最初の適格 binding で既存 UpdateSystemRuntime.RegisterElement を行う。true は登録受付であり稼働証拠ではない。OnElementStart と最初の main-thread apply / layout 確認後に node を公開する。host 不在・登録拒否は接続失敗を記録し非公開のまま。代替 timer や bootstrap bypass は作らず、再試行は明示 reopen に限定する。 UICommon.Add は登録受付後に戻り、OnElementStart / 初回 apply を await しない。SceneDirector の Stable 到達と UpdateSystem の起動を循環待ちにせず、node 公開だけを後続の更新へ遅延する。
+4. Remove は ViewOut 前、Add 失敗・取消は cleanup 時に token を失効し、node・session 購読・backend 関連付けを解除する。View 内 pending 定義は再表示まで非活性で保持、Track による destroy で最終解放する。モデル破棄より先に binding を止める。
+5. 対象の detach は旧 token を失効し、同じ有効 View の明示 reattach で新 token と delegate を作る。Reader OFF / 予期しない panel reload / modal / root disable は全 pilot session を失効する。生の entries、Reader ON、enable から復元せず、close / reopen を必要とする。
+6. Narrator は opening 前から ON を前提とし、OFF 通知で登録と投影を解放する。終了時は activeHierarchy が自分のものの場合だけ解除。他者の hierarchy があれば奪わず、競合を結果に記録して first proof を未達とする。global registry は作らない。
 
-更新登録は既存 `UpdateSystemRuntime.RegisterElement` / `RequestElementApply` を使い、backend 専用の内部 layer ID と順序を置く。新 MonoBehaviour.Update や独自 timer は作らない。登録不成立は接続失敗として返し、裏で別経路へ切り替えない。
+UpdateSystem の内部 layer ID / 順序は backend 内に閉じ、RequestElementApply で main-thread 適用する。新 MonoBehaviour.Update は作らない。modal の正常運用・背面選択・focus 復帰を、この中止境界の検査から拡張しない。
 
 ## 4. 実証 fixture と責務配置
 
 既存 Title に development build 専用・`--ui-accessibility-button-pilot` 指定時だけ出す fixture を置く案。
-Title.uxml に対象 button、親コンテナ、結果 label、検証補助ボタンを宣言し、TitleView.OnRootCreated で一度だけ取得する。レイアウトは UXML が所有する。
+Title.uxml の fixture 親は default display:none。非 development または flag なしなら、OnRootCreated で最初の panel 挿入より前に fixture を除去し、binding・counter・log を作らない。Editor は通常 OFF、テストだけ明示した gate 入力を渡す。対象・親・結果 label・補助ボタンは UXML が所有し、一度だけ取得する。
 `TitleAccessibilityPilot` が Name / Enabled とメモリ内 counter を所有し、対象「カウントを増やす」の1回の操作で counter が1増える。結果を label と Player log に残す。保存・通信・シーン遷移・音は行わない。
 検証補助ボタンは対象の親コンテナの外に置き、名前変更、enabled、親 display / visibility / enabled、対象 detach / reattach を切り替える。対象以外は semantic node にしない。
-表示セッションの Remove / Add、失敗・破棄・古い delegate 注入は Unity テストで検証する。実 Player の閉じて再表示する到達手段は検証経路確認時に選び、支援が追加で必要なら A3 前に配置と予算を確定する。
+Remove / Add、失敗・破棄・旧 delegate 注入は Unity テストで検証する。実 Player の明示 close / reopen 到達手段は §5 で選ぶ。支援が必要なら A3 前に配置・予算を確定する。
 
-下表の行数は base 実測、増分は計画値。先頭 `F` = `unity/Assets/OneStarMaker/Scripts/Foundation/`、`R` = `unity/Assets/OneStarMaker/Scripts/Runtime/UISystem/`、`T` = `unity/Assets/OneStarMaker/Tests/`、`G` = `unity/Assets/SampleGame/OutGame/Title/`。
+下表の行数は base 実測、増分は再見積り。小ささや実装成立の証明ではない。先頭 `F` = `unity/Assets/OneStarMaker/Scripts/Foundation/`、`R` = `unity/Assets/OneStarMaker/Scripts/Runtime/UISystem/`、`T` = `unity/Assets/OneStarMaker/Tests/`、`G` = `unity/Assets/SampleGame/OutGame/Title/`。
 
 | 対象 | 現在 → 予想増分 | 責務、所有者・寿命、依存、テスト境界 |
 |---|---:|---|
 | F `UISystem/AccessibilityButtonBinding.cs`（新規） | 0 → +80〜120 | 名前・enabled・invoke policy。View 所有 / Bind(go) 相当。System のみ、公開面は §3。source-linked 純 C# テスト |
-| R `Accessibility/UIToolkitButtonAccessibilityBinding.cs`（新規） | 0 → +160〜220 | 一つの Button の projection と guarded callback。View 所有、表示世代で suspend、Track で最終 dispose。Foundation / UITK / Accessibility、内部型、Unity テスト |
-| R `Accessibility/UIToolkitAccessibilityBackend.cs`（新規） | 0 → +180〜240 | hierarchy と OS 接続、通知、更新登録。UICommon 所有 / App。Runtime UpdateSystem / UITK / Accessibility、内部型、Unity テストと Player |
+| R `Accessibility/UIToolkitButtonAccessibilityBinding.cs`（新規） | 0 → +130〜190 | 一つの Button の projection と guarded callback。View 所有、表示世代で suspend、Track で最終 dispose。Foundation / UITK / Accessibility、内部型、Unity テスト |
+| R `Accessibility/UIToolkitAccessibilityBackend.cs`（新規） | 0 → +130〜190 | hierarchy と OS 接続、通知、更新登録。UICommon 所有 / App。Runtime UpdateSystem / UITK / Accessibility、内部型、Unity テストと Player |
 | R `UICommon.cs` | 571 → +35〜55 | 既存 entries と表示境界から backend を配線。App、既存 View 依存。OS node の詳細は置かない。UICommonUIToolkitTests |
 | R `UIToolkitView.cs` | 194 → +35〜55 | binding 登録口、内部表示セッション、破棄順序。Bind(go)、Runtime 内部と Foundation。既存 public API の意味を変えない |
 | G `TitleView.cs` | 124 → +15〜25 | opt-in 判定・fixture 配線のみ。既存 View 寿命。Game → Framework、Unity テスト |
 | G `Title.uxml` | 10 → +10〜20 | fixture の表示構造のみ。Title asset / Scene。既存 UXML、Editor / Player 表示確認 |
-| G `TitleAccessibilityPilot.cs`（新規） | 0 → +100〜160 | counter・検証状態・画面結果。Title View 所有。Foundation / Runtime / UITK、Game 内部、アプリテスト |
-| T `UISystem/UICommonUIToolkitTests.cs` | 135 → +50〜80 | 表示開始終了・失敗・reload の既存契約回帰。test ごとの View / UICommon、既存 Tests assembly |
+| G `TitleAccessibilityPilot.cs`（新規） | 0 → +80〜120 | counter・検証状態・画面結果。Title View 所有。Foundation / Runtime / UITK、Game 内部、アプリテスト |
+| T `UISystem/UICommonUIToolkitTests.cs` | 135 → +40〜70 | 表示開始終了・取消・失敗の契約回帰。test ごとの View / UICommon、既存 Tests assembly |
 | T `UISystem/UIToolkitViewLifecycleTests.cs` | 70 → +25〜40 | Track 解放順序・旧 callback 拒否。test 所有、既存 Tests assembly |
-| T `UISystem/UIToolkitAccessibilityTests.cs`（新規） | 0 → +200〜280 | model / node 対応、祖先条件、detach、OS toggle、競合。test 所有、既存 Tests assembly |
+| T `UISystem/UIToolkitAccessibilityTests.cs`（新規） | 0 → +160〜220 | model / node 対応、制御下の祖先条件、detach、OFF失効、競合。test 所有、既存 Tests assembly |
 | `unity/Assets/SampleGame/Tests/UIAccessibilityPilotTests.cs`（新規） | 0 → +80〜120 | アプリ fixture の同一 action・counter・opt-in。既存 SampleGame.Tests、Game → Framework |
 | `tools/UIAccessibilityOfflineTests/UIAccessibilityOfflineTests.csproj` / `Program.cs`（新規） | 各0 → +20 / +120〜180 | 共通モデルだけ source-link。既存 offline runner 方式、.NET 8 / System のみ、プロセス寿命 |
 
@@ -128,18 +131,27 @@ Title.uxml と小さな test は50%以上増加し得るが、同一 fixture / �
 
 A3 前に次を同じ候補へ記録する必要がある。
 
-1. 権限のある Windows 実行環境、実行・観察担当と操作方法。Unity 6000.6.0f1 / Windows Player の build・起動・Title 到達、Narrator off / on / focus / activate、fixture 状態切替を誰が行うか。
+1. 権限のある Windows 実行環境、実行・観察担当と操作方法。Unity 6000.6.0f1 / Windows Player の build・起動・Title 到達、Narrator を先に ON、focus / activate、fixture 切替・明示 reopen を誰が行うか。
 2. 音声を誰が何で観察するか。録音を C / C' が再生して再評価する経路、または明示合意した観察者の一次記録を受理する方式を選ぶ。字幕・node 値・成功ログだけを実読み上げの代用にしない。
 3. 固定 implementation head、Player / content の識別、OS・Narrator 設定、操作順、counter 前後、音声または観察原記録、スクリーンショット、Player log を取得・保存する経路。C / C' の受取側で閲覧・hash 確認できること。
 4. 未知の既存操作経路だけを小さく疎通する。Unity test / build を伴うため凍結前に試せないなら「未確認。初回確認は Phase C」と明記し、担当、最初の確認地点、必要支援、不成立時の基盤整備または問いの分離を人間と A3 で合意する。
 
-現在は全て未決。将来の実行担当を名指しできるまで A3 を凍結しない。接続できただけで実アプリ到達や音声取得まで成功と扱わない。
+現在は全て未決。次の具体的 milestone は、権限のある Windows 検証経路と担当・証拠方式を選び、疎通または明示した Phase C 初回確認条件を人間と合意して A3 可否を決めること。利用者の手作業を既定にしない。接続だけをアプリ到達・音声取得成功にしない。
+
+| 条件 | 合否に使う最小証拠（取得は全て将来、経路は A3 未決） |
+|---|---|
+| §2-1 読み上げ / invoke | Narrator ON → pilot opening → focus で名前と role → activate。通常 click / submit と各1回の counter 前後、音声または合意した一次観察記録、Player log |
+| §2-2 最新名 / enabled | 名前変更 → 再 focus の実音声。モデル disable 後は探索対象から外れ counter 不変、enable 後は実 activate で1回。保持した旧 invoke の拒否と Disabled 状態は Unity テストで別に確認する。node 値だけでは読み上げの証拠にしない |
+| §2-3 / 4 表示境界 | Player で制御下 hide / show、detach / reattach、明示 close / reopen の探索・操作を確認。古い delegate、取消済み ViewIn、destroy、OFF / reload / modal / disable の失効は UIToolkitAccessibilityTests と UICommonUIToolkitTests の合成入力で確認 |
+| §2-5 所有者 / 非 opt-in | Unity テストで foreign hierarchy 非上書き、Track 解放順、非 opt-in の表示・node・OS購読0件。通常 Title の Unity 回帰。fake を OS 成功と呼ばない |
+
+A3 で上記順序の実際の操作ボタン・到達方法と証拠の受取方法を埋める。未観察の条件は未確認のまま残す。
 
 将来の検証順序:
 
 - 純 C#: `dotnet run --project tools/UIAccessibilityOfflineTests`。同値更新、Changed、無効時拒否、dispose、action1回を検査。Unity 型なしでコンパイルできる範囲をこの一モデルに限定する。
 - 発見 C の起点: `pwsh tools/run-tests.ps1 -Filter 'OneStarMaker.Tests.UISystem|SampleGame.Tests.UIAccessibilityPilotTests'`。XML で必要集合と1件以上の実行を確認。filter の調整は凍結条件への根拠を残す。
-- Unity 統合: attach された実 panel で ancestor style / enabled、frame、reload、表示終了と破棄の区別、Narrator status の再接続、他 hierarchy 非干渉を検査。fake の node 呼出しを OS invoke の証拠にしない。
+- Unity 統合: attach された実 panel で制御下の祖先条件、frame、表示終了と破棄、旧 token、登録 handshake、予期しない境界の失効、他 hierarchy 非干渉を検査。fake の node 呼出しを OS invoke の証拠にしない。
 - 判定 C: GO 候補の最終 head で純 C#、関連 Unity テスト、`pwsh tools/run-tests.ps1 -Filter ''` による全 EditMode 回帰、および Windows Player / Narrator の Gate 2。全 EditMode の適用除外はなし。
 - B は実装・限定 Editor 操作・compile 確認まで。Unity test / build と実機判定は C。H2 の他 task 用 B 限定許可は流用しない。
 - Windows Unity test は最初から承認済み sandbox 外経路。既存 Editor と対象 project を確認し、標準 runner を使う。`unity test` / `unity run` は使わない。
@@ -152,13 +164,22 @@ A3 前に次を同じ候補へ記録する必要がある。
 計画外の公開 API、依存・asmdef、所有者、寿命、UI 更新経路、fixture 到達支援が必要なら B を止め、新 revision の Phase A へ返す。便宜的な Manager へ押し込まない。
 Game → Framework、Runtime / Editor 分離、既存14値の SceneState、IAssetManagement / AssetOwner、公開ログ ILogger<T> を維持する。Unity C# は `#nullable enable`、record 禁止、偽 null を考慮。テストで Task.Delay / Thread.Sleep を使わない。
 
-- A0/A1: 主担当 root、文書担当 OpenAI エージェント。モデル識別は固定入力作成時に実績を追記する
-- A2: TBD。固定した同一 A0/A1 を独立セッションへ渡し、少なくとも責務・寿命・依存の architecture review と、実証経路・受入条件の review を分ける。互いの指摘は見せない
-- A3: TBD。人間と主担当が全指摘を採用・不採用・保留に分類し理由を記録する。§5 の未決解消または明示した Phase C 初回確認条件の合意が必要
-- C' 用担当: 未選定。A2 で利用可能な全モデル系列を使い切らず予約する
-- A3 後の例外承認: なし
+- A0/A1: 主担当 root、文書担当 OpenAI エージェント。A2 固定入力は §0。本改稿の採否は主担当による提案で、人間の A3 合意ではない
+- A2: 2026-10-06、architecture は configured `gpt-6-astra`、validation は configured `gpt-6-sol`。両者 OpenAI、同系列・別モデルの独立セッション。同一入力を読み互いの所見を見ずにレビューした。cross-vendor ではない
+- A3: TBD。§5 の実行・観察経路の合意が blocker。C' 用担当は未選定、A3 後の例外承認なし
 
-現在の文書検査: 作成時の `git diff --check` は成功。docs / contract audit は未実行で、root が既存の承認済み PowerShell 7.6.6 環境から文書固定後に `pwsh tools/docs-audit.ps1`、`pwsh tools/contract-audit.ps1` を実行し結果を記録する。未実行を合格へ読み替えない。
+| A2 指摘 | 主担当の採否と反映理由 |
+|---|---|
+| Validation 1: 最初の実証が広過ぎる | 一部採用。安全・名前更新・detach / 明示 reopen は維持。自動復元、広い style 行列、modal 運用は後続候補へ。OFF 等は失効で止める |
+| Validation 2: View / backend 登録順 | 採用。pending 定義 → 内部関連付け → 適格 session → 更新稼働確認 → 公開、失敗時解除を §3 に明記 |
+| Validation 3: 古い callback | 採用。不変 token を capture した session 別 delegate と永久失効を明記 |
+| Validation 4 / Architecture 2: opt-in | 採用。default-hidden・非対象は挿入前除去、binding / global OS 接続なしを明記 |
+| Validation 5: 条件と証拠の対応 | 採用。Player 一次観察と合成 Unity 検証を §5 に分け、担当・経路は A3 blocker として残す |
+| Architecture 1: entries / 取消 | 採用。entries だけで活性化せず、ViewIn 後の ct と同一 token、遅延完了を確認 |
+| r2 Architecture: Stable との循環待ち | 採用。Add は更新開始・node 公開を await せず、公開だけを遅延する |
+| r2 Validation: 親判定の偽陽性 | 採用。モデル Enabled=true のまま親だけを変更し、投影同期後に検証。モデル無効と祖先非適格を別の試験にする |
+
+固定 A1 の文書検査実績（root、2026-10-06）: docs-audit は111文書・警告0・error0、contract-audit は608 C#・警告0・error0、git diff --check は成功。r2 固定入力 `0e1ca2a1edb16554543527d67b1e59b6f8fd84ee`（tree `569c6e7a6c6d51893113a9e06f8aa308e1d1f6c7`）も両 reviewer が個別再確認した。architecture は文書候補として妥当、validation の追加指摘は上表の通り修正。本最終文書への audits は公開前に再実行し PR に結果を記録する。いずれも文書検査であり機能 C / C' ではない。
 
 ## 7. Phase C
 
