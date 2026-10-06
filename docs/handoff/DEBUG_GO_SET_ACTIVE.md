@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`
+- status: `B`
 - branch: `cursor/debug-go-set-active-575e`
 - implementation base commit: `2d66bdab634402aaef10166e3c6bcc4a536aada7`
-- implementation head commit: 未実施
+- implementation head commit: `604c06ffc1b0b86fff64471fee60a3fdd30abc6a`
 - risk: `normal`
 - owner: 発注者（採否）。A1 文面は 2026-10-06 の実装担当。
 - created: 2026-10-06
@@ -108,11 +108,12 @@ implementation base は S1 の結果記録コミットである。S1 の impleme
 
 ## 6. Phase B 実装結果
 
-- 実装: 未実施
-- HANDOFF との差: 未実施
-- 未実行: 未実施
-- implementation head commit: 未実施
-- Phase B 担当・モデル・ベンダー: 未実施
+- 実装: `RegisterSetActive` が `go.set-active` だけを既存 catalog へ足す。`TrySetActive` は見つかった GameObject にだけ `SetActive` する。成功は選択を付け替えない。現在の選択そのものが生きていないときだけ選択を消す。要求が true で `activeInHierarchy` が false のときだけ、親が非アクティブである旨のメッセージを返す。
+- HANDOFF との差: `DebugGameObjectCommands.cs` は 1133 行、`UnityDebugGameObjectWorld.cs` は 326 行、`DebugGameObjectWorld.cs` は 91 行。非分割の理由は節 3 のまま。list が `active` を未知プロパティとして拒否することは offline で確認した。
+- 未実行: EditMode の `DebugGameObjectCommandTests`（list/select と、親が非アクティブな子の set-active）、空 filter の全 EditMode、Player、ソケット往復、Unity Editor のコンパイル確認。結果 XML は作っていない。A2、A3、Phase C、Phase C' は未実施。GO は記録しない。
+- 実行した確認: `dotnet run --project tools/DebugCommandOfflineTests/DebugCommandOfflineTests.csproj` は 19 passed, 0 failed, 19 executed。S1 の 15 件に set-active の 4 件を加えた。`pwsh tools/contract-audit.ps1 -BaseRef origin/develop` は実装コミット前に errors 0、warnings 0。`pwsh tools/docs-audit.ps1` は本節の追記後に errors 0、warnings 0。
+- implementation head commit: `604c06ffc1b0b86fff64471fee60a3fdd30abc6a`。本節だけの後続コミットは implementation head に含めない。
+- Phase B 担当・モデル・ベンダー: 本セッションの実装担当。A2/A3 を経ていない。
 
 ## 7. Phase C
 
