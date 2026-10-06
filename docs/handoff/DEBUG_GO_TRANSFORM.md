@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`
+- status: `B`
 - branch: `cursor/debug-go-transform-575e`
 - implementation base commit: `ecd91591c6c38f1f8b12a6d43d80aea15333f4de`
-- implementation head commit: 未実施
+- implementation head commit: `fead4ceab694d5293c2c56ac0cb3a4e71486f258`
 - risk: `normal`
 - owner: 発注者（採否）。A1 文面は 2026-10-06 の実装担当。
 - created: 2026-10-06
@@ -111,11 +111,12 @@ A2 と A3 は行っていない。GO は未判定。実装するのはプログ�
 
 ## 6. Phase B 実装結果
 
-- 実装: 未実施
-- HANDOFF との差: 未実施
-- 未実行: 未実施
-- implementation head commit: 未実施
-- Phase B 担当・モデル・ベンダー: 未実施
+- 実装: `RegisterTransform` が `go.get-transform` と `go.set-transform` だけを既存 catalog へ足す。payload は `DebugGameObjectTransformCommands` に置き、list の reader は `localPosition` を未知プロパティのまま拒否する。set は渡された local 成分だけを書き、有限でない数と float に入らない数は世界を呼ぶ前に拒否する。成功は選択を付け替えない。現在の選択そのものが生きていないときだけ選択を消す。
+- HANDOFF との差: `DebugGameObjectTransformCommands.cs` は 801 行で、予想の 450 行を超えた。list の reader とスキャナーを共有しないためである。reader、応答のキー順、有限数の拒否が同じ変換規則なので、ここではさらに分割していない。`DebugGameObjectCommands.cs` は `partial` 宣言以外を変えず 1133 行のまま。`DebugGameObjectWorld.cs` は 176 行、`UnityDebugGameObjectWorld.cs` は 429 行。Unity 実装は `localPosition` / `localEulerAngles` / `localScale` だけを代入する。
+- 未実行: EditMode の `DebugGameObjectCommandTests`（list/select、親が非アクティブな set-active、子の localPosition と親の position）、空 filter の全 EditMode、Player、ソケット往復、Unity Editor のコンパイル確認。結果 XML は作っていない。A2、A3、Phase C、Phase C' は未実施。GO は記録しない。
+- 実行した確認: `dotnet run --project tools/DebugCommandOfflineTests/DebugCommandOfflineTests.csproj` は 24 passed, 0 failed, 24 executed。S2 の 19 件に transform の 5 件を加えた。`pwsh tools/contract-audit.ps1 -BaseRef origin/develop` は実装コミット前に errors 0、warnings 0。`pwsh tools/docs-audit.ps1` は本節の追記後に errors 0、warnings 0。
+- implementation head commit: `fead4ceab694d5293c2c56ac0cb3a4e71486f258`。本節だけの後続コミットは implementation head に含めない。
+- Phase B 担当・モデル・ベンダー: 本セッションの実装担当。A2/A3 を経ていない。
 
 ## 7. Phase C
 
