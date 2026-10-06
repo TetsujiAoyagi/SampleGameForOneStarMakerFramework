@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`
+- status: `B`
 - branch: `cursor/debug-go-app-opt-in-575e`
 - implementation base commit: `d0a4b3267b57f99fc4548b3407214e295a7a5a7f`
-- implementation head commit: 未実施
+- implementation head commit: `dbf81161fbe05d811b8361454615c35a807d5e9e`
 - risk: `normal`
 - owner: 発注者（採否）。A1 文面は 2026-10-06 の実装担当。
 - created: 2026-10-06
@@ -71,7 +71,7 @@ A2 と A3 は行っていない。GO は未判定。プログラムは SampleGam
   - 配置理由: 本体は 1133 行、transform は 801 行、Renderer は 699 行である。有効化は別の変わる理由なので、それらのスキャナーに足さない。
 - offline の `AppOptInCommandOffline.cs`
   - 責務: 一括登録、未登録 catalog、選択の共有、ソース上の既定 dispatcher と SampleGame と socket サービスが登録を呼ばないこと。
-- `AbstractApplicationInitializer.cs`（1196 行）、SampleGame の `AppInitializer`（423 行）、`NullDebugCommandDispatcher`、`DebugSocketService` は変更しない。
+- `AbstractApplicationInitializer.cs`（1196 行）、SampleGame の `AppInitializer`（422 行）、`NullDebugCommandDispatcher`、`DebugSocketService` は変更しない。
 
 ## 4. 実装計画
 
@@ -99,11 +99,12 @@ A2 と A3 は行っていない。GO は未判定。プログラムは SampleGam
 
 ## 6. Phase B 実装結果
 
-- 実装: 未実施
-- HANDOFF との差: 未実施
-- 未実行: 未実施
-- implementation head commit: 未実施
-- Phase B 担当・モデル・ベンダー: 未実施
+- 実装: `RegisterGameObjectCommands` が6コマンドだけを既存 catalog へ足す。`CreateRegistration` は新しい catalog と selection を作り、渡された world と一緒に返す。登録中は世界を読まない。既定 dispatcher、SampleGame の起動、socket サービスは変えていない。
+- HANDOFF との差: `DebugGameObjectOptIn.cs` は 83 行。SampleGame の `AppInitializer` は 422 行で、計画に書いた 423 は行数の読み違いである。ファイルは編集していない。
+- 未実行: EditMode の `DebugGameObjectCommandTests`、空 filter の全 EditMode、Player、ソケット往復、DebugStudio の画面、ポーリング、Unity Editor のコンパイル確認。結果 XML は作っていない。A2、A3、Phase C、Phase C' は未実施。GO は記録しない。
+- 実行した確認: `dotnet run --project tools/DebugCommandOfflineTests/DebugCommandOfflineTests.csproj` は 33 passed, 0 failed, 33 executed。S4 の 29 件に明示登録の 4 件を加えた。`pwsh tools/contract-audit.ps1 -BaseRef origin/develop` は実装コミット前に errors 0、warnings 0。`pwsh tools/docs-audit.ps1` は本節の追記後に errors 0、warnings 0。
+- implementation head commit: `dbf81161fbe05d811b8361454615c35a807d5e9e`。本節だけの後続コミットは implementation head に含めない。
+- Phase B 担当・モデル・ベンダー: 本セッションの実装担当。A2/A3 を経ていない。
 
 ## 7. Phase C
 
