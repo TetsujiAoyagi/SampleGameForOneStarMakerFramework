@@ -24,6 +24,7 @@ namespace OneStarMaker.DebugCommandOfflineTests
             SetActiveCommandOffline.Run(Run);
             TransformCommandOffline.Run(Run);
             RendererCommandOffline.Run(Run);
+            AppOptInCommandOffline.Run(Run);
 
             Console.WriteLine($"DebugCommand offline: {_passed} passed, {_failed} failed, {_passed + _failed} executed");
             return _failed == 0 && _passed > 0 ? 0 : 1;
