@@ -8,6 +8,8 @@ Windowsの所有ユーザーが、PowerShell 7から固定プロファイル「o
 
 ### 都度確認なしで進める範囲
 
+この事前承認の実Evidence保存対象は、下記の固定E1/E2の入力・取得物と、本READMEで定義する設定原観察・intent・receipt・result・ledger・取得案内・保持記録に限る。完了済みE1/E2の再送は含めず、新規file集合は対象と保存先を所有者が明示承認するまで範囲外とする。synthetic `publish`は非秘密の使い捨てfixtureだけに使い、任意のログ・実Evidence・実Buildを`purpose="synthetic"`の宣言や明示一覧だけで送信してはならない。
+
 - 所有者の同一Windowsユーザー環境で、既存の`osm`プロファイルと検証済みCLIを使う。接続先は信頼済み台帳・取得案内・設定原観察で同一identityを確認した既存R2 endpoint、private bucket `osm-artifacts`に限る。ホスト名の形式が合うだけで、別accountを許可済みにしない。
 - 承認済み作業の固定入力を、明示されたfile一覧・base/head・bytes/hash・保存目的・保持方針に従って新規private operationへ保存し、対応する小台帳と取得案内を確定する。既存証拠・台帳・案内・失敗記録を上書きしない。
 - 承認済み選択範囲内で内容の非秘密性と盲検入力の分離を確認したEvidenceを、対応する保護送信経路で固有keyへ1回送信し、別processのGETとhash照合、事後設定観察、独立ledger確定まで行う。対象と保存先が承認済み範囲に収まる場合は、fileごとの追加送信承認を求めない。現実装の実Evidenceは下記E1/E2だけで、完了済みrunを承認設定の試験のため再送しない。
