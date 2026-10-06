@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`
+- status: `B`
 - branch: `cursor/debug-go-renderer-575e`
 - implementation base commit: `a3e978abd3151306600a69c79349f4182816f3b0`
-- implementation head commit: 未実施
+- implementation head commit: `5bcad1446894bcc6a888c4e784a6fe0ba7cc0ee1`
 - risk: `normal`
 - owner: 発注者（採否）。A1 文面は 2026-10-06 の実装担当。
 - created: 2026-10-06
@@ -121,11 +121,12 @@ A2 と A3 は行っていない。GO は未判定。実装するのはプログ�
 
 ## 6. Phase B 実装結果
 
-- 実装: 未実施
-- HANDOFF との差: 未実施
-- 未実行: 未実施
-- implementation head commit: 未実施
-- Phase B 担当・モデル・ベンダー: 未実施
+- 実装: `RegisterRenderer` が `go.set-renderer-enabled` だけを既存 catalog へ足す。payload は `DebugGameObjectRendererCommands` に置き、list の reader は `rendererIndex` を未知プロパティのまま拒否する。省略した index は 0、明示した index はその 1 件だけを変える。Renderer 不在は `MissingRenderer` で、選択を消さない。生きていない対象だけが、現在の選択と一致するとき選択を消す。
+- HANDOFF との差: `DebugGameObjectRendererCommands.cs` は 699 行で、予想の 500 行を超えた。list と transform の reader とスキャナーを共有しないためである。payload、選択規則、応答のキー順が同じ Renderer 規則なので、ここではさらに分割していない。本体と transform partial は変えていない。`DebugGameObjectWorld.cs` は 216 行、`UnityDebugGameObjectWorld.cs` は 484 行。Unity 実装は `GetComponents<Renderer>()` だけを使い、範囲外では `enabled` を代入しない。
+- 未実行: EditMode の `DebugGameObjectCommandTests`（list/select、set-active、local transform、index 1 だけの Renderer）、空 filter の全 EditMode、Player、ソケット往復、Unity Editor のコンパイル確認。結果 XML は作っていない。A2、A3、Phase C、Phase C' は未実施。GO は記録しない。
+- 実行した確認: `dotnet run --project tools/DebugCommandOfflineTests/DebugCommandOfflineTests.csproj` は 29 passed, 0 failed, 29 executed。S3 の 24 件に Renderer の 5 件を加えた。`pwsh tools/contract-audit.ps1 -BaseRef origin/develop` は実装コミット前に errors 0、warnings 0。`pwsh tools/docs-audit.ps1` は本節の追記後に errors 0、warnings 0。
+- implementation head commit: `5bcad1446894bcc6a888c4e784a6fe0ba7cc0ee1`。本節だけの後続コミットは implementation head に含めない。
+- Phase B 担当・モデル・ベンダー: 本セッションの実装担当。A2/A3 を経ていない。
 
 ## 7. Phase C
 
