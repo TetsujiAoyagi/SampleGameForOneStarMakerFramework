@@ -20,12 +20,13 @@ namespace OneStarMaker.DebugCommandOfflineTests
             Run(nameof(Result_NullAndDefaultHaveDistinctInitialization), Result_NullAndDefaultHaveDistinctInitialization);
             Run(nameof(Catalog_ExecuteDoesNotAllocate), Catalog_ExecuteDoesNotAllocate);
             Run(nameof(Sources_DoNotNameTheScriptMachineOrTheStudio), Sources_DoNotNameTheScriptMachineOrTheStudio);
+            GameObjectCommandOffline.Run(Run);
 
             Console.WriteLine($"DebugCommand offline: {_passed} passed, {_failed} failed, {_passed + _failed} executed");
             return _failed == 0 && _passed > 0 ? 0 : 1;
         }
 
-        private static void Run(string name, Action body)
+        internal static void Run(string name, Action body)
         {
             try
             {

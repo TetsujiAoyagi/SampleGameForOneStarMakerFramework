@@ -10,5 +10,9 @@
   <ItemGroup>
     <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/DebugCommands/DebugCommandResult.cs" Link="Linked/DebugCommandResult.cs" />
     <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/DebugCommands/DebugCommandCatalog.cs" Link="Linked/DebugCommandCatalog.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/DebugCommands/DebugGameObjectWorld.cs" Link="Linked/DebugGameObjectWorld.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/DebugCommands/DebugGameObjectSelection.cs" Link="Linked/DebugGameObjectSelection.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/DebugCommands/DebugGameObjectThreadGate.cs" Link="Linked/DebugGameObjectThreadGate.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/DebugCommands/DebugGameObjectCommands.cs" Link="Linked/DebugGameObjectCommands.cs" />
   </ItemGroup>
 </Project>
