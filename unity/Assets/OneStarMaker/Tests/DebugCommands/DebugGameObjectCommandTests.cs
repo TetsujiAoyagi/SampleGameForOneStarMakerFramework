@@ -75,6 +75,48 @@ namespace OneStarMaker.Tests.DebugCommands
             }
         }
 
+        [Test]
+        public void SetActive_LeavesInactiveParentInactive()
+        {
+            var root = new GameObject("DebugGoActiveRoot");
+            root.SetActive(false);
+            var child = new GameObject("DebugGoActiveChild");
+            child.transform.SetParent(root.transform, false);
+            child.SetActive(false);
+            try
+            {
+                var world = new UnityDebugGameObjectWorld();
+                var selection = new DebugGameObjectSelection();
+                var catalog = new DebugCommandCatalog();
+                DebugGameObjectCommands.RegisterSetActive(catalog, world, selection);
+                var childId = IdOf(child);
+                Assert.That(
+                    catalog.TryExecute(
+                        DebugGameObjectCommands.SetActiveName,
+                        "{\"instanceId\":\"" + childId + "\",\"active\":true}",
+                        out var changed),
+                    Is.True);
+                Assert.That(changed.Success, Is.True, changed.Message);
+                Assert.That(changed.Message, Is.EqualTo("Set activeSelf. An inactive parent still keeps activeInHierarchy false."));
+                Assert.That(child.activeSelf, Is.True);
+                Assert.That(child.activeInHierarchy, Is.False);
+                Assert.That(root.activeSelf, Is.False);
+                Assert.That(selection.TryGet(out _), Is.False);
+            }
+            finally
+            {
+                if (child != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(child);
+                }
+
+                if (root != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+        }
+
         private static bool FindInPages(DebugCommandCatalog catalog, string instanceId)
         {
             var needle = "\"instanceId\":\"" + instanceId + "\"";

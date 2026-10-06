@@ -82,5 +82,10 @@ namespace OneStarMaker.Runtime.DebugCommands
             List<DebugGameObjectRow> destination,
             out bool hasMore,
             out string failure);
+
+        /// <summary>
+        /// 見つかった GameObject だけに SetActive する。親の active は変えない。
+        /// </summary>
+        DebugGameObjectReadStatus TrySetActive(ulong instanceId, bool active, out DebugGameObjectRow row, out string failure);
     }
 }

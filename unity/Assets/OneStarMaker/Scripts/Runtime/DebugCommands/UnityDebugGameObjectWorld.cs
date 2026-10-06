@@ -96,6 +96,39 @@ namespace OneStarMaker.Runtime.DebugCommands
             }
         }
 
+        public DebugGameObjectReadStatus TrySetActive(ulong instanceId, bool active, out DebugGameObjectRow row, out string failure)
+        {
+            row = default;
+            failure = string.Empty;
+            if (!_gate.AllowsCaller)
+            {
+                failure = "wrong-thread";
+                return DebugGameObjectReadStatus.Unavailable;
+            }
+
+            try
+            {
+                if (!TryFind(instanceId, out var found) || found == null)
+                {
+                    return DebugGameObjectReadStatus.NotFound;
+                }
+
+                var gameObject = found.gameObject;
+                if (gameObject == null)
+                {
+                    return DebugGameObjectReadStatus.NotFound;
+                }
+
+                gameObject.SetActive(active);
+                row = CreateRow(found);
+                return DebugGameObjectReadStatus.Ok;
+            }
+            finally
+            {
+                ReleaseSceneReferences();
+            }
+        }
+
         private bool TryFind(ulong instanceId, out Transform? found)
         {
             _mode = VisitMode.Find;

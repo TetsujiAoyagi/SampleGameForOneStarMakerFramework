@@ -15,6 +15,7 @@ namespace OneStarMaker.Runtime.DebugCommands
     {
         public const string ListName = "go.list";
         public const string SelectName = "go.select";
+        public const string SetActiveName = "go.set-active";
         public const int DefaultPageSize = 64;
         public const int MaxPageSize = 128;
         internal const int MaxDisplaySegments = 32;
@@ -25,6 +26,9 @@ namespace OneStarMaker.Runtime.DebugCommands
         private const string InvalidPayloadMessage = "Debug GameObject command payload is invalid.";
         private const string PageOutOfRangeMessage = "Debug GameObject page is out of range.";
         private const string UnavailableMessage = "GameObject inspection is unavailable.";
+        private const string NotSelectedMessage = "GameObject is not selected.";
+        private const string SetActiveMessage = "Set GameObject active.";
+        private const string ParentInactiveMessage = "Set activeSelf. An inactive parent still keeps activeInHierarchy false.";
 
         /// <summary>
         /// list と select だけを登録する。set-active 以降はこのメソッドに入れない。
@@ -51,6 +55,33 @@ namespace OneStarMaker.Runtime.DebugCommands
 
             catalog.Register(ListName, payload => ExecuteList(payload, world, selection));
             catalog.Register(SelectName, payload => ExecuteSelect(payload, world, selection));
+        }
+
+        /// <summary>
+        /// go.set-active だけを登録する。list と select は登録しない。
+        /// 選択を共有するなら、list / select と同じ selection を渡す。
+        /// </summary>
+        public static void RegisterSetActive(
+            DebugCommandCatalog catalog,
+            IDebugGameObjectWorld world,
+            DebugGameObjectSelection selection)
+        {
+            if (catalog == null)
+            {
+                throw new ArgumentNullException(nameof(catalog));
+            }
+
+            if (world == null)
+            {
+                throw new ArgumentNullException(nameof(world));
+            }
+
+            if (selection == null)
+            {
+                throw new ArgumentNullException(nameof(selection));
+            }
+
+            catalog.Register(SetActiveName, payload => ExecuteSetActive(payload, world, selection));
         }
 
         /// <summary>
@@ -150,6 +181,46 @@ namespace OneStarMaker.Runtime.DebugCommands
             return DebugCommandResult.Ok(SelectedMessage, PayloadWriter.WriteRow(row));
         }
 
+        private static DebugCommandResult ExecuteSetActive(
+            string payload,
+            IDebugGameObjectWorld world,
+            DebugGameObjectSelection selection)
+        {
+            if (!PayloadReader.TryReadSetActive(payload, out var hasInstance, out var requestedId, out var active, out var payloadStatus))
+            {
+                return DebugCommandResult.Fail(PayloadMessage(payloadStatus));
+            }
+
+            ulong target;
+            if (hasInstance)
+            {
+                target = requestedId;
+            }
+            else if (!selection.TryGet(out target))
+            {
+                return DebugCommandResult.Fail(NotSelectedMessage);
+            }
+
+            var changed = world.TrySetActive(target, active, out var row, out _);
+            if (changed == DebugGameObjectReadStatus.Unavailable)
+            {
+                return DebugCommandResult.Fail(UnavailableMessage);
+            }
+
+            if (changed != DebugGameObjectReadStatus.Ok)
+            {
+                if (selection.TryGet(out var current) && current == target)
+                {
+                    selection.Clear();
+                }
+
+                return DebugCommandResult.Fail(NotAliveMessage);
+            }
+
+            var message = active && !row.ActiveInHierarchy ? ParentInactiveMessage : SetActiveMessage;
+            return DebugCommandResult.Ok(message, PayloadWriter.WriteRow(row));
+        }
+
         private static string PayloadMessage(PayloadStatus status)
         {
             return status == PayloadStatus.PageOutOfRange ? PageOutOfRangeMessage : InvalidPayloadMessage;
@@ -226,6 +297,40 @@ namespace OneStarMaker.Runtime.DebugCommands
                 return true;
             }
 
+            public static bool TryReadSetActive(
+                string payload,
+                out bool hasInstance,
+                out ulong instanceId,
+                out bool active,
+                out PayloadStatus status)
+            {
+                hasInstance = false;
+                instanceId = 0;
+                active = false;
+                var reader = new Reader(payload, ObjectMode.SetActive);
+                if (reader.IsEmpty || !reader.TryReadObject(out var syntax) || !syntax)
+                {
+                    status = PayloadStatus.Invalid;
+                    return false;
+                }
+
+                if (reader.UnknownOrDuplicate || reader.ActiveState != FieldState.Present || reader.InstanceState == FieldState.Bad)
+                {
+                    status = PayloadStatus.Invalid;
+                    return false;
+                }
+
+                active = reader.Active;
+                if (reader.InstanceState == FieldState.Present)
+                {
+                    hasInstance = true;
+                    instanceId = reader.InstanceId;
+                }
+
+                status = PayloadStatus.Ok;
+                return true;
+            }
+
             private enum FieldState
             {
                 Absent = 0,
@@ -233,14 +338,27 @@ namespace OneStarMaker.Runtime.DebugCommands
                 Bad = 2,
             }
 
+            private enum ObjectMode
+            {
+                List = 0,
+                SetActive = 1,
+            }
+
             private sealed class Reader
             {
                 private readonly string _text;
+                private readonly ObjectMode _mode;
                 private int _index;
 
                 public Reader(string text)
+                    : this(text, ObjectMode.List)
+                {
+                }
+
+                public Reader(string text, ObjectMode mode)
                 {
                     _text = text ?? string.Empty;
+                    _mode = mode;
                 }
 
                 public bool IsEmpty
@@ -259,6 +377,10 @@ namespace OneStarMaker.Runtime.DebugCommands
                 public FieldState LimitState { get; private set; }
 
                 public FieldState InstanceState { get; private set; }
+
+                public FieldState ActiveState { get; private set; }
+
+                public bool Active { get; private set; }
 
                 public int Offset { get; private set; }
 
@@ -325,6 +447,22 @@ namespace OneStarMaker.Runtime.DebugCommands
 
                 private bool TryConsumeValue(string key)
                 {
+                    if (_mode == ObjectMode.SetActive)
+                    {
+                        if (key == "active")
+                        {
+                            return TakeActiveField();
+                        }
+
+                        if (key == "instanceId")
+                        {
+                            return TakeInstanceField();
+                        }
+
+                        UnknownOrDuplicate = true;
+                        return SkipValue();
+                    }
+
                     if (key == "offset")
                     {
                         return TakePageField(isOffset: true);
@@ -341,6 +479,31 @@ namespace OneStarMaker.Runtime.DebugCommands
                     }
 
                     UnknownOrDuplicate = true;
+                    return SkipValue();
+                }
+
+                private bool TakeActiveField()
+                {
+                    if (ActiveState != FieldState.Absent)
+                    {
+                        UnknownOrDuplicate = true;
+                    }
+
+                    if (TryTakeLiteral("true"))
+                    {
+                        Active = true;
+                        ActiveState = FieldState.Present;
+                        return true;
+                    }
+
+                    if (TryTakeLiteral("false"))
+                    {
+                        Active = false;
+                        ActiveState = FieldState.Present;
+                        return true;
+                    }
+
+                    ActiveState = FieldState.Bad;
                     return SkipValue();
                 }
 

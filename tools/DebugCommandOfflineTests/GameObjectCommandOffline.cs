@@ -299,12 +299,14 @@ namespace OneStarMaker.DebugCommandOfflineTests
             throw new InvalidOperationException("expected " + typeof(T).Name);
         }
 
-        private sealed class FakeWorld : IDebugGameObjectWorld
+        internal sealed class FakeWorld : IDebugGameObjectWorld
         {
             public readonly List<DebugGameObjectRow> Rows = new();
             public bool Unavailable;
+            public bool ParentBlocksHierarchy;
             public int DescribeCalls;
             public int CollectCalls;
+            public int SetActiveCalls;
 
             public DebugGameObjectReadStatus TryDescribe(ulong instanceId, out DebugGameObjectRow row, out string failure)
             {
@@ -355,6 +357,43 @@ namespace OneStarMaker.DebugCommandOfflineTests
 
                 hasMore = index < Rows.Count;
                 return DebugGameObjectReadStatus.Ok;
+            }
+
+            public DebugGameObjectReadStatus TrySetActive(ulong instanceId, bool active, out DebugGameObjectRow row, out string failure)
+            {
+                SetActiveCalls++;
+                row = default;
+                failure = string.Empty;
+                if (Unavailable)
+                {
+                    failure = "unavailable";
+                    return DebugGameObjectReadStatus.Unavailable;
+                }
+
+                for (var index = 0; index < Rows.Count; index++)
+                {
+                    if (Rows[index].InstanceId != instanceId)
+                    {
+                        continue;
+                    }
+
+                    var current = Rows[index];
+                    row = new DebugGameObjectRow(
+                        current.InstanceId,
+                        current.HasParent,
+                        current.ParentInstanceId,
+                        current.Name,
+                        current.SceneName,
+                        current.DisplayPath,
+                        active,
+                        active && !ParentBlocksHierarchy,
+                        current.SiblingIndex,
+                        current.ChildCount);
+                    Rows[index] = row;
+                    return DebugGameObjectReadStatus.Ok;
+                }
+
+                return DebugGameObjectReadStatus.NotFound;
             }
         }
     }
