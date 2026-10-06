@@ -37,7 +37,7 @@ H2cの旧 `h2c-unity-gate` と再開task `h2c-unity-gate-r2` は、それぞれ�
 複数スライスに跨る計画（構図の正本、空間プロトコルの Plan など）も作業台に置いてよい。ただし harvest 先と期限を本文に書くこと。作業指示だけに限らない。
 §7 / §8 を持たない長期計画は検査3 の網に掛からない。harvest 期限を本文に書くこと。
 
-**進行中の program / research は次の6件。**
+**進行中の program / research は次の7件。**
 
 | ファイル | 役割 | 実装キューか |
 |---|---|---|
@@ -47,6 +47,7 @@ H2cの旧 `h2c-unity-gate` と再開task `h2c-unity-gate-r2` は、それぞれ�
 | `REVIEW_WORKFLOW_EFFICIENCY.md` | 外部モデルレビューの実測と、次のPhase Cで残す比較項目 | いいえ。普遍契約はSkillへharvest済み。残る実測後に削除する |
 | `REVIEW_WORKFLOW_EFFICIENCY_ASSESSMENT.md` | 上記への独立評価（Claude / Grok）と採否記録 | いいえ。次のPhase Cで残る仮説を検証後、調査記録ごと削除する |
 | `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` | Artifact Storageの保存先・責務・セキュリティ境界と後続段 | program r4の順序・保護境界はA3凍結済み。Route proofとsynthetic限定の最小Artifact CLIはPhase D完了。現在の利用・検証範囲は[Artifacts README](../tools/Artifacts/README.md)。次はEvidence first useの着手時Phase A。実Evidence / Build転送、Cloud成立、R2の全面採用は未確認 |
+| `DEBUG_GAMEOBJECT_COMMANDS.md` | 要求時だけの GameObject 検査コマンド。list / select / set-active / transform / Renderer | いいえ。A2/A3 は未実施で GO ではない。最初の実装は `DEBUG_GO_LIST_SELECT.md`。owner は発注者、期限は 2026-12-15 または置換 revision |
 
 Streaming の M-1〜M-4 と S-4c は完了し、決定を公開面へ harvest して、移行計画と各着手時 HANDOFF を削除済み。テストアセンブリの分離も完了し、依存の向きは `unity/Assets/README.md` と `unity/Assets/Docs/Architecture/27-folder-structure.md` にある。完了済み HANDOFF は復活させない。
 
