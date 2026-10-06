@@ -1,6 +1,6 @@
 # ローカル資格情報管理
 
-Windowsの所有ユーザーが、PowerShell 7から固定プロファイル「osm」の資格情報とsynthetic artifactを扱うツールです。所有者端末で実R2鍵の登録と、synthetic限定の`publish` / 別sessionの`fetch` / `rotate` / `confirm-revocation`を検証済みです。実Evidence・実Buildの転送、Cloud、別ホストへの配布は未対応です。
+Windowsの所有ユーザーが、PowerShell 7から固定プロファイル「osm」の資格情報、synthetic artifact、固定E1/E2のEvidence first useを扱うツールです。所有者端末で実R2鍵の登録、syntheticな`publish` / 別sessionの`fetch` / `rotate` / `confirm-revocation`と、実Evidenceへの破壊試行をしない保護送信・独立ledger確定・別session取得とログ/原画像閲覧を検証済みです。Evidenceの対象は下記の固定2packageに限ります。任意Evidence、実Build転送、Cloud、別ホストへの配布は未対応です。
 
 ```powershell
 pwsh tools/artifacts.ps1 credentials set --profile osm
@@ -53,9 +53,37 @@ pwsh tools/artifacts.ps1 credentials confirm-revocation --profile osm --config <
 
 転送のexitは0が検証完了、1が失敗・未確認です。rotationの切替え後/失効待ちは2であり、失効確認まで完了扱いしません。`confirm-revocation`成功は0、清掃保留は2、失敗・未確認は1です。既存credentialsのexit 0/1/2の意味は維持します。新commandの結果v1は`schemaVersion/operationId/operation/status/reasonCode/verification/ledger/outputPath/residue`を持つJSONです。失敗時のledgerとoutputPathはnullで、例外本文、SDK応答本文、秘密は表示しません。referenceは上位へopaqueな文字列として渡し、そこから期待package hashを補いません。
 
-同じ実物にlockの破壊試行を行うため、現在の経路はsynthetic-onlyです。実Evidence用prefix、Cloud/Build連携、H2d/H3は未対応です。R2の管理者が途中でpolicyを変更する脅威までは保証しません。実Evidenceの初回利用では、実payloadに破壊試行を行わない保護検証、prefixと保持方針、独立したledger確定、別session readerへの固定参照と期待hashの引渡しを別に定めます。
+この`publish`経路は送信したobject自身にlockの破壊試行を行うため、synthetic-onlyです。実Evidenceには下記の独立した`evidence publish`経路を使います。Cloud/Build連携、H2d/H3は未対応です。R2の管理者が途中でpolicyを変更する脅威までは保証しません。
 
 検証済み実装は `caed8bae55c033673b75532dc650f0a3a3cedc48` です。85件のoffline testと3 buildに加え、実R2で設定の前後一致、synthetic publish、別session fetchと全entryのhash照合・安全展開、locked objectの上書き/DELETE拒否、新鍵の陽性対照を挟んだ旧鍵の401/`unauthorized`/`Unauthorized`拒否とretired清掃を確認しました。候補検証・切替・owner失効は旧実装 `4e83b7e7a4116fcf45c996b110b89515211da4b4` での観測です。その経路のsource不変性と、Git revision metadataだけを揃えた旧runtimeの完全再現・通常の最終runtimeへの復元を照合して接続し、ownerのtoken削除は反復していません。同じ固定証拠を使ったCと独立blind C′はGOで、ownerのPhase D判断も完了しました。C′は別モデル・新規sessionですが、同じOpenAI/GPT系列という独立性の制約があります。この合格はsynthetic限定であり、実payload利用の承認へ広げません。
+
+## Evidence first use（固定E1/E2・同一Windowsユーザー）
+
+`evidence publish`は任意ログを送る汎用コマンドではありません。E1はPR #96のfindings-freeな既存固定Evidenceの選択済み13file、原source manifest、selection receiptの15entryです。source rootと各bytes/hash、evidence base=`fd7ebf932d230a522293dee72572cbdeeac1c8fa`、head=`caed8bae55c033673b75532dc650f0a3a3cedc48`をコードで固定しています。E2は保護設定の`settings-before.json`、`settings-overview.jpg`、`settings-rules.jpg`、`capture.json`の4entryです。原JPEGを変換せず、captureに2画像のbytes/hash・観察範囲・版を記録します。E2のevidence headとcapture/selectionのproducer headは実行時のcheckout HEADに一致する必要があります。review-recordやharvest後のHEADから旧E2を再送しないでください。
+
+既存review-evidenceの内側bytesと外側manifest/ZIP形式を維持し、明示一覧だけをread lockでbounded snapshotします。同じsnapshotからpackageを一度作り、期待entry集合・版・全bytes/hashを照合します。credential/grant、scope外、transfers、reparse、上限外のsourceは拒否します。送信担当は選択したtext/JSON/原画像の内容を事前に確認し、秘密やC/A2所見を混ぜません。purpose宣言やhash一致だけで非秘密性を証明したとは扱いません。
+
+```powershell
+pwsh tools/artifacts.ps1 evidence publish --profile osm --config <absolute-config.json> --selection <absolute-selection.json> --base <evidence-base40> --head <evidence-head40>
+pwsh tools/artifacts.ps1 evidence commit --candidate <absolute-result.json> --candidate-sha256 <trusted64> --settings-after <absolute-settings-after.json> --settings-after-sha256 <trusted64>
+pwsh tools/artifacts.ps1 fetch --profile osm --config <fresh-absolute-config.json> --reference <trusted-opaque-reference> --sha256 <trusted-package64>
+```
+
+strict configはpurpose=`evidence`、bucket=`osm-artifacts`、prefix=`evidence/first-use/`、retentionSeconds=`2592000`、最大24hの原設定観察と固定identityを持ちます。全適用lockは当該prefixのAge30日1rule、Date/indefinite/重複なし、lifecycleは既存empty-prefix multipart abort7日のみ。公開development URL無効、custom domainなし、同bucket限定writer/管理権限なしを確認し、既存probe1日ruleとstable資格情報を変更しません。
+
+実bundle keyは`evidence/first-use/<repositoryId64>/<evidenceHead40>/<runId32>/bundle.zip`です。同run directoryのsynthetic `protection-witness.txt`にだけ異bytes PUT/DELETEを試し、正確な403/forbidden/ObjectLockedByBucketPolicyまたは409/other/ObjectLockedByBucketPolicyと原bytes/hash維持を要求します。同writerのunlocked対照をPUT/GET/hash/DELETE/404NoSuchKeyまで確認し、writer権限不足をlock成功にしません。実bundleは不存在確認→durable put-intent→1回のPUT→別process GET/hashだけで、Evidence bundle DELETEをtransportも拒否します。
+
+ネットワーク前の`intent.json`とPUT直前の`put-intent.json`をCreateNew/flushで固定します。後者の境界後は送信されていなくてもmay-have-been-sentとして同keyへ再送しません。失敗・中断・不明ではledger/readyを偽らず、key/local path/保持下限をresidue/intentに残します。失敗原因と修正範囲を記録せず新runへ逃げず、成功runを反復して増やさない運用です。別runの重複publish全体を禁止する仕組みはなく、追加は技術的には可能です。自動再送/自動復旧/清掃はありません。
+
+publishのexit0はcandidate生成までです。`evidence commit`は通信せずcandidate/result/intent/receipt/設定原記録のhash・identity、13観察のtuple/bytes/hash、receipt完了後かつ24h以内の事後設定と保護内容不変を独立再照合し、`OneStarMaker/Artifacts/evidence-ledgers/<id>/ledger.json`をCreateNew・同directory atomic renameで確定します。pending write/renameや競合は確定済みにしません。network/資格情報はledgerへ入れません。CLIの外側catchはEvidenceでも非秘密の`Credential operation failed.`であり、詳細は非秘密result/residueから確認します。
+
+publisherと別の引渡し担当が`EvidenceLedger.psm1`の`Write-EvidenceReaderInput`で2ledgerとfresh configを固定案内へ結び、案内SHA-256を新規reader開始promptへ渡します。readerは`Read-EvidenceReaderInput`で案内bytes→prompt期待hash、ledger/config/reference/entry集合を照合してから公開CLIの`fetch`を実行します。「公開CLI」は匿名bucket公開ではありません。archive/outer manifest/版/全entryを検証したprivate新規readyから必要ログと原画像を実際に閲覧し、script/DLLを実行しません。C所見・可変HANDOFF/PR・sender stagingを案内へ混ぜません。24h観察期限後は同policy identityのfresh原観察/configと新immutable案内/期待hashを固定し、旧案内を更新しません。policy変更後のfetchは後続で扱います。
+
+serverLockLowerBoundとreferenceのretainUntilはPUT-intent通信前時刻+30日という保護下限で、削除期限ではありません。保存義務はowner D close後30日以上かつ参照中です。元ledgerのclose欄はnullを保ち、Dの明示owner closeイベントから`Write-EvidenceCloseRecord`が別の`evidence-retention/<id>/retention.json`をappend-onlyで固定します。有限server lockはclose後30日/長期参照の全期間を保証しません。期限後も自動削除せず、延長・policy移行は後続、清掃はexpiredかつunreferencedと確認した正確なkeyへのowner明示承認が必要です。原source/受信copy/旧失敗/snapshot/intent/ledger/案内/原観察、実bundleとlocked witnessを保持します。
+
+判定済みimplementation headは`896eaea8a912248333704c80549d46ecf20c02c6`です。7 offline suites119/119、3build、PowerShell26file parse、contract/docs/diff検査、最終DLLのhash/MVID/依存とbuild後71件再確認に加え、実R2の各13観察、E1/E2各1送信・独立ledger、別session fetch・全19entry/版/hash・指定ログ/原JPEG閲覧を確認しました。Cとblind C′は同249-file固定入力で各GO、同OpenAI/GPT系列という独立性制約があります。ownerのD closeは記録済みで、小台帳・保持記録は[PR #104](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/104)へ引き継ぎます。ローカルWindows同一ユーザーに限るfirst useで、Cloud/Build/別hostの成立や無期限保護ではありません。
+
+原画像の対象prefix全文/lifecycle日数は省略され、全設定の構造観察JSONとlive witnessで補完しています。画像だけで全設定やwriter権限を確認したとは扱いません。CreateNew/flush/ACL/hashは物理WORMではなく、悪意ある同ユーザーや管理者の途中rule変更の防御は保証しません。
 
 ## A3前の限定R2疎通確認
 
@@ -89,6 +117,8 @@ SDK例外から作る認証操作の観測は、statusと安全なS3 Codeを返�
 
 WindowsのPowerShell 7で次を実行します。資格情報テストは毎回生成するダミー値と隔離した保存先を使い、UnityやR2への接続は不要です。
 
+Evidence 34件のうち`reader-hash`と`handoff-identity-substitution`は偽transport/隔離出力を使いますが、入力には製品に固定したprivate実E1 source treeを読みます。所有者端末では119件を確認済みですが、Git treeだけではこの2件を再現できず、sourceが無い環境ではfail-closedで失敗します。原Evidenceをコピー配布・改変したり実R2へ再送して補完しないでください。テスト入力のdummy fixture化は後続のoffline可搬性改善です。
+
 ```powershell
 pwsh -NoProfile -File tools/Artifacts/tests/Credentials.Tests.ps1
 pwsh -NoProfile -File tools/Artifacts/tests/RouteProof.Tests.ps1
@@ -99,6 +129,7 @@ dotnet build tools/Artifacts/Transport/R2ArtifactTransport.csproj -c Release -o 
 pwsh -NoProfile -File tools/Artifacts/tests/ArtifactPackage.Tests.ps1
 pwsh -NoProfile -File tools/Artifacts/tests/ArtifactTransfer.Tests.ps1
 pwsh -NoProfile -File tools/Artifacts/tests/ArtifactRotation.Tests.ps1
+pwsh -NoProfile -File tools/Artifacts/tests/ArtifactEvidence.Tests.ps1
 pwsh -NoProfile -File tools/contract-audit.ps1
 pwsh -NoProfile -File tools/docs-audit.ps1
 ```

@@ -3,7 +3,7 @@
 ## 0. Metadata
 
 - type: `program`
-- status: program進行中。ローカル段1（旧スライス0）、Route proof、synthetic限定の最小Artifact CLIはPhase D完了。r4の順序・保護境界はA3凍結済み。次はEvidence first useの着手時Phase A。R2の全面採用と実payload転送は未承認。
+- status: program進行中。ローカル段1（旧スライス0）、Route proof、最小Artifact CLI、固定E1/E2のEvidence first useはPhase D完了。r4の順序・保護境界はA3凍結済み。同一Windowsユーザーの限定保護送信・別session取得/閲覧が成立。R2全面採用、任意Evidence、実Build、Cloud、保持延長、H2d/H3は後続。
 - program policy revision: `r4` — purpose-first route proof before production transport architecture; `r1` is historical review context
 - Phase A snapshot path / id: `328843ea521550af9da203315c2704d3d51cc8d0:docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md`（`git show`で凍結本文を取得する）
 - Phase A snapshot generated at: 2026-09-27T11:50:53Z
@@ -21,7 +21,7 @@
 
 Choose and establish one artifact workflow that supports BuildSystem outputs and review Evidence, can be used by local work and remote Cursor / Codex agents, and does not require a human to move files between agents. Keep large binary payloads out of Git history; keep a small, stable pointer and hashes in Git.
 
-This is a multi-slice program, not an implementation HANDOFF. Revision r4 freezes the order and protection boundaries. The Route proof slice completed at [PR #81](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/81): synthetic same-key unsigned GET did not return object bytes, and the ordinary writer's locked overwrite and DELETE were rejected while the original object hash remained. The 400 response's cause is unproven, and cloud capability remains unverified. The subsequent minimal Artifact CLI has completed synthetic publish, separate-session fetch and safe extraction, credential rotation, and revocation confirmation, with C/C′ GO and owner Phase D acceptance. These local results do not authorize real Evidence or Build uploads. The next slice is Evidence first use; current CLI behavior and verification limits are in the Artifacts README. r1 below records the prior A3 boundary; r2/r3 record earlier, unapproved proposals. The completed Route proof slice HANDOFF is retained in Git history and harvested into the Artifacts README.
+This is a multi-slice program, not an implementation HANDOFF. Revision r4 freezes the order and protection boundaries. The Route proof slice completed at [PR #81](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/81): synthetic same-key unsigned GET did not return object bytes, and the ordinary writer's locked overwrite and DELETE were rejected while the original object hash remained. The 400 response's cause is unproven, and cloud capability remains unverified. The minimal Artifact CLI at [PR #96](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/96) established synthetic publish, separate-session fetch, rotation and revocation confirmation. Evidence first use at [PR #104](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/104) separately established the frozen E1/E2 protected send, independent ledgers, and same-Windows-user separate-session verification and actual log/image viewing, with C/C′ GO and owner Phase D acceptance. Current behavior and limits are in the Artifacts README; each completed slice HANDOFF is harvested and its evidence ledger retained in its PR. These results do not establish arbitrary Evidence, Build, Cloud, or provider-wide adoption. r1 below records the prior A3 boundary; r2/r3 record earlier proposals rather than current capability.
 
 The owner expects most reads and writes to be performed by local Windows agents. Prioritize a usable local credential store and transfer tool. Cloud agents are intended consumers and occasional producers through task-scoped grants, but R2 support is unverified; a continuously available cloud credential broker is not a prerequisite for the local workflow.
 
@@ -61,13 +61,22 @@ Unity is a replaceable build backend. The primary user/agent interface is an eng
 
 ## 3. Program slices
 
-### 現在の到達点とEvidence first useへの引継ぎ
+### 現在の到達点とEvidence first use後の残件
 
 ローカル段1（スライス0）は [PR #76](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/76) で、Route proofは [PR #81](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/81) で実装・検証とPhase Dを完了した。現在のCLIとprobeの利用・制限は [Artifacts README](../../tools/Artifacts/README.md) を正とする。完了したslice HANDOFFは削除し、証拠台帳は各PR本文へ移す。r1のprovider選択と実施順は歴史的記録であり、現行の後続順序はr4を正とする。
 
-ダミー鍵の登録・DPAPI CurrentUser保管・置換・削除・失敗時の保全・非露出はローカル検証済み。段1完了時に未実施だった実鍵登録とR2 synthetic往復は、2026-09-27のA3前疎通で実施した。所有者はCloudflare画面でtoken対象bucketと非公開設定を確認した。署名無しGETの限定非露出と通常writerに対するBucket Lock実効性はRoute proofで確認した。実Evidence/Build転送、別WindowsユーザーDPAPIは未実測。同一ユーザーのAgentからの隔離は主張しない。
+ダミー鍵の登録・DPAPI CurrentUser保管・置換・削除・失敗時の保全・非露出はローカル検証済み。段1完了時に未実施だった実鍵登録とR2 synthetic往復は、2026-09-27のA3前疎通で実施した。所有者はCloudflare画面でtoken対象bucketと非公開設定を確認した。署名無しGETの限定非露出と通常writerに対するBucket Lock実効性はRoute proofで確認した。その後の実Evidenceの検証範囲は次段落の固定E1/E2だけであり、実Build転送と別WindowsユーザーDPAPIは未実測。同一ユーザーのAgentからの隔離は主張しない。
 
-最小Artifact CLIもsynthetic限定でC/C′ GOとPhase Dを完了した。新旧鍵の検証・切替・対象旧tokenの失効と確認は完了済みで、Evidence first useの開始条件として同じowner操作を反復しない。実Evidenceを現在のsynthetic専用経路へ投入せず、実payloadを変更・削除しない保護検証、prefixと保持方針、独立したledger確定、別sessionでの取得・必要rawの閲覧を次のPhase Aで固定する。Cloud、実Build、H2d/H3は別の後続であり、完了したCLIスライスの条件に追加しない。
+最小Artifact CLIはsynthetic限定でC/C′ GOとPhase Dを完了した。新旧鍵の検証・切替・対象旧tokenの失効と確認は完了済みで、後続の開始条件として同じowner操作を反復しない。Evidence first useは実装head `896eaea8a912248333704c80549d46ecf20c02c6` で、固定E1の15entryと設定原JPEGを含むE2の4entryを `evidence/first-use/` の30日age lock下へ各1回送信した。実payloadへ再PUT/DELETEせず、同run witnessの破壊試行拒否とunlocked writer対照、事後設定、独立ledger、別sessionの全hash/版/entryと指定ログ/画像の実閲覧を確認。C/C′ GOとowner D closeを受容し、限定利用と保持義務を [Artifacts README](../../tools/Artifacts/README.md) へharvest、小台帳とclose recordを [PR #104](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/104) へ引継ぐ。Cloud/実Build/H2d/H3をこの完了条件に追加しない。
+
+残件ownerはOSM maintainer、期限は本programの2026-12-26または置換revisionとする。次スライスを自動着手せず、対象ごとにPhase Aで問いと予算を固定する。
+
+- Artifacts保持延長: server lockの有限下限とowner close+30日/参照中保持の差、期限後のread policy/config移行。自動削除なし、旧証拠とlocked witnessを保持する。
+- Artifacts offline可搬性/操作性: `reader-hash` / `handoff-identity-substitution` の固定private E1依存をdummy fixtureへ置換する検討、別runの成功重複publish抑止、Evidence入口の一般エラー文言、inspect/prune。現119件の所有端末成功をGit-only再現可能と扱わない。
+- program 1-cloud/4-cloud: platform別egress・grant・read/write・実ログ/画像閲覧。公開差分を読めたオンライン追加レビューはprivate R2取得の成立ではない。
+- program Build段/Harness H2d・H3: 実Build転送/実行、orchestration、別host・CURRENT連携。Unity native終了stallを再調査する理由にしない。
+
+追加オンラインレビューは公開差分の構造とLinuxでの3buildを確認し、凍結M1–M5のblockerなしとしたが、PowerShell suiteと実R2原証拠は未取得。新モデルのC′やCloud利用合格とは数えない。上記の後続入力を受容し、現スライスの実装・受け入れ境界を変更しない。
 
 旧r1での次段候補は段2（スライス1ローカル）だった。以下4点は各後続の関連箇所を扱う際の入力として保持し、完了済みスライスを再開する条件にはしない。
 

@@ -128,7 +128,7 @@ function Read-ArtifactReference([string] $Text, $Config) {
             ($value.packageBytes -isnot [int] -and $value.packageBytes -isnot [long])) { throw 'Artifact reference unavailable.' }
         Assert-Hex $value.base 40; Assert-Hex $value.head 40; Assert-Hex $value.runId 32
         Assert-Hex $value.manifestSha256 64
-        if ($value.key -cne "probe/locked/$($value.repositoryId)/$($value.head)/$($value.runId)/bundle.zip" -or
+        if ($value.key -cne "$($Config.Data.prefix)$($value.repositoryId)/$($value.head)/$($value.runId)/bundle.zip" -or
             $value.packageBytes -lt 1 -or $value.packageBytes -gt 256MB) { throw 'Artifact reference unavailable.' }
         $null = Assert-Utc $value.retainUntil
         return $value

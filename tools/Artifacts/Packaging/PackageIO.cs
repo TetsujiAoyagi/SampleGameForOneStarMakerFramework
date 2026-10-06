@@ -16,6 +16,69 @@ public static class PackageIO
         => CreateBounded(inputListPath, operationDirectory, baseRevision, headRevision, repositoryId, runId,
             budgetMilliseconds, PackagePolicy.ArchiveLimit);
 
+    // The caller owns the selection and snapshot. Recheck every byte and the complete file set
+    // here so a changed snapshot cannot silently become the archive sent over the network.
+    public static PackageInfo CreateVerified(string operationDirectory, string snapshotDirectory,
+        string baseRevision, string headRevision, string repositoryId, string runId,
+        PackageFile[] expected, int budgetMilliseconds)
+    {
+        PackagePolicy.RequireIdentity(baseRevision, headRevision, repositoryId, runId);
+        if (!Path.IsPathFullyQualified(operationDirectory) ||
+            !Path.GetFullPath(snapshotDirectory).Equals(Path.GetFullPath(Path.Combine(operationDirectory, "snapshot")), StringComparison.OrdinalIgnoreCase) ||
+            !Directory.Exists(snapshotDirectory) || PackagePolicy.HasReparse(snapshotDirectory) ||
+            expected is null || expected.Length is < 1 or > PackagePolicy.EntryLimit)
+            throw new InvalidDataException("Verified snapshot invalid.");
+        var timer = Stopwatch.StartNew();
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        long total = 0;
+        foreach (var file in expected)
+        {
+            Check(timer, budgetMilliseconds);
+            var relative = PackagePolicy.Relative(file.Path);
+            if (!names.Add(relative) || file.Bytes is < 0 or > PackagePolicy.ArchiveLimit || !Hex64(file.Sha256))
+                throw new InvalidDataException("Expected entry invalid.");
+            var path = PackagePolicy.Under(snapshotDirectory, relative);
+            var info = new FileInfo(path);
+            if (!info.Exists || info.Length != file.Bytes || HashFile(path, timer, budgetMilliseconds) != file.Sha256)
+                throw new InvalidDataException("Snapshot mismatch.");
+            total += file.Bytes;
+            if (total > PackagePolicy.ExtractLimit) throw new InvalidDataException("Snapshot too large.");
+        }
+        var actualNames = Directory.EnumerateFiles(snapshotDirectory, "*", SearchOption.AllDirectories)
+            .Select(path => Path.GetRelativePath(snapshotDirectory, path).Replace(Path.DirectorySeparatorChar, '/')).ToArray();
+        if (Directory.EnumerateDirectories(snapshotDirectory, "*", SearchOption.AllDirectories).Any(PackagePolicy.HasReparse))
+            throw new InvalidDataException("Snapshot reparse point invalid.");
+        if (actualNames.Length != names.Count || actualNames.Any(name => !names.Contains(name)))
+            throw new InvalidDataException("Snapshot entry set mismatch.");
+        var files = expected.OrderBy(file => file.Path, StringComparer.Ordinal).ToArray();
+        var manifest = new {
+            schemaVersion = 1, purpose = "evidence", @base = baseRevision, head = headRevision,
+            repositoryId, runId, createdAt = DateTimeOffset.UtcNow.ToString("o"), retentionSeconds = 2592000,
+            files = files.Select(file => new { path = file.Path, bytes = file.Bytes, sha256 = file.Sha256 }).ToArray()
+        };
+        var manifestBytes = JsonSerializer.SerializeToUtf8Bytes(manifest, JsonOptions);
+        if (manifestBytes.Length > PackagePolicy.JsonLimit) throw new InvalidDataException("Manifest too large.");
+        var packagePath = Path.Combine(operationDirectory, "bundle.zip");
+        using (var output = new FileStream(packagePath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+        using (var bounded = new BoundedWriteStream(output, PackagePolicy.ArchiveLimit))
+        using (var zip = new ZipArchive(bounded, ZipArchiveMode.Create, leaveOpen: true, entryNameEncoding: Utf8))
+        {
+            using (var stream = zip.CreateEntry("manifest.json", CompressionLevel.NoCompression).Open()) stream.Write(manifestBytes);
+            foreach (var file in files)
+            {
+                Check(timer, budgetMilliseconds);
+                using var source = new FileStream(PackagePolicy.Under(snapshotDirectory, file.Path), FileMode.Open, FileAccess.Read, FileShare.Read);
+                using var destination = zip.CreateEntry("payload/" + file.Path, CompressionLevel.NoCompression).Open();
+                if (CopyBounded(source, destination, file.Bytes, timer, budgetMilliseconds) != file.Bytes)
+                    throw new InvalidDataException("Snapshot size mismatch.");
+            }
+        }
+        var archive = new FileInfo(packagePath);
+        if (archive.Length is < 1 or > PackagePolicy.ArchiveLimit) throw new InvalidDataException("Archive size invalid.");
+        return new PackageInfo { Path = packagePath, Bytes = archive.Length,
+            Sha256 = HashFile(packagePath, timer, budgetMilliseconds), ManifestSha256 = Hex(SHA256.HashData(manifestBytes)), Files = files };
+    }
+
     // A smaller ceiling is injected by the offline boundary test. Production always uses ArchiveLimit.
     internal static PackageInfo CreateBounded(string inputListPath, string operationDirectory,
         string baseRevision, string headRevision, string repositoryId, string runId, int budgetMilliseconds,
@@ -111,7 +174,7 @@ public static class PackageIO
 
     public static PackageInfo Extract(string packagePath, string operationDirectory, string expectedSha256,
         string expectedManifestSha256, string baseRevision, string headRevision, string repositoryId, string runId,
-        int budgetMilliseconds)
+        int budgetMilliseconds, string expectedPurpose = "synthetic")
     {
         PackagePolicy.RequireIdentity(baseRevision, headRevision, repositoryId, runId);
         if (!Hex64(expectedSha256) || !Hex64(expectedManifestSha256)) throw new InvalidDataException("Expected hash invalid.");
@@ -157,10 +220,11 @@ public static class PackageIO
         using var doc = JsonDocument.Parse(manifestBytes);
         var manifest = doc.RootElement;
         PackagePolicy.Fields(manifest, "schemaVersion", "purpose", "base", "head", "repositoryId", "runId", "createdAt", "retentionSeconds", "files");
-        if (PackagePolicy.Integer(manifest, "schemaVersion") != 1 || PackagePolicy.String(manifest, "purpose") != "synthetic" ||
+        var purpose = PackagePolicy.String(manifest, "purpose");
+        if (PackagePolicy.Integer(manifest, "schemaVersion") != 1 || purpose != expectedPurpose ||
             PackagePolicy.String(manifest, "base") != baseRevision || PackagePolicy.String(manifest, "head") != headRevision ||
             PackagePolicy.String(manifest, "repositoryId") != repositoryId || PackagePolicy.String(manifest, "runId") != runId ||
-            PackagePolicy.Integer(manifest, "retentionSeconds") != 86400 ||
+            PackagePolicy.Integer(manifest, "retentionSeconds") != (purpose == "evidence" ? 2592000 : 86400) ||
             !DateTimeOffset.TryParseExact(PackagePolicy.String(manifest, "createdAt"), "o", null,
                 System.Globalization.DateTimeStyles.None, out var created) || created.Offset != TimeSpan.Zero)
             throw new InvalidDataException("Manifest identity invalid.");

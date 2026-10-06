@@ -30,7 +30,9 @@ public static class R2ArtifactTransport
     {
         if (string.IsNullOrEmpty(accessKeyId) || string.IsNullOrEmpty(secretAccessKey) ||
             !Endpoint.IsMatch(endpoint) || !SafeKey(key) || deadlineMilliseconds is < 1 or > 120000 ||
-            operation is not ("put" or "get" or "delete")) return Fail(operation, "invalid-input");
+            operation is not ("put" or "get" or "delete") ||
+            (operation == "delete" && key.StartsWith("evidence/first-use/", StringComparison.Ordinal) && key.EndsWith("/bundle.zip", StringComparison.Ordinal)))
+            return Fail(operation, "invalid-input");
         using var cancellation = new CancellationTokenSource(deadlineMilliseconds);
         try
         {
