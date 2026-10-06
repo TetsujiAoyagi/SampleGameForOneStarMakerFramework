@@ -1,6 +1,8 @@
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'ArtifactCommands.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'ArtifactPaths.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'ArtifactProtectionPolicy.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'ArtifactProtection.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Credentials/CredentialStore.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Transport/R2ArtifactTransport.psm1') -Force
 
@@ -388,7 +390,10 @@ function Invoke-ArtifactFetch([string] $ConfigPath, [string] $ReferenceText, [st
         expectedPackageBytes = $null; expectedPackageSha256 = $ExpectedHash }
     try {
         Assert-Hex $ExpectedHash 64
-        $config = Read-ArtifactConfig $ConfigPath
+        $rawConfig = Read-ArtifactJson $ConfigPath
+        $config = if ($null -ne $rawConfig.Data.PSObject.Properties['purpose'] -and $rawConfig.Data.purpose -ceq 'evidence') {
+            Read-EvidenceConfig $ConfigPath
+        } else { Read-ArtifactConfig $ConfigPath }
         $reference = Read-ArtifactReference $ReferenceText $config
         $context.base = $reference.base; $context.head = $reference.head
         $context.runId = $reference.runId; $context.key = $reference.key
@@ -406,7 +411,7 @@ function Invoke-ArtifactFetch([string] $ConfigPath, [string] $ReferenceText, [st
         Protect-ArtifactTree $operationRoot
         $package = [OneStarMaker.Artifacts.Packaging.PackageIO]::Extract($archive, $operationRoot, $ExpectedHash,
             $reference.manifestSha256, $reference.base, $reference.head, $reference.repositoryId,
-            $reference.runId, (Get-Remaining $timer 600000))
+            $reference.runId, (Get-Remaining $timer 600000), $(if ($config.Data.prefix -ceq 'evidence/first-use/') {'evidence'} else {'synthetic'}))
         Protect-ArtifactTree $operationRoot
         $result.verification.entries = $true
         $result.outputPath = $package.Path
@@ -426,6 +431,92 @@ function Invoke-ArtifactFetch([string] $ConfigPath, [string] $ReferenceText, [st
     return [pscustomobject]$result
 }
 
-Export-ModuleMember -Function Invoke-ArtifactPublish, Invoke-ArtifactFetch, Get-Remaining, New-ArtifactRequest,
+# This export is for EvidenceApplication only. The public CLI has no prepared-path grammar.
+function Invoke-ArtifactPublishPrepared($Config,$Package,[string] $OperationRoot,[string] $OperationId,
+    [string] $RunId,[string] $EvidenceBase,[string] $EvidenceHead,[string] $ProducerBase,[string] $ProducerHead,
+    [string] $SourceManifestHash,[string] $SelectionReceiptHash,[object[]] $ExpectedFiles,
+    [Diagnostics.Stopwatch] $Timer) {
+    $result = New-ArtifactResult $OperationId 'evidence-publish'
+    $result.residue.localPath = $OperationRoot
+    $key = "evidence/first-use/$($Config.Data.repositoryId)/$EvidenceHead/$RunId/bundle.zip"
+    $runPrefix = "evidence/first-use/$($Config.Data.repositoryId)/$EvidenceHead/$RunId/"
+    $result.residue.remoteKeys = @($key,($runPrefix + 'protection-witness.txt'),('probe/unlocked/' + $OperationId + '/control.txt'))
+    try {
+        Assert-Hex $EvidenceBase 40; Assert-Hex $EvidenceHead 40
+        Assert-Hex $ProducerBase 40; Assert-Hex $ProducerHead 40
+        Assert-Hex $SourceManifestHash 64; Assert-Hex $SelectionReceiptHash 64
+        if ($OperationId -cnotmatch '\A[0-9a-f]{32}\z' -or $RunId -cnotmatch '\A[0-9a-f]{32}\z' -or
+            $Config.Data.purpose -cne 'evidence' -or $Package.Path -cne ([IO.Path]::Combine($OperationRoot,'bundle.zip'))) {
+            throw 'Prepared package unavailable.'
+        }
+        Assert-ArtifactOperationFile $OperationRoot $Package.Path
+        if ($Package.Bytes -lt 1 -or $Package.Bytes -gt 256MB -or
+            ([IO.FileInfo]::new($Package.Path)).Length -ne $Package.Bytes -or
+            (Get-FileHash -LiteralPath $Package.Path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $Package.Sha256) {
+            throw 'Prepared package changed.'
+        }
+        Import-ArtifactPackage
+        $verify = [OneStarMaker.Artifacts.Packaging.PackageIO]::Extract($Package.Path,$OperationRoot,$Package.Sha256,
+            $Package.ManifestSha256,$EvidenceBase,$EvidenceHead,$Config.Data.repositoryId,$RunId,(Get-Remaining $Timer 600000),'evidence')
+        if ($verify.Files.Length -ne $ExpectedFiles.Count) { throw 'Prepared entry count changed.' }
+        foreach ($expected in $ExpectedFiles) {
+            $actual = @($verify.Files | Where-Object { $_.Path -ceq $expected.Path })
+            if ($actual.Count -ne 1 -or $actual[0].Bytes -ne $expected.Bytes -or $actual[0].Sha256 -cne $expected.Sha256) {
+                throw 'Prepared entry changed.'
+            }
+        }
+        Protect-ArtifactTree $OperationRoot
+        $generation = (Get-CredentialStatus 'osm').Generation
+        $networkInvoker = (Get-Command Invoke-ArtifactNetwork).ScriptBlock
+        $readInvoker = (Get-Command Invoke-ArtifactReadback).ScriptBlock
+        $remainingInvoker = (Get-Command Get-Remaining).ScriptBlock
+        $send = { param($g,$request) & $networkInvoker $g $request }.GetNewClosure()
+        $read = { param($readKey,$bytes,$hash)
+            & $readInvoker $OperationRoot $Config $generation $readKey $bytes $hash $Timer
+        }.GetNewClosure()
+        $remaining = { & $remainingInvoker $Timer }.GetNewClosure()
+        # Deny writers while verification and the one allowed upload use this exact ZIP.
+        $archiveLock = [IO.FileStream]::new($Package.Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+        try {
+            $protection = Invoke-ArtifactEvidenceProtection $Config $Package $OperationRoot $OperationId $RunId `
+                $EvidenceBase $EvidenceHead $ProducerBase $ProducerHead $generation $SourceManifestHash `
+                $SelectionReceiptHash $send $read $remaining
+        } finally { $archiveLock.Dispose() }
+        $reference = New-ArtifactReference $Config $key $EvidenceBase $EvidenceHead $RunId $Package.Bytes `
+            $Package.ManifestSha256 $protection.ServerLockLowerBound
+        $result.ledger = [ordered]@{ reference=$reference; key=$key; packageBytes=$Package.Bytes
+            packageSha256=$Package.Sha256; manifestSha256=$Package.ManifestSha256
+            evidenceBase=$EvidenceBase; evidenceHead=$EvidenceHead; producerBase=$ProducerBase; producerHead=$ProducerHead
+            runId=$RunId; sourceManifestSha256=$SourceManifestHash; selectionReceiptSha256=$SelectionReceiptHash
+            entries=@($ExpectedFiles | ForEach-Object { [ordered]@{path=$_.Path;bytes=$_.Bytes;sha256=$_.Sha256} })
+            protectionReceiptSha256=$protection.ReceiptSha256; protectionReceiptPath=$protection.ReceiptPath
+            intentPath=$protection.IntentPath; intentSha256=$protection.IntentSha256
+            putIntentPath=$protection.PutIntentPath; putIntentSha256=$protection.PutIntentSha256
+            serverLockLowerBound=$protection.ServerLockLowerBound; configSha256=$Config.Hash
+            settingsBeforeSha256=$Config.SettingsHash }
+        $result.verification = [ordered]@{ snapshot=$true; entries=$true; witness=$true; control=$true
+            put=$true; readback=$true }
+        $result.status='passed'; $result.reasonCode='candidate'; $result.residue.remote='locked-retained'
+        $result.residue.retainUntil=$protection.ServerLockLowerBound
+        $result.residue.cleanup='local-retained'
+    } catch {
+        $result.ledger=$null; $result.outputPath=$null; $result.reasonCode='unconfirmed'
+        $result.residue.cleanup='local-retained'
+        $putIntentPath=[IO.Path]::Combine($OperationRoot,'put-intent.json')
+        $result.residue.remote=if ([IO.File]::Exists($putIntentPath)) { 'may-have-been-sent' } else { 'pre-put-intent' }
+        if ([IO.File]::Exists($putIntentPath)) {
+            try { $result.residue.retainUntil=(Read-ArtifactJson $putIntentPath).Data.serverLockLowerBound } catch {}
+        }
+    } finally {
+        try {
+            $null = Write-ArtifactJson ([IO.Path]::Combine($OperationRoot,'result.json')) $result
+            Protect-ArtifactTree $OperationRoot
+        } catch { $result.status='failed'; $result.reasonCode='result-persistence-unconfirmed'; $result.ledger=$null; $result.outputPath=$null }
+    }
+    return [pscustomobject]$result
+}
+
+Export-ModuleMember -Function Invoke-ArtifactPublish, Invoke-ArtifactFetch, Invoke-ArtifactPublishPrepared,
+    Get-Remaining, New-ArtifactRequest,
     Test-ArtifactSuccess, Test-ArtifactMissing, Write-ArtifactJson, New-ArtifactResult,
     Invoke-ArtifactObservedNetwork, Write-ArtifactObservationRecord

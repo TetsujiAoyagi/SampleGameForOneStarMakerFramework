@@ -30,7 +30,18 @@ try {
     }
     $command = $Arguments[0]
     $action = $Arguments[1]
-    if ($command -ceq 'publish' -and $Arguments.Count -eq 11 -and
+    if ($command -ceq 'evidence' -and $action -ceq 'publish' -and $Arguments.Count -eq 12 -and
+        $Arguments[2] -ceq '--profile' -and $Arguments[3] -ceq 'osm' -and
+        $Arguments[4] -ceq '--config' -and $Arguments[6] -ceq '--selection' -and
+        $Arguments[8] -ceq '--base' -and $Arguments[10] -ceq '--head') {
+        Import-Module (Join-Path $PSScriptRoot 'Artifacts/EvidenceApplication.psm1') -Force
+        $outcome = Invoke-EvidencePublish $Arguments[5] $Arguments[7] $Arguments[9] $Arguments[11]
+    } elseif ($command -ceq 'evidence' -and $action -ceq 'commit' -and $Arguments.Count -eq 10 -and
+        $Arguments[2] -ceq '--candidate' -and $Arguments[4] -ceq '--candidate-sha256' -and
+        $Arguments[6] -ceq '--settings-after' -and $Arguments[8] -ceq '--settings-after-sha256') {
+        Import-Module (Join-Path $PSScriptRoot 'Artifacts/EvidenceLedger.psm1') -Force
+        $outcome = Invoke-EvidenceCommit $Arguments[3] $Arguments[5] $Arguments[7] $Arguments[9]
+    } elseif ($command -ceq 'publish' -and $Arguments.Count -eq 11 -and
         $Arguments[1] -ceq '--profile' -and $Arguments[2] -ceq 'osm' -and
         $Arguments[3] -ceq '--config' -and $Arguments[5] -ceq '--input-list' -and
         $Arguments[7] -ceq '--base' -and $Arguments[9] -ceq '--head') {

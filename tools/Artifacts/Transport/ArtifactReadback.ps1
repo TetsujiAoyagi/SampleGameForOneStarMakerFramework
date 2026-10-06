@@ -14,7 +14,7 @@ try {
     if ($data.schemaVersion -isnot [long] -or $data.schemaVersion -ne 1 -or
         $data.operationRoot -isnot [string] -or $data.endpoint -isnot [string] -or
         $data.endpoint -cnotmatch '\Ahttps://[0-9a-f]{32}\.r2\.cloudflarestorage\.com\z' -or
-        $data.key -isnot [string] -or $data.key -cnotmatch '\Aprobe/locked/[0-9a-f]{64}/[0-9a-f]{40}/[0-9a-f]{32}/bundle\.zip\z' -or
+        $data.key -isnot [string] -or $data.key -cnotmatch '\A(?:probe/locked|evidence/first-use)/[0-9a-f]{64}/[0-9a-f]{40}/[0-9a-f]{32}/(?:bundle\.zip|protection-witness\.txt)\z' -or
         $data.generation -isnot [string] -or $data.expectedSha256 -isnot [string] -or
         $data.expectedBytes -isnot [int] -and $data.expectedBytes -isnot [long] -or
         $data.expectedBytes -lt 1 -or $data.expectedBytes -gt 256MB -or
