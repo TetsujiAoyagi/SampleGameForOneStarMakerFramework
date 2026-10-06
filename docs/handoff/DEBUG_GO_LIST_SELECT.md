@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`
-- branch: 計画ブランチ `cursor/debug-go-commands-plan-575e`。実装ブランチは未作成。
+- status: `B`
+- branch: `cursor/debug-go-list-select-575e`（計画コミットは `cursor/debug-go-commands-plan-575e` にもある）
 - implementation base commit: `6d804ca637cf42fb876e602c8ccc0656cfbd255d`
-- implementation head commit: 未実施
+- implementation head commit: `b3c7c514ad93a13036049d6c36b135b378826bf4`
 - risk: `normal`
 - owner: 発注者（採否）。A1 文面は 2026-10-06 の実装担当。
 - created: 2026-10-06
@@ -25,7 +25,7 @@
 - C' blind bundle generated at: 未生成
 - C' blind bundle hash: 未生成
 
-A2 と A3 は行っていない。Phase A snapshot は凍結版が無いので生成しない。未到達の Phase B 結果、evidence、C' bundle も空のまま推測で埋めない。
+A2 と A3 は行っていない。Phase A snapshot は凍結版が無いので生成しない。Phase B の文章は節 6 にあり、別ファイルの result snapshot は作っていない。evidence と C' bundle は未生成。GO は未判定。
 
 プログラム境界は [DEBUG_GAMEOBJECT_COMMANDS.md](DEBUG_GAMEOBJECT_COMMANDS.md)。本スライスはその S1 だけを実装する。
 
@@ -210,11 +210,12 @@ handler は世界実装の例外を捕らない。catalog の既存契約どお�
 
 ## 6. Phase B 実装結果
 
-- 実装: 未実施
-- HANDOFF との差: 未実施
-- 未実行: 未実施
-- implementation head commit: 未実施
-- Phase B 担当・モデル・ベンダー: 未実施
+- 実装: `DebugGameObjectCommands.RegisterListAndSelect` が `go.list` と `go.select` だけを既存 catalog へ登録する。選択は `DebugGameObjectSelection` の `ulong` のみ。Unity 走査は `UnityDebugGameObjectWorld` で、呼び出しの finally でシーン参照を外す。既定 dispatcher、initializer、プロトコルは変更していない。
+- HANDOFF との差: `DebugGameObjectCommands.cs` は 970 行で、予想の 220 行を超える。payload の読み書きは同じファイルの private nested type に閉じ、公開面は登録メソッドとコマンド名、ページ上限のままである。分割しない理由は、キー順と「不正」と「ページ範囲」の分類が handler と同じ契約で、ファイルを分けても所有者・寿命・依存・テスト境界が変わらないため。ケース本体は予想どおり `GameObjectCommandOffline.cs`（361行）へ移し、`Program.cs` は 200 行のままである。`UnityDebugGameObjectWorld.cs` は 293 行。
+- 未実行: EditMode の `DebugGameObjectCommandTests`、空 filter の全 EditMode、Player、ソケット往復、DontDestroyOnLoad シーンの実在確認、Unity Editor のコンパイル確認。結果 XML は作っていない。A2、A3、Phase C、Phase C' は未実施。GO は記録しない。
+- 実行した確認: `dotnet run --project tools/DebugCommandOfflineTests/DebugCommandOfflineTests.csproj` は 15 passed, 0 failed, 15 executed。既存 6 件と S1 の 9 件。`pwsh tools/contract-audit.ps1 -BaseRef origin/develop` は errors 0、warnings 0。`pwsh tools/docs-audit.ps1` は本節の追記後に errors 0、warnings 0。
+- implementation head commit: `b3c7c514ad93a13036049d6c36b135b378826bf4`。本節だけの後続コミットは implementation head に含めない。
+- Phase B 担当・モデル・ベンダー: 本セッションの実装担当。A2/A3 を経ていない。
 
 ## 7. Phase C
 
