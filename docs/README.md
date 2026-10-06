@@ -48,7 +48,7 @@ H2cの旧 `h2c-unity-gate` と再開task `h2c-unity-gate-r2` は、それぞれ�
 | `REVIEW_WORKFLOW_EFFICIENCY_ASSESSMENT.md` | 上記への独立評価（Claude / Grok）と採否記録 | いいえ。次のPhase Cで残る仮説を検証後、調査記録ごと削除する |
 | `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` | Artifact Storageの保存先・責務・セキュリティ境界と後続段 | program r4の順序・保護境界はA3凍結済み。Route proofとsynthetic限定の最小Artifact CLIはPhase D完了。現在の利用・検証範囲は[Artifacts README](../tools/Artifacts/README.md)。次はEvidence first useの着手時Phase A。実Evidence / Build転送、Cloud成立、R2の全面採用は未確認 |
 
-**未承認の単一スライス候補:** `UI_ACCESSIBILITY_BUTTON_PILOT.md` は Button の Windows Narrator 最初の実証に向けた A1 改稿（A2 指摘を統合）。実装キューではなく、検証経路と人間の A3 合意が未成立。owner は root、期限は 2026-11-05 または置換 revision、harvest 先は Architecture §6。上記 program / research 6件とは別に保持する。
+**未承認の単一スライス候補:** `UI_ACCESSIBILITY_BUTTON_PILOT.md` は Button の Windows Narrator 最初の実証に向けた A1 改稿（A2・PR コメントを照合）。実装キューではなく、検証経路と人間の A3 合意が未成立。owner は root、期限は 2026-11-05 または置換 revision、harvest 先は Architecture §6。上記 program / research 6件とは別に保持する。
 
 Streaming の M-1〜M-4 と S-4c は完了し、決定を公開面へ harvest して、移行計画と各着手時 HANDOFF を削除済み。テストアセンブリの分離も完了し、依存の向きは `unity/Assets/README.md` と `unity/Assets/Docs/Architecture/27-folder-structure.md` にある。完了済み HANDOFF は復活させない。
 
