@@ -31,6 +31,7 @@ Unity の正しいバージョンは `unity/ProjectSettings/ProjectVersion.txt` 
 - **テストで `Task.Delay` / `Thread.Sleep` を使わない。** 待機はシグナル等へのリアクティブな待機にするか、時間を注入して進める。
 - **既知のUnity native終了stallは調査を反復しない。** 次回この事象で再開するときは最初の1回だけ限定調査し、追加取得が必要でも最大1回とする。同じ症状が続けば既知リスクとして受け入れて調査を打ち切り、別session/taskでも回数をリセットしない。明示的な新指示なしに再調査しない。症状、終了確認、rawと受容判断の区別は `tools/Harness/README.md` の「Unity終了時の既知native stallと調査の停止規則」を正とする。
 - **参照 0 を削除理由にしない。** 未使用 API は意図的な先行宣言やフェーズ外の場合があり、置き換え残骸と確認できたものだけが削除候補になる。
+- **Artifact Storageの通常操作は製品共通の事前承認に従う。** 対象作業では [Artifacts READMEの「エージェント操作の事前承認」](tools/Artifacts/README.md#エージェント操作の事前承認) を読む。承認済み範囲の保存・取得・検証に、通信や既存鍵の利用だけを理由とする再確認を求めない。秘密の非露出と既存Evidenceの保持を維持し、実行環境の承認・拒否は迂回しない。
 - **PR の base は `develop`。** `main` は既定ブランチとして使わない。
 - **`cursor-agent` CLI は Grok 系モデルでのみ使う。** 他系列（Claude / GPT / Gemini / Composer など）を `--model` に指定しない。既定モデルは変わりうるので、推論起動では必ず Grok 系を明示する。Grok が不適な用途では cursor-agent を使わず別の経路を取る。この契約を機械で強制する仕組みは、各自のエージェント設定（git 管理外）へ置く。
 

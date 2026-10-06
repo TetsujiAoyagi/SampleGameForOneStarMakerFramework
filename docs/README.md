@@ -52,7 +52,7 @@ Streaming の M-1〜M-4 と S-4c は完了し、決定を公開面へ harvest �
 
 S-3 の記録は公開面 `docs/streaming/STREAMING_CURRENT_SPEC.md` に移した。**実装指示ではない。** 旧 `SEASON_LEVELS_IMPLEMENTATION.md` を復活させない。
 
-ローカル資格情報管理の現在の利用方法・責務・検証方法は [tools/Artifacts/README.md](../tools/Artifacts/README.md) に置く。段1の完了HANDOFFは保持せず、検証証拠の台帳は [PR #76](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/76) に残す。
+ローカル資格情報管理の現在の利用方法・責務・検証方法は [tools/Artifacts/README.md](../tools/Artifacts/README.md) に置く。製品に依存しないArtifact操作の事前承認、秘密の保護、個別承認と実行環境の承認境界も同READMEを正本とし、`AGENTS.md`から参照する。段1の完了HANDOFFは保持せず、検証証拠の台帳は [PR #76](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/76) に残す。
 
 **計画セッションに構図を確定させない。** 制約と品質バーと「答えてはいけない既定解」を渡し、設計セッションに構図を出させ、人が図を見てから座標をコードへ落とす。計画セッションに「全部書いて完成に見せる」を求めると、開いた論点は最安の合法解で埋まる（実例: 2026-08-27 に撤回した季節矩形レイアウト `0, 5, 12, 17`）。
 

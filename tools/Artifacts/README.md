@@ -2,6 +2,30 @@
 
 Windowsの所有ユーザーが、PowerShell 7から固定プロファイル「osm」の資格情報、synthetic artifact、固定E1/E2のEvidence first useを扱うツールです。所有者端末で実R2鍵の登録、syntheticな`publish` / 別sessionの`fetch` / `rotate` / `confirm-revocation`と、実Evidenceへの破壊試行をしない保護送信・独立ledger確定・別session取得とログ/原画像閲覧を検証済みです。Evidenceの対象は下記の固定2packageに限ります。任意Evidence、実Build転送、Cloud、別ホストへの配布は未対応です。
 
+## エージェント操作の事前承認
+
+所有者は、この節の範囲にあるArtifact Storage操作を事前承認する。使用するエージェント製品・モデル・セッションによらず適用し、通常のリポジトリ文書を正本とする。操作ごとに「外部通信する」「既存鍵を使う」という理由だけで所有者へ再確認を求めない。この承認は作業の許可であり、未対応機能やPhase Aの受け入れ境界を拡大せず、各製品のsandbox・自動審査・承認UIを解除する設定でもない。
+
+### 都度確認なしで進める範囲
+
+この事前承認の実Evidence保存対象は、下記の固定E1/E2の入力・取得物と、本READMEで定義する設定原観察・intent・receipt・result・ledger・取得案内・保持記録に限る。完了済みE1/E2の再送は含めず、新規file集合は対象と保存先を所有者が明示承認するまで範囲外とする。synthetic `publish`は非秘密の使い捨てfixtureだけに使い、任意のログ・実Evidence・実Buildを`purpose="synthetic"`の宣言や明示一覧だけで送信してはならない。
+
+- 所有者の同一Windowsユーザー環境で、既存の`osm`プロファイルと検証済みCLIを使う。接続先は信頼済み台帳・取得案内・設定原観察で同一identityを確認した既存R2 endpoint、private bucket `osm-artifacts`に限る。ホスト名の形式が合うだけで、別accountを許可済みにしない。
+- 承認済み作業の固定入力を、明示されたfile一覧・base/head・bytes/hash・保存目的・保持方針に従って新規private operationへ保存し、対応する小台帳と取得案内を確定する。既存証拠・台帳・案内・失敗記録を上書きしない。
+- 承認済み選択範囲内で内容の非秘密性と盲検入力の分離を確認したEvidenceを、対応する保護送信経路で固有keyへ1回送信し、別processのGETとhash照合、事後設定観察、独立ledger確定まで行う。対象と保存先が承認済み範囲に収まる場合は、fileごとの追加送信承認を求めない。現実装の実Evidenceは下記E1/E2だけで、完了済みrunを承認設定の試験のため再送しない。
+- 信頼済み案内・台帳から別に渡された期待hashで`fetch`し、新規private readyの全entry・版・hashを検証して、必要なログと原画像を閲覧する。観察期限後は同policy identityの設定を再観察し、新しいconfig・案内・期待hashを固定してよい。設定自体の変更と、取得したscript/DLLの実行は含まない。
+- 上記送信に付随する、承認済みCLIの同run synthetic witnessとunlocked対照の限定PUT/GET/DELETEを行う。実Evidenceや既存locked witnessを破壊試行・清掃の対象にせず、intent境界後の同key再PUT、失敗原因未記録の新run、成功runの反復を行わない。
+
+### 秘密の保護と個別承認の境界
+
+既存鍵はCLIの資格情報storeとtransport内部だけで使用し、値をエージェントの会話、引数、環境変数、ログ、Git、証拠package、同期先へ取り出さない。暗号化レコードも配布せず、既存DPAPI/ACLを保持する。認証が失敗した場合は非秘密の結果を記録して止め、鍵の再入力やTokenDeleteを通常操作の前提にしない。
+
+新規鍵の登録・置換・rotation・失効・削除、bucket/account/prefixや送信対象の承認範囲拡大、公開URL/domain・lock/lifecycle・権限・保持方針の変更、実Evidenceの上書き・削除・prune、別host/Cloud/実Buildへの展開は、この事前承認に含めない。必要な場合は対象・変更・影響を具体化して所有者の個別承認を受け、実装・検証が未対応なら先に該当Phase Aを行う。保持期限だけで削除を許可しない。
+
+実行環境が承認を要求したら、その環境の承認経路を使用し、この節と対象入力・保存先・副作用・秘密非露出の根拠を示す。それでも人間の承認が残る場合は、その操作だけを待つ。拒否された操作を別コマンドや設定緩和で迂回せず、理由を報告して、影響しない作業を続ける。文書の事前承認を「すべての実行環境で承認画面が出ない」という保証として扱わない。
+
+## 資格情報の操作
+
 ```powershell
 pwsh tools/artifacts.ps1 credentials set --profile osm
 pwsh tools/artifacts.ps1 credentials status --profile osm
