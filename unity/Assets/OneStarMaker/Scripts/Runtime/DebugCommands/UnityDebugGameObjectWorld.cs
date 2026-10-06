@@ -232,6 +232,61 @@ namespace OneStarMaker.Runtime.DebugCommands
             return new DebugGameObjectVector(value.x, value.y, value.z);
         }
 
+        public DebugGameObjectReadStatus TrySetRendererEnabled(
+            ulong instanceId,
+            int rendererIndex,
+            bool enabled,
+            out DebugGameObjectRenderer value,
+            out string failure)
+        {
+            value = default;
+            failure = string.Empty;
+            if (!_gate.AllowsCaller)
+            {
+                failure = "wrong-thread";
+                return DebugGameObjectReadStatus.Unavailable;
+            }
+
+            try
+            {
+                if (!TryFind(instanceId, out var found) || found == null)
+                {
+                    return DebugGameObjectReadStatus.NotFound;
+                }
+
+                var gameObject = found.gameObject;
+                if (gameObject == null)
+                {
+                    return DebugGameObjectReadStatus.NotFound;
+                }
+
+                var renderers = gameObject.GetComponents<Renderer>();
+                if (renderers == null || rendererIndex < 0 || rendererIndex >= renderers.Length)
+                {
+                    return DebugGameObjectReadStatus.MissingRenderer;
+                }
+
+                var renderer = renderers[rendererIndex];
+                if (renderer == null)
+                {
+                    return DebugGameObjectReadStatus.MissingRenderer;
+                }
+
+                renderer.enabled = enabled;
+                value = new DebugGameObjectRenderer(
+                    EntityId.ToULong(gameObject.GetEntityId()),
+                    rendererIndex,
+                    renderers.Length,
+                    renderer.enabled,
+                    renderer.GetType().Name);
+                return DebugGameObjectReadStatus.Ok;
+            }
+            finally
+            {
+                ReleaseSceneReferences();
+            }
+        }
+
         private bool TryFind(ulong instanceId, out Transform? found)
         {
             _mode = VisitMode.Find;

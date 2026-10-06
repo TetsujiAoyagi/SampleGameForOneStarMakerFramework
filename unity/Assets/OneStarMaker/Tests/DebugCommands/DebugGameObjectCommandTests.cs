@@ -171,6 +171,64 @@ namespace OneStarMaker.Tests.DebugCommands
             }
         }
 
+        [Test]
+        public void SetRendererEnabled_DisablesOnlyTheAddressedRenderer()
+        {
+            var root = new GameObject("DebugGoRendererRoot");
+            var mesh = root.AddComponent<MeshRenderer>();
+            var skinned = root.AddComponent<SkinnedMeshRenderer>();
+            var child = new GameObject("DebugGoRendererChild");
+            child.transform.SetParent(root.transform, false);
+            var childMesh = child.AddComponent<MeshRenderer>();
+            try
+            {
+                var world = new UnityDebugGameObjectWorld();
+                var selection = new DebugGameObjectSelection();
+                var catalog = new DebugCommandCatalog();
+                DebugGameObjectCommands.RegisterRenderer(catalog, world, selection);
+                var rootId = IdOf(root);
+                Assert.That(
+                    catalog.TryExecute(
+                        DebugGameObjectCommands.SetRendererEnabledName,
+                        "{\"instanceId\":\"" + rootId + "\",\"rendererIndex\":1,\"enabled\":false}",
+                        out var changed),
+                    Is.True);
+                Assert.That(changed.Success, Is.True, changed.Message);
+                Assert.That(changed.Message, Is.EqualTo("Set Renderer enabled."));
+                Assert.That(changed.PayloadJson, Does.Contain("\"rendererIndex\":1"));
+                Assert.That(changed.PayloadJson, Does.Contain("\"typeName\":\"SkinnedMeshRenderer\""));
+                Assert.That(changed.PayloadJson, Does.Contain("\"enabled\":false"));
+                Assert.That(mesh.enabled, Is.True);
+                Assert.That(skinned.enabled, Is.False);
+                Assert.That(childMesh.enabled, Is.True);
+
+                Assert.That(
+                    catalog.TryExecute(
+                        DebugGameObjectCommands.SetRendererEnabledName,
+                        "{\"instanceId\":\"" + rootId + "\",\"rendererIndex\":2,\"enabled\":false}",
+                        out var missing),
+                    Is.True);
+                Assert.That(missing.Success, Is.False);
+                Assert.That(missing.Message, Is.EqualTo("Renderer was not found."));
+                Assert.That(mesh.enabled, Is.True);
+                Assert.That(skinned.enabled, Is.False);
+                Assert.That(childMesh.enabled, Is.True);
+                Assert.That(selection.TryGet(out _), Is.False);
+            }
+            finally
+            {
+                if (child != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(child);
+                }
+
+                if (root != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+        }
+
         private static bool FindInPages(DebugCommandCatalog catalog, string instanceId)
         {
             var needle = "\"instanceId\":\"" + instanceId + "\"";

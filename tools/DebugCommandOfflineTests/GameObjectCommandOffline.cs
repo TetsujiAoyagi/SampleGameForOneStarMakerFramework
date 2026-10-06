@@ -309,7 +309,9 @@ namespace OneStarMaker.DebugCommandOfflineTests
             public int SetActiveCalls;
             public int GetTransformCalls;
             public int SetTransformCalls;
+            public int SetRendererCalls;
             private readonly List<StoredTransform> _transforms = new();
+            private readonly List<StoredRenderer> _renderers = new();
 
             public DebugGameObjectReadStatus TryDescribe(ulong instanceId, out DebugGameObjectRow row, out string failure)
             {
@@ -520,6 +522,106 @@ namespace OneStarMaker.DebugCommandOfflineTests
                 public DebugGameObjectVector Euler { get; }
 
                 public DebugGameObjectVector Scale { get; }
+            }
+
+            public void AddRenderer(ulong instanceId, string typeName, bool enabled)
+            {
+                _renderers.Add(new StoredRenderer(instanceId, typeName, enabled));
+            }
+
+            public bool RendererEnabled(ulong instanceId, int index)
+            {
+                if (!TryRendererAt(instanceId, index, out var stored) || stored == null)
+                {
+                    throw new InvalidOperationException("missing renderer");
+                }
+
+                return stored.Enabled;
+            }
+
+            public DebugGameObjectReadStatus TrySetRendererEnabled(
+                ulong instanceId,
+                int rendererIndex,
+                bool enabled,
+                out DebugGameObjectRenderer value,
+                out string failure)
+            {
+                SetRendererCalls++;
+                value = default;
+                failure = string.Empty;
+                if (Unavailable)
+                {
+                    failure = "unavailable";
+                    return DebugGameObjectReadStatus.Unavailable;
+                }
+
+                if (!HasRow(instanceId))
+                {
+                    return DebugGameObjectReadStatus.NotFound;
+                }
+
+                var count = CountRenderers(instanceId);
+                if (rendererIndex < 0 || rendererIndex >= count || !TryRendererAt(instanceId, rendererIndex, out var stored) || stored == null)
+                {
+                    return DebugGameObjectReadStatus.MissingRenderer;
+                }
+
+                stored.Enabled = enabled;
+                value = new DebugGameObjectRenderer(instanceId, rendererIndex, count, enabled, stored.TypeName);
+                return DebugGameObjectReadStatus.Ok;
+            }
+
+            private int CountRenderers(ulong instanceId)
+            {
+                var count = 0;
+                for (var index = 0; index < _renderers.Count; index++)
+                {
+                    if (_renderers[index].Id == instanceId)
+                    {
+                        count++;
+                    }
+                }
+
+                return count;
+            }
+
+            private bool TryRendererAt(ulong instanceId, int rendererIndex, out StoredRenderer? stored)
+            {
+                var seen = 0;
+                for (var index = 0; index < _renderers.Count; index++)
+                {
+                    if (_renderers[index].Id != instanceId)
+                    {
+                        continue;
+                    }
+
+                    if (seen == rendererIndex)
+                    {
+                        stored = _renderers[index];
+                        return true;
+                    }
+
+                    seen++;
+                }
+
+                stored = null;
+                return false;
+            }
+
+            private sealed class StoredRenderer
+            {
+                public StoredRenderer(ulong id, string typeName, bool enabled)
+                {
+                    Id = id;
+                    TypeName = typeName;
+                    Enabled = enabled;
+                }
+
+                public ulong Id { get; }
+
+                public string TypeName { get; }
+
+                public bool Enabled { get; set; }
             }
         }
     }

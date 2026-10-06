@@ -6,13 +6,14 @@ namespace OneStarMaker.Runtime.DebugCommands
 {
     /// <summary>
     /// 1回の読み取りがシーンを見られたか。
-    /// NotFound は選択を消す理由になる。Unavailable は選択を変えない。
+    /// NotFound は選択を消す理由になる。Unavailable と MissingRenderer は選択を変えない。
     /// </summary>
     public enum DebugGameObjectReadStatus
     {
         Ok = 0,
         NotFound = 1,
         Unavailable = 2,
+        MissingRenderer = 3,
     }
 
     /// <summary>
@@ -99,6 +100,17 @@ namespace OneStarMaker.Runtime.DebugCommands
             DebugGameObjectTransformChange change,
             out DebugGameObjectTransform value,
             out string failure);
+
+        /// <summary>
+        /// 対象 GameObject 自身の Renderer のうち、index の 1 件だけ enabled を書く。
+        /// 範囲外は MissingRenderer で、どの Renderer も変えない。
+        /// </summary>
+        DebugGameObjectReadStatus TrySetRendererEnabled(
+            ulong instanceId,
+            int rendererIndex,
+            bool enabled,
+            out DebugGameObjectRenderer value,
+            out string failure);
     }
 
     /// <summary>local transform の1成分。Unity へ書くときは float に収まる有限値だけを渡す。</summary>
@@ -172,5 +184,33 @@ namespace OneStarMaker.Runtime.DebugCommands
         public bool HasScale { get; }
 
         public DebugGameObjectVector Scale { get; }
+    }
+
+    /// <summary>1つの Renderer を変えたあとの応答。index は component 順で、パスは含まない。</summary>
+    public readonly struct DebugGameObjectRenderer
+    {
+        public DebugGameObjectRenderer(
+            ulong instanceId,
+            int rendererIndex,
+            int rendererCount,
+            bool enabled,
+            string? typeName)
+        {
+            InstanceId = instanceId;
+            RendererIndex = rendererIndex;
+            RendererCount = rendererCount;
+            Enabled = enabled;
+            TypeName = typeName ?? string.Empty;
+        }
+
+        public ulong InstanceId { get; }
+
+        public int RendererIndex { get; }
+
+        public int RendererCount { get; }
+
+        public bool Enabled { get; }
+
+        public string TypeName { get; }
     }
 }
