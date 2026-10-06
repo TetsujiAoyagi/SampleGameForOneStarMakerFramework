@@ -11,7 +11,7 @@ namespace OneStarMaker.Runtime.DebugCommands
     /// go.list と go.select を既存の catalog へ登録する。
     /// 登録時には世界を読まない。実行は呼び出し側スレッドで同期のままである。
     /// </summary>
-    public static class DebugGameObjectCommands
+    public static partial class DebugGameObjectCommands
     {
         public const string ListName = "go.list";
         public const string SelectName = "go.select";

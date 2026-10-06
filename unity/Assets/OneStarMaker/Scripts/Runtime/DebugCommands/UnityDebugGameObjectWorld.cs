@@ -129,6 +129,109 @@ namespace OneStarMaker.Runtime.DebugCommands
             }
         }
 
+        public DebugGameObjectReadStatus TryGetTransform(ulong instanceId, out DebugGameObjectTransform value, out string failure)
+        {
+            value = default;
+            failure = string.Empty;
+            if (!_gate.AllowsCaller)
+            {
+                failure = "wrong-thread";
+                return DebugGameObjectReadStatus.Unavailable;
+            }
+
+            try
+            {
+                if (!TryFind(instanceId, out var found) || found == null)
+                {
+                    return DebugGameObjectReadStatus.NotFound;
+                }
+
+                var gameObject = found.gameObject;
+                if (gameObject == null)
+                {
+                    return DebugGameObjectReadStatus.NotFound;
+                }
+
+                value = ReadLocalTransform(gameObject, found);
+                return DebugGameObjectReadStatus.Ok;
+            }
+            finally
+            {
+                ReleaseSceneReferences();
+            }
+        }
+
+        public DebugGameObjectReadStatus TrySetTransform(
+            ulong instanceId,
+            DebugGameObjectTransformChange change,
+            out DebugGameObjectTransform value,
+            out string failure)
+        {
+            value = default;
+            failure = string.Empty;
+            if (!_gate.AllowsCaller)
+            {
+                failure = "wrong-thread";
+                return DebugGameObjectReadStatus.Unavailable;
+            }
+
+            try
+            {
+                if (!TryFind(instanceId, out var found) || found == null)
+                {
+                    return DebugGameObjectReadStatus.NotFound;
+                }
+
+                var gameObject = found.gameObject;
+                if (gameObject == null)
+                {
+                    return DebugGameObjectReadStatus.NotFound;
+                }
+
+                // 呼び出し側が float に入る有限値だけを渡す。ここでは渡された local 成分だけを代入する。
+                if (change.HasPosition)
+                {
+                    found.localPosition = ToLocalVector(change.Position);
+                }
+
+                if (change.HasEuler)
+                {
+                    found.localEulerAngles = ToLocalVector(change.Euler);
+                }
+
+                if (change.HasScale)
+                {
+                    found.localScale = ToLocalVector(change.Scale);
+                }
+
+                value = ReadLocalTransform(gameObject, found);
+                return DebugGameObjectReadStatus.Ok;
+            }
+            finally
+            {
+                ReleaseSceneReferences();
+            }
+        }
+
+        private static DebugGameObjectTransform ReadLocalTransform(GameObject gameObject, Transform transform)
+        {
+            return new DebugGameObjectTransform(
+                EntityId.ToULong(gameObject.GetEntityId()),
+                FromLocalVector(transform.localPosition),
+                FromLocalVector(transform.localEulerAngles),
+                FromLocalVector(transform.localScale));
+        }
+
+        private static Vector3 ToLocalVector(DebugGameObjectVector value)
+        {
+            return new Vector3((float)value.X, (float)value.Y, (float)value.Z);
+        }
+
+        private static DebugGameObjectVector FromLocalVector(Vector3 value)
+        {
+            return new DebugGameObjectVector(value.x, value.y, value.z);
+        }
+
         private bool TryFind(ulong instanceId, out Transform? found)
         {
             _mode = VisitMode.Find;

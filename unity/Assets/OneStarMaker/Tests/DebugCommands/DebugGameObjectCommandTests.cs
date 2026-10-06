@@ -117,6 +117,60 @@ namespace OneStarMaker.Tests.DebugCommands
             }
         }
 
+        [Test]
+        public void SetTransform_WritesChildLocalPosition_AndLeavesParentPosition()
+        {
+            var root = new GameObject("DebugGoTransformRoot");
+            root.transform.position = new Vector3(10f, 0f, 0f);
+            var child = new GameObject("DebugGoTransformChild");
+            child.transform.SetParent(root.transform, false);
+            try
+            {
+                var world = new UnityDebugGameObjectWorld();
+                var selection = new DebugGameObjectSelection();
+                var catalog = new DebugCommandCatalog();
+                DebugGameObjectCommands.RegisterTransform(catalog, world, selection);
+                var childId = IdOf(child);
+                Assert.That(
+                    catalog.TryExecute(
+                        DebugGameObjectCommands.SetTransformName,
+                        "{\"instanceId\":\"" + childId + "\",\"localPosition\":{\"x\":1,\"y\":2,\"z\":3}}",
+                        out var changed),
+                    Is.True);
+                Assert.That(changed.Success, Is.True, changed.Message);
+                Assert.That(changed.Message, Is.EqualTo("Set local transform."));
+                Assert.That(child.transform.localPosition.x, Is.EqualTo(1f).Within(0.0001f));
+                Assert.That(child.transform.localPosition.y, Is.EqualTo(2f).Within(0.0001f));
+                Assert.That(child.transform.localPosition.z, Is.EqualTo(3f).Within(0.0001f));
+                Assert.That(root.transform.position.x, Is.EqualTo(10f).Within(0.0001f));
+                Assert.That(root.transform.position.y, Is.EqualTo(0f).Within(0.0001f));
+                Assert.That(root.transform.position.z, Is.EqualTo(0f).Within(0.0001f));
+                Assert.That(selection.TryGet(out _), Is.False);
+
+                Assert.That(
+                    catalog.TryExecute(
+                        DebugGameObjectCommands.GetTransformName,
+                        "{\"instanceId\":\"" + childId + "\"}",
+                        out var read),
+                    Is.True);
+                Assert.That(read.Success, Is.True, read.Message);
+                Assert.That(read.Message, Is.EqualTo("Read local transform."));
+                Assert.That(read.PayloadJson, Does.Contain("\"localPosition\":{\"x\":1,\"y\":2,\"z\":3}"));
+            }
+            finally
+            {
+                if (child != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(child);
+                }
+
+                if (root != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+        }
+
         private static bool FindInPages(DebugCommandCatalog catalog, string instanceId)
         {
             var needle = "\"instanceId\":\"" + instanceId + "\"";

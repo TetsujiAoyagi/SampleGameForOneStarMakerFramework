@@ -307,6 +307,9 @@ namespace OneStarMaker.DebugCommandOfflineTests
             public int DescribeCalls;
             public int CollectCalls;
             public int SetActiveCalls;
+            public int GetTransformCalls;
+            public int SetTransformCalls;
+            private readonly List<StoredTransform> _transforms = new();
 
             public DebugGameObjectReadStatus TryDescribe(ulong instanceId, out DebugGameObjectRow row, out string failure)
             {
@@ -394,6 +397,129 @@ namespace OneStarMaker.DebugCommandOfflineTests
                 }
 
                 return DebugGameObjectReadStatus.NotFound;
+            }
+
+            public DebugGameObjectReadStatus TryGetTransform(ulong instanceId, out DebugGameObjectTransform value, out string failure)
+            {
+                GetTransformCalls++;
+                value = default;
+                failure = string.Empty;
+                if (Unavailable)
+                {
+                    failure = "unavailable";
+                    return DebugGameObjectReadStatus.Unavailable;
+                }
+
+                if (!HasRow(instanceId))
+                {
+                    return DebugGameObjectReadStatus.NotFound;
+                }
+
+                value = ReadTransform(instanceId);
+                return DebugGameObjectReadStatus.Ok;
+            }
+
+            public DebugGameObjectReadStatus TrySetTransform(
+                ulong instanceId,
+                DebugGameObjectTransformChange change,
+                out DebugGameObjectTransform value,
+                out string failure)
+            {
+                SetTransformCalls++;
+                value = default;
+                failure = string.Empty;
+                if (Unavailable)
+                {
+                    failure = "unavailable";
+                    return DebugGameObjectReadStatus.Unavailable;
+                }
+
+                if (!HasRow(instanceId))
+                {
+                    return DebugGameObjectReadStatus.NotFound;
+                }
+
+                var current = ReadTransform(instanceId);
+                var position = change.HasPosition ? change.Position : current.LocalPosition;
+                var euler = change.HasEuler ? change.Euler : current.LocalEulerAngles;
+                var scale = change.HasScale ? change.Scale : current.LocalScale;
+                StoreTransform(instanceId, position, euler, scale);
+                value = new DebugGameObjectTransform(instanceId, position, euler, scale);
+                return DebugGameObjectReadStatus.Ok;
+            }
+
+            private bool HasRow(ulong instanceId)
+            {
+                for (var index = 0; index < Rows.Count; index++)
+                {
+                    if (Rows[index].InstanceId == instanceId)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            private DebugGameObjectTransform ReadTransform(ulong instanceId)
+            {
+                for (var index = 0; index < _transforms.Count; index++)
+                {
+                    if (_transforms[index].Id == instanceId)
+                    {
+                        var stored = _transforms[index];
+                        return new DebugGameObjectTransform(instanceId, stored.Position, stored.Euler, stored.Scale);
+                    }
+                }
+
+                return new DebugGameObjectTransform(
+                    instanceId,
+                    default,
+                    default,
+                    new DebugGameObjectVector(1d, 1d, 1d));
+            }
+
+            private void StoreTransform(
+                ulong instanceId,
+                DebugGameObjectVector position,
+                DebugGameObjectVector euler,
+                DebugGameObjectVector scale)
+            {
+                for (var index = 0; index < _transforms.Count; index++)
+                {
+                    if (_transforms[index].Id != instanceId)
+                    {
+                        continue;
+                    }
+
+                    _transforms[index] = new StoredTransform(instanceId, position, euler, scale);
+                    return;
+                }
+
+                _transforms.Add(new StoredTransform(instanceId, position, euler, scale));
+            }
+
+            private readonly struct StoredTransform
+            {
+                public StoredTransform(
+                    ulong id,
+                    DebugGameObjectVector position,
+                    DebugGameObjectVector euler,
+                    DebugGameObjectVector scale)
+                {
+                    Id = id;
+                    Position = position;
+                    Euler = euler;
+                    Scale = scale;
+                }
+
+                public ulong Id { get; }
+
+                public DebugGameObjectVector Position { get; }
+
+                public DebugGameObjectVector Euler { get; }
+
+                public DebugGameObjectVector Scale { get; }
             }
         }
     }

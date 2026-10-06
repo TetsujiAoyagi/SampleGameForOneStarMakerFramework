@@ -87,5 +87,90 @@ namespace OneStarMaker.Runtime.DebugCommands
         /// 見つかった GameObject だけに SetActive する。親の active は変えない。
         /// </summary>
         DebugGameObjectReadStatus TrySetActive(ulong instanceId, bool active, out DebugGameObjectRow row, out string failure);
+
+        /// <summary>local position、local euler、local scale を読む。</summary>
+        DebugGameObjectReadStatus TryGetTransform(ulong instanceId, out DebugGameObjectTransform value, out string failure);
+
+        /// <summary>
+        /// 渡された local 成分だけを書く。書いていない成分と、親の world 位置は変えない。
+        /// </summary>
+        DebugGameObjectReadStatus TrySetTransform(
+            ulong instanceId,
+            DebugGameObjectTransformChange change,
+            out DebugGameObjectTransform value,
+            out string failure);
+    }
+
+    /// <summary>local transform の1成分。Unity へ書くときは float に収まる有限値だけを渡す。</summary>
+    public readonly struct DebugGameObjectVector
+    {
+        public DebugGameObjectVector(double x, double y, double z)
+        {
+            X = x;
+            Y = y;
+            Z = z;
+        }
+
+        public double X { get; }
+
+        public double Y { get; }
+
+        public double Z { get; }
+    }
+
+    /// <summary>読み戻した local transform。instanceId が主キーで、パスは含まない。</summary>
+    public readonly struct DebugGameObjectTransform
+    {
+        public DebugGameObjectTransform(
+            ulong instanceId,
+            DebugGameObjectVector localPosition,
+            DebugGameObjectVector localEulerAngles,
+            DebugGameObjectVector localScale)
+        {
+            InstanceId = instanceId;
+            LocalPosition = localPosition;
+            LocalEulerAngles = localEulerAngles;
+            LocalScale = localScale;
+        }
+
+        public ulong InstanceId { get; }
+
+        public DebugGameObjectVector LocalPosition { get; }
+
+        public DebugGameObjectVector LocalEulerAngles { get; }
+
+        public DebugGameObjectVector LocalScale { get; }
+    }
+
+    /// <summary>set で渡された成分だけが Has* になる。</summary>
+    public readonly struct DebugGameObjectTransformChange
+    {
+        public DebugGameObjectTransformChange(
+            bool hasPosition,
+            DebugGameObjectVector position,
+            bool hasEuler,
+            DebugGameObjectVector euler,
+            bool hasScale,
+            DebugGameObjectVector scale)
+        {
+            HasPosition = hasPosition;
+            Position = position;
+            HasEuler = hasEuler;
+            Euler = euler;
+            HasScale = hasScale;
+            Scale = scale;
+        }
+
+        public bool HasPosition { get; }
+
+        public DebugGameObjectVector Position { get; }
+
+        public bool HasEuler { get; }
+
+        public DebugGameObjectVector Euler { get; }
+
+        public bool HasScale { get; }
+
+        public DebugGameObjectVector Scale { get; }
     }
 }

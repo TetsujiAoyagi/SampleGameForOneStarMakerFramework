@@ -14,5 +14,6 @@
     <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/DebugCommands/DebugGameObjectSelection.cs" Link="Linked/DebugGameObjectSelection.cs" />
     <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/DebugCommands/DebugGameObjectThreadGate.cs" Link="Linked/DebugGameObjectThreadGate.cs" />
     <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/DebugCommands/DebugGameObjectCommands.cs" Link="Linked/DebugGameObjectCommands.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/DebugCommands/DebugGameObjectTransformCommands.cs" Link="Linked/DebugGameObjectTransformCommands.cs" />
   </ItemGroup>
 </Project>
