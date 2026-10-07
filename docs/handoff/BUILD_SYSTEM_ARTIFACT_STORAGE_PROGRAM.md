@@ -71,7 +71,7 @@ Unity is a replaceable build backend. The primary user/agent interface is an eng
 
 Evidence readerのoffline可搬性は [PR #106](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/106) で完了した。判定head `19720ed7c6065ffcc55ee2643f811462025a940d` のreader 2件をdummy fixtureへ置換し、本番selector拒否を追加、全7suite 120/120・3 .NET build・限定不在probe 2/2とC/C′ GOを確認した。ownerは2026-10-07 JSTにC/C′の突合、残存リスク、下記の後続分類を受容してPhase Dを承認した。再現条件と責務はArtifacts README、固定証拠と採否はPR本文へharvestし、完了HANDOFFは削除する。同GPT系列/runtime variant未実測と同host sentinelの制約を受容した限定合格であり、別host/Cloud/実Evidenceを検証したとは扱わない。
 
-保持保護は [server保護の継続](ARTIFACT_EVIDENCE_RETENTION_CONTINUITY.md) で方式確認と移行契約を進める。人間はr2 M1–M4とC/C′への進行、およびexact 2rule/3dummyの一回pilotを明示承認した。2026-10-08 JSTのpilotは旧rule維持の追加Indefinite、既存同一dummyの上書き/DELETE拒否と原hash維持、通常writer対照を確認。選択方式はE1/E2各key全文prefixへのIndefinite追加で、読取互換を先に成立させる移行契約を固定した。PR公開用固定headで判定C/C′待ち。Phase Dは未着手。**本番E1/E2への適用・reader実装・実保護延長は未実施/未承認**。判断owner/期限は下記を維持する。
+保持保護は [server保護の継続](ARTIFACT_EVIDENCE_RETENTION_CONTINUITY.md) で方式確認と移行契約を進める。人間はr2 M1–M4とC/C′への進行、およびexact 2rule/3dummyの一回pilotを明示承認した。2026-10-08 JSTのpilotは旧rule維持の追加Indefinite、既存同一dummyの上書き/DELETE拒否と原hash維持、通常writer対照を確認。選択方式はE1/E2各key全文prefixへのIndefinite追加で、読取互換を先に成立させる移行契約を固定した。公開判定head `d05277dc02d4cb159e1c4c0068fb947cff22e39b` と同じ211file原証拠で判定C/独立C′は方式・契約GO、現在のblocker0。Phase Dは未着手。**本番E1/E2への適用・reader実装・実保護延長は未実施/未承認**。判断owner/期限は下記を維持する。
 
 残件は次の問い・owner・期限または着手条件だけを残す。次スライスを自動着手せず、対象ごとにPhase Aで問いと予算を固定する。期限指定のない項目は本programの2026-12-26または置換revisionまでに見直す。
 

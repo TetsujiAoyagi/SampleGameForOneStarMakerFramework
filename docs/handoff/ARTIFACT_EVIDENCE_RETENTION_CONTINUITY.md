@@ -2,9 +2,9 @@
 
 ## 0. 現在の範囲と版
 
-- type: `slice`、status: `公開headの判定C/C′待ち`。方式確認と移行契約の限定スライス。Phase Dは未着手。
+- type: `slice`、status: `公開headの判定C/C′完了・Phase D未着手`。方式確認と移行契約の限定スライス。Phase Dは未着手。
 - branch: `codex/artifact-retention-continuity`。入口は本HANDOFF。H1 / external-current-v1未採用。
-- A0 / implementation base: `26d9a9cdb224e5f1797518e99ee21407cc037bd9`。PR公開用の文書・契約判定headはGit外manifestへ固定する。production sourceはA0と同一。以後のレビュー結果だけの記録commitは判定headへ読み替えない。未公開の試行commitは元branchで保持し、公開履歴は方式・契約と判定結果記録に整理する。原取得head `185734da8a2b9fb74204d17812a99a2428b8c47a` のraw metadataを変更せず、source不変性で公開headへ結ぶ。
+- A0 / implementation base: `26d9a9cdb224e5f1797518e99ee21407cc037bd9`。PR公開用の文書・契約判定headは `d05277dc02d4cb159e1c4c0068fb947cff22e39b`、固定manifestは§7。production sourceはA0と同一。以後のレビュー結果だけの記録commitは判定headへ読み替えない。未公開の試行commitは元branchで保持し、公開履歴は方式・契約と判定結果記録に整理する。原取得head `185734da8a2b9fb74204d17812a99a2428b8c47a` のraw metadataを変更せず、source不変性で公開headへ結ぶ。
 - risk: high。owner: OSM maintainer/storage owner。owner判断期限: **2026-10-30 JST**。
 - created: 2026-10-07 JST。harvest先: `tools/Artifacts/README.md` と [program](BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md)。Phase Dでharvest/delete。現在は保持する。
 - 人間はr2のA3と「phaseC/c'まで」の進行を明示承認し、続いて一回の具体pilot案を明示承認した。今回のexact 2rule/3dummyと保存先・停止規則の許可。E1/E2本番適用、reader実装、新token、実Evidence送信、実Buildの許可ではない。
@@ -123,11 +123,33 @@ C/C′は同じbase/head完全diff、承認A投影、所見なしB result、必�
 
 ## 7. Phase C
 
-未着手（PR公開用固定headの判定）
+**判定C: GO（保持方式と実適用前の最小移行契約のみ）**。2026-10-08 JST、新規未関与session、起動指定 `gpt-6-astra / high / fork_turns=none`。担当 `/root/c_publication_retention`、Bは `gpt-6-sol`。現在のblocker0、M1–M4充足。既契約の後続「保持保護の実適用・reader互換」へ渡し、新しい完了条件なし。本番E1/E2適用・reader実装・Phase Dの判定に拡大しない。
+
+base `26d9a9cdb224e5f1797518e99ee21407cc037bd9`、公開判定head `d05277dc02d4cb159e1c4c0068fb947cff22e39b`。bundle ID `retention-publication-r1`、生成2026-10-08 01:01:12.4005775 JST、211file、manifest SHA-256 `9388d622dc839171061b67476b64e25b456ccdceef6c50519f3b41cd1c6bbdfb`。別受取 `c-publication-received-r1` receipt SHA-256 `7b12846f84ee2015d9f837887221baf30e11cd2832116a20134b621a663db7b4`。C自身が全211件bytes/hashとUTF-8/JSON解析を確認した。
+
+完全diff/stat/name-statusを先に照合。2文書 +137/-1、計画責務/依存/owner/寿命に適合し非分割妥当。承認A投影・承認records・B結果・M1正本/ledger/config/固定PR、22観測/script、policy/codec/reader/source、runner/transport、全16step raw、全DOM/JSON/provider原記録、公開head必須rawとsource-runtime-indexを閲覧。8原画像を実表示（W/L空一覧・保存form、前後settings、proof、writer metadata）。after-W/L画像はhash検査、対応DOMは閲覧。全fileの逐語意味レビューを主張しない。
+
+必須検査: `pwsh -NoProfile -File tools/Artifacts/tests/ArtifactEvidence.Tests.ps1 -Case policy-valid,policy-overlap,policy-expired,reader-hash,handoff-identity-substitution`（非秘密ResultPath指定と全commandは固定runへ保持）、5選択/5実行/5成功/失敗0。`pwsh -NoProfile -File tools/contract-audit.ps1` は608files/errors0/warnings0、`pwsh -NoProfile -File tools/docs-audit.ps1` は111docs/errors0/warnings1、diff空白検査合格。判定時docs警告は括弧付き未着手欄をharvest候補としたheuristic。判定必須未実行0、Unityテスト/実Buildは§6のA3適用除外。
+
+原rawは取得head/時刻のまま保持し、43sourceのGit hash/blob、base/headの41同一blob・2文書変更、runtimeの改行差、B source/DLL hash/provenanceで公開subjectへ対応付けた。旧runを公開headの再実行にしない。22観測は受理5/期待拒否17。L拒否単独を延長証明とせずW実測・原一次仕様・旧rule不変追加onlyを合わせて判断。
+
+Cの詳細判定回答はGit外の証拠root配下 `publication-r1/results/C_RESULT.md`、8081bytes、SHA-256 `0631c36aa90f9fe0eed4c7772f3aec4112a256146e055acc5a4812354a866455`。agent自身がCreateNewで固定、tool回答転記で原stdout fileではない。
+
+限界: 管理権限なしはmetadata/一次仕様からの推論、管理拒否実測なし。物理WORM/旧期限経過後実測/本番実適用/reader成功/別host/Cloudは未確認。B build/parseはtool回答転記で原stdoutなし。同GPT系列/runtime variant未実測。新R2/UI/資格情報/Build/テスト再実行なし。他C/C′所見・可変HANDOFF・指定外private memoは未閲覧。
 
 ## 8. Phase C′
 
-未着手（同じ固定入力による独立監査）
+**独立C′: GO（保持方式と実適用前の最小移行契約のみ）**。2026-10-08 JST、A/B/C未関与の新規blind session、担当 `/root/cprime_publication_retention`。起動指定は `gpt-5.6-sol / high / fork_turns=none`、本人が参照できた識別は `GPT-5`、正確なruntime variant未実測。B/Cとは起動指定が異なる。同OpenAI/GPT系列で異vendor/runtime実装の独立性を主張しない。
+
+対象base/headと211file manifestは§7と同一。別受取 `cprime-publication-received-r1` receipt SHA-256 `32a9be7e561c32faa97d14b1126d7574c4c4ef1d4c9724e255d4a785acc846a8`。全211件bytes/hashを独自再計算しmissing/mismatch0、所見なし固定入力変更0。現在blocker0、M1–M4充足。後続reader/protection fact recordの設計・実装と本番適用を新しい現スライス条件にしない。
+
+構造から承認A/B、完全diff、M1正本/ledger/保持台帳、runner/probe source、22観測、全16step raw/集約、全設定DOM/JSON/provider、provenance/source-runtime-index、公開head必須検査を照合。原画像9枚（writer metadata・settings before/after-W/after-L/final、W/L空一覧と保存form）を実表示。43source hash一致・41blob不変/2文書変更を確認。5必須case/contract/docsは固定rawから確認、同suite再実行なし。
+
+C′の詳細判定回答はGit外の証拠root配下 `publication-r1/results/CPRIME_RESULT.md`、9424bytes、SHA-256 `77c498093ce64176ce30345c66909fa04f6ee106f006028e5a9c2935035baa32`。agent自身がCreateNewで固定、tool回答転記で原stdout fileではない。
+
+可変checkout/HANDOFF、過去/現在の本スライスC/C′所見とC結果は未閲覧。新R2通信/UI操作/資格情報アクセス/Build/テスト再実行なし。既存設定/試験証拠を再利用し、原metadataと不変sourceの対応を確認。未確認は本番適用・変更policyでのreader実取得・Phase D・別host/Cloud/実Build・物理WORMで、明示後続/対象外。証拠不足を理由とする追加実操作要求なし。
+
+この結果追記だけのcommitは公開判定head/bundleを変更しない。C/C′所見の人間による突合・残存リスク受容・harvest/mergeはPhase Dに残す。リモート/Cloudへの原証拠配布は未成立で、GitHub cloneから原証拠を取得できるとは主張しない。ローカル固定コピーを参照中保持し、期限を削除許可にしない。
 
 ## 9. Phase D
 
