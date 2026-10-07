@@ -109,6 +109,24 @@ serverLockLowerBoundとreferenceのretainUntilはPUT-intent通信前時刻+30日
 
 原画像の対象prefix全文/lifecycle日数は省略され、全設定の構造観察JSONとlive witnessで補完しています。画像だけで全設定やwriter権限を確認したとは扱いません。CreateNew/flush/ACL/hashは物理WORMではなく、悪意ある同ユーザーや管理者の途中rule変更の防御は保証しません。
 
+## 保持保護の継続方式と実適用前の契約
+
+保持方式の確認と最小移行契約は[PR #107](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/107)でC/C′ GO、ownerのPhase D承認を得ました。選択方式は、旧Age30日を維持し、固定E1/E2それぞれのbundle key全文をprefixとするenabled Indefinite ruleを追加するものです。これは実適用前の契約で、本番rule追加・reader実装・実保護延長は未実施です。full-key prefixはsuffix keyにも一致し、管理者はruleを解除できるため物理WORMを保証しません。
+
+最大24hの設定観察/config期限、PUT-intent前時刻に基づく有限server lockの保護下限、owner close後30日以上かつ参照中の保存義務は別の時計です。新しい観察/config/取得案内はserver保護や保存義務を延長しません。旧referenceのretainUntil、ledgerのclose=null、既存retention正本は変更せず、新しい保護事実を別recordとして旧origin identity/key/hash/ledgerへ結びます。参照状態がunknownでも保持し、期限は削除許可にしません。
+
+現readerはbundle keyへの追加Indefiniteをconfig検査で拒否します。実適用は後続「保持保護の実適用・reader互換」の独立A2/A3と本番操作承認を要し、次の契約を守ります。
+
+1. 実policyと旧originの対応を正しく検証するread契約を先に実装・offline検証します。旧config/期限の偽装やvalidator/publish guardの無条件緩和をせず、読取互換が成立するまで本番ruleを保存しません。同identity再観察・新config・immutable案内・別に渡す期待hashによる取得には既存経路を使います。新schema/API/配置は後続Phase Aで確定します。
+2. 新保護recordの作成はownerが委任した適用担当、確認は後続C/C′、参照終了判断はownerが所有します。通常writerに管理権限を追加しません。対象exact keyと候補rule名はPR #107の台帳から取得し、保存前にprefix/suffixの対象一覧と全適用ruleを固定します。想定外object/lock/lifecycleがあれば停止します。
+3. 追加は固定E1/E2 bundle keyの2ruleに限り、旧Age30日・試験rule・公開設定・writer権限を維持します。全rule collectionの置換を使いません。既存protection-witness.txtはbundleの兄弟keyで追加2ruleの対象外に意図的に残り、旧Age下限以後のserver保護継続はこの方式で成立したとは扱いません。witnessの保持義務・操作禁止を維持し、必要な追加保護は別のowner判断へ渡します。
+4. 適用後は原rule/時刻/対象を固定し、新保護recordと旧originを結ぶ新immutable案内と期待hashにより別process GET、全entry/hash、必要ログと原画像閲覧を確認します。実bundleや歴史的locked witnessへのPUT/DELETEは行いません。必要なsynthetic実証はPR #107の固定rawを再利用できるか後続Aで照合します。
+5. 失敗・不明では止めて原記録を保持します。旧Ageも追加済み保護も安易に解除せず、正当なreader契約・取得案内の訂正を非破壊の復帰経路とします。再送・上書き・DELETE・rule解除をrollbackの既定にしません。参照終了と解除・清掃には別のownerによるexact対象の判断が必要です。
+
+一回の承認済みpilotは、旧rule下で作成・GETした同一dummy W/LへIndefiniteを追加し、通常writerによる異bytes PUTとDELETEの409/ObjectLockedByBucketPolicy拒否、最終GETの原hash維持、unlocked対照の変更・削除成功を確認しました。旧Age非対象のW実測、既存object適用・最長rule優先の一次仕様、旧ruleを一度も外さない追加手順を合わせて方式を判断しています。L拒否単独や前後画像だけを延長・原子性の証明にしません。管理権限なしはmetadataと一次仕様からの推論で管理拒否の実測はなく、旧期限経過後・本番適用・reader成功・別host/Cloudは未確認です。
+
+固定判定headは`d05277dc02d4cb159e1c4c0068fb947cff22e39b`です。Cと未関与のblind C′は同じ211file入力を確認し、関連offline 5/5とcontract/docs/diff検査を根拠に方式・契約のみGOとしました。同OpenAI/GPT系列・runtime variant未実測の独立性制約をownerが受容しました。原証拠と各判定の取得情報、A2採否、Phase D closeと保持義務はPR #107へ引き継ぎます。原raw、受取copy、W/Lと試験2ruleを保持し、自動清掃・解除は行いません。実適用の判断ownerはOSM maintainer/storage owner、判断期限は2026-10-30 JSTです。他の後続候補は進行中programが管理します。
+
 ## A3前の限定R2疎通確認
 
 2026-09-27に使い捨てprobeで所有者端末のsynthetic PUT、別`pwsh` processの認証GET・SHA-256照合、DELETEと空prefixを確認しました。このprobeは通信本文・子process・cleanupの有限期限を備えていないため退役し、再実行用スクリプトと専用SDK projectを削除しました。この事前記録単独では署名無し取得拒否やBucket Lockの実効性を証明しません。後述のRoute proofで別に実測しました。
@@ -123,7 +141,7 @@ transportは`Probe/R2RouteTransport.csproj`の固定`AWSSDK.S3`依存を使い�
 
 ```powershell
 dotnet restore tools/Artifacts/Probe/R2RouteTransport.csproj
-dotnet build tools/Artifacts/Probe/R2RouteTransport.csproj -c Release -o tools/Artifacts/Probe/artifacts/route-transport --no-restore
+dotnet build tools/Artifacts/Probe/R2RouteTransport.csproj -c Release -o tools/Artifacts/Probe/artifacts/route-transport
 pwsh -NoProfile -File tools/Artifacts/Probe/RouteProof.ps1 `
   -Endpoint https://<32-hex-account-id>.r2.cloudflarestorage.com `
   -ImplementationBase <40-hex-base-commit> `
@@ -141,12 +159,16 @@ SDK例外から作る認証操作の観測は、statusと安全なS3 Codeを返�
 
 WindowsのPowerShell 7で次を実行します。資格情報テストは毎回生成するダミー値と隔離した保存先を使い、UnityやR2への接続は不要です。
 
-Evidence 34件のうち`reader-hash`と`handoff-identity-substitution`は偽transport/隔離出力を使いますが、入力には製品に固定したprivate実E1 source treeを読みます。所有者端末では119件を確認済みですが、Git treeだけではこの2件を再現できず、sourceが無い環境ではfail-closedで失敗します。原Evidenceをコピー配布・改変したり実R2へ再送して補完しないでください。テスト入力のdummy fixture化は後続のoffline可搬性改善です。
+Evidence 35件のうち`reader-hash`と`handoff-identity-substitution`は、隔離rootに13個の非秘密dummy・source manifest・selection receiptを生成します。実Packaging/prepared transfer・偽transport・実ledger/reader/closeを通し、private実E1 sourceなしで案内hash・package identityの拒否を検証します。本番E1 selectorを通す入力ではなく、実Evidence送信や原画像閲覧の証拠には使いません。`dummy-e1-selection-rejected`は本番定数を変えず、任意dummy E1 sourceがnetwork前に拒否されることを確認します。
+
+Git checkoutから下記3 projectをbuildして実行します。`-Case`はcomma区切りのscalar文字列で、既定`*`は全35件です。`-MissingE1SourceProbe`はreader 2件の完全一致選択だけに使い、別processでE1Rootを未作成sentinelへ一時差替えし、前後の不存在と復元・fresh importを確認します。本番selector確認や全suiteとは別に実行し、実source不在hostの実測と区別します。原Evidenceのコピー配布・改変・再送は不要です。
+
+[PR #106](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/106) の判定implementation headは `19720ed7c6065ffcc55ee2643f811462025a940d` です。所有Windowsユーザーのfresh checkout・既存Artifacts DLLなしから3 .NET build、全7 offline suite 120/120（既存119件と追加1件）、別processの限定不在probe 2/2、26 PowerShell fileのparseを確認し、同じ固定入力でC/C′はGO、ownerはPhase Dを承認しました。結果記録・harvest・mergeのcommitを実装判定headへ読み替えません。小台帳と本人の監査範囲はPR本文に保持します。C′はB/Cに未関与の新規session・異なるmodel IDですが、同OpenAI/GPT系列でruntime variantは未実測です。限定sentinelは同owner hostの不在経路を検査し、別host/別Windowsユーザーの可搬性を実測したものではありません。結果JSONの `selectorInvoked=false` は初期値であり、未呼び出しの実測根拠に使いません。これらのoffline結果は実R2取得・実Evidenceの再送・無期限server保護を検証し直すものではありません。
 
 ```powershell
 pwsh -NoProfile -File tools/Artifacts/tests/Credentials.Tests.ps1
 pwsh -NoProfile -File tools/Artifacts/tests/RouteProof.Tests.ps1
-dotnet build tools/Artifacts/Probe/R2RouteTransport.csproj -c Release -o tools/Artifacts/Probe/artifacts/route-transport --no-restore
+dotnet build tools/Artifacts/Probe/R2RouteTransport.csproj -c Release -o tools/Artifacts/Probe/artifacts/route-transport
 pwsh -NoProfile -File tools/Artifacts/tests/R2RouteTransport.Tests.ps1
 dotnet build tools/Artifacts/Packaging/ArtifactPackaging.csproj -c Release -o tools/Artifacts/Packaging/artifacts/package
 dotnet build tools/Artifacts/Transport/R2ArtifactTransport.csproj -c Release -o tools/Artifacts/Transport/artifacts/transport
@@ -154,6 +176,7 @@ pwsh -NoProfile -File tools/Artifacts/tests/ArtifactPackage.Tests.ps1
 pwsh -NoProfile -File tools/Artifacts/tests/ArtifactTransfer.Tests.ps1
 pwsh -NoProfile -File tools/Artifacts/tests/ArtifactRotation.Tests.ps1
 pwsh -NoProfile -File tools/Artifacts/tests/ArtifactEvidence.Tests.ps1
+pwsh -NoProfile -File tools/Artifacts/tests/ArtifactEvidence.Tests.ps1 -Case reader-hash,handoff-identity-substitution -MissingE1SourceProbe
 pwsh -NoProfile -File tools/contract-audit.ps1
 pwsh -NoProfile -File tools/docs-audit.ps1
 ```
