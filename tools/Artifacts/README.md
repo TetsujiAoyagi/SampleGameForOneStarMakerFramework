@@ -123,7 +123,7 @@ transportは`Probe/R2RouteTransport.csproj`の固定`AWSSDK.S3`依存を使い�
 
 ```powershell
 dotnet restore tools/Artifacts/Probe/R2RouteTransport.csproj
-dotnet build tools/Artifacts/Probe/R2RouteTransport.csproj -c Release -o tools/Artifacts/Probe/artifacts/route-transport --no-restore
+dotnet build tools/Artifacts/Probe/R2RouteTransport.csproj -c Release -o tools/Artifacts/Probe/artifacts/route-transport
 pwsh -NoProfile -File tools/Artifacts/Probe/RouteProof.ps1 `
   -Endpoint https://<32-hex-account-id>.r2.cloudflarestorage.com `
   -ImplementationBase <40-hex-base-commit> `
@@ -141,12 +141,14 @@ SDK例外から作る認証操作の観測は、statusと安全なS3 Codeを返�
 
 WindowsのPowerShell 7で次を実行します。資格情報テストは毎回生成するダミー値と隔離した保存先を使い、UnityやR2への接続は不要です。
 
-Evidence 34件のうち`reader-hash`と`handoff-identity-substitution`は偽transport/隔離出力を使いますが、入力には製品に固定したprivate実E1 source treeを読みます。所有者端末では119件を確認済みですが、Git treeだけではこの2件を再現できず、sourceが無い環境ではfail-closedで失敗します。原Evidenceをコピー配布・改変したり実R2へ再送して補完しないでください。テスト入力のdummy fixture化は後続のoffline可搬性改善です。
+Evidence 35件のうち`reader-hash`と`handoff-identity-substitution`は、隔離rootに13個の非秘密dummy・source manifest・selection receiptを生成します。実Packaging/prepared transfer・偽transport・実ledger/reader/closeを通し、private実E1 sourceなしで案内hash・package identityの拒否を検証します。本番E1 selectorを通す入力ではなく、実Evidence送信や原画像閲覧の証拠には使いません。`dummy-e1-selection-rejected`は本番定数を変えず、任意dummy E1 sourceがnetwork前に拒否されることを確認します。
+
+Git checkoutから下記3 projectをbuildして実行します。`-Case`はcomma区切りのscalar文字列で、既定`*`は全35件です。`-MissingE1SourceProbe`はreader 2件の完全一致選択だけに使い、別processでE1Rootを未作成sentinelへ一時差替えし、前後の不存在と復元・fresh importを確認します。本番selector確認や全suiteとは別に実行し、実source不在hostの実測と区別します。原Evidenceのコピー配布・改変・再送は不要です。
 
 ```powershell
 pwsh -NoProfile -File tools/Artifacts/tests/Credentials.Tests.ps1
 pwsh -NoProfile -File tools/Artifacts/tests/RouteProof.Tests.ps1
-dotnet build tools/Artifacts/Probe/R2RouteTransport.csproj -c Release -o tools/Artifacts/Probe/artifacts/route-transport --no-restore
+dotnet build tools/Artifacts/Probe/R2RouteTransport.csproj -c Release -o tools/Artifacts/Probe/artifacts/route-transport
 pwsh -NoProfile -File tools/Artifacts/tests/R2RouteTransport.Tests.ps1
 dotnet build tools/Artifacts/Packaging/ArtifactPackaging.csproj -c Release -o tools/Artifacts/Packaging/artifacts/package
 dotnet build tools/Artifacts/Transport/R2ArtifactTransport.csproj -c Release -o tools/Artifacts/Transport/artifacts/transport
@@ -154,6 +156,7 @@ pwsh -NoProfile -File tools/Artifacts/tests/ArtifactPackage.Tests.ps1
 pwsh -NoProfile -File tools/Artifacts/tests/ArtifactTransfer.Tests.ps1
 pwsh -NoProfile -File tools/Artifacts/tests/ArtifactRotation.Tests.ps1
 pwsh -NoProfile -File tools/Artifacts/tests/ArtifactEvidence.Tests.ps1
+pwsh -NoProfile -File tools/Artifacts/tests/ArtifactEvidence.Tests.ps1 -Case reader-hash,handoff-identity-substitution -MissingE1SourceProbe
 pwsh -NoProfile -File tools/contract-audit.ps1
 pwsh -NoProfile -File tools/docs-audit.ps1
 ```
