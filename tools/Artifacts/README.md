@@ -145,6 +145,8 @@ Evidence 35件のうち`reader-hash`と`handoff-identity-substitution`は、隔�
 
 Git checkoutから下記3 projectをbuildして実行します。`-Case`はcomma区切りのscalar文字列で、既定`*`は全35件です。`-MissingE1SourceProbe`はreader 2件の完全一致選択だけに使い、別processでE1Rootを未作成sentinelへ一時差替えし、前後の不存在と復元・fresh importを確認します。本番selector確認や全suiteとは別に実行し、実source不在hostの実測と区別します。原Evidenceのコピー配布・改変・再送は不要です。
 
+[PR #106](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/106) の判定implementation headは `19720ed7c6065ffcc55ee2643f811462025a940d` です。所有Windowsユーザーのfresh checkout・既存Artifacts DLLなしから3 .NET build、全7 offline suite 120/120（既存119件と追加1件）、別processの限定不在probe 2/2、26 PowerShell fileのparseを確認し、同じ固定入力でC/C′はGO、ownerはPhase Dを承認しました。結果記録・harvest・mergeのcommitを実装判定headへ読み替えません。小台帳と本人の監査範囲はPR本文に保持します。C′はB/Cに未関与の新規session・異なるmodel IDですが、同OpenAI/GPT系列でruntime variantは未実測です。限定sentinelは同owner hostの不在経路を検査し、別host/別Windowsユーザーの可搬性を実測したものではありません。結果JSONの `selectorInvoked=false` は初期値であり、未呼び出しの実測根拠に使いません。これらのoffline結果は実R2取得・実Evidenceの再送・無期限server保護を検証し直すものではありません。
+
 ```powershell
 pwsh -NoProfile -File tools/Artifacts/tests/Credentials.Tests.ps1
 pwsh -NoProfile -File tools/Artifacts/tests/RouteProof.Tests.ps1
