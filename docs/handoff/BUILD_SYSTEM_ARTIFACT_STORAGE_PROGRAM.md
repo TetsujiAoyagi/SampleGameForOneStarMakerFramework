@@ -3,7 +3,7 @@
 ## 0. Metadata
 
 - type: `program`
-- status: program進行中。ローカル段1（旧スライス0）、Route proof、最小Artifact CLI、固定E1/E2のEvidence first use、Evidence readerのofflineテスト可搬性はPhase D完了。r4の順序・保護境界はA3凍結済み。同一Windowsユーザーの限定保護送信・別session取得/閲覧が成立。R2全面採用、任意Evidence、実Build、Cloud、保持延長、H2d/H3は後続。
+- status: program進行中。ローカル段1（旧スライス0）、Route proof、最小Artifact CLI、固定E1/E2のEvidence first use、Evidence readerのofflineテスト可搬性、保持保護の方式確認と移行契約はPhase D完了。r4の順序・保護境界はA3凍結済み。同一Windowsユーザーの限定保護送信・別session取得/閲覧が成立。R2全面採用、任意Evidence、実Build、Cloud、保持延長、H2d/H3は後続。
 - program policy revision: `r4` — purpose-first route proof before production transport architecture; `r1` is historical review context
 - Phase A snapshot path / id: `328843ea521550af9da203315c2704d3d51cc8d0:docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md`（`git show`で凍結本文を取得する）
 - Phase A snapshot generated at: 2026-09-27T11:50:53Z
@@ -71,11 +71,11 @@ Unity is a replaceable build backend. The primary user/agent interface is an eng
 
 Evidence readerのoffline可搬性は [PR #106](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/106) で完了した。判定head `19720ed7c6065ffcc55ee2643f811462025a940d` のreader 2件をdummy fixtureへ置換し、本番selector拒否を追加、全7suite 120/120・3 .NET build・限定不在probe 2/2とC/C′ GOを確認した。ownerは2026-10-07 JSTにC/C′の突合、残存リスク、下記の後続分類を受容してPhase Dを承認した。再現条件と責務はArtifacts README、固定証拠と採否はPR本文へharvestし、完了HANDOFFは削除する。同GPT系列/runtime variant未実測と同host sentinelの制約を受容した限定合格であり、別host/Cloud/実Evidenceを検証したとは扱わない。
 
-保持保護は [server保護の継続](ARTIFACT_EVIDENCE_RETENTION_CONTINUITY.md) で方式確認と移行契約を進める。人間はr2 M1–M4とC/C′への進行、およびexact 2rule/3dummyの一回pilotを明示承認した。2026-10-08 JSTのpilotは旧rule維持の追加Indefinite、既存同一dummyの上書き/DELETE拒否と原hash維持、通常writer対照を確認。選択方式はE1/E2各key全文prefixへのIndefinite追加で、読取互換を先に成立させる移行契約を固定した。公開判定head `d05277dc02d4cb159e1c4c0068fb947cff22e39b` と同じ211file原証拠で判定C/独立C′は方式・契約GO、現在のblocker0。Phase Dは未着手。**本番E1/E2への適用・reader実装・実保護延長は未実施/未承認**。判断owner/期限は下記を維持する。
+保持保護の方式確認と移行契約は [PR #107](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/107) でPhase Dを完了した。2026-10-08 JSTの一回pilotは旧rule維持の追加Indefinite、既存同一dummyの上書き/DELETE拒否と原hash維持、通常writer対照を確認。選択方式はE1/E2各bundle key全文prefixへのIndefinite追加で、読取互換を先に成立させる移行契約を固定した。判定head `d05277dc02d4cb159e1c4c0068fb947cff22e39b` と同じ211file原証拠でC/独立C′は方式・契約GO、現在blocker0。ownerは2026-10-08 JSTにC/C′の突合、同GPT系列/runtime variant未実測等の残存リスクと後続分類を受容し、harvest/delete/mergeを明示承認した。恒久契約はArtifacts README、証拠・採否・close/保持台帳はPR本文へ移し、完了HANDOFFを削除する。**本番E1/E2への適用・reader実装・実保護延長は未実施/未承認**。実適用の判断owner/期限は下記を維持する。
 
 残件は次の問い・owner・期限または着手条件だけを残す。次スライスを自動着手せず、対象ごとにPhase Aで問いと予算を固定する。期限指定のない項目は本programの2026-12-26または置換revisionまでに見直す。
 
-- **保持保護の継続:** 有限server lockの保護下限とowner close+30日/参照中保持の義務の差をどう覆うか。ownerはOSM maintainer/storage owner、判断期限は**2026-10-30 JST**、必要な保護措置はE1の現在のserver下限2026-11-06 07:13:42.5023602 JSTより前に成立させる。保持義務の正本はPR #104から参照するappend-only retention recordで、最低2026-11-06 08:17:25.6469389 JSTかつ以後も参照中保持する。最大24hの設定観察/config期限はこの二つと別である。同policy identityの再観察、新config、新immutable取得案内/期待hashによる取得は既存READMEの経路で足りるため、それだけの重複実装は計画しない。方式確認は今回sliceで扱い、実適用とreader互換実装は後続「保持保護の実適用・reader互換」の別Phase A/owner承認を要する。ownerはOSM maintainer/storage owner、実適用raw2026-11-04 18:00 JST、C/C′/owner受容2026-11-05 18:00 JSTを提案する。自動削除なし、旧証拠とlocked witnessを保持する。
+- **保持保護の継続:** 有限server lockの保護下限とowner close+30日/参照中保持の義務の差をどう覆うか。ownerはOSM maintainer/storage owner、判断期限は**2026-10-30 JST**、必要な保護措置はE1の現在のserver下限2026-11-06 07:13:42.5023602 JSTより前に成立させる。保持義務の正本はPR #104から参照するappend-only retention recordで、最低2026-11-06 08:17:25.6469389 JSTかつ以後も参照中保持する。最大24hの設定観察/config期限はこの二つと別である。同policy identityの再観察、新config、新immutable取得案内/期待hashによる取得は既存READMEの経路で足りるため、それだけの重複実装は計画しない。方式確認はPR #107で完了し、実適用とreader互換実装は後続「保持保護の実適用・reader互換」の別Phase A/owner承認を要する。ownerはOSM maintainer/storage owner、実適用raw2026-11-04 18:00 JST、C/C′/owner受容2026-11-05 18:00 JSTを提案する。自動削除なし、旧証拠とlocked witnessを保持する。
 - **操作性:** 別runの成功重複publish抑止、Evidence入口の一般エラー文言、inspect/pruneのどれが現在の利用を阻害するか。ownerはOSM maintainer、各必要性が確認されたときに一つずつPhase Aへ送る。offline可搬性の完了と同じ残件見出しにあったことを同梱理由にしない。
 - **ローカルBuild接続/H2d・H3:** 実Buildの必要性、入力集合/保存先/保持契約とbackend境界をどう固定するか。ownerはOSM maintainer/BuildSystem owner、実Buildと対象入力・保存先の明示承認を着手条件とする。Unity native終了stallを再調査する理由にしない。
 - **Cloud限定アクセス（program 1-cloud/4-cloud）:** platform別egress・無人grant取得/更新・read/write・実ログ/画像閲覧を限定権限で成立させられるか。ownerはOSM maintainer/platform administrator、Cloud担当が必要になったときに当該platformだけをPhase Aへ送る。公開差分を読めたオンライン追加レビューはprivate R2取得の成立ではない。
