@@ -8,7 +8,7 @@
 - risk: high。owner: OSM maintainer/storage owner。owner判断期限: **2026-10-30 JST**。
 - created: 2026-10-07 JST。harvest先: `tools/Artifacts/README.md` と [program](BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md)。Phase Dでharvest/delete。現在は保持する。
 - 人間はr2のA3と「phaseC/c'まで」の進行を明示承認し、続いて一回の具体pilot案を明示承認した。今回のexact 2rule/3dummyと保存先・停止規則の許可。E1/E2本番適用、reader実装、新token、実Evidence送信、実Buildの許可ではない。
-- 実行承認recordはGit外 `C:\Users\void\.codex\worktrees\artifact-retention-phase-a\SampleGameForOneStarMakerFramework\docs\planning\artifact-retention-bc\closure-pilot-r3\approval.json`、SHA-256 `108d9fc9e320fff9782f153a49c77ea388846eec5cd6715551d86e974aa45559`。
+- 実行承認recordはowner管理のGit外証拠内のfile ID `closure-pilot-r3/approval.json`、SHA-256 `108d9fc9e320fff9782f153a49c77ea388846eec5cd6715551d86e974aa45559`。§7の固定bundleに収録。ローカル限定の取得条件は§6に記す。
 - 承認したtargets SHA-256 `91b1bb5fd7607112d9e7d59c70c6e4ee83e53ddce2abc4be44f8617332c8a5fd`、提案SHA-256 `e7f46e966863218f3842677e20f8f2e291caf72c9355e5d7269203b622091fcd`。未承認と記載された提案原文を後から書き換えず、承認は別recordで結合した。
 
 ## 1. A0 — 固定した事実と保持義務
@@ -23,7 +23,7 @@ AGENTS、osm-workflowと該当参照、docs/README、Artifacts README、program 
 2. 有限server lockの保護下限はPUT-intent前時刻+30日。E1 **2026-11-06 07:13:42.5023602 JST**、E2 07:16:35.3325043 JST。過去referenceのretainUntilを更新しない。
 3. owner closeからの最低保存義務はE1/E2 **2026-11-06 08:17:25.6469389 JST**、以後も参照中保持。参照unknownも保持。期限は削除許可ではない。
 
-E1/E2正本 `C:\Users\void\AppData\Local\OneStarMaker\Artifacts\evidence-retention\8fe65074daf5379c4a311ec5166b21ff\retention.json` は期待SHA-256 **`70032a5208f153d88f89f0470d2dcefd5ce9508c645871a2d0f456f89f0eba40`** とpilot前後一致。元ledgerのclose=nullを変更しない。
+E1/E2正本 `LocalApplicationData/OneStarMaker/Artifacts/evidence-retention/8fe65074daf5379c4a311ec5166b21ff/retention.json` は期待SHA-256 **`70032a5208f153d88f89f0470d2dcefd5ce9508c645871a2d0f456f89f0eba40`** とpilot前後一致。元ledgerのclose=nullを変更しない。
 
 #106 offline証拠は別義務。D close **2026-10-07 12:58:05 JST**、最低 **2026-11-06 12:58:05 JST**、以後参照中保持。E1/E2正本へ混ぜない。#106 manifest `d0d0f1161bf020d709e6444272a012bb413dc924ae5bda89207d385f103dbb02`。
 
@@ -88,6 +88,8 @@ writerの管理権限なしは原token metadataのObject Read & Write/bucket限�
 
 選ぶ方式は**旧Age30日を維持し、E1/E2それぞれのbundle key全文prefixへIndefiniteを追加**。有限延長の反復を不要にし、参照中/unknownは保持する。管理者が解除できることを無期限WORM保証にしない。本番未適用。
 
+既存E1/E2の `protection-witness.txt` は各run内でbundleの兄弟keyであり、bundle key全文prefixへの追加2ruleの対象外に意図的に残す。既存Age30日の保護下限以後のserver保護継続は、この方式では成立したと扱わない。witness自体と原記録の保持義務・操作禁止は維持し、run全体を覆うruleへ広げず、必要な追加保護は後続のowner判断に分ける。
+
 現readerはexact Evidence keyへの追加Indefiniteをconfig検査で拒否する。固定旧reference+明示synthetic settings/timeによる22観測は受理5/拒否17、テスト17失敗ではない。readerは同policy検査を呼ぶ。選択方式の期待拒否は互換性不成立の判定で、読取成功ではない。
 
 後続「保持保護の実適用・reader互換」の最小契約:
@@ -105,13 +107,22 @@ Build接続/Cloud限定アクセス/操作性/#106強化3点はprogramへ問い�
 
 ## 6. A2/A3実績と検証受け渡し
 
-A2は同じr1の18固定入力を照合した独立2session、architecture gpt-6-astra / feasibility gpt-6-sol。少なくともarchitectureがフォルダ/責務/依存/owner/寿命/テスト可能性を確認。互いの所見なし、fork none。採否台帳は旧固定commit `185734da8a2b9fb74204d17812a99a2428b8c47a` の本HANDOFF §6とGit外原受領に保持。採用AR1/FR1–FR4、AR2後続移送、不採用なし。今回pilotと移行契約は同じr2 M1–M4を実行可能に具体化したもの。主担当自己レビューをA2/C′に数えない。
+A2は同じr1の18固定入力を照合した独立2session、architecture gpt-6-astra / feasibility gpt-6-sol。少なくともarchitectureがフォルダ/責務/依存/owner/寿命/テスト可能性を確認。互いの所見なし、fork none。次は当時の指摘と採否理由を元の固定記録から戻した台帳で、r1の保留を現在の実行開始条件にしない。今回pilotと移行契約は同じr2 M1–M4を実行可能に具体化したもの。主担当自己レビューをA2/C′に数えない。
+
+- **AR1（採用）:** 方式確認の出口に後続reader実装成功を要求すると、方式選定と実装の循環になる。M3を現readerの可否判定と必要最小差分・後続契約へ修正し、実readerの成立は後続「保持保護の実適用・reader互換」が所有する。
+- **FR1（採用、AR1と一部重複）:** 実証対象・権限・時間予算・経路が未確定で、そのまま実行仕様を凍結できない。具体化前は実行を保留し、その後、§0の明示承認でexact 2rule/3dummy、管理UIと既存CLI、§4の一回16操作/期限/停止規則を固定した。採用しただけで解消済みとせず、承認と原操作を分けて記録した。
+- **FR2（採用）:** rule設定後に作る新規objectだけでは既存objectへの効力を示せない。旧設定下で作成・GETした同一synthetic objectへ追加し、前後key/hashと旧rule維持を確認する方式へ修正。§4のW実測と一次仕様を合わせて判断し、L拒否だけや前後画像だけで延長・原子性を断定しない。実Evidence/歴史的witnessを操作しない。
+- **FR3（採用）:** 有限server下限直前の判断では後続実適用の時間が足りない。owner判断10月30日、実保護raw11月4日18時、後続C/C′/owner受容11月5日18時という§5の日程案と未達時NO-GO返却を追加した。提案日程を実適用承認や成立済みへ読み替えない。
+- **FR4（採用）:** raw取得と判定開始の順序が曖昧。所見を書く前に取得し、固定headのevidence/blind bundleと別受取の全hash/必要file閲覧を確認してから新規C/C′を開始する。§7/§8の固定受取に反映し、C所見をB resultへ転記しない。
+- **AR2（採用して後続へ移送）:** 新保護事実recordの作成・確認主体、参照unknown時の更新/失敗引渡しを明確にする必要がある。実適用担当・後続C/C′・参照終了を判断するownerの役割は§5へ渡し、旧ledger/retention正本を変更しない。新schema/CLI/APIの実装設計は後続A2/A3で確定する。
+
+不採用なし。r1時点で保留したFR1の具体操作は上記の別承認と原実証で具体化した。本番適用/reader実装の承認は現在も未取得。Build/Cloud/操作性/#106強化を採用所見の追加実装として同梱しない。
 
 A3承認snapshot r2はGit外approved-a-r2.md、SHA-256 `eb9d044a592cd836a6006359525b49104ec8d7ace745cf568c58bdbb5d99dc1c`。具体pilotの承認は§0の別record。旧提案/旧raw/失敗を保持。盲検入力にはC/A2所見を含めず、凍結条件と承認操作を投影したA snapshotを作り、原承認hashとの対応をmanifestへ残す。
 
 Bは新規gpt-6-sol session。Git外offline v2 scriptとpilot runnerを作り、production変更0。runner SHA-256 `9698956cabf50688b5a2b5e07f5b51ac3ea19352bcecb28808c78584111678c0`、parse0errors。既存route transport build0errors/0warnings、DLL `7ebfe416e44dc3d0751d645a08c1a996dfd253fe9b03c31c3ca897de2b53ab82`。B自身live実行0。B result-pilot SHA-256 `4f9a110e4d76e36ee308597a7734f07526afd4fe4fc01998155374cf5bc8c91c`。原証拠取得はrootが実行し、独立判定は後から行う。
 
-Git外証拠root: `C:\Users\void\.codex\worktrees\artifact-retention-phase-a\SampleGameForOneStarMakerFramework\docs\planning\artifact-retention-bc`。pilot observations SHA-256 `513606d6fe6210afebef67f0f8d932de7aafa18900cad590d85ff06c201726af`。原intent/stdout/result/DOM/JPEG・provider記録をclosure-pilot-r3で保持。
+取得先はowner管理の同一Windowsユーザー/同一PCのGit外証拠領域。bundle ID `retention-publication-r1` の `manifest.json` を§7の期待hashで照合し、掲載fileのbytes/SHA-256を確認して読む。cloneには原証拠を含まず、別環境/Cloudの取得経路は未成立。pilot observations SHA-256 `513606d6fe6210afebef67f0f8d932de7aafa18900cad590d85ff06c201726af`。原intent/stdout/result/DOM/JPEG・provider記録はfile ID `closure-pilot-r3` 配下で保持し、正本や保存先の移動を意味しない。
 
 差し戻し中は文書/source照合とpolicy/reader限定filterを使う。最終必須はM1原保持hash、M2上記原16操作と全設定/一次仕様、M3選択方式の期待拒否と最小契約、M4上記対象/actor/期限/承認、最終headのdocs/contract/diff検査と関連5offline case。production source不変でも最終headで5caseを実行する。旧22観測のsource hash一致を固定し、旧run metadataを最終head実行へ偽装しない。
 
@@ -154,3 +165,7 @@ C′の詳細判定回答はGit外の証拠root配下 `publication-r1/results/CP
 ## 9. Phase D
 
 未着手。人間の判断前にclose/merge/harvest/deleteを完了としない。
+
+## 10. 公開文書の指摘対応
+
+PR #107の公開差分レビューを受け、A2採否理由を元記録から本文へ復元し、cloneに存在しない手元層の参照をbundle/file IDへ置き換え、既存witnessが追加2ruleの対象外であることを明記した。本文の対象key、rule、方式、M1–M4、承認範囲、保持義務・期限、実行結果、後続責務は変更していない。採否/取得案内/対象範囲の記録訂正であり、公開判定headと固定rawを更新したことにはしない。外部レビューはprivate bundle/必須検査を未取得で、判定C/C′の代替には数えない。Phase Dは未着手。
