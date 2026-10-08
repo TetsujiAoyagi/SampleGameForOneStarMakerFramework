@@ -204,16 +204,80 @@ function Initialize-EvidenceSchedulerFolder {
         foreach($owned in @($folder,$root,$service)){if($owned -and [Runtime.InteropServices.Marshal]::IsComObject($owned)){$null=[Runtime.InteropServices.Marshal]::ReleaseComObject($owned)}}
     }
 }
+function Assert-EvidenceSchedulerRegistration([string]$Xml,$Identity){
+    # Use the exported OS definition for both install and status. Defaults below
+    # are Task Scheduler schema defaults, not substitutes for a failed OS query:
+    # https://learn.microsoft.com/windows/win32/taskschd/task-scheduler-schema
+    try{
+        $document=[xml]::new();$document.XmlResolver=$null;$document.LoadXml($Xml)
+        $ns=[Xml.XmlNamespaceManager]::new($document.NameTable);$ns.AddNamespace('t','http://schemas.microsoft.com/windows/2004/02/mit/task')
+        $value={param($path,$default='')
+            $nodes=$document.SelectNodes('/t:Task/'+$path,$ns)
+            if($nodes.Count -gt 1){throw 'duplicate scheduler field'}
+            if($nodes.Count -eq 0){return $default}
+            return $nodes[0].InnerText
+        }
+        if($document.SelectNodes('/t:Task/t:Actions/*',$ns).Count -ne 1 -or
+           (& $value 't:Actions/t:Exec/t:Command') -cne $Identity.execute -or
+           (& $value 't:Actions/t:Exec/t:Arguments') -cne $Identity.arguments -or
+           (& $value 't:Actions/t:Exec/t:WorkingDirectory') -cne $Identity.runtime -or
+           $document.SelectNodes('/t:Task/t:Principals/*',$ns).Count -ne 1 -or
+           (& $value 't:Principals/t:Principal/t:UserId') -cne $Identity.ownerSid -or
+           (& $value 't:Principals/t:Principal/t:LogonType') -cne 'InteractiveToken' -or
+           (& $value 't:Principals/t:Principal/t:RunLevel' 'LeastPrivilege') -cne 'LeastPrivilege' -or
+           (& $value 't:RegistrationInfo/t:Description') -cne ('OSM Evidence runtime '+$Identity.manifestSha256)) {throw 'scheduler identity'}
+        $context=& $value 't:Actions/@Context'
+        if($context -and $context -cne (& $value 't:Principals/t:Principal/@id')){throw 'scheduler principal context'}
+        if(-not [Xml.XmlConvert]::ToBoolean((& $value 't:Settings/t:StartWhenAvailable' 'false')) -or
+           (& $value 't:Settings/t:MultipleInstancesPolicy' 'IgnoreNew') -cne 'IgnoreNew' -or
+           [Xml.XmlConvert]::ToTimeSpan((& $value 't:Settings/t:ExecutionTimeLimit' 'PT72H')) -ne [TimeSpan]::FromMinutes(10)){throw 'scheduler settings'}
+        if($document.SelectNodes('/t:Task/t:Triggers/*',$ns).Count -ne 2 -or
+           $document.SelectNodes('/t:Task/t:Triggers/t:CalendarTrigger',$ns).Count -ne 1 -or
+           $document.SelectNodes('/t:Task/t:Triggers/t:LogonTrigger',$ns).Count -ne 1 -or
+           $document.SelectNodes('/t:Task/t:Triggers/t:CalendarTrigger/t:ScheduleByDay',$ns).Count -ne 1 -or
+           [Xml.XmlConvert]::ToInt32((& $value 't:Triggers/t:CalendarTrigger/t:ScheduleByDay/t:DaysInterval')) -ne 1 -or
+           (& $value 't:Triggers/t:LogonTrigger/t:UserId') -cne $Identity.ownerSid){throw 'scheduler triggers'}
+        foreach($trigger in @('CalendarTrigger','LogonTrigger')){
+            $prefix='t:Triggers/t:'+$trigger+'/'
+            if(-not [Xml.XmlConvert]::ToBoolean((& $value ($prefix+'t:Enabled') 'true')) -or
+               $document.SelectNodes('/t:Task/'+$prefix+'t:EndBoundary | /t:Task/'+$prefix+'t:Repetition',$ns).Count -ne 0){throw 'scheduler trigger disabled or bounded'}
+            $delay=if($trigger -ceq 'CalendarTrigger'){'RandomDelay'}else{'Delay'}
+            if([Xml.XmlConvert]::ToTimeSpan((& $value ($prefix+'t:'+$delay) 'PT0S')) -ne [TimeSpan]::Zero){throw 'scheduler trigger delay'}
+            $boundary=& $value ($prefix+'t:StartBoundary')
+            if($trigger -ceq 'CalendarTrigger' -or $boundary){
+                # New-ScheduledTaskTrigger can serialize local -At as UTC. Resolve
+                # explicit offsets to local time, preserving an unzoned wall clock.
+                if($boundary -cnotmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,7})?(?:Z|[+-]\d{2}:\d{2})?$'){throw 'scheduler invalid boundary'}
+                $start=[Xml.XmlConvert]::ToDateTime($boundary,[Xml.XmlDateTimeSerializationMode]::RoundtripKind)
+                if($start.Kind -eq [DateTimeKind]::Utc){$start=$start.ToLocalTime()}
+                if($start.Date -gt (& $script:Clock).LocalDateTime.Date -or ($trigger -ceq 'CalendarTrigger' -and $start.TimeOfDay -ne [TimeSpan]::FromHours(3))){throw 'scheduler start boundary'}
+            }
+        }
+        $enabled=[Xml.XmlConvert]::ToBoolean((& $value 't:Settings/t:Enabled' 'true'))
+    }catch{throw 'scheduler-identity-mismatch'}
+    # Cutover can deliberately leave the task disabled. It is never operational
+    # success, and neither public command enables or repairs an existing task.
+    if(-not $enabled){throw 'scheduler-disabled'}
+}
 function Invoke-EvidenceScheduler([string]$Action,$Identity){
     if($script:SchedulerHook){return & $script:SchedulerHook $Action $Identity}
-    $existing=Get-ScheduledTask -TaskName $Identity.name -TaskPath '\OneStarMaker\' -ErrorAction SilentlyContinue
+    try{$existing=Get-ScheduledTask -TaskName $Identity.name -TaskPath '\OneStarMaker\' -ErrorAction Stop}
+    catch{
+        # Only the provider's exact not-found query is absence. Access failures
+        # and incomplete observations must never become permission to register.
+        if($_.CategoryInfo.Category -ne 'ObjectNotFound' -or $_.FullyQualifiedErrorId -notlike 'CmdletizationQuery_NotFound*'){throw 'scheduler-query-failed'}
+        $existing=$null
+    }
+    if($existing){
+        $xml=Export-ScheduledTask -TaskName $Identity.name -TaskPath '\OneStarMaker\' -ErrorAction Stop
+        Assert-EvidenceSchedulerRegistration $xml $Identity
+    }
     if($Action -eq 'status'){
         if(-not $existing){return @{installed=$false}}
-        $info=Get-ScheduledTaskInfo -InputObject $existing
+        $info=Get-ScheduledTaskInfo -InputObject $existing -ErrorAction Stop
         return @{installed=$true;execute=$existing.Actions[0].Execute;arguments=$existing.Actions[0].Arguments;userId=$existing.Principal.UserId;logonType=$(if([string]$existing.Principal.LogonType -in @('Interactive','InteractiveToken')){'InteractiveToken'}else{[string]$existing.Principal.LogonType});runLevel=[string]$existing.Principal.RunLevel;lastRun=$info.LastRunTime;nextRun=$info.NextRunTime;lastResult=$info.LastTaskResult}
     }
     if($existing){
-        if($existing.Actions.Count -ne 1 -or $existing.Actions[0].Execute -cne $Identity.execute -or $existing.Actions[0].Arguments -cne $Identity.arguments -or $existing.Principal.UserId -cne $Identity.ownerSid -or [string]$existing.Principal.LogonType -cnotin @('Interactive','InteractiveToken') -or [string]$existing.Principal.RunLevel -cne 'Limited'){throw 'scheduler-identity-mismatch'}
         return @{installed=$true;unchanged=$true}
     }
     Initialize-EvidenceSchedulerFolder
@@ -271,8 +335,10 @@ function Invoke-EvidenceScheduleInstall([string]$ConfigPath){
     }
     $identity=Get-EvidenceScheduleIdentity $runtime $manifest
     $existing=Invoke-EvidenceScheduler 'status' $identity
-    if($existing.installed -and ($existing.execute -cne $identity.execute -or $existing.arguments -cne $identity.arguments -or $existing.userId -cne $identity.ownerSid -or $existing.logonType -cne 'InteractiveToken' -or $existing.runLevel -cne 'Limited')){throw 'scheduler-identity-mismatch'}
-    $result=Invoke-EvidenceScheduler 'install' $identity
+    $result=if($existing.installed){@{installed=$true;unchanged=$true}}else{Invoke-EvidenceScheduler 'install' $identity}
+    # Registration's return value alone does not prove the OS stored our task.
+    $verified=Invoke-EvidenceScheduler 'status' $identity
+    if(-not $verified.installed){throw 'scheduler-not-installed'}
     Write-EvidenceScheduleJson ([IO.Path]::Combine($root,$config.Data.repositoryId+'.schedule.json')) $identity
     return @{status='passed';runtime=$runtime;manifestSha256=$identity.manifestSha256;scheduler=$result}
 }
@@ -285,7 +351,11 @@ function Get-EvidenceScheduleStatus([string]$ConfigPath){
     $identity=ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($path)) -AsHashtable -DateKind String
     $manifest=Assert-EvidenceRuntime $identity.runtime $identity.manifestSha256
     if($manifest.configSha256 -cne $config.Hash){throw 'runtime-config-mismatch'}
+    # The descriptor locates the runtime; it cannot redefine its owner or action.
+    $expected=Get-EvidenceScheduleIdentity $identity.runtime $manifest
+    foreach($field in $expected.Keys){if($identity[$field] -cne $expected[$field]){throw 'scheduler-identity-mismatch'}}
     $scheduler=Invoke-EvidenceScheduler 'status' $identity
+    if(-not $scheduler.installed){return @{status='pending';reasonCode='scheduler-not-installed'}}
     $statePath=[IO.Path]::Combine($identity.runtime,'job-state.json')
     $state=if([IO.File]::Exists($statePath)){Assert-ArtifactAcl $statePath $false;ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($statePath)) -AsHashtable -DateKind String}else{$null}
     return @{status='passed';scheduler=$scheduler;job=$state;runtime=$identity.runtime;manifestSha256=$identity.manifestSha256}

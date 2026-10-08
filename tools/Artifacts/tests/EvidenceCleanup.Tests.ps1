@@ -24,7 +24,9 @@ function Test-FreshCleanupContract($Env){
     $schedule=Import-Module (Join-Path $PSScriptRoot '../EvidenceSchedule.psm1') -Force -PassThru
     $inputs=@{root=$source;head='e'*40;files=@($files|ForEach-Object {$_.Replace('\','/')});binaries=$binaries}
     try{
-        & $schedule {param($r,$i)$script:BindingRootsHook={$r}.GetNewClosure();$script:TestRoot=$r.runtime;$script:SourceHook={$i}.GetNewClosure();$script:SchedulerHook={param($a,$identity)@{installed=$false}}} $roots $inputs
+        # Installation now verifies its postcondition by reading the OS adapter.
+        # Keep that state in this offline stub instead of reporting permanent absence.
+        & $schedule {param($r,$i)$script:BindingRootsHook={$r}.GetNewClosure();$script:TestRoot=$r.runtime;$script:SourceHook={$i}.GetNewClosure();$script:OfflineSchedulerInstalled=$false;$script:SchedulerHook={param($a,$identity)if($a -ceq 'install'){$script:OfflineSchedulerInstalled=$true};@{installed=$script:OfflineSchedulerInstalled}}} $roots $inputs
         $runtime=Invoke-EvidenceScheduleInstall $Env.ConfigPath
     }finally{& $schedule {$script:BindingRootsHook=$null;$script:TestRoot=$null;$script:SourceHook=$null;$script:SchedulerHook=$null}}
     $childPath=[IO.Path]::Combine($Env.Root,'cleanup-contract-child.ps1')

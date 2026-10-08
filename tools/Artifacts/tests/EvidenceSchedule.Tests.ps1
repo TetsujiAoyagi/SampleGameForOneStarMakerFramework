@@ -9,6 +9,9 @@ $cases=@('scheduler-runtime-missing','runtime-hash-mismatch','runtime-config-mis
 $cases+=@('runtime-binding-five-roles','runtime-binding-root-missing','runtime-binding-fileid-mismatch','runtime-binding-sid-mismatch','runtime-binding-acl-mismatch','runtime-binding-reparse','runtime-schema-one-rejected','runtime-context-force-import','runtime-context-switch-rejected','runtime-credential-missing','runtime-bound-guard-missing','runtime-binding-alias-physical')
 $cases+=@('runtime-fresh-process-binding','runtime-fresh-process-fail-before-adapters')
 $cases+=@('native-long-path-identity')
+$registrationCases=@('missing','disabled','action','arguments','directory','principal','logon-type','run-level','daily-missing','daily-time','daily-interval','daily-disabled','daily-offset','daily-future','logon-missing','logon-owner','logon-disabled','trigger-extra','start-unavailable','instances','limit','description','enabled-unknown','export-failed','query-denied','info-failed','repetition','end-boundary','delay','equivalent','defaults','valid')
+$cases+=@($registrationCases | ForEach-Object {'scheduler-registration-'+$_})
+$cases+=@('scheduler-missing-cli','scheduler-descriptor-identity','scheduler-install-unconfirmed')
 $selected=@(if($Case -ceq '*'){$cases}else{$Case.Split(',')})
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 function Assert([bool]$Value,[string]$Message){if(-not $Value){throw $Message}}
@@ -18,7 +21,7 @@ $script:installed=$null;$script:installs=0;$script:wrong=$false;$script:sync=[Co
 $scheduler={
     param($action,$identity)
     if($action -eq 'status'){
-        if($script:wrong){return @{installed=$true;execute='foreign.exe';arguments='foreign';userId='foreign';logonType='Password';runLevel='Highest'}}
+        if($script:wrong){throw 'scheduler-identity-mismatch'}
         if(-not $script:installed){return @{installed=$false}}
         return @{installed=$true;execute=$script:installed.execute;arguments=$script:installed.arguments;userId=$script:installed.ownerSid;logonType='InteractiveToken';runLevel='Limited';lastRun=$null;nextRun='03:00';lastResult=0}
     }
@@ -82,6 +85,7 @@ function Invoke-OfflineSchedulerAdapter([string]$Mode,$RealAction=$null){
                 if($script:AdapterState.Mode -ceq 'identity-rejected'){return [pscustomobject]@{Actions=@([pscustomobject]@{Execute='foreign.exe';Arguments='foreign'});Principal=[pscustomobject]@{UserId='foreign';LogonType='Interactive';RunLevel='Limited'}}}
             }
             function script:New-ScheduledTaskAction {param($Execute,$Argument,$WorkingDirectory)if($null -ne $script:AdapterState.ExpectedAction){return $script:AdapterState.ExpectedAction};@{Execute=$Execute;Argument=$Argument;WorkingDirectory=$WorkingDirectory}}
+            function script:Export-ScheduledTask {param($TaskName,$TaskPath,$ErrorAction)'<Task />'}
             function script:New-ScheduledTaskPrincipal {param($UserId,$LogonType,$RunLevel)@{UserId=$UserId;LogonType=$LogonType;RunLevel=$RunLevel}}
             function script:New-ScheduledTaskTrigger {param([switch]$Daily,$At,[switch]$AtLogOn,$User)@{daily=$Daily;at=$At;atLogOn=$AtLogOn;user=$User}}
             function script:New-ScheduledTaskSettingsSet {param([switch]$StartWhenAvailable,$MultipleInstances,$ExecutionTimeLimit)@{start=$StartWhenAvailable;multiple=$MultipleInstances;limit=$ExecutionTimeLimit}}
@@ -97,9 +101,49 @@ function Invoke-OfflineSchedulerAdapter([string]$Mode,$RealAction=$null){
         $identity=@{name='OSM-Evidence-Cleanup-aaaaaaaaaaaa';execute='fixture-pwsh.exe';arguments='fixture';runtime='fixture-runtime';ownerSid='fixture-owner';manifestSha256='a'*64}
         try{& $module {param($i)Invoke-EvidenceScheduler install $i} $identity|Out-Null}catch{$state.Failed=$true}
     }finally{
-        & $module {param($p)$script:SchedulerHook=$p;$script:TaskServiceHook=$null;$script:AdapterState=$null;foreach($name in @('Get-ScheduledTask','New-ScheduledTaskAction','New-ScheduledTaskPrincipal','New-ScheduledTaskTrigger','New-ScheduledTaskSettingsSet','Register-ScheduledTask')){Remove-Item ('Function:script:'+ $name) -ErrorAction SilentlyContinue}} $prior
+        & $module {param($p)$script:SchedulerHook=$p;$script:TaskServiceHook=$null;$script:AdapterState=$null;foreach($name in @('Get-ScheduledTask','Export-ScheduledTask','New-ScheduledTaskAction','New-ScheduledTaskPrincipal','New-ScheduledTaskTrigger','New-ScheduledTaskSettingsSet','Register-ScheduledTask')){Remove-Item ('Function:script:'+ $name) -ErrorAction SilentlyContinue}} $prior
     }
     return $state
+}
+# OS definition fixture; every OS command is stubbed and writes fail the test.
+function TaskXml($Identity){
+    $escape={param($s)[Security.SecurityElement]::Escape($s)}
+    return @"
+<Task xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task" version="1.2">
+ <RegistrationInfo><Description>OSM Evidence runtime $($Identity.manifestSha256)</Description></RegistrationInfo>
+ <Principals><Principal id="Owner"><UserId>$($Identity.ownerSid)</UserId><LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal></Principals>
+ <Actions Context="Owner"><Exec><Command>$(& $escape $Identity.execute)</Command><Arguments>$(& $escape $Identity.arguments)</Arguments><WorkingDirectory>$(& $escape $Identity.runtime)</WorkingDirectory></Exec></Actions>
+ <Triggers><CalendarTrigger><StartBoundary>2020-01-01T03:00:00</StartBoundary><Enabled>true</Enabled><ScheduleByDay><DaysInterval>1</DaysInterval></ScheduleByDay></CalendarTrigger><LogonTrigger><Enabled>true</Enabled><UserId>$($Identity.ownerSid)</UserId></LogonTrigger></Triggers>
+ <Settings><Enabled>true</Enabled><StartWhenAvailable>true</StartWhenAvailable><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy><ExecutionTimeLimit>PT10M</ExecutionTimeLimit></Settings>
+</Task>
+"@
+}
+function WithTaskObservation($Identity,[string]$Xml,[string]$Mode,[scriptblock]$Check){
+    $observation=@{identity=$Identity;xml=$Xml;mode=$Mode;writes=0}
+    $prior=& $module {$script:SchedulerHook}
+    try{
+        & $module {param($o)
+            $script:SchedulerHook=$null;$script:TaskObservation=$o
+            function script:Get-ScheduledTask {param($TaskName,$TaskPath,$ErrorAction)
+                if($script:TaskObservation.mode -ceq 'query-denied'){throw [UnauthorizedAccessException]::new('offline denied')}
+                if($script:TaskObservation.mode -ceq 'missing'){return}
+                $i=$script:TaskObservation.identity
+                return [pscustomobject]@{Actions=@([pscustomobject]@{Execute=$i.execute;Arguments=$i.arguments;WorkingDirectory=$i.runtime});Principal=[pscustomobject]@{UserId=$i.ownerSid;LogonType='Interactive';RunLevel='Limited'}}
+            }
+            function script:Export-ScheduledTask {param($TaskName,$TaskPath,$ErrorAction)if($script:TaskObservation.mode -ceq 'export-failed'){throw 'offline export failed'};$script:TaskObservation.xml}
+            function script:Get-ScheduledTaskInfo {param($InputObject,$ErrorAction)if($script:TaskObservation.mode -ceq 'info-failed'){throw 'offline info failed'};[pscustomobject]@{LastRunTime=$null;NextRunTime=$null;LastTaskResult=0}}
+            foreach($name in @('Register-ScheduledTask','Set-ScheduledTask','Enable-ScheduledTask','Disable-ScheduledTask','Unregister-ScheduledTask')){
+                Set-Item ('Function:script:'+ $name) {$script:TaskObservation.writes++;throw 'unexpected OS mutation'}
+            }
+        } $observation
+        & $Check
+        Assert ($observation.writes -eq 0) 'existing task was repaired'
+    }finally{
+        & $module {param($p)
+            $script:SchedulerHook=$p;$script:TaskObservation=$null
+            foreach($name in @('Get-ScheduledTask','Export-ScheduledTask','Get-ScheduledTaskInfo','Register-ScheduledTask','Set-ScheduledTask','Enable-ScheduledTask','Disable-ScheduledTask','Unregister-ScheduledTask')){Remove-Item ('Function:script:'+ $name) -ErrorAction SilentlyContinue}
+        } $prior
+    }
 }
 function AddTasks($Fixture,[int]$Count){
     for($i=0;$i -lt $Count;$i++){
@@ -114,6 +158,86 @@ try{
         try{
             Assert ($case -cin $cases) 'unknown case';$fixture=Fixture $case
             switch($case){
+                'scheduler-descriptor-identity'{
+                    $installation=Invoke-EvidenceScheduleInstall $fixture.config
+                    $descriptor=Join-Path $fixture.roles.runtime ($fixture.repo+'.schedule.json')
+                    $identity=Get-Content -Raw $descriptor | ConvertFrom-Json -AsHashtable
+                    $identity.ownerSid='foreign-owner';$null=WriteJson $descriptor $identity
+                    WithTaskObservation $identity (TaskXml $identity) 'valid' {Reject {Get-EvidenceScheduleStatus $fixture.config}}
+                }
+                'scheduler-install-unconfirmed'{
+                    & $module {$script:SchedulerHook={param($a,$i)if($a -ceq 'install'){@{installed=$true}}else{@{installed=$false}}}}
+                    Reject {Invoke-EvidenceScheduleInstall $fixture.config}
+                    Assert (-not (Test-Path (Join-Path $fixture.roles.runtime ($fixture.repo+'.schedule.json')))) 'unconfirmed registration wrote success descriptor'
+                }
+                {$_ -clike 'scheduler-registration-*'}{
+                    $installation=Invoke-EvidenceScheduleInstall $fixture.config;$identity=$script:installed
+                    $mode=$case.Substring('scheduler-registration-'.Length);$xml=TaskXml $identity
+                    switch($mode){
+                        'disabled'{$xml=$xml.Replace('<Settings><Enabled>true','<Settings><Enabled>false')}
+                        'action'{$xml=$xml.Replace('<Command>','<Command>foreign-')}
+                        'arguments'{$xml=$xml.Replace('<Arguments>','<Arguments>foreign-')}
+                        'directory'{$xml=$xml.Replace('<WorkingDirectory>','<WorkingDirectory>foreign-')}
+                        'principal'{$xml=$xml.Replace('<UserId>'+ $identity.ownerSid,'<UserId>foreign')}
+                        'logon-type'{$xml=$xml.Replace('InteractiveToken','Password')}
+                        'run-level'{$xml=$xml.Replace('LeastPrivilege','HighestAvailable')}
+                        'daily-missing'{$xml=$xml -replace '<CalendarTrigger>.*?</CalendarTrigger>',''}
+                        'daily-time'{$xml=$xml.Replace('T03:00:00','T04:00:00')}
+                        'daily-interval'{$xml=$xml.Replace('<DaysInterval>1','<DaysInterval>2')}
+                        'daily-disabled'{$xml=$xml.Replace('<Enabled>true</Enabled><ScheduleByDay>','<Enabled>false</Enabled><ScheduleByDay>')}
+                        'daily-offset'{$xml=$xml.Replace('2020-01-01T03:00:00',([datetime]::Parse('2020-01-01T04:00:00').ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')))}
+                        'daily-future'{$xml=$xml.Replace('2020-01-01','2099-01-01')}
+                        'logon-missing'{$xml=$xml -replace '<LogonTrigger>.*?</LogonTrigger>',''}
+                        'logon-owner'{$xml=$xml.Replace('<LogonTrigger><Enabled>true</Enabled><UserId>','<LogonTrigger><Enabled>true</Enabled><UserId>foreign-')}
+                        'logon-disabled'{$xml=$xml.Replace('<LogonTrigger><Enabled>true','<LogonTrigger><Enabled>false')}
+                        'trigger-extra'{$xml=$xml.Replace('</Triggers>','<BootTrigger /></Triggers>')}
+                        'start-unavailable'{$xml=$xml.Replace('<StartWhenAvailable>true</StartWhenAvailable>','')}
+                        'instances'{$xml=$xml.Replace('IgnoreNew','Parallel')}
+                        'limit'{$xml=$xml.Replace('PT10M','PT11M')}
+                        'description'{$xml=$xml.Replace('OSM Evidence runtime '+$identity.manifestSha256,'OSM Evidence runtime '+('0'*64))}
+                        'enabled-unknown'{$xml=$xml.Replace('<Settings><Enabled>true','<Settings><Enabled>unknown')}
+                        'repetition'{$xml=$xml.Replace('</CalendarTrigger>','<Repetition><Interval>PT1M</Interval></Repetition></CalendarTrigger>')}
+                        'end-boundary'{$xml=$xml.Replace('</CalendarTrigger>','<EndBoundary>2021-01-01T00:00:00</EndBoundary></CalendarTrigger>')}
+                        'delay'{$xml=$xml.Replace('</LogonTrigger>','<Delay>PT1M</Delay></LogonTrigger>')}
+                        'equivalent'{$xml=$xml.Replace('2020-01-01T03:00:00',([datetime]::Parse('2020-01-01T03:00:00').ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.0000000Z'))).Replace('PT10M','PT600S').Replace('<Enabled>true</Enabled>','<Enabled>1</Enabled>').Replace('<StartWhenAvailable>true','<StartWhenAvailable>1')}
+                        'defaults'{$xml=$xml.Replace('<Enabled>true</Enabled>','').Replace('<RunLevel>LeastPrivilege</RunLevel>','').Replace('<MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>','').Replace('</CalendarTrigger>','<RandomDelay>PT0S</RandomDelay></CalendarTrigger>').Replace('</LogonTrigger>','<Delay>PT0M</Delay></LogonTrigger>')}
+                    }
+                    $descriptor=Join-Path $fixture.roles.runtime ($fixture.repo+'.schedule.json');$before=(Get-FileHash $descriptor).Hash
+                    WithTaskObservation $identity $xml $mode {
+                        if($mode -cin @('valid','defaults','equivalent')){
+                            Assert ((Get-EvidenceScheduleStatus $fixture.config).status -ceq 'passed') 'valid registration status rejected'
+                            Assert ((Invoke-EvidenceScheduleInstall $fixture.config).status -ceq 'passed') 'valid registration install rejected'
+                        }elseif($mode -ceq 'missing'){
+                            $result=Get-EvidenceScheduleStatus $fixture.config
+                            Assert ($result.status -cne 'passed' -and $result.reasonCode -ceq 'scheduler-not-installed') 'missing OS task succeeded'
+                        }else{
+                            Reject {Get-EvidenceScheduleStatus $fixture.config}
+                            Reject {Invoke-EvidenceScheduleInstall $fixture.config}
+                        }
+                    }
+                    Assert ((Get-FileHash $descriptor).Hash -ceq $before) 'descriptor changed for existing registration'
+                }
+                'scheduler-missing-cli'{
+                    $installation=Invoke-EvidenceScheduleInstall $fixture.config
+                    $child=Join-Path $fixture.work 'missing-cli.ps1'
+                    [IO.File]::WriteAllText($child,@'
+param($Repo,$RuntimeRoot,$DeploymentRoot,$Config)
+$ErrorActionPreference='Stop'
+$m=Import-Module (Join-Path $Repo 'tools/Artifacts/EvidenceSchedule.psm1') -PassThru
+& $m {param($r,$d,$repo)
+ $script:TestRoot=$r;$script:SchedulerHook={param($a,$i)@{installed=$false}}
+ $manifest=Get-Content -Raw (Join-Path $r (('e'*40)+'/runtime.json')) | ConvertFrom-Json -AsHashtable
+ $roots=@{};foreach($role in $manifest.storageBinding.roles.Keys){$roots[$role]=$manifest.storageBinding.roles[$role].logicalPath}
+ $script:BindingRootsHook={$roots}.GetNewClosure()
+ $c=Import-Module (Join-Path $repo 'tools/Artifacts/EvidenceContract.psm1') -PassThru
+ & $c {param($root)$script:DeploymentRoot=$root} $d
+} $RuntimeRoot $DeploymentRoot $Repo
+& (Join-Path $Repo 'tools/artifacts.ps1') evidence schedule status --profile osm --config $Config
+exit $LASTEXITCODE
+'@)
+                    $output=& pwsh -NoProfile -File $child -Repo ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))) -RuntimeRoot $fixture.roles.runtime -DeploymentRoot $fixture.roles.deployments -Config $fixture.config 2>&1
+                    Assert ($LASTEXITCODE -eq 2 -and ($output -join '') -match 'scheduler-not-installed') ('missing OS task CLI did not return pending exit 2: '+$LASTEXITCODE+' '+($output -join ''))
+                }
                 'native-long-path-identity'{
                     $native=$module.NestedModules | Where-Object Name -eq 'WindowsStorePaths' | Select-Object -Last 1
                     Assert ($null -eq (& $native {$script:IdentityHook})) 'native case used metadata injection'
