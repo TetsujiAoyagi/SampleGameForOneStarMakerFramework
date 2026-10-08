@@ -2,10 +2,12 @@ param([string]$ResultPath='',[string]$Case='*')
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $module=Import-Module (Join-Path $PSScriptRoot '../EvidenceSchedule.psm1') -Force -PassThru
-$contract=$module.NestedModules | Where-Object Name -eq 'EvidenceContract' | Select-Object -Last 1
-$store=$module.NestedModules | Where-Object Name -eq 'TaskEventStore' | Select-Object -Last 1
+$contract=& $module {param($p)Import-Module $p -PassThru} (Join-Path $PSScriptRoot '../EvidenceContract.psm1')
+$store=& $module {param($p)Import-Module $p -PassThru} (Join-Path $PSScriptRoot '../../Workflow/TaskEventStore.psm1')
 $root=[IO.Path]::Combine([IO.Path]::GetTempPath(),'osm-schedule-'+[Guid]::NewGuid().ToString('N'))
 $cases=@('scheduler-runtime-missing','runtime-hash-mismatch','runtime-config-mismatch','runtime-three-deps','scheduler-wrong-identity','scheduler-fixed-action','scheduler-duplicate','scheduler-fair-cursors','scheduler-sync-budget-cleanup-reserved','scheduler-next-logon-catchup','scheduler-reparse','scheduler-stage-global-budget','scheduler-stage-counter-budget','scheduler-cleanup-partial-status','scheduler-phase-deadlines','scheduler-age-clock-independent','scheduler-folder-missing','scheduler-folder-existing','scheduler-folder-denied','scheduler-folder-unknown','scheduler-adapter-identity-rejected','scheduler-action-cim-instance')
+$cases+=@('runtime-binding-five-roles','runtime-binding-root-missing','runtime-binding-fileid-mismatch','runtime-binding-sid-mismatch','runtime-binding-acl-mismatch','runtime-binding-reparse','runtime-schema-one-rejected','runtime-context-force-import','runtime-context-switch-rejected','runtime-credential-missing','runtime-bound-guard-missing','runtime-binding-alias-physical')
+$cases+=@('runtime-fresh-process-binding','runtime-fresh-process-fail-before-adapters')
 $selected=@(if($Case -ceq '*'){$cases}else{$Case.Split(',')})
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 function Assert([bool]$Value,[string]$Message){if(-not $Value){throw $Message}}
@@ -25,13 +27,14 @@ $clockHook={ $script:time };$elapsedHook={ $script:elapsed }
 $syncHook={param($config,$task)$script:sync.Add($task);if($script:syncConsumesBudget){$script:time=$script:time.AddSeconds(120);$script:elapsed+=120*[Diagnostics.Stopwatch]::Frequency};throw 'offline delivery unavailable'}
 $cleanupHook={param($config,$task,$maximum)$script:cleanup.Add($task);return @{status='passed';deleted=0;skipped=1;blocked=0;remaining=0;items=@([pscustomobject]@{taskId=$task;artifactId=$null;reasonCode='staging-retained'})}}
 function Fixture([string]$Case){
+    [AppDomain]::CurrentDomain.SetData('OneStarMaker.Evidence.StorageBinding.v1',$null);[AppDomain]::CurrentDomain.SetData('OneStarMaker.Evidence.RuntimeContext.v2',$null)
     $work=[IO.Path]::Combine($root,$Case);$source=[IO.Path]::Combine($work,'source');$deployment=[IO.Path]::Combine($work,'deployments');$runtime=[IO.Path]::Combine($work,'runtime')
     [IO.Directory]::CreateDirectory($source)|Out-Null
     $repo='a'*64;$id='b'*32
     $config=[IO.Path]::Combine($work,'config.json')
     $hash=WriteJson $config @{schemaVersion=2;profile='osm';endpoint='https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com';bucket='osm-artifacts';repositoryId=$repo;prefix='development/evidence/v2/';policy='task-end-30d-v1';deploymentId=$id}
     $null=WriteJson ([IO.Path]::Combine($deployment,$id+'.json')) @{schemaVersion=2;deploymentId=$id;repositoryId=$repo;configSha256=$hash;baselineRecordId='offline-baseline';baselineSha256='c'*64;ownerObservationId='offline-owner';ownerObservationSha256='d'*64}
-    $paths=@('tools/Artifacts/EvidenceCleanupJob.ps1','tools/Workflow/TaskLifecycle.psm1','tools/Workflow/TaskEventStore.psm1','tools/workflow-task.ps1');$binaries=@()
+    $paths=@('tools/Artifacts/EvidenceCleanupJob.ps1','tools/Artifacts/EvidenceSchedule.psm1','tools/Artifacts/ArtifactAcl.psm1','tools/Artifacts/EvidenceContract.psm1','tools/Artifacts/ArtifactCommands.psm1','tools/Artifacts/ArtifactPaths.psm1','tools/Workflow/WindowsStorePaths.psm1','tools/Workflow/TaskLifecycle.psm1','tools/Workflow/TaskEventStore.psm1','tools/workflow-task.ps1');$binaries=@()
     foreach($assembly in @('Probe/R2RouteTransport','Packaging/ArtifactPackaging','Transport/R2ArtifactTransport')){
         foreach($extension in @('.dll','.deps.json')){
             $path='tools/Artifacts/'+$assembly+$extension;$paths+=@($path)
@@ -39,13 +42,17 @@ function Fixture([string]$Case){
             $binaries+=@(@{path=$path;sha256=(Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash.ToLowerInvariant()})
         }
     }
-    foreach($path in $paths){$full=[IO.Path]::Combine($source,$path);if(-not [IO.File]::Exists($full)){[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($full))|Out-Null;[IO.File]::WriteAllText($full,'offline-script-fixture')}}
+    foreach($path in $paths){$full=[IO.Path]::Combine($source,$path);if(-not [IO.File]::Exists($full)){[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($full))|Out-Null;[IO.File]::Copy([IO.Path]::GetFullPath([IO.Path]::Combine($PSScriptRoot,'../../..',$path)),$full)}}
     $inputs=@{root=$source;head='e'*40;files=$paths;binaries=$binaries}
+    $roleRoots=[ordered]@{workflow=[IO.Path]::Combine($work,'workflow');evidence=[IO.Path]::Combine($work,'evidence');deployments=$deployment;transfers=[IO.Path]::Combine($work,'transfers');runtime=$runtime}
+    $credential=[IO.Path]::Combine($work,'credentials')
+    foreach($privateRoot in @($roleRoots.Values)+@($credential)){[IO.Directory]::CreateDirectory($privateRoot)|Out-Null;& $module {param($r)Set-ArtifactAcl $r $true} $privateRoot}
     & $contract {param($r)$script:DeploymentRoot=$r} $deployment
     & $store {param($r)$script:TestRoot=$r} ([IO.Path]::Combine($work,'workflow'))
     & $module {param($r,$i,$s,$y,$c,$k,$e)$script:ElapsedClock=$e;$script:TestRoot=$r;$script:SourceHook={$i}.GetNewClosure();$script:SchedulerHook=$s;$script:SyncHook=$y;$script:CleanupHook=$c;$script:Clock=$k} $runtime $inputs $scheduler $syncHook $cleanupHook $clockHook $elapsedHook
+    & $module {param($r,$c)$script:BindingRootsHook={$r}.GetNewClosure();$script:CredentialRootHook={$c}.GetNewClosure()} $roleRoots $credential
     $script:installed=$null;$script:installs=0;$script:wrong=$false;$script:sync.Clear();$script:cleanup.Clear();$script:time=[DateTimeOffset]::Parse('2026-01-01T00:00:00+00:00');$script:syncConsumesBudget=$false;$script:elapsed=0L
-    return @{config=$config;work=$work;source=$source;repo=$repo;inputs=$inputs}
+    return @{config=$config;work=$work;source=$source;repo=$repo;inputs=$inputs;roles=$roleRoots;credential=$credential}
 }
 # Exercise the production OS adapter through command boundaries. Every OS entry
 # is replaced in the module scope. One case creates only a real action CimInstance;
@@ -97,6 +104,7 @@ function AddTasks($Fixture,[int]$Count){
     for($i=0;$i -lt $Count;$i++){
         $id='task-'+$i.ToString('D3')
         $guard=& $store {param($r,$t)Enter-WorkflowTaskGuard $r $t} $Fixture.repo $id
+        Assert ($guard.Path.StartsWith($Fixture.roles.workflow+'\',[StringComparison]::OrdinalIgnoreCase)) 'offline guard escaped fixture root'
         $guard.Dispose()
     }
 }
@@ -105,6 +113,80 @@ try{
         try{
             Assert ($case -cin $cases) 'unknown case';$fixture=Fixture $case
             switch($case){
+                {$_ -cin @('runtime-fresh-process-binding','runtime-fresh-process-fail-before-adapters')}{
+                    AddTasks $fixture 1;$installation=Invoke-EvidenceScheduleInstall $fixture.config
+                    if($case -ceq 'runtime-fresh-process-fail-before-adapters'){[IO.Directory]::Delete($fixture.roles.transfers)}
+                    $childPath=[IO.Path]::Combine($fixture.work,'child.ps1')
+                    [IO.File]::WriteAllText($childPath,@'
+param($Runtime,$Hash,$Credential,$Mode)
+$ErrorActionPreference='Stop';$WarningPreference='SilentlyContinue'
+$schedule=Import-Module ([IO.Path]::Combine($Runtime,'tools','Artifacts','EvidenceSchedule.psm1')) -PassThru
+$before=@(Get-Module -All|Where-Object Name -in @('EvidenceContract','TaskEventStore'))
+if($before.Count){throw 'adapters imported before validation'}
+$manifest=ConvertFrom-Json -InputObject ([IO.File]::ReadAllText([IO.Path]::Combine($Runtime,'runtime.json'))) -AsHashtable -DateKind String
+$roots=[ordered]@{};foreach($role in $manifest.storageBinding.roles.Keys){$roots[$role]=$manifest.storageBinding.roles[$role].logicalPath}
+& $schedule {param($r,$c)$script:BindingRootsHook={$r}.GetNewClosure();$script:CredentialRootHook={$c}.GetNewClosure()} $roots $Credential
+if($Mode -ceq 'runtime-fresh-process-fail-before-adapters'){
+ $failed=$false;try{$null=Initialize-EvidenceRuntimeContext $Runtime $Hash}catch{$failed=$true}
+ if(-not $failed -or [AppDomain]::CurrentDomain.GetData('OneStarMaker.Evidence.StorageBinding.v1') -or @(Get-Module -All|Where-Object Name -in @('EvidenceContract','TaskEventStore')).Count){throw 'adapter/context work after missing root'}
+}else{
+ $null=Initialize-EvidenceRuntimeContext $Runtime $Hash
+ $store=Import-Module ([IO.Path]::Combine($Runtime,'tools','Workflow','TaskEventStore.psm1')) -Force -PassThru
+ $root=& $store {Get-WorkflowRoot}
+ if($root -cne $manifest.storageBinding.roles.workflow.physicalPath){throw 'fresh root mismatch'}
+}
+@{status='passed';mode=$Mode}|ConvertTo-Json -Compress
+'@)
+                    $start=[Diagnostics.ProcessStartInfo]::new([Diagnostics.Process]::GetCurrentProcess().MainModule.FileName);$start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
+                    foreach($arg in @('-NoProfile','-File',$childPath,'-Runtime',$installation.runtime,'-Hash',$installation.manifestSha256,'-Credential',$fixture.credential,'-Mode',$case)){$start.ArgumentList.Add($arg)}
+                    $process=[Diagnostics.Process]::Start($start)
+                    try{$out=$process.StandardOutput.ReadToEndAsync();$err=$process.StandardError.ReadToEndAsync();Assert ($process.WaitForExit(15000)) 'fresh child deadline';Assert ([Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($out,$err),3000)) 'fresh child pipes';Assert ($process.ExitCode -eq 0) ('fresh child failed '+$out.Result+$err.Result);Assert (($out.Result|ConvertFrom-Json).status -ceq 'passed') 'fresh child missing observation'}finally{if(-not $process.HasExited){$process.Kill($true);$process.WaitForExit()};$process.Dispose()}
+                }
+                {$_ -clike 'runtime-binding-*' -or $_ -cin @('runtime-schema-one-rejected','runtime-context-force-import','runtime-context-switch-rejected','runtime-credential-missing','runtime-bound-guard-missing')}{
+                    AddTasks $fixture 1;$installation=Invoke-EvidenceScheduleInstall $fixture.config
+                    $manifestPath=[IO.Path]::Combine($installation.runtime,'runtime.json');$manifest=ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($manifestPath)) -AsHashtable -DateKind String
+                    $expectedHash=$installation.manifestSha256
+                    switch($case){
+                        'runtime-binding-five-roles'{Assert ($manifest.schemaVersion -eq 2 -and $manifest.storageBinding.schemaVersion -eq 1 -and @($manifest.storageBinding.roles.Keys).Count -eq 5) 'missing fixed binding'}
+                        'runtime-binding-root-missing'{[IO.Directory]::Delete($fixture.roles.transfers)}
+                        'runtime-binding-fileid-mismatch'{$manifest.storageBinding.roles.transfers.fileId='0'*32;$expectedHash=WriteJson $manifestPath $manifest}
+                        'runtime-binding-sid-mismatch'{$manifest.storageBinding.ownerSid='S-1-5-18';$expectedHash=WriteJson $manifestPath $manifest}
+                        'runtime-binding-acl-mismatch'{$acl=[IO.FileSystemAclExtensions]::GetAccessControl([IO.DirectoryInfo]::new($fixture.roles.transfers));$acl.SetAccessRuleProtection($false,$true);[IO.FileSystemAclExtensions]::SetAccessControl([IO.DirectoryInfo]::new($fixture.roles.transfers),$acl)}
+                        'runtime-binding-reparse'{[IO.Directory]::Delete($fixture.roles.transfers);New-Item -ItemType Junction -Path $fixture.roles.transfers -Target $fixture.roles.evidence|Out-Null}
+                        'runtime-schema-one-rejected'{$manifest.schemaVersion=1;$expectedHash=WriteJson $manifestPath $manifest}
+                        'runtime-credential-missing'{[IO.Directory]::Delete($fixture.credential)}
+                        'runtime-bound-guard-missing'{[IO.File]::Delete([IO.Path]::Combine($fixture.roles.workflow,$fixture.repo,'tasks','task-000','task.lock'))}
+                        'runtime-binding-alias-physical'{
+                            $aliases=[ordered]@{};foreach($role in $fixture.roles.Keys){$aliases[$role]=[IO.Path]::Combine($fixture.work,'absent-alias',$role);$manifest.storageBinding.roles[$role].logicalPath=$aliases[$role]}
+                            & $module {param($a)$script:BindingRootsHook={$a}.GetNewClosure()} $aliases
+                            $expectedHash=WriteJson $manifestPath $manifest
+                        }
+                    }
+                    if($case -cin @('runtime-binding-five-roles','runtime-context-force-import','runtime-context-switch-rejected','runtime-binding-alias-physical')){
+                        $null=Initialize-EvidenceRuntimeContext $installation.runtime $expectedHash
+                        Assert ((& $store {Get-WorkflowRoot}) -ceq $fixture.roles.workflow) 'guard root diverged'
+                        if($case -ceq 'runtime-context-force-import'){
+                            $fresh=Import-Module (Join-Path $PSScriptRoot '../../Workflow/TaskEventStore.psm1') -Force -PassThru
+                            Assert ((& $fresh {Get-WorkflowRoot}) -ceq $fixture.roles.workflow) 'Force import lost binding'
+                            $guard=& $fresh {param($r)Enter-WorkflowTaskGuard $r 'task-000'} $fixture.repo
+                            try{Assert ($guard.Handle.Name -ceq [IO.Path]::Combine($fixture.roles.workflow,$fixture.repo,'tasks','task-000','task.lock')) 'reimport guard diverged'}finally{$guard.Dispose()}
+                        }elseif($case -ceq 'runtime-context-switch-rejected'){
+                            $before=[AppDomain]::CurrentDomain.GetData('OneStarMaker.Evidence.StorageBinding.v1');$changed=ConvertFrom-Json -InputObject $before -AsHashtable;$changed.roles.transfers.logicalPath+='-other'
+                            Reject {& $module {param($r,$h,$b)Set-EvidenceRuntimeContext $r $h $b} $installation.runtime $expectedHash $changed}
+                            Assert ([AppDomain]::CurrentDomain.GetData('OneStarMaker.Evidence.StorageBinding.v1') -ceq $before) 'partially switched context'
+                        }
+                    }elseif($case -ceq 'runtime-bound-guard-missing'){
+                        $null=Initialize-EvidenceRuntimeContext $installation.runtime $expectedHash
+                        Reject {& $store {param($r)Enter-WorkflowTaskGuard $r 'task-000'} $fixture.repo}
+                        Assert (-not [IO.File]::Exists([IO.Path]::Combine($fixture.roles.workflow,$fixture.repo,'tasks','task-000','task.lock'))) 'recreated missing guard'
+                    }else{
+                        Reject {Invoke-EvidenceScheduledJob $installation.runtime $expectedHash}
+                        Assert ($script:sync.Count -eq 0 -and $script:cleanup.Count -eq 0 -and -not [IO.File]::Exists([IO.Path]::Combine($installation.runtime,'job-state.json'))) 'adapter work before fixed binding'
+                        if($case -ceq 'runtime-binding-root-missing'){Assert (-not [IO.Directory]::Exists($fixture.roles.transfers)) 'repaired missing root'}
+                        if($case -ceq 'runtime-credential-missing'){Assert (-not [IO.Directory]::Exists($fixture.credential)) 'created credential root'}
+                    }
+                    if($case -ceq 'runtime-binding-reparse'){[IO.Directory]::Delete($fixture.roles.transfers)}
+                }
                 {$_ -cin @('scheduler-folder-missing','scheduler-folder-existing','scheduler-folder-denied','scheduler-folder-unknown','scheduler-adapter-identity-rejected')}{
                     $mode=switch($case){'scheduler-folder-missing'{'missing'};'scheduler-folder-existing'{'existing'};'scheduler-folder-denied'{'denied'};'scheduler-folder-unknown'{'unknown'};default{'identity-rejected'}}
                     $adapter=Invoke-OfflineSchedulerAdapter $mode;$created=@($adapter.Calls|Where-Object {$_ -clike 'create:*'})
@@ -144,7 +226,7 @@ try{
                 }
                 'scheduler-duplicate'{
                     AddTasks $fixture 1;$installation=Invoke-EvidenceScheduleInstall $fixture.config
-                    $lockPath=[IO.Path]::Combine($installation.runtime,'job.lock');$handle=[IO.FileStream]::new($lockPath,[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
+                    $lockPath=[IO.Path]::Combine($installation.runtime,'job.lock');[IO.File]::WriteAllText($lockPath,'');& $module {param($p)Set-ArtifactAcl $p $false} $lockPath;$handle=[IO.FileStream]::new($lockPath,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
                     try{Assert ((Invoke-EvidenceScheduledJob $installation.runtime $installation.manifestSha256).status -eq 'busy') 'duplicate not busy'}finally{$handle.Dispose()}
                 }
                 'scheduler-fair-cursors'{
@@ -241,7 +323,8 @@ try{
     "Cases: $($selected.Count)/$($cases.Count); passed: $($executed.Count); failed: $($failed.Count)"
     if($failed.Count -or $executed.Count -ne $selected.Count){exit 1}
 }finally{
-    & $module {$script:TestRoot=$null;$script:SourceHook=$null;$script:SchedulerHook=$null;$script:SyncHook=$null;$script:CleanupHook=$null;$script:Clock={[DateTimeOffset]::UtcNow};$script:ElapsedClock={[Diagnostics.Stopwatch]::GetTimestamp()}}
+    [AppDomain]::CurrentDomain.SetData('OneStarMaker.Evidence.StorageBinding.v1',$null);[AppDomain]::CurrentDomain.SetData('OneStarMaker.Evidence.RuntimeContext.v2',$null)
+    & $module {$script:TestRoot=$null;$script:BindingRootsHook=$null;$script:CredentialRootHook=$null;$script:SourceHook=$null;$script:SchedulerHook=$null;$script:SyncHook=$null;$script:CleanupHook=$null;$script:Clock={[DateTimeOffset]::UtcNow};$script:ElapsedClock={[Diagnostics.Stopwatch]::GetTimestamp()}}
     & $contract {$script:DeploymentRoot=$null}; & $store {$script:TestRoot=$null}
     if([IO.Directory]::Exists($root)){[IO.Directory]::Delete($root,$true)}
 }

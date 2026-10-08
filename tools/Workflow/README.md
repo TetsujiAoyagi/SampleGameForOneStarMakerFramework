@@ -18,6 +18,8 @@ Decision は非秘密の信頼済み message／decision-record ID です。同�
 
 状態は Windows Known Folder LocalApplicationData の OneStarMaker/Workflow/<repositoryId>/tasks/<taskId>/ にあります。private ACL、reparse 拒否、task 単位の FileShare.None 排他、generation CAS、CreateNew／flush／rename で state・immutable event・配送 outbox を保存します。終了指示の durable record だけが存在して完了 receipt がない場合、status は pending-finalization を表示します。次の担当は同じ Decision で最終処理をやり直し、元の event があれば version と UTC を保って receipt を回復します。終了未記録の task は active/end-not-recorded です。
 
+保存領域の実体pathを解決するWindowsStorePathsは、read-only native handleのfilesystem情報だけを扱います。Workflow storeはtaskの状態・guard・ACLを所有し、Artifactsをimportしません。通常CLIと固定runtime jobは同じ既存Workflow/guardへ接続し、jobでは検証済みのprocess内接続をmodule再import後も維持します。欠落や実体相違を別の空storeへ切り替えて隠しません。
+
 終了・再開の commit 前には共通 guard 内で Storage の未確定 DELETE を照合します。不明な元 process／子 process／remote 結果が残れば state を変更しません。commit 後は guard を解放して配送します。配送失敗は exit 2 と recorded/delivery-pending で返り、終了 event を取り消しません。登録済み Evidence config がない場合も配送待ちです。後の publish／fetch／inspect／cleanup と毎日／次ログオンの job が同じ outbox を配送します。
 
 Evidence config は private OneStarMaker/Artifacts/deployments/<deploymentId>.config.json と、その bytes/hash を結ぶ <deploymentId>.json の deployment receipt で登録します。同じ canonical repositoryId を使うため、別 worktree の workflow コマンドも登録済み config を解決できます。

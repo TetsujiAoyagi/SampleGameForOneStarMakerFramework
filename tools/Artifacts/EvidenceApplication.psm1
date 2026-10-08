@@ -14,7 +14,7 @@ $script:Clock={ [DateTimeOffset]::UtcNow }
 $script:FaultHook=$null
 $script:FailureHook=$null
 function New-EvidenceOperation([string]$Path){return [pscustomobject]@{process=Get-EvidenceProcessIdentity;childMarker=[IO.Path]::Combine($Path,'readback-process.json');path=$Path}}
-function Add-EvidenceOwnedFile($Artifact,[string]$Path,[long]$Bytes,[string]$Sha256){$Artifact.ownedCopies+=[pscustomobject]@{path=$Path;bytes=$Bytes;sha256=$Sha256;origin='storage-copy'}}
+function Add-EvidenceOwnedFile($Artifact,[string]$Path,[long]$Bytes,[string]$Sha256){$Artifact.ownedCopies+=[pscustomobject]@{path=[IO.Path]::GetFullPath($Path);bytes=$Bytes;sha256=$Sha256;origin='storage-copy'}}
 function Copy-EvidenceSnapshot($Selection,[string]$Operation,[Diagnostics.Stopwatch]$Timer){
     $snapshot=[IO.Path]::Combine($Operation,'snapshot');[IO.Directory]::CreateDirectory($snapshot)|Out-Null;$files=[Collections.Generic.List[OneStarMaker.Artifacts.Packaging.PackageFile]]::new();$total=[long]0
     foreach($name in $Selection.files){
@@ -36,12 +36,13 @@ function Invoke-EvidencePublish([string]$ConfigPath,[string]$SelectionPath){
         $guard=Enter-WorkflowTaskGuard $config.Data.repositoryId $selection.taskId;$null=Assert-EvidenceTransitionSafe $config $selection.taskId $guard;$task=Sync-EvidenceTaskGuarded $config $selection.taskId $guard
         if($task.status -cne 'active'){throw 'resume-required'}
         $sourceStage=$null
-        foreach($candidate in $task.staging){if($candidate.path -ceq [IO.Path]::GetFullPath($selection.root)){
-            if($candidate.origin -cne 'storage-copy' -or $candidate.adoptionPending -or $candidate.deleteIntent -or -not (Test-ArtifactWithin $candidate.path (Get-ArtifactRoot))){throw 'invalid-source'}
+        foreach($candidate in $task.staging){if($candidate.path -ceq [IO.Path]::GetFullPath($selection.root) -or (Resolve-ArtifactStoredPath $candidate.path -AllowMissing:($candidate.adopted -and -not $candidate.operation)) -ceq [IO.Path]::GetFullPath($selection.root)){
+            if($candidate.origin -cne 'storage-copy' -or $candidate.adoptionPending -or $candidate.deleteIntent -or -not (Test-ArtifactWithin (Resolve-ArtifactStoredPath $candidate.path) (Get-ArtifactRoot))){throw 'invalid-source'}
             if($candidate.operation){Assert-EvidenceOperationStopped $candidate.operation;$candidate.operation=$null}
             $sourceStage=$candidate
         }}
-        Assert-EvidenceSelection $selection $(if($sourceStage){$sourceStage.path}else{$null})
+        if($sourceStage){$selection.root=Resolve-ArtifactStoredPath $sourceStage.path}
+        Assert-EvidenceSelection $selection $(if($sourceStage){Resolve-ArtifactStoredPath $sourceStage.path}else{$null})
         if($sourceStage){$sourceStage.adoptionPending=$true;$null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard}
         $operation=New-ArtifactOperation;$result.residue.localPath=$operation
         $stage=[pscustomobject]@{path=$operation;createdAt=(& $script:Clock).ToString('o');origin='storage-copy';artifactId=$null;adopted=$false;adoptionPending=$false;operation=New-EvidenceOperation $operation;deleteIntent=$null;protections=@()};$task.staging+=$stage;$null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard
@@ -74,7 +75,7 @@ function Invoke-EvidencePublish([string]$ConfigPath,[string]$SelectionPath){
         $result.status='passed';$result.reasonCode='complete';$result.reference=New-EvidenceReference $config $artifact;$result.packageSha256=$package.Sha256;$result.receipt=$artifact.receipt;$result.residue.remote='ready'
     }catch{if($script:FailureHook){& $script:FailureHook $_}
         if($_.Exception.Message -cin @('unsupported-schema','unknown-deployment','resume-required','invalid-selection','invalid-source','task-not-registered','unresolved-delete','unresolved-put')){$result.reasonCode=$_.Exception.Message}
-        if($task -and $guard){try{$released=$true;if($artifact -and $artifact.operation -and [IO.File]::Exists($artifact.operation.childMarker)){try{$child=(Read-ArtifactJson $artifact.operation.childMarker).Data;$released=$child.exited -and $child.pipesClosed}catch{$released=$false}};if($released){if($artifact){$artifact.operation=$null};if(Get-Variable stage -ErrorAction SilentlyContinue){$stage.operation=$null}};if((Get-Variable sourceStage -ErrorAction SilentlyContinue) -and $sourceStage){$sourceStage.adoptionPending=$false};$null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard}catch{if($script:FailureHook){& $script:FailureHook $_}}}
+        if($task -and $guard){try{$released=$true;if($artifact -and $artifact.operation){try{$marker=Resolve-ArtifactStoredPath $artifact.operation.childMarker -AllowMissing;if([IO.File]::Exists($marker)){$child=(Read-ArtifactJson $marker).Data;$released=$child.exited -and $child.pipesClosed}}catch{$released=$false}};if($released){if($artifact){$artifact.operation=$null};if(Get-Variable stage -ErrorAction SilentlyContinue){$stage.operation=$null}};if((Get-Variable sourceStage -ErrorAction SilentlyContinue) -and $sourceStage){$sourceStage.adoptionPending=$false};$null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard}catch{if($script:FailureHook){& $script:FailureHook $_}}}
     }finally{if($guard){$guard.Dispose()}}
     return [pscustomobject]$result
 }

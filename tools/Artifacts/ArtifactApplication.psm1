@@ -267,6 +267,13 @@ function Invoke-ArtifactReadback([string] $OperationRoot, $Config, [string] $Gen
     foreach ($argument in @('-NoProfile','-File',$script:ReadbackChildPath,'-RequestPath',$requestPath)) {
         [void]$info.ArgumentList.Add($argument)
     }
+    $runtimeContext=[AppDomain]::CurrentDomain.GetData('OneStarMaker.Evidence.RuntimeContext.v2')
+    if([AppDomain]::CurrentDomain.GetData('OneStarMaker.Evidence.StorageBinding.v1') -and -not $runtimeContext){throw 'Readback context unavailable.'}
+    if($runtimeContext){
+        $context=$runtimeContext|ConvertFrom-Json -AsHashtable
+        foreach($argument in @('-Runtime',$context.runtime,'-ManifestSha256',$context.manifestSha256)){[void]$info.ArgumentList.Add($argument)}
+        $info.FileName=[Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
+    }
     $process = [Diagnostics.Process]::new(); $process.StartInfo = $info
     $started=$false;$launchAttempted=$false;$notStartedConfirmed=$false;$outTask=$null;$errTask=$null
     $budget=$script:Budget

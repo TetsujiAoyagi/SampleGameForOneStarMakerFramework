@@ -153,7 +153,7 @@ foreach($case in $selected){
                         if($known){Assert-ArtifactAcl $marker $false}
                         Assert (($mode -cne 'readback-prelaunch-deadline' -or $state.launches -eq 0) -and ($mode -cne 'readback-started-before-pid' -or $state.pid -gt 0)) 'boundary launch was not exercised'
                         $cleanup=(Get-Command Assert-EvidenceTransitionSafe).Module
-                        $operation=[pscustomobject]@{process=[pscustomobject]@{pid=2147483647;startedAt='2000-01-01T00:00:00.0000000Z'};childMarker=$marker}
+                        $operation=[pscustomobject]@{process=[pscustomobject]@{pid=2147483647;startedAt='2000-01-01T00:00:00.0000000Z'};childMarker=$marker;path=$operationRoot}
                         $protected=$false;try{& $cleanup {param($o)Assert-EvidenceOperationStopped $o} $operation}catch{$protected=$true}
                         Assert ($protected -ne $known) 'cleanup cannot distinguish confirmed non-launch and unknown child'
                         Assert ((Get-NetworkCount $env) -eq 0) 'marker repair performed network work'

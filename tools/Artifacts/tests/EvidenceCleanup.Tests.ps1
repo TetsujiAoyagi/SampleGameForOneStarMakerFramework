@@ -3,7 +3,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'EvidenceTestSupport.ps1')
 . (Join-Path $PSScriptRoot 'EvidenceReaderFixture.ps1')
-$registered=@('delete-success','delete-timeout','delete-forbidden','delete-crash-reconcile','delete-after-remote-reconcile','cleanup-partial','active-marker-protected','use-delete-race','delete-use-race','resume-delete-race','delete-resume-race','source-marker-protected','reparse-protected','staging-cleanup','staging-transfer-protected','dry-run-no-delete','fair-object-cursor','staging-adoption-success','child-not-stopped','corrupt-catalog-non-delete','stopped-operation-cleanup','recovery-staging-cleanup','corrupt-lifecycle-projection','staging-fair-cursor','staging-result-accounting','deadline-request-and-guard','deadline-atomic-ack-retry')
+$registered=@('delete-success','delete-timeout','delete-forbidden','delete-crash-reconcile','delete-after-remote-reconcile','cleanup-partial','active-marker-protected','use-delete-race','delete-use-race','resume-delete-race','delete-resume-race','source-marker-protected','reparse-protected','staging-cleanup','staging-transfer-protected','dry-run-no-delete','fair-object-cursor','staging-adoption-success','child-not-stopped','corrupt-catalog-non-delete','stopped-operation-cleanup','recovery-staging-cleanup','corrupt-lifecycle-projection','staging-fair-cursor','staging-result-accounting','deadline-request-and-guard','deadline-atomic-ack-retry','old-alias-cleanup','old-alias-fetch','old-alias-child-eof-blocked','old-alias-marker-unresolved','old-alias-copy-acl-blocked','missing-owned-copy','noncanonical-owned-copy')
 $selected=if($Case -ceq '*'){$registered}else{@($Case.Split(','))};$executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 function Start-EvidenceChild($Env,$Publish,[string]$Action,[string]$Signal='',[string]$Now=''){
     $info=[Diagnostics.ProcessStartInfo]::new('pwsh');$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
@@ -11,6 +11,30 @@ function Start-EvidenceChild($Env,$Publish,[string]$Action,[string]$Signal='',[s
     $p=[Diagnostics.Process]::new();$p.StartInfo=$info;$null=$p.Start();return [pscustomobject]@{Process=$p;Out=$p.StandardOutput.ReadToEndAsync();Err=$p.StandardError.ReadToEndAsync()}
 }
 function Complete-EvidenceChild($Child){Assert-EvidenceTest ($Child.Process.WaitForExit(15000)) 'child unfinished';Assert-EvidenceTest ([Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($Child.Out,$Child.Err),5000)) 'child pipes';return [pscustomobject]@{exit=$Child.Process.ExitCode;output=$Child.Out.Result;error=$Child.Err.Result}}
+function Set-EvidenceAliasFixture($Env){
+    Import-Module (Join-Path $PSScriptRoot '../../Workflow/WindowsStorePaths.psm1')
+    $roles=@{}
+    foreach($name in @('workflow','evidence','deployments','transfers','runtime')){
+        $directory=if($name -ceq 'evidence'){'catalog'}else{$name}
+        $physical=[IO.Path]::Combine($Env.Root,$directory)
+        if(-not [IO.Directory]::Exists($physical)){[IO.Directory]::CreateDirectory($physical)|Out-Null}
+        Set-ArtifactAcl $physical $true
+        $identity=Get-WindowsStorePathIdentity $physical
+        $roles[$name]=@{logicalPath=[IO.Path]::Combine($Env.Root,'invisible-alias',$directory);physicalPath=$identity.physicalPath;volumeSerial=$identity.volumeSerial;fileId=$identity.fileId}
+    }
+    $catalog=[IO.Path]::Combine((Get-EvidenceTaskDirectory $Env.Config fixture),'catalog.json')
+    $task=(ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($catalog)) -DateKind String)
+    foreach($artifact in $task.artifacts){
+        foreach($field in @('receipt','putIntent')){if($artifact.$field){$artifact.$field.path=$artifact.$field.path.Replace($roles.evidence.physicalPath,$roles.evidence.logicalPath)}}
+        foreach($copy in $artifact.ownedCopies){$copy.path=$copy.path.Replace($roles.transfers.physicalPath,$roles.transfers.logicalPath)}
+        if($artifact.operation){$artifact.operation.path=$artifact.operation.path.Replace($roles.transfers.physicalPath,$roles.transfers.logicalPath);if($artifact.operation.childMarker){$artifact.operation.childMarker=$artifact.operation.childMarker.Replace($roles.transfers.physicalPath,$roles.transfers.logicalPath)}}
+    }
+    foreach($stage in $task.staging){$stage.path=$stage.path.Replace($roles.transfers.physicalPath,$roles.transfers.logicalPath);if($stage.operation){$stage.operation.path=$stage.operation.path.Replace($roles.transfers.physicalPath,$roles.transfers.logicalPath);if($stage.operation.childMarker){$stage.operation.childMarker=$stage.operation.childMarker.Replace($roles.transfers.physicalPath,$roles.transfers.logicalPath)}}}
+    Write-EvidenceTestJson $catalog $task
+    Set-EvidenceTestValue EvidencePaths TestRoot $null;Set-EvidenceTestValue EvidenceContract DeploymentRoot $null;Set-EvidenceTestValue ArtifactPaths TestRoot $null;Set-EvidenceTestValue TaskEventStore TestRoot $null
+    [AppDomain]::CurrentDomain.SetData('OneStarMaker.Evidence.StorageBinding.v1',(ConvertTo-Json -InputObject @{schemaVersion=1;ownerSid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value;roles=$roles} -Compress -Depth 8))
+    return [pscustomobject]@{Roles=$roles;Catalog=$catalog;Task=$task}
+}
 foreach($caseName in $selected){$executed.Add($caseName);$child=$null;$signal=$null;try{
     Assert-EvidenceTest ($caseName -cin $registered) 'unknown-case';$env=New-EvidenceTestEnvironment;$fixture=New-EvidenceReaderFixture $env.Root;$selection=[IO.Path]::Combine($env.Root,'selection.json');Write-EvidenceTestJson $selection $fixture.Selection
     $p=Invoke-EvidencePublish $env.ConfigPath $selection;Assert-EvidenceTest ($p.status -ceq 'passed') 'publish';if($caseName -ceq 'fair-object-cursor'){$second=Invoke-EvidencePublish $env.ConfigPath $selection;Assert-EvidenceTest ($second.status -ceq 'passed') 'second publish'};$ref=Read-EvidenceReference $p.reference $env.Config;[IO.File]::WriteAllBytes([IO.Path]::Combine($env.Root,'remote.zip'),$env.Objects[$ref.key])
@@ -18,6 +42,44 @@ foreach($caseName in $selected){$executed.Add($caseName);$child=$null;$signal=$n
     try{if($caseName -cnotin @('active-marker-protected','staging-adoption-success')){$null=Invoke-WorkflowTaskTransition ('a'*64) fixture ended 1 fixture-end completed $g};$t=Sync-EvidenceTaskGuarded $env.Config fixture $g;$a=$t.artifacts[0]}finally{$g.Dispose()}
     $now=$endAt.AddDays(30);Set-EvidenceTestValue EvidenceCleanup Clock {$now}.GetNewClosure();Set-EvidenceTestValue EvidenceApplication Clock {$now}.GetNewClosure()
     switch($caseName){
+        {$_ -cin @('old-alias-cleanup','old-alias-fetch','old-alias-child-eof-blocked','old-alias-marker-unresolved','old-alias-copy-acl-blocked')}{
+            $receiptPath=$a.receipt.path;$receiptHash=(Get-FileHash -LiteralPath $receiptPath).Hash;$intentPath=$a.putIntent.path;$intentHash=(Get-FileHash -LiteralPath $intentPath).Hash
+            if($caseName -cin @('old-alias-child-eof-blocked','old-alias-marker-unresolved','old-alias-copy-acl-blocked')){
+                $operation=$p.residue.localPath;$marker=[IO.Path]::Combine($operation,'readback-process.json')
+                Write-EvidenceTestJson $marker ([pscustomobject]@{process=@{pid=2147483647;startedAt='2000-01-01T00:00:00.0000000Z'};exited=$true;pipesClosed=$false});Set-ArtifactAcl $marker $false
+                $g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$task=Read-EvidenceTask $env.Config fixture $g;$task.artifacts[0].operation=@{process=@{pid=2147483647;startedAt='2000-01-01T00:00:00.0000000Z'};path=$operation;childMarker=$marker};$null=Write-EvidenceTask $env.Config fixture $task $task.generation $g}finally{$g.Dispose()}
+            }
+            if($caseName -ceq 'old-alias-copy-acl-blocked'){
+                $badCopy=$a.ownedCopies[0].path;$badHash=(Get-FileHash -LiteralPath $badCopy).Hash
+                $acl=[IO.FileSystemAclExtensions]::GetAccessControl([IO.FileInfo]::new($badCopy));$acl.SetAccessRuleProtection($false,$true);[IO.FileSystemAclExtensions]::SetAccessControl([IO.FileInfo]::new($badCopy),$acl)
+            }
+            $alias=Set-EvidenceAliasFixture $env
+            if($caseName -ceq 'old-alias-marker-unresolved'){
+                $task=(ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($alias.Catalog)) -DateKind String);$task.artifacts[0].operation.childMarker=[IO.Path]::Combine($env.Root,'outside','readback-process.json');Write-EvidenceTestJson $alias.Catalog $task
+            }
+            $before=($env.Counts.Values|Measure-Object -Sum).Sum
+            if($caseName -ceq 'old-alias-fetch'){
+                $fetched=Invoke-EvidenceFetch $env.ConfigPath $p.reference $p.packageSha256
+                Assert-EvidenceTest ($fetched.status -ceq 'passed' -and $fetched.outputPath.StartsWith($alias.Roles.transfers.physicalPath+'\')) 'fresh copy was not physical'
+                $g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$task=Read-EvidenceTask $env.Config fixture $g;Assert-EvidenceTest ($task.artifacts[0].receipt.path -ceq $alias.Task.artifacts[0].receipt.path -and $task.artifacts[0].ownedCopies[-1].path.StartsWith($alias.Roles.transfers.physicalPath+'\')) 'alias receipt rewritten or new copy alias'}finally{$g.Dispose()}
+            }else{
+                $clean=Invoke-EvidenceCleanup $env.ConfigPath
+                if($caseName -ceq 'old-alias-cleanup'){Assert-EvidenceTest ($clean.status -ceq 'passed' -and $clean.deleted -eq 1 -and $env.Objects.Count -eq 0) 'alias cleanup failed'}
+                else{Assert-EvidenceTest ($clean.status -ceq 'pending' -and $clean.deleted -eq 0 -and $env.Objects.Count -eq 1 -and ($env.Counts.Values|Measure-Object -Sum).Sum -eq $before) 'unknown marker reached network/delete'}
+            }
+            if($caseName -ceq 'old-alias-copy-acl-blocked'){Assert-EvidenceTest ([IO.File]::Exists($badCopy) -and (Get-FileHash -LiteralPath $badCopy).Hash -ceq $badHash -and -not [IO.FileSystemAclExtensions]::GetAccessControl([IO.FileInfo]::new($badCopy)).AreAccessRulesProtected) 'bad ACL copy repaired or removed'}
+            Assert-EvidenceTest ((Get-FileHash -LiteralPath $receiptPath).Hash -ceq $receiptHash -and (Get-FileHash -LiteralPath $intentPath).Hash -ceq $intentHash) 'immutable receipt/intent changed'
+            continue
+        }
+        {$_ -cin @('missing-owned-copy','noncanonical-owned-copy')}{
+            $copy=$a.ownedCopies[0];$source=$copy.path
+            if($caseName -ceq 'missing-owned-copy'){[IO.File]::Delete($source)}else{
+                $g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$task=Read-EvidenceTask $env.Config fixture $g;$task.artifacts[0].ownedCopies[0].path=[IO.Path]::Combine([IO.Path]::GetDirectoryName($source),'..',[IO.Path]::GetFileName($source));$null=Write-EvidenceTask $env.Config fixture $task $task.generation $g}finally{$g.Dispose()}
+            }
+            $before=($env.Counts.Values|Measure-Object -Sum).Sum;$clean=Invoke-EvidenceCleanup $env.ConfigPath
+            Assert-EvidenceTest ($clean.status -ceq 'pending' -and $clean.deleted -eq 0 -and $env.Objects.Count -eq 1 -and ($env.Counts.Values|Measure-Object -Sum).Sum -eq $before) 'unknown owned path reached network/delete'
+            continue
+        }
         'deadline-request-and-guard'{
             $state=@{remaining=1000L};$left={$state.remaining}.GetNewClosure();$budget=[pscustomobject]@{Remaining=$left;HardRemaining=$left};$waits=[Collections.Generic.List[int]]::new();$store=(Get-Command Enter-WorkflowTaskGuard).Module
             $hold=Enter-WorkflowTaskGuard ('a'*64) fixture
@@ -51,9 +113,9 @@ foreach($caseName in $selected){$executed.Add($caseName);$child=$null;$signal=$n
         'staging-result-accounting'{
             $stages=@();$outside=[IO.Path]::Combine($env.Root,'accounting-outside');[IO.Directory]::CreateDirectory($outside)|Out-Null;[IO.File]::WriteAllText([IO.Path]::Combine($outside,'marker'),'keep')
             foreach($mode in @('expired','retained','child','reparse')){
-                $path=[IO.Path]::Combine($env.Root,'transfers',[Guid]::NewGuid().ToString('N'));[IO.Directory]::CreateDirectory($path)|Out-Null;[IO.File]::WriteAllText([IO.Path]::Combine($path,'failure.log'),'storage bytes')
+                $path=[IO.Path]::Combine($env.Root,'transfers',[Guid]::NewGuid().ToString('N'));[IO.Directory]::CreateDirectory($path)|Out-Null;Set-ArtifactAcl $path $true;[IO.File]::WriteAllText([IO.Path]::Combine($path,'failure.log'),'storage bytes')
                 $operation=$null
-                if($mode -ceq 'child'){$marker=[IO.Path]::Combine($path,'readback-process.json');Write-EvidenceTestJson $marker ([pscustomobject]@{process=Get-EvidenceProcessIdentity;exited=$false;pipesClosed=$false});$operation=[pscustomobject]@{process=[pscustomobject]@{pid=2147483647;startedAt='2000-01-01T00:00:00.0000000Z'};childMarker=$marker;path=$path}}
+                if($mode -ceq 'child'){$marker=[IO.Path]::Combine($path,'readback-process.json');Write-EvidenceTestJson $marker ([pscustomobject]@{process=Get-EvidenceProcessIdentity;exited=$false;pipesClosed=$false});Set-ArtifactAcl $marker $false;$operation=[pscustomobject]@{process=[pscustomobject]@{pid=2147483647;startedAt='2000-01-01T00:00:00.0000000Z'};childMarker=$marker;path=$path}}
                 if($mode -ceq 'reparse'){New-Item -ItemType Junction -Path ([IO.Path]::Combine($path,'junction')) -Target $outside|Out-Null}
                 $stages+=[pscustomobject]@{path=$path;createdAt=$(if($mode -ceq 'retained'){$now}else{$now.AddDays(-7)}).ToString('o');origin='storage-copy';artifactId=$null;adopted=$false;adoptionPending=$false;operation=$operation;deleteIntent=$null;protections=@()}
             }
@@ -66,7 +128,7 @@ foreach($caseName in $selected){$executed.Add($caseName);$child=$null;$signal=$n
             Assert-EvidenceTest ([IO.Directory]::Exists($stages[2].path) -and [IO.File]::Exists([IO.Path]::Combine($outside,'marker')) -and ($env.Counts.Values|Measure-Object -Sum).Sum -eq $before) 'stage safety or network isolation'
             # Three real owned staging directories progress over independent one-object
             # jobs; each result reports precisely the consumed reservation and remainder.
-            $stages=@(1..3|ForEach-Object{$path=[IO.Path]::Combine($env.Root,'transfers',[Guid]::NewGuid().ToString('N'));[IO.Directory]::CreateDirectory($path)|Out-Null;[pscustomobject]@{path=$path;createdAt=$now.AddDays(-7).ToString('o');origin='storage-copy';artifactId=$null;adopted=$false;adoptionPending=$false;operation=$null;deleteIntent=$null;protections=@()}})
+            $stages=@(1..3|ForEach-Object{$path=[IO.Path]::Combine($env.Root,'transfers',[Guid]::NewGuid().ToString('N'));[IO.Directory]::CreateDirectory($path)|Out-Null;Set-ArtifactAcl $path $true;[pscustomobject]@{path=$path;createdAt=$now.AddDays(-7).ToString('o');origin='storage-copy';artifactId=$null;adopted=$false;adoptionPending=$false;operation=$null;deleteIntent=$null;protections=@()}})
             $g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$t=Read-EvidenceTask $env.Config fixture $g;$t.staging=$stages;$t.cleanupCursor=$null;$null=Write-EvidenceTask $env.Config fixture $t $t.generation $g}finally{$g.Dispose()}
             foreach($remaining in @(2,1,0)){$clean=Invoke-EvidenceCleanup $env.ConfigPath $false @() 1;Assert-EvidenceTest ($clean.items.Count -eq 1 -and $clean.deleted -eq 1 -and $clean.remaining -eq $remaining -and $clean.status -ceq $(if($remaining){'pending'}else{'passed'})) 'stage bounded cursor accounting'}
             foreach($stage in $stages){Assert-EvidenceTest (-not [IO.Directory]::Exists($stage.path)) 'stage cursor starvation'}
@@ -119,17 +181,22 @@ foreach($caseName in $selected){$executed.Add($caseName);$child=$null;$signal=$n
             $g=Enter-WorkflowTaskGuard ('a'*64) fixture
             try{
                 $t=Read-EvidenceTask $env.Config fixture $g;$template=$t.artifacts[0];$receiptTemplate=[IO.File]::ReadAllText($template.receipt.path)|ConvertFrom-Json -DateKind String;$t.artifacts=@();$t.staging=@()
-                foreach($number in 1..100){
-                    $copy=ConvertTo-Json -InputObject $template -Depth 24|ConvertFrom-Json -DateKind String;$copy.artifactId=$number.ToString('x').PadLeft(32,'0');$copy.key=Get-EvidenceKey $env.Config fixture $copy.artifactId;$copy.state='deleted';$copy.ownedCopies=@()
+                foreach($number in 1..3){
+                    $copy=ConvertTo-Json -InputObject $template -Depth 24|ConvertFrom-Json -DateKind String;$copy.artifactId=$number.ToString('x').PadLeft(32,'0');$copy.key=Get-EvidenceKey $env.Config fixture $copy.artifactId;$copy.state='deleted';$copy.ownedCopies=@();$copy.putIntent=$null
                     $receipt=ConvertTo-Json -InputObject $receiptTemplate -Depth 24|ConvertFrom-Json -DateKind String;$receipt.artifactId=$copy.artifactId;$receipt.key=$copy.key;$receiptPath=[IO.Path]::Combine((Get-EvidenceTaskDirectory $env.Config fixture),'receipts',$copy.artifactId+'.json');$receiptHash=Write-EvidenceAtomic $receiptPath $receipt -Immutable;$copy.receipt=[pscustomobject]@{path=$receiptPath;sha256=$receiptHash};$t.artifacts+= $copy
                 }
-                $stagePath=[IO.Path]::Combine($env.Root,'transfers',[Guid]::NewGuid().ToString('N'));[IO.Directory]::CreateDirectory($stagePath)|Out-Null;[IO.File]::WriteAllText([IO.Path]::Combine($stagePath,'failure.log'),'failed storage bytes')
+                $stagePath=[IO.Path]::Combine($env.Root,'transfers',[Guid]::NewGuid().ToString('N'));[IO.Directory]::CreateDirectory($stagePath)|Out-Null;Set-ArtifactAcl $stagePath $true;[IO.File]::WriteAllText([IO.Path]::Combine($stagePath,'failure.log'),'failed storage bytes')
                 $stage=[pscustomobject]@{path=$stagePath;createdAt=$now.AddDays(-7).ToString('o');origin='storage-copy';artifactId=$null;adopted=$false;adoptionPending=$false;operation=$null;deleteIntent=$null;protections=@()};$t.staging=@($stage);$null=Write-EvidenceTask $env.Config fixture $t $t.generation $g
             }finally{$g.Dispose()}
-            $first=Invoke-EvidenceCleanup $env.ConfigPath;$second=Invoke-EvidenceCleanup $env.ConfigPath
-            Assert-EvidenceTest ($first.remaining -eq 1 -and [IO.Directory]::Exists([IO.Path]::Combine($env.Root,'transfers')) -and $second.deleted -eq 1 -and -not [IO.Directory]::Exists($stagePath)) 'tombstones starved staging'
+            $first=Invoke-EvidenceCleanup $env.ConfigPath $false @() 3;$second=Invoke-EvidenceCleanup $env.ConfigPath $false @() 1
+            # Three tombstones fill the first job's object cap. The next job
+            # must continue at staging instead of walking those tombstones again.
+            # Scheduler tests separately cover the global 100-object upper bound.
+            if($ResultPath){Write-EvidenceTestJson ($ResultPath+'.fair.json') ([ordered]@{first=$first;second=$second;stagingExists=[IO.Directory]::Exists($stagePath)})}
+            Assert-EvidenceTest ($first.remaining -eq 1 -and $first.items.Count -eq 3 -and $first.deleted -eq 0 -and [IO.Directory]::Exists([IO.Path]::Combine($env.Root,'transfers')) -and $second.deleted -eq 1 -and -not [IO.Directory]::Exists($stagePath)) 'tombstones starved staging'
+            foreach($name in $fixture.Files){Assert-EvidenceTest ([IO.File]::Exists([IO.Path]::Combine($fixture.Source,$name))) 'fair cursor changed source'}
             # A failed first staging tree must also yield the next bounded job.
-            $paths=@(1..2|ForEach-Object{$path=[IO.Path]::Combine($env.Root,'transfers',[Guid]::NewGuid().ToString('N'));[IO.Directory]::CreateDirectory($path)|Out-Null;$path});$stages=@($paths|ForEach-Object{[pscustomobject]@{path=$_;createdAt=$now.AddDays(-7).ToString('o');origin='storage-copy';artifactId=$null;adopted=$false;adoptionPending=$false;operation=$null;deleteIntent=$null;protections=@()}})
+            $paths=@(1..2|ForEach-Object{$path=[IO.Path]::Combine($env.Root,'transfers',[Guid]::NewGuid().ToString('N'));[IO.Directory]::CreateDirectory($path)|Out-Null;Set-ArtifactAcl $path $true;$path});$stages=@($paths|ForEach-Object{[pscustomobject]@{path=$_;createdAt=$now.AddDays(-7).ToString('o');origin='storage-copy';artifactId=$null;adopted=$false;adoptionPending=$false;operation=$null;deleteIntent=$null;protections=@()}})
             $ordered=@($stages|Sort-Object {[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($_.path))).ToLowerInvariant()});$outside=[IO.Path]::Combine($env.Root,'outside-stage');[IO.Directory]::CreateDirectory($outside)|Out-Null;[IO.File]::WriteAllText([IO.Path]::Combine($outside,'marker'),'keep');New-Item -ItemType Junction -Path ([IO.Path]::Combine($ordered[0].path,'junction')) -Target $outside|Out-Null
             $g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$t=Read-EvidenceTask $env.Config fixture $g;$t.artifacts=@();$t.staging=$stages;$t.cleanupCursor=$null;$null=Write-EvidenceTask $env.Config fixture $t $t.generation $g}finally{$g.Dispose()}
             $first=Invoke-EvidenceCleanup $env.ConfigPath $false @() 1;$second=Invoke-EvidenceCleanup $env.ConfigPath $false @() 1
@@ -137,7 +204,7 @@ foreach($caseName in $selected){$executed.Add($caseName);$child=$null;$signal=$n
             continue
         }
         'staging-adoption-success'{
-            $owned=[IO.Path]::Combine($env.Root,'transfers',[Guid]::NewGuid().ToString('N'));[IO.Directory]::CreateDirectory($owned)|Out-Null;[IO.File]::WriteAllText([IO.Path]::Combine($owned,'failure.log'),'ordinary failure log')
+            $owned=[IO.Path]::Combine($env.Root,'transfers',[Guid]::NewGuid().ToString('N'));[IO.Directory]::CreateDirectory($owned)|Out-Null;Set-ArtifactAcl $owned $true;[IO.File]::WriteAllText([IO.Path]::Combine($owned,'failure.log'),'ordinary failure log')
             $g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$t=Read-EvidenceTask $env.Config fixture $g;$t.staging+=[pscustomobject]@{path=$owned;createdAt=$now.AddDays(-7).ToString('o');origin='storage-copy';artifactId=$null;adopted=$false;adoptionPending=$false;operation=$null;deleteIntent=$null;protections=@()};$null=Write-EvidenceTask $env.Config fixture $t $t.generation $g}finally{$g.Dispose()}
             $adoptSelection=[ordered]@{schemaVersion=2;purpose='evidence';taskId='fixture';root=$owned;files=@('failure.log');base='b'*40;head='c'*40};$adoptPath=[IO.Path]::Combine($env.Root,'adopt.json');Write-EvidenceTestJson $adoptPath $adoptSelection;$adopt=Invoke-EvidencePublish $env.ConfigPath $adoptPath;Assert-EvidenceTest ($adopt.status -ceq 'passed') 'adoption publish'
             $clean=Invoke-EvidenceCleanup $env.ConfigPath;Assert-EvidenceTest (-not [IO.Directory]::Exists($owned)) 'old staging cleanup';$fetch=Invoke-EvidenceFetch $env.ConfigPath $adopt.reference $adopt.packageSha256;Assert-EvidenceTest ($fetch.status -ceq 'passed' -and [IO.File]::ReadAllText([IO.Path]::Combine($fetch.outputPath,'failure.log')) -ceq 'ordinary failure log') 'adopted evidence gone';break
@@ -155,15 +222,53 @@ foreach($caseName in $selected){$executed.Add($caseName);$child=$null;$signal=$n
         'resume-delete-race'{$g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$null=Assert-EvidenceTransitionSafe $env.Config fixture $g;$null=Invoke-WorkflowTaskTransition ('a'*64) fixture resumed 2 fixture-resume '' $g}finally{$g.Dispose()};$child=Start-EvidenceChild $env $p cleanup '' $now.ToString('o');$c=Complete-EvidenceChild $child;Assert-EvidenceTest ($c.exit -eq 0 -and $c.output -match 'active/end-not-recorded') 'resume-first cleanup';break}
         {$_ -cin @('delete-use-race','delete-resume-race')}{$name='Local\OSM-Evidence-Race-'+[Guid]::NewGuid().ToString('N');$signal=[Threading.EventWaitHandle]::new($false,[Threading.EventResetMode]::ManualReset,$name);$inner=$env.Transport;$action=if($caseName -ceq 'delete-use-race'){'use'}else{'resume'};$state=@{child=$null};$hook={param($gen,$req)if($req.Operation -ceq 'delete'){$state.child=Start-EvidenceChild $env $p $action $name $now.ToString('o');if(-not $signal.WaitOne(10000)){throw 'child barrier missing'}};& $inner $gen $req}.GetNewClosure();Set-EvidenceTestValue ArtifactApplication TransportHook $hook}
         'reparse-protected'{$target=[IO.Path]::Combine($env.Root,'outside');[IO.Directory]::CreateDirectory($target)|Out-Null;[IO.File]::WriteAllText([IO.Path]::Combine($target,'marker'),'keep');$link=[IO.Path]::Combine($env.Root,'transfers','junction');New-Item -ItemType Junction -Path $link -Target $target|Out-Null;$g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$t=Read-EvidenceTask $env.Config fixture $g;$t.artifacts[0].ownedCopies+= [pscustomobject]@{path=[IO.Path]::Combine($link,'marker');bytes=4;sha256=(Get-FileHash -LiteralPath ([IO.Path]::Combine($target,'marker'))).Hash.ToLowerInvariant();origin='storage-copy'};$null=Write-EvidenceTask $env.Config fixture $t $t.generation $g}finally{$g.Dispose()}}
-        {$_ -cin @('staging-cleanup','staging-transfer-protected')}{$stagePath=[IO.Path]::Combine($env.Root,'transfers',[Guid]::NewGuid().ToString('N'));[IO.Directory]::CreateDirectory($stagePath)|Out-Null;[IO.File]::WriteAllText([IO.Path]::Combine($stagePath,'log'),'failure');$g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$t=Read-EvidenceTask $env.Config fixture $g;$t.staging+=[pscustomobject]@{path=$stagePath;createdAt=$now.AddDays(-7).ToString('o');origin='storage-copy';artifactId=$null;adopted=$false;adoptionPending=$false;operation=if($caseName -ceq 'staging-transfer-protected'){@{process=Get-EvidenceProcessIdentity;childMarker=$null}}else{$null};deleteIntent=$null;protections=@()};$null=Write-EvidenceTask $env.Config fixture $t $t.generation $g}finally{$g.Dispose()}}
+        {$_ -cin @('staging-cleanup','staging-transfer-protected')}{$stagePath=[IO.Path]::Combine($env.Root,'transfers',[Guid]::NewGuid().ToString('N'));[IO.Directory]::CreateDirectory($stagePath)|Out-Null;Set-ArtifactAcl $stagePath $true;[IO.File]::WriteAllText([IO.Path]::Combine($stagePath,'log'),'failure');$g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$t=Read-EvidenceTask $env.Config fixture $g;$t.staging+=[pscustomobject]@{path=$stagePath;createdAt=$now.AddDays(-7).ToString('o');origin='storage-copy';artifactId=$null;adopted=$false;adoptionPending=$false;operation=if($caseName -ceq 'staging-transfer-protected'){@{process=Get-EvidenceProcessIdentity;childMarker=$null;path=$stagePath}}else{$null};deleteIntent=$null;protections=@()};$null=Write-EvidenceTask $env.Config fixture $t $t.generation $g}finally{$g.Dispose()}}
         'fair-object-cursor'{$g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$t=Read-EvidenceTask $env.Config fixture $g;$first=@($t.artifacts|Sort-Object artifactId)[0];$first.protections=@([pscustomobject]@{owner='owner';consumer='blocked';reason='review';createdAt=$endAt.ToString('o');until=$now.AddDays(1).ToString('o');releasedAt=$null});$null=Write-EvidenceTask $env.Config fixture $t $t.generation $g}finally{$g.Dispose()}}
     }
-    if($caseName -cin @('use-delete-race','resume-delete-race','staging-adoption-success','child-not-stopped','stopped-operation-cleanup','recovery-staging-cleanup','corrupt-lifecycle-projection','staging-fair-cursor','staging-result-accounting','deadline-request-and-guard','deadline-atomic-ack-retry')){continue}
+    if($caseName -cin @('use-delete-race','resume-delete-race','staging-adoption-success','child-not-stopped','stopped-operation-cleanup','recovery-staging-cleanup','corrupt-lifecycle-projection','staging-fair-cursor','staging-result-accounting','deadline-request-and-guard','deadline-atomic-ack-retry','old-alias-cleanup','old-alias-fetch','old-alias-child-eof-blocked','old-alias-marker-unresolved','old-alias-copy-acl-blocked','missing-owned-copy','noncanonical-owned-copy')){continue}
     $r=Invoke-EvidenceCleanup $env.ConfigPath ($caseName -ceq 'dry-run-no-delete') @() $(if($caseName -ceq 'fair-object-cursor'){1}else{100})
     switch($caseName){
+        {$_ -cin @('old-alias-cleanup','old-alias-fetch','old-alias-child-eof-blocked','old-alias-marker-unresolved','old-alias-copy-acl-blocked')}{
+            $receiptPath=$a.receipt.path;$receiptHash=(Get-FileHash -LiteralPath $receiptPath).Hash;$intentPath=$a.putIntent.path;$intentHash=(Get-FileHash -LiteralPath $intentPath).Hash
+            if($caseName -cin @('old-alias-child-eof-blocked','old-alias-marker-unresolved','old-alias-copy-acl-blocked')){
+                $operation=$p.residue.localPath;$marker=[IO.Path]::Combine($operation,'readback-process.json')
+                Write-EvidenceTestJson $marker ([pscustomobject]@{process=@{pid=2147483647;startedAt='2000-01-01T00:00:00.0000000Z'};exited=$true;pipesClosed=$false});Set-ArtifactAcl $marker $false
+                $g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$task=Read-EvidenceTask $env.Config fixture $g;$task.artifacts[0].operation=@{process=@{pid=2147483647;startedAt='2000-01-01T00:00:00.0000000Z'};path=$operation;childMarker=$marker};$null=Write-EvidenceTask $env.Config fixture $task $task.generation $g}finally{$g.Dispose()}
+            }
+            if($caseName -ceq 'old-alias-copy-acl-blocked'){
+                $badCopy=$a.ownedCopies[0].path;$badHash=(Get-FileHash -LiteralPath $badCopy).Hash
+                $acl=[IO.FileSystemAclExtensions]::GetAccessControl([IO.FileInfo]::new($badCopy));$acl.SetAccessRuleProtection($false,$true);[IO.FileSystemAclExtensions]::SetAccessControl([IO.FileInfo]::new($badCopy),$acl)
+            }
+            $alias=Set-EvidenceAliasFixture $env
+            if($caseName -ceq 'old-alias-marker-unresolved'){
+                $task=(ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($alias.Catalog)) -DateKind String);$task.artifacts[0].operation.childMarker=[IO.Path]::Combine($env.Root,'outside','readback-process.json');Write-EvidenceTestJson $alias.Catalog $task
+            }
+            $before=($env.Counts.Values|Measure-Object -Sum).Sum
+            if($caseName -ceq 'old-alias-fetch'){
+                $fetched=Invoke-EvidenceFetch $env.ConfigPath $p.reference $p.packageSha256
+                Assert-EvidenceTest ($fetched.status -ceq 'passed' -and $fetched.outputPath.StartsWith($alias.Roles.transfers.physicalPath+'\')) 'fresh copy was not physical'
+                $g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$task=Read-EvidenceTask $env.Config fixture $g;Assert-EvidenceTest ($task.artifacts[0].receipt.path -ceq $alias.Task.artifacts[0].receipt.path -and $task.artifacts[0].ownedCopies[-1].path.StartsWith($alias.Roles.transfers.physicalPath+'\')) 'alias receipt rewritten or new copy alias'}finally{$g.Dispose()}
+            }else{
+                $clean=Invoke-EvidenceCleanup $env.ConfigPath
+                if($caseName -ceq 'old-alias-cleanup'){Assert-EvidenceTest ($clean.status -ceq 'passed' -and $clean.deleted -eq 1 -and $env.Objects.Count -eq 0) 'alias cleanup failed'}
+                else{Assert-EvidenceTest ($clean.status -ceq 'pending' -and $clean.deleted -eq 0 -and $env.Objects.Count -eq 1 -and ($env.Counts.Values|Measure-Object -Sum).Sum -eq $before) 'unknown marker reached network/delete'}
+            }
+            if($caseName -ceq 'old-alias-copy-acl-blocked'){Assert-EvidenceTest ([IO.File]::Exists($badCopy) -and (Get-FileHash -LiteralPath $badCopy).Hash -ceq $badHash -and -not [IO.FileSystemAclExtensions]::GetAccessControl([IO.FileInfo]::new($badCopy)).AreAccessRulesProtected) 'bad ACL copy repaired or removed'}
+            Assert-EvidenceTest ((Get-FileHash -LiteralPath $receiptPath).Hash -ceq $receiptHash -and (Get-FileHash -LiteralPath $intentPath).Hash -ceq $intentHash) 'immutable receipt/intent changed'
+            continue
+        }
+        {$_ -cin @('missing-owned-copy','noncanonical-owned-copy')}{
+            $copy=$a.ownedCopies[0];$source=$copy.path
+            if($caseName -ceq 'missing-owned-copy'){[IO.File]::Delete($source)}else{
+                $g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$task=Read-EvidenceTask $env.Config fixture $g;$task.artifacts[0].ownedCopies[0].path=[IO.Path]::Combine([IO.Path]::GetDirectoryName($source),'..',[IO.Path]::GetFileName($source));$null=Write-EvidenceTask $env.Config fixture $task $task.generation $g}finally{$g.Dispose()}
+            }
+            $before=($env.Counts.Values|Measure-Object -Sum).Sum;$clean=Invoke-EvidenceCleanup $env.ConfigPath
+            Assert-EvidenceTest ($clean.status -ceq 'pending' -and $clean.deleted -eq 0 -and $env.Objects.Count -eq 1 -and ($env.Counts.Values|Measure-Object -Sum).Sum -eq $before) 'unknown owned path reached network/delete'
+            continue
+        }
         {$_ -cin @('delete-timeout','delete-forbidden')}{Assert-EvidenceTest ($r.status -ceq 'pending' -and $env.Objects.Count -eq 1) 'delete uncertainty success'}
         {$_ -cin @('delete-crash-reconcile','delete-after-remote-reconcile')}{Assert-EvidenceTest ($r.status -ceq 'pending') 'crash success';Set-EvidenceTestValue EvidenceCleanup FaultHook $null;Set-EvidenceTestValue EvidenceCleanup ProcessHook {$true};$again=Invoke-EvidenceCleanup $env.ConfigPath;Assert-EvidenceTest ($again.status -ceq 'passed' -and $env.Objects.Count -eq 0) 'reconciliation'}
-        'cleanup-partial'{Assert-EvidenceTest ($r.status -ceq 'pending' -and $env.Objects.Count -eq 0 -and [IO.File]::Exists($copy.path)) 'partial local'}
+        'cleanup-partial'{Assert-EvidenceTest ($r.status -ceq 'pending' -and $env.Objects.Count -eq 1 -and [IO.File]::Exists($copy.path)) 'partial local'}
         'active-marker-protected'{Assert-EvidenceTest ($r.deleted -eq 0 -and $env.Objects.Count -eq 1) 'active deleted'}
         'corrupt-catalog-non-delete'{Assert-EvidenceTest ($r.status -ceq 'pending' -and $env.Objects.Count -eq 1) 'corrupt delete'}
         'dry-run-no-delete'{Assert-EvidenceTest ($r.deleted -eq 0 -and $env.Objects.Count -eq 1) 'dry mutation'}
@@ -176,6 +281,6 @@ foreach($caseName in $selected){$executed.Add($caseName);$child=$null;$signal=$n
         'fair-object-cursor'{$r2=Invoke-EvidenceCleanup $env.ConfigPath $false @() 1;Assert-EvidenceTest ($r2.deleted -eq 1) ('cursor starved first='+(ConvertTo-Json $r -Compress -Depth 6)+' second='+(ConvertTo-Json $r2 -Compress -Depth 6))}
         default{Assert-EvidenceTest ($r.status -ceq 'passed' -and $r.deleted -eq 1 -and $env.Objects.Count -eq 0) 'delete success'}
     }
-}catch{$failed.Add($caseName);[Console]::Error.WriteLine($caseName+': '+$_.Exception.Message)}finally{Set-EvidenceTestValue EvidencePaths WriteHook $null;Set-EvidenceTestValue EvidenceCleanup Budget $null;Set-EvidenceTestValue EvidenceStateStore Budget $null;Set-EvidenceTestValue ArtifactApplication Budget $null;Set-EvidenceTestValue EvidenceCleanup FaultHook $null;Set-EvidenceTestValue EvidenceCleanup ProcessHook $null;if($signal){$signal.Dispose()};if($child){$child.Process.Dispose()}}}
+}catch{$failed.Add($caseName);[Console]::Error.WriteLine($caseName+': '+$_.Exception.Message)}finally{[AppDomain]::CurrentDomain.SetData('OneStarMaker.Evidence.StorageBinding.v1',$null);Set-EvidenceTestValue EvidencePaths WriteHook $null;Set-EvidenceTestValue EvidenceCleanup Budget $null;Set-EvidenceTestValue EvidenceStateStore Budget $null;Set-EvidenceTestValue ArtifactApplication Budget $null;Set-EvidenceTestValue EvidenceCleanup FaultHook $null;Set-EvidenceTestValue EvidenceCleanup ProcessHook $null;if($signal){$signal.Dispose()};if($child){$child.Process.Dispose()}}}
 Complete-EvidenceTestSuite $ResultPath $registered $selected $executed $failed
 [Console]::WriteLine("EvidenceCleanup $($executed.Count), failed $($failed.Count)")

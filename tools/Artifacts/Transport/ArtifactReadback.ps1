@@ -1,8 +1,15 @@
-param([Parameter(Mandatory = $true)][string] $RequestPath)
+param([Parameter(Mandatory = $true)][string] $RequestPath,[string]$Runtime,[string]$ManifestSha256)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 try {
+    # Internal child startup receives only the already validated runtime identity.
+    # Resolve the same fixed stores before importing any credential/store adapter.
+    if($Runtime -or $ManifestSha256){
+        if(-not $Runtime -or -not $ManifestSha256){throw 'Readback context unavailable.'}
+        Import-Module (Join-Path $PSScriptRoot '../EvidenceSchedule.psm1') -WarningAction SilentlyContinue
+        $null=Initialize-EvidenceRuntimeContext $Runtime $ManifestSha256
+    }
     Import-Module (Join-Path $PSScriptRoot '../ArtifactCommands.psm1') -Force
     Import-Module (Join-Path $PSScriptRoot '../ArtifactPaths.psm1') -Force
     Import-Module (Join-Path $PSScriptRoot '../Credentials/CredentialStore.psm1') -Force

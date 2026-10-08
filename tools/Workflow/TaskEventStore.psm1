@@ -1,4 +1,5 @@
 Set-StrictMode -Version Latest
+Import-Module (Join-Path $PSScriptRoot 'WindowsStorePaths.psm1')
 
 # A caller may supply a monotonic remaining-time callback for this invocation.
 # Ordinary callers leave it null and retain the existing thirty-second guard limit.
@@ -45,8 +46,17 @@ function Assert-WorkflowPrivateAcl([string] $Path,[bool] $Directory) {
     if ($seen.Count -ne 3) { throw 'workflow-path-unavailable' }
 }
 function Get-WorkflowRoot {
+    $context=[AppDomain]::CurrentDomain.GetData('OneStarMaker.Evidence.StorageBinding.v1')
+    if($context){
+        $binding=ConvertFrom-Json -InputObject $context -AsHashtable -DateKind String
+        $root=Assert-WindowsStorePathIdentity $binding.roles.workflow.physicalPath $binding.roles.workflow
+        Assert-WorkflowPrivateAcl $root $true
+        return $root
+    }
     if ($script:TestRoot) { return [IO.Path]::GetFullPath($script:TestRoot) }
-    return [IO.Path]::Combine([Environment]::GetFolderPath('LocalApplicationData'),'OneStarMaker','Workflow')
+    $root=[IO.Path]::Combine([Environment]::GetFolderPath('LocalApplicationData'),'OneStarMaker','Workflow')
+    if([IO.Directory]::Exists($root)){$root=(Get-WindowsStorePathIdentity $root).physicalPath;Assert-WorkflowPrivateAcl $root $true}
+    return $root
 }
 function Get-WorkflowTaskPath([string] $RepositoryId,[string] $TaskId) {
     Assert-WorkflowIdentity $RepositoryId $TaskId
@@ -55,7 +65,10 @@ function Get-WorkflowTaskPath([string] $RepositoryId,[string] $TaskId) {
 function Initialize-WorkflowDirectory([string] $Path) {
     Assert-WorkflowBudget
     Assert-WorkflowPath $Path
-    if (-not [IO.Directory]::Exists($Path)) { [IO.Directory]::CreateDirectory($Path)|Out-Null; Set-WorkflowPrivateAcl $Path $true }
+    if (-not [IO.Directory]::Exists($Path)) {
+        if([AppDomain]::CurrentDomain.GetData('OneStarMaker.Evidence.StorageBinding.v1')){throw 'workflow-path-unavailable'}
+        [IO.Directory]::CreateDirectory($Path)|Out-Null; Set-WorkflowPrivateAcl $Path $true
+    }
     Assert-WorkflowPrivateAcl $Path $true
 }
 function Enter-WorkflowTaskGuard([string] $RepositoryId,[string] $TaskId) {
@@ -64,16 +77,22 @@ function Enter-WorkflowTaskGuard([string] $RepositoryId,[string] $TaskId) {
     Initialize-WorkflowDirectory ([IO.Path]::GetDirectoryName([IO.Path]::GetDirectoryName($path)))
     Initialize-WorkflowDirectory ([IO.Path]::GetDirectoryName($path))
     Initialize-WorkflowDirectory $path
+    # Initial creation can turn a KnownFolder alias into its native root. The
+    # guard and every subsequent state accessor must retain that final path.
+    $path = Get-WorkflowTaskPath $RepositoryId $TaskId
     $lock = [IO.Path]::Combine($path,'task.lock')
     Assert-WorkflowPath $lock
+    $bound=[bool][AppDomain]::CurrentDomain.GetData('OneStarMaker.Evidence.StorageBinding.v1')
+    if($bound){Assert-WorkflowPrivateAcl $lock $false}
     $watch=[Diagnostics.Stopwatch]::StartNew()
     $wait=[Threading.ManualResetEvent]::new($false)
     try {
         do {
             Assert-WorkflowBudget
             try {
-                $stream=[IO.FileStream]::new($lock,[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
-                Set-WorkflowPrivateAcl $lock $false
+                $mode=if($bound){[IO.FileMode]::Open}else{[IO.FileMode]::OpenOrCreate}
+                $stream=[IO.FileStream]::new($lock,$mode,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
+                if(-not $bound){Set-WorkflowPrivateAcl $lock $false}
                 Assert-WorkflowPrivateAcl $lock $false
                 $guard=[pscustomobject]@{RepositoryId=$RepositoryId;TaskId=$TaskId;Handle=$stream;Path=$path}
                 $guard | Add-Member ScriptMethod Dispose { $this.Handle.Dispose() }

@@ -47,11 +47,52 @@ function Test-EvidenceProcessStopped($Identity){
     if($null -eq $Identity -or $Identity.pid -lt 1){return $false}
     try{$p=[Diagnostics.Process]::GetProcessById($Identity.pid);try{return $p.HasExited -or $p.StartTime.ToUniversalTime().ToString('o') -cne $Identity.startedAt}finally{$p.Dispose()}}catch [ArgumentException]{return $true}catch{return $false}
 }
+function Assert-EvidenceOperationPaths($Operation){
+    $path=Resolve-ArtifactStoredPath $Operation.path
+    if(-not [IO.Directory]::Exists($path)){throw 'operation-pending'}
+    if($Operation.childMarker){
+        $marker=Resolve-ArtifactStoredPath $Operation.childMarker -AllowMissing
+        if($marker -cne [IO.Path]::Combine($path,'readback-process.json')){throw 'operation-pending'}
+    }
+}
 function Assert-EvidenceOperationStopped($Operation){
+    Assert-EvidenceOperationPaths $Operation
     if(-not (Test-EvidenceProcessStopped $Operation.process)){throw 'operation-pending'}
-    if($Operation.childMarker -and [IO.File]::Exists($Operation.childMarker)){
-        $child=(Read-ArtifactJson $Operation.childMarker).Data
-        if(-not $child.exited -or -not $child.pipesClosed){if(-not (Test-EvidenceProcessStopped $child.process)){throw 'operation-pending'}}
+    if($Operation.childMarker){
+        $marker=Resolve-ArtifactStoredPath $Operation.childMarker -AllowMissing
+        if([IO.File]::Exists($marker)){
+            $child=(Read-ArtifactJson $marker).Data;Assert-Fields $child @('process','exited','pipesClosed')
+            # PID absence proves process termination, never pipe EOF. Only the
+            # parent-owned completion marker establishes both observations.
+            if($child.exited -isnot [bool] -or $child.pipesClosed -isnot [bool] -or -not $child.exited -or -not $child.pipesClosed){throw 'operation-pending'}
+        }
+    }
+}
+function Assert-EvidenceOwnedCopy($Copy){
+    Assert-Fields $Copy @('path','bytes','sha256','origin');Assert-Hex $Copy.sha256 64
+    if($Copy.origin -cne 'storage-copy' -or ($Copy.bytes -isnot [long] -and $Copy.bytes -isnot [int]) -or $Copy.bytes -lt 0 -or $Copy.bytes -gt 256MB){throw 'invalid-owned-copy'}
+    $path=Resolve-ArtifactStoredPath $Copy.path
+    if(-not [IO.File]::Exists($path) -or ([IO.FileInfo]::new($path)).Length -ne $Copy.bytes -or (Get-EvidenceOwnedHash $path) -cne $Copy.sha256){throw 'changed-copy'}
+    return $path
+}
+# Resolve the whole registered local scope before any network or deletion. A
+# partial validation must not erase a good object while an unknown copy survives.
+function Assert-EvidenceTaskPaths($Config,$Task){
+    foreach($artifact in $Task.artifacts){
+        foreach($copy in $artifact.ownedCopies){Assert-EvidenceBudget;$null=Assert-EvidenceOwnedCopy $copy}
+        if($artifact.putIntent){
+            $intentPath=Resolve-EvidenceStoredPath $artifact.putIntent.path
+            $expected=[IO.Path]::Combine((Get-EvidenceTaskDirectory $Config $Task.taskId),'intents',$artifact.artifactId+'.json')
+            if($intentPath -cne $expected -or (Read-ArtifactJson $intentPath).Sha256 -cne $artifact.putIntent.sha256){throw 'unresolved-put'}
+        }
+        if($artifact.operation){Assert-EvidenceOperationPaths $artifact.operation}
+    }
+    foreach($stage in $Task.staging){
+        if($stage.origin -cne 'storage-copy'){throw 'invalid-staging'}
+        # Adopted staging is a completed ownership transfer. Its files may
+        # already have been confirmed deleted through ownedCopies.
+        $path=Resolve-ArtifactStoredPath $stage.path -AllowMissing:($stage.adopted -and -not $stage.operation)
+        if($stage.operation){Assert-EvidenceOperationPaths $stage.operation}
     }
 }
 function Assert-EvidenceTreeNoReparse([string]$Root){
@@ -81,14 +122,10 @@ function Remove-EvidenceOwnedCopies($Artifact){
     $remaining=[Collections.Generic.List[object]]::new()
     foreach($copy in $Artifact.ownedCopies){
         try{Assert-EvidenceBudget
-            if($copy.origin -cne 'storage-copy' -or -not [IO.Path]::IsPathFullyQualified($copy.path) -or -not (Test-ArtifactWithin $copy.path (Get-ArtifactRoot))){throw 'invalid-owned-copy'}
-            Assert-NoArtifactReparse $copy.path
-            if([IO.File]::Exists($copy.path)){
-                if(([IO.FileInfo]::new($copy.path)).Length -ne $copy.bytes -or (Get-EvidenceOwnedHash $copy.path) -cne $copy.sha256){throw 'changed-copy'}
-                Assert-EvidenceBudget;Assert-ArtifactAcl $copy.path $false;[IO.File]::Delete($copy.path)
-                $parent=[IO.Path]::GetDirectoryName($copy.path);$root=Get-ArtifactRoot
-                while($parent -cne $root -and (Test-ArtifactWithin $parent $root) -and [IO.Directory]::Exists($parent) -and -not [IO.Directory]::EnumerateFileSystemEntries($parent).GetEnumerator().MoveNext()){Assert-EvidenceBudget;Assert-NoArtifactReparse $parent;[IO.Directory]::Delete($parent);$parent=[IO.Path]::GetDirectoryName($parent)}
-            }
+            $path=Assert-EvidenceOwnedCopy $copy
+            Assert-EvidenceBudget;Assert-ArtifactAcl $path $false;[IO.File]::Delete($path)
+            $parent=[IO.Path]::GetDirectoryName($path);$root=Get-ArtifactRoot
+            while($parent -cne $root -and (Test-ArtifactWithin $parent $root) -and [IO.Directory]::Exists($parent) -and -not [IO.Directory]::EnumerateFileSystemEntries($parent).GetEnumerator().MoveNext()){Assert-EvidenceBudget;Assert-NoArtifactReparse $parent;[IO.Directory]::Delete($parent);$parent=[IO.Path]::GetDirectoryName($parent)}
         }catch{$remaining.Add($copy)}
     }
     $Artifact.ownedCopies=@($remaining.ToArray());return $remaining.Count -eq 0
@@ -127,7 +164,7 @@ function Resolve-EvidenceDeleteGuarded($Config,$Task,$Artifact,$Guard,[Diagnosti
 }
 function Assert-EvidenceTransitionSafe($Config,[string]$TaskId,$Guard){
     $task=Read-EvidenceTask $Config $TaskId $Guard;if($null -eq $task){return @()}
-    $task=Sync-EvidenceTaskGuarded $Config $TaskId $Guard
+    $task=Sync-EvidenceTaskGuarded $Config $TaskId $Guard;Assert-EvidenceTaskPaths $Config $task
     $timer=[Diagnostics.Stopwatch]::StartNew()
     foreach($a in $task.artifacts){
         if($a.deleteIntent){$null=Resolve-EvidenceDeleteGuarded $Config $task $a $Guard $timer}
@@ -167,7 +204,7 @@ function Invoke-EvidenceCleanup([string]$ConfigPath,[bool]$DryRun=$false,[string
             $guard=$null
             try{
                 if((& $script:Budget.Remaining) -le 0){$result.remaining++;continue}
-                $guard=Enter-WorkflowTaskGuard $config.Data.repositoryId $id;$task=Sync-EvidenceTaskGuarded $config $id $guard
+                $guard=Enter-WorkflowTaskGuard $config.Data.repositoryId $id;$task=Sync-EvidenceTaskGuarded $config $id $guard;Assert-EvidenceTaskPaths $Config $task
                 # Artifacts and staging share one finite cursor. Persisting it before
                 # each attempt lets a blocked artifact or staging tree yield the next
                 # job's budget instead of starving later expired staging forever.
@@ -188,10 +225,10 @@ function Invoke-EvidenceCleanup([string]$ConfigPath,[bool]$DryRun=$false,[string
                         if(-not $policy.eligible){$result.skipped++;continue}
                         if(-not $DryRun){
                             try{
-                                if(-not [IO.Path]::IsPathFullyQualified($stage.path) -or -not (Test-ArtifactWithin $stage.path (Get-ArtifactRoot)) -or $stage.path -ceq (Get-ArtifactRoot)){throw 'invalid-staging'}
-                                Assert-NoArtifactReparse $stage.path
-                                if([IO.Directory]::Exists($stage.path)){
-                                    Remove-EvidenceStagingTree $stage.path
+                                $stagePath=Resolve-ArtifactStoredPath $stage.path
+                                Assert-NoArtifactReparse $stagePath
+                                if([IO.Directory]::Exists($stagePath)){
+                                    Remove-EvidenceStagingTree $stagePath
                                 }
                                 $task.staging=@($task.staging|Where-Object path -CNE $stage.path);$null=Write-EvidenceTask $config $id $task $task.generation $guard;$result.deleted++;$observation.reasonCode='deleted'
                             }catch{$result.blocked++;$observation.reasonCode='local-pending'}
@@ -220,7 +257,7 @@ function Resolve-EvidencePutGuarded($Config,$Task,$Artifact,$Guard,[Diagnostics.
     if($Artifact.state -cne 'put-pending'){return}
     if($Artifact.operation){Assert-EvidenceOperationStopped $Artifact.operation}
     if(-not $Artifact.putIntent){$Artifact.state='failed';$Artifact.operation=$null;$null=Write-EvidenceTask $Config $Task.taskId $Task $Task.generation $Guard;return}
-    $intent=Read-ArtifactJson $Artifact.putIntent.path
+    $intent=Read-ArtifactJson (Resolve-EvidenceStoredPath $Artifact.putIntent.path)
     if($intent.Sha256 -cne $Artifact.putIntent.sha256 -or $intent.Data.key -cne $Artifact.key -or $intent.Data.packageSha256 -cne $Artifact.packageSha256 -or $intent.Data.artifactId -cne $Artifact.artifactId){throw 'unresolved-put'}
     $gen=(Get-CredentialStatus 'osm').Generation;$stage=New-EvidenceRecoveryStage $Config $Task $Artifact $Guard;$op=$stage.path;$archive=[IO.Path]::Combine($op,'recovery.zip')
     $Artifact.operation=$stage.operation;$null=Write-EvidenceTask $Config $Task.taskId $Task $Task.generation $Guard

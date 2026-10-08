@@ -2,7 +2,7 @@
 
 同一WindowsユーザーのPowerShell 7から、既存のDPAPI `osm`資格情報とprivate R2 bucket `osm-artifacts`を使います。通常Evidenceは明示した非秘密file集合をpublishし、別sessionで期待hashを照合してfetch・ログ/原画像を閲覧できます。taskの終了/再開は[Workflow](../Workflow/README.md)が所有し、Storageは終了から30日のコピー清掃を担当します。Build系列・別host/Cloudの保存と配布は後続スライスです。
 
-スライスAはA3 r5凍結後の実装確認中です。実装入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。ここに記すv2 CLIとoffline gateの実装進捗を、実R2の切替・scheduler稼働・reset完了と同一視しません。限定実操作と最終C/C′の結果はGit外固定入力へ記録します。
+スライスAはA3 r6凍結後の実装確認中です。r6は同じ既存保存領域へOS jobを接続する修正で、保存領域の移動や資格情報の複製を行いません。実装入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。ここに記すv2 CLIとoffline gateの実装進捗を、実R2の切替・scheduler稼働・reset完了と同一視しません。限定実操作と最終C/C′の結果はGit外固定入力へ記録します。
 
 ## エージェント操作の事前承認
 
@@ -76,7 +76,9 @@ pwsh tools/artifacts.ps1 evidence schedule status --profile osm --config <v2-con
 
 同じownerのTask Scheduler `OSM-Evidence-Cleanup-<repositoryId先頭12>` は毎日03:00 localとlogon、StartWhenAvailable、IgnoreNew、InteractiveToken/Limitedで動きます。password/親鍵は登録しません。未ログオン中は動かず次ログオンで追いつくため、期限は削除資格であり即時削除SLAではありません。
 
-installは最終implementation headのscript/module/DLL/deps/configをKnown Folder `OneStarMaker/Artifacts/runtime/<head>/`へprivate copyし、manifestでpath/hashを固定します。actionは絶対pwshと固定entryで、可変worktreeに依存しません。同名taskのidentity不一致、runtime/config欠落/hash不一致では上書き・削除をせずfailedです。
+installは最終implementation headのscript/module/DLL/deps/configをKnown Folder `OneStarMaker/Artifacts/runtime/<head>/`へprivate copyします。runtime manifest v2は五つの既存専用領域（Workflow、Evidence、deployment、transfer、runtime）の実体path・volume/file identityとownerを固定します。WindowsのAppData仮想化で論理pathと実体が異なる場合も、新しい保存先へ移さず同じファイルを参照します。actionのpwsh/entry/runtime/作業directoryは実体の絶対pathで、可変worktreeに依存しません。
+
+jobはruntime全bytes/hashとowner、五領域の実体/ACL/reparseを検査してからconfig・guard・catalog・通信を使います。固定領域が欠落・相違する場合は空storeを作ったり別領域へ戻ったりせず停止します。同v2内の既存receipt/intent/転送marker/copyの絶対参照は、固定role内の同実体だけをI/O時に解決し、原recordを一括書換えません。既存資格情報のroot・暗号文・DPAPI利用は変更しません。同名taskのidentity不一致、runtime/config欠落/hash不一致では上書き・削除をせずfailedです。
 
 一回のjobは10分以内、配送2分/100task、清掃8分/100objectを予約します。両段階の独立永続cursorは失敗項目も進め、残件を次回へ回して先頭障害による飢餓を避けます。busyはskip、network不明は次回へ保留し、成功Evidenceを再publishしません。statusはlastRun/nextRun/resultを非秘密情報で返します。
 

@@ -3,7 +3,7 @@
 ## 0. Metadata
 
 - type: `program`
-- status: r6方針改訂は2026-10-08にownerのPhase D承認で完了。programは進行中。スライスAは2026-10-08にA3 r5を凍結し、Phase BからC/C′までの進行をownerが承認した。現行仕様と採用runの入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。本番なし・過去の開発証拠の継承不要を前提に保存契約を一括置換する。新CLI、終了イベント接続、清掃の実装を検証中。運用切替、限定R2/scheduler/環境リセットと最終判定C/C′の実績はCURRENTの固定入力で確認する。後続スライスのA3は別途行う。
+- status: r6方針改訂は2026-10-08にownerのPhase D承認で完了。programは進行中。スライスAは2026-10-08にA3 r6を凍結し、同じ既存保存領域とguardへのOS job接続修正をownerが承認した。Phase BからC/C′まで進める。現行仕様と採用runの入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。本番なし・過去の開発証拠の継承不要を前提に保存契約を一括置換する。新CLI、終了イベント接続、清掃の実装を検証中。運用切替、限定R2/scheduler/環境リセットと最終判定C/C′の実績はCURRENTの固定入力で確認する。後続スライスのA3は別途行う。
 - program policy revision: `r6` — 単一の開発用保存契約。旧データと互換性を引き継がない。
 - branch: `codex/artifact-storage-development-policy`
 - planning base commit: `a027bf04b4f5ce16494b93daf10e5b5bccf15a28` (`origin/develop`; PR #106・#107を含む)
@@ -85,7 +85,7 @@ r6の方針改訂だけではリセットを開始しない。スライスAの�
 
 **検証:** 保存→別session取得/hash・ログ/画像閲覧、30日境界、終了イベントの再適用、再開後への古いイベント到着、利用開始/再開と削除の競合、対象外の非削除、部分失敗の再実行、秘密非露出、安全な展開。時刻注入、#106のdummy fixture、隔離した使い捨てデータを使う。実R2の限定往復/清掃は運用経路の確認として行い、旧E1/E2継続取得や30日実待機を要求しない。自動清掃の起動・再実行が人の反復操作なしで成立する経路もA3で具体化する。
 
-判定は関連Artifacts/Harness offline suiteと限定R2検証。Unityを変更しないため全EditMode回帰は適用外。スライスAのschema/API、file配置、清掃間隔、7日の初期値、リセット対象/操作はA3 r5に固定済みで、Git外CURRENTから取得する。実装時に必要な終了イベント接続だけを扱い、Harness全体の改造へ膨らませない。
+判定は関連Artifacts/Harness offline suiteと限定R2検証。Unityを変更しないため全EditMode回帰は適用外。スライスAのschema/API、file配置、清掃間隔、7日の初期値、リセット対象/操作はA3 r6に固定済みで、Git外CURRENTから取得する。実装時に必要な終了イベント接続だけを扱い、Harness全体の改造へ膨らませない。
 
 **停止規則:** 上記の通常利用・期限清掃と一回の切替が成立したら閉じる。Build、Cloud、GUI、常駐broker、別provider、長期保護・互換維持を追加条件にしない。
 

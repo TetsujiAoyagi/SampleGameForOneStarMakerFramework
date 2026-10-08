@@ -1,4 +1,4 @@
-param([string] $ResultPath='')
+param([string] $ResultPath='',[string]$Case='*')
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $lifecycle=Import-Module (Join-Path $PSScriptRoot '../TaskLifecycle.psm1') -Force -PassThru
@@ -7,7 +7,10 @@ Import-Module $store
 $root=[IO.Path]::Combine([IO.Path]::GetTempPath(),'osm-workflow-'+[Guid]::NewGuid().ToString('N'))
 $repo='a'*64
 $cases=@('event-idempotent','event-gap','resume-stale-end','decision-conflict','generation-cas','atomic-before-commit','finalization-decision-crash','finalization-event-crash','receipt-crash','ack-idempotent','trusted-recovery-time','guard-identity','state-corrupt','reparse-rejected','guard-cross-process','pending-decision-conflict','duplicate-json-property','public-resume-deleted-payload','public-resume-deleted-delivery-pending','fresh-contract-config-discovery','public-real-module-start-status-retry-end-resume')
+$cases+=@('guard-bound-root-reimport','guard-bound-identity-mismatch')
+$selected=@(if($Case -ceq '*'){$cases}else{$Case.Split(',')})
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
+$fresh=$null
 function Assert([bool]$Value,[string]$Message){if(-not $Value){throw $Message}}
 function Reject([scriptblock]$Action){$threw=$false;try{&$Action|Out-Null}catch{$threw=$true};Assert $threw 'expected rejection'}
 $utc=[DateTimeOffset]::Parse('2026-01-01T00:00:00+00:00')
@@ -51,12 +54,35 @@ function Test-RealModuleBoundary([string]$Mode){
 try {
     & $store {param($r)$script:TestRoot=$r} $root
     & $lifecycle {param($u)$script:Clock={$u}.GetNewClosure()} $utc
-    foreach($case in $cases){
+    foreach($case in $selected){
         $guard=$null
         try {
+            Assert ($case -cin $cases) 'unknown case'
             $guard=Enter-WorkflowTaskGuard $repo $case
+            Assert ($guard.Path.StartsWith($root+'\',[StringComparison]::OrdinalIgnoreCase)) 'offline guard escaped fixture root'
             $started=Invoke-WorkflowTaskTransition $repo $case 'started' 0 'start' '' $guard
             switch($case){
+                {$_ -cin @('guard-bound-root-reimport','guard-bound-identity-mismatch')}{
+                    $identity=& $store {param($r)Get-WindowsStorePathIdentity $r} $root
+                    $entry=[ordered]@{logicalPath=$root;physicalPath=$identity.physicalPath;volumeSerial=$identity.volumeSerial;fileId=$identity.fileId}
+                    if($case -ceq 'guard-bound-identity-mismatch'){$entry.fileId='0'*32}
+                    # Test-only injection models the already validated immutable
+                    # context; product callers can only bind a trusted runtime.
+                    [AppDomain]::CurrentDomain.SetData('OneStarMaker.Evidence.StorageBinding.v1',(ConvertTo-Json -InputObject @{schemaVersion=1;ownerSid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value;roles=@{workflow=$entry}} -Depth 8 -Compress))
+                    $fresh=Import-Module (Join-Path $PSScriptRoot '../TaskEventStore.psm1') -Force -PassThru
+                    # Reimport changes the session's exported command owner. Keep
+                    # its offline root installed after this case clears context.
+                    & $fresh {param($r)$script:TestRoot=$r} $root
+                    if($case -ceq 'guard-bound-identity-mismatch'){Reject {& $fresh {Get-WorkflowRoot}};Reject {& $fresh {param($r,$t,$g)Assert-WorkflowGuard $r $t $g} $repo $case $guard}}
+                    else{
+                        Assert ((& $fresh {Get-WorkflowRoot}) -ceq $identity.physicalPath) 'reimport fell back to ambient root'
+                        & $fresh {param($r,$t,$g)Assert-WorkflowGuard $r $t $g} $repo $case $guard
+                        & $fresh {$script:GuardWaitHook={throw 'bound-guard-conflict'}}
+                        $reason='';try{& $fresh {param($r,$t)Enter-WorkflowTaskGuard $r $t} $repo $case|Out-Null}catch{$reason=$_.Exception.Message}
+                        Assert ($reason -ceq 'bound-guard-conflict') 'reimport opened another guard'
+                        & $fresh {$script:GuardWaitHook=$null}
+                    }
+                }
                 'event-idempotent'{
                     $end=Invoke-WorkflowTaskTransition $repo $case 'ended' 1 'done' 'completed' $guard
                     & $lifecycle {param($u)$script:Clock={$u}.GetNewClosure()} $utc.AddDays(100)
@@ -166,17 +192,19 @@ try {
             $executed.Add($case)
         }catch{$failed.Add($case+': '+$_.Exception.Message+' '+$_.ScriptStackTrace)}
         finally{
+            [AppDomain]::CurrentDomain.SetData('OneStarMaker.Evidence.StorageBinding.v1',$null)
             if($guard){$guard.Dispose()}
             & $store {$script:Fault=$null}
             & $lifecycle {$script:Fault=$null}
             & $lifecycle {param($u)$script:Clock={$u}.GetNewClosure()} $utc
         }
     }
-    if($ResultPath){[IO.File]::WriteAllText($ResultPath,(ConvertTo-Json -Depth 8 -InputObject ([ordered]@{registered=$cases;selected=$cases;executed=@($executed);failed=@($failed)})),[Text.UTF8Encoding]::new($false))}
+    if($ResultPath){[IO.File]::WriteAllText($ResultPath,(ConvertTo-Json -Depth 8 -InputObject ([ordered]@{registered=$cases;selected=$selected;executed=@($executed);failed=@($failed)})),[Text.UTF8Encoding]::new($false))}
     foreach($name in $executed){"PASS $name"};foreach($name in $failed){"FAIL $name"}
-    "Cases: $($cases.Count); passed: $($executed.Count); failed: $($failed.Count)"
-    if($failed.Count -or $executed.Count -ne $cases.Count){exit 1}
+    "Cases: $($selected.Count)/$($cases.Count); passed: $($executed.Count); failed: $($failed.Count)"
+    if($failed.Count -or $executed.Count -ne $selected.Count){exit 1}
 }finally{
+    if($fresh){& $fresh {$script:TestRoot=$null;$script:GuardWaitHook=$null}}
     & $store {$script:TestRoot=$null;$script:Fault=$null}
     & $lifecycle {$script:Clock={[DateTimeOffset]::UtcNow};$script:Fault=$null}
     if([IO.Directory]::Exists($root)){[IO.Directory]::Delete($root,$true)}

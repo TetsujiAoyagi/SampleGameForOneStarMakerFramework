@@ -38,11 +38,11 @@ function Get-ApprovedSpecification([string]$Task) {
         }
         'artifact-evidence-lifecycle' {
             return [ordered]@{
-                task = $Task; textSha256 = '92fda7d2b05870b47245ba94b76281046607f6f85fb736d03c024d5be425cb01'
+                task = $Task; textSha256 = '02e6adbba89b52699d7043341a40794123c4fd3faf77b8c542a5c8ee48826e65'
                 approved = $true; base = 'd1a2606f0e84dde4bfb795e88c21a58cd4a7ecb9'; testPolicy = 'local-gates-v1'; recordPolicy = 'external-current-v1'
                 title = 'ARTIFACT-EVIDENCE-LIFECYCLE'; question = '明示非秘密fileを保存・別session閲覧し、作業中保持とtask終了後30日清掃を成立させられるか'
                 summary = 'Evidence v2、Workflow終了配送、期限清掃、一回切替、task限定H1'; outOfScope = 'Unity・Build系列・Cloud/別host・GUI・Harness全体改造'
-                minimum = '凍結仕様evidence-lifecycle-a3-r5のM1〜M5を満たす'; trialDays = 7; adoptedDaysAfterClose = 30
+                minimum = '凍結仕様evidence-lifecycle-a3-r6のM1〜M5を満たす'; trialDays = 7; adoptedDaysAfterClose = 30
                 profile = $null
                 scope = @('tools/Artifacts/**','tools/Workflow/**','tools/artifacts.ps1','tools/workflow-task.ps1','tools/Harness/ApprovedSpecifications.psm1','tools/Harness/RecordStore.psm1','tools/harness.ps1','tools/Harness/GatePolicy.psm1','tools/Harness/Adapters/LocalChecks.psm1','tools/Harness/tests/Harness.Tests.ps1','tools/Harness/README.md','tools/contract-audit.ps1','tools/docs-audit.ps1','.agents/skills/osm-workflow/SKILL.md','.agents/skills/osm-workflow/references/phases-and-handoff.md','docs/README.md','docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md','docs/handoff/ARTIFACT_EVIDENCE_LIFECYCLE.md')
                 discoverySteps = @('artifacts-evidence-local','workflow-local','harness-local','contract-audit','docs-audit')

@@ -2,7 +2,29 @@ Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'ArtifactCommands.psm1')
 # Registry discovery performs its own reparse check; do not rely on another caller's imports.
 Import-Module (Join-Path $PSScriptRoot 'ArtifactAcl.psm1')
+Import-Module (Join-Path $PSScriptRoot '../Workflow/WindowsStorePaths.psm1')
 $script:DeploymentRoot = $null
+function Get-EvidenceDeploymentRoot {
+    $logical=[IO.Path]::Combine([Environment]::GetFolderPath('LocalApplicationData'),'OneStarMaker','Artifacts','deployments')
+    $binding=[AppDomain]::CurrentDomain.GetData('OneStarMaker.Evidence.StorageBinding.v1')
+    if($binding){
+        $context=ConvertFrom-Json -InputObject $binding -AsHashtable -Depth 10
+        if($context.schemaVersion -ne 1 -or $context.ownerSid -cne [Security.Principal.WindowsIdentity]::GetCurrent().User.Value -or -not $context.roles.ContainsKey('deployments')){throw 'deployment-root-unavailable'}
+        $role=$context.roles.deployments
+        $physical=Assert-WindowsStorePathIdentity $role.physicalPath $role
+        Assert-NoArtifactReparse $physical;Assert-ArtifactAcl $physical $true
+        return $physical
+    }
+    if($script:DeploymentRoot){return [IO.Path]::GetFullPath($script:DeploymentRoot)}
+    Assert-NoArtifactReparse $logical
+    if([IO.Directory]::Exists($logical)){
+        $identity=Get-WindowsStorePathIdentity $logical
+        if(-not $identity.isDirectory){throw 'deployment-root-unavailable'}
+        Assert-NoArtifactReparse $identity.physicalPath
+        return $identity.physicalPath
+    }
+    return $logical
+}
 function Assert-EvidenceTaskId([string] $TaskId) { if ($TaskId -cnotmatch '\A[a-z0-9][a-z0-9-]{0,63}\z') { throw 'invalid-task' } }
 function Read-EvidenceConfig([string] $Path) {
     $item=Read-ArtifactJson $Path; $v=$item.Data
@@ -10,7 +32,7 @@ function Read-EvidenceConfig([string] $Path) {
     Assert-Fields $v @('schemaVersion','profile','endpoint','bucket','repositoryId','prefix','policy','deploymentId')
     if ($v.profile -cne 'osm' -or $v.bucket -cne 'osm-artifacts' -or $v.endpoint -cnotmatch '\Ahttps://[0-9a-f]{32}\.r2\.cloudflarestorage\.com\z' -or $v.prefix -cne 'development/evidence/v2/' -or $v.policy -cne 'task-end-30d-v1') { throw 'unsupported-schema' }
     Assert-Hex $v.repositoryId 64; Assert-Hex $v.deploymentId 32
-    $root=if($script:DeploymentRoot){$script:DeploymentRoot}else{[IO.Path]::Combine([Environment]::GetFolderPath('LocalApplicationData'),'OneStarMaker','Artifacts','deployments')}
+    $root=Get-EvidenceDeploymentRoot
     $receipt=Read-ArtifactJson ([IO.Path]::Combine($root,$v.deploymentId+'.json'))
     Assert-Fields $receipt.Data @('schemaVersion','deploymentId','repositoryId','configSha256','baselineRecordId','baselineSha256','ownerObservationId','ownerObservationSha256')
     if($receipt.Data.schemaVersion -ne 2 -or $receipt.Data.deploymentId -cne $v.deploymentId -or $receipt.Data.repositoryId -cne $v.repositoryId -or $receipt.Data.configSha256 -cne $item.Sha256){throw 'unknown-deployment'}
@@ -51,7 +73,7 @@ function New-EvidenceReference($Config,$Artifact){
 Export-ModuleMember -Function Read-EvidenceConfig,Assert-EvidenceSelection,Assert-EvidenceTaskId,Read-EvidenceReference,New-EvidenceReference,Get-EvidenceKey
 function Get-EvidenceConfigurations([string]$RepositoryId){
     Assert-Hex $RepositoryId 64
-    $root=if($script:DeploymentRoot){$script:DeploymentRoot}else{[IO.Path]::Combine([Environment]::GetFolderPath('LocalApplicationData'),'OneStarMaker','Artifacts','deployments')}
+    $root=Get-EvidenceDeploymentRoot
     Assert-NoArtifactReparse $root
     if(-not [IO.Directory]::Exists($root)){return @()}
     foreach($path in [IO.Directory]::EnumerateFiles($root,'*.config.json')){try{$c=Read-EvidenceConfig $path;if($c.Data.repositoryId -ceq $RepositoryId){$path}}catch{throw 'unknown-deployment'}}

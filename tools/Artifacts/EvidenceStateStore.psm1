@@ -57,7 +57,7 @@ function Read-EvidenceTask($Config,[string]$TaskId,$Guard){
         if($a.state -cin @('ready','deleted','delete-pending')){
             if($null -eq $a.receipt){throw 'receipt-missing'}
             $expected=[IO.Path]::Combine((Get-EvidenceTaskDirectory $Config $TaskId),'receipts',$a.artifactId+'.json')
-            if($a.receipt.path -cne $expected){throw 'receipt-conflict'}
+            if((Resolve-EvidenceStoredPath $a.receipt.path) -cne $expected){throw 'receipt-conflict'}
             $receipt=Read-ArtifactJson $expected;Assert-EvidenceBudget
             if($receipt.Sha256 -cne $a.receipt.sha256 -or $receipt.Data.taskId -cne $TaskId -or $receipt.Data.repositoryId -cne $Config.Data.repositoryId -or $receipt.Data.deploymentId -cne $Config.Data.deploymentId -or $receipt.Data.artifactId -cne $a.artifactId -or $receipt.Data.key -cne $a.key -or $receipt.Data.base -cne $a.base -or $receipt.Data.head -cne $a.head -or $receipt.Data.packageSha256 -cne $a.packageSha256 -or $receipt.Data.manifestSha256 -cne $a.manifestSha256 -or $receipt.Data.packageBytes -ne $a.packageBytes){throw 'receipt-conflict'}
         }
