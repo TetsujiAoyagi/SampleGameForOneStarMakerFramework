@@ -34,6 +34,9 @@ Import-Module (Join-Path $PSScriptRoot 'ArtifactAcl.psm1')
 Import-Module (Join-Path $PSScriptRoot 'EvidencePaths.psm1')
 Import-Module (Join-Path $PSScriptRoot '../Workflow/TaskEventStore.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ArtifactCommands.psm1')
+# Scheduled jobs import domain adapters in separate module scopes. Cleanup owns
+# its config/task validation dependency rather than borrowing a CLI import.
+Import-Module (Join-Path $PSScriptRoot 'EvidenceContract.psm1')
 Import-Module (Join-Path $PSScriptRoot 'EvidenceRetentionPolicy.psm1')
 Import-Module (Join-Path $PSScriptRoot 'EvidenceStateStore.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ArtifactApplication.psm1')
