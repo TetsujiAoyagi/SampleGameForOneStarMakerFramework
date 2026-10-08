@@ -10,6 +10,16 @@ function Assert-ApprovedSpec([string]$Task, [object]$Spec) {
 }
 
 function Get-RequiredSteps([object]$Spec, [string[]]$ChangedPaths, [string]$Stage) {
+    if ($Spec.title -ceq 'ARTIFACT-EVIDENCE-LIFECYCLE') {
+        Assert-ApprovedSpecification 'artifact-evidence-lifecycle' $Spec
+        if ($Stage -cnotin @('discovery','judgment') -or $ChangedPaths.Count -eq 0) { throw 'stageまたは変更集合が不正です。' }
+        foreach ($path in $ChangedPaths) {
+            $path = $path.Replace('\', '/')
+            $allowed = @($Spec.scope | Where-Object { $path -clike $_ }).Count -gt 0
+            if (-not $allowed -or $path -cmatch '^tools/(Artifacts|Workflow)/(.*/)?(artifacts|bin|obj)/') { throw "Evidence taskで未承認の変更pathです: $path" }
+        }
+        return @($(if ($Stage -ceq 'discovery') { $Spec.discoverySteps } else { $Spec.judgmentSteps }))
+    }
     if ($Spec.testPolicy -ceq 'unity-pilot-gates-v1') { return @(Get-UnityRequiredSteps $Spec $ChangedPaths $Stage) }
     if ($Spec.testPolicy -cne 'local-gates-v1' -or $Spec.recordPolicy -cne 'external-current-v1') { throw 'H1適用済みの仕様ではありません。' }
     # 変更パスから必須 step を決める。未知のパス（Unity を含む）は、触った面だけの成功に見せず拒否する。
