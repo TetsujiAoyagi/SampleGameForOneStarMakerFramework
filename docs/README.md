@@ -46,7 +46,7 @@ H2cの旧 `h2c-unity-gate` と再開task `h2c-unity-gate-r2` は、それぞれ�
 | `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b / S-4c 完了。S-4d は VFX / Events の着手時に HANDOFF を切る |
 | `REVIEW_WORKFLOW_EFFICIENCY.md` | 外部モデルレビューの実測と、次のPhase Cで残す比較項目 | いいえ。普遍契約はSkillへharvest済み。残る実測後に削除する |
 | `REVIEW_WORKFLOW_EFFICIENCY_ASSESSMENT.md` | 上記への独立評価（Claude / Grok）と採否記録 | いいえ。次のPhase Cで残る仮説を検証後、調査記録ごと削除する |
-| `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` | 開発用Artifact Storageの保存・受け渡し・清掃と後続段 | r5 Phase A改訂。開発Buildは最新N件、r5対象Evidenceは終了後30日で清掃、リリースは別ストレージ/別policy。#106のreader offline可搬性と#107の保持方式・移行契約はPhase D完了。#107の本番適用は未承認/未実施。既存E1/E2の判断期限は2026-10-30 JST、保護措置はE1のserver下限2026-11-06 07:13:42.5023602 JSTより前に成立させる。保持は最低2026-11-06 08:17:25.6469389 JSTかつ以後も参照中で、期限は削除許可ではない。r5の通常利用・期限清掃のA3/実装/運用切替は後続。現行の利用制限は[Artifacts README](../tools/Artifacts/README.md)。実Build、Cloud、H2d/H3は後続 |
+| `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` | 開発用Artifact Storageの単一保存契約と一括切替 | r6 Phase A改訂。本番なし・旧証拠の継承不要を前提に、Buildは最新N件、Evidenceはtask終了後30日、一時物は短期清掃。#106のdummy fixture等は再利用し、#107の保護延長実適用は取りやめる。新CLI・終了イベント接続・清掃・一回の環境リセットは未実装/未実施。現在の機能と方針は[Artifacts README](../tools/Artifacts/README.md) |
 
 Streaming の M-1〜M-4 と S-4c は完了し、決定を公開面へ harvest して、移行計画と各着手時 HANDOFF を削除済み。テストアセンブリの分離も完了し、依存の向きは `unity/Assets/README.md` と `unity/Assets/Docs/Architecture/27-folder-structure.md` にある。完了済み HANDOFF は復活させない。
 

@@ -3,140 +3,119 @@
 ## 0. Metadata
 
 - type: `program`
-- status: r5 Phase A改訂。2026-10-08のowner指示に基づき、開発用Storageの保存方針と後続順序を見直す。PR #106のoffline可搬性とPR #107の保持方式・移行契約はPhase D完了。r5の個別実装スライスのA3凍結・実装・運用切替と、#107の本番適用は未実施。
-- program policy revision: `r5` — 開発Buildは件数、開発Evidenceは終了後30日で整理する。
+- status: r6 Phase A改訂。2026-10-08のowner指示により、本番なし・過去の開発証拠の継承不要を前提に保存契約を一括置換する。今回の変更は文書のみ。新CLI、終了イベント接続、清掃、環境リセットは未実装/未実施。
+- program policy revision: `r6` — 単一の開発用保存契約。旧データと互換性を引き継がない。
 - branch: `codex/artifact-storage-development-policy`
-- planning base commit: `a027bf04b4f5ce16494b93daf10e5b5bccf15a28` (`origin/develop`; PR #106・#107を含む)。初稿の旧base `c0f7d6e57ba1fb918863403f6b0077b4ea4c3509` から取り込み、現況と残件を更新した。
-- implementation head commit: not applicable; 今回は文書改訂のみ。
-- risk: `normal`（文書改訂）。削除機能・既存データ移行のリスクと検証は着手時HANDOFFで扱う。
+- planning base commit: `a027bf04b4f5ce16494b93daf10e5b5bccf15a28` (`origin/develop`; PR #106・#107を含む)
+- implementation head commit: not applicable; 文書改訂のみ。
+- risk: `normal`（文書改訂）。リセットと削除機能の対象・検証は実装スライスで具体化する。
 - owner: OSM maintainers
 - created: 2026-09-26
 - updated: 2026-10-08
-- expires: 2026-12-26 または置換revision
-- harvest to: 実装済みの操作・保存契約を `tools/Artifacts/README.md`、program状態を `docs/README.md` へ反映し、program完了時に削除する。
+- expires: 2026-12-26 または置換revision（program文書の見直し期限）
+- harvest to: 実装済みの通常操作を `tools/Artifacts/README.md`、program状態を `docs/README.md` へ反映し、program完了時に削除する。
 
-## 1. 目的と現在地
+## 1. 目的・要件変更・現在地
 
-開発中のBuild成果物とレビューEvidenceをGit外の非公開領域で手軽に受け渡し、不要になったものは自動で片付ける。日常の保存・取得・清掃に人間のファイル運搬や毎回の承認を要しないことを成果とする。長期監査保管やリリース配布の責任は持たせない。
+開発中の成果物を非公開で手軽に保存・受け渡しし、不要になったものは自動で片付ける。人間が毎回ファイルを運んだり、保存・清掃を個別承認したりせずに使えることを成果とする。
 
-主な利用者はローカルWindowsの同一ユーザーで動くAgent。既存R2を継続候補として、すでに成立した経路を使う。Cloud対応や複数provider対応は、ローカルの使いやすさを完成させる前提にしない。
+[ownerの要件変更](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/108#issuecomment-6049302344)と本チャットの修正指示を採用する。本番運用はなく、過去の開発用Artifact・試験設定はリセット可能。旧証拠の保存継続、旧参照/readerとの互換、PRごとの移行台帳を要求しない。物理的な試験物の不存在を確認した、という意味ではない。
 
-現在のCLI・許可範囲・実測の正本は [Artifacts README](../../tools/Artifacts/README.md)。以下は完了済みであり、再証明のために同じ鍵登録・rotation・成功送信を反復しない。
+この指示を根拠に、r5のlegacy分岐、旧最低保存義務と日程、参照中/参照不明の無期限保持、keyごとの削除承認を置き換える。**PR #107のE1/E2へのIndefinite追加、reader互換、新保護事実recordの実適用タスクは取りやめる。** 過去の方式確認の成果は否定せず、経緯はPR/Git履歴に残す。撤去する方式を一度完成させてから移行する工程は作らない。
 
-- ローカル資格情報管理（PR #76）: DPAPI CurrentUser、制限ACL、秘密非露出、登録・置換・削除。
-- Route proof（PR #81）: ローカルsynthetic往復とhash一致、署名無しGETの限定非露出、Bucket Lockの上書き・削除拒否。unsigned応答400の原因は未確定。
-- 最小Artifact CLI（PR #96）: synthetic publish、別session fetch、rotationと失効確認。
-- Evidence first use（PR #104）: 固定E1/E2を各1回送信し、独立ledger、別sessionのhash照合とログ・原画像閲覧。実装headは `896eaea8a912248333704c80549d46ecf20c02c6`。C/C′ GOとowner D closeを完了。
-- Evidence reader offline可搬性（[PR #106](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/106)）: 判定head `19720ed7c6065ffcc55ee2643f811462025a940d`。固定private E1に依存していたreader 2件を非秘密dummy fixtureへ置換し、本番selector拒否を追加。fresh Windows checkoutで7suite 120/120、3 build、限定不在probe 2/2、C/C′ GOとPhase Dを完了。同host sentinel・同GPT系列/runtime variant未実測の制約を受容した結果で、別host/Cloudの成立とは扱わない。
-- 保持保護の方式確認・移行契約（[PR #107](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/107)）: 判定head `d05277dc02d4cb159e1c4c0068fb947cff22e39b`。旧Age30日を残し、E1/E2各bundle key全文prefixへIndefinite ruleを追加する方式をsynthetic pilotで確認。同じ211file入力でC/C′ GO、Phase D完了。**本番E1/E2への適用、reader互換実装、実保護延長は未実施・未承認**。既存対象の期限と扱いは§2のlegacy契約に残す。
+現在の実装機能は [Artifacts README](../../tools/Artifacts/README.md) を正とする。従来CLIは固定E1/E2とsynthetic転送に限定され、新しい通常利用・期限清掃はまだ使えない。文書で契約を変更したことと、CLIやR2設定を切り替えたことを区別する。
 
-任意Evidence、実Build、別host/Cloud、件数保持、期限清掃は未対応。現実装は固定E1/E2、送信時点から30日のserver lock、Close後30日以上かつ参照中の保持、削除の個別承認を前提にしている。r5はこれから変更する方向を定めるもので、現CLIがすでに新方針に対応したとは扱わない。
+- 資格情報管理、Route proof、synthetic publish/fetch、固定E1/E2の別session取得・hash検証・ログ/画像閲覧はPR #76/#81/#96/#104で成立した。
+- PR #106のreader offline可搬性は完了。判定head `19720ed7c6065ffcc55ee2643f811462025a940d`、非秘密dummy fixture、7suite 120/120、3 build、限定不在probe 2/2。現在も役立つ部品・テストを再利用する。
+- PR #107の方式確認・移行契約はPhase D完了。判定head `d05277dc02d4cb159e1c4c0068fb947cff22e39b`。本番適用は未実施のまま取りやめる。試験用W/Lと2rule等は一回のリセットで整理する対象候補とする。
 
-旧r1〜r4の案・レビュー経緯はGit履歴へ集約する。この本文から切り出す新しいスライスには、以下のr5方針を適用する。完了したスライスの合格範囲や過去の証拠は書き換えない。
+主な利用者は同一Windowsユーザーで動くローカルAgent。既存R2・DPAPI・検証済みの転送部品を使い、Cloud、別provider、BuildSystem全体の刷新を先行条件にしない。
 
-## 2. 保存方針
+## 2. 単一の保存契約
 
 ### 開発Build
 
-- 保持する件数Nを設定し、新しいものからN件を残して超過分を古い順に自動削除する。最低保存日数やOwner Close待ちは設けない。
-- 件数を数える単位は、取り違えると困るBuild系列（project・target/platform・configuration）とする。branch別の枠を無制限に増やさない。具体的な識別項目とNはBuildスライスのA3で固定する。初稿の既定値案は系列ごとに10件で、owner決定済みの数字とは扱わない。
-- 件数対象はpublishが成功したBuild。失敗・未完了uploadやstagingは別の短期清掃対象とし、成功Buildの枠を消費しない。
-- 実行・検証中に必要なBuildは明示的な利用中保護で削除対象から除外する。保護対象もNに数え、削除可能な古いものから減らす。保護だけでNを超えた場合はその間の超過を表示し、勝手に利用中のものを消さない。
-- 最新成功Buildの同一性を確定してから件数清掃する。失敗publishによって既存の成功Buildを追い出さない。
+成功publishをBuild系列ごとに最新N件保持し、超過分は削除可能な古いものから清掃する。既定値案は10件。系列はproject・target/platform・configurationを出発点にBで固定し、branchごとに無制限の枠を作らない。
 
-### リリースBuild
-
-リリースしたBuildは別ストレージ・別ポリシーで管理する。開発Storageへ永久pinして代用しない。リリース先への明示的なコピーと検証は配布側が所有し、開発Storageの清掃でリリース保存先に触れない。配布先の製品選定や保持期間は本programの対象外。
+利用中のBuildは削除対象から除外し、N件には数える。保護だけでNを超える間は超過を表示して許容する。失敗/未完了publishは成功件数に含めず、失敗によって既存の成功Buildを追い出さない。最低保存日数やowner Close待ちは設けない。リリースの保存・配布は必要になった時の別責務とし、今回作らない。
 
 ### 開発Evidence
 
-以下の期限清掃はr5の新規対象と、ownerがr5への移行を明示した対象に適用する。未切替のE1/E2、locked witness、PR #107の原raw・受取copy・W/L・試験2ruleには、後述のlegacy契約と現行READMEの保持・操作禁止を適用する。
+- 作業中は保持する。workflowがtaskの完了/打切りを一度記録し、同じ終了イベントからStorageへ`taskEndedAt`、`endReason = completed | cancelled`、`deleteEligibleAt = taskEndedAt + 30日`を登録する。Evidence専用のowner Close承認は作らない。
+- workflowがtask終了の意味を所有し、Storageは終了日時・削除可能日時・利用中保護だけを扱う。Phase D等の品質判断を変えず、Storageにそのイベント形式やレビューの合否を再判定させない。C/C′が揃っただけ、Agentの終了、失敗、timeout、一時停止をtask終了と推測しない。
+- Harnessの現行`close` / `closed.json`は実行記録の確定であり、そのままtask終了へ読み替えない。新Storageのコピーはこの単一契約で管理し、Harnessの原sourceの清掃はHarness側が所有する。Harnessの`retainUntil`をStorageコピーの第二の保持時計にしない。同じ実体を双方が管理する接続はDで所有者を一方へ寄せる。
+- 終了イベントの反映失敗は再実行でき、同じイベントの再適用で起算日を更新しない。再開時は削除資格を取り消し、再終了から30日を数え直す。再開と終了の版・順序を区別し、古い終了イベントの再送で再開を打ち消さない。
+- 期限に達したら利用中でない対象を通常清掃する。古いPRリンク、inspect、GETだけでは延長しない。調査等で必要なものだけ明示的に利用中保護し、解除条件または期限を見えるようにする。
+- 未終了Evidenceをupload後の日数だけで強制削除しない。終了記録の取りこぼしは接続と再実行で直し、本当に継続/打切りが未決のtaskはinspectに表示する。新しいlease、heartbeat、定期的なowner再承認制度を足さない。
+- 恒久的な設計判断・制約・検証要約は通常の公開文書へ残す。生ログ・画像・bundle・派生copy・witnessに長期監査保存を課さない。削除後の参照は期限切れと分かればよく、payloadの復元は保証しない。
 
-- 作業中は保持する。作業の完了または打切りをCloseとし、`expiresAt = closedAt + 30日` で自動削除対象にする。30日は終了直後の差し戻し・調査のための猶予であり、最低保存義務の後に無期限保持を積む契約にはしない。
-- 通常完了の`closedAt`は、`Write-EvidenceCloseRecord`が消費するownerのPhase D close eventの`closedAt`に限る。実装完了、Agent/chatの終了、C/C′のGOだけではCloseにしない。C/C′およびPhase D前のレビュー中は利用中として保持し、30日の時計を開始しない。
-- 打切りの`closedAt`はownerが当該taskを終了する明示的な中止判断の時刻とする。中止をPhase D GOと記録せず、失敗・timeout・一時停止やHarnessのoutcomeから作らない。このownerの完了/中止イベントをtask単位で記録し、ArtifactごとのOwner署名・追加のClose承認を要求しない。イベントの保存形式と接続APIはスライスAで固定する。
-- Harnessの`close` / `closed.json`は別の終端記録であり、そのコマンド時刻の`closedAt`をEvidenceの起点へ流用しない。Harnessの参照期限を含む`retainUntil`と、H3が所有する証拠削除の判断は維持する。スライスAの期限清掃でHarness管理の証拠を先に削除したり、その保持契約を置き換えたりしない。接続の変更はスライスD/H3で扱う。
-- 過去PR、HANDOFF、台帳にリンクが残っているだけでは保存を延長しない。GitHubや全ドキュメントを走査して「どこからも参照されていない」と証明する仕組みは作らない。
-- 再開した作業や必要な調査だけを明示的な利用中保護/延長の対象にする。理由・対象・解除条件または期限を持ち、`inspect`で見えるようにする。Close未設定のまま放置されたtaskも一覧で見つけられるようにし、推測で終了扱いにはしない。
-- 恒久的に残すのは設計判断、既知の制約、検証の要約。r5対象の生ログ・画像・bundle・受信copy・snapshot・witnessを永続保存する必要はない。この扱いは未切替のlegacy対象には適用しない。自ツール所有の派生copyと失敗残骸も対象の保持契約に従って期限清掃し、利用者が選んだ原sourceを巻き添えで消さない。
-- 削除後の古い参照は「期限切れ」と分かればよい。小さなID・hash・削除日時の記録で区別し、payloadの復元や再取得を保証しない。台帳の詳細schemaは清掃スライスで決める。
+### 未完了uploadとstaging
 
-### 通常操作と保護の強さ
+初期値案は7日。ツール所有の一時物で、転送中でなく、レビュー入力へ採用されていないものだけを短期清掃する。失敗ログをEvidenceに採用した場合は通常のEvidence契約へ載せる。利用者の原source、資格情報store、他の作業領域は対象外。
 
-- 種別、対象領域、件数/期限、利用中保護を設定した後は、その範囲内のpublish/fetch/清掃を通常の事前承認で運用する。削除1件ごとのowner確認や候補一覧を毎回承認させる運用を完成形にしない。
-- 作業中の同一性は固有key、期待hash、利用中保護、清掃対象の限定で守る。上書きで同じ参照の内容を変えず、更新は新しいkeyにする。
-- 開発Build/EvidenceにWORM、長期server lock、Close後lock延長、無期限参照追跡を共通必須条件として課さない。必要な用途だけ別policyで選べる。r5の標準経路は通常writerや同一Windowsユーザーに対する物理的な改ざん防止を保証しない。
-- 非公開保存、秘密非露出、hash検証、安全な展開、利用中の誤削除防止は維持する。新しいbucket/権限、公開配布、設定範囲外の削除は通常清掃と区別する。実行環境の承認要求は迂回しない。
-- 現行E1/E2のlock・保存記録・事前承認は、この文書編集だけでは変更しない。初回移行で対象と影響を固定して現行README/CLIと揃え、その後の定型清掃を包括承認で回せるようにする。
+### 日常操作
 
-### 既存E1/E2に限定するlegacy契約
+通常publishは明示した非秘密file集合をsnapshotし、送信・読戻し検証・必要な記録を内部で完了して、参照と信頼できる期待hashを返す一操作とする。利用者による独立台帳確定、毎runの設定撮影、保護witnessの破壊試験は要求しない。fetchは別に渡された期待hashで同一性と安全な展開を検証する。
 
-r5はPR #107の実適用計画を退役させず、**既存E1/E2に限る後続「保持保護の実適用・reader互換」**として維持する。新しい開発Storageの共通条件へIndefiniteを戻す意味ではない。新方針へ移行したとownerが判断するまでは、既存対象の保存義務・操作禁止と、原Evidence/locked witness、#107の原raw・受取copy・W/L・試験2ruleを保持し、自動削除・解除を行わない。r5の期限だけで既存対象を削除可能と扱わない。
+設定した開発領域・契約内の保存/取得/清掃は通常の事前承認で回す。WORM、長期server lock、旧証拠の継続取得、二重policyを共通条件にしない。通常writerにbucket管理権限は与えず、削除拒否をrule解除で自動突破しない。
 
-判断ownerはOSM maintainer/storage owner、判断期限は**2026-10-30 JST**。必要な保護措置はE1の現在のserver下限 **2026-11-06 07:13:42.5023602 JSTより前**に成立させる。旧保存義務の正本はPR #104のappend-only retention recordで、最低 **2026-11-06 08:17:25.6469389 JST**かつ以後も参照中保持する。実適用rawを2026-11-04 18:00 JST、C/C′/owner受容を2026-11-05 18:00 JSTとする既存の提案日程を残す。これらを最大24hのconfig観察期限と混同しない。
+## 3. 一回の開発環境リセット
 
-実適用は[Artifacts README](../../tools/Artifacts/README.md)の契約に従う別Phase A/owner承認の対象で、reader互換を先に成立させ、旧Age30日を維持した正確な2対象への追加とする。同policy identityの再観察・新config・新取得案内だけなら既存経路を使い、再実装しない。ownerが既存対象もr5へ移す場合は、判断期限までに対象・旧義務の置換・適用方式の退役を明示し、READMEと保持記録へ接続する。それまでは本節の期限付き対応事項を取り消したと扱わない。
+切替は **対象確認 → 旧利用停止 → 旧生成物と不要な試験設定の整理 → 新契約で開始** の一回にまとめる。旧payloadを移行・救済せず、旧hash橋渡し台帳や旧close復元を作らない。旧schema/参照は新CLIで明確に非対応を返し、自動変換や旧readerの継続利用を保証しない。
 
-## 3. 次に進めるスライス
+対象確認は誤操作防止のために行う。この開発Storageの旧objectとツール所有の生成物・試験ruleに限定し、E1/E2、locked witness、過去のraw/受取copy、#107のW/Lと試験2ruleも区別なく整理対象へ含められる。資格情報store、利用者の原source、Harness原source、無関係なbucket/ruleや他作業領域は除外する。PR別の保存期限や保全審査は設けない。
 
-### A. 保存期限と清掃を実用化する（次の着手候補）
+実行担当は実在するkey/path/ruleと解除可否、他対象への影響を確かめ、対象を列挙してから操作する。bucket全消去や全rule collectionの無条件置換はしない。旧利用停止後の部分失敗は結果を残して対象限定で再実行し、旧経路への自動復帰や二重運用は作らない。設定整理に必要な管理操作はこの一回の担当が行い、日常清掃とは分離する。
 
-**問い:** 開発Evidenceを必要な間は取得でき、終了後30日で人手を挟まず片付けられるか。
+今回の文書改訂ではリセットを実行しない。旧保存義務がなくなったことを、現rule解除済み・物理データ不存在・任意領域を削除可能という主張に置き換えない。具体的なコマンドと対象はスライスAで準備する。
 
-**進める最低条件:**
+## 4. 次に進めるスライス
 
-1. 固定E1/E2専用の制約を、指定したtask・非秘密の明示file集合に適用できるEvidence経路へ置き換える。通常利用のために毎回コードへhash/file名を埋め込んだり、file集合ごとに別の設計審査を要求しない。入力選択・盲検性の責務はEvidence workflowに残す。
-2. §2のowner close event/明示中止によるCloseと30日期限、再開/延長、利用中保護、`inspect`と実際に削除できる清掃経路を接続する。レビュー中は期限を開始せず、Harnessの`closed.json`は起点にしない。Harnessの`retainUntil`とH3の削除判断も変更しない。CLIからの清掃と自動起動は同じpolicy判定を使う。候補表示だけで完了にしない。
-3. 期限前、利用中、対象領域外、判定情報不足では削除しない。期限到来した対象は履歴リンクがあっても清掃できる。削除直前の状態再確認と利用開始/Close/延長との競合処理を持ち、部分失敗は再実行できる結果にする。
-4. cleanupが扱うremote keyとローカル派生物を所有情報から限定する。未完了upload/stagingの猶予と中断判定も有限値で決め、継続中の転送や原sourceは消さない。正確な値と実行間隔はこのスライスのA3で固定する。
-5. 既存lockと新しい清掃の関係をsyntheticで確認する。旧E1/E2とlocked witnessは§2のlegacy契約を維持する。移行する場合は対象を列挙し、実際のlock満了・旧close記録・新期限を照合する。既存の保護を一括解除せず、新policy経路とlegacy読取を必要最小限で分ける。移行されていない既存objectを新規定の推測で削除しない。
-6. 実装済み契約と事前承認をArtifacts READMEへ反映する。旧保持・個別承認と新しい期限清掃の併存を解消するのは、ownerがr5への移行を明示した対象に限る。未切替のE1/E2、locked witness、PR #107の原raw・受取copy・W/L・試験2ruleについては、置換をREADMEと保持記録へ接続するまで現行の保持・操作禁止の文を残す。新規r5対象の契約追加を理由に、legacy対象の「参照中保持」「参照状態unknownでも保持」「期限は削除許可ではない」「清掃は正確なkeyへのowner明示承認」を消さない。
+### A. Evidenceの通常利用と期限清掃
 
-**検証経路:** PR #106で完了したdummy fixtureと回帰を再利用し、offlineで境界時刻・再開/延長・利用中競合・不明情報・領域逸脱・部分失敗/再実行を確認する。時刻を注入し、実時間の30日待ちを要求しない。実R2では隔離したsynthetic taskをCLIで保存・取得・Close・清掃し、取得結果と対象外objectの保持を確認する。期限到来の実機確認方法はA3で固定し、実Evidenceを破壊試験に使わない。既存の秘密非露出・転送・安全な展開の回帰を含める。Unityを変更しないこのスライスの判定はArtifacts/Harnessの関連offline suiteと限定R2検証で行い、Unity EditMode全回帰は適用外とする。
+**問い:** 任意の明示した非秘密file集合を保存し、別sessionで取得・hash照合・ログ/画像閲覧でき、作業中は残り、終了後は自動で片付くか。
 
-**ここでは答えない問い:** 大容量Buildと件数管理の接続はB、別host/CloudはC、Build実行orchestrationはD。server lock延長や監査用WORMの設計を最低条件へ加えない。
+**最低条件:**
 
-**停止規則:** 上の期限管理・通常清掃が成立したら閉じる。全ての古い残骸の移行、GUI、常駐broker、別providerを完成条件にしない。残るlegacy対象には所有者と扱いを残す。
+1. 固定E1/E2の入力定数を通常のtask/file集合契約へ置換する。publishを内部検証・記録・参照/hash返却まで一操作にし、別sessionで取得・必要な内容を閲覧できる。旧形式対応は作らず非対応を明示する。
+2. workflowの終了/再開イベントとStorageの期限を自動接続する。終了の意味と発行元をA3で固定し、Evidence独自の承認やHarness closeの推測接続をしない。イベント再適用は同じ結果になり、再開後は再終了まで削除資格を持たない。
+3. inspectと実際に動く清掃、自動起動を同じpolicy判定へ接続する。30日の境界、利用開始/再開と削除の競合、対象外・転送中の非削除、部分失敗の再実行を扱う。利用中保護の状態を判定できなければその対象は削除せず理由を表示する。終了未決taskを年齢だけで消さない。
+4. §3の対象限定リセットと、旧経路・schema・不要な互換説明の置換を一回の切替手順にする。原sourceの保護、現ruleの実態確認、設定整理と日常清掃の権限分離を満たす。古い証拠の保存継続を完成条件にしない。
+5. Artifacts READMEを実際の新CLIの操作・状態に合わせる。旧保存義務やlegacy分岐を復活させず、切替時に旧経路の説明を除く。新しく設定した範囲内の通常清掃にkeyごとの承認を求めない。
 
-### B. 開発Buildの保存・件数管理
+**検証:** 保存→別session取得/hash・ログ/画像閲覧、30日境界、終了イベントの再適用、再開後への古いイベント到着、利用開始/再開と削除の競合、対象外の非削除、部分失敗の再実行、秘密非露出、安全な展開。時刻注入、#106のdummy fixture、隔離した使い捨てデータを使う。実R2の限定往復/清掃は運用経路の確認として行い、旧E1/E2継続取得や30日実待機を要求しない。自動清掃の起動・再実行が人の反復操作なしで成立する経路もA3で具体化する。
 
-**問い:** 既存Build出力を保存・取得でき、利用中を保護しつつ系列ごとにN件へ整理できるか。
+判定は関連Artifacts/Harness offline suiteと限定R2検証。Unityを変更しないため全EditMode回帰は適用外。細かなschema/API、file配置、清掃間隔、7日の初期値、リセット対象/操作は着手時A3に固定する。実装時に必要な終了イベント接続だけを扱い、Harness全体の改造へ膨らませない。
 
-普通のpathとmetadataを受ける入口から、成功publish、別process fetch/hash、N超過の古い順削除、失敗publish時の既存保持、利用中Buildの削除対象からの除外（Nには数える）、保護対象だけでN超過した場合の保持と表示、リリース保存先の非干渉を確認する。N・系列識別・容量上限・未完了物の猶予をA3で固定する。初回は既存Build出力を入力にし、BuildSystem全体の作り直しを前提にしない。multipartは対象サイズで必要になった場合に実装する。
+**停止規則:** 上記の通常利用・期限清掃と一回の切替が成立したら閉じる。Build、Cloud、GUI、常駐broker、別provider、長期保護・互換維持を追加条件にしない。
 
-### C. 別host / Cloudでの受け渡し
+### B. 開発Buildの保存と件数管理
 
-必要になった環境から個別に、接続・限定grant・保存/取得・ログ/画像閲覧を確認する。利用者へ鍵やURLを毎回運ばせる方法は無人対応として合格にしない。Cloudの失敗は当該環境の未対応として残し、ローカル利用を止めない。platform固有の秘密供給とnetwork仕様は着手時に再確認する。ローカル親鍵をCloudの通常fileやpromptへ複写しない。
+既存Build出力を普通のpath/metadataとして受け、成功publish、別process fetch/hash、最新N件と利用中の保持、失敗publish時の既存保持を確認する。Nの既定値案10件、系列識別、容量上限をBのA3で固定する。大容量に必要なmultipartは対象サイズに応じて扱い、BuildSystemの作り直しを前提にしない。
+
+### C. 別host / Cloud
+
+必要な環境から個別に、到達性、限定grant、無人保存/取得、ログ/画像閲覧を確認する。未成立は当該環境の未対応として残し、ローカル利用を止めない。親鍵を通常file/promptへ複写せず、platform仕様は着手時に再確認する。
 
 ### D. BuildSystem / Harness接続
 
-外部CLIを主入口に、Unityを交換可能なbackendとして既存build routeへ接続する。進捗・取消し・結果を扱い、H2d/H3やCURRENT連携は各taskのPhase Aで切り出す。Storageの保存・取得・清掃をUnity GUIやEditor installationに依存させない。Unityテスト/Buildは既存Phase責任に従い、既知native終了stallの調査は再開しない。
+外部CLIを主入口にUnityを交換可能なbackendとして接続する。H2d/H3・CURRENT連携、同じ実体の所有権整理は必要になった範囲で行う。Storage単独の利用をUnity GUIやEditorに依存させない。Unityテスト/BuildのPhase責任と既知native終了stallの調査停止規則を維持する。
 
-各スライスは着手時に責務配置、公開API、具体的なfile変更、発見用/判定必須テストを自己完結したHANDOFFへ固定する。H1適用とCURRENT方式は各A3で明示する。program改訂だけで実装やlive削除を開始したことにはしない。
+各スライスは担当・責務配置・変更file・発見用/判定必須テストをHANDOFFへ固定する。H1/CURRENT方式は各A3で明示する。ここはprogramであり、実装スライスのA3済みとは扱わない。
 
-## 4. 維持する責務と必要な安全条件
+## 5. 責務・残す安全性・採否
 
-- **Evidence / Buildの呼出し側:** 入力fileとtask/Build系列、base/head、作業の開始・終了を所有する。C/C′の固定されたfindings-free入力と所見分離は既存workflowに従う。Storage側でレビューの中身や合否を再審査しない。
-- **Artifact application / CLI:** 梱包・保存・取得の進行、機械可読の結果、種別ごとの保持判定、利用中保護と清掃を所有する。policyは時刻・metadataを入力にしたoffline testで確認できる形にし、通信やUnityを必須にしない。転送とGit/PR更新は別責務だが、通常利用で独立した人間の台帳確定を必須にしない。
-- **R2 adapter:** 認証通信、objectの読書き・削除、実際のlock拒否等を扱う。R2 SDK型やbucket policyを上位のBuild/Evidenceへ漏らさない。第二providerやregistryは必要になるまで作らない。
-- **Credentials:** 既存DPAPI/ACLとbucket限定鍵を利用し、値をprompt、引数、環境変数、ログ、Gitへ出さない。同一Windowsユーザー内の信頼を前提とし、悪意ある同ユーザーからの隔離を追加要件にしない。
-- **包装と取得:** 明示した入力root/file集合を用い、無関係なrepo・profile・資格情報領域を収集しない。照合したsnapshotから送信し、信頼済みの別経路の期待hashで取得bytesを確認する。path逸脱、reparse、衝突、展開量超過を拒否して新規private領域へ展開する。現在の有限上限を出発点に、Build用上限はBで決める。取得やinspectだけでscript/binaryを実行しない。
-- **非公開とGit:** `osm-artifacts`は非公開の開発領域として使い、公開development URL（r2.dev）とcustom domainを有効にしない。prefix分離は公開/非公開の境界ではない。payload・資格情報・署名URLをGitへ置かず、小さな参照/hash/必要な要約だけ残す。stagingはcheckout・同期領域外を既定とする。OneDrive mirror、Unity Library転送、公開配布は含めない。
+- **workflow:** task終了/再開の意味とイベント、明示入力、レビューの固定入力/所見分離を所有する。
+- **Artifact application:** 梱包、publish/fetch結果、Storageコピーの単一保存policy、利用中保護、清掃を所有する。時刻/状態を注入してofflineで検証可能にし、レビューの合否を再判定しない。
+- **R2 adapter:** 認証通信とobject I/Oを扱い、SDK型やbucket設定を上位へ漏らさない。別provider/registryを先回りして作らない。
+- **Credentials:** 既存DPAPI/ACL・bucket限定鍵を再利用する。鍵・署名URL・認証headerをprompt、引数、ログ、Git、同期領域へ漏らさない。同一Windowsユーザー内の信頼を前提にする。
+- **入力と取得:** 明示file集合、照合したsnapshot、固有key、信頼した期待hash、新規private展開先、path/reparse/衝突と有限の展開量制限を維持する。fetch/inspectだけで取得物を実行しない。
+- **非公開:** `osm-artifacts`の公開development URL（r2.dev）/custom domainは有効にしない。prefix分離を公開境界と扱わず、payloadをGitへ置かない。
 
-秘密非露出はdummy sentinelと異常系で、転送はhashと結果で、清掃は対象/時刻/状態で確認する。毎runの設定画像、独立署名台帳、synthetic破壊試験一式を将来の通常操作へ一律継承しない。既存first-useの検証記録と、日常運用の必要条件を分ける。
+**採用:** ownerの単一契約・一括置換を採用し、legacy節、#107実適用、旧最低保存日/判断日程、旧reader互換、PR別の継承台帳を廃止する。task終了イベント、再開/再適用、7日の一時物清掃案、原sourceとの所有分離を新しい目的に必要な条件として残す。Build10件と一時物7日は初期値案で、実装スライスで設定を固定する。
 
-## 5. 残件と改訂の扱い
+**採用しないもの:** 未終了Evidenceの年齢による強制削除、lease/heartbeat/定期owner承認、無条件bucket全消去、削除拒否時の自動rule解除。気軽な開発用途でも、利用中・原source・無関係な領域を壊す理由にはしない。
 
-残件ownerはOSM maintainers、期限は本programの期限または置換revision。
+**残件:** A〜Dのみを実装キューとする。旧probe/試験rule/生成物の整理はAの一回のリセットへまとめる。公開synthetic Release `artifact-probe-20260926` は別サービスのため必要時の個別後始末とし、Storage清掃にGitHub Releases操作を足さない。旧レビューの任意テスト強化や操作性候補は関連コードを直す際に必要性を評価し、全件を次の必須条件にしない。
 
-- 既存のRoute proof object 2件は未清掃として引き継ぐ: `probe/locked/62bd4f1ab6b24a9d93026108ee5dae5c/object.txt`（旧清掃可能時刻2026-09-30 01:53:32 JST）、`probe/locked/b1b6dc2e6516486b94b95825d7fa7475/object.txt`（同05:37:47 JST）。Aのlegacy整理で現況確認し、この文書改訂では削除しない。
-- 公開synthetic Release `artifact-probe-20260926` の清掃は未完了。実験終了と対象確認後の別操作とし、開発Storageの自動清掃からGitHub Releasesを操作しない。
-- PR #106のoffline可搬性は完了済み。追加レビューのreader/probe強化（`selectorInvoked`の実観測、entrySet/base/headとE2全hashの直接assertion、有効な他入力によるselector negative切分け）は、関連変更時に必要性を評価する後続入力として保持する。一般エラー文言と重複publishの扱いも関連入口の操作性改善とし、任意の改善を全てAのblockerにはしない。
-- Cloudは未対応。過去のCursorによる公開GitHub asset取得成功とCodexのCONNECT 403は、現在のprivate R2接続を証明しない。
-- 資格情報CLIの対話操作、ACL不整合時の復旧、ロック取得後の失敗処理は関連変更時の入力として残す。完了済みの資格情報スライスを再開する理由にはしない。
-
-**今回の採否:** ownerの「開発Buildは件数」「リリースは別ストレージ/別policy」「Evidenceは終了後30日で十分」を設計入力として採用する。r4からの変更は、無期限の参照保持、最低保存義務の延長、実payload全般へのserver lock必須、定型削除の都度承認を後続の共通条件から外すこと。非公開・秘密保護・整合性・安全な展開・作業中の保持は維持する。Nの具体値やlive移行方法をowner承認済みと捏造しない。
-
-**Phase Aレビュー（2026-10-08）:** Codex主担当と新規sessionの独立A2（同一継承モデル・同系列、モデル多様性は未充足）が要求適合、責務/寿命/依存/テスト境界、現行運用との切替、誤削除条件を確認し、program改訂のblockerなし。A2の指摘「Bの問いがN件に利用中分を加算するようにも読める」を採用し、§2と同じ件数解釈へ表現を統一した。追加の必須条件は増やしていない。r5の詳細A3と各実装スライスのA3は未実施。
-
-**PR #108の差し戻し対応:** 最新developの未取得による#106完了記録と#107期限付き対応事項の欠落を認め、両PRを取り込んだ。#106のdummy fixture化は最低条件/残件から除外し、#107の実適用は既存E1/E2に限定して維持する採否と期限を明示した。CloseをownerのPhase D完了または明示中止の時刻に固定し、レビュー中は起算しない。Buildの利用中保護は削除対象からの除外であって件数からの除外ではないと統一し、非公開URL/domain境界も復元した。旧A2の「blockerなし」は初稿に対する結果で、取り込み後の現況確認を代替しない。
+**レビュー:** r5までのレビューは旧前提への結果としてPR履歴に残す。r6は今回の要件変更に対するPhase A改訂で、旧レビューの合格を新しい方針の合格へ読み替えない。3文書の独立A2は、終了イベントの所有、単一保持契約、リセット対象、未実装との区別を確認しblockerなし（同一継承モデル・同系列の制約あり、C′ではない）。実装・実データ操作は今回の対象外。
