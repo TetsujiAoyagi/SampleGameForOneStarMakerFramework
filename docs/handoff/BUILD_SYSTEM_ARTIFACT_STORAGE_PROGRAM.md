@@ -3,7 +3,7 @@
 ## 0. Metadata
 
 - type: `program`
-- status: r6 Phase A改訂。2026-10-08のowner指示により、本番なし・過去の開発証拠の継承不要を前提に保存契約を一括置換する。今回の変更は文書のみ。新CLI、終了イベント接続、清掃、環境リセットは未実装/未実施。
+- status: r6方針改訂は2026-10-08にownerのPhase D承認で完了。programは進行中で、次はスライスAのPhase A。本番なし・過去の開発証拠の継承不要を前提に保存契約を一括置換する。新CLI、終了イベント接続、清掃、環境リセットは未実装/未実施。個別実装スライスのA3は別途行う。
 - program policy revision: `r6` — 単一の開発用保存契約。旧データと互換性を引き継がない。
 - branch: `codex/artifact-storage-development-policy`
 - planning base commit: `a027bf04b4f5ce16494b93daf10e5b5bccf15a28` (`origin/develop`; PR #106・#107を含む)
@@ -119,3 +119,5 @@
 **残件:** A〜Dのみを実装キューとする。旧probe/試験rule/生成物の整理はAの一回のリセットへまとめる。公開synthetic Release `artifact-probe-20260926` は別サービスのため必要時の個別後始末とし、Storage清掃にGitHub Releases操作を足さない。旧レビューの任意テスト強化や操作性候補は関連コードを直す際に必要性を評価し、全件を次の必須条件にしない。
 
 **レビュー:** r5までのレビューは旧前提への結果としてPR履歴に残す。r6は今回の要件変更に対するPhase A改訂で、旧レビューの合格を新しい方針の合格へ読み替えない。3文書の独立A2は、終了イベントの所有、単一保持契約、リセット対象、未実装との区別を確認しblockerなし（同一継承モデル・同系列の制約あり、C′ではない）。実装・実データ操作は今回の対象外。
+
+**文書改訂のPhase D:** ownerは2026-10-08にPR #108のPhase D完了・後始末・マージを指示した。最終方針head `f53c7216980a8dc27b69fd3a917429cb786060c2` の追加レビューは指摘2件解消・blockerなし、docs/contract/diff検査は問題なし。これを実装のC/C′ GOやリセット実行承認とは扱わない。保存方針と開始条件はArtifacts READMEとAGENTSへ反映済み。進行中programのため本書はowner・見直し期限・harvest先付きで保持し、次スライスへの入力とする。
