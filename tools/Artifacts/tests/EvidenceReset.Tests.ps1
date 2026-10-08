@@ -5,17 +5,23 @@ $ErrorActionPreference='Stop'
 $module=Import-Module (Join-Path $PSScriptRoot '../EvidenceReset.psm1') -Force -PassThru
 $root=[IO.Path]::Combine([IO.Path]::GetTempPath(),'osm-reset-'+[Guid]::NewGuid().ToString('N'))
 $cases=@('strict-manifest','manifest-hash','foreign-key','foreign-identity','rule-tuple','owner-receipt-hash','owner-id-substitution','owner-tuple-substitution','owner-unknown-impact','owner-multiple-correspondence','source-excluded','in-use-excluded','root-path-excluded','nested-exclusion','reparse-path','local-changed','dry-run-network-zero','partial-idempotent-retry','crash-after-remote','secret-exception-output','cutover-missing','schema-type','duplicate-json-property','etag-only-reset','etag-mismatch','etag-missing','hash-identity-alternative','etag-observation-boundary')
+$cases+=@('fresh-get-unique-destinations','get-existing-destination-rejected','post-delete-get-success-cleanup')
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 function Assert([bool]$Value,[string]$Message){if(-not $Value){throw $Message}}
 function Reject([scriptblock]$Action){$rejected=$false;try{&$Action|Out-Null}catch{$rejected=$true};Assert $rejected 'expected rejection'}
 function Json([string]$Path,$Value){[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($Path))|Out-Null;[IO.File]::WriteAllText($Path,(ConvertTo-Json -Depth 30 -InputObject $Value),[Text.UTF8Encoding]::new($false));return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()}
-$script:objects=@{};$script:calls=[Collections.Generic.List[string]]::new();$script:failKey='';$script:secretFault=$false;$script:etagMode='match'
+$script:objects=@{};$script:calls=[Collections.Generic.List[string]]::new();$script:requests=[Collections.Generic.List[object]]::new();$script:failKey='';$script:secretFault=$false;$script:etagMode='match';$script:keepAfterDelete=''
 $network={
     param($request)
     $script:calls.Add($request.Operation+':'+$request.Key)
+    $destinationExists=[bool]($request.Operation -ceq 'get' -and [IO.File]::Exists($request.DestinationPath))
+    $script:requests.Add([pscustomobject]@{operation=$request.Operation;key=$request.Key;destination=$request.DestinationPath;destinationExists=$destinationExists})
+    # Production validates its CreateNew download destination before making an
+    # HTTP request. Even a missing object cannot turn an occupied path into 404.
+    if($destinationExists){return @{Operation='get';HttpStatus=$null;StatusClass='invalid-input';S3Code=$null;StatusObserved=$false;TimedOut=$false;Redirected=$false;Bytes=$null;Sha256=$null}}
     if($script:secretFault){throw 'DUMMY_SECRET_VALUE'}
     if($request.Key -ceq $script:failKey){return @{Operation=$request.Operation;HttpStatus=403;StatusClass='forbidden';S3Code='AccessDenied';StatusObserved=$true;TimedOut=$false;Redirected=$false;Bytes=$null;Sha256=$null}}
-    if($request.Operation -eq 'delete'){$script:objects.Remove($request.Key);return @{Operation='delete';HttpStatus=204;StatusClass='success';S3Code=$null;StatusObserved=$true;TimedOut=$false;Redirected=$false;Bytes=$null;Sha256=$null}}
+    if($request.Operation -eq 'delete'){if($request.Key -cne $script:keepAfterDelete){$script:objects.Remove($request.Key)};return @{Operation='delete';HttpStatus=204;StatusClass='success';S3Code=$null;StatusObserved=$true;TimedOut=$false;Redirected=$false;Bytes=$null;Sha256=$null}}
     if(-not $script:objects.ContainsKey($request.Key)){return @{Operation='get';HttpStatus=404;StatusClass='not-found';S3Code='NoSuchKey';StatusObserved=$true;TimedOut=$false;Redirected=$false;Bytes=$null;Sha256=$null}}
     $bytes=$script:objects[$request.Key];[IO.File]::WriteAllBytes($request.DestinationPath,$bytes)
     return @{Operation='get';HttpStatus=200;StatusClass='success';S3Code=$null;StatusObserved=$true;TimedOut=$false;Redirected=$false;Bytes=$bytes.Length;ETag=$(if($script:etagMode -ceq 'missing'){$null}elseif($script:etagMode -ceq 'mismatch'){'f'*32}else{'a'*32});Sha256=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()}
@@ -26,7 +32,7 @@ function Fixture([string]$Case){
     & $module {param($r,$t)$script:TestRoot=$r;$script:TransportHook=$t;$script:FaultHook=$null} $artifact $network
     $bytes=[Text.Encoding]::UTF8.GetBytes('non-secret-reset-fixture');$hash=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
     $keys=@(& $module {Get-ResetKnownKeys})
-    $script:objects=@{};$script:calls.Clear();$script:failKey='';$script:secretFault=$false;$script:etagMode='match'
+    $script:objects=@{};$script:calls.Clear();$script:requests.Clear();$script:failKey='';$script:secretFault=$false;$script:etagMode='match';$script:keepAfterDelete=''
     $objects=@();foreach($key in $keys){$script:objects[$key]=$bytes;$objects+=@(@{key=$key;expectedBytes=$bytes.Length;expectedHash=$hash;etag=$null;observedExists=$true;relatedRuleIds=@()})}
     $rules=@();$verifications=@()
     foreach($id in @('continuity-w','continuity-l','first-use-age30d','probe-age1d')){
@@ -54,6 +60,28 @@ try{
         try{
             $fixture=Fixture $case
             switch($case){
+                'get-existing-destination-rejected'{
+                    $key=$fixture.manifest.objects[0].key;$script:objects.Remove($key);$destination=[IO.Path]::Combine($fixture.work,'occupied.readback');[IO.File]::WriteAllText($destination,'keep')
+                    $observation=& $network @{Operation='get';Key=$key;DestinationPath=$destination}
+                    Assert ($observation.StatusClass -ceq 'invalid-input' -and -not $observation.StatusObserved -and [IO.File]::ReadAllText($destination) -ceq 'keep') 'occupied GET destination was treated as remote absence'
+                }
+                {$_ -cin @('fresh-get-unique-destinations','post-delete-get-success-cleanup')}{
+                    $f=Freeze $fixture
+                    if($case -ceq 'post-delete-get-success-cleanup'){$script:keepAfterDelete=$fixture.manifest.objects[0].key}
+                    $result=Run $f;$receipt=ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($result.receiptPath)) -AsHashtable
+                    foreach($object in $fixture.manifest.objects){
+                        $gets=@($script:requests|Where-Object {$_.operation -ceq 'get' -and $_.key -ceq $object.key})
+                        Assert ($gets.Count -eq 2 -and $gets[0].destination -cne $gets[1].destination -and -not $gets[0].destinationExists -and -not $gets[1].destinationExists) 'verification GET reused its occupied initial destination'
+                        foreach($get in $gets){Assert (-not [IO.File]::Exists($get.destination)) 'tool-owned reset temporary download survived finally'}
+                    }
+                    $remote=@($receipt.items|Where-Object kind -CEQ remote)
+                    if($case -ceq 'fresh-get-unique-destinations'){
+                        Assert ($result.status -ceq 'passed' -and $result.deleted -eq 7 -and $result.blocked -eq 0 -and $remote.Count -eq 6 -and @($remote|Where-Object {-not $_.confirmedGet404 -or $_.status -cne 'deleted'}).Count -eq 0) 'DELETE was not followed by confirmed fresh GET 404'
+                    }else{
+                        Assert ($result.status -ceq 'pending' -and $result.blocked -eq 1 -and $script:objects.Count -eq 1 -and @($remote|Where-Object {$_.target -ceq $script:keepAfterDelete -and $_.status -ceq 'pending' -and -not $_.confirmedGet404}).Count -eq 1) 'post-delete GET success was accepted as absence'
+                    }
+                    if($ResultPath){Json ($ResultPath+'.'+$case+'.json') @{status=$result.status;deleted=$result.deleted;blocked=$result.blocked;requests=@($script:requests);remoteReceipt=$remote}|Out-Null}
+                }
                 'strict-manifest'{$f=Freeze $fixture;Assert ((Run $f).status -eq 'passed') 'reset failed'}
                 'hash-identity-alternative'{
                     foreach($object in $fixture.manifest.objects){$object.etag='a'*32};$script:etagMode='missing'
@@ -133,5 +161,5 @@ try{
     if($failed.Count -or $executed.Count -ne $cases.Count){exit 1}
 }finally{
     & $module {$script:TestRoot=$null;$script:TransportHook=$null;$script:FaultHook=$null}
-    if([IO.Directory]::Exists($root)){[IO.Directory]::Delete($root,$true)}
+    if([IO.Directory]::Exists($root)){Assert ([IO.Path]::GetFullPath($root).StartsWith([IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')+'\osm-reset-',[StringComparison]::OrdinalIgnoreCase)) 'cleanup escaped Temp reset fixture';[IO.Directory]::Delete($root,$true)}
 }

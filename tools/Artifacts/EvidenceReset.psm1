@@ -190,6 +190,10 @@ function Invoke-EvidenceReset([string]$ManifestPath,[string]$ManifestSha256,[str
                 if($remote){
                     if($watch.Elapsed.TotalSeconds -ge 600){throw 'reset-budget-exhausted'}
                     $download=[IO.Path]::Combine($directory,$operationId+'.readback')
+                    # GET requires an unoccupied CreateNew destination before HTTP.
+                    # Retain the identity download while giving the absence probe
+                    # its own tool-owned path, so local bytes cannot hide GET 404.
+                    $confirmation=[IO.Path]::Combine($directory,$operationId+'.absence')
                     try{
                         $deadline=[Math]::Min(120000,600000-[int]$watch.ElapsedMilliseconds)
                         $observation=Invoke-ResetTransport $Profile $manifest 'get' $item.key $download $deadline
@@ -206,10 +210,10 @@ function Invoke-EvidenceReset([string]$ManifestPath,[string]$ManifestSha256,[str
                             $delete=Invoke-ResetTransport $Profile $manifest 'delete' $item.key '' ([Math]::Min(120000,600000-[int]$watch.ElapsedMilliseconds))
                             if(-not (Test-ResetSuccess $delete 'delete')){throw 'reset-delete-unresolved'}
                             if($script:FaultHook){& $script:FaultHook 'after-remote-delete'}
-                            $observation=Invoke-ResetTransport $Profile $manifest 'get' $item.key $download ([Math]::Min(120000,600000-[int]$watch.ElapsedMilliseconds))
+                            $observation=Invoke-ResetTransport $Profile $manifest 'get' $item.key $confirmation ([Math]::Min(120000,600000-[int]$watch.ElapsedMilliseconds))
                             if(-not (Test-ResetMissing $observation)){throw 'reset-delete-unresolved'}
                         }
-                    }finally{if([IO.File]::Exists($download)){Assert-NoArtifactReparse $download;[IO.File]::Delete($download)}}
+                    }finally{foreach($temporary in @($download,$confirmation)){if([IO.File]::Exists($temporary)){Assert-NoArtifactReparse $temporary;[IO.File]::Delete($temporary)}}}
                 }else{
                     Assert-ResetLocalUnchanged $item
                     if($script:FaultHook){& $script:FaultHook 'before-local-delete'}
