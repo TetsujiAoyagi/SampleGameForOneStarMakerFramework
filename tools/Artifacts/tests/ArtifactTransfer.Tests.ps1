@@ -17,7 +17,7 @@ function Get-LoadedArtifactBinaries {
 }
 . (Join-Path $PSScriptRoot 'EvidenceTestSupport.ps1')
 . (Join-Path $PSScriptRoot 'EvidenceReaderFixture.ps1')
-$cases=@('transport-config','credential-callback-dto','publish-fetch-roundtrip','wrong-outer-hash','network-write-refusal','readback-closed-mismatch','readback-child-protocol','observation-persistence-fail-closed','readback-stop-budget','strict-config-and-reference','source-traversal-network-zero','legacy-config-reference-commit-network-zero','download-bytes-mismatch','readback-prelaunch-deadline','readback-start-false','readback-start-throw','readback-started-before-pid','readback-late-output-owned-cleanup')
+$cases=@('transport-config','credential-callback-dto','publish-fetch-roundtrip','wrong-outer-hash','network-write-refusal','readback-closed-mismatch','readback-child-protocol','observation-persistence-fail-closed','readback-stop-budget','strict-config-and-reference','source-traversal-network-zero','legacy-config-reference-commit-network-zero','download-bytes-mismatch','readback-prelaunch-deadline','readback-start-false','readback-start-throw','readback-started-before-pid','readback-late-output-owned-cleanup','operation-logical-native-parent','operation-logical-unsafe-acl')
 $selected=@(if($Case -ceq '*'){$cases}else{$Case.Split(',')})
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new();$script:transportIdentity=$null
 function Assert([bool]$Condition,[string]$Message){Assert-EvidenceTest $Condition $Message}
@@ -37,6 +37,43 @@ foreach($case in $selected){
         $app=Get-EvidenceTestModules 'ArtifactApplication'|Select-Object -First 1
         $store=Get-EvidenceTestModules 'CredentialStore'|Select-Object -First 1
         switch($case){
+            {$_ -cin @('operation-logical-native-parent','operation-logical-unsafe-acl')} {
+                # Inject native metadata only: the logical transfer alias and
+                # native shared parent deliberately have different parents.
+                $logical=[IO.Path]::Combine($env.Root,'logical','transfers');$shared=[IO.Path]::GetDirectoryName($logical)
+                $physical=[IO.Path]::Combine($env.Root,'native-package','transfers');$physicalParent=[IO.Path]::GetDirectoryName($physical)
+                $normalShared=[IO.Path]::Combine($env.Root,'native-normal')
+                foreach($directory in @($logical,$physical,$normalShared)){[IO.Directory]::CreateDirectory($directory)|Out-Null}
+                Set-ArtifactAcl $logical $true;Set-ArtifactAcl $physical $true
+                $outside=[IO.Path]::Combine($normalShared,'outside-marker');[IO.File]::WriteAllText($outside,'keep')
+                $sharedAcl=[IO.FileSystemAclExtensions]::GetAccessControl([IO.DirectoryInfo]::new($shared)).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::All)
+                $normalAcl=[IO.FileSystemAclExtensions]::GetAccessControl([IO.DirectoryInfo]::new($normalShared)).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::All)
+                $physicalIdentity=[OneStarMaker.Workflow.NativeStorePath]::Read($physical)
+                $sharedIdentity=[OneStarMaker.Workflow.NativeStorePath]::Read($normalShared)
+                Assert ([IO.Path]::GetRelativePath($sharedIdentity.physicalPath,$physicalIdentity.physicalPath).StartsWith('..\')) 'fixture did not separate native parents'
+                if($case -ceq 'operation-logical-unsafe-acl'){
+                    $acl=[IO.FileSystemAclExtensions]::GetAccessControl([IO.DirectoryInfo]::new($logical));$acl.SetAccessRuleProtection($false,$true);[IO.FileSystemAclExtensions]::SetAccessControl([IO.DirectoryInfo]::new($logical),$acl)
+                }
+                $before=@([IO.Directory]::EnumerateFileSystemEntries($env.Root,'*',[IO.SearchOption]::AllDirectories))
+                $requests=[Collections.Generic.List[string]]::new()
+                $metadata={param($path)$requests.Add($path);if($path -ieq $logical){return $physicalIdentity};if($path -ieq $physicalParent){return $sharedIdentity};return [OneStarMaker.Workflow.NativeStorePath]::Read($path)}.GetNewClosure()
+                Set-EvidenceTestValue ArtifactPaths TestRoot $logical;Set-EvidenceTestValue WindowsStorePaths IdentityHook $metadata
+                $operation=$null;$rejected=$false
+                try{$operation=& $app {New-ArtifactOperation}}catch{$rejected=$true}
+                if($case -ceq 'operation-logical-native-parent'){
+                    Assert (-not $rejected -and $operation.StartsWith($physicalIdentity.physicalPath+'\',[StringComparison]::OrdinalIgnoreCase)) 'logical walk did not create a physical operation'
+                    Assert-ArtifactAcl $operation $true;Assert-ArtifactAcl ([IO.Path]::Combine($operation,'operation.lock')) $false
+                }else{
+                    Assert ($rejected -and -not [IO.Directory]::EnumerateFileSystemEntries($physical).GetEnumerator().MoveNext()) 'unsafe logical root was accepted'
+                    Assert (-not [IO.FileSystemAclExtensions]::GetAccessControl([IO.DirectoryInfo]::new($logical)).AreAccessRulesProtected) 'unsafe logical ACL repaired'
+                }
+                $added=@([IO.Directory]::EnumerateFileSystemEntries($env.Root,'*',[IO.SearchOption]::AllDirectories)|Where-Object {$_ -cnotin $before})
+                foreach($entry in $added){Assert ($entry.StartsWith($physicalIdentity.physicalPath+'\',[StringComparison]::OrdinalIgnoreCase)) 'initialization wrote outside physical operation root'}
+                Assert (-not $requests.Contains($physicalParent) -and -not @($requests|Where-Object {$_ -match '(^|[\\/])\.\.([\\/]|$)'}).Count) 'initialization mixed native parents or traversed dotdot'
+                Assert ([IO.File]::ReadAllText($outside) -ceq 'keep' -and (Get-NetworkCount $env) -eq 0) 'operation initialization touched outside/network'
+                Assert ([IO.FileSystemAclExtensions]::GetAccessControl([IO.DirectoryInfo]::new($shared)).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::All) -ceq $sharedAcl -and [IO.FileSystemAclExtensions]::GetAccessControl([IO.DirectoryInfo]::new($normalShared)).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::All) -ceq $normalAcl) 'existing shared parent ACL changed'
+                if($ResultPath){Write-EvidenceTestJson ($ResultPath+'.'+$case+'.json') ([ordered]@{metadataRequests=@($requests);createdPaths=$added;rejected=$rejected;operationPath=$operation;networkCount=Get-NetworkCount $env})}
+            }
                 'transport-config' {
                     $dll=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../Transport/artifacts/transport/R2ArtifactTransport.dll'))
                     Assert ([IO.File]::Exists($dll)) 'dedicated R2 transport DLL missing'
@@ -267,6 +304,7 @@ exit 1
     }catch{$failed.Add($case+': '+$_.Exception.GetType().Name+': '+$_.Exception.Message)}
     finally{
         $executed.Add($case)
+        Set-EvidenceTestValue WindowsStorePaths IdentityHook $null
         Set-EvidenceTestValue 'ArtifactApplication' 'TransportHook' $null;Set-EvidenceTestValue 'ArtifactApplication' 'ReadbackHook' $null;Set-EvidenceTestValue 'EvidencePaths' 'WriteHook' $null
         if($env){$target=[IO.Path]::GetFullPath($env.Root);$temp=[IO.Path]::GetFullPath([IO.Path]::GetTempPath());if(-not $target.StartsWith($temp,[StringComparison]::OrdinalIgnoreCase) -or [IO.Path]::GetFileName($target) -cnotmatch '\Aosm-evidence-v2-[0-9a-f]{32}\z'){throw 'unsafe fixture cleanup path'};if([IO.Directory]::Exists($target)){[IO.Directory]::Delete($target,$true)}}
     }

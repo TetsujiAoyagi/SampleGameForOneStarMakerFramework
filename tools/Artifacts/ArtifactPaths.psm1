@@ -55,17 +55,23 @@ function New-ArtifactOperation {
     $root = Get-ArtifactRoot
     if(-not [AppDomain]::CurrentDomain.GetData('OneStarMaker.Evidence.StorageBinding.v1')){
         $local = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
-        $shared = if ($script:TestRoot) { [IO.Path]::GetDirectoryName($root) }
+        $logicalRoot = if ($script:TestRoot) { [IO.Path]::GetFullPath($script:TestRoot) }
+            else { [IO.Path]::Combine($local, 'OneStarMaker', 'Artifacts', 'transfers') }
+        $shared = if ($script:TestRoot) { [IO.Path]::GetDirectoryName($logicalRoot) }
             else { [IO.Path]::Combine($local, 'OneStarMaker') }
+        # KnownFolder aliases can resolve individual children under different
+        # native parents. Walk only the logical ownership scope before resolving
+        # the completed transfers root; mixing namespaces can introduce '..'.
+        $relative=[IO.Path]::GetRelativePath($shared,$logicalRoot)
+        if(-not (Test-ArtifactWithin $logicalRoot $shared) -or [IO.Path]::IsPathFullyQualified($relative) -or $relative -match '(^|[\\/])\.\.?([\\/]|$)'){throw 'Artifact path unavailable.'}
+        Assert-NoArtifactReparse $shared
         if (-not [IO.Directory]::Exists($shared)) {
             [IO.Directory]::CreateDirectory($shared) | Out-Null
             Set-ArtifactAcl $shared $true
         }
-        if([IO.Directory]::Exists($root)){$shared=(Get-WindowsStorePathIdentity $shared).physicalPath}
-        Assert-NoArtifactReparse $shared
         # The shared OneStarMaker parent may serve other features; its existing ACL is left untouched.
         $current = $shared
-        foreach ($part in [IO.Path]::GetRelativePath($shared, $root).Split('\', [StringSplitOptions]::RemoveEmptyEntries)) {
+        foreach ($part in $relative.Split('\', [StringSplitOptions]::RemoveEmptyEntries)) {
             $current = [IO.Path]::Combine($current, $part)
             Assert-NoArtifactReparse $current
             if (-not [IO.Directory]::Exists($current)) {
