@@ -34,6 +34,7 @@ Import-Module (Join-Path $PSScriptRoot 'ArtifactAcl.psm1')
 Import-Module (Join-Path $PSScriptRoot '../Workflow/TaskEventStore.psm1')
 $script:TestRoot=$null
 $script:SchedulerHook=$null
+$script:TaskServiceHook=$null
 $script:SourceHook=$null
 $script:SyncHook=$null
 $script:CleanupHook=$null
@@ -105,6 +106,23 @@ function Assert-EvidenceRuntime([string]$Runtime,[string]$ExpectedManifestHash='
     if($config.Data.repositoryId -cne $manifest.repositoryId -or $config.Data.deploymentId -cne $manifest.deploymentId -or $config.Hash -cne $manifest.configSha256){throw 'runtime-config-mismatch'}
     return $manifest
 }
+# TaskPath registration does not create its parent folder. Only the exact dedicated
+# folder's missing HRESULT permits creation; permissions and unknown errors stop.
+# Existing folder security and unrelated tasks are never rewritten.
+function Initialize-EvidenceSchedulerFolder {
+    $service=$null;$root=$null;$folder=$null
+    try{
+        $service=if($script:TaskServiceHook){& $script:TaskServiceHook}else{New-Object -ComObject 'Schedule.Service'}
+        $service.Connect()
+        try{$folder=$service.GetFolder('\OneStarMaker')}
+        catch{
+            if($_.Exception.GetBaseException().HResult -ne -2147024894){throw}
+            $root=$service.GetFolder('\');$folder=$root.CreateFolder('OneStarMaker',$null)
+        }
+    }finally{
+        foreach($owned in @($folder,$root,$service)){if($owned -and [Runtime.InteropServices.Marshal]::IsComObject($owned)){$null=[Runtime.InteropServices.Marshal]::ReleaseComObject($owned)}}
+    }
+}
 function Invoke-EvidenceScheduler([string]$Action,$Identity){
     if($script:SchedulerHook){return & $script:SchedulerHook $Action $Identity}
     $existing=Get-ScheduledTask -TaskName $Identity.name -TaskPath '\OneStarMaker\' -ErrorAction SilentlyContinue
@@ -117,11 +135,13 @@ function Invoke-EvidenceScheduler([string]$Action,$Identity){
         if($existing.Actions.Count -ne 1 -or $existing.Actions[0].Execute -cne $Identity.execute -or $existing.Actions[0].Arguments -cne $Identity.arguments -or $existing.Principal.UserId -cne $Identity.ownerSid -or [string]$existing.Principal.LogonType -cnotin @('Interactive','InteractiveToken') -or [string]$existing.Principal.RunLevel -cne 'Limited'){throw 'scheduler-identity-mismatch'}
         return @{installed=$true;unchanged=$true}
     }
-    $action=New-ScheduledTaskAction -Execute $Identity.execute -Argument $Identity.arguments -WorkingDirectory $Identity.runtime
+    Initialize-EvidenceSchedulerFolder
+    # Variable names ignore case; assigning $action would coerce CIM into typed $Action.
+    $scheduledAction=New-ScheduledTaskAction -Execute $Identity.execute -Argument $Identity.arguments -WorkingDirectory $Identity.runtime
     $principal=New-ScheduledTaskPrincipal -UserId $Identity.ownerSid -LogonType Interactive -RunLevel Limited
     $triggers=@((New-ScheduledTaskTrigger -Daily -At '03:00'),(New-ScheduledTaskTrigger -AtLogOn -User $Identity.ownerSid))
     $settings=New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit ([TimeSpan]::FromMinutes(10))
-    Register-ScheduledTask -TaskName $Identity.name -TaskPath '\OneStarMaker\' -Action $action -Principal $principal -Trigger $triggers -Settings $settings -Description ('OSM Evidence runtime '+$Identity.manifestSha256) | Out-Null
+    Register-ScheduledTask -TaskName $Identity.name -TaskPath '\OneStarMaker\' -Action $scheduledAction -Principal $principal -Trigger $triggers -Settings $settings -Description ('OSM Evidence runtime '+$Identity.manifestSha256) | Out-Null
     return @{installed=$true;unchanged=$false}
 }
 function Get-EvidenceScheduleIdentity([string]$Runtime,$Manifest){

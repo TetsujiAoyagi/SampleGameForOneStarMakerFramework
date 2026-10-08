@@ -5,8 +5,8 @@ $module=Import-Module (Join-Path $PSScriptRoot '../EvidenceSchedule.psm1') -Forc
 $contract=$module.NestedModules | Where-Object Name -eq 'EvidenceContract' | Select-Object -Last 1
 $store=$module.NestedModules | Where-Object Name -eq 'TaskEventStore' | Select-Object -Last 1
 $root=[IO.Path]::Combine([IO.Path]::GetTempPath(),'osm-schedule-'+[Guid]::NewGuid().ToString('N'))
-$cases=@('scheduler-runtime-missing','runtime-hash-mismatch','runtime-config-mismatch','runtime-three-deps','scheduler-wrong-identity','scheduler-fixed-action','scheduler-duplicate','scheduler-fair-cursors','scheduler-sync-budget-cleanup-reserved','scheduler-next-logon-catchup','scheduler-reparse','scheduler-stage-global-budget','scheduler-stage-counter-budget','scheduler-cleanup-partial-status','scheduler-phase-deadlines','scheduler-age-clock-independent')
-$selected=if($Case -ceq '*'){$cases}else{@($Case.Split(','))}
+$cases=@('scheduler-runtime-missing','runtime-hash-mismatch','runtime-config-mismatch','runtime-three-deps','scheduler-wrong-identity','scheduler-fixed-action','scheduler-duplicate','scheduler-fair-cursors','scheduler-sync-budget-cleanup-reserved','scheduler-next-logon-catchup','scheduler-reparse','scheduler-stage-global-budget','scheduler-stage-counter-budget','scheduler-cleanup-partial-status','scheduler-phase-deadlines','scheduler-age-clock-independent','scheduler-folder-missing','scheduler-folder-existing','scheduler-folder-denied','scheduler-folder-unknown','scheduler-adapter-identity-rejected','scheduler-action-cim-instance')
+$selected=@(if($Case -ceq '*'){$cases}else{$Case.Split(',')})
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 function Assert([bool]$Value,[string]$Message){if(-not $Value){throw $Message}}
 function Reject([scriptblock]$Action){$rejected=$false;try{&$Action|Out-Null}catch{$rejected=$true};Assert $rejected 'expected rejection'}
@@ -47,6 +47,52 @@ function Fixture([string]$Case){
     $script:installed=$null;$script:installs=0;$script:wrong=$false;$script:sync.Clear();$script:cleanup.Clear();$script:time=[DateTimeOffset]::Parse('2026-01-01T00:00:00+00:00');$script:syncConsumesBudget=$false;$script:elapsed=0L
     return @{config=$config;work=$work;source=$source;repo=$repo;inputs=$inputs}
 }
+# Exercise the production OS adapter through command boundaries. Every OS entry
+# is replaced in the module scope. One case creates only a real action CimInstance;
+# folder operations and registration remain stubs.
+function Invoke-OfflineSchedulerAdapter([string]$Mode,$RealAction=$null){
+    $state=[pscustomobject]@{Mode=$Mode;Exists=($Mode -cin @('existing','typed-action'));ExpectedAction=$RealAction;ReceivedAction=$null;Calls=[Collections.Generic.List[string]]::new();FolderAcl='keep-acl';OtherTask='keep-task';Failed=$false;Registered=0}
+    $rootFolder=[pscustomobject]@{State=$state}
+    $rootFolder|Add-Member ScriptMethod CreateFolder {param($name,$security)$this.State.Calls.Add('create:'+ $name);if($name -cne 'OneStarMaker' -or $null -ne $security){throw 'wrong folder creation scope'};$this.State.Exists=$true;return [pscustomobject]@{Path='\OneStarMaker'}}
+    $service=[pscustomobject]@{State=$state;Root=$rootFolder}
+    $service|Add-Member ScriptMethod Connect {$this.State.Calls.Add('connect')}
+    $service|Add-Member ScriptMethod GetFolder {param($path)
+        $this.State.Calls.Add('get:'+ $path)
+        if($path -ceq '\'){return $this.Root}
+        if($path -cne '\OneStarMaker'){throw 'unexpected task folder'}
+        if($this.State.Mode -ceq 'denied'){throw [UnauthorizedAccessException]::new('fixture denied')}
+        if($this.State.Mode -ceq 'unknown'){throw [Runtime.InteropServices.COMException]::new('fixture unknown',-2147467259)}
+        if(-not $this.State.Exists){throw [IO.FileNotFoundException]::new('fixture missing')}
+        return [pscustomobject]@{Path='\OneStarMaker'}
+    }
+    $prior=& $module {$script:SchedulerHook}
+    try{
+        & $module {param($s,$v)
+            $script:SchedulerHook=$null;$script:AdapterState=$s;$script:TaskServiceHook={$v}.GetNewClosure()
+            function script:Get-ScheduledTask {param($TaskName,$TaskPath,$ErrorAction)
+                $script:AdapterState.Calls.Add('query:'+ $TaskPath)
+                if($script:AdapterState.Mode -ceq 'identity-rejected'){return [pscustomobject]@{Actions=@([pscustomobject]@{Execute='foreign.exe';Arguments='foreign'});Principal=[pscustomobject]@{UserId='foreign';LogonType='Interactive';RunLevel='Limited'}}}
+            }
+            function script:New-ScheduledTaskAction {param($Execute,$Argument,$WorkingDirectory)if($null -ne $script:AdapterState.ExpectedAction){return $script:AdapterState.ExpectedAction};@{Execute=$Execute;Argument=$Argument;WorkingDirectory=$WorkingDirectory}}
+            function script:New-ScheduledTaskPrincipal {param($UserId,$LogonType,$RunLevel)@{UserId=$UserId;LogonType=$LogonType;RunLevel=$RunLevel}}
+            function script:New-ScheduledTaskTrigger {param([switch]$Daily,$At,[switch]$AtLogOn,$User)@{daily=$Daily;at=$At;atLogOn=$AtLogOn;user=$User}}
+            function script:New-ScheduledTaskSettingsSet {param([switch]$StartWhenAvailable,$MultipleInstances,$ExecutionTimeLimit)@{start=$StartWhenAvailable;multiple=$MultipleInstances;limit=$ExecutionTimeLimit}}
+            function script:Register-ScheduledTask {param($TaskName,$TaskPath,$Action,$Principal,$Trigger,$Settings,$Description)
+                if(-not $script:AdapterState.Exists -or $TaskPath -cne '\OneStarMaker\' -or $TaskName -cne 'OSM-Evidence-Cleanup-aaaaaaaaaaaa' -or $Principal.LogonType -cne 'Interactive' -or $Principal.RunLevel -cne 'Limited' -or $Settings.limit -ne [TimeSpan]::FromMinutes(10)){throw 'wrong registration boundary'}
+                if($null -ne $script:AdapterState.ExpectedAction){
+                    if($Action -isnot [Microsoft.Management.Infrastructure.CimInstance] -or -not [object]::ReferenceEquals($Action,$script:AdapterState.ExpectedAction)){throw 'scheduler action converted or copied'}
+                    $script:AdapterState.ReceivedAction=$Action
+                }
+                $script:AdapterState.Calls.Add('register:'+ $TaskPath);$script:AdapterState.Registered++
+            }
+        } $state $service
+        $identity=@{name='OSM-Evidence-Cleanup-aaaaaaaaaaaa';execute='fixture-pwsh.exe';arguments='fixture';runtime='fixture-runtime';ownerSid='fixture-owner';manifestSha256='a'*64}
+        try{& $module {param($i)Invoke-EvidenceScheduler install $i} $identity|Out-Null}catch{$state.Failed=$true}
+    }finally{
+        & $module {param($p)$script:SchedulerHook=$p;$script:TaskServiceHook=$null;$script:AdapterState=$null;foreach($name in @('Get-ScheduledTask','New-ScheduledTaskAction','New-ScheduledTaskPrincipal','New-ScheduledTaskTrigger','New-ScheduledTaskSettingsSet','Register-ScheduledTask')){Remove-Item ('Function:script:'+ $name) -ErrorAction SilentlyContinue}} $prior
+    }
+    return $state
+}
 function AddTasks($Fixture,[int]$Count){
     for($i=0;$i -lt $Count;$i++){
         $id='task-'+$i.ToString('D3')
@@ -59,6 +105,27 @@ try{
         try{
             Assert ($case -cin $cases) 'unknown case';$fixture=Fixture $case
             switch($case){
+                {$_ -cin @('scheduler-folder-missing','scheduler-folder-existing','scheduler-folder-denied','scheduler-folder-unknown','scheduler-adapter-identity-rejected')}{
+                    $mode=switch($case){'scheduler-folder-missing'{'missing'};'scheduler-folder-existing'{'existing'};'scheduler-folder-denied'{'denied'};'scheduler-folder-unknown'{'unknown'};default{'identity-rejected'}}
+                    $adapter=Invoke-OfflineSchedulerAdapter $mode;$created=@($adapter.Calls|Where-Object {$_ -clike 'create:*'})
+                    Assert ($adapter.FolderAcl -ceq 'keep-acl' -and $adapter.OtherTask -ceq 'keep-task') 'changed existing folder security or other task'
+                    if($mode -ceq 'missing'){
+                        Assert (-not $adapter.Failed -and $adapter.Registered -eq 1 -and $created.Count -eq 1 -and $created[0] -ceq 'create:OneStarMaker') 'missing exact folder was not created before registration'
+                        Assert (($adapter.Calls -join '|') -ceq 'query:\OneStarMaker\|connect|get:\OneStarMaker|get:\|create:OneStarMaker|register:\OneStarMaker\') 'folder creation or registration order changed'
+                    }elseif($mode -ceq 'existing'){Assert (-not $adapter.Failed -and $adapter.Registered -eq 1 -and $created.Count -eq 0 -and @($adapter.Calls|Where-Object {$_ -ceq 'get:\'}).Count -eq 0) 'rewrote existing folder'}
+                    else{Assert ($adapter.Failed -and $adapter.Registered -eq 0 -and $created.Count -eq 0) 'registered after denied/unknown/identity failure';if($mode -ceq 'identity-rejected'){Assert (@($adapter.Calls|Where-Object {$_ -ceq 'connect'}).Count -eq 0) 'created folder before rejecting existing task identity'}}
+                }
+                'scheduler-action-cim-instance'{
+                    # New-ScheduledTaskAction creates only an in-memory CIM value.
+                    # Actual folder and Register-ScheduledTask APIs are never called.
+                    $value=ScheduledTasks\New-ScheduledTaskAction -Execute 'fixture-pwsh.exe' -Argument 'fixture' -WorkingDirectory 'C:\fixture-runtime'
+                    try{
+                        Assert ($value -is [Microsoft.Management.Infrastructure.CimInstance] -and $value.CimClass.CimClassName -ceq 'MSFT_TaskExecAction') 'real task action CIM fixture unavailable'
+                        $adapter=Invoke-OfflineSchedulerAdapter typed-action $value
+                        Assert (-not $adapter.Failed -and $adapter.Registered -eq 1 -and $adapter.ReceivedAction -is [Microsoft.Management.Infrastructure.CimInstance] -and [object]::ReferenceEquals($value,$adapter.ReceivedAction)) 'action CIM type or instance changed before registration'
+                        Assert ($adapter.FolderAcl -ceq 'keep-acl' -and $adapter.OtherTask -ceq 'keep-task' -and @($adapter.Calls|Where-Object {$_ -clike 'create:*'}).Count -eq 0) 'typed action changed existing folder or task'
+                    }finally{$value.Dispose()}
+                }
                 'scheduler-runtime-missing'{[IO.File]::Delete([IO.Path]::Combine($fixture.source,$fixture.inputs.files[-1]));Reject {Invoke-EvidenceScheduleInstall $fixture.config};Assert ($script:installs -eq 0) 'registered incomplete runtime'}
                 'runtime-hash-mismatch'{
                     $installation=Invoke-EvidenceScheduleInstall $fixture.config;$file=[IO.Path]::Combine($installation.runtime,'tools/workflow-task.ps1');[IO.File]::WriteAllText($file,'changed')
