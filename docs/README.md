@@ -46,7 +46,7 @@ H2cの旧 `h2c-unity-gate` と再開task `h2c-unity-gate-r2` は、それぞれ�
 | `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b / S-4c 完了。S-4d は VFX / Events の着手時に HANDOFF を切る |
 | `REVIEW_WORKFLOW_EFFICIENCY.md` | 外部モデルレビューの実測と、次のPhase Cで残す比較項目 | いいえ。普遍契約はSkillへharvest済み。残る実測後に削除する |
 | `REVIEW_WORKFLOW_EFFICIENCY_ASSESSMENT.md` | 上記への独立評価（Claude / Grok）と採否記録 | いいえ。次のPhase Cで残る仮説を検証後、調査記録ごと削除する |
-| `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` | Artifact Storageの保存先・責務・セキュリティ境界と後続段 | program r4の順序・保護境界はA3凍結済み。Route proof、最小Artifact CLI、固定E1/E2のEvidence first use、Evidence readerのofflineテスト可搬性はPhase D完了。現在の利用・検証範囲は[Artifacts README](../tools/Artifacts/README.md)。同一Windowsユーザーの保護送信・独立ledger・別session取得/閲覧を確認。任意Evidence、実Build、Cloud、保持延長、H2d/H3とR2の全面採用は後続 |
+| `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` | 開発用Artifact Storageの単一保存契約と一括切替 | r6方針改訂はPR #108でownerのPhase D承認済み。programは進行中、次はスライスAのPhase A。本番なし・旧証拠継承不要、Buildは最新N件、Evidenceはtask終了後30日、一時物は短期清掃。#106を再利用し#107の保護延長実適用は取りやめる。新CLI・終了イベント接続・清掃・リセットは未実装/未実施。現在の機能と方針は[Artifacts README](../tools/Artifacts/README.md) |
 
 Streaming の M-1〜M-4 と S-4c は完了し、決定を公開面へ harvest して、移行計画と各着手時 HANDOFF を削除済み。テストアセンブリの分離も完了し、依存の向きは `unity/Assets/README.md` と `unity/Assets/Docs/Architecture/27-folder-structure.md` にある。完了済み HANDOFF は復活させない。
 
