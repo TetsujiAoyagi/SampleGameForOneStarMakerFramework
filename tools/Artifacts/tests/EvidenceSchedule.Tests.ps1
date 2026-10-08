@@ -8,6 +8,7 @@ $root=[IO.Path]::Combine([IO.Path]::GetTempPath(),'osm-schedule-'+[Guid]::NewGui
 $cases=@('scheduler-runtime-missing','runtime-hash-mismatch','runtime-config-mismatch','runtime-three-deps','scheduler-wrong-identity','scheduler-fixed-action','scheduler-duplicate','scheduler-fair-cursors','scheduler-sync-budget-cleanup-reserved','scheduler-next-logon-catchup','scheduler-reparse','scheduler-stage-global-budget','scheduler-stage-counter-budget','scheduler-cleanup-partial-status','scheduler-phase-deadlines','scheduler-age-clock-independent','scheduler-folder-missing','scheduler-folder-existing','scheduler-folder-denied','scheduler-folder-unknown','scheduler-adapter-identity-rejected','scheduler-action-cim-instance')
 $cases+=@('runtime-binding-five-roles','runtime-binding-root-missing','runtime-binding-fileid-mismatch','runtime-binding-sid-mismatch','runtime-binding-acl-mismatch','runtime-binding-reparse','runtime-schema-one-rejected','runtime-context-force-import','runtime-context-switch-rejected','runtime-credential-missing','runtime-bound-guard-missing','runtime-binding-alias-physical')
 $cases+=@('runtime-fresh-process-binding','runtime-fresh-process-fail-before-adapters')
+$cases+=@('native-long-path-identity')
 $selected=@(if($Case -ceq '*'){$cases}else{$Case.Split(',')})
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 function Assert([bool]$Value,[string]$Message){if(-not $Value){throw $Message}}
@@ -113,6 +114,26 @@ try{
         try{
             Assert ($case -cin $cases) 'unknown case';$fixture=Fixture $case
             switch($case){
+                'native-long-path-identity'{
+                    $native=$module.NestedModules | Where-Object Name -eq 'WindowsStorePaths' | Select-Object -Last 1
+                    Assert ($null -eq (& $native {$script:IdentityHook})) 'native case used metadata injection'
+                    $read={param($p)& $native {param($path)Get-WindowsStorePathIdentity $path} $p}.GetNewClosure()
+                    $same={param($p,$i)& $native {param($path,$identity)Assert-WindowsStorePathIdentity $path $identity} $p $i}.GetNewClosure()
+                    $short=& $read $fixture.work
+                    $shortAgain=& $read $short.physicalPath
+                    Assert ($short.volumeSerial -ceq $shortAgain.volumeSerial -and $short.fileId -ceq $shortAgain.fileId -and $short.isDirectory) 'short native root identity changed'
+                    $longDirectory=[IO.Path]::Combine($short.physicalPath,'long-native')
+                    while($longDirectory.Length -le 280){$longDirectory=[IO.Path]::Combine($longDirectory,'directory-'+('x'*30))}
+                    Assert ($longDirectory.StartsWith($short.physicalPath+'\',[StringComparison]::OrdinalIgnoreCase)) 'long fixture escaped temp scope'
+                    [IO.Directory]::CreateDirectory($longDirectory)|Out-Null
+                    $leaf=[IO.Path]::Combine($longDirectory,'receipt.json');[IO.File]::WriteAllText($leaf,'native metadata fixture')
+                    $directory=& $read $longDirectory;$file=& $read $leaf
+                    Assert ($directory.isDirectory -and -not $file.isDirectory -and $directory.volumeSerial -ceq $short.volumeSerial -and $file.volumeSerial -ceq $short.volumeSerial) 'long native type/volume mismatch'
+                    Assert ($directory.physicalPath -ceq $longDirectory -and $file.physicalPath -ceq $leaf -and -not $file.physicalPath.StartsWith('\\')) 'extended notation escaped native boundary'
+                    Assert ((& $same $longDirectory $directory) -ceq $longDirectory -and (& $same $leaf $file) -ceq $leaf) 'long native FileId changed'
+                    foreach($unsafe in @('relative-path','\\server\share\receipt.json',('\\?\'+$leaf),('\\.\'+$leaf),($leaf+':stream'),[IO.Path]::Combine($longDirectory,'missing.json'))){Reject {& $read $unsafe}}
+                    if($ResultPath){[IO.File]::WriteAllText($ResultPath+'.native-long-path.json',(ConvertTo-Json -Depth 6 -InputObject ([ordered]@{case=$case;fixtureRoot=$short.physicalPath;identityHookUsed=$false;directoryCharacters=$longDirectory.Length;fileCharacters=$leaf.Length;shortRoot=$short;directory=$directory;file=$file;unsafeRejected=@('relative','UNC','extended-input','device-input','ADS','missing')})),[Text.UTF8Encoding]::new($false))}
+                }
                 {$_ -cin @('runtime-fresh-process-binding','runtime-fresh-process-fail-before-adapters')}{
                     AddTasks $fixture 1;$installation=Invoke-EvidenceScheduleInstall $fixture.config
                     if($case -ceq 'runtime-fresh-process-fail-before-adapters'){[IO.Directory]::Delete($fixture.roles.transfers)}
@@ -326,5 +347,5 @@ if($Mode -ceq 'runtime-fresh-process-fail-before-adapters'){
     [AppDomain]::CurrentDomain.SetData('OneStarMaker.Evidence.StorageBinding.v1',$null);[AppDomain]::CurrentDomain.SetData('OneStarMaker.Evidence.RuntimeContext.v2',$null)
     & $module {$script:TestRoot=$null;$script:BindingRootsHook=$null;$script:CredentialRootHook=$null;$script:SourceHook=$null;$script:SchedulerHook=$null;$script:SyncHook=$null;$script:CleanupHook=$null;$script:Clock={[DateTimeOffset]::UtcNow};$script:ElapsedClock={[Diagnostics.Stopwatch]::GetTimestamp()}}
     & $contract {$script:DeploymentRoot=$null}; & $store {$script:TestRoot=$null}
-    if([IO.Directory]::Exists($root)){[IO.Directory]::Delete($root,$true)}
+    if([IO.Directory]::Exists($root)){Assert ([IO.Path]::GetFullPath($root).StartsWith([IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')+'\osm-schedule-',[StringComparison]::OrdinalIgnoreCase)) 'cleanup escaped temp fixture';[IO.Directory]::Delete($root,$true)}
 }

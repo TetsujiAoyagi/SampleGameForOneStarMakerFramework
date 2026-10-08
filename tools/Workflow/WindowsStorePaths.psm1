@@ -35,7 +35,11 @@ namespace OneStarMaker.Workflow {
   static extern uint GetFinalPathNameByHandleW(SafeFileHandle handle,StringBuilder path,uint size,uint flags);
   static SafeFileHandle Open(string path) {
    // OPEN_EXISTING, zero access and full sharing make this a metadata read.
-   var handle=CreateFileW(path,0,7,IntPtr.Zero,3,0x02200000,IntPtr.Zero);
+   // Keep short KnownFolder aliases in their ordinary OS resolution context.
+   // Only canonical local paths beyond MAX_PATH need extended Win32 notation;
+   // neither caller-visible paths nor accepted input syntax changes.
+   string nativePath=path.Length>=260 ? @"\\?\"+path : path;
+   var handle=CreateFileW(nativePath,0,7,IntPtr.Zero,3,0x02200000,IntPtr.Zero);
    if(handle.IsInvalid){handle.Dispose();throw new IOException("windows-store-path-unavailable");}
    return handle;
   }
