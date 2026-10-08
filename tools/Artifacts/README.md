@@ -1,42 +1,99 @@
-# ローカル資格情報管理
+# Artifact Storage と資格情報管理
 
-Windowsの所有ユーザーが、PowerShell 7から固定プロファイル「osm」の資格情報、synthetic artifact、固定E1/E2のEvidence first useを扱うツールです。所有者端末で実R2鍵の登録、syntheticな`publish` / 別sessionの`fetch` / `rotate` / `confirm-revocation`と、実Evidenceへの破壊試行をしない保護送信・独立ledger確定・別session取得とログ/原画像閲覧を検証済みです。Evidenceの対象は下記の固定2packageに限ります。任意Evidence、実Build転送、Cloud、別ホストへの配布は未対応です。
+同一WindowsユーザーのPowerShell 7から、既存のDPAPI `osm`資格情報とprivate R2 bucket `osm-artifacts`を使います。通常Evidenceは明示した非秘密file集合をpublishし、別sessionで期待hashを照合してfetch・ログ/原画像を閲覧できます。taskの終了/再開は[Workflow](../Workflow/README.md)が所有し、Storageは終了から30日のコピー清掃を担当します。Build系列・別host/Cloudの保存と配布は後続スライスです。
 
-## 開発用Storageの保存契約（新運用は未実装）
-
-2026-10-08の[owner指示](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/108#issuecomment-6049302344)により、本番なし・過去の開発証拠の継承不要を前提に、保存契約を一つへ置き換えます。旧最低保存義務・参照中/参照不明の無期限保持・keyごとの削除承認・旧reader互換は継続要件にしません。PR #107のIndefinite追加と対応reader/新保護recordの実適用タスクは取りやめます。方式確認の実績はPR/Git履歴に残ります。
-
-- **開発Build:** 成功publishを系列ごとに最新N件保持します。既定値案は10件。利用中は削除対象から除外してN件には数え、保護だけでNを超える間は許容します。失敗publishで既存成功Buildを追い出しません。
-- **開発Evidence:** 作業中は保持し、workflowの一つの終了イベントから`taskEndedAt`、`endReason = completed | cancelled`、`deleteEligibleAt = taskEndedAt + 30日`を登録します。Evidence独自のowner Close承認は作りません。レビュー中やHarnessの実行記録確定だけではtask終了にせず、Storageは品質判断を再審査しません。
-- **再開/再適用:** 再開時は削除資格を取り消し、再終了から30日です。同じ終了イベントの再適用やGET/inspect/古いPRリンクでは起算日を更新しません。未終了Evidenceはuploadからの年齢だけで消さず、終了未決taskをinspectで見えるようにします。
-- **一時物:** 未完了upload/stagingは7日を初期値案とし、ツール所有・転送中でない・レビュー入力に未採用のものだけを短期清掃します。採用した失敗ログはEvidenceとして扱います。原sourceや資格情報storeを対象にしません。
-
-新Storageのコピーはこの契約だけで管理し、Harness原sourceの清掃はその所有側に任せます。リリースの保存/配布は必要時の別責務です。通常publishは必要な検証・記録・参照/hash返却まで一操作とし、独立した手動台帳確定、毎runの設定画像やwitness破壊試験は要求しません。非公開・秘密非露出・信頼した期待hash・固有key・安全な展開・レビュー入力の固定/所見分離・利用中保護は維持します。
-
-切替は、対象を特定して旧利用を停止し、開発用の旧生成物と不要な試験設定を整理して新契約で開始する一回のリセットです。E1/E2、locked witness、raw/受取copy、PR #107のW/Lと試験2ruleも整理対象にできます。資格情報store、利用者/Harnessの原source、無関係なbucket/rule・他作業領域は除外します。対象確認は誤操作防止のためで、旧保存価値の再審査やPR別の移行台帳は不要です。旧形式は新CLIで非対応を明示し、旧payloadの移行・自動変換・継続取得は保証しません。
-
-**現時点では文書の契約変更のみです。** リセットやrule解除を実施済みとは扱いません。下記CLIは切替までの現行機能で、固定E1/E2・Age30日config・別操作のledger確定等の制約がコードに残っています。新しい任意Evidence・task終了接続・期限/件数清掃は実装後に開始し、切替時に旧経路と不要な説明を置き換えます。この能力の区別は、旧保存義務を維持する例外ではありません。
+スライスAはA3 r5凍結後の実装確認中です。実装入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。ここに記すv2 CLIとoffline gateの実装進捗を、実R2の切替・scheduler稼働・reset完了と同一視しません。限定実操作と最終C/C′の結果はGit外固定入力へ記録します。
 
 ## エージェント操作の事前承認
 
-所有者は、設定した開発領域・明示入力・保存契約内の通常publish/fetch/清掃を事前承認します。新しい通常清掃への適用は、スライスAで対象範囲と操作手順をA3に固定し、対応機能の実装・検証と運用切替が成立した後です。一回のリセットは下記の開始条件に従い、それまでは「現在のCLIで進められる範囲」に限ります。通信や既存鍵の利用だけを理由に再確認せず、keyごとの削除承認を要求しません。使用するAgent製品やモデルによらず適用します。未対応機能を実装済みとは扱わず、現CLIのguardを迂回して新操作を行いません。
+ownerは、設定した開発領域・明示入力・保存契約内の通常publish/fetch/清掃を事前承認しています。日常清掃は、対応機能の実装・検証と運用切替の成立後に行います。一回のresetはA3で固定した対象/除外と開始条件を照合して実行し、文書改訂だけで開始しません。通信や同一ユーザーの既存鍵利用だけを理由に再確認せず、keyごとの削除承認や旧保存価値の審査を追加しません。Agent製品・モデルによらず適用します。
 
-### 現在のCLIで進められる範囲
+対象は同じaccountの検証済みendpoint/private bucketと新Evidence prefixです。公開development URL/custom domainを有効にせず、prefix分離を公開境界とは扱いません。非秘密内容、固定版、blind入力と所見の分離は送信担当が確認します。purpose宣言・禁止名検査・hash一致だけで秘密不存在を証明したとは扱いません。取得したscript/DLLを実行しません。
 
-- 同一Windowsユーザーの既存`osm`プロファイルと検証済みCLIを使い、信頼済み設定で同一identityを確認した既存R2 endpoint/private bucket `osm-artifacts`だけを扱います。公開development URL/custom domainを有効にせず、prefix分離を公開境界と扱いません。
-- synthetic publishは非秘密の使い捨てfixture専用です。現Evidence送信はコードで固定されたE1/E2専用で、任意の実ログやBuildをsyntheticと偽って送りません。完了した試験送信や鍵操作を承認確認だけのために反復しません。
-- 現行の案内と別に渡された期待hashでfetchし、bytes/entryを検証して必要なログ・画像を閲覧できます。同identityの設定再観察と新config/案内作成もこの範囲です。取得物を実行しません。
-- 現publishが行う読戻し・設定検査・同run witness操作・別のledger確定は、現コードの成功条件です。新運用へ継承する必須手順ではありません。
+資格情報の新規登録・置換・rotation・失効/削除、別account/bucket、公開配布、別host/Cloudは通常操作の承認範囲外です。鍵や暗号化store、header、署名URLは会話・引数・環境変数・ログ・Git・同期先へ出しません。認証失敗を鍵の再入力・削除で自動修復しません。実行環境の承認UIには従い、拒否を別経路や設定緩和で迂回しません。
 
-### 一回のリセットと権限の境界
+## Evidence v2 の通常操作
 
-一回のリセットは、programのスライスAで対象key/path/rule、操作コマンドを含む手順、除外範囲をA3に固定した後、その範囲で実行します。対象の実態・解除可否・影響を確認し、固定前にリセットを先行実行しません。それまでは「現在のCLIで進められる範囲」に限ります。新しい通常清掃も、対応機能の実装・検証と運用切替が成立するまでは実行しません。
+3 projectのRelease buildを用意します。通常Evidenceの使用開始前に `workflow-task.ps1 start`、終了済みtaskなら `resume` を完了します。新configはschemaVersion 2、profile、endpoint、bucket、repositoryId、prefix、policy、deploymentIdの厳密なJSONです。
 
-これは実操作の開始条件であり、旧保存義務の撤回を実装完了待ちに戻すものではありません。別の承認制度、keyごとの再承認、旧保存価値の審査、旧期限までの待機は追加しません。今回の文書編集を削除・解除の実行と扱わず、無条件のbucket全消去や全rule collection置換も行いません。失敗・不明な対象は結果を残して対象限定で再実行し、無関係な領域へ範囲を広げません。通常清掃にはbucket管理権限を与えず、削除拒否を自動rule解除で突破しません。
+```json
+{"schemaVersion":2,"profile":"osm","endpoint":"https://<32hex>.r2.cloudflarestorage.com","bucket":"osm-artifacts","repositoryId":"<64hex>","prefix":"development/evidence/v2/","policy":"task-end-30d-v1","deploymentId":"<32hex>"}
+```
 
-資格情報の新規登録・置換・rotation・失効/削除、別account/bucket、公開配布、別host/Cloudへの展開はこの通常操作の承認範囲外です。既存鍵はstore/transport内部だけで使い、値や暗号化レコードを会話・引数・環境変数・ログ・Git・同期先へ出さず、既存DPAPI/ACLを保持します。認証失敗を鍵の再入力・削除で自動修復しません。
+repositoryIdはworkflowと同じrepository identity、deploymentIdは切替時に固定したidentityです。private deployment registryでconfig hash、既存設定baseline、ownerの非秘密観察recordを結びます。未知deploymentや旧configはnetwork前に拒否します。変更しないprivate設定・writer scope・公開URL無効等は既存baselineとownerの不変申告を継承し、毎runの再撮影・24時間更新・witness破壊試験は要求しません。通常writerに管理権限を追加せず、管理者の途中変更までは保証しません。
 
-実行環境が承認を要求した場合はその承認経路に従い、拒否を別コマンドや設定緩和で迂回しません。製品共通の作業承認は、各環境の承認UIを無効にする保証ではありません。
+selectionはschemaVersion 2、purpose `evidence`、taskId、absolute root、明示relative files、40hex base/headを持ちます。taskIdは小文字英数字/hyphenの1〜64字です。1〜4096fileを明示し、再帰収集しません。
+
+```json
+{"schemaVersion":2,"purpose":"evidence","taskId":"sample-task","root":"<absolute-source-root>","files":["result.log","original.png"],"base":"<40hex>","head":"<40hex>"}
+```
+
+```powershell
+pwsh tools/workflow-task.ps1 start -Task sample-task
+pwsh tools/artifacts.ps1 evidence publish --profile osm --config <v2-config> --selection <v2-selection>
+pwsh tools/artifacts.ps1 fetch --profile osm --config <v2-config> --reference <trusted-reference> --sha256 <trusted-package64>
+pwsh tools/artifacts.ps1 evidence inspect --profile osm --config <v2-config> --task sample-task
+```
+
+publishはsourceをread lockでsnapshotし、同bytesからmanifest/ZIP/hashを作ります。固有key `development/evidence/v2/<repositoryId>/<taskId>/<artifactId>/bundle.zip` のintentを固定して1回PUT、別processでGET・外hash/manifest/全entry・版を照合し、永続receipt/catalogを確定した後だけ、並列fieldのreferenceとpackageSha256を返します。別の手動commitは不要です。PUT応答不明を同key再送せず、照合できるまで未確認としてresidueを残します。
+
+referenceはopaque `osm-evidence-v2:` です。fetchは別に渡された期待packageSha256を照合し、manifest/全entryを検証したprivate新規copyのoutputPathを返します。referenceから期待package hashを補いません。相対path逸脱/reparse/重複/case衝突を拒否し、ZIP 256 MiB、JSON 1 MiB、entry 4096、単一展開256 MiB、総展開1 GiB、圧縮比100を上限とします。
+
+旧v1 reference/configと旧E1/E2、synthetic publish、独立Evidence commit/OwnerCloseの通常入口は非対応です。旧payloadの救済・自動変換・継続取得を行いません。内部のsynthetic transportは既存資格情報rotation/診断/offline検証に限ります。
+
+## 終了・再開・利用中と清掃
+
+workflow担当は、人間がtask全体の完了/打切りを決定した通常最終処理で、同じ信頼済みDecisionからendを記録します。Evidence専用のClose承認は作りません。Agent停止・pause・失敗・timeout・C/C′合格・PR検知・Harness closeから終了を推測しません。
+
+```powershell
+pwsh tools/workflow-task.ps1 status -Task sample-task
+pwsh tools/workflow-task.ps1 end -Task sample-task -Reason completed -ExpectedVersion <n> -Decision <trusted-decision-id>
+pwsh tools/workflow-task.ps1 resume -Task sample-task -ExpectedVersion <n> -Decision <trusted-decision-id>
+pwsh tools/artifacts.ps1 evidence use --profile osm --config <v2-config> --reference <v2-reference> --consumer <id> --until <UTC> --reason <non-secret-text>
+pwsh tools/artifacts.ps1 evidence release --profile osm --config <v2-config> --reference <v2-reference> --protection <id>
+pwsh tools/artifacts.ps1 evidence cleanup --profile osm --config <v2-config> --dry-run
+pwsh tools/artifacts.ps1 evidence cleanup --profile osm --config <v2-config>
+```
+
+Workflowはtask state/event/outboxを一つのatomic更新で記録し、commit後にStorage syncを一度呼びます。失敗は `recorded/delivery-pending` で、endを取り消しません。publish/fetch/inspect/cleanupの入口と日次jobもoutboxを再配送します。同Decision再送は初回の版/UTCを保ち、欠番・同版不一致・不明なStorage状態では削除しません。終了の取りこぼしは同じDecisionで通常最終処理を再開し、未完をpending-finalizationとして扱います。
+
+taskEndedAtは実終了処理で一度固定したUTC、deleteEligibleAtはそこから2592000秒です。未終了taskはupload後100日でも年齢だけで消しません。GET/inspect・同event再送・古いPRリンクは延長になりません。resumeは利用前に行い、削除資格を取り消します。次のendから新たな30日です。削除済みcopyはresumeで復元せず、payload-deletedを返します。
+
+fetch中は一時operation-useを取得します。取得後も調査/reviewで使うcopyは有限untilをuseで明示し、releaseか満期で終えます。use失敗を保護成功と扱わず、利用を開始しません。破損/不明なprotection、転送中、process/pipe EOF未確認、削除/PUT intent不明は非削除です。lease/heartbeat/周期的owner承認は追加しません。
+
+inspect/dry-run/DELETE直前は同じ純粋policyを使います。task guard内でeventを連続版まで適用して再判定し、DELETE後の404 NoSuchKey確認でtombstoneを残します。remote/local部分失敗は別stateと残件を返し、次回は未確定だけを再検査します。403/409/timeoutはblocked/delete-pendingとして管理設定を変更しません。削除不明の間はresume/use/publishを成功にしません。
+
+Storage所有のupload/staging/未採用失敗copyはcreatedAtから604800秒の7日清掃です。転送中、採用pending、レビュー入力採用、有限use、削除不明は除外します。採用する失敗ログは通常publishが成功する前に元stagingを消しません。Storage copyはtaskの同じ30日期限で管理し、利用者/Harnessの原sourceや利用者が作ったcopy、資格情報、他task/無関係領域を清掃対象へ登録しません。
+
+exit 0は検証・確定完了、1は失敗/未確認、2は配送待ち・scheduler/cleanupの部分保留です。inspectのactive/end-not-recordedやcleanupのdeleted/skipped/blocked/remaining/itemsを確認し、未確認を成功へ置き換えません。例外本文やSDK応答本文は表示せず、非秘密reasonCode/residueを使います。資格情報の既存exit意味は変えません。
+
+## 自動清掃
+
+```powershell
+pwsh tools/artifacts.ps1 evidence schedule install --profile osm --config <v2-config>
+pwsh tools/artifacts.ps1 evidence schedule status --profile osm --config <v2-config>
+```
+
+同じownerのTask Scheduler `OSM-Evidence-Cleanup-<repositoryId先頭12>` は毎日03:00 localとlogon、StartWhenAvailable、IgnoreNew、InteractiveToken/Limitedで動きます。password/親鍵は登録しません。未ログオン中は動かず次ログオンで追いつくため、期限は削除資格であり即時削除SLAではありません。
+
+installは最終implementation headのscript/module/DLL/deps/configをKnown Folder `OneStarMaker/Artifacts/runtime/<head>/`へprivate copyし、manifestでpath/hashを固定します。actionは絶対pwshと固定entryで、可変worktreeに依存しません。同名taskのidentity不一致、runtime/config欠落/hash不一致では上書き・削除をせずfailedです。
+
+一回のjobは10分以内、配送2分/100task、清掃8分/100objectを予約します。両段階の独立永続cursorは失敗項目も進め、残件を次回へ回して先頭障害による飢餓を避けます。busyはskip、network不明は次回へ保留し、成功Evidenceを再publishしません。statusはlastRun/nextRun/resultを非秘密情報で返します。
+
+## 一回の旧開発環境reset
+
+A3のfixed reset manifestにexact key/path/rule、hash、対象所有・利用状態、除外を固定してから旧利用を停止します。E1/E2・witness・試験W/L・旧owned生成物は固定一覧内だけが候補です。名前/prefixだけで再帰全削除せず、未知対象を自動追加しません。credentials、新v2/runtime、利用者/Harness原source、無関係bucket/rule、他worktreeは除外します。
+
+設定baselineは既存recordとownerの「変える以外は以前と同じ」という申告を継承します。管理画面/APIをAIが読んだり操作したりせず、C担当がexact rule ID/prefix/条件/除外を短い手順へまとめ、owner本人へ変更を依頼します。ownerの変更結果とその他設定不変のテキストを独立verification receiptへ結び、凍結manifest自体を書き換えません。スクショや全collection再hash、変更しない設定の再証明は要求しません。
+
+```powershell
+pwsh tools/artifacts.ps1 evidence reset --profile osm --manifest <frozen-reset-json> --manifest-sha256 <trusted64> --owner-verification <owner-text-receipt> --owner-verification-sha256 <trusted64> --dry-run
+pwsh tools/artifacts.ps1 evidence reset --profile osm --manifest <frozen-reset-json> --manifest-sha256 <trusted64> --owner-verification <owner-text-receipt> --owner-verification-sha256 <trusted64>
+```
+
+exact対象のDELETE→GET404と、validated owned local pathの清掃結果をitem別receiptへ残します。確定削除済みの対象は再実行でskipし、残件だけを再照合します。無条件bucket全erase、rule自動解除、通常writerへの管理権限追加は行いません。対象/除外影響不明や利用中は止め、scope追加が必要ならA3へ返します。
+
+C担当は内部DELETE/404・local非存在と別に、削除対象key/ruleの一覧をownerへ一括提示し「消えたか」の外部テキスト観察を取得します。実行前の計画を消去完了と記録せず、partial/inconclusiveを残します。過去PRの保持日・参照状態を撤回済み旧保存義務として復活させません。
 
 ## 資格情報の操作
 
@@ -69,71 +126,13 @@ DPAPIはWindowsユーザーに結びつけて保存データを保護します�
 
 `credentials rotate` は新しい鍵を対話端末でmasked入力し、使い捨てsynthetic keyへのPUT/GET/hash/DELETE/不存在を検証してから、新世代をactive、旧世代をretiredに原子的に切り替えます。切替え後は失効待ちでexit 2を返します。所有者が管理画面で対象の旧tokenだけを失効した後、非秘密の観察記録を使って`confirm-revocation`を実行します。旧鍵の401/403と安全な拒否code（`InvalidAccessKeyId`、`InvalidToken`、`AccessDenied`）、または同じ応答の正確な401/`unauthorized`/`Unauthorized`と、新鍵の前後の陽性対照が揃って初めてretiredを清掃します。pending中は通常のset/removeと次のrotateを拒否します。失効前のcrashではpendingを保ち、壊れたactiveをbackupから自動復元しません。旧鍵の失効や、新鍵を使えない場合の再発行・masked再登録は所有者が管理画面と本CLIで明示的に行います。ローカルのstatusやset成功をR2接続成功とは扱いません。
 
-## 最小Artifact CLI（synthetic限定）
+## Synthetic Route proof
 
-```powershell
-dotnet build tools/Artifacts/Packaging/ArtifactPackaging.csproj -c Release -o tools/Artifacts/Packaging/artifacts/package
-dotnet build tools/Artifacts/Transport/R2ArtifactTransport.csproj -c Release -o tools/Artifacts/Transport/artifacts/transport
-
-pwsh tools/artifacts.ps1 publish --profile osm --config <absolute-config.json> --input-list <absolute-input-list.json> --base <40hex> --head <40hex>
-pwsh tools/artifacts.ps1 fetch --profile osm --config <absolute-config.json> --reference <opaque> --sha256 <64hex>
-pwsh tools/artifacts.ps1 credentials rotate --profile osm --config <absolute-config.json>
-pwsh tools/artifacts.ps1 credentials confirm-revocation --profile osm --config <absolute-config.json> --generation <retired32hex> --evidence <absolute-revocation.json>
-```
-
-`input-list` は `{"schemaVersion":1,"purpose":"synthetic","root":"<absolute>","files":["relative/file.txt"]}` です。1〜4096件のファイルだけを明示選択し、再帰収集しません。`purpose` はcallerの宣言であり、秘密検査ではありません。任意のログや実Evidenceをこの段階のCLIへ載せないでください。sourceをread lockで隔離snapshotし、その同じbytesからmanifest・ZIP・送信hashを作ります。相対path逸脱、reparse、秘密領域、重複、case衝突、上限違反を拒否します。
-
-`config` は `schemaVersion=1`, `profile="osm"`, `endpoint="https://<32hex>.r2.cloudflarestorage.com"`, `bucket="osm-artifacts"`, `repositoryId=<64hex>`, `prefix="probe/locked/"`, `retentionSeconds=86400`, `observedAt`, `validUntil`, `settingsEvidencePath`, `settingsEvidenceSha256` の厳密なJSONです。`observedAt` と `validUntil` はUTC round-tripで、24時間以内の有効区間に現在時刻が含まれる必要があります。設定原記録は、同じendpoint/bucket/prefix/retentionと、公開development URL無効、custom domain 0、writerに設定権限なし、bucket scopeのwriter、lock有効、age rule 1・date/indefinite rule 0、lifecycle compatibleを記録します。未確認の値は成功にしません。設定はowner/AIの観察であり、admin APIによる常時保証ではありません。
-
-`publish` は`probe/locked/<repositoryId>/<head>/<runId>/bundle.zip`にだけ保存します。別`pwsh` processでの認証GETと全byte/hash、同じsynthetic packageへの異なるbytes PUTとDELETEのlock拒否、再GETでの原byte/hash、`probe/unlocked/<runId>/control.txt`のwriter陽性対照を満たした場合だけledger候補を返します。結果・保護receipt・`operation-observations.json`はWindows Known Folder LocalApplicationDataの`OneStarMaker/Artifacts/transfers/<operation-id>/`に保存し、Gitへ自動追加しません。原観測は途中失敗でも保存し、status/code/byte/hash/世代と固定identityを含みます。現publish自身はlock拒否を検査したobjectを清掃するDELETEを行いません。これは現コマンドの動作で、旧試験物の保存継続義務ではありません。失敗時のkeyとlocal pathは非秘密のresidueに残し、未確認を成功へ変更しません。1操作は最大10分、通信一回は最大120秒で、SDK retryとredirectを無効にします。
-
-`fetch` はconfigとopaque referenceのprofile/keyを照合し、**callerが別に渡した**期待package SHA-256とdownload全体を照合します。さらにmanifestと全entryのhash/path/byteを検証してから、新規private operation配下の`ready`へ切り替えます。既存stagingへ展開せず、取得物を実行しません。ZIPは最大256 MiB、JSONは1 MiB、entryは4096、単一展開は256 MiB、総展開は1 GiB、圧縮比は100までです。引数や出力に資格情報を含めません。
-
-転送のexitは0が検証完了、1が失敗・未確認です。rotationの切替え後/失効待ちは2であり、失効確認まで完了扱いしません。`confirm-revocation`成功は0、清掃保留は2、失敗・未確認は1です。既存credentialsのexit 0/1/2の意味は維持します。新commandの結果v1は`schemaVersion/operationId/operation/status/reasonCode/verification/ledger/outputPath/residue`を持つJSONです。失敗時のledgerとoutputPathはnullで、例外本文、SDK応答本文、秘密は表示しません。referenceは上位へopaqueな文字列として渡し、そこから期待package hashを補いません。
-
-この`publish`経路は送信したobject自身にlockの破壊試行を行うため、synthetic-onlyです。実Evidenceには下記の独立した`evidence publish`経路を使います。Cloud/Build連携、H2d/H3は未対応です。R2の管理者が途中でpolicyを変更する脅威までは保証しません。
-
-検証済み実装は `caed8bae55c033673b75532dc650f0a3a3cedc48` です。85件のoffline testと3 buildに加え、実R2で設定の前後一致、synthetic publish、別session fetchと全entryのhash照合・安全展開、locked objectの上書き/DELETE拒否、新鍵の陽性対照を挟んだ旧鍵の401/`unauthorized`/`Unauthorized`拒否とretired清掃を確認しました。候補検証・切替・owner失効は旧実装 `4e83b7e7a4116fcf45c996b110b89515211da4b4` での観測です。その経路のsource不変性と、Git revision metadataだけを揃えた旧runtimeの完全再現・通常の最終runtimeへの復元を照合して接続し、ownerのtoken削除は反復していません。同じ固定証拠を使ったCと独立blind C′はGOで、ownerのPhase D判断も完了しました。C′は別モデル・新規sessionですが、同じOpenAI/GPT系列という独立性の制約があります。この合格はsynthetic限定であり、実payload利用の承認へ広げません。
-
-## Evidence first use（固定E1/E2・同一Windowsユーザー）
-
-`evidence publish`は任意ログを送る汎用コマンドではありません。E1はPR #96のfindings-freeな既存固定Evidenceの選択済み13file、原source manifest、selection receiptの15entryです。source rootと各bytes/hash、evidence base=`fd7ebf932d230a522293dee72572cbdeeac1c8fa`、head=`caed8bae55c033673b75532dc650f0a3a3cedc48`をコードで固定しています。E2は保護設定の`settings-before.json`、`settings-overview.jpg`、`settings-rules.jpg`、`capture.json`の4entryです。原JPEGを変換せず、captureに2画像のbytes/hash・観察範囲・版を記録します。E2のevidence headとcapture/selectionのproducer headは実行時のcheckout HEADに一致する必要があります。review-recordやharvest後のHEADから旧E2を再送しないでください。
-
-既存review-evidenceの内側bytesと外側manifest/ZIP形式を維持し、明示一覧だけをread lockでbounded snapshotします。同じsnapshotからpackageを一度作り、期待entry集合・版・全bytes/hashを照合します。credential/grant、scope外、transfers、reparse、上限外のsourceは拒否します。送信担当は選択したtext/JSON/原画像の内容を事前に確認し、秘密やC/A2所見を混ぜません。purpose宣言やhash一致だけで非秘密性を証明したとは扱いません。
-
-```powershell
-pwsh tools/artifacts.ps1 evidence publish --profile osm --config <absolute-config.json> --selection <absolute-selection.json> --base <evidence-base40> --head <evidence-head40>
-pwsh tools/artifacts.ps1 evidence commit --candidate <absolute-result.json> --candidate-sha256 <trusted64> --settings-after <absolute-settings-after.json> --settings-after-sha256 <trusted64>
-pwsh tools/artifacts.ps1 fetch --profile osm --config <fresh-absolute-config.json> --reference <trusted-opaque-reference> --sha256 <trusted-package64>
-```
-
-strict configはpurpose=`evidence`、bucket=`osm-artifacts`、prefix=`evidence/first-use/`、retentionSeconds=`2592000`、最大24hの原設定観察と固定identityを持ちます。全適用lockは当該prefixのAge30日1rule、Date/indefinite/重複なし、lifecycleは既存empty-prefix multipart abort7日のみ。公開development URL無効、custom domainなし、同bucket限定writer/管理権限なしを確認し、既存probe1日ruleとstable資格情報を変更しません。
-
-実bundle keyは`evidence/first-use/<repositoryId64>/<evidenceHead40>/<runId32>/bundle.zip`です。同run directoryのsynthetic `protection-witness.txt`にだけ異bytes PUT/DELETEを試し、正確な403/forbidden/ObjectLockedByBucketPolicyまたは409/other/ObjectLockedByBucketPolicyと原bytes/hash維持を要求します。同writerのunlocked対照をPUT/GET/hash/DELETE/404NoSuchKeyまで確認し、writer権限不足をlock成功にしません。実bundleは不存在確認→durable put-intent→1回のPUT→別process GET/hashだけで、Evidence bundle DELETEをtransportも拒否します。
-
-ネットワーク前の`intent.json`とPUT直前の`put-intent.json`をCreateNew/flushで固定します。後者の境界後は送信されていなくてもmay-have-been-sentとして同keyへ再送しません。失敗・中断・不明ではledger/readyを偽らず、key/local path/保持下限をresidue/intentに残します。失敗原因と修正範囲を記録せず新runへ逃げず、成功runを反復して増やさない運用です。別runの重複publish全体を禁止する仕組みはなく、追加は技術的には可能です。自動再送/自動復旧/清掃はありません。
-
-publishのexit0はcandidate生成までです。`evidence commit`は通信せずcandidate/result/intent/receipt/設定原記録のhash・identity、13観察のtuple/bytes/hash、receipt完了後かつ24h以内の事後設定と保護内容不変を独立再照合し、`OneStarMaker/Artifacts/evidence-ledgers/<id>/ledger.json`をCreateNew・同directory atomic renameで確定します。pending write/renameや競合は確定済みにしません。network/資格情報はledgerへ入れません。CLIの外側catchはEvidenceでも非秘密の`Credential operation failed.`であり、詳細は非秘密result/residueから確認します。
-
-publisherと別の引渡し担当が`EvidenceLedger.psm1`の`Write-EvidenceReaderInput`で2ledgerとfresh configを固定案内へ結び、案内SHA-256を新規reader開始promptへ渡します。readerは`Read-EvidenceReaderInput`で案内bytes→prompt期待hash、ledger/config/reference/entry集合を照合してから公開CLIの`fetch`を実行します。「公開CLI」は匿名bucket公開ではありません。archive/outer manifest/版/全entryを検証したprivate新規readyから必要ログと原画像を実際に閲覧し、script/DLLを実行しません。C所見・可変HANDOFF/PR・sender stagingを案内へ混ぜません。24h観察期限後は同policy identityのfresh原観察/configと新immutable案内/期待hashを固定し、旧案内を更新しません。新CLIでは旧policy/形式との読取互換を作らず、切替時に旧経路を置き換えます。
-
-現コードのserverLockLowerBoundとreferenceのretainUntilはPUT-intent前時刻+30日の旧server保護下限です。`Write-EvidenceCloseRecord`は旧owner closeイベントから別のretention.jsonを生成します。これらは残存する旧形式の説明で、新契約の終了イベントや削除可能日時には流用しません。現CLIに自動清掃はなく、旧recordやruleの存在は一回のリセットで確認・整理します。旧recordに書かれた最低保存日や参照状態を、今回撤回した継続義務として運用しません。
-
-判定済みimplementation headは`896eaea8a912248333704c80549d46ecf20c02c6`です。7 offline suites119/119、3build、PowerShell26file parse、contract/docs/diff検査、最終DLLのhash/MVID/依存とbuild後71件再確認に加え、実R2の各13観察、E1/E2各1送信・独立ledger、別session fetch・全19entry/版/hash・指定ログ/原JPEG閲覧を確認しました。Cとblind C′は同249-file固定入力で各GO、同OpenAI/GPT系列という独立性制約があります。ownerのD closeは記録済みで、小台帳・保持記録は[PR #104](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/104)へ引き継ぎます。ローカルWindows同一ユーザーに限るfirst useで、Cloud/Build/別hostの成立や無期限保護ではありません。
-
-原画像の対象prefix全文/lifecycle日数は省略され、全設定の構造観察JSONとlive witnessで補完しています。画像だけで全設定やwriter権限を確認したとは扱いません。CreateNew/flush/ACL/hashは物理WORMではなく、悪意ある同ユーザーや管理者の途中rule変更の防御は保証しません。
-
-## A3前の限定R2疎通確認
-
-2026-09-27に使い捨てprobeで所有者端末のsynthetic PUT、別`pwsh` processの認証GET・SHA-256照合、DELETEと空prefixを確認しました。このprobeは通信本文・子process・cleanupの有限期限を備えていないため退役し、再実行用スクリプトと専用SDK projectを削除しました。この事前記録単独では署名無し取得拒否やBucket Lockの実効性を証明しません。後述のRoute proofで別に実測しました。
-
-## Route proof（限定slice GO）
-
-`Probe/RouteProof.ps1` はこのslice専用の限定診断です。親processはendpointとレビュー対象の`-ImplementationBase` / `-ImplementationHead`（40桁小文字hex commit ID）を受け取り、観測へ固定値を記録します。作業ツリーのHEADやdevelopとのmerge-baseを実行時に推測しません。`probe/unlocked/<run-id>/` と `probe/locked/<run-id>/` の各1 key、1操作1子`pwsh` process、各操作30秒・子process45秒・run全体5分の期限を使います。各childはrun-id/keyとrevisionに加え、PUT fixtureの長さ・hash・run marker・original/changed識別を検証し、PUT以外のpayloadを拒否します。子processの引数に鍵を渡さず、`CredentialStore` の `Invoke-CredentialTransport` が同一process内の一回のcallbackへDPAPI復号値を限定して渡します。callbackから戻るのは閉じた非秘密transport観測だけです。親processは子と同じ単一JSON行をschema検証し、stdoutとstderrは子45秒の共有残予算で順に回収します。期限超過後はprocess終了と両pipeのEOFを確認できるまで回復cleanupを送りません。offline testsは同じ12操作主ループとJSON境界を通して成功完走・期限・結果照合・cleanup分類を検査します。
+`Probe/RouteProof.ps1` はsynthetic専用の限定診断です。親processはendpointとレビュー対象の`-ImplementationBase` / `-ImplementationHead`（40桁小文字hex commit ID）を受け取り、観測へ固定値を記録します。作業ツリーのHEADやdevelopとのmerge-baseを実行時に推測しません。`probe/unlocked/<run-id>/` と `probe/locked/<run-id>/` の各1 key、1操作1子`pwsh` process、各操作30秒・子process45秒・run全体5分の期限を使います。各childはrun-id/keyとrevisionに加え、PUT fixtureの長さ・hash・run marker・original/changed識別を検証し、PUT以外のpayloadを拒否します。子processの引数に鍵を渡さず、`CredentialStore` の `Invoke-CredentialTransport` が同一process内の一回のcallbackへDPAPI復号値を限定して渡します。callbackから戻るのは閉じた非秘密transport観測だけです。親processは子と同じ単一JSON行をschema検証し、stdoutとstderrは子45秒の共有残予算で順に回収します。期限超過後はprocess終了と両pipeのEOFを確認できるまで回復cleanupを送りません。offline testsは同じ12操作主ループとJSON境界を通して成功完走・期限・結果照合・cleanup分類を検査します。
 
 transportは`Probe/R2RouteTransport.csproj`の固定`AWSSDK.S3`依存を使います。認証PUT/GET/DELETEと、Authorizationおよび署名queryを付けないHTTP GETを分離し、本文は保存せず、EOF確認時だけ全体hash、期待長に達した場合だけ先頭hashを返します。8193 byte目に達しても、それ以前に得た期待長prefix hashは残し、EOF未確認の全体hashは作りません。期限中の取消しやEOF前のI/O切断でも、到着済みprefix hashを保ち、全体hashとEOF確認は未確定にします。unsigned応答のS3 `Code`要素は短い安全なcode値だけを逐次抽出し、Messageや本文全体は保持しません。閉じた非秘密観測にunsigned requestのmethod、正規URI、Authorization/署名query/対象queryの有無を加え、RouteProofが意図したGETか照合します。401/`unauthorized`/`Unauthorized`、403/`forbidden`/`AccessDenied`、またはR2で観測した400/`other`/`InvalidArgument`という同一応答内の組を拒否証拠として許可し、交差したstatus/codeは許可しません。400は実際のstatusのまま記録し、正規GET・EOF・非露出hashの条件も同じく要求します。一度のprefix一致は内容露出として記録しますが、再現条件を満たすまではprovider capability failureと確定しません。Bucket Lock拒否は403/`forbidden`/`ObjectLockedByBucketPolicy`または実測した409/`other`/`ObjectLockedByBucketPolicy`の同一応答tupleだけを許可し、EOF・期限・redirect・本文上限と同一writerの条件を維持します。上書きとDELETEの双方の拒否後、最終の認証GETで元のbyte数・hashが一致して初めてprobeは完走します。locked overwrite/deleteの成功応答だけでは保持機能の失敗へ昇格せず、状態確認できない場合は`inconclusive`です。期限後に子processの停止を確認できなければ、競合する回復DELETEを送らずcleanupを未確認にします。SDK例外のMessage、HTTP本文、request/header、秘密は結果へ通しません。`artifacts/` は生成物でGit管理外です。
 
-実行前にCloudflareで`probe/locked/`の全有効ruleを確認し、次の10 fieldの秘密を含まない事前JSONを用意します。`BeforeHash`は実行前の原記録のSHA-256です。事後値は入力せず、probe出力の`lockRule.afterHash`は`null`です。実際のAfter設定は実行後に独立取得した原記録で照合します。通常writer tokenへBucket設定権限を追加しないでください。
+実行前にownerが確認した`probe/locked/`の全有効ruleの非秘密記録を使い、次の10 fieldの秘密を含まない事前JSONを用意します。`BeforeHash`は実行前の原記録のSHA-256です。事後値は入力せず、probe出力の`lockRule.afterHash`は`null`です。実際のAfter設定は実行後に独立取得した原記録で照合します。通常writer tokenへBucket設定権限を追加しないでください。
 
 ```powershell
 dotnet restore tools/Artifacts/Probe/R2RouteTransport.csproj
@@ -145,36 +144,20 @@ pwsh -NoProfile -File tools/Artifacts/Probe/RouteProof.ps1 `
   -LockRuleJson '{"Prefix":"probe/locked/","Enabled":true,"Kind":"Age","RetentionSeconds":86400,"RuleCount":1,"DateRules":0,"IndefiniteRules":0,"WriterCanConfigure":false,"LifecycleCompatible":true,"BeforeHash":"<64-hex>"}'
 ```
 
-固定実装head `9c46b5837796de23465f6d9c059bb326c2f06858` の2026-09-29 JSTの1 runは、別processの認証GET、同じ存在keyの正規unsigned GET、unlockedの上書き・削除・NoSuchKey、lockedの上書き・DELETE拒否、最後の原57 byte/hash GETまで12操作を完走しました。unsigned GETは400/`other`/`InvalidArgument`とEOF・非露出hashの組であり、object byteを返さなかったという限定観測です。400の原因や認証拒否という因果は未特定です。locked上書きとDELETEはいずれも409/`other`/`ObjectLockedByBucketPolicy`で、最終GETは原hashに一致しました。前後のprivate設定、全有効rule、writer権限、lifecycleは同一で、別モデルの独立監査もblockerなしでした。これはRoute proof sliceのGOであり、汎用Artifact CLI、実Evidence/Buildのupload、Cloud経路、R2の全面採用は後続の別判定です。
+## 保守とoffline検証
 
-SDK例外から作る認証操作の観測は、statusと安全なS3 Codeを返しますが、例外応答本文のEOF・上限・取消しを独立に実測した証拠ではありません。今回の限定live観測を異常系全般の保証に広げないでください。実行時の出力は固定schemaの非秘密JSON Linesだけを保存し、`provider-capability-failure` は開始条件・陽性対照・再現性が揃った場合だけ意味を持ちます。この診断はlock対象を自動清掃しません。残存する試験object/ruleは一回のリセット対象として実態を確認します。`-Endpoint` は親だけが指定し、bucket、path、query、userinfo、port、別hostnameは受け付けません。
+資格情報はCLI→CredentialCommands→CredentialStore→PathAcl/Recordの一方向です。EvidenceApplicationはpublish/fetch/use orchestration、EvidenceContractはv2 codec/deployment、EvidencePathsはtask transaction/receipt、EvidenceRetentionPolicyは純粋判定、EvidenceCleanupは配送/削除/reconcile、EvidenceScheduleは固定runtime/OS adapter、EvidenceResetは一回の限定清掃を所有します。Workflow core/storeはArtifactsをimportせず、CLI composition rootが共通guardとpreflight/syncを結びます。
 
-## 保守と検証
-
-既存credentialsの依存は `tools/artifacts.ps1` → `CredentialCommands.psm1` → `CredentialStore.psm1` → `CredentialPathAcl.psm1` / `CredentialRecord.psm1` の一方向です。新規転送はCLI→ArtifactCommands/ArtifactApplication→Packaging/Transport/Credentialsに分け、ArtifactPathsが別のprivate operation rootを管理します。StoreはDPAPI保存・原子的置換・世代競合、Recordはv1/v2 codec、Rotationはserver検証の順序を担当します。公開コマンドで秘密を読み出す機能はありません。テストの保存先・障害注入はモジュール内部に限定します。
-
-WindowsのPowerShell 7で次を実行します。資格情報テストは毎回生成するダミー値と隔離した保存先を使い、UnityやR2への接続は不要です。
-
-Evidence 35件のうち`reader-hash`と`handoff-identity-substitution`は、隔離rootに13個の非秘密dummy・source manifest・selection receiptを生成します。実Packaging/prepared transfer・偽transport・実ledger/reader/closeを通し、private実E1 sourceなしで案内hash・package identityの拒否を検証します。本番E1 selectorを通す入力ではなく、実Evidence送信や原画像閲覧の証拠には使いません。`dummy-e1-selection-rejected`は本番定数を変えず、任意dummy E1 sourceがnetwork前に拒否されることを確認します。
-
-Git checkoutから下記3 projectをbuildして実行します。`-Case`はcomma区切りのscalar文字列で、既定`*`は全35件です。`-MissingE1SourceProbe`はreader 2件の完全一致選択だけに使い、別processでE1Rootを未作成sentinelへ一時差替えし、前後の不存在と復元・fresh importを確認します。本番selector確認や全suiteとは別に実行し、実source不在hostの実測と区別します。原Evidenceのコピー配布・改変・再送は不要です。
-
-[PR #106](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/106) の判定implementation headは `19720ed7c6065ffcc55ee2643f811462025a940d` です。所有Windowsユーザーのfresh checkout・既存Artifacts DLLなしから3 .NET build、全7 offline suite 120/120（既存119件と追加1件）、別processの限定不在probe 2/2、26 PowerShell fileのparseを確認し、同じ固定入力でC/C′はGO、ownerはPhase Dを承認しました。結果記録・harvest・mergeのcommitを実装判定headへ読み替えません。小台帳と本人の監査範囲はPR本文に保持します。C′はB/Cに未関与の新規session・異なるmodel IDですが、同OpenAI/GPT系列でruntime variantは未実測です。限定sentinelは同owner hostの不在経路を検査し、別host/別Windowsユーザーの可搬性を実測したものではありません。結果JSONの `selectorInvoked=false` は初期値であり、未呼び出しの実測根拠に使いません。これらのoffline結果は実R2取得・実Evidenceの再送・無期限server保護を検証し直すものではありません。
+H1のこのtaskは3 .NET Release build、全Artifacts PowerShell parse、11 Artifact suite、Workflow TaskLifecycle、Harness、適用taskのcontract/docs auditを固定5 stepで収録します。registered/selected/executedは各非空同集合、failed 0、実DLL path/hash/MVID/depsと生結果を保存します。B exitはdiscovery、最終Cはjudgment、CBlindは同base/headと同じ固定入力です。Unity source/依存を変更しないためUnity test/buildはこのsliceに適用しません。
 
 ```powershell
-pwsh -NoProfile -File tools/Artifacts/tests/Credentials.Tests.ps1
-pwsh -NoProfile -File tools/Artifacts/tests/RouteProof.Tests.ps1
 dotnet build tools/Artifacts/Probe/R2RouteTransport.csproj -c Release -o tools/Artifacts/Probe/artifacts/route-transport
-pwsh -NoProfile -File tools/Artifacts/tests/R2RouteTransport.Tests.ps1
 dotnet build tools/Artifacts/Packaging/ArtifactPackaging.csproj -c Release -o tools/Artifacts/Packaging/artifacts/package
 dotnet build tools/Artifacts/Transport/R2ArtifactTransport.csproj -c Release -o tools/Artifacts/Transport/artifacts/transport
-pwsh -NoProfile -File tools/Artifacts/tests/ArtifactPackage.Tests.ps1
-pwsh -NoProfile -File tools/Artifacts/tests/ArtifactTransfer.Tests.ps1
-pwsh -NoProfile -File tools/Artifacts/tests/ArtifactRotation.Tests.ps1
-pwsh -NoProfile -File tools/Artifacts/tests/ArtifactEvidence.Tests.ps1
-pwsh -NoProfile -File tools/Artifacts/tests/ArtifactEvidence.Tests.ps1 -Case reader-hash,handoff-identity-substitution -MissingE1SourceProbe
-pwsh -NoProfile -File tools/contract-audit.ps1
-pwsh -NoProfile -File tools/docs-audit.ps1
+pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle
+pwsh tools/harness.ps1 run -Task artifact-evidence-lifecycle -Stage discovery -Difference 初回 -Question '固定offline集合が通るか' -StopWhen '全必須集合を収録'
+pwsh tools/contract-audit.ps1 -HarnessTask artifact-evidence-lifecycle
+pwsh tools/docs-audit.ps1
 ```
 
-DPAPIとACLの検証は所有Windowsユーザーの実行環境で行います。別のsandboxユーザーの失敗や成功を、所有ユーザーでの検証に読み替えません。入力判定を変更した場合は、上記の文字列回帰に加え、実PowerShellの解析とConsole付き非対話起動を照合し、入力前の有限時間での拒否と保存物の不変を確認します。通常のmasked入力も確認し、リダイレクト下のテストだけで対話入力まで検証済みと扱わないでください。
+PR #106の非秘密dummy fixtureをv2に再利用します。各testは隔離store、clock/transport/scheduler注入とbarrier/signalを使い、30日待機やTask.Delay/Thread.Sleep、秘密や実E1 source、実R2 DELETEを必要としません。DPAPI/ACLの成立はowner Windowsユーザーで確認し、別sandboxユーザーの結果を流用しません。synthetic診断と過去first-useの成功を新v2、scheduler、resetの成立証拠にしません。

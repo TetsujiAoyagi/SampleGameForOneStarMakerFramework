@@ -10,6 +10,7 @@
 
 未移行作業は1スライスを1ブランチ、1 HANDOFFの単位とする。A3で `external-current-v1` を採用したArtifacts/Harness作業は、同じ単位の現行入力をGit外CURRENTで選択する。`pwsh tools/harness.ps1 current -Task <id>` が入口で、凍結仕様とrunはIDから解決する。移行を明示していない作業に新方式を暗黙適用しない。Phase境界では新しいセッションを使い、過去の会話ではなく各Phaseの固定入力を使う。
 
+通常の task 全体完了・打切りは人間の決定を処理する同じ最終手順で tools/workflow-task.ps1 end に接続する。Phase D の完了処理も対象とし、C/C′ 合格や Harness close を終了へ変換しない。再開は Evidence 利用前に resume を完了する。終了指示 record／event／receipt の途中失敗は同じ Decision・内容で回復し、確定済み終了 UTC を変更しない。新しい承認を増やす規則ではなく、既存の完了・再開手順の記録入口である。詳細は [Workflow README](../../../../tools/Workflow/README.md)。
 ## Phase A の内部フロー
 
 1. **A0 — 入力固定:** 現況、要求、対象外、常時契約、既知の制約、未決事項を planning packet にする。

@@ -48,6 +48,11 @@ public static class PackagePolicy
             throw new InvalidDataException("Package identity invalid.");
     }
 
+    public static void RequireEvidenceTask(string? taskId)
+    {
+        if (taskId is null || !Regex.IsMatch(taskId, "^[a-z0-9][a-z0-9-]{0,63}$", RegexOptions.CultureInvariant))
+            throw new InvalidDataException("Evidence task identity invalid.");
+    }
     public static string Relative(string value)
     {
         if (string.IsNullOrEmpty(value) || value.Length > RelativePathLimit || value.Contains('\\') || value.StartsWith('/') ||

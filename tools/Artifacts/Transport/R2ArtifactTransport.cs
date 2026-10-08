@@ -14,6 +14,7 @@ public sealed class ArtifactObservation
     public string? S3Code { get; init; }
     public long? Bytes { get; init; }
     public string? Sha256 { get; init; }
+    public string? ETag { get; init; }
     public bool StatusObserved { get; init; }
     public bool TimedOut { get; init; }
     public bool Redirected { get; init; }
@@ -50,6 +51,29 @@ public static class R2ArtifactTransport
         catch { return Fail(operation, "transport-error"); }
     }
 
+    // Only the one frozen cutover manifest can call this entry. The normal writer cannot
+    // use a flag to widen its cleanup scope to old evidence or arbitrary bucket keys.
+    public static ArtifactObservation ExecuteReset(string accessKeyId, string secretAccessKey, string endpoint,
+        string operation, string key, string? destinationPath, int deadlineMilliseconds)
+    {
+        const string repo = "4d2d1728f1db77f50605a10da0bbf10fd31443c381c4f312658134fffb850b3b";
+        var e1 = $"evidence/first-use/{repo}/caed8bae55c033673b75532dc650f0a3a3cedc48/64c42fc4d5d24fa580af7cc12d3a3c92/";
+        var e2 = $"evidence/first-use/{repo}/896eaea8a912248333704c80549d46ecf20c02c6/1495786d921949fca6e92edbef21010e/";
+        string[] allowed = [e1 + "bundle.zip", e2 + "bundle.zip", e1 + "protection-witness.txt", e2 + "protection-witness.txt",
+            "probe/unlocked/8b4830f6345d462f9db4ce07b47e5240/existing.txt", "probe/locked/8b4830f6345d462f9db4ce07b47e5240/existing.txt"];
+        if (!allowed.Contains(key, StringComparer.Ordinal) || operation is not ("get" or "delete") ||
+            !Endpoint.IsMatch(endpoint) || deadlineMilliseconds is < 1 or > 120000 || string.IsNullOrEmpty(accessKeyId) || string.IsNullOrEmpty(secretAccessKey))
+            return Fail(operation, "invalid-input");
+        using var cancellation = new CancellationTokenSource(deadlineMilliseconds);
+        try
+        {
+            using var client = CreateClient(accessKeyId, secretAccessKey, endpoint);
+            return operation == "delete" ? Delete(client, key, cancellation.Token) : Get(client, key, destinationPath!, cancellation.Token);
+        }
+        catch (AmazonS3Exception exception) { return FromS3(operation, exception); }
+        catch (OperationCanceledException) { return new ArtifactObservation { Operation = operation, StatusClass = "timeout", TimedOut = true }; }
+        catch { return Fail(operation, "transport-error"); }
+    }
     private static ArtifactObservation Put(AmazonS3Client client, string key, string sourcePath, CancellationToken token)
     {
         if (string.IsNullOrEmpty(sourcePath)) return Fail("put", "invalid-input");
@@ -86,9 +110,17 @@ public static class R2ArtifactTransport
         destination.Flush(true);
         return new ArtifactObservation { Operation = "get", HttpStatus = (int)response.HttpStatusCode,
             StatusClass = Classify(response.HttpStatusCode), Bytes = count,
-            Sha256 = Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant(), StatusObserved = true };
+            Sha256 = Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant(), ETag = NormalizeETag(response.ETag), StatusObserved = true };
     }
 
+    // Preserve only the finite content identity admitted by the frozen reset schema.
+    // Response headers and arbitrary SDK strings never cross the observation boundary.
+    private static string? NormalizeETag(string? value)
+    {
+        var token = value?.Trim('"');
+        return token is not null && Regex.IsMatch(token, "\\A[a-fA-F0-9]{32}(?:-[0-9]+)?\\z", RegexOptions.CultureInvariant)
+            ? token.ToLowerInvariant() : null;
+    }
     private static ArtifactObservation Delete(AmazonS3Client client, string key, CancellationToken token)
     {
         var response = client.DeleteObjectAsync(new DeleteObjectRequest { BucketName = "osm-artifacts", Key = key }, token).GetAwaiter().GetResult();

@@ -3,7 +3,7 @@
 ## 0. Metadata
 
 - type: `program`
-- status: r6方針改訂は2026-10-08にownerのPhase D承認で完了。programは進行中で、次はスライスAのPhase A。本番なし・過去の開発証拠の継承不要を前提に保存契約を一括置換する。新CLI、終了イベント接続、清掃、環境リセットは未実装/未実施。個別実装スライスのA3は別途行う。
+- status: r6方針改訂は2026-10-08にownerのPhase D承認で完了。programは進行中。スライスAは2026-10-08にA3 r5を凍結し、Phase BからC/C′までの進行をownerが承認した。現行仕様と採用runの入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。本番なし・過去の開発証拠の継承不要を前提に保存契約を一括置換する。新CLI、終了イベント接続、清掃の実装を検証中。運用切替、限定R2/scheduler/環境リセットと最終判定C/C′の実績はCURRENTの固定入力で確認する。後続スライスのA3は別途行う。
 - program policy revision: `r6` — 単一の開発用保存契約。旧データと互換性を引き継がない。
 - branch: `codex/artifact-storage-development-policy`
 - planning base commit: `a027bf04b4f5ce16494b93daf10e5b5bccf15a28` (`origin/develop`; PR #106・#107を含む)
@@ -23,7 +23,7 @@
 
 この指示を根拠に、r5のlegacy分岐、旧最低保存義務と日程、参照中/参照不明の無期限保持、keyごとの削除承認を置き換える。**PR #107のE1/E2へのIndefinite追加、reader互換、新保護事実recordの実適用タスクは取りやめる。** 過去の方式確認の成果は否定せず、経緯はPR/Git履歴に残す。撤去する方式を一度完成させてから移行する工程は作らない。
 
-現在の実装機能は [Artifacts README](../../tools/Artifacts/README.md) を正とする。従来CLIは固定E1/E2とsynthetic転送に限定され、新しい通常利用・期限清掃はまだ使えない。文書で契約を変更したことと、CLIやR2設定を切り替えたことを区別する。
+現在の実装機能は [Artifacts README](../../tools/Artifacts/README.md) を正とする。スライスAでEvidence v2、workflow taskの終了/再開配送、純粋保持policy、自動清掃と一回のresetを実装し検証中。H1 bootstrapと固定承認値/CURRENTは初期化済み。新契約の成立は同じ最終headのoffline・限定実観測とC/C′で判定し、実装進捗をR2設定切替・物理清掃完了へ読み替えない。
 
 - 資格情報管理、Route proof、synthetic publish/fetch、固定E1/E2の別session取得・hash検証・ログ/画像閲覧はPR #76/#81/#96/#104で成立した。
 - PR #106のreader offline可搬性は完了。判定head `19720ed7c6065ffcc55ee2643f811462025a940d`、非秘密dummy fixture、7suite 120/120、3 build、限定不在probe 2/2。現在も役立つ部品・テストを再利用する。
@@ -67,7 +67,7 @@
 
 実行担当は実在するkey/path/ruleと解除可否、他対象への影響を確かめ、対象を列挙してから操作する。bucket全消去や全rule collectionの無条件置換はしない。旧利用停止後の部分失敗は結果を残して対象限定で再実行し、旧経路への自動復帰や二重運用は作らない。設定整理に必要な管理操作はこの一回の担当が行い、日常清掃とは分離する。
 
-今回の文書改訂ではリセットを実行しない。旧保存義務がなくなったことを、現rule解除済み・物理データ不存在・任意領域を削除可能という主張に置き換えない。具体的なコマンドと対象はスライスAで準備する。
+r6の方針改訂だけではリセットを開始しない。スライスAの実行は固定対象と開始条件、CURRENTの固定入力に従う。旧保存義務がなくなったことを、現rule解除済み・物理データ不存在・任意領域を削除可能という主張に置き換えない。具体的なコマンドはArtifacts README、対象と除外はスライスAの固定仕様で確認する。
 
 ## 4. 次に進めるスライス
 
@@ -85,7 +85,7 @@
 
 **検証:** 保存→別session取得/hash・ログ/画像閲覧、30日境界、終了イベントの再適用、再開後への古いイベント到着、利用開始/再開と削除の競合、対象外の非削除、部分失敗の再実行、秘密非露出、安全な展開。時刻注入、#106のdummy fixture、隔離した使い捨てデータを使う。実R2の限定往復/清掃は運用経路の確認として行い、旧E1/E2継続取得や30日実待機を要求しない。自動清掃の起動・再実行が人の反復操作なしで成立する経路もA3で具体化する。
 
-判定は関連Artifacts/Harness offline suiteと限定R2検証。Unityを変更しないため全EditMode回帰は適用外。細かなschema/API、file配置、清掃間隔、7日の初期値、リセット対象/操作は着手時A3に固定する。実装時に必要な終了イベント接続だけを扱い、Harness全体の改造へ膨らませない。
+判定は関連Artifacts/Harness offline suiteと限定R2検証。Unityを変更しないため全EditMode回帰は適用外。スライスAのschema/API、file配置、清掃間隔、7日の初期値、リセット対象/操作はA3 r5に固定済みで、Git外CURRENTから取得する。実装時に必要な終了イベント接続だけを扱い、Harness全体の改造へ膨らませない。
 
 **停止規則:** 上記の通常利用・期限清掃と一回の切替が成立したら閉じる。Build、Cloud、GUI、常駐broker、別provider、長期保護・互換維持を追加条件にしない。
 

@@ -9,14 +9,15 @@ function Assert-ApprovedSpec([string]$Task, [object]$Spec) {
     Assert-ApprovedSpecification $Task $Spec
 }
 
-function Get-RequiredSteps([object]$Spec, [string[]]$ChangedPaths, [string]$Stage) {
-    if ($Spec.title -ceq 'ARTIFACT-EVIDENCE-LIFECYCLE') {
+function Get-RequiredSteps([object]$Spec, [string[]]$ChangedPaths, [string]$Stage, [object]$Changes = $null) {
+    if ((($Spec -is [Collections.IDictionary] -and $Spec.Contains('title')) -or $Spec.PSObject.Properties['title']) -and $Spec.title -ceq 'ARTIFACT-EVIDENCE-LIFECYCLE') {
         Assert-ApprovedSpecification 'artifact-evidence-lifecycle' $Spec
         if ($Stage -cnotin @('discovery','judgment') -or $ChangedPaths.Count -eq 0) { throw 'stageまたは変更集合が不正です。' }
         foreach ($path in $ChangedPaths) {
             $path = $path.Replace('\', '/')
+            if ($path -ceq 'docs/handoff/ARTIFACT_EVIDENCE_LIFECYCLE.md' -and ($null -eq $Changes -or $Changes[$path] -cne 'D')) { throw 'Git外specへ投影するHANDOFFの削除だけが承認されています。' }
             $allowed = @($Spec.scope | Where-Object { $path -clike $_ }).Count -gt 0
-            if (-not $allowed -or $path -cmatch '^tools/(Artifacts|Workflow)/(.*/)?(artifacts|bin|obj)/') { throw "Evidence taskで未承認の変更pathです: $path" }
+            if (-not $allowed -or $path -match '^tools/(Artifacts|Workflow)/(.*/)?(artifacts|bin|obj)/') { throw "Evidence taskで未承認の変更pathです: $path" }
         }
         return @($(if ($Stage -ceq 'discovery') { $Spec.discoverySteps } else { $Spec.judgmentSteps }))
     }
@@ -44,13 +45,30 @@ function Get-RequiredSteps([object]$Spec, [string[]]$ChangedPaths, [string]$Stag
     return @($steps | Sort-Object)
 }
 
-function Assert-RunForGate([object]$Run, [object]$Spec, [string]$Head, [string[]]$RequiredSteps) {
+function Assert-RunForGate([object]$Run, [object]$Spec, [string]$Head, [string[]]$RequiredSteps, [string]$RequiredStage = '') {
     # 採用は「この run を見る」であり、ここを通過したことではない。失敗 run も採用できるが引渡しには使えない。
     # dirty の null は「汚れていない」ではなく未採取。空配列だけを清浄とみなす。
     if ($Run.specHash -cne $Spec.specHash -or $Run.base -cne $Spec.base -or $Run.head -cne $Head) { throw 'runの仕様またはbase/headが候補と一致しません。' }
     if ($null -eq $Run.dirtyBefore -or $null -eq $Run.dirtyAfter -or $Run.dirtyBefore -isnot [array] -or $Run.dirtyAfter -isnot [array]) { throw 'run前後のdirty状態が確定していません。' }
     if ($Run.dirtyBefore -or $Run.dirtyAfter) { throw 'dirtyなrunは完了引渡しに使えません。commitするかtrialとして実行してください。' }
     if ($Run.status -cne 'passed') { throw '失敗または未完了のrunは採用できてもgateは通過できません。' }
+    if ((($Spec -is [Collections.IDictionary] -and $Spec.Contains('title')) -or $Spec.PSObject.Properties['title']) -and $Spec.title -ceq 'ARTIFACT-EVIDENCE-LIFECYCLE') {
+        if (-not $Run.PSObject.Properties['taskId'] -or $Run.taskId -cne 'artifact-evidence-lifecycle') { throw 'Evidence runのtask identityが不一致です。' }
+        Assert-CaseSets @($Spec.discoverySteps) @($RequiredSteps) @($RequiredSteps) 'Evidence gate steps'
+        Assert-ApprovedSpecification $Run.taskId $Spec
+        if ($Run.suiteVersion -cne $Spec.testPolicy -or $Run.specId -cne $Spec.id -or $Run.stage -cnotin @('discovery','judgment') -or ($RequiredStage -and $Run.stage -cne $RequiredStage)) { throw 'Evidence runのtask/policy/仕様ID/stageが不一致です。' }
+        if (@($Run.steps).Count -ne $RequiredSteps.Count -or @($Run.steps | Where-Object { $RequiredSteps -cnotcontains $_.name }).Count -gt 0) { throw 'Evidence step集合が固定5件と一致しません。' }
+        foreach ($step in @($Run.steps | Where-Object { $_.name -like '*local' })) {
+            $expected = switch ($step.name) {
+                'artifacts-evidence-local' { @('Credentials','RouteProof','R2RouteTransport','ArtifactPackage','ArtifactTransfer','ArtifactRotation','ArtifactEvidence','EvidenceRetention','EvidenceCleanup','EvidenceSchedule','EvidenceReset') }
+                'workflow-local' { @('TaskLifecycle') }
+                'harness-local' { @('Harness') }
+                default { throw '未知のEvidence suiteです。' }
+            }
+            $actual = @($step.registered | ForEach-Object { ($_ -split '/',2)[0] } | Sort-Object -Unique -CaseSensitive)
+            Assert-CaseSets @($expected) @($actual) @($actual) $step.name
+        }
+    }
     $unityPilot = $Spec.PSObject.Properties['testPolicy'] -and $Spec.testPolicy -ceq 'unity-pilot-gates-v1'
     if ($unityPilot) {
         # run の task と承認本文を結び、別revisionの承認値を取り違えた引渡しを拒否する。
@@ -148,6 +166,7 @@ function Select-BlindInput([object]$Spec, [object]$Run, [string]$Kind, [string[]
         predecessor = $Run.predecessor
         steps = @($Run.steps)
         implementationResult = $Run.implementationResult
+        observation = $(if ($Run.PSObject.Properties['observation']) { $Run.observation } else { $null })
     }
 }
 
