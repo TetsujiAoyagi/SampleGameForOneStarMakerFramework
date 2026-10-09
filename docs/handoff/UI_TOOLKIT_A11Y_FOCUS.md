@@ -3,9 +3,11 @@
 - type: slice
 - status: B（今回の修正。判定 C / C' は未着手）
 - branch: `codex/repair-pr95-20261010`
-- develop integration base: `8953a908d1caf19c1957c128fc9690f3ac2f5569`
+- original repair A3 develop base: `8953a908d1caf19c1957c128fc9690f3ac2f5569`
+- final upstream integration base: `f5c67596a264baca48e49771acf54b34076d9c22`（#110 の Artifacts 4 パスのみ）
 - repair implementation base: `d54014881dee2c8f83810ab171a6702358ea6c77`
-- repair implementation head: Phase B の修正コミットで固定する
+- repair implementation commit: `4eb334886dc242bba6c8d18ee5854fdafbd968b4`（変更なし）
+- final candidate head: 本 HANDOFF の metadata を含む merge commit。Git HEAD で固定し、Phase C に渡す
 - original published PR95 head: `3d04523640d96afc0b71d0261b74877b96bf7d89`
 - risk: high
 - owner: 統合親担当。Phase D の GO / NO-GO と merge は利用者の承認済み順次計画に従い親担当が判断する。
@@ -13,7 +15,7 @@
 - expires: 2026-11-05
 - harvest to: `unity/Assets/Docs/Architecture/06-ui.md` と `unity/Assets/Docs/Architecture/32-accessibility-input-dof.md`
 - frozen repair Phase A snapshot: `artifacts/integration-review-20261010/pr95-repair/phase-a-repair-snapshot.md`（ローカル、SHA-256 `00d624678ed10f3c38bb40cf0fc5cd6bb950d238201c9dab4465bf8f8f733236`）
-- neutral repair Phase B result: `artifacts/integration-review-20261010/pr95-repair/phase-b-repair-result.md`（ローカル、SHA-256 `a6b7d292c82d4f363eb9d3d60a1642613614aca6467e0bc654c903c85d258c4f`）
+- neutral repair Phase B result: `artifacts/integration-review-20261010/pr95-repair/phase-b-repair-result.md`（ローカル、SHA-256 `4f13aea41467ed125a5550ae440a851615ca2aae9b19bd387799c450ba55de2c`）
 - review evidence / C' blind bundle: 未生成。最終 repair head の Phase C が作成する。
 - original evidence retrieval: 公開済み commit `3d04523640d96afc0b71d0261b74877b96bf7d89` の `artifacts/ui-toolkit-a11y-focus/` に旧 9 ファイルを保持。SHA-256 検証済みのローカル複製は `artifacts/integration-review-20261010/pr95-repair/original-published-evidence/`。旧結果は今回の head の合格証拠に流用しない。
 
@@ -100,11 +102,11 @@
 ## 6. Phase B 実装結果（今回の修正）
 
 - 実装: `Select` は `ListTabStops(root)` の候補だけで優先名を探し、候補がなければ先頭へ戻す。既存の名前/ヒントや View の公開面は変更しない。
-- 回帰テスト: 隠れた祖先、無効な祖先、root 名、実 `UICommon.AddUIView` の ViewIn 完了・失敗・取消。共有 `TestToolkitView` は UniTask に依存させず、既存の `OneStarMaker.Tests`（UniTask 参照済み）内のテスト専用派生だけが完了シグナルを持つ。取消アサーションは派生した取消例外を受け入れる。ConfirmDialog の名前・ヒントと実破棄後の解除は、EditMode `[UnityTest]` が Play Mode に入って確認し、teardown でシーン状態を戻す。`UIAccessibilityTextTests` の `UnityEngine.Object` 曖昧性を解消。
+- 回帰テスト: 隠れた祖先、無効な祖先、root 名、実 `UICommon.AddUIView` の ViewIn 完了・失敗・取消。共有 `TestToolkitView` は UniTask に依存させず、既存の `OneStarMaker.Tests`（UniTask 参照済み）内のテスト専用派生だけが完了シグナルを持つ。取消アサーションは派生した取消例外を受け入れる。ConfirmDialog の名前・ヒントと実破棄後の解除は、EditMode `[UnityTest]` が Process 限定の `content:runtimeMode=addressables` で Play Mode に入って確認する。teardown は元の環境変数値と、読み込み済みの元シーン構成（元が空なら空シーン）を戻す。`UIAccessibilityTextTests` と ConfirmDialog Play fixture の `UnityEngine.Object` 曖昧性を解消。
 - 証拠整理: 旧 9 ファイルは元の公開 head と SHA-256 照合済みローカル複製に保存。最終ブランチの正味差分から除く。
 - HANDOFF との差: なし。元スライス §1–5 の製品境界内の修正。
 - 未実行: Unity コンパイル、限定 EditMode、空 filter 全 EditMode、Build。Phase C 担当へ引き渡す。
-- implementation head commit: 修正コミットで固定する。
+- repair implementation commit: `4eb334886dc242bba6c8d18ee5854fdafbd968b4`。最終判定対象は最新 `develop` との merge 後の Git HEAD。
 - Phase B 担当: PR95 修正担当 Codex（現在セッション）。
 
 ## 7. Phase C
