@@ -8,7 +8,7 @@
 
 計画書・外部フレームワーク比較・発表資料は作者の手元にあるが、リポジトリには含めない。「昔こう決めた」「こう作る予定だった」という文書が同じ場所に積み上がると、読む側は**どれが今も有効なのか判定できなくなる**ためである。
 
-例外は `docs/handoff/` である。進行中のスライスの作業指示と、複数スライスに跨る計画を置いてよい（実装を別セッション / 別ツールへ渡すため git worktree に持っていく必要がある）。**1 本に限らない。** 複数スライスに跨る計画を置くなら、harvest 先と期限を本文に書くこと。完了したスライスはマージ時に、後段のPhase D手順（保存・引渡し確認 → harvest → 削除・後始末）に従う。進行中 program / 未承認候補は、計画文書のマージ後も owner・期限・harvest 先付きで保持し、解決・置換時に削除する。
+例外は `docs/handoff/` である。進行中のスライスの作業指示と、複数スライスに跨る計画を置いてよい（実装を別セッション / 別ツールへ渡すため git worktree に持っていく必要がある）。**1 本に限らない。** 複数スライスに跨る計画を置くなら、harvest 先と期限を本文に書くこと。完了したスライスはマージ時に、後段のPhase D手順（保存・引渡し確認 → harvest → 削除・後始末）に従う。進行中 program / 未承認候補は、計画文書のマージ後も owner・期限・harvest 先付きで保持し、解決・置換時にも同じPhase D手順を適用する。
 
 H1適用をA3で明示したArtifacts/Harness作業では、Git外のCURRENTと固定仕様を正本にする。入口は `pwsh tools/harness.ps1 current -Task <id>`。Gitへの新しいPhase RESULT・REVISION・raw実行結果の追加はそのtaskの `pwsh tools/contract-audit.ps1 -HarnessTask <id>` が拒否する。未移行のprogram/Unity作業は従来のtracked HANDOFFを続け、通常のauditは新検査を `not-applicable` と表示する。適用taskの合格根拠に通常auditを流用しない。H1のCURRENT・runは同一Windowsユーザー/マシン内のLocalApplicationDataに置き、別マシン配布はまだ保証しない。
 H2cの旧 `h2c-unity-gate` と再開task `h2c-unity-gate-r2` は、それぞれ承認済みのtaskとして同じGit外CURRENT方式を使い、標準runnerの固定11件と全EditModeの生結果をrun内payloadに保持する。現在の再開入口は `pwsh tools/harness.ps1 current -Task h2c-unity-gate-r2`。旧taskのCURRENTと承認値は保持し、旧入口は読取のみとする。B限定実行の許可は各taskの承認済み `unity-pilot-gates-v1` の `discovery` と固定profileに限る。他taskはA3で移行を明示するまで従来方式を続ける。
