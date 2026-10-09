@@ -14,6 +14,8 @@ param(
     [string]$Question = '',
     [string]$StopWhen = '',
     [string]$ImplementationResult = '',
+    [string]$ObservationManifest = '',
+    [string]$ObservationSha256 = '',
     [string]$Reason = '',
     [ValidateSet('B','CDiscovery','CJudgment','CBlind')][string]$To = 'B',
     [ValidateSet('Completed','Abandoned')][string]$Outcome = 'Completed',
@@ -74,6 +76,7 @@ function Get-AdoptedStepEvidenceLines([object]$Step) {
     }
 }
 try {
+    if (($ObservationManifest -or $ObservationSha256) -and ($Command -cne 'run' -or $Task -cne 'artifact-evidence-lifecycle' -or -not $ObservationManifest -or -not $ObservationSha256)) { throw '原観測登録はEvidence taskのrunで両引数を指定してください。' }
     if ($Command -ceq 'status') {
         $identity = Get-RepositoryIdentity $Repo
         $root = if ($StoreRoot) { [IO.Path]::Combine($StoreRoot, $identity.Id, 'tasks') } else { [IO.Path]::Combine([Environment]::GetFolderPath('LocalApplicationData'), 'OneStarMaker', 'Harness', $identity.Id, 'tasks') }
@@ -125,6 +128,7 @@ try {
         foreach ($adopted in @($context.Current.adoptedRuns)) {
             $runRecord = Read-Record $directory 'runs' $adopted.id
             if ($runRecord.content.specHash -cne $context.Spec.specHash) { throw "採用runの凍結仕様が一致しません: $($adopted.id)" }
+            if ($runRecord.content.PSObject.Properties['observation'] -and $runRecord.content.observation) { Write-Output "observation=$($runRecord.content.observation.path) sha256=$($runRecord.content.observation.sha256)" }
             # 過去runは参照・保持のため残し、入口表示には現行headの採用分だけを出す。
             if ($runRecord.content.head -cne $context.Current.candidateHead) { continue }
             Write-Output "adopted-run=$($adopted.id) reason=$($adopted.reason)"
@@ -143,7 +147,7 @@ try {
         if ($PreviousRun) { [void](Read-Record $directory 'runs' $PreviousRun) }
         $head = Get-Head
         $scope = Get-GitScope $Repo $context.Spec.base $head
-        $steps = Get-RequiredSteps $context.Spec $scope.Paths $Stage
+        $steps = Get-RequiredSteps $context.Spec $scope.Paths $Stage $scope.Changes
         $id = [Guid]::NewGuid().ToString('N')
         $started = [DateTimeOffset]::UtcNow
         $runClock = [Diagnostics.Stopwatch]::StartNew()
@@ -151,18 +155,21 @@ try {
         $results = [Collections.Generic.List[object]]::new()
         $failure = $null
         $after = $null
+        $observation = $null
         try {
             # step が例外でも進行中のまま残さない。失敗 record を書いてから戻る。
             foreach ($step in $steps) {
                 if ($step -like 'unity-editmode-*') { $results.Add((Invoke-UnityStep $Repo $directory $id $step $context.Spec)) }
                 else { $results.Add((Invoke-LocalStep $Repo $directory $id $step)) }
             }
+            if ($ObservationManifest) { $observation = Save-ObservationAttachment $directory $id $ObservationManifest $ObservationSha256 $context.Current.repoId $context.Spec.base $head }
             $after = Get-GitScope $Repo $context.Spec.base (Get-Head)
         } catch {
             $failure = $_.Exception.Message
         }
         $runClock.Stop()
         $run = New-RunResult -Spec $context.Spec -Current $context.Current -Task $Task -Stage $Stage -Scope $scope -After $after -Started $started -ElapsedMs $runClock.ElapsedMilliseconds -Id $id -PreviousRun $PreviousRun -Difference $Difference -Question $Question -StopWhen $StopWhen -Results @($results) -Failure $failure -ImplementationResult $ImplementationResult
+        if ($Task -ceq 'artifact-evidence-lifecycle') { $run.observation = $observation; if ($observation) { $run.implementationResult += "; observation=$($observation.path) sha256=$($observation.sha256)" } }
         $record = Finish-Run $directory $run
         Write-Output "run=$id status=$($run.status) head=$head dirty=$(@($scope.Dirty).Count) recordHash=$($record.Hash)"
         return
@@ -193,8 +200,8 @@ try {
             if ($input.content.inputKind -cne 'judgment' -or $input.content.head -cne $scope.Head -or $input.content.specHash -cne $context.Spec.specHash) { throw 'CBlind入力のhead/仕様/種別が一致しません。' }
             $blindRun = Read-Record $directory 'runs' $input.content.runId
             if ($blindRun.hash -cne $input.content.runHash) { throw 'CBlind入力が参照するrunが変わりました。' }
-            $required = Get-RequiredSteps $context.Spec $scope.Paths 'judgment'
-            Assert-RunForGate $blindRun.content $context.Spec $scope.Head $required
+            $required = Get-RequiredSteps $context.Spec $scope.Paths 'judgment' $scope.Changes
+            Assert-RunForGate $blindRun.content $context.Spec $scope.Head $required 'judgment'
             Assert-RunPayload $directory $blindRun.content $context.Spec $Repo
             $blindReceipt = Publish-BlindHandoff $directory $context.Current $input $Task $input.content.runId $scope.Head $context.Spec.specHash
             Write-Output "ready=true input=$($input.id) hash=$($input.hash) head=$($scope.Head) receipt=$($blindReceipt.id)"
@@ -208,8 +215,8 @@ try {
         # discoveryで広い必須集合まで実行済みなら、同一headの結果を判定Cへ再利用する。
         # 判定入力の種別は渡し先と照合済みstep集合から決め、run名だけで狭めない。
         Assert-HandoffCandidate $context.Current $To
-        $steps = Get-RequiredSteps $context.Spec $scope.Paths $requiredStage
-        Assert-RunForGate $run $context.Spec $scope.Head $steps
+        $steps = Get-RequiredSteps $context.Spec $scope.Paths $requiredStage $scope.Changes
+        Assert-RunForGate $run $context.Spec $scope.Head $steps $requiredStage
         Assert-RunPayload $directory $run $context.Spec $Repo
         $run | Add-Member -NotePropertyName recordHash -NotePropertyValue $record.hash -Force
         $diffResult = Invoke-Process 'git' @('-C', $Repo, 'diff', '--no-ext-diff', '--no-color', $context.Spec.base, $scope.Head, '--') $Repo 30

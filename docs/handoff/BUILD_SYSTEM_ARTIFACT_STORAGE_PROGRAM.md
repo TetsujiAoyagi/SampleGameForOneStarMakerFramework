@@ -3,241 +3,121 @@
 ## 0. Metadata
 
 - type: `program`
-- status: program進行中。ローカル段1（旧スライス0）とRoute proofはPhase D完了。r4の順序・保護境界はA3凍結済み。次は最小Artifact CLIの着手時Phase A。R2の本採用と実payload転送は未承認。
-- program policy revision: `r4` — purpose-first route proof before production transport architecture; `r1` is historical review context
-- Phase A snapshot path / id: `328843ea521550af9da203315c2704d3d51cc8d0:docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md`（`git show`で凍結本文を取得する）
-- Phase A snapshot generated at: 2026-09-27T11:50:53Z
-- Phase A snapshot SHA-256: `17A26E762AD7CF74878124BB34DDFC3B3DFA6207520CD8C8442C57990FC0BDFF`（上記commitのblob bytes）
-- branch: `codex/artifact-storage-purpose-first`（program草案）→ `codex/artifact-storage-route-proof`（再レビュー用head）
-- implementation base commit: `6537446b85bf33056dcdd5b08840940761823711` (`develop`)
-- implementation head commit: not applicable; no implementation changes are planned in this program document
-- risk: `normal`
+- status: programは進行中。スライスAはPR #109で実装・限定運用検証と正式C/C′を完了（両方GO、blocker 0）。固定仕様と実行集合・原観測の入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。旧限定resetは完了済みで、再実行しない。後続B〜DのA3は別途行う。
+- program policy revision: `r6` — 単一の開発用保存契約。旧データと互換性を引き継がない。
+- branch: `codex/artifact-storage-development-policy`
+- planning base commit: `a027bf04b4f5ce16494b93daf10e5b5bccf15a28` (`origin/develop`; PR #106・#107を含む)
+- implementation head commit: not applicable; 文書改訂のみ。
+- risk: `normal`（文書改訂）。リセットと削除機能の対象・検証は実装スライスで具体化する。
 - owner: OSM maintainers
 - created: 2026-09-26
-- expires: 2026-12-26
-- harvest to: `docs/README.md` only if it remains a current workflow; otherwise delete after the program
+- updated: 2026-10-10
+- expires: 2026-12-26 または置換revision（program文書の見直し期限）
+- harvest to: 実装済みの通常操作を `tools/Artifacts/README.md`、program状態を `docs/README.md` へ反映し、program完了時に削除する。
 
-## 1. Purpose and current state
+## 1. 目的・要件変更・現在地
 
-Choose and establish one artifact workflow that supports BuildSystem outputs and review Evidence, can be used by local work and remote Cursor / Codex agents, and does not require a human to move files between agents. Keep large binary payloads out of Git history; keep a small, stable pointer and hashes in Git.
+開発中の成果物を非公開で手軽に保存・受け渡しし、不要になったものは自動で片付ける。人間が毎回ファイルを運んだり、保存・清掃を個別承認したりせずに使えることを成果とする。
 
-This is a multi-slice program, not an implementation HANDOFF. Revision r4 freezes the order and protection boundaries. The Route proof slice completed at [PR #81](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/81): synthetic same-key unsigned GET did not return object bytes, and the ordinary writer's locked overwrite and DELETE were rejected while the original object hash remained. The 400 response's cause is unproven, and cloud capability remains unverified. This local necessary-condition proof does not authorize real Evidence or Build uploads. r1 below records the prior A3 boundary; r2/r3 record earlier, unapproved proposals. The completed slice HANDOFF is retained in Git history and harvested into the Artifacts README.
+[ownerの要件変更](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/108#issuecomment-6049302344)と本チャットの修正指示を採用する。本番運用はなく、過去の開発用Artifact・試験設定はリセット可能。旧証拠の保存継続、旧参照/readerとの互換、PRごとの移行台帳を要求しない。物理的な試験物の不存在を確認した、という意味ではない。
 
-The owner expects most reads and writes to be performed by local Windows agents. Prioritize a usable local credential store and transfer tool. Cloud agents are intended consumers and occasional producers through task-scoped grants, but R2 support is unverified; a continuously available cloud credential broker is not a prerequisite for the local workflow.
+この指示を根拠に、r5のlegacy分岐、旧最低保存義務と日程、参照中/参照不明の無期限保持、keyごとの削除承認を置き換える。**PR #107のE1/E2へのIndefinite追加、reader互換、新保護事実recordの実適用タスクは取りやめる。** 過去の方式確認の成果は否定せず、経緯はPR/Git履歴に残す。撤去する方式を一度完成させてから移行する工程は作らない。
 
-Unity is a replaceable build backend. The primary user/agent interface is an engine-independent CLI outside Unity; no Unity GUI, Editor installation, or Unity assemblies are required to publish, fetch, inspect, or manage credentials for already-produced files. Engine-specific build execution may require its engine, but that dependency stays in its backend adapter. A future engine replacement must not require rewriting artifact storage or its user interface.
+現在の実装機能は [Artifacts README](../../tools/Artifacts/README.md) を正とする。スライスAのEvidence v2、workflow taskの終了/再開配送、純粋保持policy、自動清掃と一回の限定resetは検証を完了した。正式C/C′は同じ実装headでGO。検証集合、限定実観測、既知ACL不適合copyの保護によるpartial結果と未確認範囲は、PR #109およびCURRENTの固定記録に残す。
 
-### Verified so far
+- 資格情報管理、Route proof、synthetic publish/fetch、固定E1/E2の別session取得・hash検証・ログ/画像閲覧はPR #76/#81/#96/#104で成立した。
+- PR #106のreader offline可搬性は完了。判定head `19720ed7c6065ffcc55ee2643f811462025a940d`、非秘密dummy fixture、7suite 120/120、3 build、限定不在probe 2/2。現在も役立つ部品・テストを再利用する。
+- PR #107の方式確認・移行契約はPhase D完了。判定head `d05277dc02d4cb159e1c4c0068fb947cff22e39b`。本番適用は未実施のまま取りやめる。試験用W/Lと2rule等は一回のリセットで整理する対象候補とする。
 
-- The repository is public. A synthetic GitHub Release probe was published at `artifact-probe-20260926` with a PNG, text log, ZIP, and SHA-256 manifest. Local unauthenticated download, hash verification, ZIP extraction, and content inspection passed.
-- Cursor Cloud downloaded all four probe files without GitHub authentication, verified all three payload hashes, compared ZIP contents to individually downloaded files, read marker `OSM-PROBE-20260926`, and opened the PNG. It reported the blue rectangle, orange circle, white background, and text `OSM PROBE 726`. Its worktree remained clean.
-- Codex Cloud could not reach GitHub. Its configured HTTPS proxy returned `403` to the CONNECT request; direct access also failed because DNS resolution was unavailable. The agent did not download or inspect any file. This is an outbound network policy failure, not evidence of a GitHub permission failure.
-- The Cloudflare account has an R2 Standard bucket named `osm-artifacts` in APAC. The owner registered an R2 S3 key pair in the local DPAPI profile on 2026-09-27. The completed Route proof at [PR #81](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/81) observed a synthetic PUT, separate-process authenticated GET/hash match, same-key unsigned GET without object bytes, unlocked overwrite/DELETE/NoSuchKey, and locked overwrite/DELETE rejection with original-hash preservation. The Public Development URL was disabled, Custom Domains empty, and the writer token scoped to R2 Bucket Item Read and Write for `osm-artifacts` only before and after the run. The 400 cause and general provider adoption remain open.
-- The same synthetic files are available from the GitHub Release probe for transport testing; that release is not the proposed long-term store for frequent Build / Evidence runs.
+主な利用者は同一Windowsユーザーで動くローカルAgent。既存R2・DPAPI・検証済みの転送部品を使い、Cloud、別provider、BuildSystem全体の刷新を先行条件にしない。
 
-## 2. Decision boundary
+## 2. 単一の保存契約
 
-### Prior frozen program boundaries (r1; review context)
+### 開発Build
 
-- Local question (slices 0, local 1, and 2): can a local agent transfer to the private store without changing the repository and verify byte identity against the trusted ledger hash? Remote capability is not a condition for answering this question.
-- Separate cloud question (cloud part of slice 1, per platform): can Cursor Cloud or Codex Cloud independently perform the same operations without recurring human grant/file handling? Record each platform and read/write capability separately. Codex's current 403 does not block the local question; no unattended cloud capability is frozen as established.
-- Historical r1 storage direction: r1 selected R2 as the routine object store, but r4 reopens provider selection and order; the first Route proof cannot establish R2 adoption. The protections in this paragraph remain required for whichever route is selected: reserve GitHub Releases for named distribution versions. The uploader must not modify the repository. Staging defaults to a private directory outside the checkout and outside sync folders; an explicitly selected alternative must be verified as ignored and safe before use. `artifacts/` as a whole is NOT ignored (only specific existing subdirectories are). Record a short ledger in the active HANDOFF or PR body: base/head, stable object key, SHA-256, retrieval instructions, and retention deadline. Do not commit payloads, generated manifests per run, signed URLs, or credentials. Use unique object keys per repository, commit, and run. Never overwrite or delete an Evidence bundle that a review has referenced; update the ledger to select a newer build rather than overwriting a mutable latest key.
-- Storage/publication boundary: retain the existing `osm-artifacts` bucket as permanently private for Evidence, logs, verification images, and internal builds (the role called `osm-evidence` in the supplied review). Never enable a public domain or `r2.dev` on this bucket. Public named distributions go to GitHub Releases as explicitly selected copies. If R2 CDN distribution becomes necessary, create a separate `osm-distributions` bucket and separate publishing credentials then. Prefixes and object ACLs are not a private/public boundary. Ordinary artifact credentials have no account administration or public-distribution bucket access. Reusing the existing name avoids an unnecessary bucket migration. The Route proof separately requires the account owner to add a finite `probe/locked/` Bucket Lock rule; it does not change public URL or custom-domain settings.
-- Evidence bundle identity: package the existing review-evidence inputs without inventing a new Evidence format. Store the generated manifest and checksums with the payload in R2. C and C' share only immutable, findings-free judgment inputs for the same base/head: frozen snapshots, diff, raw results, images, and machine output as required by the existing workflow. C findings and conclusions remain separate and inaccessible to the blind C' input path until Phase D; never append them to the shared object. A changed payload requires a new key and hash.
-- Local flow: BuildSystem writes into its existing local output; a wrapper packages and hashes its output, uploads to a unique R2 prefix, verifies downloaded bytes, and returns a stable ledger entry. `D:\OneDrive\OSM-Artifacts` is not part of this workflow: no mirror, staging, credential storage, or acceptance dependency.
-- Remote boundary: remote agents receive only expiring, scope-limited grants; their credential delivery and unattended transfer route remain unverified and belong to the cloud investigation.
-- Access should be least-privilege and predictable: give a remote reviewer read access to the intended Evidence only; give a remote producer write/read-back access to its own run. A bucket-wide Object Read & Write token is not an append-only permission and is not the production default for Cloud Agents. Parent credentials are protected at rest on the owner's Windows machine; the local transfer/signing process uses them without printing or exporting them. This trusts processes running as that Windows user and is not isolation from a malicious local agent. Remote agents receive scoped, expiring grants. The repository must contain no secret values. Platform secret handling differs; see the setup boundary below.
-- Historical r1 ordering: implement slice 0 and prove local transfer first. r4 reopens that order and places Route proof before the minimal Artifact CLI and Evidence first use. Cloud failures remain separate unsupported capabilities and do not require an always-on broker to unblock local work.
-- Probe-only safety gate: until slice 2 verifies server-enforced protection of finalized objects, upload only synthetic files under `probe/`. Do not upload real Evidence or real builds even to the private bucket. The local bucket-wide credential can overwrite/delete objects; CLI prohibitions are not an R2 permission boundary.
-- Accepted threat boundary: protect against leakage into Git, logs, and sync folders, ordinary other-user access to stored keys, and accidental public distribution. DPAPI does not isolate a local agent running as the same Windows user. Usable keys exist in runtime memory; bucket administrators can change lock policy; initial signed-URL probes do not provide write-once storage.
-- Engine boundary: Unity remains a replaceable backend and the primary interface remains outside Unity as stated in section 1.
+成功publishをBuild系列ごとに最新N件保持し、超過分は削除可能な古いものから清掃する。既定値案は10件。系列はproject・target/platform・configurationを出発点にBで固定し、branchごとに無制限の枠を作らない。
 
-### Former r1 open decisions (review context; r4 adoption pending)
+利用中のBuildは削除対象から除外し、N件には数える。保護だけでNを超える間は超過を表示して許容する。失敗/未完了publishは成功件数に含めず、失敗によって既存の成功Buildを追い出さない。最低保存日数やowner Close待ちは設けない。リリースの保存・配布は必要になった時の別責務とし、今回作らない。
 
-- Slice 1 local: actual R2 round trip and credential connectivity. Slice 1 cloud: each platform's credential delivery, unattended issuance/renewal, Codex egress configuration, and runtime grant handling. Cursor secret redaction is not permission reduction.
-- Slice 2: retention durations, concrete server-side protection and its lifecycle interaction, and finite numeric extraction limits. Lock verification gates all real payload uploads. Proposed cost controls (Standard storage and a measured budget alert) require implementation verification; no automatic retention deletion is authorized here.
-- Slice HANDOFFs: command syntax, exact file/class layout, and detailed implementation/testing choices belong to each slice HANDOFF while it is active. The completed Route proof HANDOFF is available in [PR #81](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/81) history; its current tool behavior is in [tools/Artifacts/README.md](../../tools/Artifacts/README.md).
-- The missing fourth inline review comment remains pending receipt. On receipt, record its disposition in a new program revision; do not mark unseen text resolved.
+### 開発Evidence
 
-## 3. Program slices
+- 作業中は保持する。workflowがtaskの完了/打切りを一度記録し、同じ終了イベントからStorageへ`taskEndedAt`、`endReason = completed | cancelled`、`deleteEligibleAt = taskEndedAt + 30日`を登録する。Evidence専用のowner Close承認は作らない。
+- workflowがtask終了の意味を所有し、Storageは終了日時・削除可能日時・利用中保護だけを扱う。Phase D等の品質判断を変えず、Storageにそのイベント形式やレビューの合否を再判定させない。C/C′が揃っただけ、Agentの終了、失敗、timeout、一時停止をtask終了と推測しない。
+- Harnessの現行`close` / `closed.json`は実行記録の確定であり、そのままtask終了へ読み替えない。新Storageのコピーはこの単一契約で管理し、Harnessの原sourceの清掃はHarness側が所有する。Harnessの`retainUntil`をStorageコピーの第二の保持時計にしない。同じ実体を双方が管理する接続はDで所有者を一方へ寄せる。
+- 終了イベントの反映失敗は再実行でき、同じイベントの再適用で起算日を更新しない。再開時は削除資格を取り消し、再終了から30日を数え直す。再開と終了の版・順序を区別し、古い終了イベントの再送で再開を打ち消さない。
+- 期限に達したら利用中でない対象を通常清掃する。古いPRリンク、inspect、GETだけでは延長しない。調査等で必要なものだけ明示的に利用中保護し、解除条件または期限を見えるようにする。
+- 未終了Evidenceをupload後の日数だけで強制削除しない。終了記録の取りこぼしは接続と再実行で直し、本当に継続/打切りが未決のtaskはinspectに表示する。新しいlease、heartbeat、定期的なowner再承認制度を足さない。
+- 恒久的な設計判断・制約・検証要約は通常の公開文書へ残す。生ログ・画像・bundle・派生copy・witnessに長期監査保存を課さない。削除後の参照は期限切れと分かればよく、payloadの復元は保証しない。
 
-### 現在の到達点と段2への引継ぎ
+### 未完了uploadとstaging
 
-ローカル段1（スライス0）は [PR #76](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/76) で、Route proofは [PR #81](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/81) で実装・検証とPhase Dを完了した。現在のCLIとprobeの利用・制限は [Artifacts README](../../tools/Artifacts/README.md) を正とする。完了したslice HANDOFFは削除し、証拠台帳は各PR本文へ移す。r1のprovider選択と実施順は歴史的記録であり、現行の後続順序はr4を正とする。
+初期値案は7日。ツール所有の一時物で、転送中でなく、レビュー入力へ採用されていないものだけを短期清掃する。失敗ログをEvidenceに採用した場合は通常のEvidence契約へ載せる。利用者の原source、資格情報store、他の作業領域は対象外。
 
-ダミー鍵の登録・DPAPI CurrentUser保管・置換・削除・失敗時の保全・非露出はローカル検証済み。段1完了時に未実施だった実鍵登録とR2 synthetic往復は、2026-09-27のA3前疎通で実施した。所有者はCloudflare画面でtoken対象bucketと非公開設定を確認した。署名無しGETの限定非露出と通常writerに対するBucket Lock実効性はRoute proofで確認した。実Evidence/Build転送、別WindowsユーザーDPAPIは未実測。同一ユーザーのAgentからの隔離は主張しない。
+### 日常操作
 
-旧r1での次段候補は段2（スライス1ローカル）だった。以下4点は後続へ引き継ぐ。r4の最初のRoute proofは完了し、次は最小Artifact CLIの着手時Phase Aである。サーバー検証付きrotationも最小Artifact CLIまでに扱い、完了済みRoute proofの条件へ遡及追加しない。
+通常publishは明示した非秘密file集合をsnapshotし、送信・読戻し検証・必要な記録を内部で完了して、参照と信頼できる期待hashを返す一操作とする。利用者による独立台帳確定、毎runの設定撮影、保護witnessの破壊試験は要求しない。fetchは別に渡された期待hashで同一性と安全な展開を検証する。
 
-- 共有OneStarMakerが未作成の場合の制限ACLと、既存共有親を変更しない方針の整理。
-- ロック取得後にACL設定が失敗したときのハンドル解放責務。
-- 矢印キー等で入力が中止される現在の挙動と、対話入力の操作仕様。
-- 危険なACLのactiveは削除も拒否され暗号文が残るため、所有者による復旧・清掃手順。
+設定した開発領域・契約内の保存/取得/清掃は通常の事前承認で回す。WORM、長期server lock、旧証拠の継続取得、二重policyを共通条件にしない。通常writerにbucket管理権限は与えず、削除拒否をrule解除で自動突破しない。
 
-### r4 — 目的からの再評価（A3凍結）
+## 3. 一回の開発環境リセット
 
-このprogramの成果は、既存のBuild成果物とレビューEvidenceをGit外の非公開領域に置き、固定した参照と信頼済みhashから別セッションが人手の反復的なファイル運搬なしに取得・検証・必要な内容を閲覧できることである。ローカルWindows同一ユーザーから始め、Cursor CloudとCodex Cloudはそれぞれread/write/閲覧を別に判定する。Unity以外のbuild backendでも保存・取得を使えるようにする。実Evidenceの上書き・削除を通常のwriter権限からサーバー側で保護する。
+切替は **対象確認 → 旧利用停止 → 旧生成物と不要な試験設定の整理 → 新契約で開始** の一回にまとめる。旧payloadを移行・救済せず、旧hash橋渡し台帳や旧close復元を作らない。旧schema/参照は新CLIで明確に非対応を返し、自動変換や旧readerの継続利用を保証しない。
 
-**選択の根拠:** R2は既設bucketとprefix lockを備え、owner端末からendpoint/実tokenでsynthetic objectのPUT・別process GET・DELETEが成立したため最初の候補とする。ownerはbucket限定tokenと公開設定を画面で確認した。後続のRoute proofで限定unsigned非露出と通常writerに対するlock実効性を確認した。Cloud到達性は未確認である。公開GitHub Releaseは非公開Evidenceに適さず、ローカル共有ファイルだけではCloudの受け渡しとサーバー側保護を満たさない。GitHub Actions artifactはworkflow runに結びつく有期限の保管なので、任意のローカルAgentが成果物を反復的にpublishする主経路としては採用しない。候補選択を覆す実測が出たときだけ、別の非公開object storeや認証付き中継を比較する。選定理由は[Cloudflare Bucket Locks](https://developers.cloudflare.com/r2/buckets/bucket-locks/)、[R2 S3互換性](https://developers.cloudflare.com/r2/api/s3/api/)、[GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases)、[GitHub workflow artifacts](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflow-artifacts/)の現行仕様と、§1の実測による。
+対象確認は誤操作防止のために行う。この開発Storageの旧objectとツール所有の生成物・試験ruleに限定し、E1/E2、locked witness、過去のraw/受取copy、#107のW/Lと試験2ruleも区別なく整理対象へ含められる。資格情報store、利用者の原source、Harness原source、無関係なbucket/ruleや他作業領域は除外する。PR別の保存期限や保全審査は設けない。
 
-**凍結した実施順:**
+実行担当は実在するkey/path/ruleと解除可否、他対象への影響を確かめ、対象を列挙してから操作する。bucket全消去や全rule collectionの無条件置換はしない。旧利用停止後の部分失敗は結果を残して対象限定で再実行し、旧経路への自動復帰や二重運用は作らない。設定整理に必要な管理操作はこの一回の担当が行い、日常清掃とは分離する。
 
-1. **Route proof（新しい最初のslice）:** ownerがbucket限定のObject Read & Write tokenとendpointを用意し、対象bucketを確認する。既存DPAPI storeから同一process内で鍵を使用する、R2専用の限定診断で、`probe/`の小さなsynthetic bytesをlocal producerと別processのlocal readerがPUT/GETし、事前に固定したhashと一致させる。同じ存在keyの署名無し取得拒否を確認する。別のsynthetic keyを対象に、ownerが限定prefixへ設定したBucket Lockの下で、通常writerの上書き・削除拒否と原byteの維持を実測する。保護されない使い捨てkeyでは同じwriterの削除権限を確認し、単なる権限不足をlock成功と誤認しない。storeは暗号化済みprofileの寿命だけを、診断はR2通信・hash照合・非秘密結果だけを、ownerはbucket設定とlock ruleだけを所有する。通常writerにはbucket設定権限を与えない。CLI本体、rotation、複数provider interfaceはこのprobeの完了条件にしない。この合格は**R2候補のローカル必要条件**の証拠であり、R2の全面採用を意味しない。token対象bucketが未確認なら検証待ちであってR2の不適合判定ではない。担当・証拠・停止規則は個別HANDOFFで凍結する。
-2. **最小のArtifact CLI:** route proofが成立したproviderで、明示入力のsnapshot/manifest/packaging、安全な取得と有限上限、信頼済みhash、非秘密の結果、unique key、server保護を伴う`publish`/`fetch`を実装する。`publish`はGit・HANDOFF・PRを更新せず、非秘密のledger候補を機械可読に返す。秘密の再入力なしで利用できることと、実鍵の失効・rotation・復旧を運用開始前に成立させる。上位の受け渡し契約はbytes、CLIだけが解釈する固定参照、hash、保護要件で記述し、R2 SDK型やCloudflare設定をBuild/Evidenceへ出さない。初回運用ではR2だけを扱い、第二providerを持たない段階でprovider registry、汎用URI、filesystem backendを必須化しない。R2のBucket Lockは標準S3 Object Lock APIではないため、別providerへの「同じ保護」の移植を仮定せず能力を検証する。[R2 S3互換表](https://developers.cloudflare.com/r2/api/s3/api/)
-3. **Evidence first use:** 既存形式のfindings-free bundleを固定base/headに対して選び、保存前に入力一覧とpayloadを照合し、保護済みの新規keyでpublishする。ledger候補の確定・配置はpublishとは別責務とし、C' blind bundleの固定された取得記録にkey、期待SHA-256、base/head、manifest hashを含める。同一Windowsユーザーの別セッションがその期待hashでfetchし、必要なログと画像を実際に閲覧する。C'には所見入りの可変HANDOFF、PR本文、作成側stagingを取得案内として渡さない。これをローカル限定の初回運用区切りとする。
-4. **CloudとBuild:** 各Cloud環境のegress、無人grant取得・更新、限定権限、read/write、閲覧を個別に実証する。Cloudの未成立をローカル限定運用の成功に読み替えない。BuildSystemはUnityを交換可能なbackendとして外部CLIへ接続し、既存出力を扱う。大きいBuildで必要なmultipartと容量・費用上限はBuild統合前に実測する。[R2 upload methods](https://developers.cloudflare.com/r2/objects/upload-objects/)
+r6の方針改訂だけではリセットを開始しない。スライスAの実行は固定対象と開始条件、CURRENTの固定入力に従う。旧保存義務がなくなったことを、現rule解除済み・物理データ不存在・任意領域を削除可能という主張に置き換えない。具体的なコマンドはArtifacts README、対象と除外はスライスAの固定仕様で確認する。
 
-**r1から維持する条件:** private `osm-artifacts`、公開配布と内部保存の分離、Git外payloadと短い非秘密ledger、作成側とledger更新の分離、findings-freeな固定C/C'入力、同一ユーザーDPAPIの限界、秘密非記録、`probe/` synthetic-only gate、実payload前のserver側保護、参照済みEvidenceの上書き/削除禁止。providerと実施順だけを再審議し、保護条件を緩めない。Bucket管理者はlock ruleを変更可能であり、保護は通常writerに対するものとする。[Bucket Locks](https://developers.cloudflare.com/r2/buckets/bucket-locks/)
+## 4. 次に進めるスライス
 
-**判断を戻す条件:** Route proofの結果は`pass` / `provider-capability-failure` / `environment-blocked` / `inconclusive`を区別する。endpoint、token、必要権限、egress、lock設定の開始条件が欠けた場合は未実施またはenvironment-blockedとしてownerと再試行条件を記録し、R2不適合とは判定しない。開始条件が揃ってもR2のlocal route、private access、通常writerに対するserver側保護のいずれかが成立しない場合は、原因をnetwork/設定/サービス仕様に分けて記録し、補修できる設定か別providerかを新しいPhase Aで選ぶ。Cloudの到達・無人grantが成立しない場合は各platformの結果をunsupportedとしてprogram台帳に残し、Cloud側の経路を別に再選定する。ローカル限定運用の成立をprogram全体の完了にはしない。最初のprobeはR2選定の確定や、実Evidenceのupload許可にはならない。
+### A. Evidenceの通常利用と期限清掃（完了）
 
-r4と最初のRoute proof HANDOFFのA3は別々に記録した。2026-09-27、ownerはr4の方向を概ね了承し、**凍結前にR2 tokenを所有者端末のCLIへ登録し、CLIからの実R2利用を確認する**条件を追加した。既存`credentials` CLIは鍵のローカル保管のみだが、使い捨てのA3前probe CLIでsynthetic PUT・別process GET/hash照合・DELETEが成功し、後続のprefix listも空だった。endpointは非秘密の引数、token値はchatやGitへ渡していない。ownerはtokenのR2 Bucket Item Read/Writeと対象`osm-artifacts`のみ、Custom Domainsなし、Public Development URL無効を画面で確認した。その後、ownerは再レビューのため凍結を一度解除した。PR #80での再レビューを統合し、ownerがr4とRoute proofのA3凍結を指示した。r4は実施順と保護境界の採用であり、R2採用の確定や実payload解禁ではない。当時未検証だった署名無しGETとBucket Lockは後続のRoute proofで限定確認した。Cloud到達性は各sliceのゲートに残る。
+**問い:** 任意の明示した非秘密file集合を保存し、別sessionで取得・hash照合・ログ/画像閲覧でき、作業中は残り、終了後は自動で片付くか。
 
-**r4 Phase A review ledger（2026-09-27、再レビュー入力）:** 主担当のA1と独立A2が読んだ初稿のSHA-256は`3781F9AA4621C608E82AE1C7FFC9098E5E0F86B73C1676FACD1705EBDBDC12F2`。A0のみからの代替担当は、R2を第一候補としつつ、接続実証前のSDK Adapter、server検証付きrotation、複数provider抽象を必須にしない案を提示した。A2統合案ではRoute proofを先頭に置いた。アーキテクチャ担当はC'の固定取得記録の所有者、programとsliceの別A3、資格情報store/診断/account ownerの責務を指摘し、統合案へ反映した。実行可能性担当はprobe合格範囲の限定、環境未準備とprovider不適合の分離、Cloud未成立の記録、writerとlock管理者の権限分離を指摘し、統合案へ反映した。二担当は互いの所見を渡されず同一初稿を読んだ。指定したモデルと実際のvariantの一致は実測できないため、モデル多様性は確認済みと主張しない。再レビューで採否を改めて整理し、programとsliceそれぞれのA3判断を記録する。R2以外の運用provider即時実装、Cloud能力の暗黙の達成は提案していない。
+**最低条件:**
 
-**r4追加レビュー（PR #80、対象head `9bdfc3e`）:** Grok 4.7の非盲検再レビューが、上の旧r1 provider選択文とr4の未採用境界の衝突を指摘した。歴史的r1の選択と、今も維持する保護条件を同じ段落で区別し、段1完了がprovider選定を凍結したとの読みを除いた。r2/r3は見出しどおり当時の未承認案として扱い、今回のRoute proofへ実装条件を追加しない。programとsliceのA3判断は引き続き別々に残る。
+1. 固定E1/E2の入力定数を通常のtask/file集合契約へ置換する。publishを内部検証・記録・参照/hash返却まで一操作にし、別sessionで取得・必要な内容を閲覧できる。旧形式対応は作らず非対応を明示する。
+2. workflowの終了/再開イベントとStorageの期限を自動接続する。終了の意味と発行元をA3で固定し、Evidence独自の承認やHarness closeの推測接続をしない。イベント再適用は同じ結果になり、再開後は再終了まで削除資格を持たない。
+3. inspectと実際に動く清掃、自動起動を同じpolicy判定へ接続する。30日の境界、利用開始/再開と削除の競合、対象外・転送中の非削除、部分失敗の再実行を扱う。利用中保護の状態を判定できなければその対象は削除せず理由を表示する。終了未決taskを年齢だけで消さない。
+4. §3の対象限定リセットと、旧経路・schema・不要な互換説明の置換を一回の切替手順にする。原sourceの保護、現ruleの実態確認、設定整理と日常清掃の権限分離を満たす。古い証拠の保存継続を完成条件にしない。
+5. Artifacts READMEを実際の新CLIの操作・状態に合わせる。旧保存義務やlegacy分岐を復活させず、切替時に旧経路の説明を除く。新しく設定した範囲内の通常清掃にkeyごとの承認を求めない。
 
-**r4追加レビュー追認（PR #80、対象head `95a91a9`）:** 同じGrok 4.7セッションから、r1の旧順序と「Cloudflare設定は変更しない」という文がr4のRoute proofと衝突すると指摘された。前者を歴史的順序と明記し、後者は公開URL/domainを変えない条件と、ownerが限定Bucket Lock ruleを追加する操作に分けた。新たな盲検レビューとは数えず、当時のA3採否入力とした。
+**検証:** 保存→別session取得/hash・ログ/画像閲覧、30日境界、終了イベントの再適用、再開後への古いイベント到着、利用開始/再開と削除の競合、対象外の非削除、部分失敗の再実行、秘密非露出、安全な展開。時刻注入、#106のdummy fixture、隔離した使い捨てデータを使う。実R2の限定往復/清掃は運用経路の確認として行い、旧E1/E2継続取得や30日実待機を要求しない。自動清掃の起動・再実行が人の反復操作なしで成立する経路もA3で具体化する。
 
-**r4 A3統合・採否（2026-09-27）:** ownerの凍結指示により、Route proofを最初のsliceとする順序、private bucketの公開禁止、synthetic-only gate、通常writerからのserver側保護を実payload前に実証する境界を採用した。A2の責務・実行可能性指摘とPR #80の歴史的r1記述に関する指摘を採用した。R2以外のprovider即時実装、Cloudの無人grant/到達をRoute proofの条件へ加える案は現在の問いに不要として保留し、各後続sliceで判断する。旧r1で受領していない第4 inline commentは未確認の歴史的論点として残し、受領時は内容を確認して必要なら新しいprogram revisionで扱う。Route proofの細目と受け入れは独立したA3 HANDOFFを正とする。A3後の例外承認はなし。
+判定は関連Artifacts/Harness offline suiteと限定R2検証。Unityを変更しないため全EditMode回帰は適用外。スライスAのschema/API、file配置、清掃間隔、7日の初期値、リセット対象/操作はA3 r6に固定済みで、Git外CURRENTから取得する。実装時に必要な終了イベント接続だけを扱い、Harness全体の改造へ膨らませない。
 
-### r2案 — 最初に使える区切りと実施順
+**停止規則:** 上記の通常利用・期限清掃と一回の切替が成立したら閉じる。Build、Cloud、GUI、常駐broker、別provider、長期保護・互換維持を追加条件にしない。
 
-> 最初に開始できるのは、成立を確認したローカルWindows・同一ユーザー境界での限定的なEvidence運用だけである。Cloud対応、権限隔離、C / C'合格、program全体の運用開始・完了を意味しない。
->
-> これは当時の未承認案であり、順序はr4に置き換えた。r1の安全・責務境界と段1完了を維持する提案だった。以下の順序・最低条件は現在の実装開始指示ではない。
+### B. 開発Buildの保存と件数管理
 
-先に答える問いは「既存のレビューEvidenceを、作成側から別セッションへ、人間のファイル運搬なしに渡して確認できるか」である。BuildSystem全体のUX整備を、この運用改善の前提にしない。
+既存Build出力を普通のpath/metadataとして受け、成功publish、別process fetch/hash、最新N件と利用中の保持、失敗publish時の既存保持を確認する。Nの既定値案10件、系列識別、容量上限をBのA3で固定する。大容量に必要なmultipartは対象サイズに応じて扱い、BuildSystemの作り直しを前提にしない。
 
-スライス番号は既存参照を保つため変更せず、4を最小接続の`4-local`とCloud環境拡大の`4-cloud`に分ける。世界実証のS-4a〜S-4dとは別の名前とする。提案順序は **0（完了）→ 1-local → 2（初回CLI）→ 4-local → 一区切り**。各段は別HANDOFF / 別ブランチとする。
+### C. 別host / Cloud
 
-| 対象 | 最初の区切りで扱うこと | 後続へ残すことと所有先 |
-|---|---|---|
-| 1-local | 既存の段2引継ぎ、実鍵の接続probe、サーバー検証付きrotation、syntheticな往復 | Cloudごとの接続・grant発行 / 更新は1-cloud。ローカル完了を待たせない |
-| 2（初回CLI） | `publish` / `fetch`自身が返す安定した終了コードと機械可読の合否・検証結果・失敗理由、台帳、manifest、保持期限、安全な梱包・展開、実payload前のサーバー側保護 | 独立した`inspect` / `prune`コマンドと操作性拡充は2の後続スライス。初回CLI自身の検証責務、保持・保護条件は延期しない |
-| 4-local | 新しいEvidence形式を作らず既存形式を接続する。1-local / 2の安全条件、有限上限、秘密の非記録を引き継ぎ、同一Windowsユーザーの別セッションで取得・検証・ログと画像の閲覧を確認 | Cloudごとの閲覧確認は4-cloud。Build実行のorchestration、進捗・キャンセル等のUX統合は3 |
+必要な環境から個別に、到達性、限定grant、無人保存/取得、ログ/画像閲覧を確認する。未成立は当該環境の未対応として残し、ローカル利用を止めない。親鍵を通常file/promptへ複写せず、platform仕様は着手時に再確認する。
 
-4-localの前提と完了に必要な最低条件案は次のとおり。各条件の担当、操作経路、観測、証拠の受け渡しは着手時Phase Aで具体化し、未知の閲覧経路は凍結前に疎通を確認する。このprogram案への承認だけで、その経路や各スライスの受け入れ条件まで検証・凍結したことにはしない。
+### D. BuildSystem / Harness接続
 
-- 前提として、1-localと2の当該HANDOFFを完了する。非公開bucket、サーバー側の上書き・削除保護とlifecycle相互作用、信頼する台帳hash、安全な展開の有限上限、秘密の非記録を含む既存の安全条件を省かない。成立前は`probe/`のsyntheticデータだけを使う。
-- 作成側は固定base/headの既存Evidenceから所見を含まない入力を明示選択する。4-localのEvidence接続側は、`publish`のアップロード前に実際の保存対象payloadのmanifest / entry一覧を凍結済みの入力一覧と照合し、想定外entryやCの所見文書が含まれないことを確認する。不一致なら保存せず、照合済みの同じpayloadだけを新規keyへ保存・読戻し確認する。manifestと照合記録はpayloadと共に非公開R2へ置き、台帳にはその参照・hash・照合結果のみを残す。台帳更新は別操作であり、所見内容や除外した所見文書の一覧をC'の取得案内へ混ぜない。manifestの一致だけで内容中の所見非混入を自動証明したとは扱わず、B resultや一次観察への所見転載禁止は既存ワークフローどおり維持する。新しいEvidence形式やテスト再実行の仕組みは作らない。
-- 別セッションは作成側のstagingや元bundleを直接読む代わりに、所見を含まない取得案内に切り出した台帳のkeyと期待hashから`fetch`し、同一性を検証して専用領域へ展開する。C'へPR本文や可変HANDOFF全文を取得案内として渡さない。`publish` / `fetch`自身の終了コードと機械可読の検証結果で転送の成否を判定し、条件が求めるログと画像を、そのローカルセッションの実際の閲覧経路で確認する。byte一致だけを目視確認済みと扱わない。
-- 所有者による初回鍵登録後、上記の往復に人間のファイルコピーやgrantの手渡しを要しない。既存の同一Windowsユーザーの信頼境界を使い、別セッション成功をCloud対応や同ユーザーAgent間の権限隔離の証明にしない。Cloudを作成側または確認側に含める経路は4-cloudが所有し、当該1-cloudの無人grant取得・更新を含む条件と、その担当の閲覧確認を別途満たす。
+外部CLIを主入口にUnityを交換可能なbackendとして接続する。H2d/H3・CURRENT連携、同じ実体の所有権整理は必要になった範囲で行う。Storage単独の利用をUnity GUIやEditorに依存させない。Unityテスト/BuildのPhase責任と既知native終了stallの調査停止規則を維持する。
 
-**停止規則案:** 凍結した4-localの最低条件を満たしたら、そのスライスを閉じ、成立を確認したローカルWindows・同一ユーザー境界でのみ限定的なEvidence運用へ入れる。そこで世界実証（S-4d / S-5）の通常のPhase Aへ戻れるが、各スライスがCloud担当を使う場合の受け渡しまで解決したことにはしない。3、4-cloud、2の操作性拡充、全Cloud対応、常駐broker、GUIを4-localの追加の完了条件にしない。4-local完了はCloud対応、権限隔離、転送したEvidenceのC / C'合格、program全体の運用開始・完了の証明ではない。
+各スライスは担当・責務配置・変更file・発見用/判定必須テストをHANDOFFへ固定する。H1/CURRENT方式は各A3で明示する。ここはprogramであり、実装スライスのA3済みとは扱わない。
 
-残件の所有者はOSM保守担当とし、上表の所有スライスに残す。各Cloudのread / write / grant / 閲覧可否を個別に判定し、未成立はunsupportedとして残す。未達を人間の反復作業で埋めたり、段1を再開したりしない。新しい証拠により凍結条件・常時契約への違反が判明した場合の扱いは、既存ワークフローに従う。
+## 5. 責務・残す安全性・採否
 
-### r3案 — Artifact provider境界
+- **workflow:** task終了/再開の意味とイベント、明示入力、レビューの固定入力/所見分離を所有する。
+- **Artifact application:** 梱包、publish/fetch結果、Storageコピーの単一保存policy、利用中保護、清掃を所有する。時刻/状態を注入してofflineで検証可能にし、レビューの合否を再判定しない。
+- **R2 adapter:** 認証通信とobject I/Oを扱い、SDK型やbucket設定を上位へ漏らさない。別provider/registryを先回りして作らない。
+- **Credentials:** 既存DPAPI/ACL・bucket限定鍵を再利用する。鍵・署名URL・認証headerをprompt、引数、ログ、Git、同期領域へ漏らさない。同一Windowsユーザー内の信頼を前提にする。
+- **入力と取得:** 明示file集合、照合したsnapshot、固有key、信頼した期待hash、新規private展開先、path/reparse/衝突と有限の展開量制限を維持する。fetch/inspectだけで取得物を実行しない。
+- **非公開:** `osm-artifacts`の公開development URL（r2.dev）/custom domainは有効にしない。prefix分離を公開境界と扱わず、payloadをGitへ置かない。
 
-BuildSystemとEvidence workflowは、保存先固有の型や設定を直接扱わない。初回の運用対象はr1どおりCloudflare R2とし、Artifact CLI / applicationが定める保存・取得契約の最初の実providerとしてR2 adapterを使う。これにより、今回のEvidence先行順序とR2接続の実証を保ちながら、将来の保存先変更で上位層を書き換えずに済む境界を計画へ明記する。
+**採用:** ownerの単一契約・一括置換を採用し、legacy節、#107実適用、旧最低保存日/判断日程、旧reader互換、PR別の継承台帳を廃止する。task終了イベント、再開/再適用、7日の一時物清掃案、原sourceとの所有分離を新しい目的に必要な条件として残す。Build10件と一時物7日は初期値案で、実装スライスで設定を固定する。
 
-- 上位層の契約は明示入力のpublish、信頼済みreferenceと期待hashを使うfetch、検証結果、provider-neutralなmanifest metadataとstable referenceを扱う。stable referenceはR2 URIやbucket名を上位層の構文として固定せず、provider識別とopaqueなobject locatorを持つ形式にする。正確なschemaとAPIはslice 2のHANDOFFで凍結する。
-- R2 endpoint、bucket名、S3互換要求署名、Cloudflare資格情報、signed URL、R2固有のlock/lifecycle操作はR2 adapterとprovider設定に閉じる。Artifact CLIはprofileまたは設定でproviderを選び、BuildSystem orchestratorとEvidence workflowへこれらの詳細を渡さない。
-- filesystem backendはslice 2のprovider-neutralな契約を決定的に検査するテスト実装として用いる。これはR2 round trip、private access、server-side protection、4-localの別セッション転送を代替しない。R2はprobeから初回Evidence運用までの実providerとして別途検証する。
-- この案は、複数providerの同時提供、Cloudflare以外のprovider実装、slice 1とslice 2の再分割を要求しない。追加providerは必要性が確認されたときに独立したHANDOFFで扱う。各sliceの責務配置と具体APIはそのPhase Aで決める。
+**採用しないもの:** 未終了Evidenceの年齢による強制削除、lease/heartbeat/定期owner承認、無条件bucket全消去、削除拒否時の自動rule解除。気軽な開発用途でも、利用中・原source・無関係な領域を壊す理由にはしない。
 
-この境界はr1の「R2を通常のobject storeとする」選択を置き換えない。R2を初回providerとして採用したうえで、その選択をBuildSystem / Artifact CLI全体の不可逆な依存にしないためのr3提案である。従って、Filesystem contractだけを先に完成させてR2接続をEvidence milestoneの後へ移す順序には変更しない。
+**残件:** A〜Dのみを実装キューとする。旧probe/試験rule/生成物の整理はAの一回のリセットへまとめる。公開synthetic Release `artifact-probe-20260926` は別サービスのため必要時の個別後始末とし、Storage清掃にGitHub Releases操作を足さない。旧レビューの任意テスト強化や操作性候補は関連コードを直す際に必要性を評価し、全件を次の必須条件にしない。
 
-以下はprogramのスライス分割である。スライス0の現在の実装は上記READMEを参照し、スライス1以降の詳細は各Phase Aで凍結する。
+**レビュー:** r5までのレビューは旧前提への結果としてPR履歴に残す。r6は今回の要件変更に対するPhase A改訂で、旧レビューの合格を新しい方針の合格へ読み替えない。3文書の独立A2は、終了イベントの所有、単一保持契約、リセット対象、未実装との区別を確認しblockerなし（同一継承モデル・同系列の制約あり、C′ではない）。実装・実データ操作は今回の対象外。
 
-0. **Local credential management.** Implement the Windows credential lifecycle described below before handling a real key. Prove registration, protected storage, redacted status/errors, replacement, and local removal using dummy credentials. Then the owner registers a bucket-scoped real credential through masked local input and the local transport probe validates it. No production credential is required for the storage implementation tests.
-1. **Local R2 transport and separate agent access proof.** Track local and cloud work separately. Upload only synthetic files to unique keys under `probe/`; prove authenticated access while ordinary unsigned requests are denied. A signed URL is a credential, not anonymous access. Verify download, SHA-256, ZIP extraction, upload, and read-back through the R2 adapter. The local prerequisite is owner credential setup; Codex egress is a prerequisite only for its cloud probe. Proposed cloud probe: per-object, short-lived signed GET/PUT URLs with the parent key held locally; this proves transport, not unattended credential issuance. Establish automated grant delivery/renewal before accepting routine unattended cloud use. Its absence does not block local completion. Storage-provider details remain inside the R2 adapter; the later CLI contract must not expose them to Evidence or BuildSystem callers.
-2. **Artifact contract and CLI wrapper.** Define provider-neutral manifest metadata, stable reference, integrity and publish/fetch result contracts. The Artifact application owns retention/protection requirements and the conditions under which `publish` may report success; the R2 adapter maps and applies those requirements through R2-specific object-key, lock, and lifecycle settings and operations. The initial `publish` / `fetch` commands own their stable exit codes and machine-readable success/failure and verification results; neither slice 3 nor `inspect` is required to judge their outcome. Cleanup may touch only keys created by the current run that have not been published in the ledger; no broad prefix deletion or deletion of referenced Evidence. Run-specific naming and hashes detect errors but do not enforce immutability. Before production, select and verify a server-enforced protection for finalized objects (for example R2 bucket locks or a trusted finalization service with agents limited to staging). Keep provider credentials outside Git. Test the shared contract with a filesystem test backend and verify the operational path against R2 using synthetic payloads before connecting BuildSystem.
-3. **BuildSystem UX integration.** In the r2 proposal, schedule this after the first-use Evidence milestone rather than making it a prerequisite for 4-local. Make an external CLI the primary interface for humans, local agents, and automation. Preserve existing build logic behind a Unity backend adapter and retain current output locations initially. The build orchestrator passes ordinary output paths and versioned metadata to the artifact CLI; it does not know credentials, S3, or ZIP internals. Provide progress, cancellation, stable exit codes, and machine-readable results. Unity GUI integration is an optional thin caller, never a required path. Any future standalone GUI calls the same CLI/application layer. Do not invent a second engine implementation now; establish and verify the boundary with a fake backend and plain file fixtures.
-4. **Evidence workflow integration.** In the r2 proposal, 4-local connects existing Evidence after 1-local and 2 and verifies the actual log/image-viewing routes only for the participating local Windows sessions within the same-user boundary. 4-cloud owns each additional Cloud producer/reviewer role's log/image-viewing verification after its applicable 1-cloud access and unattended-grant gates. Both reuse the existing bundle format and safety conditions; C and C' retrieve the same immutable findings-free judgment payload by key/hash, with findings kept separately and checked against the pre-upload manifest / entry list described above. Successful byte storage alone does not prove visual review. Do not replace unavailable image inspection with recurring human file transfer. Neither 3 nor all-cloud support is a prerequisite for 4-local.
-
-Each slice gets its own Phase A HANDOFF, branch, acceptance gates, and cleanup. The proposed first-use path is local 1, initial 2, then 4-local; slice 0 remains completed. The engine-independent and provider-neutral artifact boundary applies from the first CLI, but full BuildSystem orchestration belongs to 3. Preserve 3, 4-cloud, later slice 2 usability work, and both clouds' read/write probes as remaining work; unresolved cloud access must not be advertised as supported or block the mostly local workflow on an always-on broker. The r2 ordering and r3 provider-boundary clarification require review and owner approval above.
-
-### Artifact CLI and package contract (slice 2)
-
-- **First-use commands (r2 proposal):** `publish` packages explicitly selected inputs, hashes, uploads, verifies read-back, and emits a stable ledger entry only on success; it does not make anything public. `fetch` consumes a trusted ledger/key plus expected package SHA-256, downloads, verifies, and safely extracts. Credential management and grant issuance remain separate administrative commands.
-- **First-use result contract (slice 2):** `publish` / `fetch` themselves return stable exit codes and machine-readable success/failure, verification status, and nonsecret failure reasons. Success requires all applicable checks and read-back or extraction to finish; failure returns a nonzero code, no success ledger, and no output marked ready for review. Exact codes and result fields belong to the slice 2 HANDOFF. These are initial CLI acceptance conditions, not deferred BuildSystem UX or `inspect` responsibilities.
-- **Later commands (slice 2 follow-up):** `inspect` shows manifest, sizes, retention, base/head, and verification status without running payloads; without a trusted ledger, it may show metadata only as unverified. `prune` only presents deletion candidates from the current owner's runs that are expired and proven unreferenced. Unknown reference status or an active lock excludes a candidate; a candidate listing does not authorize deletion. Neither standalone command is a prerequisite for the first-use milestone.
-- **r2 first-use scope proposal:** manifest, retention metadata, failure results, and the shared trust-anchor, packaging, integrity, extraction, non-recording, and protection conditions below apply to the initial `publish` / `fetch`. The separate later-command conditions apply when those commands are implemented. Deferring commands does not authorize automatic deletion or weaken real-payload gates.
-- **Trust anchor:** obtain the expected package hash from the fixed HANDOFF/PR ledger supplied for review, not from the same stored package being verified. Evidence `fetch` rejects an absent or mismatching trusted hash before extraction. A matching hash proves identity with the referenced bytes, not that their producer or content is trustworthy. Never execute fetched scripts or binaries as part of transfer/inspection.
-- **Package boundary:** only explicit input roots/file lists are eligible. Do not recursively collect a whole repository, user profile, credential store, or staging parent by default. Reject symlinks/reparse points and input paths escaping the selected roots; disallow credential/grant files. Snapshot eligible files into isolated staging before packaging so hashes describe the uploaded bytes. Credential exclusion is not a claim that arbitrary selected logs are secret-free.
-- **Safe extraction:** verify the outer archive hash first, then validate every entry before writing into a new private temporary directory. Reject absolute/drive/UNC paths, parent traversal, links/reparse entries, Windows alternate streams/reserved names, duplicate or case-colliding destinations, and any normalized path outside the extraction root. Bound compressed input, entry count, individual/total expanded bytes, and expansion ratio; enforce actual streamed-byte limits as well as header checks. Never overwrite existing files or extract directly into the checkout. On failure, remove only this operation's temporary output and return a nonzero result. Numeric limits are named settings with finite defaults to freeze in slice 2, appropriate to large builds, not silently unlimited.
-- **Non-recording acceptance:** use dummy credential/grant sentinels to check normal, verbose, HTTP-error, timeout, and cancellation paths. Original keys, session tokens, Authorization headers, and signed URL queries must not appear in stdout/stderr, exceptions, diagnostic logs, ledger output, child-process command arguments, or Git changes. Private grant output is the sole intentional exception, protected by ACLs and an expiry-aware cleanup rule. Do not feed its contents into agent tool calls/prompts that retain them until that delivery surface is reviewed; unattended Cloud delivery remains unverified. If a chosen HTTP tool cannot avoid recording full URLs, use a controlled adapter or reject that path.
-- **Immutability:** propose a server-side lock on finalized Evidence prefixes with retention agreed before enabling it; keep disposable probes/staging separately scoped. Verify overwrite/delete denial and interaction with lifecycle rules before production use. Bucket administration can change policy, so this is protection against the restricted writer role, not against the account owner. Retention expiry alone never proves an object is unreferenced.
-- **Scope exclusions:** mutable compilation caches do not share the Evidence retention/immutability contract. Backend-specific build types, SBOMs, profiler captures, and other file formats can use the transport later without becoming mandatory integrations in this slice.
-
-### Engine-independent BuildSystem boundary (slice 3)
-
-- External CLI/application layer owns build requests, backend selection, status/cancellation, and orchestration. A backend adapter owns engine invocation and produces a versioned result containing output paths, target/platform, source commit, logs, and success/failure. Artifact publishing consumes ordinary paths and provider-neutral metadata through the artifact application contract; it does not select R2 directly.
-- Unity-specific APIs, project settings, Addressables operations, and executable discovery remain in the Unity adapter. Artifact packaging and transport depend only on the result's ordinary paths/metadata; neither imports Unity assemblies or relies on an Editor menu, AssetDatabase, ScriptableObject, or Unity serialization.
-- PowerShell may be the initial Windows launcher; keep application contracts independent of the launcher and DPAPI in a Windows credential provider. Engine independence does not imply cross-platform credential storage is already implemented.
-- Acceptance: invoke the external entry point with a fake backend, publish/fetch ordinary fixtures with no Unity installation, and separately demonstrate the Unity adapter using the supported build route. The storage contract can use a filesystem test backend, while the accepted first-use Evidence path still requires the R2 adapter's independent synthetic round trip. Unity builds/tests remain Phase C work. An Editor window may be an engine execution detail, but no menu-click sequence is the canonical BuildSystem workflow.
-
-References: [R2 public buckets](https://developers.cloudflare.com/r2/buckets/public-buckets/), [R2 S3 compatibility](https://developers.cloudflare.com/r2/api/s3/api/), [R2 bucket locks](https://developers.cloudflare.com/r2/buckets/bucket-locks/).
-
-### 資格情報管理の設計入力と後続段の境界
-
-以下の設計入力のうちローカル保管・管理CLIはスライス0で実装済み。現在の実装契約は上記READMEを正とする。実鍵登録とA3前の限定疎通は成立したが、一般向け転送/署名、接続確認日時のstore記録、サーバー検証付きrotationは未実装であり、以下を現行機能の一覧とは扱わない。
-
-- **Storage:** use Windows DPAPI `CurrentUser` via .NET `ProtectedData`, with the encrypted credential file under `%LOCALAPPDATA%\OneStarMaker\Artifacts\credentials\`. Keep it outside the checkout and outside `D:\OneDrive\OSM-Artifacts`. Restrict directory/file ACLs to the owning user and required Windows administrators/system principals; never use the `LocalMachine` DPAPI scope or a project-stored encryption password. Fail closed on unsupported OS, decryption failure, or an unsafe storage path; no plaintext fallback.
-- **Scope:** create a dedicated local-machine R2 Object Read & Write credential for `osm-artifacts` only, with a recognizable owner/device label and a recorded token ID for revocation. Do not store a Global API Key or account administration credential. Treat its ability to overwrite/delete objects as real authority; the CLI's guardrails are not an R2 permission boundary.
-- **Registration UX:** proposed command `pwsh tools/artifacts.ps1 credentials set --profile osm` opens masked interactive input for the S3 Access Key ID and Secret Access Key. Exact CLI syntax is finalized in the slice HANDOFF. Do not accept secret values in command-line arguments, chat, committed files, shell history, or persistent environment variables. Reject noninteractive registration rather than hanging an agent. The human performs initial secret entry in their own terminal; daily transfers require no re-entry. Store only the S3 key pair needed by the client, not an additional displayed Cloudflare bearer token.
-- **Use:** upload/download/sign operations accept a profile name. A private credential provider decrypts only in the transfer/signing process, passes credentials directly to the S3 client, and clears disposable plaintext buffers where feasible. Do not spawn a child CLI with secrets in arguments, dump environment values, enable signed-request debug logging, or expose a command that exports the original key. Runtime memory still contains usable credentials during the operation.
-- **Status and audit:** `credentials status` reports profile, bucket, endpoint, credential generation label, creation/rotation date, and last successful connectivity check. It never prints credentials or signed URL query strings. Redact secrets from exception text, diagnostic files, and ordinary stdout/stderr. Signed grants, when requested, go to a separate explicitly selected private delivery file/channel, not the ordinary ledger. State when a status is local-only rather than implying a successful R2 check.
-- **Rotation:** owner creates a replacement bucket-scoped token, enters it through masked input, and the tool validates read/write/read-back with disposable data before atomically switching the active encrypted record. A failed validation preserves the old record. Owner then revokes the old token in Cloudflare; record that revocation is confirmed rather than equating local replacement with server revocation. Remove the retired encrypted record after confirmation. The tool does not require account administration rights to rotate its local store.
-- **Loss and incident response:** `credentials remove` removes the local encrypted record and stops future local use; clearly report that it does not revoke a token at Cloudflare. For exposure/lost PC, revoke the affected token in Cloudflare first, then register a replacement. Do not sync credential blobs to OneDrive or rely on copying DPAPI files to another PC; provision a distinct credential on a new PC and revoke the lost device's token.
-- **Trust boundary:** DPAPI protects stored data for the Windows user; software running as that same user can also decrypt it. This design reduces accidental Git/log/sync leakage and protects stored secrets from ordinary other-user access. If isolation from the local agent itself becomes required, use a separately protected service/account with constrained operations; that is a separate design, not a property of the wrapper.
-- **Implementation ownership:** proposed entry point `tools/artifacts.ps1`; separate Windows credential-store, S3 transfer/signing, and packaging responsibilities under `tools/Artifacts/`. The credential store owns encryption/filesystem lifecycle; the S3 adapter consumes credentials without exposing them; packaging never sees credentials. Unit checks use dummy secrets and a fake S3 adapter; actual key validation belongs to the explicit connectivity probe. Avoid adding Unity or BuildSystem dependencies to credential management.
-- **Completion evidence:** dummy-secret round trip; no plaintext persisted or emitted on success/failure; tampered/wrong-user store rejected; failed rotation retains the previous profile; successful replacement is atomic; local removal and remote revocation distinguished; no repository or OneDrive payload changes during credential operations. Record any cross-user check that could not actually be executed as unverified. Local connectivity is a separate gate using the owner's real token.
-
-DPAPI reference: [Microsoft data protection](https://learn.microsoft.com/en-us/dotnet/standard/security/how-to-use-data-protection). ローカル保管と管理コマンドは実装済みで、実接続と後続機能の成立は別途検証する。
-
-## 4. Historical r1/r2 transport and CLI proposals (superseded by r4 order)
-
-The following r1/r2 acceptance draft preceded the r4 Route proof. It is retained as design input for later slices, not as the first slice's frozen conditions. Route proof's frozen conditions remain in the deleted HANDOFF's Git history at PR #81. The former local acceptance required slice 0's credential lifecycle checks and local synthetic upload/download, SHA-256, ZIP extraction, unsigned-access denial, and unchanged repository status. Former cloud support was accepted separately for each platform only when:
-
-- A disposable synthetic object is uploaded to the R2 bucket with a unique key and is not visible through an anonymous public URL.
-- Cursor Cloud and Codex Cloud each retrieve the same object in their own remote execution environment, verify SHA-256, extract the ZIP, and report the log marker. Record image-viewing capability separately for slice 4-cloud; its failure does not invalidate proven storage integrity or add a condition to 4-local.
-- Each Cloud Agent role can upload a new synthetic object and read it back. Credentials are scoped to the artifact bucket and their intended read/write operations; no credentials are stored in the repository.
-- Codex's blocked network path is resolved with the minimum required domain/method allowlist, or the slice records a verified alternative transport that both agents can use.
-- The probe manifest identifies its object key and hashes; all copies match. Transfer operations introduce no repository changes; compare status before/after and preserve pre-existing edits. Updating the HANDOFF/PR ledger is a separate, intentional documentation operation.
-
-If any Cloud Agent cannot satisfy an operation, classify that operation as unsupported until another concrete route is verified. Do not turn it into a human download/upload step by default.
-
-### Account-owner setup and agent execution boundary
-
-- One-time owner setup: create/revoke bucket-scoped parent credentials, select their trusted storage/issuer, register the chosen platform integration, and configure outbound networking. Secret rotation and incident revocation remain owner responsibilities. These are distinct from repeated file handling.
-- Agent-visible nonsecret configuration: R2 S3 endpoint, bucket, assigned object keys, expected hashes, and expiry/retention metadata. Agent-visible authority: short-lived signed URLs for exact operations/objects, or temporary S3 credentials limited by path, operations, and TTL. Never provide a Cloudflare login password, Global API Key, account-administration token, or an OpenAI API key for storage.
-- Cursor supports Runtime Secrets and runtime environment injection/redaction. Redaction reduces accidental display; a process using the credential still has its authority. Scope credentials independently of log masking.
-- Codex Cloud Secrets are available only during setup and removed before the agent phase. Merely registering a long-lived R2 key there does not enable runtime upload. Do not persist that parent key to a file or ordinary environment variable to bypass the boundary. The proposed grant issuer/delivery mechanism must handle runtime access, expiry, task resumption, and cached environments without exposing the parent key.
-- Proposed first probe: owner establishes the local signing credential once; a local helper generates exact-key GET/PUT grants, which are delivered through a private task channel and omitted from logs, Git, PRs, and reports. URLs can be reused until expiry, including overwriting their PUT target; use disposable run keys and do not claim write-once protection. Grant delivery automation is not yet implemented or verified.
-- Network: allow the account-specific R2 S3 hostname. Reads need GET/HEAD; writes need PUT and multipart uploads may also need POST. Confirm the platform's available method controls rather than assuming arbitrary per-method rules. Broader network permission does not grant R2 authorization. Runtime transfer connects to Cloudflare R2, not the OpenAI model API.
-- Routine cloud operation after onboarding: producer packages existing outputs outside the repository, obtains a run-scoped grant, uploads and verifies read-back, then emits a stable ledger entry. Reviewer obtains a read grant for the fixed findings-free key, verifies its hash, and inspects the payload. Automated issuance/renewal is a prerequisite to calling this unattended; manual URL exchange is only a probe. The local 4-local path instead uses the stored profile within the accepted same-Windows-user boundary.
-
-Sources checked for r1 (not revalidated by this sequencing-only proposal): [R2 presigned URLs](https://developers.cloudflare.com/r2/api/s3/presigned-urls/), [R2 temporary credentials](https://developers.cloudflare.com/r2/api/s3/temporary-credentials/), [Codex cloud environments](https://learn.chatgpt.com/docs/environments/cloud-environment), [Codex internet access](https://learn.chatgpt.com/docs/cloud/internet-access), and [Cursor secrets and network](https://cursor.com/docs/cloud-agent/security-network).
-
-### Supplied review disposition
-
-Accepted all six supplied corrections: uploader/Git ledger separation; immutable findings-free C/C' inputs; private authenticated probe; owner onboarding versus recurring agent work; storage integrity versus vision capability; and restricted cleanup with explicit immutability limitations. These corrections are incorporated into the r1 program boundary freeze; they do not prove completed implementation or access.
-
-Follow-up review: accepted bucket separation, non-recording acceptance, package/extraction boundaries, and the trusted-ledger hash requirement. Adopted the suggested four daily commands as slice design inputs. Retained `osm-artifacts` as the private bucket name instead of creating `osm-evidence`; all public distribution is external to that bucket. Incorporated the owner's engine-independence requirement. The separately hidden fourth comment remains pending receipt, not resolved; its arrival requires a new revision.
-
-Freeze review: accepted the restricted A3 scope in section 2, split the local/cloud questions, added the synthetic-only gate until slice 2 server protection passes, excluded OneDrive, and preserved the same-user DPAPI limitation. Freeze applies only to program boundaries, not runtime capability, the open decisions, or individual slice implementation. Reviewer identity/model was not supplied; record this as owner-supplied external review without claiming additional model independence.
-
-r2案の指摘対応（2026-09-27）: [PR #77のA2レビュー](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/77#issuecomment-5851367248)（投稿記載の担当: Grok 4.7、対象head `8e7423d`）と[追加確認](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/77#issuecomment-5851411767)を受領。7点の明確化を採用し、4-local / 4-cloudの名称・閲覧範囲、保存前のmanifest照合、形式を増やさないことと安全条件の維持、限定運用の停止規則、初回CLI自身の結果責務、後続inspect条件の分離を本文へ反映した。順序やr1境界の変更ではなく、HANDOFF切出し時の条件脱落を防ぐ修正である。追加確認は既存レビューを読んだ旨が記載されており、別の盲検レビューとして数えない。修正版の再レビュー、A3承認、実接続・閲覧経路の検証は未了。
-
-## 5. Known constraints and open decisions
-
-- The completed Route proof at [PR #81](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/81) observed the local synthetic route, same-key unsigned GET without object bytes, and Bucket Lock rejection of ordinary-writer overwrite and DELETE with original-hash preservation. Its unsigned response was 400/`other`/`InvalidArgument`; the cause is unproven. The result is a local necessary-condition proof, not general R2 adoption or permission to upload real Evidence/Build outputs.
-- Route proofの保持中synthetic objectは2件。`probe/locked/62bd4f1ab6b24a9d93026108ee5dae5c/object.txt` は2026-09-30 01:53:32 JST以後、`probe/locked/b1b6dc2e6516486b94b95825d7fa7475/object.txt` は2026-09-30 05:37:47 JST以後に、各keyを個別にDELETEしてNoSuchKeyを確認する。現時点では両方未清掃。既設ruleや他objectには触れない。原証拠とhashはPR #81の台帳およびローカル未追跡bundleに保持する。
-- Codex Cloud's exact network configuration has not been changed. Its current environment rejected GitHub CONNECT with 403, while Cursor Cloud could retrieve GitHub assets.
-- R2 credentials for Cursor and Codex Cloud have not been created or configured. R2 object credentials are distinct from the broad Cloudflare API token; the intended credential must be bucket-scoped.
-- Confirm how long closed-PR evidence must remain readable before configuring automatic lifecycle deletion.
-- Internal Build publication is private by default. Public release copies require an explicit distribution operation; private-bucket publication never toggles visibility.
-- `r2.dev` is a development endpoint with rate limits. Do not use it as the production distribution URL; use private signed/object access or a reviewed custom-domain setup.
-- Probe cleanup (pending, owner: program maintainer at experiment close): remove the public `artifact-probe-20260926` Release and its synthetic assets once they are no longer needed for the transport experiment. Preserve only the concise outcome/hash record needed by this plan, not a permanent public example of Evidence storage. Confirm experiment completion before deletion; this revision does not claim the Release was removed or authorize deleting unrelated releases/tags.
-
-## 6. Out of scope
-
-- Changing BuildSystem build behavior or Unity output layouts before the R2 transport and artifact contract pass.
-- Migrating existing historical artifacts or rewriting Git history.
-- Uploading real game builds or existing Evidence to any bucket before slice 2's server-side protection gate passes.
-- OneDrive mirrors, Unity `Library` transfer, mutable latest-build keys, and new CI credential providers. Different artifact categories (such as caches, profiler/crash data, and SBOMs) require their own retention contracts when integrated.
-- Adding a Cloudflare Worker, custom web portal, or new storage vendor unless a verified limitation makes the proposed R2 path unsuitable.
-- Treating the GitHub Release probe as proof that Codex Cloud can access arbitrary external storage; its actual run failed at the network proxy.
+**文書改訂のPhase D:** ownerは2026-10-08にPR #108のPhase D完了・後始末・マージを指示した。最終方針head `f53c7216980a8dc27b69fd3a917429cb786060c2` の追加レビューは指摘2件解消・blockerなし、docs/contract/diff検査は問題なし。これを実装のC/C′ GOやリセット実行承認とは扱わない。保存方針と開始条件はArtifacts READMEとAGENTSへ反映済み。進行中programのため本書はowner・見直し期限・harvest先付きで保持し、次スライスへの入力とする。

@@ -6,7 +6,7 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../RecordStore.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../GatePolicy.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../Adapters/LocalChecks.psm1') -Force
-$registered = @('repository identity and explicit task', 'CLI status and missing task', 'current displays failed Unity step without offline fields', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'missing registration gives honest recovery guidance', 'legacy reference restores with stable identity', 'corrupt current is not overwritten', 'restore rejects dangling reference', 'run payload rejects old DLL and modification', 'failing step keeps record', 'run record carries identity and monotonic duration', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'close rejects in-progress run', 'blind input omits findings', 'blind handoff records receipt and review', 'child process result', 'new run invalidates prior judgment', 'close persists current references', 'terminal survives display update failure')
+$registered = @('repository identity and explicit task', 'CLI status and missing task', 'current displays failed Unity step without offline fields', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'missing registration gives honest recovery guidance', 'legacy reference restores with stable identity', 'corrupt current is not overwritten', 'restore rejects dangling reference', 'run payload rejects old DLL and modification', 'failing step keeps record', 'run record carries identity and monotonic duration', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'close rejects in-progress run', 'blind input omits findings', 'blind handoff records receipt and review', 'child process result', 'new run invalidates prior judgment', 'close persists current references', 'terminal survives display update failure','Evidence task scope and stage remain fixed','observation attachment binds identity and raw bytes','observation attachment rejects unsafe manifests','Evidence raw builds cannot be substituted')
 $selected = [Collections.Generic.List[string]]::new()
 $executed = [Collections.Generic.List[string]]::new()
 $failed = [Collections.Generic.List[string]]::new()
@@ -341,6 +341,8 @@ try {
     }
     # 子プロセスの標準出力と終了コードを、期限付きで回収する。
     Run 'child process result' {
+        $unicode = Invoke-Process 'pwsh' @('-NoProfile','-Command',"[Console]::Write('原観測')") $repo 15
+        Assert ($unicode.ExitCode -eq 0 -and $unicode.Stdout -ceq '原観測') 'child Unicode raw was corrupted'
         $result = Invoke-Process 'pwsh' @('-NoProfile', '-Command', '[Console]::WriteLine("OK")') $repo 15
         Assert ($result.ExitCode -eq 0 -and $result.Stdout.Trim() -ceq 'OK' -and $result.DurationMs -ge 0 -and $result.LaunchMs -ge 0) 'child output'
         $timed = Invoke-Process 'pwsh' @('-NoProfile', '-Command', 'while ($true) {}') $repo 1
@@ -408,6 +410,59 @@ try {
         Assert ($closed.outcome -ceq 'Abandoned' -and (Test-TaskClosed $isolated)) 'terminal record lost on display failure'
         Assert ((Read-Current $isolated).phase -ceq 'B') 'display unexpectedly changed after injected failure'
         Reject { Restore-Current $isolated } 'closed task reopened after display failure'
+    }
+    # 承認照合はmockせず、task scopeの単体検査だけを承認層から切り離す。
+    Run 'Evidence task scope and stage remain fixed' {
+        Import-Module (Join-Path $PSScriptRoot '../ApprovedSpecifications.psm1') -Force
+        $entry=Get-ApprovedSpecification 'artifact-evidence-lifecycle';$evidenceSpec=$entry|ConvertTo-Json -Depth 20|ConvertFrom-Json
+        $evidenceSpec|Add-Member id 'fixture-spec';$evidenceSpec|Add-Member specHash ('a'*64)
+        $gate=(Get-Command Get-RequiredSteps).Module;$original=&$gate {(Get-Command Assert-ApprovedSpecification).ScriptBlock}
+        try {
+            &$gate {function script:Assert-ApprovedSpecification {param($Task,$Spec) if($Task -cne 'artifact-evidence-lifecycle'){throw 'unexpected test task'}}}
+            $paths=@('tools/Artifacts/EvidenceCleanup.psm1','tools/Workflow/TaskLifecycle.psm1','tools/harness.ps1','docs/handoff/ARTIFACT_EVIDENCE_LIFECYCLE.md');$changes=@{'docs/handoff/ARTIFACT_EVIDENCE_LIFECYCLE.md'='D'}
+            $steps=@(Get-RequiredSteps $evidenceSpec $paths 'discovery' $changes)
+            Assert ($steps.Count -eq 5 -and ($steps -join ',') -ceq ($entry.discoverySteps -join ',')) 'fixed discovery changed'
+            Assert ((@(Get-RequiredSteps $evidenceSpec $paths 'judgment' $changes) -join ',') -ceq ($entry.judgmentSteps -join ',')) 'fixed judgment changed'
+            foreach($p in @('unity/Assets/foreign.cs','tools/Harness/UnityGatePolicy.psm1','tools/Artifacts/Packaging/bin/bad.dll','tools/Artifacts/artifacts/spec.md','tools/Workflow/artifacts/raw.json')) {Reject {Get-RequiredSteps $evidenceSpec @($p) 'discovery' @{} } 'unapproved path accepted'}
+            Reject {Get-RequiredSteps $evidenceSpec @('docs/handoff/ARTIFACT_EVIDENCE_LIFECYCLE.md') 'discovery' @{'docs/handoff/ARTIFACT_EVIDENCE_LIFECYCLE.md'='A'}} 'tracked specification re-added'
+            $suiteNames=@(@('Credentials','RouteProof','R2RouteTransport','ArtifactPackage','ArtifactTransfer','ArtifactRotation','ArtifactEvidence','EvidenceRetention','EvidenceCleanup','EvidenceSchedule','EvidenceReset'),@('TaskLifecycle'),@('Harness'));$runSteps=@()
+            for($i=0;$i -lt 3;$i++){$names=@($suiteNames[$i]|ForEach-Object{"$_/case"});$runSteps += [pscustomobject]@{name=$steps[$i];status='passed';registered=$names;selected=$names;executed=$names}}
+            foreach($n in $steps[3..4]){$runSteps += [pscustomobject]@{name=$n;status='passed'}}
+            $evidenceRun=[pscustomobject]@{taskId='artifact-evidence-lifecycle';specHash=$evidenceSpec.specHash;specId=$evidenceSpec.id;base=$evidenceSpec.base;head=('b'*40);dirtyBefore=@();dirtyAfter=@();status='passed';suiteVersion='local-gates-v1';stage='discovery';steps=$runSteps}
+            Assert-RunForGate $evidenceRun $evidenceSpec $evidenceRun.head $steps 'discovery'
+            Reject {Assert-RunForGate $evidenceRun $evidenceSpec $evidenceRun.head $steps 'judgment'} 'discovery substituted for judgment'
+            $evidenceRun.steps[0].registered=@($evidenceRun.steps[0].registered|Where-Object {$_ -notlike 'EvidenceReset/*'})
+            Reject {Assert-RunForGate $evidenceRun $evidenceSpec $evidenceRun.head $steps 'discovery'} 'missing suite accepted'
+        }finally{&$gate {param($restore)Set-Item Function:script:Assert-ApprovedSpecification -Value $restore} $original}
+    }
+    Run 'observation attachment binds identity and raw bytes' {
+        $source=Join-Path $root 'observation-source';[IO.Directory]::CreateDirectory($source)|Out-Null;$raw=Join-Path $source 'raw.txt';[IO.File]::WriteAllText($raw,'original observation')
+        $manifest=[ordered]@{schemaVersion=1;repositoryId=$identity.Id;taskId='artifact-evidence-lifecycle';base=$base;head=$base;files=@([ordered]@{path='raw.txt';role='operation';bytes=(Get-Item $raw).Length;sha256=(Get-FileHash $raw -Algorithm SHA256).Hash.ToLowerInvariant()})}
+        $input=Join-Path $source 'input.json';[IO.File]::WriteAllText($input,($manifest|ConvertTo-Json -Depth 8));$hash=(Get-FileHash $input -Algorithm SHA256).Hash.ToLowerInvariant();$runId=[Guid]::NewGuid().ToString('N')
+        $ref=Save-ObservationAttachment $taskDirectory $runId $input $hash $identity.Id $base $base
+        $observationRun=[pscustomobject]@{id=$runId;taskId='artifact-evidence-lifecycle';repoId=$identity.Id;base=$base;head=$base;observation=$ref;predecessor='';steps=@();implementationResult='raw';recordHash=('b'*64)}
+        Assert-ObservationAttachment $taskDirectory $observationRun
+        $blind=Select-BlindInput ([pscustomobject]@{id='spec';specHash=('c'*64);text='snapshot';base=$base}) $observationRun 'judgment' @('tools/harness.ps1')
+        Assert ($blind.observation.path -ceq $ref.path -and $blind.observation.sha256 -ceq $hash) 'blind raw differs'
+        [IO.File]::WriteAllText($raw,'changed source');Assert-ObservationAttachment $taskDirectory $observationRun
+        Reject {Save-ObservationAttachment $taskDirectory $runId $input $hash $identity.Id $base $base} 'immutable copy overwritten'
+        [IO.File]::WriteAllText((Join-Path $taskDirectory "payload/$runId/observations/raw.txt"),'tampered copy');Reject {Assert-ObservationAttachment $taskDirectory $observationRun} 'tampered raw accepted'
+    }
+    Run 'observation attachment rejects unsafe manifests' {
+        $source=Join-Path $root 'observation-invalid';[IO.Directory]::CreateDirectory($source)|Out-Null;$raw=Join-Path $source 'raw.txt';[IO.File]::WriteAllText($raw,'safe')
+        $valid=[ordered]@{schemaVersion=1;repositoryId=$identity.Id;taskId='artifact-evidence-lifecycle';base=$base;head=$base;files=@([ordered]@{path='raw.txt';role='operation';bytes=4;sha256=(Get-FileHash $raw -Algorithm SHA256).Hash.ToLowerInvariant()})}
+        foreach($mutation in @('identity','head','findings','path','duplicate','string-bytes','unknown-field','hash')){
+            $m=$valid|ConvertTo-Json -Depth 8|ConvertFrom-Json
+            switch($mutation){'identity'{$m.taskId='foreign'};'head'{$m.head='a'*40};'findings'{$m.files[0].role='review-findings'};'path'{$m.files[0].path='../raw.txt'};'duplicate'{$m.files+= $m.files[0]};'string-bytes'{$m.files[0].bytes='4'};'unknown-field'{$m|Add-Member findings 'unsafe'};'hash'{$m.files[0].sha256='a'*64}}
+            $input=Join-Path $source 'input.json';[IO.File]::WriteAllText($input,($m|ConvertTo-Json -Depth 8));$hash=(Get-FileHash $input -Algorithm SHA256).Hash.ToLowerInvariant()
+            Reject {Save-ObservationAttachment $taskDirectory ([Guid]::NewGuid().ToString('N')) $input $hash $identity.Id $base $base} "unsafe manifest accepted: $mutation"
+        }
+    }
+    Run 'Evidence raw builds cannot be substituted' {
+        $id=[Guid]::NewGuid().ToString('N');$payload=Join-Path $taskDirectory "payload/$id";[IO.Directory]::CreateDirectory($payload)|Out-Null;$log=Join-Path $payload 'step.log';[IO.File]::WriteAllText($log,'fixed raw')
+        $hash=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes((Get-FileHash $log -Algorithm SHA256).Hash))).ToLowerInvariant()
+        $run=[pscustomobject]@{id=$id;taskId='artifact-evidence-lifecycle';steps=@([pscustomobject]@{name='artifacts-evidence-local';logs=@([IO.Path]::GetRelativePath($taskDirectory,$log));logHash=$hash;binaryPath=$null;builds=@();loadedBinaries=@()})}
+        Reject {Assert-RunPayload $taskDirectory $run $null $repo} 'no builds accepted'
     }
 } finally {
     # 掃除先が temp のこのテストディレクトリ以外なら削除しない。

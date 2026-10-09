@@ -81,6 +81,12 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 - 指摘を「凍結済み条件または常時契約への違反により現在の問いを阻害する欠陥」と「後続スライスの入力」に分け、根拠を記録する。後者を理由に現スライスを自動拡張しない。
 - 指摘、残存リスク、監査できなかった範囲、使用したモデルを HANDOFF の Phase C' 欄へ記録する。
 
+## task の開始・再開・終了
+
+- 通常 task の開始は pwsh tools/workflow-task.ps1 start -Task <id>、活動状態と配送待ちの確認は status を使う。別 worktree でも同じ taskId を使い、終了済み task の保存・利用前には resume -ExpectedVersion <statusの版> -Decision <信頼済み再開record-id> を完了する。
+- 人間の通常の task 全体完了／打切り指示を処理する最終手順で、完了 receipt と同じ Decision から end -Reason completed|cancelled -ExpectedVersion <statusの版> -Decision <信頼済み指示record-id> を呼ぶ。Phase D の完了処理もこれを使い、Evidence 専用承認を作らない。
+- Agent 停止、pause、timeout、失敗、C/C′ 合格、PR 作成、merge 検知、Harness close を終了に推測変換しない。status の pending-finalization は同じ Decision／内容で再実行して回復する。recorded/delivery-pending は event 記録済みであり、決定 ID を変えて再終了しない。時刻／version を再試行時刻へ置き換えない。
+- task の終了意味・store・配送の現況は [Workflow README](../../../tools/Workflow/README.md) に従う。
 ## 完了
 
 - マージ済みの HANDOFF は、恒久的に残すべき知見だけを公開ドキュメントへ反映して削除する。

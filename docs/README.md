@@ -46,13 +46,15 @@ H2cの旧 `h2c-unity-gate` と再開task `h2c-unity-gate-r2` は、それぞれ�
 | `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b / S-4c 完了。S-4d は VFX / Events の着手時に HANDOFF を切る |
 | `REVIEW_WORKFLOW_EFFICIENCY.md` | 外部モデルレビューの実測と、次のPhase Cで残す比較項目 | いいえ。普遍契約はSkillへharvest済み。残る実測後に削除する |
 | `REVIEW_WORKFLOW_EFFICIENCY_ASSESSMENT.md` | 上記への独立評価（Claude / Grok）と採否記録 | いいえ。次のPhase Cで残る仮説を検証後、調査記録ごと削除する |
-| `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` | Artifact Storageの保存先・責務・セキュリティ境界と後続段 | program r4の順序・保護境界はA3凍結済み。Route proofは[PR #81](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/81)で限定slice GOとPhase Dを完了。次は最小Artifact CLIの着手時Phase A。実Evidence / Build転送、Cloud成立、R2の全面採用は未確認 |
+| `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` | 開発用Artifact Storageの単一保存契約と一括切替 | programは進行中。スライスAは[PR #109](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/109)で実装・限定運用検証と正式C/C′を完了。固定記録の入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。後続B〜Dは個別にA3を行う。現在の機能と方針は[Artifacts README](../tools/Artifacts/README.md) |
+
+**未承認の単一スライス候補:** `UI_ACCESSIBILITY_BUTTON_PILOT.md` は Button の Windows Narrator 最初の実証に向けた A1 改稿（A2・PR コメントを照合）。実装キューではなく、検証経路と人間の A3 合意が未成立。owner は root、期限は 2026-11-05 または置換 revision、harvest 先は Architecture §6。上記 program / research 6件とは別に保持する。
 
 Streaming の M-1〜M-4 と S-4c は完了し、決定を公開面へ harvest して、移行計画と各着手時 HANDOFF を削除済み。テストアセンブリの分離も完了し、依存の向きは `unity/Assets/README.md` と `unity/Assets/Docs/Architecture/27-folder-structure.md` にある。完了済み HANDOFF は復活させない。
 
 S-3 の記録は公開面 `docs/streaming/STREAMING_CURRENT_SPEC.md` に移した。**実装指示ではない。** 旧 `SEASON_LEVELS_IMPLEMENTATION.md` を復活させない。
 
-ローカル資格情報管理の現在の利用方法・責務・検証方法は [tools/Artifacts/README.md](../tools/Artifacts/README.md) に置く。段1の完了HANDOFFは保持せず、検証証拠の台帳は [PR #76](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/76) に残す。
+ローカル資格情報管理の現在の利用方法・責務・検証方法は [tools/Artifacts/README.md](../tools/Artifacts/README.md) に置く。製品に依存しないArtifact操作の事前承認、秘密の保護、個別承認と実行環境の承認境界も同READMEを正本とし、`AGENTS.md`から参照する。段1の完了HANDOFFは保持せず、検証証拠の台帳は [PR #76](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/76) に残す。
 
 **計画セッションに構図を確定させない。** 制約と品質バーと「答えてはいけない既定解」を渡し、設計セッションに構図を出させ、人が図を見てから座標をコードへ落とす。計画セッションに「全部書いて完成に見せる」を求めると、開いた論点は最安の合法解で埋まる（実例: 2026-08-27 に撤回した季節矩形レイアウト `0, 5, 12, 17`）。
 
