@@ -217,12 +217,19 @@ function Assert-EvidenceSchedulerRegistration([string]$Xml,$Identity){
             if($nodes.Count -eq 0){return $default}
             return $nodes[0].InnerText
         }
+        $ownerSid={param([string]$userId)
+            # The OS can export either a SID or an account name, including for
+            # the logon trigger created with -User <SID>. Require the same SID;
+            # failed name resolution is an unverified identity, never a match.
+            if($userId -match '^S-1-'){return ([Security.Principal.SecurityIdentifier]::new($userId)).Value}
+            return ([Security.Principal.NTAccount]::new($userId)).Translate([Security.Principal.SecurityIdentifier]).Value
+        }
         if($document.SelectNodes('/t:Task/t:Actions/*',$ns).Count -ne 1 -or
            (& $value 't:Actions/t:Exec/t:Command') -cne $Identity.execute -or
            (& $value 't:Actions/t:Exec/t:Arguments') -cne $Identity.arguments -or
            (& $value 't:Actions/t:Exec/t:WorkingDirectory') -cne $Identity.runtime -or
            $document.SelectNodes('/t:Task/t:Principals/*',$ns).Count -ne 1 -or
-           (& $value 't:Principals/t:Principal/t:UserId') -cne $Identity.ownerSid -or
+           (& $ownerSid (& $value 't:Principals/t:Principal/t:UserId')) -cne $Identity.ownerSid -or
            (& $value 't:Principals/t:Principal/t:LogonType') -cne 'InteractiveToken' -or
            (& $value 't:Principals/t:Principal/t:RunLevel' 'LeastPrivilege') -cne 'LeastPrivilege' -or
            (& $value 't:RegistrationInfo/t:Description') -cne ('OSM Evidence runtime '+$Identity.manifestSha256)) {throw 'scheduler identity'}
@@ -236,7 +243,7 @@ function Assert-EvidenceSchedulerRegistration([string]$Xml,$Identity){
            $document.SelectNodes('/t:Task/t:Triggers/t:LogonTrigger',$ns).Count -ne 1 -or
            $document.SelectNodes('/t:Task/t:Triggers/t:CalendarTrigger/t:ScheduleByDay',$ns).Count -ne 1 -or
            [Xml.XmlConvert]::ToInt32((& $value 't:Triggers/t:CalendarTrigger/t:ScheduleByDay/t:DaysInterval')) -ne 1 -or
-           (& $value 't:Triggers/t:LogonTrigger/t:UserId') -cne $Identity.ownerSid){throw 'scheduler triggers'}
+           (& $ownerSid (& $value 't:Triggers/t:LogonTrigger/t:UserId')) -cne $Identity.ownerSid){throw 'scheduler triggers'}
         foreach($trigger in @('CalendarTrigger','LogonTrigger')){
             $prefix='t:Triggers/t:'+$trigger+'/'
             if(-not [Xml.XmlConvert]::ToBoolean((& $value ($prefix+'t:Enabled') 'true')) -or

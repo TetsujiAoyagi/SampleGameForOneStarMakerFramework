@@ -11,6 +11,7 @@ $cases+=@('runtime-fresh-process-binding','runtime-fresh-process-fail-before-ada
 $cases+=@('native-long-path-identity')
 $registrationCases=@('missing','disabled','action','arguments','directory','principal','logon-type','run-level','daily-missing','daily-time','daily-interval','daily-disabled','daily-offset','daily-future','logon-missing','logon-owner','logon-disabled','trigger-extra','start-unavailable','instances','limit','description','enabled-unknown','export-failed','query-denied','info-failed','repetition','end-boundary','delay','equivalent','defaults','valid')
 $cases+=@($registrationCases | ForEach-Object {'scheduler-registration-'+$_})
+$cases+=@('principal-account','logon-account','principal-other-account','logon-other-account','principal-unmapped-account','logon-unmapped-account' | ForEach-Object {'scheduler-registration-'+$_})
 $cases+=@('scheduler-missing-cli','scheduler-descriptor-identity','scheduler-install-unconfirmed')
 $selected=@(if($Case -ceq '*'){$cases}else{$Case.Split(',')})
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
@@ -202,9 +203,19 @@ try{
                         'equivalent'{$xml=$xml.Replace('2020-01-01T03:00:00',([datetime]::Parse('2020-01-01T03:00:00').ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.0000000Z'))).Replace('PT10M','PT600S').Replace('<Enabled>true</Enabled>','<Enabled>1</Enabled>').Replace('<StartWhenAvailable>true','<StartWhenAvailable>1')}
                         'defaults'{$xml=$xml.Replace('<Enabled>true</Enabled>','').Replace('<RunLevel>LeastPrivilege</RunLevel>','').Replace('<MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>','').Replace('</CalendarTrigger>','<RandomDelay>PT0S</RandomDelay></CalendarTrigger>').Replace('</LogonTrigger>','<Delay>PT0M</Delay></LogonTrigger>')}
                     }
+                    if($mode -clike '*-account'){
+                        # Windows may export UserId as an account name even when
+                        # registration used its SID. Resolve the real local owner.
+                        $account=[Security.Principal.WindowsIdentity]::GetCurrent().Name
+                        if($mode -clike '*-other-account'){$account=([Security.Principal.SecurityIdentifier]::new('S-1-5-18')).Translate([Security.Principal.NTAccount]).Value}
+                        if($mode -clike '*-unmapped-account'){$account=$env:COMPUTERNAME+'\osm-missing-'+[Guid]::NewGuid().ToString('N')}
+                        $definition=[xml]$xml
+                        if($mode.StartsWith('principal-')){$definition.Task.Principals.Principal.UserId=$account}else{$definition.Task.Triggers.LogonTrigger.UserId=$account}
+                        $xml=$definition.OuterXml
+                    }
                     $descriptor=Join-Path $fixture.roles.runtime ($fixture.repo+'.schedule.json');$before=(Get-FileHash $descriptor).Hash
                     WithTaskObservation $identity $xml $mode {
-                        if($mode -cin @('valid','defaults','equivalent')){
+                        if($mode -cin @('valid','defaults','equivalent','principal-account','logon-account')){
                             Assert ((Get-EvidenceScheduleStatus $fixture.config).status -ceq 'passed') 'valid registration status rejected'
                             Assert ((Invoke-EvidenceScheduleInstall $fixture.config).status -ceq 'passed') 'valid registration install rejected'
                         }elseif($mode -ceq 'missing'){
