@@ -10,10 +10,10 @@ namespace OneStarMaker.Tests.UISystem.TestDoubles
 {
     /// <summary>
     /// VisualTreeAsset なしで Root を差し替え可能な UIToolkitView テスト用派生。
-    /// エディタ専用アセンブリの MonoBehaviour は AddComponent できないため、
-    /// UNITY_INCLUDE_TESTS 制約付きの非エディタ専用アセンブリ（TestSupport）に置く。
+    /// 複数のテストから使う基底を UNITY_INCLUDE_TESTS 制約付きの
+    /// 非エディタ専用アセンブリ（TestSupport）に置く。
     /// </summary>
-    public sealed class TestToolkitView : UIToolkitView
+    public class TestToolkitView : UIToolkitView
     {
         private static readonly FieldInfo RootField =
             typeof(UIToolkitView).GetField("_root", BindingFlags.Instance | BindingFlags.NonPublic)!;
@@ -24,6 +24,8 @@ namespace OneStarMaker.Tests.UISystem.TestDoubles
         private UIView.UILayer _layer = UIView.UILayer.Normal;
 
         public Action? ViewDestroyed { get; set; }
+
+        public string? InitialFocusNameForTest { get; set; }
 
         /// <summary>テスト用 Root を注入する。</summary>
         /// <param name="root">差し替える VisualElement。</param>
@@ -56,6 +58,9 @@ namespace OneStarMaker.Tests.UISystem.TestDoubles
         {
             return _layer;
         }
+
+        /// <inheritdoc/>
+        protected override string? InitialFocusElementName => InitialFocusNameForTest;
 
         protected override void OnViewDestroy()
         {

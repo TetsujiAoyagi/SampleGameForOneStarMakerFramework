@@ -15,6 +15,10 @@ function Invoke-Process([string]$FileName, [string[]]$Arguments, [string]$Workin
     $info.CreateNoWindow = $true
     $info.RedirectStandardOutput = $true
     $info.RedirectStandardError = $true
+    # CreateNoWindowのpwsh/dotnetはWindowsユーザーのOEM codepage、gitはUTF-8を使う。親PTYのcodepageとは別に採取する。
+    $encoding = if ($IsWindows -and [IO.Path]::GetFileNameWithoutExtension($FileName) -in @('pwsh','powershell','dotnet')) { [Text.Encoding]::GetEncoding([CultureInfo]::CurrentCulture.TextInfo.OEMCodePage) } else { [Text.UTF8Encoding]::new($false) }
+    $info.StandardOutputEncoding = $encoding
+    $info.StandardErrorEncoding = $encoding
     foreach ($argument in $Arguments) { [void]$info.ArgumentList.Add($argument) }
     $process = [Diagnostics.Process]::new()
     $process.StartInfo = $info
@@ -39,6 +43,7 @@ function Invoke-Process([string]$FileName, [string[]]$Arguments, [string]$Workin
 function Assert-RunPayload([string]$TaskDirectory, [object]$Run, [object]$Spec = $null, [string]$Repo = '') {
     # ログの相対パスが task ディレクトリの外を指せないようにする。
     # logHash は各ファイル hash を並びのまま連結した値の hash。順番が変わると不一致になる。
+    Assert-ObservationAttachment $TaskDirectory $Run
     foreach ($step in @($Run.steps)) {
         # adapter種別を先に決める。Unity rawをoffline DLL存続検査へ流さない。
         if ($step.PSObject.Properties['adapterKind'] -and $step.adapterKind -ceq 'unity-test-v2') {
@@ -55,6 +60,21 @@ function Assert-RunPayload([string]$TaskDirectory, [object]$Run, [object]$Spec =
         if ($hashes.Count -eq 0) { throw "必須生ログがありません: $($step.name)" }
         $actual = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes(($hashes -join '|')))).ToLowerInvariant()
         if ($actual -cne $step.logHash) { throw "生ログhashが一致しません: $($step.name)" }
+        if ($Run.PSObject.Properties['taskId'] -and $Run.taskId -ceq 'artifact-evidence-lifecycle' -and $step.name -ceq 'artifacts-evidence-local') {
+            $expectedPaths=@((Join-Path $Repo 'tools/Artifacts/Probe/artifacts/probe/R2RouteTransport.dll'),(Join-Path $Repo 'tools/Artifacts/Packaging/artifacts/package/ArtifactPackaging.dll'),(Join-Path $Repo 'tools/Artifacts/Transport/artifacts/transport/R2ArtifactTransport.dll'))
+            if (@($step.builds).Count -ne 3 -or @($step.builds.path | Sort-Object -Unique -CaseSensitive).Count -ne 3) { throw 'Evidenceには固定3 buildが必要です。' }
+            foreach ($build in @($step.builds)) {
+                if ($expectedPaths -cnotcontains $build.path -or @($build.dependencies).Count -eq 0 -or @($step.loadedBinaries | Where-Object { $_.path -ceq $build.path -and $_.sha256 -ceq $build.sha256 -and $_.moduleVersionId }).Count -eq 0) { throw 'Evidence buildと実ロード観測が不一致です。' }
+                if ((Get-FileHash -LiteralPath $build.path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $build.sha256) { throw 'Evidence DLLがrun後に変更されました。' }
+                foreach ($file in @($build.dependencies)) { if ((Get-FileHash -LiteralPath $file.path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $file.sha256) { throw 'Evidence depsがrun後に変更されました。' } }
+            }
+            foreach ($binary in @($step.loadedBinaries)) {
+                if ($expectedPaths -cnotcontains $binary.path -or @($binary.dependencies).Count -eq 0) { throw '実ロードDLL/depsが欠測しています。' }
+                foreach($dependency in @($binary.dependencies)) {
+                    if ($dependency.path) { $digest=if($dependency.PSObject.Properties['sha256']){$dependency.sha256}else{$dependency.hash}; if((Get-FileHash -LiteralPath $dependency.path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $digest){throw '実ロードdependencyが変更されました。'} }
+                }
+            }
+        }
         if ($step.binaryPath) {
             $runPayload = [IO.Path]::GetFullPath([IO.Path]::Combine($TaskDirectory, 'payload', $Run.id)) + [IO.Path]::DirectorySeparatorChar
             if (-not ([IO.Path]::GetFullPath($step.binaryPath)).StartsWith($runPayload, [StringComparison]::OrdinalIgnoreCase) -or
@@ -87,18 +107,20 @@ function Get-GitScope([string]$Repo, [string]$Base, [string]$Head) {
     $parts = @($diff.Stdout.Split([char]0, [StringSplitOptions]::RemoveEmptyEntries))
     if ($parts.Count % 2 -ne 0) { throw 'Git name-status差分が不正です。' }
     $paths = [Collections.Generic.List[string]]::new()
+    $changes = @{}
     for ($i = 0; $i -lt $parts.Count; $i += 2) {
         if ($parts[$i] -cnotmatch '^[AMDT]$') { throw "未対応のGit差分種別です: $($parts[$i])" }
-        $paths.Add($parts[$i + 1])
+        $paths.Add($parts[$i + 1]); $changes[$parts[$i + 1]] = $parts[$i]
     }
     $dirty = Invoke-Process 'git' @('-C', $Repo, 'status', '--porcelain=v1', '--untracked-files=all') $Repo 30
     if ($dirty.ExitCode -ne 0) { throw 'Git作業ツリーを確認できません。' }
-    return [pscustomobject]@{ Base = $Base; Head = $Head; Paths = @($paths); Dirty = @($dirty.Stdout -split "`n" | Where-Object { $_.Trim() }) }
+    return [pscustomobject]@{ Base = $Base; Head = $Head; Paths = @($paths); Changes = $changes; Dirty = @($dirty.Stdout -split "`n" | Where-Object { $_.Trim() }) }
 }
 
 function Test-GeneratedEvidencePath([string]$Path) {
     # 実行が生成するログ、結果、Phase の RESULT。製品データや通常のソースは証拠パスに含めない。
     $path = $Path.Replace('\', '/')
+    if ($path -match '^tools/Artifacts/(.*/)?artifacts/' -or $path -match '^tools/Workflow/(.*/)?(artifacts|bin|obj)/') { return $true }
     if ($path -match '(^|/)TestResults/' -or $path -match '^tools/Harness/(runs|payload|inputs|receipts|specifications)/') { return $true }
     if ($path -match '^docs/handoff/.*(RESULT|REVISION).*\.md$') { return $true }
     if ($path -match '^artifacts/(bs2b|bs4|evidence|harness)/' -or $path -match '^tools/Artifacts/Probe/artifacts/') { return $true }
@@ -136,7 +158,85 @@ function Find-GeneratedEvidenceAdds([string]$Repo, [string]$Base, [string]$Head)
     return [pscustomobject]@{ findings = @($found); commits = $commits.Count; indexAdds = $indexAdds }
 }
 
+function Invoke-EvidenceLocalStep([string]$Repo, [string]$TaskDirectory, [string]$RunId, [string]$Name) {
+    # このtaskだけの固定集合。既存H1/H2のadapter集合と寿命を変更しない。
+    $clock = [Diagnostics.Stopwatch]::StartNew()
+    $payload = [IO.Path]::Combine($TaskDirectory, 'payload', $RunId)
+    [IO.Directory]::CreateDirectory($payload) | Out-Null
+    $logs = [Collections.Generic.List[string]]::new(); $commands = [Collections.Generic.List[object]]::new()
+    $registered = [Collections.Generic.List[string]]::new(); $selected = [Collections.Generic.List[string]]::new(); $executed = [Collections.Generic.List[string]]::new()
+    $builds = [Collections.Generic.List[object]]::new(); $loaded = [Collections.Generic.List[object]]::new(); $failure = $null
+    try {
+        $suites = switch ($Name) {
+            'artifacts-evidence-local' { @('Credentials','RouteProof','R2RouteTransport','ArtifactPackage','ArtifactTransfer','ArtifactRotation','ArtifactEvidence','EvidenceRetention','EvidenceCleanup','EvidenceSchedule','EvidenceReset') }
+            'workflow-local' { @('TaskLifecycle') }
+            'harness-local' { @('Harness') }
+            default { throw 'Evidence local stepが不正です。' }
+        }
+        if ($Name -ceq 'artifacts-evidence-local') {
+            foreach ($build in @(@('Probe','R2RouteTransport','probe'), @('Packaging','ArtifactPackaging','package'), @('Transport','R2ArtifactTransport','transport'))) {
+                $output = Join-Path $Repo "tools/Artifacts/$($build[0])/artifacts/$($build[2])"
+                $args = @('build',(Join-Path $Repo "tools/Artifacts/$($build[0])/$($build[1]).csproj"),'-c','Release','-o',$output,'--no-restore','--nologo')
+                $commands.Add([pscustomobject]@{ executable='dotnet'; arguments=@($args) })
+                $result = Invoke-Process 'dotnet' $args $Repo 600
+                $log = Join-Path $payload "$($build[0]).build.log"; [IO.File]::WriteAllText($log,$result.Stdout+$result.Stderr); $logs.Add($log)
+                if ($result.ExitCode -ne 0 -or -not $result.OutputComplete) { throw "Release buildが失敗しました: $($build[0])" }
+                $binary = Join-Path $output "$($build[1]).dll"
+                $deps = @([IO.Directory]::EnumerateFiles($output) | Where-Object { $_ -like '*.dll' -or $_ -like '*.deps.json' -or $_ -like '*.runtimeconfig.json' } | Sort-Object | ForEach-Object { [ordered]@{path=$_;sha256=(Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant()} })
+                $builds.Add([pscustomobject]@{name=$build[1];path=$binary;sha256=(Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash.ToLowerInvariant();dependencies=$deps})
+            }
+        }
+        $parseRoot = switch ($Name) { 'artifacts-evidence-local' { 'tools/Artifacts' }; 'workflow-local' { 'tools/Workflow' }; 'harness-local' { 'tools/Harness' } }
+        # 親のtools/Artifactsやworktree名は生成物ではない。repo相対pathの小文字segmentだけを除外する。
+        $parsePaths = @([IO.Directory]::EnumerateFiles((Join-Path $Repo $parseRoot),'*',[IO.SearchOption]::AllDirectories) | Where-Object { ($_ -like '*.ps1' -or $_ -like '*.psm1') -and [IO.Path]::GetRelativePath($Repo,$_) -cnotmatch '(?:^|[\\/])(artifacts|bin|obj)[\\/]' } | Sort-Object)
+        $parseEntry = switch ($Name) { 'artifacts-evidence-local' { 'tools/artifacts.ps1' }; 'workflow-local' { 'tools/workflow-task.ps1' }; 'harness-local' { 'tools/harness.ps1' } }
+        $parsePaths += Join-Path $Repo $parseEntry
+        if ($parsePaths.Count -eq 0) { throw 'PowerShell parse集合が空です。' }
+        $parseRecords = foreach ($path in $parsePaths) {
+            $tokens=$null; $errors=$null; [void][Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors)
+            if (@($errors).Count -gt 0) { throw "PowerShell parse失敗: $([IO.Path]::GetRelativePath($Repo,$path))" }
+            [ordered]@{path=[IO.Path]::GetRelativePath($Repo,$path);sha256=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant();errors=0}
+        }
+        $parseLog=Join-Path $payload "$Name.parse.json"; [IO.File]::WriteAllText($parseLog,(ConvertTo-Json -InputObject @($parseRecords) -Depth 8)); $logs.Add($parseLog)
+        foreach ($suite in $suites) {
+            $relative = if ($Name -ceq 'artifacts-evidence-local') { "tools/Artifacts/tests/$suite.Tests.ps1" } elseif ($Name -ceq 'workflow-local') { "tools/Workflow/tests/$suite.Tests.ps1" } else { 'tools/Harness/tests/Harness.Tests.ps1' }
+            $sidecar=Join-Path $payload "$suite.cases.json"; $args=@('-NoProfile','-File',(Join-Path $Repo $relative),'-ResultPath',$sidecar)
+            if ($suite -ceq 'R2RouteTransport') { $args += @('-AssemblyPath',$builds[0].path) }
+            $commands.Add([pscustomobject]@{executable='pwsh';arguments=@($args)})
+            $result=Invoke-Process 'pwsh' $args $Repo 600
+            $log=Join-Path $payload "$suite.log"; [IO.File]::WriteAllText($log,$result.Stdout+$result.Stderr); $logs.Add($log)
+            if ($result.ExitCode -ne 0 -or -not $result.OutputComplete -or -not [IO.File]::Exists($sidecar)) { throw "suiteが失敗/欠測しました: $suite" }
+            $logs.Add($sidecar); $cases=[IO.File]::ReadAllText($sidecar)|ConvertFrom-Json
+            Assert-CaseSets @($cases.registered) @($cases.selected) @($cases.executed) $suite
+            if (@($cases.failed).Count -gt 0) { throw "失敗caseがあります: $suite" }
+            foreach ($case in @($cases.registered)) { $registered.Add("$suite/$case") }
+            foreach ($case in @($cases.selected)) { $selected.Add("$suite/$case") }
+            foreach ($case in @($cases.executed)) { $executed.Add("$suite/$case") }
+            if ($suite -ceq 'R2RouteTransport') {
+                if ($cases.loadedPath -cne $builds[0].path -or $cases.loadedHashBefore -cne $builds[0].sha256 -or $cases.loadedHashAfter -cne $builds[0].sha256 -or -not $cases.moduleVersionId) { throw 'Probeの実ロードDLLがbuildと不一致です。' }
+                $loaded.Add([pscustomobject]@{path=$cases.loadedPath;sha256=$cases.loadedHashAfter;moduleVersionId=$cases.moduleVersionId;dependencies=@($cases.dependencies)})
+            }
+            if ($cases.PSObject.Properties['binaries']) {
+                foreach ($item in @($cases.binaries)) {
+                    $expected=@($builds | Where-Object path -CEQ $item.path)
+                    if ($expected.Count -ne 1 -or $item.sha256 -cne $expected[0].sha256 -or -not $item.moduleVersionId -or @($item.dependencies).Count -eq 0) { throw "実ロードDLLがbuildと不一致です: $suite" }
+                    $loaded.Add($item)
+                }
+            }
+        }
+        if ($Name -ceq 'artifacts-evidence-local') {
+            foreach ($build in $builds) {
+                if (@($loaded | Where-Object path -CEQ $build.path).Count -eq 0) { throw "実ロードDLLの観測がありません: $($build.name)" }
+                foreach ($file in @($build.dependencies)) { if ((Get-FileHash -LiteralPath $file.path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $file.sha256) { throw 'build DLL/depsが実行中に変更されました。' } }
+            }
+        }
+    } catch { $failure=$_.Exception.Message; $log=Join-Path $payload "$Name.failure.log"; [IO.File]::WriteAllText($log,$failure); $logs.Add($log) }
+    $hashes=@($logs|ForEach-Object{(Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash})
+    $hash=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes(($hashes -join '|')))).ToLowerInvariant()
+    return [pscustomobject]@{name=$Name;kind='test';status=$(if($failure){'failed'}else{'passed'});exitCode=$(if($failure){1}else{0});argv=@($commands);cwd=$Repo;registered=@($registered);selected=@($selected);executed=@($executed);audit=$null;logHash=$hash;logs=@($logs|ForEach-Object{[IO.Path]::GetRelativePath($TaskDirectory,$_)});binaryPath=$null;builds=@($builds);loadedBinaries=@($loaded);durationMs=$clock.ElapsedMilliseconds;failure=$failure}
+}
 function Invoke-LocalStep([string]$Repo, [string]$TaskDirectory, [string]$RunId, [string]$Name) {
+    if ((Split-Path $TaskDirectory -Leaf) -ceq 'artifact-evidence-lifecycle' -and $Name -cin @('artifacts-evidence-local','workflow-local','harness-local')) { return Invoke-EvidenceLocalStep $Repo $TaskDirectory $RunId $Name }
     $stepClock = [Diagnostics.Stopwatch]::StartNew()
     $payload = [IO.Path]::Combine($TaskDirectory, 'payload', $RunId)
     [IO.Directory]::CreateDirectory($payload) | Out-Null

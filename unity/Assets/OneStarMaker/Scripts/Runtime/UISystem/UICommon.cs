@@ -343,6 +343,9 @@ namespace OneStarMaker.Runtime.UISystem
             {
                 name = $"Blocker_{ownerId}",
                 pickingMode = PickingMode.Position,
+                // 背面のクリックは受けるが、タブ順には入れない。
+                focusable = false,
+                tabIndex = -1,
             };
 
             blocker.style.position = Position.Absolute;
@@ -376,6 +379,9 @@ namespace OneStarMaker.Runtime.UISystem
             try
             {
                 await view.ViewIn(ct);
+                // 入場演出が終わってからキーボードの初期位置を置く。
+                // 演出中に Focus すると、まだ見えていないボタンが決定対象になる。
+                view.ApplyInitialFocus();
             }
             catch (Exception)
             {

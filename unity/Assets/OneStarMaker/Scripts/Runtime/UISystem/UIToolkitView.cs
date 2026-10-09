@@ -76,6 +76,26 @@ namespace OneStarMaker.Runtime.UISystem
         protected virtual void OnRootCreated(VisualElement root) { }
 
         /// <summary>
+        /// Dialog / Modal の ViewIn 完了後に優先してフォーカスする要素名。
+        /// null またはタブ順に乗れない名前のときは、タブ順の先頭へフォールバックする。
+        /// </summary>
+        protected virtual string? InitialFocusElementName => null;
+
+        /// <summary>
+        /// Modal / Dialog なら ViewIn 完了後の初期フォーカスを試みる。
+        /// パネルが無い要素では何もしない。ViewOut 時のフォーカス復帰は行わない。
+        /// </summary>
+        internal void ApplyInitialFocus()
+        {
+            if (!UIToolkitInitialFocus.ShouldApply(GetUILayer()))
+            {
+                return;
+            }
+
+            UIToolkitInitialFocus.TryApply(Root, InitialFocusElementName);
+        }
+
+        /// <summary>
         /// ViewModel を紐付ける。GameObject 破棄時に自動 Dispose される。
         /// </summary>
         /// <param name="viewModel">紐付ける ViewModel。</param>

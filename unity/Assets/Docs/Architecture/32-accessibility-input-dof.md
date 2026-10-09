@@ -54,7 +54,7 @@
 | ホールドをトグルに | 押しっぱなし用の第二指を要求しない | InputManager |
 | フルリマップ | マウスのみ / スティック + 肩ボタン等 | InputManager |
 | Focusable + Actionable を巡回し、決定は 1 ボタン | 同時照準をやめる | 候補は §30。操作は InputManager |
-| UI の初期フォーカスと Tab / 決定 / キャンセル | 画面を片手デバイスで閉じる | **UISystem 単独。**UITK の `focusable` / `tabIndex` で足り、§30 を必要としない |
+| UI の初期フォーカス（実装済み）と Tab / 決定 / キャンセル | 画面を片手デバイスで閉じる | **UISystem 単独。**UITK の `focusable` / `tabIndex` で足り、§30 を必要としない |
 
 Hidden は巡回から除外する（`ExcludedFlags` に指定する。§30 §10）。`Hidden | Focusable` は作者付け不備。
 
@@ -66,8 +66,9 @@ Hidden は巡回から除外する（`ExcludedFlags` に指定する。§30 §10
 |---|---|
 | 入力プロファイル / リマップ UI | default ID 以外と UI は未実装 |
 | ワールド巡回の実装 | [§30 S-2](30-accessibility-identity.md#15-実装スライス) の候補集合が先。加えて W-7（到達可能性）の供給元が無く、「拾えるが行けない」を候補から外せない |
-| UI の初期フォーカス配線 | **§30 に依存しないので単独で進められる。**最も安く出せる項目だが、今はしない |
 | 触覚ボタンの割り当て | 要求が無い |
+
+UI Toolkit の Dialog / Modal の初期フォーカスとタブ順指定は UISystem に実装済み（[§6.7](06-ui.md#67-uicommon-の-adduiview-フロー)）。入力プロファイルへの UI 操作割当と世界巡回は引き続き未実装。
 
 ---
 
