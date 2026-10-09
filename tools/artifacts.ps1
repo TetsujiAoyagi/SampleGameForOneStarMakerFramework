@@ -4,6 +4,8 @@ $ErrorActionPreference = 'Stop'
 
 try {
     if ($Arguments.Count -lt 4) { throw 'Invalid command.' }
+    # BuildはEvidenceと独立したgrammar。成功記録の寿命と引数の意味を混同しない。
+    # オプション名の字種を許しても、必要fieldの完全一致で未知引数を拒否する。
     if($Arguments[0] -ceq 'build'){
         if($Arguments.Count -lt 6 -or $Arguments[2] -cne '--profile' -or $Arguments[3] -cne 'osm'){throw 'unsupported-command'}
         $buildAction=$Arguments[1];$buildOpts=@{}

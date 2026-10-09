@@ -2,6 +2,9 @@ Set-StrictMode -Version Latest
 
 $script:AssemblyPath = Join-Path $PSScriptRoot 'artifacts/transport/R2ArtifactTransport.dll'
 
+ # Buildは検証済みの固定keyへのPUT/GETだけを許す。共通TransportがDELETEを持っていても、
+ # Buildの保持判定・利用中確認・削除直前排他は未接続なので、Build DELETEは入口で拒否する。
+
 function Invoke-R2ArtifactOperation {
     param([string] $AccessKeyId, [string] $SecretAccessKey, [string] $Generation, [hashtable] $Request)
     if (-not [IO.File]::Exists($script:AssemblyPath) -or

@@ -3,6 +3,8 @@ Import-Module (Join-Path $PSScriptRoot 'ArtifactAcl.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ArtifactCommands.psm1')
 Import-Module (Join-Path $PSScriptRoot 'BuildContract.psm1')
 Import-Module (Join-Path $PSScriptRoot '../Workflow/WindowsStorePaths.psm1')
+# このstoreのownerはBuild application。同user/同PCで成功を保持し、
+# Workflow終了やEvidenceの30日清掃には登録しない。注入rootはoffline専用。
 $script:TestRoot=$null
 $script:FaultHook=$null
 
@@ -23,6 +25,9 @@ function Get-BuildRoot([bool]$Create=$false){
     }
     return $root
 }
+# directoryの存在確認だけでは同時publishを排除できないため、repo直下の
+# CreateNew予約を先に確保する。予約後に失敗してもIDを自動的に再利用させない。
+# 再利用すると、応答不明だったremote objectへ同じkeyで再送する恐れがある。
 function Get-BuildDirectory([string]$RepositoryId,[string]$BuildId,[bool]$Create=$false){
     Assert-Hex $RepositoryId 64;Assert-BuildId $BuildId
     $root=Get-BuildRoot $Create
@@ -45,6 +50,9 @@ function Get-BuildDirectory([string]$RepositoryId,[string]$BuildId,[bool]$Create
     }
     return $dir
 }
+# intent/receiptは同directoryのtempへ全量write・flushし、存在しない最終名へ移す。
+# receiptのrenameだけが成功commit点。既存正本の置換や別catalogとの二重確定はしない。
+# 失敗tempは残し、ここで他の成功記録やremote objectをrollback削除しない。
 function Write-BuildImmutable([string]$Directory,[string]$Name,$Value){
     if($Name -cnotin @('intent.json','receipt.json')){throw 'build-store-unavailable'}
     Assert-ArtifactAcl $Directory $true
@@ -63,12 +71,17 @@ function Write-BuildImmutable([string]$Directory,[string]$Name,$Value){
         $stream.Write($bytes,0,$bytes.Length);$stream.Flush($true);$stream.Dispose();$stream=$null
         Assert-ArtifactAcl $temp $false
         if($script:FaultHook){& $script:FaultHook 'before-rename' $Name}
+        # rename後の例外は「確定していない」とは限らない。呼出側は不明応答を返し、
+        # 次のinspectが正本の存在と整合を検査して成功を回復する。
         [IO.File]::Move($temp,$final)
         if($script:FaultHook){& $script:FaultHook 'after-rename' $Name}
         Assert-ArtifactAcl $final $false
         return @{Path=$final;Sha256=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()}
     }finally{if($stream){$stream.Dispose()}}
 }
+# ファイルが存在するだけでは成功ではない。現在の設定・ID・系列・key・全entry、
+# 読戻し観測とintentのhashまで照合し、部分書込や別記録の混入を拒否する。
+# 読取から成功時刻を書き直したり、足りない記録を作成したりしない。
 function Read-BuildReceipt($Config,[string]$BuildId){
     $dir=Get-BuildDirectory $Config.Data.repositoryId $BuildId
     $path=[IO.Path]::Combine($dir,'receipt.json')
@@ -104,6 +117,8 @@ function Read-BuildReceipt($Config,[string]$BuildId){
         $v.readback.httpStatus -ne 200 -or $v.readback.statusClass -cne 'success' -or
         -not $v.readback.statusObserved -or $v.readback.timedOut -or $v.readback.redirected){throw 'receipt-invalid'}
     Assert-Hex $v.readback.generation 32;$null=Assert-Utc $v.readback.observedAt
+    # receipt内のintent hashは送信前に固定したbytesとの結び付きである。
+    # hashだけでなく主要metadata/entry集合も同一であることを確認する。
     $intentPath=[IO.Path]::Combine($dir,'intent.json');Assert-ArtifactAcl $intentPath $false
     $intent=Read-ArtifactJson $intentPath
     if($intent.Sha256 -cne $v.intentSha256){throw 'receipt-invalid'}

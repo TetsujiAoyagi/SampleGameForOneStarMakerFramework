@@ -22,6 +22,8 @@ public static class PackageIO
         string baseRevision, string headRevision, string repositoryId, string runId,
         PackageFile[] expected, int budgetMilliseconds, string? taskId = null, BuildPackage? build = null)
     {
+        // Buildだけは専用metadata codecを使う。既存Evidenceのtask必須条件は維持し、
+        // この共有化を任意purposeの受入れや既存schemaの緩和へ広げない。
         if (build is null) PackagePolicy.RequireEvidenceTask(taskId);
         PackagePolicy.RequireIdentity(baseRevision, headRevision, repositoryId, runId);
         if (!Path.IsPathFullyQualified(operationDirectory) ||

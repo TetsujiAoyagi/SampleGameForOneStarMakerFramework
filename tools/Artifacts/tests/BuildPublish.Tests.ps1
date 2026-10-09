@@ -5,6 +5,8 @@ $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot '../BuildApplication.psm1')
 Import-Module (Join-Path $PSScriptRoot '../ArtifactAcl.psm1')
 Import-Module (Join-Path $PSScriptRoot '../ArtifactPaths.psm1')
+# 9群は正常系だけでなく、送信前拒否・応答不明・成功commit前後・fresh processを分ける。
+# fixture成功は実Build保存の代用にせず、実R2の限定往復は別の操作証拠として扱う。
 $registered=@('snapshot-roundtrip','input-and-size-reject','snapshot-conflict','put-unconfirmed','readback-failure','receipt-commit-failure','fetch-integrity','existing-success-preserved','fresh-process-entrypoints')
 $selected=@(if($Case -ceq '*'){$registered}else{$Case.Split(',')})
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
@@ -180,6 +182,8 @@ foreach($caseName in $selected){
                 }
                 Assert ((Get-TotalPuts $fixture) -eq 4) 'readback PUT count'
             }
+            # rename前の失敗と、rename後に返答だけ失った状態は別物。
+            # 親の成功値を子へ横渡しせず、事前selectionだけで正本へ戻れることを検査する。
             'receipt-commit-failure'{
                 foreach($phase in @('before-write','before-flush','before-rename','after-rename')){
                     New-Id $fixture
@@ -246,6 +250,8 @@ foreach($caseName in $selected){
                 foreach($name in $monitors){Assert ((Get-TreeFingerprint ([IO.Path]::Combine($fixture.Root,$name))) -ceq $before[$name]) "unrelated $name store changed"}
                 Assert (-not @($fixture.Counts.Keys|Where-Object {$_.StartsWith('delete ',[StringComparison]::Ordinal)}).Count) 'DELETE called'
             }
+            # 親がglobal importした関数やmockだけで成立したように見せない。
+            # 実CLIのgrammar・終了コード・別processのreaderを非秘密fixtureで通す。
             'fresh-process-entrypoints'{
                 # 各入口を独立pwshの実CLIで通す。publish時の読戻しも別childが保存bytesを読む。
                 $published=Invoke-Child (Get-OfflineChildArgs $fixture 'publish')

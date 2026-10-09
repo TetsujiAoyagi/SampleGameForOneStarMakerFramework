@@ -1,10 +1,14 @@
 Set-StrictMode -Version Latest
+# fresh processのCLIでも同じ関数解決になるよう、使用するmoduleを直接importする。
+# 親のテストprocessが先に読み込んだmoduleへ暗黙に依存しない。
 Import-Module (Join-Path $PSScriptRoot 'ArtifactCommands.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ArtifactPaths.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ArtifactApplication.psm1')
 Import-Module (Join-Path $PSScriptRoot 'BuildContract.psm1')
 Import-Module (Join-Path $PSScriptRoot 'BuildStore.psm1')
 Import-Module (Join-Path $PSScriptRoot 'Credentials/CredentialStore.psm1')
+# 注入点はoffline検証専用。公開CLIから時計・通信・上限・失敗境界を差し替えさせない。
+# 通常操作では既存の資格情報generation固定と、期限付きのTransport/読戻しを使う。
 $script:Clock={ [DateTimeOffset]::UtcNow }
 $script:FaultHook=$null
 $script:NetworkHook=$null
@@ -13,6 +17,8 @@ $script:FailureHook=$null
 $script:SnapshotLimit=240MB
 $script:PackageCreatedHook=$null
 
+# 下位directoryへ入る前にreparseを拒否し、選択rootの外を走査しない。
+# 内容の選別はしない。呼出側が明示した全file集合と一致することを後段で検査する。
 function Get-BuildInventory([string]$Root){
     if([OneStarMaker.Artifacts.Packaging.PackagePolicy]::HasReparse($Root)){throw 'snapshot-conflict'}
     $names=[Collections.Generic.List[string]]::new();$seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
@@ -31,10 +37,15 @@ function Get-BuildInventory([string]$Root){
     }
     return @($names.ToArray()|Sort-Object -CaseSensitive)
 }
+# filesは部分的なinclude指定ではない。未列挙fileを黙って追加・除外すると、
+# 呼出側が選んだ1件と保存されたBuildの範囲がずれるため、集合全体を比較する。
 function Assert-BuildInventory($Selection){
     $actual=@(Get-BuildInventory $Selection.root);$chosen=@($Selection.files|Sort-Object -CaseSensitive)
     if($actual.Count -ne $chosen.Count -or (($actual -join "`n") -cne ($chosen -join "`n"))){throw 'snapshot-conflict'}
 }
+# 元Buildは読取だけ。copy時に得たbytes/hashを以降の梱包・記録の基準にする。
+# 成功時のsource handleは呼出側へ渡し、publishのfinallyで確実に解放する。
+# これは保存時のsnapshotであり、UnityがBuildを生成した時点の原子性は保証しない。
 function Copy-BuildSnapshot($Selection,[string]$Operation,[Diagnostics.Stopwatch]$Timer){
     Assert-BuildInventory $Selection
     $handles=[Collections.Generic.List[IO.FileStream]]::new()
@@ -85,6 +96,8 @@ function Invoke-BuildReadback([string]$Operation,$Config,[string]$Generation,[st
     if($script:ReadbackHook){return & $script:ReadbackHook $Operation $Config $Generation $Key $Bytes $Hash}
     return Invoke-ArtifactReadback $Operation $Config $Generation $Key $Bytes $Hash $Timer
 }
+# 成功fieldは最後まで空に保つ。PUTやGETの成功だけで参照を返すと、
+# 正本receiptがない成果物を成功Buildとして扱う呼出側が生まれてしまう。
 function Invoke-BuildPublish([string]$ConfigPath,[string]$SelectionPath){
     $r=[ordered]@{status='failed';reasonCode='unconfirmed';reference=$null;packageSha256=$null;buildId=$null;receiptPath=$null;residue=[ordered]@{localPath=$null;remote='pre-put'}}
     $locks=$null;$packageLock=$null;$timer=[Diagnostics.Stopwatch]::StartNew()
@@ -96,6 +109,7 @@ function Invoke-BuildPublish([string]$ConfigPath,[string]$SelectionPath){
         $r.buildId=$selection.buildId
         $null=Get-BuildSeries $config.Data.repositoryId $selection.project $selection.target $selection.configuration
         Assert-BuildInventory $selection
+        # IDの予約はnetwork前に行う。同一IDの再試行・競合は送信を始める前に拒否する。
         $dir=Get-BuildDirectory $config.Data.repositoryId $selection.buildId $true
         $operation=New-ArtifactOperation;$r.residue.localPath=$operation
         $snapshot=Copy-BuildSnapshot $selection $operation $timer;$locks=$snapshot.Handles
@@ -111,13 +125,21 @@ function Invoke-BuildPublish([string]$ConfigPath,[string]$SelectionPath){
         $key=Get-BuildKey $config $selection.project $selection.target $selection.configuration $selection.buildId
         $entries=@($snapshot.Files|Sort-Object Path -CaseSensitive|ForEach-Object{[pscustomobject]@{path=$_.Path;bytes=$_.Bytes;sha256=$_.Sha256}})
         $intent=[ordered]@{schemaVersion=1;purpose='build';buildId=$selection.buildId;repositoryId=$config.Data.repositoryId;project=$selection.project;target=$selection.target;configuration=$selection.configuration;seriesId=$codec.SeriesId;key=$key;configSha256=$config.Hash;evidenceConfigSha256=$config.EvidenceConfigSha256;packageBytes=$package.Bytes;packageSha256=$package.Sha256;manifestSha256=$package.ManifestSha256;entries=$entries;operationPath=$operation}
+        # PUT前に固定key・snapshot由来のhash・残置pathをintentへ永続化する。
+        # intentは送信計画の記録であり、存在だけでは成功数に含めない。
         $written=Write-BuildImmutable $dir 'intent.json' $intent
         if($script:FaultHook){& $script:FaultHook 'before-put' $intent}
+        # 送信後に応答だけ失われる可能性があるので、呼出し前から存在不明として扱う。
+        # 同keyを自動再送したり、失敗を理由にremoteを削除したりしない。
         $generation=(Get-CredentialStatus 'osm').Generation;$r.residue.remote='may-have-been-sent'
         $put=Invoke-BuildNetwork $generation (New-ArtifactRequest $config 'put' $key $package.Path $null $timer)
         if(-not (Test-ArtifactSuccess $put 'put' $generation)){throw 'put-unconfirmed'}
+        # 別processのGET結果を、ローカルで検証済みの同じZIPのbytes/hashへ結ぶ。
+        # 子の終了・pipe EOFも含む観測を検査し、HTTP成功だけでは先へ進めない。
         $read=Invoke-BuildReadback $operation $config $generation $key $package.Bytes $package.Sha256 $timer
         if(-not (Test-ArtifactReadback $read $generation $key $package.Bytes $package.Sha256)){throw 'readback-unconfirmed'}
+        # publishedAtは元Build生成時刻でもPUT時刻でもなく、成功commit用の固定UTC。
+        # 読戻しを確認してからreceiptを確定し、正本を再読できた場合だけ成功を返す。
         $published=(& $script:Clock).ToUniversalTime().ToString('o')
         $receipt=[ordered]@{schemaVersion=1;purpose='build';buildId=$selection.buildId;repositoryId=$config.Data.repositoryId;project=$selection.project;target=$selection.target;configuration=$selection.configuration;seriesId=$codec.SeriesId;key=$key;configSha256=$config.Hash;evidenceConfigSha256=$config.EvidenceConfigSha256;packageBytes=$package.Bytes;packageSha256=$package.Sha256;manifestSha256=$package.ManifestSha256;entries=$entries;intentSha256=$written.Sha256;readback=$read;publishState='succeeded';publishedAt=$published}
         if($script:FaultHook){& $script:FaultHook 'before-receipt' $receipt}
@@ -128,12 +150,16 @@ function Invoke-BuildPublish([string]$ConfigPath,[string]$SelectionPath){
         $r.receiptPath=$committed.Path;$r.residue.remote='verified';$r.status='passed';$r.reasonCode='complete'
     }catch{
         if($script:FailureHook){& $script:FailureHook $_}
+        # 例外本文にはpathや通信の内部情報が入りうるため、公開reasonは許可語だけ。
+        # 未分類はunconfirmedに留める。rename後の応答喪失はinspectで回復し、再PUTしない。
         $code=$_.Exception.Message
         if($code -cin @('already-exists','invalid-selection','invalid-source','snapshot-conflict','size-limit','put-unconfirmed','readback-unconfirmed','receipt-missing','receipt-invalid','invalid-build-config')){$r.reasonCode=$code}
         if($code -cin @('after-rename-unconfirmed')){$r.reasonCode='commit-unconfirmed'}
     }finally{if($packageLock){$packageLock.Dispose()};if($locks){foreach($handle in $locks){$handle.Dispose()}}}
     return [pscustomobject]$r
 }
+# 呼出前にselectionへ保存したIDだけを再照会する。一覧探索や再送は行わない。
+# receiptが未確定・破損なら成功へ補完せず、確定済みなら同じ参照/hash/時刻を返す。
 function Invoke-BuildInspect([string]$ConfigPath,[string]$BuildId){
     try{
         Import-ArtifactPackage;$config=Read-BuildConfig $ConfigPath;Assert-BuildId $BuildId
@@ -141,6 +167,9 @@ function Invoke-BuildInspect([string]$ConfigPath,[string]$BuildId){
         return [pscustomobject]@{status='passed';reasonCode='complete';buildId=$BuildId;reference=(New-BuildReference $config $receipt.Data);packageSha256=$receipt.Data.packageSha256;receiptPath=$receipt.Path;publishedAt=$receipt.Data.publishedAt}
     }catch{return [pscustomobject]@{status='failed';reasonCode='receipt-unavailable'}}
 }
+# 参照文字列と独立した期待hashを両方要求する。取得したmanifest自身のhashを
+# 信頼の起点にすると、別の有効ZIPへの差替えを検出できない。
+# 展開先は毎回新規operationで、元Buildへの上書きや取得DLL/EXEの実行をしない。
 function Invoke-BuildFetch([string]$ConfigPath,[string]$Reference,[string]$ExpectedHash){
     $r=[ordered]@{status='failed';reasonCode='unconfirmed';outputPath=$null;residue=[ordered]@{localPath=$null}};$timer=[Diagnostics.Stopwatch]::StartNew()
     try{
