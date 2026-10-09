@@ -71,6 +71,35 @@ namespace OneStarMaker.Tests.UISystem
         }
 
         [Test]
+        public void Select_FallsBackWhenNamedElementIsUnderHiddenOrDisabledAncestor()
+        {
+            var root = new VisualElement();
+            var hidden = new VisualElement();
+            hidden.style.display = DisplayStyle.None;
+            hidden.Add(Button("hidden-ok", 1));
+            var disabled = new VisualElement();
+            disabled.SetEnabled(false);
+            disabled.Add(Button("disabled-ok", 1));
+            var visible = Button("visible-ok", 2);
+            root.Add(hidden);
+            root.Add(disabled);
+            root.Add(visible);
+
+            Assert.That(UIToolkitInitialFocus.Select(root, "hidden-ok"), Is.SameAs(visible));
+            Assert.That(UIToolkitInitialFocus.Select(root, "disabled-ok"), Is.SameAs(visible));
+        }
+
+        [Test]
+        public void Select_DoesNotChooseNamedRoot()
+        {
+            var root = Button("root", 1);
+            var child = Button("child", 2);
+            root.Add(child);
+
+            Assert.That(UIToolkitInitialFocus.Select(root, "root"), Is.SameAs(child));
+        }
+
+        [Test]
         public void ListTabStops_SkipsHiddenAndDisabledBranches()
         {
             var root = new VisualElement();

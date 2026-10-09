@@ -1,10 +1,16 @@
 #nullable enable
 
+using System;
+using System.Collections;
+using System.Linq;
 using NUnit.Framework;
 using OneStarMaker.Runtime.UISystem;
 using SampleGame.OutGame.ConfirmDialog;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.TestTools;
 using UnityEngine.UIElements;
 
 namespace SampleGame.Tests.Editor.OutGame
@@ -16,6 +22,49 @@ namespace SampleGame.Tests.Editor.OutGame
     public sealed class ConfirmDialogAccessibilityTests
     {
         private const string UxmlPath = "Assets/SampleGame/OutGame/ConfirmDialog/ConfirmDialog.uxml";
+
+        private SceneSetup[]? _sceneSetup;
+        private GameObject? _liveView;
+        private string? _previousContentMode;
+        private bool _contentModeChanged;
+        private const string ContentModeKey = "SAMPLEGAME_CONTENT__RUNTIMEMODE";
+
+        [UnityTearDown]
+        public IEnumerator Cleanup()
+        {
+            try
+            {
+                if (EditorApplication.isPlaying)
+                {
+                    if (_liveView != null)
+                    {
+                        UnityEngine.Object.Destroy(_liveView);
+                        yield return null;
+                        _liveView = null;
+                    }
+
+                    yield return new ExitPlayMode();
+                }
+
+                if (_sceneSetup != null)
+                {
+                    if (_sceneSetup.Any(scene => scene.isLoaded && scene.isActive))
+                        EditorSceneManager.RestoreSceneManagerSetup(_sceneSetup);
+                    else
+                        EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                    _sceneSetup = null;
+                }
+            }
+            finally
+            {
+                if (_contentModeChanged)
+                {
+                    Environment.SetEnvironmentVariable(ContentModeKey, _previousContentMode,
+                        EnvironmentVariableTarget.Process);
+                    _contentModeChanged = false;
+                }
+            }
+        }
 
         [Test]
         public void Uxml_SetsTabOrderAndLeavesMessageOutOfTheRing()
@@ -43,11 +92,20 @@ namespace SampleGame.Tests.Editor.OutGame
             Assert.That(UIToolkitInitialFocus.Select(root, "ok-button"), Is.SameAs(ok));
         }
 
-        [Test]
-        public void View_AssignsAccessibilityTextAndClearsItOnDestroy()
+        [UnityTest]
+        public IEnumerator View_AssignsAccessibilityTextAndClearsItOnDestroy()
         {
+            _sceneSetup = EditorSceneManager.GetSceneManagerSetup();
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            _previousContentMode = Environment.GetEnvironmentVariable(ContentModeKey, EnvironmentVariableTarget.Process);
+            Environment.SetEnvironmentVariable(ContentModeKey, "addressables", EnvironmentVariableTarget.Process);
+            _contentModeChanged = true;
+            yield return new EnterPlayMode();
+
             var tree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(UxmlPath);
+            Assert.That(tree, Is.Not.Null);
             var gameObject = new GameObject("ConfirmDialogAccessibility");
+            _liveView = gameObject;
             var view = gameObject.AddComponent<ConfirmDialogView>();
             view.AssignVisualTreeAssetForEditor(tree);
             view.Initialize();
@@ -69,7 +127,10 @@ namespace SampleGame.Tests.Editor.OutGame
             Assert.That(cancelName, Is.EqualTo("Cancel"));
             Assert.That(cancelHint, Is.EqualTo("取り消して閉じます"));
 
-            Object.DestroyImmediate(gameObject);
+            UnityEngine.Object.Destroy(gameObject);
+            yield return null;
+            Assert.That(gameObject == null, Is.True);
+            _liveView = null;
 
             Assert.That(UIAccessibilityText.TryGet(message, out _, out _), Is.False);
             Assert.That(UIAccessibilityText.TryGet(ok, out _, out _), Is.False);

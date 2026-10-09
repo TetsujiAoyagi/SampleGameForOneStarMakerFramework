@@ -1,5 +1,8 @@
 #nullable enable
 
+using System.Threading;
+using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using NUnit.Framework;
 using OneStarMaker.Runtime.UISystem;
 using OneStarMaker.Tests.UISystem.TestDoubles;
@@ -15,6 +18,9 @@ namespace OneStarMaker.Tests.UISystem
     public class UICommonUIToolkitTests
     {
         private GameObject _uiCommonGo = null!;
+        private GameObject? _documentGo;
+        private GameObject? _viewGo;
+        private PanelSettings? _panelSettings;
 
         [SetUp]
         public void SetUp()
@@ -26,6 +32,18 @@ namespace OneStarMaker.Tests.UISystem
         [TearDown]
         public void TearDown()
         {
+            if (_viewGo != null)
+            {
+                Object.DestroyImmediate(_viewGo);
+            }
+            if (_documentGo != null)
+            {
+                Object.DestroyImmediate(_documentGo);
+            }
+            if (_panelSettings != null)
+            {
+                Object.DestroyImmediate(_panelSettings);
+            }
             if (_uiCommonGo != null)
             {
                 Object.DestroyImmediate(_uiCommonGo);
@@ -138,6 +156,96 @@ namespace OneStarMaker.Tests.UISystem
             modalContainer.Add(new VisualElement { name = "ModalView" });
 
             Assert.That(root.IndexOf(normalContainer), Is.LessThan(root.IndexOf(modalContainer)));
+        }
+
+        [Test]
+        public async Task AddUIView_FocusesOnlyAfterViewInCompletes()
+        {
+            var (uiCommon, view, button, documentRoot) = CreatePanelFocusView();
+            var completion = new UniTaskCompletionSource();
+            view.ViewInCompletionForTest = completion;
+
+            var add = uiCommon.AddUIView("dialog-owner", view, CancellationToken.None).AsTask();
+
+            Assert.That(add.IsCompleted, Is.False);
+            Assert.That(documentRoot.panel!.focusController.focusedElement, Is.Not.SameAs(button));
+
+            completion.TrySetResult();
+            await add;
+
+            Assert.That(documentRoot.panel!.focusController.focusedElement, Is.SameAs(button));
+        }
+
+        [Test]
+        public void AddUIView_DoesNotFocusWhenViewInFails()
+        {
+            var (uiCommon, view, button, documentRoot) = CreatePanelFocusView();
+            var completion = new UniTaskCompletionSource();
+            view.ViewInCompletionForTest = completion;
+            var add = uiCommon.AddUIView("dialog-owner", view, CancellationToken.None).AsTask();
+
+            completion.TrySetException(new System.InvalidOperationException("ViewIn failed"));
+
+            Assert.ThrowsAsync<System.InvalidOperationException>(async () => await add);
+            Assert.That(documentRoot.panel!.focusController.focusedElement, Is.Not.SameAs(button));
+            Assert.That(uiCommon.GetUIView("dialog-owner"), Is.Null);
+        }
+
+        [Test]
+        public void AddUIView_DoesNotFocusWhenViewInIsCancelled()
+        {
+            var (uiCommon, view, button, documentRoot) = CreatePanelFocusView();
+            var completion = new UniTaskCompletionSource();
+            view.ViewInCompletionForTest = completion;
+            using var cancellation = new CancellationTokenSource();
+            var add = uiCommon.AddUIView("dialog-owner", view, cancellation.Token).AsTask();
+
+            cancellation.Cancel();
+
+            Assert.CatchAsync<System.OperationCanceledException>(async () => await add);
+            Assert.That(documentRoot.panel!.focusController.focusedElement, Is.Not.SameAs(button));
+            Assert.That(uiCommon.GetUIView("dialog-owner"), Is.Null);
+        }
+
+        private (UICommon uiCommon, GatedFocusToolkitView view, Button button, VisualElement documentRoot) CreatePanelFocusView()
+        {
+            _panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
+            _documentGo = new GameObject("FocusDocument");
+            var document = _documentGo.AddComponent<UIDocument>();
+            document.panelSettings = _panelSettings;
+            var documentRoot = document.rootVisualElement;
+            Assert.That(documentRoot.panel, Is.Not.Null);
+
+            var uiCommon = _uiCommonGo.GetComponent<UICommon>();
+            var renderer = _uiCommonGo.AddComponent<PanelRenderer>();
+            typeof(UICommon)
+                .GetField("_panelRenderer", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .SetValue(uiCommon, renderer);
+            uiCommon.BuildLayerContainers(documentRoot);
+
+            _viewGo = new GameObject("FocusView");
+            var view = _viewGo.AddComponent<GatedFocusToolkitView>();
+            var viewRoot = new VisualElement();
+            var button = new Button { name = "ok-button", focusable = true, tabIndex = 1 };
+            viewRoot.Add(button);
+            view.SetTestRoot(viewRoot);
+            view.SetLayer(UIView.UILayer.Dialog);
+            view.InitialFocusNameForTest = "ok-button";
+            return (uiCommon, view, button, documentRoot);
+        }
+
+        // UniTask remains in the Editor test assembly; shared TestSupport stays dependency-free.
+        private sealed class GatedFocusToolkitView : TestToolkitView
+        {
+            public UniTaskCompletionSource? ViewInCompletionForTest { get; set; }
+
+            public override async UniTask ViewIn(CancellationToken ct)
+            {
+                if (ViewInCompletionForTest != null)
+                {
+                    await ViewInCompletionForTest.Task.AttachExternalCancellation(ct);
+                }
+            }
         }
     }
 }

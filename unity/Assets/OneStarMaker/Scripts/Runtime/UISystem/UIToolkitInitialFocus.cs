@@ -54,16 +54,18 @@ namespace OneStarMaker.Runtime.UISystem
                 throw new System.ArgumentNullException(nameof(root));
             }
 
+            var stops = ListTabStops(root);
             if (!string.IsNullOrEmpty(preferredName))
             {
-                var named = FindByName(root, preferredName);
-                if (named != null && IsTabStop(named))
+                for (var i = 0; i < stops.Count; i++)
                 {
-                    return named;
+                    if (stops[i].name == preferredName)
+                    {
+                        return stops[i];
+                    }
                 }
             }
 
-            var stops = ListTabStops(root);
             return stops.Count == 0 ? null : stops[0];
         }
 
@@ -157,16 +159,6 @@ namespace OneStarMaker.Runtime.UISystem
             }
 
             return a.Order.CompareTo(b.Order);
-        }
-
-        private static VisualElement? FindByName(VisualElement root, string name)
-        {
-            if (root.name == name)
-            {
-                return root;
-            }
-
-            return root.Q<VisualElement>(name);
         }
 
         private static bool IsTabStop(VisualElement element)

@@ -1,29 +1,23 @@
-# UI Toolkit の初期フォーカスと名前・ヒント
+# UI Toolkit の初期フォーカスと名前・ヒント — PR95 修正 HANDOFF
 
 - type: slice
-- status: C
-- branch: `cursor/uitk-a11y-focus-a33f`
-- implementation base commit: `f0b4b1d022a213603d8ce52d036f31795a9eb2cd`
-- implementation head commit: `53785e6c9f5d45f1869f7409c4dc75aa16987865`
+- status: B（今回の修正。判定 C / C' は未着手）
+- branch: `codex/repair-pr95-20261010`
+- develop integration base: `8953a908d1caf19c1957c128fc9690f3ac2f5569`
+- repair implementation base: `d54014881dee2c8f83810ab171a6702358ea6c77`
+- repair implementation head: Phase B の修正コミットで固定する
+- original published PR95 head: `3d04523640d96afc0b71d0261b74877b96bf7d89`
 - risk: high
-- owner: 未指定（A3 の人間オーナーはこのセッションで決まっていない）
-- created: 2026-10-05
+- owner: 統合親担当。Phase D の GO / NO-GO と merge は利用者の承認済み順次計画に従い親担当が判断する。
+- repair A3 freeze: 2026-10-10
 - expires: 2026-11-05
 - harvest to: `unity/Assets/Docs/Architecture/06-ui.md` と `unity/Assets/Docs/Architecture/32-accessibility-input-dof.md`
-- Phase A snapshot path / id: `artifacts/ui-toolkit-a11y-focus/phase-a-snapshot.md` / `ui-toolkit-a11y-focus-phase-a`
-- Phase A snapshot generated at: 2026-10-05T14:17:15Z
-- Phase A snapshot hash: `47da27388f6d99c29f92da4c0a24356a65fba79f995dd47d772ef1dbe975bed8`
-- Phase B result snapshot path / id: `artifacts/ui-toolkit-a11y-focus/phase-b-result.md` / `ui-toolkit-a11y-focus-phase-b`
-- Phase B result snapshot generated at: 2026-10-05T14:17:15Z
-- Phase B result snapshot hash: `3223cb32c8a39e2f76f32ab9194f1c2947edb648b1f53eb9661a50742f27c697`
-- evidence bundle path / id: `artifacts/ui-toolkit-a11y-focus/` / `ui-toolkit-a11y-focus-blind-53785e6c`
-- evidence bundle generated at: 2026-10-05T14:17:15Z
-- evidence bundle hash: `ac280e88646f7e197270a9e0edfd092ee91eecd2f7a432ca0f5658003ae5c795`（manifest.json の SHA-256。判定用 XML は含まない）
-- C' blind bundle path / id: 同上。判定 XML が無いので C' の開始は許可しない
-- C' blind bundle generated at: 2026-10-05T14:17:15Z
-- C' blind bundle hash: `ac280e88646f7e197270a9e0edfd092ee91eecd2f7a432ca0f5658003ae5c795`
+- frozen repair Phase A snapshot: `artifacts/integration-review-20261010/pr95-repair/phase-a-repair-snapshot.md`（ローカル、SHA-256 `00d624678ed10f3c38bb40cf0fc5cd6bb950d238201c9dab4465bf8f8f733236`）
+- neutral repair Phase B result: `artifacts/integration-review-20261010/pr95-repair/phase-b-repair-result.md`（ローカル、SHA-256 `a6b7d292c82d4f363eb9d3d60a1642613614aca6467e0bc654c903c85d258c4f`）
+- review evidence / C' blind bundle: 未生成。最終 repair head の Phase C が作成する。
+- original evidence retrieval: 公開済み commit `3d04523640d96afc0b71d0261b74877b96bf7d89` の `artifacts/ui-toolkit-a11y-focus/` に旧 9 ファイルを保持。SHA-256 検証済みのローカル複製は `artifacts/integration-review-20261010/pr95-repair/original-published-evidence/`。旧結果は今回の head の合格証拠に流用しない。
 
-判定 C と C' は未了。GO ではない。status の C は、同一セッションが発見の材料を揃えたところまでを指す。独立した Phase C ではない。
+元の公開 PR95 作業に A2 / A3 はなく、独立した判定 C / C' は完了していない。今回の A2 / A3 は 2026-10-10 の修正境界だけを凍結し、元の履歴を変更しない。
 
 ## 1. 目的と対象外
 
@@ -53,9 +47,9 @@
   - ViewOut のフォーカス復帰。HANDOFF は未作成。
   - 側表から `AccessibilityNode` への投影。§31 の予算とは分け、HANDOFF は未作成。
   - Input リマップ、片手プロファイル、世界の巡回。§32 の Input 側。このスライスのファイルには入れない。
-- 判定定義（GO / NO-GO。スパイクの場合だけ CONDITIONAL ACCEPT も定義）: GO は最低条件を満たし、空 filter の全 EditMode が 1 件以上かつ失敗 0 で、常時契約とこの境界に反する欠陥が残っていないこと。NO-GO は最低条件未達か、その反証が残ること。A3 の人間採否が記録されるまで GO にしない。CONDITIONAL ACCEPT は使わない。
+- 判定定義（GO / NO-GO。スパイクの場合だけ CONDITIONAL ACCEPT も定義）: GO は最低条件を満たし、空 filter の全 EditMode が 1 件以上かつ失敗 0 で、常時契約とこの境界に反する欠陥が残っていないこと。NO-GO は最低条件未達か、その反証が残ること。今回の修正 A3 は 2026-10-10 に凍結済みだが、判定 C と C' が完了するまで GO にしない。CONDITIONAL ACCEPT は使わない。
 - 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。スパイクは上記で定義した場合だけ CONDITIONAL ACCEPT で終了できる。
-- A3 後の例外承認（人間、理由、置き換える既存条件または期限・検証予算。無ければ `なし`）: なし。A3 は未実施。
+- A3 後の例外承認: なし。元の公開作業に A2/A3 は無かった。今回の修正 A3 は下記 §5 とローカル Phase A snapshot に 2026-10-10 の採用事項を固定したものであり、過去の欠落を遡及して埋めない。
 - 本文へ転記した実装制約:
   - 依存は Game から Framework。asmdef 参照は足さない。
   - 要素に触れる `IDisposable` は `Track` へ集める。
@@ -67,7 +61,7 @@
   - 初期フォーカスは ViewIn 成功後。ViewOut では戻さない。
   - HpGauge、ScriptSystem、InputSystem、SoundSystem は編集しない。
   - 正の `tabIndex` は昇順で 0 より前。負はタブ順から外す。`VisualElementFocusRing` は `HierarchyDisplayed` 待ちで ViewIn 直後に空になるため、選択は同じ比較を UISystem 側で行う。
-- 未決事項: なし。A2/A3 が無いため、側表という保持場所は人間が凍結していない。
+- 未決事項: 元の公開作業では A2/A3 が無く、側表という保持場所は当時凍結していなかった。今回の修正は既存配置を維持する。
 
 ## 3. 責務マップ
 
@@ -81,67 +75,46 @@
 
 ## 4. 実装計画
 
-- 変更対象: 上記の UISystem、ConfirmDialog、テスト。
-- 順序: 側表、タブ順、View の適用、UICommon、ConfirmDialog、テスト。
-- Phase B から Phase A へ差し戻す条件: 新しい asmdef、新しい所有者、AssistiveSupport、または中核がテスト不能になること。今回は該当せず、側表と自前のタブ順比較は A1 の helper の実装詳細として B で記録した。
-- 対象外を維持する方法: 変更パスを UISystem と ConfirmDialog とテストに限る。
+- 変更対象: 元スライスは上記の UISystem、ConfirmDialog、テスト。今回の修正は `UIToolkitInitialFocus.Select`、既存テストと TestSupport、HANDOFF、証拠台帳だけ。
+- 順序: 元実装の順序は側表、タブ順、View の適用、UICommon、ConfirmDialog、テスト。今回の修正は候補リスト選択、回帰テスト、曖昧な `Object` の修飾、機械検査。
+- Phase B から Phase A へ差し戻す条件: 新しい asmdef、所有者、寿命、公開 API、AssistiveSupport、または実 `UICommon.AddUIView` 経路を既存 TestSupport でテストできない場合。
+- 対象外を維持する方法: 新しい runtime API と asmdef は加えず、フォーカス復帰・投影・Input・その他機能を編集しない。
 
 ## 5. テストとレビュー計画
 
-- 単体テスト: `UIAccessibilityTextTests`、`UIToolkitInitialFocusTests`、`ConfirmDialogAccessibilityTests`、`CreateToolkitBlocker_SetsNamePickingModeAndFullscreenStyle`。
-- 差し戻し中の起点 `-Filter`（C が根拠付きで変更可。受け入れ条件の追加ではない）: `UIAccessibilityTextTests|UIToolkitInitialFocusTests|ConfirmDialogAccessibilityTests|CreateToolkitBlocker_SetsNamePickingModeAndFullscreenStyle`
+- 単体テスト: 既存の `UIAccessibilityTextTests`、`UIToolkitInitialFocusTests`、`ConfirmDialogAccessibilityTests`、Blocker。今回、隠れた/無効な祖先と root 名のフォールバック、および `UICommon.AddUIView` の ViewIn 成功・失敗・取消経路を追加する。
+- 差し戻し中の起点 `-Filter`（C が根拠付きで変更可）: `UIAccessibilityTextTests|UIToolkitInitialFocusTests|UICommonUIToolkitTests|ConfirmDialogAccessibilityTests`。今回の実 ViewIn 経路を含める。
 - 判定必須テスト（GO 候補 head。実装変更スライスは最終全 EditMode 回帰が標準）: 空 filter の全 EditMode。`pwsh tools/run-tests.ps1`。
 - 全 EditMode 回帰の適用除外（理由と代替証拠。無ければ `なし`）: なし。
-- 統合・Unity テスト: 上記 EditMode。PlayMode は最低条件に含めていない。
+- 統合・Unity テスト: 空 filter の EditMode 全件が判定必須。ConfirmDialog の実破棄確認は EditMode `[UnityTest]` の一件で `EnterPlayMode` / `ExitPlayMode` を使う。独立した PlayMode suite は判定必須に含めない。
 - 操作・実行時・目視条件の検証経路（条件ごとの担当、環境・初期状態、操作、観測と合否、対象版・保存証拠・C / C' への受け渡し。既存テストは参照で可）: 合否は `tabIndex`、`focusable`、側表の文字列、パネル参加時の `focusedElement`。見た目判定は不要。証拠は NUnit XML。
-- 未知の操作経路の疎通結果と、必要な検証支援・確認地点（未知経路が無い場合だけ `なし`。Phase C へ委譲する場合は「未確認。初回確認は Phase C」と理由・担当・確認地点、不成立時の対応）: 未確認。初回確認は Unity 6000.6.0f1 がある環境の判定 C。この VM には Editor が無く、`D:\UnityEditor` も無い。不成立がテスト失敗なら実装を直す。Editor 不在は環境不足であり、成功に読み替えない。
+- 未知の操作経路の疎通結果と確認地点: 今回の修正環境では Unity 6000.6.0f1 が `D:\UnityEditor\6000.6.0f1\Editor\Unity.exe` にある。実 `UICommon.AddUIView` の EditMode 経路と全 EditMode の初回実行・判定は Phase C が担当する。失敗を成功へ読み替えない。
 - 人間の判断が必要な条件と合意した担当・証拠の受け入れ方（観察記録の受理 / 画像の独立再評価。無ければ `なし`）: なし。
-- 機械検査: `pwsh tools/contract-audit.ps1`。実装 head の作業ツリーで errors=0 warnings=0。
-- A0/A1 主担当・モデル・ベンダー: このクラウドセッション。Grok 4.7。Cursor。
-- A2 独立レビューごとの観点・担当・モデル・ベンダー: 実施していない。
-- A3 統合担当・モデル・採否: 実施していない。採否は無い。凍結していない。
-- C' 用に予約した担当・モデル・ベンダー: なし。
-- 独立性の強化条件を満たせない場合の理由: 同一セッションが A1 と実装を行い、A2 を起動していない。AI の C' は、実装と Phase C の両方と異なるモデルの新規セッションが要る。このセッションでは C' を実行しない。
+- 機械検査: Phase B は `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` を実行し、結果を中立的な B result に記録する。
+- A0/A1 主担当・モデル・ベンダー: 元の公開 PR95 作業は Grok 4.7 / Cursor。同一セッションの A1 と実装であり、今回の修正 B 担当とは異なる。
+- A2 独立レビューごとの観点・担当・モデル・ベンダー: 元の公開作業では未実施。今回の修正では親担当が独立の architecture（gpt-6.1-sol）と contract（gpt-6-sol）レビューを実施したと報告した。実行時 ID は B 担当が独自には確認していない。
+- A3 統合担当・モデル・採否: 元の公開作業では未実施。今回の修正は、利用者が順次統合計画を承認し、親担当が 2026-10-10 に A2 の指摘を採否して凍結した。候補リストからの選択、`UnityEngine.Object` 修飾、実 ViewIn テスト、証拠整理を採用。public helper 縮小と Bind 購読例外対応は後続候補。
+- C' 用に予約した担当・モデル・ベンダー: 親担当が今回の最終 head で独立した監査を調整する。未着手。
+- 独立性: 元の公開作業は A1 と B が同一セッションで A2 が無かった。今回の Phase B は独立 C/C' を実施しない。最終 head の独立性と結果は親担当が別途記録する。
 
-## 6. Phase B 実装結果
+## 6. Phase B 実装結果（今回の修正）
 
-- 実装: `UIAccessibilityText`、`UIToolkitInitialFocus`、`UIToolkitView.ApplyInitialFocus`、`UICommon` の ViewIn 後呼び出しと Blocker の非フォーカス、ConfirmDialog のタブ順と文言、EditMode テスト。詳細は Phase B snapshot。
-- HANDOFF との差: エンジンに名前プロパティが無いため側表にした。`VisualElementFocusRing` は使わず、同じ tabIndex 比較を UISystem に置いた。どちらも A1 に書いた helper の範囲で、公開の所有者や asmdef は増やしていない。
-- 未実行: Unity コンパイル。EditMode。全 EditMode。
-- implementation head commit: `53785e6c9f5d45f1869f7409c4dc75aa16987865`
-- Phase B 担当・モデル・ベンダー: このクラウドセッション。Grok 4.7。Cursor。A2/A3 が無い状態で実装した。
+- 実装: `Select` は `ListTabStops(root)` の候補だけで優先名を探し、候補がなければ先頭へ戻す。既存の名前/ヒントや View の公開面は変更しない。
+- 回帰テスト: 隠れた祖先、無効な祖先、root 名、実 `UICommon.AddUIView` の ViewIn 完了・失敗・取消。共有 `TestToolkitView` は UniTask に依存させず、既存の `OneStarMaker.Tests`（UniTask 参照済み）内のテスト専用派生だけが完了シグナルを持つ。取消アサーションは派生した取消例外を受け入れる。ConfirmDialog の名前・ヒントと実破棄後の解除は、EditMode `[UnityTest]` が Play Mode に入って確認し、teardown でシーン状態を戻す。`UIAccessibilityTextTests` の `UnityEngine.Object` 曖昧性を解消。
+- 証拠整理: 旧 9 ファイルは元の公開 head と SHA-256 照合済みローカル複製に保存。最終ブランチの正味差分から除く。
+- HANDOFF との差: なし。元スライス §1–5 の製品境界内の修正。
+- 未実行: Unity コンパイル、限定 EditMode、空 filter 全 EditMode、Build。Phase C 担当へ引き渡す。
+- implementation head commit: 修正コミットで固定する。
+- Phase B 担当: PR95 修正担当 Codex（現在セッション）。
 
 ## 7. Phase C
 
-- 種別: 発見 / 判定: 発見の準備。独立した Phase C ではなく、B と同じセッションの構造照合。判定は未着手。GO ではない。
-- evidence bundle id / hash: `ui-toolkit-a11y-focus-blind-53785e6c` / `ac280e88646f7e197270a9e0edfd092ee91eecd2f7a432ca0f5658003ae5c795`
-- 構造適合: 責務マップのファイル以外は変更していない。asmdef 参照は増えていない。SampleGame は Runtime の helper を呼ぶだけ。側表は要素と Disposable の寿命に閉じ、Registry と `AssistiveSupport` は呼ばない。初期フォーカスは ViewIn 成功後だけ。UICommon の 500 行超過は既存で、今回は +6 行。非分割理由は §3。
-- 現在の問いを阻害する findings（違反する凍結済み条件 / 常時契約を併記）: コード差分について、この同一セッションの読みでは常時契約への違反は見つけていない。A3 が無いので凍結済み条件は存在しない。GO を止める未達は次のとおり。A1 に書いた「A3 の人間採否が記録されるまで GO にしない」と、判定必須の全 EditMode が未実行であること。
-- 後続スライスへ移送する findings: ViewOut のフォーカス復帰。側表のスクリーンリーダー投影。`TryApply_FocusesNamedButtonWhenDocumentPanelExists` は未実行で、Editor 上の `UIDocument` がパネルを作らない場合はテストの準備を直す。設計の所有者は変えない見込み。
-- 実行したテストコマンドと `-Filter`、対象を選んだ理由: `pwsh tools/run-tests.ps1 -Filter UIAccessibilityTextTests|UIToolkitInitialFocusTests|ConfirmDialogAccessibilityTests`。起点 filter の ConfirmDialog と helper を先に見るため。ランナーは Unity を起動する前に失敗した。
-- テスト結果（XML 上の実行テスト名と件数）: XML は無い。`results.xml` は生成されていない。step は `artifacts/ui-toolkit-a11y-focus/unity-editmode-attempt-step.json`。status=failed、exitCode=1、executablePath は空、cases は空、件数は null。失敗文に `Cannot find drive. A drive with the name 'D' does not exist.` と `results.xml がありません` がある。これをテスト成功にもテスト失敗件数にも数えない。
-- 判定必須のうち未実行: 空 filter の全 EditMode。起点 filter の EditMode も未実行。
-- 重い検証を発見段階で限定実行した場合の理由と範囲: 限定実行は開始できなかった。
-- 未確認事項: コンパイル、パネル参加時の `Focus`、全 EditMode。`pwsh` は VM に無く、このセッションでは PowerShell 7.5.4 のポータブル版で contract-audit と run-tests を起動した。
-- 担当・モデル: 同一セッション。Grok 4.7。Cursor。B と分離していない。
+未着手
 
 ## 8. Phase C'
 
-- 担当方式: 未実施
-- blind audit bundle id / hash: 未実施
-- 確認範囲・方法（全件機械検査 / 代表箇所の目視・操作等）: 未実施
-- 判定（人間担当は本人の明示回答まで未実施）: 未実施
-- 現在の問いを阻害する findings（違反する凍結済み条件 / 常時契約を併記）: 未実施
-- 後続スライスへ移送する findings: 未実施
-- 残存リスク: 未実施
-- 監査できなかった範囲: 未実施
-- 独立性: 未実施
-- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: 未実施
-- 担当・モデル: 未実施
+未着手
 
 ## 9. Phase D
 
-- C / C' の突合: 未実施
-- マージ判断: 未実施
-- harvest: 未実施。公開文書の §32 は、初期フォーカス配線を「今はしない」と書いたままである。
-- 削除確認: 未実施
+未着手。親担当が C / C' を突合して GO / NO-GO と merge を判断する。

@@ -91,7 +91,7 @@ namespace OneStarMaker.Tests.UISystem
                 .Invoke(view, null);
 
             Assert.That(UIAccessibilityText.TryGet(element, out _, out _), Is.False);
-            Object.DestroyImmediate(gameObject);
+            UnityEngine.Object.DestroyImmediate(gameObject);
         }
 
         [Test]
