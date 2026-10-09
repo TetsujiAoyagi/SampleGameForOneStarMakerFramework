@@ -3,10 +3,10 @@
 ## 0. メタデータとA0入力固定
 
 - type: `slice`
-- status: `B` — A3 r2凍結済み。2026-10-10の人間指示「PhaseA3凍結としてPhaseC’まで進めて」により実装・C・C′へ進む。Phase Dは対象外。
+- status: `C'` — A3 r2凍結、B実装、判定C GO、独立C′ GOまで完了。2026-10-10の人間指示「PhaseA3凍結としてPhaseC’まで進めて」の範囲を完了し、Phase Dは未実施。
 - branch: `codex/artifact-build-retention-policy`
 - planning base / implementation base commit: `2203dded470a3ac4e7a751f594f8f7110005576b`
-- implementation head commit: Phase Bで確定する。
+- implementation head commit: `2212af43a4f90386dbf928299a0cc68f3a3797f1`。以下の判定・監査はこのheadに固定。進行記録だけのcommitは実装headを変更しない。
 - risk: `normal`。内部の新規policy関数だけを設計し、削除・公開CLI・Unity APIには接続しない。
 - owner: OSM maintainers / Artifact担当（本チャットのroot）
 - created: 2026-10-10
@@ -17,9 +17,11 @@
 - 開始確認: `git worktree list`、`git branch --show-current`、`git status --short` を確認。開始branchはdevelop、追跡対象の差分と表示された未追跡変更はなし。生成物配下 `artifacts/route-proof-phase-c-8c1793e/live-run/` に一覧取得拒否警告あり。その領域の無変更・不存在までは証明せず、立ち入らない。
 - `git fetch origin develop` 成功後のSHAを上記baseとし、そのcommitから専用branchを作成。既存branchをreset/stash/cleanしない。
 - `D:\repositories\unity\OSM-verify` は開始時のworktree一覧に未掲載。他担当が用意する領域として扱い、存在確認・checkout・Unity・出力には触れない。積みPRのレビューは引き取らない。
-- Phase A snapshot: A2入力の固定copyは `tools/Artifacts/artifacts/build-retention-planning/A1-r1.md`（Git外、生成UTC `2026-10-09T16:49:18.7375276Z`、SHA-256 `2ba55ad4180ed03749eae4c43d468319095ab364ba7b3533217b5e8d92d7e316`）。A2時の置き場所は `artifacts/artifact-build-retention-policy/A1-r1.md`、同bytes/hashで現在のignored領域へ移した。人間のA3承認後のsnapshotは未生成。
+- Phase A snapshot: A2入力の固定copyは `tools/Artifacts/artifacts/build-retention-planning/A1-r1.md`（Git外、生成UTC `2026-10-09T16:49:18.7375276Z`、SHA-256 `2ba55ad4180ed03749eae4c43d468319095ab364ba7b3533217b5e8d92d7e316`）。A2時の置き場所は `artifacts/artifact-build-retention-policy/A1-r1.md`、同bytes/hashで現在のignored領域へ移した。承認後の実装・レビュー入力は次の凍結copy。
 - A3凍結snapshot: `tools/Artifacts/artifacts/build-retention-planning/A3-r2-frozen.md`、生成UTC `2026-10-09T17:21:06.4901894Z`、SHA-256 `e3defbf34df92fbecda4d99ea697c2dbc0eee34d2a29f1797dfec5562c07be92`。本書の以後の進行記録と分け、仕様入力はこのcopyを使う。
-- Phase B result / evidence bundle / C′ blind bundle のpath・時刻・hash: 未到達。
+- Phase B result: `tools/Artifacts/artifacts/build-retention-planning/B-result-pr.md`、生成UTC `2026-10-09T20:09:53.2218415Z`、SHA-256 `f6e20959209f52b62e9f6cf2f8844a8f5054bc9eace6c1be219e82daaef6db65`。
+- evidence bundle / C′ blind bundle: 同じdirectory配下の `evidence-pr.zip` / `blind-pr.zip`。ID `artifact-build-retention-policy-2212af4-pr`、生成UTC `2026-10-09T20:12:19.2595330Z`、両ZIPのSHA-256 `52c7b4de7c7e44b725c2afe034131943cbccdf047a56af73d83c41659e16fe1e`。各展開directoryのmanifest SHA-256は `623a805dd0e6353017cee1f5f0c3f56a65c5e40aec4f7c20ac9bbc6bb0ed34e1`。固定A3/B結果・完全diff・source・rawの38payloadを収録し、両受取先でhash照合した。
+- 証拠取得: 上記ローカルZIPを `Get-FileHash` で照合して別の新規directoryへ `Expand-Archive`、manifest.filesの各path/bytes/sha256を照合して読む。同PC内の受渡しのみ確認済み。rootが2026-11-10または人間のPhase D判断まで保持し、必要な再監査が続く場合はその前に保持先/期限を再判断する。R2保存・別host配布・自動清掃は行わない。
 - Workflow start: 2026-10-09T17:21:13.0411927Z、当該task version=1、status=ok。C/C′完了をtask終了へ変換しない。
 
 根拠は `AGENTS.md`、`osm-workflow` とそのphases-and-handoff/docs-policy/handoff-template/architecture-gates/review-evidence、`docs/README.md`、`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` r6、`tools/Artifacts/README.md`。過去PR・旧証拠は再監査しない。PR #109のEvidence sliceは完了済みとし、30日保持・完了済みreset・#107実適用の撤回・旧reader非互換を維持する。
@@ -34,7 +36,7 @@
 
 現況: `EvidenceRetentionPolicy.psm1`（37行）は`eligible/reasonCode`を返し、`EvidenceApplication.psm1`のinspectと`EvidenceCleanup.psm1`のdry-run/削除直前から呼ばれる。後者はguard内で再判定する。`EvidenceRetention.Tests.ps1`（32行、登録14case）は状態/時刻を入力して境界を確認する。Build用の件数policyと呼出箇所はまだない。Evidenceのtask終了時計やprotection形式をBuildへ持ち込まない。
 
-## 2. 最低条件・入出力・受け入れ境界（A3承認案 r2）
+## 2. 最低条件・入出力・受け入れ境界（凍結A3 r2）
 
 ### 進める最低条件
 
@@ -135,7 +137,7 @@ Phase Aで実行したのは文書確認、`git diff --check`、`pwsh tools/docs
 - A3: rootが採否を整理、人間が設計判断と受け入れ境界を承認して初めて凍結する。
 - B/C/C′は新規subagent sessionを使い、dispatch指定モデルをB=`gpt-6-sol`、C=`gpt-5.6-sol`、C′=`gpt-6-astra`とする。CはBと異なるモデル、C′はB/Cと異なるモデルでblind入力を使う。全てOpenAIで別vendorの強化独立性はない。詳細実績は各Phaseで記録する。
 
-## A2記録とA3承認案
+## A2記録とA3凍結
 
 独立A2は新規subagent `a2_build_policy` に固定A0/A1 r1だけを渡して実施した。tool指定モデルは `gpt-5.6-sol` / OpenAI、reasoning high。可変HANDOFF・他レビュー所見を渡さず、reviewerは固定hash/baseの一致を確認した。主担当の自己レビューではない。同じOpenAI vendorであり、別vendorによる独立性はない。reviewer自身は詳細モデル系列を確認できないと報告したため、ここで記録するモデル名はdispatch指定値でありbackendの独立検証結果ではない。通常riskの1件以上とarchitecture gateを満たすA2として扱い、C′実施済みにはしない。
 
@@ -153,19 +155,42 @@ Phase Aの機械確認はdocs auditがerrors=0/warnings=0、contract auditがerr
 
 ## 6. Phase B 実装結果
 
-未実施。implementation head・担当・result snapshot未生成。
+- 担当: 新規subagent `build_policy_b`、dispatch `gpt-6-sol` / OpenAI。backend model IDの独立確認なし。
+- 実装: `BuildRetentionPolicy.psm1` 123行、`BuildRetention.Tests.ps1` 204行、README 15行追加。exportは1関数、外部module/I/O/時計/store依存なし。既存Evidence/Workflow/Harness/Unityへの実装変更なし。
+- 初回実装commitは `30d882652d56dab4c0270c72e437607d30509fa8`。Cの限定再現に対応するB適応は、testのselected/held/heldReasonsを0/1件でも配列に保つ修正だけであり、設計・policy本体は変更していない。修正時のheadは `e03a082dc60d4e8e5b45289b61533494eb4c2f2d`。初回公開前に未公開の実装2commitを `2212af43a4f90386dbf928299a0cc68f3a3797f1` へ統合した。Git treeは同一であり、policy・test・READMEの内容変更はない。新headで判定必須テストとC/C′を取り直し、旧headのGOは流用していない。
+- 実装後parse、contract/docs/diff auditに違反なし。Bはsuite本体を実行せず、Cへ引き渡した。Unityのコンパイル/test/build、R2実操作は対象外につき未実施。B-resultは所見のない実装事実を固定し、Cの指摘を転記していない。
 
 ## 7. Phase C
 
-未実施
+- 担当: 新規subagent `build_policy_c`、dispatch `gpt-5.6-sol` / OpenAI。Bと異なるモデル指定。
+- 発見C r1: `30d8826` で全9case中 `boundary-counts` がCount property例外。0/1件のtest配列形状が最低条件1/3の検証を阻害するP2/semanticの欠陥（C-R1-1）としてBへ差し戻した。unknown/empty選択も例外で結果JSONを残せなかった。B適応を採用し、上記 `e03a082` で修正。旧結果を最終headの合格根拠にしない。
+- 発見C r2: 同headの限定 `-Case boundary-counts` は1件・failed=0・exit=0。`-Case __unknown__` と空文字は結果JSONのfailedへ記録してexit=1。未解決blockerなし。
+- 判定C（公開用headで再実施）: **GO**。実装base/headとevidence ID/hashは§0のとおり。構造→契約/失敗経路→必須rawの順で確認した。
+- 判定必須の実行: `pwsh -NoProfile -File tools/Artifacts/tests/BuildRetention.Tests.ps1 -Case '*' -ResultPath <c-raw-pr/build-retention-all.result.json>`。registered=selected=executedの同一9件、failed=[]、exit=0。caseはordinary-limit / protected-counts / failed-incomplete / protected-over-limit / boundary-counts / ordinal-ties / invalid-snapshot / invalid-n / determinism。result SHA-256 `74d95486abdf610f724002f7752dadec2ff1435ce3948fbd226b2511404b24c0`。
+- parseはGit管理された全Artifacts PowerShell source 38件でfailed=0。判定根拠はraw内 `artifacts-source-parse.result.json`（SHA-256 `2bd7ffe5f5d276c7bb1b763f29bf21a6af0c6b21546a7d3e440b3740c7b78453`）。生成された収録用scriptはsource件数に含めない。contract/docs audit errors=0/warnings=0、固定base/headのdiff check exit=0。command/実行UTC/head/exit/stdout/stderrはbundleのrawに収録。
+- 構造適合: policy/testは別々の1責務、計画規模内。計画外の依存・状態・寿命・公開CLIなし。完全diffでEvidence policy/support/呼出側、Workflow/Harness/Unity/asmdefの無変更を確認。
+- 現在の問いを阻害する未解決findings: なし。新規後続候補なし。後続責務は末尾のProgram B/C/D項目のまま。
+- 判定必須の未実行: なし。Unity全EditModeは凍結A3の適用除外、Evidence全14caseはこのsliceの必須外。他taskの既存適用gateは変更していない。H1未移行の通常contract auditを他taskの合格証拠には流用しない。
+- 残存リスク/未確認: production callerへの未接続、snapshotの完全性/所属・成功確定・利用状態の取得、実DELETEの競合安全性、他host配布は後続責務。既知生成物directoryの一覧拒否は未確認のまま。実Unity/R2/資格情報/scheduler検証を行ったとは扱わない。
+- 判定record: `tools/Artifacts/artifacts/build-retention-planning/reviews/C-judgment-pr.md`、最終記録UTC `2026-10-09T20:13:01Z`、SHA-256 `fef2bbe15034e487afaaff10dd3507b79c155ee103474f82fa43df886737915c`。
 
 ## 8. Phase C′
 
-未実施
+- 担当: 新規subagent `build_policy_cprime_pr`、dispatch `gpt-6-astra` / OpenAI。B/Cの両方と異なるモデル指定。backend model IDは独立確認していない。
+- 判定: **GO**。現在の問いを阻害する欠陥なし。凍結最低条件1〜4、構造/失敗経路、E1〜E9のsourceと生結果を独立に照合した。新規後続改善要求なし。
+- 入力: §0のblind-prだけ。38payloadのbytes/hashとZIP entryを再計算し、source 4件と完全diffを固定base/headのGit内容へ照合した。可変HANDOFF・他reviews/Cの所見/結論/疑念候補・他agent会話は未読。
+- rawは判定Cと同じheadのものを使用。C′でsuite/auditを重複実行せず、非秘密hash/ZIP/固定Gitの読取照合だけを行った。Unity/実store/R2/資格情報/scheduler/他worktree操作は未実施。
+- 独立性: 異なるモデル指定、新規session、blind bundleというAI監査の最低条件を満たす。同じOpenAI vendorであるため別vendorの強化独立性はなく、共通の判断傾向が残る制約を明記する。
+- 残存リスク/監査外: callerが渡すsnapshotの完全性/所属と成功・利用状態の根拠、実DELETE前の最新状態確認/排他/部分失敗は後続側。実行可能propertyと入力同時変更はA3で契約外。運用接続を合格とは扱わない。
+- 監査record: `tools/Artifacts/artifacts/build-retention-planning/reviews/C-prime-pr.md`、生成UTC `2026-10-09T20:16:01.7357605Z`、SHA-256 `dcb2321d83c4ddc22127d645647402620046861f6b4af59a5cb8c360ec0ab55a`。
 
 ## 9. Phase D
 
-未実施。PR作成・push・マージ・harvestなし。
+未実施。C/C′の突合・人間のマージ判断・harvestは未実施。本チャットの追加指示「すまんやで、PR出してほしい」により、専用branchのpushとdevelop向けPR公開へ進む。PR公開をWorkflow task全体の終了と推測せず、taskはactiveのまま引き渡す。
+
+公開前にfetchしたorigin/developは `8953a908d1caf19c1957c128fc9690f3ac2f5569`。planning base以降はUI pilotのHANDOFFとdocs/READMEへの案内だけで、このpolicyへの影響なし。自動pull/merge/rebaseはしていない。計画・A3凍結・統合済み実装・最終レビュー記録という4単位で初回公開する。
+
+C/C′記録後のdocs auditはerrors=0、warnings=1（§7/§8が埋まったHANDOFFのharvest通知）。Phase D未実施のためHANDOFFを保持し、警告を消すためのharvestや見出し変更は行わない。記録追記のdiff checkに違反なし。これは実装headへの判定証拠を更新する変更ではない。
 
 ## 次の接続先と後続へ送る問い
 
