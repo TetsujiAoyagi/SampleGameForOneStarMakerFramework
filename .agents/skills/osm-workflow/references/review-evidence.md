@@ -17,6 +17,8 @@ implementation head はレビュー対象の実装差分を固定する値であ
 
 Phase A snapshot、Phase B result snapshot、evidence bundle、C' blind audit bundle は、それぞれ path / id、生成時刻、hash を manifest に記録する。判定 C と C' の入力 bundle は、どちらかのレビューを開始する前に同じ snapshot と判定 evidence から生成する。発見 C の所見や安い XML だけを C' に渡さない。Phase B result へ発見 C の指摘を転載しない。
 
+固定manifest・実際の取得案内と、tracked HANDOFFの公開要約を分ける。HANDOFFの全Phase欄には、既存の取得案内の引渡し先・担当と状態（未生成／未保存／引渡し未完了／確認済み）を公開可能な範囲で記録し、reference・期待packageSha256の実値、ローカルpath、内部catalog/receiptは転記しない。実値は下記の取得案内に残し、C' 用は所見から分離する。各snapshot・bundleの生成時刻と内容hashは固定manifestに保持し、取得package全体のpackageSha256と混同しない。空欄や生成済みだけを保存・引渡し済みと扱わない。
+
 ## 保存先とリモートへの配布
 
 **Evidenceの保存・引渡しは、tracked HANDOFF / H1 CURRENTによる作業指示・run管理の選択とは別である。** 対応済みの同一PC・同一Windowsユーザーでは、通常レビューのEvidenceも既存Artifact Storageの `evidence publish` / `fetch` を使う。H1未移行を旧保存方式の継続理由にしない。操作、明示入力、非秘密確認、事前承認の範囲と保持条件は [Artifacts README](../../../../tools/Artifacts/README.md) を正とする。

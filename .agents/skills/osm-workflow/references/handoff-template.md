@@ -6,6 +6,10 @@ A3で `external-current-v1` を明示したtaskはこのtrackedテンプレー�
 
 ## 0. メタデータ
 
+このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
+
+実際の取得案内は、リポジトリルートの `.agents/skills/osm-workflow/references/review-evidence.md` の「保存先とリモートへの配布」に従い、publishが返すreferenceとそれとは別の期待packageSha256、対象base / head、用途、取得手順、保持条件を持つ。各snapshot・bundleの生成時刻と内容hashは固定manifestに残し、packageSha256と混同しない。同じpackageに収録した成果物は同じ取得案内を使ってよく、個別publishや第二の台帳を要求しない。C' 用の案内と入力は所見から分離する。
+
 - type: `slice` / `program` / `research`
 - status: `A` / `B` / `C` / `C'` / `D`
 - branch:
@@ -16,20 +20,12 @@ A3で `external-current-v1` を明示したtaskはこのtrackedテンプレー�
 - created:
 - expires:
 - harvest to:
-- Phase A snapshot path / id:
-- Phase A snapshot generated at:
-- Phase A snapshot hash:
-- Phase B result snapshot path / id:
-- Phase B result snapshot generated at:
-- Phase B result snapshot hash:
-- evidence bundle path / id:
-- evidence bundle generated at:
-- evidence bundle hash:
-- C' blind bundle path / id:
-- C' blind bundle generated at:
-- C' blind bundle hash:
+- Phase A snapshot の取得案内・状態:
+- Phase B result snapshot の取得案内・状態:
+- evidence bundle の取得案内・状態:
+- C' blind bundle の取得案内・状態:
 
-Phase A では implementation base commit と Phase A snapshot を記録する。implementation head、Phase B result、evidence、C' blind bundle は各成果物が生成された Phase で追記し、未到達 Phase の値を推測して埋めない。HANDOFF へのレビュー記録だけの commit は implementation head に含めない。
+Phase A では implementation base commit と Phase A snapshot の取得案内・状態を記録する。implementation head、Phase B result、evidence、C' blind bundle は各成果物が生成された Phase で追記し、未到達 Phase の値を推測して埋めない。生成済みでもpublish前は未保存、取得案内や必須内容の受渡しが未確認なら引渡し未完了とする。HANDOFF へのレビュー記録だけの commit は implementation head に含めない。
 
 ## 1. 目的と対象外
 
@@ -90,7 +86,7 @@ Phase A では implementation base commit と Phase A snapshot を記録する�
 ## 7. Phase C
 
 - 種別: 発見 / 判定
-- evidence bundle id / hash:
+- 使用したevidence bundle の取得案内・状態（§0と同じ案内）:
 - 構造適合:
 - 現在の問いを阻害する findings（違反する凍結済み条件 / 常時契約を併記）:
 - 後続スライスへ移送する findings:
@@ -104,7 +100,7 @@ Phase A では implementation base commit と Phase A snapshot を記録する�
 ## 8. Phase C'
 
 - 担当方式: 人間 / AI
-- blind audit bundle id / hash:
+- 使用したblind audit bundle の取得案内・状態（§0と同じ案内）:
 - 確認範囲・方法（全件機械検査 / 代表箇所の目視・操作等）:
 - 判定（人間担当は本人の明示回答まで未実施）:
 - 現在の問いを阻害する findings（違反する凍結済み条件 / 常時契約を併記）:

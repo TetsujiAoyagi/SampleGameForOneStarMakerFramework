@@ -94,7 +94,7 @@ A3 でこの境界を凍結した後、finding が現スライスを阻害でき
 ## HANDOFF の必須内容
 
 - type、status、branch、implementation base / head commit、risk、owner、期限、harvest 先
-- Phase A snapshot、Phase B result snapshot、evidence bundle、C' blind audit bundle の path / id、生成時刻、hash
+- Phase A snapshot、Phase B result snapshot、evidence bundle、C' blind audit bundle それぞれの取得案内の引渡し先・担当・状態。公開欄と実際の取得案内の区別は下記に従う
 - 目的、対象外、このスライスが答える問い、進める最低条件、その詳細である受け入れ条件、ここでは答えない問いと所有スライス、判定定義、停止規則
 - A0 の現況、制約、未決事項
 - Phase A の独立レビュー結果と採用・不採用・保留の理由
@@ -105,10 +105,12 @@ A3 でこの境界を凍結した後、finding が現スライスを阻害でき
 - 差し戻し中の起点 filter と判定必須テスト。実装変更スライスでは最終全 EditMode 回帰が標準。適用除外の理由と代替証拠
 - 実装上の制約をリンクではなく本文へ転記
 - Phase Bの実装結果と未実行事項
-- Phase Cの種別（発見 / 判定）、evidence id、構造適合、違反根拠を伴う現在の問いを阻害する指摘、後続スライスへ移送する指摘、実行したテストコマンド、テスト結果、判定必須のうち未実行、未確認事項
-- Phase C'の blind audit bundle、違反根拠を伴う現在の問いを阻害する指摘、後続スライスへ移送する指摘、監査結果、独立性
+- Phase Cの種別（発見 / 判定）、使用したevidenceの取得案内・状態、構造適合、違反根拠を伴う現在の問いを阻害する指摘、後続スライスへ移送する指摘、実行したテストコマンド、テスト結果、判定必須のうち未実行、未確認事項
+- Phase C'で使用したblind audit bundleの取得案内・状態、違反根拠を伴う現在の問いを阻害する指摘、後続スライスへ移送する指摘、監査結果、独立性
 - Phase DのEvidence保存・取得確認と取得案内の引渡し、task終了・後始末の状態、未完了事項。公開欄へ内部台帳や機微なpathを転記しない
 - 各Phaseで使用した担当とモデル
+
+tracked HANDOFFの全Phase欄には、既存の取得案内の引渡し先・担当と状態（未生成／未保存／引渡し未完了／確認済み）を公開可能な範囲で記録する。reference・期待packageSha256の実値、ローカルpath、内部catalog/receiptを転記しない。実際の取得案内には [レビュー証拠](review-evidence.md#保存先とリモートへの配布) に従い、publishが返すreferenceとそれとは別の期待packageSha256、対象base / head、用途、取得手順、保持条件を残す。各snapshot・bundleの生成時刻と内容hashは固定manifestに残し、packageSha256と混同しない。同じpackageの取得案内は再利用でき、個別publishや第二の台帳を要求しない。C' 用の案内と入力は所見から分離し、空欄や生成済みだけを保存・引渡し済みと扱わない。
 
 スライス HANDOFF は [テンプレート](handoff-template.md) を基準にする。複数スライス計画と調査記録は `type` を区別し、Phase C / C' の完了欄を持つスライスと同じものとして扱わない。
 
