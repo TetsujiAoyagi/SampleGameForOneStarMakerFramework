@@ -20,8 +20,9 @@ public static class PackageIO
     // here so a changed snapshot cannot silently become the archive sent over the network.
     public static PackageInfo CreateVerified(string operationDirectory, string snapshotDirectory,
         string baseRevision, string headRevision, string repositoryId, string runId,
-        PackageFile[] expected, int budgetMilliseconds)
+        PackageFile[] expected, int budgetMilliseconds, string? taskId = null)
     {
+        PackagePolicy.RequireEvidenceTask(taskId);
         PackagePolicy.RequireIdentity(baseRevision, headRevision, repositoryId, runId);
         if (!Path.IsPathFullyQualified(operationDirectory) ||
             !Path.GetFullPath(snapshotDirectory).Equals(Path.GetFullPath(Path.Combine(operationDirectory, "snapshot")), StringComparison.OrdinalIgnoreCase) ||
@@ -52,8 +53,8 @@ public static class PackageIO
             throw new InvalidDataException("Snapshot entry set mismatch.");
         var files = expected.OrderBy(file => file.Path, StringComparer.Ordinal).ToArray();
         var manifest = new {
-            schemaVersion = 1, purpose = "evidence", @base = baseRevision, head = headRevision,
-            repositoryId, runId, createdAt = DateTimeOffset.UtcNow.ToString("o"), retentionSeconds = 2592000,
+            schemaVersion = 2, purpose = "evidence", @base = baseRevision, head = headRevision, taskId, artifactId = runId,
+            repositoryId, createdAt = DateTimeOffset.UtcNow.ToString("o"),
             files = files.Select(file => new { path = file.Path, bytes = file.Bytes, sha256 = file.Sha256 }).ToArray()
         };
         var manifestBytes = JsonSerializer.SerializeToUtf8Bytes(manifest, JsonOptions);
@@ -174,8 +175,9 @@ public static class PackageIO
 
     public static PackageInfo Extract(string packagePath, string operationDirectory, string expectedSha256,
         string expectedManifestSha256, string baseRevision, string headRevision, string repositoryId, string runId,
-        int budgetMilliseconds, string expectedPurpose = "synthetic")
+        int budgetMilliseconds, string expectedPurpose = "synthetic", string? taskId = null)
     {
+        if (expectedPurpose == "evidence") PackagePolicy.RequireEvidenceTask(taskId);
         PackagePolicy.RequireIdentity(baseRevision, headRevision, repositoryId, runId);
         if (!Hex64(expectedSha256) || !Hex64(expectedManifestSha256)) throw new InvalidDataException("Expected hash invalid.");
         var timer = Stopwatch.StartNew();
@@ -219,12 +221,15 @@ public static class PackageIO
             throw new InvalidDataException("Manifest hash mismatch.");
         using var doc = JsonDocument.Parse(manifestBytes);
         var manifest = doc.RootElement;
-        PackagePolicy.Fields(manifest, "schemaVersion", "purpose", "base", "head", "repositoryId", "runId", "createdAt", "retentionSeconds", "files");
+        if (expectedPurpose == "evidence")
+            PackagePolicy.Fields(manifest, "schemaVersion", "purpose", "base", "head", "taskId", "artifactId", "repositoryId", "createdAt", "files");
+        else PackagePolicy.Fields(manifest, "schemaVersion", "purpose", "base", "head", "repositoryId", "runId", "createdAt", "retentionSeconds", "files");
         var purpose = PackagePolicy.String(manifest, "purpose");
-        if (PackagePolicy.Integer(manifest, "schemaVersion") != 1 || purpose != expectedPurpose ||
+        if (PackagePolicy.Integer(manifest, "schemaVersion") != (expectedPurpose == "evidence" ? 2 : 1) || purpose != expectedPurpose ||
+            (taskId is not null && (PackagePolicy.String(manifest, "taskId") != taskId || PackagePolicy.String(manifest, "artifactId") != runId)) ||
             PackagePolicy.String(manifest, "base") != baseRevision || PackagePolicy.String(manifest, "head") != headRevision ||
-            PackagePolicy.String(manifest, "repositoryId") != repositoryId || PackagePolicy.String(manifest, "runId") != runId ||
-            PackagePolicy.Integer(manifest, "retentionSeconds") != (purpose == "evidence" ? 2592000 : 86400) ||
+            PackagePolicy.String(manifest, "repositoryId") != repositoryId ||
+            (purpose != "evidence" && (PackagePolicy.String(manifest, "runId") != runId || PackagePolicy.Integer(manifest, "retentionSeconds") != 86400)) ||
             !DateTimeOffset.TryParseExact(PackagePolicy.String(manifest, "createdAt"), "o", null,
                 System.Globalization.DateTimeStyles.None, out var created) || created.Offset != TimeSpan.Zero)
             throw new InvalidDataException("Manifest identity invalid.");

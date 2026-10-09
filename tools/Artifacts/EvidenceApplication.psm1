@@ -1,207 +1,129 @@
 Set-StrictMode -Version Latest
-Import-Module (Join-Path $PSScriptRoot 'ArtifactCommands.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot 'ArtifactPaths.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot 'ArtifactProtectionPolicy.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot 'ArtifactApplication.psm1') -Force
-
-$script:ProducerBase = '6d804ca637cf42fb876e602c8ccc0656cfbd255d'
-$script:E1Root = 'C:\Users\void\AppData\Local\OneStarMaker\Artifacts\review-evidence\artifact-cli-final-r3-cec0e01b2bb6433e9cab782ddcc84df4'
-$script:E1Base = 'fd7ebf932d230a522293dee72572cbdeeac1c8fa'
-$script:E1Head = 'caed8bae55c033673b75532dc650f0a3a3cedc48'
-$script:E1ManifestHash = 'b6e3dbf63c1bf925c36c966e64022bb6d1b14897f04aeb1af7af4082a2693ee4'
-$script:E1Fixed = @(
-    @('final-offline/snapshots/A3.md',29410,'31f78fdbeb01f0b82a24e3c6d4dda432f64ad83e3fd1890388f74009903faceb'),
-    @('final-offline/snapshots/B_RESULT.md',2115,'a5a5f60e455c0852c12795d4338db4148368164b8c4297e4823a2fb8d6215d3c'),
-    @('final-offline/snapshots/implementation.diff',206304,'e73495ccc6527639999aef6badaa1d72afd1714dfa1bb91ecc4ad84543cbe8cb'),
-    @('final-offline/snapshots/implementation.name-status',897,'06e367fa4bbc7109842394b83e0849af6fbad021aaa4eac25009ca2575e27c13'),
-    @('final-offline/snapshots/implementation.stat',1335,'1daa6b2d0bdd3b46bcbcbcdc905dc7f8928bea5737759ffa74b6a1f1fa8c93ca'),
-    @('final-offline/c-raw/ArtifactTransfer.stdout.log',331,'1e34e44e63c18d707650856f8e2a5daf6ac9e745cdcbba4b80c5c9d9925538cc'),
-    @('final-offline/c-raw/ArtifactPackage.stdout.log',237,'d9857c384c5b3ef45c4092eab5d0c91ee6ad591b2d0c74dcd2a16ec0037691ef'),
-    @('continuation/current-run/publish-operation/operation-observations.json',6366,'b8b54e6331e933ba19d1227302b107056012c2749e022a7519b161e008649d51'),
-    @('continuation/current-run/publish-operation/protection-receipt.json',6371,'1b1cf9d643c8f43c7cf9913ce19e203636bba70e5241da1918994c9f9d20e2c3'),
-    @('continuation/raw/fetch-reader/verification.json',2761,'6fd72d986c5259aa4e799da5b9201288f88cba4c1942c6ba4a6949dbb89ed4dd'),
-    @('continuation/settings-provenance.json',3195,'971c93075eb097755c60f3a5db4480ae15f9ade2f90601fefd74d1a33bdd950a'),
-    @('continuation/observations/bucket-before.json',1174,'cd6a4fd59f533cee313460c67de895c409143e56bae0dcee7ff15061770ae200'),
-    @('continuation/observations/bucket-after.json',1131,'03e5a12f96bd7383b46ac03dd4f480b0d997a796d307c65924bccf04f229c99a')
-)
-
-function Assert-EvidenceSelection($Selection,[string] $Base,[string] $Head,[string] $ProducerHead,$Config) {
-    Assert-Fields $Selection @('schemaVersion','kind','root','producerBase','producerHead','sourceManifestSha256','files')
-    if ($Selection.schemaVersion -isnot [long] -or $Selection.schemaVersion -ne 1 -or
-        $Selection.kind -cnotin @('E1','E2') -or $Selection.root -isnot [string] -or
-        -not [IO.Path]::IsPathFullyQualified($Selection.root) -or
-        $Selection.producerBase -cne $script:ProducerBase -or $Selection.producerHead -cne $ProducerHead -or
-        $Selection.files -isnot [array]) { throw 'Evidence selection unavailable.' }
-    $root = [IO.Path]::GetFullPath($Selection.root)
-    Assert-NoArtifactReparse $root
-    if (-not [IO.Directory]::Exists($root) -or (Test-ArtifactWithin $root (Get-ArtifactRoot)) -or
-        (Test-ArtifactWithin $root ([IO.Path]::Combine([Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData),'OneStarMaker','Artifacts','credentials')))) {
-        throw 'Evidence source unavailable.'
+Import-Module (Join-Path $PSScriptRoot 'ArtifactCommands.psm1')
+Import-Module (Join-Path $PSScriptRoot 'ArtifactPaths.psm1')
+Import-Module (Join-Path $PSScriptRoot 'ArtifactAcl.psm1')
+Import-Module (Join-Path $PSScriptRoot 'EvidencePaths.psm1')
+Import-Module (Join-Path $PSScriptRoot '../Workflow/TaskEventStore.psm1')
+Import-Module (Join-Path $PSScriptRoot 'EvidenceContract.psm1')
+Import-Module (Join-Path $PSScriptRoot 'EvidenceStateStore.psm1')
+Import-Module (Join-Path $PSScriptRoot 'EvidenceCleanup.psm1')
+Import-Module (Join-Path $PSScriptRoot 'EvidenceRetentionPolicy.psm1')
+Import-Module (Join-Path $PSScriptRoot 'ArtifactApplication.psm1')
+Import-Module (Join-Path $PSScriptRoot 'Credentials/CredentialStore.psm1')
+$script:Clock={ [DateTimeOffset]::UtcNow }
+$script:FaultHook=$null
+$script:FailureHook=$null
+function New-EvidenceOperation([string]$Path){return [pscustomobject]@{process=Get-EvidenceProcessIdentity;childMarker=[IO.Path]::Combine($Path,'readback-process.json');path=$Path}}
+function Add-EvidenceOwnedFile($Artifact,[string]$Path,[long]$Bytes,[string]$Sha256){$Artifact.ownedCopies+=[pscustomobject]@{path=[IO.Path]::GetFullPath($Path);bytes=$Bytes;sha256=$Sha256;origin='storage-copy'}}
+function Copy-EvidenceSnapshot($Selection,[string]$Operation,[Diagnostics.Stopwatch]$Timer){
+    $snapshot=[IO.Path]::Combine($Operation,'snapshot');[IO.Directory]::CreateDirectory($snapshot)|Out-Null;$files=[Collections.Generic.List[OneStarMaker.Artifacts.Packaging.PackageFile]]::new();$total=[long]0
+    foreach($name in $Selection.files){
+        $source=[OneStarMaker.Artifacts.Packaging.PackagePolicy]::Under($Selection.root,$name);$target=[OneStarMaker.Artifacts.Packaging.PackagePolicy]::Under($snapshot,$name);[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($target))|Out-Null
+        $reader=[IO.FileStream]::new($source,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+        $writer=$null;$hash=[Security.Cryptography.IncrementalHash]::CreateHash([Security.Cryptography.HashAlgorithmName]::SHA256)
+        try{
+            $writer=[IO.FileStream]::new($target,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None);$buffer=[byte[]]::new(65536);$bytes=[long]0
+            while(($n=$reader.Read($buffer,0,$buffer.Length)) -gt 0){$null=Get-Remaining $Timer 600000;$bytes+=$n;$total+=$n;if($bytes -gt 256MB -or $total -gt 1GB){throw 'source-limit'};$writer.Write($buffer,0,$n);$hash.AppendData($buffer,0,$n)}
+            $writer.Flush($true);$entry=[OneStarMaker.Artifacts.Packaging.PackageFile]::new();$entry.Path=$name;$entry.Bytes=$bytes;$entry.Sha256=[Convert]::ToHexString($hash.GetHashAndReset()).ToLowerInvariant();$files.Add($entry)
+        }finally{$reader.Dispose();if($writer){$writer.Dispose()};$hash.Dispose()}
     }
-    if ($Selection.kind -ceq 'E1') {
-        if ($Base -cne $script:E1Base -or $Head -cne $script:E1Head -or
-            $root -cne $script:E1Root -or $Selection.sourceManifestSha256 -cne $script:E1ManifestHash -or
-            $Selection.files.Count -ne 13) { throw 'E1 selection changed.' }
-    } else {
-        if ($Base -cne $script:ProducerBase -or $Head -cne $ProducerHead -or
-            $Selection.sourceManifestSha256 -ne $null -or $Selection.files.Count -ne 4 -or
-            -not ([IO.Path]::GetFullPath($Config.Data.settingsEvidencePath).Equals([IO.Path]::Combine($root,'settings-before.json'),[StringComparison]::OrdinalIgnoreCase))) {
-            throw 'E2 selection changed.'
-        }
-    }
-    $expectedE2 = @('settings-before.json','settings-overview.jpg','settings-rules.jpg','capture.json')
-    $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-    foreach ($file in $Selection.files) {
-        Assert-Fields $file @('source','path','bytes','sha256')
-        if ($file.source -isnot [string] -or $file.path -isnot [string] -or
-            $file.bytes -isnot [long] -or $file.bytes -lt 0 -or $file.bytes -gt 256MB -or
-            $file.sha256 -isnot [string] -or $file.sha256 -cnotmatch '\A[0-9a-f]{64}\z' -or
-            -not $seen.Add($file.path)) { throw 'Evidence entry unavailable.' }
-        $null = [OneStarMaker.Artifacts.Packaging.PackagePolicy]::Relative($file.path)
-        $null = [OneStarMaker.Artifacts.Packaging.PackagePolicy]::Relative($file.source)
-        if ($Selection.kind -ceq 'E1') {
-            $fixed = @($script:E1Fixed | Where-Object { $_[0] -ceq $file.source })
-            if ($fixed.Count -ne 1 -or $file.path -cne ('source/' + $file.source) -or
-                $file.bytes -ne $fixed[0][1] -or $file.sha256 -cne $fixed[0][2]) { throw 'E1 entry changed.' }
-        } elseif ($file.source -cne $file.path -or $file.path -cnotin $expectedE2) {
-            throw 'E2 entry changed.'
-        }
-    }
-    if ($Selection.kind -ceq 'E2' -and @($expectedE2 | Where-Object { -not $seen.Contains($_) }).Count -ne 0) {
-        throw 'E2 entry missing.'
-    }
-    if ($Selection.kind -ceq 'E2') {
-        $capture = (Read-ArtifactJson ([IO.Path]::Combine($root,'capture.json'))).Data
-        Assert-Fields $capture @('schemaVersion','implementationHead','bucket','page','capturedAt','observer','tool',
-            'overviewBytes','overviewSha256','rulesBytes','rulesSha256','observationScope')
-        if ($capture.schemaVersion -ne 1 -or $capture.implementationHead -cne $ProducerHead -or
-            $capture.bucket -cne 'osm-artifacts' -or $capture.page -cne 'settings' -or
-            [string]::IsNullOrWhiteSpace($capture.observer) -or [string]::IsNullOrWhiteSpace($capture.tool)) {
-            throw 'Evidence capture unavailable.'
-        }
-        $null = Assert-Utc $capture.capturedAt
-        Assert-Fields $capture.observationScope @('overview','rules')
-        foreach ($name in @('overview','rules')) {
-            if ($capture.observationScope.$name -isnot [string] -or
-                [string]::IsNullOrWhiteSpace($capture.observationScope.$name) -or
-                $capture.observationScope.$name.Length -gt 512 -or
-                $capture.observationScope.$name -cmatch '[\x00-\x1f]') { throw 'Evidence observation scope unavailable.' }
-        }
-        foreach ($pair in @(@('settings-overview.jpg','overviewSha256','overviewBytes'),
-                          @('settings-rules.jpg','rulesSha256','rulesBytes'))) {
-            $entry = @($Selection.files | Where-Object path -CEQ $pair[0])[0]
-            if ($capture.($pair[1]) -cne $entry.sha256 -or $capture.($pair[2]) -isnot [long] -or
-                $capture.($pair[2]) -ne $entry.bytes) { throw 'Evidence capture hash or size mismatch.' }
-            $imagePath = [OneStarMaker.Artifacts.Packaging.PackagePolicy]::Under($root,$pair[0])
-            $image = [IO.FileStream]::new($imagePath,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
-            try {
-                if ($image.Length -ne $entry.bytes -or $image.Length -lt 4 -or $image.Length -gt 256MB) {
-                    throw 'Evidence image size unavailable.'
-                }
-                $first=[byte[]]::new(2); $last=[byte[]]::new(2)
-                if ($image.Read($first,0,2) -ne 2) { throw 'Evidence image header unavailable.' }
-                $null=$image.Seek(-2,[IO.SeekOrigin]::End)
-                if ($image.Read($last,0,2) -ne 2 -or $first[0] -ne 255 -or $first[1] -ne 216 -or
-                    $last[0] -ne 255 -or $last[1] -ne 217) {
-                    throw 'Evidence image format unavailable.'
-                }
-            } finally { $image.Dispose() }
-        }
-    }
+    return $files.ToArray()
 }
-
-function Copy-EvidenceChecked([string] $Root,[string] $Source,[string] $Target,[long] $Bytes,[string] $Hash,
-    [Diagnostics.Stopwatch] $Timer) {
-    $sourcePath = [OneStarMaker.Artifacts.Packaging.PackagePolicy]::Under($Root,$Source)
-    if (-not [IO.File]::Exists($sourcePath) -or [IO.Directory]::Exists($sourcePath)) { throw 'Evidence source missing.' }
-    if ($Bytes -lt 0 -or $Bytes -gt 256MB -or $Timer.ElapsedMilliseconds -ge 600000) { throw 'Evidence source limit.' }
-    $destination = [IO.Path]::GetFullPath($Target)
-    [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($destination)) | Out-Null
-    $reader = [IO.FileStream]::new($sourcePath,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
-    try {
-        if ($reader.Length -ne $Bytes -or $reader.Length -gt 256MB) { throw 'Evidence source size changed.' }
-        $writer = [IO.FileStream]::new($destination,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
-        $digest=[Security.Cryptography.IncrementalHash]::CreateHash([Security.Cryptography.HashAlgorithmName]::SHA256)
-        try {
-            $buffer=[byte[]]::new(65536); $copied=[long]0
-            while (($read=$reader.Read($buffer,0,$buffer.Length)) -gt 0) {
-                if ($Timer.ElapsedMilliseconds -ge 600000 -or $read -gt $Bytes-$copied -or
-                    $read -gt 256MB-$copied) { throw 'Evidence source limit.' }
-                $writer.Write($buffer,0,$read); $digest.AppendData($buffer,0,$read); $copied+=$read
-            }
-            $writer.Flush($true)
-            $actualHash=[Convert]::ToHexString($digest.GetHashAndReset()).ToLowerInvariant()
-        } finally { $digest.Dispose(); $writer.Dispose() }
-    } finally { $reader.Dispose() }
-    if ($copied -ne $Bytes -or $actualHash -cne $Hash) {
-        throw 'Evidence source changed.'
-    }
-    return $actualHash
-}
-
-function Invoke-EvidencePublish([string] $ConfigPath,[string] $SelectionPath,[string] $Base,[string] $Head) {
-    $operationRoot = $null; $id = [Guid]::NewGuid().ToString('N'); $timer=[Diagnostics.Stopwatch]::StartNew()
-    $result = New-ArtifactResult $id 'evidence-publish'
-    try {
-        Assert-Hex $Base 40; Assert-Hex $Head 40
-        $config = Read-EvidenceConfig $ConfigPath
-        $selection = (Read-ArtifactJson $SelectionPath).Data
-        $repo = [IO.Path]::GetFullPath([IO.Path]::Combine($PSScriptRoot,'..','..'))
-        $producerHead = (& git -C $repo rev-parse HEAD 2>$null).Trim()
-        Assert-Hex $producerHead 40
-        $assembly = [Reflection.Assembly]::LoadFrom((Join-Path $PSScriptRoot 'Packaging/artifacts/package/ArtifactPackaging.dll'))
-        if ($null -eq $assembly.GetType('OneStarMaker.Artifacts.Packaging.PackageIO',$true)) { throw 'Packaging unavailable.' }
-        Assert-EvidenceSelection $selection $Base $Head $producerHead $config
-        $operationRoot = New-ArtifactOperation; $result.residue.localPath=$operationRoot
-        $snapshot = [IO.Path]::Combine($operationRoot,'snapshot')
-        [IO.Directory]::CreateDirectory($snapshot) | Out-Null
-        $receiptEntries = [Collections.Generic.List[object]]::new()
-        $packageFiles = [Collections.Generic.List[OneStarMaker.Artifacts.Packaging.PackageFile]]::new()
-        foreach ($file in $selection.files) {
-            $target = [OneStarMaker.Artifacts.Packaging.PackagePolicy]::Under($snapshot,$file.path)
-            $actualHash=Copy-EvidenceChecked $selection.root $file.source $target $file.bytes $file.sha256 $timer
-            $receiptEntries.Add([ordered]@{ source=$file.source; path=$file.path; expectedBytes=$file.bytes
-                actualBytes=([IO.FileInfo]::new($target)).Length; expectedSha256=$file.sha256
-                actualSha256=$actualHash })
-            $entry = [OneStarMaker.Artifacts.Packaging.PackageFile]::new()
-            $entry.Path=$file.path; $entry.Bytes=$file.bytes; $entry.Sha256=$file.sha256
-            $packageFiles.Add($entry)
-        }
-        $sourceManifestHash = if ($selection.kind -ceq 'E1') { $script:E1ManifestHash } else { '0'*64 }
-        if ($selection.kind -ceq 'E1') {
-            $null=Copy-EvidenceChecked $selection.root 'manifest.json' ([IO.Path]::Combine($snapshot,'source','manifest.json')) `
-                ([IO.FileInfo]::new([IO.Path]::Combine($selection.root,'manifest.json'))).Length $script:E1ManifestHash $timer
-            $entry = [OneStarMaker.Artifacts.Packaging.PackageFile]::new()
-            $entry.Path='source/manifest.json'; $entry.Bytes=([IO.FileInfo]::new([IO.Path]::Combine($snapshot,'source','manifest.json'))).Length
-            $entry.Sha256=$script:E1ManifestHash; $packageFiles.Add($entry)
-        }
-        $selectionReceipt = [ordered]@{ schemaVersion=1; kind=$selection.kind; sourceManifestSha256=$selection.sourceManifestSha256
-            evidenceBase=$Base; evidenceHead=$Head; producerBase=$script:ProducerBase; producerHead=$producerHead
-            capturedAt=[DateTimeOffset]::UtcNow.ToString('o'); entries=@($receiptEntries.ToArray()) }
-        $receiptPath = [IO.Path]::Combine($operationRoot,'selection-receipt.json')
-        $receiptHash = Write-ArtifactJson $receiptPath $selectionReceipt
-        if ($selection.kind -ceq 'E1') {
-            [IO.File]::Copy($receiptPath,[IO.Path]::Combine($snapshot,'selection-receipt.json'))
-            $entry = [OneStarMaker.Artifacts.Packaging.PackageFile]::new()
-            $entry.Path='selection-receipt.json'; $entry.Bytes=([IO.FileInfo]::new($receiptPath)).Length
-            $entry.Sha256=$receiptHash; $packageFiles.Add($entry)
-        }
-        Protect-ArtifactTree $operationRoot
-        $runId = [Guid]::NewGuid().ToString('N')
-        $package = [OneStarMaker.Artifacts.Packaging.PackageIO]::CreateVerified($operationRoot,$snapshot,$Base,$Head,
-            $config.Data.repositoryId,$runId,$packageFiles.ToArray(),(Get-Remaining $timer 600000))
-        Protect-ArtifactTree $operationRoot
-        $result = Invoke-ArtifactPublishPrepared $config $package $operationRoot $id $runId $Base $Head `
-            $script:ProducerBase $producerHead $sourceManifestHash $receiptHash $packageFiles.ToArray() $timer
-    } catch {
-        $result.status='failed'; $result.reasonCode='unconfirmed'; $result.ledger=$null; $result.outputPath=$null
-        if ($operationRoot) {
-            $result.residue.localPath=$operationRoot; $result.residue.cleanup='local-retained'
-            $result.residue.remote=if ([IO.File]::Exists([IO.Path]::Combine($operationRoot,'put-intent.json'))) { 'may-have-been-sent' } else { 'pre-put-intent' }
-            try { $null=Write-ArtifactJson ([IO.Path]::Combine($operationRoot,'result.json')) $result; Protect-ArtifactTree $operationRoot } catch {}
-        }
-    }
+function Invoke-EvidencePublish([string]$ConfigPath,[string]$SelectionPath){
+    $result=[ordered]@{status='failed';reasonCode='unconfirmed';reference=$null;packageSha256=$null;receipt=$null;residue=@{localPath=$null;remote='pre-put'}};$guard=$null;$artifact=$null;$task=$null;$timer=[Diagnostics.Stopwatch]::StartNew()
+    try{
+        $config=Read-EvidenceConfig $ConfigPath;Import-ArtifactPackage;$selection=(Read-ArtifactJson $SelectionPath).Data;Assert-Fields $selection @('schemaVersion','purpose','taskId','root','files','base','head');Assert-EvidenceTaskId $selection.taskId
+        $guard=Enter-WorkflowTaskGuard $config.Data.repositoryId $selection.taskId;$null=Assert-EvidenceTransitionSafe $config $selection.taskId $guard;$task=Sync-EvidenceTaskGuarded $config $selection.taskId $guard
+        if($task.status -cne 'active'){throw 'resume-required'}
+        $sourceStage=$null
+        foreach($candidate in $task.staging){if($candidate.path -ceq [IO.Path]::GetFullPath($selection.root) -or (Resolve-ArtifactStoredPath $candidate.path -AllowMissing:($candidate.adopted -and -not $candidate.operation)) -ceq [IO.Path]::GetFullPath($selection.root)){
+            if($candidate.origin -cne 'storage-copy' -or $candidate.adoptionPending -or $candidate.deleteIntent -or -not (Test-ArtifactWithin (Resolve-ArtifactStoredPath $candidate.path) (Get-ArtifactRoot))){throw 'invalid-source'}
+            if($candidate.operation){Assert-EvidenceOperationStopped $candidate.operation;$candidate.operation=$null}
+            $sourceStage=$candidate
+        }}
+        if($sourceStage){$selection.root=Resolve-ArtifactStoredPath $sourceStage.path}
+        Assert-EvidenceSelection $selection $(if($sourceStage){Resolve-ArtifactStoredPath $sourceStage.path}else{$null})
+        if($sourceStage){$sourceStage.adoptionPending=$true;$null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard}
+        $operation=New-ArtifactOperation;$result.residue.localPath=$operation
+        $stage=[pscustomobject]@{path=$operation;createdAt=(& $script:Clock).ToString('o');origin='storage-copy';artifactId=$null;adopted=$false;adoptionPending=$false;operation=New-EvidenceOperation $operation;deleteIntent=$null;protections=@()};$task.staging+=$stage;$null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard
+        $files=Copy-EvidenceSnapshot $selection $operation $timer;$id=[Guid]::NewGuid().ToString('N')
+        $package=[OneStarMaker.Artifacts.Packaging.PackageIO]::CreateVerified($operation,[IO.Path]::Combine($operation,'snapshot'),$selection.base,$selection.head,$config.Data.repositoryId,$id,$files,(Get-Remaining $timer 600000),$selection.taskId)
+        $verified=[OneStarMaker.Artifacts.Packaging.PackageIO]::Extract($package.Path,$operation,$package.Sha256,$package.ManifestSha256,$selection.base,$selection.head,$config.Data.repositoryId,$id,(Get-Remaining $timer 600000),'evidence',$selection.taskId)
+        $artifact=[pscustomobject][ordered]@{schemaVersion=2;artifactId=$id;taskId=$selection.taskId;repositoryId=$config.Data.repositoryId;deploymentId=$config.Data.deploymentId;key=Get-EvidenceKey $config $selection.taskId $id;base=$selection.base;head=$selection.head;packageBytes=$package.Bytes;packageSha256=$package.Sha256;manifestSha256=$package.ManifestSha256;entries=@($files|ForEach-Object{[pscustomobject]@{path=$_.Path;bytes=$_.Bytes;sha256=$_.Sha256}});createdAt=(& $script:Clock).ToString('o');state='put-pending';appliedEventVersion=$task.appliedEventVersion;taskEndedAt=$task.taskEndedAt;endReason=$task.endReason;deleteEligibleAt=$task.deleteEligibleAt;protections=@();ownedCopies=@();deleteIntent=$null;operation=New-EvidenceOperation $operation;receipt=$null;putIntent=$null}
+        Add-EvidenceOwnedFile $artifact $package.Path $package.Bytes $package.Sha256
+        foreach($entry in $files){Add-EvidenceOwnedFile $artifact ([IO.Path]::Combine($operation,'snapshot',$entry.Path)) $entry.Bytes $entry.Sha256;Add-EvidenceOwnedFile $artifact ([IO.Path]::Combine($verified.Path,$entry.Path)) $entry.Bytes $entry.Sha256}
+        $stage.artifactId=$id
+        $task.artifacts+=$artifact;Protect-ArtifactTree $operation;$null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard
+        $intent=[pscustomobject]@{schemaVersion=2;artifactId=$id;key=$artifact.key;packageBytes=$package.Bytes;packageSha256=$package.Sha256;createdAt=$artifact.createdAt;process=Get-EvidenceProcessIdentity}
+        $intentPath=[IO.Path]::Combine((Get-EvidenceTaskDirectory $config $task.taskId),'intents',$id+'.json');$intentSha=Write-EvidenceAtomic $intentPath $intent -Immutable;$artifact.putIntent=[pscustomobject]@{path=$intentPath;sha256=$intentSha};$null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard
+        if($script:FaultHook){& $script:FaultHook 'after-put-intent' $artifact}
+        $generation=(Get-CredentialStatus 'osm').Generation;$result.residue.remote='may-have-been-sent'
+        $lock=[IO.FileStream]::new($package.Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+        try{
+            $put=Invoke-ArtifactNetwork $generation (New-ArtifactRequest $config 'put' $artifact.key $package.Path $null $timer)
+            # A lost response is resolved by readback, never by a second PUT.
+            if(-not (Test-ArtifactSuccess $put 'put' $generation)){throw 'put-unconfirmed'}
+            $read=Invoke-ArtifactReadback $operation $config $generation $artifact.key $package.Bytes $package.Sha256 $timer
+            if(-not (Test-ArtifactReadback $read $generation $artifact.key $package.Bytes $package.Sha256)){throw 'readback-unconfirmed'}
+        }finally{$lock.Dispose()}
+        $receipt=[pscustomobject]@{schemaVersion=2;deploymentId=$config.Data.deploymentId;repositoryId=$config.Data.repositoryId;taskId=$task.taskId;artifactId=$id;key=$artifact.key;base=$artifact.base;head=$artifact.head;packageBytes=$package.Bytes;packageSha256=$package.Sha256;manifestSha256=$package.ManifestSha256;entries=$artifact.entries;putIntentSha256=$intentSha;readback=$read;completedAt=(& $script:Clock).ToString('o')}
+        $receiptPath=[IO.Path]::Combine((Get-EvidenceTaskDirectory $config $task.taskId),'receipts',$id+'.json');$receiptSha=Write-EvidenceAtomic $receiptPath $receipt -Immutable
+        if($script:FaultHook){& $script:FaultHook 'after-receipt' $artifact}
+        $artifact.receipt=[pscustomobject]@{path=$receiptPath;sha256=$receiptSha};$artifact.state='ready';$artifact.operation=$null;$stage.adopted=$true;$stage.operation=$null;if($sourceStage){$sourceStage.adoptionPending=$false}
+        $artifact.ownedCopies=@();foreach($file in [IO.Directory]::EnumerateFiles($operation,'*',[IO.SearchOption]::AllDirectories)){Add-EvidenceOwnedFile $artifact $file ([IO.FileInfo]::new($file)).Length ((Get-FileHash -LiteralPath $file).Hash.ToLowerInvariant())}
+        $null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard
+        $result.status='passed';$result.reasonCode='complete';$result.reference=New-EvidenceReference $config $artifact;$result.packageSha256=$package.Sha256;$result.receipt=$artifact.receipt;$result.residue.remote='ready'
+    }catch{if($script:FailureHook){& $script:FailureHook $_}
+        if($_.Exception.Message -cin @('unsupported-schema','unknown-deployment','resume-required','invalid-selection','invalid-source','task-not-registered','unresolved-delete','unresolved-put')){$result.reasonCode=$_.Exception.Message}
+        if($task -and $guard){try{$released=$true;if($artifact -and $artifact.operation){try{$marker=Resolve-ArtifactStoredPath $artifact.operation.childMarker -AllowMissing;if([IO.File]::Exists($marker)){$child=(Read-ArtifactJson $marker).Data;$released=$child.exited -and $child.pipesClosed}}catch{$released=$false}};if($released){if($artifact){$artifact.operation=$null};if(Get-Variable stage -ErrorAction SilentlyContinue){$stage.operation=$null}};if((Get-Variable sourceStage -ErrorAction SilentlyContinue) -and $sourceStage){$sourceStage.adoptionPending=$false};$null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard}catch{if($script:FailureHook){& $script:FailureHook $_}}}
+    }finally{if($guard){$guard.Dispose()}}
     return [pscustomobject]$result
 }
-
-Export-ModuleMember -Function Invoke-EvidencePublish, Assert-EvidenceSelection
+function Invoke-EvidenceFetch([string]$ConfigPath,[string]$ReferenceText,[string]$ExpectedHash){
+    $r=[ordered]@{status='failed';reasonCode='unconfirmed';outputPath=$null;residue=@{localPath=$null}};$guard=$null;$a=$null;$task=$null;$timer=[Diagnostics.Stopwatch]::StartNew()
+    try{
+        Assert-Hex $ExpectedHash 64;$config=Read-EvidenceConfig $ConfigPath;$ref=Read-EvidenceReference $ReferenceText $config
+        $guard=Enter-WorkflowTaskGuard $config.Data.repositoryId $ref.taskId;$null=Assert-EvidenceTransitionSafe $config $ref.taskId $guard;$task=Sync-EvidenceTaskGuarded $config $ref.taskId $guard
+        $found=@($task.artifacts|Where-Object artifactId -CEQ $ref.artifactId);if($found.Count -ne 1){throw 'catalog-missing'};$a=$found[0]
+        if($a.state -ceq 'deleted'){throw 'expired'};if($a.state -cne 'ready' -or $a.packageSha256 -cne $ExpectedHash -or $a.key -cne $ref.key -or $a.base -cne $ref.base -or $a.head -cne $ref.head -or $a.manifestSha256 -cne $ref.manifestSha256 -or $a.packageBytes -ne $ref.packageBytes){throw 'identity-mismatch'}
+        $op=New-ArtifactOperation;$r.residue.localPath=$op;$a.operation=New-EvidenceOperation $op;$stage=[pscustomobject]@{path=$op;createdAt=(& $script:Clock).ToString('o');origin='storage-copy';artifactId=$a.artifactId;adopted=$false;adoptionPending=$false;operation=$a.operation;deleteIntent=$null;protections=@()};$task.staging+=$stage;$null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard
+        $gen=(Get-CredentialStatus 'osm').Generation;$archive=[IO.Path]::Combine($op,'download.zip');$download=Invoke-ArtifactNetwork $gen (New-ArtifactRequest $config 'get' $a.key $null $archive $timer)
+        if(-not (Test-ArtifactSuccess $download 'get' $gen) -or $download.Bytes -ne $ref.packageBytes -or $download.Sha256 -cne $ExpectedHash){throw 'download-unconfirmed'}
+        Import-ArtifactPackage;$package=[OneStarMaker.Artifacts.Packaging.PackageIO]::Extract($archive,$op,$ExpectedHash,$ref.manifestSha256,$ref.base,$ref.head,$ref.repositoryId,$ref.artifactId,(Get-Remaining $timer 600000),'evidence',$ref.taskId)
+        Add-EvidenceOwnedFile $a $archive $package.Bytes $package.Sha256;foreach($e in $package.Files){Add-EvidenceOwnedFile $a ([IO.Path]::Combine($package.Path,$e.Path)) $e.Bytes $e.Sha256}
+        Protect-ArtifactTree $op;$a.operation=$null;$stage.adopted=$true;$stage.operation=$null;$null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard;$r.outputPath=$package.Path;$r.status='passed';$r.reasonCode='complete'
+    }catch{if($script:FailureHook){& $script:FailureHook $_}if($_.Exception.Message -cin @('unsupported-schema','unknown-deployment','expired','identity-mismatch','catalog-missing')){$r.reasonCode=$_.Exception.Message}}
+    finally{if($a -and $task -and $guard){try{$a.operation=$null;if(Get-Variable stage -ErrorAction SilentlyContinue){$stage.operation=$null};$null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard}catch{if($script:FailureHook){& $script:FailureHook $_}$r.status='failed';$r.outputPath=$null}};if($guard){$guard.Dispose()}}
+    return [pscustomobject]$r
+}
+Export-ModuleMember -Function Invoke-EvidencePublish,Invoke-EvidenceFetch
+function Invoke-EvidenceInspect([string]$ConfigPath,[string]$TaskId){
+    $guard=$null
+    try{$config=Read-EvidenceConfig $ConfigPath;$guard=Enter-WorkflowTaskGuard $config.Data.repositoryId $TaskId;$task=Sync-EvidenceTaskGuarded $config $TaskId $guard
+        $items=@($task.artifacts|ForEach-Object{[pscustomobject]@{artifactId=$_.artifactId;state=$_.state;taskEndedAt=$_.taskEndedAt;deleteEligibleAt=$_.deleteEligibleAt;reference=if($_.state -ceq 'ready'){New-EvidenceReference $config $_}else{$null};packageSha256=if($_.state -ceq 'ready'){$_.packageSha256}else{$null};policy=Get-EvidenceRetentionDecision $task $_ (& $script:Clock)}})
+        return [pscustomobject]@{status='passed';reasonCode=if($task.status -ceq 'active'){'active/end-not-recorded'}else{$task.status};taskId=$TaskId;version=$task.appliedEventVersion;artifacts=$items}
+    }catch{if($script:FailureHook){& $script:FailureHook $_}return [pscustomobject]@{status='failed';reasonCode='unconfirmed'}}finally{if($guard){$guard.Dispose()}}
+}
+function Invoke-EvidenceUse([string]$ConfigPath,[string]$ReferenceText,[string]$Consumer,[string]$Until,[string]$Reason){
+    $guard=$null
+    try{
+        if($Consumer -cnotmatch '\A[A-Za-z0-9][A-Za-z0-9-]{0,63}\z' -or [string]::IsNullOrWhiteSpace($Reason) -or $Reason.Length -gt 512 -or $Reason -cmatch '[\x00-\x1f]'){throw 'invalid-use'}
+        $untilTime=Assert-Utc $Until;$now=& $script:Clock;if($untilTime -le $now){throw 'invalid-use'}
+        $config=Read-EvidenceConfig $ConfigPath;$ref=Read-EvidenceReference $ReferenceText $config;$guard=Enter-WorkflowTaskGuard $config.Data.repositoryId $ref.taskId
+        $null=Assert-EvidenceTransitionSafe $config $ref.taskId $guard;$task=Sync-EvidenceTaskGuarded $config $ref.taskId $guard
+        $found=@($task.artifacts|Where-Object artifactId -CEQ $ref.artifactId);if($found.Count -ne 1 -or $found[0].state -cne 'ready'){throw 'payload-deleted'}
+        $a=$found[0];if($a.key -cne $ref.key -or $a.base -cne $ref.base -or $a.head -cne $ref.head -or $a.manifestSha256 -cne $ref.manifestSha256 -or $a.packageBytes -ne $ref.packageBytes){throw 'identity-mismatch'}
+        $id=[Guid]::NewGuid().ToString('N');$a.protections+=[pscustomobject]@{id=$id;owner=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value;consumer=$Consumer;reason=$Reason;createdAt=$now.ToString('o');until=$Until;releasedAt=$null}
+        $null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard;return [pscustomobject]@{status='passed';reasonCode='in-use';protection=$id;until=$Until}
+    }catch{if($script:FailureHook){& $script:FailureHook $_}return [pscustomobject]@{status='failed';reasonCode=if($_.Exception.Message -cin @('payload-deleted','invalid-use','identity-mismatch')){$_.Exception.Message}else{'unconfirmed'}}}finally{if($guard){$guard.Dispose()}}
+}
+function Invoke-EvidenceRelease([string]$ConfigPath,[string]$ReferenceText,[string]$Protection){
+    $guard=$null
+    try{Assert-Hex $Protection 32;$config=Read-EvidenceConfig $ConfigPath;$ref=Read-EvidenceReference $ReferenceText $config;$guard=Enter-WorkflowTaskGuard $config.Data.repositoryId $ref.taskId;$task=Sync-EvidenceTaskGuarded $config $ref.taskId $guard
+        $found=@($task.artifacts|Where-Object artifactId -CEQ $ref.artifactId);if($found.Count -ne 1){throw 'unknown-protection'}
+        $a=$found[0];if($a.key -cne $ref.key -or $a.base -cne $ref.base -or $a.head -cne $ref.head -or $a.manifestSha256 -cne $ref.manifestSha256 -or $a.packageBytes -ne $ref.packageBytes){throw 'identity-mismatch'}
+        $p=@($a.protections|Where-Object id -CEQ $Protection);if($p.Count -ne 1){throw 'unknown-protection'};if(-not $p[0].releasedAt){$p[0].releasedAt=(& $script:Clock).ToString('o');$null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard}
+        return [pscustomobject]@{status='passed';reasonCode='released'}
+    }catch{if($script:FailureHook){& $script:FailureHook $_}return [pscustomobject]@{status='failed';reasonCode='unconfirmed'}}finally{if($guard){$guard.Dispose()}}
+}
+Export-ModuleMember -Function Invoke-EvidencePublish,Invoke-EvidenceFetch,Invoke-EvidenceInspect,Invoke-EvidenceUse,Invoke-EvidenceRelease

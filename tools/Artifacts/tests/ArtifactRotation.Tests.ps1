@@ -1,6 +1,20 @@
 param([string] $ResultPath = '')
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+# Sidecarは実際にこのprocessでロードしたassemblyだけを記録する。build出力の推測を代用しない。
+function Get-LoadedArtifactBinaries {
+    foreach($name in @('ArtifactPackaging','R2ArtifactTransport')) {
+        $assembly=[AppDomain]::CurrentDomain.GetAssemblies()|Where-Object {$_.GetName().Name -ceq $name}|Select-Object -First 1
+        if(-not $assembly){continue}
+        $dependencies=@($assembly.GetReferencedAssemblies()|ForEach-Object {
+            $reference=$_;$loaded=[AppDomain]::CurrentDomain.GetAssemblies()|Where-Object {$_.GetName().Name -ceq $reference.Name}|Select-Object -First 1
+            if(-not $loaded){[pscustomobject]@{name=$reference.Name;status='not-loaded';path=$null;sha256=$null}}
+            elseif(-not $loaded.Location){[pscustomobject]@{name=$reference.Name;status='in-memory';path=$null;sha256=$null}}
+            else{[pscustomobject]@{name=$reference.Name;status='loaded';path=$loaded.Location;sha256=(Get-FileHash -LiteralPath $loaded.Location -Algorithm SHA256).Hash.ToLowerInvariant()}}
+        })
+        [pscustomobject]@{path=$assembly.Location;sha256=(Get-FileHash -LiteralPath $assembly.Location -Algorithm SHA256).Hash.ToLowerInvariant();moduleVersionId=$assembly.ManifestModule.ModuleVersionId.ToString();dependencies=$dependencies}
+    }
+}
 $rotation = Import-Module (Join-Path $PSScriptRoot '../Credentials/CredentialRotation.psm1') -Force -PassThru
 $store = $rotation.NestedModules | Where-Object Name -eq 'CredentialStore' | Select-Object -Last 1
 $paths = $rotation.NestedModules | Where-Object Name -eq 'ArtifactPaths' | Select-Object -Last 1
@@ -266,7 +280,7 @@ try {
         } catch { $failed.Add($case+': '+$_.Exception.GetType().Name+': '+$_.Exception.Message) }
     }
     if($ResultPath) {
-        $result=[ordered]@{registered=$cases;selected=$cases;executed=@($executed);failed=@($failed)}
+        $result=[ordered]@{registered=$cases;selected=$cases;executed=@($executed);failed=@($failed);binaries=@(Get-LoadedArtifactBinaries)}
         [IO.File]::WriteAllText($ResultPath,(ConvertTo-Json -InputObject $result -Depth 6),[Text.UTF8Encoding]::new($false))
     }
     foreach($item in $executed){"PASS $item"};foreach($item in $failed){"FAIL $item"}

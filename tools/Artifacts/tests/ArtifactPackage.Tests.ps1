@@ -1,6 +1,20 @@
 param([string] $ResultPath = '')
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+# Sidecarは実際にこのprocessでロードしたassemblyだけを記録する。build出力の推測を代用しない。
+function Get-LoadedArtifactBinaries {
+    foreach($name in @('ArtifactPackaging','R2ArtifactTransport')) {
+        $assembly=[AppDomain]::CurrentDomain.GetAssemblies()|Where-Object {$_.GetName().Name -ceq $name}|Select-Object -First 1
+        if(-not $assembly){continue}
+        $dependencies=@($assembly.GetReferencedAssemblies()|ForEach-Object {
+            $reference=$_;$loaded=[AppDomain]::CurrentDomain.GetAssemblies()|Where-Object {$_.GetName().Name -ceq $reference.Name}|Select-Object -First 1
+            if(-not $loaded){[pscustomobject]@{name=$reference.Name;status='not-loaded';path=$null;sha256=$null}}
+            elseif(-not $loaded.Location){[pscustomobject]@{name=$reference.Name;status='in-memory';path=$null;sha256=$null}}
+            else{[pscustomobject]@{name=$reference.Name;status='loaded';path=$loaded.Location;sha256=(Get-FileHash -LiteralPath $loaded.Location -Algorithm SHA256).Hash.ToLowerInvariant()}}
+        })
+        [pscustomobject]@{path=$assembly.Location;sha256=(Get-FileHash -LiteralPath $assembly.Location -Algorithm SHA256).Hash.ToLowerInvariant();moduleVersionId=$assembly.ManifestModule.ModuleVersionId.ToString();dependencies=$dependencies}
+    }
+}
 $dll = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../Packaging/artifacts/package/ArtifactPackaging.dll'))
 if (-not [IO.File]::Exists($dll)) { throw 'Build ArtifactPackaging first.' }
 $beforeHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $dll).Hash.ToLowerInvariant()
@@ -134,7 +148,7 @@ try {
     if ($ResultPath) {
         $result = [ordered]@{ registered = $cases; selected = $cases; executed = @($executed); failed = @($failed)
             loadedPath = $dll; loadedHashBefore = $beforeHash; loadedHashAfter = $afterHash
-            moduleVersionId = $assembly.ManifestModule.ModuleVersionId.ToString() }
+            moduleVersionId = $assembly.ManifestModule.ModuleVersionId.ToString(); binaries=@(Get-LoadedArtifactBinaries) }
         [IO.File]::WriteAllText($ResultPath,(ConvertTo-Json -InputObject $result -Depth 6),[Text.UTF8Encoding]::new($false))
     }
     foreach ($item in $executed) { "PASS $item" }

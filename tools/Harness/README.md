@@ -51,7 +51,7 @@ pwsh tools/harness.ps1 current -Task h1-transport-identity
 
 新規taskの `init` は人間が承認したA3 snapshotとownerを受け取る。既存taskのCURRENTが欠落したら `init` で上書きせず `restore` を使う。registrationが欠落・破損した場合は`restore`も使えないため、statusの診断に従ってtaskディレクトリと原本を確認し、手動で復旧を判断する。存在するCURRENTが壊れている場合も上書きせず停止する。statusにはtask IDと健全性を表示する。保存先はLocalApplicationDataの `OneStarMaker/Harness/<repo-id>/tasks/<task-id>`。端末喪失へのbackupはH3で扱う。
 
-H1で承認済みなのは `h1-transport-identity` のA3 snapshotだけで、snapshot本文のSHA-256を実装内の承認値と照合する。別taskを始める場合はA3で仕様と承認値を追加する。CURRENTの未解決・blocker・次作業は `current -ExpectedRevision <n> -Unresolved ... -Blockers ... -NextAction ...` で更新し、仕様本文は更新できない。
+H1では `h1-transport-identity` と `artifact-evidence-lifecycle` のA3 snapshotをtask別に承認し、snapshot本文のSHA-256と構造値を実装内の承認値と照合する。別taskを始める場合はA3で仕様と承認値を追加する。CURRENTの未解決・blocker・次作業は `current -ExpectedRevision <n> -Unresolved ... -Blockers ... -NextAction ...` で更新し、仕様本文は更新できない。
 `current` は凍結仕様と採用runの固定レコードについて、保存先・hash・実行時刻・読み込んだバイナリのpath/hashを表示する。別Agentはrun IDだけを手掛かりに過去RESULTを探索せず、その固定レコードを照合できる。
 
 ```powershell
@@ -79,6 +79,17 @@ pwsh tools/harness.ps1 handoff -Task h1-transport-identity -To CBlind -RunId <id
 
 H1適用taskの契約検査は `pwsh tools/contract-audit.ps1 -HarnessTask <id>`。task指定なしの検査は未移行作業用で、新規証拠追加の検査をしない。Gitの途中commitに生成証拠を追加して後で削除しても、適用taskでは拒否する。
 
+## Evidence lifecycle のtask限定gate
+
+`pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle` を実装入口にする。A3本文hash・固定base・変更scope・discovery/judgmentのstep集合は `ApprovedSpecifications.psm1` に登録し、init/current/run/handoffで再照合する。tracked HANDOFFからGit外specへ投影した削除だけを許し、新しい仕様・RESULT・rawをGitへ追加しない。旧H1とH2の集合やclose時計は変えない。
+
+このtools専用taskの5 stepは `artifacts-evidence-local`、`workflow-local`、`harness-local`、`contract-audit`、`docs-audit`。Artifacts stepはProbe/Packaging/Transportの3 Release build、全PowerShell parse、Credentials/RouteProof/R2RouteTransport/ArtifactPackage/ArtifactTransfer/ArtifactRotation/ArtifactEvidence/EvidenceRetention/EvidenceCleanup/EvidenceSchedule/EvidenceResetの11 suiteを収録する。Workflowは全parseとTaskLifecycle suite、Harnessは全parseとHarness suite。suiteごとにregistered/selected/executedが同一の非空集合、failed 0であることを確認し、生sidecar/logと実ロードDLL/depsのpath/hashを固定する。通常auditは適用taskの証拠にならず、contractは `-HarnessTask artifact-evidence-lifecycle` を使う。
+
+同じ5 stepでもdiscoveryはB exit、judgmentはCの最終head実行として区別し、discovery runをjudgmentへ流用しない。Harnessの成功はoffline gateの成功であり、R2/scheduler/resetの実観測とM1〜M5の成立判断はCが担当する。
+
+このtaskのrunだけ、`-ObservationManifest <path> -ObservationSha256 <trusted64>` で所見を含まない非秘密原観測を接続できる。manifestはschemaVersion 1、HarnessのrepositoryId、taskId、固定base/head、files配列を持ち、各fileはmanifest親からの相対path、role、bytes、sha256を持つ。別のStorage repositoryIdは各原観測内に記録する。作成者は内容の非秘密性と所見の分離を確認する。所見/判断role、未知field、path逸脱/reparse/case衝突、hash/版不一致を拒否する。manifestは1 MiB、fileは4096件、単一256 MiB、総1 GiBまで。
+
+原bytesをrunのprivate `payload/<run>/observations/` に追加専用でコピーし、manifest path/hashをrun/ImplementationResultへ固定する。引渡し時は全fileを再検査し、CURRENTは採用runのmanifest参照を表示する。CBlindはCJudgmentと同じ入力ID/hashと同じmanifest参照を使い、Cの所見を追加しない。同一hostの別worktree/sessionまでを扱う。
 ## H2c Unity pilot
 
 旧 `h2c-unity-gate` と再開task `h2c-unity-gate-r2` の二つの明示entryを承認している。現在の実装入口はr2で、旧taskのCURRENT・specification・run・承認値を保持し、旧入口は読取のみとする。A3本文のSHA-256、完全base、`unity-pilot-gates-v1`、`external-current-v1`、固定profileと変更pathはtask別に `ApprovedSpecifications.psm1` にあり、init/current/run/handoffで再照合する。Git外の登録JSONを承認元にしない。H1の登録・run・非観測step v1はそのまま扱う。

@@ -1,8 +1,15 @@
-param([Parameter(Mandatory = $true)][string] $RequestPath)
+param([Parameter(Mandatory = $true)][string] $RequestPath,[string]$Runtime,[string]$ManifestSha256)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 try {
+    # Internal child startup receives only the already validated runtime identity.
+    # Resolve the same fixed stores before importing any credential/store adapter.
+    if($Runtime -or $ManifestSha256){
+        if(-not $Runtime -or -not $ManifestSha256){throw 'Readback context unavailable.'}
+        Import-Module (Join-Path $PSScriptRoot '../EvidenceSchedule.psm1') -WarningAction SilentlyContinue
+        $null=Initialize-EvidenceRuntimeContext $Runtime $ManifestSha256
+    }
     Import-Module (Join-Path $PSScriptRoot '../ArtifactCommands.psm1') -Force
     Import-Module (Join-Path $PSScriptRoot '../ArtifactPaths.psm1') -Force
     Import-Module (Join-Path $PSScriptRoot '../Credentials/CredentialStore.psm1') -Force
@@ -14,7 +21,7 @@ try {
     if ($data.schemaVersion -isnot [long] -or $data.schemaVersion -ne 1 -or
         $data.operationRoot -isnot [string] -or $data.endpoint -isnot [string] -or
         $data.endpoint -cnotmatch '\Ahttps://[0-9a-f]{32}\.r2\.cloudflarestorage\.com\z' -or
-        $data.key -isnot [string] -or $data.key -cnotmatch '\A(?:probe/locked|evidence/first-use)/[0-9a-f]{64}/[0-9a-f]{40}/[0-9a-f]{32}/(?:bundle\.zip|protection-witness\.txt)\z' -or
+        $data.key -isnot [string] -or $data.key -cnotmatch '\A(?:(?:probe/locked|evidence/first-use)/[0-9a-f]{64}/[0-9a-f]{40}/[0-9a-f]{32}/(?:bundle\.zip|protection-witness\.txt)|development/evidence/v2/[0-9a-f]{64}/[a-z0-9][a-z0-9-]{0,63}/[0-9a-f]{32}/bundle\.zip)\z' -or
         $data.generation -isnot [string] -or $data.expectedSha256 -isnot [string] -or
         $data.expectedBytes -isnot [int] -and $data.expectedBytes -isnot [long] -or
         $data.expectedBytes -lt 1 -or $data.expectedBytes -gt 256MB -or

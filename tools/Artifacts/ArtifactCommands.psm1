@@ -101,51 +101,5 @@ function Read-ArtifactConfig([string] $Path) {
     return @{ Data = $data; Hash = $item.Sha256; ProfileId = $profileId }
 }
 
-function Read-ArtifactReference([string] $Text, $Config) {
-    if (-not $Text.StartsWith('osm-artifact-v1:', [StringComparison]::Ordinal) -or $Text.Length -gt 4096) {
-        throw 'Artifact reference unavailable.'
-    }
-    try {
-        $encoded = $Text.Substring(16)
-        if ($encoded -cnotmatch '\A[A-Za-z0-9_-]+\z') { throw 'Artifact reference unavailable.' }
-        $base64 = $encoded.Replace('-', '+').Replace('_', '/')
-        $base64 = $base64.PadRight($base64.Length + ((4 - $base64.Length % 4) % 4), '=')
-        $decoded = [Convert]::FromBase64String($base64)
-        if ([Convert]::ToBase64String($decoded).TrimEnd('=').Replace('+','-').Replace('/','_') -cne $encoded) {
-            throw 'Artifact reference unavailable.'
-        }
-        $raw = [Text.UTF8Encoding]::new($false, $true).GetString($decoded)
-        $document = [Text.Json.JsonDocument]::Parse($raw)
-        try { Assert-JsonDuplicates $document.RootElement } finally { $document.Dispose() }
-        $value = $raw | ConvertFrom-Json -Depth 8 -DateKind String
-        Assert-Fields $value @('schemaVersion','profileId','repositoryId','key','base','head','runId','packageBytes','manifestSha256','retainUntil')
-        if ($value.schemaVersion -isnot [long] -or $value.schemaVersion -ne 1 -or
-            $value.profileId -isnot [string] -or $value.profileId -cne $Config.ProfileId -or
-            $value.repositoryId -isnot [string] -or $value.repositoryId -cne $Config.Data.repositoryId -or
-            $value.key -isnot [string] -or $value.base -isnot [string] -or $value.head -isnot [string] -or
-            $value.runId -isnot [string] -or $value.manifestSha256 -isnot [string] -or
-            $value.retainUntil -isnot [string] -or
-            ($value.packageBytes -isnot [int] -and $value.packageBytes -isnot [long])) { throw 'Artifact reference unavailable.' }
-        Assert-Hex $value.base 40; Assert-Hex $value.head 40; Assert-Hex $value.runId 32
-        Assert-Hex $value.manifestSha256 64
-        if ($value.key -cne "$($Config.Data.prefix)$($value.repositoryId)/$($value.head)/$($value.runId)/bundle.zip" -or
-            $value.packageBytes -lt 1 -or $value.packageBytes -gt 256MB) { throw 'Artifact reference unavailable.' }
-        $null = Assert-Utc $value.retainUntil
-        return $value
-    } catch { throw 'Artifact reference unavailable.' }
-}
-
-function New-ArtifactReference($Config, [string] $Key, [string] $Base, [string] $Head,
-    [string] $RunId, [long] $Bytes, [string] $ManifestHash, [string] $RetainUntil) {
-    $value = [ordered]@{
-        schemaVersion = 1; profileId = $Config.ProfileId; repositoryId = $Config.Data.repositoryId
-        key = $Key; base = $Base; head = $Head; runId = $RunId
-        packageBytes = $Bytes; manifestSha256 = $ManifestHash; retainUntil = $RetainUntil
-    }
-    $json = ConvertTo-Json -InputObject $value -Compress -Depth 4
-    $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($json)).TrimEnd('=').Replace('+','-').Replace('/','_')
-    return 'osm-artifact-v1:' + $encoded
-}
-
 Export-ModuleMember -Function Read-ArtifactJson, Assert-JsonDuplicates, Assert-Fields, Assert-Hex, Assert-Utc,
-    Read-ArtifactConfig, Read-ArtifactReference, New-ArtifactReference
+    Read-ArtifactConfig

@@ -1,95 +1,79 @@
-param([string] $ResultPath = '')
+param([string] $ResultPath = '',[string] $Case='*')
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$app = Import-Module (Join-Path $PSScriptRoot '../ArtifactApplication.psm1') -Force -PassThru
-$store = $app.NestedModules | Where-Object Name -eq 'CredentialStore' | Select-Object -First 1
-$paths = $app.NestedModules | Where-Object Name -eq 'ArtifactPaths' | Select-Object -First 1
-$root = [IO.Path]::Combine([IO.Path]::GetTempPath(), 'osm-transfer-test-' + [Guid]::NewGuid().ToString('N'))
-$credentialRoot = [IO.Path]::Combine($root,'credentials')
-$transferRoot = [IO.Path]::Combine($root,'transfers')
-$cases = @('transport-config','credential-callback-dto','publish-fetch-roundtrip','wrong-outer-hash','lock-witness-refusal','readback-closed-mismatch','readback-child-protocol','observation-persistence-fail-closed','readback-stop-budget','strict-config-and-reference')
-$executed = [Collections.Generic.List[string]]::new(); $failed = [Collections.Generic.List[string]]::new()
-$script:objects = @{}; $script:lockedWrites = 0
-$script:transportIdentity = $null; $script:blockObservationPersist = $false; $script:badReadback = $false
-function Assert([bool] $Condition, [string] $Message) { if (-not $Condition) { throw $Message } }
-function Write-Json([string] $Path, $Value) { [IO.File]::WriteAllText($Path,(ConvertTo-Json -InputObject $Value -Compress -Depth 8),[Text.UTF8Encoding]::new($false)) }
-function New-Observation([string] $Operation,[string] $Generation,[int] $Status,[string] $Class,[string] $Code,
-    [long] $Bytes = 0,[string] $Hash = '') {
-    return [pscustomobject]@{ Operation=$Operation; Generation=$Generation; HttpStatus=$Status; StatusClass=$Class
-        S3Code=if($Code){$Code}else{$null}; Bytes=if($Operation -eq 'get'){$Bytes}else{$null}
-        Sha256=if($Operation -eq 'get'){$Hash}else{$null}; StatusObserved=$true; TimedOut=$false; Redirected=$false }
-}
-function New-Fixture([string] $Name) {
-    $work=[IO.Path]::Combine($root,$Name)
-    [IO.Directory]::CreateDirectory($work) | Out-Null
-    $source=[IO.Path]::Combine($work,'source'); [IO.Directory]::CreateDirectory($source) | Out-Null
-    [IO.File]::WriteAllText([IO.Path]::Combine($source,'data.txt'),'synthetic-transfer-'+$Name)
-    $input=[IO.Path]::Combine($work,'input.json')
-    Write-Json $input ([ordered]@{schemaVersion=1;purpose='synthetic';root=$source;files=@('data.txt')})
-    $settings=[IO.Path]::Combine($work,'settings.json')
-    $observed=[DateTimeOffset]::UtcNow.AddMinutes(-1).ToString('o')
-    $endpoint='https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com'
-    Write-Json $settings ([ordered]@{schemaVersion=1;endpoint=$endpoint;bucket='osm-artifacts';prefix='probe/locked/'
-        retentionSeconds=86400;publicDevelopmentUrlEnabled=$false;customDomainCount=0;writerCanConfigure=$false
-        bucketScopedWriter=$true;lockEnabled=$true;ageRuleCount=1;dateRuleCount=0;indefiniteRuleCount=0
-        lifecycleCompatible=$true;observedAt=$observed;observer='offline-test'})
-    $settingsHash=(Get-FileHash -Algorithm SHA256 -LiteralPath $settings).Hash.ToLowerInvariant()
-    $config=[IO.Path]::Combine($work,'config.json')
-    Write-Json $config ([ordered]@{schemaVersion=1;profile='osm';endpoint=$endpoint;bucket='osm-artifacts'
-        repositoryId=('c'*64);prefix='probe/locked/';retentionSeconds=86400;observedAt=$observed
-        validUntil=[DateTimeOffset]::UtcNow.AddHours(1).ToString('o');settingsEvidencePath=$settings
-        settingsEvidenceSha256=$settingsHash})
-    return @{Input=$input;Config=$config;Settings=$settings;Work=$work}
-}
-$transport = {
-    param($generation,$request)
-    $key=$request.Key
-    if($request.Operation -eq 'put') {
-        if($script:blockObservationPersist -and $key.StartsWith('probe/locked/')) {
-            [IO.Directory]::CreateDirectory([IO.Path]::Combine([IO.Path]::GetDirectoryName($request.SourcePath),'operation-observations.json')) | Out-Null
-        }
-        if($key.StartsWith('probe/locked/')) {
-            $script:lockedWrites++
-            if($script:lockedWrites -gt 1) { return New-Observation 'put' $generation 403 'forbidden' 'ObjectLockedByBucketPolicy' }
-        }
-        $script:objects[$key]=[IO.File]::ReadAllBytes($request.SourcePath)
-        return New-Observation 'put' $generation 200 'success' ''
+# Sidecarは実際にこのprocessでロードしたassemblyだけを記録する。build出力の推測を代用しない。
+function Get-LoadedArtifactBinaries {
+    foreach($name in @('ArtifactPackaging','R2ArtifactTransport')) {
+        $assembly=[AppDomain]::CurrentDomain.GetAssemblies()|Where-Object {$_.GetName().Name -ceq $name}|Select-Object -First 1
+        if(-not $assembly){continue}
+        $dependencies=@($assembly.GetReferencedAssemblies()|ForEach-Object {
+            $reference=$_;$loaded=[AppDomain]::CurrentDomain.GetAssemblies()|Where-Object {$_.GetName().Name -ceq $reference.Name}|Select-Object -First 1
+            if(-not $loaded){[pscustomobject]@{name=$reference.Name;status='not-loaded';path=$null;sha256=$null}}
+            elseif(-not $loaded.Location){[pscustomobject]@{name=$reference.Name;status='in-memory';path=$null;sha256=$null}}
+            else{[pscustomobject]@{name=$reference.Name;status='loaded';path=$loaded.Location;sha256=(Get-FileHash -LiteralPath $loaded.Location -Algorithm SHA256).Hash.ToLowerInvariant()}}
+        })
+        [pscustomobject]@{path=$assembly.Location;sha256=(Get-FileHash -LiteralPath $assembly.Location -Algorithm SHA256).Hash.ToLowerInvariant();moduleVersionId=$assembly.ManifestModule.ModuleVersionId.ToString();dependencies=$dependencies}
     }
-    if($request.Operation -eq 'delete') {
-        if($key.StartsWith('probe/locked/')) { return New-Observation 'delete' $generation 409 'other' 'ObjectLockedByBucketPolicy' }
-        $script:objects.Remove($key)
-        return New-Observation 'delete' $generation 204 'success' ''
-    }
-    if(-not $script:objects.ContainsKey($key)) { return New-Observation 'get' $generation 404 'not-found' 'NoSuchKey' }
-    $bytes=$script:objects[$key]
-    if($request.DestinationPath) { [IO.File]::WriteAllBytes($request.DestinationPath,$bytes) }
-    $hash=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
-    return New-Observation 'get' $generation 200 'success' '' $bytes.Length $hash
 }
-$readback = {
-    param($operationRoot,$config,$generation,$key,$bytes,$hash)
-    if(-not $script:objects.ContainsKey($key)) { throw 'missing readback' }
-    $data=$script:objects[$key]
-    $actual=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($data)).ToLowerInvariant()
-    if($script:badReadback) { return [pscustomobject]@{operation='readback';generation=$generation;key=$key;bytes=[long]$data.Length
-        sha256=('0'*64);httpStatus=200;statusClass='success';s3Code=$null;statusObserved=$true;timedOut=$false;redirected=$false
-        childExit=1;childStatus='failed';observedAt=[DateTimeOffset]::UtcNow.ToString('o')} }
-    if($data.Length -ne $bytes -or $actual -cne $hash) { throw 'readback mismatch' }
-    return [pscustomobject]@{operation='readback';generation=$generation;key=$key;bytes=[long]$data.Length
-        sha256=$actual;httpStatus=200;statusClass='success';s3Code=$null;statusObserved=$true;timedOut=$false;redirected=$false
-        childExit=0;childStatus='passed';observedAt=[DateTimeOffset]::UtcNow.ToString('o')}
+. (Join-Path $PSScriptRoot 'EvidenceTestSupport.ps1')
+. (Join-Path $PSScriptRoot 'EvidenceReaderFixture.ps1')
+$cases=@('transport-config','credential-callback-dto','publish-fetch-roundtrip','wrong-outer-hash','network-write-refusal','readback-closed-mismatch','readback-child-protocol','observation-persistence-fail-closed','readback-stop-budget','strict-config-and-reference','source-traversal-network-zero','legacy-config-reference-commit-network-zero','download-bytes-mismatch','readback-prelaunch-deadline','readback-start-false','readback-start-throw','readback-started-before-pid','readback-late-output-owned-cleanup','operation-logical-native-parent','operation-logical-unsafe-acl')
+$selected=@(if($Case -ceq '*'){$cases}else{$Case.Split(',')})
+$executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new();$script:transportIdentity=$null
+function Assert([bool]$Condition,[string]$Message){Assert-EvidenceTest $Condition $Message}
+function New-Observation([string]$Operation,[string]$Generation,[int]$Status,[string]$Class,[string]$Code,[long]$Bytes=0,[string]$Hash=''){
+    [pscustomobject]@{Operation=$Operation;Generation=$Generation;HttpStatus=$Status;StatusClass=$Class;S3Code=if($Code){$Code}else{$null};Bytes=if($Operation -eq 'get'){$Bytes}else{$null};Sha256=if($Operation -eq 'get'){$Hash}else{$null};StatusObserved=$true;TimedOut=$false;Redirected=$false}
 }
-try {
-    & $store {param($p) $script:TestRoot=$p; $script:TestBase=$null} $credentialRoot
-    & $paths {param($p) $script:TestRoot=$p} $transferRoot
-    & $app {param($t,$r) $script:TransportHook=$t; $script:ReadbackHook=$r} $transport $readback
-    $null = & $store { Write-CredentialRecord 'osm' 'DUMMY_TRANSFER_ID' 'DUMMY_TRANSFER_SECRET' $false }
-    foreach($case in $cases) {
-        $script:objects=@{}; $script:lockedWrites=0; $script:blockObservationPersist=$false; $script:badReadback=$false
-        try {
-            $fixture=New-Fixture $case
-            if($case -eq 'publish-fetch-roundtrip') { $null = & $app {param($p) Read-ArtifactConfig $p} $fixture.Config }
-            switch($case) {
+function Assert-FailedPublish($Value){Assert ($Value.status -ceq 'failed' -and $null -eq $Value.reference -and $null -eq $Value.receipt -and $null -eq $Value.packageSha256) 'failed publish returned a ready identity'}
+function Get-NetworkCount($Environment){[int](@($Environment.Counts.Values)|Measure-Object -Sum).Sum}
+foreach($case in $selected){
+    $env=$null
+    try{
+        Assert ($case -cin $cases) 'unknown case'
+        $env=New-EvidenceTestEnvironment
+        $reader=New-EvidenceReaderFixture $env.Root
+        $input=[IO.Path]::Combine($env.Root,'selection.json');Write-EvidenceTestJson $input $reader.Selection
+        $fixture=@{Work=$env.Root;Config=$env.ConfigPath;Input=$input}
+        $app=Get-EvidenceTestModules 'ArtifactApplication'|Select-Object -First 1
+        $store=Get-EvidenceTestModules 'CredentialStore'|Select-Object -First 1
+        switch($case){
+            {$_ -cin @('operation-logical-native-parent','operation-logical-unsafe-acl')} {
+                # Inject native metadata only: the logical transfer alias and
+                # native shared parent deliberately have different parents.
+                $logical=[IO.Path]::Combine($env.Root,'logical','transfers');$shared=[IO.Path]::GetDirectoryName($logical)
+                $physical=[IO.Path]::Combine($env.Root,'native-package','transfers');$physicalParent=[IO.Path]::GetDirectoryName($physical)
+                $normalShared=[IO.Path]::Combine($env.Root,'native-normal')
+                foreach($directory in @($logical,$physical,$normalShared)){[IO.Directory]::CreateDirectory($directory)|Out-Null}
+                Set-ArtifactAcl $logical $true;Set-ArtifactAcl $physical $true
+                $outside=[IO.Path]::Combine($normalShared,'outside-marker');[IO.File]::WriteAllText($outside,'keep')
+                $sharedAcl=[IO.FileSystemAclExtensions]::GetAccessControl([IO.DirectoryInfo]::new($shared)).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::All)
+                $normalAcl=[IO.FileSystemAclExtensions]::GetAccessControl([IO.DirectoryInfo]::new($normalShared)).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::All)
+                $physicalIdentity=[OneStarMaker.Workflow.NativeStorePath]::Read($physical)
+                $sharedIdentity=[OneStarMaker.Workflow.NativeStorePath]::Read($normalShared)
+                Assert ([IO.Path]::GetRelativePath($sharedIdentity.physicalPath,$physicalIdentity.physicalPath).StartsWith('..\')) 'fixture did not separate native parents'
+                if($case -ceq 'operation-logical-unsafe-acl'){
+                    $acl=[IO.FileSystemAclExtensions]::GetAccessControl([IO.DirectoryInfo]::new($logical));$acl.SetAccessRuleProtection($false,$true);[IO.FileSystemAclExtensions]::SetAccessControl([IO.DirectoryInfo]::new($logical),$acl)
+                }
+                $before=@([IO.Directory]::EnumerateFileSystemEntries($env.Root,'*',[IO.SearchOption]::AllDirectories))
+                $requests=[Collections.Generic.List[string]]::new()
+                $metadata={param($path)$requests.Add($path);if($path -ieq $logical){return $physicalIdentity};if($path -ieq $physicalParent){return $sharedIdentity};return [OneStarMaker.Workflow.NativeStorePath]::Read($path)}.GetNewClosure()
+                Set-EvidenceTestValue ArtifactPaths TestRoot $logical;Set-EvidenceTestValue WindowsStorePaths IdentityHook $metadata
+                $operation=$null;$rejected=$false
+                try{$operation=& $app {New-ArtifactOperation}}catch{$rejected=$true}
+                if($case -ceq 'operation-logical-native-parent'){
+                    Assert (-not $rejected -and $operation.StartsWith($physicalIdentity.physicalPath+'\',[StringComparison]::OrdinalIgnoreCase)) 'logical walk did not create a physical operation'
+                    Assert-ArtifactAcl $operation $true;Assert-ArtifactAcl ([IO.Path]::Combine($operation,'operation.lock')) $false
+                }else{
+                    Assert ($rejected -and -not [IO.Directory]::EnumerateFileSystemEntries($physical).GetEnumerator().MoveNext()) 'unsafe logical root was accepted'
+                    Assert (-not [IO.FileSystemAclExtensions]::GetAccessControl([IO.DirectoryInfo]::new($logical)).AreAccessRulesProtected) 'unsafe logical ACL repaired'
+                }
+                $added=@([IO.Directory]::EnumerateFileSystemEntries($env.Root,'*',[IO.SearchOption]::AllDirectories)|Where-Object {$_ -cnotin $before})
+                foreach($entry in $added){Assert ($entry.StartsWith($physicalIdentity.physicalPath+'\',[StringComparison]::OrdinalIgnoreCase)) 'initialization wrote outside physical operation root'}
+                Assert (-not $requests.Contains($physicalParent) -and -not @($requests|Where-Object {$_ -match '(^|[\\/])\.\.([\\/]|$)'}).Count) 'initialization mixed native parents or traversed dotdot'
+                Assert ([IO.File]::ReadAllText($outside) -ceq 'keep' -and (Get-NetworkCount $env) -eq 0) 'operation initialization touched outside/network'
+                Assert ([IO.FileSystemAclExtensions]::GetAccessControl([IO.DirectoryInfo]::new($shared)).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::All) -ceq $sharedAcl -and [IO.FileSystemAclExtensions]::GetAccessControl([IO.DirectoryInfo]::new($normalShared)).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::All) -ceq $normalAcl) 'existing shared parent ACL changed'
+                if($ResultPath){Write-EvidenceTestJson ($ResultPath+'.'+$case+'.json') ([ordered]@{metadataRequests=@($requests);createdPaths=$added;rejected=$rejected;operationPath=$operation;networkCount=Get-NetworkCount $env})}
+            }
                 'transport-config' {
                     $dll=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../Transport/artifacts/transport/R2ArtifactTransport.dll'))
                     Assert ([IO.File]::Exists($dll)) 'dedicated R2 transport DLL missing'
@@ -123,70 +107,39 @@ try {
                     catch { $rejected=$true }
                     Assert $rejected 'SDK response field accepted'
                 }
-                'publish-fetch-roundtrip' {
-                    $published=Invoke-ArtifactPublish $fixture.Config $fixture.Input ('a'*40) ('b'*40)
-                    Assert ($published.status -ceq 'passed' -and $published.ledger -ne $null) ("publish failed: " + (ConvertTo-Json -InputObject $published -Compress -Depth 8))
-                    $receipt=Get-Content -Raw -LiteralPath $published.ledger.protectionReceiptPath | ConvertFrom-Json
-                    Assert ($receipt.observations.Count -eq 9) 'receipt lacks both child readbacks and control observations'
-                    Assert ($receipt.putStartedAt -and $receipt.packageSha256 -ceq $published.ledger.packageSha256) 'receipt identity'
-                    $fetched=Invoke-ArtifactFetch $fixture.Config $published.ledger.reference $published.ledger.packageSha256
-                    Assert ($fetched.status -ceq 'passed') 'fetch failed'
-                    Assert ([IO.File]::ReadAllText([IO.Path]::Combine($fetched.outputPath,'data.txt')) -ceq 'synthetic-transfer-'+$case) 'fetched bytes'
-                }
-                'wrong-outer-hash' {
-                    $published=Invoke-ArtifactPublish $fixture.Config $fixture.Input ('a'*40) ('b'*40)
-                    Assert ($published.status -ceq 'passed') ("publish fixture failed: " + (ConvertTo-Json -InputObject $published -Compress -Depth 8))
-                    $fetched=Invoke-ArtifactFetch $fixture.Config $published.ledger.reference ('0'*64)
-                    Assert ($fetched.status -ceq 'failed' -and $null -eq $fetched.outputPath) 'wrong hash became ready'
-                }
-                'lock-witness-refusal' {
-                    $script:lockedWrites=1
-                    $published=Invoke-ArtifactPublish $fixture.Config $fixture.Input ('a'*40) ('b'*40)
-                    Assert ($published.status -ceq 'failed' -and $null -eq $published.ledger) 'lock witness failed open'
-                    $raw=Get-Content -Raw -LiteralPath ([IO.Path]::Combine($published.residue.localPath,'operation-observations.json')) | ConvertFrom-Json
-                    Assert ($raw.observations.Count -eq 1 -and $raw.observations[0].httpStatus -eq 403 -and
-                        $raw.observations[0].s3Code -ceq 'ObjectLockedByBucketPolicy') 'failed publish lost HTTP/code raw'
-                }
-                'readback-closed-mismatch' {
-                    $script:badReadback=$true
-                    $published=Invoke-ArtifactPublish $fixture.Config $fixture.Input ('a'*40) ('b'*40)
-                    Assert ($published.status -ceq 'failed' -and $null -eq $published.ledger) 'mismatched child readback passed'
-                    $raw=Get-Content -Raw -LiteralPath ([IO.Path]::Combine($published.residue.localPath,'operation-observations.json')) | ConvertFrom-Json
-                    Assert ($raw.observations.Count -eq 2 -and $raw.observations[1].sha256 -ceq ('0'*64) -and
-                        $raw.observations[1].httpStatus -eq 200 -and $raw.observations[1].statusClass -ceq 'success' -and
-                        $raw.observations[1].childExit -eq 1 -and $raw.observations[1].childStatus -ceq 'failed') 'closed failed child facts lost'
-                }
-                'readback-child-protocol' {
-                    $child=[IO.Path]::Combine($fixture.Work,'synthetic-child.ps1')
-                    $source=@'
-param([string] $RequestPath)
-$data=Get-Content -Raw -LiteralPath $RequestPath | ConvertFrom-Json
-$value=[ordered]@{schemaVersion=1;operation='get';generation=$data.generation;key=$data.key
-    bytes=[long]12;sha256=('0'*64);httpStatus=403;statusClass='forbidden';s3Code='AccessDenied'
-    statusObserved=$true;timedOut=$false;redirected=$false;status='failed'}
-[Console]::WriteLine((ConvertTo-Json -InputObject $value -Compress))
-exit 1
-'@
-                    [IO.File]::WriteAllText($child,$source,[Text.UTF8Encoding]::new($false))
-                    $defaultChild=& $app { $script:ReadbackChildPath }
-                    $operationRoot=& $app { New-ArtifactOperation }
-                    try {
-                        & $app {param($path) $script:ReadbackHook=$null; $script:ReadbackChildPath=$path} $child
-                        $config=& $app {param($path) Read-ArtifactConfig $path} $fixture.Config
-                        $timer=[Diagnostics.Stopwatch]::StartNew()
-                        $key='probe/locked/'+('c'*64)+'/'+('b'*40)+'/'+('d'*32)+'/bundle.zip'
-                        $actual=& $app {param($root,$cfg,$gen,$name,$watch) Invoke-ArtifactReadback $root $cfg $gen $name 12 ('a'*64) $watch} $operationRoot $config ('e'*32) $key $timer
-                        Assert ($actual.childExit -eq 1 -and $actual.childStatus -ceq 'failed' -and
-                            $actual.httpStatus -eq 403 -and $actual.s3Code -ceq 'AccessDenied' -and
-                            $actual.bytes -eq 12 -and $actual.sha256 -ceq ('0'*64)) 'closed child status tuple lost'
-                    } finally { & $app {param($hook,$path) $script:ReadbackHook=$hook; $script:ReadbackChildPath=$path} $readback $defaultChild }
-                }
-                'observation-persistence-fail-closed' {
-                    $script:blockObservationPersist=$true
-                    $published=Invoke-ArtifactPublish $fixture.Config $fixture.Input ('a'*40) ('b'*40)
-                    Assert ($published.status -ceq 'failed' -and $published.reasonCode -ceq 'result-persistence-unconfirmed' -and
-                        $null -eq $published.ledger) 'raw persistence failure passed'
-                }
+            'publish-fetch-roundtrip' {
+                $p=Invoke-EvidencePublish $fixture.Config $fixture.Input
+                Assert ($p.status -ceq 'passed' -and $p.reference -and $p.receipt) ('v2 publish failed: '+(ConvertTo-Json $p -Compress -Depth 8))
+                $receipt=Get-Content -LiteralPath $p.receipt.path -Raw|ConvertFrom-Json
+                Assert ($receipt.schemaVersion -eq 2 -and $receipt.taskId -ceq 'fixture' -and $receipt.packageSha256 -ceq $p.packageSha256 -and $receipt.readback.childStatus -ceq 'passed') 'v2 receipt identity/readback missing'
+                Assert ($receipt.entries.Count -eq 13 -and $env.Objects.Count -eq 1 -and (Get-NetworkCount $env) -eq 1) 'publish did not use one immutable PUT'
+                $f=Invoke-EvidenceFetch $fixture.Config $p.reference $p.packageSha256
+                Assert ($f.status -ceq 'passed') 'v2 fetch failed'
+                foreach($name in $reader.Files){Assert ((Get-FileHash -LiteralPath ([IO.Path]::Combine($reader.Source,$name))).Hash -ceq (Get-FileHash -LiteralPath ([IO.Path]::Combine($f.outputPath,$name))).Hash) ('fetched file mismatch: '+$name)}
+            }
+            'wrong-outer-hash' {
+                $p=Invoke-EvidencePublish $fixture.Config $fixture.Input;Assert ($p.status -ceq 'passed') 'publish fixture failed';$before=Get-NetworkCount $env
+                $f=Invoke-EvidenceFetch $fixture.Config $p.reference ('0'*64)
+                Assert ($f.status -ceq 'failed' -and $null -eq $f.outputPath -and (Get-NetworkCount $env) -eq $before) 'wrong caller hash reached network or ready'
+            }
+            'network-write-refusal' {
+                Set-EvidenceTestValue 'ArtifactApplication' 'TransportHook' {param($g,$r) New-Observation 'put' $g 403 'forbidden' 'ObjectLockedByBucketPolicy'}
+                $p=Invoke-EvidencePublish $fixture.Config $fixture.Input;Assert-FailedPublish $p
+                Assert ($p.residue.remote -ceq 'may-have-been-sent') 'failed PUT lost its uncertainty'
+                $inspection=Invoke-EvidenceInspect $fixture.Config 'fixture';Assert (@($inspection.artifacts|Where-Object state -CEQ 'ready').Count -eq 0) 'refused PUT was catalog ready'
+            }
+            'readback-closed-mismatch' {
+                Set-EvidenceTestValue 'ArtifactApplication' 'ReadbackHook' {param($op,$c,$g,$k,$b,$h)[pscustomobject]@{operation='readback';generation=$g;key=$k;bytes=$b;sha256='0'*64;childExit=1;childStatus='failed';observedAt=[DateTimeOffset]::UtcNow.ToString('o')}}
+                $p=Invoke-EvidencePublish $fixture.Config $fixture.Input;Assert-FailedPublish $p
+                $inspection=Invoke-EvidenceInspect $fixture.Config 'fixture';Assert (@($inspection.artifacts|Where-Object state -CEQ 'ready').Count -eq 0) 'mismatched child readback made ready'
+            }
+            'observation-persistence-fail-closed' {
+                $script:receiptRefused=$false
+                Set-EvidenceTestValue 'EvidencePaths' 'WriteHook' {param($stage,$path)if($stage -ceq 'before-rename' -and $path -match '[\\/]receipts[\\/]'){$script:receiptRefused=$true;throw 'receipt persistence fixture refusal'}}
+                $p=Invoke-EvidencePublish $fixture.Config $fixture.Input;Assert-FailedPublish $p
+                Assert ($script:receiptRefused -and $env.Objects.Count -eq 1) 'receipt persistence fault was not reached after PUT/readback'
+                $inspection=Invoke-EvidenceInspect $fixture.Config 'fixture';Assert (@($inspection.artifacts|Where-Object state -CEQ 'ready').Count -eq 0) 'unpersisted receipt made ready'
+            }
                 'readback-stop-budget' {
                     $script:clockValues=[Collections.Generic.Queue[long]]::new()
                     $script:clockValues.Enqueue(0L); $script:clockValues.Enqueue(0L)
@@ -217,28 +170,148 @@ exit 1
                     try { & $app {param($s,$e,$p,$c,$r) Invoke-ReadbackStop $s $e $p $c $r} $stop $exit $pipes $clock $limited } catch { $expired=$true }
                     Assert ($expired -and $script:stopped -and $script:exitBudget -eq 500 -and $script:pipeBudget -eq 200) 'operation budget was not shared with stop and pipes'
                 }
-                'strict-config-and-reference' {
-                    $raw=[IO.File]::ReadAllText($fixture.Config)
-                    [IO.File]::WriteAllText($fixture.Config,$raw.Replace('"schemaVersion":1','"schemaVersion":1,"schemaVersion":1'))
-                    $published=Invoke-ArtifactPublish $fixture.Config $fixture.Input ('a'*40) ('b'*40)
-                    Assert ($published.status -ceq 'failed' -and $null -eq $published.ledger) 'duplicate config field accepted'
+                {$_ -cin @('readback-prelaunch-deadline','readback-start-false','readback-start-throw','readback-started-before-pid')} {
+                    $state=@{remaining=20000L;hard=21000L;pid=0;launches=0};$left={$state.remaining}.GetNewClosure();$hard={$state.hard}.GetNewClosure()
+                    $budget=[pscustomobject]@{Remaining=$left;HardRemaining=$hard}
+                    $mode=$case;$launch={param($point,$process)
+                        if($point -ceq 'before-start' -and $mode -ceq 'readback-prelaunch-deadline'){$state.remaining=0;$state.hard=1000;return}
+                        if($point -ceq 'start'){$state.launches++;if($mode -ceq 'readback-start-false'){return $false};if($mode -ceq 'readback-start-throw'){throw 'launch-unknown'};return $process.Start()}
+                        if($point -ceq 'after-start'){$state.pid=$process.Id;throw 'pid-journal-unconfirmed'}
+                    }.GetNewClosure()
+                    $child=[IO.Path]::Combine($fixture.Work,'marker-child.ps1');[IO.File]::WriteAllText($child,'exit 0',[Text.UTF8Encoding]::new($false))
+                    $defaultChild=& $app {$script:ReadbackChildPath};$operationRoot=& $app {New-ArtifactOperation};$marker=[IO.Path]::Combine($operationRoot,'readback-process.json')
+                    try{
+                        & $app {param($b,$h,$p)$script:Budget=$b;$script:ReadbackHook=$null;$script:ReadbackLaunchHook=$h;$script:ReadbackChildPath=$p} $budget $launch $child
+                        $rejected=$false;try{Invoke-ArtifactReadback $operationRoot $env.Config ('e'*32) (Get-EvidenceKey $env.Config fixture ('d'*32)) 12 ('a'*64) ([Diagnostics.Stopwatch]::StartNew())|Out-Null}catch{$rejected=$true}
+                        Assert $rejected 'failed launch returned readback success'
+                        $terminal=Get-Content -LiteralPath $marker -Raw|ConvertFrom-Json
+                        $known=$mode -cin @('readback-prelaunch-deadline','readback-start-false')
+                        Assert ($terminal.process.pid -eq 0 -and $terminal.exited -eq $known -and $terminal.pipesClosed -eq $known) 'non-launch certainty or unknown launch protection lost'
+                        if($known){Assert-ArtifactAcl $marker $false}
+                        Assert (($mode -cne 'readback-prelaunch-deadline' -or $state.launches -eq 0) -and ($mode -cne 'readback-started-before-pid' -or $state.pid -gt 0)) 'boundary launch was not exercised'
+                        $cleanup=(Get-Command Assert-EvidenceTransitionSafe).Module
+                        $operation=[pscustomobject]@{process=[pscustomobject]@{pid=2147483647;startedAt='2000-01-01T00:00:00.0000000Z'};childMarker=$marker;path=$operationRoot}
+                        $protected=$false;try{& $cleanup {param($o)Assert-EvidenceOperationStopped $o} $operation}catch{$protected=$true}
+                        Assert ($protected -ne $known) 'cleanup cannot distinguish confirmed non-launch and unknown child'
+                        Assert ((Get-NetworkCount $env) -eq 0) 'marker repair performed network work'
+                        Assert (@([IO.Directory]::EnumerateFiles($operationRoot,'readback-process.json.*.pending')).Count -eq 0) 'marker repair did not commit atomically'
+                    }finally{& $app {param($h,$p)$script:Budget=$null;$script:ReadbackLaunchHook=$null;$script:ReadbackHook=$h;$script:ReadbackChildPath=$p} $env.Readback $defaultChild}
                 }
+                'readback-late-output-owned-cleanup' {
+                    $child=[IO.Path]::Combine($fixture.Work,'late-file-child.ps1')
+                    $source=@'
+param([string] $RequestPath)
+$data=Get-Content -Raw -LiteralPath $RequestPath|ConvertFrom-Json
+[IO.File]::Copy((Join-Path $PSScriptRoot 'offline-child-remote.zip'),$data.destination,$false)
+$acl=[IO.FileSystemAclExtensions]::GetAccessControl([IO.FileInfo]::new($data.destination))
+[IO.File]::WriteAllText((Join-Path $PSScriptRoot 'late-file-acl-observation.json'),(ConvertTo-Json @{protected=$acl.AreAccessRulesProtected;path=$data.destination} -Compress))
+$bytes=[IO.FileInfo]::new($data.destination).Length;$hash=(Get-FileHash -LiteralPath $data.destination).Hash.ToLowerInvariant()
+$value=[ordered]@{schemaVersion=1;operation='get';generation=$data.generation;key=$data.key;bytes=$bytes;sha256=$hash;httpStatus=200;statusClass='success';s3Code=$null;statusObserved=$true;timedOut=$false;redirected=$false;status='passed'}
+[Console]::WriteLine((ConvertTo-Json -InputObject $value -Compress));exit 0
+'@
+                    [IO.File]::WriteAllText($child,$source,[Text.UTF8Encoding]::new($false))
+                    $inner=$env.Transport;$remote=[IO.Path]::Combine($fixture.Work,'offline-child-remote.zip')
+                    $transport={param($gen,$req)$r=& $inner $gen $req;if($req.Operation -ceq 'put'){[IO.File]::Copy($req.SourcePath,$remote,$false)};$r}.GetNewClosure()
+                    $defaultChild=& $app {$script:ReadbackChildPath}
+                    try{
+                        Set-EvidenceTestValue ArtifactApplication TransportHook $transport
+                        Set-EvidenceTestValue ArtifactApplication ReadbackHook $null;Set-EvidenceTestValue ArtifactApplication ReadbackChildPath $child
+                        $failures=[Collections.Generic.List[string]]::new();Set-EvidenceTestValue EvidenceApplication FailureHook {param($e)$failures.Add($e.Exception.Message+' @ '+$e.ScriptStackTrace)}.GetNewClosure()
+                        $p=Invoke-EvidencePublish $fixture.Config $fixture.Input;Assert ($p.status -ceq 'passed') ('late-file child publish failed: '+($failures -join ', '))
+                        $observation=Get-Content -LiteralPath ([IO.Path]::Combine($fixture.Work,'late-file-acl-observation.json')) -Raw|ConvertFrom-Json
+                        Assert (-not $observation.protected -and [IO.File]::Exists($observation.path)) 'child did not exercise inherited late output ACL'
+                        Assert-ArtifactAcl $observation.path $false
+                        $endAt=[DateTimeOffset]::Parse('2026-01-01T00:00:00.0000000+00:00');Set-EvidenceTestValue TaskLifecycle Clock {$endAt}.GetNewClosure()
+                        $g=Enter-WorkflowTaskGuard $env.Config.Data.repositoryId fixture
+                        try{$t=Read-EvidenceTask $env.Config fixture $g;Assert (@($t.artifacts[0].ownedCopies|Where-Object path -CEQ $observation.path).Count -eq 1) 'late output was not storage-owned';$null=Invoke-WorkflowTaskTransition $env.Config.Data.repositoryId fixture ended 1 late-file-end completed $g;$null=Sync-EvidenceTaskGuarded $env.Config fixture $g}finally{$g.Dispose()}
+                        $now=$endAt.AddDays(30);Set-EvidenceTestValue EvidenceCleanup Clock {$now}.GetNewClosure()
+                        $clean=Invoke-EvidenceCleanup $fixture.Config
+                        Assert ($clean.status -ceq 'passed' -and $clean.deleted -eq 1 -and $clean.blocked -eq 0 -and -not [IO.File]::Exists($observation.path) -and $env.Objects.Count -eq 0) 'confirmed remote deletion left ACL-rejected child copy'
+                        $g=Enter-WorkflowTaskGuard $env.Config.Data.repositoryId fixture;try{$t=Read-EvidenceTask $env.Config fixture $g;Assert ($t.artifacts[0].ownedCopies.Count -eq 0 -and $t.artifacts[0].state -ceq 'deleted') 'owned cleanup retained late output'}finally{$g.Dispose()}
+                        Assert ([IO.File]::Exists($remote) -and [IO.File]::Exists([IO.Path]::Combine($reader.Selection.root,$reader.Selection.files[0]))) 'cleanup changed source or unrelated fixture file'
+                    }finally{Set-EvidenceTestValue ArtifactApplication ReadbackHook $env.Readback;Set-EvidenceTestValue ArtifactApplication ReadbackChildPath $defaultChild;Set-EvidenceTestValue EvidenceApplication FailureHook $null;Set-EvidenceTestValue TaskLifecycle Clock {[DateTimeOffset]::UtcNow};Set-EvidenceTestValue EvidenceCleanup Clock {[DateTimeOffset]::UtcNow}}
+                }
+                'readback-child-protocol' {
+                    $child=[IO.Path]::Combine($fixture.Work,'synthetic-child.ps1')
+                    $source=@'
+param([string] $RequestPath)
+$data=Get-Content -Raw -LiteralPath $RequestPath | ConvertFrom-Json
+$value=[ordered]@{schemaVersion=1;operation='get';generation=$data.generation;key=$data.key
+    bytes=[long]12;sha256=('0'*64);httpStatus=403;statusClass='forbidden';s3Code='AccessDenied'
+    statusObserved=$true;timedOut=$false;redirected=$false;status='failed'}
+[Console]::WriteLine((ConvertTo-Json -InputObject $value -Compress))
+exit 1
+'@
+                    [IO.File]::WriteAllText($child,$source,[Text.UTF8Encoding]::new($false))
+                    $defaultChild=& $app { $script:ReadbackChildPath }
+                    $operationRoot=& $app { New-ArtifactOperation }
+                    try {
+                        & $app {param($path) $script:ReadbackHook=$null; $script:ReadbackChildPath=$path} $child
+                        $config=$env.Config
+                        $timer=[Diagnostics.Stopwatch]::StartNew()
+                        $key=Get-EvidenceKey $env.Config 'fixture' ('d'*32)
+                        $actual=& $app {param($root,$cfg,$gen,$name,$watch) Invoke-ArtifactReadback $root $cfg $gen $name 12 ('a'*64) $watch} $operationRoot $config ('e'*32) $key $timer
+                        Assert ($actual.childExit -eq 1 -and $actual.childStatus -ceq 'failed' -and
+                            $actual.httpStatus -eq 403 -and $actual.s3Code -ceq 'AccessDenied' -and
+                            $actual.bytes -eq 12 -and $actual.sha256 -ceq ('0'*64)) 'closed child status tuple lost'
+                        $terminal=Get-Content -LiteralPath ([IO.Path]::Combine($operationRoot,'readback-process.json')) -Raw|ConvertFrom-Json
+                        Assert ($terminal.exited -and $terminal.pipesClosed) 'child process/pipes terminal confirmation missing'
+                    } finally { & $app {param($hook,$path) $script:ReadbackHook=$hook; $script:ReadbackChildPath=$path} $env.Readback $defaultChild }
+                }
+            'strict-config-and-reference' {
+                $raw=[IO.File]::ReadAllText($fixture.Config)
+                [IO.File]::WriteAllText($fixture.Config,$raw.Replace('"schemaVersion":2','"schemaVersion":2,"schemaVersion":2'))
+                $p=Invoke-EvidencePublish $fixture.Config $fixture.Input;Assert-FailedPublish $p;Assert ((Get-NetworkCount $env) -eq 0) 'duplicate config reached network'
+                [IO.File]::WriteAllText($fixture.Config,$raw,[Text.UTF8Encoding]::new($false))
+                $p=Invoke-EvidencePublish $fixture.Config $fixture.Input;Assert ($p.status -ceq 'passed') 'publish fixture failed'
+                $ref=Read-EvidenceReference $p.reference $env.Config;$ref.head='9'*40
+                $text='osm-evidence-v2:'+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((ConvertTo-Json $ref -Compress))).TrimEnd('=').Replace('+','-').Replace('/','_')
+                $before=Get-NetworkCount $env;$f=Invoke-EvidenceFetch $fixture.Config $text $p.packageSha256
+                Assert ($f.status -ceq 'failed' -and $f.reasonCode -ceq 'identity-mismatch' -and (Get-NetworkCount $env) -eq $before) 'altered reference reached network'
             }
-            $executed.Add($case)
-        } catch { $failed.Add($case+': '+$_.Exception.GetType().Name+': '+$_.Exception.Message) }
+            'source-traversal-network-zero' {
+                $reader.Selection.files=@('../outside.txt');Write-EvidenceTestJson $fixture.Input $reader.Selection
+                $p=Invoke-EvidencePublish $fixture.Config $fixture.Input;Assert-FailedPublish $p
+                Assert ((Get-NetworkCount $env) -eq 0) 'source traversal reached network'
+            }
+            'legacy-config-reference-commit-network-zero' {
+                $raw=[IO.File]::ReadAllText($fixture.Config)
+                [IO.File]::WriteAllText($fixture.Config,$raw.Replace('"schemaVersion":2','"schemaVersion":1'),[Text.UTF8Encoding]::new($false))
+                $p=Invoke-EvidencePublish $fixture.Config $fixture.Input;Assert-FailedPublish $p
+                Assert ($p.reasonCode -ceq 'unsupported-schema' -and (Get-NetworkCount $env) -eq 0) 'legacy config reached network'
+                [IO.File]::WriteAllText($fixture.Config,$raw,[Text.UTF8Encoding]::new($false))
+                $f=Invoke-EvidenceFetch $fixture.Config 'osm-artifact-v1:e30' ('0'*64)
+                Assert ($f.status -ceq 'failed' -and $f.reasonCode -ceq 'unsupported-schema' -and (Get-NetworkCount $env) -eq 0) 'legacy reference reached network'
+                # The public parser rejects commit before importing an application or opening credentials/network.
+                $proc=[Diagnostics.Process]::new();$info=$proc.StartInfo;$info.FileName=(Get-Process -Id $PID).Path;$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
+                foreach($arg in @('-NoProfile','-File',[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../artifacts.ps1')),'evidence','commit','--profile','osm','--config',$fixture.Config)){$info.ArgumentList.Add($arg)}
+                try{
+                    $null=$proc.Start();$stdout=$proc.StandardOutput.ReadToEndAsync();$stderr=$proc.StandardError.ReadToEndAsync()
+                    if(-not $proc.WaitForExit(15000)){$proc.Kill($true);$null=$proc.WaitForExit(5000);throw 'legacy CLI child timeout'}
+                    Assert ($stdout.Wait(3000) -and $stderr.Wait(3000)) 'legacy CLI pipes timeout'
+                    Assert ($proc.ExitCode -eq 1 -and ($stdout.Result+$stderr.Result).Contains('unsupported-command') -and (Get-NetworkCount $env) -eq 0) 'legacy commit was not rejected before network'
+                }finally{$proc.Dispose()}
+            }
+            'download-bytes-mismatch' {
+                $p=Invoke-EvidencePublish $fixture.Config $fixture.Input;Assert ($p.status -ceq 'passed') 'publish fixture failed'
+                $inner=$env.Transport
+                $corrupt={param($gen,$request)$dto=& $inner $gen $request;if($request.Operation -ceq 'get' -and $request.DestinationPath){$bytes=[IO.File]::ReadAllBytes($request.DestinationPath);$bytes[$bytes.Length-1]=$bytes[$bytes.Length-1] -bxor 1;[IO.File]::WriteAllBytes($request.DestinationPath,$bytes)};$dto}.GetNewClosure()
+                Set-EvidenceTestValue 'ArtifactApplication' 'TransportHook' $corrupt
+                $f=Invoke-EvidenceFetch $fixture.Config $p.reference $p.packageSha256
+                Assert ($f.status -ceq 'failed' -and $null -eq $f.outputPath) 'lying download DTO bypassed actual byte hash'
+            }
+        }
+    }catch{$failed.Add($case+': '+$_.Exception.GetType().Name+': '+$_.Exception.Message)}
+    finally{
+        $executed.Add($case)
+        Set-EvidenceTestValue WindowsStorePaths IdentityHook $null
+        Set-EvidenceTestValue 'ArtifactApplication' 'TransportHook' $null;Set-EvidenceTestValue 'ArtifactApplication' 'ReadbackHook' $null;Set-EvidenceTestValue 'EvidencePaths' 'WriteHook' $null
+        if($env){$target=[IO.Path]::GetFullPath($env.Root);$temp=[IO.Path]::GetFullPath([IO.Path]::GetTempPath());if(-not $target.StartsWith($temp,[StringComparison]::OrdinalIgnoreCase) -or [IO.Path]::GetFileName($target) -cnotmatch '\Aosm-evidence-v2-[0-9a-f]{32}\z'){throw 'unsafe fixture cleanup path'};if([IO.Directory]::Exists($target)){[IO.Directory]::Delete($target,$true)}}
     }
-    if($ResultPath) {
-        $after = if($script:transportIdentity){(Get-FileHash -Algorithm SHA256 -LiteralPath $script:transportIdentity.loadedPath).Hash.ToLowerInvariant()}else{$null}
-        $result=[ordered]@{registered=$cases;selected=$cases;executed=@($executed);failed=@($failed)
-            transport=$script:transportIdentity;loadedHashAfter=$after}
-        [IO.File]::WriteAllText($ResultPath,(ConvertTo-Json -InputObject $result -Depth 6),[Text.UTF8Encoding]::new($false))
-    }
-    foreach($item in $executed){"PASS $item"}; foreach($item in $failed){"FAIL $item"}
-    "Cases: $($cases.Count); passed: $($executed.Count); failed: $($failed.Count)"
-    if($failed.Count -gt 0 -or $executed.Count -ne $cases.Count){exit 1}
-} finally {
-    & $app {$script:TransportHook=$null; $script:ReadbackHook=$null}
-    & $store {$script:TestRoot=$null; $script:TestBase=$null}
-    & $paths {$script:TestRoot=$null}
-    if([IO.Directory]::Exists($root)){[IO.Directory]::Delete($root,$true)}
 }
+$after=if($script:transportIdentity){(Get-FileHash -LiteralPath $script:transportIdentity.loadedPath).Hash.ToLowerInvariant()}else{$null}
+if($script:transportIdentity -and $script:transportIdentity.loadedHashBefore -cne $after){$failed.Add('Transport DLL changed during tests.')}
+if($ResultPath){Write-EvidenceTestJson $ResultPath ([ordered]@{registered=$cases;selected=$selected;executed=@($executed);failed=@($failed);transport=$script:transportIdentity;loadedHashAfter=$after;binaries=@(Get-LoadedArtifactBinaries)})}
+foreach($case in $executed){if(-not @($failed|Where-Object{$_.StartsWith($case+':',[StringComparison]::Ordinal)}).Count){"PASS $case"}};foreach($item in $failed){"FAIL $item"}
+"Cases: $($cases.Count); executed: $($executed.Count); failed: $($failed.Count)"
+if($failed.Count -or $executed.Count -ne $selected.Count -or -not $selected.Count){exit 1}

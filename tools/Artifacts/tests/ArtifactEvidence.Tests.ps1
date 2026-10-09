@@ -1,460 +1,60 @@
-param([string] $ResultPath = '',[string] $Case = '*',[switch] $MissingE1SourceProbe)
+param([string]$ResultPath='',[string]$Case='*',[switch]$MissingE1SourceProbe)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
-Import-Module (Join-Path $PSScriptRoot '../EvidenceApplication.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot '../EvidenceLedger.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot '../ArtifactProtectionPolicy.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot '../EvidencePaths.psm1') -Force
+. (Join-Path $PSScriptRoot 'EvidenceTestSupport.ps1')
 . (Join-Path $PSScriptRoot 'EvidenceReaderFixture.ps1')
-$evidenceApp=Get-Module EvidenceApplication
-$ledgerModule=Get-Module EvidenceLedger
-$app=$evidenceApp.NestedModules|Where-Object Name -eq ArtifactApplication|Select-Object -First 1
-$paths=$app.NestedModules|Where-Object Name -eq ArtifactPaths|Select-Object -First 1
-$evidenceAppPaths=$evidenceApp.NestedModules|Where-Object Name -eq ArtifactPaths|Select-Object -First 1
-$store=$app.NestedModules|Where-Object Name -eq CredentialStore|Select-Object -First 1
-$evidencePaths=$ledgerModule.NestedModules|Where-Object Name -eq EvidencePaths|Select-Object -First 1
-$ledgerPaths=$ledgerModule.NestedModules|Where-Object Name -eq ArtifactPaths|Select-Object -First 1
-$protection=$app.NestedModules|Where-Object Name -eq ArtifactProtection|Select-Object -First 1
-$root=[IO.Path]::Combine([IO.Path]::GetTempPath(),'osm-evidence-test-'+[Guid]::NewGuid().ToString('N'))
-$script:objects=@{}; $script:counts=@{}; $script:deny=''; $script:badRead=$false; $script:failureMode=''
-$cases=[Collections.Generic.List[string]]::new(); $failed=[Collections.Generic.List[string]]::new()
-$registered=@('policy-valid','policy-overlap','policy-expired','selection-extra','publish-candidate',
-    'bundle-put-once','witness-lock-wrong','control-denied','bundle-existing','bundle-put-unconfirmed',
-    'bundle-readback-mismatch','ledger-commit','post-settings-change','reader-hash',
-    'capture-missing-bytes','capture-size-mismatch','capture-scope-missing','copy-byte-bound',
-    'intent-write-failure','interrupted-after-intent','interrupted-after-put-intent',
-    'send-before-response','interrupted-before-candidate','ledger-lock-timeout','ledger-control-hash',
-    'ledger-bundle-hash','ledger-stale-after','ledger-intent-identity','ledger-partialwrite',
-    'ledger-rename-failure','ledger-concurrent-write','handoff-identity-substitution',
-    'dummy-secret-nonexposure','dummy-secret-failure-output','dummy-e1-selection-rejected')
-$requested=@(if($Case -ceq '*'){$registered}else{$Case.Split(',')|ForEach-Object {$_.Trim()}})
-$selectionValid=$requested.Count -gt 0 -and @($requested|Where-Object {$_ -ceq '' -or $_ -cnotin $registered}).Count -eq 0
-$selectionValid=$selectionValid -and @($requested|Select-Object -Unique).Count -eq $requested.Count
-$probeValid=-not $MissingE1SourceProbe -or ($requested.Count -eq 2 -and
-    $requested -ccontains 'reader-hash' -and $requested -ccontains 'handoff-identity-substitution')
-if(-not $selectionValid -or -not $probeValid){
-    if($ResultPath){
-        $raw=[ordered]@{registered=$registered;selected=$requested;executed=@();failed=@('invalid-case-selection')}
-        [IO.File]::WriteAllText($ResultPath,(ConvertTo-Json -InputObject $raw -Depth 8),[Text.UTF8Encoding]::new($false))
-    }
-    throw 'Unknown, duplicate, empty, or probe-incompatible case selection.'
-}
-$selected=$requested
-$probe=$null;$probeFailed=$false;$originalE1Root=$null
-function Assert([bool]$Condition,[string]$Message){if(-not $Condition){throw $Message}}
-function Json([string]$Path,$Value){[IO.File]::WriteAllText($Path,(ConvertTo-Json -InputObject $Value -Compress -Depth 16),[Text.UTF8Encoding]::new($false))}
-function Hash([string]$Path){(Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()}
-function Rewrite-Receipt([string]$CandidatePath,[scriptblock]$Change){
-    $candidate=Get-Content $CandidatePath -Raw|ConvertFrom-Json
-    $receiptPath=$candidate.ledger.protectionReceiptPath
-    $receipt=Get-Content $receiptPath -Raw|ConvertFrom-Json
-    & $Change $receipt
-    Json $receiptPath $receipt
-    $candidate.ledger.protectionReceiptSha256=Hash $receiptPath
-    Json $CandidatePath $candidate
-}
-function Observation([string]$Operation,[string]$Generation,[int]$Status,[string]$Class,[string]$Code,[long]$Bytes=0,[string]$Sha=''){
-    [pscustomobject]@{Operation=$Operation;Generation=$Generation;HttpStatus=$Status;StatusClass=$Class
-        S3Code=if($Code){$Code}else{$null};Bytes=if($Operation -eq 'get'){$Bytes}else{$null}
-        Sha256=if($Operation -eq 'get'){$Sha}else{$null};StatusObserved=$true;TimedOut=$false;Redirected=$false}
-}
-$transport={param($generation,$request)
-    $key=$request.Key;$script:counts[$request.Operation+' '+$key]=1+[int]$script:counts[$request.Operation+' '+$key]
-    if($script:deny -ceq $request.Operation+' '+$key){return Observation $request.Operation $generation 500 'other' ''}
-    if($script:failureMode -ceq 'bundle-existing' -and $request.Operation -ceq 'get' -and $key -like 'evidence/first-use/*/bundle.zip'){
-        return Observation 'get' $generation 200 'success' '' 3 ('a'*64)
-    }
-    if($script:failureMode -ceq 'bundle-put-unconfirmed' -and $request.Operation -ceq 'put' -and $key -like 'evidence/first-use/*/bundle.zip'){
-        return Observation 'put' $generation 500 'other' ''
-    }
-    if($script:failureMode -ceq 'dummy-secret-failure-output' -and $request.Operation -ceq 'put' -and
-        $key -like 'evidence/first-use/*/protection-witness.txt') { throw 'DUMMY_EVIDENCE_SECRET' }
-    if($script:failureMode -ceq 'control-denied' -and $request.Operation -ceq 'delete' -and $key -like 'probe/unlocked/*'){
-        return Observation 'delete' $generation 403 'forbidden' ''
-    }
-    if($request.Operation -ceq 'put'){
-        if($key -like 'evidence/first-use/*/protection-witness.txt' -and $script:objects.ContainsKey($key)){
-            if($script:failureMode -ceq 'witness-lock-wrong'){return Observation 'put' $generation 403 'forbidden' ''}
-            return Observation 'put' $generation 403 'forbidden' 'ObjectLockedByBucketPolicy'
-        }
-        if($key -like 'evidence/first-use/*/bundle.zip' -and $script:objects.ContainsKey($key)){throw 'second bundle PUT'}
-        $script:objects[$key]=[IO.File]::ReadAllBytes($request.SourcePath)
-        if($script:failureMode -ceq 'send-before-response' -and $key -like 'evidence/first-use/*/bundle.zip'){
-            throw 'Simulated lost response after one sent bundle PUT.'
-        }
-        return Observation 'put' $generation 200 'success' ''
-    }
-    if($request.Operation -ceq 'delete'){
-        if($key -like 'evidence/first-use/*'){return Observation 'delete' $generation 409 'other' 'ObjectLockedByBucketPolicy'}
-        $script:objects.Remove($key);return Observation 'delete' $generation 204 'success' ''
-    }
-    if(-not $script:objects.ContainsKey($key)){return Observation 'get' $generation 404 'not-found' 'NoSuchKey'}
-    $bytes=$script:objects[$key];$sha=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
-    if($request.DestinationPath){[IO.File]::WriteAllBytes($request.DestinationPath,$bytes)}
-    return Observation 'get' $generation 200 'success' '' $bytes.Length $sha
-}
-$readback={param($operationRoot,$config,$generation,$key,$bytes,$sha)
-    $data=$script:objects[$key];$actual=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($data)).ToLowerInvariant()
-    if($script:badRead -or ($script:failureMode -ceq 'bundle-readback-mismatch' -and $key -like 'evidence/first-use/*/bundle.zip')){$actual='0'*64}
-    [pscustomobject]@{operation='readback';generation=$generation;key=$key;bytes=[long]$data.Length;sha256=$actual
-        childExit=if($actual -ceq $sha){0}else{1};childStatus=if($actual -ceq $sha){'passed'}else{'failed'}
-        httpStatus=200;statusClass='success';s3Code=$null;statusObserved=$true;timedOut=$false;redirected=$false
-        observedAt=[DateTimeOffset]::UtcNow.ToString('o')}
-}
-function Fixture([string]$Name){
-    $dir=[IO.Path]::Combine($root,$Name);[IO.Directory]::CreateDirectory($dir)|Out-Null
-    $source=[IO.Path]::Combine($dir,'source');[IO.Directory]::CreateDirectory($source)|Out-Null
-    $endpoint='https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com'
-    $when=[DateTimeOffset]::UtcNow.AddMinutes(-1).ToString('o')
-    $settings=[IO.Path]::Combine($source,'settings-before.json')
-    $state=[ordered]@{schemaVersion=1;endpoint=$endpoint;bucket='osm-artifacts';publicDevelopmentUrlEnabled=$false
-        customDomainCount=0;writerCanConfigure=$false;bucketScopedWriter=$true;writerPermission='Object Read & Write'
-        lockRules=@([ordered]@{prefix='probe/locked/';enabled=$true;mode='age';retentionSeconds=86400},
-            [ordered]@{prefix='evidence/first-use/';enabled=$true;mode='age';retentionSeconds=2592000})
-        lifecycleRules=@([ordered]@{type='abort-incomplete-multipart';prefix='';enabled=$true;days=7})
-        observedAt=$when;observer='offline-test'}
-    Json $settings $state
-    $configPath=[IO.Path]::Combine($dir,'config.json')
-    $head=(& git rev-parse HEAD).Trim()
-    Json $configPath ([ordered]@{schemaVersion=1;profile='osm';purpose='evidence';endpoint=$endpoint
-        bucket='osm-artifacts';repositoryId='4d2d1728f1db77f50605a10da0bbf10fd31443c381c4f312658134fffb850b3b'
-        prefix='evidence/first-use/';retentionSeconds=2592000;observedAt=$when
-        validUntil=[DateTimeOffset]::UtcNow.AddHours(1).ToString('o');settingsEvidencePath=$settings
-        settingsEvidenceSha256=(Hash $settings)})
-    foreach($name in @('settings-overview.jpg','settings-rules.jpg')){[IO.File]::WriteAllBytes([IO.Path]::Combine($source,$name),[byte[]]@(255,216,255,217))}
-    Json ([IO.Path]::Combine($source,'capture.json')) ([ordered]@{schemaVersion=1;implementationHead=$head;bucket='osm-artifacts'
-        page='settings';capturedAt=$when;observer='offline-test';tool='dummy'
-        overviewBytes=4;overviewSha256=(Hash ([IO.Path]::Combine($source,'settings-overview.jpg')))
-        rulesBytes=4;rulesSha256=(Hash ([IO.Path]::Combine($source,'settings-rules.jpg')))
-        observationScope=[ordered]@{overview='bucket/private URL/domain visible in dummy image';rules='lock prefix, age and lifecycle visible in dummy image'}})
-    $files=@(foreach($name in @('settings-before.json','settings-overview.jpg','settings-rules.jpg','capture.json')){
-        $path=[IO.Path]::Combine($source,$name)
-        [ordered]@{source=$name;path=$name;bytes=([IO.FileInfo]::new($path)).Length;sha256=(Hash $path)}
-    })
-    $selectionPath=[IO.Path]::Combine($dir,'selection.json')
-    Json $selectionPath ([ordered]@{schemaVersion=1;kind='E2';root=$source
-        producerBase='6d804ca637cf42fb876e602c8ccc0656cfbd255d';producerHead=$head
-        sourceManifestSha256=$null;files=$files})
-    return @{Config=$configPath;Selection=$selectionPath;Source=$source;Settings=$settings;Head=$head;State=$state}
-}
-try{
-    & $paths {param($p)$script:TestRoot=$p} ([IO.Path]::Combine($root,'transfers'))
-    & $evidenceAppPaths {param($p)$script:TestRoot=$p} ([IO.Path]::Combine($root,'transfers'))
-    & $ledgerPaths {param($p)$script:TestRoot=$p} ([IO.Path]::Combine($root,'transfers'))
-    & $store {param($p)$script:TestRoot=$p;$script:TestBase=$null} ([IO.Path]::Combine($root,'credentials'))
-    & $evidencePaths {param($p)$script:TestRoot=$p} ([IO.Path]::Combine($root,'records'))
-    & $app {param($t,$r)$script:TransportHook=$t;$script:ReadbackHook=$r} $transport $readback
-    & $protection {$script:FaultHook=$null}
-    $null=& $store {Write-CredentialRecord 'osm' 'DUMMY_EVIDENCE_ID' 'DUMMY_EVIDENCE_SECRET' $false}
-    if($MissingE1SourceProbe){
-        $originalE1Root=& $evidenceApp { $script:E1Root }
-        $fixedBefore=ConvertTo-Json -InputObject (& $evidenceApp { ,$script:E1Fixed }) -Compress -Depth 8
-        $manifestBefore=& $evidenceApp { $script:E1ManifestHash }
-        $sentinel=[IO.Path]::Combine($root,'missing-e1-source')
-        $probe=[ordered]@{sourceMissingBefore=(-not [IO.Directory]::Exists($sentinel))
-            sourceMissingAfter=$false;rootRestored=$false;freshImportRoot=$false
-            fixedUnchanged=$false;manifestUnchanged=$false;freshFixedUnchanged=$false
-            freshManifestUnchanged=$false;selectorInvoked=$false}
-        Assert $probe.sourceMissingBefore 'E1 source sentinel unexpectedly exists'
-        & $evidenceApp {param($path)$script:E1Root=$path} $sentinel
-    }
-    foreach($case in $selected){
-        $script:objects=@{};$script:counts=@{};$script:deny='';$script:badRead=$false;$script:failureMode='';$stage=$null
-        & $protection {$script:FaultHook=$null}
-        & $evidencePaths {$script:WriteHook=$null}
-        try{
-            $f=Fixture $case
-            switch($case){
-                'policy-valid'{ $v=Read-EvidenceConfig $f.Config;Assert ($v.Data.purpose -ceq 'evidence') 'policy rejected valid config' }
-                'policy-overlap'{
-                    $f.State.lockRules+=@([ordered]@{prefix='evidence/first-use/extra/';enabled=$true;mode='date';retentionSeconds=$null})
-                    Json $f.Settings $f.State
-                    $cfg=(Get-Content $f.Config -Raw|ConvertFrom-Json);$cfg.settingsEvidenceSha256=Hash $f.Settings;Json $f.Config $cfg
-                    $rejected=$false;try{$null=Read-EvidenceConfig $f.Config}catch{$rejected=$true};Assert $rejected 'overlap accepted'
-                }
-                'policy-expired'{
-                    $cfg=Get-Content $f.Config -Raw|ConvertFrom-Json
-                    $cfg.validUntil=[DateTimeOffset]::UtcNow.AddSeconds(-1).ToString('o');Json $f.Config $cfg
-                    $rejected=$false;try{$null=Read-EvidenceConfig $f.Config}catch{$rejected=$true};Assert $rejected 'expired config accepted'
-                }
-                'selection-extra'{
-                    $s=Get-Content $f.Selection -Raw|ConvertFrom-Json
-                    $s.files+=@([ordered]@{source='extra.txt';path='extra.txt';bytes=1;sha256=('a'*64)})
-                    Json $f.Selection $s
-                    $v=Invoke-EvidencePublish $f.Config $f.Selection '6d804ca637cf42fb876e602c8ccc0656cfbd255d' $f.Head
-                    Assert ($v.status -ceq 'failed' -and $script:counts.Count -eq 0) 'extra selection reached network'
-                }
-                'dummy-e1-selection-rejected'{
-                    $source=[IO.Path]::Combine([IO.Path]::GetDirectoryName($f.Config),'dummy-e1-source')
-                    [IO.Directory]::CreateDirectory($source)|Out-Null
-                    $selection=[IO.Path]::Combine([IO.Path]::GetDirectoryName($f.Config),'dummy-e1-selection.json')
-                    Json $selection ([ordered]@{schemaVersion=1;kind='E1';root=$source
-                        producerBase='6d804ca637cf42fb876e602c8ccc0656cfbd255d';producerHead=$f.Head
-                        sourceManifestSha256=('0'*64);files=@()})
-                    $v=Invoke-EvidencePublish $f.Config $selection `
-                        'fd7ebf932d230a522293dee72572cbdeeac1c8fa' 'caed8bae55c033673b75532dc650f0a3a3cedc48'
-                    Assert ($v.status -ceq 'failed' -and $null -eq $v.ledger -and $script:counts.Count -eq 0) `
-                        'dummy E1 source reached network or produced a ledger'
-                }
-                'capture-missing-bytes'{
-                    $path=[IO.Path]::Combine($f.Source,'capture.json');$capture=Get-Content $path -Raw|ConvertFrom-Json
-                    $capture.PSObject.Properties.Remove('overviewBytes');Json $path $capture
-                    $v=Invoke-EvidencePublish $f.Config $f.Selection '6d804ca637cf42fb876e602c8ccc0656cfbd255d' $f.Head
-                    Assert ($v.status -ceq 'failed' -and $script:counts.Count -eq 0) 'capture without byte count accepted'
-                }
-                'capture-size-mismatch'{
-                    $path=[IO.Path]::Combine($f.Source,'capture.json');$capture=Get-Content $path -Raw|ConvertFrom-Json
-                    $capture.overviewBytes=5;Json $path $capture
-                    $v=Invoke-EvidencePublish $f.Config $f.Selection '6d804ca637cf42fb876e602c8ccc0656cfbd255d' $f.Head
-                    Assert ($v.status -ceq 'failed' -and $script:counts.Count -eq 0) 'capture mismatched byte count accepted'
-                }
-                'capture-scope-missing'{
-                    $path=[IO.Path]::Combine($f.Source,'capture.json');$capture=Get-Content $path -Raw|ConvertFrom-Json
-                    $capture.PSObject.Properties.Remove('observationScope');Json $path $capture
-                    $v=Invoke-EvidencePublish $f.Config $f.Selection '6d804ca637cf42fb876e602c8ccc0656cfbd255d' $f.Head
-                    Assert ($v.status -ceq 'failed' -and $script:counts.Count -eq 0) 'capture without scope accepted'
-                }
-                'copy-byte-bound'{
-                    $source=[IO.Path]::Combine($f.Source,'oversized.txt');[IO.File]::WriteAllBytes($source,[byte[]]::new(2048))
-                    $target=[IO.Path]::Combine([IO.Path]::GetDirectoryName($f.Config),'bounded-copy.txt')
-                    $timer=[Diagnostics.Stopwatch]::StartNew();$rejected=$false
-                    try{$null=& $evidenceApp {param($a,$b,$c,$d,$e,$f) Copy-EvidenceChecked $a $b $c $d $e $f} `
-                        $f.Source 'oversized.txt' $target 1 ('0'*64) $timer}catch{$rejected=$true}
-                    Assert ($rejected -and -not [IO.File]::Exists($target) -and $timer.ElapsedMilliseconds -lt 600000) 'source overrun copied before rejection'
-                }
-                'ledger-partialwrite'{
-                    $id=[Guid]::NewGuid().ToString('N')
-                    $hook={param($stage,$pending,$final)if($stage -ceq 'after-pending'){[IO.File]::WriteAllBytes($pending,[byte[]]@(1,2,3));throw 'dummy partial write'}}
-                    & $evidencePaths {param($h)$script:WriteHook=$h} $hook
-                    $rejected=$false;try{$null=& $evidencePaths {param($v) Write-EvidenceImmutable 'evidence-ledgers' $v 'ledger.json' @{schemaVersion=1}} $id}catch{$rejected=$true}
-                    $dir=[IO.Path]::Combine($root,'records','evidence-ledgers',$id)
-                    Assert ($rejected -and -not [IO.File]::Exists([IO.Path]::Combine($dir,'ledger.json')) -and
-                        [IO.File]::Exists([IO.Path]::Combine($dir,'ledger.json.pending'))) 'partial ledger became committed'
-                }
-                'ledger-rename-failure'{
-                    $id=[Guid]::NewGuid().ToString('N')
-                    $hook={param($stage,$pending,$final)if($stage -ceq 'before-rename'){throw 'dummy rename failure'}}
-                    & $evidencePaths {param($h)$script:WriteHook=$h} $hook
-                    $rejected=$false;try{$null=& $evidencePaths {param($v) Write-EvidenceImmutable 'evidence-ledgers' $v 'ledger.json' @{schemaVersion=1}} $id}catch{$rejected=$true}
-                    $dir=[IO.Path]::Combine($root,'records','evidence-ledgers',$id)
-                    Assert ($rejected -and -not [IO.File]::Exists([IO.Path]::Combine($dir,'ledger.json')) -and
-                        [IO.File]::Exists([IO.Path]::Combine($dir,'ledger.json.pending'))) 'failed rename committed ledger'
-                }
-                'ledger-concurrent-write'{
-                    $id=[Guid]::NewGuid().ToString('N');$recordRoot=[IO.Path]::Combine($root,'records')
-                    $modulePath=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../EvidencePaths.psm1'))
-                    $outcomes=@(1..2|ForEach-Object -Parallel {
-                        $m=Import-Module $using:modulePath -Force -PassThru
-                        & $m {param($p)$script:TestRoot=$p} $using:recordRoot
-                        try{$null=Write-EvidenceImmutable 'evidence-ledgers' $using:id 'ledger.json' @{schemaVersion=1};'committed'}
-                        catch{'rejected'}
-                    } -ThrottleLimit 2)
-                    Assert (@($outcomes|Where-Object {$_ -ceq 'committed'}).Count -eq 1 -and
-                        @($outcomes|Where-Object {$_ -ceq 'rejected'}).Count -eq 1) 'concurrent ledger writers both committed or both failed'
-                }
-                default{
-                    if($case -cin @('intent-write-failure','interrupted-after-intent','interrupted-after-put-intent','interrupted-before-candidate')){
-                        $stage=switch($case){
-                            'intent-write-failure'{'before-intent'}
-                            'interrupted-after-intent'{'after-intent'}
-                            'interrupted-after-put-intent'{'after-put-intent'}
-                            'interrupted-before-candidate'{'before-candidate'}
-                        }
-                        $fault={param($seen,$opRoot)
-                            if($seen -ceq $stage){
-                                if($seen -ceq 'before-intent'){[IO.Directory]::CreateDirectory([IO.Path]::Combine($opRoot,'intent.json'))|Out-Null}
-                                else{throw 'dummy interruption'}
-                            }
-                        }.GetNewClosure()
-                        & $protection {param($h)$script:FaultHook=$h} $fault
-                    }
-                    if($case -cin @('witness-lock-wrong','control-denied','bundle-existing','bundle-put-unconfirmed','bundle-readback-mismatch')){
-                        $script:failureMode=$case
-                    }
-                    if($case -cin @('send-before-response','dummy-secret-failure-output')){$script:failureMode=$case}
-                    if($case -ceq 'dummy-secret-failure-output'){
-                        $captured=@(Invoke-EvidencePublish $f.Config $f.Selection '6d804ca637cf42fb876e602c8ccc0656cfbd255d' $f.Head 2>&1)
-                        $v=$captured|Where-Object { $null -ne $_.PSObject.Properties['operationId'] }|Select-Object -Last 1
-                        Assert (-not (($captured|Out-String).Contains('DUMMY_EVIDENCE_SECRET'))) 'dummy secret exposed in stdout/stderr'
-                    }else{
-                        $v=Invoke-EvidencePublish $f.Config $f.Selection '6d804ca637cf42fb876e602c8ccc0656cfbd255d' $f.Head
-                    }
-                    if($script:failureMode -or $stage){
-                        Assert ($v.status -ceq 'failed' -and $null -eq $v.ledger) 'failure produced candidate'
-                        $bundle=@($script:counts.Keys|Where-Object {$_ -like 'put evidence/first-use/*/bundle.zip'})
-                        if($case -cin @('witness-lock-wrong','control-denied','bundle-existing','intent-write-failure',
-                                'interrupted-after-intent','interrupted-after-put-intent','dummy-secret-failure-output')){Assert ($bundle.Count -eq 0) 'bundle PUT reached early failure'}
-                        else{Assert ($bundle.Count -eq 1) 'bundle PUT did not occur exactly once'}
-                        $opRoot=$v.residue.localPath
-                        if($case -ceq 'intent-write-failure'){Assert ($script:counts.Count -eq 0) 'intent failure reached network'}
-                        if($case -ceq 'dummy-secret-failure-output'){
-                            $all=ConvertTo-Json -InputObject $v -Compress -Depth 20
-                            $all+=[IO.File]::ReadAllText([IO.Path]::Combine($opRoot,'result.json'))
-                            $all+=[IO.File]::ReadAllText([IO.Path]::Combine($opRoot,'protection-failure.json'))
-                            Assert (-not $all.Contains('DUMMY_EVIDENCE_SECRET')) 'dummy secret exposed in local result'
-                        }
-                        if($case -ceq 'interrupted-after-intent'){Assert ($script:counts.Count -eq 0 -and
-                            [IO.File]::Exists([IO.Path]::Combine($opRoot,'intent.json'))) 'post-intent interruption boundary lost'}
-                        if($case -cin @('interrupted-after-put-intent','send-before-response','interrupted-before-candidate')){
-                            Assert ([IO.File]::Exists([IO.Path]::Combine($opRoot,'put-intent.json')) -and
-                                $v.residue.remote -ceq 'may-have-been-sent') 'PUT-intent residue missing'
-                        }
-                        Assert (@($script:counts.Keys|Where-Object {$_ -like 'delete evidence/first-use/*/bundle.zip'}).Count -eq 0) 'bundle DELETE attempted'
-                        break
-                    }
-                    Assert ($v.status -ceq 'passed') "publish failed: $($v.reasonCode)"
-                    $key=$v.ledger.key
-                    Assert ($script:counts['put '+$key] -eq 1 -and -not $script:counts.ContainsKey('delete '+$key)) 'bundle destructive operation'
-                    if($case -cin @('ledger-commit','post-settings-change','reader-hash','handoff-identity-substitution',
-                            'ledger-lock-timeout','ledger-control-hash','ledger-bundle-hash','ledger-stale-after','ledger-intent-identity')){
-                        $after=[IO.Path]::Combine([IO.Path]::GetDirectoryName($f.Config),'settings-after.json')
-                        $f.State.observedAt=[DateTimeOffset]::UtcNow.ToString('o')
-                        if($case -ceq 'post-settings-change'){$f.State.lockRules[1].retentionSeconds=86400}
-                        if($case -ceq 'ledger-stale-after'){$f.State.observedAt='2020-01-01T00:00:00.0000000+00:00'}
-                        Json $after $f.State
-                        $candidate=[IO.Path]::Combine($v.residue.localPath,'result.json')
-                        switch($case){
-                            'ledger-lock-timeout'{Rewrite-Receipt $candidate {param($r)$r.observations[2].timedOut=$true}}
-                            'ledger-control-hash'{Rewrite-Receipt $candidate {param($r)$r.observations[6].sha256='0'*64}}
-                            'ledger-bundle-hash'{Rewrite-Receipt $candidate {param($r)$r.observations[11].sha256='0'*64}}
-                            'ledger-intent-identity'{
-                                $c=Get-Content $candidate -Raw|ConvertFrom-Json
-                                $intent=Get-Content $c.ledger.intentPath -Raw|ConvertFrom-Json
-                                $intent.controlKey='probe/unlocked/'+$v.operationId+'/substituted.txt'
-                                Json $c.ledger.intentPath $intent;$c.ledger.intentSha256=Hash $c.ledger.intentPath
-                                $pi=Get-Content $c.ledger.putIntentPath -Raw|ConvertFrom-Json
-                                $pi.intentSha256=$c.ledger.intentSha256;Json $c.ledger.putIntentPath $pi
-                                $c.ledger.putIntentSha256=Hash $c.ledger.putIntentPath
-                                $receipt=Get-Content $c.ledger.protectionReceiptPath -Raw|ConvertFrom-Json
-                                $receipt.intentSha256=$c.ledger.intentSha256;$receipt.putIntentSha256=$c.ledger.putIntentSha256
-                                $receipt.controlKey=$intent.controlKey
-                                foreach($i in @(5,6,7,8)){$receipt.observations[$i].key=$intent.controlKey}
-                                Json $c.ledger.protectionReceiptPath $receipt
-                                $c.ledger.protectionReceiptSha256=Hash $c.ledger.protectionReceiptPath
-                                Json $candidate $c
-                            }
-                        }
-                        $commit=Invoke-EvidenceCommit $candidate (Hash $candidate) $after (Hash $after)
-                        if($case -cin @('post-settings-change','ledger-lock-timeout','ledger-control-hash',
-                                'ledger-bundle-hash','ledger-stale-after','ledger-intent-identity')){
-                            Assert ($commit.status -ceq 'failed') 'contradictory or stale evidence committed'
-                        }
-                        else{Assert ($commit.status -ceq 'passed') 'valid candidate refused'}
-                        if($case -cin @('reader-hash','handoff-identity-substitution')){
-                            $e1Config=Read-EvidenceConfig $f.Config
-                            $e1Root=& $app { New-ArtifactOperation }
-                            $e1Source=[IO.Path]::Combine([IO.Path]::GetDirectoryName($f.Config),'dummy-e1-source')
-                            $prepared=New-EvidenceReaderFixture $e1Source $e1Root $e1Config $f.Head
-                            & $app {param($opRoot) Protect-ArtifactTree $opRoot} $e1Root
-                            $timer=[Diagnostics.Stopwatch]::StartNew()
-                            $e1=& $app {param($config,$fixture,$opRoot,$clock)
-                                Invoke-ArtifactPublishPrepared $config $fixture.Package $opRoot `
-                                    ([IO.Path]::GetFileName($opRoot)) $fixture.RunId $fixture.EvidenceBase $fixture.EvidenceHead `
-                                    $fixture.ProducerBase $fixture.ProducerHead $fixture.SourceManifestHash `
-                                    $fixture.SelectionReceiptHash $fixture.ExpectedFiles $clock
-                            } $e1Config $prepared $e1Root $timer
-                            Assert ($e1.status -ceq 'passed') 'E1 fake publish failed'
-                            $e1After=[IO.Path]::Combine([IO.Path]::GetDirectoryName($f.Config),'e1-settings-after.json')
-                            $f.State.observedAt=[DateTimeOffset]::UtcNow.ToString('o');Json $e1After $f.State
-                            $e1Candidate=[IO.Path]::Combine($e1.residue.localPath,'result.json')
-                            $e1Ledger=Invoke-EvidenceCommit $e1Candidate (Hash $e1Candidate) $e1After (Hash $e1After)
-                            Assert ($e1Ledger.status -ceq 'passed') 'E1 fake ledger failed'
-                            $ledger=Get-Content $e1Ledger.ledgerPath -Raw|ConvertFrom-Json
-                            Assert ($ledger.entries.Count -eq 15 -and $prepared.SourceFiles.Count -eq 13 -and
-                                $ledger.sourceManifestSha256 -ceq (Hash $prepared.SourceManifestPath) -and
-                                $ledger.selectionReceiptSha256 -ceq (Hash $prepared.SelectionReceiptPath) -and
-                                $ledger.packageSha256 -ceq (Hash $prepared.Package.Path) -and
-                                $ledger.manifestSha256 -ceq $prepared.Package.ManifestSha256 -and
-                                $ledger.evidenceBase -ceq $prepared.EvidenceBase -and
-                                $ledger.evidenceHead -ceq $prepared.EvidenceHead -and
-                                $ledger.producerHead -ceq $f.Head -and $commit.status -ceq 'passed') 'dummy E1 provenance mismatch'
-                            foreach($entry in $prepared.ExpectedFiles){
-                                $actual=@($ledger.entries|Where-Object path -CEQ $entry.Path)
-                                Assert ($actual.Count -eq 1 -and $actual[0].bytes -eq $entry.Bytes -and
-                                    $actual[0].sha256 -ceq $entry.Sha256 -and
-                                    (Hash ([OneStarMaker.Artifacts.Packaging.PackagePolicy]::Under($prepared.Snapshot,$entry.Path))) -ceq $entry.Sha256) `
-                                    'dummy E1 entry mismatch'
-                            }
-                            $handoff=Write-EvidenceReaderInput $e1Ledger.ledgerPath $e1Ledger.ledgerSha256 `
-                                $commit.ledgerPath $commit.ledgerSha256 $f.Config (Hash $f.Config)
-                            $read=Read-EvidenceReaderInput $handoff.Path $handoff.Sha256
-                            Assert ($read.items.Count -eq 2 -and $read.items[0].entrySet.Count -eq 15 -and
-                                $read.items[1].entrySet.Count -eq 4 -and
-                                $read.items[0].openPaths[0] -ceq 'source/final-offline/c-raw/ArtifactTransfer.stdout.log' -and
-                                $read.items[0].openPaths[1] -ceq 'source/continuation/current-run/publish-operation/operation-observations.json' -and
-                                ($read.items[1].openPaths -join '|') -ceq 'settings-overview.jpg|settings-rules.jpg') 'reader handoff mismatch'
-                            $reject=$false;try{$null=Read-EvidenceReaderInput $handoff.Path ('0'*64)}catch{$reject=$true}
-                            Assert $reject 'reader accepted wrong prompt hash'
-                            $substituted=[IO.Path]::Combine([IO.Path]::GetDirectoryName($f.Config),'substituted-reader-input.json')
-                            $guide=Get-Content $handoff.Path -Raw|ConvertFrom-Json
-                            $guide.items[0].packageSha256='0'*64;Json $substituted $guide
-                            $reject=$false;try{$null=Read-EvidenceReaderInput $substituted (Hash $substituted)}catch{$reject=$true}
-                            Assert $reject 'trusted but identity-substituted handoff accepted'
-                            $closeEvent=[IO.Path]::Combine([IO.Path]::GetDirectoryName($f.Config),'close-event.json')
-                            Json $closeEvent ([ordered]@{schemaVersion=1;owner='OSM maintainer'
-                                ledgerIds=@($e1Ledger.ledgerId,$commit.ledgerId)
-                                ledgerSha256=@($e1Ledger.ledgerSha256,$commit.ledgerSha256)
-                                closedAt=[DateTimeOffset]::UtcNow.AddSeconds(-1).ToString('o')
-                                consumerReferenceState='test-unreferenced';ownerInstructionReference='dummy-test-only'})
-                            $close=Write-EvidenceCloseRecord $e1Ledger.ledgerPath $e1Ledger.ledgerSha256 `
-                                $commit.ledgerPath $commit.ledgerSha256 $closeEvent (Hash $closeEvent)
-                            Assert ([IO.File]::Exists($close.Path) -and
-                                $close.Path.StartsWith([IO.Path]::Combine($root,'records','evidence-retention')+[IO.Path]::DirectorySeparatorChar,
-                                    [StringComparison]::OrdinalIgnoreCase)) 'close record missing or outside isolated root'
-                            $reject=$false
-                            try{$null=Write-EvidenceCloseRecord $e1Ledger.ledgerPath $e1Ledger.ledgerSha256 `
-                                $commit.ledgerPath $commit.ledgerSha256 $closeEvent (Hash $closeEvent)}catch{$reject=$true}
-                            Assert $reject 'duplicate close accepted'
-                        }
-                    }
-                    if($case -ceq 'dummy-secret-nonexposure'){
-                        $resultText=ConvertTo-Json -InputObject $v -Compress -Depth 20
-                        $operationResultPath=[IO.Path]::Combine($v.residue.localPath,'result.json')
-                        $receiptText=[IO.File]::ReadAllText($v.ledger.protectionReceiptPath)
-                        $all=$resultText+[IO.File]::ReadAllText($operationResultPath)+$receiptText
-                        Assert (-not $all.Contains('DUMMY_EVIDENCE_SECRET') -and -not $all.Contains('DUMMY_EVIDENCE_ID')) 'dummy secret exposed'
-                    }
-                }
+$registered=@('v2-roundtrip','reader-hash','handoff-identity-substitution','unsupported-schema','selection-path','one-put-lost-response','readback-failure','receipt-atomic-failure','secret-exception-output','fresh-child-fetch','legacy-cli-network-zero','put-reconcile-no-reput','put-recovery-child-protected')
+$selected=if($Case -ceq '*'){$registered}else{@($Case.Split(','))};$executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
+foreach($caseName in $selected){
+    $executed.Add($caseName)
+    try{
+        Assert-EvidenceTest ($caseName -cin $registered) 'unknown-case';$env=New-EvidenceTestEnvironment;$fixture=New-EvidenceReaderFixture $env.Root;$selectionPath=[IO.Path]::Combine($env.Root,'selection.json');Write-EvidenceTestJson $selectionPath $fixture.Selection
+        switch($caseName){
+            'unsupported-schema'{$old=$fixture.Selection;$old.schemaVersion=1;Write-EvidenceTestJson $selectionPath $old;$p=Invoke-EvidencePublish $env.ConfigPath $selectionPath;Assert-EvidenceTest ($p.status -ceq 'failed' -and $env.Counts.Count -eq 0) 'legacy network';break}
+            'selection-path'{$fixture.Selection.files=@('../outside');Write-EvidenceTestJson $selectionPath $fixture.Selection;$p=Invoke-EvidencePublish $env.ConfigPath $selectionPath;Assert-EvidenceTest ($p.status -ceq 'failed' -and $env.Counts.Count -eq 0) 'path network';break}
+            'one-put-lost-response'{$inner=$env.Transport;$hook={param($g,$req)$r=& $inner $g $req;if($req.Operation -ceq 'put'){throw 'response-lost'};$r}.GetNewClosure();Set-EvidenceTestValue ArtifactApplication TransportHook $hook;$p=Invoke-EvidencePublish $env.ConfigPath $selectionPath;Assert-EvidenceTest ($p.status -ceq 'failed' -and @($env.Counts.Values|Where-Object {$_ -gt 1}).Count -eq 0 -and $env.Objects.Count -eq 1) 'one-put';break}
+            'readback-failure'{Set-EvidenceTestValue ArtifactApplication ReadbackHook {throw 'reader-failed'};$p=Invoke-EvidencePublish $env.ConfigPath $selectionPath;Assert-EvidenceTest ($p.status -ceq 'failed' -and $null -eq $p.reference) 'unverified success';break}
+            'receipt-atomic-failure'{Set-EvidenceTestValue EvidencePaths WriteHook {param($stage,$path)if($stage -ceq 'before-rename' -and $path -like '*receipts*'){throw 'crash'}};$p=Invoke-EvidencePublish $env.ConfigPath $selectionPath;Assert-EvidenceTest ($p.status -ceq 'failed' -and $null -eq $p.reference) 'receipt success';break}
+            'secret-exception-output'{Set-EvidenceTestValue ArtifactApplication TransportHook {throw 'DUMMY_SECRET'};$p=Invoke-EvidencePublish $env.ConfigPath $selectionPath;Assert-EvidenceTest ((ConvertTo-Json $p -Depth 10) -cnotmatch 'DUMMY_SECRET') 'secret output';break}
+            'legacy-cli-network-zero'{
+                $info=[Diagnostics.ProcessStartInfo]::new('pwsh');$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
+                foreach($arg in @('-NoProfile','-File',(Join-Path $PSScriptRoot '../../artifacts.ps1'),'evidence','commit','--candidate','dummy','--candidate-sha256',('a'*64),'--settings-after','dummy','--settings-after-sha256',('a'*64))){$info.ArgumentList.Add($arg)}
+                $proc=[Diagnostics.Process]::new();$proc.StartInfo=$info;try{$null=$proc.Start();$out=$proc.StandardOutput.ReadToEndAsync();$err=$proc.StandardError.ReadToEndAsync();Assert-EvidenceTest ($proc.WaitForExit(10000)) 'legacy bounded';Assert-EvidenceTest ([Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($out,$err),3000)) 'legacy pipes';Assert-EvidenceTest ($proc.ExitCode -eq 1 -and $out.Result -match 'unsupported-command' -and $env.Counts.Count -eq 0) 'legacy accepted'}finally{$proc.Dispose()};break
             }
-            $cases.Add($case);Write-Output "PASS $case"
-        }catch{$failed.Add($case);Write-Output "FAIL $case $($_.Exception.Message)"}
-    }
-}finally{
-    if($MissingE1SourceProbe){
-        & $evidenceApp {param($path)$script:E1Root=$path} $originalE1Root
-        $probe.sourceMissingAfter=-not [IO.Directory]::Exists($sentinel)
-        $probe.rootRestored=((& $evidenceApp { $script:E1Root }) -ceq $originalE1Root)
-        $probe.fixedUnchanged=((ConvertTo-Json -InputObject (& $evidenceApp { ,$script:E1Fixed }) -Compress -Depth 8) -ceq $fixedBefore)
-        $probe.manifestUnchanged=((& $evidenceApp { $script:E1ManifestHash }) -ceq $manifestBefore)
-    }
-    & $app {$script:TransportHook=$null;$script:ReadbackHook=$null}
-    & $store {$script:TestRoot=$null;$script:TestBase=$null}
-    & $paths {$script:TestRoot=$null}
-    & $evidenceAppPaths {$script:TestRoot=$null}
-    & $ledgerPaths {$script:TestRoot=$null}
-    & $evidencePaths {$script:TestRoot=$null}
-    $tmp=[IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')+'\'
-    $target=[IO.Path]::GetFullPath($root)
-    if($target.StartsWith($tmp,[StringComparison]::OrdinalIgnoreCase) -and
-        [IO.Path]::GetFileName($target) -match '^osm-evidence-test-[0-9a-f]{32}$' -and
-        [IO.Directory]::Exists($target)){[IO.Directory]::Delete($target,$true)}
+            'put-recovery-child-protected'{
+                $inner=$env.Transport;$hook={param($g,$req)$r=& $inner $g $req;if($req.Operation -ceq 'put'){throw 'response-lost'};$r}.GetNewClosure();Set-EvidenceTestValue ArtifactApplication TransportHook $hook;$p=Invoke-EvidencePublish $env.ConfigPath $selectionPath
+                $readback={param($op,$c,$gen,$key,$bytes,$hash)Write-EvidenceTestJson ([IO.Path]::Combine($op,'readback-process.json')) ([pscustomobject]@{process=Get-EvidenceProcessIdentity;exited=$false;pipesClosed=$false});throw 'unconfirmed-child'}.GetNewClosure();Set-EvidenceTestValue ArtifactApplication ReadbackHook $readback
+                $g=Enter-WorkflowTaskGuard ('a'*64) fixture
+                try{
+                    $rejected=$false;try{$null=Assert-EvidenceTransitionSafe $env.Config fixture $g}catch{$rejected=$true};Assert-EvidenceTest $rejected 'unknown recovery child accepted'
+                    $task=Read-EvidenceTask $env.Config fixture $g;$artifact=$task.artifacts[0];Assert-EvidenceTest ($null -ne $artifact.operation -and [IO.File]::Exists($artifact.operation.childMarker)) 'recovery child ownership missing'
+                    $stage=@($task.staging|Where-Object path -CEQ $artifact.operation.path);Assert-EvidenceTest ($stage.Count -eq 1 -and -not $stage[0].adopted) 'recovery stage missing'
+                    $stopped=[pscustomobject]@{pid=2147483647;startedAt='2000-01-01T00:00:00.0000000Z'};$artifact.operation.process=$stopped;$stage[0].operation.process=$stopped;$null=Write-EvidenceTask $env.Config fixture $task $task.generation $g;$recoveryPath=$stage[0].path
+                }finally{$g.Dispose()}
+                $before=($env.Counts.Values|Measure-Object -Sum).Sum;$later=[DateTimeOffset]::UtcNow.AddDays(8);Set-EvidenceTestValue EvidenceCleanup Clock {$later}.GetNewClosure();$clean=Invoke-EvidenceCleanup $env.ConfigPath
+                Assert-EvidenceTest ($clean.status -ceq 'pending' -and $env.Objects.Count -eq 1 -and [IO.Directory]::Exists($recoveryPath) -and ($env.Counts.Values|Measure-Object -Sum).Sum -eq $before) 'unknown recovery child released or retried'
+                break
+            }
+            'put-reconcile-no-reput'{
+                $inner=$env.Transport;$hook={param($g,$req)$r=& $inner $g $req;if($req.Operation -ceq 'put'){throw 'response-lost'};$r}.GetNewClosure();Set-EvidenceTestValue ArtifactApplication TransportHook $hook;$p=Invoke-EvidencePublish $env.ConfigPath $selectionPath
+                $g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$null=Assert-EvidenceTransitionSafe $env.Config fixture $g;$task=Read-EvidenceTask $env.Config fixture $g;Assert-EvidenceTest ($task.artifacts[0].state -ceq 'ready' -and @($env.Counts.GetEnumerator()|Where-Object {$_.Key -like 'put *' -and $_.Value -gt 1}).Count -eq 0) 'recovery reput';foreach($owned in $task.artifacts[0].ownedCopies){Assert-EvidenceTest (@($task.staging|Where-Object {$owned.path.StartsWith($_.path+[IO.Path]::DirectorySeparatorChar,[StringComparison]::Ordinal)}).Count -gt 0) 'put recovery ownership missing'}}finally{$g.Dispose()};break
+            }
+            default{
+                $p=Invoke-EvidencePublish $env.ConfigPath $selectionPath;Assert-EvidenceTest ($p.status -ceq 'passed') ('publish failed '+$p.reasonCode)
+                if($caseName -ceq 'fresh-child-fetch'){
+                    $ref=Read-EvidenceReference $p.reference $env.Config;[IO.File]::WriteAllBytes([IO.Path]::Combine($env.Root,'remote.zip'),$env.Objects[$ref.key])
+                    $info=[Diagnostics.ProcessStartInfo]::new('pwsh');$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
+                    foreach($arg in @('-NoProfile','-File',(Join-Path $PSScriptRoot 'EvidenceTestChild.ps1'),'-Root',$env.Root,'-ConfigPath',$env.ConfigPath,'-Reference',$p.reference,'-Sha256',$p.packageSha256)){$info.ArgumentList.Add($arg)}
+                    $proc=[Diagnostics.Process]::new();$proc.StartInfo=$info;try{$null=$proc.Start();$out=$proc.StandardOutput.ReadToEndAsync();$err=$proc.StandardError.ReadToEndAsync();Assert-EvidenceTest ($proc.WaitForExit(15000)) 'child bounded';Assert-EvidenceTest ([Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($out,$err),3000)) 'child pipes';Assert-EvidenceTest ($proc.ExitCode -eq 0 -and $out.Result -match '"status":"passed"') ('child fetch '+$err.Result+$out.Result)}finally{$proc.Dispose()};break
+                }
+                $hash=if($caseName -ceq 'reader-hash'){'0'*64}else{$p.packageSha256};$reference=$p.reference
+                if($caseName -ceq 'handoff-identity-substitution'){$ref=Read-EvidenceReference $reference $env.Config;$ref.head='9'*40;$reference='osm-evidence-v2:'+ [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((ConvertTo-Json $ref -Compress))).TrimEnd('=').Replace('+','-').Replace('/','_')}
+                $f=Invoke-EvidenceFetch $env.ConfigPath $reference $hash
+                if($caseName -ceq 'v2-roundtrip'){Assert-EvidenceTest ($f.status -ceq 'passed') ('fetch failed '+$f.reasonCode);foreach($name in $fixture.Files){Assert-EvidenceTest ((Get-FileHash -LiteralPath ([IO.Path]::Combine($f.outputPath,$name))).Hash -ceq (Get-FileHash -LiteralPath ([IO.Path]::Combine($fixture.Source,$name))).Hash) 'inner hash'}}else{Assert-EvidenceTest ($f.status -ceq 'failed' -and $null -eq $f.outputPath) 'reader accepted substitution'}
+            }
+        }
+    }catch{$failed.Add($caseName);[Console]::Error.WriteLine($caseName+': '+$_.Exception.Message)}
+    finally{Set-EvidenceTestValue EvidencePaths WriteHook $null}
 }
-if($MissingE1SourceProbe){
-    $fresh=Import-Module (Join-Path $PSScriptRoot '../EvidenceApplication.psm1') -Force -PassThru
-    $probe.freshImportRoot=((& $fresh { $script:E1Root }) -ceq $originalE1Root)
-    $probe.freshFixedUnchanged=((ConvertTo-Json -InputObject (& $fresh { ,$script:E1Fixed }) -Compress -Depth 8) -ceq $fixedBefore)
-    $probe.freshManifestUnchanged=((& $fresh { $script:E1ManifestHash }) -ceq $manifestBefore)
-    if(-not ($probe.sourceMissingBefore -and $probe.sourceMissingAfter -and $probe.rootRestored -and
-        $probe.freshImportRoot -and $probe.fixedUnchanged -and $probe.manifestUnchanged -and
-        $probe.freshFixedUnchanged -and $probe.freshManifestUnchanged)){
-        $probeFailed=$true
-    }
-}
-if($ResultPath){
-    $raw=[ordered]@{registered=$registered;selected=$selected;executed=@($cases.ToArray());failed=@($failed.ToArray())
-        probe=$probe;probePassed=if($MissingE1SourceProbe){-not $probeFailed}else{$null}}
-    [IO.File]::WriteAllText($ResultPath,(ConvertTo-Json -InputObject $raw -Depth 8),[Text.UTF8Encoding]::new($false))
-}
-Write-Output "Cases: $($selected.Count); passed: $($cases.Count); failed: $($failed.Count)"
-if($probeFailed){Write-Output 'FAIL missing-E1-source probe restoration'}
-if($failed.Count -or $probeFailed -or $cases.Count -ne $selected.Count){exit 1}
+Complete-EvidenceTestSuite $ResultPath $registered $selected $executed $failed
+[Console]::WriteLine("ArtifactEvidence $($executed.Count)/$($registered.Count), failed $($failed.Count)")

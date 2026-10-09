@@ -1,8 +1,10 @@
 Set-StrictMode -Version Latest
+
+# This is an invocation-local deadline, never a persisted policy clock or CLI input.
+$script:Budget=$null
+function Assert-EvidenceBudget { if($script:Budget -and (& $script:Budget.Remaining) -le 0){throw 'evidence-deadline'} }
 Import-Module (Join-Path $PSScriptRoot 'ArtifactCommands.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'ArtifactPaths.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot 'ArtifactProtectionPolicy.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot 'ArtifactProtection.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Credentials/CredentialStore.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Transport/R2ArtifactTransport.psm1') -Force
 
@@ -11,6 +13,7 @@ $script:ReadbackChildPath = Join-Path $PSScriptRoot 'Transport/ArtifactReadback.
 # Private test hooks are not exported and are unavailable through the public CLI.
 $script:TransportHook = $null
 $script:ReadbackHook = $null
+$script:ReadbackLaunchHook = $null
 
 function Import-ArtifactPackage {
     if (-not [IO.File]::Exists($script:PackageAssembly)) { throw 'Artifact package unavailable.' }
@@ -22,17 +25,21 @@ function Import-ArtifactPackage {
 
 function Get-Remaining([Diagnostics.Stopwatch] $Timer, [int] $Maximum = 120000) {
     $remaining = [Math]::Min($Maximum, 600000 - [int]$Timer.ElapsedMilliseconds)
+    if($script:Budget){$remaining=[Math]::Min($remaining,[long](& $script:Budget.Remaining))}
     if ($remaining -lt 1) { throw 'Artifact operation expired.' }
     return $remaining
 }
 
 function Invoke-ArtifactNetwork([string] $Generation, [hashtable] $Request) {
-    $requestCopy = $Request.Clone()
+    Assert-EvidenceBudget
+    $requestCopy = $Request.Clone();if($script:Budget){$requestCopy.DeadlineMilliseconds=[Math]::Min([long]$requestCopy.DeadlineMilliseconds,[long](& $script:Budget.Remaining))}
     if ($script:TransportHook) { return & $script:TransportHook $Generation $requestCopy }
     $transportInvoker = (Get-Command Invoke-R2ArtifactOperation -ErrorAction Stop).ScriptBlock
+    $budget=$script:Budget
     $callback = {
         param($id, $secret, $actualGeneration, $details)
         if ($actualGeneration -cne $Generation) { throw 'Credential generation changed.' }
+        if($budget){$left=[long](& $budget.Remaining);if($left -lt 1){throw 'Artifact operation expired.'};$details.DeadlineMilliseconds=[Math]::Min([long]$details.DeadlineMilliseconds,$left)}
         & $transportInvoker $id $secret $actualGeneration $details
     }.GetNewClosure()
     return Invoke-CredentialTransport 'osm' $callback $requestCopy
@@ -78,8 +85,9 @@ function New-ArtifactRequest($Config, [string] $Operation, [string] $Key,
 }
 
 function Write-ArtifactJson([string] $Path, $Value) {
+    Assert-EvidenceBudget
     $json = ConvertTo-Json -InputObject $Value -Compress -Depth 20
-    [IO.File]::WriteAllText($Path, $json, [Text.UTF8Encoding]::new($false))
+    Assert-EvidenceBudget;[IO.File]::WriteAllText($Path, $json, [Text.UTF8Encoding]::new($false));Assert-EvidenceBudget
     return [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($json))).ToLowerInvariant()
 }
 
@@ -198,14 +206,59 @@ function Invoke-ReadbackStop([scriptblock] $Stop, [scriptblock] $WaitExit,
     throw 'Readback child expired.'
 }
 
+# Only a proven non-launch may turn the unknown marker into confirmed stop. The
+# fixed small journal uses the caller's hard reserve, never reopens ordinary work.
+function Confirm-ArtifactReadbackNotStarted([string]$Path) {
+    if($script:Budget -and (& $script:Budget.HardRemaining) -le 0){throw 'Readback child unconfirmed.'}
+    $root=[IO.Path]::GetDirectoryName($Path);$lock=[IO.Path]::Combine($root,'operation.lock')
+    Assert-ArtifactOperationFile $root $lock;Assert-NoArtifactReparse $Path
+    $temporary=$Path+'.'+[Guid]::NewGuid().ToString('N')+'.pending';$stream=$null
+    $bytes=[Text.Encoding]::UTF8.GetBytes('{"process":{"pid":0,"startedAt":null},"exited":true,"pipesClosed":true}')
+    try {
+        $stream=[IO.FileStream]::new($temporary,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+        $acl=[IO.FileSystemAclExtensions]::GetAccessControl([IO.FileInfo]::new($lock))
+        # A freshly read FileSecurity has no dirty sections; copy its descriptor
+        # into a new instance so SetAccessControl actually persists the private DACL.
+        $private=[Security.AccessControl.FileSecurity]::new();$private.SetSecurityDescriptorBinaryForm($acl.GetSecurityDescriptorBinaryForm(),[Security.AccessControl.AccessControlSections]'Access,Owner,Group')
+        [IO.FileSystemAclExtensions]::SetAccessControl([IO.FileInfo]::new($temporary),$private)
+        $stream.Write($bytes,0,$bytes.Length);$stream.Flush($true);$stream.Dispose();$stream=$null
+        if($script:Budget -and (& $script:Budget.HardRemaining) -le 0){throw 'Readback child unconfirmed.'}
+        Assert-NoArtifactReparse $Path;[IO.File]::Move($temporary,$Path,$true)
+    } finally {if($stream){$stream.Dispose()};if([IO.File]::Exists($temporary)){[IO.File]::Delete($temporary)}}
+}
+
+# The parent owns this invocation's previously absent GUID destination. Only
+# confirmed child exit and EOF permit protecting its late-created output file;
+# unrelated existing files and unknown children never enter this path.
+function Protect-ArtifactReadbackOutput([string]$OperationRoot,[string]$Path,[Diagnostics.Stopwatch]$Timer) {
+    $null=Get-Remaining $Timer 600000
+    $lock=[IO.Path]::Combine($OperationRoot,'operation.lock');Assert-ArtifactOperationFile $OperationRoot $lock
+    Assert-NoArtifactReparse $Path
+    if([IO.Directory]::Exists($Path)){throw 'Readback destination unavailable.'}
+    if([IO.File]::Exists($Path)){
+        $acl=[IO.FileSystemAclExtensions]::GetAccessControl([IO.FileInfo]::new($lock))
+        # A freshly read FileSecurity has no dirty sections; copy its descriptor
+        # into a new instance so SetAccessControl actually persists the private DACL.
+        $private=[Security.AccessControl.FileSecurity]::new();$private.SetSecurityDescriptorBinaryForm($acl.GetSecurityDescriptorBinaryForm(),[Security.AccessControl.AccessControlSections]'Access,Owner,Group')
+        $null=Get-Remaining $Timer 600000
+        [IO.FileSystemAclExtensions]::SetAccessControl([IO.FileInfo]::new($Path),$private)
+        Assert-ArtifactOperationFile $OperationRoot $Path
+    }
+    $null=Get-Remaining $Timer 600000
+}
+
 function Invoke-ArtifactReadback([string] $OperationRoot, $Config, [string] $Generation,
     [string] $Key, [long] $Bytes, [string] $Hash, [Diagnostics.Stopwatch] $Timer) {
+    Assert-EvidenceBudget
+    if((Get-Remaining $Timer 600000) -le 15000){throw 'Readback child unconfirmed.'}
     if ($script:ReadbackHook) { return & $script:ReadbackHook $OperationRoot $Config $Generation $Key $Bytes $Hash }
     $requestPath = [IO.Path]::Combine($OperationRoot, 'readback-' + [Guid]::NewGuid().ToString('N') + '.json')
     $destination = [IO.Path]::Combine($OperationRoot, 'readback-' + [Guid]::NewGuid().ToString('N') + '.bin')
+    Assert-NoArtifactReparse $destination
+    if([IO.File]::Exists($destination) -or [IO.Directory]::Exists($destination)){throw 'Readback destination unavailable.'}
     $request = [ordered]@{ schemaVersion = 1; operationRoot = $OperationRoot; endpoint = $Config.Data.endpoint
         generation = $Generation; key = $Key; expectedBytes = $Bytes; expectedSha256 = $Hash
-        destination = $destination; deadlineMilliseconds = (Get-Remaining $Timer) }
+        destination = $destination; deadlineMilliseconds = [Math]::Min(120000,(Get-Remaining $Timer 600000)-15000) }
     $null = Write-ArtifactJson $requestPath $request
     Protect-ArtifactTree $OperationRoot
     $info = [Diagnostics.ProcessStartInfo]::new()
@@ -214,23 +267,48 @@ function Invoke-ArtifactReadback([string] $OperationRoot, $Config, [string] $Gen
     foreach ($argument in @('-NoProfile','-File',$script:ReadbackChildPath,'-RequestPath',$requestPath)) {
         [void]$info.ArgumentList.Add($argument)
     }
+    $runtimeContext=[AppDomain]::CurrentDomain.GetData('OneStarMaker.Evidence.RuntimeContext.v2')
+    if([AppDomain]::CurrentDomain.GetData('OneStarMaker.Evidence.StorageBinding.v1') -and -not $runtimeContext){throw 'Readback context unavailable.'}
+    if($runtimeContext){
+        $context=$runtimeContext|ConvertFrom-Json -AsHashtable
+        foreach($argument in @('-Runtime',$context.runtime,'-ManifestSha256',$context.manifestSha256)){[void]$info.ArgumentList.Add($argument)}
+        $info.FileName=[Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
+    }
     $process = [Diagnostics.Process]::new(); $process.StartInfo = $info
+    $started=$false;$launchAttempted=$false;$notStartedConfirmed=$false;$outTask=$null;$errTask=$null
+    $budget=$script:Budget
+    $operationRemaining = { $left=[Math]::Max(0,600000-[int]$Timer.ElapsedMilliseconds);if($budget){$left=[Math]::Min($left,[long](& $budget.Remaining))};return $left }.GetNewClosure()
+    $childMarker=[IO.Path]::Combine($OperationRoot,'readback-process.json')
+    # A crash/expiry between launch and PID journaling must leave an unknown-child
+    # marker rather than let the next worker infer that no child was started.
+    $childRecord=[ordered]@{process=[ordered]@{pid=0;startedAt=$null};exited=$false;pipesClosed=$false}
     try {
-        if (-not $process.Start()) { throw 'Readback child unavailable.' }
+        $null=Write-ArtifactJson $childMarker $childRecord
+        if($script:ReadbackLaunchHook){$null=& $script:ReadbackLaunchHook 'before-start' $process}
+        Assert-EvidenceBudget
+        if((Get-Remaining $Timer 600000) -le 15000){throw 'Readback child unconfirmed.'}
+        $launchAttempted=$true
+        $didStart=if($script:ReadbackLaunchHook){& $script:ReadbackLaunchHook 'start' $process}else{$process.Start()}
+        if (-not $didStart) { $notStartedConfirmed=$true;throw 'Readback child unavailable.' }
+        $started=$true
         $outTask = $process.StandardOutput.ReadToEndAsync()
         $errTask = $process.StandardError.ReadToEndAsync()
+        if($script:ReadbackLaunchHook){$null=& $script:ReadbackLaunchHook 'after-start' $process}
+        $childRecord.process=[ordered]@{pid=$process.Id;startedAt=$process.StartTime.ToUniversalTime().ToString('o')}
+        $null=Write-ArtifactJson $childMarker $childRecord;Protect-ArtifactTree $OperationRoot
         # Reserve the final 15 seconds of the operation budget for stop and pipe verification.
-        $wait = [Math]::Min(135000, [Math]::Max(0, 600000 - [int]$Timer.ElapsedMilliseconds - 15000))
+        $wait = [Math]::Min(135000, [Math]::Max(0, (Get-Remaining $Timer 600000) - 15000))
         if (-not $process.WaitForExit($wait)) {
             $stop = { if (-not $process.HasExited) { $process.Kill($true) } }.GetNewClosure()
             $waitExit = { param($milliseconds) $process.WaitForExit($milliseconds) }.GetNewClosure()
             $waitPipes = { param($milliseconds) [Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($outTask,$errTask), $milliseconds) }.GetNewClosure()
             $clock = { [Diagnostics.Stopwatch]::GetTimestamp() }
-            $operationRemaining = { [Math]::Max(0, 600000 - [int]$Timer.ElapsedMilliseconds) }.GetNewClosure()
             Invoke-ReadbackStop $stop $waitExit $waitPipes $clock $operationRemaining
         }
         $pipeBudget = [Math]::Min(15000, (Get-Remaining $Timer 15000))
         if (-not [Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($outTask,$errTask), $pipeBudget)) { throw 'Readback pipe unconfirmed.' }
+        Protect-ArtifactReadbackOutput $OperationRoot $destination $Timer
+        $childRecord.exited=$true;$childRecord.pipesClosed=$true;$null=Write-ArtifactJson $childMarker $childRecord
         if ($errTask.Result.Length -ne 0 -or $outTask.Result.Length -gt 4096) {
             return [pscustomobject]@{ operation = 'readback'; generation = $Generation; key = $Key
                 bytes = $null; sha256 = $null; childExit = $process.ExitCode
@@ -273,250 +351,24 @@ function Invoke-ArtifactReadback([string] $OperationRoot, $Config, [string] $Gen
             statusClass = $value.statusClass; s3Code = $value.s3Code
             statusObserved = $value.statusObserved; timedOut = $value.timedOut; redirected = $value.redirected
             childStatus = $status; observedAt = [DateTimeOffset]::UtcNow.ToString('o') }
+    } catch {
+        $failure=$_
+        if(-not $launchAttempted -or $notStartedConfirmed){
+            try{Confirm-ArtifactReadbackNotStarted $childMarker}catch{}
+        }elseif(-not $started){
+            # Start exceptions do not prove absence. An associated process may be
+            # stopped, but a missing PID leaves the original unknown marker intact.
+            try{$null=$process.Id;$started=$true;$outTask=$process.StandardOutput.ReadToEndAsync();$errTask=$process.StandardError.ReadToEndAsync()}catch{}
+        }
+        # PID journaling or a deadline check may fail after launch. Attempt the
+        # same bounded stop; an unconfirmed marker still protects the payload.
+        if($started -and -not $process.HasExited){
+            try{Invoke-ReadbackStop {if(-not $process.HasExited){$process.Kill($true)}}.GetNewClosure() {param($ms)$process.WaitForExit($ms)}.GetNewClosure() {param($ms)[Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($outTask,$errTask),$ms)}.GetNewClosure() {[Diagnostics.Stopwatch]::GetTimestamp()} $operationRemaining}catch{}
+        }
+        throw $failure
     } finally { $process.Dispose() }
 }
 
-function Invoke-ArtifactPublish([string] $ConfigPath, [string] $InputListPath, [string] $Base, [string] $Head) {
-    $id = [Guid]::NewGuid().ToString('N'); $result = New-ArtifactResult $id 'publish'
-    $timer = [Diagnostics.Stopwatch]::StartNew(); $operationRoot = $null; $config = $null
-    $observations = [Collections.Generic.List[object]]::new()
-    $context = [ordered]@{ base = $Base; head = $Head; runId = $null; key = $null
-        packageBytes = $null; packageSha256 = $null; manifestSha256 = $null; putStartedAt = $null }
-    try {
-        Assert-Hex $Base 40; Assert-Hex $Head 40
-        $config = Read-ArtifactConfig $ConfigPath
-        $list = Read-ArtifactJson $InputListPath
-        Assert-Fields $list.Data @('schemaVersion','purpose','root','files')
-        $sourceRoot = [string]$list.Data.root
-        $artifactRoot = Get-ArtifactRoot
-        $credentialRoot = [IO.Path]::Combine([Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData), 'OneStarMaker', 'Artifacts', 'credentials')
-        if ((Test-ArtifactWithin $sourceRoot $artifactRoot) -or (Test-ArtifactWithin $sourceRoot $credentialRoot)) {
-            throw 'Protected input root.'
-        }
-        $operationRoot = New-ArtifactOperation
-        $result.residue.localPath = $operationRoot
-        Import-ArtifactPackage
-        $runId = [Guid]::NewGuid().ToString('N')
-        $package = [OneStarMaker.Artifacts.Packaging.PackageIO]::Create($InputListPath, $operationRoot,
-            $Base, $Head, $config.Data.repositoryId, $runId, (Get-Remaining $timer 600000))
-        $context.runId = $runId; $context.packageBytes = $package.Bytes
-        $context.packageSha256 = $package.Sha256; $context.manifestSha256 = $package.ManifestSha256
-        Protect-ArtifactTree $operationRoot
-        $result.verification.snapshot = $true
-        $generation = (Get-CredentialStatus 'osm').Generation
-        $key = "probe/locked/$($config.Data.repositoryId)/$Head/$runId/bundle.zip"
-        $context.key = $key
-        $result.residue.remoteKeys = @($key)
-        $putStartedAt = [DateTimeOffset]::UtcNow
-        $context.putStartedAt = $putStartedAt.ToString('o')
-        $retainUntil = $putStartedAt.AddSeconds(86400).ToString('o')
-        $result.residue.retainUntil = $retainUntil
-        $result.residue.remote = 'put-attempted-state-unknown'
-        $request = New-ArtifactRequest $config 'put' $key $package.Path $null $timer
-        $put = Invoke-ArtifactObservedNetwork $observations 'locked-put' $generation $request { Invoke-ArtifactNetwork $generation $request } $package.Bytes $package.Sha256
-        if (-not (Test-ArtifactSuccess $put 'put' $generation)) { throw 'Publish PUT unconfirmed.' }
-        $result.verification.put = $true
-        $readback1 = Invoke-ArtifactObservedReadback $observations 'first-readback' $generation $key $package.Bytes $package.Sha256 { Invoke-ArtifactReadback $operationRoot $config $generation $key $package.Bytes $package.Sha256 $timer }
-        if (-not (Test-ArtifactReadback $readback1 $generation $key $package.Bytes $package.Sha256)) { throw 'Readback unconfirmed.' }
-        $result.verification.readback = $true
-        $different = [IO.Path]::Combine($operationRoot, 'different.bin')
-        $differentBytes = [Text.Encoding]::UTF8.GetBytes('synthetic-overwrite-' + $runId)
-        [IO.File]::WriteAllBytes($different, $differentBytes)
-        $differentHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($differentBytes)).ToLowerInvariant()
-        Protect-ArtifactTree $operationRoot
-        $request = New-ArtifactRequest $config 'put' $key $different $null $timer
-        $overwrite = Invoke-ArtifactObservedNetwork $observations 'locked-overwrite' $generation $request { Invoke-ArtifactNetwork $generation $request } $differentBytes.Length $differentHash
-        if (-not (Test-ArtifactLock $overwrite 'put' $generation)) { throw 'Overwrite protection unconfirmed.' }
-        $request = New-ArtifactRequest $config 'delete' $key $null $null $timer
-        $delete = Invoke-ArtifactObservedNetwork $observations 'locked-delete' $generation $request { Invoke-ArtifactNetwork $generation $request }
-        if (-not (Test-ArtifactLock $delete 'delete' $generation)) { throw 'Delete protection unconfirmed.' }
-        $readback2 = Invoke-ArtifactObservedReadback $observations 'final-readback' $generation $key $package.Bytes $package.Sha256 { Invoke-ArtifactReadback $operationRoot $config $generation $key $package.Bytes $package.Sha256 $timer }
-        if (-not (Test-ArtifactReadback $readback2 $generation $key $package.Bytes $package.Sha256)) { throw 'Final readback unconfirmed.' }
-        $result.verification.protection = $true
-        $controlKey = 'probe/unlocked/' + [Guid]::NewGuid().ToString('N') + '/control.txt'
-        $result.residue.remoteKeys = @($key,$controlKey)
-        $controlPath = [IO.Path]::Combine($operationRoot, 'control.txt')
-        $controlBytes = [Text.Encoding]::UTF8.GetBytes('synthetic-control-' + $runId)
-        [IO.File]::WriteAllBytes($controlPath, $controlBytes)
-        Protect-ArtifactTree $operationRoot
-        $controlHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($controlBytes)).ToLowerInvariant()
-        $request = New-ArtifactRequest $config 'put' $controlKey $controlPath $null $timer
-        $controlPut = Invoke-ArtifactObservedNetwork $observations 'control-put' $generation $request { Invoke-ArtifactNetwork $generation $request } $controlBytes.Length $controlHash
-        if (-not (Test-ArtifactSuccess $controlPut 'put' $generation)) { throw 'Control PUT unconfirmed.' }
-        $request = New-ArtifactRequest $config 'get' $controlKey $null ([IO.Path]::Combine($operationRoot, 'control-get.bin')) $timer
-        $controlGet = Invoke-ArtifactObservedNetwork $observations 'control-get' $generation $request { Invoke-ArtifactNetwork $generation $request } $controlBytes.Length $controlHash
-        if (-not (Test-ArtifactSuccess $controlGet 'get' $generation) -or $controlGet.Bytes -ne $controlBytes.Length -or
-            $controlGet.Sha256 -cne $controlHash) { throw 'Control GET unconfirmed.' }
-        $request = New-ArtifactRequest $config 'delete' $controlKey $null $null $timer
-        $controlDelete = Invoke-ArtifactObservedNetwork $observations 'control-delete' $generation $request { Invoke-ArtifactNetwork $generation $request }
-        if (-not (Test-ArtifactSuccess $controlDelete 'delete' $generation)) { throw 'Control DELETE unconfirmed.' }
-        $request = New-ArtifactRequest $config 'get' $controlKey $null ([IO.Path]::Combine($operationRoot, 'control-missing.bin')) $timer
-        $missing = Invoke-ArtifactObservedNetwork $observations 'control-absence' $generation $request { Invoke-ArtifactNetwork $generation $request }
-        if (-not (Test-ArtifactMissing $missing $generation)) { throw 'Control absence unconfirmed.' }
-        $result.verification.control = $true
-        # Bucket Lock age starts at the server's object creation, so use a local time before PUT.
-        $receipt = [ordered]@{ schemaVersion = 1; operationId = $id; generation = $generation; configSha256 = $config.Hash
-            profileId = $config.ProfileId; base = $Base; head = $Head; runId = $runId; key = $key
-            packageBytes = $package.Bytes; packageSha256 = $package.Sha256; manifestSha256 = $package.ManifestSha256
-            putStartedAt = $putStartedAt.ToString('o'); observations = @($observations.ToArray())
-            completedAt = [DateTimeOffset]::UtcNow.ToString('o'); exit = 0 }
-        $receiptPath = [IO.Path]::Combine($operationRoot, 'protection-receipt.json')
-        $receiptHash = Write-ArtifactJson $receiptPath $receipt
-        $reference = New-ArtifactReference $config $key $Base $Head $runId $package.Bytes $package.ManifestSha256 $retainUntil
-        $result.ledger = [ordered]@{ reference = $reference; packageSha256 = $package.Sha256
-            manifestSha256 = $package.ManifestSha256; base = $Base; head = $Head; packageBytes = $package.Bytes
-            retainUntil = $retainUntil; protectionReceiptPath = $receiptPath; protectionReceiptSha256 = $receiptHash }
-        $result.status = 'passed'; $result.reasonCode = 'complete'; $result.residue.remote = 'locked-retained'
-        $result.residue.cleanup = 'local-retained'
-    } catch { $result.reasonCode = 'unconfirmed'; $result.residue.cleanup = 'local-retained' }
-    finally {
-        if ($operationRoot) {
-            try {
-                Write-ArtifactObservationRecord $operationRoot $result $config $observations $context
-                $null = Write-ArtifactJson ([IO.Path]::Combine($operationRoot, 'result.json')) $result
-                Protect-ArtifactTree $operationRoot
-            }
-            catch { $result.status = 'failed'; $result.reasonCode = 'result-persistence-unconfirmed'; $result.ledger = $null; $result.outputPath = $null }
-        }
-    }
-    return [pscustomobject]$result
-}
-
-function Invoke-ArtifactFetch([string] $ConfigPath, [string] $ReferenceText, [string] $ExpectedHash) {
-    $id = [Guid]::NewGuid().ToString('N'); $result = New-ArtifactResult $id 'fetch'
-    $timer = [Diagnostics.Stopwatch]::StartNew(); $operationRoot = $null; $config = $null
-    $observations = [Collections.Generic.List[object]]::new()
-    $context = [ordered]@{ base = $null; head = $null; runId = $null; key = $null
-        expectedPackageBytes = $null; expectedPackageSha256 = $ExpectedHash }
-    try {
-        Assert-Hex $ExpectedHash 64
-        $rawConfig = Read-ArtifactJson $ConfigPath
-        $config = if ($null -ne $rawConfig.Data.PSObject.Properties['purpose'] -and $rawConfig.Data.purpose -ceq 'evidence') {
-            Read-EvidenceConfig $ConfigPath
-        } else { Read-ArtifactConfig $ConfigPath }
-        $reference = Read-ArtifactReference $ReferenceText $config
-        $context.base = $reference.base; $context.head = $reference.head
-        $context.runId = $reference.runId; $context.key = $reference.key
-        $context.expectedPackageBytes = $reference.packageBytes
-        $operationRoot = New-ArtifactOperation
-        $result.residue.localPath = $operationRoot
-        Import-ArtifactPackage
-        $generation = (Get-CredentialStatus 'osm').Generation
-        $archive = [IO.Path]::Combine($operationRoot, 'download.zip')
-        $request = New-ArtifactRequest $config 'get' $reference.key $null $archive $timer
-        $download = Invoke-ArtifactObservedNetwork $observations 'download' $generation $request { Invoke-ArtifactNetwork $generation $request } $reference.packageBytes $ExpectedHash
-        if (-not (Test-ArtifactSuccess $download 'get' $generation) -or $download.Bytes -ne $reference.packageBytes -or
-            $download.Sha256 -cne $ExpectedHash) { throw 'Download unconfirmed.' }
-        $result.verification.outerHash = $true
-        Protect-ArtifactTree $operationRoot
-        $package = [OneStarMaker.Artifacts.Packaging.PackageIO]::Extract($archive, $operationRoot, $ExpectedHash,
-            $reference.manifestSha256, $reference.base, $reference.head, $reference.repositoryId,
-            $reference.runId, (Get-Remaining $timer 600000), $(if ($config.Data.prefix -ceq 'evidence/first-use/') {'evidence'} else {'synthetic'}))
-        Protect-ArtifactTree $operationRoot
-        $result.verification.entries = $true
-        $result.outputPath = $package.Path
-        $result.status = 'passed'; $result.reasonCode = 'complete'
-        $result.residue.cleanup = 'local-retained'; $result.residue.remote = 'unchanged'
-    } catch { $result.reasonCode = 'unconfirmed'; $result.residue.cleanup = 'local-retained' }
-    finally {
-        if ($operationRoot) {
-            try {
-                Write-ArtifactObservationRecord $operationRoot $result $config $observations $context
-                $null = Write-ArtifactJson ([IO.Path]::Combine($operationRoot, 'result.json')) $result
-                Protect-ArtifactTree $operationRoot
-            }
-            catch { $result.status = 'failed'; $result.reasonCode = 'result-persistence-unconfirmed'; $result.ledger = $null; $result.outputPath = $null }
-        }
-    }
-    return [pscustomobject]$result
-}
-
-# This export is for EvidenceApplication only. The public CLI has no prepared-path grammar.
-function Invoke-ArtifactPublishPrepared($Config,$Package,[string] $OperationRoot,[string] $OperationId,
-    [string] $RunId,[string] $EvidenceBase,[string] $EvidenceHead,[string] $ProducerBase,[string] $ProducerHead,
-    [string] $SourceManifestHash,[string] $SelectionReceiptHash,[object[]] $ExpectedFiles,
-    [Diagnostics.Stopwatch] $Timer) {
-    $result = New-ArtifactResult $OperationId 'evidence-publish'
-    $result.residue.localPath = $OperationRoot
-    $key = "evidence/first-use/$($Config.Data.repositoryId)/$EvidenceHead/$RunId/bundle.zip"
-    $runPrefix = "evidence/first-use/$($Config.Data.repositoryId)/$EvidenceHead/$RunId/"
-    $result.residue.remoteKeys = @($key,($runPrefix + 'protection-witness.txt'),('probe/unlocked/' + $OperationId + '/control.txt'))
-    try {
-        Assert-Hex $EvidenceBase 40; Assert-Hex $EvidenceHead 40
-        Assert-Hex $ProducerBase 40; Assert-Hex $ProducerHead 40
-        Assert-Hex $SourceManifestHash 64; Assert-Hex $SelectionReceiptHash 64
-        if ($OperationId -cnotmatch '\A[0-9a-f]{32}\z' -or $RunId -cnotmatch '\A[0-9a-f]{32}\z' -or
-            $Config.Data.purpose -cne 'evidence' -or $Package.Path -cne ([IO.Path]::Combine($OperationRoot,'bundle.zip'))) {
-            throw 'Prepared package unavailable.'
-        }
-        Assert-ArtifactOperationFile $OperationRoot $Package.Path
-        if ($Package.Bytes -lt 1 -or $Package.Bytes -gt 256MB -or
-            ([IO.FileInfo]::new($Package.Path)).Length -ne $Package.Bytes -or
-            (Get-FileHash -LiteralPath $Package.Path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $Package.Sha256) {
-            throw 'Prepared package changed.'
-        }
-        Import-ArtifactPackage
-        $verify = [OneStarMaker.Artifacts.Packaging.PackageIO]::Extract($Package.Path,$OperationRoot,$Package.Sha256,
-            $Package.ManifestSha256,$EvidenceBase,$EvidenceHead,$Config.Data.repositoryId,$RunId,(Get-Remaining $Timer 600000),'evidence')
-        if ($verify.Files.Length -ne $ExpectedFiles.Count) { throw 'Prepared entry count changed.' }
-        foreach ($expected in $ExpectedFiles) {
-            $actual = @($verify.Files | Where-Object { $_.Path -ceq $expected.Path })
-            if ($actual.Count -ne 1 -or $actual[0].Bytes -ne $expected.Bytes -or $actual[0].Sha256 -cne $expected.Sha256) {
-                throw 'Prepared entry changed.'
-            }
-        }
-        Protect-ArtifactTree $OperationRoot
-        $generation = (Get-CredentialStatus 'osm').Generation
-        $networkInvoker = (Get-Command Invoke-ArtifactNetwork).ScriptBlock
-        $readInvoker = (Get-Command Invoke-ArtifactReadback).ScriptBlock
-        $remainingInvoker = (Get-Command Get-Remaining).ScriptBlock
-        $send = { param($g,$request) & $networkInvoker $g $request }.GetNewClosure()
-        $read = { param($readKey,$bytes,$hash)
-            & $readInvoker $OperationRoot $Config $generation $readKey $bytes $hash $Timer
-        }.GetNewClosure()
-        $remaining = { & $remainingInvoker $Timer }.GetNewClosure()
-        # Deny writers while verification and the one allowed upload use this exact ZIP.
-        $archiveLock = [IO.FileStream]::new($Package.Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
-        try {
-            $protection = Invoke-ArtifactEvidenceProtection $Config $Package $OperationRoot $OperationId $RunId `
-                $EvidenceBase $EvidenceHead $ProducerBase $ProducerHead $generation $SourceManifestHash `
-                $SelectionReceiptHash $send $read $remaining
-        } finally { $archiveLock.Dispose() }
-        $reference = New-ArtifactReference $Config $key $EvidenceBase $EvidenceHead $RunId $Package.Bytes `
-            $Package.ManifestSha256 $protection.ServerLockLowerBound
-        $result.ledger = [ordered]@{ reference=$reference; key=$key; packageBytes=$Package.Bytes
-            packageSha256=$Package.Sha256; manifestSha256=$Package.ManifestSha256
-            evidenceBase=$EvidenceBase; evidenceHead=$EvidenceHead; producerBase=$ProducerBase; producerHead=$ProducerHead
-            runId=$RunId; sourceManifestSha256=$SourceManifestHash; selectionReceiptSha256=$SelectionReceiptHash
-            entries=@($ExpectedFiles | ForEach-Object { [ordered]@{path=$_.Path;bytes=$_.Bytes;sha256=$_.Sha256} })
-            protectionReceiptSha256=$protection.ReceiptSha256; protectionReceiptPath=$protection.ReceiptPath
-            intentPath=$protection.IntentPath; intentSha256=$protection.IntentSha256
-            putIntentPath=$protection.PutIntentPath; putIntentSha256=$protection.PutIntentSha256
-            serverLockLowerBound=$protection.ServerLockLowerBound; configSha256=$Config.Hash
-            settingsBeforeSha256=$Config.SettingsHash }
-        $result.verification = [ordered]@{ snapshot=$true; entries=$true; witness=$true; control=$true
-            put=$true; readback=$true }
-        $result.status='passed'; $result.reasonCode='candidate'; $result.residue.remote='locked-retained'
-        $result.residue.retainUntil=$protection.ServerLockLowerBound
-        $result.residue.cleanup='local-retained'
-    } catch {
-        $result.ledger=$null; $result.outputPath=$null; $result.reasonCode='unconfirmed'
-        $result.residue.cleanup='local-retained'
-        $putIntentPath=[IO.Path]::Combine($OperationRoot,'put-intent.json')
-        $result.residue.remote=if ([IO.File]::Exists($putIntentPath)) { 'may-have-been-sent' } else { 'pre-put-intent' }
-        if ([IO.File]::Exists($putIntentPath)) {
-            try { $result.residue.retainUntil=(Read-ArtifactJson $putIntentPath).Data.serverLockLowerBound } catch {}
-        }
-    } finally {
-        try {
-            $null = Write-ArtifactJson ([IO.Path]::Combine($OperationRoot,'result.json')) $result
-            Protect-ArtifactTree $OperationRoot
-        } catch { $result.status='failed'; $result.reasonCode='result-persistence-unconfirmed'; $result.ledger=$null; $result.outputPath=$null }
-    }
-    return [pscustomobject]$result
-}
-
-Export-ModuleMember -Function Invoke-ArtifactPublish, Invoke-ArtifactFetch, Invoke-ArtifactPublishPrepared,
-    Get-Remaining, New-ArtifactRequest,
+Export-ModuleMember -Function Get-Remaining, New-ArtifactRequest,
     Test-ArtifactSuccess, Test-ArtifactMissing, Write-ArtifactJson, New-ArtifactResult,
-    Invoke-ArtifactObservedNetwork, Write-ArtifactObservationRecord
+    Invoke-ArtifactObservedNetwork, Write-ArtifactObservationRecord, Import-ArtifactPackage, Invoke-ArtifactNetwork, Invoke-ArtifactReadback, Test-ArtifactReadback
