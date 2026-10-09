@@ -117,7 +117,12 @@ Phase A では implementation base commit と Phase A snapshot を記録する�
 
 ## 9. Phase D
 
+リポジトリルートの `.agents/skills/osm-workflow/references/review-evidence.md` の「Phase D の保存・引渡し確認」に従う。以下は公開可能な要約だけを記録し、内部台帳や機微なpathをこのtracked文書へ転記しない。実際の取得案内は次の担当が利用できる既存の引渡し先に残す。
+
 - C / C' の突合:
 - マージ判断:
+- 必要なEvidenceの保存・取得・必須内容の閲覧確認（同一bundleの確認済み結果は再利用）:
+- 取得案内の引渡し確認（削除予定worktreeだけに残さない）:
 - harvest:
 - 削除確認:
+- 通常のtask終了・後始末の状態と未完了事項（completed／配送待ち0だけをEvidence保存済み証明にしない）:

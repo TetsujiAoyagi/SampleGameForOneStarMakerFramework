@@ -10,8 +10,10 @@
 
 例外は `docs/handoff/` である。進行中のスライスの作業指示と、複数スライスに跨る計画を置いてよい（実装を別セッション / 別ツールへ渡すため git worktree に持っていく必要がある）。**1 本に限らない。** 複数スライスに跨る計画を置くなら、harvest 先と期限を本文に書くこと。完了したスライスはマージ時に harvest して削除する。進行中 program / 未承認候補は、計画文書のマージ後も owner・期限・harvest 先付きで保持し、解決・置換時に削除する。
 
-H1適用をA3で明示したArtifacts/Harness作業では、Git外のCURRENTと固定仕様を正本にする。入口は `pwsh tools/harness.ps1 current -Task <id>`。Gitへの新しいPhase RESULT・REVISION・raw実行結果の追加はそのtaskの `pwsh tools/contract-audit.ps1 -HarnessTask <id>` が拒否する。未移行のprogram/Unity作業は従来のtracked HANDOFFと証拠規約を続け、通常のauditは新検査を `not-applicable` と表示する。適用taskの合格根拠に通常auditを流用しない。H1のCURRENT・runは同一Windowsユーザー/マシン内のLocalApplicationDataに置き、別マシン配布はまだ保証しない。
+H1適用をA3で明示したArtifacts/Harness作業では、Git外のCURRENTと固定仕様を正本にする。入口は `pwsh tools/harness.ps1 current -Task <id>`。Gitへの新しいPhase RESULT・REVISION・raw実行結果の追加はそのtaskの `pwsh tools/contract-audit.ps1 -HarnessTask <id>` が拒否する。未移行のprogram/Unity作業は従来のtracked HANDOFFを続け、通常のauditは新検査を `not-applicable` と表示する。適用taskの合格根拠に通常auditを流用しない。H1のCURRENT・runは同一Windowsユーザー/マシン内のLocalApplicationDataに置き、別マシン配布はまだ保証しない。
 H2cの旧 `h2c-unity-gate` と再開task `h2c-unity-gate-r2` は、それぞれ承認済みのtaskとして同じGit外CURRENT方式を使い、標準runnerの固定11件と全EditModeの生結果をrun内payloadに保持する。現在の再開入口は `pwsh tools/harness.ps1 current -Task h2c-unity-gate-r2`。旧taskのCURRENTと承認値は保持し、旧入口は読取のみとする。B限定実行の許可は各taskの承認済み `unity-pilot-gates-v1` の `discovery` と固定profileに限る。他taskはA3で移行を明示するまで従来方式を続ける。
+
+**Evidenceの保存・引渡しはH1/CURRENTへの移行とは別である。** tracked HANDOFFを使うtaskも、対応済み環境では既存Artifact Storageを使い、[レビュー証拠の保存・配布規約](../.agents/skills/osm-workflow/references/review-evidence.md#保存先とリモートへの配布) に従う。ローカルの原source保持だけを引渡し完了とせず、公開文書への内部台帳・機微なpathの転記やpayloadのGit配布を既定にしない。別host/Cloudへの配布は成立した範囲だけを確認済みとする。
 
 ## 3つの層
 
@@ -34,7 +36,7 @@ H2cの旧 `h2c-unity-gate` と再開task `h2c-unity-gate-r2` は、それぞれ�
 
 1スライス = 1ブランチ = 1 HANDOFF が原則。実装を別のエージェントやセッションへ渡すための自己完結した指示書で、**git worktree に持っていく必要があるため tracked にしてある**。
 
-複数スライスに跨る計画（構図の正本、空間プロトコルの Plan など）も作業台に置いてよい。ただし harvest 先と期限を本文に書くこと。作業指示だけに限らない。
+複数スライス計画（構図の正本、空間プロトコルの Plan など）も作業台に置いてよい。ただし harvest 先と期限を本文に書くこと。作業指示だけに限らない。
 §7 / §8 を持たない長期計画は検査3 の網に掛からない。harvest 期限を本文に書くこと。
 
 **進行中の program / research は次の6件。**
@@ -60,10 +62,11 @@ S-3 の記録は公開面 `docs/streaming/STREAMING_CURRENT_SPEC.md` に移し�
 
 完了したスライスのマージ時に次を行う（Phase D の完了条件）。進行中 program / 未承認候補の文書 PR では、owner・期限・harvest 先を保って作業台を保持し、解決・置換時に適用する。HLOD 計画の文書マージから未実装の表示・品質・性能を harvest しない。
 
-1. **harvest** — 恒久的な設計判断と、レビューで判明した不変条件を `Docs/Architecture/` 側へ移す
-2. **削除** — HANDOFF を `git rm` する
+1. **保存・引渡し確認** — [レビュー証拠のPhase D](../.agents/skills/osm-workflow/references/review-evidence.md#phase-d-の保存引渡し確認) に従い、必要なEvidenceの保存・取得確認と取得案内の引渡しを済ませる。同一bundleの確認済み結果は再利用する
+2. **harvest** — 恒久的な設計判断と、レビューで判明した不変条件を `Docs/Architecture/` 側へ移す
+3. **削除・後始末** — HANDOFFを削除し、通常のtask終了と依頼範囲の作業領域の後始末を行う。未完了事項は実装・マージの状態と分けて報告する
 
-移し先が無い内容は、恒久的でないということなので捨ててよい。HANDOFF は自己完結で書く規約なので、harvest 後に残るのは diff と Architecture の重複でしかない。
+公開面への移し先が無い非恒久内容は、必要なEvidenceの保存・引渡しを済ませた後に作業台から削除してよい。内部台帳や機微なpathをGitHubへ公開して穴埋めせず、元証拠をworktreeに残しただけでPhase D完了とはしない。
 
 ## 検査
 
