@@ -91,7 +91,7 @@ r6の方針改訂だけではリセットを開始しない。スライスAの�
 
 ### B. 開発Buildの保存と件数管理
 
-単一Build publishスライスはA3 r2が承認済みで、Build専用の明示root/file selection、1回PUTと別process読戻し、単一receipt、fresh fetch/inspect入口をPhase Bで実装した。offline suiteと実Build 1件のR2往復はPhase Cの判定待ちであり、ここでは成功実績へ読み替えない。系列全件一覧・利用中状態・実DELETEとN件清掃は後続スライスに残る。
+単一Build publishスライスは、明示root/file selectionから1回PUTと別process読戻しを行い、単一receiptを確定してfresh fetch/inspectできる。固定実装head `1e07bbcd0363cbe8331b55ae320def12210d3f0d` でoffline 60caseと既存実Build 266fileのR2往復・全hash一致を確認し、C/C′はGO（C′は同vendor/系列の独立性制約あり）。記録は [単一Build publish HANDOFF](ARTIFACT_BUILD_PUBLISH_ONE.md) にあり、Phase Dのmerge判断待ち。系列全件一覧・利用中状態・実DELETEとN件清掃は後続に残し、準備helper失敗による未記録・未送信private残置も有限清掃への入力とする。
 
 最初の最小スライスは[PR #110](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/110)の純粋な保持選別policyです。1系列のsnapshotとNから保持・削除候補・保留を決める内部APIとoffline検証は実装済みで、契約は[Artifacts README](../../tools/Artifacts/README.md#開発buildの件数保持policy)へ集約しています。系列・利用状態の収集、policyへの運用接続、実DELETEは後続の個別Phase Aへ残します。
 

@@ -3,11 +3,11 @@
 ## 0. メタデータと承認状態
 
 - type: slice
-- status: B（A3 r2を人間承認により凍結。B着手、C/C′/D未着手）
+- status: C/C′完了（GO。Phase Dの人間判断待ち、merge未実施）
 - task: `artifact-build-publish-one`（今回新規。Workflow active / version 1）
 - branch: `codex/artifact-build-publish-one-phase-a`
 - implementation base commit: `f5c67596a264baca48e49771acf54b34076d9c22`
-- implementation head commit: 未到達。今回の変更は計画文書のみ。
+- implementation head commit: 1e07bbcd0363cbe8331b55ae320def12210d3f0d（結果記録commitとは区別する）
 - risk: normal。単一Buildの新規保存。削除・共有状態更新・Unity変更を含まない。ただし成功確定と不明応答は重点レビューする。
 - owner: root / OSM maintainers
 - created: 2026-10-10
@@ -203,4 +203,36 @@ A3人間承認: **2026-10-10受理**（user-20261010-build-publish-a3）。凍�
 
 ## Phase B 結果
 
-Build専用の`BuildContract`、`BuildStore`、`BuildApplication`、`BuildPackage`を追加し、CLIのpublish/fetch/inspect、既存ZIP I/OとTransportのBuild限定入口、9群のofflineテストコード、Artifacts操作文書を実装した。H1/CURRENTは適用しない。PowerShell parse、Packaging/Transport .NET Release build、docs/contract/diff auditをBで確認し、offline suite・実R2・Unityは新規Phase Cへ渡す。固定実装head、実行commandと詳細はGit外の`tools/Artifacts/artifacts/build-publish-one-planning/B-result.md`を正とする。
+Build専用の`BuildContract`、`BuildStore`、`BuildApplication`、`BuildPackage`を追加し、CLIのpublish/fetch/inspect、既存ZIP I/OとTransportのBuild限定入口、9群のofflineテストコード、Artifacts操作文書を実装した。H1/CURRENTは適用しない。PowerShell parse、Packaging/Transport .NET Release build、docs/contract/diff auditをBで確認し、offline suite・実R2・Unityは新規Phase Cへ渡す。固定実装head、実行commandと詳細はGit外の`tools/Artifacts/artifacts/build-publish-one-planning/B-result-r6.md`を正とする。
+
+## Phase C / C′ 最終結果と引渡し
+
+現在地はC/C′完了、Phase Dの人間判断待ち。PR作成は承認済みで、mergeは実行しない。上記A提出時点/B引渡し時点の未実施記述は履歴であり、この結果欄が現在地を示す。
+
+- implementation base: `f5c67596a264baca48e49771acf54b34076d9c22`
+- implementation head: `1e07bbcd0363cbe8331b55ae320def12210d3f0d`。以後の本HANDOFF/programへの結果記録はreview-recordで、実装を変更しない。
+- B: gpt-6-sol。最終中立snapshotは `tools/Artifacts/artifacts/build-publish-one-planning/B-result-r6.md`、SHA256 `5f52408709243da642067d151df89fe5297b23b4c1177684e4e0437a5bb1fb8f`。
+- 判定C: gpt-6-astra、新規session、**GO**。C′: gpt-6.1-sol、新規blind session、**GO（独立性制約あり）**。B/C/C′は異モデルで最低独立条件を満たす。同OpenAI vendor/GPT系列による相関した見落としは人間判断へ残す。
+- C/C′共通bundle id: `build-publish-one-review-1e07bbc`、生成UTC `2026-10-09T22:07:31.9681848+00:00`、manifest SHA256 `ff8f4ec56cc23088b0a7ce3af35b9c768d90e472001d01698f95565b439411f9`。判定前に生成し、両担当が複写先61fileのbytes/hashと必要証拠を実読照合した。C所見はC′へ渡していない。
+- 同host取得先は専用worktree `C:/Users/void/.codex/worktrees/artifact-build-publish-phase-a/SampleGameForOneStarMakerFramework` 内の `tools/Artifacts/artifacts/build-publish-one-review-bundle/manifest.json`。同directoryのA3/B snapshotとrawをmanifestの相対pathから取得し、各SHA256を照合する。元記録は `build-publish-one-final/raw-manifest.json`（SHA256 `6191ef5cb427fe665720aac3e77566349d4d663a9df77a19453d38a622d7c67a`）。外部host取得は成立済みと扱わない。Phase D引渡しまたは2026-11-10まで保持し、転送確認前に原本を消さない。
+- 隔離判定C原文: `tools/Artifacts/artifacts/build-publish-one-c-findings/C-report.md`、SHA256 `220ff3684aa007106adc031f45731793e5d34ca13671089aafc34ecd338b825c`。C′原文: `tools/Artifacts/artifacts/build-publish-one-cprime/Cprime-report.md`、SHA256 `9a7113ba79efc463a59f26eb436880883b15e99a7a7df60339bfe664205a7ea1`。所見をraw/blind bundleへ追加していない。
+
+### 最低条件の観測
+
+M1: 固定した既存実Build266file/131,584,119 bytesを1回publishし、別pwshの同key読戻しとreceipt確定に成功した。buildIdは `4a244e29ea66438c83f61d971ad66234`、系列は `samplegame/windows-x64-player/il2cpp-high`。packageは131,676,138 bytes、SHA256 `b64eee0efb95614d3bcd053554c557be888f24c152c4a5af28769ab09dd7c677`。publishedAtは `2026-10-09T22:04:03.8457121+00:00`。readback HTTP200、child exit/pipe EOF確認済み。
+
+M2: 公開CLIのfresh process fetchを1回行い、全266entryのpath/bytes/hash、metadataがsource/snapshot/receipt/intent/manifestと一致した。元Buildの前後全hashも不変。取得DLL/EXEは起動していない。操作command/exit/stdout、private path一覧、成功receiptと全inventoryは共通bundle rawに収録した。
+
+M3: 最終headでBuildPublish 9、ArtifactPackage 9、ArtifactTransfer 20、ArtifactEvidence 13、BuildRetention 9の計60caseが全成功。各registered/selected/executedは非空同集合、failed0。実ロードDLL path/hash/MVID/depsも収録。Packaging/Transport/依存ProbeのRelease build、変更8 PowerShell parse、contract/docs/diff auditは成功。具体commandとexitはraw/execution-record.jsonと各log/結果JSONにある。
+
+Unity全EditModeはA3 §5の理由で適用除外とし、offline/.NET回帰と実Build bytes往復を代替証拠にした。Unity起動/Build生成/実DELETEは0。既存鍵・既存config・他task・元checkoutを変更しない。Workflow/Harness等の対象外全suiteやRouteProof通信を成功実績へ足していない。
+
+### 指摘の採否・構造・限界
+
+発見CのC1〜C10（内部型、入力所有境界、ZIP lock、凍結test不足、module import、子process引数/selection/exit、sha256 option grammar）は凍結条件違反として採用し、責務を変えないB適応で全解消した。未公開の修正過程は実装1commitへ統合し、最終headで必須検証を取り直した。過去限定runを最終合格へ流用していない。BuildContract/Store/Application/Packageの責務配置、既存PackageIO/Transportへの限定変更はC/C′とも適合と判断。新catalog、retention接続、Evidence寿命変更はない。
+
+C′-N1はCの一次記録にもある準備helperの未送信private残置で、後続program Bの有限清掃へ事実として移送する。準備helper失敗2回のうち1回はoperation生成前、1回はconfig/selection作成後の記録集計失敗でpath未記録。R2送信/Build予約はなく、glob再探索や削除を行っていない。成功試行は生成直後のjournalから固定済み。この限界はraw/preparation-attempts.jsonに収録し、現スライスの追加実装にはしない。
+
+今回証明したのは同Windows user/同PCの既存Build1件の保存・受渡し。Playerの起動・機能、別host復旧、全系列/inUse/件数清掃、失敗残置の有限清掃、Content Directoryとの外部依存関係は未実装・未証明の後続範囲である。
+
+PR提出前のorigin/develop再fetchは固定baseと同じSHAで差分0。並行PRの取込・修正・mergeをしていない。通常taskはactive/version1のまま維持し、C/C′合格やPR作成をtask終了へ読み替えない。
