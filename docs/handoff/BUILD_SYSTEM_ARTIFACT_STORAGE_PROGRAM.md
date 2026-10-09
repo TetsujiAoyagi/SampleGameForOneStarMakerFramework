@@ -3,7 +3,7 @@
 ## 0. Metadata
 
 - type: `program`
-- status: r6方針改訂は2026-10-08にownerのPhase D承認で完了。programは進行中。スライスAは2026-10-08にA3 r6を凍結し、同じ既存保存領域とguardへのOS job接続修正をownerが承認した。Phase BからC/C′まで進める。現行仕様と採用runの入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。本番なし・過去の開発証拠の継承不要を前提に保存契約を一括置換する。新CLI、終了イベント接続、清掃の実装を検証中。運用切替、限定R2/scheduler/環境リセットと最終判定C/C′の実績はCURRENTの固定入力で確認する。後続スライスのA3は別途行う。
+- status: programは進行中。スライスAはPR #109で実装・限定運用検証と正式C/C′を完了（両方GO、blocker 0）。固定仕様と実行集合・原観測の入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。旧限定resetは完了済みで、再実行しない。後続B〜DのA3は別途行う。
 - program policy revision: `r6` — 単一の開発用保存契約。旧データと互換性を引き継がない。
 - branch: `codex/artifact-storage-development-policy`
 - planning base commit: `a027bf04b4f5ce16494b93daf10e5b5bccf15a28` (`origin/develop`; PR #106・#107を含む)
@@ -11,7 +11,7 @@
 - risk: `normal`（文書改訂）。リセットと削除機能の対象・検証は実装スライスで具体化する。
 - owner: OSM maintainers
 - created: 2026-09-26
-- updated: 2026-10-08
+- updated: 2026-10-10
 - expires: 2026-12-26 または置換revision（program文書の見直し期限）
 - harvest to: 実装済みの通常操作を `tools/Artifacts/README.md`、program状態を `docs/README.md` へ反映し、program完了時に削除する。
 
@@ -23,7 +23,7 @@
 
 この指示を根拠に、r5のlegacy分岐、旧最低保存義務と日程、参照中/参照不明の無期限保持、keyごとの削除承認を置き換える。**PR #107のE1/E2へのIndefinite追加、reader互換、新保護事実recordの実適用タスクは取りやめる。** 過去の方式確認の成果は否定せず、経緯はPR/Git履歴に残す。撤去する方式を一度完成させてから移行する工程は作らない。
 
-現在の実装機能は [Artifacts README](../../tools/Artifacts/README.md) を正とする。スライスAでEvidence v2、workflow taskの終了/再開配送、純粋保持policy、自動清掃と一回のresetを実装し検証中。H1 bootstrapと固定承認値/CURRENTは初期化済み。新契約の成立は同じ最終headのoffline・限定実観測とC/C′で判定し、実装進捗をR2設定切替・物理清掃完了へ読み替えない。
+現在の実装機能は [Artifacts README](../../tools/Artifacts/README.md) を正とする。スライスAのEvidence v2、workflow taskの終了/再開配送、純粋保持policy、自動清掃と一回の限定resetは検証を完了した。正式C/C′は同じ実装headでGO。検証集合、限定実観測、既知ACL不適合copyの保護によるpartial結果と未確認範囲は、PR #109およびCURRENTの固定記録に残す。
 
 - 資格情報管理、Route proof、synthetic publish/fetch、固定E1/E2の別session取得・hash検証・ログ/画像閲覧はPR #76/#81/#96/#104で成立した。
 - PR #106のreader offline可搬性は完了。判定head `19720ed7c6065ffcc55ee2643f811462025a940d`、非秘密dummy fixture、7suite 120/120、3 build、限定不在probe 2/2。現在も役立つ部品・テストを再利用する。
@@ -71,7 +71,7 @@ r6の方針改訂だけではリセットを開始しない。スライスAの�
 
 ## 4. 次に進めるスライス
 
-### A. Evidenceの通常利用と期限清掃
+### A. Evidenceの通常利用と期限清掃（完了）
 
 **問い:** 任意の明示した非秘密file集合を保存し、別sessionで取得・hash照合・ログ/画像閲覧でき、作業中は残り、終了後は自動で片付くか。
 

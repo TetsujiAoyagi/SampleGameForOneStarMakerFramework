@@ -2,7 +2,7 @@
 
 同一WindowsユーザーのPowerShell 7から、既存のDPAPI `osm`資格情報とprivate R2 bucket `osm-artifacts`を使います。通常Evidenceは明示した非秘密file集合をpublishし、別sessionで期待hashを照合してfetch・ログ/原画像を閲覧できます。taskの終了/再開は[Workflow](../Workflow/README.md)が所有し、Storageは終了から30日のコピー清掃を担当します。Build系列・別host/Cloudの保存と配布は後続スライスです。
 
-スライスAはA3 r6凍結後の実装確認中です。r6は同じ既存保存領域へOS jobを接続する修正で、保存領域の移動や資格情報の複製を行いません。実装入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。ここに記すv2 CLIとoffline gateの実装進捗を、実R2の切替・scheduler稼働・reset完了と同一視しません。限定実操作と最終C/C′の結果はGit外固定入力へ記録します。
+スライスAは[PR #109](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/109)で実装・限定運用検証を完了し、同じ実装headの正式C/C′はGOです。r6は同じ既存保存領域へOS jobを接続する修正で、保存領域の移動や資格情報の複製を行いません。固定仕様・実行集合・原観測の入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。一回の限定resetは完了済みです。既知のACL不適合copyは保護されたままで、OS jobのpartial結果と通常schedulerの正常statusは区別して記録しています。
 
 ## エージェント操作の事前承認
 
