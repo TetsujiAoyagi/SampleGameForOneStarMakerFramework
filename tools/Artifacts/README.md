@@ -148,6 +148,21 @@ pwsh -NoProfile -File tools/Artifacts/Probe/RouteProof.ps1 `
 
 ## 保守とoffline検証
 
+### 開発Buildの件数保持policy
+
+`BuildRetentionPolicy.psm1` は内部の `Get-BuildRetentionDecision -SeriesId <string> -Builds <object[]> -KeepCount <int|long>` だけを公開します。
+呼出側が1系列の確定snapshotを渡し、policyは成功publishだけをNに数え、利用中の成功BuildをN内で優先保持します。
+返値の `retainedBuildIds`、`deleteCandidateBuildIds`、`heldBuilds` は分類結果です。候補は実DELETEの許可ではありません。
+削除を実装する側は、削除直前の新しいsnapshotと保護状態を別途確認する責務を持ちます。
+不正な入力は `status=blocked` と理由を返し、3配列を空、`excessCount` をnullにします。
+失敗・未完了publishは `heldBuilds` に入り、後始末はこのpolicyの対象外です。
+このpolicyはfile、R2、時計、store、Unityに触れず、永続schemaや公開CLIにも接続していません。
+非秘密のメモリfixtureによる全件offline検証は次のコマンドです。
+
+```powershell
+pwsh tools/Artifacts/tests/BuildRetention.Tests.ps1 -Case '*' -ResultPath <result-json-path>
+```
+
 資格情報はCLI→CredentialCommands→CredentialStore→PathAcl/Recordの一方向です。EvidenceApplicationはpublish/fetch/use orchestration、EvidenceContractはv2 codec/deployment、EvidencePathsはtask transaction/receipt、EvidenceRetentionPolicyは純粋判定、EvidenceCleanupは配送/削除/reconcile、EvidenceScheduleは固定runtime/OS adapter、EvidenceResetは一回の限定清掃を所有します。Workflow core/storeはArtifactsをimportせず、CLI composition rootが共通guardとpreflight/syncを結びます。
 
 H1のこのtaskは3 .NET Release build、全Artifacts PowerShell parse、11 Artifact suite、Workflow TaskLifecycle、Harness、適用taskのcontract/docs auditを固定5 stepで収録します。registered/selected/executedは各非空同集合、failed 0、実DLL path/hash/MVID/depsと生結果を保存します。B exitはdiscovery、最終Cはjudgment、CBlindは同base/headと同じ固定入力です。Unity source/依存を変更しないためUnity test/buildはこのsliceに適用しません。
