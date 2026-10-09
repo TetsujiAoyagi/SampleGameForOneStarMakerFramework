@@ -3,10 +3,10 @@
 ## 0. メタデータとA0入力固定
 
 - type: `slice`
-- status: `A` — A3承認案 r2。独立A2の採否反映済み。未承認・未凍結。
+- status: `B` — A3 r2凍結済み。2026-10-10の人間指示「PhaseA3凍結としてPhaseC’まで進めて」により実装・C・C′へ進む。Phase Dは対象外。
 - branch: `codex/artifact-build-retention-policy`
 - planning base / implementation base commit: `2203dded470a3ac4e7a751f594f8f7110005576b`
-- implementation head commit: 未到達（実装しない）。
+- implementation head commit: Phase Bで確定する。
 - risk: `normal`。内部の新規policy関数だけを設計し、削除・公開CLI・Unity APIには接続しない。
 - owner: OSM maintainers / Artifact担当（本チャットのroot）
 - created: 2026-10-10
@@ -18,7 +18,9 @@
 - `git fetch origin develop` 成功後のSHAを上記baseとし、そのcommitから専用branchを作成。既存branchをreset/stash/cleanしない。
 - `D:\repositories\unity\OSM-verify` は開始時のworktree一覧に未掲載。他担当が用意する領域として扱い、存在確認・checkout・Unity・出力には触れない。積みPRのレビューは引き取らない。
 - Phase A snapshot: A2入力の固定copyは `tools/Artifacts/artifacts/build-retention-planning/A1-r1.md`（Git外、生成UTC `2026-10-09T16:49:18.7375276Z`、SHA-256 `2ba55ad4180ed03749eae4c43d468319095ab364ba7b3533217b5e8d92d7e316`）。A2時の置き場所は `artifacts/artifact-build-retention-policy/A1-r1.md`、同bytes/hashで現在のignored領域へ移した。人間のA3承認後のsnapshotは未生成。
+- A3凍結snapshot: `tools/Artifacts/artifacts/build-retention-planning/A3-r2-frozen.md`、生成UTC `2026-10-09T17:21:06.4901894Z`、SHA-256 `e3defbf34df92fbecda4d99ea697c2dbc0eee34d2a29f1797dfec5562c07be92`。本書の以後の進行記録と分け、仕様入力はこのcopyを使う。
 - Phase B result / evidence bundle / C′ blind bundle のpath・時刻・hash: 未到達。
+- Workflow start: 2026-10-09T17:21:13.0411927Z、当該task version=1、status=ok。C/C′完了をtask終了へ変換しない。
 
 根拠は `AGENTS.md`、`osm-workflow` とそのphases-and-handoff/docs-policy/handoff-template/architecture-gates/review-evidence、`docs/README.md`、`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` r6、`tools/Artifacts/README.md`。過去PR・旧証拠は再監査しない。PR #109のEvidence sliceは完了済みとし、30日保持・完了済みreset・#107実適用の撤回・旧reader非互換を維持する。
 
@@ -26,7 +28,7 @@
 
 **問い:** 明示した1系列のBuild一覧snapshotと保持数Nから、成功publishと利用中保護を正しく扱い、保持対象・削除候補・保留理由を決定できるか。
 
-今回の成果は、その問いだけに答える純粋policyの計画。今回の依頼で行うのはA0/A1、独立A2、採否を整理したA3承認案までであり、依頼そのものを承認と扱わない。
+初回依頼のA0/A1・独立A2・A3承認案提示は完了した。2026-10-10の後続指示により、提示済みr2の設計・採否・検証範囲を凍結し、純粋policyの実装、C、独立C′まで行う。実データのpublish/delete、Unity、PR確認側の作業は追加しない。
 
 対象外はBuildの生成・実行・publish/fetch、catalog永続化、外部JSON schema、CLI接続、実DELETE、自動清掃、scheduler、利用状態の取得/更新、multipart・容量課金、Cloud/別host/provider/GUI、BuildSystem/Workflow/Harness改修、Evidence契約変更、R2設定・reset・鍵操作、無関係な整理。Nの既定値10はProgramの案のままとし、本policyに既定値・設定file・UIを作らない。
 
@@ -108,7 +110,7 @@ EvidenceRetentionPolicy/既存呼出側/既存test/supportには変更しない�
 
 今回のA3方式案は**従来のtracked HANDOFFを正本**とし、H1/external-current-v1へ新taskを移行しない。Harness READMEではtask別固定仕様/承認値の追加が必要で、現在の新taskをそのまま実行できない。policy単体のためにHarnessのコード・固定profileを変更する必要はない。既に適用された他taskのgateは維持し、通常auditの緑をその代替にはしない。`artifact-evidence-lifecycle`のCURRENT/承認値を複写・上書きしない。
 
-この依頼は文書確認・適用監査に限るため、共有永続storeを更新するWorkflow startやHarness init/current更新、Artifact保存/配送は行わない。予約task IDは活動状態登録済みという意味ではない。後続で通常taskを開始する際のWorkflow startは実装担当の作業開始手順であり、policyの実装範囲ではない。
+初回Phase Aでは文書確認・適用監査に限り、Workflow startやHarness init/current更新、Artifact保存/配送は行わなかった。A3凍結後のWorkflow startは通常taskの開始手順として当該task IDだけで行う。これはpolicyの実装範囲ではない。Harness移行、Artifact payloadの保存/削除・資格情報・scheduler設定変更は行わない。
 
 外部I/O/新しい永続状態/横断管理機構/CLI接続/系列収集が必要になったら、その場で追加せず本案を縮小する。新状態・新依存・所有者/寿命/API・不明状態の扱いを変える必要がある場合はPhase Aの新revisionへ返す。scope内の実装詳細修正はB適応と区別する。最低条件を満たしたらpolicy sliceを閉じ、後続機能の未成立をblockerにしない。承認前の本セッションはA3案を提示して停止する。
 
@@ -118,7 +120,7 @@ A3案提示前に `git fetch origin develop` を再実行し、origin/developが
 
 ## 5. 検証と独立レビュー計画
 
-この依頼で実行するのは文書確認、`git diff --check`、`pwsh tools/docs-audit.ps1`、`pwsh tools/contract-audit.ps1 -BaseRef 2203dded470a3ac4e7a751f594f8f7110005576b`。実装test、Unity Editor/test、Build、R2、store操作は実行しない。
+Phase Aで実行したのは文書確認、`git diff --check`、`pwsh tools/docs-audit.ps1`、`pwsh tools/contract-audit.ps1 -BaseRef 2203dded470a3ac4e7a751f594f8f7110005576b`。A3凍結後は以下のoffline検証をCで実行する。Unity Editor/test、Build、R2の実操作は対象外。
 
 将来の検証は次のとおり。全て同PCの担当worktreeで、非秘密fixtureを使う。
 
@@ -131,7 +133,7 @@ A3案提示前に `git fetch origin develop` を再実行し、origin/developが
 - A0/A1主担当: root / Codex（OpenAI GPT-6系。実行環境から詳細モデルIDは未確認）。
 - A2: 新規セッションの独立モデルに同じ固定A0/A1 r1を渡す。通常riskとして最低1件、アーキテクチャゲートと契約/小ささ/独立検証可能性を確認する。自己レビューで代替しない。
 - A3: rootが採否を整理、人間が設計判断と受け入れ境界を承認して初めて凍結する。
-- B/C/C′の担当は未割当。別セッションで、CはBと異なるモデル、AI C′はB/Cと異なるモデルとblind入力を用意する。利用可能な全モデルをA2で使い切らない。別vendorの強化独立性は未確保であり、現時点で監査済みとしない。
+- B/C/C′は新規subagent sessionを使い、dispatch指定モデルをB=`gpt-6-sol`、C=`gpt-5.6-sol`、C′=`gpt-6-astra`とする。CはBと異なるモデル、C′はB/Cと異なるモデルでblind入力を使う。全てOpenAIで別vendorの強化独立性はない。詳細実績は各Phaseで記録する。
 
 ## A2記録とA3承認案
 
@@ -147,7 +149,7 @@ A3案提示前に `git fetch origin develop` を再実行し、origin/developが
 
 Phase Aの機械確認はdocs auditがerrors=0/warnings=0、contract auditがerrors=0/warnings=0（検査8はH1未移行なのでnot-applicable）、diff checkに違反なし。初回docs auditの未実施C/C′欄に対する形式警告は表記修正で解消した。contract auditが検査したUnity .csは608件だが、Unityのコンパイル・テストを実行した意味ではない。既知生成物ディレクトリの一覧取得拒否警告は残し、その中身は今回の確認対象に含めない。
 
-人間の判断点は、(1)利用中をN内に数える選別、(2)N>=1・UTC型値・Ordinal同点順、(3)不正snapshot全体保留、(4)process内APIと最小変更範囲、(5)tracked HANDOFF/H1未移行とoffline代替証拠。全て提案であり未承認。
+人間が2026-10-10に凍結した判断点は、(1)利用中をN内に数える選別、(2)N>=1・UTC型値・Ordinal同点順、(3)不正snapshot全体保留、(4)process内APIと最小変更範囲、(5)tracked HANDOFF/H1未移行とoffline代替証拠。承認根拠は本チャットの「PhaseA3凍結としてPhaseC’まで進めて」。契約内容はr2承認案から変更しない。
 
 ## 6. Phase B 実装結果
 
