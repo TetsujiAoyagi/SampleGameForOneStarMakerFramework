@@ -3,7 +3,7 @@
 ## 0. メタデータと承認状態
 
 - type: slice
-- status: A（A3承認案。人間承認前・未凍結。B/C/C′/D未着手）
+- status: B（A3 r2を人間承認により凍結。B着手、C/C′/D未着手）
 - task: `artifact-build-publish-one`（今回新規。Workflow active / version 1）
 - branch: `codex/artifact-build-publish-one-phase-a`
 - implementation base commit: `f5c67596a264baca48e49771acf54b34076d9c22`
@@ -14,7 +14,7 @@
 - expires: 2026-11-10 または次revision
 - harvest to: 実装成立時の操作・限界を tools/Artifacts/README.md、program Bの現在地を docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md
 - A0/A1版: r2。A2初回は同一r1を使用し、修正確認も同一r2を使用する。
-- A3承認記録: なし。承認済みsnapshot、implementation result、C/C′ evidenceは未生成。
+- A3承認記録: user-20261010-build-publish-a3。人間の最新承認を受理。設計r2を凍結し、B/C/C′とdevelop向けPR作成を許可。mergeは含めない。固定snapshotは tools/Artifacts/artifacts/build-publish-one-planning/A3-frozen-r2.md、hash/時刻は freeze-manifest.json。
 
 この変更で初めて、既存のPlayer出力1件をUnityを起動せずに保存し、返された参照と期待hashを使って別processで取り出せる。単なるpolicy fixture接続ではなく、snapshotから検証済み成功receiptまでの一操作を作る。Buildの件数清掃が完成したとは扱わない。
 
@@ -156,7 +156,7 @@ Aでtracked変更するのは本HANDOFFのみ。以下は承認後Bの案であ�
 
 ## 5. 記録方式・B/Cの検証分担
 
-本sliceは従来tracked HANDOFF方式を明示採用する案。H1/external-current-v1は未適用とし、CURRENT initやApprovedSpecificationsへの追加を行わない。理由は現H1がtask別固定profile/承認hash/adapter登録を要し、この単一publishへ適用するにはHarness変更と広いsuiteが増えるため。#110同様、未移行を認める現行規約の範囲で処理する。完了済みEvidence taskのCURRENTを今回の入口に使わない。
+本sliceは従来tracked HANDOFF方式を明示採用する。H1/external-current-v1は未適用とし、CURRENT initやApprovedSpecificationsへの追加を行わない。理由は現H1がtask別固定profile/承認hash/adapter登録を要し、この単一publishへ適用するにはHarness変更と広いsuiteが増えるため。#110同様、未移行を認める現行規約の範囲で処理する。完了済みEvidence taskのCURRENTを今回の入口に使わない。
 
 従ってB完了にH1 B exit済みとは書かない。Bの局所確認は変更PowerShellのparse、Packaging/Transportの.NETコンパイル、docs/contract/diff auditまで。offline suiteの実行/合否と実R2は新規C sessionの責任。H1を採用したい場合は、承認前にこの節と必要scopeを改版し、暗黙移行しない。
 
@@ -199,4 +199,4 @@ program B後続の問いは、完全な系列snapshot収集、利用状態の根
 
 今回実行したのはread-only調査、専用worktree/branch・新規task開始、計画/レビュー記録保存、文書/契約検査だけ。承認待ちで停止し、Workflowはactiveのまま。B/C/C′/D、Unity/.NET build、offline suite、R2通信・DELETE、設定変更は未実施。通常docs/contract auditは本未移行taskの文書検査であり、H1適用の証拠ではない。
 
-A3人間承認: **未実施**。凍結: **未実施**。次作業: 人間がこの承認案の採否を判断する。承認後は別Phase B sessionへ本書の承認版を渡す。
+A3人間承認: **2026-10-10受理**（user-20261010-build-publish-a3）。凍結: **r2凍結済み**。上記の承認待ち記述はA提出時点の履歴として残す。本承認記録が現在地を上書きする。新規Phase B sessionへ固定snapshotを渡し、C/C′完了後にPRを作成する。Season別Playerフォルダは明示root単位で保存できるが、Content Directory依存関係・外部content自動収集・系列分類の拡張はprogram D以降へ送る。
