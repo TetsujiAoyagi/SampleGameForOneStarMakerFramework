@@ -152,16 +152,22 @@ pwsh -NoProfile -File tools/Artifacts/Probe/RouteProof.ps1 `
 
 `BuildRetentionPolicy.psm1` は内部の `Get-BuildRetentionDecision -SeriesId <string> -Builds <object[]> -KeepCount <int|long>` だけを公開します。
 呼出側が1系列の確定snapshotを渡し、policyは成功publishだけをNに数え、利用中の成功BuildをN内で優先保持します。
+N=2、成功Buildが新しい順にA/B/CでCだけ利用中なら、A/Cを保持してBを削除候補にします。保護数がNを超えた場合も保護を維持し、`excessCount` に保護由来の超過件数を返します。
 返値の `retainedBuildIds`、`deleteCandidateBuildIds`、`heldBuilds` は分類結果です。候補は実DELETEの許可ではありません。
-削除を実装する側は、削除直前の新しいsnapshotと保護状態を別途確認する責務を持ちます。
+削除を実装する側は、削除直前の新しいsnapshotと保護状態の確認・排他・再試行を所有します。系列の所属・一覧の完全性・成功確定・利用中状態の根拠は呼出側の責務です。
+入力は正のInt32/Int64のN、空白でない系列ID、`object[]`の一覧です。各行は値だけを持つPSCustomObjectで、重複のない`buildId`と`succeeded`/`failed`/`incomplete`の`publishState`を要求します。成功行だけはUTC（offset 0）のDateTimeOffsetの`publishedAt`とboolの`inUse`も必要です。文字列からの型変換や未知状態の補完はしません。
 不正な入力は `status=blocked` と理由を返し、3配列を空、`excessCount` をnullにします。
+理由の優先順は`invalid-keep-count`→`invalid-series-id`→`invalid-build-list`→`invalid-build-snapshot`です。1行でも必要な状態が不正なら一覧全体を保留し、部分的な削除候補を出しません。
 失敗・未完了publishは `heldBuilds` に入り、後始末はこのpolicyの対象外です。
+保持は成功時刻の降順・同点はIDのOrdinal昇順、候補はその逆順、保留はIDのOrdinal昇順です。入力を変更せず、出力の書換えも入力へ伝播しません。
 このpolicyはfile、R2、時計、store、Unityに触れず、永続schemaや公開CLIにも接続していません。
 非秘密のメモリfixtureによる全件offline検証は次のコマンドです。
 
 ```powershell
 pwsh tools/Artifacts/tests/BuildRetention.Tests.ps1 -Case '*' -ResultPath <result-json-path>
 ```
+
+### Evidenceの責務とoffline検証
 
 資格情報はCLI→CredentialCommands→CredentialStore→PathAcl/Recordの一方向です。EvidenceApplicationはpublish/fetch/use orchestration、EvidenceContractはv2 codec/deployment、EvidencePathsはtask transaction/receipt、EvidenceRetentionPolicyは純粋判定、EvidenceCleanupは配送/削除/reconcile、EvidenceScheduleは固定runtime/OS adapter、EvidenceResetは一回の限定清掃を所有します。Workflow core/storeはArtifactsをimportせず、CLI composition rootが共通guardとpreflight/syncを結びます。
 

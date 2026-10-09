@@ -1,12 +1,16 @@
 param([string]$ResultPath = '', [string]$Case = '*')
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+# 既存のassert／結果保存だけを再利用し、Evidenceのstoreや実環境は生成しない。
+# policyへ渡すものはこのscript内の非秘密メモリfixtureに限定する。
 . (Join-Path $PSScriptRoot 'EvidenceTestSupport.ps1')
 Import-Module (Join-Path $PSScriptRoot '../BuildRetentionPolicy.psm1')
 
 $registered = @('ordinary-limit', 'protected-counts', 'failed-incomplete', 'protected-over-limit',
     'boundary-counts', 'ordinal-ties', 'invalid-snapshot', 'invalid-n', 'determinism')
 $selected = @(if ($Case -ceq '*') { $registered } else { ([string]$Case).Split(',') })
+# @()は単一caseでも配列を保つために必要。未知名や空指定は成功扱いせず、
+# 下の実行結果へ失敗として残し、選択集合と実行集合を照合する。
 $executed = [Collections.Generic.List[string]]::new()
 $failed = [Collections.Generic.List[string]]::new()
 
@@ -15,6 +19,7 @@ function New-BuildRow([string]$Id, [DateTimeOffset]$At, [bool]$InUse = $false) {
 }
 
 function Assert-Ids($Actual, [string[]]$Expected, [string]$Label) {
+    # ID集合だけでなく、0/1件時の配列形状と決定的な順序も公開契約として検証する。
     Assert-EvidenceTest ($Actual -is [array]) "$Label is not an array"
     Assert-EvidenceTest ($Actual.Count -eq $Expected.Count) "$Label count"
     for ($i = 0; $i -lt $Expected.Count; $i++) {
@@ -35,6 +40,7 @@ function Assert-Decision($Decision, [string]$Reason, [string[]]$Retained,
         Assert-EvidenceTest ($Decision.heldBuilds[$i].buildId -ceq $HeldIds[$i] -and
             $Decision.heldBuilds[$i].reasonCode -ceq $HeldReasons[$i]) 'held contents'
     }
+    # 三分類の重複と、保持／候補への非成功Buildの混入を別々に検出する。
     $allIds = @($Decision.retainedBuildIds) + @($Decision.deleteCandidateBuildIds) +
         @($Decision.heldBuilds | ForEach-Object { $_.buildId })
     $unique = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
@@ -48,6 +54,7 @@ function Assert-Decision($Decision, [string]$Reason, [string[]]$Retained,
 }
 
 function Assert-Blocked($Decision, [string]$Reason) {
+    # 不正snapshotでは途中までの候補も出さない。超過0と未判定nullも区別する。
     Assert-EvidenceTest ($Decision.status -ceq 'blocked' -and $Decision.reasonCode -ceq $Reason) 'block reason'
     Assert-Ids $Decision.retainedBuildIds @() 'blocked retained'
     Assert-Ids $Decision.deleteCandidateBuildIds @() 'blocked candidates'
@@ -55,6 +62,7 @@ function Assert-Blocked($Decision, [string]$Reason) {
     Assert-EvidenceTest ($null -eq $Decision.excessCount) 'blocked excess'
 }
 
+# 実時計を使わず、A→B→Cが新しい順になる固定UTCで境界を作る。
 $t = [DateTimeOffset]::Parse('2026-01-01T00:00:00+00:00')
 $a = New-BuildRow 'A' $t.AddHours(3)
 $b = New-BuildRow 'B' $t.AddHours(2)
@@ -70,11 +78,13 @@ foreach ($caseName in $selected) {
                 Assert-Decision $d 'candidates-found' @('A', 'B') @('C') @() @() 0 $ids
             }
             'protected-counts' {
+                # 古い利用中CもN枠内に数える。最新A/BとCの計3件保持なら契約違反。
                 $protectedC = New-BuildRow 'C' $t.AddHours(1) $true
                 $d = Get-BuildRetentionDecision 'sample/windows/dev' @($a, $b, $protectedC) 2
                 Assert-Decision $d 'candidates-found' @('A', 'C') @('B') @() @() 0 $ids
             }
             'failed-incomplete' {
+                # 失敗・未完了の不要fieldは、欠落／不正／未来時刻でも成功枠に影響しない。
                 $protectedC = New-BuildRow 'C' $t.AddHours(1) $true
                 $variants = [Collections.Generic.List[object[]]]::new()
                 $variants.Add([object[]]@([pscustomobject]@{buildId='F';publishState='failed'},
@@ -89,6 +99,7 @@ foreach ($caseName in $selected) {
                 }
             }
             'protected-over-limit' {
+                # 保護数>Nでは超過を報告し、候補の有無によらず保護を維持する。
                 $rows = @((New-BuildRow 'A' $t.AddHours(3) $true),
                     (New-BuildRow 'B' $t.AddHours(2) $true),
                     (New-BuildRow 'C' $t.AddHours(1) $true))
@@ -98,6 +109,7 @@ foreach ($caseName in $selected) {
                 Assert-Decision $d 'protected-over-limit' @('A','B','C') @() @() @() 1 $ids
             }
             'boundary-counts' {
+                # 空・1件・N件・失敗だけを比較し、PowerShellの単一値展開も捕捉する。
                 $f = [pscustomobject]@{buildId='F';publishState='failed'}
                 $variants = [Collections.Generic.List[object[]]]::new()
                 $variants.Add([object[]]@())
@@ -118,6 +130,7 @@ foreach ($caseName in $selected) {
                 }
             }
             'ordinal-ties' {
+                # 同時刻の保持順と候補の逆順、大小文字、culture依存を切り分ける。
                 $same = @((New-BuildRow 'B' $t), (New-BuildRow 'A' $t), (New-BuildRow 'C' $t))
                 $d = Get-BuildRetentionDecision 'sample/windows/dev' ([object[]]@($same[0],$same[1])) 1
                 Assert-Decision $d 'candidates-found' @('A') @('B') @() @() 0 @('A','B')
@@ -134,6 +147,7 @@ foreach ($caseName in $selected) {
                 } finally { [Globalization.CultureInfo]::CurrentCulture = $originalCulture }
             }
             'invalid-snapshot' {
+                # Cの状態だけが不明でも、既知のA/Bを含めて判定全体を保留する。
                 foreach ($value in @($null, 'false')) {
                     $bad = [pscustomobject]@{buildId='C';publishState='succeeded';publishedAt=$t;inUse=$value}
                     Assert-Blocked (Get-BuildRetentionDecision 'sample/windows/dev' @($a,$b,$bad) 2) 'invalid-build-snapshot'
@@ -142,6 +156,7 @@ foreach ($caseName in $selected) {
                 Assert-Blocked (Get-BuildRetentionDecision 'sample/windows/dev' @($a,$b,$bad) 2) 'invalid-build-snapshot'
             }
             'invalid-n' {
+                # 暗黙変換の拒否、複数不正時の理由優先順、必要fieldの欠落を確認する。
                 foreach ($n in @([object]0, [object](-1), [object]2.5, [object]'2', [object]$true, $null)) {
                     Assert-Blocked (Get-BuildRetentionDecision 'sample/windows/dev' @($a) $n) 'invalid-keep-count'
                 }
@@ -160,6 +175,8 @@ foreach ($caseName in $selected) {
                 }
             }
             'determinism' {
+                # 全24順列×2cultureとInt64最大値で、順序と件数計算の安定性を見る。
+                # 呼出前後の入力に加え、返値の書換えが元の行へ伝播しないことも確認する。
                 $f = [pscustomobject]@{buildId='F';publishState='failed';publishedAt='ignored';inUse=$null}
                 $rows = [object[]]@($a,$b,$c,$f)
                 $before = ConvertTo-Json -InputObject $rows -Depth 8 -Compress
