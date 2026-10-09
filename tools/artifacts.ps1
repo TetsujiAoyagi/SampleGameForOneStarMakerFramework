@@ -4,6 +4,29 @@ $ErrorActionPreference = 'Stop'
 
 try {
     if ($Arguments.Count -lt 4) { throw 'Invalid command.' }
+    if($Arguments[0] -ceq 'build'){
+        if($Arguments.Count -lt 6 -or $Arguments[2] -cne '--profile' -or $Arguments[3] -cne 'osm'){throw 'unsupported-command'}
+        $buildAction=$Arguments[1];$buildOpts=@{}
+        for($j=2;$j -lt $Arguments.Count;$j+=2){
+            if($j+1 -ge $Arguments.Count -or $Arguments[$j] -cnotmatch '\A--[a-z0-9-]+\z' -or $buildOpts.ContainsKey($Arguments[$j])){throw 'unsupported-command'}
+            $buildOpts[$Arguments[$j]]=$Arguments[$j+1]
+        }
+        $needed=switch($buildAction){
+            'publish'{@('--profile','--config','--selection')}
+            'fetch'{@('--profile','--config','--reference','--sha256')}
+            'inspect'{@('--profile','--config','--build-id')}
+            default{throw 'unsupported-command'}
+        }
+        if((($buildOpts.Keys|Sort-Object) -join ',') -cne (($needed|Sort-Object) -join ',')){throw 'unsupported-command'}
+        Import-Module (Join-Path $PSScriptRoot 'Artifacts/BuildApplication.psm1')
+        $outcome=switch($buildAction){
+            'publish'{Invoke-BuildPublish $buildOpts['--config'] $buildOpts['--selection']}
+            'fetch'{Invoke-BuildFetch $buildOpts['--config'] $buildOpts['--reference'] $buildOpts['--sha256']}
+            'inspect'{Invoke-BuildInspect $buildOpts['--config'] $buildOpts['--build-id']}
+        }
+        [Console]::WriteLine((ConvertTo-Json -InputObject $outcome -Compress -Depth 20))
+        if($outcome.status -ceq 'passed'){exit 0};exit 1
+    }
     if ($Arguments[0] -ceq 'credentials' -and $Arguments[1] -cin @('set','status','remove')) {
         # Existing local credential grammar and exit meanings remain unchanged.
         if ($Arguments[2] -cne '--profile' -or $Arguments[3] -cne 'osm') { throw 'Invalid command.' }

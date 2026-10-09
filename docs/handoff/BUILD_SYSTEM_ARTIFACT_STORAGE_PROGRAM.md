@@ -91,7 +91,9 @@ r6の方針改訂だけではリセットを開始しない。スライスAの�
 
 ### B. 開発Buildの保存と件数管理
 
-最初の最小スライスは[PR #110](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/110)の純粋な保持選別policyです。1系列のsnapshotとNから保持・削除候補・保留を決める内部APIとoffline検証は実装済みで、契約は[Artifacts README](../../tools/Artifacts/README.md#開発buildの件数保持policy)へ集約しています。次はpublish/catalog側が確定snapshotを渡す接続であり、系列・利用状態の収集、永続化、実DELETEは後続の個別Phase Aへ残します。
+単一Build publishスライスはA3 r2が承認済みで、Build専用の明示root/file selection、1回PUTと別process読戻し、単一receipt、fresh fetch/inspect入口をPhase Bで実装した。offline suiteと実Build 1件のR2往復はPhase Cの判定待ちであり、ここでは成功実績へ読み替えない。系列全件一覧・利用中状態・実DELETEとN件清掃は後続スライスに残る。
+
+最初の最小スライスは[PR #110](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/110)の純粋な保持選別policyです。1系列のsnapshotとNから保持・削除候補・保留を決める内部APIとoffline検証は実装済みで、契約は[Artifacts README](../../tools/Artifacts/README.md#開発buildの件数保持policy)へ集約しています。系列・利用状態の収集、policyへの運用接続、実DELETEは後続の個別Phase Aへ残します。
 
 既存Build出力を普通のpath/metadataとして受け、成功publish、別process fetch/hash、最新N件と利用中の保持、失敗publish時の既存保持を確認する。Nの既定値案10件、系列識別、容量上限をBのA3で固定する。大容量に必要なmultipartは対象サイズに応じて扱い、BuildSystemの作り直しを前提にしない。
 

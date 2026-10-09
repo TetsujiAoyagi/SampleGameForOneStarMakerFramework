@@ -150,6 +150,20 @@ pwsh -NoProfile -File tools/Artifacts/Probe/RouteProof.ps1 `
 
 ### 開発Buildの件数保持policy
 
+Build 1件の保存は `build publish`、成功記録の再照会は `build inspect`、取得は `build fetch` を使います。既存Player出力の明示file集合を対象にし、Unityを起動せず保存します。`selection` は `schemaVersion=1`、`purpose=build`、絶対`root`、相対`files`配列、`project`、`target`、`configuration`、publish前に保存した32桁hexの`buildId`だけを持ちます。`files`はroot内の全fileと一致させます。Season別Player出力も、選んだ単一root内のfileを列挙して保存できます。外部Content Directoryは自動収集しません。
+
+```powershell
+pwsh tools/artifacts.ps1 build publish --profile osm --config <build-config> --selection <build-selection>
+pwsh tools/artifacts.ps1 build inspect --profile osm --config <build-config> --build-id <selection内のbuildId>
+pwsh tools/artifacts.ps1 build fetch --profile osm --config <build-config> --reference <osm-build-v1:...> --sha256 <独立した期待packageSha256>
+```
+
+`build-config` はprivate operation内に置く非秘密の8 field JSONです。`schemaVersion=1`、`purpose=build`、`profile=osm`、既存登録済みEvidence configの絶対`evidenceConfigPath`とそのbytesの`evidenceConfigSha256`、canonical `repositoryId`、`prefix=development/builds/v1/`、`policy=build-publish-v1`を指定します。登録済みdeploymentの整合を読取専用で確認し、endpoint/bucketと既存ユーザーの鍵を使います。Build configはEvidenceのtask終了・30日期限を継承しません。
+
+Buildは最大512 file・選択総量240 MiB、単一fileとZIPは256 MiB、相対path240文字、manifest/selection/receipt各1 MiBです。選択集合と全read lockを確認してprivate snapshotを作り、Build manifestを含むZIPをローカル展開検証してから、固定keyへ1回PUTします。別PowerShell processによる同keyの全bytes・hash読戻しが成功した後、`receipt.json`のatomic renameを唯一の成功確定点とします。成功結果の`reference`と独立した`packageSha256`を保存してください。参照文字列だけから期待package hashを補いません。
+
+成功正本は同一WindowsユーザーのLocalApplicationData `OneStarMaker/Artifacts/builds-v1/<repositoryId>/<buildId>/receipt.json`です。応答だけが失われた場合は、selectionに事前保存した同じbuildIdで`inspect`を呼び、同じreferenceとhashを確認します。同じIDの再publishはnetwork前に拒否されます。PUT応答不明、読戻し不成立、receipt確定前の失敗は成功ではなく、intentとlocal/remote残置を保持します。自動再PUT・rollback DELETE・Build清掃は行いません。取得物は新規private operationへ展開し、実行しません。この記録は同PC・同ユーザー内の永続性であり、別hostのcatalog復元や系列全件一覧、利用中状態の判定は後続の作業です。
+
 `BuildRetentionPolicy.psm1` は内部の `Get-BuildRetentionDecision -SeriesId <string> -Builds <object[]> -KeepCount <int|long>` だけを公開します。
 呼出側が1系列の確定snapshotを渡し、policyは成功publishだけをNに数え、利用中の成功BuildをN内で優先保持します。
 N=2、成功Buildが新しい順にA/B/CでCだけ利用中なら、A/Cを保持してBを削除候補にします。保護数がNを超えた場合も保護を維持し、`excessCount` に保護由来の超過件数を返します。

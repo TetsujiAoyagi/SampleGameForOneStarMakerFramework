@@ -7,7 +7,8 @@ function Invoke-R2ArtifactOperation {
     if (-not [IO.File]::Exists($script:AssemblyPath) -or
         $Request.Endpoint -cnotmatch '\Ahttps://[0-9a-f]{32}\.r2\.cloudflarestorage\.com\z' -or
         $Request.Operation -cnotin @('put','get','delete') -or
-        $Request.Key -cnotmatch '\A(?:probe/(?:locked|unlocked)|evidence/first-use|development/evidence/v2)/[A-Za-z0-9/._-]{1,480}\z' -or
+        $Request.Key -cnotmatch '\A(?:(?:probe/(?:locked|unlocked)|evidence/first-use|development/evidence/v2)/[A-Za-z0-9/._-]{1,480}|development/builds/v1/[0-9a-f]{64}/[a-z0-9][a-z0-9-]{0,63}/[a-z0-9][a-z0-9-]{0,63}/[a-z0-9][a-z0-9-]{0,63}/[0-9a-f]{32}/bundle\.zip)\z' -or
+        ($Request.Operation -ceq 'delete' -and $Request.Key -cmatch '\Adevelopment/builds/v1/') -or
         ($Request.Operation -ceq 'delete' -and $Request.Key -cmatch '\Aevidence/first-use/.*/bundle\.zip\z' -and -not ($Request.ContainsKey('ResetAuthorized') -and $Request.ResetAuthorized -eq $true)) -or
         $Request.DeadlineMilliseconds -lt 1 -or $Request.DeadlineMilliseconds -gt 120000) {
         throw 'Artifact transport unavailable.'

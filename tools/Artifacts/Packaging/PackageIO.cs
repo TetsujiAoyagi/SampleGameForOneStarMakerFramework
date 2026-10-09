@@ -20,9 +20,9 @@ public static class PackageIO
     // here so a changed snapshot cannot silently become the archive sent over the network.
     public static PackageInfo CreateVerified(string operationDirectory, string snapshotDirectory,
         string baseRevision, string headRevision, string repositoryId, string runId,
-        PackageFile[] expected, int budgetMilliseconds, string? taskId = null)
+        PackageFile[] expected, int budgetMilliseconds, string? taskId = null, BuildPackage? build = null)
     {
-        PackagePolicy.RequireEvidenceTask(taskId);
+        if (build is null) PackagePolicy.RequireEvidenceTask(taskId);
         PackagePolicy.RequireIdentity(baseRevision, headRevision, repositoryId, runId);
         if (!Path.IsPathFullyQualified(operationDirectory) ||
             !Path.GetFullPath(snapshotDirectory).Equals(Path.GetFullPath(Path.Combine(operationDirectory, "snapshot")), StringComparison.OrdinalIgnoreCase) ||
@@ -52,7 +52,7 @@ public static class PackageIO
         if (actualNames.Length != names.Count || actualNames.Any(name => !names.Contains(name)))
             throw new InvalidDataException("Snapshot entry set mismatch.");
         var files = expected.OrderBy(file => file.Path, StringComparer.Ordinal).ToArray();
-        var manifest = new {
+        object manifest = build is not null ? build.Manifest(files) : new {
             schemaVersion = 2, purpose = "evidence", @base = baseRevision, head = headRevision, taskId, artifactId = runId,
             repositoryId, createdAt = DateTimeOffset.UtcNow.ToString("o"),
             files = files.Select(file => new { path = file.Path, bytes = file.Bytes, sha256 = file.Sha256 }).ToArray()
@@ -175,8 +175,9 @@ public static class PackageIO
 
     public static PackageInfo Extract(string packagePath, string operationDirectory, string expectedSha256,
         string expectedManifestSha256, string baseRevision, string headRevision, string repositoryId, string runId,
-        int budgetMilliseconds, string expectedPurpose = "synthetic", string? taskId = null)
+        int budgetMilliseconds, string expectedPurpose = "synthetic", string? taskId = null, BuildPackage? build = null)
     {
+        if ((expectedPurpose == "build") != (build is not null)) throw new InvalidDataException("Build codec missing.");
         if (expectedPurpose == "evidence") PackagePolicy.RequireEvidenceTask(taskId);
         PackagePolicy.RequireIdentity(baseRevision, headRevision, repositoryId, runId);
         if (!Hex64(expectedSha256) || !Hex64(expectedManifestSha256)) throw new InvalidDataException("Expected hash invalid.");
@@ -221,17 +222,18 @@ public static class PackageIO
             throw new InvalidDataException("Manifest hash mismatch.");
         using var doc = JsonDocument.Parse(manifestBytes);
         var manifest = doc.RootElement;
-        if (expectedPurpose == "evidence")
+        if (expectedPurpose == "build") build!.ValidateManifest(manifest);
+        else if (expectedPurpose == "evidence")
             PackagePolicy.Fields(manifest, "schemaVersion", "purpose", "base", "head", "taskId", "artifactId", "repositoryId", "createdAt", "files");
         else PackagePolicy.Fields(manifest, "schemaVersion", "purpose", "base", "head", "repositoryId", "runId", "createdAt", "retentionSeconds", "files");
         var purpose = PackagePolicy.String(manifest, "purpose");
-        if (PackagePolicy.Integer(manifest, "schemaVersion") != (expectedPurpose == "evidence" ? 2 : 1) || purpose != expectedPurpose ||
+        if (purpose != expectedPurpose || (expectedPurpose != "build" && (PackagePolicy.Integer(manifest, "schemaVersion") != (expectedPurpose == "evidence" ? 2 : 1) ||
             (taskId is not null && (PackagePolicy.String(manifest, "taskId") != taskId || PackagePolicy.String(manifest, "artifactId") != runId)) ||
             PackagePolicy.String(manifest, "base") != baseRevision || PackagePolicy.String(manifest, "head") != headRevision ||
             PackagePolicy.String(manifest, "repositoryId") != repositoryId ||
             (purpose != "evidence" && (PackagePolicy.String(manifest, "runId") != runId || PackagePolicy.Integer(manifest, "retentionSeconds") != 86400)) ||
             !DateTimeOffset.TryParseExact(PackagePolicy.String(manifest, "createdAt"), "o", null,
-                System.Globalization.DateTimeStyles.None, out var created) || created.Offset != TimeSpan.Zero)
+                System.Globalization.DateTimeStyles.None, out var created) || created.Offset != TimeSpan.Zero)))
             throw new InvalidDataException("Manifest identity invalid.");
         var list = manifest.GetProperty("files");
         if (list.ValueKind != JsonValueKind.Array || list.GetArrayLength() != zip.Entries.Count - 1 ||

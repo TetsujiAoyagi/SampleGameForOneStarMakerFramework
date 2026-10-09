@@ -8,5 +8,6 @@
   <ItemGroup>
     <Compile Include="PackagePolicy.cs" />
     <Compile Include="PackageIO.cs" />
+    <Compile Include="BuildPackage.cs" />
   </ItemGroup>
 </Project>
