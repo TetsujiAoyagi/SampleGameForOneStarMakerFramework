@@ -1,6 +1,6 @@
 # Build成果物の保存接続（Player Build → buildId退避 → selection自動生成 → publish）
 
-この文書は Phase A の A0 planning packet（§A0）と、A3 で統合した A1 r2（§0〜§9）を持つ単一スライスHANDOFFである。A2 独立レビューの入力版は §5 に記録する。A3 で凍結するまで実装キューではない。
+この文書は Phase A の A0 planning packet（§A0）と、A3 で凍結した A1 r3（§0〜§9）を持つ単一スライスHANDOFFである。A2 の入力版と結果は §5 に記録する。凍結後の設計判断の変更は Phase A の新しい revision として扱う。
 
 ## A0. Planning packet（入力固定）
 
@@ -113,16 +113,16 @@ A2 の代替構成担当はこの節だけを読む。§0 以降の A1 初稿を
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（A3 統合済みの r2。凍結は人間の最終確認待ち）
+- status: `A`（A3 凍結 r3。Phase B 待ち）
 - branch: `feat/build-player-publish-phase-a`
-- implementation base commit: `32ec358`（`develop`。凍結時に最新 `develop` へ更新する）
+- implementation base commit: `32ec358`（凍結時点の `origin/develop` と同一）
 - implementation head commit: 未到達
 - risk: `normal`（Unity側は変更せず、tools/Artifacts に閉じる）
 - owner: OSM maintainers
 - created: 2026-10-11
 - expires: 2026-11-30 または置換revision
 - harvest to: 実装済みの操作を `tools/Artifacts/README.md`「開発Build 1件の保存と取得」へ、program状態を `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 B と `docs/README.md` へ反映し、スライス完了時に本書を削除する。
-- Phase A snapshot の取得案内・状態: 未生成（A3凍結時に生成）
+- Phase A snapshot の取得案内・状態: 凍結版はこの HANDOFF の凍結 commit（PR #115 のブランチ）。Artifact Storage には未保存。Phase B 開始前に保存し、取得案内を引き渡す
 - Phase B result snapshot の取得案内・状態: 未到達
 - evidence bundle の取得案内・状態: 未到達
 - C' blind bundle の取得案内・状態: 未到達
@@ -147,7 +147,7 @@ A2 の代替構成担当はこの節だけを読む。§0 以降の A1 初稿を
      - 同じ buildId の並行実行は、片方だけが退避に成功する。
 - 受け入れ条件:
   - A1. `build-info.json` は非秘密の固定 field だけを持つ: `schemaVersion=1`、`project`、`target`、`configuration`、`buildId`、`buildIdentity`、`contentSet`、`contentTarget`、`transportManifestSha256`、`unityVersion`、`playerBuildGuid`。各値の出所は次のとおり。欠落・不一致は推定で埋めず拒否する。
-    - `buildIdentity`・`contentTarget`・`transportManifestSha256`・`playerBuildGuid` は `build-receipt.json` から読む。`buildIdentity` は入力ディレクトリ名と一致すること。
+    - `build-receipt.json` から次の対応で読む: `identity` → `buildIdentity`、`target` → `contentTarget`、`transportManifestSha256` → 同名、`playerBuildGuid` → 同名。receipt の `target` は系列の `target`（A6）とは別の値で、混同しない。`buildIdentity` は入力ディレクトリ名と一致すること。`transportPath` は transport.json の場所を知るためだけに読み、`build-info.json` へは写さない。
     - `contentSet`・`unityVersion` は、receipt の `transportPath` が指す実在の `transport.json` から読む。transport.json の bytes の SHA-256 は `transportManifestSha256` と一致し、`revision` は `buildIdentity`、`target` は `contentTarget` と一致すること。
     - 系列（`project`/`target`/`configuration`）は A6、`buildId` は A5 で決める。
     - ローカル絶対path、ユーザー名、時刻は含めない。
@@ -197,16 +197,17 @@ A2 の代替構成担当はこの節だけを読む。§0 以降の A1 初稿を
 | file | 分類 | 責務 | 変更理由 | 所有者・寿命 | 依存 | 公開面 | テスト境界 | 現在行数 → 予想 |
 |---|---|---|---|---|---|---|---|---|
 | `tools/Artifacts/BuildContract.psm1` | P | `build-info.json` の codec、receipt/transport からの値抽出と照合、系列対応表（A1・A2・A5・A6）、上限の事前検査（A8） | 保存契約の値の規則。#111 の selection 規則と同じ理由で変わる | 状態なし | 既存どおり | `New-BuildInfo` 等を内部 export | 文字列/JSON fixture で純粋に検証 | 113 → 約185 |
-| `tools/Artifacts/BuildStage.psm1`（新規） | I | ArtifactsRoot の解決と検査（A7）、入力の配布形検査（A8）、staging→hash 照合→rename の退避、既存退避先の一致判定（A3） | ローカル退避の所有と失敗時後始末。publish の成功確定点とは寿命が違う | 退避先は `<ArtifactsRoot>` 所有で、このスライスでは削除しない。staging は呼出しごとに固有名 | `BuildContract`、`ArtifactPaths`（reparse・包含判定）、`BuildApplication` の `Get-BuildInventory`（export 化して再利用） | 内部関数 | 隔離した一時 ArtifactsRoot、hash 不一致・並行 rename を注入 | 0 → 約170 |
-| `tools/Artifacts/BuildApplication.psm1` | O | `Invoke-BuildCollect`: stage → operation 作成 → config 複写 → selection 生成 → inspect / 既存 publish の順に束ね、再実行時の分岐（最低条件3）を担う | 新しい入口の orchestration | 既存どおり | `BuildStage`、`BuildContract`、`ArtifactPaths`、既存 | `Invoke-BuildCollect` を追加 export、`Get-BuildInventory` を export | 注入 transport で offline | 189 → 約235 |
-| `tools/artifacts.ps1` | O | `build collect` の引数解釈（`--profile`・`--config`・`--source`・`--artifacts-root`） | 入口追加 | 既存 | 既存 | CLI | 既存の CLI テスト形式 | 106 → 約120 |
+| `tools/Artifacts/BuildStage.psm1`（新規） | I | ArtifactsRoot の解決と検査（A7）、入力の配布形検査（A8）、staging→hash 照合→rename の退避、既存退避先の一致判定（A3） | ローカル退避の所有と失敗時後始末。publish の成功確定点とは寿命が違う | 退避先は `<ArtifactsRoot>` 所有で、このスライスでは削除しない。staging は呼出しごとに固有名 | `BuildContract`、`ArtifactPaths`（reparse・包含判定）。`BuildApplication` には依存しない。入力の file 一覧は Application から引数で受け取る | 内部関数 | 隔離した一時 ArtifactsRoot、hash 不一致・並行 rename を注入 | 0 → 約170 |
+| `tools/Artifacts/BuildApplication.psm1` | O | `Invoke-BuildCollect`: 入力の `Get-BuildInventory` → stage → 退避先の `Get-BuildInventory` → operation 作成 → config 複写 → selection 生成 → inspect / 既存 publish の順に束ね、再実行時の分岐（最低条件3）を担う | 新しい入口の orchestration | 既存どおり | `BuildStage`、`BuildContract`、`ArtifactPaths`、既存 | `Invoke-BuildCollect` を追加 export | 注入 transport で offline | 189 → 約235 |
+| `tools/artifacts.ps1` | O | `build collect` の引数解釈。`--profile`・`--config`・`--source` は必須、`--artifacts-root` は省略可（省略時は A7 の環境変数）。既存サブコマンドの完全一致の解釈は変えず、collect 用の分岐を足す | 入口追加 | 既存 | 既存 | CLI | 既存の CLI テスト形式 | 106 → 約120 |
 | `tools/Artifacts/tests/BuildCollect.Tests.ps1`（新規） | — | §2 A1〜A8 と最低条件3の offline 検証 | 新規 | — | 隔離 store、偽Player fixture | — | — | 0 → 約300 |
 | `tools/Artifacts/README.md` | — | `build collect` と `OSM_ARTIFACTS_ROOT` の説明 | 公開面の現況更新 | — | — | 文書 | docs-audit | 206 → 約225 |
 
 - 行数警報: 500行・3責務の警報には当たらない。`BuildContract.psm1` は +64% で 50% 警報が発火する。分割しない。理由は、追加分が既存の selection/reference 規則と同じ「保存契約の値」の規則で、依存・寿命・テスト方法も同じだから。Policy をここに集めると、Stage を I/O だけに保てる。
 - 退避を `BuildApplication` に入れない理由: staging・rename の所有と後始末を、publish の成功確定点（receipt rename）と同じ関数の失敗処理で混ぜないため。
 - `BuildStore.psm1` は変更しない。#111 の予約・receipt の所有を、退避と混ぜない。
-- `BuildStage` が `BuildApplication` の `Get-BuildInventory` に依存すると Stage → Application → Stage の循環になる。Phase B では `Get-BuildInventory` を `BuildContract` 側へ移すか、Stage から呼ばず Application が inventory を渡す形にする。どちらも公開面・寿命を変えないため B 適応とし、選択を実装結果に記録する。
+- build-config の寿命: 利用者が渡す原本は利用者の private operation にあり、collect は読むだけで変更・削除しない。collect は新規 operation へ bytes を複写し、その複写と selection は今回の publish の入力として #111 の operation と同じ扱いになる（このスライスで清掃しない）。
+- 依存は Application → Stage → Contract の一方向にする。directory の走査（`Get-BuildInventory`）は I/O なので Policy の `BuildContract` へは移さず、`BuildApplication` に残す。Application が一覧を取って Stage へ渡す（再レビューの指摘による）。
 
 ## 4. 実装計画
 
@@ -238,12 +239,12 @@ A2 の代替構成担当はこの節だけを読む。§0 以降の A1 初稿を
 - 操作・実行時・目視条件の検証経路:
   - 最低条件2: 担当は Phase C（判定C）。
     - 環境: owner の Windows ユーザー、登録済みの `osm` 資格情報、既存の Evidence config・build-config、判定用に新規作成した空の ArtifactsRoot（`--artifacts-root` で渡す）。
-    - 初期状態: 判定用 identity の `players/` と `transport/` が存在し、buildId `b80d0ef69df841f4bde30f85a2b4cd6e` の成功receipt・予約が無いこと。2026-10-11 時点で、このPCの `OneStarMaker/Artifacts/builds-v1` は存在しない。
+    - 初期状態: 判定用 identity の `players/` と `transport/` が存在し、buildId `b80d0ef69df841f4bde30f85a2b4cd6e` の成功receipt・予約が無いこと。2026-10-11 時点で、このPCの `OneStarMaker/Artifacts/builds-v1` は存在しない。#111 は同じ Player を同じ系列・別の buildId `4a244e29ea66438c83f61d971ad66234` で保存していた（#111 の保持 worktree の selection で確認）。このため R2 key `…/b80d0ef69df841f4bde30f85a2b4cd6e/bundle.zip` は #111 では使われていない。
     - 操作: `build collect` を1回実行し、別の PowerShell process で `build fetch` を実行する。続けて同じ入力で `build collect` をもう1回実行する。
     - 観測: 返却値がある。退避先と fetch 展開先の全 entry/hash が一致する。元出力が前後で不変（全 hash）。2回目は同じ reference/hash を返し、PUT していない。
     - 証拠: 実行ログと hash 一覧（ローカルpathを除いた相対path）を evidence bundle に入れる。
   - #111 の publish/fetch 経路は、#111 の実R2往復で成立済み。新しく加わるのは collect だけで、R2 経路は変えない。
-- 未知の操作経路の疎通結果: `build collect` は新しい操作で、実R2 での疎通は未確認。初回確認は Phase C（判定C）で、上記の最低条件2の手順で行う。理由: 実装前の操作であり、offline テストでは R2 を注入に置き換えるため。前提確認として、Phase C 開始時に `build inspect --build-id b80d0ef69df841f4bde30f85a2b4cd6e` を実行し、既存の成功記録が無いことを確かめる。既存が見つかった場合は、再実行の分岐（同じ reference を返す）の観測に切り替え、新規 publish の観測には 09-20 の identity のうち未使用のものを使う。この場合、件数（178 file）は §A0-3 の値で照合する。
+- 未知の操作経路の疎通結果: `build collect` は新しい操作で、実R2 での疎通は未確認。初回確認は Phase C（判定C）で、上記の最低条件2の手順で行う。理由: 実装前の操作であり、offline テストでは R2 を注入に置き換えるため。前提確認として、Phase C 開始時に `pwsh tools/artifacts.ps1 build inspect --profile osm --config <既存build-config> --build-id b80d0ef69df841f4bde30f85a2b4cd6e` を実行し、`receipt-unavailable` であることを確かめる。成功記録が見つかった場合、別 identity への切替はしない。最低条件2の前提が崩れたものとして判定を止め、人間に返す。
 - 人間の判断が必要な条件: なし。
 - 機械検査: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、`git diff --check`。
 - A0/A1 主担当・モデル・ベンダー: Claude Code / Claude Opus 5.5 / Anthropic。
@@ -251,24 +252,28 @@ A2 の代替構成担当はこの節だけを読む。§0 以降の A1 初稿を
 - A2 結果（入力版 `fb2d59f`、2026-10-11。両者とも互いの結果を見ていない）:
   - R1（Grok 系、xAI）: 「A3 凍結不可」。blocker 3 / major 4 / minor 1。主担当がコードで照合し、事実関係は概ね正しいと確認した。
   - R2（Claude Sonnet 5.5、A0 のみ）: 代替構成として、tools 側の1コマンド（stage → 既存 publish）、Unity 無改修を推奨。比較案（Unity 側 `PlayerBuildPublisher` で退避）は program D と混ざるため非推奨。A0 への指摘は major 2 / minor 2。事実認定の誤りは無し。未決 8 件のうち U1・U3・U4・U6・U7・U8 は A1 推奨と一致し、U2・U5 は異なる。
-- A3 採否（2026-10-11。R2-U2 は owner が案Bに決定。他の12件は主担当の採用案で、owner の最終確認待ち。§2・§3 は採用案で改稿済み）:
+- A3 採否（2026-10-11。R2-U2 は owner が案Bに決定し、他の12件も owner が採用を決定した。§2・§3 に反映済み）:
 
 | ID | 指摘 | 案 | 理由・反映先 |
 |---|---|---|---|
 | R1-B1 | A1 は build-info の全値を receipt / transport.json から読むとしているが、系列・buildId はどちらにも無い。`players/<identity>` に transport.json は無い | 採用 | 系列は U5 の固定入力、buildId は U4 で導出、contentSet・unityVersion は receipt の `transportPath` が指す実在 transport.json から読み、manifest hash を `transportManifestSha256` と照合する。§2 A1 を改稿 |
 | R1-B2 | build-config は `evidenceConfigPath` 等を要し、Player 出力から生成できない。§3 に `ArtifactPaths` 依存と ArtifactsRoot 設定の所有者が無い | 採用 | 既存の build-config を collect の必須入力にし、private operation への複写だけを行う（R2 も同じ結論）。§3 に `ArtifactPaths` 依存と設定の所有者・寿命を追加 |
-| R1-B3 | A4 は `builds-v1` との親子関係しか見ていないが、publish 側の `Assert-BuildSourceRoot` は `OneStarMaker\Artifacts`・`Workflow`・`Get-ArtifactRoot` も拒否する | 採用 | 退避の前に同じ関数で ArtifactsRoot と退避先を検査し、検査規則を二重化しない。A4 を改稿 |
+| R1-B3 | A4 は `builds-v1` との親子関係しか見ていないが、publish 側の `Assert-BuildSourceRoot` は `OneStarMaker\Artifacts`・`Workflow`・`Get-ArtifactRoot` も拒否する | 採用 | 退避の前に同じ関数で ArtifactsRoot と退避先を検査し、検査規則を二重化しない。A7 に反映 |
 | R1-M1 | Collect に入力検証・codec・設定・selection 生成が同居している。全 file 列挙は既存の `Get-BuildInventory` と重複する | 採用（方針） | build-info codec は Contract、退避は Store 相当、orchestration は Application に置く。inventory は既存関数を export して再利用する。§3 を改稿 |
-| R1-M2 | 最低条件2で09-24の1件に固定しているが、U4=(a) では同じ buildId が既に予約済みかもしれない。代わりに09-20を使うと file 数の条件が変わる | 採用 | Phase C の開始前に `inspect` で確認する。判定に使う identity は A3 で本文に固定する |
+| R1-M2 | 最低条件2で09-24の1件に固定しているが、U4=(a) では同じ buildId が既に予約済みかもしれない。代わりに09-20を使うと file 数の条件が変わる | 採用 | 判定 identity を最低条件2に固定。再レビューの blocker を受け、別 identity への切替を削除した |
 | R1-M3 | 退避が成功して publish が失敗した後、再実行すると「退避先既存」で拒否され、先へ進めない | 採用 | 同じ buildId の退避先が build-info と全 hash で一致すれば退避を省き、publish（`inspect`）から再開する。最低条件3に書く |
 | R1-M4 | A7 にテストも検証経路も無い。`build collect` は新しい操作なのに、疎通確認が「なし」になっている | 採用 | 並行 rename の offline ケースを追加する。実R2 での collect は「未確認。初回確認は Phase C」と確認地点を書く |
 | R1-m1 | ゲートの分類が無い。`Assert-BuildToken` は export されていない。トークンが既存テスト例と違う | 採用 | 分類欄を追加。トークンは既存テストに合わせて `windows-x64-player` / `il2cpp-high` とする（R2 も configuration は `il2cpp-high`）。U5 を改稿 |
-| R2-1 | selection を退避先 root の中に置けないことを明示すべき | 採用 | A3 に「selection は root 外の private operation に置く」と追記 |
+| R2-1 | selection を退避先 root の中に置けないことを明示すべき | 採用 | A4 に「selection は root 外の private operation に置く」と反映 |
 | R2-2 | 並行2回実行と同じ identity の再実行を最低条件に入れるべき | 採用（R1-M3 と統合） | 再実行は「再開」として定義し、並行実行は片方だけ成功する |
 | R2-3 | 4季節で約880 file になる推定を、対象外を切る根拠に使っている | 採用 | 注記として残し、分離を後送りする根拠は「Player が content を内包しないと起動しない」ことに一本化する |
 | R2-4 | 「人手なし」と「人が1コマンドを実行する」の文言が揃っていない | 採用 | 問いを「JSON を手書きせず1コマンドで」に揃える |
 | R2-U2 | ArtifactsRoot は既定値を置かず、引数または環境変数で必須にする | 採用（owner 決定） | 明示必須にする。設定は別途のセットアップ script（bat 等）に任せ、後続スライスへ送る。A7 |
-- A3 統合担当・モデル・採否: 主担当 Claude Opus 5.5（Anthropic）が統合。R2-U2 は owner 決定、他12件は採用案。凍結は owner の r2 最終確認後。
+- A2 再レビュー（入力版 `bdd182d` = r2、2026-10-11、owner 指示）: cursor-agent / Grok 系 / xAI。owner はベンダー・モデルの変更を求めなかった。結果は「凍結不可」、blocker 1 / major 3 / minor 2。主担当がコードで照合し、全件採用して r3 に反映した。
+  - blocker: 判定 identity が §2 では固定、§5 では別 identity への切替を許していて矛盾する → 切替を削除し、前提が崩れたら判定を止める。#111 が別の buildId を使っていたことも確認して記録した。
+  - major: Stage → Application → Stage の循環 → Application が一覧を渡す形に固定。receipt の実 field 名（`identity`/`target`）との対応 → A1 に対応表。`build inspect` の必須引数が欠けている → §5 のコマンドを修正。
+  - minor: 採否表の反映先のずれ → 修正。`--artifacts-root` の省略可否 → §3 CLI 行に明記。build-config の寿命 → §3 に追記。
+- A3 統合担当・モデル・採否: 主担当 Claude Opus 5.5（Anthropic）が統合し、owner が13件の採用を決定。再レビュー6件は owner 指示（レビュー結果を反映して凍結）に従い全件反映。r3 を凍結版とする。
 - C' 用に予約した担当・モデル・ベンダー: owner 決定（2026-10-11）。C' は人間担当、または B・C と異なるモデルの AI 担当とする。ベンダーの相違は求めない。どちらの場合も新規セッションと blind audit bundle は必須。
 - 独立性の強化条件を満たせない場合の理由: 利用可能な AI 経路が Anthropic（Claude）と cursor-agent 経由の xAI（Grok 系のみ）の2系統で、Codex 系は利用不可。owner は、モデルが異なれば blind 監査として十分と判断し、強化条件（未関与ベンダー）を求めないと決めた（2026-10-11）。`独立性制約あり` として記録する。
 
