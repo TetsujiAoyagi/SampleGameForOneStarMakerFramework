@@ -38,6 +38,7 @@ namespace SampleGame.OutGame.Scenes
         {
             if (UIView is HpGauge.HpGaugeView hpGaugeView)
             {
+                hpGaugeView.ShutdownScript();
                 hpGaugeView.OnOpenDialogRequested -= HandleOpenDialogRequested;
             }
 

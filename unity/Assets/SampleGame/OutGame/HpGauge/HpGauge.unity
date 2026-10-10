@@ -148,7 +148,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b871dc3f1700ab4bb24e7a6b5427232, type: 3}
   m_Name: 
   m_EditorClassIdentifier: SampleGame.OutGame::SampleGame.OutGame.HpGauge.HpGaugeView
-  _visualTreeAsset: {fileID: 0}
+  _visualTreeAsset: {fileID: 9197481963319205126, guid: 70d60934cdd7e2141a163bea3f26ba8e, type: 3}
 --- !u!4 &413977128
 Transform:
   m_ObjectHideFlags: 0

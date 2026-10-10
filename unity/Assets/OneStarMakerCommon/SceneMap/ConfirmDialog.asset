@@ -10,25 +10,22 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a55e49cc16182ed438f81c6b1032b83c, type: 3}
-  m_Name: OutGameScene
+  m_Name: ConfirmDialog
   m_EditorClassIdentifier: OneStarMaker.Runtime::OneStarMaker.Runtime.SceneSystem.SceneResource
-  _identity: OutGameScene
+  _identity: ConfirmDialog
   _sceneAssetDescription:
-    _loadType: 1
+    _loadType: 0
     _payloads:
     - Reference:
-        m_AssetGUID: 30710b0456e31694a89047872db50aeb
+        m_AssetGUID: 1b120727824033a4eb9776195f98054e
         m_SubObjectName: 
         m_SubObjectType: 
         m_SubObjectGUID: 
         m_EditorAssetChanged: 0
       Variant: 
     SceneIdentity: 
-  _parent: {fileID: 0}
-  _children:
-  - {fileID: 11400000, guid: 857e7ad69c4baba4bbc8ed69eade0171, type: 2}
-  - {fileID: 11400000, guid: 195e12b4ea3c47c48bdc9cfa822b9719, type: 2}
-  - {fileID: 11400000, guid: c84b0242cfe1b7f499875f907521db30, type: 2}
+  _parent: {fileID: 11400000, guid: c84b0242cfe1b7f499875f907521db30, type: 2}
+  _children: []
   _volume:
     m_Center: {x: 0, y: 0, z: 0}
     m_Extent: {x: 0, y: 0, z: 0}

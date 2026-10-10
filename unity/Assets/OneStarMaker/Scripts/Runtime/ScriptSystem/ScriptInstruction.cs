@@ -75,6 +75,15 @@ namespace OneStarMaker.Runtime.ScriptSystem
         }
 
         /// <summary>
+        /// 外側の host に要求する命令。Destination はレジスタ番号でなく commandId、
+        /// Immediate は argument として使う。ID と引数の意味・合法性は host 側が持つ。
+        /// </summary>
+        public static ScriptInstruction HostCommand(int commandId, long argument)
+        {
+            return new ScriptInstruction(ScriptOpcode.HostCommand, commandId, 0, 0, argument);
+        }
+
+        /// <summary>
         /// 数値 opcode とオペランドからメモリ上の命令を作る。保存形式やテキストは解釈しない。
         /// 表に無い番号もここでは受け、実行時に <see cref="ScriptMachineStatus.InvalidOpcode"/> とする。
         /// 使用しないオペランド欄は検証しない。ファイル形式の ABI を定義する口ではない。
