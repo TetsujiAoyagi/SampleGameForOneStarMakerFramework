@@ -1,6 +1,6 @@
 # Build成果物の保存接続（Player Build → buildId退避 → selection自動生成 → publish）
 
-この文書は Phase A の A0 planning packet（§A0）と A1 初稿（§0〜§9）を持つ単一スライスHANDOFFである。A2 独立レビューは未実施。A3 で凍結するまで実装キューではない。
+この文書は Phase A の A0 planning packet（§A0）と A1 初稿（§0〜§9）を持つ単一スライスHANDOFFである。A2 独立レビューの入力版は §5 に記録する。A3 で凍結するまで実装キューではない。
 
 ## A0. Planning packet（入力固定）
 
@@ -61,6 +61,13 @@ A2 の代替構成担当はこの節だけを読む。§0 以降の A1 初稿を
 - 将来（program外）: リリース向けパッケージ変換で Content の file 名を鍵付き path hash（HMAC）へ変換する。保存側は Unity 構成のまま持つ。
 - 将来（夢）: 端末性能別のファイル分け（hd/sd 等）を contentSet または representation の違いとして配る。保存の系列keyが追加の値として受け止められることだけを確認し、実装しない。
 
+**owner の追加入力（2026-10-11、A1 初稿の後）**
+
+- **R2 の容量は費用を払って拡大してよい。** 保存総量の費用は制約にしない。ただし #111 の 512 file / 240 MiB / 単一 256 MiB は R2 の容量ではなく、単発PUT・ローカル展開検証を前提にしたツール側の上限である。上限を上げる（multipart 等）のは #111 の契約変更で、このスライスでは扱わない（§A0-6）。
+- **Content の置き場は任意のローカルフォルダにしたい。** 例: あるワークスペースでは VFX だけを実開発し、残りはホワイトボックスのまま。この場合も、各ワークスペースの Content Directory のビルド成果物は1つの統合フォルダへ集める。他のワークスペースはそこを見て、必要なものを自分の Content フォルダへ持ってくる。あるいは Content Directory 側が統合フォルダを見て、専用フォルダへ取り込む。Content の保管形式と同じく program r7 の要求として扱う。このスライスへの影響は次の2点に限る。
+  - `<ArtifactsRoot>` は worktree・ワークスペースに縛られず、利用者が任意のローカルフォルダを指定できなければならない。
+  - 同じ `<ArtifactsRoot>` を複数のワークスペースが同時に使いうる。退避は既存の書き込み先を上書きせず、並行した書き込みで壊れない必要がある。
+
 **このスライスの要求:** Player Build の完了後、人が selection / build-config を書かずに、Player成果物を buildId 単位のフォルダへ退避し、selection を自動生成して既存の `build publish` へ渡し、参照と独立した期待packageSha256を得る。
 
 ### A0-5. 常時契約・既知の制約（本文転記）
@@ -81,6 +88,8 @@ A2 の代替構成担当はこの節だけを読む。§0 以降の A1 初稿を
 - Unity Editor から外部CLIを呼ぶ自動起動、BuildSystem/Harness 接続（program §4 D）。
 - Windows 以外の target、HMAC path hash、端末性能別配信。
 - `artifacts/bs4/work/` の肥大（1 Build 約1.4 GiB）の清掃。
+- #111 の上限（512 file / 240 MiB / 単一 256 MiB）の引き上げと multipart 転送。
+- 統合 Content フォルダとワークスペース間の Content 取り込み（取得型／監視型）。
 
 ### A0-7. 未決事項（A1 で候補を出し A3 で決める）
 
@@ -97,14 +106,14 @@ A2 の代替構成担当はこの節だけを読む。§0 以降の A1 初稿を
 
 - **問い:** Player Build の完了から、buildId フォルダへの退避と selection の自動生成を経て、既存の publish まで人手なしでつながるか。
 - **次スライスへ進む最低条件:** 実在する配布形Player出力1件について、人が JSON を書かずに1回の操作で退避・selection生成・publish が成功し、返った参照と期待hashで別processからfetch・全hash一致する。失敗時に既存の成功記録・元出力を壊さない。
-- **後続へ送る問い:** Content保管形式（program revision）、Player/Content分離、件数保持の運用接続とローカル清掃、Unity側からの自動起動（D）、別host/Cloud（C）、全platformの target 値の網羅、端末性能別の系列値。
+- **後続へ送る問い:** Content保管形式（program revision）、Player/Content分離、件数保持の運用接続とローカル清掃、Unity側からの自動起動（D）、別host/Cloud（C）、全platformの target 値の網羅、端末性能別の系列値、統合Contentフォルダとワークスペース間の取り込み、#111 上限の引き上げ。
 
 ---
 
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（A1初稿。A2未実施）
+- status: `A`（A1初稿。A2実施中）
 - branch: `feat/build-player-publish-phase-a`
 - implementation base commit: `32ec358`（`develop`。A3で更新しうる）
 - implementation head commit: 未到達
@@ -136,10 +145,11 @@ A2 の代替構成担当はこの節だけを読む。§0 以降の A1 初稿を
   - A2. 退避先のfile集合 = 元の配布形Player のfile集合（§A0-7-6 の決定に従い `build-receipt.json` を除外または同梱）+ `build-info.json`。全fileの size/SHA-256 が元と一致することを退避完了前に確認し、staging→rename で公開する。退避先が既に存在すれば拒否する。
   - A3. selection の `files` は退避先 root 内の全fileと一致し、`root` は退避先、`buildId` は退避前に確定した値。selection と build-config は 32桁hex名の新規 private operation に置く。
   - A4. `<ArtifactsRoot>` が #111 の所有store（`OneStarMaker/Artifacts/builds-v1`）と親子関係にある設定、または入力rootと親子関係にある設定を、ファイル操作の前に拒否する。
+  - A7. 同じ `<ArtifactsRoot>` を複数のワークスペース・processが同時に使っても、同じbuildIdの退避は一方だけが成功し、他方は既存として拒否される。staging は呼出しごとに固有名で、他の呼出しの staging・退避先に触れない。
   - A5. 入力が配布形でない（`build-receipt.json` 欠落、`*_BackUpThisFolder_ButDontShipItWithYourGame` を含む、`work/` を指す）場合は拒否する。#111 の上限超過は publish 前に検出して拒否する。
   - A6. 系列トークン・buildId は #111 の検査（`Assert-BuildToken` / `Assert-BuildId`）を通る値になる。
 - ここでは答えない問いと所有する後続スライス:
-  - Content の保管形式・`<ArtifactsRoot>/content/...`・R2 revision upload・Content件数保持 → **program r7 revision**（`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` に Content 種別を追加する Phase A。本スライスの後に owner が起票）。
+  - Content の保管形式・`<ArtifactsRoot>/content/...`・R2 revision upload・Content件数保持、統合Contentフォルダとワークスペース間の取り込み（取得型／監視型） → **program r7 revision**（`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` に Content 種別を追加する Phase A。本スライスの後に owner が起票）。
   - Player/Content 分離と、4季節内包時の 512 file 超過見込み → 同上（program r7）。
   - 件数保持の運用接続、実DELETE、`<ArtifactsRoot>` のローカル件数清掃 → program §4 B の後続スライス。
   - Unity Editor からの自動起動、BuildSystem/Harness 接続 → program §4 D。
@@ -154,7 +164,7 @@ A2 の代替構成担当はこの節だけを読む。§0 以降の A1 初稿を
 | # | 論点 | 候補 | A1 の推奨と理由 |
 |---|---|---|---|
 | U1 | H1/CURRENT 採否 | (a) 従来tracked HANDOFF、(b) `external-current-v1` | **(a)**。対象はtools/Artifactsのみで、#111 も従来方式で完了した。(b) を採るなら A3 で本書を CURRENT へ移し、本書の §5 以降を固定仕様へ置き換える |
-| U2 | `<ArtifactsRoot>` 既定値 | (a) `%LOCALAPPDATA%\OneStarMaker\BuildArtifacts`、(b) repo の親ディレクトリ直下 `osm-artifacts\`、(c) 既定なし（設定必須） | **(a) + 非秘密の設定fileで上書き**。repo外・同一ユーザー・worktree非依存で、#111 の store（`OneStarMaker\Artifacts`）と兄弟になり親子関係にならない。1 Build 約125 MiB なので容量はローカル清掃（後続）が入るまで手動管理と明記する |
+| U2 | `<ArtifactsRoot>` 既定値 | (a) `%LOCALAPPDATA%\OneStarMaker\BuildArtifacts`、(b) repo の親ディレクトリ直下 `osm-artifacts\`、(c) 既定なし（設定必須） | **(a) + 非秘密の設定fileで任意のローカルフォルダへ変更可能**。owner 追加入力（§A0-4）により、任意フォルダの指定と複数ワークスペースからの共有は必須。既定値はその上での初期値に過ぎない。(a) は repo外・同一ユーザー・worktree非依存で、#111 の store（`OneStarMaker\Artifacts`）と兄弟になり親子関係にならない。指定値は A4 の親子検査を通す。1 Build 約125 MiB なので、ローカル容量はローカル清掃（後続）が入るまで手動管理と明記する |
 | U3 | copy / move | (a) copy + 全hash照合、(b) move | **(a)**。元の `players/<identity>` は Player Build 側の出力で、Storage が所有しない原sourceである（program §2 未完了upload節・§3）。move は volume を跨ぐと非atomic |
 | U4 | buildId | (a) identity の32桁hex部、(b) 退避時に新規GUID | **(a)**。同じBuildの再実行が同じbuildIdになり、#111 の重複拒否と `inspect` で冪等に扱える。`build-info.json` に identity 全体も残す |
 | U5 | 系列トークン | project=`samplegame`、target=`windows64` か `standalonewindows64-player`、configuration=`il2cpp-high` か `development` | target は platform 名だけを持つ `windows64` を推奨（Steam Deck 等を同じ軸に足せる）。transport の target 文字列は `build-info.json` の `contentTarget` に別に残す。configuration は現行BS4が単一構成のため `development` を推奨 |
@@ -198,10 +208,10 @@ U1〜U8 を推奨どおり採った場合の初稿。
 - 人間の判断が必要な条件: なし。
 - 機械検査: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、`git diff --check`。
 - A0/A1 主担当・モデル・ベンダー: Claude Code / Claude Opus 5.5 / Anthropic。
-- A2 独立レビューごとの観点・担当・モデル・ベンダー: 未実施。人間の依頼まで起動しない。候補: (1) アーキテクチャゲート担当、(2) A0 だけから代替構成（U7 の (c) や Player/Content 同時分離を含め）を出す担当。
+- A2 独立レビューごとの観点・担当・モデル・ベンダー: 入力版はこの節を含む commit。互いの指摘を見せない。(R1) アーキテクチャゲート＋最低条件・検証経路の実行可能性: 全文と関連コードを読む。cursor-agent / Grok 系 / xAI。(R2) A0 だけから代替構成を出す: §A0 のみを読む。Claude Code subagent / Claude Sonnet 5.5 / Anthropic。結果と採否は A3 でこの欄の下に記録する。
 - A3 統合担当・モデル・採否: 未実施。
-- C' 用に予約した担当・モデル・ベンダー: 未定。現時点で利用可能なAI経路は Anthropic（Claude）と cursor-agent 経由の xAI（Grok 系のみ）で、Codex 系は利用不可。B/C/C' を異モデルにすると2ベンダーでは C' のベンダー独立を満たせない可能性が高い。A2 で両ベンダーを使い切らないか、C' を人間担当にするかを A3 で決める。
-- 独立性の強化条件を満たせない場合の理由: 上記のとおり利用可能ベンダーが2系統。A3 で確定する。
+- C' 用に予約した担当・モデル・ベンダー: owner 決定（2026-10-11）。C' は人間担当、または B・C と異なるモデルの AI 担当とする。ベンダーの相違は求めない。どちらの場合も新規セッションと blind audit bundle は必須。
+- 独立性の強化条件を満たせない場合の理由: 利用可能な AI 経路が Anthropic（Claude）と cursor-agent 経由の xAI（Grok 系のみ）の2系統で、Codex 系は利用不可。owner は、モデルが異なれば blind 監査として十分と判断し、強化条件（未関与ベンダー）を求めないと決めた（2026-10-11）。`独立性制約あり` として記録する。
 
 ## 6. Phase B 実装結果
 
