@@ -1,6 +1,6 @@
 # Artifact Storage と資格情報管理
 
-同一WindowsユーザーのPowerShell 7から、既存のDPAPI `osm`資格情報とprivate R2 bucket `osm-artifacts`を使います。通常Evidenceは明示した非秘密file集合をpublishし、別sessionで期待hashを照合してfetch・ログ/原画像を閲覧できます。taskの終了/再開は[Workflow](../Workflow/README.md)が所有し、Storageは終了から30日のコピー清掃を担当します。Build系列・別host/Cloudの保存と配布は後続スライスです。
+同一WindowsユーザーのPowerShell 7から、既存のDPAPI `osm`資格情報とprivate R2 bucket `osm-artifacts`を使います。通常Evidenceは明示した非秘密file集合をpublishし、別sessionで期待hashを照合してfetch・ログ/原画像を閲覧できます。taskの終了/再開は[Workflow](../Workflow/README.md)が所有し、Storageは終了から30日のコピー清掃を担当します。既存Build 1件も明示した全file集合から保存・取得できます。Build系列の件数清掃と別host/Cloudの配布は後続スライスです。
 
 スライスAは[PR #109](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/109)で実装・限定運用検証を完了し、同じ実装headの正式C/C′はGOです。r6は同じ既存保存領域へOS jobを接続する修正で、保存領域の移動や資格情報の複製を行いません。固定仕様・実行集合・原観測の入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。一回の限定resetは完了済みです。既知のACL不適合copyは保護されたままで、OS jobのpartial結果と通常schedulerの正常statusは区別して記録しています。
 
@@ -147,6 +147,26 @@ pwsh -NoProfile -File tools/Artifacts/Probe/RouteProof.ps1 `
 ```
 
 ## 保守とoffline検証
+
+### 開発Build 1件の保存と取得
+
+Build 1件の保存は `build publish`、成功記録の再照会は `build inspect`、取得は `build fetch` を使います。既存Player出力の明示file集合を対象にし、Unityを起動せず保存します。`selection` は `schemaVersion=1`、`purpose=build`、絶対`root`、相対`files`配列、`project`、`target`、`configuration`、publish前に保存した32桁hexの`buildId`だけを持ちます。`files`はroot内の全fileと一致させます。Season別Player出力も、選んだ単一root内のfileを列挙して保存できます。外部Content Directoryは自動収集しません。
+
+```powershell
+pwsh tools/artifacts.ps1 build publish --profile osm --config <build-config> --selection <build-selection>
+pwsh tools/artifacts.ps1 build inspect --profile osm --config <build-config> --build-id <selection内のbuildId>
+pwsh tools/artifacts.ps1 build fetch --profile osm --config <build-config> --reference <osm-build-v1:...> --sha256 <独立した期待packageSha256>
+```
+
+`build-config` はprivate operation内に置く非秘密の8 field JSONです。`schemaVersion=1`、`purpose=build`、`profile=osm`、既存登録済みEvidence configの絶対`evidenceConfigPath`とそのbytesの`evidenceConfigSha256`、canonical `repositoryId`、`prefix=development/builds/v1/`、`policy=build-publish-v1`を指定します。登録済みdeploymentの整合を読取専用で確認し、endpoint/bucketと既存ユーザーの鍵を使います。Build configはEvidenceのtask終了・30日期限を継承しません。
+
+Buildは最大512 file・選択総量240 MiB、単一fileとZIPは256 MiB、相対path240文字、manifest/selection/receipt各1 MiBです。選択集合と全read lockを確認してprivate snapshotを作り、Build manifestを含むZIPをローカル展開検証してから、固定keyへ1回PUTします。別PowerShell processによる同keyの全bytes・hash読戻しが成功した後、`receipt.json`のatomic renameを唯一の成功確定点とします。成功結果の`reference`と独立した`packageSha256`を保存してください。参照文字列だけから期待package hashを補いません。
+
+成功正本は同一WindowsユーザーのLocalApplicationData `OneStarMaker/Artifacts/builds-v1/<repositoryId>/<buildId>/receipt.json`です。応答だけが失われた場合は、selectionに事前保存した同じbuildIdで`inspect`を呼び、同じreferenceとhashを確認します。同じIDの再publishはnetwork前に拒否されます。PUT応答不明、読戻し不成立、receipt確定前の失敗は成功ではなく、intentとlocal/remote残置を保持します。自動再PUT・rollback DELETE・Build清掃は行いません。取得物は新規private operationへ展開し、実行しません。この記録は同PC・同ユーザー内の永続性であり、別hostのcatalog復元や系列全件一覧、利用中状態の判定は後続の作業です。
+
+系列はrepository内の`project/target/configuration`で識別し、各値は小文字英数字で始まる1〜64文字の小文字英数字・ハイフンです。branchを保存枠へ追加せず、keyは`development/builds/v1/<repositoryId>/<project>/<target>/<configuration>/<buildId>/bundle.zip`に固定します。Build生成元のrevisionが不明な場合、現在のHEADから推定して記録しません。
+
+configとselectionは同じ新規private operationへ置きます。入力rootと所有storeの親子関係を拒否し、全source handleの読取lock、file集合の前後照合、snapshotの全bytes/hash検証で保存対象を固定します。ZIPの最終検証から送信まで同じ読取lockを保ちます。成功receiptには`inUse`を記録せず、未取得の利用状態をfalseと見なした保持policyの呼出しも行いません。
 
 ### 開発Buildの件数保持policy
 
