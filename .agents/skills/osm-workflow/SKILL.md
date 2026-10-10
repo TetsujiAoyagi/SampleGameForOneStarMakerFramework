@@ -46,7 +46,7 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 - 計画外の状態、依存、所有者、寿命、公開 API が必要になった場合、または計画した配置では中核ロジックを単体テストできない場合も実装を止める。Phase B 内で便宜的な Helper / Manager へ押し込まない。
 - コメントには、コードだけでは復元しにくい契約、判断理由、変更時の注意を残す。特に寿命・所有者・選択数・失敗境界や、一見省けそうな例外処理の理由を説明する。処理をそのまま言い換えるコメントや行数を満たすためのコメントは増やさない。読者に通じないスライス略号だけで説明せず、対象と理由を通常の言葉で書く。
 - Unity Editor、Scene、Prefab、Addressables等を扱う場合は `../osm-unity-editor/SKILL.md` を先に読む。
-- 対象を限定した Editor 操作とコンパイル確認は Phase B で行ってよい。Unity バッチテストと Addressables ビルドの実行・判定は Phase C の責任とし、H2未適用のPhase Bでは実行しない。H1適用済みのArtifacts/Harness作業は完了引渡し時に関連offline suiteのB exitを通す。中間commitやWIP救援にB exitを要求しない。H2cの旧 `h2c-unity-gate` と再開task `h2c-unity-gate-r2` は各承認済みprofileの `discovery` に限り、標準runnerで固定11件のB限定テストを許す。現在の再開入口は `pwsh tools/harness.ps1 current -Task h2c-unity-gate-r2`。旧taskのCURRENT/承認値は保持し、旧入口は読取のみとする。初回adapter疎通をCが代行した場合は同headのB exitとして記録し、形式だけの二重起動をしない。他taskのB限定許可は各A3で実行経路を凍結する。完了時に未実行を明記する。
+- 対象を限定した Editor 操作とコンパイル確認は Phase B で行ってよい。Unity バッチテストと Addressables ビルドの実行・判定は Phase C の責任とし、H2未適用のPhase Bでは実行しない。H1適用済みのArtifacts/Harness作業は完了引渡し時に関連offline suiteのB exitを通す。中間commitやWIP救援にB exitを要求しない。B限定のUnityテストは、A3で実行経路と対象集合を凍結したtaskに限る。完了済みH2cの実例（承認profile、初回疎通の扱い、固定記録の入口）は [Harness README](../../../tools/Harness/README.md#h2c-unity-pilot) を正とする。完了時に未実行を明記する。
 - 実装を終えたら `pwsh tools/contract-audit.ps1` を実行する。Editor のコンパイル確認を行えなかった場合は、その未確認を明記する。
 
 ## Phase C: レビューとテスト
@@ -60,11 +60,12 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 - `pwsh tools/contract-audit.ps1` を実行する。機械で判定できる契約はこれで済ませ、構造レビューは設計判断に集中する。
 - Phase C は欠陥発見と最終判定を分ける。詳細は [レビュー証拠](references/review-evidence.md) の「発見 C と判定 C」を正とする。目的は検証範囲の縮小ではなく、重い検証のタイミングをずらすことである。
 - 発見 C の欠陥も同じ分類で修正先を決める。B 適応で足りる違反は修正するが、Phase A 再開の理由にはしない。
+- B と発見 C の差し戻しは、現在の問いを阻害する指摘が無くなるまで往復する。上限は 4 巡、C' の指摘による差し戻しは 3 巡とする。上限で収束しなければ、残る指摘と違反根拠を明示して人間に判断を返す。
 - **発見 C:** 固定した実装差分の構造・契約・凍結済み失敗経路を先に見る。H1適用taskの正規提出はB exit済みのdiscovery入力を使う。未テストWIP相談はassistで区別する。未移行作業は従来どおりテスト未実行のevidenceでも発見レビューを開始できる。GO 判定はしない。C' も起動しない。明確な差し戻しが決まった段階では、最終判定用の検証一式を実行しない。
 - 差し戻し中のテストは、修正箇所と影響する既存経路の確認に必要なものを `-Filter` 等で選ぶ。Phase A の起点 filter を使うが、凍結済み条件または常時契約の確認に必要なら根拠を記録して変更してよい。受け入れ条件の追加とは区別する。PlayMode 往復・Content Directory build・Player は通常は判定時にまとめる。当該欠陥の再現または修正確認に必要な場合は、理由と範囲を記録して限定実行できる。
 - **判定 C:** 未解決の blocker がなくなった GO 候補 head で、HANDOFF の判定必須テストを実行する。実装変更を伴うスライスでは最終の全 EditMode 回帰（空 filter）を標準とする。適用除外は Phase A で理由と代替証拠を明示する。同じ platform / graphics 条件でまとめられるテストは 1 プロセスに集約する。プロセス分離自体が検証条件なら維持する。XML の実行テスト名と件数で、必要な集合が収録されたことを確認する。
 - Unity Editor が閉じていることを確認してから `pwsh tools/run-tests.ps1` を実行する。自分で起動した Editor は未保存の変更を確認して正常終了させる。既存の人間所有 Editor を無断で強制終了しない。namespace filter は全件性を保証しない。全件回帰は空 filter、限定検証は XML で対象集合を確認する。
-- Windows の Phase C Unity バッチテストは、**最初の実行から sandbox 外の承認済み経路**で `pwsh tools/run-tests.ps1` を起動する。sandbox 内では Unity Licensing Client の named-pipe IPC (`LicenseClient-void`) が成立せず、Unity が再接続を無期限に繰り返した実測がある。CLI/tool の `require_escalated` 等で通常の権限昇格承認を取得し、承認できない場合はテスト未実行として止める。`run-tests.ps1` 自体は昇格しない。license file の返却・削除・再発行を回避策にしない。
+- Windows の Phase C Unity バッチテストは、**最初の実行から sandbox 外の承認済み経路**で `pwsh tools/run-tests.ps1` を起動する。sandbox 内では Unity Licensing Client の named-pipe IPC (`LicenseClient-void`) が成立せず、Unity が再接続を無期限に繰り返した実測がある。実行環境が提供する通常の権限昇格（sandbox外実行）の承認を取得し、承認できない場合はテスト未実行として止める。`run-tests.ps1` 自体は昇格しない。license file の返却・削除・再発行を回避策にしない。
 - 起動後にライセンス接続成功とテスト進行をログで確認する。`LicenseClient-void` 不在・`com.unity.editor.headless` 不在の再接続が続き、数分間進行せず XML もない場合は、無期限に待たず、今回起動した Unity PID だけを確認して終了し、生ログと未実行判定を残す。Editor が正常に進行中なら所要時間だけで中断しない。
 - Phase C でも `unity test` / `unity run` は使わない。
 - exit 0 は1件以上実行かつ failed 0。0件は失敗として扱う。
