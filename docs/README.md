@@ -39,18 +39,16 @@ H1適用をA3で明示したArtifacts/Harness作業では、Git外のCURRENTと�
 複数スライス計画（構図の正本、空間プロトコルの Plan など）も作業台に置いてよい。ただし harvest 先と期限を本文に書くこと。作業指示だけに限らない。
 §7 / §8 を持たない長期計画は検査3 の網に掛からない。harvest 期限を本文に書くこと。
 
-**進行中の program / research は次の6件。**
+**進行中の program は次の4件。**
 
 | ファイル | 役割 | 実装キューか |
 |---|---|---|
 | `HLOD_PROGRAM.md` | 観測した問題→最小代替比較→条件付き aggregate pilot の必要性判断 | いいえ。PR #91 は文書修正 A3 のみ。Gate 0 / 1 で pilot なしの終了も可能。`HLOD_RESIDENT_PILOT.md` は未承認候補で、必要性が残った場合だけ新 A1 / A2 / A3 を行う。owner は root、期限は 2026-11-05 または置換 revision |
 | `SEASON_WORLD_DESIGN.md` | 世界構図・実証・スライス順序 | 着手時 HANDOFF を切るまでの正本。スライス表の順で切る。W-5 / W-6 は Content Directory / DIST。S-6 / S-7 実装スライスは廃止済み |
 | `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b / S-4c 完了。S-4d は VFX / Events の着手時に HANDOFF を切る |
-| `REVIEW_WORKFLOW_EFFICIENCY.md` | 外部モデルレビューの実測と、次のPhase Cで残す比較項目 | いいえ。普遍契約はSkillへharvest済み。残る実測後に削除する |
-| `REVIEW_WORKFLOW_EFFICIENCY_ASSESSMENT.md` | 上記への独立評価（Claude / Grok）と採否記録 | いいえ。次のPhase Cで残る仮説を検証後、調査記録ごと削除する |
 | `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` | 開発用Artifact Storageの単一保存契約と一括切替 | programは進行中。スライスAは[PR #109](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/109)で実装・限定運用検証と正式C/C′を完了。固定記録の入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。後続B〜Dは個別にA3を行う。現在の機能と方針は[Artifacts README](../tools/Artifacts/README.md) |
 
-**未承認の単一スライス候補:** `UI_ACCESSIBILITY_BUTTON_PILOT.md` は Button の Windows Narrator 最初の実証に向けた A1 改稿（A2・PR コメントを照合）。実装キューではなく、検証経路と人間の A3 合意が未成立。owner は root、期限は 2026-11-05 または置換 revision、harvest 先は Architecture §6。上記 program / research 6件とは別に保持する。
+**未承認の単一スライス候補:** `UI_ACCESSIBILITY_BUTTON_PILOT.md` は Button の Windows Narrator 最初の実証に向けた A1 改稿（A2・PR コメントを照合）。実装キューではなく、検証経路と人間の A3 合意が未成立。owner は root、期限は 2026-11-05 または置換 revision、harvest 先は Architecture §6。上記 program 4件とは別に保持する。
 
 Streaming の M-1〜M-4 と S-4c は完了し、決定を公開面へ harvest して、移行計画と各着手時 HANDOFF を削除済み。テストアセンブリの分離も完了し、依存の向きは `unity/Assets/README.md` と `unity/Assets/Docs/Architecture/27-folder-structure.md` にある。完了済み HANDOFF は復活させない。
 
