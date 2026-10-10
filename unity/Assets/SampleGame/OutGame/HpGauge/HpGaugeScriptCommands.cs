@@ -5,7 +5,7 @@ using OneStarMaker.Runtime.ScriptSystem;
 
 namespace SampleGame.OutGame.HpGauge
 {
-    public enum HpGaugeScriptCommand
+    internal enum HpGaugeScriptCommand
     {
         Damage = 0,
         Heal = 1,
