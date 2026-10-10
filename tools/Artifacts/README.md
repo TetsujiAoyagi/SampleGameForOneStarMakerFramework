@@ -1,6 +1,6 @@
 # Artifact Storage と資格情報管理
 
-同一WindowsユーザーのPowerShell 7から、既存のDPAPI `osm`資格情報とprivate R2 bucket `osm-artifacts`を使います。通常Evidenceは明示した非秘密file集合をpublishし、別sessionで期待hashを照合してfetch・ログ/原画像を閲覧できます。taskの終了/再開は[Workflow](../Workflow/README.md)が所有し、Storageは終了から30日のコピー清掃を担当します。既存Build 1件も明示した全file集合から保存・取得できます。Build系列の件数清掃と別host/Cloudの配布は後続スライスです。
+同一WindowsユーザーのPowerShell 7から、既存のDPAPI `osm`資格情報とprivate R2 bucket `osm-artifacts`を使います。通常Evidenceは明示した非秘密file集合をpublishし、別sessionで期待hashを照合してfetch・ログ/原画像を閲覧できます。taskの終了/再開は[Workflow](../Workflow/README.md)が所有し、Storageは終了から30日のコピー清掃を担当します。既存Build 1件も明示した全file集合から保存・取得でき、BS4の配布形Player出力は `build collect` の1コマンドで退避・保存できます。Build系列の件数清掃と別host/Cloudの配布は後続スライスです。
 
 スライスAは[PR #109](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/109)で実装・限定運用検証を完了し、同じ実装headの正式C/C′はGOです。r6は同じ既存保存領域へOS jobを接続する修正で、保存領域の移動や資格情報の複製を行いません。固定仕様・実行集合・原観測の入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。一回の限定resetは完了済みです。既知のACL不適合copyは保護されたままで、OS jobのpartial結果と通常schedulerの正常statusは区別して記録しています。
 
@@ -167,6 +167,36 @@ Buildは最大512 file・選択総量240 MiB、単一fileとZIPは256 MiB、相�
 系列はrepository内の`project/target/configuration`で識別し、各値は小文字英数字で始まる1〜64文字の小文字英数字・ハイフンです。branchを保存枠へ追加せず、keyは`development/builds/v1/<repositoryId>/<project>/<target>/<configuration>/<buildId>/bundle.zip`に固定します。Build生成元のrevisionが不明な場合、現在のHEADから推定して記録しません。
 
 configとselectionは同じ新規private operationへ置きます。入力rootと所有storeの親子関係を拒否し、全source handleの読取lock、file集合の前後照合、snapshotの全bytes/hash検証で保存対象を固定します。ZIPの最終検証から送信まで同じ読取lockを保ちます。成功receiptには`inUse`を記録せず、未取得の利用状態をfalseと見なした保持policyの呼出しも行いません。
+
+### BS4 Player出力の退避と保存（build collect）
+
+`build collect` は、BS4のPlayer Build（`Tools/OSM/Content/Build BS4 Spring Player`）が作った配布形Player `artifacts/bs4/players/<identity>/` 1件を、selectionやbuild-configを手書きせずに退避・保存します。Build完了後に人が `--source` を明示して1回実行します。最新のidentityを自動選択しません。Unityを起動せず、Unity側からも自動起動しません。
+
+```powershell
+pwsh tools/artifacts.ps1 build collect --profile osm --config <build-config> --source <artifacts/bs4/players/<identity>の絶対path> [--artifacts-root <ArtifactsRoot>]
+```
+
+`<ArtifactsRoot>` は退避したPlayerの置き場で、Storageの内部保存先（LocalApplicationData `OneStarMaker/Artifacts`）とは別です。worktreeに縛られない任意のローカルfolderを、`--artifacts-root` かユーザー環境変数 `OSM_ARTIFACTS_ROOT`（起動したprocessが引き継いだ値）で指定します。既定値はありません。どちらも無ければ `artifacts-root-not-configured` を返し、何もしません。指定値は既存の絶対path directoryで、reparse pointではなく、入力Playerや所有store・Workflow・transfersと親子関係にないことを要求します。このコマンドはArtifactsRootと環境変数を作成・変更しません。同期folderでない場所を推奨します。
+
+処理は次の順です。
+
+1. 入力が配布形か検査します。`build-receipt.json` が無い、IL2CPP backup directoryを含む、`artifacts/bs4/work/` 配下を指す入力は拒否します。#111の上限（512 file・240 MiB・単一256 MiB・相対path 240字）を退避先に置く集合で先に検査します。
+2. receiptの `transportPath` が指す `transport.json` のbytesを、receiptの `transportManifestSha256` と照合します。`revision`・`target` が同じBuildを指し、Player内 `content/` の全file・size・SHA-256がmanifestの `files` と一致することを要求します。
+3. `buildId` はidentity（`yyyyMMddTHHmmssfffZ-<32hex>`）の末尾32桁hexです。系列は固定の対応表で決めます。`StandaloneWindows64-Player` は `windows-x64-player`、`IL2CPP`+`High` は `il2cpp-high`、projectは `samplegame` です。表に無い組合せは拒否します。
+4. `<ArtifactsRoot>/players/<project>/<target>/<configuration>/<buildId>/` へcopyで退避します。元は変更しません。呼出しごとに固有名のstagingを同じ親directoryに作り、全fileのsize/SHA-256を元と照合してからrenameで公開します。退避先からは `build-receipt.json`（ローカル絶対pathを含む）を除き、`build-info.json` を加えます。既存の退避先は、この入力から作る内容と全hashで一致すれば完了済みとして再利用し、一致しなければ拒否します。同じbuildIdの並行実行は片方だけが公開でき、負けた側は `stage-conflict` で止まります。他の呼出しのstagingや他の退避先には触れません。
+5. 新規private operationへbuild-configのbytesを複写し、退避先の全file一覧からselectionを生成して既存の `build publish` を呼びます。
+
+`build-info.json` は非秘密の固定11 field（`schemaVersion=1`、`project`、`target`、`configuration`、`buildId`、`buildIdentity`、`contentSet`、`contentTarget`、`transportManifestSha256`、`unityVersion`、`playerBuildGuid`）だけを持ちます。`contentTarget` はContent/Unityのtarget名で、系列の `target` とは別の値です。ローカルpath・ユーザー名・時刻は含めません。
+
+同じ入力での再実行は次のとおりです。退避済みなら退避を省きます。成功receiptがあれば同じ `reference`/`packageSha256` を返し、PUTしません（返る `publish` は `existing`）。予約だけが残りreceiptが無い場合は、PUT応答不明の可能性があるため `publish-unresolved` で止まり、再送しません。その場合は `build inspect` で状態を確認してください。未予約ならpublishへ進みます。退避先は件数清掃の対象外で、このコマンドは削除しません。
+
+成功結果の `reference` と独立した `packageSha256` を保存し、取得は `build fetch` を使います。Content Directoryの独立した保存、Player/Contentの分離、件数保持の運用接続とArtifactsRootの清掃、Windows以外のtargetは後続の作業です。
+
+非秘密の偽Player fixtureと注入transportによる全件offline検証は次のコマンドです。並行実行は別processをsignalで同期し、時間待機を使いません。
+
+```powershell
+pwsh tools/Artifacts/tests/BuildCollect.Tests.ps1 -Case '*' -ResultPath <result-json-path>
+```
 
 ### 開発Buildの件数保持policy
 

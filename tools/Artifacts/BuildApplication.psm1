@@ -6,6 +6,8 @@ Import-Module (Join-Path $PSScriptRoot 'ArtifactPaths.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ArtifactApplication.psm1')
 Import-Module (Join-Path $PSScriptRoot 'BuildContract.psm1')
 Import-Module (Join-Path $PSScriptRoot 'BuildStore.psm1')
+Import-Module (Join-Path $PSScriptRoot 'BuildStage.psm1')
+Import-Module (Join-Path $PSScriptRoot 'ArtifactAcl.psm1')
 Import-Module (Join-Path $PSScriptRoot 'Credentials/CredentialStore.psm1')
 # 注入点はoffline検証専用。公開CLIから時計・通信・上限・失敗境界を差し替えさせない。
 # 通常操作では既存の資格情報generation固定と、期限付きのTransport/読戻しを使う。
@@ -186,4 +188,73 @@ function Invoke-BuildFetch([string]$ConfigPath,[string]$Reference,[string]$Expec
     }catch{if($script:FailureHook){& $script:FailureHook $_};if($_.Exception.Message -cin @('download-unconfirmed','invalid-reference')){$r.reasonCode=$_.Exception.Message}}
     return [pscustomobject]$r
 }
-Export-ModuleMember -Function Invoke-BuildPublish,Invoke-BuildFetch,Invoke-BuildInspect
+function Write-BuildOperationFile([string]$Operation,[string]$Name,[byte[]]$Bytes){
+    $path=[IO.Path]::Combine($Operation,$Name)
+    $stream=[IO.FileStream]::new($path,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+    try{$stream.Write($Bytes,0,$Bytes.Length);$stream.Flush($true)}finally{$stream.Dispose()}
+    Set-ArtifactAcl $path $false;return $path
+}
+# BS4の配布形Player 1件を、人がJSONを書かずに退避・selection生成・既存publishへつなぐ。
+# 退避（BuildStage）と成功確定（BuildStore/Invoke-BuildPublish）は別の所有者で、
+# ここは順序と再実行時の分岐だけを持つ。#111の形式・検査・PUT規則は変えずにそのまま呼ぶ。
+# 再実行: 退避済みなら退避を省き、成功receiptがあれば同じ参照を返してPUTしない。
+# 予約だけ残る（応答不明の可能性がある）IDは自動で再送せず publish-unresolved で止める。
+function Invoke-BuildCollect([string]$ConfigPath,[string]$Source,[string]$ArtifactsRoot){
+    $r=[ordered]@{status='failed';reasonCode='unconfirmed';reference=$null;packageSha256=$null;buildId=$null;stage=$null;outputPath=$null;publish=$null}
+    try{
+        Import-ArtifactPackage
+        # 設定とArtifactsRootの検査はファイル操作の前に済ませ、不足時は何も作らない。
+        $config=Read-BuildConfig $ConfigPath
+        if(-not [IO.Path]::IsPathFullyQualified($Source)){throw 'invalid-source'}
+        $source=[IO.Path]::GetFullPath($Source).TrimEnd('\')
+        $root=Resolve-BuildArtifactsRoot $ArtifactsRoot $source
+        if(-not [IO.Directory]::Exists($source)){throw 'invalid-source'}
+        $identity=[IO.Path]::GetFileName($source);$buildId=Get-BuildCollectBuildId $identity;$r.buildId=$buildId
+        $inventory=@(Get-BuildInventory $source)
+        Assert-BuildStageSource $source $inventory
+        $receipt=ConvertFrom-BuildPlayerReceipt (Read-BuildStageBytes ([IO.Path]::Combine($source,'build-receipt.json'))) $identity
+        $manifest=ConvertFrom-BuildTransportManifest (Read-BuildStageTransport $receipt.transportPath) $receipt
+        $series=Get-BuildCollectSeries $receipt
+        $null=Get-BuildSeries $config.Data.repositoryId $series.project $series.target $series.configuration
+        $files=@($inventory|Where-Object {$_ -cne 'build-receipt.json'})
+        # 上限は退避先に置く予定の集合（receipt除外・build-info追加）で、hash計算やcopyの前に見る。
+        $sizes=@($files|ForEach-Object {[pscustomobject]@{path=$_;bytes=[IO.FileInfo]::new([OneStarMaker.Artifacts.Packaging.PackagePolicy]::Under($source,$_)).Length}})
+        Assert-BuildCollectLimits ($sizes+@([pscustomobject]@{path='build-info.json';bytes=[long]0}))
+        $entries=@(Get-BuildStageEntries $source $files)
+        Assert-BuildContentManifest $entries $manifest
+        $info=New-BuildInfoBytes $series $buildId $receipt $manifest
+        $infoEntry=[pscustomobject]@{path='build-info.json';bytes=[long]$info.Length;sha256=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($info)).ToLowerInvariant()}
+        $expected=@($entries)+@($infoEntry)
+        Assert-BuildCollectLimits $expected
+        $destination=Get-BuildStageDestination $root $series $buildId
+        $r.stage=Invoke-BuildStage $source $destination $entries $info $expected {param($dir)Get-BuildInventory $dir}
+        $r.outputPath=$destination
+        $dir=Get-BuildDirectory $config.Data.repositoryId $buildId
+        if([IO.File]::Exists([IO.Path]::Combine($dir,'receipt.json'))){
+            $committed=Read-BuildReceipt $config $buildId
+            # 同じbuildIdでも別内容の成功記録なら、この入力の成功として返さない。
+            $want=@($expected|Sort-Object path -CaseSensitive|ForEach-Object {"$($_.path)|$($_.bytes)|$($_.sha256)"}) -join "`n"
+            $have=@($committed.Data.entries|Sort-Object path -CaseSensitive|ForEach-Object {"$($_.path)|$($_.bytes)|$($_.sha256)"}) -join "`n"
+            if($want -cne $have -or $committed.Data.project -cne $series.project -or $committed.Data.target -cne $series.target -or $committed.Data.configuration -cne $series.configuration){throw 'receipt-conflict'}
+            $r.reference=New-BuildReference $config $committed.Data;$r.packageSha256=$committed.Data.packageSha256
+            $r.publish='existing';$r.status='passed';$r.reasonCode='complete';return [pscustomobject]$r
+        }
+        if([IO.Directory]::Exists($dir) -or [IO.File]::Exists($dir+'.reserved')){throw 'publish-unresolved'}
+        # selectionとconfigはpublishの要求どおり同じ新規private operationに置く。
+        # 利用者のbuild-config原本は読むだけで、bytesの複写を今回の入力にする。
+        $operation=New-ArtifactOperation
+        $configCopy=Write-BuildOperationFile $operation 'build-config.json' ([IO.File]::ReadAllBytes($ConfigPath))
+        $selection=[ordered]@{schemaVersion=1;purpose='build';root=$destination;files=@(Get-BuildInventory $destination);project=$series.project;target=$series.target;configuration=$series.configuration;buildId=$buildId}
+        $selectionPath=Write-BuildOperationFile $operation 'build-selection.json' ([Text.UTF8Encoding]::new($false).GetBytes((ConvertTo-Json -InputObject $selection -Compress -Depth 8)))
+        $p=Invoke-BuildPublish $configCopy $selectionPath
+        $r.publish='published';$r.reasonCode=$p.reasonCode
+        if($p.status -ceq 'passed'){$r.reference=$p.reference;$r.packageSha256=$p.packageSha256;$r.status='passed'}
+    }catch{
+        if($script:FailureHook){& $script:FailureHook $_}
+        # 例外本文はpathを含みうるため、公開reasonは許可語だけにする。
+        $code=$_.Exception.Message
+        if($code -cin @('artifacts-root-not-configured','invalid-artifacts-root','invalid-source','invalid-build-config','invalid-build-identity','invalid-player-receipt','transport-mismatch','content-mismatch','unsupported-series','size-limit','stage-conflict','stage-hash-mismatch','publish-unresolved','receipt-conflict','receipt-invalid','snapshot-conflict')){$r.reasonCode=$code}
+    }
+    return [pscustomobject]$r
+}
+Export-ModuleMember -Function Invoke-BuildPublish,Invoke-BuildFetch,Invoke-BuildInspect,Invoke-BuildCollect

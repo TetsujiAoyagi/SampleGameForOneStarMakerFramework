@@ -110,4 +110,92 @@ function Read-BuildReference([string]$Text,$Config){
     try{Assert-JsonDuplicates $doc.RootElement}finally{$doc.Dispose()}
     $v=$raw|ConvertFrom-Json -Depth 8 -DateKind String;Assert-BuildReference $v $Config;return $v
 }
-Export-ModuleMember -Function Assert-BuildId,Get-BuildSeries,Get-BuildKey,Read-BuildConfig,Read-BuildSelection,New-BuildReference,Read-BuildReference
+# --- build collect: BS4の配布形Player出力からpublish入力を導く値の規則 ---
+# Unity/Contentが所有するJSONは厳密UTF-8・重複fieldなしで読み、使う値だけを型検査する。
+# 未使用fieldの追加では止めず、使う値の欠落・型違いは推定で補わない。
+function ConvertFrom-BuildCollectJson([byte[]]$Bytes,[string]$Code){
+    try{
+        $raw=[Text.UTF8Encoding]::new($false,$true).GetString($Bytes);$doc=[Text.Json.JsonDocument]::Parse($raw)
+        try{Assert-JsonDuplicates $doc.RootElement}finally{$doc.Dispose()}
+        $v=$raw|ConvertFrom-Json -Depth 32 -DateKind String
+    }catch{throw $Code}
+    if($null -eq $v -or $v.GetType() -ne [System.Management.Automation.PSCustomObject]){throw $Code}
+    return $v
+}
+function Get-BuildCollectString($Object,[string]$Name,[string]$Code){
+    $p=$Object.PSObject.Properties[$Name];if($null -eq $p -or $p.Value -isnot [string] -or $p.Value.Length -lt 1){throw $Code};return $p.Value
+}
+# buildIdは再実行で同じ値になるよう、BS4 identityの末尾32桁hexから導く。
+# 退避時に新規発行すると、#111の予約・receiptによる再開の判定に使えない。
+function Get-BuildCollectBuildId([string]$Identity){
+    $m=[regex]::Match($Identity,'\A[0-9]{8}T[0-9]{9}Z-([0-9a-f]{32})\z',[Text.RegularExpressions.RegexOptions]::CultureInvariant)
+    if(-not $m.Success){throw 'invalid-build-identity'}
+    return $m.Groups[1].Value
+}
+# receiptのtargetはContent/Unityのtarget名で、保存系列のtarget tokenとは別の値。
+# 表に無い組合せを近い値へ丸めず拒否し、新platformは表への追加で受け止める。
+function Get-BuildCollectSeries($Receipt){
+    $target=switch -CaseSensitive ($Receipt.target){'StandaloneWindows64-Player'{'windows-x64-player'};default{$null}}
+    $configuration=if($Receipt.backend -ceq 'IL2CPP' -and $Receipt.stripping -ceq 'High'){'il2cpp-high'}else{$null}
+    if(-not $target -or -not $configuration){throw 'unsupported-series'}
+    foreach($token in @('samplegame',$target,$configuration)){Assert-BuildToken $token}
+    return [pscustomobject]@{project='samplegame';target=$target;configuration=$configuration}
+}
+# build-receipt.jsonはローカル絶対pathを含むため退避先へ写さない。ここで読むのは
+# build-info.jsonへ移す値と、transport.jsonの場所を知るためのtransportPathだけ。
+function ConvertFrom-BuildPlayerReceipt([byte[]]$Bytes,[string]$Identity){
+    $v=ConvertFrom-BuildCollectJson $Bytes 'invalid-player-receipt'
+    $r=[ordered]@{}
+    foreach($name in @('identity','target','transportPath','transportManifestSha256','playerBuildGuid','backend','stripping')){$r[$name]=Get-BuildCollectString $v $name 'invalid-player-receipt'}
+    if($r.identity -cne $Identity -or -not [IO.Path]::IsPathFullyQualified($r.transportPath)){throw 'invalid-player-receipt'}
+    try{Assert-Hex $r.transportManifestSha256 64;Assert-Hex $r.playerBuildGuid 32}catch{throw 'invalid-player-receipt'}
+    return [pscustomobject]$r
+}
+# 宣言だけのcontentSetを信用しない。receiptが固定したmanifest hashとbytesを照合し、
+# revision・targetも同じBuildを指すことを確かめてからContent由来の値を使う。
+function ConvertFrom-BuildTransportManifest([byte[]]$Bytes,$Receipt){
+    $sha=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($Bytes)).ToLowerInvariant()
+    if($sha -cne $Receipt.transportManifestSha256){throw 'transport-mismatch'}
+    $v=ConvertFrom-BuildCollectJson $Bytes 'transport-mismatch'
+    $contentSet=Get-BuildCollectString $v 'contentSet' 'transport-mismatch';$unity=Get-BuildCollectString $v 'unityVersion' 'transport-mismatch'
+    if((Get-BuildCollectString $v 'revision' 'transport-mismatch') -cne $Receipt.identity -or (Get-BuildCollectString $v 'target' 'transport-mismatch') -cne $Receipt.target){throw 'transport-mismatch'}
+    $files=$v.PSObject.Properties['files'];if($null -eq $files -or $files.Value -isnot [array] -or $files.Value.Count -lt 1){throw 'transport-mismatch'}
+    $entries=foreach($item in $files.Value){
+        if($null -eq $item -or $item.GetType() -ne [System.Management.Automation.PSCustomObject]){throw 'transport-mismatch'}
+        $path=Get-BuildCollectString $item 'path' 'transport-mismatch';$size=$item.PSObject.Properties['size'];$hash=Get-BuildCollectString $item 'sha256' 'transport-mismatch'
+        if($null -eq $size -or ($size.Value -isnot [long] -and $size.Value -isnot [int]) -or $size.Value -lt 0){throw 'transport-mismatch'}
+        try{Assert-Hex $hash 64}catch{throw 'transport-mismatch'}
+        [pscustomobject]@{path=$path;bytes=[long]$size.Value;sha256=$hash}
+    }
+    return [pscustomobject]@{contentSet=$contentSet;unityVersion=$unity;files=@($entries)}
+}
+# Player内content/の全fileがmanifestと同じ集合・size・hashであることを要求する。
+# Playerは同じidentityのContentを内包して起動するので、部分一致を前提contentSetの根拠にしない。
+function Assert-BuildContentManifest($Entries,$Manifest){
+    $expected=@{};foreach($f in $Manifest.files){if($expected.ContainsKey($f.path)){throw 'content-mismatch'};$expected[$f.path]=$f}
+    $actual=@($Entries|Where-Object {$_.path.StartsWith('content/',[StringComparison]::Ordinal)})
+    if($actual.Count -ne $expected.Count){throw 'content-mismatch'}
+    foreach($e in $actual){
+        $f=$expected[$e.path.Substring(8)]
+        if($null -eq $f -or $f.path -cne $e.path.Substring(8) -or $f.bytes -ne $e.bytes -or $f.sha256 -cne $e.sha256){throw 'content-mismatch'}
+    }
+}
+# 固定11 fieldだけを固定順で直列化する。同じ入力から同じbytesになることが、
+# 既存退避先を「この入力から作るものと完全に一致」と判定する前提になる。
+# ローカルpath・ユーザー名・時刻は入れない。
+function New-BuildInfoBytes($Series,[string]$BuildId,$Receipt,$Manifest){
+    Assert-BuildId $BuildId
+    $v=[ordered]@{schemaVersion=1;project=$Series.project;target=$Series.target;configuration=$Series.configuration;buildId=$BuildId;buildIdentity=$Receipt.identity;contentSet=$Manifest.contentSet;contentTarget=$Receipt.target;transportManifestSha256=$Receipt.transportManifestSha256;unityVersion=$Manifest.unityVersion;playerBuildGuid=$Receipt.playerBuildGuid}
+    return [Text.UTF8Encoding]::new($false).GetBytes((ConvertTo-Json -InputObject $v -Compress))
+}
+# #111のpublishでも同じ上限で拒否されるが、退避の後に知ると不要なcopyが残る。
+# 退避先に置く予定の集合で、copyを始める前に同じ境界を確かめる。
+function Assert-BuildCollectLimits($Entries){
+    $list=@($Entries);if($list.Count -lt 1 -or $list.Count -gt 512){throw 'size-limit'}
+    $total=[long]0
+    foreach($e in $list){
+        if($e.path.Length -gt [OneStarMaker.Artifacts.Packaging.PackagePolicy]::RelativePathLimit -or $e.bytes -gt 256MB){throw 'size-limit'}
+        $total+=$e.bytes;if($total -gt 240MB){throw 'size-limit'}
+    }
+}
+Export-ModuleMember -Function Assert-BuildId,Get-BuildSeries,Get-BuildKey,Assert-BuildSourceRoot,Read-BuildConfig,Read-BuildSelection,New-BuildReference,Read-BuildReference,Get-BuildCollectBuildId,Get-BuildCollectSeries,ConvertFrom-BuildPlayerReceipt,ConvertFrom-BuildTransportManifest,Assert-BuildContentManifest,New-BuildInfoBytes,Assert-BuildCollectLimits
