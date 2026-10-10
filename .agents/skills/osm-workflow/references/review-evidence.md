@@ -17,15 +17,21 @@ implementation head はレビュー対象の実装差分を固定する値であ
 
 Phase A snapshot、Phase B result snapshot、evidence bundle、C' blind audit bundle は、それぞれ path / id、生成時刻、hash を manifest に記録する。判定 C と C' の入力 bundle は、どちらかのレビューを開始する前に同じ snapshot と判定 evidence から生成する。発見 C の所見や安い XML だけを C' に渡さない。Phase B result へ発見 C の指摘を転載しない。
 
+固定manifest・実際の取得案内と、tracked HANDOFFの公開要約を分ける。HANDOFFの全Phase欄には、既存の取得案内の引渡し先・担当と状態（未生成／未保存／引渡し未完了／確認済み）を公開可能な範囲で記録し、reference・期待packageSha256の実値、ローカルpath、内部catalog/receiptは転記しない。実値は下記の取得案内に残し、C' 用は所見から分離する。各snapshot・bundleの生成時刻と内容hashは固定manifestに保持し、取得package全体のpackageSha256と混同しない。空欄や生成済みだけを保存・引渡し済みと扱わない。
+
 ## 保存先とリモートへの配布
 
-A3で `external-current-v1` を採用したtaskでは、Git外の固定recordを正本とし、`run` IDからpath/hash/時刻を機械表示する。Gitへの生成証拠追加と手転記hash台帳は使わない。H1は同一マシンの別worktreeまでを保証し、他マシン配布は成立済みと扱わない。未移行作業には以下の従来方式を維持する。
+**Evidenceの保存・引渡しは、tracked HANDOFF / H1 CURRENTによる作業指示・run管理の選択とは別である。** 対応済みの同一PC・同一Windowsユーザーでは、通常レビューのEvidenceも既存Artifact Storageの `evidence publish` / `fetch` を使う。H1未移行を旧保存方式の継続理由にしない。操作、明示入力、非秘密確認、事前承認の範囲と保持条件は [Artifacts README](../../../../tools/Artifacts/README.md) を正とする。
 
-evidence の固定は、全ての生ログ・画像・完全 diff を製品ブランチへコミットすることを意味しない。Git には対象 base / head、取得先と bundle id、hash、取得手順、保持期限を記した小さな台帳を残し、大きな payload は別の保存先へ置く形を優先する。台帳は進行中は HANDOFF に記録し、削除時は PR 本文等に取得情報を引き継ぐ。C' には C の所見を含まない独立した取得案内を渡し、取得のために PR 本文や可変 HANDOFF 全文を読ませない。
+A3で `external-current-v1` を採用したtaskでは、Git外の固定recordを正本とし、`run` IDからpath/hash/時刻を機械表示する。Gitへの生成証拠追加と手転記hash台帳は使わない。H1は同一マシンの別worktreeまでを保証し、他マシン配布は成立済みと扱わない。Artifact Storageの利用を理由にCURRENT管理方式を暗黙移行しない。
 
-保存先は、担当するリモート Agent が自身の権限とネットワークで取得・展開・hash 検証できることを確認して選ぶ。ローカルで取得した bundle の Release asset や CI で生成した artifact は候補であり、clone できるだけで添付も読めると仮定しない。保持期限は予定するレビュー・再監査期間を満たし、期限付きなら失効前の移管先と担当を決める。保存範囲は元リポジトリのアクセス範囲を広げない。
+上記の対応済み環境では、C / C' へ固定入力を引き渡す時点で、通常のtask開始、終了済みtaskなら再開を済ませ、採用する非秘密file集合を明示してpublishする。blind入力と所見は分け、内部台帳や作業directory全体を無条件に送らない。C' 用 bundle に過去の bundle・所見を再帰的に詰め込まず、固定した実装差分と必須の生証拠を収録する。ローカルの生成先は原sourceであり、そこに残しただけでは保存・引渡し完了としない。
 
-外部取得の経路が成立しない場合は、その理由を記録して必要な bundle の Git 配布を使ってよい。取得経路が確認できるまでは元証拠を残す。C' 用 bundle に過去の bundle・所見を再帰的に詰め込まず、固定した実装差分と必須の生証拠を収録する。既存 evidence の移動・削除や Git 履歴の書き換えは、この方針だけを根拠に実行しない。
+publishが返すreferenceと独立した期待packageSha256、対象base / head、bundleの用途、取得手順、保持条件を小さな取得案内にする。内部catalog / receiptを手転記して第二の台帳を作らない。取得案内は次の担当が利用でき、内容の公開可否に合った既存の引渡し先に残し、削除予定worktreeだけに置かない。新しい保存サービスや承認制度を前提にしない。C' には所見を含まない独立した案内を渡し、取得のためにPR本文や可変HANDOFF全文を読ませない。GitHubには公開可能な検証要約を残せばよく、内部台帳や機微なローカルpathの掲載を完了条件にしない。
+
+取得側の別sessionで、案内のreferenceと独立した期待hashを使ってfetchし、検証済みのログ・XML・原画像等の必須内容を閲覧できることを確認する。送信側の読戻し成功だけを次の担当への引渡し完了としない。作業中保持・task終了から30日というStorageの保持条件に従い、継続利用はREADMEのresume / useを使う。古いPRリンクやGETだけを保持延長の根拠にしない。
+
+別host / Cloudや外部のレビュー担当への配布は、到達性・権限・取得と閲覧が成立した範囲だけを確認済みとする。未対応・承認拒否・保存/取得失敗の場合は元証拠を保持し、理由、未完了の引渡し、次の担当を記録する。Git配布、Release asset、CI artifact、別checkoutへの移管へ自動で退避せず、公開範囲の拡大や拒否の迂回をしない。既存証拠の一括移動・削除やGit履歴の書き換えを、この方針だけを根拠に実行しない。
 
 ## 操作・目視証拠の受け渡し
 
@@ -36,6 +42,16 @@ evidence の固定は、全ての生ログ・画像・完全 diff を製品ブ�
 証拠不足は、観測そのものの欠落と、既存証拠の収録・転送不備を分ける。後者なら先に元証拠から再梱包し、ゲーム操作や人間の目視をやり直させない。再観測が必要なら、欠けている凍結条件、既存証拠では足りない理由、追加取得する範囲を示す。対象実装の変更による再検証は既存の head 固定規則に従う。
 
 hash 付き bundle を別 worktree / 環境へ渡す場合は、送信元だけでなく受け渡し経路を通したコピーで展開・hash・必須ファイルの閲覧を確認する。Git の改行変換や LFS pointer を内容ファイルと取り違えない。再梱包で変わった bundle の id / hash は更新し、旧 id / hash との対応と payload 同一性の検証結果を残す。implementation head は変わっておらず、payload の同一性が確認できた転送修正は、既存の判定結論を無効にせず、Unity 回帰の再実行理由にしない。内容の同一性を確認できない変更や証拠追加にはこの扱いを適用しない。
+
+## Phase D の保存・引渡し確認
+
+Phase Dでは、判定入力、最終のレビュー所見、削除前HANDOFFの必要部分など、採用したEvidenceに未保存分がないことと、取得案内の引渡しを確認する。同一bundleのpublish・取得・閲覧が確認済みなら、その結果を使い、Phase Dのためだけに再publish・再取得・Unity再テストを要求しない。未保存分や転送不備だけを既存経路で解消し、blind入力と所見の分離は維持する。
+
+保存・引渡し確認後に恒久知見をharvestし、HANDOFFを削除する。task全体の完了/打切りは、人間の決定を処理する既存の通常最終手順で `workflow-task.ps1 end` に記録する。`completed` や配送待ち0は終了イベントの状態であり、Evidence一式の保存済み証明ではない。これは担当者の完了確認であり、Workflow / Storageに証拠網羅性を自動検査する機能があるという意味ではない。
+
+終了済みtaskで未保存Evidenceの保存・利用を再開する場合は、statusを確認して通常のresumeを先に完了する。終了イベントの配送再試行だけなら同じDecision / 内容を使い、再開や新しい終了に読み替えない。詳しい状態と回復手順は [Workflow README](../../../../tools/Workflow/README.md) に従う。
+
+原source、利用者/Harnessのcopy、worktreeはStorageの自動清掃対象ではない。保存・引渡しの確認後も、未保存の変更、他task・他sessionの利用、所有者を確認し、依頼された自分の作業領域だけを後始末する。保存・引渡しが未完了なら元証拠を残し、「実装／マージ済み、Evidence引渡し・後始末は未完了」と区別して報告する。worktreeの保全だけをPhase D・後始末完了に読み替えない。
 
 ## Phase C の入力
 

@@ -78,8 +78,13 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 - blind audit bundle は、凍結した Phase A snapshot、所見を含まない Phase B の実装結果、判定 C と同じ implementation base / head の完全 diff、判定必須テストの生結果、凍結条件が求める場合の操作・目視の一次観察の原記録、判定 C より前に生成した機械検査出力だけで構成する。原記録の扱いは [レビュー証拠](references/review-evidence.md) に従い、B result や原記録へ発見 C の所見を転載して迂回しない。
 - AI 担当のモデル相違条件、人間担当の確認記録と独立性の扱いは [Phase と HANDOFF](references/phases-and-handoff.md) に従う。人間の回答前に AI が PASS や完了を記録しない。
 - 受け入れ条件だけでなく、契約違反、構造劣化、未検証の失敗経路、Phase C 自体の見落としを探す。
-- 指摘を「凍結済み条件または常時契約への違反により現在の問いを阻害する欠陥」と「後続スライスの入力」に分け、根拠を記録する。後者を理由に現スライスを自動拡張しない。
+- 指摘を「凍結済み条件または常時契約への違反により現在の問いを阻害する欠陥」と「後続スライスの入力」に分け、根拠となる凍結済み条件または常時契約を記録する。後者を理由に現スライスの実装や受け入れ条件を自動拡張しない。
 - 指摘、残存リスク、監査できなかった範囲、使用したモデルを HANDOFF の Phase C' 欄へ記録する。
+
+## Phase D: 保存・引渡しと後始末
+
+- [保存・引渡し確認](references/review-evidence.md#phase-d-の保存引渡し確認) に従い、必要なEvidenceの保存と次の担当への取得案内を確認してから、harvest・HANDOFF削除・通常のtask終了・依頼範囲の後始末へ進む。tracked HANDOFF / H1 CURRENTのどちらでもこの確認を省略しない。
+- 保存済みの同一bundleは確認結果を再利用する。元証拠をworktreeに保全しただけ、またはtaskがcompletedで配送待ち0というだけでは、保存・引渡しや後始末の完了としない。未完了事項は実装・マージの状態と分けて報告する。
 
 ## task の開始・再開・終了
 
@@ -89,5 +94,5 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 - task の終了意味・store・配送の現況は [Workflow README](../../../tools/Workflow/README.md) に従う。
 ## 完了
 
-- マージ済みの HANDOFF は、恒久的に残すべき知見だけを公開ドキュメントへ反映して削除する。
+- マージ済みの HANDOFF は、上記の保存・引渡し確認後に、恒久的に残すべき知見だけを公開ドキュメントへ反映して削除する。
 - PRを作る場合は差分と検証結果を要約し、base が `develop` であることを確認する。

@@ -4,19 +4,19 @@
 
 - **Phase A — 計画:** 同じ planning packet から初稿、独立レビュー、人間による統合を行い、進める最低条件、その詳細である受け入れ条件、責務配置、規模、制約、テスト方針を自己完結した HANDOFF にして凍結する。
 - **Phase B — 実装:** HANDOFF の範囲だけを実装し、設計判断を増やさない。
-- **Phase C — 一次レビュー:** commit で固定した差分、Phase A の責務マップとの構造適合、進める最低条件とその詳細である受け入れ条件、テスト結果を確認する。
+- **Phase C — 一次レビュー:** commit で固定した差分、Phase A の責務マップとの構造適合、進める最低条件、その詳細である受け入れ条件、テスト結果を確認する。
 - **Phase C' — 独立監査:** 発見 C と判定 C の結論と疑念候補を含まない blind audit bundle から、残存リスクと見落としを監査する。
-- **Phase D — マージ判断:** 人間が結果を確認し、HANDOFF を harvest して削除する。
+- **Phase D — マージ判断:** 人間が結果を確認し、[Evidenceの保存・引渡し](review-evidence.md#phase-d-の保存引渡し確認) を確認してからHANDOFFをharvest・削除し、通常の終了処理と依頼範囲の後始末を行う。元証拠の保全だけを後始末完了としない。
 
-未移行作業は1スライスを1ブランチ、1 HANDOFFの単位とする。A3で `external-current-v1` を採用したArtifacts/Harness作業は、同じ単位の現行入力をGit外CURRENTで選択する。`pwsh tools/harness.ps1 current -Task <id>` が入口で、凍結仕様とrunはIDから解決する。移行を明示していない作業に新方式を暗黙適用しない。Phase境界では新しいセッションを使い、過去の会話ではなく各Phaseの固定入力を使う。
+未移行作業は1スライスを1ブランチ、1 HANDOFFの単位とする。A3で `external-current-v1` を採用したArtifacts/Harness作業は、同じ単位の現行入力をGit外CURRENTで選択する。`pwsh tools/harness.ps1 current -Task <id>` が入口で、凍結仕様とrunはIDから解決する。CURRENT管理方式の移行を明示していない作業に、この管理方式を暗黙適用しない。Evidenceの保存・引渡しはH1採否と独立して [レビュー証拠](review-evidence.md#保存先とリモートへの配布) に従う。Phase境界では新しいセッションを使い、過去の会話ではなく各Phaseの固定入力を使う。
 
 通常の task 全体完了・打切りは人間の決定を処理する同じ最終手順で tools/workflow-task.ps1 end に接続する。Phase D の完了処理も対象とし、C/C′ 合格や Harness close を終了へ変換しない。再開は Evidence 利用前に resume を完了する。終了指示 record／event／receipt の途中失敗は同じ Decision・内容で回復し、確定済み終了 UTC を変更しない。新しい承認を増やす規則ではなく、既存の完了・再開手順の記録入口である。詳細は [Workflow README](../../../../tools/Workflow/README.md)。
 ## Phase A の内部フロー
 
 1. **A0 — 入力固定:** 現況、要求、対象外、常時契約、既知の制約、未決事項を planning packet にする。
-2. **A1 — 初稿:** 主担当が進める最低条件、その詳細である受け入れ条件、責務マップ、配置、規模、テスト方針を作る。
+2. **A1 — 初稿:** 主担当が進める最低条件、その詳細である受け入れ条件、責務マップ、配置、規模、テスト方針、停止規則を含む初稿を作る。
 3. **A2 — 独立レビュー:** 同じ入力版を複数モデルが独立に見る。互いの指摘を渡さず、観点を分ける。少なくとも1件は [アーキテクチャゲート](architecture-gates.md) を担当する。
-4. **A3 — 統合と凍結:** 主担当と人間が各指摘を採用・不採用・保留に分類して理由を残し、実装へ渡す版を凍結する。
+4. **A3 — 統合と凍結:** 主担当と人間が指摘を採用・不採用・保留に分類して理由を残し、実装へ渡す版を凍結する。
 
 通常スライスは主担当と1件以上の独立レビュー、高リスクスライスは複数の独立レビューを使う。高リスクでは、初稿にアンカリングされないよう、A0 だけを読んで代替構成を出す担当を少なくとも1件検討する。
 
@@ -94,7 +94,7 @@ A3 でこの境界を凍結した後、finding が現スライスを阻害でき
 ## HANDOFF の必須内容
 
 - type、status、branch、implementation base / head commit、risk、owner、期限、harvest 先
-- Phase A snapshot、Phase B result snapshot、evidence bundle、C' blind audit bundle の path / id、生成時刻、hash
+- Phase A snapshot、Phase B result snapshot、evidence bundle、C' blind audit bundle それぞれの取得案内の引渡し先・担当・状態。公開欄と実際の取得案内の区別は下記に従う
 - 目的、対象外、このスライスが答える問い、進める最低条件、その詳細である受け入れ条件、ここでは答えない問いと所有スライス、判定定義、停止規則
 - A0 の現況、制約、未決事項
 - Phase A の独立レビュー結果と採用・不採用・保留の理由
@@ -105,9 +105,12 @@ A3 でこの境界を凍結した後、finding が現スライスを阻害でき
 - 差し戻し中の起点 filter と判定必須テスト。実装変更スライスでは最終全 EditMode 回帰が標準。適用除外の理由と代替証拠
 - 実装上の制約をリンクではなく本文へ転記
 - Phase Bの実装結果と未実行事項
-- Phase Cの種別（発見 / 判定）、evidence id、構造適合、違反根拠を伴う現在の問いを阻害する指摘、後続スライスへ移送する指摘、実行したテストコマンド、テスト結果、判定必須のうち未実行、未確認事項
-- Phase C'の blind audit bundle、違反根拠を伴う現在の問いを阻害する指摘、後続スライスへ移送する指摘、監査結果、独立性
+- Phase Cの種別（発見 / 判定）、使用したevidenceの取得案内・状態、構造適合、違反根拠を伴う現在の問いを阻害する指摘、後続スライスへ移送する指摘、実行したテストコマンド、テスト結果、判定必須のうち未実行、未確認事項
+- Phase C'で使用したblind audit bundleの取得案内・状態、違反根拠を伴う現在の問いを阻害する指摘、後続スライスへ移送する指摘、監査結果、独立性
+- Phase DのEvidence保存・取得確認と取得案内の引渡し、task終了・後始末の状態、未完了事項。公開欄へ内部台帳や機微なpathを転記しない
 - 各Phaseで使用した担当とモデル
+
+tracked HANDOFFの全Phase欄には、既存の取得案内の引渡し先・担当と状態（未生成／未保存／引渡し未完了／確認済み）を公開可能な範囲で記録する。reference・期待packageSha256の実値、ローカルpath、内部catalog/receiptを転記しない。実際の取得案内には [レビュー証拠](review-evidence.md#保存先とリモートへの配布) に従い、publishが返すreferenceとそれとは別の期待packageSha256、対象base / head、用途、取得手順、保持条件を残す。各snapshot・bundleの生成時刻と内容hashは固定manifestに残し、packageSha256と混同しない。同じpackageの取得案内は再利用でき、個別publishや第二の台帳を要求しない。C' 用の案内と入力は所見から分離し、空欄や生成済みだけを保存・引渡し済みと扱わない。
 
 スライス HANDOFF は [テンプレート](handoff-template.md) を基準にする。複数スライス計画と調査記録は `type` を区別し、Phase C / C' の完了欄を持つスライスと同じものとして扱わない。
 
