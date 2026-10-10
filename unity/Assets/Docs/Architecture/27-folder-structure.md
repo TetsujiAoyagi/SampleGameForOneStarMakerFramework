@@ -85,13 +85,17 @@ Unity 内観測は専用の Editor assembly とテスト assembly に閉じる�
 
 ### 2.3 ScriptSystem（任意の数値命令 executor）
 
-`Runtime/ScriptSystem/`は、呼び出し側が C# で組み立てた数値命令を予算つきで進める任意の内側 executor である。通常のゲームイベントでは直接の型付き C# をまず比較対象にする。現在の9命令はメモリ上の意味だけを定め、言語・Event host・保存バイトコードの ABI は提供しない。
+`Runtime/ScriptSystem/` は、呼び出し側が C# で組み立てた数値命令を予算つきで進める任意の内側 executor である。通常のゲームイベントでは直接の型付き C# をまず比較対象にする。この仕組みはテキスト言語、汎用 Event host、保存バイトコードの ABI を提供しない。`Halt=0` から `JumpIfNotZero=8` までの9命令の番号を維持し、末尾の `HostCommand=9` を加えた10命令はメモリ上で実行する意味だけを定める。
 
-`ScriptProgram` は入力命令の不変コピー、`ScriptRegisters` はゼロ初期化された `long[]` を持ち、どちらも呼び出し側が所有する。純粋な `ScriptMachine` は両者を借り、PC・状態・終端ラッチを所有する。呼び出し側は Tick とレジスタ変更を逐次化し、変更を Tick の間に行う。共有レジスタを使う機械同士の順序も呼び出し側が決める。
+`ScriptProgram` は入力命令の不変コピー、`ScriptRegisters` はゼロ初期化された `long[]` を持ち、どちらも呼び出し側が所有する。純粋な `ScriptMachine` は両者を借り、PC・状態・終端ラッチ・保留中の要求を所有する。`HostCommand` の `Destination` はレジスタ番号ではなく command ID、`Immediate` は引数であり、その意味と副作用は Machine にない。初回到達で不透明な `ScriptHostRequest` を発行して PC を進めず、保留中の正の Tick でも同じ要求を保持し、副作用を再発行しない。要求そのものの参照同一性を一回限りの完了 token とし、成功 ack は PC を一つ進めて Ready、失敗 ack は同じ PC の `HostCommandFailed` にラッチする。null・別 Machine・古い要求・二重 ack は状態を変えず拒否する。呼び出し側は Tick・ack・レジスタ変更を同一スレッドで逐次化する。
 
-`ScriptUpdateElement` は Update で固定予算の Tick を1回呼ぶ adapter で、Start / LateUpdate では命令を進めない。呼び出し側が Layer・寿命・Scene 所有を決め、`UpdateSystemRuntime` 経由で登録・解除し、解除後に借用した参照を手放す。`UpdateCoordinator` の直接利用は独立した決定的テストの seam である。
+`ScriptUpdateElement` は固定予算の Tick を Update で一回呼ぶ数値命令用 adapter として残る。host 命令を含む一回の実行には `ScriptCommandRunner` が一つの Machine・レジスタ・共通 Wait・停止 gate を持つ。Start / LateUpdate は進めず、一回の Update で Tick は最大一回、host 操作の開始も最大一回とする。即時完了しても次の命令は次の Update 以降に進む。`ScriptCommands.WaitMilliseconds` の ID `-1` は Framework が処理し、アプリ固有 ID は非負とする。Wait の非負引数を検査し、選んだ Scaled / Unscaled の正で有限な delta だけを開始後の Update から加算する。layer の pause を尊重し、開始フレームの delta や超過時間を持ち越さないため、完了はフレーム単位で量子化される。
 
-非正の予算はラッチ後も `RejectedBudget` を返し、保存状態を変更しない。予算消費による `Yielded` は再開可能で、予算と同時に末尾へ着いた場合は次の正の Tick で自然終端を検出する。不正な使用レジスタ・実際に取る跳躍先・opcode は型付き故障にラッチし、故障命令の PC と書き込みを変更しない。それ以前の完了命令は保持し、後続 Update 要素の実行を妨げない。詳細な命令意味はソースの XML コメントと ScriptSystem テストに置く。
+Runner は Stop / Dispose / 終端で先に実行 gate を閉じ、要求を失効させる。状態通知と登録解除 callback は片方が失敗しても残りの cleanup を試み、借用 host と callback 参照を解放する。同期 callback の再入や古い要求は新たな app 操作を起こさず、host が操作後に例外を投げても rollback / retry しない。layer・登録解除・Scene 寿命は runner 自身ではなく呼び出し側が所有し、Unity アプリでの登録・解除は `UpdateSystemRuntime` を経由する。`UpdateCoordinator` の直接利用は独立した決定的テストの seam である。数値命令の非正予算は終端後も `RejectedBudget` を返して保存状態を変えず、予算切れの `Yielded` は再開可能である。予算を使い切った命令でちょうど末尾に着いた場合、自然終端は次の正の Tick で検出する。不正な使用レジスタ・実際に取る跳躍先・opcode は故障命令の PC と書き込みを変えず型付き故障にラッチする。詳細な命令意味はソースの XML コメントと ScriptSystem テストに置く。
+
+SampleGame の `OutGame/HpGauge/` はこの境界の小さな実例である。不変の9命令・2レジスタのプログラムを各 Run で新しい Machine / host と組み合わせ、既存 ViewModel の型付き Damage / Heal 操作を3巡だけ借用する。Wait 500ms は各巡に2回あり、アプリ host は Damage / Heal の ID とゼロ引数だけを検査して同期実行する。`HpGaugeView` は既存の手動 Damage / Heal / Open Dialog を保ち、追加の Run / Stop と Idle / Running / Waiting / Halted / Stopped / Failed 表示を持つ。一度に現在 Run を一つだけ作り、`ScriptCommandTimeSource.Unscaled`・予算16で `UpdateSystemRuntime.RegisterElement("HpGaugeScriptDemo", runner, layerOrder: 0, executionOrder: 0)` に登録する。Coordinator はアプリ寿命の layer、View は runner の登録と解除を所有する。手動 Stop 後は新しい Run を許し、View の `Track` は ViewModel の破棄前に runner を停止する。Scene pre-unload も shutdown を要求する。古い runner の通知や遅延した解除は新しい Run を変更しない。登録失敗は provisional runner を閉じて Failed を表示し、診断出力が失敗してもこの後始末を覆さない。登録除去は best-effort であり、除去未確認と gate の閉鎖を混同しない。
+
+この例の SceneGraph / SceneResource は `OutGameScene → HpGauge → ConfirmDialog` の親子で、子二つは OnDemand である。既存の HpGauge scene を Editor で直接開いて Play することが opt-in の入口であり、Title に HpGauge ナビゲーションは追加していない。Addressables 互換経路で動かす場合は process の `SAMPLEGAME_CONTENT__RUNTIMEMODE=addressables` を明示する。通常の Content Directory 入口や既定設定は変更しておらず、source 側の SceneResourceMap 更新だけで install 済み directory の map は更新されない。起動 mode の正本は [04-app-startup.md](04-app-startup.md) を参照する。
 
 ---
 
