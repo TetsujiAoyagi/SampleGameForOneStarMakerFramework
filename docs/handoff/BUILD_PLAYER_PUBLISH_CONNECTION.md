@@ -113,10 +113,10 @@ A2 の代替構成担当はこの節だけを読む。§0 以降の A1 初稿を
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（A3 凍結 r3。Phase B 待ち）
+- status: `C`（Phase B 完了。Phase C 待ち）
 - branch: `feat/build-player-publish-phase-a`
 - implementation base commit: `32ec358`（凍結時点の `origin/develop` と同一）
-- implementation head commit: 未到達
+- implementation head commit: `d35823c`
 - risk: `normal`（Unity側は変更せず、tools/Artifacts に閉じる）
 - owner: OSM maintainers
 - created: 2026-10-11
@@ -279,7 +279,35 @@ A2 の代替構成担当はこの節だけを読む。§0 以降の A1 初稿を
 
 ## 6. Phase B 実装結果
 
-未着手
+- 担当・モデル: Claude Code / Claude Opus 5.5（Anthropic）。2026-10-11。
+- implementation base / head: `32ec358` / `d35823c`。
+- 変更（§3 の責務マップどおり。依存は Application → Stage → Contract の一方向）:
+
+| file | 行数（凍結時 → 実績） | 内容 |
+|---|---|---|
+| `tools/Artifacts/BuildContract.psm1` | 113 → 201 | identity → buildId（A5）、系列対応表（A6）、receipt/transport.json の読取と照合（A1）、content/ と manifest の照合（A2）、build-info.json の固定順直列化（A1）、上限の事前検査（A8）。`Assert-BuildSourceRoot` を export |
+| `tools/Artifacts/BuildStage.psm1`（新規） | 0 → 121 | ArtifactsRoot の解決と検査（A7）、配布形検査（A8）、staging → 読込hash照合 → 書込後の再読照合 → rename（A3）、既存退避先の全hash一致判定 |
+| `tools/Artifacts/BuildApplication.psm1` | 189 → 260 | `Invoke-BuildCollect`。入力の一覧は既存 `Get-BuildInventory` で取り Stage へ渡す。再実行の分岐（最低条件3） |
+| `tools/artifacts.ps1` | 106 → 109 | `build collect`。`--artifacts-root` だけ省略可 |
+| `tools/Artifacts/tests/BuildCollect.Tests.ps1`（新規） | 0 → 300 | 9ケース（下記） |
+| `tools/Artifacts/tests/BuildCollectChild.ps1`（新規） | 0 → 47 | 実CLIを別processで通す子。並行ケースは名前付き event で同期 |
+| `tools/Artifacts/README.md` | 206 → 236 | `build collect` と `OSM_ARTIFACTS_ROOT` |
+
+- 行数: `BuildContract.psm1` は予想（約185）を超えて +78%。追加分は全て §3 の P 分類（保存契約の値の規則）で、分割しない判断は §3 のとおり。
+- B 適応（設計判断を増やさない実装詳細）:
+  - 成功receiptが既にある場合、receipt の entries・系列が今回の退避先と一致することを確かめてから同じ参照を返す。一致しなければ `receipt-conflict` で止まり、PUT しない。最低条件3「同じ入力で再実行したとき」の前提を確かめる検査で、#111 の receipt 形式は変えない。
+  - `OSM_ARTIFACTS_ROOT` は、起動した process が引き継いだ環境変数を読む。ユーザー環境変数の registry は読まず、書き込まない。
+  - テスト補助として `BuildCollectChild.ps1` を追加した（§3 の表に無い）。既存の `BuildPublishChild.ps1` は selection 前提のため流用しなかった。
+  - 上限のうち相対path 240字超は、既存 `Get-BuildInventory` の path 検査で退避前に拒否される（reasonCode は `unconfirmed`）。他の上限は `size-limit`。
+- テストケース（`BuildCollect.Tests.ps1`）: `collect-roundtrip`（環境変数経由、build-info 11 field と値、退避先＝入力−receipt＋build-info、fetch 一致、PUT 1）、`rerun-and-resume`（予約前失敗後の再開、receipt 有りで PUT 0、予約有り receipt 無しで `publish-unresolved`・PUT 0、他の退避先・他の receipt・元が不変、DELETE 0）、`artifacts-root-reject`（未設定・相対・不存在・junction・入力との親子両方向・所有store）、`source-reject`（receipt 欠落・backup・work/・相対・file数・単一size・総量・path長）、`transport-and-content-reject`、`identity-and-series-reject`、`stage-integrity`（copy前の元改変、staging改変、他のstaging不変、既存退避先の不一致）、`concurrent-stage`（2 process を rename 直前で揃え、片方だけ成功・PUT 1）、`fresh-process-cli`（実CLI、再実行、未設定、grammar 拒否）。
+- 実行した確認（B exit。implementation head `d35823c` の作業ツリー）:
+  - `pwsh tools/Artifacts/tests/BuildCollect.Tests.ps1 -Case '*'` → 9 / failed 0。
+  - `pwsh tools/Artifacts/tests/BuildPublish.Tests.ps1 -Case '*'` → 9 / failed 0。
+  - 変更・新規 PowerShell 6 file の構文解析 → error 0。
+  - `pwsh tools/contract-audit.ps1` → errors 0、`pwsh tools/docs-audit.ps1` → errors 0、`git diff --check` → 指摘なし。
+  - 通信・資格情報なしで、判定用の実Player（`20260924T202227427Z-b80d…`）に対して Contract/Stage の検査関数だけを実行した。receipt・transport.json・content/ 220 file の照合が成立し、退避予定は 266 file・125.48 MiB で上限内だった。§4 の差し戻し条件「A2 が実出力で成立しない」には当たらない。退避・publish は実行していない。
+- 未実行（Phase C の担当）: 判定必須の offline suite 全件（BuildRetention・ArtifactPackage・ArtifactTransfer）、Packaging/Transport の Release build、最低条件2の実R2往復と前提確認の `build inspect`。
+- Unity Editor のコンパイル確認: 対象外（Unity側を変更していない）。
 
 ## 7. Phase C
 
