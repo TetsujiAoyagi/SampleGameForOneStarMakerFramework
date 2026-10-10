@@ -113,7 +113,7 @@ A2 の代替構成担当はこの節だけを読む。§0 以降の A1 初稿を
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（A1初稿。A2実施中）
+- status: `A`（A2完了。A3の人間決定待ち）
 - branch: `feat/build-player-publish-phase-a`
 - implementation base commit: `32ec358`（`develop`。A3で更新しうる）
 - implementation head commit: 未到達
@@ -209,7 +209,27 @@ U1〜U8 を推奨どおり採った場合の初稿。
 - 機械検査: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、`git diff --check`。
 - A0/A1 主担当・モデル・ベンダー: Claude Code / Claude Opus 5.5 / Anthropic。
 - A2 独立レビューごとの観点・担当・モデル・ベンダー: 入力版はこの節を含む commit。互いの指摘を見せない。(R1) アーキテクチャゲート＋最低条件・検証経路の実行可能性: 全文と関連コードを読む。cursor-agent / Grok 系 / xAI。(R2) A0 だけから代替構成を出す: §A0 のみを読む。Claude Code subagent / Claude Sonnet 5.5 / Anthropic。結果と採否は A3 でこの欄の下に記録する。
-- A3 統合担当・モデル・採否: 未実施。
+- A2 結果（入力版 `fb2d59f`、2026-10-11。両者とも互いの結果を見ていない）:
+  - R1（Grok 系、xAI）: 「A3 凍結不可」。blocker 3 / major 4 / minor 1。主担当がコードで照合し、事実関係は概ね正しいと確認した。
+  - R2（Claude Sonnet 5.5、A0 のみ）: 代替構成として、tools 側の1コマンド（stage → 既存 publish）、Unity 無改修を推奨。比較案（Unity 側 `PlayerBuildPublisher` で退避）は program D と混ざるため非推奨。A0 への指摘は major 2 / minor 2。事実認定の誤りは無し。未決 8 件のうち U1・U3・U4・U6・U7・U8 は A1 推奨と一致し、U2・U5 は異なる。
+- A3 採否案（主担当の案。人間の決定までは未確定）:
+
+| ID | 指摘 | 案 | 理由・反映先 |
+|---|---|---|---|
+| R1-B1 | A1 は build-info の全値を receipt / transport.json から読むとしているが、系列・buildId はどちらにも無い。`players/<identity>` に transport.json は無い | 採用 | 系列は U5 の固定入力、buildId は U4 で導出、contentSet・unityVersion は receipt の `transportPath` が指す実在 transport.json から読み、manifest hash を `transportManifestSha256` と照合する。§2 A1 を改稿 |
+| R1-B2 | build-config は `evidenceConfigPath` 等を要し、Player 出力から生成できない。§3 に `ArtifactPaths` 依存と ArtifactsRoot 設定の所有者が無い | 採用 | 既存の build-config を collect の必須入力にし、private operation への複写だけを行う（R2 も同じ結論）。§3 に `ArtifactPaths` 依存と設定の所有者・寿命を追加 |
+| R1-B3 | A4 は `builds-v1` との親子関係しか見ていないが、publish 側の `Assert-BuildSourceRoot` は `OneStarMaker\Artifacts`・`Workflow`・`Get-ArtifactRoot` も拒否する | 採用 | 退避の前に同じ関数で ArtifactsRoot と退避先を検査し、検査規則を二重化しない。A4 を改稿 |
+| R1-M1 | Collect に入力検証・codec・設定・selection 生成が同居している。全 file 列挙は既存の `Get-BuildInventory` と重複する | 採用（方針） | build-info codec は Contract、退避は Store 相当、orchestration は Application に置く。inventory は既存関数を export して再利用する。§3 を改稿 |
+| R1-M2 | 最低条件2で09-24の1件に固定しているが、U4=(a) では同じ buildId が既に予約済みかもしれない。代わりに09-20を使うと file 数の条件が変わる | 採用 | Phase C の開始前に `inspect` で確認する。判定に使う identity は A3 で本文に固定する |
+| R1-M3 | 退避が成功して publish が失敗した後、再実行すると「退避先既存」で拒否され、先へ進めない | 採用 | 同じ buildId の退避先が build-info と全 hash で一致すれば退避を省き、publish（`inspect`）から再開する。最低条件3に書く |
+| R1-M4 | A7 にテストも検証経路も無い。`build collect` は新しい操作なのに、疎通確認が「なし」になっている | 採用 | 並行 rename の offline ケースを追加する。実R2 での collect は「未確認。初回確認は Phase C」と確認地点を書く |
+| R1-m1 | ゲートの分類が無い。`Assert-BuildToken` は export されていない。トークンが既存テスト例と違う | 採用 | 分類欄を追加。トークンは既存テストに合わせて `windows-x64-player` / `il2cpp-high` とする（R2 も configuration は `il2cpp-high`）。U5 を改稿 |
+| R2-1 | selection を退避先 root の中に置けないことを明示すべき | 採用 | A3 に「selection は root 外の private operation に置く」と追記 |
+| R2-2 | 並行2回実行と同じ identity の再実行を最低条件に入れるべき | 採用（R1-M3 と統合） | 再実行は「再開」として定義し、並行実行は片方だけ成功する |
+| R2-3 | 4季節で約880 file になる推定を、対象外を切る根拠に使っている | 採用 | 注記として残し、分離を後送りする根拠は「Player が content を内包しないと起動しない」ことに一本化する |
+| R2-4 | 「人手なし」と「人が1コマンドを実行する」の文言が揃っていない | 採用 | 問いを「JSON を手書きせず1コマンドで」に揃える |
+| R2-U2 | ArtifactsRoot は既定値を置かず、引数または環境変数で必須にする | **保留（人間判断）** | A1 推奨は LocalAppData 既定＋上書き。owner 入力の「任意フォルダ」はどちらでも満たせる |
+- A3 統合担当・モデル・採否: 未実施。（上表の人間決定待ち）
 - C' 用に予約した担当・モデル・ベンダー: owner 決定（2026-10-11）。C' は人間担当、または B・C と異なるモデルの AI 担当とする。ベンダーの相違は求めない。どちらの場合も新規セッションと blind audit bundle は必須。
 - 独立性の強化条件を満たせない場合の理由: 利用可能な AI 経路が Anthropic（Claude）と cursor-agent 経由の xAI（Grok 系のみ）の2系統で、Codex 系は利用不可。owner は、モデルが異なれば blind 監査として十分と判断し、強化条件（未関与ベンダー）を求めないと決めた（2026-10-11）。`独立性制約あり` として記録する。
 
