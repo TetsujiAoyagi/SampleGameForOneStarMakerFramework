@@ -14,7 +14,12 @@ pwsh tools/workflow-task.ps1 end -Task example-task -Reason cancelled -ExpectedV
 
 completed は人間が task 全体の完了を決めたとき、cancelled は打切りを決めたときに、workflow 担当が通常の最終処理として記録します。Phase D の完了処理も同じ入口です。C/C′ 合格、PR 作成、merge 検知、Agent 停止、pause、timeout、Harness close から終了を推測しません。Evidence 専用の追加承認を求めません。
 
-Decision は非秘密の信頼済み message／decision-record ID です。書式は英数字で始まる128字以内の `[a-zA-Z0-9._:/-]` です。人間の指示が PR comment・review 等の恒久 ID を持つ場所にあれば、その ID を使います（例: `github:TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/110/issuecomment-123`）。エージェントとの対話のように恒久 ID が無い指示では、担当が指示の UTC と task から ID を作り（例: `chat:20261010T1230Z:example-task:completed`）、要旨とともに人間への報告に示します。指示がまだ無いのに ID を作って終了・再開を記録しません。同じ決定を再実行するときは ID、kind、Reason、ExpectedVersion を変えません。同じ Decision に別の内容を渡すと拒否します。初回の正常な最終処理で確定した UTC は event と完了 receipt に固定し、配送時刻や再試行時刻で更新しません。外部の信頼済み終了 record を取り込む内部 Workflow adapter は、原 record の終了 UTC と指示 UTC を区別して保存します。Storage が会話や PR を探して終了を推測することはありません。
+Decision は非秘密の信頼済み message／decision-record ID です。書式は英数字で始まる128字以内の `[a-zA-Z0-9._:/-]` です。URL は `#` 等を含むためそのまま Decision にせず、次のどちらかの合成形を使います。
+
+- GitHub の PR comment・review にある指示: `github:<owner>/<repo>/pull/<PR番号>/<コメントURLの # より後>`（例: `github:TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/110/issuecomment-123`）
+- エージェントとの対話のように恒久 ID が無い指示: `chat:<指示のUTC yyyyMMddTHHmmZ>:<taskId>:<completed|cancelled|resumed>`（例: `chat:20261010T1230Z:example-task:completed`）。担当が作り、要旨とともに人間への報告に示します。
+
+同じ決定の再実行では、最初に作った文字列をそのまま使います。指示がまだ無いのに ID を作って終了・再開を記録しません。同じ決定を再実行するときは ID、kind、Reason、ExpectedVersion を変えません。同じ Decision に別の内容を渡すと拒否します。初回の正常な最終処理で確定した UTC は event と完了 receipt に固定し、配送時刻や再試行時刻で更新しません。外部の信頼済み終了 record を取り込む内部 Workflow adapter は、原 record の終了 UTC と指示 UTC を区別して保存します。Storage が会話や PR を探して終了を推測することはありません。
 
 状態は Windows Known Folder LocalApplicationData の OneStarMaker/Workflow/<repositoryId>/tasks/<taskId>/ にあります。private ACL、reparse 拒否、task 単位の FileShare.None 排他、generation CAS、CreateNew／flush／rename で state・immutable event・配送 outbox を保存します。終了指示の durable record だけが存在して完了 receipt がない場合、status は pending-finalization を表示します。次の担当は同じ Decision で最終処理をやり直し、元の event があれば version と UTC を保って receipt を回復します。終了未記録の task は active/end-not-recorded です。
 
