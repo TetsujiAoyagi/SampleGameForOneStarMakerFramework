@@ -122,7 +122,7 @@ A2 の代替構成担当はこの節だけを読む。§0 以降の A1 初稿を
 - created: 2026-10-11
 - expires: 2026-11-30 または置換revision
 - harvest to: 実装済みの操作を `tools/Artifacts/README.md`「開発Build 1件の保存と取得」へ、program状態を `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 B と `docs/README.md` へ反映し、スライス完了時に本書を削除する。
-- Phase A snapshot の取得案内・状態: 凍結版はこの HANDOFF の凍結 commit（PR #115 のブランチ）と A2 の生出力。Evidence publish 前（未保存）
+- Phase A snapshot の取得案内・状態: 確認済み（2026-10-11）。凍結版 HANDOFF（`f1cbf1e`）と A2 の生出力を Evidence publish し、別 process の fetch で全 file の hash 一致を確認した。取得案内は、メイン checkout の git 管理外の引渡し先（`TestResults/handoff/build-player-publish-connection/`）にある。A2 の所見を含むので、C' の blind 入力には使わない
 - Phase B result snapshot の取得案内・状態: 未到達
 - evidence bundle の取得案内・状態: 未到達
 - C' blind bundle の取得案内・状態: 未到達
