@@ -122,7 +122,7 @@ A2 の代替構成担当はこの節だけを読む。§0 以降の A1 初稿を
 - created: 2026-10-11
 - expires: 2026-11-30 または置換revision
 - harvest to: 実装済みの操作を `tools/Artifacts/README.md`「開発Build 1件の保存と取得」へ、program状態を `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 B と `docs/README.md` へ反映し、スライス完了時に本書を削除する。
-- Phase A snapshot の取得案内・状態: 凍結版はこの HANDOFF の凍結 commit（PR #115 のブランチ）。Artifact Storage には未保存。Phase B 開始前に保存し、取得案内を引き渡す
+- Phase A snapshot の取得案内・状態: 凍結版はこの HANDOFF の凍結 commit（PR #115 のブランチ）と A2 の生出力。Evidence publish 前（未保存）
 - Phase B result snapshot の取得案内・状態: 未到達
 - evidence bundle の取得案内・状態: 未到達
 - C' blind bundle の取得案内・状態: 未到達
@@ -158,7 +158,7 @@ A2 の代替構成担当はこの節だけを読む。§0 以降の A1 初稿を
   - A4. selection は退避先 root の外、`New-ArtifactOperation` で作る新規 private operation に置く。build-config は利用者が渡した既存のものを `Read-BuildConfig` で検証し、その bytes を同じ operation へ複写する。`files` は既存の `Get-BuildInventory` の結果をそのまま使う。selection の生成はこのスライスが担い、build-config の生成・登録は行わない。
   - A5. `buildId` は BS4 identity の末尾32桁 hex とする。identity が `yyyyMMddTHHmmssfffZ-<32hex>` 形式でなければ拒否する。
   - A6. 系列は receipt から固定の対応表で決める。`target=StandaloneWindows64-Player` は `windows-x64-player`、`backend=IL2CPP` かつ `stripping=High` は `il2cpp-high`、project は `samplegame` 固定。表に無い組合せは拒否する。値は既存の #111 検査（`Get-BuildSeries`）を通ること。
-  - A7. `<ArtifactsRoot>` は明示が必須で、既定値は持たない（owner 決定 2026-10-11、案B）。解決順は (1) `--artifacts-root`、(2) ユーザー環境変数 `OSM_ARTIFACTS_ROOT`。どちらも無ければ `artifacts-root-not-configured` を返し、何もしない。指定値は次をすべて満たすこと。満たさなければファイル操作の前に拒否する。
+  - A7. `<ArtifactsRoot>` は明示が必須で、既定値は持たない（owner 決定 2026-10-11、案B）。`<ArtifactsRoot>` は退避した Player の置き場で、Storage の内部保存先（`%LOCALAPPDATA%\OneStarMaker\Artifacts`。資格情報・deployment・receipt・transfers）とは別物である。owner は D ドライブ等の、同期フォルダでない場所に置く想定。解決順は (1) `--artifacts-root`、(2) ユーザー環境変数 `OSM_ARTIFACTS_ROOT`。どちらも無ければ `artifacts-root-not-configured` を返し、何もしない。指定値は次をすべて満たすこと。満たさなければファイル操作の前に拒否する。
     - 絶対pathで、既存のディレクトリである。このコマンドは ArtifactsRoot 自体を作らない。
     - reparse point ではない。
     - 入力rootと親子関係にない。
@@ -239,7 +239,7 @@ A2 の代替構成担当はこの節だけを読む。§0 以降の A1 初稿を
 - 操作・実行時・目視条件の検証経路:
   - 最低条件2: 担当は Phase C（判定C）。
     - 環境: owner の Windows ユーザー、登録済みの `osm` 資格情報、既存の Evidence config・build-config、判定用に新規作成した空の ArtifactsRoot（`--artifacts-root` で渡す）。
-    - 初期状態: 判定用 identity の `players/` と `transport/` が存在し、buildId `b80d0ef69df841f4bde30f85a2b4cd6e` の成功receipt・予約が無いこと。2026-10-11 時点で、このPCの `OneStarMaker/Artifacts/builds-v1` は存在しない。#111 は同じ Player を同じ系列・別の buildId `4a244e29ea66438c83f61d971ad66234` で保存していた（#111 の保持 worktree の selection で確認）。このため R2 key `…/b80d0ef69df841f4bde30f85a2b4cd6e/bundle.zip` は #111 では使われていない。
+    - 初期状態: 判定用 identity の `players/` と `transport/` が存在し、buildId `b80d0ef69df841f4bde30f85a2b4cd6e` の成功receipt・予約が無いこと。2026-10-11 時点で、#111 の成功記録は Codex アプリの MSIX 仮想化された LocalAppData 側の `builds-v1` にあり、中身は buildId `4a244e29…` だけだった（凍結 r3 の「このPCに存在しない」は誤りで、A3 後の事実訂正）。Storage の内部保存先は同日、本来の LocalAppData に一本化した。#111 は同じ Player を同じ系列・別の buildId `4a244e29ea66438c83f61d971ad66234` で保存していた（#111 の保持 worktree の selection で確認）。このため R2 key `…/b80d0ef69df841f4bde30f85a2b4cd6e/bundle.zip` は #111 では使われていない。
     - 操作: `build collect` を1回実行し、別の PowerShell process で `build fetch` を実行する。続けて同じ入力で `build collect` をもう1回実行する。
     - 観測: 返却値がある。退避先と fetch 展開先の全 entry/hash が一致する。元出力が前後で不変（全 hash）。2回目は同じ reference/hash を返し、PUT していない。
     - 証拠: 実行ログと hash 一覧（ローカルpathを除いた相対path）を evidence bundle に入れる。
