@@ -6,7 +6,7 @@
 - status: `A3 凍結`（2026-10-11、owner 承認。次は Phase B。管理方式は tracked HANDOFF で、H1/CURRENT は採用しない。§5）
 - branch: `codex/artifact-storage-content-publish`
 - implementation base commit: `e949c6dc6b8b441d43c0bb1d14e72e486be514cf`（`develop`。PR #117 を含む）
-- implementation head commit: `9c8e703d57276b8ab46e7032ed915ee6ab37292b`（Phase B。初回実装 `603ede1` に判定 C の指摘 C-1 の修正を加えた最終 head。本書の §6 更新 commit はその後）
+- implementation head commit: `9c8e703d57276b8ab46e7032ed915ee6ab37292b`（Phase B の最終 head。初回実装は `603ede1`。本書の §6 更新 commit はその後）
 - risk: `normal`（Artifacts の新規 module と、共有部品・allowlist への小さな変更。公開 API・asmdef・Unity は変えない。実 R2 に触れる操作を含む）
 - owner: OSM maintainers
 - created: 2026-10-11
@@ -302,9 +302,9 @@
   7. intent はファイルの bytes の一致で照合する（決定的な bytes なので同値）。遠隔照合（読取のみ）の後、最初の PUT の前に書く。そのため `revision-conflict` では intent を作らない。
   8. AC12 の lock は `FileShare.None`・非継承の handle。既存 lock file の ACL が欠けていれば（排他 open 後に）付け直す。
   9. `Content.Publish` の「同時公開」は、子 process が最初の PUT の直前（lock 保持中）で signal を送って待ち、親が同じ revision を公開して `publish-in-progress` を観測する形（時間待機なし）。
-  10. （判定 C C-1 の修正）同じ revision の初回同時公開で退避の rename に負けた側が `stage-conflict` を返し lock に達しなかった。`Invoke-ContentStage` で `Invoke-BuildStage` が `stage-conflict` を投げたとき、退避先を期待 entry と再照合し完全一致なら `existing` として lock へ進む（`BuildStage` は変更しない）。本当の不一致だけが `stage-conflict`。負けた側は `publish-in-progress`（または勝者の完了後なら `existing`）になる。`concurrent-stage` test（2 子 process を `StageHook` の `before-rename` で signal 同期）を追加。あわせて `contents-v1` 階層の作成を冪等（CreateDirectory のあと ACL が無ければ設定）にし、他 process が作成した直後の ACL 未設定を見ても失敗しないようにした。
-  11. （C-2）§3 に無かった依存辺を記録する。いずれも循環ではなく、Build→Content の逆向きも無い。`ContentTransfer`→`ContentStage`: snapshot の再照合（`Assert-ContentSnapshotFile`）の実体が `ContentStage` にあり、PUT 直前の再 hash の規則の所有者を 1 つにするため。`ContentTransfer`→`Credentials/CredentialStore`: run 開始時の資格情報 generation の固定（`Get-CredentialStatus`）を転送側が持つため（`BuildApplication` も同じ module を直接 import）。`ContentStore`→`Workflow/WindowsStorePaths`: `Get-BuildRoot` と同じ物理 path の解決（`Get-WindowsStorePathIdentity`）のため。便宜だけの辺は無く、削除はしていない。
-  12. （C-3）`ContentApplication` のコメントと README の再実行の優先順位を AC11 の番号順（1 stage-conflict、2 receipt があり同一入力なら existing、3 intent が違えば intent-conflict、4 revision-conflict、5 続行）に直し、「同一入力」は intent.json の bytes 一致で判定し、実装は (2) と (3) を同じ intent 照合で先に評価する（結果は番号順と同じ）ことを明記した。
+  10. 同じ revision の初回同時公開で、退避の rename に負けた側も lock へ進むようにした（AC12 の「負けた側は `publish-in-progress`」を満たすため）。`Invoke-ContentStage` で `Invoke-BuildStage` が `stage-conflict` を投げたとき、退避先を期待 entry と再照合し完全一致なら `existing` として lock へ進む（`BuildStage` は変更しない）。本当の不一致だけが `stage-conflict`。負けた側は `publish-in-progress`（または勝者の完了後なら `existing`）になる。`concurrent-stage` test（2 子 process を `StageHook` の `before-rename` で signal 同期）を追加。あわせて `contents-v1` 階層の作成を冪等（CreateDirectory のあと ACL が無ければ設定）にし、他 process が作成した直後の ACL 未設定を見ても失敗しないようにした。
+  11. §3 に無かった依存辺を記録する。いずれも循環ではなく、Build→Content の逆向きも無い。`ContentTransfer`→`ContentStage`: snapshot の再照合（`Assert-ContentSnapshotFile`）の実体が `ContentStage` にあり、PUT 直前の再 hash の規則の所有者を 1 つにするため。`ContentTransfer`→`Credentials/CredentialStore`: run 開始時の資格情報 generation の固定（`Get-CredentialStatus`）を転送側が持つため（`BuildApplication` も同じ module を直接 import）。`ContentStore`→`Workflow/WindowsStorePaths`: `Get-BuildRoot` と同じ物理 path の解決（`Get-WindowsStorePathIdentity`）のため。便宜だけの辺は無く、削除はしていない。
+  12. `ContentApplication` のコメントと README の再実行の優先順位を AC11 の番号順（1 stage-conflict、2 receipt があり同一入力なら existing、3 intent が違えば intent-conflict、4 revision-conflict、5 続行）に直し、「同一入力」は intent.json の bytes 一致で判定し、実装は (2) と (3) を同じ intent 照合で先に評価する（結果は番号順と同じ）ことを明記した。
 - 未実行:
   - 実 R2 の往復（最低条件 5、判定 C の責任。owner の許可前なので R2・ネットワーク・資格情報には一切触れていない）。最大 1.0 MiB の転送時間、221 件連続の throttling、bucket rule が及ぶかは未確認のまま。
   - Unity の実行・テスト・Build（適用外）。`tools/Workflow/tests/TaskLifecycle.Tests.ps1`、`tools/Harness/tests/Harness.Tests.ps1`（本変更は触れていないため未実行）。.NET 3 build は出力が既存だったため再 build していない。
