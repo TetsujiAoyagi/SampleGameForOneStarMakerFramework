@@ -4,14 +4,14 @@
 
 - type: `program`
 - status: programは進行中。スライスAはPR #109で実装・限定運用検証と正式C/C′を完了（両方GO、blocker 0）。固定仕様と実行集合・原観測の入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。旧限定resetは完了済みで、再実行しない。後続B〜DのA3は別途行う。
-- program policy revision: `r6` — 単一の開発用保存契約。旧データと互換性を引き継がない。
+- program policy revision: `r7` — 単一の開発用保存契約にContent種別を追加（§2）。旧データと互換性を引き継がない。
 - branch: `codex/artifact-storage-development-policy`
 - planning base commit: `a027bf04b4f5ce16494b93daf10e5b5bccf15a28` (`origin/develop`; PR #106・#107を含む)
 - implementation head commit: not applicable; 文書改訂のみ。
 - risk: `normal`（文書改訂）。リセットと削除機能の対象・検証は実装スライスで具体化する。
 - owner: OSM maintainers
 - created: 2026-09-26
-- updated: 2026-10-10
+- updated: 2026-10-11
 - expires: 2026-12-26 または置換revision（program文書の見直し期限）
 - harvest to: 実装済みの通常操作を `tools/Artifacts/README.md`、program状態を `docs/README.md` へ反映し、program完了時に削除する。
 
@@ -48,6 +48,20 @@
 - 期限に達したら利用中でない対象を通常清掃する。古いPRリンク、inspect、GETだけでは延長しない。調査等で必要なものだけ明示的に利用中保護し、解除条件または期限を見えるようにする。
 - 未終了Evidenceをupload後の日数だけで強制削除しない。終了記録の取りこぼしは接続と再実行で直し、本当に継続/打切りが未決のtaskはinspectに表示する。新しいlease、heartbeat、定期的なowner再承認制度を足さない。
 - 恒久的な設計判断・制約・検証要約は通常の公開文書へ残す。生ログ・画像・bundle・派生copy・witnessに長期監査保存を課さない。削除後の参照は期限切れと分かればよく、payloadの復元は保証しない。
+
+### 開発Content
+
+Content Directory（`transport.json` + `content/`）はPlayerとは独立した第三の保存種別とする。BuildとEvidenceの契約は変えない。ここは保存契約だけを決め、実装・Unity変更・取り込み方式は§4の後続に送る。
+
+- **単位:** revisionごとに `transport.json` + `content/` の配置を丸ごと不変単位とし、上書きしない。manifestのschemaは保存側が中身を見ず、検証は消費側が行う。差分upload・content-addressed・GCは採らない。
+- **保存形式:** ZIP 1個にせず、revisionのprefix配下にfile単位のobject（`transport.json` と `content/<path>`）として置く。取得側がmanifestに載った各fileのSHA-256で、不足fileだけを判定して取れる形にする。再利用する箇所は「R2からArtifactsRoot」と「取り込み元からDIST cache」の2つで、仕組みは後続が所有する。Buildの選択集合の上限（512 file・240 MiB）はContentの前提にせず、r7は新しい上限を足さない。Content固有の上限とR2のプラン変更の要否は、実測後に決める。
+- **系列:** `contentSet/target`。platformはtarget値で表す。パスに使うtargetの値は1つで、manifestの`target`（`build-info.json`では`contentTarget`）から一意に写像する（具体的な対応表は実装スライス）。ローカル（NTFSとDIST cacheの配置判定）は大文字小文字を区別しないため、大文字小文字だけが違う`contentSet`やrevisionを別のものとして受け入れない。また、パス要素として安全な範囲に限る（具体規則は命名規約の後続）。用途（通常開発・期間限定イベント・次期大型アップデート等）は`contentSet`の名前で表し（例 `mainline`、`event-<名>`、`next-major`）、階層は足さない。manifest・検証・Playerのbaked設定は変えず、系列と件数保持は用途ごとに独立する。revisionの昇格・改名は行わず、系列間の統合はソース側で行い、統合先の`contentSet`でBuildし直す。
+- **保持:** Buildと同じ件数保持policyを系列ごとに適用する（成功のみNに数える、利用中保護、失敗は既存を追い出さない）。Nの既定値案はBuildに揃えて10件。保持中のPlayerが受け入れうるContent revisionは利用中として保護しNに数える（現状のUnity契約では、Playerのbaked設定の`content:buildIdentity`・`content:contentSet`・`content:target`で1件に決まる。保存側が引く手がかりは、`build collect`が退避先に記録する`build-info.json`の`contentSet`・`contentTarget`・`buildIdentity`・`transportManifestSha256`である。Unity側にも同名で別schemaの`build-info.json`があるが、ここでは指さない）。保護状態を収集できないときは削除しない。
+- **置き場:** ローカルは`<ArtifactsRoot>/content/<contentSet>/<target>/<revision>/`。これは取り込み元（install source）で、消費側のDIST cache（known-good・lease・eviction）とは別の層であり、削除する主体は層ごとに別とする。ArtifactsRootはPlayerと共用の任意のローカルfolderで、同じrevisionを二重に消さない。R2にもrevision単位で全fileを丸ごと上げる（差分uploadは採らない）。
+- **消費側:** ストレージに可変の別名（latest等）を持たせない。消費側はrevisionとmanifestのSHA-256で固定する。見る系列の選択（git管理外のローカル設定）と「最新」の解決はUnityのDISTの外で行い、新旧の順序はrevision名ではなく保存側の確定記録で決める。確定記録は順序とmanifestのdigestを持つ追記だけの記録で、指す先が更新で変わる可変の別名（latest等）としては使わない。
+- **hd/sd:** 端末性能別はrepresentationを第一候補とし、revisionを割る場合は`contentSet`に含める。系列keyは`contentSet/target`から変えない。根拠は、representationがContentの候補ごとに1値を持つ属性で、Playerでは起動時に1値に固定されること。1 revisionへの複数representationの同梱可否は未確認で、後続が確認する。
+
+**前提（Unityの現状。r7は変えない）:** Playerは自分のBuild時の`contentSet`とBuildIdentityに結び付き、配布済みPlayerにContentだけを差し替える運用はできない。起動時の`contentSet`切り替えは行わない。Playerとの互換を計算した「互換キー」で判定する案は、Content分離の実装スライスのA1で最初の選択肢とする。保存契約はどちらの案でも変わらない。全platformで保存形式は1つだが、transport manifest v1の`target`は固定値`StandaloneWindows64-Player`で、Windows以外への拡張は後続とする。
 
 ### 未完了uploadとstaging
 
@@ -97,11 +111,22 @@ r6の方針改訂だけではリセットを開始しない。スライスAの�
 
 Player Buildからpublishまでの接続は[PR #115](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/115)の `build collect` で完了しました（正式C GO。C′の証拠不足はownerによるR2の直接観測で解消し、Phase Dで採用）。BS4の配布形Player 1件を `<ArtifactsRoot>/players/<project>/<target>/<configuration>/<buildId>/` へ退避し、`build-info.json` とselectionを生成して既存publishへ渡します。判定用の実Player 266 fileで、実R2往復と再実行時のPUT無しを確認しました。現在の操作は[Artifacts README](../../tools/Artifacts/README.md#bs4-player出力の退避と保存build-collect)にあります。このスライスから後続へ送った問いは次のとおりです。
 
-- Contentの保管形式、Player/Contentの分離、統合Contentフォルダ → program r7 revision（Content種別を追加するPhase A）。
+- Contentの保存契約は§2の開発Contentでr7として固定した。実装は次のスライスに分ける。Content分離・Content保存・Content取り込み・統合Contentフォルダ・`contentSet`の命名規約は新規、Contentの容量上限と件数保持の運用接続は既存の後続への入力とする。各スライスは着手時にA1から行う。
+  - Content分離: Playerが`content/`を内包しない場合のUnity側の変更（候補は、U1: 今のまま内包して重複保存、U2: 既存の`content:installedRevisionPath`+`content:manifestSha256`の組で外部revision rootを指す、U3: 新しいconfig keyの追加。U2は、外部revision rootがDIST cacheの`installed/`配置とreceiptを要し、BuildIdentity一致を要求する点、baked `relativeDirectory`の扱い、起動時のlatchとの両立を実装スライスで確認する。EditorはUse For Next Playでlocal directoryのrevisionを取り込み元にでき、private なR2はUnityのHTTPの口では直接読めない）、`build collect`の検査・`build-info.json`・selectionの変更、互換キー案の判断。
+  - Content保存: 退避とpublishのCLI、R2 key、完了確定点（fileを先、`transport.json`か完了マーカーを最後）、receipt、publishの順序（ContentとPlayerのどちらを先か）、確定記録（新旧順序とmanifest digest）、`contentSet`/`target`の値の対応表、R2からArtifactsRootへの取得と不足fileの再利用、file単位uploadが途中で止まったものを「未完了uploadとstaging」に載せるか。
+  - Content取り込み: 取り込み元からDIST cacheへの不足fileの再利用（read lease付きのコピー）、cacheのeviction・leaseとの関係、アプリ更新を越えるcacheの永続性、Unityバージョンとroot schemaの束縛、HTTPのfileごとのdeadline。
+  - 統合Contentフォルダ: 取得型／監視型、複数ワークスペースの衝突規則、統合フォルダとArtifactsRootの同一性、共有時の削除主体、ローカル設定と選択UI、「最新」の解決の所有。
+  - `contentSet`の命名規約（Content保存のA1で扱う）: 用途×構成×性能の合成名、既存値`bs4-spring-full`を改名しないこと、大文字小文字とパス要素の安全規則、ブランチやBuild設定から決める方法、hd/sdを1 revisionに同梱した場合の部分取得。
+  - Contentの容量上限: Content固有の上限値、R2のプラン変更の要否、R2の操作回数の枠（file単位objectのPUT数）、R2の途中失敗で残るobjectの孤児回収。上記のBの容量上限の固定（BのA3）の入力とし、実測（4季節Contentのfile数とサイズ。880 fileの推定の検証）はContent保存のA0で行う。
+  - 件数保持の運用接続スライス: Contentの実DELETE、利用中状態の収集（保持中Playerとの対応）、保護がNを超えた場合の挙動、系列の退役（イベント終了時のlocal・R2・統合フォルダ・DIST cacheの片付け）、件数保持がR2とローカルのどちらの層に効くか。
+- r7のレビューで挙がり、後続のA1で扱う入力:
+  - 保護の収集源の範囲（ローカルの`players/`の記録の外にある配布済みPlayerや他machineのBuildは収集源に入らない。収集できない場合と存在しない場合を区別する）と、DIST cacheの再取得元であるArtifactsRootの削除規則との関係 → 件数保持の運用接続。保護がNを超えた場合はBuildの超過条項を引き継ぐかもここで決める。
+  - 確定記録を追記だけの記録とするため、revisionを削除したときの記録の扱い、§5「新規private展開先」と不足fileの再利用の両立 → Content保存。
+  - baked targetと、外部revisionの照合に使うtargetを分けて扱うか → Content分離とWindows以外のtargetを扱うスライス。
 - `OSM_ARTIFACTS_ROOT` などを設定する開発環境セットアップscript → 別途のセットアップスライス。
 - ArtifactsRootの件数清掃、異常終了で残る `.staging` の回収 → 件数保持の運用接続スライス。
 - 診断の改善 → 同上の入力。失敗時も `publish` 表示が `published` になる点、相対path 240字超が `unconfirmed` で返る点、build-configの検証と複写が二度読みである点を含む。並行実行の敗者が一致時も `stage-conflict` で止まる仕様も同じく入力とする。
-- Windows以外のtarget値、端末性能別の系列値 → program r7で系列keyの拡張性だけを確認する。
+- Windows以外のtarget値 → transport manifest v1の固定`target`とDIST cacheの配置にtargetの階層が無く対応targetを1つに固定している点の拡張として、扱うスライスは未定（r7は前提として明記した）。端末性能別の系列値は§2の開発Contentで受け止めた。
 
 既存Build出力を普通のpath/metadataとして受け、成功publish、別process fetch/hash、最新N件と利用中の保持、失敗publish時の既存保持を確認する。Nの既定値案10件、系列識別、容量上限をBのA3で固定する。大容量に必要なmultipartは対象サイズに応じて扱い、BuildSystemの作り直しを前提にしない。
 
