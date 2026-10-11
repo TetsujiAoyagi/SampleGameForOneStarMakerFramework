@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（A1 r5。A2 の 1 巡目 3 件、owner との協議、擬似 C′ の 2〜4 巡目の指摘を反映し、削除の手順を状態遷移表 1 枚にまとめ直した。A3 は未実施で、本書はまだ凍結していない）
+- status: `A3 凍結`（2026-10-11、owner 承認。r6。次は Phase B。管理方式は tracked HANDOFF で、H1/CURRENT は採用しない。§5）
 - branch: `codex/artifact-storage-build-retention-cleanup`
 - implementation base commit: `cf7b77fefb4e84bbd8464732a3c3bccca10f0813`（`develop`。PR #118 を含む。A3 で凍結時の `develop` と照合し直す）
 - implementation head commit: 未到達（Phase B で記録）
@@ -12,7 +12,7 @@
 - created: 2026-10-11
 - expires: 2026-11-08 または置換 revision
 - harvest to: 操作と契約を `tools/Artifacts/README.md`（「開発Buildの件数保持policy」節の拡張と新節）、program の状態と後続スライスへの移送を `docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 B へ。完了時に本書を削除する。
-- Phase A snapshot の取得案内・状態: 未生成（A3 凍結 commit の §0〜§5 を固定して生成する。C／C′ への固定入力の引渡し時に `review-evidence.md` に従い publish し、取得案内を残す）
+- Phase A snapshot の取得案内・状態: 生成済み（本書の §0〜§5 を A3 凍結 commit の版で固定したもの）・未保存。C／C′ への固定入力の引渡し時に、`review-evidence.md` に従い Evidence として publish し、取得案内を残す。
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
@@ -136,7 +136,7 @@ Build 系列 1 つについて、ローカル receipt から成功 publish の�
   | AC12 | lock 取得後に catalog と保護を**取り直して**policy を再評価し、その時点の候補だけを扱う。lock 前の dry-run 結果を使わない。 | offline |
   | AC13 | `<buildId>/access.lock` は BuildStore の 1 関数が「無ければ CreateNew、あれば Open」で扱う（既存 Build にも後から作れる。作成時の `reserved.lock` は予約の意味なので流用しない）。`build fetch` はこの PC に同じ buildId の directory があれば、取得の開始から終了まで FileShare.ReadWrite で保持する。cleanup は FileShare.None で開けなければその Build を `in-transfer` で飛ばし、開けたら削除意図の書込みから削除済み記録（または取下げ）まで保持する。**保護の範囲はこの PC の取得だけ**で、別 PC・Cloud の取得は観測しない（README の known limits）。 | offline（別 process を signal で同期） |
   | AC14 | 削除は候補ごとに直列で、古い順。1 回の試行の記録・送信・判定点は、下の「削除試行の状態遷移」表を**唯一の正**とする（他の AC は表を参照し、手順を重ねて書かない）。1 回の試行で送る DELETE は高々 1 回。 | offline |
-  | AC15 | DELETE または GET が 403・timeout・redirect・応答不明・generation 変化のとき、その Build の試行は未解決のまま残り（`delete-pending`）、同じ run で再送しない。系列の残りの候補も処理しない（順序を保つ）。結果は `status=partial`、exit 2。 | offline |
+  | AC15 | 次のどれかのとき、その Build の試行は未解決のまま残り（`delete-pending`）、同じ run で再送しない。系列の残りの候補も処理しない（順序を保つ）。結果は `status=partial`、exit 2、次回は表の「再開」から: (a) DELETE の観測が `Test-ArtifactSuccess`（同じ key・generation の検証済み 2xx）を満たさない（403・401・429・5xx・timeout・redirect・応答不明・generation 変化を含む全て）、(b) 確認 GET の観測が `Test-ArtifactMissing` も `Test-ArtifactSuccess` も満たさない、(c) intent 確定後に `sent`／`deleted`／`abandoned` のいずれかの記録の書込みに失敗した。 | offline（各分類を注入） |
   | AC16 | 未解決の試行（`<n>.intent.json` があり、`<n>.deleted.json` も `<n>.abandoned.json` も無い）がある Build は、成功件数にも保護にも数えない（`deleting`）。次回の実行は、新しい候補より先に未解決の試行を表の「再開」から処理する。 | offline |
   | AC17 | 削除済み記録のある Build は snapshot から除き（成功に数えない）、`deleted` に件数を出す。取下げ（abandoned）だけの Build は通常の成功行に戻る。receipt・intent・削除試行の記録は残し、ローカル記録は削除しない。 | offline |
   | AC18 | 1 回の実行で送る DELETE は最大 20 回（全試行の合計）。残りは `remaining` に件数を出して次回へ回す。時間予算は 600 秒で、`New-ArtifactRequest` の Timer（Stopwatch）で transport の各呼出し deadline に効かせ、表の「予算の判定」の各点でも判定する（Evidence 名の予算には依存しない）。超過は `budget-exceeded`、AC15 と同じ扱い。表の各判定点に fault hook のテストを置く。 | offline |
@@ -152,10 +152,10 @@ Build 系列 1 つについて、ローカル receipt から成功 publish の�
   |---|---|---|---|---|---|
   | 1 開始 | lock 取得後に取り直した snapshot で候補（AC12）。この run の DELETE が 20 回未満 | 試行を開始する | `<n>.intent.json`（key・packageSha256・intentAt） | rename 直前 | 書かない。何も送らない |
   | 2 DELETE | 手順 1 の記録が確定 | DELETE を 1 回送る | — | 送信直前 | 送らない。試行は未解決のまま（次回は再開から） |
-  | 3 送信観測 | 手順 2 の応答を受けた（成否を問わない） | 観測を残す | `<n>.sent.json`（観測 field） | rename 直前 | 書かない。未解決のまま。DELETE が 2xx でない・判定できないときは書いた後で AC15 |
+  | 3 送信観測 | 手順 2 の応答を受けた（成否を問わない） | 観測を残す | `<n>.sent.json`（観測 field） | rename 直前 | 書かない。未解決のまま（AC15 (c)）。DELETE が `Test-ArtifactSuccess` を満たさないときは書いた後で AC15 (a) |
   | 4 確認 GET | 手順 3 まで進んだ、または再開 | 同じ key を GET | — | 送信直前 | 送らない。未解決のまま |
-  | 5 削除済み | GET が `Test-ArtifactMissing` を満たす | 試行を閉じる | `<n>.deleted.json`（intent の hash、`sent.json` の hash または `deleteObservation: unknown`、GET の観測） | rename 直前 | 書かない。未解決のまま（次回の GET で確定） |
-  | 6 取下げ | GET が 200（object が残っている） | 試行を閉じる | `<n>.abandoned.json`（intent の hash、GET の観測） | rename 直前 | 書かない。未解決のまま |
+  | 5 削除済み | GET が `Test-ArtifactMissing` を満たす | 試行を閉じる | `<n>.deleted.json`（intent の hash、`sent.json` の hash または `deleteObservation: unknown`、GET の観測） | rename 直前 | 書かない。未解決のまま（予算は AC18、書込み失敗は AC15 (c)。次回の GET で確定） |
+  | 6 取下げ | GET が同じ key・generation の `Test-ArtifactSuccess` を満たす（object が残っている）。それ以外の 200 は AC15 (b) | 試行を閉じる | `<n>.abandoned.json`（intent の hash、GET の観測） | rename 直前 | 書かない。未解決のまま（AC15 (c)・AC18） |
   | 再開 | 未解決の試行がある | 手順 4 から行う | — | — | GET が判定できなければ AC15 |
 
   - 手順 6 の後、その Build を成功行に戻し（保護は取り直す）、系列の他の成功行と合わせた完全な snapshot で policy を計算し直す。今も候補で access lock を取れれば、新しい n で手順 1 から始める。候補でなければ何もしない。通常の run で手順 4 が 200 になった場合（DELETE 2xx の後も object が残る）も同じく手順 6 で閉じ、その run では同じ Build に新しい試行を始めず `delete-unconfirmed` を返す。
@@ -192,7 +192,7 @@ Build 系列 1 つについて、ローカル receipt から成功 publish の�
 
 - **判定定義:** GO = 最低条件 1〜6 を判定必須テストと AC23 の生結果（最終 head）で確認し、阻害 findings が無い。NO-GO = いずれかの最低条件が未達、または誤削除（候補でない Build、保護中、Content key への DELETE 送信）か、削除済み Build を成功として返す照会が 1 件でも観測された。CONDITIONAL ACCEPT は使わない（スパイクではない）。
 - **停止規則:** 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。
-- **A3 後の例外承認:** なし（A3 未実施）
+- **A3 後の例外承認:** なし
 - **本文へ転記した実装制約:**
   - `#nullable enable`・`record` 禁止は Unity 側の C# の規則で、本スライスは Unity C# を変えない。C# の transport・packaging も変えない。
   - テストで時間待機を使わない。並行は別 process を signal で同期し、時計・transport・読戻しは注入する。
@@ -200,7 +200,7 @@ Build 系列 1 つについて、ローカル receipt から成功 publish の�
   - 資格情報は既存の `Invoke-CredentialTransport` 経由だけで使い、鍵を引数・ログ・ファイルへ出さない。
   - 通常 writer に bucket 管理権限を足さず、403 を rule 変更で突破しない。
   - 既存の成功記録（`receipt.json`・`intent.json`）を書き換えない。追加する記録も不変（CreateNew + rename）で、既存名を置換しない。
-- **未決事項:** U1〜U7 は r2 で案を反映済み（U1・U3 は §3、U2 は AC19、U4 は AC9、U5 は §5、U6 は AC4、U7 は §5）。A3 で凍結する。
+- **未決事項:** なし。U1〜U7 は A3 で決定した（U1・U3 は §3、U2 は AC19、U4 は AC9、U5 は §5、U6 は AC4、U7 は §5）。
 
 ## 3. 責務マップ
 
@@ -269,7 +269,7 @@ Build 系列 1 つについて、ローカル receipt から成功 publish の�
   2. **失敗経路・fail-closed・競合・検証経路:** GPT（Codex CLI の既定 `gpt-6-sol`、reasoning high）／OpenAI、`codex exec --sandbox read-only --ephemeral` の新規 session。当初は Claude Fable 5.1 に割り当てたが、利用クレジット不足で起動できなかった。代わりに Opus 5.5 で起動したが、A1 主担当と同じモデルだったため、結果を出す前に止めて GPT へ替えた。
   3. **A0 だけを読む代替構成:** Claude Haiku 5.5／Anthropic、新規 subagent session。入力は本書 §0〜§1 だけを切り出した版（sha256 `52b95a8b…e716`）。本書と他のレビューを読んでいないと申告した。
   - 独立性: ②は別ベンダー。①③は A1 主担当と同じベンダー（モデル系列は違う）なので**独立性制約あり**。
-- **A3 統合担当・モデル・採否:** 未実施。下の「主担当の提案」は A3 の入力で、凍結していない。
+- **A3 統合担当・モデル・採否:** 主担当 Claude Opus 5.5／Anthropic と owner（2026-10-11、チャット）。A2 1 巡目の指摘は #13（共通 primitive 化）を保留して後続へ、#15・#16・#19（代替構成の 3 案）を不採用・保留とし、他は全件採用。擬似 C′ の 2〜5 巡目の指摘は全件採用。採否の理由は下の各表。owner の決定: 別 PC・Cloud の利用は観測しない限界として受け入れ共有の保護は §4 C へ、時計巻戻り中の順序は保証しない、検証用系列の残置（試行ごと最大 11 件）、H1/CURRENT は採らない、5 巡目で深刻な指摘が無ければ A3 とする。
 - **C' 用に予約した担当・モデル・ベンダー:** Phase A で使っていない Grok 系（xAI。`cursor-agent` は Grok 系の明示指定でのみ使う）、または人間担当。B／C の担当が決まった後、B／C と異なることを確認して owner が確定する。
 - **独立性の強化条件を満たせない場合の理由:** C′ の強化条件（A〜C に未関与の系列・ベンダー）は、Grok を Phase A で使わずに予約したことで満たせる見込み。B／C に Grok を使う場合は満たせなくなるので、そのときは人間担当の C′ を検討する。
 
@@ -279,7 +279,7 @@ Build 系列 1 つについて、ローカル receipt から成功 publish の�
 
 総括: blocker は 4 件で、すべて失敗経路レビュー（GPT）から出た。いずれも「誤削除が起きうる順序」を具体的に示している。アーキテクチャゲートは blocker 0 で、新規 3 module の分け方・依存方向・DELETE の所有者・Evidence と共通化しない判断を妥当とした。A0 だけの代替構成は、新規 module・lock・意図→DELETE→404→tombstone の順序で初稿とほぼ同じ構成に独立に到達した。違いは N の置き場、保護の付け外し CLI の有無、停止範囲の 3 点。
 
-| # | 出典 | 重大度 | 指摘（要約） | 主担当の提案（A3 で確定） |
+| # | 出典 | 重大度 | 指摘（要約） | A3 の採否（r2 で反映） |
 |---|---|---|---|---|
 | 1 | FAIL-1 | blocker | AC14 の「次回は policy にかかわらず確認を再開し、GET 200 なら DELETE を再送」は、前回 403 で止まった後に保護が期限切れになる等で候補から外れた Build を消しうる | **採用。** 再開時の GET 404 は削除済みとして記録する。GET 200 なら、最新 snapshot・保護・access lock・policy で今も候補の場合だけ再送する。候補でなければ `delete-abandoned.json` を追記して意図を解消し、通常の計数に戻す（Evidence の resolve と同じ考え方）。AC14 を書き換える |
 | 2 | FAIL-2 | blocker | 別 PC の fetch は access lock を取らないので、「取得中は消さない」を満たせない | **採用（範囲を限定して明記）。** 最低条件 4 の「取得中」と保護の収集源を「この PC の記録」に限ると明記する。別 PC の利用は観測できない限界として README の known limits に書き、owner が A3 で受け入れるかを決める。共有の調停は後続（別 host／Cloud） |
@@ -347,6 +347,19 @@ Build 系列 1 つについて、ローカル receipt から成功 publish の�
 | R4-2 | blocker | 観測 field に `statusObserved` が無く、記録から `Test-ArtifactMissing` を再評価できない | 表の観測 field に追加し、記録だけからの再評価をテスト対象に |
 | R4-3 | major | `sent.json` の確定点に予算の判定が無い | 表の全記録に「rename 直前」の判定を置いた |
 | R4-4 | major | path を除いた intent では、原本 bytes の hash 照合を C′ がやり直せない | §5: 原本での照合は判定 C の独立 script が行い、その source・出力・除去済み記録を同じ bundle に |
+
+### A2 5 巡目（状態遷移表の確認）の結果と A3 での反映
+
+- 担当: GPT（Codex CLI）／OpenAI、新規の read-only session。入力は commit `b8d202c6bf8dc99eb8b1e805bf0f553cd8e66be3`（sha256 `5e8eef1e…a15b`）と r4→r5 の差分。
+- 結果: blocker 1、major 2。**3 件とも継ぎ目で、新規は 0 件。** いずれも表と AC15 の言葉の対応の明確化で、設計の変更を要しない。owner の指示（深刻な指摘が無ければ A3）に従い、本文へ反映して凍結した（r6）。
+
+| ID | 重大度 | 指摘（要約） | 反映 |
+|---|---|---|---|
+| R5-1 | blocker | 手順 6 の「GET 200」が、generation 違い・redirect 等を伴う 200 でも取下げに進める読み方を許す | 手順 6 の前提を同じ key・generation の `Test-ArtifactSuccess` に。それ以外は AC15 (b) |
+| R5-2 | major | intent 確定後の記録の書込み失敗の扱い（後続の停止・結果・再開）が未定 | AC15 (c) として固定 |
+| R5-3 | major | AC15 が 401・429・5xx 等を列挙しておらず、停止するかが曖昧 | AC15 (a) を「検証済み 2xx 以外の全て」に広げ、各分類を注入してテスト |
+
+**A2 全体の推移:** blocker は 4（1 巡目）→ 7 → 3 → 2 → 1 で、4・5 巡目は継ぎ目だけ（新規 0）。継ぎ目の原因だった手順の分散は、状態遷移表への集約で断った。
 
 ## 6. Phase B 実装結果
 
