@@ -19,26 +19,6 @@ $script:FailureHook=$null
 $script:SnapshotLimit=240MB
 $script:PackageCreatedHook=$null
 
-# 下位directoryへ入る前にreparseを拒否し、選択rootの外を走査しない。
-# 内容の選別はしない。呼出側が明示した全file集合と一致することを後段で検査する。
-function Get-BuildInventory([string]$Root){
-    if([OneStarMaker.Artifacts.Packaging.PackagePolicy]::HasReparse($Root)){throw 'snapshot-conflict'}
-    $names=[Collections.Generic.List[string]]::new();$seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-    $pending=[Collections.Generic.Stack[string]]::new();$pending.Push($Root)
-    while($pending.Count){
-        $dir=$pending.Pop()
-        foreach($item in [IO.Directory]::EnumerateFileSystemEntries($dir)){
-            $attributes=[IO.File]::GetAttributes($item)
-            if(($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'snapshot-conflict'}
-            if(($attributes -band [IO.FileAttributes]::Directory) -ne 0){$pending.Push($item);continue}
-            $relative=[IO.Path]::GetRelativePath($Root,$item).Replace([IO.Path]::DirectorySeparatorChar,'/')
-            $null=[OneStarMaker.Artifacts.Packaging.PackagePolicy]::Relative($relative)
-            if(-not $seen.Add($relative)){throw 'snapshot-conflict'}
-            $names.Add($relative)
-        }
-    }
-    return @($names.ToArray()|Sort-Object -CaseSensitive)
-}
 # filesは部分的なinclude指定ではない。未列挙fileを黙って追加・除外すると、
 # 呼出側が選んだ1件と保存されたBuildの範囲がずれるため、集合全体を比較する。
 function Assert-BuildInventory($Selection){

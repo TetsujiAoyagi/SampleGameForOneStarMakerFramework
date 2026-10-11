@@ -2,16 +2,17 @@ Set-StrictMode -Version Latest
 
 $script:AssemblyPath = Join-Path $PSScriptRoot 'artifacts/transport/R2ArtifactTransport.dll'
 
- # Buildは検証済みの固定keyへのPUT/GETだけを許す。共通TransportがDELETEを持っていても、
- # Buildの保持判定・利用中確認・削除直前排他は未接続なので、Build DELETEは入口で拒否する。
+ # Build/Contentは検証済みの固定keyへのPUT/GETだけを許す。共通TransportがDELETEを持っていても、
+ # Buildの保持判定・利用中確認・削除直前排他は未接続なので、Build・Content DELETEは入口で拒否する。
 
 function Invoke-R2ArtifactOperation {
     param([string] $AccessKeyId, [string] $SecretAccessKey, [string] $Generation, [hashtable] $Request)
     if (-not [IO.File]::Exists($script:AssemblyPath) -or
         $Request.Endpoint -cnotmatch '\Ahttps://[0-9a-f]{32}\.r2\.cloudflarestorage\.com\z' -or
         $Request.Operation -cnotin @('put','get','delete') -or
-        $Request.Key -cnotmatch '\A(?:(?:probe/(?:locked|unlocked)|evidence/first-use|development/evidence/v2)/[A-Za-z0-9/._-]{1,480}|development/builds/v1/[0-9a-f]{64}/[a-z0-9][a-z0-9-]{0,63}/[a-z0-9][a-z0-9-]{0,63}/[a-z0-9][a-z0-9-]{0,63}/[0-9a-f]{32}/bundle\.zip)\z' -or
+        $Request.Key -cnotmatch '\A(?:(?:probe/(?:locked|unlocked)|evidence/first-use|development/evidence/v2)/[A-Za-z0-9/._-]{1,480}|development/builds/v1/[0-9a-f]{64}/[a-z0-9][a-z0-9-]{0,63}/[a-z0-9][a-z0-9-]{0,63}/[a-z0-9][a-z0-9-]{0,63}/[0-9a-f]{32}/bundle\.zip|development/content/v1/[0-9a-f]{64}/[a-z0-9][a-z0-9-]{0,63}/[a-z0-9][a-z0-9-]{0,63}/[0-9]{8}T[0-9]{9}Z-[0-9a-f]{32}/(?:transport\.json|content/(?:(?!\.{1,2}/)[A-Za-z0-9._-]{1,240}/)*(?!\.{1,2}\z)[A-Za-z0-9._-]{1,240}))\z' -or
         ($Request.Operation -ceq 'delete' -and $Request.Key -cmatch '\Adevelopment/builds/v1/') -or
+        ($Request.Operation -ceq 'delete' -and $Request.Key -cmatch '\Adevelopment/content/v1/') -or
         ($Request.Operation -ceq 'delete' -and $Request.Key -cmatch '\Aevidence/first-use/.*/bundle\.zip\z' -and -not ($Request.ContainsKey('ResetAuthorized') -and $Request.ResetAuthorized -eq $true)) -or
         $Request.DeadlineMilliseconds -lt 1 -or $Request.DeadlineMilliseconds -gt 120000) {
         throw 'Artifact transport unavailable.'

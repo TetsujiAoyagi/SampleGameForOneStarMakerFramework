@@ -113,15 +113,19 @@ Player Buildからpublishまでの接続は[PR #115](https://github.com/TetsujiA
 
 - Contentの保存契約は§2の開発Contentでr7として固定した。実装は次のスライスに分ける。Content分離・Content保存・Content取り込み・統合Contentフォルダ・`contentSet`の命名規約は新規、Contentの容量上限と件数保持の運用接続は既存の後続への入力とする。各スライスは着手時にA1から行う。
   - Content分離: Playerが`content/`を内包しない場合のUnity側の変更（候補は、U1: 今のまま内包して重複保存、U2: 既存の`content:installedRevisionPath`+`content:manifestSha256`の組で外部revision rootを指す、U3: 新しいconfig keyの追加。U2は、外部revision rootがDIST cacheの`installed/`配置とreceiptを要し、BuildIdentity一致を要求する点、baked `relativeDirectory`の扱い、起動時のlatchとの両立を実装スライスで確認する。EditorはUse For Next Playでlocal directoryのrevisionを取り込み元にでき、private なR2はUnityのHTTPの口では直接読めない）、`build collect`の検査・`build-info.json`・selectionの変更、互換キー案の判断。
-  - Content保存: 退避とpublishのCLI、R2 key、完了確定点（fileを先、`transport.json`か完了マーカーを最後）、receipt、publishの順序（ContentとPlayerのどちらを先か）、確定記録（新旧順序とmanifest digest）、`contentSet`/`target`の値の対応表、R2からArtifactsRootへの取得と不足fileの再利用、file単位uploadが途中で止まったものを「未完了uploadとstaging」に載せるか。
+  - Content保存は[PR #118](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/118)で完了した（判定C GO。C′の残り1件はownerが非阻害と判断）。`content collect`／`inspect`／`fetch` で、Content出力1件をArtifactsRootへ退避し、file単位objectとしてR2へ置き、別processで取得して全fileのhashを照合する。実Spring出力（219 file、PUT 220、760 s）で最終headの実R2往復を確認した。操作・上限・既知の限界は[Artifacts README](../../tools/Artifacts/README.md#開発content-1件の保存と取得content-collect--inspect--fetch)にある。HANDOFFはharvestして削除した。決めたことと後続への入力は次のとおり。
+    - 決めたこと: 完了確定点はローカルreceiptのrenameだけ（R2に完了マーカーを置かない）。公開は全objectを「子processのGETで照合→404ならPUT→子processの読戻し」の1経路で行い、`transport.json` を最後に置く。target表は `StandaloneWindows64-Player` → `windows-x64-player` の1行。contentSetは小文字英数字とハイフンの安全な部分集合（既存5値は全て入る）。R2 keyは `development/content/v1/<repositoryId>/<contentSet>/<target>/<revision>/`。PlayerとContentの保存順は決めない（Content分離が決める）。途中で止まったR2 objectは「未完了uploadとstaging」に載せず、同じrevisionの再実行で続行する。
+    - 後続への入力: R2側に上書き防止が無く、別PCの同時公開を防がない（Content確定記録）。予算の確認とreceipt確定の間の窓、予算が退避・snapshotの区間に掛からないこと、collectが各fileを約7回読むこと、0 byte fileの拒否、転送中の展開量上限（Contentの容量上限）。公開・取得で残るprivate operationの清掃（未完了uploadとstaging）。content storeが既存directoryのACL不一致を付け直すこと（Build storeは拒否）、各objectの照合結果をoperationに記録しないこと、`existing` 結果に `objects` が無いこと、失敗時の `publish` 表示（下の診断の改善）。4季節 `all-full` の実測（1 revision・約881 object・約22 MiB以下の見積もり）は未実施（Contentの容量上限）。
+  - Content確定記録（Content保存のA3で新設）: 新旧順序とmanifest digestを持つ追記だけの記録の形式と書込み方式（LISTまたは条件付き書込みの要否）、revision削除時の記録の扱い、「最新」の解決の保存側の部分、別PCからの同じrevisionの同時公開の排他。
+  - Content取得と再利用（Content保存のA3で新設）: R2からArtifactsRootへの配置と、その際の不足fileの再利用（既存revisionのhash一致fileの流用）。
   - Content取り込み: 取り込み元からDIST cacheへの不足fileの再利用（read lease付きのコピー）、cacheのeviction・leaseとの関係、アプリ更新を越えるcacheの永続性、Unityバージョンとroot schemaの束縛、HTTPのfileごとのdeadline。
   - 統合Contentフォルダ: 取得型／監視型、複数ワークスペースの衝突規則、統合フォルダとArtifactsRootの同一性、共有時の削除主体、ローカル設定と選択UI、「最新」の解決の所有。
   - `contentSet`の命名規約（Content保存のA1で扱う）: 用途×構成×性能の合成名、既存値`bs4-spring-full`を改名しないこと、大文字小文字とパス要素の安全規則、ブランチやBuild設定から決める方法、hd/sdを1 revisionに同梱した場合の部分取得。
-  - Contentの容量上限: Content固有の上限値、R2のプラン変更の要否、R2の操作回数の枠（file単位objectのPUT数）、R2の途中失敗で残るobjectの孤児回収。上記のBの容量上限の固定（BのA3）の入力とし、実測（4季節Contentのfile数とサイズ。880 fileの推定の検証）はContent保存のA0で行う。
+  - Contentの容量上限: Content固有の上限値、R2のプラン変更の要否、R2の操作回数の枠（file単位objectのPUT数）、R2の途中失敗で残るobjectの孤児回収。上記のBの容量上限の固定（BのA3）の入力とし、Content保存のA0では手元にSpringの出力しか無く、4季節（`all-full` 1 revision）の実測は未実施のままこのスライスへ送った。
   - 件数保持の運用接続スライス: Contentの実DELETE、利用中状態の収集（保持中Playerとの対応）、保護がNを超えた場合の挙動、系列の退役（イベント終了時のlocal・R2・統合フォルダ・DIST cacheの片付け）、件数保持がR2とローカルのどちらの層に効くか。
 - r7のレビューで挙がり、後続のA1で扱う入力:
   - 保護の収集源の範囲（ローカルの`players/`の記録の外にある配布済みPlayerや他machineのBuildは収集源に入らない。収集できない場合と存在しない場合を区別する）と、DIST cacheの再取得元であるArtifactsRootの削除規則との関係 → 件数保持の運用接続。保護がNを超えた場合はBuildの超過条項を引き継ぐかもここで決める。
-  - 確定記録を追記だけの記録とするため、revisionを削除したときの記録の扱い、§5「新規private展開先」と不足fileの再利用の両立 → Content保存。
+  - 確定記録を追記だけの記録とするため、revisionを削除したときの記録の扱い → Content確定記録。§5「新規private展開先」と不足fileの再利用の両立 → Content保存で「fetchは常に新規private展開先、再利用はContent取得と再利用が取得fileを再hashして行う」と決めた。
   - baked targetと、外部revisionの照合に使うtargetを分けて扱うか → Content分離とWindows以外のtargetを扱うスライス。
 - `OSM_ARTIFACTS_ROOT` などを設定する開発環境セットアップscript → 別途のセットアップスライス。
 - ArtifactsRootの件数清掃、異常終了で残る `.staging` の回収 → 件数保持の運用接続スライス。
@@ -133,6 +137,8 @@ Player Buildからpublishまでの接続は[PR #115](https://github.com/TetsujiA
 ### C. 別host / Cloud
 
 必要な環境から個別に、到達性、限定grant、無人保存/取得、ログ/画像閲覧を確認する。未成立は当該環境の未対応として残し、ローカル利用を止めない。親鍵を通常file/promptへ複写せず、platform仕様は着手時に再確認する。
+
+目的はCloud Agent・別PCからのEvidence閲覧で、Evidenceを公開しない（2026-10-11 owner）。論点はtokenの受け渡し方法。第一候補は、受け取る側の環境に読み取り専用・bucket限定のtokenを登録する方式。署名付きURLは、発行主体（誰が親鍵を持って発行するか）とURLを届ける経路が未解決。
 
 ### D. BuildSystem / Harness接続
 
