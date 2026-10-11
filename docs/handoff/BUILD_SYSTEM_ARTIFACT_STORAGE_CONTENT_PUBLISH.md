@@ -6,7 +6,7 @@
 - status: `A3 凍結`（2026-10-11、owner 承認。次は Phase B。管理方式は tracked HANDOFF で、H1/CURRENT は採用しない。§5）
 - branch: `codex/artifact-storage-content-publish`
 - implementation base commit: `e949c6dc6b8b441d43c0bb1d14e72e486be514cf`（`develop`。PR #117 を含む）
-- implementation head commit: 未生成（Phase B で追記）
+- implementation head commit: `603ede19282b8175957e2393f05bab274e7e4f3b`（Phase B。`git log` 上は A3 凍結 commit の次。本書の §6 更新 commit はその後）
 - risk: `normal`（Artifacts の新規 module と、共有部品・allowlist への小さな変更。公開 API・asmdef・Unity は変えない。実 R2 に触れる操作を含む）
 - owner: OSM maintainers
 - created: 2026-10-11
@@ -287,13 +287,28 @@
 
 ## 6. Phase B 実装結果
 
-未着手。
-
-- 実装:
-- HANDOFF との差:
+- 実装: §3 の責務マップを §4 の順で実装した（1 commit）。
+  - 新規 module: `ContentContract`（値の規則・reference codec・4 MiB manifest reader・content-config・intent/receipt の形）、`ContentStage`（退避先の決定、`Invoke-BuildStage` の再利用、snapshot、PUT 直前の再照合）、`ContentStore`（`contents-v1` root、`publish.lock`、intent の固定と照合、receipt の確定と読取）、`ContentTransfer`（AC7 の照合経路、object ごとの子 directory での読戻し、予算の設定と復元、取得）、`ContentApplication`（`collect`／`inspect`／`fetch` の順序と AC11 の優先順位）。
+  - 変更: `BuildStage`（`InfoBytes` を省略可能にし、`Get-BuildInventory` を移して export）、`BuildApplication`（定義を削り呼ぶだけに）、`artifacts.ps1`（`content` grammar）、`R2ArtifactTransport.psm1`・`ArtifactReadback.ps1`（allowlist に Content の 2 形、`development/content/v1/` の DELETE 拒否）、`tools/Artifacts/README.md`（Content の節）、program §4 B の状態 1 語。
+  - 新規 test: `Content.Contract.Tests`（9 case）、`Content.Publish.Tests`（11 case）、`Content.Fetch.Tests`（5 case）、共通 `ContentTestSupport.ps1`、子 `ContentChild.ps1`。Unity・C#・`BuildContract`・Evidence module は変更していない。
+  - 計画外の公開 API、asmdef、所有者、寿命、削除主体、C# の変更、および §4 の差し戻し条件は発生しなかった。`Invoke-ArtifactReadback` は object ごとの子 directory（32hex 名 + `operation.lock`）で契約変更なしに使える（`Assert-ArtifactOperationFile` の前提を満たすことを offline test で確認）。
+- HANDOFF との差（B 適応の記録。契約は変えていない）:
+  1. manifest の path に `..` を含む名前（`x..y` など）を `invalid-content-manifest` で拒否する。C# の transport の key 検査（`SafeKey`）が key 全体の `..` を拒否するため、送信途中の失敗にせず検証側で先に弾く。AC4 の文字種の絞りの内側であり、実 Spring の名前（32hex + 拡張子）には影響しない。
+  2. 公開の最初の遠隔 `transport.json` 照合（AC8）の結果を、最後の `transport.json` の「照合」にも使う（`match` なら再送せず、`missing` なら二重の GET をせず直接 PUT → 読戻し）。GET 数は §1 の見積もり（2N）と一致する（Spring 221 object で 442。回帰の観測は offline で `gets = 2N`）。
+  3. `ContentTransfer` の注入点は時計だけを持ち、transport・readback は `ArtifactApplication` の既存 hook（`TransportHook`／`ReadbackHook`）を使う。非 export。予算は `Enter-ContentBudget`／`Exit-ContentBudget`（try/finally で対）で `ArtifactApplication` の `$script:Budget` を設定・復元する。
+  4. 結果の許可語を追加した: `invalid-content-config`、`invalid-content-identity`、`unsupported-content`、`invalid-content-manifest`、`content-mismatch`、`snapshot-changed`、`object-conflict`、`object-unconfirmed`、`put-unconfirmed`、`readback-unconfirmed`、`budget-exceeded`、`content-store-unavailable`、`manifest-mismatch`、`download-unconfirmed` ほか（`Get-ContentReason` の一覧）。Build 側の語（`snapshot-conflict` 等）は写し直す。`inspect` の失敗は `receipt-unavailable` の 1 語。
+  5. content-config の複写: `collect`／`fetch` は config の bytes を新規 private operation へ複写して使う（原本は任意の絶対 path でよい）。`inspect` は operation を作らないため、渡された config を private operation 内で読む（`Read-ContentConfig` は Build と同じ制約）。
+  6. 結果 JSON に `objects`（`total`／`sent`／`verified`／`puts`／`gets`）と `residue.remote` を持たせた（判定 C の PUT 数・GET 数の観測用）。`gets` は子 process の GET 数で、取得（fetch）の GET は含まない。
+  7. intent はファイルの bytes の一致で照合する（決定的な bytes なので同値）。遠隔照合（読取のみ）の後、最初の PUT の前に書く。そのため `revision-conflict` では intent を作らない。
+  8. AC12 の lock は `FileShare.None`・非継承の handle。既存 lock file の ACL が欠けていれば（排他 open 後に）付け直す。
+  9. `Content.Publish` の「同時公開」は、子 process が最初の PUT の直前（lock 保持中）で signal を送って待ち、親が同じ revision を公開して `publish-in-progress` を観測する形（時間待機なし）。
 - 未実行:
-- implementation head commit:
-- Phase B 担当・モデル・ベンダー:
+  - 実 R2 の往復（最低条件 5、判定 C の責任。owner の許可前なので R2・ネットワーク・資格情報には一切触れていない）。最大 1.0 MiB の転送時間、221 件連続の throttling、bucket rule が及ぶかは未確認のまま。
+  - Unity の実行・テスト・Build（適用外）。`tools/Workflow/tests/TaskLifecycle.Tests.ps1`、`tools/Harness/tests/Harness.Tests.ps1`（本変更は触れていないため未実行）。.NET 3 build は出力が既存だったため再 build していない。
+  - 既存 14 suite のうち `EvidenceCleanup` の `fresh-process-cleanup-contract` は、この実行環境の PowerShell に `rg`（ripgrep）が無く失敗した（本変更と無関係。他の 30 case は通過）。判定 C は `rg` のある環境で確認すること。
+- 実行したテスト（Phase B 完了時、isolated な temp store・transfers・ArtifactsRoot と注入 hook のみ。各 `-Case '*'` の registered／selected／executed が一致し failed 0）: `Content.Contract` 9／9、`Content.Publish` 11／11、`Content.Fetch` 5／5、`BuildCollect` 9／9、`BuildPublish` 9／9、`BuildRetention` 9／9、`Credentials` 22／22、`RouteProof` 26、`R2RouteTransport` 7、`ArtifactPackage` 9／9、`ArtifactTransfer` 20／20、`ArtifactRotation` 11／11、`ArtifactEvidence` 13／13、`EvidenceRetention` 14／14、`EvidenceSchedule` 78／78、`EvidenceReset` 31／31、`EvidenceCleanup`（上記の 1 case を除く全て）。`pwsh tools/contract-audit.ps1`（errors 0）、`pwsh tools/docs-audit.ps1`（errors 0。warning 1 は §7／§8 が未記入の既存の通知）。
+- implementation head commit: `603ede19282b8175957e2393f05bab274e7e4f3b`
+- Phase B 担当・モデル・ベンダー: Claude Sonnet 5.5（`claude-sonnet-5-5`）／Anthropic。新規 session。
 
 ## 7. Phase C
 
