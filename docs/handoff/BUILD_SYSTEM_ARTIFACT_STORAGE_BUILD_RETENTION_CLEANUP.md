@@ -6,7 +6,7 @@
 - status: `A3 凍結`（2026-10-11、owner 承認。r6。次は Phase B。管理方式は tracked HANDOFF で、H1/CURRENT は採用しない。§5）
 - branch: `codex/artifact-storage-build-retention-cleanup`
 - implementation base commit: `cf7b77fefb4e84bbd8464732a3c3bccca10f0813`（`develop`。PR #118 を含む。A3 で凍結時の `develop` と照合し直す）
-- implementation head commit: 未到達（Phase B で記録）
+- implementation head commit: `cad885b26974b4a39df0f7f71c8de813fd870e2d`（Phase B。§6）
 - risk: `high`（R2 の実 DELETE を初めて Build に開く。削除の可否・fail-closed・並行操作との競合を扱う。公開 API・asmdef・Unity は変えない）
 - owner: OSM maintainers
 - created: 2026-10-11
@@ -363,11 +363,39 @@ Build 系列 1 つについて、ローカル receipt から成功 publish の�
 
 ## 6. Phase B 実装結果
 
-- 実装:
-- HANDOFF との差:
+- 実装: §4 の順で実装した。
+  - `BuildStore.psm1`（135 → 310 行）: `Read-BuildReceipt` の検査本体を `Read-BuildSuccessCore` に移し、config hash 照合の 2 項目だけを切り替える `Read-BuildSuccessRecord` を追加（AC3）。`Write-BuildImmutable` の許可名を `deletion/<n>.(intent|sent|deleted|abandoned).json` と `protections/<32hex>.(use|release).json` に広げた。`Read-BuildDeletionState`（deletion/ の記録だけで状態を決める）、`Read-BuildProtectionRecords`、`Enter-BuildSeriesLock`（`locks/<p>~<t>~<c>.lock`、FileShare.None）、`Enter-BuildAccessLock`（`<buildId>/access.lock`、無ければ CreateNew、あれば Open）を追加。
+  - `BuildProtection.psm1`（新規 44 行）: `Test-BuildProtectionRecord`、`Get-BuildProtectionState`（AC8）。
+  - `BuildCatalog.psm1`（新規 97 行）: `Get-BuildSeriesSnapshot`（AC2・AC4〜AC6・AC16・AC17）。
+  - `BuildCleanup.psm1`（新規 205 行）: `Invoke-BuildCleanup`。状態遷移表の手順 1〜6 と再開、N=10、DELETE 上限 20、予算 600 秒、結果 JSON（AC9〜AC18・AC20）。
+  - `BuildApplication.psm1`（240 → 317 行）: `Invoke-BuildUse`／`Invoke-BuildRelease`、inspect／collect の削除状態判定（`Enter-BuildDeletionCheck`）、fetch の共有 access lock（AC7・AC13・AC21）。
+  - `Transport/R2ArtifactTransport.psm1`（46 → 54 行）: 入口判定を `Test-R2ArtifactRequestAllowed` に切り出して export。Build DELETE は `BuildRetentionDelete=$true`（bool）のときだけ許可（AC19）。
+  - `tools/artifacts.ps1`: `build cleanup [--dry-run]`／`build use`／`build release` の grammar。cleanup の `partial` は exit 2。
+  - `tests/BuildCleanup.Tests.ps1`（23 ケース）・`tests/BuildCleanupChild.ps1`: §5 の単体テスト方針の全項目。並行は別 process を EventWaitHandle で同期し、時間待機は使わない。時計・transport・予算・N は注入。
+  - `tools/Artifacts/README.md`: 新節「開発Buildの件数清掃（build cleanup / use / release）」と、publish／collect／policy 節の記述更新（AC22）。
+- HANDOFF との差（いずれも B 適応。契約・責務配置・公開面の拡張は無い）:
+  - `BuildStore.psm1` は予想 230 行に対し 310 行（+130%）。追加は全て Build directory 配下の記録とその排他で、§3 の非分割判断の範囲。500 行未満。
+  - §3 の追加関数一覧に無い `Read-BuildRecordIdentity` を BuildStore に置いた。AC4 の「receipt と intent の両方が読めて所属が一致する」を判定するための、所属 5 field だけの読取（成功の根拠には使わない）。
+  - `Write-BuildImmutable` に省略可能な `BeforeCommit` を足した。状態遷移表の「rename 直前」の予算判定を、temp 書込み後・rename 前に置くため。
+  - `BuildContract` の既存関数 `Assert-BuildToken` を export した。AC1 の「何も読まず」を config 読込より前に満たすため。
+  - 確認 GET の取得先: C# transport の GET は存在しない destination を要求するので、run ごとに新規 private operation を 1 つ作り、その中の新規名へ取得させる。object が残っていた場合の取得物は読まず、清掃もしない（`build fetch` の残置と同じ扱い）。
+  - 観測の記録: transport の返値は操作名・generation の不一致や型・値域の外れがあれば `statusObserved=false` 等の「観測できなかった」形へ写して記録し、判定はその記録から行う。記録だけから再評価した `Test-ArtifactSuccess`／`Test-ArtifactMissing` が送信時の判定と一致する。
+  - BuildStore は deletion/ の記録を、形・連番・hash の結び付き・key／操作名の整合に加え、`deleted` の GET 観測が 404 `NoSuchKey`、`abandoned` の GET 観測が検証済み 2xx であることを読取時にも検査する。条件は `Test-ArtifactMissing`／`Test-ArtifactSuccess` と同じだが、BuildStore に ArtifactApplication への依存を足さないため、store 内で同じ条件を記録の field に対して判定する。
+  - 削除試行中で access lock を取れない `fetch`／`inspect`／`collect` の理由語は `delete-pending`。inspect で deletion/ の記録が読めない場合は既存の `receipt-unavailable`。fetch の許可理由語に `delete-pending` を足した。`Invoke-BuildInspect`／`Invoke-BuildCollect` は省略可能な出力用 scriptblock を受け取り、CLI は共有 access lock の保持中に結果を出力する（AC21 の「結果を返すまで」を CLI の出力まで含めて満たすため）。「削除済み」「削除中」の失敗の結果も、確認に使った共有 lock を保持したまま渡す。
+  - `release` も `use` と同じ系列 lock を取る（保護が外れると保持枠が空き候補が入れ替わるため）。lock を取れなければ `cleanup-in-progress`。`use` は rename の直前に時計を読み直し、`createdAt ≤ now < until ≤ now+90 日` を満たさなければ確定しない。時計が use の `createdAt` より前に戻っている場合は、読めない記録（`releasedAt < createdAt`）を作らないよう `clock-skew` で書かずに止める。
+  - `partial`（exit 2）の範囲: AC15 の未解決に加え、DELETE 上限到達（`delete-limit`）、`in-transfer` で飛ばした Build、同じ run で取り下げた Build（`delete-unconfirmed`）が残り候補として残る場合も `partial` とした。`in-transfer` と `delete-unconfirmed` の Build は飛ばして次の候補へ進む（毎回 policy を計算し直すので、飛ばした Build は成功行として数えたまま）。
+  - catalog: receipt の無い directory は、削除・保護の記録が残っていても AC2・AC5 どおり未完了として分類する（成功には数えない）。intent が指定系列を示す場合だけ、残っている削除・保護の記録を検査し、読めなければ系列を止める（AC4(a)）。directory の無い `<32hex>.reserved` は系列不明の未完了として `held` に数える。repo directory が無い場合、cleanup は lock を取らずに空であることを確かめて `within-limit` を返す。 repo 直下の既知 entry（`<32hex>.reserved`・`locks/`）も ACL を検査し、不一致なら `catalog-incomplete`。他系列と確定した成功 Build の削除・保護の記録が読めない場合は、止めずに `foreignInvalid` に数える。
+  - 結果 JSON の形: `retained`／`candidates`／`deleting`／`deleted` は `{count, buildIds}`、`held` は `{count, builds:[{buildId|null, reasonCode}]}`（系列不明は ID を出さない）、Build ごとの結果は `outcomes:[{buildId, outcome}]`。
+- 実行した検証（Phase B 終了時の実装内容。implementation head での判定必須テストは判定 C が行う）:
+  - 3 つの .NET Release build（Probe・Packaging・Transport）: 成功。
+  - `tools/Artifacts/tests/*.Tests.ps1` の全 18 suite を `-Case '*' -ResultPath` で実行: 全 suite failed 0（BuildCleanup 23 ケースを含む）。EvidenceCleanup の `fresh-process-cleanup-contract` は `rg`（ripgrep）を PATH から呼ぶため、この shell では初回に `rg` 不在で失敗した。手元にある既存の `rg.exe` を PATH に足して再実行し 35 件 failed 0。結果 JSON はローカルの作業領域にあり、未保存。
+  - `pwsh tools/contract-audit.ps1`: errors 0。`pwsh tools/docs-audit.ps1`: errors 0。
 - 未実行:
-- implementation head commit:
-- Phase B 担当・モデル・ベンダー:
+  - AC23（実 R2 の dry-run・検証用系列での削除・再実行）: Phase C の担当。実 R2 通信・資格情報へのアクセスは行っていない。
+  - 判定必須のうち Workflow `TaskLifecycle`: 今回の依頼で許可された実行範囲に含まれないため未実行（Phase C）。
+  - Unity の起動・テスト・Build: 対象外（Unity を変更していない）。
+- implementation head commit: `cad885b26974b4a39df0f7f71c8de813fd870e2d`
+- Phase B 担当・モデル・ベンダー: Claude Opus 5.5／Anthropic（Claude Code desktop）。
 
 ## 7. Phase C
 
