@@ -6,7 +6,7 @@
 - status: `A3 凍結`（2026-10-11、owner 承認。次は Phase B。管理方式は tracked HANDOFF で、H1/CURRENT は採用しない。§5）
 - branch: `codex/artifact-storage-content-publish`
 - implementation base commit: `e949c6dc6b8b441d43c0bb1d14e72e486be514cf`（`develop`。PR #117 を含む）
-- implementation head commit: `9c8e703d57276b8ab46e7032ed915ee6ab37292b`（Phase B の最終 head。初回実装は `603ede1`。本書の §6 更新 commit はその後）
+- implementation head commit: `5aa9d740387e6e3b6b7aa63420061de8b854ac82`（Phase B の最終 head。初回実装は `603ede1`。本書の §6 更新 commit はその後）
 - risk: `normal`（Artifacts の新規 module と、共有部品・allowlist への小さな変更。公開 API・asmdef・Unity は変えない。実 R2 に触れる操作を含む）
 - owner: OSM maintainers
 - created: 2026-10-11
@@ -305,29 +305,43 @@
   10. 同じ revision の初回同時公開で、退避の rename に負けた側も lock へ進むようにした（AC12 の「負けた側は `publish-in-progress`」を満たすため）。`Invoke-ContentStage` で `Invoke-BuildStage` が `stage-conflict` を投げたとき、退避先を期待 entry と再照合し完全一致なら `existing` として lock へ進む（`BuildStage` は変更しない）。本当の不一致だけが `stage-conflict`。負けた側は `publish-in-progress`（または勝者の完了後なら `existing`）になる。`concurrent-stage` test（2 子 process を `StageHook` の `before-rename` で signal 同期）を追加。あわせて `contents-v1` 階層の作成を冪等（CreateDirectory のあと ACL が無ければ設定）にし、他 process が作成した直後の ACL 未設定を見ても失敗しないようにした。
   11. §3 に無かった依存辺を記録する。いずれも循環ではなく、Build→Content の逆向きも無い。`ContentTransfer`→`ContentStage`: snapshot の再照合（`Assert-ContentSnapshotFile`）の実体が `ContentStage` にあり、PUT 直前の再 hash の規則の所有者を 1 つにするため。`ContentTransfer`→`Credentials/CredentialStore`: run 開始時の資格情報 generation の固定（`Get-CredentialStatus`）を転送側が持つため（`BuildApplication` も同じ module を直接 import）。`ContentStore`→`Workflow/WindowsStorePaths`: `Get-BuildRoot` と同じ物理 path の解決（`Get-WindowsStorePathIdentity`）のため。便宜だけの辺は無く、削除はしていない。
   12. `ContentApplication` のコメントと README の再実行の優先順位を AC11 の番号順（1 stage-conflict、2 receipt があり同一入力なら existing、3 intent が違えば intent-conflict、4 revision-conflict、5 続行）に直し、「同一入力」は intent.json の bytes 一致で判定し、実装は (2) と (3) を同じ intent 照合で先に評価する（結果は番号順と同じ）ことを明記した。
+  13. （B 適応の修正）AC13「予算を超えたら成功にしない」を成功確定点まで保つ。publish は予算を receipt の atomic rename の直前（`Write-ContentReceipt` の前）まで有効にし、超えていれば `budget-exceeded` で receipt を作らない。fetch は最後の保護（`Protect-ArtifactTree`）と集合検証の後、`passed` を返す直前に予算を確認する。Enter／Exit は try／finally で対のまま。注入時計の test を追加した（`budget` case の全転送後に時計を進める検査と、時計を戻した同一入力の再実行が再送なしの照合だけで完了する検査。`fetch-budget-and-errors` case の全 download 後に時計を進める検査）。`ContentTransfer` は `Assert-ContentBudget` を export しただけで、転送経路・transport・readback の file は変更していない。
 - 未実行:
   - 実 R2 の往復（最低条件 5、判定 C の責任。owner の許可前なので R2・ネットワーク・資格情報には一切触れていない）。最大 1.0 MiB の転送時間、221 件連続の throttling、bucket rule が及ぶかは未確認のまま。
   - Unity の実行・テスト・Build（適用外）。`tools/Workflow/tests/TaskLifecycle.Tests.ps1`、`tools/Harness/tests/Harness.Tests.ps1`（本変更は触れていないため未実行）。.NET 3 build は出力が既存だったため再 build していない。
   - 既存 14 suite のうち `EvidenceCleanup` の `fresh-process-cleanup-contract` は、この実行環境の PowerShell に `rg`（ripgrep）が無く失敗した（本変更と無関係。他の 30 case は通過）。判定 C は `rg` のある環境で確認すること。
 - 実行したテスト（Phase B 完了時、isolated な temp store・transfers・ArtifactsRoot と注入 hook のみ。各 `-Case '*'` の registered／selected／executed が一致し failed 0）: `Content.Contract` 9／9、`Content.Publish` 12／12、`Content.Fetch` 5／5、`BuildCollect` 9／9、`BuildPublish` 9／9、`BuildRetention` 9／9、`Credentials` 22／22、`RouteProof` 26、`R2RouteTransport` 7、`ArtifactPackage` 9／9、`ArtifactTransfer` 20／20、`ArtifactRotation` 11／11、`ArtifactEvidence` 13／13、`EvidenceRetention` 14／14、`EvidenceSchedule` 78／78、`EvidenceReset` 31／31、`EvidenceCleanup`（上記の 1 case を除く全て）。`pwsh tools/contract-audit.ps1`（errors 0）、`pwsh tools/docs-audit.ps1`（errors 0。warning 1 は §7／§8 が未記入の既存の通知）。
-- implementation head commit: `9c8e703d57276b8ab46e7032ed915ee6ab37292b`
+- implementation head commit: `5aa9d740387e6e3b6b7aa63420061de8b854ac82`
 - Phase B 担当・モデル・ベンダー: Claude Sonnet 5.5（`claude-sonnet-5-5`）／Anthropic。新規 session。
 
 ## 7. Phase C
 
-未着手。
+**判定: GO**（判定 C、implementation head `9c8e703`。最低条件 1〜5 をすべて満たし、現在の問いへの致命的な反証は無い）。
 
-- 種別:
-- 使用したevidence bundle の取得案内・状態（§0と同じ案内）:
-- 構造適合:
-- 現在の問いを阻害する findings（違反する凍結済み条件 / 常時契約を併記）:
+- 種別: 発見 C（`603ede1`）→ B へ差し戻し 1 巡 → 発見 C の再レビュー（`603ede1..9c8e703`）→ 判定 C（`9c8e703`）。
+- 使用した evidence bundle の取得案内・状態: 判定用 bundle（diff・stat・name-status、Phase A snapshot、Phase B result、判定前の機械検査、判定必須の生結果、実 R2 往復の生結果）を生成済み。未保存（Artifact Storage への publish は Phase D で行う）。
+- 構造適合: §3 の割当てと実際のメンバー・依存・行数は一致する（最大 `ContentApplication` 約 160 行、500 行・50% の警報は発火なし）。依存は Content → Build の一般規則の向きだけ。計画外の依存 3 辺は §6 の 11 に B 適応として記録済み（循環・逆向きなし）。`unity/` 配下の diff は空。
+- 現在の問いを阻害する findings: 判定時点で残り 0 件。発見 C で 2 件（いずれも軽微）を B へ差し戻し、解消を確認した。(1) 同じ revision の初回同時公開で、退避の rename に負けた側が lock に達せず `stage-conflict` を返していた（AC12 違反）。(2) §3 に無い依存辺が §6 に未記録だった（§4 の「計画外の依存」規則）。
 - 後続スライスへ移送する findings:
-- 実行したテストコマンドと `-Filter`、対象を選んだ理由:
-- テスト結果（XML 上の実行テスト名と件数）:
-- 判定必須のうち未実行:
-- 重い検証を発見段階で限定実行した場合の理由と範囲:
-- 未確認事項:
-- 担当・モデル:
+  - 予算が退避・snapshot・receipt の区間に掛からず、残りが 15 s 以下では reason が `budget-exceeded` でなく `object-unconfirmed` になる（成功は返さない）→ Content の容量上限。
+  - 1 回の collect で各 file を約 7 回読む（上限 512 MiB 付近の I/O）→ Content の容量上限。
+  - `ContentStore` は `Create` 時に既存 directory の ACL 不一致を付け直す（Build store は拒否）。intent・receipt・lock は個別に ACL を検査するので凍結条件の違反ではない → Build と方針をそろえる判断として件数保持の運用接続へ。
+  - 再実行で `existing` を返す結果 JSON に `objects` 欄が無い（PUT 0 は転送経路に入らないことと所要 2 s で確認）→ 診断の改善（件数保持の運用接続の入力）。
+  - Phase B result に発見 C の指摘 ID が転記されていた（review-evidence の分離規則）→ `2d9dbf9` で除去済み。C′ には除去後の版を渡した。
+- 実行したテストコマンドと対象（判定必須、§5 のまま。生結果は bundle に収録）:
+  - 機械検査（判定の前に実行）: `pwsh tools/contract-audit.ps1` errors 0 / warnings 0、`pwsh tools/docs-audit.ps1` errors 0（warning 1 は §7/§8 の記入状態の既存通知）。
+  - .NET Release build 3 本: exit 0、警告 0。
+  - offline suite 19 本（`pwsh -NoProfile -File <suite> -Case '*' -ResultPath <path>`）: 全て registered = selected = executed（非空）、failed 0。`EvidenceCleanup` は `rg` が pwsh の PATH に無いため、インストール済みの VS Code 同梱 ripgrep の directory を PATH の先頭に足して実行した（何もダウンロードしていない）。
+- テスト結果（件数）: Credentials 22、RouteProof 26、R2RouteTransport 7、ArtifactPackage 9、ArtifactTransfer 20、ArtifactRotation 11、ArtifactEvidence 13、EvidenceRetention 14、EvidenceCleanup 35、EvidenceSchedule 78、EvidenceReset 31、BuildRetention 9、BuildPublish 9、BuildCollect 9、Content.Contract 9、Content.Publish 12、Content.Fetch 5、TaskLifecycle 23、Harness 35（集合一致、並び順のみ異なる）。
+- 最低条件 5（実 R2 往復。owner が 2026-10-11 にこの 4 操作を明示承認）:
+  - `content collect`（実 Spring 出力 `20260924T202227427Z-b80d…`、空の ArtifactsRoot）: `status=passed`、`publish=published`、`objects.puts=221`、`gets=442`、所要 785 s（予算 2,068 s）。
+  - 別 process の `content fetch`（source の `transport.json` から独立に計算した `manifestSha256` を渡す）: `status=passed`、所要 30 s。取得物を独自に照合し、`transport.json` の bytes 一致、`content/` 220 file の集合一致、size/SHA-256 の不一致 0、source の bytes とも一致。
+  - 同じ `content collect` の再実行: `publish=existing`、同じ reference、所要 2 s（転送なし）。
+  - 出力に endpoint・秘密が無いことを検査した（該当 0）。R2 の DELETE はしていない。
+- 判定必須のうち未実行: なし。全 EditMode 回帰は §5 の適用除外（`unity/` 配下の diff 空）。
+- 重い検証を発見段階で限定実行した場合の理由と範囲: なし。
+- 未確認事項: 4 季節（`all-full`）の公開時間と throttling（GO の条件外。Content の容量上限へ）。`development/content/v1/` の bucket rule は、PUT がすべて成功したことから公開を妨げないことだけを確認した（rule の有無そのものは未確認）。
+- 担当・モデル: 発見 C と判定 C の offline 部分は Claude Opus 5.5（`claude-opus-5-5`）／Anthropic の新規 session。実 R2 往復は、その session が権限分類器に止められたため、統合担当の Claude Opus 5.5（同じモデル、owner の明示承認後）が実行した。いずれも Phase B（Sonnet 5.5）と異なるモデル。
 
 ## 8. Phase C'
 
