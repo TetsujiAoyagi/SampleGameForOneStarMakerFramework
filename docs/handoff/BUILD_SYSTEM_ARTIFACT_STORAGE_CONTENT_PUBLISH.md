@@ -316,48 +316,56 @@
 
 ## 7. Phase C
 
-**判定: GO**（判定 C、implementation head `9c8e703`。最低条件 1〜5 をすべて満たし、現在の問いへの致命的な反証は無い）。
+**判定: GO**（判定 C、最終 implementation head `5aa9d74`。最低条件 1〜5 をすべて満たし、現在の問いへの致命的な反証は無い）。
 
-- 種別: 発見 C（`603ede1`）→ B へ差し戻し 1 巡 → 発見 C の再レビュー（`603ede1..9c8e703`）→ 判定 C（`9c8e703`）。
+経緯: `9c8e703` で判定 C（GO）と C′（1 回目）を行った。C′ が予算の扱い（AC13）を阻害欠陥として指摘したため B へ差し戻し（C′ 起因の差し戻し 1 巡目）、`5aa9d74` で判定 C をやり直した。`9c8e703` の判定は無効とし、以下は `5aa9d74` の結果である。
+
+- 種別: 発見 C（`603ede1`）→ B へ差し戻し 1 巡 → 発見 C の再レビュー（`603ede1..9c8e703`）→ 判定 C（`9c8e703`、C′ の指摘で無効化）→ C′ 起因の差し戻し 1 巡 → 差分レビュー（`9c8e703..5aa9d74`、阻害欠陥なし）→ 判定 C（`5aa9d74`）。
 - 使用した evidence bundle の取得案内・状態: 判定用 bundle（diff・stat・name-status、Phase A snapshot、Phase B result、判定前の機械検査、判定必須の生結果、実 R2 往復の生結果）を生成済み。未保存（Artifact Storage への publish は Phase D で行う）。
 - 構造適合: §3 の割当てと実際のメンバー・依存・行数は一致する（最大 `ContentApplication` 約 160 行、500 行・50% の警報は発火なし）。依存は Content → Build の一般規則の向きだけ。計画外の依存 3 辺は §6 の 11 に B 適応として記録済み（循環・逆向きなし）。`unity/` 配下の diff は空。
 - 現在の問いを阻害する findings: 判定時点で残り 0 件。発見 C で 2 件（いずれも軽微）を B へ差し戻し、解消を確認した。(1) 同じ revision の初回同時公開で、退避の rename に負けた側が lock に達せず `stage-conflict` を返していた（AC12 違反）。(2) §3 に無い依存辺が §6 に未記録だった（§4 の「計画外の依存」規則）。
 - 後続スライスへ移送する findings:
+  - テストのコメント位置のずれ（`Content.Publish.Tests.ps1` の予算の block）→ 次に同じ file を触る作業で直す体裁の所見。
   - 予算が退避・snapshot・receipt の区間に掛からず、残りが 15 s 以下では reason が `budget-exceeded` でなく `object-unconfirmed` になる（成功は返さない）→ Content の容量上限。
   - 1 回の collect で各 file を約 7 回読む（上限 512 MiB 付近の I/O）→ Content の容量上限。
   - `ContentStore` は `Create` 時に既存 directory の ACL 不一致を付け直す（Build store は拒否）。intent・receipt・lock は個別に ACL を検査するので凍結条件の違反ではない → Build と方針をそろえる判断として件数保持の運用接続へ。
   - 再実行で `existing` を返す結果 JSON に `objects` 欄が無い（PUT 0 は転送経路に入らないことと所要 2 s で確認）→ 診断の改善（件数保持の運用接続の入力）。
   - Phase B result に発見 C の指摘 ID が転記されていた（review-evidence の分離規則）→ `2d9dbf9` で除去済み。C′ には除去後の版を渡した。
-- 実行したテストコマンドと対象（判定必須、§5 のまま。生結果は bundle に収録）:
+- 実行したテストコマンドと対象（判定必須、§5 のまま。`5aa9d74` で再実行。生結果は bundle に収録）:
   - 機械検査（判定の前に実行）: `pwsh tools/contract-audit.ps1` errors 0 / warnings 0、`pwsh tools/docs-audit.ps1` errors 0（warning 1 は §7/§8 の記入状態の既存通知）。
   - .NET Release build 3 本: exit 0、警告 0。
   - offline suite 19 本（`pwsh -NoProfile -File <suite> -Case '*' -ResultPath <path>`）: 全て registered = selected = executed（非空）、failed 0。`EvidenceCleanup` は `rg` が pwsh の PATH に無いため、インストール済みの VS Code 同梱 ripgrep の directory を PATH の先頭に足して実行した（何もダウンロードしていない）。
 - テスト結果（件数）: Credentials 22、RouteProof 26、R2RouteTransport 7、ArtifactPackage 9、ArtifactTransfer 20、ArtifactRotation 11、ArtifactEvidence 13、EvidenceRetention 14、EvidenceCleanup 35、EvidenceSchedule 78、EvidenceReset 31、BuildRetention 9、BuildPublish 9、BuildCollect 9、Content.Contract 9、Content.Publish 12、Content.Fetch 5、TaskLifecycle 23、Harness 35（集合一致、並び順のみ異なる）。
 - 最低条件 5（実 R2 往復。owner が 2026-10-11 にこの 4 操作を明示承認）:
-  - `content collect`（実 Spring 出力 `20260924T202227427Z-b80d…`、空の ArtifactsRoot）: `status=passed`、`publish=published`、`objects.puts=221`、`gets=442`、所要 785 s（予算 2,068 s）。
-  - 別 process の `content fetch`（source の `transport.json` から独立に計算した `manifestSha256` を渡す）: `status=passed`、所要 30 s。取得物を独自に照合し、`transport.json` の bytes 一致、`content/` 220 file の集合一致、size/SHA-256 の不一致 0、source の bytes とも一致。
-  - 同じ `content collect` の再実行: `publish=existing`、同じ reference、所要 2 s（転送なし）。
+  - 初回公開は `9c8e703` で行った。同じ revision は不変で、DELETE もしないため、最終 head で初回公開をやり直せない。`9c8e703..5aa9d74` のコード差分は、receipt と fetch の成功前の予算確認だけで、転送経路（`ContentTransfer` の処理、transport、readback）は変わっていない（export 1 語のみ）。そのため初回公開の観測を最終 head の証拠として引き継ぎ、取得と再実行は `5aa9d74` でやり直した。この扱いは Phase D で owner が確認する。
+  - PUT 221 件は結果 JSON の `objects.puts` に加え、§5 の方法（operation の観測記録と intent の entry 数）でも確かめた。operation directory には 221 key それぞれに子 process の読戻しが 2 回ずつ（事前照合と PUT 後の読戻し）、計 442 件あり、AC7 では 2 回目の読戻しは PUT の後にしか起きない。`transport.json` は最初と最後。content の key は intent の 220 entry と一致し、`objectCount` は 221。
+  - `content collect`（`9c8e703`）（実 Spring 出力 `20260924T202227427Z-b80d…`、空の ArtifactsRoot）: `status=passed`、`publish=published`、`objects.puts=221`、`gets=442`、所要 785 s（予算 2,068 s）。
+  - 別 process の `content fetch`（source の `transport.json` から独立に計算した `manifestSha256` を渡す）: `9c8e703` で `status=passed`・30 s、`5aa9d74` で `status=passed`・29 s。どちらも取得物を独自に照合し、`transport.json` の bytes 一致、`content/` 220 file の集合一致、size/SHA-256 の不一致 0、source の bytes とも一致。
+  - 同じ `content collect` の再実行: `9c8e703` で `publish=existing`・同じ reference・2 s、`5aa9d74` で `publish=existing`・4 s（転送なし）。
   - 出力に endpoint・秘密が無いことを検査した（該当 0）。R2 の DELETE はしていない。
 - 判定必須のうち未実行: なし。全 EditMode 回帰は §5 の適用除外（`unity/` 配下の diff 空）。
 - 重い検証を発見段階で限定実行した場合の理由と範囲: なし。
 - 未確認事項: 4 季節（`all-full`）の公開時間と throttling（GO の条件外。Content の容量上限へ）。`development/content/v1/` の bucket rule は、PUT がすべて成功したことから公開を妨げないことだけを確認した（rule の有無そのものは未確認）。
-- 担当・モデル: 発見 C と判定 C の offline 部分は Claude Opus 5.5（`claude-opus-5-5`）／Anthropic の新規 session。実 R2 往復は、その session が権限分類器に止められたため、統合担当の Claude Opus 5.5（同じモデル、owner の明示承認後）が実行した。いずれも Phase B（Sonnet 5.5）と異なるモデル。
+- 担当・モデル: 発見 C、差分レビュー、判定 C の offline 部分は Claude Opus 5.5（`claude-opus-5-5`）／Anthropic の新規 session。実 R2 往復は、その session が権限分類器に止められたため、統合担当の Claude Opus 5.5（同じモデル、owner の明示承認後）が実行した。いずれも Phase B（Sonnet 5.5）と異なるモデル。
 
 ## 8. Phase C'
 
-未着手。
+**判定: FAIL（2 回目、`5aa9d74`）。owner の判断待ち。** コードと offline 検証に阻害欠陥は無いとしたうえで、最低条件 5 の証拠の取り方を阻害欠陥とした。
 
-- 担当方式:
-- 使用したblind audit bundle の取得案内・状態（§0と同じ案内）:
-- 確認範囲・方法:
-- 判定（人間担当は本人の明示回答まで未実施）:
-- 現在の問いを阻害する findings（違反する凍結済み条件 / 常時契約を併記）:
-- 後続スライスへ移送する findings:
-- 残存リスク:
-- 監査できなかった範囲:
-- 独立性:
-- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与:
-- 担当・モデル:
+- 担当方式: AI（新規 session、read-only sandbox、ネットワーク・資格情報なし）。
+- 使用した blind audit bundle の取得案内・状態: 1 回目は `9c8e703`、2 回目は `5aa9d74` の bundle（Phase A snapshot、所見を含まない Phase B result、完全 diff、判定前の機械検査、判定必須の生結果、実 R2 往復の生結果、SHA256SUMS）。生成済み・未保存（publish は Phase D）。発見 C・判定 C の所見と結論は含めていない。
+- 確認範囲・方法: SHA256SUMS の全件照合（1 回目 69 件、2 回目 80 件）、指示文書・snapshot・B result・diff・変更コード・機械検査・生結果の閲覧。テストの再実行はしていない。
+- 1 回目（`9c8e703`）の阻害 findings と対応:
+  - 予算（AC13）: publish は transfer 後に予算を外してから receipt を確定し、fetch も予算を外してから成功を返すので、期限切れでも成功しうる → B へ差し戻し（C′ 起因 1 巡目）、`5aa9d74` で修正。
+  - 最低条件 5 の PUT 数を §5 の方法（operation の観測記録と intent の entry 数）で数え直せない → 再梱包で対応（operation directory の子 process 読戻し記録 442 件・221 key と intent を、endpoint を除いて収録）。
+- 2 回目（`5aa9d74`）の阻害 findings:
+  - 最低条件 5 と §5「GO 候補 head の判定必須」: 初回公開（PUT 221）は `9c8e703` で行ったもので、最終 head では fetch と `existing` の再実行しかしていない。review-evidence は、差分が変わった後の旧結果を新 head の合格証拠にしないと定めており、この例外は凍結されていない。
+  - 最低条件 5 と §5「照合ログ」: 収録した operation の記録は key・期待値・子 process の終了状態だけで、各 object の照合結果（HTTP 結果、観測 bytes/hash）を持たないため、初回公開時の各 object の照合一致を記録から独立に再判定できない（実装は照合結果を operation に残さない）。
+- 後続スライスへ移送する findings: なし（残存リスクとして、別 PC の同時公開と R2 側の上書き防止は Content 確定記録、0 byte と 4 季節の容量は Content の容量上限、private operation の清掃は未完了 upload と staging）。
+- 監査できなかった範囲: 実 R2 操作前の owner の許可（bundle に無い）。実 R2・資格情報・Unity。
+- 独立性: Phase A（Anthropic 3 系列）、B（Sonnet 5.5）、C（Opus 5.5）のいずれにも関与していない系列・ベンダーで、強化条件も満たす。
+- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: なし（bundle から除外。指示文で HANDOFF を読まないよう指定し、checkout の HANDOFF にも §7 は無い）。
+- 担当・モデル: OpenAI GPT（codex CLI 0.159.2、`gpt-6-sol`）。1 回目・2 回目とも 1 回ずつ実行。
 
 ## 9. Phase D
 
