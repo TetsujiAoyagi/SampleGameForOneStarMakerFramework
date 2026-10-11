@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: slice（文書 revision。program 文書 `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` を r6 → r7 にする Phase A）
-- status: A（A0 planning packet と A1 初稿まで。A2 は owner の依頼まで起動しない。A3 未実施）
+- status: A（A1 改訂 rev2。owner との相談 3 点を反映済み。A2 実施中、A3 未実施）
 - branch: `codex/artifact-storage-content-kind-phase-a` / PR base: `develop`
 - implementation base commit: `4d5dcc379a31bd6d47713d1072e47bed020061ee`（`develop`、PR #116 を含む）
 - implementation head commit: 未実装（実装は文書改訂のみ。コードは変えない）
@@ -57,8 +57,11 @@
 3. **置き場:** ローカルは `<ArtifactsRoot>/content/<contentSet>/<target>/<revision>/`。ArtifactsRoot は Player と共用の任意のローカル folder。R2 にも revision 単位で丸ごと上げる。
 4. **全 platform で 1 形式:** 保存形式は platform で分けない。ただし transport manifest v1 の `target` が固定値である制約（上記現況）を、保存契約の前提として明記する。
 5. **hd/sd の受け止め:** 端末性能別の違いが `contentSet` か representation で表せるか、系列 key の拡張で足りるかを、現況の根拠付きで結論する（「系列 key の拡張性だけを確認」）。
-6. **上限の扱い:** 512 file を超える Content の保存は本 r7 では解かず、program §4 B の後続（上限引き上げ・multipart）へ送ることを明記する。Player を内包したまま 880 file を保存できない事実を、分離の動機として書く。
+6. **上限の扱い:** 512 file を超える Content の保存は本 r7 では解かず、program §4 B の後続（上限引き上げ・multipart）へ送ることを明記する。Player を内包したまま 880 file（owner の推定）を保存できない事実を、分離の動機として書く。上限は契約へ焼き込まない設定値とし、R2 のプラン変更の要否は 4 季節 Content の実測後に後続で決める（上限は R2 側ではなく #111 の自前の上限）。
 7. **移送:** 下記「ここでは答えない問いと所有する後続スライス」の各項目に所有する後続スライス名を付ける。program §4 B 末尾の「後続の問い」一覧を r7 で置換する。
+8. **用途識別:** 用途（通常開発 / 期間限定イベント / 次期大型アップデート等）は `contentSet` の名前に持たせる（例 `mainline`、`event-<名>`、`next-major`）。階層は足さず、manifest・検証・Player の baked 設定を変えない。系列と件数保持は用途ごとに独立し、イベント終了後はその系列だけ片付けられる。
+9. **消費側の指定:** Editor も Player も、取り込み済み revision root を `contentSet/target/revision` と manifest の SHA-256 で指定する（既存の `installedRevisionPath` + `manifestSha256` の組と同じ）。どの系列を見るかは workspace のローカル設定（git 管理外）で持ち、取り込み時にその系列の最新を revision と digest に解決して固定する。ストレージに可変の別名（latest 等）は持たせない。
+10. **Player の固定:** Player は Build 時の `contentSet` に固定する。起動時の config / 引数による切り替えは対象外（Build 時の埋め込みリソースと整合しないため。既存の protected-key 検証と矛盾しない）。
 
 受け入れ条件（上の観測可能な詳細。別の完了バーにしない）:
 
@@ -78,6 +81,8 @@
 | 512 file / 240 MiB 上限の引き上げ・multipart | program §4 B の上限スライス（既存の後続） |
 | ArtifactsRoot の件数清掃・`.staging` 回収、Content の実 DELETE と利用中状態の収集 | 件数保持の運用接続スライス（既存の後続） |
 | transport manifest v1 の固定 `target` の拡張（Windows 以外の platform） | Windows 以外の target を扱うスライス（program §4 B の既存の後続） |
+| Player の起動時 `contentSet` 切り替え | 行わない（対象外。必要になれば別途 owner が判断） |
+| ローカル設定の形式、取り込み UI、Editor の取り込み経路が local directory の revision を受けられるか（未確認） | Content 取り込みのスライス |
 | 診断の改善（`publish` 表示、240 字超、二度読み、`stage-conflict`） | 診断改善の既存の後続（変更なし） |
 | 開発環境セットアップ script（`OSM_ARTIFACTS_ROOT` 等） | セットアップスライス（既存の後続） |
 | 別 host / Cloud 配布 | program §4 C |
@@ -121,6 +126,8 @@
 | U1 | Player は今のまま `content/` を内包。Content は同じ revision を別途保存（重複保存） | なし | Player publish が 512 file を超える問題は残る。分離の動機を満たさない |
 | U2 | Player build が `content/` を出さず、起動側が既存の `content:installedRevisionPath` + `content:manifestSha256` で外部 revision root を指す | Player build の `content/` 省略、baked `relativeDirectory` の扱い（空不可のため仮値が要る）。参照 key は変更不要 | revision root が `transport.json` + `content/` の丸ごと形であることが前提。r7 の単位 1 と整合する |
 | U3 | 新しい config key で Content root を指す | 公開面（config スキーマ・protected key）の追加 | Phase A 再開級。r7 では選ばない |
+
+Editor 側は既に Use For Next Play で明示した pair を選ぶため、用途（contentSet）の切り替えはローカル設定の指定で足りる見込み。Editor の検証が local directory の revision を取り込み元として受けるかは未読・未確認。Player は baked の `contentSet` と外部 revision の `contentSet` の一致を検証するため、用途を切り替えられない（最低条件 10 の前提）。
 
 U2 が成立するかは未確認。確認する点は、(a) Player build が `content/` なしで成立するか、(b) 外部 revision root を Player 起動時に渡す経路（app-config / 環境変数 / command line）が、directory Player の「生成 bootstrap Scene と runtime 名で latch」という起動契約と両立するか、(c) `InstalledRevisionVerifier` が `target` を `StandaloneWindows64-Player` に固定している点。いずれも Unity 実行を伴うため、Phase C 担当のスパイクに回すか、後続スライスの A1 で扱う。**未確認。確認は Content 分離の実装スライス。**
 
