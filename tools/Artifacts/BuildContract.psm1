@@ -198,4 +198,4 @@ function Assert-BuildCollectLimits($Entries){
         $total+=$e.bytes;if($total -gt 240MB){throw 'size-limit'}
     }
 }
-Export-ModuleMember -Function Assert-BuildId,Get-BuildSeries,Get-BuildKey,Assert-BuildSourceRoot,Read-BuildConfig,Read-BuildSelection,New-BuildReference,Read-BuildReference,Get-BuildCollectBuildId,Get-BuildCollectSeries,ConvertFrom-BuildPlayerReceipt,ConvertFrom-BuildTransportManifest,Assert-BuildContentManifest,New-BuildInfoBytes,Assert-BuildCollectLimits
+Export-ModuleMember -Function Assert-BuildToken,Assert-BuildId,Get-BuildSeries,Get-BuildKey,Assert-BuildSourceRoot,Read-BuildConfig,Read-BuildSelection,New-BuildReference,Read-BuildReference,Get-BuildCollectBuildId,Get-BuildCollectSeries,ConvertFrom-BuildPlayerReceipt,ConvertFrom-BuildTransportManifest,Assert-BuildContentManifest,New-BuildInfoBytes,Assert-BuildCollectLimits

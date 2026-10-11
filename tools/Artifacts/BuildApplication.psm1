@@ -7,6 +7,7 @@ Import-Module (Join-Path $PSScriptRoot 'ArtifactApplication.psm1')
 Import-Module (Join-Path $PSScriptRoot 'BuildContract.psm1')
 Import-Module (Join-Path $PSScriptRoot 'BuildStore.psm1')
 Import-Module (Join-Path $PSScriptRoot 'BuildStage.psm1')
+Import-Module (Join-Path $PSScriptRoot 'BuildProtection.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ArtifactAcl.psm1')
 Import-Module (Join-Path $PSScriptRoot 'Credentials/CredentialStore.psm1')
 # 注入点はoffline検証専用。公開CLIから時計・通信・上限・失敗境界を差し替えさせない。
@@ -142,21 +143,109 @@ function Invoke-BuildPublish([string]$ConfigPath,[string]$SelectionPath){
 }
 # 呼出前にselectionへ保存したIDだけを再照会する。一覧探索や再送は行わない。
 # receiptが未確定・破損なら成功へ補完せず、確定済みなら同じ参照/hash/時刻を返す。
-function Invoke-BuildInspect([string]$ConfigPath,[string]$BuildId){
+# Emitを渡すと、結果を共有access lockの保持中に呼出側へ渡す（CLIはここで出力する）。
+# 関数が戻ってからの出力ではlockが外れており、その間に削除意図が確定しうるため。
+function Invoke-BuildInspect([string]$ConfigPath,[string]$BuildId,[scriptblock]$Emit=$null){
+    $hold=@{Access=$null};$result=$null
     try{
         Import-ArtifactPackage;$config=Read-BuildConfig $ConfigPath;Assert-BuildId $BuildId
+        Enter-BuildDeletionCheck $config $BuildId $hold
         $receipt=Read-BuildReceipt $config $BuildId
-        return [pscustomobject]@{status='passed';reasonCode='complete';buildId=$BuildId;reference=(New-BuildReference $config $receipt.Data);packageSha256=$receipt.Data.packageSha256;receiptPath=$receipt.Path;publishedAt=$receipt.Data.publishedAt}
-    }catch{return [pscustomobject]@{status='failed';reasonCode='receipt-unavailable'}}
+        $result=[pscustomobject]@{status='passed';reasonCode='complete';buildId=$BuildId;reference=(New-BuildReference $config $receipt.Data);packageSha256=$receipt.Data.packageSha256;receiptPath=$receipt.Path;publishedAt=$receipt.Data.publishedAt}
+        if($Emit){& $Emit $result}
+        return $result
+    }catch{
+        if($null -ne $result){throw}
+        $result=if($_.Exception.Message -cin @('payload-deleted','delete-pending')){[pscustomobject]@{status='failed';reasonCode=$_.Exception.Message}}else{[pscustomobject]@{status='failed';reasonCode='receipt-unavailable'}}
+        if($Emit){& $Emit $result}
+        return $result
+    }finally{if($hold.Access){$hold.Access.Dispose()}}
+}
+# 件数清掃でR2 objectを消した（または消している途中の）Buildを、照会が成功として返さないための判定。
+# deletion/の記録だけで決まり、build-configに依存しないので、既存receiptの検査より先に行う。
+# 共有のaccess lockを結果を返すまで呼出側が持ち続けるので、確認と結果の間に削除意図は確定しない
+# （cleanupは削除意図の書込み前に同じlockを排他で取る）。返すのはその時点の状態。
+# Build directoryが無ければ何もせず、続くreceipt検査に判定を任せる。
+# 取ったlockは$Hold.Accessに置き、判定の結果（payload-deleted／delete-pending の例外を含む）を
+# 返し終えるまで呼出側が保持して、finallyで解放する。失敗の結果もlockの外で返すと、
+# 返す前に未解決の試行が取り下げられ、古い状態を返しうるため。
+function Enter-BuildDeletionCheck($Config,[string]$BuildId,$Hold){
+    if(-not [IO.Directory]::Exists((Get-BuildDirectory $Config.Data.repositoryId $BuildId))){return}
+    try{$Hold.Access=Enter-BuildAccessLock $Config.Data.repositoryId $BuildId $false}catch{if($_.Exception.Message -ceq 'lock-busy'){throw 'delete-pending'};throw}
+    $state=Read-BuildDeletionState $Config.Data.repositoryId $BuildId
+    if($state.State -ceq 'deleted'){throw 'payload-deleted'}
+    if($state.State -ceq 'deleting'){throw 'delete-pending'}
+}
+# 利用中保護（最長90日の有限期限）を付ける。成功記録はconfigのhashに依存せずに読み、
+# 系列を決めてからその系列lockを取り、lockの下で成功記録と削除状態を読み直してから書く。
+# lock前の判定だけで書くと、間に確定した削除意図のあるBuildへ保護を付けうるため。
+# createdAtはlock内で書込みの直前に時計から取り、その時点で期限を検査する。
+function Invoke-BuildUse([string]$ConfigPath,[string]$BuildId,[string]$Consumer,[string]$Until,[string]$Reason){
+    $lock=$null
+    try{
+        Assert-BuildId $BuildId
+        if($Consumer -cnotmatch '\A[A-Za-z0-9][A-Za-z0-9-]{0,63}\z' -or [string]::IsNullOrWhiteSpace($Reason) -or $Reason.Length -gt 512 -or $Reason -cmatch '[\x00-\x1f]'){throw 'invalid-use'}
+        try{$null=Assert-Utc $Until}catch{throw 'invalid-use'}
+        Import-ArtifactPackage;$config=Read-BuildConfig $ConfigPath;$repo=$config.Data.repositoryId
+        try{$record=Read-BuildSuccessRecord $config $BuildId}catch{throw 'build-not-retainable'}
+        try{$lock=Enter-BuildSeriesLock $repo $record.Data.project $record.Data.target $record.Data.configuration}catch{if($_.Exception.Message -ceq 'lock-busy'){throw 'cleanup-in-progress'};throw}
+        try{$record=Read-BuildSuccessRecord $config $BuildId;$state=Read-BuildDeletionState $repo $BuildId}catch{throw 'build-not-retainable'}
+        if($state.State -cne 'none'){throw 'build-not-retainable'}
+        $id=[Guid]::NewGuid().ToString('N');$now=(& $script:Clock).ToUniversalTime()
+        $use=[pscustomobject][ordered]@{schemaVersion=[long]1;buildId=$BuildId;id=$id;owner=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value;consumer=$Consumer;reason=$Reason;createdAt=$now.ToString('o');until=$Until}
+        if(-not (Test-BuildProtectionRecord ([pscustomobject]@{Id=$id;Use=$use;Release=$null}) $BuildId)){throw 'invalid-use'}
+        # temp書込みの間に期限を過ぎた保護は確定させない（renameの直前に時計を読み直す）。
+        # createdAtはrenameの直前の時刻とみなせる範囲でなければならない（時計の巻戻りも含めて、
+        # その時点で createdAt <= now < until <= now+90日 を満たさなければ確定しない）。
+        $clock=$script:Clock;$untilTime=Assert-Utc $Until
+        $commit={$t=(& $clock).ToUniversalTime();if($t -lt $now -or $t -ge $untilTime -or $untilTime -gt $t.AddDays(90)){throw 'invalid-use'}}.GetNewClosure()
+        $null=Write-BuildImmutable (Get-BuildDirectory $repo $BuildId) "protections/$id.use.json" $use $commit
+        return [pscustomobject]@{status='passed';reasonCode='in-use';buildId=$BuildId;protection=$id;until=$Until}
+    }catch{
+        if($script:FailureHook){& $script:FailureHook $_}
+        $code=$_.Exception.Message
+        return [pscustomobject]@{status='failed';reasonCode=if($code -cin @('invalid-use','build-not-retainable','cleanup-in-progress','invalid-build-config')){$code}else{'unconfirmed'}}
+    }finally{if($lock){$lock.Dispose()}}
+}
+# 保護を外す。既存のuse記録は書き換えず、release記録を追記する。release済みなら何もしない。
+# 系列lockを取る: 保護が外れると保持枠が空き、より新しいBuildが候補から外れることがある。
+# lockなしで外すと、実行中のcleanupが外れる前のsnapshotの候補（今は保持すべきBuild）を消しうる。
+# 時計がuseより前に戻っているとreleasedAt < createdAtの読めない記録になるので、書かずに止める。
+function Invoke-BuildRelease([string]$ConfigPath,[string]$BuildId,[string]$Protection){
+    $lock=$null
+    try{
+        Assert-BuildId $BuildId;Assert-Hex $Protection 32
+        Import-ArtifactPackage;$config=Read-BuildConfig $ConfigPath;$repo=$config.Data.repositoryId
+        try{$record=Read-BuildSuccessRecord $config $BuildId}catch{throw 'unknown-protection'}
+        try{$lock=Enter-BuildSeriesLock $repo $record.Data.project $record.Data.target $record.Data.configuration}catch{if($_.Exception.Message -ceq 'lock-busy'){throw 'cleanup-in-progress'};throw}
+        try{$records=@(Read-BuildProtectionRecords $repo $BuildId|Where-Object Id -CEQ $Protection)}catch{throw 'unknown-protection'}
+        if($records.Count -ne 1 -or -not (Test-BuildProtectionRecord $records[0] $BuildId)){throw 'unknown-protection'}
+        if($null -eq $records[0].Release){
+            $now=(& $script:Clock).ToUniversalTime()
+            if($now -lt (Assert-Utc $records[0].Use.createdAt)){throw 'clock-skew'}
+            $null=Write-BuildImmutable (Get-BuildDirectory $repo $BuildId) "protections/$Protection.release.json" ([ordered]@{schemaVersion=1;buildId=$BuildId;id=$Protection;releasedAt=$now.ToString('o')})
+        }
+        return [pscustomobject]@{status='passed';reasonCode='released';buildId=$BuildId;protection=$Protection}
+    }catch{
+        if($script:FailureHook){& $script:FailureHook $_}
+        $code=$_.Exception.Message
+        return [pscustomobject]@{status='failed';reasonCode=if($code -cin @('unknown-protection','clock-skew','cleanup-in-progress','invalid-build-config')){$code}else{'unconfirmed'}}
+    }finally{if($lock){$lock.Dispose()}}
 }
 # 参照文字列と独立した期待hashを両方要求する。取得したmanifest自身のhashを
 # 信頼の起点にすると、別の有効ZIPへの差替えを検出できない。
 # 展開先は毎回新規operationで、元Buildへの上書きや取得DLL/EXEの実行をしない。
 function Invoke-BuildFetch([string]$ConfigPath,[string]$Reference,[string]$ExpectedHash){
-    $r=[ordered]@{status='failed';reasonCode='unconfirmed';outputPath=$null;residue=[ordered]@{localPath=$null}};$timer=[Diagnostics.Stopwatch]::StartNew()
+    $r=[ordered]@{status='failed';reasonCode='unconfirmed';outputPath=$null;residue=[ordered]@{localPath=$null}};$timer=[Diagnostics.Stopwatch]::StartNew();$access=$null
     try{
         Assert-Hex $ExpectedHash 64;Import-ArtifactPackage;$config=Read-BuildConfig $ConfigPath
         $ref=Read-BuildReference $Reference $config
+        # この PC に同じBuildの記録があれば、取得の開始から終了まで共有のaccess lockを持つ。
+        # 件数清掃はこれを排他で開けないBuildを飛ばす（保護はこの PC の取得だけで、別PCは観測しない）。
+        # 清掃がそのBuildの削除試行中なら待たずに失敗する。
+        if([IO.Directory]::Exists((Get-BuildDirectory $config.Data.repositoryId $ref.buildId))){
+            try{$access=Enter-BuildAccessLock $config.Data.repositoryId $ref.buildId $false}catch{if($_.Exception.Message -ceq 'lock-busy'){throw 'delete-pending'};throw}
+        }
         $op=New-ArtifactOperation;$r.residue.localPath=$op
         $generation=(Get-CredentialStatus 'osm').Generation;$archive=[IO.Path]::Combine($op,'download.zip')
         $download=Invoke-BuildNetwork $generation (New-ArtifactRequest $config 'get' $ref.key $null $archive $timer)
@@ -165,7 +254,8 @@ function Invoke-BuildFetch([string]$ConfigPath,[string]$Reference,[string]$Expec
         $package=$codec.Extract($archive,$op,$ExpectedHash,$ref.manifestSha256,(Get-Remaining $timer 600000))
         Protect-ArtifactTree $op
         $r.outputPath=$package.Path;$r.status='passed';$r.reasonCode='complete'
-    }catch{if($script:FailureHook){& $script:FailureHook $_};if($_.Exception.Message -cin @('download-unconfirmed','invalid-reference')){$r.reasonCode=$_.Exception.Message}}
+    }catch{if($script:FailureHook){& $script:FailureHook $_};if($_.Exception.Message -cin @('download-unconfirmed','invalid-reference','delete-pending')){$r.reasonCode=$_.Exception.Message}}
+    finally{if($access){$access.Dispose()}}
     return [pscustomobject]$r
 }
 function Write-BuildOperationFile([string]$Operation,[string]$Name,[byte[]]$Bytes){
@@ -179,8 +269,9 @@ function Write-BuildOperationFile([string]$Operation,[string]$Name,[byte[]]$Byte
 # ここは順序と再実行時の分岐だけを持つ。#111の形式・検査・PUT規則は変えずにそのまま呼ぶ。
 # 再実行: 退避済みなら退避を省き、成功receiptがあれば同じ参照を返してPUTしない。
 # 予約だけ残る（応答不明の可能性がある）IDは自動で再送せず publish-unresolved で止める。
-function Invoke-BuildCollect([string]$ConfigPath,[string]$Source,[string]$ArtifactsRoot){
-    $r=[ordered]@{status='failed';reasonCode='unconfirmed';reference=$null;packageSha256=$null;buildId=$null;stage=$null;outputPath=$null;publish=$null}
+# Emitはinspectと同じく、既存成功の結果を共有access lockの保持中に呼出側へ渡すためのもの。
+function Invoke-BuildCollect([string]$ConfigPath,[string]$Source,[string]$ArtifactsRoot,[scriptblock]$Emit=$null){
+    $r=[ordered]@{status='failed';reasonCode='unconfirmed';reference=$null;packageSha256=$null;buildId=$null;stage=$null;outputPath=$null;publish=$null};$hold=@{Access=$null};$emitted=$false
     try{
         Import-ArtifactPackage
         # 設定とArtifactsRootの検査はファイル操作の前に済ませ、不足時は何も作らない。
@@ -211,13 +302,16 @@ function Invoke-BuildCollect([string]$ConfigPath,[string]$Source,[string]$Artifa
         $r.outputPath=$destination
         $dir=Get-BuildDirectory $config.Data.repositoryId $buildId
         if([IO.File]::Exists([IO.Path]::Combine($dir,'receipt.json'))){
+            # 件数清掃で消した・消している途中のBuildを既存の成功として返さず、再PUTもしない。
+            Enter-BuildDeletionCheck $config $buildId $hold
             $committed=Read-BuildReceipt $config $buildId
             # 同じbuildIdでも別内容の成功記録なら、この入力の成功として返さない。
             $want=@($expected|Sort-Object path -CaseSensitive|ForEach-Object {"$($_.path)|$($_.bytes)|$($_.sha256)"}) -join "`n"
             $have=@($committed.Data.entries|Sort-Object path -CaseSensitive|ForEach-Object {"$($_.path)|$($_.bytes)|$($_.sha256)"}) -join "`n"
             if($want -cne $have -or $committed.Data.project -cne $series.project -or $committed.Data.target -cne $series.target -or $committed.Data.configuration -cne $series.configuration){throw 'receipt-conflict'}
             $r.reference=New-BuildReference $config $committed.Data;$r.packageSha256=$committed.Data.packageSha256
-            $r.publish='existing';$r.status='passed';$r.reasonCode='complete';return [pscustomobject]$r
+            $r.publish='existing';$r.status='passed';$r.reasonCode='complete'
+            $out=[pscustomobject]$r;if($Emit){& $Emit $out;$emitted=$true};return $out
         }
         if([IO.Directory]::Exists($dir) -or [IO.File]::Exists($dir+'.reserved')){throw 'publish-unresolved'}
         # selectionとconfigはpublishの要求どおり同じ新規private operationに置く。
@@ -233,8 +327,11 @@ function Invoke-BuildCollect([string]$ConfigPath,[string]$Source,[string]$Artifa
         if($script:FailureHook){& $script:FailureHook $_}
         # 例外本文はpathを含みうるため、公開reasonは許可語だけにする。
         $code=$_.Exception.Message
-        if($code -cin @('artifacts-root-not-configured','invalid-artifacts-root','invalid-source','invalid-build-config','invalid-build-identity','invalid-player-receipt','transport-mismatch','content-mismatch','unsupported-series','size-limit','stage-conflict','stage-hash-mismatch','publish-unresolved','receipt-conflict','receipt-invalid','snapshot-conflict')){$r.reasonCode=$code}
-    }
-    return [pscustomobject]$r
+        if($code -cin @('artifacts-root-not-configured','invalid-artifacts-root','invalid-source','invalid-build-config','invalid-build-identity','invalid-player-receipt','transport-mismatch','content-mismatch','unsupported-series','size-limit','stage-conflict','stage-hash-mismatch','publish-unresolved','receipt-conflict','receipt-invalid','snapshot-conflict','payload-deleted','delete-pending')){$r.reasonCode=$code}
+        # 削除状態に関わる失敗も、確認に使ったlockを保持したまま呼出側へ渡す。
+        if($hold.Access -and $Emit){$out=[pscustomobject]$r;& $Emit $out;$emitted=$true}
+    }finally{if($hold.Access){$hold.Access.Dispose()}}
+    $out=[pscustomobject]$r;if($Emit -and -not $emitted){& $Emit $out}
+    return $out
 }
-Export-ModuleMember -Function Invoke-BuildPublish,Invoke-BuildFetch,Invoke-BuildInspect,Invoke-BuildCollect
+Export-ModuleMember -Function Invoke-BuildPublish,Invoke-BuildFetch,Invoke-BuildInspect,Invoke-BuildCollect,Invoke-BuildUse,Invoke-BuildRelease

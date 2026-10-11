@@ -1,6 +1,6 @@
 # Artifact Storage と資格情報管理
 
-同一WindowsユーザーのPowerShell 7から、既存のDPAPI `osm`資格情報とprivate R2 bucket `osm-artifacts`を使います。通常Evidenceは明示した非秘密file集合をpublishし、別sessionで期待hashを照合してfetch・ログ/原画像を閲覧できます。taskの終了/再開は[Workflow](../Workflow/README.md)が所有し、Storageは終了から30日のコピー清掃を担当します。既存Build 1件も明示した全file集合から保存・取得でき、BS4の配布形Player出力は `build collect` の1コマンドで退避・保存できます。Build系列の件数清掃と別host/Cloudの配布は後続スライスです。
+同一WindowsユーザーのPowerShell 7から、既存のDPAPI `osm`資格情報とprivate R2 bucket `osm-artifacts`を使います。通常Evidenceは明示した非秘密file集合をpublishし、別sessionで期待hashを照合してfetch・ログ/原画像を閲覧できます。taskの終了/再開は[Workflow](../Workflow/README.md)が所有し、Storageは終了から30日のコピー清掃を担当します。既存Build 1件も明示した全file集合から保存・取得でき、BS4の配布形Player出力は `build collect` の1コマンドで退避・保存できます。R2上のBuildは `build cleanup` で系列ごとに件数清掃できます。Contentの件数清掃と別host/Cloudの配布は後続スライスです。
 
 スライスAは[PR #109](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/109)で実装・限定運用検証を完了し、同じ実装headの正式C/C′はGOです。r6は同じ既存保存領域へOS jobを接続する修正で、保存領域の移動や資格情報の複製を行いません。固定仕様・実行集合・原観測の入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。一回の限定resetは完了済みです。既知のACL不適合copyは保護されたままで、OS jobのpartial結果と通常schedulerの正常statusは区別して記録しています。
 
@@ -162,7 +162,7 @@ pwsh tools/artifacts.ps1 build fetch --profile osm --config <build-config> --ref
 
 Buildは最大512 file・選択総量240 MiB、単一fileとZIPは256 MiB、相対path240文字、manifest/selection/receipt各1 MiBです。選択集合と全read lockを確認してprivate snapshotを作り、Build manifestを含むZIPをローカル展開検証してから、固定keyへ1回PUTします。別PowerShell processによる同keyの全bytes・hash読戻しが成功した後、`receipt.json`のatomic renameを唯一の成功確定点とします。成功結果の`reference`と独立した`packageSha256`を保存してください。参照文字列だけから期待package hashを補いません。
 
-成功正本は同一WindowsユーザーのLocalApplicationData `OneStarMaker/Artifacts/builds-v1/<repositoryId>/<buildId>/receipt.json`です。応答だけが失われた場合は、selectionに事前保存した同じbuildIdで`inspect`を呼び、同じreferenceとhashを確認します。同じIDの再publishはnetwork前に拒否されます。PUT応答不明、読戻し不成立、receipt確定前の失敗は成功ではなく、intentとlocal/remote残置を保持します。自動再PUT・rollback DELETE・Build清掃は行いません。取得物は新規private operationへ展開し、実行しません。この記録は同PC・同ユーザー内の永続性であり、別hostのcatalog復元や系列全件一覧、利用中状態の判定は後続の作業です。
+成功正本は同一WindowsユーザーのLocalApplicationData `OneStarMaker/Artifacts/builds-v1/<repositoryId>/<buildId>/receipt.json`です。応答だけが失われた場合は、selectionに事前保存した同じbuildIdで`inspect`を呼び、同じreferenceとhashを確認します。同じIDの再publishはnetwork前に拒否されます。PUT応答不明、読戻し不成立、receipt確定前の失敗は成功ではなく、intentとlocal/remote残置を保持します。publishは自動再PUT・rollback DELETEを行いません（R2上の古いBuildの削除は後述の `build cleanup` だけが行います）。取得物は新規private operationへ展開し、実行しません。この記録は同PC・同ユーザー内の永続性であり、別hostのcatalog復元とR2上の全件一覧は後続の作業です。件数清掃で削除済み・削除中のBuildには、`inspect` が成功ではなく `payload-deleted`／`delete-pending` を返します。
 
 系列はrepository内の`project/target/configuration`で識別し、各値は小文字英数字で始まる1〜64文字の小文字英数字・ハイフンです。branchを保存枠へ追加せず、keyは`development/builds/v1/<repositoryId>/<project>/<target>/<configuration>/<buildId>/bundle.zip`に固定します。Build生成元のrevisionが不明な場合、現在のHEADから推定して記録しません。
 
@@ -188,9 +188,9 @@ pwsh tools/artifacts.ps1 build collect --profile osm --config <build-config> --s
 
 `build-info.json` は非秘密の固定11 field（`schemaVersion=1`、`project`、`target`、`configuration`、`buildId`、`buildIdentity`、`contentSet`、`contentTarget`、`transportManifestSha256`、`unityVersion`、`playerBuildGuid`）だけを持ちます。`contentTarget` はContent/Unityのtarget名で、系列の `target` とは別の値です。ローカルpath・ユーザー名・時刻は含めません。
 
-同じ入力での再実行は次のとおりです。退避済みなら退避を省きます。成功receiptがあれば同じ `reference`/`packageSha256` を返し、PUTしません（返る `publish` は `existing`）。予約だけが残りreceiptが無い場合は、PUT応答不明の可能性があるため `publish-unresolved` で止まり、再送しません。その場合は `build inspect` で状態を確認してください。未予約ならpublishへ進みます。退避先は件数清掃の対象外で、このコマンドは削除しません。
+同じ入力での再実行は次のとおりです。退避済みなら退避を省きます。成功receiptがあれば同じ `reference`/`packageSha256` を返し、PUTしません（返る `publish` は `existing`）。件数清掃でR2から削除済み・削除中のBuildなら、既存の成功を返さず `payload-deleted`／`delete-pending` で止まり、再PUTもしません。予約だけが残りreceiptが無い場合は、PUT応答不明の可能性があるため `publish-unresolved` で止まり、再送しません。その場合は `build inspect` で状態を確認してください。未予約ならpublishへ進みます。退避先は件数清掃の対象外で、このコマンドは削除しません。
 
-成功結果の `reference` と独立した `packageSha256` を保存し、取得は `build fetch` を使います。Content Directoryの独立した保存、Player/Contentの分離、件数保持の運用接続とArtifactsRootの清掃、Windows以外のtargetは後続の作業です。
+成功結果の `reference` と独立した `packageSha256` を保存し、取得は `build fetch` を使います。Content Directoryの独立した保存、Player/Contentの分離、ArtifactsRootの清掃、Windows以外のtargetは後続の作業です（R2上のBuildの件数清掃は `build cleanup`）。
 
 非秘密の偽Player fixtureと注入transportによる全件offline検証は次のコマンドです。並行実行は別processをsignalで同期し、時間待機を使いません。
 
@@ -249,11 +249,38 @@ N=2、成功Buildが新しい順にA/B/CでCだけ利用中なら、A/Cを保持
 理由の優先順は`invalid-keep-count`→`invalid-series-id`→`invalid-build-list`→`invalid-build-snapshot`です。1行でも必要な状態が不正なら一覧全体を保留し、部分的な削除候補を出しません。
 失敗・未完了publishは `heldBuilds` に入り、後始末はこのpolicyの対象外です。
 保持は成功時刻の降順・同点はIDのOrdinal昇順、候補はその逆順、保留はIDのOrdinal昇順です。入力を変更せず、出力の書換えも入力へ伝播しません。
-このpolicyはfile、R2、時計、store、Unityに触れず、永続schemaや公開CLIにも接続していません。
+このpolicyはfile、R2、時計、store、Unityに触れません。実際の削除は次節の `build cleanup` がこのpolicyを呼んで行います。
 非秘密のメモリfixtureによる全件offline検証は次のコマンドです。
 
 ```powershell
 pwsh tools/Artifacts/tests/BuildRetention.Tests.ps1 -Case '*' -ResultPath <result-json-path>
+```
+
+### 開発Buildの件数清掃（build cleanup / use / release）
+
+`build cleanup` は、Build系列1つについて、このPCの成功記録と利用中保護を集め、上のpolicyでN件を超えた古いBuildのR2 objectだけを削除します。人またはAgentが明示実行するCLIで、自動起動はありません。
+
+```powershell
+pwsh tools/artifacts.ps1 build cleanup --profile osm --config <build-config> --project <project> --target <target> --configuration <configuration> [--dry-run]
+pwsh tools/artifacts.ps1 build use --profile osm --config <build-config> --build-id <buildId> --consumer <id> --until <UTC> --reason <text>
+pwsh tools/artifacts.ps1 build release --profile osm --config <build-config> --build-id <buildId> --protection <protectionId>
+```
+
+- **Nは10**です（コード内の定数で、CLIやbuild-configからは変えられません）。消したくないBuildは `build use`（最長90日）で守るか、Nを増やします（現状はコード変更）。保護中のBuildはNに数え、保護だけでNを超える間は保護を外さず `excessCount` を出して正常終了します。
+- **系列はbranchや人で分かれません。** `project/target/configuration` が同じBuildは同じN件の枠を共有します。
+- **数えるのはこのPCの成功記録だけです。** `builds-v1/<repositoryId>/` のreceiptを、今のbuild-configのhashに依存しない検査で読みます（configのbytesが変わっても過去の成功を数えます）。失敗・未完了のpublishは数えません。指定系列の記録、または系列を判定できない記録が1件でも読めない、未知のentry・reparse・ACL不一致がある、保護・削除記録が読めない、`publishedAt` が未来（時計のずれ）のいずれかなら系列全体を `blocked` にし、何も消しません。他系列と確定できる記録の破損では止めず、`foreignInvalid` に件数を出します。
+- **保護**は `<buildId>/protections/` の追記だけの記録です。`use` は系列lockの下で成功記録と削除状態を読み直してから書き、削除中・削除済み・receiptの無いBuildには付けません（`build-not-retainable`）。`release` は解除記録を足します。保護の判定は有限の `until` と明示のreleaseだけで、記録が読めなければ `protection-unknown` で止めます。
+- **削除の手順**は、系列lockの下でsnapshotと保護を取り直してから、候補ごとに古い順で、削除意図の記録 → DELETE（1試行に1回）→ 送信観測の記録 → 確認GET → GETが404 `NoSuchKey` なら削除済み記録、の順です。DELETEの2xxだけでは削除済みにしません。記録は `<buildId>/deletion/<n>.(intent|sent|deleted|abandoned).json` の不変記録で、receipt等のローカル記録は消しません。DELETEが検証済み2xx以外（403・timeout・応答不明等）、確認GETが判定できない、記録の書込みに失敗、時間予算（600秒）超過のときは、その試行を未解決のまま残し、系列の残りも処理せず `partial`（exit 2）で終わります。次回の実行は未解決の試行を確認GETから先に確定させ、objectが残っていれば試行を取り下げて計算し直し、今も候補のときだけ新しい試行で削除します。1回の実行のDELETEは最大20回で、残りは `remaining` に出します。
+- **このPCでの取得中**（`build fetch` が `<buildId>/access.lock` を共有で保持している間）のBuildは `in-transfer` で飛ばします。逆に削除試行中のBuildへの `fetch`／`inspect`／`collect` は待たずに `delete-pending` で失敗します。
+- 結果JSONは `status`・`reasonCode`・`seriesId`・`keepCount`・`excessCount`、`retained`／`candidates`／`held`／`deleting`／`deleted` の件数とID、`remaining`、`foreignInvalid`、Buildごとの `outcomes`、送信回数 `requests`（`delete`・`get`）だけで、endpoint・ローカルpath・例外本文を含みません。exitは0=完了（`within-limit`・`protected-over-limit` を含む）、1=blocked／失敗、2=partialです。`--dry-run` はlockを取らず、記録にもnetworkにも触れずに同じ分類を返します。
+- 削除は書込み鍵のあるPCだけが行います。Cloud等の読み取り専用tokenでは行いません。削除したBuildは `build inspect` が `payload-deleted` を返すことで分かります。R2のDELETEが403を返す場合もbucketのruleは変更しません。
+
+known limits: 別PC・Cloudでのpublishと利用（取得・保護）は観測しません。別PCの成功は数えないため、R2全体では系列がNを超えて残りえます（消さない方向の誤差です）。receiptを失ったobjectは候補にならず、回収は後続の作業です。「最新」は記録した `publishedAt` の順で、時計が巻き戻っていた間に確定したpublishの順序は保証しません。同じBuildを別PCから同時に削除する運用は想定しません。bucketのversioningが有効な場合、404の確認は現行版が無いことだけを示します。Contentの実DELETE、ArtifactsRootの `players/`・`content/` の件数清掃と `.staging` 回収、系列の退役、自動起動は後続の作業で、このコマンドはR2のBuild object以外を削除しません。
+
+非秘密の合成receiptと注入した時計・transport・予算による全件offline検証は次のコマンドです。並行は別processをsignalで同期し、時間待機を使いません。
+
+```powershell
+pwsh tools/Artifacts/tests/BuildCleanup.Tests.ps1 -Case '*' -ResultPath <result-json-path>
 ```
 
 ### Evidenceの責務とoffline検証

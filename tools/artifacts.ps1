@@ -8,8 +8,10 @@ try {
     # オプション名の字種を許しても、必要fieldの完全一致で未知引数を拒否する。
     if($Arguments[0] -ceq 'build'){
         if($Arguments.Count -lt 6 -or $Arguments[2] -cne '--profile' -or $Arguments[3] -cne 'osm'){throw 'unsupported-command'}
-        $buildAction=$Arguments[1];$buildOpts=@{}
+        $buildAction=$Arguments[1];$buildOpts=@{};$buildDry=$false
         for($j=2;$j -lt $Arguments.Count;$j+=2){
+            # 値を取らない--dry-runはcleanupだけ。件数Nや削除対象を選ぶ引数は設けない。
+            if($Arguments[$j] -ceq '--dry-run'){if($buildDry -or $buildAction -cne 'cleanup'){throw 'unsupported-command'};$buildDry=$true;$j--;continue}
             if($j+1 -ge $Arguments.Count -or $Arguments[$j] -cnotmatch '\A--[a-z0-9-]+\z' -or $buildOpts.ContainsKey($Arguments[$j])){throw 'unsupported-command'}
             $buildOpts[$Arguments[$j]]=$Arguments[$j+1]
         }
@@ -19,18 +21,29 @@ try {
             'inspect'{@('--profile','--config','--build-id')}
             # --artifacts-rootだけは省略でき、省略時はOSM_ARTIFACTS_ROOTを読む（既定値は無い）。
             'collect'{if($buildOpts.ContainsKey('--artifacts-root')){@('--profile','--config','--source','--artifacts-root')}else{@('--profile','--config','--source')}}
+            'cleanup'{@('--profile','--config','--project','--target','--configuration')}
+            'use'{@('--profile','--config','--build-id','--consumer','--until','--reason')}
+            'release'{@('--profile','--config','--build-id','--protection')}
             default{throw 'unsupported-command'}
         }
         if((($buildOpts.Keys|Sort-Object) -join ',') -cne (($needed|Sort-Object) -join ',')){throw 'unsupported-command'}
-        Import-Module (Join-Path $PSScriptRoot 'Artifacts/BuildApplication.psm1')
+        if($buildAction -ceq 'cleanup'){Import-Module (Join-Path $PSScriptRoot 'Artifacts/BuildCleanup.psm1')}
+        else{Import-Module (Join-Path $PSScriptRoot 'Artifacts/BuildApplication.psm1')}
+        # inspect/collectは、削除状態を確認した共有access lockの保持中に結果を出力する。
+        $printed=@{done=$false}
+        $emit={param($o)[Console]::WriteLine((ConvertTo-Json -InputObject $o -Compress -Depth 20));$printed.done=$true}.GetNewClosure()
         $outcome=switch($buildAction){
             'publish'{Invoke-BuildPublish $buildOpts['--config'] $buildOpts['--selection']}
             'fetch'{Invoke-BuildFetch $buildOpts['--config'] $buildOpts['--reference'] $buildOpts['--sha256']}
-            'inspect'{Invoke-BuildInspect $buildOpts['--config'] $buildOpts['--build-id']}
-            'collect'{Invoke-BuildCollect $buildOpts['--config'] $buildOpts['--source'] $buildOpts['--artifacts-root']}
+            'inspect'{Invoke-BuildInspect $buildOpts['--config'] $buildOpts['--build-id'] $emit}
+            'collect'{Invoke-BuildCollect $buildOpts['--config'] $buildOpts['--source'] $buildOpts['--artifacts-root'] $emit}
+            'cleanup'{Invoke-BuildCleanup $buildOpts['--config'] $buildOpts['--project'] $buildOpts['--target'] $buildOpts['--configuration'] $buildDry}
+            'use'{Invoke-BuildUse $buildOpts['--config'] $buildOpts['--build-id'] $buildOpts['--consumer'] $buildOpts['--until'] $buildOpts['--reason']}
+            'release'{Invoke-BuildRelease $buildOpts['--config'] $buildOpts['--build-id'] $buildOpts['--protection']}
         }
-        [Console]::WriteLine((ConvertTo-Json -InputObject $outcome -Compress -Depth 20))
-        if($outcome.status -ceq 'passed'){exit 0};exit 1
+        if(-not $printed.done){[Console]::WriteLine((ConvertTo-Json -InputObject $outcome -Compress -Depth 20))}
+        # cleanupのpartial（未解決の試行・残りの候補あり）は2。次回の実行で続きを処理する。
+        if($outcome.status -ceq 'passed'){exit 0};if($outcome.status -ceq 'partial'){exit 2};exit 1
     }
     # ContentもBuild/Evidenceと独立したgrammar。保存単位（revision丸ごと・file単位object）の意味を混同しない。
     if($Arguments[0] -ceq 'content'){
