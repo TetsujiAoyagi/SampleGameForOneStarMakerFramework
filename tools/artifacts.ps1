@@ -17,6 +17,8 @@ try {
             'publish'{@('--profile','--config','--selection')}
             'fetch'{@('--profile','--config','--reference','--sha256')}
             'inspect'{@('--profile','--config','--build-id')}
+            # --artifacts-rootだけは省略でき、省略時はOSM_ARTIFACTS_ROOTを読む（既定値は無い）。
+            'collect'{if($buildOpts.ContainsKey('--artifacts-root')){@('--profile','--config','--source','--artifacts-root')}else{@('--profile','--config','--source')}}
             default{throw 'unsupported-command'}
         }
         if((($buildOpts.Keys|Sort-Object) -join ',') -cne (($needed|Sort-Object) -join ',')){throw 'unsupported-command'}
@@ -25,6 +27,7 @@ try {
             'publish'{Invoke-BuildPublish $buildOpts['--config'] $buildOpts['--selection']}
             'fetch'{Invoke-BuildFetch $buildOpts['--config'] $buildOpts['--reference'] $buildOpts['--sha256']}
             'inspect'{Invoke-BuildInspect $buildOpts['--config'] $buildOpts['--build-id']}
+            'collect'{Invoke-BuildCollect $buildOpts['--config'] $buildOpts['--source'] $buildOpts['--artifacts-root']}
         }
         [Console]::WriteLine((ConvertTo-Json -InputObject $outcome -Compress -Depth 20))
         if($outcome.status -ceq 'passed'){exit 0};exit 1
