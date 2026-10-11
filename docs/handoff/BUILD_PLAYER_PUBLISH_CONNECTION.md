@@ -113,7 +113,7 @@ A2 の代替構成担当はこの節だけを読む。§0 以降の A1 初稿を
 ## 0. メタデータ
 
 - type: `slice`
-- status: `D`（判定C GO、C' FAIL（証拠の未充足）。Phase D の人間判断待ち）
+- status: `done`（Phase D 完了。owner が GO を採用）
 - branch: `feat/build-player-publish-phase-a`
 - implementation base commit: `32ec358`（凍結時点の `origin/develop` と同一）
 - implementation head commit: `d35823c`
@@ -360,4 +360,13 @@ A2 の代替構成担当はこの節だけを読む。§0 以降の A1 初稿を
 
 ## 9. Phase D
 
-未着手
+- 判断者: owner（人間）。記録: Claude Code / Claude Opus 5.5。2026-10-11。
+- C と C' の突き合わせ: コードの阻害欠陥は、C・C'・PR レビュー（cursor[bot]、`d35823c` 対象）のいずれでも 0 件だった。C' の FAIL 理由は「再実行で PUT していない」に R2 側の観測が無いことだった。
+- owner の観測（C' の不足を埋めるもの）:
+  - R2 から `bundle.zip` を直接ダウンロードした。SHA-256 とサイズは判定C の期待値と一致した。
+  - 展開後の比較で一時的に差分が出たが、原因は展開先のフルパスが 260 字を超えて 18 file が展開されなかったことだった。zip 自体には manifest の 266 file がすべて入っていた。
+  - R2 の Last Modified は 2026-10-11 09:00:09 JST だった。1回目 collect の PUT→読戻し→receipt 確定（09:00:15.87）の範囲内で、2回目（09:00:48）・3回目（09:01:43）の後に更新は無い。
+- 採否: owner が案A を選んだ。上記の観測で C' の不足は解消済みとして採用し、GO とする。C' の FAIL という記録は §8 にそのまま残す。
+- 後続へ送る指摘（C・C'・PR レビューの和集合）: 失敗時の `publish` 表示、異常終了時の `.staging` 回収、build-config の二度読み、並行敗者の扱い、path 長超過の reasonCode、evidence 生出力のローカル path。program の §4 B へ移送した。
+- Evidence の保存・引渡し: Phase A snapshot、Phase B result snapshot、判定C evidence bundle、C' blind bundle は確認済み（§0）。削除前の本書は final record として publish し、別 process の fetch で一致を確認する。
+- task 終了・後始末: owner の完了指示を受けて、merge 後に `workflow-task.ps1 end -Reason completed` を記録する。
