@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（A0・A1 初稿完了、A2 独立レビュー結果を記録済み。A3 は未実施で、本書はまだ凍結していない）
+- status: `A`（A0・A1 初稿完了、A2 の独立レビュー 3 件を記録済み。A3 は未実施で、本書はまだ凍結していない。§5 の採否は主担当の提案）
 - branch: `codex/artifact-storage-build-retention-cleanup`
 - implementation base commit: `cf7b77fefb4e84bbd8464732a3c3bccca10f0813`（`develop`。PR #118 を含む。A3 で凍結時の `develop` と照合し直す）
 - implementation head commit: 未到達（Phase B で記録）
@@ -241,18 +241,44 @@ Build 系列 1 つについて、ローカル receipt から成功 publish の�
 - **機械検査:** `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、全 Artifacts PowerShell の parse。
 - **H1/CURRENT 方式の提案（U7）:** **採らない（tracked HANDOFF で進める）**ことを提案する。理由: 直前の Build／Content スライス（PR #111・#115・#118）が tracked HANDOFF で完了しており、H1 の固定 5 step は `artifact-evidence-lifecycle` 用に承認された集合で、Build 清掃の suite を足すには承認仕様の改訂が別途要る。採る場合の利点（B exit の機械記録、Git への raw 追加の拒否）は、本スライスでは判定必須テストの生結果を evidence bundle に入れることで代替できる。A3 で owner が決める。
 - **A0/A1 主担当・モデル・ベンダー:** Claude Opus 5.5／Anthropic（Claude Code desktop、本 session）。
-- **A2 独立レビューごとの観点・担当・モデル・ベンダー（割当て案と実績）:**
-  1. **アーキテクチャゲート**（`architecture-gates.md` の 7 項目、責務マップ、BuildStore の 50% 警報、BuildProtection の 3 責務警報、DELETE の所有者、Evidence との非共通化判断）: Claude Sonnet 5.5／Anthropic、新規 subagent session。
-  2. **失敗経路・fail-closed・競合**（AC3・AC9〜AC17 の穴、誤削除が起きうる順序、途中状態の再開、403/応答不明、時刻・期限境界、検証経路 AC20 の実行可能性）: Claude Fable 5.1／Anthropic、新規 subagent session。
-  3. **A0 だけを読む代替構成**（§1 だけと入力正本を読み、初稿を見ずに構成を出す）: Claude Haiku 5.5／Anthropic、新規 subagent session。
-  - 3 件とも同じ入力版（下記 sha256）を読み、互いの指摘を見ない。A1 主担当と同じベンダーなので**独立性制約あり**（モデル系列は違う）。
-- **A3 統合担当・モデル・採否:** 未実施。
-- **C' 用に予約した担当・モデル・ベンダー:** Phase A で使っていない Grok 系（xAI。`cursor-agent` は Grok 系の明示指定でのみ使う）、または人間担当。B／C の担当が決まった後、B／C と異なることを確認して owner が確定する。Phase A では Grok 系を使わない。
-- **独立性の強化条件を満たせない場合の理由:** A2 は 3 件とも Anthropic で、A1 と同じベンダー。Phase A で利用できる別ベンダーは C′ 用に予約したため。
+- **A2 独立レビューごとの観点・担当・モデル・ベンダー（実績）:** 3 件とも入力版 commit `c28260b3ad311e0ed5951f023992ff02d794d33d` の本書（sha256 `832d4246…a267`）を読み、互いの指摘を見ていない。いずれも読取専用で、R2・資格情報・Unity には触れていない。
+  1. **アーキテクチャゲート**（`architecture-gates.md` の 7 項目、責務マップ、BuildStore の 50% 警報、BuildProtection の 3 責務警報、DELETE の所有者、Evidence との非共通化）: Claude Sonnet 5.5／Anthropic、新規 subagent session。
+  2. **失敗経路・fail-closed・競合・検証経路:** GPT（Codex CLI の既定 `gpt-6-sol`、reasoning high）／OpenAI、`codex exec --sandbox read-only --ephemeral` の新規 session。当初は Claude Fable 5.1 に割り当てたが、利用クレジット不足で起動できなかった。代わりに Opus 5.5 で起動したが、A1 主担当と同じモデルだったため、結果を出す前に止めて GPT へ替えた。
+  3. **A0 だけを読む代替構成:** Claude Haiku 5.5／Anthropic、新規 subagent session。入力は本書 §0〜§1 だけを切り出した版（sha256 `52b95a8b…e716`）。本書と他のレビューを読んでいないと申告した。
+  - 独立性: ②は別ベンダー。①③は A1 主担当と同じベンダー（モデル系列は違う）なので**独立性制約あり**。
+- **A3 統合担当・モデル・採否:** 未実施。下の「主担当の提案」は A3 の入力で、凍結していない。
+- **C' 用に予約した担当・モデル・ベンダー:** Phase A で使っていない Grok 系（xAI。`cursor-agent` は Grok 系の明示指定でのみ使う）、または人間担当。B／C の担当が決まった後、B／C と異なることを確認して owner が確定する。
+- **独立性の強化条件を満たせない場合の理由:** C′ の強化条件（A〜C に未関与の系列・ベンダー）は、Grok を Phase A で使わずに予約したことで満たせる見込み。B／C に Grok を使う場合は満たせなくなるので、そのときは人間担当の C′ を検討する。
 
 ### A2 独立レビュー結果（A3 で採否を決める）
 
-（A2 実施後に記録する）
+総括: blocker は 4 件で、すべて失敗経路レビュー（GPT）から出た。いずれも「誤削除が起きうる順序」を具体的に示している。アーキテクチャゲートは blocker 0 で、新規 3 module の分け方・依存方向・DELETE の所有者・Evidence と共通化しない判断を妥当とした。A0 だけの代替構成は、新規 module・lock・意図→DELETE→404→tombstone の順序で初稿とほぼ同じ構成に独立に到達した。違いは N の置き場、保護の付け外し CLI の有無、停止範囲の 3 点。
+
+| # | 出典 | 重大度 | 指摘（要約） | 主担当の提案（A3 で確定） |
+|---|---|---|---|---|
+| 1 | FAIL-1 | blocker | AC14 の「次回は policy にかかわらず確認を再開し、GET 200 なら DELETE を再送」は、前回 403 で止まった後に保護が期限切れになる等で候補から外れた Build を消しうる | **採用。** 再開時の GET 404 は削除済みとして記録する。GET 200 なら、最新 snapshot・保護・access lock・policy で今も候補の場合だけ再送する。候補でなければ `delete-abandoned.json` を追記して意図を解消し、通常の計数に戻す（Evidence の resolve と同じ考え方）。AC14 を書き換える |
+| 2 | FAIL-2 | blocker | 別 PC の fetch は access lock を取らないので、「取得中は消さない」を満たせない | **採用（範囲を限定して明記）。** 最低条件 4 の「取得中」と保護の収集源を「この PC の記録」に限ると明記する。別 PC の利用は観測できない限界として README の known limits に書き、owner が A3 で受け入れるかを決める。共有の調停は後続（別 host／Cloud） |
+| 3 | FAIL-3 | blocker | use 直後に時計が巻き戻ると `now < createdAt` となり、AC6 では保護が無効になる | **採用。** `createdAt > now` は `protection-unknown`（非削除）。読取時に `createdAt < until`、`until − createdAt ≤ 90 日`、`releasedAt ≥ createdAt` を検査する |
+| 4 | FAIL-4 | blocker | `publishedAt` は確定時の壁時計なので、時計が巻き戻った間の publish が「最古」に見え、実際の最新が消えうる | **採用（検出して止める）。** 系列内に `publishedAt > now` の receipt があれば系列を blocked（`clock-skew`）。「最新」は記録時刻の順と定義し、巻戻り中に確定した publish の順序は保証しない限界を README に書く。単調な順序記録は後続（Content 確定記録の入力） |
+| 5 | FAIL-5／ARCH-6／代替 U6 | major | build-config の bytes が変わると、`Read-BuildReceipt` の config hash 照合で旧 receipt が全て `receipt-invalid` になり、repo 全体が恒久的に blocked。止める範囲も広すぎる | **採用。** catalog は config の hash に依存しない検査（repositoryId・key・seriesId の整合、intent hash、readback）で成功を判定する。止める範囲は「指定系列に属する記録」と「系列を判定できない記録」に絞る。他系列の破損では止めない |
+| 6 | FAIL-6 | minor | 再開分の再送を含めると DELETE が 21 回になりうる。上限の数え方が曖昧 | **採用。** 上限は再送を含む DELETE 試行の総数 20。予算は記録の書込みと確認 GET にも効かせる |
+| 7 | FAIL-7 | major | 403 なら 11 件が残り、実証できない。再実行の「送信 0」を結果 JSON だけでは実通信の証拠にできない。実系列の件数も Phase C 時点で変わりうる | **採用。** 最大 11 件の残置を A3 の承認対象にする。非秘密の通信試行回数を結果に含めて証拠にする。実系列 dry-run の期待値は当日の snapshot から決める。403 なら最低条件 5 は未達 |
+| 8 | ARCH-1 | major | transport 入口の許可判定が実行と同じ式・同じ catch にあり、「印付きは通る」を offline で検証できない | **採用。** 許可判定を純粋関数（例 `Test-R2ArtifactRequestAllowed`）に切り出して export し、表で検証する |
+| 9 | ARCH-2 | major | 保護記録 `protections/<id>.use.json` は `Write-BuildImmutable` の固定名に合わず、書込み経路が責務マップと食い違う | **採用。** `Write-BuildImmutable` の許可を「固定名＋`protections/<32hex>.(use\|release).json`」へ広げると §3 に明記し、BuildStore の予想行数を見直す |
+| 10 | ARCH-3 | minor | BuildProtection の入口 2 関数（use／release）は orchestration で、読取側の catalog も同じ module を import する | **採用。** `Invoke-BuildUse`／`Invoke-BuildRelease` は BuildApplication に置き、BuildProtection は記録の読書きと有効判定（純粋、export）だけにする |
+| 11 | ARCH-4 | minor | `access.lock` を作る主体、既存 Build（`b80d0ef6…`）での扱い、cleanup 側の保持区間が未定義 | **採用。** BuildStore に「無ければ CreateNew、あれば Open」の 1 関数を置く。cleanup は削除意図の書込みから削除済み記録まで保持する |
+| 12 | ARCH-5 | minor | 600 秒予算の実現手段が Evidence 名の `$script:Budget` しか無く、乗ると Evidence へ依存する | **採用。** `New-ArtifactRequest` の Stopwatch（Timer）だけで締める |
+| 13 | ARCH-7 | minor | 「DELETE → GET 404 → 記録」が Evidence 清掃・reset・本スライスで 3 回目 | **保留 → 後続。** 本スライスでは複製し、共通 primitive 化は Content 件数保持の運用接続の A1 へ入力として送る |
+| 14 | ARCH-8 | minor | 既存の Build DELETE 拒否 assert は、印の無い DELETE なので AC17 でもそのまま成立する。改める必要は無い | **採用。** `BuildPublish.Tests.ps1` は変更しない。陽性側は #8 の純粋関数で検証する |
+| 15 | 代替 U2 | — | 印ではなく専用の操作名（`retention-delete`）と C# 側の専用入口にする | **不採用案。** C# 変更が増え、印は権限ではなく境界の表明であることは同じ。#8 で検証可能性は満たせる。A3 で確認 |
+| 16 | 代替 U4 | — | N は CLI `--keep`（既定 10）。build-config に入れると config hash に結び付いて receipt が読めなくなる | **不採用案（本スライス）。** 誤った小さい値による一括削除の窓を開けない。build-config に入れない点は同意。設定化は自動起動スライスへ |
+| 17 | 代替 U1 | — | 保護は Evidence と同形の記録にし、use／release CLI は後続 | **一部採用。** 記録の形（owner・consumer・reason・createdAt・有限 until・releasedAt）を Evidence に揃える。CLI は本スライスに残す（最低条件 2 に保護を付ける手段が要る） |
+| 18 | 代替 §5 | — | bucket の versioning があると GET 404 は非現行版の不在を示さない | **採用（記録）。** F5 に追記し、AC20 で owner に versioning の有無を 1 回観察してもらう。404 確認は現行版の不在の確認と明記する |
+| 19 | 代替 §4 | — | 系列 lock ではなく repo lock で直列化する | **保留。** 系列ごとに独立に進められる利点を優先して系列 lock を提案。A3 で確認 |
+
+「妥当」とされた主な点（重複を除く）: 未完了を成功に数えない／読めない保護で止める方向、系列 lock 後の再収集、DELETE 後の厳密な 404 確認、不変記録による再開性、Content DELETE 拒否の維持、層ごとの清掃分離、公開面の最小性（`build delete` を作らない、N 定数）、Content・ArtifactsRoot に触れないことをテストで固定する計画。
+
+A3 で owner に判断を求める点: #2（別 PC の利用を観測しない限界の受け入れ）、#4（時計巻戻り中の順序を保証しない限界の受け入れ）、#7（検証用系列の最大 11 件の残置）、#15・#16・#19 の不採用・保留、H1/CURRENT を採らない提案（U7）。
 
 ## 6. Phase B 実装結果
 
