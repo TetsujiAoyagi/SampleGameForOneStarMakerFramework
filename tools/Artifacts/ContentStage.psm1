@@ -35,7 +35,14 @@ function Invoke-ContentStage([string]$Source,[string]$ArtifactsRoot,$Manifest){
     $entries=@(Get-BuildStageEntries $Source @($expected|ForEach-Object{$_.path}))
     Assert-ContentEntries $Source $expected 'content-mismatch'
     $destination=Get-ContentStageDestination $ArtifactsRoot $Manifest.ContentSet $Manifest.TargetToken $Manifest.Revision
-    $stage=Invoke-BuildStage $Source $destination $entries $null $expected {param($dir)Get-BuildInventory $dir}
+    # 同じrevisionの初回同時公開では、renameに負けた側もstage-conflictを受け取る。退避先が期待と完全一致なら
+    # 勝った側が同じ内容を置いただけなので既存として扱い、排他はlock（publish-in-progress）に任せる。
+    try{$stage=Invoke-BuildStage $Source $destination $entries $null $expected {param($dir)Get-BuildInventory $dir}}
+    catch{
+        if($_.Exception.Message -cne 'stage-conflict'){throw}
+        try{Assert-ContentSet $destination $expected 'stage-conflict';Assert-ContentEntries $destination $expected 'stage-conflict'}catch{throw 'stage-conflict'}
+        $stage='existing'
+    }
     return [pscustomobject]@{Stage=$stage;Path=$destination;Entries=$expected}
 }
 # 公開は退避先をprivate operationへsnapshotして行い、ArtifactsRootのfileを直接送らない。

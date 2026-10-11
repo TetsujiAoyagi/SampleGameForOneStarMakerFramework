@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory=$true)][string]$Mode,[Parameter(Mandatory=$true)][string]$Config,
     [string]$Source,[string]$ArtifactsRoot,[string]$Reference,[string]$Sha256,[string]$ContentSet,[string]$Target,[string]$Revision,
     [string]$StoreRoot,[string]$TransferRoot,[string]$DeploymentRoot,[string]$RemoteRoot,[string]$OwnedRoots,
-    [string]$ReadyEvent='',[string]$GoEvent=''
+    [string]$ReadyEvent='',[string]$GoEvent='',[string]$StageReadyEvent='',[string]$StageGoEvent=''
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
@@ -38,6 +38,11 @@ $readback={param($op,$cfg,$gen,$key,$bytes,$hash)
 Set-EvidenceTestValue ArtifactApplication TransportHook $transport
 Set-EvidenceTestValue ArtifactApplication ReadbackHook $readback
 foreach($m in @(Get-EvidenceTestModules ContentTransfer)){& $m {function script:Get-CredentialStatus {param($profile)[pscustomobject]@{Generation=('f'*32)}}}}
+if($StageReadyEvent){
+    # 退避のrename直前で両processを揃える（signal同期。時間待機は使わない）。
+    $sr=[Threading.EventWaitHandle]::OpenExisting($StageReadyEvent);$sg=[Threading.EventWaitHandle]::OpenExisting($StageGoEvent)
+    Set-EvidenceTestValue BuildStage StageHook ({param($phase,$staging)if($phase -ceq 'before-rename'){$null=$sr.Set();if(-not $sg.WaitOne(120000)){throw 'barrier-timeout'}}}.GetNewClosure())
+}
 $cli=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../artifacts.ps1'))
 switch($Mode){
     'collect'{if($ArtifactsRoot){& $cli content collect --profile osm --config $Config --source $Source --artifacts-root $ArtifactsRoot}else{& $cli content collect --profile osm --config $Config --source $Source}}

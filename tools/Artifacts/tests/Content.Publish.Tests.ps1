@@ -10,7 +10,7 @@ Import-Module (Join-Path $PSScriptRoot '../ArtifactPaths.psm1')
 . (Join-Path $PSScriptRoot 'ContentTestSupport.ps1')
 # Content公開（退避・照合経路・順序・再実行・排他・予算・確定点）を、注入したtransport/readback/時計と
 # 隔離したstore・transfers・ArtifactsRootだけで検査する。実R2との往復は判定Cの操作証拠として扱う。
-$registered=@('collect-roundtrip','source-and-root-reject','stage-integrity','object-path','revision-conflict-and-order','resume-after-failure','rerun-priorities','concurrent-publish','budget','store-faults','fresh-process-cli')
+$registered=@('collect-roundtrip','source-and-root-reject','stage-integrity','object-path','revision-conflict-and-order','resume-after-failure','rerun-priorities','concurrent-stage','concurrent-publish','budget','store-faults','fresh-process-cli')
 $selected=@(if($Case -ceq '*'){$registered}else{$Case.Split(',')})
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 function Assert([bool]$Condition,[string]$Message){Assert-EvidenceTest $Condition $Message}
@@ -179,6 +179,20 @@ foreach($caseName in $selected){
                 # (4) intentは同じで遠隔のtransport.jsonだけ違えばrevision-conflict。
                 Set-Remote $fx (Get-Key 'transport.json' $rev2) ([byte[]](1,2,3,4));Clear-Order $fx
                 Assert-Failed (Collect $fx $s2) 'revision-conflict';Assert (@(Get-PutKeys $fx).Count -eq 0) 'revision-conflict sent something'
+            }
+            'concurrent-stage'{
+                $src=New-ContentSource $fx;$n=$src.Names.Count+1;$names=@(1..2|ForEach-Object{'osm-content-'+[Guid]::NewGuid().ToString('N')});$goName='osm-content-'+[Guid]::NewGuid().ToString('N')
+                $readies=@($names|ForEach-Object{[Threading.EventWaitHandle]::new($false,[Threading.EventResetMode]::ManualReset,$_)});$go=[Threading.EventWaitHandle]::new($false,[Threading.EventResetMode]::ManualReset,$goName)
+                try{
+                    $jobs=@($names|ForEach-Object{Invoke-Child (Get-ChildArgs $fx 'collect' @{Source=$src.Dir;ArtifactsRoot=$fx.ArtifactsRoot;StageReadyEvent=$_;StageGoEvent=$goName})})
+                    foreach($e in $readies){Assert ($e.WaitOne(120000)) 'child did not reach the stage rename'}
+                    $null=$go.Set();$out=@($jobs|ForEach-Object{Finish-Child $_})
+                }finally{$go.Dispose();foreach($e in $readies){$e.Dispose()}}
+                $vals=@($out|ForEach-Object{$_.Output.Trim()|ConvertFrom-Json -Depth 8 -DateKind String})
+                Assert (@($vals|Where-Object{$_.status -ceq 'passed'}).Count -ge 1) "nobody published: $($out|ForEach-Object{$_.Output+$_.Error})"
+                foreach($v in $vals){Assert ($v.status -ceq 'passed' -or $v.reasonCode -ceq 'publish-in-progress') "rename loser returned $($v.reasonCode)"}
+                Assert (@([IO.Directory]::EnumerateFiles($fx.Remote,'put-attempt-*.txt')).Count -eq $n) 'objects were sent more than once'
+                Assert (@([IO.Directory]::EnumerateDirectories([IO.Path]::GetDirectoryName((Get-StageDir $fx)))).Count -eq 1) 'loser staging left'
             }
             'concurrent-publish'{
                 $src=New-ContentSource $fx;$readyName='osm-content-'+[Guid]::NewGuid().ToString('N');$goName='osm-content-'+[Guid]::NewGuid().ToString('N')

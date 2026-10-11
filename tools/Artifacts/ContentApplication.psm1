@@ -41,8 +41,10 @@ function Get-ContentCommitted($Dir,$Config,$Manifest){
 }
 # 成功fieldは最後まで空に保つ。PUT・GETの成功だけでreferenceを返すと、正本receiptの無い成果物を
 # 成功として扱う呼出側が生まれる。receiptのatomic renameだけが成功確定点。
-# 再実行の優先順位: 退避先の不一致(stage-conflict) → intent違い(intent-conflict) → 成功receipt(existing)
-# → 遠隔transport.jsonの不一致(revision-conflict) → 照合経路での続行。
+# 再実行の優先順位（AC11）: (1)退避先の不一致(stage-conflict) → (2)成功receiptがあり同一入力ならexisting
+# → (3)intentがあり違えばintent-conflict → (4)遠隔transport.jsonの不一致(revision-conflict) → (5)照合経路での続行。
+# 「同一入力」はintent.jsonのbytes一致で判定する。実装は(2)と(3)を同じintent照合で先に評価する
+# （違えばreceiptがあってもintent-conflictで、結果は上の番号順と同じ）。
 function Invoke-ContentCollect([string]$ConfigPath,[string]$Source,[string]$ArtifactsRoot){
     $r=[ordered]@{status='failed';reasonCode='unconfirmed';reference=$null;manifestSha256=$null;contentSet=$null;target=$null;revision=$null;stage=$null;publish=$null;objects=$null;outputPath=$null;receiptPath=$null;residue=[ordered]@{localPath=$null;remote='pre-put'}}
     $lock=$null;$ctx=$null;$manifest=$null
@@ -65,6 +67,7 @@ function Invoke-ContentCollect([string]$ConfigPath,[string]$Source,[string]$Arti
         $dir=Get-ContentDirectory $config.Data.repositoryId $manifest.ContentSet $manifest.TargetToken $manifest.Revision $true
         $lock=Enter-ContentPublishLock $dir
         $intent=New-ContentIntent $config $manifest
+        # 同一入力か（intent bytesの一致）。違えばintent-conflict。receiptの有無を見る前に判定する。
         $null=Test-ContentIntent $dir $intent
         if([IO.File]::Exists([IO.Path]::Combine($dir,'receipt.json'))){
             $committed=Get-ContentCommitted $dir $config $manifest

@@ -18,7 +18,8 @@ function Get-ContentRoot([bool]$Create=$false){
     if($Create){
         # 共有親のACLは変更せず、このContent領域と子だけを専用所有にする。
         if(-not [IO.Directory]::Exists([IO.Path]::GetDirectoryName($root))){throw 'content-store-unavailable'}
-        if(-not [IO.Directory]::Exists($root)){[IO.Directory]::CreateDirectory($root)|Out-Null;Set-ArtifactAcl $root $true}
+        # 初回の同時作成では他processが先に作った直後のACL未設定を見うる。作成は冪等にし、ACLが無ければ付ける。
+        [IO.Directory]::CreateDirectory($root)|Out-Null;try{Assert-ArtifactAcl $root $true}catch{Set-ArtifactAcl $root $true}
     }
     if([IO.Directory]::Exists($root)){
         $root=(Get-WindowsStorePathIdentity $root).physicalPath
@@ -33,8 +34,8 @@ function Get-ContentDirectory([string]$RepositoryId,[string]$ContentSet,[string]
     $path=Get-ContentRoot $Create
     foreach($part in @($RepositoryId,$ContentSet,$TargetToken,$Revision)){
         $path=[IO.Path]::Combine($path,$part);Assert-NoArtifactReparse $path
-        if([IO.Directory]::Exists($path)){Assert-ArtifactAcl $path $true}
-        elseif($Create){[IO.Directory]::CreateDirectory($path)|Out-Null;Set-ArtifactAcl $path $true}
+        if($Create){[IO.Directory]::CreateDirectory($path)|Out-Null;try{Assert-ArtifactAcl $path $true}catch{Set-ArtifactAcl $path $true}}
+        elseif([IO.Directory]::Exists($path)){Assert-ArtifactAcl $path $true}
         else{throw 'receipt-missing'}
     }
     return $path
