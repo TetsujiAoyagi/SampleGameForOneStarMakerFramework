@@ -32,6 +32,31 @@ try {
         [Console]::WriteLine((ConvertTo-Json -InputObject $outcome -Compress -Depth 20))
         if($outcome.status -ceq 'passed'){exit 0};exit 1
     }
+    # ContentもBuild/Evidenceと独立したgrammar。保存単位（revision丸ごと・file単位object）の意味を混同しない。
+    if($Arguments[0] -ceq 'content'){
+        if($Arguments.Count -lt 6 -or $Arguments[2] -cne '--profile' -or $Arguments[3] -cne 'osm'){throw 'unsupported-command'}
+        $contentAction=$Arguments[1];$contentOpts=@{}
+        for($j=2;$j -lt $Arguments.Count;$j+=2){
+            if($j+1 -ge $Arguments.Count -or $Arguments[$j] -cnotmatch '\A--[a-z0-9-]+\z' -or $contentOpts.ContainsKey($Arguments[$j])){throw 'unsupported-command'}
+            $contentOpts[$Arguments[$j]]=$Arguments[$j+1]
+        }
+        $needed=switch($contentAction){
+            'fetch'{@('--profile','--config','--reference','--sha256')}
+            'inspect'{@('--profile','--config','--content-set','--target','--revision')}
+            # --artifacts-rootだけは省略でき、省略時はOSM_ARTIFACTS_ROOTを読む（既定値は無い）。
+            'collect'{if($contentOpts.ContainsKey('--artifacts-root')){@('--profile','--config','--source','--artifacts-root')}else{@('--profile','--config','--source')}}
+            default{throw 'unsupported-command'}
+        }
+        if((($contentOpts.Keys|Sort-Object) -join ',') -cne (($needed|Sort-Object) -join ',')){throw 'unsupported-command'}
+        Import-Module (Join-Path $PSScriptRoot 'Artifacts/ContentApplication.psm1')
+        $outcome=switch($contentAction){
+            'fetch'{Invoke-ContentFetch $contentOpts['--config'] $contentOpts['--reference'] $contentOpts['--sha256']}
+            'inspect'{Invoke-ContentInspect $contentOpts['--config'] $contentOpts['--content-set'] $contentOpts['--target'] $contentOpts['--revision']}
+            'collect'{Invoke-ContentCollect $contentOpts['--config'] $contentOpts['--source'] $contentOpts['--artifacts-root']}
+        }
+        [Console]::WriteLine((ConvertTo-Json -InputObject $outcome -Compress -Depth 20))
+        if($outcome.status -ceq 'passed'){exit 0};exit 1
+    }
     if ($Arguments[0] -ceq 'credentials' -and $Arguments[1] -cin @('set','status','remove')) {
         # Existing local credential grammar and exit meanings remain unchanged.
         if ($Arguments[2] -cne '--profile' -or $Arguments[3] -cne 'osm') { throw 'Invalid command.' }

@@ -198,6 +198,45 @@ pwsh tools/artifacts.ps1 build collect --profile osm --config <build-config> --s
 pwsh tools/Artifacts/tests/BuildCollect.Tests.ps1 -Case '*' -ResultPath <result-json-path>
 ```
 
+### 開発Content 1件の保存と取得（content collect / inspect / fetch）
+
+Content出力（`transport.json` + `content/`、BS4の `artifacts/bs4/transport/<revision>/` など）1件を、ZIPにせずfile単位のobjectとして保存します。単位はrevisionごとで、保存後は丸ごと不変です（上書き・差分upload・content-addressed・GCはしません）。Playerとは独立した保存種別で、Build/Evidenceの契約や保存形式は変えません。Unityを起動せず、Unity側からも自動起動しません。
+
+```powershell
+pwsh tools/artifacts.ps1 content collect --profile osm --config <content-config> --source <Content出力の絶対path> [--artifacts-root <ArtifactsRoot>]
+pwsh tools/artifacts.ps1 content inspect --profile osm --config <content-config> --content-set <contentSet> --target <windows-x64-player> --revision <revision>
+pwsh tools/artifacts.ps1 content fetch --profile osm --config <content-config> --reference <osm-content-v1:...> --sha256 <独立した期待manifestSha256>
+```
+
+`content-config` は `build-config` と同じ形の非秘密8 field JSONです。`schemaVersion=1`、`purpose=content`、`profile=osm`、既存登録済みEvidence configの絶対`evidenceConfigPath`とそのbytesの`evidenceConfigSha256`、canonical `repositoryId`、`prefix=development/content/v1/`、`policy=content-publish-v1` を指定します。`build-config` は流用できません。`collect` と `fetch` はconfigのbytesを新規private operationへ複写して使い、`inspect` は渡されたconfigをprivate operation内で読みます。
+
+`collect` の処理は次の順です。入力は `transport.json` と `content/` を直下に持つdirectory 1件で、最新の出力は自動選択しません。ArtifactsRootは `build collect` と同じ規則（`--artifacts-root` かユーザー環境変数 `OSM_ARTIFACTS_ROOT`、既定値なし）です。
+
+1. `transport.json`（上限4 MiB）を読み、`contentSet`・`revision`・`target`・`files` を検査します。directory名はrevisionと一致させます。`target` は `StandaloneWindows64-Player` → `windows-x64-player` の1行の表だけで、表に無い値は `unsupported-series` です。`contentSet` は `[a-z0-9][a-z0-9-]{0,63}`、revisionは `yyyyMMddTHHmmssfffZ-<32hex>` に限ります。
+2. manifestの `files` の各 `path` は `PackagePolicy` の規則（予約名・末尾のdot/space・保護名・`..`・空segmentの拒否、240字以下）に加え、文字を `[A-Za-z0-9._-]` と `/` に限り、`..` を含む名前は拒否します（transportのkey検査と揃えるため）。大文字小文字だけ違う重複、fileとdirectoryの衝突（`a` と `a/b`）、`size` が0のfileは拒否します。実fileの集合・size・SHA-256がmanifestと完全に一致する場合だけ進みます。
+3. `<ArtifactsRoot>/content/<contentSet>/<target>/<revision>/` へcopyで退避します（`Invoke-BuildStage` の規則。元は変更しません）。既存の退避先は全hashが一致すれば再利用し、違えば `stage-conflict` で止まります。退避先は削除しません。
+4. 退避先を新規private operationへsnapshotし、全fileをmanifestと照合してから使います。各PUTの直前にも送るfileのsizeとSHA-256を再照合し、ArtifactsRootのfileを直接送りません。
+5. 公開の最初に、遠隔の `transport.json` を別PowerShell processのGETで照合します。存在してhashが違えば `revision-conflict` で何も送らず止まります。その後 `content/*` をmanifestの順に、各objectについて「子processのGETで照合 → 404なら再照合してPUT → 子processの読戻しで照合」を直列に行い、最後に `transport.json` を置きます。一致したobjectは再送せず、不一致（`object-conflict`）・403・timeout・応答不明（`object-unconfirmed`）はそのobjectを未確認として止まり、DELETEも上書きもしません。PUT応答が不明になったkeyは同じrunで再送しません。
+6. 全objectの照合が通った後、ローカルの `receipt.json`（`contents-v1/<repositoryId>/<contentSet>/<target>/<revision>/`）のatomic renameだけを成功確定点とし、`reference`（`osm-content-v1:`、opaque）と、それとは別の `manifestSha256`（`transport.json` のbytesのSHA-256）を返します。失敗・応答不明・途中停止・予算超過では成功を返しません。
+
+再実行は次の優先順位です。退避先に違う内容があれば `stage-conflict`、`intent.json`（最初の送信前に固定する決定的な送信計画）が今回と違えば `intent-conflict`（`receipt` があっても成功にしません）、`receipt` があり同一入力なら送信せず同じ `reference` を返し（`publish=existing`）、遠隔の `transport.json` のhashが違えば `revision-conflict`、それ以外は上の経路で続行します。途中で止まったrevisionを同じ入力で再実行すると、照合が一致したobjectは再送せず、404のものだけPUTして完了します。ArtifactsRootを変えて呼んでも同じ判定です。同じrevisionの同時公開は、`publish.lock`（`FileShare.None` で開いたhandle。保持区間はintentの照合からreceiptの再読まで）を取れた片方だけが進み、負けた側は `publish-in-progress` で止まります。永続の予約は持ちません。
+
+`inspect` はローカルのreceiptだけを見て同じ `reference` と `manifestSha256` を返します（応答だけを失った場合の回復）。`receipt` が無い状態では成功を返しません。
+
+`fetch` は `reference` と、**独立に渡された**期待 `manifestSha256` の両方を要求します。referenceが含むhashは照合にだけ使い、期待hashの代わりにしません。新規private operationの `payload/` へ `transport.json` と全fileを取得し、取得した `transport.json` のhashが期待と違えばほかのfileを取らず、各fileのsizeとSHA-256、集合の完全一致（余剰・欠落の拒否）、path規則を検査します。取得物は実行せず、ArtifactsRootへは書きません。
+
+上限は暫定の暴走防止ガードで、Content固有の容量上限の決定ではありません。object 1,024件（`transport.json` を含む）、宣言sizeの合計512 MiB、単一file 256 MiB、`transport.json` 4 MiB、R2 keyは512字以下です。宣言sizeは取得前に検査し、転送中の上限はtransportの256 MiBだけです。時間予算は公開が `300 + 8×N` 秒、取得が `300 + 2×N` 秒（Nはobject数。Spring 221 objectで公開2,068秒、取得742秒）で、予算はobjectごとのPUT・GET・読戻しのdeadlineにも効き、超えたら成功にしません。読戻しは1 objectごとに別processを起動するため、時間の大半は子processの起動です。
+
+known limits: R2側には上書きを防ぐ仕組みが無く、「上書きしない」はクライアント側の照合だけで守ります。照合とPUTの間に別PCのwriterが書く競合は防ぎません（同じrevisionを別PCから同時に公開する運用は想定しません）。`inspect` はローカルのreceiptしか見ないので、遠隔のobjectが後で失われても成功を返します。0 byteのfile、Windows以外のtarget、確定記録と「最新」の解決、R2からArtifactsRootへの配置と不足fileの再利用、R2上の孤児objectの回収、公開・取得で残るprivate operationの期限清掃、件数保持の実DELETEは後続の作業です。`development/content/v1/` 配下のDELETEはtransportの入口で拒否し、このコマンドはR2 objectを削除しません。
+
+非秘密の合成fixture（実Contentの形を模した平坦な32hex名の `.cf`/`.resS`）と注入したtransport・readback・時計によるofflineの検証は次のコマンドです。並行実行は別processをsignalで同期し、時間待機を使いません。
+
+```powershell
+pwsh tools/Artifacts/tests/Content.Contract.Tests.ps1 -Case '*' -ResultPath <result-json-path>
+pwsh tools/Artifacts/tests/Content.Publish.Tests.ps1 -Case '*' -ResultPath <result-json-path>
+pwsh tools/Artifacts/tests/Content.Fetch.Tests.ps1 -Case '*' -ResultPath <result-json-path>
+```
+
 ### 開発Buildの件数保持policy
 
 `BuildRetentionPolicy.psm1` は内部の `Get-BuildRetentionDecision -SeriesId <string> -Builds <object[]> -KeepCount <int|long>` だけを公開します。

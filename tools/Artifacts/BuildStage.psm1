@@ -47,7 +47,27 @@ function Get-BuildStageFileHash([string]$Path){
     $stream=[IO.FileStream]::new($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
     try{return [pscustomobject]@{bytes=$stream.Length;sha256=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($stream)).ToLowerInvariant()}}finally{$stream.Dispose()}
 }
-# 一覧はApplicationが既存のGet-BuildInventoryで取って渡す。ここで別の走査規則を作らない。
+# 下位directoryへ入る前にreparseを拒否し、選択rootの外を走査しない。
+# 内容の選別はしない。呼出側が明示した全file集合と一致することを後段で検査する。
+function Get-BuildInventory([string]$Root){
+    if([OneStarMaker.Artifacts.Packaging.PackagePolicy]::HasReparse($Root)){throw 'snapshot-conflict'}
+    $names=[Collections.Generic.List[string]]::new();$seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $pending=[Collections.Generic.Stack[string]]::new();$pending.Push($Root)
+    while($pending.Count){
+        $dir=$pending.Pop()
+        foreach($item in [IO.Directory]::EnumerateFileSystemEntries($dir)){
+            $attributes=[IO.File]::GetAttributes($item)
+            if(($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'snapshot-conflict'}
+            if(($attributes -band [IO.FileAttributes]::Directory) -ne 0){$pending.Push($item);continue}
+            $relative=[IO.Path]::GetRelativePath($Root,$item).Replace([IO.Path]::DirectorySeparatorChar,'/')
+            $null=[OneStarMaker.Artifacts.Packaging.PackagePolicy]::Relative($relative)
+            if(-not $seen.Add($relative)){throw 'snapshot-conflict'}
+            $names.Add($relative)
+        }
+    }
+    return @($names.ToArray()|Sort-Object -CaseSensitive)
+}
+# 一覧はApplicationがGet-BuildInventory（上）で取って渡す。ここで別の走査規則を作らない。
 function Get-BuildStageEntries([string]$Root,[string[]]$Files){
     foreach($name in $Files){
         $h=Get-BuildStageFileHash ([OneStarMaker.Artifacts.Packaging.PackagePolicy]::Under($Root,$name))
@@ -104,9 +124,12 @@ function Invoke-BuildStage([string]$Source,[string]$Destination,$SourceEntries,[
                 }finally{$hash.Dispose();$writer.Dispose()}
             }finally{$reader.Dispose()}
         }
-        $info=[IO.Path]::Combine($staging,'build-info.json')
-        $stream=[IO.FileStream]::new($info,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
-        try{$stream.Write($InfoBytes,0,$InfoBytes.Length);$stream.Flush($true)}finally{$stream.Dispose()}
+        # InfoBytesが$nullの呼出し（Content）はinfo fileを足さない。足す場合の挙動は従来どおり。
+        if($null -ne $InfoBytes){
+            $info=[IO.Path]::Combine($staging,'build-info.json')
+            $stream=[IO.FileStream]::new($info,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+            try{$stream.Write($InfoBytes,0,$InfoBytes.Length);$stream.Flush($true)}finally{$stream.Dispose()}
+        }
         if($script:StageHook){& $script:StageHook 'before-verify' $staging}
         # 書込み後に別handleで読み直す。copy中の差替えや書込み不良を公開前に検出する。
         if(-not (Test-BuildStageMatch $staging $Expected @(& $InventoryReader $staging))){throw 'stage-hash-mismatch'}
@@ -118,4 +141,4 @@ function Invoke-BuildStage([string]$Source,[string]$Destination,$SourceEntries,[
         if(-not $published -and [IO.Directory]::Exists($staging)){[IO.Directory]::Delete($staging,$true)}
     }
 }
-Export-ModuleMember -Function Resolve-BuildArtifactsRoot,Assert-BuildStageSource,Read-BuildStageBytes,Read-BuildStageTransport,Get-BuildStageEntries,Get-BuildStageDestination,Invoke-BuildStage
+Export-ModuleMember -Function Resolve-BuildArtifactsRoot,Assert-BuildStageSource,Read-BuildStageBytes,Read-BuildStageTransport,Get-BuildInventory,Get-BuildStageEntries,Get-BuildStageDestination,Invoke-BuildStage
