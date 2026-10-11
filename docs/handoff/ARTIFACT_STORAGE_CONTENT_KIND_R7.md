@@ -3,19 +3,19 @@
 ## 0. メタデータ
 
 - type: slice（文書 revision。program 文書 `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` を r6 → r7 にする）
-- status: B（A3 凍結済み rev4。2026-10-11、owner の指示）
+- status: C'（A3 凍結済み rev4。Phase C は GO、C' は阻害 1 件で差し戻し上限に到達し、owner の判断待ち）
 - branch: `codex/artifact-storage-content-kind-phase-a` / PR base: `develop`
-- implementation base commit: `4d5dcc379a31bd6d47713d1072e47bed020061ee`（`develop`、PR #116 を含む）
-- implementation head commit: 未実装（Phase B で記録する。実装は文書改訂のみ。コードは変えない）
+- implementation base commit: `c5fb724581e3710f39659018524f7686fe21c791`（A3 凍結 commit。`develop` の `4d5dcc3` との差分は本 HANDOFF と docs/README の Phase A 記載のみ）
+- implementation head commit: `f7302b7bcc9cb7020278ed0f937bce2f0cfdcf2f`（文書改訂のみ。コードは変えていない）
 - risk: normal（保存契約の文書。ただし保存形式が後続の Player 構成と R2 の object 構成を拘束するため、A2 で保存形式の拘束を確認済み）
 - owner: OSM maintainers
 - created: 2026-10-11
 - expires: 2026-11-10 または置換 revision。期限時は owner が更新・廃止を判断する
 - harvest to: r7 の確定内容は `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §2/§4 に入る（本書の目的そのもの）。実装済みの操作は後続スライスが `tools/Artifacts/README.md` へ反映する
-- Phase A snapshot の取得案内・状態: 未保存（ローカルで生成。Artifact Storage への publish は本依頼の範囲外）
-- Phase B result snapshot の取得案内・状態: 未生成（Phase B で生成）
-- evidence bundle の取得案内・状態: 未生成（未到達）
-- C' blind bundle の取得案内・状態: 未生成（未到達）
+- Phase A snapshot の取得案内・状態: 未保存（ローカルで生成。Artifact Storage への publish は本依頼の範囲外）。担当: Phase D の担当
+- Phase B result snapshot の取得案内・状態: 生成済み・未保存（ローカルのみ）。担当: Phase D の担当
+- evidence bundle の取得案内・状態: 生成済み・未保存（ローカルのみ。head ごとに作り直した）。担当: Phase D の担当
+- C' blind bundle の取得案内・状態: 生成済み・未保存（ローカルのみ）。担当: Phase D の担当
 
 この slice は文書作成までで、artifacts の publish/fetch・資格情報・Unity・コードに触れない。
 
@@ -198,15 +198,42 @@ U2 が成立するかは未確認。確認する点は、(a) Player build が `c
 
 ## 6. Phase B 実装結果
 
-未着手
+- 実装: `docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` を r7 にした（§0、§2 に「開発Content」節と前提、§4 B の後続一覧の置換と所有先の補完）。`docs/README.md` は program 欄の 1 文と、進行中スライスの状態文を更新した。コード・Unity アセット・tools は変更していない。
+- HANDOFF との差: なし。B 適応: Phase C / C' の指摘を受けた文言の補完を 3 回行った（契約と責務配置は変えていない）。Phase A への差し戻しは無い。
+- 未実行: Unity、artifacts の publish/fetch、4 季節 Content の実測（いずれも対象外）。
+- implementation head commit: `f7302b7bcc9cb7020278ed0f937bce2f0cfdcf2f`。impl の commit は A3 凍結から数えて 4 つ。PR を公開する前にレビュー単位へ整理するか確認する。
+- Phase B 担当・モデル: Claude Sonnet 5.5（Anthropic）。**Phase A と同一の担当・同一のセッション**で実施した（「Phase 境界では新しいセッション」の規則は守れていない）。
 
 ## 7. Phase C
 
-未着手
+- 種別: 発見 C（1 巡目）→ 判定 C（2〜4 巡目）。使用した evidence bundle の取得案内・状態は §0 と同じ（未保存）。
+- 構造適合: 変更は program 文書と docs/README の 2 ファイル。program は 136 → 156 行で警報なし。新しい恒久文書なし。
+- 巡ごとの結果:
+  - 1 巡目（head `f0b7552`）: NO-GO。阻害 3 件 = 後続一覧の所有先の欠落（最低条件 7）、大文字小文字・パス要素の原則の欠落（最低条件 2）、hd/sd の根拠の欠落（最低条件 5）。B 適応で修正。
+  - 2 巡目（head `87205f0`）: GO。阻害 0 件。
+  - 3 巡目（head `75ad679`）: GO。阻害 0 件。
+  - 4 巡目（head `f7302b7`）: GO。阻害 0 件。
+- 後続スライスへ移送する findings（最終 head での軽微な指摘）: 後続一覧の見出しが「新規スライス」なのに既存の 2 つが混在、baked の `content:target` の説明の精度（外部 revision の照合に使う target は実行ファイルの固定定数）、確定記録を追記だけとする場合の revision 削除時の扱い、§5 の「新規 private 展開先」と不足 file の再利用の両立、baked target と照合 target を分けるか、逐語の不足（ZIP 256 MiB、Architecture §20 の引用、`contentSet` が許す文字）。
+- 実行したテスト: `pwsh tools/docs-audit.ps1`、`pwsh tools/contract-audit.ps1`。各 head で exit 0、errors=0、warnings=0。最終 head では担当 C も再実行して同じ結果。全 EditMode 回帰は Phase A で適用外。
+- 判定必須のうち未実行: なし。
+- 未確認事項: Unity 実行、実 R2、4 季節 Content の実測、U2 の成立、representation の同梱可否（いずれも後続の所有）。
+- 担当・モデル: Claude Opus 5.5（新規セッション、各巡とも別セッション）。
 
 ## 8. Phase C'
 
-未着手
+- 担当方式: AI。使用した blind audit bundle の取得案内・状態は §0 と同じ（未保存）。
+- 確認範囲・方法: 各 head の blind bundle（Phase A snapshot、所見を含まない B 結果、完全 diff、機械検査の生出力）を新規セッションで読み、最低条件 1〜10 を本文と照合し、事実主張をコードで照合した。
+- 巡ごとの結果:
+  - 1 回目（head `87205f0`）: 阻害とされた指摘 = 最低条件 2・3・8 の文言の一部が本文に無い、同じ事実の重複、README の変更範囲。B 適応で修正。
+  - 2 回目（head `75ad679`）: 阻害とされた指摘 = 保護キーの出典（`build-info.json` が Unity 側にも同名で別 schema）、命名規約への移送漏れ。DIST cache の target の記述も不正確。B 適応で修正。
+  - 3 回目（head `f7302b7`）: 阻害とされた指摘 **1 件**。program 本文の「確定記録は…追記だけの記録」が、A3 の採用範囲（最低条件 9 の「保存側の確定記録で決める」）に無い契約の追加であり、Phase B 結果の「契約は変えていない」が不正確になる、という指摘。この句は 2 回目の指摘（確定記録と可変の別名の区別が無い）への対応として Phase B が足した。矛盾はないが、owner の確認なしに固定されている。
+- 現在の問いを阻害する findings（最終 head）: 上記 1 件（違反する条件: A3 の採用範囲と Phase B の「契約を変えない」）。C' の差し戻しは 3 巡の上限に達したため、直さず owner の判断を待つ。
+- 後続スライスへ移送する findings: 保護の収集源の範囲（ローカルの `players/` 記録の外にある配布済み Player や他 machine の build は収集源に入らない。fail-closed と「存在しない」の区別）、移送表の「新規/既存」の明記、U1〜U3 の影響欄と互換キーの「安全側から始める」・hardlink を採らない理由・U2 の確認項目 (c)・Content 分離でスパイクを先に切る可能性の消失、DIST cache の再取得元（ArtifactsRoot）の削除規則との関係、重複（固定 target、互換キー、容量上限、保持中 Player の結び付き）、コマンド名・config key 名・`installed/` 配置の本文への出現、`docs/README.md` の作業台への参照が Phase D で切れること、§4 の B 見出しの下に Content の後続が入る配置、`target` が正規化値と `contentTarget` のどちらかの曖昧さ、`program 文書の参照整合の確認` の記録、保護収集源。
+- 残存リスク: 保護の収集源が定義されないまま U2 を採ると、配布済み Player の revision を誤って削除しうる。
+- 監査できなかった範囲: Architecture 04・20 の全文、Unity 実行、実 R2。
+- 独立性: Phase B（Sonnet）、C（Opus）と別モデル（Haiku）だが、同一ベンダー（Anthropic）。強化条件は満たしていない。**盲検の露出:** 3 回目の担当が、検索結果として対象外の行（本 HANDOFF の一部と `artifacts/` 配下の過去の結果）を目にしたと報告している。判定の根拠には使っていないとの申告。
+- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: 各回とも、C の結論は渡していない。
+- 担当・モデル: Claude Haiku 5.5（新規セッション、各回とも別セッション）。
 
 ## 9. Phase D
 
