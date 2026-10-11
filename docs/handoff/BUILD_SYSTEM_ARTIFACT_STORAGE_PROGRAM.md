@@ -55,11 +55,11 @@ Content Directory（`transport.json` + `content/`）はPlayerとは独立した�
 
 - **単位:** revisionごとに `transport.json` + `content/` の配置を丸ごと不変単位とし、上書きしない。manifestのschemaは保存側が中身を見ず、検証は消費側が行う。差分upload・content-addressed・GCは採らない。
 - **保存形式:** ZIP 1個にせず、revisionのprefix配下にfile単位のobject（`transport.json` と `content/<path>`）として置き、全fileを丸ごと上げる。取得側がmanifestに載った各fileのSHA-256で、不足fileだけを判定して取れる形にする。再利用する箇所は「R2からArtifactsRoot」と「取り込み元からDIST cache」の2つで、仕組みは後続が所有する。Buildの選択集合の上限（512 file・240 MiB）はContentの前提にせず、r7は新しい上限を足さない。Content固有の上限とR2のプラン変更の要否は、実測後に決める。
-- **系列:** `contentSet/target`。platformはtarget値で表す。パスに使うtargetの値は1つで、manifestの`contentTarget`から一意に写像する（具体的な対応表は実装スライス）。`contentSet`は大文字小文字だけが違うものを別として受け入れない。用途（通常開発・期間限定イベント・次期大型アップデート等）は`contentSet`の名前で表し、階層は足さない。revisionの昇格・改名は行わず、系列間の統合はソース側で行い、統合先の`contentSet`でBuildし直す。
+- **系列:** `contentSet/target`。platformはtarget値で表す。パスに使うtargetの値は1つで、manifestの`target`（`build-info.json`では`contentTarget`）から一意に写像する（具体的な対応表は実装スライス）。ローカル（NTFSとDIST cacheの配置判定）は大文字小文字を区別しないため、大文字小文字だけが違う`contentSet`やrevisionを別のものとして受け入れない。また、パス要素として安全な範囲に限る（具体規則は命名規約の後続）。用途（通常開発・期間限定イベント・次期大型アップデート等）は`contentSet`の名前で表し、階層は足さない。revisionの昇格・改名は行わず、系列間の統合はソース側で行い、統合先の`contentSet`でBuildし直す。
 - **保持:** Buildと同じ件数保持policyを系列ごとに適用する（成功のみNに数える、利用中保護、失敗は既存を追い出さない）。Nの既定値案はBuildに揃えて10件。保持中のPlayerが受け入れうるContent revisionは利用中として保護しNに数える（現状のUnity契約では、Playerの`build-info.json`の`contentSet`・`contentTarget`・`buildIdentity`・`transportManifestSha256`で1件に決まる）。保護状態を収集できないときは削除しない。
 - **置き場:** ローカルは`<ArtifactsRoot>/content/<contentSet>/<target>/<revision>/`。これは取り込み元（install source）で、消費側のDIST cache（known-good・lease・eviction）とは別の層であり、削除する主体は層ごとに別とする。R2にもrevision単位で全fileを上げる。
 - **消費側:** ストレージに可変の別名（latest等）を持たせない。消費側はrevisionとmanifestのSHA-256で固定する。見る系列の選択（git管理外のローカル設定）と「最新」の解決はUnityのDISTの外で行い、新旧の順序はrevision名ではなく保存側の確定記録で決める。
-- **hd/sd:** 端末性能別はrepresentationを第一候補とし、revisionを割る場合は`contentSet`に含める。系列keyは`contentSet/target`から変えない。
+- **hd/sd:** 端末性能別はrepresentationを第一候補とし、revisionを割る場合は`contentSet`に含める。系列keyは`contentSet/target`から変えない。根拠は、representationがContentの候補ごとに1値を持つ属性で、Playerでは起動時に1値に固定されること。1 revisionへの複数representationの同梱可否は未確認で、後続が確認する。
 
 **前提（Unityの現状。r7は変えない）:** Playerは自分のBuild時の`contentSet`とBuildIdentityに結び付き、配布済みPlayerにContentだけを差し替える運用はできない。起動時の`contentSet`切り替えは行わない。Playerとの互換を計算した「互換キー」で判定する案は、Content分離の実装スライスのA1で最初の選択肢とする。保存契約はどちらの案でも変わらない。全platformで保存形式は1つだが、transport manifest v1の`target`は固定値`StandaloneWindows64-Player`で、Windows以外への拡張は後続とする。
 
@@ -113,9 +113,12 @@ Player Buildからpublishまでの接続は[PR #115](https://github.com/TetsujiA
 
 - Contentの保存契約は§2の開発Contentでr7として固定した。実装は次の新規スライスに分ける。各スライスは着手時にA1から行う。
   - Content分離: Playerが`content/`を内包しない場合のUnity側の変更、`build collect`の検査・`build-info.json`・selectionの変更、互換キー案の判断。
-  - Content保存: 退避とpublishのCLI、R2 key、完了確定点、確定記録（新旧順序とmanifest digest）、`contentSet`/`target`の値の対応表、命名規約、R2からArtifactsRootへの取得と不足fileの再利用、実測（4季節Contentのfile数とサイズ）。
-  - Content取り込み: 取り込み元からDIST cacheへの不足fileの再利用、Unityバージョンとroot schemaの束縛。
-  - 統合Contentフォルダ: 取得型／監視型、複数ワークスペースの衝突規則、共有時の削除主体、ローカル設定と選択UI。
+  - Content保存: 退避とpublishのCLI、R2 key、完了確定点（fileを先、`transport.json`か完了マーカーを最後）、receipt、publishの順序（ContentとPlayerのどちらを先か）、確定記録（新旧順序とmanifest digest）、`contentSet`/`target`の値の対応表、R2からArtifactsRootへの取得と不足fileの再利用、実測（4季節Contentのfile数とサイズ。880 fileの推定の検証）、file単位uploadが途中で止まったものを「未完了uploadとstaging」に載せるか。
+  - Content取り込み: 取り込み元からDIST cacheへの不足fileの再利用（read lease付きのコピー）、cacheのeviction・leaseとの関係、アプリ更新を越えるcacheの永続性、Unityバージョンとroot schemaの束縛、HTTPのfileごとのdeadline。
+  - 統合Contentフォルダ: 取得型／監視型、複数ワークスペースの衝突規則、統合フォルダとArtifactsRootの同一性、共有時の削除主体、ローカル設定と選択UI、「最新」の解決の所有。
+  - `contentSet`の命名規約（Content保存のA1で扱う）: 用途×構成×性能の合成名、既存値`bs4-spring-full`を改名しないこと、ブランチやBuild設定から決める方法、hd/sdを1 revisionに同梱した場合の部分取得。
+  - Contentの容量上限: Content固有の上限値、R2のプラン変更の要否、R2の操作回数の枠（file単位objectのPUT数）、R2の途中失敗で残るobjectの孤児回収。上記のBの容量上限の固定（BのA3）の入力とし、実測はContent保存のA0で行う。
+  - 件数保持の運用接続スライス: Contentの実DELETE、利用中状態の収集（保持中Playerとの対応）、保護がNを超えた場合の挙動、系列の退役（イベント終了時のlocal・R2・統合フォルダ・DIST cacheの片付け）、件数保持がR2とローカルのどちらの層に効くか。
 - `OSM_ARTIFACTS_ROOT` などを設定する開発環境セットアップscript → 別途のセットアップスライス。
 - ArtifactsRootの件数清掃、異常終了で残る `.staging` の回収 → 件数保持の運用接続スライス。
 - 診断の改善 → 同上の入力。失敗時も `publish` 表示が `published` になる点、相対path 240字超が `unconfirmed` で返る点、build-configの検証と複写が二度読みである点を含む。並行実行の敗者が一致時も `stage-conflict` で止まる仕様も同じく入力とする。
