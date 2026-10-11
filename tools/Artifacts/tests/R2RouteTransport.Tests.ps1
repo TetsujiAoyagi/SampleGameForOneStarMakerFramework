@@ -2,7 +2,7 @@ param([string] $AssemblyPath = '', [string] $ResultPath = '')
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-if (-not $AssemblyPath) { $AssemblyPath = Join-Path $PSScriptRoot '../Probe/artifacts/route-transport/R2RouteTransport.dll' }
+if (-not $AssemblyPath) { $AssemblyPath = Join-Path $PSScriptRoot '../Probe/artifacts/probe/R2RouteTransport.dll' }
 $assemblyPath = [IO.Path]::GetFullPath($AssemblyPath)
 if (-not [IO.File]::Exists($assemblyPath)) { throw 'Build R2RouteTransport before running its transport tests.' }
 $beforeHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $assemblyPath).Hash.ToLowerInvariant()

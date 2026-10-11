@@ -138,7 +138,7 @@ transportは`Probe/R2RouteTransport.csproj`の固定`AWSSDK.S3`依存を使い�
 
 ```powershell
 dotnet restore tools/Artifacts/Probe/R2RouteTransport.csproj
-dotnet build tools/Artifacts/Probe/R2RouteTransport.csproj -c Release -o tools/Artifacts/Probe/artifacts/route-transport
+dotnet build tools/Artifacts/Probe/R2RouteTransport.csproj -c Release -o tools/Artifacts/Probe/artifacts/probe
 pwsh -NoProfile -File tools/Artifacts/Probe/RouteProof.ps1 `
   -Endpoint https://<32-hex-account-id>.r2.cloudflarestorage.com `
   -ImplementationBase <40-hex-base-commit> `
@@ -224,7 +224,7 @@ pwsh tools/Artifacts/tests/BuildRetention.Tests.ps1 -Case '*' -ResultPath <resul
 H1のこのtaskは3 .NET Release build、全Artifacts PowerShell parse、11 Artifact suite、Workflow TaskLifecycle、Harness、適用taskのcontract/docs auditを固定5 stepで収録します。registered/selected/executedは各非空同集合、failed 0、実DLL path/hash/MVID/depsと生結果を保存します。B exitはdiscovery、最終Cはjudgment、CBlindは同base/headと同じ固定入力です。Unity source/依存を変更しないためUnity test/buildはこのsliceに適用しません。
 
 ```powershell
-dotnet build tools/Artifacts/Probe/R2RouteTransport.csproj -c Release -o tools/Artifacts/Probe/artifacts/route-transport
+dotnet build tools/Artifacts/Probe/R2RouteTransport.csproj -c Release -o tools/Artifacts/Probe/artifacts/probe
 dotnet build tools/Artifacts/Packaging/ArtifactPackaging.csproj -c Release -o tools/Artifacts/Packaging/artifacts/package
 dotnet build tools/Artifacts/Transport/R2ArtifactTransport.csproj -c Release -o tools/Artifacts/Transport/artifacts/transport
 pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle
