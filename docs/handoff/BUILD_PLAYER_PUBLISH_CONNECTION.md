@@ -113,7 +113,7 @@ A2 の代替構成担当はこの節だけを読む。§0 以降の A1 初稿を
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C`（Phase B 完了。Phase C 待ち）
+- status: `D`（判定C GO、C' FAIL（証拠の未充足）。Phase D の人間判断待ち）
 - branch: `feat/build-player-publish-phase-a`
 - implementation base commit: `32ec358`（凍結時点の `origin/develop` と同一）
 - implementation head commit: `d35823c`
@@ -123,9 +123,9 @@ A2 の代替構成担当はこの節だけを読む。§0 以降の A1 初稿を
 - expires: 2026-11-30 または置換revision
 - harvest to: 実装済みの操作を `tools/Artifacts/README.md`「開発Build 1件の保存と取得」へ、program状態を `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 B と `docs/README.md` へ反映し、スライス完了時に本書を削除する。
 - Phase A snapshot の取得案内・状態: 確認済み（2026-10-11）。凍結版 HANDOFF（`f1cbf1e`）と A2 の生出力を Evidence publish し、別 process の fetch で全 file の hash 一致を確認した。取得案内は、メイン checkout の git 管理外の引渡し先（`TestResults/handoff/build-player-publish-connection/`）にある。A2 の所見を含むので、C' の blind 入力には使わない
-- Phase B result snapshot の取得案内・状態: 未到達
-- evidence bundle の取得案内・状態: 未到達
-- C' blind bundle の取得案内・状態: 未到達
+- Phase B result snapshot の取得案内・状態: 確認済み（2026-10-11、別 process の fetch で全4 file の hash 一致）。引渡し先は Phase A と同じ git 管理外の場所
+- evidence bundle の取得案内・状態: 確認済み（全37 file）。引渡し先は同上
+- C' blind bundle の取得案内・状態: 確認済み（全42 file。監査担当の fetch でも一致）。引渡し先は同上で、所見を含む案内とは別 file
 
 ## 1. 目的と対象外
 
@@ -311,11 +311,52 @@ A2 の代替構成担当はこの節だけを読む。§0 以降の A1 初稿を
 
 ## 7. Phase C
 
-未着手
+- 担当・モデル: Claude Code subagent（新規セッション）/ Claude Sonnet 5.5 / Anthropic。Phase B と異なるモデル。2026-10-11〜12。
+- 種別: 発見C → 判定C を同じ担当が続けて実施した。対象は base `32ec358` / implementation head `d35823c`。判定前に `git diff d35823c HEAD -- tools/` が空であることを確認した。
+- 使用した入力: Phase A snapshot（凍結版 `f1cbf1e` の本書）、Phase B result snapshot（確認済み）、固定 diff。
+- 構造適合: §3 の責務マップどおり。依存は Application → Stage → Contract の一方向で、Stage は BuildApplication に依存しない。BuildStore は変更なし。
+- 現在の問いを阻害する指摘: なし。
+- 後続スライスへ移送する指摘（いずれも semantic、違反根拠なし）:
+  - collect が publish まで進んで失敗した場合も、出力の `publish` は `published` を示す（成否は `status`/`reasonCode` で判断する）。
+  - 異常終了した process の `.staging` が残りうる。回収は ArtifactsRoot 清掃のスライスへ送る。
+  - receipt の entries 照合（B 適応）は #111 の形式を変えていない。
+- 実行したテスト・検査（判定必須。生出力は evidence bundle に収録）:
+  - Packaging / Transport の Release build: exit 0。
+  - offline suite（registered=selected=executed、failed 0）: BuildCollect 9、BuildPublish 9、BuildRetention 9、ArtifactPackage 9、ArtifactTransfer 20。
+  - 変更 PowerShell 6 file の構文解析 error 0。`contract-audit` errors 0、`docs-audit` errors 0、`git diff --check` 指摘なし。
+  - 最低条件2の実R2往復:
+    - 前提確認の `build inspect` は `receipt-unavailable`。ArtifactsRoot は空だった。
+    - `build collect`: `stage=created`、266 file。
+    - 別 process の `build fetch`: passed。退避先と展開先の全 entry・hash が一致した。退避先は「元 − build-receipt.json + build-info.json」。
+    - 元出力の全 hash は前後で不変。
+  - 再実行（2回目）: 同じ reference/packageSha256、`publish=existing`。
+    - 2回目の前後の store snapshot は、取得スクリプトの不具合で空になった（収録不備）。
+    - このため同じ入力で3回目を実行した。前後で receipt/intent/予約の hash・mtime、builds-v1 の全 file、transfers 直下の operation 一覧が不変だった。新しい publish operation は作られていない。reference/hash は同一。
+- 判定: GO（最低条件1〜3を満たし、常時契約違反なし）。
+- 判定必須のうち未実行: なし。
+- evidence bundle の取得案内・状態: 確認済み（publish 後、別 process の fetch で全37 file の hash 一致）。
 
 ## 8. Phase C'
 
-未着手
+- 担当・モデル: Claude Code subagent（新規セッション）/ Claude Haiku 5.5 / Anthropic。B（Opus 5.5）・C（Sonnet 5.5）と異なるモデル。予約どおりベンダーの相違は求めない（`独立性制約あり`、§5）。最初に起動した Claude Fable 5.1 は利用クレジット不足で開始前に終了したため、Haiku 5.5 に替えた。
+- 入力: C' blind bundle（凍結 Phase A snapshot、所見を含まない Phase B result、完全 diff、判定必須の生出力）。担当が自分の process で fetch し、42 file 全ての hash 一致を確認した。現行 HANDOFF・PR・commit message・C の所見は読んでいない。
+- 現在の問いを阻害する指摘:
+  - コードの欠陥: なし。A1〜A8 を `d35823c` のコードと照合した。
+  - 証拠の未充足（監査担当の判断）: 「再実行で PUT していない」は、`publish=existing` の戻り値経路からの推定にとどまり、R2 側の観測（PUT 件数・object 不変）が無い。2回目の store snapshot も欠けている。
+- 後続スライスへ移送する指摘:
+  - 失敗時も `publish=published` と表示される（C と重複）。
+  - build-config を `Read-BuildConfig` で検証した後、`ReadAllBytes` で読み直して複写しており、二度読みの間の同一性は保証しない。
+  - 並行実行の敗者は、退避先が一致しても `stage-conflict` で止まる（A3「一致なら完了済み」と最低条件3「片方だけ」の緊張。後者を優先した実装）。
+  - path 長超過のテストは reasonCode を見ていない。
+  - `BuildContract.psm1` は +78%。`Write-BuildOperationFile` を Application に置いた。
+  - 異常終了時の `.staging` に掃除規則が無い。
+  - evidence の生出力にローカル path が入る。
+- 監査できなかった範囲: Unity 側（変更なし）、実R2の再実行、R2 object の metadata。
+- 監査結果: **FAIL**（コードの阻害欠陥は無い。理由は上の証拠の未充足）。
+- C' blind bundle の取得案内・状態: 確認済み（送信側の fetch で全42 file の hash 一致、監査担当の fetch でも一致）。
+- C と C' の突き合わせと採否は Phase D（人間）で行う。突き合わせの材料:
+  - 3回目の前後 snapshot（`25`/`27`）は blind bundle に収録されている。publish の PUT は `Invoke-BuildPublish` の新規 operation と intent の書込みを経てからしか発生しない。
+  - R2 object の metadata を観測する CLI は、凍結時の検証経路に含まれていない。
 
 ## 9. Phase D
 
