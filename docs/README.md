@@ -48,6 +48,8 @@ H1適用をA3で明示したArtifacts/Harness作業では、Git外のCURRENTと�
 | `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b / S-4c 完了。S-4d は VFX / Events の着手時に HANDOFF を切る |
 | `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` | 開発用Artifact Storageの単一保存契約と一括切替 | programは進行中。スライスAは[PR #109](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/109)で実装・限定運用検証と正式C/C′を完了。固定記録の入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。Bは単一Build publish（PR #111）、件数保持policy（PR #110）、Player Build→publish接続の `build collect`（[PR #115](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/115)）まで完了。後続B〜Dは個別にA3を行う。現在の機能と方針は[Artifacts README](../tools/Artifacts/README.md) |
 
+**進行中の単一スライス（Phase A）:** `ARTIFACT_STORAGE_CONTENT_KIND_R7.md` は Artifact Storage program の r7（Content 種別の追加）の A0/A1 初稿。A2 は未起動で実装キューではない。owner は OSM maintainers、期限は 2026-11-10 または置換 revision、harvest 先は program 文書 §2/§4。
+
 **未承認の単一スライス候補:** `UI_ACCESSIBILITY_BUTTON_PILOT.md` は Button の Windows Narrator 最初の実証に向けた A1 改稿（A2・PR コメントを照合）。実装キューではなく、検証経路と人間の A3 合意が未成立。owner は root、期限は 2026-11-05 または置換 revision、harvest 先は Architecture §6。上記 program 4件とは別に保持する。
 
 Streaming の M-1〜M-4 と S-4c は完了し、決定を公開面へ harvest して、移行計画と各着手時 HANDOFF を削除済み。テストアセンブリの分離も完了し、依存の向きは `unity/Assets/README.md` と `unity/Assets/Docs/Architecture/27-folder-structure.md` にある。完了済み HANDOFF は復活させない。
