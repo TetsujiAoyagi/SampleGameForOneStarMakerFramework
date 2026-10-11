@@ -131,7 +131,7 @@
   - **NO-GO:** 最低条件のどれかが未達、または次のいずれかが判明した場合。(a) 実 R2 の Spring 1 件の公開が AC13 の予算（2,068 s）内に終わらない。(b) 既存 transport で file 単位 object の照合（404 の観測、読戻しの一致）が成立しない。(c) 退避後の `content/` と manifest の整合を保存側が検査できない。
   - 4 季節（`all-full`）の公開は GO の条件にしない。スパイクではないので CONDITIONAL ACCEPT は使わない。
 - **停止規則:** 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。確定記録、取り込み、R2 → ArtifactsRoot 配置、命名規約、容量上限、実 DELETE、operation の清掃を現スライスで検証し始めたら停止し、上表の所有先へ移送する。
-- **A3 後の例外承認:** なし。
+- **A3 後の例外承認:** owner（2026-10-11、チャット）。理由: C′ が、最低条件 5 の初回公開を最終 head で行っていないことを阻害欠陥とした。同じ revision は不変で DELETE もしないため、最終 head で同じ出力を公開し直せない。置き換える既存条件: 最低条件 5 の対象出力を、最終 head では手元のもう 1 件の実 Spring 出力 `artifacts/bs2b/transport/20260924T141708718Z-8e61…`（contentSet `spring-full`、219 file + `transport.json`）とし、期待する初回 PUT 数を 220、時間予算を 300 + 8×220 = 2,060 s とする。検証予算: この出力での collect・別 process の fetch と全 file 照合・同じ collect の再実行の 1 回ずつ。あわせて、各 object の照合結果を operation に記録しない点は受け入れ条件の違反とせず、診断の改善として件数保持の運用接続の入力へ送る。
 - **本文へ転記した実装制約**（AGENTS.md 等から）:
   - 依存は Game → Framework の一方向。asmdef 参照を追加しない（本スライスは Unity を変更しない）。
   - Unity 側の C# に触れない（`#nullable enable`・`record` の規則は適用外）。`tools/Artifacts` の C#（transport・packaging・probe）も変更しない。
@@ -341,6 +341,7 @@
   - PUT 221 件は結果 JSON の `objects.puts` に加え、§5 の方法（operation の観測記録と intent の entry 数）でも確かめた。operation directory には 221 key それぞれに子 process の読戻しが 2 回ずつ（事前照合と PUT 後の読戻し）、計 442 件あり、AC7 では 2 回目の読戻しは PUT の後にしか起きない。`transport.json` は最初と最後。content の key は intent の 220 entry と一致し、`objectCount` は 221。
   - `content collect`（`9c8e703`）（実 Spring 出力 `20260924T202227427Z-b80d…`、空の ArtifactsRoot）: `status=passed`、`publish=published`、`objects.puts=221`、`gets=442`、所要 785 s（予算 2,068 s）。
   - 別 process の `content fetch`（source の `transport.json` から独立に計算した `manifestSha256` を渡す）: `9c8e703` で `status=passed`・30 s、`5aa9d74` で `status=passed`・29 s。どちらも取得物を独自に照合し、`transport.json` の bytes 一致、`content/` 220 file の集合一致、size/SHA-256 の不一致 0、source の bytes とも一致。
+  - 最終 head での初回公開（owner の例外承認による置換。§2）: `artifacts/bs2b/transport/20260924T141708718Z-8e61…`（`spring-full`、219 file）を `5aa9d74` で公開し、`status=passed`、`objects.puts=220`、`gets=440`、所要 760 s（予算 2,060 s）。operation の記録は 220 key それぞれに子 process の読戻し 2 回（計 440）、content の key は intent の 219 entry と一致。別 process の `content fetch`（独立に計算した `manifestSha256`）は `passed`・27 s で、`transport.json` の bytes 一致、219 file の集合一致、不一致 0。同じ collect の再実行は `existing`・同じ reference・3 s。
   - 同じ `content collect` の再実行: `9c8e703` で `publish=existing`・同じ reference・2 s、`5aa9d74` で `publish=existing`・4 s（転送なし）。
   - 出力に endpoint・秘密が無いことを検査した（該当 0）。R2 の DELETE はしていない。
 - 判定必須のうち未実行: なし。全 EditMode 回帰は §5 の適用除外（`unity/` 配下の diff 空）。
@@ -350,7 +351,7 @@
 
 ## 8. Phase C'
 
-**判定: FAIL（2 回目、`5aa9d74`）。owner の判断待ち。** コードと offline 検証に阻害欠陥は無いとしたうえで、最低条件 5 の証拠の取り方を阻害欠陥とした。
+**判定: FAIL（3 回目、`5aa9d74`）。owner の判断待ち。** 最低条件 5（例外承認後）の証拠は揃ったとしたうえで、予算の検査と receipt 確定の間に残る窓を AC13 違反とした。
 
 - 担当方式: AI（新規 session、read-only sandbox、ネットワーク・資格情報なし）。
 - 使用した blind audit bundle の取得案内・状態: 1 回目は `9c8e703`、2 回目は `5aa9d74` の bundle（Phase A snapshot、所見を含まない Phase B result、完全 diff、判定前の機械検査、判定必須の生結果、実 R2 往復の生結果、SHA256SUMS）。生成済み・未保存（publish は Phase D）。発見 C・判定 C の所見と結論は含めていない。
@@ -361,11 +362,15 @@
 - 2 回目（`5aa9d74`）の阻害 findings:
   - 最低条件 5 と §5「GO 候補 head の判定必須」: 初回公開（PUT 221）は `9c8e703` で行ったもので、最終 head では fetch と `existing` の再実行しかしていない。review-evidence は、差分が変わった後の旧結果を新 head の合格証拠にしないと定めており、この例外は凍結されていない。
   - 最低条件 5 と §5「照合ログ」: 収録した operation の記録は key・期待値・子 process の終了状態だけで、各 object の照合結果（HTTP 結果、観測 bytes/hash）を持たないため、初回公開時の各 object の照合一致を記録から独立に再判定できない（実装は照合結果を operation に残さない）。
-- 後続スライスへ移送する findings: なし（残存リスクとして、別 PC の同時公開と R2 側の上書き防止は Content 確定記録、0 byte と 4 季節の容量は Content の容量上限、private operation の清掃は未完了 upload と staging）。
+- 3 回目（`5aa9d74`、owner の例外承認と最終 head での `spring-full` の初回公開を収録した bundle）の阻害 findings:
+  - AC13: 予算の検査は receipt 書込みの前に 1 回だけで、その後の `before-receipt` hook と `Write-BuildImmutable` の書込み・rename の間に期限を越えても成功を確定しうる（注入時計で再現可能な境界。今回の実行で発現したという所見ではない）。
+  - 最低条件 5 は、最終 head での初回公開（PUT 220・GET 440・760 s、取得 219/219 一致、再実行 `existing`）で満たされたと判断した。
+- 後続スライスへ移送する findings（3 回目）: 各 object の照合結果を operation に記録しない点（例外承認どおり件数保持の運用接続へ）、別 PC の同時 writer（Content 確定記録）。
+- 後続スライスへ移送する findings（1・2 回目）: なし（残存リスクとして、別 PC の同時公開と R2 側の上書き防止は Content 確定記録、0 byte と 4 季節の容量は Content の容量上限、private operation の清掃は未完了 upload と staging）。
 - 監査できなかった範囲: 実 R2 操作前の owner の許可（bundle に無い）。実 R2・資格情報・Unity。
 - 独立性: Phase A（Anthropic 3 系列）、B（Sonnet 5.5）、C（Opus 5.5）のいずれにも関与していない系列・ベンダーで、強化条件も満たす。
 - 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: なし（bundle から除外。指示文で HANDOFF を読まないよう指定し、checkout の HANDOFF にも §7 は無い）。
-- 担当・モデル: OpenAI GPT（codex CLI 0.159.2、`gpt-6-sol`）。1 回目・2 回目とも 1 回ずつ実行。
+- 担当・モデル: OpenAI GPT（codex CLI 0.159.2、`gpt-6-sol`）。1〜3 回目とも 1 回ずつ実行。
 
 ## 9. Phase D
 
