@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: slice（文書 revision。program 文書 `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` を r6 → r7 にする）
-- status: C'（A3 凍結済み rev4。Phase C は GO、C' は阻害 1 件で差し戻し上限に到達し、owner の判断待ち）
+- status: D 前（A3 凍結済み rev4。Phase C は GO、C' の阻害 1 件は owner が承認。Phase D は未着手）
 - branch: `codex/artifact-storage-content-kind-phase-a` / PR base: `develop`
 - implementation base commit: `c5fb724581e3710f39659018524f7686fe21c791`（A3 凍結 commit。`develop` の `4d5dcc3` との差分は本 HANDOFF と docs/README の Phase A 記載のみ）
 - implementation head commit: `f7302b7bcc9cb7020278ed0f937bce2f0cfdcf2f`（文書改訂のみ。コードは変えていない）
@@ -227,7 +227,7 @@ U2 が成立するかは未確認。確認する点は、(a) Player build が `c
   - 1 回目（head `87205f0`）: 阻害とされた指摘 = 最低条件 2・3・8 の文言の一部が本文に無い、同じ事実の重複、README の変更範囲。B 適応で修正。
   - 2 回目（head `75ad679`）: 阻害とされた指摘 = 保護キーの出典（`build-info.json` が Unity 側にも同名で別 schema）、命名規約への移送漏れ。DIST cache の target の記述も不正確。B 適応で修正。
   - 3 回目（head `f7302b7`）: 阻害とされた指摘 **1 件**。program 本文の「確定記録は…追記だけの記録」が、A3 の採用範囲（最低条件 9 の「保存側の確定記録で決める」）に無い契約の追加であり、Phase B 結果の「契約は変えていない」が不正確になる、という指摘。この句は 2 回目の指摘（確定記録と可変の別名の区別が無い）への対応として Phase B が足した。矛盾はないが、owner の確認なしに固定されている。
-- 現在の問いを阻害する findings（最終 head）: 上記 1 件（違反する条件: A3 の採用範囲と Phase B の「契約を変えない」）。C' の差し戻しは 3 巡の上限に達したため、直さず owner の判断を待つ。
+- 現在の問いを阻害する findings（最終 head）: 上記 1 件（違反する条件: A3 の採用範囲と Phase B の「契約を変えない」）。C' の差し戻しは 3 巡の上限に達したため、直さず owner に判断を返した。**owner は 2026-10-11 に「追記だけの記録」の句を残すことを承認した。** 承認は A3 後の例外承認に当たる文言の固定の承認で、独立監査がこの句を指摘した事実は変わらない。承認後に head は変えていない（句の承認以外の実装変更なし）。
 - 後続スライスへ移送する findings: 保護の収集源の範囲（ローカルの `players/` 記録の外にある配布済み Player や他 machine の build は収集源に入らない。fail-closed と「存在しない」の区別）、移送表の「新規/既存」の明記、U1〜U3 の影響欄と互換キーの「安全側から始める」・hardlink を採らない理由・U2 の確認項目 (c)・Content 分離でスパイクを先に切る可能性の消失、DIST cache の再取得元（ArtifactsRoot）の削除規則との関係、重複（固定 target、互換キー、容量上限、保持中 Player の結び付き）、コマンド名・config key 名・`installed/` 配置の本文への出現、`docs/README.md` の作業台への参照が Phase D で切れること、§4 の B 見出しの下に Content の後続が入る配置、`target` が正規化値と `contentTarget` のどちらかの曖昧さ、`program 文書の参照整合の確認` の記録、保護収集源。
 - 残存リスク: 保護の収集源が定義されないまま U2 を採ると、配布済み Player の revision を誤って削除しうる。
 - 監査できなかった範囲: Architecture 04・20 の全文、Unity 実行、実 R2。
