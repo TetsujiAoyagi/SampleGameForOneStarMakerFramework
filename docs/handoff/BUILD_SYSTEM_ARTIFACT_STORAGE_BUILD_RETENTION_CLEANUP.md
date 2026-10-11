@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（A1 r2。A2 の独立レビュー 3 件と owner との協議を反映して改訂した。A3 は未実施で、本書はまだ凍結していない。r2 に対する擬似 C′ の 2 巡目レビューを予定）
+- status: `A`（A1 r3。A2 の 1 巡目 3 件、owner との協議、2 巡目（擬似 C′）の指摘を反映した。A3 は未実施で、本書はまだ凍結していない）
 - branch: `codex/artifact-storage-build-retention-cleanup`
 - implementation base commit: `cf7b77fefb4e84bbd8464732a3c3bccca10f0813`（`develop`。PR #118 を含む。A3 で凍結時の `develop` と照合し直す）
 - implementation head commit: 未到達（Phase B で記録）
@@ -124,27 +124,27 @@ Build 系列 1 つについて、ローカル receipt から成功 publish の�
   |---|---|---|
   | AC1 | `build cleanup --profile osm --config <build-config> --project <p> --target <t> --configuration <c> [--dry-run]` は 1 系列だけを対象にする。系列 token は `Get-BuildSeries` の規則で検査し、不正なら何も読まず `invalid-build-identity`。 | offline |
   | AC2 | catalog は `builds-v1/<repositoryId>/` 直下を列挙し、`<32hex>` directory、`<32hex>.reserved`、本スライスが作る `locks/` だけを既知とする。directory ごとに、receipt が成功記録として検査を通れば成功（`publishedAt` は receipt の値）、receipt が無く intent が読めれば未完了（intent の系列で分類）、どちらも無ければ系列不明の未完了とする。 | offline |
-  | AC3 | 成功記録の検査は **今の build-config の hash に依存しない**（BuildStore に config 非依存の読取を足す）。検査は repositoryId・`seriesId` と `project/target/configuration` の整合、key が `Get-BuildKey` の規則（`development/builds/v1/<repositoryId>/…/<buildId>/bundle.zip`）と一致、intent の hash と主要 field の一致、readback の観測、`publishState=succeeded`、`publishedAt` が UTC。`inspect`／`fetch` が使う既存の `Read-BuildReceipt`（config hash 一致を要求）は変えない。 | offline |
+  | AC3 | 成功記録の検査は **今の build-config の hash に依存しない**。BuildStore に、既存 `Read-BuildReceipt` の**全検査から `configSha256` と `evidenceConfigSha256` を今の config と照合する 2 項目だけを除いた**読取を足す（両 field が 64 hex であることは検査する）。repositoryId は呼出しの config から取る。検査の本体は 1 箇所に置き、既存 reader はそれに config 照合を足したものにする（二重実装にしない）。`inspect`／`fetch` の既存の判定は変えない。破損 field ごと（entries の型・重複・size、hash 形式、readback の HTTP・終了状態、intent の不一致）に非計数・blocked をテストする。 | offline |
   | AC4 | 次のどれかがあれば、指定系列を `status=blocked` とし、DELETE も記録書込みもしない: (a) 指定系列に属する記録（receipt・intent・保護・削除記録）が検査に失敗、(b) receipt があるが系列を読めない記録、(c) 未知の entry、repo 直下の reparse・ACL 不一致・列挙失敗。理由は `catalog-incomplete`／`protection-unknown`／`delete-record-invalid` のいずれか。**他系列に属すると読める記録の破損では止めない**（件数だけ `foreignInvalid` に出す）。 | offline |
   | AC5 | 系列不明の未完了（receipt も読める intent も無い）は成功ではないので blocked にしない。結果の `held` に `publish-incomplete` として件数だけ出す。 | offline |
   | AC6 | 指定系列に `publishedAt` が現在より未来の成功記録があれば、系列を `clock-skew` で blocked にする。「最新」は記録した `publishedAt` の順と定義し、時計が巻き戻っていた間に確定した publish の順序は保証しない（README の known limits）。 | offline |
-  | AC7 | 保護は `build use --build-id <id> --consumer <id> --until <UTC> --reason <text>` で付け、`build release --build-id <id> --protection <id>` で外す。記録の形は Evidence の保護に揃える（`id`・`owner`（SID）・`consumer`・`reason`・`createdAt`・`until`、解除は `releasedAt`）。`until` は現在より後で、現在から 90 日以内。`consumer`／`reason` は Evidence の use と同じ字種・長さ規則。記録は `<buildId>/protections/<protectionId>.use.json` と `.release.json` の追記だけで、既存記録を書き換えない。成功 receipt の無い Build、削除意図のある Build、削除済みの Build への use は拒否する（`build-not-retainable`）。 | offline |
+  | AC7 | 保護は `build use --profile osm --config <build-config> --build-id <id> --consumer <id> --until <UTC> --reason <text>` で付け、`build release --profile osm --config <build-config> --build-id <id> --protection <id>` で外す。repositoryId は config から取る。use は、成功記録を読んで系列を決め、**その系列 lock を取った後に成功記録と削除状態を読み直し**、保護記録の rename まで lock を保持する（lock 前の判定で書かない）。記録の形は Evidence の保護に揃える（`id`・`owner`（SID）・`consumer`・`reason`・`createdAt`・`until`、解除は `releasedAt`）。`until` は現在より後で、現在から 90 日以内。`consumer`／`reason` は Evidence の use と同じ字種・長さ規則。記録は `<buildId>/protections/<protectionId>.use.json` と `.release.json` の追記だけで、既存記録を書き換えない。成功 receipt の無い Build、削除意図のある Build、削除済みの Build への use は拒否する（`build-not-retainable`）。 | offline |
   | AC8 | 保護の有効判定（注入した時計 `now`）: release 記録があれば無効。無ければ、`now < until` なら有効。`createdAt > now`（時計の巻戻り）も有効として扱う。読取時に `createdAt < until`、`until − createdAt ≤ 90 日`、`releasedAt ≥ createdAt`、UTC（offset 0）を検査し、満たさない記録は `protection-unknown`。 | offline |
   | AC9 | N は本スライスでは定数 10（`BuildCleanup` 内の 1 箇所。テストだけ注入可能）。CLI・build-config から変えられない。 | offline |
   | AC10 | `--dry-run` は lock を取らず、記録・network に触れずに、`retained`／`candidates`／`held`／`deleting`／`deleted` の件数と ID、`excessCount`、`reasonCode` を返す。実行時と同じ catalog と policy を使う。 | offline |
   | AC11 | 実行時は `builds-v1/<repositoryId>/locks/<project>~<target>~<configuration>.lock` を FileShare.None・非継承で開いた handle を系列 lock とし、取れなければ `cleanup-in-progress` で何もしない。`build use` も同じ lock を取る。lock は process 終了で解放され、永続の予約は作らない。 | offline（別 process を signal で同期） |
   | AC12 | lock 取得後に catalog と保護を**取り直して**policy を再評価し、その時点の候補だけを扱う。lock 前の dry-run 結果を使わない。 | offline |
   | AC13 | `<buildId>/access.lock` は BuildStore の 1 関数が「無ければ CreateNew、あれば Open」で扱う（既存 Build にも後から作れる。作成時の `reserved.lock` は予約の意味なので流用しない）。`build fetch` はこの PC に同じ buildId の directory があれば、取得の開始から終了まで FileShare.ReadWrite で保持する。cleanup は FileShare.None で開けなければその Build を `in-transfer` で飛ばし、開けたら削除意図の書込みから削除済み記録（または取下げ）まで保持する。**保護の範囲はこの PC の取得だけ**で、別 PC・Cloud の取得は観測しない（README の known limits）。 | offline（別 process を signal で同期） |
-  | AC14 | 削除は候補ごとに直列で、古い順。削除の試行は `<buildId>/deletion/<n>.intent.json`（n は 1 からの連番。key・packageSha256・意図時刻）を不変記録で書く → transport の DELETE → 同じ key の GET が `Test-ArtifactMissing` を満たす → `<n>.deleted.json`（意図の hash と 404 観測）を不変記録で書く。DELETE が 2xx でも GET が 404 で無ければ `delete-unconfirmed` で止め、削除済みとしない。 | offline |
+  | AC14 | 削除は候補ごとに直列で、古い順。削除の試行は `<buildId>/deletion/<n>.intent.json`（n は 1 からの連番。key・packageSha256・意図時刻）を不変記録で書く → transport の DELETE → 同じ key の GET が `Test-ArtifactMissing` を満たす → `<n>.deleted.json` を不変記録で書く。`deleted.json` は意図の hash と、DELETE と確認 GET の非秘密の観測（operation・key・generation・httpStatus・statusClass・s3Code・timedOut・redirected・observedAt。endpoint・本文は含めない）を持ち、C′ が記録だけから「この key を消して 404 を見た」を再判定できるようにする。DELETE が 2xx でも GET が 404 で無ければ `delete-unconfirmed` で止め、削除済みとしない。 | offline |
   | AC15 | DELETE または GET が 403・timeout・redirect・応答不明・generation 変化のとき、その Build は `delete-pending` として残し、同じ run で再送しない。系列の残りの候補も処理しない（順序を保つ）。結果は `status=partial`、exit 2。 | offline |
-  | AC16 | 未解決の試行（intent があり、deleted も abandoned も無い）がある Build は、成功件数にも保護にも数えず（`deleting`）、次回の実行で最初に GET で確かめる。GET が 404 なら `<n>.deleted.json` を書く。GET が 200 なら、取り直した snapshot・保護・access lock・policy で**今も候補の場合だけ** DELETE を送り直して AC14 と同じ確認をする。候補でなければ `<n>.abandoned.json` を書いて試行を取り下げ、その Build を通常の計数へ戻す。GET が判定できなければ `delete-pending`。 | offline |
+  | AC16 | 未解決の試行（intent があり、deleted も abandoned も無い）がある Build は、成功件数にも保護にも数えず（`deleting`）、次回の実行で最初に GET で確かめる。GET が 404 なら `<n>.deleted.json` を書く。GET が 200 なら、**その Build を成功行として戻し**（保護は取り直す）、系列の他の成功行と合わせた完全な snapshot で policy を計算し直し、access lock を取れて**今も候補の場合だけ** DELETE を送り直して AC14 と同じ確認をする。候補でなければ `<n>.abandoned.json` を書いて試行を取り下げ、その Build を通常の計数へ戻す。GET が判定できなければ `delete-pending`。 | offline |
   | AC17 | 削除済み記録のある Build は snapshot から除き（成功に数えない）、`deleted` に件数を出す。receipt・intent・削除記録は残し、ローカル記録は削除しない。 | offline |
-  | AC18 | 1 回の実行で送る DELETE は、送り直しを含めて最大 20 回。残りは `remaining` に件数を出して次回へ回す。時間予算は 600 秒で、`New-ArtifactRequest` の Timer（Stopwatch）で transport の各呼出し deadline、記録の書込み、確認 GET の全てに効かせる（Evidence 名の予算には依存しない）。予算超過は `budget-exceeded`、その時点の Build は AC15 と同じ扱い。 | offline |
+  | AC18 | 1 回の実行で送る DELETE は、送り直しを含めて最大 20 回。残りは `remaining` に件数を出して次回へ回す。時間予算は 600 秒で、`New-ArtifactRequest` の Timer（Stopwatch）で transport の各呼出し deadline、記録の書込み、確認 GET の全てに効かせる（Evidence 名の予算には依存しない）。期限は、各 DELETE の送信前、削除意図・削除済み・取下げの各記録の rename 直前、結果の確定時に判定する。超過したらその記録を書かず `budget-exceeded`（GET 404 を見た後でも削除済み記録を書かない。次回の実行が GET から確かめて記録する）。その時点の Build は AC15 と同じ扱いで、exit 2。境界ごとに fault hook のテストを置く。 | offline |
   | AC19 | transport の入口の許可判定を純粋関数（例 `Test-R2ArtifactRequestAllowed`）に切り出して export する。`development/builds/v1/…/bundle.zip` の DELETE は request に `BuildRetentionDelete=$true`（bool）がある場合だけ許す。その印を付けるのは `BuildCleanup` だけ。Content の DELETE、印の無い・bool でない印の Build DELETE は従来どおり拒否する。`build delete` という grammar は作らない。既存の `BuildPublish.Tests.ps1` の拒否 assert は変えずに残す。 | offline（純粋関数の表検証） |
   | AC20 | 結果 JSON は非秘密の固定 field（`status`、`reasonCode`、`seriesId`、`keepCount`、`excessCount`、各分類の ID 配列と件数、`deleted`、`remaining`、`foreignInvalid`、Build ごとの `outcome`、操作ごとの送信回数 `requests`（`delete`・`get`））だけを持つ。endpoint、ローカル path、例外本文、SDK 応答本文を出さない。exit は 0=完了（`within-limit`・`protected-over-limit` を含む）、1=blocked/失敗、2=partial。 | offline |
-  | AC21 | `build inspect` は、削除済みなら `status=failed`・`reasonCode=payload-deleted`、未解決の試行があれば `delete-pending` を返し、reference を返さない。`build collect` は既存 receipt の分岐で同じ判定をし、`existing` の成功を返さない（再 PUT もしない）。`publish`・`fetch` は AC13 の access lock 以外の挙動を変えない。既存 receipt の形式は変えない。 | offline |
+  | AC21 | `build inspect`／`build collect` は、削除状態の確認から結果を返すまで `<buildId>/access.lock` を FileShare.ReadWrite で保持する（cleanup は削除意図の書込み前に FileShare.None で開くので、確認と結果の間に削除意図は確定しない。返す結果はその時点の状態）。`build inspect` は、削除済みなら `status=failed`・`reasonCode=payload-deleted`、未解決の試行があれば `delete-pending` を返し、reference を返さない。`build collect` は既存 receipt の分岐で同じ判定をし、`existing` の成功を返さない（再 PUT もしない）。`publish`・`fetch` は AC13 の access lock 以外の挙動を変えない。既存 receipt の形式は変えない。 | offline |
   | AC22 | README に運用を書く: N は 10 で、消したくない Build は `build use`（最長 90 日）で守るか N を増やす（現状はコード変更）。系列は branch や人で分かれず枠を共有する。削除は書込み鍵のある PC だけが行い、Cloud 等の読み取り専用 token では行わない。別 PC・Cloud の利用と時計巻戻り中の順序は観測・保証しない。削除済みは `payload-deleted` で分かる。 | docs-audit と目視 |
-  | AC23 | 実 R2: 実系列の dry-run（期待値は当日の catalog snapshot から決める）、検証用系列（§5）で N+1 件 publish → 実行 → 最古 1 件だけ DELETE・404・削除済み記録 → `build inspect` が `payload-deleted` → 再実行で `requests` が DELETE 0・GET 0。 | 判定 C（owner 許可後） |
+  | AC23 | 実 R2: 実系列の dry-run（期待値は当日の catalog snapshot から決める）、空であることを確かめた検証用系列（§5）で N+1 件 publish → 実行 → 最古 1 件だけ DELETE・404・削除済み記録 → `build inspect` が `payload-deleted` → 再実行で `requests` が DELETE 0・GET 0。 | 判定 C（owner 許可後） |
 
 - **ここでは答えない問いと所有する後続スライス:**
 
@@ -242,8 +242,8 @@ Build 系列 1 つについて、ローカル receipt から成功 publish の�
 - **全 EditMode 回帰の適用除外:** 適用除外。理由: Unity の source・asmdef・Assets を変更しない（変更は `tools/` と文書だけ）。代替証拠: 全 Artifacts offline suite の結果 JSON（registered／selected／executed の件数一致、failed 0）と、diff に `unity/` が含まれないことの機械確認。
 - **統合・Unity テスト:** なし（Unity を変えない）。
 - **操作・実行時・目視条件の検証経路:**
-  - AC23（実 R2）: 担当は判定 C。最終 head で行う（古い head の結果を流用しない）。環境は owner の Windows ユーザー、既存の `osm` 資格情報と登録済み Evidence config・build-config。初期状態は当日の store。操作: (1) 実系列 `samplegame/windows-x64-player/il2cpp-high` の `build cleanup --dry-run`（期待値は直前に読んだ catalog の件数から決める。F3 時点では 1 件で `within-limit`）。(2) 検証用系列（project `retention-probe`、target `windows-x64-player`、configuration `probe`。非秘密の小さな合成 file 1〜2 個）へ 11 件を `build publish` し、`build cleanup` を実行。(3) 同じ実行をもう一度。観測: (2) で最古 1 件だけが `deleted`、`deletion/1.intent.json`・`1.deleted.json` がある、その Build の `build inspect` が `payload-deleted`、`build fetch` が `download-unconfirmed`、残り 10 件の fetch が hash 一致、`requests` が DELETE 1・GET 1。(3) で `requests` が DELETE 0・GET 0。(4) owner に bucket の versioning の有無を 1 回、外部テキストで確認してもらう（AI は管理画面を読まない）。保存する証拠: 結果 JSON、記録 file の内容 hash、inspect・fetch の結果、owner の確認テキスト。evidence bundle に入れて C／C′ に渡す。
-  - 検証用系列は退役の手段が無い（対象外）ため、R2 に小さな object が最大 11 件（DELETE が 403 の場合）残る。owner が受け入れた（2026-10-11）。DELETE が 403 なら最低条件 6 は未達で、rule は変えない。
+  - AC23（実 R2）: 担当は判定 C。最終 head で行う（古い head の結果を流用しない）。環境は owner の Windows ユーザー、既存の `osm` 資格情報と登録済み Evidence config・build-config。初期状態は当日の store。操作: (1) 実系列 `samplegame/windows-x64-player/il2cpp-high` の `build cleanup --dry-run`（期待値は直前に読んだ catalog の件数から決める。F3 時点では 1 件で `within-limit`）。(2) 検証用系列（project `retention-probe`、target `windows-x64-player`、configuration は**試行ごとに新しい** `probe-<n>`（n は 1 から）。非秘密の小さな合成 file 1〜2 個）について、まず dry-run で系列が空（成功 0）であることを原記録に残し、11 件を `build publish` して `build cleanup` を実行。期待する削除 ID は、11 件の receipt から既存 policy の全順序（`publishedAt` 降順、同時刻は buildId の Ordinal 昇順）で算出した最古の 1 件。(3) 同じ実行をもう一度。観測: (2) で最古 1 件だけが `deleted`、`deletion/1.intent.json`・`1.deleted.json` がある、その Build の `build inspect` が `payload-deleted`、`build fetch` が `download-unconfirmed`、残り 10 件の fetch が hash 一致、`requests` が DELETE 1・GET 1。(3) で `requests` が DELETE 0・GET 0。(4) owner に bucket の versioning の有無を 1 回、外部テキストで確認してもらう（AI は管理画面を読まない）。保存する証拠（非秘密の原記録そのもの。hash だけにしない）: 実行前の dry-run 結果、11 件の `receipt.json`・`intent.json`、`deletion/` 配下の全記録、cleanup の結果 JSON 2 回分、inspect の結果、残り 10 件の fetch 結果と、取得した bundle の SHA-256 を receipt の `packageSha256` と照合した機械検査の出力、owner の確認テキスト。endpoint とローカル path は収録前に除く。evidence bundle に入れて C／C′ に渡す。
+  - 検証用系列は退役の手段が無い（対象外）ため、R2 に小さな object が最大 11 件（DELETE が 403 の場合）残る。owner が受け入れた（2026-10-11）。DELETE が 403 なら最低条件 6 は未達で、rule は変えない。最終 head が変わって実証をやり直すときは新しい `probe-<n>` を使い、試行ごとに最大 11 件が増える。やり直しは実行前の許可依頼で残置の累計を示す。
 - **未知の操作経路の疎通結果と確認地点:** Build key への実 DELETE と、DELETE 直後の GET が 404 `NoSuchKey` を返すことは、本 bucket・本資格情報では**未確認。初回確認は Phase C**（AC23）。理由: Phase A では実 R2 を操作しない（owner の制約）。Evidence の reset で `evidence/first-use/**` の DELETE→GET 404 は成立済みだが、`development/builds/v1/` に bucket rule があるかは未確認（F5）。不成立時: 403 なら rule を変えずに `delete-pending` が正しく出ることを確認したうえで、owner に設定の状態を確認し、問いを「Build DELETE が bucket 設定上可能か」に分けるかを A3 revision で決める。
 - **人間の判断が必要な条件:** AC23 の実行許可（owner。実行直前に 1 行で許可を求める）（残置の受け入れは合意済み）と、versioning の有無の確認テキスト。合否は結果 JSON と記録の機械検査で判断し、人間の目視判断は求めない。
 - **機械検査:** `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、全 Artifacts PowerShell の parse。
@@ -289,6 +289,23 @@ Build 系列 1 つについて、ローカル receipt から成功 publish の�
 「妥当」とされた主な点（重複を除く）: 未完了を成功に数えない／読めない保護で止める方向、系列 lock 後の再収集、DELETE 後の厳密な 404 確認、不変記録による再開性、Content DELETE 拒否の維持、層ごとの清掃分離、公開面の最小性（`build delete` を作らない、N 定数）、Content・ArtifactsRoot に触れないことをテストで固定する計画。
 
 **r2 で A2 の外から足したもの（owner との協議、2026-10-11）:** 削除後の照会（最低条件 5・AC21。消した Build を `inspect`／`collect` が成功と返さない）、運用の記述（AC22。消したくない Build は保護か N の増加、系列の枠は branch・人で共有、削除は書込み鍵のある PC だけ）、後続への入力（N の系列ごとの設定、共有の保護、Evidence が参照する Build の保護、Cloud に削除権を渡さない、リリース保存、store を失った PC の孤児）。
+
+### A2 2 巡目（擬似 C′）の結果と r3 への反映
+
+- 担当: GPT（Codex CLI の既定 `gpt-6-sol`）／OpenAI、新規の read-only session。1 巡目の失敗経路レビューと同じモデル系列だが別 session。入力版は commit `dc52ed939526f255276c35e73d4801e3fc31c272`（sha256 `24ee9ed4…9b4a`）。過去の C′ 指摘の 5 つの型（判定し直せない、確認から確定までの窓、最終 head 以外の証拠、凍結されていない例外、条件の曖昧さ）をチェックリストとして渡した。
+- 結果: blocker 7、major 2、minor 1。全件採用して r3 の本文へ反映した。新しい blocker が出たため、指摘は出尽くしていない。r3 に対して 3 巡目を行う。
+
+| ID | 型 | 重大度 | 指摘（要約） | r3 の反映 |
+|---|---|---|---|---|
+| PC-1 | 判定し直せない | blocker | 結果 JSON と記録の hash だけでは、削除した key・404 の観測・残り 10 件の照合を C′ が再判定できない | `deleted.json` に DELETE と GET の非秘密の観測を持たせ（AC14）、§5 の証拠を原記録そのものと照合の機械検査に変えた |
+| PC-2 | 窓 | blocker | use が lock の前に削除状態を確認すると、古い判定で保護を付けうる | AC7: lock 取得後に読み直し、rename まで保持 |
+| PC-3 | 窓 | blocker | inspect／collect の確認と結果の間に削除意図が確定しうる | AC21: 確認から結果まで access lock を共有で保持 |
+| PC-4 | 窓 | major | 予算超過後に削除済み記録を確定しうる | AC18: 各 rename 直前と確定時に判定。超過なら書かずに次回 GET から |
+| PC-5 | 例外 | blocker | config 非依存の検査が AC3 の列挙だけだと、既存 reader の検査が抜ける | AC3: 既存の全検査から config 照合 2 項目だけを除く。検査本体は 1 箇所 |
+| PC-6 | 曖昧さ | blocker | 保留中の Build を成功行から外したままでは、GET 200 後に「今も候補」にならず再送できない | AC16: 保留 Build を成功行に戻した完全な snapshot で再計算 |
+| PC-7 | 曖昧さ | blocker | 実証をやり直すと検証用系列の初期件数が変わり、期待が崩れる | §5・AC23: 試行ごとに新しい `probe-<n>`、空であることを原記録に残す |
+| PC-8 | 曖昧さ | major | use／release に config が無く repo を決められない | AC7: `--config` を要求 |
+| PC-9 | 曖昧さ | minor | 同時刻の 11 件では「最古」が時刻だけで決まらない | §5: 期待 ID は既存 policy の全順序から算出 |
 
 ## 6. Phase B 実装結果
 
