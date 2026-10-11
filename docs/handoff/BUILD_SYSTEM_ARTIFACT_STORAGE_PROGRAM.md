@@ -113,7 +113,9 @@ Player Buildからpublishまでの接続は[PR #115](https://github.com/TetsujiA
 
 - Contentの保存契約は§2の開発Contentでr7として固定した。実装は次のスライスに分ける。Content分離・Content保存・Content取り込み・統合Contentフォルダ・`contentSet`の命名規約は新規、Contentの容量上限と件数保持の運用接続は既存の後続への入力とする。各スライスは着手時にA1から行う。
   - Content分離: Playerが`content/`を内包しない場合のUnity側の変更（候補は、U1: 今のまま内包して重複保存、U2: 既存の`content:installedRevisionPath`+`content:manifestSha256`の組で外部revision rootを指す、U3: 新しいconfig keyの追加。U2は、外部revision rootがDIST cacheの`installed/`配置とreceiptを要し、BuildIdentity一致を要求する点、baked `relativeDirectory`の扱い、起動時のlatchとの両立を実装スライスで確認する。EditorはUse For Next Playでlocal directoryのrevisionを取り込み元にでき、private なR2はUnityのHTTPの口では直接読めない）、`build collect`の検査・`build-info.json`・selectionの変更、互換キー案の判断。
-  - Content保存: 退避とpublishのCLI、R2 key、完了確定点（fileを先、`transport.json`か完了マーカーを最後）、receipt、publishの順序（ContentとPlayerのどちらを先か）、確定記録（新旧順序とmanifest digest）、`contentSet`/`target`の値の対応表、R2からArtifactsRootへの取得と不足fileの再利用、file単位uploadが途中で止まったものを「未完了uploadとstaging」に載せるか。
+  - Content保存（2026-10-11 A3凍結、次はPhase B: `BUILD_SYSTEM_ARTIFACT_STORAGE_CONTENT_PUBLISH.md`。問いは退避・file単位object保存・別process取得のhash照合に絞り、確定記録と不足fileの再利用は下記の新規の後続へ分けた）: 退避とpublishのCLI、R2 key、完了確定点（fileを先、`transport.json`か完了マーカーを最後）、receipt、publishの順序（ContentとPlayerのどちらを先か）、確定記録（新旧順序とmanifest digest）、`contentSet`/`target`の値の対応表、R2からArtifactsRootへの取得と不足fileの再利用、file単位uploadが途中で止まったものを「未完了uploadとstaging」に載せるか。
+  - Content確定記録（Content保存のA3で新設）: 新旧順序とmanifest digestを持つ追記だけの記録の形式と書込み方式（LISTまたは条件付き書込みの要否）、revision削除時の記録の扱い、「最新」の解決の保存側の部分、別PCからの同じrevisionの同時公開の排他。
+  - Content取得と再利用（Content保存のA3で新設）: R2からArtifactsRootへの配置と、その際の不足fileの再利用（既存revisionのhash一致fileの流用）。
   - Content取り込み: 取り込み元からDIST cacheへの不足fileの再利用（read lease付きのコピー）、cacheのeviction・leaseとの関係、アプリ更新を越えるcacheの永続性、Unityバージョンとroot schemaの束縛、HTTPのfileごとのdeadline。
   - 統合Contentフォルダ: 取得型／監視型、複数ワークスペースの衝突規則、統合フォルダとArtifactsRootの同一性、共有時の削除主体、ローカル設定と選択UI、「最新」の解決の所有。
   - `contentSet`の命名規約（Content保存のA1で扱う）: 用途×構成×性能の合成名、既存値`bs4-spring-full`を改名しないこと、大文字小文字とパス要素の安全規則、ブランチやBuild設定から決める方法、hd/sdを1 revisionに同梱した場合の部分取得。
