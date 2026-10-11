@@ -112,6 +112,10 @@ foreach($caseName in $selected){
                 $fx.OnTransport={param($req)if($req.Operation -ceq 'get'){$fx.Now+=$limit/2+1000};$null}.GetNewClosure()
                 Assert-FetchFailed (Fetch $fx $p) 'budget-exceeded';Assert ((Get-Count $fx 'get') -eq 2) 'fetch continued after the budget expired'
                 foreach($owner in @(Get-EvidenceTestModules ArtifactApplication)){Assert ($null -eq (& $owner {$script:Budget})) 'budget was not restored'}
+                # (b) 全downloadの後に予算が尽きたら、passedを返さない。
+                $fx.Now=0;Clear-Order $fx;$lastGet=Get-Key "content/$($src.Names[$src.Names.Count-1])"
+                $fx.OnTransport={param($req)if($req.Operation -ceq 'get' -and $req.Key -ceq $lastGet){$fx.Now=$limit+1};$null}.GetNewClosure()
+                Assert-FetchFailed (Fetch $fx $p) 'budget-exceeded';Assert ((Get-Count $fx 'get') -eq $n) 'not every object was downloaded before the clock moved'
                 $fx.Now=0;Clear-Order $fx
                 $fx.OnTransport={param($req)if($req.Operation -ceq 'get'){throw 'SECRET-token https://eeeeeeee.r2.cloudflarestorage.com'}}.GetNewClosure()
                 $r=Fetch $fx $p;Assert-FetchFailed $r 'download-unconfirmed'

@@ -140,4 +140,4 @@ function Receive-ContentObject($Config,[string]$Generation,[string]$Key,[string]
     if(($ExpectedBytes -ge 0 -and $bytes -ne $ExpectedBytes) -or ($ExpectedHash -and $hash -cne $ExpectedHash)){throw 'download-unconfirmed'}
     return [pscustomobject]@{Bytes=[long]$bytes;Sha256=$hash}
 }
-Export-ModuleMember -Function Get-ContentGeneration,Get-ContentBudgetMs,Enter-ContentBudget,Exit-ContentBudget,New-ContentTransferContext,Confirm-ContentRemoteManifest,Publish-ContentObjects,Receive-ContentObject
+Export-ModuleMember -Function Assert-ContentBudget,Get-ContentGeneration,Get-ContentBudgetMs,Enter-ContentBudget,Exit-ContentBudget,New-ContentTransferContext,Confirm-ContentRemoteManifest,Publish-ContentObjects,Receive-ContentObject

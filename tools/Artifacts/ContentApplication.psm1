@@ -86,10 +86,12 @@ function Invoke-ContentCollect([string]$ConfigPath,[string]$Source,[string]$Arti
                 # intentは最初の送信前に固定する。遠隔照合（読取のみ）の後、最初のPUTの前。
                 $ctx.State.IntentSha256=Set-ContentIntent $dir $intent
                 Publish-ContentObjects $ctx $state
+                # 全objectの照合が通った後でだけreceiptを確定し、正本を再読できた場合だけ成功を返す。
+                # 予算（AC13）はreceiptのatomic renameの直前まで有効にし、超えていれば成功にしない。
+                Assert-ContentBudget
+                $receipt=New-ContentReceipt $intent $ctx.State.IntentSha256 ((& $script:Clock).ToUniversalTime().ToString('o'))
+                Write-ContentReceipt $dir $receipt
             }finally{Exit-ContentBudget $scope}
-            # 全objectの照合が通った後でだけreceiptを確定し、正本を再読できた場合だけ成功を返す。
-            $receipt=New-ContentReceipt $intent $ctx.State.IntentSha256 ((& $script:Clock).ToUniversalTime().ToString('o'))
-            Write-ContentReceipt $dir $receipt
             $committed=Get-ContentCommitted $dir $config $manifest
             $r.reference=New-ContentReference $config $committed.Data;$r.receiptPath=$committed.Path
             $r.residue.remote='verified';$r.status='passed';$r.reasonCode='complete'
@@ -145,8 +147,10 @@ function Invoke-ContentFetch([string]$ConfigPath,[string]$Reference,[string]$Exp
             }
             # 集合は完全一致。余剰・欠落があれば拒否する（各fileのsize/hashは取得時に照合済み）。
             Assert-ContentSet $payload (Get-ContentExpectedEntries $manifest) 'content-mismatch'
+            Protect-ArtifactTree $operation
+            # 予算（AC13）は最後の保護・検証の後、成功を返す直前まで有効にする。
+            Assert-ContentBudget
         }finally{Exit-ContentBudget $scope}
-        Protect-ArtifactTree $operation
         $r.outputPath=$payload;$r.manifestSha256=$ExpectedHash;$r.objects=[ordered]@{total=[int]$ref.objectCount}
         $r.status='passed';$r.reasonCode='complete'
     }catch{

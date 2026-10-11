@@ -219,6 +219,13 @@ foreach($caseName in $selected){
                 Assert (@(Get-PutKeys $fx).Count -eq 2 -and -not [IO.File]::Exists([IO.Path]::Combine((Get-StoreDir $fx),'receipt.json')) -and (Get-PutCount $fx (Get-Key 'transport.json')) -eq 0) 'run continued after the budget expired'
                 foreach($owner in @(Get-EvidenceTestModules ArtifactApplication)){Assert ($null -eq (& $owner {$script:Budget})) 'budget was not restored'}
                 # 実行中の操作のdeadlineも、残り予算を超えない。
+                # (a) 全objectの転送後・receipt確定の直前に予算が尽きたら、receiptを作らず成功にしない。再実行は照合だけで完了する。
+                $fx.OnTransport=$null;$fx.Now=0;$s3=New-ContentSource $fx '20260930T202227427Z-77777777777777777777777777777777' @{} 3;$lastKey=Get-Key 'transport.json' $s3.Revision;$n3=$s3.Names.Count+1;Clear-Order $fx
+                $fx.OnReadback={param($key)if($key -ceq $lastKey -and (Get-PutCount $fx $lastKey) -gt 0){$fx.Now=$limit+1};$null}.GetNewClosure()
+                $late=Collect $fx $s3;Assert-Failed $late 'budget-exceeded'
+                Assert (-not [IO.File]::Exists([IO.Path]::Combine((Get-StoreDir $fx $s3.Revision),'receipt.json')) -and @(Get-PutKeys $fx).Count -eq $n3) "receipt=$([IO.File]::Exists([IO.Path]::Combine((Get-StoreDir $fx $s3.Revision),'receipt.json'))) puts=$(@(Get-PutKeys $fx).Count) n3=$n3"
+                $fx.Now=0;$fx.OnReadback=$null;$fx.OnTransport=$null;$putsBefore=@(Get-PutKeys $fx).Count
+                $again=Collect $fx $s3;Assert ($again.status -ceq 'passed' -and @(Get-PutKeys $fx).Count -eq $putsBefore -and $again.objects.verified -eq $n3) 'rerun must complete by verification without resending'
                 $fx.Now=0;$fx.OnTransport=$null;$fx.OnReadback={param($key)if($fx.Requests.Count -eq 0 -and $fx.Now -eq 0){$fx.Now=$limit-100000};$null}.GetNewClosure()
                 $s2=New-ContentSource $fx '20260929T202227427Z-55555555555555555555555555555555' @{} 3;Clear-Order $fx
                 $ok=Collect $fx $s2;Assert ($ok.status -ceq 'passed') "budgeted run failed: $($ok.reasonCode)"
