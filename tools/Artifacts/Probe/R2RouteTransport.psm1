@@ -1,6 +1,7 @@
 Set-StrictMode -Version Latest
 
-$script:TransportAssembly = Join-Path $PSScriptRoot 'artifacts/route-transport/R2RouteTransport.dll'
+# Evidenceのscheduler runtime収集とHarnessの固定build検査も同じ出力先を読む。別の場所へ変えると片方だけが古いDLLや欠落を見る。
+$script:TransportAssembly = Join-Path $PSScriptRoot 'artifacts/probe/R2RouteTransport.dll'
 
 function Import-RouteTransportAssembly {
     if (-not [IO.File]::Exists($script:TransportAssembly)) { throw 'Probe transport unavailable.' }
