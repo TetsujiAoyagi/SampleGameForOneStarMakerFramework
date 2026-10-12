@@ -12,7 +12,7 @@
 - created: 2026-10-12
 - expires: 2026-11-09 または置換 revision
 - harvest to: 採用した規則を `.agents/skills/osm-workflow/SKILL.md` と `references/`（phases-and-handoff.md、review-evidence.md、handoff-template.md）へ。完了時に本書を削除する。
-- Phase A snapshot の取得案内・状態: 未生成（A3 凍結時に作る）
+- Phase A snapshot の取得案内・状態: 保存済み（Artifact Storage、task `workflow-phase-revision`）。取得案内はローカル担当の作業領域にあり、Phase B の担当が取得・閲覧を確認する（引渡し未完了）
 - Phase B result snapshot の取得案内・状態:
 - evidence bundle の取得案内・状態:
 - C' blind bundle の取得案内・状態:
