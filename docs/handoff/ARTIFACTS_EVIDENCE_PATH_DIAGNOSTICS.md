@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C`（Phase B 完了。次は発見 C）
+- status: `D`（判定 C GO、最終 C' PASS。次は Phase D）
 - branch: `codex/artifacts-cli-path-diagnostics`
 - implementation base commit: `7b5b3002308eaeb330b4e549df941169ad06be36`（`develop`。PR #120 のマージを含む。A3 凍結時に `origin/develop` と一致を確認済み）
 - implementation head commit: `90ad270524be9d18e801c9ea74349ea248f2b46e`
@@ -12,11 +12,11 @@
 - created: 2026-10-12
 - expires: 2026-11-09 または置換 revision
 - harvest to: `tools/Artifacts/README.md`（Evidence v2 の通常操作と exit／reasonCode の段落）。完了時に本書を削除する。
-- Phase A snapshot の取得案内・状態: revision 1 は本書の凍結 commit。判定用 evidence bundle に同梱して保存する（取得案内は bundle と共通。現時点は未保存）
-- Phase B result snapshot の取得案内・状態: §6（本書）。判定用 evidence bundle に同梱して保存する（現時点は未保存）
-- evidence bundle の取得案内・状態:
-- C' blind bundle の取得案内・状態:
-- 引継ぎ票: 次は Phase C（発見 C → 判定 C）。Phase A revision 1（`b1ae816`）、implementation base／head は上記。発見 C は base..head の完全 diff で構造・契約・失敗経路を見る。blocker が無ければ、判定必須テスト（§5）を実行担当が実行し、その生ログを含む evidence bundle を作って保存してから判定 C を行う。必要な権限: 判定必須テストは offline（資格情報・Unity 不要）。bundle の保存・取得は Artifact Storage（sandbox 外、資格情報）。停止規則: §2 の blocker の基準。引き渡さないもの: C の所見を C' と §6 に渡さない
+- Phase A snapshot の取得案内・状態: 判定用 evidence bundle に同梱（取得案内は bundle と共通）。確認済み
+- Phase B result snapshot の取得案内・状態: 判定用 evidence bundle に同梱（取得案内は bundle と共通）。確認済み
+- evidence bundle の取得案内・状態: Artifact Storage に publish 済み（task `artifacts-cli-path-diagnostics`）。判定 C の担当が別 context で fetch し、manifest 62 行の照合で不一致 0。取得案内は送信担当（Phase B の session）の作業領域にあり、恒久的な引渡し先への移動は Phase D で確認する
+- C' blind bundle の取得案内・状態: 判定 C と同じ bundle（所見を含まない）。C' 用の取得案内は別ファイル。C' の担当が別 context で fetch し、不一致 0。確認済み（取得案内の恒久的な引渡し先は上と同じく Phase D で確認する）
+- 引継ぎ票: 次は Phase D（owner による C／C' の突合とマージ判断）。Phase A revision 1（`b1ae816`）、implementation base／head は上記。必要な権限: Evidence の保存・引渡しの確認に Artifact Storage（sandbox 外、資格情報）。停止規則: §9 と `review-evidence.md` の「Phase D の保存・引渡し確認」。owner の判断を要する点: §8 の後続 findings 1（I4 の文言と workflow-task の競合）と 4（判定必須の再実行）。引き渡さないもの: なし（C' 完了済み）
 
 管理方式は tracked HANDOFF（U3、A3 で決定）。本スライスは PR #120 で改訂した `osm-workflow` の規則で進める初めてのスライスで、§2 は不変条件と成立条件を先に書く形式に従う。
 
@@ -146,7 +146,7 @@ Evidence 系コマンドが、使えない config／selection の指定を、ネ
   5. med（`Read-EvidenceConfig` の他の呼出し元への波及）: 採用 → I4 に明記し、§3 に波及の確認を書き、判定必須を全 Artifacts suite と Workflow に広げる。
   6. med（S1 の schema 不一致の範囲が曖昧）: 採用 → S1 で範囲を固定。receipt は別の try にする。
   7. low（行数見積りが過小）: 採用 → §3 を修正。
-- C' 用に予約した担当・モデル・ベンダー: Phase B は Claude Opus 5.5。判定 C は Claude Fable 5.1、C' はこの 2 つと異なる Claude Sonnet 5.5 の新しい subagent context とする（risk `normal` のため強化条件は不要）。
+- C' 用に予約した担当・モデル・ベンダー: Phase B は Claude Opus 5.5。判定 C は Claude Fable 5.1、C' はこの 2 つと異なる Claude Sonnet 5.5 の新しい subagent context とする（risk `normal` のため強化条件は不要）。実績: Fable 5.1 が利用枠の不足で起動できなかったため、C は Claude Sonnet 5.5、C' は Claude Haiku 5.5 に変えた。どちらも Phase B と異なり、C と C' も互いに異なる。
 - 独立性の強化条件を満たせない場合の理由: 対象外（risk `normal`）。C' は A2 と同じ系列を使うが、A2 は設計の入力版だけを見ており、C の所見は見ない。
 
 ## 6. Phase B 実装結果
@@ -169,31 +169,55 @@ Evidence 系コマンドが、使えない config／selection の指定を、ネ
 
 ## 7. Phase C
 
-- 種別:
-- 使用したevidence bundle の取得案内・状態:
-- 構造適合:
-- 現在の問いを阻害する findings:
+- 種別: 発見 C（head `90ad270`）→ 判定 C（同じ head）。
+- 使用したevidence bundle の取得案内・状態: §0 と同じ。判定 C の担当が fetch し、manifest 照合の不一致 0。
+- 構造適合: 適合。変更は §3 の 5 file（HANDOFF を除く）に限られる。新しい file・依存・公開関数は無い。変換は `EvidenceContract` にあり、Application は whitelist で写す。行数警報には届かない。
+- 現在の問いを阻害する findings: なし（発見 C・判定 C とも）。
 - 後続スライスへ移送する findings:
+  - (a) low: `Read-EvidenceConfig` の try が広く、想定外の例外も `invalid-evidence-config` になる。fail-closed の向きは保たれ、秘密は出ない。
+  - (b) low: AC1 の「guard を取得しない」は、task directory が作られないことによる間接検証。guard を直接観測する注入点が無い。
+  - (c) low: `deployment-receipt-missing` は publish と inspect だけで試験した。fetch・use・release は同じ `Read-EvidenceConfig` を通る。
 - 実行したテストコマンドと `-Filter`、対象を選んだ理由:
-- テスト結果:
-- 判定必須のうち未実行:
-- 重い検証を発見段階で限定実行した場合の理由と範囲:
-- 未確認事項:
-- 担当・モデル:
+  - 発見 C: `ArtifactEvidence.Tests.ps1 -Case`。対象は追加した 6 case と、既存の `unsupported-schema`・`selection-path`。I4 に直結するため。
+  - 判定 C: §5 の判定必須を実行担当の session が実行した。3 Release build、`tools/Artifacts/tests/*.Tests.ps1` の全 18 suite、Workflow `TaskLifecycle.Tests.ps1`、contract-audit、docs-audit。
+- テスト結果（registered＝selected＝executed、failed）:
+  - ArtifactEvidence 19/0、ArtifactPackage 9/0、ArtifactRotation 11/0、ArtifactTransfer 20/0。
+  - BuildCleanup 23/0、BuildCollect 9/0、BuildPublish 9/0、BuildRetention 9/0。
+  - Content.Contract 9/0、Content.Fetch 5/0、Content.Publish 12/0、Credentials 22/0。
+  - EvidenceCleanup は 1 回目が 35/1、再実行が 35/0。
+  - EvidenceReset 31/0、EvidenceRetention 14/0、EvidenceSchedule 78/0。
+  - R2RouteTransport 7/0、RouteProof 26/0、TaskLifecycle 23/0。
+  - 3 build はすべて exit 0。contract-audit・docs-audit は errors 0。
+  - diff に `unity/` は含まれない（name-status で機械確認。全 EditMode 回帰の適用除外の代替証拠）。
+- EvidenceCleanup の再実行: 1 回目に `fresh-process-cleanup-contract` が失敗した。この case は `rg --files` を呼ぶが、実行環境の PATH に ripgrep が無かった（log に「用語 'rg' は認識されません」）。差分外の既存の依存で、変更した file とは関係しない。同じ head で rg を PATH に足して suite 全体を 1 回だけ再実行し、通った。両方の生結果を bundle に残している。
+- 判定必須のうち未実行: なし。
+- 重い検証を発見段階で限定実行した場合の理由と範囲: なし。
+- 未確認事項: なし。B の「追加 case は旧 module で 5 case 失敗」は §6 の記録で、bundle の生結果には含まない。
+- 判定: GO。
+- 担当・モデル: 発見 C と判定 C の判断は Claude Sonnet 5.5（それぞれ新しい subagent context）。判定必須テストの実行担当は Claude Haiku 5.5（別の subagent context）。
 
 ## 8. Phase C'
 
-- 担当方式:
-- 使用したblind audit bundle の取得案内・状態:
+- 担当方式: AI
+- 種別と巡: 最終 C'（高コスト証拠なし）、1 巡目（全体）。
+- 受け取った決定記録の版: なし
+- 使用したblind audit bundle の取得案内・状態: §0 と同じ bundle で、C' 用の取得案内を使った。C' の担当が fetch し、manifest 62 行の不一致 0、packageSha256 は期待値と一致。
 - 確認範囲・方法:
-- 判定:
-- 現在の問いを阻害する findings:
+  - Phase A r1 の凍結条件、Phase B result、完全 diff、判定の生結果を全件集計した。
+  - head の呼出し元（Build・Content・Workflow・cleanup・schedule・`artifacts.ps1`）を `git show 90ad270:` で読んだ。
+  - PowerShell の挙動 2 点を小さく確かめた。テストは再実行していない。
+- 判定: PASS。
+- 現在の問いを阻害する findings: なし。
 - 後続スライスへ移送する findings:
-- 残存リスク:
-- 監査できなかった範囲:
-- 独立性:
-- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与:
-- 担当・モデル:
+  1. med（owner 判断）: `workflow-task.ps1` は `Read-EvidenceConfig` の小文字の例外 message を reasonCode に写す。そのため、2 回の読取の間に config が壊れる競合でだけ、`workflow-unavailable` が新しい code に変わる。§3 はこの競合を受容と書いているが、I4 の文言（Workflow の結果を変えない）とずれる。
+  2. low: receipt の `baselineSha256` 等の hex 不正は、try の外の `Assert-Hex` で失敗するため `unconfirmed` のまま。S3 の列挙には入らない。
+  3. low: AC4 の漏洩確認は、in-process の結果 object だけを見ている。CLI の stdout・stderr を見るのは相対 selection の 1 case だけ。CLI 経由の config 失敗は未試験。
+  4. low（owner 判断）: EvidenceCleanup を再実行したことは、§5 の「各 1 回」と食い違う。原因は差分外の rg 依存。`steps.json` には再実行の記録が無く、bundle の README で開示している。
+- 残存リスク: stdout・stderr への漏洩は静的確認だけで見ている（Artifacts に `Write-Host`・`Write-Error` は無い）。実 R2・資格情報・Unity は範囲外。
+- 監査できなかった範囲: `Assert-Hex`・`Assert-Fields` の message の文言、diff 外の既存 case の本体、テストの再実行、Storage 側の実挙動。
+- 独立性: Phase B（Opus 5.5）・判定 C（Sonnet 5.5）と異なるモデルを使った。新しい context で、入力は blind bundle と C' 用の取得案内だけ。
+- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: なし。
+- 担当・モデル: Claude Haiku 5.5（Anthropic、Claude Code の subagent）
 
 ## 9. Phase D
 
