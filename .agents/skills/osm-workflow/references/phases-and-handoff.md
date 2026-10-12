@@ -184,4 +184,4 @@ tracked HANDOFFの全Phase欄には、既存の取得案内の引渡し先・担
 - 発見 C と判定 C の結論、指摘、疑念候補、誘導的な説明は C' 完了まで隔離する。B result へ発見 C の所見を転載しない。
 - 判定 C と C' の所見は Phase D で初めて突き合わせる。
 - 発見 C は C' を起動しない。テスト未実行でも構造・契約の ledger を返してよい。GO 判定はしない。
-- 差し戻し等でレビュー対象の implementation head または対象 diff が変わった場合は旧判定 bundle と C' 結果を無効にする。修正とレビューへ戻り、次の GO 候補が固まってから判定必須テストと C/C' をやり直す。修正 commit ごとに全件実行しない。発見 C の差し戻しだけでは C' をやり直さない。HANDOFF へレビュー結果だけを追記した commit は implementation head を更新せず、再実行条件にしない。
+- レビュー対象の implementation head または対象 diff が変わった場合は [判定後の head 変更](review-evidence.md#判定後の-head-変更) に従う。
