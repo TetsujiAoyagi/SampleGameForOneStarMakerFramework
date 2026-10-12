@@ -3,24 +3,24 @@
 ## 0. メタデータと引継ぎ票
 
 - type: `slice`
-- status: `A`（A3 r3 凍結済み。2026-10-12 owner 承認。実装は未着手・開始待機）
+- status: `B`（2026-10-12 owner が B 開始待機を解除。固定 Evidence の取得が未成立のため実装未着手・入力取得待ち）
 - branch: `codex/debugstudio-property-write-a01`（`origin/develop` 起点）
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`
 - implementation head commit: 未固定（実装未着手。本文だけの commit を implementation head にしない）
-- Phase A revision: `r3`（凍結）。r1（commit `dc2d55a`、内容 SHA-256 `9549237404d65415f750f9e9e9fd76a1e707a2cc8c8d5b6fa67fa873c4eee7f8`）に対する A2 指摘を反映し、§1.5 の分割方針に合わせて範囲を **ActiveSelf の Runtime 書込み経路と、その実 UI 往復** に絞った。r3 は r2 の追加点検を統合し、取消・完了・配線と検証の境界を修正した。今回の作業指示は凍結と先行スライスの A0/A1 までであり、B は開始しない。
+- Phase A revision: `r3`（凍結）。r1（commit `dc2d55a`、内容 SHA-256 `9549237404d65415f750f9e9e9fd76a1e707a2cc8c8d5b6fa67fa873c4eee7f8`）に対する A2 指摘を反映し、§1.5 の分割方針に合わせて範囲を **ActiveSelf の Runtime 書込み経路と、その実 UI 往復** に絞った。r3 は r2 の追加点検を統合し、取消・完了・配線と検証の境界を修正した。凍結時の開始範囲は先行スライスの A0/A1 まで。2026-10-12 の後続 owner 指示で本スライスの B 開始待機を解除した。凍結条件は変更しない。
 - risk: `high`（Player の状態変更、session と object の寿命、受信と Update の並行境界）
 - owner: リポジトリ owner（依頼者）。§2.7 に D0〜D7 の採用・凍結を記録済み。
 - created: 2026-10-12
 - expires: 2026-11-12 または置換 revision の成立時。期限で自動採用・実装しない。
 - harvest to: `protocol/debugsocket/README.md` の command 契約、`unity/Assets/README.md` の DebugStudio 案内。実装後の現況だけを反映する。
 - task: `debugstudio-property-write`。通常 Workflow の開始を記録済み。今回の Phase 停止を task 全体の終了に変換しない。
-- Phase A snapshot の取得案内・状態: 凍結 commit `876a37c14353951f560552c13b30718056c527d0` から所見を除いた r3 snapshot と manifest を生成し、既存 private Evidence 保存先へ保存済み。取得案内はこの会話の「A3 r3 固定入力の取得案内」から次担当へ渡す。次の担当 session での fetch / 必須内容閲覧は未実施・引渡し未完了。保存側の読戻しだけを引渡し完了にしない。
+- Phase A snapshot の取得案内・状態: 凍結 commit `876a37c14353951f560552c13b30718056c527d0` から所見を除いた r3 snapshot と manifest を生成し、既存 private Evidence 保存先へ保存済み。取得案内はこの会話の「A3 r3 固定入力の取得案内」から次担当へ渡す。B 担当 session が既存取得案内の reference と独立 hash で fetch を試みたが、既存 Storage の receipt 実体 path 検証で失敗。fetch / 必須内容閲覧は未成立・引渡し未完了（§6）。保存側の読戻しだけを引渡し完了にしない。
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 全て未生成。作成 Phase の担当が既存引渡し先へ案内する。
 - PR: 未作成（依頼範囲外）。後日作る場合も base は `develop`。
 
-**引継ぎ票 — 本スライスは B 開始待機。先に Player UI Route の A0/A1。** owner が §2.6 D0〜D7 と残存リスクを含む r3 推奨案を承認し、§2.7 で凍結した。先行スライスは `codex/debugstudio-player-ui-route-a01` の `docs/handoff/DEBUGSTUDIO_PLAYER_UI_ROUTE.md` に分離する。本スライスの B は今回開始せず、後日の実装指示後に凍結 r3 を入力にする。高コスト証拠は先行スライス GO 後。追加のモデル点検は行わず、独立性の未充足は完了へ読み替えない（§5.5）。
+**引継ぎ票 — 次は固定入力の取得後、Phase B の実装再開。** 2026-10-12 の owner 指示が B 開始待機を解除した。開始時の専用 worktree の branch・無差分・公開 head `1723218834a8f4d1000f8cff72f03fa718d66edf` を照合済み。A3 r3 と implementation base は変更しない。固定 Evidence の取得が未成立なので、コード実装と implementation head の固定はまだ行っていない。§6 の取得失敗を解消し、同じ案内から fetch・独立 hash 照合・必須本文閲覧を確認してから、凍結済み範囲を実装する。取得経路の復旧は条件や設計の変更を承認するものではない。
 
-今回の成果物は計画文書のみ。Unity・Player Build・実 UI の起動権限を今回の引継ぎから推測しない。今回 A3 の凍結まで実施し、実装、Unity 起動、実装テスト、Build、PR 作成は行わない。`tools/Artifacts` と `docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_*` を変更しない。旧 PR #98〜#103 / `cursor/debug-go-*-575e` のコード・設計を入力として渡さない。
+B は日本語コメントで責務・寿命・取消と同期完了の境界を説明する。Unity の限定 Editor 操作・コンパイル確認は、対象 project と既存 Editor の所有を確認したうえで必要時のみ行える。Unity test・Player Build・実 Player E2E・判定 C・C' は B で実行しない。高コスト証拠は先行 `DebugStudio Validation / Player UI Route` の GO 後に C が取得する。追加のモデル点検と PR 作成は行わず、task 全体を終了しない。元 checkout の branch、他 task の process・Editor・port・成果物を操作しない。`tools/Artifacts` と `docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_*` を変更しない。旧 PR #98〜#103 / `cursor/debug-go-*-575e` は参照・流用しない。
 
 ## 1. A0 — 目的、現況、対象外
 
@@ -362,7 +362,20 @@ R1〜R4 の反映後に、実装後の C/C' で突かれうる穴を同じ担当
 
 ## 6. Phase B 実装結果
 
-未着手。implementation head 未固定。成果物・取得案内は未生成。
+実装未着手。implementation head 未固定。B result snapshot / evidence bundle は未生成。次は発見 C ではなく、固定入力の取得後の B 再開。
+
+### 2026-10-12 B 開始前の入力確認
+
+- owner の本 session の実装指示により、§0 の B 開始待機を解除した。凍結済み A3 r3 の条件・責務・停止規則は変更していない。
+- 担当: Codex（OpenAI 系）。同系統の実装補助が codec と既存 DLL 配置の読取を分担した。追加モデル点検、発見 C、判定 C、C' は依頼していない。
+- 開始時の専用 worktree は指定 branch、HEAD は `1723218834a8f4d1000f8cff72f03fa718d66edf`、変更なし。`git ls-remote` の branch head と一致した。sandbox 内の Git 読取は権限・通信エラーとなり、通常の承認済み sandbox 外経路で照合した。元 checkout の branch は変更していない。
+- 通常 Workflow status は `active/end-not-recorded`、version 1、配送待ち 0。task の終了・再開処理は行っていない。
+- owner 指定の既存ローカル取得案内を読み、記載された reference と独立した期待 package hash を fetch に渡した。固定 CLI とリポジトリの通常 CLI の両方が `status=failed / reasonCode=unconfirmed / outputPath=null` で終了した。保存されたファイルの本文閲覧や hash 照合の成功は記録しない。
+- 秘密値・例外本文を出さず、例外型とコード位置だけを診断した。失敗地点は `EvidencePaths.psm1` の `Resolve-EvidenceStoredPath`（行53）、呼出元は `EvidenceStateStore.psm1` の `Read-EvidenceTask`（行60）と `EvidenceApplication.psm1` の `Invoke-EvidenceFetch`（行89）。保存済み receipt の解決先と native 実体 path / root の一致検査で拒否され、取得本体に到達していない。登録済み runtime の status 照会も失敗した。これは入力取得経路の未成立であり、A3 の設計変更が必要という判断ではない。
+- `tools/Artifacts`・登録設定・資格情報・catalog / receipt を変更せず、検査の迂回や保存方式の変更を行っていない。取得 script / DLL の実行もない。既存取得経路が復旧したら同じ固定入力の取得・hash 照合・本文閲覧から再開する。
+- D2 の追加 DLL edge の必要性は未確定。既存パッケージの依存一覧だけを、Runtime asmdef の直接参照が必要という証拠にはしていない。コード・asmdef・テストは未変更であり、コンパイル未確認。
+- 未実行: コード実装、計画されたテストコード、Unity Editor コンパイル、Unity test、.NET 回帰、Player Build、実 UI / Player E2E、C / C'。先行 Player UI Route の GO 待ちは維持する。
+- 実行済み: `pwsh tools/contract-audit.ps1`（627 C# files、errors=0 / warnings=0、H1 検査は非適用）、`pwsh tools/docs-audit.ps1`（111 Markdown files、errors=0 / warnings=0）、`git diff --check`（違反なし）。今回の変更は本 HANDOFF の記録のみ。機械検査の通過を実装完了やスライスの GO と扱わない。
 
 ## 7. Phase C
 
@@ -374,4 +387,4 @@ R1〜R4 の反映後に、実装後の C/C' で突かれうる穴を同じ担当
 
 ## 9. Phase D
 
-未到達。マージ・harvest・Evidence 保存引渡し・task 終了を行わない。本 HANDOFF は凍結 r3 として保持し、本スライスの B は開始待機。
+未到達。マージ・harvest・Evidence 保存引渡し・task 終了を行わない。本 HANDOFF は凍結 r3 として保持し、本スライスは B 開始承認済み・固定入力取得待ち。
