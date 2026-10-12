@@ -5,7 +5,7 @@
 - type: `slice`
 - status: `B`（Phase A revision 1 を A3 で凍結。次は Phase B）
 - branch: `codex/artifact-storage-content-retention-cleanup`
-- implementation base commit: `7a75cac40fc9ba8a1dd51f0ab4fda07c1f9edc41`（`develop`。PR #122 を含む。A3 で凍結時の `develop` と照合し直す）
+- implementation base commit: `7a75cac6f437f480e15fe49b203269551cfe2a22`（`develop`。PR #122 を含む。A3 凍結時の `origin/develop` と一致を確認済み）
 - implementation head commit: 未固定（Phase B で記録）
 - risk: `high`（R2 の実 DELETE を初めて Content に開く。1 revision が複数 object で、途中で止まると revision が壊れる。公開 API・asmdef・Unity は変えない）
 - owner: OSM maintainers
