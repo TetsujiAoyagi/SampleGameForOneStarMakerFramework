@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C`（Phase B 完了。レビュー記録は implementation head の後の commit に置く）
+- status: `C'`（判定 C は GO。C′ 実施中）
 - branch: `codex/workflow-revision-phase-a`
 - implementation base commit: `24fdd2099f4df39911de0d88c09fc7815e077fb8`（`develop`。PR #119 のマージを含む。A3 凍結時の `origin/develop` と一致を確認済み）
-- implementation head commit: `9f47422e4704e95e2ce88b8cf0a89f1822e73ab4`
+- implementation head commit: `f7b0e9bcc1686be4dcf74f63f38bc24d115cae1b`
 - risk: `high`（全スライスの判定・独立監査・証拠の取り直しの規則を変える。誤削除・未検証の GO・独立性の低下に直結しうる。公開 API・asmdef・Unity は変えない）
 - owner: OSM maintainers
 - created: 2026-10-12
@@ -467,22 +467,26 @@ D:\repositories\unity\SampleGameForOneStarMakerFramework の docs/handoff/WORKFL
 - 未実行: Unity・テストは対象外（文書のみ）。§0 の Phase A snapshot の取得・閲覧確認は行っていない（本 session は固定入力だけで作業し、Artifact Storage に触れていない）。push と PR 本文の更新はしていない。
 - 差し戻し後の修正: B 適応として 1 commit（Phase A は再開しない。修正前の head は `e70a31d54c05fdf0a4d58882db693f78be6065e3`）。修正の理由と内容は C′ 完了まで §6 に書かない（B result へ所見を転載しないため）。
 - 差し戻し後の修正: B 適応として 1 commit（修正前 head `d19dca4`）。理由と内容は C′ 完了まで書かない。
-- implementation head commit: `9f47422e4704e95e2ce88b8cf0a89f1822e73ab4`
+- implementation head commit: `f7b0e9bcc1686be4dcf74f63f38bc24d115cae1b`
 - Phase B 担当・モデル・ベンダー: Claude Opus 5.5／Anthropic（Claude Code の新規 subagent）
 
 ## 7. Phase C
 
-- 種別:
-- 使用したevidence bundle の取得案内・状態:
-- 構造適合:
+- 種別: 判定 C（3 巡。文書のみで判定必須検査が安価なため、発見 C を分けず判定 C から開始）
+- 使用したevidence bundle の取得案内・状態: 保存済み・取得と hash 照合を確認済み（Artifact Storage、task `workflow-phase-revision`）。取得案内はローカル担当の作業領域。head `e70a31d` 向けの初回 bundle は差し戻しで無効
+- 構造適合: §3 の 4 文書だけを変更。正本は review-evidence.md／phases-and-handoff.md、SKILL.md は要約と参照、欄は handoff-template.md。`AGENTS.md`・tools・`unity/` の変更なし
 - 現在の問いを阻害する findings:
-- 後続スライスへ移送する findings:
-- 実行したテストコマンドと `-Filter`、対象を選んだ理由:
-- テスト結果:
-- 判定必須のうち未実行:
-- 重い検証を発見段階で限定実行した場合の理由と範囲:
-- 未確認事項:
-- 担当・モデル:
+  - 1 巡目（head `e70a31d`）C-1: 「操作・目視証拠の受け渡し」の C′ 開始前確認と、1b の暫定 C′ → 高コスト証拠の順序が矛盾（S1、A3 凍結 1b）。修正: `d19dca4`（後で取得すると凍結した高コスト証拠は、最終 C′ の開始前に確認）
+  - 1 巡目 C-2: R1（head 変更時の取り直し）の本文が複数箇所に重複（I7）。修正: `d19dca4`（review-evidence.md「判定後の head 変更」に集約し、他は参照）
+  - 2 巡目（head `d19dca4`）C-3: 判定 C 用 bundle の Phase B result に前巡の指摘への対応が書かれており、同じ bundle を C′ に渡すと I2 に反する。対処: 実装は変えず、C′ 用の blind bundle を別に作成・保存・取得。§6 からも該当記述を除いた（転送不備の再梱包。implementation head は不変）
+  - 3 巡目: なし。GO
+- 後続スライスへ移送する findings: なし
+- 実行したテストコマンドと `-Filter`、対象を選んだ理由: `pwsh tools/docs-audit.ps1`、`pwsh tools/contract-audit.ps1`（判定必須。head `d19dca4` の checkout で実行）。`unity/` の diff が無いことを機械確認（全 EditMode 回帰の適用除外の代替証拠）
+- テスト結果: docs-audit `errors=0 warnings=0`（111 files）、contract-audit `errors=0 warnings=0`（627 files）、`unity/` の変更なし
+- 判定必須のうち未実行: なし
+- 重い検証を発見段階で限定実行した場合の理由と範囲: なし
+- 未確認事項: PR 本文とリモート head の照合は判定 C の範囲外（Phase D で確認）
+- 担当・モデル: 判定 C は codex CLI／GPT（`gpt-6-sol`）／OpenAI、巡ごとに新規 session・読取専用。実行担当（evidence の生成・publish・取得、検査の実行）は統合担当の Claude Opus 5.5 session。Phase B は Claude で、C≠B を満たす
 
 ## 8. Phase C'
 
