@@ -3,24 +3,24 @@
 ## 0. メタデータと引継ぎ票
 
 - type: `slice`
-- status: `A`（A1 r3 統合案。既存点検結果と主担当の見立てを反映済み。次は owner の A3 採否判断。未凍結）
+- status: `A`（A3 r3 凍結済み。2026-10-12 owner 承認。実装は未着手・開始待機）
 - branch: `codex/debugstudio-property-write-a01`（`origin/develop` 起点）
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`
 - implementation head commit: 未固定（実装未着手。本文だけの commit を implementation head にしない）
-- Phase A revision: `r3-draft`。r1（commit `dc2d55a`、内容 SHA-256 `9549237404d65415f750f9e9e9fd76a1e707a2cc8c8d5b6fa67fa873c4eee7f8`）に対する A2 指摘を反映し、§1.5 の分割方針に合わせて範囲を **ActiveSelf の Runtime 書込み経路と、その実 UI 往復** に絞った。r3 は r2 の追加点検を統合し、取消・完了・配線と検証の境界を修正した。実装許可ではない。
+- Phase A revision: `r3`（凍結）。r1（commit `dc2d55a`、内容 SHA-256 `9549237404d65415f750f9e9e9fd76a1e707a2cc8c8d5b6fa67fa873c4eee7f8`）に対する A2 指摘を反映し、§1.5 の分割方針に合わせて範囲を **ActiveSelf の Runtime 書込み経路と、その実 UI 往復** に絞った。r3 は r2 の追加点検を統合し、取消・完了・配線と検証の境界を修正した。今回の作業指示は凍結と先行スライスの A0/A1 までであり、B は開始しない。
 - risk: `high`（Player の状態変更、session と object の寿命、受信と Update の並行境界）
-- owner: リポジトリ owner（依頼者）。A3 の採否・凍結と §2.6 D0（分割）を決定する。
+- owner: リポジトリ owner（依頼者）。§2.7 に D0〜D7 の採用・凍結を記録済み。
 - created: 2026-10-12
 - expires: 2026-11-12 または置換 revision の成立時。期限で自動採用・実装しない。
 - harvest to: `protocol/debugsocket/README.md` の command 契約、`unity/Assets/README.md` の DebugStudio 案内。実装後の現況だけを反映する。
 - task: `debugstudio-property-write`。通常 Workflow の開始を記録済み。今回の Phase 停止を task 全体の終了に変換しない。
-- Phase A snapshot の取得案内・状態: A3 凍結 snapshot は未生成。owner の採否入力は本ブランチの commit 済み r3 HANDOFF。凍結担当が取得版の内容 SHA-256 を正、commit を補助として固定する。
+- Phase A snapshot の取得案内・状態: r3 凍結正本は本ブランチの A3 commit。本担当がそこから固定 snapshot と manifest を生成し、既存 Evidence 保存経路へ渡す。保存・取得案内はこの会話で引き渡す（現時点は生成・保存前）。C' 用には §5.5〜5.6 の所見を含めない。
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 全て未生成。作成 Phase の担当が既存引渡し先へ案内する。
 - PR: 未作成（依頼範囲外）。後日作る場合も base は `develop`。
 
-**引継ぎ票 — 次は owner の A3 採否判断。** §2.6 D0〜D7 と §5.6 の主担当の見立てを入力とする。owner の「他モデルに点検してもらうのはこれで最後」に従い、この計画に対する追加のモデル点検は起動しない。r3 は主担当による統合案であり、同一入力版への複数独立 A2 や A0 のみからの代替構成レビューを完了したとは扱わない（§5.5）。owner の個別判断と凍結は未実施。D0 採用後、先行スライス `DebugStudio Validation / Player UI Route` は着手時に別ブランチ・別 HANDOFF として作る。本書の更新だけで別スライスや B に着手しない。
+**引継ぎ票 — 本スライスは B 開始待機。先に Player UI Route の A0/A1。** owner が §2.6 D0〜D7 と残存リスクを含む r3 推奨案を承認し、§2.7 で凍結した。先行スライスは `codex/debugstudio-player-ui-route-a01` の `docs/handoff/DEBUGSTUDIO_PLAYER_UI_ROUTE.md` に分離する。本スライスの B は今回開始せず、後日の実装指示後に凍結 r3 を入力にする。高コスト証拠は先行スライス GO 後。追加のモデル点検は行わず、独立性の未充足は完了へ読み替えない（§5.5）。
 
-今回の成果物は計画文書のみ。Unity・Player Build・実 UI の起動権限を今回の引継ぎから推測しない。A3 の凍結、実装、Unity 起動、実装テスト、Build、PR 作成はこの文書更新の範囲外。`tools/Artifacts` と `docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_*` を変更しない。旧 PR #98〜#103 / `cursor/debug-go-*-575e` のコード・設計を入力として渡さない。
+今回の成果物は計画文書のみ。Unity・Player Build・実 UI の起動権限を今回の引継ぎから推測しない。今回 A3 の凍結まで実施し、実装、Unity 起動、実装テスト、Build、PR 作成は行わない。`tools/Artifacts` と `docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_*` を変更しない。旧 PR #98〜#103 / `cursor/debug-go-*-575e` のコード・設計を入力として渡さない。
 
 ## 1. A0 — 目的、現況、対象外
 
@@ -103,7 +103,9 @@ r1 は、Runtime の書込み経路、2種類の値型、Studio の UI 補助、
 
 r1 にあった LocalPosition の契約案（`[x,y,z]` の JSON number 3要素、各要素の有限 float 検査、文字列数値・要素数違い・NaN / Infinity / overflow の拒否、`transform.localPosition` への一度の代入、invariant RawValue の数値比較で成分誤差 1e-5 以内）は、スライス 3 の A0 入力として引き継ぐ。
 
-## 2. A1 — 意思決定と受け入れ境界（推奨・未凍結）
+## 2. 意思決定と受け入れ境界（A3 r3 凍結）
+
+以下の推奨案は §2.7 の owner 承認で採用済み。受け入れ条件と責務の意味は承認入力から変更しない。
 
 ### 2.1 進める最低条件
 
@@ -192,7 +194,7 @@ SetActive に伴う callback の作用全体を transaction にすることは�
 
 A3 後の blocker は、凍結条件または常時契約と一次証拠を明記する。不変条件への違反は具体的な順序も示す。それ以外は後続入力にする。条件・所有者・依存・公開面の変更が必要なら Phase A を新 revision で再開する。A3 後の例外承認・決定記録は現在なし（未到達）。
 
-### 2.6 owner が A3 で決める未決事項
+### 2.6 A3 の採用案（D0〜D7）
 
 - D0 分割: **§1.5 の4スライス縦切りと順序を推奨**。スライス 2（本 HANDOFF）の内部はこれ以上分けない（理由と再検討条件は §1.5）。採らない場合は、owner が優先したい問いを基に境界を改稿する。r1 の広い範囲へ自動的に戻さない。
 - D1 許可集合: **ActiveSelf の1つ**（D0 採用時）。LocalPosition は §1.5-3 へ。
@@ -202,6 +204,18 @@ A3 後の blocker は、凍結条件または常時契約と一次証拠を明�
 - D5 操作経路: **§1.5-1 の GO を本スライスの高コスト証拠の前提にする**ことを推奨。本スライスでは AutomationId・UIA script・fixture を作らない。
 - D6 Player / fixture: §1.5-1 の成果物を使う。r1 の推奨（既存 BS4 Spring Player の起動流用、専用 flag で無更新 fixture を DependOnAll から作る）は §1.5-1 の A0 入力として引き継ぐ。§1.2 の Hierarchy 出現条件をそこで解く。
 - D7 判定 C の照合: §5.4 の offline 実行方式を推奨。資格情報・本番設定・通信へ到達しない環境を担当が確保できるか A3 で確定する。できなければ A1 で照合 script を書く方式へ改稿し、B に判定 script を書かせない。
+
+### 2.7 A3 凍結記録
+
+- 決定者: リポジトリ owner（依頼者）。2026-10-12、この会話の「その推奨案でA3を凍結して、まず先行の『DebugStudio Validation / Player UI Route』のA0/A1を別ブランチ・別HANDOFFで作って。まだ実装には進まないで」に基づく。
+- 承認入力: commit `afd40a945bdd0955f3fde819f5b1a8c7e67d8626` の r3-draft。主担当は Codex（GPT-6 系 / OpenAI）。
+- **採用:** D0 の4分割、D1 の ActiveSelf のみ、D2 の System.Text.Json.dll 参照候補と追加依存判明時の A 差戻し、D3 の直接 enqueue / 2秒の適用開始期限 / gate / 接続世代・受信 token / 同期完了、D4 の既存 raw UI、D5 の先行 GO、D6 の先行スライスへの起動・fixture 分離、D7 の判定 C による offline 照合方式。
+- **固定する境界:** §1 の問い・範囲・順序、I1〜I5 / S1〜S3、AC1〜AC10（枝番を含む）、§3 の責務・依存、§4 の停止規則、§5.1〜5.4 の試験・E2E・証拠方式。既存点検の対策は r3 の本文に統合された形で採用する。
+- **不採用:** instanceId / 選択 store の新設、専用 UpdateElement、複数 property と入力補助の同時実装、完了の実時間上限保証、単体試験だけによる実 UI / Player の合格。
+- **後続へ移送・残存リスク受容:** §1.4 の問いと §5.6 の Write Backpressure。取消済み entry の反復蓄積や長時間 callback は本スライスの保証外。単一要求の取消後不適用と完了通知は必須のまま。
+- **独立性:** 同一版への複数独立 A2 は未充足、A0 のみの代替構成レビューは未実施。owner の追加モデル点検終了指示と今回の凍結承認に基づき進める。独立レビュー済みの件数・範囲を水増ししない。将来の C / C' を省略した承認ではない。
+- **未検証と担当:** 実 UI 操作経路は未確認。先行スライス C が成立を判定し、本スライス C が変更済み head で書込みを検証する。D7 の隔離環境は C 担当が実行前に成立を確認する。成立しなければ未実行として停止し、方式変更は A の新 revision へ返す。
+- **開始範囲:** 今回はこの凍結と先行スライス A0/A1 のみ。実装・起動・Build の開始指示ではない。凍結後に条件の意味を変える場合は新 revision とする。
 
 ## 3. 責務マップ
 
@@ -235,7 +249,7 @@ A3 後の blocker は、凍結条件または常時契約と一次証拠を明�
 
 追加総量は、本体約500〜850行、テスト約600〜950行、計約1,100〜1,800行＋契約文書を見込む。個別ファイルの増分を合算し直した概算であり、テストを含め750〜1,100行に収まるとは見積もらない。
 
-## 4. 後続の実装計画（未承認）
+## 4. 後続の実装計画（設計凍結済み・着手待機）
 
 A3 凍結後の B は、(1) codec と単体試験、(2) request の状態遷移・期限・受信 token の取消と gate の臨界区間、(3) apply command と writer、(4) service / router / session 交換・停止の配線、(5) 契約文書と機械検査、の順を推奨する。読取り / selection を新設する作業は無い。
 
@@ -288,7 +302,7 @@ A3 で凍結する合成 fixture の期待値: (a) AC9 の定数と正しい相�
 - A2（r1 対象）: Claude Opus 5.5（Anthropic）、2026-10-12。入力は r1（commit `dc2d55a`、内容 SHA-256 `9549237404d65415f750f9e9e9fd76a1e707a2cc8c8d5b6fa67fa873c4eee7f8`）。観点はアーキテクチャゲートと、寿命・失敗順序・検証経路の兼任。A1 初稿を読んでいるので、A0 のみからの代替構成レビューには数えない。
 - A1 r2: 同じ Claude session が、owner の指示により r1 の A2 指摘を反映し、R1〜R4・P1〜P7 の追加点検を反映した。改稿担当の自己点検であり、独立 A2 の追加件数には数えない。
 - A1 r3: Codex（GPT-6 系 / OpenAI）の主担当が既存の点検結果とコードを照合し統合。owner の 2026-10-12 の指示「他モデルに点検してもらうのはこれで最後」に従い、追加のモデル点検を終了する。この主担当点検も独立 A2 には数えない。高リスクに対する同一版の複数独立レビューは未充足。A0 のみの代替構成レビューは検討したが今回追加せず未実施とし、達成済みに読み替えない。
-- A3: 未実施。owner が D0〜D7 の採否と理由を記録してから凍結する。
+- A3: 2026-10-12 owner が r3 推奨案を承認。主担当が §2.7 に採否・理由・独立性・開始範囲を記録し凍結。
 - C' 予約: 未割当。A では OpenAI 系と Anthropic 系を使用済み。強化条件のため、それ以外の系列・ベンダーか人間を残す。
 
 #### r1 A2 指摘と r2 での扱い
@@ -360,4 +374,4 @@ R1〜R4 の反映後に、実装後の C/C' で突かれうる穴を同じ担当
 
 ## 9. Phase D
 
-未到達。マージ・harvest・Evidence 保存引渡し・task 終了を行わない。本 HANDOFF は次の owner の A3 採否判断のため保持する。
+未到達。マージ・harvest・Evidence 保存引渡し・task 終了を行わない。本 HANDOFF は凍結 r3 として保持し、本スライスの B は開始待機。
