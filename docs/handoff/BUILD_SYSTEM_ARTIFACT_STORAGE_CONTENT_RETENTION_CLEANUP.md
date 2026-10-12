@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C`（Phase A revision 2 を凍結。Phase B 修正完了・次は発見 C）
+- status: `D`（判定 C は GO、最終 C′ は PASS。次は Phase D（owner のマージ判断と A3 代行決定の追認））
 - branch: `codex/artifact-storage-content-retention-cleanup`
 - implementation base commit: `7a75cac6f437f480e15fe49b203269551cfe2a22`（`develop`。PR #122 を含む。A3 凍結時の `origin/develop` と一致を確認済み）
 - implementation head commit: `cdcd6c9a684f4957282a1c05916e1bef704c4396`（差し戻し修正 1 の実装 commit。初回の実装 commit は `defd15ca1561a314f0afc5ab5c3eea47e02dd8fe`。HANDOFF 記録 commit はこの上に積む）
@@ -12,11 +12,11 @@
 - created: 2026-10-12
 - expires: 2026-11-09 または置換 revision
 - harvest to: 操作と契約を `tools/Artifacts/README.md`（新節「開発Contentの件数清掃（content cleanup）」と Content 保存節の既知の限界の更新）、program の状態と後続への移送を `docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 B へ。完了時に本書を削除する。
-- Phase A snapshot の取得案内・状態: 未保存（A3 凍結 commit の本書。判定 C の evidence bundle と C′ blind bundle に収録して保存する）
-- Phase B result snapshot の取得案内・状態: 未生成（本書 §6。発見 C の evidence bundle に収録する）
-- evidence bundle の取得案内・状態: 未生成
-- C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: 次は発見 C。implementation base `7a75cac6f437f480e15fe49b203269551cfe2a22`、implementation head `cdcd6c9a684f4957282a1c05916e1bef704c4396`（両方 push 済み）。§2〜§5（Phase A revision 2）を正とし、§6 の B 結果（差し戻し修正 1 を含む）と固定した差分を照合する。必要な権限: 読取とローカルの offline テスト実行だけ（実 R2・資格情報・Unity・`%LOCALAPPDATA%` の実 store には触れない）。発見 C は GO 判定をせず、C′ も起動しない。AC18（実 R2）は判定 C で最終 head に対して行う。
+- Phase A snapshot の取得案内・状態: 保存済み（revision 2 の本書を C′ 用 blind bundle に収録。Artifact Storage、task `content-retention-cleanup`）・取得案内はローカルの git 管理外に作成済み・引渡し未完了（取得側 session での fetch・閲覧確認は Phase D）
+- Phase B result snapshot の取得案内・状態: 保存済み（最終 head の §6 を同じ bundle に収録）・引渡し未完了
+- evidence bundle の取得案内・状態: 保存済み（判定入力は C′ 用 bundle と同じ package。所見は別の小 bundle）・取得案内はローカルの git 管理外に作成済み・引渡し未完了
+- C' blind bundle の取得案内・状態: 保存済み（所見を含まない最終 head の入力）・引渡し未完了
+- 引継ぎ票: 次は Phase D（owner）。マージ判断、A3 を owner 不在中に主担当が代行した決定（U1〜U12、Phase A revision 2）の追認、取得案内の引渡しと fetch・閲覧確認、harvest。追認されない決定があれば Phase A を新しい revision で再開する。必要な権限: Artifact Storage の fetch（資格情報）。
 
 入力の正本は program §2「開発Content」と §4 B（PR #118 の「決めたこと」「後続への入力」、PR #119 の「決めたこと」「後続への入力」）、§4 A 末尾の PR #121 の段落、`tools/Artifacts/README.md` の「開発Buildの件数清掃」と「開発Content 1件の保存と取得」、および現行コード。program で固定済みの契約は §1 に転記し、再議論しない。
 
@@ -357,11 +357,33 @@ Content 系列 1 つについて、このPCの成功記録と保持中 Player �
 
 ## 7. Phase C
 
-（未着手）
+- 種別: 発見 C（2 巡、阻害 0）→ 判定 C（最終 head `cdcd6c9` で GO）。高コスト証拠（AC18）を分類したので、判定 C（offline）→ 暫定 C′ → AC18 取得 → 最終証拠ラウンドの順で行った。
+- 使用した evidence bundle の取得案内・状態: §0 のとおり（保存済み・引渡し未完了）。
+- 構造適合: §3 の責務マップどおり（観測の写像と検査は ArtifactDeletion、削除記録と系列 lock は ContentDeletionStore、分類は ContentCatalog、保護収集は ContentProtection、players の配置は BuildStage の読取関数、手順は ContentCleanup、選別は無変更の BuildRetentionPolicy、Content DELETE の許可は `ContentRetentionDelete`）。差は ContentStore の `Enter-ContentPublishLock` への省略可能な `Create` 引数の追加（AC16 を守るための B 適応）。依存の循環・Unity・asmdef・C# の変更なし。
+- 現在の問いを阻害する findings: 最終 head で無し。
+- 後続スライスへ移送する findings（発見 C）: run 全体の catch で `catalog-incomplete` が `unconfirmed` になる（理由語）、終了時 snapshot が blocked のとき同じ run の削除済みが分類に出ない（表示）、成功 revision の `publish.lock` 欠落で系列全体が止まり inspect が `receipt-unavailable` になる。所有先は program §4 B の「診断の改善」。
+- 実行したテストコマンド: 3 つの .NET Release build、`tools/Artifacts/tests/*.Tests.ps1` 全 19 suite と `tools/Workflow/tests/TaskLifecycle.Tests.ps1` を `-Case '*' -ResultPath`（`rg` を PATH に通して 1 回）、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、diff 中の `unity/` の件数。AC18 は実行担当が `tools/artifacts.ps1` の CLI を順に実行し、判定 C 担当の独立照合 script を原記録に適用した。
+- テスト結果: 20 suite・394 case が registered＝selected＝executed、failed 0。build 3・audit 2 は errors 0、`unity/` 0 件。AC18（contentSet `retention-probe-1`）: 実系列 2 つの dry-run は独立再計算と一致（`bs4-spring-full` の revision は builds-v1 の Build により `protected`）、検証用系列は実行前に空、11 revision 中の最古 1 件だけが DELETE 2・GET 3 で全 key の最後の GET が 404 `NoSuchKey`、削除した revision の inspect・collect は `payload-deleted`、fetch は失敗、残り 10 件の fetch は passed で `transport.json` の hash が receipt と一致、再実行は DELETE 0・GET 0。照合 script は 46/46 pass。script の適応 1 件（collect の `reference` が値 null の形を受理。合成 fixture を再実行してから適用）。
+- 判定必須のうち未実行: 無し。
+- 重い検証を発見段階で限定実行した場合の理由と範囲: 無し（実 R2 は判定 C だけ）。
+- 未確認事項: 無し。R2 には検証用系列の小さな object が 20 件残る（退役は後続「系列の退役」）。実行担当の script の不具合 2 件（PowerShell の別名との名前衝突、括弧の欠落）で、R2 へ送信する前に 2 回止まった。
+- 担当・モデル: 判断担当 Claude Sonnet 5.5／Anthropic（新規 subagent session）。実行担当 Claude Opus 5.5（主担当 session。凍結コマンドの実行と生記録の配置だけ）。
 
 ## 8. Phase C'
 
-（未着手）
+- 担当方式: AI。
+- 種別と巡: 暫定 C′ 1 巡目（head `defd15c`、全体）→ 暫定 C′ 2 巡目（head `cdcd6c9`、前巡指摘の解消と修正差分）→ 最終 C′（同じ head、AC18 の生証拠の全体）。
+- 受け取った決定記録の版: v1（暫定 C′ 1 巡目の指摘への裁定だけ）。
+- 使用した blind audit bundle の取得案内・状態: §0 のとおり（保存済み・引渡し未完了）。
+- 確認範囲・方法: blind bundle の directory だけを読む read-only session。テストと実 R2 の再実行はしていない。
+- 判定: 暫定 1 巡目 FAIL → 暫定 2 巡目 PASS → **最終 PASS**。
+- 現在の問いを阻害する findings: 暫定 1 巡目の 2 件はいずれも解消。手順 8 の「この試行の全観測」が中断・再開で失われる指摘は Phase A revision 2 で手順 8 の範囲を狭めて解消（凍結条件の意味を変えるので決定記録ではなく revision）。cleanup・inspect が欠落した `publish.lock` を作りうる指摘（AC16）は Phase B の修正で解消。最終 head では無し。
+- 後続スライスへ移送する findings: 観測 field の generation の scalar 型検査（ArtifactDeletion）→ 「診断の改善」。照合 script が期待 key を削除 intent から作る点と、削除済み Build の一覧を `*.deleted.json` の存在だけで作る点（次回の実 R2 検証の照合器の強化）→ 「系列の退役」の検証で扱う。
+- 残存リスク: 中断した run の観測は記録に残さない（revision 2）。同じ identity の `build collect` と同時に動いた場合の保護の窓（AC17 の既知の限界）。実 R2 の失敗・中断復帰は offline 証拠による確認だけ。
+- 監査できなかった範囲: bundle 外の Git 原本・実環境、取得物の本体。
+- 独立性: B（Anthropic）・C（Anthropic）と別ベンダーで、Phase A・B・C に使っていない GPT。新規 session と blind bundle を使った。強化条件を満たす。
+- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: 無し。
+- 担当・モデル: GPT（Codex CLI の既定 `gpt-6-astra`）／OpenAI、`codex exec --sandbox read-only --ephemeral`。
 
 ## 9. Phase D
 
