@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C`（Phase B 完了・次は発見 C）
+- status: `C`（Phase A revision 2 を凍結。§5 の A3 revision 2）（Phase B 完了・次は発見 C）
 - branch: `codex/artifact-storage-content-retention-cleanup`
 - implementation base commit: `7a75cac6f437f480e15fe49b203269551cfe2a22`（`develop`。PR #122 を含む。A3 凍結時の `origin/develop` と一致を確認済み）
 - implementation head commit: `defd15ca1561a314f0afc5ab5c3eea47e02dd8fe`（Phase B の実装 commit。HANDOFF 記録 commit はこの上に積む）
@@ -159,12 +159,13 @@ Content 系列 1 つについて、このPCの成功記録と保持中 Player �
   | 5 確定 | GET が `Test-ArtifactMissing` | 確定点を記録 | `<n>.committed.json`（intent・sent の hash または `deleteObservation: unknown`、GET の観測） | rename 直前 | 書かない。未解決（次回の GET で確定） |
   | 6 取下げ | GET が同じ key・generation の `Test-ArtifactSuccess`（`transport.json` が残っている）。それ以外は AC10 (b) | 試行を閉じる | `<n>.abandoned.json`（intent の hash、GET の観測） | rename 直前 | 書かない。未解決 |
   | 7 残り object | 手順 5 が確定 | intent の一覧の 2 件目以降を順に: GET → 404 なら済み、検証済み 2xx なら DELETE 1 回 → GET。各 key の最終 GET が `Test-ArtifactMissing` であること | — | 各送信直前 | 未解決のまま止める（AC10）。次回は手順 7 を最初から（GET が先なので済んだ key へ DELETE を送らない） |
-  | 8 削除済み | 手順 7 で全 key が 404 | 試行を閉じる | `<n>.deleted.json`（committed の hash と、手順 7 でこの試行が送った全ての GET・DELETE の観測を送信順に。各 key の最後の観測が GET 404 であること） | rename 直前 | 書かない。未解決（次回は手順 7 から） |
+  | 8 削除済み | 手順 7 で全 key が 404 | 試行を閉じる | `<n>.deleted.json`（committed の hash と、**手順 7 を最後まで進めた run** が送った全ての GET・DELETE の観測を送信順に。各 key の最後の観測が GET 404 であること） | rename 直前 | 書かない。未解決（次回は手順 7 から） |
   | 再開 | 未解決の試行あり | committed があれば手順 7 から。無ければ手順 4 から | — | — | 判定できなければ AC10 |
 
   - 手順 6 の後、その revision を成功行に戻し、完全な snapshot で policy を計算し直す。今も候補なら新しい n で手順 1 から。通常の run で手順 4 が 2xx（DELETE 2xx の後も残る）なら手順 6 で閉じ、その run では同じ revision に新しい試行を始めず `delete-unconfirmed`。
   - 手順 7 で key が `Test-ArtifactSuccess` のまま DELETE 後も残る場合は AC10 (b) と同じく未解決で止める（確定点の後なので取下げない）。
   - 手順 7 の「済み」判定は GET 404 だけに依る。
+  - （revision 2）手順 7 が途中で止まった run の観測は記録に残さない（その run の結果 JSON の `requests` にだけ現れる）。中断した run の観測を残すには新しい種類の永続記録が要り、削除済みの判定は各 key の最後の GET 404 だけで足りるため。再開した試行の `deleted.json` は、再開後の run の観測だけを持つ。
 
 - **ここでは答えない問いと所有する後続スライス:**
 
@@ -313,6 +314,7 @@ Content 系列 1 つについて、このPCの成功記録と保持中 Player �
   | FAIL-9 | ② | minor | 同時刻の向き、試行途中の DELETE 上限 | 採用。AC3・AC12 に明記 |
 - **A3 統合担当・モデル・採否:** 主担当 Claude Opus 5.5／Anthropic（2026-10-12）。**owner は不在で、チャットで「Phase C／C′ まで進めること、内容の確認は戻ってから行うこと、実 R2 の操作を許可すること」を指示した。** この指示に従い、主担当が U1〜U12 を §3 の推奨案どおりに決め、A2 の指摘は 2 巡とも全件採用した（理由は表）。2 巡目の 5 件は全て条件同士の継ぎ目で、新しい設計の穴ではないと判断し、3 巡目を行わずに凍結した（PR #119 の A3 で owner が採った「深刻な指摘が無ければ A3」の基準に倣う）。**owner の追認は Phase D で受ける。** 追認されない決定があれば、Phase A を新しい revision として再開する。
   - A2 2 巡目（擬似 C′）: Grok 4.7 High／xAI、cursor-agent の新規 session。入力は commit `19508557a850c0432e80e47c0613bae864122a2f`（sha256 `22a5f4d3…c8d9`）と r1→r2 の差分。blocker 1、major 4（全て継ぎ目）。全件採用し r3 へ反映: R2-1 手順 1 の取り直しを `publish.lock` 取得後に、R2-2 AC4 の (a)(b) の除外規則を分けて記述、R2-3 `deleted.json` に手順 7 の全観測を残し GET 回数は記録から再計算、R2-4 実系列 dry-run の再計算入力を証拠に追加、R2-5 ContentApplication の依存を ContentDeletionStore に訂正。
+  - **revision 2（2026-10-12、A3 後の再開）:** 暫定 C′ 1 巡目が、手順 8 の「この試行が送った全ての GET・DELETE」は、手順 7 が中断して再開した試行で中断前の観測を失うため満たされない、と指摘した（違反する条件: 手順 8）。中断前の観測を残すには計画外の永続記録が要る（§4 の差し戻し条件）。主担当（owner 不在のため、同じ指示に基づく代行）は、記録を増やさず手順 8 の範囲を「手順 7 を最後まで進めた run の観測」に狭める revision 2 を採った。理由: 削除済みの判定（I4）は各 key の最後の GET 404 だけに依り、中断した run の観測は判定に使わない。AC18 は 1 run で完了するので、検証の期待値（DELETE 2・GET 3）は変わらない。変更は状態遷移表の手順 8 と注記 1 行だけ。A2 は差分だけを Grok 4.7 High（cursor-agent の新規 session）が確認し、指摘なし。
   - Phase B 以降の担当: B は Claude Opus 5.5（新規 subagent session）、C は Claude Sonnet 5.5（新規 subagent session。B と別モデル）、C′ は下記の予約どおり GPT。
 - **C' 用に予約した担当・モデル・ベンダー:** GPT（Codex CLI）／OpenAI。Phase A・B・C に使わない。
 - **独立性の強化条件を満たせない場合の理由:** 満たす見込み（GPT は Phase A・B・C に使わない）。
