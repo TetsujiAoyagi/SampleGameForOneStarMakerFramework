@@ -3,20 +3,20 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `B`（Phase A revision 1 を A3 で凍結済み）
+- status: `C`（Phase B 完了。次は発見 C）
 - branch: `codex/artifacts-cli-path-diagnostics`
 - implementation base commit: `7b5b3002308eaeb330b4e549df941169ad06be36`（`develop`。PR #120 のマージを含む。A3 凍結時に `origin/develop` と一致を確認済み）
-- implementation head commit:
+- implementation head commit: `90ad270524be9d18e801c9ea74349ea248f2b46e`
 - risk: `normal`（公開 API・asmdef・Unity は変えない。保存・削除の判定は変えず、失敗時の reasonCode だけを変える。fail-closed の向きは保つ）
 - owner: OSM maintainers
 - created: 2026-10-12
 - expires: 2026-11-09 または置換 revision
 - harvest to: `tools/Artifacts/README.md`（Evidence v2 の通常操作と exit／reasonCode の段落）。完了時に本書を削除する。
 - Phase A snapshot の取得案内・状態: revision 1 は本書の凍結 commit。判定用 evidence bundle に同梱して保存する（取得案内は bundle と共通。現時点は未保存）
-- Phase B result snapshot の取得案内・状態:
+- Phase B result snapshot の取得案内・状態: §6（本書）。判定用 evidence bundle に同梱して保存する（現時点は未保存）
 - evidence bundle の取得案内・状態:
 - C' blind bundle の取得案内・状態:
-- 引継ぎ票: 次は Phase B（実装）。Phase A revision 1、implementation base は上記。§2〜§5 の範囲だけを実装し、offline の起点 test・contract-audit・docs-audit を実行して §6 を書き、push する。必要な権限: なし（資格情報・Artifact Storage・Unity・sandbox 外は不要）。停止規則: §4 の差し戻し条件に当たれば止めて Phase A に戻す。引き渡さないもの: なし
+- 引継ぎ票: 次は Phase C（発見 C → 判定 C）。Phase A revision 1（`b1ae816`）、implementation base／head は上記。発見 C は base..head の完全 diff で構造・契約・失敗経路を見る。blocker が無ければ、判定必須テスト（§5）を実行担当が実行し、その生ログを含む evidence bundle を作って保存してから判定 C を行う。必要な権限: 判定必須テストは offline（資格情報・Unity 不要）。bundle の保存・取得は Artifact Storage（sandbox 外、資格情報）。停止規則: §2 の blocker の基準。引き渡さないもの: C の所見を C' と §6 に渡さない
 
 管理方式は tracked HANDOFF（U3、A3 で決定）。本スライスは PR #120 で改訂した `osm-workflow` の規則で進める初めてのスライスで、§2 は不変条件と成立条件を先に書く形式に従う。
 
@@ -152,10 +152,20 @@ Evidence 系コマンドが、使えない config／selection の指定を、ネ
 ## 6. Phase B 実装結果
 
 - 実装:
+  - `EvidenceContract.psm1` の `Read-EvidenceConfig`: config 本体の読取・検証を try で囲み、`unsupported-schema` 以外を `invalid-evidence-config` にする。`Get-EvidenceDeploymentRoot` は try の外に置く。receipt の読取と field 集合の確認を別の try で囲み、`unknown-deployment` にする。
+  - `EvidenceApplication.psm1`: publish で selection の読取と field 集合の確認（guard 取得前）だけを try で囲み、`invalid-selection` にする。publish・fetch・use の whitelist に code を足し、inspect・release に `invalid-evidence-config`・`unknown-deployment` だけを写す分岐を足した。処理順は変えていない。
+  - `tests/ArtifactEvidence.Tests.ps1` に 6 case を追加した（`config-invalid-path`、`config-invalid-path-other-commands`、`deployment-receipt-missing`、`selection-invalid-path`、`invalid-path-no-leak`、`cli-relative-selection`）。guard に進んでいないことは、未登録の taskId `unguarded` の Workflow task directory と Storage catalog が作られないことで確かめる。`tests/EvidenceTestChild.ps1` に publish の action と `-Selection` を足した。
+  - `README.md` の exit／reasonCode の段落に、追加した code の意味を 1 段落で書いた（S4）。
 - HANDOFF との差:
-- 未実行:
-- implementation head commit:
-- Phase B 担当・モデル・ベンダー:
+  - AC5 の子 process は、stdout に既存の Import-Module 警告（`EvidenceStateStore` の動詞名）が混ざる。このため stdout の `{` で始まる最後の行を結果 JSON として読む。stderr は空。この警告は既存のもので、本スライスでは変えていない。
+  - field 集合不一致の config で `schemaVersion` が正しい場合だけが `invalid-evidence-config` になる。`schemaVersion` が不正なら従来どおり `unsupported-schema`（S1 のとおり）。
+- 確認（Phase B で実行した範囲）:
+  - `pwsh tools/Artifacts/tests/ArtifactEvidence.Tests.ps1`（全 case）: 19/19、failed 0。
+  - 追加した 6 case を実装前の 2 module に戻して実行すると、5 case が失敗した（`invalid-path-no-leak` は旧実装でも漏洩しないため通る）。確認後に実装へ戻した。
+  - `pwsh tools/contract-audit.ps1`: errors 0。`pwsh tools/docs-audit.ps1`: errors 0。`git diff --check`: 問題なし。
+- 未実行: 3 project の Release build、他の Artifacts suite と Workflow `TaskLifecycle.Tests.ps1`（判定必須。Phase C で実行する）。Unity は対象外。
+- implementation head commit: `90ad270524be9d18e801c9ea74349ea248f2b46e`
+- Phase B 担当・モデル・ベンダー: Claude Opus 5.5／Anthropic（Claude Code desktop）
 
 ## 7. Phase C
 
