@@ -6,7 +6,7 @@
 - status: `B`（Phase B 完了。次は Phase C）
 - branch: `codex/workflow-revision-phase-a`
 - implementation base commit: `24fdd2099f4df39911de0d88c09fc7815e077fb8`（`develop`。PR #119 のマージを含む。A3 凍結時の `origin/develop` と一致を確認済み）
-- implementation head commit: `e70a31d54c05fdf0a4d58882db693f78be6065e3`
+- implementation head commit: `d19dca4c49785316f397913239cb4e0292c52d5c`
 - risk: `high`（全スライスの判定・独立監査・証拠の取り直しの規則を変える。誤削除・未検証の GO・独立性の低下に直結しうる。公開 API・asmdef・Unity は変えない）
 - owner: OSM maintainers
 - created: 2026-10-12
@@ -465,7 +465,11 @@ D:\repositories\unity\SampleGameForOneStarMakerFramework の docs/handoff/WORKFL
   - 2D の blocker の基準は C′ に限らず Phase C / C′ の両方に置いた（論点 3 の「判定（C・C′ とも）」に合わせた）。
   - §3 で SKILL.md が担うとした「Phase 出口の更新手順（4・7）」は、I7 に従い本文を phases-and-handoff.md に置き、SKILL.md は要約とリンクにした。
 - 未実行: Unity・テストは対象外（文書のみ）。§0 の Phase A snapshot の取得・閲覧確認は行っていない（本 session は固定入力だけで作業し、Artifact Storage に触れていない）。push と PR 本文の更新はしていない。
-- implementation head commit: `e70a31d54c05fdf0a4d58882db693f78be6065e3`
+- 差し戻し 1 巡目（B 適応。Phase A は再開しない）:
+  - review-evidence.md「操作・目視証拠の受け渡し」: 高コスト証拠に分類し最終証拠ラウンドで取得すると凍結した証拠を、暫定 C′ の開始前の確認から除き、最終 C′ の開始前に確認するとした。
+  - head 変更時の取り直し（R1）の本文を review-evidence.md「判定後の head 変更」（独立した小節）の 1 箇所にまとめ、同ファイルの「対象を固定する」「Phase C′ の blind audit bundle」、phases-and-handoff.md「レビュー証拠と C′ の盲検性」、SKILL.md「PR公開後の差し戻しとGit履歴」は参照に置き換えた。規則の意味は変えていない。
+  - 修正前の implementation head は `e70a31d54c05fdf0a4d58882db693f78be6065e3`。
+- implementation head commit: `d19dca4c49785316f397913239cb4e0292c52d5c`
 - Phase B 担当・モデル・ベンダー: Claude Opus 5.5／Anthropic（Claude Code の新規 subagent）
 
 ## 7. Phase C
