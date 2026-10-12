@@ -103,6 +103,14 @@ r6の方針改訂だけではリセットを開始しない。スライスAの�
 
 **停止規則:** 上記の通常利用・期限清掃と一回の切替が成立したら閉じる。Build、Cloud、GUI、常駐broker、別provider、長期保護・互換維持を追加条件にしない。
 
+Aの完了後の小さな追加として、[PR #121](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/121) でEvidence CLIの失敗理由を区別した（判定C GO、最終C′ PASS）。publish・fetch・inspect・use・releaseは、configの読取・検証の失敗を `invalid-evidence-config`、deployment receiptの不在・読取不能を `unknown-deployment`、publishのselectionの読取失敗を `invalid-selection` で返す。相対pathは従来どおり受け付けない。操作は[Artifacts README](../../tools/Artifacts/README.md)にある。後続への入力（所有スライスは未定）:
+
+- cleanup・schedule-install・schedule-statusのconfig失敗のreasonCode（結果の形とexitの意味を変える判断が要る）。
+- receiptの `baselineSha256` 等のhex不正がまだ `unconfirmed` になる。`Read-EvidenceConfig` のtryが広く、想定外の例外も `invalid-evidence-config` になる（fail-closed）。
+- `workflow-task.ps1` は例外messageをreasonCodeに写すため、configを2回読む間に壊れる競合でだけ `workflow-unavailable` が新しいcodeに変わる（受容済み）。
+- 試験範囲の不足: CLI経由のconfig失敗のstdout・stderr、fetch・use・releaseの `unknown-deployment`、guard非取得の直接観測。
+- `EvidenceCleanup.Tests.ps1` の1 caseは `rg` をPATHに要する（READMEに記載）。判定必須で全suiteを流す前に通す。
+
 ### B. 開発Buildの保存と件数管理
 
 単一Build publishは[PR #111](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/111)で実装し、offline 60caseと既存実Build 266fileのR2往復・全hash一致を確認、正式C/C′を完了した。現在の入口・成功確定・上限・限界は[Artifacts README](../../tools/Artifacts/README.md#開発build-1件の保存と取得)へ集約し、完了スライスHANDOFFはharvestした。利用中状態・実DELETEとN件清掃は下記のPR #119で接続した（R2上の系列全件一覧は後続のまま）。準備helper失敗による未記録・未送信private残置も有限清掃への入力とする。
