@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C`（Phase A revision 2 を凍結。§5 の A3 revision 2）（Phase B 完了・次は発見 C）
+- status: `C`（Phase A revision 2 を凍結。Phase B 修正完了・次は発見 C）
 - branch: `codex/artifact-storage-content-retention-cleanup`
 - implementation base commit: `7a75cac6f437f480e15fe49b203269551cfe2a22`（`develop`。PR #122 を含む。A3 凍結時の `origin/develop` と一致を確認済み）
-- implementation head commit: `defd15ca1561a314f0afc5ab5c3eea47e02dd8fe`（Phase B の実装 commit。HANDOFF 記録 commit はこの上に積む）
+- implementation head commit: `cdcd6c9a684f4957282a1c05916e1bef704c4396`（差し戻し修正 1 の実装 commit。初回の実装 commit は `defd15ca1561a314f0afc5ab5c3eea47e02dd8fe`。HANDOFF 記録 commit はこの上に積む）
 - risk: `high`（R2 の実 DELETE を初めて Content に開く。1 revision が複数 object で、途中で止まると revision が壊れる。公開 API・asmdef・Unity は変えない）
 - owner: OSM maintainers
 - created: 2026-10-12
@@ -16,7 +16,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（本書 §6。発見 C の evidence bundle に収録する）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: 次は発見 C。implementation base `7a75cac6f437f480e15fe49b203269551cfe2a22`、implementation head `defd15ca1561a314f0afc5ab5c3eea47e02dd8fe`（両方 push 済み）。§2〜§5（Phase A revision 1）を正とし、§6 の B 結果と固定した差分を照合する。必要な権限: 読取とローカルの offline テスト実行だけ（実 R2・資格情報・Unity・`%LOCALAPPDATA%` の実 store には触れない）。発見 C は GO 判定をせず、C′ も起動しない。AC18（実 R2）は判定 C で最終 head に対して行う。
+- 引継ぎ票: 次は発見 C。implementation base `7a75cac6f437f480e15fe49b203269551cfe2a22`、implementation head `cdcd6c9a684f4957282a1c05916e1bef704c4396`（両方 push 済み）。§2〜§5（Phase A revision 2）を正とし、§6 の B 結果（差し戻し修正 1 を含む）と固定した差分を照合する。必要な権限: 読取とローカルの offline テスト実行だけ（実 R2・資格情報・Unity・`%LOCALAPPDATA%` の実 store には触れない）。発見 C は GO 判定をせず、C′ も起動しない。AC18（実 R2）は判定 C で最終 head に対して行う。
 
 入力の正本は program §2「開発Content」と §4 B（PR #118 の「決めたこと」「後続への入力」、PR #119 の「決めたこと」「後続への入力」）、§4 A 末尾の PR #121 の段落、`tools/Artifacts/README.md` の「開発Buildの件数清掃」と「開発Content 1件の保存と取得」、および現行コード。program で固定済みの契約は §1 に転記し、再議論しない。
 
@@ -347,6 +347,12 @@ Content 系列 1 つについて、このPCの成功記録と保持中 Player �
   - 3 つの .NET Release build（Probe・Packaging・Transport）: いずれも 0 エラー。
   - `tools/Artifacts/tests/*.Tests.ps1` 全 19 suite を `-Case '*' -ResultPath <git 管理外>`（rg を PATH に通して 1 回）: 全 suite failed 0。ArtifactEvidence 19、ArtifactPackage 9、ArtifactRotation 11、ArtifactTransfer 20、BuildCleanup 23、BuildCollect 9、BuildPublish 9、BuildRetention 9、Content.Contract 9、Content.Fetch 5、Content.Publish 12、ContentCleanup 22、Credentials 22、EvidenceCleanup 35、EvidenceReset 31、EvidenceRetention 14、EvidenceSchedule 78、R2RouteTransport 7、RouteProof 26。
   - 全 Artifacts PowerShell の parse: エラー 0。`pwsh tools/contract-audit.ps1`: errors 0・warnings 0。`pwsh tools/docs-audit.ps1`: errors 0・warnings 0。implementation base からの diff に `unity/` は 0 件。
+- 差し戻し修正 1（implementation head `cdcd6c9a684f4957282a1c05916e1bef704c4396`、commit `fix(artifacts): open only existing publish.lock in content cleanup and inspect`）:
+  - 手順 8（revision 2）: 実装は既に「手順 7 を最後まで進めた run の観測」だけを `deleted.json` に残していた（再開は手順 7 の最初から全 key を GET し直す）。挙動は変えず、`ContentCleanup.psm1` の試行関数に、中断した run の観測を記録しない理由（別の永続記録が要り、削除済みの判定は各 key の最後の GET 404 だけで足りる）をコメントで残した。
+  - AC16（書込先の限定）: `ContentStore.psm1` の `Enter-ContentPublishLock` に省略可能な `Create`（既定 `$true`）を足し、`$false` では既存の `publish.lock` だけを開き、作成も ACL の修復もしない（無ければ `publish-lock-missing`、ACL 不一致は例外）。content cleanup の試行と content inspect は `$false` で呼ぶ。collect は既定のままで挙動を変えない。B 適応の根拠: AC16 は cleanup の書込先を `deletion/`・`cleanup.lock`・新規 private operation に限り、inspect は照会で書かないため、lock の作成をこの 2 経路から外す。lock の所有者（ContentStore）の関数に取り方の引数を足すだけで、記録・責務配置は変えない。
+  - 成功 receipt があり `publish.lock` が無い revision は、catalog が系列を `catalog-incomplete`（何も書かない）にし、試行直前に lock が無い場合も同じ理由で止める。inspect は `receipt-unavailable`（何も作らない）。README の該当 2 箇所に追記した。
+  - テスト: `ContentCleanup.Tests.ps1` に `publish-lock-missing`（lock 欠落の fixture で dry-run・実行・inspect の前後に contents-v1 の全 file 一覧と SHA-256 が不変、lock を作らないこと、系列 lock 取得後に lock が消えた場合、collect 側の取り方が従来どおり作ること）を足した（23 ケース）。
+  - 検証: 全 19 Artifacts suite（rg を PATH に通して 1 回）failed 0（ContentCleanup 23、他の件数は上と同じ）。contract-audit・docs-audit は errors 0・warnings 0。.NET の source は変えていない（build は初回の結果のまま）。
 - 未実行: AC18（実 R2。判定 C の高コスト証拠）、Workflow `TaskLifecycle`（判定 C の必須テスト）、判定 C の照合 script（B は書かない）。Unity のテスト・Build は適用除外（Unity を変更しない）。
 
 ## 7. Phase C
