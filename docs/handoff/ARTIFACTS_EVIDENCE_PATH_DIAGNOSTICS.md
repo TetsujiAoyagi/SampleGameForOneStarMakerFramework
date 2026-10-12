@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `D`（判定 C GO、最終 C' PASS。次は Phase D）
+- status: `D`（完了。owner がマージを決定）
 - branch: `codex/artifacts-cli-path-diagnostics`
 - implementation base commit: `7b5b3002308eaeb330b4e549df941169ad06be36`（`develop`。PR #120 のマージを含む。A3 凍結時に `origin/develop` と一致を確認済み）
 - implementation head commit: `90ad270524be9d18e801c9ea74349ea248f2b46e`
@@ -16,7 +16,7 @@
 - Phase B result snapshot の取得案内・状態: 判定用 evidence bundle に同梱（取得案内は bundle と共通）。確認済み
 - evidence bundle の取得案内・状態: Artifact Storage に publish 済み（task `artifacts-cli-path-diagnostics`）。判定 C の担当が別 context で fetch し、manifest 62 行の照合で不一致 0。取得案内は送信担当（Phase B の session）の作業領域にあり、恒久的な引渡し先への移動は Phase D で確認する
 - C' blind bundle の取得案内・状態: 判定 C と同じ bundle（所見を含まない）。C' 用の取得案内は別ファイル。C' の担当が別 context で fetch し、不一致 0。確認済み（取得案内の恒久的な引渡し先は上と同じく Phase D で確認する）
-- 引継ぎ票: 次は Phase D（owner による C／C' の突合とマージ判断）。Phase A revision 1（`b1ae816`）、implementation base／head は上記。必要な権限: Evidence の保存・引渡しの確認に Artifact Storage（sandbox 外、資格情報）。停止規則: §9 と `review-evidence.md` の「Phase D の保存・引渡し確認」。owner の判断を要する点: §8 の後続 findings 1（I4 の文言と workflow-task の競合）と 4（判定必須の再実行）。引き渡さないもの: なし（C' 完了済み）
+- 引継ぎ票: なし（Phase D 完了。本書は harvest 後に削除する）
 
 管理方式は tracked HANDOFF（U3、A3 で決定）。本スライスは PR #120 で改訂した `osm-workflow` の規則で進める初めてのスライスで、§2 は不変条件と成立条件を先に書く形式に従う。
 
@@ -221,10 +221,10 @@ Evidence 系コマンドが、使えない config／selection の指定を、ネ
 
 ## 9. Phase D
 
-- C / C' の突合:
-- マージ判断:
-- 必要なEvidenceの保存・取得・必須内容の閲覧確認:
-- 取得案内の引渡し確認:
-- harvest:
-- 削除確認:
-- 通常のtask終了・後始末の状態と未完了事項:
+- C / C' の突合: 判定 C は GO、最終 C' は PASS で、どちらも阻害 findings は無い。後続 findings は重なる（C の (c) と C' の 3 は同じ試験範囲の不足）。C' だけが挙げたのは、I4 の文言と workflow-task の競合（C' の 1）、receipt の hex 不正（C' の 2）、再実行の逸脱（C' の 4）。PR 上の cursor[bot] の assist レビュー（判定扱いではない）も blocker 無し。
+- マージ判断: owner が 2026-10-12 にチャットでマージを決定した。C' の後続 findings 1 は、§3 が受容した競合として受け入れる（I4 の文言は変えない）。4（EvidenceCleanup の再実行）は、差分外の rg 依存による逸脱として受け入れる。
+- 必要なEvidenceの保存・取得・必須内容の閲覧確認: 判定用 bundle（Phase A snapshot、Phase B result、完全 diff、判定の生結果）は Artifact Storage に保存済み。判定 C と C' の担当がそれぞれ別 context で fetch し、manifest の不一致は 0。Phase D のためには再取得していない（同じ bundle の確認結果を使う）。所見（§7・§8）は本書の commit 履歴に残り、bundle には入れていない。
+- 取得案内の引渡し確認: 取得案内（C 用・C' 用）は、owner の手元の git 管理外領域（`docs/planning/`）へ移した。公開リポジトリのため、GitHub には載せない。
+- harvest: `tools/Artifacts/README.md` に、追加した reasonCode の段落（S4、実装 head に含まれる）がある。assist レビューの補足に従い、その段落の residue の記述を publish に限定した。offline 検証の段落に、EvidenceCleanup suite が `rg` を PATH に要することを足した。後続 findings は PR #121 に列挙する。
+- 削除確認: 本書を harvest commit の次に `git rm` する。
+- 通常のtask終了・後始末の状態と未完了事項: owner のマージ指示を Decision `chat:20261012T0331Z:artifacts-cli-path-diagnostics:completed` として `workflow-task.ps1 end -Reason completed` で記録する。Storage のコピーは終了から 30 日で清掃対象になる。
