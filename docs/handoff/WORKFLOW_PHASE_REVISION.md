@@ -6,7 +6,7 @@
 - status: `C'`（判定 C は GO。C′ 実施中）
 - branch: `codex/workflow-revision-phase-a`
 - implementation base commit: `24fdd2099f4df39911de0d88c09fc7815e077fb8`（`develop`。PR #119 のマージを含む。A3 凍結時の `origin/develop` と一致を確認済み）
-- implementation head commit: `d19dca4c49785316f397913239cb4e0292c52d5c`
+- implementation head commit: `9f47422e4704e95e2ce88b8cf0a89f1822e73ab4`
 - risk: `high`（全スライスの判定・独立監査・証拠の取り直しの規則を変える。誤削除・未検証の GO・独立性の低下に直結しうる。公開 API・asmdef・Unity は変えない）
 - owner: OSM maintainers
 - created: 2026-10-12
@@ -466,7 +466,8 @@ D:\repositories\unity\SampleGameForOneStarMakerFramework の docs/handoff/WORKFL
   - §3 で SKILL.md が担うとした「Phase 出口の更新手順（4・7）」は、I7 に従い本文を phases-and-handoff.md に置き、SKILL.md は要約とリンクにした。
 - 未実行: Unity・テストは対象外（文書のみ）。§0 の Phase A snapshot の取得・閲覧確認は行っていない（本 session は固定入力だけで作業し、Artifact Storage に触れていない）。push と PR 本文の更新はしていない。
 - 差し戻し後の修正: B 適応として 1 commit（Phase A は再開しない。修正前の head は `e70a31d54c05fdf0a4d58882db693f78be6065e3`）。修正の理由と内容は C′ 完了まで §6 に書かない（B result へ所見を転載しないため）。
-- implementation head commit: `d19dca4c49785316f397913239cb4e0292c52d5c`
+- 差し戻し後の修正: B 適応として 1 commit（修正前 head `d19dca4`）。理由と内容は C′ 完了まで書かない。
+- implementation head commit: `9f47422e4704e95e2ce88b8cf0a89f1822e73ab4`
 - Phase B 担当・モデル・ベンダー: Claude Opus 5.5／Anthropic（Claude Code の新規 subagent）
 
 ## 7. Phase C
