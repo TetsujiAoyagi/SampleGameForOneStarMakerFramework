@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C`（発見 C 完了・阻害する指摘 0 件・次は判定 C。2026-10-12）
+- status: `A`（発見 C 後の owner 裁定により Phase A revision 2 を再開する。2026-10-12）
 - branch: `codex/artifact-storage-series-retirement`
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（`develop`。PR #123 を含む。A3 凍結時の `origin/develop` と一致を確認済み）
 - implementation head commit: `61f04438f426e8833b00b37aaeb32538d972afa7`（Phase B の実装 commit。HANDOFF 記録 commit はこの上に積む）
@@ -17,7 +17,7 @@
 - evidence bundle の取得案内・状態: 発見 C 用をローカルに生成済み（git 管理外。base/head 固定の完全 diff・stat・name-status・Phase A snapshot・起点 suite の結果 JSON・manifest）。Artifact Storage への publish は資格情報に触れない指示のため未実施（引渡し未完了）。判定 C が最終 head で新しい bundle を作る
 - C' blind bundle の取得案内・状態: 未生成
 - workflow task: `series-retirement`（2026-10-12 に `workflow-task.ps1 start` 済み）
-- 引継ぎ票: **次は判定 C（実行担当 + 判断担当）。** implementation base `3f79639c12eac16da77d06608675564e906f9a49`、implementation head `61f04438f426e8833b00b37aaeb32538d972afa7`（push 済み。発見 C は head を変えていない）。§2〜§5（Phase A revision 1）を正とする。発見 C の結果は §7。阻害する指摘は 0 件で B へ戻す修正は無い。ただし着手前に owner が §7「要・裁定」の 2 件（`mode` の出し方、系列不明の未完了の扱い）を決定記録にするか確認する。決定記録にできない（=合否が変わる読みだ）と owner が判断した場合は Phase A を revision 2 として再開する。判定 C では §5 の判定必須テスト（.NET Release build 3 本、Artifacts 全 suite の `-Case '*'`（rg を PATH に通して 1 回）、TaskLifecycle、contract-audit、docs-audit、`unity/` 0 件の機械確認）を実行担当が凍結コマンドで実行し、AC15（実 R2）と照合 script は最終 head に対して §5 のとおり行う（実 R2 DELETE と `osm` 資格情報の使用は A3 で許可済みだが、実行経路と `--decision` の指示 ID を実行前に owner と確認する）。高コスト証拠を分類したスライスなので、順序は判定 C（高コスト以外）→ 暫定 C′ → AC15 取得 → 最終証拠ラウンド。判定 C の担当は Phase B（Opus 5.5）と別モデル。C′ 用担当は A0/A1・B（いずれも Anthropic）と別ベンダーから選ぶ。引き渡さないもの: C′ 用担当への所見・会話（§7 を含めない）。
+- 引継ぎ票: **次は Phase A revision 2（A0/A1 の再開）。** implementation base `3f79639c12eac16da77d06608675564e906f9a49`、現 implementation head `61f04438f426e8833b00b37aaeb32538d972afa7`（revision 2 の修正後は新 head）。owner は発見 C の要・裁定 2 件（§7）を「決定記録にせず直す」と決めた。revision 2 の範囲は次の 2 点だけ: (1) AC7/AC8 を、件数保持の結果にも `mode=retention` を足す形に改め、`BuildCleanup`／`ContentCleanup` の既存 suite の結果 field 集合の期待値を更新する（§4 の差し戻し条件「既存の cleanup suite の期待値を変える」を、この点に限って例外承認する）。(2) I4/AC7 を、Build の系列不明の未完了は `retired`／`retired-held` の判定に数えず、`held` にも混ぜず、別 field（名前は A1 で決める）で件数だけ出す形に改める（`held.count>0` なのに `retired` という不整合を無くす）。それ以外の凍結条件は変えない。A2 の要否と、AC15 手順 1 の期待値（未完了 0 の確認）の見直しは A1 で決める。発見 C の他の結果（阻害 0 件・構造適合・後続入力）は revision 2 の差分に対して再確認する。引き渡さないもの: C′ 用担当への所見・会話。
 
 入力の正本は program §2「開発Build」「開発Content」と §4 B（PR #119・PR #123 の「決めたこと」「後続への入力」）、`tools/Artifacts/README.md` の「開発Buildの件数清掃」「開発Contentの件数清掃（content cleanup）」、および現行コード。program と既存スライスで固定済みの契約は §1 に転記し、再議論しない。
 
@@ -318,6 +318,7 @@
 - 実行したテストコマンドと結果（作業ツリー = implementation head と同じ実装、`-Case '*' -ResultPath <git 管理外>`）: `SeriesRetirement` 17、`BuildCleanup` 23、`ContentCleanup` 23、`BuildRetention` 9、`BuildPublish` 9、`BuildCollect` 9、`Content.Publish` 12。いずれも failed 0。`pwsh tools/contract-audit.ps1`: errors 0・warnings 0。`pwsh tools/docs-audit.ps1`: errors 0・warnings 0。
 - 判定必須のうち未実行: .NET Release build 3 本、Artifacts 全 suite（上記 7 以外）、Workflow `TaskLifecycle`、`unity/` 0 件の機械確認、AC15（実 R2）、判定 C の照合 script。いずれも判定 C が最終 head で行う（B の結果 §6 は判定の代わりにしない）。
 - 未確認事項: 発見 C は差分とコードの静的な読みと起点 suite の実行に基づく。実 R2・資格情報・Unity・実 store には触れていない。変異（publish の確認を外す等）の再実行はしていない（B の記録を信頼せず、確認が必要なら判定 C で行う）。
+- owner 裁定（2026-10-12 チャット）: 要・裁定 1・2 は決定記録にせず修正する。2 は「数えず、表示を整合させる」。実装は Phase A revision 2 の凍結後に B が行う（発見 C 担当は実装しない）。
 - 指摘の ledger: 阻害する指摘 0 件。要・裁定 2 件（上記 1・2。category: semantic。他レビューとの重複なし。A2 が 0 件のため独立の突合は無い）。後続の入力 3 件。
 
 ## 8. Phase C'
