@@ -8,9 +8,12 @@ Import-Module (Join-Path $PSScriptRoot 'BuildContract.psm1')
 Import-Module (Join-Path $PSScriptRoot 'BuildStore.psm1')
 Import-Module (Join-Path $PSScriptRoot 'BuildCatalog.psm1')
 Import-Module (Join-Path $PSScriptRoot 'BuildRetentionPolicy.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SeriesRetirementStore.psm1')
 Import-Module (Join-Path $PSScriptRoot 'Credentials/CredentialStore.psm1')
 # Build系列1つの件数清掃（R2のobjectだけを消す。ローカルの記録・ArtifactsRoot・DIST cacheには触れない）。
 # ここは順序だけを持つ。分類はBuildCatalog、選別はBuildRetentionPolicy、記録はBuildStoreが所有する。
+# 系列の退役（build retire）と退役済みの系列もこの順序で動き、違いは退役記録の確認・書込みと選別だけ
+# （lock・取り直し・再開・予算・集計を別のorchestratorで二重に持たない）。退役記録はSeriesRetirementStoreが所有する。
 # 消し損ねは許し、消し過ぎは許さない: 判定できない・確認できないときは試行を未解決のまま残し、
 # 次回の実行がGETから確定させる。削除済みの判定はGETの404 NoSuchKeyだけに依る。
 #
@@ -102,9 +105,24 @@ function Get-BuildCleanupSnapshot {
     return Get-BuildSeriesSnapshot $run.Config $run.Project $run.Target $run.Configuration (& $script:Clock)
 }
 function Get-BuildCleanupDecision($Snapshot){
-    $decision=Get-BuildRetentionDecision $Snapshot.seriesId ([object[]]$Snapshot.rows.ToArray()) $script:KeepCount
+    $rows=[object[]]$Snapshot.rows.ToArray()
+    $decision=if($script:Run.Retirement){Get-SeriesRetirementDecision $Snapshot.seriesId $rows}else{Get-BuildRetentionDecision $Snapshot.seriesId $rows $script:KeepCount}
     if($decision.status -cne 'evaluated'){throw 'catalog-incomplete'}
     return $decision
+}
+# 系列の退役記録を読み、どちらの選別で動くかを決める（retireは記録が無ければここで書く）。
+# 退役済みの系列は、build cleanupでも件数保持ではなく退役の選別で動く（どちらを打っても同じ結果にする）。
+# 記録が不明なら'retirement-unknown'の例外で止め、件数保持の選別へ戻らない（読めない記録を「退役していない」
+# と扱うと、退役済み系列のBuildをN件残し続ける・退役の確定前に消す、のどちらにもなりうるため）。
+# 書くのは系列lockの下（repoが無くlockを取れない場合は消すものが無いので、記録だけを書く）。既に退役済みなら
+# 書かず、最初の記録のretiredAt・decisionをそのまま結果に出す。$Writeが偽（dry-run）なら何も書かない。
+function Set-BuildCleanupMode($Result,[bool]$Retire,[string]$DecisionId,[bool]$Write){
+    $run=$script:Run;$tokens=@($run.Project,$run.Target,$run.Configuration)
+    $state=Read-SeriesRetirement 'build' $run.Config.Data.repositoryId $tokens
+    if($state.State -ceq 'none' -and $Retire -and $Write){$state=Write-SeriesRetirement 'build' $run.Config.Data.repositoryId $tokens $DecisionId (& $script:Clock)}
+    if($state.State -ceq 'none' -and -not $Retire){return}
+    $run.Retirement=$true;$Result.mode='retirement';$Result.keepCount=$null
+    $Result.retirement=if($state.Record){[pscustomobject][ordered]@{retiredAt=$state.Record.retiredAt;decision=$state.Record.decision}}else{$null}
 }
 function Set-BuildCleanupClassification($Result,$Snapshot,$Decision){
     $list={param([object[]]$ids)[pscustomobject][ordered]@{count=$ids.Count;buildIds=$ids}}
@@ -119,21 +137,27 @@ function Set-BuildCleanupClassification($Result,$Snapshot,$Decision){
 }
 # 結果は非秘密の固定fieldだけ。endpoint・ローカルpath・例外本文・SDK応答本文を出さない。
 # status: passed（完了。within-limit・protected-over-limitを含む）/ partial（未解決・残りあり）/ blocked / failed
-function Invoke-BuildCleanup([string]$ConfigPath,[string]$Project,[string]$Target,[string]$Configuration,[bool]$DryRun){
+# 退役（$Retire、build retire）と退役済みの系列では、結果に mode='retirement' と retirement（retiredAt・decision）を
+# 足し、keepCountをnullにする。passedの理由は retired（全件削除済み）／retired-held（保護中・未完了が残る）。
+# 件数保持の結果のfieldは変えない（modeを出さないことが件数保持を表す）。
+function Invoke-BuildCleanup([string]$ConfigPath,[string]$Project,[string]$Target,[string]$Configuration,[bool]$DryRun,[bool]$Retire=$false,[string]$DecisionId=''){
     $empty=[pscustomobject][ordered]@{count=0;buildIds=@()}
     $r=[ordered]@{status='failed';reasonCode='unconfirmed';seriesId=$null;keepCount=$script:KeepCount;excessCount=$null
         retained=$empty;candidates=$empty;held=[pscustomobject][ordered]@{count=0;builds=@()};deleting=$empty;deleted=$empty
         remaining=0;foreignInvalid=0;outcomes=@();requests=[ordered]@{delete=0;get=0}}
+    if($Retire){$r.mode='retirement';$r.keepCount=$null;$r.retirement=$null}
     $lock=$null;$outcomes=[Collections.Generic.List[object]]::new()
-    $script:Run=[pscustomobject]@{Config=$null;Project=$Project;Target=$Target;Configuration=$Configuration;Timer=[Diagnostics.Stopwatch]::StartNew();Result=$r;DeleteCount=0;Generation=$null;Operation=$null}
+    $script:Run=[pscustomobject]@{Config=$null;Project=$Project;Target=$Target;Configuration=$Configuration;Timer=[Diagnostics.Stopwatch]::StartNew();Result=$r;DeleteCount=0;Generation=$null;Operation=$null;Retirement=$false}
     try{
-        # 系列tokenは何も読む前に検査する。
+        # 系列tokenと指示IDは何も読む前に検査する。
         foreach($token in @($Project,$Target,$Configuration)){Assert-BuildToken $token}
+        if($Retire){Assert-SeriesRetirementDecision $DecisionId}
         Import-ArtifactPackage
         $config=Read-BuildConfig $ConfigPath;$script:Run.Config=$config
         $r.seriesId=Get-BuildSeries $config.Data.repositoryId $Project $Target $Configuration
         if($DryRun){
-            # lockを取らず、記録にもnetworkにも触れない。実行時と同じcatalogとpolicyで分類だけ返す。
+            # lockを取らず、記録（退役記録を含む）にもnetworkにも触れない。実行時と同じcatalogとpolicyで分類だけ返す。
+            Set-BuildCleanupMode $r $Retire $DecisionId $false
             $snapshot=Get-BuildCleanupSnapshot
             if($snapshot.status -ceq 'blocked'){$r.status='blocked';$r.reasonCode=$snapshot.reasonCode;return [pscustomobject]$r}
             $decision=Get-BuildCleanupDecision $snapshot;Set-BuildCleanupClassification $r $snapshot $decision
@@ -143,6 +167,8 @@ function Invoke-BuildCleanup([string]$ConfigPath,[string]$Project,[string]$Targe
         try{$lock=Enter-BuildSeriesLock $config.Data.repositoryId $Project $Target $Configuration}
         catch{if($_.Exception.Message -ceq 'lock-busy'){throw 'cleanup-in-progress'};if($_.Exception.Message -cne 'build-store-unavailable'){throw};$storeAbsent=$true}
         if($script:StepHook){& $script:StepHook 'after-lock'}
+        # 退役記録の確認・書込みはlockの後、catalogの読取より前。記録が確定するまで何も送らない。
+        Set-BuildCleanupMode $r $Retire $DecisionId $true
         $excluded=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal);$stop=$null
         # lockの後に取り直したsnapshotだけを使う。lock前やdry-runの結果では判断しない。
         $snapshot=Get-BuildCleanupSnapshot
@@ -183,8 +209,8 @@ function Invoke-BuildCleanup([string]$ConfigPath,[string]$Project,[string]$Targe
         else{$r.status='passed';$r.reasonCode=$decision.reasonCode}
     }catch{
         $r.outcomes=@($outcomes.ToArray());$code=$_.Exception.Message
-        if($code -cin @('invalid-build-identity','invalid-build-config','cleanup-in-progress')){$r.reasonCode=$code}
-        if($code -ceq 'cleanup-in-progress'){$r.status='blocked'}
+        if($code -cin @('invalid-build-identity','invalid-build-config','cleanup-in-progress','invalid-decision','retirement-unknown')){$r.reasonCode=$code}
+        if($code -cin @('cleanup-in-progress','retirement-unknown')){$r.status='blocked'}
     }finally{if($lock){$lock.Dispose()};$script:Run=$null}
     return [pscustomobject]$r
 }

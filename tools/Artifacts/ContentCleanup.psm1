@@ -11,6 +11,7 @@ Import-Module (Join-Path $PSScriptRoot 'ContentStore.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ContentDeletionStore.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ContentCatalog.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ContentProtection.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SeriesRetirementStore.psm1')
 Import-Module (Join-Path $PSScriptRoot 'Credentials/CredentialStore.psm1')
 # Content系列1つの件数清掃（R2のobjectだけを消す。receipt等のローカル記録・ArtifactsRoot・DIST cacheには触れない）。
 # ここは順序だけを持つ。分類はContentCatalog、保護源はContentProtection、選別はBuildRetentionPolicy、
@@ -18,6 +19,7 @@ Import-Module (Join-Path $PSScriptRoot 'Credentials/CredentialStore.psm1')
 # 消し損ねは許し、消し過ぎは許さない: 判定できない・確認できないときは試行を未解決のまま残し、
 # 次回の実行が続きから確定させる。削除済みの判定はGETの404 NoSuchKeyだけに依る。
 # BuildCleanupと手順本体を共有しないのは、Contentが複数objectで、確定点の後は取り下げられないため。
+# 系列の退役（content retire）と退役済みの系列もこの順序で動き、違いは退役記録の確認・書込みと選別だけ。
 #
 # 注入点はoffline検証専用で、公開CLIから時計・通信・N・上限・予算を差し替えさせない。
 $script:Clock={[DateTimeOffset]::UtcNow}
@@ -127,9 +129,21 @@ function Get-ContentCleanupSnapshot {
     return Get-ContentSeriesSnapshot $run.Config $run.ContentSet $run.Target $protected (& $script:Clock)
 }
 function Get-ContentCleanupDecision($Snapshot){
-    $decision=Get-BuildRetentionDecision $Snapshot.seriesId ([object[]]$Snapshot.rows.ToArray()) $script:KeepCount
+    $rows=[object[]]$Snapshot.rows.ToArray()
+    $decision=if($script:Run.Retirement){Get-SeriesRetirementDecision $Snapshot.seriesId $rows}else{Get-BuildRetentionDecision $Snapshot.seriesId $rows $script:KeepCount}
     if($decision.status -cne 'evaluated'){throw 'catalog-incomplete'}
     return $decision
+}
+# 系列の退役記録を読み、どちらの選別で動くかを決める（BuildCleanupの同名の手順と同じ規則）。記録が不明なら
+# 'retirement-unknown'で止め、件数保持へ戻らない。retireは記録が無ければ系列lockの下で書く（系列directoryが無く
+# lockを取れない場合は消すものが無いので記録だけを書く）。既に退役済みなら最初の記録を保つ。dry-runは書かない。
+function Set-ContentCleanupMode($Result,[bool]$Retire,[string]$DecisionId,[bool]$Write){
+    $run=$script:Run;$tokens=@($run.ContentSet,$run.Target)
+    $state=Read-SeriesRetirement 'content' $run.Config.Data.repositoryId $tokens
+    if($state.State -ceq 'none' -and $Retire -and $Write){$state=Write-SeriesRetirement 'content' $run.Config.Data.repositoryId $tokens $DecisionId (& $script:Clock)}
+    if($state.State -ceq 'none' -and -not $Retire){return}
+    $run.Retirement=$true;$Result.mode='retirement';$Result.keepCount=$null
+    $Result.retirement=if($state.Record){[pscustomobject][ordered]@{retiredAt=$state.Record.retiredAt;decision=$state.Record.decision}}else{$null}
 }
 # revisionのpublish.lockを取り、手順1（再開なら該当手順）から試行の終了まで保持する。取れなければ
 # collect/inspectが保持中なので飛ばす。lock fileは既存のものだけを開き、作らない（無ければcatalogと同じく
@@ -166,23 +180,28 @@ function Set-ContentCleanupClassification($Result,$Snapshot,$Decision){
 }
 # 結果は非秘密の固定fieldだけ。endpoint・ローカルpath・例外本文・SDK応答本文を出さない。
 # status: passed（完了。within-limit・protected-over-limitを含む）/ partial（未解決・残りあり）/ blocked / failed
-function Invoke-ContentCleanup([string]$ConfigPath,[string]$ContentSet,[string]$Target,[string]$ArtifactsRoot,[bool]$DryRun){
+# 退役（$Retire、content retire）と退役済みの系列の結果は BuildCleanup と同じく mode・retirement を足し、
+# keepCountをnullにする（passedの理由は retired／retired-held）。件数保持の結果のfieldは変えない。
+function Invoke-ContentCleanup([string]$ConfigPath,[string]$ContentSet,[string]$Target,[string]$ArtifactsRoot,[bool]$DryRun,[bool]$Retire=$false,[string]$DecisionId=''){
     $empty=[pscustomobject][ordered]@{count=0;revisions=@()}
     $r=[ordered]@{status='failed';reasonCode='unconfirmed';seriesId=$null;keepCount=$script:KeepCount;excessCount=$null
         retained=$empty;candidates=$empty;held=$empty;protected=$empty;deleting=$empty;deleted=$empty
         remaining=0;outcomes=@();requests=[ordered]@{delete=0;get=0}}
+    if($Retire){$r.mode='retirement';$r.keepCount=$null;$r.retirement=$null}
     $lock=$null;$outcomes=[Collections.Generic.List[object]]::new()
-    $script:Run=[pscustomobject]@{Config=$null;ContentSet=$ContentSet;Target=$Target;ArtifactsRoot=$null;Timer=[Diagnostics.Stopwatch]::StartNew();Result=$r;DeleteCount=0;Generation=$null;Operation=$null;Blocked=$null}
+    $script:Run=[pscustomobject]@{Config=$null;ContentSet=$ContentSet;Target=$Target;ArtifactsRoot=$null;Timer=[Diagnostics.Stopwatch]::StartNew();Result=$r;DeleteCount=0;Generation=$null;Operation=$null;Blocked=$null;Retirement=$false}
     $blocked={param($code)$r.status='blocked';$r.reasonCode=$code;$r.outcomes=@($outcomes.ToArray());return [pscustomobject]$r}
     try{
-        # 系列tokenは何も読む前に検査する。保護源（ArtifactsRoot）を集められないなら何も読まない。
+        # 系列tokenと指示IDは何も読む前に検査する。保護源（ArtifactsRoot）を集められないなら何も読まない。
         Assert-ContentToken $ContentSet;Assert-ContentTargetToken $Target
+        if($Retire){Assert-SeriesRetirementDecision $DecisionId}
         Import-ArtifactPackage
         $script:Run.ArtifactsRoot=Resolve-BuildArtifactsRoot $ArtifactsRoot ''
         $config=Read-ContentConfig $ConfigPath;$script:Run.Config=$config
         $r.seriesId=Get-ContentSeries $config.Data.repositoryId $ContentSet $Target
         if($DryRun){
-            # lockを取らず、記録にもnetworkにも触れない。実行時と同じcatalog・保護・policyで分類だけ返す。
+            # lockを取らず、記録（退役記録を含む）にもnetworkにも触れない。実行時と同じcatalog・保護・policyで分類だけ返す。
+            Set-ContentCleanupMode $r $Retire $DecisionId $false
             $snapshot=Get-ContentCleanupSnapshot
             if($snapshot.status -ceq 'blocked'){return & $blocked $snapshot.reasonCode}
             $decision=Get-ContentCleanupDecision $snapshot;Set-ContentCleanupClassification $r $snapshot $decision
@@ -192,6 +211,8 @@ function Invoke-ContentCleanup([string]$ConfigPath,[string]$ContentSet,[string]$
         try{$lock=Enter-ContentSeriesLock $config.Data.repositoryId $ContentSet $Target}
         catch{if($_.Exception.Message -ceq 'lock-busy'){throw 'cleanup-in-progress'};if($_.Exception.Message -cne 'content-store-unavailable'){throw};$storeAbsent=$true}
         if($script:StepHook){& $script:StepHook 'after-lock'}
+        # 退役記録の確認・書込みはlockの後、catalogの読取より前。記録が確定するまで何も送らない。
+        Set-ContentCleanupMode $r $Retire $DecisionId $true
         $excluded=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal);$stop=$null
         # lockの後に取り直したsnapshotだけを使う。lock前やdry-runの結果では判断しない。
         $snapshot=Get-ContentCleanupSnapshot
@@ -234,8 +255,8 @@ function Invoke-ContentCleanup([string]$ConfigPath,[string]$ContentSet,[string]$
         else{$r.status='passed';$r.reasonCode=$decision.reasonCode}
     }catch{
         $r.outcomes=@($outcomes.ToArray());$code=$_.Exception.Message
-        if($code -cin @('invalid-content-identity','unsupported-series','artifacts-root-not-configured','invalid-artifacts-root','invalid-content-config','cleanup-in-progress')){$r.reasonCode=$code}
-        if($code -ceq 'cleanup-in-progress'){$r.status='blocked'}
+        if($code -cin @('invalid-content-identity','unsupported-series','artifacts-root-not-configured','invalid-artifacts-root','invalid-content-config','cleanup-in-progress','invalid-decision','retirement-unknown')){$r.reasonCode=$code}
+        if($code -cin @('cleanup-in-progress','retirement-unknown')){$r.status='blocked'}
     }finally{if($lock){$lock.Dispose()};$script:Run=$null}
     return [pscustomobject]$r
 }

@@ -10,8 +10,8 @@ try {
         if($Arguments.Count -lt 6 -or $Arguments[2] -cne '--profile' -or $Arguments[3] -cne 'osm'){throw 'unsupported-command'}
         $buildAction=$Arguments[1];$buildOpts=@{};$buildDry=$false
         for($j=2;$j -lt $Arguments.Count;$j+=2){
-            # 値を取らない--dry-runはcleanupだけ。件数Nや削除対象を選ぶ引数は設けない。
-            if($Arguments[$j] -ceq '--dry-run'){if($buildDry -or $buildAction -cne 'cleanup'){throw 'unsupported-command'};$buildDry=$true;$j--;continue}
+            # 値を取らない--dry-runはcleanupとretireだけ。件数Nや削除対象を選ぶ引数は設けない。
+            if($Arguments[$j] -ceq '--dry-run'){if($buildDry -or $buildAction -cnotin @('cleanup','retire')){throw 'unsupported-command'};$buildDry=$true;$j--;continue}
             if($j+1 -ge $Arguments.Count -or $Arguments[$j] -cnotmatch '\A--[a-z0-9-]+\z' -or $buildOpts.ContainsKey($Arguments[$j])){throw 'unsupported-command'}
             $buildOpts[$Arguments[$j]]=$Arguments[$j+1]
         }
@@ -22,12 +22,14 @@ try {
             # --artifacts-rootだけは省略でき、省略時はOSM_ARTIFACTS_ROOTを読む（既定値は無い）。
             'collect'{if($buildOpts.ContainsKey('--artifacts-root')){@('--profile','--config','--source','--artifacts-root')}else{@('--profile','--config','--source')}}
             'cleanup'{@('--profile','--config','--project','--target','--configuration')}
+            # retireは1系列だけを対象にし、ownerの退役指示ID（--decision）を必須にする。取消の引数は無い。
+            'retire'{@('--profile','--config','--project','--target','--configuration','--decision')}
             'use'{@('--profile','--config','--build-id','--consumer','--until','--reason')}
             'release'{@('--profile','--config','--build-id','--protection')}
             default{throw 'unsupported-command'}
         }
         if((($buildOpts.Keys|Sort-Object) -join ',') -cne (($needed|Sort-Object) -join ',')){throw 'unsupported-command'}
-        if($buildAction -ceq 'cleanup'){Import-Module (Join-Path $PSScriptRoot 'Artifacts/BuildCleanup.psm1')}
+        if($buildAction -cin @('cleanup','retire')){Import-Module (Join-Path $PSScriptRoot 'Artifacts/BuildCleanup.psm1')}
         else{Import-Module (Join-Path $PSScriptRoot 'Artifacts/BuildApplication.psm1')}
         # inspect/collectは、削除状態を確認した共有access lockの保持中に結果を出力する。
         $printed=@{done=$false}
@@ -38,6 +40,7 @@ try {
             'inspect'{Invoke-BuildInspect $buildOpts['--config'] $buildOpts['--build-id'] $emit}
             'collect'{Invoke-BuildCollect $buildOpts['--config'] $buildOpts['--source'] $buildOpts['--artifacts-root'] $emit}
             'cleanup'{Invoke-BuildCleanup $buildOpts['--config'] $buildOpts['--project'] $buildOpts['--target'] $buildOpts['--configuration'] $buildDry}
+            'retire'{Invoke-BuildCleanup $buildOpts['--config'] $buildOpts['--project'] $buildOpts['--target'] $buildOpts['--configuration'] $buildDry $true $buildOpts['--decision']}
             'use'{Invoke-BuildUse $buildOpts['--config'] $buildOpts['--build-id'] $buildOpts['--consumer'] $buildOpts['--until'] $buildOpts['--reason']}
             'release'{Invoke-BuildRelease $buildOpts['--config'] $buildOpts['--build-id'] $buildOpts['--protection']}
         }
@@ -50,8 +53,8 @@ try {
         if($Arguments.Count -lt 6 -or $Arguments[2] -cne '--profile' -or $Arguments[3] -cne 'osm'){throw 'unsupported-command'}
         $contentAction=$Arguments[1];$contentOpts=@{};$contentDry=$false
         for($j=2;$j -lt $Arguments.Count;$j+=2){
-            # 値を取らない--dry-runはcleanupだけ。件数Nや削除対象を選ぶ引数は設けない。
-            if($Arguments[$j] -ceq '--dry-run'){if($contentDry -or $contentAction -cne 'cleanup'){throw 'unsupported-command'};$contentDry=$true;$j--;continue}
+            # 値を取らない--dry-runはcleanupとretireだけ。件数Nや削除対象を選ぶ引数は設けない。
+            if($Arguments[$j] -ceq '--dry-run'){if($contentDry -or $contentAction -cnotin @('cleanup','retire')){throw 'unsupported-command'};$contentDry=$true;$j--;continue}
             if($j+1 -ge $Arguments.Count -or $Arguments[$j] -cnotmatch '\A--[a-z0-9-]+\z' -or $contentOpts.ContainsKey($Arguments[$j])){throw 'unsupported-command'}
             $contentOpts[$Arguments[$j]]=$Arguments[$j+1]
         }
@@ -62,16 +65,19 @@ try {
             'collect'{if($contentOpts.ContainsKey('--artifacts-root')){@('--profile','--config','--source','--artifacts-root')}else{@('--profile','--config','--source')}}
             # cleanupも保護源のArtifactsRootを同じ規則で受ける（既定値は無く、無ければ何も読まない）。
             'cleanup'{if($contentOpts.ContainsKey('--artifacts-root')){@('--profile','--config','--content-set','--target','--artifacts-root')}else{@('--profile','--config','--content-set','--target')}}
+            # retireは1系列とownerの退役指示ID（--decision）を必須にし、ArtifactsRootはcleanupと同じ規則で受ける。
+            'retire'{if($contentOpts.ContainsKey('--artifacts-root')){@('--profile','--config','--content-set','--target','--decision','--artifacts-root')}else{@('--profile','--config','--content-set','--target','--decision')}}
             default{throw 'unsupported-command'}
         }
         if((($contentOpts.Keys|Sort-Object) -join ',') -cne (($needed|Sort-Object) -join ',')){throw 'unsupported-command'}
-        if($contentAction -ceq 'cleanup'){Import-Module (Join-Path $PSScriptRoot 'Artifacts/ContentCleanup.psm1')}
+        if($contentAction -cin @('cleanup','retire')){Import-Module (Join-Path $PSScriptRoot 'Artifacts/ContentCleanup.psm1')}
         else{Import-Module (Join-Path $PSScriptRoot 'Artifacts/ContentApplication.psm1')}
         $outcome=switch($contentAction){
             'fetch'{Invoke-ContentFetch $contentOpts['--config'] $contentOpts['--reference'] $contentOpts['--sha256']}
             'inspect'{Invoke-ContentInspect $contentOpts['--config'] $contentOpts['--content-set'] $contentOpts['--target'] $contentOpts['--revision']}
             'collect'{Invoke-ContentCollect $contentOpts['--config'] $contentOpts['--source'] $contentOpts['--artifacts-root']}
             'cleanup'{Invoke-ContentCleanup $contentOpts['--config'] $contentOpts['--content-set'] $contentOpts['--target'] $contentOpts['--artifacts-root'] $contentDry}
+            'retire'{Invoke-ContentCleanup $contentOpts['--config'] $contentOpts['--content-set'] $contentOpts['--target'] $contentOpts['--artifacts-root'] $contentDry $true $contentOpts['--decision']}
         }
         [Console]::WriteLine((ConvertTo-Json -InputObject $outcome -Compress -Depth 20))
         # cleanupのpartial（未解決の試行・残りの候補あり）は2。次回の実行で続きを処理する。
