@@ -20,7 +20,7 @@
 - PR: 未作成。作る場合も base は `develop`。
 
 **引継ぎ票 — 次は A3 前の残作業。** A3 はまだ凍結していない。r2 は A2 1件目（構造ゲート担当、§5.7）の P1 4件・P2 2件を全て採用候補として反映した改稿で、採否は A3 で owner が確定する。A3 までの残作業は次の3つ。
-1. §5.4 の r2 probe 領域の疎通。Codex 内と Claude 内で各1回、ストア外の probe 領域だけを使う使い捨て script で行う。
+1. ~~§5.4 の r2 probe 領域の疎通~~ 2026-10-13 に両 context で確認済み。
 2. 高リスクのため、A2 の2件目を1件行う。推奨は、初稿と r2 を見ずに A0（§1）だけから代替構成を出す担当。互いの指摘を渡さない。C' 用に予約した系列（§5.6）は使わない。
 3. A3 で owner が D1〜D6 と §5.7 の採否を決め、凍結する。
 
@@ -32,10 +32,10 @@ A2 / A3 の担当も Artifact Storage の実操作（publish / fetch / 合流）
 状態: Phase A の作業中（r2、A3 未凍結）
 Phase A: revision r2（A2 1件目を反映、A3 未凍結）、commit 未記録
 implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / 未固定
-次の担当: Phase A（A3 前）。次の作業: probe 領域の疎通、A2 の2件目（A0 だけからの代替構成）、A3 の決定
+次の担当: Phase A（A3 前）。次の作業: A2 の2件目（A0 だけからの代替構成）、A3 の決定
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
 Evidence 取得案内: 未生成
-未決事項: D1〜D6（§2.6）、§5.7 の採否、§5.4 の probe 領域の疎通
+未決事項: D1〜D6（§2.6）、§5.7 の採否、A2 の2件目
 ```
 
 ## 1. A0 — 目的、現況、対象外
@@ -237,7 +237,7 @@ Evidence 取得案内: 未生成
 
 - **確認済み（2026-10-12）:** D1 の書込み probe（r1 の置き場所は OneStarMaker 配下）。Codex 内（Codex が起動した PowerShell 7.6.5、承認済みの sandbox 外経路）では、実体 path が `Packages\<Codex package>\LocalCache\Local\OneStarMaker\…` で論理 path と不一致、identity は無し（15700）。Claude 内（Claude Code の PowerShell）では実体 path が論理 path と一致し、identity は Store 版 PowerShell のものだった。Claude 側は probe directory も削除し、OneStarMaker 直下の entry 数は3のまま変わらなかった。Codex 側は一時 file を削除したが、空の probe directory が1つ残った（直下の entry 数は7から8。既存 entry の属性・更新時刻は不変）。その削除は Codex 側の担当の判断に委ねる。どちらの観測も R2 の通信・認証は含まない。
 - **一部確認（2026-10-13）:** r2 の probe 領域の Claude 側（下記 (b)(c) の Claude 内分）。Claude Code の PowerShell で `OneStarMaker.StoreProbe` に `CreateNew` + `DeleteOnClose` の file を作ると、final path は論理 path と一致し、handle を閉じた後に file は残らなかった（probe 領域の entry 0件）。疎通のために作った probe 領域の directory は削除した。
-- **未確認（A3 前に確認する。r2 で追加）:** r2 の probe 領域（ストア外の兄弟 `OneStarMaker.StoreProbe`）で、(a) Codex 内で final path が LocalCache 側を指すこと、(b) Claude 内で論理 path と一致すること、(c) `DeleteOnClose` で開いて閉じた後、Codex 側 LocalCache に file が残らないこと。担当: Codex 内と Claude 内で各1回、probe 領域だけを使う使い捨て script。不成立時は D1 の代替（ストア内の予約名）へ切り替えて I1 の境界を書き直し、凍結しない。
+- **確認済み（2026-10-13）:** r2 の probe 領域の Codex 側。Codex 内（承認済みの sandbox 外経路、PowerShell 7.6.5）で `OneStarMaker.StoreProbe` に `CreateNew` + `DeleteOnClose` の file を1回作ると、final path は `Packages\<Codex package>\LocalCache\Local\OneStarMaker.StoreProbe\<固有 file>` で論理 path と不一致だった。handle を閉じた後、file は論理側・LocalCache 側とも残らなかった（明示的な削除はしていない）。疎通で作った probe 領域の directory は両側とも事前に無く、終了時に削除して両側とも残っていない。上の Claude 側の結果と合わせ、D1 の probe 領域（ストア外の兄弟）と `DeleteOnClose` の後始末は両 context で成立した。
 - **確認済み（2026-10-12、owner のセッション許可あり）:** U3。両 context で `credentials status` を1回ずつ実行した（世代 ID と endpoint は転記しない）。
   - 実ストア（Claude 内）: exit 0、`rotation state: stable`、retired 世代なし、updated UTC 2026-10-10。
   - Codex 側（Codex 内）: exit 0、`rotation state: stable`、retired 世代なし、updated UTC 2026-10-05。
