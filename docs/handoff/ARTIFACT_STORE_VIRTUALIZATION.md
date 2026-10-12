@@ -19,7 +19,7 @@
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成
 - PR: 未作成。作る場合も base は `develop`。
 
-**引継ぎ票 — 次は Phase A2（独立レビュー）。** 入力版は本ファイルの A2 送付時点の内容 sha256 を正とし、commit hash を補助とする。A2 は §2.6 の決定候補 D1〜D5 と §5 の未知経路を重点に、互いの指摘を見せずに行う。少なくとも1件は [アーキテクチャゲート](../../.agents/skills/osm-workflow/references/architecture-gates.md) を担当し、高リスクのため A0（§1）だけから代替構成を出す担当を1件検討する。A2 / A3 の担当も Artifact Storage の実操作（publish / fetch / 資格情報 / 合流）は行わない。§5.4 の未知経路の疎通は A3 前に別途行い、資格情報に触れる確認（`credentials status`）は owner にそのセッションで許可を取る。既存ストアの移動・削除・書換えはどの Phase でも本 HANDOFF の凍結前に行わない。
+**引継ぎ票 — 次は Phase A2（独立レビュー）。** 入力版は本ファイルの A2 送付時点の内容 sha256 を正とし、commit hash を補助とする。A2 は §2.6 の決定候補 D1〜D5 と §5 の未知経路を重点に、互いの指摘を見せずに行う。少なくとも1件は [アーキテクチャゲート](../../.agents/skills/osm-workflow/references/architecture-gates.md) を担当し、高リスクのため A0（§1）だけから代替構成を出す担当を1件検討する。A2 / A3 の担当も Artifact Storage の実操作（publish / fetch / 資格情報 / 合流）は行わない。§5.4 の疎通のうち D1 の probe と U5 の1件は 2026-10-12 に確認済み。残る U3 の確認（`credentials status`）は資格情報に触れるので、A3 前に owner にそのセッションで許可を取って行う。既存ストアの移動・削除・書換えはどの Phase でも本 HANDOFF の凍結前に行わない。
 
 ### PR 状態ブロック（PR 作成時の写し）
 
@@ -30,7 +30,7 @@ implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / 未固定
 次の担当: Phase A2。次の作業: 独立レビュー（構造ゲート1件以上、A0 だけからの代替構成1件を検討）
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
 Evidence 取得案内: 未生成
-未決事項: D1〜D5（§2.6）、§5.4 の未知経路
+未決事項: D1〜D5（§2.6）、§5.4 の U3（credentials status）
 ```
 
 ## 1. A0 — 目的、現況、対象外
@@ -102,10 +102,10 @@ Evidence 取得案内: 未生成
 ### 1.6 未決事項・未確認
 
 - **U1（OS 挙動）**: 仮想化下で、(a) 実ストアに既に存在する directory の配下へ新規 file を作る、(b) 既存 file を `File.Move(..., overwrite)` で置き換える、(c) 既存 file を開いて書く、のそれぞれがどちらへ書かれるか。Microsoft の公開説明では「新規の file / folder は package 専用の場所へ、既存 file の変更は元の場所で許可」とされるが、本リポジトリの atomic rename（新規 pending → rename）での結果は未確認。A1 は「仮想化下では OSM ストアへの書込みは一切行わない」前提で設計し、この確認に依存しない。
-- **U2（検出方法）**: Claude のように packaged で非仮想化の process を誤検出しない判定方法（§2.6 D1）。
+- **U2（検出方法）**: 2026-10-12 の疎通（§5.4）で、package identity と仮想化の有無が相関しないことを確認した。Codex 内の pwsh は identity が無い（`GetCurrentPackageFamilyName` が 15700 = `APPMODEL_ERROR_NO_PACKAGE`）のに仮想化されていた。Claude 内の pwsh は Store 版 PowerShell 自身の identity（`Microsoft.PowerShell_8wekyb3d8bbwe`）を持つが、仮想化されていなかった。identity は判定に使えない。残る論点は probe の置き場所と後始末（§2.6 D1）。
 - **U3（資格情報の分岐）**: Codex 側の `credentials` に、実ストアと異なる世代の鍵が登録されていないか。実ストアの鍵が旧世代・失効済みなら、合流後の fetch は認証で失敗する。確認は owner 許可付きの `credentials status` を両 context で行う（中身は読まない）。
 - **U4（定期清掃 job）**: 現在の job がどちらの context から install されたか、binding の実体 path がどちらを指すか。Codex 側だけの task の 30 日清掃・配送が止まっている可能性。
-- **U5（記録内の path 文字列）**: Codex 側の catalog / receipt が保持する絶対 path 文字列が、実ストアの論理 path（`%LOCALAPPDATA%\OneStarMaker\...`）を指しているか。§1.2 の機構からはそう読めるが未確認。指していれば、同じ相対位置へ bytes 同一で複写するだけで記録が自己整合する（書換え不要）。
+- **U5（記録内の path 文字列）**: Codex 側の catalog / receipt が保持する絶対 path 文字列が、実ストアの論理 path（`%LOCALAPPDATA%\OneStarMaker\...`）を指しているか。§5.4 の疎通で、Codex 側の catalog 1件にある絶対 path 12個（receipt 1、putIntent 1、ownedCopies 9、staging 1）が全て論理 path で、LocalCache の文字列は0個だった。この1件は想定を支持するが、全件ではない。合流 manifest の作成時に全単位を機械検査する。指していれば、同じ相対位置へ bytes 同一で複写するだけで記録が自己整合する（書換え不要）。
 - **U6（同名衝突）**: `integration-pr94-completion-20261010` の Workflow 記録が両側で同一か。`deployments` の receipt の重複・不一致。
 - **U7（所有者不明の領域）**: `RevisionLocks` は本リポジトリの tools に生成箇所が無い。所有者を確認するまで移送しない。
 
@@ -134,7 +134,7 @@ Evidence 取得案内: 未生成
 |---|---|---|---|
 | AC1 | I1, I2, S1 | 仮想化を注入した offline test で、全入口が store root・Workflow guard・deployment・credentials を開く前に `virtualized-store` を返す。呼ばれた I/O seam が0件。 | offline |
 | AC2 | I1（失敗経路） | 判定 seam が例外・不明を返したとき、仮想化とみなして止める（fail-closed）。非仮想化の既定へ落ちない。 | offline |
-| AC3 | I3 | 「packaged かつ非仮想化」「非 packaged」を注入したとき、既存の全 Artifacts / Workflow / Harness suite の結果が変わらない。 | offline |
+| AC3 | I3 | 「identity ありで非仮想化」「identity 無しで非仮想化」を注入したとき（package identity で分岐しないことも含む）、既存の全 Artifacts / Workflow / Harness suite の結果が変わらない。 | offline |
 | AC4 | I1, S1 | Codex 内で fetch・publish・`workflow-task.ps1 status`・`harness.ps1 current` を1回ずつ実行し、全て `virtualized-store`。前後で Codex 側 OneStarMaker 配下の entry 一覧（名前・件数・最終更新）が変わらない。 | 実環境（§5.3） |
 | AC5 | I3 | Claude デスクトップ内で同じ読取り系 subcommand が既存どおりの reasonCode を返す（誤検出しない）。 | 実環境 |
 | AC6 | I4, I5, S3 | 合成 fixture: Codex 側に task A（実ストアに無し）、task B（同名・bytes 同一）、task C（同名・内容不一致）を置き、A は複写・B は skip・C は衝突で止まる。Codex 側の全 file の hash・時刻が不変。 | offline |
@@ -162,10 +162,10 @@ Evidence 取得案内: 未生成
 
 - **D1 — 仮想化された実行の扱い（依頼の問い (a)/(b)）:** **推奨は (b) fail-closed（`virtualized-store`）。** (a)「一貫した実体 root で動く」は、package の中からは実ストアへ新規 file を書けない（U1 の公開説明どおりなら、どの path 文字列を使っても新規 file は package 専用の場所へ行く）ため、package 外の仲介か AppData 外への再配置が必要になる。どちらも新しい実行経路・保存先で、資格情報の前提に及ぶので D3 の後続へ送る。
   - 検出方法の候補（U2）:
-    - (1) package identity の有無（`GetCurrentPackageFamilyName`）と、OneStarMaker 直下の専用 probe directory に `CreateNew` で作った一時 file の実体 path（`GetFinalPathNameByHandleW`）が論理 path と一致するかの組合せ。一致しなければ仮想化。probe は作成直後に削除し、ストア本体には触れない。
-    - (2) package identity があれば一律に拒否。Claude を誤検出するので I3 に反し、推奨しない。
+    - (1) 書込み probe だけで判定する。OneStarMaker 配下の専用 probe directory に `CreateNew` で一時 file を作り、その実体 path（`GetFinalPathNameByHandleW`、`\?\` を除去）が論理 path と一致するかを見る。一致しなければ仮想化とする。package identity は判定に使わない（U2: identity が無い仮想化と、identity があって非仮想化の両方を観測した）。probe は file と directory の両方を削除し、ストア本体には触れない。
+    - (2) package identity があれば一律に拒否する案。Claude の pwsh を誤検出し（I3 違反）、Codex の pwsh を見逃す（I1 違反）ので採らない。identity が無いときに probe を省く最適化も、Codex を見逃すので採らない。
     - (3) 書込みをせず、既存の role root の実体 path だけで判定。実ストアに root が存在する場合に仮想化を見逃すため、I1 を満たせない。
-    - A1 は (1) を推奨し、probe の作成・削除が Codex 側に何を残すかを §5.4 の疎通で確認する。残る場合は probe の置き場所を A3 で決め直す。
+    - A1 は (1) を推奨する。§5.4 の疎通では、Codex 内で一時 file は削除できたが、probe directory を削除しなかったため LocalCache 側に空 directory が1つ残った。実装では directory も削除し、仮想化下で削除後に何も残らないことを AC4 の前後比較で確認する。probe を置く場所（OneStarMaker 直下か、ストア外の兄弟か）は A3 で決める。probe が作成・削除に失敗したら判定不能とし、AC2 のとおり止める。
 - **D2 — 既存の分裂の扱い:** **推奨は「非破壊合流」。** 非仮想化の process から、凍結 manifest に載った単位（task / deployment）だけを Codex 側から実ストアの同じ相対位置へ bytes 同一で複写する。参照だけ解決する案（実ストアの読取りで Codex 側を第二の root として見る）は、package 固有の path を恒久的な root にし、二つの書き手を固定するので採らない。廃止案は DebugStudio の固定入力を失うので採らない。README の「既存 receipt を一括で書き換えない」とは、bytes を変えない複写であれば整合する（U5 が前提）。
   - 実行形は既存の「一回の旧開発環境 reset」と同じく、A3（または C）で exact な単位一覧・hash・除外を固定した manifest、dry-run、単位ごとの receipt、再実行時の skip とする。
 - **D3 — 仮想化された host の今後:** **推奨は、本スライスの GO 後は仮想化された host で Storage・Workflow・Harness の操作を行わず、非仮想化の担当（owner の端末、Claude 等）が実行担当を務める運用とし、host 側の経路は後続 `Virtualized Host Route` へ送ること。** 影響: Codex が B を担当するスライスでは、固定入力の fetch と B exit の publish を非仮想化の実行担当へ依頼する必要がある。owner がこの運用を受け入れない場合は、本スライスの問いを広げず、後続の優先度を上げる。
@@ -216,9 +216,9 @@ Evidence 取得案内: 未生成
 
 ### 5.4 未知の操作経路の疎通（A3 前に確認する）
 
-- **未確認:** D1 (1) の probe が Codex 内で期待どおり「論理 path と実体 path の不一致」を示すか、Claude 内で一致を示すか。Codex 側に何を残すか。担当: A3 前の疎通担当（Codex 内と Claude 内で各1回、ストア外の専用 probe directory だけを使う使い捨て script）。不成立時は D1 の方法を A3 で決め直し、凍結しない。
+- **確認済み（2026-10-12）:** D1 (1) の probe。Codex 内（Codex が起動した PowerShell 7.6.5、承認済みの sandbox 外経路）では、実体 path が `Packages\<Codex package>\LocalCache\Local\OneStarMaker\…` で論理 path と不一致、identity は無し（15700）。Claude 内（Claude Code の PowerShell）では実体 path が論理 path と一致し、identity は Store 版 PowerShell のものだった。Claude 側は probe directory も削除し、OneStarMaker 直下の entry 数は3のまま変わらなかった。Codex 側は一時 file を削除したが、空の probe directory が1つ残った（直下の entry 数は7から8。既存 entry の属性・更新時刻は不変）。その削除は Codex 側の担当の判断に委ねる。どちらの観測も R2 の通信・認証は含まない。
 - **未確認:** U3 の `credentials status` を両 context で実行できるか。owner のセッション許可が要る。不成立なら合流（S4）を凍結せず、問いを分ける。
-- **未確認:** U5 の path 文字列。Codex 側の catalog 1件の `receipt.path` 等の field を読取り専用で確認する（鍵を含まない内部記録。tracked 文書へは転記しない）。
+- **一部確認（2026-10-12）:** U5 の path 文字列。Codex 内で catalog 1件を読取り専用で開き、絶対 path 12個が全て論理 path だった（値は転記しない。サイズ・更新時刻は不変）。全単位の検査は合流 manifest の作成時に行う。
 
 ### 5.5 高コスト証拠
 
@@ -227,7 +227,8 @@ Evidence 取得案内: 未生成
 
 ### 5.6 担当・モデル（実績）
 
-- A0/A1 主担当: Claude Code（Claude Opus 5.5、Anthropic）。非仮想化の Claude デスクトップから、ディレクトリ名の列挙とコードの読取りだけを行った。資格情報・Artifact Storage の操作、ストアの変更は行っていない。
+- A0/A1 主担当: Claude Code（Claude Opus 5.5、Anthropic）。非仮想化の Claude デスクトップから、ディレクトリ名の列挙とコードの読取りだけを行った。資格情報・Artifact Storage の操作、ストアの変更は行っていない（§5.4 の自分の probe は作成・削除済み）。
+- §5.4 の Codex 内疎通: Codex（OpenAI）。疎通の観測だけで、A2 のレビューではない。A2 で Codex を使う場合は、C' 用に Anthropic・OpenAI 以外の系列を予約する。
 - A2 独立レビュー: 未実施。
 - A3 統合: 未実施。
 - C' 用に予約する担当: A2 で使わないモデル系列・ベンダーを1つ残す（A2 の担当決定時に記録する）。
