@@ -8,6 +8,7 @@ Import-Module (Join-Path $PSScriptRoot 'BuildStage.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ContentContract.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ContentStage.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ContentStore.psm1')
+Import-Module (Join-Path $PSScriptRoot 'ContentDeletionStore.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ContentTransfer.psm1')
 # collect/inspect/fetchの順序、private operationの作成、再実行の分岐、receiptの確定だけを持つ。
 # operationは作るだけで削除しない（清掃は「未完了uploadとstaging」の後続）。
@@ -16,7 +17,7 @@ $script:Clock={[DateTimeOffset]::UtcNow}
 $script:FailureHook=$null
 # 公開reasonは許可語だけ。例外本文にはpathや通信の内部情報が入りうるため出さない。
 # Build側の語は、Contentの語へ写して返す。未分類はunconfirmedに留める。
-$script:Reasons=@('artifacts-root-not-configured','invalid-artifacts-root','invalid-source','invalid-content-config','invalid-content-identity','unsupported-series','unsupported-content','invalid-content-manifest','content-mismatch','size-limit','stage-conflict','stage-hash-mismatch','snapshot-changed','intent-conflict','revision-conflict','object-conflict','object-unconfirmed','put-unconfirmed','readback-unconfirmed','publish-in-progress','budget-exceeded','receipt-missing','receipt-invalid','commit-unconfirmed','content-store-unavailable','invalid-reference','manifest-mismatch','download-unconfirmed')
+$script:Reasons=@('artifacts-root-not-configured','invalid-artifacts-root','invalid-source','invalid-content-config','invalid-content-identity','unsupported-series','unsupported-content','invalid-content-manifest','content-mismatch','size-limit','stage-conflict','stage-hash-mismatch','snapshot-changed','intent-conflict','revision-conflict','object-conflict','object-unconfirmed','put-unconfirmed','readback-unconfirmed','publish-in-progress','budget-exceeded','receipt-missing','receipt-invalid','commit-unconfirmed','content-store-unavailable','invalid-reference','manifest-mismatch','download-unconfirmed','payload-deleted','delete-pending','receipt-unavailable')
 $script:ReasonMap=@{'snapshot-conflict'='invalid-source';'already-exists'='content-store-unavailable';'build-store-unavailable'='content-store-unavailable';'after-rename-unconfirmed'='commit-unconfirmed';'evidence-deadline'='budget-exceeded';'Artifact operation expired.'='budget-exceeded'}
 function Get-ContentReason([string]$Code){
     if($Code -cin $script:Reasons){return $Code}
@@ -34,6 +35,14 @@ function Write-ContentOperationFile([string]$Operation,[string]$Name,[byte[]]$By
     $stream=[IO.FileStream]::new($path,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
     try{$stream.Write($Bytes,0,$Bytes.Length);$stream.Flush($true)}finally{$stream.Dispose()}
     Set-ArtifactAcl $path $false;return $path
+}
+# 件数清掃の削除状態をdeletion/の記録だけで判定する（receiptの検査より先に）。削除済み・削除中のrevisionを
+# 成功として返さず、再PUTもしない。記録が読めなければ判定できないので成功にしない。
+# 呼出側がpublish.lockを保持している間に呼ぶ（cleanupの試行と重ならない）。
+function Assert-ContentNotDeleted([string]$RepositoryId,[string]$ContentSet,[string]$TargetToken,[string]$Revision){
+    $state=$null;try{$state=Read-ContentDeletionState $RepositoryId $ContentSet $TargetToken $Revision}catch{throw 'receipt-unavailable'}
+    if($state.State -ceq 'deleted'){throw 'payload-deleted'}
+    if($state.State -ceq 'deleting'){throw 'delete-pending'}
 }
 function Get-ContentCommitted($Dir,$Config,$Manifest){
     $c=Read-ContentReceipt $Dir $Config.Data.repositoryId $Manifest.ContentSet $Manifest.TargetToken $Manifest.Revision
@@ -69,6 +78,7 @@ function Invoke-ContentCollect([string]$ConfigPath,[string]$Source,[string]$Arti
         $intent=New-ContentIntent $config $manifest
         # 同一入力か（intent bytesの一致）。違えばintent-conflict。receiptの有無を見る前に判定する。
         $null=Test-ContentIntent $dir $intent
+        Assert-ContentNotDeleted $config.Data.repositoryId $manifest.ContentSet $manifest.TargetToken $manifest.Revision
         if([IO.File]::Exists([IO.Path]::Combine($dir,'receipt.json'))){
             $committed=Get-ContentCommitted $dir $config $manifest
             $r.reference=New-ContentReference $config $committed.Data;$r.receiptPath=$committed.Path
@@ -111,13 +121,21 @@ function Invoke-ContentCollect([string]$ConfigPath,[string]$Source,[string]$Arti
 }
 # 呼出前に保存したidentityだけを再照会する。一覧探索や再送は行わず、遠隔のobjectも見ない。
 # receiptが未確定・破損なら成功へ補完せず、確定済みなら同じreference/hash/時刻を返す。
+# publish.lockを保持して読むので、件数清掃の試行中は待たずにpublish-in-progressで止まる。削除状態は
+# receiptより先に見て、削除済み・削除中ならreferenceを返さない。
 function Invoke-ContentInspect([string]$ConfigPath,[string]$ContentSet,[string]$Target,[string]$Revision){
+    $lock=$null
     try{
         $config=Read-ContentConfig $ConfigPath
         $dir=Get-ContentDirectory $config.Data.repositoryId $ContentSet $Target $Revision $false
+        $lock=Enter-ContentPublishLock $dir
+        Assert-ContentNotDeleted $config.Data.repositoryId $ContentSet $Target $Revision
         $c=Read-ContentReceipt $dir $config.Data.repositoryId $ContentSet $Target $Revision
         return [pscustomobject]@{status='passed';reasonCode='complete';contentSet=$ContentSet;target=$Target;revision=$Revision;reference=(New-ContentReference $config $c.Data);manifestSha256=$c.Data.manifestSha256;receiptPath=$c.Path;publishedAt=$c.Data.publishedAt}
-    }catch{return [pscustomobject]@{status='failed';reasonCode='receipt-unavailable'}}
+    }catch{
+        $code=$_.Exception.Message
+        return [pscustomobject]@{status='failed';reasonCode=$(if($code -cin @('publish-in-progress','payload-deleted','delete-pending')){$code}else{'receipt-unavailable'})}
+    }finally{if($lock){$lock.Dispose()}}
 }
 # referenceと独立に渡された期待hashの両方を要求する。取得したtransport.json自身のhashを信頼の
 # 起点にすると、別の有効なContentへの差替えを検出できない。展開先は毎回新規のprivate operationで、

@@ -184,6 +184,14 @@ foreach($caseName in $selected){
                 $request=@{Endpoint='https://'+('e'*32)+'.r2.cloudflarestorage.com';Operation='delete';Key=($p+'content/a.cf');SourcePath=$null;DestinationPath=$null;DeadlineMilliseconds=1000}
                 $transportModule=@(Get-EvidenceTestModules R2ArtifactTransport)[0]
                 Assert-Throws {& $transportModule {param($r)Invoke-R2ArtifactOperation 'id' 'secret' ('f'*32) $r} $request} 'Artifact transport unavailable.' 'content delete'
+                # 件数清掃の印（ContentRetentionDelete=$true、bool）付きのContent DELETEだけを通し、印はContent以外のkeyを開かない。
+                $build='development/builds/v1/'+('a'*64)+'/samplegame/windows-x64-player/il2cpp-high/'+('b'*32)+'/bundle.zip'
+                foreach($row in @(@(($p+'transport.json'),@{ContentRetentionDelete=$true},$true),@(($p+'content/a.cf'),@{ContentRetentionDelete=$true},$true),
+                    @(($p+'content/a.cf'),@{ContentRetentionDelete='True'},$false),@(($p+'content/a.cf'),@{BuildRetentionDelete=$true},$false),
+                    @($build,@{ContentRetentionDelete=$true},$false),@(('development/evidence/v2/'+('a'*64)+'/t/bundle.zip'),@{ContentRetentionDelete=$true},$false))){
+                    $marked=$request.Clone();$marked.Key=$row[0];foreach($k in $row[1].Keys){$marked[$k]=$row[1][$k]}
+                    Assert ((& $transportModule {param($r)Test-R2ArtifactRequestAllowed $r} $marked) -eq $row[2]) "marked delete $($row[0]) $(@($row[1].Keys))"
+                }
             }
         }
     }catch{$failed.Add($caseName+': '+$_.Exception.GetType().Name+': '+$_.Exception.Message+' (line '+$_.InvocationInfo.ScriptLineNumber+')')}

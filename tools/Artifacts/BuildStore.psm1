@@ -1,6 +1,7 @@
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'ArtifactAcl.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ArtifactCommands.psm1')
+Import-Module (Join-Path $PSScriptRoot 'ArtifactDeletion.psm1')
 Import-Module (Join-Path $PSScriptRoot 'BuildContract.psm1')
 Import-Module (Join-Path $PSScriptRoot '../Workflow/WindowsStorePaths.psm1')
 # このstoreのownerはBuild application。同user/同PCで成功を保持し、
@@ -55,11 +56,19 @@ function Get-BuildDirectory([string]$RepositoryId,[string]$BuildId,[bool]$Create
 # 失敗tempは残し、ここで他の成功記録やremote objectをrollback削除しない。
 # 件数清掃の削除試行（deletion/）と利用中保護（protections/）も同じ不変書込みに載せる。
 # 許可名を1箇所に置くのは、ACL検査と既存名の非置換を記録の種類ごとに二重に持たないため。
+# 許可名の表は記録の種別（Kind: build／content）ごとに分ける。Contentの削除試行だけが確定点（committed）
+# を持ち、Buildの集合へ混ぜるとBuildにも書けてしまう。Buildの許可集合はContentの追加で変えない。
 # BeforeCommitはrenameの直前に呼ぶ。呼出側の予算判定等が例外なら確定させない。
-function Write-BuildImmutable([string]$Directory,[string]$Name,$Value,[scriptblock]$BeforeCommit=$null){
-    if($Name -cnotin @('intent.json','receipt.json') -and
-        $Name -cnotmatch '\Adeletion/[1-9][0-9]{0,5}\.(?:intent|sent|deleted|abandoned)\.json\z' -and
-        $Name -cnotmatch '\Aprotections/[0-9a-f]{32}\.(?:use|release)\.json\z'){throw 'build-store-unavailable'}
+function Write-BuildImmutable([string]$Directory,[string]$Name,$Value,[scriptblock]$BeforeCommit=$null,[string]$Kind='build'){
+    $allowed=switch -CaseSensitive ($Kind){
+        'build'{$Name -cin @('intent.json','receipt.json') -or
+            $Name -cmatch '\Adeletion/[1-9][0-9]{0,5}\.(?:intent|sent|deleted|abandoned)\.json\z' -or
+            $Name -cmatch '\Aprotections/[0-9a-f]{32}\.(?:use|release)\.json\z'}
+        'content'{$Name -cin @('intent.json','receipt.json') -or
+            $Name -cmatch '\Adeletion/[1-9][0-9]{0,5}\.(?:intent|sent|committed|abandoned|deleted)\.json\z'}
+        default{$false}
+    }
+    if(-not $allowed){throw 'build-store-unavailable'}
     Assert-ArtifactAcl $Directory $true
     $parent=$Directory;$leaf=$Name
     if($Name.Contains('/')){
@@ -167,23 +176,8 @@ function Read-BuildRecordIdentity([string]$RepositoryId,[string]$BuildId,[string
 }
 # --- 件数清掃の削除試行（deletion/<n>.(intent|sent|deleted|abandoned).json） ---
 # 観測はTest-ArtifactSuccess/Test-ArtifactMissingを記録だけから再評価できる非秘密の組で、
-# endpoint・応答本文・例外本文は持たない。ここでは形と記録同士の結び付き、削除済み・取下げの根拠となる観測を検査する。
-# Outcome: 'missing' は削除済みの根拠（Test-ArtifactMissing と同じ 404 NoSuchKey の条件）、
-# 'present' は取下げの根拠（Test-ArtifactSuccess と同じ検証済み 2xx の条件）を、読取時にも記録だけから
-# 再評価する。根拠に合わない記録を受け入れると、消えたBuildを成功に数える・残るBuildを削除済みと扱う。
-function Assert-BuildObservation($o,[string]$Operation,[string]$Key,[string]$Outcome='any'){
-    Assert-Fields $o @('operation','key','generation','httpStatus','statusClass','s3Code','statusObserved','timedOut','redirected','observedAt')
-    if($o.operation -cne $Operation -or $o.key -cne $Key -or
-        ($null -ne $o.generation -and $o.generation -cnotmatch '\A[0-9a-f]{32}\z') -or
-        ($null -ne $o.httpStatus -and ($o.httpStatus -isnot [long] -or $o.httpStatus -lt 100 -or $o.httpStatus -gt 599)) -or
-        ($null -ne $o.statusClass -and $o.statusClass -cnotin @('success','unauthorized','forbidden','not-found','too-many-requests','server-error','redirect','other','timeout','transport-error','invalid-input','size-limit')) -or
-        ($null -ne $o.s3Code -and $o.s3Code -cnotmatch '\A[A-Za-z][A-Za-z0-9]{0,63}\z') -or
-        $o.statusObserved -isnot [bool] -or $o.timedOut -isnot [bool] -or $o.redirected -isnot [bool] -or $o.observedAt -isnot [string]){throw 'delete-record-invalid'}
-    $null=Assert-Utc $o.observedAt
-    $clean=$null -ne $o.generation -and $o.statusObserved -and -not $o.timedOut -and -not $o.redirected
-    if($Outcome -ceq 'missing' -and -not ($clean -and $o.httpStatus -eq 404 -and $o.statusClass -ceq 'not-found' -and $o.s3Code -ceq 'NoSuchKey')){throw 'delete-record-invalid'}
-    if($Outcome -ceq 'present' -and -not ($clean -and $null -ne $o.httpStatus -and $o.httpStatus -ge 200 -and $o.httpStatus -le 299 -and $o.statusClass -ceq 'success')){throw 'delete-record-invalid'}
-}
+# endpoint・応答本文・例外本文は持たない。ここでは形と記録同士の結び付きを検査し、削除済み・取下げの
+# 根拠となる観測の検査はContentと共通の Assert-ArtifactObservation（ArtifactDeletion）に任せる。
 function Assert-BuildDeletionHeader($v,[string[]]$Fields,[int]$Attempt,[string]$IntentSha256){
     Assert-Fields $v $Fields
     if($v.schemaVersion -isnot [long] -or $v.schemaVersion -ne 1 -or $v.attempt -isnot [long] -or $v.attempt -ne $Attempt -or
@@ -226,7 +220,7 @@ function Read-BuildDeletionState([string]$RepositoryId,[string]$BuildId){
             $sent=$null
             if($r.ContainsKey('sent')){
                 Assert-BuildDeletionHeader $r.sent.Data @('schemaVersion','attempt','intentSha256','observation') $n $r.intent.Sha256
-                Assert-BuildObservation $r.sent.Data.observation 'delete' $i.key;$sent=$r.sent.Sha256
+                Assert-ArtifactObservation $r.sent.Data.observation 'delete' $i.key;$sent=$r.sent.Sha256
             }
             if($r.ContainsKey('deleted') -and $r.ContainsKey('abandoned')){throw 'delete-record-invalid'}
             if($r.ContainsKey('deleted')){
@@ -234,11 +228,11 @@ function Read-BuildDeletionState([string]$RepositoryId,[string]$BuildId){
                 Assert-BuildDeletionHeader $v @('schemaVersion','attempt','intentSha256','sentSha256','deleteObservation','getObservation') $n $r.intent.Sha256
                 if(($sent -and ($v.deleteObservation -cne 'recorded' -or $v.sentSha256 -cne $sent)) -or
                     (-not $sent -and ($v.deleteObservation -cne 'unknown' -or $null -ne $v.sentSha256))){throw 'delete-record-invalid'}
-                Assert-BuildObservation $v.getObservation 'get' $i.key 'missing'
+                Assert-ArtifactObservation $v.getObservation 'get' $i.key 'missing'
             }
             if($r.ContainsKey('abandoned')){
                 Assert-BuildDeletionHeader $r.abandoned.Data @('schemaVersion','attempt','intentSha256','getObservation') $n $r.intent.Sha256
-                Assert-BuildObservation $r.abandoned.Data.getObservation 'get' $i.key 'present'
+                Assert-ArtifactObservation $r.abandoned.Data.getObservation 'get' $i.key 'present'
             }
             if($n -lt $max -and -not $r.ContainsKey('abandoned')){throw 'delete-record-invalid'}
             if($n -eq $max -and $r.ContainsKey('deleted')){$state.State='deleted'}
