@@ -67,6 +67,8 @@ Storage所有のupload/staging/未採用失敗copyはcreatedAtから604800秒の
 
 exit 0は検証・確定完了、1は失敗/未確認、2は配送待ち・scheduler/cleanupの部分保留です。inspectのactive/end-not-recordedやcleanupのdeleted/skipped/blocked/remaining/itemsを確認し、未確認を成功へ置き換えません。例外本文やSDK応答本文は表示せず、非秘密reasonCode/residueを使います。資格情報の既存exit意味は変えません。
 
+publish・fetch・inspect・use・releaseは、`--config` の読取・検証の失敗（相対path・不在・JSON不正・field不一致・hex不正）を `invalid-evidence-config`、configに対応するdeployment receiptの不在・読取不能・不一致を `unknown-deployment`、publishの `--selection` の読取失敗（相対path・不在・JSON不正・field不一致）を `invalid-selection` で返します。いずれもWorkflow guard・資格情報・networkに進まず（`residue.remote` は `pre-put`）、pathは表示しません。configとselectionは絶対pathで渡します。cleanup・schedule-install・schedule-statusのconfig失敗は従来どおりです。
+
 ## 自動清掃
 
 ```powershell

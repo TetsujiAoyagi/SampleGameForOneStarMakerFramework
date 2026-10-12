@@ -1,4 +1,4 @@
-param([string]$Root,[string]$ConfigPath,[string]$Reference,[string]$Sha256,[string]$Action='fetch',[string]$Signal='', [string]$Now='')
+param([string]$Root,[string]$ConfigPath,[string]$Reference,[string]$Sha256,[string]$Action='fetch',[string]$Signal='', [string]$Now='',[string]$Selection='')
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'EvidenceTestSupport.ps1')
@@ -17,6 +17,7 @@ if($Signal){
     $event=[Threading.EventWaitHandle]::OpenExisting($Signal);try{$null=$event.Set()}finally{$event.Dispose()}
 }
 switch($Action){
+    'publish'{& (Join-Path $PSScriptRoot '../../artifacts.ps1') evidence publish --profile osm --config $ConfigPath --selection $Selection;exit $LASTEXITCODE}
     'fetch'{& (Join-Path $PSScriptRoot '../../artifacts.ps1') fetch --profile osm --config $ConfigPath --reference $Reference --sha256 $Sha256;exit $LASTEXITCODE}
     'use'{& (Join-Path $PSScriptRoot '../../artifacts.ps1') evidence use --profile osm --config $ConfigPath --reference $Reference --consumer child --until ([DateTimeOffset]::UtcNow.AddHours(1).ToString('o')) --reason review;exit $LASTEXITCODE}
     'cleanup'{$r=Invoke-EvidenceCleanup $ConfigPath;$r|ConvertTo-Json -Compress -Depth 10;if($r.status -cne 'passed'){exit 1}}
