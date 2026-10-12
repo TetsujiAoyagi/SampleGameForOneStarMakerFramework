@@ -16,6 +16,7 @@ description: >-
 2. 自分が担当する Phase と成果物を特定する。
 3. 専用ブランチで作業する。`main` / `develop` に直接コミットしない。A3で `external-current-v1` を採用した作業は `pwsh tools/harness.ps1 current -Task <id>` を唯一の作業入口とし、過去RESULTを探して補完しない。未移行作業は従来のHANDOFFを使う。
 4. PR の base は `develop` とする。
+5. 前の Phase から引き継ぐときは、PR の状態ブロック、HANDOFF §0 の引継ぎ票、リモートの head を照合し、食い違えば引き継がずに停止する。C' は PR を読まない。詳細は [Phase 境界の引継ぎ](references/phases-and-handoff.md#phase-境界の引継ぎ)。
 
 Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](references/phases-and-handoff.md) を全文読む。ドキュメントを変更する場合は [ドキュメント方針](references/docs-policy.md) も全文読む。
 
@@ -23,18 +24,19 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 
 - 証拠の保存先と配布は [レビュー証拠](references/review-evidence.md#保存先とリモートへの配布) に従う。証拠の配布方法と、試行錯誤の実装コミットをPR履歴へ積まないことは別の条件として扱う。差し戻し中の中間コミットは判定用headの固定には使えても、そのまま全て公開する理由にはならない。
 - PR公開後の修正は、レビュー1ラウンドにつき原則1つの修正コミットにまとめる。独立してレビューすべき変更を分ける場合は、その理由をPRに示す。未pushの中間コミットは公開前に整理し、整理でheadが変わったら旧run・C/C'結果を新headの合格証拠に流用せず、review-evidenceの判定必須テストとC/C'を最終headで取り直す。Git配布が認められない証拠を未pushの中間コミットへ誤って入れた場合は公開前に履歴から除く。公開済みの違反は履歴の書き換えでなかったことにしない。
+- 整理の対象は B 以降の実装の試行錯誤コミットに限る。A3 で公開する Phase A の HANDOFF revision のコミットはレビュー入力の記録として整理しない。判定 evidence を取った head は、次の修正を積む前に push して到達可能に保つ。判定 evidence を取っていない中間 head は従来どおり整理してよい。
 - push前に、前回公開headから増えるコミットを `git log --oneline <前回公開head>..HEAD` で確認する。数がレビュー上必要な単位を超えていれば、未公開分を整理してからpushする。公開済み履歴は明示的な合意なく書き換えない。既存履歴の大規模rebaseを対象外とする判断は、未公開の中間コミットを整理しない理由にならない。
 
 ## Phase A: 計画と設計レビュー
 
 - A0 で現況、要求、制約、対象外、未決事項に加え、このスライスが答える問い、次スライスへ進む最低条件、後続スライスへ送る問いを同じ planning packet に固定する。
-- A1 で主担当が進める最低条件、その詳細である受け入れ条件、責務配置、規模、テスト方針、停止規則を含む初稿を作る。
+- A1 で主担当が進める最低条件、その詳細である受け入れ条件、責務配置、規模、テスト方針、停止規則を含む初稿を作る。新規 A1 のスライスは最低条件を [不変条件と成立条件](references/phases-and-handoff.md#不変条件と成立条件) に分ける。[高コスト証拠](references/review-evidence.md#高コスト証拠と最終証拠ラウンド) の分類・手順・期待値と、[判定 C の照合 script](references/review-evidence.md#判定-c-の照合-script) の方式も A1 で書き A3 で凍結する。
 - 操作・実行時・目視を伴う最低条件は、凍結前に [検証経路の成立](references/phases-and-handoff.md#検証経路の成立) を確認する。AI が取得できない証拠を、暗黙の人間作業として凍結しない。
-- A2 で変更規模に応じて複数モデルへ独立レビューを依頼する。各レビューは同じ入力版を使い、互いの指摘を見せない。
+- A2 で変更規模に応じて複数モデルへ独立レビューを依頼する。各レビューは同じ入力版（内容 sha256 を正とする）を使い、互いの指摘を見せない。
 - 少なくとも1件は [アーキテクチャゲート](references/architecture-gates.md) に従い、フォルダ境界、クラス責務、依存、所有者、寿命、テスト可能性を専門に見る。
 - 高リスク変更では、初稿を見ずに A0 だけから代替構成を出すレビューを追加する。C' の独立性が必要なら、Phase A で利用可能な全モデル系列・ベンダーを使い切らず、未関与の監査担当を予約する。
 - A3 で主担当と人間が指摘を採用・不採用・保留に分類し、理由を記録して HANDOFF と受け入れ境界を凍結する。凍結後に設計判断を変える場合は Phase A を新しい revision として再開する。
-- A3 後の finding が現スライスを阻害できるのは、凍結済みの進める最低条件、受け入れ条件、または常時契約への違反を示す場合だけとする。それ以外の新しい不確実性は重要度にかかわらず後続スライスへ移送する。現スライスへ例外的に取り込む場合は、人間が置き換える既存条件または期限・検証予算を明示して承認し、Phase A を新しい revision として再開する。
+- A3 後の finding が現スライスを阻害できるのは、凍結済みの進める最低条件、受け入れ条件、または常時契約への違反を [blocker の基準](references/phases-and-handoff.md#blocker-の基準) で示す場合だけとする。凍結条件の意味・合否を変えない人間の裁定は [決定記録](references/phases-and-handoff.md#決定記録) に残し、変える裁定は Phase A の新しい revision にする。それ以外の新しい不確実性は重要度にかかわらず後続スライスへ移送する。現スライスへ例外的に取り込む場合は、人間が置き換える既存条件または期限・検証予算を明示して承認し、Phase A を新しい revision として再開する。
 - HANDOFF は [テンプレート](references/handoff-template.md) を基準にする。テスト方針には、差し戻し中の確認に使う起点 filter と、GO 候補 head の判定必須テストを分けて書く。実装変更を伴うスライスの判定必須には、最終の全 EditMode 回帰を標準として含める。適用除外は理由と代替証拠を本文へ書く。
 
 ## Phase B: 実装
@@ -48,6 +50,7 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 - Unity Editor、Scene、Prefab、Addressables等を扱う場合は `../osm-unity-editor/SKILL.md` を先に読む。
 - 対象を限定した Editor 操作とコンパイル確認は Phase B で行ってよい。Unity バッチテストと Addressables ビルドの実行・判定は Phase C の責任とし、H2未適用のPhase Bでは実行しない。H1適用済みのArtifacts/Harness作業は完了引渡し時に関連offline suiteのB exitを通す。中間commitやWIP救援にB exitを要求しない。B限定のUnityテストは、A3で実行経路と対象集合を凍結したtaskに限る。完了済みH2cの実例（承認profile、初回疎通の扱い、固定記録の入口）は [Harness README](../../../tools/Harness/README.md#h2c-unity-pilot) を正とする。完了時に未実行を明記する。
 - 実装を終えたら `pwsh tools/contract-audit.ps1` を実行する。Editor のコンパイル確認を行えなかった場合は、その未確認を明記する。
+- B の session は B の出口で引継ぎ票と PR の状態ブロックを更新し、push して終える。判定 C の実行や C' の起動を担わない。判定 C の照合 script も書かない。
 
 ## Phase C: レビューとテスト
 
@@ -58,6 +61,8 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 - 変更量、独立した変更理由の混在、単体テスト可能性、Unity の偽 null を確認する。
 - 重要な判断を半年後の担当者がコードと公開文書から復元できるか確認する。復元できない箇所は理由のコメントを求め、コメント量そのものは評価しない。
 - `pwsh tools/contract-audit.ps1` を実行する。機械で判定できる契約はこれで済ませ、構造レビューは設計判断に集中する。
+- 高コスト証拠を分類したスライスは、判定 C → 暫定 C' → 高コスト証拠の取得 → 最終証拠ラウンドの順で進め、判定 C と最終 C' の両方が揃うまで GO にしない。詳細は [高コスト証拠と最終証拠ラウンド](references/review-evidence.md#高コスト証拠と最終証拠ラウンド) を正とする。
+- 判断担当が実行できない場合は、判定 C 用の新しい実行担当 session が凍結済みのコマンドだけを実行する（[実行担当と判断担当](references/phases-and-handoff.md#実行担当と判断担当)）。照合 script は実行できない担当に書かせない（[判定 C の照合 script](references/review-evidence.md#判定-c-の照合-script)）。
 - Phase C は欠陥発見と最終判定を分ける。詳細は [レビュー証拠](references/review-evidence.md) の「発見 C と判定 C」を正とする。目的は検証範囲の縮小ではなく、重い検証のタイミングをずらすことである。
 - 発見 C の欠陥も同じ分類で修正先を決める。B 適応で足りる違反は修正するが、Phase A 再開の理由にはしない。
 - B と発見 C の差し戻しは、現在の問いを阻害する指摘が無くなるまで往復する。1 巡は、阻害する指摘を B へ戻し、修正後の head を再びレビューする1往復とし、最初のレビューは数えない。上限は B と発見 C の間で 4 巡、C' の指摘による差し戻しは別に数えて 3 巡とする。上限で収束しなければ、残る指摘と違反根拠を明示して人間に判断を返す。
@@ -75,11 +80,12 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 ## Phase C': 独立監査
 
 - 人間または AI が担当する。AI は新規セッションで開始する。発見 C と判定 C の結論、指摘、疑念候補、誘導的な説明を含まない blind audit bundle を読み、可変な HANDOFF 全文をそのまま入力にしない。
-- 判定 evidence が揃った最終 head でのみ開始する。同じテストを C' が重複実行することは必須にしない。
-- blind audit bundle は、凍結した Phase A snapshot、所見を含まない Phase B の実装結果、判定 C と同じ implementation base / head の完全 diff、判定必須テストの生結果、凍結条件が求める場合の操作・目視の一次観察の原記録、判定 C より前に生成した機械検査出力だけで構成する。原記録の扱いは [レビュー証拠](references/review-evidence.md) に従い、B result や原記録へ発見 C の所見を転載して迂回しない。
+- 判定 C の判定証拠が揃った head でのみ開始する。高コスト証拠を分類したスライスでは、それ以前の C' を暫定 C' として GO 判定に使わず、高コスト証拠を加えた最終 C' を行う。同じテストを C' が重複実行することは必須にしない。
+- blind audit bundle の構成は [レビュー証拠](references/review-evidence.md#phase-c-の-blind-audit-bundle) を正とする。B result や原記録へ発見 C の所見を転載して迂回しない。
+- 1 巡目は全体を初見で監査し、2 巡目以降は前巡指摘の解消と修正差分を中心に監査する。受け取る裁定は C' 自身の前巡指摘への決定記録だけとする（[巡ごとの範囲](references/review-evidence.md#巡ごとの範囲)）。
 - AI 担当のモデル相違条件、人間担当の確認記録と独立性の扱いは [Phase と HANDOFF](references/phases-and-handoff.md) に従う。人間の回答前に AI が PASS や完了を記録しない。
 - 受け入れ条件だけでなく、契約違反、構造劣化、未検証の失敗経路、Phase C 自体の見落としを探す。
-- 指摘を「凍結済み条件または常時契約への違反により現在の問いを阻害する欠陥」と「後続スライスの入力」に分け、根拠となる凍結済み条件または常時契約を記録する。後者を理由に現スライスの実装や受け入れ条件を自動拡張しない。
+- 指摘を「凍結済み条件または常時契約への違反により現在の問いを阻害する欠陥」と「後続スライスの入力」に分け、[blocker の基準](references/phases-and-handoff.md#blocker-の基準) に従って根拠を記録する。後者を理由に現スライスの実装や受け入れ条件を自動拡張しない。
 - 指摘、残存リスク、監査できなかった範囲、使用したモデルを HANDOFF の Phase C' 欄へ記録する。
 
 ## Phase D: 保存・引渡しと後始末
@@ -96,4 +102,4 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 ## 完了
 
 - マージ済みの HANDOFF は、上記の保存・引渡し確認後に、恒久的に残すべき知見だけを公開ドキュメントへ反映して削除する。
-- PRを作る場合は差分と検証結果を要約し、base が `develop` であることを確認する。
+- PRを作る場合は差分と検証結果を要約し、base が `develop` であることを確認する。タイトルには Phase を入れず、本文先頭の状態ブロックを各 Phase の出口と implementation head の固定時に更新する（[PR 状態ブロック](references/phases-and-handoff.md#pr-状態ブロック)）。マージ前に状態ブロックと本文の要約が最終 head と一致することを確認する。
