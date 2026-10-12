@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `D`（判定 C は GO、最終 C′ は PASS。次は Phase D（owner のマージ判断と A3 代行決定の追認））
+- status: `D`（Phase D 完了）
 - branch: `codex/artifact-storage-content-retention-cleanup`
 - implementation base commit: `7a75cac6f437f480e15fe49b203269551cfe2a22`（`develop`。PR #122 を含む。A3 凍結時の `origin/develop` と一致を確認済み）
 - implementation head commit: `cdcd6c9a684f4957282a1c05916e1bef704c4396`（差し戻し修正 1 の実装 commit。初回の実装 commit は `defd15ca1561a314f0afc5ab5c3eea47e02dd8fe`。HANDOFF 記録 commit はこの上に積む）
@@ -387,4 +387,10 @@ Content 系列 1 つについて、このPCの成功記録と保持中 Player �
 
 ## 9. Phase D
 
-（未着手）
+- C / C' の突合: 判定 C（GO、阻害 0）と最終 C′（PASS、阻害 0）は一致。後続入力は §7・§8 と program §4 B に移送。PR の外部レビュー（cursor[bot]、2026-10-12）も blocker なし。指摘の「同時刻の未解決試行を再開する順が AC3 の tie-break と逆」は、未解決の試行は既に候補判定を通過しているため I1〜I3 に当たらないとの判断で、後続入力（診断の改善）とした。
+- マージ判断: owner が 2026-10-12 のチャットで Phase D 完了とマージを指示した。同じ指示で、A3 を owner 不在中に主担当が代行した決定（U1〜U12、Phase A revision 2）を追認した。
+- 必要な Evidence の保存・取得・必須内容の閲覧確認: 所見の bundle と C′ 用 blind bundle を Artifact Storage（task `content-retention-cleanup`）に保存し、別 process の fetch で hash 一致と必須ファイル（Phase A r2、判定必須の生結果、AC18 の生記録・照合結果、最終 C′）の閲覧を確認した。1,044 file 版の blind bundle は task の catalog が 1 MiB 上限に近く fetch が `record-limit` で失敗したため、同じ内容を 1 file の ZIP にまとめて保存し直し、その取得を確認した（上限は program §4 B の後続入力）。
+- 取得案内の引渡し確認: 取得案内（reference と独立した packageSha256）はローカルの git 管理外に置き、owner に渡した。
+- harvest: 操作と契約は `tools/Artifacts/README.md`（作業中に B が更新済み。冒頭の要約を更新）、program の状態・決めたこと・後続入力は program §4 B、docs/README の program 行。
+- 削除確認: 本書を harvest 後に削除する。
+- 通常の task 終了・後始末の状態と未完了事項: `workflow-task.ps1 end -Reason completed`（Decision `chat:20261012T1218Z:content-retention-cleanup:completed`）。R2 の検証用 object 20 件は残置（後続「系列の退役」）。
