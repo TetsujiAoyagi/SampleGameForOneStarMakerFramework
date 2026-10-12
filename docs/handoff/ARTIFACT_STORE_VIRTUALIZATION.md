@@ -19,7 +19,7 @@
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成
 - PR: 未作成。作る場合も base は `develop`。
 
-**引継ぎ票 — 次は Phase A2（独立レビュー）。** 入力版は本ファイルの A2 送付時点の内容 sha256 を正とし、commit hash を補助とする。A2 は §2.6 の決定候補 D1〜D5 と §5 の未知経路を重点に、互いの指摘を見せずに行う。少なくとも1件は [アーキテクチャゲート](../../.agents/skills/osm-workflow/references/architecture-gates.md) を担当し、高リスクのため A0（§1）だけから代替構成を出す担当を1件検討する。A2 / A3 の担当も Artifact Storage の実操作（publish / fetch / 資格情報 / 合流）は行わない。§5.4 の疎通のうち D1 の probe と U5 の1件は 2026-10-12 に確認済み。残る U3 の確認（`credentials status`）は資格情報に触れるので、A3 前に owner にそのセッションで許可を取って行う。既存ストアの移動・削除・書換えはどの Phase でも本 HANDOFF の凍結前に行わない。
+**引継ぎ票 — 次は Phase A2（独立レビュー）。** 入力版は本ファイルの A2 送付時点の内容 sha256 を正とし、commit hash を補助とする。A2 は §2.6 の決定候補 D1〜D5 と §5 の未知経路を重点に、互いの指摘を見せずに行う。少なくとも1件は [アーキテクチャゲート](../../.agents/skills/osm-workflow/references/architecture-gates.md) を担当し、高リスクのため A0（§1）だけから代替構成を出す担当を1件検討する。A2 / A3 の担当も Artifact Storage の実操作（publish / fetch / 資格情報 / 合流）は行わない。§5.4 の疎通のうち D1 の probe と U5 の1件は 2026-10-12 に確認済み。U3 も 2026-10-12 に owner の許可を得て両 context で確認した（§5.4）。既存ストアの移動・削除・書換えはどの Phase でも本 HANDOFF の凍結前に行わない。
 
 ### PR 状態ブロック（PR 作成時の写し）
 
@@ -30,7 +30,7 @@ implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / 未固定
 次の担当: Phase A2。次の作業: 独立レビュー（構造ゲート1件以上、A0 だけからの代替構成1件を検討）
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
 Evidence 取得案内: 未生成
-未決事項: D1〜D5（§2.6）、§5.4 の U3（credentials status）
+未決事項: D1〜D5（§2.6）
 ```
 
 ## 1. A0 — 目的、現況、対象外
@@ -103,7 +103,7 @@ Evidence 取得案内: 未生成
 
 - **U1（OS 挙動）**: 仮想化下で、(a) 実ストアに既に存在する directory の配下へ新規 file を作る、(b) 既存 file を `File.Move(..., overwrite)` で置き換える、(c) 既存 file を開いて書く、のそれぞれがどちらへ書かれるか。Microsoft の公開説明では「新規の file / folder は package 専用の場所へ、既存 file の変更は元の場所で許可」とされるが、本リポジトリの atomic rename（新規 pending → rename）での結果は未確認。A1 は「仮想化下では OSM ストアへの書込みは一切行わない」前提で設計し、この確認に依存しない。
 - **U2（検出方法）**: 2026-10-12 の疎通（§5.4）で、package identity と仮想化の有無が相関しないことを確認した。Codex 内の pwsh は identity が無い（`GetCurrentPackageFamilyName` が 15700 = `APPMODEL_ERROR_NO_PACKAGE`）のに仮想化されていた。Claude 内の pwsh は Store 版 PowerShell 自身の identity（`Microsoft.PowerShell_8wekyb3d8bbwe`）を持つが、仮想化されていなかった。identity は判定に使えない。残る論点は probe の置き場所と後始末（§2.6 D1）。
-- **U3（資格情報の分岐）**: Codex 側の `credentials` に、実ストアと異なる世代の鍵が登録されていないか。実ストアの鍵が旧世代・失効済みなら、合流後の fetch は認証で失敗する。確認は owner 許可付きの `credentials status` を両 context で行う（中身は読まない）。
+- **U3（資格情報の分岐）**: Codex 側の `credentials` に、実ストアと異なる世代の鍵が登録されていないか。実ストアの鍵が旧世代・失効済みなら、合流後の fetch は認証で失敗する。確認は owner 許可付きの `credentials status` を両 context で行う（中身は読まない）。2026-10-12 に owner の許可を得て両 context で確認した（§5.4）。実ストアと Codex 側は**別々の資格情報 record** で、どちらも rotation 途中ではなく、実ストアの方が新しい。どちらの token が現在 R2 で有効かは未確認。
 - **U4（定期清掃 job）**: 現在の job がどちらの context から install されたか、binding の実体 path がどちらを指すか。Codex 側だけの task の 30 日清掃・配送が止まっている可能性。
 - **U5（記録内の path 文字列）**: Codex 側の catalog / receipt が保持する絶対 path 文字列が、実ストアの論理 path（`%LOCALAPPDATA%\OneStarMaker\...`）を指しているか。§5.4 の疎通で、Codex 側の catalog 1件にある絶対 path 12個（receipt 1、putIntent 1、ownedCopies 9、staging 1）が全て論理 path で、LocalCache の文字列は0個だった。この1件は想定を支持するが、全件ではない。合流 manifest の作成時に全単位を機械検査する。指していれば、同じ相対位置へ bytes 同一で複写するだけで記録が自己整合する（書換え不要）。
 - **U6（同名衝突）**: `integration-pr94-completion-20261010` の Workflow 記録が両側で同一か。`deployments` の receipt の重複・不一致。
@@ -217,7 +217,12 @@ Evidence 取得案内: 未生成
 ### 5.4 未知の操作経路の疎通（A3 前に確認する）
 
 - **確認済み（2026-10-12）:** D1 (1) の probe。Codex 内（Codex が起動した PowerShell 7.6.5、承認済みの sandbox 外経路）では、実体 path が `Packages\<Codex package>\LocalCache\Local\OneStarMaker\…` で論理 path と不一致、identity は無し（15700）。Claude 内（Claude Code の PowerShell）では実体 path が論理 path と一致し、identity は Store 版 PowerShell のものだった。Claude 側は probe directory も削除し、OneStarMaker 直下の entry 数は3のまま変わらなかった。Codex 側は一時 file を削除したが、空の probe directory が1つ残った（直下の entry 数は7から8。既存 entry の属性・更新時刻は不変）。その削除は Codex 側の担当の判断に委ねる。どちらの観測も R2 の通信・認証は含まない。
-- **未確認:** U3 の `credentials status` を両 context で実行できるか。owner のセッション許可が要る。不成立なら合流（S4）を凍結せず、問いを分ける。
+- **確認済み（2026-10-12、owner のセッション許可あり）:** U3。両 context で `credentials status` を1回ずつ実行した（世代 ID と endpoint は転記しない）。
+  - 実ストア（Claude 内）: exit 0、`rotation state: stable`、retired 世代なし、updated UTC 2026-10-10。
+  - Codex 側（Codex 内）: exit 0、`rotation state: stable`、retired 世代なし、updated UTC 2026-10-05。
+  - 二つは別々の record で、どちらも rotation 途中（`pending-revocation`）ではない。Codex 側の record の方が古い。`status` はローカルの記録だけを読むので、R2 で有効かは示さない。コードを読んだ範囲では、`status` は既存の資格情報 directory では検査だけを行い、何も作らない。
+  - 合流への影響: 資格情報は合流対象外で（D4）、S4 の fetch は実ストアの鍵を使う。実ストアの鍵が R2 で有効かは、S4 の高コスト証拠を取る時点で初めて分かる。認証で失敗した場合も、鍵の再入力・削除で直さず owner へ返す（常時契約）。
+  - 後続への入力: 同じ bucket に有効な token が二つ存在しうる（Codex 側の record が別の token を保持している可能性）。失効の要否は owner が管理画面で判断する。本スライスでは扱わない。
 - **一部確認（2026-10-12）:** U5 の path 文字列。Codex 内で catalog 1件を読取り専用で開き、絶対 path 12個が全て論理 path だった（値は転記しない。サイズ・更新時刻は不変）。全単位の検査は合流 manifest の作成時に行う。
 
 ### 5.5 高コスト証拠
