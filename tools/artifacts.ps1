@@ -48,8 +48,10 @@ try {
     # ContentもBuild/Evidenceと独立したgrammar。保存単位（revision丸ごと・file単位object）の意味を混同しない。
     if($Arguments[0] -ceq 'content'){
         if($Arguments.Count -lt 6 -or $Arguments[2] -cne '--profile' -or $Arguments[3] -cne 'osm'){throw 'unsupported-command'}
-        $contentAction=$Arguments[1];$contentOpts=@{}
+        $contentAction=$Arguments[1];$contentOpts=@{};$contentDry=$false
         for($j=2;$j -lt $Arguments.Count;$j+=2){
+            # 値を取らない--dry-runはcleanupだけ。件数Nや削除対象を選ぶ引数は設けない。
+            if($Arguments[$j] -ceq '--dry-run'){if($contentDry -or $contentAction -cne 'cleanup'){throw 'unsupported-command'};$contentDry=$true;$j--;continue}
             if($j+1 -ge $Arguments.Count -or $Arguments[$j] -cnotmatch '\A--[a-z0-9-]+\z' -or $contentOpts.ContainsKey($Arguments[$j])){throw 'unsupported-command'}
             $contentOpts[$Arguments[$j]]=$Arguments[$j+1]
         }
@@ -58,17 +60,22 @@ try {
             'inspect'{@('--profile','--config','--content-set','--target','--revision')}
             # --artifacts-rootだけは省略でき、省略時はOSM_ARTIFACTS_ROOTを読む（既定値は無い）。
             'collect'{if($contentOpts.ContainsKey('--artifacts-root')){@('--profile','--config','--source','--artifacts-root')}else{@('--profile','--config','--source')}}
+            # cleanupも保護源のArtifactsRootを同じ規則で受ける（既定値は無く、無ければ何も読まない）。
+            'cleanup'{if($contentOpts.ContainsKey('--artifacts-root')){@('--profile','--config','--content-set','--target','--artifacts-root')}else{@('--profile','--config','--content-set','--target')}}
             default{throw 'unsupported-command'}
         }
         if((($contentOpts.Keys|Sort-Object) -join ',') -cne (($needed|Sort-Object) -join ',')){throw 'unsupported-command'}
-        Import-Module (Join-Path $PSScriptRoot 'Artifacts/ContentApplication.psm1')
+        if($contentAction -ceq 'cleanup'){Import-Module (Join-Path $PSScriptRoot 'Artifacts/ContentCleanup.psm1')}
+        else{Import-Module (Join-Path $PSScriptRoot 'Artifacts/ContentApplication.psm1')}
         $outcome=switch($contentAction){
             'fetch'{Invoke-ContentFetch $contentOpts['--config'] $contentOpts['--reference'] $contentOpts['--sha256']}
             'inspect'{Invoke-ContentInspect $contentOpts['--config'] $contentOpts['--content-set'] $contentOpts['--target'] $contentOpts['--revision']}
             'collect'{Invoke-ContentCollect $contentOpts['--config'] $contentOpts['--source'] $contentOpts['--artifacts-root']}
+            'cleanup'{Invoke-ContentCleanup $contentOpts['--config'] $contentOpts['--content-set'] $contentOpts['--target'] $contentOpts['--artifacts-root'] $contentDry}
         }
         [Console]::WriteLine((ConvertTo-Json -InputObject $outcome -Compress -Depth 20))
-        if($outcome.status -ceq 'passed'){exit 0};exit 1
+        # cleanupのpartial（未解決の試行・残りの候補あり）は2。次回の実行で続きを処理する。
+        if($outcome.status -ceq 'passed'){exit 0};if($outcome.status -ceq 'partial'){exit 2};exit 1
     }
     if ($Arguments[0] -ceq 'credentials' -and $Arguments[1] -cin @('set','status','remove')) {
         # Existing local credential grammar and exit meanings remain unchanged.

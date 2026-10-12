@@ -11,7 +11,7 @@
 - risk: `normal`（文書改訂）。リセットと削除機能の対象・検証は実装スライスで具体化する。
 - owner: OSM maintainers
 - created: 2026-09-26
-- updated: 2026-10-11
+- updated: 2026-10-12
 - expires: 2026-12-26 または置換revision（program文書の見直し期限）
 - harvest to: 実装済みの通常操作を `tools/Artifacts/README.md`、program状態を `docs/README.md` へ反映し、program完了時に削除する。
 
@@ -152,6 +152,15 @@ Buildの件数保持の運用接続は[PR #119](https://github.com/TetsujiAoyagi
   - 「DELETE → GET 404 → 記録」の共通primitive化（Evidence清掃・reset・Build清掃・将来のContent） → Content件数保持の運用接続のA1。
   - receiptの無い（未完了の）Buildの `intent.json` をどこまで検査するか（AC2の分類とAC4(a)の文言の隙間。C′の指摘でownerが現スライスでは直さないと判断） → 件数保持の運用接続の残り。
   - 別PCのpublishを数える、R2一覧、孤児回収（storeを失ったPCのBuildを含む） → Contentの容量上限の孤児回収と、R2一覧の要否。
+
+Contentの件数保持の運用接続は[PR #123](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/123)の `content cleanup` で完了した（判定C GO、最終C′ PASS）。Content系列1つについて、このPCのreceiptと保持中Playerからの保護を集めて同じpolicyに渡し、Nを超えた古いrevisionの全objectを「削除意図→`transport.json`のDELETE→GET 404で確定→残りのobjectをGET→DELETE→GET 404→削除済み記録」で消す。実R2で検証用系列 `retention-probe-1` の最古1 revisionだけの削除（DELETE 2・GET 3）と再実行時の送信0を確認した。操作・契約・既知の限界は[Artifacts README](../../tools/Artifacts/README.md#開発contentの件数清掃content-cleanup)にある。HANDOFFはharvestして削除した。A3の決定はowner不在中に主担当が代行し、ownerがPhase D完了の指示で追認した。決めたことと後続への入力は次のとおり。
+
+- 決めたこと: 保持中Playerは、このPCの `builds-v1` のBuild（削除済みと読めたもの以外。状態を読めないものも保護）とArtifactsRootの `players/` のPlayer（`build collect` のstagingを含む）の両方とし、buildIdとrevisionの末尾32 hexで照合する（`build-info.json` の中身は読まない。過剰保護側）。ArtifactsRootは必須。明示の保護（use／release）と取得中の保護は足さない。`transport.json` のGET 404を確定点にし、確定点の後は候補・保護の判定によらず残りを消し切る。中断したrunの観測は記録しない（Phase A revision 2）。保護がNを超えた場合はBuildの超過条項を引き継ぎ、件数保持はR2のobjectにだけ効く。観測の写像と記録の観測検査は `ArtifactDeletion.psm1` に共通化した（Evidence清掃・resetは寄せない）。Content DELETEは `ContentRetentionDelete=$true` の印付きrequestだけを通す。receiptの無いBuildのintentは所属5 fieldだけを検査することをREADMEに契約として書いた（PR #119のC′指摘の決着）。確定記録には触れず、削除の正本はローカルの `deletion/` 記録。
+- 後続への入力:
+  - 系列の退役（新規「系列の退役」）: R2に残る検証用object（Build `retention-probe/*` 40件、Content `retention-probe-1` 20件）の回収を含む。次の実R2検証では、照合scriptが期待keyをreceiptの系列から独立に作ること、削除済みBuildの一覧を記録の妥当性まで再判定できる原記録を残すこと（C′の指摘）。
+  - 診断の改善: run全体のcatchで `catalog-incomplete` が `unconfirmed` になる、終了時snapshotがblockedのとき同じrunの削除済みが分類に出ない、成功revisionの `publish.lock` 欠落で系列全体が止まりinspectが `receipt-unavailable` になる、観測fieldのgenerationのscalar型検査、同時刻の未解決試行を再開する順がAC3のtie-break（最古から）と逆である点（外部レビュー。I1〜I3には当たらない）。
+  - Evidence task catalogの上限: 1,000 file超のbundleをpublishすると、task の `catalog.json` が1 MiBの記録上限に近づき、以降のfetchが `record-limit`（外からは `unconfirmed`）で失敗する。PR #123では同じbundleを1 fileのZIPにまとめて保存し直して回避した。所有スライスは未定。
+  - Content確定記録: revision削除時の記録の扱いは、削除の正本（ローカル `deletion/`）を参照するか削除を追記するかを確定記録の側で決める。
 
 既存Build出力を普通のpath/metadataとして受け、成功publish、別process fetch/hash、最新N件と利用中の保持、失敗publish時の既存保持を確認する。Nの既定値案10件、系列識別、容量上限をBのA3で固定する。大容量に必要なmultipartは対象サイズに応じて扱い、BuildSystemの作り直しを前提にしない。
 

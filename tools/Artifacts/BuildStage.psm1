@@ -10,13 +10,14 @@ $script:StageHook=$null
 # ArtifactsRootは利用者が任意のローカルfolderを指定する。既定値を持たず、
 # ここで作成もしない。存在しない値を作ると打ち間違いを新しい保存先として扱ってしまう。
 # 環境変数は起動したprocessが引き継いだユーザー環境変数の値を読み、書き込まない。
+# Sourceを持たない呼出し（content cleanupの保護収集。読むだけ）は入力との親子検査だけを省き、他は同じ規則で検査する。
 function Resolve-BuildArtifactsRoot([string]$Explicit,[string]$Source){
     $value=if($Explicit){$Explicit}else{[Environment]::GetEnvironmentVariable('OSM_ARTIFACTS_ROOT')}
     if([string]::IsNullOrEmpty($value)){throw 'artifacts-root-not-configured'}
     if(-not [IO.Path]::IsPathFullyQualified($value)){throw 'invalid-artifacts-root'}
     $root=[IO.Path]::GetFullPath($value).TrimEnd('\')
     if(-not [IO.Directory]::Exists($root) -or [OneStarMaker.Artifacts.Packaging.PackagePolicy]::HasReparse($root) -or
-        (Test-ArtifactWithin $root $Source) -or (Test-ArtifactWithin $Source $root)){throw 'invalid-artifacts-root'}
+        ($Source -and ((Test-ArtifactWithin $root $Source) -or (Test-ArtifactWithin $Source $root)))){throw 'invalid-artifacts-root'}
     # 所有store・Workflow・transfersとの親子拒否はpublishと同じ関数で行い、規則を二重化しない。
     try{Assert-BuildSourceRoot $root}catch{throw 'invalid-artifacts-root'}
     return $root
@@ -77,6 +78,32 @@ function Get-BuildStageEntries([string]$Root,[string[]]$Files){
 function Get-BuildStageDestination([string]$ArtifactsRoot,$Series,[string]$BuildId){
     Assert-BuildId $BuildId
     return [IO.Path]::Combine($ArtifactsRoot,'players',$Series.project,$Series.target,$Series.configuration,$BuildId)
+}
+# 退避先 <ArtifactsRoot>/players/<project>/<target>/<configuration>/ 直下のentry名から buildId を取り出す（読むだけ）。
+# 公開名 <buildId> と、Invoke-BuildStage が作るstaging名 .<buildId>.<32hex>.staging の先頭を数え、
+# それ以外の名前は寄与しない。entryの種類と中身は見ない（読めないfileで止まらないため）。
+# players/ と中間階層のreparse・列挙の失敗は例外にする（見落としを「保持中のPlayer無し」と区別できないため）。
+# players/ が無ければ空。
+function Get-BuildStagedPlayerIds([string]$ArtifactsRoot){
+    $ids=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $players=[IO.Path]::Combine($ArtifactsRoot,'players');Assert-NoArtifactReparse $players
+    if([IO.File]::Exists($players)){throw 'invalid-artifacts-root'}
+    if(-not [IO.Directory]::Exists($players)){return @()}
+    $level=@($players)
+    # players → project → target → configuration の3階層を降りる。各階層のdirectoryだけを辿る。
+    for($depth=0;$depth -lt 3;$depth++){
+        $next=[Collections.Generic.List[string]]::new()
+        foreach($dir in $level){Assert-NoArtifactReparse $dir;foreach($child in [IO.Directory]::EnumerateDirectories($dir)){$next.Add($child)}}
+        $level=$next.ToArray()
+    }
+    foreach($dir in $level){
+        Assert-NoArtifactReparse $dir
+        foreach($entry in [IO.Directory]::EnumerateFileSystemEntries($dir)){
+            $m=[regex]::Match([IO.Path]::GetFileName($entry),'\A(?:([0-9a-f]{32})|\.([0-9a-f]{32})\.[0-9a-f]{32}\.staging)\z')
+            if($m.Success){$null=$ids.Add($(if($m.Groups[1].Success){$m.Groups[1].Value}else{$m.Groups[2].Value}))}
+        }
+    }
+    return @($ids|Sort-Object -CaseSensitive)
 }
 # 既存の退避先は「この入力から作るもの」と全file・size・hashが一致する場合だけ完了済みとする。
 # 余分なfileや欠落があれば、別の入力または途中で変更された退避先として拒否する。
@@ -141,4 +168,4 @@ function Invoke-BuildStage([string]$Source,[string]$Destination,$SourceEntries,[
         if(-not $published -and [IO.Directory]::Exists($staging)){[IO.Directory]::Delete($staging,$true)}
     }
 }
-Export-ModuleMember -Function Resolve-BuildArtifactsRoot,Assert-BuildStageSource,Read-BuildStageBytes,Read-BuildStageTransport,Get-BuildInventory,Get-BuildStageEntries,Get-BuildStageDestination,Invoke-BuildStage
+Export-ModuleMember -Function Resolve-BuildArtifactsRoot,Get-BuildStagedPlayerIds,Assert-BuildStageSource,Read-BuildStageBytes,Read-BuildStageTransport,Get-BuildInventory,Get-BuildStageEntries,Get-BuildStageDestination,Invoke-BuildStage
