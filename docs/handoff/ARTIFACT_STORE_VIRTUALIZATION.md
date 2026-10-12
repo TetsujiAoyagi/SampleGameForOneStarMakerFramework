@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄には、各成果物の取得案内の引渡し先・担当と状態だけを書く。reference・期待packageSha256の実値、ローカルの実path、内部catalog/receiptの内容は転記しない。
 
 - type: `slice`
-- status: `A`（A0 / A1 初稿。A2 未実施、A3 未凍結）
+- status: `A`（r2。A2 1件目の指摘を反映した改稿。A3 未凍結）
 - branch: `claude/artifacts-virtualized-store-a01`（`origin/develop` 起点）
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（A3 で再確認する）
 - implementation head commit: 未固定（Phase B 未着手）
@@ -19,18 +19,23 @@
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成
 - PR: 未作成。作る場合も base は `develop`。
 
-**引継ぎ票 — 次は Phase A2（独立レビュー）。** 入力版は本ファイルの A2 送付時点の内容 sha256 を正とし、commit hash を補助とする。A2 は §2.6 の決定候補 D1〜D5 と §5 の未知経路を重点に、互いの指摘を見せずに行う。少なくとも1件は [アーキテクチャゲート](../../.agents/skills/osm-workflow/references/architecture-gates.md) を担当し、高リスクのため A0（§1）だけから代替構成を出す担当を1件検討する。A2 / A3 の担当も Artifact Storage の実操作（publish / fetch / 資格情報 / 合流）は行わない。§5.4 の疎通のうち D1 の probe と U5 の1件は 2026-10-12 に確認済み。U3 も 2026-10-12 に owner の許可を得て両 context で確認した（§5.4）。既存ストアの移動・削除・書換えはどの Phase でも本 HANDOFF の凍結前に行わない。
+**引継ぎ票 — 次は A3 前の残作業。** A3 はまだ凍結していない。r2 は A2 1件目（構造ゲート担当、§5.7）の P1 4件・P2 2件を全て採用候補として反映した改稿で、採否は A3 で owner が確定する。A3 までの残作業は次の3つ。
+1. §5.4 の r2 probe 領域の疎通。Codex 内と Claude 内で各1回、ストア外の probe 領域だけを使う使い捨て script で行う。
+2. 高リスクのため、A2 の2件目を1件行う。推奨は、初稿と r2 を見ずに A0（§1）だけから代替構成を出す担当。互いの指摘を渡さない。C' 用に予約した系列（§5.6）は使わない。
+3. A3 で owner が D1〜D6 と §5.7 の採否を決め、凍結する。
+
+A2 / A3 の担当も Artifact Storage の実操作（publish / fetch / 合流）と資格情報の操作は行わない。既存ストアの移動・削除・書換えは凍結前に行わない。
 
 ### PR 状態ブロック（PR 作成時の写し）
 
 ```text
-状態: Phase A の作業中（A1 初稿）
-Phase A: revision r1（A2 未実施）、commit 未記録
+状態: Phase A の作業中（r2、A3 未凍結）
+Phase A: revision r2（A2 1件目を反映、A3 未凍結）、commit 未記録
 implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / 未固定
-次の担当: Phase A2。次の作業: 独立レビュー（構造ゲート1件以上、A0 だけからの代替構成1件を検討）
+次の担当: Phase A（A3 前）。次の作業: probe 領域の疎通、A2 の2件目（A0 だけからの代替構成）、A3 の決定
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
 Evidence 取得案内: 未生成
-未決事項: D1〜D5（§2.6）
+未決事項: D1〜D6（§2.6）、§5.7 の採否、§5.4 の probe 領域の疎通
 ```
 
 ## 1. A0 — 目的、現況、対象外
@@ -109,42 +114,52 @@ Evidence 取得案内: 未生成
 - **U6（同名衝突）**: `integration-pr94-completion-20261010` の Workflow 記録が両側で同一か。`deployments` の receipt の重複・不一致。
 - **U7（所有者不明の領域）**: `RevisionLocks` は本リポジトリの tools に生成箇所が無い。所有者を確認するまで移送しない。
 
-## 2. 意思決定と受け入れ境界（A1 初稿）
+## 2. 意思決定と受け入れ境界（r2。A2 1件の指摘を反映、A3 未凍結）
+
+用語:
+
+- **ストア:** `%LOCALAPPDATA%\OneStarMaker\` 配下（Codex 側では同じ論理 path が LocalCache へ写る）。
+- **probe 領域:** 判定 module だけが所有する `%LOCALAPPDATA%\OneStarMaker.StoreProbe\`（仮称。ストアの外の兄弟）。ストアに含めない。
+- **合流の単位:** task 単位（その task の Workflow task directory、Evidence task directory、catalog が参照する transfers の operation、Harness task directory）と deployment 単位（deployment receipt 一式）。
 
 ### 2.1 不変条件（起きてはいけないこと）
 
-- **I1 — 分裂を広げない:** 仮想化と判定された process で、対話 CLI（`tools/artifacts.ps1` の全 subcommand、`tools/workflow-task.ps1`、`tools/harness.ps1`）が OSM のストア配下に directory・file を作らず、既存 file を変更しない。判定はストアへの最初のアクセス（Workflow guard、deployment receipt の読取り、資格情報の読取りを含む）より前に行う。
-- **I2 — 理由を丸めない:** I1 で止めた結果は `status=failed`、`reasonCode=virtualized-store` で返す。`unconfirmed` に丸めない。実 path・SID・package full name・鍵を出さない。
-- **I3 — 非仮想化の挙動を変えない:** 非仮想化の process（Claude デスクトップ、通常の端末、Task Scheduler の job）では、既存の全 subcommand の結果・reasonCode・exit・ACL / reparse / identity 検査が変わらない。packaged で非仮想化の process を仮想化と判定しない。
-- **I4 — 合流は非破壊:** 合流は Codex 側の file・directory を変更・削除しない。実ストアの既存 file を上書きしない。同じ相対 path に既存 entry があり内容が bytes 同一でなければ、その単位（task / deployment）を移送せず衝突として止める。
-- **I5 — 記録を書き換えない:** 合流は catalog / receipt / intent / event の bytes を変えずに複写する。path 文字列の付替え・再生成を行わない。U5 が否定された場合は合流を実行せず Phase A へ戻す。
-- **I6 — 安全性を弱めない:** 合流で作る directory・file は、各 role の既存規則と同じ owner・継承無し ACL を持ち、reparse 祖先を拒否する。読取り元（Codex 側）にも reparse・所有者の検査を行い、不一致なら止める。
-- **I7 — 範囲外に触れない:** 資格情報領域、§1.4 の非所有 directory、`RevisionLocks`、合流対象に選ばれていない role を読まない（列挙での存在確認を除く）・複写しない・変更しない。
+- **I1 — 分裂を広げない:** 仮想化または判定不能と判定された process で、対話 CLI（`tools/artifacts.ps1` の全 subcommand、`tools/workflow-task.ps1`、`tools/harness.ps1`）がストア配下に directory・file を作らず、既存 file を開いて変更しない。判定はストアへの最初のアクセス（Workflow guard、deployment receipt、資格情報の読取りを含む）より前に行い、判定の書込みは probe 領域だけに限る。
+- **I2 — 理由を丸めない:** 仮想化と判定した結果は `status=failed`、`reasonCode=virtualized-store`、判定不能は `reasonCode=store-context-unknown` で返す。どちらも CLI の最終出力まで `unconfirmed` に変えない。実 path・SID・package 名・鍵を出さない。
+- **I3 — 非仮想化と判定できた実行の挙動を変えない:** 判定が「非仮想化」の process（Claude デスクトップ、通常の端末、Task Scheduler の job）では、既存の全 subcommand の結果・reasonCode・exit・ACL / reparse / identity 検査が変わらない。package identity の有無で分岐しない。判定不能（probe の作成・照会の失敗）で既存の成功経路が `store-context-unknown` になるのは、本スライスが意図する唯一の挙動変更とする（A2-6）。
+- **I4 — 合流は非破壊:** 合流は Codex 側の file・directory を変更・削除しない（読取り専用 handle だけを使う）。実ストアの既存 file を上書き・削除しない。単位の公開前に単位全体を照合し、既存 entry が一つでも bytes・ACL・owner の点で一致しなければ、その単位の file を一つも公開しない。
+- **I5 — 記録を書き換えない:** 合流は catalog / receipt / intent / event / CURRENT の bytes を変えずに複写する。parse した値を再 serialize しない。path 文字列の付替え・再生成をしない。
+- **I6 — 安全性を弱めない:** 合流で作る directory・file は、各 role の既存規則と同じ owner・継承無しの3主体 FullControl ACL を持つ（Workflow の `Set-WorkflowPrivateAcl` と Artifacts の `Set-ArtifactAcl` は同じ規則であることを A2 後にコードで確認した）。bytes 同一で skip する既存 entry も ACL・owner を検査する。読取り元・複写先の祖先に reparse があれば単位を止める。
+- **I7 — 範囲外に触れない:** 資格情報領域、§1.4 の非所有 directory、`RevisionLocks`、合流対象外の role（`runtime`、`builds-v1`、`contents-v1`）の file を開かない（hash 計算も読取りに含める）。存在確認は名前の列挙までとし、列挙で除外を決めてから内容を開く。
 
 ### 2.2 成立条件（起きなければならないこと）
 
-- **S1 — 検出:** Codex 内で実行した publish / fetch / inspect / use / release / cleanup / schedule / build / content / credentials、`workflow-task.ps1 start/status/end/resume`、`harness.ps1 current` 等が `virtualized-store` で止まる。
-- **S2 — 棚卸し:** 非仮想化の process から、両側の各 role の entry を非秘密で列挙し、合流候補・衝突・除外を分類した結果を出せる（dry-run）。
-- **S3 — 合流:** 凍結した合流 manifest に載った単位だけを実ストアへ複写し、単位ごとの receipt（複写した相対 path・bytes・SHA-256、衝突・skip の理由）を残す。再実行は完了済み単位を skip し、未完了だけを再照合する。
+- **S1 — 検出:** Codex 内で実行した対話 CLI の全入口が `virtualized-store` で止まる。
+- **S2 — 計画:** 非仮想化の process から、両側の対象 role を棚卸しし、合流候補・衝突・参照欠落・除外を分類した合流 manifest 候補を、ストアを変更せずに出せる（plan / dry-run）。
+- **S3 — 合流:** owner が承認した manifest の単位だけを公開し、単位ごとの receipt を残す。途中で止まっても、再実行で上書き・削除をせずに完了へ収束する。
 - **S4 — 取得の回復:** 合流後、非仮想化の担当が DebugStudio property write の A3 r3 固定入力を、既存の取得案内の reference と独立した期待 hash で fetch し、必須本文を閲覧できる。
 
 ### 2.3 受け入れ条件（各条件の検証例）
 
 | # | 検証する条件 | 内容 | 種別 |
 |---|---|---|---|
-| AC1 | I1, I2, S1 | 仮想化を注入した offline test で、全入口が store root・Workflow guard・deployment・credentials を開く前に `virtualized-store` を返す。呼ばれた I/O seam が0件。 | offline |
-| AC2 | I1（失敗経路） | 判定 seam が例外・不明を返したとき、仮想化とみなして止める（fail-closed）。非仮想化の既定へ落ちない。 | offline |
-| AC3 | I3 | 「identity ありで非仮想化」「identity 無しで非仮想化」を注入したとき（package identity で分岐しないことも含む）、既存の全 Artifacts / Workflow / Harness suite の結果が変わらない。 | offline |
-| AC4 | I1, S1 | Codex 内で fetch・publish・`workflow-task.ps1 status`・`harness.ps1 current` を1回ずつ実行し、全て `virtualized-store`。前後で Codex 側 OneStarMaker 配下の entry 一覧（名前・件数・最終更新）が変わらない。 | 実環境（§5.3） |
-| AC5 | I3 | Claude デスクトップ内で同じ読取り系 subcommand が既存どおりの reasonCode を返す（誤検出しない）。 | 実環境 |
-| AC6 | I4, I5, S3 | 合成 fixture: Codex 側に task A（実ストアに無し）、task B（同名・bytes 同一）、task C（同名・内容不一致）を置き、A は複写・B は skip・C は衝突で止まる。Codex 側の全 file の hash・時刻が不変。 | offline |
-| AC7 | I5 | 複写後の catalog / receipt の SHA-256 が複写元と一致し、既存の `Read-EvidenceTask` が実ストア上で receipt を解決できる。 | offline |
-| AC8 | I6 | 複写先の ACL / owner が role 規則と一致。複写元・複写先の祖先に reparse を注入すると、その単位を止める。 | offline |
-| AC9 | I7 | `credentials`、非所有 directory、`RevisionLocks` に置いた sentinel file が、dry-run・実行のどちらでも open されない（I/O seam の記録で確認）。 | offline |
-| AC10 | S3（失敗経路） | 単位の途中で複写が失敗したとき、部分複写を完了扱いにせず、receipt に未完了を残し、再実行で残りだけを照合する。実ストアの既存 file を消して戻さない（rollback DELETE をしない）。 | offline |
+| AC1 | I1, I2, S1 | 仮想化を注入した offline test で、全入口が `virtualized-store` を返し、ストアの I/O seam の呼出しが0件、probe 領域の seam だけが呼ばれる。CLI の最終 JSON と exit を確認する。 | offline |
+| AC2 | I1, I2（失敗経路） | probe の作成・final path 照会・後始末の失敗をそれぞれ注入すると `store-context-unknown` を返し、ストアの I/O seam が0件。 | offline |
+| AC3 | I3 | 「identity ありで非仮想化」「identity 無しで非仮想化」を注入したとき、既存の全 Artifacts / Workflow / Harness suite の結果が変わらない。 | offline |
+| AC4 | I1, S1 | Codex 内で fetch・publish・`workflow-task.ps1 status`・`harness.ps1 current` を1回ずつ実行し、全て `virtualized-store`。前後で Codex 側 `OneStarMaker` 配下の entry 一覧（名前・件数・最終更新。内容は開かない）が同一で、probe 領域に `*.probe` が残らない。 | 実環境（§5.3） |
+| AC5 | I3 | Claude デスクトップ内で読取り系の subcommand が既存どおりの reasonCode を返す。 | 実環境 |
+| AC6 | I4, S3 | 合成 fixture: task A（実ストアに無し）は公開、task B（全 entry が bytes・ACL 同一）は skip、task C（1 file だけ不一致）は衝突で、C の file は一つも公開されない。Codex 側の対象 file の hash・時刻が不変。 | offline |
+| AC7 | I5 | 公開後の各 file の SHA-256 が複写元と一致し、既存の `Read-EvidenceTask` / `Read-WorkflowTaskState` が実ストア上で読める。 | offline |
+| AC8 | I6 | 公開先の ACL / owner が規則と一致する。bytes 同一だが ACL 不適合の既存 entry は skip せず単位を止める。複写元・複写先の祖先へ reparse を注入すると単位を止める。 | offline |
+| AC9 | I7 | `credentials`、非所有 directory、`RevisionLocks`、対象外 role に置いた sentinel file が、plan・実行のどちらでも open されない（I/O seam の open 記録で確認）。 | offline |
+| AC10 | I4, S3（失敗経路） | 障害を (a) file 書込みの途中、(b) staging の hash 確認後・公開前、(c) 単位内の公開の間（transfers 公開後・Workflow 公開前）、(d) Workflow 公開後・receipt 記録前、に注入する。各場合の再実行が、上書き・削除なしで完了へ収束する。消すのは合流 run 自身の staging だけ。 | offline |
 | AC11 | S4 | 実ストアへの合流後、非仮想化の担当が既存の取得案内で fetch し、独立 hash 一致・必須本文の閲覧を確認する。 | 高コスト（§5.5） |
+| AC12 | I4（並行） | 公開の途中で `Get-WorkflowTasks` を呼んでも、その単位は列挙されない。公開前に別の writer が同じ Workflow task directory を作った場合は `concurrent-writer` で止まり、既存 entry を上書き・削除しない。 | offline |
+| AC13 | I5, S2 | 合流計画の検査（ファイル I/O なしのメモリ fixture）: catalog が参照する transfers の operation が単位に含まれず実ストアにも無ければ `reference-missing`。JSON の文字列値に LocalCache の path が含まれれば拒否。論理 path でも対象 role 外を指せば拒否。 | offline |
 
 時点の読み違いを防ぐ例（AC4）: **合格**は「Codex 内の実行の前後で Codex 側の entry 一覧が同一」。**不合格**は「`virtualized-store` を返したが、Workflow の task directory や `task.lock` が新しく作られている」。
+
+時点の読み違いを防ぐ例（AC10 (c)）: **合格**は「再実行で、公開済みの transfers は bytes・ACL 一致で skip され、残りが公開されて receipt が残る」。**不合格**は「再実行が公開済みの transfers を衝突とみなして止まる」「消して作り直す」。
 
 ### 2.4 ここでは答えない問い
 
@@ -158,47 +173,51 @@ Evidence 取得案内: 未生成
 - A3 後の例外承認: なし
 - 決定記録: なし
 
-### 2.6 A3 で owner が決める事項（A1 の推奨付き）
+### 2.6 A3 で owner が決める事項（r2 の推奨付き）
 
-- **D1 — 仮想化された実行の扱い（依頼の問い (a)/(b)）:** **推奨は (b) fail-closed（`virtualized-store`）。** (a)「一貫した実体 root で動く」は、package の中からは実ストアへ新規 file を書けない（U1 の公開説明どおりなら、どの path 文字列を使っても新規 file は package 専用の場所へ行く）ため、package 外の仲介か AppData 外への再配置が必要になる。どちらも新しい実行経路・保存先で、資格情報の前提に及ぶので D3 の後続へ送る。
-  - 検出方法の候補（U2）:
-    - (1) 書込み probe だけで判定する。OneStarMaker 配下の専用 probe directory に `CreateNew` で一時 file を作り、その実体 path（`GetFinalPathNameByHandleW`、`\?\` を除去）が論理 path と一致するかを見る。一致しなければ仮想化とする。package identity は判定に使わない（U2: identity が無い仮想化と、identity があって非仮想化の両方を観測した）。probe は file と directory の両方を削除し、ストア本体には触れない。
-    - (2) package identity があれば一律に拒否する案。Claude の pwsh を誤検出し（I3 違反）、Codex の pwsh を見逃す（I1 違反）ので採らない。identity が無いときに probe を省く最適化も、Codex を見逃すので採らない。
-    - (3) 書込みをせず、既存の role root の実体 path だけで判定。実ストアに root が存在する場合に仮想化を見逃すため、I1 を満たせない。
-    - A1 は (1) を推奨する。§5.4 の疎通では、Codex 内で一時 file は削除できたが、probe directory を削除しなかったため LocalCache 側に空 directory が1つ残った。実装では directory も削除し、仮想化下で削除後に何も残らないことを AC4 の前後比較で確認する。probe を置く場所（OneStarMaker 直下か、ストア外の兄弟か）は A3 で決める。probe が作成・削除に失敗したら判定不能とし、AC2 のとおり止める。
-- **D2 — 既存の分裂の扱い:** **推奨は「非破壊合流」。** 非仮想化の process から、凍結 manifest に載った単位（task / deployment）だけを Codex 側から実ストアの同じ相対位置へ bytes 同一で複写する。参照だけ解決する案（実ストアの読取りで Codex 側を第二の root として見る）は、package 固有の path を恒久的な root にし、二つの書き手を固定するので採らない。廃止案は DebugStudio の固定入力を失うので採らない。README の「既存 receipt を一括で書き換えない」とは、bytes を変えない複写であれば整合する（U5 が前提）。
-  - 実行形は既存の「一回の旧開発環境 reset」と同じく、A3（または C）で exact な単位一覧・hash・除外を固定した manifest、dry-run、単位ごとの receipt、再実行時の skip とする。
-- **D3 — 仮想化された host の今後:** **推奨は、本スライスの GO 後は仮想化された host で Storage・Workflow・Harness の操作を行わず、非仮想化の担当（owner の端末、Claude 等）が実行担当を務める運用とし、host 側の経路は後続 `Virtualized Host Route` へ送ること。** 影響: Codex が B を担当するスライスでは、固定入力の fetch と B exit の publish を非仮想化の実行担当へ依頼する必要がある。owner がこの運用を受け入れない場合は、本スライスの問いを広げず、後続の優先度を上げる。
-- **D4 — 合流対象の role:** 推奨は `workflow`、`evidence-v2`、`deployments`、`transfers`（catalog の staging / ownedCopies が transfers の operation を参照するため）、`harness`（README の入口 `harness.ps1 current -Task artifact-evidence-lifecycle` を回復するため）。`builds-v1`（Codex 側 2件）は棚卸しには含め、合流は衝突が無い場合に限る。`runtime` は定期清掃 job の固定 runtime で、合流せず U4 の確認に回す。`credentials`、`RevisionLocks`、非所有 directory は対象外。
-- **D5 — H1 / CURRENT 方式:** Artifacts の先行スライスは H1（`external-current-v1`）を使ったが、その CURRENT 自体が分裂の当事者である。推奨は本スライスを従来の tracked HANDOFF で進め、H1 へ移行しない。
+- **D1 — 仮想化された実行の扱い:** **推奨は fail-closed。** 仮想化は `virtualized-store`、判定不能は `store-context-unknown`。(a)「一貫した実体 root で動く」は、package の中から実ストアへ新規 file を書けないため、package 外の仲介か AppData 外への再配置が必要で、D3 の後続へ送る。
+  - 判定方法: 書込み probe だけで判定する。package identity は使わない（U2: identity 無しの仮想化と、identity ありの非仮想化の両方を観測した）。
+  - probe の境界（A2-1）: probe はストアの外の **probe 領域** だけに書く。呼出しごとに固有名の file を `CreateNew` と `FileOptions.DeleteOnClose` で開き、その handle の final path を論理 path と比べて、handle を閉じる。閉じれば OS が file を消すので、例外経路でも後始末を呼出し側に頼らない。process が強制終了された場合の残骸は、判定 module が次の呼出しの先頭で、probe 領域内の自分の命名規則に合う file だけを消す。probe 領域の directory 自体は残してよい（ストアの外で、判定 module が所有する）。
+  - 疎通の前提: probe 領域がストアの外でも、Codex 内で仮想化を検出できること（LocalAppData 全体が仮想化の対象であれば成り立つ）と、`DeleteOnClose` で LocalCache 側に file が残らないことを、A3 前に Codex 内で1回確認する（§5.4）。不成立なら probe 領域をストア内の予約名へ移す案に切り替え、I1 の境界をその予約名で明示し直す。
+  - 採らない案: package identity で一律拒否（Claude を誤検出、Codex を見逃す）。identity 無しで probe を省く最適化（Codex を見逃す）。書込みせず既存 root の実体 path だけで判定（実ストアに root がある場合に見逃す）。
+- **D2 — 既存の分裂の扱い:** **推奨は非破壊合流。** 非仮想化の process から、owner が承認した manifest の単位だけを、Codex 側から実ストアの同じ相対位置へ bytes 同一で公開する。参照だけ解決する案（Codex 側を第二の root にする）は二つの書き手を恒久化するので採らない。廃止案は DebugStudio の固定入力を失うので採らない。
+  - **計画と実行を分ける（A2-5）:** `plan` が対象 role の棚卸しと全単位の参照検査を行い、manifest 候補（単位・相対 path・bytes・SHA-256・分類・除外）を出す。参照検査は role に依存しない規則で行う。JSON の文字列値のうち完全修飾 path であるものは、(i) LocalCache の path を含まない、(ii) 論理ストア root の下では、合流対象 role の中を指す、(iii) 指す先が同じ単位に含まれるか、実ストアに bytes・ACL 同一で既にある、を全て満たす必要がある。ストア外の path（worktree の source path 等）は参照扱いせず記録しない。owner が manifest を承認し、`execute` は承認した manifest の sha256 を必須にして、実行時にも同じ検査をやり直す。差があればその単位を `source-changed` / `target-changed` で止める。
+  - **書込みの方式（A2-3）:** 合流 run は実ストアに専用 directory（`Artifacts\consolidation\<runId>\`、private ACL）を持ち、manifest の写し・journal・staging・単位 receipt をそこに置く。staging と公開先は同じ volume であることを確認する。各 file は Codex 側を読取り専用で開き、staging へ `CreateNew` → flush → SHA-256 照合 → ACL 設定の順で作る。公開は directory 単位の非上書き rename（公開先が存在すれば失敗する）で行い、最終 path へ直接書かない。staging は run の寿命で所有し、再実行で自分の未公開 staging だけを捨てて作り直す。
+  - **公開順と並行 writer（A2-4）:** 単位内の公開順は deployment → transfers の operation → Evidence task directory → Harness task directory → **Workflow task directory を最後**。定期清掃 job と `evidence cleanup` は Workflow の task 一覧（`Get-WorkflowTasks`）を起点に処理対象を決めるので（`EvidenceCleanup.psm1` 205行、`EvidenceSchedule.psm1` 388行で確認）、Workflow を公開するまで単位は通常処理に見えない。対話 CLI に同じ taskId を明示して呼ぶと、Workflow guard が task directory を先に作りうる。その場合は Workflow 公開の非上書き rename が失敗し `concurrent-writer` で止まる。既存 entry は消さない。運用の前提として、合流 run の間は対象 taskId の CLI 操作をしない。合流 run 自体の排他は run directory の lock file（`FileShare.None`）で、二重起動を止める。
+  - 実行形は「一回の旧開発環境 reset」と同じく、plan → owner 承認 → dry-run → 実行 → 単位 receipt → 再実行時の skip とする。
+- **D3 — 仮想化された host の今後:** **推奨は、本スライスの GO 後は仮想化された host で Storage・Workflow・Harness の操作を行わず、非仮想化の担当（owner の端末、Claude 等）が実行担当を務める運用とし、host 側の経路は後続 `Virtualized Host Route` へ送ること。** 影響: Codex が B を担当するスライスでは、固定入力の fetch と B exit の publish を非仮想化の実行担当へ依頼する必要がある。
+- **D4 — 合流対象の role:** 推奨は `workflow`、`evidence-v2`、`deployments`、`transfers`（対象 task の catalog が参照する operation だけ）、`harness`。r1 で条件付きとした `builds-v1` は本スライスから外し、名前の列挙だけ行う（Build は Evidence の受け渡しに不要で、Build store の receipt の参照規則を本スライスで検査しないため）。`runtime` は U4 の確認に回す。`credentials`、`RevisionLocks`、非所有 directory は対象外。
+- **D5 — H1 / CURRENT 方式:** 推奨は本スライスを従来の tracked HANDOFF で進め、H1 へ移行しない（H1 の CURRENT 自体が分裂の当事者）。
+- **D6 — Harness から判定 module への依存（r2 で追加）:** `tools/harness.ps1` は現在 Workflow を import しない。判定 module を Workflow の基盤層に置くと、Harness → Workflow 基盤の新しい依存 edge ができる。推奨は、この edge を基盤層（OS metadata と probe だけ、domain を持たない）に限って許可すること。代替は `tools/` 直下に共有層を新設する案だが、ファイル1つのためにフォルダ境界を増やす根拠が弱い。
 
-## 3. 責務マップ（A1 初稿。配置は A2 の構造ゲートで確認する）
+## 3. 責務マップ（r2）
 
 | 対象 | 責務（一文） | 変更理由 | 所有者・寿命 | 依存 | 公開面 | テスト境界 | 配置理由 | 現在行 / 予想増分 |
 |---|---|---|---|---|---|---|---|---|
-| 新規 `tools/Workflow/WindowsPackageContext.psm1` | 現在の process が AppData の書込み仮想化下にあるかを判定する | OS の判定方法が変わったとき | 状態を持たない。呼出しごとに判定 | `WindowsStorePaths.psm1` と同じく OS metadata のみ。Workflow / Artifacts / Harness の domain を import しない | `Test-OsmStoreVirtualized`（仮称）と private の注入 seam（CLI / env からは設定不可） | 注入 seam で packaged / 非 packaged / 仮想化 / 判定不能を offline 検査 | `WindowsStorePaths.psm1` と同じ「filesystem metadata だけ」の層。三つの CLI が共有でき、Workflow core が Artifacts を import しない方向を保つ | 0 / 約80 |
-| `tools/artifacts.ps1` | 全 subcommand の入口で判定を呼び、仮想化なら `virtualized-store` を返す | 入口の追加・変更時 | 呼出し1回 | 上記 module | 既存 CLI + 新 reasonCode | 既存 CLI fixture へ注入 | composition root。各 Application module に散らさず一箇所で止める | 154 / 約+15 |
-| `tools/workflow-task.ps1` | 同上 | 同上 | 同上 | 同上 | 同上 | `WorkflowCliFixture.ps1` | 同上 | 66 / 約+10 |
-| `tools/harness.ps1` | 同上 | 同上 | 同上 | 同上 | 同上 | Harness tests | 同上 | 243 / 約+10 |
-| 新規 合流 module（配置は A2 で決める。候補 `tools/Artifacts/StoreConsolidation.psm1`） | 凍結 manifest の単位を Codex 側から実ストアへ非破壊に複写し、単位 receipt を残す | 合流の規則・対象 role が変わったとき | 一回の操作。receipt は実ストアの専用 directory に不変記録として残す | `WindowsStorePaths.psm1`、`ArtifactAcl.psm1`、Workflow の ACL 規則。Evidence / Workflow の domain 判定は import しない（bytes 同一の複写だけ） | `artifacts.ps1 store consolidate --manifest ... --manifest-sha256 ... [--dry-run]`（仮称） | 合成 fixture の両 root、I/O seam、障害注入 | Workflow と Harness の role も扱うため、Artifacts 配下に置くと所有境界が曖昧になる。`EvidenceReset.psm1` と同じ一回操作の形に揃える案と、`tools/Workflow` 側へ置く案を A2 で比較する | 0 / 約250 |
-| テスト（新規 suite 2本） | 判定と入口、合流 | 上記と同じ | テスト専用 root | 既存 TestSupport | なし | offline のみ | 既存 suite の形に合わせる | 0 / 約400 |
-| `tools/Artifacts/README.md` ほか README 2件 | 実行条件と reasonCode、合流手順 | 公開面の現況 | 永続 | なし | 文書 | docs-audit | harvest 先 | 既存 / 約+30 |
+| 新規 `tools/Workflow/WindowsStoreContext.psm1` | 現在の process のストアが書込み仮想化下にあるかを、probe 領域だけを使って判定する | OS の判定方法・probe 規則が変わったとき | probe の file と handle を呼出し単位で所有し、`DeleteOnClose` で閉じて消す。probe 領域の directory と、自分の命名規則に合う残骸の後始末も所有する。判定結果は保持しない | OS API（`GetFinalPathNameByHandleW`）と `WindowsStorePaths.psm1` だけ。Workflow / Artifacts / Harness の domain module を import しない | `Get-OsmStoreContext`（仮称）が `not-virtualized` / `virtualized` / `unknown` の3値を返す。private の注入 seam（OS I/O と path 比較を差替え。CLI / env から設定不可） | 注入 seam で3値と各失敗経路を offline 検査 | `WindowsStorePaths.psm1` と同じ OS 基盤層。三つの CLI が共有でき、Workflow core → Artifacts の依存を作らない。Harness からの edge は D6 | 0 / 約110 |
+| `tools/artifacts.ps1` | 全 subcommand の入口で判定を呼び、`virtualized` / `unknown` なら対応する reasonCode を返して終える | 入口の追加・変更時 | 呼出し1回 | 上記 module | 既存 CLI と新 reasonCode 2つ | 既存 CLI fixture へ注入 | composition root。各 Application module に散らさず一箇所で止める | 154 / 約+20 |
+| `tools/workflow-task.ps1` | 同上 | 同上 | 同上 | 同上 | 同上 | `WorkflowCliFixture.ps1` | 同上 | 66 / 約+12 |
+| `tools/harness.ps1` | 同上 | 同上 | 同上 | 同上（D6） | 同上 | Harness tests | 同上 | 243 / 約+12 |
+| 新規 `tools/Artifacts/StoreConsolidationPlan.psm1` | 棚卸し結果（メモリ上のモデル）から単位を作り、参照・衝突・除外を分類して manifest 候補と検査結果を返す | 単位の定義、参照検査の規則、対象 role が変わったとき | 状態を持たない純粋関数 | なし（ファイル・OS に触れない） | `New-ConsolidationPlan`、`Test-ConsolidationManifest`（仮称） | メモリ fixture だけで全分類を検査（AC13） | 規則と I/O を分けて、ストアに触れずに検査できるようにする（A2-5）。規則の変更理由は I/O の変更理由と独立 | 0 / 約200 |
+| 新規 `tools/Artifacts/StoreConsolidation.psm1` | 対象 role の棚卸し、staging、単位の公開、journal と receipt、run の排他を行う | 公開の手順・障害回復・ACL の扱いが変わったとき | run directory（lock、manifest の写し、journal、staging、receipt）を run の寿命で所有する。receipt は不変記録として残す。Codex 側は読取り専用 handle だけ | `StoreConsolidationPlan.psm1`、`WindowsStoreContext.psm1`（自身も非仮想化でなければ実行しない）、`WindowsStorePaths.psm1`、`ArtifactAcl.psm1`。Evidence / Workflow の domain module は import しない（テストからは読取り確認に使う） | `artifacts.ps1 store plan --source-root ...`、`store consolidate --manifest ... --manifest-sha256 ... [--dry-run]`（仮称） | 合成 fixture の両 root、I/O seam（open 記録）、4点の障害注入（AC6〜AC10、AC12） | Artifacts 側の一回の管理操作として、`EvidenceReset.psm1` と同じ形に揃える（A2 の支持）。Workflow / Harness の directory も bytes 同一で扱うだけで、その domain の判断は持たない | 0 / 約300 |
+| テスト（新規 suite 3本） | 判定と入口、計画、合流 | 上記と同じ | テスト専用 root | 既存 TestSupport | なし | offline のみ | 既存 suite の形に合わせる | 0 / 約550 |
+| `tools/Artifacts/README.md`、`tools/Workflow/README.md`、`tools/Harness/README.md` | 実行条件、reasonCode、合流手順 | 公開面の現況 | 永続 | なし | 文書 | docs-audit | harvest 先 | 既存 / 約+40 |
 
-行数警報: 合流 module が 250 行を超える見込みは低い。超える場合は「manifest 検査」と「複写の実行」を分ける根拠（変更理由と障害注入の境界）があるかを C で確認する。`EvidencePaths.psm1` 等の既存 resolver は変更しない（判定を入口へ置くため）。
+行数警報: `StoreConsolidation.psm1` は 300 行前後の見込みで、500 行の警報には届かない。超える場合は「棚卸し」と「公開・回復」の分割を C で判断する。`EvidencePaths.psm1`、`ArtifactPaths.psm1`、`TaskEventStore.psm1`、`RecordStore.psm1`、`CredentialPathAcl.psm1` は変更しない（判定を入口へ置くため）。
 
 ## 4. 実装計画（A3 で凍結する）
 
-- 順序: (1) 判定 module と注入 seam → (2) 三つの CLI 入口 → (3) offline test（AC1〜AC3）→ (4) 合流 module の dry-run（棚卸し）→ (5) 合流の実行と receipt → (6) offline test（AC6〜AC10）→ (7) README。
-- Phase B から Phase A へ差し戻す条件: 入口以外（各 Application module・resolver）に判定を入れないと I1 を満たせない場合。合流で bytes の書換えが必要と判明した場合（U5 の否定）。新しい保存先・資格情報の扱いが必要になった場合。判定に package manifest の解析など新しい依存が必要になった場合。
-- 対象外の維持: `EvidencePaths.psm1`、`ArtifactPaths.psm1`、`TaskEventStore.psm1`、`RecordStore.psm1`、`CredentialPathAcl.psm1` の root 解決・ACL 規則を変えない。Codex 側への書込み API を持たない（合流 module は Codex 側を読取り専用 handle で開く）。
+- 順序: (1) 判定 module と注入 seam → (2) 三つの CLI 入口 → (3) offline test（AC1〜AC3）→ (4) 計画 module とメモリ fixture（AC13）→ (5) 合流 module の棚卸しと plan → (6) staging・公開・journal・receipt・run 排他 → (7) offline test（AC6〜AC10、AC12）→ (8) README。
+- Phase B から Phase A へ差し戻す条件: 入口以外（各 Application module・resolver）に判定を入れないと I1 を満たせない場合。合流で bytes の書換えが必要と判明した場合。directory 単位の非上書き rename が使えず、公開順で単位を隠せない場合。新しい保存先・資格情報の扱いが必要になった場合。判定に package manifest の解析など新しい依存が必要になった場合。
+- 対象外の維持: 上記の既存 resolver・ACL 規則を変えない。Codex 側への書込み API を持たない。
 
 ## 5. テストとレビュー計画
 
 ### 5.1 テスト
 
-- 単体テスト: 判定（packaged × 仮想化 × 判定不能の組合せ）、入口の順序（判定が全 store I/O より前）、合流（AC6〜AC10）。時間待機を使わず、並行は既存 suite と同じ別 process の signal 同期。
-- 差し戻し中の起点 filter: 新規 2 suite、`tools/Workflow/tests/TaskLifecycle.Tests.ps1`、`tools/Artifacts/tests/ArtifactEvidence.Tests.ps1`、`EvidenceCleanup.Tests.ps1`（`rg` を PATH へ通す）、Harness tests。C が根拠付きで変更してよい。
-- 判定必須テスト: 3 project の Release build、Artifacts の全 suite、Workflow TaskLifecycle、Harness tests、新規 2 suite、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`。
+- 単体テスト: 判定（3値と各失敗経路、identity の有無で分岐しないこと）、入口の順序（判定がストア I/O より前）、計画（AC13）、合流（AC6〜AC10、AC12）。時間待機を使わず、並行は既存 suite と同じ別 process の signal 同期。
+- 差し戻し中の起点 filter: 新規 3 suite、`tools/Workflow/tests/TaskLifecycle.Tests.ps1`、`tools/Artifacts/tests/ArtifactEvidence.Tests.ps1`、`EvidenceCleanup.Tests.ps1`（`rg` を PATH へ通す）、Harness tests。C が根拠付きで変更してよい。
+- 判定必須テスト: 3 project の Release build、Artifacts の全 suite、Workflow TaskLifecycle、Harness tests、新規 3 suite、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`。
 - 全 EditMode 回帰の適用除外: **適用除外**。理由: Unity source・依存・asmdef を変更しない PowerShell / .NET tooling のスライスである（先行 Artifacts スライスと同じ扱い）。代替証拠: 上記の offline 全 suite と contract-audit。
 - 統合・Unity テスト: なし。
 
@@ -210,33 +229,55 @@ Evidence 取得案内: 未生成
 
 | 条件 | 担当 | 環境・初期状態 | 操作 | 観測と合否 | 証拠と受渡し |
 |---|---|---|---|---|---|
-| AC4 | Codex デスクトップ内の AI 実行担当（C が手順を渡す） | GO 候補 head を checkout した worktree。Codex 側の entry 一覧を事前取得 | §2.3 AC4 の4コマンド | 全て `virtualized-store`、entry 一覧が前後で同一 | コマンド出力 JSON と前後の一覧（名前・件数・最終更新。内容と実 path の詳細は含めない）を evidence bundle へ |
+| AC4 | Codex デスクトップ内の AI 実行担当（C が手順を渡す） | GO 候補 head を checkout した worktree。Codex 側の entry 一覧を事前取得 | §2.3 AC4 の4コマンド | 全て `virtualized-store`、entry 一覧が前後で同一、probe 領域に残骸なし | コマンド出力 JSON と前後の一覧（名前・件数・最終更新。内容と実 path の詳細は含めない）を evidence bundle へ |
 | AC5 | Claude デスクトップ内の AI 実行担当 | 同じ head | 読取り系の subcommand | 既存どおりの reasonCode | 同上 |
 | AC11 | 非仮想化の実行担当 | 合流済みの実ストア | 既存の取得案内で fetch、必須本文の閲覧 | 独立 hash 一致・閲覧可 | 高コスト証拠（§5.5） |
 
-### 5.4 未知の操作経路の疎通（A3 前に確認する）
+### 5.4 未知の操作経路の疎通
 
-- **確認済み（2026-10-12）:** D1 (1) の probe。Codex 内（Codex が起動した PowerShell 7.6.5、承認済みの sandbox 外経路）では、実体 path が `Packages\<Codex package>\LocalCache\Local\OneStarMaker\…` で論理 path と不一致、identity は無し（15700）。Claude 内（Claude Code の PowerShell）では実体 path が論理 path と一致し、identity は Store 版 PowerShell のものだった。Claude 側は probe directory も削除し、OneStarMaker 直下の entry 数は3のまま変わらなかった。Codex 側は一時 file を削除したが、空の probe directory が1つ残った（直下の entry 数は7から8。既存 entry の属性・更新時刻は不変）。その削除は Codex 側の担当の判断に委ねる。どちらの観測も R2 の通信・認証は含まない。
+- **確認済み（2026-10-12）:** D1 の書込み probe（r1 の置き場所は OneStarMaker 配下）。Codex 内（Codex が起動した PowerShell 7.6.5、承認済みの sandbox 外経路）では、実体 path が `Packages\<Codex package>\LocalCache\Local\OneStarMaker\…` で論理 path と不一致、identity は無し（15700）。Claude 内（Claude Code の PowerShell）では実体 path が論理 path と一致し、identity は Store 版 PowerShell のものだった。Claude 側は probe directory も削除し、OneStarMaker 直下の entry 数は3のまま変わらなかった。Codex 側は一時 file を削除したが、空の probe directory が1つ残った（直下の entry 数は7から8。既存 entry の属性・更新時刻は不変）。その削除は Codex 側の担当の判断に委ねる。どちらの観測も R2 の通信・認証は含まない。
+- **一部確認（2026-10-13）:** r2 の probe 領域の Claude 側（下記 (b)(c) の Claude 内分）。Claude Code の PowerShell で `OneStarMaker.StoreProbe` に `CreateNew` + `DeleteOnClose` の file を作ると、final path は論理 path と一致し、handle を閉じた後に file は残らなかった（probe 領域の entry 0件）。疎通のために作った probe 領域の directory は削除した。
+- **未確認（A3 前に確認する。r2 で追加）:** r2 の probe 領域（ストア外の兄弟 `OneStarMaker.StoreProbe`）で、(a) Codex 内で final path が LocalCache 側を指すこと、(b) Claude 内で論理 path と一致すること、(c) `DeleteOnClose` で開いて閉じた後、Codex 側 LocalCache に file が残らないこと。担当: Codex 内と Claude 内で各1回、probe 領域だけを使う使い捨て script。不成立時は D1 の代替（ストア内の予約名）へ切り替えて I1 の境界を書き直し、凍結しない。
 - **確認済み（2026-10-12、owner のセッション許可あり）:** U3。両 context で `credentials status` を1回ずつ実行した（世代 ID と endpoint は転記しない）。
   - 実ストア（Claude 内）: exit 0、`rotation state: stable`、retired 世代なし、updated UTC 2026-10-10。
   - Codex 側（Codex 内）: exit 0、`rotation state: stable`、retired 世代なし、updated UTC 2026-10-05。
   - 二つは別々の record で、どちらも rotation 途中（`pending-revocation`）ではない。Codex 側の record の方が古い。`status` はローカルの記録だけを読むので、R2 で有効かは示さない。コードを読んだ範囲では、`status` は既存の資格情報 directory では検査だけを行い、何も作らない。
   - 合流への影響: 資格情報は合流対象外で（D4）、S4 の fetch は実ストアの鍵を使う。実ストアの鍵が R2 で有効かは、S4 の高コスト証拠を取る時点で初めて分かる。認証で失敗した場合も、鍵の再入力・削除で直さず owner へ返す（常時契約）。
   - 後続への入力: 同じ bucket に有効な token が二つ存在しうる（Codex 側の record が別の token を保持している可能性）。失効の要否は owner が管理画面で判断する。本スライスでは扱わない。
-- **一部確認（2026-10-12）:** U5 の path 文字列。Codex 内で catalog 1件を読取り専用で開き、絶対 path 12個が全て論理 path だった（値は転記しない。サイズ・更新時刻は不変）。全単位の検査は合流 manifest の作成時に行う。
+- **一部確認（2026-10-12）:** U5 の path 文字列。Codex 内で catalog 1件を読取り専用で開き、絶対 path 12個が全て論理 path だった（値は転記しない。サイズ・更新時刻は不変）。全単位の検査は D2 の `plan` が機械的に行う。
 
 ### 5.5 高コスト証拠
 
-- **実ストアへの合流の実行と S4 の fetch:** 実ストアを変更する（不可逆ではないが、既存記録と混ざる）ため高コスト証拠に分類する。手順: 判定 C → 暫定 C' → owner が合流 manifest（exact な単位・相対 path・SHA-256・除外）を承認 → dry-run → 実行 → 単位 receipt → 既存取得案内で fetch。独立した期待値: 単位ごとの複写先 SHA-256 が manifest と一致、Codex 側の全 file の SHA-256 が実行前と一致、fetch の packageSha256 が取得案内の独立 hash と一致、衝突単位の数が dry-run と一致。
-- 判定 C の照合 script の方式: **A3 凍結 script** を推奨する。判定 C の担当が非仮想化かつ資格情報へ届かない環境で script を書ける保証が無いため。合成 fixture と期待値は A1 改稿で用意する。
+- **実ストアへの合流の実行と S4 の fetch:** 実ストアを変更するため高コスト証拠に分類する。手順: 判定 C → 暫定 C' → `store plan` → owner が manifest を承認 → dry-run → 実行 → 単位 receipt → 既存取得案内で fetch。
+- 独立した期待値（A2-2 で範囲を限定）:
+  - 公開先の各 file の SHA-256 が manifest と一致する。
+  - Codex 側は、**manifest に載った file だけ**を実行前後で hash 照合し、一致する。
+  - 除外領域（資格情報、非所有 directory、`RevisionLocks`、対象外 role）は内容を開かない。実行前後の名前・件数・最終更新の列挙が同一で、合流 run の journal の open 記録にそれらの path が無い。
+  - 衝突・参照欠落の単位数が dry-run と一致する。
+  - fetch の packageSha256 が取得案内の独立 hash と一致する。
+- 判定 C の照合 script の方式: **A3 凍結 script** を推奨する。判定 C の担当が非仮想化かつ資格情報へ届かない環境で script を書ける保証が無いため。合成 fixture と期待値は A3 前に用意する。
 
 ### 5.6 担当・モデル（実績）
 
-- A0/A1 主担当: Claude Code（Claude Opus 5.5、Anthropic）。非仮想化の Claude デスクトップから、ディレクトリ名の列挙とコードの読取りだけを行った。資格情報・Artifact Storage の操作、ストアの変更は行っていない（§5.4 の自分の probe は作成・削除済み）。
-- §5.4 の Codex 内疎通: Codex（OpenAI）。疎通の観測だけで、A2 のレビューではない。A2 で Codex を使う場合は、C' 用に Anthropic・OpenAI 以外の系列を予約する。
-- A2 独立レビュー: 未実施。
+- A0/A1 主担当: Claude Code（Claude Opus 5.5、Anthropic）。非仮想化の Claude デスクトップから、ディレクトリ名の列挙、コードの読取り、§5.4 の probe と `credentials status`（owner 許可あり）だけを行った。Artifact Storage の操作、ストアの変更は行っていない。
+- §5.4 の Codex 内疎通: Codex（OpenAI）。疎通の観測だけで、A2 のレビューではない。
+- A2 独立レビュー 1件目: Codex（OpenAI）、新しいセッション。観点はアーキテクチャゲート（責務マップ、I1〜I7 を破る順序、D1〜D5）。入力版は r1 の内容 sha256 `4461c4a9ec0dc0b5ff43d6f9dd4b271af2de1f49a4aa0f084714553552c7dd3e`（commit `08cb1d1`）。開始時に一致を確認済み。結果は §5.7。
+- A2 2件目以降: 未実施（§0 の引継ぎ票）。
 - A3 統合: 未実施。
-- C' 用に予約する担当: A2 で使わないモデル系列・ベンダーを1つ残す（A2 の担当決定時に記録する）。
+- C' 用に予約する担当: Anthropic・OpenAI 以外の系列（候補は cursor-agent の Grok 系）。A2 では使わない。
+
+### 5.7 A2 findings と r2 での採否（A3 で owner が確定する）
+
+| # | severity | 指摘 | 根拠の節 | r2 の扱い | 理由 |
+|---|---|---|---|---|---|
+| A2-1 | P1 | probe の書込みが I1 の「ストアへの最初のアクセスより前」と AC1 の「I/O seam 0件」に矛盾。削除失敗時に残骸が増える | I1、AC1、AC4、D1、§3 | 採用 | probe をストア外の probe 領域へ移して I1 の境界を明示。`DeleteOnClose` で例外経路の後始末を OS に任せ、強制終了の残骸は判定 module が自分の命名規則に合うものだけを消す。§3 の責務を「OS metadata だけ」から「probe の file・handle・後始末の所有」に修正。ストア外での検出は §5.4 で疎通を追加 |
+| A2-2 | P1 | 高コスト証拠の「Codex 側の全 file の SHA-256」は I7 の除外領域を読ませる | §1.4、I7、§5.5 | 採用 | hash 照合を manifest の file に限定し、除外領域は名前の列挙と journal の open 記録で確認する形に変更。I7 に hash 計算も読取りであると明記 |
+| A2-3 | P1 | file の途中で止まると、非上書き・rollback 禁止のため再実行で回復できない | I4、I5、S3、AC10、§3 | 採用 | run 所有の staging → flush → hash 照合 → directory 単位の非上書き rename で公開する方式を D2 に固定。AC10 に4つの障害注入点を追加 |
+| A2-4 | P1 | 合流中の既存 writer（定期 job の sync 等）と role をまたぐ公開順の管理者が無い | I4、S3、S4、D2、D4、§3、§4 | 採用 | 公開順を Workflow 最後に固定し、job と cleanup が Workflow の task 一覧を起点にすることをコードで確認した。同じ taskId の対話 CLI との競合は `concurrent-writer` で止める。run の二重起動は lock で止める。管理者は合流 module（run directory の所有者）。AC12 を追加 |
+| A2-5 | P2 | U5 の全件検査と manifest 作成の責務が抜けている | U5、I5、I7、D4、§3、§5.4 | 採用 | 計画（純粋関数）を `StoreConsolidationPlan.psm1` に分離し、role に依存しない参照検査の規則を D2 に書いた。AC13 を追加 |
+| A2-6 | P2 | 判定不能時の fail-closed と、I3 の完全互換が両立しない | I3、AC2、AC3、D1 | 採用 | I3 を「非仮想化と判定できた実行」に限定し、判定不能を別 reasonCode `store-context-unknown` にした。それが意図した唯一の挙動変更であることを I3 に明記 |
+
+A2 が示した I1〜I7 の反例（guard の後に判定、汎用 catch で `unconfirmed` 化、bytes 同一 skip で ACL を見落とす、列挙前に除外領域を hash 等）は、AC1・AC2・AC6・AC8・AC9 の検証内容に反映した。配置について A2 は、判定 module を Workflow 基盤層に置く案と、合流 module を Artifacts 側に置く案を支持した。Workflow の ACL 規則が `TaskEventStore` の内部関数である点は、Artifacts の ACL 規則と同一であることを確認したうえで `ArtifactAcl.psm1` を使う、とした（I6）。
 
 ## 6. Phase B 実装結果
 
