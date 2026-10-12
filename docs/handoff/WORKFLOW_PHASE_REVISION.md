@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C'`（判定 C は GO。C′ 実施中）
+- status: `D` 待ち（判定 C は GO、C′ は PASS。最終 head は `f7b0e9b`。次は owner による Phase D）
 - branch: `codex/workflow-revision-phase-a`
 - implementation base commit: `24fdd2099f4df39911de0d88c09fc7815e077fb8`（`develop`。PR #119 のマージを含む。A3 凍結時の `origin/develop` と一致を確認済み）
 - implementation head commit: `f7b0e9bcc1686be4dcf74f63f38bc24d115cae1b`
@@ -14,8 +14,8 @@
 - harvest to: 採用した規則を `.agents/skills/osm-workflow/SKILL.md` と `references/`（phases-and-handoff.md、review-evidence.md、handoff-template.md）へ。完了時に本書を削除する。
 - Phase A snapshot の取得案内・状態: 確認済み（Artifact Storage、task `workflow-phase-revision`。取得と hash 照合は統合担当 session が実施。取得案内はローカル担当の作業領域）
 - Phase B result snapshot の取得案内・状態: evidence bundle と C′ blind bundle に収録（C′ 用は所見に由来する記述を除いた版）
-- evidence bundle の取得案内・状態: 確認済み（head `d19dca4`。取得案内はローカル担当の作業領域）
-- C' blind bundle の取得案内・状態: 確認済み（head `d19dca4`。所見を含まない独立の取得案内をローカル担当の作業領域に置いた）
+- evidence bundle の取得案内・状態: 確認済み（head `f7b0e9b`。旧 head 向けは無効。取得案内はローカル担当の作業領域）
+- C' blind bundle の取得案内・状態: 確認済み（head `f7b0e9b`。判定 C と同じ package、所見を含まない独立の取得案内をローカル担当の作業領域に置いた）
 
 管理方式は tracked HANDOFF とし、H1/CURRENT は採らない（Artifacts/Harness 作業ではない）。**Phase B は §2「A3 凍結」節を正とする。** 論点 1〜8 の本文は A1 初稿の記録であり、A3 凍結節と食い違う箇所は A3 凍結節に従う。
 
@@ -472,17 +472,19 @@ D:\repositories\unity\SampleGameForOneStarMakerFramework の docs/handoff/WORKFL
 
 ## 7. Phase C
 
-- 種別: 判定 C（3 巡。文書のみで判定必須検査が安価なため、発見 C を分けず判定 C から開始）
+- 種別: 判定 C（5 回。文書のみで判定必須検査が安価なため、発見 C を分けず判定 C から開始。最終は head `f7b0e9b` で GO）
 - 使用したevidence bundle の取得案内・状態: 保存済み・取得と hash 照合を確認済み（Artifact Storage、task `workflow-phase-revision`）。取得案内はローカル担当の作業領域。head `e70a31d` 向けの初回 bundle は差し戻しで無効
 - 構造適合: §3 の 4 文書だけを変更。正本は review-evidence.md／phases-and-handoff.md、SKILL.md は要約と参照、欄は handoff-template.md。`AGENTS.md`・tools・`unity/` の変更なし
 - 現在の問いを阻害する findings:
   - 1 巡目（head `e70a31d`）C-1: 「操作・目視証拠の受け渡し」の C′ 開始前確認と、1b の暫定 C′ → 高コスト証拠の順序が矛盾（S1、A3 凍結 1b）。修正: `d19dca4`（後で取得すると凍結した高コスト証拠は、最終 C′ の開始前に確認）
   - 1 巡目 C-2: R1（head 変更時の取り直し）の本文が複数箇所に重複（I7）。修正: `d19dca4`（review-evidence.md「判定後の head 変更」に集約し、他は参照）
   - 2 巡目（head `d19dca4`）C-3: 判定 C 用 bundle の Phase B result に前巡の指摘への対応が書かれており、同じ bundle を C′ に渡すと I2 に反する。対処: 実装は変えず、C′ 用の blind bundle を別に作成・保存・取得。§6 からも該当記述を除いた（転送不備の再梱包。implementation head は不変）
-  - 3 巡目: なし。GO
+  - 3 巡目: なし。GO（head `d19dca4`）
+  - C′ の差し戻しで head が `9f47422` に変わり、判定 C をやり直した（4 回目）。規則文書の修正は B 適応として妥当。C-4: `9f47422` は判定 C の記録 commit（`e98e313`）の上に積まれ、完全 diff に本欄の所見が入っていた（I2）。未 push の履歴の並べ替えは自動モードの classifier に「Git Destructive」として拒否されたので、迂回せず、HANDOFF からレビュー記録を外した commit `f7b0e9b` を implementation head にし、記録は次の commit で戻した（規則文書は `9f47422` と同一）
+  - 5 回目（head `f7b0e9b`）: なし。GO
 - 後続スライスへ移送する findings: なし
 - 実行したテストコマンドと `-Filter`、対象を選んだ理由: `pwsh tools/docs-audit.ps1`、`pwsh tools/contract-audit.ps1`（判定必須。head `d19dca4` の checkout で実行）。`unity/` の diff が無いことを機械確認（全 EditMode 回帰の適用除外の代替証拠）
-- テスト結果: docs-audit `errors=0 warnings=0`（111 files）、contract-audit `errors=0 warnings=0`（627 files）、`unity/` の変更なし
+- テスト結果: head `f7b0e9b` で docs-audit `errors=0 warnings=0`（111 files）、contract-audit `errors=0 warnings=0`（627 files）、`unity/` の変更なし（各 head でも同じ結果）
 - 判定必須のうち未実行: なし
 - 重い検証を発見段階で限定実行した場合の理由と範囲: なし
 - 未確認事項: PR 本文とリモート head の照合は判定 C の範囲外（Phase D で確認）
@@ -490,17 +492,26 @@ D:\repositories\unity\SampleGameForOneStarMakerFramework の docs/handoff/WORKFL
 
 ## 8. Phase C'
 
-- 担当方式:
-- 使用したblind audit bundle の取得案内・状態:
-- 確認範囲・方法:
-- 判定:
-- 現在の問いを阻害する findings:
+- 担当方式: AI
+- 使用したblind audit bundle の取得案内・状態: 確認済み（1 巡目は head `d19dca4` の blind 専用 bundle、2 巡目は head `f7b0e9b` の bundle。いずれも取得・hash 照合済みのコピーを、リポジトリ外の作業領域に置いて渡した）
+- 確認範囲・方法: 1 巡目は全体を初見で監査（安全性と独立性／構造と整合の 2 ジョブ、各新規 session）。2 巡目は前巡の C′ 指摘 3 件の解消と、`d19dca4` → `f7b0e9b` の規則文書の差分とその影響経路。差分外でも違反根拠があれば blocker にできる、とした
+- 判定: 1 巡目 FAIL、2 巡目 PASS（head `f7b0e9b`）
+- 現在の問いを阻害する findings（1 巡目。いずれも `9f47422`＝`f7b0e9b` の規則文書で修正）:
+  - C′-1（I4）: 決定記録を凍結条件と「同格に読む」規則と「読み方の確定」の例示の組合せで、AC の合否を A revision なしに変えられた
+  - C′-2（I5）: 6b の凍結 script と実行担当の代行実行に、資格情報・本番設定・通信へ届かない環境の条件が無かった
+  - C′-3（I7）: SKILL.md が A2 入力版の「内容 sha256 を正」を本文として再掲していた
 - 後続スライスへ移送する findings:
-- 残存リスク:
-- 監査できなかった範囲:
-- 独立性:
-- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与:
-- 担当・モデル:
+  - review-evidence.md「対象を固定する」の「C′ に使う bundle には判定必須テストの生ログと XML を含める」は、暫定 C′／最終 C′ の手順に合わせて言い直す余地がある
+  - phases-and-handoff.md の Cloud Agent の引継ぎに、正規の C′ は C′ 用取得案内だけで始める旨を一文足す
+  - SKILL.md の `#巡ごとの範囲` 系のアンカーが、C′ 用決定記録の節を指していない
+  - SKILL.md の B 出口・暫定／最終 C′ の要約の末尾に、正本へのリンクが無い
+  - 最終 C′ の巡の数え方（暫定 C′ の続きか、1 から数えるか）が明記されていない
+  - handoff-template.md の A2 欄の括弧（内容 sha256 を正）を、正本への参照に揃える
+- 残存リスク: 決定記録の実例はまだ無く、運用で「読み方の確定」と「合否の変更」の境界が争点になりうる。照合 script を隔離できない環境では script が未実行のまま人間に戻る。HANDOFF §0／§6 内の head 表記は、記録 commit の都合で最終 head とずれた箇所がある（本欄と §7 が正）
+- 監査できなかった範囲: リポジトリ本体、PR、TestResults、manifest（2 巡目）。監査 script の再実行
+- 独立性: 強化条件を満たす（C′ の系列は A〜C に未関与）。B（Claude）、C（GPT）と異なる系列、各巡・各ジョブとも新規 session
+- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: なし。判定 C の所見は渡していない。2 巡目には C′ 自身の前巡の阻害指摘だけを渡した（owner の裁定は無し）
+- 担当・モデル: cursor-agent／Grok（`grok-4.7-high`）／xAI
 
 ## 9. Phase D
 
