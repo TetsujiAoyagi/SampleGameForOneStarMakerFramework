@@ -32,7 +32,10 @@ function Copy-EvidenceSnapshot($Selection,[string]$Operation,[Diagnostics.Stopwa
 function Invoke-EvidencePublish([string]$ConfigPath,[string]$SelectionPath){
     $result=[ordered]@{status='failed';reasonCode='unconfirmed';reference=$null;packageSha256=$null;receipt=$null;residue=@{localPath=$null;remote='pre-put'}};$guard=$null;$artifact=$null;$task=$null;$timer=[Diagnostics.Stopwatch]::StartNew()
     try{
-        $config=Read-EvidenceConfig $ConfigPath;Import-ArtifactPackage;$selection=(Read-ArtifactJson $SelectionPath).Data;Assert-Fields $selection @('schemaVersion','purpose','taskId','root','files','base','head');Assert-EvidenceTaskId $selection.taskId
+        $config=Read-EvidenceConfig $ConfigPath;Import-ArtifactPackage
+        # Only the file/JSON/field-set read before the guard is mapped; root/files checks stay after the guard.
+        try{$selection=(Read-ArtifactJson $SelectionPath).Data;Assert-Fields $selection @('schemaVersion','purpose','taskId','root','files','base','head')}catch{throw 'invalid-selection'}
+        Assert-EvidenceTaskId $selection.taskId
         $guard=Enter-WorkflowTaskGuard $config.Data.repositoryId $selection.taskId;$null=Assert-EvidenceTransitionSafe $config $selection.taskId $guard;$task=Sync-EvidenceTaskGuarded $config $selection.taskId $guard
         if($task.status -cne 'active'){throw 'resume-required'}
         $sourceStage=$null
@@ -74,7 +77,7 @@ function Invoke-EvidencePublish([string]$ConfigPath,[string]$SelectionPath){
         $null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard
         $result.status='passed';$result.reasonCode='complete';$result.reference=New-EvidenceReference $config $artifact;$result.packageSha256=$package.Sha256;$result.receipt=$artifact.receipt;$result.residue.remote='ready'
     }catch{if($script:FailureHook){& $script:FailureHook $_}
-        if($_.Exception.Message -cin @('unsupported-schema','unknown-deployment','resume-required','invalid-selection','invalid-source','task-not-registered','unresolved-delete','unresolved-put')){$result.reasonCode=$_.Exception.Message}
+        if($_.Exception.Message -cin @('unsupported-schema','invalid-evidence-config','unknown-deployment','resume-required','invalid-selection','invalid-source','task-not-registered','unresolved-delete','unresolved-put')){$result.reasonCode=$_.Exception.Message}
         if($task -and $guard){try{$released=$true;if($artifact -and $artifact.operation){try{$marker=Resolve-ArtifactStoredPath $artifact.operation.childMarker -AllowMissing;if([IO.File]::Exists($marker)){$child=(Read-ArtifactJson $marker).Data;$released=$child.exited -and $child.pipesClosed}}catch{$released=$false}};if($released){if($artifact){$artifact.operation=$null};if(Get-Variable stage -ErrorAction SilentlyContinue){$stage.operation=$null}};if((Get-Variable sourceStage -ErrorAction SilentlyContinue) -and $sourceStage){$sourceStage.adoptionPending=$false};$null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard}catch{if($script:FailureHook){& $script:FailureHook $_}}}
     }finally{if($guard){$guard.Dispose()}}
     return [pscustomobject]$result
@@ -92,7 +95,7 @@ function Invoke-EvidenceFetch([string]$ConfigPath,[string]$ReferenceText,[string
         Import-ArtifactPackage;$package=[OneStarMaker.Artifacts.Packaging.PackageIO]::Extract($archive,$op,$ExpectedHash,$ref.manifestSha256,$ref.base,$ref.head,$ref.repositoryId,$ref.artifactId,(Get-Remaining $timer 600000),'evidence',$ref.taskId)
         Add-EvidenceOwnedFile $a $archive $package.Bytes $package.Sha256;foreach($e in $package.Files){Add-EvidenceOwnedFile $a ([IO.Path]::Combine($package.Path,$e.Path)) $e.Bytes $e.Sha256}
         Protect-ArtifactTree $op;$a.operation=$null;$stage.adopted=$true;$stage.operation=$null;$null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard;$r.outputPath=$package.Path;$r.status='passed';$r.reasonCode='complete'
-    }catch{if($script:FailureHook){& $script:FailureHook $_}if($_.Exception.Message -cin @('unsupported-schema','unknown-deployment','expired','identity-mismatch','catalog-missing')){$r.reasonCode=$_.Exception.Message}}
+    }catch{if($script:FailureHook){& $script:FailureHook $_}if($_.Exception.Message -cin @('unsupported-schema','invalid-evidence-config','unknown-deployment','expired','identity-mismatch','catalog-missing')){$r.reasonCode=$_.Exception.Message}}
     finally{if($a -and $task -and $guard){try{$a.operation=$null;if(Get-Variable stage -ErrorAction SilentlyContinue){$stage.operation=$null};$null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard}catch{if($script:FailureHook){& $script:FailureHook $_}$r.status='failed';$r.outputPath=$null}};if($guard){$guard.Dispose()}}
     return [pscustomobject]$r
 }
@@ -102,7 +105,7 @@ function Invoke-EvidenceInspect([string]$ConfigPath,[string]$TaskId){
     try{$config=Read-EvidenceConfig $ConfigPath;$guard=Enter-WorkflowTaskGuard $config.Data.repositoryId $TaskId;$task=Sync-EvidenceTaskGuarded $config $TaskId $guard
         $items=@($task.artifacts|ForEach-Object{[pscustomobject]@{artifactId=$_.artifactId;state=$_.state;taskEndedAt=$_.taskEndedAt;deleteEligibleAt=$_.deleteEligibleAt;reference=if($_.state -ceq 'ready'){New-EvidenceReference $config $_}else{$null};packageSha256=if($_.state -ceq 'ready'){$_.packageSha256}else{$null};policy=Get-EvidenceRetentionDecision $task $_ (& $script:Clock)}})
         return [pscustomobject]@{status='passed';reasonCode=if($task.status -ceq 'active'){'active/end-not-recorded'}else{$task.status};taskId=$TaskId;version=$task.appliedEventVersion;artifacts=$items}
-    }catch{if($script:FailureHook){& $script:FailureHook $_}return [pscustomobject]@{status='failed';reasonCode='unconfirmed'}}finally{if($guard){$guard.Dispose()}}
+    }catch{if($script:FailureHook){& $script:FailureHook $_}return [pscustomobject]@{status='failed';reasonCode=if($_.Exception.Message -cin @('invalid-evidence-config','unknown-deployment')){$_.Exception.Message}else{'unconfirmed'}}}finally{if($guard){$guard.Dispose()}}
 }
 function Invoke-EvidenceUse([string]$ConfigPath,[string]$ReferenceText,[string]$Consumer,[string]$Until,[string]$Reason){
     $guard=$null
@@ -115,7 +118,7 @@ function Invoke-EvidenceUse([string]$ConfigPath,[string]$ReferenceText,[string]$
         $a=$found[0];if($a.key -cne $ref.key -or $a.base -cne $ref.base -or $a.head -cne $ref.head -or $a.manifestSha256 -cne $ref.manifestSha256 -or $a.packageBytes -ne $ref.packageBytes){throw 'identity-mismatch'}
         $id=[Guid]::NewGuid().ToString('N');$a.protections+=[pscustomobject]@{id=$id;owner=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value;consumer=$Consumer;reason=$Reason;createdAt=$now.ToString('o');until=$Until;releasedAt=$null}
         $null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard;return [pscustomobject]@{status='passed';reasonCode='in-use';protection=$id;until=$Until}
-    }catch{if($script:FailureHook){& $script:FailureHook $_}return [pscustomobject]@{status='failed';reasonCode=if($_.Exception.Message -cin @('payload-deleted','invalid-use','identity-mismatch')){$_.Exception.Message}else{'unconfirmed'}}}finally{if($guard){$guard.Dispose()}}
+    }catch{if($script:FailureHook){& $script:FailureHook $_}return [pscustomobject]@{status='failed';reasonCode=if($_.Exception.Message -cin @('payload-deleted','invalid-use','identity-mismatch','invalid-evidence-config','unknown-deployment')){$_.Exception.Message}else{'unconfirmed'}}}finally{if($guard){$guard.Dispose()}}
 }
 function Invoke-EvidenceRelease([string]$ConfigPath,[string]$ReferenceText,[string]$Protection){
     $guard=$null
@@ -124,6 +127,6 @@ function Invoke-EvidenceRelease([string]$ConfigPath,[string]$ReferenceText,[stri
         $a=$found[0];if($a.key -cne $ref.key -or $a.base -cne $ref.base -or $a.head -cne $ref.head -or $a.manifestSha256 -cne $ref.manifestSha256 -or $a.packageBytes -ne $ref.packageBytes){throw 'identity-mismatch'}
         $p=@($a.protections|Where-Object id -CEQ $Protection);if($p.Count -ne 1){throw 'unknown-protection'};if(-not $p[0].releasedAt){$p[0].releasedAt=(& $script:Clock).ToString('o');$null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard}
         return [pscustomobject]@{status='passed';reasonCode='released'}
-    }catch{if($script:FailureHook){& $script:FailureHook $_}return [pscustomobject]@{status='failed';reasonCode='unconfirmed'}}finally{if($guard){$guard.Dispose()}}
+    }catch{if($script:FailureHook){& $script:FailureHook $_}return [pscustomobject]@{status='failed';reasonCode=if($_.Exception.Message -cin @('invalid-evidence-config','unknown-deployment')){$_.Exception.Message}else{'unconfirmed'}}}finally{if($guard){$guard.Dispose()}}
 }
 Export-ModuleMember -Function Invoke-EvidencePublish,Invoke-EvidenceFetch,Invoke-EvidenceInspect,Invoke-EvidenceUse,Invoke-EvidenceRelease

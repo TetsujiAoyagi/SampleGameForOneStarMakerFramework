@@ -27,14 +27,22 @@ function Get-EvidenceDeploymentRoot {
 }
 function Assert-EvidenceTaskId([string] $TaskId) { if ($TaskId -cnotmatch '\A[a-z0-9][a-z0-9-]{0,63}\z') { throw 'invalid-task' } }
 function Read-EvidenceConfig([string] $Path) {
-    $item=Read-ArtifactJson $Path; $v=$item.Data
-    if ($v.schemaVersion -isnot [long] -or $v.schemaVersion -ne 2) { throw 'unsupported-schema' }
-    Assert-Fields $v @('schemaVersion','profile','endpoint','bucket','repositoryId','prefix','policy','deploymentId')
-    if ($v.profile -cne 'osm' -or $v.bucket -cne 'osm-artifacts' -or $v.endpoint -cnotmatch '\Ahttps://[0-9a-f]{32}\.r2\.cloudflarestorage\.com\z' -or $v.prefix -cne 'development/evidence/v2/' -or $v.policy -cne 'task-end-30d-v1') { throw 'unsupported-schema' }
-    Assert-Hex $v.repositoryId 64; Assert-Hex $v.deploymentId 32
+    # Read-ArtifactJson and Assert-* throw generic text that may not be shown. Map
+    # them to fixed non-secret codes so callers can report the cause without a path.
+    # Relative paths stay rejected: a caller's current directory must not pick the file.
+    try{
+        $item=Read-ArtifactJson $Path; $v=$item.Data
+        if ($v.schemaVersion -isnot [long] -or $v.schemaVersion -ne 2) { throw 'unsupported-schema' }
+        Assert-Fields $v @('schemaVersion','profile','endpoint','bucket','repositoryId','prefix','policy','deploymentId')
+        if ($v.profile -cne 'osm' -or $v.bucket -cne 'osm-artifacts' -or $v.endpoint -cnotmatch '\Ahttps://[0-9a-f]{32}\.r2\.cloudflarestorage\.com\z' -or $v.prefix -cne 'development/evidence/v2/' -or $v.policy -cne 'task-end-30d-v1') { throw 'unsupported-schema' }
+        Assert-Hex $v.repositoryId 64; Assert-Hex $v.deploymentId 32
+    }catch{if($_.Exception.Message -ceq 'unsupported-schema'){throw};throw 'invalid-evidence-config'}
+    # Root discovery failures keep their own code; only the receipt read is a deployment fact.
     $root=Get-EvidenceDeploymentRoot
-    $receipt=Read-ArtifactJson ([IO.Path]::Combine($root,$v.deploymentId+'.json'))
-    Assert-Fields $receipt.Data @('schemaVersion','deploymentId','repositoryId','configSha256','baselineRecordId','baselineSha256','ownerObservationId','ownerObservationSha256')
+    try{
+        $receipt=Read-ArtifactJson ([IO.Path]::Combine($root,$v.deploymentId+'.json'))
+        Assert-Fields $receipt.Data @('schemaVersion','deploymentId','repositoryId','configSha256','baselineRecordId','baselineSha256','ownerObservationId','ownerObservationSha256')
+    }catch{throw 'unknown-deployment'}
     if($receipt.Data.schemaVersion -ne 2 -or $receipt.Data.deploymentId -cne $v.deploymentId -or $receipt.Data.repositoryId -cne $v.repositoryId -or $receipt.Data.configSha256 -cne $item.Sha256){throw 'unknown-deployment'}
     foreach($name in @('baselineSha256','ownerObservationSha256')){Assert-Hex $receipt.Data.$name 64}
     foreach($name in @('baselineRecordId','ownerObservationId')){if($receipt.Data.$name -cnotmatch '\A[A-Za-z0-9-]{1,128}\z'){throw 'unknown-deployment'}}
