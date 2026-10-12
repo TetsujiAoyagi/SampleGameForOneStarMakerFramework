@@ -14,7 +14,7 @@
 - expires: 2026-11-12 または置換 revision の成立時。期限で自動採用・実装しない。
 - harvest to: `protocol/debugsocket/README.md` の command 契約、`unity/Assets/README.md` の DebugStudio 案内。実装後の現況だけを反映する。
 - task: `debugstudio-property-write`。通常 Workflow の開始を記録済み。今回の Phase 停止を task 全体の終了に変換しない。
-- Phase A snapshot の取得案内・状態: r3 凍結正本は本ブランチの A3 commit。本担当がそこから固定 snapshot と manifest を生成し、既存 Evidence 保存経路へ渡す。保存・取得案内はこの会話で引き渡す（現時点は生成・保存前）。C' 用には §5.5〜5.6 の所見を含めない。
+- Phase A snapshot の取得案内・状態: 凍結 commit `876a37c14353951f560552c13b30718056c527d0` から所見を除いた r3 snapshot と manifest を生成し、既存 private Evidence 保存先へ保存済み。取得案内はこの会話の「A3 r3 固定入力の取得案内」から次担当へ渡す。次の担当 session での fetch / 必須内容閲覧は未実施・引渡し未完了。保存側の読戻しだけを引渡し完了にしない。
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 全て未生成。作成 Phase の担当が既存引渡し先へ案内する。
 - PR: 未作成（依頼範囲外）。後日作る場合も base は `develop`。
 
@@ -192,7 +192,7 @@ SetActive に伴う callback の作用全体を transaction にすることは�
 
 スライスの GO は I1〜I5 と S1〜S3 の証拠が全て揃い、判定 C と最終 C' が揃う場合だけ。未実装・未検証・操作経路未成立は NO-GO / 未判定として残す。この通常実装スライスに CONDITIONAL ACCEPT は使わない。最低条件の達成後は §1.4 / §1.5 の機能を追加せず終了する。§1.5-1 が GO に到達しない間、本スライスは高コスト証拠を取得できず、GO にならない。その状態を本スライスの成功へ読み替えない。
 
-A3 後の blocker は、凍結条件または常時契約と一次証拠を明記する。不変条件への違反は具体的な順序も示す。それ以外は後続入力にする。条件・所有者・依存・公開面の変更が必要なら Phase A を新 revision で再開する。A3 後の例外承認・決定記録は現在なし（未到達）。
+A3 後の blocker は、凍結条件または常時契約と一次証拠を明記する。不変条件への違反は具体的な順序も示す。それ以外は後続入力にする。条件・所有者・依存・公開面の変更が必要なら Phase A を新 revision で再開する。A3 後の例外承認・決定記録は現在なし（凍結直後）。
 
 ### 2.6 A3 の採用案（D0〜D7）
 
