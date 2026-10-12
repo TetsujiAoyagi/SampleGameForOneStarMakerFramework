@@ -105,9 +105,9 @@ r6の方針改訂だけではリセットを開始しない。スライスAの�
 
 ### B. 開発Buildの保存と件数管理
 
-単一Build publishは[PR #111](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/111)で実装し、offline 60caseと既存実Build 266fileのR2往復・全hash一致を確認、正式C/C′を完了した。現在の入口・成功確定・上限・限界は[Artifacts README](../../tools/Artifacts/README.md#開発build-1件の保存と取得)へ集約し、完了スライスHANDOFFはharvestした。系列全件一覧・利用中状態・実DELETEとN件清掃は後続に残し、準備helper失敗による未記録・未送信private残置も有限清掃への入力とする。
+単一Build publishは[PR #111](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/111)で実装し、offline 60caseと既存実Build 266fileのR2往復・全hash一致を確認、正式C/C′を完了した。現在の入口・成功確定・上限・限界は[Artifacts README](../../tools/Artifacts/README.md#開発build-1件の保存と取得)へ集約し、完了スライスHANDOFFはharvestした。利用中状態・実DELETEとN件清掃は下記のPR #119で接続した（R2上の系列全件一覧は後続のまま）。準備helper失敗による未記録・未送信private残置も有限清掃への入力とする。
 
-最初の最小スライスは[PR #110](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/110)の純粋な保持選別policyです。1系列のsnapshotとNから保持・削除候補・保留を決める内部APIとoffline検証は実装済みで、契約は[Artifacts README](../../tools/Artifacts/README.md#開発buildの件数保持policy)へ集約しています。系列・利用状態の収集、policyへの運用接続、実DELETEは後続の個別Phase Aへ残します。
+最初の最小スライスは[PR #110](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/110)の純粋な保持選別policyです。1系列のsnapshotとNから保持・削除候補・保留を決める内部APIとoffline検証は実装済みで、契約は[Artifacts README](../../tools/Artifacts/README.md#開発buildの件数保持policy)へ集約しています。系列・利用状態の収集、policyへの運用接続、実DELETEは下記のPR #119で接続しました。
 
 Player Buildからpublishまでの接続は[PR #115](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/115)の `build collect` で完了しました（正式C GO。C′の証拠不足はownerによるR2の直接観測で解消し、Phase Dで採用）。BS4の配布形Player 1件を `<ArtifactsRoot>/players/<project>/<target>/<configuration>/<buildId>/` へ退避し、`build-info.json` とselectionを生成して既存publishへ渡します。判定用の実Player 266 fileで、実R2往復と再実行時のPUT無しを確認しました。現在の操作は[Artifacts README](../../tools/Artifacts/README.md#bs4-player出力の退避と保存build-collect)にあります。このスライスから後続へ送った問いは次のとおりです。
 
@@ -132,13 +132,26 @@ Player Buildからpublishまでの接続は[PR #115](https://github.com/TetsujiA
 - 診断の改善 → 同上の入力。失敗時も `publish` 表示が `published` になる点、相対path 240字超が `unconfirmed` で返る点、build-configの検証と複写が二度読みである点を含む。並行実行の敗者が一致時も `stage-conflict` で止まる仕様も同じく入力とする。
 - Windows以外のtarget値 → transport manifest v1の固定`target`とDIST cacheの配置にtargetの階層が無く対応targetを1つに固定している点の拡張として、扱うスライスは未定（r7は前提として明記した）。端末性能別の系列値は§2の開発Contentで受け止めた。
 
+Buildの件数保持の運用接続は[PR #119](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/119)の `build cleanup`／`use`／`release` で完了した（判定C GO。C′の残り2件はownerが非阻害と判断）。Build系列1つについて、このPCのreceiptと有限期限の利用中保護を集めてpolicyに渡し、Nを超えた古いBuildのR2 objectだけを「削除意図→DELETE→GET 404 `NoSuchKey`→削除済み記録」で消す。読めない記録・未知のentry・時計のずれでは系列全体を止める。実R2で最古1件だけの削除と再実行時の送信0を確認した。操作・契約・既知の限界は[Artifacts README](../../tools/Artifacts/README.md#開発buildの件数清掃build-cleanup--use--release)にある。HANDOFFはharvestして削除した。決めたことと後続への入力は次のとおり。
+
+- 決めたこと: Nは10の定数（CLI・build-configから変えない）。保護はこのPCの明示記録（最長90日、`build use`／`build release`）とこのPCでの取得中のaccess lockだけ。件数保持はR2のobjectにだけ効き、ローカルの記録は削除済みとして残す。Build DELETEはtransport入口で `BuildRetentionDelete=$true` の印付きrequestだけを通し、Content DELETEは拒否のまま。1回の実行はDELETE 20回・600秒まで。
+- 後続への入力:
+  - Contentの実DELETE、保持中Player（ArtifactsRootの `build-info.json`）からのContent保護の収集、R2のBuildとArtifactsRootのPlayerのどちらを「保持中」とみなすか、確定記録との関係 → 新規「Content件数保持の運用接続」。
+  - ArtifactsRootの `players/`・`content/` の件数清掃、`.staging` 回収、ArtifactsRootの所在の登録 → 「ArtifactsRootの件数清掃と `.staging` 回収」（独立スライスとして扱う）。
+  - 系列の退役 → 件数保持の運用接続の残り（Content側と同時に扱う）。R2に検証用系列 `retention-probe/windows-x64-player/probe-1`〜`probe-4` の小さなobjectが計40件残っている（退役手段が無いことはA3で受け入れ済み）。
+  - 自動起動（scheduler接続）とNの系列ごとの設定 → 新規「件数清掃の自動起動」。
+  - 単調なpublish順序の記録（時計巻戻りへの耐性） → Content確定記録。
+  - 「DELETE → GET 404 → 記録」の共通primitive化（Evidence清掃・reset・Build清掃・将来のContent） → Content件数保持の運用接続のA1。
+  - receiptの無い（未完了の）Buildの `intent.json` をどこまで検査するか（AC2の分類とAC4(a)の文言の隙間。C′の指摘でownerが現スライスでは直さないと判断） → 件数保持の運用接続の残り。
+  - 別PCのpublishを数える、R2一覧、孤児回収（storeを失ったPCのBuildを含む） → Contentの容量上限の孤児回収と、R2一覧の要否。
+
 既存Build出力を普通のpath/metadataとして受け、成功publish、別process fetch/hash、最新N件と利用中の保持、失敗publish時の既存保持を確認する。Nの既定値案10件、系列識別、容量上限をBのA3で固定する。大容量に必要なmultipartは対象サイズに応じて扱い、BuildSystemの作り直しを前提にしない。
 
 ### C. 別host / Cloud
 
 必要な環境から個別に、到達性、限定grant、無人保存/取得、ログ/画像閲覧を確認する。未成立は当該環境の未対応として残し、ローカル利用を止めない。親鍵を通常file/promptへ複写せず、platform仕様は着手時に再確認する。
 
-目的はCloud Agent・別PCからのEvidence閲覧で、Evidenceを公開しない（2026-10-11 owner）。論点はtokenの受け渡し方法。第一候補は、受け取る側の環境に読み取り専用・bucket限定のtokenを登録する方式。署名付きURLは、発行主体（誰が親鍵を持って発行するか）とURLを届ける経路が未解決。
+目的はCloud Agent・別PCからのEvidence閲覧で、Evidenceを公開しない（2026-10-11 owner）。Buildの件数清掃（PR #119）からの入力: 別PC・Cloudと共有する利用中保護（R2上の保護記録）、Evidenceが参照するBuildの保護、Cloudに削除権を渡さないこと。論点はtokenの受け渡し方法。第一候補は、受け取る側の環境に読み取り専用・bucket限定のtokenを登録する方式。署名付きURLは、発行主体（誰が親鍵を持って発行するか）とURLを届ける経路が未解決。
 
 ### D. BuildSystem / Harness接続
 
