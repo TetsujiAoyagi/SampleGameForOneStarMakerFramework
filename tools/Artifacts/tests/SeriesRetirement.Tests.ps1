@@ -147,8 +147,8 @@ function Assert-Unchanged($Before,$After,[string]$AllowNew,[string]$Label){
     foreach($k in $After.Keys){if(-not $Before.ContainsKey($k)){Assert ($AllowNew -and $k -match $AllowNew) "$Label new file: $k"}}
 }
 function Get-Fields($Result){@($Result.PSObject.Properties.Name|Sort-Object) -join ','}
-$buildFields='candidates,deleted,deleting,excessCount,foreignInvalid,held,keepCount,outcomes,reasonCode,remaining,requests,retained,seriesId,status'
-$contentFields='candidates,deleted,deleting,excessCount,held,keepCount,outcomes,protected,reasonCode,remaining,requests,retained,seriesId,status'
+$buildFields='candidates,deleted,deleting,excessCount,foreignInvalid,held,keepCount,mode,outcomes,reasonCode,remaining,requests,retained,seriesId,status'
+$contentFields='candidates,deleted,deleting,excessCount,held,keepCount,mode,outcomes,protected,reasonCode,remaining,requests,retained,seriesId,status'
 function Get-Leak($Result,$F){$json=ConvertTo-Json -InputObject $Result -Compress -Depth 20;return $json.Contains($F.Root) -or $json.Contains('https://') -or $json.Contains('r2.cloudflarestorage')}
 function Test-Unknown([scriptblock]$Read){try{$null=& $Read;return $false}catch{return $_.Exception.Message -ceq 'retirement-unknown'}}
 function Get-RetireChildArgs($F,[string]$Cli='',[string]$WriteRecord='',[string]$Decision='',[string]$NetworkMode='normal',[string]$Barrier='',[string]$Ready='',[string]$Go='',[int]$KeepCount=10){
@@ -259,15 +259,16 @@ foreach($caseName in $selected){
                 $x=Retire-Build $f -DryRun
                 Assert ($x.status -ceq 'passed' -and $x.reasonCode -ceq 'candidates-found' -and $x.mode -ceq 'retirement' -and $null -eq $x.retirement -and $null -eq $x.keepCount) "build dry-run: $(ConvertTo-Json $x -Compress -Depth 6)"
                 Assert ((@($x.candidates.buildIds) -join ',') -ceq (@($ids[2],$ids[1],$ids[0]) -join ',') -and $x.remaining -eq 3) 'dry-run candidates'
-                Assert ((Get-Fields $x) -ceq (@(($buildFields+',mode,retirement').Split(',')|Sort-Object) -join ',')) "dry-run fields: $(Get-Fields $x)"
+                Assert ((Get-Fields $x) -ceq (@(($buildFields+',retirement,unattributed').Split(',')|Sort-Object) -join ',')) "dry-run fields: $(Get-Fields $x)"
                 $y=Retire-Content $f -DryRun
                 Assert ($y.status -ceq 'passed' -and $y.mode -ceq 'retirement' -and $null -eq $y.retirement -and $y.candidates.count -eq 2) 'content dry-run'
-                Assert ((Get-Fields $y) -ceq (@(($contentFields+',mode,retirement').Split(',')|Sort-Object) -join ',')) "content dry-run fields: $(Get-Fields $y)"
+                Assert ((Get-Fields $y) -ceq (@(($contentFields+',retirement').Split(',')|Sort-Object) -join ',')) "content dry-run fields: $(Get-Fields $y)"
                 Assert ($f.Log.Count -eq 0) 'dry-run sent'
                 Assert (-not [IO.Directory]::Exists($f.O['retirements-v1'])) 'dry-run wrote a record'
                 Assert-Unchanged $store (Get-FileMap $f.O['builds-v1']) '' 'build store';Assert-Unchanged $cstore (Get-FileMap $f.O['contents-v1']) '' 'content store'
-                # 退役していない系列の件数清掃は従来の結果の形（modeを出さない）。
+                # 退役していない系列の件数清掃は従来の結果の形に mode='retention' を足しただけ。
                 Assert ((Get-Fields (Clean-Build $f -DryRun)) -ceq $buildFields -and (Get-Fields (Clean-Content $f -DryRun)) -ceq $contentFields) 'retention result shape changed'
+                Assert ((Clean-Build $f -DryRun).mode -ceq 'retention' -and (Clean-Content $f -DryRun).mode -ceq 'retention') 'retention mode field'
             }
             # S1・S2・S3・AC3・AC6・AC7・I7: 保護中を残してretired-held、期限切れ後にretired、再実行は送信0、記録は最初のまま。
             'build-retire-complete'{
@@ -279,7 +280,7 @@ foreach($caseName in $selected){
                 Assert ((@($x.outcomes|ForEach-Object buildId) -join ',') -ceq (@($ids[3],$ids[2],$ids[1]) -join ',')) 'not oldest first'
                 Assert ($x.requests.delete -eq 3 -and $x.requests.get -eq 3) 'requests'
                 Assert ((Test-Remote $f (Get-BuildKey2 $ids[0])) -and -not (Test-Remote $f (Get-BuildKey2 $ids[1])) -and -not (Test-Remote $f (Get-BuildKey2 $ids[3]))) 'remote objects'
-                Assert ((Get-Fields $x) -ceq (@(($buildFields+',mode,retirement').Split(',')|Sort-Object) -join ',')) "fields: $(Get-Fields $x)"
+                Assert ((Get-Fields $x) -ceq (@(($buildFields+',retirement,unattributed').Split(',')|Sort-Object) -join ',')) "fields: $(Get-Fields $x)"
                 Assert (-not (Get-Leak $x $f)) 'result leaked path or endpoint'
                 foreach($id in $ids[1..3]){Assert (@([IO.Directory]::EnumerateFiles([IO.Path]::Combine((Get-BuildDir2 $id),'deletion'))|Where-Object {$_ -like '*.deleted.json'}).Count -eq 1) 'deleted record'}
                 $record=[IO.File]::ReadAllBytes((Get-BuildRecord $f))
@@ -296,6 +297,15 @@ foreach($caseName in $selected){
                 $inc=New-Build $f $f.Now -IntentOnly
                 $w=Retire-Build $f
                 Assert ($w.reasonCode -ceq 'retired-held' -and $w.requests.delete -eq 0 -and @($w.held.builds|Where-Object {$_.buildId -ceq $inc -and $_.reasonCode -ceq 'publish-incomplete'}).Count -eq 1 -and (Test-Remote $f (Get-BuildKey2 $inc))) 'incomplete held'
+                Assert ($w.unattributed.count -eq 0) 'attributed incomplete counted as unattributed'
+                # 系列を特定できない未完了（予約だけ・receiptも読めないBuild）は判定に数えず、heldにも混ぜず、unattributedに件数だけ出す。
+                # retiredとheld.countが食い違わない。件数保持では従来どおりheldに入る。
+                $rv=[IO.Path]::Combine((Get-BuildRoot),$repo,('9'*32)+'.reserved');[IO.File]::WriteAllBytes($rv,[byte[]]@());Set-ArtifactAcl $rv $false
+                $null=Remove-Item -LiteralPath (Get-BuildDir2 $inc) -Recurse -Force;Remove-Item -LiteralPath ((Get-BuildDir2 $inc)+".reserved") -Force -ErrorAction SilentlyContinue
+                $u=Retire-Build $f
+                Assert ($u.status -ceq 'passed' -and $u.reasonCode -ceq 'retired' -and $u.held.count -eq 0 -and $u.unattributed.count -eq 1 -and $u.requests.delete -eq 0) "unattributed: $(ConvertTo-Json $u -Compress -Depth 6)"
+                $k=Clean-Build $f
+                Assert ($k.mode -ceq 'retirement' -and $k.unattributed.count -eq 1 -and $k.held.count -eq 0) 'cleanup after retire unattributed'
             }
             # AC3・I1・I3・AC8: 退役記録が確定する前・不明なときは何も送らない。cleanupも件数保持へ戻らない。
             'record-before-delete'{
@@ -448,7 +458,7 @@ foreach($caseName in $selected){
                 Assert ((@($x.outcomes|ForEach-Object revision) -join ',') -ceq (@($revs[2],$revs[1]) -join ',')) 'content not oldest first'
                 Assert ($x.requests.delete -eq 6 -and $x.requests.get -eq 10) "content requests: $($x.requests.delete) $($x.requests.get)"
                 Assert ((Get-Left $f $revs[0]) -eq 3 -and (Get-Left $f $revs[1]) -eq 0 -and (Get-Left $f $revs[2]) -eq 0) 'content remote'
-                Assert ((Get-Fields $x) -ceq (@(($contentFields+',mode,retirement').Split(',')|Sort-Object) -join ',')) "content fields: $(Get-Fields $x)"
+                Assert ((Get-Fields $x) -ceq (@(($contentFields+',retirement').Split(',')|Sort-Object) -join ',')) "content fields: $(Get-Fields $x)"
                 Assert (-not (Get-Leak $x $f)) 'content result leaked'
                 [IO.Directory]::Delete($player,$true)
                 $f.Now=$f.Now.AddHours(1);$y=Retire-Content $f -Decision $d2

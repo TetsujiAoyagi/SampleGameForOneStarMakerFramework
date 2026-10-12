@@ -122,6 +122,7 @@ function Set-BuildCleanupMode($Result,[bool]$Retire,[string]$DecisionId,[bool]$W
     if($state.State -ceq 'none' -and $Retire -and $Write){$state=Write-SeriesRetirement 'build' $run.Config.Data.repositoryId $tokens $DecisionId (& $script:Clock)}
     if($state.State -ceq 'none' -and -not $Retire){return}
     $run.Retirement=$true;$Result.mode='retirement';$Result.keepCount=$null
+    if(-not $Result.Contains('unattributed')){$Result.unattributed=[pscustomobject][ordered]@{count=0}}
     $Result.retirement=if($state.Record){[pscustomobject][ordered]@{retiredAt=$state.Record.retiredAt;decision=$state.Record.decision}}else{$null}
 }
 function Set-BuildCleanupClassification($Result,$Snapshot,$Decision){
@@ -129,7 +130,10 @@ function Set-BuildCleanupClassification($Result,$Snapshot,$Decision){
     $Result.excessCount=$Decision.excessCount
     $Result.retained=& $list @($Decision.retainedBuildIds)
     $Result.candidates=& $list @($Decision.deleteCandidateBuildIds)
-    $held=@($Decision.heldBuilds)+@($Snapshot.held.ToArray())
+    # 系列不明の未完了は退役の完了判定に数えないので、退役ではheldに混ぜず別fieldに件数だけ出す
+    # （held.countとretiredの表示が食い違わないようにする）。件数保持ではこれまでどおりheldに入る。
+    $held=@(if($script:Run.Retirement){@($Decision.heldBuilds)}else{@($Decision.heldBuilds)+@($Snapshot.held.ToArray())})
+    if($script:Run.Retirement){$Result.unattributed=[pscustomobject][ordered]@{count=$Snapshot.held.Count}}
     $Result.held=[pscustomobject][ordered]@{count=$held.Count;builds=@($held)}
     $Result.deleting=& $list @($Snapshot.deleting|ForEach-Object buildId)
     $Result.deleted=& $list @($Snapshot.deleted.ToArray())
@@ -137,15 +141,14 @@ function Set-BuildCleanupClassification($Result,$Snapshot,$Decision){
 }
 # 結果は非秘密の固定fieldだけ。endpoint・ローカルpath・例外本文・SDK応答本文を出さない。
 # status: passed（完了。within-limit・protected-over-limitを含む）/ partial（未解決・残りあり）/ blocked / failed
-# 退役（$Retire、build retire）と退役済みの系列では、結果に mode='retirement' と retirement（retiredAt・decision）を
-# 足し、keepCountをnullにする。passedの理由は retired（全件削除済み）／retired-held（保護中・未完了が残る）。
-# 件数保持の結果のfieldは変えない（modeを出さないことが件数保持を表す）。
+# 結果のmodeは件数保持なら'retention'、退役（$Retire、build retire）と退役済みの系列なら'retirement'で、
+# 後者はretirement（retiredAt・decision）とunattributed（系列不明の未完了の件数）を足し、keepCountをnullにする。passedの理由は retired（全件削除済み）／retired-held（保護中・未完了が残る）。
 function Invoke-BuildCleanup([string]$ConfigPath,[string]$Project,[string]$Target,[string]$Configuration,[bool]$DryRun,[bool]$Retire=$false,[string]$DecisionId=''){
     $empty=[pscustomobject][ordered]@{count=0;buildIds=@()}
-    $r=[ordered]@{status='failed';reasonCode='unconfirmed';seriesId=$null;keepCount=$script:KeepCount;excessCount=$null
+    $r=[ordered]@{status='failed';reasonCode='unconfirmed';seriesId=$null;keepCount=$script:KeepCount;excessCount=$null;mode='retention'
         retained=$empty;candidates=$empty;held=[pscustomobject][ordered]@{count=0;builds=@()};deleting=$empty;deleted=$empty
         remaining=0;foreignInvalid=0;outcomes=@();requests=[ordered]@{delete=0;get=0}}
-    if($Retire){$r.mode='retirement';$r.keepCount=$null;$r.retirement=$null}
+    if($Retire){$r.mode='retirement';$r.keepCount=$null;$r.retirement=$null;$r.unattributed=[pscustomobject][ordered]@{count=0}}
     $lock=$null;$outcomes=[Collections.Generic.List[object]]::new()
     $script:Run=[pscustomobject]@{Config=$null;Project=$Project;Target=$Target;Configuration=$Configuration;Timer=[Diagnostics.Stopwatch]::StartNew();Result=$r;DeleteCount=0;Generation=$null;Operation=$null;Retirement=$false}
     try{

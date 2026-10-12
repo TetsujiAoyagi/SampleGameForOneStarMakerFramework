@@ -180,11 +180,11 @@ function Set-ContentCleanupClassification($Result,$Snapshot,$Decision){
 }
 # 結果は非秘密の固定fieldだけ。endpoint・ローカルpath・例外本文・SDK応答本文を出さない。
 # status: passed（完了。within-limit・protected-over-limitを含む）/ partial（未解決・残りあり）/ blocked / failed
-# 退役（$Retire、content retire）と退役済みの系列の結果は BuildCleanup と同じく mode・retirement を足し、
-# keepCountをnullにする（passedの理由は retired／retired-held）。件数保持の結果のfieldは変えない。
+# 結果のmodeは件数保持なら'retention'、退役（$Retire、content retire）と退役済みの系列なら'retirement'で、
+# 後者はBuildCleanupと同じくretirementを足し、keepCountをnullにする（passedの理由は retired／retired-held）。
 function Invoke-ContentCleanup([string]$ConfigPath,[string]$ContentSet,[string]$Target,[string]$ArtifactsRoot,[bool]$DryRun,[bool]$Retire=$false,[string]$DecisionId=''){
     $empty=[pscustomobject][ordered]@{count=0;revisions=@()}
-    $r=[ordered]@{status='failed';reasonCode='unconfirmed';seriesId=$null;keepCount=$script:KeepCount;excessCount=$null
+    $r=[ordered]@{status='failed';reasonCode='unconfirmed';seriesId=$null;keepCount=$script:KeepCount;excessCount=$null;mode='retention'
         retained=$empty;candidates=$empty;held=$empty;protected=$empty;deleting=$empty;deleted=$empty
         remaining=0;outcomes=@();requests=[ordered]@{delete=0;get=0}}
     if($Retire){$r.mode='retirement';$r.keepCount=$null;$r.retirement=$null}
