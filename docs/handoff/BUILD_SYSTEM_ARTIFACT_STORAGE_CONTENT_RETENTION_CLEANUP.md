@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（A2 1 巡目を反映した r2）
+- status: `B`（Phase A revision 1 を A3 で凍結。次は Phase B）
 - branch: `codex/artifact-storage-content-retention-cleanup`
 - implementation base commit: `7a75cac40fc9ba8a1dd51f0ab4fda07c1f9edc41`（`develop`。PR #122 を含む。A3 で凍結時の `develop` と照合し直す）
 - implementation head commit: 未固定（Phase B で記録）
@@ -12,11 +12,11 @@
 - created: 2026-10-12
 - expires: 2026-11-09 または置換 revision
 - harvest to: 操作と契約を `tools/Artifacts/README.md`（新節「開発Contentの件数清掃（content cleanup）」と Content 保存節の既知の限界の更新）、program の状態と後続への移送を `docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 B へ。完了時に本書を削除する。
-- Phase A snapshot の取得案内・状態: 未生成
+- Phase A snapshot の取得案内・状態: 未保存（A3 凍結 commit の本書。判定 C の evidence bundle と C′ blind bundle に収録して保存する）
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: 次は A2（独立レビュー）。A2 担当は §0〜§5 の入力版（commit と sha256 を §5 に記録）だけを読み、互いの指摘を見ない。実 R2・資格情報・Unity には触れない。
+- 引継ぎ票: 次は Phase B（実装）。凍結した Phase A revision 1 の本書 §2〜§5 だけを正とし、§4 の順序で実装する。implementation base は上記。必要な権限: ファイル編集とローカルの offline テスト実行だけ（実 R2・資格情報・Unity・`%LOCALAPPDATA%` の実 store には触れない）。停止規則: §4 の差し戻し条件に当たれば実装を止めて Phase A へ返す。出口: §6 を書き、implementation head を記録して push する。判定 C・C′ は起動しない。
 
 入力の正本は program §2「開発Content」と §4 B（PR #118 の「決めたこと」「後続への入力」、PR #119 の「決めたこと」「後続への入力」）、§4 A 末尾の PR #121 の段落、`tools/Artifacts/README.md` の「開発Buildの件数清掃」と「開発Content 1件の保存と取得」、および現行コード。program で固定済みの契約は §1 に転記し、再議論しない。
 
@@ -132,7 +132,7 @@ Content 系列 1 つについて、このPCの成功記録と保持中 Player �
   | AC1 | `content cleanup --profile osm --config <content-config> --content-set <s> --target <t> [--artifacts-root <root>] [--dry-run]` は 1 系列だけを対象にする。`--content-set`・`--target` は `Get-ContentSeries` の規則で何も読む前に検査し、不正なら `invalid-content-identity`／`unsupported-series`。ArtifactsRoot は `content collect` と同じ規則（`--artifacts-root` かユーザー環境変数 `OSM_ARTIFACTS_ROOT`、既定値なし）で、どちらも無ければ `artifacts-root-not-configured` で何も読まない（保護源を集められないため。I2） | I2・I3 | offline |
   | AC2 | catalog は `contents-v1/<repo>/<contentSet>/<target>/` 直下を列挙し、revision 書式の directory と、本スライスが作る `cleanup.lock` だけを既知とする。revision directory 内の既知 entry は `receipt.json`・`intent.json`・`publish.lock`・`deletion/`。receipt が検査を通れば成功（`publishedAt` は receipt の値）、receipt が無く intent があれば未完了（`publish-incomplete`）、どちらも無ければ未完了。未完了は N に数えない。未知の entry、reparse、ACL 不一致、列挙失敗、receipt の検査失敗（receipt があって読めない）があれば系列を `catalog-incomplete` で、成功 revision の `deletion/` の記録が読めない（形・連番・hash の結び付き・観測の検査失敗、ACL 不一致）ときは `delete-record-invalid` で blocked にし、新しい試行を始めない。系列 directory が無ければ空（`within-limit`） | I2・I3 | offline |
   | AC3 | 系列に `publishedAt` が現在より未来の成功記録があれば `clock-skew` で blocked にする。「最新」は記録した `publishedAt` の降順で、同時刻は revision の Ordinal **昇順を新しい側**とする（`Get-BuildRetentionDecision` の既存の全順序。削除候補はその逆順で、最古から）。 | I2・I3 | offline |
-  | AC4 | 保護の収集（U1。`ContentProtection` が所有）: (a) `builds-v1/<repo>/` 直下の entry 名 `<32hex>`（directory）と `<32hex>.reserved` の buildId のうち、`Read-BuildDeletionState` が `deleted` と**読めた**もの以外（directory の ACL 不一致・削除記録の破損など状態を確認できない ID は保護に残す）、(b) ArtifactsRoot の `players/<project>/<target>/<configuration>/` 直下の entry 名のうち、`<32hex>` と `build collect` の staging 名 `.<32hex>.<32hex>.staging` の先頭の buildId（列挙は配置の所有者 `BuildStage` が公開する読取関数で行う）。revision の末尾 32 hex がこの集合に含まれれば保護（`inUse=$true`）。名前が見えた ID は状態にかかわらず保護に数え（消さない側）、32 hex を取り出せない名前は保護に寄与しない。(a) の root・repo、(b) の `players/` と各階層の**列挙そのもの**の失敗・reparse は `protection-unknown` で blocked。`builds-v1` の repo directory や ArtifactsRoot の `players/` が無いことは「保護なし」。失敗・未完了・予約だけの Build も保護に数えるのは意図した過剰保護（publish 途中の Player を守るため）。 | I1・I2 | offline |
+  | AC4 | 保護の収集（U1。`ContentProtection` が所有）: (a) `builds-v1/<repo>/` 直下の entry 名 `<32hex>`（directory）と `<32hex>.reserved` の buildId のうち、`Read-BuildDeletionState` が `deleted` と**読めた**もの以外（directory の ACL 不一致・削除記録の破損など状態を確認できない ID は保護に残す）、(b) ArtifactsRoot の `players/<project>/<target>/<configuration>/` 直下の entry 名のうち、`<32hex>` と `build collect` の staging 名 `.<32hex>.<32hex>.staging` の先頭の buildId（列挙は配置の所有者 `BuildStage` が公開する読取関数で行う）。revision の末尾 32 hex がこの集合に含まれれば保護（`inUse=$true`）。(a) で除くのは `deleted` と読めた ID だけで、状態を読めない ID は保護に残す（消さない側）。(b) は名前が見えた ID を全て保護に数える。32 hex を取り出せない名前は保護に寄与しない。(a) の root・repo、(b) の `players/` と各階層の**列挙そのもの**の失敗・reparse は `protection-unknown` で blocked。`builds-v1` の repo directory や ArtifactsRoot の `players/` が無いことは「保護なし」。失敗・未完了・予約だけの Build も保護に数えるのは意図した過剰保護（publish 途中の Player を守るため）。 | I1・I2 | offline |
   | AC5 | N は定数 10（`ContentCleanup` 内の 1 箇所。テストだけ注入可能）。CLI・content-config から変えない。保護だけで N を超える間は `excessCount` を出し exit 0（S2）。 | S1・S2 | offline |
   | AC6 | `--dry-run` は lock を取らず、記録・network に触れず、実行時と同じ catalog・保護収集・policy で `retained`／`candidates`／`held`／`deleting`／`deleted` の件数と ID、`excessCount`、`protected`（保護された revision の ID）、`reasonCode` を返す。 | I3 | offline |
   | AC7 | 実行時は系列 lock（`<target>/cleanup.lock` を `FileShare.None`・非継承で開いた handle）を取り、取れなければ `cleanup-in-progress` で何もしない。lock 取得後に catalog と保護を取り直して policy を再評価し、lock 前・dry-run の結果を使わない。各候補の試行では revision の `publish.lock` を取った後、手順 1 の直前に catalog と保護を取り直し、なお候補の場合だけ始める。 | I1・I2・I3 | offline（別 process を signal で同期） |
@@ -152,14 +152,14 @@ Content 系列 1 つについて、このPCの成功記録と保持中 Player �
 
   | 手順 | 前提 | 行うこと | 書く記録 | 予算の判定 | 失敗・超過のとき |
   |---|---|---|---|---|---|
-  | 1 開始 | lock 取得後に取り直した snapshot・保護で候補（AC7）、`publish.lock` を取得（AC8）、DELETE 上限に余裕 | 試行を開始 | `<n>.intent.json`（revision、`manifestSha256`、receipt の `intentSha256`、消す key の一覧（`transport.json` を先頭、続いて intent の entries の順）、`intentAt`） | rename 直前 | 書かない。何も送らない |
+  | 1 開始 | revision の `publish.lock` を取得（AC8）した**後に**取り直した snapshot・保護で、なお候補（AC7）。DELETE 上限に余裕 | 試行を開始 | `<n>.intent.json`（revision、`manifestSha256`、receipt の `intentSha256`、消す key の一覧（`transport.json` を先頭、続いて intent の entries の順）、`intentAt`） | rename 直前 | 書かない。何も送らない |
   | 2 DELETE manifest | 手順 1 の記録が確定 | `transport.json` へ DELETE を 1 回 | — | 送信直前 | 送らない。未解決（次回は再開） |
   | 3 送信観測 | 応答を受けた（成否を問わない） | 観測を残す | `<n>.sent.json` | rename 直前 | 書かない。未解決（AC10 (c)）。2xx でなければ書いた後で AC10 (a) |
   | 4 確認 GET manifest | 手順 3 まで、または再開 | `transport.json` を GET | — | 送信直前 | 送らない。未解決 |
   | 5 確定 | GET が `Test-ArtifactMissing` | 確定点を記録 | `<n>.committed.json`（intent・sent の hash または `deleteObservation: unknown`、GET の観測） | rename 直前 | 書かない。未解決（次回の GET で確定） |
   | 6 取下げ | GET が同じ key・generation の `Test-ArtifactSuccess`（`transport.json` が残っている）。それ以外は AC10 (b) | 試行を閉じる | `<n>.abandoned.json`（intent の hash、GET の観測） | rename 直前 | 書かない。未解決 |
   | 7 残り object | 手順 5 が確定 | intent の一覧の 2 件目以降を順に: GET → 404 なら済み、検証済み 2xx なら DELETE 1 回 → GET。各 key の最終 GET が `Test-ArtifactMissing` であること | — | 各送信直前 | 未解決のまま止める（AC10）。次回は手順 7 を最初から（GET が先なので済んだ key へ DELETE を送らない） |
-  | 8 削除済み | 手順 7 で全 key が 404 | 試行を閉じる | `<n>.deleted.json`（committed の hash、key ごとの最終 GET の観測と、この run で DELETE を送った key の送信観測） | rename 直前 | 書かない。未解決（次回は手順 7 から） |
+  | 8 削除済み | 手順 7 で全 key が 404 | 試行を閉じる | `<n>.deleted.json`（committed の hash と、手順 7 でこの試行が送った全ての GET・DELETE の観測を送信順に。各 key の最後の観測が GET 404 であること） | rename 直前 | 書かない。未解決（次回は手順 7 から） |
   | 再開 | 未解決の試行あり | committed があれば手順 7 から。無ければ手順 4 から | — | — | 判定できなければ AC10 |
 
   - 手順 6 の後、その revision を成功行に戻し、完全な snapshot で policy を計算し直す。今も候補なら新しい n で手順 1 から。通常の run で手順 4 が 2xx（DELETE 2xx の後も残る）なら手順 6 で閉じ、その run では同じ revision に新しい試行を始めず `delete-unconfirmed`。
@@ -202,7 +202,7 @@ Content 系列 1 つについて、このPCの成功記録と保持中 Player �
   - 資格情報は既存の `Invoke-CredentialTransport` 経由だけ。鍵を引数・ログ・ファイルへ出さない。
   - 通常 writer に bucket 管理権限を足さず、403 を rule 変更で突破しない。
   - 既存の receipt・intent を書き換えない。追加する記録は不変（CreateNew + rename）。
-- **未決事項:** U1〜U12（§3 に推奨案）。
+- **未決事項:** なし。U1〜U12 は A3 で推奨案どおりに決定した（§3、§5 の A3 欄）。
 
 ## 3. 責務マップ
 
@@ -216,7 +216,7 @@ Content 系列 1 つについて、このPCの成功記録と保持中 Player �
 | `ContentProtection.psm1`（新規） | 保護源（AC4 の (a)(b)）から保護される buildId の集合を作る | 保護源の規則が変わったとき（Build・ArtifactsRoot 側の変更） | 状態を持たない。何も書かない | BuildStore（`Get-BuildRoot`、`Read-BuildDeletionState`）、BuildStage（players 配置の読取関数）、ArtifactAcl → 集合または `protection-unknown` | `Get-ContentProtectedBuildIds` | 注入 root の fixture | 0 → 約 70 |
 | `BuildStage.psm1` | `players/` の配置の所有者として、`<ArtifactsRoot>/players/<p>/<t>/<c>/` 直下の entry 名から buildId を取り出す読取関数を足す（書込みなし） | 配置知識を 1 箇所に保つ | 既存 | — | `Get-BuildStagedPlayerIds` を追加 | Collect suite + 新ケース | 144 → 約 165 |
 | `ContentCleanup.psm1`（新規） | 系列 lock の下で catalog・保護 → policy → 候補ごとの試行（状態遷移表）を順に進め、結果を集計する | 削除の手順・予算・上限・結果の形 | 状態は持たず、記録は ContentDeletionStore | ContentCatalog、ContentProtection、BuildRetentionPolicy、ContentStore、ContentDeletionStore、ArtifactDeletion、ArtifactApplication（network・判定）、Credentials → 結果 | `Invoke-ContentCleanup` | 注入 transport・時計・fault hook で全失敗経路 | 0 → 約 250 |
-| `ContentApplication.psm1` | inspect の `publish.lock` と削除状態判定、collect の削除状態判定（AC14） | AC14 | 既存 | + ContentStore | 変更なし（返す reason が増える） | Content suite + 新ケース | 163 → 約 185 |
+| `ContentApplication.psm1` | inspect の `publish.lock` と削除状態判定、collect の削除状態判定（AC14） | AC14 | 既存 | + ContentDeletionStore（`Read-ContentDeletionState`） | 変更なし（返す reason が増える） | Content suite + 新ケース | 163 → 約 185 |
 | `Transport/R2ArtifactTransport.psm1` | Content DELETE を `ContentRetentionDelete=$true` の印付き request だけ通す | AC13 | — | — | 変更なし | 表検証 | 54 → 約 58 |
 | `BuildStore.psm1` の `Write-BuildImmutable` | Content の `deletion/<n>.(intent\|sent\|committed\|abandoned\|deleted).json` を許可名に足す | 記録の追加 | 既存 | — | — | 既存 | 上記に含む |
 | `tools/artifacts.ps1` | `content cleanup` の grammar | 入口 | — | → ContentCleanup | CLI | grammar 拒否・必須引数 | 約 +10 |
@@ -275,10 +275,10 @@ Content 系列 1 つについて、このPCの成功記録と保持中 Player �
 - **操作・実行時・目視条件の検証経路（AC18）:** 担当は判定 C（実行担当が CLI を順に実行し、判定 C 担当が書いた独立照合 script を原記録に対して実行する）。最終 head で行う。環境は owner の Windows ユーザー、既存の `osm` 資格情報と登録済み Evidence config・content-config。ArtifactsRoot は git 管理外の新規の空 directory。操作:
   1. 実系列 `bs4-spring-full/windows-x64-player` と `spring-full/windows-x64-player` の `content cleanup --dry-run`（ArtifactsRoot は下記の検証用 root。期待値は判定 C の独立 script が直前の生の receipt・`builds-v1` の entry 名・ArtifactsRoot の entry 名から再計算し、本スライスの catalog 関数を使わない。F3 時点の予想は各 1 件で `within-limit`、`bs4-spring-full` の revision は builds-v1 の `b80d0ef6…` により `protected`。予想と違っても再計算した期待値と一致すれば合格）。
   2. 検証用 contentSet `retention-probe-<n>`（n は試行ごとに新しく 1 から）について、dry-run で成功 0・削除中 0・未完了 0 を原記録に残す（空でなければ collect も cleanup もせず中止し、新しい n にする）。その後、合成の Content 出力 11 件（各 `transport.json` + 1 file、revision は時刻順の `yyyyMMddTHHmmssfffZ-<32hex>`、末尾 32 hex は builds-v1・ArtifactsRoot に無い乱数）を `content collect`。
-  3. `content cleanup` を実行。期待: 最古（AC3 の全順序）の 1 revision だけが `deleted`、`requests` が DELETE 2・GET 3（`transport.json` の DELETE・GET、content object の事前 GET・DELETE・GET。手順表から再計算した値と照合し、結果 JSON の回数だけで合否にしない）、`deletion/1.intent.json`・`sent.json`・`committed.json`・`deleted.json` がある。
+  3. `content cleanup` を実行。期待: 最古（AC3 の全順序）の 1 revision だけが `deleted`、`requests` が DELETE 2・GET 3（`transport.json` の DELETE・GET、content object の事前 GET・DELETE・GET。判定 C の script が `sent.json`・`committed.json`・`deleted.json` の観測の件数から再計算した値と照合し、結果 JSON の回数だけで合否にしない）、`deletion/1.intent.json`・`sent.json`・`committed.json`・`deleted.json` がある。
   4. 削除した revision の `content inspect` と同じ source での `content collect` が `payload-deleted`、`content fetch` が失敗。残り 10 revision の `content fetch` が passed で、取得物の `transport.json` の SHA-256 が receipt の `manifestSha256` と一致。
   5. 同じ `content cleanup` をもう一度。期待: `requests` が DELETE 0・GET 0。
-  - 保存する証拠（非秘密の原記録そのもの）: 実系列の dry-run 結果、検証用系列の実行前 dry-run、11 件の receipt・intent、`deletion/` 配下の全記録、cleanup の結果 JSON 2 回分、inspect・collect・fetch の結果と exit code、取得物の hash 照合出力、判定 C の独立照合 script の source と出力。endpoint とローカル path は収録前に除く（原本での照合は判定 C の script が行い、その出力を同じ bundle に入れる）。
+  - 保存する証拠（非秘密の原記録そのもの）: 実系列の dry-run 結果と、その期待値の再計算に使った入力（実系列の receipt の `revision`・`publishedAt`・`manifestSha256`、`builds-v1/<repo>/` と ArtifactsRoot `players/` 配下の entry 名の一覧）、検証用系列の実行前 dry-run、11 件の receipt・intent、`deletion/` 配下の全記録、cleanup の結果 JSON 2 回分、inspect・collect・fetch の結果と exit code、取得物の hash 照合出力、判定 C の独立照合 script の source と出力。endpoint とローカル path は収録前に除く（原本での照合は判定 C の script が行い、その出力を同じ bundle に入れる）。
   - DELETE が 403 なら S4 は未達で、rule は変えない。head が変わって実証をやり直すときは新しい `retention-probe-<n>` を使う。
 - **未知の操作経路の疎通結果と確認地点:** Content key への実 DELETE と直後の GET 404 `NoSuchKey` は未確認。初回確認は Phase C（AC18）。理由: Phase A では実 R2 を操作しない。Build key の DELETE → GET 404 は PR #119 で成立済み、versioning 無効も確認済み。`development/content/v1/` の bucket rule は未確認。不成立時: 403 なら rule を変えずに `delete-pending` が出ることを確認し、owner に設定を確認してもらい、問いを分けるかを A3 revision で決める。
 - **人間の判断が必要な条件:** なし（合否は結果 JSON と記録の機械照合）。実 R2 の操作は owner が許可済み（2026-10-12）。
@@ -311,9 +311,11 @@ Content 系列 1 つについて、このPCの成功記録と保持中 Player �
   | FAIL-7 | ② | major | AC16 の書込先と hash 対象が曖昧 | 採用。全 file の一覧と SHA-256 |
   | FAIL-8 | ② | major | 検証用系列が空でない場合の中止条件、実系列の期待値の独立性 | 採用。中止条件と独立 script での再計算 |
   | FAIL-9 | ② | minor | 同時刻の向き、試行途中の DELETE 上限 | 採用。AC3・AC12 に明記 |
-- **A3 統合担当・モデル・採否:** 未実施。
+- **A3 統合担当・モデル・採否:** 主担当 Claude Opus 5.5／Anthropic（2026-10-12）。**owner は不在で、チャットで「Phase C／C′ まで進めること、内容の確認は戻ってから行うこと、実 R2 の操作を許可すること」を指示した。** この指示に従い、主担当が U1〜U12 を §3 の推奨案どおりに決め、A2 の指摘は 2 巡とも全件採用した（理由は表）。2 巡目の 5 件は全て条件同士の継ぎ目で、新しい設計の穴ではないと判断し、3 巡目を行わずに凍結した（PR #119 の A3 で owner が採った「深刻な指摘が無ければ A3」の基準に倣う）。**owner の追認は Phase D で受ける。** 追認されない決定があれば、Phase A を新しい revision として再開する。
+  - A2 2 巡目（擬似 C′）: Grok 4.7 High／xAI、cursor-agent の新規 session。入力は commit `19508557a850c0432e80e47c0613bae864122a2f`（sha256 `22a5f4d3…c8d9`）と r1→r2 の差分。blocker 1、major 4（全て継ぎ目）。全件採用し r3 へ反映: R2-1 手順 1 の取り直しを `publish.lock` 取得後に、R2-2 AC4 の (a)(b) の除外規則を分けて記述、R2-3 `deleted.json` に手順 7 の全観測を残し GET 回数は記録から再計算、R2-4 実系列 dry-run の再計算入力を証拠に追加、R2-5 ContentApplication の依存を ContentDeletionStore に訂正。
+  - Phase B 以降の担当: B は Claude Opus 5.5（新規 subagent session）、C は Claude Sonnet 5.5（新規 subagent session。B と別モデル）、C′ は下記の予約どおり GPT。
 - **C' 用に予約した担当・モデル・ベンダー:** GPT（Codex CLI）／OpenAI。Phase A・B・C に使わない。
-- **独立性の強化条件を満たせない場合の理由:** —
+- **独立性の強化条件を満たせない場合の理由:** 満たす見込み（GPT は Phase A・B・C に使わない）。
 
 ## 6. Phase B 実装結果
 
