@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（発見 C 後の owner 裁定により Phase A revision 2 を再開する。2026-10-12）
+- status: `C`（Phase A revision 2 の Phase B 完了・次は発見 C。2026-10-13）
 - branch: `codex/artifact-storage-series-retirement`
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（`develop`。PR #123 を含む。A3 凍結時の `origin/develop` と一致を確認済み）
-- implementation head commit: `61f04438f426e8833b00b37aaeb32538d972afa7`（Phase B の実装 commit。HANDOFF 記録 commit はこの上に積む）
+- implementation head commit: `5621bd15153ebbe9ce5783c44e65555e6b589bae`（revision 2 の Phase B の実装 commit。revision 1 の head `61f04438f426e8833b00b37aaeb32538d972afa7` の上に積んだ。HANDOFF 記録 commit はこの上に積む）
 - risk: `high`（系列を丸ごと R2 から消す不可逆な操作を新設する。新しい永続記録と、publish・collect・use を拒否する経路を足す。公開 API・asmdef・Unity・transport の C# は変えない）
 - owner: OSM maintainers
 - created: 2026-10-12
@@ -17,7 +17,7 @@
 - evidence bundle の取得案内・状態: 発見 C 用をローカルに生成済み（git 管理外。base/head 固定の完全 diff・stat・name-status・Phase A snapshot・起点 suite の結果 JSON・manifest）。Artifact Storage への publish は資格情報に触れない指示のため未実施（引渡し未完了）。判定 C が最終 head で新しい bundle を作る
 - C' blind bundle の取得案内・状態: 未生成
 - workflow task: `series-retirement`（2026-10-12 に `workflow-task.ps1 start` 済み）
-- 引継ぎ票: **次は Phase A revision 2（A0/A1 の再開）。** implementation base `3f79639c12eac16da77d06608675564e906f9a49`、現 implementation head `61f04438f426e8833b00b37aaeb32538d972afa7`（revision 2 の修正後は新 head）。owner は発見 C の要・裁定 2 件（§7）を「決定記録にせず直す」と決めた。revision 2 の範囲は次の 2 点だけ: (1) AC7/AC8 を、件数保持の結果にも `mode=retention` を足す形に改め、`BuildCleanup`／`ContentCleanup` の既存 suite の結果 field 集合の期待値を更新する（§4 の差し戻し条件「既存の cleanup suite の期待値を変える」を、この点に限って例外承認する）。(2) I4/AC7 を、Build の系列不明の未完了は `retired`／`retired-held` の判定に数えず、`held` にも混ぜず、別 field（名前は A1 で決める）で件数だけ出す形に改める（`held.count>0` なのに `retired` という不整合を無くす）。それ以外の凍結条件は変えない。A2 の要否と、AC15 手順 1 の期待値（未完了 0 の確認）の見直しは A1 で決める。発見 C の他の結果（阻害 0 件・構造適合・後続入力）は revision 2 の差分に対して再確認する。引き渡さないもの: C′ 用担当への所見・会話。
+- 引継ぎ票: **次は発見 C（revision 2 後）。** implementation base `3f79639c12eac16da77d06608675564e906f9a49`、implementation head `5621bd15153ebbe9ce5783c44e65555e6b589bae`（push 後に確認）。§2〜§5（Phase A revision 2。§5 直後の「Phase A revision 2」節が差分）を正とする。revision 1 の発見 C の結果は §7 に残す（revision 1 の head 向け。ただし revision 2 で変わった 2 点は反映済み）。今回見る範囲は revision 1 head からの差分（`git diff 61f04438f426e8833b00b37aaeb32538d972afa7 5621bd15153ebbe9ce5783c44e65555e6b589bae`）と、I4・AC7・AC8 の新しい読みの照合。構造・不変条件の再確認は差分の影響経路に限る。必要な権限: 読取とローカルの offline テスト実行だけ（実 R2・資格情報・Unity・実 store には触れない）。発見 C の担当は revision 2 の Phase B（Sonnet 5.5）と別モデルにする。発見 C は GO 判定をせず、C′ も起動しない。AC15 と照合 script は判定 C が最終 head で行う。C′ 用担当は A0/A1・B（いずれも Anthropic）と別ベンダー。引き渡さないもの: C′ 用担当への所見・会話。
 
 入力の正本は program §2「開発Build」「開発Content」と §4 B（PR #119・PR #123 の「決めたこと」「後続への入力」）、`tools/Artifacts/README.md` の「開発Buildの件数清掃」「開発Contentの件数清掃（content cleanup）」、および現行コード。program と既存スライスで固定済みの契約は §1 に転記し、再議論しない。
 
@@ -115,7 +115,7 @@
   - I1. 退役記録が確定していない系列の object へ、退役経路から DELETE を送らない。退役経路は指定した 1 系列の、このPCの成功記録から作った key 以外（他系列・別種別・Evidence の key）へ DELETE を送らない。`--dry-run` は退役記録を書かない。
   - I2. 削除試行を始める直前（系列 lock の下で取り直した時点）に保護中（Build: 有効な `build use` 記録・取得中の access lock。Content: 保持中 Player が受け入れうる revision）と判定されたものに、新しい削除試行を始めない。退役は保護を外さない。
   - I3. 退役記録・成功記録・削除記録・保護状態のどれかを確認できないとき、その系列で新しい削除試行を始めない（fail-closed）。退役記録を確認できないとき、その系列への publish・collect・use は送信・書込みの前に止まる。
-  - I4. GET 404 `NoSuchKey` を確認して削除済み記録を確定するまで、その Build・revision を削除済みと記録・表示しない。成功記録のある全件が削除済みになり、未解決の試行・保護中・未完了が 0 件のときだけ「退役完了」（`retired`）と表示する。
+  - I4. GET 404 `NoSuchKey` を確認して削除済み記録を確定するまで、その Build・revision を削除済みと記録・表示しない。成功記録のある全件が削除済みになり、その系列の未解決の試行・保護中・未完了が 0 件のときだけ「退役完了」（`retired`）と表示する。Build の系列を特定できない未完了（予約だけで intent も読めない Build）は、どの系列のものか分からず退役経路で消せないので、この判定に数えない。数えない代わりに `held` へ混ぜず、別 field `unattributed`（件数だけ）に出し、`held` の件数と `retired` の表示が食い違わないようにする（revision 2）。
   - I5. 退役記録の確定後に始まった publish・collect は最初の PUT の前に、use は保護記録を書く前に `series-retired` で止まり、成功を返さない。
   - I6. ローカルの成功記録（receipt・intent）、既存の削除記録・保護記録、ArtifactsRoot、DIST cache を消さない・書き換えない。退役経路が書くのは退役記録、系列 lock、`deletion/` の新しい記録、確認 GET の取得先である新規 private operation だけ。
   - I7. 確定した退役記録を書き換え・削除しない。同じ系列への 2 回目以降の退役指示は既存の記録を保ち、最初の記録の `retiredAt`・`decision` を変えない。
@@ -137,8 +137,8 @@
   | AC4 | 退役の選別は純粋関数（U3）: 成功かつ保護中でない行を全て候補、成功かつ保護中を `held`（`protected`）、未完了を `held`（`publish-incomplete`）。N を使わない。行の形と全順序（`publishedAt` の降順、同時刻は ID の Ordinal 昇順を新しい側。削除は最古から）は `Get-BuildRetentionDecision` と同じ | I2・S1・S2 | offline（表検証） |
   | AC5 | catalog・保護の読取は既存の `BuildCatalog`／`ContentCatalog`／`ContentProtection`／Build の保護記録をそのまま使い、blocked の理由（`catalog-incomplete`・`delete-record-invalid`・`protection-unknown`・`clock-skew`）も同じ。1 つでも当たれば新しい試行を始めない | I3 | offline |
   | AC6 | 削除試行は既存の `Invoke-BuildDeleteAttempt`／`Invoke-ContentRevisionAttempt`（revision の `publish.lock`、状態遷移表、再開、取下げ、予算 600 秒、DELETE 上限 Build 20・Content 2,048、transport の印）を変えずに使う。各試行の直前に取り直した snapshot でなお退役の候補である場合だけ始める | I1・I2・I4・S1・S3 | offline |
-  | AC7 | 結果 JSON は既存の cleanup の固定 field に `mode`（`retention`／`retirement`）と `retirement`（`retiredAt`・`decision`）を足したものだけ。`status`・`reasonCode` は: 全件削除済みで未解決・保護中・未完了が 0 → `passed`／`retired`、保護中か未完了が残る → `passed`／`retired-held`（exit 0）、未解決・残りあり → `partial`（exit 2）、blocked／失敗 → exit 1。`--dry-run` は lock を取らず、退役記録を書かず、記録・network に触れず、退役後に行う選別を返す（`mode=retirement`、退役記録が無ければ `retirement` は null） | I1・I4・S2 | offline |
-  | AC8 | 退役済みの系列への `build cleanup`／`content cleanup` は、N の選別ではなく AC4 の選別で動き、結果の `mode` は `retirement`。退役記録が不明なら `retirement-unknown` で blocked（N の選別へ戻らない） | I3・S4 | offline |
+  | AC7 | 結果 JSON は既存の cleanup の固定 field に `mode`（`retention`／`retirement`。件数保持の結果にも常に出す）を足し、退役の結果にはさらに `retirement`（`retiredAt`・`decision`）と、Build だけ `unattributed`（`count`。系列不明の未完了の件数。判定には数えず `held` にも入れない）を足したものだけ。`status`・`reasonCode` は: 全件削除済みで未解決・保護中・未完了が 0 → `passed`／`retired`、保護中か未完了が残る → `passed`／`retired-held`（exit 0）、未解決・残りあり → `partial`（exit 2）、blocked／失敗 → exit 1。`--dry-run` は lock を取らず、退役記録を書かず、記録・network に触れず、退役後に行う選別を返す（`mode=retirement`、退役記録が無ければ `retirement` は null） | I1・I4・S2 | offline |
+  | AC8 | 退役済みの系列への `build cleanup`／`content cleanup` は、N の選別ではなく AC4 の選別で動き、結果の `mode` は `retirement`（退役していない系列の cleanup は `retention`）。退役記録が不明なら `retirement-unknown` で blocked（N の選別へ戻らない） | I3・S4 | offline |
   | AC9 | `build publish`（`build collect` 経由を含む）と `content collect` は最初の PUT の前に、`build use` は保護記録を書く前に、対象系列の退役記録を読み、退役済みなら `series-retired`、不明なら `retirement-unknown` で止まり、送信・書込みをしない。既に receipt がある同一入力の `existing` 応答も、退役済みの系列では返さない | I3・I5・S4 | offline |
   | AC10 | `build inspect`・`content inspect`・`fetch` の応答は変えない（削除済みは既存の `payload-deleted`、削除中は `delete-pending`、まだ消えていないものは従来どおり）。退役済みでも、まだ削除されていない保護中の Build・revision は取得できる | S2・S4 | offline |
   | AC11 | 本スライスの経路は `builds-v1`／`contents-v1` の receipt・intent・既存の `deletion/`・`protections/`、ArtifactsRoot 配下の全 file を書き換えない・消さない。fixture の前後で、これらの全 file の一覧と SHA-256 が一致することで確かめる（退役記録・lock・新しい `deletion/` 記録は除く） | I6 | offline |
@@ -258,6 +258,11 @@
 - **C' 用に予約した担当・モデル・ベンダー:** Phase A・B・C に使わないベンダーを 1 つ残す（A0/A1 は Anthropic。B・C の担当を決めるときに、C′ 用に別ベンダーを予約する）。
 - **独立性の強化条件を満たせない場合の理由:** 未定（C′ の時点で記録する）。
 
+### Phase A revision 2（2026-10-12、owner 裁定。発見 C の要・裁定 2 件を決定記録にせず修正）
+
+- 変更は I4・AC7・AC8 の 3 条件だけ（上の本文に反映済み）: (1) 件数保持の結果にも `mode=retention` を出す。`BuildCleanup`／`ContentCleanup` の既存 suite の結果 field 集合の期待値は `mode` を足して更新してよい（§4 の差し戻し条件「既存 suite の期待値を変える」の、この点に限る例外。ほかの期待値は変えない）。(2) Build の系列不明の未完了は判定に数えず、`held` に混ぜず、退役の結果の `unattributed`（`count`）に出す。Content に系列不明の未完了は無いので field を足さない。
+- §5 の AC15 手順 1 の期待値は変えない（検証用系列の未完了 0）。違えば実行せず判定 C へ返す。`unattributed.count` は手順 1 の dry-run で記録し、手順 2 の結果の `retired` と矛盾しないことを確認する。A2 の独立レビューは revision 1 と同じく実施しない（owner の裁定。範囲が 2 field の追加に限られるため）。他の条件・責務マップ・順序は変えない。
+
 ## 6. Phase B 実装結果
 
 - 実装: §4 の順で実装した（commit `feat(artifacts): add series retirement (build retire / content retire)`）。§4 の「Phase A へ差し戻す条件」には当たらなかった（削除試行本体・状態遷移表・transport の印・catalog の既知 entry・`Get-BuildRetentionDecision` の契約・publish の lock は変えず、退役記録以外の永続記録と lock は足していない。`ContentCleanup.psm1` は 263 行）。
@@ -283,8 +288,14 @@
   - `tools/Artifacts/tests/*.Tests.ps1` 全 20 suite を `-Case '*' -ResultPath <git 管理外>`（rg を PATH に通して各 1 回）: 全 suite failed 0。ArtifactEvidence 19、ArtifactPackage 9、ArtifactRotation 11、ArtifactTransfer 20、BuildCleanup 23、BuildCollect 9、BuildPublish 9、BuildRetention 9、Content.Contract 9、Content.Fetch 5、Content.Publish 12、ContentCleanup 23、Credentials 22、EvidenceCleanup 35、EvidenceReset 31、EvidenceRetention 14、EvidenceSchedule 78、R2RouteTransport 7、RouteProof 26、SeriesRetirement 17。Workflow `TaskLifecycle` 23/23。
   - 全 Artifacts PowerShell（72 file）の parse: エラー 0。`pwsh tools/contract-audit.ps1`: errors 0・warnings 0。`pwsh tools/docs-audit.ps1`: errors 0・warnings 0。implementation base からの diff に `unity/` は 0 件。
 - 未実行: AC15（実 R2。判定 C の高コスト証拠）、判定 C の照合 script（B は書かない）。上の全 suite は B の確認で、判定 C の判定必須テストの代わりにはしない。Unity のテスト・Build は適用除外（Unity を変更しない）。
-- implementation head commit: `61f04438f426e8833b00b37aaeb32538d972afa7`
+- implementation head commit（revision 1 の Phase B）: `61f04438f426e8833b00b37aaeb32538d972afa7`
 - Phase B 担当・モデル・ベンダー: Claude Opus 5.5／Anthropic（Claude Code desktop、A0/A1 と同じ担当の別 session）。C′ 用には Anthropic 以外のベンダーを予約する（§5）。
+
+### Phase B（revision 2 の実装）
+
+- 実装: `BuildCleanup`／`ContentCleanup` の結果に `mode`（件数保持は `retention`、退役は `retirement`）を常に出す。Build の退役の結果は系列不明の未完了を `held` に混ぜず `unattributed.count` に出す（件数保持では従来どおり `held`）。判定（`retired`／`retired-held`）は revision 1 と同じく系列所属の保留だけで行う。README の該当 2 項目を更新。
+- 既存 suite の期待値変更は、revision 2 が例外承認した `mode` の追加だけ（`BuildCleanup.Tests.ps1`・`ContentCleanup.Tests.ps1` の結果 field 集合の 1 語）。`SeriesRetirement.Tests.ps1` は field 集合と、`retention` の `mode`、系列不明の予約を置いた Build の `unattributed`（`retired` かつ `held.count=0`、件数保持の cleanup でも同じ）の case を足した。
+- 実行と結果（head `5621bd15153ebbe9ce5783c44e65555e6b589bae`）: Artifacts 全 suite の `-Case '*'`（rg を PATH に通して各 1 回）が全て failed 0（SeriesRetirement 17、BuildCleanup 23、ContentCleanup 23、EvidenceCleanup 35 ほか）、contract-audit・docs-audit は errors 0・warnings 0。.NET build・TaskLifecycle・Unity は C# と Workflow を変えていないので再実行しない（revision 1 の B 結果が有効）。AC15 は未実行（判定 C）。
 
 ## 7. Phase C
 
