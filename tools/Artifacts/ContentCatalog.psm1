@@ -76,6 +76,9 @@ function Get-ContentSeriesSnapshot($Config,[string]$ContentSet,[string]$TargetTo
         }catch{return & $block 'catalog-incomplete'}
         # receiptが無ければ成功ではない（intentの有無にかかわらず未完了として、Nに数えない）。
         if(-not [IO.File]::Exists([IO.Path]::Combine($dir,'receipt.json'))){$s.rows.Add([pscustomobject]@{buildId=$rev;publishState='incomplete'});continue}
+        # 成功revisionのpublish.lockは試行の排他に使う既存のfile。件数清掃は作らないので、無ければ全件を
+        # 安全に扱えると言えず系列を止める（collectが作り直すまで消さない）。
+        if(-not [IO.File]::Exists([IO.Path]::Combine($dir,'publish.lock'))){return & $block 'catalog-incomplete'}
         $receipt=$null;$keys=$null
         try{$receipt=(Read-ContentReceipt $dir $repoId $ContentSet $TargetToken $rev).Data;$keys=Get-ContentRevisionKeys $Config $dir $ContentSet $TargetToken $rev $receipt}catch{}
         if($null -eq $receipt -or $null -eq $keys){return & $block 'catalog-incomplete'}

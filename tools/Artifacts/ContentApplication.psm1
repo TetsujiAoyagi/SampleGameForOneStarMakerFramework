@@ -122,13 +122,14 @@ function Invoke-ContentCollect([string]$ConfigPath,[string]$Source,[string]$Arti
 # 呼出前に保存したidentityだけを再照会する。一覧探索や再送は行わず、遠隔のobjectも見ない。
 # receiptが未確定・破損なら成功へ補完せず、確定済みなら同じreference/hash/時刻を返す。
 # publish.lockを保持して読むので、件数清掃の試行中は待たずにpublish-in-progressで止まる。削除状態は
-# receiptより先に見て、削除済み・削除中ならreferenceを返さない。
+# receiptより先に見て、削除済み・削除中ならreferenceを返さない。lock fileは既存のものだけを開き、
+# 無ければ作らずにreceipt-unavailableで止まる（照会はstoreへ書かない）。
 function Invoke-ContentInspect([string]$ConfigPath,[string]$ContentSet,[string]$Target,[string]$Revision){
     $lock=$null
     try{
         $config=Read-ContentConfig $ConfigPath
         $dir=Get-ContentDirectory $config.Data.repositoryId $ContentSet $Target $Revision $false
-        $lock=Enter-ContentPublishLock $dir
+        $lock=Enter-ContentPublishLock $dir $false
         Assert-ContentNotDeleted $config.Data.repositoryId $ContentSet $Target $Revision
         $c=Read-ContentReceipt $dir $config.Data.repositoryId $ContentSet $Target $Revision
         return [pscustomobject]@{status='passed';reasonCode='complete';contentSet=$ContentSet;target=$Target;revision=$Revision;reference=(New-ContentReference $config $c.Data);manifestSha256=$c.Data.manifestSha256;receiptPath=$c.Path;publishedAt=$c.Data.publishedAt}

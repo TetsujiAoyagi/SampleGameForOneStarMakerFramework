@@ -59,6 +59,9 @@ function Send-ContentCleanupRequest([string]$Operation,[string]$Key,[string]$Gen
 # 5 committed（確定点）／6 abandoned → 7 残りobject（GET → 2xxならDELETE → GET）→ 8 deleted。
 # 再開はcommittedがあれば手順7から（GETが先なので済んだkeyへDELETEを送らない）、無ければ手順4から。
 # 呼出側がrevisionのpublish.lockを保持している間に呼ぶ。
+# deleted.jsonの観測は、手順7を最後まで進めたこのrunの分だけを持つ。手順7が途中で止まったrunの観測は残さない:
+# 残すには別の永続記録が要り、削除済みの判定は各keyの最後のGET 404だけで足りるため（再開は手順7の最初から
+# 全keyをGETし直すので、完了したrunの観測だけで各keyの最後のGET 404が揃う）。
 # 返値: deleted / abandoned / delete-unconfirmed / delete-pending / budget-exceeded / delete-limit
 function Invoke-ContentDeleteAttempt([string]$Revision,$Info,[bool]$Resume){
     $run=$script:Run
@@ -129,13 +132,18 @@ function Get-ContentCleanupDecision($Snapshot){
     return $decision
 }
 # revisionのpublish.lockを取り、手順1（再開なら該当手順）から試行の終了まで保持する。取れなければ
-# collect/inspectが保持中なので飛ばす。新しい試行は、lockの後に取り直したsnapshotと保護でなお候補の場合だけ始める
+# collect/inspectが保持中なので飛ばす。lock fileは既存のものだけを開き、作らない（無ければcatalogと同じく
+# 系列をblockedにする）。新しい試行は、lockの後に取り直したsnapshotと保護でなお候補の場合だけ始める
 # （lockの前・dry-runの結果では始めない）。返値は試行の返値に加え revision-busy / not-candidate / blocked。
 function Invoke-ContentRevisionAttempt([string]$Revision,$Pending){
     $run=$script:Run;$lock=$null
     try{
-        try{$lock=Enter-ContentPublishLock (Get-ContentDirectory $run.Config.Data.repositoryId $run.ContentSet $run.Target $Revision)}
-        catch{if($_.Exception.Message -ceq 'publish-in-progress'){return 'revision-busy'};throw}
+        try{$lock=Enter-ContentPublishLock (Get-ContentDirectory $run.Config.Data.repositoryId $run.ContentSet $run.Target $Revision) $false}
+        catch{
+            if($_.Exception.Message -ceq 'publish-in-progress'){return 'revision-busy'}
+            if($_.Exception.Message -ceq 'publish-lock-missing'){$run.Blocked='catalog-incomplete';return 'blocked'}
+            throw
+        }
         if($script:StepHook){& $script:StepHook 'after-revision-lock'}
         if($Pending){return Invoke-ContentDeleteAttempt $Revision $Pending $true}
         $snapshot=Get-ContentCleanupSnapshot
@@ -193,6 +201,7 @@ function Invoke-ContentCleanup([string]$ConfigPath,[string]$ContentSet,[string]$
         # 未解決の試行を新しい候補より先に、古い順で確定させる。1件でも確定できなければ以降は進めない。
         foreach($item in @($snapshot.deleting|Sort-Object -Property @{Expression={$_.publishedAt}},@{Expression={$_.revision}})){
             $outcome=Invoke-ContentRevisionAttempt $item.revision $item.info
+            if($outcome -ceq 'blocked'){return & $blocked $script:Run.Blocked}
             $outcomes.Add([pscustomobject]@{revision=$item.revision;outcome=$outcome})
             if($outcome -cnotin @('deleted','abandoned')){$stop=$outcome;break}
         }

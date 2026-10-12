@@ -23,7 +23,7 @@ Import-Module (Join-Path $PSScriptRoot '../Transport/R2ArtifactTransport.psm1')
 $registered=@('record-kinds','catalog-classification','catalog-blocks','catalog-order','protection-sources','protection-blocks','protected-over-limit',
     'dry-run-no-writes','delete-oldest-first','delete-failures-pending','get-unconfirmed','resume-abandon-recompute','after-commit',
     'record-write-failures','budget-points','delete-limit','lock-contention','revision-busy','reevaluate-after-lock','inspect-collect-deleted',
-    'transport-allow-table','cli-grammar')
+    'transport-allow-table','cli-grammar','publish-lock-missing')
 $selected=@(if($Case -ceq '*'){$registered}else{$Case.Split(',')})
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 $repo='a'*64;$set='bs4-spring-full';$tgt='windows-x64-player'
@@ -573,6 +573,28 @@ foreach($caseName in $selected){
                 $again=Invoke-ContentCollect $f.Config $src2.Dir $f.ArtifactsRoot
                 Assert ($again.reasonCode -ceq 'delete-pending' -and $null -eq $again.reference -and (Get-Count $f 'put') -eq $puts) "collect of deleting revision: $($again.reasonCode)"
                 Assert ((Invoke-ContentInspect $f.Config $set $tgt (New-Revision $f $baseNow.AddMinutes(-2))).status -ceq 'passed') 'inspect of a live revision'
+            }
+            # AC16: cleanupとinspectはpublish.lockを作らない。成功revisionのlockが無ければ、cleanupは系列を
+            # catalog-incompleteで止め、inspectはreceipt-unavailableで止まり、どちらもcontents-v1を変えない。
+            'publish-lock-missing'{
+                $revs=New-Series $f 3;Set-EvidenceTestValue ContentCleanup KeepCount 1
+                # 先に通常の実行でcleanup.lockを作っておき、前後の比較を全fileで行えるようにする（候補なしで何も消さない）。
+                Set-EvidenceTestValue ContentCleanup KeepCount 10;$null=Invoke-Cleanup $f;Set-EvidenceTestValue ContentCleanup KeepCount 1
+                $lockPath=[IO.Path]::Combine((Get-RevDir $revs[1]),'publish.lock');[IO.File]::Delete($lockPath)
+                $before=Get-Tree $f.Owned[1];$f.CleanCounts.Clear()
+                $d=Invoke-Cleanup $f -DryRun;$x=Invoke-Cleanup $f
+                Assert ($d.status -ceq 'blocked' -and $d.reasonCode -ceq 'catalog-incomplete' -and $x.status -ceq 'blocked' -and $x.reasonCode -ceq 'catalog-incomplete') "missing lock not blocked: $($x.reasonCode)"
+                Assert ($f.CleanCounts.Count -eq 0 -and (Get-Tree $f.Owned[1]) -ceq $before -and -not [IO.File]::Exists($lockPath)) 'cleanup wrote the store or created publish.lock'
+                $i=Invoke-ContentInspect $f.Config $set $tgt $revs[1]
+                Assert ($i.status -ceq 'failed' -and $i.reasonCode -ceq 'receipt-unavailable' -and -not $i.PSObject.Properties['reference']) "inspect without lock: $($i.reasonCode)"
+                Assert ((Get-Tree $f.Owned[1]) -ceq $before -and -not [IO.File]::Exists($lockPath)) 'inspect wrote the store or created publish.lock'
+                # 系列lockの取得後（dry-runの後）にlockが消えた場合も、取り直したcatalogで作らずに止める。
+                Reset-Store $f 'race';$revs=New-Series $f 3;$target=Get-RevDir $revs[2]
+                Set-EvidenceTestValue ContentCleanup StepHook ({param($point)if($point -ceq 'after-lock'){[IO.File]::Delete([IO.Path]::Combine($target,'publish.lock'))}}.GetNewClosure())
+                $x=Invoke-Cleanup $f;Set-EvidenceTestValue ContentCleanup StepHook $null
+                Assert ($x.status -ceq 'blocked' -and $x.reasonCode -ceq 'catalog-incomplete' -and -not [IO.File]::Exists([IO.Path]::Combine($target,'publish.lock')) -and (Get-DeletionFiles $revs[2]) -ceq '') "lock removed after lock: $($x.reasonCode)"
+                # collectの既存挙動は変えない（lockが無ければ作って進む）。
+                $l=Enter-ContentPublishLock $target;$l.Dispose();Assert ([IO.File]::Exists([IO.Path]::Combine($target,'publish.lock'))) 'collect lock path changed'
             }
             # AC13: transport入口の許可表。Contentの印はContentのkeyのDELETEだけを開き、他の種別の扱いは変えない。
             'transport-allow-table'{

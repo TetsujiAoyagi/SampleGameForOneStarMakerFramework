@@ -42,9 +42,19 @@ function Get-ContentDirectory([string]$RepositoryId,[string]$ContentSet,[string]
 }
 # FileShare.Noneで開いたhandleがlock。保持区間はintentの照合からreceiptの再読までで、processが
 # 終われば自動で解放される。負けた側は待たずにpublish-in-progressで止まる。
-function Enter-ContentPublishLock([string]$Directory){
+# Create=$falseは読む側（inspect・件数清掃）の取り方で、既存のlock fileだけを開き、作成もACLの修復もしない
+# （それらの経路はstoreへ書かない契約のため）。無ければpublish-lock-missing、ACL不一致なら例外で止まる。
+function Enter-ContentPublishLock([string]$Directory,[bool]$Create=$true){
     Assert-ArtifactAcl $Directory $true
     $path=[IO.Path]::Combine($Directory,'publish.lock')
+    if(-not $Create){
+        Assert-NoArtifactReparse $path
+        if(-not [IO.File]::Exists($path)){throw 'publish-lock-missing'}
+        try{$lock=[IO.FileStream]::new($path,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)}
+        catch [IO.IOException]{if(-not [IO.File]::Exists($path)){throw 'publish-lock-missing'};throw 'publish-in-progress'}
+        try{Assert-ArtifactAcl $path $false}catch{$lock.Dispose();throw}
+        return $lock
+    }
     if(-not [IO.File]::Exists($path)){
         # 別processが同時に作った場合のCreateNew失敗は無視し、下の排他openで勝敗を決める。
         try{$c=[IO.FileStream]::new($path,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None);$c.Dispose();Set-ArtifactAcl $path $false}catch [IO.IOException]{}
