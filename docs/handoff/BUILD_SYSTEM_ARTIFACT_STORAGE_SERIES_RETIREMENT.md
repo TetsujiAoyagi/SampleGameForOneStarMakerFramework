@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C`（Phase A revision 2 の Phase B 完了・次は発見 C。2026-10-13）
+- status: `B`（Phase A revision 2 後の発見 C で阻害 1 件・次は B の修正。2026-10-13）
 - branch: `codex/artifact-storage-series-retirement`
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（`develop`。PR #123 を含む。A3 凍結時の `origin/develop` と一致を確認済み）
 - implementation head commit: `5621bd15153ebbe9ce5783c44e65555e6b589bae`（revision 2 の Phase B の実装 commit。revision 1 の head `61f04438f426e8833b00b37aaeb32538d972afa7` の上に積んだ。HANDOFF 記録 commit はこの上に積む）
@@ -14,10 +14,10 @@
 - harvest to: 操作と契約を `tools/Artifacts/README.md`（新節「系列の退役」と、Build・Content の件数清掃節の既知の限界の更新）、program の状態と後続への移送を `docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 B へ。完了時に本書を削除する。
 - Phase A snapshot の取得案内・状態: 未保存（revision 1 の本書。凍結 commit は本書を A3 として記録した commit。C′ 用 blind bundle に収録して保存する）
 - Phase B result snapshot の取得案内・状態: 本書 §6（implementation head の版を発見 C の evidence bundle に収録済み。保存・引渡しは未了）
-- evidence bundle の取得案内・状態: 発見 C 用をローカルに生成済み（git 管理外。base/head 固定の完全 diff・stat・name-status・Phase A snapshot・起点 suite の結果 JSON・manifest）。Artifact Storage への publish は資格情報に触れない指示のため未実施（引渡し未完了）。判定 C が最終 head で新しい bundle を作る
+- evidence bundle の取得案内・状態: 発見 C 用をローカルに生成済み（git 管理外。revision 1 head 向けと revision 2 head 向けの 2 つ。どちらも base/head 固定の完全 diff・stat・name-status・Phase A snapshot・起点 suite の結果 JSON・manifest。revision 2 向けは revision 1 head からの差分も収録）。Artifact Storage への publish は資格情報に触れない指示のため未実施（引渡し未完了）。判定 C が最終 head で新しい bundle を作る
 - C' blind bundle の取得案内・状態: 未生成
 - workflow task: `series-retirement`（2026-10-12 に `workflow-task.ps1 start` 済み）
-- 引継ぎ票: **次は発見 C（revision 2 後）。** implementation base `3f79639c12eac16da77d06608675564e906f9a49`、implementation head `5621bd15153ebbe9ce5783c44e65555e6b589bae`（push 後に確認）。§2〜§5（Phase A revision 2。§5 直後の「Phase A revision 2」節が差分）を正とする。revision 1 の発見 C の結果は §7 に残す（revision 1 の head 向け。ただし revision 2 で変わった 2 点は反映済み）。今回見る範囲は revision 1 head からの差分（`git diff 61f04438f426e8833b00b37aaeb32538d972afa7 5621bd15153ebbe9ce5783c44e65555e6b589bae`）と、I4・AC7・AC8 の新しい読みの照合。構造・不変条件の再確認は差分の影響経路に限る。必要な権限: 読取とローカルの offline テスト実行だけ（実 R2・資格情報・Unity・実 store には触れない）。発見 C の担当は revision 2 の Phase B（Sonnet 5.5）と別モデルにする。発見 C は GO 判定をせず、C′ も起動しない。AC15 と照合 script は判定 C が最終 head で行う。C′ 用担当は A0/A1・B（いずれも Anthropic）と別ベンダー。引き渡さないもの: C′ 用担当への所見・会話。
+- 引継ぎ票: **次は Phase B の修正（発見 C（revision 2 後）の阻害 1 件）。** implementation base `3f79639c12eac16da77d06608675564e906f9a49`、レビューした implementation head `5621bd15153ebbe9ce5783c44e65555e6b589bae`。§2〜§5（Phase A revision 2）を正とする。修正する指摘は §7「発見 C（revision 2 後）」の阻害 R2-1 だけ（`tools/Artifacts/README.md` の件数清掃 2 節の結果 JSON の列挙に `mode` を足す。B 適応。コードと suite の変更は要らない）。修正は 1 commit にまとめ、新しい implementation head を §0 と §6 に記録して push する。B は判定 C の実行・C′ の起動・照合 script の作成をしない。修正後は発見 C で修正差分を確認する（差し戻し 1 巡目）。必要な権限: 読取とローカルの offline テスト・docs-audit だけ（実 R2・資格情報・Unity・実 store には触れない）。B の担当は直前の発見 C（Opus 5.5）と別モデルでなくてよいが、次の発見 C は修正した B と別モデルにする。C′ 用担当は A0/A1・B・C（いずれも Anthropic）と別ベンダー。引き渡さないもの: C′ 用担当への所見・会話。
 
 入力の正本は program §2「開発Build」「開発Content」と §4 B（PR #119・PR #123 の「決めたこと」「後続への入力」）、`tools/Artifacts/README.md` の「開発Buildの件数清掃」「開発Contentの件数清掃（content cleanup）」、および現行コード。program と既存スライスで固定済みの契約は §1 に転記し、再議論しない。
 
@@ -331,6 +331,29 @@
 - 未確認事項: 発見 C は差分とコードの静的な読みと起点 suite の実行に基づく。実 R2・資格情報・Unity・実 store には触れていない。変異（publish の確認を外す等）の再実行はしていない（B の記録を信頼せず、確認が必要なら判定 C で行う）。
 - owner 裁定（2026-10-12 チャット）: 要・裁定 1・2 は決定記録にせず修正する。2 は「数えず、表示を整合させる」。実装は Phase A revision 2 の凍結後に B が行う（発見 C 担当は実装しない）。
 - 指摘の ledger: 阻害する指摘 0 件。要・裁定 2 件（上記 1・2。category: semantic。他レビューとの重複なし。A2 が 0 件のため独立の突合は無い）。後続の入力 3 件。
+
+### 発見 C（revision 2 後、2026-10-13）
+
+- 種別: **発見 C**（GO 判定ではない。判定 C・C′ は起動していない）
+- 担当・モデル・ベンダー: Claude Opus 5.5／Anthropic（Claude Code desktop、新規 session）。revision 2 の Phase B（Sonnet 5.5）とは別モデル。revision 1 の Phase B は同じ Opus 5.5 だが、今回の主な範囲は revision 2 の差分で、revision 1 部分は影響経路の再確認に限る。C′ の強化条件は別ベンダーで満たす。
+- 引継ぎ照合: ブランチ `codex/artifact-storage-series-retirement`、PR #124 の状態ブロック（Phase B 完了・revision 2・次は発見 C）、§0 の引継ぎ票（次は発見 C（revision 2 後））、リモートの head（`6d2f36d`。implementation head `5621bd1` の上に HANDOFF 記録 commit 1 つで、差分は本書だけ）が一致。implementation base と revision 1 head はいずれも implementation head の祖先。
+- 使用した evidence の取得案内・状態: 発見 C（revision 2 後）用の bundle をローカルに生成（git 管理外）。base/head 固定の完全 diff・stat・name-status、revision 1 head → implementation head の diff と stat、implementation head 時点の本書と Phase A revision 2 を収録した `6d2f36d` 時点の本書、起点 suite の結果 JSON、manifest（生成時刻と各 file の SHA-256）。publish は未実施（資格情報に触れない指示。引渡し未完了）。
+- 構造適合（revision 1 head からの差分）: 変更は `BuildCleanup.psm1`（+9/−6、結果の組立てとコメントだけ）、`ContentCleanup.psm1`（+3/−3、`mode` の初期値とコメント）、README の退役節 2 項目、3 suite の期待値、本書。§3 の責務マップの範囲内で、選別（`Get-SeriesRetirementDecision`／`Get-BuildRetentionDecision`）・catalog・削除試行・`SeriesRetirementStore`・`BuildApplication`／`ContentApplication`・`tools/artifacts.ps1` は revision 1 head から無変更（diff 0）。`unattributed` を数える元は `BuildCatalog` の `held`（系列不明の未完了だけを入れる。`buildId=null`。系列の特定できる未完了は `rows` の `incomplete` として選別へ入る）で、新しい依存・状態は無い。行数は `BuildCleanup` 217 → 220、`ContentCleanup` 263 のまま（300 行警報の内）。
+- revision 2 の 3 条件の照合:
+  - **既存 suite の期待値（revision 2 の例外の範囲）:** `BuildCleanup.Tests.ps1`・`ContentCleanup.Tests.ps1` の変更はそれぞれ 1 行で、結果 field 集合の文字列に `mode` を 1 語足しただけ。他の期待値は無変更。`SeriesRetirement.Tests.ps1` の変更は field 集合の定数（`mode` を基本集合へ移し、退役は `retirement`、Build はさらに `unattributed`）、`retention` の `mode` の assert、`unattributed` の case の追加で、既存 case の削除・緩和は無い。
+  - **I4・AC7（`unattributed`）:** 退役モードでは `held` を選別の `heldBuilds`（系列所属の保護中・未完了）だけにし、catalog の系列不明の未完了は `unattributed.count` にだけ出す。件数保持では従来どおり `heldBuilds`＋catalog の `held`。判定（`retired`／`retired-held`）は選別の reasonCode のままで、系列不明の未完了を数えない。`storeAbsent` の確認（catalog の `held` があれば `unconfirmed`）も変えていない。`build-retire-complete` が「系列不明の予約 1 件で `retired`・`held.count=0`・`unattributed.count=1`、系列の特定できる未完了は `unattributed` に入らない、退役後の cleanup も同じ」を確認する。Content は `unattributed` を持たない（`Set-ContentCleanupMode` と初期結果のどちらにも無く、`ContentCatalog` に系列不明の保留は無い）。
+  - **結果の field 集合:** Build retire は初期結果で `mode=retirement`・`retirement`・`unattributed` を持つので、入力検査の失敗・blocked・dry-run・成功のどの経路でも同じ集合。退役済み系列への Build cleanup は記録の読取（`Set-BuildCleanupMode`）で `unattributed` と `retirement` を足すので、読取後の経路（dry-run を含む）は retire と同じ集合。Content は Build から `unattributed` を除いた同じ規則。記録を読む前に止まる cleanup（入力・config の不正、`cleanup-in-progress`）と、記録が不明な `retirement-unknown` は件数保持の集合（`mode=retention`）で返る。後者は選別を行わず配列は空なので AC8（N の選別へ戻らない）には反しないが、表示の読み方は後続の入力 R2-a とする。
+  - **AC8:** 退役済み系列の cleanup の `mode=retirement`、不明な記録の `retirement-unknown`（blocked、送信 0）は revision 1 から変わらず、`record-before-delete`・`build-after-retire`・`content-after-retire` が通る。
+- revision 1 で確認した不変条件への影響: 差分は結果の組立て（`Set-BuildCleanupClassification`・`Set-*CleanupMode`・初期結果）とコメント・README・テストに限られ、lock・退役記録の読取／書込みの順序、snapshot の取り直し、選別、削除試行、publish・collect・use の退役確認に触れない。したがって I1〜I7 と AC3・AC9・AC13 を破る順序の検討（上の revision 1 の結果）は revision 2 の head でもそのまま成り立つ。`Set-BuildCleanupClassification` が `held` を変えるのは結果の表示だけで、候補・判定・exit code には効かない（`held` と `unattributed` の他の読み手はコードに無い）。
+- 現在の問いを阻害する欠陥（凍結済み条件または常時契約への違反）: **1 件。**
+  - **R2-1（docs、B 適応）:** `tools/Artifacts/README.md` の「開発Buildの件数清掃」と「開発Contentの件数清掃（content cleanup）」の結果 JSON の項目は、field を列挙して「…だけで」と網羅を述べているが、`mode` が無い。revision 2 の AC7 で件数保持の結果にも `mode=retention` を常に出すようになり、この 2 項目は implementation head で偽になった（退役節は「件数清掃の固定fieldに `mode` を足したもの」と書くので、同じ README の中で主張が食い違う）。違反根拠: ドキュメント方針（`docs/README.md`）の公開面のルール 1「今この瞬間に真であること。同じ主張の新旧を併存させない」と、AC7 が凍結した結果 field。修正: 2 項目の列挙に `mode`（件数保持は `retention`、退役済みの系列では `retirement`。退役の詳細は「系列の退役」節）を足す。コード・suite の変更は要らない。docs-audit は検出しない（文の意味の検査は対象外）。
+- 後続スライスの入力（違反根拠は無く、現スライスを拡張しない）:
+  - **R2-a:** 退役記録を読む前に止まる cleanup と `retirement-unknown` の blocked は `mode=retention` を返す。`mode` は「どちらの選別で動いたか」で、選別をしていない結果では既定値にすぎない。AC7・AC8 は blocked の `mode` を定めておらず、配列は空で exit 1 なので誤削除・誤表示（I4）には当たらない。読み手が `retirement-unknown` で `mode=retention` を「件数保持へ戻った」と読まないよう、未確定時の `mode`（null 等）か README の一文を、次に結果の形を触るときに決める。
+  - revision 1 の後続の入力 3 件（suite の hermetic 化、退役確認の 2 か所、Content の `held`／`protected` の二重表示）は変わらず有効。
+- 実行したテストコマンドと結果（作業ツリー `6d2f36d` = implementation head と同じ実装、`pwsh tools/Artifacts/tests/<suite>.Tests.ps1 -Case '*' -ResultPath <git 管理外>`）: `SeriesRetirement` 17、`BuildCleanup` 23、`ContentCleanup` 23、`BuildRetention` 9、`BuildPublish` 9、`BuildCollect` 9、`Content.Publish` 12。いずれも selected＝executed、failed 0。`pwsh tools/contract-audit.ps1`: 違反なし。`pwsh tools/docs-audit.ps1`: errors 0・warnings 0。実行後も実 store の `retirements-v1` は存在しない。
+- 判定必須のうち未実行: .NET Release build 3 本、Artifacts 全 suite（上記 7 以外。EvidenceCleanup を含む）、Workflow `TaskLifecycle`、`unity/` 0 件の機械確認、AC15（実 R2）、判定 C の照合 script。いずれも判定 C が最終 head で行う。
+- 未確認事項: 静的な読みと起点 suite の実行に基づく。実 R2・資格情報・Unity・実 store には触れていない。変異の再実行はしていない。
+- 指摘の ledger: R2-1（severity: low、category: semantic、unique、accepted、bucket: 阻害、根拠: ドキュメント方針の公開面ルール 1 と AC7、修正 commit: 未）。R2-a（severity: low、category: semantic、unique、bucket: 後続の入力）。
 
 ## 8. Phase C'
 
