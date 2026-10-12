@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A3 凍結`（2026-10-11、owner 承認。r6。次は Phase B。管理方式は tracked HANDOFF で、H1/CURRENT は採用しない。§5）
+- status: `Phase C／C′ 完了・Phase D 待ち`（判定 C は GO。C′ は FAIL の指摘 2 件を owner が不採用・後続へ移送と判断。§7・§8。管理方式は tracked HANDOFF で、H1/CURRENT は採用しない。§5）
 - branch: `codex/artifact-storage-build-retention-cleanup`
 - implementation base commit: `cf7b77fefb4e84bbd8464732a3c3bccca10f0813`（`develop`。PR #118 を含む。A3 で凍結時の `develop` と照合し直す）
 - implementation head commit: `cad885b26974b4a39df0f7f71c8de813fd870e2d`（Phase B。§6）
@@ -12,10 +12,10 @@
 - created: 2026-10-11
 - expires: 2026-11-08 または置換 revision
 - harvest to: 操作と契約を `tools/Artifacts/README.md`（「開発Buildの件数保持policy」節の拡張と新節）、program の状態と後続スライスへの移送を `docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 B へ。完了時に本書を削除する。
-- Phase A snapshot の取得案内・状態: 生成済み（本書の §0〜§5 を A3 凍結 commit の版で固定したもの）・未保存。C／C′ への固定入力の引渡し時に、`review-evidence.md` に従い Evidence として publish し、取得案内を残す。
-- Phase B result snapshot の取得案内・状態: 未生成
-- evidence bundle の取得案内・状態: 未生成
-- C' blind bundle の取得案内・状態: 未生成
+- Phase A snapshot の取得案内・状態: 保存済み（A3 凍結 commit の本書を、evidence bundle と C′ blind bundle の両方に収録）・引渡し未完了（取得側 session での fetch・閲覧確認は Phase D）
+- Phase B result snapshot の取得案内・状態: 保存済み（最終 head の §6 を両 bundle に収録）・引渡し未完了
+- evidence bundle の取得案内・状態: 保存済み（Artifact Storage、task `build-retention-cleanup`、最終 head）・取得案内はローカルの git 管理外に作成済み・引渡し未完了
+- C' blind bundle の取得案内・状態: 保存済み（同上、所見を含まない最終 head の入力）・引渡し未完了
 
 入力の正本は program §2（開発Build・開発Content の保持、未完了uploadとstaging）と §4 B（件数保持の運用接続、診断の改善、ArtifactsRoot の件数清掃と `.staging` 回収、r7 レビュー由来の入力、PR #118 の後続への入力）、`tools/Artifacts/README.md` の Build／Content／件数保持 policy の各節、および現行コード。program で固定済みの契約は §1 に転記し、再議論しない。
 
@@ -399,31 +399,33 @@ Build 系列 1 つについて、ローカル receipt から成功 publish の�
 
 ## 7. Phase C
 
-- 種別:
-- 使用したevidence bundle の取得案内・状態:
-- 構造適合:
-- 現在の問いを阻害する findings:
-- 後続スライスへ移送する findings:
-- 実行したテストコマンドと `-Filter`、対象を選んだ理由:
-- テスト結果:
-- 判定必須のうち未実行:
-- 重い検証を発見段階で限定実行した場合の理由と範囲:
-- 未確認事項:
-- 担当・モデル:
+- 種別: 発見 C（3 巡で阻害する指摘 0 件に収束）→ 判定 C（最終 head `cad885b` で GO）。
+- 使用したevidence bundle の取得案内・状態: 最終 head の判定 evidence bundle を Artifact Storage へ保存済み。取得案内（reference と期待 packageSha256）はローカルの git 管理外に作成済みで、引渡しは未完了（Phase D）。
+- 構造適合: §3 の責務マップどおり（分類は BuildCatalog、保護判定は BuildProtection、手順は BuildCleanup、記録と lock は BuildStore、選別は無変更の BuildRetentionPolicy、Build DELETE の許可は `Test-R2ArtifactRequestAllowed`）。§4 の差し戻し条件に当たる変更は無い。
+- 現在の問いを阻害する findings: 最終 head で無し。
+- 後続スライスへ移送する findings: 無し（判定 C）。C′ 由来の移送は §8。
+- 実行したテストコマンドと `-Filter`、対象を選んだ理由: 判定必須テスト一式を最終 head で実行。3 つの .NET Release build（Probe・Packaging・Transport）、`tools/Artifacts/tests/*.Tests.ps1` 全 18 suite と `tools/Workflow/tests/TaskLifecycle.Tests.ps1` を `-Case '*' -ResultPath`、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、diff 中の `unity/` file 数の機械確認。AC23 は実 R2 で `tools/artifacts.ps1` の CLI を順に実行し、判定 C 担当が書いた独立照合 script を原記録に対して実行した。
+- テスト結果: 3 build 成功。18 suite と TaskLifecycle（23/23）は全て registered＝selected＝executed、failed 0。contract-audit・docs-audit は errors 0。diff 中の `unity/` は 0 件（全 EditMode 回帰の適用除外の代替証拠）。AC23: 実系列 `samplegame/windows-x64-player/il2cpp-high` の dry-run は 1 件で `within-limit`。検証用系列 `retention-probe/windows-x64-player/probe-4` は実行前に空、11 件 publish 後の cleanup で最古 1 件だけが DELETE（204）→ GET 404 `NoSuchKey` → 削除済み記録（`requests` は DELETE 1・GET 1）、再実行は DELETE 0・GET 0。削除した 1 件は `build inspect` が `payload-deleted`、`build fetch` が `download-unconfirmed`、残り 10 件の fetch は passed で取得物の SHA-256 が `packageSha256` と一致。独立照合 script は全 8 項目 pass（receipt／intent／保護／削除記録の列挙と分類、dry-run との突合せ、全順序による最古の算出、削除記録の観測の再評価、intent hash、送信回数、照会・取得）。owner の確認テキストは「versioning は無効（設定項目なし）」。
+- 判定必須のうち未実行: 無し。
+- 重い検証を発見段階で限定実行した場合の理由と範囲: 無し（実 R2 は判定 C だけで実行）。
+- 未確認事項: 無し。R2 には検証用系列の小さな object が probe-1〜probe-4 の各 10 件、計 40 件残る（退役手段が無いことは A3 で受け入れ済み。head が変わるたびに新しい系列で取り直したため、owner の許可を得て累計が増えた）。
+- 担当・モデル: Grok 4.7 High（`grok-4.7-high`）／xAI、cursor-agent の新規 session（読取のみ）。テスト・AC23 の CLI 実行と独立照合 script の保存・実行は実装担当（Claude Opus 5.5）が機械的に行い、script の内容と判定は Grok が担当した。
 
 ## 8. Phase C'
 
-- 担当方式:
-- 使用したblind audit bundle の取得案内・状態:
-- 確認範囲・方法:
-- 判定:
-- 現在の問いを阻害する findings:
-- 後続スライスへ移送する findings:
-- 残存リスク:
-- 監査できなかった範囲:
-- 独立性:
-- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与:
-- 担当・モデル:
+- 担当方式: AI。B（Anthropic）・C（xAI）と別ベンダーの GPT。owner の指定（B・C に未関与の Claude/GPT）による。
+- 使用したblind audit bundle の取得案内・状態: 最終 head の blind audit bundle（A3 凍結版の本書、最終 head の §6、完全 diff、判定必須テストの生結果、AC23 の path 除去済み記録と独立照合 script・出力、owner の確認テキスト。発見 C・判定 C の所見は含まない）を Artifact Storage へ保存済み。取得案内はローカルの git 管理外に作成済みで、引渡しは未完了（Phase D）。
+- 確認範囲・方法: blind bundle のディレクトリだけを読む read-only session。テストの再実行と実 R2 の操作はしていない。
+- 判定: FAIL（最終 head `cad885b`。4 巡目。3 巡の上限を owner が例外として 4 巡目まで延長）。
+- 現在の問いを阻害する findings: C′ は 2 件を挙げたが、owner が現スライスでは直さないと判断した（下記）。
+  - receipt の無い指定系列の Build で、`intent.json` は所属 5 項目だけを検査し、他の項目が壊れていても未完了として扱う（C′ の根拠: AC4(a)）。不採用の理由: AC2 は「receipt が無く intent が読めれば未完了（intent の系列で分類）」と定めており、未完了は成功に数えず削除候補にもならないので、消す Build の選び方に影響しない。
+  - `build use` の `createdAt` を rename の時点で取り直していない（C′ の根拠: AC7）。不採用の理由: 記録の内容は temp への書込み前に確定させる必要があり、rename の直前に `createdAt <= now < until <= now+90日` を検査して満たさなければ確定しないことで、AC7 の目的（期限切れ・不正な保護を確定させない）を満たす。
+- 後続スライスへ移送する findings: 未完了（receipt の無い）Build の `intent.json` をどこまで検査するか（AC2 と AC4(a) の文言の隙間）。所有先は program §4 B の「件数保持の運用接続」の残り。
+- 残存リスク: 別 PC・Cloud の利用は観測しない（凍結時に受け入れ済み）。
+- 監査できなかった範囲: blind bundle の外の原本記録、実 R2 の現状態、テストの再実行。
+- 独立性: 独立性制約あり。B・C と異なるモデル・ベンダーで新規 session・blind bundle を使ったが、GPT は Phase A の A2 レビューに関与した系列。Phase A で使っていない Fable 5.1 はクレジット不足で起動できなかった。
+- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: 無し。
+- 担当・モデル: GPT（Codex CLI 0.159.2 の既定モデル）／OpenAI、`codex exec --sandbox read-only --ephemeral`。
 
 ## 9. Phase D
 
