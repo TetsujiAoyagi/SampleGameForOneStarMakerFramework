@@ -3,20 +3,20 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `B`（Phase A revision 1 を A3 で凍結。次は Phase B）
+- status: `C`（Phase B 完了・次は発見 C）
 - branch: `codex/artifact-storage-content-retention-cleanup`
 - implementation base commit: `7a75cac6f437f480e15fe49b203269551cfe2a22`（`develop`。PR #122 を含む。A3 凍結時の `origin/develop` と一致を確認済み）
-- implementation head commit: 未固定（Phase B で記録）
+- implementation head commit: `defd15ca1561a314f0afc5ab5c3eea47e02dd8fe`（Phase B の実装 commit。HANDOFF 記録 commit はこの上に積む）
 - risk: `high`（R2 の実 DELETE を初めて Content に開く。1 revision が複数 object で、途中で止まると revision が壊れる。公開 API・asmdef・Unity は変えない）
 - owner: OSM maintainers
 - created: 2026-10-12
 - expires: 2026-11-09 または置換 revision
 - harvest to: 操作と契約を `tools/Artifacts/README.md`（新節「開発Contentの件数清掃（content cleanup）」と Content 保存節の既知の限界の更新）、program の状態と後続への移送を `docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 B へ。完了時に本書を削除する。
 - Phase A snapshot の取得案内・状態: 未保存（A3 凍結 commit の本書。判定 C の evidence bundle と C′ blind bundle に収録して保存する）
-- Phase B result snapshot の取得案内・状態: 未生成
+- Phase B result snapshot の取得案内・状態: 未生成（本書 §6。発見 C の evidence bundle に収録する）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: 次は Phase B（実装）。凍結した Phase A revision 1 の本書 §2〜§5 だけを正とし、§4 の順序で実装する。implementation base は上記。必要な権限: ファイル編集とローカルの offline テスト実行だけ（実 R2・資格情報・Unity・`%LOCALAPPDATA%` の実 store には触れない）。停止規則: §4 の差し戻し条件に当たれば実装を止めて Phase A へ返す。出口: §6 を書き、implementation head を記録して push する。判定 C・C′ は起動しない。
+- 引継ぎ票: 次は発見 C。implementation base `7a75cac6f437f480e15fe49b203269551cfe2a22`、implementation head `defd15ca1561a314f0afc5ab5c3eea47e02dd8fe`（両方 push 済み）。§2〜§5（Phase A revision 1）を正とし、§6 の B 結果と固定した差分を照合する。必要な権限: 読取とローカルの offline テスト実行だけ（実 R2・資格情報・Unity・`%LOCALAPPDATA%` の実 store には触れない）。発見 C は GO 判定をせず、C′ も起動しない。AC18（実 R2）は判定 C で最終 head に対して行う。
 
 入力の正本は program §2「開発Content」と §4 B（PR #118 の「決めたこと」「後続への入力」、PR #119 の「決めたこと」「後続への入力」）、§4 A 末尾の PR #121 の段落、`tools/Artifacts/README.md` の「開発Buildの件数清掃」と「開発Content 1件の保存と取得」、および現行コード。program で固定済みの契約は §1 に転記し、再議論しない。
 
@@ -319,7 +319,33 @@ Content 系列 1 つについて、このPCの成功記録と保持中 Player �
 
 ## 6. Phase B 実装結果
 
-（未着手）
+- 担当: Claude Opus 5.5／Anthropic（新規 subagent session）。implementation head `defd15ca1561a314f0afc5ab5c3eea47e02dd8fe`（commit `feat(artifacts): add Content retention cleanup (content cleanup)`）。
+- 実装: §4 の順で実装した。
+  1. `ArtifactDeletion.psm1`（新規 48 行）: `ConvertTo-ArtifactObservation`（観測時刻は引数）・`ConvertFrom-ArtifactObservation`・`Assert-ArtifactObservation`。ArtifactCommands だけに依存。`BuildCleanup.psm1`（205 → 191）と `BuildStore.psm1`（316 → 310）の写像・検査をここへ移した。`Write-BuildImmutable` に第 5 引数 `Kind`（既定 `build`）を足し、許可名の表を `build`／`content` に分けた（Build の集合は不変）。Build 系 4 suite は無変更で通過。
+  2. `ContentDeletionStore.psm1`（新規 133 行）: `Write-ContentDeletionRecord`（`deletion/` 名だけ、`content` 種別）、`Read-ContentDeletionState`（形・連番・hash の結び付き・観測の検査）、`Enter-ContentSeriesLock`（`<target>/cleanup.lock`、FileShare.None、非待機で `lock-busy`）。
+  3. `ContentCatalog.psm1`（新規 105 行）`Get-ContentSeriesSnapshot`、`BuildStage.psm1`（144 → 171）`Get-BuildStagedPlayerIds`、`ContentProtection.psm1`（新規 37 行）`Get-ContentProtectedBuildIds`。
+  4. `ContentCleanup.psm1`（新規 233 行）`Invoke-ContentCleanup`（状態遷移表の手順 1〜8 と再開、N=10、DELETE 上限 2,048、予算 600 秒）。
+  5. `Transport/R2ArtifactTransport.psm1`（54 → 58）の印 `ContentRetentionDelete`、`ContentApplication.psm1`（163 → 181）の inspect／collect の削除状態判定、`tools/artifacts.ps1` の `content cleanup [--dry-run]`（partial は exit 2）。
+  6. `tools/Artifacts/README.md`（新節「開発Contentの件数清掃（content cleanup）」、Content 保存節の inspect・再実行・既知の限界、Build 清掃節の U9 の明記と既知の限界）。テスト: `tests/ContentCleanup.Tests.ps1`（22 ケース、652 行）・`tests/ContentCleanupChild.ps1`、`tests/Content.Contract.Tests.ps1` の `transport-allowlist` に印付き行を追加（既存の拒否 assert は残した）。
+- HANDOFF との差（いずれも B 適応。契約・責務配置・公開 CLI の追加は無い）:
+  - `BuildCleanup` に `ConvertTo-BuildObservation`（注入時計で観測時刻を渡す）と `ConvertFrom-BuildObservation`（委譲だけ）を薄い関数として残した。既存の BuildCleanup suite が module scope でこの名前を呼ぶため（suite を変えずに通すため）。
+  - 「Build 種別が committed を拒否する assert」は Build 系 suite を無変更に保つため `ContentCleanup.Tests.ps1` の `record-kinds` に置いた。ContentStore は変更せず、既存の intent／receipt の書込みは既定の `build` 種別のまま（`content` 表も intent／receipt を含む）。
+  - 記録の field 名: 削除 intent の「receipt の intentSha256」は `publishIntentSha256`、消す key は `keys`。`deleted.json` は `committedSha256` と `observations`（手順 7 の観測を送信順に。再開時は完了した回の手順 7 の全観測）。各 key の最後の観測が GET 404 であることを読取時にも検査する。
+  - catalog は保護 ID の集合（ContentProtection の結果）と content-config を引数に受け、`protected` 一覧も返す（policy 行の `inUse` を catalog で決めるため）。
+  - `Resolve-BuildArtifactsRoot` の Source を省略可能にした（空なら入力との親子検査だけを省く）。cleanup は source を持たないため。他の規則（既存 directory・reparse・所有 store との親子拒否）は同じ。
+  - 保護源 (a) は entry 名だけで照合し種類を見ない（32hex 名の file も保護に数える。過剰保護側）。(b) は players/ と中間 3 階層の directory だけを辿り、players/ が file・reparse なら `protection-unknown`。
+  - 結果の各分類は `{count, revisions}`、`outcomes` は `{revision, outcome}`。outcome に `revision-busy`、`not-candidate`（publish.lock 後の取り直しで候補でなくなった。その run では除外）、`delete-limit`（試行途中で上限）を足した。partial の reasonCode は Build と同じ規則（停止理由、無ければ最初の revision-busy／delete-unconfirmed、無ければ delete-pending）。
+  - 予算判定点名は intent・delete・sent・get・committed・abandoned・object-get・object-delete・deleted。StepHook（テスト専用）は after-lock・after-revision-lock・after-commit。
+  - config は inspect と同じく渡された private operation 内の content-config を直接読む。検査順は token → ArtifactsRoot → config。系列 lock の ACL が不一致なら lock を取れず `failed`（何も読まず送らない）。
+  - collect で `deletion/` が読めない場合の理由語は inspect と同じ `receipt-unavailable`（ContentApplication の許可語に `payload-deleted`・`delete-pending`・`receipt-unavailable` を追加）。
+  - transport: Content の印付きでも Content 以外の key の DELETE は拒否。既存の Content.Contract の source 文字列 assert が残るよう条件を書いた。
+  - AC2 の字義どおり、revision directory 内の書込み失敗 temp（`receipt.json.<32hex>.tmp` 等）も未知の entry として `catalog-incomplete`。`deletion/` 内の temp は Build と同じく読み飛ばす。
+  - 行数: ContentCleanup.Tests.ps1 は見積り約 500 に対し 652 行。ContentCleanup.psm1 は 233 行（300 行以内）。
+- 実行した検証と結果（implementation head と同じ作業ツリー、2026-10-12）:
+  - 3 つの .NET Release build（Probe・Packaging・Transport）: いずれも 0 エラー。
+  - `tools/Artifacts/tests/*.Tests.ps1` 全 19 suite を `-Case '*' -ResultPath <git 管理外>`（rg を PATH に通して 1 回）: 全 suite failed 0。ArtifactEvidence 19、ArtifactPackage 9、ArtifactRotation 11、ArtifactTransfer 20、BuildCleanup 23、BuildCollect 9、BuildPublish 9、BuildRetention 9、Content.Contract 9、Content.Fetch 5、Content.Publish 12、ContentCleanup 22、Credentials 22、EvidenceCleanup 35、EvidenceReset 31、EvidenceRetention 14、EvidenceSchedule 78、R2RouteTransport 7、RouteProof 26。
+  - 全 Artifacts PowerShell の parse: エラー 0。`pwsh tools/contract-audit.ps1`: errors 0・warnings 0。`pwsh tools/docs-audit.ps1`: errors 0・warnings 0。implementation base からの diff に `unity/` は 0 件。
+- 未実行: AC18（実 R2。判定 C の高コスト証拠）、Workflow `TaskLifecycle`（判定 C の必須テスト）、判定 C の照合 script（B は書かない）。Unity のテスト・Build は適用除外（Unity を変更しない）。
 
 ## 7. Phase C
 
