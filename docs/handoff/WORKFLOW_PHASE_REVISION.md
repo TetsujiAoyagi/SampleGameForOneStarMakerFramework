@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（A3 凍結済み。次は Phase B）
+- status: `B`（Phase B 完了。次は Phase C）
 - branch: `codex/workflow-revision-phase-a`
 - implementation base commit: `24fdd2099f4df39911de0d88c09fc7815e077fb8`（`develop`。PR #119 のマージを含む。A3 凍結時の `origin/develop` と一致を確認済み）
-- implementation head commit:
+- implementation head commit: `e70a31d54c05fdf0a4d58882db693f78be6065e3`
 - risk: `high`（全スライスの判定・独立監査・証拠の取り直しの規則を変える。誤削除・未検証の GO・独立性の低下に直結しうる。公開 API・asmdef・Unity は変えない）
 - owner: OSM maintainers
 - created: 2026-10-12
@@ -453,11 +453,20 @@ D:\repositories\unity\SampleGameForOneStarMakerFramework の docs/handoff/WORKFL
 
 ## 6. Phase B 実装結果
 
-- 実装:
+- 実装: §3 の 4 文書だけを変更した（`AGENTS.md`・tools・`unity/` は不変）。正本の置き場は次のとおりで、SKILL.md は要約とリンクに留めた。
+  - review-evidence.md: 「高コスト証拠と最終証拠ラウンド」（1b。暫定 C′／最終 C′、判定 C と最終 C′ の両方まで GO にしない）、「判定 C の照合 script」（6）、「Phase C′ の blind audit bundle」に C′ 用決定記録と巡ごとの範囲（2A・2C）と除外項目「発見 C・判定 C の指摘への裁定」、「保存先とリモートへの配布」に保護名の点検と対応表（8）。R1（「判定後の head 変更」）は変えていない。
+  - phases-and-handoff.md: 「不変条件と成立条件」（3。導入後に A1 を始めるスライスから適用）、「blocker の基準」（2D）、「決定記録」（2A。意味・合否を変える裁定は A revision）、「Phase 境界の引継ぎ」（4・7。引継ぎ票、実行担当と判断担当、PR 状態ブロック、Cloud の assist）、A2 入力版の sha256（5）、HANDOFF の必須内容。既存の C′ 入力の列挙は review-evidence.md への参照に置き換えた。
+  - handoff-template.md: §0 引継ぎ票と PR 状態ブロックの雛形、§2 不変条件・成立条件・AC の例・決定記録、§5 高コスト証拠・照合 script の方式・A2 入力版、§7 実行担当、§8 C′ の種別と巡・決定記録の版。
+  - SKILL.md: 作業開始時の照合と停止、Git 履歴の整理対象（5）、Phase A〜C′・完了の要約とリンク。C′ の bundle 構成の列挙は参照に置き換えた。
 - HANDOFF との差:
-- 未実行:
-- implementation head commit:
-- Phase B 担当・モデル・ベンダー:
+  - 高コスト証拠を分類しないスライスには最終証拠ラウンドを適用せず、判定証拠が揃った head の C′ を最終 C′ とする旨を補った（A3 は分類したスライスの順序だけを定めているため）。
+  - 2C の範囲は「暫定 C′ の 2 巡目以降」に限らず「C′ の 2 巡目以降」として書いた（高コスト証拠の無いスライスでも同じ範囲になる）。
+  - 論点 5 の「高コスト証拠の無い中間 head は整理してよい」は、同じ節の「判定 evidence を取った head は push する」と食い違うため、「判定 evidence を取っていない中間 head は整理してよい」とした。
+  - 2D の blocker の基準は C′ に限らず Phase C / C′ の両方に置いた（論点 3 の「判定（C・C′ とも）」に合わせた）。
+  - §3 で SKILL.md が担うとした「Phase 出口の更新手順（4・7）」は、I7 に従い本文を phases-and-handoff.md に置き、SKILL.md は要約とリンクにした。
+- 未実行: Unity・テストは対象外（文書のみ）。§0 の Phase A snapshot の取得・閲覧確認は行っていない（本 session は固定入力だけで作業し、Artifact Storage に触れていない）。push と PR 本文の更新はしていない。
+- implementation head commit: `e70a31d54c05fdf0a4d58882db693f78be6065e3`
+- Phase B 担当・モデル・ベンダー: Claude Opus 5.5／Anthropic（Claude Code の新規 subagent）
 
 ## 7. Phase C
 
