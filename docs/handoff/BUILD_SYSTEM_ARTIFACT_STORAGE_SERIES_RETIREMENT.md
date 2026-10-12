@@ -3,21 +3,21 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（A0・A1 初稿。A2 未実施）
+- status: `B`（Phase A revision 1 を A3 で凍結。2026-10-12）
 - branch: `codex/artifact-storage-series-retirement`
-- implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（`develop`。PR #123 を含む。A0 時点の `origin/develop` と一致を確認済み。A3 凍結時に再確認する）
+- implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（`develop`。PR #123 を含む。A3 凍結時の `origin/develop` と一致を確認済み）
 - implementation head commit: 未固定（Phase B で記録する）
 - risk: `high`（系列を丸ごと R2 から消す不可逆な操作を新設する。新しい永続記録と、publish・collect・use を拒否する経路を足す。公開 API・asmdef・Unity・transport の C# は変えない）
 - owner: OSM maintainers
 - created: 2026-10-12
 - expires: 2026-11-09 または置換 revision
 - harvest to: 操作と契約を `tools/Artifacts/README.md`（新節「系列の退役」と、Build・Content の件数清掃節の既知の限界の更新）、program の状態と後続への移送を `docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 B へ。完了時に本書を削除する。
-- Phase A snapshot の取得案内・状態: 未生成（A3 凍結時に作る）
+- Phase A snapshot の取得案内・状態: 未保存（revision 1 の本書。凍結 commit は本書を A3 として記録した commit。C′ 用 blind bundle に収録して保存する）
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - workflow task: `series-retirement`（2026-10-12 に `workflow-task.ps1 start` 済み）
-- 引継ぎ票: **次は Phase A2（独立レビュー）。** 入力版は本書の A1 初稿（commit と内容 sha256 を A2 の依頼時に記録する）。観点は §5 の A2 計画のとおり、少なくともアーキテクチャゲート 1 件と、失敗経路・fail-closed・競合・検証経路 1 件。高リスクなので、初稿を見ずに §1（A0）だけから代替構成を出すレビューを検討する。各レビューは互いの指摘を見ない。必要な権限: 読取だけ（R2・資格情報・Unity に触れない）。停止規則: A2 は指摘を返すだけで本書を書き換えない。採否は A3 で主担当と owner が決める。引き渡さないもの: 他のレビューの指摘、C′ 用に予約する担当・モデル（§5）への事前の内容共有。
+- 引継ぎ票: **次は Phase B（実装）。** 凍結した Phase A revision 1（本書）の §3 責務マップ・§4 順序どおりに実装し、AC1〜AC14 の offline テストを書く。implementation base は上記。必要な権限: ローカルの編集・PowerShell・offline テスト（`tools/Artifacts/tests` の関連 suite。H1 は採らないので B exit の義務は無いが、起点 filter の確認は行ってよい）。実 R2・資格情報・Unity は使わない（AC15 は判定 C）。停止規則: §4 の「Phase A へ差し戻す条件」に当たったら実装を止めて返す。B の出口で §6 と本票を更新して push して終える。判定 C の実行・照合 script・C′ の起動は担わない。引き渡さないもの: C′ 用担当（§5）への所見・会話。
 
 入力の正本は program §2「開発Build」「開発Content」と §4 B（PR #119・PR #123 の「決めたこと」「後続への入力」）、`tools/Artifacts/README.md` の「開発Buildの件数清掃」「開発Contentの件数清掃（content cleanup）」、および現行コード。program と既存スライスで固定済みの契約は §1 に転記し、再議論しない。
 
@@ -174,7 +174,7 @@
   - 通常 writer に bucket 管理権限を足さず、403 を rule 変更で突破しない。
   - 既存の receipt・intent・削除記録・保護記録を書き換えない。追加する記録は不変（CreateNew + rename）。
   - `BuildRetentionPolicy` の既存関数の契約（`KeepCount` ≥ 1）を変えない。
-- **未決事項:** U1〜U12（§1）。推奨案は §3 末尾。
+- **未決事項:** なし。U1〜U12 は A3 で推奨案どおりに決定した（§3 末尾、§5 の A3 欄）。
 
 ## 3. 責務マップ
 
@@ -197,7 +197,7 @@
 - `BuildCleanup`・`ContentCleanup` の増分はそれぞれ約 20%・約 15%。`ContentCleanup` が 300 行を超える見込みになったら Phase A へ戻す（PR #123 の判断を引き継ぐ）。退役用の別 orchestrator は作らない（U3）。手順（lock・snapshot の取り直し・再開・予算・集計）が件数清掃と同一で、二重に持つと片方だけ直って腐る。
 - `BuildApplication` は 337 行で 500 行警報には遠い。publish と use の入口に同じ確認を 2 か所足すだけ。
 
-### 未決事項の推奨案（A3 で owner が決める）
+### 未決事項の推奨案（A3 で owner が全件を推奨案どおりに決定）
 
 - **U1（起点）推奨: owner の明示指示だけを起点にする。CLI の `--decision` に、Workflow の `Decision` と同じ書式の非秘密の指示 ID（例 `chat:20261012T1230Z:series-retirement:retired`、`github:<owner>/<repo>/pull/<n>/<fragment>`）を必須で受け、退役記録に残す。** 理由: イベント終了を機械的に知る情報源が無い（F7）。期日や最終 publish からの経過で推測すると、終わっていない系列を消しうる（I1）。採らない案: (a) イベント終了日を系列に登録して自動退役: 登録の所有者・時計・取消が新しく要り、統合フォルダの選択とも重なる（後続へ）。(b) 指示 ID なし: 誰の指示で消えたかを後から復元できない。
 - **U2（記録の置き場）推奨: 別 root `retirements-v1/<repositoryId>/<build|content>/<系列 key>.json`（LocalApplicationData の Artifacts 配下。系列 key は Build `<project>~<target>~<configuration>`、Content `<contentSet>~<target>`）。** 理由: `builds-v1` の repo 直下・Content 系列 directory 直下は未知 entry で catalog が止まる規則（F2）で、そこへ置くと catalog の規則と全既存テストの前提が変わる。別 root なら、読めないときの扱い（`retirement-unknown`）を 1 か所で決められる。token は既存規則で path 要素として安全。採らない案: Content 系列 directory の `retired.json`（Build に系列 directory が無く、置き場が種別で割れる）。
@@ -253,10 +253,10 @@
 - **判定 C の照合 script の方式:** 判定 C の offline 実行。判定 C 担当が script を書き、資格情報・通信に触れない環境で、AC15 の原記録の複製に対して実行する。原記録へ適用する前に、判定 C が作った合成 fixture（期待値を先に書く。記録の連鎖の破損・期待外の key・GET 404 以外の最終観測を含む不合格例を入れる）で一度通す。
 - **機械検査:** `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、全 Artifacts PowerShell の parse。
 - **A0/A1 主担当・モデル・ベンダー:** Claude Opus 5.5／Anthropic（Claude Code desktop）。
-- **A2 独立レビューごとの観点・担当・モデル・ベンダー、入力版:** 未実施。計画: ① アーキテクチャゲート（フォルダ境界・責務・依存・所有者・寿命・テスト可能性。特に U2・U3・U8）、② 失敗経路・fail-closed・競合・検証経路（各不変条件を破る順序を 1 つ挙げる。AC3・AC9・AC13、AC15 の照合器）、③ 高リスクのため、§1 だけを読んで代替構成を出すレビューを検討する。入力版は依頼時に commit と内容 sha256 で記録する。
-- **A3 統合担当・モデル・採否:** 未実施。
-- **C' 用に予約した担当・モデル・ベンダー:** 未定（A2 で使う系列を決めるときに、A0〜C に関与しないベンダーを 1 つ残す）。
-- **独立性の強化条件を満たせない場合の理由:** 未定。
+- **A2 独立レビューごとの観点・担当・モデル・ベンダー、入力版:** 実施しない（owner の判断。2026-10-12 チャットで A1 初稿 commit `446f823` を確認し、A3 凍結を指示した）。高リスクスライスで独立レビューが 0 件なので、設計の見落としは発見 C・C′ で拾う前提になる（残存リスク）。発見 C は特に、各不変条件を破る順序（AC3・AC9・AC13）と AC15 の照合器を見る。
+- **A3 統合担当・モデル・採否:** 主担当 Claude Opus 5.5／Anthropic と owner（2026-10-12 チャット）。U1〜U12 を全て推奨案どおりに採用。A2 の指摘は無いので採否の分類は無い。あわせて owner は AC15 の実 R2 DELETE（検証用 60 object）と `osm` 資格情報の使用を許可した。実行経路（許可ルールの追加か owner 本人の実行か）と `--decision` に使う指示 ID は判定 C の実行前に owner と確認する。
+- **C' 用に予約した担当・モデル・ベンダー:** Phase A・B・C に使わないベンダーを 1 つ残す（A0/A1 は Anthropic。B・C の担当を決めるときに、C′ 用に別ベンダーを予約する）。
+- **独立性の強化条件を満たせない場合の理由:** 未定（C′ の時点で記録する）。
 
 ## 6. Phase B 実装結果
 
