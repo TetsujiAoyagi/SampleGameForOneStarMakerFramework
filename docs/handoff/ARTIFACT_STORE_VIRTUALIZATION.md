@@ -26,6 +26,10 @@
 **引継ぎ票（r5 凍結）— 次は Phase B（r5 の追加分）。** Phase A revision r5（2026-10-14 凍結、§5.16）の §1〜§5 を唯一の仕様とする。
 
 - **B の担当:** 新しい session。非仮想化の host（Claude デスクトップ等）で行う。モデルは固定しないが、判定 C を B と異なるモデルで行えるように選ぶ。C' 用に予約した系列（cursor-agent の Grok 系）は使わない。開始時に、リモートの head、本 §0、r5 の凍結 commit と内容 sha256、§1〜§5 と凍結 commit の同一性を照合し、食い違えば始めない。
+- **B の作業場所と実行環境:**
+  - `origin/claude/artifacts-virtualized-store-a01` から新しい worktree を作り、このブランチで作業する。他の worktree（過去の C・C'・AC4 用を含む）は使わない。
+  - PowerShell 7 は sandbox 外で実行する。LocalAppData の状態を作る・確かめる操作は pwsh で行い、Claude デスクトップの Bash ツール（Git Bash）では行わない。Bash から LocalAppData に書くと Claude の package の LocalCache に入り、実体側に作られない（§1.2）。
+  - suite の前に 3 project の Release DLL を既存 loader の出力先へ用意し、EvidenceCleanup の前に `rg` を PATH へ通す（下の「必要な権限（B 以降）」と同じ）。Artifact Storage・資格情報・R2 には触れない。
 - **B の作業:** r4 の implementation head `741444d` の上に、§4 の「r5 の追加分」を実装する。D1（r5）の判定方式、private seam の拡張、AC2 の追加分・AC15・§5.1 の r5 の検証例、README の残骸の説明。三つの CLI 入口、計画・合流 module、reasonCode、公開 API は変えない。§4 の「r5 で Phase A へ差し戻す条件」に当たれば止める。B の確認は §5.1 の起点 filter で行う。終わったら `pwsh tools/contract-audit.ps1` を実行する。
 - **B の出口:** §6 に「r5 の実装」の小節を足し、implementation head を §0 に書き、push する。次の担当は動作確認（D8）。
 - **動作確認（D8）:** B の完了 head で、AC4（Codex 内の実行担当、§5.3 の r5 の初期状態）と AC5（Claude 内の Store 版 pwsh の実行担当、probe directory の件数を記録）を各1回行う。期待との比較は、手順を渡す非 B の担当が行い、§6 の「動作確認」欄に記録する。期待と違えば発見 C を待たずに B へ戻す。観測は判定 C の代わりにせず、比較の記録は C' の blind bundle に入れない。
