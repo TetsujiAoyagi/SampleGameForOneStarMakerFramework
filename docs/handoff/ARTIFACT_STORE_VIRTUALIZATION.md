@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄には、各成果物の取得案内の引渡し先・担当と状態だけを書く。reference・期待packageSha256の実値、ローカルの実path、内部catalog/receiptの内容は転記しない。
 
 - type: `slice`
-- status: `A`（2026-10-13、owner の裁定で Phase A を r4 として再開。r4 は A1 草案、A2 未着手。発見 C 再レビュー（差し戻し1巡目、先行）までの記録は §7 に残す。判定 C 未着手）
+- status: `A`（2026-10-13、owner の裁定で Phase A を r4 として再開。r4 は A1 草案、A2 完了・A3 未着手。発見 C 再レビュー（差し戻し1巡目、先行）までの記録は §7 に残す。判定 C 未着手）
 - branch: `claude/artifacts-virtualized-store-a01`（`origin/develop` 起点）
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（A3 で `origin/develop` と一致を再確認済み）
 - Phase A revision: **`r4`（A1 草案。A2 / A3 未了で、凍結していない）**。§1〜§5 は r4 草案の本文で、r3 からの変更点は §5.10。A2 の入力版は、r4 草案を置いた commit と、その commit での本ファイルの内容 sha256 で固定する（下記「A2 の入力」）。r4 が A3 で凍結されるまで、B の仕様は r3 のまま。
@@ -21,9 +21,9 @@
 - Phase B result snapshot / 判定 evidence bundle / C' blind bundle の取得案内・状態: 未生成。依頼により B は Artifact Storage を操作していない。判定 C / C' へ渡す時点で、非仮想化の担当が implementation head から生成して publish する（Phase A snapshot と同じ扱い）。
 - PR: 未作成。作る場合も base は `develop`。
 
-**引継ぎ票 — 次は Phase A r4 の A2（独立レビュー）。** owner の裁定（2026-10-13、§5.10 の入力）に従い、主担当が r4 の A1 草案を書いた。A2 → A3（owner の凍結）→ B → 発見 C の順に進める。implementation base / head は上記のまま。
+**引継ぎ票 — 次は owner（Phase A r4 の A3: §5.11 の採否案の確定、§5.5 の案、§1.5 の後続スライス名）。** r4 の A1 草案（下記の入力 commit）に対する A2 独立レビューは完了した（§5.11。P1 1件、P2 4件、P3 1件と補足2件）。A3 で採否を確定した後、主担当が本文へ統合し、凍結する（推奨は統合差分の短い再レビューを挟むこと）。その後 B → 発見 C の順に進める。implementation base / head は上記のまま。
 
-- **A2 の担当:** B（Claude Opus 5.5 / Anthropic）とも r4 A1（同じ）とも異なるモデルの新しい session。C' 用に予約した系列（§5.6）は使わない。開始時に、リモートの head、本 §0、下記の入力 commit と内容 sha256 を照合し、食い違えば始めない。
+- **A2 の担当（完了、§5.11）:** B（Claude Opus 5.5 / Anthropic）とも r4 A1（同じ）とも異なるモデルの新しい session。C' 用に予約した系列（§5.6）は使わない。開始時に、リモートの head、本 §0、下記の入力 commit と内容 sha256 を照合し、食い違えば始めない。
 - **A2 の入力:** r4 草案の commit と、その commit での本ファイルの内容 sha256（`git show <commit>:docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md` の bytes の SHA-256）。値は本 §0 の「A2 の入力（固定）」に記入する。読む範囲は §0 と §1〜§5（§5.10 の変更点一覧を含む）。§6・§7 は B と発見 C の記録で、A2 の観点の判断材料にしない。
 - **A2 の観点:** (1) 裁定1・2の反映が正確で、裁定に不要な凍結条件の意味の変更が無いこと（§5.10 の表と r3 の本文 `97145dc` の差分で確かめる）。(2) 新しい保留規則（`multi-workflow-unit`、§2.6 D2）が I1〜I7・S1〜S3 を破る順序を作らないこと。特に、保留の判定と単位の最初の公開の前後、実行時の再棚卸しで Workflow が増える場合、deployment 単位の先行公開、他の保留理由との併存。(3) §5.5 の案 A / B と推奨の根拠。(4) 新しい状態・公開 API・依存を増やしていないこと。
 - **A2 の後:** A3 で owner が採否と §5.5 の案、§1.5 の後続スライス名を決めて r4 を凍結する。凍結までは r3（`97145dc` の §1〜§5）が B の唯一の仕様で、現在の §1〜§5 は草案として読む。
@@ -40,13 +40,13 @@
 ### PR 状態ブロック（PR 作成時の写し）
 
 ```text
-状態: Phase A r4 の A1 草案（A2 未着手）。判定 C 未着手
+状態: Phase A r4 の A2 完了（A3 未着手）。判定 C 未着手
 Phase A: revision r4（草案、未凍結）。直前の凍結は r3、commit 97145dc08a183e1f1893751f6a86925a3acda1da
 implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / 808991618373b0bf56d2cb6b04faf40e050a1f1a
-次の担当: Phase A r4 の A2（B・A1 と異なるモデルの独立レビュー、新しい session）。次に A3（owner の凍結）→ B → 発見 C
+次の担当: owner（Phase A r4 の A3。A2 の採否案の確定と凍結）。次に B → 発見 C
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
 Evidence 取得案内: 未保存・引渡し未完了。保存は非仮想化の担当
-未決事項: §5.5 の合流の実行の置き場（案 A / B）、§1.5 の後続スライス名（A3 で決める）。B への戻し項目 1件（§7.7、r4 と独立）
+未決事項: A2 の採否（§5.11、P1 1件）、§5.5 の合流の実行の置き場（案 A / B）、§1.5 の後続スライス名（A3 で決める）。B への戻し項目 1件（§7.7、r4 と独立）
 ```
 
 ## 1. A0 — 目的、現況、対象外
@@ -398,6 +398,26 @@ A3 後の例外承認・決定記録はなし。凍結条件を変える判断�
 | §0・§5.6 | r3 の引継ぎ | r4 草案の状態、A2 の入力と担当 | 手続き |
 
 本 r4 は、凍結した参照先の検査（D2 (iii)）を変えない。参照先の存在・読取り・ACL を確かめる既存の検査と `multi-workflow-unit` は独立した保留理由で、一方が他方を置き換えない。
+
+### 5.11 r4 の A2 独立レビューと採否案（A3 で owner が確定する）
+
+- **担当・入力:** Claude Code のサブエージェント（Claude Sonnet 5.5、Anthropic）、新しい文脈。B・r4 A1（Claude Opus 5.5）と異なるモデルだが**同じベンダー**で、独立性は「別モデル・別文脈・読取り専用」による（独立性制約あり）。Fable 5.1 は利用枠の都合で起動できなかった。C' 用の予約系列は使っていない。入力版は commit `2ba64e18e38480177300885ee4f4c6bdff234977`、内容 sha256 `d3951934fd5c0872583948846f72b37e6f2f46fb5918fe0c43131183da52ff77`（開始時に一致を確認）。§6・§7 は判断材料にしていない。編集・テスト・ストア操作なし。
+- **観点1（裁定の反映）:** 指摘なし。§5.10 の表は r3 からの差分を漏れなく記述している。
+- **観点4（アーキテクチャゲート）、deployment 単位の先行公開、他の保留理由との併存:** 指摘なし。
+- **§5.5:** 案 B の推奨に同意。
+
+| # | severity | 指摘 | 該当節 | 採否案 | 理由・修正案 |
+|---|---|---|---|---|---|
+| R4A2-1 | P1 | 単位の唯一の Workflow が実ストアに bytes・ACL 同一で既にある場合、実行は identical の item を skip し、他の item（Evidence・Harness 等）だけを公開する。公開の間、その task は `Get-WorkflowTasks` に列挙され、途中で止まればその状態が残る。「Workflow を最後に置く」は単位の Workflow が実ストアに無い場合にだけ不可視性を保証する（r3 から継承。A1 が実装 `StoreConsolidation.psm1:378` で確認） | I4、AC12、D2 | **採用（修正案 (a)）** | 裁定1の「AC12 は単位ごとの意味のまま保つ」に従い、保証を限定する (b) は採らない。単位に公開する item があり、かつ単位の Workflow が実ストアに既にある（identical を含む）場合は、その単位を新しい reasonCode `workflow-already-visible` で保留する。全 item が identical の単位は従来どおり skip / complete |
+| R4A2-2 | P2 | 「skip する Workflow も数える」は、完了済みの単位に新しい task が結合しただけで恒久的な `hold` にする。AC12 の「どちらの task も現れず」は、片方が既に実ストアにある例と矛盾する | §2 用語、AC12、AC13、§5.1 | **採用** | R4A2-1 (a) と合わせて数え方を「実行で新たに公開する Workflow（absent / partial）」に改める。既にある Workflow は R4A2-1 の規則で扱うので不可視性は保たれる。AC12 の観測を「実行の前後と途中で、その単位の task が新たに列挙されない」に書き直す |
+| R4A2-3 | P2 | AC12 の「`source-changed` または `multi-workflow-unit`」は二択で検証が定まらない。実装では unitId が item 集合の hash なので、Workflow が 1→2 になれば承認済み単位は `source-changed` に一意に決まる。逆方向（承認時 hold、実行時 1 に減る）の記述が無い | AC12、§5.1 | **採用** | 1→2 は `source-changed`（新しい構成の単位は未承認なので公開しない）。承認時に hold の単位は、実行時に保留理由が消えても公開せず、再 plan・再承認を要する。両方向を AC12 と §5.1 の例に入れる |
+| R4A2-4 | P2 | 保留の判定と staging・journal・receipt の前後関係が曖昧 | D2 | **採用** | 保留した単位は staging せず、単位 receipt を作らず、journal には保留の trace だけを残す、と明記する。AC12 に「保留単位の staging・receipt が run directory に無い」を足す |
+| R4A2-5 | P2 | S3 の「完了へ収束」が保留込みで未定義。公開途中で止まった単位が、再実行の前に Codex 側の変化で複数 Workflow になった場合の扱いも例が無い | S3、AC10 | **採用** | 「完了」は「承認した単位のうち公開対象の全単位が published / complete」と一文で定義する。上の場合は単位が `source-changed` で止まり、公開済みの断片は削除せず（I4）Workflow 未公開のため不可視のまま、が正しいことを AC10 の合格例に1行足す |
+| R4A2-6 | P3 | `multi-workflow-unit` は manifest JSON の reason 値の追加で承認者に見える。「公開 API を増やさない」の範囲を明記すべき | §3、README 行 | **採用** | 「reasonCode の値の追加は含む（公開関数・引数・schemaVersion は変えない）」と明記し、README の合流節に reason の一覧として書く |
+| 補足1 | P3 | 案 B では、DebugStudio の固定入力を含む単位が保留されても本スライスは GO になり、発見が遅れる。読取りだけの `store plan` を非ゲートの参考として GO 前に1回見る運用を A3 が選べる | §5.5 | **保留（owner の判断）** | 主担当の推奨は本スライスに入れないこと。実データの plan は `Split Store Recovery` の最初の手順（A0 の現況確認）に置く。判定を実データに依存させない案 B の趣旨を保つため |
+| 補足2 | P3 | `Split Store Recovery` の中の「保留した単位の扱い」は reader 契約・gate の設計変更を要し、急ぎの回復と変更理由が異なる | §1.5 | **採用** | §1.5 に1行足す: 対象の単位が保留された場合は、保留した単位の扱いを別の設計スライスに分けるか、回復を先に別の手段で行うかを、そのスライスの Phase A で決める |
+
+**A3 への注記:** R4A2-1〜5 を採用すると、§2.1 I4、§2.2 S3、§2.3 AC10・AC12・AC13、§2.6 D2、§3、§5.1 の本文と §5.10 の表が変わる。新しい保留理由 `workflow-already-visible` は fail-closed の範囲を広げるので、裁定1と同じく owner の承認が要る。新しい状態・公開関数・依存・gate は増えない。統合後の本文を r4 として凍結するか、統合版を A2 に再度かけるかは owner が決める（主担当の推奨は、R4A2-1 が P1 なので統合版の差分だけを短く再レビューすること）。
 
 ## 6. Phase B 実装結果
 
