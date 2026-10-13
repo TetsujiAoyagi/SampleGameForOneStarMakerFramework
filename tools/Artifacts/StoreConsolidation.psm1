@@ -2,6 +2,7 @@ Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'ArtifactAcl.psm1')
 Import-Module (Join-Path $PSScriptRoot 'StoreConsolidationPlan.psm1')
 Import-Module (Join-Path $PSScriptRoot '../Workflow/WindowsStoreContext.psm1')
+Import-Module (Join-Path $PSScriptRoot '../Workflow/WindowsStorePaths.psm1')
 
 # One-time consolidation of a split store: records that a virtualized process
 # wrote into its package copy (the source) are copied, bytes unchanged, into the
@@ -44,22 +45,30 @@ function Get-ConsolidationEntries([string]$Path){
         [pscustomobject]@{Name=$entry.Name;Directory=(($entry.Attributes -band [IO.FileAttributes]::Directory) -ne 0);Reparse=(($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)}
     }
 }
+function Get-ConsolidationTextStart([byte[]]$Bytes,[int]$Count){return [Text.UTF8Encoding]::new($false).GetString($Bytes,0,$Count).TrimStart([char]0xFEFF,' ',"`t","`r","`n")}
 # Read-only handle. JSON-looking content up to 16MB is returned for reference checks.
+# A larger file is only hashed. If it is named or looks like a JSON record it is
+# marked unchecked, so the plan holds it instead of publishing strings nobody examined.
 function Read-ConsolidationFile([string]$Path){
     Write-ConsolidationTrace 'read' $Path
     try{
         $stream=[IO.FileStream]::new($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
         try{
-            $length=$stream.Length;$json=$null
+            $length=$stream.Length;$json=$null;$unchecked=$false
             if($length -le 16MB){
                 $bytes=[byte[]]::new($length);$read=0;while($read -lt $length){$n=$stream.Read($bytes,$read,$length-$read);if($n -le 0){throw 'short-read'};$read+=$n}
                 $hash=[Security.Cryptography.SHA256]::HashData($bytes)
-                $text=[Text.UTF8Encoding]::new($false).GetString($bytes).TrimStart([char]0xFEFF,' ',"`t","`r","`n")
+                $text=Get-ConsolidationTextStart $bytes $bytes.Length
                 if($text.StartsWith('{') -or $text.StartsWith('[')){$json=$text}
-            }else{$hash=[Security.Cryptography.SHA256]::HashData($stream)}
-            return [pscustomobject]@{bytes=[long]$length;sha256=[Convert]::ToHexString($hash).ToLowerInvariant();json=$json}
+            }else{
+                $head=[byte[]]::new(4096);$n=$stream.Read($head,0,$head.Length);$text=Get-ConsolidationTextStart $head $n
+                # A start that is only padding cannot be told apart from a record either.
+                $unchecked=$Path.EndsWith('.json',[StringComparison]::OrdinalIgnoreCase) -or $text.Length -eq 0 -or $text.StartsWith('{') -or $text.StartsWith('[')
+                $null=$stream.Seek(0,[IO.SeekOrigin]::Begin);$hash=[Security.Cryptography.SHA256]::HashData($stream)
+            }
+            return [pscustomobject]@{bytes=[long]$length;sha256=[Convert]::ToHexString($hash).ToLowerInvariant();json=$json;unchecked=$unchecked}
         }finally{$stream.Dispose()}
-    }catch{return [pscustomobject]@{bytes=[long]-1;sha256='unreadable';json=$null}}
+    }catch{return [pscustomobject]@{bytes=[long]-1;sha256='unreadable';json=$null;unchecked=$false}}
 }
 # Inventories one directory item: every file with its hash, every subdirectory.
 # A reparse point anywhere marks the item and is neither followed nor opened.
@@ -72,7 +81,7 @@ function Get-ConsolidationTree([string]$Root,$Item,[switch]$WithJson){
             if($entry.Reparse){$Item.reparse=$true;continue}
             if($entry.Directory){$Item.directories+=$child;$pending.Push($child);continue}
             $file=Read-ConsolidationFile ([IO.Path]::Combine($Root,$child))
-            $Item.files+=[pscustomobject]@{path=$child;bytes=$file.bytes;sha256=$file.sha256;json=$(if($WithJson){$file.json}else{$null})}
+            $Item.files+=[pscustomobject]@{path=$child;bytes=$file.bytes;sha256=$file.sha256;json=$(if($WithJson){$file.json}else{$null});unchecked=($WithJson -and $file.unchecked)}
         }
     }
 }
@@ -115,7 +124,7 @@ function Get-ConsolidationSourceInventory([string]$SourceRoot,[string]$LogicalRo
                     }
                     foreach($deployment in @($pairs.Keys|Sort-Object)){
                         $i=New-ConsolidationItem 'deployment' ($key+'\'+$deployment) '' '' $deployment
-                        foreach($name in $pairs[$deployment]){$f=Read-ConsolidationFile ([IO.Path]::Combine($SourceRoot,$key,$name));$i.files+=[pscustomobject]@{path=$name;bytes=$f.bytes;sha256=$f.sha256;json=$f.json}}
+                        foreach($name in $pairs[$deployment]){$f=Read-ConsolidationFile ([IO.Path]::Combine($SourceRoot,$key,$name));$i.files+=[pscustomobject]@{path=$name;bytes=$f.bytes;sha256=$f.sha256;json=$f.json;unchecked=$f.unchecked}}
                         $items.Add($i)
                     }
                 }
@@ -217,18 +226,45 @@ function Initialize-ConsolidationDirectory([string]$LogicalRoot,[string]$Path){
         [IO.Directory]::CreateDirectory($current)|Out-Null;Set-ArtifactAcl $current $true
     }
 }
-function Write-ConsolidationRecord([string]$Path,$Value){
-    $bytes=[Text.UTF8Encoding]::new($false).GetBytes((ConvertTo-Json -InputObject $Value -Depth 16 -Compress))
-    Write-ConsolidationTrace 'write' $Path
-    $stream=[IO.FileStream]::new($Path,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
-    try{$stream.Write($bytes,0,$bytes.Length);$stream.Flush($true)}finally{$stream.Dispose()}
-    Set-ArtifactAcl $Path $false
+# Run records (the manifest copy and unit receipts) appear only complete: written
+# under the run's own staging, flushed, then renamed into place without replacing.
+# An interrupted write leaves staging that the next execution of the same manifest
+# discards, never a truncated record that would block or fake completion.
+function Write-ConsolidationRecord([string]$RunDirectory,[string]$Path,[byte[]]$Bytes,[string]$Key){
+    $pending=[IO.Path]::Combine($RunDirectory,'staging','records',[Guid]::NewGuid().ToString('N'))
+    Write-ConsolidationTrace 'write' $pending
+    $stream=[IO.FileStream]::new($pending,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+    try{
+        $half=[int][Math]::Floor($Bytes.Length/2);$stream.Write($Bytes,0,$half)
+        if($script:FaultHook){& $script:FaultHook 'record-write' $Key}
+        $stream.Write($Bytes,$half,$Bytes.Length-$half);$stream.Flush($true)
+    }finally{$stream.Dispose()}
+    Set-ArtifactAcl $pending $false
+    Write-ConsolidationTrace 'record' $Path
+    [IO.File]::Move($pending,$Path,$false)
+}
+# Completion is a receipt that reads back as this run's record of this unit.
+function Test-ConsolidationReceipt([string]$Path,[string]$RunId,[string]$ManifestSha256,[string]$UnitId){
+    try{
+        if([IO.FileInfo]::new($Path).Length -gt 1MB -or -not (Test-ConsolidationAcl $Path $false)){return $false}
+        $r=ConvertFrom-Json -InputObject ([Text.UTF8Encoding]::new($false,$true).GetString([IO.File]::ReadAllBytes($Path))) -AsHashtable -DateKind String
+        return ($r -is [Collections.IDictionary] -and $r['schemaVersion'] -eq 1 -and $r['runId'] -ceq $RunId -and $r['manifestSha256'] -ceq $ManifestSha256 -and $r['unitId'] -ceq $UnitId)
+    }catch{return $false}
 }
 # Copies one approved file into staging: CreateNew, flush, hash check, then ACL.
-function Copy-ConsolidationFile([string]$Source,[string]$Destination,$Expected,[string]$Key){
+# The source position is given relative to the source root so the opened handle can
+# be checked against the root's physical path.
+function Copy-ConsolidationFile([string]$SourceRoot,[string]$SourcePhysical,[string]$Relative,[string]$Destination,$Expected,[string]$Key){
+    $Source=[IO.Path]::Combine($SourceRoot,$Relative)
     Write-ConsolidationTrace 'read' $Source;Write-ConsolidationTrace 'write' $Destination
     $in=[IO.FileStream]::new($Source,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
     try{
+        # The inventory saw no reparse point, but an ancestor can be swapped for a
+        # junction afterwards, and a matching hash says nothing about which path the
+        # bytes came through. The handle actually read from must resolve to the
+        # source position itself.
+        try{$final=[OneStarMaker.Workflow.StoreContextProbe]::FinalPath($in)}catch{throw 'reparse'}
+        if(-not $final.TrimEnd('\').Equals([IO.Path]::Combine($SourcePhysical,$Relative),[StringComparison]::OrdinalIgnoreCase)){throw 'reparse'}
         $out=[IO.FileStream]::new($Destination,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
         try{
             $hash=[Security.Cryptography.IncrementalHash]::CreateHash([Security.Cryptography.HashAlgorithmName]::SHA256);$buffer=[byte[]]::new(1MB);$total=[long]0
@@ -251,14 +287,14 @@ function Remove-ConsolidationStaging([string]$RunDirectory,[string]$Path){
     Write-ConsolidationTrace 'delete-staging' $Path
     [IO.Directory]::Delete($Path,$true)
 }
-function Publish-ConsolidationItem([string]$RunDirectory,[string]$SourceRoot,[string]$LogicalRoot,[string]$UnitId,[int]$Index,$Item){
+function Publish-ConsolidationItem([string]$RunDirectory,[string]$SourceRoot,[string]$SourcePhysical,[string]$LogicalRoot,[string]$UnitId,[int]$Index,$Item){
     $staging=[IO.Path]::Combine($RunDirectory,'staging',$UnitId,[string]$Index)
     Remove-ConsolidationStaging $RunDirectory $staging
     Initialize-ConsolidationDirectory $LogicalRoot $staging
     $deployment=$Item.role -ceq 'deployment'
-    $sourceDirectory=if($deployment){[IO.Path]::Combine($SourceRoot,'Artifacts','deployments')}else{[IO.Path]::Combine($SourceRoot,$Item.key)}
+    $sourceDirectory=if($deployment){'Artifacts\deployments'}else{$Item.key}
     foreach($directory in @($Item.directories)){$path=[IO.Path]::Combine($staging,$directory);Write-ConsolidationTrace 'create-directory' $path;[IO.Directory]::CreateDirectory($path)|Out-Null;Set-ArtifactAcl $path $true}
-    foreach($file in @($Item.files)){Copy-ConsolidationFile ([IO.Path]::Combine($sourceDirectory,$file.path)) ([IO.Path]::Combine($staging,$file.path)) $file $Item.key}
+    foreach($file in @($Item.files)){Copy-ConsolidationFile $SourceRoot $SourcePhysical ([IO.Path]::Combine($sourceDirectory,$file.path)) ([IO.Path]::Combine($staging,$file.path)) $file $Item.key}
     if($script:FaultHook){& $script:FaultHook 'staged' $Item.key}
     if($deployment){
         # Receipt before config: registry discovery enumerates *.config.json and
@@ -302,6 +338,7 @@ function Invoke-StoreConsolidation([string]$ManifestPath,[string]$ManifestSha256
         $logical=Get-ConsolidationLogicalRoot
         if($approved -isnot [Collections.IDictionary] -or $approved['logicalRoot'] -cne $logical -or $approved['sourceRoot'] -isnot [string]){throw 'manifest-invalid'}
         Assert-ConsolidationRoots $approved.sourceRoot $logical
+        try{$sourcePhysical=(Get-WindowsStorePathIdentity $approved.sourceRoot).physicalPath}catch{throw 'invalid-source-root'}
         $current=Get-ConsolidationCurrentPlan $approved.sourceRoot $logical
         try{$verdicts=@(Test-ConsolidationManifest $approved $current)}catch{throw 'manifest-invalid'}
         $runId=$ManifestSha256.Substring(0,32)
@@ -314,14 +351,21 @@ function Invoke-StoreConsolidation([string]$ManifestPath,[string]$ManifestSha256
         Initialize-ConsolidationDirectory $logical ([IO.Path]::Combine($run,'receipts'))
         if([IO.Path]::GetPathRoot($run) -cne [IO.Path]::GetPathRoot($logical)){throw 'store-path-unavailable'}
         # Exclusive for the run's lifetime; a second invocation stops instead of interleaving.
-        $lockPath=[IO.Path]::Combine($run,'run.lock');$newLock=-not [IO.File]::Exists($lockPath)
+        $lockPath=[IO.Path]::Combine($run,'run.lock')
         try{$lock=[IO.FileStream]::new($lockPath,[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)}catch [IO.IOException]{throw 'consolidation-busy'}
         try{
-            if($newLock){Set-ArtifactAcl $lockPath $false}
+            # Everything below the run directory is this run's own. The rule is applied
+            # on every execution, because an interruption between creating an entry and
+            # setting its ACL would otherwise leave it inherited for good.
+            foreach($d in @($run,[IO.Path]::Combine($run,'receipts'))){Set-ArtifactAcl $d $true}
+            Set-ArtifactAcl $lockPath $false
+            # Pending records left by an interrupted execution are this run's own staging.
+            $records=[IO.Path]::Combine($run,'staging','records');Remove-ConsolidationStaging $run $records;Initialize-ConsolidationDirectory $logical $records
+            Set-ArtifactAcl ([IO.Path]::Combine($run,'staging')) $true
             $copy=[IO.Path]::Combine($run,'manifest.json')
             if([IO.File]::Exists($copy)){if([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([IO.File]::ReadAllBytes($copy))).ToLowerInvariant() -cne $ManifestSha256){throw 'run-conflict'}}
-            else{$s=[IO.FileStream]::new($copy,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None);try{$s.Write($bytes,0,$bytes.Length);$s.Flush($true)}finally{$s.Dispose()};Set-ArtifactAcl $copy $false}
-            $journal=[IO.Path]::Combine($run,'journal.jsonl');if(-not [IO.File]::Exists($journal)){[IO.File]::WriteAllBytes($journal,[byte[]]@());Set-ArtifactAcl $journal $false}
+            else{Write-ConsolidationRecord $run $copy $bytes 'manifest'}
+            $journal=[IO.Path]::Combine($run,'journal.jsonl');if(-not [IO.File]::Exists($journal)){[IO.File]::WriteAllBytes($journal,[byte[]]@())};Set-ArtifactAcl $journal $false
             $script:Journal=$journal;Write-ConsolidationTrace 'run-start' $runId
             $fresh=@{};foreach($unit in $current.units){$fresh[$unit.unitId]=$unit}
             $done=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal);$results=[Collections.Generic.List[object]]::new()
@@ -331,14 +375,16 @@ function Invoke-StoreConsolidation([string]$ManifestPath,[string]$ManifestSha256
                     try{
                         if(@($unit.dependsOn|Where-Object {-not $done.Contains($_)}).Count){throw 'dependency-pending'}
                         if($result -ceq 'publish'){
-                            for($i=0;$i -lt @($unit.items).Count;$i++){if($unit.items[$i].state -cin @('absent','partial')){Publish-ConsolidationItem $run $approved.sourceRoot $logical $unit.unitId $i $unit.items[$i]}}
+                            for($i=0;$i -lt @($unit.items).Count;$i++){if($unit.items[$i].state -cin @('absent','partial')){Publish-ConsolidationItem $run $approved.sourceRoot $sourcePhysical $logical $unit.unitId $i $unit.items[$i]}}
                             $result='published'
                         }
                         if($script:FaultHook){& $script:FaultHook 'before-receipt' $unit.unitId}
                         $receipt=[IO.Path]::Combine($run,'receipts',$unit.unitId+'.json')
-                        if(-not [IO.File]::Exists($receipt)){Write-ConsolidationRecord $receipt ([ordered]@{schemaVersion=1;runId=$runId;manifestSha256=$ManifestSha256;unitId=$unit.unitId;kind=$unit.kind;items=@($unit.items|ForEach-Object {[ordered]@{key=$_.key;files=@($_.files).Count;publishedByThisRun=($_.state -cne 'identical')}});completedAt=(& $script:Clock).ToString('o')})}
+                        # A damaged receipt is reported and left as it is, never rewritten.
+                        if([IO.File]::Exists($receipt)){if(-not (Test-ConsolidationReceipt $receipt $runId $ManifestSha256 $unit.unitId)){throw 'receipt-invalid'}}
+                        else{Write-ConsolidationRecord $run $receipt ([Text.UTF8Encoding]::new($false).GetBytes((ConvertTo-Json -Depth 16 -Compress -InputObject ([ordered]@{schemaVersion=1;runId=$runId;manifestSha256=$ManifestSha256;unitId=$unit.unitId;kind=$unit.kind;items=@($unit.items|ForEach-Object {[ordered]@{key=$_.key;files=@($_.files).Count;publishedByThisRun=($_.state -cne 'identical')}});completedAt=(& $script:Clock).ToString('o')})))) $unit.unitId}
                         $null=$done.Add($unit.unitId)
-                    }catch{$result=if($_.Exception.Message -cin @('dependency-pending','concurrent-writer','source-changed')){$_.Exception.Message}else{'publish-failed'}}
+                    }catch{$result=if($_.Exception.Message -cin @('dependency-pending','concurrent-writer','source-changed','reparse','receipt-invalid')){$_.Exception.Message}else{'publish-failed'}}
                 }
                 Write-ConsolidationTrace ('unit-'+$result) $verdict.unitId
                 $results.Add([ordered]@{unitId=$verdict.unitId;verdict=$verdict.verdict;result=$result})

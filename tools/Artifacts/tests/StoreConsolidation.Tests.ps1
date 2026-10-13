@@ -15,7 +15,7 @@ $aclModule=Import-Module (Join-Path $PSScriptRoot '../ArtifactAcl.psm1') -Force 
 function Set-TestAcl([string]$Path,[bool]$Directory){& $aclModule {param($p,$d)Set-ArtifactAcl $p $d} $Path $Directory}
 function Assert-TestAcl([string]$Path,[bool]$Directory){& $aclModule {param($p,$d)Assert-ArtifactAcl $p $d} $Path $Directory}
 $repo='a'*64;$dep='d'*32;$op='0'*32
-$cases=@('publish-skip-conflict','domain-readers-after-publish','acl-rule-and-reparse','excluded-never-opened','fault-file-write','fault-staged','fault-between-items','fault-before-receipt','concurrent-writer','hidden-until-workflow','run-guards','cli-exit-codes')
+$cases=@('publish-skip-conflict','domain-readers-after-publish','acl-rule-and-reparse','excluded-never-opened','fault-file-write','fault-staged','fault-between-items','fault-before-receipt','concurrent-writer','hidden-until-workflow','run-guards','cli-exit-codes','unexamined-json-held','fault-run-records','source-reparse-after-inventory')
 $selected=@(if($Case -ceq '*'){$cases}else{$Case.Split(',')})
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 $base=[IO.Path]::Combine([IO.Path]::GetTempPath(),'osm-consolidation-'+[Guid]::NewGuid().ToString('N'))
@@ -118,6 +118,10 @@ function New-VirtualizedRecords($Stores){
     Set-EvidenceTestValue ArtifactApplication TransportHook $transport;Set-EvidenceTestValue ArtifactApplication ReadbackHook $read
     $g=Enter-WorkflowTaskGuard $repo 'fixture';try{$null=Invoke-WorkflowTaskTransition $repo 'fixture' 'started' 0 'fixture-start' '' $g}finally{$g.Dispose()}
     $fixture=New-EvidenceReaderFixture ([IO.Path]::Combine($Stores.Root,'worktree'));$selection=[IO.Path]::Combine($Stores.Root,'selection.json');Write-EvidenceTestJson $selection $fixture.Selection
+    # The shared fixture fills every entry with plain text. Consolidation holds a file
+    # named as JSON that is not JSON (source-invalid), so the payload copies here get
+    # JSON content; this case is about the domain readers, not about payload shape.
+    foreach($name in @($fixture.Files|Where-Object {$_.EndsWith('.json')})){[IO.File]::WriteAllText([IO.Path]::Combine($fixture.Source,$name),'{"fixture":"'+$name+'"}',[Text.UTF8Encoding]::new($false))}
     $published=Invoke-EvidencePublish $configPath $selection
     Assert ($published.status -ceq 'passed') ('fixture publish '+$published.reasonCode)
     # The virtualized writer's records exist only in its package copy.
@@ -281,6 +285,69 @@ try{
                     Set-EvidenceTestValue WindowsStoreContext ProbeIo $notVirtualized
                     Assert ((Invoke-StoreConsolidationPlan ([IO.Path]::Combine($stores.Real,'Workflow')) ([IO.Path]::Combine($stores.Root,'inside.json'))).reasonCode -ceq 'invalid-source-root') 'source inside the store accepted'
                     Assert ((Invoke-StoreConsolidationPlan $stores.Source ([IO.Path]::Combine($stores.Real,'m.json'))).reasonCode -ceq 'invalid-output') 'output inside the store accepted'
+                }
+                'unexamined-json-held'{
+                    New-SimpleTask $stores
+                    # Larger than the reader loads for the reference check, with a LocalCache path inside.
+                    $large='{"pad":"'+('x'*(17MB))+'","next":"'+([IO.Path]::Combine($stores.Source,'Workflow',$repo,'tasks','alpha','state.json')).Replace('\','\\')+'"}'
+                    Write-Item $stores.Source "Workflow\$repo\tasks\large" ([ordered]@{'state.json'=$large})
+                    Write-Item $stores.Source "Workflow\$repo\tasks\named" ([ordered]@{'state.json'='not-json'})
+                    $plan=Invoke-Plan $stores
+                    Assert ((Get-UnitOf $plan "Workflow\$repo\tasks\large").reasons -ccontains 'source-unchecked') ('large record '+((Get-UnitOf $plan "Workflow\$repo\tasks\large").reasons -join ','))
+                    Assert ((Get-UnitOf $plan "Workflow\$repo\tasks\named").reasons -ccontains 'source-invalid') 'named JSON record that is not JSON accepted'
+                    Assert ((Get-UnitOf $plan "Workflow\$repo\tasks\alpha").status -ceq 'publish') 'unrelated unit held'
+                }
+                'fault-run-records'{
+                    New-SimpleTask $stores
+                    $plan=Invoke-Plan $stores
+                    $unit=Get-UnitOf $plan "Workflow\$repo\tasks\alpha"
+                    $run=[IO.Path]::Combine($stores.Real,'Artifacts','consolidation',$plan.Sha.Substring(0,32))
+                    $receipt=[IO.Path]::Combine($run,'receipts',$unit.unitId+'.json')
+                    # Stopped while writing the run's copy of the approved manifest.
+                    Set-Consolidation FaultHook {param($s,$k)if($s -ceq 'record-write' -and $k -ceq 'manifest'){throw 'injected-crash'}}
+                    $first=Invoke-StoreConsolidation $plan.Path $plan.Sha $false
+                    Assert ($first.status -ceq 'failed') ('manifest copy fault not reached '+$first.status)
+                    # Stopped while writing a unit receipt, after the unit's directories were published.
+                    Set-Consolidation FaultHook {param($s,$k)if($s -ceq 'record-write' -and $k -ceq $unit.unitId){throw 'injected-crash'}}.GetNewClosure()
+                    $second=Invoke-StoreConsolidation $plan.Path $plan.Sha $false
+                    Assert ($second.status -ceq 'partial' -and (Get-Result $second $unit.unitId) -ceq 'publish-failed') ('receipt fault not reported '+(ConvertTo-Json -Compress -Depth 5 $second))
+                    Set-Consolidation FaultHook $null
+                    $third=Invoke-StoreConsolidation $plan.Path $plan.Sha $false
+                    Assert ($third.status -ceq 'passed') ('rerun did not converge '+(ConvertTo-Json -Compress -Depth 5 $third))
+                    Assert ((Get-FileHash -LiteralPath ([IO.Path]::Combine($run,'manifest.json'))).Hash.ToLowerInvariant() -ceq $plan.Sha) 'manifest copy'
+                    $written=Get-Content -LiteralPath $receipt -Raw|ConvertFrom-Json
+                    Assert ($written.unitId -ceq $unit.unitId -and $written.manifestSha256 -ceq $plan.Sha) 'receipt content'
+                    Assert (@([IO.Directory]::EnumerateFiles([IO.Path]::Combine($run,'staging'),'*',[IO.SearchOption]::AllDirectories)).Count -eq 0) 'staging left behind'
+                    foreach($p in @($run,[IO.Path]::Combine($run,'run.lock'),[IO.Path]::Combine($run,'manifest.json'),[IO.Path]::Combine($run,'journal.jsonl'),$receipt)){Assert-TestAcl $p ([IO.Directory]::Exists($p))}
+                    # A receipt that does not read back as this run's record is not completion,
+                    # and it is reported rather than rewritten.
+                    [IO.File]::WriteAllText($receipt,'{')
+                    $fourth=Invoke-StoreConsolidation $plan.Path $plan.Sha $false
+                    Assert ($fourth.status -ceq 'partial' -and (Get-Result $fourth $unit.unitId) -ceq 'receipt-invalid') ('broken receipt accepted '+(ConvertTo-Json -Compress -Depth 5 $fourth))
+                    Assert ([IO.File]::ReadAllText($receipt) -ceq '{') 'existing receipt rewritten'
+                }
+                'source-reparse-after-inventory'{
+                    New-SimpleTask $stores
+                    $plan=Invoke-Plan $stores
+                    $unit=Get-UnitOf $plan "Workflow\$repo\tasks\alpha"
+                    # Another writer swaps the source task directory for a junction to identical
+                    # bytes elsewhere, after the execution-time inventory and before the copy opens it.
+                    $sourceTask=[IO.Path]::Combine($stores.Source,'Workflow',$repo,'tasks','alpha')
+                    $outside=[IO.Path]::Combine($stores.Root,'outside-alpha')
+                    Write-Item $stores.Root 'outside-alpha' ([ordered]@{'state.json'='{"version":1}';'task.lock'=''})
+                    $outsideBefore=Get-Snapshot $outside
+                    $swapped=[Collections.Generic.List[string]]::new();$moved=[IO.Path]::Combine($stores.Root,'moved-alpha')
+                    Set-Consolidation OpenHook {param($k,$p)
+                        $trace.Add($k+'|'+$p)
+                        if($k -ceq 'write' -and $p -like '*\staging\*' -and $p.EndsWith('\state.json') -and $swapped.Count -eq 0){
+                            [IO.Directory]::Move($sourceTask,$moved);New-Item -ItemType Junction -Path $sourceTask -Target $outside|Out-Null;$swapped.Add($p)
+                        }
+                    }.GetNewClosure()
+                    $out=Invoke-StoreConsolidation $plan.Path $plan.Sha $false
+                    Assert ($swapped.Count -eq 1) 'swap not injected'
+                    Assert ($out.status -ceq 'partial' -and (Get-Result $out $unit.unitId) -ceq 'reparse') ('copied through a junction '+(ConvertTo-Json -Compress -Depth 5 $out))
+                    Assert (-not [IO.Directory]::Exists([IO.Path]::Combine($stores.Real,'Workflow',$repo,'tasks','alpha'))) 'Workflow published through a junction'
+                    Assert (Compare-Snapshot $outsideBefore (Get-Snapshot $outside)) 'junction target changed'
                 }
                 'cli-exit-codes'{
                     New-ClassificationFixture $stores

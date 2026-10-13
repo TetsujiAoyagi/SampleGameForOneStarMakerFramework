@@ -55,13 +55,24 @@ function Get-ConsolidationJsonStrings([string]$Json){
 }
 # Applies the role-independent reference rule to every string value of every JSON
 # record in the item. Paths outside the logical store (worktree sources and the
-# like) are not references and are not recorded.
+# like) are not references and are not recorded. Each reference keeps the path
+# inside its item ('' for the item itself), because belonging to a unit does not
+# prove that the referenced file exists; references into the item itself are kept
+# for that existence check too.
 function Get-ConsolidationItemReferences($Item,[string]$LogicalRoot,[string]$SourceRoot){
-    $references=[Collections.Generic.List[string]]::new();$violations=[Collections.Generic.List[string]]::new()
+    $references=[Collections.Generic.List[object]]::new();$seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase);$violations=[Collections.Generic.List[string]]::new()
     foreach($file in $Item.files){
-        if($null -eq $file.json){continue}
+        $named=$file.path.EndsWith('.json',[StringComparison]::OrdinalIgnoreCase)
+        # A record the reader could not examine (too large to load) has unchecked
+        # strings; publishing it would skip the rule rather than pass it.
+        if($file.unchecked){$violations.Add('source-unchecked');continue}
+        if($null -eq $file.json){
+            # A file named as a JSON record must be one. An unreadable file is held as such already.
+            if($named -and $file.sha256 -cmatch '\A[0-9a-f]{64}\z'){$violations.Add('source-invalid')}
+            continue
+        }
         # Any JSON-looking file is checked; only a file named as a JSON record must parse.
-        try{$strings=@(Get-ConsolidationJsonStrings $file.json)}catch{if($file.path.EndsWith('.json',[StringComparison]::OrdinalIgnoreCase)){$violations.Add('source-invalid')};continue}
+        try{$strings=@(Get-ConsolidationJsonStrings $file.json)}catch{if($named){$violations.Add('source-invalid')};continue}
         foreach($value in $strings){
             if($value -cnotmatch '\A(?:\\\\|[A-Za-z]:[\\/])'){continue}
             $path=$value.Replace('/','\');if($path.StartsWith('\\?\')){$path=$path.Substring(4)}
@@ -72,17 +83,27 @@ function Get-ConsolidationItemReferences($Item,[string]$LogicalRoot,[string]$Sou
             if($relative -match '(?:\A|\\)\.\.?(?:\\|\z)'){$violations.Add('reference-out-of-role');continue}
             $target=Get-ConsolidationItemKey $relative
             if($target -ceq 'out-of-role'){$violations.Add('reference-out-of-role');continue}
-            if($null -ne $target -and $target.key -cne $Item.key){$references.Add($target.key)}
+            if($null -eq $target){continue}
+            # A deployment item is a receipt pair named by file, not a directory.
+            $inner=if($target.role -ceq 'deployment'){$relative.TrimEnd('\').Split('\')[-1]}else{$relative.Substring($target.key.Length).Trim('\')}
+            if($seen.Add($target.key+'|'+$inner)){$references.Add([pscustomobject]@{key=$target.key;path=$inner})}
         }
     }
-    return [pscustomobject]@{references=@($references|Sort-Object -Unique);violations=@($violations|Sort-Object -Unique)}
+    return [pscustomobject]@{references=@($references);violations=@($violations|Sort-Object -Unique)}
+}
+# True when the item (as inventoried or observed) holds the path; '' is the item itself.
+function Test-ConsolidationItemHas($Files,$Directories,[string]$Path){
+    if(-not $Path){return $true}
+    foreach($f in @($Files)){if($f.path.Equals($Path,[StringComparison]::OrdinalIgnoreCase)){return $true}}
+    foreach($d in @($Directories)){if($d.Equals($Path,[StringComparison]::OrdinalIgnoreCase)){return $true}}
+    return $false
 }
 # Keys the I/O side must observe in the real store before planning.
 function Get-ConsolidationTargetKeys($Inventory){
     $keys=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     foreach($item in $Inventory.items){
         $null=$keys.Add($item.key)
-        foreach($key in (Get-ConsolidationItemReferences $item $Inventory.logicalRoot $Inventory.sourceRoot).references){$null=$keys.Add($key)}
+        foreach($reference in (Get-ConsolidationItemReferences $item $Inventory.logicalRoot $Inventory.sourceRoot).references){$null=$keys.Add($reference.key)}
         if($item.role -ceq 'evidence'){$null=$keys.Add('Artifacts\deployments\'+$item.deploymentId)}
     }
     return @($keys|Sort-Object)
@@ -121,7 +142,7 @@ function New-ConsolidationPlan($Inventory,$Target){
     $refs=@{};$holds=@{}
     foreach($item in $Inventory.items){
         $r=Get-ConsolidationItemReferences $item $Inventory.logicalRoot $Inventory.sourceRoot;$refs[$item.key]=$r
-        foreach($k in $r.references){if($items.ContainsKey($k) -and $items[$k].role -cne 'deployment'){Join $groupOf[$item.key] $groupOf[$k]}}
+        foreach($k in @($r.references|ForEach-Object key)){if($k -cne $item.key -and $items.ContainsKey($k) -and $items[$k].role -cne 'deployment'){Join $groupOf[$item.key] $groupOf[$k]}}
     }
     $members=@{}
     foreach($item in $Inventory.items){
@@ -147,12 +168,19 @@ function New-ConsolidationPlan($Inventory,$Target){
             if($entry.state -cin @('conflict','acl-mismatch','reparse','source-unreadable')){$null=$reasons.Add($entry.state)}
             $needed=@($refs[$entry.key].references)
             foreach($v in $refs[$entry.key].violations){$null=$reasons.Add($v)}
-            if($entry.role -ceq 'evidence'){$needed+='Artifacts\deployments\'+$items[$entry.key].deploymentId}
-            foreach($k in $needed){
-                if($unitOf.ContainsKey($k)){if($unitOf[$k] -cne $unit.unitId){$null=$depends.Add($unitOf[$k])};continue}
+            # An Evidence task reads both records of its deployment.
+            if($entry.role -ceq 'evidence'){$id=$items[$entry.key].deploymentId;$needed+=@(foreach($name in @(($id+'.json'),($id+'.config.json'))){[pscustomobject]@{key='Artifacts\deployments\'+$id;path=$name}})}
+            foreach($ref in $needed){
+                $k=$ref.key
+                # Carried by a unit: the referenced file must be among what is carried.
+                if($unitOf.ContainsKey($k)){
+                    if(-not (Test-ConsolidationItemHas $items[$k].files $items[$k].directories $ref.path)){$null=$reasons.Add('reference-missing')}
+                    if($unitOf[$k] -cne $unit.unitId){$null=$depends.Add($unitOf[$k])}
+                    continue
+                }
                 # Not carried by any unit: it must already exist intact in the real store.
                 $seen=$Target[$k]
-                if($null -eq $seen -or -not $seen.exists -or $seen.reparse -or -not $seen.aclOk){$null=$reasons.Add('reference-missing')}
+                if($null -eq $seen -or -not $seen.exists -or $seen.reparse -or -not $seen.aclOk -or -not (Test-ConsolidationItemHas $seen.files $seen.directories $ref.path)){$null=$reasons.Add('reference-missing')}
             }
         }
         $unit.reasons=@($reasons|Sort-Object);$unit.dependsOn=@($depends|Sort-Object)

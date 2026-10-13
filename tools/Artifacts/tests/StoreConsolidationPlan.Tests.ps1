@@ -7,11 +7,12 @@ Import-Module (Join-Path $PSScriptRoot '../StoreConsolidationPlan.psm1') -Force
 $logical='C:\Users\fixture\AppData\Local\OneStarMaker'
 $source='C:\Users\fixture\AppData\Local\Packages\Fixture.Package_0000000000000\LocalCache\Local\OneStarMaker'
 $repo='a'*64;$dep='d'*32;$op='0'*32;$op2='1'*32
-$cases=@('task-items-share-a-unit','reference-missing-operation','reference-present-in-target','reference-localcache-rejected','reference-out-of-role-rejected','outside-store-path-ignored','shared-operation-merges-units','target-states','workflow-divergence-held','deployment-dependency','unreferenced-operation-excluded','invalid-record-held','target-keys-cover-references','manifest-recheck','plan-module-is-pure')
+$cases=@('task-items-share-a-unit','reference-missing-operation','reference-present-in-target','reference-localcache-rejected','reference-out-of-role-rejected','outside-store-path-ignored','shared-operation-merges-units','target-states','workflow-divergence-held','deployment-dependency','unreferenced-operation-excluded','invalid-record-held','target-keys-cover-references','manifest-recheck','plan-module-is-pure','referenced-file-missing','unchecked-record-held')
 $selected=@(if($Case -ceq '*'){$cases}else{$Case.Split(',')})
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 function Assert([bool]$Value,[string]$Message){if(-not $Value){throw $Message}}
-function File([string]$Path,[string]$Json=$null,[string]$Sha=('e'*64)){[pscustomobject]@{path=$Path;bytes=[long]10;sha256=$Sha;json=$Json}}
+# Unchecked: the reader could not examine a JSON-looking record (too large to load).
+function File([string]$Path,[string]$Json=$null,[string]$Sha=('e'*64),[bool]$Unchecked=$false){[pscustomobject]@{path=$Path;bytes=[long]10;sha256=$Sha;json=$Json;unchecked=$Unchecked}}
 function Item([string]$Role,[string]$Task='',$Files=@(),[string]$Id=''){
     $key=switch($Role){'workflow'{"Workflow\$repo\tasks\$Task"}'harness'{"Harness\$repo\tasks\$Task"}'evidence'{"Artifacts\evidence-v2\$dep\$repo\tasks\$Task"}'transfers'{"Artifacts\transfers\$Id"}'deployment'{"Artifacts\deployments\$dep"}}
     [pscustomobject]@{role=$Role;key=$key;repositoryId=$repo;taskId=$Task;deploymentId=$dep;files=@($Files);directories=@();reparse=$false}
@@ -20,7 +21,7 @@ function Catalog([string[]]$Paths){File 'catalog.json' (ConvertTo-Json -Compress
 function Inventory($Items,$Excluded=@()){[pscustomobject]@{logicalRoot=$logical;sourceRoot=$source;items=@($Items);excluded=@($Excluded)}}
 function Seen([bool]$Exists,$Files=@(),[bool]$Acl=$true){[pscustomobject]@{exists=$Exists;files=@($Files);directories=@();aclOk=$Acl;reparse=$false}}
 # The real store has the deployment unless a case says otherwise.
-function Target([hashtable]$Extra=@{}){$t=@{"Artifacts\deployments\$dep"=(Seen $true)};foreach($k in $Extra.Keys){$t[$k]=$Extra[$k]};$t}
+function Target([hashtable]$Extra=@{}){$t=@{"Artifacts\deployments\$dep"=(Seen $true @((File "$dep.json"),(File "$dep.config.json")))};foreach($k in $Extra.Keys){$t[$k]=$Extra[$k]};$t}
 function Unit($Plan,[string]$Key){,@($Plan.units|Where-Object {@($_.items|Where-Object key -CEQ $Key).Count})}
 foreach($case in $selected){
     try{
@@ -36,9 +37,9 @@ foreach($case in $selected){
                 Assert ($plan.units[0].status -ceq 'hold' -and $plan.units[0].reasons -ccontains 'reference-missing') 'missing operation accepted'
             }
             'reference-present-in-target'{
-                $plan=New-ConsolidationPlan (Inventory @((Item evidence alpha @(Catalog @("$logical\Artifacts\transfers\$op\owned\a.zip"))))) (Target @{"Artifacts\transfers\$op"=(Seen $true)})
+                $plan=New-ConsolidationPlan (Inventory @((Item evidence alpha @(Catalog @("$logical\Artifacts\transfers\$op\owned\a.zip"))))) (Target @{"Artifacts\transfers\$op"=(Seen $true @(File 'owned\a.zip'))})
                 Assert ($plan.units[0].status -ceq 'publish') ('present operation rejected '+($plan.units[0].reasons -join ','))
-                $plan=New-ConsolidationPlan (Inventory @((Item evidence alpha @(Catalog @("$logical\Artifacts\transfers\$op\owned\a.zip"))))) (Target @{"Artifacts\transfers\$op"=(Seen $true @() $false)})
+                $plan=New-ConsolidationPlan (Inventory @((Item evidence alpha @(Catalog @("$logical\Artifacts\transfers\$op\owned\a.zip"))))) (Target @{"Artifacts\transfers\$op"=(Seen $true @(File 'owned\a.zip') $false)})
                 Assert ($plan.units[0].reasons -ccontains 'reference-missing') 'present operation with a foreign ACL accepted'
             }
             'reference-localcache-rejected'{
@@ -130,13 +131,41 @@ foreach($case in $selected){
                 $heldPlan=New-ConsolidationPlan (Inventory @((Item evidence alpha @(Catalog @("$logical\Artifacts\transfers\$op\a"))))) (Target)
                 Assert ((Test-ConsolidationManifest $heldPlan $heldPlan).verdict -ceq 'hold') 'held unit executable'
             }
+            'referenced-file-missing'{
+                # Belonging to a unit is not enough: the referenced file itself must exist.
+                $wfPath="$logical\Workflow\$repo\tasks\alpha"
+                $plan=New-ConsolidationPlan (Inventory @((Item workflow alpha @(File 'state.json' (ConvertTo-Json -Compress @{next="$wfPath\missing.json"}))))) (Target)
+                Assert ($plan.units[0].status -ceq 'hold' -and $plan.units[0].reasons -ccontains 'reference-missing') 'missing file in the carried item accepted'
+                $plan=New-ConsolidationPlan (Inventory @((Item workflow alpha @(File 'state.json' (ConvertTo-Json -Compress @{self="$wfPath\STATE.json";root=$wfPath}))))) (Target)
+                Assert ($plan.units[0].status -ceq 'publish') ('present file rejected '+($plan.units[0].reasons -join ','))
+                # A carried operation without the referenced file.
+                $plan=New-ConsolidationPlan (Inventory @((Item evidence alpha @(Catalog @("$logical\Artifacts\transfers\$op\owned\a.zip"))),(Item transfers '' @(File 'owned\b.zip') $op))) (Target)
+                Assert ($plan.units[0].reasons -ccontains 'reference-missing') 'missing file in a carried operation accepted'
+                # An operation directory that exists in the real store without the referenced file.
+                $plan=New-ConsolidationPlan (Inventory @((Item evidence alpha @(Catalog @("$logical\Artifacts\transfers\$op\owned\a.zip"))))) (Target @{"Artifacts\transfers\$op"=(Seen $true @(File 'owned\b.zip'))})
+                Assert ($plan.units[0].reasons -ccontains 'reference-missing') 'missing file in an existing operation accepted'
+                # The deployment an Evidence task depends on needs both of its records.
+                $plan=New-ConsolidationPlan (Inventory @((Item evidence alpha @(Catalog @())))) @{"Artifacts\deployments\$dep"=(Seen $true @(File "$dep.config.json"))}
+                Assert ($plan.units[0].reasons -ccontains 'reference-missing') 'deployment without its receipt accepted'
+            }
+            'unchecked-record-held'{
+                # A record whose strings were not examined is never published as checked.
+                $plan=New-ConsolidationPlan (Inventory @((Item workflow alpha @(File 'state.json' $null ('e'*64) $true)))) (Target)
+                Assert ($plan.units[0].status -ceq 'hold' -and $plan.units[0].reasons -ccontains 'source-unchecked') 'unchecked large record accepted'
+                $plan=New-ConsolidationPlan (Inventory @((Item workflow alpha @(File 'CURRENT.previous' $null ('e'*64) $true)))) (Target)
+                Assert ($plan.units[0].reasons -ccontains 'source-unchecked') 'unchecked JSON-looking record accepted'
+                $plan=New-ConsolidationPlan (Inventory @((Item workflow alpha @(File 'state.json' $null)))) (Target)
+                Assert ($plan.units[0].status -ceq 'hold' -and $plan.units[0].reasons -ccontains 'source-invalid') 'named JSON record that is not JSON accepted'
+                $plan=New-ConsolidationPlan (Inventory @((Item workflow alpha @((File 'state.json' '{}'),(File 'task.lock' $null))))) (Target)
+                Assert ($plan.units[0].status -ceq 'publish') 'non-JSON file held'
+            }
             'plan-module-is-pure'{
                 $ast=[Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot '../StoreConsolidationPlan.psm1'),[ref]$null,[ref]$null)
                 $types=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.TypeExpressionAst] -or $n -is [Management.Automation.Language.TypeConstraintAst]},$true)|ForEach-Object {$_.TypeName.FullName})
                 foreach($type in $types){Assert ($type -cin @('Text.Json.JsonDocument','Text.Json.JsonElement','Collections.Generic.Stack[Text.Json.JsonElement]','Collections.Generic.List[string]','Collections.Generic.List[object]','Collections.Generic.HashSet[string]','StringComparer','StringComparison','string','regex','Text.RegularExpressions.RegexOptions','Convert','Security.Cryptography.SHA256','Text.Encoding','long','pscustomobject','ordered')) ('impure type '+$type)}
                 $commands=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.CommandAst]},$true)|ForEach-Object GetCommandName)
                 # A null name is an invocation of the module's own script blocks.
-                foreach($name in @($commands|Where-Object {$null -ne $_})){Assert ($name -cin @('Set-StrictMode','Export-ModuleMember','Sort-Object','ForEach-Object','Where-Object','Find','Join','Test-ConsolidationWithin','Get-ConsolidationItemKey','Get-ConsolidationJsonStrings','Get-ConsolidationItemReferences','Get-ConsolidationFileSignature','Get-ConsolidationItemState')) ('impure command '+$name)}
+                foreach($name in @($commands|Where-Object {$null -ne $_})){Assert ($name -cin @('Set-StrictMode','Export-ModuleMember','Sort-Object','ForEach-Object','Where-Object','Find','Join','Test-ConsolidationWithin','Get-ConsolidationItemKey','Get-ConsolidationJsonStrings','Get-ConsolidationItemReferences','Test-ConsolidationItemHas','Get-ConsolidationFileSignature','Get-ConsolidationItemState')) ('impure command '+$name)}
             }
         }
         $executed.Add($case)
