@@ -5,10 +5,11 @@
 このtracked文書の全Phase欄には、各成果物の取得案内の引渡し先・担当と状態だけを書く。reference・期待packageSha256の実値、ローカルの実path、内部catalog/receiptの内容は転記しない。
 
 - type: `slice`
-- status: `A`（Phase A revision r5 の A1 草案。2026-10-14 に owner が A 再開を確定した。経緯: C' の阻害指摘 2 件（§8）→ AC4 の実環境確認が不合格（§7.10）→ スパイクで原因が確定（§7.11）。r5 の変更点は §5.14。r4 凍結までの経緯は §5.10〜§5.13、発見 C の記録は §7.1〜§7.8、判定 C は §7.9）
+- status: `A3 完了（r5 凍結）`。次は Phase B（r5 の追加分）。（2026-10-14 に owner が A 再開を確定し、同日 r5 を凍結した（§5.16）。経緯: C' の阻害指摘 2 件（§8）→ AC4 の実環境確認が不合格（§7.10）→ スパイクで原因が確定（§7.11）。r5 の変更点は §5.14。r4 凍結までの経緯は §5.10〜§5.13、発見 C の記録は §7.1〜§7.8、判定 C は §7.9）
 - branch: `claude/artifacts-virtualized-store-a01`（`origin/develop` 起点）
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（A3 で `origin/develop` と一致を再確認済み）
-- Phase A revision（作業中）: **`r5`（A1 草案。未凍結）**。r4 からの変更点は §5.14。凍結までは r4 が直前の凍結 revision で、B は r5 の凍結まで着手しない。
+- Phase A revision: **`r5`（2026-10-14 凍結）**。凍結 commit と内容 sha256 は凍結直後の commit で記入する（下の行）。§1〜§5 が B の唯一の仕様。r4 からの変更点は §5.14（A3 の統合は §5.15）、A2・A3 は §5.15・§5.16。
+- r5 の凍結 commit / 内容 sha256: 未記入
 - 直前の凍結 revision: **`r4`（2026-10-13 凍結）**。凍結 commit は `77364220ecdd5f7894750744cdaa6e80d1d1dd62`、凍結時の本ファイルの内容 sha256 は `44174f89c23c9d7224b749ff7891397acce239bc04b2afed65156fd4be1aa4e3`（`git show <commit>:<本ファイル>` の bytes。この記入だけの直後の commit は含めない）。§1〜§5 が B の唯一の仕様。r3 からの変更点は §5.10、A2・A3・再レビューは §5.11〜§5.13。
 - その前の凍結 revision: `r3`（凍結）。凍結 commit は `97145dc08a183e1f1893751f6a86925a3acda1da`（Phase B が `git log` で確認し、PR 状態ブロックへ転記した）。凍結時の本ファイルの内容 sha256 は `c7259ad70ce241ed323a2169c4f5f82a2be4598206bfd2e6b286a6fa8342197f`。
 - implementation head commit: `741444dda79263d18f2c5c0fe2891e66a4f5add8`（差し戻し2巡目の修正。r4 の追加分と §7.7 の戻し項目を一つの commit にまとめた。直後の §0 だけを更新した commit は含めない）。差し戻し1巡目の修正後は `808991618373b0bf56d2cb6b04faf40e050a1f1a`、初回の Phase B 完了時は `c55891a498dc3ca99312533d3c9a23126e72fd0c`。HANDOFF にレビュー結果だけを追記した commit は含めない。
@@ -22,7 +23,17 @@
 - Phase B result snapshot / 判定 evidence bundle / C' blind bundle の取得案内・状態: 保存済み（判定 C で publish。引渡し先: owner 手元の Git 管理外。取得側の別 session での閲覧確認は未了）。以下は判定 C 開始前の記述: 未生成。依頼により B は Artifact Storage を操作していない。判定 C / C' へ渡す時点で、非仮想化の担当が implementation head から生成して publish する（Phase A snapshot と同じ扱い）。
 - PR: 未作成。作る場合も base は `develop`。
 
-**引継ぎ票（疎通の後）— 次は r5 の A3（owner）。** §5.4 の残りの疎通は 2026-10-14 に確認済み（論理 path からの作成・probe・削除が Codex 側で成立し、両側に残らない）。owner は §5.15 の「A3 で owner が決めること」（採否案、D7、D8、U9 の危険の受け入れ）を決め、r5 を凍結する。
+**引継ぎ票（r5 凍結）— 次は Phase B（r5 の追加分）。** Phase A revision r5（2026-10-14 凍結、§5.16）の §1〜§5 を唯一の仕様とする。
+
+- **B の担当:** 新しい session。非仮想化の host（Claude デスクトップ等）で行う。モデルは固定しないが、判定 C を B と異なるモデルで行えるように選ぶ。C' 用に予約した系列（cursor-agent の Grok 系）は使わない。開始時に、リモートの head、本 §0、r5 の凍結 commit と内容 sha256、§1〜§5 と凍結 commit の同一性を照合し、食い違えば始めない。
+- **B の作業:** r4 の implementation head `741444d` の上に、§4 の「r5 の追加分」を実装する。D1（r5）の判定方式、private seam の拡張、AC2 の追加分・AC15・§5.1 の r5 の検証例、README の残骸の説明。三つの CLI 入口、計画・合流 module、reasonCode、公開 API は変えない。§4 の「r5 で Phase A へ差し戻す条件」に当たれば止める。B の確認は §5.1 の起点 filter で行う。終わったら `pwsh tools/contract-audit.ps1` を実行する。
+- **B の出口:** §6 に「r5 の実装」の小節を足し、implementation head を §0 に書き、push する。次の担当は動作確認（D8）。
+- **動作確認（D8）:** B の完了 head で、AC4（Codex 内の実行担当、§5.3 の r5 の初期状態）と AC5（Claude 内の Store 版 pwsh の実行担当、probe directory の件数を記録）を各1回行う。期待との比較は、手順を渡す非 B の担当が行い、§6 の「動作確認」欄に記録する。期待と違えば発見 C を待たずに B へ戻す。観測は判定 C の代わりにせず、比較の記録は C' の blind bundle に入れない。
+- **その後:** 発見 C（差し戻しの巡は B と発見 C で通算。r4 までに2巡を消費、上限 4 巡）→ 判定 C（判定必須テストに加え、GO 候補 head で AC4・AC5 を取り直し、判定 evidence bundle に入れる。揃うまで判定 C を完了にしない）→ C' 2 巡目（前巡の指摘の解消と修正差分を中心に。cursor-agent の Grok 系、新しい session、blind bundle）。C' の指摘による差し戻しは、今回で 1 巡目を消費した（上限 3 巡）。
+- **やらないこと:** §7.10 の Codex 側の残骸、実体側の固定名 `OneStarMaker.StoreProbe` の削除（AC4 の後まで）。Codex 内での tools の script の実行（AC4 の手順を除く）。実ストアへの合流の実行。
+- **引き渡さないもの:** C' に §5.7・§5.8・§5.11・§5.13・§5.15・§5.16 の所見と議論、§7、§8 の所見、動作確認の比較の記録を渡さない。
+
+**引継ぎ票（疎通の後。記録として残す）— 次は r5 の A3（owner）。** §5.4 の残りの疎通は 2026-10-14 に確認済み（論理 path からの作成・probe・削除が Codex 側で成立し、両側に残らない）。owner は §5.15 の「A3 で owner が決めること」（採否案、D7、D8、U9 の危険の受け入れ）を決め、r5 を凍結する。
 
 **引継ぎ票（r5 の A2 後。記録として残す）— 次は §5.4 の残りの疎通と r5 の A3。** r5 の A2 は P1 なし、P2 4件、P3 4件（§5.15）。owner は、同じモデル（独立性制約あり）の結果を A2 として採択した。全件採用の案で本文へ統合済み。A3 の前に、Codex 内の実行担当が §5.4 の残りの疎通を1回行う（論理 path から LocalAppData の直下に新しく作った空の directory を、論理 path から削除でき、両側に残らないこと）。その後、owner が §5.15 の「A3 で owner が決めること」を決めて r5 を凍結する。
 
@@ -65,10 +76,10 @@
 ### PR 状態ブロック（PR 作成時の写し）
 
 ```text
-状態: Phase A の作業中（revision r5 の A1 草案。C' の阻害指摘と AC4 の実環境不合格による A 再開）
-Phase A: revision r5（A1 草案、未凍結）。直前の凍結は r4、commit 77364220ecdd5f7894750744cdaa6e80d1d1dd62
+状態: Phase A 完了（revision r5 凍結）。次は Phase B（r5 の追加分）
+Phase A: revision r5（凍結）、commit 未記入
 implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / 741444dda79263d18f2c5c0fe2891e66a4f5add8
-次の担当: r5 の A3（owner。§5.4 の疎通は確認済み）
+次の担当: Phase B（r5 の追加分）→ 動作確認（D8: AC4・AC5）→ 発見 C
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
 Evidence 取得案内: 保存済み（引渡し先: owner 手元の Git 管理外）。取得側の別 session での閲覧確認は未了
 未決事項: なし（保留した単位の扱い・取得の回復・実ストアへの合流は後続 Split Store Recovery）
@@ -146,7 +157,7 @@ r4 で問いを狭めた。合流後に Codex が publish した Evidence を非
   - **保留した単位の扱い:** `multi-workflow-unit` と `workflow-already-visible`（§2.6 D2）で保留した単位を、公開途中の不可視性を保ったまま合流する方法。r3 で検討した候補は、公開途中の単位を通常処理から隠す門、Workflow の task 一覧の列挙規則の変更、`tasks` directory ごとの一括配置、依存の順に置いて各 task を依存がそろってから見せる方式で、いずれも新しい gate・reader 契約、または不可視性の単位の読み替えを要する。対象の単位が保留された場合は、保留した単位の扱いを別の設計スライスに分けるか、回復を先に別の手段で行うかを、そのスライスの Phase A で決める（reader 契約・gate の設計変更は、一回限りの回復操作と変更理由・リスクが違うため）。
   - 所有スライス: **A3 で新しい `Artifact Storage / Split Store Recovery` を設けると決定した。** `Virtualized Host Route` は仮想化された host から Storage を使う新しい実行経路・保存先の設計で、資格情報の保存先・ACL・DPAPI の前提を変えうる。こちらは既存の実ストアだけで閉じる一回の回復操作で、変更理由・リスク・急ぎ方（DebugStudio の B が止まっている）が違う。代替は `Virtualized Host Route` に含める案で、スライスが一つ減るが、回復が host 経路の設計を待つことになる。
   - harvest 先: `docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 に、本スライスの結果と並べて新しい小節（例: 「E. 仮想化 host と分裂したストア」）を設け、`Split Store Recovery` と `Virtualized Host Route` を所有スライスとして載せる。本スライスの Phase D で harvest する。
-- **Artifact Storage / Virtualized Host Route**: 仮想化された host（Codex）が Evidence を publish / fetch するための経路。候補は (i) package 外で動く固定 runtime への仲介、(ii) 全ストアを AppData の外の Known Folder へ再配置。どちらも新しい保存先または新しい実行経路で、資格情報の保存先・ACL・DPAPI の前提を変えうる。
+- **Artifact Storage / Virtualized Host Route**: 仮想化された host（Codex）が Evidence を publish / fetch するための経路。候補は (i) package 外で動く固定 runtime への仲介、(ii) 全ストアを AppData の外の Known Folder へ再配置。どちらも新しい保存先または新しい実行経路で、資格情報の保存先・ACL・DPAPI の前提を変えうる。r5 の A3 で次の入力を加えた: U9（`LocalCache\Local` が無い初回状態での判定。残る危険として受け入れ済み）、U8（Codex 内の仮想化の仕組み）、LocalAppData が junction などで別の場所へ向いている host での誤判定（I3）、package の flexible virtualization（ExcludedDirectories）の影響。
 - **Artifact Storage / Codex 側残置の後始末**: 合流済み記録の Codex 側コピーの扱い（保持・削除・期限）。Storage の 30 日清掃は Codex 側に届かない。
 - **定期清掃 job の binding の再確認**: install した context と、Codex 側だけにある記録の清掃が行われていないこと（§1.6 U4）。
 - Harness の CURRENT の合流方式（§2.6 D4 で本スライスから外した場合）。
@@ -165,7 +176,7 @@ r4 で問いを狭めた。合流後に Codex が publish した Evidence を非
 - **U8（Codex 内の仮想化の仕組み）:** Codex 内の pwsh は package identity を持たないのに仮想化される（U2）。仕組み（親 process から継承する文脈など）は未確認。r5 の判定は書込み probe の観測だけで決め、仕組みの特定に依存しない。
 - **U9（`LocalCache\Local` が無い状態、r5 の A2 で追加）:** 仮想化された package の `LocalCache\Local` がまだ無い状態（初回、または reset の後）で、LocalAppData の直下に新しく作る directory が仮想化先と実体側のどちらに作られるかは未観測。実体側に作られるなら、r5 の判定はその状態の初回に `not-virtualized` を返しうる。この状態を作るには Codex の package の LocalCache を消す必要があり、Codex 側の file を変更・削除しない契約（§0 のやらないこと）に反するので、本スライスでは観測しない。扱いは §2.6 D1 の「残る危険」に書く。
 
-## 2. 意思決定と受け入れ境界（r5 の A1 草案。r4 は 2026-10-13 に A3 で凍結済み。r4 からの変更点は §5.14、r3 からの変更点は §5.10）
+## 2. 意思決定と受け入れ境界（r5。2026-10-14 に A3 で凍結。r4 は 2026-10-13 に凍結済み。r4 からの変更点は §5.14、r3 からの変更点は §5.10）
 
 用語:
 
@@ -229,7 +240,7 @@ r4 で問いを狭めた。合流後に Codex が publish した Evidence を非
 - A3 後の例外承認: なし
 - 決定記録: なし
 
-### 2.6 決定事項（A3 で owner が推奨どおり採用）
+### 2.6 決定事項（A3 で owner が推奨どおり採用。D7・D8 と r5 の D1 は 2026-10-14 の r5 の A3）
 
 - **D1 — 仮想化された実行の扱い:** **推奨は fail-closed。** 仮想化は `virtualized-store`、判定不能は `store-context-unknown`。(a)「一貫した実体 root で動く」は、package の中から実ストアへ新規 file を書けないため、package 外の仲介か AppData 外への再配置が必要で、D3 の後続へ送る。
   - 判定方法: 書込み probe だけで判定する。package identity は使わない（U2: identity 無しの仮想化と、identity ありの非仮想化の両方を観測した）。
@@ -239,7 +250,7 @@ r4 で問いを狭めた。合流後に Codex が publish した Evidence を非
     3. 手順1で作った directory だけを、空であるときに削除する（中身ごとの再帰削除はしない）。削除の失敗は判定結果を変えない。残る directory は一意な名前で二度と使われないので、後の判定に影響しない。
   - 残骸: process の強制終了や削除の失敗で残るのは、空の `OneStarMaker.StoreProbe.<固有名>` だけである（probe file は OS が消す）。他の呼出しが残したものは清掃しない。名前の接頭辞で一括削除すると、並行する呼出しの使用中の directory を消しうるため（A2b-2 の「自分が作ったものだけを後始末する」を保つ）。残骸の手動削除の方法は README に書く。
   - r4 までの固定名 `OneStarMaker.StoreProbe\`: 判定 module は開かず、作らず、消さない。実体側に残っているものは AC4 の初期状態に使うので、本スライスの AC4 が終わるまで消さない。その後は owner が手動で消してよい（消さなくても判定に影響しない）。
-  - 残る危険（U9）: 仮想化された package の `LocalCache\Local` がまだ無い状態で、新しい directory が実体側に作られるなら、その状態の初回の呼出しは `not-virtualized` を返しうる。本スライスではこの状態を観測しない（観測には Codex 側の LocalCache の削除が要る）。推奨は、この危険を残る危険として受け入れ、`Virtualized Host Route` へ送ること。理由は次の三つ。(1) Codex で何かを一度でも書いた後は `LocalCache\Local` があり、観測 (iii) の状態になる。(2) 現在の Codex には `LocalCache\Local\OneStarMaker` がある。(3) r4 の誤判定（実体側の残骸がある限り常に誤る）と違い、誤りうるのは package の初回に限られる。A3 で owner が受け入れるかを決める。
+  - 残る危険（U9）: 仮想化された package の `LocalCache\Local` がまだ無い状態で、新しい directory が実体側に作られるなら、その状態の初回の呼出しは `not-virtualized` を返しうる。本スライスではこの状態を観測しない（観測には Codex 側の LocalCache の削除が要る）。推奨は、この危険を残る危険として受け入れ、`Virtualized Host Route` へ送ること。理由は次の三つ。(1) Codex で何かを一度でも書いた後は `LocalCache\Local` があり、観測 (iii) の状態になる。(2) 現在の Codex には `LocalCache\Local\OneStarMaker` がある。(3) r4 の誤判定（実体側の残骸がある限り常に誤る）と違い、誤りうるのは package の初回に限られる。(4) その状態では Codex 側に `OneStarMaker` が無いので、観測 (ii) からは、CLI が先へ進んでも書込みは実体側のストアへ行き、分裂を作らない見込みである（未観測）。**A3（2026-10-14）で owner が受け入れ、`Virtualized Host Route` へ送ると決定した。**
   - 疎通（r5）: 両側とも無い状態で LocalAppData の直下に新しく作った directory の中の probe が、Codex 内で `virtualized` になることは §7.11 の (b) で確認済み。残る確認は、Codex 内で論理 path から作った directory を論理 path から削除でき、両側に残らないこと。A3 の前に Codex 内で1回確認する（§5.4）。
   - Claude デスクトップ内の子 process の違い（§1.2）: この方式は process ごとに観測するので、Claude 内の Git Bash から起動した仮想化される process は `virtualized`、Store 版 pwsh は `not-virtualized` と、それぞれ正しく判定される見込みである。AC5 の実環境確認は Store 版 pwsh で行う。
   - r5 で採らない案:
@@ -260,8 +271,8 @@ r4 で問いを狭めた。合流後に Codex が publish した Evidence を非
 - **D4 — 合流対象の role:** 推奨は `workflow`、`evidence-v2`、`deployments`、`transfers`（対象 task の catalog が参照する operation だけ）、`harness`。r1 で条件付きとした `builds-v1` は本スライスから外し、名前の列挙だけ行う（Build は Evidence の受け渡しに不要で、Build store の receipt の参照規則を本スライスで検査しないため）。`runtime` は U4 の確認に回す。`credentials`、`RevisionLocks`、非所有 directory は対象外。
 - **D5 — H1 / CURRENT 方式:** 推奨は本スライスを従来の tracked HANDOFF で進め、H1 へ移行しない（H1 の CURRENT 自体が分裂の当事者）。
 - **D6 — Harness から判定 module への依存（r2 で追加）:** `tools/harness.ps1` は現在 Workflow を import しない。判定 module を Workflow の基盤層に置くと、Harness → Workflow 基盤の新しい依存 edge ができる。推奨は、この edge を基盤層（OS metadata と probe だけ、domain を持たない）に限って許可すること。代替は A2 2件目が出した `tools/WindowsStore/`（判定）と `tools/StoreMerge/`（合流）の新設案である。依存方向の違いはフォルダ境界の根拠になるが、既存の `WindowsStorePaths.psm1` が Workflow に残るため、OS 基盤層が二か所に分かれる。移動は本スライスの範囲外なので、推奨は Workflow 基盤層に置き、両 module をまとめて移す判断を後続へ送ること。
-- **D7 — スライスを分割するか（r5、A3 で owner が決める）:** **推奨は分割しない。** r5 の変更は判定（D1）と、その受け入れ条件に限る。計画と合流（S2・S3、D2）の凍結条件は変えない。理由は次の3つ。(1) 合流と計画は r4 の head で判定必須テストを通っており、r5 で変えるところが無い。(2) 合流自身も「非仮想化でなければ実行しない」と判定に依存している（§3）。そのため、判定を直さずに合流だけを先に出すことはできない。(3) 分割すると Phase A が2本になり、ブランチの切り分けも要る。判定の修正の入りがかえって遅れる。代替案は、判定だけの新しいスライスを先に出し、合流を後続に回す案。判定の修正だけを最短で develop へ入れられるが、実装済みの合流を別ブランチへ移す作業と、そのスライスの A1〜A3 が要る。
-- **D8 — 動作確認の適用（r5、A3 で owner が決める）:** PR #125 で提案中の「動作確認（Phase B の後）」を、マージ前でも本スライスに先行して適用するか。**推奨は適用する。** B の完了 head で、AC4（Codex 内の実行担当）と AC5（Claude 内の Store 版 pwsh の実行担当）を各1回、発見 C より前に実行する。合否は判断せず、生の観測を残す。期待と違えば発見 C を待たずに B へ戻す。§7.10 の失敗は、この確認が無かったために C' の後まで見つからなかった。
+- **D7 — スライスを分割するか（r5）:** **分割しない（r5 の A3 で owner が推奨どおり決定）。** r5 の変更は判定（D1）と、その受け入れ条件に限る。計画と合流（S2・S3、D2）の凍結条件は変えない。理由は次の3つ。(1) 合流と計画は r4 の head で判定必須テストを通っており、r5 で変えるところが無い。(2) 合流自身も「非仮想化でなければ実行しない」と判定に依存している（§3）。そのため、判定を直さずに合流だけを先に出すことはできない。(3) 分割すると Phase A が2本になり、ブランチの切り分けも要る。判定の修正の入りがかえって遅れる。代替案は、判定だけの新しいスライスを先に出し、合流を後続に回す案。判定の修正だけを最短で develop へ入れられるが、実装済みの合流を別ブランチへ移す作業と、そのスライスの A1〜A3 が要る。
+- **D8 — 動作確認の適用（r5）:** PR #125 で提案中の「動作確認（Phase B の後）」を、マージ前でも本スライスに先行して適用するか。**適用する（r5 の A3 で owner が推奨どおり決定）。** B の完了 head で、AC4（Codex 内の実行担当）と AC5（Claude 内の Store 版 pwsh の実行担当）を各1回、発見 C より前に実行する。合否は判断せず、生の観測を残す。期待と違えば発見 C を待たずに B へ戻す。§7.10 の失敗は、この確認が無かったために C' の後まで見つからなかった。
   - 役割の分担（r5 の A2 で明確化）: 実行担当は手順だけを実行し、生の観測を残し、合否を判断しない。§5.3 の期待との比較は、動作確認の手順を渡した非 B の担当（owner または owner が指名した session）が行う。比較の結果と生の観測の保存先は §6 の「動作確認」欄に書く。
   - 判定との関係: 本スライスでは、動作確認の観測を判定 C の AC4・AC5 の代わりにしない。head が同じでも、判定 C で取り直す（PR #125 の再利用の規定より厳しくする）。期待との比較の記録は所見にあたるので、C' の blind bundle に入れない。
   - 件数の記録: AC5 の実行の前後で、実体側の LocalAppData の直下にある呼出しごとの probe directory の件数を記録する（削除の失敗で残骸が増えていないかを見る）。
@@ -584,7 +595,23 @@ A3 の統合で加えた変更は §5.15 にある。上の表と重なる行は
 
 - **観点4・5:** D7 の理由 (2) と D8 の根拠は妥当。r4 凍結 commit からの差分は §5.14 の表の範囲に収まる。
 - **後続へ送るもの（採否案: 全て後続 `Virtualized Host Route` へ）:** LocalAppData が junction などで別の場所へ向いている host での誤判定（I3。r4 から続いている。r4 の C' の後続入力と同じ）。package の flexible virtualization（ExcludedDirectories）の影響。U8。
-- **A3 で owner が決めること:** 上の採否案。D7（分割しない）。D8（動作確認の先行適用）。U9 の危険を受け入れるか。（§5.4 の残りの疎通は確認済み。）
+- **A3 の結果:** §5.16。
+- **A3 で owner が決めること（記録）:** 上の採否案。D7（分割しない）。D8（動作確認の先行適用）。U9 の危険を受け入れるか。（§5.4 の残りの疎通は確認済み。）
+
+### 5.16 r5 の A3 の決定（2026-10-14、owner）
+
+owner は次を決定した。
+
+| 項目 | 決定 |
+|---|---|
+| §5.15 | R5A2-1〜8 を採否案どおり全件採用（本文へ統合済み）。後続へ送るものは全て `Virtualized Host Route` へ |
+| D7 | 分割しない |
+| D8 | 動作確認を本スライスに先行適用する。B の完了 head で AC4（Codex 内）と AC5（Claude 内の Store 版 pwsh）を各1回、発見 C より前に行う |
+| U9 | 残る危険として受け入れ、`Virtualized Host Route` へ送る。owner は「初回に限り、誤っても実体側のストアへ書かれる見込みで実害が無い」程度のものと理解して受け入れた |
+| A2 の独立性 | B・A1 と同じモデル（Claude Opus 5.5）の A2 を、独立性制約ありとして採択（§5.15） |
+| 凍結 | r5 を凍結した（凍結 commit と内容 sha256 は §0）。owner の「凍結して」の指示で、統合差分の再レビューを経ずに凍結した（r4 の A3 では行った。A2 の指摘を統合した差分は、A2 担当に再度は見せていない） |
+
+A3 後の例外承認・決定記録はなし。凍結条件を変える判断は Phase A の新しい revision として行う。
 
 ## 6. Phase B 実装結果
 
