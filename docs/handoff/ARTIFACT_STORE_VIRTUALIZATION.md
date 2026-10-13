@@ -35,7 +35,7 @@
 - **停止規則:** A2 の指摘は A3 で採用・不採用・保留に分ける。凍結後に阻害する指摘は凍結条件または常時契約への違反根拠を付けて B へ返す（`phases-and-handoff.md` の blocker の基準）。凍結条件の意味を変える判断が要れば Phase A の新しい revision にする。
 - **引き渡さないもの:** A2 に §6・§7 の所見を判断材料として渡さない。C' に §5.7・§5.8 の所見、A2 / A3 の議論、§6 の「HANDOFF との差」以外の C の所見を渡さない。C' 用の担当は §5.6 で予約済み。
 
-**A2 の入力（固定）:** r4 草案の commit は `（次の commit で記入）`、その commit での本ファイルの内容 sha256 は `（次の commit で記入）`。
+**A2 の入力（固定）:** r4 草案の commit は `2ba64e18e38480177300885ee4f4c6bdff234977`、その commit での本ファイルの内容 sha256 は `d3951934fd5c0872583948846f72b37e6f2f46fb5918fe0c43131183da52ff77`（`git show 2ba64e18e38480177300885ee4f4c6bdff234977:docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md` の bytes）。この記入だけの直後の commit は入力に含めない。
 
 ### PR 状態ブロック（PR 作成時の写し）
 
