@@ -545,7 +545,7 @@ A3 後の例外承認・決定記録はなし。凍結条件を変える判断�
 4. D7（分割しない）と D8（動作確認の先行適用）の根拠。
 5. r5 の変更が、入力に必要な範囲を超えて他の凍結条件の意味を変えていないか（上の表と r4 の凍結 commit `7736422` の本文の差分で確かめる）。
 
-**A2 の入力（固定）:** 未記入（r5 草案の commit 後に記入する）。
+**A2 の入力（固定）:** r5 草案の commit は `8ba426bef49673e77ec2a4337ab90ce068c293bf`、その commit での本ファイルの内容 sha256 は `3a75f340741bd11f28a6881cc600cb8f8e4178d5e21ed719ee250385ea221094`（`git show 8ba426bef49673e77ec2a4337ab90ce068c293bf:docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md` の bytes）。この記入だけの直後の commit は入力に含めない。
 
 ## 6. Phase B 実装結果
 
