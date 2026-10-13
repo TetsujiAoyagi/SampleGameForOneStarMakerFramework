@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄には、各成果物の取得案内の引渡し先・担当と状態だけを書く。reference・期待packageSha256の実値、ローカルの実path、内部catalog/receiptの内容は転記しない。
 
 - type: `slice`
-- status: `A`（2026-10-13、owner の裁定で Phase A を r4 として再開。r4 は A1 草案、A2 完了・A3 未着手。発見 C 再レビュー（差し戻し1巡目、先行）までの記録は §7 に残す。判定 C 未着手）
+- status: `A`（2026-10-13、owner の裁定で Phase A を r4 として再開。r4 は A2 完了、A3 で採否を決定し本文へ統合済み。凍結前の統合差分の再レビュー待ち。発見 C 再レビュー（差し戻し1巡目、先行）までの記録は §7 に残す。判定 C 未着手）
 - branch: `claude/artifacts-virtualized-store-a01`（`origin/develop` 起点）
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（A3 で `origin/develop` と一致を再確認済み）
-- Phase A revision: **`r4`（A1 草案。A2 / A3 未了で、凍結していない）**。§1〜§5 は r4 草案の本文で、r3 からの変更点は §5.10。A2 の入力版は、r4 草案を置いた commit と、その commit での本ファイルの内容 sha256 で固定する（下記「A2 の入力」）。r4 が A3 で凍結されるまで、B の仕様は r3 のまま。
+- Phase A revision: **`r4`（A3 統合版。凍結前の再レビュー待ちで、凍結していない）**。§1〜§5 は r4 統合版の本文で、r3 からの変更点と A3 の統合で加えた変更は §5.10、A2 と A3 は §5.11・§5.12。A2 の入力版は、r4 草案を置いた commit と、その commit での本ファイルの内容 sha256 で固定する（下記「A2 の入力」）。r4 が A3 で凍結されるまで、B の仕様は r3 のまま。
 - 直前の凍結 revision: `r3`（凍結）。凍結 commit は `97145dc08a183e1f1893751f6a86925a3acda1da`（Phase B が `git log` で確認し、PR 状態ブロックへ転記した）。凍結時の本ファイルの内容 sha256 は `c7259ad70ce241ed323a2169c4f5f82a2be4598206bfd2e6b286a6fa8342197f`。
 - implementation head commit: `808991618373b0bf56d2cb6b04faf40e050a1f1a`（差し戻し1巡目の修正後。§0 をこの状態にした commit で、直後のレビュー記録 commit は含めない）。初回の Phase B 完了時は `c55891a498dc3ca99312533d3c9a23126e72fd0c`。HANDOFF にレビュー結果だけを追記した commit は含めない。
 - risk: `high`（永続ストアの所有境界、fail-closed 契約の追加、既存記録の移送、資格情報領域に隣接）
@@ -21,7 +21,7 @@
 - Phase B result snapshot / 判定 evidence bundle / C' blind bundle の取得案内・状態: 未生成。依頼により B は Artifact Storage を操作していない。判定 C / C' へ渡す時点で、非仮想化の担当が implementation head から生成して publish する（Phase A snapshot と同じ扱い）。
 - PR: 未作成。作る場合も base は `develop`。
 
-**引継ぎ票 — 次は owner（Phase A r4 の A3: §5.11 の採否案の確定、§5.5 の案、§1.5 の後続スライス名）。** r4 の A1 草案（下記の入力 commit）に対する A2 独立レビューは完了した（§5.11。P1 1件、P2 4件、P3 1件と補足2件）。A3 で採否を確定した後、主担当が本文へ統合し、凍結する（推奨は統合差分の短い再レビューを挟むこと）。その後 B → 発見 C の順に進める。implementation base / head は上記のまま。
+**引継ぎ票 — 次は統合差分の再レビュー（B・A1 と異なるモデル）、阻害する指摘が無ければ r4 を凍結。** A2（§5.11）の採否と §5.5・§1.5 を owner が A3 で決定し（§5.12）、主担当が本文へ統合した。統合差分の再レビューの後に凍結し、B → 発見 C の順に進める。implementation base / head は上記のまま。
 
 - **A2 の担当（完了、§5.11）:** B（Claude Opus 5.5 / Anthropic）とも r4 A1（同じ）とも異なるモデルの新しい session。C' 用に予約した系列（§5.6）は使わない。開始時に、リモートの head、本 §0、下記の入力 commit と内容 sha256 を照合し、食い違えば始めない。
 - **A2 の入力:** r4 草案の commit と、その commit での本ファイルの内容 sha256（`git show <commit>:docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md` の bytes の SHA-256）。値は本 §0 の「A2 の入力（固定）」に記入する。読む範囲は §0 と §1〜§5（§5.10 の変更点一覧を含む）。§6・§7 は B と発見 C の記録で、A2 の観点の判断材料にしない。
@@ -40,13 +40,13 @@
 ### PR 状態ブロック（PR 作成時の写し）
 
 ```text
-状態: Phase A r4 の A2 完了（A3 未着手）。判定 C 未着手
+状態: Phase A r4 の A3 統合済み、凍結前の再レビュー待ち。判定 C 未着手
 Phase A: revision r4（草案、未凍結）。直前の凍結は r3、commit 97145dc08a183e1f1893751f6a86925a3acda1da
 implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / 808991618373b0bf56d2cb6b04faf40e050a1f1a
-次の担当: owner（Phase A r4 の A3。A2 の採否案の確定と凍結）。次に B → 発見 C
+次の担当: 統合差分の再レビュー（B・A1 と異なるモデル）→ r4 凍結。次に B → 発見 C
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
 Evidence 取得案内: 未保存・引渡し未完了。保存は非仮想化の担当
-未決事項: A2 の採否（§5.11、P1 1件）、§5.5 の合流の実行の置き場（案 A / B）、§1.5 の後続スライス名（A3 で決める）。B への戻し項目 1件（§7.7、r4 と独立）
+未決事項: 統合差分の再レビュー。B への戻し項目 1件（§7.7、r4 と独立）
 ```
 
 ## 1. A0 — 目的、現況、対象外
@@ -107,16 +107,16 @@ r4 で問いを狭めた。合流後に Codex が publish した Evidence を非
 - tools が所有しない directory（`H2a Review`、`H2b Review`、`WorktreeRecords`、`Artifacts\{evidence-handoffs, evidence-ledgers, evidence-retention, resets, review-evidence}`）。所有者は owner / Codex の手作業で、本スライスは列挙だけ行い移送しない。
 - DebugStudio（WPF）の LocalApplicationData 利用（ログ・telemetry・layout）。packaged ではなく本件の再現経路が無い。
 - 別 host / Cloud への配布（program §4 C）。
-- 合流後の取得の回復（旧 S4 / AC11）と保留した単位の扱い。後続 `Artifact Storage / Split Store Recovery` へ送る（§1.5）。実ストアへの合流の実際の実行をどちらに置くかは §5.5 の選択肢（推奨は後続へ送る案 B）を A3 で決める。
+- 合流後の取得の回復（旧 S4 / AC11）と保留した単位の扱い。後続 `Artifact Storage / Split Store Recovery` へ送る（§1.5）。実ストアへの合流の実際の実行も、A3 で §5.5 の案 B を採ったので後続へ送る。
 - Unity テスト・Build。
 
 ### 1.5 後続へ送る問い（所有スライス名は A3 で owner が確定する）
 
 - **Artifact Storage / Split Store Recovery（r4 で新設を推奨）**: 本スライスの合流の手段を実データに適用して、DebugStudio property write の A3 r3 固定入力の取得を回復する。受け取る問いは次の3つ。
   - **取得の回復（旧 S4 と旧 AC11 をそのまま移す）:** 合流後、非仮想化の担当が上記の固定入力を、既存の取得案内の reference と独立した期待 hash で fetch し、必須本文を閲覧できる。catalog がそろったことだけでは合格にしない。保留した単位が残っていても、対象の単位が公開済みなら判定できる。実ストアの鍵で認証に失敗した場合は、合流の構造検証の結果を保存したまま未成立とし、資格情報の複写・置換で直さない。
-  - **実ストアへの合流の実行:** `store plan` → owner の manifest 承認 → dry-run → 実行 → 単位 receipt → 公開後の確認（D2）。§5.5 で案 B を採る場合、r3 の §5.5 の手順と独立した期待値をそのまま引き継ぐ。実データの plan の `reasons` で、対象の単位が ACL・JSON 検査・複数 Workflow のどれで保留されるかを先に確定し、保留されるなら規則を変えるか（I6 や検査規則の意味の変更）をそのスライスの Phase A で決める。
-  - **保留した単位の扱い:** `multi-workflow-unit`（§2.6 D2）で保留した単位を、公開途中の不可視性を保ったまま合流する方法。r3 で検討した候補は、公開途中の単位を通常処理から隠す門、Workflow の task 一覧の列挙規則の変更、`tasks` directory ごとの一括配置、依存の順に置いて各 task を依存がそろってから見せる方式で、いずれも新しい gate・reader 契約、または不可視性の単位の読み替えを要する。
-  - 所有スライスの案: **(推奨) 新しい `Artifact Storage / Split Store Recovery` を設ける。** `Virtualized Host Route` は仮想化された host から Storage を使う新しい実行経路・保存先の設計で、資格情報の保存先・ACL・DPAPI の前提を変えうる。こちらは既存の実ストアだけで閉じる一回の回復操作で、変更理由・リスク・急ぎ方（DebugStudio の B が止まっている）が違う。代替は `Virtualized Host Route` に含める案で、スライスが一つ減るが、回復が host 経路の設計を待つことになる。
+  - **実ストアへの合流の実行:** `store plan` → owner の manifest 承認 → dry-run → 実行 → 単位 receipt → 公開後の確認（D2）。A3 で §5.5 の案 B を採ったので、§5.5 の手順と独立した期待値（照合 script の方式を含む）をそのまま引き継ぐ。最初の手順（A0 の現況確認）として、読取りだけの `store plan`（実ストアも Codex 側も変更しない）を実データに1回実行し、その `reasons` で、対象の単位が ACL・JSON 検査・`multi-workflow-unit`・`workflow-already-visible` のどれで保留されるかを先に確定し、保留されるなら規則を変えるか（I6 や検査規則の意味の変更）をそのスライスの Phase A で決める。
+  - **保留した単位の扱い:** `multi-workflow-unit` と `workflow-already-visible`（§2.6 D2）で保留した単位を、公開途中の不可視性を保ったまま合流する方法。r3 で検討した候補は、公開途中の単位を通常処理から隠す門、Workflow の task 一覧の列挙規則の変更、`tasks` directory ごとの一括配置、依存の順に置いて各 task を依存がそろってから見せる方式で、いずれも新しい gate・reader 契約、または不可視性の単位の読み替えを要する。対象の単位が保留された場合は、保留した単位の扱いを別の設計スライスに分けるか、回復を先に別の手段で行うかを、そのスライスの Phase A で決める（reader 契約・gate の設計変更は、一回限りの回復操作と変更理由・リスクが違うため）。
+  - 所有スライス: **A3 で新しい `Artifact Storage / Split Store Recovery` を設けると決定した。** `Virtualized Host Route` は仮想化された host から Storage を使う新しい実行経路・保存先の設計で、資格情報の保存先・ACL・DPAPI の前提を変えうる。こちらは既存の実ストアだけで閉じる一回の回復操作で、変更理由・リスク・急ぎ方（DebugStudio の B が止まっている）が違う。代替は `Virtualized Host Route` に含める案で、スライスが一つ減るが、回復が host 経路の設計を待つことになる。
   - harvest 先: `docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 に、本スライスの結果と並べて新しい小節（例: 「E. 仮想化 host と分裂したストア」）を設け、`Split Store Recovery` と `Virtualized Host Route` を所有スライスとして載せる。本スライスの Phase D で harvest する。
 - **Artifact Storage / Virtualized Host Route**: 仮想化された host（Codex）が Evidence を publish / fetch するための経路。候補は (i) package 外で動く固定 runtime への仲介、(ii) 全ストアを AppData の外の Known Folder へ再配置。どちらも新しい保存先または新しい実行経路で、資格情報の保存先・ACL・DPAPI の前提を変えうる。
 - **Artifact Storage / Codex 側残置の後始末**: 合流済み記録の Codex 側コピーの扱い（保持・削除・期限）。Storage の 30 日清掃は Codex 側に届かない。
@@ -141,14 +141,14 @@ r4 で問いを狭めた。合流後に Codex が publish した Evidence を非
 - **ストア:** `%LOCALAPPDATA%\OneStarMaker\` 配下（Codex 側では同じ論理 path が LocalCache へ写る）。
 - **probe 領域:** 判定 module だけが所有する `%LOCALAPPDATA%\OneStarMaker.StoreProbe\`（仮称。ストアの外の兄弟）。ストアに含めない。
 - **合流の単位:** task 単位（その task の Workflow task directory、Evidence task directory、catalog が参照する transfers の operation、Harness task directory）と deployment 単位（deployment receipt 一式）。参照の共有で task 単位を結合した結果、一つの単位が含む Workflow task directory は2つ以上になりうる。
-- **単位が含む Workflow task directory の数:** 複写元（Codex 側）で単位に属する Workflow task directory の数。実ストアに bytes・ACL 同一の entry があって skip するものも数える（公開の可否を実ストアの状態に依存させないため）。
+- **単位が新たに公開する Workflow task directory の数:** 単位に属する Workflow task directory のうち、実ストアで absent または partial（自分の中断で一部だけある）のもの、つまりその実行で新たに公開するものの数。実ストアに bytes・ACL 同一で既にある Workflow はこの数に含めず、§2.6 D2 の `workflow-already-visible` の規則で扱う。
 
 ### 2.1 不変条件（起きてはいけないこと）
 
 - **I1 — 分裂を広げない:** 仮想化または判定不能と判定された process で、対話 CLI（`tools/artifacts.ps1` の全 subcommand、`tools/workflow-task.ps1`、`tools/harness.ps1`）がストア配下に directory・file を作らず、既存 file を開いて変更しない。判定はストアへの最初のアクセス（Workflow guard、deployment receipt、資格情報の読取りを含む）より前に行い、判定の書込みは probe 領域だけに限る。各 module は読込み（import）時にストアの root 解決・directory 作成・ACL 設定を行わない（A2b-1）。
 - **I2 — 理由を丸めない:** 仮想化と判定した結果は `status=failed`、`reasonCode=virtualized-store`、判定不能は `reasonCode=store-context-unknown` で返し、どちらも exit 1 とする。どちらも CLI の最終出力まで `unconfirmed` に変えない。実 path・SID・package 名・鍵を出さない。
 - **I3 — 非仮想化と判定できた実行の挙動を変えない:** 判定が「非仮想化」の process（Claude デスクトップ、通常の端末、Task Scheduler の job）では、既存の全 subcommand の結果・reasonCode・exit・ACL / reparse / identity 検査が変わらない。package identity の有無で分岐しない。判定不能（probe の作成・照会の失敗）で既存の成功経路が `store-context-unknown` になるのは、本スライスが意図する唯一の挙動変更とする（A2-6）。
-- **I4 — 合流は非破壊:** 合流は Codex 側の file・directory を変更・削除しない（読取り専用 handle だけを使う）。実ストアの既存 file を上書き・削除しない。単位の公開前に単位全体を照合し、既存 entry が一つでも bytes・ACL・owner の点で一致しなければ、その単位の file を一つも公開しない。Workflow task directory を2つ以上含む単位も、同じく file を一つも公開しない（公開途中の単位を Workflow の task 一覧に出さないため。§2.6 D2）。
+- **I4 — 合流は非破壊:** 合流は Codex 側の file・directory を変更・削除しない（読取り専用 handle だけを使う）。実ストアの既存 file を上書き・削除しない。単位の公開前に単位全体を照合し、既存 entry が一つでも bytes・ACL・owner の点で一致しなければ、その単位の file を一つも公開しない。新たに公開する Workflow task directory が2つ以上の単位（`multi-workflow-unit`）と、公開する item があるのに単位の Workflow が実ストアに既にある単位（`workflow-already-visible`）も、同じく file を一つも公開しない（公開途中の単位を Workflow の task 一覧に出さないため。§2.6 D2）。
 - **I5 — 記録を書き換えない:** 合流は catalog / receipt / intent / event / CURRENT の bytes を変えずに複写する。parse した値を再 serialize しない。path 文字列の付替え・再生成をしない。
 - **I6 — 安全性を弱めない:** 合流で作る directory・file は、各 role の既存規則と同じ owner・継承無しの3主体 FullControl ACL を持つ（Workflow の `Set-WorkflowPrivateAcl` と Artifacts の `Set-ArtifactAcl` は同じ規則であることを A2 後にコードで確認した）。bytes 同一で skip する既存 entry も ACL・owner を検査する。読取り元・複写先の祖先に reparse があれば単位を止める。
 - **I7 — 範囲外に触れない:** 資格情報領域、§1.4 の非所有 directory、`RevisionLocks`、合流対象外の role（`runtime`、`builds-v1`、`contents-v1`）の file を開かない（hash 計算も読取りに含める）。存在確認は名前の列挙までとし、列挙で除外を決めてから内容を開く。
@@ -156,8 +156,8 @@ r4 で問いを狭めた。合流後に Codex が publish した Evidence を非
 ### 2.2 成立条件（起きなければならないこと）
 
 - **S1 — 検出:** Codex 内で実行した対話 CLI の全入口が `virtualized-store` で止まる。
-- **S2 — 計画:** 非仮想化の process から、両側の対象 role を棚卸しし、合流候補・衝突・参照欠落・複数 Workflow・除外を分類した合流 manifest 候補を、ストアを変更せずに出せる（plan / dry-run）。Workflow task directory を2つ以上含む単位は、manifest 候補で `multi-workflow-unit` の保留として示す。
-- **S3 — 合流:** owner が承認した manifest の単位だけを公開し、単位ごとの receipt を残す。途中で止まっても、再実行で上書き・削除をせずに完了へ収束する。衝突・参照欠落・複数 Workflow（`multi-workflow-unit`）で保留した単位が残る場合は、run 全体を `partial`（exit 2）とし、全体完了を返さない。保留しない単位はその間も公開してよい（A2b-3）。
+- **S2 — 計画:** 非仮想化の process から、両側の対象 role を棚卸しし、合流候補・衝突・参照欠落・複数 Workflow・既に見える Workflow・除外を分類した合流 manifest 候補を、ストアを変更せずに出せる（plan / dry-run）。該当する単位は、manifest 候補で `multi-workflow-unit` / `workflow-already-visible` の保留として示す。
+- **S3 — 合流:** owner が承認した manifest の単位だけを公開し、単位ごとの receipt を残す。途中で止まっても、再実行で上書き・削除をせずに完了へ収束する。ここでの「完了」は、承認した単位のうち公開対象（承認時に保留でない単位）の全単位が published / complete であること。衝突・参照欠落・`multi-workflow-unit`・`workflow-already-visible` で保留した単位が残る場合は、run 全体を `partial`（exit 2）とし、全体完了を返さない。保留しない単位はその間も公開してよい（A2b-3）。
 - **S4 — （r4 で後続 `Artifact Storage / Split Store Recovery` へ移した。§1.5）** 番号は欠番として残し、振り直さない。
 
 ### 2.3 受け入れ条件（各条件の検証例）
@@ -173,17 +173,17 @@ r4 で問いを狭めた。合流後に Codex が publish した Evidence を非
 | AC7 | I5 | 公開後の各 file の SHA-256 が複写元と一致し、既存の `Read-EvidenceTask` / `Read-WorkflowTaskState` が実ストア上で読める。 | offline |
 | AC8 | I6 | 公開先の ACL / owner が規則と一致する。bytes 同一だが ACL 不適合の既存 entry は skip せず単位を止める。複写元・複写先の祖先へ reparse を注入すると単位を止める。 | offline |
 | AC9 | I7 | `credentials`、非所有 directory、`RevisionLocks`、対象外 role に置いた sentinel file が、plan・実行のどちらでも open されない（I/O seam の open 記録で確認）。 | offline |
-| AC10 | I4, S3（失敗経路） | 障害を (a) file 書込みの途中、(b) staging の hash 確認後・公開前、(c) 単位内の公開の間（transfers 公開後・Workflow 公開前）、(d) Workflow 公開後・receipt 記録前、に注入する。各場合の再実行が、上書き・削除なしで完了へ収束する。消すのは合流 run 自身の staging だけ。 | offline |
+| AC10 | I4, S3（失敗経路） | 障害を (a) file 書込みの途中、(b) staging の hash 確認後・公開前、(c) 単位内の公開の間（transfers 公開後・Workflow 公開前）、(d) Workflow 公開後・receipt 記録前、に注入する。各場合の再実行が、上書き・削除なしで完了へ収束する。消すのは合流 run 自身の staging だけ。。失敗経路（r4）: (c) で止まった単位が、再実行の前に Codex 側の変化で構成が変わった場合（例: 新しい task が結合して Workflow が2つになる）、承認した単位は `source-changed` で止まり、公開済みの断片（transfers 等）は削除せず、Workflow が未公開なので task 一覧には現れないまま残る。これを正しい状態とする。 | offline |
 | AC11 | — | （r4 で後続 `Artifact Storage / Split Store Recovery` へ移した。§1.5。番号は欠番） | — |
-| AC12 | I4（並行）, S3 | 公開の途中で `Get-WorkflowTasks` を呼んでも、その単位は列挙されない（単位ごとの意味）。公開前に別の writer が同じ Workflow task directory を作った場合は `concurrent-writer` で止まり、既存 entry を上書き・削除しない。失敗経路: 二つの task が参照の共有で一つの単位になり Workflow task directory を2つ含む場合、実行はその単位の file を一つも公開せず `multi-workflow-unit` で保留し、run は `partial`（exit 2）。実行の前後で `Get-WorkflowTasks` にどちらの task も現れず、実ストアの対象 path は不変。同じ run の他の単位は公開される。plan の後に Codex 側が変わり、承認した manifest では Workflow が1つだった単位が実行時の再棚卸しで2つになった場合も、その単位の file を一つも公開しない（`source-changed` または `multi-workflow-unit`）。 | offline |
-| AC13 | I5, S2 | 合流計画の検査（ファイル I/O なしのメモリ fixture）: catalog が参照する transfers の operation が単位に含まれず実ストアにも無ければ `reference-missing`。JSON の文字列値に LocalCache の path が含まれれば拒否。論理 path でも対象 role 外を指せば拒否。二つの task が同じ transfers の operation を参照する場合は、二つを一つの単位に結合し（A2b-4）、その単位を `multi-workflow-unit` で保留する。Workflow が1つの単位（task 単体、または Workflow を持たない task と結合した単位）は `multi-workflow-unit` にしない。一方の Workflow が実ストアに bytes・ACL 同一で既にある場合も、数に含めて保留する。 | offline |
+| AC12 | I4（並行）, S3 | 公開の途中で `Get-WorkflowTasks` を呼んでも、その単位は列挙されない（単位ごとの意味）。観測の基準は「実行の前・途中・後のどの時点でも、その実行によってその単位の task が新たに列挙されない」。公開前に別の writer が同じ Workflow task directory を作った場合は `concurrent-writer` で止まり、既存 entry を上書き・削除しない。失敗経路: (i) 二つの task が参照の共有で一つの単位になり、新たに公開する Workflow が2つになる場合、実行はその単位の file を一つも公開せず `multi-workflow-unit` で保留する。(ii) 単位の Workflow が実ストアに bytes・ACL 同一で既にあり、他の item（Evidence・Harness 等）を公開する必要がある場合、その単位の file を一つも公開せず `workflow-already-visible` で保留する。(i)(ii) とも run は `partial`（exit 2）、実ストアの対象 path は不変、run directory にその単位の staging と単位 receipt が無く、同じ run の他の単位は公開される。全 item が identical の単位は保留せず従来どおり skip / complete とする。(iii) 承認後の変化: 承認した manifest で公開対象だった単位の構成が実行時の再棚卸しで変われば（例: Workflow が1つから2つ）、その単位は `source-changed` で止まり、新しい構成の単位は未承認なので公開しない。承認時に保留だった単位は、実行時に保留理由が消えても公開せず、再 plan と再承認を要する。 | offline |
+| AC13 | I5, S2 | 合流計画の検査（ファイル I/O なしのメモリ fixture）: catalog が参照する transfers の operation が単位に含まれず実ストアにも無ければ `reference-missing`。JSON の文字列値に LocalCache の path が含まれれば拒否。論理 path でも対象 role 外を指せば拒否。二つの task が同じ transfers の operation を参照する場合は、二つを一つの単位に結合し（A2b-4）、新たに公開する Workflow が2つなら `multi-workflow-unit` で保留する。新たに公開する Workflow が1つ以下で、単位の Workflow が実ストアに無ければ保留しない。単位の Workflow が実ストアに既にあり（identical を含む）、他に公開する item があれば `workflow-already-visible` で保留する。全 item が identical の単位は保留しない。 | offline |
 | AC14 | I1 | 三つの CLI が import する全 module を、仮想化を注入した状態で読み込むだけでは、ストアの I/O seam が0件（A2b-1）。 | offline |
 
 時点の読み違いを防ぐ例（AC4）: **合格**は「Codex 内の実行の前後で Codex 側の entry 一覧が同一」。**不合格**は「`virtualized-store` を返したが、Workflow の task directory や `task.lock` が新しく作られている」。
 
 時点の読み違いを防ぐ例（AC10 (c)）: **合格**は「再実行で、公開済みの transfers は bytes・ACL 一致で skip され、残りが公開されて receipt が残る」。**不合格**は「再実行が公開済みの transfers を衝突とみなして止まる」「消して作り直す」。
 
-時点の読み違いを防ぐ例（AC12 の複数 Workflow）: **合格**は「Workflow を2つ含む単位の transfers・Evidence・Harness も含め、どの file も実ストアに現れず、run が `partial`」。**不合格**は「Workflow 以外（transfers・Evidence 等）を先に公開し、Workflow の2つだけを保留する」「Workflow を1つだけ公開して残りを保留する」「保留を `passed` の run に含める」。
+時点の読み違いを防ぐ例（AC12 の保留）: **合格**は「保留した単位の transfers・Evidence・Harness・Workflow のどれも実ストアに新たに現れず、run が `partial`」。**不合格**は「Workflow 以外（transfers・Evidence 等）を先に公開し、Workflow だけを保留する」「Workflow を1つだけ公開して残りを保留する」「実ストアに既にある Workflow の task に、Evidence・Harness だけを足す」「保留を `passed` の run に含める」「承認時に保留だった単位を、実行時に理由が消えたので公開する」。
 
 ### 2.4 ここでは答えない問い
 
@@ -207,10 +207,10 @@ r4 で問いを狭めた。合流後に Codex が publish した Evidence を非
 - **D2 — 既存の分裂の扱い:** **推奨は非破壊合流。** 非仮想化の process から、owner が承認した manifest の単位だけを、Codex 側から実ストアの同じ相対位置へ bytes 同一で公開する。参照だけ解決する案（Codex 側を第二の root にする）は二つの書き手を恒久化するので採らない。廃止案は DebugStudio の固定入力を失うので採らない。
   - **計画と実行を分ける（A2-5）:** `plan` が対象 role の棚卸しと全単位の参照検査を行い、manifest 候補（単位・相対 path・bytes・SHA-256・分類・除外）を出す。参照検査は role に依存しない規則で行う。JSON の文字列値のうち完全修飾 path であるものは、(i) LocalCache の path を含まない、(ii) 論理ストア root の下では、合流対象 role の中を指す、(iii) 指す先が同じ単位に含まれるか、実ストアに bytes・ACL 同一で既にある、を全て満たす必要がある。ストア外の path（worktree の source path 等）は参照扱いせず記録しない。owner が manifest を承認し、`execute` は承認した manifest の sha256 を必須にして、実行時にも同じ検査をやり直す。差があればその単位を `source-changed` / `target-changed` で止める。
   - **書込みの方式（A2-3）:** 合流 run は実ストアに専用 directory（`Artifacts\consolidation\<runId>\`、private ACL）を持ち、manifest の写し・journal・staging・単位 receipt をそこに置く。staging と公開先は同じ volume であることを確認する。各 file は Codex 側を読取り専用で開き、staging へ `CreateNew` → flush → SHA-256 照合 → ACL 設定の順で作る。公開は directory 単位の非上書き rename（公開先が存在すれば失敗する）で行い、最終 path へ直接書かない。staging は run の寿命で所有し、再実行で自分の未公開 staging だけを捨てて作り直す。
-  - **公開順と並行 writer（A2-4）:** 単位内の公開順は deployment → transfers の operation → Evidence task directory → Harness task directory → **Workflow task directory を最後**。定期清掃 job と `evidence cleanup` は Workflow の task 一覧（`Get-WorkflowTasks`）を起点に処理対象を決めるので（`EvidenceCleanup.psm1` 205行、`EvidenceSchedule.psm1` 388行で確認）、Workflow を公開するまで単位は通常処理に見えない。この保証は単位の Workflow が1つであることを前提とし、2つ以上の単位は下記「複数の Workflow task を含む単位の保留」のとおり公開しない（r4）。対話 CLI に同じ taskId を明示して呼ぶと、Workflow guard が task directory を先に作りうる。その場合は Workflow 公開の非上書き rename が失敗し `concurrent-writer` で止まる。既存 entry は消さない。運用の前提として、合流 run の間は対象 taskId の CLI 操作をしない。合流 run 自体の排他は run directory の lock file（`FileShare.None`）で、二重起動を止める。
+  - **公開順と並行 writer（A2-4）:** 単位内の公開順は deployment → transfers の operation → Evidence task directory → Harness task directory → **Workflow task directory を最後**。定期清掃 job と `evidence cleanup` は Workflow の task 一覧（`Get-WorkflowTasks`）を起点に処理対象を決めるので（`EvidenceCleanup.psm1` 205行、`EvidenceSchedule.psm1` 388行で確認）、Workflow を公開するまで単位は通常処理に見えない。この保証は単位の Workflow が1つであることを前提とし、前提を満たさない単位は下記「公開途中に task 一覧へ見える単位の保留」のとおり公開しない（r4）。この保証は、新たに公開する Workflow が1つで、単位の Workflow が実ストアに無いことを前提とする。対話 CLI に同じ taskId を明示して呼ぶと、Workflow guard が task directory を先に作りうる。その場合は Workflow 公開の非上書き rename が失敗し `concurrent-writer` で止まる。既存 entry は消さない。運用の前提として、合流 run の間は対象 taskId の CLI 操作をしない。合流 run 自体の排他は run directory の lock file（`FileShare.None`）で、二重起動を止める。
   - **単位の結合と保留（A2b-4）:** 単位は、利用に必要な依存がその中で閉じた集合とする。role をまたいで共有される参照があれば、それらの単位を一つに結合する。bytes が違う場合、また履歴・参照が両立しない場合は、勝者を自動で選ばずその単位を保留する。
-  - **複数の Workflow task を含む単位の保留（r4）:** 結合の結果、単位が Workflow task directory を2つ以上含む場合（数え方は §2 の用語）、その単位を公開せず reasonCode `multi-workflow-unit` で保留する。理由: 公開は directory 単位の非上書き rename で一つずつ行うので、Workflow が2つ以上あると、最初の Workflow を置いてから最後を置くまで単位の一部が `Get-WorkflowTasks` に現れ、途中で止まればその状態が残る。「Workflow を最後に置く」公開順は、単位の Workflow が1つの場合にだけ単位の不可視性（AC12）を保証する。保留は既存の保留と同じ扱い（その単位の file を一つも公開しない、run を `partial` にする、依存する単位を `dependency-held` にする既存の伝播に従う）で、新しい状態・公開 API・依存・gate を増やさない。判定は計画（純粋関数）で行い、`execute` の実行時の再検査（`Test-ConsolidationManifest` による承認 manifest との照合と再棚卸し）でも同じ規則を適用し、単位の最初の file を staging から公開するより前に決める。deployment 単位は task 単位より先に独立して公開する既存の順のままで、task 単位の保留は deployment 単位の公開を止めない（他の理由で task 単位を保留した場合と同じ）。保留した単位の合流方法は後続 `Artifact Storage / Split Store Recovery` へ送る（§1.5）。
-  - 保留の理由は互いに独立に判定し、一つの単位が複数の理由を持ってよい。`multi-workflow-unit` の追加は、参照先の存在・読取り・ACL の検査（(iii)）を緩めず、置き換えない。
+  - **公開途中に task 一覧へ見える単位の保留（r4）:** 単位を公開すると途中で task 一覧に見える構成を、次の二つの reasonCode で保留する。数え方は §2 の用語。(1) `multi-workflow-unit`: 新たに公開する Workflow が2つ以上。公開は directory 単位の非上書き rename で一つずつ行うので、最初の Workflow を置いてから最後を置くまで単位の一部が `Get-WorkflowTasks` に現れ、途中で止まればその状態が残る。(2) `workflow-already-visible`: 単位の Workflow が実ストアに既にあり（identical を含む）、他に公開する item がある。その task は公開の前から一覧に見えているので、Workflow を最後に置いても他の item の公開途中が見える。「Workflow を最後に置く」公開順は、新たに公開する Workflow が1つで、単位の Workflow が実ストアに無い場合にだけ単位の不可視性（AC12）を保証する。全 item が identical の単位は公開しないので保留せず、従来どおり skip / complete とする。保留は既存の保留と同じ扱い（その単位の file を一つも公開しない、run を `partial` にする、依存する単位を `dependency-held` にする既存の伝播に従う）。保留した単位は staging せず、単位 receipt を作らず、journal には保留の trace だけを残す。判定は計画（純粋関数）で行い、`execute` の実行時の再検査（`Test-ConsolidationManifest` による承認 manifest との照合と再棚卸し）でも同じ規則を適用し、単位の最初の file を staging するより前に決める。承認した単位の構成（item 集合）が実行時に変われば `source-changed` で止め、新しい構成の単位は公開しない。承認時に保留だった単位は、実行時に理由が消えても公開しない（再 plan・再承認を要する）。deployment 単位は task 単位より先に独立して公開する既存の順のままで、task 単位の保留は deployment 単位の公開を止めない（他の理由で task 単位を保留した場合と同じ）。新しい状態・公開関数・引数・依存・gate は増やさない。reasonCode の値は2つ増え、manifest と結果に現れる（schemaVersion は変えない）。保留した単位の合流方法は後続 `Artifact Storage / Split Store Recovery` へ送る（§1.5）。
+  - 保留の理由は互いに独立に判定し、一つの単位が複数の理由を持ってよい。`multi-workflow-unit` と `workflow-already-visible` の追加は、参照先の存在・読取り・ACL の検査（(iii)）を緩めず、置き換えない。
   - **公開後の確認（A2b-5）:** 公開した単位ごとに、既存の読取り経路（`workflow-task.ps1 status`、`evidence inspect`、`harness.ps1 current`）を非仮想化 context で実行し、各 domain の validator を通ることを確かめる。合流 module は domain module を import しない（手順として実行する）。
   - 実行形は「一回の旧開発環境 reset」と同じく、plan → owner 承認 → dry-run → 実行 → 単位 receipt → 公開後の確認 → 再実行時の skip とする。
 - **D3 — 仮想化された host の今後:** **推奨は、本スライスの GO 後は仮想化された host で Storage・Workflow・Harness の操作を行わず、非仮想化の担当（owner の端末、Claude 等）が実行担当を務める運用とし、host 側の経路は後続 `Virtualized Host Route` へ送ること。** 影響: Codex が B を担当するスライスでは、固定入力の fetch と B exit の publish を非仮想化の実行担当へ依頼する必要がある。
@@ -226,17 +226,17 @@ r4 で問いを狭めた。合流後に Codex が publish した Evidence を非
 | `tools/artifacts.ps1` | 全 subcommand の入口で判定を呼び、`virtualized` / `unknown` なら対応する reasonCode を返して終える | 入口の追加・変更時 | 呼出し1回 | 上記 module | 既存 CLI と新 reasonCode 2つ | 既存 CLI fixture へ注入 | composition root。各 Application module に散らさず一箇所で止める | 154 / 約+20 |
 | `tools/workflow-task.ps1` | 同上 | 同上 | 同上 | 同上 | 同上 | `WorkflowCliFixture.ps1` | 同上 | 66 / 約+12 |
 | `tools/harness.ps1` | 同上 | 同上 | 同上 | 同上（D6） | 同上 | Harness tests | 同上 | 243 / 約+12 |
-| 新規 `tools/Artifacts/StoreConsolidationPlan.psm1` | 棚卸し結果（メモリ上のモデル）から単位を作り、参照・衝突・複数 Workflow・除外を分類して manifest 候補と検査結果を返す | 単位の定義、参照検査の規則、保留の規則、対象 role が変わったとき | 状態を持たない純粋関数 | なし（ファイル・OS に触れない） | `New-ConsolidationPlan`、`Test-ConsolidationManifest`（仮称）。r4 の `multi-workflow-unit` は既存の保留理由の集合に加わる値で、公開関数・引数を増やさない | メモリ fixture だけで全分類を検査（AC13。r4 の保留の有無の境界を含む） | 規則と I/O を分けて、ストアに触れずに検査できるようにする（A2-5）。規則の変更理由は I/O の変更理由と独立。単位の Workflow の数は単位の構成だけで決まるので、保留の判定もここに置く | 0 / 約200（r4 で約+10） |
+| 新規 `tools/Artifacts/StoreConsolidationPlan.psm1` | 棚卸し結果（メモリ上のモデル）から単位を作り、参照・衝突・複数 Workflow・既に見える Workflow・除外を分類して manifest 候補と検査結果を返す | 単位の定義、参照検査の規則、保留の規則、対象 role が変わったとき | 状態を持たない純粋関数 | なし（ファイル・OS に触れない） | `New-ConsolidationPlan`、`Test-ConsolidationManifest`（仮称）。r4 の `multi-workflow-unit`・`workflow-already-visible` は既存の保留理由の集合に加わる reasonCode の値（manifest と結果に現れる公開面の値の追加）で、公開関数・引数・schemaVersion は変えない | メモリ fixture だけで全分類を検査（AC13。r4 の保留の有無の境界を含む） | 規則と I/O を分けて、ストアに触れずに検査できるようにする（A2-5）。規則の変更理由は I/O の変更理由と独立。新たに公開する Workflow の数と既にある Workflow は、単位の構成と target の観測（どちらもメモリ上のモデル）だけで決まるので、保留の判定もここに置く | 0 / 約200（r4 で約+10） |
 | 新規 `tools/Artifacts/StoreConsolidation.psm1` | 対象 role の棚卸し、staging、単位の公開、journal と receipt、run の排他を行う | 公開の手順・障害回復・ACL の扱いが変わったとき | run directory（lock、manifest の写し、journal、staging、receipt）を run の寿命で所有する。receipt は不変記録として残す。Codex 側は読取り専用 handle だけ | `StoreConsolidationPlan.psm1`、`WindowsStoreContext.psm1`（自身も非仮想化でなければ実行しない）、`WindowsStorePaths.psm1`、`ArtifactAcl.psm1`。Evidence / Workflow の domain module は import しない（テストからは読取り確認に使う） | `artifacts.ps1 store plan --source-root ...`、`store consolidate --manifest ... --manifest-sha256 ... [--dry-run]`（仮称） | 合成 fixture の両 root、I/O seam（open 記録）、4点の障害注入（AC6〜AC10、AC12。r4 の複数 Workflow の単位が一つも公開されないこと、実行時の再棚卸しで増えた場合を含む） | Artifacts 側の一回の管理操作として、`EvidenceReset.psm1` と同じ形に揃える（A2 の支持）。Workflow / Harness の directory も bytes 同一で扱うだけで、その domain の判断は持たない。r4 の保留は計画の結果に従うだけで、この module に新しい判断を置かない | 0 / 約300（r4 の増分はテストだけの見込み） |
 | テスト（新規 suite 3本） | 判定と入口、計画、合流 | 上記と同じ | テスト専用 root | 既存 TestSupport | なし | offline のみ | 既存 suite の形に合わせる | 0 / 約550 |
-| `tools/Artifacts/README.md`、`tools/Workflow/README.md`、`tools/Harness/README.md` | 実行条件、reasonCode、合流手順。r4 で、公開途中の不可視性が Workflow 1つの単位にだけ成り立つことと `multi-workflow-unit` の保留を Artifacts README の合流節に書く | 公開面の現況 | 永続 | なし | 文書 | docs-audit | harvest 先 | 既存 / 約+40 |
+| `tools/Artifacts/README.md`、`tools/Workflow/README.md`、`tools/Harness/README.md` | 実行条件、reasonCode、合流手順。r4 で、公開途中の不可視性の前提（新たに公開する Workflow が1つで、単位の Workflow が実ストアに無い）と、`multi-workflow-unit`・`workflow-already-visible` の保留を、reason の一覧とともに Artifacts README の合流節に書く | 公開面の現況 | 永続 | なし | 文書 | docs-audit | harvest 先 | 既存 / 約+40 |
 
 行数警報: `StoreConsolidation.psm1` は 300 行前後の見込みで、500 行の警報には届かない。超える場合は「棚卸し」と「公開・回復」の分割を C で判断する。`EvidencePaths.psm1`、`ArtifactPaths.psm1`、`TaskEventStore.psm1`、`RecordStore.psm1`、`CredentialPathAcl.psm1` は変更しない（判定を入口へ置くため）。
 
 ## 4. 実装計画（A3 で凍結する）
 
 - 順序: (1) 判定 module と注入 seam → (2) 三つの CLI 入口 → (3) offline test（AC1〜AC3）→ (4) 計画 module とメモリ fixture（AC13）→ (5) 合流 module の棚卸しと plan → (6) staging・公開・journal・receipt・run 排他 → (7) offline test（AC6〜AC10、AC12）→ (8) README。
-- r4 の追加分（実装済みの head に対する差分として行う）: (4) に `multi-workflow-unit` の保留とメモリ fixture、(7) に複数 Workflow の単位が一つも公開されないことの offline test、(8) に README の公開途中の不可視性の限定と保留の説明。
+- r4 の追加分（実装済みの head に対する差分として行う）: (4) に `multi-workflow-unit`・`workflow-already-visible` の保留とメモリ fixture、(7) に保留した単位が一つも公開されず staging・receipt も作られないこと、承認後の構成変化の offline test、(8) に README の公開途中の不可視性の限定と保留の説明。
 - Phase B から Phase A へ差し戻す条件: 入口以外（各 Application module・resolver）に判定を入れないと I1 を満たせない場合。合流で bytes の書換えが必要と判明した場合。directory 単位の非上書き rename が使えず、公開順で単位を隠せない場合。新しい保存先・資格情報の扱いが必要になった場合。判定に package manifest の解析など新しい依存が必要になった場合。
 - 対象外の維持: 上記の既存 resolver・ACL 規則を変えない。Codex 側への書込み API を持たない。
 
@@ -246,8 +246,8 @@ r4 で問いを狭めた。合流後に Codex が publish した Evidence を非
 
 - 単体テスト: 判定（3値と各失敗経路、identity の有無で分岐しないこと）、入口の順序（判定がストア I/O より前）、import 時の副作用（AC14）、計画（AC13）、合流（AC6〜AC10、AC12）。時間待機を使わず、並行は既存 suite と同じ別 process の signal 同期。
 - r4 の保留規則の検証例（case 名は仮称。既存 suite に足す）:
-  - 計画 suite（メモリ fixture）: `multi-workflow-unit-held`（同じ operation を参照する二つの task が一つの単位になり `multi-workflow-unit`）、`multi-workflow-counts-identical-target`（一方の Workflow が実ストアに bytes・ACL 同一で既にあっても保留）、`single-workflow-unit-not-held`（Workflow が1つの単位、Workflow を持たない task との結合は保留しない）、`multi-workflow-with-other-reasons`（`reference-missing` 等と併存し、他の理由を消さない）。
-  - 合流 suite（隔離 fixture）: `multi-workflow-unit-not-published`（その単位の transfers・Evidence・Harness・Workflow のどれも実ストアに現れない、run は `partial`・exit 2、実行の前後と途中の `Get-WorkflowTasks` にどちらの task も出ない、同じ run の他の単位は公開される、Codex 側の hash・時刻は不変）、`multi-workflow-after-approval`（承認した manifest では Workflow 1つ、実行時の再棚卸しで2つになった単位の file を一つも公開しない）。既存の `hidden-until-workflow` は Workflow 1つの単位の検証として残す。
+  - 計画 suite（メモリ fixture）: `multi-workflow-unit-held`（同じ operation を参照する二つの task が一つの単位になり `multi-workflow-unit`）、`workflow-already-visible-held`（単位の Workflow が実ストアに bytes・ACL 同一で既にあり、他に公開する item があれば `workflow-already-visible`。一方の Workflow だけが既にある結合単位も同じ）、`all-identical-unit-not-held`（全 item が identical の単位は保留せず skip / complete）、`single-workflow-unit-not-held`（新たに公開する Workflow が1つで実ストアに無い単位、Workflow を持たない task との結合は保留しない）、`multi-workflow-with-other-reasons`（`reference-missing` 等と併存し、他の理由を消さない）。
+  - 合流 suite（隔離 fixture）: `multi-workflow-unit-not-published`・`workflow-already-visible-not-published`（その単位の transfers・Evidence・Harness・Workflow のどれも実ストアに新たに現れない、run directory にその単位の staging・receipt が無い、run は `partial`・exit 2、実行の前後と途中の `Get-WorkflowTasks` に、その実行によってその単位の task が新たに現れない、同じ run の他の単位は公開される、Codex 側の hash・時刻は不変）、`unit-changed-after-approval`（承認時 Workflow 1つの単位が実行時に2つになれば `source-changed` で一つも公開しない。承認時に保留だった単位は、実行時に理由が消えても公開しない）、`interrupted-then-changed`（AC10 (c) で止まった後に構成が変わった単位は `source-changed`、公開済みの断片は残り、task は一覧に現れない）。既存の `hidden-until-workflow` は Workflow 1つの単位の検証として残す。
 - 差し戻し中の起点 filter: 新規 3 suite、`tools/Workflow/tests/TaskLifecycle.Tests.ps1`、`tools/Artifacts/tests/ArtifactEvidence.Tests.ps1`、`EvidenceCleanup.Tests.ps1`（`rg` を PATH へ通す）、Harness tests。C が根拠付きで変更してよい。
 - 判定必須テスト: 3 project の Release build、Artifacts の全 suite、Workflow TaskLifecycle、Harness tests、新規 3 suite、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`。
 - 全 EditMode 回帰の適用除外: **適用除外**。理由: Unity source・依存・asmdef を変更しない PowerShell / .NET tooling のスライスである（先行 Artifacts スライスと同じ扱い）。代替証拠: 上記の offline 全 suite と contract-audit。
@@ -280,7 +280,7 @@ r4 で問いを狭めた。合流後に Codex が publish した Evidence を非
 
 ### 5.5 高コスト証拠
 
-r3 は「実ストアへの合流の実行と S4 の fetch」を一つの高コスト証拠にしていた。r4 で S4 の fetch を後続へ移したので、残る「実ストアへの合流の実行」をどちらに置くかを A3 で決める。
+r3 は「実ストアへの合流の実行と S4 の fetch」を一つの高コスト証拠にしていた。r4 で S4 の fetch を後続へ移し、残る「実ストアへの合流の実行」の置き場は **A3 で案 B（後続へ送る）に決定した。本スライスの高コスト証拠は なし** で、判定証拠が揃った head の C' を最終 C' とする。下記の手順・期待値と選択肢は、後続へ引き継ぐ内容と判断の記録として残す。
 
 **合流の実行の手順と独立した期待値**（どちらの案でもこの内容で凍結・移送する。A2-2 で範囲を限定）:
 
@@ -289,7 +289,7 @@ r3 は「実ストアへの合流の実行と S4 の fetch」を一つの高コ�
   - 公開先の各 file の SHA-256 が manifest と一致する。
   - Codex 側は、**manifest に載った file だけ**を実行前後で hash 照合し、一致する。
   - 除外領域（資格情報、非所有 directory、`RevisionLocks`、対象外 role）は内容を開かない。実行前後の名前・件数・最終更新の列挙が同一で、合流 run の journal の open 記録にそれらの path が無い。
-  - 衝突・参照欠落・`multi-workflow-unit` の単位数が dry-run と一致し、保留が残れば run の結果が `partial` である。`multi-workflow-unit` の単位の file が実ストアに一つも無い。
+  - 衝突・参照欠落・`multi-workflow-unit`・`workflow-already-visible` の単位数が dry-run と一致し、保留が残れば run の結果が `partial` である。それらの保留単位の file が実ストアに新たに一つも無い。
   - 公開した全単位で、公開後の確認（D2）の3コマンドが既存どおり成功する。
 
 **選択肢:**
@@ -299,13 +299,13 @@ r3 は「実ストアへの合流の実行と S4 の fetch」を一つの高コ�
 | A | 合流の実行を本スライスの高コスト証拠として残す（fetch は含めない） | 判定 C → 暫定 C' → 合流の実行 → 最終証拠ラウンド（判定 C と最終 C'） | 実データが S2 の分類規則・S3 の公開手順を通ることを本スライスで見られる。後続は fetch から始められる | 実ストアを変更する不可逆な操作が GO の前提になり、本スライスの GO が実データの状態（保留の多さ、ACL）と owner の承認の時期に依存する。暫定 C' と最終 C' の2回が要る |
 | B | 合流の実行も後続 `Artifact Storage / Split Store Recovery` へ送る。本スライスの高コスト証拠は **なし** | 判定 C → C'（判定証拠が揃った head の C' を最終 C' とする） | 本スライスの GO が、凍結した offline 検証と実環境の AC4・AC5 だけで決まる。実ストアの変更を GO の後、取得の回復と同じ判断の中で一度だけ行える | 実データで初めて見つかる分類の問題（ACL、JSON 検査、複数 Workflow の該当）は後続で扱う |
 
-**推奨は案 B。** 根拠:
+**推奨は案 B（A3 で採用）。** 根拠:
 
 - S1〜S3 の証明に実データの合流は要らない。S1 は AC1（全入口の offline 検査）と AC4（Codex 内の実環境確認。実ストアを変更しない）で、S2 は AC9・AC13 の合成 fixture で、S3 は AC6〜AC10・AC12 の合成 fixture で判定する。中断からの収束、衝突・保留時の非公開、Codex 側の不変、複数 Workflow の単位の非公開は、障害注入と境界条件の組み立てが要るので、実データの一回の実行では観測できず、合成 fixture の方が強い証拠になる。
 - 実データの一回の実行が加えるのは「実際の記録が保留されずに通るか」で、これは取得の回復（後続へ移した旧 S4）が成り立つかの問いに属する。実データで保留が出たときに規則を変えるかの判断（I6 や検査規則の意味の変更）も、取得の回復と同じスライスで決める方が判断が一か所に閉じる。
 - 実ストアの変更は不可逆で、owner の manifest 承認を要する。GO の前提にすると、本スライスの判定が実データの状態と承認の時期に縛られる。
 
-**判定 C の照合 script の方式:** 案 B では **なし**（照合する高コスト証拠の原記録が本スライスに無い）。r3 の「A3 凍結 script」の方針（判定 C の担当が非仮想化かつ資格情報へ届かない環境で script を書ける保証が無いため、A1 で書き A3 で凍結する）は、合流の実行と一緒に後続へ移す。案 A を採る場合は r3 のとおり A3 凍結 script とし、合成 fixture と期待値を A3 前に用意する。
+**判定 C の照合 script の方式:** **なし**（案 B を採ったため）（照合する高コスト証拠の原記録が本スライスに無い）。r3 の「A3 凍結 script」の方針（判定 C の担当が非仮想化かつ資格情報へ届かない環境で script を書ける保証が無いため、A1 で書き A3 で凍結する）は、合流の実行と一緒に後続へ移す。案 A を採る場合は r3 のとおり A3 凍結 script とし、合成 fixture と期待値を A3 前に用意する。
 
 ### 5.6 担当・モデル（実績）
 
@@ -397,9 +397,24 @@ A3 後の例外承認・決定記録はなし。凍結条件を変える判断�
 | §5.5 | 合流の実行と S4 の fetch を高コスト証拠、A3 凍結 script | fetch を外した合流の実行の手順・期待値（`multi-workflow-unit` を追加）と、置き場の案 A / B。推奨は案 B（高コスト証拠なし、照合 script なし、どちらも後続へ） | 裁定2。S1〜S3 の証明は合成 fixture で足り、実データの実行が加えるのは取得の回復の成否 |
 | §0・§5.6 | r3 の引継ぎ | r4 草案の状態、A2 の入力と担当 | 手続き |
 
+**A3 の統合で加えた変更（§5.11 の採用分。A1 草案 `2ba64e1` からの差）:**
+
+| 節 | A1 草案 | 統合版 | 理由 |
+|---|---|---|---|
+| §2 用語 | 単位が含む Workflow の数（skip するものも数える） | 単位が新たに公開する Workflow の数（absent / partial）。既にある Workflow は `workflow-already-visible` で扱う | 完了済みの単位を恒久的な保留にしない。既にある Workflow の不可視性は別の規則で守る |
+| §2.1 I4 | 複数 Workflow の単位は一つも公開しない | 加えて、公開する item があるのに単位の Workflow が実ストアに既にある単位も一つも公開しない | Workflow を最後に置く公開順は、Workflow が実ストアに無い場合にだけ不可視性を保証する（裁定1の「AC12 は単位ごとの意味のまま」を保つ） |
+| §2.2 S2・S3 | `multi-workflow-unit` | `workflow-already-visible` を追加。S3 の「完了」を「承認時に保留でない全単位が published / complete」と定義 | 保留がある run の収束の意味を定める |
+| §2.3 AC10 | 4点の障害注入 | (c) で止まった後に構成が変わった単位は `source-changed` で止まり、断片は不可視のまま残る、を合格の状態として追加 | 収束の読み違いを防ぐ |
+| §2.3 AC12 | 複数 Workflow の非公開、`source-changed` または `multi-workflow-unit` | 観測の基準時点（実行で新たに列挙されない）、既にある Workflow の場合、staging・receipt が無いこと、全 identical は保留しない、承認後の変化の両方向（構成が変われば `source-changed`、承認時の保留は理由が消えても公開しない）。不合格例を追加 | 二択の検証を一意にし、保留の副産物を定める |
+| §2.3 AC13 | identical の Workflow も数えて保留 | 新たに公開する数で `multi-workflow-unit`、既にある Workflow と公開する item の併存で `workflow-already-visible`、全 identical は保留しない | 用語の変更に合わせる |
+| §2.6 D2 | 複数の Workflow task を含む単位の保留 | 「公開途中に task 一覧へ見える単位の保留」に改め、二つの reasonCode、staging・receipt・journal の扱い、承認後の変化、reasonCode の値の追加（schemaVersion は不変）を明記 | 同上 |
+| §1.5 | 所有スライスの案、合流の実行は案 B の場合 | `Split Store Recovery` の新設を決定。最初の手順を読取りだけの実データ `store plan` とする。対象の単位が保留されたときの分け方を足す | A3 の決定（§5.11 補足1・2） |
+| §3・§4・§5.1 | `multi-workflow-unit` | 二つの reasonCode、公開面の値の追加の明記、検証例の更新 | 同上 |
+| §5.5 | 案 A / B と推奨 | 案 B に決定。本スライスの高コスト証拠と照合 script は なし | A3 の決定 |
+
 本 r4 は、凍結した参照先の検査（D2 (iii)）を変えない。参照先の存在・読取り・ACL を確かめる既存の検査と `multi-workflow-unit` は独立した保留理由で、一方が他方を置き換えない。
 
-### 5.11 r4 の A2 独立レビューと採否案（A3 で owner が確定する）
+### 5.11 r4 の A2 独立レビューと採否（2026-10-13 に A3 で owner が採否案どおり確定）
 
 - **担当・入力:** Claude Code のサブエージェント（Claude Sonnet 5.5、Anthropic）、新しい文脈。B・r4 A1（Claude Opus 5.5）と異なるモデルだが**同じベンダー**で、独立性は「別モデル・別文脈・読取り専用」による（独立性制約あり）。Fable 5.1 は利用枠の都合で起動できなかった。C' 用の予約系列は使っていない。入力版は commit `2ba64e18e38480177300885ee4f4c6bdff234977`、内容 sha256 `d3951934fd5c0872583948846f72b37e6f2f46fb5918fe0c43131183da52ff77`（開始時に一致を確認）。§6・§7 は判断材料にしていない。編集・テスト・ストア操作なし。
 - **観点1（裁定の反映）:** 指摘なし。§5.10 の表は r3 からの差分を漏れなく記述している。
@@ -414,10 +429,21 @@ A3 後の例外承認・決定記録はなし。凍結条件を変える判断�
 | R4A2-4 | P2 | 保留の判定と staging・journal・receipt の前後関係が曖昧 | D2 | **採用** | 保留した単位は staging せず、単位 receipt を作らず、journal には保留の trace だけを残す、と明記する。AC12 に「保留単位の staging・receipt が run directory に無い」を足す |
 | R4A2-5 | P2 | S3 の「完了へ収束」が保留込みで未定義。公開途中で止まった単位が、再実行の前に Codex 側の変化で複数 Workflow になった場合の扱いも例が無い | S3、AC10 | **採用** | 「完了」は「承認した単位のうち公開対象の全単位が published / complete」と一文で定義する。上の場合は単位が `source-changed` で止まり、公開済みの断片は削除せず（I4）Workflow 未公開のため不可視のまま、が正しいことを AC10 の合格例に1行足す |
 | R4A2-6 | P3 | `multi-workflow-unit` は manifest JSON の reason 値の追加で承認者に見える。「公開 API を増やさない」の範囲を明記すべき | §3、README 行 | **採用** | 「reasonCode の値の追加は含む（公開関数・引数・schemaVersion は変えない）」と明記し、README の合流節に reason の一覧として書く |
-| 補足1 | P3 | 案 B では、DebugStudio の固定入力を含む単位が保留されても本スライスは GO になり、発見が遅れる。読取りだけの `store plan` を非ゲートの参考として GO 前に1回見る運用を A3 が選べる | §5.5 | **保留（owner の判断）** | 主担当の推奨は本スライスに入れないこと。実データの plan は `Split Store Recovery` の最初の手順（A0 の現況確認）に置く。判定を実データに依存させない案 B の趣旨を保つため |
+| 補足1 | P3 | 案 B では、DebugStudio の固定入力を含む単位が保留されても本スライスは GO になり、発見が遅れる。読取りだけの `store plan` を非ゲートの参考として GO 前に1回見る運用を A3 が選べる | §5.5 | **不採用（本スライスには入れない。後続へ）** | owner が主担当の推奨どおり決定。実データの plan は `Split Store Recovery` の最初の手順（A0 の現況確認）に置く。判定を実データに依存させない案 B の趣旨を保つため |
 | 補足2 | P3 | `Split Store Recovery` の中の「保留した単位の扱い」は reader 契約・gate の設計変更を要し、急ぎの回復と変更理由が異なる | §1.5 | **採用** | §1.5 に1行足す: 対象の単位が保留された場合は、保留した単位の扱いを別の設計スライスに分けるか、回復を先に別の手段で行うかを、そのスライスの Phase A で決める |
 
 **A3 への注記:** R4A2-1〜5 を採用すると、§2.1 I4、§2.2 S3、§2.3 AC10・AC12・AC13、§2.6 D2、§3、§5.1 の本文と §5.10 の表が変わる。新しい保留理由 `workflow-already-visible` は fail-closed の範囲を広げるので、裁定1と同じく owner の承認が要る。新しい状態・公開関数・依存・gate は増えない。統合後の本文を r4 として凍結するか、統合版を A2 に再度かけるかは owner が決める（主担当の推奨は、R4A2-1 が P1 なので統合版の差分だけを短く再レビューすること）。
+
+### 5.12 r4 の A3 の決定（2026-10-13、owner）
+
+owner は次を主担当の推奨どおり決定した。
+
+| 項目 | 決定 |
+|---|---|
+| §5.11 | R4A2-1〜6 と補足2を採用（R4A2-1 は修正案 (a)、新しい reasonCode `workflow-already-visible`。fail-closed の範囲の拡大を承認）。補足1は本スライスに入れず、`Split Store Recovery` の最初の手順にする |
+| §5.5 | 案 B。実ストアへの合流の実行は後続へ送り、本スライスの高コスト証拠と照合 script は なし |
+| §1.5 | 後続 `Artifact Storage / Split Store Recovery` を新設する |
+| 凍結の手順 | 凍結の前に、統合差分（A1 草案 `2ba64e1` → 統合版）を B・A1 と異なるモデルで短く再レビューする。阻害する指摘が無ければ r4 を凍結する |
 
 ## 6. Phase B 実装結果
 
