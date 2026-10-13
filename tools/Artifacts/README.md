@@ -12,6 +12,20 @@ ownerは、設定した開発領域・明示入力・保存契約内の通常pub
 
 資格情報の新規登録・置換・rotation・失効/削除、別account/bucket、公開配布、別host/Cloudは通常操作の承認範囲外です。鍵や暗号化store、header、署名URLは会話・引数・環境変数・ログ・Git・同期先へ出しません。認証失敗を鍵の再入力・削除で自動修復しません。実行環境の承認UIには従い、拒否を別経路や設定緩和で迂回しません。
 
+## 実行するprocessの条件（AppData仮想化）
+
+`tools/artifacts.ps1`、`tools/workflow-task.ps1`、`tools/harness.ps1` は、引数の解釈とstore moduleのimportより前に、そのprocessのLocalApplicationDataへの書込みが仮想化されていないかを判定します。packaged appの書込み仮想化（例: Codexデスクトップ）の中では、新しいfileがpackage専用のLocalCacheへ置かれ、ストアが黙って二つに分かれるためです。
+
+判定は `%LOCALAPPDATA%\OneStarMaker.StoreProbe\`（ストアの外）に固有名のprobe fileを `CreateNew` と `DeleteOnClose` で開き、handleの実体pathを論理pathと比べるだけです。package identityは使いません（identityの無い仮想化と、identityのある非仮想化の両方が観測されたため）。probe fileはhandleを閉じるとOSが消します。probe領域のdirectory自体は残ることがあり、ストアの一部ではありません。
+
+| 判定 | 結果 |
+|---|---|
+| 非仮想化 | 既存どおり実行する |
+| 仮想化 | `{"status":"failed","reasonCode":"virtualized-store"}`、exit 1 |
+| 判定不能（probeの作成・実体path照会・closeの失敗） | `{"status":"failed","reasonCode":"store-context-unknown"}`、exit 1 |
+
+どちらの拒否でもストア配下には何も作らず、既存fileも開きません。仮想化されたhostではStorage・Workflow・Harnessを操作せず、非仮想化の担当（ownerの端末、仮想化されないエージェント環境等）へ固定入力のfetchや出口のpublishを依頼します。仮想化されたhostから使えるようにする経路は後続です。定期清掃jobはpackage外のTask Schedulerで動き、この判定の対象外です。
+
 ## Evidence v2 の通常操作
 
 3 projectのRelease buildを用意します。通常Evidenceの使用開始前に `workflow-task.ps1 start`、終了済みtaskなら `resume` を完了します。新configはschemaVersion 2、profile、endpoint、bucket、repositoryId、prefix、policy、deploymentIdの厳密なJSONです。
@@ -98,6 +112,25 @@ pwsh tools/artifacts.ps1 evidence reset --profile osm --manifest <frozen-reset-j
 exact対象のDELETE→GET404と、validated owned local pathの清掃結果をitem別receiptへ残します。確定削除済みの対象は再実行でskipし、残件だけを再照合します。無条件bucket全erase、rule自動解除、通常writerへの管理権限追加は行いません。対象/除外影響不明や利用中は止め、scope追加が必要ならA3へ返します。
 
 C担当は内部DELETE/404・local非存在と別に、削除対象key/ruleの一覧をownerへ一括提示し「消えたか」の外部テキスト観察を取得します。実行前の計画を消去完了と記録せず、partial/inconclusiveを残します。過去PRの保持日・参照状態を撤回済み旧保存義務として復活させません。
+
+## 分裂したストアの合流（store plan / consolidate）
+
+仮想化されたprocessが書いた記録（package側のcopy）を、非仮想化のprocessから実ストアの同じ相対位置へbytes同一で合流します。一回の管理操作で、plan → ownerがmanifestを承認 → dry-run → 実行 → 単位receipt → 公開後の確認、の順に進めます。package側のcopyは読取り専用handleで開くだけで、変更・削除しません。
+
+```powershell
+pwsh tools/artifacts.ps1 store plan --source-root <package側のOneStarMaker> --output <新しいmanifest path>
+pwsh tools/artifacts.ps1 store consolidate --manifest <承認したmanifest> --manifest-sha256 <trusted64> --dry-run
+pwsh tools/artifacts.ps1 store consolidate --manifest <承認したmanifest> --manifest-sha256 <trusted64>
+```
+
+- **対象:** `Workflow`、`Harness`、`Artifacts\evidence-v2`、`Artifacts\deployments`、記録が参照する `Artifacts\transfers` のoperationだけ。`credentials`、`builds-v1`、`contents-v1`、`runtime`、`RevisionLocks`、toolsが所有しないdirectoryは名前を列挙するだけで開かず、manifestの `excluded` に理由付きで載せます。
+- **単位:** task単位（同じtaskのWorkflow・Evidence・Harness directoryと、その記録が参照するoperation）とdeployment単位（receiptとconfigの対）。同じoperationを参照するtaskは一つの単位に結合します。単位内はtransfers → Evidence → Harness → Workflowの順に公開し、Workflowを最後にするので、公開途中の単位はWorkflowのtask一覧を起点にする清掃・jobから見えません。
+- **参照の検査:** 記録のJSON文字列のうち完全修飾pathは、LocalCacheのpathを含まず、論理ストアの下では対象roleの中を指し、指す先が同じ単位にあるか実ストアに既にある必要があります。ストア外のpath（worktreeのsource等）は参照として扱いません。
+- **保留:** 実ストアにbytesの違う同じentry（分岐したWorkflow履歴、違うHarness CURRENT等）、参照欠落、private ACL規則（owner・継承無しの3主体FullControl）に合わない既存entry、reparse pointがあれば、勝者を選ばずその単位を保留します。保留・実行時の変更検出（`source-changed`／`target-changed`）・別writerとの競合（`concurrent-writer`）が残るrunは `partial`（exit 2）です。
+- **公開:** 実ストアの `Artifacts\consolidation\<runId>\` がrunを所有します（runIdは承認manifestのsha256から決まり、同じmanifestの再実行は同じrunを再開します）。lock、manifestの写し、journal、staging、単位receiptを置き、stagingへCreateNew → flush → SHA-256照合 → ACL設定の順に複写してから、directory単位の非上書きrenameで公開します。既存entryは上書き・削除せず、消すのはrun自身の未公開stagingだけです。途中で止まっても再実行で完了へ収束します。
+- **運用の前提:** run中は対象taskIdを対話CLIで操作しません。先にguardがtask directoryを作った場合、その単位は `concurrent-writer` で止まります。公開後は単位ごとに `workflow-task.ps1 status`、`evidence inspect`、`harness.ps1 current` を非仮想化のprocessで実行し、各domainの読取り検証を通すことを確認します。
+
+plan・consolidateの失敗理由は `virtualized-store`、`store-context-unknown`、`invalid-source-root`、`invalid-output`、`manifest-hash-mismatch`、`manifest-invalid`、`consolidation-busy`、`run-conflict`、`store-path-unavailable`、`consolidation-failed` です。出力に実path・package名・SIDは含めません。
 
 ## 資格情報の操作
 
@@ -313,7 +346,9 @@ pwsh tools/Artifacts/tests/ContentCleanup.Tests.ps1 -Case '*' -ResultPath <resul
 
 ### Evidenceの責務とoffline検証
 
-資格情報はCLI→CredentialCommands→CredentialStore→PathAcl/Recordの一方向です。EvidenceApplicationはpublish/fetch/use orchestration、EvidenceContractはv2 codec/deployment、EvidencePathsはtask transaction/receipt、EvidenceRetentionPolicyは純粋判定、EvidenceCleanupは配送/削除/reconcile、EvidenceScheduleは固定runtime/OS adapter、EvidenceResetは一回の限定清掃を所有します。Workflow core/storeはArtifactsをimportせず、CLI composition rootが共通guardとpreflight/syncを結びます。
+資格情報はCLI→CredentialCommands→CredentialStore→PathAcl/Recordの一方向です。EvidenceApplicationはpublish/fetch/use orchestration、EvidenceContractはv2 codec/deployment、EvidencePathsはtask transaction/receipt、EvidenceRetentionPolicyは純粋判定、EvidenceCleanupは配送/削除/reconcile、EvidenceScheduleは固定runtime/OS adapter、EvidenceResetは一回の限定清掃を所有します。Workflow core/storeはArtifactsをimportせず、CLI composition rootが共通guardとpreflight/syncを結びます。合流の規則（単位・参照・保留の分類とmanifestの再照合）はStoreConsolidationPlanの純粋関数、棚卸し・staging・公開・receiptはStoreConsolidationが所有し、合流moduleはWorkflow/Evidenceのdomain moduleをimportしません。
+
+仮想化の判定と入口は `tools/Workflow/tests/StoreContext.Tests.ps1`、合流の規則はファイルI/Oの無いメモリfixtureの `StoreConsolidationPlan.Tests.ps1`、合流のI/Oは隔離した二つのtemp storeの `StoreConsolidation.Tests.ps1` で検証します。後者は実moduleでpublishした記録を仮想化側へ移してから合流し、既存のWorkflow/Evidence readerで読めることも確かめます。どれも実ストアと実LocalApplicationDataのストアを読み書きしません（判定suiteのnative probe 1件だけがprobe領域に書きます）。
 
 H1のこのtaskは3 .NET Release build、全Artifacts PowerShell parse、11 Artifact suite、Workflow TaskLifecycle、Harness、適用taskのcontract/docs auditを固定5 stepで収録します。registered/selected/executedは各非空同集合、failed 0、実DLL path/hash/MVID/depsと生結果を保存します。B exitはdiscovery、最終Cはjudgment、CBlindは同base/headと同じ固定入力です。Unity source/依存を変更しないためUnity test/buildはこのsliceに適用しません。
 

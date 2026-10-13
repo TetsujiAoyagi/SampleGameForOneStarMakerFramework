@@ -1,5 +1,9 @@
 # Local Harness H1 / H2c
 
+## 実行するprocessの条件
+
+`pwsh tools/harness.ps1` は Harness の store module を import する前に、LocalApplicationData への書込みが仮想化されていないかを判定する。仮想化なら `{"status":"failed","reasonCode":"virtualized-store"}`、判定不能なら `store-context-unknown` を標準出力に返して exit 1 とし、CURRENT・run・task directory を作らない。判定方法と運用は [Artifacts README](../Artifacts/README.md#実行するprocessの条件appdata仮想化) を正とする。依存は Workflow の OS 基盤層にある判定 module だけで、Workflow の domain は読まない。仮想化された process が書いた Harness task directory の合流は同READMEの store plan / consolidate を使い、CURRENT が実ストアと違えば勝者を選ばず保留する。
+
 ## Unity test runner の機械結果
 
 `pwsh tools/run-tests.ps1` は Unity EditMode テストの標準入口。`-Filter` を省略すると全 EditMode、指定すると限定実行になる。既存の `-Platform`、`-UnityRoot`、`-UnityExe`、`-WithGraphics` も使える。外部保存先は `-OutputRoot '<path with spaces>'` で指定し、省略時はリポジトリ直下の `TestResults` を使う。
