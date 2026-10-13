@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄には、各成果物の取得案内の引渡し先・担当と状態だけを書く。reference・期待packageSha256の実値、ローカルの実path、内部catalog/receiptの内容は転記しない。
 
 - type: `slice`
-- status: `発見 C 再レビュー完了（差し戻し2巡目の修正 head、阻害する指摘なし）`（2026-10-13。§7.8。B の実装は §6「差し戻し2巡目」。次は判定 C。r4 凍結までの経緯は §5.10〜§5.13、これまでの発見 C の記録は §7。判定 C・C' 未着手）
+- status: `判定 C 完了`（2026-10-13。§7.9。次の担当は C'（§5.6 の予約系列、新 session、blind audit bundle のみ）。r4 凍結までの経緯は §5.10〜§5.13、発見 C の記録は §7.1〜§7.8。C' 未着手）
 - branch: `claude/artifacts-virtualized-store-a01`（`origin/develop` 起点）
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（A3 で `origin/develop` と一致を再確認済み）
 - Phase A revision: **`r4`（2026-10-13 凍結）**。凍結 commit は `77364220ecdd5f7894750744cdaa6e80d1d1dd62`、凍結時の本ファイルの内容 sha256 は `44174f89c23c9d7224b749ff7891397acce239bc04b2afed65156fd4be1aa4e3`（`git show <commit>:<本ファイル>` の bytes。この記入だけの直後の commit は含めない）。§1〜§5 が B の唯一の仕様。r3 からの変更点は §5.10、A2・A3・再レビューは §5.11〜§5.13。
@@ -17,9 +17,11 @@
 - expires: 2026-11-12 または置換 revision の成立時。期限で自動採用・実装しない。
 - harvest to: `tools/Artifacts/README.md`（対話 CLI の実行条件と reasonCode、合流の結果）、`tools/Workflow/README.md` と `tools/Harness/README.md`（同じ実行条件）、`docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4（後続への入力。r4 で `Split Store Recovery` と `Virtualized Host Route` を所有スライスとして載せる小節を推奨。§1.5）
 - task: `artifacts-virtualized-store`。2026-10-13 に Phase B の担当が非仮想化の host から `pwsh tools/workflow-task.ps1 start -Task artifacts-virtualized-store` で開始済み（version 1、active）。仮想化された host（Codex 等）から操作しない。
-- Phase A snapshot の取得案内・状態: 未保存。owner の指示で、Phase A では Artifact Storage を操作していない。Phase B の固定入力は、凍結 commit の本ファイル（git で到達可能）とする。C / C' へ渡す時点で、非仮想化の担当が凍結 commit から所見を除いた snapshot を作り、通常どおり publish する。
-- Phase B result snapshot / 判定 evidence bundle / C' blind bundle の取得案内・状態: 未生成。依頼により B は Artifact Storage を操作していない。判定 C / C' へ渡す時点で、非仮想化の担当が implementation head から生成して publish する（Phase A snapshot と同じ扱い）。
+- Phase A snapshot の取得案内・状態: 保存済み（判定 C で publish。引渡し先: owner 手元の Git 管理外。取得側の別 session での閲覧確認は未了）。以下は判定 C 開始前の記述: 未保存。owner の指示で、Phase A では Artifact Storage を操作していない。Phase B の固定入力は、凍結 commit の本ファイル（git で到達可能）とする。C / C' へ渡す時点で、非仮想化の担当が凍結 commit から所見を除いた snapshot を作り、通常どおり publish する。
+- Phase B result snapshot / 判定 evidence bundle / C' blind bundle の取得案内・状態: 保存済み（判定 C で publish。引渡し先: owner 手元の Git 管理外。取得側の別 session での閲覧確認は未了）。以下は判定 C 開始前の記述: 未生成。依頼により B は Artifact Storage を操作していない。判定 C / C' へ渡す時点で、非仮想化の担当が implementation head から生成して publish する（Phase A snapshot と同じ扱い）。
 - PR: 未作成。作る場合も base は `develop`。
+
+**引継ぎ票（判定 C 完了後の更新）— 次は C'（§5.6 の予約系列、新 session、blind audit bundle のみ）。** 判定 C は完了した（§7.9）。C' は PR・本 HANDOFF 全文・§7 を読まず、所見を含まない C' 用の取得案内だけで始める。取得案内は Git 管理外で owner の手元にある。以下は判定 C 開始前の引継ぎ票（記録として残す）。
 
 **引継ぎ票 — 次は判定 C（GO 候補 head `741444d`）。** Phase A revision r4（2026-10-13 凍結、§5.12・§5.13）の §1〜§5 を唯一の仕様とする。implementation base / head は上記（head は `741444d`。本 §0 を更新した commit は含めない）。発見 C の再レビュー（差し戻し2巡目の修正 head、§7.8）は、阻害する指摘 0 件、後続への入力 3 件（現スライスを阻害しない）で終えた。B と発見 C の往復は 2 巡を消費した（上限 4 巡）。
 
@@ -34,7 +36,8 @@
 - **A2 の後（完了）:** A3 で owner が採否と §5.5 の案、§1.5 の後続スライス名を決め（§5.12）、統合差分の再レビュー（§5.13）を経て r4 を凍結した。
 - **実行環境:** B 以降は非仮想化の host（owner の端末、Claude デスクトップ等）。本スライスの入口は仮想化された host で `virtualized-store` を返す設計なので、仮想化された host では既存・新規 suite が成り立たない（AC4 の実環境確認だけは Codex 内で行う。§5.3）。
 - **必要な権限（B 以降）:** sandbox 外での PowerShell 7 実行（LocalAppData の probe と隔離 fixture の ACL 設定を含む）。sandbox による probe 拒否の `store-context-unknown` は仮想化の証拠ではない。suite の前に3 project の Release DLL を既存 loader の出力先へ用意し、EvidenceCleanup の前に `rg` を PATH へ通す。Unity・資格情報・R2 通信は不要。
-- **Evidence:** Phase A snapshot・Phase B result の保存・取得案内は未完了。これまでの発見 C（初回、差し戻し1巡目、差し戻し2巡目）の固定入力・生結果の原sourceは各担当の Git 管理外にあり、未保存・引渡し未完了。r4 A1 でも、差し戻し2巡目の発見 C（§7.8）でも publish / fetch は実行していない。担当は非仮想化の保存・実行担当。判定 C / C' の bundle は未生成。この状態を保存・引渡し済みとは扱わない。
+- **Evidence（判定 C 完了後）:** Phase A snapshot・判定 evidence bundle・C' blind audit bundle の3件は保存済み（引渡し先: owner 手元の Git 管理外）。取得側の別 session での閲覧確認は未了。詳細は §7.9。以下は判定 C 開始前の記述。
+- **Evidence（判定 C 開始前）:** Phase A snapshot・Phase B result の保存・取得案内は未完了。これまでの発見 C（初回、差し戻し1巡目、差し戻し2巡目）の固定入力・生結果の原sourceは各担当の Git 管理外にあり、未保存・引渡し未完了。r4 A1 でも、差し戻し2巡目の発見 C（§7.8）でも publish / fetch は実行していない。担当は非仮想化の保存・実行担当。判定 C / C' の bundle は未生成。この状態を保存・引渡し済みとは扱わない。
 - **やらないこと（本スライス）:** 実ストアへの合流の実行・実データの `store plan`（§5.5 案 B で後続 `Split Store Recovery` へ送った）、Codex 側・実ストアの既存 file の変更・移動・削除、`credentials` の操作、判定 C・C' の起動（B の段階）。Artifact Storage の publish / fetch は非仮想化の保存担当が C / C' へ渡す時点で行う。
 - **停止規則:** 阻害する指摘は凍結条件または常時契約への違反根拠を付けて B へ返す（`phases-and-handoff.md` の blocker の基準）。凍結条件の意味を変える判断が要れば Phase A の新しい revision にする。
 - **引き渡さないもの:** C' に §5.7・§5.8・§5.11・§5.13 の所見、A2 / A3 の議論、§6 の「HANDOFF との差」以外の C の所見を渡さない。C' 用の担当は §5.6 で予約済み。
@@ -44,12 +47,12 @@
 ### PR 状態ブロック（PR 作成時の写し）
 
 ```text
-状態: Phase A r4 凍結。Phase B（差し戻し2巡目）完了。発見 C 再レビュー（差し戻し2巡目の修正 head）完了。判定 C 未着手
+状態: 判定 C 完了
 Phase A: revision r4（凍結）、commit 77364220ecdd5f7894750744cdaa6e80d1d1dd62
 implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / 741444dda79263d18f2c5c0fe2891e66a4f5add8
-次の担当: 判定 C（B と異なるモデル、新しい session。GO 候補 head は上記、判定必須テストは §5.1）。次に C'
+次の担当: C'（§5.6 の予約系列、新 session、blind audit bundle のみ）
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
-Evidence 取得案内: 未保存・引渡し未完了。保存は非仮想化の担当
+Evidence 取得案内: 保存済み（引渡し先: owner 手元の Git 管理外）。取得側の別 session での閲覧確認は未了
 未決事項: なし（保留した単位の扱い・取得の回復・実ストアへの合流は後続 Split Store Recovery）
 ```
 
@@ -818,6 +821,22 @@ Release DLL を既存 loader の出力先（`Packaging/artifacts/package`、`Tra
 - **未実行・未確認:** 判定必須テストの一括実行（判定 C）、起点 filter 以外の Artifacts suite、実環境の AC4・AC5、「identity 無しで非仮想化」の host での AC3、実データの ACL・payload の分類と `store plan`（`Split Store Recovery`）、S4 / AC11、Evidence の保存・取得・別 session の閲覧確認、native probe case（開始時の1回確認で代替）。Unity テスト・Build は §5.1 の適用除外。判定 C と C' は未着手。
 
 **出口:** 阻害する指摘 0 件。次の担当は判定 C（GO 候補 head `741444dda79263d18f2c5c0fe2891e66a4f5add8`、判定必須テストは §5.1）。implementation head は据え置き、レビュー記録（本 §7.8 と §0）だけを commit し、既存 branch へ非 force push する。
+
+### 7.9 判定 C（GO 候補 head `741444d`）
+
+**判定 C 完了。**（結論・GO の判定文・所見は C' 完了まで本文に書かない。Git 管理外の判定記録に置いて owner へ渡した。）
+
+- **種別・担当・モデル:** 判定 C。Claude Code（Claude Sonnet 5.5、Anthropic）、新しい session。B（Claude Opus 5.5、Anthropic）とは異なるモデル。C' 用に予約した系列（§5.6）は使っていない。Codex は使っていない。追加エージェントは使っていない。
+- **開始照合:** リモート head `fd73306`、§0 の base / head（`3f79639` / `741444d`）、Phase A r4（凍結 commit `7736422`、凍結時の内容 sha256 が §0 の値と一致）、現在の §1〜§5 が凍結 commit と同一（該当範囲の sha256 が一致）、`741444d` から `fd73306` までの差が本ファイルだけ、§0 の引継ぎ票と PR 状態ブロックが「次の担当: 判定 C」に一致（PR は未作成）、を全て確認した。専用の新しい detached worktree で作業した。
+- **実行環境と D1:** sandbox 外の PowerShell 7、非仮想化の host（owner の端末）。`Get-OsmStoreContext` を開始時に1回実行し `not-virtualized` を確認した。
+- **固定対象:** 完全 diff `3f79639..741444d`（16 file、+2560/-5）を `--binary --full-index` の diff・stat・name-status で固定した。固定入力、build ログ、各 suite の結果 JSON と生ログ、audit の出力は Git 管理外の原 source に保持し、生成時刻と内容 hash を manifest に残した。
+- **実行したテスト:** 3 project の Release build（exit 0）。cursor 同梱 `rg` の directory を最初の suite の前に PATH の先頭へ通し、全 suite を `pwsh -NoProfile -File <suite> -ResultPath <原source>`（filter なし）で 1 suite 1 process、各 1 回実行した。全て exit 0、結果 JSON の executed は非空で failed 0。
+  - Artifacts 21 suite 計 415 件: ArtifactEvidence 19、ArtifactPackage 9、ArtifactRotation 11、ArtifactTransfer 20、BuildCleanup 23、BuildCollect 9、BuildPublish 9、BuildRetention 9、Content.Contract 9、Content.Fetch 5、Content.Publish 12、ContentCleanup 23、Credentials 22、EvidenceCleanup 35、EvidenceReset 31、EvidenceRetention 14、EvidenceSchedule 78、R2RouteTransport 7、RouteProof 26、StoreConsolidation 20（新規）、StoreConsolidationPlan 24（新規）。
+  - Workflow: TaskLifecycle 23、StoreContext 13（native probe を含む全件）。
+  - Harness 4 本: Harness 35、UnityGate 21、UnityObservation 16、UnityTestRunner 25。
+- **機械検査:** `pwsh tools/contract-audit.ps1`（exit 0、errors 0、warnings 0）、`pwsh tools/docs-audit.ps1`（exit 0、errors 0、warnings 0）、tools 配下の tracked PowerShell 106 file の parse（errors 0）、`git diff --check`（exit 0）。全 EditMode 回帰は §5.1 の適用除外で、Unity は起動していない。
+- **Evidence（保存済み。引渡し先: owner 手元の Git 管理外）:** Phase A snapshot（凍結 commit の §1〜§5 から §5.7・§5.8・§5.11・§5.13 を除いたもの）、判定 evidence bundle、C' blind audit bundle の3件を、task `artifacts-virtualized-store`（active）で `evidence publish` した（各 exit 0、status passed）。各 bundle の publish が返す packageSha256 は、ローカルの bundle.zip の SHA-256 を別に算出した値と一致した。別 process の fetch で manifest の全 entry の hash が一致することも確認した（送信側の読戻しであり、引渡し完了の確認ではない）。取得案内（reference、期待 packageSha256、base / head、用途、取得手順、保持条件）は C' 用を独立した file に分け、Git 管理外に置いた。
+- **未実行・未確認:** 「identity 無しで非仮想化」の host での AC3、Codex 内での AC4、Claude デスクトップ内での AC5、**取得側の別 session での fetch と閲覧の確認（未了）**。
 
 ## 8. Phase C'
 
