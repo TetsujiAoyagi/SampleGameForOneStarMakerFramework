@@ -15,7 +15,7 @@ $aclModule=Import-Module (Join-Path $PSScriptRoot '../ArtifactAcl.psm1') -Force 
 function Set-TestAcl([string]$Path,[bool]$Directory){& $aclModule {param($p,$d)Set-ArtifactAcl $p $d} $Path $Directory}
 function Assert-TestAcl([string]$Path,[bool]$Directory){& $aclModule {param($p,$d)Assert-ArtifactAcl $p $d} $Path $Directory}
 $repo='a'*64;$dep='d'*32;$op='0'*32
-$cases=@('publish-skip-conflict','domain-readers-after-publish','acl-rule-and-reparse','excluded-never-opened','fault-file-write','fault-staged','fault-between-items','fault-before-receipt','concurrent-writer','hidden-until-workflow','run-guards','cli-exit-codes','unexamined-json-held','fault-run-records','source-reparse-after-inventory')
+$cases=@('publish-skip-conflict','domain-readers-after-publish','acl-rule-and-reparse','excluded-never-opened','fault-file-write','fault-staged','fault-between-items','fault-before-receipt','concurrent-writer','hidden-until-workflow','run-guards','cli-exit-codes','unexamined-json-held','fault-run-records','source-reparse-after-inventory','multi-workflow-unit-not-published','workflow-already-visible-not-published','unit-changed-after-approval','interrupted-then-changed','target-only-reference-unreadable')
 $selected=@(if($Case -ceq '*'){$cases}else{$Case.Split(',')})
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 $base=[IO.Path]::Combine([IO.Path]::GetTempPath(),'osm-consolidation-'+[Guid]::NewGuid().ToString('N'))
@@ -95,6 +95,41 @@ function New-SimpleTask($Stores,[string]$Task='alpha'){
     Write-Item $s "Artifacts\transfers\$op" ([ordered]@{'package.zip'=('P'*4096)})
     Write-Item $s "Artifacts\evidence-v2\$dep\$repo\tasks\$Task" ([ordered]@{'catalog.json'=$catalog})
     Write-Item $s "Workflow\$repo\tasks\$Task" ([ordered]@{'state.json'='{"version":1}';'task.lock'=''})
+}
+# A second task in the source only, referencing the same operation as New-SimpleTask.
+function Add-SharingTask($Stores,[string]$Task){
+    $catalog='{"ownedCopies":["'+([IO.Path]::Combine($Stores.Real,'Artifacts','transfers',$op,'package.zip')).Replace('\','\\')+'"]}'
+    Write-Item $Stores.Source "Artifacts\evidence-v2\$dep\$repo\tasks\$Task" ([ordered]@{'catalog.json'=$catalog})
+    Write-Item $Stores.Source "Workflow\$repo\tasks\$Task" ([ordered]@{'state.json'='{"version":1,"task":"'+$Task+'"}'})
+}
+function Use-WorkflowList($Stores){
+    Import-Module (Join-Path $PSScriptRoot '../../Workflow/TaskEventStore.psm1')
+    Set-EvidenceTestValue TaskEventStore TestRoot ([IO.Path]::Combine($Stores.Real,'Workflow'))
+}
+# Runs an approved manifest whose unit is held and checks that the run added
+# nothing of that unit anywhere: no item in the real store, no staging, no
+# receipt, only the hold trace in the journal, and its tasks never newly listed
+# before, during or after the run. The other unit of the run is published.
+function Assert-HeldUnitNotPublished($Stores,$Plan,$Held,[string]$Published){
+    $tasks=@($Held.items|Where-Object role -CEQ 'workflow'|ForEach-Object {$_.key.Split('\')[-1]})
+    $listedBefore=@(Get-WorkflowTasks $repo)
+    $realBefore=@($Held.items|ForEach-Object {ConvertTo-Json -Compress -InputObject (Get-Snapshot ([IO.Path]::Combine($Stores.Real,$_.key)))})
+    $sourceBefore=Get-Snapshot $Stores.Source
+    $listed=[Collections.Generic.List[string]]::new()
+    Set-Consolidation FaultHook {param($s,$k)if($s -ceq 'published'){$listed.Add((@(Get-WorkflowTasks $repo) -join ','))}}.GetNewClosure()
+    $out=Invoke-StoreConsolidation $Plan.Path $Plan.Sha $false
+    Set-Consolidation FaultHook $null
+    Assert ($out.status -ceq 'partial' -and (Get-Result $out $Held.unitId) -ceq 'hold' -and (Get-Result $out $Published) -ceq 'published') ('run '+(ConvertTo-Json -Compress -Depth 5 $out))
+    Assert ($listed.Count -gt 0) 'nothing published to observe'
+    foreach($seen in @($listed)+@((@(Get-WorkflowTasks $repo) -join ','))){foreach($t in $tasks){if($listedBefore -cnotcontains $t){Assert (@($seen.Split(','))-cnotcontains $t) ('held task listed '+$t)}}}
+    $realAfter=@($Held.items|ForEach-Object {ConvertTo-Json -Compress -InputObject (Get-Snapshot ([IO.Path]::Combine($Stores.Real,$_.key)))})
+    Assert (($realBefore -join "`n") -ceq ($realAfter -join "`n")) 'held unit appeared in the real store'
+    $run=[IO.Path]::Combine($Stores.Real,'Artifacts','consolidation',$Plan.Sha.Substring(0,32))
+    Assert (-not [IO.Directory]::Exists([IO.Path]::Combine($run,'staging',$Held.unitId))) 'held unit staged'
+    Assert (-not [IO.File]::Exists([IO.Path]::Combine($run,'receipts',$Held.unitId+'.json'))) 'held unit has a receipt'
+    $lines=@([IO.File]::ReadAllLines([IO.Path]::Combine($run,'journal.jsonl'))|ForEach-Object {$_|ConvertFrom-Json}|Where-Object {$_.path.Contains($Held.unitId)})
+    Assert ($lines.Count -eq 1 -and $lines[0].kind -ceq 'unit-hold') ('journal '+(@($lines|ForEach-Object kind) -join ','))
+    Assert (Compare-Snapshot $sourceBefore (Get-Snapshot $Stores.Source)) 'source changed'
 }
 # Produces genuine Workflow/Evidence/transfers records with the real modules at
 # the real-store positions, then moves them away as a virtualized writer would.
@@ -349,6 +384,101 @@ try{
                     Assert (-not [IO.Directory]::Exists([IO.Path]::Combine($stores.Real,'Workflow',$repo,'tasks','alpha'))) 'Workflow published through a junction'
                     Assert (Compare-Snapshot $outsideBefore (Get-Snapshot $outside)) 'junction target changed'
                 }
+                'multi-workflow-unit-not-published'{
+                    New-SimpleTask $stores;Add-SharingTask $stores 'beta'
+                    Write-Item $stores.Source "Workflow\$repo\tasks\solo" ([ordered]@{'state.json'='{"version":1}'})
+                    Use-WorkflowList $stores
+                    $plan=Invoke-Plan $stores
+                    $held=Get-UnitOf $plan "Workflow\$repo\tasks\alpha"
+                    Assert ($held.status -ceq 'hold' -and $held.reasons -ccontains 'multi-workflow-unit' -and (Get-UnitOf $plan "Workflow\$repo\tasks\beta").unitId -ceq $held.unitId) ('plan '+($held.reasons -join ','))
+                    Assert-HeldUnitNotPublished $stores $plan $held (Get-UnitOf $plan "Workflow\$repo\tasks\solo").unitId
+                }
+                'workflow-already-visible-not-published'{
+                    New-SimpleTask $stores
+                    # The task is already listed in the real store with identical bytes and the private ACL.
+                    Write-Item $stores.Real "Workflow\$repo\tasks\alpha" ([ordered]@{'state.json'='{"version":1}';'task.lock'=''})
+                    Set-PrivateTree ([IO.Path]::Combine($stores.Real,'Workflow'))
+                    Write-Item $stores.Source "Workflow\$repo\tasks\solo" ([ordered]@{'state.json'='{"version":1}'})
+                    Use-WorkflowList $stores
+                    $plan=Invoke-Plan $stores
+                    $held=Get-UnitOf $plan "Workflow\$repo\tasks\alpha"
+                    Assert ($held.status -ceq 'hold' -and $held.reasons -ccontains 'workflow-already-visible') ('plan '+($held.reasons -join ','))
+                    Assert-HeldUnitNotPublished $stores $plan $held (Get-UnitOf $plan "Workflow\$repo\tasks\solo").unitId
+                }
+                'unit-changed-after-approval'{
+                    $absent={param($s,[string[]]$Keys)foreach($k in $Keys){Assert (-not [IO.Directory]::Exists([IO.Path]::Combine($s.Real,$k))) ('published '+$k)}}
+                    $keys=@("Artifacts\transfers\$op","Artifacts\evidence-v2\$dep\$repo\tasks\alpha","Workflow\$repo\tasks\alpha","Workflow\$repo\tasks\beta")
+                    # Approved with one Workflow; a task sharing the operation joins before execution.
+                    New-SimpleTask $stores
+                    $plan=Invoke-Plan $stores;$unit=Get-UnitOf $plan "Workflow\$repo\tasks\alpha"
+                    Add-SharingTask $stores 'beta'
+                    $out=Invoke-StoreConsolidation $plan.Path $plan.Sha $false
+                    Assert ($out.status -ceq 'partial' -and (Get-Result $out $unit.unitId) -ceq 'source-changed') ('joined '+(ConvertTo-Json -Compress -Depth 5 $out))
+                    Assert (@($out.units).Count -eq @($plan.Manifest.units).Count -and @(Get-Moves).Count -eq 0) 'unapproved unit published'
+                    & $absent $stores $keys
+                    # Held when approved; the reason is gone at execution: still not published.
+                    $stores=New-Stores ($case+'-held')
+                    New-SimpleTask $stores
+                    $existing=[IO.Path]::Combine($stores.Real,'Workflow',$repo,'tasks','alpha')
+                    Write-Item $stores.Real "Workflow\$repo\tasks\alpha" ([ordered]@{'state.json'='{"version":1}';'task.lock'=''}) -Private
+                    $plan=Invoke-Plan $stores;$unit=Get-UnitOf $plan "Workflow\$repo\tasks\alpha"
+                    Assert ($unit.reasons -ccontains 'workflow-already-visible') 'not held when approved'
+                    [IO.Directory]::Delete($existing,$true)
+                    Assert ((Get-UnitOf (Invoke-Plan $stores) "Workflow\$repo\tasks\alpha").status -ceq 'publish') 'reason did not disappear'
+                    $out=Invoke-StoreConsolidation $plan.Path $plan.Sha $false
+                    Assert ($out.status -ceq 'partial' -and (Get-Result $out $unit.unitId) -ceq 'hold' -and @(Get-Moves).Count -eq 0) ('cleared hold '+(ConvertTo-Json -Compress -Depth 5 $out))
+                    & $absent $stores $keys
+                    # Approved for publication; another writer then places the Workflow, identical.
+                    $stores=New-Stores ($case+'-visible')
+                    New-SimpleTask $stores
+                    $plan=Invoke-Plan $stores;$unit=Get-UnitOf $plan "Workflow\$repo\tasks\alpha"
+                    Assert ($unit.status -ceq 'publish') 'not publishable when approved'
+                    Write-Item $stores.Real "Workflow\$repo\tasks\alpha" ([ordered]@{'state.json'='{"version":1}';'task.lock'=''}) -Private
+                    $workflowBefore=Get-Snapshot ([IO.Path]::Combine($stores.Real,'Workflow',$repo,'tasks','alpha'))
+                    $out=Invoke-StoreConsolidation $plan.Path $plan.Sha $false
+                    Assert ($out.status -ceq 'partial' -and (Get-Result $out $unit.unitId) -ceq 'target-changed' -and @(Get-Moves).Count -eq 0) ('visible after approval '+(ConvertTo-Json -Compress -Depth 5 $out))
+                    $run=[IO.Path]::Combine($stores.Real,'Artifacts','consolidation',$plan.Sha.Substring(0,32))
+                    Assert (-not [IO.Directory]::Exists([IO.Path]::Combine($run,'staging',$unit.unitId)) -and -not [IO.File]::Exists([IO.Path]::Combine($run,'receipts',$unit.unitId+'.json'))) 'changed unit staged or receipted'
+                    & $absent $stores @($keys|Select-Object -First 2)
+                    Assert (Compare-Snapshot $workflowBefore (Get-Snapshot ([IO.Path]::Combine($stores.Real,'Workflow',$repo,'tasks','alpha')))) 'existing Workflow changed'
+                }
+                'interrupted-then-changed'{
+                    New-SimpleTask $stores
+                    Use-WorkflowList $stores
+                    $plan=Invoke-Plan $stores;$unit=Get-UnitOf $plan "Workflow\$repo\tasks\alpha"
+                    # Stopped after the operation was published, before Evidence and Workflow (AC10 (c)).
+                    Set-Consolidation FaultHook {param($s,$k)if($s -ceq 'published' -and $k -ceq "Artifacts\transfers\$op"){throw 'injected-crash'}}.GetNewClosure()
+                    $first=Invoke-StoreConsolidation $plan.Path $plan.Sha $false
+                    Assert ((Get-Result $first $unit.unitId) -ceq 'publish-failed') 'fault not reached'
+                    Set-Consolidation FaultHook $null
+                    Add-SharingTask $stores 'beta'
+                    $second=Invoke-StoreConsolidation $plan.Path $plan.Sha $false
+                    Assert ($second.status -ceq 'partial' -and (Get-Result $second $unit.unitId) -ceq 'source-changed') ('changed after interruption '+(ConvertTo-Json -Compress -Depth 5 $second))
+                    # The published fragment stays as it is; the tasks never become listed.
+                    Assert-SameFiles ([IO.Path]::Combine($stores.Source,'Artifacts','transfers',$op)) ([IO.Path]::Combine($stores.Real,'Artifacts','transfers',$op))
+                    foreach($k in @("Artifacts\evidence-v2\$dep\$repo\tasks\alpha","Workflow\$repo\tasks\alpha","Workflow\$repo\tasks\beta")){Assert (-not [IO.Directory]::Exists([IO.Path]::Combine($stores.Real,$k))) ('published '+$k)}
+                    $listed=@(Get-WorkflowTasks $repo);Assert ($listed -cnotcontains 'alpha' -and $listed -cnotcontains 'beta') 'task listed'
+                    Assert (@(Get-Moves|Where-Object {$_ -like '*transfers*'}).Count -eq 1) 'fragment republished'
+                }
+                'target-only-reference-unreadable'{
+                    # The Workflow references a file that exists, privately, only in the real store.
+                    $file=[IO.Path]::Combine($stores.Real,'Artifacts','transfers',$op,'owned','a.zip')
+                    Write-Item $stores.Real "Artifacts\transfers\$op" ([ordered]@{'owned\a.zip'='PK-real'}) -Private
+                    Write-Item $stores.Source "Workflow\$repo\tasks\alpha" ([ordered]@{'state.json'='{"package":"'+$file.Replace('\','\\')+'"}'})
+                    $readable=Invoke-Plan $stores;$unit=Get-UnitOf $readable "Workflow\$repo\tasks\alpha"
+                    Assert ($unit.status -ceq 'publish') ('readable reference rejected '+($unit.reasons -join ','))
+                    # Another writer holds the referenced file exclusively.
+                    $lock=[IO.FileStream]::new($file,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
+                    try{
+                        $locked=Invoke-Plan $stores
+                        Assert ((Get-UnitOf $locked "Workflow\$repo\tasks\alpha").reasons -ccontains 'reference-missing') 'unreadable reference accepted'
+                        $out=Invoke-StoreConsolidation $readable.Path $readable.Sha $false
+                        Assert ($out.status -ceq 'partial' -and (Get-Result $out $unit.unitId) -ceq 'target-changed') ('executed with an unreadable reference '+(ConvertTo-Json -Compress -Depth 5 $out))
+                        Assert (-not [IO.Directory]::Exists([IO.Path]::Combine($stores.Real,'Workflow',$repo,'tasks','alpha'))) 'Workflow published'
+                    }finally{$lock.Dispose()}
+                    $out=Invoke-StoreConsolidation $readable.Path $readable.Sha $false
+                    Assert ($out.status -ceq 'passed' -and (Get-Result $out $unit.unitId) -ceq 'published') ('readable again '+(ConvertTo-Json -Compress -Depth 5 $out))
+                }
                 'cli-exit-codes'{
                     New-ClassificationFixture $stores
                     # Fresh process: the entry reuses the already loaded modules with private roots.
@@ -373,7 +503,7 @@ try{
             }
             $executed.Add($case)
         }catch{$failed.Add($case+': '+$_.Exception.Message+' '+$_.ScriptStackTrace.Split("`n")[0])}
-        finally{Set-Consolidation FaultHook $null;Set-Consolidation OpenHook $null;Set-Consolidation TestRoot $null;Set-EvidenceTestValue WindowsStoreContext ProbeIo $null}
+        finally{Set-Consolidation FaultHook $null;Set-Consolidation OpenHook $null;Set-Consolidation TestRoot $null;Set-EvidenceTestValue WindowsStoreContext ProbeIo $null;Set-EvidenceTestValue TaskEventStore TestRoot $null}
     }
     if($ResultPath){[IO.File]::WriteAllText($ResultPath,(ConvertTo-Json -Depth 8 -InputObject ([ordered]@{registered=$cases;selected=$selected;executed=@($executed);failed=@($failed)})),[Text.UTF8Encoding]::new($false))}
     foreach($name in $executed){"PASS $name"};foreach($name in $failed){"FAIL $name"}

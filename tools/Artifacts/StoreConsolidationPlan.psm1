@@ -13,7 +13,9 @@ Set-StrictMode -Version Latest
 
 # Publication order inside a unit. Workflow is last: cleanup and the scheduled job
 # discover tasks from the Workflow task list, so a unit stays invisible to them
-# until everything it depends on is in place.
+# until everything it depends on is in place. That holds only for a unit with one
+# new Workflow directory and none already listed; other units are held (see
+# New-ConsolidationPlan).
 $script:RoleOrder=@{deployment=0;transfers=1;evidence=2;harness=3;workflow=4}
 $script:TaskPattern='[a-z0-9][a-z0-9-]{0,63}'
 $script:ItemPatterns=@(
@@ -98,6 +100,15 @@ function Test-ConsolidationItemHas($Files,$Directories,[string]$Path){
     foreach($d in @($Directories)){if($d.Equals($Path,[StringComparison]::OrdinalIgnoreCase)){return $true}}
     return $false
 }
+# True when every file at or below the path was read. An existing, private file that
+# could not be read (another writer holds it) proves nothing about its bytes.
+function Test-ConsolidationItemReadable($Files,[string]$Path){
+    foreach($f in @($Files)){
+        $at=(-not $Path) -or $f.path.Equals($Path,[StringComparison]::OrdinalIgnoreCase) -or $f.path.StartsWith($Path.TrimEnd('\')+'\',[StringComparison]::OrdinalIgnoreCase)
+        if($at -and $f.sha256 -cnotmatch '\A[0-9a-f]{64}\z'){return $false}
+    }
+    return $true
+}
 # Keys the I/O side must observe in the real store before planning.
 function Get-ConsolidationTargetKeys($Inventory){
     $keys=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
@@ -180,9 +191,18 @@ function New-ConsolidationPlan($Inventory,$Target){
                 }
                 # Not carried by any unit: it must already exist intact in the real store.
                 $seen=$Target[$k]
-                if($null -eq $seen -or -not $seen.exists -or $seen.reparse -or -not $seen.aclOk -or -not (Test-ConsolidationItemHas $seen.files $seen.directories $ref.path)){$null=$reasons.Add('reference-missing')}
+                if($null -eq $seen -or -not $seen.exists -or $seen.reparse -or -not $seen.aclOk -or -not (Test-ConsolidationItemHas $seen.files $seen.directories $ref.path) -or -not (Test-ConsolidationItemReadable $seen.files $ref.path)){$null=$reasons.Add('reference-missing')}
             }
         }
+        # Workflow last hides a unit only while its single new Workflow directory is
+        # absent: the task list (Get-WorkflowTasks) shows a task once its directory
+        # exists. Two new Workflow directories appear one rename at a time, and a task
+        # already listed would show every other item mid-publication. Such units are
+        # held whole. A unit whose only new item is one Workflow appears in one rename.
+        $workflows=@($unit.items|Where-Object role -CEQ 'workflow')
+        $listed=@($workflows|Where-Object {$null -ne $Target[$_.key] -and $Target[$_.key].exists})
+        if($workflows.Count-$listed.Count -ge 2){$null=$reasons.Add('multi-workflow-unit')}
+        if($listed.Count -and @($unit.items|Where-Object {$_.role -cne 'workflow' -and ($_.state -ceq 'partial' -or $null -eq $Target[$_.key] -or -not $Target[$_.key].exists)}).Count){$null=$reasons.Add('workflow-already-visible')}
         $unit.reasons=@($reasons|Sort-Object);$unit.dependsOn=@($depends|Sort-Object)
     }
     # A unit whose dependency is held cannot be used either, so it is held too.
@@ -203,6 +223,10 @@ function New-ConsolidationPlan($Inventory,$Target){
 # Returns one verdict per approved unit: 'publish', 'complete' (already identical),
 # 'hold' (held when approved), 'source-changed' or 'target-changed'. An item that
 # went from absent to partial or identical is this run's own earlier publication.
+# A unit held when approved stays held even if its reason is gone (only what the
+# owner approved for publication is published); a unit approved for publication
+# that now meets any hold condition, including the Workflow visibility rules, is
+# 'target-changed'. A changed set of items changes the unitId: 'source-changed'.
 function Test-ConsolidationManifest($Approved,$Current){
     if($Approved.schemaVersion -ne 1 -or $Approved.purpose -cne 'store-consolidation-v1' -or $Approved.sourceRoot -cne $Current.sourceRoot -or $Approved.logicalRoot -cne $Current.logicalRoot){throw 'manifest-invalid'}
     $now=@{};foreach($unit in $Current.units){$now[$unit.unitId]=$unit}

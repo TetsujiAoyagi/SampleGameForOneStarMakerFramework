@@ -569,15 +569,49 @@ Release DLL を既存 loader の出力先（`Packaging/artifacts/package`、`Tra
 - **事実:** 共有 operation や task 間の参照で単位を結合すると、一つの単位に複数の Workflow task directory が入る。公開は directory 単位の非上書き rename で、directory は一つずつしか現れない。`Get-WorkflowTasks` は `Workflow\<repo>\tasks` の直下の directory をすべて列挙するので、最初の Workflow を置いてから最後を置くまで、その単位の一部が task 一覧に現れる。途中で止まれば、その状態が残る。Workflow が1つの単位では起きない。
 - **凍結範囲で検討して採れなかった案:** (a) 公開途中の単位を通常処理から隠す門（§5.8 A2b-7 で不採用）。(b) `Get-WorkflowTasks` の列挙規則の変更（§3 で `TaskEventStore.psm1` は変更しない）。(c) `tasks` directory ごと一度に置く（実ストアに `tasks` が既にあれば使えない）。(d) 複数の Workflow を含む単位を保留する（S3 の保留理由と fail-closed の範囲を増やし、その単位は合流できなくなる。S4 の対象が該当すれば S4 も成立しない）。(e) 依存の順に置き、各 task は自分の依存がそろってから現れるようにする（AC12 を単位ごとではなく task ごとに読み替える）。(a)(b) は計画外の gate・reader 契約、(d) は fail-closed 契約、(e) は AC12 の意味の変更にあたるので、B では選ばない。
 - **現状:** 実装は変えていない（単位の中では Workflow を最後に、一つずつ置く）。README の「公開途中の単位は…見えません」は Workflow が1つの単位にだけ成り立つ。r4 の決定に合わせて直す。
+- **その後:** r4（§2.6 D2「公開途中に task 一覧へ見える単位の保留」）で決定され、差し戻し2巡目で実装した（下記）。
+
+### 差し戻し2巡目の修正（2026-10-13、r4 の追加分と §7.7 の戻し項目）
+
+- **開始確認:** 新しい専用 worktree（detached。旧 worktree が branch を checkout したままのため）で、リモート head `4e036a1`、§0 の base / head、r4 の凍結 commit `7736422` とその内容 sha256、§1〜§5 と凍結 commit の同一性を照合し、全て一致した。§2.6 D1 と同じ方法（`Get-OsmStoreContext`、sandbox 外の PowerShell 7.6.6）で、この session が `not-virtualized` であることを1回確認した。仕様は r4 の §1〜§5 だけとした。
+- **保留の規則（§2.6 D2 r4、AC12・AC13）:** `New-ConsolidationPlan` が task 単位ごとに、単位の Workflow のうち実ストアで absent のものを数え、2つ以上なら `multi-workflow-unit`、実ストアに既にある Workflow があり、Workflow 以外に absent / partial の item があれば `workflow-already-visible` を、既存の理由と独立に加える。全 item が identical の単位、新たに公開するのが Workflow 1つだけの単位は保留しない。deployment 単位は Workflow を持たないので対象外で、従来どおり先に公開する。
+- **実行時の再検査:** 新しい関数・引数は足していない。`Test-ConsolidationManifest` の既存の規則で、承認時に保留だった単位は `hold` のまま（理由が消えても公開しない）、承認時に公開対象だった単位が実行時の計画で保留の条件を満たせば `target-changed`、item 集合が変われば unitId が変わるので `source-changed` になる。実行側（`StoreConsolidation.psm1`）は verdict が `publish` / `complete` 以外の単位を staging せず、単位 receipt を作らず、journal に `unit-<verdict>` の trace だけを書く既存の分岐のままで、変更していない。
+- **参照先の読取り（§7.7 の戻し項目、S2・D2 (iii) の既存検査内の B 適応）:** 実ストアにだけある参照先は、存在・ACL・reparse に加えて、観測した file の hash が取れていること（読めたこと）を要する。参照が directory（または item 自体）を指す場合は、その下の全 file が読めることを要する。満たさなければ既存の `reference-missing` で保留する。正常に読める参照先は従来どおり成立する。
+- **README:** `tools/Artifacts/README.md` の合流節で、公開途中の不可視性を「新たに公開する Workflow が1つで、単位の Workflow が実ストアにまだ無い」場合に限定し、`multi-workflow-unit`・`workflow-already-visible` の保留、保留単位の扱い（staging・receipt を作らない、journal の記録だけ）、承認後の変化の扱い、参照先の読取りの要件を書いた。
+- **テスト（修正前に失敗を確認してから修正）:** 計画 suite に §5.1 の6 case と `target-only-reference-unreadable`、合流 suite に §5.1 の4 case と `target-only-reference-unreadable`（実ストアの参照先 file を `FileShare.None` で開いた状態の plan・実行と、閉じた後の対照）を足した。修正前は、計画 suite の `multi-workflow-unit-held`・`workflow-already-visible-held`・`multi-workflow-with-other-reasons`・`target-only-reference-unreadable` と、合流 suite の `multi-workflow-unit-not-published`・`workflow-already-visible-not-published`・`unit-changed-after-approval`・`target-only-reference-unreadable` が失敗した。保留しない側の対照（`all-identical-unit-not-held`・`only-new-workflow-not-held`・`single-workflow-unit-not-held`）と `interrupted-then-changed` は修正前から通った。後者は、構成が変われば unitId が変わる既存の性質で成り立っていたもので、回帰防止として残す。既存の `hidden-until-workflow` は Workflow 1つの単位の検証として変えていない。
+- **構造:** 新しい状態・公開関数・引数・依存・gate は無い。計画 module に private な判定関数 `Test-ConsolidationItemReadable` を1つ足した（純粋関数。純粋性検査の許可リストに追加）。reasonCode の値は `multi-workflow-unit`・`workflow-already-visible` の2つが manifest の保留理由に加わった（schemaVersion は不変）。行数は `StoreConsolidationPlan.psm1` 224 → 248、`StoreConsolidation.psm1` は 397 のまま。合流 suite は 388 → 518 で 500 行の警報を超えたが、追加 case は既存の隔離 store・fixture・helper を共有する同じ合流 I/O の検証で、変更理由・依存・寿命が同じなので分割しない。
+
+### 差し戻し2巡目の HANDOFF との差（B 適応と読み方）
+
+1. **「新たに公開する」「既にある」は実ストアの観測（exists）で数えた。** source 側の状態（`source-unreadable` 等）に左右されないようにし、Workflow 以外の「公開する item」は観測で absent か、状態が `partial` のものとした。実ストアの Workflow が bytes の違う既存 entry（`conflict`）の場合も「既にある」に含め、`conflict` と `workflow-already-visible` が併存する（§2.6 D2「理由は互いに独立に判定」、§2「identical を含む」の読み）。
+2. **directory を指す参照の読取り要件。** §7.7 は file の読取り失敗を対象にしている。D2 (iii) の「bytes・ACL 同一で既にある」は directory では配下の bytes を指すと読み、配下の全 file が読めることを要件にした。新しい reasonCode は作らず、(iii) を満たさない既存の `reference-missing` を使う。
+3. **合流 suite の fixture。** 実ストアに既にある Workflow を置く case は、`Get-WorkflowTasks` が `tasks` directory の private ACL を検査するので、`Workflow` 配下の tree に private ACL を付けた（実ストアの通常の状態と同じ）。suite の各 case の後始末で `TaskEventStore` の test root も戻すようにした。
+
+### 差し戻し2巡目の確認結果
+
+3 project の Release DLL を既存 loader の出力先（`Packaging/artifacts/package`、`Transport/artifacts/transport`、`Probe/artifacts/probe`）に `dotnet build -c Release -o` で用意し（3件とも exit 0）、cursor 同梱の `rg` の directory を PATH の先頭へ通してから、§5.1 の起点 filter を `-Case '*'` で実行した。全て sandbox 外の PowerShell 7、隔離 temp store・fake transport・fake process。全て exit 0、failed 0。
+
+| suite | 結果 |
+|---|---|
+| StoreContext.Tests | 13/13（native probe 1件を含む。probe 領域だけに書く） |
+| StoreConsolidationPlan.Tests | 24/24 |
+| StoreConsolidation.Tests | 20/20 |
+| Workflow TaskLifecycle.Tests | 23/23 |
+| ArtifactEvidence.Tests | 19/19 |
+| EvidenceCleanup.Tests | 35、failed 0 |
+| Harness.Tests / UnityGate / UnityObservation / UnityTestRunner | 35 / 21 / 16 / 25、failed 0 |
+
+機械検査: `pwsh tools/contract-audit.ps1`（違反なし、exit 0）、`pwsh tools/docs-audit.ps1`（errors 0、warnings 0）、tools 配下の tracked PowerShell 106 file の parse（errors 0）、`git diff --check`（通過）。実ストア・Codex 側への CLI 実行、実データの `store plan` / `consolidate`、Artifact Storage の publish / fetch、資格情報の操作、R2 への通信は行っていない。
 
 ### 未実行
 
-- AC4・AC5（実環境。Phase C の実行担当）、AC11 / S4（高コスト証拠。判定 C・暫定 C' の後に owner が manifest を承認してから）、実ストアと Codex 側への `store plan`（B の範囲外）。
+- AC4・AC5（実環境。Phase C の実行担当）、実ストアと Codex 側への `store plan`（B の範囲外）。AC11 / S4 と実ストアへの合流の実行は r4 で後続 `Artifact Storage / Split Store Recovery` へ移した（§1.5、§5.5 案 B）。
+- 起点 filter 以外の Artifacts suite（判定必須）は差し戻し2巡目では実行していない（判定 C）。
 - 判定必須テストの判定実行（Phase C）。Unity テスト・Build は本スライスに適用しない（§5.1）。Editor のコンパイル確認は Unity source を変えていないので対象外。
 - Phase B result snapshot・evidence bundle の生成と publish（依頼により B は Artifact Storage を操作していない。§0 参照）。
 
 - implementation head commit: 初回は c55891a498dc3ca99312533d3c9a23126e72fd0c。差し戻し1巡目の修正後は §0 を正とする。
-- Phase B 担当・モデル・ベンダー: Claude Code（Claude Opus 5.5、Anthropic）。非仮想化の Claude デスクトップから実行した。差し戻し1巡目も同じ担当・モデルの新しい session。
+- Phase B 担当・モデル・ベンダー: Claude Code（Claude Opus 5.5、Anthropic）。非仮想化の Claude デスクトップから実行した。差し戻し1巡目・2巡目も同じ担当・モデルの新しい session。
 
 ## 7. Phase C
 

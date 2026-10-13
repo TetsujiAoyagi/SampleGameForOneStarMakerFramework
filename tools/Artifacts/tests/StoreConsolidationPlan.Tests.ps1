@@ -7,7 +7,7 @@ Import-Module (Join-Path $PSScriptRoot '../StoreConsolidationPlan.psm1') -Force
 $logical='C:\Users\fixture\AppData\Local\OneStarMaker'
 $source='C:\Users\fixture\AppData\Local\Packages\Fixture.Package_0000000000000\LocalCache\Local\OneStarMaker'
 $repo='a'*64;$dep='d'*32;$op='0'*32;$op2='1'*32
-$cases=@('task-items-share-a-unit','reference-missing-operation','reference-present-in-target','reference-localcache-rejected','reference-out-of-role-rejected','outside-store-path-ignored','shared-operation-merges-units','target-states','workflow-divergence-held','deployment-dependency','unreferenced-operation-excluded','invalid-record-held','target-keys-cover-references','manifest-recheck','plan-module-is-pure','referenced-file-missing','unchecked-record-held')
+$cases=@('task-items-share-a-unit','reference-missing-operation','reference-present-in-target','reference-localcache-rejected','reference-out-of-role-rejected','outside-store-path-ignored','shared-operation-merges-units','target-states','workflow-divergence-held','deployment-dependency','unreferenced-operation-excluded','invalid-record-held','target-keys-cover-references','manifest-recheck','plan-module-is-pure','referenced-file-missing','unchecked-record-held','multi-workflow-unit-held','workflow-already-visible-held','all-identical-unit-not-held','only-new-workflow-not-held','single-workflow-unit-not-held','multi-workflow-with-other-reasons','target-only-reference-unreadable')
 $selected=@(if($Case -ceq '*'){$cases}else{$Case.Split(',')})
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 function Assert([bool]$Value,[string]$Message){if(-not $Value){throw $Message}}
@@ -23,6 +23,12 @@ function Seen([bool]$Exists,$Files=@(),[bool]$Acl=$true){[pscustomobject]@{exist
 # The real store has the deployment unless a case says otherwise.
 function Target([hashtable]$Extra=@{}){$t=@{"Artifacts\deployments\$dep"=(Seen $true @((File "$dep.json"),(File "$dep.config.json")))};foreach($k in $Extra.Keys){$t[$k]=$Extra[$k]};$t}
 function Unit($Plan,[string]$Key){,@($Plan.units|Where-Object {@($_.items|Where-Object key -CEQ $Key).Count})}
+# Two tasks merged into one unit by a shared operation; the operation is carried.
+$shared="$logical\Artifacts\transfers\$op\owned\a.zip"
+function Merged{@((Item transfers '' @(File 'owned\a.zip') $op),(Item evidence alpha @(Catalog @($shared))),(Item evidence beta @(Catalog @($shared))),(Item workflow alpha @(File 'state.json' '{}')),(Item workflow beta @(File 'state.json' '{"b":1}')))}
+# The real store holding the given items byte for byte with the private ACL.
+function Present($Items,[string[]]$Keys){$t=@{};foreach($i in @($Items|Where-Object {$_.key -cin $Keys})){$t[$i.key]=Seen $true @($i.files)};$t}
+function Locked([string]$Path){[pscustomobject]@{path=$Path;bytes=[long]-1;sha256='unreadable';json=$null;unchecked=$false}}
 foreach($case in $selected){
     try{
         Assert ($case -cin $cases) 'unknown case'
@@ -159,13 +165,81 @@ foreach($case in $selected){
                 $plan=New-ConsolidationPlan (Inventory @((Item workflow alpha @((File 'state.json' '{}'),(File 'task.lock' $null))))) (Target)
                 Assert ($plan.units[0].status -ceq 'publish') 'non-JSON file held'
             }
+            'multi-workflow-unit-held'{
+                # Two Workflow directories appear one rename at a time: the unit is held whole.
+                $plan=New-ConsolidationPlan (Inventory (Merged)) (Target)
+                Assert ($plan.units.Count -eq 1 -and $plan.units[0].status -ceq 'hold' -and $plan.units[0].reasons -ccontains 'multi-workflow-unit') ('shared operation '+($plan.units[0].reasons -join ','))
+                # A task-to-task reference merges the same way.
+                $plan=New-ConsolidationPlan (Inventory @((Item workflow alpha @(File 'state.json' (ConvertTo-Json -Compress @{next="$logical\Workflow\$repo\tasks\beta\state.json"}))),(Item workflow beta @(File 'state.json' '{}')))) (Target)
+                Assert ($plan.units.Count -eq 1 -and $plan.units[0].reasons -ccontains 'multi-workflow-unit') ('task reference '+($plan.units[0].reasons -join ','))
+                Assert ($plan.summary.hold -eq 1 -and $plan.summary.publish -eq 0) 'summary'
+            }
+            'workflow-already-visible-held'{
+                # The task is listed already, so every other item would appear mid-publication.
+                $items=@((Item evidence alpha @(Catalog @())),(Item workflow alpha @(File 'state.json' '{}')))
+                $plan=New-ConsolidationPlan (Inventory $items) (Target (Present $items @("Workflow\$repo\tasks\alpha")))
+                Assert ($plan.units[0].status -ceq 'hold' -and $plan.units[0].reasons -ccontains 'workflow-already-visible') ('single task '+($plan.units[0].reasons -join ','))
+                # One of two merged tasks already listed: same rule, and only one Workflow is new.
+                $items=Merged
+                $plan=New-ConsolidationPlan (Inventory $items) (Target (Present $items @("Workflow\$repo\tasks\alpha")))
+                Assert ($plan.units[0].reasons -ccontains 'workflow-already-visible' -and $plan.units[0].reasons -cnotcontains 'multi-workflow-unit') ('merged '+($plan.units[0].reasons -join ','))
+                # An existing Workflow that differs is a conflict and is listed too.
+                $items=@((Item evidence alpha @(Catalog @())),(Item workflow alpha @(File 'state.json' '{}')))
+                $plan=New-ConsolidationPlan (Inventory $items) (Target @{"Workflow\$repo\tasks\alpha"=(Seen $true @(File 'state.json' '{}' ('f'*64)))})
+                Assert ($plan.units[0].reasons -ccontains 'workflow-already-visible' -and $plan.units[0].reasons -ccontains 'conflict') ('conflicting '+($plan.units[0].reasons -join ','))
+            }
+            'all-identical-unit-not-held'{
+                $items=@((Item evidence alpha @(Catalog @())),(Item workflow alpha @(File 'state.json' '{}')))
+                $plan=New-ConsolidationPlan (Inventory $items) (Target (Present $items @($items|ForEach-Object key)))
+                Assert ($plan.units[0].status -ceq 'skip' -and @($plan.units[0].reasons).Count -eq 0) ('single task '+($plan.units[0].reasons -join ','))
+                $items=Merged
+                $plan=New-ConsolidationPlan (Inventory $items) (Target (Present $items @($items|ForEach-Object key)))
+                Assert ($plan.units[0].status -ceq 'skip' -and @($plan.units[0].reasons).Count -eq 0) ('merged '+($plan.units[0].reasons -join ','))
+            }
+            'only-new-workflow-not-held'{
+                # Only beta's Workflow is new: one rename makes beta appear, nothing is mid-way.
+                $items=Merged
+                $plan=New-ConsolidationPlan (Inventory $items) (Target (Present $items @($items|Where-Object key -CNE "Workflow\$repo\tasks\beta"|ForEach-Object key)))
+                Assert ($plan.units[0].status -ceq 'publish' -and @($plan.units[0].reasons).Count -eq 0) ($plan.units[0].reasons -join ',')
+            }
+            'single-workflow-unit-not-held'{
+                $plan=New-ConsolidationPlan (Inventory @((Item evidence alpha @(Catalog @())),(Item harness alpha @(File 'CURRENT.json' '{}')),(Item workflow alpha @(File 'state.json' '{}')))) (Target)
+                Assert ($plan.units[0].status -ceq 'publish' -and @($plan.units[0].reasons).Count -eq 0) ('single task '+($plan.units[0].reasons -join ','))
+                # Merged with a task that has no Workflow directory: still one new Workflow.
+                $plan=New-ConsolidationPlan (Inventory @((Item transfers '' @(File 'owned\a.zip') $op),(Item evidence alpha @(Catalog @($shared))),(Item evidence beta @(Catalog @($shared))),(Item workflow alpha @(File 'state.json' '{}')))) (Target)
+                Assert ($plan.units.Count -eq 1 -and $plan.units[0].status -ceq 'publish') ('merged '+($plan.units[0].reasons -join ','))
+            }
+            'multi-workflow-with-other-reasons'{
+                # Reasons are independent: the new ones neither replace nor hide the others.
+                $plan=New-ConsolidationPlan (Inventory @((Item evidence alpha @(Catalog @("$logical\Artifacts\transfers\$op2\owned\x.zip"))),(Item workflow alpha @(File 'state.json' (ConvertTo-Json -Compress @{next="$logical\Workflow\$repo\tasks\beta\state.json"}))),(Item workflow beta @(File 'state.json' '{"broken":')))) (Target)
+                foreach($r in @('multi-workflow-unit','reference-missing','source-invalid')){Assert ($plan.units[0].reasons -ccontains $r) ('missing '+$r+' in '+($plan.units[0].reasons -join ','))}
+                # A deployment unit carries no Workflow; its dependant's hold does not hold it.
+                $receipt=Item deployment '' @((File "$dep.json" '{}'),(File "$dep.config.json" '{}'))
+                $plan=New-ConsolidationPlan (Inventory (@($receipt)+@(Merged))) @{}
+                $d=Unit $plan "Artifacts\deployments\$dep";$t=Unit $plan "Workflow\$repo\tasks\alpha"
+                Assert ($d[0].status -ceq 'publish' -and $t[0].reasons -ccontains 'multi-workflow-unit' -and $t[0].reasons -cnotcontains 'dependency-held') ('deployment '+$d[0].status+' task '+($t[0].reasons -join ','))
+            }
+            'target-only-reference-unreadable'{
+                # Present and private is not enough: the referenced bytes must have been read.
+                $items=@((Item evidence alpha @(Catalog @("$logical\Artifacts\transfers\$op\owned\a.zip"))))
+                $plan=New-ConsolidationPlan (Inventory $items) (Target @{"Artifacts\transfers\$op"=(Seen $true @(Locked 'owned\a.zip'))})
+                Assert ($plan.units[0].status -ceq 'hold' -and $plan.units[0].reasons -ccontains 'reference-missing') 'unreadable referenced file accepted'
+                # A reference to the directory needs every file below it readable.
+                $plan=New-ConsolidationPlan (Inventory @((Item evidence alpha @(Catalog @("$logical\Artifacts\transfers\$op"))))) (Target @{"Artifacts\transfers\$op"=(Seen $true @((File 'owned\b.zip'),(Locked 'owned\a.zip')))})
+                Assert ($plan.units[0].reasons -ccontains 'reference-missing') 'directory with an unreadable file accepted'
+                $plan=New-ConsolidationPlan (Inventory @((Item evidence alpha @(Catalog @())))) @{"Artifacts\deployments\$dep"=(Seen $true @((File "$dep.json"),(Locked "$dep.config.json")))}
+                Assert ($plan.units[0].reasons -ccontains 'reference-missing') 'unreadable deployment record accepted'
+                # The readable control still passes, also beside an unreadable file it does not reference.
+                $plan=New-ConsolidationPlan (Inventory $items) (Target @{"Artifacts\transfers\$op"=(Seen $true @((File 'owned\a.zip'),(Locked 'owned\other.zip')))})
+                Assert ($plan.units[0].status -ceq 'publish') ('readable reference rejected '+($plan.units[0].reasons -join ','))
+            }
             'plan-module-is-pure'{
                 $ast=[Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot '../StoreConsolidationPlan.psm1'),[ref]$null,[ref]$null)
                 $types=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.TypeExpressionAst] -or $n -is [Management.Automation.Language.TypeConstraintAst]},$true)|ForEach-Object {$_.TypeName.FullName})
                 foreach($type in $types){Assert ($type -cin @('Text.Json.JsonDocument','Text.Json.JsonElement','Collections.Generic.Stack[Text.Json.JsonElement]','Collections.Generic.List[string]','Collections.Generic.List[object]','Collections.Generic.HashSet[string]','StringComparer','StringComparison','string','regex','Text.RegularExpressions.RegexOptions','Convert','Security.Cryptography.SHA256','Text.Encoding','long','pscustomobject','ordered')) ('impure type '+$type)}
                 $commands=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.CommandAst]},$true)|ForEach-Object GetCommandName)
                 # A null name is an invocation of the module's own script blocks.
-                foreach($name in @($commands|Where-Object {$null -ne $_})){Assert ($name -cin @('Set-StrictMode','Export-ModuleMember','Sort-Object','ForEach-Object','Where-Object','Find','Join','Test-ConsolidationWithin','Get-ConsolidationItemKey','Get-ConsolidationJsonStrings','Get-ConsolidationItemReferences','Test-ConsolidationItemHas','Get-ConsolidationFileSignature','Get-ConsolidationItemState')) ('impure command '+$name)}
+                foreach($name in @($commands|Where-Object {$null -ne $_})){Assert ($name -cin @('Set-StrictMode','Export-ModuleMember','Sort-Object','ForEach-Object','Where-Object','Find','Join','Test-ConsolidationWithin','Get-ConsolidationItemKey','Get-ConsolidationJsonStrings','Get-ConsolidationItemReferences','Test-ConsolidationItemHas','Test-ConsolidationItemReadable','Get-ConsolidationFileSignature','Get-ConsolidationItemState')) ('impure command '+$name)}
             }
         }
         $executed.Add($case)
