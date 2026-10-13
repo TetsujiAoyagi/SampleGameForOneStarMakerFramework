@@ -22,7 +22,9 @@
 - Phase B result snapshot / 判定 evidence bundle / C' blind bundle の取得案内・状態: 保存済み（判定 C で publish。引渡し先: owner 手元の Git 管理外。取得側の別 session での閲覧確認は未了）。以下は判定 C 開始前の記述: 未生成。依頼により B は Artifact Storage を操作していない。判定 C / C' へ渡す時点で、非仮想化の担当が implementation head から生成して publish する（Phase A snapshot と同じ扱い）。
 - PR: 未作成。作る場合も base は `develop`。
 
-**引継ぎ票（r5 の A2 後）— 次は §5.4 の残りの疎通と r5 の A3。** r5 の A2 は P1 なし、P2 4件、P3 4件（§5.15）。owner は、同じモデル（独立性制約あり）の結果を A2 として採択した。全件採用の案で本文へ統合済み。A3 の前に、Codex 内の実行担当が §5.4 の残りの疎通を1回行う（論理 path から LocalAppData の直下に新しく作った空の directory を、論理 path から削除でき、両側に残らないこと）。その後、owner が §5.15 の「A3 で owner が決めること」を決めて r5 を凍結する。
+**引継ぎ票（疎通の後）— 次は r5 の A3（owner）。** §5.4 の残りの疎通は 2026-10-14 に確認済み（論理 path からの作成・probe・削除が Codex 側で成立し、両側に残らない）。owner は §5.15 の「A3 で owner が決めること」（採否案、D7、D8、U9 の危険の受け入れ）を決め、r5 を凍結する。
+
+**引継ぎ票（r5 の A2 後。記録として残す）— 次は §5.4 の残りの疎通と r5 の A3。** r5 の A2 は P1 なし、P2 4件、P3 4件（§5.15）。owner は、同じモデル（独立性制約あり）の結果を A2 として採択した。全件採用の案で本文へ統合済み。A3 の前に、Codex 内の実行担当が §5.4 の残りの疎通を1回行う（論理 path から LocalAppData の直下に新しく作った空の directory を、論理 path から削除でき、両側に残らないこと）。その後、owner が §5.15 の「A3 で owner が決めること」を決めて r5 を凍結する。
 
 **引継ぎ票（r5 の A1 草案。記録として残す）— 次は r5 の A2。** owner が 2026-10-14 に A 再開を確定した。r5 の A1 草案を書いた（変更点の一覧と A2 の観点は §5.14）。
 
@@ -66,7 +68,7 @@
 状態: Phase A の作業中（revision r5 の A1 草案。C' の阻害指摘と AC4 の実環境不合格による A 再開）
 Phase A: revision r5（A1 草案、未凍結）。直前の凍結は r4、commit 77364220ecdd5f7894750744cdaa6e80d1d1dd62
 implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / 741444dda79263d18f2c5c0fe2891e66a4f5add8
-次の担当: §5.4 の残りの疎通（Codex 内の実行担当）→ r5 の A3（owner）
+次の担当: r5 の A3（owner。§5.4 の疎通は確認済み）
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
 Evidence 取得案内: 保存済み（引渡し先: owner 手元の Git 管理外）。取得側の別 session での閲覧確認は未了
 未決事項: なし（保留した単位の扱い・取得の回復・実ストアへの合流は後続 Split Store Recovery）
@@ -327,7 +329,14 @@ r4 で問いを狭めた。合流後に Codex が publish した Evidence を非
   - 後続への入力: 同じ bucket に有効な token が二つ存在しうる（Codex 側の record が別の token を保持している可能性）。失効の要否は owner が管理画面で判断する。本スライスでは扱わない。
 - **一部確認（2026-10-12）:** U5 の path 文字列。Codex 内で catalog 1件を読取り専用で開き、絶対 path 12個が全て論理 path だった（値は転記しない。サイズ・更新時刻は不変）。全単位の検査は D2 の `plan` が機械的に行う。
 - **確認済み（2026-10-14、§7.11）:** r5 の D1 の前提。Codex 内で、LocalAppData の直下に両側とも無い名前で新しく作った directory の中の probe は `virtualized` だった。実体側にだけある directory の中の probe は `not-virtualized` だった（r4 の誤判定の原因）。
-- **未確認（A3 の前に確認する）:** r5 の D1 の後始末。Codex 内で、論理 path から LocalAppData の直下に新しく作った空の directory を、論理 path から削除でき、実体側・Codex 側のどちらにも残らないこと。§7.11 のスパイクでは、Codex 側の directory を LocalCache の path から削除しただけで、論理 path からの削除は観測していない。担当は Codex 内の実行担当で、スパイク専用の一意な名前を使い、既存の directory には触れない。不成立なら、残骸が増えることを D1 の残骸の扱いで受け入れるか、方式を見直すかを A3 で決める。
+- **確認済み（2026-10-14、A3 の前）:** r5 の D1 の後始末。Codex 内の実行担当（PowerShell 7、承認済みの sandbox 外経路、AC4 用の worktree。tools 配下の script は実行していない）が、LocalAppData の直下に `OneStarMaker.StoreProbe.<32桁の16進>` の名前で次を1回行った。結果は下のとおり。
+  1. 実行前は、論理 path・Codex 側 LocalCache とも存在しなかった。
+  2. 論理 path から directory を作ると、Codex 側 LocalCache に作られた（観測 (iii) と同じ）。
+  3. 中で probe file を `CreateNew` + `DeleteOnClose` で開いて閉じると、entry は 0 になった。
+  4. 論理 path からの削除は成功した。
+  5. 削除後、論理 path・Codex 側 LocalCache のどちらにも残らなかった。
+
+  非仮想化の担当（Claude 内の Store 版 pwsh）も、実体側に同名の directory が無く、呼出しごとの名前の directory が実体側に0件であることを確認した。生の出力は AC4 用 worktree の `TestResults\reach\` にある（未保存）。
 
 ### 5.5 高コスト証拠
 
@@ -575,7 +584,7 @@ A3 の統合で加えた変更は §5.15 にある。上の表と重なる行は
 
 - **観点4・5:** D7 の理由 (2) と D8 の根拠は妥当。r4 凍結 commit からの差分は §5.14 の表の範囲に収まる。
 - **後続へ送るもの（採否案: 全て後続 `Virtualized Host Route` へ）:** LocalAppData が junction などで別の場所へ向いている host での誤判定（I3。r4 から続いている。r4 の C' の後続入力と同じ）。package の flexible virtualization（ExcludedDirectories）の影響。U8。
-- **A3 で owner が決めること:** 上の採否案。D7（分割しない）。D8（動作確認の先行適用）。U9 の危険を受け入れるか。§5.4 の残りの疎通（論理 path からの削除）を A3 の前に行うこと。
+- **A3 で owner が決めること:** 上の採否案。D7（分割しない）。D8（動作確認の先行適用）。U9 の危険を受け入れるか。（§5.4 の残りの疎通は確認済み。）
 
 ## 6. Phase B 実装結果
 
