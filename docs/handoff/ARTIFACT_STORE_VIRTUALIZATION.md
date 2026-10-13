@@ -5,37 +5,40 @@
 このtracked文書の全Phase欄には、各成果物の取得案内の引渡し先・担当と状態だけを書く。reference・期待packageSha256の実値、ローカルの実path、内部catalog/receiptの内容は転記しない。
 
 - type: `slice`
-- status: `A`（r3。A2 2件の指摘を反映した改稿。A3 未凍結）
+- status: `B`（Phase A revision r3 を 2026-10-13 に A3 で凍結。Phase B 未着手）
 - branch: `claude/artifacts-virtualized-store-a01`（`origin/develop` 起点）
-- implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（A3 で再確認する）
+- implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（A3 で `origin/develop` と一致を再確認済み）
+- Phase A revision: `r3`（凍結）。凍結 commit は本節を記録した commit（commit hash は次の担当が `git log` で確認し、PR 状態ブロックへ転記する）。
 - implementation head commit: 未固定（Phase B 未着手）
 - risk: `high`（永続ストアの所有境界、fail-closed 契約の追加、既存記録の移送、資格情報領域に隣接）
 - owner: リポジトリ owner（依頼者）
 - created: 2026-10-12
 - expires: 2026-11-12 または置換 revision の成立時。期限で自動採用・実装しない。
 - harvest to: `tools/Artifacts/README.md`（対話 CLI の実行条件と reasonCode、合流の結果）、`tools/Workflow/README.md` と `tools/Harness/README.md`（同じ実行条件）、`docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4（後続への入力）
-- task: 未開始。`workflow-task.ps1 start` は A3 の担当が実行環境（§1.2 の分裂）を確認してから行う。仮想化された host から start しない。
-- Phase A snapshot の取得案内・状態: 未生成（A2 入力版の確定時に生成。保存は §1.2 の分裂の影響を受けない非仮想化の担当が行う）
+- task: `artifacts-virtualized-store`（予定 ID）。未開始。Phase B の担当が、非仮想化の host から `pwsh tools/workflow-task.ps1 start -Task artifacts-virtualized-store` を実行して開始する。仮想化された host（Codex 等）から start しない。
+- Phase A snapshot の取得案内・状態: 未保存。owner の指示で、Phase A では Artifact Storage を操作していない。Phase B の固定入力は、凍結 commit の本ファイル（git で到達可能）とする。C / C' へ渡す時点で、非仮想化の担当が凍結 commit から所見を除いた snapshot を作り、通常どおり publish する。
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成
 - PR: 未作成。作る場合も base は `develop`。
 
-**引継ぎ票 — 次は A3（owner の決定と凍結）。** r3 は A2 1件目（構造ゲート担当、§5.7）と2件目（A0 だけからの代替構成、§5.8）を反映した改稿で、採否は A3 で owner が確定する。A3 前の残作業の状況は次のとおり。
-1. ~~§5.4 の r2 probe 領域の疎通~~ 2026-10-13 に両 context で確認済み。
-2. ~~A2 の2件目~~ 2026-10-13 に実施済み（§5.8）。
-3. A3 で owner が D1〜D6 と §5.7・§5.8 の採否を決め、凍結する。
+**引継ぎ票 — 次は Phase B（実装）。** Phase A revision r3 を 2026-10-13 に凍結した（§5.9）。implementation base は `3f79639c12eac16da77d06608675564e906f9a49`。B は §3 の責務マップと §4 の順序で実装し、§2 の条件と §5.1 の起点 filter で確認する。
 
-A2 / A3 の担当も Artifact Storage の実操作（publish / fetch / 合流）と資格情報の操作は行わない。既存ストアの移動・削除・書換えは凍結前に行わない。
+- **実行環境:** B は非仮想化の host（owner の端末、Claude デスクトップ等）で行う。仮想化された host では、ストアを使う既存 suite の結果が §1.2 の分裂に影響されうるため。
+- **必要な権限:** sandbox 外での PowerShell 実行（offline suite の実行に必要な場合）。Unity・資格情報・R2 通信・実ストアへの合流は不要で、行わない。
+- **B でやらないこと:** 実ストアへの合流の実行（§5.5 の高コスト証拠。判定 C と暫定 C' の後に owner が manifest を承認してから行う）。Codex 側・実ストアの既存 file の変更・移動・削除。`credentials` の操作。AC4 / AC5 の実環境確認（Phase C の実行担当）。判定 C の照合 script の作成（§5.5 の A3 凍結 script は A3 後・C 前に用意する）。
+- **停止規則:** §4 の「Phase A へ差し戻す条件」に当たったら実装を止めて返す。新しい事実は `phases-and-handoff.md` の「新しい事実の分類」で分類する。
+- **B の出口:** `pwsh tools/contract-audit.ps1`、§5.1 の起点 filter の結果、§6 の実装結果、引継ぎ票と PR 状態ブロックを更新して push する。判定 C・C' は起動しない。
+- **引き渡さないもの:** C' に §5.7・§5.8 の所見や A3 の議論を渡さない。C' 用の担当は §5.6 で予約済み。
 
 ### PR 状態ブロック（PR 作成時の写し）
 
 ```text
-状態: Phase A の作業中（r3、A3 未凍結）
-Phase A: revision r3（A2 2件を反映、A3 未凍結）、commit 未記録
+状態: Phase A の完了（r3 凍結）。Phase B 未着手
+Phase A: revision r3（凍結）、commit <凍結 commit>
 implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / 未固定
-次の担当: Phase A（A3 前）。次の作業: A3 の決定と凍結
+次の担当: Phase B（実装、非仮想化の host）。次の作業: §3・§4 の実装
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
 Evidence 取得案内: 未生成
-未決事項: D1〜D6（§2.6）、§5.7・§5.8 の採否
+未決事項: なし（A3 で決定済み）
 ```
 
 ## 1. A0 — 目的、現況、対象外
@@ -114,7 +117,7 @@ Evidence 取得案内: 未生成
 - **U6（同名衝突）**: `integration-pr94-completion-20261010` の Workflow 記録が両側で同一か。`deployments` の receipt の重複・不一致。
 - **U7（所有者不明の領域）**: `RevisionLocks` は本リポジトリの tools に生成箇所が無い。所有者を確認するまで移送しない。
 
-## 2. 意思決定と受け入れ境界（r3。A2 2件の指摘を反映、A3 未凍結）
+## 2. 意思決定と受け入れ境界（r3。2026-10-13 に A3 で凍結）
 
 用語:
 
@@ -174,7 +177,7 @@ Evidence 取得案内: 未生成
 - A3 後の例外承認: なし
 - 決定記録: なし
 
-### 2.6 A3 で owner が決める事項（r2 の推奨付き）
+### 2.6 決定事項（A3 で owner が推奨どおり採用）
 
 - **D1 — 仮想化された実行の扱い:** **推奨は fail-closed。** 仮想化は `virtualized-store`、判定不能は `store-context-unknown`。(a)「一貫した実体 root で動く」は、package の中から実ストアへ新規 file を書けないため、package 外の仲介か AppData 外への再配置が必要で、D3 の後続へ送る。
   - 判定方法: 書込み probe だけで判定する。package identity は使わない（U2: identity 無しの仮想化と、identity ありの非仮想化の両方を観測した）。
@@ -267,10 +270,10 @@ Evidence 取得案内: 未生成
 - §5.4 の Codex 内疎通: Codex（OpenAI）。疎通の観測だけで、A2 のレビューではない。
 - A2 独立レビュー 1件目: Codex（OpenAI）、新しいセッション。観点はアーキテクチャゲート（責務マップ、I1〜I7 を破る順序、D1〜D5）。入力版は r1 の内容 sha256 `4461c4a9ec0dc0b5ff43d6f9dd4b271af2de1f49a4aa0f084714553552c7dd3e`（commit `08cb1d1`）。開始時に一致を確認済み。結果は §5.7。
 - A2 独立レビュー 2件目: Codex（OpenAI）、新しいセッション。観点は A0 だけからの代替構成。入力は commit `b96c358` の §1 だけ（抽出した §1 の UTF-8 の sha256 `a92e42097aa833b90e70d5658a1741a1fba317fcefd24fee54ba7a6efc00cee9`、開始時に一致を確認済み）。§0・§2 以降・1件目の指摘は見ていない。結果は §5.8。同じベンダーの2件目なので、独立性は「別セッション・別入力」による。
-- A3 統合: 未実施。
+- A3 統合: Claude Code（Claude Opus 5.5、Anthropic）が統合案を作り、owner が 2026-10-13 に推奨どおり採用して凍結した（§5.9）。
 - C' 用に予約する担当: Anthropic・OpenAI 以外の系列（候補は cursor-agent の Grok 系）。A2 では使わない。
 
-### 5.7 A2 findings と r2 での採否（A3 で owner が確定する）
+### 5.7 A2 1件目の findings と採否（A3 で確定）
 
 | # | severity | 指摘 | 根拠の節 | r2 の扱い | 理由 |
 |---|---|---|---|---|---|
@@ -283,7 +286,7 @@ Evidence 取得案内: 未生成
 
 A2 が示した I1〜I7 の反例（guard の後に判定、汎用 catch で `unconfirmed` 化、bytes 同一 skip で ACL を見落とす、列挙前に除外領域を hash 等）は、AC1・AC2・AC6・AC8・AC9 の検証内容に反映した。配置について A2 は、判定 module を Workflow 基盤層に置く案と、合流 module を Artifacts 側に置く案を支持した。Workflow の ACL 規則が `TaskEventStore` の内部関数である点は、Artifacts の ACL 規則と同一であることを確認したうえで `ArtifactAcl.psm1` を使う、とした（I6）。
 
-### 5.8 A2 2件目（A0 だけからの代替構成）との突合と r3 での採否（A3 で owner が確定する）
+### 5.8 A2 2件目（A0 だけからの代替構成）との突合と採否（A3 で確定）
 
 代替構成の骨格（ストア外の書込み probe による3値判定、identity を使わない、非仮想化 context だけでの非破壊合流、計画と I/O の分離、Codex 側の不変）は r2 と一致した。差分は次のとおり。
 
@@ -298,6 +301,24 @@ A2 が示した I1〜I7 の反例（guard の後に判定、汎用 catch で `un
 | A2b-7 | 通常 CLI と定期 job が共通で使う保守用の排他門（MaintenanceGate）を設け、合流中と中断中の通常アクセスを拒否する。古い process の停止を開始条件にする | 不採用（代替あり） | 定期 job は install 時の head の固定 runtime で動くため、新しい門は job の再 install なしには効かず、runtime の変更は本スライスの範囲を広げる。r2 の公開順（Workflow を最後に置く）は今の job のまま途中の単位を見せない（`Get-WorkflowTasks` 起点であることを確認済み）。同じ taskId を明示する対話 CLI は Workflow 未公開の間 `task-not-registered` で失敗し、guard が先に directory を作れば `concurrent-writer` で止まる（AC12）。残るリスクは「合流中に対象 taskId を操作しない」という運用前提で、A3 で owner が受け入れるか決める |
 | A2b-8 | 配置を `tools/WindowsStore/` と `tools/StoreMerge/` に新設する | 保留（D6） | D6 に両案を並べた。推奨は OS 基盤層を二か所に分けない現案 |
 | A2b-9 | 判定不能の reasonCode を `store-context-unconfirmed` とする | 不採用 | 意味は r2 の `store-context-unknown` と同じ。既存の `unconfirmed` と字面が近く、利用者が取り違えやすい |
+
+### 5.9 A3 の決定（2026-10-13、owner）
+
+owner は主担当の統合案（D1〜D6、運用前提、§5.7・§5.8 の採否）を推奨どおり採用し、r3 を凍結した。
+
+| 項目 | 決定 |
+|---|---|
+| D1 | 仮想化は `virtualized-store`、判定不能は `store-context-unknown` で fail-closed（exit 1）。判定はストア外の probe 領域だけを使う書込み probe で行い、package identity は使わない |
+| D2 | owner が承認した manifest の単位だけを、非仮想化 context から実ストアへ bytes 同一で非破壊に合流する。計画（純粋関数）と I/O を分け、run 所有の staging から directory 単位の非上書き rename で公開し、Workflow を最後に公開する。衝突・分岐は勝者を選ばず保留し、残れば `partial` |
+| D3 | GO 後は仮想化された host で Storage・Workflow・Harness を操作せず、非仮想化の担当が実行担当を務める。host 側の経路は後続 `Virtualized Host Route` |
+| D4 | 合流対象は `workflow`、`evidence-v2`、`deployments`、対象 task が参照する `transfers`、`harness`。`builds-v1`・`runtime`・`credentials`・`RevisionLocks`・非所有 directory は対象外 |
+| D5 | 従来の tracked HANDOFF で進め、H1 へ移行しない |
+| D6 | 判定 module は `tools/Workflow/` の OS 基盤層に置き、Harness → その基盤層の依存 edge を許可する。`tools/WindowsStore/`・`tools/StoreMerge/` の新設は採らず、OS 基盤層の移動は後続へ送る |
+| 運用前提 | 合流 run の間、対象 taskId を対話 CLI で操作しない。違反時は `concurrent-writer` で止まることを AC12 で保証する（A2b-7 の代替） |
+| §5.7 | A2-1〜A2-6 を全て採用 |
+| §5.8 | A2b-1〜A2b-6 を採用、A2b-7 は不採用（運用前提で代替）、A2b-8 は D6 のとおり不採用、A2b-9 は不採用 |
+
+A3 後の例外承認・決定記録はなし。凍結条件を変える判断は Phase A の新しい revision として行う。
 
 ## 6. Phase B 実装結果
 
