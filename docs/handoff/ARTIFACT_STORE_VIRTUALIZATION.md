@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄には、各成果物の取得案内の引渡し先・担当と状態だけを書く。reference・期待packageSha256の実値、ローカルの実path、内部catalog/receiptの内容は転記しない。
 
 - type: `slice`
-- status: `判定 C 完了`（2026-10-13。§7.9。次の担当は C'（§5.6 の予約系列、新 session、blind audit bundle のみ）。r4 凍結までの経緯は §5.10〜§5.13、発見 C の記録は §7.1〜§7.8。C' 未着手）
+- status: `C' 完了・AC4 不合格`（2026-10-13。C' は阻害する指摘 2 件（§8）。その後に取得した AC4 の実環境確認が不合格（§7.10）。次は owner による新しい事実の分類（スパイク → A 再開の見込み）。r4 凍結までの経緯は §5.10〜§5.13、発見 C の記録は §7.1〜§7.8、判定 C は §7.9）
 - branch: `claude/artifacts-virtualized-store-a01`（`origin/develop` 起点）
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（A3 で `origin/develop` と一致を再確認済み）
 - Phase A revision: **`r4`（2026-10-13 凍結）**。凍結 commit は `77364220ecdd5f7894750744cdaa6e80d1d1dd62`、凍結時の本ファイルの内容 sha256 は `44174f89c23c9d7224b749ff7891397acce239bc04b2afed65156fd4be1aa4e3`（`git show <commit>:<本ファイル>` の bytes。この記入だけの直後の commit は含めない）。§1〜§5 が B の唯一の仕様。r3 からの変更点は §5.10、A2・A3・再レビューは §5.11〜§5.13。
@@ -21,7 +21,9 @@
 - Phase B result snapshot / 判定 evidence bundle / C' blind bundle の取得案内・状態: 保存済み（判定 C で publish。引渡し先: owner 手元の Git 管理外。取得側の別 session での閲覧確認は未了）。以下は判定 C 開始前の記述: 未生成。依頼により B は Artifact Storage を操作していない。判定 C / C' へ渡す時点で、非仮想化の担当が implementation head から生成して publish する（Phase A snapshot と同じ扱い）。
 - PR: 未作成。作る場合も base は `develop`。
 
-**引継ぎ票（判定 C 完了後の更新）— 次は C'（§5.6 の予約系列、新 session、blind audit bundle のみ）。** 判定 C は完了した（§7.9）。C' は PR・本 HANDOFF 全文・§7 を読まず、所見を含まない C' 用の取得案内だけで始める。取得案内は Git 管理外で owner の手元にある。以下は判定 C 開始前の引継ぎ票（記録として残す）。
+**引継ぎ票（C' 完了後の更新）— 次は owner の分類の裁定。** C' は 1 巡目で阻害する指摘 2 件（AC4・AC5 の実環境証拠の欠落、§8）。続けて取得した AC4 は Codex 内で不合格だった。4 入口とも `virtualized-store` を返さず、Codex 側に transfers の operation directory が作られた（§7.10）。原因は probe 領域の directory の残存による誤判定と推定している（未検証）。owner は次を決める。(1) 原因を確かめるスパイクを行うか。(2) 確定後に A 再開（D1・I1 の probe 配置を変える revision r5）とするか、B 適応とするか。どちらでも head が変わるので、判定 C・C'（2 巡目）・AC4・AC5 は新しい GO 候補 head で取り直す。C' の指摘による差し戻しは、これを返すと 1 巡目になる（上限 3 巡）。§7.10 の Codex 側の残骸は削除しない。
+
+**引継ぎ票（判定 C 完了後の更新。記録として残す）— 次は C'（§5.6 の予約系列、新 session、blind audit bundle のみ）。** 判定 C は完了した（§7.9）。C' は PR・本 HANDOFF 全文・§7 を読まず、所見を含まない C' 用の取得案内だけで始める。取得案内は Git 管理外で owner の手元にある。以下は判定 C 開始前の引継ぎ票（記録として残す）。
 
 **引継ぎ票 — 次は判定 C（GO 候補 head `741444d`）。** Phase A revision r4（2026-10-13 凍結、§5.12・§5.13）の §1〜§5 を唯一の仕様とする。implementation base / head は上記（head は `741444d`。本 §0 を更新した commit は含めない）。発見 C の再レビュー（差し戻し2巡目の修正 head、§7.8）は、阻害する指摘 0 件、後続への入力 3 件（現スライスを阻害しない）で終えた。B と発見 C の往復は 2 巡を消費した（上限 4 巡）。
 
@@ -47,10 +49,10 @@
 ### PR 状態ブロック（PR 作成時の写し）
 
 ```text
-状態: 判定 C 完了
+状態: Phase C' 完了（阻害する指摘あり）。AC4 の実環境確認が不合格
 Phase A: revision r4（凍結）、commit 77364220ecdd5f7894750744cdaa6e80d1d1dd62
 implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / 741444dda79263d18f2c5c0fe2891e66a4f5add8
-次の担当: C'（§5.6 の予約系列、新 session、blind audit bundle のみ）
+次の担当: owner（新しい事実の分類: スパイク → A 再開 / B 適応）
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
 Evidence 取得案内: 保存済み（引渡し先: owner 手元の Git 管理外）。取得側の別 session での閲覧確認は未了
 未決事項: なし（保留した単位の扱い・取得の回復・実ストアへの合流は後続 Split Store Recovery）
@@ -838,9 +840,50 @@ Release DLL を既存 loader の出力先（`Packaging/artifacts/package`、`Tra
 - **Evidence（保存済み。引渡し先: owner 手元の Git 管理外）:** Phase A snapshot（凍結 commit の §1〜§5 から §5.7・§5.8・§5.11・§5.13 を除いたもの）、判定 evidence bundle、C' blind audit bundle の3件を、task `artifacts-virtualized-store`（active）で `evidence publish` した（各 exit 0、status passed）。各 bundle の publish が返す packageSha256 は、ローカルの bundle.zip の SHA-256 を別に算出した値と一致した。別 process の fetch で manifest の全 entry の hash が一致することも確認した（送信側の読戻しであり、引渡し完了の確認ではない）。取得案内（reference、期待 packageSha256、base / head、用途、取得手順、保持条件）は C' 用を独立した file に分け、Git 管理外に置いた。
 - **未実行・未確認:** 「identity 無しで非仮想化」の host での AC3、Codex 内での AC4、Claude デスクトップ内での AC5、**取得側の別 session での fetch と閲覧の確認（未了）**。
 
+### 7.10 AC4 の実環境確認（C' 完了後に取得。判定 C の未確認分）
+
+§5.3 で判定 C が手順を渡すと凍結していた AC4 は、判定 C の時点で未実施だった。C' 完了後（2026-10-13）に、owner の指示で取得した。
+
+- **担当・環境:** Codex デスクトップ内の AI 実行担当（判定 C の実行担当として凍結手順だけを実行し、合否は判断していない）。PowerShell 7.6.5、承認済みの sandbox 外経路。GO 候補 head `741444d` の新しい detached worktree。手順は Claude Code（Claude Opus 5.5）が §2.3 AC4・§5.3 から作って渡した。
+- **操作:** 事前の一覧 → fetch・`evidence publish`・`workflow-task.ps1 status`・`harness.ps1 current` を各1回 → 事後の一覧 → 差分。一覧は名前・件数・最終更新だけで、内容は開いていない。root は A = Codex 側 LocalCache の `OneStarMaker`、B = Codex 側 LocalCache の `OneStarMaker.StoreProbe`、C = 実体側の `OneStarMaker.StoreProbe`。`evidence publish` は Codex の auto-review が一度拒否し、owner の承認後に実行した。
+- **結果（生の観測）:**
+
+| コマンド | 最終出力 | exit |
+|---|---|---|
+| fetch | `failed` / `unconfirmed`、residue に transfers の operation directory | 1 |
+| evidence publish | `failed` / `unconfirmed`、residue `pre-put` | 1 |
+| workflow-task status | `ok`（task の状態 `active/end-not-recorded` を返した） | 0 |
+| harness current | 「CURRENTが見つかりません」 | 1 |
+
+  - A の差分: fetch の実行中に `Artifacts\transfers\<operation>\` と、その下の `operation.lock` が新しく作られ、`Artifacts\transfers` の更新時刻が変わった（entry 数 17084 → 17086）。
+  - B は前後とも存在しない。C は前後とも存在し（作成は 2026-10-13 11:43 UTC 以前）、各コマンドの実行時刻に合わせて更新時刻が変わった。B・C とも `*.probe` は残っていない。
+- **AC4 の合否:** 不合格。どの入口も `virtualized-store` を返さず、Codex 側に directory と file が新しく作られた。§2.3 の「時点の読み違いを防ぐ例」の不合格に当たり、I1・S1 に違反する。
+- **原因（スパイクで確認する仮説。未検証）:** `Get-OsmStoreContext` は Codex 内で `not-virtualized` を返したと読める（3入口とも、判定が `not-virtualized` のときだけ先へ進む）。probe の書込みは C（実体側の既存 directory）に行き、ストアの書込みは A（Codex 側に既にある `OneStarMaker`）に行った。仮想化は、Codex 側に既にある directory への書込みを Codex 側へ、実体側にだけある directory への書込みを実体側へ送るように見える。`WindowsStoreContext.psm1` は probe 領域の directory を残す設計で（コメント: area directory は残ってよい）、非仮想化の実行が一度でも実体側に作ると、Codex 内の probe は final path が論理 path と一致して非仮想化と判定される。§5.4 の疎通は probe 領域の directory が両側とも事前に無い状態で行っており、この条件を踏んでいない。
+- **新しい事実の分類:** 現時点では **スパイク**（原因が未確認）。仮説が確定すれば、probe 領域の配置・後始末（§2.6 D1、I1 の「判定の書込みは probe 領域だけ」）を変える必要があるので、A 再開になる見込み。分類の確定は owner が行う。
+- **残骸:** fetch が作った A の operation directory と `operation.lock` は、Codex 側の既存 file を変更・削除しない契約（§0 のやらないこと）に従い、残している。
+- **証拠:** 生の出力と前後の一覧・差分は、AC4 用 worktree の Git 管理外（`TestResults\ac4\`）にある。未保存（publish していない）・引渡し未完了。worktree は削除していない。
+- **AC5:** 未実施。head が変わる見込みなので、次の GO 候補 head で取得する。
+
 ## 8. Phase C'
 
-未着手
+- **担当方式:** AI。cursor-agent CLI（`grok-4.7-high`、xAI）、新しい session、読取り専用（編集・git 操作・テスト実行を禁止）。起動と bundle の取得は Claude Code（Claude Opus 5.5）が行い、Grok へ渡したプロンプトには所見・疑念・判定 C の記録を含めていない。
+- **種別と巡:** 最終 C'（§5.5 案 B で高コスト証拠なし）、1 巡目（全体の初見監査）。
+- **受け取った決定記録の版:** なし。
+- **使用した blind audit bundle の取得案内・状態:** §0 の C' 用取得案内（owner 手元の Git 管理外）。非仮想化の host から fetch し、package の hash は期待値と一致した（status passed）。EVIDENCE_MANIFEST の hash も案内の値と一致した。取得側の別 session での fetch と閲覧はこれで確認した。監査の間は `evidence use` で保護している（release は未実施）。
+- **確認範囲・方法:** bundle の Phase A snapshot（r4）、Phase B result、完全 diff、build・test の生ログと結果 JSON、audit の出力、関連 README。head `741444d` の worktree のソースを参照した。worktree から `docs/handoff/` は事前に除き、git log・PR・HANDOFF は読ませていない。
+- **判定:** 現在の問いを阻害する指摘 2 件。I1〜I7 を合成 fixture 上で破る実行順序は見つからなかった。
+- **現在の問いを阻害する findings:**
+  1. AC4（I1、S1）の実環境証拠が bundle に無い。一次証拠は `EVIDENCE_MANIFEST.json` の `notes.notVerified`。S1 は §5.5 で AC1・AC4 により判定すると凍結されている。（C' 完了後に §7.10 で取得し、不合格だった。）
+  2. AC5（I3）の実環境証拠が bundle に無い。一次証拠は同上。
+- **判定必須テストの確認（§5.1）:** 27 suite・548 件、failed 0。3 project の Release build、Artifacts 21 suite 415 件、TaskLifecycle 23、Harness 4 本、新規 3 suite、contract-audit・docs-audit・parse の違反 0 を、結果 JSON と生ログで確認した。
+- **後続スライスへ移送する findings:**
+  - Harness の CURRENT と deployment receipt は、既存の作成経路では継承 ACL のまま作られる。合流は I6 どおり private ACL を要求するので、bytes が同じでも `acl-mismatch` になり、その receipt を参照する Evidence は `reference-missing` で保留になる。規則を緩めるのは I6 の意味の変更になる。実データで起きるかは、`Split Store Recovery` の最初の読取りの `store plan` で確かめる。
+  - LocalApplicationData が junction になっている host では、probe の論理 path と final path がずれ、非仮想化でも `virtualized-store` になる。D1 の比較方法そのものの性質である。判定 C の host は `not-virtualized` だった。
+- **残存リスク:** AC4・AC5 の実環境未確認（AC4 は §7.10 で不合格）。identity 無しの非仮想化 host での AC3。
+- **監査できなかった範囲:** 上記に加え、実ストアへの合流（§5.5 案 B で対象外）、Unity EditMode（§5.1 の適用除外）、既存 suite のアサーション本文。
+- **独立性:** B（Claude Opus 5.5）・判定 C（Claude Sonnet 5.5）と異なる系列・ベンダー。§5.6 で予約した系列。最低条件と強化条件を満たす。
+- **発見 C / 判定 C 結論の事前閲覧・設計実装への関与:** Grok は閲覧も関与もしていない。起動した Claude Code の session も、Grok の結果が出るまで判定 C の記録を読んでいない。
+- **担当・モデル:** cursor-agent `grok-4.7-high`（1 回の実行、約 11.5 分、出力 39k token）。
 
 ## 9. Phase D
 
