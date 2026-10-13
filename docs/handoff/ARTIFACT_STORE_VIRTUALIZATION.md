@@ -5,40 +5,42 @@
 このtracked文書の全Phase欄には、各成果物の取得案内の引渡し先・担当と状態だけを書く。reference・期待packageSha256の実値、ローカルの実path、内部catalog/receiptの内容は転記しない。
 
 - type: `slice`
-- status: `B`（Phase A revision r3 を 2026-10-13 に A3 で凍結。Phase B 未着手）
+- status: `C`（Phase B を 2026-10-13 に完了。発見 C 未着手）
 - branch: `claude/artifacts-virtualized-store-a01`（`origin/develop` 起点）
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（A3 で `origin/develop` と一致を再確認済み）
-- Phase A revision: `r3`（凍結）。凍結 commit は本節を記録した commit（commit hash は次の担当が `git log` で確認し、PR 状態ブロックへ転記する）。
-- implementation head commit: 未固定（Phase B 未着手）
+- Phase A revision: `r3`（凍結）。凍結 commit は `97145dc08a183e1f1893751f6a86925a3acda1da`（Phase B が `git log` で確認し、PR 状態ブロックへ転記した）。凍結時の本ファイルの内容 sha256 は `c7259ad70ce241ed323a2169c4f5f82a2be4598206bfd2e6b286a6fa8342197f`。
+- implementation head commit: `c55891a498dc3ca99312533d3c9a23126e72fd0c`（Phase B 完了時。HANDOFF の記録だけの commit は含めない）
 - risk: `high`（永続ストアの所有境界、fail-closed 契約の追加、既存記録の移送、資格情報領域に隣接）
 - owner: リポジトリ owner（依頼者）
 - created: 2026-10-12
 - expires: 2026-11-12 または置換 revision の成立時。期限で自動採用・実装しない。
 - harvest to: `tools/Artifacts/README.md`（対話 CLI の実行条件と reasonCode、合流の結果）、`tools/Workflow/README.md` と `tools/Harness/README.md`（同じ実行条件）、`docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4（後続への入力）
-- task: `artifacts-virtualized-store`（予定 ID）。未開始。Phase B の担当が、非仮想化の host から `pwsh tools/workflow-task.ps1 start -Task artifacts-virtualized-store` を実行して開始する。仮想化された host（Codex 等）から start しない。
+- task: `artifacts-virtualized-store`。2026-10-13 に Phase B の担当が非仮想化の host から `pwsh tools/workflow-task.ps1 start -Task artifacts-virtualized-store` で開始済み（version 1、active）。仮想化された host（Codex 等）から操作しない。
 - Phase A snapshot の取得案内・状態: 未保存。owner の指示で、Phase A では Artifact Storage を操作していない。Phase B の固定入力は、凍結 commit の本ファイル（git で到達可能）とする。C / C' へ渡す時点で、非仮想化の担当が凍結 commit から所見を除いた snapshot を作り、通常どおり publish する。
-- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成
+- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成。依頼により B は Artifact Storage を操作していない。C / C' へ渡す時点で、非仮想化の担当が implementation head から生成して publish する（Phase A snapshot と同じ扱い）。
 - PR: 未作成。作る場合も base は `develop`。
 
-**引継ぎ票 — 次は Phase B（実装）。** Phase A revision r3 を 2026-10-13 に凍結した（§5.9）。implementation base は `3f79639c12eac16da77d06608675564e906f9a49`。B は §3 の責務マップと §4 の順序で実装し、§2 の条件と §5.1 の起点 filter で確認する。
+**引継ぎ票 — 次は Phase C（発見 C、構造・契約レビュー）。** Phase A revision r3（2026-10-13 凍結、§5.9）を唯一の仕様とする。Phase B は 2026-10-13 に完了した。implementation base / head は `3f79639c12eac16da77d06608675564e906f9a49` / `c55891a498dc3ca99312533d3c9a23126e72fd0c`。§6 に実装、HANDOFF との差、C・owner へ渡す事実、未実行を記録した。
 
-- **実行環境:** B は非仮想化の host（owner の端末、Claude デスクトップ等）で行う。仮想化された host では、ストアを使う既存 suite の結果が §1.2 の分裂に影響されうるため。
-- **必要な権限:** sandbox 外での PowerShell 実行（offline suite の実行に必要な場合）。Unity・資格情報・R2 通信・実ストアへの合流は不要で、行わない。
-- **B でやらないこと:** 実ストアへの合流の実行（§5.5 の高コスト証拠。判定 C と暫定 C' の後に owner が manifest を承認してから行う）。Codex 側・実ストアの既存 file の変更・移動・削除。`credentials` の操作。AC4 / AC5 の実環境確認（Phase C の実行担当）。判定 C の照合 script の作成（§5.5 の A3 凍結 script は A3 後・C 前に用意する）。
-- **停止規則:** §4 の「Phase A へ差し戻す条件」に当たったら実装を止めて返す。新しい事実は `phases-and-handoff.md` の「新しい事実の分類」で分類する。
-- **B の出口:** `pwsh tools/contract-audit.ps1`、§5.1 の起点 filter の結果、§6 の実装結果、引継ぎ票と PR 状態ブロックを更新して push する。判定 C・C' は起動しない。
-- **引き渡さないもの:** C' に §5.7・§5.8 の所見や A3 の議論を渡さない。C' 用の担当は §5.6 で予約済み。
+- **担当:** Phase B と異なるモデルで、新しい session から始める。開始時に PR 状態ブロック（PR を作った場合）、本 §0、リモートの head を照合し、食い違えば引き継がない。
+- **実行環境:** 非仮想化の host（owner の端末、Claude デスクトップ等）。本スライスの入口は仮想化された host で `virtualized-store` を返す設計なので、仮想化された host では既存・新規 suite が成り立たない（AC4 の実環境確認だけは Codex 内で行う。§5.3）。
+- **次の作業:** 固定した base..head の差分を §3 の責務マップ・§2 の条件と照合する（構造レビューを先に）。差し戻し中の確認は §5.1 の起点 filter（`EvidenceCleanup.Tests.ps1` の前に `rg` を PATH へ通す）。§6「C・owner へ渡す事実」の ACL の件は、非仮想化の担当が `store plan`（両ストアとも変更しない）で実データの分類を見れば確かめられる。
+- **必要な権限:** sandbox 外での PowerShell 実行（offline suite）。Unity・資格情報・R2 通信は発見 C では不要。
+- **Evidence:** Phase A snapshot・Phase B result・evidence bundle は未生成・未保存。C / C' へ渡す時点で非仮想化の担当が作って publish する。
+- **やらないこと（判定 C まで）:** 実ストアへの合流の実行（§5.5 の高コスト証拠。判定 C と暫定 C' の後に owner が manifest を承認してから）。Codex 側・実ストアの既存 file の変更・移動・削除。`credentials` の操作。
+- **停止規則:** 阻害する指摘は凍結条件または常時契約への違反根拠を付けて B へ返す（`phases-and-handoff.md` の blocker の基準）。凍結条件の意味を変える判断が要れば Phase A の新しい revision にする。
+- **引き渡さないもの:** C' に §5.7・§5.8 の所見、A3 の議論、§6 の「HANDOFF との差」以外の C の所見を渡さない。C' 用の担当は §5.6 で予約済み。
 
 ### PR 状態ブロック（PR 作成時の写し）
 
 ```text
-状態: Phase A の完了（r3 凍結）。Phase B 未着手
-Phase A: revision r3（凍結）、commit <凍結 commit>
-implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / 未固定
-次の担当: Phase B（実装、非仮想化の host）。次の作業: §3・§4 の実装
+状態: Phase B の完了
+Phase A: revision r3（凍結）、commit 97145dc08a183e1f1893751f6a86925a3acda1da
+implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / c55891a498dc3ca99312533d3c9a23126e72fd0c
+次の担当: Phase C（発見 C、非仮想化の host）。次の作業: 構造・契約レビュー
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
 Evidence 取得案内: 未生成
-未決事項: なし（A3 で決定済み）
+未決事項: なし（A3 で決定済み）。HANDOFF §6 の「C・owner へ渡す事実」を参照
 ```
 
 ## 1. A0 — 目的、現況、対象外
@@ -322,7 +324,82 @@ A3 後の例外承認・決定記録はなし。凍結条件を変える判断�
 
 ## 6. Phase B 実装結果
 
-未着手
+- 実施日: 2026-10-13。開始時に、リモート head `97145dc08a183e1f1893751f6a86925a3acda1da` と本ファイルの内容 sha256 `c7259ad70ce241ed323a2169c4f5f82a2be4598206bfd2e6b286a6fa8342197f` の一致を確認した。§2.6 D1 と同じ方法（`OneStarMaker.StoreProbe` に `CreateNew` + `DeleteOnClose` の file を1回作り final path を論理 path と比較）で、この session が非仮想化であることを確認した（一致、残骸なし、事前に無かった probe 領域の directory は削除）。その後 `pwsh tools/workflow-task.ps1 start -Task artifacts-virtualized-store` で task を開始した（version 1）。
+- B では Artifact Storage の publish / fetch、資格情報、R2 への通信、実ストアと Codex 側の読取り・変更をしていない。テストは全て temp 配下の隔離 store で行い、実 LocalApplicationData に書いたのは判定 suite の native probe（probe 領域の DeleteOnClose file）だけである。
+
+### 実装
+
+| 対象 | 行数 | 内容 |
+|---|---|---|
+| 新規 `tools/Workflow/WindowsStoreContext.psm1` | 77 | `Get-OsmStoreContext` が `not-virtualized` / `virtualized` / `unknown` を返す。probe 領域に固有名の `.probe` を `CreateNew` + `DeleteOnClose` で開き、`GetFinalPathNameByHandleW` の結果を論理 path と比べて閉じる。作成・照会・close のどれが失敗しても `unknown`。private seam `$script:ProbeIo` は Open / FinalPath / Close の三つを一緒に差し替える。import 時は Add-Type だけで I/O をしない |
+| `tools/artifacts.ps1` | 154 → 175 | 引数解釈より前に判定し、`virtualized-store` / `store-context-unknown` を `status=failed`・exit 1 で返す（import 失敗も `unknown` 扱い）。`store plan` / `store consolidate` の grammar を追加（plan 0、consolidate は passed 0・partial 2・それ以外 1） |
+| `tools/workflow-task.ps1` | 66 → 70 | store module の import より前に同じ判定 |
+| `tools/harness.ps1` | 243 → 247 | 同上。判定 module だけを import し、Workflow の domain は読まない（D6） |
+| 新規 `tools/Artifacts/StoreConsolidationPlan.psm1` | 196 | 純粋関数。item key の正規化、JSON 文字列の参照検査（LocalCache・role 外・欠落）、task 単位と operation の union、deployment 単位への依存、target との比較（absent / identical / partial / conflict / acl-mismatch / reparse / source-unreadable）、保留の伝播、approved manifest の再照合（`Test-ConsolidationManifest`） |
+| 新規 `tools/Artifacts/StoreConsolidation.psm1` | 351 | 両側の棚卸し（除外領域は名前の列挙だけ）、manifest 候補の出力、承認 manifest の sha256 照合、run directory（lock・manifest の写し・journal・staging・単位 receipt）、staging への CreateNew → flush → SHA-256 照合 → ACL、非上書き rename による公開、Workflow 最後、`concurrent-writer` 検出、再実行の収束 |
+| 新規 suite 3本 | 205 + 30 / 148 / 321 | `tools/Workflow/tests/StoreContext.Tests.ps1`（+ 子 process fixture `StoreContextCliFixture.ps1`）13 case、`tools/Artifacts/tests/StoreConsolidationPlan.Tests.ps1` 15 case、`tools/Artifacts/tests/StoreConsolidation.Tests.ps1` 12 case |
+| 既存テストの追従 | 小 | `WorkflowCliFixture.ps1` が新しい import を許可し、`Get-OsmStoreContext` を記録付きで差し替える。`TaskLifecycle.Tests.ps1` の import 件数の期待を 5 → 6 にし、判定が最初の境界であることを確認する |
+| README 3件 | 約 +40 | Artifacts（実行条件・reasonCode、合流手順、責務と offline 検証）、Workflow・Harness（実行条件と参照） |
+
+受け入れ条件と検証の対応（offline 分）:
+
+| AC | 検証 |
+|---|---|
+| AC1 | `cli-virtualized-all-entries`: 三つの CLI の全入口 42 通り（artifacts 28、workflow-task 4、harness 10）を新しい process で実行し、最終 JSON・exit 1、store 境界（判定 module 以外の import と git）の呼出し0件、probe が probe 領域だけを開くこと、出力に実 path・package 名・user 名が無いことを確認 |
+| AC2 | `cli-unknown-failure-stages`（3 CLI × 作成・照会・close の失敗）と `decision-unknown-*` 4 case |
+| AC3 | `cli-decision-before-store`（非仮想化なら判定の後に store 境界へ進む）、`no-package-identity-input`、既存 suite の結果不変（下記） |
+| AC6 | `publish-skip-conflict`（A 公開、B skip、C は分岐した Workflow 履歴と違う Harness CURRENT で保留、run は partial、C の target 不変、source 不変） |
+| AC7 | `publish-skip-conflict` の全 file の hash 一致、`domain-readers-after-publish`（実 module で publish した記録を仮想化側へ移して合流し、`Read-WorkflowTaskState`・`Read-EvidenceTask`・`Get-WorkflowTasks` が実ストア側で読める） |
+| AC8 | `acl-rule-and-reparse`（公開先と作った directory の ACL、継承 ACL の同一 entry は `acl-mismatch`、source 内の junction と target 祖先の junction は `reparse`、junction 先へ書かない） |
+| AC9 | `excluded-never-opened`（credentials・builds-v1・contents-v1・runtime・evidence-ledgers・review-evidence・RevisionLocks・H2a Review・WorktreeRecords の sentinel を両側に置き、plan・実行の I/O 記録にそれらの配下が無い） |
+| AC10 | `fault-file-write`・`fault-staged`・`fault-between-items`・`fault-before-receipt`（再実行で passed、各公開先の move は全体で1回、run の staging だけを消す、receipt が残る、source 不変） |
+| AC12 | `hidden-until-workflow`（公開途中の `Get-WorkflowTasks` に task が出ない）、`concurrent-writer`（先に作られた Workflow task directory を変えずに `concurrent-writer`） |
+| AC13 | 計画 suite 15 case（reference-missing、LocalCache・role 外の拒否、共有 operation の結合、分岐の保留等） |
+| AC14 | `import-has-no-store-side-effects`（三つの CLI から推移的に import される 51 module の top-level を AST で検査し、宣言以外の実行文が無いこと。加えて判定が仮想化を返す状態で全 module を新しい process に import し、probe すら走らないこと） |
+
+### 実行したテスト（B の確認。判定 C の代わりではない）
+
+`rg` は cursor 同梱のものを PATH に通した。全て exit 0。
+
+| suite | 結果 |
+|---|---|
+| StoreContext.Tests（新規） | 13/13 |
+| StoreConsolidationPlan.Tests（新規） | 15/15 |
+| StoreConsolidation.Tests（新規） | 12/12 |
+| Workflow TaskLifecycle.Tests | 23/23 |
+| ArtifactEvidence.Tests | 19/19 |
+| EvidenceCleanup.Tests | 35、failed 0 |
+| Harness.Tests / UnityGate / UnityObservation / UnityTestRunner | 35 / 21 / 16 / 25、failed 0 |
+| 残りの Artifacts suite | ArtifactPackage 9、ArtifactRotation 11、ArtifactTransfer 20、BuildCleanup 23、BuildCollect 9、BuildPublish 9、BuildRetention 9、Content.Contract 9、Content.Fetch 5、Content.Publish 12、ContentCleanup 23、Credentials 22、EvidenceReset 31、EvidenceRetention 14、EvidenceSchedule 78、R2RouteTransport 7、RouteProof 26、全て failed 0（上の4本と合わせ Artifacts の全 21 suite） |
+
+機械検査: `pwsh tools/contract-audit.ps1`（errors 0、warnings 0、検査8 not-applicable）、`pwsh tools/docs-audit.ps1`（errors 0、warnings 0）、tools 配下の全 PowerShell 106 file の parse（errors 0）。3 project の Release build は suite 実行のために worktree 内で行った（成果物は git 管理外）。
+
+### HANDOFF との差（B 適応と読み方。設計判断の追加ではないと判断したもの）
+
+1. **`store plan` に `--output` を追加した。** §3 の grammar は仮称で、plan はストアを変更しないため、manifest 候補を両ストアの外の新しい file に CreateNew で書き、標準出力には sha256 と件数だけを出す。
+2. **判定は artifacts.ps1 の引数解釈より前。** 仮想化された process では未知の command も `virtualized-store` になる。
+3. **AC1・AC2 の「ストアの I/O seam」を、判定 module 以外の module import と git の呼出しとして観測した。** ストアの I/O は全て判定の後に import される module の中にあり、CLI 自身は判定の前にストアへ触れないため。
+4. **AC3 の identity の注入。** 判定は identity を入力に持たない（D1）ので注入する対象が無い。代わりに、判定 module と三つの入口に package identity API の参照が無いことを静的に確認し、実行した host の identity の有無を suite の結果 JSON に記録した。B の host は「identity あり（Store 版 PowerShell）で非仮想化」で、既存 suite の結果は変わらなかった。「identity 無しで非仮想化」の host は B では観測していない。
+5. **AC14 は静的検査を保証の本体にした。** .NET の file API を実行時に横取りする仕組みは無いため、module の top-level に宣言（Set-StrictMode、Import-Module、Export-ModuleMember、Join-Path、Add-Type、定数・script block の代入）以外が無いことを AST で検査し、import だけの動的確認を加えた。
+6. **deployment は独立した単位にした。** §2 の用語にある二種類の単位のとおり、deployment 単位（receipt と config の対）を task 単位より先に公開し、Evidence を含む task 単位はそれに依存する。依存先が保留なら task 単位も `dependency-held` で保留する。対の公開は receipt → config の順（registry は `*.config.json` を列挙するため）で、同一 bytes の片方だけがある状態は自分の中断として `partial` と扱い、再実行で残りを公開する。
+7. **transfers は記録が参照した operation だけを開く。** 参照されない operation は名前だけを `unreferenced-transfer` として除外に載せる（D4）。operation 内の記録が別の operation を参照する場合に備え、参照が増えなくなるまで繰り返す。
+8. **参照検査の対象 file。** 名前が `.json` か、内容が `{` / `[` で始まる file を JSON として検査する（Harness の `CURRENT.previous`、Workflow の `.tmp` 残骸を含む）。parse の失敗で保留（`source-invalid`）にするのは名前が `.json` の file だけ。
+9. **読めない source file（writer が開いたまま等）は `source-unreadable` で保留する。** 承認できる hash が無いため。
+10. **run の識別と再開。** runId は承認 manifest の sha256 の先頭 32 文字で、同じ manifest の再実行は同じ run directory を再開する。run directory にある manifest の写しが違えば `run-conflict`。dry-run は run directory も lock も作らない。一つの単位の失敗は run を止めず、単位ごとの結果に残す。
+11. **判定の比較は論理 path の文字列との比較のまま（D1 どおり）。** LocalApplicationData の path 自体に別名・junction がある host では、非仮想化でも `virtualized-store` になりうる（fail-closed 側）。B の host では一致した。
+
+### C・owner へ渡す事実（新しい事実の分類: 未確認のため B では判断しない）
+
+- **Harness と deployment receipt には、コード上の明示 ACL 規則が無い。** `RecordStore.psm1` は CURRENT・run を継承 ACL のまま書き、deployment receipt と config は tools の中に作成箇所が無く、読取り（`Read-EvidenceConfig`）も ACL を検査しない。I6・AC8・D2 (iii) を文字どおり実装したので、実ストアに継承 ACL のまま同一 bytes の Harness entry や deployment receipt があると `acl-mismatch` で保留し、Evidence task が参照する deployment receipt が実ストアにだけあって継承 ACL なら、その task 単位は `reference-missing` になる。後者が実データで起きると S4 の対象（DebugStudio property write の task）が保留になる。B は実ストアの ACL を読んでいないので、起きるかは未確認。判定 C の前後に非仮想化の担当が `store plan`（両ストアとも変更しない）を実行すれば、manifest の `reasons` で分かる。起きた場合、規則を変えるかは凍結条件（I6）の意味を変える判断なので Phase A の新しい revision になる。
+
+### 未実行
+
+- AC4・AC5（実環境。Phase C の実行担当）、AC11 / S4（高コスト証拠。判定 C・暫定 C' の後に owner が manifest を承認してから）、実ストアと Codex 側への `store plan`（B の範囲外）。
+- 判定必須テストの判定実行（Phase C）。Unity テスト・Build は本スライスに適用しない（§5.1）。Editor のコンパイル確認は Unity source を変えていないので対象外。
+- Phase B result snapshot・evidence bundle の生成と publish（依頼により B は Artifact Storage を操作していない。§0 参照）。
+
+- implementation head commit: c55891a498dc3ca99312533d3c9a23126e72fd0c
+- Phase B 担当・モデル・ベンダー: Claude Code（Claude Opus 5.5、Anthropic）。非仮想化の Claude デスクトップから実行した。
 
 ## 7. Phase C
 
