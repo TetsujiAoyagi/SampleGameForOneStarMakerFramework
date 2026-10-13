@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄には、各成果物の取得案内の引渡し先・担当と状態だけを書く。reference・期待packageSha256の実値、ローカルの実path、内部catalog/receiptの内容は転記しない。
 
 - type: `slice`
-- status: `C' 完了・AC4 不合格`（2026-10-13。C' は阻害する指摘 2 件（§8）。その後に取得した AC4 の実環境確認が不合格（§7.10）。owner の裁定でスパイクから行う（確定後に A 再開 / B 適応を分類）。r4 凍結までの経緯は §5.10〜§5.13、発見 C の記録は §7.1〜§7.8、判定 C は §7.9）
+- status: `C' 完了・AC4 不合格`（2026-10-13。C' は阻害する指摘 2 件（§8）。その後に取得した AC4 の実環境確認が不合格（§7.10）。スパイクで原因が確定（§7.11）。A 再開（r5）を推奨し、owner の確認待ち。r4 凍結までの経緯は §5.10〜§5.13、発見 C の記録は §7.1〜§7.8、判定 C は §7.9）
 - branch: `claude/artifacts-virtualized-store-a01`（`origin/develop` 起点）
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（A3 で `origin/develop` と一致を再確認済み）
 - Phase A revision: **`r4`（2026-10-13 凍結）**。凍結 commit は `77364220ecdd5f7894750744cdaa6e80d1d1dd62`、凍結時の本ファイルの内容 sha256 は `44174f89c23c9d7224b749ff7891397acce239bc04b2afed65156fd4be1aa4e3`（`git show <commit>:<本ファイル>` の bytes。この記入だけの直後の commit は含めない）。§1〜§5 が B の唯一の仕様。r3 からの変更点は §5.10、A2・A3・再レビューは §5.11〜§5.13。
@@ -21,7 +21,9 @@
 - Phase B result snapshot / 判定 evidence bundle / C' blind bundle の取得案内・状態: 保存済み（判定 C で publish。引渡し先: owner 手元の Git 管理外。取得側の別 session での閲覧確認は未了）。以下は判定 C 開始前の記述: 未生成。依頼により B は Artifact Storage を操作していない。判定 C / C' へ渡す時点で、非仮想化の担当が implementation head から生成して publish する（Phase A snapshot と同じ扱い）。
 - PR: 未作成。作る場合も base は `develop`。
 
-**引継ぎ票（owner 裁定後の更新）— 次はスパイク。** 2026-10-13、owner が「スパイクから行う」と裁定した。スパイクでは、Codex 内の実行担当が `Get-OsmStoreContext` を次の2状態で実行し、結果を記録する。(a) probe 領域の名前の directory が実体側にだけある状態（期待: 誤って `not-virtualized`）。(b) 両側とも無い状態（期待: `virtualized`）。既存の `OneStarMaker.StoreProbe` は消さず、スパイク専用の一意な名前の directory を使う。Codex 側の `OneStarMaker` 配下と §7.10 の残骸には触れない。スパイクで実装は変えない。結果が出たら A 再開 / B 適応を分類する。C' 用の作業 worktree は削除し、`evidence use` の保護は release した。AC4 の生証拠のある worktree は残している。
+**引継ぎ票（スパイク後の更新）— 次は Phase A revision r5。** スパイク（§7.11）で原因が確定した。分類は A 再開を推奨する（owner の確認待ち）。r5 で決めること: (1) 実体側・Codex 側のどちらかにだけ directory が残っていても誤らない判定方式と、その後始末。(2) I1 の probe 領域の範囲の書き直し。(3) 偽の `not-virtualized` を防ぐ受け入れ条件。§7.11 の状態 (a) を offline と実環境の両方で再現する。(4) Claude デスクトップ内の子 process ごとの仮想化の違い（§7.11 の副次の観測）を D1 の前提に加えるか。(5) 動作確認（PR #125 で提案中の Phase B 後のステップ）を本スライスに適用するか。B と発見 C を経て、判定 C・C' 2 巡目・AC4・AC5 を新しい GO 候補 head で取り直す。§7.10 の Codex 側の残骸は削除しない。AC4 用 worktree は証拠の原 source として残す。
+
+**引継ぎ票（owner 裁定後の更新。記録として残す）— 次はスパイク。** 2026-10-13、owner が「スパイクから行う」と裁定した。スパイクでは、Codex 内の実行担当が `Get-OsmStoreContext` を次の2状態で実行し、結果を記録する。(a) probe 領域の名前の directory が実体側にだけある状態（期待: 誤って `not-virtualized`）。(b) 両側とも無い状態（期待: `virtualized`）。既存の `OneStarMaker.StoreProbe` は消さず、スパイク専用の一意な名前の directory を使う。Codex 側の `OneStarMaker` 配下と §7.10 の残骸には触れない。スパイクで実装は変えない。結果が出たら A 再開 / B 適応を分類する。C' 用の作業 worktree は削除し、`evidence use` の保護は release した。AC4 の生証拠のある worktree は残している。
 
 **引継ぎ票（C' 完了後の更新。記録として残す）— 次は owner の分類の裁定。** C' は 1 巡目で阻害する指摘 2 件（AC4・AC5 の実環境証拠の欠落、§8）。続けて取得した AC4 は Codex 内で不合格だった。4 入口とも `virtualized-store` を返さず、Codex 側に transfers の operation directory が作られた（§7.10）。原因は probe 領域の directory の残存による誤判定と推定している（未検証）。owner は次を決める。(1) 原因を確かめるスパイクを行うか。(2) 確定後に A 再開（D1・I1 の probe 配置を変える revision r5）とするか、B 適応とするか。どちらでも head が変わるので、判定 C・C'（2 巡目）・AC4・AC5 は新しい GO 候補 head で取り直す。C' の指摘による差し戻しは、これを返すと 1 巡目になる（上限 3 巡）。§7.10 の Codex 側の残骸は削除しない。
 
@@ -54,7 +56,7 @@
 状態: Phase C' 完了（阻害する指摘あり）。AC4 の実環境確認が不合格
 Phase A: revision r4（凍結）、commit 77364220ecdd5f7894750744cdaa6e80d1d1dd62
 implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / 741444dda79263d18f2c5c0fe2891e66a4f5add8
-次の担当: スパイク（Codex 内の実行担当。probe の誤判定の原因確認）→ A 再開 / B 適応の分類
+次の担当: owner の分類確認 → Phase A revision r5（スパイクで probe の誤判定の原因が確定。A 再開を推奨）
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
 Evidence 取得案内: 保存済み（引渡し先: owner 手元の Git 管理外）。取得側の別 session での閲覧確認は未了
 未決事項: なし（保留した単位の扱い・取得の回復・実ストアへの合流は後続 Split Store Recovery）
@@ -865,6 +867,24 @@ Release DLL を既存 loader の出力先（`Packaging/artifacts/package`、`Tra
 - **残骸:** fetch が作った A の operation directory と `operation.lock` は、Codex 側の既存 file を変更・削除しない契約（§0 のやらないこと）に従い、残している。
 - **証拠:** 生の出力と前後の一覧・差分は、AC4 用 worktree の Git 管理外（`TestResults\ac4\`）にある。未保存（publish していない）・引渡し未完了。worktree は削除していない。
 - **AC5:** 未実施。head が変わる見込みなので、次の GO 候補 head で取得する。
+
+### 7.11 スパイク（§7.10 の誤判定の原因確認、2026-10-14）
+
+owner の裁定でスパイクから行った。実装は変えていない。
+
+- **方法:** Codex 内の実行担当（PowerShell 7、承認済みの sandbox 外経路、AC4 と同じ worktree・head `741444d`）が、`WindowsStoreContext.psm1` を読み込み、モジュール内の probe 領域名だけをスパイク専用の一意な名前に差し替えて、`Get-OsmStoreContext` を1回ずつ実行した。既存の `OneStarMaker.StoreProbe` と、Codex 側の `OneStarMaker` 配下には触れていない。状態の準備と後始末は、非仮想化の担当（Claude Code の pwsh）が行った。
+- **結果:**
+
+| 状態 | 実体側 | Codex 側 LocalCache | Codex 内の判定 |
+|---|---|---|---|
+| (b) 両側とも無い | 無し | 無し | `virtualized` |
+| (a) 実体側にだけある | 有り（空） | 無し | **`not-virtualized`** |
+
+  (a) の実行後も、Codex 側 LocalCache に directory は作られなかった。probe file は実体側の directory に作られ、`DeleteOnClose` で消えた（entry 数 0 のまま）。
+- **結論:** 仮説は確定した。probe 領域の directory が実体側にだけあると、Codex 内の probe は実体側へ書かれ、final path が論理 path と一致して `not-virtualized` と誤判定する。現在の実装は probe 領域の directory を残すので、非仮想化の実行が一度でも起きれば、それ以後 Codex 内の判定は誤る。§5.4 の疎通は両側とも無い状態だけを見ていた。
+- **新しい事実の分類（推奨。owner の確認待ち）:** **A 再開**。凍結した D1 の判定方式（probe 領域の配置と後始末）と、I1 の「判定の書込みは probe 領域だけに限る」の範囲を変える必要があり、fail-closed の契約に関わる。B 適応の範囲を超える。Phase A revision r5 で、判定方式と、この状態を再現する受け入れ条件（例: 実体側にだけ probe 領域がある状態で `virtualized` を返すこと）を決める。
+- **副次の観測（r5 の入力）:** 状態 (a) の最初の準備で、Claude デスクトップの Bash ツール（Git Bash）から `mkdir` で作った directory は、実体側ではなく Claude の package の LocalCache に入った。その Bash から起動した pwsh（Store 版）は実体側を見ていて、その directory は見えなかった。Claude デスクトップ内でも、子 process によって仮想化の有無が違う。§5.4 の「Claude 内は非仮想化」は pwsh についてだけ成り立つ。この誤った準備による1回目の (a) の観測は無効として扱い、上の表には含めていない（(b) は1回目の有効な観測）。
+- **後始末:** スパイク用の directory は、実体側・Codex 側とも削除した。生の出力は AC4 用 worktree の Git 管理外（`TestResults\spike\`、`TestResults\spike2\`）にある。未保存・引渡し未完了。
 
 ## 8. Phase C'
 
