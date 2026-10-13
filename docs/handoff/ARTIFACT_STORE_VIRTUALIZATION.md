@@ -8,7 +8,7 @@
 - status: `A`（2026-10-13、owner の裁定で Phase A を r4 として再開。r4 は A2・A3・統合差分の再レビューを経て凍結。次は B（r4 の追加分と前巡の戻し項目）。発見 C 再レビュー（差し戻し1巡目、先行）までの記録は §7 に残す。判定 C 未着手）
 - branch: `claude/artifacts-virtualized-store-a01`（`origin/develop` 起点）
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（A3 で `origin/develop` と一致を再確認済み）
-- Phase A revision: **`r4`（2026-10-13 凍結）**。凍結 commit は `（次の commit で記入）`、凍結時の本ファイルの内容 sha256 は `（次の commit で記入）`。§1〜§5 が B の唯一の仕様。r3 からの変更点は §5.10、A2・A3・再レビューは §5.11〜§5.13。
+- Phase A revision: **`r4`（2026-10-13 凍結）**。凍結 commit は `77364220ecdd5f7894750744cdaa6e80d1d1dd62`、凍結時の本ファイルの内容 sha256 は `44174f89c23c9d7224b749ff7891397acce239bc04b2afed65156fd4be1aa4e3`（`git show <commit>:<本ファイル>` の bytes。この記入だけの直後の commit は含めない）。§1〜§5 が B の唯一の仕様。r3 からの変更点は §5.10、A2・A3・再レビューは §5.11〜§5.13。
 - 直前の凍結 revision: `r3`（凍結）。凍結 commit は `97145dc08a183e1f1893751f6a86925a3acda1da`（Phase B が `git log` で確認し、PR 状態ブロックへ転記した）。凍結時の本ファイルの内容 sha256 は `c7259ad70ce241ed323a2169c4f5f82a2be4598206bfd2e6b286a6fa8342197f`。
 - implementation head commit: `808991618373b0bf56d2cb6b04faf40e050a1f1a`（差し戻し1巡目の修正後。§0 をこの状態にした commit で、直後のレビュー記録 commit は含めない）。初回の Phase B 完了時は `c55891a498dc3ca99312533d3c9a23126e72fd0c`。HANDOFF にレビュー結果だけを追記した commit は含めない。
 - risk: `high`（永続ストアの所有境界、fail-closed 契約の追加、既存記録の移送、資格情報領域に隣接）
@@ -44,7 +44,7 @@
 
 ```text
 状態: Phase A r4 凍結。Phase B（差し戻し2巡目）未着手。判定 C 未着手
-Phase A: revision r4（凍結）、commit （次の commit で記入）
+Phase A: revision r4（凍結）、commit 77364220ecdd5f7894750744cdaa6e80d1d1dd62
 implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / 808991618373b0bf56d2cb6b04faf40e050a1f1a
 次の担当: Phase B（r4 の追加分と前巡の戻し項目 1件）。次に発見 C 再レビュー → 判定 C → C'
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
