@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄には、各成果物の取得案内の引渡し先・担当と状態だけを書く。reference・期待packageSha256の実値、ローカルの実path、内部catalog/receiptの内容は転記しない。
 
 - type: `slice`
-- status: `Phase B 完了（r5 の追加分、head f97edf0）`。次は動作確認（D8: AC4・AC5）→ 発見 C。（2026-10-14 に owner が A 再開を確定し、同日 r5 を凍結した（§5.16）。経緯: C' の阻害指摘 2 件（§8）→ AC4 の実環境確認が不合格（§7.10）→ スパイクで原因が確定（§7.11）。r5 の変更点は §5.14。r4 凍結までの経緯は §5.10〜§5.13、発見 C の記録は §7.1〜§7.8、判定 C は §7.9）
+- status: `動作確認（D8）完了（r5 の B の head f97edf0、期待と一致）`。次は発見 C。（2026-10-14 に owner が A 再開を確定し、同日 r5 を凍結した（§5.16）。経緯: C' の阻害指摘 2 件（§8）→ AC4 の実環境確認が不合格（§7.10）→ スパイクで原因が確定（§7.11）。r5 の変更点は §5.14。r4 凍結までの経緯は §5.10〜§5.13、発見 C の記録は §7.1〜§7.8、判定 C は §7.9）
 - branch: `claude/artifacts-virtualized-store-a01`（`origin/develop` 起点）
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（A3 で `origin/develop` と一致を再確認済み）
 - Phase A revision: **`r5`（2026-10-14 凍結）**。凍結 commit と内容 sha256 は凍結直後の commit で記入する（下の行）。§1〜§5 が B の唯一の仕様。r4 からの変更点は §5.14（A3 の統合は §5.15）、A2・A3 は §5.15・§5.16。
@@ -22,8 +22,25 @@
 - Phase A snapshot の取得案内・状態: 保存済み（判定 C で publish。引渡し先: owner 手元の Git 管理外。取得側の別 session での閲覧確認は未了）。以下は判定 C 開始前の記述: 未保存。owner の指示で、Phase A では Artifact Storage を操作していない。Phase B の固定入力は、凍結 commit の本ファイル（git で到達可能）とする。C / C' へ渡す時点で、非仮想化の担当が凍結 commit から所見を除いた snapshot を作り、通常どおり publish する。
 - Phase B result snapshot / 判定 evidence bundle / C' blind bundle の取得案内・状態: 保存済み（判定 C で publish。引渡し先: owner 手元の Git 管理外。取得側の別 session での閲覧確認は未了）。以下は判定 C 開始前の記述: 未生成。依頼により B は Artifact Storage を操作していない。判定 C / C' へ渡す時点で、非仮想化の担当が implementation head から生成して publish する（Phase A snapshot と同じ扱い）。
 - PR: 未作成。作る場合も base は `develop`。
+- 決定記録（A3 後）: 下の DR1・DR2（版 1、2026-10-14、owner）。
 
-**引継ぎ票（r5 の Phase B 完了）— 次は動作確認（D8）。** B は r5 の追加分を head `f97edf0` で実装し、§5.1 の起点 filter を全て通した（§6「r5 の実装」「r5 の確認結果」）。B の段階で A へ差し戻す条件（§4）には当たらなかった。
+**決定記録（A3 後。Phase A の snapshot ではない別の記録。凍結条件の意味・合否を変えない読み方と運用の確定）**
+
+- **DR1（版 1、2026-10-14、適用: 判定 C の AC5 から）— AC5 の「既存どおりの reasonCode」の基準。** 同じ読取り系コマンドを、同じ host・同じ Store 版 pwsh で implementation base `3f79639`（判定を入れる前）でも実行し、対象 head の結果と reasonCode・exit・出力の種類（JSON の reasonCode、または reasonCode を出さないコマンドの文の種類）が同じであることを「既存どおり」とする。理由: §5.3 は比較の基準を書いておらず、harness の2コマンドは reasonCode を出力しない。I3 の「挙動を変えない」の比較対象は変更前の挙動なので、base での実行が凍結条件の意味どおりの基準である。合否の対象と範囲は変えない。C' 用決定記録には含めない（C' の前巡の指摘への裁定ではない）。base での実行結果は判定 evidence に入る。
+- **DR2（版 1、2026-10-14、適用: 判定 C の AC4 から）— AC4 の実行権限。** Codex 内の4入口は、まず通常の経路で owner の承認を求めて実行する。実行環境の審査がそれを通さない場合は、owner が Codex をフルアクセスに切り替え、4入口を同じ設定で続けて実行し直す（一部の入口だけを別の設定で実行しない）。どちらで実行したかを evidence に記録する。理由: D8 で `evidence publish` が承認後も審査で拒否された。権限設定は owner 自身の判断で、エージェントによる迂回ではない。フルアクセスでも Codex の package 内の process なので、AC4 の前提（仮想化された process）は変わらない。
+
+**引継ぎ票（動作確認（D8）完了）— 次は発見 C。** D8 の AC4・AC5 は期待と一致し、B への戻しは無かった（§6「動作確認」）。発見 C は head `f97edf0` の r5 の差分（`741444d..f97edf0`）を中心に行う。B と発見 C の往復は r4 までに2巡を消費（上限 4 巡）。r5 凍結時の引継ぎ票の「その後」「やらないこと」「引き渡さないもの」は引き続き有効。
+
+- **判定 C の AC4・AC5 の取り直しへの申し送り（D8 で分かった証拠の限界。手順は判定 C の担当が作る。B は書かない）:**
+  1. 一覧（before）→ 事前実行 → 4入口 → 一覧（after）の順を、時刻つきで1つのログに残す。before は全コマンドより前に取る。
+  2. 残骸（呼出しごとの probe directory と `*.probe`）の確認は、全コマンドの後に実体側・Codex 側の両方で取る。
+  3. 最初に、コマンド文、`git rev-parse HEAD`、pwsh の版、sandbox とアクセスの設定（DR2 のどちらか）を保存する。
+  4. 一覧の各 root の定義（論理 path の組み立て方）を出力の先頭に書く。
+  5. 事前実行の直後に、4入口を同じ権限設定で続けて実行する（DR2）。
+  6. AC5 は DR1 のとおり base `3f79639` でも同じコマンドを実行し、並べて記録する。
+- **D8 の観測の扱い:** 判定 C の代わりにしない。比較の記録（§6「動作確認」）は C' の blind bundle に入れない。
+
+**引継ぎ票（r5 の Phase B 完了。記録として残す）— 次は動作確認（D8）。** B は r5 の追加分を head `f97edf0` で実装し、§5.1 の起点 filter を全て通した（§6「r5 の実装」「r5 の確認結果」）。B の段階で A へ差し戻す条件（§4）には当たらなかった。
 
 - **動作確認の担当:** 手順を渡し、期待と比較するのは非 B の担当（owner または owner が指名した session）。実行担当は AC4 が Codex 内、AC5 が Claude 内の Store 版 pwsh（Bash ツールから状態を作らない・確かめない）。どちらも手順だけを実行し、生の観測を残し、合否を判断しない。
 - **対象 head と初期状態:** `f97edf0` を checkout した worktree。AC4 の初期状態は §2.3 AC4・§5.3（固定名 `OneStarMaker.StoreProbe` が実体側にあり Codex 側に無い。B の完了時点で実体側に残っている。直前に非仮想化の担当が同じ4入口を1回ずつ実行）。AC5 は実行の前後で実体側の呼出しごとの probe directory の件数を記録する（B の完了時点で0件）。
@@ -87,10 +104,11 @@
 ### PR 状態ブロック（PR 作成時の写し）
 
 ```text
-状態: Phase B 完了（r5 の追加分）。次は動作確認（D8: AC4・AC5）
+状態: 動作確認（D8）完了（期待と一致）。次は発見 C
 Phase A: revision r5（凍結）、commit 348a491282242ec3e88ac717c913b8c1e5141621
 implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / f97edf07b4fbdfbf92260835e5a8d9752bedd07b
-次の担当: 動作確認（D8: AC4・AC5、比較は非 B の担当）→ 発見 C
+決定記録: DR1（AC5 の基準は base 比較）・DR2（AC4 の実行権限）、版 1
+次の担当: 発見 C → 判定 C（AC4・AC5 を取り直す）→ C' 2 巡目
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
 Evidence 取得案内: 保存済み（引渡し先: owner 手元の Git 管理外）。取得側の別 session での閲覧確認は未了
 未決事項: なし（保留した単位の扱い・取得の回復・実ストアへの合流は後続 Split Store Recovery）
@@ -800,7 +818,16 @@ Release DLL を既存 loader の出力先（`Packaging/artifacts/package`、`Tra
 
 ### 動作確認（D8、B の完了 head）
 
-未実施。実行担当（AC4: Codex 内、AC5: Claude 内の Store 版 pwsh）は手順だけを実行して生の観測を残す。§5.3 の期待との比較は、手順を渡した非 B の担当が行い、比較の結果と生の観測の保存先をこの欄に書く。比較の記録は C' の blind bundle に入れない。
+2026-10-14 実施。期待との比較は非 B の担当（Claude デスクトップの新しい session）が行い、その下書きを owner の指示で B の session がこの欄へ写した（B は比較の判断をしていない）。比較の記録は C' の blind bundle に入れない。
+
+- **実行担当・環境:** AC5 と AC4 の事前実行は Claude デスクトップ内の Store 版 pwsh 7.6.6（LocalAppData は実体側）。AC4 は Codex 内の PowerShell 7.6.5（承認済みの sandbox 外経路）。cmd2（`evidence publish`）の再実行は、owner が Codex をフルアクセスに切り替えた状態で行った（実行環境の詳細は未記録）。
+- **観測の保存先:** worktree `OSM-wt-virtstore-d8`（head `f97edf0`、detached）の Git 管理外 `TestResults\d8\claude\`（事前実行、AC5、実体側の一覧）と `TestResults\d8\codex\`（AC4）。未保存（publish していない）。
+- **cmd2 の経緯:** 1回目と、owner の承認後の2回目は、Codex の実行環境の審査で実行前に拒否された（理由: publish の送信内容と送信先を確認できない）。どちらも未実行。owner がフルアクセスに切り替えた再実行で `virtualized-store`、exit 1。迂回の実行はしていない。
+- **AC4（一致）:** 4コマンドとも最終 JSON は `{"status":"failed","reasonCode":"virtualized-store"}`、exit 1。初期状態（固定名が実体側にあり Codex 側に無い）と事前実行を確認した。Codex 側 `OneStarMaker` の前後一覧は完全一致（17086 件）。`*.probe` の残留なし。呼出しごとの probe directory は Codex 側・実体側とも新しく残っていない（実体側の件数 0）。
+- **AC4 の観測上の弱点（不一致ではなく証拠の限界）:** ① 事前一覧（before）の取得が cmd1・cmd3・cmd4 の実行より後（補足: Codex 側 `OneStarMaker` の最新の更新時刻は 2026-10-13 で、実行中に作られた entry は残っていない。cmd2 の再実行は前後を正しく取った）。② cmd2 の残骸確認は再実行の前で、再実行後は after.cmd2 と実体側の一覧で代替した。③ Codex 側のコマンド文と HEAD を保存していない。④ 一覧の root（A/B/L）の定義を保存していない（比較担当は推定で読んだ）。⑤ cmd2 は事前実行から約27分後で、他の3コマンドと権限設定が違う。
+- **AC5（記録）:** `workflow-task.ps1 status`: exit 0、`status: ok`、reasonCode なし。`harness.ps1 status`: exit 0、reasonCode の出力なし（task なし）。`harness.ps1 current -Task artifact-evidence-lifecycle`: exit 1、reasonCode の出力なし（CURRENT なし）。いずれも `virtualized-store` / `store-context-unknown` ではない。呼出しごとの probe directory の件数は前 0、後 0（合否に使わない）。
+- **未解決だった点:** 「既存どおりの reasonCode」の基準が §5.3 に無い。owner が決定記録 DR1 で読み方を確定した（§0）。
+- **B への戻し:** なし（期待と違う点は無かった）。上の弱点①〜⑤と AC5 の基準は、判定 C の AC4・AC5 の取り直しへの申し送りにした（§0 の引継ぎ票）。
 
 ### 未実行
 
