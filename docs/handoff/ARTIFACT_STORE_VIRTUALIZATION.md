@@ -5,14 +5,14 @@
 このtracked文書の全Phase欄には、各成果物の取得案内の引渡し先・担当と状態だけを書く。reference・期待packageSha256の実値、ローカルの実path、内部catalog/receiptの内容は転記しない。
 
 - type: `slice`
-- status: `A3 完了（r5 凍結）`。次は Phase B（r5 の追加分）。（2026-10-14 に owner が A 再開を確定し、同日 r5 を凍結した（§5.16）。経緯: C' の阻害指摘 2 件（§8）→ AC4 の実環境確認が不合格（§7.10）→ スパイクで原因が確定（§7.11）。r5 の変更点は §5.14。r4 凍結までの経緯は §5.10〜§5.13、発見 C の記録は §7.1〜§7.8、判定 C は §7.9）
+- status: `Phase B 完了（r5 の追加分、head f97edf0）`。次は動作確認（D8: AC4・AC5）→ 発見 C。（2026-10-14 に owner が A 再開を確定し、同日 r5 を凍結した（§5.16）。経緯: C' の阻害指摘 2 件（§8）→ AC4 の実環境確認が不合格（§7.10）→ スパイクで原因が確定（§7.11）。r5 の変更点は §5.14。r4 凍結までの経緯は §5.10〜§5.13、発見 C の記録は §7.1〜§7.8、判定 C は §7.9）
 - branch: `claude/artifacts-virtualized-store-a01`（`origin/develop` 起点）
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（A3 で `origin/develop` と一致を再確認済み）
 - Phase A revision: **`r5`（2026-10-14 凍結）**。凍結 commit と内容 sha256 は凍結直後の commit で記入する（下の行）。§1〜§5 が B の唯一の仕様。r4 からの変更点は §5.14（A3 の統合は §5.15）、A2・A3 は §5.15・§5.16。
 - r5 の凍結 commit / 内容 sha256: `348a491282242ec3e88ac717c913b8c1e5141621` / `92c48bf0f47063372b54f36fcb72ad3646aade5f9478462bb6ee7c3f2271c8bd`（`git show <commit>:<本ファイル>` の bytes。この記入だけの直後の commit は含めない）
 - 直前の凍結 revision: **`r4`（2026-10-13 凍結）**。凍結 commit は `77364220ecdd5f7894750744cdaa6e80d1d1dd62`、凍結時の本ファイルの内容 sha256 は `44174f89c23c9d7224b749ff7891397acce239bc04b2afed65156fd4be1aa4e3`（`git show <commit>:<本ファイル>` の bytes。この記入だけの直後の commit は含めない）。§1〜§5 が B の唯一の仕様。r3 からの変更点は §5.10、A2・A3・再レビューは §5.11〜§5.13。
 - その前の凍結 revision: `r3`（凍結）。凍結 commit は `97145dc08a183e1f1893751f6a86925a3acda1da`（Phase B が `git log` で確認し、PR 状態ブロックへ転記した）。凍結時の本ファイルの内容 sha256 は `c7259ad70ce241ed323a2169c4f5f82a2be4598206bfd2e6b286a6fa8342197f`。
-- implementation head commit: `741444dda79263d18f2c5c0fe2891e66a4f5add8`（差し戻し2巡目の修正。r4 の追加分と §7.7 の戻し項目を一つの commit にまとめた。直後の §0 だけを更新した commit は含めない）。差し戻し1巡目の修正後は `808991618373b0bf56d2cb6b04faf40e050a1f1a`、初回の Phase B 完了時は `c55891a498dc3ca99312533d3c9a23126e72fd0c`。HANDOFF にレビュー結果だけを追記した commit は含めない。
+- implementation head commit: `f97edf07b4fbdfbf92260835e5a8d9752bedd07b`（r5 の追加分。§6「r5 の実装」。直後の §0 だけを更新した commit は含めない）。r4 の head は `741444dda79263d18f2c5c0fe2891e66a4f5add8`（差し戻し2巡目の修正。r4 の追加分と §7.7 の戻し項目を一つの commit にまとめた。直後の §0 だけを更新した commit は含めない）。差し戻し1巡目の修正後は `808991618373b0bf56d2cb6b04faf40e050a1f1a`、初回の Phase B 完了時は `c55891a498dc3ca99312533d3c9a23126e72fd0c`。HANDOFF にレビュー結果だけを追記した commit は含めない。
 - risk: `high`（永続ストアの所有境界、fail-closed 契約の追加、既存記録の移送、資格情報領域に隣接）
 - owner: リポジトリ owner（依頼者）
 - created: 2026-10-12
@@ -23,7 +23,14 @@
 - Phase B result snapshot / 判定 evidence bundle / C' blind bundle の取得案内・状態: 保存済み（判定 C で publish。引渡し先: owner 手元の Git 管理外。取得側の別 session での閲覧確認は未了）。以下は判定 C 開始前の記述: 未生成。依頼により B は Artifact Storage を操作していない。判定 C / C' へ渡す時点で、非仮想化の担当が implementation head から生成して publish する（Phase A snapshot と同じ扱い）。
 - PR: 未作成。作る場合も base は `develop`。
 
-**引継ぎ票（r5 凍結）— 次は Phase B（r5 の追加分）。** Phase A revision r5（2026-10-14 凍結、§5.16）の §1〜§5 を唯一の仕様とする。
+**引継ぎ票（r5 の Phase B 完了）— 次は動作確認（D8）。** B は r5 の追加分を head `f97edf0` で実装し、§5.1 の起点 filter を全て通した（§6「r5 の実装」「r5 の確認結果」）。B の段階で A へ差し戻す条件（§4）には当たらなかった。
+
+- **動作確認の担当:** 手順を渡し、期待と比較するのは非 B の担当（owner または owner が指名した session）。実行担当は AC4 が Codex 内、AC5 が Claude 内の Store 版 pwsh（Bash ツールから状態を作らない・確かめない）。どちらも手順だけを実行し、生の観測を残し、合否を判断しない。
+- **対象 head と初期状態:** `f97edf0` を checkout した worktree。AC4 の初期状態は §2.3 AC4・§5.3（固定名 `OneStarMaker.StoreProbe` が実体側にあり Codex 側に無い。B の完了時点で実体側に残っている。直前に非仮想化の担当が同じ4入口を1回ずつ実行）。AC5 は実行の前後で実体側の呼出しごとの probe directory の件数を記録する（B の完了時点で0件）。
+- **比較の記録:** §6「動作確認（D8、B の完了 head）」に書く。期待と違えば発見 C を待たずに B へ戻す。比較の記録は C' の blind bundle に入れない。判定 C では同じ head でも AC4・AC5 を取り直す。
+- **その後:** 発見 C（B と発見 C の往復は r4 までに2巡を消費、上限 4 巡）→ 判定 C → C' 2 巡目。下の r5 凍結時の引継ぎ票の「その後」「やらないこと」「引き渡さないもの」は引き続き有効。
+
+**引継ぎ票（r5 凍結。記録として残す）— 次は Phase B（r5 の追加分）。** Phase A revision r5（2026-10-14 凍結、§5.16）の §1〜§5 を唯一の仕様とする。
 
 - **B の担当:** 新しい session。非仮想化の host（Claude デスクトップ等）で行う。モデルは固定しないが、判定 C を B と異なるモデルで行えるように選ぶ。C' 用に予約した系列（cursor-agent の Grok 系）は使わない。開始時に、リモートの head、本 §0、r5 の凍結 commit と内容 sha256、§1〜§5 と凍結 commit の同一性を照合し、食い違えば始めない。
 - **B の作業場所と実行環境:**
@@ -80,10 +87,10 @@
 ### PR 状態ブロック（PR 作成時の写し）
 
 ```text
-状態: Phase A 完了（revision r5 凍結）。次は Phase B（r5 の追加分）
+状態: Phase B 完了（r5 の追加分）。次は動作確認（D8: AC4・AC5）
 Phase A: revision r5（凍結）、commit 348a491282242ec3e88ac717c913b8c1e5141621
-implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / 741444dda79263d18f2c5c0fe2891e66a4f5add8
-次の担当: Phase B（r5 の追加分）→ 動作確認（D8: AC4・AC5）→ 発見 C
+implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / f97edf07b4fbdfbf92260835e5a8d9752bedd07b
+次の担当: 動作確認（D8: AC4・AC5、比較は非 B の担当）→ 発見 C
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
 Evidence 取得案内: 保存済み（引渡し先: owner 手元の Git 管理外）。取得側の別 session での閲覧確認は未了
 未決事項: なし（保留した単位の扱い・取得の回復・実ストアへの合流は後続 Split Store Recovery）
