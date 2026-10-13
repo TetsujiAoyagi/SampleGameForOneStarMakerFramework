@@ -7,6 +7,10 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
+# A virtualized AppData write would split the store. Decide before any store
+# module import or Workflow guard; an undecidable context also stops here.
+try{Import-Module (Join-Path $PSScriptRoot 'Workflow/WindowsStoreContext.psm1');$storeContext=Get-OsmStoreContext}catch{$storeContext='unknown'}
+if($storeContext -cne 'not-virtualized'){[ordered]@{status='failed';reasonCode=$(if($storeContext -ceq 'virtualized'){'virtualized-store'}else{'store-context-unknown'})} | ConvertTo-Json -Compress;exit 1}
 Import-Module (Join-Path $PSScriptRoot 'Workflow/TaskEventStore.psm1')
 Import-Module (Join-Path $PSScriptRoot 'Workflow/TaskLifecycle.psm1')
 Import-Module (Join-Path $PSScriptRoot 'Artifacts/EvidenceContract.psm1')

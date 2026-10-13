@@ -3,6 +3,10 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 try {
+    # 仮想化されたAppDataでストアへ書くと、別の実体へ黙って分裂する。引数の解釈・
+    # store moduleのimport・資格情報の読取りより前に判定し、判定不能も止める。
+    try{Import-Module (Join-Path $PSScriptRoot 'Workflow/WindowsStoreContext.psm1');$storeContext=Get-OsmStoreContext}catch{$storeContext='unknown'}
+    if($storeContext -cne 'not-virtualized'){[Console]::WriteLine((ConvertTo-Json -Compress -InputObject ([ordered]@{status='failed';reasonCode=$(if($storeContext -ceq 'virtualized'){'virtualized-store'}else{'store-context-unknown'})})));exit 1}
     if ($Arguments.Count -lt 4) { throw 'Invalid command.' }
     # BuildはEvidenceと独立したgrammar。成功記録の寿命と引数の意味を混同しない。
     # オプション名の字種を許しても、必要fieldの完全一致で未知引数を拒否する。

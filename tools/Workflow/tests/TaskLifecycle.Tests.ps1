@@ -30,7 +30,7 @@ function Test-PublicResume([string]$Mode,[int]$ExpectedExit){
         Assert (@($json.deletedArtifacts).Count -eq 2 -and $json.deletedArtifacts[0] -ceq ('a'*32) -and $json.deletedArtifacts[1] -ceq ('b'*32)) 'public CLI lost or duplicated payload IDs'
         Assert ($json.result.version -eq 3 -and $json.result.kind -ceq 'resumed') 'public CLI lost committed event'
         $calls=@([IO.File]::ReadAllLines($callsPath))
-        Assert (@($calls|Where-Object {$_ -like 'import:*'}).Count -eq 5 -and @($calls|Where-Object {$_ -ceq 'preflight'}).Count -eq 2 -and @($calls|Where-Object {$_ -ceq 'sync'}).Count -eq 2 -and @($calls|Where-Object {$_ -ceq 'transition'}).Count -eq 1 -and $calls -ccontains 'dispose') 'public CLI did not use isolated boundaries'
+        Assert (@($calls|Where-Object {$_ -like 'import:*'}).Count -eq 6 -and $calls[0] -ceq 'import:WindowsStoreContext.psm1' -and $calls[1] -ceq 'store-context' -and @($calls|Where-Object {$_ -ceq 'preflight'}).Count -eq 2 -and @($calls|Where-Object {$_ -ceq 'sync'}).Count -eq 2 -and @($calls|Where-Object {$_ -ceq 'transition'}).Count -eq 1 -and $calls -ccontains 'dispose') 'public CLI did not use isolated boundaries'
     }finally{if(-not $process.HasExited){$process.Kill($true);$process.WaitForExit()};$process.Dispose()}
 }
 function Test-RealModuleBoundary([string]$Mode){
