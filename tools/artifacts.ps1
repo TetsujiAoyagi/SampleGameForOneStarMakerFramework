@@ -81,6 +81,23 @@ try {
         # cleanupのpartial（未解決の試行・残りの候補あり）は2。次回の実行で続きを処理する。
         if($outcome.status -ceq 'passed'){exit 0};if($outcome.status -ceq 'partial'){exit 2};exit 1
     }
+    # 分裂したストアの合流もBuild/Content/Evidenceと独立したgrammar。planは両ストアを変更せず
+    # manifest候補を新規fileへ書く。consolidateはownerが承認したmanifestのsha256を必須にする。
+    if($Arguments[0] -ceq 'store'){
+        $storeAction=$Arguments[1];$storeOpts=@{};$storeDry=$false
+        for($j=2;$j -lt $Arguments.Count;$j+=2){
+            if($Arguments[$j] -ceq '--dry-run'){if($storeDry -or $storeAction -cne 'consolidate'){throw 'unsupported-command'};$storeDry=$true;$j--;continue}
+            if($j+1 -ge $Arguments.Count -or $Arguments[$j] -cnotmatch '\A--[a-z0-9-]+\z' -or $storeOpts.ContainsKey($Arguments[$j])){throw 'unsupported-command'}
+            $storeOpts[$Arguments[$j]]=$Arguments[$j+1]
+        }
+        $needed=switch($storeAction){'plan'{@('--source-root','--output')}'consolidate'{@('--manifest','--manifest-sha256')}default{throw 'unsupported-command'}}
+        if((($storeOpts.Keys|Sort-Object) -join ',') -cne (($needed|Sort-Object) -join ',')){throw 'unsupported-command'}
+        Import-Module (Join-Path $PSScriptRoot 'Artifacts/StoreConsolidation.psm1')
+        $outcome=if($storeAction -ceq 'plan'){Invoke-StoreConsolidationPlan $storeOpts['--source-root'] $storeOpts['--output']}else{Invoke-StoreConsolidation $storeOpts['--manifest'] $storeOpts['--manifest-sha256'] $storeDry}
+        [Console]::WriteLine((ConvertTo-Json -InputObject $outcome -Compress -Depth 20))
+        # 保留・変更検出の単位が残るpartialは2。全体完了を返さない。
+        if($outcome.status -ceq 'passed'){exit 0};if($outcome.status -ceq 'partial'){exit 2};exit 1
+    }
     if ($Arguments[0] -ceq 'credentials' -and $Arguments[1] -cin @('set','status','remove')) {
         # Existing local credential grammar and exit meanings remain unchanged.
         if ($Arguments[2] -cne '--profile' -or $Arguments[3] -cne 'osm') { throw 'Invalid command.' }

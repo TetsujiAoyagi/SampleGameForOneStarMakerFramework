@@ -60,7 +60,8 @@ function Get-ConsolidationItemReferences($Item,[string]$LogicalRoot,[string]$Sou
     $references=[Collections.Generic.List[string]]::new();$violations=[Collections.Generic.List[string]]::new()
     foreach($file in $Item.files){
         if($null -eq $file.json){continue}
-        try{$strings=@(Get-ConsolidationJsonStrings $file.json)}catch{$violations.Add('source-invalid');continue}
+        # Any JSON-looking file is checked; only a file named as a JSON record must parse.
+        try{$strings=@(Get-ConsolidationJsonStrings $file.json)}catch{if($file.path.EndsWith('.json',[StringComparison]::OrdinalIgnoreCase)){$violations.Add('source-invalid')};continue}
         foreach($value in $strings){
             if($value -cnotmatch '\A(?:\\\\|[A-Za-z]:[\\/])'){continue}
             $path=$value.Replace('/','\');if($path.StartsWith('\\?\')){$path=$path.Substring(4)}
@@ -90,8 +91,17 @@ function Get-ConsolidationFileSignature($Files){return (@($Files|ForEach-Object 
 # Compares one source item with its observation in the real store.
 function Get-ConsolidationItemState($Item,$Observed){
     if($Item.reparse){return 'reparse'}
+    # A source file that could not be read (held open by its writer) has no hash to approve.
+    if(@($Item.files|Where-Object {$_.sha256 -cnotmatch '\A[0-9a-f]{64}\z'}).Count){return 'source-unreadable'}
+    # A reparse point on the way to an absent destination would redirect the publication.
+    if($null -ne $Observed -and $Observed.reparse){return 'reparse'}
     if($null -eq $Observed -or -not $Observed.exists){return 'absent'}
-    if($Observed.reparse){return 'reparse'}
+    # A deployment receipt pair is published file by file. An identical subset is
+    # this consolidation's own interrupted publication, not a conflict.
+    if($Item.role -ceq 'deployment' -and $Observed.aclOk -and @($Observed.files).Count -lt @($Item.files).Count){
+        $source=@{};foreach($f in $Item.files){$source[$f.path]=$f.path+'|'+$f.bytes+'|'+$f.sha256}
+        if(@($Observed.files|Where-Object {-not $source.ContainsKey($_.path) -or $source[$_.path] -cne ($_.path+'|'+$_.bytes+'|'+$_.sha256)}).Count -eq 0){return 'partial'}
+    }
     if((Get-ConsolidationFileSignature $Item.files) -cne (Get-ConsolidationFileSignature $Observed.files) -or ((@($Item.directories)|Sort-Object) -join '|') -cne ((@($Observed.directories)|Sort-Object) -join '|')){return 'conflict'}
     # Identical bytes are skipped only when the existing entry also obeys the ACL rule.
     if(-not $Observed.aclOk){return 'acl-mismatch'}
@@ -134,7 +144,7 @@ function New-ConsolidationPlan($Inventory,$Target){
     foreach($unit in $units){
         $reasons=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal);$depends=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
         foreach($entry in $unit.items){
-            if($entry.state -cin @('conflict','acl-mismatch','reparse')){$null=$reasons.Add($entry.state)}
+            if($entry.state -cin @('conflict','acl-mismatch','reparse','source-unreadable')){$null=$reasons.Add($entry.state)}
             $needed=@($refs[$entry.key].references)
             foreach($v in $refs[$entry.key].violations){$null=$reasons.Add($v)}
             if($entry.role -ceq 'evidence'){$needed+='Artifacts\deployments\'+$items[$entry.key].deploymentId}
@@ -164,7 +174,7 @@ function New-ConsolidationPlan($Inventory,$Target){
 # Re-checks an approved manifest against a plan computed at execution time.
 # Returns one verdict per approved unit: 'publish', 'complete' (already identical),
 # 'hold' (held when approved), 'source-changed' or 'target-changed'. An item that
-# went from absent to identical is this run's own earlier publication and allowed.
+# went from absent to partial or identical is this run's own earlier publication.
 function Test-ConsolidationManifest($Approved,$Current){
     if($Approved.schemaVersion -ne 1 -or $Approved.purpose -cne 'store-consolidation-v1' -or $Approved.sourceRoot -cne $Current.sourceRoot -or $Approved.logicalRoot -cne $Current.logicalRoot){throw 'manifest-invalid'}
     $now=@{};foreach($unit in $Current.units){$now[$unit.unitId]=$unit}
@@ -176,7 +186,7 @@ function Test-ConsolidationManifest($Approved,$Current){
             for($i=0;$i -lt @($unit.items).Count;$i++){
                 $a=$unit.items[$i];$b=$fresh.items[$i]
                 if($a.key -cne $b.key -or (Get-ConsolidationFileSignature $a.files) -cne (Get-ConsolidationFileSignature $b.files) -or ((@($a.directories)) -join '|') -cne ((@($b.directories)) -join '|')){$result='source-changed';break}
-                if($a.state -cne $b.state -and -not ($a.state -ceq 'absent' -and $b.state -ceq 'identical')){$result='target-changed'}
+                if($a.state -cne $b.state -and -not ($a.state -cin @('absent','partial') -and $b.state -cin @('partial','identical'))){$result='target-changed'}
             }
             if($result){$result}elseif(@($fresh.reasons).Count){'target-changed'}elseif($fresh.status -ceq 'skip'){'complete'}else{'publish'}
         }
