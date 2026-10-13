@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄には、各成果物の取得案内の引渡し先・担当と状態だけを書く。reference・期待packageSha256の実値、ローカルの実path、内部catalog/receiptの内容は転記しない。
 
 - type: `slice`
-- status: `動作確認（D8）完了（r5 の B の head f97edf0、期待と一致）`。次は発見 C。（2026-10-14 に owner が A 再開を確定し、同日 r5 を凍結した（§5.16）。経緯: C' の阻害指摘 2 件（§8）→ AC4 の実環境確認が不合格（§7.10）→ スパイクで原因が確定（§7.11）。r5 の変更点は §5.14。r4 凍結までの経緯は §5.10〜§5.13、発見 C の記録は §7.1〜§7.8、判定 C は §7.9）
+- status: `発見 C（r5、通算3巡目）完了。阻害する指摘 0 件（§7.12）`。次は判定 C。（2026-10-14 に owner が A 再開を確定し、同日 r5 を凍結した（§5.16）。経緯: C' の阻害指摘 2 件（§8）→ AC4 の実環境確認が不合格（§7.10）→ スパイクで原因が確定（§7.11）。r5 の変更点は §5.14。r4 凍結までの経緯は §5.10〜§5.13、発見 C の記録は §7.1〜§7.8、判定 C は §7.9）
 - branch: `claude/artifacts-virtualized-store-a01`（`origin/develop` 起点）
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（A3 で `origin/develop` と一致を再確認済み）
 - Phase A revision: **`r5`（2026-10-14 凍結）**。凍結 commit と内容 sha256 は凍結直後の commit で記入する（下の行）。§1〜§5 が B の唯一の仕様。r4 からの変更点は §5.14（A3 の統合は §5.15）、A2・A3 は §5.15・§5.16。
@@ -29,7 +29,9 @@
 - **DR1（版 1、2026-10-14、適用: 判定 C の AC5 から）— AC5 の「既存どおりの reasonCode」の基準。** 同じ読取り系コマンドを、同じ host・同じ Store 版 pwsh で implementation base `3f79639`（判定を入れる前）でも実行し、対象 head の結果と reasonCode・exit・出力の種類（JSON の reasonCode、または reasonCode を出さないコマンドの文の種類）が同じであることを「既存どおり」とする。理由: §5.3 は比較の基準を書いておらず、harness の2コマンドは reasonCode を出力しない。I3 の「挙動を変えない」の比較対象は変更前の挙動なので、base での実行が凍結条件の意味どおりの基準である。合否の対象と範囲は変えない。C' 用決定記録には含めない（C' の前巡の指摘への裁定ではない）。base での実行結果は判定 evidence に入る。
 - **DR2（版 1、2026-10-14、適用: 判定 C の AC4 から）— AC4 の実行権限。** Codex 内の4入口は、まず通常の経路で owner の承認を求めて実行する。実行環境の審査がそれを通さない場合は、owner が Codex をフルアクセスに切り替え、4入口を同じ設定で続けて実行し直す（一部の入口だけを別の設定で実行しない）。どちらで実行したかを evidence に記録する。理由: D8 で `evidence publish` が承認後も審査で拒否された。権限設定は owner 自身の判断で、エージェントによる迂回ではない。フルアクセスでも Codex の package 内の process なので、AC4 の前提（仮想化された process）は変わらない。
 
-**引継ぎ票（動作確認（D8）完了）— 次は発見 C。** D8 の AC4・AC5 は期待と一致し、B への戻しは無かった（§6「動作確認」）。発見 C は head `f97edf0` の r5 の差分（`741444d..f97edf0`）を中心に行う。B と発見 C の往復は r4 までに2巡を消費（上限 4 巡）。r5 凍結時の引継ぎ票の「その後」「やらないこと」「引き渡さないもの」は引き続き有効。
+**引継ぎ票（発見 C 完了）— 次は判定 C。** 発見 C（r5）は阻害する指摘 0 件で終えた（§7.12）。B への差し戻しは発生せず、B と発見 C の往復の消費は r4 までの 2 巡のまま。判定 C は GO 候補 head `f97edf0` で行う。
+
+**引継ぎ票（動作確認（D8）完了。記録として残す）— 次は発見 C。** D8 の AC4・AC5 は期待と一致し、B への戻しは無かった（§6「動作確認」）。発見 C は head `f97edf0` の r5 の差分（`741444d..f97edf0`）を中心に行う。B と発見 C の往復は r4 までに2巡を消費（上限 4 巡）。r5 凍結時の引継ぎ票の「その後」「やらないこと」「引き渡さないもの」は引き続き有効。
 
 - **判定 C の AC4・AC5 の取り直しへの申し送り（D8 で分かった証拠の限界。手順は判定 C の担当が作る。B は書かない）:**
   1. 一覧（before）→ 事前実行 → 4入口 → 一覧（after）の順を、時刻つきで1つのログに残す。before は全コマンドより前に取る。
@@ -104,11 +106,11 @@
 ### PR 状態ブロック（PR 作成時の写し）
 
 ```text
-状態: 動作確認（D8）完了（期待と一致）。次は発見 C
+状態: 発見 C 完了（阻害する指摘 0 件）。次は判定 C
 Phase A: revision r5（凍結）、commit 348a491282242ec3e88ac717c913b8c1e5141621
 implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / f97edf07b4fbdfbf92260835e5a8d9752bedd07b
 決定記録: DR1（AC5 の基準は base 比較）・DR2（AC4 の実行権限）、版 1
-次の担当: 発見 C → 判定 C（AC4・AC5 を取り直す）→ C' 2 巡目
+次の担当: 判定 C（AC4・AC5 を取り直す）→ C' 2 巡目
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
 Evidence 取得案内: 保存済み（引渡し先: owner 手元の Git 管理外）。取得側の別 session での閲覧確認は未了
 未決事項: なし（保留した単位の扱い・取得の回復・実ストアへの合流は後続 Split Store Recovery）
@@ -1102,6 +1104,24 @@ owner の裁定でスパイクから行った。実装は変えていない。
 - **新しい事実の分類（推奨。owner の確認待ち）:** **A 再開**。凍結した D1 の判定方式（probe 領域の配置と後始末）と、I1 の「判定の書込みは probe 領域だけに限る」の範囲を変える必要があり、fail-closed の契約に関わる。B 適応の範囲を超える。Phase A revision r5 で、判定方式と、この状態を再現する受け入れ条件（例: 実体側にだけ probe 領域がある状態で `virtualized` を返すこと）を決める。
 - **副次の観測（r5 の入力）:** 状態 (a) の最初の準備で、Claude デスクトップの Bash ツール（Git Bash）から `mkdir` で作った directory は、実体側ではなく Claude の package の LocalCache に入った。その Bash から起動した pwsh（Store 版）は実体側を見ていて、その directory は見えなかった。Claude デスクトップ内でも、子 process によって仮想化の有無が違う。§5.4 の「Claude 内は非仮想化」は pwsh についてだけ成り立つ。この誤った準備による1回目の (a) の観測は無効として扱い、上の表には含めていない（(b) は1回目の有効な観測）。
 - **後始末:** スパイク用の directory は、実体側・Codex 側とも削除した。生の出力は AC4 用 worktree の Git 管理外（`TestResults\spike\`、`TestResults\spike2\`）にある。未保存・引渡し未完了。
+
+### 7.12 発見 C（r5）
+
+判断担当: Codex CLI（`codex exec -s read-only`、モデル `gpt-6-luna`、OpenAI）、新しい session。B（Claude Opus 5.5）と異なる系列。実行・保存・転記は司令塔（Claude Sonnet 5.5）が行い、判断担当の本文は書き換えず転記した。起点 filter の結果は worktree の `TestResults\phase-c\discovery\`（Git 管理外。未保存・引渡し未完了）。実行は 10 suite（StoreContext 22、StoreConsolidationPlan 24、StoreConsolidation 20、TaskLifecycle 23、ArtifactEvidence 19、EvidenceCleanup 35、Harness 35 / UnityGate 21 / UnityObservation 16 / UnityTestRunner 25）で全て failed 0、contract-audit は errors 0（runner の不具合で最初の実行から外れたため単独で再実行。run-summary に記録）。
+
+**種別・巡:** 発見 C（r5）、B と発見 C の通算 3 巡目。
+
+**固定入力:** Phase A r5 の凍結 commit `348a491282242ec3e88ac717c913b8c1e5141621` の §1〜§5、§0 の引継ぎ票・DR1・DR2、差分 `741444d..f97edf0`、実装全体の文脈 `3f79639..f97edf0` を参照した。作業ツリーの HEAD は `ce5437b2ef46caa8e3b8305fb2819228c53dbc6f`。実装 head `f97edf0` からの作業ツリー差分は HANDOFF の更新である。
+
+**構造適合:** §3 の責務マップと照合した。判定の中心は新規の `WindowsStoreContext.psm1` に置かれ、3 CLI は入口で判定結果を扱う構成を保っている。ストア統合計画・実行もそれぞれ専用 module に分けられ、Workflow、Artifacts、Harness の依存境界を越えていない。r5 では probe directory の作成・削除とテスト用 root 差し替えを private seam に追加している。新規 StoreContext suite は unknown、既存名、残骸、並行呼出し、native 操作を扱う。配置・依存・テスト境界に凍結条件違反は見つからなかった。行数は設計判断の説明を求める目安として確認し、行数だけを理由とする指摘はない。
+
+**現在の問いを阻害する指摘:** 0 件。I1（r5）・AC2・AC15・D1 の照合で、判定失敗時に `unknown` となる経路、同名 directory の再利用防止、probe directory の作成と非再帰削除、並行呼出し時に他の呼出しの directory を削除しない動作、既存の固定 probe 領域・ストアを使わない動作を確認した。失敗時の directory 削除は結果を変えず、残った一意名 directory は次回の判定に再利用されない。native の `CreateDirectoryW` は既存名や親のないパスで失敗し、probe file の open は親 directory を作成しない。これらの経路は実装とテストで裏付けられている。一次証拠: [WindowsStoreContext.psm1](/D:/repositories/unity/OSM-wt-virtstore-c5/tools/Workflow/WindowsStoreContext.psm1:74)、[StoreContext.Tests.ps1](/D:/repositories/unity/OSM-wt-virtstore-c5/tools/Workflow/tests/StoreContext.Tests.ps1:252)。指摘がないため、severity・category・B適応/A再開の分類を付す阻害 finding はない。
+
+**後続への入力:** 実環境の AC4・AC5 はこの発見 C では未取得で、判定 C で取り直す必要がある。これは凍結済み検証条件の未確認であり、現時点で実装違反を示す証拠ではない。分類案は B 適応または A 再開ではなく、判定 C での証拠取得と条件判定。severity: medium（受け入れ判定に必要な未確認事項）、category: semantic。実環境結果が出るまでは合否を判断しない。
+
+**使った入力と実行しなかった範囲:** `TestResults/phase-c/discovery/` の結果 JSON・生ログ・run summary・contract-audit を参照した。全 suite failed 0、contract-audit errors 0 の記録を確認した。機械検査で扱う #nullable、record、待機 API 等は contract-audit の記録に委ね、重複探索していない。テスト実行、Unity の起動・テスト・Build、実環境 AC4・AC5 の取得、実ストアに対する操作は行っていない。
+
+**未確認事項:** AC4・AC5 の実環境証拠と判定 C の結果。これら以外に、本レビューで判定を阻害する未確認の実装経路は見つけていない。
 
 ## 8. Phase C'
 
