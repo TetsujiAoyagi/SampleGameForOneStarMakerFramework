@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄には、各成果物の取得案内の引渡し先・担当と状態だけを書く。reference・期待packageSha256の実値、ローカルの実path、内部catalog/receiptの内容は転記しない。
 
 - type: `slice`
-- status: `C' 完了・AC4 不合格`（2026-10-13。C' は阻害する指摘 2 件（§8）。その後に取得した AC4 の実環境確認が不合格（§7.10）。次は owner による新しい事実の分類（スパイク → A 再開の見込み）。r4 凍結までの経緯は §5.10〜§5.13、発見 C の記録は §7.1〜§7.8、判定 C は §7.9）
+- status: `C' 完了・AC4 不合格`（2026-10-13。C' は阻害する指摘 2 件（§8）。その後に取得した AC4 の実環境確認が不合格（§7.10）。owner の裁定でスパイクから行う（確定後に A 再開 / B 適応を分類）。r4 凍結までの経緯は §5.10〜§5.13、発見 C の記録は §7.1〜§7.8、判定 C は §7.9）
 - branch: `claude/artifacts-virtualized-store-a01`（`origin/develop` 起点）
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（A3 で `origin/develop` と一致を再確認済み）
 - Phase A revision: **`r4`（2026-10-13 凍結）**。凍結 commit は `77364220ecdd5f7894750744cdaa6e80d1d1dd62`、凍結時の本ファイルの内容 sha256 は `44174f89c23c9d7224b749ff7891397acce239bc04b2afed65156fd4be1aa4e3`（`git show <commit>:<本ファイル>` の bytes。この記入だけの直後の commit は含めない）。§1〜§5 が B の唯一の仕様。r3 からの変更点は §5.10、A2・A3・再レビューは §5.11〜§5.13。
@@ -21,7 +21,9 @@
 - Phase B result snapshot / 判定 evidence bundle / C' blind bundle の取得案内・状態: 保存済み（判定 C で publish。引渡し先: owner 手元の Git 管理外。取得側の別 session での閲覧確認は未了）。以下は判定 C 開始前の記述: 未生成。依頼により B は Artifact Storage を操作していない。判定 C / C' へ渡す時点で、非仮想化の担当が implementation head から生成して publish する（Phase A snapshot と同じ扱い）。
 - PR: 未作成。作る場合も base は `develop`。
 
-**引継ぎ票（C' 完了後の更新）— 次は owner の分類の裁定。** C' は 1 巡目で阻害する指摘 2 件（AC4・AC5 の実環境証拠の欠落、§8）。続けて取得した AC4 は Codex 内で不合格だった。4 入口とも `virtualized-store` を返さず、Codex 側に transfers の operation directory が作られた（§7.10）。原因は probe 領域の directory の残存による誤判定と推定している（未検証）。owner は次を決める。(1) 原因を確かめるスパイクを行うか。(2) 確定後に A 再開（D1・I1 の probe 配置を変える revision r5）とするか、B 適応とするか。どちらでも head が変わるので、判定 C・C'（2 巡目）・AC4・AC5 は新しい GO 候補 head で取り直す。C' の指摘による差し戻しは、これを返すと 1 巡目になる（上限 3 巡）。§7.10 の Codex 側の残骸は削除しない。
+**引継ぎ票（owner 裁定後の更新）— 次はスパイク。** 2026-10-13、owner が「スパイクから行う」と裁定した。スパイクでは、Codex 内の実行担当が `Get-OsmStoreContext` を次の2状態で実行し、結果を記録する。(a) probe 領域の名前の directory が実体側にだけある状態（期待: 誤って `not-virtualized`）。(b) 両側とも無い状態（期待: `virtualized`）。既存の `OneStarMaker.StoreProbe` は消さず、スパイク専用の一意な名前の directory を使う。Codex 側の `OneStarMaker` 配下と §7.10 の残骸には触れない。スパイクで実装は変えない。結果が出たら A 再開 / B 適応を分類する。C' 用の作業 worktree は削除し、`evidence use` の保護は release した。AC4 の生証拠のある worktree は残している。
+
+**引継ぎ票（C' 完了後の更新。記録として残す）— 次は owner の分類の裁定。** C' は 1 巡目で阻害する指摘 2 件（AC4・AC5 の実環境証拠の欠落、§8）。続けて取得した AC4 は Codex 内で不合格だった。4 入口とも `virtualized-store` を返さず、Codex 側に transfers の operation directory が作られた（§7.10）。原因は probe 領域の directory の残存による誤判定と推定している（未検証）。owner は次を決める。(1) 原因を確かめるスパイクを行うか。(2) 確定後に A 再開（D1・I1 の probe 配置を変える revision r5）とするか、B 適応とするか。どちらでも head が変わるので、判定 C・C'（2 巡目）・AC4・AC5 は新しい GO 候補 head で取り直す。C' の指摘による差し戻しは、これを返すと 1 巡目になる（上限 3 巡）。§7.10 の Codex 側の残骸は削除しない。
 
 **引継ぎ票（判定 C 完了後の更新。記録として残す）— 次は C'（§5.6 の予約系列、新 session、blind audit bundle のみ）。** 判定 C は完了した（§7.9）。C' は PR・本 HANDOFF 全文・§7 を読まず、所見を含まない C' 用の取得案内だけで始める。取得案内は Git 管理外で owner の手元にある。以下は判定 C 開始前の引継ぎ票（記録として残す）。
 
@@ -52,7 +54,7 @@
 状態: Phase C' 完了（阻害する指摘あり）。AC4 の実環境確認が不合格
 Phase A: revision r4（凍結）、commit 77364220ecdd5f7894750744cdaa6e80d1d1dd62
 implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / 741444dda79263d18f2c5c0fe2891e66a4f5add8
-次の担当: owner（新しい事実の分類: スパイク → A 再開 / B 適応）
+次の担当: スパイク（Codex 内の実行担当。probe の誤判定の原因確認）→ A 再開 / B 適応の分類
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
 Evidence 取得案内: 保存済み（引渡し先: owner 手元の Git 管理外）。取得側の別 session での閲覧確認は未了
 未決事項: なし（保留した単位の扱い・取得の回復・実ストアへの合流は後続 Split Store Recovery）
