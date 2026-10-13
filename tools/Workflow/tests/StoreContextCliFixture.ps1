@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$Entry,[Parameter(Mandatory=$true)][string]$CallsPath,[Parameter(Mandatory=$true)][ValidateSet('not-virtualized','virtualized','open-fails','final-path-fails','close-fails')][string]$Mode,[Parameter(Mandatory=$true)][string]$EntryArgumentsBase64)
+param([Parameter(Mandatory=$true)][string]$Entry,[Parameter(Mandatory=$true)][string]$CallsPath,[Parameter(Mandatory=$true)][ValidateSet('not-virtualized','virtualized','directory-fails','open-fails','final-path-fails','close-fails')][string]$Mode,[Parameter(Mandatory=$true)][string]$EntryArgumentsBase64)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 # Fresh process for one public entry. Only the real store-context module is loaded,
@@ -8,11 +8,13 @@ $ErrorActionPreference='Stop'
 function Record([string]$Name){[IO.File]::AppendAllText($CallsPath,$Name+"`n")}
 $context=Import-Module ([IO.Path]::Combine([IO.Path]::GetDirectoryName($PSScriptRoot),'WindowsStoreContext.psm1')) -PassThru
 $io=@{
+    CreateDirectory={param($Path)Record ('probe:directory:'+$Path);if($Mode -ceq 'directory-fails'){throw 'fixture-directory'}}
     Open={param($Path)Record ('probe:open:'+$Path);if($Mode -ceq 'open-fails'){throw 'fixture-open'};[pscustomobject]@{Path=$Path}}
     FinalPath={param($Handle)Record 'probe:final-path';if($Mode -ceq 'final-path-fails'){throw 'fixture-final-path'}
         # The virtualized answer is the observed Codex shape: a package LocalCache copy.
         if($Mode -ceq 'virtualized'){$local=[Environment]::GetFolderPath('LocalApplicationData');return [IO.Path]::Combine($local,'Packages','Fixture.Package_0000000000000','LocalCache','Local',$Handle.Path.Substring($local.Length+1))};$Handle.Path}
     Close={param($Handle)Record 'probe:close';if($Mode -ceq 'close-fails'){throw 'fixture-close'}}
+    RemoveDirectory={param($Path)Record ('probe:remove:'+$Path)}
 }
 & $context {param($v)$script:ProbeIo=$v} $io
 function Import-Module([string]$Name){

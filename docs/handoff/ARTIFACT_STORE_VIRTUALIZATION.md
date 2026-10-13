@@ -753,15 +753,58 @@ Release DLL を既存 loader の出力先（`Packaging/artifacts/package`、`Tra
 
 機械検査: `pwsh tools/contract-audit.ps1`（違反なし、exit 0）、`pwsh tools/docs-audit.ps1`（errors 0、warnings 0）、tools 配下の tracked PowerShell 106 file の parse（errors 0）、`git diff --check`（通過）。実ストア・Codex 側への CLI 実行、実データの `store plan` / `consolidate`、Artifact Storage の publish / fetch、資格情報の操作、R2 への通信は行っていない。
 
+### r5 の実装（2026-10-14）
+
+- **開始確認:** リモート head `9332910` と作業 tree の HEAD が一致。r5 の凍結 commit `348a491` での本ファイルの内容 sha256 が §0 の `92c48bf0…c8bd` と一致。§1〜§5 が凍結 commit と同一（`## 1.` から `## 6.` の前までを比較）。`741444d` が HEAD の祖先で、`741444d..348a491` に tools の変更は無い。仕様は r5 の §1〜§5 だけとした。実装後の判定 module（`Get-OsmStoreContext`、sandbox 外の Store 版 PowerShell 7.6.6）で、この session が `not-virtualized` であることを1回確認した（呼出しごとの probe directory は前後とも0件、固定名 `OneStarMaker.StoreProbe` は実体側に残ったまま）。
+- **判定（D1 r5、AC2・AC15）:** `WindowsStoreContext.psm1` は、呼出しごとに LocalAppData の直下へ `OneStarMaker.StoreProbe.<32桁の16進>` を `CreateDirectoryW`（既にあれば失敗し、親を作らない）で作り、その中に `CreateNew` + `DeleteOnClose` の probe file を開いて final path を論理 path と比べ、handle を閉じ、最後に自分で作った directory だけを非再帰で削除する（`Directory.Delete(path,false)`。空でなければ失敗）。directory の作成が失敗すれば（同名の既存を含む）`unknown` を返し、probe file を作らず、何も削除しない。削除の失敗は無視し、結果を変えない。Open は親 directory を作らなくなった（r4 は作り直していた）。固定名の directory、他の呼出しの残骸、ストアには、名前を組み立てることも含めて触れない。
+- **private seam:** `$script:ProbeIo` は CreateDirectory / Open / FinalPath / Close / RemoveDirectory の5つを一緒に差し替える。`$script:LocalRootForTest` は LocalAppData の root だけを test 用の一時 root に差し替える（native の OS 操作をそのまま使う AC15 の検査用）。どちらも CLI 引数・環境変数から設定できない。三つの CLI 入口、計画・合流 module、reasonCode、公開 API は変えていない。
+- **README:** `tools/Artifacts/README.md` の実行条件に、呼出しごとの directory の方式と理由、判定不能の内訳（directory の作成失敗・同名の既存）、削除失敗の扱い、残骸の名前と手動削除の方法（名前の規則に一致する空の directory だけを、CLI を動かしていない間に非再帰で消す）、固定名が判定に使われなくなったこと、package 初回（U9）の未観測を書いた。`tools/Workflow/README.md` の probe の記述を合わせた。Harness README には probe の記述が無いので変えていない。
+- **行数:** `WindowsStoreContext.psm1` 77 → 107（§3 の見込み +30）。`StoreContext.Tests.ps1` 205 → 395、`StoreContextCliFixture.ps1` 30 → 32。
+- **テスト（§5.1 の r5 の検証例）:** StoreContext suite に9 case を足した（13 → 22）。`decision-fresh-directory-each-call`、`decision-ignores-leftover-areas`、`decision-directory-exists-is-unknown`、`decision-directory-create-failure-is-unknown`、`decision-directory-removal-failure-keeps-result`、`decision-concurrent-calls-do-not-remove-each-other`（別 process 2つ、名前付き event で同期）、`decision-probe-parents`、`native-create-existing-directory-fails`、`native-open-does-not-create-parent`。既存 case は新しい seam に合わせ、seam の順序（作成 → open → 照会 → close → 削除）と、自分の directory 以外を削除しないことを確かめるようにした。`cli-unknown-failure-stages` に directory の作成失敗を足した（3 CLI × 4段階）。`cli-virtualized-all-entries` は同じ 42 入口のまま、probe が LocalAppData の直下の自分の directory の中だけで行われることを確かめる。`cli-decision-before-store` は、store 境界が directory の削除の後であることを確かめる。合流 suite の偽 seam 3か所に、何もしない CreateDirectory / RemoveDirectory を足した（挙動は変わらない）。
+- **変異による確認:** 判定 module を一時的に r4 の性質に戻した2通りで、新しい case が失敗することを確かめ、元に戻した（`git diff` で確認）。(1) 固定名の directory を冪等な作成で使う: `decision-ignores-leftover-areas`、`decision-directory-exists-is-unknown`、`native-create-existing-directory-fails`、`decision-fresh-directory-each-call` が失敗。(2) Open が親を作り直す: `native-open-does-not-create-parent` が失敗。
+
+### r5 の HANDOFF との差（B 適応と読み方）
+
+1. **AC15 の「開かず、作らず、消さない」の観測。** .NET の file API の呼出しを実行時に横取りできないので、(a) seam に渡された全 path を記録し、自分の directory とその中の probe file 以外が無いことを見る、(b) 一時 root の上で native に2回判定し、既存の固定名・残骸（空と中身あり）・ストアの下の名前・属性と file の大きさ・更新時刻が前後で同一であることを見る、の2つで確かめた。directory の更新時刻は比べない。NTFS が、最後に足した子より前の時刻を返すことがあり（B で観測）、変化の証拠にならないため。名前の列挙で、作成・削除は検出できる。
+2. **`decision-ignores-leftover-areas` に、観測した書込み先の規則の模型を足した。** 偽 seam の final path を「実体側にある directory（固定名、残骸、ストア）の中なら実体側、それ以外なら LocalCache」とし、判定が `virtualized` になることを確かめる。r4 の誤判定（§7.11 (a)）を offline で再現する形である。
+3. **`decision-directory-exists-is-unknown` は native で行った。** 偽 seam の作成失敗は `decision-directory-create-failure-is-unknown` と同じになるので、作成の直前に同じ名前の directory（中に sentinel）を一時 root に置く。判定は `unknown`、probe file を開かず、削除せず、既存の directory の中身が変わらないことを確かめる。
+4. **削除は .NET の非再帰の `Directory.Delete`、作成は P/Invoke の `CreateDirectoryW`。** §3 の「例」のうち、作成は既存の名前で失敗する .NET API が無いので P/Invoke にした。削除の非再帰 Delete は空の directory だけを消すので、`RemoveDirectoryW` と同じ性質である。新しい依存は無い。
+5. **close に失敗した場合。** handle が開いたままなので directory は空にならず、削除は失敗する（無視）。process の終了で OS が probe file を消し、残るのは空の directory で、D1 の残骸の規定の範囲に収まる。
+6. **作業場所。** §0 は新しい worktree を作るよう書いているが、この session に割り当てられた worktree（`.claude/worktrees/` 配下で、ブランチを checkout 済み、HEAD がリモート head と同じ、未変更）をそのまま使った。r5 の A の記入にも使われた worktree の可能性がある。git 管理外の Release DLL は、suite の前に作り直した。他の worktree（C・C'・AC4 用）は使っていない。
+7. **B の調査中の自分の残骸。** 判定が最初 `unknown` を返した原因（shell の heredoc で C# 文字列の `\\` が `\` に変わっていた。修正済み）を調べる手作業で、実 LocalAppData の直下に `OneStarMaker.StoreProbe.<32桁の16進>` を1つ作り、手作業の FileStream（overload の取り違えで DeleteOnClose が付かなかった）の file を残した。module の挙動ではない。自分で作った file と directory を名前を確かめて消し、呼出しごとの probe directory が0件であることを確かめた。固定名の directory と他の entry には触れていない。
+
+### r5 の確認結果
+
+3 project の Release DLL を既存 loader の出力先に `dotnet build -c Release -o` で作り直し（3件とも exit 0）、cursor 同梱の `rg` の directory を PATH の先頭へ通してから、§5.1 の起点 filter を `-Case '*'` で実行した。全て sandbox 外の Store 版 PowerShell 7.6.6、隔離 temp store・fake transport・fake process（判定 suite の native case は一時 root の上。`native-probe-deletes-on-close` だけが実 LocalAppData の直下に自分の directory を作って消す）。全て exit 0、failed 0。
+
+| suite | 結果 |
+|---|---|
+| StoreContext.Tests | 22/22 |
+| StoreConsolidationPlan.Tests | 24/24 |
+| StoreConsolidation.Tests | 20/20 |
+| Workflow TaskLifecycle.Tests | 23/23 |
+| ArtifactEvidence.Tests | 19/19 |
+| EvidenceCleanup.Tests | 35、failed 0 |
+| Harness.Tests / UnityGate / UnityObservation / UnityTestRunner | 35 / 21 / 16 / 25、failed 0 |
+
+実行の後、実 LocalAppData の直下の呼出しごとの probe directory は0件、固定名 `OneStarMaker.StoreProbe` は実体側に残っている（AC4 の初期状態として消していない）。
+
+機械検査: `pwsh tools/contract-audit.ps1`（違反なし、exit 0）、`pwsh tools/docs-audit.ps1`（errors 0、warnings 1: 検査3「§7 / §8 が両方埋まっているので harvest の頃合い」。本スライスは進行中なので対象外）、tools 配下の tracked PowerShell 106 file の parse（errors 0）、`git diff --check`（通過）。実ストア・Codex 側への CLI 実行、実データの `store plan` / `consolidate`、Artifact Storage の publish / fetch、資格情報の操作、R2 への通信は行っていない。
+
+### 動作確認（D8、B の完了 head）
+
+未実施。実行担当（AC4: Codex 内、AC5: Claude 内の Store 版 pwsh）は手順だけを実行して生の観測を残す。§5.3 の期待との比較は、手順を渡した非 B の担当が行い、比較の結果と生の観測の保存先をこの欄に書く。比較の記録は C' の blind bundle に入れない。
+
 ### 未実行
 
+- r5: 動作確認（D8）の AC4・AC5（B の後の非 B の担当）。起点 filter 以外の Artifacts suite と判定必須テストの判定実行（判定 C）。
 - AC4・AC5（実環境。Phase C の実行担当）、実ストアと Codex 側への `store plan`（B の範囲外）。AC11 / S4 と実ストアへの合流の実行は r4 で後続 `Artifact Storage / Split Store Recovery` へ移した（§1.5、§5.5 案 B）。
 - 起点 filter 以外の Artifacts suite（判定必須）は差し戻し2巡目では実行していない（判定 C）。
 - 判定必須テストの判定実行（Phase C）。Unity テスト・Build は本スライスに適用しない（§5.1）。Editor のコンパイル確認は Unity source を変えていないので対象外。
 - Phase B result snapshot・evidence bundle の生成と publish（依頼により B は Artifact Storage を操作していない。§0 参照）。
 
 - implementation head commit: 初回は c55891a498dc3ca99312533d3c9a23126e72fd0c。差し戻し1巡目の修正後は §0 を正とする。
-- Phase B 担当・モデル・ベンダー: Claude Code（Claude Opus 5.5、Anthropic）。非仮想化の Claude デスクトップから実行した。差し戻し1巡目・2巡目も同じ担当・モデルの新しい session。
+- Phase B 担当・モデル・ベンダー: Claude Code（Claude Opus 5.5、Anthropic）。非仮想化の Claude デスクトップから実行した。差し戻し1巡目・2巡目も同じ担当・モデルの新しい session。r5 の追加分も同じモデル（Claude Opus 5.5）の新しい session。
 
 ## 7. Phase C
 

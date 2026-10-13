@@ -16,13 +16,25 @@ ownerは、設定した開発領域・明示入力・保存契約内の通常pub
 
 `tools/artifacts.ps1`、`tools/workflow-task.ps1`、`tools/harness.ps1` は、引数の解釈とstore moduleのimportより前に、そのprocessのLocalApplicationDataへの書込みが仮想化されていないかを判定します。packaged appの書込み仮想化（例: Codexデスクトップ）の中では、新しいfileがpackage専用のLocalCacheへ置かれ、ストアが黙って二つに分かれるためです。
 
-判定は `%LOCALAPPDATA%\OneStarMaker.StoreProbe\`（ストアの外）に固有名のprobe fileを `CreateNew` と `DeleteOnClose` で開き、handleの実体pathを論理pathと比べるだけです。package identityは使いません（identityの無い仮想化と、identityのある非仮想化の両方が観測されたため）。probe fileはhandleを閉じるとOSが消します。probe領域のdirectory自体は残ることがあり、ストアの一部ではありません。
+判定は呼出しごとに、`%LOCALAPPDATA%` の直下（ストアの外）へ一意な名前のdirectory `OneStarMaker.StoreProbe.<32桁の16進>` を、同じ名前が既にあれば失敗する方法で新しく作ります。その中に固有名のprobe fileを `CreateNew` と `DeleteOnClose` で開き、handleの実体pathを論理pathと比べます。handleを閉じるとOSがprobe fileを消し、最後に自分で作ったそのdirectoryだけを、空であれば削除します。package identityは使いません（identityの無い仮想化と、identityのある非仮想化の両方が観測されたため）。
+
+毎回新しいdirectoryを作るのは、仮想化されたprocessの新しいfileの書込み先がpathごとに違うためです。実体側にだけあるdirectoryの中に作ったfileは実体側へ書かれるので、既にあるdirectory（以前の固定名 `OneStarMaker.StoreProbe\`、他の呼出しの残骸、ストア自体）の中でprobeすると、仮想化されたprocessでも「非仮想化」と誤ります。判定はそれらを開かず、作らず、消しません。
 
 | 判定 | 結果 |
 |---|---|
 | 非仮想化 | 既存どおり実行する |
 | 仮想化 | `{"status":"failed","reasonCode":"virtualized-store"}`、exit 1 |
-| 判定不能（probeの作成・実体path照会・closeの失敗） | `{"status":"failed","reasonCode":"store-context-unknown"}`、exit 1 |
+| 判定不能（probe directoryの作成失敗・同名の既存、probe fileの作成・実体path照会・closeの失敗） | `{"status":"failed","reasonCode":"store-context-unknown"}`、exit 1 |
+
+probe directoryの削除に失敗しても判定は変わりません。processの強制終了や削除の失敗で残るのは、空の `OneStarMaker.StoreProbe.<32桁の16進>` だけです。名前は二度と使われないので後の判定に影響せず、ストアの一部でもありません。判定は他の呼出しの残骸を清掃しません（名前の接頭辞でまとめて消すと、並行して動いている呼出しのdirectoryを消しうるため）。残骸を手で消す場合は、その名前に一致する空のdirectoryだけを、判定を使うCLIを動かしていない間に、非再帰で削除します。以前の固定名 `OneStarMaker.StoreProbe\` は判定に使われなくなりました。残っていても判定に影響しません。
+
+```powershell
+Get-ChildItem -LiteralPath ([Environment]::GetFolderPath('LocalApplicationData')) -Directory -Force |
+  Where-Object Name -Match '\AOneStarMaker\.StoreProbe\.[0-9a-f]{32}\z' |
+  ForEach-Object { try { [IO.Directory]::Delete($_.FullName, $false) } catch { } }
+```
+
+既知の未確認: packageの初回（package専用の `LocalCache\Local` がまだ無い状態）で新しいdirectoryがどちら側に作られるかは観測していません。
 
 どちらの拒否でもストア配下には何も作らず、既存fileも開きません。仮想化されたhostではStorage・Workflow・Harnessを操作せず、非仮想化の担当（ownerの端末、仮想化されないエージェント環境等）へ固定入力のfetchや出口のpublishを依頼します。仮想化されたhostから使えるようにする経路は後続です。定期清掃jobはpackage外のTask Schedulerで動き、この判定の対象外です。
 
@@ -348,7 +360,7 @@ pwsh tools/Artifacts/tests/ContentCleanup.Tests.ps1 -Case '*' -ResultPath <resul
 
 資格情報はCLI→CredentialCommands→CredentialStore→PathAcl/Recordの一方向です。EvidenceApplicationはpublish/fetch/use orchestration、EvidenceContractはv2 codec/deployment、EvidencePathsはtask transaction/receipt、EvidenceRetentionPolicyは純粋判定、EvidenceCleanupは配送/削除/reconcile、EvidenceScheduleは固定runtime/OS adapter、EvidenceResetは一回の限定清掃を所有します。Workflow core/storeはArtifactsをimportせず、CLI composition rootが共通guardとpreflight/syncを結びます。合流の規則（単位・参照・保留の分類とmanifestの再照合）はStoreConsolidationPlanの純粋関数、棚卸し・staging・公開・receiptはStoreConsolidationが所有し、合流moduleはWorkflow/Evidenceのdomain moduleをimportしません。
 
-仮想化の判定と入口は `tools/Workflow/tests/StoreContext.Tests.ps1`、合流の規則はファイルI/Oの無いメモリfixtureの `StoreConsolidationPlan.Tests.ps1`、合流のI/Oは隔離した二つのtemp storeの `StoreConsolidation.Tests.ps1` で検証します。後者は実moduleでpublishした記録を仮想化側へ移してから合流し、既存のWorkflow/Evidence readerで読めることも確かめます。どれも実ストアと実LocalApplicationDataのストアを読み書きしません（判定suiteのnative probe 1件だけがprobe領域に書きます）。
+仮想化の判定と入口は `tools/Workflow/tests/StoreContext.Tests.ps1`、合流の規則はファイルI/Oの無いメモリfixtureの `StoreConsolidationPlan.Tests.ps1`、合流のI/Oは隔離した二つのtemp storeの `StoreConsolidation.Tests.ps1` で検証します。後者は実moduleでpublishした記録を仮想化側へ移してから合流し、既存のWorkflow/Evidence readerで読めることも確かめます。どれも実ストアと実LocalApplicationDataのストアを読み書きしません（判定suiteのnative probe 1件だけが、実LocalApplicationDataの直下に自分のprobe directoryを作って消します。他のnative caseはLocalApplicationDataの代わりに渡す一時directoryの上で動きます）。
 
 H1のこのtaskは3 .NET Release build、全Artifacts PowerShell parse、11 Artifact suite、Workflow TaskLifecycle、Harness、適用taskのcontract/docs auditを固定5 stepで収録します。registered/selected/executedは各非空同集合、failed 0、実DLL path/hash/MVID/depsと生結果を保存します。B exitはdiscovery、最終Cはjudgment、CBlindは同base/headと同じ固定入力です。Unity source/依存を変更しないためUnity test/buildはこのsliceに適用しません。
 

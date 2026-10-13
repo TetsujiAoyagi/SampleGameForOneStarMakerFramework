@@ -22,7 +22,7 @@ $base=[IO.Path]::Combine([IO.Path]::GetTempPath(),'osm-consolidation-'+[Guid]::N
 $trace=[Collections.Generic.List[string]]::new()
 function Assert([bool]$Value,[string]$Message){if(-not $Value){throw $Message}}
 function Set-Consolidation([string]$Name,$Value){Set-EvidenceTestValue StoreConsolidation $Name $Value}
-$notVirtualized=@{Open={param($p)[pscustomobject]@{Path=$p}};FinalPath={param($h)$h.Path};Close={param($h)}}
+$notVirtualized=@{CreateDirectory={param($p)};Open={param($p)[pscustomobject]@{Path=$p}};FinalPath={param($h)$h.Path};Close={param($h)};RemoveDirectory={param($p)}}
 function New-Stores([string]$Name){
     $root=[IO.Path]::Combine($base,$Name)
     $s=[pscustomobject]@{Root=$root;Real=[IO.Path]::Combine($root,'Local','OneStarMaker');Source=[IO.Path]::Combine($root,'Local','Packages','Fixture.Package_0000000000000','LocalCache','Local','OneStarMaker')}
@@ -314,7 +314,7 @@ try{
                     $run=[IO.Path]::Combine($stores.Real,'Artifacts','consolidation',$plan.Sha.Substring(0,32));[IO.Directory]::CreateDirectory($run)|Out-Null
                     $lock=[IO.FileStream]::new([IO.Path]::Combine($run,'run.lock'),[IO.FileMode]::OpenOrCreate,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)
                     try{Assert ((Invoke-StoreConsolidation $plan.Path $plan.Sha $false).reasonCode -ceq 'consolidation-busy') 'second run not excluded'}finally{$lock.Dispose()}
-                    Set-EvidenceTestValue WindowsStoreContext ProbeIo @{Open={param($p)[pscustomobject]@{Path=$p}};FinalPath={param($h)'C:\Packages\X\LocalCache\Local\'+[IO.Path]::GetFileName($h.Path)};Close={param($h)}}
+                    Set-EvidenceTestValue WindowsStoreContext ProbeIo @{CreateDirectory={param($p)};Open={param($p)[pscustomobject]@{Path=$p}};FinalPath={param($h)'C:\Packages\X\LocalCache\Local\'+[IO.Path]::GetFileName($h.Path)};Close={param($h)};RemoveDirectory={param($p)}}
                     Assert ((Invoke-StoreConsolidationPlan $stores.Source ([IO.Path]::Combine($stores.Root,'never.json'))).reasonCode -ceq 'virtualized-store') 'plan ran virtualized'
                     Assert (-not [IO.File]::Exists([IO.Path]::Combine($stores.Root,'never.json'))) 'virtualized plan wrote output'
                     Set-EvidenceTestValue WindowsStoreContext ProbeIo $notVirtualized
@@ -484,7 +484,7 @@ try{
                     # Fresh process: the entry reuses the already loaded modules with private roots.
                     $child=[IO.Path]::Combine($stores.Root,'cli-child.ps1')
                     $body="param([string]`$Mode,[string]`$A,[string]`$B)`nSet-StrictMode -Version Latest`n`$ErrorActionPreference='Stop'`n"+
-                        "`$c=Import-Module '"+(Join-Path $PSScriptRoot '../../Workflow/WindowsStoreContext.psm1').Replace("'","''")+"' -PassThru;& `$c {`$script:ProbeIo=@{Open={param(`$p)[pscustomobject]@{Path=`$p}};FinalPath={param(`$h)`$h.Path};Close={param(`$h)}}}`n"+
+                        "`$c=Import-Module '"+(Join-Path $PSScriptRoot '../../Workflow/WindowsStoreContext.psm1').Replace("'","''")+"' -PassThru;& `$c {`$script:ProbeIo=@{CreateDirectory={param(`$p)};Open={param(`$p)[pscustomobject]@{Path=`$p}};FinalPath={param(`$h)`$h.Path};Close={param(`$h)};RemoveDirectory={param(`$p)}}}`n"+
                         "`$m=Import-Module '"+(Join-Path $PSScriptRoot '../StoreConsolidation.psm1').Replace("'","''")+"' -PassThru;& `$m {param(`$r)`$script:TestRoot=`$r} '"+$stores.Real.Replace("'","''")+"'`n"+
                         "`$entry='"+(Join-Path $PSScriptRoot '../../artifacts.ps1').Replace("'","''")+"'`n"+
                         "if(`$Mode -ceq 'plan'){& `$entry store plan --source-root `$A --output `$B}elseif(`$Mode -ceq 'run'){& `$entry store consolidate --manifest `$A --manifest-sha256 `$B}else{& `$entry store plan --source-root `$A}`nexit `$LASTEXITCODE"
