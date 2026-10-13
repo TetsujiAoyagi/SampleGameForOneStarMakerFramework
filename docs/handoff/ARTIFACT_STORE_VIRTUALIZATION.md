@@ -5,12 +5,12 @@
 このtracked文書の全Phase欄には、各成果物の取得案内の引渡し先・担当と状態だけを書く。reference・期待packageSha256の実値、ローカルの実path、内部catalog/receiptの内容は転記しない。
 
 - type: `slice`
-- status: `A`（2026-10-13、owner の裁定で Phase A を r4 として再開。r4 は A2・A3・統合差分の再レビューを経て凍結。次は B（r4 の追加分と前巡の戻し項目）。発見 C 再レビュー（差し戻し1巡目、先行）までの記録は §7 に残す。判定 C 未着手）
+- status: `B 完了（差し戻し2巡目）`（2026-10-13。r4 の追加分と前巡の戻し項目を実装した（§6「差し戻し2巡目」）。次は発見 C の再レビュー。r4 凍結までの経緯は §5.10〜§5.13、発見 C 再レビュー（差し戻し1巡目、先行）までの記録は §7 に残す。判定 C 未着手）
 - branch: `claude/artifacts-virtualized-store-a01`（`origin/develop` 起点）
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（A3 で `origin/develop` と一致を再確認済み）
 - Phase A revision: **`r4`（2026-10-13 凍結）**。凍結 commit は `77364220ecdd5f7894750744cdaa6e80d1d1dd62`、凍結時の本ファイルの内容 sha256 は `44174f89c23c9d7224b749ff7891397acce239bc04b2afed65156fd4be1aa4e3`（`git show <commit>:<本ファイル>` の bytes。この記入だけの直後の commit は含めない）。§1〜§5 が B の唯一の仕様。r3 からの変更点は §5.10、A2・A3・再レビューは §5.11〜§5.13。
 - 直前の凍結 revision: `r3`（凍結）。凍結 commit は `97145dc08a183e1f1893751f6a86925a3acda1da`（Phase B が `git log` で確認し、PR 状態ブロックへ転記した）。凍結時の本ファイルの内容 sha256 は `c7259ad70ce241ed323a2169c4f5f82a2be4598206bfd2e6b286a6fa8342197f`。
-- implementation head commit: `808991618373b0bf56d2cb6b04faf40e050a1f1a`（差し戻し1巡目の修正後。§0 をこの状態にした commit で、直後のレビュー記録 commit は含めない）。初回の Phase B 完了時は `c55891a498dc3ca99312533d3c9a23126e72fd0c`。HANDOFF にレビュー結果だけを追記した commit は含めない。
+- implementation head commit: `741444dda79263d18f2c5c0fe2891e66a4f5add8`（差し戻し2巡目の修正。r4 の追加分と §7.7 の戻し項目を一つの commit にまとめた。直後の §0 だけを更新した commit は含めない）。差し戻し1巡目の修正後は `808991618373b0bf56d2cb6b04faf40e050a1f1a`、初回の Phase B 完了時は `c55891a498dc3ca99312533d3c9a23126e72fd0c`。HANDOFF にレビュー結果だけを追記した commit は含めない。
 - risk: `high`（永続ストアの所有境界、fail-closed 契約の追加、既存記録の移送、資格情報領域に隣接）
 - owner: リポジトリ owner（依頼者）
 - created: 2026-10-12
@@ -21,11 +21,12 @@
 - Phase B result snapshot / 判定 evidence bundle / C' blind bundle の取得案内・状態: 未生成。依頼により B は Artifact Storage を操作していない。判定 C / C' へ渡す時点で、非仮想化の担当が implementation head から生成して publish する（Phase A snapshot と同じ扱い）。
 - PR: 未作成。作る場合も base は `develop`。
 
-**引継ぎ票 — 次は Phase B（r4 凍結後の差し戻し2巡目）。** Phase A revision r4（2026-10-13 凍結、§5.12・§5.13）の §1〜§5 を唯一の仕様とする。implementation base / head は上記のまま。
+**引継ぎ票 — 次は発見 C の再レビュー（差し戻し2巡目の修正 head）。** Phase A revision r4（2026-10-13 凍結、§5.12・§5.13）の §1〜§5 を唯一の仕様とする。implementation base / head は上記（head は `741444d`）。
 
-- **B の作業:** (1) r4 の追加分（§4 の「r4 の追加分」: `multi-workflow-unit`・`workflow-already-visible` の保留、承認後の変化の扱い、保留単位の staging・receipt を作らないこと、検証例（§5.1）、README の合流節）。(2) 前巡の発見 C で B へ返した戻し項目（§7.7、参照先 file の読取り失敗を存在・ACL だけで成立としない修正。r4 と独立）。二つを一つの差し戻しラウンドにまとめてよい。
-- **B の担当:** 新しい session。開始時にリモートの head、本 §0、凍結 commit と内容 sha256 を照合し、食い違えば引き継がない。§5.1 の起点 filter を実行して B の出口で引継ぎ票を更新し push する。
-- **B の後:** 修正 head を固定して発見 C の再レビュー（B と異なるモデルの新規 session）。本スライスの高コスト証拠は なし（§5.5 案 B）なので、判定 C → C'（最終）で GO を判定する。
+- **発見 C の作業:** 修正 diff `808991618373b0bf56d2cb6b04faf40e050a1f1a..741444dda79263d18f2c5c0fe2891e66a4f5add8` と完全 diff `3f79639c12eac16da77d06608675564e906f9a49..741444dda79263d18f2c5c0fe2891e66a4f5add8` を固定し、構造適合を先に見てから、r4 の追加分（§2.6 D2「公開途中に task 一覧へ見える単位の保留」、AC10・AC12・AC13、§5.1 の検証例、README の合流節）と前巡の戻し項目（§7.7）の解消、未解決だった前巡の指摘の扱い（r4 で決定済み）を照合する。GO 判定・判定 C の一括実行・C' の起動はしない。
+- **発見 C の担当:** B（Claude Opus 5.5 / Anthropic）と異なるモデルの新しい session。C' 用に予約した系列（§5.6）は使わない。開始時にリモートの head、本 §0、凍結 commit `7736422` と内容 sha256、§1〜§5 と凍結 commit の同一性を照合し、食い違えば引き継がない。§2.6 D1 と同じ方法で実行経路が非仮想化であることを1回確認する。
+- **B の結果:** §6「差し戻し2巡目の修正」「差し戻し2巡目の HANDOFF との差」「差し戻し2巡目の確認結果」。§5.1 の起点 filter は全て failed 0。
+- **発見 C の後:** 阻害する指摘が無ければ GO 候補 head として判定 C（判定必須テスト）→ C'（最終。本スライスの高コスト証拠は なし、§5.5 案 B）。指摘があれば違反根拠を付けて B へ返す（B と発見 C の往復は差し戻し2巡目まで消費）。
 
 - **A2 の担当（完了、§5.11）:** B（Claude Opus 5.5 / Anthropic）とも r4 A1（同じ）とも異なるモデルの新しい session。C' 用に予約した系列（§5.6）は使わない。開始時に、リモートの head、本 §0、下記の入力 commit と内容 sha256 を照合し、食い違えば始めない。
 - **A2 の入力:** r4 草案の commit と、その commit での本ファイルの内容 sha256（`git show <commit>:docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md` の bytes の SHA-256）。値は本 §0 の「A2 の入力（固定）」に記入する。読む範囲は §0 と §1〜§5（§5.10 の変更点一覧を含む）。§6・§7 は B と発見 C の記録で、A2 の観点の判断材料にしない。
@@ -43,13 +44,13 @@
 ### PR 状態ブロック（PR 作成時の写し）
 
 ```text
-状態: Phase A r4 凍結。Phase B（差し戻し2巡目）未着手。判定 C 未着手
+状態: Phase A r4 凍結。Phase B（差し戻し2巡目）完了。判定 C 未着手
 Phase A: revision r4（凍結）、commit 77364220ecdd5f7894750744cdaa6e80d1d1dd62
-implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / 808991618373b0bf56d2cb6b04faf40e050a1f1a
-次の担当: Phase B（r4 の追加分と前巡の戻し項目 1件）。次に発見 C 再レビュー → 判定 C → C'
+implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / 741444dda79263d18f2c5c0fe2891e66a4f5add8
+次の担当: 発見 C 再レビュー（B と異なるモデル、新しい session）。次に判定 C → C'
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
 Evidence 取得案内: 未保存・引渡し未完了。保存は非仮想化の担当
-未決事項: なし（保留した単位の扱い・取得の回復・実ストアへの合流は後続 Split Store Recovery）B への戻し項目 1件（§7.7、r4 と独立）
+未決事項: なし（保留した単位の扱い・取得の回復・実ストアへの合流は後続 Split Store Recovery）
 ```
 
 ## 1. A0 — 目的、現況、対象外
