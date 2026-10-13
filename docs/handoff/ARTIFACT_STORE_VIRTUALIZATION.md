@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄には、各成果物の取得案内の引渡し先・担当と状態だけを書く。reference・期待packageSha256の実値、ローカルの実path、内部catalog/receiptの内容は転記しない。
 
 - type: `slice`
-- status: `B 完了（差し戻し2巡目）`（2026-10-13。r4 の追加分と前巡の戻し項目を実装した（§6「差し戻し2巡目」）。次は発見 C の再レビュー。r4 凍結までの経緯は §5.10〜§5.13、発見 C 再レビュー（差し戻し1巡目、先行）までの記録は §7 に残す。判定 C 未着手）
+- status: `発見 C 再レビュー完了（差し戻し2巡目の修正 head、阻害する指摘なし）`（2026-10-13。§7.8。B の実装は §6「差し戻し2巡目」。次は判定 C。r4 凍結までの経緯は §5.10〜§5.13、これまでの発見 C の記録は §7。判定 C・C' 未着手）
 - branch: `claude/artifacts-virtualized-store-a01`（`origin/develop` 起点）
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（A3 で `origin/develop` と一致を再確認済み）
 - Phase A revision: **`r4`（2026-10-13 凍結）**。凍結 commit は `77364220ecdd5f7894750744cdaa6e80d1d1dd62`、凍結時の本ファイルの内容 sha256 は `44174f89c23c9d7224b749ff7891397acce239bc04b2afed65156fd4be1aa4e3`（`git show <commit>:<本ファイル>` の bytes。この記入だけの直後の commit は含めない）。§1〜§5 が B の唯一の仕様。r3 からの変更点は §5.10、A2・A3・再レビューは §5.11〜§5.13。
@@ -21,12 +21,12 @@
 - Phase B result snapshot / 判定 evidence bundle / C' blind bundle の取得案内・状態: 未生成。依頼により B は Artifact Storage を操作していない。判定 C / C' へ渡す時点で、非仮想化の担当が implementation head から生成して publish する（Phase A snapshot と同じ扱い）。
 - PR: 未作成。作る場合も base は `develop`。
 
-**引継ぎ票 — 次は発見 C の再レビュー（差し戻し2巡目の修正 head）。** Phase A revision r4（2026-10-13 凍結、§5.12・§5.13）の §1〜§5 を唯一の仕様とする。implementation base / head は上記（head は `741444d`）。
+**引継ぎ票 — 次は判定 C（GO 候補 head `741444d`）。** Phase A revision r4（2026-10-13 凍結、§5.12・§5.13）の §1〜§5 を唯一の仕様とする。implementation base / head は上記（head は `741444d`。本 §0 を更新した commit は含めない）。発見 C の再レビュー（差し戻し2巡目の修正 head、§7.8）は、阻害する指摘 0 件、後続への入力 3 件（現スライスを阻害しない）で終えた。B と発見 C の往復は 2 巡を消費した（上限 4 巡）。
 
-- **発見 C の作業:** 修正 diff `808991618373b0bf56d2cb6b04faf40e050a1f1a..741444dda79263d18f2c5c0fe2891e66a4f5add8` と完全 diff `3f79639c12eac16da77d06608675564e906f9a49..741444dda79263d18f2c5c0fe2891e66a4f5add8` を固定し、構造適合を先に見てから、r4 の追加分（§2.6 D2「公開途中に task 一覧へ見える単位の保留」、AC10・AC12・AC13、§5.1 の検証例、README の合流節）と前巡の戻し項目（§7.7）の解消、未解決だった前巡の指摘の扱い（r4 で決定済み）を照合する。GO 判定・判定 C の一括実行・C' の起動はしない。
-- **発見 C の担当:** B（Claude Opus 5.5 / Anthropic）と異なるモデルの新しい session。C' 用に予約した系列（§5.6）は使わない。開始時にリモートの head、本 §0、凍結 commit `7736422` と内容 sha256、§1〜§5 と凍結 commit の同一性を照合し、食い違えば引き継がない。§2.6 D1 と同じ方法で実行経路が非仮想化であることを1回確認する。
-- **B の結果:** §6「差し戻し2巡目の修正」「差し戻し2巡目の HANDOFF との差」「差し戻し2巡目の確認結果」。§5.1 の起点 filter は全て failed 0。
-- **発見 C の後:** 阻害する指摘が無ければ GO 候補 head として判定 C（判定必須テスト）→ C'（最終。本スライスの高コスト証拠は なし、§5.5 案 B）。指摘があれば違反根拠を付けて B へ返す（B と発見 C の往復は差し戻し2巡目まで消費）。
+- **判定 C の作業:** GO 候補 head `741444d` で、判定必須テスト（§5.1。3 project の Release build、Artifacts の全 suite、Workflow TaskLifecycle、Harness tests、新規 3 suite、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`）を実行して判定する。全 EditMode 回帰は適用除外（§5.1）。照合 script は なし、高コスト証拠は なし（§5.5 案 B）。実環境の AC4・AC5、「identity 無しで非仮想化」の host での AC3 は未確認のまま引き継ぐ（§7.8 の未確認）。
+- **判定 C の担当:** B（Claude Opus 5.5 / Anthropic）とは異なるモデルの新しい session。実行は sandbox 外の PowerShell 7（非仮想化の host）。開始時にリモートの head、本 §0、凍結 commit `7736422` と内容 sha256、§1〜§5 と凍結 commit の同一性を照合し、食い違えば引き継がない。§2.6 D1 と同じ方法（`Get-OsmStoreContext`）で `not-virtualized` を1回確認する。3 project の Release DLL を既存 loader の出力先へ用意し、EvidenceCleanup の前に `rg` を PATH へ通す。
+- **判定 C の後:** 判定 C が通れば C'（最終。本スライスの高コスト証拠は なし、§5.5 案 B）。C' には発見 C・判定 C の所見を渡さない（§7 全体、特に §7.8 は blind bundle に含めない）。C' 用の担当は §5.6 で予約済み。判定 C で阻害する指摘が出れば、違反根拠を付けて B へ返す。
+- **発見 C の後続入力（現スライスの条件を変えない）:** §7.8 の後続入力 3 件は `Split Store Recovery` の最初の手順（実データの `store plan`）へ送る。判定 C で扱わない。
 
 - **A2 の担当（完了、§5.11）:** B（Claude Opus 5.5 / Anthropic）とも r4 A1（同じ）とも異なるモデルの新しい session。C' 用に予約した系列（§5.6）は使わない。開始時に、リモートの head、本 §0、下記の入力 commit と内容 sha256 を照合し、食い違えば始めない。
 - **A2 の入力:** r4 草案の commit と、その commit での本ファイルの内容 sha256（`git show <commit>:docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md` の bytes の SHA-256）。値は本 §0 の「A2 の入力（固定）」に記入する。読む範囲は §0 と §1〜§5（§5.10 の変更点一覧を含む）。§6・§7 は B と発見 C の記録で、A2 の観点の判断材料にしない。
@@ -34,7 +34,7 @@
 - **A2 の後（完了）:** A3 で owner が採否と §5.5 の案、§1.5 の後続スライス名を決め（§5.12）、統合差分の再レビュー（§5.13）を経て r4 を凍結した。
 - **実行環境:** B 以降は非仮想化の host（owner の端末、Claude デスクトップ等）。本スライスの入口は仮想化された host で `virtualized-store` を返す設計なので、仮想化された host では既存・新規 suite が成り立たない（AC4 の実環境確認だけは Codex 内で行う。§5.3）。
 - **必要な権限（B 以降）:** sandbox 外での PowerShell 7 実行（LocalAppData の probe と隔離 fixture の ACL 設定を含む）。sandbox による probe 拒否の `store-context-unknown` は仮想化の証拠ではない。suite の前に3 project の Release DLL を既存 loader の出力先へ用意し、EvidenceCleanup の前に `rg` を PATH へ通す。Unity・資格情報・R2 通信は不要。
-- **Evidence:** Phase A snapshot・Phase B result の保存・取得案内は未完了。前回および今回の発見 C の固定入力・生結果の原sourceは各専用 worktree の Git 管理外にあり、未保存・引渡し未完了。r4 A1 でも publish / fetch は実行していない。担当は非仮想化の保存・実行担当。判定 C / C' の bundle は未生成。この状態を保存・引渡し済みとは扱わない。
+- **Evidence:** Phase A snapshot・Phase B result の保存・取得案内は未完了。これまでの発見 C（初回、差し戻し1巡目、差し戻し2巡目）の固定入力・生結果の原sourceは各担当の Git 管理外にあり、未保存・引渡し未完了。r4 A1 でも、差し戻し2巡目の発見 C（§7.8）でも publish / fetch は実行していない。担当は非仮想化の保存・実行担当。判定 C / C' の bundle は未生成。この状態を保存・引渡し済みとは扱わない。
 - **やらないこと（本スライス）:** 実ストアへの合流の実行・実データの `store plan`（§5.5 案 B で後続 `Split Store Recovery` へ送った）、Codex 側・実ストアの既存 file の変更・移動・削除、`credentials` の操作、判定 C・C' の起動（B の段階）。Artifact Storage の publish / fetch は非仮想化の保存担当が C / C' へ渡す時点で行う。
 - **停止規則:** 阻害する指摘は凍結条件または常時契約への違反根拠を付けて B へ返す（`phases-and-handoff.md` の blocker の基準）。凍結条件の意味を変える判断が要れば Phase A の新しい revision にする。
 - **引き渡さないもの:** C' に §5.7・§5.8・§5.11・§5.13 の所見、A2 / A3 の議論、§6 の「HANDOFF との差」以外の C の所見を渡さない。C' 用の担当は §5.6 で予約済み。
@@ -44,10 +44,10 @@
 ### PR 状態ブロック（PR 作成時の写し）
 
 ```text
-状態: Phase A r4 凍結。Phase B（差し戻し2巡目）完了。判定 C 未着手
+状態: Phase A r4 凍結。Phase B（差し戻し2巡目）完了。発見 C 再レビュー（差し戻し2巡目の修正 head）完了。判定 C 未着手
 Phase A: revision r4（凍結）、commit 77364220ecdd5f7894750744cdaa6e80d1d1dd62
 implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / 741444dda79263d18f2c5c0fe2891e66a4f5add8
-次の担当: 発見 C 再レビュー（B と異なるモデル、新しい session）。次に判定 C → C'
+次の担当: 判定 C（B と異なるモデル、新しい session。GO 候補 head は上記、判定必須テストは §5.1）。次に C'
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
 Evidence 取得案内: 未保存・引渡し未完了。保存は非仮想化の担当
 未決事項: なし（保留した単位の扱い・取得の回復・実ストアへの合流は後続 Split Store Recovery）
@@ -748,6 +748,76 @@ Release DLL を既存 loader の出力先（`Packaging/artifacts/package`、`Tra
 - **未実行・未確認:** 判定 C の必須全 Artifacts suite、identity 無しの非仮想化 host（AC3）、実環境 AC4 / AC5、実データの ACL / payload 分類・plan、高コスト AC11 / S4、判定 C の照合 script、Evidence の保存・取得・別 session 閲覧確認。Unity test / Build は凍結 §5.1 の適用除外。判定 C と C' は未着手。
 
 **出口:** C-01・02・03・05 の前巡順序は解消、新規 blocker 1件（C-06）。C-04 は未解決のまま次の担当を owner（r4 の要否判断）とし、C-06 を B への戻し項目として併記する。implementation head は据え置き、レビュー記録だけを commit し、既存 branch へ非 force push する。
+
+### 7.8 発見 C 再レビュー（差し戻し2巡目の修正 head）
+
+- **種別・担当・モデル:** 発見 C（再レビュー、2026-10-13）。Claude Code（Claude Sonnet 5.5、Anthropic）、新規 session。B の Claude Opus 5.5 とは別モデル（同じベンダー）。C' 用に予約した系列（§5.6）は使っていない。追加エージェントは使用していない。r4 の A2 と統合差分の再レビュー（§5.11・§5.13）の担当と同じモデルだが、本 session はそれらの記録と議論を入力にしていない（§1〜§5 を仕様として読み、§5.11・§5.13 は A2 の記録として読んだ）。GO 判定、判定 C の判定必須テストの一括実行、C' の起動、判定 C の照合 script の作成、C-04・C-06 を含む前巡の設計判断のやり直しは行っていない。
+- **開始照合（全て一致）:** リモート branch `origin/claude/artifacts-virtualized-store-a01` の head は `e2c733dc5957437a1e0095bbdc60b515cbeba741`（専用 worktree を detached で作成。既存 worktree が branch を checkout 済みのため）。§0 の implementation base / head は `3f79639c12eac16da77d06608675564e906f9a49` / `741444dda79263d18f2c5c0fe2891e66a4f5add8`。`e2c733d` は §0 だけを更新した commit で、`741444d` からの差分は本ファイルの §0（7 箇所の hunk）だけであり、レビュー対象の実装に含めない。Phase A は r4、凍結 commit `77364220ecdd5f7894750744cdaa6e80d1d1dd62` の本ファイルの内容 sha256 は `44174f89c23c9d7224b749ff7891397acce239bc04b2afed65156fd4be1aa4e3` と一致。`e2c733d` の §1〜§5（`## 1.` から `## 6.` の直前）は凍結 commit の同じ範囲とバイト単位で同一（範囲の sha256 同士を比較）。§0 の PR 状態ブロックは base / head と「次の担当: 発見 C 再レビュー」に一致し、PR は未作成。
+- **固定対象:** 修正 diff `808991618373b0bf56d2cb6b04faf40e050a1f1a..741444dda79263d18f2c5c0fe2891e66a4f5add8`（5 file、594 insertions、56 deletions。実装は `StoreConsolidationPlan.psm1` 1 file、テスト 2 file、README 1 file、本 HANDOFF）と、完全 diff `3f79639c12eac16da77d06608675564e906f9a49..741444dda79263d18f2c5c0fe2891e66a4f5add8`（16 file、2560 insertions、5 deletions）を、binary / full-index の patch、stat、name-status で固定した。凍結 commit の本ファイルも固定入力に含めた。実装 file・既存 test file は変更していない。
+- **実行環境と D1:** sandbox 外の PowerShell 7.6.6、隔離 temp store・fake transport・fake process。`pwsh -NoProfile -Command "Import-Module ./tools/Workflow/WindowsStoreContext.psm1 -Force; Get-OsmStoreContext"` を専用 worktree で1回実行し **`not-virtualized`**（§2.6 D1 の方法。アプリ名から推定していない）。suite の native probe case（`native-probe-deletes-on-close`）はこの1回確認と重複するため選択から除いた。実ストア・Codex 側への CLI 実行、実データの `store plan` / `consolidate`、Artifact Storage の publish / fetch、資格情報の操作、R2 通信は行っていない（依頼の禁止事項）。
+- **Evidence の取得案内・状態:** 固定 diff、凍結 commit の本ファイル、生ログ、結果 JSON、限定再現の script と出力、生成時刻と内容 hash を持つ manifest は、Git 管理外の原sourceとして保持している。Artifact Storage への保存・取得案内は **未保存・引渡し未完了**（依頼で publish / fetch が禁止されているため実行していない）。保存は非仮想化の保存担当へ引き継ぐ。判定 evidence bundle と C' blind bundle は未生成。原sourceの保持を保存・配布完了と扱わない。reference・期待 hash の実値とローカルの実 path は転記しない。
+
+**構造適合（機能照合より先に実施）**
+
+- **§3 の責務マップとの照合:** 修正 diff が触る実装は `StoreConsolidationPlan.psm1`（224 → 248 行、見込み約 +10 に対し +24）だけで、`StoreConsolidation.psm1`（397）、判定 module、三つの入口、既存 resolver・domain store・ACL 規則は 808 から変わっていない。r4 の保留判定は §3 のとおり**計画（純粋関数）**に置かれ、I/O module は計画と `Test-ConsolidationManifest` の結果に従うだけで新しい判断を持たない（verdict が `publish` / `complete` 以外の単位を staging せず、単位 receipt を作らず、journal に `unit-<verdict>` の trace だけを残す既存の分岐のまま）。計画外の責務はない。
+- **公開面・依存・状態:** `Export-ModuleMember` は 4 関数のまま（`Get-ConsolidationItemKey`、`Get-ConsolidationTargetKeys`、`New-ConsolidationPlan`、`Test-ConsolidationManifest`）。新しい公開関数・引数・状態・依存・gate・asmdef・Unity source は無い。新しい `multi-workflow-unit`・`workflow-already-visible` は manifest の `reasons` に現れる reasonCode の値の追加で、§3 が許容した範囲（schemaVersion 不変）。
+- **新しい private 関数 `Test-ConsolidationItemReadable`:** 参照先 path 以下の全 file の hash が取れていることを返す純粋関数（メモリ上の observation だけを見る）。「存在する参照先の bytes を読めたか」は参照規則（D2 (iii)）の一部で、Plan に属する。I/O module に検査を置く案より、狙った単位をメモリ fixture だけで検査できる。純粋性検査（`plan-module-is-pure`）の許可リストに追加済みで、許可リストは module が呼ぶ関数の集合に一致する。**妥当**（新しい公開面を増やさない B 適応）。
+- **合流 suite 518 行（500 行の警報）の B の非分割判断:** 追加 case 5 件は既存の隔離 store・fixture・helper（`New-Stores`、`Write-Item`、`Get-Snapshot`、`Invoke-Plan` など）を共有する同じ合流 I/O の検証で、変更理由・依存・寿命・テスト方法が同じ。分割するなら共有 fixture の別 file 化（`EvidenceReaderFixture.ps1` と同じ形）が要り、独立して変わる二つの判断を分ける利点が無い。判定: **非分割妥当**。500 行未満だけを理由にしていない。なお新規 test 4 file（入口 fixture を含む）の合計は 1004 行で §3 の見込み（約 550）の約 1.8 倍だが、増分の大半は A2・A3 が追加した失敗経路の case と差し戻しの修正で、構造劣化ではない（後続入力 3）。
+- **結論:** 構造上の blocker はない。
+
+**前巡指摘の再照合**
+
+- **C-06（前巡の戻し項目）/ 解消:** `Test-ConsolidationItemReadable` が実ストアにだけある参照先の存在・ACL・reparse に加え hash の取得を要し、directory を指す参照は配下の全 file を要する。読めなければ既存の `reference-missing`。計画 suite の `target-only-reference-unreadable`（file・directory・deployment record・読める対照・参照されない読めない file を併せ持つ対照）と、合流 suite の同名 case（実ストアの参照先を `FileShare.None` で開いた状態の plan・実行で、承認済みの読める plan は `target-changed` になり Workflow は公開されない。閉じた後の対照は `passed/published`）が通過した。正常に読める target-only 参照先は従来どおり成立する。
+- **C-04（前巡で owner 判断待ち）/ r4 の規則どおりに実装されている:** 前巡の順序（alpha が beta の `state.json` を参照して一つの単位になり、Workflow が 2 つ新たに現れる）を、suite と別に隔離 fixture で実行した。単位は `hold/multi-workflow-unit`、run は `partial`、alpha・beta の Workflow は公開されず、実行の前・途中・後の `Get-WorkflowTasks` に現れない。同じ run の別単位（solo）は公開された。
+- **C-01・02・03・05:** 修正 diff はこれらの経路を変えていない（`StoreConsolidation.psm1` は 808 のまま）。起点の計画・合流 suite の該当 case（`referenced-file-missing`、`unchecked-record-held`、`unexamined-json-held`、`fault-run-records`、`source-reparse-after-inventory`）は通過を維持している。
+
+**r4 の追加分の照合**
+
+- **§2.6 D2「公開途中に task 一覧へ見える単位の保留」、I4、S2・S3、AC12・AC13（数え方と保留しない境界）:** `New-ConsolidationPlan` は単位ごとに、単位の Workflow のうち実ストアで absent のものを数え、2 つ以上なら `multi-workflow-unit`、実ストアに既にある Workflow があり Workflow 以外に absent / partial の item があれば `workflow-already-visible` を、他の理由と独立に加える。r4 の本文だけから作った oracle で、結合単位（2 つの Workflow の状態を各 3 通り × transfers・Evidence 2 件の状態を各 2 通り = 72 通り）と単一 task 単位（Workflow・Evidence・Harness の状態 2 通りずつ = 8 通り）の全組合せを照合し、保留の有無、二つの reasonCode、status（hold / publish / skip）が全て一致した。保留しない側の境界（全 item が identical、新たに公開するのが Workflow 1 つだけで他は identical、Workflow を持たない task との結合）はこの組合せに含まれ、保留されない。Workflow が `conflict` の場合の `workflow-already-visible` の併存は §2.6 D2「理由は互いに独立」「identical を含む」の読みの範囲。
+- **他の保留理由との併存、deployment 単位の先行公開:** `multi-workflow-with-other-reasons`（`reference-missing`・`source-invalid` と併存し、他の理由を消さない）が通過。実行まで通した隔離 fixture で、実ストアに無い deployment と、同じ operation を参照する 2 task の保留単位を置くと、deployment 単位は `published` で単位 receipt が残り、保留単位は `hold` のまま、transfers・Evidence・Workflow が実ストアに現れず、staging も単位 receipt も無く、journal の trace は `unit-hold` の 1 行だけ。dry-run は実ストアに何も作らず `partial`。同じ manifest の再実行は deployment `complete`、保留単位 `hold`、新しい move 0 件。
+- **承認後の変化:** 構成が変われば（Workflow 1 → 2）`source-changed`、承認時に保留だった単位は理由が消えても `hold` のまま、承認時に公開対象だった単位が保留の条件を満たせば（別 writer が Workflow を同一 bytes で置く）`target-changed` で staging しない、を `Test-ConsolidationManifest` の 10 項目の照合（verdict 8、plan の status 2。自分の中断後の進行は `publish` / `complete` を維持、別 writer の Workflow が conflict でも `target-changed`）と、合流 suite の `unit-changed-after-approval`・`interrupted-then-changed` で確認した。(c) で止まった後に構成が変わった単位は `source-changed` で止まり、公開済みの断片（transfers）は残り、task は一覧に現れない。
+- **公開途中の task 一覧の観測:** 公開対象の単位は Workflow の rename の前に列挙されず、rename の直後に初めて列挙される（隔離 fixture で `before-publish` / `published` の各点の `Get-WorkflowTasks` を観測）。保留した単位は実行の前・途中・後のどの時点でも新たに列挙されない。
+- **§5.1 の検証例:** 計画 suite 6 case（`multi-workflow-unit-held`、`workflow-already-visible-held`、`all-identical-unit-not-held`、`only-new-workflow-not-held`、`single-workflow-unit-not-held`、`multi-workflow-with-other-reasons`）と合流 suite 4 case（`multi-workflow-unit-not-published`、`workflow-already-visible-not-published`、`unit-changed-after-approval`、`interrupted-then-changed`）は全て実在して通過。`hidden-until-workflow` は Workflow 1 つの単位の検証として残る。**テストの感度:** 実装を 808 の版に戻し新しいテストだけを載せた隔離コピーで、計画 suite は 4 件（`multi-workflow-unit-held`、`workflow-already-visible-held`、`multi-workflow-with-other-reasons`、`target-only-reference-unreadable`）、合流 suite は 4 件（`multi-workflow-unit-not-published`、`workflow-already-visible-not-published`、`unit-changed-after-approval`、`target-only-reference-unreadable`）が失敗し、保留しない側の対照と `interrupted-then-changed` は通る。§6 の記述のとおり。
+- **README の合流節:** 不可視性を「新たに公開する Workflow が 1 つで、単位の Workflow が実ストアにまだ無い」場合に限定し、`multi-workflow-unit`・`workflow-already-visible` の条件、保留した単位は file を公開せず staging も単位 receipt も作らず journal に保留の記録だけを残すこと、`dependency-held` と deployment 単位の先行公開、承認後の変化（`source-changed`・`target-changed`）を書き、参照先の読取りの要件も追加している。実装と一致する。
+
+**§6「差し戻し2巡目の HANDOFF との差」3 件の分類**
+
+1. **「新たに公開する」「既にある」を実ストアの観測（exists）で数える、conflict の Workflow も「既にある」に含める:** **B 適応として妥当。凍結条件の意味は変えていない。** §2 の用語は「実ストアで absent のもの」を新たに公開する Workflow と定義し、§2.6 D2 は「実ストアに既にあり（identical を含む）」「理由は互いに独立に判定」と書く。観測基準は source 側の状態（`source-unreadable` など）に左右されない読みで、conflict と併存しても status は hold のまま、manifest の `reasons` に値が一つ増えるだけ。
+2. **directory を指す参照は配下の全 file が読めることを要件にする（新しい reasonCode は作らない）:** **B 適応として妥当。** D2 (iii) の「実ストアに bytes・ACL 同一で既にある」を directory では配下の bytes と読み、既存の `reference-missing` を使う。前巡の戻し項目 C-06 の修正範囲内で、fail-closed の対象は参照先の読取りという同じ軸のまま。新しい状態・公開 API・reader 契約を要さない。
+3. **合流 suite の fixture（実ストアの Workflow 配下に private ACL を付ける、case 後に `TaskEventStore` の test root を戻す）:** **B 適応として妥当。** テスト専用の調整で、`Get-WorkflowTasks` が `tasks` directory の private ACL を検査する実装の前提に合わせたもの。実ストアの通常の状態と同じ。凍結条件・実装の意味を変えない。
+
+**新たに現在の問いを阻害する指摘 — なし（0 件）**
+
+凍結済み条件（I1〜I7、S1〜S3、AC1〜AC14）または常時契約への違反を、一次証拠と具体的な順序で示せる指摘は見つからなかった。r4 の追加分を破る順序として検討した、(1) 保留の判定と最初の公開の前後（判定は計画で行い、execute は実行時の再棚卸しの後に最初の staging より前で verdict を決める）、(2) 公開の途中で止まった単位が自分の中断から `multi-workflow-unit` / `workflow-already-visible` になる順序（Workflow を最後に公開するため、自分の中断後に Workflow が identical になるのは他の item が全て identical のときだけで、保留も `target-changed` も生じない）、(3) 保留した単位の副産物（staging・単位 receipt・journal の trace）、(4) 承認後の別 writer による Workflow の出現と消滅、(5) 保留と deployment 単位の先行公開・`dependency-held` の伝播、のいずれも凍結条件に違反しなかった。
+
+**後続スライスの入力（凍結済み条件の違反根拠を持たない。現スライスの実装・受け入れ条件を拡張しない）**
+
+1. **単位が Workflow を持たない task の公開（`Split Store Recovery`）。** 保留規則は単位が運ぶ Workflow item を数える（§2 の用語「単位に属する」）。source が Evidence・Harness だけを持つ task について、実ストアにその task の Workflow が既にある（task が既に一覧に見える）場合、単位は保留されず（隔離 fixture で `publish`、reasons 空）、Evidence・Harness は item 単位で順に現れる。§2 の定義の範囲内で凍結条件には違反しない。実データの `store plan` を `Split Store Recovery` の最初の手順で見る際に、この形の単位が出るかを確認し、出る場合に規則の読みを決定記録で固定するか、後続の設計で扱うかを決める。
+2. **README の保留理由の一覧。** §3 の README 行と §5.11 の R4A2-6 は「reason の一覧として書く」とする。README は新しい二つの reasonCode を条件とともに本文で説明するが、manifest の `reasons` に現れる値（`conflict`、`acl-mismatch`、`reparse`、`source-unreadable`、`reference-localcache`、`reference-out-of-role` など）は名前の一覧になっていない。承認者が manifest を読む資料として、次に README を触るときに値の一覧を足す余地がある。受け入れ条件の文言の隙間であり、どの凍結条件の合否も変えないので blocker にしない。
+3. **構造メモ。** sha256 形式の正規表現（`\A[0-9a-f]{64}\z`）が Plan 内の 3 箇所に重複している。合流 suite 518 行は fixture を共有 file にする余地がある（現状は非分割妥当）。いずれも次に当該 module・suite を触るときの整理。
+
+**凍結条件と新しい事実の分類**
+
+- **I1・I2・I3・S1・AC1〜AC3・AC14:** 修正 diff はこれらの経路に触れていない。起点 filter の StoreContext（native probe を除く 12 case）、TaskLifecycle、Harness 4 本は通過した。AC3 は host が package identity ありの非仮想化で確認した範囲のみで、「identity 無しで非仮想化」の host と既存全 suite による全体の成功は未確認のまま（免除していない）。
+- **I4〜I7、S2・S3、AC6〜AC10・AC12・AC13:** 上記の照合と suite の通過で、修正でこれらを破る新しい順序は見つからなかった。狭い起点 filter から I1〜I7 / S1〜S3 / AC1〜AC14 全体の合格は宣言しない。
+- **新しい事実の分類:** 本 session で新しく分類が要る事実（A 再開・スパイク）は無い。後続入力 1 は**後続スライス**。S4（取得の回復）と実環境 AC4・AC5 は引き続き未確認（S4 は r4 で後続へ移した）。
+
+**実行したテスト・filter・結果**
+
+- **準備:** `dotnet build tools/Artifacts/{Packaging/ArtifactPackaging,Transport/R2ArtifactTransport,Probe/R2RouteTransport}.csproj -c Release -o tools/Artifacts/{Packaging/artifacts/package,Transport/artifacts/transport,Probe/artifacts/probe}` を対応する 3 組で実行。全て exit 0、warnings / errors 0。
+- **起点 filter（§5.1）:** 各 suite を `pwsh -NoProfile -File <suite> -Case <filter> -ResultPath <原source>` で、1 suite 1 process、EvidenceCleanup の process を含め cursor 同梱 `rg` の directory を PATH の先頭に通して実行した。結果 JSON の selected / executed の名前集合が非空で一致し、failed 0、exit 0 であることを照合した。合計 230 case。
+  - `tools/Workflow/tests/StoreContext.Tests.ps1`（filter は native probe 以外の 12 case を列挙）12/12
+  - `tools/Artifacts/tests/StoreConsolidationPlan.Tests.ps1`（`*`）24/24（r4 の 6 case と `target-only-reference-unreadable` を含む）
+  - `tools/Artifacts/tests/StoreConsolidation.Tests.ps1`（`*`）20/20（r4 の 4 case と `target-only-reference-unreadable`、`hidden-until-workflow` を含む）
+  - `tools/Workflow/tests/TaskLifecycle.Tests.ps1` 23/23
+  - `tools/Artifacts/tests/ArtifactEvidence.Tests.ps1` 19/19
+  - `tools/Artifacts/tests/EvidenceCleanup.Tests.ps1` 35/35
+  - `tools/Harness/tests/{Harness,UnityGate,UnityObservation,UnityTestRunner}.Tests.ps1` 35/35、21/21、16/16、25/25（fake process の offline suite。Unity は起動していない）
+- **限定再現（隔離 fixture、既存の test file・実装 code は変更していない）:** (1) r4 本文だけから作った oracle による保留判定の全組合せ（結合単位 72 通り、単一 task 単位 8 通り）: 不一致 0。(2) `Test-ConsolidationManifest` の 10 項目: 不一致 0。(3) 実行まで通した 3 scenario（前巡 C-04 の task 間参照の順序、deployment 単位の先行公開と保留単位、公開途中の `Get-WorkflowTasks` の観測）: 全て通過。(4) 実装を 808 の版に戻して新しいテストだけを載せた感度確認（上記）。(5) 後続入力 1 の観測。
+- **機械検査:** `pwsh tools/contract-audit.ps1`（exit 0、errors 0、warnings 0、検査 8 not-applicable）、`pwsh tools/docs-audit.ps1`（exit 0、errors 0、warnings 0）、`git ls-files tools` の PowerShell 106 file の AST parse（errors 0）、`git diff --check`（exit 0）。docs-audit はレビュー記録を追記したこの更新後に再実行した結果を最終とする。
+- **未実行・未確認:** 判定必須テストの一括実行（判定 C）、起点 filter 以外の Artifacts suite、実環境の AC4・AC5、「identity 無しで非仮想化」の host での AC3、実データの ACL・payload の分類と `store plan`（`Split Store Recovery`）、S4 / AC11、Evidence の保存・取得・別 session の閲覧確認、native probe case（開始時の1回確認で代替）。Unity テスト・Build は §5.1 の適用除外。判定 C と C' は未着手。
+
+**出口:** 阻害する指摘 0 件。次の担当は判定 C（GO 候補 head `741444dda79263d18f2c5c0fe2891e66a4f5add8`、判定必須テストは §5.1）。implementation head は据え置き、レビュー記録（本 §7.8 と §0）だけを commit し、既存 branch へ非 force push する。
 
 ## 8. Phase C'
 
