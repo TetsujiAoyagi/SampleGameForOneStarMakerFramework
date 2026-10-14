@@ -1107,7 +1107,7 @@ owner の裁定でスパイクから行った。実装は変えていない。
 
 ### 7.12 発見 C（r5）
 
-判断担当: Codex CLI（`codex exec -s read-only`、モデル `gpt-6-luna`、OpenAI）、新しい session。B（Claude Opus 5.5）と異なる系列。実行・保存・転記は司令塔（Claude Sonnet 5.5）が行い、判断担当の本文は書き換えず転記した。起点 filter の結果は worktree の `TestResults\phase-c\discovery\`（Git 管理外。未保存・引渡し未完了）。実行は 10 suite（StoreContext 22、StoreConsolidationPlan 24、StoreConsolidation 20、TaskLifecycle 23、ArtifactEvidence 19、EvidenceCleanup 35、Harness 35 / UnityGate 21 / UnityObservation 16 / UnityTestRunner 25）で全て failed 0、contract-audit は errors 0（runner の不具合で最初の実行から外れたため単独で再実行。run-summary に記録）。
+判断担当: Codex CLI（`codex exec -s read-only`、モデル `gpt-6-luna`、OpenAI）、新しい session。B（Claude Opus 5.5）と異なる系列。実行・保存・転記は司令塔（Claude Sonnet 5.5）が行い、判断担当の本文は書き換えず転記した（docs-audit のため、本文中の絶対 path のリンク2件だけを、同じ file・行の code 表記に直した）。起点 filter の結果は worktree の `TestResults\phase-c\discovery\`（Git 管理外。未保存・引渡し未完了）。実行は 10 suite（StoreContext 22、StoreConsolidationPlan 24、StoreConsolidation 20、TaskLifecycle 23、ArtifactEvidence 19、EvidenceCleanup 35、Harness 35 / UnityGate 21 / UnityObservation 16 / UnityTestRunner 25）で全て failed 0、contract-audit は errors 0（runner の不具合で最初の実行から外れたため単独で再実行。run-summary に記録）。
 
 **種別・巡:** 発見 C（r5）、B と発見 C の通算 3 巡目。
 
@@ -1115,7 +1115,7 @@ owner の裁定でスパイクから行った。実装は変えていない。
 
 **構造適合:** §3 の責務マップと照合した。判定の中心は新規の `WindowsStoreContext.psm1` に置かれ、3 CLI は入口で判定結果を扱う構成を保っている。ストア統合計画・実行もそれぞれ専用 module に分けられ、Workflow、Artifacts、Harness の依存境界を越えていない。r5 では probe directory の作成・削除とテスト用 root 差し替えを private seam に追加している。新規 StoreContext suite は unknown、既存名、残骸、並行呼出し、native 操作を扱う。配置・依存・テスト境界に凍結条件違反は見つからなかった。行数は設計判断の説明を求める目安として確認し、行数だけを理由とする指摘はない。
 
-**現在の問いを阻害する指摘:** 0 件。I1（r5）・AC2・AC15・D1 の照合で、判定失敗時に `unknown` となる経路、同名 directory の再利用防止、probe directory の作成と非再帰削除、並行呼出し時に他の呼出しの directory を削除しない動作、既存の固定 probe 領域・ストアを使わない動作を確認した。失敗時の directory 削除は結果を変えず、残った一意名 directory は次回の判定に再利用されない。native の `CreateDirectoryW` は既存名や親のないパスで失敗し、probe file の open は親 directory を作成しない。これらの経路は実装とテストで裏付けられている。一次証拠: [WindowsStoreContext.psm1](/D:/repositories/unity/OSM-wt-virtstore-c5/tools/Workflow/WindowsStoreContext.psm1:74)、[StoreContext.Tests.ps1](/D:/repositories/unity/OSM-wt-virtstore-c5/tools/Workflow/tests/StoreContext.Tests.ps1:252)。指摘がないため、severity・category・B適応/A再開の分類を付す阻害 finding はない。
+**現在の問いを阻害する指摘:** 0 件。I1（r5）・AC2・AC15・D1 の照合で、判定失敗時に `unknown` となる経路、同名 directory の再利用防止、probe directory の作成と非再帰削除、並行呼出し時に他の呼出しの directory を削除しない動作、既存の固定 probe 領域・ストアを使わない動作を確認した。失敗時の directory 削除は結果を変えず、残った一意名 directory は次回の判定に再利用されない。native の `CreateDirectoryW` は既存名や親のないパスで失敗し、probe file の open は親 directory を作成しない。これらの経路は実装とテストで裏付けられている。一次証拠: `tools/Workflow/WindowsStoreContext.psm1:74`、`tools/Workflow/tests/StoreContext.Tests.ps1:252`。指摘がないため、severity・category・B適応/A再開の分類を付す阻害 finding はない。
 
 **後続への入力:** 実環境の AC4・AC5 はこの発見 C では未取得で、判定 C で取り直す必要がある。これは凍結済み検証条件の未確認であり、現時点で実装違反を示す証拠ではない。分類案は B 適応または A 再開ではなく、判定 C での証拠取得と条件判定。severity: medium（受け入れ判定に必要な未確認事項）、category: semantic。実環境結果が出るまでは合否を判断しない。
 
