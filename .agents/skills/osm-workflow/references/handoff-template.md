@@ -11,7 +11,7 @@ A3で `external-current-v1` を明示したtaskはこのtrackedテンプレー�
 実際の取得案内は、リポジトリルートの `.agents/skills/osm-workflow/references/review-evidence.md` の「保存先とリモートへの配布」に従い、publishが返すreferenceとそれとは別の期待packageSha256、対象base / head、用途、取得手順、保持条件を持つ。各snapshot・bundleの生成時刻と内容hashは固定manifestに残し、packageSha256と混同しない。同じpackageに収録した成果物は同じ取得案内を使ってよく、個別publishや第二の台帳を要求しない。C' 用の案内と入力は所見から分離する。
 
 - type: `slice` / `program` / `research`
-- status: `A` / `B` / `C` / `C'` / `D`
+- status: `A` / `B` / `動作確認` / `C` / `C'` / `D`
 - branch:
 - implementation base commit:
 - implementation head commit:
@@ -33,7 +33,7 @@ Phase A では implementation base commit と Phase A snapshot の取得案内�
 PR 本文の先頭に置く、この §0 の最小の写し。reference・hash の実値は書かない。
 
 ```text
-状態: Phase <A / B / C / C' / D> の <作業中 / 完了>
+状態: Phase <A / B / 動作確認 / C / C' / D> の <作業中 / 完了>
 Phase A: revision <番号>、commit <SHA>
 implementation base / head: <SHA> / <SHA または 未固定>
 次の担当: <Phase と役割>。次の作業: <作業>
@@ -83,7 +83,7 @@ Evidence 取得案内: <未生成 / 未保存 / 引渡し未完了 / 確認済�
 - 判定必須テスト（GO 候補 head。実装変更スライスは最終全 EditMode 回帰が標準）:
 - 全 EditMode 回帰の適用除外（理由と代替証拠。無ければ `なし`）:
 - 統合・Unity テスト:
-- 操作・実行時・目視条件の検証経路（条件ごとの担当、環境・初期状態、操作、観測と合否、対象版・保存証拠・C / C' への受け渡し。既存テストは参照で可）:
+- 操作・実行時・目視条件の検証経路（条件ごとの担当、環境・初期状態、操作、観測と合否、対象版・保存証拠・C / C' への受け渡し。既存テストは参照で可。動作確認の実行担当がそのまま実行できる粒度で書く）:
 - 未知の操作経路の疎通結果と、必要な検証支援・確認地点（未知経路が無い場合だけ `なし`。Phase C へ委譲する場合は「未確認。初回確認は Phase C」と理由・担当・確認地点、不成立時の対応）:
 - 人間の判断が必要な条件と合意した担当・証拠の受け入れ方（観察記録の受理 / 画像の独立再評価。無ければ `なし`）:
 - 高コスト証拠（不可逆・高コストの証拠ごとの取得手順と、実装から独立した期待値。無ければ `なし`）:
@@ -102,6 +102,14 @@ Evidence 取得案内: <未生成 / 未保存 / 引渡し未完了 / 確認済�
 - 未実行:
 - implementation head commit:
 - Phase B 担当・モデル・ベンダー:
+
+### 動作確認
+
+- 対象 head:
+- 条件ごとの実行担当・環境・実行したコマンド:
+- 生の観測（出力、事前・事後の観測。合否は書かない）と保存先・状態:
+- 検証経路の期待と違う観測と、B への差し戻し:
+- `未実施` の条件と理由・担当（未実施が無ければ `なし`、検証経路に該当条件が無いスライスだけ `対象なし`）:
 
 ## 7. Phase C
 
