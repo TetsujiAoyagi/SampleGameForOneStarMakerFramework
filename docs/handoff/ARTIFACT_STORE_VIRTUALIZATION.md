@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄には、各成果物の取得案内の引渡し先・担当と状態だけを書く。reference・期待packageSha256の実値、ローカルの実path、内部catalog/receiptの内容は転記しない。
 
 - type: `slice`
-- status: `発見 C（r5）完了（阻害 0 件、§7.12）。判定 C 完了（阻害 0 件、§7.13）。C' 3 巡目は阻害 1 件（§8.2、docs-audit の記録）で owner の判断待ち`。（2026-10-14 に owner が A 再開を確定し、同日 r5 を凍結した（§5.16）。経緯: C' の阻害指摘 2 件（§8）→ AC4 の実環境確認が不合格（§7.10）→ スパイクで原因が確定（§7.11）。r5 の変更点は §5.14。r4 凍結までの経緯は §5.10〜§5.13、発見 C の記録は §7.1〜§7.8、判定 C は §7.9）
+- status: `発見 C（r5）完了（阻害 0 件、§7.12）。判定 C 完了（阻害 0 件、§7.13）。C' 4 巡目で阻害 0 件（§8.3）。**Phase C / C' 完了。次は Phase D**`。（2026-10-14 に owner が A 再開を確定し、同日 r5 を凍結した（§5.16）。経緯: C' の阻害指摘 2 件（§8）→ AC4 の実環境確認が不合格（§7.10）→ スパイクで原因が確定（§7.11）。r5 の変更点は §5.14。r4 凍結までの経緯は §5.10〜§5.13、発見 C の記録は §7.1〜§7.8、判定 C は §7.9）
 - branch: `claude/artifacts-virtualized-store-a01`（`origin/develop` 起点）
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（A3 で `origin/develop` と一致を再確認済み）
 - Phase A revision: **`r5`（2026-10-14 凍結）**。凍結 commit と内容 sha256 は凍結直後の commit で記入する（下の行）。§1〜§5 が B の唯一の仕様。r4 からの変更点は §5.14（A3 の統合は §5.15）、A2・A3 は §5.15・§5.16。
@@ -28,10 +28,11 @@
 
 - **DR1（版 1、2026-10-14、適用: 判定 C の AC5 から）— AC5 の「既存どおりの reasonCode」の基準。** 同じ読取り系コマンドを、同じ host・同じ Store 版 pwsh で implementation base `3f79639`（判定を入れる前）でも実行し、対象 head の結果と reasonCode・exit・出力の種類（JSON の reasonCode、または reasonCode を出さないコマンドの文の種類）が同じであることを「既存どおり」とする。理由: §5.3 は比較の基準を書いておらず、harness の2コマンドは reasonCode を出力しない。I3 の「挙動を変えない」の比較対象は変更前の挙動なので、base での実行が凍結条件の意味どおりの基準である。合否の対象と範囲は変えない。C' 用決定記録には含めない（C' の前巡の指摘への裁定ではない）。base での実行結果は判定 evidence に入る。
 - **DR2（版 1、2026-10-14、適用: 判定 C の AC4 から）— AC4 の実行権限。** Codex 内の4入口は、まず通常の経路で owner の承認を求めて実行する。実行環境の審査がそれを通さない場合は、owner が Codex をフルアクセスに切り替え、4入口を同じ設定で続けて実行し直す（一部の入口だけを別の設定で実行しない）。どちらで実行したかを evidence に記録する。理由: D8 で `evidence publish` が承認後も審査で拒否された。権限設定は owner 自身の判断で、エージェントによる迂回ではない。フルアクセスでも Codex の package 内の process なので、AC4 の前提（仮想化された process）は変わらない。
+- **DR3（版 2、2026-10-14、owner。適用: C'' の 3 巡目の指摘（版 1）と 4 巡目（版 2）— C'' 用決定記録）。** C'' の 2 巡目の指摘 3 件への裁定。(1)(2) 実行の記録に書かれた commit が `docs/handoff/` だけを更新した commit なら、その記録は固定 head の実行記録として読む。ただし docs-audit は検査対象が `docs/handoff/` の中身なので適用せず、固定 head を detached checkout した clean tree で実行した生ログだけを判定に使う（版 2 で追加）。(3) §5.3 の「実 path を含めない」は前後の一覧の項目に、§1.3・I2 は CLI の最終出力に係る。観測ログ先頭の root 定義は実 path を含んでよい。全文は C'' 用の `DECISION_RECORDS.md`（Git 管理外の bundle 内）。起案は司令塔（Claude Sonnet 5.5）で、owner の「A で進めて」「A-2 で進めて」の指示に基づく。条件の意味・合否は変えない。
 
-**引継ぎ票（判定 C 完了、r5）— 次は C' 2 巡目。** 判定 C は GO 候補 head `f97edf0` で完了した（阻害する指摘 0 件、§7.13）。C' は PR・本 HANDOFF 全文・§7 を読まず、所見を含まない C' 用の取得案内だけで始める（cursor-agent の Grok 系、新しい session、blind bundle）。C' の指摘による差し戻しは、1 巡目の指摘で 1 巡を消費済み（上限 3 巡）。この 2 巡目の指摘（§8.1）を B へ返すかの判断は owner が行う。
+**引継ぎ票（Phase C / C' 完了、r5）— 次は Phase D（保存・引渡し確認 → harvest → PR）。** 判定 C（§7.13、阻害 0 件。AC4 は 1 回取り直し）と C' の 4 巡目（§8.3、阻害 0 件）が GO 候補 head `f97edf0` で揃った。C' は 1 巡目（§8、阻害 2 件）→ B へ差し戻し（r5）→ 2 巡目（§8.1、阻害 3 件）→ 3 巡目（§8.2、阻害 1 件）→ 4 巡目（§8.3）と進んだ。B への差し戻しは 1 巡目の指摘で 1 巡を消費し、2〜4 巡目は実装を変えない再梱包（決定記録 DR3）だった。
 
-- **Evidence の状態:** Phase A snapshot・Phase B result・判定 evidence bundle・C' blind bundle を、Artifact Storage の task `artifacts-virtualized-store-ev2` へ publish した（引渡し先: owner 手元の Git 管理外。reference と期待 packageSha256 は C' 用が所見から分離した案内にあり、ここには転記しない）。同一 session 内で空の領域へ fetch し、期待 hash と manifest の全 file の SHA-256（不一致 0 件）と中身の閲覧を確認した。別 session での閲覧確認は未了。判定 evidence bundle は blind bundle の上位集合（AC4 の 1 回目の記録、発見 C の実行結果、最初の docs-audit の記録を含む）で、blind bundle には発見 C・判定 C の所見、決定記録、引継ぎ票、Phase A のレビュー節、Phase B result の差し戻し節と動作確認の比較記録を含めていない。
+- **Evidence の状態:** Phase A snapshot・Phase B result・判定 evidence bundle・C' blind bundle を、Artifact Storage の task `artifacts-virtualized-store-ev2` へ publish した（引渡し先: owner 手元の Git 管理外。reference と期待 packageSha256 は C' 用が所見から分離した案内にあり、ここには転記しない）。同一 session 内で空の領域へ fetch し、期待 hash と manifest の全 file の SHA-256（不一致 0 件）と中身の閲覧を確認した（C' の 4 巡分の blind bundle と判定 evidence bundle の再梱包を含む。全て ``-ev2``）。別 session での閲覧確認は未了。C' 4 巡目は fetch した最後の blind bundle を別 session（cursor-agent）が読んだ。判定 evidence bundle は blind bundle の上位集合（AC4 の 1 回目の記録、発見 C の実行結果、最初の docs-audit の記録を含む）で、blind bundle には発見 C・判定 C の所見、決定記録、引継ぎ票、Phase A のレビュー節、Phase B result の差し戻し節と動作確認の比較記録を含めていない。
 - **task が 3 つある理由（記録）:** 既存の `artifacts-virtualized-store` は、過去の fetch が残した未採用の staging（実体が無い）のため publish が `unconfirmed` で拒否される（診断で確認）。`artifacts-virtualized-store-c5` に 600 file の bundle を publish したところ、task の catalog 記録が 1 MiB の上限（約 919 KB）に近づき、fetch が `record-limit` で失敗した。そのため source を 1 つの zip にして file 数を絞り、`artifacts-virtualized-store-ev2` へ publish し直した。`-c5` に大きい 2 件が残り、`artifacts-virtualized-store` には古い 3 件が残る。Phase D の task 終了と清掃では 3 task を扱う。製品側の 2 件（残骸の staging が task を塞ぐこと、catalog 記録の上限）は後続の入力。
 - **取り直し（記録）:** AC4 の 1 回目は事前実行と Codex 内の実行の間が約 11 時間 41 分で単一ログでもなかったため、判定 C は取り直しを求めた（§7.13）。取り直しは 27 秒、単一ログ。
 
@@ -112,11 +113,11 @@
 ### PR 状態ブロック（PR 作成時の写し）
 
 ```text
-状態: 判定 C 完了。C' 3 巡目は阻害 1 件（docs-audit の記録）で owner の判断待ち
+状態: Phase C / C' 完了（C' 4 巡目で阻害 0 件）。次は Phase D
 Phase A: revision r5（凍結）、commit 348a491282242ec3e88ac717c913b8c1e5141621
 implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / f97edf07b4fbdfbf92260835e5a8d9752bedd07b
 決定記録: DR1（AC5 の基準は base 比較）・DR2（AC4 の実行権限）、版 1
-次の担当: C' 2 巡目（blind bundle、Evidence 取得案内は owner 手元）
+次の担当: Phase D（保存・引渡し確認 → harvest → PR）
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
 Evidence 取得案内: 保存済み（task artifacts-virtualized-store-ev2、引渡し先: owner 手元の Git 管理外）。同一 session での fetch・hash 照合は確認済み、別 session での閲覧確認は未了
 未決事項: なし（保留した単位の扱い・取得の回復・実ストアへの合流は後続 Split Store Recovery）
@@ -1313,6 +1314,46 @@ bundle 内の `diff/r5-increment.stat.txt` は、prior head `741444d` から `f9
 `ac4/ac4-retake.log` の `WORKTREE=` と `RESIDUE_COUNTS` の `root=`、`ac5/head/ac5-observations.log` の `WORKTREE=` には、root 定義の行・一覧の項目・CLI 最終 JSON のどれでもない実 path が残っている。§5.3・§1.3・I2 の係り先には入らず、現在の問いの blocker にはしない。
 
 司令塔の補足（C' の本文ではない。事実のみ）: `f97edf0` を detached checkout した worktree で `pwsh tools/docs-audit.ps1` を実行すると、exit 0（errors 0、warnings 1: 検査 3）。生の出力はまだ bundle に入れていない。
+
+### 8.3 4 巡目（r5、GO 候補 head `f97edf0`）
+
+- **担当方式:** 2・3 巡目と同じ（cursor-agent、`grok-4.7-high`、xAI、新しい session、読取りだけ。ツール呼出しは read・grep・glob のみ。約 6 分、出力 26k token）。プロンプトは同じ固定の 1 行。
+- **入力:** 再梱包した C' blind bundle（84 file。3 巡目からの追加は `tests/decision/docs-audit.at-fixed-head.log.txt`（固定 head `f97edf0` の clean tree で実行した docs-audit の生ログ）、`DECISION_RECORDS.md` 版 2、4 巡目の指示書。実装の変更なし）。空の新しい directory に fetch し、manifest の全 file の SHA-256（不一致 0 件）を照合した。取得案内は owner 手元の Git 管理外。
+- **受け取った決定記録の版:** DR3 版 2（C' の 3 巡目の指摘 1 件への裁定を加えた版。§0）。
+- **判定:** **阻害する指摘 0 件。後続への入力なし。** 司令塔（Claude Sonnet 5.5）は最終応答の本文を書き換えず転記した（応答冒頭の進行の文は省き、見出し階層だけ下げた）。
+- **独立性:** B（Claude Opus 5.5）・発見 C と判定 C（Codex）と異なる系列・ベンダー（強化条件を満たす）。blind bundle のみを入力とし、判定 C・発見 C の所見は渡していない。
+
+#### Findings
+
+該当する指摘はない。blocker はない。
+
+DR3 版2が不変条件 I1〜I7 を破ること、または凍結条件の意味・合否を変えていることは、bundle 内の資料からは示せない。裁定への異議は blocker にしない。
+
+#### 解消状況
+
+3巡目の指摘（docs-audit の合否の帰属）は解消している。固定 implementation head `f97edf07b4fbdfbf92260835e5a8d9752bedd07b` の docs-audit の合否は、DR3 版2が指定する `tests/decision/docs-audit.at-fixed-head.log.txt` に属する。結果は合格である。
+
+根拠は次のとおり。
+
+- `phase-a-snapshot-r5.md` §5.1 の判定必須テストに `pwsh tools/docs-audit.ps1` がある。`source/.agents/skills/osm-workflow/references/review-evidence.md` は、判定必須テストを GO 候補 head で実行し、その head の生ログを残すと定めている。implementation head は、HANDOFF にレビュー結果だけを追記した review-record commit とは分ける。
+- `source/tools/docs-audit.ps1` は、検査1（リンク先が git に無い）と検査2（層をまたぐ参照）をエラー、検査3（§7 と §8 が両方埋まった HANDOFF）を警告とする。`exit 0` は検査1・2に違反が無いことであり、警告は exit code に影響しない。この成否行は `AUDIT_RESULT kind=docs ...` である。
+- 固定 head のログは、`git rev-parse HEAD = f97edf07b4fbdfbf92260835e5a8d9752bedd07b`、`git status --short = []`、コマンド `pwsh -NoProfile -File tools/docs-audit.ps1`、時刻 `2026-10-14T13:55:01.5842466Z` を記録している。スクリプト本体に相当する部分は `対象: D:\repositories\unity\OSM-wt-virtstore-c5-ac4`、tracked md 111 ファイル / 17856 行、`docs/handoff/` 7 ファイル、`AUDIT_RESULT kind=docs files=111 errors=0 warnings=1 checks=1,2,3`、検査3の WARN 1件、「検査1・2 に違反なし。」「警告 1 件（exit code には影響しない）。」である。この2文は、スクリプトが errors 0 の経路でのみ書く。末尾の `exit=0` はスクリプトの標準出力には無いが、成否は本体のこの2文と `AUDIT_RESULT` の `errors=0` から読める。
+- `HEAD_EQUIVALENCE.txt` では、`c146541`、`ebac50b`、`4f8d742` はいずれも `f97edf0` の子孫で、差分は `docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md` だけである。docs-audit の検査1〜3はこのディレクトリの中身を読む。
+- `tests/decision/run-summary.filtered.txt` の decision 実行は `head=c14654194e5cbf33755d092a36b4568b796d5329` で、`docs-audit exit=1` のあと、`4f8d742` の docs だけの commit 後の再実行が `exit=0` である。`EVIDENCE_MANIFEST.json` の `notes.filtered` は、初回失敗を `docs/handoff` 内のリンク2件としている。再実行ログ `docs-audit.rerun.log.txt` は `対象: D:\repositories\unity\OSM-wt-virtstore-c5`、111 ファイル / 17910 行、`errors=0 warnings=1` で、commit はファイル内に無い。行数 17910 と固定 head ログの 17856 は、検査した文書が同一でないことと一致する。
+- DR3 版2は、docs だけの commit の記録を固定 head の実行記録として読む関係から docs-audit を外し、判定には固定 head のこのログだけを使う。固定 head の記録は `errors=0`、警告1件、検査1・2に違反なしである。`c146541` の `exit=1` は、handoff の内容が固定 head と異なる commit の結果である。
+
+この読みは §5.1 の判定必須テストの意味を変えない。合格は、これまでどおり検査1・2に違反が無く `errors=0` であることである。警告1件はスクリプトが exit に影響しないと定義し、`phase-b-result.md` の r5 確認も同じ検査3の警告を、スライス進行中のため対象外と記録している。I1〜I7 と S1〜S3 の文、AC5 の対象 head、docs-audit 以外の判定必須テストの集合と合否には、この例外は触れていない。manifest の `notes.round` は実装変更なしと記している。
+
+#### 追加資料の影響経路
+
+- `tests/decision/docs-audit.at-fixed-head.log.txt` が、docs-audit の判定入力になる。commit と clean tree の対応はファイル先頭の `git rev-parse` と `git status` の記録にあり、合否はそれに続くスクリプト出力の `errors=0` にある。再実行ログとは root（`OSM-wt-virtstore-c5-ac4` と `OSM-wt-virtstore-c5`）と行数（17856 と 17910）で区別できる。
+- `DECISION_RECORDS.md` 版2は、版1の DR3 を置き換える。裁定1・2の docs だけ commit の読みは docs-audit 以外に残り、docs-audit だけ固定 head のログへ帰属する。裁定3（実 path）は履歴どおり変更がない。`contract-audit.ps1` の検査対象は Unity 側の常時契約であり、`docs/handoff` を読まない。`contract-audit.log.txt` の `errors=0` は、この例外の影響を受けない。
+- `C-PRIME-INSTRUCTIONS.md` は、今回の裁定を版2に限定し、監査の中心をこの帰属の解消と追加資料の影響経路に置いている。凍結条件の文は変えていない。
+- `EVIDENCE_MANIFEST.json` の `notes.filtered` と `run-summary.filtered.txt` は、`4f8d742` の再実行が `exit=0` であることを残している。docs-audit の判定への接続は DR3 版2が切っている。`notes.purpose` は "round 2" のままで、`notes.round` は round 4 である。適用範囲は `notes.round`、本指示書、DR3 版2の「適用: C' の 4 巡目から」が固定している。
+
+#### 後続への入力
+
+なし。
 
 ## 9. Phase D
 
