@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（revision 2 案。A2 独立レビュー実施済み（§5.1）。§2・§3 は §5.1 の提案を反映済みで、A3（人間の採否）と fail-closed 担当の差分再レビューが未了。凍結前に実装へ進まない）
+- status: `B`（Phase A は revision 2 で A3 凍結済み。次は Phase B。凍結内容は §2・§3・§5。設計判断を変えるときは Phase A を新しい revision として再開する）
 - branch: `claude/amazing-blackburn-f04cf2`（作業用の仮名。PR を作る前にスライスを表す名前へ改める）
 - implementation base commit: `92a0573`（`origin/develop`、PR #125 マージ後。初稿の base は PR #126 マージの `a251201`、差分は workflow 文書のみで本スライスに影響しない）
 - implementation head commit: 未固定
@@ -12,9 +12,9 @@
 - created: 2026-10-15
 - expires: 2026-11-15 または置換 revision
 - harvest to: 挙動と reasonCode を `tools/Artifacts/README.md`（自動清掃・通常操作の節）と `tools/Workflow/README.md`（end の出力）へ反映し、`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 E の該当項目を消す。
-- Phase A snapshot の取得案内・状態: 未生成
+- Phase A snapshot の取得案内・状態: 未保存（tracked HANDOFF の commit `37fb4d3` が凍結対象版。Artifact Storage への保存は行っていない）
 - Phase B result snapshot / evidence bundle / C' blind bundle: 未生成（未到達 Phase）
-- 引継ぎ票: 次は fail-closed 担当による revision 2 の差分再レビュー（A2 再確認）、続いて A3。必要な権限は読取りのみ。**実ストアの catalog・transfers・資格情報は読まず、編集もしない。** 停止規則は §2。
+- 引継ぎ票: 次の Phase は **B（実装）**、役割は実装担当、作業は §4 の順序で §2 の受け入れ条件 AC1〜AC10 を満たす実装とテスト追加。入力は凍結した Phase A revision 2（凍結対象版の内容 sha256 `d46cebb972b668dc1c362d9977b7c01b2127e388eea986a4413b525ef77faa58`、LF 正規化した git blob 内容、commit `37fb4d3`）。凍結の記録はこの HANDOFF の次の commit。必要な権限: ローカルの PowerShell と git のみ（Unity、sandbox 外実行、資格情報、network は不要）。**実ストアの catalog・transfers・資格情報は読まず、編集もしない。** B の出口で `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` を実行し、§5 の起点 filter を通し、実装結果（§6）と PR の状態ブロックを更新して push する。判定 C の実行、C' の起動、判定 C の照合 script は担わない。停止規則: §4 の「Phase A へ差し戻す条件」に該当したら実装を止めて判断を返す。引き渡さないもの: なし（C' 用の blind bundle は未生成）。PR を作る前にブランチ名をスライスを表す名前へ改める。
 
 ## 1. 目的と対象外
 
@@ -32,7 +32,7 @@
 - 欠落の原因は未確定（手動削除、AppData 仮想化で別側にある、過去 fetch の失敗残骸の後始末、など）。本スライスは原因を特定せず、原因によらず安全な方式にする。
 - 対象外: §2 の「ここでは答えない問い」に列挙。実ストアの手修正、`end` の反復実行、既存 Evidence・資格情報・R2 の変更はしない。
 
-## 2. 意思決定と受け入れ境界（revision 2。A2 の結果 §5.1 を反映した主担当案。人間の A3 採否まで未凍結）
+## 2. 意思決定と受け入れ境界（revision 2。A3 で凍結済み）
 
 - このスライスが答える問い: 「未採用・operation なし・実体なしの staging を、自分の残骸と証明できる範囲だけ、報告付きで通常操作から回復可能にしつつ、実パス・ACL・reparse の異常と、仮想化による取り違えを従来どおり拒否できるか」。
 - 方式:
@@ -136,10 +136,10 @@
 - 機械検査: `contract-audit`、`docs-audit`、`git diff --stat`。
 - A0/A1 主担当: Claude（この session）。独立性の要件はこの欄の対象外。
 - A2 独立レビュー（実施済み。結果は §5.1。入力版は commit 後の内容 sha256 を正とし commit hash を補助）: 高リスクのため、(a) アーキテクチャゲート担当 1 件以上、(b) fail-closed の破り方（I1〜I6 を破る順序を各 1 つ挙げる）担当、(c) この HANDOFF の §1 だけを読んで代替構成を出す担当を推奨。担当・モデルは A2 開始時に選ぶ。互いの指摘は見せない。
-- A3 統合担当・採否: 提案は §5.1。人間の採否は未実施。
+- A3 統合担当・採否: 2026-10-15、主担当（Claude）と人間（owner）が revision 2 を採用して凍結した。§5.1 の #1〜#10 は採用または注記として §2・§3 に反映済み、#11（cleanup の `MaxObjects` を欠落 entry が消費する点）は保留として後続スライスへ移送する。fail-closed 担当の再確認（revision 2、commit `8464cd5`）の所見は `37fb4d3` で反映済み。凍結対象版は commit `37fb4d3`、内容 sha256 は引継ぎ票のとおり。
 - C' 用に予約する担当: 未定。A2 で使い切らない。
 
-## 5.1 A2 独立レビュー結果と A3 への提案（採否は人間が A3 で確定。未凍結）
+## 5.1 A2 独立レビュー結果と A3 の採否
 
 入力版は初稿（sha256 `4cb42b3c9c109a80157420c8232c0f8f9027102ed957d1fd68277bfded90720f`、commit `b8d02a2`）。3 件は互いの指摘を見ずに実施した。(c) は §1 だけを抜き出した入力から立案した。担当・モデルは使用実績で、固定割り当てではない。
 
