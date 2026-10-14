@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄には、各成果物の取得案内の引渡し先・担当と状態だけを書く。reference・期待packageSha256の実値、ローカルの実path、内部catalog/receiptの内容は転記しない。
 
 - type: `slice`
-- status: `発見 C（r5）完了（阻害 0 件、§7.12）。判定 C は 1 回目で AC4 の取り直し待ち（§7.13）`。（2026-10-14 に owner が A 再開を確定し、同日 r5 を凍結した（§5.16）。経緯: C' の阻害指摘 2 件（§8）→ AC4 の実環境確認が不合格（§7.10）→ スパイクで原因が確定（§7.11）。r5 の変更点は §5.14。r4 凍結までの経緯は §5.10〜§5.13、発見 C の記録は §7.1〜§7.8、判定 C は §7.9）
+- status: `発見 C（r5）完了（阻害 0 件、§7.12）。判定 C 完了（阻害 0 件、§7.13）。次は C' 2 巡目`。（2026-10-14 に owner が A 再開を確定し、同日 r5 を凍結した（§5.16）。経緯: C' の阻害指摘 2 件（§8）→ AC4 の実環境確認が不合格（§7.10）→ スパイクで原因が確定（§7.11）。r5 の変更点は §5.14。r4 凍結までの経緯は §5.10〜§5.13、発見 C の記録は §7.1〜§7.8、判定 C は §7.9）
 - branch: `claude/artifacts-virtualized-store-a01`（`origin/develop` 起点）
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（A3 で `origin/develop` と一致を再確認済み）
 - Phase A revision: **`r5`（2026-10-14 凍結）**。凍結 commit と内容 sha256 は凍結直後の commit で記入する（下の行）。§1〜§5 が B の唯一の仕様。r4 からの変更点は §5.14（A3 の統合は §5.15）、A2・A3 は §5.15・§5.16。
@@ -106,11 +106,11 @@
 ### PR 状態ブロック（PR 作成時の写し）
 
 ```text
-状態: 判定 C 実施中（AC4 の取り直し待ち）
+状態: 判定 C 完了（阻害する指摘 0 件）。次は C' 2 巡目
 Phase A: revision r5（凍結）、commit 348a491282242ec3e88ac717c913b8c1e5141621
 implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / f97edf07b4fbdfbf92260835e5a8d9752bedd07b
 決定記録: DR1（AC5 の基準は base 比較）・DR2（AC4 の実行権限）、版 1
-次の担当: 判定 C（AC4・AC5 を取り直す）→ C' 2 巡目
+次の担当: C' 2 巡目（blind bundle、Evidence 取得案内は owner 手元）
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
 Evidence 取得案内: 保存済み（引渡し先: owner 手元の Git 管理外）。取得側の別 session での閲覧確認は未了
 未決事項: なし（保留した単位の扱い・取得の回復・実ストアへの合流は後続 Split Store Recovery）
@@ -1125,7 +1125,7 @@ owner の裁定でスパイクから行った。実装は変えていない。
 
 ### 7.13 判定 C（r5、GO 候補 head `f97edf0`）
 
-判断担当: Codex CLI（`codex exec`、読取り専用、モデル `gpt-6-luna`、OpenAI）。発見 C（§7.12）とは別の session。実行・保存・転記は司令塔（Claude Sonnet 5.5）で、判断担当の本文は書き換えず転記した。状態: **AC4 の取り直し待ち（1回目の判定。阻害する指摘 1 件）**。生の観測と結果は worktree の `TestResults\phase-c\`（Git 管理外。未保存・引渡し未完了）。C' 用指示書は阻害指摘が残るため作っていない。取り直し後の判定は、この小節に追記する。
+判断担当: Codex CLI（`codex exec`、読取り専用、モデル `gpt-6-luna`、OpenAI）。発見 C（§7.12）とは別の session。実行・保存・転記は司令塔（Claude Sonnet 5.5）で、判断担当の本文は書き換えず転記した。状態: **判定 C 完了（阻害する指摘 0 件）。** 1回目の判定は AC4 の取り直しを求めた（阻害する指摘 1 件、時間差と複数ログ）。取り直し後の判定が下の「取り直し後の判定」。生の観測と結果は worktree の `TestResults\phase-c\`（Git 管理外。未保存・引渡し未完了）。C' 用指示書は阻害指摘が残るため作っていない。取り直し後の判定は末尾に追記した。C' 用指示書は取り直し後の判定で作成した。
 
 - **使った入力:** `TestResults/phase-c/decision/` の全 suite の `*.result.json`・`*.log.txt`、3件の `build-*.txt`、`contract-audit.log.txt`、`docs-audit.log.txt`、`docs-audit.rerun.log.txt`、`run-summary.txt`。AC4 は `TestResults/phase-c/ac4-preexecution/`、`OSM-wt-virtstore-c5-ac4/TestResults/phase-c/ac4/`、`TestResults/phase-c/ac4-post-listing.txt` の生記録。AC5 は `TestResults/phase-c/ac5/` と `TestResults/phase-c/ac5-base/` の生記録および比較記録。実行はしていない。
 
@@ -1144,6 +1144,29 @@ owner の裁定でスパイクから行った。実装は変えていない。
 - **後続への入力:** この判定では後続への入力を新たに分類していない。AC4 以外について、上記の必須テスト集合と AC5 の証拠から本判定を阻害する未確認事項はない。
 
 - **未確認事項:** AC4 の取り直し結果。C' は別担当による次段階であり、本判定では実施していない。阻害指摘が残るため、C' 用指示書は今回出力しない。
+
+
+**取り直し後の判定（AC4 を単一ログで取り直した後。同じ判断担当 session を再開）**
+
+- **使った入力:** 前回確認済みの `TestResults/phase-c/decision/` の suite 結果・生ログ・build/audit 記録、AC5 の head/base 観測、AC4 1回目の記録。AC4 取り直しは `TestResults/phase-c/ac4-retake/ac4-retake.log` のみを確認した。実行・ファイル変更は行っていない。判定対象の実装 head は `f97edf07b4fbdfbf92260835e5a8d9752bedd07b`。作業ツリー HEAD `ebac50b` までの差分は docs のみとする申告に基づき、実装に関する前回のテスト結果と AC5 を引き続き適用した。
+
+- **判定必須テスト:** 前回確認した3 project の Release build、Artifacts 21 suite 415件、Workflow TaskLifecycle 23件・StoreContext 22件、Harness 4 suite 97件は、全て `registered = selected = executed`、failed 0。合計30 suite、557件。Artifacts suite 名と `tools/Artifacts/tests/*.Tests.ps1` の一覧は21件で一致。contract-audit は errors 0、warnings 0。PowerShell parse は `git ls-files` の106件で errors 0。docs-audit は初回のリンクエラー2件を docs-only commit `4f8d742` で修正した後の再実行が exit 0、errors 0、warnings 1。全 EditMode 回帰は §5.1 の適用除外。これらの結果は前回入力のままであり、今回再実行していない。
+
+- **AC4 取り直し:** 単一ログに S1、S2、S3 の順で記録されている。root 定義と4コマンド文、HEAD、PowerShell版、sandbox/access の記録に続き、S1 の before 一覧、事前実行4入口、S2 の Codex 内4入口、S3 の after 一覧と残骸件数が時刻付きで続く。実体側 LocalApplicationData と Codex 側 LocalCache の root 定義は、各列挙先の値と一致している。
+
+  S1 は2026-10-14 21:27 JST に開始し、before 一覧を事前実行前に取得した。固定名 `OneStarMaker.StoreProbe` は実体側に存在し、Codex 側の固定名 probe は0件。S1 は固定名を作成せず、absent config / selection も存在しないまま、指定された4入口を各1回実行した。S1 完了は21:27:21.853 JST。Codex 内 S2 開始は21:27:48.903 JSTで、記録された経過時間は26.994秒。DR2 は `NormalApproved`、共有ログへの直接書込み承認済み。4入口は同じ設定で各1回実行され、全て `{"status":"failed","reasonCode":"virtualized-store"}`、exit 1。S3 は全コマンド後に実体側・Codex 側双方を列挙し、呼出しごとの probe directory は双方0件、`*.probe` も双方0件と記録した。
+
+  before と after の実体側 probe 一覧は固定名1件で同一、実体側 `OneStarMaker` 件数は3件で同一、Codex 側 probe 一覧は0件で同一、Codex 側 `OneStarMaker` は8件で、名前・種別・最終更新の各行も同一。before 一覧は全コマンドより前に取得され、S1 の事前実行、owner の中継、S2 の4入口、S3 の after と残骸確認が一つの時刻付きログに収まっている。申し送り6項目と §2.3 AC4、§5.3、DR2 を満たし、**AC4 は成立**。
+
+- **AC5:** 前回の head/base 比較記録はそのまま適用した。head と base は指定された同一3コマンドを同一引数で実行し、workflow status の reasonCode の有無・JSON 出力・exit、harness status と current の出力種類・文言・exit が一致。実体側 probe directory 数も各呼出し前後で両方0件。DR1 の比較対象と記録が揃っており、**AC5 は成立**。
+
+- **現在の問いを阻害する指摘:** **なし。** AC4 の取り直しで前回の blocker（直前実行の証拠と単一ログの欠如）が解消され、AC5 と判定必須テストも凍結条件を満たしている。従って、判定 C の結論は **GO 候補として阻害する指摘なし**。AC4 ログには Claude の UI 表示「Store pwsh 7.6.6」と `$PSVersionTable` の `7.6.7` が併記されている。Store 版 pwsh で実行したという UI 記録はあるが、両版表示の差は観測記録上の差として残す。HANDOFF は Store 版での実行を要求しており、特定の patch version を条件としていないため、これを阻害指摘とはしない。
+
+- **後続への入力:** C' では別担当が凍結された範囲を監査する。後続への入力は C' の別欄で分類する。
+
+- **未確認事項:** C' の監査結果。AC4・AC5 の実環境観測、必須テスト、build、audit、parse の取り直しは今回の判定 C 再開範囲に含めていない。
+
+司令塔の補足（判断担当の本文ではない）: 取り直しは S1（before 一覧と事前実行、21:27:14〜21:27:21 JST）→ owner の中継 → S2（Codex 内の4入口、21:27:48〜21:27:53 JST）→ S3（after 一覧と残骸件数、21:28:11 JST）。判断担当が挙げた pwsh の版の併記は、取り直しのログの記録上の差である（UI 記録 7.6.6、`PSVersionTable` 7.6.7。Store 版の自動更新と推測するが未確認）。
 
 ## 8. Phase C'
 
