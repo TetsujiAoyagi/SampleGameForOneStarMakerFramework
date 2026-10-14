@@ -11,7 +11,7 @@
 - risk: `normal`（文書改訂）。リセットと削除機能の対象・検証は実装スライスで具体化する。
 - owner: OSM maintainers
 - created: 2026-09-26
-- updated: 2026-10-12
+- updated: 2026-10-15
 - expires: 2026-12-26 または置換revision（program文書の見直し期限）
 - harvest to: 実装済みの通常操作を `tools/Artifacts/README.md`、program状態を `docs/README.md` へ反映し、program完了時に削除する。
 
@@ -175,6 +175,18 @@ Contentの件数保持の運用接続は[PR #123](https://github.com/TetsujiAoya
 外部CLIを主入口にUnityを交換可能なbackendとして接続する。H2d/H3・CURRENT連携、同じ実体の所有権整理は必要になった範囲で行う。Storage単独の利用をUnity GUIやEditorに依存させない。Unityテスト/BuildのPhase責任と既知native終了stallの調査停止規則を維持する。
 
 各スライスは担当・責務配置・変更file・発見用/判定必須テストをHANDOFFへ固定する。H1/CURRENT方式は各A3で明示する。ここはprogramであり、実装スライスのA3済みとは扱わない。
+
+### E. 仮想化 host と分裂したストア（実装・正式C/C′完了。後続は未着手）
+
+PR #126 で、3つのCLI（artifacts / workflow-task / harness）がstoreに触れる前にAppData書込みの仮想化を判定して拒否するようになり、すでに分かれた記録を安全に合流する `store plan` / `store consolidate` が入った。判定の方式と実行条件は `tools/Artifacts/README.md` の「実行するprocessの条件（AppData仮想化）」と「分裂したストアの合流」を正とする。実環境で分かったこと: 仮想化されたprocessの新規fileの書込み先はpathごとに違い、実体側にだけあるdirectoryの中では実体側へ書かれる。そのため固定名のprobe領域は誤判定の原因になり、呼出しごとの一意名の新規directoryで判定する。実環境の確認（Codex内のAC4とClaude内のAC5）は、事前実行との間隔を詰め、一つの時刻付きログに前後の一覧を残さないと証拠として成立しない。
+
+後続（所有スライスは着手時にA0で確定する）:
+
+- **Artifact Storage / Split Store Recovery:** 実ストアへの合流の実行と、取得の回復。最初の手順は読取りだけの `store plan` を実データに1回行い、対象の単位がACL・JSON検査・`multi-workflow-unit`・`workflow-already-visible` のどれで保留されるかを確定すること。保留した単位の扱い（公開途中の不可視性を保つ方式）は、必要なら別の設計スライスに分ける。実ストアの鍵で認証に失敗した場合は資格情報の複写・置換で直さずownerへ返す。
+- **Artifact Storage / Virtualized Host Route:** 仮想化されたhost（Codex等）からStorageを使う新しい実行経路・保存先。資格情報の保存先・ACL・DPAPIの前提を変えうる。入力: `LocalCache\Local` が無い初回状態での判定（未観測。危険として受け入れ済み）、LocalAppData自体がjunctionのhostでの誤判定、Codex内の仮想化の仕組み。
+- **Codex側残置の後始末:** 合流済みの記録のCodex側copyの扱い（保持・削除・期限）。Storageの30日清掃はCodex側に届かない。定期清掃jobのbindingと、Codex側だけにある記録の清掃が行われていないことの再確認。
+- **Evidence task catalog:** 未採用で実体の無いstaging（過去のfetchの残骸）が残ると、そのtaskへのpublishが `unconfirmed` で拒否され、`evidence cleanup --dry-run` もそのtaskを回復できない。1,000 file級のbundleによるcatalog 1 MiB上限（上の「Evidence task catalogの上限」）と併せ、所有スライスは未定。運用上は新しいtaskIdでpublishし直し、bundleを1つのZIPにまとめて回避した。
+- Harness CURRENTの合流方式、`invalid-evidence-path` 等の仮想化以外のpath不一致の診断を `unconfirmed` から分けるか。
 
 ## 5. 責務・残す安全性・採否
 
