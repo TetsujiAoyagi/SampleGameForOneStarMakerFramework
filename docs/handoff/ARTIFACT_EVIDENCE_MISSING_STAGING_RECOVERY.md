@@ -4,7 +4,7 @@
 
 - type: `slice`
 - status: `B`（Phase A は revision 2 で A3 凍結済み。次は Phase B。凍結内容は §2・§3・§5。設計判断を変えるときは Phase A を新しい revision として再開する）
-- branch: `claude/amazing-blackburn-f04cf2`（作業用の仮名。PR を作る前にスライスを表す名前へ改める）
+- branch: `claude/evidence-missing-staging-recovery`（PR の base は `develop`）
 - implementation base commit: `92a0573`（`origin/develop`、PR #125 マージ後。初稿の base は PR #126 マージの `a251201`、差分は workflow 文書のみで本スライスに影響しない）
 - implementation head commit: 未固定
 - risk: `high`（失敗時に処理を拒否する契約 fail-closed と、catalog の保持・削除の意味に触れる。[新しい事実の分類](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#新しい事実の分類) の「A 再開」級の判断を含む）
@@ -121,6 +121,17 @@
 - 順序: (1) 述語2層と `Get-EvidenceStagingDecision` の共通化（挙動不変を AC9 で固定）→ (2) `Get-EvidenceStagingKey`、`Get-EvidenceStagingPathState`、`Assert-EvidenceTaskPaths`、`Assert-EvidenceTransitionSafe` → (3) publish 候補ループと publish・fetch・use の `stagingMissing` → (4) cleanup の欠落分岐と証人条件 → (5) workflow-task 出力 → (6) README。
 - Phase B から Phase A へ差し戻す条件: catalog スキーマ（`Read-EvidenceTask` の `Assert-Fields`）の変更が必要、`EvidenceSchedule` の変更が必要、`Get-EvidenceStagingDecision` のシグネチャ変更が必要、欠落判定に root 以外の新しい所有者情報が要る、`end` の終了意味を変える必要が出たとき。
 - 対象外を維持する方法: 欠落分岐に削除 API を呼ぶコードを置かない（AC4 の sentinel と hash で確認）。1 MiB 上限の変更を含めない。
+
+## 4.1 Phase B 開始手順（実装担当はこの順で進める）
+
+1. `AGENTS.md` と `.agents/skills/osm-workflow/SKILL.md`（Phase B の節と、PR #125 の「動作確認」の節）を読む。この HANDOFF は全文を読み、§2・§3・§4・§5 を正とする。書かれていない設計文書を読み込んで再設計しない。
+2. 照合する: ブランチが `claude/evidence-missing-staging-recovery`、`origin/develop` を含む（implementation base は `92a0573`）、HANDOFF §0 の status が `B`。食い違えば実装せず停止して人間へ返す。
+3. 読むコード: `tools/Artifacts/EvidenceRetentionPolicy.psm1`、`EvidenceCleanup.psm1`、`EvidenceApplication.psm1`、`ArtifactPaths.psm1`、`ArtifactAcl.psm1`、`tools/workflow-task.ps1`、既存テスト `tools/Artifacts/tests/EvidenceCleanup.Tests.ps1`・`EvidenceRetention.Tests.ps1`・`ArtifactEvidence.Tests.ps1`、`tools/Workflow/tests/WorkflowCliFixture.ps1`。
+4. §4 の順序で実装する。各段階の後に、該当する既存テストと新規ケースを `-Case` / filter で実行する。`EvidenceCleanup.Tests.ps1` は `rg` が PATH に必要（無ければ cursor 同梱の `rg` を PATH へ足す）。PowerShell のテストは、Unity Editor を使わず `pwsh -NoProfile -File <test>` で直接実行する。
+5. 実ストア（`%LOCALAPPDATA%\OneStarMaker\Artifacts\...`）、資格情報、network には触れない。テストは隔離した temp store だけを使う。Claude の Bash は LocalAppData が仮想化されるため、store に関わる実行は pwsh で行う。実 task `artifacts-virtualized-store` の catalog・staging は読まず、編集もしない。
+6. 実装中に §4 の「Phase A へ差し戻す条件」（catalog スキーマ変更、`EvidenceSchedule` の変更、`Get-EvidenceStagingDecision` のシグネチャ変更、root 以外の所有者情報、`end` の終了意味の変更）に該当したら止めて人間へ返す。新しい事実は [新しい事実の分類](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#新しい事実の分類) で先に分類する。
+7. 出口: `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` を実行し、§6 に実装結果（HANDOFF との差、未実行、implementation head）を書き、引継ぎ票を次の担当（検証経路が `対象なし` のため発見 C）へ更新する。README（`tools/Artifacts/README.md`、`tools/Workflow/README.md`）の harvest は §0 の harvest 先に従い、B で行ってよい。push して終える。判定 C、C'、照合 script は担わない。PR を作る場合は base を `develop` にし、本文先頭に状態ブロックを置く。
+8. 実装コミットは試行錯誤を積まず、公開前に整理する（SKILL の「PR公開後の差し戻しとGit履歴」）。
 
 ## 5. テストとレビュー計画
 
