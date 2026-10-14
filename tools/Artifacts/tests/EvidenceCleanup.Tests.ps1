@@ -5,6 +5,7 @@ $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'EvidenceReaderFixture.ps1')
 $registered=@('delete-success','delete-timeout','delete-forbidden','delete-crash-reconcile','delete-after-remote-reconcile','cleanup-partial','active-marker-protected','use-delete-race','delete-use-race','resume-delete-race','delete-resume-race','source-marker-protected','reparse-protected','staging-cleanup','staging-transfer-protected','dry-run-no-delete','fair-object-cursor','staging-adoption-success','child-not-stopped','corrupt-catalog-non-delete','stopped-operation-cleanup','recovery-staging-cleanup','corrupt-lifecycle-projection','staging-fair-cursor','staging-result-accounting','deadline-request-and-guard','deadline-atomic-ack-retry','old-alias-cleanup','old-alias-fetch','old-alias-child-eof-blocked','old-alias-marker-unresolved','old-alias-copy-acl-blocked','missing-owned-copy','noncanonical-owned-copy')
 $registered+=@('fresh-process-cleanup-contract')
+$registered+=@('staging-missing-report','staging-missing-drop','staging-missing-no-witness','staging-missing-race','staging-missing-refuse')
 $selected=if($Case -ceq '*'){$registered}else{@($Case.Split(','))};$executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 function Start-EvidenceChild($Env,$Publish,[string]$Action,[string]$Signal='',[string]$Now=''){
     $info=[Diagnostics.ProcessStartInfo]::new('pwsh');$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
@@ -12,6 +13,17 @@ function Start-EvidenceChild($Env,$Publish,[string]$Action,[string]$Signal='',[s
     $p=[Diagnostics.Process]::new();$p.StartInfo=$info;$null=$p.Start();return [pscustomobject]@{Process=$p;Out=$p.StandardOutput.ReadToEndAsync();Err=$p.StandardError.ReadToEndAsync()}
 }
 function Complete-EvidenceChild($Child){Assert-EvidenceTest ($Child.Process.WaitForExit(15000)) 'child unfinished';Assert-EvidenceTest ([Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($Child.Out,$Child.Err),5000)) 'child pipes';return [pscustomobject]@{exit=$Child.Process.ExitCode;output=$Child.Out.Result;error=$Child.Err.Result}}
+# Missing-staging fixtures. A "missing" stage is catalogued but has no directory.
+function Edit-FixtureTask($Env,[scriptblock]$Edit){$g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$t=Read-EvidenceTask $Env.Config fixture $g;& $Edit $t;$null=Write-EvidenceTask $Env.Config fixture $t $t.generation $g}finally{$g.Dispose()}}
+function New-MissingStage([string]$Path,[DateTimeOffset]$CreatedAt){[pscustomobject]@{path=$Path;createdAt=$CreatedAt.ToString('o');origin='storage-copy';artifactId=$null;adopted=$false;adoptionPending=$false;operation=$null;deleteIntent=$null;protections=@()}}
+function New-TransfersPath($Env){[IO.Path]::Combine($Env.Root,'transfers',[Guid]::NewGuid().ToString('N'))}
+# Sync bumps `generation` on every read (existing behavior), so the content hash ignores that one field and covers everything else, staging entries included.
+function Get-FixtureCatalogHash($Env,[string]$TaskId='fixture'){$p=[IO.Path]::Combine((Get-EvidenceTaskDirectory $Env.Config $TaskId),'catalog.json');if(-not [IO.File]::Exists($p)){return ''};$o=ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($p)) -DateKind String;$o.generation=0;[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject $o -Depth 24 -Compress))))}
+function Get-FixtureArtifactsHash($Env){$p=[IO.Path]::Combine((Get-EvidenceTaskDirectory $Env.Config fixture),'catalog.json');[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject (ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($p)) -DateKind String).artifacts -Depth 24 -Compress))))}
+function Get-FixtureStaging($Env){$g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{return ,@((Read-EvidenceTask $Env.Config fixture $g).staging)}finally{$g.Dispose()}}
+# Every file under transfers with its hash: deleting or rewriting any registered or unregistered file changes it.
+function Get-TransfersSignature($Env){@(Get-ChildItem -LiteralPath ([IO.Path]::Combine($Env.Root,'transfers')) -Recurse -Force -File|Sort-Object FullName|ForEach-Object{$_.FullName+'|'+(Get-FileHash -LiteralPath $_.FullName).Hash})-join "`n"}
+function New-FixtureDirectory([string]$Path){[IO.Directory]::CreateDirectory($Path)|Out-Null;Set-ArtifactAcl $Path $true}
 function Test-FreshCleanupContract($Env){
     $repoRoot=[IO.Path]::GetFullPath([IO.Path]::Combine($PSScriptRoot,'../../..'));$source=[IO.Path]::Combine($Env.Root,'runtime-source')
     $files=@(& rg --files ([IO.Path]::Combine($repoRoot,'tools','Artifacts')) ([IO.Path]::Combine($repoRoot,'tools','Workflow')) | Where-Object {$_ -match '\.(ps1|psm1)$' -and $_ -cnotmatch '[\\/](tests|artifacts|bin|obj)[\\/]'} | ForEach-Object {[IO.Path]::GetRelativePath($repoRoot,$_).Replace('\','/')})+@('tools/workflow-task.ps1','tools/artifacts.ps1');$binaries=@()
@@ -82,7 +94,7 @@ foreach($caseName in $selected){$executed.Add($caseName);$child=$null;$signal=$n
     Assert-EvidenceTest ($caseName -cin $registered) 'unknown-case';$env=New-EvidenceTestEnvironment;$fixture=New-EvidenceReaderFixture $env.Root;$selection=[IO.Path]::Combine($env.Root,'selection.json');Write-EvidenceTestJson $selection $fixture.Selection
     $p=Invoke-EvidencePublish $env.ConfigPath $selection;Assert-EvidenceTest ($p.status -ceq 'passed') 'publish';if($caseName -ceq 'fair-object-cursor'){$second=Invoke-EvidencePublish $env.ConfigPath $selection;Assert-EvidenceTest ($second.status -ceq 'passed') 'second publish'};$ref=Read-EvidenceReference $p.reference $env.Config;[IO.File]::WriteAllBytes([IO.Path]::Combine($env.Root,'remote.zip'),$env.Objects[$ref.key])
     $endAt=[DateTimeOffset]::Parse('2026-01-01T00:00:00.0000000+00:00');Set-EvidenceTestValue TaskLifecycle Clock {$endAt}.GetNewClosure();$g=Enter-WorkflowTaskGuard ('a'*64) fixture
-    try{if($caseName -cnotin @('active-marker-protected','staging-adoption-success')){$null=Invoke-WorkflowTaskTransition ('a'*64) fixture ended 1 fixture-end completed $g};$t=Sync-EvidenceTaskGuarded $env.Config fixture $g;$a=$t.artifacts[0]}finally{$g.Dispose()}
+    try{if($caseName -cnotin @('active-marker-protected','staging-adoption-success','staging-missing-report')){$null=Invoke-WorkflowTaskTransition ('a'*64) fixture ended 1 fixture-end completed $g};$t=Sync-EvidenceTaskGuarded $env.Config fixture $g;$a=$t.artifacts[0]}finally{$g.Dispose()}
     $now=$endAt.AddDays(30);Set-EvidenceTestValue EvidenceCleanup Clock {$now}.GetNewClosure();Set-EvidenceTestValue EvidenceApplication Clock {$now}.GetNewClosure()
     switch($caseName){
         'fresh-process-cleanup-contract'{try{Test-FreshCleanupContract $env}finally{Assert-EvidenceTest ([IO.Path]::GetFullPath($env.Root).StartsWith([IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')+'\osm-evidence-v2-',[StringComparison]::OrdinalIgnoreCase)) 'cleanup fixture escaped Temp';[IO.Directory]::Delete($env.Root,$true)};continue}
@@ -122,6 +134,112 @@ foreach($caseName in $selected){$executed.Add($caseName);$child=$null;$signal=$n
             }
             $before=($env.Counts.Values|Measure-Object -Sum).Sum;$clean=Invoke-EvidenceCleanup $env.ConfigPath
             Assert-EvidenceTest ($clean.status -ceq 'pending' -and $clean.deleted -eq 0 -and $env.Objects.Count -eq 1 -and ($env.Counts.Values|Measure-Object -Sum).Sum -eq $before) 'unknown owned path reached network/delete'
+            continue
+        }
+        'staging-missing-report'{
+            # AC1/AC10: the task stays active so publish can run; a missing leftover must be tolerated and counted.
+            Assert-EvidenceTest ($p.stagingMissing -eq 0) 'clean task reported missing staging'
+            $missing=New-TransfersPath $env;Edit-FixtureTask $env {param($t)$t.staging+=New-MissingStage $missing $now}
+            $g=Enter-WorkflowTaskGuard ('a'*64) fixture
+            try{$before=Get-FixtureCatalogHash $env;$residue=[pscustomobject]@{Observations=[Collections.Generic.List[object]]::new();Witnesses=0};$null=Assert-EvidenceTransitionSafe $env.Config fixture $g -Residue $residue;$after=Get-FixtureCatalogHash $env}finally{$g.Dispose()}
+            Assert-EvidenceTest ($residue.Observations.Count -eq 1 -and $residue.Observations[0].reasonCode -ceq 'staging-missing' -and $residue.Observations[0].key -ceq (Get-EvidenceStagingKey ([pscustomobject]@{path=$missing})) -and $residue.Witnesses -ge 1) 'observation or witness missing'
+            Assert-EvidenceTest ($before -ceq $after) 'preflight rewrote catalog'
+            $dry=Invoke-EvidenceCleanup $env.ConfigPath $true @('fixture');$before=Get-FixtureCatalogHash $env
+            Assert-EvidenceTest (@($dry.items|Where-Object reasonCode -CEQ 'unconfirmed').Count -eq 0 -and @($dry.items|Where-Object reasonCode -CEQ 'staging-missing').Count -eq 1 -and $dry.blocked -eq 0) ('dry-run did not report missing '+(ConvertTo-Json $dry -Compress -Depth 5))
+            Assert-EvidenceTest ((Get-FixtureCatalogHash $env) -ceq $before) 'dry-run rewrote catalog'
+            $again=Invoke-EvidencePublish $env.ConfigPath $selection;Assert-EvidenceTest ($again.status -ceq 'passed' -and $again.stagingMissing -eq 1) ('publish with missing staging '+$again.reasonCode)
+            $fetched=Invoke-EvidenceFetch $env.ConfigPath $p.reference $p.packageSha256;Assert-EvidenceTest ($fetched.status -ceq 'passed' -and $fetched.stagingMissing -eq 1) 'fetch with missing staging'
+            $used=Invoke-EvidenceUse $env.ConfigPath $p.reference reader $now.AddHours(1).ToString('o') review;Assert-EvidenceTest ($used.status -ceq 'passed' -and $used.stagingMissing -eq 1) 'use with missing staging'
+            $sourceSelection=[ordered]@{}+$fixture.Selection;$sourceSelection.root=$missing;$sourcePath=[IO.Path]::Combine($env.Root,'missing-source.json');Write-EvidenceTestJson $sourcePath $sourceSelection
+            $bad=Invoke-EvidencePublish $env.ConfigPath $sourcePath;Assert-EvidenceTest ($bad.status -ceq 'failed' -and $bad.reasonCode -ceq 'invalid-source' -and $bad.stagingMissing -eq 1) 'missing directory accepted as source'
+            Set-EvidenceTestValue ArtifactApplication TransportHook {throw 'DUMMY_SECRET'}
+            $lostPublish=Invoke-EvidencePublish $env.ConfigPath $selection;Assert-EvidenceTest ($lostPublish.status -ceq 'failed' -and $lostPublish.stagingMissing -eq 1) 'failed publish lost the count'
+            continue
+        }
+        'staging-missing-drop'{
+            # AC4: a missing entry leaves the catalog only at the seven-day boundary, with nothing deleted.
+            $base=$endAt.AddDays(10);$tick=@{v=$base.AddSeconds(-1)};Set-EvidenceTestValue EvidenceCleanup Clock {$tick.v}.GetNewClosure()
+            $missing=New-TransfersPath $env;$sentinel=New-TransfersPath $env;New-FixtureDirectory $sentinel;[IO.File]::WriteAllText([IO.Path]::Combine($sentinel,'keep.txt'),'keep')
+            $g=Enter-WorkflowTaskGuard ('a'*64) other;try{$null=Invoke-WorkflowTaskTransition ('a'*64) other started 0 other-start '' $g;$null=Sync-EvidenceTaskGuarded $env.Config other $g}finally{$g.Dispose()}
+            Edit-FixtureTask $env {param($t)$t.staging+=New-MissingStage $missing $base.AddSeconds(-604800)}
+            $otherHash=Get-FixtureCatalogHash $env other;$artifactsHash=Get-FixtureArtifactsHash $env;$tree=Get-TransfersSignature $env
+            $dry=Invoke-EvidenceCleanup $env.ConfigPath $true @('fixture');$beforeRun=Get-FixtureCatalogHash $env
+            Assert-EvidenceTest (@($dry.items|Where-Object reasonCode -CEQ 'staging-missing').Count -eq 1) 'dry-run before expiry'
+            $early=Invoke-EvidenceCleanup $env.ConfigPath $false @('fixture');Assert-EvidenceTest (@($early.items|Where-Object reasonCode -CEQ 'staging-missing').Count -eq 1 -and $early.deleted -eq 0 -and @((Get-FixtureStaging $env)|Where-Object path -CEQ $missing).Count -eq 1) 'entry dropped before expiry'
+            $tick.v=$base
+            $beforeRun=Get-FixtureCatalogHash $env;$dry=Invoke-EvidenceCleanup $env.ConfigPath $true @('fixture')
+            Assert-EvidenceTest (@($dry.items|Where-Object reasonCode -CEQ 'staging-missing').Count -eq 1 -and (Get-FixtureCatalogHash $env) -ceq $beforeRun) 'dry-run at expiry changed state'
+            $clean=Invoke-EvidenceCleanup $env.ConfigPath $false @('fixture')
+            Assert-EvidenceTest (@($clean.items|Where-Object reasonCode -CEQ 'staging-missing-dropped').Count -eq 1 -and $clean.deleted -eq 0 -and $clean.blocked -eq 0 -and $clean.skipped -eq $clean.items.Count) ('drop accounting '+(ConvertTo-Json $clean -Compress -Depth 5))
+            Assert-EvidenceTest (@((Get-FixtureStaging $env)|Where-Object path -CEQ $missing).Count -eq 0) 'expired entry kept'
+            Assert-EvidenceTest ((Get-FixtureArtifactsHash $env) -ceq $artifactsHash -and (Get-TransfersSignature $env) -ceq $tree -and (Get-FixtureCatalogHash $env other) -ceq $otherHash -and $env.Objects.Count -eq 1) 'drop changed more than the entry'
+            continue
+        }
+        'staging-missing-no-witness'{
+            # AC8: with no registered path confirmed to exist on this store side, an expired entry stays.
+            $base=$endAt.AddDays(10);Set-EvidenceTestValue EvidenceCleanup Clock {$base}.GetNewClosure()
+            $missing=New-TransfersPath $env;Edit-FixtureTask $env {param($t)$t.artifacts=@();$t.staging=@(New-MissingStage $missing $base.AddSeconds(-604800));$t.cleanupCursor=$null}
+            $clean=Invoke-EvidenceCleanup $env.ConfigPath $false @('fixture');Assert-EvidenceTest (@($clean.items|Where-Object reasonCode -CEQ 'staging-missing').Count -eq 1 -and $clean.blocked -eq 0 -and @((Get-FixtureStaging $env)|Where-Object path -CEQ $missing).Count -eq 1) 'entry dropped without a witness'
+            $present=New-TransfersPath $env;New-FixtureDirectory $present;Edit-FixtureTask $env {param($t)$t.staging+=New-MissingStage $present $base}
+            $clean=Invoke-EvidenceCleanup $env.ConfigPath $false @('fixture');Assert-EvidenceTest (@($clean.items|Where-Object reasonCode -CEQ 'staging-missing-dropped').Count -eq 1 -and [IO.Directory]::Exists($present)) 'witness did not allow the drop'
+            continue
+        }
+        'staging-missing-race'{
+            # AC7: a directory that appears after the missing verdict goes through ordinary deletion, never a bare drop.
+            $base=$endAt.AddDays(10);Set-EvidenceTestValue EvidenceCleanup Clock {$base}.GetNewClosure()
+            $missing=New-TransfersPath $env;Edit-FixtureTask $env {param($t)$t.staging+=New-MissingStage $missing $base.AddSeconds(-604800)}
+            Set-EvidenceTestValue EvidenceCleanup FaultHook {param($point,$subject)if($point -ceq 'before-staging-drop'){New-FixtureDirectory $subject.path;[IO.File]::WriteAllText([IO.Path]::Combine($subject.path,'late.log'),'late')}}
+            $clean=Invoke-EvidenceCleanup $env.ConfigPath $false @('fixture')
+            Assert-EvidenceTest (@($clean.items|Where-Object reasonCode -CEQ 'deleted').Count -eq 1 -and $clean.deleted -eq 1 -and -not [IO.Directory]::Exists($missing) -and @((Get-FixtureStaging $env)|Where-Object path -CEQ $missing).Count -eq 0) ('late directory not deleted normally '+(ConvertTo-Json $clean -Compress -Depth 5))
+            continue
+        }
+        'staging-missing-refuse'{
+            # AC5/AC6: only a plain dormant leftover is tolerated. Every case below keeps one catalogued
+            # stage and no artifact (unless stated), so a refusal can only come from the staging path.
+            $base=$endAt.AddDays(10);Set-EvidenceTestValue EvidenceCleanup Clock {$base}.GetNewClosure()
+            $transfers=[IO.Path]::Combine($env.Root,'transfers');$outside=[IO.Path]::Combine($env.Root,'refuse-outside');[IO.Directory]::CreateDirectory($outside)|Out-Null
+            $made=[Collections.Generic.List[string]]::new()
+            function Test-Refusal([string]$Label,[scriptblock]$Build,[bool]$KeepArtifacts=$false,[string]$PublishCode='unconfirmed'){
+                $stage=& $Build
+                Edit-FixtureTask $env {param($t)if(-not $KeepArtifacts){$t.artifacts=@()};$t.staging=@($stage);$t.cleanupCursor=$null}
+                $dry=Invoke-EvidenceCleanup $env.ConfigPath $true @('fixture')
+                Assert-EvidenceTest (@($dry.items|Where-Object reasonCode -CEQ 'unconfirmed').Count -ge 1 -and @($dry.items|Where-Object reasonCode -CEQ 'staging-missing').Count -eq 0) ($Label+' cleanup tolerated: '+(ConvertTo-Json $dry -Compress -Depth 5))
+                $sel=Invoke-EvidencePublish $env.ConfigPath $selection;Assert-EvidenceTest ($sel.status -ceq 'failed' -and $sel.reasonCode -ceq $PublishCode) ($Label+' publish tolerated: '+$sel.reasonCode)
+            }
+            # These two need the published artifact, so they run before any case clears the artifact list.
+            $artifactId=$a.artifactId
+            Test-Refusal 'put-pending artifact' {$s=New-MissingStage (New-TransfersPath $env) $base;$s.artifactId=$artifactId;Edit-FixtureTask $env {param($t)$t.artifacts[0].state='put-pending'};$s} $true
+            Test-Refusal 'artifact delete intent' {$s=New-MissingStage (New-TransfersPath $env) $base;$s.artifactId=$artifactId;Edit-FixtureTask $env {param($t)$t.artifacts[0].state='delete-pending';$t.artifacts[0].deleteIntent=[pscustomobject]@{key=$t.artifacts[0].key;generation=$t.generation;packageSha256=$t.artifacts[0].packageSha256;process=Get-EvidenceProcessIdentity;createdAt=$base.ToString('o')}};$s} $true
+            # I6: a putIntent that no longer matches stays unresolved-put even beside a tolerable leftover.
+            Test-Refusal 'unresolved put' {Edit-FixtureTask $env {param($t)$t.artifacts[0].putIntent.sha256='0'*64};New-MissingStage (New-TransfersPath $env) $base} $true 'unresolved-put'
+            # Control: the same plain leftover is tolerated, so the later refusals are caused by their one difference.
+            Edit-FixtureTask $env {param($t)$t.artifacts=@();$t.staging=@(New-MissingStage (New-TransfersPath $env) $base);$t.cleanupCursor=$null}
+            $control=Invoke-EvidenceCleanup $env.ConfigPath $true @('fixture');Assert-EvidenceTest (@($control.items|Where-Object reasonCode -CEQ 'staging-missing').Count -eq 1 -and $control.blocked -eq 0) 'control not tolerated'
+            $controlPublish=Invoke-EvidencePublish $env.ConfigPath $selection;Assert-EvidenceTest ($controlPublish.reasonCode -ceq 'resume-required' -and $controlPublish.stagingMissing -eq 1) ('control publish stopped in preflight '+$controlPublish.reasonCode)
+            Test-Refusal 'non-hex leaf' {New-MissingStage ([IO.Path]::Combine($transfers,'not-a-staging-name')) $base}
+            Test-Refusal 'outside root' {New-MissingStage ([IO.Path]::Combine($env.Root,'refuse-elsewhere',[Guid]::NewGuid().ToString('N'))) $base}
+            Test-Refusal 'not a direct child' {New-MissingStage ([IO.Path]::Combine($transfers,[Guid]::NewGuid().ToString('N'),[Guid]::NewGuid().ToString('N'))) $base}
+            Test-Refusal 'dangling junction' {$link=New-TransfersPath $env;$gone=[IO.Path]::Combine($env.Root,'refuse-gone-'+[Guid]::NewGuid().ToString('N'));[IO.Directory]::CreateDirectory($gone)|Out-Null;New-Item -ItemType Junction -Path $link -Target $gone|Out-Null;[IO.Directory]::Delete($gone);$made.Add($link);New-MissingStage $link $base}
+            Test-Refusal 'live junction' {$link=New-TransfersPath $env;New-Item -ItemType Junction -Path $link -Target $outside|Out-Null;$made.Add($link);New-MissingStage $link $base}
+            foreach($kind in @('SymbolicLink-file','SymbolicLink-directory')){
+                $link=New-TransfersPath $env;$target=[IO.Path]::Combine($env.Root,'refuse-symlink-'+[Guid]::NewGuid().ToString('N'))
+                try{if($kind -ceq 'SymbolicLink-directory'){[IO.Directory]::CreateDirectory($target)|Out-Null}else{[IO.File]::WriteAllText($target,'x')};New-Item -ItemType SymbolicLink -Path $link -Target $target|Out-Null}
+                catch{[Console]::Error.WriteLine('NOTE staging-missing-refuse: '+$kind+' not creatable here, skipped');continue}
+                if($kind -ceq 'SymbolicLink-directory'){[IO.Directory]::Delete($target)}else{[IO.File]::Delete($target)};$made.Add($link)
+                $linkStage=New-MissingStage $link $base;Test-Refusal $kind {$linkStage}
+            }
+            Test-Refusal 'operation' {$s=New-MissingStage (New-TransfersPath $env) $base;$s.operation=[pscustomobject]@{process=Get-EvidenceProcessIdentity;childMarker=$null;path=$s.path};$s}
+            Test-Refusal 'adoption pending' {$s=New-MissingStage (New-TransfersPath $env) $base;$s.adoptionPending=$true;$s}
+            Test-Refusal 'adopted with operation' {$s=New-MissingStage (New-TransfersPath $env) $base;$s.adopted=$true;$s.operation=[pscustomobject]@{process=Get-EvidenceProcessIdentity;childMarker=$null;path=$s.path};$s}
+            Test-Refusal 'protected' {$s=New-MissingStage (New-TransfersPath $env) $base;$s.protections=@([pscustomobject]@{id='p'});$s}
+            Test-Refusal 'delete intent' {$s=New-MissingStage (New-TransfersPath $env) $base;$s.deleteIntent=[pscustomobject]@{key='k'};$s}
+            Test-Refusal 'unknown artifact id' {$s=New-MissingStage (New-TransfersPath $env) $base;$s.artifactId='f'*32;$s}
+            foreach($link in $made){try{[IO.Directory]::Delete($link)}catch{try{[IO.File]::Delete($link)}catch{}}}
+            # The root itself: absent, or with an ACL the artifact store would never have created.
+            Test-Refusal 'root absent' {[IO.Directory]::Delete($transfers,$true);New-MissingStage ([IO.Path]::Combine($transfers,[Guid]::NewGuid().ToString('N'))) $base}
+            [IO.Directory]::CreateDirectory($transfers)|Out-Null;Set-ArtifactAcl $transfers $true
+            Test-Refusal 'root ACL' {$acl=[IO.FileSystemAclExtensions]::GetAccessControl([IO.DirectoryInfo]::new($transfers));$acl.SetAccessRuleProtection($false,$true);[IO.FileSystemAclExtensions]::SetAccessControl([IO.DirectoryInfo]::new($transfers),$acl);New-MissingStage (New-TransfersPath $env) $base}
+            Set-ArtifactAcl $transfers $true
             continue
         }
         'deadline-request-and-guard'{
@@ -269,7 +387,7 @@ foreach($caseName in $selected){$executed.Add($caseName);$child=$null;$signal=$n
         {$_ -cin @('staging-cleanup','staging-transfer-protected')}{$stagePath=[IO.Path]::Combine($env.Root,'transfers',[Guid]::NewGuid().ToString('N'));[IO.Directory]::CreateDirectory($stagePath)|Out-Null;Set-ArtifactAcl $stagePath $true;[IO.File]::WriteAllText([IO.Path]::Combine($stagePath,'log'),'failure');$g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$t=Read-EvidenceTask $env.Config fixture $g;$t.staging+=[pscustomobject]@{path=$stagePath;createdAt=$now.AddDays(-7).ToString('o');origin='storage-copy';artifactId=$null;adopted=$false;adoptionPending=$false;operation=if($caseName -ceq 'staging-transfer-protected'){@{process=Get-EvidenceProcessIdentity;childMarker=$null;path=$stagePath}}else{$null};deleteIntent=$null;protections=@()};$null=Write-EvidenceTask $env.Config fixture $t $t.generation $g}finally{$g.Dispose()}}
         'fair-object-cursor'{$g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$t=Read-EvidenceTask $env.Config fixture $g;$first=@($t.artifacts|Sort-Object artifactId)[0];$first.protections=@([pscustomobject]@{owner='owner';consumer='blocked';reason='review';createdAt=$endAt.ToString('o');until=$now.AddDays(1).ToString('o');releasedAt=$null});$null=Write-EvidenceTask $env.Config fixture $t $t.generation $g}finally{$g.Dispose()}}
     }
-    if($caseName -cin @('use-delete-race','resume-delete-race','staging-adoption-success','child-not-stopped','stopped-operation-cleanup','recovery-staging-cleanup','corrupt-lifecycle-projection','staging-fair-cursor','staging-result-accounting','deadline-request-and-guard','deadline-atomic-ack-retry','old-alias-cleanup','old-alias-fetch','old-alias-child-eof-blocked','old-alias-marker-unresolved','old-alias-copy-acl-blocked','missing-owned-copy','noncanonical-owned-copy','fresh-process-cleanup-contract')){continue}
+    if($caseName -cin @('use-delete-race','resume-delete-race','staging-adoption-success','child-not-stopped','stopped-operation-cleanup','recovery-staging-cleanup','corrupt-lifecycle-projection','staging-fair-cursor','staging-result-accounting','deadline-request-and-guard','deadline-atomic-ack-retry','old-alias-cleanup','old-alias-fetch','old-alias-child-eof-blocked','old-alias-marker-unresolved','old-alias-copy-acl-blocked','missing-owned-copy','noncanonical-owned-copy','fresh-process-cleanup-contract','staging-missing-report','staging-missing-drop','staging-missing-no-witness','staging-missing-race','staging-missing-refuse')){continue}
     $r=Invoke-EvidenceCleanup $env.ConfigPath ($caseName -ceq 'dry-run-no-delete') @() $(if($caseName -ceq 'fair-object-cursor'){1}else{100})
     switch($caseName){
         {$_ -cin @('old-alias-cleanup','old-alias-fetch','old-alias-child-eof-blocked','old-alias-marker-unresolved','old-alias-copy-acl-blocked')}{

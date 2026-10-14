@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `B`（Phase A は revision 2 で A3 凍結済み。次は Phase B。凍結内容は §2・§3・§5。設計判断を変えるときは Phase A を新しい revision として再開する）
+- status: `C`（Phase B 完了。次は発見 C。凍結内容は §2・§3・§5。設計判断を変えるときは Phase A を新しい revision として再開する）
 - branch: `claude/evidence-missing-staging-recovery`（PR の base は `develop`）
 - implementation base commit: `92a0573`（`origin/develop`、PR #125 マージ後。初稿の base は PR #126 マージの `a251201`、差分は workflow 文書のみで本スライスに影響しない）
 - implementation head commit: 未固定
@@ -14,7 +14,8 @@
 - harvest to: 挙動と reasonCode を `tools/Artifacts/README.md`（自動清掃・通常操作の節）と `tools/Workflow/README.md`（end の出力）へ反映し、`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 E の該当項目を消す。
 - Phase A snapshot の取得案内・状態: 未保存（tracked HANDOFF の commit `37fb4d3` が凍結対象版。Artifact Storage への保存は行っていない）
 - Phase B result snapshot / evidence bundle / C' blind bundle: 未生成（未到達 Phase）
-- 引継ぎ票: 次の Phase は **B（実装）**、役割は実装担当、作業は §4 の順序で §2 の受け入れ条件 AC1〜AC10 を満たす実装とテスト追加。入力は凍結した Phase A revision 2（凍結対象版の内容 sha256 `d46cebb972b668dc1c362d9977b7c01b2127e388eea986a4413b525ef77faa58`、LF 正規化した git blob 内容、commit `37fb4d3`）。凍結の記録はこの HANDOFF の次の commit。必要な権限: ローカルの PowerShell と git のみ（Unity、sandbox 外実行、資格情報、network は不要）。**実ストアの catalog・transfers・資格情報は読まず、編集もしない。** B の出口で `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` を実行し、§5 の起点 filter を通し、実装結果（§6）と PR の状態ブロックを更新して push する。判定 C の実行、C' の起動、判定 C の照合 script は担わない。停止規則: §4 の「Phase A へ差し戻す条件」に該当したら実装を止めて判断を返す。引き渡さないもの: なし（C' 用の blind bundle は未生成）。PR を作る前にブランチ名をスライスを表す名前へ改める。
+- B 出口の引継ぎ票: 次の Phase は **発見 C**（検証経路が `対象なし`）。入力は implementation base `92a0573` と、B の実装 commit（push 後の head を PR 状態ブロックに固定）。結果は §6。判定 C・C'・照合 script は B が担っていない。実ストアは未接触。
+- （旧）引継ぎ票: 次の Phase は **B（実装）**、役割は実装担当、作業は §4 の順序で §2 の受け入れ条件 AC1〜AC10 を満たす実装とテスト追加。入力は凍結した Phase A revision 2（凍結対象版の内容 sha256 `d46cebb972b668dc1c362d9977b7c01b2127e388eea986a4413b525ef77faa58`、LF 正規化した git blob 内容、commit `37fb4d3`）。凍結の記録はこの HANDOFF の次の commit。必要な権限: ローカルの PowerShell と git のみ（Unity、sandbox 外実行、資格情報、network は不要）。**実ストアの catalog・transfers・資格情報は読まず、編集もしない。** B の出口で `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` を実行し、§5 の起点 filter を通し、実装結果（§6）と PR の状態ブロックを更新して push する。判定 C の実行、C' の起動、判定 C の照合 script は担わない。停止規則: §4 の「Phase A へ差し戻す条件」に該当したら実装を止めて判断を返す。引き渡さないもの: なし（C' 用の blind bundle は未生成）。PR を作る前にブランチ名をスライスを表す名前へ改める。
 
 ## 1. 目的と対象外
 
@@ -191,7 +192,21 @@
 
 ## 6. Phase B 実装結果
 
-未到達。
+§4 の順序（述語2層 → PathState・収集器 → publish/fetch/use → cleanup の欠落分岐 → workflow-task → README）で実装した。凍結済みの設計（§2）は変えていない。§4 の「Phase A へ差し戻す条件」には当たらなかった。実ストア・資格情報・network には触れていない（隔離 temp store の offline fixture のみ）。
+
+HANDOFF との差（B 適応。設計判断ではない）:
+
+- **AC10 の hash は `generation` を除いた内容 hash。** `Sync-EvidenceTaskGuarded` は既存の挙動として読むたびに catalog の `generation` を 1 進める（欠落 entry と無関係）。ファイル全体の hash 一致は構造上成立しないため、テストは `generation` 以外（staging entry・artifacts を含む）の hash を比較する。欠落 entry・artifacts は preflight・dry-run の前後で不変。
+- **AC5 の実測:** リンク先の無い directory junction・directory symlink・file symlink は、いずれも `Resolve-ArtifactStoredPath -AllowMissing` の `Assert-NoArtifactReparse` が先に拒否する。`Get-EvidenceStagingPathState` の leaf 属性検査（`File.GetAttributes`。`FileInfo.Attributes` は .NET 8 で不在時に -1 を返し例外にならないため使えない）は、その二重化として残してある。
+- **`workflow-task` の `stagingMissing` は start・end・resume に出す。** start も同じ preflight を通るため（status のみ除外）。
+- 述語は `Test-EvidenceStagingUnheldStrict`（例外を投げる内部形）を追加し、`Get-EvidenceStagingDecision` は property 欠落時の `unknown-staging` を従来どおり返す。公開面は §3 の列挙どおり（Strict は未 export）。
+- 競合テスト（AC7）のため、cleanup に既存の `FaultHook` 方式で `before-staging-drop` の点を 1 つ足した。
+
+追加テスト: `EvidenceRetention.Tests.ps1`（`staging-unheld-table`、`staging-dormant-table`＝AC9）、`EvidenceCleanup.Tests.ps1`（`staging-missing-report`＝AC1/2/10・invalid-source・失敗 publish の件数、`-drop`＝AC4、`-no-witness`＝AC8、`-race`＝AC7、`-refuse`＝AC5/6。対照として許容される欠落を先に確認）、`TaskLifecycle.Tests.ps1`＋`WorkflowCliFixture.ps1`（AC3、config 2 つで合算 2）。AC6 の「ownedCopies が配下にある」は統合では構成できない（実在ファイルがあると directory が欠落しない）ため、AC9 の表駆動でのみ検証した。
+
+確認結果（head は push 後に確定）: `tools/Artifacts/tests/*.Tests.ps1` と `tools/Workflow/tests/*.Tests.ps1` の全体を実行し全て通過（EvidenceCleanup 40、EvidenceRetention 16、TaskLifecycle 23、StoreContext 22 ほか。`rg` は cursor 同梱を PATH に追加）。`R2RouteTransport.Tests.ps1` は Probe の build 出力が無い新しい worktree で最初に落ちたため、README の `dotnet build` で作り直して通過（7）。Packaging・Transport・Probe の build 出力は未追跡の生成物で commit しない。`pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` は errors=0。Unity は変更しておらず未実行。
+
+README の harvest は B で実施済み（`tools/Artifacts/README.md`、`tools/Workflow/README.md`、プログラム文書 §4 E の該当項目）。
 
 ## 7. Phase C / 8. Phase C' / 9. Phase D
 

@@ -27,7 +27,7 @@ workflow-task.ps1 は store module を import する前に WindowsStoreContext �
 
 保存領域の実体pathを解決するWindowsStorePathsは、read-only native handleのfilesystem情報だけを扱います。Workflow storeはtaskの状態・guard・ACLを所有し、Artifactsをimportしません。通常CLIと固定runtime jobは同じ既存Workflow/guardへ接続し、jobでは検証済みのprocess内接続をmodule再import後も維持します。欠落や実体相違を別の空storeへ切り替えて隠しません。
 
-終了・再開の commit 前には共通 guard 内で Storage の未確定 DELETE を照合します。不明な元 process／子 process／remote 結果が残れば state を変更しません。commit 後は guard を解放して配送します。配送失敗は exit 2 と recorded/delivery-pending で返り、終了 event を取り消しません。登録済み Evidence config がない場合も配送待ちです。後の publish／fetch／inspect／cleanup と毎日／次ログオンの job が同じ outbox を配送します。
+終了・再開の commit 前には共通 guard 内で Storage の未確定 DELETE を照合します。不明な元 process／子 process／remote 結果が残れば state を変更しません。Storage が実体の無い残骸 staging を許容した場合、start・end・resume の出力に整数 `stagingMissing`（0 を含む、config が複数なら合算）を出します。status は Storage の確認を通らないため出しません。許容だけでは終了コードも `reasonCode` も変わりません。commit 後は guard を解放して配送します。配送失敗は exit 2 と recorded/delivery-pending で返り、終了 event を取り消しません。登録済み Evidence config がない場合も配送待ちです。後の publish／fetch／inspect／cleanup と毎日／次ログオンの job が同じ outbox を配送します。
 
 Evidence config は private OneStarMaker/Artifacts/deployments/<deploymentId>.config.json と、その bytes/hash を結ぶ <deploymentId>.json の deployment receipt で登録します。同じ canonical repositoryId を使うため、別 worktree の workflow コマンドも登録済み config を解決できます。
 

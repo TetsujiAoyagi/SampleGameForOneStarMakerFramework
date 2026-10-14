@@ -14,7 +14,8 @@ function git {Record 'git';$global:LASTEXITCODE=0;'https://github.com/offline-fi
 function Get-EvidenceConfigurations([string]$RepositoryId){Record 'configs';@('fixture-one','fixture-two')}
 function Enter-WorkflowTaskGuard([string]$RepositoryId,[string]$TaskId){Record 'guard';$g=[pscustomobject]@{RepositoryId=$RepositoryId;TaskId=$TaskId};$g|Add-Member ScriptMethod Dispose {Record 'dispose'};$g}
 function Read-EvidenceConfig([string]$Path){Record 'config';@{Data=@{repositoryId='fixture'};Path=$Path}}
-function Assert-EvidenceTransitionSafe($Config,[string]$TaskId,$Guard){Record 'preflight';@(('a'*32),('b'*32))}
+# Each fixture config reports one missing staging entry through the collector.
+function Assert-EvidenceTransitionSafe($Config,[string]$TaskId,$Guard,$Residue=$null){Record 'preflight';$Residue.Observations.Add([pscustomobject]@{key=('c'*64);reasonCode='staging-missing'});@(('a'*32),('b'*32))}
 function Invoke-WorkflowTaskTransition([string]$RepositoryId,[string]$TaskId,[string]$Kind,[long]$ExpectedVersion,[string]$Decision,[string]$Reason,$Guard){
     if($TaskId -cne 'fixture-resume' -or $Kind -cne 'resumed' -or $ExpectedVersion -ne 2 -or $Decision -cne 'fixture-decision' -or $Reason){throw 'transition-arguments'}
     Record 'transition';[ordered]@{schemaVersion=1;version=3;kind='resumed';taskId=$TaskId;occurredAt='2026-01-02T00:00:00+00:00'}
