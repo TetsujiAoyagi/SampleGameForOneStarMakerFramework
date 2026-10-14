@@ -38,21 +38,22 @@
 - 方式:
   - **D1 述語を2層にする（純粋、`EvidenceRetentionPolicy.psm1`）。**
     - `Test-EvidenceStagingUnheld($Stage)`: `origin=storage-copy`、未採用、`adoptionPending` 偽、`operation` null、`deleteIntent` null、protection 0。`Get-EvidenceStagingDecision` の除外判定はこの否定を使い、シグネチャ・reasonCode・既存テストを変えない。
-    - `Test-EvidenceStagingDormant($Task,$Stage)`: Unheld であり、かつ (i) `artifactId` が null、または catalog に在る artifact を参照し、その state が `put-pending` でも `deleteIntent` 持ちでもない、(ii) どの artifact の ownedCopies の path も、この stage の path 配下にない。catalog に無い artifactId を参照する stage、property が欠ける stage は dormant にしない（例外を投げず偽を返す）。
+    - `Test-EvidenceStagingDormant($Task,$Stage)`: Unheld であり、かつ (i) `artifactId` が null、または catalog に在る artifact を参照し、その state が `put-pending` でなく、`deleteIntent` も `operation` も持たない、(ii) どの artifact の ownedCopies の path も、この stage の path 配下にない（比較は区切り `\` で終端した前方一致、OrdinalIgnoreCase）。catalog に無い artifactId を参照する stage、property が欠ける stage は dormant にしない（例外を投げず偽を返す）。
   - **D2 経路状態を 1 関数で判定する（`EvidenceCleanup.psm1`、export 必須。publish の候補ループも使う）。** `Get-EvidenceStagingPathState($Task,$Stage)` は `present` / `missing` を返すか、例外で拒否する。
     - dormant でなければ、従来どおり `Resolve-ArtifactStoredPath` を `-AllowMissing` 無しで呼ぶ。
     - dormant なら `Resolve-ArtifactStoredPath -AllowMissing` で解決し、**解決済み path** に対して `GetDirectoryName(resolved) -ceq Get-ArtifactRoot` かつ leaf が `^[0-9a-f]{32}$` であることを確認する。
     - 「存在しない」と判定する前に、leaf 自体の属性（`FileInfo.Attributes`）を見る。エントリが在るのに `Exists` が偽になるもの（リンク先の無い junction / symlink）は欠落ではなく拒否する。
     - root 不在・root/親の ACL 不適合・reparse・形式不正は例外のまま（`-AllowMissing` の既存検査）。
   - **D3 欠落は報告する。** observation は `[Collections.Generic.List[object]]$Observations` の収集器で受け渡す。
-    - `Assert-EvidenceTaskPaths` は欠落 dormant を拒否せず、収集器に `{key; reasonCode='staging-missing'}` を積み、実在を確認できた登録済み path の件数（証人数）も返す。`Assert-EvidenceTransitionSafe` は任意の `-Observations` を受け、戻り値（deleted artifact id の配列）は変えない。
+    - 収集器は `Observations`（`{key; reasonCode='staging-missing'}` の List）と `Witnesses`（整数）を持つ可変オブジェクト 1 つとし、呼び出し側が **try の外で**生成する（失敗した publish の結果にも件数を出すため）。`Assert-EvidenceTaskPaths` は欠落 dormant を拒否せず収集器へ積み、**戻り値を持たない**（呼び出しは `$null=` で受ける。数値をパイプラインへ流すと、`workflow-task` の `@(Assert-EvidenceTransitionSafe ...)` が deleted artifact id として誤読する）。`Assert-EvidenceTransitionSafe` は任意の `-Residue` を受け、戻り値（deleted artifact id の配列）は変えない。
     - `key` は cleanup の cursor と同じ SHA-256 で、`Get-EvidenceStagingKey` に抽出して両方で使う。path は出力しない。
     - 出力: publish・fetch・use の結果と、`workflow-task` の end・resume の JSON に、トップレベルの整数 `stagingMissing` を **0 のときも常に**出す（失敗した publish にも出す。config が複数なら合算）。status・終了コード・`reasonCode` の既存意味は変えない（欠落だけでは 0、`recorded/delivery-pending` は従来どおり 2）。`workflow-task status` は preflight を通らないため対象外。
     - cleanup の item は `reasonCode='staging-missing'`。
   - **D4 満了後・証人あり・guard 内だけ entry を落とす。** cleanup（非 dry-run）は、欠落 dormant staging が既存の 7 日（`staging-expired`、境界は `-ge 604800秒`）に達し、かつ**証人数が 1 以上**のときだけ、task guard 内で欠落を再確認して catalog から entry を外す。
     - この分岐は**ファイル・directory の削除 API を呼ばない**。item は `reasonCode='staging-missing-dropped'`、件数は既存の `skipped`（`deleted` に数えない）。`EvidenceSchedule` に新しい counter は足さない。
-    - 証人数 0（同じ task に、実在を確認できる登録済み path が一つもない）なら、満了後でも entry を残し `staging-missing` のまま報告する。仮想化などで root が実体の無い側を指していても、実体側にある記録を失わないための条件である。
-    - dry-run、`Assert-EvidenceTransitionSafe`、Sync は catalog を書かない。再確認時に directory が現れていたら、従来の削除経路へ戻す。
+    - **証人**は、この preflight で実在・ACL・identity を確認できた、同じ task の登録済み path である。数えるのは (a) artifact の ownedCopies のファイル、(b) `present` と判定した別の staging directory。`missing` の staging と adopted で欠落許容された staging は数えない。証人数 0 なら、満了後でも entry を残し `staging-missing` のまま報告する。目的は、root が実体の無い側を指すときに記録を失わないことである。限界（実装者が誤読しないよう明記）: ownedCopies を持つ ready artifact があれば、既存の preflight が先に `changed-copy` で拒否するため証人は自動的に 1 以上になり、条件は実質無条件になる。証人が示すのは「root がこの task のファイルのある側を指す」ことだけで、個別の欠落 directory が反対側にあることは否定しない（側が混在する状態は本スライスの外で、`Split Store Recovery` が所有）。証人 0 の task（deleted のみ、または staging だけ）では欠落 entry が残り続けるが、安全側として受け入れる。
+    - cleanup の staging 項目は、欠落判定を `Get-EvidenceStagingDecision` より前に置く。非 dry-run・dry-run を問わず、欠落かつ満了前、または満了済みで証人 0 は `reasonCode='staging-missing'` で `skipped` に数える。満了済み・証人あり・非 dry-run は `staging-missing-dropped` を `skipped` に数える。dry-run は満了済みでも `staging-missing`。
+    - dry-run、`Assert-EvidenceTransitionSafe`、Sync は、欠落 entry について catalog を書かない。再確認時に directory が現れていたら、従来の削除経路へ戻す。
     - 前提: 3 つの CLI は仮想化された process を store に触れる前に拒否する（PR #126）。D4 はこれに頼らず、証人条件を独立に置く。
 - 却下した代替案:
   - catalog の手修正・`end` の再試行: 禁止（依頼）。
@@ -70,7 +71,7 @@
     - **I4** 7 日の満了前、または証人数 0 のとき、欠落 entry を catalog から捨てない。
     - **I5** 欠落を許容した通常操作（publish・fetch・use・end・resume・cleanup）は、その件数を出力に含める。黙って成功にしない。
     - **I6** artifact の ownedCopies 欠落（`changed-copy`）、operation 付き staging の欠落（`operation-pending`）、putIntent 不一致（`unresolved-put`）は本スライスで緩めない。
-    - **I7** 読取経路（`Assert-EvidenceTransitionSafe`、Sync）と dry-run は catalog を書き換えない。
+    - **I7** 読取経路（`Assert-EvidenceTransitionSafe`、Sync）と dry-run は、欠落 entry の処理で catalog を書き換えない（既存の `Resolve-*Guarded` による artifact 側の書込みは従来どおり）。
   - 成立条件:
     - **S1** 欠落 dormant staging を持つ task で、publish が `passed`、`workflow-task end` が成功し、cleanup（dry-run を含む）が `unconfirmed` ではなく `staging-missing` を返す。
     - **S2** 満了済み・証人あり・欠落 dormant staging は、cleanup が entry を外し（`staging-missing-dropped`）、artifact・他 staging・ファイル群は不変。
@@ -80,7 +81,7 @@
   - **AC2（S1）** 同 fixture で `Invoke-EvidenceCleanup -DryRun` が当該 item を `staging-missing` にし、`unconfirmed` を出さない。ready artifact の item は従来の reasonCode。
   - **AC3（S1）** `workflow-task` の end・resume 相当（`WorkflowCliFixture.ps1` の stub が観測を返す）で `stagingMissing` が出力され、transition が commit され、終了コードが 0。config が 2 つなら合算。
   - **AC4（S2, I3, I4, I7）** 満了の 1 秒前は entry を残し、満了ちょうど（`-ge`）で外れる。外れた後、`deleted=0`、`skipped` に数え、sentinel file を置いた別の `transfers\<32hex>` directory、他 task の catalog、artifact の catalog 部分が前後で同一（hash 一致）。dry-run は満了後でも catalog を変えない（hash 一致）。
-  - **AC5（I1）** transfers root の不在、root の ACL 不適合、leaf が非 hex、root 外 path、root 直下でない path（`transfers\a\<32hex>`）、leaf が dangling junction、path 上の junction、の各 fixture で、欠落 entry の task の publish/cleanup が従来どおり拒否（`unconfirmed`）。
+  - **AC5（I1）** （leaf の属性検査は、`Assert-NoArtifactReparse` が既に dangling directory junction を捕捉することを実測済みの A2 所見のうえで、dangling な file symlink・directory symlink を防御的に塞ぐ二重化として残す。fixture で各種の挙動を実測して記録する）transfers root の不在、root の ACL 不適合、leaf が非 hex、root 外 path、root 直下でない path（`transfers\a\<32hex>`）、leaf が dangling junction、path 上の junction、の各 fixture で、欠落 entry の task の publish/cleanup が従来どおり拒否（`unconfirmed`）。
   - **AC6（I2, I6）** 欠落かつ operation あり、`adoptionPending`、adopted かつ operation あり、protection、deleteIntent、put-pending artifact の参照、catalog に無い artifactId の参照、ownedCopies が配下にある、の各 staging は従来どおり拒否。既存の `missing-owned-copy` の結果と、putIntent 不一致の `unresolved-put` は変わらない。
   - **AC7（I3 競合）** 欠落判定の後、drop の直前に directory が現れる fixture（既存の `FaultHook` 方式）で entry を外さず、従来の削除経路が走る。限界: guard が直列化するのは catalog の書き手だけで、drop の後に外部で現れた directory は未登録として残る（ファイルは消さないので I3 は守られる。StoreConsolidation の `unreferenced-transfer` が拾う前提）。
   - **AC8（I4 証人）** 満了済みの欠落 dormant staging だけを持ち、実在を確認できる登録済み path が一つもない task で、cleanup は entry を残し `staging-missing` を返す。証人が 1 件でも在れば外す。
