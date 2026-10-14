@@ -113,7 +113,7 @@
 ### PR 状態ブロック（PR 作成時の写し）
 
 ```text
-状態: Phase C / C' 完了（C' 4 巡目で阻害 0 件）。次は Phase D
+状態: Phase D の保存・引渡し確認と harvest 完了。マージ待ち
 Phase A: revision r5（凍結）、commit 348a491282242ec3e88ac717c913b8c1e5141621
 implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / f97edf07b4fbdfbf92260835e5a8d9752bedd07b
 決定記録: DR1（AC5 の基準は base 比較）・DR2（AC4 の実行権限）・DR3（C' 用。記録 commit の読み方、docs-audit の例外、root 定義の実 path）
@@ -1357,4 +1357,10 @@ DR3 版2が不変条件 I1〜I7 を破ること、または凍結条件の意味
 
 ## 9. Phase D
 
-未着手
+2026-10-15。owner の指示（PR #126 の cursor[bot] の assist レビューが阻害なしであることを確認し、「Phase D 完了として後始末してマージして」）で実施した。担当: Claude Code（Claude Sonnet 5.5）。
+
+- **Evidence の保存・引渡し確認:** 採用した Evidence は Artifact Storage の task `artifacts-virtualized-store-ev2` に保存済み（引渡し先: owner 手元の Git 管理外）。Phase A snapshot・Phase B result・判定 evidence bundle・C' blind bundle（C' の 4 巡分を再梱包。最後の版を C' 4 巡目が使った）に加え、Phase D で最終のレビュー所見の原記録（発見 C・判定 C の判断担当の出力、C' の 2〜4 巡目の応答と実行記録）と削除前の HANDOFF の最終版を 1 つの別 package として保存した。publish の後に空の領域へ fetch し、期待 hash と manifest の全 file の SHA-256 の一致を確認した（blind 入力と所見は別 package）。
+- **harvest:** 対話 CLI の実行条件と reasonCode、合流の手順と結果は、実装 commit の時点で `tools/Artifacts/README.md`・`tools/Workflow/README.md`・`tools/Harness/README.md` に入っている。後続スライスへの入力は `docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 に新しい小節「E. 仮想化 host と分裂したストア」を設けて移した。この HANDOFF は削除する。
+- **task:** `artifacts-virtualized-store`・`artifacts-virtualized-store-c5`・`artifacts-virtualized-store-ev2` の 3 task を、マージ後に owner の指示（chat の決定 ID）で completed として終了する。
+- **後始末:** 依頼範囲の自分の作業領域（この slice 用に作った worktree と bundle の作業 directory）を、保存・引渡しの確認後に削除する。他 task・他 session の領域、Codex 側の LocalCache と残骸、実体側の固定名 `OneStarMaker.StoreProbe` には触れない。
+- **未完了:** 別 session での Evidence の閲覧確認（C' 4 巡目が最後の blind bundle を別 session で読んだ範囲に限る）。実ストアへの合流は後続 `Split Store Recovery`。
