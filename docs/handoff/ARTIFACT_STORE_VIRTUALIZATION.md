@@ -29,7 +29,13 @@
 - **DR1（版 1、2026-10-14、適用: 判定 C の AC5 から）— AC5 の「既存どおりの reasonCode」の基準。** 同じ読取り系コマンドを、同じ host・同じ Store 版 pwsh で implementation base `3f79639`（判定を入れる前）でも実行し、対象 head の結果と reasonCode・exit・出力の種類（JSON の reasonCode、または reasonCode を出さないコマンドの文の種類）が同じであることを「既存どおり」とする。理由: §5.3 は比較の基準を書いておらず、harness の2コマンドは reasonCode を出力しない。I3 の「挙動を変えない」の比較対象は変更前の挙動なので、base での実行が凍結条件の意味どおりの基準である。合否の対象と範囲は変えない。C' 用決定記録には含めない（C' の前巡の指摘への裁定ではない）。base での実行結果は判定 evidence に入る。
 - **DR2（版 1、2026-10-14、適用: 判定 C の AC4 から）— AC4 の実行権限。** Codex 内の4入口は、まず通常の経路で owner の承認を求めて実行する。実行環境の審査がそれを通さない場合は、owner が Codex をフルアクセスに切り替え、4入口を同じ設定で続けて実行し直す（一部の入口だけを別の設定で実行しない）。どちらで実行したかを evidence に記録する。理由: D8 で `evidence publish` が承認後も審査で拒否された。権限設定は owner 自身の判断で、エージェントによる迂回ではない。フルアクセスでも Codex の package 内の process なので、AC4 の前提（仮想化された process）は変わらない。
 
-**引継ぎ票（発見 C 完了）— 次は判定 C。** 発見 C（r5）は阻害する指摘 0 件で終えた（§7.12）。B への差し戻しは発生せず、B と発見 C の往復の消費は r4 までの 2 巡のまま。判定 C は GO 候補 head `f97edf0` で行う。
+**引継ぎ票（判定 C 完了、r5）— 次は C' 2 巡目。** 判定 C は GO 候補 head `f97edf0` で完了した（阻害する指摘 0 件、§7.13）。C' は PR・本 HANDOFF 全文・§7 を読まず、所見を含まない C' 用の取得案内だけで始める（cursor-agent の Grok 系、新しい session、blind bundle）。C' の指摘による差し戻しは、今回の 2 巡目を含めて通算 2 巡目（上限 3 巡）。
+
+- **Evidence の状態:** Phase A snapshot・Phase B result・判定 evidence bundle・C' blind bundle を、Artifact Storage の task `artifacts-virtualized-store-ev2` へ publish した（引渡し先: owner 手元の Git 管理外。reference と期待 packageSha256 は C' 用が所見から分離した案内にあり、ここには転記しない）。同一 session 内で空の領域へ fetch し、期待 hash と manifest の全 file の SHA-256（不一致 0 件）と中身の閲覧を確認した。別 session での閲覧確認は未了。判定 evidence bundle は blind bundle の上位集合（AC4 の 1 回目の記録、発見 C の実行結果、最初の docs-audit の記録を含む）で、blind bundle には発見 C・判定 C の所見、決定記録、引継ぎ票、Phase A のレビュー節、Phase B result の差し戻し節と動作確認の比較記録を含めていない。
+- **task が 3 つある理由（記録）:** 既存の `artifacts-virtualized-store` は、過去の fetch が残した未採用の staging（実体が無い）のため publish が `unconfirmed` で拒否される（診断で確認）。`artifacts-virtualized-store-c5` に 600 file の bundle を publish したところ、task の catalog 記録が 1 MiB の上限（約 919 KB）に近づき、fetch が `record-limit` で失敗した。そのため source を 1 つの zip にして file 数を絞り、`artifacts-virtualized-store-ev2` へ publish し直した。`-c5` に大きい 2 件が残り、`artifacts-virtualized-store` には古い 3 件が残る。Phase D の task 終了と清掃では 3 task を扱う。製品側の 2 件（残骸の staging が task を塞ぐこと、catalog 記録の上限）は後続の入力。
+- **取り直し（記録）:** AC4 の 1 回目は事前実行と Codex 内の実行の間が約 11 時間 41 分で単一ログでもなかったため、判定 C は取り直しを求めた（§7.13）。取り直しは 27 秒、単一ログ。
+
+**引継ぎ票（発見 C 完了。記録として残す）— 判定 C の前。** 発見 C（r5）は阻害する指摘 0 件で終えた（§7.12）。B への差し戻しは発生せず、B と発見 C の往復の消費は r4 までの 2 巡のまま。判定 C は GO 候補 head `f97edf0` で行う。
 
 **引継ぎ票（動作確認（D8）完了。記録として残す）— 次は発見 C。** D8 の AC4・AC5 は期待と一致し、B への戻しは無かった（§6「動作確認」）。発見 C は head `f97edf0` の r5 の差分（`741444d..f97edf0`）を中心に行う。B と発見 C の往復は r4 までに2巡を消費（上限 4 巡）。r5 凍結時の引継ぎ票の「その後」「やらないこと」「引き渡さないもの」は引き続き有効。
 
@@ -112,7 +118,7 @@ implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / f97edf07b
 決定記録: DR1（AC5 の基準は base 比較）・DR2（AC4 の実行権限）、版 1
 次の担当: C' 2 巡目（blind bundle、Evidence 取得案内は owner 手元）
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
-Evidence 取得案内: 保存済み（引渡し先: owner 手元の Git 管理外）。取得側の別 session での閲覧確認は未了
+Evidence 取得案内: 保存済み（task artifacts-virtualized-store-ev2、引渡し先: owner 手元の Git 管理外）。同一 session での fetch・hash 照合は確認済み、別 session での閲覧確認は未了
 未決事項: なし（保留した単位の扱い・取得の回復・実ストアへの合流は後続 Split Store Recovery）
 ```
 
