@@ -116,7 +116,7 @@
 状態: Phase C / C' 完了（C' 4 巡目で阻害 0 件）。次は Phase D
 Phase A: revision r5（凍結）、commit 348a491282242ec3e88ac717c913b8c1e5141621
 implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / f97edf07b4fbdfbf92260835e5a8d9752bedd07b
-決定記録: DR1（AC5 の基準は base 比較）・DR2（AC4 の実行権限）、版 1
+決定記録: DR1（AC5 の基準は base 比較）・DR2（AC4 の実行権限）・DR3（C' 用。記録 commit の読み方、docs-audit の例外、root 定義の実 path）
 次の担当: Phase D（保存・引渡し確認 → harvest → PR）
 HANDOFF: docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md
 Evidence 取得案内: 保存済み（task artifacts-virtualized-store-ev2、引渡し先: owner 手元の Git 管理外）。同一 session での fetch・hash 照合は確認済み、別 session での閲覧確認は未了
