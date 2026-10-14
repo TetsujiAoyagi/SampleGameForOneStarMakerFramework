@@ -5,7 +5,7 @@
 - type: `slice`
 - status: `A`（A0 / A1 初稿。A2 独立レビュー実施済み（§5.1）、A3 未凍結。§2 は初稿のままで、§5.1 の提案は人間の採否待ち。凍結前に実装へ進まない）
 - branch: `claude/amazing-blackburn-f04cf2`（作業用の仮名。PR を作る前にスライスを表す名前へ改める）
-- implementation base commit: `a251201`（`origin/develop`、PR #126 マージ）
+- implementation base commit: `92a0573`（`origin/develop`、PR #125 マージ後。初稿の base は PR #126 マージの `a251201`、差分は workflow 文書のみで本スライスに影響しない）
 - implementation head commit: 未固定
 - risk: `high`（失敗時に処理を拒否する契約 fail-closed と、catalog の保持・削除の意味に触れる。[新しい事実の分類](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#新しい事実の分類) の「A 再開」級の判断を含む）
 - owner: OSM maintainers
@@ -110,7 +110,7 @@
 - 判定必須テスト（GO 候補 head）: `tools/Artifacts/tests/*.Tests.ps1` と `tools/Workflow/tests/*.Tests.ps1` の全体（`StoreContext.Tests.ps1` は非仮想化 host で）、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`。`EvidenceCleanup.Tests.ps1` は `rg` が PATH に要る。
 - 全 EditMode 回帰の適用除外: Unity 側コードを変更しないため。代替証拠は上記 offline suite 全体と audit。
 - 統合・Unity テスト: なし。
-- 操作・実行時・目視条件の検証経路: なし（全条件を offline fixture で観測できる）。実環境（仮想化 host を含む）での確認は本スライスの受け入れ条件にしない。
+- 操作・実行時・目視条件の検証経路: `対象なし`（全条件を offline fixture で観測できる。PR #125 の「動作確認（Phase B の後）」は実行しない）。実環境（仮想化 host を含む）での確認は本スライスの受け入れ条件にしない。
 - 未知の操作経路の疎通結果: なし。
 - 人間の判断が必要な条件: なし。ただし実 task への適用（§2 最終項）は owner の指示を要する。
 - 高コスト証拠: なし。判定 C の照合 script: なし。
