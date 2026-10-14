@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（A0 / A1 初稿。A2 独立レビュー未実施、A3 未凍結。凍結前に実装へ進まない）
+- status: `A`（A0 / A1 初稿。A2 独立レビュー実施済み（§5.1）、A3 未凍結。§2 は初稿のままで、§5.1 の提案は人間の採否待ち。凍結前に実装へ進まない）
 - branch: `claude/amazing-blackburn-f04cf2`（作業用の仮名。PR を作る前にスライスを表す名前へ改める）
 - implementation base commit: `a251201`（`origin/develop`、PR #126 マージ）
 - implementation head commit: 未固定
@@ -116,9 +116,48 @@
 - 高コスト証拠: なし。判定 C の照合 script: なし。
 - 機械検査: `contract-audit`、`docs-audit`、`git diff --stat`。
 - A0/A1 主担当: Claude（この session）。独立性の要件はこの欄の対象外。
-- A2 独立レビュー（未実施、入力版は commit 後の内容 sha256 を正とし commit hash を補助）: 高リスクのため、(a) アーキテクチャゲート担当 1 件以上、(b) fail-closed の破り方（I1〜I6 を破る順序を各 1 つ挙げる）担当、(c) この HANDOFF の §1 だけを読んで代替構成を出す担当を推奨。担当・モデルは A2 開始時に選ぶ。互いの指摘は見せない。
-- A3 統合担当・採否: 未実施。
+- A2 独立レビュー（実施済み。結果は §5.1。入力版は commit 後の内容 sha256 を正とし commit hash を補助）: 高リスクのため、(a) アーキテクチャゲート担当 1 件以上、(b) fail-closed の破り方（I1〜I6 を破る順序を各 1 つ挙げる）担当、(c) この HANDOFF の §1 だけを読んで代替構成を出す担当を推奨。担当・モデルは A2 開始時に選ぶ。互いの指摘は見せない。
+- A3 統合担当・採否: 提案は §5.1。人間の採否は未実施。
 - C' 用に予約する担当: 未定。A2 で使い切らない。
+
+## 5.1 A2 独立レビュー結果と A3 への提案（採否は人間が A3 で確定。未凍結）
+
+入力版は初稿（sha256 `4cb42b3c9c109a80157420c8232c0f8f9027102ed957d1fd68277bfded90720f`、commit `b8d02a2`）。3 件は互いの指摘を見ずに実施した。(c) は §1 だけを抜き出した入力から立案した。担当・モデルは使用実績で、固定割り当てではない。
+
+| 担当 | モデル | 判定 |
+|---|---|---|
+| (a) アーキテクチャゲート | Opus 系 | 条件付き GO（所見 1 の解消が前提） |
+| (b) fail-closed の破り方 | Sonnet 系 | NO-GO（blocker 2 件。修正後に再レビュー） |
+| (c) A0 のみからの代替構成 | Fable 系 | 初稿とほぼ同じ構成に収束（判定なし） |
+
+(c) は独立に、述語の切り出し、既存 `-AllowMissing` の利用、満了後に entry だけ除去、削除 API 不使用、operation 付き欠落は拒否のまま、という同じ骨格を選び、却下案（preflight 除外、検出即除去、`adopted` の書き換え）も一致した。
+
+### 提案する採否（主担当案）
+
+| # | 指摘（担当） | 分類 | 提案する反映 |
+|---|---|---|---|
+| 1 | dangling junction / symlink が「欠落」と判定される。`Assert-NoArtifactReparse` は `Exists` が真のときだけ属性を見る（b、I1 の blocker） | 採用 | D2 で、leaf が「存在しない」と判定する前に、leaf 自体の属性（`FileInfo.Attributes`、ReparsePoint）を見て、エントリが在るのに解決できないものは欠落ではなく拒否する。AC5 に追加 |
+| 2 | 仮想化で root が空の別側へ解決され、全 dormant が欠落になり満了後に記録が落ちる（b、I3/I4 の blocker） | 採用（条件は A3 で確定） | D4 の drop は、同じ task の実在する登録済み path（ready artifact の ownedCopies、または別の存在する staging）を 1 件以上確認できる場合だけ行う（root が実体側を指す証人）。確認できなければ entry を残し `staging-missing` のまま報告する。CLI 入口の仮想化拒否（PR #126）を前提とするが、前提に頼らず証人条件を置く。限界として、反対側に古い catalog の複製がある場合は StoreConsolidation の衝突規則に従い、本スライスの外と §2 に注記する |
+| 3 | fetch と use も `Assert-EvidenceTransitionSafe` を通り、D2 後は欠落を黙って許容する（a、I5 の blocker） | 採用 | 件数フィールドを publish・fetch・use・end・resume の全てに出す。AC1 に fetch と use を追加。`workflow-task status` は preflight を通らないため対象外にする（a の所見 2） |
+| 4 | 出力名: `residue` の下ではなく、トップレベルの整数 `stagingMissing` を 0 のときも常に出す。config 間は合算、欠落だけなら終了コード 0・status `ok`・`reasonCode` 不使用。publish が failed でも出す（a、b） | 採用 | 未決 1 の回答。(c) の path 配列は、path を出さない README の規則に反するため不採用 |
+| 5 | 述語を 2 層にする: stage 単体の `Test-EvidenceStagingUnheld($Stage)`（`Get-EvidenceStagingDecision` が使い、シグネチャ・既存テスト・reasonCode を保つ）と、artifact 参照を見る `Test-EvidenceStagingDormant($Task,$Stage)`。カタログに無い artifactId を参照する stage、property が欠ける stage は dormant にしない（例外ではなく偽）。ownedCopies のいずれかがその stage 配下なら dormant にしない（a、b） | 採用 | 未決 3 の回答。RetentionPolicy に置く |
+| 6 | 「root 直下の 32 hex」は生の `stage.path` ではなく、解決済み path に対して `GetDirectoryName(resolved) -ceq Get-ArtifactRoot` と leaf の正規表現で判定する。`Get-EvidenceStagingPathState` は export 必須（a） | 採用 | D2 に反映 |
+| 7 | observation の受け渡しは `[ref]` ではなく `[Collections.Generic.List[object]]$Observations` の収集器。キーは cleanup の cursor と同じ SHA-256 を `Get-EvidenceStagingKey` に抽出して共有する（a） | 採用 | D3 に反映 |
+| 8 | 欠落かつ operation あり、`adoptionPending` あり、は拒否のまま。欠落 stage は publish の source になれず `invalid-source` を明示する。読取経路と dry-run は catalog を書かない（c） | 採用 | I2 と AC に反映。(c) の `evidence inspect` への項目追加は不採用（後続へ移送） |
+| 9 | AC の精度: AC5 に root 不在・dangling junction を追加し、欠落 dormant だけを持つ task（artifact 0 件）で検査して staging 経路が拒否原因だと判別できるようにする。AC4 に満了境界（604800 秒の -1 秒 / 0 秒、判定は `-ge`）と dry-run が catalog を変えないこと、AC6 に `unresolved-put`、述語と `Get-EvidenceStagingDecision` の表駆動一致を追加（b、c） | 採用 | AC を拡張する（新しい完了バーではなく既存条件の検証例） |
+| 10 | D4 の競合限界: 再確認から書込みまでに外部で directory が現れると、drop 後に未登録 directory が残る。ファイルは消さないので I3 は守られ、残骸は StoreConsolidation の `unreferenced-transfer` が拾う（a、b） | 注記 | §2 に一文で記載 |
+| 11 | cleanup の `MaxObjects` を欠落 entry が dry-run 毎回消費する（b） | 保留 | 致命ではない。後続の入力 |
+
+### 未決事項への回答（提案）
+
+1. 出力面: トップレベル `stagingMissing`（整数、常時）。終了コードは従来規則を保つ（#4）。
+2. drop の時機: 満了後に限る（3 担当一致）。即時案は却下のまま。加えて証人条件（#2）。
+3. 述語の置き場: RetentionPolicy。2 層に分ける（#5）。
+
+### A3 前に人間が決めること
+
+- #2 の証人条件を「同じ task に実在する登録済み path が 1 件以上」とする案でよいか（代替: 仮想化 host では drop を禁止する）。
+- 以上を反映した **revision 2** として §2 と §3 を書き直し、再度 A2 の差分レビュー（(b) の再確認）を行うか、そのまま凍結するか。(b) が NO-GO のため、再確認を推奨する。
 
 ## 6. Phase B 実装結果
 
