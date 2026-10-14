@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄には、各成果物の取得案内の引渡し先・担当と状態だけを書く。reference・期待packageSha256の実値、ローカルの実path、内部catalog/receiptの内容は転記しない。
 
 - type: `slice`
-- status: `発見 C（r5）完了（阻害 0 件、§7.12）。判定 C 完了（阻害 0 件、§7.13）。C' 2 巡目は阻害 3 件（§8.1）で owner の判断待ち`。（2026-10-14 に owner が A 再開を確定し、同日 r5 を凍結した（§5.16）。経緯: C' の阻害指摘 2 件（§8）→ AC4 の実環境確認が不合格（§7.10）→ スパイクで原因が確定（§7.11）。r5 の変更点は §5.14。r4 凍結までの経緯は §5.10〜§5.13、発見 C の記録は §7.1〜§7.8、判定 C は §7.9）
+- status: `発見 C（r5）完了（阻害 0 件、§7.12）。判定 C 完了（阻害 0 件、§7.13）。C' 3 巡目は阻害 1 件（§8.2、docs-audit の記録）で owner の判断待ち`。（2026-10-14 に owner が A 再開を確定し、同日 r5 を凍結した（§5.16）。経緯: C' の阻害指摘 2 件（§8）→ AC4 の実環境確認が不合格（§7.10）→ スパイクで原因が確定（§7.11）。r5 の変更点は §5.14。r4 凍結までの経緯は §5.10〜§5.13、発見 C の記録は §7.1〜§7.8、判定 C は §7.9）
 - branch: `claude/artifacts-virtualized-store-a01`（`origin/develop` 起点）
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（A3 で `origin/develop` と一致を再確認済み）
 - Phase A revision: **`r5`（2026-10-14 凍結）**。凍結 commit と内容 sha256 は凍結直後の commit で記入する（下の行）。§1〜§5 が B の唯一の仕様。r4 からの変更点は §5.14（A3 の統合は §5.15）、A2・A3 は §5.15・§5.16。
@@ -112,7 +112,7 @@
 ### PR 状態ブロック（PR 作成時の写し）
 
 ```text
-状態: 判定 C 完了。C' 2 巡目は阻害 3 件で owner の判断待ち
+状態: 判定 C 完了。C' 3 巡目は阻害 1 件（docs-audit の記録）で owner の判断待ち
 Phase A: revision r5（凍結）、commit 348a491282242ec3e88ac717c913b8c1e5141621
 implementation base / head: 3f79639c12eac16da77d06608675564e906f9a49 / f97edf07b4fbdfbf92260835e5a8d9752bedd07b
 決定記録: DR1（AC5 の基準は base 比較）・DR2（AC4 の実行権限）、版 1
@@ -1256,6 +1256,63 @@ owner の裁定でスパイクから行った。実装は変えていない。
 | 結果 | 阻害 3 件が残る。この head を独立監査の通過とは扱えない。前巡の実環境証拠の欠落は解消していない |
 
 監査できなかった範囲: §7 は snapshot から省かれているので、AC4 の一覧形式が §7.10 の原本と一致するかは見ていない。commit 間の tree が同一かは見ていない（読取りのみで、git は実行していない）。manifest の sha256 は再計算していない。`artifacts.ps1` の読取り系は AC5 の生ログに無く、§2.3 は対象 subcommand を列挙していないので、欠落としては阻害にしていない。
+
+### 8.2 3 巡目（r5、GO 候補 head `f97edf0`）
+
+- **担当方式:** 2 巡目と同じ（cursor-agent、`grok-4.7-high`、xAI、新しい session、読取りだけ。ツール呼出しは read・grep・glob のみ。約 9 分、出力 39k token）。プロンプトは同じ固定の 1 行。
+- **入力:** 再梱包した C' blind bundle（83 file。2 巡目からの追加は `DECISION_RECORDS.md`（DR3 版 1）、`HEAD_EQUIVALENCE.txt`（git の出力）、3 巡目の指示書。実装の変更なし）。取得案内は owner 手元の Git 管理外。空の新しい directory に fetch し、manifest の全 file の SHA-256（不一致 0 件）を照合した。
+- **受け取った決定記録の版:** DR3 版 1（C' の 2 巡目の指摘 3 件への裁定。§0）。
+- **判定:** 阻害する指摘 1 件（docs-audit の合否の帰属）。2 巡目の指摘 3 件は、1 件目と 3 件目が解消、2 件目は docs-audit だけが残る、と読んでいる。司令塔（Claude Sonnet 5.5）は最終応答の本文を書き換えず転記した（応答冒頭の進行の文は省き、見出し階層だけ下げた）。
+
+#### 指摘
+
+##### 1. docs-audit の合格を固定 head の合否として読む裁定
+
+- **severity:** blocker
+- **違反する凍結条件:** Phase A snapshot r5 §5.1 の判定必須テスト `pwsh tools/docs-audit.ps1`。レビュー証拠は、最終判定に使う生ログをその implementation head に対する記録とする。決定記録は、凍結条件の合否を変える読みを載せず、その場合は Phase A を新しい revision として再開する（`phases-and-handoff.md` の決定記録）。
+- **根拠:** 固定 implementation head は `f97edf07b4fbdfbf92260835e5a8d9752bedd07b`。`tests/decision/run-summary.filtered.txt` の判定実行は `head=c14654194e5cbf33755d092a36b4568b796d5329` で、`docs-audit exit=1`。続く再実行は `4f8d742` のあとで `exit=0`。`HEAD_EQUIVALENCE.txt` では、`c146541` と `4f8d742` のどちらも `f97edf0` の子孫で、`docs/handoff` を除く差分は空、名前差分は `docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md` だけである。`EVIDENCE_MANIFEST.json` の `notes.filtered` は、最初の失敗を `docs/handoff` 内のリンク2件とし、再実行の合格を docs だけの commit のあととしている。`tests/decision/docs-audit.rerun.log.txt` の合格ログは、その handoff ファイルを検査し `errors=0` である。
+- **裁定との関係:** DR3 裁定1・2は、記録された commit が docs だけの更新なら固定 head の実行記録として読み、判定必須テストの合否は変わらないとする。docs-audit の合否は、その唯一の差分ファイルの内容に依存する。同じ読みを適用すると、`c146541` の不合格と `4f8d742` の合格が、どちらも固定 head の記録になる。二つの合否は反対であり、合格ログが検査した handoff の bytes は `f97edf0` の bytes と同一ではない。引用されているレビュー証拠の文は、HANDOFF にレビュー結果だけを追記した commit は implementation head を更新せず再実行条件にしない、という範囲である。リンク修正で exit が 1 から 0 に変わった再実行は、その範囲を超えて §5.1 の合否の帰属を変える。
+- **現在の問い:** 前巡の指摘2（判定必須テストの生ログが固定 head の実行記録であること）は、docs-audit については解消できない。
+
+tools の suite、3 project の build、`contract-audit` は、この blocker に含めない。それらの合否は `docs/handoff` の bytes に依存せず、`HEAD_EQUIVALENCE.txt` の「`docs/handoff` 以外に差分なし」で `f97edf0` の実装と対応する。`run-summary.filtered.txt` では、これらは `c146541` 上で exit 0 である。
+
+#### 前巡3件
+
+##### 指摘1「AC5 の実環境証拠が固定 head に無い」
+
+解消する。`ac5/head/ac5-observations.log` の `GIT_HEAD_RECORDED` は `4f8d742b0b83342136933027c7c12b97e91bd249`。`HEAD_EQUIVALENCE.txt` により、この commit は `f97edf0` の子孫で、差分は `docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md` だけである。AC5 の3コマンドは `tools/workflow-task.ps1` と `tools/harness.ps1` であり、比較対象の base は `ac5/base/ac5-observations.log` の `3f79639c12eac16da77d06608675564e906f9a49`（manifest の implementation base）である。
+
+head と base の出力は一致する。`workflow-task status` は `status=ok`、`reasonCode=null`、exit 0。`harness status` は同じ文言、exit 0。`harness current` は同じ文言、exit 1。呼出しごとの probe directory 件数は、どちらも開始 0、終了 0。§2.3 AC5 / §5.3 の合否（既存どおりの reasonCode。件数は記録のみ）は、この対応の下で変わらない。裁定1・2は、この条件の合否を変えていない。
+
+AC4 の Codex 側4入口は、別記録として固定 head そのものにある。`ac4/ac4-retake.log` の該当区間は `GIT_HEAD_RECORDED=f97edf07b4fbdfbf92260835e5a8d9752bedd07b` で、4コマンドとも `{"status":"failed","reasonCode":"virtualized-store"}`、exit 1。直前の非仮想化4入口は `ebac50b` で、同じ等価記録の対象である。
+
+##### 指摘2「判定必須テストの生ログが固定 head の実行記録ではない」
+
+docs-audit 以外は、上記の実装等価で固定 head の実行記録として読める。docs-audit は指摘1件目の blocker のまま残る。
+
+##### 指摘3「AC4・AC5 の生ログが、凍結した証拠形式で禁じられた実 path を含む」
+
+blocker にはしない。裁定3の読みは、凍結文面の係り先と一致する。§5.3 の「内容と実 path の詳細は含めない」は前後の一覧に係る。§1.3 と I2 の実 path・package の full path を出さない条件は、reasonCode と件数を返す CLI の最終出力に係る。
+
+一覧の項目は名前・種別・最終更新と件数だけで、実 path を含まない（`ac4/ac4-retake.log` の `S1_BEFORE` / `S3_AFTER`）。AC4 の Codex 側最終 JSON は `virtualized-store` のみ。AC5 の最終 JSON は `reasonCode: null` で、実 path を含まない。先頭の `ROOT_DEFINITION` に実 path があることは、裁定3が許す記録であり、I1・I2・AC4・AC5 の合否を変えない。
+
+#### 前巡 head から新 head
+
+implementation head は `f97edf0` のままである。manifest の `notes.round` は、2巡目以降の追加を `DECISION_RECORDS.md`、`HEAD_EQUIVALENCE.txt`、`C-PRIME-INSTRUCTIONS.md` とし、実装変更はないと記録している。`HEAD_EQUIVALENCE.txt` の3 commit は、いずれも `f97edf0` から `docs/handoff` の1ファイルだけが進んだ子孫である。
+
+bundle 内の `diff/r5-increment.stat.txt` は、prior head `741444d` から `f97edf0` への r5 実装差分で、6ファイル、294行の増加がある。これは `f97edf0` より後の修正差分ではない。
+
+#### 追加ファイルの影響
+
+`HEAD_EQUIVALENCE.txt` は、AC5 と、docs を読まない判定必須テストについて、記録 commit と固定 head の実装対応を評価可能にする。docs-audit については、差分が検査対象ファイルそのものであり、二つの記録の exit が 1 と 0 に分かれるため、同じ対応を合否へ移せない。
+
+`DECISION_RECORDS.md` は、その読み方を AC5・一覧・CLI 最終 JSON に適用する限り、§5.3・§1.3・I2 の合否を変えない。docs-audit への適用は、指摘1件目のとおり合否の帰属を変える。
+
+#### 後続への入力
+
+`ac4/ac4-retake.log` の `WORKTREE=` と `RESIDUE_COUNTS` の `root=`、`ac5/head/ac5-observations.log` の `WORKTREE=` には、root 定義の行・一覧の項目・CLI 最終 JSON のどれでもない実 path が残っている。§5.3・§1.3・I2 の係り先には入らず、現在の問いの blocker にはしない。
+
+司令塔の補足（C' の本文ではない。事実のみ）: `f97edf0` を detached checkout した worktree で `pwsh tools/docs-audit.ps1` を実行すると、exit 0（errors 0、warnings 1: 検査 3）。生の出力はまだ bundle に入れていない。
 
 ## 9. Phase D
 
