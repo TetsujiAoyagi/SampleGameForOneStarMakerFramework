@@ -141,9 +141,11 @@ foreach($caseName in $selected){$executed.Add($caseName);$child=$null;$signal=$n
             Assert-EvidenceTest ($p.stagingMissing -eq 0) 'clean task reported missing staging'
             $missing=New-TransfersPath $env;Edit-FixtureTask $env {param($t)$t.staging+=New-MissingStage $missing $now}
             $g=Enter-WorkflowTaskGuard ('a'*64) fixture
-            try{$before=Get-FixtureCatalogHash $env;$residue=[pscustomobject]@{Observations=[Collections.Generic.List[object]]::new();Witnesses=0};$null=Assert-EvidenceTransitionSafe $env.Config fixture $g -Residue $residue;$after=Get-FixtureCatalogHash $env}finally{$g.Dispose()}
+            try{$before=Get-FixtureCatalogHash $env;$residue=[pscustomobject]@{Observations=[Collections.Generic.List[object]]::new();Witnesses=0};$ids=@(Assert-EvidenceTransitionSafe $env.Config fixture $g -Residue $residue);$after=Get-FixtureCatalogHash $env}finally{$g.Dispose()}
             Assert-EvidenceTest ($residue.Observations.Count -eq 1 -and $residue.Observations[0].reasonCode -ceq 'staging-missing' -and $residue.Observations[0].key -ceq (Get-EvidenceStagingKey ([pscustomobject]@{path=$missing})) -and $residue.Witnesses -ge 1) 'observation or witness missing'
             Assert-EvidenceTest ($before -ceq $after) 'preflight rewrote catalog'
+            # Witness counting must not leak into the pipeline: workflow-task reads that output as deleted artifact ids.
+            Assert-EvidenceTest ($ids.Count -eq 0 -and $residue.Witnesses -ge 1) 'preflight output leaked witness counts'
             $dry=Invoke-EvidenceCleanup $env.ConfigPath $true @('fixture');$before=Get-FixtureCatalogHash $env
             Assert-EvidenceTest (@($dry.items|Where-Object reasonCode -CEQ 'unconfirmed').Count -eq 0 -and @($dry.items|Where-Object reasonCode -CEQ 'staging-missing').Count -eq 1 -and $dry.blocked -eq 0) ('dry-run did not report missing '+(ConvertTo-Json $dry -Compress -Depth 5))
             Assert-EvidenceTest ((Get-FixtureCatalogHash $env) -ceq $before) 'dry-run rewrote catalog'
