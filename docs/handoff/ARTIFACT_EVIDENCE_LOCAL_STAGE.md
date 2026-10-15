@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（A1 初稿に対する A2 独立レビュー 4 件を完了。結果と主担当の採否案は §5.1。A3 凍結は未実施。設計判断は凍結前）
+- status: `A`（A1 初稿に対する A2 独立レビュー 4 件と、§5.1 込みの head に対する追加レビュー 1 件を完了。結果と主担当の採否案は §5.1。A3 凍結は未実施。設計判断は凍結前）
 - branch: `claude/evidence-local-stage`（PR の base は `develop`）
 - implementation base commit: `6a51d2fefc9cf6d09d2a74a1ec1c42784e0e4524`（`origin/develop`、PR #127 マージ後）
 - implementation head commit: 未固定
@@ -147,6 +147,7 @@
 | (b) fail-closed の破り方 | Claude Opus 系 | 条件付き GO（I1・I4 を破る順序を構成。D1/D4/D5 の追記と StateStore 追加で塞げる） |
 | (c) D7 ワークフロー規則の整合 | Codex CLI、GPT 系（別 session） | NO-GO（差し戻し中の snapshot 固定と worktree 間の HEAD 照合が既存契約と衝突。D7 の分割は不要） |
 | (d) A0 のみからの代替構成 | Claude Sonnet 系 | 判定なし。「準備／送信の分離、ZIP bytes 再利用、task 終了 + 30 日の保持」で初稿と収束。reference は不変にできると指摘 |
+| (e) 採用案を反映しても残る問題（追加。入力は §5.1 込みの commit `68865dea`。(a)〜(d) の所見を読んだうえでのレビューで、独立レビューとは数えない） | Web 版 GPT（OpenAI、owner が手動で依頼） | 方向性に賛成、このままの A3 凍結は非推奨（P1 3 件: `use` が `staged` を拒否、昇格失敗後の回復が閉じない、snapshot 例外の反映先不足） |
 
 主担当が blocker 候補の根拠を実コードで確認した事実: `Read-EvidenceTask` は artifact の `key` を `Get-EvidenceKey` と一致させ、state を既存 5 値に限り、`deleted` / `delete-pending` に receipt を要求する。`Assert-EvidenceTransitionSafe` は `put-pending` / `deleteIntent` を `Resolve-EvidencePutGuarded` / `Resolve-EvidenceDeleteGuarded` で解決し、そこで `Get-CredentialStatus` と GET が走る。cleanup の staging 除外は `put-pending` と `deleteIntent` だけで `failed` を含まない。publish の read lock は `CreateVerified` の後に PUT 直前で開く。
 
@@ -171,13 +172,26 @@
 | 15 | 保持は task 終了 + 30 日（a・b・d 一致）。7 日では active な task の最中に唯一の複製が消える | 採用 | §2 未決事項 (1) を解消。D5 のまま |
 | 16 | D7 の分割は不要（c）。公開点と固定入力・引継ぎの契約が相互依存 | 採用 | §2 未決事項 (3) を解消。同じスライスで扱う |
 
+(e) の指摘と採否案。主担当が実コードで確認した事実: `Invoke-EvidenceUse` は state が `ready` でない artifact を `payload-deleted` で拒否する。`Resolve-EvidencePutGuarded` は GET missing で state と operation を変えるが `putIntent` を消さない。putIntent は `intents/<artifactId>.json` の固定 path に `Write-EvidenceAtomic -Immutable`（`File.Move` の overwrite 無し）で書くため、同じ artifactId の再送信で intent を作り直すと衝突する。`SKILL.md` の Phase C 入口は implementation base / head commit の固定を要求している。
+
+| # | 指摘（担当） | 分類 | 提案する反映 |
+|---|---|---|---|
+| 17 | `staged` の copy を `use` で保護できず、README の「use 失敗時は利用を開始しない」契約により取得後の通常手順が止まる（e-1、P1） | 採用 | D5: `use` / `release` の対象に `staged` を加え、保護・期限切れ・保持判定の接続を変えない。昇格しても保護が失われないことを AC13 として追加 |
+| 18 | 昇格失敗から `staged` へ戻した後の再昇格と清掃が閉じない。putIntent が残るため #4 (i) の「putIntent 無し」条件に入らず、再昇格は不変 intent と衝突する。一括 publish 由来と昇格由来の `put-pending` の判別も未固定（e-2、P1） | 採用 | D4: 昇格は既存の putIntent（同じ key・packageSha256・artifactId）が在れば再利用し、作り直さない。回復で `staged` へ戻す際は putIntent を保持する。#4 の削除条件を「putIntent の有無」ではなく「receipt 無し、かつ GET 404 の確認記録または未送信」に改める。昇格由来か publish 由来かは artifact に `origin`（`publish` / `stage`）を持たせて判別する。受け入れ条件を「昇格失敗 → 不在確認 → staged へ回復 → 同じ bytes で再昇格成功」と「→ 保持満了後にローカル清掃成功」の 2 終点まで伸ばす（AC11・AC12 を改訂） |
+| 19 | snapshot 固定の例外を `review-evidence.md` だけで書くと、`SKILL.md` Phase C 入口と `phases-and-handoff.md` の Phase 責任（commit 固定）と矛盾が残る。`git diff` + 変更後 file では未追跡・削除・バイナリの扱いが曖昧で、AC1 は収録し忘れを検出できない（e-3、P1） | 採用 | D7-4 の反映先に `SKILL.md` Phase C 入口と `phases-and-handoff.md` Phase の責任を加え、3 文書で同じ文言にする。stage snapshot の収録規則を「追跡済み・未追跡・削除・バイナリを含む完全な変更集合」と定義し、`changes.patch` と収録 file 集合が同じ実装を表すことを追加・変更・削除を含む fixture で確認する AC14 を追加。AC8 の確認対象に入力区分の無矛盾を加える |
+| 20 | 未公開 commit の整理時点を「公開前」に置くと、判定 C 後に head が変わって再判定が増える（e-4、P2） | 採用 | D7-3: 順序を「B ↔ 発見 C → 試行錯誤 commit の整理 → GO 候補 head の固定 → 判定 C → C' → PR 作成・push」と明記。evidence tag は旧 head の到達可能性だけを担い、整理後の head に旧判定を移さないと明記。D7-1 に「レビュー用 worktree は固定 SHA からの detached worktree でよい」を追記 |
+| 21 | 旧 runtime の日次 job は `staged` を含む catalog を読めず止まる。導入手順に runtime の版確認・切替が無い（e-5、P2） | 採用 | §4 に導入手順を追加: 共有 store へ `staged` を書き始める前に、登録済み runtime の head を確認し、新 head で `schedule-install` を行う。`EvidenceSchedule` の収集機構は変えない（tracked な psm1 は既存収集で拾う） |
+| 22 | 「PR 前の Cloud は assist」は、PR 後なら正規 C' ができると読める。Cloud の Evidence 取得は未成立（e-6、P2） | 採用 | D7-6 を「PR の有無にかかわらず、固定 Evidence を取得・検証・閲覧できない Cloud 作業は assist。PR 作成や push だけで正規の C / C' に昇格させない」に改める。現行 Cloud 節の能力条件を残す |
+| 23 | §5 の実 R2 往復 1 回が GO 必須か補助確認かが §2 判定定義と揃っていない（e 検証計画） | 採用（判断は A3） | 主担当案: 昇格の実 R2 往復 1 回を判定必須に含める（S2 の実経路確認）。offline fixture だけでは transport の実装差を観測できないため |
+
 ### A3 で owner が決めること
 
-1. #4 の方式: (i) 未送信 artifact の `deleted` は receipt 不要、(ii) 別の終端 state。主担当案は (i)。
-2. #5 の採用: local prefix を廃止し、既存 reference を昇格前後で不変にする。`EvidenceContract.psm1` は変更なし。
-3. #13 の配置: 送信部を `EvidencePromotion.psm1` へ分けるか。
-4. 公開点 (a) の時点: 「判定 C の GO 候補が固まった時」か「C' 収束後」か（§2 未決事項 (4)）。主担当案は C' 収束後。PR を早く作る理由は cursor[bot] の起動だけで、それは公開点 (b) で足りる。
+1. #4 と #18 の方式: 未送信・receipt 無しの `staged` の削除条件。主担当案は「既存 `deleted` を使い、条件は receipt 無しかつ（未送信、または GET 404 の確認記録あり）」。putIntent は再昇格のために保持し、削除条件に使わない。
+2. #5 の採用: local prefix を廃止し、既存 reference を昇格前後で不変にする。`EvidenceContract.psm1` は変更なし。fetch は `staged` なら local、`ready` なら従来の remote。(e) も賛成。
+3. #13 の配置: 送信部と昇格を `EvidencePromotion.psm1` へ分ける。(e) も賛成。
+4. 公開点 (a) の時点: 主担当案は C' 収束後。履歴整理は判定 C 前に済ませる（#20）。(e) も同意見。
 5. §2 未決事項 (2) local reference の `deploymentId`: #5 を採用すれば問いが消える。
+6. #23: 昇格の実 R2 往復 1 回を判定必須に含めるか。主担当案は含める。
 
 ## 6. Phase B 実装結果
 
