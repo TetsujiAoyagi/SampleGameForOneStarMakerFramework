@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（A1 初稿。A2 独立レビューと A3 凍結は未実施。設計判断は凍結前）
+- status: `A`（A1 初稿に対する A2 独立レビュー 4 件を完了。結果と主担当の採否案は §5.1。A3 凍結は未実施。設計判断は凍結前）
 - branch: `claude/evidence-local-stage`（PR の base は `develop`）
 - implementation base commit: `6a51d2fefc9cf6d09d2a74a1ec1c42784e0e4524`（`origin/develop`、PR #127 マージ後）
 - implementation head commit: 未固定
@@ -14,7 +14,8 @@
 - harvest to: 操作と状態遷移を `tools/Artifacts/README.md`（Evidence の節と「エージェント操作の事前承認」）へ、Phase 規則の変更は `.agents/skills/osm-workflow/` の本文そのもの（本スライスの実装対象）へ。`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 C（別host / Cloud）に「ローカル固定は完了、Cloud への配布経路は未着手のまま」を 1 行追記する。
 - Phase A snapshot の取得案内・状態: 未保存（本 HANDOFF の commit を凍結対象版とする。A3 で内容 sha256 を引継ぎ票に書く）
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成（未到達 Phase）
-- 引継ぎ票: 次の Phase は **A2（独立レビュー）**。入力は本 HANDOFF の commit（A1 初稿）。観点は §5 の A2 欄。A2 の担当は実装・ストア・資格情報に触れず、HANDOFF とコードの読取りだけを行う。A2 の後、owner と主担当が A3 で採否を決めて凍結する。引き渡さないもの: なし。
+- 引継ぎ票: 次の Phase は **A3（統合と凍結、owner）**。入力は §5.1 の A2 結果と主担当の採否案。owner は §5.1 末尾の「A3 で owner が決めること」5 点を裁定し、主担当が revision 2 を本文（§2〜§5）へ統合して凍結する。凍結後に内容 sha256 と commit を引継ぎ票へ書く。push はしない（公開点は §2 D7-3）。引き渡さないもの: なし。
+- （旧）引継ぎ票（A1 → A2。記録として残す）: 次の Phase は A2（独立レビュー）。入力は本 HANDOFF の commit `f0a64288`（A1 初稿、内容 sha256 `52c94278500ab3188ec8f853fe5c9fb97c3d16b4df86278d8978c89660a19eb4`）。観点は §5 の A2 欄。
 
 ## 1. 目的と対象外
 
@@ -134,7 +135,49 @@
 - A2 独立レビュー（未実施。入力版は本 HANDOFF の commit 後の内容 sha256 を正とし commit hash を補助）: 高リスクのため、(a) アーキテクチャゲート担当 1 件以上（state 追加と準備／送信分離の配置）、(b) fail-closed の破り方（I1〜I6 を破る順序を各 1 つ挙げる）担当、(c) D7 の規則変更だけを読み、C' の盲検と head 固定の契約との整合を見る担当、を推奨。担当・モデルは A2 開始時に選ぶ。互いの指摘は見せない。
 - A3 統合担当・モデル・採否: 未実施。
 - C' 用に予約した担当・モデル・ベンダー: 未定。A2 で使い切らない。
-- 独立性の強化条件を満たせない場合の理由: 未定。
+- 独立性の強化条件を満たせない場合の理由: A2 の (b)(d) は A1 主担当と同じ Claude 系。初稿への anchoring は (d) に初稿を読ませないことで避けた。C' 用に Grok 系（cursor-agent）を未使用のまま予約している。
+
+## 5.1 A2 独立レビュー結果と A3 の採否案
+
+入力版は A1 初稿（内容 sha256 `52c94278500ab3188ec8f853fe5c9fb97c3d16b4df86278d8978c89660a19eb4`、commit `f0a64288`）。4 件は互いの指摘を見ずに実施した。(d) は §1 だけを抜き出した入力から立案し、初稿本文を読んでいない。全件このPC内の読取り専用 session で、push・ストア・資格情報は使っていない。原記録は git 管理外の `TestResults/a2-local-stage/`（prompt と result）。担当・モデルは使用実績で、固定割り当てではない。
+
+| 担当 | モデル | 判定 |
+|---|---|---|
+| (a) アーキテクチャゲート | Codex CLI、GPT 系（OpenAI） | NO-GO（§3 に `EvidenceStateStore.psm1` が無く、`staged` の読戻し・保持・昇格が既存契約と噛み合わない） |
+| (b) fail-closed の破り方 | Claude Opus 系 | 条件付き GO（I1・I4 を破る順序を構成。D1/D4/D5 の追記と StateStore 追加で塞げる） |
+| (c) D7 ワークフロー規則の整合 | Codex CLI、GPT 系（別 session） | NO-GO（差し戻し中の snapshot 固定と worktree 間の HEAD 照合が既存契約と衝突。D7 の分割は不要） |
+| (d) A0 のみからの代替構成 | Claude Sonnet 系 | 判定なし。「準備／送信の分離、ZIP bytes 再利用、task 終了 + 30 日の保持」で初稿と収束。reference は不変にできると指摘 |
+
+主担当が blocker 候補の根拠を実コードで確認した事実: `Read-EvidenceTask` は artifact の `key` を `Get-EvidenceKey` と一致させ、state を既存 5 値に限り、`deleted` / `delete-pending` に receipt を要求する。`Assert-EvidenceTransitionSafe` は `put-pending` / `deleteIntent` を `Resolve-EvidencePutGuarded` / `Resolve-EvidenceDeleteGuarded` で解決し、そこで `Get-CredentialStatus` と GET が走る。cleanup の staging 除外は `put-pending` と `deleteIntent` だけで `failed` を含まない。publish の read lock は `CreateVerified` の後に PUT 直前で開く。
+
+### findings と主担当の採否案
+
+| # | 指摘（担当） | 分類 | 提案する反映 |
+|---|---|---|---|
+| 1 | D1 の `key=$null` と state `staged` は `Read-EvidenceTask` で `corrupt-state`。StateStore が §3 に無い（a-1、b-I4b） | 採用 | D1: `key` は `Get-EvidenceKey` で導く予約値を常に持たせる（未送信でも値は決定的）。StateStore の許可 state に `staged` を加える。§3 に `EvidenceStateStore.psm1`（136 → 約 145）を追加。§4 の差し戻し条件を「本 revision で許可した state 追加と receipt 条件の変更を超える schema 変更」に直す |
+| 2 | 昇格の回復契約: 昇格由来の `put-pending` が `failed` になると staging が 7 日で消え、task 全体が `changed-copy` で止まる（a-2、b-I4a） | 採用 | D4: putIntent と `operation` を state 変更より前に書く。昇格由来の `put-pending` は GET missing で `failed` にせず `staged` に戻す。staging 除外述語に `staged` 参照を加える（D5 に既記載、`failed` 由来の経路は昇格で発生させない）。AC11 を追加 |
+| 3 | stage / local fetch が通る preflight が未解決 put / delete を network で解決し I1 を破る（b-I1） | 採用 | D1・D3: network 無しの preflight を使い、未解決 put / delete があれば `unresolved-put` / `unresolved-delete` で拒否する。AC10 を追加 |
+| 4 | `staged` の満了削除で receipt 無しの `deleted` を書くと `receipt-missing`（b-I4b） | 採用（方式は A3） | D5: 案 (i) `putIntent` が無い（未送信）artifact の `deleted` は receipt 不要とする StateStore の分岐。案 (ii) 別の終端 state を足す。主担当案は (i)。AC12 を追加 |
+| 5 | reference: `key` は artifactId から決定的なので、昇格前後で `osm-evidence-v2:` 文字列そのものを不変にでき、local prefix と codec 追加は不要（d）。a-6 は逆に local codec の設計不足を指摘 | 採用（d 案で置換） | D2 を「新 prefix を作らない。fetch は catalog の state で local / remote を選ぶ。`inspect` に `locality` を出す。未昇格 reference の remote fetch は `not-promoted`」に置換。`EvidenceContract.psm1` は変更なしになり、I6 の「`--artifact` だけでは taskId が決まらない」（b-I6）も reference 入力で解消。昇格は `--reference` と `--sha256` を受ける |
+| 6 | 差し戻し中の snapshot 固定は「可変な作業ツリーを正本にしない」と衝突。worktree 間で HEAD・index が別で、「ブランチの head」照合は dirty を見逃す（c-1、c-2） | 採用 | D7-1: 引継ぎ票に commit SHA と、stage を使う場合は packageSha256 を書く。受け手は自分の worktree の HEAD を SHA と照合し、dirty なら引き継がない。D7-4: 発見 C の入力は stage snapshot（base commit + `changes.patch` + 変更後 file）だけで、作業ツリーを読まない。判定 C / C' は commit 固定。C / C' 用 bundle は同一 commit から生成、を明記 |
+| 7 | Cloud が早期に割り当てられた場合、公開点まで固定入力を読めない（c-3） | 採用 | D7-6: Cloud 引継ぎでは PR 作成・状態ブロック更新・対象 SHA の push を Phase 境界の必須手順にし、PR 前の Cloud 作業は assist に限る |
+| 8 | local の取得案内に必須情報と引渡し確認条件が無い（c-4） | 採用 | D7-5・7: 取得案内に reference、期待 packageSha256、base / head、用途、所在 task、保持条件、引渡し先、`locality` を要求。Phase D の取得・閲覧確認は local でも同じ |
+| 9 | 公開点にレビュー依頼（`@cursoragent` のコメント）を含める（d）。B 出口の「引継ぎ票と push」など残る参照の統一、evidence tag の命名・記録（c-5） | 採用 | D7-3: 公開点 (a) PR 作成、(b) レビュー依頼と 1 巡ごとの修正 1 commit、(c) マージ前の最終。tag は `evidence/<taskId>/<n>` で、対象 SHA を引継ぎ票に書く。AC8 の grep 対象に「引継ぎ票と push」を加える |
+| 10 | 照合と PUT の間の TOCTOU（b-I2） | 採用 | D4: hash 照合は PUT と同じ read lock の handle で行う |
+| 11 | AC2 の reasonCode は `changed-copy` が先に出る。AC5 の「catalog を変えない」は Sync で generation が増える（b-I3、b-I5） | 採用 | AC2: ZIP 欠落は `changed-copy`。AC5: 「`staged` の field が不変」に書き直す |
+| 12 | fixture 支援の記載不足: 別 process、ZIP 欠落 / 改変注入、送信 bytes の記録（a-5） | 採用 | §5 単体テスト欄に、偽 transport の送信 bytes 記録と隔離 store の破損注入を明記 |
+| 13 | `EvidenceApplication.psm1` の見積り過少、3 責務化の懸念（a-4） | 採用（判断は A3） | 141 → 約 230（+60%）に改める。送信部（PUT・GET・receipt・昇格）を `EvidencePromotion.psm1` に分けるか、同 file に留めるかを A3 で決める。主担当案は分ける |
+| 14 | `staged` を state にせず別の local-stage record にする（a 代替案） | 不採用 | (b)(d) は state 追加で既存の保持・保護・削除を流用でき、record 分離は所有権と保持の二重定義を生む。#1 で読戻し検査を直せば state 追加で足りる |
+| 15 | 保持は task 終了 + 30 日（a・b・d 一致）。7 日では active な task の最中に唯一の複製が消える | 採用 | §2 未決事項 (1) を解消。D5 のまま |
+| 16 | D7 の分割は不要（c）。公開点と固定入力・引継ぎの契約が相互依存 | 採用 | §2 未決事項 (3) を解消。同じスライスで扱う |
+
+### A3 で owner が決めること
+
+1. #4 の方式: (i) 未送信 artifact の `deleted` は receipt 不要、(ii) 別の終端 state。主担当案は (i)。
+2. #5 の採用: local prefix を廃止し、既存 reference を昇格前後で不変にする。`EvidenceContract.psm1` は変更なし。
+3. #13 の配置: 送信部を `EvidencePromotion.psm1` へ分けるか。
+4. 公開点 (a) の時点: 「判定 C の GO 候補が固まった時」か「C' 収束後」か（§2 未決事項 (4)）。主担当案は C' 収束後。PR を早く作る理由は cursor[bot] の起動だけで、それは公開点 (b) で足りる。
+5. §2 未決事項 (2) local reference の `deploymentId`: #5 を採用すれば問いが消える。
 
 ## 6. Phase B 実装結果
 
