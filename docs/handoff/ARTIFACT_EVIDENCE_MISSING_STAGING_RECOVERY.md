@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C`（Phase B 完了。次は発見 C。凍結内容は §2・§3・§5。設計判断を変えるときは Phase A を新しい revision として再開する）
+- status: `D`（判定 C・C' 完了。次は Phase D。凍結内容は §2・§3・§5。設計判断を変えるときは Phase A を新しい revision として再開する）
 - branch: `claude/evidence-missing-staging-recovery`（PR の base は `develop`）
 - implementation base commit: `92a0573`（`origin/develop`、PR #125 マージ後。初稿の base は PR #126 マージの `a251201`、差分は workflow 文書のみで本スライスに影響しない）
 - implementation head commit: 未固定
@@ -208,6 +208,21 @@ HANDOFF との差（B 適応。設計判断ではない）:
 
 README の harvest は B で実施済み（`tools/Artifacts/README.md`、`tools/Workflow/README.md`、プログラム文書 §4 E の該当項目）。
 
-## 7. Phase C / 8. Phase C' / 9. Phase D
+## 7. Phase C（発見 C・判定 C）
 
-未到達。Phase D の Evidence 保存・引渡しは [レビュー証拠](../../.agents/skills/osm-workflow/references/review-evidence.md#phase-d-の保存引渡し確認) に従う。
+- 発見 C（head 5c9a626）: 阻害する指摘なし。テストは未実行の構造・契約レビュー。
+- 判定 C 1 回目（head 5c9a626）: 未完了。AC6「ownedCopies が配下にある」の拒否が統合で未検証、と指摘。テスト 2 件を追加して B へ差し戻した（B と判定 C の差し戻し 1 巡）。このとき C' の指摘 1 件（`Witnesses++` の戻り値への混入。実機で混入しないことを確認した）も受け、同じ誤読を防ぐ回帰検査を足した。
+- 判定 C 2 回目（implementation head 362d51a）: 実行担当（新規セッション）が Artifacts 21 file と Workflow 2 file の全 offline suite を各 1 回実行し、全て failed 0（EvidenceCleanup 40、EvidenceRetention 16、TaskLifecycle 23、StoreContext 22 ほか）、contract-audit・docs-audit は errors=0。判断担当は、AC6 の「ownedCopies 配下」を決定記録 DR-1（§2）に沿って充足と評価し、異議なし、阻害する欠陥なし。判定: **GO 候補として成立**。Unity 全 EditMode 回帰は §5 のとおり適用除外。以降の commit は HANDOFF の記録のみで実装は不変。
+- 後続スライスの入力: §5.1 #11（cleanup の `MaxObjects`）のほか新規なし。
+- 担当: 発見 C・判定 C の判断は codex CLI（GPT 系）、判定 C の実行は新規 Claude セッション。B は別セッションの Claude。
+
+## 8. Phase C'（独立監査）
+
+- 種別: 最終（高コスト証拠なし）。blind audit bundle は発見 C・判定 C の所見を含まず、固定した Phase A 凍結版、所見を含まない B 結果、完全 diff、変更後ソース、判定証拠から生成した。担当は cursor-agent（Grok 系、新規セッション）。B・C と異なるモデル系列。
+- 1 巡目（head 5c9a626）: 指摘 1 件（`Witnesses++` の戻り値混入）。実機で再現せず誤検出と確認したが、回帰検査を追加した。
+- 2 巡目（head 362d51a、前巡の自指摘の解消と修正差分が範囲）: **阻害する指摘なし**。後続スライスの入力として、adopted で directory が実在する staging を証人に数える読み、AC10 の hash 比較が `generation` 除外であること、end の件数断言が resume の stub 経由であることを挙げた。監査できなかった範囲: reparse 判定の実装本体、実ストア。
+- 独立性: B・C と異なるモデルの新規セッション。`独立性制約あり` の事項なし。
+
+## 9. Phase D
+
+未到達。判定 C と C' の突合は Phase D で行う。Evidence の保存・引渡し: 判定入力と blind bundle は worktree の `TestResults/`（git 管理外）に固定してあり、Artifact Storage への publish は**未実施（未保存）**。Phase D で [レビュー証拠](../../.agents/skills/osm-workflow/references/review-evidence.md#phase-d-の保存引渡し確認) に従って保存・引渡しを確認する。PR は未作成（作成前にブランチ名をスライスを表す名前へ改める）。
