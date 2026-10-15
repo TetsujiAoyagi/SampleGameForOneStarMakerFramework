@@ -97,7 +97,7 @@
   - `invalid-evidence-path` 等の診断を `unconfirmed` から分ける、`evidence inspect` の staging 表示、cleanup の `MaxObjects` を欠落 entry が dry-run 毎回消費する点: program §4 E 末尾の項目と、その所有スライス。
   - 実 task `artifacts-virtualized-store` への適用: 本スライスのマージ後、owner の指示で通常コマンド（`evidence cleanup`、`workflow-task end` を 1 回）を実行する運用。計画と実装では実ストアに触れない。
 - A3 後の例外承認: なし
-- 決定記録: なし
+- 決定記録: DR-1（2026-10-15、owner 裁定、凍結条件の意味・合否を変えない読み方の確定）: AC6 の「ownedCopies が配下にある staging は従来どおり拒否」は、述語 `Test-EvidenceStagingDormant` の条件を AC9 の表駆動で検証し、拒否の結果を統合テスト（`staging-missing-refuse` の `owned copy under stage`）で確認することで充足とする。理由: 統合では原因を分離できない。配下に実在ファイルがあれば directory は欠落せず（欠落の対象外）、ファイルが無ければ preflight の ownedCopies 検査が先に `changed-copy` で拒否するため、述語の配下条件だけが拒否の原因になる構成が作れない（§2 D4 の限界と同じ構造）。適用時点: 判定 C の差し戻し 1 巡目後（head 362d51a の判定）。
 - 本文へ転記した実装制約:
   - Unity 側コードは変更しない。PowerShell は既存の module 境界（EvidenceRetentionPolicy は純粋、I/O は EvidenceCleanup）を保つ。依存 edge は既存の Application→Cleanup→RetentionPolicy だけ。
   - 一時的な debug 用 hook を残さない。テスト用の観測は既存の `FaultHook` / `Set-EvidenceTestValue` 方式を使う。
