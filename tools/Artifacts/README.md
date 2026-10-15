@@ -91,6 +91,8 @@ inspect/dry-run/DELETE直前は同じ純粋policyを使います。task guard内
 
 Storage所有のupload/staging/未採用失敗copyはcreatedAtから604800秒の7日清掃です。転送中、採用pending、レビュー入力採用、有限use、削除不明は除外します。採用する失敗ログは通常publishが成功する前に元stagingを消しません。Storage copyはtaskの同じ30日期限で管理し、利用者/Harnessの原sourceや利用者が作ったcopy、資格情報、他task/無関係領域を清掃対象へ登録しません。
 
+採用・operation・削除intent・利用中保護のいずれも無く、どのartifactからも参照されないstagingは、catalogに残ったまま実体directoryだけが無くても通常操作を止めません。publish・fetch・useの結果とcleanupの `items` に、欠落の件数を `stagingMissing`（常に整数、0を含む）または `reasonCode: staging-missing` で出します。pathは表示せず、成功を黙って返すこともありません。欠落が許されるのは、解決後のpathがtransfers root直下の32桁hex名で、rootと親のACL・reparse検査を通る場合だけです。実在するstagingのpath・ACL・reparse異常、リンク先のないjunction/symlink、採用済み・operation付き・進行中のartifact（put-pending・削除intent・operation付き）や未知のartifactIdから参照されるstagingの欠落、artifactのownedCopies欠落、putIntent不一致は従来どおり拒否します。欠落directoryはpublishのsourceにできず `invalid-source` です。7日（604800秒）が過ぎ、かつ同じtaskの登録済みpathの実在を1件以上確認できた場合に限り、cleanup（dry-runを除く）がcatalogのentryだけを外し `staging-missing-dropped` を `skipped` に数えます。fileもdirectoryも削除せず、確認できるpathが無いtaskのentryは残ります。dry-run・読取経路はcatalogのentryを変えません。
+
 exit 0は検証・確定完了、1は失敗/未確認、2は配送待ち・scheduler/cleanupの部分保留です。inspectのactive/end-not-recordedやcleanupのdeleted/skipped/blocked/remaining/itemsを確認し、未確認を成功へ置き換えません。例外本文やSDK応答本文は表示せず、非秘密reasonCode/residueを使います。資格情報の既存exit意味は変えません。
 
 publish・fetch・inspect・use・releaseは、`--config` の読取・検証の失敗（相対path・不在・JSON不正・field不一致・hex不正）を `invalid-evidence-config`、configに対応するdeployment receiptの不在・読取不能・不一致を `unknown-deployment`、publishの `--selection` の読取失敗（相対path・不在・JSON不正・field不一致）を `invalid-selection` で返します。いずれもWorkflow guard・資格情報・networkに進まず（publishでは `residue.remote` が `pre-put`）、pathは表示しません。configとselectionは絶対pathで渡します。cleanup・schedule-install・schedule-statusのconfig失敗は従来どおりです。

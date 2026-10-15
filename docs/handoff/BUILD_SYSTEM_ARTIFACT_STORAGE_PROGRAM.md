@@ -185,7 +185,7 @@ PR #126 で、3つのCLI（artifacts / workflow-task / harness）がstoreに触�
 - **Artifact Storage / Split Store Recovery:** 実ストアへの合流の実行と、取得の回復。最初の手順は読取りだけの `store plan` を実データに1回行い、対象の単位がACL・JSON検査・`multi-workflow-unit`・`workflow-already-visible` のどれで保留されるかを確定すること。保留した単位の扱い（公開途中の不可視性を保つ方式）は、必要なら別の設計スライスに分ける。実ストアの鍵で認証に失敗した場合は資格情報の複写・置換で直さずownerへ返す。
 - **Artifact Storage / Virtualized Host Route:** 仮想化されたhost（Codex等）からStorageを使う新しい実行経路・保存先。資格情報の保存先・ACL・DPAPIの前提を変えうる。入力: `LocalCache\Local` が無い初回状態での判定（未観測。危険として受け入れ済み）、LocalAppData自体がjunctionのhostでの誤判定、Codex内の仮想化の仕組み。
 - **Codex側残置の後始末:** 合流済みの記録のCodex側copyの扱い（保持・削除・期限）。Storageの30日清掃はCodex側に届かない。定期清掃jobのbindingと、Codex側だけにある記録の清掃が行われていないことの再確認。
-- **Evidence task catalog:** 未採用で実体の無いstaging（過去のfetchの残骸）が残ると、そのtaskへのpublishが `unconfirmed` で拒否され、`evidence cleanup --dry-run` もそのtaskを回復できない。1,000 file級のbundleによるcatalog 1 MiB上限（上の「Evidence task catalogの上限」）と併せ、所有スライスは未定。運用上は新しいtaskIdでpublishし直し、bundleを1つのZIPにまとめて回避した。
+- **Evidence task catalog:** 1,000 file級のbundleによるcatalog 1 MiB上限（上の「Evidence task catalogの上限」）の所有スライスは未定。運用上は新しいtaskIdでpublishし直し、bundleを1つのZIPにまとめて回避した。未採用で実体の無いstagingがpublish・end・cleanupを止める問題は、欠落stagingの回復スライスで解消した（挙動は `tools/Artifacts/README.md`）。
 - Harness CURRENTの合流方式、`invalid-evidence-path` 等の仮想化以外のpath不一致の診断を `unconfirmed` から分けるか。
 
 ## 5. 責務・残す安全性・採否
