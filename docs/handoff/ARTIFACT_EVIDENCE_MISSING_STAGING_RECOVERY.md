@@ -229,6 +229,6 @@ README の harvest は B で実施済み（`tools/Artifacts/README.md`、`tools/
 
 - 保存: task `evidence-missing-staging-recovery` を通常手順で開始し、head 362d51a の blind audit bundle（Phase A 凍結版、所見を含まない B 結果、完全 diff、変更後ソース、判定証拠。67 file）と、所見一式（発見 C・判定 C・C' の結果と prompt、blind bundle の manifest。8 file）を、別々の package として `evidence publish` した（両方 `passed`）。保護名規則に当たる file は無く、改名していない。
 - 取得確認: 送信とは別の process で、reference と独立した期待 hash を使って fetch し、manifest・全 entry の検証を通ったうえで、全 file が元の byte と一致することを確認した（blind 67 file、所見 8 file、不一致 0）。**別の担当 session による取得ではない。**
-- 取得案内（reference と期待 packageSha256）: 実値は Git に置かない。ローカルの `TestResults/blind-publish.json` と `TestResults/findings-publish.json`（git 管理外、このセッションの worktree）にだけあり、次の担当への引渡しは**未完了**。Phase D の担当へ別の経路で渡す必要がある。削除予定の worktree だけに置かない。
+- 取得案内（reference と期待 packageSha256）: 実値は Git に置かない。引渡し先は owner 手元の git 管理外領域 `docs/planning/evidence/`（C' 用 blind bundle の案内と、所見一式の案内を別ファイルにした）。**C' 用の案内は所見を含まない。** 別 session による fetch 確認は未了（上の取得確認は同じ担当の別 process）。
 - 保持: task は開始済みで未終了（終了は人間の決定を処理する通常最終手順で行う）。終了から 30 日の保持条件に従う。
 - 未実施: PR（作成前にブランチ名をスライスを表す名前へ改める）、Phase D の突合、harvest と HANDOFF の削除、task の end、worktree の後始末。
