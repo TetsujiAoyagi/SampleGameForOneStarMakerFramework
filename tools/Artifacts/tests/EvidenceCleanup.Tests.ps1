@@ -212,6 +212,9 @@ foreach($caseName in $selected){$executed.Add($caseName);$child=$null;$signal=$n
             Test-Refusal 'artifact delete intent' {$s=New-MissingStage (New-TransfersPath $env) $base;$s.artifactId=$artifactId;Edit-FixtureTask $env {param($t)$t.artifacts[0].state='delete-pending';$t.artifacts[0].deleteIntent=[pscustomobject]@{key=$t.artifacts[0].key;generation=$t.generation;packageSha256=$t.artifacts[0].packageSha256;process=Get-EvidenceProcessIdentity;createdAt=$base.ToString('o')}};$s} $true
             # I6: a putIntent that no longer matches stays unresolved-put even beside a tolerable leftover.
             Test-Refusal 'unresolved put' {Edit-FixtureTask $env {param($t)$t.artifacts[0].putIntent.sha256='0'*64};New-MissingStage (New-TransfersPath $env) $base} $true 'unresolved-put'
+            # AC6: an artifact copy registered under the stage path. The copy's file is absent, so the
+            # artifact check refuses the whole task; the leftover must not be tolerated beside it.
+            Test-Refusal 'owned copy under stage' {$s=New-MissingStage (New-TransfersPath $env) $base;$ownedPath=[IO.Path]::Combine($s.path,'late.bin');Edit-FixtureTask $env {param($t)$t.artifacts[0].ownedCopies[0].path=$ownedPath};$s} $true
             # Control: the same plain leftover is tolerated, so the later refusals are caused by their one difference.
             Edit-FixtureTask $env {param($t)$t.artifacts=@();$t.staging=@(New-MissingStage (New-TransfersPath $env) $base);$t.cleanupCursor=$null}
             $control=Invoke-EvidenceCleanup $env.ConfigPath $true @('fixture');Assert-EvidenceTest (@($control.items|Where-Object reasonCode -CEQ 'staging-missing').Count -eq 1 -and $control.blocked -eq 0) 'control not tolerated'
