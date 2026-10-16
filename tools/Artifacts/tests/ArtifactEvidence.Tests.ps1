@@ -38,6 +38,271 @@ function Get-EvidenceTestPatchProblems($Base,$Applied,$Recorded,[string[]]$Delet
     foreach($k in $Base.Keys){if(-not $Applied.ContainsKey($k) -and $k -cnotin $Deleted){$problems.Add('unrecorded-deletion:'+$k)}}
     return ,$problems.ToArray()
 }
+$registered+=@('promote-roundtrip','promote-refusals','promote-already-promoted','promote-lock','promote-lost-response','promote-intent-reuse','promote-stop-endpoints','promote-fetch-pending','promote-protection-expiry','promote-persist-order','promote-atomic-failure','promote-cli')
+# Promotion cases change module hooks and clocks; each one starts and ends from defaults.
+function Reset-EvidencePromoteHooks {
+    $now={[DateTimeOffset]::UtcNow}
+    Set-EvidenceTestValue EvidenceApplication FaultHook $null;Set-EvidenceTestValue EvidenceApplication Clock $now;Set-EvidenceTestValue EvidenceCleanup ProcessHook $null;Set-EvidenceTestValue EvidenceCleanup Clock $now;Set-EvidenceTestValue TaskLifecycle Clock $now;Set-EvidenceTestValue EvidencePaths WriteHook $null
+}
+function New-EvidencePromoteFixture {$e=New-EvidenceTestEnvironment;$f=New-EvidenceReaderFixture $e.Root;$sp=[IO.Path]::Combine($e.Root,'selection.json');Write-EvidenceTestJson $sp $f.Selection;$s=Invoke-EvidenceTestStage $e $sp;return [pscustomobject]@{Env=$e;Fixture=$f;Selection=$sp;Stage=$s}}
+function Get-EvidencePutCount($Env){return [int](@($Env.Counts.GetEnumerator()|Where-Object {$_.Key.StartsWith('put ',[StringComparison]::Ordinal)}|ForEach-Object Value)|Measure-Object -Sum).Sum}
+function Get-EvidenceTestSha([byte[]]$Bytes){return [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($Bytes)).ToLowerInvariant()}
+# Reads the catalog as it is on disk while a promote in this process holds the guard.
+function Read-EvidenceTestDisk($Env){return Read-EvidenceTask $Env.Config fixture ([pscustomobject]@{RepositoryId='a'*64;TaskId='fixture'})}
+function Get-EvidenceTestArtifact($Task,$Env,[string]$Reference){$id=(Read-EvidenceReference $Reference $Env.Config).artifactId;return @($Task.artifacts|Where-Object artifactId -CEQ $id)[0]}
+# The I3 fields that promotion and its recovery must leave untouched.
+function Get-EvidencePromoteIdentity($A){return ConvertTo-Json -Compress -Depth 8 -InputObject @($A.artifactId,$A.key,$A.packageSha256,$A.manifestSha256,$A.base,$A.head,$A.packageBytes,$A.entries,$A.taskEndedAt,$A.deleteEligibleAt,$A.protections)}
+function Set-EvidenceTestLostPut($Env,[bool]$Stored){$inner=$Env.Transport;$counts=$Env.Counts;Set-EvidenceTestValue ArtifactApplication TransportHook ({param($g,$req)if($req.Operation -ceq 'put'){if($Stored){$null=& $inner $g $req}else{$null=$counts.AddOrUpdate('put '+$req.Key,1,{param($k,$v)$v+1})};throw 'response-lost'};& $inner $g $req}.GetNewClosure())}
+function Edit-EvidenceTestByte([string]$Path){$f=[IO.FileStream]::new($Path,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None);try{$f.Position=[long]($f.Length/2);$b=$f.ReadByte();$f.Position=[long]($f.Length/2);$f.WriteByte([byte](($b+1)%256))}finally{$f.Dispose()}}
+function Complete-EvidenceTestTask($Env,[DateTimeOffset]$At){Set-EvidenceTestValue TaskLifecycle Clock {$At}.GetNewClosure();$g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$null=Invoke-WorkflowTaskTransition ('a'*64) fixture ended 1 promote-end completed $g}finally{$g.Dispose()}}
+function Set-EvidenceTestNow([DateTimeOffset]$At){Set-EvidenceTestValue EvidenceCleanup Clock {$At}.GetNewClosure();Set-EvidenceTestValue EvidenceApplication Clock {$At}.GetNewClosure()}
+# Simulates the promote process dying at a fault point: the catalog is put back to
+# its bytes at that moment, undoing what the in-process failure handling wrote.
+# The promote's own process then counts as stopped for the next preflight.
+function Invoke-EvidenceTestPromoteStop($Env,$Stage,[string]$Point){
+    $catalog=[IO.Path]::Combine((Get-EvidenceTaskDirectory $Env.Config fixture),'catalog.json');$saved=@{bytes=$null}
+    Set-EvidenceTestValue EvidenceApplication FaultHook ({param($p,$a)if($p -ceq $Point){$saved.bytes=[IO.File]::ReadAllBytes($catalog);throw 'simulated-stop'}}.GetNewClosure())
+    try{$r=Invoke-EvidencePromote $Env.ConfigPath $Stage.reference $Stage.packageSha256}finally{Set-EvidenceTestValue EvidenceApplication FaultHook $null}
+    Assert-EvidenceTest ($null -ne $saved.bytes -and $r.status -ceq 'failed') ('stop '+$Point+' '+$r.reasonCode)
+    [IO.File]::WriteAllBytes($catalog,$saved.bytes);Set-EvidenceTestValue EvidenceCleanup ProcessHook {param($identity)$true}
+}
+function Assert-EvidencePromoteRefused($Env,[string]$Reference,[string]$Hash,[string]$Code,[string]$Label){
+    $before=Get-EvidencePutCount $Env;$r=Invoke-EvidencePromote $Env.ConfigPath $Reference $Hash
+    Assert-EvidenceTest ($r.status -ceq 'failed' -and $r.reasonCode -ceq $Code -and $null -eq $r.reference -and (Get-EvidencePutCount $Env) -eq $before) ($Label+': '+$r.reasonCode)
+}
+function Invoke-EvidenceTestChildProcess($Env,[string[]]$ChildArgs,[string]$Script=''){
+    $info=[Diagnostics.ProcessStartInfo]::new('pwsh');$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
+    $prefix=if($Script){@('-NoProfile','-File',$Script)}else{@('-NoProfile','-File',(Join-Path $PSScriptRoot 'EvidenceTestChild.ps1'),'-Root',$Env.Root,'-ConfigPath',$Env.ConfigPath)}
+    foreach($arg in $prefix+$ChildArgs){$info.ArgumentList.Add($arg)}
+    $proc=[Diagnostics.Process]::new();$proc.StartInfo=$info
+    try{$null=$proc.Start();$out=$proc.StandardOutput.ReadToEndAsync();$err=$proc.StandardError.ReadToEndAsync();Assert-EvidenceTest ($proc.WaitForExit(30000)) 'child bounded';Assert-EvidenceTest ([Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($out,$err),3000)) 'child pipes'
+        $lines=@($out.Result -split "`r?`n"|Where-Object {$_.StartsWith('{')});return [pscustomobject]@{Exit=$proc.ExitCode;Json=if($lines.Count){$lines[-1]|ConvertFrom-Json}else{$null};Out=$out.Result;Err=$err.Result}}finally{$proc.Dispose()}
+}
+function Invoke-EvidencePromoteCase([string]$Name){
+    Reset-EvidencePromoteHooks
+    try{
+        switch($Name){
+            'promote-roundtrip'{
+                # S1/AC1: same reference and hash, one PUT of the staged bytes, append-only copies, one adopted staging, remote fetch in another process.
+                $x=New-EvidencePromoteFixture;$e=$x.Env;$s=$x.Stage;$t0=Read-EvidenceTestTask $e;$a0=$t0.artifacts[0];$identity=Get-EvidencePromoteIdentity $a0;$copies=@($a0.ownedCopies|ForEach-Object path);$adopted=@($t0.staging|Where-Object adopted|ForEach-Object path)
+                Assert-EvidenceTest ((Invoke-EvidenceInspect $e.ConfigPath fixture).artifacts[0].locality -ceq 'local') 'locality before'
+                $p=Invoke-EvidencePromote $e.ConfigPath $s.reference $s.packageSha256
+                Assert-EvidenceTest ($p.status -ceq 'passed' -and $p.reasonCode -ceq 'complete' -and $p.reference -ceq $s.reference -and $p.packageSha256 -ceq $s.packageSha256 -and $p.locality -ceq 'promoted' -and $p.residue.remote -ceq 'ready' -and $p.receipt.sha256 -cmatch '\A[0-9a-f]{64}\z') ('promote '+$p.reasonCode)
+                Assert-EvidenceTest ((Get-EvidencePutCount $e) -eq 1 -and (Get-EvidenceTestSha $e.Objects[$a0.key]) -ceq $s.packageSha256) 'put bytes'
+                Assert-EvidenceTest (-not (ConvertTo-Json $p -Depth 10).Contains($e.Root)) 'path in output'
+                $t1=Read-EvidenceTestTask $e;$a1=$t1.artifacts[0]
+                Assert-EvidenceTest ($a1.state -ceq 'ready' -and $a1.origin -ceq 'stage' -and (Get-EvidencePromoteIdentity $a1) -ceq $identity -and (New-EvidenceReference $e.Config $a1) -ceq $s.reference) 'identity changed'
+                $after=@($a1.ownedCopies|ForEach-Object path);Assert-EvidenceTest (@($copies|Where-Object {$_ -cnotin $after}).Count -eq 0) 'owned copy dropped'
+                $newly=@($t1.staging|Where-Object {$_.adopted -and $_.path -cnotin $adopted});Assert-EvidenceTest ($newly.Count -eq 1 -and $newly[0].artifactId -ceq $a1.artifactId -and $null -eq $newly[0].operation -and @($t0.staging|Where-Object path -CEQ $newly[0].path).Count -eq 0) 'adopted staging'
+                Assert-EvidenceTest ((Invoke-EvidenceInspect $e.ConfigPath fixture).artifacts[0].locality -ceq 'promoted') 'locality after'
+                [IO.File]::WriteAllBytes([IO.Path]::Combine($e.Root,'remote.zip'),$e.Objects[$a0.key])
+                $c=Invoke-EvidenceTestChildProcess $e @('-Reference',$s.reference,'-Sha256',$s.packageSha256);Assert-EvidenceTest ($c.Exit -eq 0 -and $c.Json.status -ceq 'passed') ('child fetch '+$c.Out+$c.Err)
+                foreach($n in $x.Fixture.Files){Assert-EvidenceTest ((Get-FileHash -LiteralPath ([IO.Path]::Combine($c.Json.outputPath,$n))).Hash -ceq (Get-FileHash -LiteralPath ([IO.Path]::Combine($x.Fixture.Source,$n))).Hash) ('entry differs '+$n)}
+            }
+            'promote-refusals'{
+                # AC2: every refusal from the CLI entry with preflight intact, and no PUT.
+                $x=New-EvidencePromoteFixture;$e=$x.Env;$s=$x.Stage
+                foreach($f in @('base','head','manifestSha256','packageBytes')){$r=Read-EvidenceReference $s.reference $e.Config;$r.$f=switch($f){'base'{'1'*40}'head'{'2'*40}'manifestSha256'{'3'*64}'packageBytes'{[long]($r.packageBytes+1)}};Assert-EvidencePromoteRefused $e (ConvertTo-EvidenceTestReference $r) $s.packageSha256 'identity-mismatch' ('(h) '+$f)}
+                Assert-EvidencePromoteRefused $e $s.reference ('0'*64) 'identity-mismatch' '(h) hash'
+                $r=Read-EvidenceReference $s.reference $e.Config;$r.key=$r.key.Replace('bundle.zip','other.zip');Assert-EvidencePromoteRefused $e (ConvertTo-EvidenceTestReference $r) $s.packageSha256 'invalid-reference' '(i) key'
+                $r=Read-EvidenceReference $s.reference $e.Config;$r.artifactId='e'*32;$r.key=Get-EvidenceKey $e.Config fixture $r.artifactId;Assert-EvidencePromoteRefused $e (ConvertTo-EvidenceTestReference $r) $s.packageSha256 'catalog-missing' '(g)'
+                Edit-EvidenceTestTask $e {param($t)$t.artifacts[0].state='deleted'};Assert-EvidencePromoteRefused $e $s.reference $s.packageSha256 'expired' '(f)'
+                $x=New-EvidencePromoteFixture;$e=$x.Env;$s=$x.Stage;$a=(Read-EvidenceTestTask $e).artifacts[0]
+                $intentPath=[IO.Path]::Combine((Get-EvidenceTaskDirectory $e.Config fixture),'intents',$a.artifactId+'.json');$sha=Write-EvidenceAtomic $intentPath ([pscustomobject]@{schemaVersion=2;artifactId=$a.artifactId;key=$a.key;packageBytes=$a.packageBytes;packageSha256=$a.packageSha256;createdAt=$a.createdAt;process=Get-EvidenceProcessIdentity}) -Immutable
+                Edit-EvidenceTestTask $e {param($t)$t.artifacts[0].putIntent=[pscustomobject]@{path=$intentPath;sha256=$sha}};Assert-EvidencePromoteRefused $e $s.reference $s.packageSha256 'invalid-source' '(d) putIntent'
+                Edit-EvidenceTestTask $e {param($t)$t.artifacts[0].putIntent=$null;$t.artifacts[0].receipt=[pscustomobject]@{path=$intentPath;sha256=$sha}};Assert-EvidencePromoteRefused $e $s.reference $s.packageSha256 'invalid-source' '(d) receipt'
+                # (c) a stage-origin promotion that ended in failed is never sent again.
+                $x=New-EvidencePromoteFixture;$e=$x.Env;$s=$x.Stage;Set-EvidenceTestLostPut $e $false;$null=Invoke-EvidencePromote $e.ConfigPath $s.reference $s.packageSha256;Set-EvidenceTestValue ArtifactApplication TransportHook $e.Transport
+                Assert-EvidencePromoteRefused $e $s.reference $s.packageSha256 'invalid-source' '(c)';Assert-EvidenceTest ((Read-EvidenceTestTask $e).artifacts[0].state -ceq 'failed') '(c) state'
+                # (a)(b)(e) publish-origin artifacts, each resolved by the ordinary network preflight first.
+                foreach($mode in @('ready','lost-missing','lost-stored','lost-other','delete-missing','delete-other')){
+                    $e=New-EvidenceTestEnvironment;$fx=New-EvidenceReaderFixture $e.Root;$sp=[IO.Path]::Combine($e.Root,'selection.json');Write-EvidenceTestJson $sp $fx.Selection
+                    if($mode -like 'lost-*'){Set-EvidenceTestLostPut $e ($mode -cne 'lost-missing')}
+                    $null=Invoke-EvidencePublish $e.ConfigPath $sp;Set-EvidenceTestValue ArtifactApplication TransportHook $e.Transport;$a=(Read-EvidenceTestTask $e).artifacts[0];$ref=New-EvidenceReference $e.Config $a
+                    if($mode -ceq 'lost-other' -or $mode -ceq 'delete-other'){$e.Objects[$a.key]=[byte[]](1..64)}
+                    if($mode -like 'delete-*'){
+                        Edit-EvidenceTestTask $e {param($t)$t.artifacts[0].state='delete-pending';$t.artifacts[0].deleteIntent=[pscustomobject]@{key=$t.artifacts[0].key;generation=$t.generation;packageSha256=$t.artifacts[0].packageSha256;process=[pscustomobject]@{pid=2147483647;startedAt='2000-01-01T00:00:00.0000000Z'};createdAt=[DateTimeOffset]::UtcNow.ToString('o')}}
+                        if($mode -ceq 'delete-missing'){$unused=$null;$null=$e.Objects.TryRemove($a.key,[ref]$unused)}
+                    }
+                    $code=switch($mode){'lost-other'{'unresolved-put'}'delete-missing'{'expired'}'delete-other'{'unresolved-delete'}default{'invalid-source'}}
+                    Assert-EvidencePromoteRefused $e $ref $a.packageSha256 $code ('publish '+$mode)
+                    $state=(Read-EvidenceTestTask $e).artifacts[0].state;$expected=switch($mode){'lost-missing'{'failed'}'lost-other'{'put-pending'}'delete-missing'{'deleted'}'delete-other'{'delete-pending'}default{'ready'}}
+                    Assert-EvidenceTest ($state -ceq $expected) ('publish '+$mode+' state '+$state)
+                }
+            }
+            'promote-already-promoted'{
+                # S3/AC3: a promoted artifact answers already-promoted with the first output, active or ended.
+                $x=New-EvidencePromoteFixture;$e=$x.Env;$s=$x.Stage;$s2=Invoke-EvidenceTestStage $e $x.Selection
+                $first=Invoke-EvidencePromote $e.ConfigPath $s.reference $s.packageSha256;Assert-EvidenceTest ($first.status -ceq 'passed') ('first '+$first.reasonCode)
+                $shape={param($o)ConvertTo-Json -Compress -Depth 6 -InputObject @($o.status,$o.reference,$o.packageSha256,$o.locality,$o.receipt,$o.residue.remote)}
+                $again=Invoke-EvidencePromote $e.ConfigPath $s.reference $s.packageSha256
+                Assert-EvidenceTest ($again.reasonCode -ceq 'already-promoted' -and (& $shape $again) -ceq (& $shape $first) -and (Get-EvidencePutCount $e) -eq 1) ('active again '+$again.reasonCode)
+                Assert-EvidencePromoteRefused $e $s.reference ('0'*64) 'identity-mismatch' 'promoted hash'
+                Complete-EvidenceTestTask $e ([DateTimeOffset]::UtcNow)
+                $ended=Invoke-EvidencePromote $e.ConfigPath $s.reference $s.packageSha256
+                Assert-EvidenceTest ($ended.reasonCode -ceq 'already-promoted' -and (& $shape $ended) -ceq (& $shape $first) -and (Get-EvidencePutCount $e) -eq 1) ('ended again '+$ended.reasonCode)
+                Assert-EvidencePromoteRefused $e $s2.reference $s2.packageSha256 'resume-required' 'ended staged'
+            }
+            'promote-lock'{
+                # I2/AC4: changed bytes are refused before or under the lock, the lock holds through PUT, nothing is repackaged.
+                $flip=${function:Edit-EvidenceTestByte}
+                $x=New-EvidencePromoteFixture;$e=$x.Env;$s=$x.Stage;& $flip (Get-EvidenceStagedZip (Read-EvidenceTestTask $e).artifacts[0]).path
+                Assert-EvidencePromoteRefused $e $s.reference $s.packageSha256 'changed-copy' 'changed before'
+                $x=New-EvidencePromoteFixture;$e=$x.Env;$s=$x.Stage;$zip=(Get-EvidenceStagedZip (Read-EvidenceTestTask $e).artifacts[0]).path
+                Set-EvidenceTestValue EvidenceApplication FaultHook ({param($p,$a)if($p -ceq 'promote-before-lock'){& $flip $zip}}.GetNewClosure())
+                Assert-EvidencePromoteRefused $e $s.reference $s.packageSha256 'identity-mismatch' 'changed before lock';Set-EvidenceTestValue EvidenceApplication FaultHook $null
+                $a=(Read-EvidenceTestDisk $e).artifacts[0];Assert-EvidenceTest ($a.state -ceq 'staged' -and $null -eq $a.putIntent -and -not [IO.File]::Exists([IO.Path]::Combine((Get-EvidenceTaskDirectory $e.Config fixture),'intents',$a.artifactId+'.json'))) 'lock refusal left state'
+                $x=New-EvidencePromoteFixture;$e=$x.Env;$s=$x.Stage;$zip=(Get-EvidenceStagedZip (Read-EvidenceTestTask $e).artifacts[0]).path;$probe=@{denied=$false};$inner=$e.Transport
+                Set-EvidenceTestValue ArtifactApplication TransportHook ({param($g,$req)if($req.Operation -ceq 'put'){try{$w=[IO.FileStream]::new($zip,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::ReadWrite);$w.Dispose()}catch [IO.IOException]{$probe.denied=$true}};& $inner $g $req}.GetNewClosure())
+                $calls=@{n=0};$bps=@(Set-PSBreakpoint -Command Initialize-EvidencePackage,Copy-EvidenceSnapshot -Action ({$calls.n++}.GetNewClosure()))
+                try{$null=Invoke-EvidenceTestStage $e $x.Selection;$control=$calls.n;$calls.n=0;$p=Invoke-EvidencePromote $e.ConfigPath $s.reference $s.packageSha256}finally{$bps|Remove-PSBreakpoint}
+                Assert-EvidenceTest ($p.status -ceq 'passed' -and $probe.denied) ('lock not held '+$p.reasonCode)
+                Assert-EvidenceTest ($control -gt 0 -and $calls.n -eq 0) ('repackaged '+$control+'/'+$calls.n)
+                $m=@(Get-EvidenceTestModules EvidenceApplication)[0];$source=& $m {${function:Invoke-EvidencePromote}.ToString()+${function:Send-EvidenceStagedPackage}.ToString()+${function:Complete-EvidencePromoteFailure}.ToString()}
+                foreach($n in @('CreateVerified','Initialize-EvidencePackage','Copy-EvidenceSnapshot')){Assert-EvidenceTest (-not $source.Contains($n)) ('promote calls '+$n)}
+            }
+            'promote-lost-response'{
+                # S2/AC5: a lost PUT response is never resent; recovery reaches ready, or failed that stays and is kept.
+                $x=New-EvidencePromoteFixture;$e=$x.Env;$s=$x.Stage;$before=@((Read-EvidenceTestTask $e).artifacts[0].ownedCopies|ForEach-Object path)
+                Set-EvidenceTestLostPut $e $true;$p=Invoke-EvidencePromote $e.ConfigPath $s.reference $s.packageSha256;Set-EvidenceTestValue ArtifactApplication TransportHook $e.Transport
+                $a=(Read-EvidenceTestTask $e).artifacts[0]
+                Assert-EvidenceTest ($p.status -ceq 'failed' -and $p.reasonCode -ceq 'unconfirmed' -and $p.residue.remote -ceq 'may-have-been-sent' -and $a.state -ceq 'put-pending' -and $null -ne $a.putIntent -and (Get-EvidencePutCount $e) -eq 1) ('lost '+$p.reasonCode)
+                $f=Invoke-EvidenceFetch $e.ConfigPath $s.reference $s.packageSha256;$a=(Read-EvidenceTestTask $e).artifacts[0];$after=@($a.ownedCopies|ForEach-Object path)
+                Assert-EvidenceTest ($f.status -ceq 'passed' -and $a.state -ceq 'ready' -and $null -ne $a.receipt -and @($before|Where-Object {$_ -cnotin $after}).Count -eq 0) ('recovered '+$f.reasonCode)
+                $q=Invoke-EvidencePromote $e.ConfigPath $s.reference $s.packageSha256;Assert-EvidenceTest ($q.reasonCode -ceq 'already-promoted' -and (Get-EvidencePutCount $e) -eq 1) ('after recovery '+$q.reasonCode)
+                $x=New-EvidencePromoteFixture;$e=$x.Env;$s=$x.Stage;$u=Invoke-EvidenceUse $e.ConfigPath $s.reference 'reviewer' ([DateTimeOffset]::UtcNow.AddHours(1).ToString('o')) 'review';Assert-EvidenceTest ($u.status -ceq 'passed') 'use'
+                $a0=(Read-EvidenceTestTask $e).artifacts[0];$before=@($a0.ownedCopies|ForEach-Object path);$zip=(Get-EvidenceStagedZip $a0).path
+                Set-EvidenceTestLostPut $e $false;$null=Invoke-EvidencePromote $e.ConfigPath $s.reference $s.packageSha256;Set-EvidenceTestValue ArtifactApplication TransportHook $e.Transport
+                Assert-EvidencePromoteRefused $e $s.reference $s.packageSha256 'invalid-source' 'failed promote';$a=(Read-EvidenceTestTask $e).artifacts[0];$after=@($a.ownedCopies|ForEach-Object path)
+                Assert-EvidenceTest ($a.state -ceq 'failed' -and $null -ne $a.putIntent -and [IO.File]::Exists($zip) -and @($before|Where-Object {$_ -cnotin $after}).Count -eq 0 -and @($a.protections).Count -eq 1 -and (Get-EvidencePutCount $e) -eq 1) 'failed kept'
+                $end=[DateTimeOffset]::UtcNow;Complete-EvidenceTestTask $e $end;Set-EvidenceTestNow $end.AddDays(31)
+                Assert-EvidenceTest ((Invoke-EvidenceInspect $e.ConfigPath fixture).artifacts[0].policy.reasonCode -ceq 'unconfirmed-artifact') 'failed policy'
+                $c=Invoke-EvidenceCleanup $e.ConfigPath;$item=@($c.items|Where-Object {$_.artifactId -ceq $a.artifactId -and $_.reasonCode -ceq 'unconfirmed-artifact'})
+                Assert-EvidenceTest ($item.Count -eq 1 -and [IO.File]::Exists($zip) -and (Read-EvidenceTestTask $e).artifacts[0].state -ceq 'failed') 'failed cleaned'
+            }
+            'promote-intent-reuse'{
+                # S4/AC6: an intent written before write A is reused exactly; any mismatch refuses; a receipt alone is not ready.
+                $x=New-EvidencePromoteFixture;$e=$x.Env;$s=$x.Stage;$a=(Read-EvidenceTestTask $e).artifacts[0];$intentPath=[IO.Path]::Combine((Get-EvidenceTaskDirectory $e.Config fixture),'intents',$a.artifactId+'.json')
+                Invoke-EvidenceTestPromoteStop $e $s 'promote-after-intent-file';$d=(Read-EvidenceTestDisk $e).artifacts[0]
+                Assert-EvidenceTest ($d.state -ceq 'staged' -and $null -eq $d.putIntent -and [IO.File]::Exists($intentPath) -and (Get-EvidencePutCount $e) -eq 0) 'stopped after intent'
+                $f=Invoke-EvidenceFetch $e.ConfigPath $s.reference $s.packageSha256;Assert-EvidenceTest ($f.status -ceq 'passed' -and (Get-EvidencePutCount $e) -eq 0) ('local fetch '+$f.reasonCode)
+                $h=Get-EvidenceTestSha ([IO.File]::ReadAllBytes($intentPath));$p=Invoke-EvidencePromote $e.ConfigPath $s.reference $s.packageSha256;$d=(Read-EvidenceTestDisk $e).artifacts[0]
+                Assert-EvidenceTest ($p.status -ceq 'passed' -and (Get-EvidencePutCount $e) -eq 1 -and (Get-EvidenceTestSha ([IO.File]::ReadAllBytes($intentPath))) -ceq $h -and $d.putIntent.sha256 -ceq $h -and $d.state -ceq 'ready') ('reuse '+$p.reasonCode)
+                $x=New-EvidencePromoteFixture;$e=$x.Env;$s=$x.Stage;$a=(Read-EvidenceTestTask $e).artifacts[0];$intentPath=[IO.Path]::Combine((Get-EvidenceTaskDirectory $e.Config fixture),'intents',$a.artifactId+'.json')
+                Invoke-EvidenceTestPromoteStop $e $s 'promote-after-intent-file';$original=[IO.File]::ReadAllText($intentPath)
+                foreach($variant in @('schemaVersion','artifactId','key','packageBytes','packageSha256','missing','unreadable')){
+                    $v=$original|ConvertFrom-Json -AsHashtable
+                    switch($variant){'schemaVersion'{$v.schemaVersion=3}'artifactId'{$v.artifactId='e'*32}'key'{$v.key=$v.key+'x'}'packageBytes'{$v.packageBytes=$v.packageBytes+1}'packageSha256'{$v.packageSha256='0'*64}'missing'{$v.Remove('createdAt')}}
+                    $text=if($variant -ceq 'unreadable'){'{"schemaVersion":'}else{ConvertTo-Json $v -Compress -Depth 8};[IO.File]::WriteAllText($intentPath,$text,[Text.UTF8Encoding]::new($false))
+                    Assert-EvidencePromoteRefused $e $s.reference $s.packageSha256 'unresolved-put' ('intent '+$variant);Assert-EvidenceTest ((Read-EvidenceTestDisk $e).artifacts[0].state -ceq 'staged') ('intent state '+$variant)
+                }
+                $x=New-EvidencePromoteFixture;$e=$x.Env;$s=$x.Stage;$a=(Read-EvidenceTestTask $e).artifacts[0];$receiptPath=[IO.Path]::Combine((Get-EvidenceTaskDirectory $e.Config fixture),'receipts',$a.artifactId+'.json')
+                Invoke-EvidenceTestPromoteStop $e $s 'promote-after-receipt-file';$d=(Read-EvidenceTestDisk $e).artifacts[0]
+                Assert-EvidenceTest ($d.state -ceq 'put-pending' -and $null -eq $d.receipt -and [IO.File]::Exists($receiptPath) -and (Get-EvidencePutCount $e) -eq 1) 'receipt file alone'
+                $f=Invoke-EvidenceFetch $e.ConfigPath $s.reference $s.packageSha256;$d=(Read-EvidenceTestTask $e).artifacts[0]
+                Assert-EvidenceTest ($f.status -ceq 'passed' -and $d.state -ceq 'ready' -and $d.receipt.sha256 -ceq (Get-EvidenceTestSha ([IO.File]::ReadAllBytes($receiptPath)))) ('receipt reuse '+$f.reasonCode)
+                $q=Invoke-EvidencePromote $e.ConfigPath $s.reference $s.packageSha256;Assert-EvidenceTest ($q.reasonCode -ceq 'already-promoted' -and (Get-EvidencePutCount $e) -eq 1) ('after receipt '+$q.reasonCode)
+            }
+            'promote-stop-endpoints'{
+                # AC6/R2-01: a stop after write A, then each recovery outcome, the same task's other commands, and expiry cleanup.
+                foreach($mode in @('match','missing','other')){
+                    $x=New-EvidencePromoteFixture;$e=$x.Env;$s=$x.Stage;$a0=(Read-EvidenceTestTask $e).artifacts[0];$zip=(Get-EvidenceStagedZip $a0).path;$zipBytes=[IO.File]::ReadAllBytes($zip);$before=@($a0.ownedCopies|ForEach-Object path)
+                    Invoke-EvidenceTestPromoteStop $e $s 'promote-after-put-pending';$d=Read-EvidenceTestDisk $e;$op=$d.artifacts[0].operation
+                    Assert-EvidenceTest ($d.artifacts[0].state -ceq 'put-pending' -and $null -ne $op -and @($d.staging|Where-Object {$_.path -ceq $op.path -and $null -ne $_.operation -and -not $_.adopted}).Count -eq 1 -and (Get-EvidencePutCount $e) -eq 0) ($mode+' stopped')
+                    if($mode -ceq 'match'){$e.Objects[$a0.key]=$zipBytes}elseif($mode -ceq 'other'){$e.Objects[$a0.key]=[byte[]](1..64)}
+                    $f=Invoke-EvidenceFetch $e.ConfigPath $s.reference $s.packageSha256;$t=Read-EvidenceTestTask $e;$a=$t.artifacts[0];$stage=@($t.staging|Where-Object path -CEQ $op.path)[0];$after=@($a.ownedCopies|ForEach-Object path)
+                    Assert-EvidenceTest (@($before|Where-Object {$_ -cnotin $after}).Count -eq 0 -and (Get-EvidencePromoteIdentity $a) -ceq (Get-EvidencePromoteIdentity $a0)) ($mode+' copies')
+                    switch($mode){
+                        'match'{Assert-EvidenceTest ($f.status -ceq 'passed' -and $a.state -ceq 'ready' -and $null -eq $a.operation -and $stage.adopted -and $null -eq $stage.operation) ('match recovery '+$f.reasonCode)}
+                        'missing'{Assert-EvidenceTest ($f.reasonCode -ceq 'identity-mismatch' -and $a.state -ceq 'failed' -and $null -eq $a.operation -and -not $stage.adopted -and $null -ne $stage.operation) ('missing recovery '+$f.reasonCode)}
+                        'other'{Assert-EvidenceTest ($f.status -ceq 'failed' -and $a.state -ceq 'put-pending') ('other recovery '+$f.reasonCode);Assert-EvidencePromoteRefused $e $s.reference $s.packageSha256 'unresolved-put' 'other promote'}
+                    }
+                    $s2=Invoke-EvidenceStage $e.ConfigPath $x.Selection
+                    if($mode -ceq 'other'){Assert-EvidenceTest ($s2.reasonCode -ceq 'unresolved-put') ('other stage '+$s2.reasonCode);continue}
+                    Assert-EvidenceTest ($s2.status -ceq 'passed') ($mode+' stage '+$s2.reasonCode)
+                    $f2=Invoke-EvidenceFetch $e.ConfigPath $s2.reference $s2.packageSha256;$u2=Invoke-EvidenceUse $e.ConfigPath $s2.reference 'reviewer' ([DateTimeOffset]::UtcNow.AddHours(1).ToString('o')) 'review'
+                    Assert-EvidenceTest ($f2.status -ceq 'passed' -and $u2.status -ceq 'passed') ($mode+' same task '+$f2.reasonCode+'/'+$u2.reasonCode)
+                    $id2=(Read-EvidenceReference $s2.reference $e.Config).artifactId;$end=[DateTimeOffset]::UtcNow;Complete-EvidenceTestTask $e $end;Set-EvidenceTestNow $end.AddDays(30).AddSeconds(1)
+                    $dry=Invoke-EvidenceCleanup $e.ConfigPath $true;$run=Invoke-EvidenceCleanup $e.ConfigPath
+                    $code={param($r,$id)@($r.items|Where-Object artifactId -CEQ $id|Where-Object {$_.reasonCode -cnotlike 'staging-*' -and $_.reasonCode -cne 'operation-pending'}|ForEach-Object reasonCode) -join ','}
+                    if($mode -ceq 'match'){Assert-EvidenceTest ((& $code $dry $a.artifactId) -ceq 'expired' -and (& $code $run $a.artifactId) -ceq 'deleted' -and -not $e.Objects.ContainsKey($a0.key)) ('match cleanup '+(& $code $run $a.artifactId))}
+                    # The stopped promote's readback staging is no longer held once the artifact failed, so its empty directory meets the seven-day rule.
+                    else{Assert-EvidenceTest ((& $code $dry $a.artifactId) -ceq 'unconfirmed-artifact' -and (& $code $run $a.artifactId).Split(',') -ccontains 'unconfirmed-artifact' -and [IO.File]::Exists($zip) -and (Read-EvidenceTestTask $e).artifacts[0].state -ceq 'failed') ('missing cleanup '+(& $code $run $a.artifactId))}
+                    Assert-EvidenceTest ((& $code $dry $id2) -ceq 'expired' -and (& $code $run $id2) -ceq 'deleted') ($mode+' staged cleanup '+(& $code $run $id2))
+                    Set-EvidenceTestValue EvidenceCleanup ProcessHook $null;Reset-EvidencePromoteHooks
+                }
+            }
+            'promote-fetch-pending'{
+                # AC7: fetching while a promotion is put-pending resolves it first, as for publish.
+                foreach($stored in @($true,$false)){
+                    $x=New-EvidencePromoteFixture;$e=$x.Env;$s=$x.Stage;Set-EvidenceTestLostPut $e $stored;$null=Invoke-EvidencePromote $e.ConfigPath $s.reference $s.packageSha256;Set-EvidenceTestValue ArtifactApplication TransportHook $e.Transport
+                    $f=Invoke-EvidenceFetch $e.ConfigPath $s.reference $s.packageSha256;$state=(Read-EvidenceTestTask $e).artifacts[0].state
+                    if($stored){Assert-EvidenceTest ($f.status -ceq 'passed' -and $state -ceq 'ready') ('pending match '+$f.reasonCode)}else{Assert-EvidenceTest ($f.reasonCode -ceq 'identity-mismatch' -and $state -ceq 'failed') ('pending missing '+$f.reasonCode)}
+                }
+            }
+            'promote-protection-expiry'{
+                # I7/AC8: a protection taken while staged survives promotion and holds deletion past the expiry.
+                $T=[DateTimeOffset]::FromUnixTimeSeconds([DateTimeOffset]::UtcNow.ToUnixTimeSeconds());Set-EvidenceTestNow $T
+                $x=New-EvidencePromoteFixture;$e=$x.Env;$s=$x.Stage;Set-EvidenceTestNow $T
+                $u=Invoke-EvidenceUse $e.ConfigPath $s.reference 'reviewer' ($T.AddDays(30).AddHours(1).ToString('o')) 'review';Assert-EvidenceTest ($u.status -ceq 'passed') ('use '+$u.reasonCode)
+                $p=Invoke-EvidencePromote $e.ConfigPath $s.reference $s.packageSha256;$a=(Read-EvidenceTestTask $e).artifacts[0]
+                Assert-EvidenceTest ($p.status -ceq 'passed' -and $a.state -ceq 'ready' -and @($a.protections|Where-Object id -CEQ $u.protection).Count -eq 1) ('promote '+$p.reasonCode)
+                Complete-EvidenceTestTask $e $T;$i=Invoke-EvidenceInspect $e.ConfigPath fixture
+                Assert-EvidenceTest ([DateTimeOffset]::Parse($i.artifacts[0].deleteEligibleAt) -eq $T.AddDays(30)) 'deleteEligibleAt'
+                Set-EvidenceTestNow $T.AddDays(30).AddSeconds(1);$c=Invoke-EvidenceCleanup $e.ConfigPath
+                Assert-EvidenceTest (@($c.items|Where-Object {$_.artifactId -ceq $a.artifactId -and $_.reasonCode -ceq 'in-use'}).Count -eq 1 -and -not $e.Counts.ContainsKey('delete '+$a.key) -and $e.Objects.ContainsKey($a.key)) 'protected deleted'
+                $r=Invoke-EvidenceRelease $e.ConfigPath $s.reference $u.protection;Assert-EvidenceTest ($r.status -ceq 'passed') 'release'
+                $c=Invoke-EvidenceCleanup $e.ConfigPath
+                Assert-EvidenceTest (@($c.items|Where-Object {$_.artifactId -ceq $a.artifactId -and $_.reasonCode -ceq 'deleted'}).Count -eq 1 -and $e.Counts['delete '+$a.key] -eq 1 -and -not $e.Objects.ContainsKey($a.key)) 'released not deleted'
+            }
+            'promote-persist-order'{
+                # I4/I5/AC12: the PUT sees put-pending with the canonical intent on disk; ready and the receipt wait for readback.
+                $x=New-EvidencePromoteFixture;$e=$x.Env;$s=$x.Stage;$a=(Read-EvidenceTestTask $e).artifacts[0];$dir=Get-EvidenceTaskDirectory $e.Config fixture
+                $intentPath=[IO.Path]::Combine($dir,'intents',$a.artifactId+'.json');$receiptPath=[IO.Path]::Combine($dir,'receipts',$a.artifactId+'.json')
+                $cfg=$e.Config;$readDisk={(Read-EvidenceTask $cfg fixture ([pscustomobject]@{RepositoryId='a'*64;TaskId='fixture'})).artifacts[0]}.GetNewClosure();$probe=@{put=$false;read=$false};$inner=$e.Transport;$innerRead=$e.Readback
+                Set-EvidenceTestValue ArtifactApplication TransportHook ({param($g,$req)if($req.Operation -ceq 'put'){$d=& $readDisk;$probe.put=$d.state -ceq 'put-pending' -and $null -ne $d.putIntent -and $d.putIntent.path -ceq $intentPath -and [IO.File]::Exists($intentPath) -and [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([IO.File]::ReadAllBytes($intentPath))).ToLowerInvariant() -ceq $d.putIntent.sha256 -and $null -eq $d.receipt};& $inner $g $req}.GetNewClosure())
+                Set-EvidenceTestValue ArtifactApplication ReadbackHook ({param($op,$c,$gen,$key,$bytes,$hash)$d=& $readDisk;$probe.read=$d.state -ceq 'put-pending' -and $null -eq $d.receipt -and -not [IO.File]::Exists($receiptPath);& $innerRead $op $c $gen $key $bytes $hash}.GetNewClosure())
+                $p=Invoke-EvidencePromote $e.ConfigPath $s.reference $s.packageSha256;Assert-EvidenceTest ($p.status -ceq 'passed' -and $probe.put -and $probe.read) ('order '+$p.reasonCode+' put='+$probe.put+' read='+$probe.read)
+                $x=New-EvidencePromoteFixture;$e=$x.Env;$s=$x.Stage;$a=(Read-EvidenceTestTask $e).artifacts[0];$receiptPath=[IO.Path]::Combine((Get-EvidenceTaskDirectory $e.Config fixture),'receipts',$a.artifactId+'.json')
+                Set-EvidenceTestValue ArtifactApplication ReadbackHook {throw 'reader-failed'}
+                $p=Invoke-EvidencePromote $e.ConfigPath $s.reference $s.packageSha256;$d=(Read-EvidenceTestTask $e).artifacts[0]
+                Assert-EvidenceTest ($p.status -ceq 'failed' -and $p.reasonCode -ceq 'unconfirmed' -and $null -eq $p.reference -and $d.state -ceq 'put-pending' -and $null -eq $d.receipt -and -not [IO.File]::Exists($receiptPath)) ('unread ready '+$p.reasonCode)
+            }
+            'promote-atomic-failure'{
+                # I5/AC13: a failed rename around write A, write B or the intent file; disk is read after catch and finally.
+                foreach($case in @(@('a-before','promote-after-intent-file','catalog.json','before-rename'),@('a-after','promote-after-intent-file','catalog.json','after-rename'),@('b-before','promote-after-receipt-file','catalog.json','before-rename'),@('b-after','promote-after-receipt-file','catalog.json','after-rename'),@('intent-before','promote-before-lock','\intents\','before-rename'))){
+                    $label=$case[0];$arm=$case[1];$match=$case[2];$phase=$case[3]
+                    $x=New-EvidencePromoteFixture;$e=$x.Env;$s=$x.Stage;$a=(Read-EvidenceTestTask $e).artifacts[0];$dir=Get-EvidenceTaskDirectory $e.Config fixture;$state=@{armed=$false;fired=$false}
+                    Set-EvidenceTestValue EvidenceApplication FaultHook ({param($p,$x)if($p -ceq $arm){$state.armed=$true}}.GetNewClosure())
+                    Set-EvidenceTestValue EvidencePaths WriteHook ({param($st,$path)if($state.armed -and -not $state.fired -and $st -ceq $phase -and $path.Contains($match)){$state.fired=$true;throw 'crash'}}.GetNewClosure())
+                    try{$p=Invoke-EvidencePromote $e.ConfigPath $s.reference $s.packageSha256}finally{Set-EvidenceTestValue EvidencePaths WriteHook $null;Set-EvidenceTestValue EvidenceApplication FaultHook $null}
+                    $d=(Read-EvidenceTestTask $e).artifacts[0];$puts=Get-EvidencePutCount $e;Assert-EvidenceTest $state.fired ($label+' not fired')
+                    switch($label){
+                        'a-before'{Assert-EvidenceTest ($p.status -ceq 'failed' -and $d.state -ceq 'staged' -and $null -eq $d.putIntent -and $puts -eq 0) $label}
+                        'a-after'{Assert-EvidenceTest ($p.status -ceq 'failed' -and $p.reasonCode -ceq 'unconfirmed' -and $d.state -ceq 'put-pending' -and $null -eq $d.operation -and $puts -eq 0) $label}
+                        'b-before'{Assert-EvidenceTest ($p.status -ceq 'failed' -and $d.state -ceq 'put-pending' -and $null -eq $d.receipt -and [IO.File]::Exists([IO.Path]::Combine($dir,'receipts',$a.artifactId+'.json')) -and $puts -eq 1) $label}
+                        'b-after'{Assert-EvidenceTest ($p.status -ceq 'passed' -and $p.reasonCode -ceq 'complete' -and $d.state -ceq 'ready' -and $puts -eq 1) $label}
+                        'intent-before'{Assert-EvidenceTest ($p.status -ceq 'failed' -and $d.state -ceq 'staged' -and -not [IO.File]::Exists([IO.Path]::Combine($dir,'intents',$a.artifactId+'.json')) -and $puts -eq 0) $label}
+                    }
+                    $q=Invoke-EvidencePromote $e.ConfigPath $s.reference $s.packageSha256;$d=(Read-EvidenceTestTask $e).artifacts[0]
+                    switch($label){
+                        'a-after'{Assert-EvidenceTest ($q.reasonCode -ceq 'invalid-source' -and $d.state -ceq 'failed' -and (Get-EvidencePutCount $e) -eq 0) ($label+' recovery '+$q.reasonCode)}
+                        {$_ -cin @('b-before','b-after')}{Assert-EvidenceTest ($q.reasonCode -ceq 'already-promoted' -and $d.state -ceq 'ready' -and (Get-EvidencePutCount $e) -eq 1) ($label+' again '+$q.reasonCode)}
+                        default{Assert-EvidenceTest ($q.status -ceq 'passed' -and $q.reasonCode -ceq 'complete' -and $d.state -ceq 'ready' -and (Get-EvidencePutCount $e) -eq 1) ($label+' again '+$q.reasonCode)}
+                    }
+                }
+            }
+            'promote-cli'{
+                # The CLI grammar: `evidence promote` reaches the command; the bare form is not a command.
+                $x=New-EvidencePromoteFixture;$e=$x.Env;$s=$x.Stage;$p=Invoke-EvidencePromote $e.ConfigPath $s.reference $s.packageSha256;Assert-EvidenceTest ($p.status -ceq 'passed') 'parent promote'
+                $c=Invoke-EvidenceTestChildProcess $e @('-Reference',$s.reference,'-Sha256',$s.packageSha256,'-Action','promote')
+                Assert-EvidenceTest ($c.Exit -eq 0 -and $c.Json.reasonCode -ceq 'already-promoted' -and $c.Json.locality -ceq 'promoted' -and $c.Err.Length -eq 0 -and -not $c.Out.Contains($e.Root)) ('cli promote '+$c.Out+$c.Err)
+                $c=Invoke-EvidenceTestChildProcess $e @('promote','--profile','osm','--config',$e.ConfigPath,'--reference',$s.reference,'--sha256',$s.packageSha256) (Join-Path $PSScriptRoot '../../artifacts.ps1')
+                Assert-EvidenceTest ($c.Exit -eq 1 -and $c.Json.reasonCode -ceq 'unsupported-command') ('bare promote '+$c.Out)
+            }
+        }
+    }finally{Reset-EvidencePromoteHooks}
+}
 $selected=if($Case -ceq '*'){$registered}else{@($Case.Split(','))};$executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 foreach($caseName in $selected){
     $executed.Add($caseName)
@@ -185,6 +450,7 @@ foreach($caseName in $selected){
                 $catalog=[IO.Path]::Combine((Get-EvidenceTaskDirectory $env.Config fixture),'catalog.json');$doc=ConvertFrom-Json ([IO.File]::ReadAllText($catalog)) -DateKind String;$doc.artifacts[0]|Add-Member -NotePropertyName origin -NotePropertyValue 'remote';$doc.artifacts[0].state='staged';Write-EvidenceTestJson $catalog $doc
                 $rejected=$null;try{$null=Read-EvidenceTestTask $env}catch{$rejected=$_.Exception.Message};Assert-EvidenceTest ($rejected -ceq 'corrupt-state') ('unknown origin '+$rejected);break
             }
+            {$_ -like 'promote-*'}{Invoke-EvidencePromoteCase $caseName;break}
             'one-put-lost-response'{$inner=$env.Transport;$hook={param($g,$req)$r=& $inner $g $req;if($req.Operation -ceq 'put'){throw 'response-lost'};$r}.GetNewClosure();Set-EvidenceTestValue ArtifactApplication TransportHook $hook;$p=Invoke-EvidencePublish $env.ConfigPath $selectionPath;Assert-EvidenceTest ($p.status -ceq 'failed' -and @($env.Counts.Values|Where-Object {$_ -gt 1}).Count -eq 0 -and $env.Objects.Count -eq 1) 'one-put';break}
             'readback-failure'{Set-EvidenceTestValue ArtifactApplication ReadbackHook {throw 'reader-failed'};$p=Invoke-EvidencePublish $env.ConfigPath $selectionPath;Assert-EvidenceTest ($p.status -ceq 'failed' -and $null -eq $p.reference) 'unverified success';break}
             'receipt-atomic-failure'{Set-EvidenceTestValue EvidencePaths WriteHook {param($stage,$path)if($stage -ceq 'before-rename' -and $path -like '*receipts*'){throw 'crash'}};$p=Invoke-EvidencePublish $env.ConfigPath $selectionPath;Assert-EvidenceTest ($p.status -ceq 'failed' -and $null -eq $p.reference) 'receipt success';break}

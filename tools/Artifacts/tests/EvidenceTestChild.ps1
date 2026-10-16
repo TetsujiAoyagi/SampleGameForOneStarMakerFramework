@@ -26,6 +26,7 @@ switch($Action){
     'fetch-offline'{& (Join-Path $PSScriptRoot '../../artifacts.ps1') fetch --profile osm --config $ConfigPath --reference $Reference --sha256 $Sha256;exit $LASTEXITCODE}
     'publish'{& (Join-Path $PSScriptRoot '../../artifacts.ps1') evidence publish --profile osm --config $ConfigPath --selection $Selection;exit $LASTEXITCODE}
     'fetch'{& (Join-Path $PSScriptRoot '../../artifacts.ps1') fetch --profile osm --config $ConfigPath --reference $Reference --sha256 $Sha256;exit $LASTEXITCODE}
+    'promote'{& (Join-Path $PSScriptRoot '../../artifacts.ps1') evidence promote --profile osm --config $ConfigPath --reference $Reference --sha256 $Sha256;exit $LASTEXITCODE}
     'use'{& (Join-Path $PSScriptRoot '../../artifacts.ps1') evidence use --profile osm --config $ConfigPath --reference $Reference --consumer child --until ([DateTimeOffset]::UtcNow.AddHours(1).ToString('o')) --reason review;exit $LASTEXITCODE}
     'cleanup'{$r=Invoke-EvidenceCleanup $ConfigPath;$r|ConvertTo-Json -Compress -Depth 10;if($r.status -cne 'passed'){exit 1}}
     'resume'{$c=Read-EvidenceConfig $ConfigPath;$g=Enter-WorkflowTaskGuard $c.Data.repositoryId fixture;try{$deleted=@(Assert-EvidenceTransitionSafe $c fixture $g);$e=Invoke-WorkflowTaskTransition $c.Data.repositoryId fixture resumed 2 child-resume '' $g;[pscustomobject]@{version=$e.version;deleted=$deleted}|ConvertTo-Json -Compress}finally{$g.Dispose()}}

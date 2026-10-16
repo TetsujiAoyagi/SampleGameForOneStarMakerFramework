@@ -1,12 +1,12 @@
 # Artifact Storage と資格情報管理
 
-同一WindowsユーザーのPowerShell 7から、既存のDPAPI `osm`資格情報とprivate R2 bucket `osm-artifacts`を使います。通常Evidenceは明示した非秘密file集合をpublishし、別sessionで期待hashを照合してfetch・ログ/原画像を閲覧できます。taskの終了/再開は[Workflow](../Workflow/README.md)が所有し、Storageは終了から30日のコピー清掃を担当します。既存Build 1件も明示した全file集合から保存・取得でき、BS4の配布形Player出力は `build collect` の1コマンドで退避・保存できます。R2上のBuildは `build cleanup`、Contentは `content cleanup` で系列ごとに件数清掃でき、使い終わった系列は `build retire`／`content retire` で退役させてR2から消し切れます。同一PCの担当間の固定入力は `evidence stage` でR2を使わずに渡せます（[ローカル固定](#ローカル固定evidence-stage)）。別host/Cloudの配布と、ローカル固定したartifactのR2昇格は後続スライスです。
+同一WindowsユーザーのPowerShell 7から、既存のDPAPI `osm`資格情報とprivate R2 bucket `osm-artifacts`を使います。通常Evidenceは明示した非秘密file集合をpublishし、別sessionで期待hashを照合してfetch・ログ/原画像を閲覧できます。taskの終了/再開は[Workflow](../Workflow/README.md)が所有し、Storageは終了から30日のコピー清掃を担当します。既存Build 1件も明示した全file集合から保存・取得でき、BS4の配布形Player出力は `build collect` の1コマンドで退避・保存できます。R2上のBuildは `build cleanup`、Contentは `content cleanup` で系列ごとに件数清掃でき、使い終わった系列は `build retire`／`content retire` で退役させてR2から消し切れます。同一PCの担当間の固定入力は `evidence stage` でR2を使わずに渡せます（[ローカル固定](#ローカル固定evidence-stage)）。ローカル固定したartifactは `evidence promote` で同じreference・packageSha256のままR2へ昇格できます（[R2への昇格](#r2への昇格evidence-promote)）。別host/CloudがR2から取得する経路は後続スライスです。
 
 スライスAは[PR #109](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/109)で実装・限定運用検証を完了し、同じ実装headの正式C/C′はGOです。r6は同じ既存保存領域へOS jobを接続する修正で、保存領域の移動や資格情報の複製を行いません。固定仕様・実行集合・原観測の入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。一回の限定resetは完了済みです。既知のACL不適合copyは保護されたままで、OS jobのpartial結果と通常schedulerの正常statusは区別して記録しています。
 
 ## エージェント操作の事前承認
 
-ownerは、設定した開発領域・明示入力・保存契約内の通常publish/fetch/清掃を事前承認しています。`evidence stage` と、`staged` artifactのfetch（local分岐）・use・release・満了清掃も同じ承認に含む通常操作です。どれもnetworkと資格情報を使いません。日常清掃は、対応機能の実装・検証と運用切替の成立後に行います。一回のresetはA3で固定した対象/除外と開始条件を照合して実行し、文書改訂だけで開始しません。通信や同一ユーザーの既存鍵利用だけを理由に再確認せず、keyごとの削除承認や旧保存価値の審査を追加しません。Agent製品・モデルによらず適用します。系列の退役（`build retire`／`content retire`）はこの通常操作に含めず、ownerが系列と指示IDを明示した範囲でだけ実行します（[系列の退役](#系列の退役build-retire--content-retire)）。
+ownerは、設定した開発領域・明示入力・保存契約内の通常publish/fetch/清掃を事前承認しています。`evidence stage` と、`staged` artifactのfetch（local分岐）・use・release・満了清掃も同じ承認に含む通常操作です。どれもnetworkと資格情報を使いません。`evidence promote`（`staged` artifactのR2昇格）は通常publishと同じ承認範囲の通常操作です。同じendpoint・bucket・prefix・既存資格情報を使い、新しい資格情報や公開範囲を加えません。日常清掃は、対応機能の実装・検証と運用切替の成立後に行います。一回のresetはA3で固定した対象/除外と開始条件を照合して実行し、文書改訂だけで開始しません。通信や同一ユーザーの既存鍵利用だけを理由に再確認せず、keyごとの削除承認や旧保存価値の審査を追加しません。Agent製品・モデルによらず適用します。系列の退役（`build retire`／`content retire`）はこの通常操作に含めず、ownerが系列と指示IDを明示した範囲でだけ実行します（[系列の退役](#系列の退役build-retire--content-retire)）。
 
 対象は同じaccountの検証済みendpoint/private bucketと新Evidence prefixです。公開development URL/custom domainを有効にせず、prefix分離を公開境界とは扱いません。非秘密内容、固定版、blind入力と所見の分離は送信担当が確認します。purpose宣言・禁止名検査・hash一致だけで秘密不存在を証明したとは扱いません。取得したscript/DLLを実行しません。
 
@@ -82,7 +82,20 @@ pwsh tools/artifacts.ps1 evidence inspect --profile osm --config <v2-config> --t
 - **fetch:** catalogのstateで取得元を選びます。`staged` ならstaging内のZIPを新しいprivate operationへcopyし、R2から取得した場合と同じ検証（期待packageSha256、manifest、全entry）をしてoutputPathを返します。ZIPの欠落は `changed-copy`、hash・identityの不一致は `identity-mismatch`、別taskのreferenceは `catalog-missing` で拒否し、R2へfallbackしません。`ready` は従来どおりR2から取得します。
 - **inspect:** `staged` にもreferenceとpackageSha256を返し、`locality` を `local`（`staged`）/ `promoted`（`ready`）で示します。
 - **保持・保護・清掃:** `staged` は `ready` と同じtask終了 + 30日で満了し、`use` / `release` の対象です。満了した `staged` の削除はDELETE・GET・削除intentを使いません。state `deleted` の永続化が削除の確定点で、その後にstaging内のcopyを消します。確定前に止まれば `staged` のまま（fileは無傷）、確定後に止まれば次回のcleanupが残ったcopyだけを消します。copyの欠落を削除の進捗として読むのは、`deleted` になったstage由来のartifactだけです。`staged` のままのartifactのcopy欠落は従来どおり `changed-copy` で止まります。`staged` が参照するstagingは7日清掃の対象外（`operation-pending`）です。
-- **昇格は後続:** 同じartifactを同じbytesでR2へ置く経路は後続スライスです。Cloud・別hostの読み手には、従来のpublishで新しいartifactを作るかPRブランチで渡します。publishは別のartifactなのでreferenceとhashが変わり、その配布には新しい取得案内を作ります（localの取得案内を流用しません）。`staged` のstagingをselectionのrootにしてpublishすると、既存のsource規則どおり再snapshotした別artifactになり、元の `staged` は変わりません。端末を失うと未昇格の `staged` も失われます（backupは後続）。
+- **昇格:** 同じartifactを同じbytesのままR2へ置くのは `evidence promote` です（[R2への昇格](#r2への昇格evidence-promote)）。従来のpublishは別のartifactなのでreferenceとhashが変わり、その配布には新しい取得案内を作ります（localの取得案内を流用しません）。`staged` のstagingをselectionのrootにしてpublishすると、既存のsource規則どおり再snapshotした別artifactになり、元の `staged` は変わりません。端末を失うと未昇格の `staged` も失われます（backupは後続）。
+
+### R2への昇格（evidence promote）
+
+```powershell
+pwsh tools/artifacts.ps1 evidence promote --profile osm --config <v2-config> --reference <stageのreference> --sha256 <stageのpackageSha256>
+```
+
+- **対象と拒否:** `evidence stage` で作った `staged` のartifactだけを送ります。通常の（networkを使う）preflightで同じtaskの未解決PUT・削除intentを既存の回復で解決してから、catalogのkey・base・head・manifestSha256・packageBytesをreferenceと、packageSha256を期待hashと照合し、不一致は `identity-mismatch` です。前段の既存の拒否はそのままのcodeで返します（referenceの形式・keyの不正は `unsupported-schema` / `invalid-reference`、登録済みcopyの変化は `changed-copy`、catalogに無ければ `catalog-missing`、削除済みは `expired`）。publish由来のartifact、`put-pending` / `failed` になった昇格、intentかreceiptを持つ `staged` は `invalid-source` で、どれもPUTしません。終了済みtaskの `staged` は `resume-required` です。
+- **送信:** 再snapshot・再packageをしません。stagingに登録済みのZIPをread lockで開き、その間にhashと長さをcatalogと照合し、同じbytesを1回PUTします。PUTの前にintentとstate `put-pending` をcatalogへ記録し、別processのreadbackで照合した後にだけreceiptと `ready` を記録します。昇格前のローカルcopyはartifactの所有に残り（追記のみ）、同じtask終了 + 30日で清掃されます。
+- **出力:** `reference`（入力と同じ文字列）、`packageSha256`、`locality: promoted`、`receipt`（receiptのsha256。pathは出しません）、`residue.remote: ready`。referenceとpackageSha256は変わらないので、取得案内は `locality` を `promoted` に更新するだけです。昇格済みのartifactへの再実行は送信せず、同じ形の出力を `status: passed`、`reasonCode: already-promoted` で返します（終了済みtaskでも同じ）。
+- **PUT応答不明:** 同じkeyへ再送しません。`put-pending` のまま `status: failed`・`reasonCode: unconfirmed` を返し、次の通常のpreflight（fetch・promote・cleanup）が既存の回復で解決します。R2の内容が一致すれば `ready` になり、続くpromoteは `already-promoted` です。GETが404なら `failed` になります。
+- **既知の制限:** `failed` で止まった昇格は、そのartifactからR2経由の取得も再昇格もできません（fetchは `identity-mismatch`、promoteは `invalid-source`。回復は後続スライス）。ZIP・intent・保護は残り、保持判定は `unconfirmed-artifact` で清掃・削除されません。R2に置く必要があれば、従来のpublishで新しいartifactと新しい取得案内を作ります。
+- **fetch:** `ready` になったartifactは従来どおりR2から取得します。昇格中（`put-pending`）のartifactは、fetchのpreflightが既存の回復で `ready` か `failed` に解決してから判定します。ローカルcopyからのnetwork無しfetchと、Cloud・別hostがR2から取得する経路は後続です。
 
 取得案内は、reference、期待packageSha256、対象base / head、用途、所在task、保持条件、引渡し先、`locality` を持ちます。referenceとpackageSha256の実値は取得案内にだけ置き、tracked HANDOFFとPR本文には転記しません（[レビュー証拠](../../.agents/skills/osm-workflow/references/review-evidence.md#保存先とリモートへの配布)）。
 
