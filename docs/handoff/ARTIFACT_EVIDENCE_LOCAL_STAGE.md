@@ -1,26 +1,27 @@
-# Artifact Storage / Evidence のローカル固定と R2 昇格 HANDOFF
+# Artifact Storage / Evidence のローカル固定 HANDOFF（R2 昇格は後続スライス）
 
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（revision 2 を統合済み。A2 4 件と追加レビュー 1 件の採用分を §2〜§5 に反映し、A3 の 6 点は owner が主担当案で裁定。凍結は owner の本文確認後。設計判断は凍結前）
+- status: `A`（revision 3。追加レビュー ADD-01（§5.2）を受け、R2 への昇格を後続スライスへ移送し、ローカル固定と D6 のワークフロー規則に絞った。revision 2 の記録は §5.1・§5.2 に残す。凍結は owner の本文確認後。設計判断は凍結前）
 - branch: `claude/evidence-local-stage`（PR の base は `develop`）
 - implementation base commit: `6a51d2fefc9cf6d09d2a74a1ec1c42784e0e4524`（`origin/develop`、PR #127 マージ後）
 - implementation head commit: 未固定
-- risk: `high`（Evidence catalog の artifact state と cleanup の fail-closed 契約に触れる。加えて `osm-workflow` の Phase 境界・push・head 固定の常時規則を書き換える）
+- risk: `high`（Evidence catalog の artifact state と cleanup の fail-closed 契約に触れる。加えて `osm-workflow` の Phase 境界・push・head 固定の常時規則を書き換える。revision 3 で network 経路と `put-pending` の回復には触れなくなった）
 - owner: OSM maintainers
 - created: 2026-10-16
 - expires: 2026-11-16 または置換 revision
-- harvest to: 操作と状態遷移を `tools/Artifacts/README.md`（Evidence の節と「エージェント操作の事前承認」）へ、Phase 規則の変更は `.agents/skills/osm-workflow/` の本文そのもの（本スライスの実装対象）へ。`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 C（別host / Cloud）に「ローカル固定は完了、Cloud への配布経路は未着手のまま」を 1 行追記する。
+- harvest to: 操作と状態遷移を `tools/Artifacts/README.md`（Evidence の節と「エージェント操作の事前承認」）へ、Phase 規則の変更は `.agents/skills/osm-workflow/` の本文そのもの（本スライスの実装対象）へ。`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 C（別host / Cloud）に「ローカル固定は完了。同じ artifact の R2 昇格と回復契約は後続スライス `Evidence 昇格と Cloud 配布` の入力（§5.2）」を追記する。
 - Phase A snapshot の取得案内・状態: 未保存（本 HANDOFF の commit を凍結対象版とする。A3 で内容 sha256 を引継ぎ票に書く）
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成（未到達 Phase）
-- 引継ぎ票: 次は **owner による revision 2 の確認と凍結**。入力は本 HANDOFF の §2〜§5（revision 2）。owner が確認したら、主担当が凍結 commit と内容 sha256 をここに書き、引継ぎ票を Phase B 向けに書き換える。push はしない（公開点は §2 D7-3）。引き渡さないもの: なし。
+- 引継ぎ票: 次は **owner による revision 3 の確認と凍結**。入力は本 HANDOFF の §2〜§5（revision 3）。owner が確認したら、主担当が凍結 commit と内容 sha256 をここに書き、引継ぎ票を Phase B 向けに書き換える。push はしない（公開点は §2 D6-3）。引き渡さないもの: なし。
+- （旧）引継ぎ票（revision 2。記録として残す）: 次は owner による revision 2 の確認と凍結。revision 2 は commit `eee62d78`（内容 sha256 `28a35753b88eec4b8b5980412bf48aba07fc27fc569e175f797a76680999b13f`）。追加レビュー ADD-01 を受けて凍結せず、revision 3 へ切り直した。
 - （旧）引継ぎ票（A2 → A3。記録として残す）: 次の Phase は A3（統合と凍結、owner）。入力は §5.1 の A2 結果と主担当の採否案。owner が 6 点を裁定し、主担当が revision 2 を統合する。
 - （旧）引継ぎ票（A1 → A2。記録として残す）: 次の Phase は A2（独立レビュー）。入力は本 HANDOFF の commit `f0a64288`（A1 初稿、内容 sha256 `52c94278500ab3188ec8f853fe5c9fb97c3d16b4df86278d8978c89660a19eb4`）。観点は §5 の A2 欄。
 
 ## 1. 目的と対象外
 
-- 目的: 同一 PC で動く Agent 同士が、固定入力（差し戻し中の実装 snapshot、Phase A snapshot、判定 evidence bundle、C' blind bundle）を R2 も git push も使わずに内容 hash で固定して受け渡せるようにする。Cloud の読み手が決まった時だけ、同じ ZIP bytes を R2 へ昇格させ、packageSha256 を変えずに reference だけを R2 用に差し替えられるようにする。これを前提に、`osm-workflow` の push・commit・head 固定の規則を「公開点だけ」に書き換える。
+- 目的: 同一 PC で動く Agent 同士が、固定入力（差し戻し中の実装 snapshot、Phase A snapshot、判定 evidence bundle、C' blind bundle）を R2 も git push も使わずに内容 hash で固定して受け渡せるようにする。reference は従来形式のまま決定的に導き、後続スライスで同じ artifact を R2 へ昇格しても取得案内を書き直さなくてよい設計にする（昇格そのものは後続。§5.2）。これを前提に、`osm-workflow` の push・commit・head 固定の規則を「公開点だけ」に書き換える。
 - 現況（2026-10-16 の実測）:
   - PR #126 の作業ブランチは 52 commit に対して約 36 回 push され、PR 作成はマージの 14 分前だった。PR #127 も PR ブランチへの push は 1 回で、残りは Phase 境界と HANDOFF 記録 commit ごとの push である。cursor[bot] 以外の担当（Claude デスクトップ、Codex、codex CLI、cursor-agent）は全て同じ PC で動いており、origin を経由する必要がない。
   - push を強制している規則は、`osm-workflow/SKILL.md` の「前の Phase から引き継ぐときは…リモートの head を照合」「B の session は…push して終える」「判定 evidence を取った head は…push して到達可能に保つ」と、`phases-and-handoff.md` の「Phase 境界の引継ぎ」「Cloud の担当」である。
@@ -31,128 +32,122 @@
   - reference は `osm-evidence-v2:` の opaque 文字列で、R2 の `key` を含む。fetch は R2 からの GET を前提にしている。
   - Cloud から R2 の Evidence を取得する経路は未成立（program §4 C）。Cloud に渡せるのは PR 上のブランチだけで、その配布は push に依存する。
   - Cloud 環境には通常 Unity が無い（2026-10-16 owner）。Cloud が Phase B の修正ループに入ることは例外として扱う。
-- 対象外: Cloud・別 PC から R2 を fetch する経路（program §4 C）。`ready` artifact のローカル copy からの network 無し fetch。Harness の `external-current-v1` への全スライス移行。既存履歴の rebase。git 管理外のローカル運用メモ（手元層）の更新は owner が行う。Unity 側の変更なし。
+- 対象外: 同じ artifact を同じ bytes で R2 へ昇格する経路と、その PUT 応答不明・GET 404・再送・清掃の回復契約（後続スライス `Evidence 昇格と Cloud 配布`。§5.2）。Cloud・別 PC から R2 を fetch する経路（program §4 C）。`ready` artifact のローカル copy からの network 無し fetch。Harness の `external-current-v1` への全スライス移行。既存履歴の rebase。git 管理外のローカル運用メモ（手元層）の更新は owner が行う。Unity 側の変更なし。
 
-## 2. 意思決定と受け入れ境界（revision 2。A2 #1〜#23 を統合済み。owner の凍結確認待ち）
+## 2. 意思決定と受け入れ境界（revision 3。昇格を後続スライスへ移送し、ローカル固定と D6 のワークフロー規則に絞った。owner の凍結確認待ち）
 
-- このスライスが答える問い: 「同一 PC の Agent 間の固定入力を、R2 と push を使わずに内容 hash で固定して受け渡し、Cloud の読み手が決まった時だけ同じ hash・同じ reference のまま R2 へ昇格できるか。そしてそれを前提に push と commit の規則を公開点だけに絞っても、C / C' の head 固定と盲検の契約を保てるか」。
-- A0 で owner が固定した前提: ツール変更とワークフロー規則変更は同じスライスで扱う（2026-10-16）。A2 (c) と (e) も分割不要と判断した。
+- このスライスが答える問い: 「同一 PC の Agent 間の固定入力を、R2 と git push を使わずに内容 hash で固定して受け渡し、それを前提に push と commit の規則を公開点だけに絞っても、C / C' の head 固定と盲検の契約を保てるか」。
+- A0 で owner が固定した前提: ツール変更とワークフロー規則変更は同じスライスで扱う（2026-10-16）。R2 への昇格は、Cloud から R2 を取得する経路（program §4 C）が未成立で今は消費者が居ないため、追加レビュー ADD-01（§5.2）を受けて後続スライスへ移送した（2026-10-16 owner）。
 - 方式:
   - **D1 `evidence stage`（ローカル固定）。** `pwsh tools/artifacts.ps1 evidence stage --profile osm --config <cfg> --selection <sel>` は、既存 publish の「staging 登録 → read lock で snapshot → `PackageIO.CreateVerified` → `PackageIO.Extract` 再検証」までを実行し、R2 へ PUT しない。artifact を新 state **`staged`** で catalog に記録する。`key` は `Get-EvidenceKey` が導く決定的な値を未送信のまま持つ（`$null` にしない。`Read-EvidenceTask` の key 照合を通すため）。`receipt=$null`、`putIntent=$null`、`origin='stage'`（任意 field。無い artifact は `publish` と読む）。`packageSha256` / `manifestSha256` / `packageBytes` / `base` / `head` / `entries` は publish と同じ値。ZIP は staging operation 内に残し `ownedCopies` に登録する。出力は従来形式の `reference`（`osm-evidence-v2:`）と `packageSha256`。network・資格情報・deployment の疎通を要しない。task guard は従来どおり通すが、preflight は **network を使わない形**（`Assert-EvidenceTransitionSafe -NoNetwork`）で呼び、未解決の `put-pending` / `deleteIntent` が task に残っていれば解決を試みず `unresolved-put` / `unresolved-delete` で拒否する。
-  - **D2 reference は昇格前後で不変。** 新しい prefix や codec を作らない。`key` は artifactId から決定的なので、`staged` が返す `osm-evidence-v2:` の文字列は昇格後の `ready` と同一になる。`inspect` は `staged` にも reference と packageSha256 を返し、`locality`（`local` / `promoted`）を出力する。`EvidenceContract.psm1` は変更しない。
-  - **D3 fetch の local 分岐。** fetch は reference から catalog の artifact を解決し、state が `staged` なら staging operation 内の ZIP を新しい private operation へ copy し、R2 からの fetch と同じ `PackageIO.Extract` で期待 hash・manifest・全 entry を検証して `outputPath` を返す。network を一行も通らず、preflight は D1 と同じ network 無しの形。state が `ready` なら従来どおり R2 から取得する（昇格済み artifact のローカル copy からの取得は対象外）。ZIP の欠落は既存 preflight の `changed-copy`、hash・identity の不一致は `identity-mismatch`、別 task の reference は `catalog-missing` で拒否し、R2 へ fallback しない。
-  - **D4 昇格（promote）。** `pwsh tools/artifacts.ps1 evidence promote --profile osm --config <cfg> --reference <ref> --sha256 <期待 packageSha256>` は、reference の taskId で guard を取り、artifact が `staged` でなければ `invalid-source`（`ready` の再 PUT をしない。二重昇格も同じ）。手順: (1) staging 内の ZIP を read lock で開き、**その同じ handle** で SHA-256 を catalog の `packageSha256` と照合する（不一致は PUT せず `identity-mismatch`）。(2) `intents/<artifactId>.json` に既存の putIntent があり key・packageSha256・artifactId が一致すれば再利用し、無ければ作る（不変 path を作り直さない）。(3) putIntent と `operation` を書いてから state を `put-pending` に変える。(4) 既存の PUT → 別 process GET → receipt 確定の経路に**同じ bytes**（同じ handle）を流し、成功で state `ready`、`origin='stage'` は保持。再 snapshot・再 package はしない。出力は同じ reference と packageSha256。PUT 応答不明は `put-pending` で残す。
-  - **D4' 昇格の回復。** `Resolve-EvidencePutGuarded` は `origin='stage'` の `put-pending` について、GET が missing なら state を `staged` に戻し、putIntent と ZIP と ownedCopies を保持し、`remoteConfirmedAbsentAt`（任意 field）に確認時刻を書く。`failed` にしない。GET が一致すれば従来どおり `ready` に進める。`origin='publish'`（既存）の挙動は変えない。回復後の `staged` は D3 で fetch でき、D4 で同じ bytes・同じ putIntent から再昇格できる。
-  - **D5 保持・保護・清掃。** `staged` は `ready` と同じ task 終了 + 30 日の保持規則に従う（`Get-EvidenceRetentionDecision` が `staged` を `ready` と同じ経路で判定する）。`use` / `release` は `staged` も対象にし、保護は昇格で失われない。満了した `staged` の削除は、receipt が無く、かつ putIntent が無い（未送信）か `remoteConfirmedAbsentAt` が在る場合に限り、ローカルの ZIP と `ownedCopies` の除去と state `deleted` だけを行う。R2 への DELETE・GET は発行せず、`deleteIntent` も使わず、途中で止まっても同じ手順の再実行で完了する。putIntent があり `remoteConfirmedAbsentAt` が無い `staged` は存在しない設計だが、見つかれば `unknown-state` で削除しない（fail-closed）。`Read-EvidenceTask` は `origin='stage'` かつ putIntent 無しまたは `remoteConfirmedAbsentAt` 在りの `deleted` に receipt を要求しない。staging の 7 日清掃は `staged` artifact が参照する staging を `operation-pending` 相当として除外する（既存の「`put-pending` を参照する staging は除外」の述語に `staged` を加える）。dry-run と読取経路は `staged` の field を変えない（`Sync` による generation の増加は従来どおり）。
-  - **D6 publish の既存経路は不変。** `--selection` を渡す publish は従来どおり snapshot から PUT まで一操作で行い、`origin='publish'`。D1〜D5 は追加経路であり、既存 reference・receipt・cleanup の意味を変えない。
-  - **D7 ワークフロー規則（`osm-workflow`）。** 以下を本スライスの実装対象として書き換える。
-    1. **引継ぎの照合（`SKILL.md` 作業開始時 5、`phases-and-handoff.md` 「Phase 境界の引継ぎ」）。** 引継ぎ票に commit SHA と、stage を使う場合は reference と packageSha256 を書く。受け手は自分の worktree の HEAD を SHA と照合し、作業ツリーが dirty なら引き継がない。同一 PC ではローカルの SHA で照合し、origin との照合は Cloud・別 host の担当が割り当てられている時だけ。レビュー用 worktree は固定 SHA からの detached worktree でよく、同じブランチを複数 worktree で checkout する必要はない。
-    2. **B の出口（`SKILL.md` Phase B、`phases-and-handoff.md` 「実行担当と判断担当」）。** 「push して終える」「引継ぎ票と push」を「commit し、引継ぎ票に SHA（stage を使うなら reference と hash）を書いて終える。push は公開点の規則に従う」に変える。
+  - **D2 reference は従来形式のまま。** 新しい prefix や codec を作らない。`key` は artifactId から決定的なので、`staged` が返す `osm-evidence-v2:` の文字列は、後続スライスで同じ artifact を R2 へ昇格しても変わらない。`inspect` は `staged` にも reference と packageSha256 を返し、`locality`（`local` / `promoted`）を出力する。`EvidenceContract.psm1` は変更しない。
+  - **D3 fetch の local 分岐。** fetch は reference から catalog の artifact を解決し、state が `staged` なら staging operation 内の ZIP を新しい private operation へ copy し、R2 からの fetch と同じ `PackageIO.Extract` で期待 hash・manifest・全 entry を検証して `outputPath` を返す。network を一行も通らず、preflight は D1 と同じ network 無しの形。state が `ready` なら従来どおり R2 から取得する。ZIP の欠落は既存 preflight の `changed-copy`、hash・identity の不一致は `identity-mismatch`、別 task の reference は `catalog-missing` で拒否し、R2 へ fallback しない。取得した copy は従来どおり staging として登録する。
+  - **D4 保持・保護・清掃。** `staged` は `ready` と同じ task 終了 + 30 日の保持規則に従う（`Get-EvidenceRetentionDecision` が `staged` を `ready` と同じ経路で判定する）。`use` / `release` は `staged` も対象にする。満了した `staged` の削除は、ローカルの ZIP と `ownedCopies` の除去と state `deleted` だけを行い、R2 への DELETE・GET を発行せず、`deleteIntent` も使わず、途中で止まっても同じ手順の再実行で完了する。`Read-EvidenceTask` は `origin='stage'` の `deleted` に receipt を要求しない。staging の 7 日清掃は `staged` artifact が参照する staging を `operation-pending` 相当として除外する（既存の「`put-pending` を参照する staging は除外」の述語に `staged` を加える）。dry-run と読取経路は `staged` の field を変えない（`Sync` による generation の増加は従来どおり）。本スライスでは `staged` が `put-pending` に遷移する経路を作らないので、`origin='stage'` かつ putIntent ありの artifact は存在しない。見つかれば `unknown-state` で削除しない。
+  - **D5 publish の既存経路は不変。** `--selection` を渡す publish は従来どおり snapshot から PUT まで一操作で行い、`origin='publish'`。`staged` を source にした publish は、既存の source 候補ループどおり再 snapshot して**別の artifact**を作る（hash と reference は変わる）。昇格経路（同じ artifact を同じ bytes で R2 へ）は後続スライスの所有で、本スライスは `put-pending` の回復・再送・清掃に触れない。
+  - **D6 ワークフロー規則（`osm-workflow`）。** 以下を本スライスの実装対象として書き換える。
+    1. **引継ぎの照合（`SKILL.md` 作業開始時 5、`phases-and-handoff.md` 「Phase 境界の引継ぎ」）。** 引継ぎ票に commit SHA と、stage を使う場合は取得案内の所在を書く（reference と packageSha256 の実値は取得案内に置き、tracked HANDOFF と PR 本文には転記しない）。受け手は自分の worktree の HEAD を SHA と照合し、作業ツリーが dirty なら引き継がない。同一 PC ではローカルの SHA で照合し、origin との照合は Cloud・別 host の担当が割り当てられている時だけ。レビュー用 worktree は固定 SHA からの detached worktree でよく、同じブランチを複数 worktree で checkout する必要はない。
+    2. **B の出口（`SKILL.md` Phase B、`phases-and-handoff.md` 「実行担当と判断担当」）。** 「push して終える」「引継ぎ票と push」を「commit し、引継ぎ票に SHA と取得案内の所在を書いて終える。push は公開点の規則に従う」に変える。
     3. **公開点（`SKILL.md` 「PR公開後の差し戻しとGit履歴」）。** 原則「push は配布であり保存ではない。リモートにしか居ない読者が居る時だけ push する」。公開点は (a) PR 作成、(b) レビュー依頼（`@cursoragent` のコメントを含む）と、レビュー 1 巡ごとの修正 1 commit、(c) マージ前の最終（harvest と HANDOFF 削除）。例外は Cloud・別 host の担当がいる Phase 境界と、人間の明示指示。順序を「B ↔ 発見 C → 未公開の試行錯誤 commit の整理 → GO 候補 implementation head の固定 → 判定 C → C' → PR 作成・push」と明記し、履歴整理は判定 C の前に済ませる。「判定 evidence を取った head は push して到達可能に保つ」は「push しないローカルの軽量 tag `evidence/<taskId>/<n>` で到達可能に保ち、対象 SHA を引継ぎ票に書く」に置き換える。tag は旧 head の到達可能性だけを担い、整理後の別 head に旧判定を移す根拠にならない。push 前の点検に `pwsh tools/docs-audit.ps1` と機微 path の確認を加える。
     4. **固定の対象（`review-evidence.md` 「対象を固定する」、`SKILL.md` Phase C 入口、`phases-and-handoff.md` 「Phase の責任」の 3 箇所に同じ文言）。** 「発見 C の差し戻し入力に限り、完全な変更集合を収録した stage snapshot（reference と packageSha256）で固定できる。判定 C と C' は commit 固定を必須とし、C / C' 用 bundle は同一 commit から生成する。snapshot を使うレビューでは、送信元の可変な作業ツリーをレビュー入力にしない」。stage snapshot の収録規則: base commit の SHA、追跡済み・未追跡・削除・バイナリを含む完全な変更集合を表す `changes.patch`、変更後の全 file。review-record commit の規則は不変。
-    5. **保存先（`review-evidence.md` 「保存先とリモートへの配布」）。** 対応済み環境の既定を `evidence stage` とし、R2 への昇格は「Cloud・別 host の読み手に渡す時」「端末喪失に備えて owner が指示した時」に限る。取得案内は reference、期待 packageSha256、対象 base / head、用途、所在 task、保持条件、引渡し先、`locality` を持つ。昇格で reference と hash は変わらないので取得案内の書き直しは不要で、`locality` だけを更新する。Phase D の取得・閲覧確認は local でも同じ。
+    5. **保存先（`review-evidence.md` 「保存先とリモートへの配布」）。** 対応済み環境の同一 PC 内の既定を `evidence stage` とする。Cloud・別 host の読み手に渡す必要がある時は、昇格経路が後続スライスで成立するまで従来どおり、従来の publish（新しい artifact）で R2 へ置くか、PR ブランチで渡す。取得案内は reference、期待 packageSha256、対象 base / head、用途、所在 task、保持条件、引渡し先、`locality` を持ち、公開文書には所在だけを書く。Phase D の取得・閲覧確認は local でも同じ。
     6. **PR 状態ブロックと Cloud（`phases-and-handoff.md`）。** 状態ブロックの更新義務は「PR が存在する間」に限り、公開前は HANDOFF §0 を唯一の正本とする。「Cloud の担当」節: Cloud は凍結入力を読む役（A2・C'）を既定とし、B の修正ループは例外。Cloud の担当が割り当てられた Phase 境界では PR 作成・状態ブロック更新・対象 SHA の push を必須手順とする。**PR の有無にかかわらず、必要な固定 Evidence を取得・検証・閲覧できない Cloud 作業は assist** であり、PR 作成や push だけで正規の発見 C・判定 C・C' に昇格させない（現行の能力条件を残す）。
-    7. **テンプレート（`handoff-template.md` §0）。** 取得案内の状態欄に `ローカル固定済み（未昇格）` を加え、引継ぎ票の項目に「commit SHA、stage を使う場合は reference と packageSha256」を加える。
-  - **D8 事前承認と導入。** `tools/Artifacts/README.md` の「エージェント操作の事前承認」に `evidence stage`、local fetch、`evidence promote` を通常操作として加える（stage と local fetch は network・資格情報を使わない。promote は既存 publish の承認範囲）。導入手順は §4。
+    7. **テンプレート（`handoff-template.md` §0）。** 取得案内の状態欄に `ローカル固定済み（未昇格）` を加え、引継ぎ票の項目に「commit SHA、stage を使う場合は取得案内の所在」を加える。
+  - **D7 事前承認と導入。** `tools/Artifacts/README.md` の「エージェント操作の事前承認」に `evidence stage` と fetch の local 分岐を通常操作として加える（どちらも network・資格情報を使わない）。導入手順は §4。
 - 却下した代替案:
   - 同一 PC でも R2 を経由する現状維持: 往復ごとに network と承認が要り、owner が不要と判断（2026-10-16）。
-  - Storage を使わず patch を共有 folder に置く: catalog・保持・清掃・盲検分離の既存契約から外れ、昇格時に hash が変わる。
+  - Storage を使わず patch を共有 folder に置く: catalog・保持・清掃・盲検分離の既存契約から外れる。
   - `staged` を staging の 7 日清掃に乗せる: active な task の最中に唯一の複製が消える（A2 (a)(b)(d) 一致で却下）。
-  - 昇格で再 snapshot する: `createdAt` で hash が変わり、取得案内の書き直しが要る。
   - local 専用の reference prefix（A1 初稿の D2）: key が決定的なので不要。codec の追加と `deploymentId` の論点を生むだけ（A2 #5 で (d) 案に置換）。
   - `staged` を state にせず別の local-stage record にする（A2 (a) 代替案）: 保持・保護・削除の所有権が二重になる。読戻し検査を直せば state 追加で足りる。
+  - 同じスライスで昇格（同じ artifact を同じ bytes で R2 へ）まで実装する（revision 2 の D4 / D4'）: PUT 応答不明後の GET 404 は先行 PUT の失敗確定ではなく、同 key 再送を禁じる既存の publish 契約と衝突する。消費者となる Cloud 取得経路も未成立。後続スライスへ移送（§5.2）。
   - `ready` artifact のローカル copy からの fetch: 価値はあるが本スライスの問いの外。後続への入力にする。
 - 進める最低条件:
   - 不変条件（起きてはいけないこと）:
-    - **I1** `evidence stage` と local fetch は、network・資格情報・deployment の疎通を一切行わない。preflight も network を使わず、未解決の put / delete があれば解決を試みず拒否する（偽 transport と資格情報読取りの記録が 0 件）。
-    - **I2** 昇格は staging 内の ZIP bytes をそのまま PUT し、再 snapshot・再 package をしない。hash 照合と PUT は同じ read lock の handle で行う。昇格前後で `packageSha256`、`manifestSha256`、`base`、`head`、`packageBytes`、reference 文字列が一致する。一致しなければ PUT せず止まる。
-    - **I3** local fetch は identity 不一致・ZIP 欠落・hash 不一致で拒否し、R2 へ fallback しない。
-    - **I4** `staged` の清掃は task 終了 + 30 日の前に起きず、削除時に R2 へ DELETE・GET を発行しない。`staged` が参照する staging を 7 日清掃で消さない。昇格に失敗した `origin='stage'` の artifact を `failed` にせず、ZIP と putIntent を失わない。
-    - **I5** 既存の `--selection` publish、remote fetch、`ready` の cleanup・保持判定・reasonCode の意味、`origin='publish'` の `put-pending` 回復を変えない（既存 suite が無変更で通る）。
-    - **I6** `staged` 以外への昇格、同じ artifact の二重昇格を `invalid-source` で拒否する。
-    - **I7** D7 の規則変更は、判定 C と C' の GO 候補が commit で固定されること、C / C' 用 bundle が同一 commit から生成されること、C' が所見を含まない入力だけを受けること、公開済み履歴を書き換えないことを変えない。3 文書の固定規則は同じ意味で書かれる。
-    - **I8** 昇格失敗から回復した `staged` は、同じ bytes と同じ putIntent で再昇格でき、PUT は artifact ごとに最大 1 回の成功で済む。putIntent の不変 path を作り直さない。
-    - **I9** `staged` に付けた `use` 保護は昇格で失われず、保護中は満了でも削除されない。
+    - **I1** `evidence stage` と fetch の local 分岐は、network・資格情報・deployment の疎通を一切行わない。preflight も network を使わず、未解決の put / delete があれば解決を試みず拒否する（偽 transport と資格情報読取りの記録が 0 件）。
+    - **I2** fetch の local 分岐は identity 不一致・ZIP 欠落・hash 不一致で拒否し、R2 へ fallback しない。
+    - **I3** `staged` の清掃は task 終了 + 30 日の前に起きず、削除時に R2 へ DELETE・GET を発行しない。`staged` が参照する staging を 7 日清掃で消さない。
+    - **I4** 既存の `--selection` publish、remote fetch、`ready` / `put-pending` / `failed` / `delete-pending` / `deleted` の cleanup・保持判定・回復・reasonCode の意味を変えない（既存 suite が無変更で通る。`origin` 無しの既存 catalog を読める）。
+    - **I5** `staged` を `put-pending` へ遷移させる経路を作らない。同 key への PUT は本スライスで一度も発生しない。
+    - **I6** D6 の規則変更は、判定 C と C' の GO 候補が commit で固定されること、C / C' 用 bundle が同一 commit から生成されること、C' が所見を含まない入力だけを受けること、公開済み履歴を書き換えないことを変えない。3 文書の固定規則は同じ意味で書かれる。
+    - **I7** `staged` に付けた `use` 保護は保護中は満了でも削除されない。tracked HANDOFF と PR 本文に reference・packageSha256 の実値を転記しない。
   - 成立条件（起きなければならないこと）:
-    - **S1** 別 session が reference と期待 packageSha256 だけから local fetch し、全 entry 検証済みの copy で base SHA・`changes.patch`・変更後 file を閲覧できる。
-    - **S2** 昇格後、同じ reference と packageSha256 で remote fetch が成立し、別 process の GET で全 bytes が一致する。
-    - **S3** `osm-workflow` の本文が D7 の 7 項目を含み、固定規則が 3 文書で同じ意味になり、`docs-audit`・`contract-audit` が errors=0 で、旧文言が残らない。
-    - **S4** 「昇格失敗 → 不在確認 → `staged` へ回復 → 同じ bytes で再昇格成功」と「→ 保持満了後にローカル清掃成功」の 2 終点が成立する。
-- 受け入れ条件（検証例。I/S との紐付けを併記。offline fixture は隔離した temp store と偽 transport、実ストア・network 不使用。D7 は文書検査。実 R2 は AC3 の 1 回だけ）:
+    - **S1** 別 session が取得案内の reference と期待 packageSha256 だけから local fetch し、全 entry 検証済みの copy で base SHA・`changes.patch`・変更後 file を閲覧できる。
+    - **S2** 満了した未送信 `staged` が、network を使わずに `deleted` へ進み、途中停止後の再実行でも完了し、その後も catalog を読める。
+    - **S3** `osm-workflow` の本文が D6 の 7 項目を含み、固定規則が 3 文書で同じ意味になり、`docs-audit`・`contract-audit` が errors=0 で、旧文言が残らない。
+- 受け入れ条件（検証例。I/S との紐付けを併記。offline fixture は隔離した temp store と偽 transport、実ストア・network 不使用。D6 は文書検査。実 R2 は使わない）:
   - **AC1**（S1, I1）: fixture の作業ツリーから `evidence stage` → 別 process で fetch → 全 entry の SHA-256 が元 file と一致し、transport の呼び出しと資格情報の読取りが 0 件。
-  - **AC2**（I3）: catalog の `packageSha256` を書き換えた状態は `identity-mismatch`、ZIP を削除した状態は `changed-copy`、別 task の reference は `catalog-missing` で local fetch が拒否され、transport 呼び出し 0 件。
-  - **AC3**（S2, I2）: `staged` → promote → remote fetch。昇格前後の identity 5 項目と reference 文字列が一致し、PUT bytes の SHA-256 が `packageSha256` に一致する。ZIP を 1 byte 改変した状態では PUT 0 件で `identity-mismatch`。照合後に別 process が ZIP を書き換えようとしても同じ handle の lock で拒まれる。判定 C ではこの経路を隔離した task ID で実 R2 に対して 1 回実行し、終了後に通常清掃へ乗せる。
-  - **AC4**（I6）: `ready`、`deleted`、存在しない artifact への promote が `invalid-source`。昇格成功後の再 promote も `invalid-source` で PUT 0 件。
-  - **AC5**（I4）: 時刻注入で task 終了 + 30 日の前日と当日を比較し、未送信の `staged` は前日 `retained`、当日 `expired` → 削除で ZIP と ownedCopies が消え、DELETE・GET 0 件、state `deleted`、その後も `Read-EvidenceTask` が通る。`staged` が参照する staging は 7 日経過後も `operation-pending` 相当で残る。dry-run は `staged` の field を変えない。
-  - **AC6**（I5）: 既存の `ArtifactEvidence` / `EvidenceCleanup` / `EvidenceRetention` suite が無変更で failed 0。`origin` 無しの既存 catalog を読める。
-  - **AC7**（I8, I4）: promote の PUT 応答不明を注入し、`put-pending` で残る。`Resolve-EvidencePutGuarded` は GET 一致なら `ready`、GET missing なら `staged` に戻し（`failed` にしない）、putIntent・ZIP・ownedCopies・`remoteConfirmedAbsentAt` が残る。`origin='publish'` の `put-pending` は従来どおり `failed` になる。
-  - **AC8**（S3, I7）: D7 の 7 項目が本文に入り、grep で旧文言（「リモートの head を照合」「push して終える」「引継ぎ票と push」「push して到達可能に保つ」）が `.agents/skills/osm-workflow/` に残らない。固定規則の文言が 3 文書で一致し、判定 C・C' の commit 固定、同一 commit からの bundle 生成、C' の盲検、公開済み履歴の非書き換えの文言が残る。`docs-audit`・`contract-audit` errors=0。
-  - **AC9**（D8）: README の事前承認節と Evidence の節に stage・fetch の local 分岐・promote の操作、state `staged`、`locality`、保持・保護・回復規則、導入手順が書かれ、旧記述と矛盾しない。
-  - **AC10**（I1）: `put-pending` を持つ task と `deleteIntent` を持つ task で stage と local fetch を呼び、`unresolved-put` / `unresolved-delete` で拒否され、transport と資格情報の読取りが 0 件。
-  - **AC11**（I8, S4）: promote で「putIntent を書く前の停止」と「GET missing」を注入して `staged` に戻し、7 日経過後も local fetch が成立し、再 promote が既存 putIntent を再利用して PUT 1 回で `ready` になる。intent file の作り直しが起きない。
-  - **AC12**（I4, S4）: 回復済み `staged`（putIntent あり、`remoteConfirmedAbsentAt` あり）の満了削除を途中で中断してから再実行し、DELETE・GET 0 件で `deleted` になり、その後も `Read-EvidenceTask` が通る。putIntent あり・`remoteConfirmedAbsentAt` 無しの `staged` は `unknown-state` で削除されない。
-  - **AC13**（I9）: `staged` に `use` → 保護付きで満了時刻を過ぎても `in-use`。promote 後も protection が残り、`release` 後に `expired`。
-  - **AC14**（S1）: 追加・変更・削除・未追跡・バイナリを含む fixture で stage し、base SHA に `changes.patch` を適用した結果の file 集合が収録 file 集合と一致する。収録し忘れを fixture で検出できる。
+  - **AC2**（I2）: catalog の `packageSha256` を書き換えた状態は `identity-mismatch`、ZIP を削除した状態は `changed-copy`、別 task の reference は `catalog-missing` で fetch が拒否され、transport 呼び出し 0 件。
+  - **AC3**（I1）: `put-pending` を持つ task と `deleteIntent` を持つ task で stage と local fetch を呼び、`unresolved-put` / `unresolved-delete` で拒否され、transport と資格情報の読取りが 0 件。
+  - **AC4**（I3, S2）: 時刻注入で task 終了 + 30 日の前日と当日を比較し、未送信の `staged` は前日 `retained`、当日 `expired` → 削除で ZIP と ownedCopies が消え、DELETE・GET 0 件、state `deleted`、その後も `Read-EvidenceTask` が通る。`staged` が参照する staging は 7 日経過後も `operation-pending` 相当で残る。dry-run は `staged` の field を変えない。
+  - **AC5**（S2）: `staged` の満了削除を 1 file 削除後・catalog 更新前で中断してから再実行し、DELETE・GET 0 件で `deleted` になり、その後も `Read-EvidenceTask` が通る。正常な `staged` の ZIP 欠落は従来どおり `changed-copy` で拒否されたまま（削除途中の復旧で欠損拒否を一律に緩めない）。
+  - **AC6**（I4）: 既存の `ArtifactEvidence` / `EvidenceCleanup` / `EvidenceRetention` suite が無変更で failed 0。`origin` 無しの既存 catalog を読める。`origin='publish'` の `put-pending` の回復は従来どおり。
+  - **AC7**（I5）: `staged` を source にした publish は別 artifactId の `origin='publish'` を作り、元の `staged` は不変。`staged` 自身への PUT 経路が無いことを fixture の transport 記録で確認する。
+  - **AC8**（S3, I6）: D6 の 7 項目が本文に入り、grep で旧文言（「リモートの head を照合」「push して終える」「引継ぎ票と push」「push して到達可能に保つ」）が `.agents/skills/osm-workflow/` に残らない。固定規則の文言が 3 文書で一致し、判定 C・C' の commit 固定、同一 commit からの bundle 生成、C' の盲検、公開済み履歴の非書き換えの文言が残る。`docs-audit`・`contract-audit` errors=0。
+  - **AC9**（D7）: README の事前承認節と Evidence の節に stage・fetch の local 分岐の操作、state `staged`、`locality`、保持・保護規則、導入手順、「昇格は後続」が書かれ、旧記述と矛盾しない。
+  - **AC10**（I7）: `staged` に `use` → 保護付きで満了時刻を過ぎても `in-use`。`release` 後に `expired`。HANDOFF テンプレートと D6-1/5/7 の文言が実値の転記を禁じている。
+  - **AC11**（S1）: 追加・変更・削除・未追跡・バイナリを含む fixture で stage し、base SHA に `changes.patch` を適用した結果の file 集合が、変更対象・削除対象・未変更対象を区別して収録 file 集合と一致する。収録し忘れを fixture で検出できる。
 - ここでは答えない問いと所有する後続スライス:
+  - 同じ artifact を同じ bytes で R2 へ昇格する経路と、PUT 応答不明・GET 404・再送・清掃の回復契約 → 後続スライス `Artifact Storage / Evidence 昇格と Cloud 配布`（program §4 C と組で A1 から行う。revision 2 の D4 / D4' / I8 / S4 / AC3・4・7・11・12 と §5.2 の ADD-01 を入力にする）。
   - Cloud・別 PC が R2 から fetch する経路と token の受け渡し → program §4 C。
   - `ready` artifact のローカル copy からの network 無し fetch → program §4 A の後続への入力。
   - 端末喪失に備えた未昇格 `staged` の backup → Harness H3。
   - 全スライスの Phase 記録を Git 外 CURRENT へ移す（HANDOFF を untracked にする） → 本スライスの結果を見て別 program で判断。
   - git 管理外のローカル運用メモ（手元層）の更新 → owner。
-- 判定定義: GO = I1〜I9 を破る欠陥がなく、S1〜S4 が offline fixture と文書検査で成立し、AC3 の実 R2 往復 1 回が成功。NO-GO = いずれかの不変条件の違反、または S の不成立。
+- 判定定義: GO = I1〜I7 を破る欠陥がなく、S1〜S3 が offline fixture と文書検査で成立。NO-GO = いずれかの不変条件の違反、または S の不成立。
 - 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。
 - A3 後の例外承認: なし。
 - 決定記録: なし。
-- 本文へ転記した実装制約: `#nullable` と `record` の規則は Unity 側のみで本スライスには当たらない。PowerShell は `Set-StrictMode -Version Latest`。reasonCode は既存の小文字 kebab。path を CLI 出力に出さない。テストで `Start-Sleep` を使わず時刻を注入する。catalog の新 field（`origin`、`remoteConfirmedAbsentAt`）は任意とし、無い artifact は従来どおり読む。
-- 未決事項: なし（A1 の (1)〜(4) は A3 で解消。§5.1）。
+- 本文へ転記した実装制約: `#nullable` と `record` の規則は Unity 側のみで本スライスには当たらない。PowerShell は `Set-StrictMode -Version Latest`。reasonCode は既存の小文字 kebab。path を CLI 出力に出さない。テストで `Start-Sleep` を使わず時刻を注入する。catalog の新 field `origin` は任意とし、無い artifact は従来どおり読む。transport（`Transport/R2ArtifactTransport.*`）は変更しない。
+- 未決事項: なし。
 
 ## 3. 責務マップ
 
 | ファイル | 責務 | 変更理由 | 現在行数 → 予想 | 備考 |
 |---|---|---|---|---|
-| `tools/Artifacts/EvidenceApplication.psm1` | publish / fetch / inspect / use の orchestration | stage（準備部の再利用）、fetch の local 分岐、inspect の `locality`、use の `staged` 受付。送信部を Promotion へ移す | 141 → 約 190 | 送信部を外すので 3 責務にならない |
-| `tools/Artifacts/EvidencePromotion.psm1`（新規） | 送信（putIntent の再利用・作成、PUT、別 process GET、receipt 確定）と promote の入口 | 既存 publish の送信部と昇格を同じ境界に置く（A3 決定 #13） | 0 → 約 100 | Application → Promotion → Cleanup / StateStore の一方向。Cleanup は Promotion を import しない |
-| `tools/Artifacts/EvidenceStateStore.psm1` | catalog の読戻し検査 | 許可 state に `staged`、任意 field `origin` / `remoteConfirmedAbsentAt`、`origin='stage'` の `deleted` の receipt 条件 | 136 → 約 148 | schema の変更はこの 3 点に限る |
+| `tools/Artifacts/EvidenceApplication.psm1` | publish / fetch / inspect / use の orchestration | stage（既存 publish の準備部を private 関数に抽出して共用）、fetch の local 分岐、inspect の `locality`、use の `staged` 受付 | 141 → 約 185（+30%） | 送信部は動かさない。50% 未満 |
+| `tools/Artifacts/EvidenceStateStore.psm1` | catalog の読戻し検査 | 許可 state に `staged`、任意 field `origin`、`origin='stage'` の `deleted` の receipt 条件 | 136 → 約 144 | schema の変更はこの 3 点に限る |
 | `tools/Artifacts/EvidenceRetentionPolicy.psm1` | 純粋な保持 policy | `staged` を `ready` と同じ経路で判定。staging 除外述語に `staged` 参照を加える | 60 → 約 68 | I/O なし。単体テスト可能 |
-| `tools/Artifacts/EvidenceCleanup.psm1` | 経路検証と清掃、put の回復 | `-NoNetwork` preflight、`staged` の満了削除（ローカルのみ）、`Resolve-EvidencePutGuarded` の `origin='stage'` 分岐 | 335 → 約 370 | 500 行未満。削除 API の呼び分けは state と origin で分岐 |
-| `tools/Artifacts/EvidenceContract.psm1` | 契約 | 変更なし | 89 | reference 形式を維持（A3 決定 #5） |
-| `tools/artifacts.ps1` | CLI の引数解釈 | `evidence stage`、`evidence promote`、inspect の出力 | 175 → 約 190 | |
-| `tools/Artifacts/README.md` | 公開仕様 | stage・local fetch・promote・`staged`・`locality`・回復・導入手順・事前承認 | 379 → 約 410 | |
-| `.agents/skills/osm-workflow/SKILL.md` | Phase 規則 | D7-1〜4 | 105 → 約 114 | |
-| `.agents/skills/osm-workflow/references/review-evidence.md` | レビュー証拠 | D7-4〜5 | 168 → 約 184 | |
-| `.agents/skills/osm-workflow/references/phases-and-handoff.md` | Phase 境界 | D7-1、2、4、6 | 187 → 約 198 | |
-| `.agents/skills/osm-workflow/references/handoff-template.md` | テンプレート | D7-7 | 146 → 約 149 | |
-| `tools/Artifacts/tests/ArtifactEvidence.Tests.ps1`、`EvidenceRetention.Tests.ps1`、`EvidenceCleanup.Tests.ps1`、`EvidenceTestSupport.ps1` | offline 検証 | AC1〜AC7、AC10〜AC14。fixture 支援: 偽 transport の送信 bytes 記録、資格情報読取りの記録、隔離 store の ZIP 欠落・改変注入、別 process の fetch | 追加ケース | 既存の偽 transport と時刻注入を使う |
+| `tools/Artifacts/EvidenceCleanup.psm1` | 経路検証と清掃 | `-NoNetwork` preflight、`staged` の満了削除（ローカルのみ、再実行可） | 335 → 約 360 | 500 行未満。`Resolve-EvidencePutGuarded` は変更しない |
+| `tools/Artifacts/EvidenceContract.psm1` | 契約 | 変更なし | 89 | reference 形式を維持 |
+| `tools/artifacts.ps1` | CLI の引数解釈 | `evidence stage`、inspect の出力 | 175 → 約 183 | |
+| `tools/Artifacts/README.md` | 公開仕様 | stage・fetch の local 分岐・`staged`・`locality`・保持・導入手順・事前承認・「昇格は後続」 | 379 → 約 400 | |
+| `.agents/skills/osm-workflow/SKILL.md` | Phase 規則 | D6-1〜4 | 105 → 約 114 | |
+| `.agents/skills/osm-workflow/references/review-evidence.md` | レビュー証拠 | D6-4〜5 | 168 → 約 182 | |
+| `.agents/skills/osm-workflow/references/phases-and-handoff.md` | Phase 境界 | D6-1、2、4、6 | 187 → 約 198 | |
+| `.agents/skills/osm-workflow/references/handoff-template.md` | テンプレート | D6-7 | 146 → 約 149 | |
+| `tools/Artifacts/tests/ArtifactEvidence.Tests.ps1`、`EvidenceRetention.Tests.ps1`、`EvidenceCleanup.Tests.ps1`、`EvidenceTestSupport.ps1` | offline 検証 | AC1〜AC7、AC10、AC11。fixture 支援: 偽 transport の呼び出し記録、資格情報読取りの記録、隔離 store の ZIP 欠落・改変注入、別 process の fetch、削除途中停止の注入 | 追加ケース | 既存の偽 transport と時刻注入を使う |
 
-状態の所有者は task の catalog（task guard が直列化）。新しい state は `staged` の 1 つ、新しい任意 field は `origin` と `remoteConfirmedAbsentAt` の 2 つ。寿命は `ready` と同じ task 終了 + 30 日。新しい公開面は CLI の `evidence stage` と `evidence promote`、inspect の `locality`。新しいファイルは `EvidencePromotion.psm1` の 1 つで、依存は Application → Promotion → Cleanup / StateStore の一方向。asmdef・Unity 側の変更なし。
+状態の所有者は task の catalog（task guard が直列化）。新しい state は `staged` の 1 つ、新しい任意 field は `origin` の 1 つ。寿命は `ready` と同じ task 終了 + 30 日。新しい公開面は CLI の `evidence stage` と inspect の `locality`。新しいファイル・asmdef・依存 edge は作らない。transport・Unity 側の変更なし。
 
 ## 4. 実装計画
 
 - 変更対象: §3 のファイル。
-- 順序: (1) `EvidenceStateStore` の `staged`・任意 field・receipt 条件（既存 catalog の読戻し不変を AC6 で固定）→ (2) `EvidenceRetentionPolicy` の `staged`（純粋）→ (3) `EvidencePromotion.psm1` へ送信部を移し、既存 publish をその合成に置き換える（挙動不変を AC6 で固定）→ (4) `EvidenceCleanup` の `-NoNetwork` preflight と `origin='stage'` の回復分岐 → (5) `stage` → (6) fetch の local 分岐と inspect の `locality` → (7) promote → (8) `staged` の満了削除と use / release → (9) CLI → (10) README（導入手順を含む）→ (11) `osm-workflow` の D7（3 文書同義）→ (12) `docs-audit`・`contract-audit`・AC8 の grep。
+- 順序: (1) `EvidenceStateStore` の `staged`・`origin`・receipt 条件（既存 catalog の読戻し不変を AC6 で固定）→ (2) `EvidenceRetentionPolicy` の `staged`（純粋）→ (3) `EvidenceCleanup` の `-NoNetwork` preflight → (4) `EvidenceApplication` の準備部抽出と `stage`（既存 publish の挙動不変を AC6 で固定）→ (5) fetch の local 分岐と inspect の `locality` → (6) `staged` の満了削除と use / release → (7) CLI → (8) README（導入手順を含む）→ (9) `osm-workflow` の D6（3 文書同義）→ (10) `docs-audit`・`contract-audit`・AC8 の grep。
 - 導入手順（README に書く。B は手順を書くだけで実行しない）: 共有 store へ `staged` を書き始める前に、`schedule-status` で登録済み runtime の head を確認し、新しい implementation head で `schedule-install` を行う。旧 runtime の日次 job は `staged` を含む catalog を `corrupt-state` で読めず止まるため、切替前に `staged` を作らない。`EvidenceSchedule` の収集機構は変えない（tracked な psm1 は既存の `git ls-files` 収集で拾う）。
-- Phase B から Phase A へ差し戻す条件: §3 に書いた 3 点を超える catalog schema の変更、`EvidenceSchedule` の変更、`PackageIO` の manifest 形式の変更、Workflow の終了意味の変更が必要になったとき。D7 の文言が凍結済みの他規則（C' の盲検、head 固定）と矛盾し、本文の読み替えで解消できないとき。
-- 対象外を維持する方法: stage と local fetch の経路に `Invoke-ArtifactNetwork` と `Get-CredentialStatus` の呼び出しを置かない（AC1・AC2・AC10 の記録 0 件で確認）。promote は Promotion の送信部を呼ぶだけで、snapshot 生成の関数を呼ばない。Cloud からの fetch 経路は作らない。
+- Phase B から Phase A へ差し戻す条件: §3 に書いた 3 点を超える catalog schema の変更、`EvidenceSchedule`・transport・`Resolve-EvidencePutGuarded` の変更、`PackageIO` の manifest 形式の変更、Workflow の終了意味の変更が必要になったとき。D6 の文言が凍結済みの他規則（C' の盲検、head 固定）と矛盾し、本文の読み替えで解消できないとき。
+- 対象外を維持する方法: stage と fetch の local 分岐の経路に `Invoke-ArtifactNetwork` と `Get-CredentialStatus` の呼び出しを置かない（AC1・AC2・AC3 の記録 0 件で確認）。`staged` から `put-pending` への遷移を書くコードを置かない（AC7）。Cloud からの fetch 経路と昇格経路は作らない。
 
 ## 5. テストとレビュー計画
 
-- 単体テスト: `staged` の保持判定と staging 除外述語（`EvidenceRetention.Tests.ps1`）、`Read-EvidenceTask` の `staged` と receipt 条件（`ArtifactEvidence.Tests.ps1`）、putIntent 再利用の判定（Promotion の純粋部）。
+- 単体テスト: `staged` の保持判定と staging 除外述語（`EvidenceRetention.Tests.ps1`）、`Read-EvidenceTask` の `staged` と receipt 条件（`ArtifactEvidence.Tests.ps1`）。
 - 差し戻し中の起点 `-Filter`: `tools/Artifacts/tests/ArtifactEvidence.Tests.ps1`、`EvidenceRetention.Tests.ps1`、`EvidenceCleanup.Tests.ps1 -Case <新規ケース>`。C は凍結済み条件の確認に必要なら根拠を記録して変えてよい。
-- 判定必須テスト（GO 候補 head）: `tools/Artifacts/tests/*.Tests.ps1` と `tools/Workflow/tests/*.Tests.ps1` の全体（`StoreContext.Tests.ps1` は非仮想化 host で）、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、AC8 の旧文言 grep、AC3 の実 R2 往復 1 回（A3 決定 #23 で判定必須）。`EvidenceCleanup.Tests.ps1` は `rg` が PATH に要る。
+- 判定必須テスト（GO 候補 head）: `tools/Artifacts/tests/*.Tests.ps1` と `tools/Workflow/tests/*.Tests.ps1` の全体（`StoreContext.Tests.ps1` は非仮想化 host で）、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、AC8 の旧文言 grep。`EvidenceCleanup.Tests.ps1` は `rg` が PATH に要る。実 R2 の往復は本スライスでは不要（network 経路を変えない）。
 - 全 EditMode 回帰の適用除外: Unity 側コードを変更しないため。代替証拠は上記 offline suite 全体と audit。
 - 統合・Unity テスト: なし。
-- 操作・実行時・目視条件の検証経路: AC3 の実 R2 往復 1 回。担当は判定 C、環境は非仮想化 host の sandbox 外 PowerShell 7、初期状態は隔離した task ID（`evidence-local-stage-rt-<n>`）。観測は promote の結果 JSON と別 process fetch の結果 JSON（reference・packageSha256・全 entry 一致）。保存は判定 evidence bundle。終了後は task を end し通常清掃に乗せる。
+- 操作・実行時・目視条件の検証経路: なし（全条件を offline fixture と文書検査で観測できる）。
 - 未知の操作経路の疎通結果: なし。
-- 人間の判断が必要な条件: なし（A3 の 6 点は 2026-10-16 に owner が主担当案で裁定。§5.1）。
+- 人間の判断が必要な条件: なし（A3 の裁定は §5.1・§5.2）。
 - 高コスト証拠: なし。判定 C の照合 script: なし。
 - 機械検査: `contract-audit`、`docs-audit`、`git diff --stat`、AC8 の grep。
 - A0/A1 主担当・モデル・ベンダー: Claude（この session）。
-- A2 独立レビュー: 実施済み。担当・モデル・入力版・結果は §5.1。
-- A3 統合担当・モデル・採否: 主担当（Claude）と owner。2026-10-16 に owner が §5.1 の 6 点を主担当案で裁定し、主担当が revision 2 を統合した。凍結は owner の確認後（凍結 commit と内容 sha256 は §0 引継ぎ票）。
+- A2 独立レビュー: 実施済み。担当・モデル・入力版・結果は §5.1。revision 2 に対する追加レビューと切り直しの経緯は §5.2。
+- A3 統合担当・モデル・採否: 主担当（Claude）と owner。2026-10-16 に owner が §5.1 の 6 点を主担当案で裁定して revision 2 を統合し、同日、追加レビュー ADD-01 を受けて昇格を後続へ移送した revision 3 を切り直した。凍結は owner の確認後（凍結 commit と内容 sha256 は §0 引継ぎ票）。
 - C' 用に予約した担当・モデル・ベンダー: Grok 系（cursor-agent）。A2 では未使用。
-- 独立性の強化条件を満たせない場合の理由: A2 の (b)(d) は A1 主担当と同じ Claude 系。初稿への anchoring は (d) に初稿を読ませないことで避けた。(e) は所見込みの head を読んだ追加レビューで、独立レビューに数えない。
+- 独立性の強化条件を満たせない場合の理由: A2 の (b)(d) は A1 主担当と同じ Claude 系。初稿への anchoring は (d) に初稿を読ませないことで避けた。(e)(f) は所見込みの版を読んだ追加レビューで、独立レビューに数えない。
 
-## 5.1 A2 独立レビュー結果と A3 の採否案
+## 5.1 A2 独立レビュー結果と A3 の採否案（revision 2 の記録）
+
+本節は A1 初稿 → revision 2 の経緯の記録で、現在有効な契約は §2〜§5（revision 3）である。revision 2 で採用した #1〜#23 のうち、昇格に関わる #2・#4・#10・#18・#23 と A3 裁定 1・3・6 は、§5.2 の切り直しで後続スライス `Evidence 昇格と Cloud 配布` の入力へ移送した。それ以外は revision 3 にそのまま残っている。
 
 入力版は A1 初稿（内容 sha256 `52c94278500ab3188ec8f853fe5c9fb97c3d16b4df86278d8978c89660a19eb4`、commit `f0a64288`）。4 件は互いの指摘を見ずに実施した。(d) は §1 だけを抜き出した入力から立案し、初稿本文を読んでいない。全件このPC内の読取り専用 session で、push・ストア・資格情報は使っていない。原記録は git 管理外の `TestResults/a2-local-stage/`（prompt と result）。担当・モデルは使用実績で、固定割り当てではない。
 
@@ -211,6 +206,20 @@
 4. 公開点 (a) の時点: 主担当案は C' 収束後。履歴整理は判定 C 前に済ませる（#20）。(e) も同意見。
 5. §2 未決事項 (2) local reference の `deploymentId`: #5 を採用すれば問いが消える。
 6. #23: 昇格の実 R2 往復 1 回を判定必須に含めるか。主担当案は含める。
+
+## 5.2 revision 2 への追加レビューと revision 3 への切り直し
+
+2026-10-16、owner が Web 版 GPT（OpenAI）に revision 2（commit `eee62d78`、内容 sha256 `28a35753b88eec4b8b5980412bf48aba07fc27fc569e175f797a76680999b13f`）の追加レビューを依頼し、所見 (f) が返った。原記録は git 管理外の `TestResults/a2-local-stage/`。独立レビューには数えない。
+
+**ADD-01（P1、設計保証の根拠不足）:** revision 2 の D4'「PUT 応答不明 → 回復 GET が 404 → `staged` へ戻し、同じ putIntent で再昇格」は、R2 の一貫性仕様（GET / HEAD の 404 は読取り時点の不在を示すだけで、結果不明の先行 PUT が後から確定しうる）のもとで I8「PUT は最大 1 回」を保証できない。再送しない場合も、不在観測の後に先行 PUT が確定すると、D5 の満了清掃がローカルだけを消して catalog を終端へ進め、remote object が残る。主担当が確認した事実: 既存の publish 契約（`tools/Artifacts/README.md`）は「PUT 応答不明を同 key 再送せず、照合できるまで未確認として residue を残す」と公開しており、D4' はこの契約を昇格経路だけで破っていた。固定 base の transport は条件付き PUT を使っていない。
+
+**主担当の判断と owner の裁定（2026-10-16）:** ADD-01 は正しい。解消には条件付き PUT（transport の変更と I5 への波及）か、再送禁止と清掃前の remote 確認（network を使う清掃と「安全に停止」の受容）が要り、どちらも契約と責務を広げる。一方、昇格の消費者である Cloud からの R2 取得経路（program §4 C）は未成立で、今日の Cloud の読み手は PR ブランチを読んでいる。よって owner は「昇格を後続スライスへ移し、ローカル固定と D6 のワークフロー規則だけの revision 3 に切り直す。revision 2 の記録は残す」と裁定した。
+
+**revision 3 で後続へ移送したもの:** revision 2 の D4（promote）、D4'（回復）、I8、S4、AC3・AC4・AC7・AC11・AC12、`EvidencePromotion.psm1` の新設、`remoteConfirmedAbsentAt` field、A3 裁定 1（削除条件）・3（Promotion 分離）・6（実 R2 往復）。これらと ADD-01 の「再送・成功確定・清掃・終了」の 4 論点、前回所見 R2-02・R2-03 を、後続スライス `Artifact Storage / Evidence 昇格と Cloud 配布`（program §4 C と組で A1 から行う）の入力にする。
+
+**revision 3 に残したもの:** D1〜D3・D5（stage、reference 不変、fetch の local 分岐、publish 不変）、`staged` のローカル保持・保護・清掃（D4）、network 無しの preflight、D6 の 7 項目（3 文書同義、判定 C 前の履歴整理、公開点、Cloud の assist 条件、取得案内の実値非転記）、導入手順。前回所見 R2-01（実値の非転記）と (e) の #17・#19〜#22 はここに含む。
+
+**整合の確認（主担当）:** revision 3 では `staged` から `put-pending` への遷移が無いため、`origin='stage'` の artifact は putIntent を持たず、ADD-01 の順序は構成できない（I5）。既存 publish の `put-pending` 回復は変更しない（I4）。(f) が求めた「統合後の反証レビュー 1 巡」は、`put-pending` を含まない状態遷移（未送信 `staged` → use / release → 満了 → ローカル削除、途中停止と再実行）に対して、凍結前に新規 session で 1 回行う。担当は A2 と同じく Grok 系を予約したまま選ぶ。
 
 ## 6. Phase B 実装結果
 
