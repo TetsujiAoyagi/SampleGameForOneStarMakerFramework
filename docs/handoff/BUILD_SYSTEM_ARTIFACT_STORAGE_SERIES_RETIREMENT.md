@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C′`（判定 C（高コスト以外）完了。次は暫定 C′（別ベンダー）。AC15 は暫定 C′ の後。2026-10-16）
+- status: `C`（暫定 C′ 1 巡目で阻害 0。次は判定 C の実行担当による AC15（実 R2）の取得。2026-10-16）
 - branch: `codex/artifact-storage-series-retirement`
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（`develop`。PR #123 を含む。A3 凍結時の `origin/develop` と一致を確認済み）
 - implementation head commit: `84a3a828b32c1364869ef490cfc40c74665c99aa`（R2-1 の修正 commit。レビュー済みの revision 2 head `5621bd15153ebbe9ce5783c44e65555e6b589bae` の上に、`develop` `d911e4b4b662e66fd3fcc54f6b2586c381fabf4a`（PR #125〜#128）の merge commit `2cf0497acdc30f142920d7682c723c2de9489b79` を置き、その上に積んだ。HANDOFF 記録 commit はこの上に積む。revision 1 の head は `61f04438f426e8833b00b37aaeb32538d972afa7`）
@@ -17,7 +17,7 @@
 - evidence bundle の取得案内・状態: 発見 C 用をローカルに生成済み（git 管理外。revision 1 head 向け `TestResults/series-retirement-discovery-c/` と revision 2 head 向け `TestResults/series-retirement-discovery-c-rev2/` の 2 つ。どちらも base/head 固定の完全 diff・stat・name-status・Phase A snapshot・起点 suite の結果 JSON・manifest。revision 2 向けは revision 1 head からの差分も収録）。ローカル固定済み（未昇格）: 2026-10-16 に owner の指示で旧 scheduler task を削除し、`develop` head `d911e4b4` で `schedule install` をやり直した後（§6 の基盤不備の切替）、task `series-retirement` へ 2 bundle を `evidence stage`（どちらも `passed`、`locality: local`）。取得案内（reference・packageSha256・base/head・用途・保持条件・引渡し先）は `TestResults/series-retirement-stage/retrieval-guide.md`（git 管理外、この PC）。送信側で revision 2 向けを `evidence fetch` し、22 file の取得を確認した。Cloud・別 host へは昇格経路が成立するまで渡せない。判定 C 用（GO 候補 head、高コスト以外）: ローカル固定済み（未昇格）。2026-10-16 に判定 C が implementation head の commit から作り、task `series-retirement` へ `evidence stage`（`passed`、`locality: local`）。取得案内は同じ `retrieval-guide.md` の bundle 3。送信側で fetch し、全 file が原 source と同一 hash であることを確認した。判定 C の結論を含むので C′ には渡さない
 - C' blind bundle の取得案内・状態: 暫定 C′ 用をローカル固定済み（未昇格）。2026-10-16 に判定 C が判定 C 用と同じ commit から作り（このスライスの HANDOFF は diff から除き、§1〜§5 と §6 を Phase C への言及を除いて収録。加工は bundle の manifest）、`evidence stage`（`passed`、`locality: local`）。所見を含まない独立した取得案内は `TestResults/series-retirement-stage/cprime-retrieval-guide.md`（git 管理外、この PC）。送信側で fetch し、全 file が原 source と同一 hash であることを確認した。C′ 担当の session での取得・閲覧は未確認。高コスト証拠（AC15）は含まない。最終 C′ 用は AC15 の後に作る
 - workflow task: `series-retirement`（2026-10-12 に `workflow-task.ps1 start` 済み）
-- 引継ぎ票: **次は暫定 C′（独立監査 1 巡目。GO 判定には使わない）。** 判定 C（高コスト以外）を 2026-10-16 に完了した（§7）。implementation base `3f79639c12eac16da77d06608675564e906f9a49`、implementation head `84a3a828b32c1364869ef490cfc40c74665c99aa`（判定 evidence の head。ローカルの軽量 tag `evidence/series-retirement/1` で到達可能に保つ。その上は本書の記録 commit だけ）。Phase A は revision 2。暫定 C′ の担当は A0/A1・B・発見 C・判定 C（いずれも Anthropic）と別ベンダーの AI か人間で、新規 session で始める。C′ の入力は所見を含まない独立した取得案内 `TestResults/series-retirement-stage/cprime-retrieval-guide.md`（git 管理外、この PC。`locality: local` なので同一 PC の非仮想化 pwsh から sandbox 外で fetch する）だけで、本書・PR #124・§7・判定 C 用 bundle・会話を C′ の入力にしない。C′ 用決定記録: なし（1 巡目）。C′ の結果は §8 に記録し、阻害指摘があれば B へ戻す（C′ による差し戻しは別に 3 巡まで）。暫定 C′ の阻害指摘が無くなった head で、次は AC15（§5 の手順 1〜5、実 R2）: AC15 の実 R2 DELETE（検証用 60 object）と `osm` 資格情報の使用は A3 で owner が許可済み。実行経路と指示 ID は 2026-10-16 のチャットで owner が確認した: 経路は AI 担当の session が非仮想化の pwsh で `osm` 資格情報を使う形、`--decision` は `chat:20261016T0457Z:series-retirement:retired`（検証用 5 系列すべてに同じ ID）。手順 1 の期待値（検証用系列の receipt の不足・未完了 ≠ 0 等）が違えば実行せず判定 C へ返す。原記録の複製は判定 C の照合 script（判定 C 用 bundle の `ac15-checker/`。入力の構成は同じ README）で照合する。その後に最終証拠ラウンド（判定 C の最終判定と、AC15 を加えた最終 C′ 用 blind bundle での最終 C′）。GO は判定 C と最終 C′ が揃うまで記録しない。必要な権限: C′ は読取と fetch（sandbox 外）、AC15 は上記の owner 許可の範囲。引き渡さないもの: C′ への発見 C・判定 C の所見・結論・会話。各 bundle の取得案内の所在は §0 の evidence bundle・C' blind bundle の項
+- 引継ぎ票: **次は AC15（実 R2）の取得（判定 C の実行担当。§5 の手順 1〜5）。** 暫定 C′ 1 巡目（§8）は 2026-10-16 に阻害 0 で完了した（後続への入力 1 件、残存リスク 3 件。判定 C との突き合わせは Phase D）。以下は暫定 C′ 開始時の票で、AC15 以降の手順はそのまま有効: 判定 C（高コスト以外）を 2026-10-16 に完了した（§7）。implementation base `3f79639c12eac16da77d06608675564e906f9a49`、implementation head `84a3a828b32c1364869ef490cfc40c74665c99aa`（判定 evidence の head。ローカルの軽量 tag `evidence/series-retirement/1` で到達可能に保つ。その上は本書の記録 commit だけ）。Phase A は revision 2。暫定 C′ の担当は A0/A1・B・発見 C・判定 C（いずれも Anthropic）と別ベンダーの AI か人間で、新規 session で始める。C′ の入力は所見を含まない独立した取得案内 `TestResults/series-retirement-stage/cprime-retrieval-guide.md`（git 管理外、この PC。`locality: local` なので同一 PC の非仮想化 pwsh から sandbox 外で fetch する）だけで、本書・PR #124・§7・判定 C 用 bundle・会話を C′ の入力にしない。C′ 用決定記録: なし（1 巡目）。C′ の結果は §8 に記録し、阻害指摘があれば B へ戻す（C′ による差し戻しは別に 3 巡まで）。暫定 C′ の阻害指摘が無くなった head で、次は AC15（§5 の手順 1〜5、実 R2）: AC15 の実 R2 DELETE（検証用 60 object）と `osm` 資格情報の使用は A3 で owner が許可済み。実行経路と指示 ID は 2026-10-16 のチャットで owner が確認した: 経路は AI 担当の session が非仮想化の pwsh で `osm` 資格情報を使う形、`--decision` は `chat:20261016T0457Z:series-retirement:retired`（検証用 5 系列すべてに同じ ID）。手順 1 の期待値（検証用系列の receipt の不足・未完了 ≠ 0 等）が違えば実行せず判定 C へ返す。原記録の複製は判定 C の照合 script（判定 C 用 bundle の `ac15-checker/`。入力の構成は同じ README）で照合する。その後に最終証拠ラウンド（判定 C の最終判定と、AC15 を加えた最終 C′ 用 blind bundle での最終 C′）。GO は判定 C と最終 C′ が揃うまで記録しない。必要な権限: C′ は読取と fetch（sandbox 外）、AC15 は上記の owner 許可の範囲。引き渡さないもの: C′ への発見 C・判定 C の所見・結論・会話。各 bundle の取得案内の所在は §0 の evidence bundle・C' blind bundle の項
 
 入力の正本は program §2「開発Build」「開発Content」と §4 B（PR #119・PR #123 の「決めたこと」「後続への入力」）、`tools/Artifacts/README.md` の「開発Buildの件数清掃」「開発Contentの件数清掃（content cleanup）」、および現行コード。program と既存スライスで固定済みの契約は §1 に転記し、再議論しない。
 
@@ -416,7 +416,21 @@
 
 ## 8. Phase C'
 
-- 担当方式: 未実施
+### 暫定 C′（1 巡目、2026-10-16）
+
+- 担当方式: AI（OpenAI Codex CLI 0.159.2、model `gpt-6-luna`、reasoning effort high、sandbox read-only。起動は B 担当の session が `codex exec` で行い、指示 file `TestResults/series-retirement-cprime-r1-instructions.md`（git 管理外）だけを渡した。所見・会話は渡していない）
+- 種別と巡: 暫定 C′ / 1 巡目（全体を初見で監査）。GO 判定には使わない
+- 受け取った決定記録の版: なし
+- 使用した blind audit bundle の取得案内・状態: §0 の C' blind bundle の項と同じ（`TestResults/series-retirement-stage/cprime-retrieval-guide.md`）。B 担当の session が非仮想化の pwsh で fetch（`passed`）し、出力の複製 `TestResults/series-retirement-cprime-input-r1/`（77 file）を C′ の入力にした
+- 確認範囲・方法: 指示文、`AGENTS.md`、osm-workflow Skill、`tools/Artifacts/README.md`、`docs/README.md`、manifest、Phase A snapshot §1〜§5、Phase B result、diff の name-status / stat、develop 部分、実装コード、テスト結果 JSON / log、build log、contract-audit / docs-audit / Unity diff check を読解・目視照合。テスト・build は再実行していない。jsonl の command 列に `docs/handoff/`・PR・`git log` の読取は無い（B 担当が確認）
+- 判定: 現在の問いを阻害する findings 0 件（GO / NO-GO は判定しない）
+- 現在の問いを阻害する findings: なし。I1〜I7・S1〜S5・AC1〜AC14 に反する操作経路は確認できず、退役記録は削除試行の前に扱われ、選別と保護確認は既存経路を使う。dry-run の無書込み、`retirement-unknown` での停止、退役記録の不変性、退役後の writer の拒否、`held` / `unattributed` の分類も実装・テスト記録と整合
+- 後続スライスへ移送する findings:
+  1. テストの退役記録 root は実環境へフォールバックする（`SeriesRetirementStore.psm1` 33 行付近: テスト用 root 未設定なら `LocalApplicationData` 配下を参照）。Phase B result にも、既存 suite はこの注入 root を設定せず、実系列を退役すると一部 suite が失敗し得ると記録がある。今回の実行前後に `retirements-v1` は無く suite は全件成功なので blocker ではない。テスト用 root の統一を後続の入力とする
+- 残存リスク: AC15 の高コスト証拠（実 R2 の 60 object 回収と独立照合）は未取得で、最終 C′ で確認が要る。A2 の独立レビューは実施されていない（Phase A snapshot の記録どおり）。Content collect の退役確認は開始時の 1 度（`ContentApplication.psm1` 78 行付近）で、退役記録の確定前に確認を通った処理は確定後に送信へ進みうる。凍結条件は退役確定後に始まる collect を拒否するものなので blocker ではないが、既知の競合窓として残る
+- 監査できなかった範囲: AC15 の実 R2 操作・削除記録の独立再判定・fetch 検証。実行時環境での操作確認
+- 独立性: `docs/handoff/` 配下、PR、issue、コメント、network、C′ 用決定記録を読んでいない。C′ の所見・結論を受け取っていない。ベンダーは A0/A1・B・発見 C・判定 C（Anthropic）と別（OpenAI）
+- 原記録: C′ の報告書 `TestResults/series-retirement-cprime-r1-report.md`、`codex exec --json` の event log（B 担当の session の scratchpad。usage: input 1,939,491（cached 1,794,688）、output 14,907）。どちらも git 管理外
 
 ## 9. Phase D
 
