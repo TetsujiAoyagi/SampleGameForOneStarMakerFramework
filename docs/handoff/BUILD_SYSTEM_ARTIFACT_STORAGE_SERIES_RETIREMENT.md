@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `D`（判定 C の最終判定と最終 C′ が揃い、どちらも阻害 0。次は Phase D（突き合わせ、GO の判断、保存・引渡し確認、harvest）。2026-10-16）
+- status: `D`（Phase D 完了。owner の GO（2026-10-16）。harvest 後に本書を削除する）
 - branch: `codex/artifact-storage-series-retirement`
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（`develop`。PR #123 を含む。A3 凍結時の `origin/develop` と一致を確認済み）
 - implementation head commit: `84a3a828b32c1364869ef490cfc40c74665c99aa`（R2-1 の修正 commit。レビュー済みの revision 2 head `5621bd15153ebbe9ce5783c44e65555e6b589bae` の上に、`develop` `d911e4b4b662e66fd3fcc54f6b2586c381fabf4a`（PR #125〜#128）の merge commit `2cf0497acdc30f142920d7682c723c2de9489b79` を置き、その上に積んだ。HANDOFF 記録 commit はこの上に積む。revision 1 の head は `61f04438f426e8833b00b37aaeb32538d972afa7`）
@@ -471,4 +471,10 @@
 
 ## 9. Phase D
 
-- 未実施
+- C / C' の突合（2026-10-16）: 判定 C の最終判定（§7）は阻害 0（後続 J-a〜J-c、残置 3 点）。最終 C′（§8）は阻害 0（後続 1 件、残存リスク 3 件）。重なり: C′ の「テストの退役記録 root が実環境へフォールバックする」は、発見 C revision 1 の後続入力「suite の hermetic 化」と同じ事象。C′ の「Content collect の退役確認と送信の間の競合窓」は README の known limits（publish は系列 lock を取らない）として受け入れ済みの既知の限界。C′ の「Build publish intent の path 置換で `intentSha256` の結び付きを bundle 内で再計算できない」は証拠の加工（`_sanitized-files.txt`）の限界で、判定 C は原記録に対して照合済み（照合 report P2 pass）。矛盾する所見は無い。あわせて owner の依頼で Cloud の cursoragent が PR #124 を assist として読み、阻害 0 と報告した（PR コメント 2026-10-16 06:31Z / 06:35Z。証拠を取得できない Cloud の作業なので正規の C / C′ とはしない）
+- マージ判断: owner が 2026-10-16 のチャットで GO と Phase D 完了・マージを指示した（「cloudのにも見てもらってblockerゼロ件 phaseD完了として後始末してマージして」）。GO 候補 head `84a3a828`、マージする branch head は本書の記録 commit を含む
+- 必要な Evidence の保存・取得・必須内容の閲覧確認: 6 bundle（発見 C ×2、判定 C、暫定 C′ 用、判定 C 最終、最終 C′ 用）を task `series-retirement` に `evidence stage` でローカル固定済み（未昇格）。各 bundle は送信側で fetch と hash 一致を確認済み（取得案内に記録）。Phase D で別 session（B 担当）が bundle 5（判定 C 最終）を fetch（`passed`、124 file）し、`ac15/checker-output/ac15.report.json` の `verdict: pass`・期待 key 60・`decision` が owner 確認の指示 ID と一致することを閲覧した。bundle 4・6 は C′ の起動時に同じ session が fetch 済み（§8）。Cloud・別 host への引渡しは昇格経路（program §4 C の後続スライス）まで成立しない
+- 取得案内の引渡し確認: `TestResults/series-retirement-stage/retrieval-guide.md`（bundle 1〜6）、`cprime-retrieval-guide.md`、`cprime-final-retrieval-guide.md`（git 管理外、この PC の主 checkout。削除予定 worktree には無い）。保持は task 終了 + 30 日
+- harvest: README「系列の退役」節の結果 JSON の一文を「件数清掃と同じ固定field」へ整えた（R1-b）。program §4 B に完了の記録、決めたこと、後続への入力（R2-a、R1-a、J-a〜J-c、suite の hermetic 化、退役確認の 2 か所、Content の `held`／`protected` の二重表示、Content collect の競合窓、intent の path 置換、AC15 の残置）を移送した
+- 削除確認: harvest の commit で本書を `git rm` した（全文は削除前の commit から読める）
+- 通常の task 終了・後始末の状態: `workflow-task.ps1 end -Reason completed -ExpectedVersion 1 -Decision chat:20261016T0641Z:series-retirement:completed` を 2026-10-16T06:41:59Z に記録（version 2、`pendingFinalization` 0、`deliveryPending` 0）。これは終了イベントの状態であり、Evidence 一式の保存済み証明ではない（保存・引渡しは上の確認のとおり）。未完了事項: `staged` の R2 昇格（後続スライス）。AC15 の実行器の作業 directory（`D:\osm-ac15`、`D:\osm-ac15-r2`、git 管理外）と失敗 fetch の operation は §7 の記録どおり残してある（依頼範囲外のため触れない）
