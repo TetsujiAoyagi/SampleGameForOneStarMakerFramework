@@ -5,7 +5,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C`（発見 C 待ち。Phase B は 2026-10-16 に完了、結果は §6。動作確認は対象なし。Phase A revision 1 を 2026-10-16 に A3 で凍結。凍結内容は §2〜§5。設計判断を変えるときは Phase A を新しい revision として再開する）
+- status: `D`（Phase D 待ち。発見 C・判定 C・C′ は 2026-10-16 に完了、結果は §7・§8。Phase B は 2026-10-16 に完了、結果は §6。動作確認は対象なし。Phase A revision 1 を 2026-10-16 に A3 で凍結。凍結内容は §2〜§5。設計判断を変えるときは Phase A を新しい revision として再開する）
 - branch: `claude/serene-varahamihira-2b2442`（PR の base は `develop`）
 - implementation base commit: `d911e4b4b662e66fd3fcc54f6b2586c381fabf4a`（`origin/develop`、PR #128 マージ後）
 - implementation head commit: `911addb5eb11c019e333244d1d721a1014a6d85d`（B 完了 head。HANDOFF の記録 commit は含めない）
@@ -15,10 +15,10 @@
 - expires: 2026-11-16 または置換 revision
 - harvest to: 操作と切替手順は `tools/Artifacts/README.md` の「自動清掃」（本スライスの実装対象そのもの）。`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 A の後続入力の一覧から「schedule-install・schedule-status の失敗 reasonCode」を既定の扱いへ移し、config 失敗の reasonCode だけを残す。
 - Phase A snapshot の取得案内・状態: 未保存（凍結版は本 HANDOFF の A3 凍結 commit。内容 sha256 は引継ぎ票）。
-- Phase B result snapshot の取得案内・状態: 未生成。
-- evidence bundle の取得案内・状態: 未生成。
-- C' blind bundle の取得案内・状態: 未生成。
-- 引継ぎ票: 次の Phase は **発見 C（欠陥発見レビュー）**、役割はレビュー担当（Phase B と異なるモデル、新規 session）。動作確認は対象なし（§5 の検証経路に操作・実行時・目視の条件が無い）。作業は implementation base `d911e4b4b662e66fd3fcc54f6b2586c381fabf4a` から B 完了 head `911addb5eb11c019e333244d1d721a1014a6d85d` までの差分を、§2〜§5（凍結 revision 1）と §6 の「HANDOFF との差」に照らして構造・契約・凍結済み失敗経路（I1〜I3、AC1〜AC6）の順に見ること。入力は commit で固定済みで、stage snapshot は使っていない。開始時に自分の worktree の HEAD（固定 SHA からの detached worktree でよい）をこの SHA と照合し、作業ツリーが dirty なら始めない。同一 PC ではローカルの SHA で照合する。必要な権限: ローカルの PowerShell 7（Store 版でよい）と git。判定 C の全 suite には 3 project の Release build と PATH 上の `rg` が要る。Unity・sandbox 外実行・資格情報・network は不要。実ストアの catalog・資格情報は読まず、`schedule-install` を実ストアに対して実行しない。起点 filter は §5。GO 判定、判定 C の実行、C' の起動は担わない。引き渡さないもの: なし。凍結した Phase A は revision 1（commit `c5077e3f`、内容 sha256 `958e5787f910b9bbbc76eca2fb7ce42a2c2b004755c96fb92b14e3d1e5615a5f`）。Workflow task は `evidence-schedule-cutover`（version 1、started）。
+- Phase B result snapshot の取得案内・状態: ローカル固定済み（未昇格）。判定 evidence bundle に `phase-b-result.md` として収録。
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。task `evidence-schedule-cutover` に `evidence stage` で 1 bundle（判定 C 入力と C′ blind 入力を兼ねる。所見を含まない）。送信側の fetch・manifest の全 hash 一致を確認済み。取得案内は主 checkout の git 管理外 `TestResults/schedule-cutover-stage/retrieval-guide.md`。
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 evidence bundle と同一。C′ 用の案内は同じ directory の `cprime-retrieval-guide.md`。C′ 担当は fetch した copy だけを読んだ。
+- 引継ぎ票: 次の Phase は **Phase D（マージ判断）**、役割は人間（owner）と Phase D 担当。作業は §7（判定 C）と §8（C′）の突合、マージ判断、Evidence の保存・取得の確認（取得案内は主 checkout の git 管理外 `TestResults/schedule-cutover-stage/`）、harvest（§0 の harvest to）と HANDOFF 削除、Workflow task `evidence-schedule-cutover` の通常終了。implementation base `d911e4b4b662e66fd3fcc54f6b2586c381fabf4a` / head `911addb5eb11c019e333244d1d721a1014a6d85d`（判定 evidence を取った head。HANDOFF の記録 commit は含めない）。開始時に引き継ぐ commit をこのブランチの HEAD と照合し、作業ツリーが dirty なら始めない。必要な権限: ローカルの PowerShell 7 と git、Artifact Storage のローカル store（fetch、task 終了）。network・資格情報・Unity は不要。凍結した Phase A は revision 1（commit `c5077e3f`、内容 sha256 `958e5787f910b9bbbc76eca2fb7ce42a2c2b004755c96fb92b14e3d1e5615a5f`）。Workflow task は `evidence-schedule-cutover`（version 1、active）。
 
 ## 1. 目的と対象外
 
@@ -124,33 +124,33 @@
 
 ## 7. Phase C
 
-- 種別:
-- 使用した evidence bundle の取得案内・状態:
-- 構造適合:
-- 現在の問いを阻害する findings:
-- 後続スライスへ移送する findings:
-- 実行したテストコマンドと `-Filter`、対象を選んだ理由:
-- テスト結果:
-- 判定必須のうち未実行:
-- 重い検証を発見段階で限定実行した場合の理由と範囲:
-- 未確認事項:
-- 担当・モデル:
+- 種別: 発見 C（1 巡、差し戻しなし）→ 判定 C。
+- 使用した evidence bundle の取得案内・状態: 発見 C は commit `911addb5` の完全 diff（detached worktree、stage snapshot は使っていない）。判定 C はローカル固定済み（未昇格）の判定 evidence bundle（§0）。
+- 構造適合: §3 の責務マップどおり。変更は `tools/artifacts.ps1`（+10/−1）、`tools/Artifacts/README.md`（+4）、`EvidenceSchedule.Tests.ps1`（+63/−18）の 3 file。`EvidenceSchedule.psm1` の差分 0。allow-list は §2 の 9 件、try の先頭で空に初期化し schedule 分岐でだけ代入、`-cin` の完全一致、`unsupported-command` は不変。新しい責務・依存・公開 API は無い。
+- 現在の問いを阻害する findings: なし（発見 C の 2 担当とも）。
+- 後続スライスへ移送する findings: (1) allow-list 外の runtime 系固定 code（`runtime-binding-invalid` / `runtime-path-invalid` / `runtime-binary-mismatch` / `runtime-context-switch-rejected` / `runtime-credential-root-unavailable` / `evidence-deadline`）は schedule でも従来どおり伏せられる。§2 が 9 件に固定しているため違反ではない。表示が要るかは program §4 A の「診断の改善」の入力。
+- 実行したテストコマンドと `-Filter`、対象を選んだ理由: 発見 C ではテストを追加実行していない（Phase B 出口の結果と diff で阻害指摘が無かったため）。判定 C は GO 候補 head `911addb5` の detached worktree で、3 project の Release build と PATH 先頭の `rg` を用意したうえで、`tools/Artifacts/tests/*.Tests.ps1` を名前順に各 1 回、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、`[Management.Automation.Language.Parser]::ParseFile`（`tools/artifacts.ps1`、`EvidenceSchedule.Tests.ps1`）、`git diff --stat`（`EvidenceSchedule.psm1`）を実行した（§5 の判定必須の全件）。
+- テスト結果: 21 suite が全て exit 0、failed 0（ArtifactEvidence 26、ArtifactPackage 9、ArtifactRotation 11、ArtifactTransfer 20、BuildCleanup 23、BuildCollect 9、BuildPublish 9、BuildRetention 9、Content.Contract 9、Content.Fetch 5、Content.Publish 12、ContentCleanup 23、Credentials 22、EvidenceCleanup 45、EvidenceReset 31、EvidenceRetention 20、EvidenceSchedule 81/81、R2RouteTransport 7、RouteProof 26、StoreConsolidation 20、StoreConsolidationPlan 24）。`EvidenceSchedule` で `scheduler-missing-cli`・`scheduler-cli-identity-status`・`scheduler-cli-identity-install`・`scheduler-cli-internal-hidden` が PASS。contract-audit errors 0、docs-audit errors 0 / warnings 0、parse errors 0（2 file）、`EvidenceSchedule.psm1` の差分 0。判定: AC1〜AC6 が全て成立し GO。
+- 判定必須のうち未実行: なし。
+- 重い検証を発見段階で限定実行した場合の理由と範囲: なし。
+- 未確認事項: 実 Task Scheduler・実 pwsh 更新の再現（§5 で求めない）。
+- 担当・モデル: 発見 C は Claude（Opus 5.5、新規 session、Phase B と異なるモデル）と Codex CLI（GPT、read-only sandbox。この sandbox では pwsh を起動できずテストは未実行、静的レビューのみ）。判定 C の実行・判断は Claude（Opus 5.5、同じ session）。
 
 ## 8. Phase C'
 
-- 担当方式:
-- 種別と巡:
-- 受け取った決定記録の版:
-- 使用した blind audit bundle の取得案内・状態:
-- 確認範囲・方法:
-- 判定:
-- 現在の問いを阻害する findings:
-- 後続スライスへ移送する findings:
-- 残存リスク:
-- 監査できなかった範囲:
-- 独立性:
-- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与:
-- 担当・モデル:
+- 担当方式: AI（cursor-agent CLI、新規 session、読み取りだけ・シェル不使用を prompt で指定）。
+- 種別と巡: 1 巡目。高コスト証拠が無いため最終 C′。
+- 受け取った決定記録の版: なし。
+- 使用した blind audit bundle の取得案内・状態: ローカル固定済み（未昇格）の判定 evidence bundle を fetch した copy（manifest の全 hash 一致を確認）と、head `911addb5` の working tree のソース 4 file。発見 C・判定 C の所見は入力に含めていない。
+- 確認範囲・方法: (1) catch の出力経路を `EvidenceSchedule.psm1` の throw と照合（I1〜I3、S1）、(2) 判定ログが AC1〜AC6 と §5 の判定必須を覆うか・偽陽性で PASS し得ないか。
+- 判定: PASS。
+- 現在の問いを阻害する findings: なし。
+- 後続スライスへ移送する findings: なし。
+- 残存リスク: allow-list 9 code のうち CLI 境界で実測したのは `scheduler-identity-mismatch` だけで、他の 8 code は同じ `-cin` 分岐を通る。AC1 は stderr に一般診断が無いことまでを見ており、stderr が空であることは見ていない（当該分岐は stderr を書かない）。
+- 監査できなかった範囲: テストの再実行（必須ではない）。実 Task Scheduler・実 pwsh 更新の再現（§5 の対象外）。
+- 独立性: Phase B（Claude Fable 5.1）、Phase C（Claude Opus 5.5、Codex/GPT）と異なるモデル系列・ベンダー（Grok）で、§5 の予約どおり。Phase A の A2 を省いたため Phase A の独立レビューは無い（`独立性制約あり`、§5）。
+- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: なし。
+- 担当・モデル: cursor-agent（Grok 4.7 High）。
 
 ## 9. Phase D
 
