@@ -10,6 +10,7 @@ Import-Module (Join-Path $PSScriptRoot 'ContentStage.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ContentStore.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ContentDeletionStore.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ContentTransfer.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SeriesRetirementStore.psm1')
 # collect/inspect/fetchの順序、private operationの作成、再実行の分岐、receiptの確定だけを持つ。
 # operationは作るだけで削除しない（清掃は「未完了uploadとstaging」の後続）。
 # 注入点はoffline検証専用。公開CLIから時計や失敗境界を差し替えさせない。
@@ -17,7 +18,7 @@ $script:Clock={[DateTimeOffset]::UtcNow}
 $script:FailureHook=$null
 # 公開reasonは許可語だけ。例外本文にはpathや通信の内部情報が入りうるため出さない。
 # Build側の語は、Contentの語へ写して返す。未分類はunconfirmedに留める。
-$script:Reasons=@('artifacts-root-not-configured','invalid-artifacts-root','invalid-source','invalid-content-config','invalid-content-identity','unsupported-series','unsupported-content','invalid-content-manifest','content-mismatch','size-limit','stage-conflict','stage-hash-mismatch','snapshot-changed','intent-conflict','revision-conflict','object-conflict','object-unconfirmed','put-unconfirmed','readback-unconfirmed','publish-in-progress','budget-exceeded','receipt-missing','receipt-invalid','commit-unconfirmed','content-store-unavailable','invalid-reference','manifest-mismatch','download-unconfirmed','payload-deleted','delete-pending','receipt-unavailable')
+$script:Reasons=@('artifacts-root-not-configured','invalid-artifacts-root','invalid-source','invalid-content-config','invalid-content-identity','unsupported-series','unsupported-content','invalid-content-manifest','content-mismatch','size-limit','stage-conflict','stage-hash-mismatch','snapshot-changed','intent-conflict','revision-conflict','object-conflict','object-unconfirmed','put-unconfirmed','readback-unconfirmed','publish-in-progress','budget-exceeded','receipt-missing','receipt-invalid','commit-unconfirmed','content-store-unavailable','invalid-reference','manifest-mismatch','download-unconfirmed','payload-deleted','delete-pending','receipt-unavailable','series-retired','retirement-unknown')
 $script:ReasonMap=@{'snapshot-conflict'='invalid-source';'already-exists'='content-store-unavailable';'build-store-unavailable'='content-store-unavailable';'after-rename-unconfirmed'='commit-unconfirmed';'evidence-deadline'='budget-exceeded';'Artifact operation expired.'='budget-exceeded'}
 function Get-ContentReason([string]$Code){
     if($Code -cin $script:Reasons){return $Code}
@@ -71,6 +72,10 @@ function Invoke-ContentCollect([string]$ConfigPath,[string]$Source,[string]$Arti
         $configBytes=Read-ContentConfigBytes $ConfigPath
         $operation=New-ArtifactOperation;$r.residue.localPath=$operation
         $config=Read-ContentConfig (Write-ContentOperationFile $operation 'content-config.json' $configBytes)
+        # 退役した系列（退役記録がある系列）へは保存しない。記録を確認できなければ止める（fail-closed）。
+        # 確認はrepositoryIdを読める最初の地点（configの複写の直後）で、退避・store・送信のどれより前。
+        # existingも返さない。確認は1回だけで、それより前に始まったcollectは止めない（Buildのpublishと同じ）。
+        if((Read-SeriesRetirement 'content' $config.Data.repositoryId @($manifest.ContentSet,$manifest.TargetToken)).State -cne 'none'){throw 'series-retired'}
         $stage=Invoke-ContentStage $source $root $manifest
         $r.stage=$stage.Stage;$r.outputPath=$stage.Path
         $dir=Get-ContentDirectory $config.Data.repositoryId $manifest.ContentSet $manifest.TargetToken $manifest.Revision $true

@@ -380,7 +380,7 @@ foreach($caseName in $selected){
                 Assert ((Get-Count $f 'delete' 'development/content/') -eq 0) 'Content DELETE sent'
                 foreach($p in $outside.Keys){Assert ((Get-TreeFingerprint $p) -ceq $outside[$p]) 'outside layer changed'}
                 $names=@($x.PSObject.Properties.Name|Sort-Object) -join ','
-                Assert ($names -ceq 'candidates,deleted,deleting,excessCount,foreignInvalid,held,keepCount,outcomes,reasonCode,remaining,requests,retained,seriesId,status') "result fields: $names"
+                Assert ($names -ceq 'candidates,deleted,deleting,excessCount,foreignInvalid,held,keepCount,mode,outcomes,reasonCode,remaining,requests,retained,seriesId,status') "result fields: $names"
                 Assert (-not (Get-PublicLeak $x $f)) 'result leaked path or endpoint'
             }
             # 最低条件2: 保護だけでNを超える間はexcessCountを出して正常終了し、保護を外さない。

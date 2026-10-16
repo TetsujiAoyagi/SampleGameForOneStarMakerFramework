@@ -1,12 +1,12 @@
 # Artifact Storage と資格情報管理
 
-同一WindowsユーザーのPowerShell 7から、既存のDPAPI `osm`資格情報とprivate R2 bucket `osm-artifacts`を使います。通常Evidenceは明示した非秘密file集合をpublishし、別sessionで期待hashを照合してfetch・ログ/原画像を閲覧できます。taskの終了/再開は[Workflow](../Workflow/README.md)が所有し、Storageは終了から30日のコピー清掃を担当します。既存Build 1件も明示した全file集合から保存・取得でき、BS4の配布形Player出力は `build collect` の1コマンドで退避・保存できます。R2上のBuildは `build cleanup`、Contentは `content cleanup` で系列ごとに件数清掃できます。同一PCの担当間の固定入力は `evidence stage` でR2を使わずに渡せます（[ローカル固定](#ローカル固定evidence-stage)）。別host/Cloudの配布と、ローカル固定したartifactのR2昇格は後続スライスです。
+同一WindowsユーザーのPowerShell 7から、既存のDPAPI `osm`資格情報とprivate R2 bucket `osm-artifacts`を使います。通常Evidenceは明示した非秘密file集合をpublishし、別sessionで期待hashを照合してfetch・ログ/原画像を閲覧できます。taskの終了/再開は[Workflow](../Workflow/README.md)が所有し、Storageは終了から30日のコピー清掃を担当します。既存Build 1件も明示した全file集合から保存・取得でき、BS4の配布形Player出力は `build collect` の1コマンドで退避・保存できます。R2上のBuildは `build cleanup`、Contentは `content cleanup` で系列ごとに件数清掃でき、使い終わった系列は `build retire`／`content retire` で退役させてR2から消し切れます。同一PCの担当間の固定入力は `evidence stage` でR2を使わずに渡せます（[ローカル固定](#ローカル固定evidence-stage)）。別host/Cloudの配布と、ローカル固定したartifactのR2昇格は後続スライスです。
 
 スライスAは[PR #109](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/109)で実装・限定運用検証を完了し、同じ実装headの正式C/C′はGOです。r6は同じ既存保存領域へOS jobを接続する修正で、保存領域の移動や資格情報の複製を行いません。固定仕様・実行集合・原観測の入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。一回の限定resetは完了済みです。既知のACL不適合copyは保護されたままで、OS jobのpartial結果と通常schedulerの正常statusは区別して記録しています。
 
 ## エージェント操作の事前承認
 
-ownerは、設定した開発領域・明示入力・保存契約内の通常publish/fetch/清掃を事前承認しています。`evidence stage` と、`staged` artifactのfetch（local分岐）・use・release・満了清掃も同じ承認に含む通常操作です。どれもnetworkと資格情報を使いません。日常清掃は、対応機能の実装・検証と運用切替の成立後に行います。一回のresetはA3で固定した対象/除外と開始条件を照合して実行し、文書改訂だけで開始しません。通信や同一ユーザーの既存鍵利用だけを理由に再確認せず、keyごとの削除承認や旧保存価値の審査を追加しません。Agent製品・モデルによらず適用します。
+ownerは、設定した開発領域・明示入力・保存契約内の通常publish/fetch/清掃を事前承認しています。`evidence stage` と、`staged` artifactのfetch（local分岐）・use・release・満了清掃も同じ承認に含む通常操作です。どれもnetworkと資格情報を使いません。日常清掃は、対応機能の実装・検証と運用切替の成立後に行います。一回のresetはA3で固定した対象/除外と開始条件を照合して実行し、文書改訂だけで開始しません。通信や同一ユーザーの既存鍵利用だけを理由に再確認せず、keyごとの削除承認や旧保存価値の審査を追加しません。Agent製品・モデルによらず適用します。系列の退役（`build retire`／`content retire`）はこの通常操作に含めず、ownerが系列と指示IDを明示した範囲でだけ実行します（[系列の退役](#系列の退役build-retire--content-retire)）。
 
 対象は同じaccountの検証済みendpoint/private bucketと新Evidence prefixです。公開development URL/custom domainを有効にせず、prefix分離を公開境界とは扱いません。非秘密内容、固定版、blind入力と所見の分離は送信担当が確認します。purpose宣言・禁止名検査・hash一致だけで秘密不存在を証明したとは扱いません。取得したscript/DLLを実行しません。
 
@@ -324,7 +324,7 @@ pwsh tools/Artifacts/tests/Content.Fetch.Tests.ps1 -Case '*' -ResultPath <result
 
 ### 開発Buildの件数保持policy
 
-`BuildRetentionPolicy.psm1` は内部の `Get-BuildRetentionDecision -SeriesId <string> -Builds <object[]> -KeepCount <int|long>` だけを公開します。
+`BuildRetentionPolicy.psm1` は内部の `Get-BuildRetentionDecision -SeriesId <string> -Builds <object[]> -KeepCount <int|long>` と、系列の退役用の `Get-SeriesRetirementDecision -SeriesId <string> -Builds <object[]>`（末尾で説明）を公開します。
 呼出側が1系列の確定snapshotを渡し、policyは成功publishだけをNに数え、利用中の成功BuildをN内で優先保持します。
 N=2、成功Buildが新しい順にA/B/CでCだけ利用中なら、A/Cを保持してBを削除候補にします。保護数がNを超えた場合も保護を維持し、`excessCount` に保護由来の超過件数を返します。
 返値の `retainedBuildIds`、`deleteCandidateBuildIds`、`heldBuilds` は分類結果です。候補は実DELETEの許可ではありません。
@@ -334,7 +334,8 @@ N=2、成功Buildが新しい順にA/B/CでCだけ利用中なら、A/Cを保持
 理由の優先順は`invalid-keep-count`→`invalid-series-id`→`invalid-build-list`→`invalid-build-snapshot`です。1行でも必要な状態が不正なら一覧全体を保留し、部分的な削除候補を出しません。
 失敗・未完了publishは `heldBuilds` に入り、後始末はこのpolicyの対象外です。
 保持は成功時刻の降順・同点はIDのOrdinal昇順、候補はその逆順、保留はIDのOrdinal昇順です。入力を変更せず、出力の書換えも入力へ伝播しません。
-このpolicyはfile、R2、時計、store、Unityに触れません。実際の削除は次節の `build cleanup` がこのpolicyを呼んで行います。
+`Get-SeriesRetirementDecision` はNを使わず、保護中でない成功を全て候補（古い順）にし、保護中の成功を `reasonCode=protected`、失敗・未完了をこれまでどおりの理由で `heldBuilds` に入れます。行の検査・全順序・blockedの返し方は同じで、理由は `candidates-found`（候補あり）／`retired-held`（保留だけ）／`retired`（どちらも無い）です。`Get-BuildRetentionDecision` にN=0を渡して退役を表すことはしません（`invalid-keep-count` の入口検査は件数清掃の安全装置のまま）。
+このpolicyはfile、R2、時計、store、Unityに触れません。実際の削除は次節の `build cleanup` と、末尾の「系列の退役」がこのpolicyを呼んで行います。
 非秘密のメモリfixtureによる全件offline検証は次のコマンドです。
 
 ```powershell
@@ -357,10 +358,10 @@ pwsh tools/artifacts.ps1 build release --profile osm --config <build-config> --b
 - **保護**は `<buildId>/protections/` の追記だけの記録です。`use` は系列lockの下で成功記録と削除状態を読み直してから書き、削除中・削除済み・receiptの無いBuildには付けません（`build-not-retainable`）。`release` は解除記録を足します。保護の判定は有限の `until` と明示のreleaseだけで、記録が読めなければ `protection-unknown` で止めます。
 - **削除の手順**は、系列lockの下でsnapshotと保護を取り直してから、候補ごとに古い順で、削除意図の記録 → DELETE（1試行に1回）→ 送信観測の記録 → 確認GET → GETが404 `NoSuchKey` なら削除済み記録、の順です。DELETEの2xxだけでは削除済みにしません。記録は `<buildId>/deletion/<n>.(intent|sent|deleted|abandoned).json` の不変記録で、receipt等のローカル記録は消しません。DELETEが検証済み2xx以外（403・timeout・応答不明等）、確認GETが判定できない、記録の書込みに失敗、時間予算（600秒）超過のときは、その試行を未解決のまま残し、系列の残りも処理せず `partial`（exit 2）で終わります。次回の実行は未解決の試行を確認GETから先に確定させ、objectが残っていれば試行を取り下げて計算し直し、今も候補のときだけ新しい試行で削除します。1回の実行のDELETEは最大20回で、残りは `remaining` に出します。
 - **このPCでの取得中**（`build fetch` が `<buildId>/access.lock` を共有で保持している間）のBuildは `in-transfer` で飛ばします。逆に削除試行中のBuildへの `fetch`／`inspect`／`collect` は待たずに `delete-pending` で失敗します。
-- 結果JSONは `status`・`reasonCode`・`seriesId`・`keepCount`・`excessCount`、`retained`／`candidates`／`held`／`deleting`／`deleted` の件数とID、`remaining`、`foreignInvalid`、Buildごとの `outcomes`、送信回数 `requests`（`delete`・`get`）だけで、endpoint・ローカルpath・例外本文を含みません。exitは0=完了（`within-limit`・`protected-over-limit` を含む）、1=blocked／失敗、2=partialです。`--dry-run` はlockを取らず、記録にもnetworkにも触れずに同じ分類を返します。
+- 結果JSONは `status`・`reasonCode`・`mode`（件数保持は `retention`、退役済みの系列では `retirement`。退役の詳細は[系列の退役](#系列の退役build-retire--content-retire)）・`seriesId`・`keepCount`・`excessCount`、`retained`／`candidates`／`held`／`deleting`／`deleted` の件数とID、`remaining`、`foreignInvalid`、Buildごとの `outcomes`、送信回数 `requests`（`delete`・`get`）だけで、endpoint・ローカルpath・例外本文を含みません。exitは0=完了（`within-limit`・`protected-over-limit` を含む）、1=blocked／失敗、2=partialです。`--dry-run` はlockを取らず、記録にもnetworkにも触れずに同じ分類を返します。
 - 削除は書込み鍵のあるPCだけが行います。Cloud等の読み取り専用tokenでは行いません。削除したBuildは `build inspect` が `payload-deleted` を返すことで分かります。R2のDELETEが403を返す場合もbucketのruleは変更しません。
 
-known limits: 別PC・Cloudでのpublishと利用（取得・保護）は観測しません。別PCの成功は数えないため、R2全体では系列がNを超えて残りえます（消さない方向の誤差です）。receiptを失ったobjectは候補にならず、回収は後続の作業です。「最新」は記録した `publishedAt` の順で、時計が巻き戻っていた間に確定したpublishの順序は保証しません。同じBuildを別PCから同時に削除する運用は想定しません。bucketのversioningが有効な場合、404の確認は現行版が無いことだけを示します。ArtifactsRootの `players/`・`content/` の件数清掃と `.staging` 回収、系列の退役、自動起動は後続の作業で、このコマンドはR2のBuild object以外を削除しません（Contentの件数清掃は次節の `content cleanup`）。
+known limits: 別PC・Cloudでのpublishと利用（取得・保護）は観測しません。別PCの成功は数えないため、R2全体では系列がNを超えて残りえます（消さない方向の誤差です）。receiptを失ったobjectは候補にならず、回収は後続の作業です。「最新」は記録した `publishedAt` の順で、時計が巻き戻っていた間に確定したpublishの順序は保証しません。同じBuildを別PCから同時に削除する運用は想定しません。bucketのversioningが有効な場合、404の確認は現行版が無いことだけを示します。ArtifactsRootの `players/`・`content/` の件数清掃と `.staging` 回収、自動起動は後続の作業で、このコマンドはR2のBuild object以外を削除しません（Contentの件数清掃は次節の `content cleanup`、系列を丸ごと消すのは「系列の退役」の `build retire`。退役済みの系列ではこのコマンドも退役の選別で動きます）。
 
 非秘密の合成receiptと注入した時計・transport・予算による全件offline検証は次のコマンドです。並行は別processをsignalで同期し、時間待機を使いません。
 
@@ -383,15 +384,42 @@ pwsh tools/artifacts.ps1 content cleanup --profile osm --config <content-config>
 - **削除の手順**は、系列lock（`<target>/cleanup.lock`）の下でsnapshotと保護を取り直し、候補ごとに古い順で、revisionの `publish.lock` を取った後にもう一度取り直してなお候補の場合だけ始めます。1試行は、削除意図の記録 → `transport.json` のDELETE → 送信観測の記録 → `transport.json` の確認GET → GETが404 `NoSuchKey` なら確定点の記録（`committed`）→ 残りのobjectを順に「GET → 残っていればDELETE → GET」→ 全keyのGET 404で削除済み記録、の順です。DELETEの2xxだけでは削除済みにしません。`transport.json` を最初に消すのは、取得が `transport.json` から始まるためで、確定点より前に `transport.json` が残っていれば試行を取り下げてrevisionを無傷で戻し、確定点の後は候補・保護にかかわらず残りを消し切ります。記録は `<revision>/deletion/<n>.(intent|sent|committed|abandoned|deleted).json` の不変記録で、receipt・intent等のローカル記録は消しません。
 - 応答が検証済み2xx・404でない、応答不明、記録の書込み失敗、時間予算（600秒）超過、DELETEの上限（1回の実行で2,048回）到達のときは、その試行を未解決のまま残し、系列の残りも処理せず `partial`（exit 2）で終わります。次回の実行は未解決の試行を先に、確定点があれば残りobjectのGETから、無ければ確認GETから続けます（GETが先なので、既に404のobjectへDELETEを送りません）。
 - **このPCで `content collect`／`inspect` が `publish.lock` を保持している間**のrevisionは `revision-busy` で飛ばします。逆に削除試行中のrevisionへの `inspect` は待たずに `publish-in-progress` を返します。削除済み・削除中のrevisionには、`inspect` と同じsourceでの `collect` が `payload-deleted`／`delete-pending` を返し、成功も再PUTも返しません。
-- 結果JSONは `status`・`reasonCode`・`seriesId`・`keepCount`・`excessCount`、`retained`／`candidates`／`held`／`protected`／`deleting`／`deleted` の件数とrevision、`remaining`、revisionごとの `outcomes`、送信回数 `requests`（`delete`・`get`）だけで、endpoint・ローカルpath・例外本文を含みません。exitは0=完了（`within-limit`・`protected-over-limit` を含む）、1=blocked／失敗、2=partialです。`--dry-run` はlockを取らず、記録にもnetworkにも触れずに同じ分類を返します。
+- 結果JSONは `status`・`reasonCode`・`mode`（件数保持は `retention`、退役済みの系列では `retirement`。退役の詳細は[系列の退役](#系列の退役build-retire--content-retire)）・`seriesId`・`keepCount`・`excessCount`、`retained`／`candidates`／`held`／`protected`／`deleting`／`deleted` の件数とrevision、`remaining`、revisionごとの `outcomes`、送信回数 `requests`（`delete`・`get`）だけで、endpoint・ローカルpath・例外本文を含みません。exitは0=完了（`within-limit`・`protected-over-limit` を含む）、1=blocked／失敗、2=partialです。`--dry-run` はlockを取らず、記録にもnetworkにも触れずに同じ分類を返します。
 - transportは `development/content/v1/` のDELETEを、このコマンドが付ける印 `ContentRetentionDelete=$true`（bool）付きのrequestだけ通し、この印でBuild・Evidenceのkeyを消すことはできません。削除は書込み鍵のあるPCだけが行います。Cloud等の読み取り専用tokenでは行いません。R2のDELETEが403を返す場合もbucketのruleは変更しません。
 
-known limits: 別PC・Cloudのpublish・Build・Playerは観測しません（別PCの成功は数えず、別PCで保持中のPlayerも保護しません）。`content fetch` 中のrevisionは保護しません（`fetch` はローカルの記録に触れず、削除と重なった取得は `transport.json` の404かhash不一致で失敗するだけで、壊れた取得物を成功として返しません）。同じidentityの `build collect` と `content cleanup` を同時に動かす競合は排除しません（試行の開始直前に見えた保護源だけを守ります）。receiptを失ったobjectは候補にならず、R2上の孤児objectの回収、系列の退役、ArtifactsRootの `content/` の件数清掃、自動起動、Nの系列ごとの設定は後続の作業です。このコマンドはR2のContent object以外を削除しません。
+known limits: 別PC・Cloudのpublish・Build・Playerは観測しません（別PCの成功は数えず、別PCで保持中のPlayerも保護しません）。`content fetch` 中のrevisionは保護しません（`fetch` はローカルの記録に触れず、削除と重なった取得は `transport.json` の404かhash不一致で失敗するだけで、壊れた取得物を成功として返しません）。同じidentityの `build collect` と `content cleanup` を同時に動かす競合は排除しません（試行の開始直前に見えた保護源だけを守ります）。receiptを失ったobjectは候補にならず、R2上の孤児objectの回収、ArtifactsRootの `content/` の件数清掃、自動起動、Nの系列ごとの設定は後続の作業です。このコマンドはR2のContent object以外を削除しません（系列を丸ごと消すのは次節の `content retire`。退役済みの系列ではこのコマンドも退役の選別で動きます）。
 
 非秘密の合成receiptと注入した時計・transport・予算・上限による全件offline検証は次のコマンドです。並行は別processをsignalで同期し、時間待機を使いません。
 
 ```powershell
 pwsh tools/Artifacts/tests/ContentCleanup.Tests.ps1 -Case '*' -ResultPath <result-json-path>
+```
+
+### 系列の退役（build retire / content retire）
+
+`build retire`／`content retire` は、ownerが「この系列は終わり」と明示したBuild系列またはContent系列1つについて、退役を不変の記録として残し、このPCの成功記録にあるR2 objectを、保護中のものを除いて全て消します。件数清掃は最新N件を残すので、使い終わった系列（期間限定イベントの `contentSet`、検証用の系列）を消し切るにはこちらを使います。
+
+```powershell
+pwsh tools/artifacts.ps1 build retire --profile osm --config <build-config> --project <project> --target <target> --configuration <configuration> --decision <指示ID> [--dry-run]
+pwsh tools/artifacts.ps1 content retire --profile osm --config <content-config> --content-set <contentSet> --target <windows-x64-player> --decision <指示ID> [--artifacts-root <ArtifactsRoot>] [--dry-run]
+```
+
+- **起点はownerの明示指示だけです。** イベント終了や最終publishからの経過で自動的に退役することはありません。`--decision` にはownerの指示を指す非秘密のID（Workflowの `Decision` と同じ書式。例 `chat:20261012T1230Z:series-retirement:retired`、`github:<owner>/<repo>/pull/<n>/<fragment>`。英数字で始まる128字以内の `[a-zA-Z0-9._:/-]`）を渡し、退役記録に残します。指示IDと系列tokenは何も読む前に検査します（`invalid-decision`／`invalid-build-identity`／`invalid-content-identity`／`unsupported-series`）。ArtifactsRootは `content cleanup` と同じ規則です。
+- **事前承認の範囲外です。** 退役は系列単位の不可逆な判断なので、Agentはownerが系列と指示IDを明示した指示の範囲でだけ実行します。退役済みの系列への `build cleanup`／`content cleanup` と、同じ `retire` の再実行（続きの削除）は通常の清掃です。実行前に `--dry-run` で消える対象を確かめます。
+- **取消はありません。** 退役記録は `retirements-v1/<repositoryId>/<build|content>/<系列tokenを~で結んだ名前>.json`（LocalApplicationDataのArtifacts配下、専用ACL）の不変記録で、書き換えも削除もしません。同じ系列への2回目以降の指示は、最初の記録の `retiredAt`・`decision` を保ちます。退役した系列へは以後保存できません（Contentは新しい `contentSet` 名で続けます。Buildの実系列を退役させると、その `project/target/configuration` へは保存できなくなります）。
+- **退役は保護を外しません。** Buildは `build use` の有効な保護、Contentは保持中のPlayerが受け入れうるrevisionを残し、receiptの無い未完了のpublishも消しません。残りがあれば件数とIDを `held` に出して `retired-held`（exit 0）で終わり、保護が切れた後の再実行で残りを消して `retired` になります。このPCで取得中のBuild・`publish.lock` 保持中のrevisionは飛ばして `partial` にし、次の実行で消します。Buildの系列を判定できない未完了（予約だけのもの等）は消せないので、退役の完了判定には数えず、`held` にも混ぜず、結果の `unattributed.count` に件数だけ出します（`held` の件数と `retired` の表示が食い違いません）。
+- **手順は件数清掃と同じです。** 系列lockの下で退役記録を読み、無ければ書いてから（記録が確定するまで何も送りません）catalogと保護を取り直し、保護中でない成功Build・revisionを全て候補にして古い順に、件数清掃と同じ削除試行（削除意図 → DELETE → 送信観測 → 確認GET → 404 `NoSuchKey` で削除済み記録。Contentは `transport.json` の確定点つき）で消します。Nは使いません。DELETEの上限（Build 20・Content 2,048）、時間予算（600秒）、403・応答不明で止まれば `partial`（exit 2）で、同じコマンドの再実行が続きから確定させます。完了後の再実行は何も送りません。
+- **退役済みの系列では**、`build cleanup`／`content cleanup` も件数保持ではなく退役の選別で動きます。`build publish`（`build collect` 経由を含む）と `content collect` は送信・退避・storeへの書込みの前に、`build use` は保護記録を書く前に `series-retired` で止まり、同じ入力の既存成功（`existing`）も返しません。`inspect`／`fetch` の応答は変わらず、削除済みは `payload-deleted`、まだ消えていない保護中のBuild・revisionは取得できます。
+- **退役記録を確認できないとき**（形・値・ACL・reparse・読取の失敗、別系列の内容）は `retirement-unknown` です。retire・cleanupは何も送らずに `blocked` で止まり（件数保持の選別へ戻りません）、publish・collect・useも止まります。`retirements-v1` が無いことは「どの系列も退役していない」を表します。
+- 結果JSONは件数清掃と同じ固定fieldです（`mode` は件数保持が `retention`、退役と退役済みの系列が `retirement`）。退役の結果にはさらに `retirement`（`retiredAt`・`decision`）と、Buildだけ `unattributed`（`count`）を足し、`keepCount` はnullです。`status`／`reasonCode` は、全件削除済み `passed`／`retired`、保護中・未完了が残る `passed`／`retired-held`（exit 0）、未解決・残りあり `partial`（exit 2）、`blocked`／失敗（exit 1）です。`--dry-run` はlockを取らず、退役記録を書かず、記録にもnetworkにも触れずに、退役で行う選別を返します（退役記録がまだ無ければ `retirement` はnull）。
+- **消すのはR2のobjectだけです。** receipt・intent・`deletion/`・保護記録は削除済みの記録として残し、ArtifactsRootの `players/`・`content/`、統合Contentフォルダ、DIST cacheには触れません（それぞれを所有する層の作業です）。
+
+known limits: publishは系列lockを取らないので、退役記録の確定より前に始まった `build publish`／`collect`・`content collect` は止めません。成功すれば退役済み系列の成功記録になり、次の `retire`／`cleanup` で消えます（確定後に始まったものは止まります）。receiptの無いobject、別PCのpublish、receiptを失ったobjectは回収しません（R2の一覧は使いません）。退役記録はこのPCだけのもので、別PC・Cloudとは共有しません。退役の取消、ローカル記録の圧縮、退役した系列のArtifactsRoot・統合フォルダ・DIST cacheの片付けは後続の作業です。
+
+非秘密の合成receiptと注入した時計・transport・予算・上限による全件offline検証は次のコマンドです。並行は別processをsignalで同期し、時間待機を使いません。
+
+```powershell
+pwsh tools/Artifacts/tests/SeriesRetirement.Tests.ps1 -Case '*' -ResultPath <result-json-path>
 ```
 
 ### Evidenceの責務とoffline検証

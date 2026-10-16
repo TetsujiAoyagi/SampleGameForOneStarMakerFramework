@@ -341,7 +341,7 @@ foreach($caseName in $selected){
                 Assert ((Get-CleanCount $f 'delete') -eq (Get-CleanCount $f 'delete' "development/content/v1/$repo/$set/$tgt/$($revs[10])/")) 'DELETE outside the candidate'
                 Assert ((Get-Tree $f.Owned[1] @('*\deletion\*','*cleanup.lock')) -ceq $layers.contents -and (Get-Tree $f.Builds) -ceq $layers.builds -and (Get-Tree $f.ArtifactsRoot) -ceq $layers.artifacts) 'local records or other layers changed'
                 $names=@($x.PSObject.Properties.Name|Sort-Object) -join ','
-                Assert ($names -ceq 'candidates,deleted,deleting,excessCount,held,keepCount,outcomes,protected,reasonCode,remaining,requests,retained,seriesId,status') "result fields: $names"
+                Assert ($names -ceq 'candidates,deleted,deleting,excessCount,held,keepCount,mode,outcomes,protected,reasonCode,remaining,requests,retained,seriesId,status') "result fields: $names"
                 Assert (-not (Get-PublicLeak $x $f)) 'result leaked path or endpoint'
             }
             # AC10(a): transport.jsonのDELETEが検証済み2xxでなければ未解決で止め、後続を処理しない。次回はGETから。

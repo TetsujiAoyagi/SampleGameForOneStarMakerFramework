@@ -9,6 +9,7 @@ Import-Module (Join-Path $PSScriptRoot 'BuildStore.psm1')
 Import-Module (Join-Path $PSScriptRoot 'BuildStage.psm1')
 Import-Module (Join-Path $PSScriptRoot 'BuildProtection.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ArtifactAcl.psm1')
+Import-Module (Join-Path $PSScriptRoot 'SeriesRetirementStore.psm1')
 Import-Module (Join-Path $PSScriptRoot 'Credentials/CredentialStore.psm1')
 # 注入点はoffline検証専用。公開CLIから時計・通信・上限・失敗境界を差し替えさせない。
 # 通常操作では既存の資格情報generation固定と、期限付きのTransport/読戻しを使う。
@@ -75,6 +76,13 @@ function Invoke-BuildNetwork([string]$Generation,[hashtable]$Request){
     if($script:NetworkHook){return & $script:NetworkHook $Generation $Request}
     return Invoke-ArtifactNetwork $Generation $Request
 }
+# 退役した系列（退役記録がある系列）へは保存も保護もしない。記録を確認できなければ'retirement-unknown'で止める
+# （読めない記録を「退役していない」と扱うと退役済み系列へpublishできてしまう）。publish・collectの確認は
+# 送信・書込みの前の1回だけで、その時点で退役記録が無かったpublishは止めない。publishは系列lockを取らないので、
+# 退役の確定と並行したpublishは成功しうる。成功すれば退役済み系列の成功記録になり、次の退役・cleanupで消える。
+function Assert-BuildSeriesActive([string]$RepositoryId,[string]$Project,[string]$Target,[string]$Configuration){
+    if((Read-SeriesRetirement 'build' $RepositoryId @($Project,$Target,$Configuration)).State -cne 'none'){throw 'series-retired'}
+}
 function Invoke-BuildReadback([string]$Operation,$Config,[string]$Generation,[string]$Key,[long]$Bytes,[string]$Hash,[Diagnostics.Stopwatch]$Timer){
     if($script:ReadbackHook){return & $script:ReadbackHook $Operation $Config $Generation $Key $Bytes $Hash}
     return Invoke-ArtifactReadback $Operation $Config $Generation $Key $Bytes $Hash $Timer
@@ -91,6 +99,7 @@ function Invoke-BuildPublish([string]$ConfigPath,[string]$SelectionPath){
         $selection=Read-BuildSelection $SelectionPath
         $r.buildId=$selection.buildId
         $null=Get-BuildSeries $config.Data.repositoryId $selection.project $selection.target $selection.configuration
+        Assert-BuildSeriesActive $config.Data.repositoryId $selection.project $selection.target $selection.configuration
         Assert-BuildInventory $selection
         # IDの予約はnetwork前に行う。同一IDの再試行・競合は送信を始める前に拒否する。
         $dir=Get-BuildDirectory $config.Data.repositoryId $selection.buildId $true
@@ -136,7 +145,7 @@ function Invoke-BuildPublish([string]$ConfigPath,[string]$SelectionPath){
         # 例外本文にはpathや通信の内部情報が入りうるため、公開reasonは許可語だけ。
         # 未分類はunconfirmedに留める。rename後の応答喪失はinspectで回復し、再PUTしない。
         $code=$_.Exception.Message
-        if($code -cin @('already-exists','invalid-selection','invalid-source','snapshot-conflict','size-limit','put-unconfirmed','readback-unconfirmed','receipt-missing','receipt-invalid','invalid-build-config')){$r.reasonCode=$code}
+        if($code -cin @('already-exists','invalid-selection','invalid-source','snapshot-conflict','size-limit','put-unconfirmed','readback-unconfirmed','receipt-missing','receipt-invalid','invalid-build-config','series-retired','retirement-unknown')){$r.reasonCode=$code}
         if($code -cin @('after-rename-unconfirmed')){$r.reasonCode='commit-unconfirmed'}
     }finally{if($packageLock){$packageLock.Dispose()};if($locks){foreach($handle in $locks){$handle.Dispose()}}}
     return [pscustomobject]$r
@@ -190,6 +199,8 @@ function Invoke-BuildUse([string]$ConfigPath,[string]$BuildId,[string]$Consumer,
         try{$record=Read-BuildSuccessRecord $config $BuildId}catch{throw 'build-not-retainable'}
         try{$lock=Enter-BuildSeriesLock $repo $record.Data.project $record.Data.target $record.Data.configuration}catch{if($_.Exception.Message -ceq 'lock-busy'){throw 'cleanup-in-progress'};throw}
         try{$record=Read-BuildSuccessRecord $config $BuildId;$state=Read-BuildDeletionState $repo $BuildId}catch{throw 'build-not-retainable'}
+        # 退役はretireが系列lockの下で確定させるので、同じlockの下で確かめる（間に確定した退役を見落とさない）。
+        Assert-BuildSeriesActive $repo $record.Data.project $record.Data.target $record.Data.configuration
         if($state.State -cne 'none'){throw 'build-not-retainable'}
         $id=[Guid]::NewGuid().ToString('N');$now=(& $script:Clock).ToUniversalTime()
         $use=[pscustomobject][ordered]@{schemaVersion=[long]1;buildId=$BuildId;id=$id;owner=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value;consumer=$Consumer;reason=$Reason;createdAt=$now.ToString('o');until=$Until}
@@ -204,7 +215,7 @@ function Invoke-BuildUse([string]$ConfigPath,[string]$BuildId,[string]$Consumer,
     }catch{
         if($script:FailureHook){& $script:FailureHook $_}
         $code=$_.Exception.Message
-        return [pscustomobject]@{status='failed';reasonCode=if($code -cin @('invalid-use','build-not-retainable','cleanup-in-progress','invalid-build-config')){$code}else{'unconfirmed'}}
+        return [pscustomobject]@{status='failed';reasonCode=if($code -cin @('invalid-use','build-not-retainable','cleanup-in-progress','invalid-build-config','series-retired','retirement-unknown')){$code}else{'unconfirmed'}}
     }finally{if($lock){$lock.Dispose()}}
 }
 # 保護を外す。既存のuse記録は書き換えず、release記録を追記する。release済みなら何もしない。
@@ -287,6 +298,8 @@ function Invoke-BuildCollect([string]$ConfigPath,[string]$Source,[string]$Artifa
         $manifest=ConvertFrom-BuildTransportManifest (Read-BuildStageTransport $receipt.transportPath) $receipt
         $series=Get-BuildCollectSeries $receipt
         $null=Get-BuildSeries $config.Data.repositoryId $series.project $series.target $series.configuration
+        # 退避（ArtifactsRootへの書込み）と既存成功の応答より前に確かめる。退役済みの系列ではexistingも返さない。
+        Assert-BuildSeriesActive $config.Data.repositoryId $series.project $series.target $series.configuration
         $files=@($inventory|Where-Object {$_ -cne 'build-receipt.json'})
         # 上限は退避先に置く予定の集合（receipt除外・build-info追加）で、hash計算やcopyの前に見る。
         $sizes=@($files|ForEach-Object {[pscustomobject]@{path=$_;bytes=[IO.FileInfo]::new([OneStarMaker.Artifacts.Packaging.PackagePolicy]::Under($source,$_)).Length}})
@@ -327,7 +340,7 @@ function Invoke-BuildCollect([string]$ConfigPath,[string]$Source,[string]$Artifa
         if($script:FailureHook){& $script:FailureHook $_}
         # 例外本文はpathを含みうるため、公開reasonは許可語だけにする。
         $code=$_.Exception.Message
-        if($code -cin @('artifacts-root-not-configured','invalid-artifacts-root','invalid-source','invalid-build-config','invalid-build-identity','invalid-player-receipt','transport-mismatch','content-mismatch','unsupported-series','size-limit','stage-conflict','stage-hash-mismatch','publish-unresolved','receipt-conflict','receipt-invalid','snapshot-conflict','payload-deleted','delete-pending')){$r.reasonCode=$code}
+        if($code -cin @('artifacts-root-not-configured','invalid-artifacts-root','invalid-source','invalid-build-config','invalid-build-identity','invalid-player-receipt','transport-mismatch','content-mismatch','unsupported-series','size-limit','stage-conflict','stage-hash-mismatch','publish-unresolved','receipt-conflict','receipt-invalid','snapshot-conflict','payload-deleted','delete-pending','series-retired','retirement-unknown')){$r.reasonCode=$code}
         # 削除状態に関わる失敗も、確認に使ったlockを保持したまま呼出側へ渡す。
         if($hold.Access -and $Emit){$out=[pscustomobject]$r;& $Emit $out;$emitted=$true}
     }finally{if($hold.Access){$hold.Access.Dispose()}}
