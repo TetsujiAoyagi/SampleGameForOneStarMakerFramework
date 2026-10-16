@@ -3,18 +3,20 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `B`（Phase A revision 3 を 2026-10-16 に A3 で凍結。凍結内容は §2〜§5。設計判断を変えるときは Phase A を新しい revision として再開する。revision 2 以前の記録は §5.1・§5.2）
+- status: `C`（発見 C 待ち。Phase B は 2026-10-16 に完了、結果は §6。Phase A revision 3 を 2026-10-16 に A3 で凍結。凍結内容は §2〜§5。設計判断を変えるときは Phase A を新しい revision として再開する。revision 2 以前の記録は §5.1・§5.2）
 - branch: `claude/evidence-local-stage`（PR の base は `develop`）
 - implementation base commit: `6a51d2fefc9cf6d09d2a74a1ec1c42784e0e4524`（`origin/develop`、PR #127 マージ後）
-- implementation head commit: 未固定
+- implementation head commit: 未固定（B 完了 head は `748df898d6aad6dbfb36f735eacf11de32c2b22e`。GO 候補で固定する）
 - risk: `high`（Evidence catalog の artifact state と cleanup の fail-closed 契約に触れる。加えて `osm-workflow` の Phase 境界・push・head 固定の常時規則を書き換える。revision 3 で network 経路と `put-pending` の回復には触れなくなった）
 - owner: OSM maintainers
 - created: 2026-10-16
 - expires: 2026-11-16 または置換 revision
 - harvest to: 操作と状態遷移を `tools/Artifacts/README.md`（Evidence の節と「エージェント操作の事前承認」）へ、Phase 規則の変更は `.agents/skills/osm-workflow/` の本文そのもの（本スライスの実装対象）へ。`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 C（別host / Cloud）に「ローカル固定は完了。同じ artifact の R2 昇格と回復契約は後続スライス `Evidence 昇格と Cloud 配布` の入力（§5.2）」を追記する。
 - Phase A snapshot の取得案内・状態: 未保存（tracked HANDOFF の commit `536edc5` が凍結対象版。Artifact Storage への保存は行っていない。C / C' へ渡す時点で、所見を除いた snapshot を `evidence stage` が実装済みならそれで、未実装なら従来の publish で固定する）
-- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成（未到達 Phase）
-- 引継ぎ票: 次の Phase は **B（実装）**、役割は実装担当、作業は §4 の順序で §2 の受け入れ条件 AC1〜AC11 を満たす実装・テスト追加・文書変更。入力は凍結した Phase A revision 3（凍結対象版の内容 sha256 `b50566c9d42a0bca66083609784e97d950baf14eb6bf564eaaf3647db55be29b`、LF 正規化した git blob 内容、commit `536edc5`）。凍結の記録はこの HANDOFF の次の commit。開始時に自分の worktree の HEAD、本 §0、凍結 commit の §1〜§5 と作業ツリーの §1〜§5 の同一性を照合し、食い違えば始めない。必要な権限: ローカルの PowerShell 7 と git のみ（Unity、sandbox 外実行、資格情報、network は不要）。**実ストアの catalog・transfers・資格情報は読まず、編集もしない。登録済み runtime の切替（`schedule-install`）も行わない。** B の出口で `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` を実行し、§5 の起点 filter と AC8 の grep を通し、実装結果（§6）を書き、引継ぎ票を発見 C 向けに更新して commit する。push はしない（公開点は §2 D6-3。本スライス自身の規則が未マージでも、同一 PC の発見 C はローカルの SHA で引き継ぐ）。判定 C の実行、C' の起動、判定 C の照合 script は担わない。停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に該当したら実装を止めて判断を返す。引き渡さないもの: なし（C' 用の blind bundle は未生成）。
+- Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と commit `748df89` に記録。snapshot は C / C' へ渡す時点で作る）
+- evidence bundle / C' blind bundle の取得案内・状態: 未生成（未到達 Phase）
+- 引継ぎ票: 次の Phase は **発見 C（欠陥発見レビュー）**、役割はレビュー担当。動作確認は対象なし（§5 の検証経路に操作・実行時・目視の条件が無い）。作業は implementation base `6a51d2fefc9cf6d09d2a74a1ec1c42784e0e4524` から B 完了 head `748df898d6aad6dbfb36f735eacf11de32c2b22e` までの差分を、§2〜§5（凍結 revision 3）と §6 の「HANDOFF との差」1〜8 に照らして構造・契約・凍結済み失敗経路の順に見ること。入力は commit で固定済みで、stage snapshot は使っていない。開始時に自分の worktree の HEAD（固定 SHA からの detached worktree でよい）をこの SHA と照合し、作業ツリーが dirty なら始めない。origin とは照合しない（同一 PC、未 push）。必要な権限: ローカルの PowerShell 7 と git、`EvidenceCleanup.Tests.ps1` 用に PATH 上の `rg`。Unity・sandbox 外実行・資格情報・network は不要。実ストアの catalog・transfers・資格情報は読まず、`schedule-install` も行わない。起点 filter は §5。GO 判定、判定 C の実行、C' の起動は担わない。引き渡さないもの: なし。push はしない（公開点は §2 D6-3）。
+- （旧）引継ぎ票（A3 → B。記録として残す）: 次の Phase は **B（実装）**、役割は実装担当、作業は §4 の順序で §2 の受け入れ条件 AC1〜AC11 を満たす実装・テスト追加・文書変更。入力は凍結した Phase A revision 3（凍結対象版の内容 sha256 `b50566c9d42a0bca66083609784e97d950baf14eb6bf564eaaf3647db55be29b`、LF 正規化した git blob 内容、commit `536edc5`）。凍結の記録はこの HANDOFF の次の commit。開始時に自分の worktree の HEAD、本 §0、凍結 commit の §1〜§5 と作業ツリーの §1〜§5 の同一性を照合し、食い違えば始めない。必要な権限: ローカルの PowerShell 7 と git のみ（Unity、sandbox 外実行、資格情報、network は不要）。**実ストアの catalog・transfers・資格情報は読まず、編集もしない。登録済み runtime の切替（`schedule-install`）も行わない。** B の出口で `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` を実行し、§5 の起点 filter と AC8 の grep を通し、実装結果（§6）を書き、引継ぎ票を発見 C 向けに更新して commit する。push はしない（公開点は §2 D6-3。本スライス自身の規則が未マージでも、同一 PC の発見 C はローカルの SHA で引き継ぐ）。判定 C の実行、C' の起動、判定 C の照合 script は担わない。停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に該当したら実装を止めて判断を返す。引き渡さないもの: なし（C' 用の blind bundle は未生成）。
 - （旧）引継ぎ票（revision 3 の確認。記録として残す）: 次は owner による revision 3 の確認と凍結。owner は 2026-10-16 に (g)(h) の反映を含む revision 3 を確認し、凍結を指示した。
 - （旧）引継ぎ票（revision 2。記録として残す）: 次は owner による revision 2 の確認と凍結。revision 2 は commit `eee62d78`（内容 sha256 `28a35753b88eec4b8b5980412bf48aba07fc27fc569e175f797a76680999b13f`）。追加レビュー ADD-01 を受けて凍結せず、revision 3 へ切り直した。
 - （旧）引継ぎ票（A2 → A3。記録として残す）: 次の Phase は A3（統合と凍結、owner）。入力は §5.1 の A2 結果と主担当の採否案。owner が 6 点を裁定し、主担当が revision 2 を統合する。
@@ -252,11 +254,21 @@
 
 ## 6. Phase B 実装結果
 
-- 実装:
-- HANDOFF との差:
-- 未実行:
-- implementation head commit:
-- Phase B 担当・モデル・ベンダー:
+- 実装: §4 の (1)〜(10) を順に実装した。`EvidenceStateStore` に state `staged`・任意 field `origin`・stage 由来 `deleted` の receipt 免除。`EvidenceRetentionPolicy` は `staged` を `ready` と同じ経路で判定し、未送信でない `staged`（`putIntent`・receipt あり、`origin` が `stage` でない）は `unknown-state`。staging の dormant 判定と cleanup の staging 除外に `staged` を追加。`EvidenceCleanup` に `Assert-EvidenceTransitionSafe -NoNetwork`、`staged` の満了削除 `Invoke-EvidenceLocalDeleteGuarded`（確定点は `deleted` の永続化）、`deleted` かつ `origin='stage'` の copy 欠落を進捗として外す preflight。`EvidenceApplication` は publish の準備部を `Initialize-EvidencePackage` に抽出して `Invoke-EvidenceStage` と共用し、送信部は動かしていない。fetch の local 分岐、inspect の `locality`、use の `staged` 受付。CLI `evidence stage`。README（ローカル固定の節、changes.patch の手順、事前承認、導入手順、7 日清掃と欠落規則の追記）。`osm-workflow` 4 文書の D6-1〜7（固定規則は 3 箇所に同一文言）。テスト追加: ArtifactEvidence 6 件（AC1・AC2・AC3・AC7・AC11・catalog 読戻し）、EvidenceRetention 4 件、EvidenceCleanup 5 件（AC4・AC5 の 2 停止点・ZIP 欠落の拒否維持・AC10）。fixture 支援に資格情報読取りの計数と、transport と資格情報読取りを致命化した子 process fetch を追加した。
+- HANDOFF との差（B 適応。設計判断の変更なし）:
+  1. publish は `origin` を書かない（D5 の `origin='publish'` は「`origin` 無し = publish」の読取り規則で満たす）。publish だけの catalog を旧 runtime の日次 job が読めなくなるのを避けるため。`origin` を書くのは stage だけ。
+  2. `Assert-EvidenceOwnedCopy` は path を `-AllowMissing` で解決し、登録済み copy の欠落を一般の path エラーではなく `changed-copy` として投げる。AC2 の前提（ZIP 欠落は既存 preflight の `changed-copy`）が実コードでは成り立っていなかったため。publish・cleanup の出力 reasonCode は従来どおり `unconfirmed` のまま。fetch は `changed-copy`・`unresolved-put`・`unresolved-delete` を出力に写すようにした（remote fetch でもこれらは従来 `unconfirmed` だった。失敗であることは不変）。I4 の観点で発見 C の確認対象。
+  3. fetch は preflight の形を選ぶため、guard 内で同期前の catalog を読んで対象 artifact が `staged` かを判定する。見つからない・`staged` でない場合は従来の preflight。
+  4. AC5 (b) の停止点は、`deleted` 永続化直後の fault hook で止めた後に owned copy を 1 件手で削除して再現した（`Remove-EvidenceOwnedCopies` には hook を入れていない。ディスク上の状態は同じ）。
+  5. README の changes.patch 手順は、一時 index へ `git add -A` する前に `git read-tree <base>` で初期化する（追跡済みかつ ignore 対象の file を削除と誤らないため）。凍結した D6-4 の手順の範囲内の具体化として扱った。
+  6. stage の成功時は publish と同様に staging を採用済み（adopted）にする。7 日清掃からの除外は D4 の述語追加と二重になる。stage の出力に local path は含めない。
+  7. `SKILL.md` の見出し「PR公開後の差し戻しとGit履歴」を「公開点とGit履歴」に改名した（他文書からのリンク無しを確認）。状態「ローカル固定済み（未昇格）」はテンプレートに加え、同じ状態一覧を持つ `phases-and-handoff.md` と `review-evidence.md` にも加えた。
+  8. 規模: `EvidenceApplication.psm1` 141 → 200 行（+42%。§3 の見積り約 185）。準備部の抽出と失敗時の解放（`Clear-EvidencePackageContext`）の分。50% 未満。他は §3 の見積りどおり（Cleanup 335 → 369、StateStore 136 → 144、RetentionPolicy 60 → 68、CLI 175 → 177、README 379 → 415）。
+- B で実行した確認（いずれも commit `748df89` と同じ作業ツリー。rg を PATH に通して実行）: `ArtifactEvidence` 25/25、`EvidenceRetention` 20/20、`EvidenceCleanup` 45/45、`EvidenceSchedule` 78/78、`EvidenceReset` 31/31、`StoreConsolidation` 20/20、`StoreConsolidationPlan` 24/24、すべて failed 0。変更前の base でも `ArtifactEvidence` 19/19、`EvidenceRetention` 16/16、`EvidenceCleanup` 40/40 を確認した（AC6 の既存ケースは無変更で通過）。新規ケースの検出力は、`staged` の staging 除外と stage 由来 `deleted` の欠落許容を一時的に外して該当ケースが落ちることで確かめた（確認後に戻した）。`pwsh tools/contract-audit.ps1` errors=0、`pwsh tools/docs-audit.ps1` errors=0。AC8 の grep: 旧文言 4 種は `.agents/skills/osm-workflow/` に 0 件。固定規則は 3 文書で同一文言 3 件。
+- 追加で `tools/Workflow/tests/TaskLifecycle.Tests.ps1` 23/23 failed 0。
+- 未実行: 判定必須のうち `tools/Workflow/tests` の TaskLifecycle 以外（`StoreContext.Tests.ps1` を含む）と、`tools/Artifacts/tests` の Evidence 系・StoreConsolidation 系以外の suite（判定 C の範囲）。Unity・Editor のコンパイル確認は対象外（Unity 側の変更なし）。`schedule-install` と実ストアでの `evidence stage` は実行していない（README の導入手順を書いただけ）。
+- B 完了 head（発見 C の入力）: `748df898d6aad6dbfb36f735eacf11de32c2b22e`。implementation head は GO 候補で固定する（未固定）。
+- Phase B 担当・モデル・ベンダー: Claude（Opus 系、Anthropic）。
 
 ## 7. Phase C
 
