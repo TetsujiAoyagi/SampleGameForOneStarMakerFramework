@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（revision 3。追加レビュー ADD-01（§5.2）を受け、R2 への昇格を後続スライスへ移送し、ローカル固定と D6 のワークフロー規則に絞った。revision 2 の記録は §5.1・§5.2 に残す。凍結は owner の本文確認後。設計判断は凍結前）
+- status: `B`（Phase A revision 3 を 2026-10-16 に A3 で凍結。凍結内容は §2〜§5。設計判断を変えるときは Phase A を新しい revision として再開する。revision 2 以前の記録は §5.1・§5.2）
 - branch: `claude/evidence-local-stage`（PR の base は `develop`）
 - implementation base commit: `6a51d2fefc9cf6d09d2a74a1ec1c42784e0e4524`（`origin/develop`、PR #127 マージ後）
 - implementation head commit: 未固定
@@ -12,9 +12,10 @@
 - created: 2026-10-16
 - expires: 2026-11-16 または置換 revision
 - harvest to: 操作と状態遷移を `tools/Artifacts/README.md`（Evidence の節と「エージェント操作の事前承認」）へ、Phase 規則の変更は `.agents/skills/osm-workflow/` の本文そのもの（本スライスの実装対象）へ。`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 C（別host / Cloud）に「ローカル固定は完了。同じ artifact の R2 昇格と回復契約は後続スライス `Evidence 昇格と Cloud 配布` の入力（§5.2）」を追記する。
-- Phase A snapshot の取得案内・状態: 未保存（本 HANDOFF の commit を凍結対象版とする。A3 で内容 sha256 を引継ぎ票に書く）
+- Phase A snapshot の取得案内・状態: 未保存（tracked HANDOFF の commit `536edc5` が凍結対象版。Artifact Storage への保存は行っていない。C / C' へ渡す時点で、所見を除いた snapshot を `evidence stage` が実装済みならそれで、未実装なら従来の publish で固定する）
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成（未到達 Phase）
-- 引継ぎ票: 次は **owner による revision 3 の確認と凍結**。入力は本 HANDOFF の §2〜§5（revision 3）。owner が確認したら、主担当が凍結 commit と内容 sha256 をここに書き、引継ぎ票を Phase B 向けに書き換える。push はしない（公開点は §2 D6-3）。引き渡さないもの: なし。
+- 引継ぎ票: 次の Phase は **B（実装）**、役割は実装担当、作業は §4 の順序で §2 の受け入れ条件 AC1〜AC11 を満たす実装・テスト追加・文書変更。入力は凍結した Phase A revision 3（凍結対象版の内容 sha256 `b50566c9d42a0bca66083609784e97d950baf14eb6bf564eaaf3647db55be29b`、LF 正規化した git blob 内容、commit `536edc5`）。凍結の記録はこの HANDOFF の次の commit。開始時に自分の worktree の HEAD、本 §0、凍結 commit の §1〜§5 と作業ツリーの §1〜§5 の同一性を照合し、食い違えば始めない。必要な権限: ローカルの PowerShell 7 と git のみ（Unity、sandbox 外実行、資格情報、network は不要）。**実ストアの catalog・transfers・資格情報は読まず、編集もしない。登録済み runtime の切替（`schedule-install`）も行わない。** B の出口で `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` を実行し、§5 の起点 filter と AC8 の grep を通し、実装結果（§6）を書き、引継ぎ票を発見 C 向けに更新して commit する。push はしない（公開点は §2 D6-3。本スライス自身の規則が未マージでも、同一 PC の発見 C はローカルの SHA で引き継ぐ）。判定 C の実行、C' の起動、判定 C の照合 script は担わない。停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に該当したら実装を止めて判断を返す。引き渡さないもの: なし（C' 用の blind bundle は未生成）。
+- （旧）引継ぎ票（revision 3 の確認。記録として残す）: 次は owner による revision 3 の確認と凍結。owner は 2026-10-16 に (g)(h) の反映を含む revision 3 を確認し、凍結を指示した。
 - （旧）引継ぎ票（revision 2。記録として残す）: 次は owner による revision 2 の確認と凍結。revision 2 は commit `eee62d78`（内容 sha256 `28a35753b88eec4b8b5980412bf48aba07fc27fc569e175f797a76680999b13f`）。追加レビュー ADD-01 を受けて凍結せず、revision 3 へ切り直した。
 - （旧）引継ぎ票（A2 → A3。記録として残す）: 次の Phase は A3（統合と凍結、owner）。入力は §5.1 の A2 結果と主担当の採否案。owner が 6 点を裁定し、主担当が revision 2 を統合する。
 - （旧）引継ぎ票（A1 → A2。記録として残す）: 次の Phase は A2（独立レビュー）。入力は本 HANDOFF の commit `f0a64288`（A1 初稿、内容 sha256 `52c94278500ab3188ec8f853fe5c9fb97c3d16b4df86278d8978c89660a19eb4`）。観点は §5 の A2 欄。
@@ -34,7 +35,7 @@
   - Cloud 環境には通常 Unity が無い（2026-10-16 owner）。Cloud が Phase B の修正ループに入ることは例外として扱う。
 - 対象外: 同じ artifact を同じ bytes で R2 へ昇格する経路と、その PUT 応答不明・GET 404・再送・清掃の回復契約（後続スライス `Evidence 昇格と Cloud 配布`。§5.2）。Cloud・別 PC から R2 を fetch する経路（program §4 C）。`ready` artifact のローカル copy からの network 無し fetch。Harness の `external-current-v1` への全スライス移行。既存履歴の rebase。git 管理外のローカル運用メモ（手元層）の更新は owner が行う。Unity 側の変更なし。
 
-## 2. 意思決定と受け入れ境界（revision 3。昇格を後続スライスへ移送し、ローカル固定と D6 のワークフロー規則に絞った。owner の凍結確認待ち）
+## 2. 意思決定と受け入れ境界（revision 3。昇格を後続スライスへ移送し、ローカル固定と D6 のワークフロー規則に絞った。2026-10-16 に A3 で凍結済み）
 
 - このスライスが答える問い: 「同一 PC の Agent 間の固定入力を、R2 と git push を使わずに内容 hash で固定して受け渡し、それを前提に push と commit の規則を公開点だけに絞っても、C / C' の head 固定と盲検の契約を保てるか」。
 - A0 で owner が固定した前提: ツール変更とワークフロー規則変更は同じスライスで扱う（2026-10-16）。R2 への昇格は、Cloud から R2 を取得する経路（program §4 C）が未成立で今は消費者が居ないため、追加レビュー ADD-01（§5.2）を受けて後続スライスへ移送した（2026-10-16 owner）。
@@ -127,6 +128,16 @@
 - Phase B から Phase A へ差し戻す条件: §3 に書いた 3 点を超える catalog schema の変更、`EvidenceSchedule`・transport・`Resolve-EvidencePutGuarded` の変更、`PackageIO` の manifest 形式の変更、Workflow の終了意味の変更が必要になったとき。D6 の文言が凍結済みの他規則（C' の盲検、head 固定）と矛盾し、本文の読み替えで解消できないとき。
 - 対象外を維持する方法: stage と fetch の local 分岐の経路に `Invoke-ArtifactNetwork` と `Get-CredentialStatus` の呼び出しを置かない（AC1・AC2・AC3 の記録 0 件で確認）。`staged` から `put-pending` への遷移を書くコードを置かない（AC7）。Cloud からの fetch 経路と昇格経路は作らない。
 
+## 4.1 Phase B 開始手順（実装担当はこの順で進める）
+
+1. 新しい session で始める。`claude/evidence-local-stage` の worktree を開く（同じ worktree か、ローカルブランチから作った worktree。origin は使わない）。作業ツリーが clean であることを確認する。
+2. §0 の引継ぎ票の凍結 commit `536edc5` と内容 sha256 を、`git show 536edc5:docs/handoff/ARTIFACT_EVIDENCE_LOCAL_STAGE.md | sha256sum` で照合する。作業ツリーの §1〜§5 が凍結 commit と同一であることも確認する（§0・§6 以降の記録更新は差があってよい）。食い違えば始めない。
+3. `AGENTS.md` と `.agents/skills/osm-workflow/SKILL.md` を読む。本 HANDOFF の §2〜§5 を正とし、書かれていない設計文書を読み込んで再設計しない。
+4. `pwsh tools/workflow-task.ps1 start -Task evidence-local-stage` で task を開始する（Workflow の記録だけで、実ストアの Evidence には触れない）。
+5. §4 の順序 (1)〜(10) で実装する。各段で §5 の起点 filter を通す。既存 suite の無変更通過（AC6）を先に固定してから新しい経路を足す。
+6. §2 の D6 は `.agents/skills/osm-workflow/` の 4 文書を直接書き換える。固定規則（D6-4）は 3 箇所に同じ文言を置く。AC8 の grep で旧文言が残らないことを確認する。
+7. 出口: `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` を実行し、§6 に実装結果（HANDOFF との差、未実行、implementation head）を書き、引継ぎ票を発見 C 向けに更新して commit する。push はしない。判定 C、C'、照合 script、`schedule-install` は担わない。
+
 ## 5. テストとレビュー計画
 
 - 単体テスト: `staged` の保持判定と staging 除外述語（`EvidenceRetention.Tests.ps1`）、`Read-EvidenceTask` の `staged` と receipt 条件（`ArtifactEvidence.Tests.ps1`）。
@@ -141,7 +152,7 @@
 - 機械検査: `contract-audit`、`docs-audit`、`git diff --stat`、AC8 の grep。
 - A0/A1 主担当・モデル・ベンダー: Claude（この session）。
 - A2 独立レビュー: 実施済み。担当・モデル・入力版・結果は §5.1。revision 2 に対する追加レビューと切り直しの経緯は §5.2。
-- A3 統合担当・モデル・採否: 主担当（Claude）と owner。2026-10-16 に owner が §5.1 の 6 点を主担当案で裁定して revision 2 を統合し、同日、追加レビュー ADD-01 を受けて昇格を後続へ移送した revision 3 を切り直した。凍結は owner の確認後（凍結 commit と内容 sha256 は §0 引継ぎ票）。
+- A3 統合担当・モデル・採否: 主担当（Claude）と owner。2026-10-16 に owner が §5.1 の 6 点を主担当案で裁定して revision 2 を統合し、同日、追加レビュー ADD-01 を受けて昇格を後続へ移送した revision 3 を切り直した。owner は (g)(h) の反映後に revision 3 を確認し、2026-10-16 に凍結した。凍結対象版は commit `536edc5`、内容 sha256 は §0 引継ぎ票のとおり。
 - C' 用に予約した担当・モデル・ベンダー: Grok 系（cursor-agent）。A2 では未使用。
 - 独立性の強化条件を満たせない場合の理由: A2 の (b)(d) は A1 主担当と同じ Claude 系。初稿への anchoring は (d) に初稿を読ませないことで避けた。(e)(f) は所見込みの版を読んだ追加レビューで、独立レビューに数えない。
 
