@@ -99,7 +99,7 @@ git diff --cached --name-only --no-renames --diff-filter=d <base-sha>
 Remove-Item Env:GIT_INDEX_FILE
 ```
 
-patchには追跡済み・未追跡・削除・バイナリの変更が入ります（未追跡は追加、削除は削除、バイナリは `--binary` で復元できる形）。変更集合の範囲はcommitと同じで、`.gitignore` に該当する未追跡fileは `git add -A` が加えないため含みません。レビューに必要な生成物は、ignore対象のままにせずselectionの別fileとして明示します。selectionのrootには `base.txt`（base SHA）、`changes.patch`、`files/<path>` を置きます。`files/` に収録するのは、二つ目のコマンドが列挙するpatchの追加・変更対象の全fileです。削除はpatchだけに現れます。selectionの `base` はbase SHA、`head` はその時点のHEAD commitです。受け手はbase SHAのcheckoutへ `git apply --binary changes.patch` を適用した結果を `files/` と照合でき、送信元の可変な作業ツリーを読みません。判定CとC′の入力にはこの形を使わず、commitで固定します。
+patchには追跡済み・未追跡・削除・バイナリの変更が入ります（未追跡は追加、削除は削除、バイナリは `--binary` で復元できる形）。変更集合の範囲はcommitと同じで、`.gitignore` に該当する未追跡fileは `git add -A` が加えないため含みません。レビューに必要な生成物は、ignore対象のままにせずselectionの別fileとして明示します。selectionのrootには `base.txt`（base SHA）、`changes.patch`、`files/<path>` を置きます。`files/` に収録するのは、最後の `git diff --cached --name-only --no-renames --diff-filter=d` が列挙するpatchの追加・変更対象の全fileです（`git read-tree` と `git add -A` は何も列挙しません）。削除はpatchだけに現れます。selectionの `base` はbase SHA、`head` はその時点のHEAD commitです。受け手はbase SHAのcheckoutへ `git apply --binary changes.patch` を適用した結果を `files/` と照合でき、送信元の可変な作業ツリーを読みません。判定CとC′の入力にはこの形を使わず、commitで固定します。
 
 ## 終了・再開・利用中と清掃
 
