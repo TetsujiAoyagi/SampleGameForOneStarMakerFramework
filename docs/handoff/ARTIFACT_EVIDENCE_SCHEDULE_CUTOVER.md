@@ -5,10 +5,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `B`（Phase A revision 1 を 2026-10-16 に A3 で凍結。凍結内容は §2〜§5。設計判断を変えるときは Phase A を新しい revision として再開する）
+- status: `C`（発見 C 待ち。Phase B は 2026-10-16 に完了、結果は §6。動作確認は対象なし。Phase A revision 1 を 2026-10-16 に A3 で凍結。凍結内容は §2〜§5。設計判断を変えるときは Phase A を新しい revision として再開する）
 - branch: `claude/serene-varahamihira-2b2442`（PR の base は `develop`）
 - implementation base commit: `d911e4b4b662e66fd3fcc54f6b2586c381fabf4a`（`origin/develop`、PR #128 マージ後）
-- implementation head commit: 未固定（Phase B の出口で書く）
+- implementation head commit: `911addb5eb11c019e333244d1d721a1014a6d85d`（B 完了 head。HANDOFF の記録 commit は含めない）
 - risk: `low`（CLI の失敗表示の経路と README だけを変える。scheduler の登録・修復・削除の契約、runtime manifest、exit の意味、成功・pending の結果の形は変えない）
 - owner: OSM maintainers
 - created: 2026-10-16
@@ -18,7 +18,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成。
 - evidence bundle の取得案内・状態: 未生成。
 - C' blind bundle の取得案内・状態: 未生成。
-- 引継ぎ票: 次の Phase は **B（実装）**、役割は実装担当（Phase A と同じ session が続けてよい。規模が小さく、A2 を省いた経緯は §5）。凍結した Phase A は revision 1、凍結対象は §1〜§5 の本文（`## 1.` の行から `## 6.` の直前の行まで、UTF-8、LF）で、内容 sha256 は A3 凍結 commit の message に記録する。implementation base は `d911e4b4b662e66fd3fcc54f6b2586c381fabf4a`。作業は §4 の順序で、§3 の 3 file だけを変える。必要な権限: ローカルの PowerShell 7（Store 版でよい）と git。Unity・sandbox 外実行・資格情報・network・実ストアの catalog は不要。`schedule-install` を実ストアに対して実行しない。停止規則: §2。引き渡さないもの: なし。push は公開点（PR 作成）まで行わない。
+- 引継ぎ票: 次の Phase は **発見 C（欠陥発見レビュー）**、役割はレビュー担当（Phase B と異なるモデル、新規 session）。動作確認は対象なし（§5 の検証経路に操作・実行時・目視の条件が無い）。作業は implementation base `d911e4b4b662e66fd3fcc54f6b2586c381fabf4a` から B 完了 head `911addb5eb11c019e333244d1d721a1014a6d85d` までの差分を、§2〜§5（凍結 revision 1）と §6 の「HANDOFF との差」に照らして構造・契約・凍結済み失敗経路（I1〜I3、AC1〜AC6）の順に見ること。入力は commit で固定済みで、stage snapshot は使っていない。開始時に自分の worktree の HEAD（固定 SHA からの detached worktree でよい）をこの SHA と照合し、作業ツリーが dirty なら始めない。同一 PC ではローカルの SHA で照合する。必要な権限: ローカルの PowerShell 7（Store 版でよい）と git。判定 C の全 suite には 3 project の Release build と PATH 上の `rg` が要る。Unity・sandbox 外実行・資格情報・network は不要。実ストアの catalog・資格情報は読まず、`schedule-install` を実ストアに対して実行しない。起点 filter は §5。GO 判定、判定 C の実行、C' の起動は担わない。引き渡さないもの: なし。凍結した Phase A は revision 1（commit `c5077e3f`、内容 sha256 `958e5787f910b9bbbc76eca2fb7ce42a2c2b004755c96fb92b14e3d1e5615a5f`）。Workflow task は `evidence-schedule-cutover`（version 1、started）。
 
 ## 1. 目的と対象外
 
@@ -107,18 +107,19 @@
 
 ## 6. Phase B 実装結果
 
-- 実装: 未着手。
-- HANDOFF との差:
-- 未実行:
-- implementation head commit:
-- Phase B 担当・モデル・ベンダー:
+- 実装: §4 の順序どおり。(1) `pwsh tools/workflow-task.ps1 start -Task evidence-schedule-cutover`（version 1、`started`）。(2) `tools/artifacts.ps1`: try の先頭で `$publicFailures=@()`、`schedule-install` / `schedule-status` の分岐に入った後（`EvidenceApplication.psm1` の import 直後）で §2 の 9 件を代入、catch で `-cin` 一致なら `ConvertTo-Json -Compress` の `{"status":"failed","reasonCode":...}` を stdout へ。理由をコメントに残した。(3) `EvidenceSchedule.Tests.ps1`: helper `Invoke-ScheduleCli`（子 script の生成、hook の埋込み、install 用の入力 JSON、stdout と stderr の分離、`json` = stdout の `{` で始まる行）。`scheduler-missing-cli` を helper に載せ替え（検査内容は同じ）、`scheduler-cli-identity-status` / `scheduler-cli-identity-install` / `scheduler-cli-internal-hidden` を追加。(4) README「自動清掃」に「登録済みtaskの切替」の段落と code 一覧の段落を追加。`git diff --stat`（base..head）: `tools/Artifacts/README.md` +4、`tools/Artifacts/tests/EvidenceSchedule.Tests.ps1` +63/−18、`tools/artifacts.ps1` +10/−1。`EvidenceSchedule.psm1` に差分なし。
+- HANDOFF との差: (a) 子 pwsh の stdout/stderr 分離は `Start-Process` ではなく `& pwsh ... 2><file>` と `$LASTEXITCODE` で行った（§4 が許す 2 案の前者。`Start-Process -ArgumentList` は空白を含む path の引用が不確かなため）。(b) 子 pwsh の stderr には module import の警告（未承認の動詞）が混ざる。AC1・AC2 の「stderr に `Artifact operation failed.` が無い」は `-notmatch` で、stdout の JSON の一致は `{` で始まる行が 1 行だけでその行が完全一致、で検査した。(c) 新 case の有効性の確認として、`artifacts.ps1` を base の版へ一時的に戻して同じ 4 case を実行し、`scheduler-cli-identity-status` と `scheduler-cli-identity-install` が FAIL、`scheduler-cli-internal-hidden` と `scheduler-missing-cli` が PASS（旧挙動と同じ）になることを見た。その後 file を戻し、head の diff は上記のとおり。
+- 未実行: `tools/Artifacts/tests/*.Tests.ps1` の全体（`EvidenceSchedule.Tests.ps1` 以外。3 project の Release build と `rg` がこの worktree に無い。判定 C で実行する）。実 Task Scheduler・実 pwsh 更新の再現（§5 で求めない）。
+- B 出口の実行結果: `pwsh tools/Artifacts/tests/EvidenceSchedule.Tests.ps1`（全 case）: registered 81 / selected 81 / executed 81 / failed 0。`pwsh tools/contract-audit.ps1`: errors 0（検査1 の差分 0 file、検査8 not-applicable）。`pwsh tools/docs-audit.ps1`: errors 0、warnings 0。`tools/artifacts.ps1` と `EvidenceSchedule.Tests.ps1` の parse errors 0。
+- implementation head commit: `911addb5eb11c019e333244d1d721a1014a6d85d`。
+- Phase B 担当・モデル・ベンダー: Claude（Phase A と同じ session）。
 
 ### 動作確認
 
-- 対象 head:
-- 条件ごとの実行担当・環境・実行したコマンド:
-- 生の観測と保存先・状態:
-- 検証経路の期待と違う観測と、B への差し戻し:
+- 対象 head: `911addb5eb11c019e333244d1d721a1014a6d85d`。
+- 条件ごとの実行担当・環境・実行したコマンド: 対象なし。
+- 生の観測と保存先・状態: 対象なし。
+- 検証経路の期待と違う観測と、B への差し戻し: なし。
 - `未実施` の条件と理由・担当: 対象なし（§5 に操作・実行時・目視の条件が無い）。
 
 ## 7. Phase C
