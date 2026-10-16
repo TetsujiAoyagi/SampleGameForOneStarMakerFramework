@@ -81,7 +81,7 @@
   - **AC4**（I3, S2）: 時刻注入で task 終了 + 30 日の前日と当日を比較し、未送信の `staged` は前日 `retained`、当日 `expired` → 削除で ZIP と ownedCopies が消え、DELETE・GET 0 件、state `deleted`、その後も `Read-EvidenceTask` が通る。`staged` が参照する staging は 7 日経過後も `operation-pending` 相当で残る。dry-run は `staged` の field を変えない。
   - **AC5**（S2）: `staged` の満了削除を 1 file 削除後・catalog 更新前で中断してから再実行し、DELETE・GET 0 件で `deleted` になり、その後も `Read-EvidenceTask` が通る。正常な `staged` の ZIP 欠落は従来どおり `changed-copy` で拒否されたまま（削除途中の復旧で欠損拒否を一律に緩めない）。
   - **AC6**（I4）: 既存の `ArtifactEvidence` / `EvidenceCleanup` / `EvidenceRetention` suite が無変更で failed 0。`origin` 無しの既存 catalog を読める。`origin='publish'` の `put-pending` の回復は従来どおり。
-  - **AC7**（I5）: `staged` を source にした publish は別 artifactId の `origin='publish'` を作り、元の `staged` は不変。`staged` 自身への PUT 経路が無いことを fixture の transport 記録で確認する。
+  - **AC7**（I5）: `staged` を source にした publish（selection の `root` に stage の staging operation path を渡す。既存の source 候補ループは `task.staging` の `origin='storage-copy'` で path が一致する staging だけを候補にする）は別 artifactId の `origin='publish'` を作り、元の `staged` は不変。`staged` 自身への PUT 経路が無いことを fixture の transport 記録で確認する。
   - **AC8**（S3, I6）: D6 の 7 項目が本文に入り、grep で旧文言（「リモートの head を照合」「push して終える」「引継ぎ票と push」「push して到達可能に保つ」）が `.agents/skills/osm-workflow/` に残らない。固定規則の文言が 3 文書で一致し、判定 C・C' の commit 固定、同一 commit からの bundle 生成、C' の盲検、公開済み履歴の非書き換えの文言が残る。`docs-audit`・`contract-audit` errors=0。
   - **AC9**（D7）: README の事前承認節と Evidence の節に stage・fetch の local 分岐の操作、state `staged`、`locality`、保持・保護規則、導入手順、「昇格は後続」が書かれ、旧記述と矛盾しない。
   - **AC10**（I7）: `staged` に `use` → 保護付きで満了時刻を過ぎても `in-use`。`release` 後に `expired`。HANDOFF テンプレートと D6-1/5/7 の文言が実値の転記を禁じている。
@@ -219,7 +219,17 @@
 
 **revision 3 に残したもの:** D1〜D3・D5（stage、reference 不変、fetch の local 分岐、publish 不変）、`staged` のローカル保持・保護・清掃（D4）、network 無しの preflight、D6 の 7 項目（3 文書同義、判定 C 前の履歴整理、公開点、Cloud の assist 条件、取得案内の実値非転記）、導入手順。前回所見 R2-01（実値の非転記）と (e) の #17・#19〜#22 はここに含む。
 
-**整合の確認（主担当）:** revision 3 では `staged` から `put-pending` への遷移が無いため、`origin='stage'` の artifact は putIntent を持たず、ADD-01 の順序は構成できない（I5）。既存 publish の `put-pending` 回復は変更しない（I4）。(f) が求めた「統合後の反証レビュー 1 巡」は、`put-pending` を含まない状態遷移（未送信 `staged` → use / release → 満了 → ローカル削除、途中停止と再実行）に対して、凍結前に新規 session で 1 回行う。担当は A2 と同じく Grok 系を予約したまま選ぶ。
+**整合の確認（主担当）:** revision 3 では `staged` から `put-pending` への遷移が無いため、`origin='stage'` の artifact は putIntent を持たず、ADD-01 の順序は構成できない（I5）。既存 publish の `put-pending` 回復は変更しない（I4）。
+
+**(g) 統合後の反証レビュー 1 巡（2026-10-16、Codex CLI、GPT 系、新規 read-only session。入力は revision 3 の凍結コピー、commit `16509b46`、内容 sha256 `abc0ca2c441424097176a8e54f48be316f6986bda0972534abd8bc7ced66ccbb`。Grok 系は未使用）。** 原記録は git 管理外の `TestResults/a2-local-stage/`。結果と主担当の読み:
+
+- 課題 1 の状態遷移表（未送信 `staged` の生成と停止点、local fetch の停止、`use` 保護中、満了削除の 1 file 後停止と再実行、`staged` を source にした publish、既存 `put-pending` / `deleteIntent` 併存時の拒否、dry-run）は、revision 3 の D1〜D5 と I1〜I7・S1〜S3 の対応に矛盾を見つけなかった。
+- 課題 2: I2（local fetch の拒否と非 fallback）、I4（既存 publish 経路の不変）、I6（判定 C・C' の commit 固定と盲検）、D6（dirty な作業ツリーの誤認、snapshot と commit の対応、公開点による弱化）は**破れなかった**。
+- 担当は I1・I3・I5・I7 を「破れた」とし判定を「凍結不可」としたが、根拠は「現コードに `evidence stage` が無い」「`Read-EvidenceTask` が `staged` を拒否する」「`use` が `ready` だけ受理する」という、**revision 3 が実装対象として挙げている変更そのもの**である（§3 の `EvidenceStateStore.psm1`・`EvidenceApplication.psm1`・`tools/artifacts.ps1`、D4 の use 対応）。計画を現実装に対して評価した読み違いで、契約内の操作順序による反証ではない。主担当はこれを blocker にせず、「実装前提の確認」として §3・§4 に既に含まれていることを確認した。
+- 採用した補足 1 件: AC7 の「`staged` を source にした publish」は、既存の source 候補ループが `task.staging` の `origin='storage-copy'` で path が `selection.root` と一致する staging だけを候補にするため、selection の `root` に stage の staging operation path を渡す前提を AC7 に明記する（`EvidenceApplication.psm1` の `Invoke-EvidencePublish` 候補ループで確認）。
+- 再実行はしない。読み違いは prompt の枠組み（計画の反証）と担当の解釈（実装の監査）の差で、同じ重さの再実行は外部 CLI のコスト規律（空振りを同じ重さで反復しない）に反する。契約内の反証は I2・I4・I6・D6 の「破れなかった」と課題 1 の表で得た。
+
+凍結の可否は owner が判断する。主担当案は「凍結可。AC7 の補足だけを本文に反映」。
 
 ## 6. Phase B 実装結果
 
