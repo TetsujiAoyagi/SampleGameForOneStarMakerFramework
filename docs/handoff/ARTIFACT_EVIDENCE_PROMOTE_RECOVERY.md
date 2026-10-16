@@ -3,19 +3,26 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（A3 統合済み revision 3。revision 2 への再レビューの局所修正を §5.3 に記録。owner の本文確認による凍結待ち。A2 の結果は §5.1、外部レビューと統合の差分は §5.2）
+- status: `B`（Phase A revision 3 を 2026-10-17 に owner の本文確認で凍結。凍結内容は §2〜§5。§2・§5 の見出しや本文に残る「本文確認待ち」は凍結前の記述で、凍結版の内容そのもの。設計判断を変えるときは Phase A を新しい revision として再開する。A2 の結果は §5.1、外部レビューと統合の差分は §5.2・§5.3）
 - branch: `claude/evidence-promote-recovery`（PR の base は `develop`）
-- implementation base commit: `498d0da8f96ef324772d27596c464456f3fad370`（`origin/develop`、PR #130 マージ後。revision 2 の統合時に再確認し、変化なし。凍結時に確定する）
+- implementation base commit: `498d0da8f96ef324772d27596c464456f3fad370`（`origin/develop`、PR #130 マージ後。凍結時に確定）
 - implementation head commit: 未固定
 - risk: `high`（catalog の state 遷移、PUT 応答不明・削除の fail-closed 契約、保持 policy と削除経路の振り分けを同時に変える。同じ key への 2 回目の PUT を許す）
 - owner: OSM maintainers
 - created: 2026-10-17
 - expires: 2026-11-17 または置換 revision
 - harvest to: 操作・回復規則・残存リスク・導入手順を `tools/Artifacts/README.md`（冒頭の事前承認、「R2への昇格（evidence promote）」「終了・再開・利用中と清掃」「自動清掃」）へ。`.agents/skills/osm-workflow/references/review-evidence.md` の「保存先とリモートへの配布」の `failed` の扱い（本スライスの実装対象）。`docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 C に「回復と寿命は完了」と後続入力を記録する。
-- Phase A snapshot の取得案内・状態: 未保存（凍結時に、凍結 commit と内容 sha256 をここに書く。Git 上の commit で固定し、同一 PC の担当は commit から読む）
+- Phase A snapshot の取得案内・状態: 凍結対象版は commit `8929c6df8d3b5618b3300c26b35cf92a4d0ec9b2` の本 HANDOFF（内容 sha256 `d8866e6ada46a4490d5565cc44f7936c67d35316e9fa08c50121c1f50406174b`、LF 正規化した git blob 内容）。Git 上の commit で固定し、Artifact Storage には未保存（同一 PC の担当は commit から読む）
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成（未到達 Phase）
 - H1 / CURRENT: 採用しない（tracked HANDOFF。前スライスと同じ）
-- 引継ぎ票: 次は **owner による revision 3 の本文確認と凍結**。入力は本 HANDOFF の §2〜§5（revision 3）と §5.2・§5.3 の差分一覧。owner が確認したら、主担当が凍結 commit と内容 sha256 を上の Phase A snapshot 欄に書き、引継ぎ票を Phase B 向けに書き換える。push はしない（公開点は `osm-workflow` の「公開点とGit履歴」）。引き渡さないもの: なし。
+- 引継ぎ票: 次は **Phase B（実装）**。新しい session で、この欄だけを起点に始める。
+  - 開始時: `AGENTS.md` と `.agents/skills/osm-workflow/SKILL.md` を読む（Phase B の節と「公開点とGit履歴」）。branch `claude/evidence-promote-recovery` の HEAD がこの引継ぎ票を書いた commit（凍結記録の commit。`git log -1` の件名が「record Phase A freeze」で、その親が凍結対象版 `8929c6df`）であること、作業ツリーが clean であること（本スライス開始前からの未追跡の空 file `docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md` は除く）を確かめ、食い違えば始めない。`pwsh tools/workflow-task.ps1 start -Task evidence-promote-recovery` で task を開始する（既に開始済みなら `status` で確認）。
+  - 入力: 凍結版の §2〜§5 が正。§5.1〜§5.3 は経緯で、採用分は全て §2〜§5 に統合済み（§5 以前と食い違えば §2〜§5 に従い、判断が要れば止めて返す）。実装順序・変更してよい file・差し戻し条件は §3・§4、既存テストを変えてよい範囲は §2 AC4 の表だけ。
+  - 作業: §4 の順序で実装し、§2 の AC1〜AC11・AC13 を offline テスト（隔離 temp store・偽 transport・時刻注入）と文書で満たす。AC10 (c) の reasonCode と R6 の失敗した書込みの後の終点（AC6 (c)）は実測して §6 に記録する。
+  - B の出口: 関連 offline suite（`tools/Artifacts/tests/*.Tests.ps1` と `tools/Workflow/tests/*.Tests.ps1`。各 file を 1 process、`EvidenceCleanup.Tests.ps1` は `rg` を PATH に、非仮想化 host の pwsh で）、3 project の Release build、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、AC13 の旧文言 grep、AC4 の既存テストの diff 確認を実行し、§6 に実装・HANDOFF との差・未実行・implementation head を書いて commit する。引継ぎ票を次の担当（動作確認は `対象なし` なので発見 C）へ書き換える。
+  - 必要な権限: ファイル編集、pwsh の実行（Release build と offline テスト。sandbox 外が要る場合は承認を取る）。資格情報・network・実ストアは使わない。
+  - 停止規則と引き渡さないもの: AC12（実 R2）、`schedule install`、判定 C の照合 script、C' の起動は B の担当外（実行しない）。§4 の差し戻し条件に当たれば実装を止めて返す。push と PR 作成はしない（公開点は `osm-workflow`）。
+- （旧）引継ぎ票（A3 → 凍結。記録として残す）: 次は owner による revision 3 の本文確認と凍結。2026-10-17 に owner が「A3 凍結として Phase B を別セッションで」と指示した。
 - （旧）引継ぎ票（A2 → A3。記録として残す）: 次は A3。入力は §5.1 と A1 初稿（commit `bd7ec634`）。
 - （旧）引継ぎ票（A1 → A2。記録として残す）: 次は A2。入力は A1 初稿の commit `bd7ec634`（内容 sha256 は §5.1）。
 
