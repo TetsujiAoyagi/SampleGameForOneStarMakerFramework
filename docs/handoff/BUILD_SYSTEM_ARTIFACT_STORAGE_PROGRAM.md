@@ -111,6 +111,12 @@ Aの完了後の小さな追加として、[PR #121](https://github.com/TetsujiA
 - 試験範囲の不足: CLI経由のconfig失敗のstdout・stderr、fetch・use・releaseの `unknown-deployment`、guard非取得の直接観測。
 - `EvidenceCleanup.Tests.ps1` の1 caseは `rg` をPATHに要する（READMEに記載）。判定必須で全suiteを流す前に通す。
 
+Evidence清掃schedulerの登録済みtaskの切替は[PR #129](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/129)で扱った（判定C GO、最終C′（別ベンダー）PASS、2026-10-16）。`schedule install` / `schedule status` が `EvidenceSchedule.psm1` の固定code 9件（`scheduler-identity-mismatch` 等）でthrowしたとき、CLIはstdoutの `{"status":"failed","reasonCode":...}`（exit 1）で返す。allow-listはschedule分岐だけが設定し完全一致でだけ通すので、それ以外の例外は従来どおり `Artifact operation failed.` のみ。`install` は既存taskを直さない設計のままで、identityが変わる3条件（新headのinstall、Store版pwshの更新、config変更）と、ownerが旧taskを `Unregister-ScheduledTask` してから `install` する切替手順を[Artifacts README](../../tools/Artifacts/README.md)「自動清掃」に書いた。HANDOFFはharvestして削除した（全文は削除前のcommit）。後続への入力:
+
+- schedule分岐でもallow-list外のruntime系固定code（`runtime-binding-invalid`・`runtime-path-invalid`・`runtime-binary-mismatch`・`runtime-context-switch-rejected`・`runtime-credential-root-unavailable`・`evidence-deadline`）は伏せたまま。表示するかは「診断の改善」の入力。
+- CLI境界で実測したのは `scheduler-identity-mismatch` だけで、他の8 codeは同じ分岐を通る（C′の残存リスク）。
+- CLIからのtask削除はownerの操作のまま（所有スライス未定）。失敗した `install` は旧headの `runtime/<head>/` を残す（「診断の改善」）。
+
 ### B. 開発Buildの保存と件数管理
 
 単一Build publishは[PR #111](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/111)で実装し、offline 60caseと既存実Build 266fileのR2往復・全hash一致を確認、正式C/C′を完了した。現在の入口・成功確定・上限・限界は[Artifacts README](../../tools/Artifacts/README.md#開発build-1件の保存と取得)へ集約し、完了スライスHANDOFFはharvestした。利用中状態・実DELETEとN件清掃は下記のPR #119で接続した（R2上の系列全件一覧は後続のまま）。準備helper失敗による未記録・未送信private残置も有限清掃への入力とする。
