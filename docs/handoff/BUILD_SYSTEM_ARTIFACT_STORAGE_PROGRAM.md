@@ -170,6 +170,14 @@ Contentの件数保持の運用接続は[PR #123](https://github.com/TetsujiAoya
 
 目的はCloud Agent・別PCからのEvidence閲覧で、Evidenceを公開しない（2026-10-11 owner）。Buildの件数清掃（PR #119）からの入力: 別PC・Cloudと共有する利用中保護（R2上の保護記録）、Evidenceが参照するBuildの保護、Cloudに削除権を渡さないこと。論点はtokenの受け渡し方法。第一候補は、受け取る側の環境に読み取り専用・bucket限定のtokenを登録する方式。署名付きURLは、発行主体（誰が親鍵を持って発行するか）とURLを届ける経路が未解決。
 
+**ローカル固定は完了（PR #128、2026-10-16）。** 同一PCの担当間は `evidence stage`（state `staged`、R2・資格情報不使用）と fetch の local 分岐で固定入力を渡し、`osm-workflow` は公開点だけ push する規則になった。操作は `tools/Artifacts/README.md` の「ローカル固定」、規則は `osm-workflow` 本文を正とする。マージ後、共有storeで `evidence stage` を使い始める前に README の導入手順（`schedule status` → 新headで `schedule install`）を行う。経緯の全文は削除前のHANDOFF（`docs/handoff/ARTIFACT_EVIDENCE_LOCAL_STAGE.md`、commit `72a8b0c`）。後続スライス `Artifact Storage / Evidence 昇格と Cloud 配布`（本節と組でA1から）への入力:
+
+- 同じartifactを同じbytesでR2へ昇格する経路と、PUT応答不明・GET 404・再送・成功確定・清掃・終了の回復契約。HANDOFF revision 2 の D4 / D4' / I8 / S4 と、追加レビュー ADD-01（R2のGET 404は先行PUTの失敗確定ではなく、同key再送禁止の既存publish契約と衝突する）、前回所見 R2-02（昇格時のcatalog更新単位）。
+- fetch の local / remote の選択は preflight 前の catalog の読取りで決まる。昇格で同じ呼び出しの途中に `staged` が `ready` になる経路を足すときは、この選択が古いまま拒否にならないこと。`unknown-state` の検査は state が `staged` の間だけ働く。
+- `use` / `release` の preflight は network 形のまま（I1 の対象は stage と local fetch だけ）。README の事前承認の一文は `use` も network を使わないと読め、実装より広い。一文を stage・local fetch・release・満了清掃に絞るか、`use` に network 無しの preflight を加えるかを決める。
+- `changes.patch` は commit と同じ範囲で、`.gitignore` に該当する未追跡fileを含まない（凍結手順 `git add -A` のとおり）。含める必要があるかは未決（ownerは個別の裁定なしで現状のままマージを指示）。fileに改行を含むpathの列挙も未確認。
+- 満了削除後、採用済みstagingのentryが `staging-protected` のままcatalogに残る（`ready` 由来と同じ既存挙動）。端末喪失に備えた未昇格 `staged` のbackupはHarness H3。`ready` のローカルcopyからのnetwork無しfetchは §4 A の後続。
+
 ### D. BuildSystem / Harness接続
 
 外部CLIを主入口にUnityを交換可能なbackendとして接続する。H2d/H3・CURRENT連携、同じ実体の所有権整理は必要になった範囲で行う。Storage単独の利用をUnity GUIやEditorに依存させない。Unityテスト/BuildのPhase責任と既知native終了stallの調査停止規則を維持する。
