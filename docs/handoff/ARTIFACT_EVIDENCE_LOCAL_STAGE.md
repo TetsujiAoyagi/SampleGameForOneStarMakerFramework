@@ -13,8 +13,8 @@
 - expires: 2026-11-16 または置換 revision
 - harvest to: 操作と状態遷移を `tools/Artifacts/README.md`（Evidence の節と「エージェント操作の事前承認」）へ、Phase 規則の変更は `.agents/skills/osm-workflow/` の本文そのもの（本スライスの実装対象）へ。`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 C（別host / Cloud）に「ローカル固定は完了。同じ artifact の R2 昇格と回復契約は後続スライス `Evidence 昇格と Cloud 配布` の入力（§5.2）」を追記する。
 - Phase A snapshot の取得案内・状態: 未保存（tracked HANDOFF の commit `536edc5` が凍結対象版。Artifact Storage への保存は行っていない。C / C' へ渡す時点で、所見を除いた snapshot を `evidence stage` が実装済みならそれで、未実装なら従来の publish で固定する）
-- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未保存（生成済み。Artifact Storage には stage も publish もしていない。内容と所在の扱いは §7・§8）
-- 引継ぎ票: 次の Phase は **D（マージ判断、owner）**。implementation head は `067dd50c8f28742fa92862f816caf04ff4f419ec`（判定 C GO、最終 C' GO）。開始時に自分の worktree の HEAD をこの記録 commit と照合し、作業ツリーが dirty なら始めない。作業: (1) §7 と §8 を初めて突き合わせる。(2) §7・§8 の判定証拠と blind bundle を Artifact Storage に保存し、別 session で取得・閲覧を確認する（資格情報アクセスの許可が要る。導入手順の前なので `evidence stage` ではなく従来の publish を使う）。(3) F1（ignore 対象の未追跡 file の扱い）を決定記録にするか後続へ送るかを決める。(4) 公開点 (a)(b)（§2 D6-3）として PR を base `develop` で作って push し、`@cursoragent` のレビューを依頼する。(5) マージ前の最終として、harvest（§0 の harvest to）と HANDOFF 削除を行う。(6) マージ後、README の導入手順（`schedule status` → 新 head で `schedule install`）を実行してから `evidence stage` を使い始める。必要な権限: 資格情報アクセス（(2)・(6)）、GitHub への push（(4)）。引き渡さないもの: なし。
+- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 確認済み（2026-10-16、従来の `evidence publish` で R2 へ 2 件を保存: C' の最終入力の blind bundle と、レビュー記録一式。Phase B result と判定 evidence はどちらにも収録。別 process の fetch で全 file の hash 一致と必須内容の閲覧を確認。取得案内はメイン checkout の git 管理外領域にあり、owner に案内済み）
+- 引継ぎ票: 次の Phase は **D（マージ判断、owner）**。implementation head は `067dd50c8f28742fa92862f816caf04ff4f419ec`（判定 C GO、最終 C' GO）。開始時に自分の worktree の HEAD をこの記録 commit と照合し、作業ツリーが dirty なら始めない。作業: (1) §7 と §8 を初めて突き合わせる。(2) 済み（Evidence の保存と取得・閲覧の確認。§9）。PR #128 を作成済みで、Cloud のエージェントのレビュー中（固定 Evidence を取得できない Cloud の作業は assist）。(3) F1（ignore 対象の未追跡 file の扱い）を決定記録にするか後続へ送るかを決める。(4) 公開点 (a)(b)（§2 D6-3）として PR を base `develop` で作って push し、`@cursoragent` のレビューを依頼する。(5) マージ前の最終として、harvest（§0 の harvest to）と HANDOFF 削除を行う。(6) マージ後、README の導入手順（`schedule status` → 新 head で `schedule install`）を実行してから `evidence stage` を使い始める。必要な権限: 資格情報アクセス（(2)・(6)）、GitHub への push（(4)）。引き渡さないもの: なし。
 - （旧）引継ぎ票（B → 発見 C。記録として残す）: 次の Phase は **発見 C（欠陥発見レビュー）**、役割はレビュー担当。動作確認は対象なし（§5 の検証経路に操作・実行時・目視の条件が無い）。作業は implementation base `6a51d2fefc9cf6d09d2a74a1ec1c42784e0e4524` から B 完了 head `748df898d6aad6dbfb36f735eacf11de32c2b22e` までの差分を、§2〜§5（凍結 revision 3）と §6 の「HANDOFF との差」1〜8 に照らして構造・契約・凍結済み失敗経路の順に見ること。入力は commit で固定済みで、stage snapshot は使っていない。開始時に自分の worktree の HEAD（固定 SHA からの detached worktree でよい）をこの SHA と照合し、作業ツリーが dirty なら始めない。origin とは照合しない（同一 PC、未 push）。必要な権限: ローカルの PowerShell 7 と git、`EvidenceCleanup.Tests.ps1` 用に PATH 上の `rg`。Unity・sandbox 外実行・資格情報・network は不要。実ストアの catalog・transfers・資格情報は読まず、`schedule-install` も行わない。起点 filter は §5。GO 判定、判定 C の実行、C' の起動は担わない。引き渡さないもの: なし。push はしない（公開点は §2 D6-3）。
 - （旧）引継ぎ票（A3 → B。記録として残す）: 次の Phase は **B（実装）**、役割は実装担当、作業は §4 の順序で §2 の受け入れ条件 AC1〜AC11 を満たす実装・テスト追加・文書変更。入力は凍結した Phase A revision 3（凍結対象版の内容 sha256 `b50566c9d42a0bca66083609784e97d950baf14eb6bf564eaaf3647db55be29b`、LF 正規化した git blob 内容、commit `536edc5`）。凍結の記録はこの HANDOFF の次の commit。開始時に自分の worktree の HEAD、本 §0、凍結 commit の §1〜§5 と作業ツリーの §1〜§5 の同一性を照合し、食い違えば始めない。必要な権限: ローカルの PowerShell 7 と git のみ（Unity、sandbox 外実行、資格情報、network は不要）。**実ストアの catalog・transfers・資格情報は読まず、編集もしない。登録済み runtime の切替（`schedule-install`）も行わない。** B の出口で `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` を実行し、§5 の起点 filter と AC8 の grep を通し、実装結果（§6）を書き、引継ぎ票を発見 C 向けに更新して commit する。push はしない（公開点は §2 D6-3。本スライス自身の規則が未マージでも、同一 PC の発見 C はローカルの SHA で引き継ぐ）。判定 C の実行、C' の起動、判定 C の照合 script は担わない。停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に該当したら実装を止めて判断を返す。引き渡さないもの: なし（C' 用の blind bundle は未生成）。
 - （旧）引継ぎ票（revision 3 の確認。記録として残す）: 次は owner による revision 3 の確認と凍結。owner は 2026-10-16 に (g)(h) の反映を含む revision 3 を確認し、凍結を指示した。
@@ -273,7 +273,7 @@
 ## 7. Phase C
 
 - 種別: 発見 C 2 巡（head `748df89` → 修正 `d07e32c`）、判定 C 3 回（`d07e32c` で環境不備による無効 1 回と GO 1 回、C' の差し戻し後の `067dd50` で GO 1 回）。最終の判定対象は implementation head `067dd50c8f28742fa92862f816caf04ff4f419ec`。
-- 使用したevidence bundle の取得案内・状態: 未保存（Artifact Storage へは stage も publish もしていない。完全 diff・stat・name-status、凍結 Phase A snapshot（内容 sha256 は §0 の凍結値と一致）、Phase B 結果、判定必須テストの生ログ・終了コード、audit・AC8 grep の結果を、C 用の detached worktree の git 管理外領域に生成した。所在は owner に直接案内する。保存は Phase D で、資格情報アクセスの許可を得てから行う）。判定 evidence を取った head には、ローカルの軽量 tag `evidence/evidence-local-stage/1`（`d07e32c`、旧判定）と `evidence/evidence-local-stage/2`（`067dd50`、最終判定）を付けた（push しない）。
+- 使用したevidence bundle の取得案内・状態: 確認済み（2026-10-16 にレビュー記録一式として R2 へ保存し、取得・閲覧を確認。§9。当初は未保存で、完全 diff・stat・name-status、凍結 Phase A snapshot（内容 sha256 は §0 の凍結値と一致）、Phase B 結果、判定必須テストの生ログ・終了コード、audit・AC8 grep の結果を、C 用の detached worktree の git 管理外領域に生成した。所在は owner に直接案内する。保存は Phase D で、資格情報アクセスの許可を得てから行う）。判定 evidence を取った head には、ローカルの軽量 tag `evidence/evidence-local-stage/1`（`d07e32c`、旧判定）と `evidence/evidence-local-stage/2`（`067dd50`、最終判定）を付けた（push しない）。
 - 構造適合: §3 の責務マップどおり。新規ファイル・依存 edge なし。`EvidenceApplication.psm1` は 141 → 203 行（+44%、50% 未満。準備部の抽出と失敗時の解放の分）、他は見積り内。transport・`EvidenceSchedule`・`Resolve-EvidencePutGuarded`・`PackageIO` は無変更。
 - 現在の問いを阻害する findings（いずれも解消済み）:
   - C1（発見 C 1 巡目、medium、I4、accepted）: remote fetch の reasonCode が `changed-copy`・`unresolved-put`・`unresolved-delete` に変わっていた（§6 の差 2 の後半）。修正 `d07e32c`: これらのコードを local 分岐だけに限定し、remote fetch が従来どおり `unconfirmed` を返す回帰ケース `remote-fetch-codes-unchanged` を追加。2 巡目で解消を確認。
@@ -292,7 +292,7 @@
 - 担当方式: AI。cursor-agent CLI の新規 session（`-p --trust`、`--plan` なし、読み取りのみをプロンプトで指示）。
 - 種別と巡: 1 巡目（head `d07e32c`、範囲 A = コードと証拠 / 範囲 B = ワークフロー文書と README の 2 本）、2 巡目（head `067dd50`、前巡指摘の解消と修正差分）。高コスト証拠なしのため、2 巡目が最終 C'。
 - 受け取った決定記録の版: 1 巡目はなし。2 巡目は C' 用決定記録 版 1（人間の裁定なし。修正した指摘と修正差分の所在だけ）。
-- 使用したblind audit bundle の取得案内・状態: 未保存（Artifact Storage には置いていない）。発見 C の所見と判定 C の結論を含まない bundle（凍結 Phase A snapshot、B 完了時点の Phase B 結果、base..head の完全 diff、判定必須テストの生ログ・終了コード、audit・AC8 grep）を、C 用とは別の detached worktree の git 管理外領域だけに置いた。2 巡目には C' 自身の前巡結果、修正差分、決定記録を加えた。
+- 使用したblind audit bundle の取得案内・状態: 確認済み（2026-10-16 に 2 巡目の入力一式を R2 へ保存し、取得・閲覧を確認。§9。C' の実施時点では Storage に置いていなかった）。発見 C の所見と判定 C の結論を含まない bundle（凍結 Phase A snapshot、B 完了時点の Phase B 結果、base..head の完全 diff、判定必須テストの生ログ・終了コード、audit・AC8 grep）を、C 用とは別の detached worktree の git 管理外領域だけに置いた。2 巡目には C' 自身の前巡結果、修正差分、決定記録を加えた。
 - 確認範囲・方法: 1 巡目 A は I1〜I5・I7 の操作順序による反証、I4、AC1〜AC7・AC10・AC11 のテストとログの証拠能力。1 巡目 B は I6、D6 の 7 項目・D7・AC8・AC9・S3、README の手順と D1〜D7 の一致。2 巡目は前巡指摘の解消と、修正差分の影響経路。ファイルの読み取りだけで、テストの再実行とシェルはなし。
 - 判定: 1 巡目 A = GO、1 巡目 B = NO-GO（C'1）。2 巡目 = **GO**（前巡の阻害指摘は解消、新たな阻害指摘なし）。
 - 現在の問いを阻害する findings（解消済み）:
@@ -307,8 +307,8 @@
 
 - C / C' の突合:
 - マージ判断:
-- 必要なEvidenceの保存・取得・必須内容の閲覧確認:
-- 取得案内の引渡し確認:
+- 必要なEvidenceの保存・取得・必須内容の閲覧確認: 確認済み（2026-10-16、owner の許可のもとで資格情報を使用）。C' の最終入力の blind bundle（61 file）とレビュー記録一式（186 file）を従来の `evidence publish` で R2 へ保存し（導入手順の前のため `evidence stage` は使っていない）、別 process で reference と期待 packageSha256 から fetch して、全 file の hash が元と一致すること、判定 C の結論・AC8 の grep・C' 用決定記録を閲覧できることを確認した。
+- 取得案内の引渡し確認: 取得案内（reference、期待 packageSha256、base / head、用途、所在 task、locality、保持条件、引渡し先）は、メイン checkout の git 管理外領域（削除予定のレビュー用 worktree ではない）に置き、owner に案内済み。実値はこの文書と PR に転記していない。
 - harvest:
 - 削除確認:
 - 通常のtask終了・後始末の状態と未完了事項:
