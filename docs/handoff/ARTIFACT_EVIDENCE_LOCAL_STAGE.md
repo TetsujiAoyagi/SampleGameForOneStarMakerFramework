@@ -3,19 +3,19 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C`（発見 C 待ち。Phase B は 2026-10-16 に完了、結果は §6。Phase A revision 3 を 2026-10-16 に A3 で凍結。凍結内容は §2〜§5。設計判断を変えるときは Phase A を新しい revision として再開する。revision 2 以前の記録は §5.1・§5.2）
+- status: `D`（Phase D 待ち。2026-10-16 に判定 C と最終 C' がともに GO、記録は §7・§8。Phase B の結果は §6。Phase A revision 3 を 2026-10-16 に A3 で凍結。凍結内容は §2〜§5。設計判断を変えるときは Phase A を新しい revision として再開する。revision 2 以前の記録は §5.1・§5.2）
 - branch: `claude/evidence-local-stage`（PR の base は `develop`）
 - implementation base commit: `6a51d2fefc9cf6d09d2a74a1ec1c42784e0e4524`（`origin/develop`、PR #127 マージ後）
-- implementation head commit: 未固定（B 完了 head は `748df898d6aad6dbfb36f735eacf11de32c2b22e`。GO 候補で固定する）
+- implementation head commit: `067dd50c8f28742fa92862f816caf04ff4f419ec`（判定 C・最終 C' の対象。ローカル tag `evidence/evidence-local-stage/2`。B 完了 head は `748df89`、旧判定の head `d07e32c` は tag `evidence/evidence-local-stage/1`）
 - risk: `high`（Evidence catalog の artifact state と cleanup の fail-closed 契約に触れる。加えて `osm-workflow` の Phase 境界・push・head 固定の常時規則を書き換える。revision 3 で network 経路と `put-pending` の回復には触れなくなった）
 - owner: OSM maintainers
 - created: 2026-10-16
 - expires: 2026-11-16 または置換 revision
 - harvest to: 操作と状態遷移を `tools/Artifacts/README.md`（Evidence の節と「エージェント操作の事前承認」）へ、Phase 規則の変更は `.agents/skills/osm-workflow/` の本文そのもの（本スライスの実装対象）へ。`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 C（別host / Cloud）に「ローカル固定は完了。同じ artifact の R2 昇格と回復契約は後続スライス `Evidence 昇格と Cloud 配布` の入力（§5.2）」を追記する。
 - Phase A snapshot の取得案内・状態: 未保存（tracked HANDOFF の commit `536edc5` が凍結対象版。Artifact Storage への保存は行っていない。C / C' へ渡す時点で、所見を除いた snapshot を `evidence stage` が実装済みならそれで、未実装なら従来の publish で固定する）
-- Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と commit `748df89` に記録。snapshot は C / C' へ渡す時点で作る）
-- evidence bundle / C' blind bundle の取得案内・状態: 未生成（未到達 Phase）
-- 引継ぎ票: 次の Phase は **発見 C（欠陥発見レビュー）**、役割はレビュー担当。動作確認は対象なし（§5 の検証経路に操作・実行時・目視の条件が無い）。作業は implementation base `6a51d2fefc9cf6d09d2a74a1ec1c42784e0e4524` から B 完了 head `748df898d6aad6dbfb36f735eacf11de32c2b22e` までの差分を、§2〜§5（凍結 revision 3）と §6 の「HANDOFF との差」1〜8 に照らして構造・契約・凍結済み失敗経路の順に見ること。入力は commit で固定済みで、stage snapshot は使っていない。開始時に自分の worktree の HEAD（固定 SHA からの detached worktree でよい）をこの SHA と照合し、作業ツリーが dirty なら始めない。origin とは照合しない（同一 PC、未 push）。必要な権限: ローカルの PowerShell 7 と git、`EvidenceCleanup.Tests.ps1` 用に PATH 上の `rg`。Unity・sandbox 外実行・資格情報・network は不要。実ストアの catalog・transfers・資格情報は読まず、`schedule-install` も行わない。起点 filter は §5。GO 判定、判定 C の実行、C' の起動は担わない。引き渡さないもの: なし。push はしない（公開点は §2 D6-3）。
+- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未保存（生成済み。Artifact Storage には stage も publish もしていない。内容と所在の扱いは §7・§8）
+- 引継ぎ票: 次の Phase は **D（マージ判断、owner）**。implementation head は `067dd50c8f28742fa92862f816caf04ff4f419ec`（判定 C GO、最終 C' GO）。開始時に自分の worktree の HEAD をこの記録 commit と照合し、作業ツリーが dirty なら始めない。作業: (1) §7 と §8 を初めて突き合わせる。(2) §7・§8 の判定証拠と blind bundle を Artifact Storage に保存し、別 session で取得・閲覧を確認する（資格情報アクセスの許可が要る。導入手順の前なので `evidence stage` ではなく従来の publish を使う）。(3) F1（ignore 対象の未追跡 file の扱い）を決定記録にするか後続へ送るかを決める。(4) 公開点 (a)(b)（§2 D6-3）として PR を base `develop` で作って push し、`@cursoragent` のレビューを依頼する。(5) マージ前の最終として、harvest（§0 の harvest to）と HANDOFF 削除を行う。(6) マージ後、README の導入手順（`schedule status` → 新 head で `schedule install`）を実行してから `evidence stage` を使い始める。必要な権限: 資格情報アクセス（(2)・(6)）、GitHub への push（(4)）。引き渡さないもの: なし。
+- （旧）引継ぎ票（B → 発見 C。記録として残す）: 次の Phase は **発見 C（欠陥発見レビュー）**、役割はレビュー担当。動作確認は対象なし（§5 の検証経路に操作・実行時・目視の条件が無い）。作業は implementation base `6a51d2fefc9cf6d09d2a74a1ec1c42784e0e4524` から B 完了 head `748df898d6aad6dbfb36f735eacf11de32c2b22e` までの差分を、§2〜§5（凍結 revision 3）と §6 の「HANDOFF との差」1〜8 に照らして構造・契約・凍結済み失敗経路の順に見ること。入力は commit で固定済みで、stage snapshot は使っていない。開始時に自分の worktree の HEAD（固定 SHA からの detached worktree でよい）をこの SHA と照合し、作業ツリーが dirty なら始めない。origin とは照合しない（同一 PC、未 push）。必要な権限: ローカルの PowerShell 7 と git、`EvidenceCleanup.Tests.ps1` 用に PATH 上の `rg`。Unity・sandbox 外実行・資格情報・network は不要。実ストアの catalog・transfers・資格情報は読まず、`schedule-install` も行わない。起点 filter は §5。GO 判定、判定 C の実行、C' の起動は担わない。引き渡さないもの: なし。push はしない（公開点は §2 D6-3）。
 - （旧）引継ぎ票（A3 → B。記録として残す）: 次の Phase は **B（実装）**、役割は実装担当、作業は §4 の順序で §2 の受け入れ条件 AC1〜AC11 を満たす実装・テスト追加・文書変更。入力は凍結した Phase A revision 3（凍結対象版の内容 sha256 `b50566c9d42a0bca66083609784e97d950baf14eb6bf564eaaf3647db55be29b`、LF 正規化した git blob 内容、commit `536edc5`）。凍結の記録はこの HANDOFF の次の commit。開始時に自分の worktree の HEAD、本 §0、凍結 commit の §1〜§5 と作業ツリーの §1〜§5 の同一性を照合し、食い違えば始めない。必要な権限: ローカルの PowerShell 7 と git のみ（Unity、sandbox 外実行、資格情報、network は不要）。**実ストアの catalog・transfers・資格情報は読まず、編集もしない。登録済み runtime の切替（`schedule-install`）も行わない。** B の出口で `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` を実行し、§5 の起点 filter と AC8 の grep を通し、実装結果（§6）を書き、引継ぎ票を発見 C 向けに更新して commit する。push はしない（公開点は §2 D6-3。本スライス自身の規則が未マージでも、同一 PC の発見 C はローカルの SHA で引き継ぐ）。判定 C の実行、C' の起動、判定 C の照合 script は担わない。停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に該当したら実装を止めて判断を返す。引き渡さないもの: なし（C' 用の blind bundle は未生成）。
 - （旧）引継ぎ票（revision 3 の確認。記録として残す）: 次は owner による revision 3 の確認と凍結。owner は 2026-10-16 に (g)(h) の反映を含む revision 3 を確認し、凍結を指示した。
 - （旧）引継ぎ票（revision 2。記録として残す）: 次は owner による revision 2 の確認と凍結。revision 2 は commit `eee62d78`（内容 sha256 `28a35753b88eec4b8b5980412bf48aba07fc27fc569e175f797a76680999b13f`）。追加レビュー ADD-01 を受けて凍結せず、revision 3 へ切り直した。
@@ -272,31 +272,36 @@
 
 ## 7. Phase C
 
-- 種別: 発見 / 判定
-- 使用したevidence bundle の取得案内・状態:
-- 構造適合:
-- 現在の問いを阻害する findings:
-- 後続スライスへ移送する findings:
-- 実行したテストコマンドと `-Filter`、対象を選んだ理由:
-- テスト結果:
-- 判定必須のうち未実行:
-- 未確認事項:
-- 担当・モデル:
+- 種別: 発見 C 2 巡（head `748df89` → 修正 `d07e32c`）、判定 C 3 回（`d07e32c` で環境不備による無効 1 回と GO 1 回、C' の差し戻し後の `067dd50` で GO 1 回）。最終の判定対象は implementation head `067dd50c8f28742fa92862f816caf04ff4f419ec`。
+- 使用したevidence bundle の取得案内・状態: 未保存（Artifact Storage へは stage も publish もしていない。完全 diff・stat・name-status、凍結 Phase A snapshot（内容 sha256 は §0 の凍結値と一致）、Phase B 結果、判定必須テストの生ログ・終了コード、audit・AC8 grep の結果を、C 用の detached worktree の git 管理外領域に生成した。所在は owner に直接案内する。保存は Phase D で、資格情報アクセスの許可を得てから行う）。判定 evidence を取った head には、ローカルの軽量 tag `evidence/evidence-local-stage/1`（`d07e32c`、旧判定）と `evidence/evidence-local-stage/2`（`067dd50`、最終判定）を付けた（push しない）。
+- 構造適合: §3 の責務マップどおり。新規ファイル・依存 edge なし。`EvidenceApplication.psm1` は 141 → 203 行（+44%、50% 未満。準備部の抽出と失敗時の解放の分）、他は見積り内。transport・`EvidenceSchedule`・`Resolve-EvidencePutGuarded`・`PackageIO` は無変更。
+- 現在の問いを阻害する findings（いずれも解消済み）:
+  - C1（発見 C 1 巡目、medium、I4、accepted）: remote fetch の reasonCode が `changed-copy`・`unresolved-put`・`unresolved-delete` に変わっていた（§6 の差 2 の後半）。修正 `d07e32c`: これらのコードを local 分岐だけに限定し、remote fetch が従来どおり `unconfirmed` を返す回帰ケース `remote-fetch-codes-unchanged` を追加。2 巡目で解消を確認。
+  - C2（発見 C 1 巡目、low、D6-4・AC11、accepted として明確化）: README の changes.patch 手順が `.gitignore` 対象の未追跡 file を含まない。凍結した手順 `git add -A` 自体の範囲なので、修正 `d07e32c` で「範囲は commit と同じ。ignore 対象は含まない。必要な生成物は selection に明示する」と README に明記した。2 巡目は「凍結 D6-4 の『未追跡を含む完全な変更集合』を狭めたとも読める」と解釈の確認を求めた（阻害指摘ではない）→ 後続入力 F1。
+  - C'1 は §8。
+- 後続スライスへ移送する findings: F1 ignore 対象の未追跡 file を D6-4・AC11 の「完全な変更集合」に含めるかの解釈（owner の決定記録の候補。現状は commit と同じ範囲）。F2 ファイル名に改行を含む変更対象の列挙（`--name-only` の行単位処理、確認待ち）。F3 旧 runtime が `staged` を読めない間の運用の徹底（README の導入手順はある）。§8 の F4〜F6 も参照。
+- 実行したテストコマンドと `-Filter`、対象を選んだ理由: 発見 C はテストを実行せず、固定 diff と B の機械検査で行った。判定 C は §5 の判定必須を全件: `tools/Artifacts/tests/*.Tests.ps1` と `tools/Workflow/tests/*.Tests.ps1` の全 23 file を各 1 回（`StoreContext.Tests.ps1` を含む。非仮想化 host の Codex CLI から sandbox 外で実行、PATH に `rg`）、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、AC8 の grep。事前に README の手順で 3 project を Release build（新しい worktree には build 出力が無いため）。
+- テスト結果: head `067dd50` で 23 suite・483 件、failed 0、全 exit 0。contract-audit errors=0（applicable8=False）、docs-audit errors=0。AC8: 旧文言 4 種 0 件、固定規則 3 文書に各 1 件。判定 C の AC 対応: AC1 `stage-local-fetch-child`、AC2 `stage-local-fetch-reject`・`remote-fetch-codes-unchanged`、AC3 `stage-unresolved-refused`、AC4 `staged-retention-boundary`・`staged-retention`・`staged-staging-dormant`、AC5 `staged-delete-stop-before-commit`・`staged-delete-stop-after-commit`・`staged-zip-missing-refused`、AC6 既存 suite 全件と `stage-catalog-read`、AC7 `stage-source-publish`、AC8・AC9 文書検査、AC10 `staged-use`・`staged-use-protection`、AC11 `stage-changes-patch`。判定: **GO**（I1〜I7 を破る欠陥なし、S1〜S3 成立）。
+  - 判定 C の実行の経緯: 1 回目（`d07e32c`）は新しい worktree に `ArtifactPackaging.dll` 等の build 出力が無く、DLL を要する suite が失敗・未実行となり NO-GO。コードの欠陥ではなく前提（README の Release build）の欠落と分類し、build 後に新しい session でやり直した。2 回目（`d07e32c`）は GO だが、判定担当が成功した `ArtifactEvidence` を終了コード記録のために 1 回再実行した（初回も 26/26）。3 回目（`067dd50`）は各 suite 1 回で GO。
+- 判定必須のうち未実行: なし。全 EditMode 回帰は §5 の適用除外（Unity 側の変更なし）。
+- 未確認事項: 実ストアでの `evidence stage`、`schedule-install`（導入手順は README に記載のみ）。
+- 担当・モデル: 発見 C は Codex CLI（OpenAI、`gpt-6-luna`、reasoning medium）、read-only の新規 session を 1 巡目 2 本（コード / 文書）・2 巡目 1 本。判定 C は Codex CLI（同モデル）の新規 session で、テストも判定担当自身が実行した（B の session は実行していない）。B（Claude）とは別系列。
 
 ## 8. Phase C'
 
-- 担当方式:
-- 種別と巡:
-- 受け取った決定記録の版:
-- 使用したblind audit bundle の取得案内・状態:
-- 確認範囲・方法:
-- 判定:
-- 現在の問いを阻害する findings:
-- 後続スライスへ移送する findings:
-- 残存リスク:
-- 監査できなかった範囲:
-- 独立性:
-- 担当・モデル:
+- 担当方式: AI。cursor-agent CLI の新規 session（`-p --trust`、`--plan` なし、読み取りのみをプロンプトで指示）。
+- 種別と巡: 1 巡目（head `d07e32c`、範囲 A = コードと証拠 / 範囲 B = ワークフロー文書と README の 2 本）、2 巡目（head `067dd50`、前巡指摘の解消と修正差分）。高コスト証拠なしのため、2 巡目が最終 C'。
+- 受け取った決定記録の版: 1 巡目はなし。2 巡目は C' 用決定記録 版 1（人間の裁定なし。修正した指摘と修正差分の所在だけ）。
+- 使用したblind audit bundle の取得案内・状態: 未保存（Artifact Storage には置いていない）。発見 C の所見と判定 C の結論を含まない bundle（凍結 Phase A snapshot、B 完了時点の Phase B 結果、base..head の完全 diff、判定必須テストの生ログ・終了コード、audit・AC8 grep）を、C 用とは別の detached worktree の git 管理外領域だけに置いた。2 巡目には C' 自身の前巡結果、修正差分、決定記録を加えた。
+- 確認範囲・方法: 1 巡目 A は I1〜I5・I7 の操作順序による反証、I4、AC1〜AC7・AC10・AC11 のテストとログの証拠能力。1 巡目 B は I6、D6 の 7 項目・D7・AC8・AC9・S3、README の手順と D1〜D7 の一致。2 巡目は前巡指摘の解消と、修正差分の影響経路。ファイルの読み取りだけで、テストの再実行とシェルはなし。
+- 判定: 1 巡目 A = GO、1 巡目 B = NO-GO（C'1）。2 巡目 = **GO**（前巡の阻害指摘は解消、新たな阻害指摘なし）。
+- 現在の問いを阻害する findings（解消済み）:
+  - C'1（1 巡目 B、medium、D6-4・S1、accepted）: README の changes.patch 節が「二つ目のコマンドが列挙する file を `files/` に収録する」と書き、コードブロックの 2 行目は `git read-tree` で何も列挙しないため、そのとおりに読むと `files/` が空になる。修正 `067dd50`: 列挙元を最後の `git diff --cached --name-only --no-renames --diff-filter=d` と明記。同じ修正 commit で、後続入力に挙がった D6-6・D6-5 の書き漏れ 2 点（動作確認の出口での PR 状態ブロック更新を「PR が存在する間」に限る、`phases-and-handoff.md` の取得案内の項目に所在 task・引渡し先・`locality` を加える）も同義に揃えた。2 巡目で解消を確認。
+- 後続スライスへ移送する findings: F4 `use` / `release` の preflight は network 形のままで、同じ task に未解決の put / delete があると保護の付与だけで資格情報と GET が走る（I1 の対象は stage と local fetch だけなので違反ではない）。F5 満了削除のあと採用済み staging の entry が `staging-protected` のまま catalog に残る（ファイルは `ownedCopies` 側で消える。`ready` 由来と同じ既存挙動）。F6 `review-evidence.md` の Phase D の再実施を省く条件の文言が publish 中心のまま（同節で `local` の案内も同じ確認と書くので D6-5 は満たす）、`SKILL.md` Phase C 入口の「staged 状態」（git index の意味）と直後の evidence stage の語の近さ。
+- 残存リスク: Phase B 結果（§6）の差 2 は B 完了時点の記述で、remote fetch の reasonCode の扱いは修正 `d07e32c` 後の実装と異なる（C' はこの食い違いを把握したうえで I4 は保たれていると判断）。README のコマンド列を C' 自身は実行していない（同じ列挙は AC11 で検証済み）。
+- 監査できなかった範囲: テストの再実行、実ストア・R2 での運用。
+- 独立性: B（Claude）・C（OpenAI GPT 系）と別系列の Grok 系で、Phase A〜C で未使用（A2 で予約）。強化条件を満たす。各巡とも新規 session で、入力は blind bundle だけ。発見 C・判定 C の所見と結論は渡していない。運用上の注意: 1 巡目の最初の起動は日本語プロンプトが `cursor-agent.cmd` 経由で文字化けして届いたため、2 回目は起動側のジョブが親 process の終了で止まったため、いずれも結果が出る前に止め、ASCII だけの 1 行プロンプトで起動し直した。
+- 担当・モデル: cursor-agent CLI、Grok 4.7 High（`grok-4.7-high`、xAI 系）。
 
 ## 9. Phase D
 
