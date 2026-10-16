@@ -146,7 +146,7 @@ Buildの件数保持の運用接続は[PR #119](https://github.com/TetsujiAoyagi
 - 後続への入力:
   - Contentの実DELETE、保持中Player（ArtifactsRootの `build-info.json`）からのContent保護の収集、R2のBuildとArtifactsRootのPlayerのどちらを「保持中」とみなすか、確定記録との関係 → 新規「Content件数保持の運用接続」。
   - ArtifactsRootの `players/`・`content/` の件数清掃、`.staging` 回収、ArtifactsRootの所在の登録 → 「ArtifactsRootの件数清掃と `.staging` 回収」（独立スライスとして扱う）。
-  - 系列の退役 → 件数保持の運用接続の残り（Content側と同時に扱う）。R2に検証用系列 `retention-probe/windows-x64-player/probe-1`〜`probe-4` の小さなobjectが計40件残っている（退役手段が無いことはA3で受け入れ済み）。
+  - 系列の退役 → 完了（PR #124。下の「系列の退役」）。検証用系列 `retention-probe/*` の40 objectは同PRのAC15で回収した。
   - 自動起動（scheduler接続）とNの系列ごとの設定 → 新規「件数清掃の自動起動」。
   - 単調なpublish順序の記録（時計巻戻りへの耐性） → Content確定記録。
   - 「DELETE → GET 404 → 記録」の共通primitive化（Evidence清掃・reset・Build清掃・将来のContent） → Content件数保持の運用接続のA1。
@@ -157,10 +157,26 @@ Contentの件数保持の運用接続は[PR #123](https://github.com/TetsujiAoya
 
 - 決めたこと: 保持中Playerは、このPCの `builds-v1` のBuild（削除済みと読めたもの以外。状態を読めないものも保護）とArtifactsRootの `players/` のPlayer（`build collect` のstagingを含む）の両方とし、buildIdとrevisionの末尾32 hexで照合する（`build-info.json` の中身は読まない。過剰保護側）。ArtifactsRootは必須。明示の保護（use／release）と取得中の保護は足さない。`transport.json` のGET 404を確定点にし、確定点の後は候補・保護の判定によらず残りを消し切る。中断したrunの観測は記録しない（Phase A revision 2）。保護がNを超えた場合はBuildの超過条項を引き継ぎ、件数保持はR2のobjectにだけ効く。観測の写像と記録の観測検査は `ArtifactDeletion.psm1` に共通化した（Evidence清掃・resetは寄せない）。Content DELETEは `ContentRetentionDelete=$true` の印付きrequestだけを通す。receiptの無いBuildのintentは所属5 fieldだけを検査することをREADMEに契約として書いた（PR #119のC′指摘の決着）。確定記録には触れず、削除の正本はローカルの `deletion/` 記録。
 - 後続への入力:
-  - 系列の退役（新規「系列の退役」）: R2に残る検証用object（Build `retention-probe/*` 40件、Content `retention-probe-1` 20件）の回収を含む。次の実R2検証では、照合scriptが期待keyをreceiptの系列から独立に作ること、削除済みBuildの一覧を記録の妥当性まで再判定できる原記録を残すこと（C′の指摘）。
+  - 系列の退役 → 完了（PR #124。下の「系列の退役」）。検証用60 objectの回収と、照合scriptの独立化（期待keyをreceiptから作る、記録の連鎖で再判定）も同PRのAC15で行った。
   - 診断の改善: run全体のcatchで `catalog-incomplete` が `unconfirmed` になる、終了時snapshotがblockedのとき同じrunの削除済みが分類に出ない、成功revisionの `publish.lock` 欠落で系列全体が止まりinspectが `receipt-unavailable` になる、観測fieldのgenerationのscalar型検査、同時刻の未解決試行を再開する順がAC3のtie-break（最古から）と逆である点（外部レビュー。I1〜I3には当たらない）。
   - Evidence task catalogの上限: 1,000 file超のbundleをpublishすると、task の `catalog.json` が1 MiBの記録上限に近づき、以降のfetchが `record-limit`（外からは `unconfirmed`）で失敗する。PR #123では同じbundleを1 fileのZIPにまとめて保存し直して回避した。所有スライスは未定。
   - Content確定記録: revision削除時の記録の扱いは、削除の正本（ローカル `deletion/`）を参照するか削除を追記するかを確定記録の側で決める。
+
+系列の退役は[PR #124](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/124)の `build retire`／`content retire` で完了した（判定C 阻害0、最終C′（別ベンダー）阻害0、ownerがGO。2026-10-16）。ownerが指示ID（Workflowの `Decision` 書式）で明示した系列1つについて、系列ごとに1件の不変の退役記録（`retirements-v1/…`）を残し、このPCの成功記録にあるR2 objectを保護中のものを除いて既存の削除試行で消し切る。退役後の系列はpublish・collect・useが `series-retired` で止まり、cleanupは退役の選別で動く。退役記録を確認できなければ `retirement-unknown` で止まる（fail-closed）。実R2で検証用5系列（Build 4・Content 1、計60 object）を退役させ、判定Cの独立照合script（期待keyをreceiptから作り、削除を記録の連鎖で再判定。合成fixtureの不合格例を含む）が全19 checkで合格、再実行の送信0、実系列の記録不変を確認した。操作・契約・既知の限界は[Artifacts README](../../tools/Artifacts/README.md#系列の退役build-retire--content-retire)にある。HANDOFFはharvestして削除した（全文は削除前のcommit）。決めたことと後続への入力は次のとおり。
+
+- 決めたこと: 起点はownerの明示指示だけ（イベント終了の自動検知はしない）。退役は事前承認の通常操作に含めず、ownerが系列と指示IDを明示した範囲でだけ実行する。取消は無い。退役は保護を外さず、保護中・未完了が残れば `retired-held`。消すのはR2のobjectだけで、ローカル記録・ArtifactsRoot・統合フォルダ・DIST cacheには触れない。結果JSONは件数清掃と同じ固定fieldで、`mode`（`retention`／`retirement`）を件数保持の結果にも常に出す。Buildの系列不明の未完了は `held` に混ぜず `unattributed.count` に出す。
+- 後続への入力:
+  - suiteのhermetic化: 既存suiteは `SeriesRetirementStore` のテスト用rootを注入せず、実storeの `retirements-v1` を読む（テスト用root未設定時はLocalApplicationDataへフォールバック）。実系列を退役させた環境では、その系列名を使うsuiteが `series-retired` で落ちうる。既定でTestRootを注入する整理へ。
+  - 退役確認の規則が2か所（Buildの `Assert-BuildSeriesActive`、Contentのinline）にある。1つにまとめる候補。
+  - Contentのcleanup結果で、退役の `protected` が `held` と `protected` の両方に出る（表示上の重複。判定には影響しない）。
+  - R2-a: 退役記録を読む前に止まるcleanupと `retirement-unknown` のblockedは `mode=retention` を返す（選別をしていない結果の既定値）。未確定時の `mode`（null等）かREADMEの一文を、次に結果の形を触るときに決める。
+  - R1-a: `store plan`／`consolidate` の名前表に `retirements-v1` が無く `unrecognized`（`excluded`）に載る。挙動は安全側。次に合流の名前表を触るときに登録する。
+  - Content collectの退役確認は開始時の1度で、退役記録の確定前に確認を通った処理は確定後に送信へ進みうる（READMEのknown limits。凍結条件は確定後に始まるcollectの拒否）。
+  - Evidence bundleの加工: Buildのpublish intentはpath置換した写しなので `receipt.intentSha256` との結び付きをbundle内で再計算できない（判定Cは原記録に対して照合済み）。証拠の加工規則の入力。
+  - 判定evidenceの命名（J-a）: suite結果を `Credentials.json` の名で置くと `evidence stage` が保護名規則で `unconfirmed` になる（理由は出ない）。review-evidenceの改名規則で対処した。
+  - Evidenceの診断（J-b・J-c）: `evidence stage` はtaskのcatalog（1 MiB）に全entryを載せるので約1,100 fileのbundleは `record-limit` で失敗し `unconfirmed` だけを返す（zipにまとめて回避）。古いBuildの `inspect`／`fetch` はpublish時のbuild-configと同じbytesを要し、書き直したconfigでは `receipt-unavailable` で理由が出ない。`build use` の `--until` は往復形式だけ。いずれも「診断の改善」の入力。
+  - AC15の残置: 失敗したfetch 50件のoperationと拒否された `content collect` の空operationがtransfersに残る（既存の扱いどおり）。実行器の作業directory（`D:\osm-ac15`、`D:\osm-ac15-r2`、git管理外）は残してある。
+  - Evidence清掃schedulerの切替手順とCLIの失敗理由の表示 → PR #129（別スライス）。
 
 既存Build出力を普通のpath/metadataとして受け、成功publish、別process fetch/hash、最新N件と利用中の保持、失敗publish時の既存保持を確認する。Nの既定値案10件、系列識別、容量上限をBのA3で固定する。大容量に必要なmultipartは対象サイズに応じて扱い、BuildSystemの作り直しを前提にしない。
 
