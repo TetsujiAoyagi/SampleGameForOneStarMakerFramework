@@ -154,10 +154,10 @@
 
 ## 9. Phase D
 
-- C / C' の突合:
-- マージ判断:
-- 必要な Evidence の保存・取得・必須内容の閲覧確認:
-- 取得案内の引渡し確認:
-- harvest:
-- 削除確認:
-- 通常の task 終了・後始末の状態と未完了事項:
+- C / C' の突合: 判定 C（GO、阻害 0）と最終 C′（PASS、阻害 0・移送 0）は一致。C′ の残存リスク（CLI 境界で実測した code は 1 件、stderr 空の未検査）は凍結条件の違反ではなく、program §4 A の後続入力へ送った。発見 C の移送 1 件（allow-list 外の runtime 系 code）も同じ。
+- マージ判断: owner が 2026-10-16 にチャットで「Phase D 完了としてマージして後始末」と指示。develop は base 以降に PR #124 が入ったが、`tools/artifacts.ps1` の変更は build/content 分岐だけで本スライスの evidence 分岐・catch と重ならない（GitHub 上 CLEAN）。統合後の再テストは行っていない。
+- 必要な Evidence の保存・取得・必須内容の閲覧確認: 判定 evidence bundle（= C′ blind bundle）1 件を task `evidence-schedule-cutover` にローカル固定済み（未昇格）。Phase D で取得案内の reference と期待 hash から改めて fetch し `passed`、manifest の 62 file 全 hash 一致、`EvidenceSchedule` の `81/81` と Phase A snapshot を閲覧した（Release build の無い worktree からの最初の fetch は `unconfirmed`。build 済み worktree で同じ入力により成功）。fetch は送信と同じ session（Claude）が行い、C′ 担当（cursor-agent）は fetch した copy だけを読んだ。Cloud・別 host への引渡しは昇格経路（後続）まで成立しない。
+- 取得案内の引渡し確認: 主 checkout の git 管理外 `TestResults/schedule-cutover-stage/`（`retrieval-guide.md`、`cprime-retrieval-guide.md`。発見 C の生記録と C′ の生出力も同じ directory）。保持は task 終了 + 30 日。
+- harvest: program §4 A に本スライスの結果と後続入力を追記。操作は `tools/Artifacts/README.md`「自動清掃」（実装対象そのもの）。
+- 削除確認: harvest の commit で本 HANDOFF を `git rm`。
+- 通常の task 終了・後始末の状態と未完了事項: マージ後に `workflow-task.ps1 end -Reason completed`（Decision は chat 合成形）を記録し、判定用 worktree を削除する。
