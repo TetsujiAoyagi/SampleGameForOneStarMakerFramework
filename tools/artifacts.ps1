@@ -152,6 +152,8 @@ try {
             # stageはpublishと同じselectionを受け、ローカル固定で止まる（送信しない）。
             {$_ -cin @('publish','stage')}{if($command -cne 'evidence'){throw 'unsupported-command'};@('--profile','--config','--selection')}
             'fetch'{@('--profile','--config','--reference','--sha256')}
+            # promoteはstageしたartifactを同じreference・packageSha256のままR2へ置く。
+            'promote'{if($command -cne 'evidence'){throw 'unsupported-command'};@('--profile','--config','--reference','--sha256')}
             'inspect'{@('--profile','--config','--task')}
             'use'{@('--profile','--config','--reference','--consumer','--until','--reason')}
             'release'{@('--profile','--config','--reference','--protection')}
@@ -169,6 +171,7 @@ try {
             'publish'{$outcome=Invoke-EvidencePublish $opts['--config'] $opts['--selection']}
             'stage'{$outcome=Invoke-EvidenceStage $opts['--config'] $opts['--selection']}
             'fetch'{$outcome=Invoke-EvidenceFetch $opts['--config'] $opts['--reference'] $opts['--sha256']}
+            'promote'{$outcome=Invoke-EvidencePromote $opts['--config'] $opts['--reference'] $opts['--sha256']}
             'inspect'{$outcome=Invoke-EvidenceInspect $opts['--config'] $opts['--task']}
             'use'{$outcome=Invoke-EvidenceUse $opts['--config'] $opts['--reference'] $opts['--consumer'] $opts['--until'] $opts['--reason']}
             'release'{$outcome=Invoke-EvidenceRelease $opts['--config'] $opts['--reference'] $opts['--protection']}

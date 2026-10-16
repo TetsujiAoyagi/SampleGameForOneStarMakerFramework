@@ -25,11 +25,11 @@ Phase A snapshot、Phase B result snapshot、evidence bundle、C' blind audit bu
 
 ## 保存先とリモートへの配布
 
-**Evidenceの保存・引渡しは、tracked HANDOFF / H1 CURRENTによる作業指示・run管理の選択とは別である。** 対応済みの同一PC・同一Windowsユーザーでは、通常レビューのEvidenceも既存Artifact Storageを使い、同一PC内の既定は `evidence stage`（R2・資格情報を使わないローカル固定）と `fetch` とする。Cloud・別hostの読み手に渡す必要がある時は、昇格経路が後続スライスで成立するまで従来どおり、従来の `evidence publish`（新しいartifact）でR2へ置くか、PRブランチで渡す。従来publishで別artifactとして配布した場合は、そのremote artifact用の新しい取得案内を作り、local stageの取得案内をremote用として流用しない（referenceとhashは別物になる）。H1未移行を旧保存方式の継続理由にしない。操作、明示入力、非秘密確認、事前承認の範囲と保持条件は [Artifacts README](../../../../tools/Artifacts/README.md) を正とする。
+**Evidenceの保存・引渡しは、tracked HANDOFF / H1 CURRENTによる作業指示・run管理の選択とは別である。** 対応済みの同一PC・同一Windowsユーザーでは、通常レビューのEvidenceも既存Artifact Storageを使い、同一PC内の既定は `evidence stage`（R2・資格情報を使わないローカル固定）と `fetch` とする。Cloud・別hostの読み手、または端末喪失に備えてownerが指示した時は、同じartifactを `evidence promote` でR2へ昇格する。referenceとpackageSha256は変わらないので、取得案内は `locality` だけを `promoted` に更新する。昇格が `failed` で止まった場合は、そのartifactをremote用に使わず、従来の `evidence publish` で新しいartifactを作り、取得案内も新しく作る（referenceとhashは別物になるので、local stageの取得案内をremote用として流用しない）。Cloud・別hostからの取得経路は後続（Artifact Storage program §4 C）で、成立するまでその読み手の作業はassistとする。H1未移行を旧保存方式の継続理由にしない。操作、明示入力、非秘密確認、事前承認の範囲と保持条件は [Artifacts README](../../../../tools/Artifacts/README.md) を正とする。
 
 A3で `external-current-v1` を採用したtaskでは、Git外の固定recordを正本とし、`run` IDからpath/hash/時刻を機械表示する。Gitへの生成証拠追加と手転記hash台帳は使わない。H1は同一マシンの別worktreeまでを保証し、他マシン配布は成立済みと扱わない。Artifact Storageの利用を理由にCURRENT管理方式を暗黙移行しない。
 
-上記の対応済み環境では、C / C' へ固定入力を引き渡す時点で、通常のtask開始、終了済みtaskなら再開を済ませ、採用する非秘密file集合を明示してstage（Cloud・別hostの読み手にはpublish）する。blind入力と所見は分け、内部台帳や作業directory全体を無条件に送らない。C' 用 bundle に過去の bundle・所見を再帰的に詰め込まず、固定した実装差分と必須の生証拠を収録する。ローカルの生成先は原sourceであり、そこに残しただけでは保存・引渡し完了としない。
+上記の対応済み環境では、C / C' へ固定入力を引き渡す時点で、通常のtask開始、終了済みtaskなら再開を済ませ、採用する非秘密file集合を明示してstage（Cloud・別hostの読み手には上記のとおり昇格）する。blind入力と所見は分け、内部台帳や作業directory全体を無条件に送らない。C' 用 bundle に過去の bundle・所見を再帰的に詰め込まず、固定した実装差分と必須の生証拠を収録する。ローカルの生成先は原sourceであり、そこに残しただけでは保存・引渡し完了としない。
 
 publishするfile集合を確定する時点で、Artifact Storageの保護名規則に当たるfile名を点検する。改名は送信担当が非秘密と確認したfile（テストfixtureの `Credentials.json` 等）に限り、元名・新名・内容hashの対応表を同じbundleに収録する。保護名規則そのものは変えない。
 

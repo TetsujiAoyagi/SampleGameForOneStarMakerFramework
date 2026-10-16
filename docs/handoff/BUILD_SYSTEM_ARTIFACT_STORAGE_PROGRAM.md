@@ -11,7 +11,7 @@
 - risk: `normal`（文書改訂）。リセットと削除機能の対象・検証は実装スライスで具体化する。
 - owner: OSM maintainers
 - created: 2026-09-26
-- updated: 2026-10-15
+- updated: 2026-10-17
 - expires: 2026-12-26 または置換revision（program文書の見直し期限）
 - harvest to: 実装済みの通常操作を `tools/Artifacts/README.md`、program状態を `docs/README.md` へ反映し、program完了時に削除する。
 
@@ -194,11 +194,19 @@ Contentの件数保持の運用接続は[PR #123](https://github.com/TetsujiAoya
 
 **ローカル固定は完了（PR #128、2026-10-16）。** 同一PCの担当間は `evidence stage`（state `staged`、R2・資格情報不使用）と fetch の local 分岐で固定入力を渡し、`osm-workflow` は公開点だけ push する規則になった。操作は `tools/Artifacts/README.md` の「ローカル固定」、規則は `osm-workflow` 本文を正とする。マージ後、共有storeで `evidence stage` を使い始める前に README の導入手順（`schedule status` → 新headで `schedule install`）を行う。経緯の全文は削除前のHANDOFF（`docs/handoff/ARTIFACT_EVIDENCE_LOCAL_STAGE.md`、commit `72a8b0c`）。後続スライス `Artifact Storage / Evidence 昇格と Cloud 配布`（本節と組でA1から）への入力:
 
-- 同じartifactを同じbytesでR2へ昇格する経路と、PUT応答不明・GET 404・再送・成功確定・清掃・終了の回復契約。HANDOFF revision 2 の D4 / D4' / I8 / S4 と、追加レビュー ADD-01（R2のGET 404は先行PUTの失敗確定ではなく、同key再送禁止の既存publish契約と衝突する）、前回所見 R2-02（昇格時のcatalog更新単位）。
+- 同じartifactを同じbytesでR2へ昇格する経路（送信）はPR #130で完了した（下の「R2昇格の送信」）。404後の回復・再送と送信済み `staged` の寿命は、そこに書いた後続スライスへ移した。
 - fetch の local / remote の選択は preflight 前の catalog の読取りで決まる。昇格で同じ呼び出しの途中に `staged` が `ready` になる経路を足すときは、この選択が古いまま拒否にならないこと。`unknown-state` の検査は state が `staged` の間だけ働く。
 - `use` / `release` の preflight は network 形のまま（I1 の対象は stage と local fetch だけ）。README の事前承認の一文は `use` も network を使わないと読め、実装より広い。一文を stage・local fetch・release・満了清掃に絞るか、`use` に network 無しの preflight を加えるかを決める。
 - `changes.patch` は commit と同じ範囲で、`.gitignore` に該当する未追跡fileを含まない（凍結手順 `git add -A` のとおり）。含める必要があるかは未決（ownerは個別の裁定なしで現状のままマージを指示）。fileに改行を含むpathの列挙も未確認。
 - 満了削除後、採用済みstagingのentryが `staging-protected` のままcatalogに残る（`ready` 由来と同じ既存挙動）。端末喪失に備えた未昇格 `staged` のbackupはHarness H3。`ready` のローカルcopyからのnetwork無しfetchは §4 A の後続。
+
+**R2昇格の送信は完了（PR #130、2026-10-17）。** `evidence promote` が `staged` のartifactを同じreference・packageSha256・bytesのままR2へ置き、取得案内は `locality` を `promoted` に変えるだけで済む。PUT応答不明は同keyへ再送せず、既存の `put-pending` 回復（一致 → `ready`、GET 404 → `failed` で凍結・非削除）へ接続した。回復・保持・清掃・catalog検査のコードとtransportは変えていない。操作と既知の制限は `tools/Artifacts/README.md` の「R2への昇格（evidence promote）」、配布の規則は `review-evidence.md` の「保存先とリモートへの配布」を正とする。経緯の全文は削除前のHANDOFF（`docs/handoff/ARTIFACT_EVIDENCE_R2_PROMOTION.md`、commit `b44d5f6`）。Cloud・別PCがR2から取得する経路とtokenの受け渡しは未着手（本節の冒頭の論点のまま）。後続スライス `Artifact Storage / Evidence 昇格の回復と送信済み staged の寿命`（A1から）への入力:
+
+- 問い: 昇格由来の `put-pending` / `failed` が、回復GETの404の後に `staged` へ戻って同じbytesで再送・local fetchでき、送信を試みた `staged` がremote DELETEとGET 404を経てだけ `deleted` になるか。入力は旧HANDOFF revision 2（commit `8494c791`）のD3（同じbytesの再送の許可とpublishの再送禁止との区別）、D4 (i)(ii)、D5（保持policy、削除経路の選択をCleanupへ、照合GET一致 → `staged`、削除後の遅延PUTの受容）、D6（fetchの取得元をpreflight後に決め、reasonCodeも最終の取得元で出す）、D8（catalogの組み合わせ検査）、D11（runtime切替）と、既存ケース `staged-unsent-required` の1行目の変更。revision 2 のA3裁定 (1)(2)(5) は再確認の対象。
+- 制約: 回復（404 → `staged`）と保持policy・削除経路・清掃の振り分けを同じスライス・同じcommitに置く（片方だけだと送信を試みた `staged` がローカル削除に乗るか削除不能になる）。D8で `origin: stage` の `failed`（putIntentあり・receipt無し）を `corrupt-state` にしない（今のruntimeが回復の404で正当に作るshape）。回復GET一致時に「中のfileが全て `ownedCopies` に入ったstagingだけをadopted」を既存の `Resolve-EvidencePutGuarded` へそのまま入れると、publish由来のstaging（`readback-process.json` 等は `ownedCopies` 外）が7日清掃で消えてtaskが `changed-copy` で止まる。originで分けるか「今回の回復に使ったstagingだけ」に言い換える。
+- 既知の残り: 既存回復がreceiptを再利用するときの照合はkey・packageSha256・manifestSha256の3つに限られる。回復一致時にpromoteのreadback stagingが未登録file（readbackのmarker等）ごとadoptedになる。書込みAの後に止まり回復GETが404の場合、promoteのreadback stagingは `operation` を持ったまま `failed` 後の7日清掃に乗る。前回の試行がreceiptを書いた後にobjectが外部で消えた場合のreceipt再利用は優先度が低い（次の回復が自己回復する）。
+- 送信部の共有（`EvidenceSend.psm1`）は送信まわりを整理するときの入力（所有スライス未定）。promoteの送信手順は `EvidenceApplication.psm1` の独立した内部関数にしてあり、機械的に抽出できる。共有のときは、再利用するintentの `createdAt`・`process` の型の検査をpublishと揃える。既存publishの404 → `failed` で残るremote residueの回収はContentの容量上限・孤児回収の入力。
+- 検証まわり: offlineテストのAC4（別processのZIP書込み）は同じprocess内の共有違反、AC1の別process readbackは `ReadbackHook` で代替している（実childのreadbackは実R2の判定で通った）。一部のsuiteは集計行だけを出し、判定ログからcase名を復元できない（Harnessの改善の入力）。
 
 ### D. BuildSystem / Harness接続
 
