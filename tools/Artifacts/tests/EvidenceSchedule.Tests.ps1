@@ -13,6 +13,7 @@ $registrationCases=@('missing','disabled','action','arguments','directory','prin
 $cases+=@($registrationCases | ForEach-Object {'scheduler-registration-'+$_})
 $cases+=@('principal-account','logon-account','principal-other-account','logon-other-account','principal-unmapped-account','logon-unmapped-account' | ForEach-Object {'scheduler-registration-'+$_})
 $cases+=@('scheduler-missing-cli','scheduler-descriptor-identity','scheduler-install-unconfirmed')
+$cases+=@('scheduler-cli-identity-status','scheduler-cli-identity-install','scheduler-cli-internal-hidden')
 $selected=@(if($Case -ceq '*'){$cases}else{$Case.Split(',')})
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 function Assert([bool]$Value,[string]$Message){if(-not $Value){throw $Message}}
@@ -154,6 +155,41 @@ function AddTasks($Fixture,[int]$Count){
         $guard.Dispose()
     }
 }
+# CLI 境界は子 pwsh で観測する。tools/artifacts.ps1 は store context の判定と module の import を
+# 自前で行うため、子 process 内で同じ fixture の root・hook・deployment root を設定してから呼ぶ。
+# stdout と stderr は分けて取り、失敗の表示先と、path が出ていないことを検査できるようにする。
+# json は stdout のうち '{' で始まる行だけ（module import の警告などの他の行と区別する）。
+function Invoke-ScheduleCli($Fixture,[string]$Action,[string]$HookSource,[bool]$WithInputs=$false){
+    $child=[IO.Path]::Combine($Fixture.work,'cli-'+$Action+'.ps1')
+    $childArguments=@('-Repo',[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..')),'-RuntimeRoot',$Fixture.roles.runtime,'-DeploymentRoot',$Fixture.roles.deployments,'-Config',$Fixture.config)
+    if($WithInputs){
+        # install は runtime の収集入力（head・file 一覧・binary の hash）を要る。fixture の入力を file で渡す。
+        $inputsPath=[IO.Path]::Combine($Fixture.work,'cli-inputs.json')
+        [IO.File]::WriteAllText($inputsPath,(ConvertTo-Json -Depth 6 -InputObject $Fixture.inputs),[Text.UTF8Encoding]::new($false))
+        $childArguments+=@('-InputsPath',$inputsPath)
+    }
+    $source=@'
+param($Repo,$RuntimeRoot,$DeploymentRoot,$Config,$InputsPath='')
+$ErrorActionPreference='Stop'
+$m=Import-Module (Join-Path $Repo 'tools/Artifacts/EvidenceSchedule.psm1') -PassThru
+& $m {param($r,$d,$repo,$inputsPath)
+ $script:TestRoot=$r;$script:SchedulerHook={__HOOK__}
+ $manifest=Get-Content -Raw (Join-Path $r (('e'*40)+'/runtime.json')) | ConvertFrom-Json -AsHashtable
+ $roots=@{};foreach($role in $manifest.storageBinding.roles.Keys){$roots[$role]=$manifest.storageBinding.roles[$role].logicalPath}
+ $script:BindingRootsHook={$roots}.GetNewClosure()
+ if($inputsPath){$inputs=Get-Content -Raw $inputsPath | ConvertFrom-Json -AsHashtable;$script:SourceHook={$inputs}.GetNewClosure()}
+ $c=Import-Module (Join-Path $repo 'tools/Artifacts/EvidenceContract.psm1') -PassThru
+ & $c {param($root)$script:DeploymentRoot=$root} $d
+} $RuntimeRoot $DeploymentRoot $Repo $InputsPath
+& (Join-Path $Repo 'tools/artifacts.ps1') evidence schedule __ACTION__ --profile osm --config $Config
+exit $LASTEXITCODE
+'@
+    [IO.File]::WriteAllText($child,$source.Replace('__HOOK__',$HookSource).Replace('__ACTION__',$Action),[Text.UTF8Encoding]::new($false))
+    $stderrPath=$child+'.err'
+    $stdout=@(& pwsh -NoProfile -File $child @childArguments 2>$stderrPath | ForEach-Object {[string]$_});$exit=$LASTEXITCODE
+    $stderr=if([IO.File]::Exists($stderrPath)){[IO.File]::ReadAllText($stderrPath)}else{''}
+    return @{exit=$exit;stdout=($stdout -join "`n");stderr=$stderr;json=@($stdout | Where-Object {$_.StartsWith('{')})}
+}
 try{
     foreach($case in $selected){
         try{
@@ -230,24 +266,33 @@ try{
                 }
                 'scheduler-missing-cli'{
                     $installation=Invoke-EvidenceScheduleInstall $fixture.config
-                    $child=Join-Path $fixture.work 'missing-cli.ps1'
-                    [IO.File]::WriteAllText($child,@'
-param($Repo,$RuntimeRoot,$DeploymentRoot,$Config)
-$ErrorActionPreference='Stop'
-$m=Import-Module (Join-Path $Repo 'tools/Artifacts/EvidenceSchedule.psm1') -PassThru
-& $m {param($r,$d,$repo)
- $script:TestRoot=$r;$script:SchedulerHook={param($a,$i)@{installed=$false}}
- $manifest=Get-Content -Raw (Join-Path $r (('e'*40)+'/runtime.json')) | ConvertFrom-Json -AsHashtable
- $roots=@{};foreach($role in $manifest.storageBinding.roles.Keys){$roots[$role]=$manifest.storageBinding.roles[$role].logicalPath}
- $script:BindingRootsHook={$roots}.GetNewClosure()
- $c=Import-Module (Join-Path $repo 'tools/Artifacts/EvidenceContract.psm1') -PassThru
- & $c {param($root)$script:DeploymentRoot=$root} $d
-} $RuntimeRoot $DeploymentRoot $Repo
-& (Join-Path $Repo 'tools/artifacts.ps1') evidence schedule status --profile osm --config $Config
-exit $LASTEXITCODE
-'@)
-                    $output=& pwsh -NoProfile -File $child -Repo ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))) -RuntimeRoot $fixture.roles.runtime -DeploymentRoot $fixture.roles.deployments -Config $fixture.config 2>&1
-                    Assert ($LASTEXITCODE -eq 2 -and ($output -join '') -match 'scheduler-not-installed') ('missing OS task CLI did not return pending exit 2: '+$LASTEXITCODE+' '+($output -join ''))
+                    $cli=Invoke-ScheduleCli $fixture 'status' 'param($a,$i)@{installed=$false}'
+                    Assert ($cli.exit -eq 2 -and $cli.stdout -match 'scheduler-not-installed') ('missing OS task CLI did not return pending exit 2: '+$cli.exit+' '+$cli.stdout+' '+$cli.stderr)
+                }
+                'scheduler-cli-identity-status'{
+                    # descriptor の execute が現在の pwsh と違う（pwsh 更新後の状態）。status は OS を見る前に止まり、
+                    # CLI は固定 code を stdout の JSON で返す。一般診断の文は出さない。
+                    $installation=Invoke-EvidenceScheduleInstall $fixture.config
+                    $descriptor=Join-Path $fixture.roles.runtime ($fixture.repo+'.schedule.json')
+                    $identity=Get-Content -Raw $descriptor | ConvertFrom-Json -AsHashtable
+                    $identity.execute='foreign-pwsh.exe';$null=WriteJson $descriptor $identity
+                    $cli=Invoke-ScheduleCli $fixture 'status' 'param($a,$i)@{installed=$true}'
+                    Assert ($cli.exit -eq 1 -and $cli.json.Count -eq 1 -and $cli.json[0] -ceq '{"status":"failed","reasonCode":"scheduler-identity-mismatch"}' -and $cli.stderr -notmatch 'Artifact operation failed') ('identity mismatch hidden at status CLI: '+$cli.exit+' '+$cli.stdout+' '+$cli.stderr)
+                }
+                'scheduler-cli-identity-install'{
+                    # 同名 task が別 identity。install は登録を呼ばず（marker が作られない）、同じ JSON で止まる。
+                    $installation=Invoke-EvidenceScheduleInstall $fixture.config
+                    $marker=[IO.Path]::Combine($fixture.work,'cli-install-marker')
+                    $hook='param($a,$i)if($a -ceq ''install''){[IO.File]::WriteAllText('''+$marker+''',''x'')};throw ''scheduler-identity-mismatch'''
+                    $cli=Invoke-ScheduleCli $fixture 'install' $hook $true
+                    Assert ($cli.exit -eq 1 -and $cli.json.Count -eq 1 -and $cli.json[0] -ceq '{"status":"failed","reasonCode":"scheduler-identity-mismatch"}' -and $cli.stderr -notmatch 'Artifact operation failed') ('identity mismatch hidden at install CLI: '+$cli.exit+' '+$cli.stdout+' '+$cli.stderr)
+                    Assert (-not (Test-Path $marker)) 'install CLI registered over a foreign task'
+                }
+                'scheduler-cli-internal-hidden'{
+                    # allow-list に無い例外（path を含む）は従来どおり stderr の一般診断だけ。stdout に JSON も path も出ない。
+                    $installation=Invoke-EvidenceScheduleInstall $fixture.config
+                    $cli=Invoke-ScheduleCli $fixture 'status' 'param($a,$i)throw ''fixture failure at C:\osm-fixture-secret\store\catalog.json'''
+                    Assert ($cli.exit -eq 1 -and $cli.json.Count -eq 0 -and $cli.stdout -notmatch 'reasonCode' -and $cli.stderr -match 'Artifact operation failed\.' -and ($cli.stdout+' '+$cli.stderr) -notmatch 'osm-fixture-secret') ('internal failure leaked at CLI: '+$cli.exit+' '+$cli.stdout+' '+$cli.stderr)
                 }
                 'native-long-path-identity'{
                     $native=$module.NestedModules | Where-Object Name -eq 'WindowsStorePaths' | Select-Object -Last 1

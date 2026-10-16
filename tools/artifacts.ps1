@@ -3,6 +3,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 try {
+    # catchがstdoutのreasonCodeへ通してよい固定code。schedule分岐だけが値を入れる。
+    $publicFailures=@()
     # 仮想化されたAppDataでストアへ書くと、別の実体へ黙って分裂する。引数の解釈・
     # store moduleのimport・資格情報の読取りより前に判定し、判定不能も止める。
     try{Import-Module (Join-Path $PSScriptRoot 'Workflow/WindowsStoreContext.psm1');$storeContext=Get-OsmStoreContext}catch{$storeContext='unknown'}
@@ -159,6 +161,10 @@ try {
         }
         if((($opts.Keys|Sort-Object) -join ',') -cne (($expected|Sort-Object) -join ',') -or ($dry -and $action -cnotin @('cleanup','reset'))){throw 'unsupported-command'}
         Import-Module (Join-Path $PSScriptRoot 'Artifacts/EvidenceApplication.psm1')
+        # scheduleは既存のOS taskを修復・上書きしない設計なので、ownerが原因（identity不一致・
+        # 無効化・未登録・config/runtime不一致・未build）を読めなければ復旧できない。module が
+        # throwする固定codeのうちREADMEに意味を書いた9件だけを通す。config読取の失敗は従来どおり伏せる。
+        if($action -cin @('schedule-install','schedule-status')){$publicFailures=@('scheduler-identity-mismatch','scheduler-disabled','scheduler-not-installed','scheduler-query-failed','scheduler-runtime-missing','runtime-source-uncommitted','runtime-identity-mismatch','runtime-hash-mismatch','runtime-config-mismatch')}
         switch($action){
             'publish'{$outcome=Invoke-EvidencePublish $opts['--config'] $opts['--selection']}
             'stage'{$outcome=Invoke-EvidenceStage $opts['--config'] $opts['--selection']}
@@ -178,6 +184,9 @@ try {
     exit 1
 } catch {
     # 例外文字列・stack trace には秘密やパスが混ざり得るため、一般診断だけ表示する。
-    if($_.Exception.Message -ceq 'unsupported-command'){[Console]::WriteLine('{"status":"failed","reasonCode":"unsupported-command"}')}else{[Console]::Error.WriteLine('Artifact operation failed.')}
+    # 通すのはallow-listの固定codeに完全一致（大文字小文字を区別）する場合だけで、部分一致で通さない。
+    if($_.Exception.Message -ceq 'unsupported-command'){[Console]::WriteLine('{"status":"failed","reasonCode":"unsupported-command"}')}
+    elseif($_.Exception.Message -cin $publicFailures){[Console]::WriteLine((ConvertTo-Json -Compress -InputObject ([ordered]@{status='failed';reasonCode=$_.Exception.Message})))}
+    else{[Console]::Error.WriteLine('Artifact operation failed.')}
     exit 1
 }
