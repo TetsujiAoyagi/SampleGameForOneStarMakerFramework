@@ -22,7 +22,7 @@ function New-EvidenceBadInputs($Env,$Fixture){
     $selShort=[ordered]@{}+$sel;$selShort.Remove('base');$selShortPath=[IO.Path]::Combine($bad,'selection-short.json');Write-EvidenceTestJson $selShortPath $selShort
     return [pscustomobject]@{Relative='bad-input-marker\relative.json';Missing=[IO.Path]::Combine($bad,'missing.json');Broken=$broken;Short=$shortPath;Hex=$hexPath;Value=$valuePath;Selection=$selPath;SelectionShort=$selShortPath}
 }
-$registered+=@('stage-local-fetch-child','stage-local-fetch-reject','stage-unresolved-refused','stage-source-publish','stage-changes-patch','stage-catalog-read')
+$registered+=@('stage-local-fetch-child','stage-local-fetch-reject','stage-unresolved-refused','stage-source-publish','stage-changes-patch','stage-catalog-read','remote-fetch-codes-unchanged')
 function ConvertTo-EvidenceTestReference($Ref){return 'osm-evidence-v2:'+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((ConvertTo-Json $Ref -Compress))).TrimEnd('=').Replace('+','-').Replace('/','_')}
 function Invoke-EvidenceTestStage($Env,[string]$SelectionPath){$s=Invoke-EvidenceStage $Env.ConfigPath $SelectionPath;Assert-EvidenceTest ($s.status -ceq 'passed' -and $s.locality -ceq 'local' -and $s.reference.StartsWith('osm-evidence-v2:')) ('stage failed '+$s.reasonCode);return $s}
 function Invoke-EvidenceTestGit([string]$Repo,[string[]]$GitArgs){$out=& git -C $Repo @GitArgs;if($LASTEXITCODE -ne 0){throw ('git failed: '+($GitArgs -join ' '))};return $out}
@@ -170,6 +170,12 @@ foreach($caseName in $selected){
                 Assert-EvidenceTest ($baseHashes['keep.txt'] -ceq $appliedHashes['keep.txt'] -and -not $recorded.ContainsKey('keep.txt')) 'unchanged file recorded'
                 # The comparison must notice a recorded set that forgot one changed file.
                 $short=@{}+$recorded;$short.Remove('bin.dat');Assert-EvidenceTest ((Get-EvidenceTestPatchProblems $baseHashes $appliedHashes $short $deleted) -ccontains 'unrecorded-change:bin.dat') 'omission not detected';break
+            }
+            'remote-fetch-codes-unchanged'{
+                # I4: a missing copy of a ready artifact still reports the remote fetch's old generic code.
+                $p=Invoke-EvidencePublish $env.ConfigPath $selectionPath;Assert-EvidenceTest ($p.status -ceq 'passed') 'publish'
+                [IO.File]::Delete((Read-EvidenceTestTask $env).artifacts[0].ownedCopies[0].path)
+                $f=Invoke-EvidenceFetch $env.ConfigPath $p.reference $p.packageSha256;Assert-EvidenceTest ($f.status -ceq 'failed' -and $f.reasonCode -ceq 'unconfirmed') ('remote code '+$f.reasonCode);break
             }
             'stage-catalog-read'{
                 # The catalog reader: optional origin, staged without receipt, and stage-origin deletion without receipt.

@@ -134,7 +134,7 @@ function Invoke-EvidenceStage([string]$ConfigPath,[string]$SelectionPath){
     return [pscustomobject]$result
 }
 function Invoke-EvidenceFetch([string]$ConfigPath,[string]$ReferenceText,[string]$ExpectedHash){
-    $r=[ordered]@{status='failed';reasonCode='unconfirmed';outputPath=$null;residue=@{localPath=$null};stagingMissing=0};$guard=$null;$a=$null;$task=$null;$timer=[Diagnostics.Stopwatch]::StartNew()
+    $r=[ordered]@{status='failed';reasonCode='unconfirmed';outputPath=$null;residue=@{localPath=$null};stagingMissing=0};$guard=$null;$a=$null;$task=$null;$local=$false;$timer=[Diagnostics.Stopwatch]::StartNew()
     $staging=[pscustomobject]@{Observations=[Collections.Generic.List[object]]::new();Witnesses=0}
     try{
         Assert-Hex $ExpectedHash 64;$config=Read-EvidenceConfig $ConfigPath;$ref=Read-EvidenceReference $ReferenceText $config
@@ -162,7 +162,10 @@ function Invoke-EvidenceFetch([string]$ConfigPath,[string]$ReferenceText,[string
         Import-ArtifactPackage;$package=[OneStarMaker.Artifacts.Packaging.PackageIO]::Extract($archive,$op,$ExpectedHash,$ref.manifestSha256,$ref.base,$ref.head,$ref.repositoryId,$ref.artifactId,(Get-Remaining $timer 600000),'evidence',$ref.taskId)
         Add-EvidenceOwnedFile $a $archive $package.Bytes $package.Sha256;foreach($e in $package.Files){Add-EvidenceOwnedFile $a ([IO.Path]::Combine($package.Path,$e.Path)) $e.Bytes $e.Sha256}
         Protect-ArtifactTree $op;$a.operation=$null;$stage.adopted=$true;$stage.operation=$null;$null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard;$r.outputPath=$package.Path;$r.status='passed';$r.reasonCode='complete'
-    }catch{if($script:FailureHook){& $script:FailureHook $_}if($_.Exception.Message -cin @('unsupported-schema','invalid-evidence-config','unknown-deployment','expired','identity-mismatch','catalog-missing','changed-copy','unresolved-put','unresolved-delete')){$r.reasonCode=$_.Exception.Message}}
+    }catch{if($script:FailureHook){& $script:FailureHook $_}
+        # The remote branch keeps its published reason codes; only the local branch
+        # names the local refusals, so an existing caller never sees a new code.
+        if($_.Exception.Message -cin @('unsupported-schema','invalid-evidence-config','unknown-deployment','expired','identity-mismatch','catalog-missing') -or ($local -and $_.Exception.Message -cin @('changed-copy','unresolved-put','unresolved-delete'))){$r.reasonCode=$_.Exception.Message}}
     finally{if($a -and $task -and $guard){try{$a.operation=$null;if(Get-Variable stage -ErrorAction SilentlyContinue){$stage.operation=$null};$null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard}catch{if($script:FailureHook){& $script:FailureHook $_}$r.status='failed';$r.outputPath=$null}};if($guard){$guard.Dispose()}}
     $r.stagingMissing=$staging.Observations.Count
     return [pscustomobject]$r
