@@ -1,182 +1,166 @@
-# Artifact Storage / Evidence の R2 昇格 HANDOFF
+# Artifact Storage / Evidence の R2 昇格（送信）HANDOFF
 
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（A3 統合済み。owner が 2026-10-17 に §5.1 末尾の 5 点を主担当案で裁定し、主担当が §2〜§5 を revision 2 に統合した。凍結は owner の本文確認後）
+- status: `A`（revision 3。2026-10-17 に owner の指示で、revision 2 を 2 スライスに分けた。本 HANDOFF は 1 つ目の「送信」だけを扱い、2 つ目の「昇格の回復と送信済み `staged` の寿命」は後続スライス（§2・§5.2）。凍結は owner の本文確認後。revision 2 以前の記録は §5.1・§5.2）
 - branch: `claude/evidence-r2-promotion`（PR の base は `develop`）
-- implementation base commit: `ec5288d73804cc23ec0edfe35370d16751e40157`（A1 時点の `origin/develop`、PR #129 マージ後。A3 で確定する）
+- implementation base commit: `ec5288d73804cc23ec0edfe35370d16751e40157`（`origin/develop`、PR #129 マージ後。凍結時に確定する）
 - implementation head commit: 未固定
-- risk: `high`（Evidence catalog の state 遷移と、PUT 応答不明・削除の fail-closed 契約に触れる。network を使う送信経路を増やす）
+- risk: `high`（network を使う送信経路を Evidence に増やす。catalog の state 遷移と PUT 応答不明の fail-closed 契約に接続する。revision 3 で、catalog 検査・保持 policy・清掃・回復のコードには触れなくなった）
 - owner: OSM maintainers
 - created: 2026-10-17
 - expires: 2026-11-17 または置換 revision
-- harvest to: 操作・状態遷移・回復規則を `tools/Artifacts/README.md`（「ローカル固定」「Evidence v2 の通常操作」「終了・再開・利用中と清掃」「エージェント操作の事前承認」）へ。昇格の使い方は `.agents/skills/osm-workflow/references/review-evidence.md` の「保存先とリモートへの配布」（本スライスの実装対象）。`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 C に「昇格は完了。Cloud・別 PC からの取得経路は未着手」を記録する。
-- Phase A snapshot の取得案内・状態: 未保存（本 HANDOFF の commit を A2 の入力版とする。内容 sha256 は §5 の A2 欄に記録する）
+- harvest to: 操作と既知の制限を `tools/Artifacts/README.md`（「ローカル固定」「Evidence v2 の通常操作」「エージェント操作の事前承認」）へ。昇格の使い方は `.agents/skills/osm-workflow/references/review-evidence.md` の「保存先とリモートへの配布」（本スライスの実装対象）。`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 C に「送信は完了。回復と寿命は後続スライス、Cloud・別 PC からの取得経路は未着手」と、§2 の後続スライスの入力を記録する。
+- Phase A snapshot の取得案内・状態: 未保存（本 HANDOFF の凍結 commit を凍結対象版とする。内容 sha256 は凍結時に引継ぎ票へ書く）
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成（未到達 Phase）
-- 引継ぎ票: 次は **owner による revision 2 の本文確認と凍結**。入力は本 HANDOFF の §2〜§5（revision 2）と §5.1。owner が確認したら、主担当が凍結 commit と内容 sha256 をここに書き、引継ぎ票を Phase B 向けに書き換える。push はしない（公開点は `osm-workflow` の「公開点とGit履歴」）。引き渡さないもの: なし。
+- 引継ぎ票: 次は **owner による revision 3 の本文確認と凍結**。入力は本 HANDOFF の §2〜§5（revision 3）と §5.2。owner が確認したら、主担当が凍結 commit と内容 sha256 をここに書き、引継ぎ票を Phase B 向けに書き換える。push はしない（公開点は `osm-workflow` の「公開点とGit履歴」）。引き渡さないもの: なし。
+- （旧）引継ぎ票（revision 2。記録として残す）: 次は owner による revision 2 の本文確認と凍結（commit `8494c791`）。owner は凍結せず、実装単位が大きいとして 2 スライスへの分割を指示した（§5.2）。
 - （旧）引継ぎ票（A2 → A3。記録として残す）: 次は A3（統合と凍結）。入力は §5.1 と A1 初稿（commit `d9b5c3e5`）。owner は 2026-10-17 に 5 点を主担当案で裁定した。
 - （旧）引継ぎ票（A1 → A2。記録として残す）: 次は A2（独立レビュー）。入力は A1 初稿の commit `d9b5c3e5`（内容 sha256 `e5a7060cb698c9a1d64e3a9ae4527191bff3cd2570c329d6337600d349929760`）。観点は §5 の A2 欄。
 
 ## 1. 目的と対象外
 
-- 目的: `evidence stage` でローカル固定した Evidence（state `staged`）を、**同じ artifact・同じ ZIP bytes のまま** R2 へ置けるようにする（昇格）。reference と packageSha256 を変えず、取得案内は `locality` だけを `local` から `promoted` に更新すれば済む。PUT 応答不明・回復 GET の 404・再送・成功確定・清掃・task 終了の各場面で、データを失わず、確認できない削除を削除済みにせず、R2 に孤児を残す経路を作らない回復契約を閉じる。
+- 目的: `evidence stage` でローカル固定した Evidence（state `staged`）を、**同じ artifact・同じ ZIP bytes のまま** R2 へ置けるようにする（昇格の送信）。reference と packageSha256 を変えず、取得案内は `locality` だけを `local` から `promoted` に更新すれば済む。PUT 応答不明は既存の `put-pending` 回復へそのまま接続し、本スライスでは既存の回復・保持・清掃のコードを変えない。
 - 現況（2026-10-17、`origin/develop` = `ec5288d7`）:
   - `evidence stage`（PR #128）は publish と同じ準備（selection → guard → network 無し preflight → snapshot → `PackageIO.CreateVerified` → `Extract` 再検証）までを行い、artifact を state `staged`・`origin: stage`・`putIntent=null`・`receipt=null` で catalog に入れる。ZIP は staging operation 内の `ownedCopies` に唯一の複製として残る。`key` は `Get-EvidenceKey` が artifactId から導く値を未送信のまま持つので、reference（`osm-evidence-v2:`）は R2 に置いても変わらない（[EvidenceApplication.psm1](../../tools/Artifacts/EvidenceApplication.psm1) `Invoke-EvidenceStage`）。
-  - publish の送信部（同ファイル `Invoke-EvidencePublish`）は、`intents/<artifactId>.json` を `Write-EvidenceAtomic -Immutable`（上書き不可）で書き → catalog に `putIntent` を記録 → package に read lock（`FileShare.Read`）を取って PUT → 別 process の readback GET で bytes・hash を照合 → `receipts/<artifactId>.json` を immutable で書き → state `ready`。PUT 応答不明は同 key へ再送せず `put-pending` のまま残す。transport（[R2ArtifactTransport.cs](../../tools/Artifacts/Transport/R2ArtifactTransport.cs)）は条件付き PUT（`If-None-Match`）を使っていない。
-  - `put-pending` の回復（[EvidenceCleanup.psm1](../../tools/Artifacts/EvidenceCleanup.psm1) `Resolve-EvidencePutGuarded`）は、GET が一致すれば receipt を書いて `ready`、GET が 404 なら state を `failed` にする。`failed` は保持 policy で `unconfirmed-artifact` になり、清掃・DELETE されない。つまり既存 publish の「404 の後に先行 PUT が遅れて確定する」場合の remote object は、今も削除されない residue として残る（既存の受容。本スライスは publish 側を変えない）。
-  - 読戻し検査（[EvidenceStateStore.psm1](../../tools/Artifacts/EvidenceStateStore.psm1) `Read-EvidenceTask`）は state を 6 値（`put-pending` / `ready` / `delete-pending` / `deleted` / `failed` / `staged`）、`origin` を `publish` / `stage` に限る。origin と state の組み合わせ自体は制限していない。receipt は、`ready` と `delete-pending`（origin を問わない）、および origin が `stage` 以外の `deleted` に要求する。
-  - 保持 policy（[EvidenceRetentionPolicy.psm1](../../tools/Artifacts/EvidenceRetentionPolicy.psm1)）は、`staged` を次のように判定する。`origin: stage` で、`putIntent` が null かつ `receipt` が null のものは `ready` と同じ経路。それ以外の `staged`（putIntent を持つ、receipt を持つ、publish 由来、origin 無し）は全て `unknown-state`（削除しない）。清掃は `staged` をローカル削除（`Invoke-EvidenceLocalDeleteGuarded`）、`ready` を remote 削除（deleteIntent → DELETE → GET 404 `NoSuchKey` → `deleted`）に分ける。remote 削除の照合 GET が一致した場合は state を `ready` に戻す（`Resolve-EvidenceDeleteGuarded`）。
-  - fetch は guard を取った後、preflight の前に catalog を読み、対象が `staged` なら network 無しの preflight と local 分岐、そうでなければ network 付き preflight と remote 分岐を選ぶ。選択は preflight 後に変わらない。
+  - publish の送信部（同ファイル `Invoke-EvidencePublish`）は、`intents/<artifactId>.json` を `Write-EvidenceAtomic -Immutable`（上書き不可）で書き → catalog に `putIntent` を記録 → package に read lock（`FileShare.Read`）を取って PUT → 別 process の readback GET で bytes・hash を照合 → `receipts/<artifactId>.json` を immutable で書き → state `ready`。PUT 応答不明は同 key へ再送せず `put-pending` のまま残す。停止点の注入は `$script:FaultHook`（`after-put-intent`、`after-receipt`）。transport（[R2ArtifactTransport.cs](../../tools/Artifacts/Transport/R2ArtifactTransport.cs)）は条件付き PUT を使っていない。
+  - `put-pending` の回復（[EvidenceCleanup.psm1](../../tools/Artifacts/EvidenceCleanup.psm1) `Resolve-EvidencePutGuarded`）は origin を見ない。GET が一致すれば、既存の receipt があれば照合して再利用し（無ければ書き）、`ownedCopies` に回復 GET の file を追記して `ready`。GET が 404 なら `failed`。`failed` は保持 policy で `unconfirmed-artifact` になり、清掃・DELETE されない（既存 publish でも、404 の後に先行 PUT が遅れて確定した remote object は削除されない residue として残る。既存の受容）。
+  - 読戻し検査（[EvidenceStateStore.psm1](../../tools/Artifacts/EvidenceStateStore.psm1) `Read-EvidenceTask`）は state を 6 値、`origin` を `publish` / `stage` に限る。origin と state の組み合わせ自体は制限していない。receipt は `ready` と `delete-pending`（origin を問わない）、および origin が `stage` 以外の `deleted` に要求する。したがって `origin: stage` の `put-pending`（putIntent あり）・`ready`（receipt あり）・`failed`（putIntent あり）は、今の reader で読める。
+  - 保持 policy（[EvidenceRetentionPolicy.psm1](../../tools/Artifacts/EvidenceRetentionPolicy.psm1)）は、`origin: stage` で putIntent も receipt も null の `staged` を `ready` と同じ経路で判定し、それ以外の `staged` は全て `unknown-state`（削除しない）。清掃は `staged` をローカル削除、`ready` を remote 削除（deleteIntent → DELETE → GET 404 `NoSuchKey` → `deleted`）に分ける。
+  - 清掃は、`staged` または `put-pending` の artifact を参照する staging を、7 日清掃から一律に除外する（[EvidenceCleanup.psm1:293](../../tools/Artifacts/EvidenceCleanup.psm1)）。
+  - fetch は preflight 前の catalog の読取りで、対象が `staged` なら network 無しの preflight と local 分岐、そうでなければ network 付き preflight と remote 分岐を選ぶ。`put-pending` の artifact は network 付き preflight で回復され、`ready` になれば remote 分岐で取得でき、`failed` になれば `identity-mismatch` で拒否される。inspect は `staged` → `local`、`ready` → `promoted` を既に返す（同ファイル `Invoke-EvidenceInspect`）。
   - `use` / `release` は `ready` と `staged` を受け付ける。
-  - 前スライスで後続へ送った入力（program §4 C）: 旧 HANDOFF revision 2 の D4（promote）/ D4'（回復）/ I8 / S4、追加レビュー ADD-01（R2 の GET 404 は先行 PUT の失敗確定ではなく、同 key 再送禁止の既存 publish 契約と衝突する）、前回所見 R2-02（昇格時の catalog 更新単位）、fetch の local / remote 選択が preflight 前に決まる点。全文は削除前の HANDOFF（`docs/handoff/ARTIFACT_EVIDENCE_LOCAL_STAGE.md`、commit `72a8b0c`、revision 2 は `16509b46^`）。
-- 対象外: Cloud・別 PC が R2 から fetch する経路と token の受け渡し（2026-10-17 owner 裁定で本スライスから外した。program §4 C の後続）。既存 publish の `put-pending` 回復と `failed` の扱い。`ready` artifact のローカル copy からの network 無し fetch。条件付き PUT など transport の変更。`use` の network 無し preflight（program §4 C の入力のまま）。Unity 側の変更なし。
+  - 前スライスで後続へ送った入力（program §4 C）: 旧 HANDOFF revision 2 の D4 / D4' / I8 / S4、追加レビュー ADD-01（R2 の GET 404 は先行 PUT の失敗確定ではなく、同 key 再送禁止の既存 publish 契約と衝突する）、前回所見 R2-02（昇格時の catalog 更新単位）。全文は削除前の HANDOFF（`docs/handoff/ARTIFACT_EVIDENCE_LOCAL_STAGE.md`、commit `72a8b0c`、revision 2 は `16509b46^`）。本スライスは ADD-01 に「再送しない」で答え（§2 D3）、R2-02 に 2 回の catalog 書込みで答える（D2）。
+- 対象外: 回復 GET の 404 の後に `staged` へ戻す回復・再送、送信を試みた `staged` の寿命と remote 削除、fetch の取得元の決め直し、catalog の組み合わせ検査、runtime の切替（以上は後続スライス。§2）。publish と promote の送信部の共有（`EvidenceSend.psm1`）。Cloud・別 PC が R2 から fetch する経路と token の受け渡し（program §4 C）。`ready` artifact のローカル copy からの network 無し fetch。条件付き PUT など transport の変更。Unity 側の変更なし。
 
-## 2. 意思決定と受け入れ境界（revision 2。A2 の採用分と A3 の 5 点の裁定を統合。owner の本文確認待ち）
+## 2. 意思決定と受け入れ境界（revision 3。owner の本文確認待ち）
 
-- このスライスが答える問い: 「`staged` の artifact を、同じ reference・同じ packageSha256・同じ bytes のまま R2 へ昇格でき、PUT 応答不明から先のどの停止点でも、payload を失わず、確認できない状態を成功・削除済みにせず、R2 上の object を catalog の追跡外に残さずに、昇格・取得・清掃へ収束できるか」。
-- A0 で owner が固定した前提: 範囲は昇格だけ。Cloud・別 PC からの取得経路は後続（2026-10-17）。
-- A3 で owner が裁定したこと（2026-10-17、§5.1 末尾の 5 点を全て主担当案で採用）: (1) 回復 GET の 404 の後は `staged` に戻し、同じ bytes の再送を許す。putIntent を持つ artifact は remote 削除だけ。(2) 削除の後に遅れて確定する PUT は受容する残存リスクとして README に書く。(3) `already-promoted` は `status: passed`、初回の成功と同じ出力の形で、終了済み task でも返す。(4) `EvidenceSend.psm1` は送信プリミティブだけ、promote は `EvidenceApplication.psm1`、削除経路の選択は `EvidenceCleanup.psm1`。(5) 判定 C の実行担当が AC12 の直前に GO 候補 head で `schedule install` を行うことを承認する（D11）。
+- このスライスが答える問い: 「`staged` の artifact を、同じ reference・同じ packageSha256・同じ bytes のまま R2 へ昇格でき、PUT 応答不明を既存の `put-pending` 回復（一致 → `ready`、404 → `failed` で凍結・非削除）へ接続することで、既存の回復・保持・清掃のコードを変えずに、送った可能性のある bytes を確認なしに消さない状態へ閉じられるか」。
+- A0 で owner が固定した前提: 範囲は昇格だけ。Cloud・別 PC からの取得経路は後続（2026-10-17）。実装単位を 2 スライスに分け、本スライスは送信だけ（2026-10-17）。
+- revision 2 の A3 裁定のうち本スライスに残るもの: (3) `already-promoted` は `status: passed`、初回の成功と同じ出力の形で、終了済み task でも返す。(4) のうち「promote は `EvidenceApplication.psm1`」。裁定 (1)（404 後の `staged` と再送）・(2)（削除後の遅延 PUT の受容）・(5)（AC12 前の `schedule install`）は後続スライスへ移った。裁定 (4) のうち `EvidenceSend.psm1` は作らない（§5.2）。
 - 方式:
   - **D1 `evidence promote`。** `pwsh tools/artifacts.ps1 evidence promote --profile osm --config <cfg> --reference <ref> --sha256 <期待 packageSha256>`。順序は次のとおり。
     1. config と reference を読み、reference の taskId で task guard を取る。
-    2. 通常の（network を使う）preflight と Sync を行う。ここで同じ task の `put-pending` と、D8 で読める昇格由来の `failed` は D4 の回復で解決される。解決できなければ既存どおり `unresolved-put` / `unresolved-delete`。
+    2. 通常の（network を使う）preflight と Sync を行う。同じ task の `put-pending` は既存の回復で `ready` または `failed` に解決される。解決できなければ既存どおり `unresolved-put` / `unresolved-delete`。
     3. catalog に reference の artifactId が無ければ `catalog-missing`、`deleted` なら `expired`。
     4. **全分岐の前に** identity を照合する: key・base・head・manifestSha256・packageBytes が reference と、packageSha256 が期待 hash と一致すること。不一致は `identity-mismatch`、PUT 0 件。
-    5. `ready` かつ `origin: stage`: 送信せず `status: passed`、`reasonCode: already-promoted`。出力は初回の成功と同じ形（`reference`・`packageSha256`・`locality: promoted`・`receipt`・`residue.remote: ready`）。PUT も state 変更も無いので、task の状態（`active` / `ended`）を問わない。応答を失った昇格の再実行もここで収束する。
-    6. `staged` かつ `origin: stage`: task が `active` でなければ `resume-required`（publish・stage と同じ）。`active` なら D2 へ進む。
-    7. それ以外（`origin: publish` の全ての state、`origin` の無い artifact、手順 2 の後も残る `delete-pending` 等）: `invalid-source`、PUT 0 件。
-  - **D2 送信（同じ bytes）。** catalog の書込みは次の 3 回で、間のどこで止まっても安全な状態になる。
+    5. `ready` かつ `origin: stage`: 送信せず `status: passed`、`reasonCode: already-promoted`。出力は初回の成功と同じ形（`reference`・`packageSha256`・`locality: promoted`・`receipt`・`residue.remote: ready`）。PUT も state 変更も無いので、task の状態（`active` / `ended`）を問わない。応答を失った昇格の再実行も、手順 2 の回復で `ready` になればここで収束する。
+    6. `staged` かつ `origin: stage` かつ putIntent が null かつ receipt が null: task が `active` でなければ `resume-required`（publish・stage と同じ）。`active` なら D2 へ進む。
+    7. それ以外（`origin: publish` の全ての state、origin の無い artifact、`origin: stage` の `failed`、putIntent または receipt を持つ `staged`）: `invalid-source`、PUT 0 件。`origin: stage` の `failed` の回復は後続スライス。
+  - **D2 送信（同じ bytes）。** catalog の書込みは 2 回（R2-02 の更新単位）。
     1. catalog の `ownedCopies` から packageSha256・packageBytes が一致する ZIP を選び、read lock（`FileShare.Read`）で開く。lock を保持したまま、その file の SHA-256 と長さを catalog の値と照合する。不一致なら PUT せず `identity-mismatch`。再 snapshot・再 package はしない（snapshot・package を作る関数を呼ばない）。
-    2. putIntent: artifact が既に `putIntent` を持てば、その file の sha256 と、内容の key・packageSha256・artifactId を照合して再利用する。持たなければ `intents/<artifactId>.json` を見て、既に在る（前回の昇格が catalog 記録の前に止まった）なら同じ照合で再利用し、無ければ publish と同じ形で immutable に書く。照合に失敗したら `unresolved-put`、PUT 0 件。
-    3. **書込み 1:** readback 用の新しい staging operation を登録する（回復 GET と同じ `New-EvidenceRecoveryStage` の形）。artifact は `staged` のまま。ここで止まれば、artifact は無傷で、未採用の staging が 7 日清掃に乗る。
-    4. **書込み 2:** 1 回の catalog 書込みで、`putIntent` の参照・state `put-pending`・artifact の `operation` を記録する。
-    5. lock を保持したまま同じ file を PUT し、別 process の readback（`Invoke-ArtifactReadback`）で bytes・hash を照合する。同じ process の GET の一致では `ready` にしない。
-    6. receipt: `receipts/<artifactId>.json` が既に在れば、回復と同じ照合（key・packageSha256・manifestSha256）で再利用する。無ければ publish と同じ形（`putIntentSha256` を含む）で immutable に書く。
-    7. **書込み 3:** 1 回の catalog 書込みで、`receipt`・state `ready`・`operation=null` を記録する。`ownedCopies` は**追記のみ**で、昇格前の集合を全て残し、readback staging の file を加える。adopted にする staging は、中の file が全て `ownedCopies` に入ったものに限る。`origin: stage` は残す。
+    2. putIntent: `intents/<artifactId>.json` が既に在る（前回の promote が書込み A の前に止まった）なら、その内容の key・packageSha256・artifactId を照合して再利用する。照合に失敗したら `unresolved-put`、PUT 0 件。無ければ publish と同じ形で immutable に書く。ここで止まっても artifact は `staged`・putIntent 無しのままで、何も送っていない。
+    3. **書込み A:** 1 回の catalog 書込みで、readback 用の新しい staging（`artifactId` 付き、`operation` 付き）の登録・`putIntent` の参照・state `put-pending`・artifact の `operation` を記録する。既存の `New-EvidenceRecoveryStage` は自分で catalog を書くので、そのままは使わない。
+    4. lock を保持したまま同じ file を PUT し、別 process の readback（`Invoke-ArtifactReadback`）で bytes・hash を照合する。同じ process の GET の一致では `ready` にしない。
+    5. receipt を publish と同じ形（`putIntentSha256` を含む）で immutable に書く。
+    6. **書込み B:** 1 回の catalog 書込みで、`receipt`・state `ready`・`operation=null` を記録する。`ownedCopies` は**追記のみ**で、昇格前の集合を全て残し、readback staging の file を加える。adopted にするのは、この promote が書込み A で登録した readback staging だけ。`origin: stage` は残す。
     - 出力は `reference`（入力と同じ文字列）、`packageSha256`、`locality: promoted`、`receipt`、`residue.remote`。PUT または readback が確認できなければ `put-pending` のまま `status: failed`・`reasonCode: unconfirmed` を返す。
-    - 停止点の注入: Send の FaultHook `after-put-intent-file`（intent file の後・書込み 2 の前）、`after-put-pending`（書込み 2 の後・PUT の前）、`after-receipt-file`（receipt file の後・書込み 3 の前）。
-  - **D3 再送の許可（ADD-01 への答え）。** 昇格では、同じ key へ同じ bytes（catalog の packageSha256 と一致を確認した ZIP）を再度 PUT してよい。既存 publish の「PUT 応答不明を同 key 再送しない」は、publish が毎回別の snapshot を作る経路の契約で、昇格には適用しない（README に publish 側の契約と明記し、既存テスト `one-put-lost-response` も publish にだけ適用する）。根拠: 送る bytes は packageSha256 で固定され、R2 の PUT は object 全体の置換なので、先行 PUT が後から確定しても後続 PUT と同じ内容になる。保証するのは「その key の object は、存在するなら packageSha256 の bytes である」ことと「`ready` は別 process の readback 一致の後にしか書かない」ことで、「PUT が最大 1 回」は保証しない。promote は `put-pending` のまま PUT しない（必ず D1 手順 2 の回復で `staged` か `ready` に確定させてから送る）。
-  - **D4 昇格由来の未確定の回復。** `Resolve-EvidencePutGuarded` は、`origin: stage` で (i) `put-pending`、または (ii) putIntent あり・receipt 無しの `failed`（本スライスより前の runtime が回復 GET の 404 で付けた state。D8）について:
-    - GET が一致: 既存どおり receipt を書いて（在れば D2-6 と同じ照合で再利用して）`ready`。`ownedCopies` は追記のみ、adopted にする staging は中の file が全て `ownedCopies` に入ったものに限る（同じ artifactId の staging を一律に adopted にしない）。
-    - GET が 404: state を `staged` に戻し、`putIntent`・ZIP・`ownedCopies`・`protections` をそのまま残す。同じ artifact の停止済み staging の `operation` を解除する（そのままだと清掃が `staged` の staging を飛ばすので解除されず、ディレクトリを失うと task が止まる）。
-    - GET がそれ以外（別 bytes、403、timeout 等）: 既存どおり `unresolved-put` で止まる。
-    - `origin: publish` の挙動は変えない（404 → `failed`）。
-    - 戻した `staged` は local fetch でき（D6）、promote の再実行で同じ putIntent を再利用して再送できる（D3）。404 は「今は無い」の観測であり、遅れて確定する先行 PUT はありうる。それは D3 により同じ bytes で、D5 により必ず remote 削除の経路に乗るので、catalog の追跡外には残らない。
-    - network 無しの preflight（`-NoNetwork`）は、(i)(ii) のどちらも既存の `put-pending` と同じく `unresolved-put` で拒否する。
-  - **D5 送信を試みた `staged` の清掃。**
-    - 保持 policy（`Get-EvidenceRetentionDecision`）は、`origin: stage`・putIntent あり・receipt 無しの `staged` を、`unknown-state` にせず `ready` と同じ保持・保護規則で判定する。receipt を持つ `staged`、publish 由来の `staged`、origin の無い `staged` は既存どおり `unknown-state`。
-    - 削除経路は `EvidenceCleanup.psm1` の副作用の無い関数 `Get-EvidenceDeletionRoute` で決める: `local` = state `staged`・`origin: stage`・putIntent 無し・receipt 無しの全て。`remote` = `ready`、または state `staged`・`origin: stage`・putIntent あり・receipt 無し。それ以外は `none`（削除しない）。`Invoke-EvidenceLocalDeleteGuarded` も、自分の中で経路が `local` であることを再確認する。
-    - putIntent を持つ artifact の remote 削除は、putIntent の `process` が停止済み（`Test-EvidenceProcessStopped`）であることも条件にする。満たさなければ `operation-pending` で残す。
-    - remote 削除は既存の deleteIntent → DELETE → GET 404 `NoSuchKey` → `deleted`。照合 GET が一致した場合、receipt を持つ artifact は既存どおり `ready` に、receipt を持たない artifact は `staged` に戻す（次回の清掃が新しい intent で再試行する）。
-    - R2 側の保証の限界（受容する残存リスク。README に書き、保証とは書かない）: 全ての PUT は task が `active` の間にだけ発行され（D1）、remote 削除は task 終了 + 30 日以後にだけ起きるので、削除の後に遅れて確定する PUT は 30 日以上未完了の HTTP 要求を要する。有限回の追加確認ではこのリスクを消せないので、削除後の追加確認は置かない。
-  - **D6 fetch の取得元を preflight 後に決める。** fetch は preflight 前の catalog の読取りで「preflight に network を使うか」だけを決める（対象が `staged` なら network 無し。前スライスの I1 を維持）。取得元（local / remote）は preflight と Sync の**後**の state で決める: `staged` → local 分岐、`ready` → remote 分岐、それ以外 → 既存の拒否。昇格中（`put-pending`）や昇格由来の `failed` の artifact は network 付き preflight で `ready` または `staged` に解決された後、正しい取得元で取得される（古い選択による `identity-mismatch` を返さない）。ローカル固有の reasonCode（`changed-copy`・`unresolved-put`・`unresolved-delete`）の出し分けも、最終的な取得元で行う。`ready` になった昇格済み artifact は従来どおり R2 から取得する（ローカル copy からの取得は対象外）。失敗時に他方の取得元へ fallback しない。network 無しの保証は「呼び出し開始時に `staged` の artifact」に限ると README に書く。
-  - **D7 inspect。** `locality` は `staged` → `local`、`ready` → `promoted`、それ以外 → null（既存どおり）。putIntent を持つ `staged` も `local`（remote に在るかは未確認）。
-  - **D8 catalog の読戻し検査。** `origin: stage` の artifact に許す組み合わせを固定する。`staged`: receipt 無し（putIntent は有無どちらも可）。`put-pending`: putIntent 必須・receipt 無し。`ready`: receipt 必須。`delete-pending`: receipt 必須、または receipt 無しなら putIntent 必須。`deleted`: receipt 不要（既存）。`failed`: putIntent 必須・receipt 無しの場合だけ読む（D4 (ii)。本スライスのコードはこの state を作らない。保持 policy は既存どおり `unconfirmed-artifact` で削除しない）。それ以外の組み合わせは `corrupt-state`。`origin: publish` の検査は変えない。新しい state・新しい field は足さない。
-  - **D9 ワークフロー文書。** `review-evidence.md` の「保存先とリモートへの配布」で、「昇格経路が後続スライスで成立するまで従来どおり publish」を、「Cloud・別 host の読み手、または端末喪失に備えて owner が指示した時は、同じ artifact を `evidence promote` で昇格する。reference と packageSha256 は変わらないので、取得案内は `locality` だけを更新する。Cloud・別 host からの取得経路は後続（program §4 C）で、成立するまでその読み手の作業は assist」に置き換える。`SKILL.md`・`phases-and-handoff.md`・`handoff-template.md` は変えない（状態「ローカル固定済み（未昇格）」と Cloud の assist 条件はそのまま正しい）。
-  - **D10 README と事前承認。** `tools/Artifacts/README.md` の冒頭と「ローカル固定」の「昇格は後続」を D1〜D8 の操作・回復規則・残存リスクに置き換える。「Evidence v2 の通常操作」の「PUT応答不明を同key再送せず」は publish の契約であり、昇格は D3 に従うと書く。「エージェント操作の事前承認」に `evidence promote` を既存 publish と同じ承認範囲の通常操作として加える（同じ endpoint・bucket・prefix・既存資格情報。新しい資格情報・公開範囲は無い）。導入手順（D11）を書く。
-  - **D11 runtime の切替。** 共有 store で promote を使い始める前に、登録済み runtime を本スライスの head へ切り替える（`schedule status` で head を確認し、`schedule install`）。旧 runtime の日次 job は、昇格由来の `put-pending` を 404 で `failed` にし（新しい reader は D8 で読み、D4 で回復する）、receipt 無しの `delete-pending` を `receipt-missing` で読めない。判定 C の AC12 はマージ前に共有 store で行うので、**判定 C の実行担当が AC12 の直前に GO 候補 head で `schedule install` を行う**（A3 裁定 5 の owner 承認、2026-10-17）。マージ後に最終 head が GO 候補 head と違えば、通常の導入手順で入れ直す。
+    - 停止点の注入: `$script:FaultHook` に promote 用の名前 `promote-after-intent-file`（手順 2 の後・書込み A の前）、`promote-after-put-pending`（書込み A の後・PUT の前）、`promote-after-receipt-file`（手順 5 の後・書込み B の前）を加える。publish の `after-put-intent` / `after-receipt` は変えない。
+    - 送信の手順は `Invoke-EvidencePromote` の中に独立した内部関数として書き、publish とは共有しない（後続で共有するときに機械的に抽出できる形にする）。
+  - **D3 再送しない（ADD-01 への答え）。** promote が PUT を発行するのは、putIntent を catalog に記録していない `staged` からの 1 回だけ。`put-pending` のまま、または回復で `failed` になった artifact には PUT しない（D1 手順 7）。既存 publish の「PUT 応答不明を同 key へ再送しない」契約は promote にもそのまま成り立つ。404 の後の再送と回復は後続スライスで扱う。
+  - **D4 既存の回復への接続。** promote 由来の `put-pending` は、既存の `Resolve-EvidencePutGuarded` が publish 由来と同じに扱う。GET 一致 → `ready`（既存の receipt があれば照合して再利用）、404 → `failed`、その他 → `unresolved-put`。本スライスは回復のコードを変えない。`origin: stage` の `failed` は、保持 policy で `unconfirmed-artifact`（凍結・非削除）になり、ZIP と putIntent を保持したまま残る。この状態からの取得・再昇格はできない（README の既知の制限。後続スライスで回復する）。また、promote が書込み A の後に止まり、回復 GET が一致した場合、既存の回復は同じ artifactId の staging を全て adopted にするので、promote の readback staging は中の未登録 file（readback の marker 等）ごと残る。publish の回復と同じ既存挙動で、payload ではないローカル residue として受容し、後続スライスで扱う（§2 の後続スライスの制約）。
+  - **D5 到達する state と寿命（既存のまま）。** 本スライスで promote が作る state は `staged`（putIntent 無し）・`put-pending`（putIntent あり）・`ready`（receipt あり）・`failed`（putIntent あり、回復の 404 から）の 4 つで、全て今の reader・保持 policy・清掃が扱う。PUT は必ず書込み A（putIntent の記録）の後に発行されるので、送った可能性のある bytes を持つ artifact は putIntent を持ち、ローカル削除の経路（putIntent も receipt も無い `staged` だけ）に乗らない。`ready` は既存の remote 削除、`failed` は非削除。書込み A で登録した readback staging は、artifact が `put-pending` の間は 7 日清掃から除外され（既存）、`ready` で adopted、`failed` の後は既存の 7 日清掃に乗る。
+  - **D6 inspect と fetch。** コードを変えない。inspect は既に `staged` → `local`、`ready` → `promoted` を返す。昇格済み（`ready`）は既存の remote 分岐で取得する（ローカル copy からの取得は対象外）。昇格中（`put-pending`）の artifact の fetch は、network 付き preflight の回復で `ready` になれば取得でき、`failed` になれば `identity-mismatch` で拒否される（publish と同じ既存挙動）。
+  - **D7 ワークフロー文書。** `review-evidence.md` の「保存先とリモートへの配布」で、「昇格経路が後続スライスで成立するまで従来どおり publish」を、「Cloud・別 host の読み手、または端末喪失に備えて owner が指示した時は、同じ artifact を `evidence promote` で昇格する。reference と packageSha256 は変わらないので、取得案内は `locality` だけを更新する。昇格が `failed` で止まった場合は、その artifact を remote 用に使わず、従来の publish で新しい artifact を作る（取得案内も新しく作る）。Cloud・別 host からの取得経路は後続（program §4 C）で、成立するまでその読み手の作業は assist」に置き換える。`SKILL.md`・`phases-and-handoff.md`・`handoff-template.md` は変えない。
+  - **D8 README と事前承認。** `tools/Artifacts/README.md` の冒頭と「ローカル固定」の「昇格は後続」を、promote の操作（D1・D2）、出力、`already-promoted`、PUT 応答不明の扱い（D3・D4）、既知の制限（`failed` で止まった昇格は取得・再昇格できない。回復は後続スライス）に置き換える。「エージェント操作の事前承認」に `evidence promote` を既存 publish と同じ承認範囲の通常操作として加える（同じ endpoint・bucket・prefix・既存資格情報。新しい資格情報・公開範囲は無い）。runtime の切替は不要（D5 のとおり、promote が作る shape は今の runtime の日次 job が読み、同じ回復を行う）。
 - 却下した代替案:
-  - 新 state `promote-pending` で 404 の後も保持し、再送を禁じる（A2 (c)）: 404 の後は遅れた PUT が確定しない限り永久に `ready` に達せず、reference と hash を保ったまま昇格する目的を満たせない。新 state は D8・保持・清掃・fetch・use の全分岐の網羅を要する（A3 裁定 1）。
-  - 条件付き PUT（`If-None-Match: *`）で再送を禁止する: transport の変更と publish（I6）への波及が要り、R2 の S3 互換 API での挙動確認が未知の操作経路になる。D3 の「同じ bytes の再送は無害」で足りる。
-  - 404 の後も `put-pending` のまま残す（既存 publish と同じ扱い）: local fetch・stage・cleanup が同じ task で `unresolved-put` により止まり続け、昇格に失敗した artifact の唯一の複製を使えなくなる。
-  - 404 の後に `failed` にする: `failed` は終点で、どの経路からも回復できず、遅れて確定した object も削除されない（元の staging は adopted なので 7 日清掃では消えない。A2 (b) B-11 で初稿の理由を訂正）。
-  - 404 の後に不在確認の時刻を記録してローカル削除を許す（前スライスの revision 2 の D4'・D5）: ADD-01 のとおり遅れて確定した object が追跡外に残る。
-  - `put-pending` の artifact の fetch を network 無しで local ZIP から行う（A2 (c)）: 前スライスの「未解決の put があれば network 無しの preflight は拒否」を変える（I6）。D6 で取得は成立する。
-  - 昇格のたびに再 snapshot して新しい artifact を publish する: reference と hash が変わり、取得案内の書き直しが要る（それは既存 publish で今も可能）。
+  - revision 2 の全体（送信・回復・寿命・catalog 検査・runtime 切替）を 1 スライスで行う: 実装単位が大きく、C / C' の指摘と修正が膨らむ（2026-10-17 owner）。§5.2。
+  - 回復（404 → `staged`）だけを先に入れ、保持・削除経路を後にする: 送信を試みた `staged` がローカル削除の経路に乗るか、永久に `unknown-state` で削除不能になる。回復と寿命は同じスライスに置く（後続スライス）。
+  - 後続スライスで `origin: stage` の `failed` を `corrupt-state` にする: 本スライスの runtime 自身が回復の 404 でこの shape を正当に作るので、その task の catalog 全体が読めなくなる（§5.2 Fable の指摘）。後続スライスへの制約として §2 に書く。
+  - 送信部を `EvidenceSend.psm1` に共有する: publish に触れ、既存の publish の挙動が丸ごとレビュー対象になる。後続の入力。
+  - 条件付き PUT（`If-None-Match: *`）: transport の変更と publish への波及。
+  - 昇格のたびに再 snapshot して新しい artifact を publish する: reference と hash が変わる（それは既存 publish で今も可能）。
 - 進める最低条件:
   - 不変条件（起きてはいけないこと）:
-    - **I1** promote が、`staged`（`origin: stage`）以外の artifact、または identity・期待 hash が一致しない artifact に PUT を発行する。`ready` の再 promote が PUT を発行する。`put-pending` のままの artifact に PUT を発行する。
+    - **I1** promote が、D1 手順 6 の条件（`staged`・`origin: stage`・putIntent と receipt が null・identity と期待 hash が一致・task が `active`）を満たさない artifact に PUT を発行する。1 回の promote が 2 回以上 PUT を発行する。
     - **I2** promote が、catalog の packageSha256・packageBytes と一致しない bytes を PUT する。照合から PUT 完了までの間に ZIP が書き換えられる。再 snapshot・再 package が起きる。
-    - **I3** 昇格または回復の前後で、reference 文字列・artifactId・key・packageSha256・manifestSha256・base・head・packageBytes・entries・taskEndedAt・deleteEligibleAt・protections のいずれかが変わる。
+    - **I3** 昇格の前後（回復を含む）で、reference 文字列・artifactId・key・packageSha256・manifestSha256・base・head・packageBytes・entries・taskEndedAt・deleteEligibleAt・protections のいずれかが変わる。
     - **I4** 別 process の readback で bytes・hash の一致を確認する前に、promote が state `ready` または receipt を書く。
-    - **I5** putIntent を持つ artifact（PUT を試みた可能性があるもの）が、remote DELETE と GET 404 の確認を経ずに `deleted` になる。本スライスのコードが昇格由来の artifact を `failed` にする。昇格由来の `failed` が回復できない終点になる。`deleted` になる前に、昇格前の `ownedCopies`・putIntent・receipt の参照が失われる。追跡外の file を持つ staging が adopted になる。
-    - **I6** 既存の publish・remote fetch・`origin: publish` の `put-pending` 回復・`ready` の清掃と保持判定・reasonCode の意味が変わる。呼び出し開始時に `staged` の artifact への stage・fetch が network・資格情報を使う。publish 由来・origin 欠落の `staged` がローカル削除される。
-    - **I7** fetch が、自分の preflight の中で state が変わったことを理由に、取得できる artifact を拒否する、または最終的な取得元と違う reasonCode を返す。local と remote の間で失敗時に fallback する。
-    - **I8** 保護中（有効な `use`）または task 終了 + 30 日前の artifact が、昇格・回復・清掃のどれかで削除される。
+    - **I5** catalog が putIntent と `put-pending` を記録する前に PUT が発行される。昇格前の `ownedCopies` のいずれかが、昇格の後に `ownedCopies` から外れる。この promote が登録していない staging を promote が adopted にする。
+    - **I6** 既存の publish・stage・fetch・inspect・use・release・cleanup・回復・保持判定・catalog 検査の挙動と reasonCode の意味が変わる（既存テストを 1 件も変えずに通る）。
+    - **I7** 保護中（有効な `use`）または task 終了 + 30 日前の artifact が、昇格の経路で削除される。
   - 成立条件（起きなければならないこと）:
     - **S1** `staged` → promote → `passed`。返る reference と packageSha256 が stage の出力と同じで、inspect の `locality` が `promoted`。別 process の remote fetch が同じ reference と期待 hash で成功し、全 entry の hash が元 file と一致する。
-    - **S2** PUT 応答不明 → `put-pending` → 回復の 2 終点: GET 一致なら `ready`。GET 404 なら `staged`（putIntent 保持）に戻り、local fetch が成立し、promote の再実行が同じ putIntent を再利用して `ready` に達する。旧 runtime が付けた昇格由来の `failed` も同じ 2 終点に回復する。
-    - **S3** 清掃の 2 終点: 送信を試みていない `staged` は満了でローカル削除（既存）。putIntent を持つ `staged` は満了で remote 削除の経路を通って `deleted` になり、その後も `Read-EvidenceTask` が通る。
-    - **S4** `ready` の再 promote と、応答を失った昇格の再実行が、task の状態を問わず `already-promoted`（PUT 0 件）で収束する。
-    - **S5** 実 R2 で、隔離した task の `staged` を 1 回昇格し、別 process の remote fetch で全 entry が一致する（高コスト証拠。§5）。
-- 受け入れ条件（検証例。offline は隔離した temp store・偽 transport・時刻注入。実ストア・network 不使用。実 R2 は AC12 だけ）:
-  - **AC1**（S1, I3, I4, I5）: fixture の `staged` を promote。偽 transport が記録した PUT bytes の SHA-256 が packageSha256 と一致する。`ready` と receipt は別 process の readback の後にだけ書かれる（合格例: readback child が一致を返した後に `ready`。不合格例: 同じ process の GET の一致だけで `ready`。偽の readback を失敗させると `put-pending` のまま receipt 無し）。昇格前後で I3 の全 field と reference 文字列が一致する。昇格後の `ownedCopies` が昇格前の集合を全て含む。inspect の `locality` が `local` → `promoted`。別 process の fetch（remote 分岐）が成功する。
-  - **AC2**（I1）: 次の組で promote し、全て PUT 0 件。(a) `origin: publish` の `ready` → `invalid-source`。(b) `origin: publish` の `put-pending` で偽 GET が 404 → 回復で `failed` → `invalid-source`。同じく GET 一致 → `ready` → `invalid-source`。GET が別 bytes → `unresolved-put`。(c) `origin: publish` の `failed` → `invalid-source`。(d) `delete-pending` で偽 GET 404 → `deleted` → `expired`。GET が別 bytes → `unresolved-delete`。(e) `deleted` → `expired`。(f) catalog に無い artifactId → `catalog-missing`。(g) 期待 hash 不一致、reference の base・head・key・manifestSha256・packageBytes の改変 → `identity-mismatch`。`origin: stage` の `put-pending` は AC5・AC7 で扱う。
-  - **AC3**（S4, I1）: 昇格済み（`origin: stage` の `ready`）への promote が `already-promoted`、PUT 0 件、出力の形（reference・packageSha256・`locality: promoted`・receipt・`residue.remote: ready`）が初回の成功と同じ。task が `active` の場合も `ended` の場合も同じ結果（不合格例: `ended` で `resume-required`）。期待 hash が違えば `identity-mismatch`。`ended` の task の `staged` への promote は `resume-required`、PUT 0 件。
+    - **S2** PUT 応答不明 → `put-pending` → 既存の回復の 2 終点: GET 一致なら `ready`（その後の promote は `already-promoted`）。404 なら `failed` で、ZIP・putIntent・保護が残り、満了後も削除されない。
+    - **S3** `ready` の再 promote が、task の状態を問わず `already-promoted`（PUT 0 件）で収束する。
+    - **S4** intent file を書いた後・書込み A の前に止まった promote は、再実行で既存の intent file を再利用して PUT 1 回で `ready` になる。
+    - **S5** 実 R2 で、隔離した task の `staged` を 1 回昇格し、別 process の remote fetch で全 entry が一致する（判定必須。§5）。
+- 受け入れ条件（検証例。offline は隔離した temp store・偽 transport・時刻注入。実ストア・network 不使用。実 R2 は AC10 だけ）:
+  - **AC1**（S1, I3, I4, I5）: fixture の `staged` を promote。偽 transport が記録した PUT bytes の SHA-256 が packageSha256 と一致し、PUT は 1 回。`ready` と receipt は別 process の readback の後にだけ書かれる（合格例: readback child が一致を返した後に `ready`。不合格例: 同じ process の GET の一致だけで `ready`。偽の readback を失敗させると `put-pending` のまま receipt 無し）。昇格前後で I3 の全 field と reference 文字列が一致する。昇格後の `ownedCopies` が昇格前の集合を全て含む。adopted に変わった staging は書込み A で登録した 1 つだけ。inspect の `locality` が `local` → `promoted`。別 process の fetch（remote 分岐）が成功する。
+  - **AC2**（I1）: 次の組で promote し、全て PUT 0 件。(a) `origin: publish` の `ready` → `invalid-source`。(b) `origin: publish` の `put-pending` で偽 GET が 404 → 回復で `failed` → `invalid-source`。同じく GET 一致 → `ready` → `invalid-source`。GET が別 bytes → `unresolved-put`。(c) `origin: stage` の `failed` → `invalid-source`。(d) putIntent を持つ `staged`、receipt を持つ `staged` → `invalid-source`。(e) `delete-pending` で偽 GET 404 → `deleted` → `expired`。GET が別 bytes → `unresolved-delete`。(f) `deleted` → `expired`。(g) catalog に無い artifactId → `catalog-missing`。(h) 期待 hash 不一致、reference の base・head・key・manifestSha256・packageBytes の改変 → `identity-mismatch`。
+  - **AC3**（S3, I1）: 昇格済み（`origin: stage` の `ready`）への promote が `already-promoted`、PUT 0 件、出力の形（reference・packageSha256・`locality: promoted`・receipt・`residue.remote: ready`）が初回の成功と同じ。task が `active` の場合も `ended` の場合も同じ結果（不合格例: `ended` で `resume-required`）。期待 hash が違えば `identity-mismatch`。`ended` の task の `staged` への promote は `resume-required`、PUT 0 件。
   - **AC4**（I2）: ZIP を 1 byte 改変した `staged` の promote は PUT 0 件で `identity-mismatch`。照合後・PUT 前に別 process が ZIP を書込みで開こうとすると共有違反で失敗する（lock の保持）。snapshot・package を作る関数（`Initialize-EvidencePackage`、`Copy-EvidenceSnapshot`、`PackageIO.CreateVerified`）が promote の経路から呼ばれない（呼び出し記録 0 件）。
-  - **AC5**（S2, I5）: promote の PUT 応答不明を注入 → `put-pending`、putIntent 記録済み。回復で GET 一致 → `ready`（receipt あり、`ownedCopies` は昇格前を含む）。別 fixture で GET 404 → `staged`、putIntent・ZIP・ownedCopies・protections が残り `failed` にならず、前回の readback staging の `operation` が解除される。続けて local fetch が成功し（transport 呼び出し 0 件）、promote の再実行が既存の intent file を作り直さずに（intent file の sha256 不変）PUT して `ready` になる。PUT は通算 2 回（応答を失った 1 回と再実行の 1 回。不合格例: intent が作り直されて sha256 が変わる）。`origin: publish` の `put-pending` は既存どおり 404 で `failed`。
-  - **AC6**（S2, I5）: FaultHook で停止を注入する。`after-put-intent-file` で停止 → artifact は `staged`・putIntent 無しのまま、local fetch 成立、再 promote は既存の intent file を照合して再利用する。intent file の内容が key・packageSha256・artifactId のどれかで食い違えば `unresolved-put` で PUT 0 件。`after-put-pending` で停止 → 次の preflight の回復で GET 404 → `staged`。`after-receipt-file` で停止 → 次の preflight の回復で GET 一致 → 既存の receipt を再利用して `ready`。同じ停止の後に object が外部で消えて GET 404 → `staged` → 再 promote が既存の receipt を照合して再利用し、immutable な書込みで失敗しない。
-  - **AC7**（I7）: `put-pending`（`origin: stage`）の artifact を fetch。network 付き preflight で GET 一致 → `ready` に解決されて remote 分岐で成功。GET 404 → `staged` に解決されて local 分岐で成功（`identity-mismatch` を返さない）。後者で ZIP を欠落させると `changed-copy`（不合格例: `unconfirmed`）。remote の GET 失敗は既存の reasonCode。どちらも他方へ fallback しない。
-  - **AC8**（S3, I5, I8）: 時刻注入。putIntent を持つ `staged` は `deleteEligibleAt` の 1 tick 前に `retained`、`deleteEligibleAt` ちょうどで remote 削除（deleteIntent → DELETE → GET 404）され `deleted`、ZIP と ownedCopies が消え、その後も `Read-EvidenceTask` が通る（不合格例: 同じ日付の 00:00 で削除）。DELETE を失敗させると `delete-pending`（receipt 無し）で残り、ZIP は残る。続く照合 GET が一致すれば `staged` に戻り、ZIP と putIntent が残る。putIntent の process が停止していなければ `operation-pending` で削除しない。putIntent も receipt も無い `staged` は既存どおりローカル削除（DELETE・GET 0 件）。`origin: publish` の `staged` と origin 欠落の `staged` は `unknown-state` で削除されず、`Get-EvidenceDeletionRoute` は `none`。
-  - **AC9**（I8）: `staged` に `use`（until = deleteEligibleAt + 1 時間）→ promote → 満了直後も `in-use`。回復で `staged` に戻った後も保護が残る。`release` 後に満了判定。不合格例: until を満了前に置いてしまい、保護なしで通る。
-  - **AC10**（I6）: 既存の `ArtifactEvidence` / `EvidenceCleanup` / `EvidenceRetention` / `EvidenceSchedule` / `EvidenceReset` suite のケースが failed 0。意図して変える既存の期待は `EvidenceRetention.Tests.ps1` のケース `staged-unsent-required` の 1 行目（putIntent を持つ `staged` は `unknown-state`）だけで、`ready` と同じ判定に改める。同じケースの残り 3 行（receipt を持つ `staged`、publish 由来の `staged`、origin 無しの `staged` は `unknown-state`）と他の全ケースは無変更で通る。`origin` 無しの既存 catalog、`origin: stage` の既存 shape（putIntent 無しの `staged` / `deleted`）を読める。呼び出し開始時に `staged` の artifact への stage・fetch で transport と資格情報の読取りが 0 件（前スライスのケースを無変更で再実行）。publish の送信部を共有化しても publish の既存ケースが無変更で通る。
-  - **AC11**（D8, I5）: `origin: stage` で、`failed` かつ putIntent 無し、`failed` かつ receipt あり、`put-pending` かつ putIntent 無し、`staged` かつ receipt あり、`delete-pending` かつ receipt も putIntent も無い catalog は `corrupt-state` で読まれず、その task の削除が起きず、その task への promote も PUT 0 件で失敗する。`origin: stage`・putIntent あり・receipt 無しの `failed` は読め、保持判定は `unconfirmed-artifact`。
-  - **AC12**（S5、高コスト証拠）: §5 の手順で実 R2 に 1 回。
-  - **AC13**（D9, D10）: README・`review-evidence.md` に promote の操作、D3〜D6 の回復規則、publish 側の再送禁止との区別、残存リスク、導入手順、事前承認が書かれ、「昇格は後続」「昇格経路が後続スライスで成立するまで」の旧文言が `tools/Artifacts/README.md` と `.agents/skills/osm-workflow/` に残らない。`docs-audit`・`contract-audit` が errors=0。
-  - **AC14**（S2, I5）: 旧 runtime の回復を模した catalog（`origin: stage`・putIntent あり・receipt 無しの `failed`）で、network 付き preflight の回復が、偽 GET 一致なら `ready`、404 なら `staged` にする。network 無しの preflight はこの artifact を `unresolved-put` で拒否する。
-  - **AC15**（I5）: 回復 GET の一致で、同じ artifactId を持つ staging のうち、中の file が `ownedCopies` に入っていないもの（停止した前回の promote の readback staging）は adopted にならず、7 日後に 7 日清掃で消える。
+  - **AC5**（S2, I1, I5）: promote の PUT 応答不明を注入 → `put-pending`、putIntent 記録済み、PUT は 1 回（再送しない）。続く network 付き preflight（別の fetch または promote）の回復で、偽 GET 一致 → `ready`（receipt あり、`ownedCopies` は昇格前を含む）→ 再 promote は `already-promoted`。別 fixture で GET 404 → `failed`、ZIP・putIntent・ownedCopies・protections が残る。この `failed` への promote は `invalid-source`、PUT 0 件（通算 PUT 1 回）。時刻注入で task 終了 + 30 日を過ぎても保持判定は `unconfirmed-artifact` で削除されない。
+  - **AC6**（S4, S2, I5）: FaultHook で停止を注入する。`promote-after-intent-file` で停止 → artifact は `staged`・putIntent 無しのまま、local fetch 成立、PUT 0 件。再 promote は既存の intent file を照合して再利用し（intent file の sha256 不変）、PUT 1 回で `ready`。intent file の内容が key・packageSha256・artifactId のどれかで食い違えば `unresolved-put` で PUT 0 件。`promote-after-put-pending` で停止 → `put-pending`、PUT 0 件 → 回復で偽 GET 404 → `failed`（AC5 と同じ終点）。`promote-after-receipt-file` で停止 → `put-pending` → 回復で GET 一致 → 既存の receipt を照合して再利用して `ready` → 再 promote は `already-promoted`。
+  - **AC7**（I6）: 昇格中（`put-pending`、`origin: stage`）の artifact を fetch。回復で偽 GET 一致 → `ready` に解決されて remote 分岐で成功。404 → `failed` → `identity-mismatch`（publish と同じ既存挙動）。
+  - **AC8**（I7）: `staged` に `use`（until = deleteEligibleAt + 1 時間）→ promote → 満了直後も `in-use`。`release` 後に満了判定で `ready` の既存 remote 削除に乗る。不合格例: until を満了前に置いてしまい、保護なしで通る。
+  - **AC9**（I6）: 既存の `tools/Artifacts/tests/*.Tests.ps1` と `tools/Workflow/tests/*.Tests.ps1` のケースを 1 件も変えずに failed 0。`EvidenceCleanup.psm1`・`EvidenceStateStore.psm1`・`EvidenceRetentionPolicy.psm1`・`EvidenceContract.psm1` に diff が無い。
+  - **AC10**（S5、判定必須）: §5 の手順で実 R2 に 1 回。
+  - **AC11**（D7, D8）: README・`review-evidence.md` に promote の操作、出力、`already-promoted`、PUT 応答不明の扱い、既知の制限（`failed` で止まった昇格）、事前承認が書かれ、「昇格は後続」「昇格経路が後続スライスで成立するまで」の旧文言が `tools/Artifacts/README.md` と `.agents/skills/osm-workflow/` に残らない。`docs-audit`・`contract-audit` が errors=0。
 - ここでは答えない問いと所有する後続スライス:
+  - **後続スライス `Artifact Storage / Evidence 昇格の回復と送信済み staged の寿命`（新規。本スライスのマージ後に A1 から。入力は revision 2 の該当部分と §5.1・§5.2）:** 問いは「昇格由来の `put-pending` / `failed` が、回復 GET の 404 の後に `staged` へ戻って同じ bytes で再送・local fetch でき、送信を試みた `staged` が remote DELETE と GET 404 を経てだけ `deleted` になるか」。入力:
+    - revision 2 の D3（同じ bytes の再送の許可と、publish 側の再送禁止との区別）、D4 (i)(ii)（`origin: stage` の `put-pending` と `failed` の 404 → `staged`、停止済み staging の operation 解除）、D5（保持 policy、`Get-EvidenceDeletionRoute` を Cleanup に、origin の確認、照合 GET 一致 → `staged`、削除後の遅延 PUT の受容）、D6（fetch の取得元を preflight 後に決め、reasonCode も最終の取得元で出す）、D8（catalog の組み合わせ検査）、D11（runtime 切替）、AC5・AC7・AC8・AC9・AC11・AC14・AC15 と、既存ケース `staged-unsent-required` の 1 行目の変更。revision 2 の A3 裁定 (1)(2)(5) は再確認の対象。
+    - 制約: 回復（404 → `staged`）と保持 policy・削除経路・清掃の振り分けを同じスライス・同じ commit に置く（片方だけでは送信を試みた `staged` がローカル削除に乗るか削除不能になる）。D8 で `origin: stage` の `failed`（putIntent あり・receipt 無し）を `corrupt-state` にしない（本スライスの runtime が正当に作る shape）。回復 GET 一致時に「中の file が全て `ownedCopies` に入った staging だけを adopted にする」規則を既存の `Resolve-EvidencePutGuarded` へそのまま入れると、publish 由来の staging（`readback-process.json` 等は `ownedCopies` 外）が adopted から外れて 7 日清掃で消え、task が `changed-copy` で止まる。origin で分けるか、「今回の回復に使った staging だけ」に言い換える。
+    - 不採用で閉じたもの: remote 削除前の process 停止確認（A2 #20。`staged` に戻る前の回復が既に停止を確認している）。
+    - 優先度の低い入力: 前回の試行が receipt を書いた後に object が外部で消えた場合の receipt 再利用（A2 B-10。再 promote は失敗するが、次の回復が既存 receipt を再利用して自己回復する）。
+  - 送信部の共有（`EvidenceSend.psm1`、A2 (a) の依存方向の提案）→ 送信まわりを整理するときの入力（所有スライスは未定。promote の送信手順は独立した内部関数にしてある）。
   - Cloud・別 PC が R2 から fetch する経路、読取り専用 token の登録・受け渡し → program §4 C（`Artifact Storage / Evidence の Cloud 配布`、新規）。
-  - `ready` artifact のローカル copy からの network 無し fetch（昇格後も同じ PC の読み手が network 無しで取得する） → program §4 A の後続への入力。
+  - `ready` artifact のローカル copy からの network 無し fetch → program §4 A の後続への入力。
   - `use` の network 無し preflight → program §4 C の入力のまま。
   - 既存 publish の 404 → `failed` で残る remote residue の回収 → Content の容量上限・孤児回収の入力。
-  - publish の `ownedCopies` 置換と、回復 GET 一致時に同じ artifactId の staging を一律に adopted にする既存挙動（publish 由来） → 診断の改善の入力（本スライスは昇格由来の経路だけを直す）。
   - 端末喪失に備えた未昇格 `staged` の定期 backup → Harness H3。
-- 判定定義: GO = I1〜I8 を破る欠陥がなく、S1〜S4 が offline fixture と文書検査で成立し、S5 の実 R2 昇格 1 回が高コスト証拠として成立し、判定 C と最終 C' がともに阻害 0。NO-GO = いずれかの不変条件の違反、または S の不成立。
+- 判定定義: GO = I1〜I7 を破る欠陥がなく、S1〜S4 が offline fixture と文書検査で成立し、S5 の実 R2 昇格 1 回が判定必須テストとして成立し、判定 C と C' がともに阻害 0。NO-GO = いずれかの不変条件の違反、または S の不成立。
 - 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。
 - A3 後の例外承認: なし。
 - 決定記録: なし。
-- 本文へ転記した実装制約: `#nullable` と `record` の規則は Unity 側のみで本スライスには当たらない。PowerShell は `Set-StrictMode -Version Latest`。reasonCode は既存の小文字 kebab（新規は `already-promoted` の 1 つ）。path・key・資格情報を CLI 出力とログに出さない。テストで `Start-Sleep` / `Task.Delay` / `Thread.Sleep` を使わず時刻と transport を注入する。catalog に新しい state・新しい field を足さない（D8 は既存 field の組み合わせの検査だけ）。資格情報の root・暗号文・DPAPI の利用を変えない。実ストアの catalog・transfers・資格情報を offline テストで読み書きしない。
-- 未決事項: なし（A1 の 4 点は A3 で裁定済み）。
+- 本文へ転記した実装制約: `#nullable` と `record` の規則は Unity 側のみで本スライスには当たらない。PowerShell は `Set-StrictMode -Version Latest`。reasonCode は既存の小文字 kebab（新規は `already-promoted` の 1 つ）。path・key・資格情報を CLI 出力とログに出さない。テストで `Start-Sleep` / `Task.Delay` / `Thread.Sleep` を使わず時刻と transport を注入する。catalog に新しい state・新しい field を足さない。`EvidenceCleanup.psm1`・`EvidenceStateStore.psm1`・`EvidenceRetentionPolicy.psm1`・`EvidenceContract.psm1` と transport を変えない。資格情報の root・暗号文・DPAPI の利用を変えない。実ストアの catalog・transfers・資格情報を offline テストで読み書きしない。
+- 未決事項: なし。
 
 ## 3. 責務マップ
 
 | ファイル | 責務 | 変更理由 | 現在行数 → 予想 | 備考 |
 |---|---|---|---|---|
-| `tools/Artifacts/EvidenceSend.psm1`（新規） | 送信プリミティブ: putIntent の照合・作成、read lock 下の hash 照合と PUT、別 process readback、receipt の照合・作成 | 「同じ bytes を 1 つの key に置き、確認後にだけ receipt を作る」手順は publish と promote で同じ理由で変わる | 0 → 約 90 | catalog・state 遷移・回復を持たない。依存は `ArtifactApplication`・`EvidencePaths` より下だけ（intent に書く process identity は呼び出し側が渡す）。FaultHook の注入点（D2）を持つ |
-| `tools/Artifacts/EvidenceApplication.psm1` | publish / stage / promote / fetch / inspect / use の orchestration | `Invoke-EvidencePromote`（D1・D2 の catalog 書込み）、publish の送信を Send の呼び出しに置換、fetch の D6、inspect の D7 | 203 → 約 240（+18%） | 依存は Application → Send / Cleanup / StateStore / RetentionPolicy の一方向。送信の手順は持たない |
-| `tools/Artifacts/EvidenceCleanup.psm1` | preflight、put / delete の回復、清掃 | D4（`origin: stage` の回復、adopted の限定、operation 解除）、D5（`Get-EvidenceDeletionRoute`、process 停止の条件、照合一致 → `staged`、ローカル削除内の経路再確認）、`-NoNetwork` の D4 (ii) | 369 → 約 405 | 500 行未満。Send を import しない。経路の選択は副作用の無い関数として単体テストする |
-| `tools/Artifacts/EvidenceRetentionPolicy.psm1` | 純粋な保持 policy（期限・保護の適格性） | putIntent を持つ `origin: stage` の `staged` の判定 | 68 → 約 72 | 削除経路は持たない |
-| `tools/Artifacts/EvidenceStateStore.psm1` | catalog の読戻し検査 | D8 の origin × state × putIntent × receipt の組み合わせ | 144 → 約 156 | 新 state・新 field なし |
+| `tools/Artifacts/EvidenceApplication.psm1` | publish / stage / promote / fetch / inspect / use の orchestration | `Invoke-EvidencePromote`（D1）と、その送信手順の内部関数（D2） | 203 → 約 285（+40%） | 50% 未満で非分割。送信手順は内部関数として独立させ、後続で共有するときに抽出できる形にする。publish・stage・fetch・inspect・use・release の既存関数は変えない |
 | `tools/artifacts.ps1` | CLI の引数解釈 | `evidence promote` の grammar と dispatch | 192 → 約 196 | |
-| `tools/Artifacts/README.md` | 公開仕様 | D10・D11 | 447 → 約 475 | |
-| `.agents/skills/osm-workflow/references/review-evidence.md` | レビュー証拠の保存・配布 | D9 | 172 → 約 172 | 置換のみ |
-| `tools/Artifacts/tests/ArtifactEvidence.Tests.ps1`、`EvidenceCleanup.Tests.ps1`、`EvidenceRetention.Tests.ps1`、`EvidenceTestSupport.ps1` | offline 検証 | AC1〜AC11・AC14・AC15。偽 transport の PUT bytes 記録、応答不明・404・別 bytes の注入、Send の FaultHook | 追加ケース | 既存の偽 transport・時刻注入・FaultHook を使う。`EvidenceCleanup.Tests.ps1`（505 行）はケースの列挙で変更理由が同じなので非分割 |
+| `tools/Artifacts/README.md` | 公開仕様 | D8 | 447 → 約 465 | |
+| `.agents/skills/osm-workflow/references/review-evidence.md` | レビュー証拠の保存・配布 | D7 | 172 → 約 172 | 置換のみ |
+| `tools/Artifacts/tests/ArtifactEvidence.Tests.ps1`、`EvidenceTestSupport.ps1` | offline 検証 | AC1〜AC8 のケース追加。偽 transport の PUT bytes 記録、応答不明・404・別 bytes の注入、promote 用 FaultHook | 追加ケースのみ | 既存ケースは変えない（AC9）。既存の偽 transport・時刻注入・FaultHook を使う |
 
-状態の所有者は task の catalog（task guard が直列化）。寿命は既存の task 終了 + 30 日。新しい公開面は CLI の `evidence promote` と reasonCode `already-promoted`。新しいファイルは `EvidenceSend.psm1` の 1 つ。asmdef・Unity 側の変更なし。`EvidenceSchedule` の runtime 収集は変えない（tracked な psm1 は既存の `git ls-files` 収集で入る）。
+状態の所有者は task の catalog（task guard が直列化）。寿命は既存の task 終了 + 30 日。新しい公開面は CLI の `evidence promote` と reasonCode `already-promoted`。新しいファイルは無い。asmdef・Unity 側の変更なし。`EvidenceSchedule` の runtime 収集は変えない。
 
 ## 4. 実装計画
 
-- 順序: (1) `EvidenceStateStore` の D8（既存 shape の読戻し不変を AC10 で固定）→ (2) `EvidenceRetentionPolicy` の判定 → (3) `EvidenceSend.psm1` へ publish の送信手順を移し、publish をその呼び出しに置き換える（publish の `ownedCopies` 置換を含む既存挙動は変えない。AC10 で固定）→ (4) `EvidenceCleanup` の D4・D5 と `Get-EvidenceDeletionRoute` → (5) `Invoke-EvidencePromote`（D1・D2）→ (6) fetch の D6 と inspect の D7 → (7) CLI → (8) README（D10・D11）と `review-evidence.md`（D9）→ (9) `contract-audit`・`docs-audit`・AC13 の grep。
-- 導入手順（D11。README に書く。B は書くだけで実行しない）: 共有 store で promote を使い始める前に、`schedule status` で登録済み runtime の head を確認し、本スライスの head で `schedule install` を行う。
-- Phase B から Phase A へ差し戻す条件: 新しい state・field、transport の変更、`PackageIO` の manifest 形式の変更、Workflow の終了意味の変更、`EvidenceSchedule` の変更が必要になったとき。publish の送信手順を共有化すると、AC10 で列挙した 1 行以外の既存ケースを変えなければ通らないとき。D8 の組み合わせで既存の実 catalog の shape を読めなくなると判明したとき。Send に catalog・state 遷移を持たせないと D2 を実装できないとき。
-- 対象外を維持する方法: promote の経路に snapshot・package を作る関数の呼び出しを置かない（AC4）。`staged` で始まる stage・fetch の経路に `Invoke-ArtifactNetwork` と `Get-CredentialStatus` を置かない（AC10）。Cloud・別 PC 向けの取得経路と token を作らない。`origin: publish` の分岐を変えない（AC2・AC10）。
+- 順序: (1) `Invoke-EvidencePromote` の D1（分岐と identity 照合。偽 transport で PUT 0 件の組を先に固める）→ (2) D2 の送信手順と 2 回の catalog 書込み・FaultHook → (3) CLI → (4) README（D8）と `review-evidence.md`（D7）→ (5) `contract-audit`・`docs-audit`・AC11 の grep・AC9 の diff 確認。
+- Phase B から Phase A へ差し戻す条件: `EvidenceCleanup.psm1`・`EvidenceStateStore.psm1`・`EvidenceRetentionPolicy.psm1`・`EvidenceContract.psm1`・transport・既存テストのどれかを変えないと D1〜D6 を満たせないとき。新しい state・field が必要になったとき。promote が作る shape を今の reader・回復・清掃が扱えないと判明したとき。
+- 対象外を維持する方法: promote の経路に snapshot・package を作る関数の呼び出しを置かない（AC4）。AC9 の diff 確認で回復・保持・清掃・catalog 検査のコードに触れていないことを確かめる。Cloud・別 PC 向けの取得経路と token を作らない。
 
 ## 5. テストとレビュー計画
 
-- 単体テスト: `Get-EvidenceRetentionDecision` の判定（`EvidenceRetention.Tests.ps1`）、`Get-EvidenceDeletionRoute` の全組み合わせ（state × origin × putIntent × receipt）と `Read-EvidenceTask` の D8（`ArtifactEvidence.Tests.ps1` / `EvidenceCleanup.Tests.ps1`）、Send の intent・receipt の照合（偽 transport を使わない純粋部を直接）。送信の手順は偽 transport と Send の FaultHook で検証する。
-- 差し戻し中の起点 `-Filter`: `tools/Artifacts/tests/ArtifactEvidence.Tests.ps1`、`EvidenceRetention.Tests.ps1`、`EvidenceCleanup.Tests.ps1 -Case <新規ケース>`。C は凍結済み条件の確認に必要なら根拠を記録して変えてよい。
-- 判定必須テスト（GO 候補 head）: `tools/Artifacts/tests/*.Tests.ps1` と `tools/Workflow/tests/*.Tests.ps1` の全体（`StoreContext.Tests.ps1` は非仮想化 host で）、3 project の Release build、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、AC13 の旧文言 grep。`EvidenceCleanup.Tests.ps1` は `rg` が PATH に要る。高コスト証拠 AC12 は最終証拠ラウンドで加える。
+- 単体テスト: promote の分岐（D1）を偽 transport と隔離 store で全組（AC2・AC3）。intent file の照合（AC6）。送信の手順は偽 transport と promote 用 FaultHook で検証する。
+- 差し戻し中の起点 `-Filter`: `tools/Artifacts/tests/ArtifactEvidence.Tests.ps1`（新規ケース）。C は凍結済み条件の確認に必要なら根拠を記録して変えてよい。
+- 判定必須テスト（GO 候補 head）: `tools/Artifacts/tests/*.Tests.ps1` と `tools/Workflow/tests/*.Tests.ps1` の全体（`StoreContext.Tests.ps1` は非仮想化 host で）、3 project の Release build、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、AC11 の旧文言 grep、AC9 の diff 確認、AC10 の実 R2 昇格 1 回。`EvidenceCleanup.Tests.ps1` は `rg` が PATH に要る。
 - 全 EditMode 回帰の適用除外: Unity 側のコードを変更しないため。代替証拠は上記 offline suite 全体と audit。
 - 統合・Unity テスト: なし。
-- 操作・実行時・目視条件の検証経路: AC12 だけ（高コスト証拠）。高コスト証拠は動作確認の対象外なので、動作確認は `対象なし`。
-- 未知の操作経路の疎通結果: なし。promote の PUT・readback GET・remote fetch は既存 publish・fetch と同じ transport・同じ key 形式・同じ資格情報を使う既知の経路。`schedule install` も既存の導入手順。
+- 高コスト証拠: なし（実 R2 昇格 1 回は、既存 publish と同じ endpoint・資格情報・事前承認の範囲で、3 file・通常清掃で可逆なので、判定必須テストに含める。暫定 C' と最終 C' には分けない）。
+- 操作・実行時・目視条件の検証経路: AC10。動作確認（Phase B の後）は `対象なし`（実 R2 は判定 C の実行担当が GO 候補 head で行い、B の head では行わない）。
+- 未知の操作経路の疎通結果: なし。promote の PUT・readback GET・remote fetch は既存 publish・fetch と同じ transport・同じ key 形式・同じ資格情報を使う既知の経路。runtime の切替は不要（D8）。
 - 人間の判断が必要な条件: なし。
-- 高コスト証拠（AC12、実 R2 昇格 1 回）:
-  - 時点: 判定 C → 暫定 C' の阻害 0 の後、同じ head で 1 回（`review-evidence.md` の「高コスト証拠と最終証拠ラウンド」）。
+- AC10 の手順（実 R2 昇格 1 回）:
   - 担当: 判定 C の実行担当（判断担当と分ける場合は新しい実行担当 session）。環境: 非仮想化 host の sandbox 外 PowerShell 7（Claude の Bash は LocalAppData が仮想化されるので使わない）。GO 候補 head で 3 project を Release build。
-  - 手順: (0) `evidence schedule status` で登録済み runtime の head を記録し、GO 候補 head で `evidence schedule install` を行い、再度 `schedule status` を記録する（D11、owner 承認済み）。(1) `pwsh tools/workflow-task.ps1 start -Task evidence-r2-promotion-rt-1`。(2) 非秘密の固定 fixture（3 file、うち 1 つはバイナリ）を selection にして `evidence stage`。出力の reference と packageSha256 を記録。(3) 別 process で `fetch`（local 分岐）。(4) `evidence promote --reference <stage の reference> --sha256 <stage の packageSha256>`。`passed` で終わらなければ同じコマンドを 1 回だけ再実行し、それでも終わらなければ止めて生記録とともに判断担当へ返す。(5) `evidence inspect --task evidence-r2-promotion-rt-1`。(6) 別 process で `fetch`（remote 分岐）。(7) 同じ promote を再実行。(8) 原記録（各 CLI の結果 JSON、catalog・intent・receipt の写し、fixture の hash 一覧、手順 0 の status 2 回）を判定 evidence に収録し、task を通常の最終手順で end する（R2 object は task 終了 + 30 日の通常清掃が消す。事前承認の範囲）。
-  - 実装から独立した期待値: (4) が `passed`、reference 文字列が (2) と完全一致、packageSha256 が (2) と一致。(5) の対象 artifact が `ready`・`locality: promoted`。(6) が `passed` で、展開した全 file の SHA-256 が fixture の hash 一覧と一致。receipt の `putIntentSha256` が intent file の SHA-256 と一致し、receipt の readback の hash が packageSha256 と一致。(7) が `passed`・`already-promoted`。catalog の artifactId・key・base・head・manifestSha256・packageBytes・entries が (2) 直後と (6) 後で一致し、(6) 後の `ownedCopies` が (2) 直後の `ownedCopies` を全て含む。手順 0 の 2 回目の status の head が GO 候補 head。
-- 判定 C の照合 script の方式: **判定 C の offline 実行**。判定 C の担当が、AC12 の原記録の複製に対して、資格情報・本番設定・network に届かない環境で照合 script を書いて実行する。適用前に合成 fixture で一度通す。凍結する合成 fixture と期待値: 合格 1 組（上の期待値を全て満たす）と不合格 4 組（reference 文字列が 1 文字違う、(6) の file hash が 1 件違う、(7) が `already-promoted` でない、昇格後の `ownedCopies` が昇格前の 1 件を欠く）。script は合格組を合格、不合格 4 組をそれぞれ不合格と判定しなければならない。
-- 機械検査: `contract-audit`、`docs-audit`、`git diff --stat`、AC13 の grep。
+  - 手順: (1) 実行ごとに新しい task id（`evidence-r2-promotion-rt-<n>`）で `pwsh tools/workflow-task.ps1 start`。(2) 非秘密の固定 fixture（3 file、うち 1 つはバイナリ）を selection にして `evidence stage`。出力の reference と packageSha256 を記録。(3) 別 process で `fetch`（local 分岐）。(4) `evidence promote --reference <stage の reference> --sha256 <stage の packageSha256>`。`passed` で終わらなければ同じコマンドを 1 回だけ再実行し（既存の回復で `ready` になれば `already-promoted`）、それでも `passed` でなければ止めて生記録とともに判断担当へ返す。(5) `evidence inspect --task <task id>`。(6) 別 process で `fetch`（remote 分岐）。(7) 同じ promote を再実行。(8) 原記録（各 CLI の結果 JSON、catalog・intent・receipt の写し、fixture の hash 一覧）を判定 evidence に収録し、task を通常の最終手順で end する（R2 object は task 終了 + 30 日の通常清掃が消す。事前承認の範囲）。
+  - 実装から独立した期待値: (4) が `passed`、reference 文字列が (2) と完全一致、packageSha256 が (2) と一致。(5) の対象 artifact が `ready`・`locality: promoted`。(6) が `passed` で、展開した全 file の SHA-256 が fixture の hash 一覧と一致。receipt の `putIntentSha256` が intent file の SHA-256 と一致し、receipt の readback の hash が packageSha256 と一致。(7) が `passed`・`already-promoted`。catalog の artifactId・key・base・head・manifestSha256・packageBytes・entries が (2) 直後と (6) 後で一致し、(6) 後の `ownedCopies` が (2) 直後の `ownedCopies` を全て含む。
+- 判定 C の照合 script の方式: **判定 C の offline 実行**。判定 C の担当が、AC10 の原記録の複製に対して、資格情報・本番設定・network に届かない環境で照合 script を書いて実行する。適用前に合成 fixture で一度通す。凍結する合成 fixture と期待値: 合格 1 組（上の期待値を全て満たす）と不合格 4 組（reference 文字列が 1 文字違う、(6) の file hash が 1 件違う、(7) が `already-promoted` でない、昇格後の `ownedCopies` が昇格前の 1 件を欠く）。script は合格組を合格、不合格 4 組をそれぞれ不合格と判定しなければならない。
+- 機械検査: `contract-audit`、`docs-audit`、`git diff --stat`、AC11 の grep、AC9 の diff 確認。
 - A0/A1 主担当・モデル・ベンダー: Claude（この session）。
-- A2 独立レビュー: 実施済み。担当・モデル・入力版・結果は §5.1。
-- A3 統合担当・モデル・採否: 主担当（Claude）と owner。2026-10-17 に owner が §5.1 末尾の 5 点を主担当案で裁定し、主担当が §5.1 の採用分（#1〜#16、#19、#20）を revision 2 として §2〜§5 に統合した（#17・#18・#21 は不採用）。凍結は owner の本文確認後。
-- C' 用に予約した担当・モデル・ベンダー: Grok 系（cursor-agent）。A2 では使っていない。
-- 独立性の強化条件を満たせない場合の理由: A2 の (b)(c) は A1 主担当と同じ Claude 系。初稿への anchoring は (c) に初稿の方式を読ませないことで避けた。
+- A2 独立レビュー: revision 1 に対して実施済み（§5.1）。revision 3 は revision 2 の部分集合と分割の相談（§5.2）から作った。
+- A3 統合担当・モデル・採否: 主担当（Claude）と owner。revision 2 の裁定と分割の経緯は §5.1・§5.2。
+- C' 用に予約した担当・モデル・ベンダー: Grok 系（cursor-agent）。A2 と分割の相談では使っていない。
+- 独立性の強化条件を満たせない場合の理由: A2 の (b)(c) と分割の相談（Fable 系）は A1 主担当と同じ Claude 系。
 
-## 5.1 A2 独立レビュー結果と A3 の採否案
+## 5.1 A2 独立レビュー結果と A3 の採否案（revision 1・2 の記録）
+
+本節は A1 初稿（revision 1）への A2 と、revision 2 への A3 裁定の記録で、現在有効な契約は §2〜§5（revision 3）である。採用分の多くは §5.2 の分割で後続スライスの入力へ移った。
 
 入力版は A1 初稿（commit `d9b5c3e5`、内容 sha256 `e5a7060cb698c9a1d64e3a9ae4527191bff3cd2570c329d6337600d349929760`。(c) は §1 と §2 の問い・前提だけを抜き出した写しで、方式以降を読んでいない）。3 件は 2026-10-17 に互いの指摘を見せずに実施した。全件この PC 内の read-only session で、実ストア・資格情報・network・push は使っていない。prompt には「計画は未実装で、現コードとの差は実装対象」と明記した。原記録は git 管理外の `TestResults/a2-r2-promotion/`（入力の写し 2 種と、(a) の prompt・結果・log）。(b)(c) の prompt と結果の本文は A1 主担当 session の記録にある。担当・モデルは使用実績で、固定割り当てではない。
 
@@ -223,6 +207,25 @@
 5. **AC12 の前の runtime 切替（#1）。** 主担当案: 判定 C の実行担当が、AC12 の直前に GO 候補 head で `schedule install` を行う（日次 job が昇格由来の state を新しい reader で扱うようにする）。これは共有 store の登録済み runtime を変える操作なので、A3 で owner の明示承認を受ける。承認しない場合は、AC12 を旧 runtime の job が走らない時間帯に行い、`passed` で終わらなければその場で解決する（#1 の D8・D4 修正で、旧 job が `failed` にしても新 head で回復できる）。
 
 2026-10-17、owner は 5 点を全て主担当案で裁定した（5 は AC12 の直前の `schedule install` の明示承認を含む）。主担当が採用分を §2〜§5 に revision 2 として統合した。凍結は owner の本文確認後。
+
+## 5.2 revision 2 から revision 3 への分割
+
+**経緯（2026-10-17）。** owner は revision 2（commit `8494c791`）を確認し、「R2 昇格のターゲットとしては妥当だが実装内容が膨らんでいる。大きいと Phase C / C' で指摘と修正が膨らむ」として凍結せず、適切な実装単位への分割を指示した。主担当は先に、A2 の採用分のうち 4 点を後続へ移送し、1 点（#20）を重複として不採用、実 R2 往復を高コスト証拠から判定必須テストへ下げる案を出した。owner の指示で、その案と revision 2 を Fable 系（Claude Fable 5.1、新規 read-only session、入力は revision 2 の commit `8494c791` とワークフロー文書・関連コード）に分割の相談として渡した。原記録は A1 主担当 session の記録にある。これは独立レビューに数えない（主担当の案を読んだ相談）。
+
+**Fable の提案（要点）と主担当の確認。**
+
+- 境界は「送信」と「回復・寿命」の 2 スライス。根拠: 送信を試みた可能性があり、かつローカル削除の対象と区別が要る `staged` + putIntent という組み合わせを作るのは、revision 2 の D4 の「404 → `staged`」だけで、promote 自体は書込み A で putIntent と `put-pending` を同時に書くので作らない。promote を既存の回復（一致 → `ready`、404 → `failed` で凍結）にそのまま接続すれば、送信スライスは単独で fail-closed に閉じる。主担当は、`Resolve-EvidencePutGuarded` が origin を見ずに 404 で `failed` にすること（[EvidenceCleanup.psm1:352](../../tools/Artifacts/EvidenceCleanup.psm1)）、今の reader が origin と state の組み合わせを制限しないこと、inspect が既に `locality` を返すこと（[EvidenceApplication.psm1:177](../../tools/Artifacts/EvidenceApplication.psm1)）を確認した。
+- 送信スライスは runtime の切替が不要。promote が作る shape を今の reader・日次 job が全て読み、同じ回復を行う。revision 2 の D11 と A3 裁定 (5) は後続スライスだけの話になる。
+- 主担当案の「旧 runtime の `failed` の回復（D4 (ii)）を移送し、D8 でこの `failed` を `corrupt-state` にする」は危険。送信スライスの runtime 自身が回復の 404 で `origin: stage` の `failed`（putIntent あり）を正当に作るので、後続でそれを `corrupt-state` にすると task 全体が止まる。→ 採用。後続スライスへの制約として §2 に書いた。
+- 実 R2 往復は判定必須テストへ下げてよい（同じ endpoint・鍵・事前承認、3 file、通常清掃で可逆、runtime 切替なし）。条件: 実行ごとに task id を変える、再実行は 1 回まで、独立期待値と照合 script の方式は残す。→ 採用（§5）。
+- 送信部の共有（`EvidenceSend.psm1`）の移送に賛成。promote の送信手順は独立した内部関数にしておく。→ 採用（D2）。
+- receipt の再利用（B-10）の移送に賛成（既存の回復が receipt を再利用して自己回復する）。#20 の不採用に賛成（重複）。→ 採用。
+- D6（fetch の取得元の決め直し）は、404 → `staged` を作る後続スライスに入れるのがよい。送信スライスでは昇格中の fetch は回復で `ready` または `failed` に解決され、既存挙動で閉じる。→ 採用。
+- revision 2 の D2(3) の記述「書込み 1 で止まれば未採用 staging が 7 日清掃に乗る」は誤り（artifact が `staged` の間、その artifactId の staging は清掃が一律に除外する。[EvidenceCleanup.psm1:293](../../tools/Artifacts/EvidenceCleanup.psm1)）。→ revision 3 は readback staging の登録を書込み A に含め、中間状態を無くした。
+- 後続スライスの罠: 「中の file が全て `ownedCopies` に入った staging だけを adopted にする」規則を既存の回復へそのまま入れると、publish 由来の staging が adopted から外れて 7 日清掃で消え、task が `changed-copy` で止まる。→ 後続スライスへの制約として §2 に書いた。
+- 避けるべき切り方: 回復（404 → `staged`）と保持・削除経路・清掃の振り分けを別スライスにする、保持を変えずに 404 → `staged` だけ入れる、D8 を先に厳しくする、送信部の共有と promote を同じスライスに入れる。→ revision 3 と後続スライスの境界はこれに従う。
+
+**revision 2 から後続スライスへ移したもの:** D3 の再送許可、D4 (i)(ii)、D5、D6、D8、D11、AC5・AC7・AC8・AC9・AC11・AC14・AC15 の revision 2 版、既存ケース `staged-unsent-required` の変更、A3 裁定 (1)(2)(5)。本スライスに残したもの: D1（終了済み task の `already-promoted` を含む）、D2（書込みは 2 回に整理）、D7（inspect、コード変更なし）、D9・D10 の一部（本スライスの D7・D8）、A2 の #6・#7・#12・#16 と #2 の前半（`ownedCopies` 追記のみ、adopted は自分の staging だけ）。
 
 ## 6. Phase B 実装結果
 
