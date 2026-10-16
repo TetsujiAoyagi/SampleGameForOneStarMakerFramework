@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `B`（Phase A revision 2 後の発見 C で阻害 1 件・次は B の修正。2026-10-13）
+- status: `B`（発見 C（revision 2 後）の阻害 R2-1 を修正済み。次は発見 C の差し戻し 1 巡目。2026-10-16）
 - branch: `codex/artifact-storage-series-retirement`
 - implementation base commit: `3f79639c12eac16da77d06608675564e906f9a49`（`develop`。PR #123 を含む。A3 凍結時の `origin/develop` と一致を確認済み）
-- implementation head commit: `5621bd15153ebbe9ce5783c44e65555e6b589bae`（revision 2 の Phase B の実装 commit。revision 1 の head `61f04438f426e8833b00b37aaeb32538d972afa7` の上に積んだ。HANDOFF 記録 commit はこの上に積む）
+- implementation head commit: `84a3a828b32c1364869ef490cfc40c74665c99aa`（R2-1 の修正 commit。レビュー済みの revision 2 head `5621bd15153ebbe9ce5783c44e65555e6b589bae` の上に、`develop` `d911e4b4b662e66fd3fcc54f6b2586c381fabf4a`（PR #125〜#128）の merge commit `2cf0497acdc30f142920d7682c723c2de9489b79` を置き、その上に積んだ。HANDOFF 記録 commit はこの上に積む。revision 1 の head は `61f04438f426e8833b00b37aaeb32538d972afa7`）
 - risk: `high`（系列を丸ごと R2 から消す不可逆な操作を新設する。新しい永続記録と、publish・collect・use を拒否する経路を足す。公開 API・asmdef・Unity・transport の C# は変えない）
 - owner: OSM maintainers
 - created: 2026-10-12
@@ -14,10 +14,10 @@
 - harvest to: 操作と契約を `tools/Artifacts/README.md`（新節「系列の退役」と、Build・Content の件数清掃節の既知の限界の更新）、program の状態と後続への移送を `docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 B へ。完了時に本書を削除する。
 - Phase A snapshot の取得案内・状態: 未保存（revision 1 の本書。凍結 commit は本書を A3 として記録した commit。C′ 用 blind bundle に収録して保存する）
 - Phase B result snapshot の取得案内・状態: 本書 §6（implementation head の版を発見 C の evidence bundle に収録済み。保存・引渡しは未了）
-- evidence bundle の取得案内・状態: 発見 C 用をローカルに生成済み（git 管理外。revision 1 head 向けと revision 2 head 向けの 2 つ。どちらも base/head 固定の完全 diff・stat・name-status・Phase A snapshot・起点 suite の結果 JSON・manifest。revision 2 向けは revision 1 head からの差分も収録）。Artifact Storage への publish は資格情報に触れない指示のため未実施（引渡し未完了）。判定 C が最終 head で新しい bundle を作る
+- evidence bundle の取得案内・状態: 発見 C 用をローカルに生成済み（git 管理外。revision 1 head 向け `TestResults/series-retirement-discovery-c/` と revision 2 head 向け `TestResults/series-retirement-discovery-c-rev2/` の 2 つ。どちらも base/head 固定の完全 diff・stat・name-status・Phase A snapshot・起点 suite の結果 JSON・manifest。revision 2 向けは revision 1 head からの差分も収録）。`evidence stage` 用の selection（task `series-retirement`、2 bundle 分）は `TestResults/series-retirement-stage/` に用意済み。stage は未実施（引渡し未完了）: README の導入手順（`schedule status` → 新 head で `schedule install`）が `scheduler-identity-mismatch` で止まるため（§6 の「Phase B（R2-1 の修正）」の基盤不備）。owner が旧 task を切り替えた後に stage し、取得案内を §0 に書く。判定 C が最終 head で新しい bundle を作る
 - C' blind bundle の取得案内・状態: 未生成
 - workflow task: `series-retirement`（2026-10-12 に `workflow-task.ps1 start` 済み）
-- 引継ぎ票: **次は Phase B の修正（発見 C（revision 2 後）の阻害 1 件）。** implementation base `3f79639c12eac16da77d06608675564e906f9a49`、レビューした implementation head `5621bd15153ebbe9ce5783c44e65555e6b589bae`。§2〜§5（Phase A revision 2）を正とする。修正する指摘は §7「発見 C（revision 2 後）」の阻害 R2-1 だけ（`tools/Artifacts/README.md` の件数清掃 2 節の結果 JSON の列挙に `mode` を足す。B 適応。コードと suite の変更は要らない）。修正は 1 commit にまとめ、新しい implementation head を §0 と §6 に記録して push する。B は判定 C の実行・C′ の起動・照合 script の作成をしない。修正後は発見 C で修正差分を確認する（差し戻し 1 巡目）。必要な権限: 読取とローカルの offline テスト・docs-audit だけ（実 R2・資格情報・Unity・実 store には触れない）。B の担当は直前の発見 C（Opus 5.5）と別モデルでなくてよいが、次の発見 C は修正した B と別モデルにする。C′ 用担当は A0/A1・B・C（いずれも Anthropic）と別ベンダー。引き渡さないもの: C′ 用担当への所見・会話。
+- 引継ぎ票: **次は発見 C の差し戻し 1 巡目（修正差分の確認）。** implementation base `3f79639c12eac16da77d06608675564e906f9a49`、implementation head `84a3a828b32c1364869ef490cfc40c74665c99aa`（レビュー済み head `5621bd15153ebbe9ce5783c44e65555e6b589bae` からの差分は、`develop` の merge commit `2cf0497a` と R2-1 の修正 commit `84a3a828` の 2 つ）。§2〜§5（Phase A revision 2）を正とする。確認するもの: (1) R2-1 の修正（`tools/Artifacts/README.md` の件数清掃 2 節の結果 JSON の列挙に `mode` を足した 2 行。コード・suite の変更なし）、(2) `develop` の merge（競合は README の 2 hunk だけで、退役の文と `evidence stage` の文を両方残した。他は自動 merge）が §3 の責務マップと I1〜I7 を壊していないこと。B の offline 確認は §6 のとおり全 24 suite failed 0。発見 C は GO 判定・判定 C の実行・C′ の起動をしない。阻害が無ければ、引継ぎ票を判定 C へ更新する（判定 C は最終 head で bundle を作り、AC15 の実 R2 検証を owner の許可の下で行う）。必要な権限: 読取とローカルの offline テストだけ。次の発見 C は修正した B（§6 に記録）と別モデルにする。C′ 用担当は A0/A1・B・C（いずれも Anthropic）と別ベンダー。引き渡さないもの: C′ 用担当への所見・会話。Evidence の stage は §0 の evidence bundle の項のとおり owner の scheduler 切替待ち
 
 入力の正本は program §2「開発Build」「開発Content」と §4 B（PR #119・PR #123 の「決めたこと」「後続への入力」）、`tools/Artifacts/README.md` の「開発Buildの件数清掃」「開発Contentの件数清掃（content cleanup）」、および現行コード。program と既存スライスで固定済みの契約は §1 に転記し、再議論しない。
 
@@ -297,6 +297,14 @@
 - 既存 suite の期待値変更は、revision 2 が例外承認した `mode` の追加だけ（`BuildCleanup.Tests.ps1`・`ContentCleanup.Tests.ps1` の結果 field 集合の 1 語）。`SeriesRetirement.Tests.ps1` は field 集合と、`retention` の `mode`、系列不明の予約を置いた Build の `unattributed`（`retired` かつ `held.count=0`、件数保持の cleanup でも同じ）の case を足した。
 - 実行と結果（head `5621bd15153ebbe9ce5783c44e65555e6b589bae`）: Artifacts 全 suite の `-Case '*'`（rg を PATH に通して各 1 回）が全て failed 0（SeriesRetirement 17、BuildCleanup 23、ContentCleanup 23、EvidenceCleanup 35 ほか）、contract-audit・docs-audit は errors 0・warnings 0。.NET build・TaskLifecycle・Unity は C# と Workflow を変えていないので再実行しない（revision 1 の B 結果が有効）。AC15 は未実行（判定 C）。
 
+### Phase B（R2-1 の修正。発見 C（revision 2 後）の差し戻し）
+
+- `develop` の merge: レビュー済み head `5621bd1` は `develop` から 89 commit 遅れ（PR #125〜#128）で PR が CONFLICTING だったため、修正の前に `develop` `d911e4b4` を merge した（`2cf0497a`）。競合は `tools/Artifacts/README.md` の 2 hunk（冒頭の概要文と「エージェント操作の事前承認」）だけで、本スライスの退役の文と PR #128 の `evidence stage` の文を両方残した。`BuildCleanup.psm1`・`ContentCleanup.psm1`・`tools/artifacts.ps1`・suite は自動 merge で、手で直した箇所は無い。
+- R2-1 の修正（`84a3a828`）: README の「開発Buildの件数清掃」「開発Contentの件数清掃（content cleanup）」の結果 JSON の列挙に `mode`（件数保持は `retention`、退役済みの系列では `retirement`。詳細は「系列の退役」節へのリンク）を足した。変更は 2 行。コード・suite の変更なし（B 適応）。
+- 実行と結果（head `84a3a828` の作業ツリー、2026-10-16。結果 JSON は git 管理外）: Artifacts 全 22 suite と Workflow `StoreContext`・`TaskLifecycle` を `-Case '*' -ResultPath`（rg を PATH に通して各 1 回）: 24 suite 計 500 case、全て selected＝executed、failed 0（ArtifactEvidence 26、ArtifactPackage 9、ArtifactRotation 11、ArtifactTransfer 20、BuildCleanup 23、BuildCollect 9、BuildPublish 9、BuildRetention 9、Content.Contract 9、Content.Fetch 5、Content.Publish 12、ContentCleanup 23、Credentials 22、EvidenceCleanup 45、EvidenceReset 31、EvidenceRetention 20、EvidenceSchedule 78、R2RouteTransport 7、RouteProof 26、SeriesRetirement 17、StoreConsolidation 20、StoreConsolidationPlan 24、StoreContext 22、TaskLifecycle 23）。`pwsh tools/contract-audit.ps1`: errors 0・warnings 0。`pwsh tools/docs-audit.ps1`: errors 0・warnings 0。.NET Release build 3 本は再実行していない（3 project の source は 2026-10-12 13:58 以降変わらず、手元の DLL は同日 22:44 の build）。`unity/` の変更は 0 件。AC15 は未実行（判定 C）。
+- 基盤不備（本スライスの対象外。後続への入力）: Evidence の `evidence stage` の前提である README の導入手順（`schedule status` → 新 head で `schedule install`）が、この PC で `scheduler-identity-mismatch` で止まる。原因は Store 版 pwsh の更新（7.6.6 → 7.6.7）で、登録済み task の `execute` が消えた旧 path を指し、日次 job も 2026-10-16 03:00 から `0x80070002` で失敗している。`install` は既存 task を修復しない設計のため、owner が旧 task（`\OneStarMaker\OSM-Evidence-Cleanup-…`）を削除してから `install` する必要があり、この切替手順は README に無い。失敗した `install` は runtime copy（`develop` head 分）だけを残した。Storage CLI は理由を表示せず `Artifact operation failed.` だけを出す。この 2 点（切替手順の文書化、失敗理由の表示）は program §4 への移送候補。
+- Phase B 担当・モデル・ベンダー: Claude Fable 5.1／Anthropic（Claude Code desktop、新 session）。次の発見 C はこれと別モデルにする。
+
 ## 7. Phase C
 
 - 種別: **発見 C**（GO 判定ではない。C′ は起動していない）
@@ -353,7 +361,7 @@
 - 実行したテストコマンドと結果（作業ツリー `6d2f36d` = implementation head と同じ実装、`pwsh tools/Artifacts/tests/<suite>.Tests.ps1 -Case '*' -ResultPath <git 管理外>`）: `SeriesRetirement` 17、`BuildCleanup` 23、`ContentCleanup` 23、`BuildRetention` 9、`BuildPublish` 9、`BuildCollect` 9、`Content.Publish` 12。いずれも selected＝executed、failed 0。`pwsh tools/contract-audit.ps1`: 違反なし。`pwsh tools/docs-audit.ps1`: errors 0・warnings 0。実行後も実 store の `retirements-v1` は存在しない。
 - 判定必須のうち未実行: .NET Release build 3 本、Artifacts 全 suite（上記 7 以外。EvidenceCleanup を含む）、Workflow `TaskLifecycle`、`unity/` 0 件の機械確認、AC15（実 R2）、判定 C の照合 script。いずれも判定 C が最終 head で行う。
 - 未確認事項: 静的な読みと起点 suite の実行に基づく。実 R2・資格情報・Unity・実 store には触れていない。変異の再実行はしていない。
-- 指摘の ledger: R2-1（severity: low、category: semantic、unique、accepted、bucket: 阻害、根拠: ドキュメント方針の公開面ルール 1 と AC7、修正 commit: 未）。R2-a（severity: low、category: semantic、unique、bucket: 後続の入力）。
+- 指摘の ledger: R2-1（severity: low、category: semantic、unique、accepted、bucket: 阻害、根拠: ドキュメント方針の公開面ルール 1 と AC7、修正 commit: `84a3a828`）。R2-a（severity: low、category: semantic、unique、bucket: 後続の入力）。
 
 ## 8. Phase C'
 
