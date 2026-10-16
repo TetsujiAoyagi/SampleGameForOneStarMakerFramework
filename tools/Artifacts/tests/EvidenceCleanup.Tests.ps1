@@ -6,6 +6,8 @@ $ErrorActionPreference='Stop'
 $registered=@('delete-success','delete-timeout','delete-forbidden','delete-crash-reconcile','delete-after-remote-reconcile','cleanup-partial','active-marker-protected','use-delete-race','delete-use-race','resume-delete-race','delete-resume-race','source-marker-protected','reparse-protected','staging-cleanup','staging-transfer-protected','dry-run-no-delete','fair-object-cursor','staging-adoption-success','child-not-stopped','corrupt-catalog-non-delete','stopped-operation-cleanup','recovery-staging-cleanup','corrupt-lifecycle-projection','staging-fair-cursor','staging-result-accounting','deadline-request-and-guard','deadline-atomic-ack-retry','old-alias-cleanup','old-alias-fetch','old-alias-child-eof-blocked','old-alias-marker-unresolved','old-alias-copy-acl-blocked','missing-owned-copy','noncanonical-owned-copy')
 $registered+=@('fresh-process-cleanup-contract')
 $registered+=@('staging-missing-report','staging-missing-drop','staging-missing-no-witness','staging-missing-race','staging-missing-refuse')
+$stagedCases=@('staged-retention-boundary','staged-delete-stop-before-commit','staged-delete-stop-after-commit','staged-zip-missing-refused','staged-use-protection')
+$registered+=$stagedCases
 $selected=if($Case -ceq '*'){$registered}else{@($Case.Split(','))};$executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 function Start-EvidenceChild($Env,$Publish,[string]$Action,[string]$Signal='',[string]$Now=''){
     $info=[Diagnostics.ProcessStartInfo]::new('pwsh');$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
@@ -66,6 +68,55 @@ if($result.status -cne 'passed' -or $result.blocked -ne 0 -or $result.deleted -n
     try{$out=$process.StandardOutput.ReadToEndAsync();$err=$process.StandardError.ReadToEndAsync();Assert-EvidenceTest ($process.WaitForExit(15000)) 'cleanup dependency child deadline';Assert-EvidenceTest ([Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($out,$err),5000)) 'cleanup dependency child pipes';Assert-EvidenceTest ($process.ExitCode -eq 0) ('cleanup dependency child failed '+$out.Result+$err.Result);$observation=$out.Result|ConvertFrom-Json;Assert-EvidenceTest ($observation.status -ceq 'passed') 'cleanup dependency observation';if($ResultPath){Write-EvidenceTestJson ($ResultPath+'.fresh-child.json') $observation}}
     finally{if(-not $process.HasExited){$process.Kill($true);$process.WaitForExit()};$process.Dispose()}
 }
+# Local staging cleanup. The task ends at a fixed time; the staging is created ten
+# days earlier, so the seven-day staging rule alone would already delete it.
+function Invoke-StagedCleanupCase([string]$CaseName,$Env,[string]$Selection){
+    $endAt=[DateTimeOffset]::Parse('2026-01-01T00:00:00.0000000+00:00');$deadline=$endAt.AddDays(30);$created=$endAt.AddDays(-10)
+    $setNow={param($at)Set-EvidenceTestValue EvidenceCleanup Clock {$at}.GetNewClosure();Set-EvidenceTestValue EvidenceApplication Clock {$at}.GetNewClosure()}
+    & $setNow $created;$s=Invoke-EvidenceStage $Env.ConfigPath $Selection;Assert-EvidenceTest ($s.status -ceq 'passed') ('stage '+$s.reasonCode)
+    Set-EvidenceTestValue TaskLifecycle Clock {$endAt}.GetNewClosure();$g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$null=Invoke-WorkflowTaskTransition ('a'*64) fixture ended 1 fixture-end completed $g}finally{$g.Dispose()}
+    $t=Read-EvidenceTestTask $Env;$a=$t.artifacts[0];$paths=@($a.ownedCopies|ForEach-Object path);$stagePath=@($t.staging|Where-Object artifactId -CEQ $a.artifactId)[0].path
+    $hashes={@($paths|ForEach-Object{if([IO.File]::Exists($_)){(Get-FileHash -LiteralPath $_).Hash}else{'missing'}}) -join ','}.GetNewClosure();$intact=& $hashes
+    $state={(Read-EvidenceTestTask $Env).artifacts[0].state}.GetNewClosure();$gone={@($paths|Where-Object {[IO.File]::Exists($_)}).Count -eq 0}.GetNewClosure()
+    switch($CaseName){
+        'staged-retention-boundary'{
+            & $setNow $deadline.AddDays(-1);$r=Invoke-EvidenceCleanup $Env.ConfigPath;$codes=@($r.items|ForEach-Object reasonCode)
+            Assert-EvidenceTest ($codes -ccontains 'retained' -and $codes -ccontains 'operation-pending' -and $r.deleted -eq 0 -and (& $hashes) -ceq $intact -and [IO.Directory]::Exists($stagePath)) ('day before '+($codes -join ','))
+            & $setNow $deadline;$before=Get-FixtureArtifactsHash $Env;$r=Invoke-EvidenceCleanup $Env.ConfigPath $true
+            Assert-EvidenceTest (@($r.items|ForEach-Object reasonCode) -ccontains 'expired' -and $r.deleted -eq 0 -and (Get-FixtureArtifactsHash $Env) -ceq $before -and (& $hashes) -ceq $intact) 'dry run changed staged'
+            $r=Invoke-EvidenceCleanup $Env.ConfigPath;Assert-EvidenceTest ($r.status -ceq 'passed' -and $r.deleted -eq 1 -and (& $state) -ceq 'deleted' -and (& $gone)) ('deadline '+(ConvertTo-Json $r -Compress -Depth 6))
+            $r=Invoke-EvidenceCleanup $Env.ConfigPath;Assert-EvidenceTest ($r.status -ceq 'passed') 'after deletion'
+        }
+        'staged-delete-stop-before-commit'{
+            & $setNow $deadline;Set-EvidenceTestValue EvidenceCleanup FaultHook {param($stage,$x)if($stage -ceq 'before-local-delete'){throw 'simulated-stop'}}
+            $r=Invoke-EvidenceCleanup $Env.ConfigPath;Assert-EvidenceTest ($r.status -ceq 'pending' -and (& $state) -ceq 'staged' -and (& $hashes) -ceq $intact) 'stop before commit changed files'
+            Set-EvidenceTestValue EvidenceCleanup FaultHook $null;$r=Invoke-EvidenceCleanup $Env.ConfigPath;Assert-EvidenceTest ($r.status -ceq 'passed' -and $r.deleted -eq 1 -and (& $state) -ceq 'deleted' -and (& $gone)) 'rerun after early stop'
+        }
+        'staged-delete-stop-after-commit'{
+            & $setNow $deadline;Set-EvidenceTestValue EvidenceCleanup FaultHook {param($stage,$x)if($stage -ceq 'after-local-deleted'){throw 'simulated-stop'}}
+            $r=Invoke-EvidenceCleanup $Env.ConfigPath;Assert-EvidenceTest ($r.status -ceq 'pending' -and (& $state) -ceq 'deleted' -and (& $hashes) -ceq $intact) 'commit point not persisted first'
+            # The on-disk state of a stop after one file was removed and before the remaining list was written.
+            Set-EvidenceTestValue EvidenceCleanup FaultHook $null;[IO.File]::Delete($paths[0])
+            $g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$null=Assert-EvidenceTransitionSafe $Env.Config fixture $g -NoNetwork;$null=Assert-EvidenceTransitionSafe $Env.Config fixture $g}finally{$g.Dispose()}
+            $r=Invoke-EvidenceCleanup $Env.ConfigPath;$left=(Read-EvidenceTestTask $Env).artifacts[0]
+            Assert-EvidenceTest ($r.status -ceq 'passed' -and (& $gone) -and $left.state -ceq 'deleted' -and @($left.ownedCopies).Count -eq 0) ('rerun after commit '+(ConvertTo-Json $r -Compress -Depth 6))
+        }
+        'staged-zip-missing-refused'{
+            # Absence is progress only after `deleted` is persisted; a live staged artifact still refuses it.
+            & $setNow $deadline;$zip=(Get-EvidenceStagedZip $a).path;[IO.File]::Delete($zip)
+            $r=Invoke-EvidenceCleanup $Env.ConfigPath;Assert-EvidenceTest ($r.status -ceq 'pending' -and $r.deleted -eq 0 -and (& $state) -ceq 'staged' -and @($paths|Where-Object {$_ -cne $zip -and -not [IO.File]::Exists($_)}).Count -eq 0) 'missing zip tolerated'
+        }
+        'staged-use-protection'{
+            & $setNow $deadline.AddDays(-1);$u=Invoke-EvidenceUse $Env.ConfigPath $s.reference reader $deadline.AddHours(1).ToString('o') review;Assert-EvidenceTest ($u.status -ceq 'passed') ('use '+$u.reasonCode)
+            $i=Invoke-EvidenceInspect $Env.ConfigPath fixture;Assert-EvidenceTest ($i.artifacts[0].locality -ceq 'local' -and $i.artifacts[0].reference -ceq $s.reference -and $i.artifacts[0].packageSha256 -ceq $s.packageSha256) 'inspect staged'
+            & $setNow $deadline.AddMinutes(30);$r=Invoke-EvidenceCleanup $Env.ConfigPath;Assert-EvidenceTest (@($r.items|ForEach-Object reasonCode) -ccontains 'in-use' -and $r.deleted -eq 0 -and (& $hashes) -ceq $intact) 'protected staged deleted'
+            $rel=Invoke-EvidenceRelease $Env.ConfigPath $s.reference $u.protection;Assert-EvidenceTest ($rel.status -ceq 'passed') 'release'
+            $r=Invoke-EvidenceCleanup $Env.ConfigPath;Assert-EvidenceTest ($r.deleted -eq 1 -and (& $gone)) 'released staged kept'
+        }
+    }
+    Assert-EvidenceTest ((Get-EvidenceRemoteTouches $Env) -eq 0) 'staged cleanup touched remote'
+    $null=Read-EvidenceTestTask $Env
+}
 function Set-EvidenceAliasFixture($Env){
     Import-Module (Join-Path $PSScriptRoot '../../Workflow/WindowsStorePaths.psm1')
     $roles=@{}
@@ -92,6 +143,7 @@ function Set-EvidenceAliasFixture($Env){
 }
 foreach($caseName in $selected){$executed.Add($caseName);$child=$null;$signal=$null;try{
     Assert-EvidenceTest ($caseName -cin $registered) 'unknown-case';$env=New-EvidenceTestEnvironment;$fixture=New-EvidenceReaderFixture $env.Root;$selection=[IO.Path]::Combine($env.Root,'selection.json');Write-EvidenceTestJson $selection $fixture.Selection
+    if($caseName -cin $stagedCases){Invoke-StagedCleanupCase $caseName $env $selection;continue}
     $p=Invoke-EvidencePublish $env.ConfigPath $selection;Assert-EvidenceTest ($p.status -ceq 'passed') 'publish';if($caseName -ceq 'fair-object-cursor'){$second=Invoke-EvidencePublish $env.ConfigPath $selection;Assert-EvidenceTest ($second.status -ceq 'passed') 'second publish'};$ref=Read-EvidenceReference $p.reference $env.Config;[IO.File]::WriteAllBytes([IO.Path]::Combine($env.Root,'remote.zip'),$env.Objects[$ref.key])
     $endAt=[DateTimeOffset]::Parse('2026-01-01T00:00:00.0000000+00:00');Set-EvidenceTestValue TaskLifecycle Clock {$endAt}.GetNewClosure();$g=Enter-WorkflowTaskGuard ('a'*64) fixture
     try{if($caseName -cnotin @('active-marker-protected','staging-adoption-success','staging-missing-report')){$null=Invoke-WorkflowTaskTransition ('a'*64) fixture ended 1 fixture-end completed $g};$t=Sync-EvidenceTaskGuarded $env.Config fixture $g;$a=$t.artifacts[0]}finally{$g.Dispose()}

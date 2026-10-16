@@ -141,7 +141,8 @@ try {
     }else{
         if($opts['--profile'] -cne 'osm'){throw 'unsupported-command'}
         $expected=switch($action){
-            'publish'{if($command -cne 'evidence'){throw 'unsupported-command'};@('--profile','--config','--selection')}
+            # stageはpublishと同じselectionを受け、ローカル固定で止まる（送信しない）。
+            {$_ -cin @('publish','stage')}{if($command -cne 'evidence'){throw 'unsupported-command'};@('--profile','--config','--selection')}
             'fetch'{@('--profile','--config','--reference','--sha256')}
             'inspect'{@('--profile','--config','--task')}
             'use'{@('--profile','--config','--reference','--consumer','--until','--reason')}
@@ -154,6 +155,7 @@ try {
         Import-Module (Join-Path $PSScriptRoot 'Artifacts/EvidenceApplication.psm1')
         switch($action){
             'publish'{$outcome=Invoke-EvidencePublish $opts['--config'] $opts['--selection']}
+            'stage'{$outcome=Invoke-EvidenceStage $opts['--config'] $opts['--selection']}
             'fetch'{$outcome=Invoke-EvidenceFetch $opts['--config'] $opts['--reference'] $opts['--sha256']}
             'inspect'{$outcome=Invoke-EvidenceInspect $opts['--config'] $opts['--task']}
             'use'{$outcome=Invoke-EvidenceUse $opts['--config'] $opts['--reference'] $opts['--consumer'] $opts['--until'] $opts['--reason']}
