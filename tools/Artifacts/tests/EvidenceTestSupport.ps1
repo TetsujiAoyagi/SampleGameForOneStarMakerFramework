@@ -11,7 +11,9 @@ function New-EvidenceTestEnvironment {
     $hash=(Get-FileHash -LiteralPath $path).Hash.ToLowerInvariant();Write-EvidenceTestJson ([IO.Path]::Combine($root,'deployments',('d'*32)+'.json')) ([ordered]@{schemaVersion=2;deploymentId='d'*32;repositoryId='a'*64;configSha256=$hash;baselineRecordId='fixture';baselineSha256='b'*64;ownerObservationId='fixture';ownerObservationSha256='c'*64})
     Set-EvidenceTestValue 'CredentialStore' 'TestRoot' ([IO.Path]::Combine($root,'credentials'))
     # Only the status read is replaced; no credential bytes exist in this fixture.
-    foreach($m in @(Get-EvidenceTestModules 'EvidenceApplication')+@(Get-EvidenceTestModules 'EvidenceCleanup')){& $m {function script:Get-CredentialStatus {param($p)[pscustomobject]@{Generation='f'*32}}}}
+    # Each read is counted so local-only paths can prove they never asked for one.
+    $credentialReads=[Collections.Concurrent.ConcurrentDictionary[string,int]]::new()
+    foreach($m in @(Get-EvidenceTestModules 'EvidenceApplication')+@(Get-EvidenceTestModules 'EvidenceCleanup')){& $m {param($probe)$script:CredentialProbe=$probe;function script:Get-CredentialStatus {param($p)$null=$script:CredentialProbe.AddOrUpdate('reads',1,{param($k,$v)$v+1});[pscustomobject]@{Generation='f'*32}}} $credentialReads}
     $objects=[Collections.Concurrent.ConcurrentDictionary[string,byte[]]]::new();$counts=[Collections.Concurrent.ConcurrentDictionary[string,int]]::new()
     $transport={param($gen,$request)
         $name=$request.Operation+' '+$request.Key;$counts.AddOrUpdate($name,1,{param($k,$v)$v+1})|Out-Null
@@ -24,8 +26,13 @@ function New-EvidenceTestEnvironment {
     $read={param($op,$c,$gen,$key,$bytes,$hash)$data=$objects[$key];$sha=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($data)).ToLowerInvariant();[pscustomobject]@{operation='readback';generation=$gen;key=$key;bytes=[long]$data.Length;sha256=$sha;childExit=0;childStatus='passed';observedAt=[DateTimeOffset]::UtcNow.ToString('o')}}.GetNewClosure()
     Set-EvidenceTestValue 'ArtifactApplication' 'TransportHook' $transport;Set-EvidenceTestValue 'ArtifactApplication' 'ReadbackHook' $read
     $g=Enter-WorkflowTaskGuard $config.repositoryId 'fixture';try{$null=Invoke-WorkflowTaskTransition $config.repositoryId 'fixture' 'started' 0 'fixture-start' '' $g}finally{$g.Dispose()}
-    return [pscustomobject]@{Root=$root;ConfigPath=$path;Config=Read-EvidenceConfig $path;Objects=$objects;Counts=$counts;Transport=$transport;Readback=$read}
+    return [pscustomobject]@{Root=$root;ConfigPath=$path;Config=Read-EvidenceConfig $path;Objects=$objects;Counts=$counts;Transport=$transport;Readback=$read;CredentialReads=$credentialReads}
 }
+# Total transport calls plus credential reads. Local staging paths must leave it unchanged.
+function Get-EvidenceRemoteTouches($Env){return [int](($Env.Counts.Values|Measure-Object -Sum).Sum)+[int](($Env.CredentialReads.Values|Measure-Object -Sum).Sum)}
+function Edit-EvidenceTestTask($Env,[scriptblock]$Edit,[string]$TaskId='fixture'){$g=Enter-WorkflowTaskGuard ('a'*64) $TaskId;try{$t=Read-EvidenceTask $Env.Config $TaskId $g;& $Edit $t;$null=Write-EvidenceTask $Env.Config $TaskId $t $t.generation $g}finally{$g.Dispose()}}
+function Read-EvidenceTestTask($Env,[string]$TaskId='fixture'){$g=Enter-WorkflowTaskGuard ('a'*64) $TaskId;try{return Read-EvidenceTask $Env.Config $TaskId $g}finally{$g.Dispose()}}
+function Get-EvidenceStagedZip($Artifact){return @($Artifact.ownedCopies|Where-Object {$_.sha256 -ceq $Artifact.packageSha256 -and $_.bytes -eq $Artifact.packageBytes})[0]}
 function Get-EvidenceTestBinaries {
     foreach($name in @('ArtifactPackaging','R2ArtifactTransport')){
         $assembly=[AppDomain]::CurrentDomain.GetAssemblies()|Where-Object{$_.GetName().Name -ceq $name}|Select-Object -First 1

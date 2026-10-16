@@ -15,29 +15,33 @@ Phase C と C' は同じ実装を評価する。レビュー開始時に次を�
 
 implementation head はレビュー対象の実装差分を固定する値であり、HANDOFF に C/C' の結果だけを追記した review-record commit とは分ける。staged diff や可変な作業ツリーだけを正本にしない。実装対象の diff が変わった場合は [判定後の head 変更](#判定後の-head-変更) に従う。
 
+**固定の対象:** 発見 C の差し戻し入力に限り、完全な変更集合を収録した stage snapshot（reference と packageSha256）で固定できる。判定 C と C' は commit 固定を必須とし、C / C' 用 bundle は同一 commit から生成する。snapshot を使うレビューでは、送信元の可変な作業ツリーをレビュー入力にしない。
+
+stage snapshot は、base commit の SHA、追跡済み・未追跡・削除・バイナリを含む完全な変更集合を表す `changes.patch`、変更後の全 file を収録する。送信側は実 index に触れず、一時 index（`GIT_INDEX_FILE`）へ `git add -A` した後に `git diff --cached --binary --no-color --no-renames <base SHA>` で `changes.patch` を作る。収録 file 集合は patch の追加・変更対象の全 file とし、削除は patch だけに現れる。具体的な手順は [Artifacts README の changes.patch](../../../../tools/Artifacts/README.md#レビュー用の変更集合changespatch) を正とする。review-record commit の規則は変わらない。
+
 Phase A snapshot、Phase B result snapshot、evidence bundle、C' blind audit bundle は、それぞれ path / id、生成時刻、hash を manifest に記録する。判定 C と C' の入力 bundle は、どちらかのレビューを開始する前に同じ snapshot と判定 evidence から生成する。最終証拠ラウンドでは、高コスト証拠を加えた bundle を同じ規則で生成し直す。発見 C の所見や安い XML だけを C' に渡さない。Phase B result へ発見 C の指摘を転載しない。
 
-固定manifest・実際の取得案内と、tracked HANDOFFの公開要約を分ける。HANDOFFの全Phase欄には、既存の取得案内の引渡し先・担当と状態（未生成／未保存／引渡し未完了／確認済み）を公開可能な範囲で記録し、reference・期待packageSha256の実値、ローカルpath、内部catalog/receiptは転記しない。実値は下記の取得案内に残し、C' 用は所見から分離する。各snapshot・bundleの生成時刻と内容hashは固定manifestに保持し、取得package全体のpackageSha256と混同しない。空欄や生成済みだけを保存・引渡し済みと扱わない。
+固定manifest・実際の取得案内と、tracked HANDOFFの公開要約を分ける。HANDOFFの全Phase欄には、既存の取得案内の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を公開可能な範囲で記録し、reference・期待packageSha256の実値、ローカルpath、内部catalog/receiptは転記しない。実値は下記の取得案内に残し、C' 用は所見から分離する。各snapshot・bundleの生成時刻と内容hashは固定manifestに保持し、取得package全体のpackageSha256と混同しない。空欄や生成済みだけを保存・引渡し済みと扱わない。
 
 ## 保存先とリモートへの配布
 
-**Evidenceの保存・引渡しは、tracked HANDOFF / H1 CURRENTによる作業指示・run管理の選択とは別である。** 対応済みの同一PC・同一Windowsユーザーでは、通常レビューのEvidenceも既存Artifact Storageの `evidence publish` / `fetch` を使う。H1未移行を旧保存方式の継続理由にしない。操作、明示入力、非秘密確認、事前承認の範囲と保持条件は [Artifacts README](../../../../tools/Artifacts/README.md) を正とする。
+**Evidenceの保存・引渡しは、tracked HANDOFF / H1 CURRENTによる作業指示・run管理の選択とは別である。** 対応済みの同一PC・同一Windowsユーザーでは、通常レビューのEvidenceも既存Artifact Storageを使い、同一PC内の既定は `evidence stage`（R2・資格情報を使わないローカル固定）と `fetch` とする。Cloud・別hostの読み手に渡す必要がある時は、昇格経路が後続スライスで成立するまで従来どおり、従来の `evidence publish`（新しいartifact）でR2へ置くか、PRブランチで渡す。従来publishで別artifactとして配布した場合は、そのremote artifact用の新しい取得案内を作り、local stageの取得案内をremote用として流用しない（referenceとhashは別物になる）。H1未移行を旧保存方式の継続理由にしない。操作、明示入力、非秘密確認、事前承認の範囲と保持条件は [Artifacts README](../../../../tools/Artifacts/README.md) を正とする。
 
 A3で `external-current-v1` を採用したtaskでは、Git外の固定recordを正本とし、`run` IDからpath/hash/時刻を機械表示する。Gitへの生成証拠追加と手転記hash台帳は使わない。H1は同一マシンの別worktreeまでを保証し、他マシン配布は成立済みと扱わない。Artifact Storageの利用を理由にCURRENT管理方式を暗黙移行しない。
 
-上記の対応済み環境では、C / C' へ固定入力を引き渡す時点で、通常のtask開始、終了済みtaskなら再開を済ませ、採用する非秘密file集合を明示してpublishする。blind入力と所見は分け、内部台帳や作業directory全体を無条件に送らない。C' 用 bundle に過去の bundle・所見を再帰的に詰め込まず、固定した実装差分と必須の生証拠を収録する。ローカルの生成先は原sourceであり、そこに残しただけでは保存・引渡し完了としない。
+上記の対応済み環境では、C / C' へ固定入力を引き渡す時点で、通常のtask開始、終了済みtaskなら再開を済ませ、採用する非秘密file集合を明示してstage（Cloud・別hostの読み手にはpublish）する。blind入力と所見は分け、内部台帳や作業directory全体を無条件に送らない。C' 用 bundle に過去の bundle・所見を再帰的に詰め込まず、固定した実装差分と必須の生証拠を収録する。ローカルの生成先は原sourceであり、そこに残しただけでは保存・引渡し完了としない。
 
 publishするfile集合を確定する時点で、Artifact Storageの保護名規則に当たるfile名を点検する。改名は送信担当が非秘密と確認したfile（テストfixtureの `Credentials.json` 等）に限り、元名・新名・内容hashの対応表を同じbundleに収録する。保護名規則そのものは変えない。
 
-publishが返すreferenceと独立した期待packageSha256、対象base / head、bundleの用途、取得手順、保持条件を小さな取得案内にする。内部catalog / receiptを手転記して第二の台帳を作らない。取得案内は次の担当が利用でき、内容の公開可否に合った既存の引渡し先に残し、削除予定worktreeだけに置かない。新しい保存サービスや承認制度を前提にしない。C' には所見を含まない独立した案内を渡し、取得のためにPR本文や可変HANDOFF全文を読ませない。GitHubには公開可能な検証要約を残せばよく、内部台帳や機微なローカルpathの掲載を完了条件にしない。
+stage / publishが返すreferenceと独立した期待packageSha256、対象base / head、bundleの用途、所在task、取得手順、保持条件、引渡し先、`locality`（`local` / `promoted`）を小さな取得案内にする。referenceとpackageSha256の実値は取得案内に置き、tracked HANDOFF・PR本文・公開文書には取得案内の所在だけを書く。内部catalog / receiptを手転記して第二の台帳を作らない。取得案内は次の担当が利用でき、内容の公開可否に合った既存の引渡し先に残し、削除予定worktreeだけに置かない。新しい保存サービスや承認制度を前提にしない。C' には所見を含まない独立した案内を渡し、取得のためにPR本文や可変HANDOFF全文を読ませない。GitHubには公開可能な検証要約を残せばよく、内部台帳や機微なローカルpathの掲載を完了条件にしない。
 
-取得側の別sessionで、案内のreferenceと独立した期待hashを使ってfetchし、検証済みのログ・XML・原画像等の必須内容を閲覧できることを確認する。送信側の読戻し成功だけを次の担当への引渡し完了としない。作業中保持・task終了から30日というStorageの保持条件に従い、継続利用はREADMEのresume / useを使う。古いPRリンクやGETだけを保持延長の根拠にしない。
+取得側の別sessionで、案内のreferenceと独立した期待hashを使ってfetchし、検証済みのログ・XML・原画像等の必須内容を閲覧できることを確認する。`locality` が `local` の案内でも同じ確認を行う（Phase D を含む）。送信側の読戻し成功だけを次の担当への引渡し完了としない。作業中保持・task終了から30日というStorageの保持条件に従い、継続利用はREADMEのresume / useを使う。古いPRリンクやGETだけを保持延長の根拠にしない。
 
 別host / Cloudや外部のレビュー担当への配布は、到達性・権限・取得と閲覧が成立した範囲だけを確認済みとする。未対応・承認拒否・保存/取得失敗の場合は元証拠を保持し、理由、未完了の引渡し、次の担当を記録する。Git配布、Release asset、CI artifact、別checkoutへの移管へ自動で退避せず、公開範囲の拡大や拒否の迂回をしない。既存証拠の一括移動・削除やGit履歴の書き換えを、この方針だけを根拠に実行しない。
 
 ## 操作・目視証拠の受け渡し
 
-判定 C の GO 判定前と、その証拠を入力にする C' の開始前に、凍結済み最低条件と証拠を対応付け、必須の操作・目視証拠が収録され、受け渡し先で読めることを確認する。A3 で高コスト証拠に分類し、最終証拠ラウンドで取得すると凍結した証拠は、暫定 C' の開始前の確認から除き、その収録・閲覧は最終 C' の開始前に確認する。これは証拠の存在・対象版・形式の確認であり、監査所見の先回りではない。発見 C の開始を妨げず、判定 C が必要な証拠を取得する責任も変えない。凍結時に合意した証拠形式は [検証経路の成立](phases-and-handoff.md#検証経路の成立) に従う。
+判定 C の GO 判定前と、その証拠を入力にする C' の開始前に、凍結済み最低条件と証拠を対応付け、必須の操作・目視証拠が収録され、受け渡し先で読めることを確認する。A3 で高コスト証拠に分類し、最終証拠ラウンドで取得すると凍結した証拠は、暫定 C' の開始前の確認から除き、その収録・閲覧は最終 C' の開始前に確認する。これは証拠の存在・対象版・形式の確認であり、監査所見の先回りではない。発見 C の開始を妨げず、判定 C が必要な証拠を取得する責任も変えない。高コスト証拠を除く凍結済みの操作・実行時・目視の条件の証拠が GO 候補 head で揃わないうちは、判定必須テストが全て通っていても判定 C を完了と記録しない。`判定 C 未完了` とし、欠けている条件・担当・次の手順を引継ぎ票に書き、C' 用の bundle を作らず C' を起動しない。「未確認」と書き添えて完了にすることも、これに含める。凍結時に合意した証拠形式は [検証経路の成立](phases-and-handoff.md#検証経路の成立) に従う。
 
 人間の観察も、対象版・場面・観察者・結果を持つ独立した観察記録として保存する。本人の「明白な seam は見えない」等の一次判断を含む原記録を blind bundle に入れ、Phase C の解釈・所見・結論は除く。可変 HANDOFF の「確認済み」だけに依存しない。監査担当は証拠の不足・矛盾を指摘できるが、凍結時に合意していない撮影や全件目視を自動的に追加しない。
 
@@ -109,7 +113,7 @@ GUID、asmdef、保護 YAML などの検査は、変更種類と過去の実害�
 Phase C は欠陥発見と最終判定を分ける。検証範囲の縮小ではなく、重い検証を実施するタイミングをずらす。BS3 の実績は、全 EditMode を毎回走らせた記録でも、毎回 8 filter の記録でもない。関連 filter と重い統合検証を、複数の Unity 起動で繰り返していた。
 
 - **発見 C:** 固定した実装差分の構造・契約・失敗経路を先行し、確認可能な指摘を凍結済み範囲でまとめる。テスト未実行の証拠で開始してよいが、GO 判定は行わない。差し戻し中のテストは、修正と影響範囲の確認に必要なものを `-Filter` 等で選び、対象・理由・結果・未確認範囲を記録する。Phase A の起点 filter を使うが、凍結済み条件または常時契約の確認に必要なら根拠付きで変更してよい。受け入れ条件の追加とは区別する。PlayMode 統合や Player 検証も、当該欠陥の再現・修正確認に必要な場合は理由と範囲を記録して限定実行できる。通常は最終判定時にまとめる。
-- **判定 C:** 未解決の blocker がなくなった GO 候補 head で判定必須テストを実行する。実装変更を伴うスライスでは最終の全 EditMode 回帰を標準とする。適用除外は Phase A で理由と代替証拠を明示する。同じ platform / graphics 条件でまとめられるテストは 1 プロセスに集約する。プロセス分離自体が検証条件なら維持する。XML の実行テスト名と件数で、必要な集合が収録されたことを確認する。namespace filter は全件性を保証しない。
+- **判定 C:** 未解決の blocker がなくなった GO 候補 head で判定必須テストを実行する。実装変更を伴うスライスでは最終の全 EditMode 回帰を標準とする。適用除外は Phase A で理由と代替証拠を明示する。同じ platform / graphics 条件でまとめられるテストは 1 プロセスに集約する。プロセス分離自体が検証条件なら維持する。XML の実行テスト名と件数で、必要な集合が収録されたことを確認する。namespace filter は全件性を保証しない。高コスト証拠を除く凍結済みの操作・実行時・目視の条件の証拠が GO 候補 head で揃うまでは、判定 C を完了と記録しない（[操作・目視証拠の受け渡し](#操作目視証拠の受け渡し)）。
 - **C':** 最終判定に用いる snapshot、完全 diff、生結果、機械検査を、判定 C と同じ head で評価する。発見 C と判定 C の所見・誘導情報は渡さない。同じテストの再実行は必須にしない。高コスト証拠を分類したスライスでは、下記の暫定 C' と最終 C' に分かれる。
 
 BS4 にも同じ順序を適用する。Player の target、stripping、IL2CPP/AOT の必須範囲は Phase A で固定し、最終候補で bootstrap → 登録 → 論理初回 Scene → 代表 content → 終了を確認する。検証した Player / content と実装 head の対応を記録する。Editor 成功を Player 成功の代用にせず、必須 Player 検証未実行を GO にしない。
@@ -133,7 +137,7 @@ A1 で、判定に必要な証拠のうち不可逆・高コストのもの（�
 
 高コスト証拠を分類したスライスは次の順で進める。
 
-1. 判定 C が GO 候補 head で、高コスト証拠以外の判定必須テストを実行して判定する。
+1. 判定 C が GO 候補 head で、高コスト証拠以外の判定必須テストを実行し、高コスト証拠を除く操作・実行時・目視の条件の証拠が揃っていることを確認して判定する。揃わないうちは判定 C を完了と記録せず、手順 2 へ進まない。
 2. 同じ head で C' を行う。この C' は **暫定 C'** とし、GO 判定に使わない。差し戻しで head が変われば「判定後の head 変更」に従い、新 head で 1 からやり直す。
 3. 暫定 C' の阻害指摘が無くなった head で、高コスト証拠を 1 回取得する。
 4. **最終証拠ラウンド:** 判定 C は高コスト証拠を加えた固定 bundle で最終判定する。C' 用には完全 diff、生証拠、凍結した手順、独立した期待値を含む固定 blind bundle を作り、**最終 C'** を行う。

@@ -1,12 +1,19 @@
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'ArtifactCommands.psm1')
 # The policy reads snapshots only. All callers must obtain a fresh task snapshot under its guard.
+function Test-EvidenceStagedUnsent($Artifact){
+    foreach($name in @('origin','putIntent','receipt')){if(-not $Artifact.PSObject.Properties[$name]){return $false}}
+    return ($Artifact.origin -ceq 'stage' -and $null -eq $Artifact.putIntent -and $null -eq $Artifact.receipt)
+}
 function Get-EvidenceRetentionDecision($Task,$Artifact,[DateTimeOffset]$Now){
     $reason='unknown-state'
     try{
         if($null -eq $Task -or $null -eq $Artifact){return [pscustomobject]@{eligible=$false;reasonCode=$reason}}
         if($Artifact.state -ceq 'deleted'){$reason='payload-deleted'}
-        elseif($Artifact.state -cne 'ready'){$reason='unconfirmed-artifact'}
+        elseif($Artifact.state -cnotin @('ready','staged')){$reason='unconfirmed-artifact'}
+        # Local staging never creates a send intent. A staged record that claims one
+        # may have reached the remote store, so local-only deletion would be unsafe.
+        elseif($Artifact.state -ceq 'staged' -and -not (Test-EvidenceStagedUnsent $Artifact)){$reason='unknown-state'}
         elseif($Task.status -ceq 'pending-gap' -or $Task.appliedEventVersion -ne $Artifact.appliedEventVersion){$reason='delivery-pending'}
         elseif($Task.status -cne 'ended' -or $null -eq $Task.taskEndedAt){$reason='active/end-not-recorded'}
         elseif($Artifact.deleteIntent -or $Artifact.operation){$reason='operation-pending'}
@@ -29,9 +36,33 @@ function Get-EvidenceRetentionDecision($Task,$Artifact,[DateTimeOffset]$Now){
     }catch{$reason='unknown-state'}
     return [pscustomobject]@{eligible=($reason -ceq 'expired');reasonCode=$reason}
 }
+# Unheld means nothing in this stage's own record claims it. A missing property
+# is not a claim of absence, so it yields false rather than an exception.
+function Test-EvidenceStagingUnheldStrict($Stage){
+    return ($Stage.origin -ceq 'storage-copy' -and -not $Stage.adopted -and -not $Stage.adoptionPending -and -not $Stage.operation -and -not $Stage.deleteIntent -and -not @($Stage.protections).Count)
+}
+function Test-EvidenceStagingUnheld($Stage){
+    try{return (Test-EvidenceStagingUnheldStrict $Stage)}catch{return $false}
+}
+# Dormant additionally proves no artifact in the task still depends on this
+# stage. Only a dormant stage may be treated as leftover when its directory is gone.
+function Test-EvidenceStagingDormant($Task,$Stage){
+    try{
+        if(-not (Test-EvidenceStagingUnheld $Stage)){return $false}
+        if($null -ne $Stage.artifactId){
+            $owners=@($Task.artifacts|Where-Object {$_.artifactId -ceq $Stage.artifactId})
+            # A staged artifact's only copy lives in its staging, like an unsent put.
+            if($owners.Count -ne 1 -or $owners[0].state -cin @('put-pending','staged') -or $owners[0].deleteIntent -or $owners[0].operation){return $false}
+        }
+        $prefix=([string]$Stage.path).TrimEnd('\')+'\'
+        foreach($artifact in $Task.artifacts){foreach($copy in $artifact.ownedCopies){if(([string]$copy.path).StartsWith($prefix,[StringComparison]::OrdinalIgnoreCase)){return $false}}}
+        return $true
+    }catch{return $false}
+}
 function Get-EvidenceStagingDecision($Staging,[DateTimeOffset]$Now){
-    try{if($Staging.origin -cne 'storage-copy' -or $Staging.adopted -or $Staging.adoptionPending -or $Staging.operation -or $Staging.deleteIntent -or @($Staging.protections).Count){return [pscustomobject]@{eligible=$false;reasonCode='staging-protected'}}
+    # The strict form keeps a malformed record at 'unknown-staging' as before.
+    try{if(-not (Test-EvidenceStagingUnheldStrict $Staging)){return [pscustomobject]@{eligible=$false;reasonCode='staging-protected'}}
         $at=Assert-Utc $Staging.createdAt;return [pscustomobject]@{eligible=($Now -ge $at.AddSeconds(604800));reasonCode=if($Now -ge $at.AddSeconds(604800)){'staging-expired'}else{'staging-retained'}}
     }catch{return [pscustomobject]@{eligible=$false;reasonCode='unknown-staging'}}
 }
-Export-ModuleMember -Function Get-EvidenceRetentionDecision,Get-EvidenceStagingDecision
+Export-ModuleMember -Function Get-EvidenceRetentionDecision,Get-EvidenceStagingDecision,Test-EvidenceStagingUnheld,Test-EvidenceStagingDormant

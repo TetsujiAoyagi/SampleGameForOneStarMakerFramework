@@ -1,16 +1,42 @@
 # Artifact Storage と資格情報管理
 
-同一WindowsユーザーのPowerShell 7から、既存のDPAPI `osm`資格情報とprivate R2 bucket `osm-artifacts`を使います。通常Evidenceは明示した非秘密file集合をpublishし、別sessionで期待hashを照合してfetch・ログ/原画像を閲覧できます。taskの終了/再開は[Workflow](../Workflow/README.md)が所有し、Storageは終了から30日のコピー清掃を担当します。既存Build 1件も明示した全file集合から保存・取得でき、BS4の配布形Player出力は `build collect` の1コマンドで退避・保存できます。R2上のBuildは `build cleanup`、Contentは `content cleanup` で系列ごとに件数清掃でき、使い終わった系列は `build retire`／`content retire` で退役させてR2から消し切れます。別host/Cloudの配布は後続スライスです。
+同一WindowsユーザーのPowerShell 7から、既存のDPAPI `osm`資格情報とprivate R2 bucket `osm-artifacts`を使います。通常Evidenceは明示した非秘密file集合をpublishし、別sessionで期待hashを照合してfetch・ログ/原画像を閲覧できます。taskの終了/再開は[Workflow](../Workflow/README.md)が所有し、Storageは終了から30日のコピー清掃を担当します。既存Build 1件も明示した全file集合から保存・取得でき、BS4の配布形Player出力は `build collect` の1コマンドで退避・保存できます。R2上のBuildは `build cleanup`、Contentは `content cleanup` で系列ごとに件数清掃でき、使い終わった系列は `build retire`／`content retire` で退役させてR2から消し切れます。同一PCの担当間の固定入力は `evidence stage` でR2を使わずに渡せます（[ローカル固定](#ローカル固定evidence-stage)）。別host/Cloudの配布と、ローカル固定したartifactのR2昇格は後続スライスです。
 
 スライスAは[PR #109](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/109)で実装・限定運用検証を完了し、同じ実装headの正式C/C′はGOです。r6は同じ既存保存領域へOS jobを接続する修正で、保存領域の移動や資格情報の複製を行いません。固定仕様・実行集合・原観測の入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。一回の限定resetは完了済みです。既知のACL不適合copyは保護されたままで、OS jobのpartial結果と通常schedulerの正常statusは区別して記録しています。
 
 ## エージェント操作の事前承認
 
-ownerは、設定した開発領域・明示入力・保存契約内の通常publish/fetch/清掃を事前承認しています。日常清掃は、対応機能の実装・検証と運用切替の成立後に行います。一回のresetはA3で固定した対象/除外と開始条件を照合して実行し、文書改訂だけで開始しません。通信や同一ユーザーの既存鍵利用だけを理由に再確認せず、keyごとの削除承認や旧保存価値の審査を追加しません。Agent製品・モデルによらず適用します。系列の退役（`build retire`／`content retire`）はこの通常操作に含めず、ownerが系列と指示IDを明示した範囲でだけ実行します（[系列の退役](#系列の退役build-retire--content-retire)）。
+ownerは、設定した開発領域・明示入力・保存契約内の通常publish/fetch/清掃を事前承認しています。`evidence stage` と、`staged` artifactのfetch（local分岐）・use・release・満了清掃も同じ承認に含む通常操作です。どれもnetworkと資格情報を使いません。日常清掃は、対応機能の実装・検証と運用切替の成立後に行います。一回のresetはA3で固定した対象/除外と開始条件を照合して実行し、文書改訂だけで開始しません。通信や同一ユーザーの既存鍵利用だけを理由に再確認せず、keyごとの削除承認や旧保存価値の審査を追加しません。Agent製品・モデルによらず適用します。系列の退役（`build retire`／`content retire`）はこの通常操作に含めず、ownerが系列と指示IDを明示した範囲でだけ実行します（[系列の退役](#系列の退役build-retire--content-retire)）。
 
 対象は同じaccountの検証済みendpoint/private bucketと新Evidence prefixです。公開development URL/custom domainを有効にせず、prefix分離を公開境界とは扱いません。非秘密内容、固定版、blind入力と所見の分離は送信担当が確認します。purpose宣言・禁止名検査・hash一致だけで秘密不存在を証明したとは扱いません。取得したscript/DLLを実行しません。
 
 資格情報の新規登録・置換・rotation・失効/削除、別account/bucket、公開配布、別host/Cloudは通常操作の承認範囲外です。鍵や暗号化store、header、署名URLは会話・引数・環境変数・ログ・Git・同期先へ出しません。認証失敗を鍵の再入力・削除で自動修復しません。実行環境の承認UIには従い、拒否を別経路や設定緩和で迂回しません。
+
+## 実行するprocessの条件（AppData仮想化）
+
+`tools/artifacts.ps1`、`tools/workflow-task.ps1`、`tools/harness.ps1` は、引数の解釈とstore moduleのimportより前に、そのprocessのLocalApplicationDataへの書込みが仮想化されていないかを判定します。packaged appの書込み仮想化（例: Codexデスクトップ）の中では、新しいfileがpackage専用のLocalCacheへ置かれ、ストアが黙って二つに分かれるためです。
+
+判定は呼出しごとに、`%LOCALAPPDATA%` の直下（ストアの外）へ一意な名前のdirectory `OneStarMaker.StoreProbe.<32桁の16進>` を、同じ名前が既にあれば失敗する方法で新しく作ります。その中に固有名のprobe fileを `CreateNew` と `DeleteOnClose` で開き、handleの実体pathを論理pathと比べます。handleを閉じるとOSがprobe fileを消し、最後に自分で作ったそのdirectoryだけを、空であれば削除します。package identityは使いません（identityの無い仮想化と、identityのある非仮想化の両方が観測されたため）。
+
+毎回新しいdirectoryを作るのは、仮想化されたprocessの新しいfileの書込み先がpathごとに違うためです。実体側にだけあるdirectoryの中に作ったfileは実体側へ書かれるので、既にあるdirectory（以前の固定名 `OneStarMaker.StoreProbe\`、他の呼出しの残骸、ストア自体）の中でprobeすると、仮想化されたprocessでも「非仮想化」と誤ります。判定はそれらを開かず、作らず、消しません。
+
+| 判定 | 結果 |
+|---|---|
+| 非仮想化 | 既存どおり実行する |
+| 仮想化 | `{"status":"failed","reasonCode":"virtualized-store"}`、exit 1 |
+| 判定不能（probe directoryの作成失敗・同名の既存、probe fileの作成・実体path照会・closeの失敗） | `{"status":"failed","reasonCode":"store-context-unknown"}`、exit 1 |
+
+probe directoryの削除に失敗しても判定は変わりません。processの強制終了や削除の失敗で残るのは、空の `OneStarMaker.StoreProbe.<32桁の16進>` だけです。名前は二度と使われないので後の判定に影響せず、ストアの一部でもありません。判定は他の呼出しの残骸を清掃しません（名前の接頭辞でまとめて消すと、並行して動いている呼出しのdirectoryを消しうるため）。残骸を手で消す場合は、その名前に一致する空のdirectoryだけを、判定を使うCLIを動かしていない間に、非再帰で削除します。以前の固定名 `OneStarMaker.StoreProbe\` は判定に使われなくなりました。残っていても判定に影響しません。
+
+```powershell
+Get-ChildItem -LiteralPath ([Environment]::GetFolderPath('LocalApplicationData')) -Directory -Force |
+  Where-Object Name -Match '\AOneStarMaker\.StoreProbe\.[0-9a-f]{32}\z' |
+  ForEach-Object { try { [IO.Directory]::Delete($_.FullName, $false) } catch { } }
+```
+
+既知の未確認: packageの初回（package専用の `LocalCache\Local` がまだ無い状態）で新しいdirectoryがどちら側に作られるかは観測していません。
+
+どちらの拒否でもストア配下には何も作らず、既存fileも開きません。仮想化されたhostではStorage・Workflow・Harnessを操作せず、非仮想化の担当（ownerの端末、仮想化されないエージェント環境等）へ固定入力のfetchや出口のpublishを依頼します。仮想化されたhostから使えるようにする経路は後続です。定期清掃jobはpackage外のTask Schedulerで動き、この判定の対象外です。
 
 ## Evidence v2 の通常操作
 
@@ -41,6 +67,40 @@ referenceはopaque `osm-evidence-v2:` です。fetchは別に渡された期待p
 
 旧v1 reference/configと旧E1/E2、synthetic publish、独立Evidence commit/OwnerCloseの通常入口は非対応です。旧payloadの救済・自動変換・継続取得を行いません。内部のsynthetic transportは既存資格情報rotation/診断/offline検証に限ります。
 
+## ローカル固定（evidence stage）
+
+同じPCで動く担当同士の固定入力（差し戻し中の実装snapshot、Phase A snapshot、判定evidence bundle、C′ blind bundle）を、R2もgit pushも使わずに内容hashで固定して渡す既定の経路です。network・資格情報・deploymentの疎通を使いません。
+
+```powershell
+pwsh tools/artifacts.ps1 evidence stage --profile osm --config <v2-config> --selection <v2-selection>
+pwsh tools/artifacts.ps1 fetch --profile osm --config <v2-config> --reference <trusted-reference> --sha256 <trusted-package64>
+pwsh tools/artifacts.ps1 evidence inspect --profile osm --config <v2-config> --task sample-task
+```
+
+- **stage:** publishと同じselectionを受け、同じsnapshot・manifest/ZIP/hashの生成とローカル再検証までを行い、PUTしません。artifactはstate `staged`（`origin: stage`）でcatalogに入り、ZIPはStorage所有のstagingに唯一の複製として残ります。返す `reference`（`osm-evidence-v2:`）と `packageSha256` はpublishと同じ形式で、keyはartifactIdから決まる値を未送信のまま持ちます。出力の `locality` は `local` です。
+- **preflight:** networkを使いません。同じtaskに未解決のPUT（`put-pending`）または削除intentが残っていれば、解決を試みずに `unresolved-put` / `unresolved-delete` で拒否します。解決は通常のpublish・fetch・cleanupで行ってから再実行します。
+- **fetch:** catalogのstateで取得元を選びます。`staged` ならstaging内のZIPを新しいprivate operationへcopyし、R2から取得した場合と同じ検証（期待packageSha256、manifest、全entry）をしてoutputPathを返します。ZIPの欠落は `changed-copy`、hash・identityの不一致は `identity-mismatch`、別taskのreferenceは `catalog-missing` で拒否し、R2へfallbackしません。`ready` は従来どおりR2から取得します。
+- **inspect:** `staged` にもreferenceとpackageSha256を返し、`locality` を `local`（`staged`）/ `promoted`（`ready`）で示します。
+- **保持・保護・清掃:** `staged` は `ready` と同じtask終了 + 30日で満了し、`use` / `release` の対象です。満了した `staged` の削除はDELETE・GET・削除intentを使いません。state `deleted` の永続化が削除の確定点で、その後にstaging内のcopyを消します。確定前に止まれば `staged` のまま（fileは無傷）、確定後に止まれば次回のcleanupが残ったcopyだけを消します。copyの欠落を削除の進捗として読むのは、`deleted` になったstage由来のartifactだけです。`staged` のままのartifactのcopy欠落は従来どおり `changed-copy` で止まります。`staged` が参照するstagingは7日清掃の対象外（`operation-pending`）です。
+- **昇格は後続:** 同じartifactを同じbytesでR2へ置く経路は後続スライスです。Cloud・別hostの読み手には、従来のpublishで新しいartifactを作るかPRブランチで渡します。publishは別のartifactなのでreferenceとhashが変わり、その配布には新しい取得案内を作ります（localの取得案内を流用しません）。`staged` のstagingをselectionのrootにしてpublishすると、既存のsource規則どおり再snapshotした別artifactになり、元の `staged` は変わりません。端末を失うと未昇格の `staged` も失われます（backupは後続）。
+
+取得案内は、reference、期待packageSha256、対象base / head、用途、所在task、保持条件、引渡し先、`locality` を持ちます。referenceとpackageSha256の実値は取得案内にだけ置き、tracked HANDOFFとPR本文には転記しません（[レビュー証拠](../../.agents/skills/osm-workflow/references/review-evidence.md#保存先とリモートへの配布)）。
+
+### レビュー用の変更集合（changes.patch）
+
+差し戻し中の発見Cに未commitの作業ツリーを渡すときは、base commitのSHA、完全な変更集合 `changes.patch`、変更後の全fileをstageします。送信側は実indexに触れず、一時index（`GIT_INDEX_FILE`）で作ります。
+
+```powershell
+$env:GIT_INDEX_FILE = '<private-temp>\review.index'
+git read-tree <base-sha>
+git add -A
+git diff --cached --binary --no-color --no-renames --output=<input-root>\changes.patch <base-sha>
+git diff --cached --name-only --no-renames --diff-filter=d <base-sha>
+Remove-Item Env:GIT_INDEX_FILE
+```
+
+patchには追跡済み・未追跡・削除・バイナリの変更が入ります（未追跡は追加、削除は削除、バイナリは `--binary` で復元できる形）。変更集合の範囲はcommitと同じで、`.gitignore` に該当する未追跡fileは `git add -A` が加えないため含みません。レビューに必要な生成物は、ignore対象のままにせずselectionの別fileとして明示します。selectionのrootには `base.txt`（base SHA）、`changes.patch`、`files/<path>` を置きます。`files/` に収録するのは、最後の `git diff --cached --name-only --no-renames --diff-filter=d` が列挙するpatchの追加・変更対象の全fileです（`git read-tree` と `git add -A` は何も列挙しません）。削除はpatchだけに現れます。selectionの `base` はbase SHA、`head` はその時点のHEAD commitです。受け手はbase SHAのcheckoutへ `git apply --binary changes.patch` を適用した結果を `files/` と照合でき、送信元の可変な作業ツリーを読みません。判定CとC′の入力にはこの形を使わず、commitで固定します。
+
 ## 終了・再開・利用中と清掃
 
 workflow担当は、人間がtask全体の完了/打切りを決定した通常最終処理で、同じ信頼済みDecisionからendを記録します。Evidence専用のClose承認は作りません。Agent停止・pause・失敗・timeout・C/C′合格・PR検知・Harness closeから終了を推測しません。
@@ -63,11 +123,13 @@ fetch中は一時operation-useを取得します。取得後も調査/reviewで�
 
 inspect/dry-run/DELETE直前は同じ純粋policyを使います。task guard内でeventを連続版まで適用して再判定し、DELETE後の404 NoSuchKey確認でtombstoneを残します。remote/local部分失敗は別stateと残件を返し、次回は未確定だけを再検査します。403/409/timeoutはblocked/delete-pendingとして管理設定を変更しません。削除不明の間はresume/use/publishを成功にしません。
 
-Storage所有のupload/staging/未採用失敗copyはcreatedAtから604800秒の7日清掃です。転送中、採用pending、レビュー入力採用、有限use、削除不明は除外します。採用する失敗ログは通常publishが成功する前に元stagingを消しません。Storage copyはtaskの同じ30日期限で管理し、利用者/Harnessの原sourceや利用者が作ったcopy、資格情報、他task/無関係領域を清掃対象へ登録しません。
+Storage所有のupload/staging/未採用失敗copyはcreatedAtから604800秒の7日清掃です。転送中、採用pending、レビュー入力採用、有限use、削除不明、未昇格の `staged` が参照するstagingは除外します。採用する失敗ログは通常publishが成功する前に元stagingを消しません。Storage copyはtaskの同じ30日期限で管理し、利用者/Harnessの原sourceや利用者が作ったcopy、資格情報、他task/無関係領域を清掃対象へ登録しません。
+
+採用・operation・削除intent・利用中保護のいずれも無く、どのartifactからも参照されないstagingは、catalogに残ったまま実体directoryだけが無くても通常操作を止めません。publish・fetch・useの結果とcleanupの `items` に、欠落の件数を `stagingMissing`（常に整数、0を含む）または `reasonCode: staging-missing` で出します。pathは表示せず、成功を黙って返すこともありません。欠落が許されるのは、解決後のpathがtransfers root直下の32桁hex名で、rootと親のACL・reparse検査を通る場合だけです。実在するstagingのpath・ACL・reparse異常、リンク先のないjunction/symlink、採用済み・operation付き・進行中のartifact（put-pending・`staged`・削除intent・operation付き）や未知のartifactIdから参照されるstagingの欠落、artifactのownedCopies欠落（`deleted` になったstage由来artifactの残務を除く）、putIntent不一致は従来どおり拒否します。欠落directoryはpublishのsourceにできず `invalid-source` です。7日（604800秒）が過ぎ、かつ同じtaskの登録済みpathの実在を1件以上確認できた場合に限り、cleanup（dry-runを除く）がcatalogのentryだけを外し `staging-missing-dropped` を `skipped` に数えます。fileもdirectoryも削除せず、確認できるpathが無いtaskのentryは残ります。dry-run・読取経路はcatalogのentryを変えません。
 
 exit 0は検証・確定完了、1は失敗/未確認、2は配送待ち・scheduler/cleanupの部分保留です。inspectのactive/end-not-recordedやcleanupのdeleted/skipped/blocked/remaining/itemsを確認し、未確認を成功へ置き換えません。例外本文やSDK応答本文は表示せず、非秘密reasonCode/residueを使います。資格情報の既存exit意味は変えません。
 
-publish・fetch・inspect・use・releaseは、`--config` の読取・検証の失敗（相対path・不在・JSON不正・field不一致・hex不正）を `invalid-evidence-config`、configに対応するdeployment receiptの不在・読取不能・不一致を `unknown-deployment`、publishの `--selection` の読取失敗（相対path・不在・JSON不正・field不一致）を `invalid-selection` で返します。いずれもWorkflow guard・資格情報・networkに進まず（publishでは `residue.remote` が `pre-put`）、pathは表示しません。configとselectionは絶対pathで渡します。cleanup・schedule-install・schedule-statusのconfig失敗は従来どおりです。
+publish・stage・fetch・inspect・use・releaseは、`--config` の読取・検証の失敗（相対path・不在・JSON不正・field不一致・hex不正）を `invalid-evidence-config`、configに対応するdeployment receiptの不在・読取不能・不一致を `unknown-deployment`、publish・stageの `--selection` の読取失敗（相対path・不在・JSON不正・field不一致）を `invalid-selection` で返します。いずれもWorkflow guard・資格情報・networkに進まず（publishでは `residue.remote` が `pre-put`）、pathは表示しません。configとselectionは絶対pathで渡します。cleanup・schedule-install・schedule-statusのconfig失敗は従来どおりです。
 
 ## 自動清掃
 
@@ -79,6 +141,8 @@ pwsh tools/artifacts.ps1 evidence schedule status --profile osm --config <v2-con
 同じownerのTask Scheduler `OSM-Evidence-Cleanup-<repositoryId先頭12>` は毎日03:00 localとlogon、StartWhenAvailable、IgnoreNew、InteractiveToken/Limitedで動きます。password/親鍵は登録しません。未ログオン中は動かず次ログオンで追いつくため、期限は削除資格であり即時削除SLAではありません。
 
 installは最終implementation headのscript/module/DLL/deps/configをKnown Folder `OneStarMaker/Artifacts/runtime/<head>/`へprivate copyします。runtime manifest v2は五つの既存専用領域（Workflow、Evidence、deployment、transfer、runtime）の実体path・volume/file identityとownerを固定します。WindowsのAppData仮想化で論理pathと実体が異なる場合も、新しい保存先へ移さず同じファイルを参照します。actionのpwsh/entry/runtime/作業directoryは実体の絶対pathで、可変worktreeに依存しません。
+
+**ローカル固定の導入手順:** 共有storeへ `staged` を書き始める前に、`schedule status` で登録済みruntimeのheadを確認し、`staged` を読める新しいimplementation headで `schedule install` を行います。旧runtimeの日次jobは `staged`（およびstage由来の `deleted`）を含むcatalogを `corrupt-state` で読めず、そのtaskの清掃が止まるため、切替前に `evidence stage` を使いません。runtimeの収集機構は変えません（tracked moduleは既存の `git ls-files` 収集で入ります）。
 
 jobはruntime全bytes/hashとowner、五領域の実体/ACL/reparseを検査してからconfig・guard・catalog・通信を使います。固定領域が欠落・相違する場合は空storeを作ったり別領域へ戻ったりせず停止します。同v2内の既存receipt/intent/転送marker/copyの絶対参照は、固定role内の同実体だけをI/O時に解決し、原recordを一括書換えません。既存資格情報のroot・暗号文・DPAPI利用は変更しません。同名taskのidentity不一致、runtime/config欠落/hash不一致では上書き・削除をせずfailedです。
 
@@ -98,6 +162,25 @@ pwsh tools/artifacts.ps1 evidence reset --profile osm --manifest <frozen-reset-j
 exact対象のDELETE→GET404と、validated owned local pathの清掃結果をitem別receiptへ残します。確定削除済みの対象は再実行でskipし、残件だけを再照合します。無条件bucket全erase、rule自動解除、通常writerへの管理権限追加は行いません。対象/除外影響不明や利用中は止め、scope追加が必要ならA3へ返します。
 
 C担当は内部DELETE/404・local非存在と別に、削除対象key/ruleの一覧をownerへ一括提示し「消えたか」の外部テキスト観察を取得します。実行前の計画を消去完了と記録せず、partial/inconclusiveを残します。過去PRの保持日・参照状態を撤回済み旧保存義務として復活させません。
+
+## 分裂したストアの合流（store plan / consolidate）
+
+仮想化されたprocessが書いた記録（package側のcopy）を、非仮想化のprocessから実ストアの同じ相対位置へbytes同一で合流します。一回の管理操作で、plan → ownerがmanifestを承認 → dry-run → 実行 → 単位receipt → 公開後の確認、の順に進めます。package側のcopyは読取り専用handleで開くだけで、変更・削除しません。
+
+```powershell
+pwsh tools/artifacts.ps1 store plan --source-root <package側のOneStarMaker> --output <新しいmanifest path>
+pwsh tools/artifacts.ps1 store consolidate --manifest <承認したmanifest> --manifest-sha256 <trusted64> --dry-run
+pwsh tools/artifacts.ps1 store consolidate --manifest <承認したmanifest> --manifest-sha256 <trusted64>
+```
+
+- **対象:** `Workflow`、`Harness`、`Artifacts\evidence-v2`、`Artifacts\deployments`、記録が参照する `Artifacts\transfers` のoperationだけ。`credentials`、`builds-v1`、`contents-v1`、`runtime`、`RevisionLocks`、toolsが所有しないdirectoryは名前を列挙するだけで開かず、manifestの `excluded` に理由付きで載せます。
+- **単位:** task単位（同じtaskのWorkflow・Evidence・Harness directoryと、その記録が参照するoperation）とdeployment単位（receiptとconfigの対）。同じoperationを参照するtaskは一つの単位に結合します。単位内はtransfers → Evidence → Harness → Workflowの順に公開します。Workflowのtask一覧（清掃・jobの起点）にはWorkflowのtask directoryが置かれた時点でtaskが現れるので、公開途中の単位が一覧から見えないのは、**新たに公開するWorkflowが1つで、単位のWorkflowが実ストアにまだ無い**場合に限ります。それ以外の単位は次の「保留」のとおり公開しません。
+- **参照の検査:** 記録のJSON文字列のうち完全修飾pathは、LocalCacheのpathを含まず、論理ストアの下では対象roleの中を指し、指す先のfile・directoryそのものが同じ単位にあるか実ストアに既にある必要があります（単位やdirectoryがあるだけでは足りません。実ストアにだけある参照先は、private ACLに加えてbytesを読めることも要し、別writerが排他で開いている等で読めなければ成立としません。Evidence taskはdeploymentのreceiptとconfigの両方を要します）。満たさなければ `reference-missing` です。ストア外のpath（worktreeのsource等）は参照として扱いません。読み込める上限（16MB）を超えるJSONらしいfileは `source-unchecked`、名前が `.json` なのにJSONでないfileは `source-invalid` として、検査せずに公開せず保留します。
+- **保留:** 実ストアにbytesの違う同じentry（分岐したWorkflow履歴、違うHarness CURRENT等）、参照欠落、private ACL規則（owner・継承無しの3主体FullControl）に合わない既存entry、reparse pointがあれば、勝者を選ばずその単位を保留します。公開途中にtask一覧から見えてしまう単位も保留します: 新たに公開するWorkflowが2つ以上（`multi-workflow-unit`。directoryは一つずつrenameで現れるため）、単位のWorkflowが実ストアに既にあり（同一を含む）Workflow以外に公開するitemがある（`workflow-already-visible`）。全itemが同一の単位と、新たに公開するのがWorkflow 1つだけの単位は保留しません。理由は独立に判定し、一つの単位が複数の理由を持ちます。保留した単位はfileを一つも公開せず、stagingも単位receiptも作らず、journalに保留の記録だけを残します。依存する単位は `dependency-held` になりますが、deployment単位は従来どおり先に公開します。実行時の再検査では、承認時に保留だった単位は理由が消えても公開せず（再planと再承認が要ります）、承認時に公開対象だった単位の構成が変われば `source-changed`、保留の条件を満たせば `target-changed` で止めます。保留・実行時の変更検出・別writerとの競合（`concurrent-writer`）が残るrunは `partial`（exit 2）です。
+- **公開:** 実ストアの `Artifacts\consolidation\<runId>\` がrunを所有します（runIdは承認manifestのsha256から決まり、同じmanifestの再実行は同じrunを再開します）。lock、manifestの写し、journal、staging、単位receiptを置き、stagingへCreateNew → flush → SHA-256照合 → ACL設定の順に複写してから、directory単位の非上書きrenameで公開します。複写は開いたsourceのhandleの実体pathがsource上の位置そのものであることを確かめ、棚卸し後にjunction等へ差し替わっていれば単位を `reparse` で止めます。manifestの写しと単位receiptもstagingに書いてから非上書きrenameで置くので、書込み途中の記録は残りません。既存のreceiptは、このrunのこの単位の記録として読めた場合だけ完了とみなし、読めなければ書き換えずに `receipt-invalid` で止めます。既存entryは上書き・削除せず、消すのはrun自身の未公開stagingだけです。途中で止まっても再実行で完了へ収束します。
+- **運用の前提:** run中は対象taskIdを対話CLIで操作しません。先にguardがtask directoryを作った場合、その単位は `concurrent-writer` で止まります。公開後は単位ごとに `workflow-task.ps1 status`、`evidence inspect`、`harness.ps1 current` を非仮想化のprocessで実行し、各domainの読取り検証を通すことを確認します。
+
+plan・consolidateの失敗理由は `virtualized-store`、`store-context-unknown`、`invalid-source-root`、`invalid-output`、`manifest-hash-mismatch`、`manifest-invalid`、`consolidation-busy`、`run-conflict`、`store-path-unavailable`、`consolidation-failed` です。出力に実path・package名・SIDは含めません。
 
 ## 資格情報の操作
 
@@ -341,7 +424,9 @@ pwsh tools/Artifacts/tests/SeriesRetirement.Tests.ps1 -Case '*' -ResultPath <res
 
 ### Evidenceの責務とoffline検証
 
-資格情報はCLI→CredentialCommands→CredentialStore→PathAcl/Recordの一方向です。EvidenceApplicationはpublish/fetch/use orchestration、EvidenceContractはv2 codec/deployment、EvidencePathsはtask transaction/receipt、EvidenceRetentionPolicyは純粋判定、EvidenceCleanupは配送/削除/reconcile、EvidenceScheduleは固定runtime/OS adapter、EvidenceResetは一回の限定清掃を所有します。Workflow core/storeはArtifactsをimportせず、CLI composition rootが共通guardとpreflight/syncを結びます。
+資格情報はCLI→CredentialCommands→CredentialStore→PathAcl/Recordの一方向です。EvidenceApplicationはpublish/stage/fetch/use orchestration（publishとstageは送信前までの準備を共用）、EvidenceContractはv2 codec/deployment、EvidencePathsはtask transaction/receipt、EvidenceRetentionPolicyは純粋判定、EvidenceCleanupは配送/削除/reconcile、EvidenceScheduleは固定runtime/OS adapter、EvidenceResetは一回の限定清掃を所有します。Workflow core/storeはArtifactsをimportせず、CLI composition rootが共通guardとpreflight/syncを結びます。合流の規則（単位・参照・保留の分類とmanifestの再照合）はStoreConsolidationPlanの純粋関数、棚卸し・staging・公開・receiptはStoreConsolidationが所有し、合流moduleはWorkflow/Evidenceのdomain moduleをimportしません。
+
+仮想化の判定と入口は `tools/Workflow/tests/StoreContext.Tests.ps1`、合流の規則はファイルI/Oの無いメモリfixtureの `StoreConsolidationPlan.Tests.ps1`、合流のI/Oは隔離した二つのtemp storeの `StoreConsolidation.Tests.ps1` で検証します。後者は実moduleでpublishした記録を仮想化側へ移してから合流し、既存のWorkflow/Evidence readerで読めることも確かめます。どれも実ストアと実LocalApplicationDataのストアを読み書きしません（判定suiteのnative probe 1件だけが、実LocalApplicationDataの直下に自分のprobe directoryを作って消します。他のnative caseはLocalApplicationDataの代わりに渡す一時directoryの上で動きます）。
 
 H1のこのtaskは3 .NET Release build、全Artifacts PowerShell parse、11 Artifact suite、Workflow TaskLifecycle、Harness、適用taskのcontract/docs auditを固定5 stepで収録します。registered/selected/executedは各非空同集合、failed 0、実DLL path/hash/MVID/depsと生結果を保存します。B exitはdiscovery、最終Cはjudgment、CBlindは同base/headと同じ固定入力です。Unity source/依存を変更しないためUnity test/buildはこのsliceに適用しません。
 

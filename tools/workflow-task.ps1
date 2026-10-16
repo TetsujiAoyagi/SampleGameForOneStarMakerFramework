@@ -7,6 +7,10 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
+# A virtualized AppData write would split the store. Decide before any store
+# module import or Workflow guard; an undecidable context also stops here.
+try{Import-Module (Join-Path $PSScriptRoot 'Workflow/WindowsStoreContext.psm1');$storeContext=Get-OsmStoreContext}catch{$storeContext='unknown'}
+if($storeContext -cne 'not-virtualized'){[ordered]@{status='failed';reasonCode=$(if($storeContext -ceq 'virtualized'){'virtualized-store'}else{'store-context-unknown'})} | ConvertTo-Json -Compress;exit 1}
 Import-Module (Join-Path $PSScriptRoot 'Workflow/TaskEventStore.psm1')
 Import-Module (Join-Path $PSScriptRoot 'Workflow/TaskLifecycle.psm1')
 Import-Module (Join-Path $PSScriptRoot 'Artifacts/EvidenceContract.psm1')
@@ -24,6 +28,8 @@ try {
     $repo=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($canonical))).ToLowerInvariant()
     $configs=@(Get-EvidenceConfigurations $repo)
     $deletedArtifacts=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    # One collector across all configs, so the reported count is their sum.
+    $staging=[pscustomobject]@{Observations=[Collections.Generic.List[object]]::new();Witnesses=0}
     $guard=Enter-WorkflowTaskGuard $repo $Task
     try {
         if ($Command -eq 'status') { $result=Get-WorkflowTaskStatus $repo $Task $guard }
@@ -44,7 +50,7 @@ try {
                 # transition and store modules have no Storage dependency.
                 foreach($path in $configs) {
                     $config=Read-EvidenceConfig $path 'osm'
-                    $deleted=@(Assert-EvidenceTransitionSafe $config $Task $guard)
+                    $deleted=@(Assert-EvidenceTransitionSafe $config $Task $guard -Residue $staging)
                     if($Command -eq 'resume'){foreach($artifactId in $deleted){$null=$deletedArtifacts.Add($artifactId)}}
                 }
                 $result=Invoke-WorkflowTaskTransition $repo $Task $kind $ExpectedVersion $Decision $Reason $guard
@@ -58,7 +64,11 @@ try {
     }
     # Resume can commit after an earlier cleanup without restoring expired payloads.
     # Keep the tombstone outcome visible even when event delivery is still pending.
-    [ordered]@{status=$(if($pending){'recorded/delivery-pending'}elseif($deletedArtifacts.Count){'payload-deleted'}else{'ok'});reasonCode=$(if($deletedArtifacts.Count){'payload-deleted'}else{$null});deletedArtifacts=@($deletedArtifacts | Sort-Object);taskId=$Task;repositoryId=$repo;result=$result} | ConvertTo-Json -Depth 20
+    $output=[ordered]@{status=$(if($pending){'recorded/delivery-pending'}elseif($deletedArtifacts.Count){'payload-deleted'}else{'ok'});reasonCode=$(if($deletedArtifacts.Count){'payload-deleted'}else{$null});deletedArtifacts=@($deletedArtifacts | Sort-Object)}
+    # status skips the storage preflight, so a count there would read as a false "none missing".
+    if ($Command -ne 'status') { $output.stagingMissing=$staging.Observations.Count }
+    $output.taskId=$Task;$output.repositoryId=$repo;$output.result=$result
+    $output | ConvertTo-Json -Depth 20
     if($pending){exit 2}
 } catch {
     [ordered]@{status='failed';reasonCode=$(if($_.Exception.Message -match '^[a-z][a-z0-9/-]+$'){$_.Exception.Message}else{'workflow-unavailable'})} | ConvertTo-Json -Compress

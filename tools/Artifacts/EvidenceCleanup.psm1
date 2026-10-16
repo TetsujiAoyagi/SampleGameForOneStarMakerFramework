@@ -74,15 +74,51 @@ function Assert-EvidenceOperationStopped($Operation){
 function Assert-EvidenceOwnedCopy($Copy){
     Assert-Fields $Copy @('path','bytes','sha256','origin');Assert-Hex $Copy.sha256 64
     if($Copy.origin -cne 'storage-copy' -or ($Copy.bytes -isnot [long] -and $Copy.bytes -isnot [int]) -or $Copy.bytes -lt 0 -or $Copy.bytes -gt 256MB){throw 'invalid-owned-copy'}
-    $path=Resolve-ArtifactStoredPath $Copy.path
+    # A vanished registered copy is the same failure as a rewritten one, so it is
+    # reported as changed-copy rather than as a generic path error.
+    $path=Resolve-ArtifactStoredPath $Copy.path -AllowMissing
     if(-not [IO.File]::Exists($path) -or ([IO.FileInfo]::new($path)).Length -ne $Copy.bytes -or (Get-EvidenceOwnedHash $path) -cne $Copy.sha256){throw 'changed-copy'}
     return $path
 }
+# Identifies a staging entry in cleanup cursors and observations without
+# exposing its path.
+function Get-EvidenceStagingKey($Stage){
+    return [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($Stage.path))).ToLowerInvariant()
+}
+# Answers 'present' or 'missing', or throws. Only a dormant stage (nothing in the
+# task still depends on it) may be missing: its directory is leftover that no
+# registered owner can lose. Everything else keeps the strict resolution, so a
+# missing directory that something depends on still stops the operation.
+function Get-EvidenceStagingPathState($Task,$Stage){
+    if(-not (Test-EvidenceStagingDormant $Task $Stage)){$null=Resolve-ArtifactStoredPath $Stage.path;return 'present'}
+    $resolved=Resolve-ArtifactStoredPath $Stage.path -AllowMissing
+    # Judge the resolved path: a stored path that merely resolves under the root
+    # must still be a direct 32-hex child, as New-ArtifactOperation creates them.
+    if([IO.Path]::GetDirectoryName($resolved) -cne (Get-ArtifactRoot) -or [IO.Path]::GetFileName($resolved) -cnotmatch '\A[0-9a-f]{32}\z'){throw 'invalid-staging'}
+    if([IO.Directory]::Exists($resolved) -or [IO.File]::Exists($resolved)){return 'present'}
+    # Exists is false for a link whose target is gone. The entry is still there,
+    # so it is an anomaly to refuse, not an absence to tolerate.
+    # File.GetAttributes throws for an absent entry; FileInfo.Attributes would return -1 instead.
+    try{$null=[IO.File]::GetAttributes($resolved)}
+    catch [IO.FileNotFoundException]{return 'missing'}
+    catch [IO.DirectoryNotFoundException]{return 'missing'}
+    throw 'invalid-staging'
+}
 # Resolve the whole registered local scope before any network or deletion. A
 # partial validation must not erase a good object while an unknown copy survives.
-function Assert-EvidenceTaskPaths($Config,$Task){
+# $Residue collects missing-staging observations and the count of registered
+# paths that were confirmed to exist (witnesses); this function returns nothing,
+# because callers read its pipeline as a list of deleted artifact ids.
+function Assert-EvidenceTaskPaths($Config,$Task,$Residue=$null){
     foreach($artifact in $Task.artifacts){
-        foreach($copy in $artifact.ownedCopies){Assert-EvidenceBudget;$null=Assert-EvidenceOwnedCopy $copy}
+        # Deleting a staged artifact persists `deleted` before removing any file, so
+        # for that artifact only, an absent copy is finished work from a stopped
+        # deletion and leaves the in-memory list. A present copy is still verified,
+        # and every other artifact keeps refusing absence as changed-copy.
+        if($artifact.state -ceq 'deleted' -and (Get-EvidenceArtifactOrigin $artifact) -ceq 'stage'){
+            $artifact.ownedCopies=@($artifact.ownedCopies|Where-Object {$path=Resolve-ArtifactStoredPath $_.path -AllowMissing;[IO.File]::Exists($path) -or [IO.Directory]::Exists($path)})
+        }
+        foreach($copy in $artifact.ownedCopies){Assert-EvidenceBudget;$null=Assert-EvidenceOwnedCopy $copy;if($Residue){$Residue.Witnesses++}}
         if($artifact.putIntent){
             $intentPath=Resolve-EvidenceStoredPath $artifact.putIntent.path
             $expected=[IO.Path]::Combine((Get-EvidenceTaskDirectory $Config $Task.taskId),'intents',$artifact.artifactId+'.json')
@@ -92,9 +128,15 @@ function Assert-EvidenceTaskPaths($Config,$Task){
     }
     foreach($stage in $Task.staging){
         if($stage.origin -cne 'storage-copy'){throw 'invalid-staging'}
-        # Adopted staging is a completed ownership transfer. Its files may
-        # already have been confirmed deleted through ownedCopies.
-        $path=Resolve-ArtifactStoredPath $stage.path -AllowMissing:($stage.adopted -and -not $stage.operation)
+        if($stage.adopted -and -not $stage.operation){
+            # Adopted staging is a completed ownership transfer. Its files may
+            # already have been confirmed deleted through ownedCopies, so its
+            # absence is neither reported nor a witness.
+            $path=Resolve-ArtifactStoredPath $stage.path -AllowMissing
+            if($Residue -and [IO.Directory]::Exists($path)){$Residue.Witnesses++}
+        }elseif((Get-EvidenceStagingPathState $Task $stage) -ceq 'missing'){
+            if($Residue){$Residue.Observations.Add([pscustomobject]@{key=Get-EvidenceStagingKey $stage;reasonCode='staging-missing'})}
+        }elseif($Residue){$Residue.Witnesses++}
         if($stage.operation){Assert-EvidenceOperationPaths $stage.operation}
     }
 }
@@ -165,10 +207,18 @@ function Resolve-EvidenceDeleteGuarded($Config,$Task,$Artifact,$Guard,[Diagnosti
         $stage.operation=$null;$null=Write-EvidenceTask $Config $Task.taskId $Task $Task.generation $Guard
     }
 }
-function Assert-EvidenceTransitionSafe($Config,[string]$TaskId,$Guard){
+# -NoNetwork is the preflight of local staging and local fetch. Resolving an
+# unfinished put or delete needs credentials and a GET, so that form refuses them
+# instead; only stopped local operations are cleared, which needs no network.
+function Assert-EvidenceTransitionSafe($Config,[string]$TaskId,$Guard,$Residue=$null,[switch]$NoNetwork){
     $task=Read-EvidenceTask $Config $TaskId $Guard;if($null -eq $task){return @()}
-    $task=Sync-EvidenceTaskGuarded $Config $TaskId $Guard;Assert-EvidenceTaskPaths $Config $task
+    $task=Sync-EvidenceTaskGuarded $Config $TaskId $Guard;Assert-EvidenceTaskPaths $Config $task $Residue
     $timer=[Diagnostics.Stopwatch]::StartNew()
+    if($NoNetwork){
+        foreach($a in $task.artifacts){if($a.deleteIntent){throw 'unresolved-delete'};if($a.state -ceq 'put-pending'){throw 'unresolved-put'}}
+        foreach($a in $task.artifacts){if($a.operation){Resolve-EvidenceOperationGuarded $Config $task $a $Guard}}
+        return @($task.artifacts|Where-Object state -CEQ 'deleted'|ForEach-Object artifactId)
+    }
     foreach($a in $task.artifacts){
         if($a.deleteIntent){$null=Resolve-EvidenceDeleteGuarded $Config $task $a $Guard $timer}
         if($a.state -ceq 'put-pending'){Resolve-EvidencePutGuarded $Config $task $a $Guard $timer}
@@ -197,6 +247,21 @@ function Invoke-EvidenceDeleteGuarded($Config,$Task,$Artifact,$Guard,[Diagnostic
     $null=Write-EvidenceTask $Config $Task.taskId $Task $Task.generation $Guard
     return $(if($complete){'deleted'}else{'local-pending'})
 }
+# A staged artifact has no remote object, so expiry needs no DELETE, GET or intent.
+# Persisting `deleted` is the commit point: stopping before it leaves the artifact
+# staged with every file intact, and stopping after it leaves only local files
+# that the next cleanup removes (see Assert-EvidenceTaskPaths).
+function Invoke-EvidenceLocalDeleteGuarded($Config,$Task,$Artifact,$Guard){
+    Assert-EvidenceBudget
+    $policy=Get-EvidenceRetentionDecision $Task $Artifact (& $script:Clock)
+    if(-not $policy.eligible){return $policy.reasonCode}
+    if($script:FaultHook){& $script:FaultHook 'before-local-delete' $Artifact}
+    $Artifact.state='deleted';$Artifact.operation=$null;$null=Write-EvidenceTask $Config $Task.taskId $Task $Task.generation $Guard
+    if($script:FaultHook){& $script:FaultHook 'after-local-deleted' $Artifact}
+    $complete=Remove-EvidenceOwnedCopies $Artifact
+    $null=Write-EvidenceTask $Config $Task.taskId $Task $Task.generation $Guard
+    return $(if($complete){'deleted'}else{'local-pending'})
+}
 function Invoke-EvidenceCleanup([string]$ConfigPath,[bool]$DryRun=$false,[string[]]$TaskIds=@(),[int]$MaxObjects=100){
     $result=[ordered]@{status='passed';reasonCode='complete';deleted=0;skipped=0;blocked=0;remaining=0;items=@()};$timer=[Diagnostics.Stopwatch]::StartNew();$seen=0
     $previousBudget=$script:Budget;if(-not $script:Budget){$script:Budget=New-EvidenceLocalBudget 480000};$scopes=@()
@@ -207,13 +272,14 @@ function Invoke-EvidenceCleanup([string]$ConfigPath,[bool]$DryRun=$false,[string
             $guard=$null
             try{
                 if((& $script:Budget.Remaining) -le 0){$result.remaining++;continue}
-                $guard=Enter-WorkflowTaskGuard $config.Data.repositoryId $id;$task=Sync-EvidenceTaskGuarded $config $id $guard;Assert-EvidenceTaskPaths $Config $task
+                $guard=Enter-WorkflowTaskGuard $config.Data.repositoryId $id;$task=Sync-EvidenceTaskGuarded $config $id $guard
+                $residue=[pscustomobject]@{Observations=[Collections.Generic.List[object]]::new();Witnesses=0};Assert-EvidenceTaskPaths $Config $task $residue
+                $missingKeys=[Collections.Generic.HashSet[string]]::new([string[]]@($residue.Observations|ForEach-Object key),[StringComparer]::Ordinal)
                 # Artifacts and staging share one finite cursor. Persisting it before
                 # each attempt lets a blocked artifact or staging tree yield the next
                 # job's budget instead of starving later expired staging forever.
                 $work=@($task.artifacts|ForEach-Object{[pscustomobject]@{cursor=$_.artifactId;artifact=$_;stage=$null}})+@($task.staging|ForEach-Object{
-                    $key=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($_.path))).ToLowerInvariant()
-                    [pscustomobject]@{cursor='staging:'+$key;artifact=$null;stage=$_}
+                    [pscustomobject]@{cursor='staging:'+(Get-EvidenceStagingKey $_);artifact=$null;stage=$_}
                 })
                 $ordered=@($work|Sort-Object cursor);if($task.cleanupCursor){$ordered=@($ordered|Where-Object {$_.cursor -cgt $task.cleanupCursor})+@($ordered|Where-Object {$_.cursor -cle $task.cleanupCursor})}
                 foreach($item in $ordered){
@@ -222,7 +288,25 @@ function Invoke-EvidenceCleanup([string]$ConfigPath,[bool]$DryRun=$false,[string
                     if($item.stage){
                         $stage=$item.stage
                         $observation=[pscustomobject]@{taskId=$id;artifactId=$stage.artifactId;reasonCode='unconfirmed'};$result.items+=$observation
-                        if($stage.artifactId -and @($task.artifacts|Where-Object {$_.artifactId -ceq $stage.artifactId -and ($_.state -ceq 'put-pending' -or $_.deleteIntent)}).Count){$result.skipped++;$observation.reasonCode='operation-pending';continue}
+                        # A staged artifact's package exists only in this staging, so the
+                        # seven-day rule must wait for the artifact's own retention.
+                        if($stage.artifactId -and @($task.artifacts|Where-Object {$_.artifactId -ceq $stage.artifactId -and ($_.state -cin @('put-pending','staged') -or $_.deleteIntent)}).Count){$result.skipped++;$observation.reasonCode='operation-pending';continue}
+                        # A missing dormant directory is judged before the seven-day rule so
+                        # every outcome reports it. Dropping the entry deletes nothing; it
+                        # needs a witness that this store side really holds the task's files.
+                        if($missingKeys.Contains($item.cursor.Substring(8))){
+                            $expired=(Get-EvidenceStagingDecision $stage (& $script:Clock)).eligible
+                            if($DryRun -or -not $expired -or $residue.Witnesses -lt 1){$result.skipped++;$observation.reasonCode='staging-missing';continue}
+                            try{
+                                # Reconfirm inside the guard: a directory that reappeared goes
+                                # through the ordinary deletion path below instead.
+                                if($script:FaultHook){& $script:FaultHook 'before-staging-drop' $stage}
+                                if((Get-EvidenceStagingPathState $task $stage) -ceq 'missing'){
+                                    $task.staging=@($task.staging|Where-Object path -CNE $stage.path);$null=Write-EvidenceTask $config $id $task $task.generation $guard
+                                    $result.skipped++;$observation.reasonCode='staging-missing-dropped';continue
+                                }
+                            }catch{$result.blocked++;$observation.reasonCode='local-pending';continue}
+                        }
                         if($stage.operation -and -not $DryRun){try{Assert-EvidenceOperationStopped $stage.operation;$stage.operation=$null}catch{$result.blocked++;$observation.reasonCode='operation-pending';continue}}
                         $policy=Get-EvidenceStagingDecision $stage (& $script:Clock);$observation.reasonCode=$policy.reasonCode
                         if(-not $policy.eligible){$result.skipped++;continue}
@@ -243,7 +327,7 @@ function Invoke-EvidenceCleanup([string]$ConfigPath,[bool]$DryRun=$false,[string
                     if($a.deleteIntent -and -not $DryRun){$null=Resolve-EvidenceDeleteGuarded $config $task $a $guard $timer}
                     if($a.operation -and -not $DryRun){Resolve-EvidenceOperationGuarded $config $task $a $guard}
                     if($a.state -ceq 'deleted'){$reason=if($DryRun -or (Remove-EvidenceOwnedCopies $a)){'payload-deleted'}else{'local-pending'};if(-not $DryRun){$null=Write-EvidenceTask $config $id $task $task.generation $guard}}
-                    else{$policy=Get-EvidenceRetentionDecision $task $a (& $script:Clock);$reason=$policy.reasonCode;if($policy.eligible -and -not $DryRun){$reason=Invoke-EvidenceDeleteGuarded $config $task $a $guard $timer}}
+                    else{$policy=Get-EvidenceRetentionDecision $task $a (& $script:Clock);$reason=$policy.reasonCode;if($policy.eligible -and -not $DryRun){$reason=if($a.state -ceq 'staged'){Invoke-EvidenceLocalDeleteGuarded $config $task $a $guard}else{Invoke-EvidenceDeleteGuarded $config $task $a $guard $timer}}}
                     if($reason -ceq 'deleted'){$result.deleted++}elseif($reason -cin @('delete-pending','local-pending','unknown-state','unknown-use','delivery-pending')){$result.blocked++}else{$result.skipped++}
                     $result.items+= [pscustomobject]@{taskId=$id;artifactId=$a.artifactId;reasonCode=$reason}
                 }
@@ -253,7 +337,7 @@ function Invoke-EvidenceCleanup([string]$ConfigPath,[bool]$DryRun=$false,[string
     if($result.blocked -or $result.remaining){$result.status='pending';$result.reasonCode='cleanup-partial'}
     return [pscustomobject]$result
 }
-Export-ModuleMember -Function Get-EvidenceProcessIdentity,Assert-EvidenceOperationStopped,Assert-EvidenceTransitionSafe,Invoke-EvidenceCleanup
+Export-ModuleMember -Function Get-EvidenceProcessIdentity,Assert-EvidenceOperationStopped,Assert-EvidenceTransitionSafe,Invoke-EvidenceCleanup,Get-EvidenceStagingPathState,Get-EvidenceStagingKey
 
 
 function Resolve-EvidencePutGuarded($Config,$Task,$Artifact,$Guard,[Diagnostics.Stopwatch]$Timer){

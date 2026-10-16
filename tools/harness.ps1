@@ -35,6 +35,10 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+# 仮想化されたAppDataへ書くと CURRENT が別の実体へ分裂する。store moduleのimportより前に
+# 判定し、判定不能も止める。依存はOS基盤層の判定moduleだけで、Workflowのdomainは読まない。
+try { Import-Module (Join-Path $PSScriptRoot 'Workflow/WindowsStoreContext.psm1'); $storeContext = Get-OsmStoreContext } catch { $storeContext = 'unknown' }
+if ($storeContext -cne 'not-virtualized') { [Console]::WriteLine((ConvertTo-Json -Compress -InputObject ([ordered]@{ status = 'failed'; reasonCode = $(if ($storeContext -ceq 'virtualized') { 'virtualized-store' } else { 'store-context-unknown' }) }))); exit 1 }
 Import-Module (Join-Path $PSScriptRoot 'Harness/RecordStore.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Harness/GatePolicy.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Harness/Adapters/LocalChecks.psm1') -Force

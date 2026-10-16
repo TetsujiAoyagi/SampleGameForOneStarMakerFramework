@@ -38,6 +38,7 @@ function Assert-EvidenceGuard($Config,[string]$TaskId,$Guard){
     if($null -eq $Guard -or $Guard.RepositoryId -cne $Config.Data.repositoryId -or $Guard.TaskId -cne $TaskId){throw 'invalid-guard'}
     if($Guard.PSObject.Properties['Handle'] -and ($null -eq $Guard.Handle -or -not $Guard.Handle.CanRead)){throw 'invalid-guard'}
 }
+function Get-EvidenceArtifactOrigin($Artifact){if($Artifact.PSObject.Properties['origin']){return $Artifact.origin};return 'publish'}
 function New-EvidenceTask($Config,[string]$TaskId){return [pscustomobject][ordered]@{schemaVersion=2;deploymentId=$Config.Data.deploymentId;repositoryId=$Config.Data.repositoryId;taskId=$TaskId;generation=[long]0;appliedEventVersion=[long]0;status='unknown';taskEndedAt=$null;endReason=$null;deleteEligibleAt=$null;events=@();artifacts=@();staging=@();cleanupCursor=$null}}
 function Read-EvidenceTask($Config,[string]$TaskId,$Guard){
     Assert-EvidenceBudget
@@ -48,13 +49,20 @@ function Read-EvidenceTask($Config,[string]$TaskId,$Guard){
     if($v.schemaVersion -ne 2 -or $v.deploymentId -cne $Config.Data.deploymentId -or $v.repositoryId -cne $Config.Data.repositoryId -or $v.taskId -cne $TaskId -or $v.generation -lt 1 -or $v.appliedEventVersion -lt 0 -or $v.status -cnotin @('unknown','active','ended','pending-gap') -or $v.events -isnot [array] -or $v.artifacts -isnot [array] -or $v.staging -isnot [array]){throw 'corrupt-state'}
     $ids=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     foreach($a in $v.artifacts){Assert-EvidenceBudget
-        Assert-Fields $a @('schemaVersion','artifactId','taskId','repositoryId','deploymentId','key','base','head','packageBytes','packageSha256','manifestSha256','entries','createdAt','state','appliedEventVersion','taskEndedAt','endReason','deleteEligibleAt','protections','ownedCopies','deleteIntent','operation','receipt','putIntent')
+        # `origin` is optional so catalogs written before local staging still read
+        # unchanged; an artifact without it was produced by publish.
+        $fields=@('schemaVersion','artifactId','taskId','repositoryId','deploymentId','key','base','head','packageBytes','packageSha256','manifestSha256','entries','createdAt','state','appliedEventVersion','taskEndedAt','endReason','deleteEligibleAt','protections','ownedCopies','deleteIntent','operation','receipt','putIntent')
+        if($a.PSObject.Properties['origin']){$fields+='origin'};Assert-Fields $a $fields;$origin=Get-EvidenceArtifactOrigin $a
         Assert-Hex $a.artifactId 32;Assert-Hex $a.packageSha256 64;Assert-Hex $a.manifestSha256 64;Assert-Hex $a.base 40;Assert-Hex $a.head 40
-        if(-not $ids.Add($a.artifactId) -or $a.schemaVersion -ne 2 -or $a.taskId -cne $TaskId -or $a.repositoryId -cne $Config.Data.repositoryId -or $a.deploymentId -cne $Config.Data.deploymentId -or $a.key -cne (Get-EvidenceKey $Config $TaskId $a.artifactId) -or $a.state -cnotin @('put-pending','ready','delete-pending','deleted','failed') -or $a.packageBytes -lt 1 -or $a.packageBytes -gt 256MB){throw 'corrupt-state'}
+        # A staged artifact keeps its deterministic key although nothing was sent,
+        # so the reference it hands out stays valid if it is ever uploaded.
+        if(-not $ids.Add($a.artifactId) -or $a.schemaVersion -ne 2 -or $a.taskId -cne $TaskId -or $a.repositoryId -cne $Config.Data.repositoryId -or $a.deploymentId -cne $Config.Data.deploymentId -or $a.key -cne (Get-EvidenceKey $Config $TaskId $a.artifactId) -or $a.state -cnotin @('put-pending','ready','delete-pending','deleted','failed','staged') -or $origin -cnotin @('publish','stage') -or $a.packageBytes -lt 1 -or $a.packageBytes -gt 256MB){throw 'corrupt-state'}
         $null=Assert-Utc $a.createdAt
         if($a.entries -isnot [array] -or $a.entries.Count -lt 1 -or $a.entries.Count -gt 4096 -or $a.protections -isnot [array] -or $a.ownedCopies -isnot [array]){throw 'corrupt-state'}
         foreach($entry in $a.entries){Assert-EvidenceBudget;Assert-Fields $entry @('path','bytes','sha256');Assert-Hex $entry.sha256 64;if($entry.bytes -lt 0 -or $entry.bytes -gt 256MB){throw 'corrupt-state'}}
-        if($a.state -cin @('ready','deleted','delete-pending')){
+        # A locally staged artifact never reached the remote store, so its deletion
+        # has no upload receipt to prove. Every other deleted artifact still needs one.
+        if($a.state -cin @('ready','delete-pending') -or ($a.state -ceq 'deleted' -and $origin -cne 'stage')){
             if($null -eq $a.receipt){throw 'receipt-missing'}
             $expected=[IO.Path]::Combine((Get-EvidenceTaskDirectory $Config $TaskId),'receipts',$a.artifactId+'.json')
             if((Resolve-EvidenceStoredPath $a.receipt.path) -cne $expected){throw 'receipt-conflict'}
@@ -133,4 +141,4 @@ function Invoke-EvidenceSync([string]$ConfigPath,[string]$TaskId){
     try{$scopes=Set-EvidenceBudgetScopes @('Enter-WorkflowTaskGuard','Write-EvidenceAtomic') $script:Budget;Assert-EvidenceBudget;$config=Read-EvidenceConfig $ConfigPath;$guard=Enter-WorkflowTaskGuard $config.Data.repositoryId $TaskId;$t=Sync-EvidenceTaskGuarded $config $TaskId $guard;return [pscustomobject]@{status='passed';reasonCode='delivered';version=$t.appliedEventVersion}}
     catch{return [pscustomobject]@{status='pending';reasonCode='delivery-pending'}}finally{if($guard){$guard.Dispose()};Restore-EvidenceBudgetScopes $scopes;$script:Budget=$previousBudget}
 }
-Export-ModuleMember -Function Assert-EvidenceGuard,New-EvidenceTask,Read-EvidenceTask,Write-EvidenceTask,Apply-EvidenceEvent,Sync-EvidenceTaskGuarded,Invoke-EvidenceSync
+Export-ModuleMember -Function Get-EvidenceArtifactOrigin,Assert-EvidenceGuard,New-EvidenceTask,Read-EvidenceTask,Write-EvidenceTask,Apply-EvidenceEvent,Sync-EvidenceTaskGuarded,Invoke-EvidenceSync

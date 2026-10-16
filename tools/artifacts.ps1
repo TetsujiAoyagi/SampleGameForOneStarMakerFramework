@@ -3,6 +3,10 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 try {
+    # 仮想化されたAppDataでストアへ書くと、別の実体へ黙って分裂する。引数の解釈・
+    # store moduleのimport・資格情報の読取りより前に判定し、判定不能も止める。
+    try{Import-Module (Join-Path $PSScriptRoot 'Workflow/WindowsStoreContext.psm1');$storeContext=Get-OsmStoreContext}catch{$storeContext='unknown'}
+    if($storeContext -cne 'not-virtualized'){[Console]::WriteLine((ConvertTo-Json -Compress -InputObject ([ordered]@{status='failed';reasonCode=$(if($storeContext -ceq 'virtualized'){'virtualized-store'}else{'store-context-unknown'})})));exit 1}
     if ($Arguments.Count -lt 4) { throw 'Invalid command.' }
     # BuildはEvidenceと独立したgrammar。成功記録の寿命と引数の意味を混同しない。
     # オプション名の字種を許しても、必要fieldの完全一致で未知引数を拒否する。
@@ -83,6 +87,23 @@ try {
         # cleanupのpartial（未解決の試行・残りの候補あり）は2。次回の実行で続きを処理する。
         if($outcome.status -ceq 'passed'){exit 0};if($outcome.status -ceq 'partial'){exit 2};exit 1
     }
+    # 分裂したストアの合流もBuild/Content/Evidenceと独立したgrammar。planは両ストアを変更せず
+    # manifest候補を新規fileへ書く。consolidateはownerが承認したmanifestのsha256を必須にする。
+    if($Arguments[0] -ceq 'store'){
+        $storeAction=$Arguments[1];$storeOpts=@{};$storeDry=$false
+        for($j=2;$j -lt $Arguments.Count;$j+=2){
+            if($Arguments[$j] -ceq '--dry-run'){if($storeDry -or $storeAction -cne 'consolidate'){throw 'unsupported-command'};$storeDry=$true;$j--;continue}
+            if($j+1 -ge $Arguments.Count -or $Arguments[$j] -cnotmatch '\A--[a-z0-9-]+\z' -or $storeOpts.ContainsKey($Arguments[$j])){throw 'unsupported-command'}
+            $storeOpts[$Arguments[$j]]=$Arguments[$j+1]
+        }
+        $needed=switch($storeAction){'plan'{@('--source-root','--output')}'consolidate'{@('--manifest','--manifest-sha256')}default{throw 'unsupported-command'}}
+        if((($storeOpts.Keys|Sort-Object) -join ',') -cne (($needed|Sort-Object) -join ',')){throw 'unsupported-command'}
+        Import-Module (Join-Path $PSScriptRoot 'Artifacts/StoreConsolidation.psm1')
+        $outcome=if($storeAction -ceq 'plan'){Invoke-StoreConsolidationPlan $storeOpts['--source-root'] $storeOpts['--output']}else{Invoke-StoreConsolidation $storeOpts['--manifest'] $storeOpts['--manifest-sha256'] $storeDry}
+        [Console]::WriteLine((ConvertTo-Json -InputObject $outcome -Compress -Depth 20))
+        # 保留・変更検出の単位が残るpartialは2。全体完了を返さない。
+        if($outcome.status -ceq 'passed'){exit 0};if($outcome.status -ceq 'partial'){exit 2};exit 1
+    }
     if ($Arguments[0] -ceq 'credentials' -and $Arguments[1] -cin @('set','status','remove')) {
         # Existing local credential grammar and exit meanings remain unchanged.
         if ($Arguments[2] -cne '--profile' -or $Arguments[3] -cne 'osm') { throw 'Invalid command.' }
@@ -126,7 +147,8 @@ try {
     }else{
         if($opts['--profile'] -cne 'osm'){throw 'unsupported-command'}
         $expected=switch($action){
-            'publish'{if($command -cne 'evidence'){throw 'unsupported-command'};@('--profile','--config','--selection')}
+            # stageはpublishと同じselectionを受け、ローカル固定で止まる（送信しない）。
+            {$_ -cin @('publish','stage')}{if($command -cne 'evidence'){throw 'unsupported-command'};@('--profile','--config','--selection')}
             'fetch'{@('--profile','--config','--reference','--sha256')}
             'inspect'{@('--profile','--config','--task')}
             'use'{@('--profile','--config','--reference','--consumer','--until','--reason')}
@@ -139,6 +161,7 @@ try {
         Import-Module (Join-Path $PSScriptRoot 'Artifacts/EvidenceApplication.psm1')
         switch($action){
             'publish'{$outcome=Invoke-EvidencePublish $opts['--config'] $opts['--selection']}
+            'stage'{$outcome=Invoke-EvidenceStage $opts['--config'] $opts['--selection']}
             'fetch'{$outcome=Invoke-EvidenceFetch $opts['--config'] $opts['--reference'] $opts['--sha256']}
             'inspect'{$outcome=Invoke-EvidenceInspect $opts['--config'] $opts['--task']}
             'use'{$outcome=Invoke-EvidenceUse $opts['--config'] $opts['--reference'] $opts['--consumer'] $opts['--until'] $opts['--reason']}
