@@ -6,9 +6,9 @@ A3で `external-current-v1` を明示したtaskはこのtrackedテンプレー�
 
 ## 0. メタデータ
 
-このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
+このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
-実際の取得案内は、リポジトリルートの `.agents/skills/osm-workflow/references/review-evidence.md` の「保存先とリモートへの配布」に従い、publishが返すreferenceとそれとは別の期待packageSha256、対象base / head、用途、取得手順、保持条件を持つ。各snapshot・bundleの生成時刻と内容hashは固定manifestに残し、packageSha256と混同しない。同じpackageに収録した成果物は同じ取得案内を使ってよく、個別publishや第二の台帳を要求しない。C' 用の案内と入力は所見から分離する。
+実際の取得案内は、リポジトリルートの `.agents/skills/osm-workflow/references/review-evidence.md` の「保存先とリモートへの配布」に従い、stage / publishが返すreferenceとそれとは別の期待packageSha256、対象base / head、用途、所在task、取得手順、保持条件、引渡し先、`locality` を持つ。各snapshot・bundleの生成時刻と内容hashは固定manifestに残し、packageSha256と混同しない。同じpackageに収録した成果物は同じ取得案内を使ってよく、個別publishや第二の台帳を要求しない。C' 用の案内と入力は所見から分離する。
 
 - type: `slice` / `program` / `research`
 - status: `A` / `B` / `動作確認` / `C` / `C'` / `D`
@@ -24,13 +24,13 @@ A3で `external-current-v1` を明示したtaskはこのtrackedテンプレー�
 - Phase B result snapshot の取得案内・状態:
 - evidence bundle の取得案内・状態:
 - C' blind bundle の取得案内・状態:
-- 引継ぎ票（次の Phase・役割と作業、必要な権限、停止規則、引き渡さないもの。モデル名は書かない）:
+- 引継ぎ票（次の Phase・役割と作業、引き継ぐ commit SHA、stage を使う場合は取得案内の所在、必要な権限、停止規則、引き渡さないもの。モデル名は書かない。reference・packageSha256 の実値は書かない）:
 
-Phase A では implementation base commit と Phase A snapshot の取得案内・状態を記録する。implementation head、Phase B result、evidence、C' blind bundle は各成果物が生成された Phase で追記し、未到達 Phase の値を推測して埋めない。生成済みでもpublish前は未保存、取得案内や必須内容の受渡しが未確認なら引渡し未完了とする。HANDOFF へのレビュー記録だけの commit は implementation head に含めない。引継ぎ票は各 Phase の出口の担当が書き換える。規則はリポジトリルートの `.agents/skills/osm-workflow/references/phases-and-handoff.md` の「Phase 境界の引継ぎ」に従う。
+Phase A では implementation base commit と Phase A snapshot の取得案内・状態を記録する。implementation head、Phase B result、evidence、C' blind bundle は各成果物が生成された Phase で追記し、未到達 Phase の値を推測して埋めない。生成済みでもstage・publish前は未保存、`evidence stage` で固定しR2へ昇格していなければローカル固定済み（未昇格）、取得案内や必須内容の受渡しが未確認なら引渡し未完了とする。HANDOFF へのレビュー記録だけの commit は implementation head に含めない。引継ぎ票は各 Phase の出口の担当が書き換える。規則はリポジトリルートの `.agents/skills/osm-workflow/references/phases-and-handoff.md` の「Phase 境界の引継ぎ」に従う。
 
 ### PR 状態ブロック
 
-PR 本文の先頭に置く、この §0 の最小の写し。reference・hash の実値は書かない。
+PR 本文の先頭に置く、この §0 の最小の写し。reference・hash の実値は書かない。PR が存在する間だけ更新し、PR を作る前は §0 を唯一の正本とする。
 
 ```text
 状態: Phase <A / B / 動作確認 / C / C' / D> の <作業中 / 完了>
@@ -38,7 +38,7 @@ Phase A: revision <番号>、commit <SHA>
 implementation base / head: <SHA> / <SHA または 未固定>
 次の担当: <Phase と役割>。次の作業: <作業>
 HANDOFF: <HANDOFF の path>
-Evidence 取得案内: <未生成 / 未保存 / 引渡し未完了 / 確認済み>（取得できない環境では「証拠の取得はローカル担当」）
+Evidence 取得案内: <未生成 / 未保存 / ローカル固定済み（未昇格） / 引渡し未完了 / 確認済み>（取得できない環境では「証拠の取得はローカル担当」）
 未決事項: <項目 または なし>
 ```
 

@@ -16,7 +16,14 @@ if($Signal){
     if(-not $busy){throw 'race-guard-not-held'}
     $event=[Threading.EventWaitHandle]::OpenExisting($Signal);try{$null=$event.Set()}finally{$event.Dispose()}
 }
+# A local fetch must succeed with every remote path made fatal: any transport call
+# or credential read fails the command, so exit 0 proves both stayed at zero.
+if($Action -ceq 'fetch-offline'){
+    Set-EvidenceTestValue ArtifactApplication TransportHook {throw 'offline-network-forbidden'}
+    foreach($m in @(Get-EvidenceTestModules EvidenceApplication)+@(Get-EvidenceTestModules EvidenceCleanup)){& $m {function script:Get-CredentialStatus {param($p)throw 'offline-credential-forbidden'}}}
+}
 switch($Action){
+    'fetch-offline'{& (Join-Path $PSScriptRoot '../../artifacts.ps1') fetch --profile osm --config $ConfigPath --reference $Reference --sha256 $Sha256;exit $LASTEXITCODE}
     'publish'{& (Join-Path $PSScriptRoot '../../artifacts.ps1') evidence publish --profile osm --config $ConfigPath --selection $Selection;exit $LASTEXITCODE}
     'fetch'{& (Join-Path $PSScriptRoot '../../artifacts.ps1') fetch --profile osm --config $ConfigPath --reference $Reference --sha256 $Sha256;exit $LASTEXITCODE}
     'use'{& (Join-Path $PSScriptRoot '../../artifacts.ps1') evidence use --profile osm --config $ConfigPath --reference $Reference --consumer child --until ([DateTimeOffset]::UtcNow.AddHours(1).ToString('o')) --reason review;exit $LASTEXITCODE}

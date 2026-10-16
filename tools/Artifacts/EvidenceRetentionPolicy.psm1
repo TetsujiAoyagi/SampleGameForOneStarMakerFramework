@@ -1,12 +1,19 @@
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'ArtifactCommands.psm1')
 # The policy reads snapshots only. All callers must obtain a fresh task snapshot under its guard.
+function Test-EvidenceStagedUnsent($Artifact){
+    foreach($name in @('origin','putIntent','receipt')){if(-not $Artifact.PSObject.Properties[$name]){return $false}}
+    return ($Artifact.origin -ceq 'stage' -and $null -eq $Artifact.putIntent -and $null -eq $Artifact.receipt)
+}
 function Get-EvidenceRetentionDecision($Task,$Artifact,[DateTimeOffset]$Now){
     $reason='unknown-state'
     try{
         if($null -eq $Task -or $null -eq $Artifact){return [pscustomobject]@{eligible=$false;reasonCode=$reason}}
         if($Artifact.state -ceq 'deleted'){$reason='payload-deleted'}
-        elseif($Artifact.state -cne 'ready'){$reason='unconfirmed-artifact'}
+        elseif($Artifact.state -cnotin @('ready','staged')){$reason='unconfirmed-artifact'}
+        # Local staging never creates a send intent. A staged record that claims one
+        # may have reached the remote store, so local-only deletion would be unsafe.
+        elseif($Artifact.state -ceq 'staged' -and -not (Test-EvidenceStagedUnsent $Artifact)){$reason='unknown-state'}
         elseif($Task.status -ceq 'pending-gap' -or $Task.appliedEventVersion -ne $Artifact.appliedEventVersion){$reason='delivery-pending'}
         elseif($Task.status -cne 'ended' -or $null -eq $Task.taskEndedAt){$reason='active/end-not-recorded'}
         elseif($Artifact.deleteIntent -or $Artifact.operation){$reason='operation-pending'}
@@ -44,7 +51,8 @@ function Test-EvidenceStagingDormant($Task,$Stage){
         if(-not (Test-EvidenceStagingUnheld $Stage)){return $false}
         if($null -ne $Stage.artifactId){
             $owners=@($Task.artifacts|Where-Object {$_.artifactId -ceq $Stage.artifactId})
-            if($owners.Count -ne 1 -or $owners[0].state -ceq 'put-pending' -or $owners[0].deleteIntent -or $owners[0].operation){return $false}
+            # A staged artifact's only copy lives in its staging, like an unsent put.
+            if($owners.Count -ne 1 -or $owners[0].state -cin @('put-pending','staged') -or $owners[0].deleteIntent -or $owners[0].operation){return $false}
         }
         $prefix=([string]$Stage.path).TrimEnd('\')+'\'
         foreach($artifact in $Task.artifacts){foreach($copy in $artifact.ownedCopies){if(([string]$copy.path).StartsWith($prefix,[StringComparison]::OrdinalIgnoreCase)){return $false}}}

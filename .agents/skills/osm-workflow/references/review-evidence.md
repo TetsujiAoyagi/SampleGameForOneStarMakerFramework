@@ -15,23 +15,27 @@ Phase C と C' は同じ実装を評価する。レビュー開始時に次を�
 
 implementation head はレビュー対象の実装差分を固定する値であり、HANDOFF に C/C' の結果だけを追記した review-record commit とは分ける。staged diff や可変な作業ツリーだけを正本にしない。実装対象の diff が変わった場合は [判定後の head 変更](#判定後の-head-変更) に従う。
 
+**固定の対象:** 発見 C の差し戻し入力に限り、完全な変更集合を収録した stage snapshot（reference と packageSha256）で固定できる。判定 C と C' は commit 固定を必須とし、C / C' 用 bundle は同一 commit から生成する。snapshot を使うレビューでは、送信元の可変な作業ツリーをレビュー入力にしない。
+
+stage snapshot は、base commit の SHA、追跡済み・未追跡・削除・バイナリを含む完全な変更集合を表す `changes.patch`、変更後の全 file を収録する。送信側は実 index に触れず、一時 index（`GIT_INDEX_FILE`）へ `git add -A` した後に `git diff --cached --binary --no-color --no-renames <base SHA>` で `changes.patch` を作る。収録 file 集合は patch の追加・変更対象の全 file とし、削除は patch だけに現れる。具体的な手順は [Artifacts README の changes.patch](../../../../tools/Artifacts/README.md#レビュー用の変更集合changespatch) を正とする。review-record commit の規則は変わらない。
+
 Phase A snapshot、Phase B result snapshot、evidence bundle、C' blind audit bundle は、それぞれ path / id、生成時刻、hash を manifest に記録する。判定 C と C' の入力 bundle は、どちらかのレビューを開始する前に同じ snapshot と判定 evidence から生成する。最終証拠ラウンドでは、高コスト証拠を加えた bundle を同じ規則で生成し直す。発見 C の所見や安い XML だけを C' に渡さない。Phase B result へ発見 C の指摘を転載しない。
 
-固定manifest・実際の取得案内と、tracked HANDOFFの公開要約を分ける。HANDOFFの全Phase欄には、既存の取得案内の引渡し先・担当と状態（未生成／未保存／引渡し未完了／確認済み）を公開可能な範囲で記録し、reference・期待packageSha256の実値、ローカルpath、内部catalog/receiptは転記しない。実値は下記の取得案内に残し、C' 用は所見から分離する。各snapshot・bundleの生成時刻と内容hashは固定manifestに保持し、取得package全体のpackageSha256と混同しない。空欄や生成済みだけを保存・引渡し済みと扱わない。
+固定manifest・実際の取得案内と、tracked HANDOFFの公開要約を分ける。HANDOFFの全Phase欄には、既存の取得案内の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を公開可能な範囲で記録し、reference・期待packageSha256の実値、ローカルpath、内部catalog/receiptは転記しない。実値は下記の取得案内に残し、C' 用は所見から分離する。各snapshot・bundleの生成時刻と内容hashは固定manifestに保持し、取得package全体のpackageSha256と混同しない。空欄や生成済みだけを保存・引渡し済みと扱わない。
 
 ## 保存先とリモートへの配布
 
-**Evidenceの保存・引渡しは、tracked HANDOFF / H1 CURRENTによる作業指示・run管理の選択とは別である。** 対応済みの同一PC・同一Windowsユーザーでは、通常レビューのEvidenceも既存Artifact Storageの `evidence publish` / `fetch` を使う。H1未移行を旧保存方式の継続理由にしない。操作、明示入力、非秘密確認、事前承認の範囲と保持条件は [Artifacts README](../../../../tools/Artifacts/README.md) を正とする。
+**Evidenceの保存・引渡しは、tracked HANDOFF / H1 CURRENTによる作業指示・run管理の選択とは別である。** 対応済みの同一PC・同一Windowsユーザーでは、通常レビューのEvidenceも既存Artifact Storageを使い、同一PC内の既定は `evidence stage`（R2・資格情報を使わないローカル固定）と `fetch` とする。Cloud・別hostの読み手に渡す必要がある時は、昇格経路が後続スライスで成立するまで従来どおり、従来の `evidence publish`（新しいartifact）でR2へ置くか、PRブランチで渡す。従来publishで別artifactとして配布した場合は、そのremote artifact用の新しい取得案内を作り、local stageの取得案内をremote用として流用しない（referenceとhashは別物になる）。H1未移行を旧保存方式の継続理由にしない。操作、明示入力、非秘密確認、事前承認の範囲と保持条件は [Artifacts README](../../../../tools/Artifacts/README.md) を正とする。
 
 A3で `external-current-v1` を採用したtaskでは、Git外の固定recordを正本とし、`run` IDからpath/hash/時刻を機械表示する。Gitへの生成証拠追加と手転記hash台帳は使わない。H1は同一マシンの別worktreeまでを保証し、他マシン配布は成立済みと扱わない。Artifact Storageの利用を理由にCURRENT管理方式を暗黙移行しない。
 
-上記の対応済み環境では、C / C' へ固定入力を引き渡す時点で、通常のtask開始、終了済みtaskなら再開を済ませ、採用する非秘密file集合を明示してpublishする。blind入力と所見は分け、内部台帳や作業directory全体を無条件に送らない。C' 用 bundle に過去の bundle・所見を再帰的に詰め込まず、固定した実装差分と必須の生証拠を収録する。ローカルの生成先は原sourceであり、そこに残しただけでは保存・引渡し完了としない。
+上記の対応済み環境では、C / C' へ固定入力を引き渡す時点で、通常のtask開始、終了済みtaskなら再開を済ませ、採用する非秘密file集合を明示してstage（Cloud・別hostの読み手にはpublish）する。blind入力と所見は分け、内部台帳や作業directory全体を無条件に送らない。C' 用 bundle に過去の bundle・所見を再帰的に詰め込まず、固定した実装差分と必須の生証拠を収録する。ローカルの生成先は原sourceであり、そこに残しただけでは保存・引渡し完了としない。
 
 publishするfile集合を確定する時点で、Artifact Storageの保護名規則に当たるfile名を点検する。改名は送信担当が非秘密と確認したfile（テストfixtureの `Credentials.json` 等）に限り、元名・新名・内容hashの対応表を同じbundleに収録する。保護名規則そのものは変えない。
 
-publishが返すreferenceと独立した期待packageSha256、対象base / head、bundleの用途、取得手順、保持条件を小さな取得案内にする。内部catalog / receiptを手転記して第二の台帳を作らない。取得案内は次の担当が利用でき、内容の公開可否に合った既存の引渡し先に残し、削除予定worktreeだけに置かない。新しい保存サービスや承認制度を前提にしない。C' には所見を含まない独立した案内を渡し、取得のためにPR本文や可変HANDOFF全文を読ませない。GitHubには公開可能な検証要約を残せばよく、内部台帳や機微なローカルpathの掲載を完了条件にしない。
+stage / publishが返すreferenceと独立した期待packageSha256、対象base / head、bundleの用途、所在task、取得手順、保持条件、引渡し先、`locality`（`local` / `promoted`）を小さな取得案内にする。referenceとpackageSha256の実値は取得案内に置き、tracked HANDOFF・PR本文・公開文書には取得案内の所在だけを書く。内部catalog / receiptを手転記して第二の台帳を作らない。取得案内は次の担当が利用でき、内容の公開可否に合った既存の引渡し先に残し、削除予定worktreeだけに置かない。新しい保存サービスや承認制度を前提にしない。C' には所見を含まない独立した案内を渡し、取得のためにPR本文や可変HANDOFF全文を読ませない。GitHubには公開可能な検証要約を残せばよく、内部台帳や機微なローカルpathの掲載を完了条件にしない。
 
-取得側の別sessionで、案内のreferenceと独立した期待hashを使ってfetchし、検証済みのログ・XML・原画像等の必須内容を閲覧できることを確認する。送信側の読戻し成功だけを次の担当への引渡し完了としない。作業中保持・task終了から30日というStorageの保持条件に従い、継続利用はREADMEのresume / useを使う。古いPRリンクやGETだけを保持延長の根拠にしない。
+取得側の別sessionで、案内のreferenceと独立した期待hashを使ってfetchし、検証済みのログ・XML・原画像等の必須内容を閲覧できることを確認する。`locality` が `local` の案内でも同じ確認を行う（Phase D を含む）。送信側の読戻し成功だけを次の担当への引渡し完了としない。作業中保持・task終了から30日というStorageの保持条件に従い、継続利用はREADMEのresume / useを使う。古いPRリンクやGETだけを保持延長の根拠にしない。
 
 別host / Cloudや外部のレビュー担当への配布は、到達性・権限・取得と閲覧が成立した範囲だけを確認済みとする。未対応・承認拒否・保存/取得失敗の場合は元証拠を保持し、理由、未完了の引渡し、次の担当を記録する。Git配布、Release asset、CI artifact、別checkoutへの移管へ自動で退避せず、公開範囲の拡大や拒否の迂回をしない。既存証拠の一括移動・削除やGit履歴の書き換えを、この方針だけを根拠に実行しない。
 

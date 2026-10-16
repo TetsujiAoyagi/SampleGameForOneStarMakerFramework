@@ -4,7 +4,7 @@ $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'EvidenceTestSupport.ps1')
 Import-Module (Join-Path $PSScriptRoot '../EvidenceRetentionPolicy.psm1')
 Import-Module (Join-Path $PSScriptRoot '../EvidenceStateStore.psm1')
-$registered=@('event-idempotent','event-gap','event-conflict','resume-stale-end','at-30-days','before-30-days','after-30-days','active-100-days','use-expiry','use-release','unknown-use','operation-pending','staging-7-days','staging-adopted','staging-unheld-table','staging-dormant-table')
+$registered=@('event-idempotent','event-gap','event-conflict','resume-stale-end','at-30-days','before-30-days','after-30-days','active-100-days','use-expiry','use-release','unknown-use','operation-pending','staging-7-days','staging-adopted','staging-unheld-table','staging-dormant-table','staged-retention','staged-unsent-required','staged-use','staged-staging-dormant')
 $selected=if($Case -ceq '*'){$registered}else{@($Case.Split(','))};$executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 foreach($caseName in $selected){$executed.Add($caseName);try{
     Assert-EvidenceTest ($caseName -cin $registered) 'unknown-case';$at=[DateTimeOffset]::Parse('2026-01-01T00:00:00.0000000+00:00');$config=@{Data=@{deploymentId='d'*32;repositoryId='a'*64}};$t=New-EvidenceTask $config 'fixture'
@@ -55,6 +55,31 @@ foreach($caseName in $selected){$executed.Add($caseName);try{
             $noArtifactId=[pscustomobject]@{path=$stagePath;origin='storage-copy';adopted=$false;adoptionPending=$false;operation=$null;deleteIntent=$null;protections=@()}
             Assert-EvidenceTest (-not (Test-EvidenceStagingDormant (& $task @()) $noArtifactId)) 'record without artifactId dormant'
             Assert-EvidenceTest (-not (Test-EvidenceStagingDormant ([pscustomobject]@{}) (& $stage))) 'task without artifacts dormant'
+        }
+        'staged-retention'{
+            # An unsent staged artifact follows the ready clock: task end + 30 days, never before.
+            $s=[pscustomobject]@{state='staged';origin='stage';putIntent=$null;receipt=$null;appliedEventVersion=2;taskEndedAt=$t.taskEndedAt;deleteEligibleAt=$t.deleteEligibleAt;deleteIntent=$null;operation=$null;protections=@()}
+            Assert-EvidenceTest ((Get-EvidenceRetentionDecision $t $s ($deadline.AddTicks(-1))).reasonCode -ceq 'retained') 'staged early'
+            Assert-EvidenceTest ((Get-EvidenceRetentionDecision $t $s $deadline).reasonCode -ceq 'expired') 'staged deadline'
+            $t.status='active';$t.taskEndedAt=$null;Assert-EvidenceTest ((Get-EvidenceRetentionDecision $t $s ($at.AddDays(100))).reasonCode -ceq 'active/end-not-recorded') 'staged active'
+        }
+        'staged-unsent-required'{
+            # Anything that could mean the bytes were sent keeps a staged artifact out of local-only deletion.
+            $make={[pscustomobject]@{state='staged';origin='stage';putIntent=$null;receipt=$null;appliedEventVersion=2;taskEndedAt=$t.taskEndedAt;deleteEligibleAt=$t.deleteEligibleAt;deleteIntent=$null;operation=$null;protections=@()}}
+            $x=& $make;$x.putIntent=@{path='p';sha256='0'*64};Assert-EvidenceTest ((Get-EvidenceRetentionDecision $t $x $deadline).reasonCode -ceq 'unknown-state') 'staged with intent'
+            $x=& $make;$x.receipt=@{path='p';sha256='0'*64};Assert-EvidenceTest ((Get-EvidenceRetentionDecision $t $x $deadline).reasonCode -ceq 'unknown-state') 'staged with receipt'
+            $x=& $make;$x.origin='publish';Assert-EvidenceTest ((Get-EvidenceRetentionDecision $t $x $deadline).reasonCode -ceq 'unknown-state') 'staged from publish'
+            $x=& $make;$x.PSObject.Properties.Remove('origin');Assert-EvidenceTest ((Get-EvidenceRetentionDecision $t $x $deadline).reasonCode -ceq 'unknown-state') 'staged without origin'
+        }
+        'staged-use'{
+            $s=[pscustomobject]@{state='staged';origin='stage';putIntent=$null;receipt=$null;appliedEventVersion=2;taskEndedAt=$t.taskEndedAt;deleteEligibleAt=$t.deleteEligibleAt;deleteIntent=$null;operation=$null;protections=@([pscustomobject]@{owner='owner';consumer='test';reason='review';createdAt=$at.ToString('o');until=$deadline.AddHours(1).ToString('o');releasedAt=$null})}
+            Assert-EvidenceTest ((Get-EvidenceRetentionDecision $t $s ($deadline.AddMinutes(30))).reasonCode -ceq 'in-use') 'staged use ignored'
+            $s.protections[0].releasedAt=$deadline.ToString('o');Assert-EvidenceTest ((Get-EvidenceRetentionDecision $t $s ($deadline.AddMinutes(30))).reasonCode -ceq 'expired') 'staged release ignored'
+        }
+        'staged-staging-dormant'{
+            $stage=[pscustomobject]@{path='C:\osm\transfers\'+('1'*32);createdAt=$at.ToString('o');origin='storage-copy';artifactId='a'*32;adopted=$false;adoptionPending=$false;operation=$null;deleteIntent=$null;protections=@()}
+            $owner=[pscustomobject]@{artifactId='a'*32;state='staged';deleteIntent=$null;operation=$null;ownedCopies=@()}
+            Assert-EvidenceTest (-not (Test-EvidenceStagingDormant ([pscustomobject]@{artifacts=@($owner)}) $stage)) 'staged reference dormant'
         }
         'staging-adopted'{$s=[pscustomobject]@{origin='storage-copy';createdAt=$at.ToString('o');adopted=$true;adoptionPending=$false;operation=$null;deleteIntent=$null;protections=@()};Assert-EvidenceTest (-not (Get-EvidenceStagingDecision $s ($at.AddDays(100))).eligible) 'adopted deleted'}
     }

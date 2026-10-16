@@ -16,16 +16,20 @@ description: >-
 2. 自分が担当する Phase と成果物を特定する。
 3. 専用ブランチで作業する。`main` / `develop` に直接コミットしない。A3で `external-current-v1` を採用した作業は `pwsh tools/harness.ps1 current -Task <id>` を唯一の作業入口とし、過去RESULTを探して補完しない。未移行作業は従来のHANDOFFを使う。
 4. PR の base は `develop` とする。
-5. 前の Phase から引き継ぐときは、PR の状態ブロック、HANDOFF §0 の引継ぎ票、リモートの head を照合し、食い違えば引き継がずに停止する。C' は PR を読まない。詳細は [Phase 境界の引継ぎ](references/phases-and-handoff.md#phase-境界の引継ぎ)。
+5. 前の Phase から引き継ぐときは、HANDOFF §0 の引継ぎ票の commit SHA と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない。PR が存在する間は状態ブロックも照合する。同一 PC ではローカルの SHA で照合し、origin との照合は Cloud・別 host の担当が割り当てられている時だけ行う。食い違えば引き継がずに停止する。C' は PR を読まない。詳細は [Phase 境界の引継ぎ](references/phases-and-handoff.md#phase-境界の引継ぎ)。
 
 Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](references/phases-and-handoff.md) を全文読む。ドキュメントを変更する場合は [ドキュメント方針](references/docs-policy.md) も全文読む。
 
-## PR公開後の差し戻しとGit履歴
+## 公開点とGit履歴
 
+- **push は配布であり保存ではない。** リモートにしか居ない読者が居る時だけ push する。同一 PC の担当同士の引継ぎは、ローカルの commit SHA と、必要なら `evidence stage` の取得案内で行う。
+- **公開点**は (a) PR 作成、(b) レビュー依頼（`@cursoragent` のコメントを含む）と、レビュー 1 巡ごとの修正 1 commit、(c) マージ前の最終（harvest と HANDOFF 削除）とする。例外は、Cloud・別 host の担当が割り当てられた Phase 境界と、人間の明示指示。
+- 順序は「B ↔ 発見 C → 未公開の試行錯誤 commit の整理 → GO 候補 implementation head の固定 → 判定 C → C' → PR 作成・push」とする。履歴の整理は判定 C の前に済ませる。整理で head が変わったら [判定後の head 変更](references/review-evidence.md#判定後の-head-変更) に従う。
+- 判定 evidence を取った head は、push しないローカルの軽量 tag `evidence/<taskId>/<n>` で到達可能に保ち、対象 SHA を引継ぎ票に書く。tag は旧 head の到達可能性だけを担い、整理後の別 head に旧判定を移す根拠にならない。判定 evidence を取っていない中間 head は整理してよい。
 - 証拠の保存先と配布は [レビュー証拠](references/review-evidence.md#保存先とリモートへの配布) に従う。証拠の配布方法と、試行錯誤の実装コミットをPR履歴へ積まないことは別の条件として扱う。差し戻し中の中間コミットは判定用headの固定には使えても、そのまま全て公開する理由にはならない。
-- PR公開後の修正は、レビュー1ラウンドにつき原則1つの修正コミットにまとめる。独立してレビューすべき変更を分ける場合は、その理由をPRに示す。未pushの中間コミットは公開前に整理し、整理でheadが変わったら [判定後の head 変更](references/review-evidence.md#判定後の-head-変更) に従う。Git配布が認められない証拠を未pushの中間コミットへ誤って入れた場合は公開前に履歴から除く。公開済みの違反は履歴の書き換えでなかったことにしない。
-- 整理の対象は B 以降の実装の試行錯誤コミットに限る。A3 で公開する Phase A の HANDOFF revision のコミットはレビュー入力の記録として整理しない。判定 evidence を取った head は、次の修正を積む前に push して到達可能に保つ。判定 evidence を取っていない中間 head は従来どおり整理してよい。
-- push前に、前回公開headから増えるコミットを `git log --oneline <前回公開head>..HEAD` で確認する。数がレビュー上必要な単位を超えていれば、未公開分を整理してからpushする。公開済み履歴は明示的な合意なく書き換えない。既存履歴の大規模rebaseを対象外とする判断は、未公開の中間コミットを整理しない理由にならない。
+- PR公開後の修正は、レビュー1ラウンドにつき原則1つの修正コミットにまとめる。独立してレビューすべき変更を分ける場合は、その理由をPRに示す。Git配布が認められない証拠を未pushの中間コミットへ誤って入れた場合は公開前に履歴から除く。公開済みの違反は履歴の書き換えでなかったことにしない。
+- 整理の対象は B 以降の実装の試行錯誤コミットに限る。A3 で凍結した Phase A の HANDOFF revision のコミットはレビュー入力の記録として整理しない。
+- push前に、前回公開headから増えるコミットを `git log --oneline <前回公開head>..HEAD` で確認する。数がレビュー上必要な単位を超えていれば、未公開分を整理してからpushする。あわせて `pwsh tools/docs-audit.ps1` を通し、push するコミットに機微な path（ローカルの store・transfers・資格情報の場所、reference・packageSha256 の実値）が入っていないことを確認する。公開済み履歴は明示的な合意なく書き換えない。既存履歴の大規模rebaseを対象外とする判断は、未公開の中間コミットを整理しない理由にならない。
 
 ## Phase A: 計画と設計レビュー
 
@@ -50,7 +54,7 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 - Unity Editor、Scene、Prefab、Addressables等を扱う場合は `../osm-unity-editor/SKILL.md` を先に読む。
 - 対象を限定した Editor 操作とコンパイル確認は Phase B で行ってよい。Unity バッチテストと Addressables ビルドの実行・判定は Phase C の責任とし、H2未適用のPhase Bでは実行しない。H1適用済みのArtifacts/Harness作業は完了引渡し時に関連offline suiteのB exitを通す。中間commitやWIP救援にB exitを要求しない。B限定のUnityテストは、A3で実行経路と対象集合を凍結したtaskに限る。完了済みH2cの実例（承認profile、初回疎通の扱い、固定記録の入口）は [Harness README](../../../tools/Harness/README.md#h2c-unity-pilot) を正とする。完了時に未実行を明記する。
 - 実装を終えたら `pwsh tools/contract-audit.ps1` を実行する。Editor のコンパイル確認を行えなかった場合は、その未確認を明記する。
-- B の session は B の出口で引継ぎ票と PR の状態ブロックを更新し、push して終える。判定 C の実行や C' の起動を担わない。判定 C の照合 script も書かない。引継ぎ票の次の担当は、動作確認の対象があれば動作確認、無ければ発見 C とする。
+- B の session は B の出口で commit し、引継ぎ票に SHA と取得案内の所在を書いて終える（PR が存在する間は状態ブロックも更新する）。push は [公開点](#公開点とgit履歴) の規則に従う。判定 C の実行や C' の起動を担わない。判定 C の照合 script も書かない。引継ぎ票の次の担当は、動作確認の対象があれば動作確認、無ければ発見 C とする。
 
 ## 動作確認（Phase B の後）
 
@@ -62,6 +66,7 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 ## Phase C: レビューとテスト
 
 - [レビュー証拠](references/review-evidence.md) に従い、implementation base / head commit を固定した evidence bundle を作る。staged 状態や可変な作業ツリーだけをレビュー対象にしない。
+- **固定の対象:** 発見 C の差し戻し入力に限り、完全な変更集合を収録した stage snapshot（reference と packageSha256）で固定できる。判定 C と C' は commit 固定を必須とし、C / C' 用 bundle は同一 commit から生成する。snapshot を使うレビューでは、送信元の可変な作業ツリーをレビュー入力にしない。
 - HANDOFF の進める最低条件、その詳細である受け入れ条件、差分を照合し、機能レビューより先に構造レビューを行う。スライスの終了可否は進める最低条件で判定する。
 - Phase A の責務マップと実際のメンバー、依存、配置、テスト境界を照合する。行数と増加率は分割命令ではなく、構造判断の説明を要求するトリガーとして扱う。
 - 指摘を「凍結済み条件または常時契約への違反により現在の問いを阻害する欠陥」と「後続スライスの入力」に分け、根拠となる凍結済み条件または常時契約を記録する。レビュー担当は欠陥を指摘できるが、後者を理由に現スライスの実装や受け入れ条件を自動拡張しない。
