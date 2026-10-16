@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `D`（Phase D 待ち。2026-10-16 に判定 C と最終 C' がともに GO、記録は §7・§8。Phase B の結果は §6。Phase A revision 3 を 2026-10-16 に A3 で凍結。凍結内容は §2〜§5。設計判断を変えるときは Phase A を新しい revision として再開する。revision 2 以前の記録は §5.1・§5.2）
+- status: `D`（Phase D 完了、2026-10-16。2026-10-16 に判定 C と最終 C' がともに GO、記録は §7・§8。Phase B の結果は §6。Phase A revision 3 を 2026-10-16 に A3 で凍結。凍結内容は §2〜§5。設計判断を変えるときは Phase A を新しい revision として再開する。revision 2 以前の記録は §5.1・§5.2）
 - branch: `claude/evidence-local-stage`（PR の base は `develop`）
 - implementation base commit: `6a51d2fefc9cf6d09d2a74a1ec1c42784e0e4524`（`origin/develop`、PR #127 マージ後）
 - implementation head commit: `067dd50c8f28742fa92862f816caf04ff4f419ec`（判定 C・最終 C' の対象。ローカル tag `evidence/evidence-local-stage/2`。B 完了 head は `748df89`、旧判定の head `d07e32c` は tag `evidence/evidence-local-stage/1`）
@@ -305,10 +305,10 @@
 
 ## 9. Phase D
 
-- C / C' の突合:
-- マージ判断:
+- C / C' の突合: 判定 C（GO）と最終 C'（GO）は同じ implementation head `067dd50` を対象にし、どちらも I1〜I7 を破る欠陥なし・S1〜S3 成立で一致。阻害指摘は発見 C の C1・C2 と C' の C'1 の 3 件で、いずれも修正済み（`d07e32c`・`067dd50`）。C と C' の後続入力は重なりあり（README の手順の範囲 F1 と、C' の F4〜F6）で、矛盾する判断はない。PR #128 での Cloud のレビュー 2 件（cursor、assist。固定 Evidence は未取得）も阻害指摘なし。後続として、README の事前承認の一文が `use` についても network 不使用と読める点（F4 の補足）を挙げた。
+- マージ判断: 2026-10-16、owner が「Blocker なし、Phase D 完了として後始末してマージ」と指示。F1 と README の事前承認の一文は、個別の裁定なしで後続スライスの入力として残す（現スライスの実装・受け入れ条件は変えない）。
 - 必要なEvidenceの保存・取得・必須内容の閲覧確認: 確認済み（2026-10-16、owner の許可のもとで資格情報を使用）。C' の最終入力の blind bundle（61 file）とレビュー記録一式（186 file）を従来の `evidence publish` で R2 へ保存し（導入手順の前のため `evidence stage` は使っていない）、別 process で reference と期待 packageSha256 から fetch して、全 file の hash が元と一致すること、判定 C の結論・AC8 の grep・C' 用決定記録を閲覧できることを確認した。
 - 取得案内の引渡し確認: 取得案内（reference、期待 packageSha256、base / head、用途、所在 task、locality、保持条件、引渡し先）は、メイン checkout の git 管理外領域（削除予定のレビュー用 worktree ではない）に置き、owner に案内済み。実値はこの文書と PR に転記していない。
-- harvest:
-- 削除確認:
-- 通常のtask終了・後始末の状態と未完了事項:
+- harvest: 操作と状態遷移は実装時に `tools/Artifacts/README.md` へ、Phase 規則は `osm-workflow` 本文へ反映済み。`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 C に完了の記録と、後続スライス `Evidence 昇格と Cloud 配布` への入力（§5.2 の移送分、C/C'・Cloud レビューの後続入力）を移した。
+- 削除確認: この記録 commit の次の commit で本 HANDOFF を削除する。
+- 通常のtask終了・後始末の状態と未完了事項: task `evidence-local-stage` の終了（`workflow-task.ps1 end`）は未記録（信頼済み Decision の発行は owner の通常最終手順）。Evidence は R2 に保存済みで、task 終了から 30 日で清掃対象になる。レビュー用の 2 worktree はマージ後に削除する。導入手順（`schedule install`）はマージ後、`evidence stage` を使い始める前に owner が行う。
