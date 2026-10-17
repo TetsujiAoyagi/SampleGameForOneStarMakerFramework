@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C'`（発見 C 完了、判定 C 完了（GO 候補 head `4289fbf0`、DR-2 で差分外の failed 41 件を裁定）。C' 待ち）
+- status: `D`（C' 1 巡目完了。blocker なし、要判断 F-1〜F-3 を §8 に記録。Phase D＝人間の判断待ち）
 - branch: `claude/s-4d1-vfx-abstraction`
 - implementation base commit: `ba8245f4`（`develop`、PR #134 のマージ）
 - implementation head commit: `4289fbf0`（Phase B の出口。判定 C の GO 候補 head として固定し、ローカルの軽量 tag `evidence/s-4d1-vfx-abstraction/1` を付けた。push しない）
@@ -19,14 +19,13 @@
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の bundle 1 件（commit 固定 base `ba8245f4` / head `4289fbf0`、19 file。発見 C・判定 C の所見と DR-1 を含まない）を task `s-4d1-vfx-abstraction` に `evidence stage` で固定し、送信側で fetch と manifest の全 hash 一致を確認した。取得案内は主 checkout の git 管理外 `TestResults/s-4d1-vfx-stage/retrieval-guide.md`（本 worktree の同 path に写し）。発見 C の起点 filter の原 source は `TestResults/` に残したまま（判定 C の bundle には判定 C 自身の実行を収録）。
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 evidence bundle と同一（同じ commit から生成、発見 C・判定 C の所見と DR-1・DR-2 を含まない）。C' 用の案内は主 checkout の git 管理外 `TestResults/s-4d1-vfx-stage/cprime-retrieval-guide.md`（本 worktree の同 path に写し）。C' 担当には案内の path だけを渡し、本書・§7・決定記録は渡さない。
 - Phase B result snapshot の取得案内・状態: ローカル固定済み（未昇格）。判定 evidence bundle に `phase-b-result.md`（B 出口の記録 commit `19dd5255` 版、所見なし）として収録。
-- 引継ぎ票（C' へ）:
-  - 前の Phase の結果: 判定 C 完了（§7「判定 C」。DR-2 の裁定後）。GO 候補 head `4289fbf0`。
-  - 次の Phase・役割: C'（独立監査、1 巡目＝最終 C'。高コスト証拠なし）。担当は AI（Claude Sonnet 系列、Anthropic。Phase B・判定 C と異なるモデル、新しい session）。強化条件（Phase A・B・C に関与していない系列）は §5 の理由で満たさず `独立性制約あり`（Anthropic は A0〜A3・A2-1〜A2-3・B・発見 C・判定 C に関与。xAI は凍結前の事前レビューに関与しており、今回は選ばなかった）。残存リスクは同ベンダーのアンカリング。
-  - 開始の手順（起動する側＝オーケストレーターが行う）: C' 担当には `cprime-retrieval-guide.md`（§0 の C' blind bundle の欄）の path と、`AGENTS.md`・`.agents/skills/osm-workflow/SKILL.md`・references を読む指示だけを渡す。C' は fetch した copy だけを入力にし、本書の可変全文・§7・§2 の決定記録・PR は読まない。C' 担当が開始時に照合するのは bundle の `commits.txt`（base / head）と `git rev-parse evidence/s-4d1-vfx-abstraction/1` の一致。
-  - C' の記録: 指摘を「凍結済み条件または常時契約への違反（blocker の基準）」と「後続スライスの入力」に分け、§8 に記録する（使用モデル・独立性を含む）。C' 完了後に Phase D（人間）が §7 と §8 を初めて突き合わせる。
-  - 停止規則: osm-workflow の Phase C'（差し戻し上限 3 巡）。
-  - 必要な権限: Artifact Storage のローカル store からの fetch（非仮想化 pwsh、3 project の Release build 済み checkout。network・資格情報・Unity は不要）。
-  - 引き渡さないもの: 発見 C・判定 C の所見（§7）、DR-1・DR-2、起点 filter 以外の判定 C 担当の観察。
+- 引継ぎ票（Phase D へ）:
+  - 前の Phase の結果: C' 1 巡目（最終 C'）完了。blocker なし（§8）。GO 候補 head `4289fbf0`（tag `evidence/s-4d1-vfx-abstraction/1`）。C' の記録 commit はこの head の上に載るが implementation head は変えない。
+  - 次の Phase・役割: Phase D（人間）。判定 C（§7）と C'（§8）を初めて突き合わせ、マージ判断をする。
+  - 次の作業: (1) §8 の要判断 F-1（全 EditMode 回帰 failed 41 件。短い path の checkout で取り直すか、決定記録で読み方を確定するか）、F-2（AC4 (c) の文言の読み方の確定）、F-3（C' の blind 性の弱まりの扱い）を裁定する。(2) §8 の後続入力を、所有スライス（d2・d4）の HANDOFF / program へ移送する。(3) 保存・引渡し確認、harvest（Architecture §24）、HANDOFF 削除、task 終了は Phase D の既存手順に従う。
+  - 引き継ぐ commit: GO 候補 head `4289fbf0`。本書の最新 commit は git log を正とする。C' は push していない。
+  - 入力の状態: evidence bundle と C' blind bundle はどちらもローカル固定済み（未昇格）。C' 担当の別 session での fetch と manifest の全 hash 一致を確認済み。
+  - 停止規則: C' の差し戻し上限 3 巡のうち 0 巡。F-1 で全回帰を取り直して head が変わる場合は [判定後の head 変更] に従う。
 - （旧）引継ぎ票（判定 C 未完了 → 人間の判断へ。DR-2 で解消。記録として残す）:
   - 前の Phase の結果: 判定 C を head `4289fbf0` で実施（§7「判定 C」）。起点 filter 82/82 passed、機械検査・AC14 合格。全 EditMode 回帰は 1,232 件中 failed 41 で、全件が本スライスの差分外（`SampleGame/DependOnAll/Editor/WorldAuthoring` の WorldCompanion 系 39、shader compile OOM 1、TestObservation の domain reload 1）。単独 filter でも WorldCompanion 系 39 件と domain reload 1 件は同じ例外で再現し、OOM の 1 件は単独では passed。判定必須の「failed 0」を満たさないので判定 C は未完了、GO 判定・C' の起動はしていない。
   - 次の役割・作業: 人間（発注者）の判断。選択肢は (a) 失敗 41 件を本スライスの差分外・環境起因と裁定し、判定 C を完了として記録する（判定必須の読み方を変えないなら決定記録 DR-2 に、全 EditMode 回帰の合否の扱いを変えるなら Phase A の新 revision に）。その場合は §0 の C' blind bundle を「ローカル固定済み」に更新し、`cprime-retrieval-guide.md` を C' 担当へ渡す。(b) 失敗の原因を別 task（S-4a/S-4c の Editor 側、または実行環境）で解消してから、同じ head `4289fbf0` で全 EditMode 回帰だけをやり直す（head が変わらなければ bundle の他の証拠は有効。[判定後の head 変更] の規則に当たらない）。
@@ -614,7 +613,50 @@ Architecture §24（`24-rendering-system.md`、現在 366 行）に「VFX 抽象
 
 ## 8. Phase C'
 
-未着手
+- 種別: 1 巡目（最終 C'。高コスト証拠なし）。
+- 使用した入力: blind audit bundle（19 file、manifest の全 file の sha256 一致を fetch 後に確認）。取得案内の状態は「ローカル固定済み（未昇格）」のまま、C' 担当の別 session で fetch・閲覧できた。bundle の `commits.txt`（base `ba8245f4` / head `4289fbf0`）と `git rev-parse evidence/s-4d1-vfx-abstraction/1`（`4289fbf0`）は一致。開始時の worktree HEAD は `058b278a`、作業ツリーは clean。
+- 読んだ範囲: `phase-a-snapshot.md` §0〜§2・§5 の方針部分、`phase-b-result.md` §6、`full.diff` の Runtime 10 file と テスト（`FakeVfxBackend`・`VfxSystemSceneDirectorTests`）、`judge/` の results.xml（起点 filter・全 EditMode 回帰・診断）・contract-audit・docs-audit・RUN-NOTES。周辺の既存コードは base `ba8245f4` の `AssetOwner.cs`・`SceneDirector.Loading.cs`（`StateChanged(PreLoading)` の発火位置）だけ確認した。
+- テストの再実行: しない。起点 filter・全回帰は bundle の生 XML を読んだ。新しく Unity を起動する必要のある疑念は無かった。
+
+### 現在の問いを阻害する欠陥（blocker）
+
+なし。
+
+- 最低条件 I1〜I7・S1〜S6 は実装の読解で成立を確認した。Release 1 か所（状態書き込み → 索引除去 → Destroy）、再入後の書き戻し抑止、Dispose の印を先に立てる順序、`Spawn` の Create 後の再判定、Scene の終端中集合（`IsSceneLoaded` が true のままでも拒否）が仕様の手順どおり。
+- `?.` / `??` は delegate・`IDisposable`・string にだけ使われ、`UnityEngine.Object` は `== null` / `!= null` で判定している。全 `.cs` に `#nullable enable`。`record`・`Task.Delay`・`Thread.Sleep` なし。
+- 起点 filter 82 件は全件 passed、全 EditMode 回帰でも Vfx の 82 件は全件 passed（`VfxHandleStateTests` 32、`VfxSystemOwnerTests` 45、`VfxSystemSceneDirectorTests` 5）。AC6 (b) の終端通知は `LoadCanceled` と観測された。
+- AC14: `name-status-from-freeze.txt` は Vfx 配下・新フォルダの `.meta`・本 HANDOFF だけで、asmdef・SampleGame・既存の SceneSystem / AssetManagement の変更は無い。contract-audit は errors=0。
+
+### 要判断（blocker とは分類しない。Phase D の入力）
+
+- **F-1 全 EditMode 回帰が failed 0 でない。** `phase-a-snapshot.md` §5 は「最終の全 EditMode 回帰（空 filter）」を判定必須とし、適用除外は無い。bundle の `judge/full/results.xml` は 1232 件中 failed 41（`WorldCompanionRecoveryTests` 26・`WorldCompanionCreationTransactionTests` 13・`ObservationReloadTests` 1・`BuildContentDirectoryIntegrationTests` 1）。C' は次を独立に確認した。(1) 41 件の失敗箇所は SampleGame の `WorldAuthoring` Editor 側、`AbstractApplicationInitializer` の `content:runtimeMode` 設定、URP シェーダの `out of memory during compilation` で、本スライスの変更 file（Vfx 配下のみ）を参照しない。(2) `WorldCompanion*` 39 件の主因は `DirectoryNotFoundException` で、`Preflight_Scene_SidecarCollision` の失敗 path は 261 文字（Windows の MAX_PATH 260 を 1 超える）。worktree の深い path（`.claude\worktrees\s-4d1-vfx-abstraction\...`）に起因するとみられる。(3) 診断 run は同じ 40 件が単独でも再現し、`BuildContentDirectoryIntegrationTests` は単独では passed。したがって本スライスの最低条件の成否には影響しないと C' は読むが、判定必須が文字どおり未達であることに変わりはない。これを凍結条件の読み方の確定（決定記録）とするか、短い path の checkout で全回帰を取り直すかは、C' では決めず Phase D（人間）へ渡す。取り直すなら head が変わらなければ他の証拠は有効。
+- **F-2 AC4 (c) の文言とテストの食い違い。** AC4 は (a)(b)(c) を「同じ Scene 所有の Spawn を再入させ `Create`=0」と一括で書くが、§2.3 では生きている Scene への Spawn は受理される。テスト `Reentry_DuringTickRelease_IsSafe` は B が記録したとおり、破棄済み `Bind` への再入だけを `Create`=0 とし、生きている Scene への再入は受理されて Created のままとして検証している。実装は §2.3 と整合し、AC4 の文言の隙間に当たる（どの最低条件・常時契約にも違反しない）ため blocker にせず、読み方の確定を Phase D に求める。
+- **F-3 bundle の blind 性。** `judge/RUN-NOTES.md` に「失敗 41 件が本スライスの差分外」という判定寄りの記述があり、blind bundle の「結論を含まない」規則に一部触れる。加えて C' 担当は起動時の誤りで、HANDOFF §7 末尾（判定の結論 1 行）と §0 の status 行を読んだ（§8 と §0 の位置を grep で特定する際に範囲指定を誤った）。その時点で C' は bundle の全 file と `full.diff` を読み終え、F-1 の失敗内容の分析も独立に済ませていた。ただし F-1 の「本スライスの差分外」という方向性は先に目に入っているので、独立性は `独立性制約あり` に加えて弱まっている。C' の所見の根拠は bundle の生証拠だけに置いた。
+
+### 後続スライスの入力（現スライスを拡張しない）
+
+- **d2: Tick の per-frame 確保。** `VfxSystem.Tick` は毎フレーム `SnapshotAll()` と `SnapshotBindOwners()` で `List` を 2 つ新規確保する（instance が 0 でも）。登録が d2 なので、composition での登録時に、Stopping と Bind 所有が無いときの確保回避を検討する。
+- **d2: 拒否の無言。** `default(AssetOwner)`・終端中 Scene・破棄済み go・null source などの拒否は何も記録せず Null handle を返す。Game 側は「VFX が出ない」理由を観測できない。実 backend 導入時に、Debug レベルの診断（または DebugStudio 観測）が要るか判断する。
+- **d4: 同一 identity の再ロードの実 SceneDirector テスト。** 再ロード後の受理（`StateChanged(PreLoading)` で終端中集合から外れる）は合成 `Subject` のテスト（`AfterRemoved_StillRejected_UntilPreLoading_AndOldHandleDoesNotRevive`）だけで確かめている。base の `SceneDirector.Loading.cs` は `_currentScenes.Add` の後、`ExecutePreLoad` の前に `StateChanged(PreLoading)` を出すので現状の実装は成立するが、Cell の Unload → 再ロードで VFX を再起動する d4 で、実 `TestableSceneDirector` による 1 往復の確認を持つと、将来 SceneDirector の発火順が変わったときの退行を拾える。
+- **構造: テスト file。** `VfxSystemOwnerTests.cs`（828 行）は 500 行の警報に当たる。責務は「所有者ごとの受理・回収」で一つだが、App/Manual/Scene/Bind と再入で分けられる。次にテストを足す人が分割を判断する。
+- **d2: `IVfxBackend` の契約確認。** 契約（`Destroy` の冪等性、失効 source への耐性、重複 id を返さない等）の実機検証は d2 の既存の必須受け入れ条件のとおり。
+
+### 監査できなかった範囲
+
+- 実 backend・実 Player・Play Mode での `VfxOwnerDestroyNotifier.OnDestroy` の実発火は、凍結どおり d4 の範囲で、本 C' では見ていない。
+- Unity を起動しての独立再実行はしていない（bundle の生 XML・log を読んだのみ）。全回帰の `step.json` は runner が終了せず未生成（RUN-NOTES）。`results.xml` は完成しているが、runner の完了記録が無い点は C' では補えない。
+- `docs/handoff/S-4_FULL_SPEC_WORLD_AUTHORING.md` の凍結 commit での変更（10 行）の内容は、A3 凍結済みとして精査していない。
+- `VfxSystemOwnerTests.cs`・`VfxHandleStateTests.cs` は全行を逐一は読まず、テスト名一覧と AC の対応、および主要な再入・例外のテスト意図で確認した。
+
+### 残存リスク
+
+- F-1 の取り直し、または決定記録が無いまま GO にすると、判定必須の未達が残る。
+- 同ベンダー（Anthropic）が A・B・C・C' の全 Phase に関与しているため、設計・解釈のアンカリングが残る。
+
+### 判定と独立性
+
+- C' の判定: blocker なし。GO / NO-GO の判定は C' では行わない（Phase D が §7 と突き合わせる）。
+- 担当・モデル: Claude Sonnet 系列（Anthropic）。Phase B・判定 C と異なるモデルで、新しい session、blind audit bundle を使った（最低条件を満たす）。強化条件（A・B・C に関与していない系列）は満たさない。F-3 の読み込みにより、`独立性制約あり` の度合いが上がる。
 
 ## 9. Phase D
 
