@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C`（発見 C 待ち。Phase B 完了）
+- status: `C`（発見 C 完了、blocker なし。判定 C 待ち）
 - branch: `claude/s-4d1-vfx-abstraction`
 - implementation base commit: `ba8245f4`（`develop`、PR #134 のマージ）
 - implementation head commit: `4289fbf0`（Phase B の出口。判定 C 用の固定ではない）
@@ -16,19 +16,21 @@
 - harvest to: Architecture §24（Rendering）へ「VFX 抽象」の節を追加する。§05（Scene）は変更しない（§3.4）
 - workflow task: `s-4d1-vfx-abstraction`（2026-10-17 に `workflow-task.ps1 start` 済み。Phase B で再度 start しない）
 - Phase A snapshot の取得案内・状態: 確認済み。A2 入力版は commit `01f48d3c`（content sha256 は §5「A2 独立レビュー」）。**A3 凍結版は commit `1462b14c`、本書の content sha256 `2078f87a5b253c88ff5f5cbf2eda422777810c69dabe1306ebca2875dcda6fe4`**（`git show 1462b14c:docs/handoff/S-4D1_VFX_ABSTRACTION.md` の LF 内容の sha256。この値は凍結版を指し、これを書き足した後の本書は指さない）。凍結 commit は program（`S-4_FULL_SPEC_WORLD_AUTHORING.md` の §6.3・§6.4・§10）の更新も含む。凍結 commit の後の記録用 commit はこの §0 だけを変え、凍結条件を変えない。文書だけなので stage は不要
-- evidence bundle の取得案内・状態: 未生成
+- evidence bundle の取得案内・状態: 未保存（発見 C は commit 固定 base `ba8245f4` / head `4289fbf0` で実施。起点 filter のテストの生ログ・XML は `TestResults/` の原 source に保持、§7。判定 C の bundle は未生成）
 - C' blind bundle の取得案内・状態: 未生成
 - Phase B result snapshot の取得案内・状態: 未生成（文書と実装の commit で引き渡す。実装は commit `4289fbf0`、ローカルのみで push・PR なし）
-- 引継ぎ票（発見 C へ）:
-  - 次の Phase・役割: 発見 C（構造・契約・凍結済み失敗経路のレビュー）。動作確認は §5 で `対象なし`。Phase B と異なるモデルで、新しい session で始める。GO 判定と C' の起動はしない。
+- 引継ぎ票（判定 C へ）:
+  - 前の Phase の結果: 発見 C 完了（§7）。blocker 0・major 0。§6 の B 適応 3 点は受理（AC4 (c) は §2.3 / I5 を正とする読みを支持。判定 C の前に人間の決定記録で読み方を確定する）。起点 filter の Unity テスト 82 件 passed、AC6 (b) の終端通知は `LoadCanceled` と観測。
+  - 次の Phase・役割: 判定 C（GO 候補 head `4289fbf0` の判定必須テストの実行と判定）。差し戻しは発生していないので履歴の整理は不要。C' の起動は判定 C 完了後。
   - 開始の手順:
     1. `AGENTS.md` と `.agents/skills/osm-workflow/SKILL.md`、その「Phase A、C、C'…では全文読む」とする references を読む。
-    2. `git worktree list` で branch `claude/s-4d1-vfx-abstraction` の既存 worktree を探し、そこで作業する。implementation head `4289fbf0` が HEAD の祖先で、その後の commit は本書の §0 だけを変えた記録用 commit であること（`git diff 4289fbf0 HEAD --name-only` が本書だけ）、作業ツリーが clean であること（Editor の import が `unity/Assets/MobileDependencyResolver/` の `.pdb.meta` 削除や URP 設定 asset の変更を残すことがあり、それは本スライスの変更ではないので `git checkout` で戻してよい）を確かめる。食い違えば始めずに止めて報告する。
-    3. osm-workflow の「レビュー証拠」に従い、base `ba8245f4`・head `4289fbf0` を固定した evidence でレビューする。
-  - 次の作業: §2 の進める最低条件と §2.4 の受け入れ条件、§3 の責務マップを差分と照合する。§6「HANDOFF との差」の3点（internal のテスト用差し込み口、delta 正規化の位置、AC4 (c) の再入 Spawn の扱い）を判断する。差し戻し中のテストは osm-workflow の規則で必要な範囲を選ぶ（Unity テストはまだ一度も実行していない）。
+    2. `git worktree list` で branch `claude/s-4d1-vfx-abstraction` の既存 worktree を探し、そこで作業する。implementation head `4289fbf0` が HEAD の祖先で、その後の commit は本書だけを変えた記録用 commit であること（`git diff 4289fbf0 HEAD --name-only` が本書だけ）、作業ツリーが clean であること（Editor の import が `unity/Assets/MobileDependencyResolver/` の `.pdb.meta` 削除を残すことがあり、本スライスの変更ではないので `git checkout` で戻してよい）を確かめる。食い違えば始めずに止めて報告する。
+    3. AC4 (c) の読み方の決定記録（§7 の B 適応 3 点目）が人間から出ているかを確認する。出ていなければ判定の前に求める。
+    4. 判定必須テスト（§5）: 起点 filter の全件と、最終の全 EditMode 回帰（空 filter）を `pwsh tools/run-tests.ps1` で実行する。XML の実行テスト名と件数で、3 ファイルのテスト（発見 C では 82 件）が収録されていることを確認する。`pwsh tools/contract-audit.ps1` と AC14 の `git diff --name-status` も判定 bundle に入れる。
+    5. osm-workflow の「レビュー証拠」に従い、判定 evidence bundle を `evidence stage` で固定し、head に軽量 tag `evidence/s-4d1-vfx-abstraction/1` を付け、取得案内の所在を本書に書く。C' 用 blind bundle は発見 C・判定 C の所見を含めずに同じ commit から作る。
   - 停止規則: osm-workflow の Phase C（blocker の基準、差し戻し上限）に従う。
-  - 必要な権限: Unity テストを実行する場合は sandbox 外の承認済み経路（osm-workflow の Phase C）。
-  - 引き渡さないもの: なし。Phase B で起動した Unity Editor は終了済み（正常終了のログを確認）。
+  - 必要な権限: Unity テストは sandbox 外の承認済み経路（osm-workflow の Phase C）。`evidence stage` は Artifacts README の事前承認の範囲。
+  - 引き渡さないもの: 発見 C の所見（§7）は C' に渡さない。発見 C で起動した Unity は終了済み（正常終了のログを確認）。
 
 ## 1. 目的と対象外
 
@@ -542,7 +544,35 @@ Architecture §24（`24-rendering-system.md`、現在 366 行）に「VFX 抽象
 
 ## 7. Phase C
 
-未着手
+### 発見 C（2026-10-17）
+
+- 種別: 発見（GO 判定・判定 C・C' の起動はしていない）
+- 使用した evidence の取得案内・状態: 未保存。commit 固定（base `ba8245f4`・head `4289fbf0`、`git diff --name-status` / `--stat` と `pwsh tools/contract-audit.ps1`・`pwsh tools/docs-audit.ps1` の結果）でレビューした。stage snapshot は使っていない。下記テストの生ログ・XML・step.json は `tools/run-tests.ps1` の出力（リポジトリ直下 `TestResults/` の GUID directory `cc372836-b9fa-4b2b-b92b-64dba56c22be`、git 管理外）に原 source として残っている。`evidence stage` は未実施で、判定 C の bundle 生成時に行う。
+- 構造適合:
+  - §3.1 の責務マップと一致。Runtime の新規ファイル 10（`Abstractions` 5・`Implements` 4・`Components` 1）、テスト 6、各 `.meta`、フォルダ `.meta` 5。公開型は §3.1 の 6 つだけ（`IVfxSystem` / `VfxSystem` / `IVfxHandle` / `VfxSpawnRequest` / `IVfxBackend` / `VfxInstanceId`）。公開シグネチャに `UnityEngine.VFX` 名前空間の型なし（grep 0 件）。asmdef 変更 0。既存ファイル・SampleGame・`TestableSceneDirector` の変更なし。`UpdateSystemRuntime` への登録なし。
+  - AC14 (a): `git diff --name-status 1462b14c 4289fbf0` は `Rendering/Vfx/`・`Tests/Rendering/Vfx/`（`.meta` 含む）・2 つのフォルダ `.meta`・本書に閉じる。(b): base からの差分はそれに加えて `S-4_FULL_SPEC_WORLD_AUTHORING.md` だけ。`contract-audit.ps1` は errors=0 warnings=0。`docs-audit.ps1` は errors=0 warnings=0。
+  - 依存: `VfxSystem` / `VfxOwnerIndex` が `AssetOwner` の internal 分類を読む（§3.1 の依存 edge どおり）。`AssetOwnerKind` の switch は 4 値を列挙し default は拒否。`VfxHandle` は `VfxSystem` を参照せず callback だけを受ける（G2）。notifier は `Action<ulong>` を受ける（G8）。
+  - §2.2 の回収の規則（Released を書く → 索引除去 → `Destroy`、snapshot 列挙）は `VfxHandle.Release` の 1 か所に閉じ、複数回収は全て `VfxOwnerIndex` の snapshot を列挙している。backend 呼び出し後の書き戻しは「呼び出し前と同じ状態のときだけ」になっている（`Play` / `SetParameter` / `AdvanceStopping`）。`StopAllowingParticlesToFinish` は `StopEmitting` の前に Stopping を書く（F1）。`Spawn` の手順 (1)〜(5) と `Dispose` の手順は §2.2 どおり。終端中集合への登録は回収より先（§2.3）。
+  - Unity の偽 null: `request.Source` / `request.Parent` / `owner.BoundObject` / `go` は `== null` / `!= null` で判定。`ReferenceEquals` は `VfxHandle` と `SystemKey`（`VfxSystem`、非 `UnityEngine.Object`）にだけ使われている。`#nullable enable` 全件、`record` なし、テストに `Task.Delay` / `Thread.Sleep` なし。
+  - 行数: `VfxSystem.cs` 435（予想 300、+45%）、`VfxHandle.cs` 251（予想 190）。500 行未満で、増分は XML doc と理由コメント。§3.1 の変更理由は 1 行のまま。分割は求めない。
+- 現在の問いを阻害する findings: **なし**（blocker 0、major 0）。I1〜I7・S1〜S6 と AC1〜AC14 の各項目を実装とテストに対応付け、対応する偽 backend の呼び出し回数・順序の判定がテストにあることを確認した。
+- 後続スライスへ移送する findings・記録（いずれも凍結済み条件・常時契約への違反根拠なし）:
+  - C-01（記録、d2）: `VfxSystem.Tick` は全体を 1 つの try/catch で囲む。backend の例外は `VfxHandle` で捕捉されるので I3 は成立するが、backend 以外の例外（callback や logger 由来）が 1 つの handle で起きると、同じ Tick の残りの handle の処理が飛ぶ。`UpdateSystemRuntime` 登録時（d2）に Coordinator の隔離と合わせて観察する。
+  - C-02（記録、d2）: Unsupported の `VfxSystem` も `BindSceneLifecycle` で scene event を購読し、終端中集合を維持する。backend 呼び出しは 0 で I4 は成立する。d2 の「backend 未構成と Unsupported の区別」の入力。
+  - C-03（記録、同時数・pool のスライス）: `EnsureDestroyNotifier` は `Bind` 所有の `Spawn` ごとに `GetComponents<VfxOwnerDestroyNotifier>()` の配列を割り当てる。
+  - C-04（記録、R2-07 既知）: 登録段階で失敗した `Spawn` や Released 後も notifier は go に残り、callback が `VfxSystem` を参照し続ける。`Dispose` 後の通知は無視される。
+  - C-05（テストの頑健性、d4 の入力）: `BindOwner_DestroyedWithoutNotification_ReleasedOnNextTick` は Tick 前の `Destroy`=0 を厳密に判定するが、AC8 は「0 でも仕様内」（1 でも違反ではない）。EditMode の `DestroyImmediate` で `OnDestroy` が発火する環境では、仕様内の挙動でテストが落ちる。現環境では通っている。
+  - C-06（命名）: `Tick_CompletesGracefulStop_AndTimesOut` は timeout 経路だけを通る（粒子ありのまま）。粒子なしで `Destroy` する経路は `Reentry_DuringTickRelease_IsSafe` と `VfxHandleStateTests` が持つ。
+- §6「HANDOFF との差」の 3 点への判断:
+  1. internal のテスト用差し込み口（`RegistrationFaultForTest`、`LiveInstanceCount`、`SystemKey`、`VfxHandle` の internal 観測用メンバー）: **B 適応として受理。** §4 の差し戻し条件は公開型・公開メンバーで、これらは internal。契約・所有者・寿命・公開面を変えない。`RegistrationFaultForTest` は Runtime に残るテスト専用の seam なので、d2 以降の composition から使わないこと（harvest 時に注記する）。
+  2. delta の正規化を `VfxHandle.AdvanceStopping` で行う: **B 適応として受理。** §2.2 Tick 手順 (1) の意味（負・NaN・∞を 0）は変わらず、外から見た挙動は同じ。AC3 の delta のテストは handle 単体で固定されている。
+  3. AC4 (c) の再入 `Spawn`: **§2.3 / I5 を正とする B の読みを支持する。** `Tick` は所有者の終端ではなく、I5 の拒否理由は網羅列挙で「Tick 中」を含まない。(c) で生きている Scene の `Spawn` を拒否するには §3.1 にない状態（Tick 中の印）が要る。B のテストは、(c) の「`Create`=0」を破棄済み `Bind` 所有者への再入 `Spawn` で、生きている Scene への再入 `Spawn` は受理されて進行中の列挙に巻き込まれないことを判定している。AC4 の文言と I5 の矛盾は「受け入れ条件の文言の隙間」であり blocker にしない。**判定 C の前に人間が決定記録で読み方を確定することを求める**（「(c) の `Create`=0 は終端済み所有者への再入に適用し、生きている Scene の受理は I5 に従う」）。Tick 中に Scene の `Spawn` を拒否する規則を望むなら、それは新しい状態の追加なので Phase A の新 revision になる。
+- 実行したテストコマンドと `-Filter`、対象を選んだ理由: `pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Rendering.Vfx`（sandbox 外、Editor が閉じていることを lockfile と process で確認してから起動）。§5 の起点 filter そのまま。Unity テストが一度も実行されていないため、凍結済み失敗経路（AC4 の再入、AC9・AC10 の例外、AC6 の到達性）と AC6 (b) の終端通知の観測に必要。
+- テスト結果: XML `results.xml` に 82 件、passed 82 / failed 0 / skipped 0、exit 0、所要 約 215 秒。3 ファイルのテストが全て収録されている（`VfxHandleStateTests` 32、`VfxSystemOwnerTests` 45、`VfxSystemSceneDirectorTests` 5。TestCase 展開を含む）。Unity は正常終了（log 末尾に leak check と Package Manager shutdown、stall なし）。**AC6 (b) の観測: `OnLoaded` の非キャンセル例外からの回収は `StateChanged(LoadCanceled)` を出した**（`TestContext.Out` の `OnLoaded failure terminal event: LoadCanceled`）。これは `RecoverFailedLoadAsync` が WaitLoadChildScene の個体を `stillLoading` に分類して `CleanupCanceledScene` に入れる経路（`SceneDirector.FailedLoadCleanup.cs` / `SceneLifecycleManager.IsInLoadingPhase`）と一致する。Editor の import が `unity/Assets/MobileDependencyResolver/` の `.pdb.meta` 5 件を削除したので `git checkout` で戻した（§0 の記載どおり、本スライスの変更ではない）。
+- 判定必須のうち未実行: 最終の全 EditMode 回帰（空 filter）。判定 C で実行する。
+- 重い検証を発見段階で限定実行した場合の理由と範囲: 上記の起点 filter 1 回だけ。PlayMode・Build・全回帰は実行していない。
+- 未確認事項: notifier の `OnDestroy` の実発火（d4）。実 backend での `Destroy` の冪等性・失効 source への耐性（d2）。
+- 担当・モデル: 判断担当と実行担当は同一（Claude Fable 系列、Anthropic。Phase B とは異なるモデル、新しい session）。
 
 ## 8. Phase C'
 
