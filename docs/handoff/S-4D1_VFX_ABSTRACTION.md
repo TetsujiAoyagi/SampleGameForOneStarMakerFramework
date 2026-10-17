@@ -5,27 +5,32 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `A`（A3 凍結。2026-10-17 に発注者が承認）
+- status: `B`（未着手。A3 凍結済み）
 - branch: `claude/s-4d1-vfx-abstraction`
 - implementation base commit: `ba8245f4`（`develop`、PR #134 のマージ）
-- implementation head commit: 未固定（Phase B で記録）
+- implementation head commit: 未固定（Phase B の出口で記録）
 - risk: `high`（Framework の公開 API、所有者・寿命、Scene lifecycle 通知への新しい購読者）
 - owner: 発注者 / S-4d1 担当
 - created: 2026-10-17
 - expires: S-4d1 の Phase D 完了時
 - harvest to: Architecture §24（Rendering）へ「VFX 抽象」の節を追加する。§05（Scene）は変更しない（§3.4）
-- workflow task: `s-4d1-vfx-abstraction`（2026-10-17 に `workflow-task.ps1 start` 済み）
-- Phase A snapshot の取得案内・状態: A2 入力版は commit `01f48d3c` と content sha256（§5「A2 独立レビュー」）。A3 凍結版は未生成。承認後に本書と program を1つの凍結 commit にし、その commit と、凍結 commit 時点の本書の content sha256（`git show <凍結 commit>:docs/handoff/S-4D1_VFX_ABSTRACTION.md` の sha256）を、次の commit（引継ぎ票の更新）でここに書く。ここに書く値は直前に確定した凍結版を指し、その値を書き足した後の本書そのものを指さない（自分自身の hash は埋め込めないため）。文書だけなので stage は不要
+- workflow task: `s-4d1-vfx-abstraction`（2026-10-17 に `workflow-task.ps1 start` 済み。Phase B で再度 start しない）
+- Phase A snapshot の取得案内・状態: 確認済み。A2 入力版は commit `01f48d3c`（content sha256 は §5「A2 独立レビュー」）。**A3 凍結版は commit `1462b14c`、本書の content sha256 `2078f87a5b253c88ff5f5cbf2eda422777810c69dabe1306ebca2875dcda6fe4`**（`git show 1462b14c:docs/handoff/S-4D1_VFX_ABSTRACTION.md` の LF 内容の sha256。この値は凍結版を指し、これを書き足した後の本書は指さない）。凍結 commit は program（`S-4_FULL_SPEC_WORLD_AUTHORING.md` の §6.3・§6.4・§10）の更新も含む。凍結 commit の直後の記録用 commit はこの §0 だけを変え、凍結条件を変えない。文書だけなので stage は不要
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票:
-  - 次の Phase・役割: Phase A3 の凍結（人間の承認）。承認後は Phase B（実装）を新しい session で始める。
-  - 次の作業: 人間が §5「A3 統合」の採否と本文を承認したら、主担当が本書と `S-4_FULL_SPEC_WORLD_AUTHORING.md`（§6.3・§6.4・§10 の更新）を1つの凍結 commit にし、続く記録用の commit で、凍結 commit と凍結時点の content sha256 を上の Phase A snapshot 欄と引継ぎ票に書く（記録用の commit は凍結条件を変えない）。
-  - 引き継ぐ commit: 未固定（凍結 commit）。
-  - 必要な権限: Phase A は文書のみ。Phase B は Unity Editor の起動とコンパイル確認（`osm-unity-editor` Skill に従う）。テストの実行・判定は Phase C。
-  - 停止規則: 凍結の承認前に Phase B に入らない。Phase B は §4 の差し戻し条件に当たったら止めて Phase A へ返す。
-  - 引き渡さないもの: なし（Phase A 内）。
+- 引継ぎ票（Phase B へ）:
+  - 次の Phase・役割: Phase B（実装）。新しい session で始める。
+  - 開始の手順:
+    1. `AGENTS.md` と `.agents/skills/osm-workflow/SKILL.md` を全文読む。Unity Editor を操作する前に `.agents/skills/osm-unity-editor/SKILL.md` を読む。
+    2. `git worktree list` で branch `claude/s-4d1-vfx-abstraction` を checkout している既存の worktree を探し、そこで作業する（同じ branch を別の worktree で checkout しない）。HEAD の親が凍結 commit `1462b14c` で、HEAD は本書の §0 だけを変えた記録用 commit であること（`git diff 1462b14c HEAD --name-only` が本書だけ）、作業ツリーが clean であることを確かめる。食い違えば始めずに止めて報告する。
+    3. 本書の §1〜§4 を正本として読む。§5 の A2 記録・採否表は経緯で、Phase B で設計を決め直さない。HANDOFF に書かれていない設計文書を読み込んで再設計しない。凍結版の既知の記載ずれ: §5 の「テスト 5 ファイル」は、F2 で `CountingSceneEventObservable.cs` を足した §3.1 の表（6 ファイル）が正。
+  - 次の作業: §4 の順序で §3.1 の新規ファイル（Runtime 10・テスト 6）を作る。各 `.cs` の先頭に `#nullable enable`。Unity Editor でコンパイルを確認し（Editor は `tools/unity-editor.cmd status` で対象 project を確かめてから起動・操作してよい。人間の Editor を強制終了しない）、`.meta` を生成させる。`pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` を通す。§6 に実装結果（HANDOFF との差、B 適応の記録、未実行事項）を書く。
+  - Phase B で行わないこと: Unity テストの実行（`pwsh tools/run-tests.ps1` は Phase C）、`unity test` / `unity run`、Build。SampleGame・既存の Framework ファイル・asmdef・`TestableSceneDirector` の変更。`com.unity.visualeffectgraph` の追加。
+  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たったら実装を止め、Phase A へ返す（新しい事実は先に osm-workflow の「新しい事実の分類」で分類する）。
+  - Phase B の出口: 実装を1つ以上の commit にし（試行錯誤の commit は判定 C の前に整理する）、implementation head を上の欄と §6 に書き、この引継ぎ票を次の担当（動作確認は §5 で `対象なし` なので、発見 C）へ書き換える。push と PR 作成は osm-workflow の公開点の規則に従い、同じ PC の引継ぎだけなら行わない。Phase C は Phase B と異なるモデルで行う。
+  - 必要な権限: Unity Editor の起動・操作とコンパイル確認。資格情報と sandbox 外実行は不要（sandbox 外実行が要るのは Phase C の Unity テスト）。
+  - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
 
