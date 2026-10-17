@@ -208,6 +208,13 @@ Contentの件数保持の運用接続は[PR #123](https://github.com/TetsujiAoya
 - 送信部の共有（`EvidenceSend.psm1`）は送信まわりを整理するときの入力（所有スライス未定）。promoteの送信手順は `EvidenceApplication.psm1` の独立した内部関数にしてあり、機械的に抽出できる。共有のときは、再利用するintentの `createdAt`・`process` の型の検査をpublishと揃える。既存publishの404 → `failed` で残るremote residueの回収はContentの容量上限・孤児回収の入力。
 - 検証まわり: offlineテストのAC4（別processのZIP書込み）は同じprocess内の共有違反、AC1の別process readbackは `ReadbackHook` で代替している（実childのreadbackは実R2の判定で通った）。一部のsuiteは集計行だけを出し、判定ログからcase名を復元できない（Harnessの改善の入力）。
 
+**昇格の回復と送信済み `staged` の寿命は完了（PR #131、2026-10-17）。** 昇格由来（`origin: stage`）の `put-pending` と、旧runtimeが作った回復できる `failed` は、回復GETの404で `staged`（putIntent保持）に戻る。その後はlocal fetchと、同じbytes・同じkeyへの再昇格ができる。回復できる `failed` を回復するのは、そのartifact自身のpromote・fetchと日次清掃だけ。putIntentを持つ `staged` は、remote DELETEとGET 404を経てだけ `deleted` になる。保持判定と削除経路の振り分け（`Get-EvidenceDeletionRoute`）は分けた。publish由来の挙動は変えていない。操作・回復の規則・残存リスク・導入手順は `tools/Artifacts/README.md` の「R2への昇格（evidence promote）」「終了・再開・利用中と清掃」「自動清掃」、配布の規則は `review-evidence.md` の「保存先とリモートへの配布」を正とする。共有storeで新しいshapeが生じる前に、README の導入手順（`schedule status` → 新headで `schedule install`）を行う。経緯の全文は削除前のHANDOFF（`docs/handoff/ARTIFACT_EVIDENCE_PROMOTE_RECOVERY.md`、commit `749c238d`）。後続への入力（どれも凍結条件への違反ではない）:
+
+- 診断の改善: 回復できない `failed` への cleanup の試行が残す operation は、その cleanup process の生存中だけ、同じ task の他の artifact の network 付き preflight を `operation-pending` で止めうる（R3 が残置を明示）。同じく後続: `put-pending` の回復が解決しない間に task 全体の network 付き操作が止まる既存挙動、publish 由来の remote 削除の確定順序（GET 404 の後に copy を消してから `deleted` を書く）、catalog の組み合わせ検査の厳格化。
+- 送信まわりの整理: 削除 intent の照合 GET が一致して `staged` に戻った artifact を resume して promote すると、object が在る key へ同じ bytes を PUT する（安全だが「re-PUT は 404 の後だけ」の前提の外。偽 transport の `duplicate-put` の扱いを含めて A で決める）。receipt 再利用の照合の拡張、`EvidenceSend.psm1` の共有、intent の `createdAt`・`process` の型検査。
+- テスト: 回復できる `failed` の fixture と promote 停止の helper が `ArtifactEvidence.Tests.ps1` と `EvidenceCleanup.Tests.ps1` に重複している（`EvidenceTestSupport.ps1` へ移す）。`Get-EvidenceDeletionRoute` の `catch{}` が fail-closed で `none` にする理由をコメントにする。
+- Content の容量上限・孤児回収: 削除の後に遅れて確定した object（R2 上の追跡外 object）の回収。
+
 ### D. BuildSystem / Harness接続
 
 外部CLIを主入口にUnityを交換可能なbackendとして接続する。H2d/H3・CURRENT連携、同じ実体の所有権整理は必要になった範囲で行う。Storage単独の利用をUnity GUIやEditorに依存させない。Unityテスト/BuildのPhase責任と既知native終了stallの調査停止規則を維持する。

@@ -5,6 +5,7 @@ $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSScriptRoot '../EvidenceRetentionPolicy.psm1')
 Import-Module (Join-Path $PSScriptRoot '../EvidenceStateStore.psm1')
 $registered=@('event-idempotent','event-gap','event-conflict','resume-stale-end','at-30-days','before-30-days','after-30-days','active-100-days','use-expiry','use-release','unknown-use','operation-pending','staging-7-days','staging-adopted','staging-unheld-table','staging-dormant-table','staged-retention','staged-unsent-required','staged-use','staged-staging-dormant')
+$registered+=@('staged-intent-retention')
 $selected=if($Case -ceq '*'){$registered}else{@($Case.Split(','))};$executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 foreach($caseName in $selected){$executed.Add($caseName);try{
     Assert-EvidenceTest ($caseName -cin $registered) 'unknown-case';$at=[DateTimeOffset]::Parse('2026-01-01T00:00:00.0000000+00:00');$config=@{Data=@{deploymentId='d'*32;repositoryId='a'*64}};$t=New-EvidenceTask $config 'fixture'
@@ -66,10 +67,20 @@ foreach($caseName in $selected){$executed.Add($caseName);try{
         'staged-unsent-required'{
             # Anything that could mean the bytes were sent keeps a staged artifact out of local-only deletion.
             $make={[pscustomobject]@{state='staged';origin='stage';putIntent=$null;receipt=$null;appliedEventVersion=2;taskEndedAt=$t.taskEndedAt;deleteEligibleAt=$t.deleteEligibleAt;deleteIntent=$null;operation=$null;protections=@()}}
-            $x=& $make;$x.putIntent=@{path='p';sha256='0'*64};Assert-EvidenceTest ((Get-EvidenceRetentionDecision $t $x $deadline).reasonCode -ceq 'unknown-state') 'staged with intent'
+            $x=& $make;$x.putIntent=@{path='p';sha256='0'*64};Assert-EvidenceTest ((Get-EvidenceRetentionDecision $t $x $deadline).reasonCode -ceq 'expired') 'staged with intent'
             $x=& $make;$x.receipt=@{path='p';sha256='0'*64};Assert-EvidenceTest ((Get-EvidenceRetentionDecision $t $x $deadline).reasonCode -ceq 'unknown-state') 'staged with receipt'
             $x=& $make;$x.origin='publish';Assert-EvidenceTest ((Get-EvidenceRetentionDecision $t $x $deadline).reasonCode -ceq 'unknown-state') 'staged from publish'
             $x=& $make;$x.PSObject.Properties.Remove('origin');Assert-EvidenceTest ((Get-EvidenceRetentionDecision $t $x $deadline).reasonCode -ceq 'unknown-state') 'staged without origin'
+        }
+        'staged-intent-retention'{
+            # A staged promotion with a putIntent and no receipt follows the same clock and protections as ready.
+            $s=[pscustomobject]@{state='staged';origin='stage';putIntent=@{path='p';sha256='0'*64};receipt=$null;appliedEventVersion=2;taskEndedAt=$t.taskEndedAt;deleteEligibleAt=$t.deleteEligibleAt;deleteIntent=$null;operation=$null;protections=@()}
+            Assert-EvidenceTest ((Get-EvidenceRetentionDecision $t $s ($deadline.AddTicks(-1))).reasonCode -ceq 'retained') 'intent early'
+            Assert-EvidenceTest ((Get-EvidenceRetentionDecision $t $s $deadline).reasonCode -ceq 'expired') 'intent deadline'
+            $s.protections=@([pscustomobject]@{owner='owner';consumer='test';reason='review';createdAt=$at.ToString('o');until=$deadline.AddHours(1).ToString('o');releasedAt=$null})
+            Assert-EvidenceTest ((Get-EvidenceRetentionDecision $t $s ($deadline.AddMinutes(30))).reasonCode -ceq 'in-use') 'intent use'
+            $s.protections=@();$s.operation=@{pid=1};Assert-EvidenceTest ((Get-EvidenceRetentionDecision $t $s $deadline).reasonCode -ceq 'operation-pending') 'intent operation'
+            $s.operation=$null;$t.status='active';$t.taskEndedAt=$null;Assert-EvidenceTest ((Get-EvidenceRetentionDecision $t $s ($at.AddDays(100))).reasonCode -ceq 'active/end-not-recorded') 'intent active'
         }
         'staged-use'{
             $s=[pscustomobject]@{state='staged';origin='stage';putIntent=$null;receipt=$null;appliedEventVersion=2;taskEndedAt=$t.taskEndedAt;deleteEligibleAt=$t.deleteEligibleAt;deleteIntent=$null;operation=$null;protections=@([pscustomobject]@{owner='owner';consumer='test';reason='review';createdAt=$at.ToString('o');until=$deadline.AddHours(1).ToString('o');releasedAt=$null})}

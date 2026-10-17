@@ -188,6 +188,35 @@ function New-EvidenceRecoveryStage($Config,$Task,$Artifact,$Guard){
 function Resolve-EvidenceOperationGuarded($Config,$Task,$Artifact,$Guard){
     if($Artifact.operation){Assert-EvidenceOperationStopped $Artifact.operation;$Artifact.operation=$null;$null=Write-EvidenceTask $Config $Task.taskId $Task $Task.generation $Guard}
 }
+# The failed shape that a promotion's recovery GET 404 produced before such a 404
+# returned the artifact to staged. Only that artifact's own fetch and promote, and
+# cleanup, retry it, so an unresolvable one never stops the task's other artifacts.
+function Test-EvidenceRecoverableFailed($Artifact){
+    return ($Artifact.state -ceq 'failed' -and (Get-EvidenceArtifactOrigin $Artifact) -ceq 'stage' -and $null -ne $Artifact.putIntent -and $null -eq $Artifact.receipt)
+}
+# Picks how cleanup deletes an artifact that retention has found deletable. Only a staged
+# artifact that provably never sent anything (no putIntent, no receipt) may be
+# deleted locally; once a promotion may have sent bytes, deletion must DELETE the
+# key and observe 404. Anything else is no state this store deletes: 'none'.
+function Get-EvidenceDeletionRoute($Artifact){
+    try{
+        $origin=Get-EvidenceArtifactOrigin $Artifact
+        if($Artifact.state -ceq 'ready'){return 'remote'}
+        if($Artifact.state -ceq 'staged' -and $origin -ceq 'stage' -and $null -eq $Artifact.receipt){return $(if($null -eq $Artifact.putIntent){'local'}else{'remote'})}
+    }catch{}
+    return 'none'
+}
+# Commits a confirmed remote absence. A stage-origin artifact persists `deleted`
+# before any copy is removed: a stop in between leaves copies of a deleted
+# artifact, which Assert-EvidenceTaskPaths tolerates and the next cleanup removes,
+# never a delete-pending whose package is gone. Publish-origin artifacts keep the
+# older order (copies first), because their deleted copies are not tolerated.
+function Complete-EvidenceRemoteDeletion($Config,$Task,$Artifact,$Guard){
+    if((Get-EvidenceArtifactOrigin $Artifact) -ceq 'stage'){$null=Write-EvidenceTask $Config $Task.taskId $Task $Task.generation $Guard}
+    $complete=Remove-EvidenceOwnedCopies $Artifact
+    $null=Write-EvidenceTask $Config $Task.taskId $Task $Task.generation $Guard
+    return $complete
+}
 function Resolve-EvidenceDeleteGuarded($Config,$Task,$Artifact,$Guard,[Diagnostics.Stopwatch]$Timer){
     if(-not $Artifact.deleteIntent){return $true}
     if(-not (Test-EvidenceProcessStopped $Artifact.deleteIntent.process)){throw 'unresolved-delete'}
@@ -195,11 +224,13 @@ function Resolve-EvidenceDeleteGuarded($Config,$Task,$Artifact,$Guard,[Diagnosti
     $stage=New-EvidenceRecoveryStage $Config $Task $Artifact $Guard;$destination=[IO.Path]::Combine($stage.path,'reconcile.bin')
     try{
         $get=Invoke-ArtifactNetwork $generation (New-ArtifactRequest $Config 'get' $Artifact.key $null $destination $Timer)
-        if(Test-ArtifactMissing $get $generation){$Artifact.state='deleted';$Artifact.deleteIntent=$null;$Artifact.operation=$null;$null=Remove-EvidenceOwnedCopies $Artifact;$null=Write-EvidenceTask $Config $Task.taskId $Task $Task.generation $Guard;return $true}
+        if(Test-ArtifactMissing $get $generation){$Artifact.state='deleted';$Artifact.deleteIntent=$null;$Artifact.operation=$null;$null=Complete-EvidenceRemoteDeletion $Config $Task $Artifact $Guard;return $true}
         if((Test-ArtifactSuccess $get 'get' $generation) -and $get.Bytes -eq $Artifact.packageBytes -and $get.Sha256 -ceq $Artifact.packageSha256){
             # A future cleanup obtains a new intent after reevaluating policy. A
             # timeout never implies DELETE success, and this GET remains staging-owned.
-            $Artifact.state='ready';$Artifact.deleteIntent=$null;$Artifact.operation=$null;$null=Write-EvidenceTask $Config $Task.taskId $Task $Task.generation $Guard;return $true
+            # Without a receipt the artifact was a staged promotion that may have
+            # sent bytes, so it returns to staged, never to an unproven ready.
+            $Artifact.state=if($null -ne $Artifact.receipt){'ready'}else{'staged'};$Artifact.deleteIntent=$null;$Artifact.operation=$null;$null=Write-EvidenceTask $Config $Task.taskId $Task $Task.generation $Guard;return $true
         }
         throw 'unresolved-delete'
     }finally{
@@ -210,7 +241,10 @@ function Resolve-EvidenceDeleteGuarded($Config,$Task,$Artifact,$Guard,[Diagnosti
 # -NoNetwork is the preflight of local staging and local fetch. Resolving an
 # unfinished put or delete needs credentials and a GET, so that form refuses them
 # instead; only stopped local operations are cleared, which needs no network.
-function Assert-EvidenceTransitionSafe($Config,[string]$TaskId,$Guard,$Residue=$null,[switch]$NoNetwork){
+# -RecoverArtifactId names the one artifact whose recoverable failed promotion the
+# network form may also resolve: the caller's own fetch or promote target. Every
+# other failed artifact stays inert, so its unresolved GET cannot stop this caller.
+function Assert-EvidenceTransitionSafe($Config,[string]$TaskId,$Guard,$Residue=$null,[switch]$NoNetwork,[string]$RecoverArtifactId=''){
     $task=Read-EvidenceTask $Config $TaskId $Guard;if($null -eq $task){return @()}
     $task=Sync-EvidenceTaskGuarded $Config $TaskId $Guard;Assert-EvidenceTaskPaths $Config $task $Residue
     $timer=[Diagnostics.Stopwatch]::StartNew()
@@ -221,7 +255,7 @@ function Assert-EvidenceTransitionSafe($Config,[string]$TaskId,$Guard,$Residue=$
     }
     foreach($a in $task.artifacts){
         if($a.deleteIntent){$null=Resolve-EvidenceDeleteGuarded $Config $task $a $Guard $timer}
-        if($a.state -ceq 'put-pending'){Resolve-EvidencePutGuarded $Config $task $a $Guard $timer}
+        if($a.state -ceq 'put-pending' -or ($RecoverArtifactId -and $a.artifactId -ceq $RecoverArtifactId -and (Test-EvidenceRecoverableFailed $a))){Resolve-EvidencePutGuarded $Config $task $a $Guard $timer}
         elseif($a.operation){Resolve-EvidenceOperationGuarded $Config $task $a $Guard}
     }
     return @($task.artifacts|Where-Object state -CEQ 'deleted'|ForEach-Object artifactId)
@@ -243,16 +277,18 @@ function Invoke-EvidenceDeleteGuarded($Config,$Task,$Artifact,$Guard,[Diagnostic
     finally{$stage.operation=$null;$null=Write-EvidenceTask $Config $Task.taskId $Task $Task.generation $Guard}
     if(-not (Test-ArtifactMissing $get $generation)){return 'delete-pending'}
     $Artifact.state='deleted';$Artifact.deleteIntent=$null;$Artifact.operation=$null
-    $complete=Remove-EvidenceOwnedCopies $Artifact
-    $null=Write-EvidenceTask $Config $Task.taskId $Task $Task.generation $Guard
+    $complete=Complete-EvidenceRemoteDeletion $Config $Task $Artifact $Guard
     return $(if($complete){'deleted'}else{'local-pending'})
 }
-# A staged artifact has no remote object, so expiry needs no DELETE, GET or intent.
-# Persisting `deleted` is the commit point: stopping before it leaves the artifact
-# staged with every file intact, and stopping after it leaves only local files
-# that the next cleanup removes (see Assert-EvidenceTaskPaths).
+# An unsent staged artifact has no remote object, so expiry needs no DELETE, GET or
+# intent. Persisting `deleted` is the commit point: stopping before it leaves the
+# artifact staged with every file intact, and stopping after it leaves only local
+# files that the next cleanup removes (see Assert-EvidenceTaskPaths).
 function Invoke-EvidenceLocalDeleteGuarded($Config,$Task,$Artifact,$Guard){
     Assert-EvidenceBudget
+    # Rechecked here rather than trusted from the caller: a staged artifact that a
+    # promotion may have sent must never be dropped without a remote 404.
+    if((Get-EvidenceDeletionRoute $Artifact) -cne 'local'){return 'unknown-state'}
     $policy=Get-EvidenceRetentionDecision $Task $Artifact (& $script:Clock)
     if(-not $policy.eligible){return $policy.reasonCode}
     if($script:FaultHook){& $script:FaultHook 'before-local-delete' $Artifact}
@@ -282,8 +318,12 @@ function Invoke-EvidenceCleanup([string]$ConfigPath,[bool]$DryRun=$false,[string
                     [pscustomobject]@{cursor='staging:'+(Get-EvidenceStagingKey $_);artifact=$null;stage=$_}
                 })
                 $ordered=@($work|Sort-Object cursor);if($task.cleanupCursor){$ordered=@($ordered|Where-Object {$_.cursor -cgt $task.cleanupCursor})+@($ordered|Where-Object {$_.cursor -cle $task.cleanupCursor})}
+                $abandoned=$false
                 foreach($item in $ordered){
-                    if($seen -ge $MaxObjects -or (& $script:Budget.Remaining) -le 0){$result.remaining++;continue};$seen++
+                    # After a failed recovery the in-memory task may hold state that
+                    # never reached disk, so nothing more of this task is written in
+                    # this run. The persisted cursor moves the next run past that item.
+                    if($abandoned -or $seen -ge $MaxObjects -or (& $script:Budget.Remaining) -le 0){$result.remaining++;continue};$seen++
                     if(-not $DryRun){$task.cleanupCursor=$item.cursor;$null=Write-EvidenceTask $config $id $task $task.generation $guard}
                     if($item.stage){
                         $stage=$item.stage
@@ -324,10 +364,16 @@ function Invoke-EvidenceCleanup([string]$ConfigPath,[bool]$DryRun=$false,[string
                     }
                     $a=$item.artifact
                     if($a.state -ceq 'put-pending' -and -not $DryRun){Resolve-EvidencePutGuarded $config $task $a $guard $timer}
+                    elseif(-not $DryRun -and (Test-EvidenceRecoverableFailed $a)){
+                        # Unlike put-pending, a failed recovery here stays this item's
+                        # outcome (the old failed code) instead of blocking the task.
+                        try{Resolve-EvidencePutGuarded $config $task $a $guard $timer}
+                        catch{$abandoned=$true;$result.skipped++;$result.items+= [pscustomobject]@{taskId=$id;artifactId=$a.artifactId;reasonCode='unconfirmed-artifact'};continue}
+                    }
                     if($a.deleteIntent -and -not $DryRun){$null=Resolve-EvidenceDeleteGuarded $config $task $a $guard $timer}
                     if($a.operation -and -not $DryRun){Resolve-EvidenceOperationGuarded $config $task $a $guard}
                     if($a.state -ceq 'deleted'){$reason=if($DryRun -or (Remove-EvidenceOwnedCopies $a)){'payload-deleted'}else{'local-pending'};if(-not $DryRun){$null=Write-EvidenceTask $config $id $task $task.generation $guard}}
-                    else{$policy=Get-EvidenceRetentionDecision $task $a (& $script:Clock);$reason=$policy.reasonCode;if($policy.eligible -and -not $DryRun){$reason=if($a.state -ceq 'staged'){Invoke-EvidenceLocalDeleteGuarded $config $task $a $guard}else{Invoke-EvidenceDeleteGuarded $config $task $a $guard $timer}}}
+                    else{$policy=Get-EvidenceRetentionDecision $task $a (& $script:Clock);$reason=$policy.reasonCode;if($policy.eligible -and -not $DryRun){$reason=switch -CaseSensitive (Get-EvidenceDeletionRoute $a){'local'{Invoke-EvidenceLocalDeleteGuarded $config $task $a $guard}'remote'{Invoke-EvidenceDeleteGuarded $config $task $a $guard $timer}default{'unknown-state'}}}}
                     if($reason -ceq 'deleted'){$result.deleted++}elseif($reason -cin @('delete-pending','local-pending','unknown-state','unknown-use','delivery-pending')){$result.blocked++}else{$result.skipped++}
                     $result.items+= [pscustomobject]@{taskId=$id;artifactId=$a.artifactId;reasonCode=$reason}
                 }
@@ -340,16 +386,32 @@ function Invoke-EvidenceCleanup([string]$ConfigPath,[bool]$DryRun=$false,[string
 Export-ModuleMember -Function Get-EvidenceProcessIdentity,Assert-EvidenceOperationStopped,Assert-EvidenceTransitionSafe,Invoke-EvidenceCleanup,Get-EvidenceStagingPathState,Get-EvidenceStagingKey
 
 
+# Resolves a put whose outcome is unknown by one GET of its key. A promotion of a
+# staged artifact (origin stage) differs from publish in two ways. Its 404 returns
+# the artifact to staged with its putIntent, because its package still exists only
+# locally and the same bytes may be sent again. Its match adopts only the staging
+# this recovery registered: other staging of the artifact, such as a stopped
+# promote's readback staging with unregistered files, keeps its adoption and so
+# still meets the seven-day rule. Every operation it clears without having run it
+# itself is first proven stopped, before anything is registered, fetched or written.
 function Resolve-EvidencePutGuarded($Config,$Task,$Artifact,$Guard,[Diagnostics.Stopwatch]$Timer){
-    if($Artifact.state -cne 'put-pending'){return}
+    $promoted=(Get-EvidenceArtifactOrigin $Artifact) -ceq 'stage'
+    if($Artifact.state -cne 'put-pending' -and -not ($promoted -and (Test-EvidenceRecoverableFailed $Artifact))){return}
     if($Artifact.operation){Assert-EvidenceOperationStopped $Artifact.operation}
+    $past=@();if($promoted){$past=@($Task.staging|Where-Object {$_.artifactId -ceq $Artifact.artifactId -and $_.operation});foreach($s in $past){Assert-EvidenceOperationStopped $s.operation}}
     if(-not $Artifact.putIntent){$Artifact.state='failed';$Artifact.operation=$null;$null=Write-EvidenceTask $Config $Task.taskId $Task $Task.generation $Guard;return}
     $intent=Read-ArtifactJson (Resolve-EvidenceStoredPath $Artifact.putIntent.path)
     if($intent.Sha256 -cne $Artifact.putIntent.sha256 -or $intent.Data.key -cne $Artifact.key -or $intent.Data.packageSha256 -cne $Artifact.packageSha256 -or $intent.Data.artifactId -cne $Artifact.artifactId){throw 'unresolved-put'}
     $gen=(Get-CredentialStatus 'osm').Generation;$stage=New-EvidenceRecoveryStage $Config $Task $Artifact $Guard;$op=$stage.path;$archive=[IO.Path]::Combine($op,'recovery.zip')
     $Artifact.operation=$stage.operation;$null=Write-EvidenceTask $Config $Task.taskId $Task $Task.generation $Guard
     $get=Invoke-ArtifactNetwork $gen (New-ArtifactRequest $Config 'get' $Artifact.key $null $archive $Timer)
-    if(Test-ArtifactMissing $get $gen){$stage.operation=$null;$Artifact.state='failed';$Artifact.operation=$null;$null=Write-EvidenceTask $Config $Task.taskId $Task $Task.generation $Guard;return}
+    if(Test-ArtifactMissing $get $gen){
+        # putIntent, ownedCopies, protections, identity and every adoption stay as
+        # they are: only the stopped operations end with this observation.
+        $stage.operation=$null;$Artifact.operation=$null
+        if($promoted){$Artifact.state='staged';foreach($s in $past){$s.operation=$null}}else{$Artifact.state='failed'}
+        $null=Write-EvidenceTask $Config $Task.taskId $Task $Task.generation $Guard;return
+    }
     if(-not (Test-ArtifactSuccess $get 'get' $gen) -or $get.Bytes -ne $Artifact.packageBytes -or $get.Sha256 -cne $Artifact.packageSha256){throw 'unresolved-put'}
     Import-ArtifactPackage
     $package=[OneStarMaker.Artifacts.Packaging.PackageIO]::Extract($archive,$op,$Artifact.packageSha256,$Artifact.manifestSha256,$Artifact.base,$Artifact.head,$Artifact.repositoryId,$Artifact.artifactId,(Get-Remaining $Timer 600000),'evidence',$Artifact.taskId)
@@ -364,6 +426,7 @@ function Resolve-EvidencePutGuarded($Config,$Task,$Artifact,$Guard,[Diagnostics.
     Assert-EvidenceTreeNoReparse $op
     foreach($f in [IO.Directory]::EnumerateFiles($op,'*',[IO.SearchOption]::AllDirectories)){Assert-EvidenceBudget;$Artifact.ownedCopies+=[pscustomobject]@{path=$f;bytes=([IO.FileInfo]::new($f)).Length;sha256=Get-EvidenceOwnedHash $f;origin='storage-copy'}}
     Protect-ArtifactTree $op;$stage.adopted=$true;$stage.operation=$null
-    foreach($s in $Task.staging){if($s.artifactId -ceq $Artifact.artifactId){$s.adopted=$true;$s.operation=$null}}
+    if($promoted){foreach($s in $past){$s.operation=$null}}
+    else{foreach($s in $Task.staging){if($s.artifactId -ceq $Artifact.artifactId){$s.adopted=$true;$s.operation=$null}}}
     $null=Write-EvidenceTask $Config $Task.taskId $Task $Task.generation $Guard
 }
