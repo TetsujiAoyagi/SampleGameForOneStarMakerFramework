@@ -524,7 +524,23 @@ Architecture §24（`24-rendering-system.md`、現在 366 行）に「VFX 抽象
 
 ## 6. Phase B 実装結果
 
-未着手
+- implementation head: §0 の欄を正とする（この節を書いた commit と同じ）。
+- 変更: §3.1 の新規ファイル（Runtime 10・テスト 6）と各 `.meta`、新しいフォルダの `.meta`、本書。既存ファイル・asmdef・SampleGame・`TestableSceneDirector` の変更なし。`com.unity.visualeffectgraph` の追加なし。
+- 行数（予想との差）: `VfxSystem.cs` 435（予想 300）、`VfxHandle.cs` 251（予想 190）、`VfxOwnerIndex.cs` 115、他の Runtime は 24〜55。増分の大半は XML doc と理由のコメントで、責務は §3.1 の一行のまま。500 行の警報には当たらない。テストは `VfxSystemOwnerTests.cs` が最大。
+
+### HANDOFF との差（B 適応の記録）
+
+- **internal のテスト用差し込み口を1つ足した。** `VfxSystem.RegistrationFaultForTest`（internal、`Action<VfxHandle>?`）。AC9 の「`Create` の後の登録・notifier 設置が例外」を、実 Unity の API（`AddComponent` は通常例外を投げない）で再現する手段が無いため。Spawn の登録段階の try の中で呼ぶだけで、公開面・状態・所有者・寿命は増えない。あわせて internal の `VfxSystem.LiveInstanceCount`（索引の件数。AC7・AC9・AC13 の「索引の件数0」の観測用）と `VfxOwnerDestroyNotifier.SystemKey`（同じ system の notifier を二重に付けない判定）、`VfxHandle.HandleState` / `State` / `Id` / `Owner`（internal）を置いた。§4 の差し戻し条件（§3.1 にない**公開**型・公開メンバー）には当たらないと判断した。
+- **delta の正規化（§2.2 Tick 手順 (1)）は `VfxHandle.AdvanceStopping` で行う。** `VfxSystem.Tick` は値をそのまま渡す。`VfxHandleStateTests` が handle 単体で AC3 の delta を確かめるため。外から見た挙動は同じ。
+- **AC4 (c) の再入 Spawn の扱い。** AC4 は (a)(b)(c) を「同じ Scene 所有の Spawn を再入させ、`Create`=0」と一括で書くが、`Tick` は所有者の終端ではなく、§2.3 の受理規則では生きている Scene への Spawn は受理される（Tick 中に拒否する規則は本文に無い）。§2.3 を正とし、(c) のテスト（`Reentry_DuringTickRelease_IsSafe`）は「破棄済み `Bind` 所有者への再入 Spawn は `Create`=0」「生きている Scene への再入 Spawn は受理され、進行中の Tick の snapshot に巻き込まれず Created のまま」「列挙例外0、各 id の `Destroy`=1」を判定する。(a)(b) は AC4 の文言どおり `Create`=0。発見 C で AC4 の文言と §2.3 のどちらを正とするかの確認を求める。
+
+### 観測と未実行
+
+- Editor でのコンパイル: 2026-10-17、この worktree の project を Unity 6000.6.0f1 で起動（Library が無い状態からの初回 import）。`Tundra build success`、`error CS` 0 件、`OneStarMaker.Runtime.dll` / `OneStarMaker.Tests.dll` に新しい型が入ったことを確認。`.meta` は Editor が生成した（21 件。ファイル 16・フォルダ 5）。import の副作用で `unity/Assets/MobileDependencyResolver/` の `.pdb.meta` 5 件が削除されたが、本スライスの対象外なので git で戻した。
+- `ILogger<T>` の参照（§5 の残る確認）: `VfxSystem` は `Microsoft.Extensions.Logging` を asmdef の変更なしで参照してコンパイルできた。
+- AC6 (b) の終端通知（`PreUnloading` / `LoadCanceled` のどちらか）: テストは観測した方を `TestContext.Out` に出す。Phase B ではテストを実行しないので**未観測**。Phase C の結果 XML の出力から記録する。
+- `pwsh tools/contract-audit.ps1`: errors=0 warnings=0（検査1 の差分 16 ファイル）。
+- 未実行: Unity テスト（`pwsh tools/run-tests.ps1`。Phase C）、Build、動作確認（§5 で `対象なし`）。
 
 ## 7. Phase C
 
