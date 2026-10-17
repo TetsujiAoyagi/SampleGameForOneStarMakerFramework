@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `D`（Phase D 待ち。A3 は owner が 2026-10-17 に凍結。Phase B・動作確認・発見 C・判定 C（GO）・C'（PASS）は 2026-10-17 に完了）
+- status: `D`（Phase D 完了。A3 は owner が 2026-10-17 に凍結。Phase B・動作確認・発見 C・判定 C（GO）・C'（PASS）は 2026-10-17 に完了）
 - branch: `claude/artifact-storage-closeout`（`origin/develop` の `6ed90d69` から作成済み。ローカルのみで未 push。本文書の A1 初稿が最初の commit `82b0edc5`）
 - planning base commit: `6ed90d69`（`origin/develop`、PR #132 マージ後。ローカルの `develop` は遅れているので先に `git fetch origin develop`）
 - implementation base commit: `855e3da3`（Phase B 開始時の branch の HEAD。凍結本文 `7b7f243d` と同じ受け入れ境界で、§0 の記録だけが違う）
@@ -429,4 +429,11 @@
 
 ## 9. Phase D
 
-未実施。harvest 先は §0。本 HANDOFF の削除時に、program 文書も完了宣言後の保留 list だけを README か docs/README へ移して削除してよいかを owner が決める。
+- 担当: owner（指示）と、指示を実行した本 session（Claude Opus 5.5）。2026-10-17。
+- 決定記録 DR1（2026-10-17、owner。凍結条件の意味・合否を変えない読み方の確定）: 旧 program §4 の「後続への入力」のうち新 §6 に移らなかった細目（fetch の local/remote 選択と `unknown-state` 検査の範囲、promote の readback staging の清掃と receipt 再利用、偽 transport の `duplicate-put`、判定 evidence の保護名 `Credentials.json`、保護の収集源の範囲）は、完了したスライスへの入力だった**経緯**と読む（S2 の「PR・Git 履歴に残る経緯」）。保留 list には足さない。理由: 前 3 点は完了した PR #131 の機能と test の注意、保護名は `review-evidence.md` の改名規則で対処済み、保護の収集源は README の known limits（別 PC・Cloud の Player を保護しない）に同旨がある。旧版は Git 履歴（`855e3da3` の program）に残る。§7・§8 の D2・J2・C'1 はこれで閉じる。他の後続入力（D1、D3、J1、J3、C'2〜C'5）は追加の作業をしない。C'5（注記の複製）は、合流スライスを始める時の A0 入力として program §6「分裂したストアの合流」を読む担当が扱う。
+- Evidence の保存・引渡し: 3 件（発見 C 用、判定 C 用、C' blind bundle）は task `artifact-storage-closeout` に `staged`（locality `local`）で、それぞれ別 session の担当が fetch・hash 照合・閲覧を確認済み（この確認を再利用し、再 fetch はしない）。`evidence inspect` で 3 件の state を確認した。取得案内は手元層に残す。保持は task 終了 + 30 日。昇格（R2）はしない（Cloud・別 host の読み手が無いため）。
+- `evidence schedule status`（非仮想化 pwsh）: `passed`。job は登録済みで、まだ実行されていない（次回は 2026-10-18 03:00）。
+- harvest: 恒久的な知見は Phase B で公開文書に入っている（`store plan` の分類は program §6、CURRENT 入口の注記は README・`docs/README.md`・program・`tools/Harness/README.md`、Phase D の `schedule status` は `review-evidence.md`）。本 HANDOFF への他文書からの参照は無い。本 HANDOFF はこの記録の次の commit で削除する。program 文書は保留 list の置き場として残す（README か docs/README へ移して削除するかは、owner が別に決めるまで変えない）。
+- 後始末: review 用の detached worktree を削除する。手元層の manifest・stdout・取得案内は残す（manifest は合流の後続で owner が承認する入力。取得案内は Evidence の保持期間中に使う）。
+- task 終了: owner の完了指示（chat、2026-10-17T07:36Z）を Decision `chat:20261017T0736Z:artifact-storage-closeout:completed` として `workflow-task.ps1 end -Reason completed` に記録する。
+- マージ: PR #133 を owner の指示でマージする。
