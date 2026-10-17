@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `B`（未着手。A3 凍結済み）
+- status: `C`（発見 C 待ち。Phase B 完了）
 - branch: `claude/s-4d1-vfx-abstraction`
 - implementation base commit: `ba8245f4`（`develop`、PR #134 のマージ）
-- implementation head commit: 未固定（Phase B の出口で記録）
+- implementation head commit: `4289fbf0`（Phase B の出口。判定 C 用の固定ではない）
 - risk: `high`（Framework の公開 API、所有者・寿命、Scene lifecycle 通知への新しい購読者）
 - owner: 発注者 / S-4d1 担当
 - created: 2026-10-17
@@ -16,21 +16,19 @@
 - harvest to: Architecture §24（Rendering）へ「VFX 抽象」の節を追加する。§05（Scene）は変更しない（§3.4）
 - workflow task: `s-4d1-vfx-abstraction`（2026-10-17 に `workflow-task.ps1 start` 済み。Phase B で再度 start しない）
 - Phase A snapshot の取得案内・状態: 確認済み。A2 入力版は commit `01f48d3c`（content sha256 は §5「A2 独立レビュー」）。**A3 凍結版は commit `1462b14c`、本書の content sha256 `2078f87a5b253c88ff5f5cbf2eda422777810c69dabe1306ebca2875dcda6fe4`**（`git show 1462b14c:docs/handoff/S-4D1_VFX_ABSTRACTION.md` の LF 内容の sha256。この値は凍結版を指し、これを書き足した後の本書は指さない）。凍結 commit は program（`S-4_FULL_SPEC_WORLD_AUTHORING.md` の §6.3・§6.4・§10）の更新も含む。凍結 commit の後の記録用 commit はこの §0 だけを変え、凍結条件を変えない。文書だけなので stage は不要
-- Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票（Phase B へ）:
-  - 次の Phase・役割: Phase B（実装）。新しい session で始める。
+- Phase B result snapshot の取得案内・状態: 未生成（文書と実装の commit で引き渡す。実装は commit `4289fbf0`、ローカルのみで push・PR なし）
+- 引継ぎ票（発見 C へ）:
+  - 次の Phase・役割: 発見 C（構造・契約・凍結済み失敗経路のレビュー）。動作確認は §5 で `対象なし`。Phase B と異なるモデルで、新しい session で始める。GO 判定と C' の起動はしない。
   - 開始の手順:
-    1. `AGENTS.md` と `.agents/skills/osm-workflow/SKILL.md` を全文読む。Unity Editor を操作する前に `.agents/skills/osm-unity-editor/SKILL.md` を読む。
-    2. `git worktree list` で branch `claude/s-4d1-vfx-abstraction` を checkout している既存の worktree を探し、そこで作業する（同じ branch を別の worktree で checkout しない）。凍結 commit `1462b14c` が HEAD の祖先で、その後の commit は本書の §0 だけを変えた記録用 commit であること（`git diff 1462b14c HEAD --name-only` が本書だけ）、作業ツリーが clean であることを確かめる。食い違えば始めずに止めて報告する。
-    3. 本書の §1〜§4 を正本として読む。**§5 は読まない**（本書は約 100KB あり、§5 の A2 記録・採否表はその 4 割弱を占める経緯で、Phase B の入力ではない）。Read の行範囲で `## 5. テストとレビュー計画` の見出しの手前までを読み、§5 のうち Phase B に要るテストの割り当ては §3.1 のテストの表にある。§6 以降は Phase B の出口で書くときに開く。§5 の採否を根拠に設計を決め直さない。HANDOFF に書かれていない設計文書を読み込んで再設計しない。凍結版の既知の記載ずれ: §5 の「テスト 5 ファイル」は、F2 で `CountingSceneEventObservable.cs` を足した §3.1 の表（6 ファイル）が正。
-  - 次の作業: §4 の順序で §3.1 の新規ファイル（Runtime 10・テスト 6）を作る。各 `.cs` の先頭に `#nullable enable`。Unity Editor でコンパイルを確認し（Editor は `tools/unity-editor.cmd status` で対象 project を確かめてから起動・操作してよい。人間の Editor を強制終了しない）、`.meta` を生成させる。`pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` を通す。§6 に実装結果（HANDOFF との差、B 適応の記録、未実行事項）を書く。
-  - Phase B で行わないこと: Unity テストの実行（`pwsh tools/run-tests.ps1` は Phase C）、`unity test` / `unity run`、Build。SampleGame・既存の Framework ファイル・asmdef・`TestableSceneDirector` の変更。`com.unity.visualeffectgraph` の追加。
-  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たったら実装を止め、Phase A へ返す（新しい事実は先に osm-workflow の「新しい事実の分類」で分類する）。
-  - Phase B の出口: 実装を1つ以上の commit にし（試行錯誤の commit は判定 C の前に整理する）、implementation head を上の欄と §6 に書き、この引継ぎ票を次の担当（動作確認は §5 で `対象なし` なので、発見 C）へ書き換える。push と PR 作成は osm-workflow の公開点の規則に従い、同じ PC の引継ぎだけなら行わない。Phase C は Phase B と異なるモデルで行う。
-  - 必要な権限: Unity Editor の起動・操作とコンパイル確認。資格情報と sandbox 外実行は不要（sandbox 外実行が要るのは Phase C の Unity テスト）。
-  - 引き渡さないもの: なし。
+    1. `AGENTS.md` と `.agents/skills/osm-workflow/SKILL.md`、その「Phase A、C、C'…では全文読む」とする references を読む。
+    2. `git worktree list` で branch `claude/s-4d1-vfx-abstraction` の既存 worktree を探し、そこで作業する。implementation head `4289fbf0` が HEAD の祖先で、その後の commit は本書の §0 だけを変えた記録用 commit であること（`git diff 4289fbf0 HEAD --name-only` が本書だけ）、作業ツリーが clean であること（Editor の import が `unity/Assets/MobileDependencyResolver/` の `.pdb.meta` 削除や URP 設定 asset の変更を残すことがあり、それは本スライスの変更ではないので `git checkout` で戻してよい）を確かめる。食い違えば始めずに止めて報告する。
+    3. osm-workflow の「レビュー証拠」に従い、base `ba8245f4`・head `4289fbf0` を固定した evidence でレビューする。
+  - 次の作業: §2 の進める最低条件と §2.4 の受け入れ条件、§3 の責務マップを差分と照合する。§6「HANDOFF との差」の3点（internal のテスト用差し込み口、delta 正規化の位置、AC4 (c) の再入 Spawn の扱い）を判断する。差し戻し中のテストは osm-workflow の規則で必要な範囲を選ぶ（Unity テストはまだ一度も実行していない）。
+  - 停止規則: osm-workflow の Phase C（blocker の基準、差し戻し上限）に従う。
+  - 必要な権限: Unity テストを実行する場合は sandbox 外の承認済み経路（osm-workflow の Phase C）。
+  - 引き渡さないもの: なし。Phase B で起動した Unity Editor は終了済み（正常終了のログを確認）。
 
 ## 1. 目的と対象外
 
