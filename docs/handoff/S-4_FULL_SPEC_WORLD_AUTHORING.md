@@ -24,11 +24,11 @@ HANDOFF を Phase B の正本とする。本書をスライス共通の実装 HA
 1. `AGENTS.md` と `osm-workflow` Skill を読む。Phase A の参照文書も Skill の指示どおり全文読む。
 2. 前提を確認する。`develop` が最新で、作業ツリーが clean であること。d1 以外は、直前のスライス（dN-1）の PR が `develop` にマージ済みで、その HANDOFF が削除済みであること。満たさなければ着手せず報告する。
 3. `develop` から専用ブランチを作る。名前に `s-4dN` を含める。
-4. `docs/handoff/S-4DN_<主題>.md` を [テンプレート](../../.agents/skills/osm-workflow/references/handoff-template.md) から作り、本書の §6.3 の該当行、§6.4、§10、§11 の該当条件、§12 を自己完結に転記する。本書へのリンクで済ませない。
+4. `docs/handoff/S-4DN_<主題>.md` を [テンプレート](../../.agents/skills/osm-workflow/references/handoff-template.md) から作り、本書の §2.1〜§2.4（Scene 構成・所有物・Event 粒度・VFX 寿命の制作契約）、§3.2（companion profile）、§6.1〜§6.2、§6.3 の該当行、§6.4、§10、§11 の該当条件、§12 のうちスライスに必要なものを自己完結に転記する。本書へのリンクで済ませない。
 5. Phase A（A0〜A3）を進める。A3 の凍結は人間の承認を待つ。同じ session で Phase B に入らない。
 6. 以降の Phase は、そのスライス HANDOFF の §0 引継ぎ票を入口にする。本書の §0 は着手時だけに使う。
 
-本書の §6.3 / §6.4 に無い公開 API、依存、所有者、寿命が必要になったら、スライス HANDOFF で決めて本書の該当行も同じ PR で更新する。
+本書の §6.3 / §6.4 に無い公開 API、依存、所有者、寿命は、そのスライスの Phase A で決め、本書の該当行も Phase A の PR で更新する。Phase B で決めない（§12）。
 
 ---
 
@@ -292,7 +292,7 @@ S-4でcommitするのは代表2 Cellのベイクデータだけ。全216 Cellの
 
 ### 6.1 VFX Graph
 
-- `com.unity.visualeffectgraph` の導入方針は維持する。旧指定 `17.5.0` は現行manifestの URP `17.6.0` と一致しない。採用versionは **S-4d Phase Aで互換性を確認して固定する未決事項** とし、本programから旧versionの追加を実行しない。
+- `com.unity.visualeffectgraph` の導入方針は維持する。旧指定 `17.5.0` は現行manifestの URP `17.6.0` と一致しない。採用versionは **S-4d2 の Phase Aで互換性を確認して固定する未決事項** とし、本programから旧versionの追加を実行しない。
 - 必要なRuntime assembly referenceだけをSampleGame側asmdefへ追加する。
 - PC Qualityで描画を必須受入とする。
 - Mobileでは起動時にcapabilityを判定し、非対応なら`VisualEffect`を有効化せず、一度だけ診断ログを出す。
@@ -324,11 +324,11 @@ Planner Playは§3.1の経路で `content:representation=Whitebox` と
 
 | スライス | 答える問い | 範囲 | 対象外（所有スライス） |
 |---|---|---|---|
-| **d1** Framework の VFX 抽象 | VFX の寿命、非対応環境での停止、例外の隔離を、VFX 実装の型に依存せず Framework の契約として保証できるか | §6.4 の3責務（寿命の宣言と回収、非対応時の停止、型に依存しない handle）と、`UpdateSystemRuntime` への登録・例外隔離、テスト用の動作数。中核ロジックは偽 backend で単体テストする | パッケージ導入と実 backend（d2）、Scene（d3〜d5）、§6.4 で入れないとしたもの |
-| **d2** VFX Graph 導入と SampleGame backend | 現行 project（URP `17.6.0`）に VFX Graph を入れ、d1 の抽象越しに PC で描画し、非対応環境で安全に止められるか | §6.1 の version 互換確認と固定、SampleGame 側 asmdef への Runtime assembly 参照（実名は Editor の import 後に確定）、起動時の capability 判定、backend 実装、確認用の最小 asset | 実証 Scene（d3〜d5） |
-| **d3** VFX Scene 2件 | Season / Cell の VFX を §2 の制作契約どおり別 Scene として配置し、PC で表示できるか | `Spring_AtmosphereVFX`（Season）、`Spring_VFX_4_2`（Cell）。Scene に置いた VFX にも d2 の判定を適用する | Event からの起動（d4） |
-| **d4** local Event | Cell 内の trigger から VFX を起動し、Cell unload で確実に回収できるか | `Spring_Events_4_2`。trigger と、d1 の handle を Cell 所有で起動する経路 | 独立 Scene の大型 Event（d5） |
-| **d5** major Event と S-4 の完了 | Cell bundle から独立した Event Scene を Add / Unload し、完了または Season unload で回収できるか。Planner profile で Environment を読まずに Event が動くか | `Spring_Event_MultiCellProof`、その寿命の所有者（S-4b の Season 排他 controller との関係を含め d5 の Phase A で決める）、§6.2 の Planner 実証、本書の harvest と削除 | S-5 の Tunnel 遷移 |
+| **d1** Framework の VFX 抽象 | VFX の寿命、非対応環境での停止、例外の隔離を、VFX 実装の型に依存せず Framework の契約として保証できるか | §6.4 の3責務。中核ロジックは偽 backend で単体テストし、動作数は偽 backend が記録する呼び出し回数で確かめる（公開 API にしない）。**Phase A の必須検討:** Stop / Dispose / 所有者の unload / 消え切り待ちの遅延完了が競合したときの契約、Framework と backend の回収責務の分担、per-frame 更新の要否（既存の lifecycle 通知で足りれば `UpdateSystemRuntime` に登録しない。登録する場合、エフェクト単位の例外隔離は `UpdateSystemRuntime` のシステム単位の隔離に加えた d1 の境界とする）、harvest 先の既存 Architecture 文書 | パッケージ導入と実 backend（d2）、Scene（d3〜d5）、§6.4 で入れないとしたもの |
+| **d2** VFX Graph 導入と SampleGame backend | 現行 project（URP `17.6.0`）に VFX Graph を入れ、d1 の抽象越しに PC で描画し、非対応環境で安全に止められるか | §6.1 の version 互換確認と固定、SampleGame 側 asmdef への Runtime assembly 参照（実名は Editor の import 後に確定）、起動時の capability 判定（§6.4 の backend 側）、backend 実装、Scene に配置済みの `VisualEffect` を止める仕組み（Component が有効化される前に適用できるかを検証する）、確認用の最小 asset | 実証 Scene（d3〜d5） |
+| **d3** VFX Scene 2件 | Season / Cell の VFX を §2 の制作契約どおり別 Scene として配置し、PC で表示でき、非対応環境では止まるか | `Spring_AtmosphereVFX`（Season）、`Spring_VFX_4_2`（Cell）。d2 の停止の仕組みを実 Scene で確認する。**Phase A の必須検討:** Cell の体積（N-9）。体積の再計算は候補でない子 Scene の全 `Renderer` を親 Cell へ畳むため、VFX の Renderer が Cell の距離ストリーミング AABB を変えうる。除外規約を決め、Cell の体積が意図せず変わらないことを確かめる | Event からの起動（d4） |
+| **d4** local Event | Cell 内の trigger から VFX を起動し、Cell unload で確実に回収できるか | `Spring_Events_4_2`。trigger と、d1 の handle を `AssetOwner.Scene`（`Spring_Events_4_2` の identity）または `AssetOwner.Bind(go)` 所有で起動する経路。Events Scene は §2.1 の再帰破棄で親 Cell と一緒に Unload される。Planner profile は Events だけを読むため、trigger は `Spring_VFX_4_2` のロードに依存しない | 独立 Scene の大型 Event（d5） |
+| **d5** major Event と S-4 の完了 | Cell bundle から独立した Event Scene を Add / Unload し、完了または Season unload で回収できるか。Planner profile で Environment を読まずに Event が動くか | `Spring_Event_MultiCellProof`、その寿命の所有者（S-4b の Season 排他 controller との関係を含め d5 の Phase A で決める）、§6.2 の Planner 実証、本書の harvest と削除。Phase A で major Event と Planner 実証・harvest の見積もりを分け、大きければ追加分割を判断する | S-5 の Tunnel 遷移 |
 
 d5 完了時に Scene 実体は §6.2 の658件になる。
 
@@ -338,11 +338,11 @@ d5 完了時に Scene 実体は §6.2 の658件になる。
 
 - **抽象は Framework、VFX Graph に依存する実装は SampleGame に置く。** CameraSystem は Cinemachine backend を Framework 内に置いているが、VFX Graph は URP / Mobile の制約が残るため Framework に依存を持たせない。Framework へ移すかは、実装が育った後に別途判断する。
 - Framework が持つ責務は次の3つ。
-  - **寿命の宣言と回収:** 起動時に `AssetOwner` のスコープを指定させ、所有者が unload されたら Framework が回収する。
-  - **非対応環境での停止:** 判定は起動時に1回。非対応なら何もしない handle を返し、診断ログは1回だけ出す。Game 側に分岐を書かせない。
+  - **寿命の宣言と回収:** 起動時に `AssetOwner` のスコープを指定させ、所有者が unload されたら Framework が回収する。Framework が回収するのは再生中のインスタンスで、asset の寿命は §2.4 どおり `IAssetManagement` に残す。所有者の unload は消え切り待ちの Stop を打ち切って回収する。
+  - **非対応環境での停止:** backend が起動時に1回、対応可否を返す（判定の実装は d2）。Framework は非対応なら何もしない handle を返し、診断ログを1回だけ出す。Game 側に分岐を書かせない。
   - **型に依存しない handle:** Play、即時 Stop、粒子が消え切るのを待つ Stop、名前付きパラメータ。`VisualEffect` 型を公開面に出さない。
 - 最初は入れないもの: 同時数の上限、優先度、カメラ距離での間引き、pool / prewarm、DebugStudio での観測。必要になったスライスの Phase A で判断する。
-- Scene に置く VFX（d3）の寿命は Scene の寿命で回収されるため、d1 の寿命管理の対象は動的に起動する VFX（d4 / d5）である。非対応時の停止は両方に適用する。
+- Scene に置く VFX（d3）の寿命は Scene の寿命で回収されるため、d1 の寿命管理の対象は動的に起動する VFX（d4 / d5）である。非対応時の停止は両方に適用する。何もしない handle は Scene に配置済みの `VisualEffect` を止めないので、配置済みのものを止める処理は SampleGame の backend が持つ（d2 で入れ、d3 で実 Scene を確認）。Scene 側は起動時の判定結果を見るだけで、追加の診断ログを出さない。
 
 ---
 
@@ -396,6 +396,8 @@ S-4a〜cは完了時の条件を残すもので、撤去済み生成器の再実
 
 - PCでSeason / Cell VFXを表示できる（d2 で1件、d3 で Season / Cell）。
 - Mobile非対応時に例外、未解放handle、無限retryがない（d1 は偽 backend、d2 は実 backend）。
+- 非対応時、`Spring_AtmosphereVFX` / `Spring_VFX_4_2` をロードしても例外・有効な `VisualEffect`・追加の診断ログがない（d3）。
+- VFX Scene の追加で Cell の距離ストリーミング体積が意図せず変わらない（d3）。
 - Planner profileでEnvironmentをロードせずWhitebox上のEventが動く（d5）。
 - local EventはCell unload、major Eventは完了またはSeason unloadで回収される（d4 / d5）。
 
@@ -415,7 +417,7 @@ S-4a〜cは完了時の条件を残すもので、撤去済み生成器の再実
 単体テスト境界を固定する。500行、3責務、50%以上増加の警報が出た場合は、分割または非分割の理由を
 HANDOFFへ書く。本書にない公開API、依存、状態、所有者が必要になったらPhase Bで決めずPhase Aへ戻す。
 
-d1〜d4 の各 Phase D は、そのスライスで現況になった契約を Architecture 文書へ harvest し、自分の HANDOFF を削除する。本書は残し、§6.3 の該当行を完了に更新する。
+d1〜d4 の各 Phase D は、そのスライスで現況になった契約を、Phase A で選んだ既存の Architecture 文書へ harvest し（新しい文書を起こす前に既存への統合を確認する）、自分の HANDOFF を削除する。本書は残し、§6.3 の該当行を完了に更新する。
 d5 の Phase D で、残る S-4d 固有の契約を Architecture §05 / §18 / §24 / §27 と Streaming 現状仕様へ harvest し、
 本書と d5 HANDOFF を削除する。S-4a〜c HANDOFFはharvest後に削除済みであり、復活させない。後続S-5が必要とするSeason排他controllerの公開面だけは、
 harvest後のArchitecture文書を参照する。

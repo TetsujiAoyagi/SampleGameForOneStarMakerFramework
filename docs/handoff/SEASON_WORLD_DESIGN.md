@@ -206,7 +206,7 @@ Editor操作は [AGENTS.md](../../AGENTS.md) と [osm-unity-editor](../../.agent
 | # | 内容 | 補足 |
 |---|---|---|
 | 前提（完了） | M-1〜M-4: 体積の口、生成器 identity key、候補フラグによる R-3、セル型の SampleGame 移動 | 現況は [STREAMING_CURRENT_SPEC.md](../streaming/STREAMING_CURRENT_SPEC.md)。完了済み HANDOFF は harvest 後に削除済み |
-| S-4 | 制作基盤（a / b / c完了、d未着手） | [S-4 program](S-4_FULL_SPEC_WORLD_AUTHORING.md)。4 Season・9×6×4・旧16 Cell撤去・Spring初回Ensure・名前文法からの分離・最小RenderEnvironment / 代表bakeは完了。候補フラグによるR-3を維持する。残るVFX / EventsはS-4dの着手時HANDOFFで扱う |
+| S-4 | 制作基盤（a / b / c完了、d未着手） | [S-4 program](S-4_FULL_SPEC_WORLD_AUTHORING.md)。4 Season・9×6×4・旧16 Cell撤去・Spring初回Ensure・名前文法からの分離・最小RenderEnvironment / 代表bakeは完了。候補フラグによるR-3を維持する。残るVFX / EventsはS-4d1〜d5に分割済みで、各スライスの着手時HANDOFFで扱う |
 | S-5 | トンネルと季節遷移 | §5 の契約。N-3 の内装はここで実測。1 Player で四季を持つか、`all-full` 起動か複数登録かは S-5 の A0 |
 | S-6 | 廃止（WCD） | 1 変奏 = 1 Addressables グループは現行契約にない。Content Directory の contentSet 選択が担う |
 | S-7 | 廃止（WCD） | 未チェックアウト経路は DIST。部分 Checkout 再燃は Architecture §20 どおり未所有 |
@@ -320,7 +320,7 @@ S-4b で Season_* 4ノードが `World` を置き換え、全セルに Environme
 | N-6 | `unityyamlmerge` ドライバ設定（前提条件ではない） | 任意 |
 | N-7 | ~~AABB の置き場~~ **決定済み（M-1）: `SceneResource` 直下**（`_volume` ＋ `_streamByDistance`）。値は生成器が格子定数から焼くのではなく、Editor がシーン保存フックと全件メニューで `.unity` から自動計算する | [STREAMING_CURRENT_SPEC.md](../streaming/STREAMING_CURRENT_SPEC.md) に harvest 済み |
 | N-8 | **解決済み:** S-4b の生成器と制作 policy は生成後に撤去した。実証項目として復活させない。将来の一括生成は新しい制作スライスで扱う | S-4b |
-| N-9 | 体積収集の範囲。現状は全 `Renderer`（`includeInactive: true`）。Particle / 無効デバッグメッシュで中心が跳ね得る。追加のVFX等が体積へ影響する場合の除外規約は未決 | S-4d等、該当する制作スライスのPhase A |
+| N-9 | 体積収集の範囲。現状は全 `Renderer`（`includeInactive: true`）。Particle / 無効デバッグメッシュで中心が跳ね得る。追加のVFX等が体積へ影響する場合の除外規約は未決 | S-4d3（VFX Scene）のPhase A。以降の制作スライスも同じ規約に従う |
 | N-10 | `WorldStreamingController.Candidates` 差し替え口。候補集合は丸ごと作り直す型。現行はSeason枝ごとにdriver / 候補集合を作り直す。in-flightを保持した集合差し替えは未実装の拡張案であり、自動的に追加しない | 必要性が出たスライスのPhase A |
 
 W-4の未決はこの項目だけを保留する。日常のWorld Workspace編集・保存・content再buildを対象に保護を実証するか、一括生成自体が再び必要でN-8の新規制作スライスを先行させるかを所有者が裁定する。ここではいずれも採用しない。昇格対象・非昇格コリドー・編集保護要求を緩和しない。
