@@ -1,9 +1,12 @@
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'ArtifactCommands.psm1')
 # The policy reads snapshots only. All callers must obtain a fresh task snapshot under its guard.
-function Test-EvidenceStagedUnsent($Artifact){
+# A staged artifact from local staging follows the ready clock whether or not a
+# promotion may have sent it (putIntent). This answers only whether it may be
+# deleted; the cleanup's deletion route decides local or remote deletion.
+function Test-EvidenceStagedRetainable($Artifact){
     foreach($name in @('origin','putIntent','receipt')){if(-not $Artifact.PSObject.Properties[$name]){return $false}}
-    return ($Artifact.origin -ceq 'stage' -and $null -eq $Artifact.putIntent -and $null -eq $Artifact.receipt)
+    return ($Artifact.origin -ceq 'stage' -and $null -eq $Artifact.receipt)
 }
 function Get-EvidenceRetentionDecision($Task,$Artifact,[DateTimeOffset]$Now){
     $reason='unknown-state'
@@ -11,9 +14,9 @@ function Get-EvidenceRetentionDecision($Task,$Artifact,[DateTimeOffset]$Now){
         if($null -eq $Task -or $null -eq $Artifact){return [pscustomobject]@{eligible=$false;reasonCode=$reason}}
         if($Artifact.state -ceq 'deleted'){$reason='payload-deleted'}
         elseif($Artifact.state -cnotin @('ready','staged')){$reason='unconfirmed-artifact'}
-        # Local staging never creates a send intent. A staged record that claims one
-        # may have reached the remote store, so local-only deletion would be unsafe.
-        elseif($Artifact.state -ceq 'staged' -and -not (Test-EvidenceStagedUnsent $Artifact)){$reason='unknown-state'}
+        # A staged record with a receipt, or one not produced by local staging, is
+        # no state this store writes, so it is never judged deletable.
+        elseif($Artifact.state -ceq 'staged' -and -not (Test-EvidenceStagedRetainable $Artifact)){$reason='unknown-state'}
         elseif($Task.status -ceq 'pending-gap' -or $Task.appliedEventVersion -ne $Artifact.appliedEventVersion){$reason='delivery-pending'}
         elseif($Task.status -cne 'ended' -or $null -eq $Task.taskEndedAt){$reason='active/end-not-recorded'}
         elseif($Artifact.deleteIntent -or $Artifact.operation){$reason='operation-pending'}

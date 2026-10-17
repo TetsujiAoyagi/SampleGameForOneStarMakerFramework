@@ -134,20 +134,24 @@ function Invoke-EvidenceStage([string]$ConfigPath,[string]$SelectionPath){
     return [pscustomobject]$result
 }
 function Invoke-EvidenceFetch([string]$ConfigPath,[string]$ReferenceText,[string]$ExpectedHash){
-    $r=[ordered]@{status='failed';reasonCode='unconfirmed';outputPath=$null;residue=@{localPath=$null};stagingMissing=0};$guard=$null;$a=$null;$task=$null;$local=$false;$timer=[Diagnostics.Stopwatch]::StartNew()
+    $r=[ordered]@{status='failed';reasonCode='unconfirmed';outputPath=$null;residue=@{localPath=$null};stagingMissing=0};$guard=$null;$a=$null;$task=$null;$local=$false;$fromLocal=$false;$timer=[Diagnostics.Stopwatch]::StartNew()
     $staging=[pscustomobject]@{Observations=[Collections.Generic.List[object]]::new();Witnesses=0}
     try{
         Assert-Hex $ExpectedHash 64;$config=Read-EvidenceConfig $ConfigPath;$ref=Read-EvidenceReference $ReferenceText $config
         $guard=Enter-WorkflowTaskGuard $config.Data.repositoryId $ref.taskId
-        # The catalog state picks the source before preflight, so a staged artifact
+        # The catalog state before preflight picks the preflight, so a staged artifact
         # never takes the preflight that may resolve unfinished work over the network.
         $peek=Read-EvidenceTask $config $ref.taskId $guard;$local=$null -ne $peek -and @($peek.artifacts|Where-Object {$_.artifactId -ceq $ref.artifactId -and $_.state -ceq 'staged'}).Count -eq 1
-        $null=Assert-EvidenceTransitionSafe $config $ref.taskId $guard -Residue $staging -NoNetwork:$local;$task=Sync-EvidenceTaskGuarded $config $ref.taskId $guard
+        $null=Assert-EvidenceTransitionSafe $config $ref.taskId $guard -Residue $staging -NoNetwork:$local -RecoverArtifactId $ref.artifactId;$task=Sync-EvidenceTaskGuarded $config $ref.taskId $guard
         $found=@($task.artifacts|Where-Object artifactId -CEQ $ref.artifactId);if($found.Count -ne 1){throw 'catalog-missing'};$a=$found[0]
-        if($a.state -ceq 'deleted'){throw 'expired'};if($a.state -cne $(if($local){'staged'}else{'ready'}) -or $a.packageSha256 -cne $ExpectedHash -or $a.key -cne $ref.key -or $a.base -cne $ref.base -or $a.head -cne $ref.head -or $a.manifestSha256 -cne $ref.manifestSha256 -or $a.packageBytes -ne $ref.packageBytes){throw 'identity-mismatch'}
+        # The state after preflight picks the source: a promotion that preflight
+        # just resolved is fetched from wherever its recovery left the package.
+        # A failure of either source is final; there is no fallback to the other.
+        $fromLocal=$a.state -ceq 'staged'
+        if($a.state -ceq 'deleted'){throw 'expired'};if($a.state -cnotin @('staged','ready') -or $a.packageSha256 -cne $ExpectedHash -or $a.key -cne $ref.key -or $a.base -cne $ref.base -or $a.head -cne $ref.head -or $a.manifestSha256 -cne $ref.manifestSha256 -or $a.packageBytes -ne $ref.packageBytes){throw 'identity-mismatch'}
         $op=New-ArtifactOperation;$r.residue.localPath=$op;$a.operation=New-EvidenceOperation $op;$stage=[pscustomobject]@{path=$op;createdAt=(& $script:Clock).ToString('o');origin='storage-copy';artifactId=$a.artifactId;adopted=$false;adoptionPending=$false;operation=$a.operation;deleteIntent=$null;protections=@()};$task.staging+=$stage;$null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard
         $archive=[IO.Path]::Combine($op,'download.zip')
-        if($local){
+        if($fromLocal){
             # The staged package is the owned copy whose bytes and hash are the
             # package's own; preflight has just verified it. Copy it and verify the
             # copy exactly as a download, and never fall back to the remote store.
@@ -163,9 +167,11 @@ function Invoke-EvidenceFetch([string]$ConfigPath,[string]$ReferenceText,[string
         Add-EvidenceOwnedFile $a $archive $package.Bytes $package.Sha256;foreach($e in $package.Files){Add-EvidenceOwnedFile $a ([IO.Path]::Combine($package.Path,$e.Path)) $e.Bytes $e.Sha256}
         Protect-ArtifactTree $op;$a.operation=$null;$stage.adopted=$true;$stage.operation=$null;$null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard;$r.outputPath=$package.Path;$r.status='passed';$r.reasonCode='complete'
     }catch{if($script:FailureHook){& $script:FailureHook $_}
-        # The remote branch keeps its published reason codes; only the local branch
-        # names the local refusals, so an existing caller never sees a new code.
-        if($_.Exception.Message -cin @('unsupported-schema','invalid-evidence-config','unknown-deployment','expired','identity-mismatch','catalog-missing') -or ($local -and $_.Exception.Message -cin @('changed-copy','unresolved-put','unresolved-delete'))){$r.reasonCode=$_.Exception.Message}}
+        # The remote branch keeps its published reason codes; only a fetch that took
+        # the local preflight or the local source names the local refusals, so an
+        # existing caller never sees a new code. A preflight that failed before the
+        # source was chosen answers as its own kind did before.
+        if($_.Exception.Message -cin @('unsupported-schema','invalid-evidence-config','unknown-deployment','expired','identity-mismatch','catalog-missing') -or (($local -or $fromLocal) -and $_.Exception.Message -cin @('changed-copy','unresolved-put','unresolved-delete'))){$r.reasonCode=$_.Exception.Message}}
     finally{if($a -and $task -and $guard){try{$a.operation=$null;if(Get-Variable stage -ErrorAction SilentlyContinue){$stage.operation=$null};$null=Write-EvidenceTask $config $task.taskId $task $task.generation $guard}catch{if($script:FailureHook){& $script:FailureHook $_}$r.status='failed';$r.outputPath=$null}};if($guard){$guard.Dispose()}}
     $r.stagingMissing=$staging.Observations.Count
     return [pscustomobject]$r
@@ -214,8 +220,11 @@ function Confirm-EvidencePromoteIntent([string]$Path,$Artifact){
 # or packaged again. The catalog is written twice: write A records the intent,
 # put-pending and the readback staging before the PUT; write B records the
 # receipt and ready only after a separate readback process has matched. A stop
-# between them leaves put-pending for the existing recovery (match -> ready,
-# 404 -> failed and kept), which is also why this never sends a second time.
+# between them leaves put-pending for the recovery (match -> ready, 404 -> staged
+# with the intent kept). One call sends at most once; a later call may send the
+# same bytes to the same key again only after a recovery observed 404, which is
+# safe because a PUT replaces the whole object with identical bytes. Publish
+# keeps its own rule of never resending, since each publish is a new snapshot.
 # Kept apart from publish so that both can later move into one send module.
 function Send-EvidenceStagedPackage($Config,$Task,$Artifact,$Guard,[Diagnostics.Stopwatch]$Timer,$Track){
     if($script:FaultHook){& $script:FaultHook 'promote-before-lock' $Artifact}
@@ -226,7 +235,10 @@ function Send-EvidenceStagedPackage($Config,$Task,$Artifact,$Guard,[Diagnostics.
     try{
         if($lock.Length -ne $Artifact.packageBytes -or [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($lock)).ToLowerInvariant() -cne $Artifact.packageSha256){throw 'identity-mismatch'}
         $intentPath=[IO.Path]::Combine((Get-EvidenceTaskDirectory $Config $Task.taskId),'intents',$Artifact.artifactId+'.json')
-        if([IO.File]::Exists($intentPath)){$intentSha=Confirm-EvidencePromoteIntent $intentPath $Artifact}
+        # A recorded intent is never rewritten: a resend reuses the exact file
+        # whose hash the catalog holds, with its original createdAt and process.
+        if($Artifact.putIntent -and ((Resolve-EvidenceStoredPath $Artifact.putIntent.path) -cne $intentPath -or -not [IO.File]::Exists($intentPath))){throw 'unresolved-put'}
+        if([IO.File]::Exists($intentPath)){$intentSha=Confirm-EvidencePromoteIntent $intentPath $Artifact;if($Artifact.putIntent -and $intentSha -cne $Artifact.putIntent.sha256){throw 'unresolved-put'}}
         else{$intentSha=Write-EvidenceAtomic $intentPath ([pscustomobject]@{schemaVersion=2;artifactId=$Artifact.artifactId;key=$Artifact.key;packageBytes=$Artifact.packageBytes;packageSha256=$Artifact.packageSha256;createdAt=$Artifact.createdAt;process=Get-EvidenceProcessIdentity}) -Immutable}
         if($script:FaultHook){& $script:FaultHook 'promote-after-intent-file' $Artifact}
         $generation=(Get-CredentialStatus 'osm').Generation
@@ -234,7 +246,7 @@ function Send-EvidenceStagedPackage($Config,$Task,$Artifact,$Guard,[Diagnostics.
         # leaves only an unregistered empty directory, as publish does.
         $operation=New-ArtifactOperation;$owner=New-EvidenceOperation $operation
         $stage=[pscustomobject]@{path=$operation;createdAt=(& $script:Clock).ToString('o');origin='storage-copy';artifactId=$Artifact.artifactId;adopted=$false;adoptionPending=$false;operation=$owner;deleteIntent=$null;protections=@()}
-        $Task.staging+=$stage;$Artifact.putIntent=[pscustomobject]@{path=$intentPath;sha256=$intentSha};$Artifact.state='put-pending';$Artifact.operation=$owner;$Track.StagePath=$operation
+        $Task.staging+=$stage;if(-not $Artifact.putIntent){$Artifact.putIntent=[pscustomobject]@{path=$intentPath;sha256=$intentSha}};$Artifact.state='put-pending';$Artifact.operation=$owner;$Track.StagePath=$operation
         $null=Write-EvidenceTask $Config $Task.taskId $Task $Task.generation $Guard
         if($script:FaultHook){& $script:FaultHook 'promote-after-put-pending' $Artifact}
         $Track.Sent=$true
@@ -268,7 +280,7 @@ function Invoke-EvidencePromote([string]$ConfigPath,[string]$ReferenceText,[stri
     try{
         Assert-Hex $ExpectedHash 64;$config=Read-EvidenceConfig $ConfigPath;$ref=Read-EvidenceReference $ReferenceText $config
         $guard=Enter-WorkflowTaskGuard $config.Data.repositoryId $ref.taskId
-        $null=Assert-EvidenceTransitionSafe $config $ref.taskId $guard -Residue $staging;$task=Sync-EvidenceTaskGuarded $config $ref.taskId $guard
+        $null=Assert-EvidenceTransitionSafe $config $ref.taskId $guard -Residue $staging -RecoverArtifactId $ref.artifactId;$task=Sync-EvidenceTaskGuarded $config $ref.taskId $guard
         $found=@($task.artifacts|Where-Object artifactId -CEQ $ref.artifactId);if($found.Count -ne 1){throw 'catalog-missing'};$a=$found[0]
         if($a.state -ceq 'deleted'){throw 'expired'}
         # Identity is settled before any branch, so even an already promoted answer
@@ -277,9 +289,12 @@ function Invoke-EvidencePromote([string]$ConfigPath,[string]$ReferenceText,[stri
         $origin=Get-EvidenceArtifactOrigin $a
         # Sends nothing and changes no state, so an ended task answers the same.
         if($a.state -ceq 'ready' -and $origin -ceq 'stage'){Set-EvidencePromoted $result $ReferenceText $a 'already-promoted'}
-        # Only an artifact whose catalog proves it was never sent may be sent. A
-        # put-pending or failed promotion is never sent again (same key, no reput).
-        elseif($a.state -cne 'staged' -or $origin -cne 'stage' -or $null -ne $a.putIntent -or $null -ne $a.receipt){throw 'invalid-source'}
+        # The state after preflight decides: preflight may just have returned this
+        # artifact's put-pending or failed promotion to staged on a recovery 404.
+        # A staged artifact is sent again only as the same bytes under the same
+        # intent (Send-EvidenceStagedPackage checks the intent); put-pending,
+        # failed or a receipt is never sent.
+        elseif($a.state -cne 'staged' -or $origin -cne 'stage' -or $null -ne $a.receipt){throw 'invalid-source'}
         elseif($task.status -cne 'active'){throw 'resume-required'}
         else{
             $track=[pscustomobject]@{StagePath=$null;Sent=$false}

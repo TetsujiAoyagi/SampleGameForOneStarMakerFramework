@@ -8,6 +8,8 @@ $registered+=@('fresh-process-cleanup-contract')
 $registered+=@('staging-missing-report','staging-missing-drop','staging-missing-no-witness','staging-missing-race','staging-missing-refuse')
 $stagedCases=@('staged-retention-boundary','staged-delete-stop-before-commit','staged-delete-stop-after-commit','staged-zip-missing-refused','staged-use-protection')
 $registered+=$stagedCases
+$promotedCases=@('deletion-route-table','local-delete-recheck','route-none-unchanged','promoted-reader-shapes','promoted-match-adoption','sent-staged-expiry','sent-staged-delete-stops','sent-staged-delete-write-failure','failed-recovery-cleanup','failed-recovery-cleanup-isolation','failed-recovery-cleanup-write-failure')
+$registered+=$promotedCases
 $selected=if($Case -ceq '*'){$registered}else{@($Case.Split(','))};$executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 function Start-EvidenceChild($Env,$Publish,[string]$Action,[string]$Signal='',[string]$Now=''){
     $info=[Diagnostics.ProcessStartInfo]::new('pwsh');$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
@@ -117,6 +119,227 @@ function Invoke-StagedCleanupCase([string]$CaseName,$Env,[string]$Selection){
     Assert-EvidenceTest ((Get-EvidenceRemoteTouches $Env) -eq 0) 'staged cleanup touched remote'
     $null=Read-EvidenceTestTask $Env
 }
+# Promotion cleanup. Clocks are fixed: staging at T0, the task ends one hour later,
+# and the deadline is that end plus 30 days. Each scenario builds its own store,
+# because a new test environment points every module at a new root.
+$script:PromotedT0=[DateTimeOffset]::Parse('2026-01-01T00:00:00.0000000+00:00')
+function Set-PromotedNow([DateTimeOffset]$At){Set-EvidenceTestValue EvidenceCleanup Clock {$At}.GetNewClosure();Set-EvidenceTestValue EvidenceApplication Clock {$At}.GetNewClosure()}
+function Reset-PromotedHooks {Set-PromotedNow $script:PromotedT0;Set-EvidenceTestValue TaskLifecycle Clock {[DateTimeOffset]::UtcNow};Set-EvidenceTestValue EvidenceApplication FaultHook $null;Set-EvidenceTestValue EvidenceCleanup FaultHook $null;Set-EvidenceTestValue EvidenceCleanup ProcessHook $null;Set-EvidenceTestValue EvidencePaths WriteHook $null}
+function New-PromotedEnv {$e=New-EvidenceTestEnvironment;$f=New-EvidenceReaderFixture $e.Root;$sp=[IO.Path]::Combine($e.Root,'selection.json');Write-EvidenceTestJson $sp $f.Selection;return [pscustomobject]@{Env=$e;Selection=$sp}}
+function Read-PromotedDisk($Env){return Read-EvidenceTask $Env.Config fixture ([pscustomobject]@{RepositoryId='a'*64;TaskId='fixture'})}
+function Get-PromotedArtifact($Env,[string]$Id){return @((Read-PromotedDisk $Env).artifacts|Where-Object artifactId -CEQ $Id)[0]}
+function Complete-PromotedTask {$at=$script:PromotedT0.AddHours(1);Set-EvidenceTestValue TaskLifecycle Clock {$at}.GetNewClosure();$g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$null=Invoke-WorkflowTaskTransition ('a'*64) fixture ended 1 fixture-end completed $g}finally{$g.Dispose()};return $at.AddDays(30)}
+function New-PromotedStage($Env,[string]$Selection){
+    $s=Invoke-EvidenceStage $Env.ConfigPath $Selection;Assert-EvidenceTest ($s.status -ceq 'passed') ('stage '+$s.reasonCode);$id=(Read-EvidenceReference $s.reference $Env.Config).artifactId;$a=Get-PromotedArtifact $Env $id;$zip=(Get-EvidenceStagedZip $a).path
+    return [pscustomobject]@{Stage=$s;Id=$id;Key=$a.key;Zip=$zip;ZipBytes=[IO.File]::ReadAllBytes($zip);Readback=$null}
+}
+# A promote of $X that dies at $Point: the catalog is put back to its bytes at that
+# moment and the promote's process counts as stopped from then on.
+function Invoke-PromotedStop($Env,$X,[string]$Point){
+    $catalog=[IO.Path]::Combine((Get-EvidenceTaskDirectory $Env.Config fixture),'catalog.json');$saved=@{bytes=$null}
+    Set-EvidenceTestValue EvidenceApplication FaultHook ({param($p,$a)if($p -ceq $Point){$saved.bytes=[IO.File]::ReadAllBytes($catalog);throw 'simulated-stop'}}.GetNewClosure())
+    try{$r=Invoke-EvidencePromote $Env.ConfigPath $X.Stage.reference $X.Stage.packageSha256}finally{Set-EvidenceTestValue EvidenceApplication FaultHook $null}
+    Assert-EvidenceTest ($null -ne $saved.bytes -and $r.status -ceq 'failed') ('stop '+$Point);[IO.File]::WriteAllBytes($catalog,$saved.bytes);Set-EvidenceTestValue EvidenceCleanup ProcessHook {param($identity)$true}
+    $X.Readback=(Get-PromotedArtifact $Env $X.Id).operation.path
+}
+# A staged artifact holding a putIntent: its promote stopped after write A and a fetch's recovery saw 404.
+function New-PromotedSentStaged($Env,[string]$Selection){
+    $x=New-PromotedStage $Env $Selection;Invoke-PromotedStop $Env $x 'promote-after-put-pending';$f=Invoke-EvidenceFetch $Env.ConfigPath $x.Stage.reference $x.Stage.packageSha256
+    $a=Get-PromotedArtifact $Env $x.Id;Assert-EvidenceTest ($f.status -ceq 'passed' -and $a.state -ceq 'staged' -and $null -ne $a.putIntent) ('sent staged '+$f.reasonCode);return $x
+}
+# The failed shape the previous runtime wrote on that 404, in the three variants of the readback staging (see ArtifactEvidence.Tests.ps1).
+function New-PromotedFailed($Env,[string]$Selection,[string]$Variant){
+    $x=New-PromotedStage $Env $Selection;Invoke-PromotedStop $Env $x 'promote-after-put-pending';$readback=$x.Readback;$recovery=& @(Get-EvidenceTestModules EvidenceCleanup)[0] {New-ArtifactOperation}
+    Edit-FixtureTask $Env {param($t)$a=@($t.artifacts|Where-Object artifactId -CEQ $x.Id)[0]
+        $t.staging+=[pscustomobject]@{path=$recovery;createdAt=$script:PromotedT0.ToString('o');origin='storage-copy';artifactId=$a.artifactId;adopted=$false;adoptionPending=$false;operation=$null;deleteIntent=$null;protections=@()}
+        $a.state='failed';$a.operation=$null
+        if($Variant -ceq 'ii'){$t.staging=@($t.staging|Where-Object {$_.path -cne $readback -and $_.path -cne $recovery})}elseif($Variant -ceq 'iii'){foreach($s in @($t.staging|Where-Object artifactId -CEQ $a.artifactId)){$s.operation=$null}}
+    }
+    if($Variant -ceq 'ii'){foreach($dir in @($readback,$recovery)){[IO.Directory]::Delete($dir,$true)}}
+    return $x
+}
+function Get-PromotedItem($Result,[string]$Id){return @($Result.items|Where-Object artifactId -CEQ $Id)}
+# Arms a failure on the first catalog write that records $Id as deleted, judged from the bytes being written.
+function Set-PromotedDeletedWriteFailure([string]$Id,[string]$Phase,$Probe){
+    Set-EvidenceTestValue EvidencePaths WriteHook ({param($st,$path)
+        if($Probe.fired -or $st -cne $Phase -or -not $path.EndsWith('\catalog.json')){return}
+        $file=if($st -ceq 'before-rename'){@(Get-ChildItem -LiteralPath ([IO.Path]::GetDirectoryName($path)) -Filter 'catalog.json.*.pending'|Sort-Object LastWriteTimeUtc)[-1].FullName}else{$path}
+        if(@(([IO.File]::ReadAllText($file)|ConvertFrom-Json).artifacts|Where-Object artifactId -CEQ $Id)[0].state -ceq 'deleted'){$Probe.fired=$true;throw 'simulated-write-failure'}
+    }.GetNewClosure())
+}
+function Invoke-PromotedCleanupCase([string]$CaseName,$Env,[string]$Selection){
+    Reset-PromotedHooks
+    try{switch($CaseName){
+        'deletion-route-table'{
+            # AC6: the route for every state x origin x putIntent x receipt; only provably unsent staged artifacts are local.
+            $m=@(Get-EvidenceTestModules EvidenceCleanup)[0]
+            foreach($state in @('put-pending','ready','delete-pending','deleted','failed','staged')){foreach($origin in @('stage','publish','none')){foreach($intent in @($false,$true)){foreach($receipt in @($false,$true)){
+                $a=[pscustomobject]@{state=$state;putIntent=if($intent){@{path='p';sha256='0'*64}}else{$null};receipt=if($receipt){@{path='r';sha256='1'*64}}else{$null}};if($origin -cne 'none'){$a|Add-Member -NotePropertyName origin -NotePropertyValue $origin}
+                $expected=if($state -ceq 'ready'){'remote'}elseif($state -ceq 'staged' -and $origin -ceq 'stage' -and -not $receipt){if($intent){'remote'}else{'local'}}else{'none'}
+                $actual=& $m {param($x)Get-EvidenceDeletionRoute $x} $a;Assert-EvidenceTest ($actual -ceq $expected) ("route $state/$origin/intent=$intent/receipt=$receipt -> $actual")
+            }}}}
+        }
+        'local-delete-recheck'{
+            # AC6: handed a staged artifact that may have been sent, the local deletion itself refuses and writes nothing.
+            $x=New-PromotedSentStaged $Env $Selection;$deadline=Complete-PromotedTask;Set-PromotedNow $deadline
+            $i=Invoke-EvidenceInspect $Env.ConfigPath fixture;Assert-EvidenceTest ($i.artifacts[0].policy.reasonCode -ceq 'expired') ('policy '+$i.artifacts[0].policy.reasonCode)
+            $catalog=[IO.Path]::Combine((Get-EvidenceTaskDirectory $Env.Config fixture),'catalog.json');$before=[IO.File]::ReadAllBytes($catalog);$m=@(Get-EvidenceTestModules EvidenceCleanup)[0]
+            $r=& $m {param($cfg)$g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$t=Read-EvidenceTask $cfg fixture $g;Invoke-EvidenceLocalDeleteGuarded $cfg $t $t.artifacts[0] $g}finally{$g.Dispose()}} $Env.Config
+            Assert-EvidenceTest ($r -ceq 'unknown-state' -and [Linq.Enumerable]::SequenceEqual([byte[]]$before,[byte[]][IO.File]::ReadAllBytes($catalog)) -and [IO.File]::Exists($x.Zip)) ('local delete of sent staged '+$r)
+        }
+        'route-none-unchanged'{
+            # I1/AC4: staged records without origin or from publish are unknown-state with route none: no DELETE and no local deletion.
+            foreach($variant in @('no-origin','publish')){
+                $p=New-PromotedEnv;$e=$p.Env;$x=New-PromotedStage $e $p.Selection
+                Edit-FixtureTask $e {param($t)$a=$t.artifacts[0];if($variant -ceq 'no-origin'){$a.PSObject.Properties.Remove('origin')}else{$a.origin='publish'}}
+                $deadline=Complete-PromotedTask;Set-PromotedNow $deadline;$m=@(Get-EvidenceTestModules EvidenceCleanup)[0];$a=Get-PromotedArtifact $e $x.Id
+                Assert-EvidenceTest ((& $m {param($y)Get-EvidenceDeletionRoute $y} $a) -ceq 'none') ($variant+' route')
+                $c=Invoke-EvidenceCleanup $e.ConfigPath;$a=Get-PromotedArtifact $e $x.Id
+                Assert-EvidenceTest ((Get-PromotedItem $c $x.Id)[0].reasonCode -ceq 'unknown-state' -and $a.state -ceq 'staged' -and [IO.File]::Exists($x.Zip) -and (Get-EvidenceRemoteTouches $e) -eq 0) ($variant+' cleanup '+(ConvertTo-Json $c -Compress -Depth 5))
+            }
+            # Publish-origin recovery is unchanged: 404 -> failed, and a match adopts every staging of the artifact.
+            foreach($stored in @($false,$true)){
+                $p=New-PromotedEnv;$e=$p.Env;$inner=$e.Transport;$objects=$e.Objects;$counts=$e.Counts
+                Set-EvidenceTestValue ArtifactApplication TransportHook ({param($g,$req)if($req.Operation -ceq 'put'){if($stored){$null=& $inner $g $req}else{$null=$counts.AddOrUpdate('put '+$req.Key,1,{param($k,$v)$v+1})};throw 'response-lost'};& $inner $g $req}.GetNewClosure())
+                $pub=Invoke-EvidencePublish $e.ConfigPath $p.Selection;Set-EvidenceTestValue ArtifactApplication TransportHook $e.Transport;$id=(Read-PromotedDisk $e).artifacts[0].artifactId
+                $g=Enter-WorkflowTaskGuard ('a'*64) fixture;try{$null=Assert-EvidenceTransitionSafe $e.Config fixture $g}finally{$g.Dispose()};$t=Read-PromotedDisk $e
+                if($stored){Assert-EvidenceTest ($t.artifacts[0].state -ceq 'ready' -and @($t.staging|Where-Object {$_.artifactId -ceq $id -and -not $_.adopted}).Count -eq 0 -and @($t.staging|Where-Object artifactId -CEQ $id).Count -ge 2) 'publish match adoption'}
+                else{Assert-EvidenceTest ($pub.status -ceq 'failed' -and $t.artifacts[0].state -ceq 'failed') 'publish 404'}
+            }
+        }
+        'promoted-reader-shapes'{
+            # I9/AC9: every shape the previous runtime writes for stage-origin artifacts still reads, beside a publish artifact without origin.
+            $plain=New-PromotedStage $Env $Selection
+            $failed=@('i','ii','iii'|ForEach-Object {New-PromotedFailed $Env $Selection $_})
+            $ready=New-PromotedStage $Env $Selection;$pr=Invoke-EvidencePromote $Env.ConfigPath $ready.Stage.reference $ready.Stage.packageSha256;Assert-EvidenceTest ($pr.status -ceq 'passed') 'promote ready'
+            $pub=Invoke-EvidencePublish $Env.ConfigPath $Selection;Assert-EvidenceTest ($pub.status -ceq 'passed') 'publish'
+            $pending=New-PromotedStage $Env $Selection;Invoke-PromotedStop $Env $pending 'promote-after-put-pending'
+            $t=Read-PromotedDisk $Env;Assert-EvidenceTest (@($t.artifacts|ForEach-Object state) -join ',' -ceq 'staged,failed,failed,failed,ready,ready,put-pending') ('shapes '+(@($t.artifacts|ForEach-Object state) -join ','))
+            Assert-EvidenceTest (@($t.artifacts|Where-Object {-not $_.PSObject.Properties['origin']}).Count -eq 1) 'publish without origin'
+            $catalog=[IO.Path]::Combine((Get-EvidenceTaskDirectory $Env.Config fixture),'catalog.json');$original=[IO.File]::ReadAllText($catalog)
+            $edit={param([scriptblock]$Change)$o=$original|ConvertFrom-Json -DateKind String;& $Change $o;Write-EvidenceTestJson $catalog $o;$r='read';try{$null=Read-PromotedDisk $Env}catch{$r=$_.Exception.Message};return $r}
+            $intent=[pscustomobject]@{key=$ready.Key;generation=1;packageSha256='0'*64;process=[pscustomobject]@{pid=1;startedAt=$script:PromotedT0.ToString('o')};createdAt=$script:PromotedT0.ToString('o')}
+            $find={param($o,$id)@($o.artifacts|Where-Object artifactId -CEQ $id)[0]}
+            Assert-EvidenceTest ((& $edit {param($o)$a=& $find $o $ready.Id;$a.state='delete-pending';$a.deleteIntent=$intent}) -ceq 'read') 'delete-pending with receipt'
+            Assert-EvidenceTest ((& $edit {param($o)$a=& $find $o $ready.Id;$a.state='deleted'}) -ceq 'read') 'deleted promoted'
+            Assert-EvidenceTest ((& $edit {param($o)$a=& $find $o $plain.Id;$a.state='deleted'}) -ceq 'read') 'deleted staged'
+            Assert-EvidenceTest ((& $edit {param($o)$a=& $find $o $failed[0].Id;$a.state='delete-pending';$a.deleteIntent=$intent}) -ceq 'read') 'delete-pending with intent and no receipt'
+            Assert-EvidenceTest ((& $edit {param($o)$a=& $find $o $plain.Id;$a.state='delete-pending';$a.deleteIntent=$intent}) -ceq 'receipt-missing') 'delete-pending without intent or receipt'
+            [IO.File]::WriteAllText($catalog,$original,[Text.UTF8Encoding]::new($false));$null=Read-PromotedDisk $Env
+        }
+        'promoted-match-adoption'{
+            # AC5: a promotion's recovery match adopts only its own staging; the stopped promote's readback staging, with an unregistered file, meets the seven-day rule.
+            $x=New-PromotedStage $Env $Selection;$t0=Read-PromotedDisk $Env;$original=@($t0.staging|Where-Object {$_.artifactId -ceq $x.Id -and $_.adopted}|ForEach-Object path)
+            Invoke-PromotedStop $Env $x 'promote-after-put-pending';$marker=[IO.Path]::Combine($x.Readback,'readback-process.json')
+            Write-EvidenceTestJson $marker ([pscustomobject]@{process=@{pid=2147483647;startedAt='2000-01-01T00:00:00.0000000Z'};exited=$true;pipesClosed=$true});Set-ArtifactAcl $marker $false
+            $Env.Objects[$x.Key]=$x.ZipBytes;$known=@((Read-PromotedDisk $Env).staging|ForEach-Object path);Set-PromotedNow $script:PromotedT0.AddDays(8)
+            $c=Invoke-EvidenceCleanup $Env.ConfigPath;$t=Read-PromotedDisk $Env;$a=@($t.artifacts|Where-Object artifactId -CEQ $x.Id)[0];$new=@($t.staging|Where-Object path -CNotIn $known)
+            Assert-EvidenceTest ($a.state -ceq 'ready' -and $null -ne $a.receipt -and $new.Count -eq 1 -and $new[0].adopted -and $null -eq $new[0].operation) ('match '+(ConvertTo-Json $c -Compress -Depth 5))
+            Assert-EvidenceTest (@($t.staging|Where-Object path -CEQ $x.Readback).Count -eq 0 -and -not [IO.Directory]::Exists($x.Readback)) 'readback staging kept'
+            Assert-EvidenceTest (@($t.staging|Where-Object {$_.path -cin $original -and $_.adopted}).Count -eq $original.Count -and [IO.File]::Exists($x.Zip) -and @($a.ownedCopies|Where-Object path -CEQ $x.Zip).Count -eq 1) 'stage staging or zip changed'
+        }
+        'sent-staged-expiry'{
+            # S3/I2/I7/AC6: a staged artifact with a putIntent is retained until the deadline, then deleted by DELETE and an absence GET; an unsent one beside it is deleted locally.
+            $x=New-PromotedSentStaged $Env $Selection;$y=New-PromotedStage $Env $Selection;$deadline=Complete-PromotedTask
+            $ops=[Collections.Generic.List[string]]::new();$inner=$Env.Transport;Set-EvidenceTestValue ArtifactApplication TransportHook ({param($g,$req)$ops.Add($req.Operation+' '+$req.Key);& $inner $g $req}.GetNewClosure())
+            Set-PromotedNow $deadline.AddTicks(-1);$c=Invoke-EvidenceCleanup $Env.ConfigPath
+            Assert-EvidenceTest ((Get-PromotedItem $c $x.Id)[0].reasonCode -ceq 'retained' -and $ops.Count -eq 0 -and (Get-PromotedArtifact $Env $x.Id).state -ceq 'staged') ('before deadline '+(ConvertTo-Json $c -Compress -Depth 5))
+            Set-PromotedNow $deadline;$c=Invoke-EvidenceCleanup $Env.ConfigPath;$a=Get-PromotedArtifact $Env $x.Id;$b=Get-PromotedArtifact $Env $y.Id
+            Assert-EvidenceTest ((Get-PromotedItem $c $x.Id)[0].reasonCode -ceq 'deleted' -and (@($ops) -join '|') -ceq ('delete '+$x.Key+'|get '+$x.Key) -and $a.state -ceq 'deleted' -and @($a.ownedCopies).Count -eq 0 -and -not [IO.File]::Exists($x.Zip)) ('deadline '+(@($ops) -join '|'))
+            Assert-EvidenceTest ((Get-PromotedItem $c $y.Id)[0].reasonCode -ceq 'deleted' -and $b.state -ceq 'deleted' -and -not [IO.File]::Exists($y.Zip)) 'unsent staged'
+        }
+        'sent-staged-delete-stops'{
+            # S3/I2/AC6 (a)(b)(d): a stop at each point of the remote deletion leaves delete-pending with the ZIP, and the next cleanup converges.
+            foreach($scenario in @('after-intent:match','after-intent:missing','after-remote:missing','delete-fails:match','delete-fails:missing')){
+                $point,$remote=$scenario.Split(':');$p=New-PromotedEnv;$e=$p.Env;$x=New-PromotedSentStaged $e $p.Selection;$deadline=Complete-PromotedTask;Set-PromotedNow $deadline
+                if($point -ceq 'delete-fails'){$inner=$e.Transport;Set-EvidenceTestValue ArtifactApplication TransportHook ({param($g,$req)if($req.Operation -ceq 'delete'){throw 'delete-lost'};& $inner $g $req}.GetNewClosure())}
+                else{Set-EvidenceTestValue EvidenceCleanup FaultHook ({param($stage,$a)if($stage -ceq $point){throw 'simulated-stop'}}.GetNewClosure())}
+                $c=Invoke-EvidenceCleanup $e.ConfigPath;Set-EvidenceTestValue EvidenceCleanup FaultHook $null;Set-EvidenceTestValue ArtifactApplication TransportHook $e.Transport
+                $a=Get-PromotedArtifact $e $x.Id
+                Assert-EvidenceTest ($c.status -ceq 'pending' -and $a.state -ceq 'delete-pending' -and $null -eq $a.receipt -and $null -ne $a.putIntent -and [IO.File]::Exists($x.Zip)) ($scenario+' stopped '+$a.state)
+                if($remote -ceq 'match'){$e.Objects[$x.Key]=$x.ZipBytes}else{$unused=$null;$null=$e.Objects.TryRemove($x.Key,[ref]$unused)}
+                # Every persisted state of the artifact during the resume, with whether its ZIP existed then.
+                $seen=[Collections.Generic.List[string]]::new();$id=$x.Id;$zip=$x.Zip
+                Set-EvidenceTestValue EvidencePaths WriteHook ({param($st,$path)if($st -ceq 'after-rename' -and $path.EndsWith('\catalog.json')){$s=@(([IO.File]::ReadAllText($path)|ConvertFrom-Json).artifacts|Where-Object artifactId -CEQ $id)[0].state;if($seen.Count -eq 0 -or -not $seen[$seen.Count-1].StartsWith($s+':')){$seen.Add($s+':'+[IO.File]::Exists($zip))}}}.GetNewClosure())
+                $deletes=[int]$e.Counts['delete '+$x.Key];try{$c=Invoke-EvidenceCleanup $e.ConfigPath}finally{Set-EvidenceTestValue EvidencePaths WriteHook $null};$a=Get-PromotedArtifact $e $x.Id;$trace=@($seen) -join ','
+                Assert-EvidenceTest ($c.status -ceq 'passed' -and $a.state -ceq 'deleted' -and -not [IO.File]::Exists($x.Zip)) ($scenario+' resumed '+(ConvertTo-Json $c -Compress -Depth 5))
+                # A match returns it to staged with its ZIP, and the same cleanup deletes it again with a new intent and DELETE; a 404 ends at deleted directly.
+                if($remote -ceq 'match'){Assert-EvidenceTest ($trace -ceq 'delete-pending:True,staged:True,delete-pending:True,deleted:True' -and $e.Counts['delete '+$x.Key] -eq $deletes+1) ($scenario+' trace '+$trace)}
+                else{Assert-EvidenceTest ($trace -ceq 'delete-pending:True,deleted:True' -and [int]$e.Counts['delete '+$x.Key] -eq $deletes) ($scenario+' trace '+$trace)}
+                Reset-PromotedHooks
+            }
+        }
+        'sent-staged-delete-write-failure'{
+            # I2/AC6 (c): the write of `deleted` fails before or after its rename, in the deletion and in its reconciliation; disk delete-pending always keeps the ZIP, and the next cleanup converges.
+            foreach($scenario in @('normal:before-rename','normal:after-rename','reconcile:before-rename','reconcile:after-rename','ready:before-rename')){
+                $route,$phase=$scenario.Split(':');$p=New-PromotedEnv;$e=$p.Env
+                if($route -ceq 'ready'){$x=New-PromotedStage $e $p.Selection;$r=Invoke-EvidencePromote $e.ConfigPath $x.Stage.reference $x.Stage.packageSha256;Assert-EvidenceTest ($r.status -ceq 'passed') 'promote'}else{$x=New-PromotedSentStaged $e $p.Selection}
+                $deadline=Complete-PromotedTask;Set-PromotedNow $deadline;Set-EvidenceTestValue EvidenceCleanup ProcessHook {param($identity)$true}
+                if($route -ceq 'reconcile'){Set-EvidenceTestValue EvidenceCleanup FaultHook {param($stage,$a)if($stage -ceq 'after-remote'){throw 'simulated-stop'}};$null=Invoke-EvidenceCleanup $e.ConfigPath;Set-EvidenceTestValue EvidenceCleanup FaultHook $null;Assert-EvidenceTest ((Get-PromotedArtifact $e $x.Id).state -ceq 'delete-pending') 'reconcile setup'}
+                $probe=@{fired=$false};Set-PromotedDeletedWriteFailure $x.Id $phase $probe
+                try{$null=Invoke-EvidenceCleanup $e.ConfigPath}finally{Set-EvidenceTestValue EvidencePaths WriteHook $null}
+                $a=Get-PromotedArtifact $e $x.Id;$zip=[IO.File]::Exists($x.Zip);Assert-EvidenceTest $probe.fired ($scenario+' not fired')
+                Assert-EvidenceTest (($a.state -ceq 'delete-pending' -and $zip) -or $a.state -ceq 'deleted') ($scenario+' unsafe '+$a.state+' zip='+$zip)
+                [Console]::WriteLine('AC6c '+$scenario+' endpoint='+$a.state+' zip='+$zip)
+                $c=Invoke-EvidenceCleanup $e.ConfigPath;$a=Get-PromotedArtifact $e $x.Id
+                Assert-EvidenceTest ($c.status -ceq 'passed' -and $a.state -ceq 'deleted' -and -not [IO.File]::Exists($x.Zip) -and -not $e.Objects.ContainsKey($x.Key)) ($scenario+' converged '+(ConvertTo-Json $c -Compress -Depth 5))
+                Reset-PromotedHooks
+            }
+        }
+        'failed-recovery-cleanup'{
+            # S2/AC3 (d): cleanup resolves a recoverable failed promotion as the commands do; an unresolved one is this item's unconfirmed-artifact.
+            foreach($variant in @('i','ii','iii')){foreach($mode in @('missing','match','other')){
+                $p=New-PromotedEnv;$e=$p.Env;$x=New-PromotedFailed $e $p.Selection $variant
+                if($mode -ceq 'match'){$e.Objects[$x.Key]=$x.ZipBytes}elseif($mode -ceq 'other'){$e.Objects[$x.Key]=[byte[]](1..64)};$adopted=@((Read-PromotedDisk $e).staging|Where-Object adopted|ForEach-Object path)
+                $c=Invoke-EvidenceCleanup $e.ConfigPath;$t=Read-PromotedDisk $e;$a=@($t.artifacts|Where-Object artifactId -CEQ $x.Id)[0];$item=(Get-PromotedItem $c $x.Id)[0].reasonCode;$newly=@($t.staging|Where-Object {$_.adopted -and $_.path -cnotin $adopted})
+                switch($mode){
+                    'missing'{Assert-EvidenceTest ($a.state -ceq 'staged' -and $null -ne $a.putIntent -and $newly.Count -eq 0) ("$variant/$mode "+$a.state)}
+                    'match'{Assert-EvidenceTest ($a.state -ceq 'ready' -and $null -ne $a.receipt -and $newly.Count -eq 1 -and @($t.staging|Where-Object {$_.path -ceq $x.Readback -and $_.adopted}).Count -eq 0) ("$variant/$mode "+$a.state)}
+                    'other'{Assert-EvidenceTest ($a.state -ceq 'failed' -and $item -ceq 'unconfirmed-artifact' -and @($e.Counts.Keys|Where-Object {$_ -like 'put *'}).Count -eq 0) ("$variant/$mode "+$a.state+' '+$item)}
+                }
+                Reset-PromotedHooks
+            }}
+            # With the stopped promote still running, cleanup neither registers nor fetches anything for it.
+            $p=New-PromotedEnv;$e=$p.Env;$x=New-PromotedFailed $e $p.Selection 'i';Set-EvidenceTestValue EvidenceCleanup ProcessHook {param($identity)$false}
+            $before=Get-FixtureArtifactsHash $e;$staging=ConvertTo-Json -Compress -Depth 8 -InputObject (Read-PromotedDisk $e).staging
+            $c=Invoke-EvidenceCleanup $e.ConfigPath
+            Assert-EvidenceTest ((Get-PromotedItem $c $x.Id)[0].reasonCode -ceq 'unconfirmed-artifact' -and -not $e.Counts.ContainsKey('get '+$x.Key) -and (Get-FixtureArtifactsHash $e) -ceq $before -and (ConvertTo-Json -Compress -Depth 8 -InputObject (Read-PromotedDisk $e).staging) -ceq $staging) 'running promote touched'
+        }
+        'failed-recovery-cleanup-isolation'{
+            # I10/AC3 (d): an unresolvable failed item ends its task's run; items before it are done in the same run, those after it in the next, and it stays failed.
+            $x=New-PromotedFailed $Env $Selection 'i';$Env.Objects[$x.Key]=[byte[]](1..64)
+            $r=New-PromotedStage $Env $Selection;$pr=Invoke-EvidencePromote $Env.ConfigPath $r.Stage.reference $r.Stage.packageSha256;Assert-EvidenceTest ($pr.status -ceq 'passed') 'promote other'
+            $u=New-PromotedStage $Env $Selection;$deadline=Complete-PromotedTask;Set-PromotedNow $deadline.AddSeconds(1)
+            # The three artifact ids form a circular order; a stored cursor starts the run so that one other artifact comes before the failed item and one after it.
+            $sorted=[Collections.Generic.List[string]]::new([string[]]@($x.Id,$r.Id,$u.Id));$sorted.Sort([StringComparer]::Ordinal);$at=$sorted.IndexOf($x.Id)
+            $startCursor=switch($at){0{$sorted[1]}1{$null}2{$sorted[0]}};Edit-FixtureTask $Env {param($t)$t.cleanupCursor=$startCursor}
+            $dry=Invoke-EvidenceCleanup $Env.ConfigPath $true;Assert-EvidenceTest (@(Get-PromotedItem $dry $x.Id|Where-Object reasonCode -CEQ 'unconfirmed-artifact').Count -eq 1 -and -not $Env.Counts.ContainsKey('get '+$x.Key)) 'dry run recovered'
+            $first=Invoke-EvidenceCleanup $Env.ConfigPath
+            # A failed recovery ends the run, so its item is the last one; the failed artifact's own unadopted staging may meet the seven-day rule before it.
+            Assert-EvidenceTest ($first.items[-1].artifactId -ceq $x.Id -and $first.items[-1].reasonCode -ceq 'unconfirmed-artifact' -and $first.status -ceq 'pending' -and $first.remaining -ge 1) ('first run '+(ConvertTo-Json $first -Compress -Depth 5))
+            $beforeFailed=switch($at){0{@($sorted[2])}1{@($sorted[0])}2{@($sorted[1])}};$checked=@{before=0;after=0}
+            foreach($other in @($r,$u)){
+                $state=(Get-PromotedArtifact $Env $other.Id).state
+                if($other.Id -cin $beforeFailed){$checked.before++;Assert-EvidenceTest ($state -ceq 'deleted') ('before failed item '+$state)}else{$checked.after++;Assert-EvidenceTest ($state -cne 'deleted' -and [IO.File]::Exists($other.Zip)) ('after failed item '+$state)}
+            }
+            Assert-EvidenceTest ($checked.before -eq 1 -and $checked.after -eq 1) 'order not exercised'
+            $second=Invoke-EvidenceCleanup $Env.ConfigPath
+            Assert-EvidenceTest ((Get-PromotedArtifact $Env $r.Id).state -ceq 'deleted' -and (Get-PromotedArtifact $Env $u.Id).state -ceq 'deleted' -and (Get-PromotedArtifact $Env $x.Id).state -ceq 'failed' -and $second.items[-1].artifactId -ceq $x.Id -and $second.items[-1].reasonCode -ceq 'unconfirmed-artifact' -and -not $Env.Objects.ContainsKey($r.Key) -and [IO.File]::Exists($x.Zip)) ('second run '+(ConvertTo-Json $second -Compress -Depth 5))
+        }
+        'failed-recovery-cleanup-write-failure'{
+            # AC3 (d): a recovery that fails after its match has changed memory leaves disk failed, writes nothing more of the task in that run, and the next run reaches ready.
+            $x=New-PromotedFailed $Env $Selection 'i';$Env.Objects[$x.Key]=$x.ZipBytes;$u=New-PromotedStage $Env $Selection
+            $probe=@{armed=$false;fired=$false};$innerRead=$Env.Readback
+            Set-EvidenceTestValue ArtifactApplication ReadbackHook ({param($op,$c,$gen,$key,$bytes,$hash)$probe.armed=$true;& $innerRead $op $c $gen $key $bytes $hash}.GetNewClosure())
+            Set-EvidenceTestValue EvidencePaths WriteHook ({param($st,$path)if($probe.armed -and -not $probe.fired -and $st -ceq 'before-rename' -and $path.EndsWith('\catalog.json')){$probe.fired=$true;throw 'simulated-write-failure'}}.GetNewClosure())
+            try{$first=Invoke-EvidenceCleanup $Env.ConfigPath}finally{Set-EvidenceTestValue EvidencePaths WriteHook $null;Set-EvidenceTestValue ArtifactApplication ReadbackHook $Env.Readback}
+            $a=Get-PromotedArtifact $Env $x.Id;$cursor=(Read-PromotedDisk $Env).cleanupCursor
+            Assert-EvidenceTest ($probe.fired -and $a.state -ceq 'failed' -and $null -eq $a.receipt -and (Get-PromotedItem $first $x.Id)[0].reasonCode -ceq 'unconfirmed-artifact' -and $first.remaining -ge 1 -and $cursor -ceq $x.Id) ('first run '+$a.state+' '+(ConvertTo-Json $first -Compress -Depth 5))
+            $second=Invoke-EvidenceCleanup $Env.ConfigPath;$a=Get-PromotedArtifact $Env $x.Id
+            Assert-EvidenceTest ($a.state -ceq 'ready' -and $null -ne $a.receipt -and $second.blocked -eq 0) ('second run '+$a.state+' '+(ConvertTo-Json $second -Compress -Depth 5))
+        }
+    }}finally{Reset-PromotedHooks}
+}
 function Set-EvidenceAliasFixture($Env){
     Import-Module (Join-Path $PSScriptRoot '../../Workflow/WindowsStorePaths.psm1')
     $roles=@{}
@@ -144,6 +367,7 @@ function Set-EvidenceAliasFixture($Env){
 foreach($caseName in $selected){$executed.Add($caseName);$child=$null;$signal=$null;try{
     Assert-EvidenceTest ($caseName -cin $registered) 'unknown-case';$env=New-EvidenceTestEnvironment;$fixture=New-EvidenceReaderFixture $env.Root;$selection=[IO.Path]::Combine($env.Root,'selection.json');Write-EvidenceTestJson $selection $fixture.Selection
     if($caseName -cin $stagedCases){Invoke-StagedCleanupCase $caseName $env $selection;continue}
+    if($caseName -cin $promotedCases){Invoke-PromotedCleanupCase $caseName $env $selection;continue}
     $p=Invoke-EvidencePublish $env.ConfigPath $selection;Assert-EvidenceTest ($p.status -ceq 'passed') 'publish';if($caseName -ceq 'fair-object-cursor'){$second=Invoke-EvidencePublish $env.ConfigPath $selection;Assert-EvidenceTest ($second.status -ceq 'passed') 'second publish'};$ref=Read-EvidenceReference $p.reference $env.Config;[IO.File]::WriteAllBytes([IO.Path]::Combine($env.Root,'remote.zip'),$env.Objects[$ref.key])
     $endAt=[DateTimeOffset]::Parse('2026-01-01T00:00:00.0000000+00:00');Set-EvidenceTestValue TaskLifecycle Clock {$endAt}.GetNewClosure();$g=Enter-WorkflowTaskGuard ('a'*64) fixture
     try{if($caseName -cnotin @('active-marker-protected','staging-adoption-success','staging-missing-report')){$null=Invoke-WorkflowTaskTransition ('a'*64) fixture ended 1 fixture-end completed $g};$t=Sync-EvidenceTaskGuarded $env.Config fixture $g;$a=$t.artifacts[0]}finally{$g.Dispose()}

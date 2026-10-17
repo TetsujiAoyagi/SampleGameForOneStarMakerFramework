@@ -62,7 +62,10 @@ function Read-EvidenceTask($Config,[string]$TaskId,$Guard){
         foreach($entry in $a.entries){Assert-EvidenceBudget;Assert-Fields $entry @('path','bytes','sha256');Assert-Hex $entry.sha256 64;if($entry.bytes -lt 0 -or $entry.bytes -gt 256MB){throw 'corrupt-state'}}
         # A locally staged artifact never reached the remote store, so its deletion
         # has no upload receipt to prove. Every other deleted artifact still needs one.
-        if($a.state -cin @('ready','delete-pending') -or ($a.state -ceq 'deleted' -and $origin -cne 'stage')){
+        # A staged artifact whose promotion may have sent bytes (putIntent, no receipt)
+        # is deleted remotely, so its delete-pending has an intent but no receipt.
+        $sentUnconfirmed=$a.state -ceq 'delete-pending' -and $origin -ceq 'stage' -and $null -eq $a.receipt -and $null -ne $a.putIntent
+        if(-not $sentUnconfirmed -and ($a.state -cin @('ready','delete-pending') -or ($a.state -ceq 'deleted' -and $origin -cne 'stage'))){
             if($null -eq $a.receipt){throw 'receipt-missing'}
             $expected=[IO.Path]::Combine((Get-EvidenceTaskDirectory $Config $TaskId),'receipts',$a.artifactId+'.json')
             if((Resolve-EvidenceStoredPath $a.receipt.path) -cne $expected){throw 'receipt-conflict'}
