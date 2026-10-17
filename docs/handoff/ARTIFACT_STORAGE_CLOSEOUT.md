@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（A1 初稿、A2 レビュー 2 件済み。2 件目は 1 件目を読んだ再評価。人間の A3 を経て Phase B へ）
+- status: `A`（A1 初稿、A2 レビュー 3 件済み。2 件目・3 件目は先行を読んだ再評価。人間の A3 を経て Phase B へ）
 - branch: `claude/artifact-storage-closeout`（`origin/develop` の `6ed90d69` から作成済み。ローカルのみで未 push。本文書の A1 初稿が最初の commit `82b0edc5`）
 - planning base commit: `6ed90d69`（`origin/develop`、PR #132 マージ後。ローカルの `develop` は遅れているので先に `git fetch origin develop`）
 - implementation base commit: 未固定（Phase B 開始時に branch の最初の commit を書く）
@@ -18,7 +18,7 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase と役割: Phase A の A3（主担当と owner が §5 の A2 レビュー 2 件、R1〜R10 と B1〜B5・N1〜N6 を採用・不採用・保留に分類して理由を残し、本文を凍結する）→ Phase B。
+  - 次の Phase と役割: Phase A の A3（主担当と owner が §5 の A2 レビュー 3 件、R1〜R10・B1〜B5・N1〜N6・G1〜G8 を採用・不採用・保留に分類して理由を残し、本文を凍結する）→ Phase B。
   - 引き継ぐ commit: branch `claude/artifact-storage-closeout`（`origin/develop` の `6ed90d69` から作成済み）。A1 初稿は最初の commit `82b0edc5`、A2 結果はその次の commit。implementation base は A3 凍結 commit を Phase B 開始時に書く。
   - 次の作業（A3）: R1 は owner が再開条件 3 件を §2 に転記しないと Phase B が AC3 を満たせない。R3・R4・R7・R8 は条件の追加・変更なので、採用するなら §2 / §3 / §4 を改訂してから凍結する。凍結後の Phase B は §4 の順序どおり（先に §4-1 の `store plan` を 1 回）。
   - 必要な権限: 非仮想化の pwsh（owner の端末か、LocalApplicationData が仮想化されない Agent 環境）。資格情報・network・Unity は不要。`store plan` は実ストアの外に manifest を書くだけで、Codex 側 copy を読取専用で開く。
@@ -169,9 +169,33 @@
 | N3 | 文書ごとの残し方。program を削除するなら、PR link だけを運用仕様の唯一の置き場にしない。`review-evidence.md` の `schedule status` は既存の確認への追加で、未登録・仮想化・identity 不一致を自動で直さない。 | 妥当。 |
 | N4 | §0 の branch 欄（「次の担当が切る」）と引継ぎ票（「作成済み」）が食い違う。GitHub に branch は無く、ローカルだけ。 | 妥当。branch はローカルにのみある（未 push）。branch 欄をこの記録と同じ commit で直した。 |
 | N5 | C' の入力が「文書と manifest 要約だけ」では曖昧。対象 commit、A3 凍結本文、最終の文書差分、audit 出力、単位分類の匿名化要約、契約・anchor 比較の結果を揃え、生 manifest と C の所見は入れない。 | 妥当。 |
-| N6 | I2 の検査は PR 本文だけでなく、B / C のログ・表・commit diff の全文に及ぶ。program に具体的なローカル作業 directory の記述があり I2 と矛盾しないか A3 で確かめる。 | 前半は妥当。後半は照合した範囲では当たらない。program には `LocalCache\Local` 等の一般名だけがあり、user 名・package 名・SID の実値は無かった。 |
+| N6 | I2 の検査は PR 本文だけでなく、B / C のログ・表・commit diff の全文に及ぶ。program に具体的なローカル作業 directory の記述があり I2 と矛盾しないか A3 で確かめる。 | 妥当。当初「program に実値は無い」と照合したが誤り。3 件目の指摘のとおり、program §4 B の 1 行にローカル作業 directory の実値がある（照合の検索 pattern が漏らした）。 |
 
 - 推奨の受け入れ境界（A3 の改訂入力）: I1 を「`store plan` と確認操作は両ストアと R2 のデータ・metadata を変更・削除しない。manifest は両ストアの外の新規 path。Evidence の保存・引渡しは別の境界として明示し、生 manifest を扱わない」に、S6 を「両 audit に加えて anchor の解決、契約節の原文比較、`git diff` の変更範囲、公開物の露出検査」に広げる。GO は本スライスが条件を満たしたことだけを意味し、`consolidate` の完了・CURRENT の合流・Cloud 対応を含まない。plan が失敗した時に文書だけを改訂しても GO にしない（§2 判定定義の NO-GO 時の扱いと同じ）。
+
+### A2 レビュー結果（3 件目、独立性制約あり）
+
+- 担当: owner が別サービスで依頼したレビュー（xAI の Grok 4.7。レビュー本文の自己申告）。入力は 1 件目・2 件目を含む本文書の全文で、`develop` 上の実装と文書に照合している。**先行 2 件を読んでいるので独立していない。** アーキテクチャゲートを担当した（新しいクラス・依存・所有者・寿命・公開 API は無く、対象は文書の責務）。
+- 原本: owner の手元（git 管理外）。要約は以下。
+- 総評: この版は A3 で凍結しない。完了宣言の受け入れ条件が、実ストアの入口・README の契約・`content fetch` の残置と合っていない。スライスは完了宣言・実データの plan・README 再編・別 PC 手順・Phase D の 1 文を一つの問いに束ねているので、A3 で見出しの対応表と、plan の結果が文書の合否を止める境界を凍結する。README を分割せず節で再編する判断は妥当。
+
+| # | 指摘 | 確認（記録担当による照合） |
+|---|---|---|
+| G1 | 再開条件 3 件が本文に無い（R1・B5 と同旨）。 | 一致。 |
+| G2 | 完了後も入口が CURRENT のまま残せる。plan の `passed` は CURRENT の存在ではない（R7・B1 と同旨）。 | 一致。 |
+| G3 | S2 の対象が program の status と §4 B〜E だけで、§0（「進行中、後続 B〜D の A3 は別途」）と §5（「残件は A〜D を実装キュー」）が残ると、完了宣言と実装キューが同じ文書に併存する。 | **新規。妥当**。program §0 の status と §5 の残件の文を確認した。 |
+| G4 | AC5 の 7 日清掃は実装と逆（R8・B4 と同旨）。`content fetch` は新規 private operation の `payload/` に書き、Content 清掃はその残置を読まず消さない。 | 一致。`ContentCleanup.psm1` に「content fetchの残置と同じ扱い」で清掃しない旨のコメントがある。 |
+| G5 | S4 は AC5 の 4 手順では示せない。Delivery は Local/LAN directory のほかに manifest digest・contentSet・revision・cache root・disk budget を要し、Player の置き方も AC5 に無い（B3 に加えて入力項目を具体化）。 | 妥当。`20-variant-checkout-workflow.md` §3 の手順 3 がこれらの入力を要求している。 |
+| G6 | §5 の「必要なら manifest を `evidence stage` で渡す」が I1 を破る（B2 と同旨）。 | 一致。 |
+| G7 | README 再編で anchor が切れる。`AGENTS.md` が指す `#エージェント操作の事前承認` の見出し名は残す（R3 と同旨）。 | 一致。 |
+| G8 | AC4 の grep では code を含まない契約文の削除を検出できない（R4 と同旨）。 | 一致。 |
+
+- 同じ改訂で取り込むもの（先行と重ならない点だけ）:
+  - `excluded` の理由 code にも `unrecognized`、`unreferenced-transfer`、`credentials`、`out-of-scope-role`、`revision-locks`、`not-owned`、`consolidation-run` がある。Harness 4 task が単位に入らなければ、その `excluded` の理由を §6 に書く。
+  - manifest の `sourceRoot` と `logicalRoot` は絶対 path なので、§6 にも PR にも写さない。
+  - program §4 B の 1 行にあるローカル作業 directory の実値を、program を改訂するときに公開本文から除く（I2）。
+  - その他（理由 code の転記、日常操作節を行数で決める、管理操作の置き場、`status != passed` の全件停止、Phase D の 1 文の内容、§6 の 3 区分、C' の入力、GO の意味）は 1 件目・2 件目と同旨。
+- 不変条件を破る順序: I1 は plan では破れず、AC1 の文言どおり `evidence stage` する場合と手順外の `consolidate` で破れる。I2 は `sourceRoot` の転記と、program の既存の実値の残置で破れる。I3・I4 は 1 件目と同じ。
 
 ## 6. Phase B 実装結果
 
