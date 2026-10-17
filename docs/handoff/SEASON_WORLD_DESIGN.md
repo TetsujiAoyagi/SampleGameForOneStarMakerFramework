@@ -320,7 +320,7 @@ S-4b で Season_* 4ノードが `World` を置き換え、全セルに Environme
 | N-6 | `unityyamlmerge` ドライバ設定（前提条件ではない） | 任意 |
 | N-7 | ~~AABB の置き場~~ **決定済み（M-1）: `SceneResource` 直下**（`_volume` ＋ `_streamByDistance`）。値は生成器が格子定数から焼くのではなく、Editor がシーン保存フックと全件メニューで `.unity` から自動計算する | [STREAMING_CURRENT_SPEC.md](../streaming/STREAMING_CURRENT_SPEC.md) に harvest 済み |
 | N-8 | **解決済み:** S-4b の生成器と制作 policy は生成後に撤去した。実証項目として復活させない。将来の一括生成は新しい制作スライスで扱う | S-4b |
-| N-9 | 体積収集の範囲。現状は全 `Renderer`（`includeInactive: true`）。Particle / 無効デバッグメッシュで中心が跳ね得る。追加のVFX等が体積へ影響する場合の除外規約は未決 | S-4d3（VFX Scene）のPhase A。以降の制作スライスも同じ規約に従う |
+| N-9 | 体積収集の範囲。現状は全 `Renderer`（`includeInactive: true`）。Particle / 無効デバッグメッシュで中心が跳ね得る。追加のVFX等が体積へ影響する場合の除外規約は未決 | S-4d3（VFX Scene）のPhase A。VFX Scene の保存で Cell の体積が変わるかを確かめ、変わったときだけ除外規約を決める。規約を決めた場合は以降の制作スライスもそれに従う |
 | N-10 | `WorldStreamingController.Candidates` 差し替え口。候補集合は丸ごと作り直す型。現行はSeason枝ごとにdriver / 候補集合を作り直す。in-flightを保持した集合差し替えは未実装の拡張案であり、自動的に追加しない | 必要性が出たスライスのPhase A |
 
 W-4の未決はこの項目だけを保留する。日常のWorld Workspace編集・保存・content再buildを対象に保護を実証するか、一括生成自体が再び必要でN-8の新規制作スライスを先行させるかを所有者が裁定する。ここではいずれも採用しない。昇格対象・非昇格コリドー・編集保護要求を緩和しない。
