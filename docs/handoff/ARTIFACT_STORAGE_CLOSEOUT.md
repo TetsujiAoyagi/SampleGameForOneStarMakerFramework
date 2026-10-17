@@ -7,7 +7,7 @@
 - branch: `claude/artifact-storage-closeout`（`origin/develop` の `6ed90d69` から作成済み。ローカルのみで未 push。本文書の A1 初稿が最初の commit `82b0edc5`）
 - planning base commit: `6ed90d69`（`origin/develop`、PR #132 マージ後。ローカルの `develop` は遅れているので先に `git fetch origin develop`）
 - implementation base commit: `855e3da3`（Phase B 開始時の branch の HEAD。凍結本文 `7b7f243d` と同じ受け入れ境界で、§0 の記録だけが違う）
-- implementation head commit: `__HEAD__`（Phase B の出口の commit）
+- implementation head commit: `4a9a0840`（Phase B の出口の commit）
 - risk: `low`（文書改訂と読取のみの `store plan`。本スライス固有の操作（`store plan` と分類の確認）は実ストア・Codex 側 copy・R2・資格情報へ書込み・削除をしない。レビュー Evidence の通常の保存・引渡しは `review-evidence.md` に従う別の境界で、I1 のとおり）
 - owner: OSM maintainers
 - created: 2026-10-17
@@ -19,8 +19,8 @@
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
   - 次の Phase と役割: 発見 C（Phase B と異なるモデルの新規 session）。Phase B と動作確認（AC1 の `store plan`）は 2026-10-17 に完了し、動作確認の期待との差は無かった（§6）。発見 C は GO 判定をせず、C' を起動しない。
-  - 引き継ぐ commit: branch `claude/artifact-storage-closeout`（ローカルのみ、未 push）の HEAD。implementation head は `__HEAD__`（B の出口の commit）で、その後の commit は §0 の記録だけを変えている。開始時に `git diff --stat __HEAD__ HEAD` が本 HANDOFF だけであることと、`git status --short` で tracked file に差分が無いことを確かめ、食い違えば引き継がずに止める。untracked の `docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md` は本スライス外の文書で、触らない。
-  - 次の作業: 固定した差分 `855e3da3..__HEAD__` を、§2 の I1〜I4・S1〜S7 と AC1〜AC8、§3 の責務マップに照らしてレビューする。AC4 は旧 README（`git show 855e3da3:tools/Artifacts/README.md`）と新 README の節の本文・anchor・reasonCode・S3 の行数と bytes を、AC7 は `git diff --name-only 855e3da3..__HEAD__` を、AC8 は §2 の grep と I2 の語の検査を機械で照合する。S1 は §6 の要約を manifest と照合する（下の取得案内）。
+  - 引き継ぐ commit: branch `claude/artifact-storage-closeout`（ローカルのみ、未 push）の HEAD。implementation head は `4a9a0840`（B の出口の commit）で、その後の commit は §0 の記録だけを変えている。開始時に `git diff --stat 4a9a0840 HEAD` が本 HANDOFF だけであることと、`git status --short` で tracked file に差分が無いことを確かめ、食い違えば引き継がずに止める。untracked の `docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md` は本スライス外の文書で、触らない。
+  - 次の作業: 固定した差分 `855e3da3..4a9a0840` を、§2 の I1〜I4・S1〜S7 と AC1〜AC8、§3 の責務マップに照らしてレビューする。AC4 は旧 README（`git show 855e3da3:tools/Artifacts/README.md`）と新 README の節の本文・anchor・reasonCode・S3 の行数と bytes を、AC7 は `git diff --name-only 855e3da3..4a9a0840` を、AC8 は §2 の grep と I2 の語の検査を機械で照合する。S1 は §6 の要約を manifest と照合する（下の取得案内）。
   - manifest の取得案内: この checkout の git 管理外の手元層（`.gitignore` で除外された作業 directory）にある `ARTIFACT_STORAGE_CLOSEOUT.store-plan-note.md` に、manifest と stdout の絶対 path を書いた。同じ PC で読取専用で開く。path の実値と manifest の中身を tracked 文書・commit・PR・Evidence・C' の bundle へ写さない（I1・I2）。
   - 必要な権限: 読取だけ。資格情報・network・Unity は不要。`store plan` を再実行しない（AC1 は 1 回）。
   - 停止規則: §2 の停止規則と blocker の基準（`phases-and-handoff.md`）。`store consolidate` は dry-run も含めて実行しない。
