@@ -53,6 +53,8 @@ hash 付き bundle を別 worktree / 環境へ渡す場合は、送信元だけ�
 
 Phase Dでは、判定入力、最終のレビュー所見、削除前HANDOFFの必要部分など、採用したEvidenceに未保存分がないことと、取得案内の引渡しを確認する。同一bundleのpublish・取得・閲覧が確認済みなら、その結果を使い、Phase Dのためだけに再publish・再取得・Unity再テストを要求しない。未保存分や転送不備だけを既存経路で解消し、blind入力と所見の分離は維持する。
 
+あわせて、非仮想化のpwshで `pwsh tools/artifacts.ps1 evidence schedule status --profile osm --config <v2-config>` を実行し、Evidenceの日次清掃jobが `passed` を返すことを確認する（仮想化されたhostの担当は非仮想化の担当へ依頼する。未登録や `scheduler-identity-mismatch` など `passed` 以外はこの確認では直さず、ownerが[Artifacts README](../../../../tools/Artifacts/README.md#自動清掃)「自動清掃」の切替手順で処置する）。
+
 保存・引渡し確認後に恒久知見をharvestし、HANDOFFを削除する。task全体の完了/打切りは、人間の決定を処理する既存の通常最終手順で `workflow-task.ps1 end` に記録する。`completed` や配送待ち0は終了イベントの状態であり、Evidence一式の保存済み証明ではない。これは担当者の完了確認であり、Workflow / Storageに証拠網羅性を自動検査する機能があるという意味ではない。
 
 終了済みtaskで未保存Evidenceの保存・利用を再開する場合は、statusを確認して通常のresumeを先に完了する。終了イベントの配送再試行だけなら同じDecision / 内容を使い、再開や新しい終了に読み替えない。詳しい状態と回復手順は [Workflow README](../../../../tools/Workflow/README.md) に従う。

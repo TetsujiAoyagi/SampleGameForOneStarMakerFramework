@@ -3,7 +3,7 @@
 ## 0. Metadata
 
 - type: `program`
-- status: programは進行中。スライスAはPR #109で実装・限定運用検証と正式C/C′を完了（両方GO、blocker 0）。固定仕様と実行集合・原観測の入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。旧限定resetは完了済みで、再実行しない。後続B〜DのA3は別途行う。
+- status: **完了（保留list付き）**。ownerが2026-10-17にArtifact Storageの開発をここで完了と決めた。完了の範囲は同一Windowsユーザー・非仮想化processで検証した基本操作と運用契約（[Artifacts README](../../tools/Artifacts/README.md)冒頭）で、次に実装するスライスは置かない。残りは§6の保留listにあり、再開条件を満たした時にownerが再開を判断する。スライスAはPR #109で実装・限定運用検証と正式C/C′を完了（両方GO、blocker 0）。固定仕様と実行集合・原観測の入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。**注記（合流前、2026-10-17の `store plan`）:** このCURRENTは仮想化されたhost（Codex）が書いた側にだけあり、実ストアには無いので、非仮想化processからは読めない。`store plan` ではこのtaskを含む単位は `hold`（理由 `dependency-held`、`multi-workflow-unit`、`reference-localcache`、`reference-missing`、`reference-out-of-role`）で未合流（§6）。旧限定resetは完了済みで、再実行しない。
 - program policy revision: `r7` — 単一の開発用保存契約にContent種別を追加（§2）。旧データと互換性を引き継がない。
 - branch: `codex/artifact-storage-development-policy`
 - planning base commit: `a027bf04b4f5ce16494b93daf10e5b5bccf15a28` (`origin/develop`; PR #106・#107を含む)
@@ -13,7 +13,7 @@
 - created: 2026-09-26
 - updated: 2026-10-17
 - expires: 2026-12-26 または置換revision（program文書の見直し期限）
-- harvest to: 実装済みの通常操作を `tools/Artifacts/README.md`、program状態を `docs/README.md` へ反映し、program完了時に削除する。
+- harvest to: 実装済みの通常操作を `tools/Artifacts/README.md`、program状態を `docs/README.md` へ反映し、program完了時に削除する。 完了宣言後、Phase Dでこの文書を削除するか、保留listだけを公開面へ移すかはownerが決める。
 
 ## 1. 目的・要件変更・現在地
 
@@ -24,6 +24,8 @@
 この指示を根拠に、r5のlegacy分岐、旧最低保存義務と日程、参照中/参照不明の無期限保持、keyごとの削除承認を置き換える。**PR #107のE1/E2へのIndefinite追加、reader互換、新保護事実recordの実適用タスクは取りやめる。** 過去の方式確認の成果は否定せず、経緯はPR/Git履歴に残す。撤去する方式を一度完成させてから移行する工程は作らない。
 
 現在の実装機能は [Artifacts README](../../tools/Artifacts/README.md) を正とする。スライスAのEvidence v2、workflow taskの終了/再開配送、純粋保持policy、自動清掃と一回の限定resetは検証を完了した。正式C/C′は同じ実装headでGO。検証集合、限定実観測、既知ACL不適合copyの保護によるpartial結果と未確認範囲は、PR #109およびCURRENTの固定記録に残す。
+
+**注記（合流前、2026-10-17の `store plan`）:** ここで言うCURRENT（`artifact-evidence-lifecycle`）は仮想化されたhost（Codex）が書いた側にだけあり、実ストアには無いので、非仮想化processの `harness.ps1 current -Task artifact-evidence-lifecycle` では読めない。`store plan` では `hold`（理由 `dependency-held`、`multi-workflow-unit`、`reference-localcache`、`reference-missing`、`reference-out-of-role`）で未合流（§6）。
 
 - 資格情報管理、Route proof、synthetic publish/fetch、固定E1/E2の別session取得・hash検証・ログ/画像閲覧はPR #76/#81/#96/#104で成立した。
 - PR #106のreader offline可搬性は完了。判定head `19720ed7c6065ffcc55ee2643f811462025a940d`、非秘密dummy fixture、7suite 120/120、3 build、限定不在probe 2/2。現在も役立つ部品・テストを再利用する。
@@ -83,7 +85,9 @@ Content Directory（`transport.json` + `content/`）はPlayerとは独立した�
 
 r6の方針改訂だけではリセットを開始しない。スライスAの実行は固定対象と開始条件、CURRENTの固定入力に従う。旧保存義務がなくなったことを、現rule解除済み・物理データ不存在・任意領域を削除可能という主張に置き換えない。具体的なコマンドはArtifacts README、対象と除外はスライスAの固定仕様で確認する。
 
-## 4. 次に進めるスライス
+## 4. 完了したスライス
+
+各スライスの経緯の全文はPRと、削除前のHANDOFFのcommitにある。各スライスが後続へ送った問いは、§6の保留listへ移した。
 
 ### A. Evidenceの通常利用と期限清掃（完了）
 
@@ -101,137 +105,55 @@ r6の方針改訂だけではリセットを開始しない。スライスAの�
 
 判定は関連Artifacts/Harness offline suiteと限定R2検証。Unityを変更しないため全EditMode回帰は適用外。スライスAのschema/API、file配置、清掃間隔、7日の初期値、リセット対象/操作はA3 r6に固定済みで、Git外CURRENTから取得する。実装時に必要な終了イベント接続だけを扱い、Harness全体の改造へ膨らませない。
 
+**注記（合流前、2026-10-17の `store plan`）:** スライスAのCURRENT（`artifact-evidence-lifecycle`）は仮想化されたhost（Codex）が書いた側にだけあり、実ストアには無いので、非仮想化processの `harness.ps1 current -Task artifact-evidence-lifecycle` では読めない。`store plan` ではこのtaskを含む単位は `hold`（理由 `dependency-held`、`multi-workflow-unit`、`reference-localcache`、`reference-missing`、`reference-out-of-role`）で未合流（§6の「分裂したストアの合流」）。
+
 **停止規則:** 上記の通常利用・期限清掃と一回の切替が成立したら閉じる。Build、Cloud、GUI、常駐broker、別provider、長期保護・互換維持を追加条件にしない。
 
-Aの完了後の小さな追加として、[PR #121](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/121) でEvidence CLIの失敗理由を区別した（判定C GO、最終C′ PASS）。publish・fetch・inspect・use・releaseは、configの読取・検証の失敗を `invalid-evidence-config`、deployment receiptの不在・読取不能を `unknown-deployment`、publishのselectionの読取失敗を `invalid-selection` で返す。相対pathは従来どおり受け付けない。操作は[Artifacts README](../../tools/Artifacts/README.md)にある。後続への入力（所有スライスは未定）:
+Aの完了後の小さな追加として、[PR #121](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/121) でEvidence CLIの失敗理由を区別した（判定C GO、最終C′ PASS）。publish・fetch・inspect・use・releaseは、configの読取・検証の失敗を `invalid-evidence-config`、deployment receiptの不在・読取不能を `unknown-deployment`、publishのselectionの読取失敗を `invalid-selection` で返す。相対pathは従来どおり受け付けない。操作は[Artifacts README](../../tools/Artifacts/README.md)にある。
 
-- cleanup・schedule-install・schedule-statusのconfig失敗のreasonCode（結果の形とexitの意味を変える判断が要る）。
-- receiptの `baselineSha256` 等のhex不正がまだ `unconfirmed` になる。`Read-EvidenceConfig` のtryが広く、想定外の例外も `invalid-evidence-config` になる（fail-closed）。
-- `workflow-task.ps1` は例外messageをreasonCodeに写すため、configを2回読む間に壊れる競合でだけ `workflow-unavailable` が新しいcodeに変わる（受容済み）。
-- 試験範囲の不足: CLI経由のconfig失敗のstdout・stderr、fetch・use・releaseの `unknown-deployment`、guard非取得の直接観測。
-- `EvidenceCleanup.Tests.ps1` の1 caseは `rg` をPATHに要する（READMEに記載）。判定必須で全suiteを流す前に通す。
+Evidence清掃schedulerの登録済みtaskの切替は[PR #129](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/129)で扱った（判定C GO、最終C′（別ベンダー）PASS、2026-10-16）。`schedule install` / `schedule status` が `EvidenceSchedule.psm1` の固定code 9件（`scheduler-identity-mismatch` 等）でthrowしたとき、CLIはstdoutの `{"status":"failed","reasonCode":...}`（exit 1）で返す。allow-listはschedule分岐だけが設定し完全一致でだけ通すので、それ以外の例外は従来どおり `Artifact operation failed.` のみ。`install` は既存taskを直さない設計のままで、identityが変わる3条件（新headのinstall、Store版pwshの更新、config変更）と、ownerが旧taskを `Unregister-ScheduledTask` してから `install` する切替手順を[Artifacts README](../../tools/Artifacts/README.md)「自動清掃」に書いた。
 
-Evidence清掃schedulerの登録済みtaskの切替は[PR #129](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/129)で扱った（判定C GO、最終C′（別ベンダー）PASS、2026-10-16）。`schedule install` / `schedule status` が `EvidenceSchedule.psm1` の固定code 9件（`scheduler-identity-mismatch` 等）でthrowしたとき、CLIはstdoutの `{"status":"failed","reasonCode":...}`（exit 1）で返す。allow-listはschedule分岐だけが設定し完全一致でだけ通すので、それ以外の例外は従来どおり `Artifact operation failed.` のみ。`install` は既存taskを直さない設計のままで、identityが変わる3条件（新headのinstall、Store版pwshの更新、config変更）と、ownerが旧taskを `Unregister-ScheduledTask` してから `install` する切替手順を[Artifacts README](../../tools/Artifacts/README.md)「自動清掃」に書いた。HANDOFFはharvestして削除した（全文は削除前のcommit）。後続への入力:
+### B. 開発Buildと開発Contentの保存と件数管理（完了）
 
-- schedule分岐でもallow-list外のruntime系固定code（`runtime-binding-invalid`・`runtime-path-invalid`・`runtime-binary-mismatch`・`runtime-context-switch-rejected`・`runtime-credential-root-unavailable`・`evidence-deadline`）は伏せたまま。表示するかは「診断の改善」の入力。
-- CLI境界で実測したのは `scheduler-identity-mismatch` だけで、他の8 codeは同じ分岐を通る（C′の残存リスク）。
-- CLIからのtask削除はownerの操作のまま（所有スライス未定）。失敗した `install` は旧headの `runtime/<head>/` を残す（「診断の改善」）。
-
-### B. 開発Buildの保存と件数管理
-
-単一Build publishは[PR #111](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/111)で実装し、offline 60caseと既存実Build 266fileのR2往復・全hash一致を確認、正式C/C′を完了した。現在の入口・成功確定・上限・限界は[Artifacts README](../../tools/Artifacts/README.md#開発build-1件の保存と取得)へ集約し、完了スライスHANDOFFはharvestした。利用中状態・実DELETEとN件清掃は下記のPR #119で接続した（R2上の系列全件一覧は後続のまま）。準備helper失敗による未記録・未送信private残置も有限清掃への入力とする。
+単一Build publishは[PR #111](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/111)で実装し、offline 60caseと既存実Build 266fileのR2往復・全hash一致を確認、正式C/C′を完了した。現在の入口・成功確定・上限・限界は[Artifacts README](../../tools/Artifacts/README.md#開発build-1件の保存と取得)へ集約した。
 
 最初の最小スライスは[PR #110](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/110)の純粋な保持選別policyです。1系列のsnapshotとNから保持・削除候補・保留を決める内部APIとoffline検証は実装済みで、契約は[Artifacts README](../../tools/Artifacts/README.md#開発buildの件数保持policy)へ集約しています。系列・利用状態の収集、policyへの運用接続、実DELETEは下記のPR #119で接続しました。
 
-Player Buildからpublishまでの接続は[PR #115](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/115)の `build collect` で完了しました（正式C GO。C′の証拠不足はownerによるR2の直接観測で解消し、Phase Dで採用）。BS4の配布形Player 1件を `<ArtifactsRoot>/players/<project>/<target>/<configuration>/<buildId>/` へ退避し、`build-info.json` とselectionを生成して既存publishへ渡します。判定用の実Player 266 fileで、実R2往復と再実行時のPUT無しを確認しました。現在の操作は[Artifacts README](../../tools/Artifacts/README.md#bs4-player出力の退避と保存build-collect)にあります。このスライスから後続へ送った問いは次のとおりです。
+Player Buildからpublishまでの接続は[PR #115](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/115)の `build collect` で完了しました（正式C GO。C′の証拠不足はownerによるR2の直接観測で解消し、Phase Dで採用）。BS4の配布形Player 1件を `<ArtifactsRoot>/players/<project>/<target>/<configuration>/<buildId>/` へ退避し、`build-info.json` とselectionを生成して既存publishへ渡します。判定用の実Player 266 fileで、実R2往復と再実行時のPUT無しを確認しました。現在の操作は[Artifacts README](../../tools/Artifacts/README.md#bs4-player出力の退避と保存build-collect)にあります。
 
-- Contentの保存契約は§2の開発Contentでr7として固定した。実装は次のスライスに分ける。Content分離・Content保存・Content取り込み・統合Contentフォルダ・`contentSet`の命名規約は新規、Contentの容量上限と件数保持の運用接続は既存の後続への入力とする。各スライスは着手時にA1から行う。
-  - Content分離: Playerが`content/`を内包しない場合のUnity側の変更（候補は、U1: 今のまま内包して重複保存、U2: 既存の`content:installedRevisionPath`+`content:manifestSha256`の組で外部revision rootを指す、U3: 新しいconfig keyの追加。U2は、外部revision rootがDIST cacheの`installed/`配置とreceiptを要し、BuildIdentity一致を要求する点、baked `relativeDirectory`の扱い、起動時のlatchとの両立を実装スライスで確認する。EditorはUse For Next Playでlocal directoryのrevisionを取り込み元にでき、private なR2はUnityのHTTPの口では直接読めない）、`build collect`の検査・`build-info.json`・selectionの変更、互換キー案の判断。
-  - Content保存は[PR #118](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/118)で完了した（判定C GO。C′の残り1件はownerが非阻害と判断）。`content collect`／`inspect`／`fetch` で、Content出力1件をArtifactsRootへ退避し、file単位objectとしてR2へ置き、別processで取得して全fileのhashを照合する。実Spring出力（219 file、PUT 220、760 s）で最終headの実R2往復を確認した。操作・上限・既知の限界は[Artifacts README](../../tools/Artifacts/README.md#開発content-1件の保存と取得content-collect--inspect--fetch)にある。HANDOFFはharvestして削除した。決めたことと後続への入力は次のとおり。
-    - 決めたこと: 完了確定点はローカルreceiptのrenameだけ（R2に完了マーカーを置かない）。公開は全objectを「子processのGETで照合→404ならPUT→子processの読戻し」の1経路で行い、`transport.json` を最後に置く。target表は `StandaloneWindows64-Player` → `windows-x64-player` の1行。contentSetは小文字英数字とハイフンの安全な部分集合（既存5値は全て入る）。R2 keyは `development/content/v1/<repositoryId>/<contentSet>/<target>/<revision>/`。PlayerとContentの保存順は決めない（Content分離が決める）。途中で止まったR2 objectは「未完了uploadとstaging」に載せず、同じrevisionの再実行で続行する。
-    - 後続への入力: R2側に上書き防止が無く、別PCの同時公開を防がない（Content確定記録）。予算の確認とreceipt確定の間の窓、予算が退避・snapshotの区間に掛からないこと、collectが各fileを約7回読むこと、0 byte fileの拒否、転送中の展開量上限（Contentの容量上限）。公開・取得で残るprivate operationの清掃（未完了uploadとstaging）。content storeが既存directoryのACL不一致を付け直すこと（Build storeは拒否）、各objectの照合結果をoperationに記録しないこと、`existing` 結果に `objects` が無いこと、失敗時の `publish` 表示（下の診断の改善）。4季節 `all-full` の実測（1 revision・約881 object・約22 MiB以下の見積もり）は未実施（Contentの容量上限）。
-  - Content確定記録（Content保存のA3で新設）: 新旧順序とmanifest digestを持つ追記だけの記録の形式と書込み方式（LISTまたは条件付き書込みの要否）、revision削除時の記録の扱い、「最新」の解決の保存側の部分、別PCからの同じrevisionの同時公開の排他。
-  - Content取得と再利用（Content保存のA3で新設）: R2からArtifactsRootへの配置と、その際の不足fileの再利用（既存revisionのhash一致fileの流用）。
-  - Content取り込み: 取り込み元からDIST cacheへの不足fileの再利用（read lease付きのコピー）、cacheのeviction・leaseとの関係、アプリ更新を越えるcacheの永続性、Unityバージョンとroot schemaの束縛、HTTPのfileごとのdeadline。
-  - 統合Contentフォルダ: 取得型／監視型、複数ワークスペースの衝突規則、統合フォルダとArtifactsRootの同一性、共有時の削除主体、ローカル設定と選択UI、「最新」の解決の所有。
-  - `contentSet`の命名規約（Content保存のA1で扱う）: 用途×構成×性能の合成名、既存値`bs4-spring-full`を改名しないこと、大文字小文字とパス要素の安全規則、ブランチやBuild設定から決める方法、hd/sdを1 revisionに同梱した場合の部分取得。
-  - Contentの容量上限: Content固有の上限値、R2のプラン変更の要否、R2の操作回数の枠（file単位objectのPUT数）、R2の途中失敗で残るobjectの孤児回収。上記のBの容量上限の固定（BのA3）の入力とし、Content保存のA0では手元にSpringの出力しか無く、4季節（`all-full` 1 revision）の実測は未実施のままこのスライスへ送った。
-  - 件数保持の運用接続スライス: Contentの実DELETE、利用中状態の収集（保持中Playerとの対応）、保護がNを超えた場合の挙動、系列の退役（イベント終了時のlocal・R2・統合フォルダ・DIST cacheの片付け）、件数保持がR2とローカルのどちらの層に効くか。
-- r7のレビューで挙がり、後続のA1で扱う入力:
-  - 保護の収集源の範囲（ローカルの`players/`の記録の外にある配布済みPlayerや他machineのBuildは収集源に入らない。収集できない場合と存在しない場合を区別する）と、DIST cacheの再取得元であるArtifactsRootの削除規則との関係 → 件数保持の運用接続。保護がNを超えた場合はBuildの超過条項を引き継ぐかもここで決める。
-  - 確定記録を追記だけの記録とするため、revisionを削除したときの記録の扱い → Content確定記録。§5「新規private展開先」と不足fileの再利用の両立 → Content保存で「fetchは常に新規private展開先、再利用はContent取得と再利用が取得fileを再hashして行う」と決めた。
-  - baked targetと、外部revisionの照合に使うtargetを分けて扱うか → Content分離とWindows以外のtargetを扱うスライス。
-- `OSM_ARTIFACTS_ROOT` などを設定する開発環境セットアップscript → 別途のセットアップスライス。
-- ArtifactsRootの件数清掃、異常終了で残る `.staging` の回収 → 件数保持の運用接続スライス。
-- 診断の改善 → 同上の入力。失敗時も `publish` 表示が `published` になる点、相対path 240字超が `unconfirmed` で返る点、build-configの検証と複写が二度読みである点を含む。並行実行の敗者が一致時も `stage-conflict` で止まる仕様も同じく入力とする。
-- Windows以外のtarget値 → transport manifest v1の固定`target`とDIST cacheの配置にtargetの階層が無く対応targetを1つに固定している点の拡張として、扱うスライスは未定（r7は前提として明記した）。端末性能別の系列値は§2の開発Contentで受け止めた。
+Contentの保存契約は§2の開発Contentでr7として固定した。Content保存は[PR #118](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/118)で完了した（判定C GO。C′の残り1件はownerが非阻害と判断）。`content collect`／`inspect`／`fetch` で、Content出力1件をArtifactsRootへ退避し、file単位objectとしてR2へ置き、別processで取得して全fileのhashを照合する。実Spring出力（219 file、PUT 220、760 s）で最終headの実R2往復を確認した。操作・上限・既知の限界は[Artifacts README](../../tools/Artifacts/README.md#開発content-1件の保存と取得content-collect--inspect--fetch)にある。
 
-Buildの件数保持の運用接続は[PR #119](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/119)の `build cleanup`／`use`／`release` で完了した（判定C GO。C′の残り2件はownerが非阻害と判断）。Build系列1つについて、このPCのreceiptと有限期限の利用中保護を集めてpolicyに渡し、Nを超えた古いBuildのR2 objectだけを「削除意図→DELETE→GET 404 `NoSuchKey`→削除済み記録」で消す。読めない記録・未知のentry・時計のずれでは系列全体を止める。実R2で最古1件だけの削除と再実行時の送信0を確認した。操作・契約・既知の限界は[Artifacts README](../../tools/Artifacts/README.md#開発buildの件数清掃build-cleanup--use--release)にある。HANDOFFはharvestして削除した。決めたことと後続への入力は次のとおり。
+- 決めたこと: 完了確定点はローカルreceiptのrenameだけ（R2に完了マーカーを置かない）。公開は全objectを「子processのGETで照合→404ならPUT→子processの読戻し」の1経路で行い、`transport.json` を最後に置く。target表は `StandaloneWindows64-Player` → `windows-x64-player` の1行。contentSetは小文字英数字とハイフンの安全な部分集合（既存5値は全て入る）。R2 keyは `development/content/v1/<repositoryId>/<contentSet>/<target>/<revision>/`。PlayerとContentの保存順は決めない（Content分離が決める）。途中で止まったR2 objectは「未完了uploadとstaging」に載せず、同じrevisionの再実行で続行する。
+- r7のレビューで決めたこと: 「fetchは常に新規private展開先、再利用はContent取得と再利用が取得fileを再hashして行う」（§5「新規private展開先」と不足fileの再利用の両立）。
+
+Buildの件数保持の運用接続は[PR #119](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/119)の `build cleanup`／`use`／`release` で完了した（判定C GO。C′の残り2件はownerが非阻害と判断）。Build系列1つについて、このPCのreceiptと有限期限の利用中保護を集めてpolicyに渡し、Nを超えた古いBuildのR2 objectだけを「削除意図→DELETE→GET 404 `NoSuchKey`→削除済み記録」で消す。読めない記録・未知のentry・時計のずれでは系列全体を止める。実R2で最古1件だけの削除と再実行時の送信0を確認した。操作・契約・既知の限界は[Artifacts README](../../tools/Artifacts/README.md#開発buildの件数清掃build-cleanup--use--release)にある。
 
 - 決めたこと: Nは10の定数（CLI・build-configから変えない）。保護はこのPCの明示記録（最長90日、`build use`／`build release`）とこのPCでの取得中のaccess lockだけ。件数保持はR2のobjectにだけ効き、ローカルの記録は削除済みとして残す。Build DELETEはtransport入口で `BuildRetentionDelete=$true` の印付きrequestだけを通し、Content DELETEは拒否のまま。1回の実行はDELETE 20回・600秒まで。
-- 後続への入力:
-  - Contentの実DELETE、保持中Player（ArtifactsRootの `build-info.json`）からのContent保護の収集、R2のBuildとArtifactsRootのPlayerのどちらを「保持中」とみなすか、確定記録との関係 → 新規「Content件数保持の運用接続」。
-  - ArtifactsRootの `players/`・`content/` の件数清掃、`.staging` 回収、ArtifactsRootの所在の登録 → 「ArtifactsRootの件数清掃と `.staging` 回収」（独立スライスとして扱う）。
-  - 系列の退役 → 完了（PR #124。下の「系列の退役」）。検証用系列 `retention-probe/*` の40 objectは同PRのAC15で回収した。
-  - 自動起動（scheduler接続）とNの系列ごとの設定 → 新規「件数清掃の自動起動」。
-  - 単調なpublish順序の記録（時計巻戻りへの耐性） → Content確定記録。
-  - 「DELETE → GET 404 → 記録」の共通primitive化（Evidence清掃・reset・Build清掃・将来のContent） → Content件数保持の運用接続のA1。
-  - receiptの無い（未完了の）Buildの `intent.json` をどこまで検査するか（AC2の分類とAC4(a)の文言の隙間。C′の指摘でownerが現スライスでは直さないと判断） → 件数保持の運用接続の残り。
-  - 別PCのpublishを数える、R2一覧、孤児回収（storeを失ったPCのBuildを含む） → Contentの容量上限の孤児回収と、R2一覧の要否。
 
-Contentの件数保持の運用接続は[PR #123](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/123)の `content cleanup` で完了した（判定C GO、最終C′ PASS）。Content系列1つについて、このPCのreceiptと保持中Playerからの保護を集めて同じpolicyに渡し、Nを超えた古いrevisionの全objectを「削除意図→`transport.json`のDELETE→GET 404で確定→残りのobjectをGET→DELETE→GET 404→削除済み記録」で消す。実R2で検証用系列 `retention-probe-1` の最古1 revisionだけの削除（DELETE 2・GET 3）と再実行時の送信0を確認した。操作・契約・既知の限界は[Artifacts README](../../tools/Artifacts/README.md#開発contentの件数清掃content-cleanup)にある。HANDOFFはharvestして削除した。A3の決定はowner不在中に主担当が代行し、ownerがPhase D完了の指示で追認した。決めたことと後続への入力は次のとおり。
+Contentの件数保持の運用接続は[PR #123](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/123)の `content cleanup` で完了した（判定C GO、最終C′ PASS）。Content系列1つについて、このPCのreceiptと保持中Playerからの保護を集めて同じpolicyに渡し、Nを超えた古いrevisionの全objectを「削除意図→`transport.json`のDELETE→GET 404で確定→残りのobjectをGET→DELETE→GET 404→削除済み記録」で消す。実R2で検証用系列 `retention-probe-1` の最古1 revisionだけの削除（DELETE 2・GET 3）と再実行時の送信0を確認した。操作・契約・既知の限界は[Artifacts README](../../tools/Artifacts/README.md#開発contentの件数清掃content-cleanup)にある。A3の決定はowner不在中に主担当が代行し、ownerがPhase D完了の指示で追認した。
 
 - 決めたこと: 保持中Playerは、このPCの `builds-v1` のBuild（削除済みと読めたもの以外。状態を読めないものも保護）とArtifactsRootの `players/` のPlayer（`build collect` のstagingを含む）の両方とし、buildIdとrevisionの末尾32 hexで照合する（`build-info.json` の中身は読まない。過剰保護側）。ArtifactsRootは必須。明示の保護（use／release）と取得中の保護は足さない。`transport.json` のGET 404を確定点にし、確定点の後は候補・保護の判定によらず残りを消し切る。中断したrunの観測は記録しない（Phase A revision 2）。保護がNを超えた場合はBuildの超過条項を引き継ぎ、件数保持はR2のobjectにだけ効く。観測の写像と記録の観測検査は `ArtifactDeletion.psm1` に共通化した（Evidence清掃・resetは寄せない）。Content DELETEは `ContentRetentionDelete=$true` の印付きrequestだけを通す。receiptの無いBuildのintentは所属5 fieldだけを検査することをREADMEに契約として書いた（PR #119のC′指摘の決着）。確定記録には触れず、削除の正本はローカルの `deletion/` 記録。
-- 後続への入力:
-  - 系列の退役 → 完了（PR #124。下の「系列の退役」）。検証用60 objectの回収と、照合scriptの独立化（期待keyをreceiptから作る、記録の連鎖で再判定）も同PRのAC15で行った。
-  - 診断の改善: run全体のcatchで `catalog-incomplete` が `unconfirmed` になる、終了時snapshotがblockedのとき同じrunの削除済みが分類に出ない、成功revisionの `publish.lock` 欠落で系列全体が止まりinspectが `receipt-unavailable` になる、観測fieldのgenerationのscalar型検査、同時刻の未解決試行を再開する順がAC3のtie-break（最古から）と逆である点（外部レビュー。I1〜I3には当たらない）。
-  - Evidence task catalogの上限: 1,000 file超のbundleをpublishすると、task の `catalog.json` が1 MiBの記録上限に近づき、以降のfetchが `record-limit`（外からは `unconfirmed`）で失敗する。PR #123では同じbundleを1 fileのZIPにまとめて保存し直して回避した。所有スライスは未定。
-  - Content確定記録: revision削除時の記録の扱いは、削除の正本（ローカル `deletion/`）を参照するか削除を追記するかを確定記録の側で決める。
 
-系列の退役は[PR #124](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/124)の `build retire`／`content retire` で完了した（判定C 阻害0、最終C′（別ベンダー）阻害0、ownerがGO。2026-10-16）。ownerが指示ID（Workflowの `Decision` 書式）で明示した系列1つについて、系列ごとに1件の不変の退役記録（`retirements-v1/…`）を残し、このPCの成功記録にあるR2 objectを保護中のものを除いて既存の削除試行で消し切る。退役後の系列はpublish・collect・useが `series-retired` で止まり、cleanupは退役の選別で動く。退役記録を確認できなければ `retirement-unknown` で止まる（fail-closed）。実R2で検証用5系列（Build 4・Content 1、計60 object）を退役させ、判定Cの独立照合script（期待keyをreceiptから作り、削除を記録の連鎖で再判定。合成fixtureの不合格例を含む）が全19 checkで合格、再実行の送信0、実系列の記録不変を確認した。操作・契約・既知の限界は[Artifacts README](../../tools/Artifacts/README.md#系列の退役build-retire--content-retire)にある。HANDOFFはharvestして削除した（全文は削除前のcommit）。決めたことと後続への入力は次のとおり。
+系列の退役は[PR #124](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/124)の `build retire`／`content retire` で完了した（判定C 阻害0、最終C′（別ベンダー）阻害0、ownerがGO。2026-10-16）。ownerが指示ID（Workflowの `Decision` 書式）で明示した系列1つについて、系列ごとに1件の不変の退役記録（`retirements-v1/…`）を残し、このPCの成功記録にあるR2 objectを保護中のものを除いて既存の削除試行で消し切る。退役後の系列はpublish・collect・useが `series-retired` で止まり、cleanupは退役の選別で動く。退役記録を確認できなければ `retirement-unknown` で止まる（fail-closed）。実R2で検証用5系列（Build 4・Content 1、計60 object）を退役させ、判定Cの独立照合script（期待keyをreceiptから作り、削除を記録の連鎖で再判定。合成fixtureの不合格例を含む）が全19 checkで合格、再実行の送信0、実系列の記録不変を確認した。検証用系列 `retention-probe/*` の40 objectと、Content件数清掃の検証用60 objectも同PRで回収した。操作・契約・既知の限界は[Artifacts README](../../tools/Artifacts/README.md#系列の退役build-retire--content-retire)にある。
 
 - 決めたこと: 起点はownerの明示指示だけ（イベント終了の自動検知はしない）。退役は事前承認の通常操作に含めず、ownerが系列と指示IDを明示した範囲でだけ実行する。取消は無い。退役は保護を外さず、保護中・未完了が残れば `retired-held`。消すのはR2のobjectだけで、ローカル記録・ArtifactsRoot・統合フォルダ・DIST cacheには触れない。結果JSONは件数清掃と同じ固定fieldで、`mode`（`retention`／`retirement`）を件数保持の結果にも常に出す。Buildの系列不明の未完了は `held` に混ぜず `unattributed.count` に出す。
-- 後続への入力:
-  - suiteのhermetic化: 既存suiteは `SeriesRetirementStore` のテスト用rootを注入せず、実storeの `retirements-v1` を読む（テスト用root未設定時はLocalApplicationDataへフォールバック）。実系列を退役させた環境では、その系列名を使うsuiteが `series-retired` で落ちうる。既定でTestRootを注入する整理へ。
-  - 退役確認の規則が2か所（Buildの `Assert-BuildSeriesActive`、Contentのinline）にある。1つにまとめる候補。
-  - Contentのcleanup結果で、退役の `protected` が `held` と `protected` の両方に出る（表示上の重複。判定には影響しない）。
-  - R2-a: 退役記録を読む前に止まるcleanupと `retirement-unknown` のblockedは `mode=retention` を返す（選別をしていない結果の既定値）。未確定時の `mode`（null等）かREADMEの一文を、次に結果の形を触るときに決める。
-  - R1-a: `store plan`／`consolidate` の名前表に `retirements-v1` が無く `unrecognized`（`excluded`）に載る。挙動は安全側。次に合流の名前表を触るときに登録する。
-  - Content collectの退役確認は開始時の1度で、退役記録の確定前に確認を通った処理は確定後に送信へ進みうる（READMEのknown limits。凍結条件は確定後に始まるcollectの拒否）。
-  - Evidence bundleの加工: Buildのpublish intentはpath置換した写しなので `receipt.intentSha256` との結び付きをbundle内で再計算できない（判定Cは原記録に対して照合済み）。証拠の加工規則の入力。
-  - 判定evidenceの命名（J-a）: suite結果を `Credentials.json` の名で置くと `evidence stage` が保護名規則で `unconfirmed` になる（理由は出ない）。review-evidenceの改名規則で対処した。
-  - Evidenceの診断（J-b・J-c）: `evidence stage` はtaskのcatalog（1 MiB）に全entryを載せるので約1,100 fileのbundleは `record-limit` で失敗し `unconfirmed` だけを返す（zipにまとめて回避）。古いBuildの `inspect`／`fetch` はpublish時のbuild-configと同じbytesを要し、書き直したconfigでは `receipt-unavailable` で理由が出ない。`build use` の `--until` は往復形式だけ。いずれも「診断の改善」の入力。
-  - AC15の残置: 失敗したfetch 50件のoperationと拒否された `content collect` の空operationがtransfersに残る（既存の扱いどおり）。実行器の作業directory（`D:\osm-ac15`、`D:\osm-ac15-r2`、git管理外）は残してある。
-  - Evidence清掃schedulerの切替手順とCLIの失敗理由の表示 → PR #129（別スライス）。
+- 残置: 退役の検証で失敗したfetch 50件のoperationと、拒否された `content collect` の空operationがtransfersに残る（既存の扱いどおり）。実行器のgit管理外の作業directoryも残してある。
 
-既存Build出力を普通のpath/metadataとして受け、成功publish、別process fetch/hash、最新N件と利用中の保持、失敗publish時の既存保持を確認する。Nの既定値案10件、系列識別、容量上限をBのA3で固定する。大容量に必要なmultipartは対象サイズに応じて扱い、BuildSystemの作り直しを前提にしない。
+### C. Evidenceのローカル固定とR2昇格（完了）
 
-### C. 別host / Cloud
+**ローカル固定は完了（PR #128、2026-10-16）。** 同一PCの担当間は `evidence stage`（state `staged`、R2・資格情報不使用）と fetch の local 分岐で固定入力を渡し、`osm-workflow` は公開点だけ push する規則になった。操作は `tools/Artifacts/README.md` の「ローカル固定」、規則は `osm-workflow` 本文を正とする。共有storeで `evidence stage` を使い始める前に README の導入手順（`schedule status` → 新headで `schedule install`）を行う。経緯の全文は削除前のHANDOFF（`docs/handoff/ARTIFACT_EVIDENCE_LOCAL_STAGE.md`、commit `72a8b0c`）。
 
-必要な環境から個別に、到達性、限定grant、無人保存/取得、ログ/画像閲覧を確認する。未成立は当該環境の未対応として残し、ローカル利用を止めない。親鍵を通常file/promptへ複写せず、platform仕様は着手時に再確認する。
+**R2昇格の送信は完了（PR #130、2026-10-17）。** `evidence promote` が `staged` のartifactを同じreference・packageSha256・bytesのままR2へ置き、取得案内は `locality` を `promoted` に変えるだけで済む。PUT応答不明は同keyへ再送せず、既存の `put-pending` 回復へ接続した。操作と既知の制限は `tools/Artifacts/README.md` の「R2への昇格（evidence promote）」、配布の規則は `review-evidence.md` の「保存先とリモートへの配布」を正とする。経緯の全文は削除前のHANDOFF（`docs/handoff/ARTIFACT_EVIDENCE_R2_PROMOTION.md`、commit `b44d5f6`）。
 
-目的はCloud Agent・別PCからのEvidence閲覧で、Evidenceを公開しない（2026-10-11 owner）。Buildの件数清掃（PR #119）からの入力: 別PC・Cloudと共有する利用中保護（R2上の保護記録）、Evidenceが参照するBuildの保護、Cloudに削除権を渡さないこと。論点はtokenの受け渡し方法。第一候補は、受け取る側の環境に読み取り専用・bucket限定のtokenを登録する方式。署名付きURLは、発行主体（誰が親鍵を持って発行するか）とURLを届ける経路が未解決。
+**昇格の回復と送信済み `staged` の寿命は完了（PR #131、2026-10-17）。** 昇格由来（`origin: stage`）の `put-pending` と、旧runtimeが作った回復できる `failed` は、回復GETの404で `staged`（putIntent保持）に戻る。その後はlocal fetchと、同じbytes・同じkeyへの再昇格ができる。回復できる `failed` を回復するのは、そのartifact自身のpromote・fetchと日次清掃だけ。putIntentを持つ `staged` は、remote DELETEとGET 404を経てだけ `deleted` になる。保持判定と削除経路の振り分け（`Get-EvidenceDeletionRoute`）は分けた。publish由来の挙動は変えていない。操作・回復の規則・残存リスク・導入手順は `tools/Artifacts/README.md` の「R2への昇格（evidence promote）」「終了・再開・利用中と清掃」「自動清掃」、配布の規則は `review-evidence.md` の「保存先とリモートへの配布」を正とする。共有storeで新しいshapeが生じる前に、README の導入手順（`schedule status` → 新headで `schedule install`）を行う。経緯の全文は削除前のHANDOFF（`docs/handoff/ARTIFACT_EVIDENCE_PROMOTE_RECOVERY.md`、commit `749c238d`）。
 
-**ローカル固定は完了（PR #128、2026-10-16）。** 同一PCの担当間は `evidence stage`（state `staged`、R2・資格情報不使用）と fetch の local 分岐で固定入力を渡し、`osm-workflow` は公開点だけ push する規則になった。操作は `tools/Artifacts/README.md` の「ローカル固定」、規則は `osm-workflow` 本文を正とする。マージ後、共有storeで `evidence stage` を使い始める前に README の導入手順（`schedule status` → 新headで `schedule install`）を行う。経緯の全文は削除前のHANDOFF（`docs/handoff/ARTIFACT_EVIDENCE_LOCAL_STAGE.md`、commit `72a8b0c`）。後続スライス `Artifact Storage / Evidence 昇格と Cloud 配布`（本節と組でA1から）への入力:
+Cloud・別PCがR2から取得する経路とtokenの受け渡しは未着手で、§6の保留listにある。
 
-- 同じartifactを同じbytesでR2へ昇格する経路（送信）はPR #130で完了した（下の「R2昇格の送信」）。404後の回復・再送と送信済み `staged` の寿命は、そこに書いた後続スライスへ移した。
-- fetch の local / remote の選択は preflight 前の catalog の読取りで決まる。昇格で同じ呼び出しの途中に `staged` が `ready` になる経路を足すときは、この選択が古いまま拒否にならないこと。`unknown-state` の検査は state が `staged` の間だけ働く。
-- `use` / `release` の preflight は network 形のまま（I1 の対象は stage と local fetch だけ）。README の事前承認の一文は `use` も network を使わないと読め、実装より広い。一文を stage・local fetch・release・満了清掃に絞るか、`use` に network 無しの preflight を加えるかを決める。
-- `changes.patch` は commit と同じ範囲で、`.gitignore` に該当する未追跡fileを含まない（凍結手順 `git add -A` のとおり）。含める必要があるかは未決（ownerは個別の裁定なしで現状のままマージを指示）。fileに改行を含むpathの列挙も未確認。
-- 満了削除後、採用済みstagingのentryが `staging-protected` のままcatalogに残る（`ready` 由来と同じ既存挙動）。端末喪失に備えた未昇格 `staged` のbackupはHarness H3。`ready` のローカルcopyからのnetwork無しfetchは §4 A の後続。
-
-**R2昇格の送信は完了（PR #130、2026-10-17）。** `evidence promote` が `staged` のartifactを同じreference・packageSha256・bytesのままR2へ置き、取得案内は `locality` を `promoted` に変えるだけで済む。PUT応答不明は同keyへ再送せず、既存の `put-pending` 回復（一致 → `ready`、GET 404 → `failed` で凍結・非削除）へ接続した。回復・保持・清掃・catalog検査のコードとtransportは変えていない。操作と既知の制限は `tools/Artifacts/README.md` の「R2への昇格（evidence promote）」、配布の規則は `review-evidence.md` の「保存先とリモートへの配布」を正とする。経緯の全文は削除前のHANDOFF（`docs/handoff/ARTIFACT_EVIDENCE_R2_PROMOTION.md`、commit `b44d5f6`）。Cloud・別PCがR2から取得する経路とtokenの受け渡しは未着手（本節の冒頭の論点のまま）。後続スライス `Artifact Storage / Evidence 昇格の回復と送信済み staged の寿命`（A1から）への入力:
-
-- 問い: 昇格由来の `put-pending` / `failed` が、回復GETの404の後に `staged` へ戻って同じbytesで再送・local fetchでき、送信を試みた `staged` がremote DELETEとGET 404を経てだけ `deleted` になるか。入力は旧HANDOFF revision 2（commit `8494c791`）のD3（同じbytesの再送の許可とpublishの再送禁止との区別）、D4 (i)(ii)、D5（保持policy、削除経路の選択をCleanupへ、照合GET一致 → `staged`、削除後の遅延PUTの受容）、D6（fetchの取得元をpreflight後に決め、reasonCodeも最終の取得元で出す）、D8（catalogの組み合わせ検査）、D11（runtime切替）と、既存ケース `staged-unsent-required` の1行目の変更。revision 2 のA3裁定 (1)(2)(5) は再確認の対象。
-- 制約: 回復（404 → `staged`）と保持policy・削除経路・清掃の振り分けを同じスライス・同じcommitに置く（片方だけだと送信を試みた `staged` がローカル削除に乗るか削除不能になる）。D8で `origin: stage` の `failed`（putIntentあり・receipt無し）を `corrupt-state` にしない（今のruntimeが回復の404で正当に作るshape）。回復GET一致時に「中のfileが全て `ownedCopies` に入ったstagingだけをadopted」を既存の `Resolve-EvidencePutGuarded` へそのまま入れると、publish由来のstaging（`readback-process.json` 等は `ownedCopies` 外）が7日清掃で消えてtaskが `changed-copy` で止まる。originで分けるか「今回の回復に使ったstagingだけ」に言い換える。
-- 既知の残り: 既存回復がreceiptを再利用するときの照合はkey・packageSha256・manifestSha256の3つに限られる。回復一致時にpromoteのreadback stagingが未登録file（readbackのmarker等）ごとadoptedになる。書込みAの後に止まり回復GETが404の場合、promoteのreadback stagingは `operation` を持ったまま `failed` 後の7日清掃に乗る。前回の試行がreceiptを書いた後にobjectが外部で消えた場合のreceipt再利用は優先度が低い（次の回復が自己回復する）。
-- 送信部の共有（`EvidenceSend.psm1`）は送信まわりを整理するときの入力（所有スライス未定）。promoteの送信手順は `EvidenceApplication.psm1` の独立した内部関数にしてあり、機械的に抽出できる。共有のときは、再利用するintentの `createdAt`・`process` の型の検査をpublishと揃える。既存publishの404 → `failed` で残るremote residueの回収はContentの容量上限・孤児回収の入力。
-- 検証まわり: offlineテストのAC4（別processのZIP書込み）は同じprocess内の共有違反、AC1の別process readbackは `ReadbackHook` で代替している（実childのreadbackは実R2の判定で通った）。一部のsuiteは集計行だけを出し、判定ログからcase名を復元できない（Harnessの改善の入力）。
-
-**昇格の回復と送信済み `staged` の寿命は完了（PR #131、2026-10-17）。** 昇格由来（`origin: stage`）の `put-pending` と、旧runtimeが作った回復できる `failed` は、回復GETの404で `staged`（putIntent保持）に戻る。その後はlocal fetchと、同じbytes・同じkeyへの再昇格ができる。回復できる `failed` を回復するのは、そのartifact自身のpromote・fetchと日次清掃だけ。putIntentを持つ `staged` は、remote DELETEとGET 404を経てだけ `deleted` になる。保持判定と削除経路の振り分け（`Get-EvidenceDeletionRoute`）は分けた。publish由来の挙動は変えていない。操作・回復の規則・残存リスク・導入手順は `tools/Artifacts/README.md` の「R2への昇格（evidence promote）」「終了・再開・利用中と清掃」「自動清掃」、配布の規則は `review-evidence.md` の「保存先とリモートへの配布」を正とする。共有storeで新しいshapeが生じる前に、README の導入手順（`schedule status` → 新headで `schedule install`）を行う。経緯の全文は削除前のHANDOFF（`docs/handoff/ARTIFACT_EVIDENCE_PROMOTE_RECOVERY.md`、commit `749c238d`）。後続への入力（どれも凍結条件への違反ではない）:
-
-- 診断の改善: 回復できない `failed` への cleanup の試行が残す operation は、その cleanup process の生存中だけ、同じ task の他の artifact の network 付き preflight を `operation-pending` で止めうる（R3 が残置を明示）。同じく後続: `put-pending` の回復が解決しない間に task 全体の network 付き操作が止まる既存挙動、publish 由来の remote 削除の確定順序（GET 404 の後に copy を消してから `deleted` を書く）、catalog の組み合わせ検査の厳格化。
-- 送信まわりの整理: 削除 intent の照合 GET が一致して `staged` に戻った artifact を resume して promote すると、object が在る key へ同じ bytes を PUT する（安全だが「re-PUT は 404 の後だけ」の前提の外。偽 transport の `duplicate-put` の扱いを含めて A で決める）。receipt 再利用の照合の拡張、`EvidenceSend.psm1` の共有、intent の `createdAt`・`process` の型検査。
-- テスト: 回復できる `failed` の fixture と promote 停止の helper が `ArtifactEvidence.Tests.ps1` と `EvidenceCleanup.Tests.ps1` に重複している（`EvidenceTestSupport.ps1` へ移す）。`Get-EvidenceDeletionRoute` の `catch{}` が fail-closed で `none` にする理由をコメントにする。
-- Content の容量上限・孤児回収: 削除の後に遅れて確定した object（R2 上の追跡外 object）の回収。
-
-### D. BuildSystem / Harness接続
-
-外部CLIを主入口にUnityを交換可能なbackendとして接続する。H2d/H3・CURRENT連携、同じ実体の所有権整理は必要になった範囲で行う。Storage単独の利用をUnity GUIやEditorに依存させない。Unityテスト/BuildのPhase責任と既知native終了stallの調査停止規則を維持する。
-
-各スライスは担当・責務配置・変更file・発見用/判定必須テストをHANDOFFへ固定する。H1/CURRENT方式は各A3で明示する。ここはprogramであり、実装スライスのA3済みとは扱わない。
-
-### E. 仮想化 host と分裂したストア（実装・正式C/C′完了。後続は未着手）
+### E. 仮想化 host の判定と分裂したストアの合流機能（完了）
 
 PR #126 で、3つのCLI（artifacts / workflow-task / harness）がstoreに触れる前にAppData書込みの仮想化を判定して拒否するようになり、すでに分かれた記録を安全に合流する `store plan` / `store consolidate` が入った。判定の方式と実行条件は `tools/Artifacts/README.md` の「実行するprocessの条件（AppData仮想化）」と「分裂したストアの合流」を正とする。実環境で分かったこと: 仮想化されたprocessの新規fileの書込み先はpathごとに違い、実体側にだけあるdirectoryの中では実体側へ書かれる。そのため固定名のprobe領域は誤判定の原因になり、呼出しごとの一意名の新規directoryで判定する。実環境の確認（Codex内のAC4とClaude内のAC5）は、事前実行との間隔を詰め、一つの時刻付きログに前後の一覧を残さないと証拠として成立しない。
 
-後続（所有スライスは着手時にA0で確定する）:
-
-- **Artifact Storage / Split Store Recovery:** 実ストアへの合流の実行と、取得の回復。最初の手順は読取りだけの `store plan` を実データに1回行い、対象の単位がACL・JSON検査・`multi-workflow-unit`・`workflow-already-visible` のどれで保留されるかを確定すること。保留した単位の扱い（公開途中の不可視性を保つ方式）は、必要なら別の設計スライスに分ける。実ストアの鍵で認証に失敗した場合は資格情報の複写・置換で直さずownerへ返す。
-- **Artifact Storage / Virtualized Host Route:** 仮想化されたhost（Codex等）からStorageを使う新しい実行経路・保存先。資格情報の保存先・ACL・DPAPIの前提を変えうる。入力: `LocalCache\Local` が無い初回状態での判定（未観測。危険として受け入れ済み）、LocalAppData自体がjunctionのhostでの誤判定、Codex内の仮想化の仕組み。
-- **Codex側残置の後始末:** 合流済みの記録のCodex側copyの扱い（保持・削除・期限）。Storageの30日清掃はCodex側に届かない。定期清掃jobのbindingと、Codex側だけにある記録の清掃が行われていないことの再確認。
-- **Evidence task catalog:** 1,000 file級のbundleによるcatalog 1 MiB上限（上の「Evidence task catalogの上限」）の所有スライスは未定。運用上は新しいtaskIdでpublishし直し、bundleを1つのZIPにまとめて回避した。未採用で実体の無いstagingがpublish・end・cleanupを止める問題は、欠落stagingの回復スライスで解消した（挙動は `tools/Artifacts/README.md`）。
-- Harness CURRENTの合流方式、`invalid-evidence-path` 等の仮想化以外のpath不一致の診断を `unconfirmed` から分けるか。
+実データへの読取のみの `store plan` は2026-10-17に1回行った（結果は§6の「分裂したストアの合流」）。`store consolidate` は実行していない。
 
 ## 5. 責務・残す安全性・採否
 
@@ -246,8 +168,54 @@ PR #126 で、3つのCLI（artifacts / workflow-task / harness）がstoreに触�
 
 **採用しないもの:** 未終了Evidenceの年齢による強制削除、lease/heartbeat/定期owner承認、無条件bucket全消去、削除拒否時の自動rule解除。気軽な開発用途でも、利用中・原source・無関係な領域を壊す理由にはしない。
 
-**残件:** A〜Dのみを実装キューとする。旧probe/試験rule/生成物の整理はAの一回のリセットへまとめる。公開synthetic Release `artifact-probe-20260926` は別サービスのため必要時の個別後始末とし、Storage清掃にGitHub Releases操作を足さない。旧レビューの任意テスト強化や操作性候補は関連コードを直す際に必要性を評価し、全件を次の必須条件にしない。
+**残件:** 次に実装するスライスは置かない。後続は§6の保留listに再開条件付きで置き、条件を満たした時にownerが再開を判断する。旧probe/試験rule/生成物の整理はAの一回のリセットへまとめる。公開synthetic Release `artifact-probe-20260926` は別サービスのため必要時の個別後始末とし、Storage清掃にGitHub Releases操作を足さない。旧レビューの任意テスト強化や操作性候補は関連コードを直す際に必要性を評価し、全件を次の必須条件にしない。
 
 **レビュー:** r5までのレビューは旧前提への結果としてPR履歴に残す。r6は今回の要件変更に対するPhase A改訂で、旧レビューの合格を新しい方針の合格へ読み替えない。3文書の独立A2は、終了イベントの所有、単一保持契約、リセット対象、未実装との区別を確認しblockerなし（同一継承モデル・同系列の制約あり、C′ではない）。実装・実データ操作は今回の対象外。
 
-**文書改訂のPhase D:** ownerは2026-10-08にPR #108のPhase D完了・後始末・マージを指示した。最終方針head `f53c7216980a8dc27b69fd3a917429cb786060c2` の追加レビューは指摘2件解消・blockerなし、docs/contract/diff検査は問題なし。これを実装のC/C′ GOやリセット実行承認とは扱わない。保存方針と開始条件はArtifacts READMEとAGENTSへ反映済み。進行中programのため本書はowner・見直し期限・harvest先付きで保持し、次スライスへの入力とする。
+**文書改訂のPhase D:** ownerは2026-10-08にPR #108のPhase D完了・後始末・マージを指示した。最終方針head `f53c7216980a8dc27b69fd3a917429cb786060c2` の追加レビューは指摘2件解消・blockerなし、docs/contract/diff検査は問題なし。これを実装のC/C′ GOやリセット実行承認とは扱わない。保存方針と開始条件はArtifacts READMEとAGENTSへ反映済み。その後のスライスの間、本書はowner・見直し期限・harvest先付きで保持し、2026-10-17の完了宣言の後は保留listを持つ文書として残す。
+
+## 6. 保留list（再開条件付き）
+
+ownerは2026-10-17に、Artifact Storageの開発はここで完了と決めた。以下は次の仕事の一覧ではない。各項目は、下の再開条件のどれかを満たした時にだけ、ownerが再開を判断する。
+
+- 再開条件（2026-10-17にownerが採用）:
+  - RC1: エンジン側スライス（S-5 / S-8 / S-9、InGame 縦糸）が Storage の不足で実際に止まった。
+  - RC2: 同じ障害が実運用で 2 回以上起き、既存の reasonCode と README の手順で回復できなかった。
+  - RC3: Cloud / 別 PC の読み手が実際に稼働を始めた（HANDOFF に担当として割り当てられた）。
+  - 再開は、どれかを A0 に観測事実（日付・task・reasonCode）付きで書けた時に限る。仮定上の障害では再開しない。
+  - 安全上の例外: 秘密の露出、保護対象の誤削除など既存の安全契約に違反したことが確認された場合は、RC1〜RC3 を待たず初回で該当操作の利用を止め、owner が評価する。これは機能開発の再開条件ではなく、保留listの項目にもしない。
+
+### 取得経路と配布
+
+- **Cloud・別PCからの取得** — Cloud Agent・別PCがR2からEvidenceを閲覧する経路（Evidenceは公開しない。2026-10-11 owner）と、Build・Contentの取得。論点はtokenの受け渡しで、第一候補は受け取る側の環境に読み取り専用・bucket限定のtoken（R2 Object Read only）を登録する方式。署名付きURLは発行主体（誰が親鍵を持って発行するか）とURLを届ける経路が未解決。必要な環境ごとに到達性、限定grant、無人保存/取得、ログ/画像閲覧を確認し、未成立は当該環境の未対応として残してローカル利用を止めない。親鍵を通常file/promptへ複写しない。入力: 別PC・Cloudと共有する利用中保護（R2上の保護記録）、Evidenceが参照するBuildの保護、Cloudに削除権を渡さないこと、`ready` のローカルcopyからのnetwork無しfetch、R2 lifecycleの採用、別PCのpublishを数えることとR2一覧の要否。再開: RC3。判断: owner。
+- **Virtualized Host Route** — 仮想化されたhost（Codex等）からStorageを使う新しい実行経路・保存先。資格情報の保存先・ACL・DPAPIの前提を変えうる。入力: `LocalCache\Local` が無い初回状態での判定（未観測。危険として受け入れ済み）、LocalAppData自体がjunctionのhostでの誤判定、Codex内の仮想化の仕組み。再開: RC1（仮想化hostの担当がStorageを使えずにエンジン側スライスが止まった）またはRC2。判断: owner。
+
+### 分裂したストア
+
+- **分裂したストアの合流（Split Store Recovery）** — `store consolidate` の実行と保留単位の解消、Harness CURRENTの合流方式。2026-10-17の読取のみの `store plan`（1回、`status: passed`）の分類は、単位20（`publish` 4・`skip` 0・`hold` 16）、`excluded` 90（`unreferenced-transfer` 77、`not-owned` 8、`out-of-scope-role` 2、`credentials` 1、`revision-locks` 1、`unrecognized` 1）。Harnessの4 taskは、`h2c-unity-gate-r2` が `publish`（理由なし・未合流）、`h1-transport-identity` と `h2c-unity-gate` が `hold`（`reference-missing`）、`artifact-evidence-lifecycle` が `hold`（`dependency-held`、`multi-workflow-unit`、`reference-localcache`、`reference-missing`、`reference-out-of-role`）。deployment単位1件が `conflict` で保留され、Evidenceを持つtask単位の多くはそれへの `dependency-held` で保留される。`passed` は manifest を書けたことだけを示し、CURRENTが読めることや合流できることを示さない。保留した単位の扱い（公開途中の不可視性を保つ方式）は、必要なら別の設計スライスに分ける。実ストアの鍵で認証に失敗した場合は資格情報の複写・置換で直さずownerへ返す。入力: `store plan`／`consolidate` の名前表に `retirements-v1` が無く `unrecognized` に載る（挙動は安全側。次に名前表を触るときに登録する）、`invalid-evidence-path` 等の仮想化以外のpath不一致の診断を `unconfirmed` から分けるか。再開: RC1（エンジン側スライスが合流前の記録を読めずに止まった）またはRC2。判断: owner（manifestの承認を含む。承認までは `consolidate` を dry-run も含めて実行しない）。
+- **Codex側残置の後始末** — 合流済みの記録のCodex側copyの扱い（保持・削除・期限）。Storageの30日清掃はCodex側に届かない。定期清掃jobのbindingと、Codex側だけにある記録の清掃が行われていないことの再確認。再開: RC2（Codex側の残置が原因の障害が2回以上）。判断: owner。
+
+### Content
+
+- **Content確定記録** — 新旧順序とmanifest digestを持つ追記だけの記録の形式と書込み方式（LISTまたは条件付き書込みの要否）、revision削除時の記録の扱い（削除の正本のローカル `deletion/` を参照するか、削除を追記するか）、「最新」の解決の保存側の部分、単調なpublish順序（時計巻戻りへの耐性）、別PCからの同じrevisionの同時公開の排他（R2側に上書き防止が無い）。再開: RC2（別PCからの同時公開の衝突が実運用で2回以上、READMEの手順で回復できない）またはRC3。判断: owner。
+- **Contentの分離・取得・取り込み** — Content分離（Playerが `content/` を内包しない場合のUnity側の変更。候補はU1: 今のまま内包して重複保存、U2: 既存の `content:installedRevisionPath`+`content:manifestSha256` の組で外部revision rootを指す、U3: 新しいconfig keyの追加。U2は外部revision rootがDIST cacheの `installed/` 配置とreceiptを要し、BuildIdentity一致を要求する点、baked `relativeDirectory` の扱い、起動時のlatchとの両立を確認する。`build collect` の検査・`build-info.json`・selectionの変更、互換キー案の判断。baked targetと外部revisionの照合に使うtargetを分けるか）、Content取得と再利用（R2からArtifactsRootへの配置と不足fileの再利用）、Content取り込み（取り込み元からDIST cacheへの不足fileの再利用、cacheのeviction・lease、アプリ更新を越える永続性、Unityバージョンとroot schemaの束縛、HTTPのfileごとのdeadline）、統合Contentフォルダ（取得型／監視型、複数ワークスペースの衝突規則、ArtifactsRootとの同一性、共有時の削除主体、ローカル設定と選択UI、「最新」の解決の所有）、`contentSet` の命名規約（用途×構成×性能の合成名、既存値 `bs4-spring-full` を改名しないこと、大文字小文字とパス要素の安全規則、hd/sdを1 revisionに同梱した場合の部分取得）、Windows以外のtarget（transport manifest v1の固定 `target` とDIST cacheの配置の拡張）。再開: RC1。判断: owner。
+- **Contentの容量上限と孤児回収** — Content固有の上限値、R2のプラン変更の要否、R2の操作回数の枠（file単位objectのPUT数）、転送中の展開量上限、0 byte fileの拒否、4季節 `all-full` の実測（1 revision・約881 object・約22 MiB以下の見積もり、未実施）。R2の途中失敗や削除後の遅延PUTで残る追跡外object、receiptを失ったobject、既存publishの404 → `failed` で残るremote residueの回収。再開: RC2（容量・孤児objectによる障害が2回以上）。判断: owner。
+
+### 清掃と運用
+
+- **ローカルの残置の清掃** — ArtifactsRootの `players/`・`content/` の件数清掃、異常終了で残る `.staging` の回収、ArtifactsRootの所在の登録、公開・取得で残るprivate operationの期限清掃（`content fetch` の取得先を含む。今は自動清掃されない）、準備helperの失敗による未記録・未送信のprivate残置、満了削除後に `staging-protected` のままcatalogに残るentry。再開: RC2（残置による障害が2回以上）。判断: owner。
+- **件数清掃の自動起動** — `build cleanup`／`content cleanup` のscheduler接続とNの系列ごとの設定。再開: RC2（手動実行の漏れによる障害が2回以上）。判断: owner。
+- **Evidence task catalogの上限** — 1,000 file級のbundleで task の `catalog.json` が1 MiBの記録上限に達し、以降のfetchが `record-limit`（外からは `unconfirmed`）で失敗する。運用上は新しいtaskIdでpublishし直すか、bundleを1つのZIPにまとめて回避する。再開: RC2。判断: owner。
+- **開発環境セットアップscript** — `OSM_ARTIFACTS_ROOT` などの設定。再開: RC1。判断: owner。
+- **BuildSystem / Harness接続** — 外部CLIを主入口にUnityを交換可能なbackendとして接続する。H2d/H3・CURRENT連携、同じ実体の所有権整理（Harnessの原sourceとStorageのcopy）、端末喪失に備えた未昇格 `staged` のbackup（Harness H3）。Storage単独の利用をUnity GUIやEditorに依存させず、Unityテスト/BuildのPhase責任と既知native終了stallの調査停止規則を維持する。H1/CURRENT方式は各A3で明示する。再開: RC1。判断: owner。
+
+### 診断・送信・テストの整理
+
+- **診断の改善** — 再開: RC2（同じ診断不足で回復できない障害が2回以上）。判断: owner。入力:
+  - cleanup・schedule-install・schedule-statusのconfig失敗のreasonCode（結果の形とexitの意味を変える判断が要る）。schedule分岐でもallow-list外のruntime系固定code（`runtime-binding-invalid`・`runtime-path-invalid`・`runtime-binary-mismatch`・`runtime-context-switch-rejected`・`runtime-credential-root-unavailable`・`evidence-deadline`）は伏せたまま。CLI境界で実測したのは `scheduler-identity-mismatch` だけ。CLIからのtask削除はownerの操作のままで、失敗した `install` は旧headの `runtime/<head>/` を残す。
+  - receiptの `baselineSha256` 等のhex不正がまだ `unconfirmed` になる。`Read-EvidenceConfig` のtryが広く、想定外の例外も `invalid-evidence-config` になる（fail-closed）。`workflow-task.ps1` は例外messageをreasonCodeに写すため、configを2回読む間に壊れる競合でだけ `workflow-unavailable` が新しいcodeに変わる（受容済み）。
+  - Build・Content: 失敗時も `publish` 表示が `published` になる、相対path 240字超が `unconfirmed` で返る、build-configの検証と複写が二度読み、並行実行の敗者が一致時も `stage-conflict` で止まる、receiptの無い（未完了の）Buildの `intent.json` をどこまで検査するか、content storeが既存directoryのACL不一致を付け直す（Build storeは拒否）、各objectの照合結果をoperationに記録しない、`existing` 結果に `objects` が無い、予算の確認とreceipt確定の間の窓、予算が退避・snapshotの区間に掛からない、collectが各fileを約7回読む。
+  - Content件数清掃: run全体のcatchで `catalog-incomplete` が `unconfirmed` になる、終了時snapshotがblockedのとき同じrunの削除済みが分類に出ない、成功revisionの `publish.lock` 欠落で系列全体が止まりinspectが `receipt-unavailable` になる、観測fieldのgenerationのscalar型検査、同時刻の未解決試行を再開する順が最古からのtie-breakと逆。Contentのcleanup結果で退役の `protected` が `held` と `protected` の両方に出る。退役記録を読む前に止まるcleanupと `retirement-unknown` のblockedが `mode=retention` を返す。Content collectの退役確認が開始時の1度だけ（READMEのknown limits）。
+  - Evidence: `evidence stage` が約1,100 fileのbundleで `record-limit` になり `unconfirmed` だけを返す、古いBuildの `inspect`／`fetch` はpublish時のbuild-configと同じbytesを要し書き直したconfigでは `receipt-unavailable` で理由が出ない、`build use` の `--until` が往復形式だけ。回復できない `failed` へのcleanupの試行が残すoperationが、そのprocessの生存中だけ同じtaskの他のartifactのnetwork付きpreflightを `operation-pending` で止めうる。`put-pending` の回復が解決しない間にtask全体のnetwork付き操作が止まる既存挙動、publish由来のremote削除の確定順序、catalogの組み合わせ検査の厳格化。`use` / `release` のpreflightはnetwork形のままで、READMEの事前承認の一文と範囲が合っているかを決める。
+- **送信まわりの整理** — 削除intentの照合GETが一致して `staged` に戻ったartifactをresumeしてpromoteすると、objectが在るkeyへ同じbytesをPUTする（安全だが「re-PUTは404の後だけ」の前提の外）。receipt再利用の照合の拡張（今はkey・packageSha256・manifestSha256の3つ）、回復一致時にpromoteのreadback stagingが未登録fileごとadoptedになる、送信部の共有（`EvidenceSend.psm1`）、intentの `createdAt`・`process` の型検査、「DELETE → GET 404 → 記録」の共通primitive化（Evidence清掃・reset・Build清掃・Content）。再開: RC2。判断: owner。
+- **テストと証拠の整理** — suiteのhermetic化（既存suiteは `SeriesRetirementStore` のテスト用rootを注入せず実storeの `retirements-v1` を読む）、退役確認の規則が2か所にある、回復できる `failed` のfixtureとpromote停止のhelperの重複（`EvidenceTestSupport.ps1` へ）、`Get-EvidenceDeletionRoute` の `catch{}` が fail-closed で `none` にする理由のコメント、一部のsuiteが集計行だけを出しcase名を復元できない、`EvidenceCleanup.Tests.ps1` の1 caseが `rg` をPATHに要する（READMEに記載）、Buildのpublish intentのpath置換した写しを `receipt.intentSha256` と結び付けられない（証拠の加工規則）、`changes.patch` が `.gitignore` に該当する未追跡fileを含まないことと、改行を含むpathの列挙。試験範囲の不足: CLI経由のconfig失敗のstdout・stderr、fetch・use・releaseの `unknown-deployment`、guard非取得の直接観測。再開: RC2。判断: owner。

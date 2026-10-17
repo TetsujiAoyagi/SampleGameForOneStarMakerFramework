@@ -3,34 +3,29 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `B`（A3 凍結済み。owner が 2026-10-17 に凍結。Phase B 未開始）
+- status: `C`（発見 C 待ち。A3 は owner が 2026-10-17 に凍結。Phase B と動作確認は 2026-10-17 に完了）
 - branch: `claude/artifact-storage-closeout`（`origin/develop` の `6ed90d69` から作成済み。ローカルのみで未 push。本文書の A1 初稿が最初の commit `82b0edc5`）
 - planning base commit: `6ed90d69`（`origin/develop`、PR #132 マージ後。ローカルの `develop` は遅れているので先に `git fetch origin develop`）
-- implementation base commit: 未固定（Phase B 開始時に branch の HEAD の SHA を書く。凍結本文と同じ受け入れ境界で、§0 の記録だけが違う）
-- implementation head commit: 未固定
+- implementation base commit: `855e3da3`（Phase B 開始時の branch の HEAD。凍結本文 `7b7f243d` と同じ受け入れ境界で、§0 の記録だけが違う）
+- implementation head commit: `__HEAD__`（Phase B の出口の commit）
 - risk: `low`（文書改訂と読取のみの `store plan`。本スライス固有の操作（`store plan` と分類の確認）は実ストア・Codex 側 copy・R2・資格情報へ書込み・削除をしない。レビュー Evidence の通常の保存・引渡しは `review-evidence.md` に従う別の境界で、I1 のとおり）
 - owner: OSM maintainers
 - created: 2026-10-17
 - expires: 2026-11-17 または置換 revision
 - harvest to: `tools/Artifacts/README.md`、`docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md`（完了宣言後は削除候補）、`docs/README.md`、`.agents/skills/osm-workflow/references/review-evidence.md`
 - Phase A snapshot の取得案内・状態: 固定済み。凍結 commit `7b7f243d`、本文の content sha256 `7fc425a09d678f355e118f99fa0a95eed726c5793aa87e1dead6d23577576ad2`（凍結 commit 時点の本文書。文書だけなので stage は不要）。`git show 7b7f243d:docs/handoff/ARTIFACT_STORAGE_CLOSEOUT.md` で取得する
-- Phase B result snapshot の取得案内・状態: 未生成
+- Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と implementation head の commit。manifest は git 管理外の手元層にあり、所在は引継ぎ票の取得案内 note）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase と役割: Phase B（実装）。A3 は owner が 2026-10-17 に凍結した。B の出口の次は、動作確認の対象（AC1 の `store plan`）を B が §4-1 で実行するので、発見 C。
-  - 引き継ぐ commit: branch `claude/artifact-storage-closeout`（ローカルのみ、未 push）の HEAD。凍結本文は `7b7f243d`。凍結後の commit は §0 の記録だけを変えている。照合の手順は下の「Phase B の開始手順」2。食い違えば引き継がずに止める。
-  - 次の作業: §4 の順序どおり。先に §4-1 の `store plan`（読取のみ）を 1 回行い、その結果を §6 に記録してから §4-2 の文書改訂に進む。B の出口で `pwsh tools/docs-audit.ps1`・`pwsh tools/contract-audit.ps1`・AC7 の変更 file 一覧を §6 に残して commit し、引継ぎ票を発見 C へ更新する。
-  - Phase B の開始手順（会話履歴なしで始める担当向け）:
-    1. 着手前に `.agents/skills/osm-workflow/SKILL.md` と、その中で指定された `references/phases-and-handoff.md`・`references/docs-policy.md` を全文読む（Phase B と文書変更の規則）。
-    2. `git switch claude/artifact-storage-closeout` し、`git diff --stat 7b7f243d HEAD` が本 HANDOFF だけであること（凍結後は §0 の記録だけを変えている）と、tracked file に差分が無いことを `git status --short` で確かめる。untracked の `docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md` は本スライス外の別作業の文書で、触らず、stage もしない（`git add` は変更した file を path で指定する）。
-    3. §0 の implementation base に HEAD の SHA を書く。
-    4. §4-1 の `store plan` を、Bash ではなく PowerShell tool（または owner の端末）で 1 回実行する。`--source-root` は、`[Environment]::GetFolderPath('LocalApplicationData')` の下の `Packages` から Codex の package の directory を探し、その `LocalCache\Local\OneStarMaker` の絶対 path を使う。`--output` は、この checkout の git 管理外の手元層（`.gitignore` で除外された作業 directory。`git check-ignore` で確認）に置く新しい file の絶対 path にする。これらの path の実値は tracked 文書・commit・会話の要約に書かず、同じ手元層の取得案内 note にだけ書く（I2）。
-    5. 結果を §6 に S1 の 3 層で書き、§4-2 の文書改訂、§4-3 の検査を行い、§6 を埋めて commit し、引継ぎ票を発見 C へ更新して終える。push しない。判定 C の実行や C' の起動はしない。発見 C は Phase B と異なるモデルの新規 session が担う。
-  - 必要な権限: 非仮想化の pwsh（owner の端末か、LocalApplicationData が仮想化されない Agent 環境）。資格情報・network・Unity は不要。`store plan` は実ストアの外に manifest を書くだけで、Codex 側 copy を読取専用で開く。
-  - 停止規則: `store plan` の `status` が `passed` 以外（`virtualized-store` / `store-context-unknown` / `invalid-source-root` / `invalid-output` / `store-path-unavailable` / `consolidation-failed` 等）なら reasonCode を記録して止め、再実行で埋めず、資格情報や store を触って直さない。`store consolidate` は owner が manifest を承認するまで実行しない（dry-run も同じ）。
-  - 引き渡さないもの: Codex 側 copy の削除・移動、R2 の設定変更、保留 list に入れた機能の実装、Unity の変更、manifest の path の実値（git 管理外の取得案内にだけ置く）。生 manifest は Evidence・公開物に入れない（I1・I2）。
-  - 判断の根拠: 2026-10-17 の独立調査レポート（owner の手元層にあり git 管理外。clone には無いので、必要な事実は §1、再開条件は §2 に転記済み）。owner は同日に「Artifact Storage 開発はここで完了」と決めた。
+  - 次の Phase と役割: 発見 C（Phase B と異なるモデルの新規 session）。Phase B と動作確認（AC1 の `store plan`）は 2026-10-17 に完了し、動作確認の期待との差は無かった（§6）。発見 C は GO 判定をせず、C' を起動しない。
+  - 引き継ぐ commit: branch `claude/artifact-storage-closeout`（ローカルのみ、未 push）の HEAD。implementation head は `__HEAD__`（B の出口の commit）で、その後の commit は §0 の記録だけを変えている。開始時に `git diff --stat __HEAD__ HEAD` が本 HANDOFF だけであることと、`git status --short` で tracked file に差分が無いことを確かめ、食い違えば引き継がずに止める。untracked の `docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md` は本スライス外の文書で、触らない。
+  - 次の作業: 固定した差分 `855e3da3..__HEAD__` を、§2 の I1〜I4・S1〜S7 と AC1〜AC8、§3 の責務マップに照らしてレビューする。AC4 は旧 README（`git show 855e3da3:tools/Artifacts/README.md`）と新 README の節の本文・anchor・reasonCode・S3 の行数と bytes を、AC7 は `git diff --name-only 855e3da3..__HEAD__` を、AC8 は §2 の grep と I2 の語の検査を機械で照合する。S1 は §6 の要約を manifest と照合する（下の取得案内）。
+  - manifest の取得案内: この checkout の git 管理外の手元層（`.gitignore` で除外された作業 directory）にある `ARTIFACT_STORAGE_CLOSEOUT.store-plan-note.md` に、manifest と stdout の絶対 path を書いた。同じ PC で読取専用で開く。path の実値と manifest の中身を tracked 文書・commit・PR・Evidence・C' の bundle へ写さない（I1・I2）。
+  - 必要な権限: 読取だけ。資格情報・network・Unity は不要。`store plan` を再実行しない（AC1 は 1 回）。
+  - 停止規則: §2 の停止規則と blocker の基準（`phases-and-handoff.md`）。`store consolidate` は dry-run も含めて実行しない。
+  - 引き渡さないもの: Codex 側 copy の削除・移動、R2 の設定変更、保留 list の機能の実装、Unity の変更、manifest の path の実値。発見 C の所見は C' に渡さない。
+  - 判断の根拠: 2026-10-17 の独立調査レポート（owner の手元層にあり git 管理外。必要な事実は §1、再開条件は §2 に転記済み）。owner は同日に「Artifact Storage 開発はここで完了」と決めた。
 
 ## 1. 目的と対象外
 
@@ -305,11 +300,74 @@
 
 ## 6. Phase B 実装結果
 
-未実施
+- 担当: Phase B の新規 session（会話履歴なし、§0 の開始手順で開始）。implementation base `855e3da3`。
+- 新しい事実の分類: なし（A 再開・スパイク・後続スライスに当たる事実は出なかった）。B 適応 1 件: docs-audit の検査2が「公開面（`tools/Artifacts/README.md`）が個別の HANDOFF に依存」を拒否したため、README 冒頭の保留 list への参照を program の path ではなく `docs/README.md` の作業台の表への link にした。
+
+### S1: `store plan` の結果（AC1・AC2）
+
+1. 実行結果: 2026-10-17、PowerShell tool（非仮想化 pwsh）で §4-1 のコマンドを 1 回。exit code `0`、`status: passed`、`reasonCode` なし。`--output` は git 管理外の手元層の新規 file、`--source-root` は Codex の package の `LocalCache\Local\OneStarMaker`。manifest と stdout の絶対 path は同じ手元層の取得案内 note にだけ置いた（I2）。`consolidate` と dry-run は実行していない。
+2. 単位の集計: 単位 20（`publish` 4・`skip` 0・`hold` 16）。`excluded` 90（`unreferenced-transfer` 77、`not-owned` 8、`out-of-scope-role` 2、`credentials` 1、`revision-locks` 1、`unrecognized` 1）。
+
+   | 単位 ID | 種別 | 状態 | 理由 code | 依存 |
+   |---|---|---|---|---|
+   | `43341dc7cf86b2d49633a1b4030bc2c9` | deployment | `hold` | `conflict` | — |
+   | `3b9237f0c85358da125c6df29fa16289`（task `artifact-evidence-lifecycle`） | task | `hold` | `dependency-held`、`multi-workflow-unit`、`reference-localcache`、`reference-missing`、`reference-out-of-role` | `43341dc7…` |
+   | `5e400c669d2532336cd6e7fd3067fb10`（task `h1-transport-identity`） | task | `hold` | `reference-missing` | — |
+   | `bbe4eab0486f63dcc88185634be149a9`（task `h2c-unity-gate`） | task | `hold` | `reference-missing` | — |
+   | `7cf9fb3454f8192b7a0806b203c4d28d`（task `h2c-unity-gate-r2`） | task | `publish` | なし | — |
+   | `05cd0a989948e6a217df1f90b7f1375d`、`11077bd04dd56e79cf10e6962933b40c`、`4031ad57c1aa792fd5593de472fde455`、`7be8022b9abc84b491a324ae8d896ce2`、`8d74d8cd4160864e885847dd0b3b9451`、`b9c1920fc3fdaf2426f39dc46e11534e` | task | `hold` | `dependency-held`、`reference-localcache` | `43341dc7…` |
+   | `079107c03e8dfe70af88c5d7ac4a4b1d`、`0e447f5f84884bed9a1733677abde1af`、`41b6094b42678a73be861ab9066438a2`、`513fb4aaf0e8f67b48b8b3f1877e065a`、`f62d5ffe64b8fce830406abc0ce12ef0` | task | `hold` | `dependency-held` | `43341dc7…` |
+   | `68d4ae3009a01308df37b6d81e30d1a4` | task | `hold` | `conflict`、`dependency-held`、`reference-localcache`、`workflow-already-visible` | `43341dc7…` |
+   | `a7c5231354da4ff582566dc45002cd84`、`ca81adc19c5660627f5544600fcf0f73`、`ee7ef561cb8c9cea7e6686a44fbe70e3` | task（Workflow のみ） | `publish` | なし | — |
+
+   Harness 4 task はどれも単位に入り、`excluded` には無い。task ID と単位の対応は manifest の item の key（`harness` role と、`artifact-evidence-lifecycle` は `evidence`・`workflow` role も）で照合した。
+3. 結論: 合流できる単位は `publish` の 4（Harness の `h2c-unity-gate-r2` と、Workflow だけの 3）。ただし `passed` は manifest を書けたことだけで、CURRENT が読めることや合流の完了を示さない。保留のまま設計判断が要る単位は `hold` の 16 で、うち 13 は deployment 単位（`conflict`）への `dependency-held` を持つ。Harness の 3 task（`artifact-evidence-lifecycle`、`h1-transport-identity`、`h2c-unity-gate`）は `reference-missing` を含む。plan 自体の失敗は無い。保留の解消と `consolidate` は program §6 の保留 list「分裂したストアの合流」へ送った（owner が manifest を承認するまで実行しない）。
+
+### §4-2 文書改訂
+
+- program（`docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md`）: §0 status を「完了（保留list付き）」へ。§4 を「完了したスライス」（A・B・C・E の完了記録と「決めたこと」を残す）にし、§4 の各「後続への入力」、旧 C の別 host / Cloud、旧 D、旧 E の後続を、新しい §6 保留 list（RC1〜RC3 と判断者 owner 付き、安全上の例外を含む）へ移した。§5 の「残件」と「文書改訂のPhase D」の文から実装キュー・進行中の現在形を除いた。§2・§3 と §5 の責務・残す安全性・採用・不採用は変えていない。§4 B のローカル作業 directory の実値を除いた。規模は 254 行・約 58 KB → 221 行・約 52 KB（§3 の見積り −20 KB に届かないのは、「決めたこと」と後続の入力の中身を保留 list に残したため）。
+- README（`tools/Artifacts/README.md`）: §4-2 の表のとおり 4 節（日常操作・管理操作・契約と known limits・経緯）に再編。冒頭の導入と日常操作の表の部分は 22 行・3,108 bytes（S3 の 30 行・8 KB 以内）。新しい見出しは `日常操作`、`別PCで取得したPlayerとContentを使う手順`、`管理操作`、`契約と known limits`、`経緯` で、既存の見出しと同名でない。空の見出し `保守とoffline検証` は消した（参照元の anchor は無い）。
+- `docs/README.md`: program 表の行を「完了（保留list付き）」にし、表の前の文を「program は次の4件。Artifact Storage は完了（保留list付き）で、他の3件は進行中。」にした。S7 の注記を 2 か所に足した。
+- `tools/Harness/README.md`: S7 の注記 4 段落の追加だけ（削除行 0）。
+- `review-evidence.md`「Phase D の保存・引渡し確認」: AC6 の 1 文を追加。
+
+#### I3 (2): 冒頭 2 段落から削った文
+
+第 1 段落の第 1 文（DPAPI・bucket）と第 3 文（Workflow の所有と 30 日のコピー清掃）は新しい導入にそのまま残した。第 2 段落は経緯節へ本文を変えずに移した（後ろに S7 の注記を追加）。削った文は第 1 段落の次の 6 文で、どれも「新 README の別の箇所に同じ内容がある」。
+
+| 削った文 | 同じ内容がある箇所 |
+|---|---|
+| 通常Evidenceは明示した非秘密file集合をpublishし、別sessionで期待hashを照合してfetch・ログ/原画像を閲覧できます。 | 「Evidence v2 の通常操作」（publish・fetch の手順と期待 packageSha256 の照合）、導入の「完了の範囲」 |
+| 既存Build 1件も明示した全file集合から保存・取得でき、BS4の配布形Player出力は `build collect` の1コマンドで退避・保存できます。 | 「開発Build 1件の保存と取得」「BS4 Player出力の退避と保存（build collect）」、日常操作の表 |
+| R2上のBuildは `build cleanup`、Contentは `content cleanup` で系列ごとに件数清掃でき、使い終わった系列は `build retire`／`content retire` で退役させてR2から消し切れます。 | 「開発Buildの件数清掃」「開発Contentの件数清掃」「系列の退役」、日常操作の表 |
+| 同一PCの担当間の固定入力は `evidence stage` でR2を使わずに渡せます（ローカル固定への link）。 | 「ローカル固定（evidence stage）」の冒頭、日常操作の表 |
+| ローカル固定したartifactは `evidence promote` で同じreference・packageSha256のままR2へ昇格できます（R2への昇格への link）。 | 「R2への昇格（evidence promote）」、「ローカル固定」の「昇格」 |
+| 別host/CloudがR2から取得する経路は後続スライスです。 | 導入の「完了に含めない」（別PC・CloudからのR2の直接取得）、「R2への昇格」の fetch の項（Cloud・別hostがR2から取得する経路は後続） |
+
+#### S7 の注記の場所（I3 (1) の例外と AC8）
+
+- `tools/Artifacts/README.md`: 「Evidenceの責務とoffline検証」の `current -Task artifact-evidence-lifecycle` を含む code block の直後（既存節で唯一の追加）。「経緯」の第 2 段落（旧冒頭）の直後。導入の「完了に含めない」は新規の文。
+- `docs/README.md`: H2c の CURRENT 方式の文（`h2c-unity-gate` / `h2c-unity-gate-r2`）の直後の段落、program 表の行の中。
+- program: §0 status の入口の文の直後、§1「現在の実装機能は…CURRENTの固定記録に残す」の直後、§4 A の「Git外CURRENTから取得する」の段落の直後。
+- `tools/Harness/README.md`: `current -Task h1-transport-identity` の code block の直後、「Evidence lifecycle のtask限定gate」の入口の段落の直後、「H2c Unity pilot」の旧入口の文（旧taskのCURRENTを保持し旧入口は読取のみとする）を含む段落の直後、`current -Task h2c-unity-gate-r2` の段落の直後。
+- 注記しなかった一般の手順: README「分裂したストアの合流」の「運用の前提」、`docs/README.md` の H1 の説明の文。
+
+### §4-3 検査（B の自己確認。判定ではない）
+
+- `pwsh tools/docs-audit.ps1`: `AUDIT_RESULT kind=docs files=111 errors=0 warnings=0 checks=1,2,3`（初回は上記の検査2で 1 件。直して 0 件）。
+- `pwsh tools/contract-audit.ps1`: `AUDIT_RESULT kind=contract files=627 errors=0 warnings=0 checks=1,2,3,4,5,6,7,8 applicable8=False`、検査1 の差分 0 ファイル、「機械で判定できる契約に違反なし」。
+- AC7: `git diff --name-only 855e3da3..<implementation head>` は `.agents/skills/osm-workflow/references/review-evidence.md`、`docs/README.md`、`docs/handoff/ARTIFACT_STORAGE_CLOSEOUT.md`、`docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md`、`tools/Artifacts/README.md`、`tools/Harness/README.md` の 6 file。`unity/` と `tools/` 配下のコード・script・設定の変更は 0。
+- AC4 の自己照合（旧 README は `855e3da3`）: 既存節の本文の差分は「Evidenceの責務とoffline検証」への S7 注記の挿入だけ。消えた見出しは `保守とoffline検証`（本文は空行のみ）。参照元の anchor 15 件と README 内の anchor 20 件は全て新しい見出しの slug で解決。旧 README の reasonCode 形の語 92 種は全て新 README に残る。
+- AC8 の自己確認: grep の当たる公開文書の全箇所に注記が隣接。追加行と改訂後の 5 文書にローカル path・Windows のローカル user / profile 名・SID・package 名・reference・packageSha256 の実値は 0 件。
+- 未実行: Unity・テスト suite は対象外（§5）。判定 C の機械照合は C の担当が行う。
 
 ### 動作確認
 
-未実施
+- 対象 head: implementation head（§0）。条件: AC1 の `store plan`（§5 の検証経路で担当は Phase B）。
+- 実行時の HEAD は implementation base `855e3da3`（§4-1 を文書改訂より先に行う順序のため）。base..head に `tools/` のコード・script の差分は無いので、実行したコードは head と同じ。
+- 実行担当: Phase B の session（B の出口で実行してよい条件）。コマンドは §4-1 のとおり 1 回で、生の観測は上の S1 の 1（exit `0`、`status: passed`、`reasonCode` なし、`summary` units 20 / publish 4 / skip 0 / hold 16）。manifest は手元層にある。
+- 検証経路の期待との差: なし。B の session が取った観測なので判定 C の判定入力にはしない（判定 C が同じ PC で manifest を読取専用で開いて照合する）。
+- 状態: `なし`（未実施の条件は無い）。
 
 ## 7. Phase C
 
