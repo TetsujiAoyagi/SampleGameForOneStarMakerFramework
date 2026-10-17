@@ -3,19 +3,20 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `B`（Phase A revision 3 を 2026-10-17 に owner の本文確認で凍結。凍結内容は §2〜§5。§2・§5 の見出しや本文に残る「本文確認待ち」は凍結前の記述で、凍結版の内容そのもの。設計判断を変えるときは Phase A を新しい revision として再開する。A2 の結果は §5.1、外部レビューと統合の差分は §5.2・§5.3）
+- status: `C`（発見 C 待ち。Phase B は 2026-10-17 に完了、結果は §6。Phase A revision 3 を 2026-10-17 に owner の本文確認で凍結。凍結内容は §2〜§5。§2・§5 の見出しや本文に残る「本文確認待ち」は凍結前の記述で、凍結版の内容そのもの。設計判断を変えるときは Phase A を新しい revision として再開する。A2 の結果は §5.1、外部レビューと統合の差分は §5.2・§5.3）
 - branch: `claude/evidence-promote-recovery`（PR の base は `develop`）
 - implementation base commit: `498d0da8f96ef324772d27596c464456f3fad370`（`origin/develop`、PR #130 マージ後。凍結時に確定）
-- implementation head commit: 未固定
+- implementation head commit: 未固定（B 完了 head は `87ba1d2a386b36ab869f1cd1b0d73af279c98228`。GO 候補で固定する）
 - risk: `high`（catalog の state 遷移、PUT 応答不明・削除の fail-closed 契約、保持 policy と削除経路の振り分けを同時に変える。同じ key への 2 回目の PUT を許す）
 - owner: OSM maintainers
 - created: 2026-10-17
 - expires: 2026-11-17 または置換 revision
 - harvest to: 操作・回復規則・残存リスク・導入手順を `tools/Artifacts/README.md`（冒頭の事前承認、「R2への昇格（evidence promote）」「終了・再開・利用中と清掃」「自動清掃」）へ。`.agents/skills/osm-workflow/references/review-evidence.md` の「保存先とリモートへの配布」の `failed` の扱い（本スライスの実装対象）。`docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4 C に「回復と寿命は完了」と後続入力を記録する。
 - Phase A snapshot の取得案内・状態: 凍結対象版は commit `8929c6df8d3b5618b3300c26b35cf92a4d0ec9b2` の本 HANDOFF（内容 sha256 `d8866e6ada46a4490d5565cc44f7936c67d35316e9fa08c50121c1f50406174b`、LF 正規化した git blob 内容）。Git 上の commit で固定し、Artifact Storage には未保存（同一 PC の担当は commit から読む）
-- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成（未到達 Phase）
+- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成（B の結果は §6 と commit `87ba1d2a` に記録。snapshot・bundle は C / C' へ渡す時点で作る）
 - H1 / CURRENT: 採用しない（tracked HANDOFF。前スライスと同じ）
-- 引継ぎ票: 次は **Phase B（実装）**。新しい session で、この欄だけを起点に始める。
+- 引継ぎ票: 次は **発見 C（欠陥発見レビュー）**、役割はレビュー担当。動作確認は `対象なし`（§5。実 R2 の AC12 は判定 C の実行担当が GO 候補 head で行う）。作業は implementation base `498d0da8f96ef324772d27596c464456f3fad370` から B 完了 head `87ba1d2a386b36ab869f1cd1b0d73af279c98228` までの差分を、§2〜§5（凍結 revision 3）と §6 の「実測」「HANDOFF との差」1〜9 に照らして、構造・契約・凍結済み失敗経路の順に見ること。入力は commit で固定済みで、stage snapshot は使っていない。開始時に、自分の worktree の HEAD が B 完了 head かこの記録の commit（親が B 完了 head）で、作業ツリーが clean（未追跡の空 file `docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md` は除く）であることを確かめ、食い違えば始めない。差し戻し中のテストは §5 の起点 `-Filter` を使う（新規ケース名は §6）。`EvidenceCleanup.Tests.ps1` は `rg` が PATH に要る。GO 判定・判定 C の照合 script・C' の起動・push・PR 作成はしない。
+- （旧）引継ぎ票（A → B。記録として残す）: 次は **Phase B（実装）**。新しい session で、この欄だけを起点に始める。
   - 開始時: `AGENTS.md` と `.agents/skills/osm-workflow/SKILL.md` を読む（Phase B の節と「公開点とGit履歴」）。branch `claude/evidence-promote-recovery` の HEAD がこの引継ぎ票を書いた commit（凍結記録の commit。`git log -1` の件名が「record Phase A freeze」で、その親が凍結対象版 `8929c6df`）であること、作業ツリーが clean であること（本スライス開始前からの未追跡の空 file `docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md` は除く）を確かめ、食い違えば始めない。`pwsh tools/workflow-task.ps1 start -Task evidence-promote-recovery` で task を開始する（既に開始済みなら `status` で確認）。
   - 入力: 凍結版の §2〜§5 が正。§5.1〜§5.3 は経緯で、採用分は全て §2〜§5 に統合済み（§5 以前と食い違えば §2〜§5 に従い、判断が要れば止めて返す）。実装順序・変更してよい file・差し戻し条件は §3・§4、既存テストを変えてよい範囲は §2 AC4 の表だけ。
   - 作業: §4 の順序で実装し、§2 の AC1〜AC11・AC13 を offline テスト（隔離 temp store・偽 transport・時刻注入）と文書で満たす。AC10 (c) の reasonCode と R6 の失敗した書込みの後の終点（AC6 (c)）は実測して §6 に記録する。
@@ -301,19 +302,38 @@ A3 の結果（2026-10-17）: 1 と 3 は主担当案で採用。2 は外部レ�
 
 ## 6. Phase B 実装結果
 
-- 実装:
-- HANDOFF との差:
-- 未実行:
-- implementation head commit:
-- Phase B 担当・モデル・ベンダー:
+- 実装: §4 の (1)〜(8) を順に実装した（(2)(3)(4) は同じ commit）。
+  - `EvidenceStateStore.psm1`（R7）: `Read-EvidenceTask` は `origin: stage`・receipt 無し・putIntent ありの `delete-pending` だけ receipt を要求しない。他の組み合わせは変えていない。
+  - `EvidenceRetentionPolicy.psm1`（R5）: 内部関数 `Test-EvidenceStagedUnsent` を `Test-EvidenceStagedRetainable`（`origin: stage` かつ receipt 無し。putIntent は問わない）に置き換えた。putIntent を持つ `staged` は `ready` と同じ期限・保護の判定になる。
+  - `EvidenceCleanup.psm1`: 内部関数 3 つを足した。`Test-EvidenceRecoverableFailed`（R3 の shape）、`Get-EvidenceDeletionRoute`（R6。`local` / `remote` / `none`）、`Complete-EvidenceRemoteDeletion`（R6 の確定順序。`origin: stage` は `deleted` を書いてから copy を消し、残りを書く。publish 由来は従来の順序）。`Invoke-EvidenceDeleteGuarded` と `Resolve-EvidenceDeleteGuarded` の GET 404 の後はこの関数を通る。`Resolve-EvidenceDeleteGuarded` の照合一致は receipt が無ければ `staged` に戻す。`Invoke-EvidenceLocalDeleteGuarded` は最初に経路が `local` であることを確かめ、違えば何も書かずに `unknown-state`。cleanup の artifact の処理は保持判定 `expired` の後に経路で振り分け、`none` は `unknown-state`。`Assert-EvidenceTransitionSafe` に省略可能な `-RecoverArtifactId`（string）を足した（R3）。`Resolve-EvidencePutGuarded` は `origin: stage` のとき、GET と recovery staging の登録の前に artifact の `operation` と同じ artifactId の staging の `operation` 全てに `Assert-EvidenceOperationStopped` を行い（R1 手順 1）、404 で `staged` に戻して停止を確かめた operation を外し、一致では今回の recovery staging だけを adopted にする（R2）。publish 由来は従来の分岐のまま。cleanup は回復できる `failed` の item で回復を試み、例外ならその item を `unconfirmed-artifact` にして、その実行ではその task の残りの item を `remaining` に数え、cursor 以外も含め以後その task を書かない（R3）。
+  - `EvidenceApplication.psm1`: promote は `-RecoverArtifactId` に自分の artifactId を渡し（R3）、送信条件から「putIntent が null」を外した（R4）。intent の照合は既存の intent 再利用と同じ `Send-EvidenceStagedPackage` の中で、lock の後・intent file の書込みと書込み A の前に行う: catalog に putIntent があれば、その path を解決した値が正規 path で file が在ること、`Confirm-EvidencePromoteIntent` の field 照合、file の SHA-256 が `putIntent.sha256` と一致すること。どれかが違えば `unresolved-put`。putIntent の記録は書き換えない（R4・I4）。fetch は `-RecoverArtifactId` を渡し、取得元を preflight と Sync の後の state で選び（`staged` → local、`ready` → remote、他は `identity-mismatch`）、ローカル固有の reasonCode を preflight 前の判定か最終の取得元のどちらかが local のときに返す（R8）。
+  - 文書: `tools/Artifacts/README.md`（R10。冒頭の事前承認、publish の段落の再送禁止の範囲、ローカル固定の fetch・保持の 2 項目、昇格の「対象と拒否」「再昇格」「PUT応答不明」「回復できる `failed`」「残存リスク（保証外）」「fetch」、「終了・再開・利用中と清掃」の `staged` の満了清掃、自動清掃の導入手順）。`.agents/skills/osm-workflow/references/review-evidence.md`（R9 の 1 文の置換だけ）。
+  - テスト: AC4 の表の 8 行を更新し、新規ケースを足した。`ArtifactEvidence.Tests.ps1`: `promote-recovery-resend`（AC1）、`promote-resend-same-call`（AC2）、`promote-failed-recovery`（AC3 (a)(b)(c)(e) と稼働中の (i)）、`promote-recovery-protection`（AC7）、`promote-fetch-source`（AC8）、`promote-resend-refusals`（AC10）、`promote-resend-persist-order`（AC11）。`EvidenceCleanup.Tests.ps1`: `deletion-route-table`・`local-delete-recheck`・`sent-staged-expiry`・`sent-staged-delete-stops`・`sent-staged-delete-write-failure`（AC6）、`route-none-unchanged`（AC4）、`promoted-reader-shapes`（AC9）、`promoted-match-adoption`（AC5）、`failed-recovery-cleanup`・`failed-recovery-cleanup-isolation`・`failed-recovery-cleanup-write-failure`（AC3 (d)）。`EvidenceRetention.Tests.ps1`: `staged-intent-retention`（R5）。
+- 実測（§2 で B の実測と指定した値）:
+  - AC10 (c)（intent file が無い putIntent 付き `staged` の promote）: 公開 code は `unconfirmed`、PUT 0 件。内部では preflight の `Assert-EvidenceTaskPaths` の `Resolve-EvidenceStoredPath` が `evidence-path-missing` を投げる（`Send-EvidenceStagedPackage` の照合には届かない）。テストはこの値で照合している。
+  - AC6 (c)（GET 404 の後の `deleted` の書込みへの注入。書込み中の catalog の内容で対象が `deleted` の最初の書込みを狙った）: 通常の削除・削除 intent の回復とも、`before-rename` → disk は `delete-pending` で ZIP あり、`after-rename` → disk は `deleted` で ZIP あり。昇格済み `ready`（`origin: stage`）の通常の削除の `before-rename` → `delete-pending` で ZIP あり。5 ケースとも続く cleanup で `deleted`・ZIP 無し・R2 の object 無しに収束し、`Read-EvidenceTask` が通った。
+- HANDOFF との差（B 適応。設計判断の変更なし。state・field・reasonCode・CLI の grammar と出力・transport・publish の関数・`EvidenceContract` / `EvidenceSchedule` / `EvidenceReset` は変えていない）:
+  1. AC3 (i) の「catalog の generation 不変」は、`Sync-EvidenceTaskGuarded` が preflight のたびに event ごとに catalog を書く既存の挙動で generation が進むため、generation を除いた catalog の内容の一致で確かめた（既存の cleanup テストの `Get-FixtureCatalogHash` と同じ方法）。cleanup 側の同じ確認は、試行の前の cursor の書込み（既存）があるので、artifacts と staging の内容の一致で確かめた。どちらも recovery staging の登録・GET 0 件・回復による書込み無しを示す。
+  2. cleanup で回復が失敗した item は `skipped` に数える（従来の `failed` の `unconfirmed-artifact` と同じ分類）。結果が `pending`（`cleanup-partial`）になるのは `remaining` が 1 以上のときで、失敗した item がその実行の最後の item なら従来どおり `passed`。
+  3. putIntent を持つ `staged` の再昇格では、書込み A で putIntent の記録を作り直さない（既存の記録をそのまま使う）。保存された path の表記（旧 alias の論理 path 等）も変えないため（I4）。
+  4. AC4 の表の行のケースで、同じケースの見出しコメントと期待値のコメントも新しい挙動に合わせた（`ArtifactEvidence.Tests.ps1` の `(c)` の見出し、`promote-lost-response` の見出し、`promote-stop-endpoints` の満了後の cleanup の注記）。`promote-stop-endpoints` の `match` と `promote-lost-response` の `failed cleaned` の cleanup の照合は、停止した promote の readback staging（表の R2 の行のとおり 7 日清掃で消える）が同じ artifactId で `deleted` の item を出すので、artifact 自身の item（cursor の順で artifact の item が staging の item より先）を照合する形にした。期待値（artifact が `deleted`）は表のとおり。`EvidenceRetention.Tests.ps1` の新規ケースは登録を別の行で足し、既存の登録行は変えていない。表に無い既存 assertion の変更・削除は無い（base..head の既存テスト file の削除行は表の 8 行とこの段落のコメントだけ。`tools/Workflow/tests/` は無変更）。
+  5. AC3 (d) の「失敗した item より前の順なら同じ実行で、後なら次の実行で」は、ID が GUID で順序が実行ごとに変わるため、テストで catalog の `cleanupCursor` を先に置いて、他の 2 artifact の一方が失敗した item の前、他方が後になる順を毎回作った（cursor の意味と cleanup の順序の規則は変えていない）。
+  6. AC6 (a) の「照合直後の disk で `staged`・ZIP 保持」は、`WriteHook` の `after-rename` で catalog の書込みごとに対象の state と ZIP の実在を記録して確かめた（一致: `delete-pending` → `staged`（ZIP あり）→ `delete-pending` → `deleted`（ZIP あり）の順、DELETE が 1 回増える。404: `delete-pending` → `deleted`）。後者の `deleted`（ZIP あり）は I2 の確定順序の観測にもなる。
+  7. 回復できる `failed` の fixture は、AC1 の停止の後に旧 `Resolve-EvidencePutGuarded` の 404 と同じ書込み（recovery staging を operation null で登録、artifact を `failed`・operation null）を catalog の編集で再現した。variant (ii) は 2 つの staging の entry と directory を消した形。
+  8. 行数（§3 の予想との差）: `EvidenceCleanup.psm1` 369 → 432（予想約 425）、`EvidenceApplication.psm1` 316 → 331、`EvidenceRetentionPolicy.psm1` 68 → 70、`EvidenceStateStore.psm1` 144 → 147、`ArtifactEvidence.Tests.ps1` 499 → 658（予想約 620）、`EvidenceCleanup.Tests.ps1` 505 → 729（予想約 590）、`EvidenceRetention.Tests.ps1` 88 → 99。テストの超過は、AC3 の 3 variant × 終点と AC6 の停止・注入の各ケースがそれぞれ自分の隔離 store を作ることと、昇格の停止と回復できる `failed` の fixture の helper を 2 つのテスト file に置いたことによる（§3 は新しい file を置かず、共有の `EvidenceTestSupport.ps1` は変更してよい file に無い）。分割していない。構造の妥当性は発見 C の判断に委ねる。
+  9. README は R10 の指定箇所に加え、ローカル固定の節の fetch（取得元は preflight の後の state で決める）と保持（putIntent の無い `staged` だけがネットワーク無しの削除）の 2 項目を、同じ事実を 2 箇所で食い違わせないために合わせた。
+- 実行した確認（B 完了 head の作業ツリー、2026-10-17、この PC の PowerShell 7、Claude の PowerShell 実行環境。Git Bash ではない）: 3 project の Release build（警告 0・エラー 0）。`tools/Artifacts/tests/*.Tests.ps1` と `tools/Workflow/tests/*.Tests.ps1` の全 24 file を各 1 process で実行し全て exit 0・failed 0（ArtifactEvidence 45/45 は既存 38 + 新規 7、EvidenceCleanup 56 は既存 45 + 新規 11、EvidenceRetention 21 は既存 20 + 新規 1、EvidenceSchedule 81/81、EvidenceReset 31、StoreContext 22/22、TaskLifecycle 23/23、他の file も failed 0）。`EvidenceCleanup.Tests.ps1` は cursor 同梱の `rg` を PATH に足して実行した。ArtifactEvidence は一巡目の開始後に `EvidenceCleanup.psm1` のコメント 1 行を直したため、commit と同じ内容で再実行した（45/45、failed 0）。`pwsh tools/contract-audit.ps1`（errors 0・warnings 0）、`pwsh tools/docs-audit.ps1`（errors 0・warnings 0）。AC13 の旧文言 7 句は README と `.agents/skills/osm-workflow/` で 0 件。AC4 の diff 確認は上の差 4 のとおり。
+- 未実行: AC12（実 R2 検証 1 回。判定 C の実行担当）、判定 C の照合 script、C' の起動、`schedule install`。判定 C としての全 suite の再実行。Unity・Editor のコンパイル確認は対象外（Unity 側の変更なし）。実ストア・R2・資格情報には触れていない。
+- implementation head commit: 未固定（B 完了 head は `87ba1d2a386b36ab869f1cd1b0d73af279c98228`。GO 候補で固定する）
+- Phase B 担当・モデル・ベンダー: Claude（Opus 5.5、Anthropic）。
 
 ### 動作確認
 
-- 対象 head:
-- 条件ごとの実行担当・環境・実行したコマンド:
-- 生の観測と保存先・状態:
-- 検証経路の期待と違う観測と、B への差し戻し:
-- `未実施` の条件と理由・担当: 対象なし（§5）
+- 対象 head: なし（対象なし）
+- 条件ごとの実行担当・環境・実行したコマンド: なし
+- 生の観測と保存先・状態: なし
+- 検証経路の期待と違う観測と、B への差し戻し: なし
+- `未実施` の条件と理由・担当: 対象なし（§5。検証経路の実 R2 は AC12 として判定 C の実行担当が GO 候補 head で行う）
 
 ## 7. Phase C
 
