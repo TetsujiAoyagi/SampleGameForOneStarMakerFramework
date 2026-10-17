@@ -8,7 +8,7 @@
 - planning base commit: `6ed90d69`（`origin/develop`、PR #132 マージ後。ローカルの `develop` は遅れているので先に `git fetch origin develop`）
 - implementation base commit: 未固定（Phase B 開始時に A3 凍結 commit を書く）
 - implementation head commit: 未固定
-- risk: `low`（文書改訂と読取のみの `store plan`。実ストア・R2・資格情報への書込みと削除は 0 件）
+- risk: `low`（文書改訂と読取のみの `store plan`。本スライス固有の操作（`store plan` と分類の確認）は実ストア・Codex 側 copy・R2・資格情報へ書込み・削除をしない。レビュー Evidence の通常の保存・引渡しは `review-evidence.md` に従う別の境界で、I1 のとおり）
 - owner: OSM maintainers
 - created: 2026-10-17
 - expires: 2026-11-17 または置換 revision
@@ -18,12 +18,12 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase と役割: Phase A の A3（owner が §5「A3 統合案」の「owner が決めること」3 点を確定し、本文を凍結する）→ Phase B。
+  - 次の Phase と役割: Phase A の A3（owner が §5「A3 統合案」の「owner が決めること」5 点を確定し、本文を凍結する）→ Phase B。
   - 引き継ぐ commit: branch `claude/artifact-storage-closeout`（ローカルのみ）。A1 初稿は `82b0edc5`、A3 統合案はこの branch の最新 commit。A3 凍結 commit の SHA を Phase A snapshot に書き、implementation base は Phase B 開始時に書く。
   - 次の作業（Phase B、凍結後）: §4 の順序どおり。先に §4-1 の `store plan`（読取のみ）を 1 回行い、その結果を §6 に記録してから §4-2 の文書改訂に進む。
   - 必要な権限: 非仮想化の pwsh（owner の端末か、LocalApplicationData が仮想化されない Agent 環境）。資格情報・network・Unity は不要。`store plan` は実ストアの外に manifest を書くだけで、Codex 側 copy を読取専用で開く。
   - 停止規則: `store plan` の `status` が `passed` 以外（`virtualized-store` / `store-context-unknown` / `invalid-source-root` / `invalid-output` / `store-path-unavailable` / `consolidation-failed` 等）なら reasonCode を記録して止め、再実行で埋めず、資格情報や store を触って直さない。`store consolidate` は owner が manifest を承認するまで実行しない（dry-run も同じ）。
-  - 引き渡さないもの: Codex 側 copy の削除・移動、R2 の設定変更、保留 list に入れた機能の実装、Unity の変更。生 manifest は Evidence・公開物に入れない（I1・I2）。
+  - 引き渡さないもの: Codex 側 copy の削除・移動、R2 の設定変更、保留 list に入れた機能の実装、Unity の変更、manifest の path の実値（git 管理外の取得案内にだけ置く）。生 manifest は Evidence・公開物に入れない（I1・I2）。
   - 判断の根拠: 2026-10-17 の独立調査レポート（owner の手元層にあり git 管理外。clone には無いので、必要な事実は §1、再開条件は §2 に転記済み）。owner は同日に「Artifact Storage 開発はここで完了」と決めた。
 
 ## 1. 目的と対象外
@@ -38,11 +38,11 @@
   - 完成条件 6 件（Evidence の stage → 別 session fetch、Player / Content の保存と全 file hash 取得、30 日清掃と N=10 件数清掃、intent → DELETE → GET 404 の削除確定、秘密非露出、offline suite の合格）は PR #109 / #115 / #118 / #119 / #123 / #128 / #131 と、調査時の手元実行（6 suite 103 case、failed 0）で満たしている。
   - 実ストア `LocalApplicationData\OneStarMaker\` には `Artifacts`、`RevisionLocks`、`Workflow` があり、**`Harness` directory が無い**。
   - Codex の packaged app の `LocalCache\Local\OneStarMaker\Harness\<repoId>\tasks\` に `artifact-evidence-lifecycle`、`h1-transport-identity`、`h2c-unity-gate`、`h2c-unity-gate-r2` がある（directory 名のみ確認。内容は未読）。同じ場所に `Artifacts`、`Workflow`、`WorktreeRecords` もある。
-  - 非仮想化 process で `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle` は「CURRENT が見つかりません」で失敗する。README（冒頭と「Evidenceの責務とoffline検証」）・`docs/README.md`・program §0 はこのコマンドを「固定仕様・原観測の入口」と呼んでいる。
+  - 非仮想化 process で `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle` は「CURRENT が見つかりません」で失敗する。README（冒頭と「Evidenceの責務とoffline検証」）・`docs/README.md`・program §0 はこのコマンドを「固定仕様・原観測の入口」と呼んでいる。`tools/Harness/README.md` も、同じく Codex 側にしか無い `h1-transport-identity`・`artifact-evidence-lifecycle`・`h2c-unity-gate-r2` の CURRENT を入口として案内している。README「分裂したストアの合流」の「運用の前提」と `docs/README.md` の H1 の説明にある `harness.ps1 current` は、特定 task を指さない一般の手順である。
   - `store plan` / `store consolidate` は PR #126 で実装・検証済み（`StoreConsolidationPlan` 24 case、`StoreConsolidation` suite）だが、実データへの plan は未実施。plan の `status: passed` は manifest を書けたことを示すだけで、単位が公開できることや CURRENT が読めることを示さない。単位の状態は `publish` / `skip` / `hold`。
   - `origin/develop` で 2026-10-10 以降の commit は `unity/Assets` 1 件に対し `tools/Artifacts` 37 件。Artifacts の非テストコードは約 10,900 行、README は 466 行・約 103 KB（1 行が 1 段落なので行数は規模の指標にならない）。
   - 他の文書から README の 9 つの見出しへ anchor link がある: `AGENTS.md` ほかが `#エージェント操作の事前承認`、`tools/Workflow/README.md` と `tools/Harness/README.md` が `#実行するprocessの条件appdata仮想化`、`review-evidence.md` が `#レビュー用の変更集合changespatch`、program が Build / Content 系の 6 見出し。`docs-audit.ps1` は anchor を検査しない。
-  - Unity 側は Artifact Storage を参照しない。資格情報のある host で `build fetch` / `content fetch` → 利用者が運ぶ → Delivery window（`Tools/OSM/Content/Delivery`）の Local/LAN directory → manifest digest・contentSet・revision・cache root・disk budget を入力して Prepare → Use For Next Play、の往復を 1 ページに書いた手順が無い（Delivery 側の手順は `20-variant-checkout-workflow.md` §3）。
+  - Unity 側は Artifact Storage を参照しない。Storage で取得したものを Unity 側で使う経路は 2 つあり、どちらも 1 ページに書いた手順が無い。(a) Editor Play: `content fetch` の `payload/` を、Unity Editor の Delivery window（`Tools/OSM/Content/Delivery`）で Local/LAN directory に指定し、manifest digest・contentSet・revision・cache root・disk budget を入力して Prepare → **Use For Next Play**（次回以降の Editor Play に適用。`20-variant-checkout-workflow.md` §3、`04-app-startup.md`）。(b) Player: `build fetch` で取得した BS4 Player を起動する。Player が install 済みの Content を使う時は `content:installedRevisionPath` と `content:manifestSha256` の pair（installed override）を渡す（`04-app-startup.md`）。Use For Next Play は Player には効かない。
   - `content fetch` は新規 private operation の `payload/`（`transport.json` と `content/`）に取得する。この operation の期限清掃は README「開発Content 1件の保存と取得」で後続の作業とされ、Content の件数清掃もこの残置を読まず消さない（`ContentCleanup.psm1` のコメント）。Evidence の 7 日清掃（604800 秒）は Evidence catalog の staging の規則で、ここには及ばない。
   - program は §0 で「programは進行中」「後続B〜DのA3は別途」、§5 で「A〜Dのみを実装キューとする」と書いている。§4 B の 1 行にローカル作業 directory の実値がある。
   - Phase D で `schedule status` を確認する手順が無く、Store 版 pwsh の更新で日次 job が止まったことを人が気づく仕組みが無い（PR #129 で実測）。
@@ -53,31 +53,32 @@
 - 進める最低条件:
   - 不変条件（起きてはいけないこと）:
     - I1: `store plan` と分類の確認は、実ストア・Codex 側 copy・R2 のデータと metadata を変更・削除しない。manifest は両ストアの外の新規の絶対 path に書く。生 manifest を `evidence stage` / `publish` に入れない。レビュー Evidence の通常の保存・引渡し（`review-evidence.md`）は本条件の対象外の別の境界で、本スライスもそれに従う（免除しない）。Evidence に入れてよいのは §6 の要約、文書差分、audit 出力、AC4 の比較結果だけ。
-    - I2: 公開物（tracked 文書、commit diff、PR 本文、C / C' の bundle、§6）に、ローカル path の実値・user 名・SID・package 名・reference・packageSha256・manifest sha256 の実値を書かない。manifest の `sourceRoot` / `logicalRoot` は絶対 path なので写さない。program §4 B にある既存の実値も、program を改訂する時に除く。
-    - I3: README の契約を失わない。(1) 既存の節（冒頭の導入 2 段落を除く）は本文を変えずに移す。変えてよいのは見出しの階層と節の順序だけ（下位節が全て移って空になり、参照元の anchor も無い見出しは消してよい）。(2) 冒頭 2 段落から削った文は §6 に全て列挙し、各文が「経緯（PR 参照へ置換）」か「新 README の別の箇所に同じ内容がある（その箇所を示す）」のどちらかである。(3) 他の文書からの既存 anchor link が全て新 README で解決する。`#エージェント操作の事前承認` を含む既存の見出し名は変えない。
+    - I2: 本スライスで新たに公開するもの（改訂後の tracked 文書、commit diff の追加行、PR 本文、C / C' の bundle、§6）に、ローカル path の実値・Windows のローカル user / profile 名・SID・package 名・reference・packageSha256・manifest sha256 の実値を書かない。manifest の `sourceRoot` / `logicalRoot` は絶対 path なので写さない。program §4 B にある既存の実値は、program を改訂する時に除く。既存行を削除した diff の削除行は公開済みの履歴に残るので検査の対象外とし、その値を要約・コメントへ再び写さない。GitHub の owner 名や PR の URL は対象外。秘密が含まれていたと分かった場合は、文書の削除とは別に owner が安全上の扱いを決める。
+    - I3: README の契約を失わない。(1) 既存の節（冒頭の導入 2 段落を除く）は本文を変えずに移す。節の本文は、その見出しの次の行から次の見出し（階層を問わない）の前までとする。変えてよいのは見出しの階層と節の順序だけ（下位節が全て移って空になり、参照元の anchor も無い見出しは消してよい）。例外は S7 の注記を既存の文の後に追加することだけで、既存の文の削除・言い換えは許さない。追加した注記は §6 に場所を列挙する。新しく足す見出しは既存の見出しと同じ名前にしない（GitHub は同名の見出しに `-1` を付けるので、既存の anchor がずれる）。(2) 冒頭 2 段落から削った文は §6 に全て列挙し、各文が「経緯（PR 参照へ置換）」か「新 README の別の箇所に同じ内容がある（その箇所を示す）」のどちらかである。(3) 他の文書からの既存 anchor link が全て新 README で解決する。`#エージェント操作の事前承認` を含む既存の見出し名は変えない。
     - I4: 保留 list の項目を次の仕事と読める書き方にしない。各項目は下記の再開条件のどれかと、再開を判断する者（owner）を持つ。
   - 再開条件（調査レポート §7.2・§7.5 から転記。A3 で owner が採用を確認する）:
     - RC1: エンジン側スライス（S-5 / S-8 / S-9、InGame 縦糸）が Storage の不足で実際に止まった。
     - RC2: 同じ障害が実運用で 2 回以上起き、既存の reasonCode と README の手順で回復できなかった。
     - RC3: Cloud / 別 PC の読み手が実際に稼働を始めた（HANDOFF に担当として割り当てられた）。
     - 再開は、どれかを A0 に観測事実（日付・task・reasonCode）付きで書けた時に限る。仮定上の障害では再開しない。
+    - 安全上の例外（案。A3 で owner が採否を決める）: 秘密の露出、保護対象の誤削除など既存の安全契約に違反したことが確認された場合は、RC1〜RC3 を待たず初回で該当操作の利用を止め、owner が評価する。これは機能開発の再開条件ではなく、保留 list の項目にもしない。
   - 成立条件（起きなければならないこと）:
     - S1: `store plan` を 1 回実行し、§6 に 3 層で記録する。(1) exit code・`status`・`reasonCode`。(2) manifest の単位数（`publish` / `skip` / `hold`）と `excluded` 数、Harness 4 task の単位 ID・状態・理由 code（単位に入らなければ `excluded` の理由 code）。(3) 結論: 合流できる単位、保留のまま設計判断が要る単位、plan 自体の失敗。理由 code は manifest のまま転記する。既知の例は、保留が `conflict`、`acl-mismatch`、`reparse`、`source-unreadable`、`reference-missing`、`reference-localcache`、`reference-out-of-role`、`source-unchecked`、`source-invalid`、`multi-workflow-unit`、`workflow-already-visible`、`dependency-held`、除外が `unrecognized`、`unreferenced-transfer`、`credentials`、`out-of-scope-role`、`revision-locks`、`not-owned`、`consolidation-run`（網羅ではない）。`passed` を「CURRENT が読める」「合流できる」と記録しない。
-    - S2: program の status を「完了（保留 list 付き）」にし、§0 の status・§4 B〜E・§5 の残件の文を同じ意味に揃える（完了宣言と実装キューを同じ文書に併存させない）。§4 B〜E の未着手項目を再開条件付きの保留 list へ移す。`docs/README.md` の program 表も同じ状態にする。
+    - S2: program の status を「完了（保留 list 付き）」にし、§0 の status・§4 B〜E・§5 の残件の文を同じ意味に揃える（完了宣言と実装キューを同じ文書に併存させない）。§4 B〜E の未着手項目を再開条件付きの保留 list へ移す。`docs/README.md` の program 表も同じ状態にする。program から削ってよいのは PR・Git 履歴に残る経緯だけで、§2 の保存契約と §5 の責務・残す安全性・採用・不採用の判断は残す。
     - S3: README を「日常操作」「管理操作」「契約と known limits」「経緯」の 4 節に再編する（節の割当は §4-2 の表）。冒頭の導入の直後に日常操作節を置き、その最初の下位見出しより前は 7 コマンド（`evidence stage` / `evidence fetch` / `build collect` / `content collect` / `build cleanup` / `content cleanup` / `evidence schedule status`）の表と短い注記だけにする。冒頭の導入とこの表の部分を合わせて 30 行以内・8 KB 以内にする（値は A3 で owner が確定）。
-    - S4: 手で運ぶ往復の手順を README の日常操作節に 1 節置く（AC5 の順序と記載事項）。別 PC から直接 `content fetch` できるとは書かない。
+    - S4: Storage で取得した Player と Content を別 PC へ手で運んで使う手順を README の日常操作節に 1 節置く。Editor Play の経路と Player の経路を分けて書く（AC5）。別 PC から直接 `content fetch` / `build fetch` できるとは書かない。
     - S5: Phase D の手順に `schedule status` の確認が 1 文入る（`review-evidence.md` の「Phase D の保存・引渡し確認」）。
     - S6: 機械で確かめられる条件が通る: `pwsh tools/docs-audit.ps1`、`pwsh tools/contract-audit.ps1`、anchor の解決、契約節の本文一致、変更 file 一覧、公開物の露出検査（AC4・AC7・AC8）。
-    - S7: `harness.ps1 current -Task ...` を入口として案内する公開文書の全箇所（README・`docs/README.md`・program）の隣に、合流前は実ストアに無く非仮想化 process から読めないことと、S1 の結論（理由 code）を書く。
+    - S7: Codex 側にしか無い 4 task（`artifact-evidence-lifecycle`、`h1-transport-identity`、`h2c-unity-gate`、`h2c-unity-gate-r2`）の `harness.ps1 current -Task <id>` を固定記録の入口として案内する公開文書の全箇所（README・`docs/README.md`・program・`tools/Harness/README.md`）の隣に、合流前は実ストアに無く非仮想化 process から読めないことと、S1 の結論を書く。結論は単位の状態と理由 code で書き、理由が無い単位（`publish` / `skip`）は「理由なし・未合流」と書いて理由 code を作らない。特定 task を指さない一般の手順（「分裂したストアの合流」の「運用の前提」、`docs/README.md` の H1 の説明）には注記しない。
 - 受け入れ条件:
   - AC1（S1, I1）: `store plan` を非仮想化 pwsh で 1 回実行する。`status` が `passed` 以外なら reasonCode を記録して止め、再実行・store の変更・`consolidate`（dry-run を含む）で結果を埋めない。不合格例: manifest を実ストアか Codex 側 copy の配下に書く。既存 file へ出力する。manifest を stage する。
   - AC2（S1, I2）: §6 の表は単位 ID・task ID・状態・理由 code・数だけを持ち、path と hash の実値を持たない。
   - AC3（S2, I4）: program の保留 list の各項目に RC1〜RC3 のどれかと判断者が付いている。program に「進行中」「実装キュー」の現在形の記述が残らない。合格例: 「Content 確定記録 — 再開: RC2（別 PC からの同時公開の衝突が実運用で 2 回以上、README の手順で回復できない）。判断: owner」。不合格例: 「後続で扱う」。
-  - AC4（S3, I3）: 発見 C が次を照合する。(1) 旧 README の各節（冒頭 2 段落を除く）の本文と、新 README の同名の節の本文の差分が空。(2) §6 の削除文一覧の各文の分類と、示した箇所に同じ内容があること。(3) 参照元（`git grep -o 'Artifacts/README.md#[^) ]*'` で抽出）の全 anchor が新 README の見出しから作る GitHub の slug と一致する。(4) 旧 README の reasonCode 名（`` `[a-z]+(-[a-z0-9]+)+` `` の形）が全て新 README に残る。(5) S3 の行数・bytes。
-  - AC5（S4）: 手順が次の順で書かれている。(1) 資格情報のある非仮想化 host で `build fetch`（Player）と `content fetch`（Content）を実行し、`payload/` の場所を確認する。(2) 利用者が別 PC へ運ぶ（手作業）。(3) Delivery window で Local/LAN directory に Content の `payload/` を指定し、manifest digest・contentSet・revision・cache root・disk budget を入力して Prepare する。(4) requested と installed の revision の一致を確認する。(5) Use For Next Play。Player の置き方・起動条件は既存文書（README「開発Build 1件の保存と取得」、`20-variant-checkout-workflow.md`）にある事実だけを書き、無ければ「未記載」と書く。`content fetch` の operation は自動清掃されずに残ると書く（一括削除の手順は書かない）。2 台での実機往復は未検証と書く。不合格例: 「別 PC で `content fetch` する」「`payload/` は 7 日で清掃される」「2 台で確認済み」。
+  - AC4（S3, I3）: 発見 C が次を照合する。(1) 旧 README の各節（冒頭 2 段落を除く）の本文と、新 README の同名の節の本文の差分が、§6 に列挙した S7 の注記の追加だけである。新しく足した見出しが既存の見出しと同名でない。(2) §6 の削除文一覧の各文の分類と、示した箇所に同じ内容があること。(3) 参照元（`git grep -o 'Artifacts/README.md#[^) ]*'` で抽出）の全 anchor が新 README の見出しから作る GitHub の slug と一致する。(4) 旧 README の reasonCode 名（`` `[a-z]+(-[a-z0-9]+)+` `` の形）が全て新 README に残る。(5) S3 の行数・bytes。
+  - AC5（S4）: 手順が次のとおり書かれている。共通: (1) 資格情報のある非仮想化 host で `content fetch`（Content）と、Player を使うなら `build fetch`（Player）を実行し、取得先を確認する。(2) 利用者が別 PC へ運ぶ（手作業）。Editor Play の経路: (3) 別 PC の Unity Editor（project を開いた状態）の Delivery window で Local/LAN directory に Content の `payload/` を指定し、manifest digest・contentSet・revision・cache root・disk budget を入力して Prepare する。(4) requested と installed の revision の一致を確認する。(5) Use For Next Play の後に Editor Play。Player の経路: install 済みの Content を Player に使わせる方法（`content:installedRevisionPath` と `content:manifestSha256` の pair）と Player の置き方・起動条件は、既存文書（README「開発Build 1件の保存と取得」「BS4 Player出力の退避と保存」、`04-app-startup.md`、`20-variant-checkout-workflow.md`）にある事実だけを書き、無ければ「未記載」と書く。Use For Next Play が Player に効くとは書かない。`content fetch` の operation は自動清掃されずに残ると書く（一括削除の手順は書かない）。2 台での実機往復は未検証と書く。不合格例: 「別 PC で `content fetch` する」「`payload/` は 7 日で清掃される」「Use For Next Play で Player が新しい Content を使う」「2 台で確認済み」。
   - AC6（S5）: `review-evidence.md` の Phase D 節に、非仮想化 pwsh で `evidence schedule status --profile osm --config <v2-config>` を確認する 1 文が入る。文は、仮想化 host では非仮想化の担当へ依頼すること、`passed` 以外（未登録、`scheduler-identity-mismatch` 等）をこの確認では直さず owner が README「自動清掃」の切替手順で処置することを含む。
-  - AC7（S6）: 両 audit の出力を §6 に貼る。`git diff --name-only <implementation base>..<implementation head>` の一覧が §3 の変更対象 5 file に限られ、`unity/` と `tools/` 配下のコード・script・設定の変更が 0 である。
-  - AC8（S7, I2）: `git grep -n 'harness.ps1 current'` の README・`docs/README.md`・program の全箇所に未成立の記述が隣接している。変更した公開物（差分の全文と PR 本文）を I2 の語（ローカル path の実値、user 名、SID、package 名、reference、packageSha256）で検査し、0 件である。program §4 B の既存の実値が除かれている。
+  - AC7（S6）: 両 audit の出力を §6 に貼る。`git diff --name-only <implementation base>..<implementation head>` の一覧が §3 の変更対象 6 file に限られ、`unity/` と `tools/` 配下のコード・script・設定の変更が 0 である。
+  - AC8（S7, I2）: `git grep -nE 'current -Task (artifact-evidence-lifecycle|h1-transport-identity|h2c-unity-gate|h2c-unity-gate-r2)'` で見つかる公開文書の全箇所（本 HANDOFF を除く）に未成立の記述が隣接している。一般の手順の箇所に注記が付いていない。改訂後の公開文書の全文、commit diff の追加行、PR 本文を I2 の語（ローカル path の実値、Windows のローカル user / profile 名、SID、package 名、reference、packageSha256）で検査し、0 件である。program §4 B の既存の実値が除かれている。
 - ここでは答えない問いと所有する後続:
   - `store consolidate` の実行と、保留単位の解消（owner が manifest を承認した後の別 task。I1 のため本スライスでは実行しない）。
   - Codex 側 copy の保持・削除・期限（owner の判断。program の保留 list に「Codex 側残置の後始末」として残す）。
@@ -100,31 +101,32 @@
 | `.agents/skills/osm-workflow/references/review-evidence.md` | Phase D 手順 | `schedule status` の確認を 1 文追加 | — | +2 行 |
 | `docs/handoff/ARTIFACT_STORAGE_CLOSEOUT.md` | 本 HANDOFF | Phase ごとに追記、Phase D で harvest して削除 | — | — |
 | 手元層の `store-plan-<日時>.json`（git 管理外。path は tracked 文書に書かない） | `store plan` の manifest | AC1 の生成物。Git・Evidence に入れない。同じ checkout の C が §6 の要約と照合するために読む | — | 新規 |
-| `AGENTS.md`、`tools/Workflow/README.md`、`tools/Harness/README.md` | README への anchor の参照元 | 変更しない。AC4 (3) の照合対象 | — | 0 |
+| `tools/Harness/README.md` | Harness の固定記録の入口 | S7 の注記だけを足す（4 task の CURRENT の入口の隣）。それ以外の文は変えない。README への anchor の参照元でもある | — | +3 行程度 |
+| `AGENTS.md`、`tools/Workflow/README.md` | README への anchor の参照元 | 変更しない。AC4 (3) の照合対象 | — | 0 |
 
 コードの変更は無い。README は既存節を縮めないので規模はほぼ変わらない。読みやすさは冒頭の日常操作の表と節の割当で得る（I3 を優先し、圧縮は冒頭 2 段落に限る）。
 
 ## 4. 実装計画
 
-- 変更対象: §3 の変更対象 5 file（本 HANDOFF を含む）。
+- 変更対象: §3 の変更対象 6 file（本 HANDOFF を含む）。
 - 順序:
   1. **`store plan`（読取のみ）。** 非仮想化 pwsh（PowerShell tool か owner の端末）で `pwsh tools/artifacts.ps1 store plan --source-root <Codex 側 OneStarMaker の絶対 path> --output <手元層の新しい file の絶対 path>` を 1 回実行する。stdout の `status` が `passed` 以外なら reasonCode を §6 に記録して止める（§0 停止規則）。manifest を読み、S1 の 3 層で §6 にまとめる（path と hash の実値は書かない）。`consolidate` と dry-run は実行しない。
-  2. **文書改訂。** program → README → docs/README → review-evidence の順。README の節の割当は次の表のとおり（見出し名は変えず、階層だけを変えてよい）。
+  2. **文書改訂。** program → README → docs/README → Harness README → review-evidence の順。README の節の割当は次の表のとおり（見出し名は変えず、階層だけを変えてよい）。
 
      | 現在の節 | 新しい節 | 扱い |
      |---|---|---|
-     | 冒頭の導入 2 段落 | 導入／経緯 | 第 1 段落は短い導入に縮めてよい。第 2 段落（スライス A の経緯）は経緯節へ移し PR 参照に置き換えてよい。CURRENT の入口の文には S7 の注記を付ける。削った文は §6 に列挙（I3 (2)） |
+     | 冒頭の導入 2 段落 | 導入／経緯 | 第 1 段落は短い導入に縮めてよい（完了の範囲と未成立の範囲を §1 目的 1 のとおり書く）。第 2 段落（スライス A の経緯）は経緯節へ移し PR 参照に置き換えてよい。CURRENT の入口の文には S7 の注記を付ける。削った文は §6 に列挙（I3 (2)） |
      | （新規）日常操作の表 | 日常操作 | 7 コマンドと、各コマンドの詳細節への link |
      | Evidence v2 の通常操作、ローカル固定（evidence stage）、R2への昇格（evidence promote）、レビュー用の変更集合（changes.patch） | 日常操作 | 本文不変で移動 |
      | 開発Build 1件の保存と取得、BS4 Player出力の退避と保存（build collect）、開発Content 1件の保存と取得、開発Buildの件数清掃、開発Contentの件数清掃 | 日常操作 | 本文不変で移動（現在は「保守とoffline検証」の下） |
-     | （新規）別 PC で Player と Content を使う往復 | 日常操作 | AC5 |
+     | （新規）別 PC で Player と Content を使う手順 | 日常操作 | AC5 |
      | 自動清掃、一回の旧開発環境reset、分裂したストアの合流、資格情報の操作、Synthetic Route proof、系列の退役 | 管理操作 | 本文不変で移動 |
-     | エージェント操作の事前承認、実行するprocessの条件（AppData仮想化）、終了・再開・利用中と清掃、開発Buildの件数保持policy、Evidenceの責務とoffline検証 | 契約と known limits | 本文不変で移動。「Evidenceの責務とoffline検証」の CURRENT の入口の文には S7 の注記を足す（本文の文は消さない） |
+     | エージェント操作の事前承認、実行するprocessの条件（AppData仮想化）、終了・再開・利用中と清掃、開発Buildの件数保持policy、Evidenceの責務とoffline検証 | 契約と known limits | 本文不変で移動。「Evidenceの責務とoffline検証」の CURRENT の入口の文の後に S7 の注記を足す（I3 (1) の例外。既存の文は消さない） |
      | 保守とoffline検証（見出しのみ） | — | 下位節が移った後の空の見出しは消してよい。参照元に anchor が無いことを AC4 (3) で確かめる |
 
   3. `pwsh tools/docs-audit.ps1`、`pwsh tools/contract-audit.ps1`、AC7 の変更 file 一覧、AC8 の grep。
 - Phase B から Phase A へ差し戻す条件: `store plan` の結果が「全単位保留」で、保留理由の解消に Storage の設計判断（公開途中の不可視性を保つ方式等）が要る場合。この時は plan の結果だけを §6 に残し、合流は別スライスにする（文書改訂は続けてよい）。I3 の「本文不変で移動」を守ると S3 の行数・bytes を満たせない場合も、条件の衝突として A に返す。
-- 対象外を維持する方法: B の出口で `git diff --name-only <implementation base>..HEAD` を §6 に残す（AC7）。R2 へは何も送らない（network を使うコマンドを実行しない）。
+- 対象外を維持する方法: B の出口で `git diff --name-only <implementation base>..HEAD` を §6 に残す（AC7）。本スライス固有の操作では R2 へ何も送らない（network を使うコマンドを実行しない）。レビュー Evidence の保存・引渡しは `review-evidence.md` に従い、生 manifest を入れない（I1）。
 
 ## 5. テストとレビュー計画
 
@@ -134,19 +136,19 @@
 - 全 EditMode 回帰の適用除外: Unity を変更しないため適用外（program の文書改訂 PR #108 / #117 / #122 と同じ扱い）。
 - 統合・Unity テスト: なし。
 - 操作・実行時・目視条件の検証経路:
-  - AC1: 担当は Phase B。環境は非仮想化 pwsh。操作は §4-1 のコマンド 1 回。観測は exit code、stdout の `status` / `reasonCode` / `summary`、manifest の単位の状態と理由。合否は S1 のとおり。証拠は manifest（git 管理外の手元層、同じ checkout）と §6 の要約。発見 C・判定 C は同じ PC・同じ checkout で manifest を読取専用で開き、§6 の要約と照合する。manifest は Evidence に入れない（I1）。
+  - AC1: 担当は Phase B。環境は非仮想化 pwsh。操作は §4-1 のコマンド 1 回。観測は exit code、stdout の `status` / `reasonCode` / `summary`、manifest の単位の状態と理由。合否は S1 のとおり。証拠は manifest（git 管理外の手元層）と §6 の要約。B は manifest の絶対 path を git 管理外の取得案内（手元層の note）に書き、引継ぎ票にはその note があることだけを書く（I2）。発見 C・判定 C は同じ PC で manifest を読取専用で開き、§6 の要約と照合する（別 worktree でも絶対 path で読める）。manifest は Evidence に入れない（I1）。C' は manifest を読まないので、§6 の要約と manifest の一致は C' の監査できない範囲として記録する。
   - AC4: 担当は発見 C（判定 C で再実行）。§4-2 の表に沿って旧 README（implementation base）と新 README（head）の節を対応させ、本文の差分・anchor・reasonCode を機械で照合する。
 - 未知の操作経路の疎通結果: `store plan` を実データに対して実行した例は無い。初回確認は Phase B の §4-1 が兼ねる。不成立時は reasonCode を記録して停止（§0 停止規則）。
-- 人間の判断が必要な条件: 再開条件 RC1〜RC3 と S3 の数値の採用（A3）。Codex 側 copy の扱いと、合流の承認（本スライスでは判断を求めるだけで実行しない）。
+- 人間の判断が必要な条件: §5「A3 統合案」の owner が決めること 5 点（A3）。Codex 側 copy の扱いと、合流の承認（本スライスでは判断を求めるだけで実行しない）。
 - 高コスト証拠: なし。
 - 判定 C の照合 script の方式: なし（AC4・AC7・AC8 は git と grep の手順で足りる）。
 - 機械検査: 両 audit、AC4・AC7・AC8。
 - A0/A1 主担当: 本 HANDOFF の作成 session（調査レポートと同じ）。
 - A2 独立レビュー: 3 件（§5 末尾）。1 件目は A1 初稿だけを読んだ。2 件目・3 件目は先行を読んだ再評価で、独立性制約あり。3 件目がアーキテクチャゲートを担当した。
 - A3 統合担当: 人間（owner）。統合案の本文反映は A2 1 件目の session が行った（§5 末尾「A3 統合案」）。
-- C' 用に予約した担当: A2 で使っていないベンダー、または人間。文書差分と §6 の要約だけを読む。
+- C' 用に予約した担当: AI なら Phase B・Phase C の両方と異なるモデル、新規 session、blind bundle（必須条件）。A2 で使ったベンダーであることは除外理由にしない。人間が担当する場合、発見 C・判定 C の結論を先に読んだか設計に関与していれば `独立性制約あり` と記録し、盲検の独立監査済みとは書かない。
 - C' の入力: 対象 commit、A3 凍結本文、最終の文書差分、両 audit の出力、§6 の要約（path と hash を除く）、AC4 の比較結果。生 manifest と発見 C・判定 C の所見は入れない。
-- 独立性の強化条件を満たせない場合の理由: A2 で 3 ベンダーを使ったので、C' に未使用のベンダーを用意できなければ人間が担当するか、`独立性制約あり` と記録して owner が採否を判断する。
+- 独立性の強化条件を満たせない場合の理由: 強化条件（Phase A〜C に関与していない系列）は高リスク変更の条件で、本スライス（risk `low`）には求めない。A2 で 3 ベンダーを使ったため、C' が A2 と同じベンダーになりうることを記録する。
 
 ### A2 独立レビュー結果（1 件目）
 
@@ -231,6 +233,8 @@
   1. 再開条件 RC1〜RC3（§2）の採用。調査レポート（owner の手元層）§7.2・§7.5 から逐語に近い形で転記した。A2 は 3 件とも「条件を作らない」としたので、内容は変えていない。
   2. S3 の数値（導入と日常操作の表で 30 行以内・8 KB 以内）。
   3. README を縮める方針の変更: A1 初稿は README を約 100 行縮める案だったが、統合案は I3 を守るため既存節を本文不変で移すだけにし、圧縮は冒頭 2 段落に限った。規模はほぼ変わらず、読みやすさは冒頭の表と節の割当で得る。調査レポート T2 の「README の圧縮」はこの範囲でしか達成しない。
+  4. 安全上の例外（§2 再開条件の末尾の案、下表 M4）の採否。
+  5. 変更対象に `tools/Harness/README.md` を足すこと（下表 Q2。S7 の注記だけ）。
 
 | 指摘 | 採否 | 反映した節 | 確認方法 |
 |---|---|---|---|
@@ -256,7 +260,28 @@
 | X1（4 件目）`tools/` 差分 0 と README 変更の矛盾 | 採用 | §1 対象外、§4 対象外の維持、AC7 | AC7（`git diff --name-only`） |
 | GO の意味（2 件目・3 件目・4 件目） | 採用 | §2 判定定義 | — |
 
-- 不採用: なし。保留: なし（owner が決める 3 点を除く）。
+- 不採用: なし。保留: なし（owner が決める 5 点を除く）。
+
+#### 統合案への追加レビュー（5 件目）と再点検
+
+- 入力: owner が依頼した A3 統合案のレビュー（5 件目。OpenAI の GPT 系。git 管理外）。判定は「B1・B2 を直し M1〜M3 の範囲を明確にすれば A3 凍結してよい。新しい調査・設計・実装スライスは不要」。owner が決めること 1〜3 は採用を推奨。
+- あわせて、A2 1 件目の session が Phase C / C' で指摘されそうな矛盾を本文全体で再点検した（Q1〜Q7）。
+
+| 指摘 | 採否 | 反映した節 | 確認方法 |
+|---|---|---|---|
+| B1 I3 (1)・AC4 (1) の本文一致と S7 の注記の衝突 | 採用 | §2 I3 (1)（S7 の注記の追加だけを例外にし、場所を §6 に列挙）、AC4 (1)、§4-2 表 | AC4 (1) |
+| B2 I2 が diff の削除行にも実値 0 を求める。「user 名」が広すぎる | 採用 | §2 I2（追加行・改訂後の文書に限定、削除行は対象外で再転記しない、Windows のローカル user / profile 名に限定）、AC8 | AC8 |
+| M1 AC8 の grep が一般の手順にも当たる。理由の無い単位の書き方 | 採用 | §1 現況、§2 S7（4 task に限定、「理由なし・未合流」）、AC8 の grep | AC8 |
+| M2 §0 risk と §4 の「書込み 0」「R2 に送らない」が I1 より広い | 採用 | §0 risk、§4 対象外の維持 | — |
+| M3 C' の独立性をリポジトリ規則（B・C と異なるモデル、新規 session、blind）どおりに | 採用 | §5 C' 用に予約した担当、強化条件 | — |
+| M4 確認された安全契約違反は再開条件を待たない | 案として本文に記載（owner が採否） | §2 再開条件の末尾 | — |
+| Q1 AC5 が Editor Play と Player を混ぜている。Use For Next Play は次回以降の Editor Play に適用され、Player は `content:installedRevisionPath` と `content:manifestSha256` の pair で install 済み Content を使う（`20-variant-checkout-workflow.md` 冒頭・§3、`04-app-startup.md`）。Delivery window は Unity Editor の window | 採用 | §1 現況、§2 S4・AC5（経路を分け、不合格例を追加） | AC5 |
+| Q2 `tools/Harness/README.md` も Codex 側にしか無い CURRENT（`h1-transport-identity`、`artifact-evidence-lifecycle`、`h2c-unity-gate-r2`）を入口として案内しているが、S7 の対象外だった | 採用（owner が決めること 5） | §1 現況、§2 S7・AC7・AC8、§3、§4 | AC8 |
+| Q3 「節の本文」の範囲が未定義（下位節を含むか） | 採用 | §2 I3 (1)（次の見出しの前までと定義） | AC4 (1) |
+| Q4 新しい見出しが既存と同名だと GitHub の slug に `-1` が付き、既存の anchor がずれる | 採用 | §2 I3 (1)、AC4 (1) | AC4 (1) |
+| Q5 program の −20 KB の圧縮に、残す内容の基準が無い（保存契約・不採用の判断を消しうる） | 採用 | §2 S2 | AC3 と C の差分確認 |
+| Q6 C が別 worktree の新規 session だと手元層の manifest の場所が分からない。C' は manifest を読まないので S1 の要約を検証できない | 採用 | §5 検証経路 AC1（絶対 path は git 管理外の取得案内に置く。C' の監査できない範囲として記録）、§0 引き渡さないもの | — |
+| Q7 §5 の C' の記述が「文書差分と §6 の要約だけ」と「C' の入力」の 2 か所で食い違う | 採用 | §5（C' 用に予約した担当から入力の記述を除き、C' の入力に一本化） | — |
 
 ## 6. Phase B 実装結果
 
