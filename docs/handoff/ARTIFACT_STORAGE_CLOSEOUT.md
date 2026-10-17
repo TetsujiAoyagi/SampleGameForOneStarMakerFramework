@@ -3,24 +3,24 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（A3 凍結候補。owner は 2026-10-17 に「owner が決めること」5 点を採用した。凍結候補の差分レビュー（6 件目）の 4 文と追加 1 点を反映済み。owner の凍結の確認を待ち、Phase B は未開始）
+- status: `B`（A3 凍結済み。owner が 2026-10-17 に凍結。Phase B 未開始）
 - branch: `claude/artifact-storage-closeout`（`origin/develop` の `6ed90d69` から作成済み。ローカルのみで未 push。本文書の A1 初稿が最初の commit `82b0edc5`）
 - planning base commit: `6ed90d69`（`origin/develop`、PR #132 マージ後。ローカルの `develop` は遅れているので先に `git fetch origin develop`）
-- implementation base commit: 未固定（Phase B 開始時に A3 凍結 commit を書く）
+- implementation base commit: 未固定（Phase B 開始時に、凍結を記録した commit（branch の HEAD）の SHA を書く。凍結本文と同じ受け入れ境界で、§0 の記録だけが違う）
 - implementation head commit: 未固定
 - risk: `low`（文書改訂と読取のみの `store plan`。本スライス固有の操作（`store plan` と分類の確認）は実ストア・Codex 側 copy・R2・資格情報へ書込み・削除をしない。レビュー Evidence の通常の保存・引渡しは `review-evidence.md` に従う別の境界で、I1 のとおり）
 - owner: OSM maintainers
 - created: 2026-10-17
 - expires: 2026-11-17 または置換 revision
 - harvest to: `tools/Artifacts/README.md`、`docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md`（完了宣言後は削除候補）、`docs/README.md`、`.agents/skills/osm-workflow/references/review-evidence.md`
-- Phase A snapshot の取得案内・状態: 未生成（A3 凍結時に commit SHA で固定する。文書だけなので stage は不要）
+- Phase A snapshot の取得案内・状態: 固定済み。凍結 commit `7b7f243d`、本文の content sha256 `7fc425a09d678f355e118f99fa0a95eed726c5793aa87e1dead6d23577576ad2`（凍結 commit 時点の本文書。文書だけなので stage は不要）。`git show 7b7f243d:docs/handoff/ARTIFACT_STORAGE_CLOSEOUT.md` で取得する
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase と役割: Phase A の A3 凍結（owner が本文を凍結と確認し、凍結 commit の SHA と本文の sha256 を Phase A snapshot に書く）→ Phase B。「owner が決めること」5 点は採用済み。
-  - 引き継ぐ commit: branch `claude/artifact-storage-closeout`（ローカルのみ）。A1 初稿は `82b0edc5`、A3 統合案はこの branch の最新 commit。A3 凍結 commit の SHA を Phase A snapshot に書き、implementation base は Phase B 開始時に書く。
-  - 次の作業（Phase B、凍結後）: §4 の順序どおり。先に §4-1 の `store plan`（読取のみ）を 1 回行い、その結果を §6 に記録してから §4-2 の文書改訂に進む。
+  - 次の Phase と役割: Phase B（実装）。A3 は owner が 2026-10-17 に凍結した。B の出口の次は、動作確認の対象（AC1 の `store plan`）を B が §4-1 で実行するので、発見 C。
+  - 引き継ぐ commit: branch `claude/artifact-storage-closeout`（ローカルのみ、未 push）の HEAD。凍結本文は `7b7f243d`。HEAD がこの凍結を記録した commit であること、作業ツリーが clean であることを照合してから始める。食い違えば引き継がずに止める。
+  - 次の作業: §4 の順序どおり。先に §4-1 の `store plan`（読取のみ）を 1 回行い、その結果を §6 に記録してから §4-2 の文書改訂に進む。B の出口で `pwsh tools/docs-audit.ps1`・`pwsh tools/contract-audit.ps1`・AC7 の変更 file 一覧を §6 に残して commit し、引継ぎ票を発見 C へ更新する。
   - 必要な権限: 非仮想化の pwsh（owner の端末か、LocalApplicationData が仮想化されない Agent 環境）。資格情報・network・Unity は不要。`store plan` は実ストアの外に manifest を書くだけで、Codex 側 copy を読取専用で開く。
   - 停止規則: `store plan` の `status` が `passed` 以外（`virtualized-store` / `store-context-unknown` / `invalid-source-root` / `invalid-output` / `store-path-unavailable` / `consolidation-failed` 等）なら reasonCode を記録して止め、再実行で埋めず、資格情報や store を触って直さない。`store consolidate` は owner が manifest を承認するまで実行しない（dry-run も同じ）。
   - 引き渡さないもの: Codex 側 copy の削除・移動、R2 の設定変更、保留 list に入れた機能の実装、Unity の変更、manifest の path の実値（git 管理外の取得案内にだけ置く）。生 manifest は Evidence・公開物に入れない（I1・I2）。
@@ -140,7 +140,7 @@
   - AC1: 担当は Phase B。環境は非仮想化 pwsh。操作は §4-1 のコマンド 1 回。観測は exit code、stdout の `status` / `reasonCode` / `summary`、manifest の単位の状態と理由。合否は S1 のとおり。証拠は manifest（git 管理外の手元層）と §6 の要約。B は manifest の絶対 path を git 管理外の取得案内（手元層の note）に書き、引継ぎ票にはその note があることだけを書く（I2）。発見 C・判定 C は同じ PC で manifest を読取専用で開き、§6 の要約と照合する（別 worktree でも絶対 path で読める）。manifest は Evidence に入れない（I1）。C' は manifest を読まないので、§6 の要約と manifest の一致は C' の監査できない範囲として記録する。
   - AC4: 担当は発見 C（判定 C で再実行）。§4-2 の表に沿って旧 README（implementation base）と新 README（head）の節を対応させ、本文の差分・anchor・reasonCode を機械で照合する。
 - 未知の操作経路の疎通結果: `store plan` を実データに対して実行した例は無い。初回確認は Phase B の §4-1 が兼ねる。不成立時は reasonCode を記録して停止（§0 停止規則）。
-- 人間の判断が必要な条件: A3 の凍結の確認（「owner が決めること」5 点は採用済み）。Codex 側 copy の扱いと、合流の承認（本スライスでは判断を求めるだけで実行しない）。
+- 人間の判断が必要な条件: なし（A3 は凍結済み）。Codex 側 copy の扱いと、合流の承認（本スライスでは判断を求めるだけで実行しない）。
 - 高コスト証拠: なし。
 - 判定 C の照合 script の方式: なし（AC4・AC7・AC8 は git と grep の手順で足りる）。
 - 機械検査: 両 audit、AC4・AC7・AC8。
@@ -226,10 +226,10 @@
   - その他（理由 code の転記、日常操作節を行数で決める、管理操作の置き場、`status != passed` の全件停止、Phase D の 1 文の内容、§6 の 3 区分、C' の入力、GO の意味）は 1 件目・2 件目と同旨。
 - 不変条件を破る順序: I1 は plan では破れず、AC1 の文言どおり `evidence stage` する場合と手順外の `consolidate` で破れる。I2 は `sourceRoot` の転記と、program の既存の実値の残置で破れる。I3・I4 は 1 件目と同じ。
 
-### A3 統合案（owner の承認待ち）
+### A3 統合と凍結（owner が 2026-10-17 に凍結）
 
 - 担当: A2 1 件目の session。入力は A2 3 件と、owner が依頼した A3 前の差分レビュー（4 件目。git 管理外。「A2 の転記だけで本文の受け入れ境界が改訂されていない」と指摘し、下表の 10 点と X1 を求めた）。
-- 本文の改訂: §1〜§5 を書き直した（A1 初稿は commit `82b0edc5`）。**A3 は未完了。** owner が下の「owner が決めること」を確定し、本文を凍結するまで Phase B を始めない。
+- 本文の改訂: §1〜§5 を書き直した（A1 初稿は commit `82b0edc5`）。owner が下の「owner が決めること」5 点を採用し、6 件目の差分レビューの反映後の版（commit `7b7f243d`）を凍結した。
 - owner が決めること（2026-10-17、owner が 5 点とも採用。下の 4・5 は凍結候補の差分レビューを受けて本文を確定形にした）:
   1. 再開条件 RC1〜RC3（§2）の採用。調査レポート（owner の手元層）§7.2・§7.5 から逐語に近い形で転記した。A2 は 3 件とも「条件を作らない」としたので、内容は変えていない。
   2. S3 の数値（導入と日常操作の表で 30 行以内・8 KB 以内）。
