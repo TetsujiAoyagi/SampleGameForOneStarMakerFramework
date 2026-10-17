@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C`（発見 C 待ち。A3 は owner が 2026-10-17 に凍結。Phase B と動作確認は 2026-10-17 に完了）
+- status: `D`（Phase D 待ち。A3 は owner が 2026-10-17 に凍結。Phase B・動作確認・発見 C・判定 C（GO）・C'（PASS）は 2026-10-17 に完了）
 - branch: `claude/artifact-storage-closeout`（`origin/develop` の `6ed90d69` から作成済み。ローカルのみで未 push。本文書の A1 初稿が最初の commit `82b0edc5`）
 - planning base commit: `6ed90d69`（`origin/develop`、PR #132 マージ後。ローカルの `develop` は遅れているので先に `git fetch origin develop`）
 - implementation base commit: `855e3da3`（Phase B 開始時の branch の HEAD。凍結本文 `7b7f243d` と同じ受け入れ境界で、§0 の記録だけが違う）
@@ -15,26 +15,17 @@
 - harvest to: `tools/Artifacts/README.md`、`docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md`（完了宣言後は削除候補）、`docs/README.md`、`.agents/skills/osm-workflow/references/review-evidence.md`
 - Phase A snapshot の取得案内・状態: 固定済み。凍結 commit `7b7f243d`、本文の content sha256 `7fc425a09d678f355e118f99fa0a95eed726c5793aa87e1dead6d23577576ad2`（凍結 commit 時点の本文書。文書だけなので stage は不要）。`git show 7b7f243d:docs/handoff/ARTIFACT_STORAGE_CLOSEOUT.md` で取得する
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と implementation head の commit。manifest は git 管理外の手元層にあり、所在は引継ぎ票の取得案内 note）
-- evidence bundle の取得案内・状態: 未生成
-- C' blind bundle の取得案内・状態: 未生成
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。発見 C 用（巡 0）と判定 C 用の 2 件を task `artifact-storage-closeout` に evidence stage し、それぞれ別 session の担当が fetch・hash 照合した。取得案内は git 管理外の手元層の `ARTIFACT_STORAGE_CLOSEOUT.discovery-c-r0.guide.md` と `ARTIFACT_STORAGE_CLOSEOUT.judgment-c.guide.md`
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。巡 1 を同じ task に evidence stage し、C' の担当が fetch・hash 照合した。取得案内は所見と分けた手元層の下位 directory `closeout-cprime` の `cprime-r1.guide.md`
 - 引継ぎ票:
-  - 次の Phase と役割: 発見 C（Phase B と異なるモデルの新規 session）。Phase B と動作確認（AC1 の `store plan`）は 2026-10-17 に完了し、動作確認の期待との差は無かった（§6）。発見 C は GO 判定をせず、C' を起動しない。
-  - 引き継ぐ commit: branch `claude/artifact-storage-closeout`（ローカルのみ、未 push）の HEAD。implementation head は `4a9a0840`（B の出口の commit）で、その後の commit は §0 の記録だけを変えている。開始時に `git diff --stat 4a9a0840 HEAD` が本 HANDOFF だけであることと、`git status --short` で tracked file に差分が無いことを確かめ、食い違えば引き継がずに止める。untracked の `docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md` は本スライス外の文書で、触らない。
-  - 次の作業: 固定した差分 `855e3da3..4a9a0840` を、§2 の I1〜I4・S1〜S7 と AC1〜AC8、§3 の責務マップに照らしてレビューする。AC4 は旧 README（`git show 855e3da3:tools/Artifacts/README.md`）と新 README の節の本文・anchor・reasonCode・S3 の行数と bytes を、AC7 は `git diff --name-only 855e3da3..4a9a0840` を、AC8 は §2 の grep と I2 の語の検査を機械で照合する。S1 は §6 の要約を manifest と照合する（下の取得案内）。
-  - manifest の取得案内: この checkout の git 管理外の手元層（`.gitignore` で除外された作業 directory）にある `ARTIFACT_STORAGE_CLOSEOUT.store-plan-note.md` に、manifest と stdout の絶対 path を書いた。同じ PC で読取専用で開く。path の実値と manifest の中身を tracked 文書・commit・PR・Evidence・C' の bundle へ写さない（I1・I2）。
-  - 必要な権限: 読取だけ。資格情報・network・Unity は不要。`store plan` を再実行しない（AC1 は 1 回）。
-  - 停止規則: §2 の停止規則と blocker の基準（`phases-and-handoff.md`）。`store consolidate` は dry-run も含めて実行しない。
-  - 引き渡さないもの: Codex 側 copy の削除・移動、R2 の設定変更、保留 list の機能の実装、Unity の変更、manifest の path の実値。発見 C の所見は C' に渡さない。
+  - 次の Phase と役割: Phase D（owner）。発見 C（阻害なし、差し戻し 0 巡）、判定 C（GO）、C'（最終、PASS、差し戻し 0 巡）は 2026-10-17 に完了した（§7・§8）。
+  - 引き継ぐ commit: branch `claude/artifact-storage-closeout`（ローカルのみ、未 push）の HEAD。implementation head は `4a9a0840`（GO 候補、判定 evidence の head。ローカル軽量 tag `evidence/artifact-storage-closeout/1`、push しない）。その後の commit は本 HANDOFF の §0・§7・§8 の記録だけを変えている（`git diff --stat 4a9a0840 HEAD` が本 HANDOFF だけであることを確かめる）。untracked の `docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md` は本スライス外の文書で、触らない。
+  - 次の作業（owner）: (1) §7・§8 の突合と、後続入力の扱いの決定（旧 program §4 の細目の欠落 D2・J2・C'1 を経緯と読むか保留 list に追記するか。追記なら head が変わるので判定後の head 変更に従う）。(2) `review-evidence.md`「Phase D の保存・引渡し確認」（Evidence 3 件の取得確認と、非仮想化 pwsh での `evidence schedule status`）。(3) PR 作成（base `develop`）と push、マージ判断。(4) harvest（§0 の harvest 先）と本 HANDOFF の削除、program 文書の扱い（§9）。(5) 手元層の manifest・取得案内・review 用 worktree（`osm-review-closeout-4a9a084`、detached）の後始末。(6) task 終了（`workflow-task.ps1 end`）。
+  - 取得案内の所在: manifest は手元層の `ARTIFACT_STORAGE_CLOSEOUT.store-plan-note.md`。Evidence 3 件は §0 の evidence bundle・C' blind bundle の欄。path・reference・hash の実値は手元層にだけ置く（I1・I2）。
+  - 必要な権限: Phase D の Evidence 確認と `schedule status` は非仮想化 pwsh。PR・push は owner の判断。
+  - 停止規則: `store plan` を再実行しない。`store consolidate` は dry-run も含めて実行しない（保留単位の解消は owner が manifest を承認した後の別 task）。
+  - 引き渡さないもの: Codex 側 copy の削除・移動、R2 の設定変更、保留 list の機能の実装、Unity の変更、manifest の path の実値。
   - 判断の根拠: 2026-10-17 の独立調査レポート（owner の手元層にあり git 管理外。必要な事実は §1、再開条件は §2 に転記済み）。owner は同日に「Artifact Storage 開発はここで完了」と決めた。
-  - 発見 C から C' までを 1 つの session がまとめて進める場合（オーケストレーター向け）:
-    1. 着手前に `.agents/skills/osm-workflow/SKILL.md`、`references/phases-and-handoff.md`、`references/review-evidence.md` を全文読む。進め方の正本はこれらで、ここは本スライス固有の注意だけを書く。
-    2. 順序: 発見 C → 差し戻しがあれば B（上限 4 巡）→ 未公開の試行錯誤 commit の整理 → GO 候補 head の固定 → 判定 C → C'（差し戻しは別に上限 3 巡）。上限で収束しなければ、残る指摘と違反根拠を付けて人間に返す。
-    3. 各 Phase は新規 session で行う。オーケストレーター自身は所見を作らず、各担当の固定入力と出口を管理する。担当のモデル: 発見 C・判定 C は Phase B と異なるモデル、C' は B・C の両方と異なるモデルで blind bundle だけを読む（満たせなければ C' は未実施として人間へ返す）。使った担当とモデルは §7・§8 に記録する。
-    4. 盲検の保護: 発見 C・判定 C の所見は C' 完了まで HANDOFF に commit しない（implementation head の下や base..head に入ると C' の完全 diff に所見が混ざる）。§7・§8 の記録は C' 完了後にまとめて commit する。C' の入力は §5「C' の入力」だけで、生 manifest・C の所見・PR は入れない。§6 の要約と manifest の一致は C' が監査できない範囲として §8 に記録する。
-    5. 本スライスのテストは両 audit と AC4・AC7・AC8 の機械照合だけで、Unity・テスト suite は実行しない。判定 C は GO 候補 head で両 audit を再実行し、照合は git と grep で行う。S1 は判定 C が同じ PC で manifest を読取専用で開いて §6 と照合する。`store plan` は再実行せず、`store consolidate` は dry-run も含めて実行しない。
-    6. Evidence の保存・引渡しは `review-evidence.md` に従う（`tools/Artifacts/README.md`「エージェント操作の事前承認」の範囲で再確認不要）。Artifacts の CLI は非仮想化の pwsh（PowerShell tool）から、config・selection を絶対 path で渡して使う。Bash では LocalApplicationData が仮想化されるので使わない。新しい worktree では先に 3 project の Release build を用意する。保護名（`Credentials.json` 等）の file は stage できないので改名する。判定 evidence を取った head は push しない軽量 tag `evidence/<taskId>/<n>` で残す。
-    7. 外部 CLI（`cursor-agent`）を使う担当は Grok 系モデルだけを明示して使い、試行錯誤で繰り返し呼ばない。
-    8. オーケストレーターがしないこと: push、PR 作成、マージ、Phase D、`workflow-task.ps1 end`、owner の判断の代行。C' 完了後に §0 の引継ぎ票を Phase D（owner）向けに更新して止まる。
 
 ## 1. 目的と対象外
 
@@ -380,11 +371,61 @@
 
 ## 7. Phase C
 
-未実施
+- オーケストレーター: 本記録の commit の作成 session（Claude Opus 5.5）。所見は作らず、固定入力・bundle・出口を管理した。workflow task `artifact-storage-closeout` を 2026-10-17 に start した。
+- 対象: implementation base `855e3da3`、implementation head `4a9a0840`（GO 候補。ローカル軽量 tag `evidence/artifact-storage-closeout/1`、未 push）。レビューは head の detached worktree で読取専用に行った。B 以降に試行錯誤の commit は無く、履歴の整理は不要だった（`4a9a0840` の後の commit は §0 の記録だけ）。
+
+### 発見 C（巡 0）
+
+- 担当: 新規 subagent session、Claude Sonnet 5.5（Phase B と異なるモデル）。
+- 入力: evidence bundle（完全 diff・stat・name-status・両 audit 出力。evidence stage 済み、取得案内は手元層、locality `local`）。担当が別 session で fetch し、hash 照合と diff の再生成一致を確認した。manifest は同じ PC で読取専用で開いた。
+- 結果: 現在の問いを阻害する指摘なし。B への差し戻し 0 巡。
+- 後続スライスの入力:
+
+| # | severity | 内容 | 扱い |
+|---|---|---|---|
+| D1 | low | `docs/README.md` の S7 注記が H1 の一般手順に続く連続ブロックの直後にあり、AC8「一般の手順に注記が付いていない」を厳密に読むと隣接して見える（注記の対象は H2c の文で、grep には当たらない） | 後続。次回 docs/README 改訂で注記の対象を明示 |
+| D2 | low | 旧 program §4 B/C の細目（fetch の local/remote 選択と `unknown-state`、偽 transport の `duplicate-put`、`ReadbackHook` で代替した offline テストの限界、保護の収集源の範囲）が保留 list に無い。旧版は Git 履歴にある | 後続。下記 C'1 と同旨 |
+| D3 | info | AC5 の「Use For Next Play は Player に効かない」の根拠は `20-variant-checkout-workflow.md` の間接記述 | 対応不要 |
+
+### 判定 C
+
+- 担当: 新規 subagent session、Claude Sonnet 5.5（Phase B と異なるモデル。発見 C とは別 session で、発見 C の所見は渡していない）。
+- 判定: **GO**（§2 判定定義。S1〜S7・I1〜I4 を満たす）。
+- 実行した判定必須: head の worktree で `pwsh tools/docs-audit.ps1`（errors 0、warnings 0、exit 0）と `pwsh tools/contract-audit.ps1`（errors 0、exit 0）。AC4 (1)〜(5)・AC7・AC8 の機械照合（git・grep・照合 script）。S1 は manifest を読取専用で開き、§6 の 3 層の要約と全項目一致（20 単位の状態と理由 code、`excluded` の内訳、Harness 4 task の単位対応）。判定必須のうち未実行は無い。Unity・テスト suite は §5 のとおり対象外。
+- 照合の要点: AC4 は既存節の本文の差分が S7 注記の追加だけ、reasonCode 形の語 92 種の欠落 0、参照元の実 link 12 件と README 内 anchor 20 件が全て解決、導入と日常操作の表は 22 行・3,108 bytes。AC7 は 6 file。AC8 は全箇所に注記が隣接、Harness README は追加 8 行・削除 0、I2 の語は追加行で 0 件（全文の非 0 は既存の例示 path・既存の文書 hash・汎用語 `LocalCache` だけ）。動作確認は `なし` で、AC1 の証拠が揃う。
+- 判定 evidence: 判定 C の機械照合の生出力と完全 diff を evidence stage した（取得案内は手元層、locality `local`、引渡し先 Phase D）。
+- 未確認: plan 実行時に実ストア・Codex 側 copy・R2 へ書込みが無かったこと（I1）の独立観測（B の記録と manifest の出力先の文面まで）。保留 list の各 RC 割当の妥当性。旧 program §4 の削除行の全数確認（抜き取り）。別 PC での手順の実機動作（凍結どおり対象外）。
+- 後続スライスの入力:
+
+| # | severity | 内容 | 扱い |
+|---|---|---|---|
+| J1 | info | §6 の「参照元の anchor 15 件」は HANDOFF 自身の grep pattern 文字列 3 件を含む数で、実 link は 12 件（全て解決） | Phase D で記述修正は任意 |
+| J2 | low | 旧 program §4 の「後続への入力」のうち、判定 evidence の命名（`Credentials.json` の保護名）と保護の収集源の範囲が保留 list に無い | 後続。C'1 と同旨 |
+| J3 | info | program の reset の文は S7 の対象外で注記なし | 対応不要 |
 
 ## 8. Phase C'
 
-未実施
+- 種別: 最終（高コスト証拠の分類なし）。1 巡目で PASS、差し戻し 0 巡。
+- 担当: 新規 subagent session、Claude Fable 5.1。Phase B（Claude Opus 5.5）・Phase C（Claude Sonnet 5.5）と異なるモデル。ベンダーは同じ Anthropic で、§5 のとおり risk `low` には強化条件を求めない。独立性: 最低条件（B/C と異なるモデル・新規 session・blind bundle）を充足。
+- 入力: §5「C' の入力」どおりの blind audit bundle（manifest.txt、A3 凍結本文、§6、完全 diff・stat・name-status、両 audit の出力、AC4 の比較の生出力）。evidence stage 済みで、担当が別 session で fetch・hash 照合した（取得案内は手元層、locality `local`）。生 manifest、発見 C・判定 C の所見と結論、PR は入れていない。
+- 監査結果: **PASS**（現在の問いを阻害する欠陥なし）。I1〜I4・S1〜S7・AC1〜AC8 を bundle と固定 commit の git・grep で独立に再導出した。
+- 後続スライスの入力:
+
+| # | severity | 内容 | 扱い |
+|---|---|---|---|
+| C'1 | low | 旧 program §4 C の「後続への入力」のうち、完了した PR #131 の入力だった細目 3 点（fetch の local/remote 選択と `unknown-state` 検査の範囲、promote の readback staging の 7 日清掃と receipt 再利用の優先度、偽 transport の `duplicate-put`）が新 §6 に無い。§6 の「各『後続への入力』を §6 へ移した」より狭い | Phase D で owner が、完了スライスの入力細目を経緯として読むか（決定記録）、保留 list に追記するかを決める |
+| C'2 | low | implementation head の HANDOFF §0 に置換子 `__HEAD__` が残る | 後続の §0 記録 commit `0b0199f0` で実値に置換済み（オーケストレーターが確認） |
+| C'3 | info | `tools/Harness/README.md` の既存の例示 path（本スライス外の不変行）は I2 の意図に当たらない | Phase D で必要なら決定記録 |
+| C'4 | info | AC4 生出力の UNRESOLVED 3 件は HANDOFF 本文の grep pattern の偽陽性 | 判定 C の J1 と同じ |
+| C'5 | low | S7 で plan 結果が 4 文書 11 箇所に複製された。合流・再 plan の後に全箇所を同時更新しないと腐る | 合流スライスの A0 入力に「注記の一括更新」を書く |
+
+- 残存リスク: README 冒頭の「取得系のコマンドは資格情報のある非仮想化hostでだけ使えます」は、`evidence fetch` の local 分岐（資格情報不使用）を含めると広く読める（S4 の凍結文と同じ語なので欠陥にしない）。anchor の検査は AC4 の 1 回だけで常設の機械検査が無い。
+- 監査できなかった範囲: §6 の S1 要約と生 manifest の一致（判定 C が同じ PC で照合済み）。`store plan` の実行環境と出力先（B の記述のみ）。AC4 照合 script の本体（独自 script で主要部を再導出）。
+
+### Phase C / C' の突合（オーケストレーターの整理。判断は owner）
+
+- 判定 C と C' はともに阻害する欠陥なし。重なる後続入力は、旧 program §4 の細目の欠落（D2・J2・C'1）と、HANDOFF 内 grep pattern の偽陽性（J1・C'4）。
+- B / 発見 C の差し戻し 0 巡、C' の差し戻し 0 巡。
 
 ## 9. Phase D
 
