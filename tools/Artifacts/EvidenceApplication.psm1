@@ -5,7 +5,7 @@ Import-Module (Join-Path $PSScriptRoot 'ArtifactAcl.psm1')
 Import-Module (Join-Path $PSScriptRoot 'EvidencePaths.psm1')
 Import-Module (Join-Path $PSScriptRoot '../Workflow/TaskEventStore.psm1')
 Import-Module (Join-Path $PSScriptRoot 'EvidenceContract.psm1')
-Import-Module (Join-Path $PSScriptRoot 'EvidenceStateStore.psm1')
+Import-Module (Join-Path $PSScriptRoot 'EvidenceStateStore.psm1') -DisableNameChecking
 Import-Module (Join-Path $PSScriptRoot 'EvidenceCleanup.psm1')
 Import-Module (Join-Path $PSScriptRoot 'EvidenceRetentionPolicy.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ArtifactApplication.psm1')

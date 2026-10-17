@@ -38,7 +38,7 @@ Import-Module (Join-Path $PSScriptRoot 'ArtifactCommands.psm1')
 # its config/task validation dependency rather than borrowing a CLI import.
 Import-Module (Join-Path $PSScriptRoot 'EvidenceContract.psm1')
 Import-Module (Join-Path $PSScriptRoot 'EvidenceRetentionPolicy.psm1')
-Import-Module (Join-Path $PSScriptRoot 'EvidenceStateStore.psm1')
+Import-Module (Join-Path $PSScriptRoot 'EvidenceStateStore.psm1') -DisableNameChecking
 Import-Module (Join-Path $PSScriptRoot 'ArtifactApplication.psm1')
 Import-Module (Join-Path $PSScriptRoot 'Credentials/CredentialStore.psm1')
 $script:Clock={ [DateTimeOffset]::UtcNow }
