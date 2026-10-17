@@ -15,7 +15,7 @@
 - expires: S-4d1 の Phase D 完了時
 - harvest to: Architecture §24（Rendering）へ「VFX 抽象」の節を追加する。§05（Scene）は変更しない（§3.4）
 - workflow task: `s-4d1-vfx-abstraction`（2026-10-17 に `workflow-task.ps1 start` 済み。Phase B で再度 start しない）
-- Phase A snapshot の取得案内・状態: 確認済み。A2 入力版は commit `01f48d3c`（content sha256 は §5「A2 独立レビュー」）。**A3 凍結版は commit `1462b14c`、本書の content sha256 `2078f87a5b253c88ff5f5cbf2eda422777810c69dabe1306ebca2875dcda6fe4`**（`git show 1462b14c:docs/handoff/S-4D1_VFX_ABSTRACTION.md` の LF 内容の sha256。この値は凍結版を指し、これを書き足した後の本書は指さない）。凍結 commit は program（`S-4_FULL_SPEC_WORLD_AUTHORING.md` の §6.3・§6.4・§10）の更新も含む。凍結 commit の直後の記録用 commit はこの §0 だけを変え、凍結条件を変えない。文書だけなので stage は不要
+- Phase A snapshot の取得案内・状態: 確認済み。A2 入力版は commit `01f48d3c`（content sha256 は §5「A2 独立レビュー」）。**A3 凍結版は commit `1462b14c`、本書の content sha256 `2078f87a5b253c88ff5f5cbf2eda422777810c69dabe1306ebca2875dcda6fe4`**（`git show 1462b14c:docs/handoff/S-4D1_VFX_ABSTRACTION.md` の LF 内容の sha256。この値は凍結版を指し、これを書き足した後の本書は指さない）。凍結 commit は program（`S-4_FULL_SPEC_WORLD_AUTHORING.md` の §6.3・§6.4・§10）の更新も含む。凍結 commit の後の記録用 commit はこの §0 だけを変え、凍結条件を変えない。文書だけなので stage は不要
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
@@ -23,8 +23,8 @@
   - 次の Phase・役割: Phase B（実装）。新しい session で始める。
   - 開始の手順:
     1. `AGENTS.md` と `.agents/skills/osm-workflow/SKILL.md` を全文読む。Unity Editor を操作する前に `.agents/skills/osm-unity-editor/SKILL.md` を読む。
-    2. `git worktree list` で branch `claude/s-4d1-vfx-abstraction` を checkout している既存の worktree を探し、そこで作業する（同じ branch を別の worktree で checkout しない）。HEAD の親が凍結 commit `1462b14c` で、HEAD は本書の §0 だけを変えた記録用 commit であること（`git diff 1462b14c HEAD --name-only` が本書だけ）、作業ツリーが clean であることを確かめる。食い違えば始めずに止めて報告する。
-    3. 本書の §1〜§4 を正本として読む。§5 の A2 記録・採否表は経緯で、Phase B で設計を決め直さない。HANDOFF に書かれていない設計文書を読み込んで再設計しない。凍結版の既知の記載ずれ: §5 の「テスト 5 ファイル」は、F2 で `CountingSceneEventObservable.cs` を足した §3.1 の表（6 ファイル）が正。
+    2. `git worktree list` で branch `claude/s-4d1-vfx-abstraction` を checkout している既存の worktree を探し、そこで作業する（同じ branch を別の worktree で checkout しない）。凍結 commit `1462b14c` が HEAD の祖先で、その後の commit は本書の §0 だけを変えた記録用 commit であること（`git diff 1462b14c HEAD --name-only` が本書だけ）、作業ツリーが clean であることを確かめる。食い違えば始めずに止めて報告する。
+    3. 本書の §1〜§4 を正本として読む。**§5 は読まない**（本書は約 100KB あり、§5 の A2 記録・採否表はその 4 割弱を占める経緯で、Phase B の入力ではない）。Read の行範囲で `## 5. テストとレビュー計画` の見出しの手前までを読み、§5 のうち Phase B に要るテストの割り当ては §3.1 のテストの表にある。§6 以降は Phase B の出口で書くときに開く。§5 の採否を根拠に設計を決め直さない。HANDOFF に書かれていない設計文書を読み込んで再設計しない。凍結版の既知の記載ずれ: §5 の「テスト 5 ファイル」は、F2 で `CountingSceneEventObservable.cs` を足した §3.1 の表（6 ファイル）が正。
   - 次の作業: §4 の順序で §3.1 の新規ファイル（Runtime 10・テスト 6）を作る。各 `.cs` の先頭に `#nullable enable`。Unity Editor でコンパイルを確認し（Editor は `tools/unity-editor.cmd status` で対象 project を確かめてから起動・操作してよい。人間の Editor を強制終了しない）、`.meta` を生成させる。`pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` を通す。§6 に実装結果（HANDOFF との差、B 適応の記録、未実行事項）を書く。
   - Phase B で行わないこと: Unity テストの実行（`pwsh tools/run-tests.ps1` は Phase C）、`unity test` / `unity run`、Build。SampleGame・既存の Framework ファイル・asmdef・`TestableSceneDirector` の変更。`com.unity.visualeffectgraph` の追加。
   - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たったら実装を止め、Phase A へ返す（新しい事実は先に osm-workflow の「新しい事実の分類」で分類する）。
