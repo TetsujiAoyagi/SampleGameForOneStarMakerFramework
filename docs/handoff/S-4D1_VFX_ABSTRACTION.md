@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `D`（C' 1 巡目完了。blocker なし、要判断 F-1〜F-3 を §8 に記録。Phase D＝人間の判断待ち）
+- status: `D`（C' 完了。2026-10-18 に発注者が F-1〜F-3 を裁定（§9）。PR 作成、マージ待ち）
 - branch: `claude/s-4d1-vfx-abstraction`
 - implementation base commit: `ba8245f4`（`develop`、PR #134 のマージ）
 - implementation head commit: `4289fbf0`（Phase B の出口。判定 C の GO 候補 head として固定し、ローカルの軽量 tag `evidence/s-4d1-vfx-abstraction/1` を付けた。push しない）
@@ -660,4 +660,16 @@ Architecture §24（`24-rendering-system.md`、現在 366 行）に「VFX 抽象
 
 ## 9. Phase D
 
-未着手
+### 発注者の裁定（2026-10-18）
+
+§7（判定 C）と §8（C'）を突き合わせ、発注者がチャットで次のとおり裁定した。
+
+- F-1（全 EditMode 回帰の failed 41 件）: 判定 C の DR-2 のとおり本スライスの差分外とする。失敗の原因調査と修正は別 task で次に行う。C' が示した Windows の path 長（MAX_PATH 260 を超える worktree の path）を、リポジトリ全体で問題にならないように根本から直すことを、その task の範囲に含める。本スライスの head は変えない。
+- F-2（AC4 (c) の文言）: DR-1（§2.3 を正とする）で確定済み。
+- F-3（C' の blind 性の弱まり）: 本 C' を独立監査として受け入れる。独立性は `独立性制約あり`（§8「判定と独立性」）のまま記録する。
+- 後続入力: §7 の C-01・C-02・C-05 と §8 の後続入力を、program（`S-4_FULL_SPEC_WORLD_AUTHORING.md`）§6.3 の d2 行・d4 行へ A0 入力として移した。Tick の per-frame 確保は、`Tick` の登録が d2 なので d2 で扱う。
+
+### 状態
+
+- PR: develop 向けに作成する（本スライスの成果を表すタイトル、状態ブロックは §0 の写し）。
+- 未完了: マージ、Evidence の保存・引渡し確認（evidence bundle は「ローカル固定済み（未昇格）」のまま）、harvest（Architecture §24）、本書の削除、task の終了。
