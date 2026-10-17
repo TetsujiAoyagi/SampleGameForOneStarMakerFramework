@@ -13,6 +13,8 @@
 H1適用をA3で明示したArtifacts/Harness作業では、Git外のCURRENTと固定仕様を正本にする。入口は `pwsh tools/harness.ps1 current -Task <id>`。Gitへの新しいPhase RESULT・REVISION・raw実行結果の追加はそのtaskの `pwsh tools/contract-audit.ps1 -HarnessTask <id>` が拒否する。未移行のprogram/Unity作業は従来のtracked HANDOFFを続け、通常のauditは新検査を `not-applicable` と表示する。適用taskの合格根拠に通常auditを流用しない。H1のCURRENT・runは同一Windowsユーザー/マシン内のLocalApplicationDataに置き、別マシン配布はまだ保証しない。
 完了済みH2c（`h2c-unity-gate` / `h2c-unity-gate-r2`）も同じGit外CURRENT方式で固定記録を保持する。B限定Unity実行の許可範囲と記録の入口は [Harness README](../tools/Harness/README.md#h2c-unity-pilot) を正とし、他taskはA3で移行を明示するまで従来方式を続ける。
 
+**注記（合流前、2026-10-17の `store plan`）:** `h2c-unity-gate` / `h2c-unity-gate-r2` と `h1-transport-identity`・`artifact-evidence-lifecycle` のCURRENTは仮想化されたhost（Codex）が書いた側にだけあり、実ストアには無いので、非仮想化processの `harness.ps1 current -Task <id>` では読めない。読取のみの `store plan` の結論は、`h2c-unity-gate-r2` が `publish`（理由なし・未合流）、`h2c-unity-gate` と `h1-transport-identity` が `hold`（理由 `reference-missing`）、`artifact-evidence-lifecycle` が `hold`（理由 `dependency-held`、`multi-workflow-unit`、`reference-localcache`、`reference-missing`、`reference-out-of-role`）。合流（`store consolidate`）は実行していない。
+
 **Evidenceの保存・引渡しはH1/CURRENTへの移行とは別である。** tracked HANDOFFを使うtaskも、対応済み環境では既存Artifact Storageを使い、[レビュー証拠の保存・配布規約](../.agents/skills/osm-workflow/references/review-evidence.md#保存先とリモートへの配布) に従う。ローカルの原source保持だけを引渡し完了とせず、公開文書への内部台帳・機微なpathの転記やpayloadのGit配布を既定にしない。別host/Cloudへの配布は成立した範囲だけを確認済みとする。
 
 ## 3つの層
@@ -39,14 +41,14 @@ H1適用をA3で明示したArtifacts/Harness作業では、Git外のCURRENTと�
 複数スライス計画（構図の正本、空間プロトコルの Plan など）も作業台に置いてよい。ただし harvest 先と期限を本文に書くこと。作業指示だけに限らない。
 §7 / §8 を持たない長期計画は検査3 の網に掛からない。harvest 期限を本文に書くこと。
 
-**進行中の program は次の4件。**
+**program は次の4件。** Artifact Storage は完了（保留list付き）で、他の3件は進行中。
 
 | ファイル | 役割 | 実装キューか |
 |---|---|---|
 | `HLOD_PROGRAM.md` | 観測した問題→最小代替比較→条件付き aggregate pilot の必要性判断 | いいえ。PR #91 は文書修正 A3 のみ。Gate 0 / 1 で pilot なしの終了も可能。`HLOD_RESIDENT_PILOT.md` は未承認候補で、必要性が残った場合だけ新 A1 / A2 / A3 を行う。owner は root、期限は 2026-11-05 または置換 revision |
 | `SEASON_WORLD_DESIGN.md` | 世界構図・実証・スライス順序 | 着手時 HANDOFF を切るまでの正本。スライス表の順で切る。W-5 / W-6 は Content Directory / DIST。S-6 / S-7 実装スライスは廃止済み |
 | `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b / S-4c 完了。S-4d は VFX / Events の着手時に HANDOFF を切る |
-| `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` | 開発用Artifact Storageの単一保存契約と一括切替 | programは進行中。スライスAは[PR #109](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/109)で実装・限定運用検証と正式C/C′を完了。固定記録の入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。Bは単一Build publish（PR #111）、件数保持policy（PR #110）、Player Build→publish接続の `build collect`（[PR #115](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/115)）まで完了。Content種別の保存契約はr7で§2に固定し、Content保存（`content collect`／`inspect`／`fetch`、[PR #118](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/118)）まで完了。Buildの件数清掃（`build cleanup`／`use`／`release`、[PR #119](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/119)）とContentの件数清掃（`content cleanup`、[PR #123](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/123)）も完了。Evidenceのローカル固定（`evidence stage`、[PR #128](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/128)）とR2昇格の送信（`evidence promote`、[PR #130](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/130)）も完了。後続B〜Dは個別にA3を行う。現在の機能と方針は[Artifacts README](../tools/Artifacts/README.md) |
+| `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` | 開発用Artifact Storageの単一保存契約と、完了後の保留list | いいえ。**完了（保留list付き）**。ownerが2026-10-17に開発の完了を決めた。完了の範囲は同一Windowsユーザー・非仮想化processで検証した基本操作と運用契約（Evidence・Build・Contentの保存と取得、30日清掃と件数清掃、削除の確定、秘密の非露出）で、経緯はPR #109〜#131。残りは再開条件付きの保留listで、条件を満たした時にownerが再開を判断する。スライスAの固定記録の入口 `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle` は合流前の実ストアに無く、非仮想化processから読めない（`store plan` では `hold`、理由 `dependency-held`、`multi-workflow-unit`、`reference-localcache`、`reference-missing`、`reference-out-of-role`。未合流）。現在の機能と方針は[Artifacts README](../tools/Artifacts/README.md) |
 
 **未承認の単一スライス候補:** `UI_ACCESSIBILITY_BUTTON_PILOT.md` は Button の Windows Narrator 最初の実証に向けた A1 改稿（A2・PR コメントを照合）。実装キューではなく、検証経路と人間の A3 合意が未成立。owner は root、期限は 2026-11-05 または置換 revision、harvest 先は Architecture §6。上記 program 4件とは別に保持する。
 
