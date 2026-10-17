@@ -26,6 +26,15 @@
   - 停止規則: §2 の停止規則と blocker の基準（`phases-and-handoff.md`）。`store consolidate` は dry-run も含めて実行しない。
   - 引き渡さないもの: Codex 側 copy の削除・移動、R2 の設定変更、保留 list の機能の実装、Unity の変更、manifest の path の実値。発見 C の所見は C' に渡さない。
   - 判断の根拠: 2026-10-17 の独立調査レポート（owner の手元層にあり git 管理外。必要な事実は §1、再開条件は §2 に転記済み）。owner は同日に「Artifact Storage 開発はここで完了」と決めた。
+  - 発見 C から C' までを 1 つの session がまとめて進める場合（オーケストレーター向け）:
+    1. 着手前に `.agents/skills/osm-workflow/SKILL.md`、`references/phases-and-handoff.md`、`references/review-evidence.md` を全文読む。進め方の正本はこれらで、ここは本スライス固有の注意だけを書く。
+    2. 順序: 発見 C → 差し戻しがあれば B（上限 4 巡）→ 未公開の試行錯誤 commit の整理 → GO 候補 head の固定 → 判定 C → C'（差し戻しは別に上限 3 巡）。上限で収束しなければ、残る指摘と違反根拠を付けて人間に返す。
+    3. 各 Phase は新規 session で行う。オーケストレーター自身は所見を作らず、各担当の固定入力と出口を管理する。担当のモデル: 発見 C・判定 C は Phase B と異なるモデル、C' は B・C の両方と異なるモデルで blind bundle だけを読む（満たせなければ C' は未実施として人間へ返す）。使った担当とモデルは §7・§8 に記録する。
+    4. 盲検の保護: 発見 C・判定 C の所見は C' 完了まで HANDOFF に commit しない（implementation head の下や base..head に入ると C' の完全 diff に所見が混ざる）。§7・§8 の記録は C' 完了後にまとめて commit する。C' の入力は §5「C' の入力」だけで、生 manifest・C の所見・PR は入れない。§6 の要約と manifest の一致は C' が監査できない範囲として §8 に記録する。
+    5. 本スライスのテストは両 audit と AC4・AC7・AC8 の機械照合だけで、Unity・テスト suite は実行しない。判定 C は GO 候補 head で両 audit を再実行し、照合は git と grep で行う。S1 は判定 C が同じ PC で manifest を読取専用で開いて §6 と照合する。`store plan` は再実行せず、`store consolidate` は dry-run も含めて実行しない。
+    6. Evidence の保存・引渡しは `review-evidence.md` に従う（`tools/Artifacts/README.md`「エージェント操作の事前承認」の範囲で再確認不要）。Artifacts の CLI は非仮想化の pwsh（PowerShell tool）から、config・selection を絶対 path で渡して使う。Bash では LocalApplicationData が仮想化されるので使わない。新しい worktree では先に 3 project の Release build を用意する。保護名（`Credentials.json` 等）の file は stage できないので改名する。判定 evidence を取った head は push しない軽量 tag `evidence/<taskId>/<n>` で残す。
+    7. 外部 CLI（`cursor-agent`）を使う担当は Grok 系モデルだけを明示して使い、試行錯誤で繰り返し呼ばない。
+    8. オーケストレーターがしないこと: push、PR 作成、マージ、Phase D、`workflow-task.ps1 end`、owner の判断の代行。C' 完了後に §0 の引継ぎ票を Phase D（owner）向けに更新して止まる。
 
 ## 1. 目的と対象外
 
