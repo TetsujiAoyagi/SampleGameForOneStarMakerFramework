@@ -324,10 +324,10 @@ Planner Playは§3.1の経路で `content:representation=Whitebox` と
 
 | スライス | 答える問い | 範囲 | 対象外（所有スライス） |
 |---|---|---|---|
-| **d1** Framework の VFX 抽象 | VFX の寿命、非対応環境での停止、例外の隔離を、VFX 実装の型に依存せず Framework の契約として保証できるか | §6.4 の3責務。中核ロジックは偽 backend で単体テストし、動作数は偽 backend が記録する呼び出し回数で確かめる（公開 API にしない）。**Phase A の必須検討:** Stop / Dispose / 所有者の unload / 消え切り待ちの遅延完了が競合したときの手順、per-frame 更新の要否（既存の lifecycle 通知で足りれば `UpdateSystemRuntime` に登録しない。登録する場合、エフェクト単位の例外隔離は `UpdateSystemRuntime` のシステム単位の隔離に加えた d1 の境界とする）、harvest 先の既存 Architecture 文書 | パッケージ導入と実 backend（d2）、Scene（d3〜d5）、§6.4 で入れないとしたもの |
-| **d2** VFX Graph 導入と SampleGame backend | 現行 project（URP `17.6.0`）に VFX Graph を入れ、d1 の抽象越しに PC で描画し、非対応環境で安全に止められるか | §6.1 の version 互換確認と固定、SampleGame 側 asmdef への Runtime assembly 参照（実名は Editor の import 後に確定）、起動時の capability 判定（§6.4 の backend 側）、backend 実装、Scene に配置済みの `VisualEffect` を止める仕組み（Component が有効化される前に適用できるかを検証する）、確認用の最小 asset | 実証 Scene（d3〜d5） |
+| **d1** Framework の VFX 抽象 | VFX の寿命、非対応環境での停止、例外の隔離を、VFX 実装の型に依存せず Framework の契約として保証できるか | §6.4 の3責務。中核ロジックは偽 backend で単体テストし、動作数は偽 backend が記録する呼び出し回数で確かめる（公開 API にしない）。**Phase A の必須検討:** Stop / Dispose / 所有者の unload / 消え切り待ちの遅延完了が競合したときの手順、per-frame 更新の要否（既存の lifecycle 通知で足りれば `UpdateSystemRuntime` に登録しない。登録する場合、エフェクト単位の例外隔離は `UpdateSystemRuntime` のシステム単位の隔離に加えた d1 の境界とする）、harvest 先の既存 Architecture 文書。**d1 の Phase A で決めたこと（[S-4D1 HANDOFF](S-4D1_VFX_ABSTRACTION.md)）:** 配置は `OneStarMaker.Runtime` の `Rendering/Vfx/`（新しい asmdef なし）。Scene 所有者は `SceneDirector.OnSceneEvent` の `PreUnloading` / `LoadCanceled` で Unity Scene unload より前に回収し、`Bind(go)` は VFX 専用 notifier と `Tick` の偽 null 検査で回収する。消え切り待ちの完了と timeout は公開 `Tick` で進め、d1 は `UpdateSystemRuntime` に登録しない。harvest 先は Architecture §24 | パッケージ導入と実 backend（d2）、Scene（d3〜d5）、§6.4 で入れないとしたもの |
+| **d2** VFX Graph 導入と SampleGame backend | 現行 project（URP `17.6.0`）に VFX Graph を入れ、d1 の抽象越しに PC で描画し、非対応環境で安全に止められるか | §6.1 の version 互換確認と固定、SampleGame 側 asmdef への Runtime assembly 参照（実名は Editor の import 後に確定）、起動時の capability 判定（§6.4 の backend 側）、backend 実装、Scene に配置済みの `VisualEffect` を止める仕組み（Component が有効化される前に適用できるかを検証する）、確認用の最小 asset。**d1 から送った必須事項:** `VfxSystem.Tick` の `UpdateSystemRuntime` 登録とフレーム順序、`VfxSystem` の生成場所・`BindSceneLifecycle`・`Dispose` と `SceneDirector.Dispose` / `AssetManagement.ReleaseAll` の順序、backend 未構成と Unsupported の区別、capability 判定結果の単一の出所（`VfxSystem` が1回だけ判定を呼び、backend はその結果を配置済み VFX の停止に共有する）、`IVfxBackend` 契約の実 backend での確認（`Create` 失敗時の後始末、`Destroy` の冪等性と破棄済み GameObject・失効した source への耐性、生存中の instance に同じ id を返さない）、消え切り待ち timeout の既定値（d1 は 10 秒）、`BindSceneLifecycle` を SceneDirector の生成直後・最初の Scene のロード前に呼ぶ配線順、`Destroy` 要求と native 実体の破棄完了の差（`Destroy` から戻った後に native 側が source を参照し続けても安全か）、`VfxSpawnRequest.Parent` が null のときの配置先 | 実証 Scene（d3〜d5） |
 | **d3** VFX Scene 2件 | Season / Cell の VFX を §2 の制作契約どおり別 Scene として配置し、PC で表示でき、非対応環境では止まるか | `Spring_AtmosphereVFX`（Season）、`Spring_VFX_4_2`（Cell）。d2 の停止の仕組みを実 Scene で確認する。**Phase A の必須検討:** Cell の体積（N-9）。体積の再計算は `StreamByDistance == false` の子だけを親へ畳み、収集は `Renderer`（`includeInactive: true`）に限る。Cell の子である `Spring_VFX_4_2` を保存したあと Cell の `_volume` が変わるかを確かめ、変わったときだけ除外規約を決める。`Spring_AtmosphereVFX` の畳み先は Season ノードで、Cell の AABB には入らない | Event からの起動（d4） |
-| **d4** local Event | Cell 内の trigger から VFX を起動し、Cell unload で確実に回収できるか | `Spring_Events_4_2`。trigger と、d1 の handle を `AssetOwner.Scene`（`Spring_Events_4_2` の identity）または `AssetOwner.Bind(go)` 所有で起動する経路。Events Scene は §2.1 の再帰破棄で親 Cell と一緒に Unload される。Planner profile は Events だけを読むため、trigger は `Spring_VFX_4_2` のロードに依存しない | 独立 Scene の大型 Event（d5） |
+| **d4** local Event | Cell 内の trigger から VFX を起動し、Cell unload で確実に回収できるか | `Spring_Events_4_2`。trigger と、d1 の handle を `AssetOwner.Scene`（`Spring_Events_4_2` の identity）または `AssetOwner.Bind(go)` 所有で起動する経路。Events Scene は §2.1 の再帰破棄で親 Cell と一緒に Unload される。Planner profile は Events だけを読むため、trigger は `Spring_VFX_4_2` のロードに依存しない。**d1 から送った事項:** `Bind(go)` 用 notifier の `OnDestroy` が実 Scene unload と go の Destroy で回収を呼ぶことの Play Mode 確認、source asset のロード / `Spawn` / 所有者の終端 / source の Release の前後関係が見える実例 | 独立 Scene の大型 Event（d5） |
 | **d5** major Event と S-4 の完了 | Cell bundle から独立した Event Scene を Add / Unload し、完了または Season unload で回収できるか。Planner profile で Environment を読まずに Event が動くか | `Spring_Event_MultiCellProof`、その寿命の所有者（S-4b の Season 排他 controller との関係を含め d5 の Phase A で決める）、§6.2 の Planner 実証、本書の harvest と削除。Phase A で major Event と Planner 実証・harvest の見積もりを分け、大きければ追加分割を判断する | S-5 の Tunnel 遷移 |
 
 d5 完了時に Scene 実体は §6.2 の658件になる。
@@ -341,6 +341,8 @@ d5 完了時に Scene 実体は §6.2 の658件になる。
   - **寿命の宣言と回収:** 起動時に `AssetOwner` のスコープを指定させ、所有者が unload されたら Framework が回収する。Framework が回収するのは再生中のインスタンスで、asset の寿命は §2.4 どおり `IAssetManagement` に残す。所有者の unload は消え切り待ちの Stop を打ち切って回収する。
   - **非対応環境での停止:** backend が起動時に1回、対応可否を返す（判定の実装は d2）。Framework は非対応なら何もしない handle を返し、診断ログを1回だけ出す。Game 側に分岐を書かせない。
   - **型に依存しない handle:** Play、即時 Stop、粒子が消え切るのを待つ Stop、名前付きパラメータ。`VisualEffect` 型を公開面に出さない。
+- source asset の寿命（d1 の Phase A で決定）: `Spawn` は呼び出し側がロード済みの `UnityEngine.Object` を受け取り、Framework は asset handle を保持・Release しない。呼び出し側は、その source から作った instance が回収されるまで source を有効に保つ。asset と VFX に同じ `AssetOwner` を使っても解放順は保証されない。
+- 回収の保証範囲（d1 の Phase A で決定）: Framework が保証するのは、所有者の終端の後に backend へ破棄を要求する時点と回数である。backend 自身の破棄失敗からの回復は backend の契約に置く。
 - 最初は入れないもの: 同時数の上限、優先度、カメラ距離での間引き、pool / prewarm、DebugStudio での観測。必要になったスライスの Phase A で判断する。
 - Scene に置く VFX（d3）の寿命は Scene の寿命で回収されるため、d1 の寿命管理の対象は動的に起動する VFX（d4 / d5）である。非対応時の停止は両方に適用する。何もしない handle は Scene に配置済みの `VisualEffect` を止めないので、配置済みのものを止める処理は SampleGame の backend が持つ（d2 で入れ、d3 で実 Scene を確認）。Scene 側は起動時の判定結果を見るだけで、追加の診断ログを出さない。
 
@@ -353,7 +355,7 @@ Framework公開面の追加は次に限定する。
 - SceneDirectorの起動時Scene Variant指定。
 - AbstractApplicationInitializerのScene Variant解決口とEditor runtime bridge。
 - `IRenderEnvironment`、`RenderEnvironmentState`、所有lease。
-- VFX の抽象（§6.4 の handle、寿命の宣言、非対応時の停止、backend の差し込み口）。型名と配置は d1 の Phase A で決める。
+- VFX の抽象（§6.4 の handle、寿命の宣言、非対応時の停止、backend の差し込み口）。d1 の Phase A で、公開型を `IVfxSystem`、`VfxSystem`、`IVfxHandle`、`VfxSpawnRequest`、`IVfxBackend`、`VfxInstanceId` の6つに決めた（namespace `OneStarMaker.Runtime.Rendering.Vfx`）。
 
 Frameworkはseason名、Cell座標文法、職種roleを知らない。Game → Frameworkの依存方向を維持する。
 VFX Graph依存はSampleGame側に閉じ、OneStarMaker Runtimeの公開APIへ`VisualEffect`型を出さない。
