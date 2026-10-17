@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（A1 初稿。A2 独立レビュー 1 件と人間の A3 を経て Phase B へ）
+- status: `A`（A1 初稿、A2 独立レビュー 1 件済み。人間の A3 を経て Phase B へ）
 - branch: `claude/artifact-storage-closeout`（次の担当が `origin/develop` から切る。本文書はその最初の commit に含める）
 - planning base commit: `6ed90d69`（`origin/develop`、PR #132 マージ後。ローカルの `develop` は遅れているので先に `git fetch origin develop`）
 - implementation base commit: 未固定（Phase B 開始時に branch の最初の commit を書く）
@@ -18,9 +18,9 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase と役割: Phase A の A2（独立レビュー 1 件、観点は §5）→ 人間の A3 → Phase B。
-  - 引き継ぐ commit: `origin/develop` の `6ed90d69`。本文書を branch の最初の commit に入れ、その SHA を implementation base に書く。
-  - 次の作業: §4 の順序どおり。先に §4-1 の `store plan`（読取のみ）を 1 回行い、その結果を見てから §4-2 の文書改訂に進む。
+  - 次の Phase と役割: Phase A の A3（主担当と owner が §5「A2 独立レビュー結果」の R1〜R10 を採用・不採用・保留に分類して理由を残し、本文を凍結する）→ Phase B。
+  - 引き継ぐ commit: branch `claude/artifact-storage-closeout`（`origin/develop` の `6ed90d69` から作成済み）。A1 初稿は最初の commit `82b0edc5`、A2 結果はその次の commit。implementation base は A3 凍結 commit を Phase B 開始時に書く。
+  - 次の作業（A3）: R1 は owner が再開条件 3 件を §2 に転記しないと Phase B が AC3 を満たせない。R3・R4・R7・R8 は条件の追加・変更なので、採用するなら §2 / §3 / §4 を改訂してから凍結する。凍結後の Phase B は §4 の順序どおり（先に §4-1 の `store plan` を 1 回）。
   - 必要な権限: 非仮想化の pwsh（owner の端末か、LocalApplicationData が仮想化されない Agent 環境）。資格情報・network・Unity は不要。`store plan` は実ストアの外に manifest を書くだけで、Codex 側 copy を読取専用で開く。
   - 停止規則: `store plan` が失敗（`virtualized-store` / `store-context-unknown` / `invalid-source-root`）したら原因を記録して止め、資格情報や store を触って直さない。`store consolidate` は owner が manifest を承認するまで実行しない（dry-run も同じ）。
   - 引き渡さないもの: Codex 側 copy の削除・移動、R2 の設定変更、保留 list に入れた機能の実装、Unity の変更。
@@ -121,6 +121,34 @@
 - A3 統合担当: 人間（owner）。
 - C' 用に予約した担当: A2 と別ベンダーの 1 件。文書と manifest 要約だけを読む。
 - 独立性の強化条件を満たせない場合の理由: 文書改訂のため、A2 1 件と C' 1 件で足りる。
+
+### A2 独立レビュー結果（1 件目）
+
+- 担当: 新規 session（A1 の会話・調査レポートを読んでいない）。モデル Claude Opus 5.5（Anthropic）。A1 主担当と同じベンダーの可能性があり、独立性は「session 分離のみ」。C' は §5 の予約どおり別ベンダーにする。
+- 入力版: content sha256 `ab517b8dac275157605109c3a350033eab12dce873f8709b18118e00814ccb28`（commit `82b0edc5`、branch の最初の commit）。
+- 観点: §5 の (a) I3 の維持、(b) 再開条件の観測可能性、(c) `store plan` 手順と README「分裂したストアの合流」・実装との整合。加えて不変条件を破る順序の探索。
+- 読んだもの: 本文書、`tools/Artifacts/README.md`、program 文書 §0・§4、`StoreConsolidation.psm1` / `StoreConsolidationPlan.psm1` の plan 経路、README の anchor を参照する文書。
+
+| # | 観点 | 指摘 | 根拠 | 提案 |
+|---|---|---|---|---|
+| R1 | (b) | AC3 の再開条件が「レポート §7.2 の 3 条件」を参照しているが、レポートは git 管理外で、3 条件は §1 に転記されていない。§0 は「必要な事実は §1 に転記済み」としており、Phase B は AC3 を満たせない。 | §0 判断の根拠、§2 AC3 | 3 条件を §2 に観測可能な語で転記する（A3 で owner が確定）。 |
+| R2 | (c) | S1 / AC2 の保留理由の列挙が実装と合わない。実装の保留理由は `conflict`、`acl-mismatch`、`reparse`、`source-unreadable`、`reference-missing`、`reference-localcache`、`reference-out-of-role`、`source-unchecked`、`source-invalid`、`multi-workflow-unit`、`workflow-already-visible`、`dependency-held`。S1 は `conflict`（分岐した Workflow 履歴等、最も起きやすい）、`source-unreadable`、`reference-localcache`、`reference-out-of-role`、`dependency-held` を欠き、ACL・reparse を code でなく語で書いている。 | `StoreConsolidationPlan.psm1` の理由付与箇所 | §6 の表は manifest の理由 code をそのまま転記すると定め、S1 の列挙は例示にする。 |
+| R3 | (a) | README の見出しを 3 節へ再編すると、他文書の anchor link が切れる。`AGENTS.md`（常時契約の「事前承認」link）、`review-evidence.md`、`tools/Workflow/README.md`、`tools/Harness/README.md`、program 文書が `tools/Artifacts/README.md#...` を参照している。`docs-audit.ps1` は anchor を検査しないので S6 では検出されない。§3 の責務マップにもこれらの参照元が無い。 | grep `Artifacts/README.md#`、`tools/*audit*` に anchor 検査なし | 不変条件に「既存の anchor 参照が全て解決する」を足し、AC で参照元の anchor を列挙して照合する。`AGENTS.md` の link は見出し名を保つ側で守る（常時契約の文書を書き換えない）。 |
+| R4 | (a) | AC4 は reasonCode 名の grep だけで I3 を確かめるため、code を含まない契約文（事前承認の範囲、退役を通常操作に含めない旨、仮想化 host で Storage を操作しない旨、fail-closed の文）が消えても合格する。 | §2 AC4、README「エージェント操作の事前承認」「実行するprocessの条件」 | A3 で README の節を「契約（本文を変えずに移動）」と「圧縮してよい（経緯・重複説明）」に分類して凍結し、契約節は移動前後の本文の一致で確かめる。 |
+| R5 | (a) | S3 の「冒頭 1 画面に収まる」は観測できない。README は 1 行が 1 段落（466 行・約 103 KB）なので、§3 の行数見積り（−100 行）も規模の指標にならない。 | `wc` | 「最初の `##` 節が 7 コマンドの表とその直後の短い注記だけで、N 行以内」など数えられる形にし、規模は bytes で見積もる。 |
+| R6 | (a) | 3 節構成に、日常操作でも契約でもない管理操作（一回の reset、`store plan` / `consolidate`、資格情報、退役、Route proof）の置き場が無い。 | README の見出し一覧 | 「管理操作」節を足すか、どの節に入れるかを A3 で決める。 |
+| R7 | — | 目的の問い「公開文書が指す入口が実ストアで成立するか」に対し、成立条件に「成立しない入口を文書がそう書く」が無い。plan の結果が保留でも、README 冒頭・`docs/README.md`・program は `harness.ps1 current -Task artifact-evidence-lifecycle` を入口と呼んだまま完了宣言できる。 | §2 問い、§1 現況 4 点目 | 成立条件に「合流前は CURRENT が実ストアに無いことと、その原因（plan の理由 code）を入口の記述の隣に書く」を足す。 |
+| R8 | — | AC5 が「`payload/` は 7 日清掃の対象」と注記させるが、README の 7 日清掃は Evidence catalog の staging（`EvidenceRetentionPolicy`）の規則で、`content fetch` の operation が清掃される根拠は README にも実装の検索でも見つからなかった。誤りの事実を README に書かせうる。 | README「終了・再開・利用中と清掃」、`604800` の使用箇所 | 「Phase B が実装で清掃の有無を確かめ、確かめた事実（清掃されないなら手で消す前提）を書く」に変える。 |
+| R9 | (c) | §0 の停止規則が挙げる失敗 code は 3 つだが、plan は `invalid-output`、`store-path-unavailable`、`consolidation-failed` でも失敗する。`--output` は絶対 path・未存在・親 directory 既存・両ストアの外が条件。 | `Invoke-StoreConsolidationPlan` | 停止規則を「`status` が `passed` 以外なら全て」にする。scratchpad の新しい file 名を使う旨を §4-1 に書く。 |
+| R10 | — | AC6 の Phase D の 1 文は非仮想化 pwsh と `--config <v2-config>` を要する。Phase D の担当が仮想化 host の場合の扱い（非仮想化の担当へ依頼する）が無い。 | README「実行するprocessの条件」 | 1 文に「仮想化 host では非仮想化の担当へ依頼する」を含める。 |
+
+- 不変条件を破る順序の探索:
+  - I1: plan の経路は両ストアへ書かず、manifest は両ストアの外の新規 file に限られる（実装で確認）。virtualization probe は `%LOCALAPPDATA%` 直下のストア外 directory を作って消すだけ。破る順序は見つからなかった。§4-1 の手順外で `consolidate` を打つことだけが破る経路で、停止規則が防いでいる。
+  - I2: manifest は path を含むので、§6 へ manifest の一部を貼ると破れる。AC2 で防いでいる。plan の stdout の `manifestSha256` は path でないが、C / C' へ渡す時は取得案内側に置くのがよい。
+  - I3: R3・R4 の順序（見出し変更で AGENTS.md の link が切れる／code を含まない契約文の削除）で破れる。
+  - I4: AC3 が R1 のとおり実行できないので、Phase B が条件を自作すると「後続で扱う」相当の弱い語になりうる。
+- 問題なし: §4-1 のコマンド形は README・実装と一致する。`excluded` の扱い（`credentials` 等を開かない）も実装と一致する。`tools/` `unity/` 差分 0 の確認は機械で足りる。
+- blocker 候補（A3 で採否を決める）: R1、R3、R7、R8。他は条件の明確化。
 
 ## 6. Phase B 実装結果
 
