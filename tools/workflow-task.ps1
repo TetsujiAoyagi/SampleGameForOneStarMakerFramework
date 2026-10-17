@@ -14,7 +14,7 @@ if($storeContext -cne 'not-virtualized'){[ordered]@{status='failed';reasonCode=$
 Import-Module (Join-Path $PSScriptRoot 'Workflow/TaskEventStore.psm1')
 Import-Module (Join-Path $PSScriptRoot 'Workflow/TaskLifecycle.psm1')
 Import-Module (Join-Path $PSScriptRoot 'Artifacts/EvidenceContract.psm1')
-Import-Module (Join-Path $PSScriptRoot 'Artifacts/EvidenceStateStore.psm1')
+Import-Module (Join-Path $PSScriptRoot 'Artifacts/EvidenceStateStore.psm1') -DisableNameChecking
 Import-Module (Join-Path $PSScriptRoot 'Artifacts/EvidenceCleanup.psm1')
 
 try {
