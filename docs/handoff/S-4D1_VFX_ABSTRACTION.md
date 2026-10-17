@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C`（発見 C 完了、blocker なし。判定 C は実施したが**未完了**: 全 EditMode 回帰で本スライス差分外の 41 件が failed。人間の判断待ち、§7）
+- status: `C'`（発見 C 完了、判定 C 完了（GO 候補 head `4289fbf0`、DR-2 で差分外の failed 41 件を裁定）。C' 待ち）
 - branch: `claude/s-4d1-vfx-abstraction`
 - implementation base commit: `ba8245f4`（`develop`、PR #134 のマージ）
 - implementation head commit: `4289fbf0`（Phase B の出口。判定 C の GO 候補 head として固定し、ローカルの軽量 tag `evidence/s-4d1-vfx-abstraction/1` を付けた。push しない）
@@ -17,9 +17,17 @@
 - workflow task: `s-4d1-vfx-abstraction`（2026-10-17 に `workflow-task.ps1 start` 済み。Phase B で再度 start しない）
 - Phase A snapshot の取得案内・状態: 確認済み。A2 入力版は commit `01f48d3c`（content sha256 は §5「A2 独立レビュー」）。**A3 凍結版は commit `1462b14c`、本書の content sha256 `2078f87a5b253c88ff5f5cbf2eda422777810c69dabe1306ebca2875dcda6fe4`**（`git show 1462b14c:docs/handoff/S-4D1_VFX_ABSTRACTION.md` の LF 内容の sha256。この値は凍結版を指し、これを書き足した後の本書は指さない）。凍結 commit は program（`S-4_FULL_SPEC_WORLD_AUTHORING.md` の §6.3・§6.4・§10）の更新も含む。凍結 commit の後の記録用 commit はこの §0 だけを変え、凍結条件を変えない。文書だけなので stage は不要
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の bundle 1 件（commit 固定 base `ba8245f4` / head `4289fbf0`、19 file。発見 C・判定 C の所見と DR-1 を含まない）を task `s-4d1-vfx-abstraction` に `evidence stage` で固定し、送信側で fetch と manifest の全 hash 一致を確認した。取得案内は主 checkout の git 管理外 `TestResults/s-4d1-vfx-stage/retrieval-guide.md`（本 worktree の同 path に写し）。発見 C の起点 filter の原 source は `TestResults/` に残したまま（判定 C の bundle には判定 C 自身の実行を収録）。
-- C' blind bundle の取得案内・状態: **未生成（判定 C 未完了のため C' を開始しない。§7）。** 判定 C の bundle は所見を含まないので、人間が判定 C を完了と裁定した時点で同じ bundle を C' 入力に転用でき、その案内は同 directory の `cprime-retrieval-guide.md` に用意してある（C' 担当へはまだ渡していない）。
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 evidence bundle と同一（同じ commit から生成、発見 C・判定 C の所見と DR-1・DR-2 を含まない）。C' 用の案内は主 checkout の git 管理外 `TestResults/s-4d1-vfx-stage/cprime-retrieval-guide.md`（本 worktree の同 path に写し）。C' 担当には案内の path だけを渡し、本書・§7・決定記録は渡さない。
 - Phase B result snapshot の取得案内・状態: ローカル固定済み（未昇格）。判定 evidence bundle に `phase-b-result.md`（B 出口の記録 commit `19dd5255` 版、所見なし）として収録。
-- 引継ぎ票（判定 C 未完了 → 人間の判断へ）:
+- 引継ぎ票（C' へ）:
+  - 前の Phase の結果: 判定 C 完了（§7「判定 C」。DR-2 の裁定後）。GO 候補 head `4289fbf0`。
+  - 次の Phase・役割: C'（独立監査、1 巡目＝最終 C'。高コスト証拠なし）。担当は AI（Claude Sonnet 系列、Anthropic。Phase B・判定 C と異なるモデル、新しい session）。強化条件（Phase A・B・C に関与していない系列）は §5 の理由で満たさず `独立性制約あり`（Anthropic は A0〜A3・A2-1〜A2-3・B・発見 C・判定 C に関与。xAI は凍結前の事前レビューに関与しており、今回は選ばなかった）。残存リスクは同ベンダーのアンカリング。
+  - 開始の手順（起動する側＝オーケストレーターが行う）: C' 担当には `cprime-retrieval-guide.md`（§0 の C' blind bundle の欄）の path と、`AGENTS.md`・`.agents/skills/osm-workflow/SKILL.md`・references を読む指示だけを渡す。C' は fetch した copy だけを入力にし、本書の可変全文・§7・§2 の決定記録・PR は読まない。C' 担当が開始時に照合するのは bundle の `commits.txt`（base / head）と `git rev-parse evidence/s-4d1-vfx-abstraction/1` の一致。
+  - C' の記録: 指摘を「凍結済み条件または常時契約への違反（blocker の基準）」と「後続スライスの入力」に分け、§8 に記録する（使用モデル・独立性を含む）。C' 完了後に Phase D（人間）が §7 と §8 を初めて突き合わせる。
+  - 停止規則: osm-workflow の Phase C'（差し戻し上限 3 巡）。
+  - 必要な権限: Artifact Storage のローカル store からの fetch（非仮想化 pwsh、3 project の Release build 済み checkout。network・資格情報・Unity は不要）。
+  - 引き渡さないもの: 発見 C・判定 C の所見（§7）、DR-1・DR-2、起点 filter 以外の判定 C 担当の観察。
+- （旧）引継ぎ票（判定 C 未完了 → 人間の判断へ。DR-2 で解消。記録として残す）:
   - 前の Phase の結果: 判定 C を head `4289fbf0` で実施（§7「判定 C」）。起点 filter 82/82 passed、機械検査・AC14 合格。全 EditMode 回帰は 1,232 件中 failed 41 で、全件が本スライスの差分外（`SampleGame/DependOnAll/Editor/WorldAuthoring` の WorldCompanion 系 39、shader compile OOM 1、TestObservation の domain reload 1）。単独 filter でも WorldCompanion 系 39 件と domain reload 1 件は同じ例外で再現し、OOM の 1 件は単独では passed。判定必須の「failed 0」を満たさないので判定 C は未完了、GO 判定・C' の起動はしていない。
   - 次の役割・作業: 人間（発注者）の判断。選択肢は (a) 失敗 41 件を本スライスの差分外・環境起因と裁定し、判定 C を完了として記録する（判定必須の読み方を変えないなら決定記録 DR-2 に、全 EditMode 回帰の合否の扱いを変えるなら Phase A の新 revision に）。その場合は §0 の C' blind bundle を「ローカル固定済み」に更新し、`cprime-retrieval-guide.md` を C' 担当へ渡す。(b) 失敗の原因を別 task（S-4a/S-4c の Editor 側、または実行環境）で解消してから、同じ head `4289fbf0` で全 EditMode 回帰だけをやり直す（head が変わらなければ bundle の他の証拠は有効。[判定後の head 変更] の規則に当たらない）。
   - 判定 C 担当からの観察（判断材料、所見ではない）: 失敗 39 件の共通一次原因は `WorldCompanionOwnershipProof.HashFile` が scene の `.meta` を開く時点の `DirectoryNotFoundException` で、同じ log にその scene と folder の import 記録がある。S-4c の判定記録（commit `d550832b`、2026-09-23）に同 fixture の一時的な Failed と再実行での 908/908 の履歴があり、当時の project path は主 checkout。今回は `.claude/worktrees/` 配下の worktree で決定的に再現した（path 依存かは未確認）。
@@ -121,7 +129,8 @@
 - 判定定義: 進める最低条件（§2.1）を全て満たせば GO。一つでも未達なら NO-GO。スパイクではないので CONDITIONAL ACCEPT は使わない。
 - 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。
 - A3 後の例外承認: なし
-- 決定記録: DR-1（下記）。Phase A snapshot（A3 凍結版）には追記しない。
+- 決定記録: DR-1・DR-2（下記）。Phase A snapshot（A3 凍結版）には追記しない。
+  - **DR-2（版 1、2026-10-17、適用時点: 判定 C の記録確定前。発注者が主担当とのチャットで裁定。原文「41 件は本スライスの差分外と裁定する。判定必須の読み方は変えない決定記録 DR-2 として残し、判定 C を完了にして」）:** 判定 C の全 EditMode 回帰（head `4289fbf0`、XML 1,232 件）の failed 41 件を、本スライスの差分外の不合格と裁定し、判定 C を完了として記録する。判定必須（§5「空 filter の全 EditMode 回帰」、failed 0 の読み方）は変えない。内訳: `OneStarMaker.Tests.Editor.WorldAuthoring.WorldCompanionCreationTransactionTests` 13 件・`WorldCompanionRecoveryTests` 26 件（`SampleGame.Tests.Editor`。共通一次原因は `WorldCompanionOwnershipProof.HashFile` が companion scene の `.unity.meta` を開く時点の `DirectoryNotFoundException`）、`OneStarMaker.Tests.Editor.Build.BuildContentDirectoryIntegrationTests.ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirectory` 1 件（`Universal Render Pipeline/Lit` の shader compile が out of memory）、`OneStarMaker.Tests.Editor.TestObservation.ObservationReloadTests.RealDomainReloadRoundTrip` 1 件（`ContentDirectoryException: content:runtimeMode is required …` の未期待ログ）。差分外と判断した根拠: (1) base `ba8245f4` → head の差分は `Rendering/Vfx/`・`Tests/Rendering/Vfx/`・フォルダ `.meta`・HANDOFF・program 文書に閉じ（AC14 (a)(b) 合格）、失敗 fixture の対象コード（`SampleGame/DependOnAll/Editor/WorldAuthoring/`、BuildContent、TestObservation）とテストはいずれも差分に含まれない。(2) 失敗 fixture は本スライスの公開型を参照しない（`Vfx` 名前空間の参照は Runtime の新規ファイルとそのテストだけ）。(3) 本スライスの 82 件は起点 filter・全回帰ともに全件 passed。(4) 限定診断（失敗 4 fixture の単独実行）で WorldCompanion 系 39 件と domain reload 1 件は同じ例外で決定的に再現し、本スライスのテストの有無・実行順に依らない。OOM の 1 件は単独では passed で、実行環境の資源起因。この裁定は I1〜I7・S1〜S6・AC1〜AC14 の合否を変えず、判定必須の集合も変えない。失敗 41 件の解消は本スライスの対象外で、S-4a/S-4c の Editor 側または実行環境（worktree path 依存の疑いを含む）の別 task に送る。判定 C への裁定なので C' の blind bundle には渡さない（review-evidence の「C' 用決定記録」）。
   - **DR-1（版 1、2026-10-17、適用時点: 判定 C の開始前。発注者が主担当とのチャットで裁定し、記録文面を承認）:** AC4 (c) の読み方。Tick による解放の最中に再入した `Spawn` について、生きている Scene への `Spawn` は受理される（§2.3 / I5 を正とし、AC4 の「再入した `Spawn` の `Create`=0」は破棄済みの `Bind` 所有者にだけ適用する）。B の実装と発見 C の判断はこの読み方。理由: `Tick` は §2.3 の所有者の終端ではなく、I5 の拒否理由の網羅列挙に「Tick 中」が無い。Tick 中に Scene の `Spawn` を拒否するには §3.1 にない状態（Tick 中の印）が要るので、それを望むなら Phase A の新 revision になる。この裁定は AC4 (a)(b) の「`Create`=0」の意味と合否を変えず、I1〜I7・S1〜S6 の合否も変えない。発見 C の指摘に対する裁定なので C' の blind bundle には渡さない（review-evidence の「C' 用決定記録」）。
 
 ### 2.1 進める最低条件
@@ -584,7 +593,7 @@ Architecture §24（`24-rendering-system.md`、現在 366 行）に「VFX 抽象
 
 ### 判定 C（2026-10-17）
 
-- 種別: 判定（GO 候補 head `4289fbf0`。**判定 C は未完了**。理由は下記「判定必須のうち不合格」）
+- 種別: 判定（GO 候補 head `4289fbf0`。**完了**。初回の記録（commit `a23b7035`）では全 EditMode 回帰の failed 41 件を理由に未完了としたが、発注者の DR-2（§2）が差分外と裁定し、判定必須の読み方を変えずに完了とした）
 - 使用した evidence の取得案内・状態: ローカル固定済み（未昇格）。commit 固定（base `ba8245f4` / head `4289fbf0`）の bundle 1 件を task `s-4d1-vfx-abstraction` に `evidence stage` で固定し、送信側で fetch と manifest の全 hash 一致を確認した。取得案内は主 checkout の git 管理外 `TestResults/s-4d1-vfx-stage/retrieval-guide.md`（本 worktree の同 path に写し）。bundle は発見 C・判定 C の所見と DR-1 を含まない（C' 入力に転用できる形）。head には軽量 tag `evidence/s-4d1-vfx-abstraction/1` を付けた（push しない）。
 - 開始時の照合: branch `claude/s-4d1-vfx-abstraction` の既存 worktree。HEAD `7ca9305a` は `4289fbf0` の子孫で、`git diff 4289fbf0 HEAD --name-only` は本書だけ。作業ツリー clean。Unity process 0・lockfile 不在を確認してから起動。DR-1（§2）は判定の前に人間から出ている。
 - 構造適合・機械検査（head で再確認）: `pwsh tools/contract-audit.ps1` errors=0 warnings=0（検査1 の差分 16 ファイル）。`pwsh tools/docs-audit.ps1` errors=0 warnings=0。AC14 (a) `git diff --name-status 1462b14c 4289fbf0`: `Rendering/Vfx/`・`Tests/Rendering/Vfx/`（`.meta` 含む）・2 つのフォルダ `.meta`・本書に閉じる。(b) base からの差分はそれに加えて `S-4_FULL_SPEC_WORLD_AUTHORING.md` だけ。asmdef 差分 0、`manifest.json` 差分 0、Runtime の Vfx 配下に `UnityEngine.VFX` 参照 0、公開型は §3.1 の 6 つ、`UpdateSystemRuntime` への登録 0（コメントでの言及 1 件のみ）、`#nullable enable` 欠落 0。
@@ -595,12 +604,12 @@ Architecture §24（`24-rendering-system.md`、現在 366 行）に「VFX 抽象
   - `SampleGame.Tests.Editor` の `OneStarMaker.Tests.Editor.WorldAuthoring.WorldCompanionCreationTransactionTests` 13 件・`WorldCompanionRecoveryTests` 26 件: 共通の一次原因は `WorldCompanionOwnershipProof.HashFile` が `__WorldCompanionTests_<id>/.../<id>_Events/<id>_Events.unity.meta` を `File.OpenRead` した時点の `DirectoryNotFoundException`（同じ log で、その scene と folder の import 自体は記録されている）。S-4a/S-4c の Editor 側（`SampleGame/DependOnAll/Editor/WorldAuthoring/`）で、本スライスは触れていない。S-4c の判定記録（commit `d550832b`、2026-09-23）でも `WorldCompanionRecoveryTests` が一度 Failed になり、再実行で 908/908 になった履歴がある。
   - `OneStarMaker.Tests.Editor.Build.BuildContentDirectoryIntegrationTests.ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirectory` 1 件: `Universal Render Pipeline/Lit` の shader compile が `out of memory during compilation`（環境の資源）。
   - `OneStarMaker.Tests.Editor.TestObservation.ObservationReloadTests.RealDomainReloadRoundTrip` 1 件: `ContentDirectoryException: content:runtimeMode is required unless a verified installed revision pair is provided` の未期待ログ。
-  - 判定 C の扱い: 判定必須は「空 filter の全 EditMode 回帰で failed 0」（§5、osm-workflow Phase C「exit 0 は 1 件以上実行かつ failed 0」）。失敗はいずれも本スライスの凍結条件・常時契約への違反根拠を持たない（差分外・環境起因の疑い）が、判定 C はこの規則を自分で緩めないので **未完了** とし、人間の判断を求める。判定 C の担当が行った限定診断は下記。
+  - 判定 C の扱い: 判定必須は「空 filter の全 EditMode 回帰で failed 0」（§5、osm-workflow Phase C「exit 0 は 1 件以上実行かつ failed 0」）。失敗はいずれも本スライスの凍結条件・常時契約への違反根拠を持たない（差分外・環境起因の疑い）が、判定 C はこの規則を自分で緩めないので初回記録では **未完了** とし、人間の判断を求めた → 発注者が DR-2（§2）で差分外と裁定し、判定必須の読み方を変えずに完了とした。失敗 41 件の解消は別 task（S-4a/S-4c の Editor 側または実行環境）に送る。判定 C の担当が行った限定診断は下記。
   - 限定診断（1 回）: 失敗 4 fixture を `-Filter 'OneStarMaker.Tests.Editor.WorldAuthoring|OneStarMaker.Tests.Editor.Build.BuildContentDirectoryIntegrationTests|OneStarMaker.Tests.Editor.TestObservation.ObservationReloadTests'` で単独実行（XML 75 件、passed 35 / failed 40）。WorldCompanion 系 39 件と `RealDomainReloadRoundTrip` は同じ例外で再現、`BuildContentDirectoryIntegrationTests` の 1 件は passed（全回帰での失敗は shader compile の OOM）。全体成功への読み替えには使わない。
 - Unity の終了: 起点 filter の run は正常終了。全回帰と限定診断の 2 run は、log が `Test run completed … Exiting with code 2` と MemoryLeaks 行で終わった後に Unity PID が残り（`tools/Harness/README.md` の既知 native 終了 stall と同症状。限定調査は同症状の確認 1 回のみ）、runner pwsh が `step.json` を書かずに終了していた。今回起動した PID だけを対象に終了処理を行い（その時点で `Stop-Process` は「見つかりません」= 既に exited で handle 保持の entry だけが残存）、判定は完成した results.xml と log 末尾に基づく。テストの副作用（`AddressableAssetSettings.asset` の `m_currentHash`、`.pdb.meta` 5 件）は `git checkout` で戻した。作業ツリーは本書以外 clean。
 - 現在の問いを阻害する findings（本スライスの凍結条件・常時契約への違反）: なし。I1〜I7・S1〜S6・AC1〜AC14 に対応する Vfx の 82 件は起点 filter・全回帰の両方で全件 passed、AC14・I7 の機械確認は上記のとおり合格。
 - 後続・人間へ返す事項: 全 EditMode 回帰の failed 41 件の扱い（§0 の引継ぎ票）。発見 C の C-01〜C-06 はそのまま後続入力。
-- 判定: **判定 C 未完了**（判定必須の全 EditMode 回帰が failed 0 でない。本スライスに帰属する不合格は 0）。GO / NO-GO は記録しない。C' は起動しない。
+- 判定: **判定 C 完了（GO 候補 head `4289fbf0`）。** 初回記録時は「判定必須の全 EditMode 回帰が failed 0 でない」として未完了にしたが、DR-2 により failed 41 件を本スライスの差分外と裁定（本スライスに帰属する不合格は 0、I1〜I7・S1〜S6・AC1〜AC14 の合否は変わらない）。判定 C の結論・所見は C' 完了まで C' に渡さない。C' の起動はオーケストレーターが行う（判定 C は起動しない）。
 - 担当・モデル: 判断担当と実行担当は同一（Claude Fable 系列、Anthropic。Phase B・発見 C とは別の新しい session。発見 C と同系列）。
 
 ## 8. Phase C'
