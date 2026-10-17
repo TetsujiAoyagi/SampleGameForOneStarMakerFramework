@@ -6,7 +6,7 @@
 - status: `B`（A3 凍結済み。owner が 2026-10-17 に凍結。Phase B 未開始）
 - branch: `claude/artifact-storage-closeout`（`origin/develop` の `6ed90d69` から作成済み。ローカルのみで未 push。本文書の A1 初稿が最初の commit `82b0edc5`）
 - planning base commit: `6ed90d69`（`origin/develop`、PR #132 マージ後。ローカルの `develop` は遅れているので先に `git fetch origin develop`）
-- implementation base commit: 未固定（Phase B 開始時に、凍結を記録した commit（branch の HEAD）の SHA を書く。凍結本文と同じ受け入れ境界で、§0 の記録だけが違う）
+- implementation base commit: 未固定（Phase B 開始時に branch の HEAD の SHA を書く。凍結本文と同じ受け入れ境界で、§0 の記録だけが違う）
 - implementation head commit: 未固定
 - risk: `low`（文書改訂と読取のみの `store plan`。本スライス固有の操作（`store plan` と分類の確認）は実ストア・Codex 側 copy・R2・資格情報へ書込み・削除をしない。レビュー Evidence の通常の保存・引渡しは `review-evidence.md` に従う別の境界で、I1 のとおり）
 - owner: OSM maintainers
@@ -19,8 +19,14 @@
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
   - 次の Phase と役割: Phase B（実装）。A3 は owner が 2026-10-17 に凍結した。B の出口の次は、動作確認の対象（AC1 の `store plan`）を B が §4-1 で実行するので、発見 C。
-  - 引き継ぐ commit: branch `claude/artifact-storage-closeout`（ローカルのみ、未 push）の HEAD。凍結本文は `7b7f243d`。HEAD がこの凍結を記録した commit であること、作業ツリーが clean であることを照合してから始める。食い違えば引き継がずに止める。
+  - 引き継ぐ commit: branch `claude/artifact-storage-closeout`（ローカルのみ、未 push）の HEAD。凍結本文は `7b7f243d`。凍結後の commit は §0 の記録だけを変えている。照合の手順は下の「Phase B の開始手順」2。食い違えば引き継がずに止める。
   - 次の作業: §4 の順序どおり。先に §4-1 の `store plan`（読取のみ）を 1 回行い、その結果を §6 に記録してから §4-2 の文書改訂に進む。B の出口で `pwsh tools/docs-audit.ps1`・`pwsh tools/contract-audit.ps1`・AC7 の変更 file 一覧を §6 に残して commit し、引継ぎ票を発見 C へ更新する。
+  - Phase B の開始手順（会話履歴なしで始める担当向け）:
+    1. 着手前に `.agents/skills/osm-workflow/SKILL.md` と、その中で指定された `references/phases-and-handoff.md`・`references/docs-policy.md` を全文読む（Phase B と文書変更の規則）。
+    2. `git switch claude/artifact-storage-closeout` し、`git diff --stat 7b7f243d HEAD` が本 HANDOFF だけであること（凍結後は §0 の記録だけを変えている）と、tracked file に差分が無いことを `git status --short` で確かめる。untracked の `docs/handoff/ARTIFACT_STORE_VIRTUALIZATION.md` は本スライス外の別作業の文書で、触らず、stage もしない（`git add` は変更した file を path で指定する）。
+    3. §0 の implementation base に HEAD の SHA を書く。
+    4. §4-1 の `store plan` を、Bash ではなく PowerShell tool（または owner の端末）で 1 回実行する。`--source-root` は、`[Environment]::GetFolderPath('LocalApplicationData')` の下の `Packages` から Codex の package の directory を探し、その `LocalCache\Local\OneStarMaker` の絶対 path を使う。`--output` は、この checkout の git 管理外の手元層（`.gitignore` で除外された作業 directory。`git check-ignore` で確認）に置く新しい file の絶対 path にする。これらの path の実値は tracked 文書・commit・会話の要約に書かず、同じ手元層の取得案内 note にだけ書く（I2）。
+    5. 結果を §6 に S1 の 3 層で書き、§4-2 の文書改訂、§4-3 の検査を行い、§6 を埋めて commit し、引継ぎ票を発見 C へ更新して終える。push しない。判定 C の実行や C' の起動はしない。発見 C は Phase B と異なるモデルの新規 session が担う。
   - 必要な権限: 非仮想化の pwsh（owner の端末か、LocalApplicationData が仮想化されない Agent 環境）。資格情報・network・Unity は不要。`store plan` は実ストアの外に manifest を書くだけで、Codex 側 copy を読取専用で開く。
   - 停止規則: `store plan` の `status` が `passed` 以外（`virtualized-store` / `store-context-unknown` / `invalid-source-root` / `invalid-output` / `store-path-unavailable` / `consolidation-failed` 等）なら reasonCode を記録して止め、再実行で埋めず、資格情報や store を触って直さない。`store consolidate` は owner が manifest を承認するまで実行しない（dry-run も同じ）。
   - 引き渡さないもの: Codex 側 copy の削除・移動、R2 の設定変更、保留 list に入れた機能の実装、Unity の変更、manifest の path の実値（git 管理外の取得案内にだけ置く）。生 manifest は Evidence・公開物に入れない（I1・I2）。
