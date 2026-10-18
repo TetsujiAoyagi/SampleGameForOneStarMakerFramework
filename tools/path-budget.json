@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "maxRepoRelativePathLength": 150,
+  "vendorAllowlist": [
+    "unity/Assets/Packages/"
+  ]
+}

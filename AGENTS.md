@@ -26,6 +26,7 @@ Unity の正しいバージョンは `unity/ProjectSettings/ProjectVersion.txt` 
 - **Editor コードを Runtime アセンブリに置かない。** `UnityEditor` 依存は Editor 用 asmdef に隔離する。
 - **Unity側のC#で `record` を使わない。** `OneStarMaker.Runtime` にだけ `internal` な `IsExternalInit` polyfill があるが、他の asmdef からは利用できない。Unity側では一律に禁止し、`tools/DebugStudio` の .NET 8 コードには適用しない。
 - **新規または編集する Unity側の `.cs` は先頭に `#nullable enable` を置く。** 既存ファイルからも外さない。未対応の既存ファイルは残っており、一括整備は別スライスとする。
+- **path は `tools/path-budget.json` の予算に従う。** Unity 同梱の Mono は長い path を開けないので、repo 相対 path の長さと checkout のルートの長さを予算で制限する。数値と vendor の例外はその file だけにあり、contract-audit の検査 9 と `run-tests.ps1` の起動前検査が判定する。置き場所は指定しない。詳細は `tools/Harness/README.md`。
 - **Unity の偽 null を忘れない。** 破棄されうる `UnityEngine.Object` に `?.` / `??` / `is null` / `ReferenceEquals` を使わず、`== null` / `!= null` で判定する。
 - **ローカルの Unity Editor は、人間が先に開いていなくても作業に必要なら起動・操作してよい。** Phase B の実装担当は、対象を限定した Editor 操作とコンパイル確認まで行える。UnityテストとBuildの実行・判定はPhase Cの責任とする。H1適用をA3で明示したArtifacts/Harness作業は、完了引渡し時に関連offlineテストをPhase Bで実行し、判定Cでは広いsuiteを確認する。B限定のUnityテストは、A3で実行経路と対象集合を固定したtaskにだけ許す。完了済みH2cの実例と固定記録の入口は `tools/Harness/README.md` を正とする。それ以外の作業は従来の責任分担を続ける。`unity test` / `unity run` はどの Phase でも使わず、Unityテストは標準の `pwsh tools/run-tests.ps1` を使う。`unity/Library/` と `unity/Temp/UnityLockfile` はブランチを捨てても残るため、起動前に対象projectと既存Editorを確認する。本番の Scene / Prefab / Addressables 等の変更は依頼された範囲に限り、広範な再生成・上書きは個別に影響を確認する。詳細は `osm-unity-editor` Skill に従う。Unity CLIは更新可能、Unity MCPは任意の補助であり作業前提にしない。
 - **テストで `Task.Delay` / `Thread.Sleep` を使わない。** 待機はシグナル等へのリアクティブな待機にするか、時間を注入して進める。

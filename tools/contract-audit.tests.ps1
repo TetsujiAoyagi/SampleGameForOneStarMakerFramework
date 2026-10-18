@@ -9,6 +9,9 @@ param()
 $ErrorActionPreference = 'Stop'
 
 $auditPath = Join-Path $PSScriptRoot 'contract-audit.ps1'
+# fixture も本物の予算の正本を写して使う。R の値をテストに複製しない。
+$budgetText = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'path-budget.json'))
+$budgetR = [int](ConvertFrom-Json -InputObject $budgetText).maxRepoRelativePathLength
 $pwshPath = (Get-Process -Id $PID).Path
 $fixturePrefix = 'osm-contract-audit-tests-'
 $fixtureBase = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
@@ -38,6 +41,9 @@ function New-AuditFixture {
     & git -C $root config user.name 'Contract Audit Tests'
     & git -C $root config user.email 'contract-audit-tests@example.invalid'
     & git -C $root config core.autocrlf false
+    & git -C $root config core.longpaths true
+
+    Write-FixtureFile $root 'tools/path-budget.json' $budgetText
 
     Write-FixtureFile $root 'unity/Assets/Game/Game.asmdef' @'
 {
@@ -83,6 +89,15 @@ public enum SceneState
     & git -C $root commit --quiet -m 'baseline'
     if ($LASTEXITCODE -ne 0) { throw "fixture の git commit に失敗した: $root" }
     return $root
+}
+
+function Get-LengthPath {
+    # 区切りを含めて repo 相対でちょうど $Length 文字になる path を作る。
+    param([Parameter(Mandatory)] [string]$Prefix, [Parameter(Mandatory)] [int]$Length)
+    $name = 'a' * ($Length - $Prefix.Length - '.txt'.Length)
+    $path = "$Prefix$name.txt"
+    if ($path.Length -ne $Length) { throw "長さ $Length の path を作れない: $Prefix" }
+    return $path
 }
 
 function Invoke-FixtureAudit {
@@ -169,6 +184,63 @@ public sealed class NewEditorTool { }
 public sealed class RenamedRuntimeMarker { }
 '@
     Assert-AuditResult 'unstaged rename uses current worktree' 0 (Invoke-FixtureAudit $root)
+
+    # --- 検査9: path 予算 ---------------------------------------------------
+    $root = New-AuditFixture
+    Write-FixtureFile $root (Get-LengthPath 'unity/Assets/Game/Long/' $budgetR) 'x'
+    Assert-AuditResult 'path budget accepts exactly R' 0 (Invoke-FixtureAudit $root) 'AUDIT_RESULT .*checks=1,2,3,4,5,6,7,8,9 '
+
+    $root = New-AuditFixture
+    $over = Get-LengthPath 'unity/Assets/Game/Long/' ($budgetR + 1)
+    Write-FixtureFile $root $over 'x'
+    Assert-AuditResult 'path budget rejects untracked R + 1' 1 `
+        (Invoke-FixtureAudit $root) "\[検査9\] $([regex]::Escape($over)) が $($budgetR + 1) 文字"
+
+    $root = New-AuditFixture
+    $over = Get-LengthPath 'tools/Long/' ($budgetR + 1)
+    Write-FixtureFile $root $over 'x'
+    & git -C $root add -A
+    Assert-AuditResult 'path budget rejects tracked R + 1 outside unity' 1 `
+        (Invoke-FixtureAudit $root) "\[検査9\] $([regex]::Escape($over))"
+
+    $root = New-AuditFixture
+    Write-FixtureFile $root (Get-LengthPath 'unity/Assets/Packages/Vendor/' ($budgetR + 1)) 'x'
+    Assert-AuditResult 'path budget skips vendor allowlist' 0 (Invoke-FixtureAudit $root)
+
+    # ignore 対象の生成物（Library/ など）は管理対象 (1) に入らない。
+    $root = New-AuditFixture
+    Write-FixtureFile $root '.gitignore' "unity/Library/`n"
+    Write-FixtureFile $root (Get-LengthPath 'unity/Library/Generated/' ($budgetR + 1)) 'x'
+    Assert-AuditResult 'path budget skips ignored files' 0 (Invoke-FixtureAudit $root)
+
+    # 正本の欠落・不正は、検査を飛ばして成功にしない。fixture は 1 つを書き換えて使い回す。
+    $root = New-AuditFixture
+    $budgetFile = Join-Path $root 'tools/path-budget.json'
+    Remove-Item -LiteralPath $budgetFile
+    Assert-AuditResult 'path budget missing fails closed' 1 (Invoke-FixtureAudit $root) '\[検査9\] path 予算を判定できない'
+    $invalidBudgets = [ordered]@{
+        'syntax' = '{ "schemaVersion": 1,'
+        'not object' = '[1]'
+        'unknown key' = '{"schemaVersion":1,"maxRepoRelativePathLength":150,"vendorAllowlist":[],"extra":1}'
+        'missing R' = '{"schemaVersion":1,"vendorAllowlist":[]}'
+        'schema version' = '{"schemaVersion":2,"maxRepoRelativePathLength":150,"vendorAllowlist":[]}'
+        'R string' = '{"schemaVersion":1,"maxRepoRelativePathLength":"150","vendorAllowlist":[]}'
+        'R fraction' = '{"schemaVersion":1,"maxRepoRelativePathLength":150.5,"vendorAllowlist":[]}'
+        'R decimal notation' = '{"schemaVersion":1,"maxRepoRelativePathLength":150.0,"vendorAllowlist":[]}'
+        'R zero' = '{"schemaVersion":1,"maxRepoRelativePathLength":0,"vendorAllowlist":[]}'
+        'R above 258' = '{"schemaVersion":1,"maxRepoRelativePathLength":259,"vendorAllowlist":[]}'
+        'allowlist string' = '{"schemaVersion":1,"maxRepoRelativePathLength":150,"vendorAllowlist":"unity/Assets/Packages/"}'
+        'allowlist unity' = '{"schemaVersion":1,"maxRepoRelativePathLength":150,"vendorAllowlist":["unity/"]}'
+        'allowlist Assets' = '{"schemaVersion":1,"maxRepoRelativePathLength":150,"vendorAllowlist":["unity/Assets/"]}'
+        'allowlist dotdot' = '{"schemaVersion":1,"maxRepoRelativePathLength":150,"vendorAllowlist":["unity/Assets/Packages/../"]}'
+        'allowlist no trailing slash' = '{"schemaVersion":1,"maxRepoRelativePathLength":150,"vendorAllowlist":["unity/Assets/Packages"]}'
+        'allowlist outside Assets' = '{"schemaVersion":1,"maxRepoRelativePathLength":150,"vendorAllowlist":["tools/Packages/"]}'
+        'allowlist backslash' = '{"schemaVersion":1,"maxRepoRelativePathLength":150,"vendorAllowlist":["unity\Assets\Packages\\"]}'
+    }
+    foreach ($case in $invalidBudgets.GetEnumerator()) {
+        Set-Content -LiteralPath $budgetFile -Value $case.Value -Encoding utf8 -NoNewline
+        Assert-AuditResult "path budget $($case.Key) fails closed" 1 (Invoke-FixtureAudit $root) '\[検査9\] path 予算を判定できない'
+    }
 
     Write-Host "contract-audit fixtures: $passed passed"
 }

@@ -141,15 +141,15 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             WorldCompanionCreationTransaction.RecoveryFaultInjector = null;
             _outerSetup = EditorSceneManager.GetSceneManagerSetup();
 
-            var token = Guid.NewGuid().ToString("N").Substring(0, 12);
-            Root = $"Assets/__WorldCompanionTests_{token}";
-            SourceRoot = $"{Root}/Source";
-            NodeRoot = $"{SourceRoot}/Nodes";
-            ResourceOutputPath = $"{Root}/Generated";
-            MapPath = $"{Root}/SceneResourceMap.asset";
-            var parentIdentity = $"S4aTest{token}_Cell";
-            var identity = $"S4aTest{token}_Events";
-            var parentCellFolder = $"{Root}/World/Seasons/Spring/Cells/{parentIdentity}";
+            var token = NewToken();
+            var layout = new FixtureLayout(token);
+            Root = layout.Root;
+            SourceRoot = layout.SourceRoot;
+            NodeRoot = layout.NodeRoot;
+            ResourceOutputPath = layout.ResourceOutputPath;
+            MapPath = layout.MapPath;
+            var parentIdentity = layout.ParentIdentity;
+            var parentCellFolder = layout.ParentCellFolder;
             EnsureFolder(NodeRoot);
             EnsureFolder(ResourceOutputPath);
             EnsureFolder(parentCellFolder);
@@ -164,7 +164,7 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             AssetDatabase.CreateAsset(ParentNode, $"{NodeRoot}/{parentIdentity}.asset");
 
             Graph = ScriptableObject.CreateInstance<SceneGraphEdges>();
-            Graph.GraphName = $"S4aTest{token}";
+            Graph.GraphName = layout.GraphName;
             Graph.AddNode(ParentNode);
             AssetDatabase.CreateAsset(Graph, $"{SourceRoot}/Graph.asset");
 
@@ -178,9 +178,7 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             AssetDatabase.SaveAssets();
             Assert.That(SceneResourceGenerator.Generate(LoadNodes(), LoadGraphs(), ResourceOutputPath, MapPath), Is.True);
 
-            Plan = WorldCompanionCreationPlan.CreateForTests(
-                identity, parentIdentity, parentCellFolder, NodeRoot,
-                ResourceOutputPath, MapPath, SourceRoot);
+            Plan = layout.CreatePlan();
             StartingHash = SceneResourceGenerator.ComputeCurrentHash(LoadNodes(), LoadGraphs());
             var map = AssetDatabase.LoadAssetAtPath<SceneResourceMap>(MapPath);
             Assert.That(map, Is.Not.Null);
@@ -193,6 +191,47 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
         }
 
         internal string Root { get; }
+
+        // 一意性の token は 12 桁のまま保つ。並行・中断後の残骸と名前が衝突しないための長さ。
+        internal static string NewToken() => Guid.NewGuid().ToString("N").Substring(0, 12);
+
+        // asset を作らずに、この fixture が CreateForTests へ渡す path を組み立てる。path 予算の
+        // テストも同じ組み立てを使い、fixture の名前を定数で複製しない。
+        // 名前は短く保つ: Unity 同梱の Mono は 260 文字以上の path を File.OpenRead で開けず、
+        // 所有の証明（WorldCompanionOwnershipProof）が深い checkout で失敗する。
+        // 予算は tools/path-budget.json にあり、WorldCompanionPathBudgetTests が確かめる。
+        internal static WorldCompanionCreationPlan CreateFixturePlan(string token) => new FixtureLayout(token).CreatePlan();
+
+        private readonly struct FixtureLayout
+        {
+            internal FixtureLayout(string token)
+            {
+                Root = $"Assets/__WCT_{token}";
+                SourceRoot = $"{Root}/Source";
+                NodeRoot = $"{SourceRoot}/Nodes";
+                ResourceOutputPath = $"{Root}/Generated";
+                MapPath = $"{Root}/SceneResourceMap.asset";
+                GraphName = $"T{token}";
+                ParentIdentity = $"T{token}_Cell";
+                Identity = $"T{token}_Events";
+                ParentCellFolder = $"{Root}/World/Seasons/Spring/Cells/{ParentIdentity}";
+            }
+
+            internal string Root { get; }
+            internal string SourceRoot { get; }
+            internal string NodeRoot { get; }
+            internal string ResourceOutputPath { get; }
+            internal string MapPath { get; }
+            internal string GraphName { get; }
+            internal string ParentIdentity { get; }
+            internal string Identity { get; }
+            internal string ParentCellFolder { get; }
+
+            internal WorldCompanionCreationPlan CreatePlan() => WorldCompanionCreationPlan.CreateForTests(
+                Identity, ParentIdentity, ParentCellFolder, NodeRoot,
+                ResourceOutputPath, MapPath, SourceRoot);
+        }
+
         internal string SourceRoot { get; }
         internal string NodeRoot { get; }
         internal string ResourceOutputPath { get; }
