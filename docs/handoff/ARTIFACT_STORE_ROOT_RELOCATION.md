@@ -530,7 +530,9 @@ Phase B 担当: 新規 session（Claude Fable 5.1、Anthropic）。2026-10-19。
 ### 動作確認（B が実行してよい分）
 
 - **V1 非仮想化側（B session、判定入力にしない）:** 実状態（印なし）で `pwsh tools/workflow-task.ps1 status -Task store-root-v1-check` を 1 回。生出力 `{"status":"failed","reasonCode":"store-not-migrated"}`、exit 1。`<UserProfile>\OneStarMaker` は前後とも存在しない。旧 root の tree 一覧（名前・属性・size・更新時刻）は前後で一致（47,974 entry、内容は読んでいない）。`UserProfile` の各祖先の reparse 属性はすべて false。期待との差: なし。時刻付きの生記録は B session の作業領域に保持（path は転記しない）。
-- **V1 packaged app 側、V2 両側:** 未実施（packaged app 側の担当 session が要る）。`StoreRootHostFixture.ps1` を用意済み。
+- **V1 packaged app 側、V2 両側:** 未実施（修正後の head で実施）。
+- **非仮想化側の手順1（2026-10-19、対象 head `43549710`、判定入力にしない）:** `UserProfile` の祖先（`UserProfile`・`C:\Users`・`C:\`）の reparse 属性はすべて false。`<UserProfile>\OneStarMaker` は前の時点で存在しない。旧 root の tree 一覧は 47,974 entry（B の V1 記録と件数が一致）、sha256 `62C6C65FA61CF1100FD50F2BEACF3F891A9F9AA98357FF1934764D628BD6BC75`。V2 用の一時 base `<UserProfile>\OneStarMaker.HostCheck.<hex>` と印を作成した。時刻付きの生記録は実行 session の作業領域に保持（path は転記しない）。
+- **中断:** 手順2（packaged app 側）は実行せず中断した。理由は §7 の blocker 1（`c2ebd441` の `StoreRootHostFixture.ps1` は移行前の host では必ず `legacy-store-present` で止まる）。B の修正後の head で V1・V2 をまとめてやり直す。一時 base は削除し、削除と `<UserProfile>\OneStarMaker` の不在を確認した。
 
 ### 未実行・未確認
 
