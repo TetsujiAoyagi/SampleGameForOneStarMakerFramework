@@ -540,7 +540,49 @@ Phase B 担当: 新規 session（Claude Fable 5.1、Anthropic）。2026-10-19。
 
 ## 7. Phase C
 
-未到達。
+### 発見 C 1 回目（2026-10-19）
+
+- 担当: 進行役が起動した新規 session（Claude Opus 5.5、Anthropic。Phase B の Claude Fable 5.1 と異なるモデル）。GO 判定はしない。C' は起動しない。
+- 入力: commit 固定の差分 `abb99775..c2ebd441`（B の出口 commit）と本書（commit `43549710` 時点）。stage snapshot は使っていない。
+- 実行したもの: suite は実行していない（差し戻しが確定したため。最終判定用の一式は判定 C に残す）。限定の再現 2 件だけを行った: (1) 合成 fixture 2 件の JSON 読込み（`ConvertFrom-Json`）、(2) temp 配下に印付きの base を作り、`StoreRootHostFixture.ps1` と同じ seam 設定（`BaseForTest` だけ）で `Get-OsmStoreRoot` を 1 回呼ぶ。(2) は旧 root の所有 role 3 名に zero-access の metadata 照会をしただけで、内容は開いていない。temp は削除済み。
+- 巡の数: 最初のレビュー（巡に数えない）。
+
+#### 構造レビュー（§3 の責務マップとの照合）
+
+- 新規 `WindowsStoreRoot.psm1`: 公開面は計画どおり 3 関数、seam は計画どおり 4 つ。import は `WindowsStorePaths.psm1` だけで、domain module と probe を import しない（依存方向は domain → OS 基盤層のまま）。計画外の責務は無い。B 適応の「既定位置と process が見る `LocalApplicationData` が違えば両方を残存照会する」は I3 の fail-closed 側の拡張で、照会は metadata だけなので I1 に反しない。行数は計画の約 170 に対し 277（inline の native helper 約 80 行を含む）。行数警報（500 行・3 責務・50% 増）には当たらない。変更理由は「store の所在と使用可否」の 1 つで、`非分割妥当`。
+- 14 file の root 導出: 全 file が resolver 経由。binding 分岐を持つ 5 getter はすべて binding の検証より前に `Get-OsmStoreRoot` を呼ぶ。`TestRoot` 系 hook だけが gate を迂回する（経路表 §4 の受容どおり）。AC-S1-a の `git grep` は対象外を除いてコード上 0 件（`StoreConsolidationPlan.psm1` の `%LOCALAPPDATA%` はコメント）。
+- 計画外の公開面: `RecordStore.psm1` の export `Get-HarnessStoreRoot`（§6 に B 適応として記録済み。新しい契約ではない）。テスト専用 helper 2 file（§6 に記録済み）。
+- 仕様変更の波及の仮定（root の所在だけを変える）: resolver 1 file で閉じる。所有 role 名の追加は resolver・`StoreConsolidation`・`EvidenceSchedule` の 3 file（§3 ゲート照合 7 のとおり）。
+- 構造劣化: このスライスが作ったものは見当たらない。
+
+#### blocker（現在の問いを阻害する欠陥。B へ差し戻す）
+
+1. **V2 の host fixture が移行前の host で必ず `legacy-store-present` になり、AC-S2-a（S2）を観測できない。**
+   - 違反する条件: S2 と AC-S2-a（§2）、§5 検証経路 V2（GO 候補 head で、移行前に実行する。O1 の工程表では判定 C・C' の完了が移行より前）。
+   - 一次証拠: `tools/Workflow/tests/StoreRootHostFixture.ps1` は resolver の `BaseForTest` だけを設定し（`& $resolver {param($b)$script:BaseForTest=$b} $Base`）、`LegacyBaseForTest` を設定しない。このため `Get-OsmStoreRoot` の残存検査は実 host の旧 root を照会する。コメントも「its marker, ancestor and former-root checks are the production ones」と書く。
+   - 順序: 移行前の実 host（旧 root に `Artifacts`・`Workflow` が directory として存在）→ 非仮想化側が §5 どおり一時 base と印を作る → packaged app 側で `-Action write` → 書込み前の `Get-OsmStoreRoot` が `legacy-store-present` を throw して終わる。非仮想化側の `-Action read` も同じ。packaged app 側は LocalCache の copy も見えるので同じ結果になる。
+   - 再現: 上の (2)。結果は `Get-OsmStoreRoot threw: legacy-store-present`。照会の結果は `Artifacts: directory`、`Workflow: directory`、`Harness: absent`。
+   - 修正の方向（B 適応の範囲。契約・責務配置は変えない）: host fixture で `LegacyBaseForTest` も一時 base 配下の空の場所に向け、V2 は印と base の解決と書込みの実体だけを観測する。§5 の V2 は「resolver の seam で base を差し替え」と書いており、旧 root の残存は V2 の観測項目ではない（V1 が見る）。差し替えたことを §6 に記録する。
+   - 動作確認への影響: 引継ぎ票の手順 2（packaged app 側の `-Action write`）を c2ebd441 のまま実行すると、この欠陥の再現にしかならない。修正後の head で V2 を行えば往復が 1 回少なくて済む。
+
+2. **判定 C の照合 script 用の合成 fixture 2 件が JSON として読めない。**
+   - 違反する条件: §5「判定 C の照合 script の方式」（凍結済み。Phase B が `StoreRootHostFixture.ps1` の出力形と同じ schema で置き、判定 C は自分の script をまずこの 2 件に通す）。
+   - 一次証拠: `tools/Workflow/tests/fixtures/storeroot-hostcheck-match.json` と `-mismatch.json` は path の `\` を escape していない（例: `"userProfile": "X:\Users\u"`）。`ConvertFrom-Json` は両方とも `Bad JSON escape sequence: \U. Path 'packaged.userProfile', line 4, position 24.` で失敗する（上の (1)）。`StoreRootHostFixture.ps1` の出力は `ConvertTo-Json` なので `\\` に escape され、この 2 件とは同じ形にならない。
+   - 修正の方向（B 適応）: 2 件を正しい JSON（`\\`）にし、§5 の期待値（`match` / `mismatch` と差異の field 名）を変えない。読込みを確かめる case を既存 suite に 1 件足すかどうかは B の判断でよい（受け入れ条件の追加ではない）。
+
+3. **§5 のテスト ID `ac-s1-b-taskeventstore` が、どの suite にも登録されていない。**
+   - 違反する条件: AC-S1-b（「`Harness.Tests.ps1`、`TaskLifecycle.Tests.ps1` に 1 case ずつ」）と §5 のテスト ID 一覧（`TaskLifecycle.Tests.ps1` = `ac-s1-b-taskeventstore`。判定 C が JSON の case 名で収録を照合する）。必須証拠の欠落。
+   - 一次証拠: `git grep ac-s1-b-taskeventstore c2ebd441 -- tools` は 0 件。`StoreRootWiring.Tests.ps1` は `Get-Answers` に `TaskEventStore` の期待値を持つが、`$moduleNames` が Artifacts の 11 件だけなので `ac-s1-b-*` の case として登録されず、`ac-i3-e-modules` の中でしか呼ばれない。§6 の実装結果も、`TaskLifecycle.Tests.ps1` には既存 case の維持だけを書いている。
+   - 修正の方向（B 適応）: `TaskLifecycle.Tests.ps1` に `ac-s1-b-taskeventstore`（`TestRoot` 未設定、resolver の seam だけで `Get-WorkflowRoot` が `<base>\OneStarMaker\Workflow` を返す）を足す。
+
+修正後の確認（§5 の起点 filter のうち影響する suite）: `tools/Workflow/tests/TaskLifecycle.Tests.ps1`、`tools/Workflow/tests/StoreRoot.Tests.ps1`、`tools/Artifacts/tests/StoreRootWiring.Tests.ps1`（各 `-Case '*' -ResultPath <path>`）。fixture 2 件の JSON 読込み。V2 の fixture は temp base（`LegacyBaseForTest` も temp）で `-Action write` → `-Action read` を 1 回通し、出力が合成 fixture と同じ schema であることを確かめる（実 host の一時 base での V2 は動作確認担当が行う）。
+
+#### 後続スライスの入力（現スライスを阻害しない）
+
+- `WindowsStoreRoot.psm1` の冒頭コメント（「Known Folders are read through [Environment]::GetFolderPath」）は、旧 root を `SHGetKnownFolderPath` の既定位置から導く B 適応の後では一部が古い。B の修正で直してもよい。
+- `Assert-OsmExplicitStoreRoot` の拒否境界は旧 root の既定位置だけで、`Assert-OsmLegacyAbsent` が追加で見る「process が見る `LocalApplicationData`」側を含まない。AppData を redirect した host でだけ差が出る（§6 の B 適応と同じ入力）。
+- `ArtifactPaths.psm1` は別名の免除を文字列の一致（`-ine`）で、`EvidencePaths.psm1` は包含（`Test-ArtifactWithin`）で判定しており、書き方が揃っていない。標準の host では結果は同じ。
+- `StoreConsolidation.psm1` の `$script:ReasonCodes` に resolver の 3 code が無い。入口の gate を通った後に resolver が失敗する（TOCTOU）と、既存の code に畳まれる。受容済みの TOCTOU の範囲で、CLI 入口の reasonCode は I2・I3 どおり。
 
 ## 8. Phase C'
 
