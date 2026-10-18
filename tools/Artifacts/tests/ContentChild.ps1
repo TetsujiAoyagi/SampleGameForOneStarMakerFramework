@@ -12,6 +12,7 @@ $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'ContentTestSupport.ps1')
 Import-Module (Join-Path $PSScriptRoot '../ContentApplication.psm1')
 Set-EvidenceTestValue ContentStore TestRoot $StoreRoot
+$null=Enable-EvidenceTestStoreRoot ([IO.Path]::GetDirectoryName($TransferRoot))
 Set-EvidenceTestValue ArtifactPaths TestRoot $TransferRoot
 Set-EvidenceTestValue EvidenceContract DeploymentRoot $DeploymentRoot
 Set-EvidenceTestValue BuildContract OwnedRootsForTest @($OwnedRoots.Split('|'))

@@ -1,6 +1,7 @@
 param([string] $ResultPath='',[string]$Case='*')
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
+. (Join-Path $PSScriptRoot 'StoreRootTestSupport.ps1')
 $lifecycle=Import-Module (Join-Path $PSScriptRoot '../TaskLifecycle.psm1') -Force -PassThru
 $store=$lifecycle.NestedModules | Where-Object Name -eq 'TaskEventStore' | Select-Object -Last 1
 Import-Module $store
@@ -31,7 +32,7 @@ function Test-PublicResume([string]$Mode,[int]$ExpectedExit){
         Assert ($json.result.version -eq 3 -and $json.result.kind -ceq 'resumed') 'public CLI lost committed event'
         Assert ($json.stagingMissing -eq 2) 'public CLI did not sum missing staging across configs'
         $calls=@([IO.File]::ReadAllLines($callsPath))
-        Assert (@($calls|Where-Object {$_ -like 'import:*'}).Count -eq 6 -and $calls[0] -ceq 'import:WindowsStoreContext.psm1' -and $calls[1] -ceq 'store-context' -and @($calls|Where-Object {$_ -ceq 'preflight'}).Count -eq 2 -and @($calls|Where-Object {$_ -ceq 'sync'}).Count -eq 2 -and @($calls|Where-Object {$_ -ceq 'transition'}).Count -eq 1 -and $calls -ccontains 'dispose') 'public CLI did not use isolated boundaries'
+        Assert (@($calls|Where-Object {$_ -like 'import:*'}).Count -eq 6 -and $calls[0] -ceq 'import:WindowsStoreRoot.psm1' -and $calls[1] -ceq 'store-root' -and @($calls|Where-Object {$_ -ceq 'preflight'}).Count -eq 2 -and @($calls|Where-Object {$_ -ceq 'sync'}).Count -eq 2 -and @($calls|Where-Object {$_ -ceq 'transition'}).Count -eq 1 -and $calls -ccontains 'dispose') 'public CLI did not use isolated boundaries'
     }finally{if(-not $process.HasExited){$process.Kill($true);$process.WaitForExit()};$process.Dispose()}
 }
 function Test-RealModuleBoundary([string]$Mode){
@@ -53,6 +54,9 @@ function Test-RealModuleBoundary([string]$Mode){
     }finally{if(-not $process.HasExited){$process.Kill($true);$process.WaitForExit()};$process.Dispose()}
 }
 try {
+    # The bound-root cases pass the resolver's gate too: a migrated temp store root
+    # beside the Workflow root (which the module itself must create, with its ACL).
+    $null=New-StoreRootTestBase ($root+'.store-root')
     & $store {param($r)$script:TestRoot=$r} $root
     & $lifecycle {param($u)$script:Clock={$u}.GetNewClosure()} $utc
     foreach($case in $selected){

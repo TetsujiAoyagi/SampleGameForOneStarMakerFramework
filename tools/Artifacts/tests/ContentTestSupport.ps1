@@ -26,7 +26,7 @@ function New-ContentSource($Fx,[string]$Revision=$script:Identity,[hashtable]$Ov
     return [pscustomobject]@{Dir=$dir;Revision=$Revision;Names=$names.ToArray();ManifestBytes=$bytes;ManifestSha=(Get-Sha $bytes)}
 }
 function New-ContentFixture {
-    $root=[IO.Path]::Combine([IO.Path]::GetTempPath(),'osm-content-test-'+[Guid]::NewGuid().ToString('N'));[IO.Directory]::CreateDirectory($root)|Out-Null
+    $root=[IO.Path]::Combine([IO.Path]::GetTempPath(),'osm-content-test-'+[Guid]::NewGuid().ToString('N'));[IO.Directory]::CreateDirectory($root)|Out-Null;$null=Enable-EvidenceTestStoreRoot $root
     $owned=@('transfers','contents-v1','deployments','workflow','evidence','credentials','builds-v1'|ForEach-Object{[IO.Path]::Combine($root,$_)})
     Set-EvidenceTestValue ArtifactPaths TestRoot $owned[0];Set-EvidenceTestValue ContentStore TestRoot $owned[1]
     Set-EvidenceTestValue EvidenceContract DeploymentRoot $owned[2];Set-EvidenceTestValue BuildContract OwnedRootsForTest $owned

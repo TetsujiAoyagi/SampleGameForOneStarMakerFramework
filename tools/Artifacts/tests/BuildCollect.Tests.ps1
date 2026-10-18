@@ -7,7 +7,7 @@ Import-Module (Join-Path $PSScriptRoot '../ArtifactAcl.psm1')
 Import-Module (Join-Path $PSScriptRoot '../ArtifactPaths.psm1')
 # build collectの受け入れ条件（ArtifactsRoot・配布形・build-info・content照合・退避・再実行）を
 # 非秘密の偽Player fixtureと注入transportで検証する。実Player/R2の往復は別の操作証拠として扱う。
-$registered=@('collect-roundtrip','rerun-and-resume','artifacts-root-reject','source-reject','transport-and-content-reject','identity-and-series-reject','stage-integrity','concurrent-stage','fresh-process-cli')
+$registered=@('collect-roundtrip','rerun-and-resume','artifacts-root-reject','source-reject','transport-and-content-reject','identity-and-series-reject','stage-integrity','concurrent-stage','fresh-process-cli','source-root-both-roots-rejected')
 $selected=@(if($Case -ceq '*'){$registered}else{$Case.Split(',')})
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 $identity='20260924T202227427Z-0123456789abcdef0123456789abcdef'
@@ -37,6 +37,8 @@ function New-Player($Fixture,[string]$Name,[hashtable]$Override=@{}){
 function New-CollectFixture {
     $root=[IO.Path]::Combine([IO.Path]::GetTempPath(),'osm-build-test-'+[Guid]::NewGuid().ToString('N'))
     [IO.Directory]::CreateDirectory($root)|Out-Null
+    # The modules resolve the store root even with TestRoot set; pass the gate below $root.
+    $null=Enable-EvidenceTestStoreRoot $root
     $owned=@('transfers','builds-v1','deployments','workflow','evidence','credentials'|ForEach-Object {[IO.Path]::Combine($root,$_)})
     Set-EvidenceTestValue ArtifactPaths TestRoot $owned[0]
     Set-EvidenceTestValue BuildStore TestRoot $owned[1]
@@ -265,6 +267,24 @@ foreach($caseName in $selected){
                 Assert (@([IO.Directory]::EnumerateFiles($fixture.RemoteRoot,'put-attempt-*.txt')).Count -eq 1) 'concurrent collect sent more than once'
                 Assert (@([IO.Directory]::EnumerateDirectories([IO.Path]::GetDirectoryName((Get-Destination $fixture)))).Count -eq 1) 'loser staging left'
             }
+            'source-root-both-roots-rejected'{
+                # Without the injected roots the Build source boundary is the store root and
+                # the former root (Artifacts and Workflow of each) and their parents.
+                Import-Module (Join-Path $PSScriptRoot '../BuildContract.psm1')
+                $fx=New-StoreRootTestBase $fixture.Root
+                Set-EvidenceTestValue BuildContract OwnedRootsForTest @()
+                try{
+                    # The former root stays empty: any role directory there is a leftover the gate refuses
+                    # (legacy-store-present), so its paths are checked as strings only.
+                    foreach($role in @('Artifacts','Workflow')){[IO.Directory]::CreateDirectory([IO.Path]::Combine($fx.Root,$role,'inside'))|Out-Null}
+                    foreach($bad in @([IO.Path]::Combine($fx.Root,'Artifacts','inside'),[IO.Path]::Combine($fx.Root,'Workflow','inside'),[IO.Path]::Combine($fx.LegacyRoot,'Artifacts','inside'),[IO.Path]::Combine($fx.LegacyRoot,'Workflow','inside'),$fx.Root,$fx.LegacyRoot,$fx.Base)){
+                        $m=try{Assert-BuildSourceRoot $bad;'accepted'}catch{$_.Exception.Message}
+                        Assert ($m -ceq 'invalid-source') ('source root accepted '+$bad+': '+$m)
+                    }
+                    $ok=[IO.Path]::Combine($fixture.Root,'player-source');[IO.Directory]::CreateDirectory($ok)|Out-Null
+                    Assert-BuildSourceRoot $ok
+                }finally{Set-EvidenceTestValue BuildContract OwnedRootsForTest $fixture.Owned;Clear-StoreRootTestSeams}
+            }
             'fresh-process-cli'{
                 $job=Invoke-Child (Get-ChildArgs $fixture $fixture.Player '') @{OSM_ARTIFACTS_ROOT=$fixture.ArtifactsRoot}
                 $c=Finish-Child $job
@@ -277,9 +297,9 @@ foreach($caseName in $selected){
                 Assert (@([IO.Directory]::EnumerateFiles($fixture.RemoteRoot,'put-attempt-*.txt')).Count -eq 1) 'fresh rerun sent again'
                 $none=Finish-Child (Invoke-Child (Get-ChildArgs $fixture $fixture.Player ''))
                 Assert ($none.Exit -eq 1 -and ($none.Output.Trim()|ConvertFrom-Json).reasonCode -ceq 'artifacts-root-not-configured') 'unconfigured fresh CLI'
-                $cli=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../artifacts.ps1'))
+                $cli=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot 'CliChild.ps1'))
                 foreach($args2 in @(@('build','collect','--profile','osm','--config',$fixture.Config),@('build','collect','--profile','osm','--config',$fixture.Config,'--source',$fixture.Player,'--latest','yes'),@('build','collect','--profile','osm','--source',$fixture.Player,'--artifacts-root',$fixture.ArtifactsRoot))){
-                    $g=Finish-Child (Invoke-Child (@('-NoProfile','-File',$cli)+$args2))
+                    $g=Finish-Child (Invoke-Child (@('-NoProfile','-File',$cli,'-StoreBase',$fixture.Root)+$args2))
                     Assert ($g.Exit -eq 1 -and $g.Output.Contains('unsupported-command')) 'collect grammar accepted unknown or missing option'
                 }
             }

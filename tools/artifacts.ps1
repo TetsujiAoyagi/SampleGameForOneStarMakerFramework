@@ -5,10 +5,11 @@ $ErrorActionPreference = 'Stop'
 try {
     # catchがstdoutのreasonCodeへ通してよい固定code。schedule分岐だけが値を入れる。
     $publicFailures=@()
-    # 仮想化されたAppDataでストアへ書くと、別の実体へ黙って分裂する。引数の解釈・
-    # store moduleのimport・資格情報の読取りより前に判定し、判定不能も止める。
-    try{Import-Module (Join-Path $PSScriptRoot 'Workflow/WindowsStoreContext.psm1');$storeContext=Get-OsmStoreContext}catch{$storeContext='unknown'}
-    if($storeContext -cne 'not-virtualized'){[Console]::WriteLine((ConvertTo-Json -Compress -InputObject ([ordered]@{status='failed';reasonCode=$(if($storeContext -ceq 'virtualized'){'virtualized-store'}else{'store-context-unknown'})})));exit 1}
+    # store rootの判定。移行済みの印が無い、旧rootにstoreが残っている、rootを安全に
+    # 決められない、のどれでも、引数の解釈・store moduleのimport・資格情報の読取りより
+    # 前に固定codeで止める。resolverは固定code以外を投げないが、想定外は安全側へ畳む。
+    try{Import-Module (Join-Path $PSScriptRoot 'Workflow/WindowsStoreRoot.psm1');$null=Get-OsmStoreRoot;$storeGate=$null}catch{$storeGate=$(if($_.Exception.Message -cin @('store-not-migrated','legacy-store-present','store-root-unavailable')){$_.Exception.Message}else{'store-root-unavailable'})}
+    if($storeGate){[Console]::WriteLine((ConvertTo-Json -Compress -InputObject ([ordered]@{status='failed';reasonCode=$storeGate})));exit 1}
     if ($Arguments.Count -lt 4) { throw 'Invalid command.' }
     # BuildはEvidenceと独立したgrammar。成功記録の寿命と引数の意味を混同しない。
     # オプション名の字種を許しても、必要fieldの完全一致で未知引数を拒否する。

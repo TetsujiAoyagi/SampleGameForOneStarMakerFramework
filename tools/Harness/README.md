@@ -2,7 +2,7 @@
 
 ## 実行するprocessの条件
 
-`pwsh tools/harness.ps1` は Harness の store module を import する前に、LocalApplicationData への書込みが仮想化されていないかを判定する。仮想化なら `{"status":"failed","reasonCode":"virtualized-store"}`、判定不能なら `store-context-unknown` を標準出力に返して exit 1 とし、CURRENT・run・task directory を作らない。判定方法と運用は [Artifacts README](../Artifacts/README.md#実行するprocessの条件appdata仮想化) を正とする。依存は Workflow の OS 基盤層にある判定 module だけで、Workflow の domain は読まない。仮想化された process が書いた Harness task directory の合流は同READMEの store plan / consolidate を使い、CURRENT が実ストアと違えば勝者を選ばず保留する。
+`pwsh tools/harness.ps1` は Harness の store module を import する前に store root（UserProfile Known Folder 直下の `OneStarMaker`）を解決する。移行済みの印が無ければ `{"status":"failed","reasonCode":"store-not-migrated"}`、旧 root（LocalApplicationData の `OneStarMaker`）に所有 role が残っていれば `legacy-store-present`、root を安全に決められなければ `store-root-unavailable` を標準出力に返して exit 1 とし、CURRENT・run・task directory を作らない。判定方法と運用は [Artifacts README](../Artifacts/README.md#実行するprocessの条件store-rootと移行済みの印) を正とする。依存は Workflow の OS 基盤層にある resolver だけで、Workflow の domain は読まない。`-StoreRoot` は tests 専用の明示 root で、印・残存の判定を行わない代わりに、綴りでも実体 path（junction 経由を含む）でも旧 root 配下・store root 配下・repo 配下を指す値を `store-root-unavailable` で拒否する。仮想化された process が書いた Harness task directory の合流は同READMEの store plan / consolidate を使い、CURRENT が実ストアと違えば勝者を選ばず保留する。
 
 ## Unity test runner の機械結果
 
@@ -68,7 +68,7 @@ pwsh tools/harness.ps1 current -Task h1-transport-identity
 
 **注記（合流前、2026-10-17の `store plan`）:** `h1-transport-identity` のCURRENTは仮想化されたhost（Codex）が書いた側にだけあり、実ストアには無いので、非仮想化processの上の `current` では読めない。読取のみの `store plan` では、このtaskの単位は `hold`（理由 `reference-missing`）で未合流。
 
-新規taskの `init` は人間が承認したA3 snapshotとownerを受け取る。既存taskのCURRENTが欠落したら `init` で上書きせず `restore` を使う。registrationが欠落・破損した場合は`restore`も使えないため、statusの診断に従ってtaskディレクトリと原本を確認し、手動で復旧を判断する。存在するCURRENTが壊れている場合も上書きせず停止する。statusにはtask IDと健全性を表示する。保存先はLocalApplicationDataの `OneStarMaker/Harness/<repo-id>/tasks/<task-id>`。端末喪失へのbackupはH3で扱う。
+新規taskの `init` は人間が承認したA3 snapshotとownerを受け取る。既存taskのCURRENTが欠落したら `init` で上書きせず `restore` を使う。registrationが欠落・破損した場合は`restore`も使えないため、statusの診断に従ってtaskディレクトリと原本を確認し、手動で復旧を判断する。存在するCURRENTが壊れている場合も上書きせず停止する。statusにはtask IDと健全性を表示する。保存先はstore root（UserProfile Known Folder直下の `OneStarMaker`）の `Harness/<repo-id>/tasks/<task-id>`。端末喪失へのbackupはH3で扱う。
 
 H1では `h1-transport-identity` と `artifact-evidence-lifecycle` のA3 snapshotをtask別に承認し、snapshot本文のSHA-256と構造値を実装内の承認値と照合する。別taskを始める場合はA3で仕様と承認値を追加する。CURRENTの未解決・blocker・次作業は `current -ExpectedRevision <n> -Unresolved ... -Blockers ... -NextAction ...` で更新し、仕様本文は更新できない。
 `current` は凍結仕様と採用runの固定レコードについて、保存先・hash・実行時刻・読み込んだバイナリのpath/hashを表示する。別Agentはrun IDだけを手掛かりに過去RESULTを探索せず、その固定レコードを照合できる。
@@ -117,7 +117,7 @@ H1適用taskの契約検査は `pwsh tools/contract-audit.ps1 -HarnessTask <id>`
 
 **注記（合流前、2026-10-17の `store plan`）:** 旧task `h2c-unity-gate` のCURRENTは仮想化されたhost（Codex）が書いた側にだけあり、実ストアには無いので、非仮想化processからは旧入口を読めない。読取のみの `store plan` では、このtaskの単位は `hold`（理由 `reference-missing`）で未合流。
 
-固定記録の入口は `pwsh tools/harness.ps1 current -Task h2c-unity-gate-r2`。保存先は実行したWindowsユーザーのLocalApplicationDataで、別のWindowsユーザーからは参照できない。`CURRENT` が見つからない場合は、上記H1の `status`、`restore`、registrationの切り分けに従い、原因を推測で決めない。r2の新規initには凍結済みh2c-a3-v2本文と承認済みbaseを使い、旧taskを上書きしない。`discovery` はrunner/observation/adapter/Harnessのoffline suiteと両audit、固定filterの11件を要求する。`judgment` はoffline suiteと両audit、Artifacts suite、空filterの全EditModeを要求する。いずれも変更pathにかかわらず必須で、H1の変更path派生gateやUnity拒否を広げない。B限定runを判定Cに、C全件runを発見Cに流用しない。
+固定記録の入口は `pwsh tools/harness.ps1 current -Task h2c-unity-gate-r2`。保存先は実行したWindowsユーザーのstore root（UserProfile直下の `OneStarMaker`）で、別のWindowsユーザーからは参照できない。`CURRENT` が見つからない場合は、上記H1の `status`、`restore`、registrationの切り分けに従い、原因を推測で決めない。r2の新規initには凍結済みh2c-a3-v2本文と承認済みbaseを使い、旧taskを上書きしない。`discovery` はrunner/observation/adapter/Harnessのoffline suiteと両audit、固定filterの11件を要求する。`judgment` はoffline suiteと両audit、Artifacts suite、空filterの全EditModeを要求する。いずれも変更pathにかかわらず必須で、H1の変更path派生gateやUnity拒否を広げない。B限定runを判定Cに、C全件runを発見Cに流用しない。
 
 **注記（合流前、2026-10-17の `store plan`）:** `h2c-unity-gate-r2` のCURRENTも仮想化されたhost（Codex）が書いた側にだけあり、実ストアには無いので、非仮想化processのこの入口では読めない。読取のみの `store plan` では、このtaskの単位は `publish`（理由なし・未合流）。合流（`store consolidate`）はownerがmanifestを承認するまで実行しない。
 

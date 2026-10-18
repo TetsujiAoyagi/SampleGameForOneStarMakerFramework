@@ -31,6 +31,7 @@ function Restore-EvidenceBudgetScopes($Scopes){
 }
 Import-Module (Join-Path $PSScriptRoot 'ArtifactAcl.psm1')
 Import-Module (Join-Path $PSScriptRoot '../Workflow/WindowsStorePaths.psm1')
+Import-Module (Join-Path $PSScriptRoot '../Workflow/WindowsStoreRoot.psm1')
 $script:TestRoot=$null
 $script:BindingRootsHook=$null
 $script:CredentialRootHook=$null
@@ -42,16 +43,21 @@ $script:CleanupHook=$null
 $script:Clock={ [DateTimeOffset]::UtcNow }
 function Get-EvidenceRuntimeRoot {
     $context=[AppDomain]::CurrentDomain.GetData('OneStarMaker.Evidence.StorageBinding.v1')
-    if($context){$binding=ConvertFrom-Json -InputObject $context -AsHashtable -DateKind String;$root=Assert-WindowsStorePathIdentity $binding.roles.runtime.physicalPath $binding.roles.runtime;Assert-ArtifactAcl $root $true;return $root}
+    # A bound process passes the resolver's gate on every call too; the binding
+    # fixes the physical root but is no proof that the store may be used.
+    if($context){$null=Get-OsmStoreRoot;$binding=ConvertFrom-Json -InputObject $context -AsHashtable -DateKind String;$root=Assert-WindowsStorePathIdentity $binding.roles.runtime.physicalPath $binding.roles.runtime;Assert-ArtifactAcl $root $true;return $root}
     if($script:TestRoot){return [IO.Path]::GetFullPath($script:TestRoot)}
-    $root=[IO.Path]::Combine([Environment]::GetFolderPath('LocalApplicationData'),'OneStarMaker','Artifacts','runtime')
+    $root=[IO.Path]::Combine((Get-OsmStoreRoot),'Artifacts','runtime')
     if([IO.Directory]::Exists($root)){$root=(Get-WindowsStorePathIdentity $root).physicalPath;Assert-ArtifactAcl $root $true}
     return $root
 }
+# The five role roots a binding fixes. The gate runs even when the offline hook
+# supplies the roots: binding validation (the scheduled job's entry) must stop
+# on a missing marker or a former-root residue regardless of the fixture.
 function Get-EvidenceBindingRoots {
+    $store=Get-OsmStoreRoot
     if($script:BindingRootsHook){return & $script:BindingRootsHook}
-    $local=[Environment]::GetFolderPath('LocalApplicationData')
-    return [ordered]@{workflow=[IO.Path]::Combine($local,'OneStarMaker','Workflow');evidence=[IO.Path]::Combine($local,'OneStarMaker','Artifacts','evidence-v2');deployments=[IO.Path]::Combine($local,'OneStarMaker','Artifacts','deployments');transfers=[IO.Path]::Combine($local,'OneStarMaker','Artifacts','transfers');runtime=[IO.Path]::Combine($local,'OneStarMaker','Artifacts','runtime')}
+    return [ordered]@{workflow=[IO.Path]::Combine($store,'Workflow');evidence=[IO.Path]::Combine($store,'Artifacts','evidence-v2');deployments=[IO.Path]::Combine($store,'Artifacts','deployments');transfers=[IO.Path]::Combine($store,'Artifacts','transfers');runtime=[IO.Path]::Combine($store,'Artifacts','runtime')}
 }
 function New-EvidenceStorageBinding {
     $roles=[ordered]@{}
@@ -100,7 +106,7 @@ function Set-EvidenceRuntimeContext([string]$Runtime,[string]$ManifestSha256,$Bi
     [AppDomain]::CurrentDomain.SetData('OneStarMaker.Evidence.RuntimeContext.v2',$runtimeJson)
 }
 function Assert-EvidenceCredentialRoot {
-    $root=if($script:CredentialRootHook){& $script:CredentialRootHook}else{[IO.Path]::Combine([Environment]::GetFolderPath('LocalApplicationData'),'OneStarMaker','Artifacts','credentials')}
+    $root=if($script:CredentialRootHook){& $script:CredentialRootHook}else{[IO.Path]::Combine((Get-OsmStoreRoot),'Artifacts','credentials')}
     $identity=Get-WindowsStorePathIdentity $root
     if(-not $identity.isDirectory -or $identity.physicalPath -ine $root){throw 'runtime-credential-root-unavailable'}
     Assert-ArtifactAcl $root $true
@@ -162,7 +168,7 @@ function Assert-EvidenceRuntime([string]$Runtime,[string]$ExpectedManifestHash='
         Assert-NoArtifactReparse $full;Assert-ArtifactAcl $full $false
         if(-not [IO.File]::Exists($full) -or [IO.FileInfo]::new($full).Length -ne $file.bytes -or (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash.ToLowerInvariant() -cne $file.sha256){throw 'runtime-hash-mismatch'}
     }
-    foreach($required in @('config.json','tools/Artifacts/EvidenceCleanupJob.ps1','tools/Artifacts/EvidenceSchedule.psm1','tools/Artifacts/ArtifactAcl.psm1','tools/Workflow/WindowsStorePaths.psm1','tools/Workflow/TaskEventStore.psm1')){if(-not $seen.ContainsKey($required)){throw 'runtime-path-invalid'}}
+    foreach($required in @('config.json','tools/Artifacts/EvidenceCleanupJob.ps1','tools/Artifacts/EvidenceSchedule.psm1','tools/Artifacts/ArtifactAcl.psm1','tools/Workflow/WindowsStorePaths.psm1','tools/Workflow/WindowsStoreRoot.psm1','tools/Workflow/TaskEventStore.psm1')){if(-not $seen.ContainsKey($required)){throw 'runtime-path-invalid'}}
     $binaryNames=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     foreach($binary in $manifest.binaries){
         Assert-EvidenceBudget

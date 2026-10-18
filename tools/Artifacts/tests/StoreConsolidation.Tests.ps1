@@ -15,7 +15,7 @@ $aclModule=Import-Module (Join-Path $PSScriptRoot '../ArtifactAcl.psm1') -Force 
 function Set-TestAcl([string]$Path,[bool]$Directory){& $aclModule {param($p,$d)Set-ArtifactAcl $p $d} $Path $Directory}
 function Assert-TestAcl([string]$Path,[bool]$Directory){& $aclModule {param($p,$d)Assert-ArtifactAcl $p $d} $Path $Directory}
 $repo='a'*64;$dep='d'*32;$op='0'*32
-$cases=@('publish-skip-conflict','domain-readers-after-publish','acl-rule-and-reparse','excluded-never-opened','fault-file-write','fault-staged','fault-between-items','fault-before-receipt','concurrent-writer','hidden-until-workflow','run-guards','cli-exit-codes','unexamined-json-held','fault-run-records','source-reparse-after-inventory','multi-workflow-unit-not-published','workflow-already-visible-not-published','unit-changed-after-approval','interrupted-then-changed','target-only-reference-unreadable')
+$cases=@('publish-skip-conflict','domain-readers-after-publish','acl-rule-and-reparse','excluded-never-opened','fault-file-write','fault-staged','fault-between-items','fault-before-receipt','concurrent-writer','hidden-until-workflow','run-guards','cli-exit-codes','unexamined-json-held','fault-run-records','source-reparse-after-inventory','multi-workflow-unit-not-published','workflow-already-visible-not-published','unit-changed-after-approval','interrupted-then-changed','target-only-reference-unreadable','ac-s4-d','marker-excluded')
 $selected=@(if($Case -ceq '*'){$cases}else{$Case.Split(',')})
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 $base=[IO.Path]::Combine([IO.Path]::GetTempPath(),'osm-consolidation-'+[Guid]::NewGuid().ToString('N'))
@@ -28,6 +28,8 @@ function New-Stores([string]$Name){
     $s=[pscustomobject]@{Root=$root;Real=[IO.Path]::Combine($root,'Local','OneStarMaker');Source=[IO.Path]::Combine($root,'Local','Packages','Fixture.Package_0000000000000','LocalCache','Local','OneStarMaker')}
     [IO.Directory]::CreateDirectory($s.Real)|Out-Null;[IO.Directory]::CreateDirectory($s.Source)|Out-Null
     Set-Consolidation TestRoot $s.Real;Set-Consolidation FaultHook $null
+    # The former root's alias for the reference rule: a stand-in beside the stores, never created.
+    Set-EvidenceTestValue WindowsStoreRoot LegacyBaseForTest ([IO.Path]::Combine($root,'LegacyLocal'))
     Set-EvidenceTestValue WindowsStoreContext ProbeIo $notVirtualized
     $trace.Clear();Set-Consolidation OpenHook {param($k,$p)$trace.Add($k+'|'+$p)}.GetNewClosure()
     return $s
@@ -479,13 +481,40 @@ try{
                     $out=Invoke-StoreConsolidation $readable.Path $readable.Sha $false
                     Assert ($out.status -ceq 'passed' -and (Get-Result $out $unit.unitId) -ceq 'published') ('readable again '+(ConvertTo-Json -Compress -Depth 5 $out))
                 }
+                'ac-s4-d'{
+                    # The manifest pins the former root's alias it was planned with; another
+                    # alias, or none (a manifest from before the move), is invalid at execution.
+                    New-SimpleTask $stores;$plan=Invoke-Plan $stores
+                    Assert ((@($plan.Manifest.legacyRoots) -join ',') -ceq [IO.Path]::Combine($stores.Root,'LegacyLocal','OneStarMaker')) ('plan alias '+(@($plan.Manifest.legacyRoots) -join ','))
+                    Assert ((Invoke-StoreConsolidation $plan.Path $plan.Sha $true).status -ceq 'passed') 'dry-run of the planned manifest failed'
+                    foreach($edit in @({param($m)$m.legacyRoots=@('C:\Other\OneStarMaker')},{param($m)$m.Remove('legacyRoots')})){
+                        $edited=Get-Content -LiteralPath $plan.Path -Raw|ConvertFrom-Json -AsHashtable -Depth 64;& $edit $edited
+                        $path=[IO.Path]::Combine($stores.Root,'manifest-'+[Guid]::NewGuid().ToString('N')+'.json');$bytes=[Text.UTF8Encoding]::new($false).GetBytes((ConvertTo-Json -InputObject $edited -Depth 32));[IO.File]::WriteAllBytes($path,$bytes)
+                        $sha=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
+                        Assert ((Invoke-StoreConsolidation $path $sha $true).reasonCode -ceq 'manifest-invalid') 'manifest with another alias accepted'
+                    }
+                }
+                'marker-excluded'{
+                    # The migration marker is listed as excluded ('marker') on the source side
+                    # and never opened on either side.
+                    New-SimpleTask $stores
+                    foreach($store in @($stores.Source,$stores.Real)){[IO.File]::WriteAllText([IO.Path]::Combine($store,'store-root.json'),'{"schemaVersion":1}')}
+                    $plan=Invoke-Plan $stores
+                    $entries=@($plan.Manifest.excluded|Where-Object {$_.key -ceq 'store-root.json'})
+                    Assert ($entries.Count -eq 1 -and $entries[0].reason -ceq 'marker') ('marker not excluded as marker: '+(ConvertTo-Json -Compress $plan.Manifest.excluded))
+                    $out=Invoke-StoreConsolidation $plan.Path $plan.Sha $false
+                    Assert ($out.status -ceq 'passed') ('status '+$out.status)
+                    Assert (@($trace|Where-Object {$_.EndsWith('\store-root.json',[StringComparison]::OrdinalIgnoreCase)}).Count -eq 0) ('marker touched: '+(($trace|Where-Object {$_ -like '*store-root.json'}) -join ','))
+                }
                 'cli-exit-codes'{
                     New-ClassificationFixture $stores
-                    # Fresh process: the entry reuses the already loaded modules with private roots.
+                    # Fresh process: the entry reuses the already loaded modules with private roots,
+                    # and passes the store-root gate through a migrated temp store root.
                     $child=[IO.Path]::Combine($stores.Root,'cli-child.ps1')
                     $body="param([string]`$Mode,[string]`$A,[string]`$B)`nSet-StrictMode -Version Latest`n`$ErrorActionPreference='Stop'`n"+
                         "`$c=Import-Module '"+(Join-Path $PSScriptRoot '../../Workflow/WindowsStoreContext.psm1').Replace("'","''")+"' -PassThru;& `$c {`$script:ProbeIo=@{CreateDirectory={param(`$p)};Open={param(`$p)[pscustomobject]@{Path=`$p}};FinalPath={param(`$h)`$h.Path};Close={param(`$h)};RemoveDirectory={param(`$p)}}}`n"+
                         "`$m=Import-Module '"+(Join-Path $PSScriptRoot '../StoreConsolidation.psm1').Replace("'","''")+"' -PassThru;& `$m {param(`$r)`$script:TestRoot=`$r} '"+$stores.Real.Replace("'","''")+"'`n"+
+                        ". '"+(Join-Path $PSScriptRoot '../../Workflow/tests/StoreRootTestSupport.ps1').Replace("'","''")+"'`n`$fx=New-StoreRootTestBase '"+$stores.Root.Replace("'","''")+"'`nSet-StoreRootTestSeams `$fx.Base '"+([IO.Path]::Combine($stores.Root,'LegacyLocal')).Replace("'","''")+"'`n"+
                         "`$entry='"+(Join-Path $PSScriptRoot '../../artifacts.ps1').Replace("'","''")+"'`n"+
                         "if(`$Mode -ceq 'plan'){& `$entry store plan --source-root `$A --output `$B}elseif(`$Mode -ceq 'run'){& `$entry store consolidate --manifest `$A --manifest-sha256 `$B}else{& `$entry store plan --source-root `$A}`nexit `$LASTEXITCODE"
                     [IO.File]::WriteAllText($child,$body,[Text.UTF8Encoding]::new($false))
@@ -503,7 +532,7 @@ try{
             }
             $executed.Add($case)
         }catch{$failed.Add($case+': '+$_.Exception.Message+' '+$_.ScriptStackTrace.Split("`n")[0])}
-        finally{Set-Consolidation FaultHook $null;Set-Consolidation OpenHook $null;Set-Consolidation TestRoot $null;Set-EvidenceTestValue WindowsStoreContext ProbeIo $null;Set-EvidenceTestValue TaskEventStore TestRoot $null}
+        finally{Set-Consolidation FaultHook $null;Set-Consolidation OpenHook $null;Set-Consolidation TestRoot $null;Set-EvidenceTestValue WindowsStoreContext ProbeIo $null;Set-EvidenceTestValue TaskEventStore TestRoot $null;Set-EvidenceTestValue WindowsStoreRoot LegacyBaseForTest $null;Set-EvidenceTestValue WindowsStoreRoot BaseForTest $null}
     }
     if($ResultPath){[IO.File]::WriteAllText($ResultPath,(ConvertTo-Json -Depth 8 -InputObject ([ordered]@{registered=$cases;selected=$selected;executed=@($executed);failed=@($failed)})),[Text.UTF8Encoding]::new($false))}
     foreach($name in $executed){"PASS $name"};foreach($name in $failed){"FAIL $name"}

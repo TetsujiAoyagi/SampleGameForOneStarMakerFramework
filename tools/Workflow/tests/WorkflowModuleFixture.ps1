@@ -39,6 +39,9 @@ $loaded=@()
 foreach($relative in @('Workflow/TaskEventStore.psm1','Workflow/TaskLifecycle.psm1','Artifacts/EvidenceContract.psm1','Artifacts/EvidenceStateStore.psm1','Artifacts/EvidenceCleanup.psm1')){
     $loaded+=@(Import-Module ([IO.Path]::Combine($tools,$relative)) -PassThru)
 }
+# The entry's store-root gate runs against a migrated temp store root below $Root.
+. (Join-Path $PSScriptRoot 'StoreRootTestSupport.ps1')
+$null=New-StoreRootTestBase $Root
 $workflow=[IO.Path]::Combine($Root,'workflow');$evidence=[IO.Path]::Combine($Root,'evidence-v2')
 $modules=@(Get-Module -All)
 foreach($module in $modules){

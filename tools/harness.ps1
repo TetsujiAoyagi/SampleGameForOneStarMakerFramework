@@ -35,10 +35,11 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-# 仮想化されたAppDataへ書くと CURRENT が別の実体へ分裂する。store moduleのimportより前に
-# 判定し、判定不能も止める。依存はOS基盤層の判定moduleだけで、Workflowのdomainは読まない。
-try { Import-Module (Join-Path $PSScriptRoot 'Workflow/WindowsStoreContext.psm1'); $storeContext = Get-OsmStoreContext } catch { $storeContext = 'unknown' }
-if ($storeContext -cne 'not-virtualized') { [Console]::WriteLine((ConvertTo-Json -Compress -InputObject ([ordered]@{ status = 'failed'; reasonCode = $(if ($storeContext -ceq 'virtualized') { 'virtualized-store' } else { 'store-context-unknown' }) }))); exit 1 }
+# store rootの判定。-StoreRoot（tests専用の明示root）は旧root・store root・repo配下を実体
+# pathでも拒否し、未指定なら移行済みの印と旧rootの残存を確かめる。どれもstore moduleの
+# importより前に固定codeで止める。依存はOS基盤層のmoduleだけで、Workflowのdomainは読まない。
+try { Import-Module (Join-Path $PSScriptRoot 'Workflow/WindowsStoreRoot.psm1'); if ($StoreRoot) { Assert-OsmExplicitStoreRoot $StoreRoot } else { $null = Get-OsmStoreRoot }; $storeGate = $null } catch { $storeGate = $(if ($_.Exception.Message -cin @('store-not-migrated', 'legacy-store-present', 'store-root-unavailable')) { $_.Exception.Message } else { 'store-root-unavailable' }) }
+if ($storeGate) { [Console]::WriteLine((ConvertTo-Json -Compress -InputObject ([ordered]@{ status = 'failed'; reasonCode = $storeGate }))); exit 1 }
 Import-Module (Join-Path $PSScriptRoot 'Harness/RecordStore.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Harness/GatePolicy.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Harness/Adapters/LocalChecks.psm1') -Force
@@ -83,7 +84,8 @@ try {
     if (($ObservationManifest -or $ObservationSha256) -and ($Command -cne 'run' -or $Task -cne 'artifact-evidence-lifecycle' -or -not $ObservationManifest -or -not $ObservationSha256)) { throw '原観測登録はEvidence taskのrunで両引数を指定してください。' }
     if ($Command -ceq 'status') {
         $identity = Get-RepositoryIdentity $Repo
-        $root = if ($StoreRoot) { [IO.Path]::Combine($StoreRoot, $identity.Id, 'tasks') } else { [IO.Path]::Combine([Environment]::GetFolderPath('LocalApplicationData'), 'OneStarMaker', 'Harness', $identity.Id, 'tasks') }
+        # 一覧の root は task directory と同じ導出（resolver か検査済みの明示 root）から組む。
+        $root = [IO.Path]::Combine((Get-HarnessStoreRoot $StoreRoot), $identity.Id, 'tasks')
         if (-not [IO.Directory]::Exists($root)) { Write-Output 'taskはありません。新規作業のみinitを実行してください。'; return }
         foreach ($dir in [IO.Directory]::EnumerateDirectories($root)) {
             $id = [IO.Path]::GetFileName($dir)

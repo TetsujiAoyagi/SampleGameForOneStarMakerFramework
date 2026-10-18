@@ -18,7 +18,7 @@
 | R2上の古いContentを件数で清掃する | `content cleanup` | [開発Contentの件数清掃](#開発contentの件数清掃content-cleanup) |
 | Evidenceの日次清掃jobを確認する | `evidence schedule status` | [自動清掃](#自動清掃) |
 
-どれも `pwsh tools/artifacts.ps1 <コマンド> --profile osm ...` の形で、非仮想化のprocessから実行します（[実行するprocessの条件](#実行するprocessの条件appdata仮想化)）。取得したPlayerとContentを別PCで使う手順は[下の節](#別pcで取得したplayerとcontentを使う手順)、resetや合流・資格情報は[管理操作](#管理操作)、事前承認と保証の範囲は[契約と known limits](#契約と-known-limits)にあります。
+どれも `pwsh tools/artifacts.ps1 <コマンド> --profile osm ...` の形で、非仮想化のprocessから実行します（[実行するprocessの条件](#実行するprocessの条件store-rootと移行済みの印)）。取得したPlayerとContentを別PCで使う手順は[下の節](#別pcで取得したplayerとcontentを使う手順)、resetや合流・資格情報は[管理操作](#管理操作)、事前承認と保証の範囲は[契約と known limits](#契約と-known-limits)にあります。
 
 ### Evidence v2 の通常操作
 
@@ -112,7 +112,7 @@ pwsh tools/artifacts.ps1 build fetch --profile osm --config <build-config> --ref
 
 Buildは最大512 file・選択総量240 MiB、単一fileとZIPは256 MiB、相対path240文字、manifest/selection/receipt各1 MiBです。選択集合と全read lockを確認してprivate snapshotを作り、Build manifestを含むZIPをローカル展開検証してから、固定keyへ1回PUTします。別PowerShell processによる同keyの全bytes・hash読戻しが成功した後、`receipt.json`のatomic renameを唯一の成功確定点とします。成功結果の`reference`と独立した`packageSha256`を保存してください。参照文字列だけから期待package hashを補いません。
 
-成功正本は同一WindowsユーザーのLocalApplicationData `OneStarMaker/Artifacts/builds-v1/<repositoryId>/<buildId>/receipt.json`です。応答だけが失われた場合は、selectionに事前保存した同じbuildIdで`inspect`を呼び、同じreferenceとhashを確認します。同じIDの再publishはnetwork前に拒否されます。PUT応答不明、読戻し不成立、receipt確定前の失敗は成功ではなく、intentとlocal/remote残置を保持します。publishは自動再PUT・rollback DELETEを行いません（R2上の古いBuildの削除は後述の `build cleanup` だけが行います）。取得物は新規private operationへ展開し、実行しません。この記録は同PC・同ユーザー内の永続性であり、別hostのcatalog復元とR2上の全件一覧は後続の作業です。件数清掃で削除済み・削除中のBuildには、`inspect` が成功ではなく `payload-deleted`／`delete-pending` を返します。
+成功正本は同一Windowsユーザーのstore root（UserProfile Known Folder直下の `OneStarMaker`）の `Artifacts/builds-v1/<repositoryId>/<buildId>/receipt.json`です。応答だけが失われた場合は、selectionに事前保存した同じbuildIdで`inspect`を呼び、同じreferenceとhashを確認します。同じIDの再publishはnetwork前に拒否されます。PUT応答不明、読戻し不成立、receipt確定前の失敗は成功ではなく、intentとlocal/remote残置を保持します。publishは自動再PUT・rollback DELETEを行いません（R2上の古いBuildの削除は後述の `build cleanup` だけが行います）。取得物は新規private operationへ展開し、実行しません。この記録は同PC・同ユーザー内の永続性であり、別hostのcatalog復元とR2上の全件一覧は後続の作業です。件数清掃で削除済み・削除中のBuildには、`inspect` が成功ではなく `payload-deleted`／`delete-pending` を返します。
 
 系列はrepository内の`project/target/configuration`で識別し、各値は小文字英数字で始まる1〜64文字の小文字英数字・ハイフンです。branchを保存枠へ追加せず、keyは`development/builds/v1/<repositoryId>/<project>/<target>/<configuration>/<buildId>/bundle.zip`に固定します。Build生成元のrevisionが不明な場合、現在のHEADから推定して記録しません。
 
@@ -126,7 +126,7 @@ configとselectionは同じ新規private operationへ置きます。入力root�
 pwsh tools/artifacts.ps1 build collect --profile osm --config <build-config> --source <artifacts/bs4/players/<identity>の絶対path> [--artifacts-root <ArtifactsRoot>]
 ```
 
-`<ArtifactsRoot>` は退避したPlayerの置き場で、Storageの内部保存先（LocalApplicationData `OneStarMaker/Artifacts`）とは別です。worktreeに縛られない任意のローカルfolderを、`--artifacts-root` かユーザー環境変数 `OSM_ARTIFACTS_ROOT`（起動したprocessが引き継いだ値）で指定します。既定値はありません。どちらも無ければ `artifacts-root-not-configured` を返し、何もしません。指定値は既存の絶対path directoryで、reparse pointではなく、入力Playerや所有store・Workflow・transfersと親子関係にないことを要求します。このコマンドはArtifactsRootと環境変数を作成・変更しません。同期folderでない場所を推奨します。
+`<ArtifactsRoot>` は退避したPlayerの置き場で、Storageの内部保存先（store root `OneStarMaker/Artifacts`）とは別です。worktreeに縛られない任意のローカルfolderを、`--artifacts-root` かユーザー環境変数 `OSM_ARTIFACTS_ROOT`（起動したprocessが引き継いだ値）で指定します。既定値はありません。どちらも無ければ `artifacts-root-not-configured` を返し、何もしません。指定値は既存の絶対path directoryで、reparse pointではなく、入力Playerや所有store・Workflow・transfersと親子関係にないことを要求します。このコマンドはArtifactsRootと環境変数を作成・変更しません。同期folderでない場所を推奨します。
 
 処理は次の順です。
 
@@ -274,7 +274,7 @@ pwsh tools/artifacts.ps1 evidence schedule status --profile osm --config <v2-con
 
 同じownerのTask Scheduler `OSM-Evidence-Cleanup-<repositoryId先頭12>` は毎日03:00 localとlogon、StartWhenAvailable、IgnoreNew、InteractiveToken/Limitedで動きます。password/親鍵は登録しません。未ログオン中は動かず次ログオンで追いつくため、期限は削除資格であり即時削除SLAではありません。
 
-installは最終implementation headのscript/module/DLL/deps/configをKnown Folder `OneStarMaker/Artifacts/runtime/<head>/`へprivate copyします。runtime manifest v2は五つの既存専用領域（Workflow、Evidence、deployment、transfer、runtime）の実体path・volume/file identityとownerを固定します。WindowsのAppData仮想化で論理pathと実体が異なる場合も、新しい保存先へ移さず同じファイルを参照します。actionのpwsh/entry/runtime/作業directoryは実体の絶対pathで、可変worktreeに依存しません。
+installは最終implementation headのscript/module/DLL/deps/configをstore root（UserProfile Known Folder直下の `OneStarMaker`）の `Artifacts/runtime/<head>/`へprivate copyします。runtime copyの必須fileにはstore rootのresolver（`tools/Workflow/WindowsStoreRoot.psm1`）を含み、jobはbinding検証と各root関数の呼出しごとに同じ判定（印・旧rootの残存）を通ります。runtime manifest v2は五つの既存専用領域（Workflow、Evidence、deployment、transfer、runtime）の実体path・volume/file identityとownerを固定します。WindowsのAppData仮想化で論理pathと実体が異なる場合も、新しい保存先へ移さず同じファイルを参照します。actionのpwsh/entry/runtime/作業directoryは実体の絶対pathで、可変worktreeに依存しません。
 
 **ローカル固定の導入手順:** 共有storeへ `staged` を書き始める前に、`schedule status` で登録済みruntimeのheadを確認し、`staged` を読める新しいimplementation headで `schedule install` を行います。旧runtimeの日次jobは `staged`（およびstage由来の `deleted`）を含むcatalogを `corrupt-state` で読めず、そのtaskの清掃が止まるため、切替前に `evidence stage` を使いません。runtimeの収集機構は変えません（tracked moduleは既存の `git ls-files` 収集で入ります）。
 
@@ -335,9 +335,9 @@ pwsh tools/artifacts.ps1 credentials remove --profile osm
 
 非対話指定の判定は [PowerShell 7.6.5 のホスト解析](https://github.com/PowerShell/PowerShell/blob/v7.6.5/src/Microsoft.PowerShell.ConsoleHost/host/msh/CommandLineParameterParser.cs)の `GetSwitchKey` / `MatchSwitch` と [IsDash](https://github.com/PowerShell/PowerShell/blob/v7.6.5/src/System.Management.Automation/engine/parser/CharTraits.cs) に合わせています。前後の空白、`noni` から完全形までの略語、大文字小文字、単一slash、ASCIIハイフン・en dash・em dash・horizontal barの単一または同じ文字の二重接頭辞（`--noni` など）を扱います。引数全体を調べ、後続の `-Interactive` で打ち消された指定も安全側で拒否します。PowerShellを更新するときは、この解析規則との一致を再確認してください。
 
-保存先はWindowsのLocalApplicationData Known Folder配下の OneStarMaker/Artifacts/credentials です。保存レコード全体をDPAPIのCurrentUserで暗号化し、資格情報専用のフォルダとファイルはACLの継承を切って、所有ユーザー・SYSTEM・Administratorsだけに権限を与えます。既存の共有OneStarMakerフォルダや、その中の別機能のデータ・権限は変更しません。暗号化ファイルもcheckoutや同期フォルダへコピーしないでください。
+保存先はstore root（WindowsのUserProfile Known Folder直下の OneStarMaker）の Artifacts/credentials です。保存レコード全体をDPAPIのCurrentUserで暗号化し、資格情報専用のフォルダとファイルはACLの継承を切って、所有ユーザー・SYSTEM・Administratorsだけに権限を与えます。既存の共有OneStarMakerフォルダや、その中の別機能のデータ・権限は変更しません。暗号化ファイルもcheckoutや同期フォルダへコピーしないでください。
 
-保存先の祖先にreparse pointがある場合や、専用領域のACLが安全でない場合は操作を拒否し、平文保存へ切り替えません。共有OneStarMakerが未作成の場合は、その新規作成時にも制限ACLを設定します。既存共有親の扱いとは異なります。
+保存先の祖先にreparse pointがある場合や、専用領域のACLが安全でない場合は操作を拒否し、平文保存へ切り替えません。共有OneStarMaker（store root）は資格情報の操作では作りません。無ければ `Credential operation unavailable.` で止まります（store rootは移設を実行する作業が印とともに用意します）。
 
 新規に作る専用ディレクトリとファイルは、ACLだけでなく所有者も実行ユーザーへ明示します。管理者権限の端末などでWindowsの既定所有者がAdministratorsになる場合でも、直後の安全検査と一致させるためです。既存の所有者不一致ディレクトリは自動修復しません。
 
@@ -382,7 +382,7 @@ pwsh tools/artifacts.ps1 content retire --profile osm --config <content-config> 
 
 - **起点はownerの明示指示だけです。** イベント終了や最終publishからの経過で自動的に退役することはありません。`--decision` にはownerの指示を指す非秘密のID（Workflowの `Decision` と同じ書式。例 `chat:20261012T1230Z:series-retirement:retired`、`github:<owner>/<repo>/pull/<n>/<fragment>`。英数字で始まる128字以内の `[a-zA-Z0-9._:/-]`）を渡し、退役記録に残します。指示IDと系列tokenは何も読む前に検査します（`invalid-decision`／`invalid-build-identity`／`invalid-content-identity`／`unsupported-series`）。ArtifactsRootは `content cleanup` と同じ規則です。
 - **事前承認の範囲外です。** 退役は系列単位の不可逆な判断なので、Agentはownerが系列と指示IDを明示した指示の範囲でだけ実行します。退役済みの系列への `build cleanup`／`content cleanup` と、同じ `retire` の再実行（続きの削除）は通常の清掃です。実行前に `--dry-run` で消える対象を確かめます。
-- **取消はありません。** 退役記録は `retirements-v1/<repositoryId>/<build|content>/<系列tokenを~で結んだ名前>.json`（LocalApplicationDataのArtifacts配下、専用ACL）の不変記録で、書き換えも削除もしません。同じ系列への2回目以降の指示は、最初の記録の `retiredAt`・`decision` を保ちます。退役した系列へは以後保存できません（Contentは新しい `contentSet` 名で続けます。Buildの実系列を退役させると、その `project/target/configuration` へは保存できなくなります）。
+- **取消はありません。** 退役記録は `retirements-v1/<repositoryId>/<build|content>/<系列tokenを~で結んだ名前>.json`（store rootのArtifacts配下、専用ACL）の不変記録で、書き換えも削除もしません。同じ系列への2回目以降の指示は、最初の記録の `retiredAt`・`decision` を保ちます。退役した系列へは以後保存できません（Contentは新しい `contentSet` 名で続けます。Buildの実系列を退役させると、その `project/target/configuration` へは保存できなくなります）。
 - **退役は保護を外しません。** Buildは `build use` の有効な保護、Contentは保持中のPlayerが受け入れうるrevisionを残し、receiptの無い未完了のpublishも消しません。残りがあれば件数とIDを `held` に出して `retired-held`（exit 0）で終わり、保護が切れた後の再実行で残りを消して `retired` になります。このPCで取得中のBuild・`publish.lock` 保持中のrevisionは飛ばして `partial` にし、次の実行で消します。Buildの系列を判定できない未完了（予約だけのもの等）は消せないので、退役の完了判定には数えず、`held` にも混ぜず、結果の `unattributed.count` に件数だけ出します（`held` の件数と `retired` の表示が食い違いません）。
 - **手順は件数清掃と同じです。** 系列lockの下で退役記録を読み、無ければ書いてから（記録が確定するまで何も送りません）catalogと保護を取り直し、保護中でない成功Build・revisionを全て候補にして古い順に、件数清掃と同じ削除試行（削除意図 → DELETE → 送信観測 → 確認GET → 404 `NoSuchKey` で削除済み記録。Contentは `transport.json` の確定点つき）で消します。Nは使いません。DELETEの上限（Build 20・Content 2,048）、時間予算（600秒）、403・応答不明で止まれば `partial`（exit 2）で、同じコマンドの再実行が続きから確定させます。完了後の再実行は何も送りません。
 - **退役済みの系列では**、`build cleanup`／`content cleanup` も件数保持ではなく退役の選別で動きます。`build publish`（`build collect` 経由を含む）と `content collect` は送信・退避・storeへの書込みの前に、`build use` は保護記録を書く前に `series-retired` で止まり、同じ入力の既存成功（`existing`）も返しません。`inspect`／`fetch` の応答は変わらず、削除済みは `payload-deleted`、まだ消えていない保護中のBuild・revisionは取得できます。
@@ -408,17 +408,42 @@ ownerは、設定した開発領域・明示入力・保存契約内の通常pub
 
 資格情報の新規登録・置換・rotation・失効/削除、別account/bucket、公開配布、別host/Cloudは通常操作の承認範囲外です。鍵や暗号化store、header、署名URLは会話・引数・環境変数・ログ・Git・同期先へ出しません。認証失敗を鍵の再入力・削除で自動修復しません。実行環境の承認UIには従い、拒否を別経路や設定緩和で迂回しません。
 
-### 実行するprocessの条件（AppData仮想化）
+### 実行するprocessの条件（store rootと移行済みの印）
 
-`tools/artifacts.ps1`、`tools/workflow-task.ps1`、`tools/harness.ps1` は、引数の解釈とstore moduleのimportより前に、そのprocessのLocalApplicationDataへの書込みが仮想化されていないかを判定します。packaged appの書込み仮想化（例: Codexデスクトップ）の中では、新しいfileがpackage専用のLocalCacheへ置かれ、ストアが黙って二つに分かれるためです。
+store（`Artifacts`、`Workflow`、`Harness`）の実体は、WindowsのUserProfile Known Folder直下の `OneStarMaker`（store root）にあります。AppDataの外なので、packaged appの書込み仮想化の対象になりません。`tools/artifacts.ps1`、`tools/workflow-task.ps1`、`tools/harness.ps1` と、store moduleの各root関数は、引数の解釈とstore moduleのimportより前に、呼出しごとに次の順で判定します（`tools/Workflow/WindowsStoreRoot.psm1`。結果はcacheしません）。
 
-判定は呼出しごとに、`%LOCALAPPDATA%` の直下（ストアの外）へ一意な名前のdirectory `OneStarMaker.StoreProbe.<32桁の16進>` を、同じ名前が既にあれば失敗する方法で新しく作ります。その中に固有名のprobe fileを `CreateNew` と `DeleteOnClose` で開き、handleの実体pathを論理pathと比べます。handleを閉じるとOSがprobe fileを消し、最後に自分で作ったそのdirectoryだけを、空であれば削除します。package identityは使いません（identityの無い仮想化と、identityのある非仮想化の両方が観測されたため）。
-
-毎回新しいdirectoryを作るのは、仮想化されたprocessの新しいfileの書込み先がpathごとに違うためです。実体側にだけあるdirectoryの中に作ったfileは実体側へ書かれるので、既にあるdirectory（以前の固定名 `OneStarMaker.StoreProbe\`、他の呼出しの残骸、ストア自体）の中でprobeすると、仮想化されたprocessでも「非仮想化」と誤ります。判定はそれらを開かず、作らず、消しません。
+1. store rootの静的な拒否: 相対path、UNC、repo配下、`D:\OneDrive\OSM-Artifacts` 配下、rootまたはその祖先がreparse point。
+2. 移行済みの印 `<store root>\store-root.json`: `FileShare.Read` で開き、handleの実体pathが論理pathと一致し、4 KiB以下のUTF-8（BOM無し）のJSON objectで、fieldが `schemaVersion`（1）、`kind`（`osm-store-root`）、`ownerSid`（現在ユーザー）、`createdAt`（ISO 8601）の4つちょうどであることを要求します。印は移設を実行する後続の作業が、移設の最後に同じdirectoryの一時名へ書いてrenameで現します。ここでは読むだけで、書く関数はありません。
+3. 旧root `<LocalApplicationData>\OneStarMaker` の残存: 所有role `Artifacts`、`Workflow`、`Harness` のdirectoryが見えている間は止まります。照会はaccessを要求しないmetadataだけで（zero-accessの `CreateFileW`）、内容は開きません。不在を確認できない（アクセス拒否、reparse point、未知のerror）ときも止まります。同名の通常fileは不在と扱います。
 
 | 判定 | 結果 |
 |---|---|
-| 非仮想化 | 既存どおり実行する |
+| 印があり、旧rootに所有roleが無い | 既存どおり実行する |
+| 印が無い | `{"status":"failed","reasonCode":"store-not-migrated"}`、exit 1 |
+| 印があり、旧rootに所有roleが残っている | `{"status":"failed","reasonCode":"legacy-store-present"}`、exit 1 |
+| rootを安全に決められない（静的拒否、reparse、印の不正・0 byte・所有者不一致・実体不一致、旧rootの照会失敗） | `{"status":"failed","reasonCode":"store-root-unavailable"}`、exit 1 |
+
+どの拒否でもstore配下には何も作らず、印以外のfileを開きません。失敗出力は固定codeだけで、path・package名・SIDを含めません（resolverは内部の.NET例外を固定codeに畳みます）。rootの導出はKnown Folderからだけ行います。store rootは `UserProfile`、旧rootは `LocalApplicationData` の既定位置（shellがprofileの登録から導く値）で、環境変数 `USERPROFILE`・`LOCALAPPDATA`・`HOME` を置き換えても変わりません。旧rootの残存検査は、processが見ている `LocalApplicationData` が既定位置と違う場合（AppDataをredirectしたhost）にはその場所も併せて照会します。store moduleの各root関数は、process bindingの有無にかかわらず呼出しごとに同じ判定を通るので、CLIを通らないwriter（定期清掃job、moduleの直接呼出し）も同じ条件で止まります。定期清掃jobは、runtime copyの `runtime.json` とmanifestに列挙されたfileのhash照合（読取専用）だけを判定より前に行い、role dataの読み書きは判定の後です。
+
+旧rootは「別名」として残ります。移行前に書かれた不変の記録（receipt、catalog、transfersの記録）が持つ旧root配下の完全修飾pathは、prefixの置換だけで新rootの同じ相対位置へ付け替えて読み、旧root側は開かず、存在確認や実体の照合もしません（binding済みのprocessでも同じ）。prefixだけが似た別名（`OneStarMaker2` 等）、別のroleを指すpath、LocalCache配下のpath、`..` を含むpathは従来どおり拒否します。合流（`store plan` / `consolidate`）でも、記録の参照のうち旧root配下のものは同じ相対keyに写像して検査し、manifestの `legacyRoots` に別名を記録します。
+
+packaged app内のprocessからの実行条件: そのapp独自のサンドボックスを無効にし、同一Windowsユーザーで実行します。サンドボックスが有効なら印の読取やstoreへの書込みが失敗して止まります。LocalApplicationData側にpackaged appのcopy（旧rootの `Artifacts` / `Workflow` / `Harness`）が残っている間は、processからはそれが見えるので `legacy-store-present` で止まります（残置の後始末は保留listの項目。見えているdirectoryが実体かcopyかは判別しません）。`UserProfile` とその祖先がreparse pointのhost（profileを別driveへ移した構成）では `store-root-unavailable` になります。app固有の設定値はこのREADMEに書かず、各自のgit管理外の運用メモに置きます。
+
+`harness.ps1 -StoreRoot` はtests専用の明示rootで、印・残存の判定を行いません。綴りでも実体pathでも（存在する最も近い祖先まで開いて、junction経由を含めて）旧root配下・store root配下・repo配下を指す値は `store-root-unavailable` で拒否します。temp配下の明示rootは通ります。
+
+実ストアの移設の実行（旧rootの所有roleのmoveまたは複写とACLの再設定、印の発行）、LocalCache側copyの合流先を新rootにすること、Task Schedulerの清掃jobの再登録は、後続の作業（保留listの「store root 移設の実行と合流」）が所有します。それまでこの版のCLIは、印が無い間 `store-not-migrated` で止まります。
+
+#### LocalApplicationDataへの書込みの仮想化判定（store plan / consolidate だけ）
+
+`store plan` / `consolidate` は、package側のcopyを読んで実ストアへ合流するため、そのprocessのLocalApplicationDataへの書込みが仮想化されていないことを要求します（`tools/Workflow/WindowsStoreContext.psm1`）。3つのCLIの入口ではこの判定を使いません（store rootがAppDataの外にあるため、AppData内のprobeはstoreへの書込みについて何も保証しないからです）。
+
+判定は呼出しごとに、`%LOCALAPPDATA%` の直下（ストアの外）へ一意な名前のdirectory `OneStarMaker.StoreProbe.<32桁の16進>` を、同じ名前が既にあれば失敗する方法で新しく作ります。その中に固有名のprobe fileを `CreateNew` と `DeleteOnClose` で開き、handleの実体pathを論理pathと比べます。handleを閉じるとOSがprobe fileを消し、最後に自分で作ったそのdirectoryだけを、空であれば削除します。package identityは使いません（identityの無い仮想化と、identityのある非仮想化の両方が観測されたため）。
+
+毎回新しいdirectoryを作るのは、仮想化されたprocessの新しいfileの書込み先がpathごとに違うためです。実体側にだけあるdirectoryの中に作ったfileは実体側へ書かれるので、既にあるdirectory（以前の固定名 `OneStarMaker.StoreProbe\`、他の呼出しの残骸）の中でprobeすると、仮想化されたprocessでも「非仮想化」と誤ります。判定はそれらを開かず、作らず、消しません。
+
+| 判定 | 結果 |
+|---|---|
+| 非仮想化 | plan / consolidateを実行する |
 | 仮想化 | `{"status":"failed","reasonCode":"virtualized-store"}`、exit 1 |
 | 判定不能（probe directoryの作成失敗・同名の既存、probe fileの作成・実体path照会・closeの失敗） | `{"status":"failed","reasonCode":"store-context-unknown"}`、exit 1 |
 
@@ -430,9 +455,7 @@ Get-ChildItem -LiteralPath ([Environment]::GetFolderPath('LocalApplicationData')
   ForEach-Object { try { [IO.Directory]::Delete($_.FullName, $false) } catch { } }
 ```
 
-既知の未確認: packageの初回（package専用の `LocalCache\Local` がまだ無い状態）で新しいdirectoryがどちら側に作られるかは観測していません。
-
-どちらの拒否でもストア配下には何も作らず、既存fileも開きません。仮想化されたhostではStorage・Workflow・Harnessを操作せず、非仮想化の担当（ownerの端末、仮想化されないエージェント環境等）へ固定入力のfetchや出口のpublishを依頼します。仮想化されたhostから使えるようにする経路は後続です。定期清掃jobはpackage外のTask Schedulerで動き、この判定の対象外です。
+既知の未確認: packageの初回（package専用の `LocalCache\Local` がまだ無い状態）で新しいdirectoryがどちら側に作られるかは観測していません。定期清掃jobはpackage外のTask Schedulerで動き、この判定の対象外です。
 
 ### 終了・再開・利用中と清掃
 
@@ -490,7 +513,7 @@ pwsh tools/Artifacts/tests/BuildRetention.Tests.ps1 -Case '*' -ResultPath <resul
 
 資格情報はCLI→CredentialCommands→CredentialStore→PathAcl/Recordの一方向です。EvidenceApplicationはpublish/stage/fetch/use orchestration（publishとstageは送信前までの準備を共用）、EvidenceContractはv2 codec/deployment、EvidencePathsはtask transaction/receipt、EvidenceRetentionPolicyは純粋判定、EvidenceCleanupは配送/削除/reconcile、EvidenceScheduleは固定runtime/OS adapter、EvidenceResetは一回の限定清掃を所有します。Workflow core/storeはArtifactsをimportせず、CLI composition rootが共通guardとpreflight/syncを結びます。合流の規則（単位・参照・保留の分類とmanifestの再照合）はStoreConsolidationPlanの純粋関数、棚卸し・staging・公開・receiptはStoreConsolidationが所有し、合流moduleはWorkflow/Evidenceのdomain moduleをimportしません。
 
-仮想化の判定と入口は `tools/Workflow/tests/StoreContext.Tests.ps1`、合流の規則はファイルI/Oの無いメモリfixtureの `StoreConsolidationPlan.Tests.ps1`、合流のI/Oは隔離した二つのtemp storeの `StoreConsolidation.Tests.ps1` で検証します。後者は実moduleでpublishした記録を仮想化側へ移してから合流し、既存のWorkflow/Evidence readerで読めることも確かめます。どれも実ストアと実LocalApplicationDataのストアを読み書きしません（判定suiteのnative probe 1件だけが、実LocalApplicationDataの直下に自分のprobe directoryを作って消します。他のnative caseはLocalApplicationDataの代わりに渡す一時directoryの上で動きます）。
+store rootのresolver（印・旧rootの残存・明示rootの拒否）は `tools/Workflow/tests/StoreRoot.Tests.ps1`、3つの入口の境界と仮想化の判定は `tools/Workflow/tests/StoreContext.Tests.ps1`、Artifacts側の各root関数がresolverを経由することは `tools/Artifacts/tests/StoreRootWiring.Tests.ps1`、合流の規則はファイルI/Oの無いメモリfixtureの `StoreConsolidationPlan.Tests.ps1`、合流のI/Oは隔離した二つのtemp storeの `StoreConsolidation.Tests.ps1` で検証します。後者は実moduleでpublishした記録を仮想化側へ移してから合流し、既存のWorkflow/Evidence readerで読めることも確かめます。どれも実ストア・実LocalApplicationDataのストア・実UserProfile直下を読み書きせず、temp配下のKnown Folderの代役（印を置いたstore rootと空の旧root）の上で動きます（判定suiteのnative probe 1件だけが、実LocalApplicationDataの直下に自分のprobe directoryを作って消します。他のnative caseはLocalApplicationDataの代わりに渡す一時directoryの上で動きます）。
 
 H1のこのtaskは3 .NET Release build、全Artifacts PowerShell parse、11 Artifact suite、Workflow TaskLifecycle、Harness、適用taskのcontract/docs auditを固定5 stepで収録します。registered/selected/executedは各非空同集合、failed 0、実DLL path/hash/MVID/depsと生結果を保存します。B exitはdiscovery、最終Cはjudgment、CBlindは同base/headと同じ固定入力です。Unity source/依存を変更しないためUnity test/buildはこのsliceに適用しません。
 

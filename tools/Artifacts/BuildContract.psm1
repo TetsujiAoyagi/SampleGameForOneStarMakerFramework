@@ -4,6 +4,7 @@ Import-Module (Join-Path $PSScriptRoot 'ArtifactPaths.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ArtifactAcl.psm1')
 Import-Module (Join-Path $PSScriptRoot 'EvidenceContract.psm1')
 Import-Module (Join-Path $PSScriptRoot '../Workflow/WindowsStorePaths.psm1')
+Import-Module (Join-Path $PSScriptRoot '../Workflow/WindowsStoreRoot.psm1')
 $script:OwnedRootsForTest=@()
 
 # 系列はrepository内のproject/target/configurationで識別する。
@@ -23,12 +24,18 @@ function Get-BuildKey($Config,[string]$Project,[string]$Target,[string]$Configur
 function Assert-BuildSourceRoot([string]$Root){
     if([OneStarMaker.Artifacts.Packaging.PackagePolicy]::HasReparse($Root) -or
         [OneStarMaker.Artifacts.Packaging.PackagePolicy]::IsProtectedPath($Root)){throw 'invalid-source'}
-    $local=[Environment]::GetFolderPath('LocalApplicationData')
-    # Known Folderの論理pathとnative実体pathの両方を拒否境界に含める。
+    # 所有領域は store root と旧 root の両方の Artifacts / Workflow。論理 path と native 実体
+    # path の両方を拒否境界に含める（旧 root 側は metadata の照会だけで、内容は開かない）。
     # 名前が無害でも、資格情報・Evidence・他taskの所有storeをBuildへ取り込ませない。
-    $owned=@([IO.Path]::Combine($local,'OneStarMaker','Artifacts'),[IO.Path]::Combine($local,'OneStarMaker','Workflow'))+@($script:OwnedRootsForTest)
-    foreach($logical in @([IO.Path]::Combine($local,'OneStarMaker','Artifacts'),[IO.Path]::Combine($local,'OneStarMaker','Workflow'))){
-        if([IO.Directory]::Exists($logical)){$owned+=@(Get-WindowsStorePathIdentity $logical).physicalPath}
+    # 注入 roots が設定された offline 検証だけが resolver を迂回する。
+    $owned=@($script:OwnedRootsForTest)
+    if(@($script:OwnedRootsForTest).Count -eq 0){
+        $logicalRoots=@()
+        foreach($store in @((Get-OsmStoreRoot),(Get-OsmLegacyStoreRoot))){foreach($role in @('Artifacts','Workflow')){$logicalRoots+=@([IO.Path]::Combine($store,$role))}}
+        $owned+=$logicalRoots
+        foreach($logical in $logicalRoots){
+            if([IO.Directory]::Exists($logical)){$owned+=@(Get-WindowsStorePathIdentity $logical).physicalPath}
+        }
     }
     $owned+=@(Get-ArtifactRoot)
     # 所有領域の子だけでなく、その親をrootに選んで巻き込む入力も拒否する。

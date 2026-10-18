@@ -1,6 +1,7 @@
 param([string]$ResultPath='',[string]$Case='*')
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
+. (Join-Path $PSScriptRoot '../../Workflow/tests/StoreRootTestSupport.ps1')
 $module=Import-Module (Join-Path $PSScriptRoot '../EvidenceSchedule.psm1') -Force -PassThru
 $contract=& $module {param($p)Import-Module $p -PassThru} (Join-Path $PSScriptRoot '../EvidenceContract.psm1')
 $store=& $module {param($p)Import-Module $p -PassThru} (Join-Path $PSScriptRoot '../../Workflow/TaskEventStore.psm1')
@@ -9,6 +10,7 @@ $cases=@('scheduler-runtime-missing','runtime-hash-mismatch','runtime-config-mis
 $cases+=@('runtime-binding-five-roles','runtime-binding-root-missing','runtime-binding-fileid-mismatch','runtime-binding-sid-mismatch','runtime-binding-acl-mismatch','runtime-binding-reparse','runtime-schema-one-rejected','runtime-context-force-import','runtime-context-switch-rejected','runtime-credential-missing','runtime-bound-guard-missing','runtime-binding-alias-physical')
 $cases+=@('runtime-fresh-process-binding','runtime-fresh-process-fail-before-adapters')
 $cases+=@('native-long-path-identity')
+$cases+=@('ac-i2-d','ac-i2-e','ac-i3-e-binding','ac-i3-e-runtime-context','ac-i3-g','ac-i3-h-job-entry')
 $registrationCases=@('missing','disabled','action','arguments','directory','principal','logon-type','run-level','daily-missing','daily-time','daily-interval','daily-disabled','daily-offset','daily-future','logon-missing','logon-owner','logon-disabled','trigger-extra','start-unavailable','instances','limit','description','enabled-unknown','export-failed','query-denied','info-failed','repetition','end-boundary','delay','equivalent','defaults','valid')
 $cases+=@($registrationCases | ForEach-Object {'scheduler-registration-'+$_})
 $cases+=@('principal-account','logon-account','principal-other-account','logon-other-account','principal-unmapped-account','logon-unmapped-account' | ForEach-Object {'scheduler-registration-'+$_})
@@ -40,7 +42,7 @@ function Fixture([string]$Case){
     $config=[IO.Path]::Combine($work,'config.json')
     $hash=WriteJson $config @{schemaVersion=2;profile='osm';endpoint='https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com';bucket='osm-artifacts';repositoryId=$repo;prefix='development/evidence/v2/';policy='task-end-30d-v1';deploymentId=$id}
     $null=WriteJson ([IO.Path]::Combine($deployment,$id+'.json')) @{schemaVersion=2;deploymentId=$id;repositoryId=$repo;configSha256=$hash;baselineRecordId='offline-baseline';baselineSha256='c'*64;ownerObservationId='offline-owner';ownerObservationSha256='d'*64}
-    $paths=@('tools/Artifacts/EvidenceCleanupJob.ps1','tools/Artifacts/EvidenceSchedule.psm1','tools/Artifacts/ArtifactAcl.psm1','tools/Artifacts/EvidenceContract.psm1','tools/Artifacts/ArtifactCommands.psm1','tools/Artifacts/ArtifactPaths.psm1','tools/Workflow/WindowsStorePaths.psm1','tools/Workflow/TaskLifecycle.psm1','tools/Workflow/TaskEventStore.psm1','tools/workflow-task.ps1');$binaries=@()
+    $paths=@('tools/Artifacts/EvidenceCleanupJob.ps1','tools/Artifacts/EvidenceSchedule.psm1','tools/Artifacts/ArtifactAcl.psm1','tools/Artifacts/EvidenceContract.psm1','tools/Artifacts/ArtifactCommands.psm1','tools/Artifacts/ArtifactPaths.psm1','tools/Workflow/WindowsStorePaths.psm1','tools/Workflow/WindowsStoreRoot.psm1','tools/Workflow/TaskLifecycle.psm1','tools/Workflow/TaskEventStore.psm1','tools/workflow-task.ps1');$binaries=@()
     foreach($assembly in @('Probe/R2RouteTransport','Packaging/ArtifactPackaging','Transport/R2ArtifactTransport')){
         foreach($extension in @('.dll','.deps.json')){
             $path='tools/Artifacts/'+$assembly+$extension;$paths+=@($path)
@@ -57,8 +59,10 @@ function Fixture([string]$Case){
     & $store {param($r)$script:TestRoot=$r} ([IO.Path]::Combine($work,'workflow'))
     & $module {param($r,$i,$s,$y,$c,$k,$e)$script:ElapsedClock=$e;$script:TestRoot=$r;$script:SourceHook={$i}.GetNewClosure();$script:SchedulerHook=$s;$script:SyncHook=$y;$script:CleanupHook=$c;$script:Clock=$k} $runtime $inputs $scheduler $syncHook $cleanupHook $clockHook $elapsedHook
     & $module {param($r,$c)$script:BindingRootsHook={$r}.GetNewClosure();$script:CredentialRootHook={$c}.GetNewClosure()} $roleRoots $credential
+    # Binding validation passes the resolver's gate even with the roots hook set: a migrated temp store root.
+    $storeRoot=New-StoreRootTestBase $work
     $script:installed=$null;$script:installs=0;$script:wrong=$false;$script:sync.Clear();$script:cleanup.Clear();$script:time=[DateTimeOffset]::Parse('2026-01-01T00:00:00+00:00');$script:syncConsumesBudget=$false;$script:elapsed=0L
-    return @{config=$config;work=$work;source=$source;repo=$repo;inputs=$inputs;roles=$roleRoots;credential=$credential}
+    return @{config=$config;work=$work;source=$source;repo=$repo;inputs=$inputs;roles=$roleRoots;credential=$credential;storeRoot=$storeRoot}
 }
 # Exercise the production OS adapter through command boundaries. Every OS entry
 # is replaced in the module scope. One case creates only a real action CimInstance;
@@ -161,7 +165,7 @@ function AddTasks($Fixture,[int]$Count){
 # json は stdout のうち '{' で始まる行だけ（module import の警告などの他の行と区別する）。
 function Invoke-ScheduleCli($Fixture,[string]$Action,[string]$HookSource,[bool]$WithInputs=$false){
     $child=[IO.Path]::Combine($Fixture.work,'cli-'+$Action+'.ps1')
-    $childArguments=@('-Repo',[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..')),'-RuntimeRoot',$Fixture.roles.runtime,'-DeploymentRoot',$Fixture.roles.deployments,'-Config',$Fixture.config)
+    $childArguments=@('-Repo',[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..')),'-RuntimeRoot',$Fixture.roles.runtime,'-DeploymentRoot',$Fixture.roles.deployments,'-Config',$Fixture.config,'-StoreBase',$Fixture.storeRoot.Base,'-LegacyBase',$Fixture.storeRoot.LegacyBase)
     if($WithInputs){
         # install は runtime の収集入力（head・file 一覧・binary の hash）を要る。fixture の入力を file で渡す。
         $inputsPath=[IO.Path]::Combine($Fixture.work,'cli-inputs.json')
@@ -169,9 +173,10 @@ function Invoke-ScheduleCli($Fixture,[string]$Action,[string]$HookSource,[bool]$
         $childArguments+=@('-InputsPath',$inputsPath)
     }
     $source=@'
-param($Repo,$RuntimeRoot,$DeploymentRoot,$Config,$InputsPath='')
+param($Repo,$RuntimeRoot,$DeploymentRoot,$Config,$InputsPath='',$StoreBase,$LegacyBase)
 $ErrorActionPreference='Stop'
 $m=Import-Module (Join-Path $Repo 'tools/Artifacts/EvidenceSchedule.psm1') -PassThru
+. (Join-Path $Repo 'tools/Workflow/tests/StoreRootTestSupport.ps1');Set-StoreRootTestSeams $StoreBase $LegacyBase
 & $m {param($r,$d,$repo,$inputsPath)
  $script:TestRoot=$r;$script:SchedulerHook={__HOOK__}
  $manifest=Get-Content -Raw (Join-Path $r (('e'*40)+'/runtime.json')) | ConvertFrom-Json -AsHashtable
@@ -319,9 +324,10 @@ try{
                     if($case -ceq 'runtime-fresh-process-fail-before-adapters'){[IO.Directory]::Delete($fixture.roles.transfers)}
                     $childPath=[IO.Path]::Combine($fixture.work,'child.ps1')
                     [IO.File]::WriteAllText($childPath,@'
-param($Runtime,$Hash,$Credential,$Mode)
+param($Runtime,$Hash,$Credential,$Mode,$StoreBase,$LegacyBase,$Support)
 $ErrorActionPreference='Stop';$WarningPreference='SilentlyContinue'
 $schedule=Import-Module ([IO.Path]::Combine($Runtime,'tools','Artifacts','EvidenceSchedule.psm1')) -PassThru
+. $Support;Set-StoreRootTestSeams $StoreBase $LegacyBase
 $before=@(Get-Module -All|Where-Object Name -in @('EvidenceContract','TaskEventStore'))
 if($before.Count){throw 'adapters imported before validation'}
 $manifest=ConvertFrom-Json -InputObject ([IO.File]::ReadAllText([IO.Path]::Combine($Runtime,'runtime.json'))) -AsHashtable -DateKind String
@@ -339,9 +345,111 @@ if($Mode -ceq 'runtime-fresh-process-fail-before-adapters'){
 @{status='passed';mode=$Mode}|ConvertTo-Json -Compress
 '@)
                     $start=[Diagnostics.ProcessStartInfo]::new([Diagnostics.Process]::GetCurrentProcess().MainModule.FileName);$start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
-                    foreach($arg in @('-NoProfile','-File',$childPath,'-Runtime',$installation.runtime,'-Hash',$installation.manifestSha256,'-Credential',$fixture.credential,'-Mode',$case)){$start.ArgumentList.Add($arg)}
+                    foreach($arg in @('-NoProfile','-File',$childPath,'-Runtime',$installation.runtime,'-Hash',$installation.manifestSha256,'-Credential',$fixture.credential,'-Mode',$case,'-StoreBase',$fixture.storeRoot.Base,'-LegacyBase',$fixture.storeRoot.LegacyBase,'-Support',(Join-Path $PSScriptRoot '../../Workflow/tests/StoreRootTestSupport.ps1'))){$start.ArgumentList.Add($arg)}
                     $process=[Diagnostics.Process]::Start($start)
                     try{$out=$process.StandardOutput.ReadToEndAsync();$err=$process.StandardError.ReadToEndAsync();Assert ($process.WaitForExit(15000)) 'fresh child deadline';Assert ([Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($out,$err),3000)) 'fresh child pipes';Assert ($process.ExitCode -eq 0) ('fresh child failed '+$out.Result+$err.Result);Assert (($out.Result|ConvertFrom-Json).status -ceq 'passed') 'fresh child missing observation'}finally{if(-not $process.HasExited){$process.Kill($true);$process.WaitForExit()};$process.Dispose()}
+                }
+                {$_ -cin @('ac-i2-d','ac-i3-e-binding','ac-i3-e-runtime-context')}{
+                    # The binding validation (and the runtime context that leads to it)
+                    # stops at the resolver's gate: no marker, or an owned role still under
+                    # the former root. Only the marker is opened on the new root side, the
+                    # new root does not change, and no process binding is set.
+                    AddTasks $fixture 1;$installation=Invoke-EvidenceScheduleInstall $fixture.config
+                    $manifest=ConvertFrom-Json -InputObject ([IO.File]::ReadAllText([IO.Path]::Combine($installation.runtime,'runtime.json'))) -AsHashtable -DateKind String
+                    $marker=[IO.Path]::Combine($fixture.storeRoot.Root,'store-root.json');$residue=[IO.Path]::Combine($fixture.storeRoot.LegacyRoot,'Workflow')
+                    if($case -ceq 'ac-i2-d'){[IO.File]::Delete($marker);$expected='store-not-migrated'}else{[IO.Directory]::CreateDirectory($residue)|Out-Null;$expected='legacy-store-present'}
+                    $log=[Collections.Generic.List[string]]::new();Set-StoreRootTestSeams $fixture.storeRoot.Base $fixture.storeRoot.LegacyBase (New-StoreRootTestMarkerIo $log)
+                    $before=Get-StoreRootTestTree $fixture.storeRoot.Base
+                    $call={if($case -ceq 'ac-i3-e-runtime-context'){$null=Initialize-EvidenceRuntimeContext $installation.runtime $installation.manifestSha256}else{& $module {param($b)Assert-EvidenceStorageBinding $b} $manifest.storageBinding}}
+                    $message=try{& $call;'returned'}catch{$_.Exception.Message}
+                    Assert ($message -ceq $expected) ($case+': expected '+$expected+', got '+$message)
+                    Assert ((Get-StoreRootTestTree $fixture.storeRoot.Base) -ceq $before) 'new root changed'
+                    $opened=@($log|Where-Object {$_.StartsWith('open:')}|ForEach-Object {$_.Substring(5)}|Sort-Object -Unique)
+                    Assert ($opened.Count -eq 1 -and $opened[0] -ceq $marker) ('opened '+($opened -join ','))
+                    Assert ($null -eq [AppDomain]::CurrentDomain.GetData('OneStarMaker.Evidence.StorageBinding.v1')) 'binding set despite the gate'
+                    # Without the residue the same call reaches the ordinary validation.
+                    if($case -cne 'ac-i2-d'){[IO.Directory]::Delete($residue);& $call}
+                }
+                {$_ -cin @('ac-i2-e','ac-i3-g')}{
+                    # A fresh process with a valid binding set directly (no runtime context):
+                    # the five bound root getters still stop at the gate and never return the
+                    # binding's physical path. With the marker and no residue they do return it.
+                    AddTasks $fixture 1;$installation=Invoke-EvidenceScheduleInstall $fixture.config
+                    $manifest=ConvertFrom-Json -InputObject ([IO.File]::ReadAllText([IO.Path]::Combine($installation.runtime,'runtime.json'))) -AsHashtable -DateKind String
+                    $bindingPath=[IO.Path]::Combine($fixture.work,'binding.json');[IO.File]::WriteAllText($bindingPath,(ConvertTo-Json -InputObject $manifest.storageBinding -Depth 8 -Compress),[Text.UTF8Encoding]::new($false))
+                    $childPath=[IO.Path]::Combine($fixture.work,'bound-getters.ps1')
+                    [IO.File]::WriteAllText($childPath,@'
+param($Repo,$Support,$Base,$LegacyBase,$BindingPath)
+$ErrorActionPreference='Stop';$WarningPreference='SilentlyContinue'
+$m=@{}
+foreach($pair in @(@('EvidencePaths','tools/Artifacts/EvidencePaths.psm1'),@('ArtifactPaths','tools/Artifacts/ArtifactPaths.psm1'),@('EvidenceContract','tools/Artifacts/EvidenceContract.psm1'),@('EvidenceSchedule','tools/Artifacts/EvidenceSchedule.psm1'),@('TaskEventStore','tools/Workflow/TaskEventStore.psm1'))){$m[$pair[0]]=Import-Module ([IO.Path]::Combine($Repo,$pair[1])) -PassThru}
+. $Support;Set-StoreRootTestSeams $Base $LegacyBase
+[AppDomain]::CurrentDomain.SetData('OneStarMaker.Evidence.StorageBinding.v1',[IO.File]::ReadAllText($BindingPath))
+$results=[ordered]@{}
+foreach($pair in @(@('Get-EvidenceRoot','EvidencePaths'),@('Get-ArtifactRoot','ArtifactPaths'),@('Get-EvidenceDeploymentRoot','EvidenceContract'),@('Get-EvidenceRuntimeRoot','EvidenceSchedule'),@('Get-WorkflowRoot','TaskEventStore'))){
+    $results[$pair[0]]=try{[string](& $m[$pair[1]] ([scriptblock]::Create($pair[0])))}catch{'error:'+$_.Exception.Message}
+}
+ConvertTo-Json -Compress -InputObject $results
+'@,[Text.UTF8Encoding]::new($false))
+                    $marker=[IO.Path]::Combine($fixture.storeRoot.Root,'store-root.json');$residue=[IO.Path]::Combine($fixture.storeRoot.LegacyRoot,'Workflow')
+                    if($case -ceq 'ac-i2-e'){[IO.File]::Delete($marker);$expected='store-not-migrated'}else{[IO.Directory]::CreateDirectory($residue)|Out-Null;$expected='legacy-store-present'}
+                    $roleOf=@{'Get-EvidenceRoot'='evidence';'Get-ArtifactRoot'='transfers';'Get-EvidenceDeploymentRoot'='deployments';'Get-EvidenceRuntimeRoot'='runtime';'Get-WorkflowRoot'='workflow'}
+                    $invoke={
+                        $start=[Diagnostics.ProcessStartInfo]::new([Diagnostics.Process]::GetCurrentProcess().MainModule.FileName);$start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
+                        foreach($arg in @('-NoProfile','-File',$childPath,'-Repo',[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..')),'-Support',(Join-Path $PSScriptRoot '../../Workflow/tests/StoreRootTestSupport.ps1'),'-Base',$fixture.storeRoot.Base,'-LegacyBase',$fixture.storeRoot.LegacyBase,'-BindingPath',$bindingPath)){$start.ArgumentList.Add($arg)}
+                        $process=[Diagnostics.Process]::Start($start)
+                        try{$out=$process.StandardOutput.ReadToEndAsync();$err=$process.StandardError.ReadToEndAsync();Assert ($process.WaitForExit(30000)) 'bound child deadline';Assert ([Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($out,$err),3000)) 'bound child pipes';Assert ($process.ExitCode -eq 0) ('bound child failed '+$out.Result+$err.Result);return (@($out.Result -split "`r?`n"|Where-Object {$_.StartsWith('{')})[-1]|ConvertFrom-Json)}finally{if(-not $process.HasExited){$process.Kill($true);$process.WaitForExit()};$process.Dispose()}
+                    }
+                    $before=Get-StoreRootTestTree $fixture.storeRoot.Base
+                    $results=& $invoke
+                    foreach($name in $roleOf.Keys){
+                        $value=[string]$results.$name
+                        Assert ($value -ceq ('error:'+$expected)) ($name+': '+$value)
+                        Assert (-not $value.Contains($manifest.storageBinding.roles[$roleOf[$name]].physicalPath)) ($name+' returned the binding path')
+                    }
+                    Assert ((Get-StoreRootTestTree $fixture.storeRoot.Base) -ceq $before) 'new root changed'
+                    if($case -ceq 'ac-i3-g'){
+                        [IO.Directory]::Delete($residue);$results=& $invoke
+                        foreach($name in $roleOf.Keys){Assert ([string]$results.$name -ceq $manifest.storageBinding.roles[$roleOf[$name]].physicalPath) ($name+' after the residue: '+$results.$name)}
+                    }
+                }
+                'ac-i3-h-job-entry'{
+                    # The real scheduled-job entry (the runtime copy's script, run as itself)
+                    # with the marker present and Workflow still under the former root: it
+                    # reads its runtime copy (hash-first), then stops at the gate inside the
+                    # binding validation with the entry's own outer code. The former root is
+                    # only queried for metadata and the new root does not change.
+                    AddTasks $fixture 1;$installation=Invoke-EvidenceScheduleInstall $fixture.config
+                    $residue=[IO.Path]::Combine($fixture.storeRoot.LegacyRoot,'Workflow');[IO.Directory]::CreateDirectory($residue)|Out-Null
+                    $calls=[IO.Path]::Combine($fixture.work,'job-entry.calls');$wrapper=[IO.Path]::Combine($fixture.work,'job-entry-wrapper.ps1')
+                    [IO.File]::WriteAllText($wrapper,@'
+param([string]$Runtime,[string]$Hash,[string]$Support,[string]$Base,[string]$LegacyBase,[string]$Calls)
+Set-StrictMode -Version Latest;$ErrorActionPreference='Stop';$WarningPreference='SilentlyContinue'
+# The runtime copy's own resolver instance gets the seams; the entry script is then
+# invoked as itself ($PSCommandPath and $PSScriptRoot are the copy's), and its exit
+# code is this wrapper's.
+$resolver=Import-Module ([IO.Path]::Combine($Runtime,'tools','Workflow','WindowsStoreRoot.psm1')) -PassThru
+. $Support
+$native=& $resolver {$script:NativeMarkerIo}
+$io=@{Open={param($p)[IO.File]::AppendAllText($Calls,'marker:open:'+$p+"`n");& $native.Open $p}.GetNewClosure();FinalPath={param($h)& $native.FinalPath $h}.GetNewClosure();Read={param($h)& $native.Read $h}.GetNewClosure();Close={param($h)& $native.Close $h}.GetNewClosure()}
+$query={param($p)$s=[string][OneStarMaker.Workflow.StoreRootNative]::Query($p);[IO.File]::AppendAllText($Calls,'legacy:query:'+$p+'='+$s+"`n");$s}
+Set-StoreRootTestSeams $Base $LegacyBase $io $query
+& ([IO.Path]::Combine($Runtime,'tools','Artifacts','EvidenceCleanupJob.ps1')) -Runtime $Runtime -ManifestSha256 $Hash
+exit $LASTEXITCODE
+'@,[Text.UTF8Encoding]::new($false))
+                    $before=@((Get-StoreRootTestTree $fixture.storeRoot.Base),(Get-StoreRootTestTree $fixture.roles.workflow),(Get-StoreRootTestTree $fixture.roles.evidence))
+                    $start=[Diagnostics.ProcessStartInfo]::new([Diagnostics.Process]::GetCurrentProcess().MainModule.FileName);$start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.RedirectStandardOutput=$true;$start.RedirectStandardError=$true
+                    foreach($arg in @('-NoProfile','-File',$wrapper,'-Runtime',$installation.runtime,'-Hash',$installation.manifestSha256,'-Support',(Join-Path $PSScriptRoot '../../Workflow/tests/StoreRootTestSupport.ps1'),'-Base',$fixture.storeRoot.Base,'-LegacyBase',$fixture.storeRoot.LegacyBase,'-Calls',$calls)){$start.ArgumentList.Add($arg)}
+                    $process=[Diagnostics.Process]::Start($start)
+                    try{$out=$process.StandardOutput.ReadToEndAsync();$err=$process.StandardError.ReadToEndAsync();Assert ($process.WaitForExit(60000)) 'job entry deadline';Assert ([Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($out,$err),3000)) 'job entry pipes';$exit=$process.ExitCode;$stdout=$out.Result;$stderr=$err.Result}finally{if(-not $process.HasExited){$process.Kill($true);$process.WaitForExit()};$process.Dispose()}
+                    $json=@($stdout -split "`r?`n"|Where-Object {$_.StartsWith('{')})
+                    Assert ($exit -eq 1 -and $json.Count -ge 1 -and ($json[-1]|ConvertFrom-Json).reasonCode -ceq 'scheduler-runtime-unavailable') ('job entry '+$exit+' '+$stdout+$stderr)
+                    $lines=@([IO.File]::ReadAllLines($calls))
+                    Assert (@($lines|Where-Object {$_ -ceq ('legacy:query:'+$residue+'=directory')}).Count -ge 1) ('residue not queried: '+($lines -join ','))
+                    $opened=@($lines|Where-Object {$_.StartsWith('marker:open:')}|ForEach-Object {$_.Substring(12)}|Sort-Object -Unique)
+                    Assert ($opened.Count -eq 1 -and $opened[0] -ceq [IO.Path]::Combine($fixture.storeRoot.Root,'store-root.json')) ('opened '+($opened -join ','))
+                    Assert ((Get-StoreRootTestTree $fixture.storeRoot.Base) -ceq $before[0] -and (Get-StoreRootTestTree $fixture.roles.workflow) -ceq $before[1] -and (Get-StoreRootTestTree $fixture.roles.evidence) -ceq $before[2]) 'a root changed'
+                    foreach($marker in @($fixture.storeRoot.Base,$fixture.storeRoot.LegacyBase,[Security.Principal.WindowsIdentity]::GetCurrent().User.Value)){Assert (-not ($stdout+$stderr).Contains($marker)) ('job entry leaked '+$marker)}
                 }
                 {$_ -clike 'runtime-binding-*' -or $_ -cin @('runtime-schema-one-rejected','runtime-context-force-import','runtime-context-switch-rejected','runtime-credential-missing','runtime-bound-guard-missing')}{
                     AddTasks $fixture 1;$installation=Invoke-EvidenceScheduleInstall $fixture.config
@@ -518,6 +626,7 @@ if($Mode -ceq 'runtime-fresh-process-fail-before-adapters'){
             }
             $executed.Add($case)
         }catch{$failed.Add($case+': '+$_.Exception.Message+' '+$_.ScriptStackTrace)}
+        finally{Clear-StoreRootTestSeams}
     }
     if($ResultPath){[IO.File]::WriteAllText($ResultPath,(ConvertTo-Json -Depth 8 -InputObject ([ordered]@{registered=$cases;selected=$selected;executed=@($executed);failed=@($failed)})),[Text.UTF8Encoding]::new($false))}
     foreach($name in $executed){"PASS $name"};foreach($name in $failed){"FAIL $name"}

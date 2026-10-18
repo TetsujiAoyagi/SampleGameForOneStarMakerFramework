@@ -47,9 +47,10 @@ function Test-FreshCleanupContract($Env){
     }finally{& $schedule {$script:BindingRootsHook=$null;$script:TestRoot=$null;$script:SourceHook=$null;$script:SchedulerHook=$null}}
     $childPath=[IO.Path]::Combine($Env.Root,'cleanup-contract-child.ps1')
     [IO.File]::WriteAllText($childPath,@'
-param($Runtime,$Hash,$Credential)
+param($Runtime,$Hash,$Credential,$StoreBase,$LegacyBase,$Support)
 $ErrorActionPreference='Stop';$WarningPreference='SilentlyContinue'
 $schedule=Import-Module ([IO.Path]::Combine($Runtime,'tools','Artifacts','EvidenceSchedule.psm1')) -PassThru
+. $Support;Set-StoreRootTestSeams $StoreBase $LegacyBase
 $manifest=ConvertFrom-Json -InputObject ([IO.File]::ReadAllText([IO.Path]::Combine($Runtime,'runtime.json'))) -AsHashtable -DateKind String
 $roots=[ordered]@{};foreach($role in $manifest.storageBinding.roles.Keys){$roots[$role]=$manifest.storageBinding.roles[$role].logicalPath}
 & $schedule {param($r,$c)$script:BindingRootsHook={$r}.GetNewClosure();$script:CredentialRootHook={$c}.GetNewClosure()} $roots $Credential
@@ -65,7 +66,7 @@ if($result.status -cne 'passed' -or $result.blocked -ne 0 -or $result.deleted -n
 @{status='passed';importOrder=@('EvidenceSchedule','Initialize-EvidenceRuntimeContext','EvidenceStateStore','EvidenceCleanup');globalContractImported=$false;blocked=$result.blocked;deleted=$result.deleted;skipped=$result.skipped}|ConvertTo-Json -Compress
 '@)
     $info=[Diagnostics.ProcessStartInfo]::new([Diagnostics.Process]::GetCurrentProcess().MainModule.FileName);$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
-    foreach($arg in @('-NoProfile','-File',$childPath,'-Runtime',$runtime.runtime,'-Hash',$runtime.manifestSha256,'-Credential',$credential)){$info.ArgumentList.Add($arg)}
+    foreach($arg in @('-NoProfile','-File',$childPath,'-Runtime',$runtime.runtime,'-Hash',$runtime.manifestSha256,'-Credential',$credential,'-StoreBase',$Env.StoreRoot.Base,'-LegacyBase',$Env.StoreRoot.LegacyBase,'-Support',(Join-Path $PSScriptRoot '../../Workflow/tests/StoreRootTestSupport.ps1'))){$info.ArgumentList.Add($arg)}
     $process=[Diagnostics.Process]::Start($info)
     try{$out=$process.StandardOutput.ReadToEndAsync();$err=$process.StandardError.ReadToEndAsync();Assert-EvidenceTest ($process.WaitForExit(15000)) 'cleanup dependency child deadline';Assert-EvidenceTest ([Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($out,$err),5000)) 'cleanup dependency child pipes';Assert-EvidenceTest ($process.ExitCode -eq 0) ('cleanup dependency child failed '+$out.Result+$err.Result);$observation=$out.Result|ConvertFrom-Json;Assert-EvidenceTest ($observation.status -ceq 'passed') 'cleanup dependency observation';if($ResultPath){Write-EvidenceTestJson ($ResultPath+'.fresh-child.json') $observation}}
     finally{if(-not $process.HasExited){$process.Kill($true);$process.WaitForExit()};$process.Dispose()}

@@ -4,10 +4,13 @@ $ErrorActionPreference='Stop'
 # Consolidation rules over in-memory models only. No case touches the file system;
 # the paths below are strings that never exist on disk.
 Import-Module (Join-Path $PSScriptRoot '../StoreConsolidationPlan.psm1') -Force
-$logical='C:\Users\fixture\AppData\Local\OneStarMaker'
+# The store root, the former root (an alias records written before the move still
+# name) and a package copy of the former root.
+$logical='C:\Users\fixture\OneStarMaker'
+$legacyRoot='C:\Users\fixture\AppData\Local\OneStarMaker'
 $source='C:\Users\fixture\AppData\Local\Packages\Fixture.Package_0000000000000\LocalCache\Local\OneStarMaker'
 $repo='a'*64;$dep='d'*32;$op='0'*32;$op2='1'*32
-$cases=@('task-items-share-a-unit','reference-missing-operation','reference-present-in-target','reference-localcache-rejected','reference-out-of-role-rejected','outside-store-path-ignored','shared-operation-merges-units','target-states','workflow-divergence-held','deployment-dependency','unreferenced-operation-excluded','invalid-record-held','target-keys-cover-references','manifest-recheck','plan-module-is-pure','referenced-file-missing','unchecked-record-held','multi-workflow-unit-held','workflow-already-visible-held','all-identical-unit-not-held','only-new-workflow-not-held','single-workflow-unit-not-held','multi-workflow-with-other-reasons','target-only-reference-unreadable')
+$cases=@('task-items-share-a-unit','reference-missing-operation','reference-present-in-target','reference-localcache-rejected','reference-out-of-role-rejected','outside-store-path-ignored','shared-operation-merges-units','target-states','workflow-divergence-held','deployment-dependency','unreferenced-operation-excluded','invalid-record-held','target-keys-cover-references','manifest-recheck','plan-module-is-pure','referenced-file-missing','unchecked-record-held','multi-workflow-unit-held','workflow-already-visible-held','all-identical-unit-not-held','only-new-workflow-not-held','single-workflow-unit-not-held','multi-workflow-with-other-reasons','target-only-reference-unreadable','ac-s4-b','ac-s4-c')
 $selected=@(if($Case -ceq '*'){$cases}else{$Case.Split(',')})
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 function Assert([bool]$Value,[string]$Message){if(-not $Value){throw $Message}}
@@ -18,7 +21,7 @@ function Item([string]$Role,[string]$Task='',$Files=@(),[string]$Id=''){
     [pscustomobject]@{role=$Role;key=$key;repositoryId=$repo;taskId=$Task;deploymentId=$dep;files=@($Files);directories=@();reparse=$false}
 }
 function Catalog([string[]]$Paths){File 'catalog.json' (ConvertTo-Json -Compress -Depth 10 -InputObject ([ordered]@{schemaVersion=2;artifacts=@([ordered]@{ownedCopies=@($Paths|ForEach-Object {[ordered]@{path=$_}})})}))}
-function Inventory($Items,$Excluded=@()){[pscustomobject]@{logicalRoot=$logical;sourceRoot=$source;items=@($Items);excluded=@($Excluded)}}
+function Inventory($Items,$Excluded=@()){[pscustomobject]@{logicalRoot=$logical;legacyRoots=@($legacyRoot);sourceRoot=$source;items=@($Items);excluded=@($Excluded)}}
 function Seen([bool]$Exists,$Files=@(),[bool]$Acl=$true){[pscustomobject]@{exists=$Exists;files=@($Files);directories=@();aclOk=$Acl;reparse=$false}}
 # The real store has the deployment unless a case says otherwise.
 function Target([hashtable]$Extra=@{}){$t=@{"Artifacts\deployments\$dep"=(Seen $true @((File "$dep.json"),(File "$dep.config.json")))};foreach($k in $Extra.Keys){$t[$k]=$Extra[$k]};$t}
@@ -232,6 +235,36 @@ foreach($case in $selected){
                 # The readable control still passes, also beside an unreadable file it does not reference.
                 $plan=New-ConsolidationPlan (Inventory $items) (Target @{"Artifacts\transfers\$op"=(Seen $true @((File 'owned\a.zip'),(Locked 'owned\other.zip')))})
                 Assert ($plan.units[0].status -ceq 'publish') ('readable reference rejected '+($plan.units[0].reasons -join ','))
+            }
+            'ac-s4-b'{
+                # A reference under the former root maps to the same relative key as one
+                # under the store root: checked, and held when the operation is absent.
+                $inventory=Inventory @((Item evidence alpha @(Catalog @("$legacyRoot\Artifacts\transfers\$op\owned\a.zip"))))
+                $plan=New-ConsolidationPlan $inventory (Target)
+                Assert ($plan.units[0].status -ceq 'hold' -and $plan.units[0].reasons -ccontains 'reference-missing') 'former-root reference not checked'
+                Assert ((Get-ConsolidationTargetKeys $inventory) -ccontains "Artifacts\transfers\$op") 'former-root reference not a target key'
+                $plan=New-ConsolidationPlan $inventory (Target @{"Artifacts\transfers\$op"=(Seen $true @(File 'owned\a.zip'))})
+                Assert ($plan.units[0].status -ceq 'publish') ('mapped reference rejected '+($plan.units[0].reasons -join ','))
+                Assert ((@($plan.legacyRoots) -join ',') -ceq $legacyRoot) 'legacyRoots not recorded in the plan'
+                # LocalCache paths stay rejected, former root or not.
+                $plan=New-ConsolidationPlan (Inventory @((Item workflow alpha @(File 'state.json' (ConvertTo-Json -Compress @{p="$source\Artifacts\transfers\$op\a.zip"}))))) (Target)
+                Assert ($plan.units[0].reasons -ccontains 'reference-localcache') 'LocalCache path accepted'
+            }
+            'ac-s4-c'{
+                # Paths under neither root are not references: worktree sources, a sibling
+                # that only shares the prefix, and another directory beside the store root.
+                foreach($path in @('D:\repositories\worktree\evidence\x.json',"C:\Users\fixture\AppData\Local\OneStarMaker2\Artifacts\transfers\$op\a.zip","C:\Users\fixture\OneStarMakerX\Artifacts\transfers\$op\a.zip")){
+                    $plan=New-ConsolidationPlan (Inventory @((Item workflow alpha @(File 'state.json' (ConvertTo-Json -Compress @{p=$path}))))) (Target)
+                    Assert ($plan.units[0].status -ceq 'publish' -and @($plan.units[0].reasons).Count -eq 0) ('outside path treated as a reference '+$path)
+                }
+                # The alias in force at execution must be the one the manifest was planned with.
+                $inventory=Inventory @((Item workflow alpha @(File 'state.json' '{}')))
+                $approved=New-ConsolidationPlan $inventory (Target);$approved.legacyRoots=@('C:\Users\other\AppData\Local\OneStarMaker')
+                $threw=$false;try{$null=Test-ConsolidationManifest $approved (New-ConsolidationPlan $inventory (Target))}catch{$threw=$_.Exception.Message -ceq 'manifest-invalid'}
+                Assert $threw 'manifest planned with another alias accepted'
+                $approved=New-ConsolidationPlan $inventory (Target);$approved.Remove('legacyRoots')
+                $threw=$false;try{$null=Test-ConsolidationManifest $approved (New-ConsolidationPlan $inventory (Target))}catch{$threw=$_.Exception.Message -ceq 'manifest-invalid'}
+                Assert $threw 'manifest without an alias accepted'
             }
             'plan-module-is-pure'{
                 $ast=[Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot '../StoreConsolidationPlan.psm1'),[ref]$null,[ref]$null)

@@ -2,13 +2,16 @@ Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'ArtifactAcl.psm1')
 Import-Module (Join-Path $PSScriptRoot 'Credentials/CredentialStore.psm1')
 Import-Module (Join-Path $PSScriptRoot 'Transport/R2ArtifactTransport.psm1')
+Import-Module (Join-Path $PSScriptRoot '../Workflow/WindowsStoreRoot.psm1')
 $script:TestRoot=$null
 $script:TransportHook=$null
 $script:FaultHook=$null
 $script:Clock={ [DateTimeOffset]::UtcNow }
 function Get-EvidenceResetRoot {
     if($script:TestRoot){return [IO.Path]::GetFullPath($script:TestRoot)}
-    return [IO.Path]::Combine([Environment]::GetFolderPath('LocalApplicationData'),'OneStarMaker','Artifacts')
+    # The reset's local targets live below the store root's Artifacts; the
+    # resolver decides where that is and whether it may be used.
+    return [IO.Path]::Combine((Get-OsmStoreRoot),'Artifacts')
 }
 function Assert-ResetFields($Value,[string[]]$Fields){
     if($Value -isnot [Collections.IDictionary] -or @($Value.Keys).Count -ne $Fields.Count){throw 'reset-schema-invalid'}

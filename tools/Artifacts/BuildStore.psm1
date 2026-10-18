@@ -4,6 +4,7 @@ Import-Module (Join-Path $PSScriptRoot 'ArtifactCommands.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ArtifactDeletion.psm1')
 Import-Module (Join-Path $PSScriptRoot 'BuildContract.psm1')
 Import-Module (Join-Path $PSScriptRoot '../Workflow/WindowsStorePaths.psm1')
+Import-Module (Join-Path $PSScriptRoot '../Workflow/WindowsStoreRoot.psm1')
 # このstoreのownerはBuild application。同user/同PCで成功を保持し、
 # Workflow終了やEvidenceの30日清掃には登録しない。注入rootはoffline専用。
 $script:TestRoot=$null
@@ -11,8 +12,8 @@ $script:FaultHook=$null
 
 function Get-BuildRoot([bool]$Create=$false){
     if(-not [OperatingSystem]::IsWindows()){throw 'build-store-unavailable'}
-    $local=[Environment]::GetFolderPath('LocalApplicationData')
-    $root=if($script:TestRoot){[IO.Path]::GetFullPath($script:TestRoot)}else{[IO.Path]::Combine($local,'OneStarMaker','Artifacts','builds-v1')}
+    # 所在と移行済みの判定はresolverが持つ。注入rootだけがそれを迂回する。
+    $root=if($script:TestRoot){[IO.Path]::GetFullPath($script:TestRoot)}else{[IO.Path]::Combine((Get-OsmStoreRoot),'Artifacts','builds-v1')}
     Assert-NoArtifactReparse $root
     if($Create){
         $shared=[IO.Path]::GetDirectoryName($root)

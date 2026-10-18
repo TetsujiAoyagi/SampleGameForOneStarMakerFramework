@@ -2,6 +2,7 @@ Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'ArtifactCommands.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ArtifactAcl.psm1')
 Import-Module (Join-Path $PSScriptRoot '../Workflow/WindowsStorePaths.psm1')
+Import-Module (Join-Path $PSScriptRoot '../Workflow/WindowsStoreRoot.psm1')
 # 系列の退役記録の所有者（BuildとContentが同じものを使う）。ownerの明示指示（--decision）で退役した事実を、
 # 系列ごとに1件の不変記録として残す。置き場は builds-v1／contents-v1 と別のroot
 #   retirements-v1/<repositoryId>/<build|content>/<系列token を ~ で結んだ名前>.json
@@ -32,8 +33,8 @@ function Get-SeriesRetirementPath([string]$Kind,[string]$RepositoryId,[string[]]
 }
 function Get-SeriesRetirementRoot {
     if(-not [OperatingSystem]::IsWindows()){throw 'retirement-unknown'}
-    $local=[Environment]::GetFolderPath('LocalApplicationData')
-    $root=if($script:TestRoot){[IO.Path]::GetFullPath($script:TestRoot)}else{[IO.Path]::Combine($local,'OneStarMaker','Artifacts','retirements-v1')}
+    # 所在と移行済みの判定はresolverが持つ。注入rootだけがそれを迂回する。
+    $root=if($script:TestRoot){[IO.Path]::GetFullPath($script:TestRoot)}else{[IO.Path]::Combine((Get-OsmStoreRoot),'Artifacts','retirements-v1')}
     Assert-NoArtifactReparse $root
     if([IO.Directory]::Exists($root)){$root=(Get-WindowsStorePathIdentity $root).physicalPath;Assert-NoArtifactReparse $root}
     return $root

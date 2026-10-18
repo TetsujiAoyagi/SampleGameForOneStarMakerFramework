@@ -18,6 +18,58 @@ function Get-LoadedArtifactBinaries {
 . (Join-Path $PSScriptRoot 'EvidenceTestSupport.ps1')
 . (Join-Path $PSScriptRoot 'EvidenceReaderFixture.ps1')
 $cases=@('transport-config','credential-callback-dto','publish-fetch-roundtrip','wrong-outer-hash','network-write-refusal','readback-closed-mismatch','readback-child-protocol','observation-persistence-fail-closed','readback-stop-budget','strict-config-and-reference','source-traversal-network-zero','legacy-config-reference-commit-network-zero','download-bytes-mismatch','readback-prelaunch-deadline','readback-start-false','readback-start-throw','readback-started-before-pid','readback-late-output-owned-cleanup','operation-logical-native-parent','operation-logical-unsafe-acl')
+$cases+=@('ac-s4-a-binding','ac-s4-a-nobinding','ac-s4-e-1','ac-s4-e-2','ac-s4-e-3','ac-s4-e-4','ac-s4-e-5','ac-s4-e-6')
+# A record written before the store moved names the transfers role under the former
+# root. Resolve-ArtifactStoredPath re-bases that prefix only: the former root is
+# never opened or compared by identity, and every other prefix keeps its rejection.
+function Invoke-TransferLegacyAliasCase([string]$Name,$Env){
+    $fx=$Env.StoreRoot;$legacy=[IO.Path]::Combine($fx.LegacyRoot,'Artifacts','transfers')
+    # The path module is nested below the application modules; call it in its own scope.
+    $paths=@(Get-EvidenceTestModules ArtifactPaths)[0]
+    function Resolve-ArtifactStoredPath([string]$Path,[switch]$AllowMissing){& $paths {param($p,$m)Resolve-ArtifactStoredPath $p -AllowMissing:$m} $Path ([bool]$AllowMissing)}
+    $operation=& $paths {New-ArtifactOperation};$root=& $paths {Get-ArtifactRoot};$operationId=[IO.Path]::GetFileName($operation)
+    $target=[IO.Path]::Combine($operation,'payload.bin');[IO.File]::WriteAllText($target,'payload');Set-ArtifactAcl $target $false
+    $aliasDirectory=[IO.Path]::Combine($legacy,$operationId);[IO.Directory]::CreateDirectory($aliasDirectory)|Out-Null
+    $alias=[IO.Path]::Combine($aliasDirectory,'payload.bin');[IO.File]::WriteAllText($alias,'other')
+    $modes=switch($Name){'ac-s4-a-binding'{@('binding')}'ac-s4-a-nobinding'{@('none')}default{@('none','binding')}}
+    $seen=[Collections.Generic.List[string]]::new()
+    Set-EvidenceTestValue WindowsStorePaths IdentityHook ({param($p)$seen.Add($p);[OneStarMaker.Workflow.NativeStorePath]::Read($p)}.GetNewClosure())
+    try{
+        foreach($mode in $modes){
+            if($mode -ceq 'binding'){
+                # A process binding passes the store-root gate, which refuses any role left under
+                # the former root (legacy-store-present). The binding run therefore sees an empty
+                # former root: the alias is still re-based by prefix, and the same-named file kept
+                # on the alias side (AC-S4-e(1)) is shown by the run without a binding only.
+                Assert-StoreRootTestTemp $fx.LegacyRoot;if([IO.Directory]::Exists($fx.LegacyRoot)){[IO.Directory]::Delete($fx.LegacyRoot,$true)}
+                $identity=[OneStarMaker.Workflow.NativeStorePath]::Read($root)
+                [AppDomain]::CurrentDomain.SetData('OneStarMaker.Evidence.StorageBinding.v1',(ConvertTo-Json -Compress -Depth 8 -InputObject ([ordered]@{schemaVersion=1;ownerSid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value;roles=[ordered]@{transfers=[ordered]@{logicalPath=$root;physicalPath=$identity.physicalPath;volumeSerial=$identity.volumeSerial;fileId=$identity.fileId}}})))
+            }
+            $before=Get-StoreRootTestTree $fx.LegacyBase;$seen.Clear()
+            try{
+                $reject={param([string]$Path)$m=try{$null=Resolve-ArtifactStoredPath $Path;'resolved'}catch{$_.Exception.Message};Assert ($m -ceq 'Artifact path unavailable.') ($Name+' ['+$mode+'] '+$Path+': '+$m)}
+                switch($Name){
+                    {$_ -cin @('ac-s4-a-binding','ac-s4-a-nobinding','ac-s4-e-1')}{
+                        $resolved=Resolve-ArtifactStoredPath $alias
+                        Assert ($resolved -ieq $target) ($Name+' ['+$mode+'] resolved to '+$resolved)
+                        if($mode -ceq 'none'){Assert ([IO.File]::ReadAllText($alias) -ceq 'other') 'alias content changed'}
+                    }
+                    'ac-s4-e-2'{
+                        $missing=[IO.Path]::Combine($legacy,$operationId,'missing.bin')
+                        & $reject $missing
+                        Assert ((Resolve-ArtifactStoredPath $missing -AllowMissing) -ieq [IO.Path]::Combine($operation,'missing.bin')) 'AllowMissing target'
+                    }
+                    'ac-s4-e-3'{& $reject ([IO.Path]::Combine($fx.LegacyRoot,'Artifacts','evidence-v2',('d'*32),'receipt.json'))}
+                    'ac-s4-e-4'{& $reject ([IO.Path]::Combine($fx.LegacyBase,'OneStarMaker2','Artifacts','transfers',$operationId,'payload.bin'))}
+                    'ac-s4-e-5'{& $reject ([IO.Path]::Combine($fx.LegacyBase,'Packages','Fixture.Package_0000000000000','LocalCache','Local','OneStarMaker','Artifacts','transfers',$operationId,'payload.bin'))}
+                    'ac-s4-e-6'{& $reject ($legacy+'\'+$operationId+'\..\'+$operationId+'\payload.bin')}
+                }
+                Assert ((Get-StoreRootTestTree $fx.LegacyBase) -ceq $before) ($Name+' ['+$mode+'] former root changed')
+                Assert (@($seen|Where-Object {$_.StartsWith($fx.LegacyRoot,[StringComparison]::OrdinalIgnoreCase)}).Count -eq 0) ($Name+' ['+$mode+'] identity read on the former root: '+($seen -join ','))
+            }finally{[AppDomain]::CurrentDomain.SetData('OneStarMaker.Evidence.StorageBinding.v1',$null)}
+        }
+    }finally{Set-EvidenceTestValue WindowsStorePaths IdentityHook $null}
+}
 $selected=@(if($Case -ceq '*'){$cases}else{$Case.Split(',')})
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new();$script:transportIdentity=$null
 function Assert([bool]$Condition,[string]$Message){Assert-EvidenceTest $Condition $Message}
@@ -37,6 +89,7 @@ foreach($case in $selected){
         $app=Get-EvidenceTestModules 'ArtifactApplication'|Select-Object -First 1
         $store=Get-EvidenceTestModules 'CredentialStore'|Select-Object -First 1
         switch($case){
+            {$_ -like 'ac-s4-*'}{Invoke-TransferLegacyAliasCase $case $env}
             {$_ -cin @('operation-logical-native-parent','operation-logical-unsafe-acl')} {
                 # Inject native metadata only: the logical transfer alias and
                 # native shared parent deliberately have different parents.
@@ -284,7 +337,7 @@ exit 1
                 Assert ($f.status -ceq 'failed' -and $f.reasonCode -ceq 'unsupported-schema' -and (Get-NetworkCount $env) -eq 0) 'legacy reference reached network'
                 # The public parser rejects commit before importing an application or opening credentials/network.
                 $proc=[Diagnostics.Process]::new();$info=$proc.StartInfo;$info.FileName=(Get-Process -Id $PID).Path;$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
-                foreach($arg in @('-NoProfile','-File',[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../artifacts.ps1')),'evidence','commit','--profile','osm','--config',$fixture.Config)){$info.ArgumentList.Add($arg)}
+                foreach($arg in @('-NoProfile','-File',[IO.Path]::GetFullPath((Join-Path $PSScriptRoot 'CliChild.ps1')),'-StoreBase',$env.Root,'evidence','commit','--profile','osm','--config',$fixture.Config)){$info.ArgumentList.Add($arg)}
                 try{
                     $null=$proc.Start();$stdout=$proc.StandardOutput.ReadToEndAsync();$stderr=$proc.StandardError.ReadToEndAsync()
                     if(-not $proc.WaitForExit(15000)){$proc.Kill($true);$null=$proc.WaitForExit(5000);throw 'legacy CLI child timeout'}

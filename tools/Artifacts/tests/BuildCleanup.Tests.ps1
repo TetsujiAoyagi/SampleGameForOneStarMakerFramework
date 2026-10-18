@@ -32,6 +32,8 @@ function global:New-Response([string]$Op,[string]$Gen,$Http,[string]$Class,$S3=$
 function New-CleanupFixture {
     $root=[IO.Path]::Combine([IO.Path]::GetTempPath(),'osm-build-test-'+[Guid]::NewGuid().ToString('N'))
     [IO.Directory]::CreateDirectory($root)|Out-Null
+    # The modules resolve the store root even with TestRoot set; pass the gate below $root.
+    $null=Enable-EvidenceTestStoreRoot $root
     $owned=@('transfers','builds-v1','deployments','workflow','evidence','credentials'|ForEach-Object {[IO.Path]::Combine($root,$_)})
     Set-EvidenceTestValue ArtifactPaths TestRoot $owned[0]
     Set-EvidenceTestValue BuildStore TestRoot $owned[1]

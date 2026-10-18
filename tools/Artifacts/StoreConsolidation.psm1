@@ -3,12 +3,19 @@ Import-Module (Join-Path $PSScriptRoot 'ArtifactAcl.psm1')
 Import-Module (Join-Path $PSScriptRoot 'StoreConsolidationPlan.psm1')
 Import-Module (Join-Path $PSScriptRoot '../Workflow/WindowsStoreContext.psm1')
 Import-Module (Join-Path $PSScriptRoot '../Workflow/WindowsStorePaths.psm1')
+Import-Module (Join-Path $PSScriptRoot '../Workflow/WindowsStoreRoot.psm1')
 
 # One-time consolidation of a split store: records that a virtualized process
 # wrote into its package copy (the source) are copied, bytes unchanged, into the
 # real store at the same relative position. The source is only ever opened with
 # read-only handles. Nothing in the real store is overwritten or deleted except
 # this run's own unpublished staging. The rules live in StoreConsolidationPlan.
+#
+# The real store is the store root the resolver returns (its gate applies, so a
+# run cannot start before the migration or while the former root is alive). The
+# former root is passed to the rules as a read-only alias: a record written there
+# names its references under that root, and the manifest pins the alias it was
+# planned with (legacyRoots) so execution re-checks the same references.
 #
 # A run is owned by its approved manifest: runId is derived from the manifest
 # hash, so re-executing the same manifest resumes the same run directory
@@ -21,14 +28,17 @@ $script:OpenHook=$null      # Offline tests only: param($Kind,$Path) observes I/
 $script:Clock={[DateTimeOffset]::UtcNow}
 $script:Journal=$null
 $script:ReasonCodes=@('virtualized-store','store-context-unknown','invalid-source-root','invalid-output','manifest-hash-mismatch','manifest-invalid','consolidation-busy','run-conflict','store-path-unavailable')
-# Names are only listed, never opened, unless they are a consolidated role.
-$script:TopLevel=@{'Workflow'='role';'Harness'='role';'Artifacts'='artifacts';'RevisionLocks'='revision-locks';'H2a Review'='not-owned';'H2b Review'='not-owned';'WorktreeRecords'='not-owned'}
+# Names are only listed, never opened, unless they are a consolidated role. The
+# migration marker (store-root.json) belongs to the resolver: listed, never opened.
+$script:TopLevel=@{'Workflow'='role';'Harness'='role';'Artifacts'='artifacts';'RevisionLocks'='revision-locks';'H2a Review'='not-owned';'H2b Review'='not-owned';'WorktreeRecords'='not-owned';'store-root.json'='marker'}
 $script:ArtifactsLevel=@{'evidence-v2'='role';'deployments'='role';'transfers'='role';'credentials'='credentials';'builds-v1'='out-of-scope-role';'contents-v1'='out-of-scope-role';'runtime'='out-of-scope-role';'evidence-handoffs'='not-owned';'evidence-ledgers'='not-owned';'evidence-retention'='not-owned';'resets'='not-owned';'review-evidence'='not-owned';'consolidation'='consolidation-run'}
 
 function Get-ConsolidationLogicalRoot {
     if($script:TestRoot){return [IO.Path]::GetFullPath($script:TestRoot)}
-    return [IO.Path]::Combine([Environment]::GetFolderPath('LocalApplicationData'),'OneStarMaker')
+    return Get-OsmStoreRoot
 }
+# The former root as a path string for the reference rule and the manifest; never opened here.
+function Get-ConsolidationLegacyRoots { return ,@(Get-OsmLegacyStoreRoot) }
 function Write-ConsolidationTrace([string]$Kind,[string]$Path){
     if($script:OpenHook){& $script:OpenHook $Kind $Path}
     if($script:Journal){
@@ -88,7 +98,7 @@ function Get-ConsolidationTree([string]$Root,$Item,[switch]$WithJson){
 function New-ConsolidationItem([string]$Role,[string]$Key,[string]$Repository='',[string]$Task='',[string]$Deployment=''){
     return [pscustomobject]@{role=$Role;key=$Key;repositoryId=$Repository;taskId=$Task;deploymentId=$Deployment;files=@();directories=@();reparse=$false}
 }
-function Get-ConsolidationSourceInventory([string]$SourceRoot,[string]$LogicalRoot){
+function Get-ConsolidationSourceInventory([string]$SourceRoot,[string]$LogicalRoot,$LegacyRoots=@()){
     $items=[Collections.Generic.List[object]]::new();$excluded=[Collections.Generic.List[object]]::new();$operations=@{}
     function Exclude([string]$Key,[string]$Reason){$excluded.Add([pscustomobject]@{key=$Key;reason=$Reason})}
     # Walks fixed name patterns below a role; any other name is listed as excluded.
@@ -139,10 +149,10 @@ function Get-ConsolidationSourceInventory([string]$SourceRoot,[string]$LogicalRo
     }
     # Operations are opened only once a record references them (D4), repeating
     # because an operation's own records may reference further operations.
-    $inventory=[pscustomobject]@{logicalRoot=$LogicalRoot;sourceRoot=$SourceRoot;items=$items;excluded=$excluded}
+    $inventory=[pscustomobject]@{logicalRoot=$LogicalRoot;legacyRoots=@($LegacyRoots);sourceRoot=$SourceRoot;items=$items;excluded=$excluded}
     do{
         $added=$false
-        foreach($key in @(Get-ConsolidationTargetKeys ([pscustomobject]@{logicalRoot=$LogicalRoot;sourceRoot=$SourceRoot;items=@($items)}))){
+        foreach($key in @(Get-ConsolidationTargetKeys ([pscustomobject]@{logicalRoot=$LogicalRoot;legacyRoots=@($LegacyRoots);sourceRoot=$SourceRoot;items=@($items)}))){
             if(-not $operations.ContainsKey($key) -or $operations[$key] -isnot [bool]){continue}
             $i=New-ConsolidationItem 'transfers' $key;Get-ConsolidationTree ([IO.Path]::Combine($SourceRoot,$key)) $i -WithJson;$items.Add($i);$operations[$key]=$i;$added=$true
         }
@@ -187,8 +197,8 @@ function Assert-ConsolidationRoots([string]$SourceRoot,[string]$LogicalRoot){
     try{Assert-NoArtifactReparse $SourceRoot}catch{throw 'invalid-source-root'}
     try{Assert-NoArtifactReparse $LogicalRoot}catch{throw 'store-path-unavailable'}
 }
-function Get-ConsolidationCurrentPlan([string]$SourceRoot,[string]$LogicalRoot){
-    $inventory=Get-ConsolidationSourceInventory $SourceRoot $LogicalRoot
+function Get-ConsolidationCurrentPlan([string]$SourceRoot,[string]$LogicalRoot,$LegacyRoots=@()){
+    $inventory=Get-ConsolidationSourceInventory $SourceRoot $LogicalRoot $LegacyRoots
     $target=@{};foreach($key in @(Get-ConsolidationTargetKeys $inventory)){$target[$key]=Get-ConsolidationTargetObservation $LogicalRoot $key}
     return New-ConsolidationPlan $inventory $target
 }
@@ -205,10 +215,10 @@ function ConvertTo-ConsolidationFailure($ErrorRecord){
 function Invoke-StoreConsolidationPlan([string]$SourceRoot,[string]$OutputPath){
     try{
         Assert-ConsolidationContext
-        $logical=Get-ConsolidationLogicalRoot
+        $logical=Get-ConsolidationLogicalRoot;$legacyRoots=Get-ConsolidationLegacyRoots
         Assert-ConsolidationRoots $SourceRoot $logical
         if([string]::IsNullOrWhiteSpace($OutputPath) -or -not [IO.Path]::IsPathFullyQualified($OutputPath) -or (Test-ArtifactWithin $OutputPath $logical) -or (Test-ArtifactWithin $OutputPath $SourceRoot) -or [IO.File]::Exists($OutputPath) -or [IO.Directory]::Exists($OutputPath) -or -not [IO.Directory]::Exists([IO.Path]::GetDirectoryName($OutputPath))){throw 'invalid-output'}
-        $plan=Get-ConsolidationCurrentPlan $SourceRoot $logical
+        $plan=Get-ConsolidationCurrentPlan $SourceRoot $logical $legacyRoots
         $bytes=[Text.UTF8Encoding]::new($false).GetBytes((ConvertTo-Json -InputObject $plan -Depth 32))
         try{$stream=[IO.FileStream]::new($OutputPath,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)}catch{throw 'invalid-output'}
         try{$stream.Write($bytes,0,$bytes.Length);$stream.Flush($true)}finally{$stream.Dispose()}
@@ -335,11 +345,14 @@ function Invoke-StoreConsolidation([string]$ManifestPath,[string]$ManifestSha256
         $bytes=[IO.File]::ReadAllBytes($ManifestPath)
         if([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant() -cne $ManifestSha256){throw 'manifest-hash-mismatch'}
         try{$approved=ConvertFrom-Json -InputObject ([Text.UTF8Encoding]::new($false,$true).GetString($bytes)) -AsHashtable -Depth 64 -DateKind String}catch{throw 'manifest-invalid'}
-        $logical=Get-ConsolidationLogicalRoot
+        $logical=Get-ConsolidationLogicalRoot;$legacyRoots=Get-ConsolidationLegacyRoots
         if($approved -isnot [Collections.IDictionary] -or $approved['logicalRoot'] -cne $logical -or $approved['sourceRoot'] -isnot [string]){throw 'manifest-invalid'}
+        # A manifest planned against another alias of the former root (or none, as
+        # before the move) would have checked different references: plan again.
+        if((@($approved['legacyRoots']) -join "`n") -cne (@($legacyRoots) -join "`n")){throw 'manifest-invalid'}
         Assert-ConsolidationRoots $approved.sourceRoot $logical
         try{$sourcePhysical=(Get-WindowsStorePathIdentity $approved.sourceRoot).physicalPath}catch{throw 'invalid-source-root'}
-        $current=Get-ConsolidationCurrentPlan $approved.sourceRoot $logical
+        $current=Get-ConsolidationCurrentPlan $approved.sourceRoot $logical $legacyRoots
         try{$verdicts=@(Test-ConsolidationManifest $approved $current)}catch{throw 'manifest-invalid'}
         $runId=$ManifestSha256.Substring(0,32)
         if($DryRun){

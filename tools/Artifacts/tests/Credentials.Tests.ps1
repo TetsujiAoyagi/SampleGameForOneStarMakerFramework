@@ -7,6 +7,8 @@ $storePath = Join-Path $PSScriptRoot '../Credentials/CredentialStore.psm1'
 # Commands が読み込んだ Store の同じインスタンスを公開し、private fixture と公開関数を一致させる。
 $store = Import-Module $storePath -PassThru
 $pathModule = $store.NestedModules | Where-Object Name -eq 'CredentialPathAcl' | Select-Object -First 1
+. (Join-Path $PSScriptRoot '../../Workflow/tests/StoreRootTestSupport.ps1')
+$cliChild = [IO.Path]::GetFullPath([IO.Path]::Combine($PSScriptRoot, 'CliChild.ps1'))
 $root = [IO.Path]::Combine([IO.Path]::GetTempPath(), 'osm-credential-test-' + [Guid]::NewGuid().ToString('N'))
 $script:passed = [Collections.Generic.List[string]]::new()
 $script:failed = [Collections.Generic.List[string]]::new()
@@ -223,6 +225,38 @@ try {
         }
         Assert (-not [IO.Directory]::Exists($final)) 'credential directory created under unsafe parent'
     }
+    # 本番の資格情報 root は resolver の store root の下。三段の一段目は store root そのもので、
+    # 存在確認だけを行い（ACL は触らない）、無ければ作らずに失敗する。
+    Run 'ac-s3-a' {
+        [IO.Directory]::CreateDirectory($root) | Out-Null
+        $fx = New-StoreRootTestBase $root
+        try {
+            $credentialRoot = & $pathModule { Get-CredentialRoot '' }
+            Assert ($credentialRoot -ceq [IO.Path]::Combine($fx.Root, 'Artifacts', 'credentials')) 'credential root is not below the store root'
+            $rootAclBefore = [IO.FileSystemAclExtensions]::GetAccessControl([IO.DirectoryInfo]::new($fx.Root)).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::All)
+            & $pathModule { param($r) Initialize-CredentialRoot $r $false '' } $credentialRoot
+            Assert ([IO.Directory]::Exists($credentialRoot)) 'credential root not initialized'
+            & $pathModule { param($p) Assert-OwnerAcl $p $true } ([IO.Path]::Combine($fx.Root, 'Artifacts'))
+            & $pathModule { param($p) Assert-OwnerAcl $p $true } $credentialRoot
+            $rootAclAfter = [IO.FileSystemAclExtensions]::GetAccessControl([IO.DirectoryInfo]::new($fx.Root)).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::All)
+            Assert ($rootAclAfter -ceq $rootAclBefore) 'store root ACL changed'
+            Assert ($script:writes.Contains([IO.Path]::Combine($fx.Root, 'Artifacts')) -and $script:writes.Contains($credentialRoot) -and -not $script:writes.Contains($fx.Root)) 'initialization ledger'
+            # A marker served through the seam while the store root is absent on disk:
+            # the resolver answers, but the credential root is not created.
+            [IO.Directory]::Delete($fx.Root, $true)
+            $markerBytes = New-StoreRootTestMarkerBytes; $markerPath = [IO.Path]::Combine($fx.Root, 'store-root.json')
+            $io = @{ Open = { param($p) [IO.MemoryStream]::new($markerBytes) }.GetNewClosure(); FinalPath = { param($h) $markerPath }.GetNewClosure(); Read = { param($h) , $h.ToArray() }; Close = { param($h) $h.Dispose() } }
+            Set-StoreRootTestSeams $fx.Base $fx.LegacyBase $io
+            $credentialRoot = & $pathModule { Get-CredentialRoot '' }
+            $writesBefore = $script:writes.Count
+            try { & $pathModule { param($r) Initialize-CredentialRoot $r $false '' } $credentialRoot; throw 'created the store root' } catch {
+                Assert-SafeError $_
+                if ($_.Exception.Message -eq 'created the store root') { throw }
+                Assert ($_.Exception.Message -ceq 'Credential operation unavailable.') ('unexpected failure ' + $_.Exception.Message)
+            }
+            Assert (-not [IO.Directory]::Exists($fx.Root) -and $script:writes.Count -eq $writesBefore) 'store root created by the credential initialization'
+        } finally { Clear-StoreRootTestSeams }
+    }
     Run 'duplicate set and successful replacement' {
         Write-CredentialRecord 'osm' $sentinelId $sentinelSecret $false | Out-Null
         $before = (Get-CredentialStatus 'osm').Generation
@@ -332,8 +366,8 @@ try {
         Assert ([IO.File]::Exists($unrelated)) 'unrelated file deleted'
     }
     Run 'CLI rejects redirected input' {
-        $cli = [IO.Path]::GetFullPath([IO.Path]::Combine($PSScriptRoot, '..', '..', 'artifacts.ps1'))
-        $cliArgs = @('-NoProfile', '-File', $cli, 'credentials', 'set', '--profile', 'osm')
+        # The public entry runs behind a temp migrated store root so that its gate passes and the grammar is what is exercised.
+        $cliArgs = @('-NoProfile', '-File', $cliChild, '-StoreBase', $root, 'credentials', 'set', '--profile', 'osm')
         Assert-NoSentinel ($cliArgs -join ' ') 'child process arguments'
         $output = & pwsh @cliArgs 2>&1 | Out-String
         Assert ($LASTEXITCODE -ne 0) 'redirected CLI accepted'
@@ -392,10 +426,9 @@ try {
         }
     }
     Run 'CLI verbose and error output is safe' {
-        $cli = [IO.Path]::GetFullPath([IO.Path]::Combine($PSScriptRoot, '..', '..', 'artifacts.ps1'))
         foreach ($arguments in @(
-            @('-NoProfile', '-File', $cli, 'credentials', 'status', '--profile', 'wrong'),
-            @('-NoProfile', '-File', $cli, 'credentials', 'set', '--profile', 'osm', '-Verbose')
+            @('-NoProfile', '-File', $cliChild, '-StoreBase', $root, 'credentials', 'status', '--profile', 'wrong'),
+            @('-NoProfile', '-File', $cliChild, '-StoreBase', $root, 'credentials', 'set', '--profile', 'osm', '-Verbose')
         )) {
             Assert-NoSentinel ($arguments -join ' ') 'child process arguments'
             $output = & pwsh @arguments 2>&1 | Out-String
