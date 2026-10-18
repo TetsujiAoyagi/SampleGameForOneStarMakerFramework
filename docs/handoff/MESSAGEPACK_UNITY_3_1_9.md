@@ -3,27 +3,28 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `B`（Phase A は revision 1 で A3 凍結済み。2026-10-18 に人間が凍結を指示）
+- status: `C`（発見 C 待ち。Phase A は revision 1 で A3 凍結済み。2026-10-18 に人間が凍結を指示。Phase B は 2026-10-18 に完了）
 - branch: `claude/messagepack-3.1.9-unity`
 - taskId: `messagepack-unity-3-1-9`（`pwsh tools/workflow-task.ps1 start -Task messagepack-unity-3-1-9` と Evidence の stage に使う。tracked HANDOFF の通常作業で、H1 の `external-current-v1` は採用しない）
 - implementation base commit: `e7929955`（PR #136 のマージ。DebugStudio 側は 3.1.9 済み）
-- implementation head commit: 未固定
+- implementation head commit: 未固定（発見 C の入力は Phase B 出口の commit。GO 候補 head の固定は判定 C の前）
 - risk: `normal`（理由は §1 現況の末尾。A2 で同意）
 - owner: root
 - created: 2026-10-18
 - expires: 2026-11-15
 - harvest to: なし（恒久的な設計判断を持たない。README の現況化そのものが公開面の更新）
 - Phase A snapshot の取得案内・状態: tracked の本ファイルで固定（A2 入力版は commit `233c3b9b`、A3 凍結版 revision 1 は本ファイルを凍結した commit。`git log -1 --format=%H -- docs/handoff/MESSAGEPACK_UNITY_3_1_9.md` を B 着手前に実行して得る）。Artifact Storage への stage は未保存（tracked 文書のため不要）
-- Phase B result snapshot の取得案内・状態: 未生成
+- Phase B result snapshot の取得案内・状態: tracked の本ファイル §6 で固定（Phase B 出口の commit。`git log -1 --format=%H -- docs/handoff/MESSAGEPACK_UNITY_3_1_9.md` で得る）。Artifact Storage への stage は未保存（tracked 文書のため不要）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（実装）。新しい session で始める
-  - 次の作業: §4 の順序どおりに MessagePack 3 件を 3.1.9 へ上げ、README を AC9 のとおり直し、§6 に結果を書いて commit する。B の出口で引継ぎ票を発見 C 向けに書き換える（動作確認は `対象なし`）
-  - 引き継ぐ commit SHA: A3 凍結版 revision 1 の commit（上記の `git log` で得る）。worktree の HEAD と一致し、作業ツリーが clean であることを確かめてから始める
-  - 必要な権限: Unity Editor の起動・操作（`osm-unity-editor` Skill）、nuget.org への通信、`pwsh tools/workflow-task.ps1 start`
-  - 停止規則: §4 の「Phase A へ差し戻す条件」に当たったら止めて返す。復旧を確かめられなければ代替経路を始めない。Unity テストは実行しない
-  - 引き渡さないもの: なし
+  - 次の Phase・役割: 発見 C（動作確認は `対象なし` のため飛ばす）。新しい session で始める
+  - 次の作業: 凍結済み revision 1 の §2 受け入れ条件と §3 責務マップに対して、base `e7929955` から Phase B 出口の commit までの差分を構造レビューする。§6「固定 head で判定 C が使う事実」の AC10 と LFS の dll の扱いを確認し、凍結条件の意味を変えない読み替えで足りるか、人間の決定記録が要るかを判断する。GO 判定はしない
+  - 凍結した Phase A: revision 1（commit `9cc336f3`）。implementation base: `e7929955`
+  - 引き継ぐ commit SHA: Phase B 出口の commit（上記の `git log` で得る）。worktree の HEAD と一致し、作業ツリーが clean であることを確かめてから始める
+  - 必要な権限: 発見 C は git と nuget.org への通信（AC10 の照合を試す場合）だけ。Unity テストは判定 C が sandbox 外の承認済み経路で実行する（§5）
+  - 停止規則: 現在の問いを阻害する指摘は凍結済み条件または常時契約の違反根拠を添えて B へ戻す。それ以外は後続スライスへ送る。B と発見 C の往復は 4 巡まで
+  - 引き渡さないもの: なし（C' へは発見 C・判定 C の所見を渡さない）
 
 ## 1. 目的と対象外
 
@@ -211,4 +212,34 @@ A2 で確認された事実のうち、README の MessagePack 行が 3.1.7 で�
 
 ## 6. Phase B 実装結果
 
-未着手。
+- 担当: Claude Code（Opus 5.5、Anthropic）。新しい session で、引継ぎ票の SHA `9cc336f3` と HEAD の一致、clean な作業ツリーを確かめてから始めた。
+- 経路: 既定経路（NuGetForUnity の Update）で完了した。代替経路と復旧は使っていない。
+- 変更: `unity/Assets/packages.config`（MessagePack 3 行の `version`）、`unity/Assets/Packages/MessagePack*`（3.1.7 を削除し 3.1.9 を追加）、`README.md`（使用ライブラリ）、本 HANDOFF。
+
+### 手順ごとの記録
+
+- 手順 0: `pwsh tools/workflow-task.ps1 start -Task messagepack-unity-3-1-9` は `status: ok`、`kind: started`、version 1。
+- 手順 1（更新前）: `packages.config` は `MessagePack` 3.1.7 `manuallyInstalled="true"`、`MessagePack.Annotations` 3.1.7、`MessagePackAnalyzer` 3.1.7。`git status --porcelain --untracked-files=all -- unity/Assets/Packages` は空。Editor を開いた後の `InstalledPackagesManager.InstalledPackages` も 3 件とも 3.1.7（`MessagePack` だけ manual=True）。
+- 手順 2: Editor は起動しておらず、`unity/Temp/` も無かった。`unity open` で 6000.6.0f1 のこの worktree の `unity/` を開き、`tools/unity-editor.cmd status` が ready（PID 5512）になるのを確かめた。
+- 手順 3: NuGetForUnity（`com.github-glitchenzo.nugetforunity@1c1553136be4`）のソースで次を確かめた。`NugetPackageUpdater.Update(INugetPackageIdentifier currentVersion, INugetPackage newVersion, bool refreshAssets = true, PackageUninstallReason ...)` は旧版を uninstall して新版を install する。installed は `InstalledPackagesManager.InstalledPackages`、新版は `ConfigurationManager.GetSpecificPackage(new NugetPackageIdentifier(id, "3.1.9"))` で得る。新版の install は netstandard2.1 group の依存を `allowUpdateForExplicitlyInstalled: false` で入れ、manual でない古い依存は上げる。nuget.org には 3.1.12 まであるが、版の範囲を持たない識別子は完全一致の版を返すので、3.1.9 が選ばれる。
+- 手順 4: eval の main thread 処理は 5 秒で timeout し、nuget.org への通信を含む呼出しはこれを超えた（1 回目の取得で timeout。状態は変わっていない）。そこで `EditorApplication.delayCall` で実行して結果をファイルへ書く形にした（B 適応。呼出す API は計画どおり）。取得した 3 件は `NugetPackageV3` の 3.1.9。`MessagePack` に `Update(installed 3.1.7, 3.1.9, refreshAssets: false)` を 1 回呼び、`result=True`。`MessagePack.Annotations` と `MessagePackAnalyzer` は依存として 3.1.9 に上がっていたので重ねて呼んでいない。最後に `AssetDatabase.Refresh()` を 1 回呼んだ。呼出し後の installed は MessagePack 3 件が 3.1.9（`MessagePack` は manual=True のまま）で、他の 22 件の版は手順 1 の `packages.config` と同じ。
+- 手順 5: `packages.config` の差分は MessagePack 3 行の `version` だけ。index の blob は BOM（`ef bb bf`）付きで CR を含まず、base と同じ。属性の順と `manuallyInstalled` も base のまま。書式の手戻しは不要だった。stage 前の AC6: ファイルシステムに 3.1.9 の 3 ディレクトリと横の `.meta` があり、3.1.7 の path は残っていない。未追跡の path 集合は base の 3.1.7 配下の path 集合（`3.1.7` を `3.1.9` に置換）と一致した。
+- 手順 6（AC3）: 3.1.9 の `.meta` 19 件（横の `.meta` 3、ディレクトリ 7、nuspec 3、xml 2、dll 4）を、base の対応する 3.1.7 の `.meta` と、改行を正規化し `guid:` 行を除いて比べ、差は 0 件。再 import は不要だった。
+- 手順 7（B の自己確認。判定の入力にしない）: 対象 Editor は PID 5512、head は base `e7929955` + 作業ツリーの変更（未 commit）。Update 後の Refresh が `[ScriptCompilation] Requested script compilation because: AssetDatabase observed changes in script compilation related files` から始まり、`Reloading assemblies after forced synchronous recompile.` と `Asset Pipeline Refresh ... Total: 209.390 seconds`（`domain reloads=1`、`compile time=170685 ms`）で終わった。その後の eval で `isCompiling=False`、`isUpdating=False`、`EditorUtility.scriptCompilationFailed=False`、開いている Scene は dirty でない。エラー判定に使ったログ範囲は `unity/Logs/Editor.log` の全体（Editor 起動からこの終了まで）で、`error CS` は 0 件。ログに 16 件ある `Failed to handle /api/exec request: Main thread operation timed out after 5000ms` は、コンパイル中に送った私の状態確認 eval が timeout したもので、Pipeline が出したログ。その後 `EditorApplication.Exit(0)` で正常終了させ、PID 5512 は約 38 秒で終わり、`unity/Temp/UnityLockfile` は残っていない。
+- 手順 8: Editor の副作用として、範囲外の tracked ファイル 6 件が変わった。git の `.pdb` 無視（`.gitignore` の `*.pdb`）で `.pdb` 本体が無いため、Editor を開いた直後に Unity が `unity/Assets/MobileDependencyResolver/Editor/` の孤立した `.pdb.meta` 5 件を削除した（Update の前の `git status` で観測）。また Update 後の Refresh で `Microsoft.NET.StringTools.17.11.4/MSBuild-NuGet-Icon.png` が TextureImporter で再 import され、その `.meta` に Unity 6000.6 の既定フィールド 2 行（`spriteTessellationMethod: 0`、`spriteGeometrySubdivision: -1`）が足された（Editor.log の 2818 行、ファイル時刻は Update の 9 秒後）。StringTools の他のファイルと版は変わっておらず、NuGetForUnity による再取得（AC1 の失敗例、切替条件）ではない。代替経路でも Editor を開けば同じ再 import が起きるので、経路は切り替えていない。6 件は Editor 終了後に `git restore --source=e7929955` で base に戻した（意味を変えない副作用の除去で、B 適応）。戻した後の `git status` は MessagePack と `packages.config` と `README.md` だけ。`git diff --cached --name-status e7929955 -- protocol '*.asmdef' '*.cs' '*.rsp' unity/Packages` は空。
+- 手順 9: README の使用ライブラリ 3 表から版の列を外し、「2026-06時点の記録」の文言を消して、版の正本として `unity/Packages/manifest.json`、`unity/Packages/packages-lock.json`、`unity/Assets/packages.config`、`tools/DebugStudio` 配下の各 `.csproj` の `PackageReference` を案内した。UPM 表は「取得元」の列（Unity Registry / Git (UPM)）にし、UniTask を NuGet 表から UPM 表へ移した（manifest の Git 参照）。推移的依存の文の版（8.0.0、8.0.5）も外した。
+- 手順 10: `pwsh tools/contract-audit.ps1` は `AUDIT_RESULT kind=contract files=645 errors=0 warnings=0 checks=1,2,3,4,5,6,7,8,9`。`pwsh tools/docs-audit.ps1` は `AUDIT_RESULT kind=docs files=111 errors=0 warnings=0 checks=1,2,3`。
+
+### 固定 head で判定 C が使う事実（AC6・AC10）
+
+stage した index の blob で照合した（commit 後の blob と同じもの）。
+
+- AC6: index の `unity/Assets/Packages` 配下で `MessagePack` を含む path 集合は、base の 3.1.7 配下の集合の `3.1.7` を `3.1.9` に置き換えたものと一致し、`3.1.7` を含む path は 0 件。
+- AC10: nuget.org の 3.1.9 nupkg の sha256 は `messagepack.3.1.9.nupkg` = `52438b796a20c947d25d8d306cd0d8a7fdd7357f404d3007bc9640e61e1c128a`、`messagepack.annotations.3.1.9.nupkg` = `2b41bb26405e5589cb589874f3e71254751cbed0e6b1877093928c1df739b77e`、`messagepackanalyzer.3.1.9.nupkg` = `3fffad66e950e6833a3bd1658b6a40938dc4e58983a5a545d278af1ee34bec14`。非 `.meta` 12 件のうち、`.signature.p7s` 3、nuspec 3、xml 2 の 8 件は `git show :<path>` の sha256 が nupkg entry と一致した。
+- **AC10 の手順に関する新しい事実:** dll 4 件は `.gitattributes` で Git LFS（`filter=lfs`）の対象で、commit 内の blob は LFS pointer（例: `MessagePack.dll` の blob は 131 byte）。そのため AC10 の字義どおりの `git show <head>:<path>` の sha256 は、dll 4 件で nupkg entry と一致しない。base の 3.1.7 の dll 4 件も同じく LFS pointer である。dll 4 件は、pointer の `oid sha256:` と、`git cat-file --filters <rev>:<path>`（LFS の smudge を通した実体）の sha256 の両方が nupkg entry の sha256 と一致した（`MessagePack.dll` `76fe22b9…`、`MessagePack.Annotations.dll` `d6d77e65…`、`MessagePack.Analyzers.CodeFixes.dll` `993f43dc…`、`MessagePack.SourceGenerator.dll` `7d6776f3…`）。B は AC10 を書き換えていない。LFS の dll に対して「blob の byte 一致」をどの比較で読むかは判定 C の判断で、必要なら人間の決定記録にする（凍結条件の意味を変えない読み替えの候補）。
+- push 時には dll 4 件の LFS object も送る必要がある（git-lfs の pre-push で送られる）。
+
+### 未実行と申し送り
+
+- Unity テスト（§5 の全 EditMode 回帰）は実行していない（Phase B の範囲外。判定 C が実行する）。
+- 動作確認: `対象なし`（§5 のとおり、検証経路に操作・実行時・目視の条件が無い）。
