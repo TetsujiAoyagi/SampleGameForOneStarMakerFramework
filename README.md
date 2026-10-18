@@ -8,43 +8,47 @@ OneStarMaker 汎用フレームワーク + SampleGame ゲーム層 + DebugStudio
 
 ## 使用ライブラリ
 
-以下のバージョン表は2026-06時点の記録。セットアップ時の依存定義は現行の `unity/Packages/manifest.json` / `unity/Packages/packages-lock.json` と `unity/Assets/packages.config` を正とする。
+版はここに書かない。各ライブラリの版は次のファイルを正とする。
+
+- Unity（UPM）: `unity/Packages/manifest.json`（宣言）と `unity/Packages/packages-lock.json`（解決結果）
+- NuGet（NuGetForUnity 経由）: `unity/Assets/packages.config`
+- DebugStudio: `tools/DebugStudio` 配下の各 `.csproj` の `PackageReference`
 
 ### Unity（UPM）— フレームワークで主に利用
 
-| ライブラリ | バージョン | 用途 |
+| ライブラリ | 取得元 | 用途 |
 |---|---|---|
-| [URP](https://docs.unity3d.com/Packages/com.unity.render-pipelines.universal@latest) | 17.5.0 | レンダリング |
-| [Addressables](https://docs.unity3d.com/Packages/com.unity.addressables@latest) | 2.9.1 | アセット / シーンロード |
-| [Input System](https://docs.unity3d.com/Packages/com.unity.inputsystem@latest) | 1.19.0 | 入力 |
-| [uGUI](https://docs.unity3d.com/Packages/com.unity.ugui@latest) | 2.5.0 | UI |
+| [URP](https://docs.unity3d.com/Packages/com.unity.render-pipelines.universal@latest) | Unity Registry | レンダリング |
+| [Addressables](https://docs.unity3d.com/Packages/com.unity.addressables@latest) | Unity Registry | アセット / シーンロード |
+| [Input System](https://docs.unity3d.com/Packages/com.unity.inputsystem@latest) | Unity Registry | 入力 |
+| [uGUI](https://docs.unity3d.com/Packages/com.unity.ugui@latest) | Unity Registry | UI |
+| [Test Framework](https://docs.unity3d.com/Packages/com.unity.test-framework@latest) | Unity Registry | Unity テスト |
+| [UniTask](https://github.com/Cysharp/UniTask) | Git (UPM) | async/await |
 | [LitMotion](https://github.com/annulusgames/LitMotion) | Git (UPM) | Tween |
 | [CsprojModifier](https://github.com/Cysharp/CsprojModifier) | Git (UPM) | `.csproj` 生成調整 |
 | [NuGetForUnity](https://github.com/GlitchEnzo/NuGetForUnity) | Git (UPM) | NuGet → Unity 取り込み |
-| [Test Framework](https://docs.unity3d.com/Packages/com.unity.test-framework@latest) | 1.7.0 | Unity テスト |
 
 ### NuGet（NuGetForUnity 経由）— Cysharp 系・ロギング等
 
-| ライブラリ | バージョン | 用途 |
-|---|---|---|
-| [VContainer](https://github.com/hadashiA/VContainer) | 1.0.2 | **未使用**（手動 DI を正式採用したため。パッケージは将来削除予定） |
-| [UniTask](https://github.com/Cysharp/UniTask) | 2.5.10 | async/await |
-| [R3](https://github.com/Cysharp/R3) | 1.3.0 | Reactive Extensions |
-| [ObservableCollections](https://github.com/Cysharp/ObservableCollections) | 3.3.4 | コレクション変更通知 |
-| [ZLogger](https://github.com/Cysharp/ZLogger) | 2.5.10 | 構造化ログ（`ILogger<T>` + ZLogger 拡張） |
-| [ZString](https://github.com/Cysharp/ZString) | 2.6.0 | ゼロアロケ文字列 |
-| ZStringFormatExtension | 0.0.6 | ZString 拡張 |
-| [MessagePack](https://github.com/MessagePack-CSharp/MessagePack-CSharp) | 3.1.4 | DebugSocket / テレメトリ直列化 |
+| ライブラリ | 用途 |
+|---|---|
+| [VContainer](https://github.com/hadashiA/VContainer) | **未使用**（手動 DI を正式採用したため。パッケージは将来削除予定） |
+| [R3](https://github.com/Cysharp/R3) | Reactive Extensions |
+| [ObservableCollections](https://github.com/Cysharp/ObservableCollections) | コレクション変更通知 |
+| [ZLogger](https://github.com/Cysharp/ZLogger) | 構造化ログ（`ILogger<T>` + ZLogger 拡張） |
+| [ZString](https://github.com/Cysharp/ZString) | ゼロアロケ文字列 |
+| ZStringFormatExtension | ZString 拡張 |
+| [MessagePack](https://github.com/MessagePack-CSharp/MessagePack-CSharp) | DebugSocket / テレメトリ直列化 |
 
-推移的依存として [Microsoft.Extensions.*](https://www.nuget.org/packages/Microsoft.Extensions.Logging) 8.0.0、[System.Text.Json](https://www.nuget.org/packages/System.Text.Json) 8.0.5 などを同梱。
+推移的依存として [Microsoft.Extensions.*](https://www.nuget.org/packages/Microsoft.Extensions.Logging)、[System.Text.Json](https://www.nuget.org/packages/System.Text.Json) などを同梱。
 
 ### DebugStudio（`tools/DebugStudio`）
 
-| ライブラリ | バージョン | 用途 |
-|---|---|---|
-| MessagePack | 3.1.4 | DebugSocket プロトコル |
-| [AvalonDock](https://github.com/Dirkster99/AvalonDock) | 4.74.1 | WPF ドッキング UI |
-| xUnit | 2.5〜2.9 | テスト（開発時のみ） |
+| ライブラリ | 用途 |
+|---|---|
+| MessagePack | DebugSocket プロトコル |
+| [AvalonDock](https://github.com/Dirkster99/AvalonDock) | WPF ドッキング UI |
+| xUnit | テスト（開発時のみ） |
 
 ## リポジトリ構成
 
