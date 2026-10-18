@@ -7,24 +7,30 @@
 - branch: `claude/messagepack-3.1.9-unity`
 - taskId: `messagepack-unity-3-1-9`（`pwsh tools/workflow-task.ps1 start -Task messagepack-unity-3-1-9` と Evidence の stage に使う。tracked HANDOFF の通常作業で、H1 の `external-current-v1` は採用しない）
 - implementation base commit: `e7929955`（PR #136 のマージ。DebugStudio 側は 3.1.9 済み）
-- implementation head commit: 未固定（発見 C の入力は Phase B 出口の commit。GO 候補 head の固定は判定 C の前）
+- implementation head commit: 未固定（implementation 候補は Phase B 出口の `0e8904fc`。GO 候補 head の固定は判定 C の前）
 - risk: `normal`（理由は §1 現況の末尾。A2 で同意）
 - owner: root
 - created: 2026-10-18
 - expires: 2026-11-15
 - harvest to: なし（恒久的な設計判断を持たない。README の現況化そのものが公開面の更新）
 - Phase A snapshot の取得案内・状態: tracked の本ファイルで固定（A2 入力版は commit `233c3b9b`、A3 凍結版 revision 1 は本ファイルを凍結した commit。`git log -1 --format=%H -- docs/handoff/MESSAGEPACK_UNITY_3_1_9.md` を B 着手前に実行して得る）。Artifact Storage への stage は未保存（tracked 文書のため不要）
-- Phase B result snapshot の取得案内・状態: tracked の本ファイル §6 で固定（Phase B 出口の commit。`git log -1 --format=%H -- docs/handoff/MESSAGEPACK_UNITY_3_1_9.md` で得る）。Artifact Storage への stage は未保存（tracked 文書のため不要）
+- Phase B result snapshot の取得案内・状態: tracked の本ファイル §6 で固定（Phase B 出口の commit `0e8904fc` の内容）。Artifact Storage への stage は未保存（tracked 文書のため不要）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
   - 次の Phase・役割: 発見 C（動作確認は `対象なし` のため飛ばす）。新しい session で始める
-  - 次の作業: 凍結済み revision 1 の §2 受け入れ条件と §3 責務マップに対して、base `e7929955` から Phase B 出口の commit までの差分を構造レビューする。§6「固定 head で判定 C が使う事実」の AC10 と LFS の dll の扱いを確認し、凍結条件の意味を変えない読み替えで足りるか、人間の決定記録が要るかを判断する。GO 判定はしない
-  - 凍結した Phase A: revision 1（commit `9cc336f3`）。implementation base: `e7929955`
-  - 引き継ぐ commit SHA: Phase B 出口の commit（上記の `git log` で得る）。worktree の HEAD と一致し、作業ツリーが clean であることを確かめてから始める
+  - 次の作業: 凍結済み revision 1 の §2 受け入れ条件と §3 責務マップに対して、base `e7929955` から implementation 候補 `0e8904fc` までの差分を構造レビューする。AC10 の LFS の dll は §10 決定記録 D1 の読み方で照合する（D1 は決着済みで、発見 C が改めて裁定を求める対象ではない）。GO 判定はしない。出口で §7 Phase C の節（テンプレートの構成で新設）に結果を書き、引継ぎ票を判定 C（差し戻しなら B）へ書き換える
+  - 凍結した Phase A: revision 1（commit `9cc336f3`）。implementation base: `e7929955`。implementation 候補: `0e8904fc`（Phase B 出口）
+  - 引き継ぐ commit SHA: worktree の HEAD は `0ef22ad2` 以降の HANDOFF だけの commit であってよい。`git diff --name-only 0e8904fc..HEAD` が本ファイルだけで、作業ツリーが clean であることを確かめてから始める。レビュー対象の差分は `e7929955..0e8904fc` で、HANDOFF だけの commit は implementation head に含めない
   - 必要な権限: 発見 C は git と nuget.org への通信（AC10 の照合を試す場合）だけ。Unity テストは判定 C が sandbox 外の承認済み経路で実行する（§5）
   - 停止規則: 現在の問いを阻害する指摘は凍結済み条件または常時契約の違反根拠を添えて B へ戻す。それ以外は後続スライスへ送る。B と発見 C の往復は 4 巡まで
   - 引き渡さないもの: なし（C' へは発見 C・判定 C の所見を渡さない）
+- Phase C / C' の担当と入口（引継ぎ票が書き換わっても残す。session の prompt には書かない）:
+  - 発見 C と判定 C は Phase B（Claude Code、Opus 5.5、Anthropic）と異なるモデルで、それぞれ新しい session で始める。prompt は「本ファイルの §0 引継ぎ票に従い、<発見 C / 判定 C> を担当する」の一文だけとする。
+  - 判定 C の作業: §5 の判定必須テストと照合（AC1〜AC10。AC10 は D1 の読み方）を GO 候補 head で実行する。Unity テストは Editor が閉じていることを確かめ、sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1`（空 filter）を起動する。GO 候補 head に軽量 tag `evidence/messagepack-unity-3-1-9/1` を付ける（push しない）。
+  - 判定 C の evidence bundle: `.agents/skills/osm-workflow/references/review-evidence.md` の「保存先とリモートへの配布」に従い、task `messagepack-unity-3-1-9` に `evidence stage` で固定する。収録は完全 diff（`e7929955..<head>`）、`--name-status`、`--stat`、AC1〜AC10 の生出力、run-tests の実行ログと XML、`contract-audit` と `docs-audit` の出力。取得案内はメイン checkout の手元層（計画用の git 管理外 directory）の `MESSAGEPACK_UNITY_3_1_9.judgment-c.guide.md` に置き、本ファイルには所在と状態だけを書く。
+  - C' blind audit bundle: 判定 C の担当が、判定 C と同じ head・同じ生証拠から別に作り、同じ task に `evidence stage` で固定する。収録するのは、凍結版 revision 1 の本ファイル（commit `9cc336f3` の内容）、Phase B result（commit `0e8904fc` の §6）、判定 C と同じ生証拠、指示 file の 4 つだけ。指示 file には入力 file の一覧、観点（I1〜I5 を破る順序の有無、S1〜S4 と AC1〜AC10 の生出力の照合）、finding の分類規則（現在の問いを阻害する欠陥 / 後続スライスの入力）、結果の書き先だけを書く。発見 C・判定 C の所見と結論、§10 決定記録、可変な本ファイルの全文、PR、疑念候補や探索先の例示は入れない。取得案内は所見と分けた同じ手元層の下位 directory `msgpack-cprime` の `cprime-r1.guide.md` に置く。
+  - C' は Phase B・C と異なるモデルを人間が割り当て、新しい session で始める。prompt は「上記 `cprime-r1.guide.md` の取得案内（絶対 path で渡す）で blind audit bundle を fetch し、その中の指示 file に従って C' を担当する。HANDOFF、PR、手元層の他の file は読まない」とする。C' の担当は fetch した写しだけを入力にし、結果は指示 file が示す書き先に置く。本ファイルへの転記は Phase D が行う。
 
 ## 1. 目的と対象外
 
@@ -87,7 +93,7 @@
 - 判定定義: 不変条件 I1〜I5 と成立条件 S1〜S4 を全て満たせば GO。どれか一つでも満たさなければ NO-GO。
 - 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。
 - A3 後の例外承認: なし
-- 決定記録: §7 の D1（版 1、2026-10-18、Phase B 完了後・発見 C 前に適用）。状態は有効
+- 決定記録: §10 の D1（版 1、2026-10-18、Phase B 完了後・発見 C 前に適用）。状態は有効
 - 本文へ転記した実装制約:
   - Unity側 C# で `record` を使わない、`#nullable enable` を外さない（本スライスは C# を変えない）。
   - Editor を開く前に、対象 project と既存 Editor、`unity/Temp/UnityLockfile` を確認する。人間所有の Editor を無断で終了しない。Editor 操作は `osm-unity-editor` Skill に従う。
@@ -244,7 +250,7 @@ stage した index の blob で照合した（commit 後の blob と同じもの
 - Unity テスト（§5 の全 EditMode 回帰）は実行していない（Phase B の範囲外。判定 C が実行する）。
 - 動作確認: `対象なし`（§5 のとおり、検証経路に操作・実行時・目視の条件が無い）。
 
-## 7. 決定記録
+## 10. 決定記録
 
 凍結した Phase A revision 1（commit `9cc336f3`）は書き換えない。以下は A3 後に人間が下した裁定で、凍結条件の意味を変えないものに限る。
 
