@@ -16,6 +16,7 @@
 - Phase B result: この HANDOFF の「Phase B 実装結果」の節（tracked）。evidence bundle / C' blind bundle: 未生成
 - 引継ぎ票:
   - 次の担当: 発見 C（動作確認は対象なし。§5）。
+  - 進め方: 発見 C、判定 C、C' は、オーケストレーターの session がそれぞれ別 session として起動する。各 Phase の出口の担当が、この引継ぎ票を更新する。
   - 引き継ぐ commit: implementation head `b54266ea` の上に、この HANDOFF の B 記録だけを足した commit（`git log -1 -- docs/handoff/EDITMODE_REGRESSION_LONG_PATH.md` で照合する）。レビュー対象の差分は `620aff59..b54266ea`。作業ツリーは clean であること。
   - 必要な権限: 発見 C は差分の読み取りと offline の suite。差し戻し中の Unity テストは §5 の起点 filter で、sandbox の外の承認済み経路から実行する。
   - 停止規則: §2 の停止規則と、§4 の「Phase B から A へ戻す条件」。
