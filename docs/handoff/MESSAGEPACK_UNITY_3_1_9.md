@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C`（判定 C 完了（2026-10-18）。C' 待ち。発見 C は blocker 0 件。Phase A は revision 1 で A3 凍結済み。2026-10-18 に人間が凍結を指示。Phase B は 2026-10-18 に完了）
+- status: `D`（Phase D 完了（2026-10-18）。発見 C は blocker 0 件、判定 C は GO、C' は阻害する欠陥なし。HANDOFF は harvest 不要のため本 commit の次で削除し、PR #138 を develop へマージする）
 - branch: `claude/messagepack-3.1.9-unity`
 - taskId: `messagepack-unity-3-1-9`（`pwsh tools/workflow-task.ps1 start -Task messagepack-unity-3-1-9` と Evidence の stage に使う。tracked HANDOFF の通常作業で、H1 の `external-current-v1` は採用しない）
 - implementation base commit: `e7929955`（PR #136 のマージ。DebugStudio 側は 3.1.9 済み）
@@ -296,6 +296,33 @@ stage した index の blob で照合した（commit 後の blob と同じもの
 - 判定必須のうち未実行: なし
 - 未確認事項: source generator の出力の同一性は S2 のとおり主張しない。Unity の native 終了 stall は既知リスクとして記録した（上記）。DebugStudio 側の `dotnet test` は §5 のとおり再実行していない
 - 担当・モデル: Claude Code（Fable 5.1、Anthropic）。Phase B（Opus 5.5）・発見 C（Sonnet 5.5）と異なるモデル。新しい session（同じ session が先に Opus 5.5 で起動し、モデル条件を満たさないとして何もせず停止した後、人間が Fable 5.1 に切り替えて再指示した）
+
+## 8. Phase C'
+
+- 担当方式: AI
+- 種別と巡: 最終 C'（高コスト証拠は無い）、巡 1（全体）
+- 受け取った決定記録の版: なし
+- 使用したblind audit bundle の取得案内・状態（§0と同じ案内）: ローカル固定済み（未昇格）。取得案内は手元層の下位 directory `msgpack-cprime` の `cprime-r1.guide.md`。オーケストレーターが案内どおり fetch し（期待 packageSha256 の照合が通過）、その写しだけを C' の作業 directory に置いた
+- 確認範囲・方法: bundle 内の生出力の全件読み取り。I1〜I5 を破る順序の探索と、S1〜S4・AC1〜AC10 の生出力と凍結文の照合（字義 / 読み替えの区別）
+- 判定: 現在の問いを阻害する欠陥なし
+- 現在の問いを阻害する findings: なし
+- 後続スライスへ移送する findings: なし
+- 残存リスク（C' の記載の要約）: (1) AC10 の dll 4 件は `git show` の blob ではなく LFS の実体と oid で一致しており、意味を変えない読み替えとして受け入れた。(2) テストと audit が走った checkout が `0e8904fc` そのものであることは bundle 内で閉じていない。(3) dll 4 件の LFS object を remote へ送った記録が bundle に無い。(4) 判定 C の Unity は既知の native 終了 stall で runner の exit code が無い
+- 監査できなかった範囲: bundle 外の git 履歴・作業ツリー・nuget.org、`0e8904fc..9863ecae` の差分、`.meta` の platform 行の全文、audit script の検査定義、DebugStudio のテスト・PlayMode・IL2CPP Player・Build
+- 独立性: 入力は blind bundle の写しと起動指示 file だけ。作業 directory は手元層の `msgpack-cprime` に限定し、HANDOFF・PR・他の所見は渡していない
+- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: なし
+- 担当・モデル: cursor-agent（Grok 4.7 High、xAI）。Phase B（Opus 5.5）・発見 C（Sonnet 5.5）・判定 C（Fable 5.1）と異なるモデル。新しい実行
+- 結果の所在: 手元層の `msgpack-cprime/cprime-r1.findings.md`。task `messagepack-unity-3-1-9` に `evidence stage` で固定（取得案内は手元層の `MESSAGEPACK_UNITY_3_1_9.cprime-findings.guide.md`）
+
+## 9. Phase D
+
+- C / C' の突合: 結論は一致する（判定 C は GO、C' は阻害する欠陥なし。どちらも後続スライスへの移送なし）。AC10 の dll 4 件は、C' が D1 を知らずに同じ読み方（LFS の実体で比べる）へ独立に到達した。C' の残存リスクは次のとおり閉じた。(2) `git diff --name-only 0e8904fc..9863ecae` は本ファイルだけ。(3) push 時に LFS object 4 件を origin へ送り、PR のレビューコメント（cursor[bot]）も origin から取得できることを確認している。(4) 既知の native 終了 stall として判定 C が受容済み。(1) は D1 のとおり
+- マージ判断: マージする（owner の指示、2026-10-18）
+- 必要なEvidenceの保存・取得・必須内容の閲覧確認: 判定 C の evidence bundle と C' blind bundle は、判定 C が stage し別 process の fetch で確認済み（blind bundle は C' の起動時にもオーケストレーターが fetch し、hash 照合が通った）。最終のレビュー所見である C' の findings を同じ task に `evidence stage` で固定し、別 process の fetch で hash 照合と閲覧を確認した。`evidence schedule status` は `passed`
+- 取得案内の引渡し確認: 3 件ともメイン checkout の手元層（git 管理外）に置いた。判定 C の `MESSAGEPACK_UNITY_3_1_9.judgment-c.guide.md`、C' の blind 入力の `msgpack-cprime/cprime-r1.guide.md`、C' 所見の `MESSAGEPACK_UNITY_3_1_9.cprime-findings.guide.md`。削除予定の worktree には置いていない。引渡し先は owner
+- harvest: なし（§0 のとおり恒久的な設計判断を持たない。README の現況化はこのスライスの差分そのもの）
+- 削除確認: 本 commit を最終の記録とし、次の commit で本ファイルを削除する
+- 通常のtask終了・後始末の状態と未完了事項: task `messagepack-unity-3-1-9` は owner の完了指示を Decision `chat:20261018T1115Z:messagepack-unity-3-1-9:completed` として `workflow-task.ps1 end -Reason completed` で記録する（マージ後）。Evidence は未昇格（`local`）のまま task 終了 + 30 日で満了する。未完了事項: なし
 
 ## 10. 決定記録
 
