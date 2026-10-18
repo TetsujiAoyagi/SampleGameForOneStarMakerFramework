@@ -1,6 +1,6 @@
 # 24. RenderingSystem — レンダリングシステム構想
 
-> ステータス: RenderWorld は構想段階。RenderEnvironment の最小 lease / sink 骨格は S-4c で実装済み（2026-09-25）。
+> ステータス: RenderWorld は構想段階。RenderEnvironment の最小 lease / sink 骨格は S-4c で実装済み（2026-09-25）。VFX 抽象（§16）は S-4d1 で実装済み（2026-10-18。VFX Graph の backend と `Tick` の登録は S-4d2）。
 > 前提資料: [13. リソースシステム](13-resource-system.md) / [UpdateSystem 正本](../../../../docs/updater/UPDATER_CURRENT_SPEC.md) / [21. SceneStreaming](21-scene-streaming.md) / [23. CameraSystem](23-camera-system.md)
 > 関連計画書: なし（TDD 計画は判定ゲート（§5）の結果を踏まえて作成する）
 
@@ -23,6 +23,7 @@
 13. [撤退ライン](#13-撤退ライン)
 14. [オープン論点](#14-オープン論点)
 15. [将来拡張](#15-将来拡張)
+16. [VFX 抽象](#16-vfx-抽象)
 
 ---
 
@@ -364,3 +365,98 @@ D-1（ホット/コールド分離）・D-5（Handle API）・D-6（2 経路）�
 - **VAT 群衆（O-2）**: スキンアニメーションのテクスチャベイクと BRG の組合せ
 - **RenderEnvironment の機能拡充（P-R6）**: Weather・GI 制御・環境 Volume ブレンド。追加はコールドパスで完結する（D-1）
 - **フラスタム方向重み付けとの接続**: CameraSystem P-2 が実装された場合、ストリーミング優先度と LOD 選択の一貫性を検討する
+
+---
+
+## 16. VFX 抽象
+
+VFX の寿命、非対応環境での停止、例外の隔離を、VFX 実装の型に依存しない Framework の契約として保証する（S-4d1）。実装は `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Vfx/`（namespace `OneStarMaker.Runtime.Rendering.Vfx`、asmdef `OneStarMaker.Runtime`）。VFX Graph に依存する backend は SampleGame に置き（S-4d2）、Framework に VFX Graph の型と asmdef 参照を持ち込まない。同時数の上限・優先度・間引き・pool / prewarm・DebugStudio 観測は、必要になったスライスで決める。
+
+### 16.1 公開型と配置
+
+| 型 | 役割 |
+|---|---|
+| `IVfxSystem` | Game が `Spawn(in VfxSpawnRequest, AssetOwner)` で VFX を起動する窓口 |
+| `VfxSystem` | composition が生成し、`BindSceneLifecycle`・`Tick`・`Dispose` を呼ぶ App 寿命のサービス。ctor は `IVfxBackend`、`ILogger<VfxSystem>`、消え切り待ちの timeout（既定 10 秒、有限の正の値だけ） |
+| `IVfxHandle` | 1 instance の操作（`Play` / `Stop` / `StopAllowingParticlesToFinish` / Set* / `Dispose`）。`Dispose` は `Stop` と同じ即時の回収で、消え切り待ちを打ち切る |
+| `VfxSpawnRequest` | `Source`（呼び出し側がロードした `UnityEngine.Object`）、world 座標の位置・回転、親。親なしと「親ありだが破棄済み」を `HasParent` で区別する |
+| `IVfxBackend` | VFX 実装への差し込み口。`VfxSystem` は借用するだけで所有・Dispose しない |
+| `VfxInstanceId` | backend が返す instance の識別値（0 は無効） |
+
+内部は 3 つに分ける。
+
+- `VfxHandle`: 状態遷移と、backend 呼び出しの例外境界。callback だけを受け取るので、`VfxSystem` なしで単体テストできる。
+- `VfxOwnerIndex`: 所有者ごとの索引と、Scene の終端状態。
+- `VfxSystem`: イベントの解釈と受理規則。
+
+`Bind(go)` の破棄通知は `VfxOwnerDestroyNotifier`（internal MonoBehaviour）が届ける。全メソッドは main thread からだけ呼ぶ（スレッド安全にしない）。
+
+### 16.2 状態と回収の規則
+
+handle の状態は `Created` → `Playing` → `Stopping`（消え切り待ち）→ `Released` の一方向で、`Released` は終端。
+
+- **回収は `Release` の 1 か所だけを通る。**
+  - 順序は (1) 既に Released なら何もしない、(2) Released を書く、(3) 索引から外す、(4) backend `Destroy` を 1 回呼ぶ（例外は捕まえて記録する）。
+  - (2)(3) を backend より先に行うので、`Destroy` が破棄通知や `Spawn` を同期に再入させても、二重に破棄しない。
+  - 複数の handle をまとめて回収する経路は、どれも索引の snapshot を列挙する。
+- **backend 呼び出しの後の書き戻し。** backend の呼び出し中に、同じ handle の `Stop` / `Dispose` や所有者の終端が再入しうる。呼び出しの後で状態を書くのは、戻った時点の状態が呼び出し前と同じときだけなので、Released から生き返らない。
+- **例外の隔離。** backend の例外は、それを起こした instance だけを回収して終わる（Error ログは handle ごとに最初の 1 回）。ほかの instance と呼び出し元へは伝えない。投げるのは引数の誤り（`ArgumentNullException` / `ArgumentOutOfRangeException`）だけ。
+- **消え切り待ち。** `Tick(deltaSeconds)` が Stopping の handle の待ち時間を進める。`待ち時間 >= timeout` になるか、backend が粒子なしを返した時点で回収する。負・NaN・∞の delta は 0 として扱う。同じ instance への再試行ループは持たない。
+- **非対応環境。** `QueryCapability` は `VfxSystem` の生涯で 1 回だけ呼ぶ。false か例外なら、以後の backend 呼び出しは 0 回、診断ログは 1 回で、`Spawn` は何もしない handle を返す。
+
+### 16.3 所有者の終端
+
+所有者は `AssetOwner` で宣言する。
+
+| 所有者 | 回収の時点 |
+|---|---|
+| `Scene(id)` | `SceneDirector.OnSceneEvent` の `StateChanged` で `PreUnloading` または `LoadCanceled` を受けた時点。Unity の Scene unload と asset の解放より前に instance を壊す。`Removed` / `CancelCleanedUp` は冪等な保険。同じ id の `StateChanged(PreLoading)` で終端から外れる |
+| `Bind(go)` | 破棄通知の時点（同期）。通知が届かない破棄（一度も active にならなかった go 等）は、go が `== null` になった後の最初の `Tick` |
+| `App` / `Manual` | `VfxSystem.Dispose` |
+
+- **終端中の Scene は拒否する。**
+  - 終端の処理は「終端中集合へ登録 → 回収」の順で行う。
+  - `PreUnloading` の時点では `ISceneQuery.IsSceneLoaded` がまだ true なので、回収中に再入した `Spawn` を拒否できるのはこの集合だけである。
+  - Tick による回収の最中でも、生きている Scene への `Spawn` は受理する。
+- **`Spawn` の拒否。** 次の場合は backend を呼ばず、何もしない handle を返す（ログは出さない）。
+  - `default(AssetOwner)`
+  - 終端中・未ロードの Scene、lifecycle が未接続か完了後の Scene
+  - 破棄済みの go、`source == null`、破棄済みの親
+  - `Create` 中の再入に備えて、`Create` の後で受理判定をやり直す。
+- **`BindSceneLifecycle`。**
+  - 具象の `SceneDirector` ではなく、`Observable<SceneEvent>` と `ISceneQuery` を受け取る。
+  - `SceneDirector` の生成直後、最初の Scene のロード前に呼ぶ（途中接続の状態同期は約束しない）。
+  - 二回目の呼び出しは差し替えで、前の購読を解除し、Scene 所有の instance を回収し、終端中集合を空にする。差し替えの間は、Scene 所有の `Spawn` を拒否する。
+  - 前の購読の解除が例外を投げても、回収と新しい購読へ進む。
+  - 差し替えの途中で `BindSceneLifecycle` が再入した場合は、内側の差し替えを正とし、外側は回収・終端の消去・購読をしない。
+  - `OnCompleted`（SceneDirector の Dispose）を受けたら、`BindSceneLifecycle` し直すまで Scene 所有の `Spawn` を拒否する。
+- **`Dispose`。** Dispose 済みの印を先に立て、購読を解除してから全 instance を回収する。購読の解除が例外を投げても、回収は行う。
+
+### 16.4 source asset と backend の契約
+
+- **source の寿命は呼び出し側が持つ。**
+  - `VfxSystem` は asset handle を保持・Release しない。
+  - 呼び出し側は、その source から作った instance が Released になるまで、source を有効に保つ。
+  - 同じ `AssetOwner` にしても解放順は保証されない。asset の所有者を VFX の所有者より長く生かす（例: Events Scene の `Scene(id)` で asset をロードし、その Scene の go に `Bind` した VFX を起動する）。
+- **backend の契約**（`IVfxBackend` の XML doc が正）は次のとおり。
+  - main thread からだけ呼ばれる。
+  - `Create` は instance を作るだけで、発射は `Play` だけが行う。
+  - `Create` が id を返す前に失敗したら、作りかけの資源は backend が後始末する。
+  - 同時に生存する instance に同じ id を返さない。
+  - `Destroy` は id ごとに高々 1 回呼ばれ、破棄済みの GameObject や失効した source に対しても安全に完了する。
+  - backend はログを出さない。
+- **保証の範囲。** Framework が保証するのは、backend へ破棄を要求する時点と回数である。Unity の native 実体の破棄完了（`Object.Destroy` はフレームの終わりまで遅れる）は、backend の側で確かめる（S-4d2）。
+
+### 16.5 後続スライスへの送り
+
+d1 では答えず、後続スライスの Phase A で決める事項。
+
+- **S-4d2:**
+  - `Tick` の `UpdateSystemRuntime` への登録と、フレーム順序（毎フレームのメモリ確保の回避を含む）。
+  - `VfxSystem` の生成場所と `Dispose` の順序、`BindSceneLifecycle` の配線順。
+  - backend 未構成と Unsupported の区別、capability 判定結果の出所を 1 つにすること。
+  - 実 backend での契約の確認、`Parent == null` のときの配置先。
+  - 拒否を診断するかどうか。
+- **S-4d4:**
+  - notifier の `OnDestroy` が、実 Scene の unload と go の Destroy で回収を呼ぶことの Play Mode 確認。
+  - 同じ identity の Scene の再ロードを、実 `SceneDirector` で 1 往復確かめること。
