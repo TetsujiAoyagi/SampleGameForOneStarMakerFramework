@@ -7,10 +7,10 @@ Artifact Storage・Workflow・Harness が共有する store の実体を、packa
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `動作確認（修正後の head）と発見 C 2 回目`（Phase A revision 1 を 2026-10-19 に owner が凍結。Phase B は出口 commit `c2ebd441`。発見 C 1 回目の blocker 3 件を B の差し戻し修正（commit message に `Phase B fix round 1`）で直した。動作確認は修正後の head で行う）
+- status: `判定 C`（Phase A revision 1 を 2026-10-19 に owner が凍結。Phase B の出口 `c2ebd441`、差し戻し修正 巡 1 `34cf6607`。発見 C 2 回目で blocker 0。動作確認は `34cf6607` で期待との差なし（§6）。owner が 2026-10-19 に、commit を整理せず `34cf6607` を GO 候補 head とし、その V1・V2 の観測を判定入力に使うと決めた）
 - branch: `claude/artifact-store-root-relocation`（PR base は `develop`。Phase A の作業 branch `claude/artifact-store-root-relocation-plan` は A0 の commit `eebcdda7` で止まっており、A1〜A3 の commit はこの branch にある）
 - implementation base commit: `abb997751035ab3a284916a97c32f887a8faec16`（`origin/develop`、PR #138 を含む）
-- implementation head commit: 未固定
+- implementation head commit: `34cf6607302d27f49bf9d3febaaa31d624f5cbed`（GO 候補 head。push しない軽量 tag `evidence/artifact-store-root-relocation/1` で到達可能に保つ。以降の本書だけの commit は head を変えない）
 - risk: `high`（保存先の移動、資格情報 root の base 変更、fail-closed 契約の追加、一回の移行を後続に持つ）
 - owner: OSM maintainers（A3 の凍結と Phase D の判断は owner）
 - created: 2026-10-18
@@ -21,10 +21,10 @@ Artifact Storage・Workflow・Harness が共有する store の実体を、packa
 - evidence bundle の取得案内・状態: 未生成（未到達）
 - C' blind bundle の取得案内・状態: 未生成（未到達）
 - 引継ぎ票:
-  - 次の Phase・役割: 動作確認（V1・V2。下の「動作確認の分担と往復」）と、発見 C 2 回目（新規 session。差分は `c2ebd441..<修正 commit>` を中心に見る）を並行する。巡の数: 1 巡終了（残り最大 3 巡）。
-  - 次の作業: 動作確認担当は `Phase B fix round 1` を message に含む commit を checkout して手順 1 から。発見 C 2 回目は §6「差し戻し修正 巡 1」の 3 件が §7 の blocker 1〜3 を解消しているかを確認する。push・判定 C・C' はしない。
-  - 引き継ぐ commit SHA: `Phase B fix round 1` の commit（その後に本書だけの commit があればそれを含む）。作業ツリーが dirty なら引き継がない。
-  - 取得案内の所在: なし（B の結果は Git 上の commit と §6 で完結する。B の suite の result JSON と V1 の生記録は B session の作業領域にあり、判定の入力にしない）。
+  - 次の Phase・役割: 判定 C（新規 session 1 つが実行担当と判断担当を兼ねる。モデルは Phase B の 2 系列（Claude Fable 5.1・Claude Sonnet 5.5）と異なる）。巡の数: 1 巡終了（残り最大 3 巡）。
+  - 次の作業: (1) tag `evidence/artifact-store-root-relocation/1` を detach した新しい worktree を作り、`tools/Artifacts/README.md` の保守節の 3 project を Release build し、`rg` を PATH に足す（できなければ実行せず止める）。(2) §5「判定必須テスト」だけを実行する（各 JSON の executed ≥ 1・failed 0 と、§5 のテスト ID 一覧の case 名の収録を照合。`ac-s1-b-taskeventstore` は §6 の巡 1 のとおり `TaskLifecycle.Tests.ps1`）。(3) V1・V2 は再観測しない。§6「やり直し」の原記録（動作確認の実行担当 session の作業領域にある時刻付きテキスト。所在と sha256 は進行役が別途渡す）の複製を入力にし、§5 の方式で照合 script を自分で書き、合成 fixture 2 件（`tools/Workflow/tests/fixtures/storeroot-hostcheck-{match,mismatch}.json`）で期待どおりになることを確かめてから原記録へ適用する。(4) 結果を §7「判定 C」に書く（実行コマンド、suite ごとの件数、照合の結果、GO / NO-GO と根拠）。blocker があれば NO-GO とし、修正用の B へ戻す（巡に数える）。(5) GO なら `review-evidence.md` に従って判定 C の evidence bundle と C' の blind audit bundle を、同一 commit（GO 候補 head）から develop checkout の CLI を非仮想化 process で使って stage する（§4 D6、task id `artifact-store-root-relocation`）。この branch の CLI は `store-not-migrated` で止まるので使わない。取得案内の状態を §0 に書く（reference・packageSha256 の実値と local path は書かない。実値は進行役へ返す）。(6) 引継ぎ票を C' へ更新し、本書 1 file だけを commit する。push・C' の起動・実ストアの移行はしない。
+  - 引き継ぐ commit SHA: GO 候補 head `34cf6607`（tag `evidence/artifact-store-root-relocation/1`）。本書はこの branch の先頭にある最新版を読む。作業ツリーが dirty なら引き継がない。
+  - 取得案内の所在: B の結果は Git 上の commit と §6。V1・V2 の原記録は動作確認の実行担当 session の作業領域にあり、所在は進行役が判定 C の担当へ直接渡す（local path は本書に書かない）。B の suite の result JSON と B の V1 記録は判定の入力にしない。
   - 必要な権限: リポジトリの読み、pwsh 7、packaged app（Codex デスクトップ、full access）内での pwsh 実行。V2 は `<UserProfile>` 直下の一時 base を作り、観測後に削除する。実ストア・LocalCache の中身・資格情報・R2 は触らない。
   - 停止規則: 手順が §5 の記述どおりに実行できない、または実ストア・旧 root に書く必要が生じたら実行を止め、観測と理由を §6 に書いて B へ返す。
   - 引き渡さないもの: ローカル store・LocalCache の実 path、資格情報、Codex 側 copy の内容。
