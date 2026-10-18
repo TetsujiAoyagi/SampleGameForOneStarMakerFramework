@@ -24,8 +24,10 @@ Import-Module (Join-Path $PSScriptRoot 'WindowsStorePaths.psm1')
 # Every failure is thrown as one of those three fixed codes and nothing else:
 # callers print the message, so no path, package name or SID may travel in it.
 #
-# Known Folders are read through [Environment]::GetFolderPath, never through
-# USERPROFILE / LOCALAPPDATA, which a caller could redirect. The private seams
+# The store root comes from the UserProfile Known Folder
+# ([Environment]::GetFolderPath) and the former root from the LocalAppData default
+# location (SHGetKnownFolderPath), never from USERPROFILE / LOCALAPPDATA, which a
+# caller could redirect. The private seams
 # below exist for offline tests only and cannot be set from the CLI or the
 # environment. Importing this module performs no file I/O.
 if (-not ('OneStarMaker.Workflow.StoreRootNative' -as [type])) {

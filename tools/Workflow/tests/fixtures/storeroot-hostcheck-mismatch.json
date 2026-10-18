@@ -1,23 +1,23 @@
 {
   "packaged": {
     "action": "write",
-    "userProfile": "X:\Users\u",
-    "root": "X:\Users\u\OneStarMaker.HostCheck.0123456789abcdef0123456789abcdef\OneStarMaker",
+    "userProfile": "X:\\Users\\u",
+    "root": "X:\\Users\\u\\OneStarMaker.HostCheck.0123456789abcdef0123456789abcdef\\OneStarMaker",
     "written": {
-      "logicalPath": "X:\Users\u\OneStarMaker.HostCheck.0123456789abcdef0123456789abcdef\OneStarMaker\hostcheck\a.txt",
-      "finalPath": "X:\Users\u\AppData\Local\Packages\P_0\LocalCache\Local\OneStarMaker.HostCheck.0123456789abcdef0123456789abcdef\OneStarMaker\hostcheck\a.txt"
+      "logicalPath": "X:\\Users\\u\\OneStarMaker.HostCheck.0123456789abcdef0123456789abcdef\\OneStarMaker\\hostcheck\\a.txt",
+      "finalPath": "X:\\Users\\u\\AppData\\Local\\Packages\\P_0\\LocalCache\\Local\\OneStarMaker.HostCheck.0123456789abcdef0123456789abcdef\\OneStarMaker\\hostcheck\\a.txt"
     },
     "storeContext": "virtualized"
   },
   "native": {
     "action": "read",
-    "userProfile": "X:\Users\u",
-    "root": "X:\Users\u\OneStarMaker.HostCheck.0123456789abcdef0123456789abcdef\OneStarMaker",
+    "userProfile": "X:\\Users\\u",
+    "root": "X:\\Users\\u\\OneStarMaker.HostCheck.0123456789abcdef0123456789abcdef\\OneStarMaker",
     "listing": [
       {
         "name": "a.txt",
-        "logicalPath": "X:\Users\u\OneStarMaker.HostCheck.0123456789abcdef0123456789abcdef\OneStarMaker\hostcheck\a.txt",
-        "finalPath": "X:\Users\u\OneStarMaker.HostCheck.0123456789abcdef0123456789abcdef\OneStarMaker\hostcheck\a.txt"
+        "logicalPath": "X:\\Users\\u\\OneStarMaker.HostCheck.0123456789abcdef0123456789abcdef\\OneStarMaker\\hostcheck\\a.txt",
+        "finalPath": "X:\\Users\\u\\OneStarMaker.HostCheck.0123456789abcdef0123456789abcdef\\OneStarMaker\\hostcheck\\a.txt"
       }
     ],
     "localCacheHit": true

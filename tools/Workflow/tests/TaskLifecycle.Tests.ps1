@@ -8,7 +8,7 @@ Import-Module $store
 $root=[IO.Path]::Combine([IO.Path]::GetTempPath(),'osm-workflow-'+[Guid]::NewGuid().ToString('N'))
 $repo='a'*64
 $cases=@('event-idempotent','event-gap','resume-stale-end','decision-conflict','generation-cas','atomic-before-commit','finalization-decision-crash','finalization-event-crash','receipt-crash','ack-idempotent','trusted-recovery-time','guard-identity','state-corrupt','reparse-rejected','guard-cross-process','pending-decision-conflict','duplicate-json-property','public-resume-deleted-payload','public-resume-deleted-delivery-pending','fresh-contract-config-discovery','public-real-module-start-status-retry-end-resume')
-$cases+=@('guard-bound-root-reimport','guard-bound-identity-mismatch')
+$cases+=@('guard-bound-root-reimport','guard-bound-identity-mismatch','ac-s1-b-taskeventstore')
 $selected=@(if($Case -ceq '*'){$cases}else{$Case.Split(',')})
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 $fresh=$null
@@ -67,6 +67,15 @@ try {
             Assert ($guard.Path.StartsWith($root+'\',[StringComparison]::OrdinalIgnoreCase)) 'offline guard escaped fixture root'
             $started=Invoke-WorkflowTaskTransition $repo $case 'started' 0 'start' '' $guard
             switch($case){
+                'ac-s1-b-taskeventstore'{
+                    # No TestRoot: the root must come from the resolver's seams alone.
+                    & $store {$script:TestRoot=$null}
+                    try{
+                        $answer=& $store {Get-WorkflowRoot}
+                        $base=& (Import-StoreRootTestModule) {$script:BaseForTest}
+                        Assert ($answer -ceq [IO.Path]::Combine($base,'OneStarMaker','Workflow')) 'workflow root did not follow the resolver'
+                    }finally{& $store {param($r)$script:TestRoot=$r} $root}
+                }
                 {$_ -cin @('guard-bound-root-reimport','guard-bound-identity-mismatch')}{
                     $identity=& $store {param($r)Get-WindowsStorePathIdentity $r} $root
                     $entry=[ordered]@{logicalPath=$root;physicalPath=$identity.physicalPath;volumeSerial=$identity.volumeSerial;fileId=$identity.fileId}

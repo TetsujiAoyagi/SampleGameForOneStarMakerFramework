@@ -6,8 +6,11 @@ $ErrorActionPreference='Stop'
 # an ordinary process with -Action read, against the same temporary base the
 # ordinary side created directly under the UserProfile Known Folder
 # (<UserProfile>\OneStarMaker.HostCheck.<32 hex>, holding OneStarMaker\store-root.json).
-# The resolver runs with only its base seam replaced by that directory; its
-# marker, ancestor and former-root checks are the production ones. Output is one
+# The resolver runs with its base seam replaced by that directory and its
+# former-root seam pointed at an empty place beside it (V2 observes the marker,
+# the base resolution and where a write lands; whether the real former root still
+# holds a store is V1's question, not this one). The marker and ancestor checks
+# are the production ones. Output is one
 # JSON object; the two sides' values are compared offline (fixtures:
 # tools/Workflow/tests/fixtures/storeroot-hostcheck-{match,mismatch}.json).
 # Not a test suite and not a CLI: no store module is imported and nothing
@@ -16,7 +19,8 @@ $resolver=Import-Module (Join-Path $PSScriptRoot '../WindowsStoreRoot.psm1') -Pa
 $context=Import-Module (Join-Path $PSScriptRoot '../WindowsStoreContext.psm1') -PassThru
 $userProfile=[Environment]::GetFolderPath('UserProfile')
 if(-not [IO.Path]::GetFullPath($Base).StartsWith($userProfile.TrimEnd('\')+'\OneStarMaker.HostCheck.',[StringComparison]::OrdinalIgnoreCase)){throw 'base must be <UserProfile>\OneStarMaker.HostCheck.<hex>'}
-& $resolver {param($b)$script:BaseForTest=$b} $Base
+$legacyBase=[IO.Path]::Combine([IO.Path]::GetFullPath($Base),'legacy')
+& $resolver {param($b,$l)$script:BaseForTest=$b;$script:LegacyBaseForTest=$l} $Base $legacyBase
 function Get-FinalPath([IO.FileStream]$Stream){return [OneStarMaker.Workflow.StoreRootNative]::FinalPath($Stream)}
 $root=Get-OsmStoreRoot
 $hostcheck=[IO.Path]::Combine($root,'hostcheck')

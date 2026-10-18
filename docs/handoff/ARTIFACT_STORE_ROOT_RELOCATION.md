@@ -7,7 +7,7 @@ Artifact Storage・Workflow・Harness が共有する store の実体を、packa
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `Phase B 差し戻し（巡 1）`（Phase A revision 1 を 2026-10-19 に owner が凍結。Phase B は 2026-10-19 に B の出口 commit `c2ebd441` で終えた。発見 C 1 回目が blocker 3 件で B へ差し戻した（§7）。動作確認は V1 非仮想化側を B が実施しただけで、残りは修正後の head で行う）
+- status: `動作確認（修正後の head）と発見 C 2 回目`（Phase A revision 1 を 2026-10-19 に owner が凍結。Phase B は出口 commit `c2ebd441`。発見 C 1 回目の blocker 3 件を B の差し戻し修正（commit message に `Phase B fix round 1`）で直した。動作確認は修正後の head で行う）
 - branch: `claude/artifact-store-root-relocation`（PR base は `develop`。Phase A の作業 branch `claude/artifact-store-root-relocation-plan` は A0 の commit `eebcdda7` で止まっており、A1〜A3 の commit はこの branch にある）
 - implementation base commit: `abb997751035ab3a284916a97c32f887a8faec16`（`origin/develop`、PR #138 を含む）
 - implementation head commit: 未固定
@@ -21,9 +21,9 @@ Artifact Storage・Workflow・Harness が共有する store の実体を、packa
 - evidence bundle の取得案内・状態: 未生成（未到達）
 - C' blind bundle の取得案内・状態: 未生成（未到達）
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B の差し戻し修正（B ↔ 発見 C の巡 1。修正用の新規 session）。
-  - 次の作業: §7「発見 C 1 回目」の blocker 1〜3 を、そこに書いた修正の方向（B 適応）で直し、同じ節の「修正後の確認」を通す。§6 に差し戻し修正の内容と B 適応の記録を足す（判定 C の実行・C' の起動・push はしない）。出口: `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` が error 0。commit message に `Phase B fix round 1` を含めて 1 commit にし、この引継ぎ票を「動作確認（修正後の head）と発見 C 2 回目を並行」へ更新する（動作確認は下の「動作確認の分担と往復」を修正後の head で行う）。後続スライスの入力（§7）は直してもよいが必須ではない。
-  - 引き継ぐ commit SHA: 発見 C 1 回目の記録 commit `65ed9929`（B の出口 `c2ebd441` + 本書だけの commit）。作業ツリーが dirty なら引き継がない。
+  - 次の Phase・役割: 動作確認（V1・V2。下の「動作確認の分担と往復」）と、発見 C 2 回目（新規 session。差分は `c2ebd441..<修正 commit>` を中心に見る）を並行する。巡の数: 1 巡終了（残り最大 3 巡）。
+  - 次の作業: 動作確認担当は `Phase B fix round 1` を message に含む commit を checkout して手順 1 から。発見 C 2 回目は §6「差し戻し修正 巡 1」の 3 件が §7 の blocker 1〜3 を解消しているかを確認する。push・判定 C・C' はしない。
+  - 引き継ぐ commit SHA: `Phase B fix round 1` の commit（その後に本書だけの commit があればそれを含む）。作業ツリーが dirty なら引き継がない。
   - 取得案内の所在: なし（B の結果は Git 上の commit と §6 で完結する。B の suite の result JSON と V1 の生記録は B session の作業領域にあり、判定の入力にしない）。
   - 必要な権限: リポジトリの読み、pwsh 7、packaged app（Codex デスクトップ、full access）内での pwsh 実行。V2 は `<UserProfile>` 直下の一時 base を作り、観測後に削除する。実ストア・LocalCache の中身・資格情報・R2 は触らない。
   - 停止規則: 手順が §5 の記述どおりに実行できない、または実ストア・旧 root に書く必要が生じたら実行を止め、観測と理由を §6 に書いて B へ返す。
@@ -490,6 +490,16 @@ Phase B 担当: 新規 session（Claude Fable 5.1、Anthropic）。2026-10-19。
 - **`New-ArtifactOperation`:** 本番経路は store root の存在を要求して作らない。`TestRoot` 経路は既存 fixture のため従来どおり shared 親を作る。
 - **`ac-i1-e` / `ac-i3-f-4` / `ac-i5-a` の junction:** この環境では junction を作れたので実体で検証した。作れない環境では `observed` に `skipped` を記録し、identity seam の注入 case（`ac-i1-e` は常に併走）で代替する。
 
+### 差し戻し修正 巡 1（発見 C 1 回目の blocker。B 適応）
+
+2026-10-19、修正用の新規 session（Claude Sonnet 5.5、Anthropic）。契約・責務配置・reasonCode・検査順序は変えていない。
+
+1. **blocker 1（V2 host fixture）:** `tools/Workflow/tests/StoreRootHostFixture.ps1` が `BaseForTest` に加えて `LegacyBaseForTest` を `<一時 base>\legacy`（存在しない場所）へ向ける。V2 は印の検査・base の解決・書込みの実体だけを観測し、実 host の旧 root の残存は V1 の観測項目のまま。旧 root の差し替えは冒頭コメントに明記した。
+2. **blocker 2（合成 fixture）:** `fixtures/storeroot-hostcheck-{match,mismatch}.json` の path の `\` を `\\` に直し、`ConvertFrom-Json` で読めることを確認した。`expected`・`differences` は変えていない。読込みを確かめる case は足していない（受け入れ条件の追加ではないため）。
+3. **blocker 3（`ac-s1-b-taskeventstore`）:** `TaskLifecycle.Tests.ps1` に case を登録し、`TestRoot` を外した状態で `Get-WorkflowRoot` が resolver の base 配下の `OneStarMaker\Workflow` を返すことを確かめる（終了時に `TestRoot` を戻す）。
+4. 後続スライスの入力のうち、`WindowsStoreRoot.psm1` の冒頭コメントだけを直した（旧 root は `SHGetKnownFolderPath` の既定位置）。他は直していない。
+
+確認（修正後の作業ツリー）: `TaskLifecycle.Tests.ps1` 24/24、`StoreRoot.Tests.ps1` 18/18、`StoreRootWiring.Tests.ps1` 12/12（各 `-Case '*' -ResultPath`、failed 0）。V2 fixture を `<UserProfile>` 直下の一時 base（印付き）で非仮想化 pwsh から `-Action write` → `-Action read` を 1 回ずつ実行し、exit 0・出力が合成 fixture と同じ schema（`localCacheHit` false、`finalPath` = `logicalPath`）であることを確認して一時 base を削除した（`<UserProfile>\OneStarMaker` は前後とも不在）。この実行は B 側の事前確認で、判定入力にしない。
 ### B の出口の suite 結果
 
 2026-10-19、B の出口 commit と同じ作業ツリー（commit 直前）で、`tools/Artifacts/tests`・`tools/Workflow/tests`・`tools/Harness/tests` の `*.Tests.ps1` 全 30 file を各 `-Case '*' -ResultPath <path>` で実行した（§5 の起点 filter 8 suite を含む。`rg` を PATH に足した）。30 file すべて executed ≥ 1・failed 0、exit 0。各 JSON は B session の作業領域に保持し、判定の入力にしない。`pwsh tools/contract-audit.ps1` errors 0（warnings 0）、`pwsh tools/docs-audit.ps1` errors 0（warning 1 は本書の §7/§8 検出で A3 時点と同じ）、AC-S1-a の `git grep` は対象外を除いて 0 件、`git diff --stat abb99775 -- unity/` は空。
