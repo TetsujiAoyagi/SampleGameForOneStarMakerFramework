@@ -596,6 +596,33 @@ Phase B 担当: 新規 session（Claude Fable 5.1、Anthropic）。2026-10-19。
 - `ArtifactPaths.psm1` は別名の免除を文字列の一致（`-ine`）で、`EvidencePaths.psm1` は包含（`Test-ArtifactWithin`）で判定しており、書き方が揃っていない。標準の host では結果は同じ。
 - `StoreConsolidation.psm1` の `$script:ReasonCodes` に resolver の 3 code が無い。入口の gate を通った後に resolver が失敗する（TOCTOU）と、既存の code に畳まれる。受容済みの TOCTOU の範囲で、CLI 入口の reasonCode は I2・I3 どおり。
 
+### 発見 C 2 回目（2026-10-19）
+
+- 担当: 進行役が起動した新規 session（Claude Opus 5.5、Anthropic。Phase B の Claude Fable 5.1 とも、差し戻し修正の Claude Sonnet 5.5 とも異なるモデル）。GO 判定はしない。C' は起動しない。
+- 入力: commit 固定の差分 `c2ebd441..34cf6607`（`Phase B fix round 1`。code の変更は `WindowsStoreRoot.psm1` のコメント、`StoreRootHostFixture.ps1`、`TaskLifecycle.Tests.ps1`、合成 fixture 2 件だけ）と本書（commit `34cf6607` 時点）。stage snapshot は使っていない。
+- 巡の数: 1 巡目（B ↔ 発見 C の 1 往復目の確認。残り最大 3 巡）。
+- 構造: 修正は §3 の既存行（host fixture、`TaskLifecycle.Tests.ps1`、fixture）の中に収まり、公開面・依存・seam の追加は無い。1 回目の構造レビューの結論は変わらない。
+
+#### blocker 1〜3 の解消確認
+
+1. **blocker 1（V2 host fixture）: 解消。** `StoreRootHostFixture.ps1` は `BaseForTest` と `LegacyBaseForTest`（`<一時 base>\legacy`、作らない）を同じ resolver instance に設定する。`Assert-OsmLegacyAbsent` は `LegacyBaseForTest` が設定されていると process の `LocalApplicationData` 側の追加照会をしないので、実 host の旧 root は照会されない（`WindowsStoreRoot.psm1` の `if(-not $script:LegacyBaseForTest)`）。印・祖先の検査は production のまま。再現: `<UserProfile>` 直下に印付きの一時 base を作り、非仮想化 pwsh で `-Action write` → `-Action read` を 1 回ずつ実行。両方 exit 0、`written.finalPath` = `logicalPath`、両側の `root`・`userProfile` が一致、`listing` に書いた file、`localCacheHit` false、`storeContext` = `not-virtualized`、`<一時 base>\legacy` は作られていない。一時 base は削除し、`<UserProfile>\OneStarMaker` は前後とも不在。この実行は発見 C の修正確認で、V2 の判定入力にしない。
+2. **blocker 2（合成 fixture）: 解消。** 2 件とも `ConvertFrom-Json` で読める。`expected`（`match` / `mismatch`）と `differences`（`written.finalPath`、`localCacheHit`）は §5 どおり。key 構成（`packaged` = `action,userProfile,root,written,storeContext`、`native` = `action,userProfile,root,listing,localCacheHit`）は上の実出力と同じ。
+3. **blocker 3（`ac-s1-b-taskeventstore`）: 解消。** `TaskLifecycle.Tests.ps1` に登録され、`TestRoot` を外した状態で `Get-WorkflowRoot` が resolver の `BaseForTest` 配下の `OneStarMaker\Workflow` と一致することを確かめ、終了時に `TestRoot` を戻す。seam が store の resolver instance に届いていなければ実 host の `store-not-migrated` で case が失敗するので、空振りにならない。
+
+#### 実行したもの（§5 の起点 filter のうち影響する suite。各 `-Case '*' -ResultPath`）
+
+| suite | registered | executed | failed |
+| --- | --- | --- | --- |
+| `Workflow/TaskLifecycle` | 24 | 24 | 0 |
+| `Workflow/StoreRoot` | 18 | 18 | 0 |
+| `Artifacts/StoreRootWiring` | 12 | 12 | 0 |
+
+`pwsh tools/contract-audit.ps1` errors 0、`pwsh tools/docs-audit.ps1` errors 0（warning 1 は本書の §7/§8 検出で従来どおり）。result JSON は本 session の作業領域にあり、判定の入力にしない。全 suite の実行は判定 C に残す。
+
+#### blocker
+
+なし。新しい後続スライスの入力も無い（1 回目の入力は `WindowsStoreRoot.psm1` の冒頭コメントだけが直り、残り 3 件はそのまま）。次は進行役の手順 5（GO 候補 head の固定）と、修正後の head での動作確認（V1・V2）。
+
 ## 8. Phase C'
 
 未到達。
