@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: slice
-- status: 判定 C 完了（2026-10-18。§7）。次は C'（開始時に異なる系列を選ぶ。起動は発注者）
+- status: C' 完了（2026-10-18。§8）。次は Phase D（C / C' の突合とマージ判断）
 - branch: `claude/longpath-editmode-regression`
 - implementation base commit: `620aff59`（origin/develop、PR #135 のマージ。2026-10-18 に `ba8245f4` から再固定した。§1 の関係する file には、その間の変更が無い）
 - implementation head commit: `b54266ea`（`b54266ea5e935ef7691719cb375c528ae591fa07`）
@@ -13,11 +13,11 @@
 - expires: 2026-11-17
 - harvest to: `AGENTS.md`（path 予算の常時契約。数値は書かず、正本の file を指す）、`tools/Harness/README.md`（run-tests の起動前検査）
 - Phase A snapshot の取得案内・状態: 未保存。A3 の凍結 commit（この文書を変えた最後の commit）の本文で固定した。`evidence stage` への保存は、判定 C の bundle を作るときに行う。
-- Phase B result: この HANDOFF の「Phase B 実装結果」の節（tracked）。evidence bundle / C' blind bundle: 未生成
+- Phase B result: この HANDOFF の「Phase B 実装結果」の節（tracked）。evidence bundle / C' blind bundle: 判定 C の生証拠を含む C' blind bundle を 1 つ作り、task `editmode-regression-long-path` に `evidence stage` で固定した。状態はローカル固定済み（未昇格）。別 process の fetch で hash の一致と必須内容の閲覧を確認した。取得案内は、この slice の session 群の共有 notes（git 管理外）の `cprime-bundle-guide.md` にある。
 - 引継ぎ票:
-  - 次の担当: C'（blind audit bundle で開始する。bundle は未生成。判定 C の所見・結論を渡さない）。判定 C は Claude Code（Anthropic、Claude Sonnet 5.5）が実施した。S1〜S5 が揃い、反証は無い（§7）。
+  - 次の担当: Phase D（発注者。C / C' の突合とマージ判断）。判定 C は Claude Code（Anthropic、Claude Sonnet 5.5）が実施した（§7）。C' は cursor-agent（xAI、Grok 4.7 High）が実施した（§8）。
   - 進め方: 発見 C、判定 C、C' は、オーケストレーターの session がそれぞれ別 session として起動する。各 Phase の出口の担当が、この引継ぎ票を更新する。
-  - 引き継ぐ commit: implementation head `b54266ea` の上に、この HANDOFF の B 記録だけを足した commit（`git log -1 -- docs/handoff/EDITMODE_REGRESSION_LONG_PATH.md` で照合する）。レビュー対象の差分は `620aff59..b54266ea`。作業ツリーは clean であること。
+  - 引き継ぐ commit: implementation head `b54266ea` の上に、この HANDOFF の記録だけを足した commit（`git log -1 -- docs/handoff/EDITMODE_REGRESSION_LONG_PATH.md` で照合する）。レビュー対象の差分は `620aff59..b54266ea`。作業ツリーは clean であること。
   - 必要な権限: 発見 C は差分の読み取りと offline の suite。差し戻し中の Unity テストは §5 の起点 filter で、sandbox の外の承認済み経路から実行する。
   - 停止規則: §2 の停止規則と、§4 の「Phase B から A へ戻す条件」。
   - 引き渡さないもの: なし（発見 C の所見は 0 件）。B の判断の詳細は「Phase B 実装結果」と「決定記録」の節にある。
@@ -334,3 +334,30 @@ Phase B から A へ戻す条件:
 - 所見: 現在の問いを阻害する欠陥は無い。後続の入力: 無し。
 - 未実行・未確認: evidence bundle の `evidence stage`（未生成。C' の起動時に作る）。
 - 生記録: ローカルの side-session-notes（`s5-base/`、`c-deep/`、`c-short/`）。
+
+## 8. Phase C'
+
+- 担当方式: AI（cursor-agent。実行担当の Claude Code（Anthropic、Claude Opus 5.5）が bundle を作り、cursor-agent を起動し、所見を転記した。実行担当は監査をしていない）
+- 種別と巡: 最終 C'（高コスト証拠は無い）、1 巡目（全体を初見で監査）
+- 受け取った決定記録の版: なし（DR-1 は Phase B の決定記録として B 結果と一緒に入力に入れた。C' 自身の前巡指摘への裁定ではない）
+- 使用した blind audit bundle の取得案内・状態: §0 と同じ案内。ローカル固定済み（未昇格）。取得側の fetch で 21 file の hash 一致と閲覧を確認した。cursor-agent の workspace は、fetch した copy と、その中の source zip を展開したものだけにした（repo の作業ツリー・PR・可変な HANDOFF は workspace の外）。
+- bundle の構成: A3 凍結 HANDOFF（`a0e8d42c`）、B 結果と DR-1（`7054d4c0` の該当節だけ）、`620aff59..b54266ea` の完全 diff・stat・name-status、head の code と docs の tree、機械検査 4 種の生出力（`ab6bab06` で実行。`b54266ea` との差は HANDOFF だけ）、判定 C の 3 run の `results.xml`・`step.json`・`unity.log`。発見 C・判定 C の結論・所見・照合結果は入れていない。
+- 確認範囲・方法: 静的な読み取りだけ（read 41、grep 38、glob 2）。XML を集計する shell を 2 回試みたが、cursor-agent の非対話モードで拒否され、実行されていない。テストは再実行していない。workspace の file に変更は無かった（実行後に hash で確認した）。
+- 判定: 現在の問いを阻害する欠陥なし。I1〜I6、S1〜S5、A1〜A7 を、diff と XML・log・step・機械検査の生出力で照合した。
+- 現在の問いを阻害する findings: なし
+- 後続スライスへ移送する findings:
+  - A4 の座標探索は、先頭の季節・役割・payload の 1 組だけで 0〜99 を探る。現行のコンストラクタは受理する矩形が組に依存しないので、今回の列挙は受理される全ての組を覆う。組ごとに受理する座標が変わる変更が入ると、探り損ねた座標の path を測らない。
+  - `contract-audit.tests.ps1` の境界判定は `path-budget.json` から R を読む。ただし、不正な JSON の fixture の字面には `150` と `unity/Assets/Packages/` が残る（判定の正本は JSON のまま）。
+  - DR-1 の残るリスクと同じ: `[RuntimeInitializeOnLoadMethod]` を initializer とは別の class に置く Game では、数える型が 0 個になり、content mode を設定しない。
+- 残存リスク:
+  - ignore 対象の生成物（`Library/` など）、対象生成器以外の動的な path、Unity native の内部の IO は、I1 と起動前検査の範囲の外。
+  - OOM の恒久策はこのスライスの外。2 つの全件 run で `ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirectory` は Passed で、log に `out of memory` は無い。
+  - content mode の復元が Domain Reload をまたいで必ず走ることは、head の単独 run では確認していない（全件 run では対象のテストが Passed）。
+- 監査できなかった範囲:
+  - `step.json` には、commit SHA、tree が clean であること、User / Machine の `SAMPLEGAME_*` の事前確認、Q4 の一言確認が無い。C' は base と head を、短縮前の fixture 名と、head にだけある `WorldCompanionPathBudgetTests` で区別した。
+  - A5 の「単独」にあたる head の filter run は bundle に無い（実行担当の収録漏れ。判定 C の生記録の置き場に、その run の出力が無かった）。
+  - `UnityObservation.Tests.ps1` の生出力は bundle に無い。
+  - 2 つの run の leaf の集合（1238 件）は、件数と、`step.json` の一部の index（1–5、401–403、801–803、1235–1238）の fullname の一致だけを見た。全件の集合の差分は取っていない（集計の shell が拒否されたため）。
+- 独立性: B（Anthropic、Claude Opus 5.5）、C（Anthropic、Claude Sonnet 5.5）、A2 の R1 / R2（OpenAI）のどれとも異なる vendor（xAI）。Phase A〜C に関与していない。新規の session で、入力は blind bundle だけ。cursor-agent は 1 回だけ起動した（約 21 分、input 283,882 / output 64,106 / cacheRead 2,867,328 token）。
+- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: 監査担当には無い。実行担当（Claude Opus 5.5）は §0 と §7 を読んでいるが、監査の指示文（bundle の `AUDIT.md`）には §2 と `AGENTS.md` の条件と、分類の規則だけを書き、Phase C の結論・所見・疑念候補は書いていない。
+- 担当・モデル: cursor-agent 2026.10.16-e3cb207、`--model grok-4.7-high`（Grok 4.7 256K High）、`-p --trust --output-format stream-json`、workspace は bundle の copy。2026-10-18。
