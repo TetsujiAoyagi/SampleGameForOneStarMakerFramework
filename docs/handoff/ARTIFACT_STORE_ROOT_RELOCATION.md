@@ -7,7 +7,7 @@ Artifact Storage・Workflow・Harness が共有する store の実体を、packa
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `動作確認`（Phase A revision 1 を 2026-10-19 に owner が凍結。Phase B は 2026-10-19 に完了し、B の出口 commit で終えた。動作確認は V1 非仮想化側だけ実施済み）
+- status: `Phase B 差し戻し（巡 1）`（Phase A revision 1 を 2026-10-19 に owner が凍結。Phase B は 2026-10-19 に B の出口 commit `c2ebd441` で終えた。発見 C 1 回目が blocker 3 件で B へ差し戻した（§7）。動作確認は V1 非仮想化側を B が実施しただけで、残りは修正後の head で行う）
 - branch: `claude/artifact-store-root-relocation`（PR base は `develop`。Phase A の作業 branch `claude/artifact-store-root-relocation-plan` は A0 の commit `eebcdda7` で止まっており、A1〜A3 の commit はこの branch にある）
 - implementation base commit: `abb997751035ab3a284916a97c32f887a8faec16`（`origin/develop`、PR #138 を含む）
 - implementation head commit: 未固定
@@ -21,14 +21,14 @@ Artifact Storage・Workflow・Harness が共有する store の実体を、packa
 - evidence bundle の取得案内・状態: 未生成（未到達）
 - C' blind bundle の取得案内・状態: 未生成（未到達）
 - 引継ぎ票:
-  - 次の Phase・役割: 動作確認（Phase B の後）と発見 C を並行（発見 C の進め方は下の「Phase C〜C' 進行役の着手手順」4）。
-  - 次の作業: B の出口 commit を対象 head として、§5 の検証経路のうち未実施の V1 packaged app 側と V2 両側（非仮想化側と packaged app 側）を各 1 回、手順どおりに実行し、生の観測と期待との差の有無を §6「動作確認」に残す（GO / NO-GO と合否は書かない）。V1 の非仮想化側は B が 1 回実行済み（§6。判定の入力にしない）。packaged app 側は Codex 側 session が担当する。期待と違う観測があれば発見 C を待たずに B へ戻す（この往復は B と発見 C の差し戻しの巡に数える）。差が無ければ引継ぎ票を発見 C へ更新する。発見 C は動作確認の完了を待たずに開始してよい（進め方は下の「Phase C〜C' 進行役の着手手順」）。
-  - 引き継ぐ commit SHA: B の出口 commit `c2ebd441fa7639c3762be74526faae2726260ba9`（message に `Phase B exit`）。その後ろに進行役の本書だけの commit が載る（`git diff --stat c2ebd441..HEAD` が本書 1 file だけ）。実装の対象 head は B の出口 commit で、作業ツリーが dirty なら引き継がない。
+  - 次の Phase・役割: Phase B の差し戻し修正（B ↔ 発見 C の巡 1。修正用の新規 session）。
+  - 次の作業: §7「発見 C 1 回目」の blocker 1〜3 を、そこに書いた修正の方向（B 適応）で直し、同じ節の「修正後の確認」を通す。§6 に差し戻し修正の内容と B 適応の記録を足す（判定 C の実行・C' の起動・push はしない）。出口: `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` が error 0。commit message に `Phase B fix round 1` を含めて 1 commit にし、この引継ぎ票を「動作確認（修正後の head）と発見 C 2 回目を並行」へ更新する（動作確認は下の「動作確認の分担と往復」を修正後の head で行う）。後続スライスの入力（§7）は直してもよいが必須ではない。
+  - 引き継ぐ commit SHA: 発見 C 1 回目の記録 commit `65ed9929`（B の出口 `c2ebd441` + 本書だけの commit）。作業ツリーが dirty なら引き継がない。
   - 取得案内の所在: なし（B の結果は Git 上の commit と §6 で完結する。B の suite の result JSON と V1 の生記録は B session の作業領域にあり、判定の入力にしない）。
   - 必要な権限: リポジトリの読み、pwsh 7、packaged app（Codex デスクトップ、full access）内での pwsh 実行。V2 は `<UserProfile>` 直下の一時 base を作り、観測後に削除する。実ストア・LocalCache の中身・資格情報・R2 は触らない。
   - 停止規則: 手順が §5 の記述どおりに実行できない、または実ストア・旧 root に書く必要が生じたら実行を止め、観測と理由を §6 に書いて B へ返す。
   - 引き渡さないもの: ローカル store・LocalCache の実 path、資格情報、Codex 側 copy の内容。
-  - 動作確認の分担と往復（進行役が 2026-10-19 に固定）: 非仮想化側の実行担当 = 進行役が起動する新規 session（B 以外。対象 head が GO 候補 head と一致すれば判定 C の入力にできるため）。packaged app 側 = owner が開く Codex デスクトップの session（full access。B の出口 commit を checkout した作業 tree で実行し、file を編集・commit しない）。往復は 1 回にまとめる:
+  - 動作確認の分担と往復（進行役が 2026-10-19 に固定）: 非仮想化側の実行担当 = 進行役が起動する新規 session（B 以外。対象 head が GO 候補 head と一致すれば判定 C の入力にできるため）。packaged app 側 = owner が開く Codex デスクトップの session（full access。動作確認の対象 head を checkout した作業 tree で実行し、file を編集・commit しない）。往復は 1 回にまとめる:
     1. 非仮想化側: V1 の前段（`UserProfile` と祖先の reparse 属性）と前の観測（新 root の存在、旧 root の tree 一覧）を取り、V2 の一時 base と印を作る。owner へ一時 base の path を渡して止まる。
     2. packaged app 側（owner が Codex へ依頼）: `pwsh tools/workflow-task.ps1 status -Task store-root-v1-check` を 1 回（stdout と exit code）、続けて `pwsh tools/Workflow/tests/StoreRootHostFixture.ps1 -Base <一時 base> -Action write` を 1 回。両方の生出力をそのまま返す。失敗しても再実行・原因調査をしない。
     3. owner が 2 の生出力を非仮想化側へ貼る。
