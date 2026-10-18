@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C'`（2 巡目の独立監査を §8 に記録済み。blocker なし。GO / NO-GO は Phase D が判定する）
+- status: `D`（C' 2 巡目まで完了。2026-10-18 に発注者が GO と裁定（§9「2 回目の裁定」）。マージ待ち）
 - branch: `claude/s-4d1-vfx-abstraction`
 - implementation base commit: `ba8245f4`（`develop`、PR #134 のマージ）
 - implementation head commit: `447913af`（PR レビュー 1 巡目の B 適応 commit `fix(vfx): …`。判定 C 2 回目の GO 候補 head として固定し、ローカルの軽量 tag `evidence/s-4d1-vfx-abstraction/2` を付けた）。旧 head `4289fbf0`（Phase B の出口。判定 C の GO 候補 head として固定し、ローカルの軽量 tag `evidence/s-4d1-vfx-abstraction/1` を付けた）の §7 判定 C・§8 C' 1 巡目はこの旧 head の記録で、新 head の判定に移さない。push しない
@@ -21,7 +21,10 @@
 - （旧 head `4289fbf0` の）evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の bundle 1 件（commit 固定 base `ba8245f4` / head `4289fbf0`、19 file。発見 C・判定 C の所見と DR-1 を含まない）を task `s-4d1-vfx-abstraction` に `evidence stage` で固定し、送信側で fetch と manifest の全 hash 一致を確認した。取得案内は主 checkout の git 管理外 `TestResults/s-4d1-vfx-stage/retrieval-guide.md`（本 worktree の同 path に写し）。発見 C の起点 filter の原 source は `TestResults/` に残したまま（判定 C の bundle には判定 C 自身の実行を収録）。
 - （旧 head `4289fbf0` の）C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 evidence bundle と同一（同じ commit から生成、発見 C・判定 C の所見と DR-1・DR-2 を含まない）。C' 用の案内は主 checkout の git 管理外 `TestResults/s-4d1-vfx-stage/cprime-retrieval-guide.md`（本 worktree の同 path に写し）。C' 1 巡目で使用済み。
 - Phase B result snapshot の取得案内・状態: ローカル固定済み（未昇格）。判定 evidence bundle に `phase-b-result.md`（B 出口の記録 commit `19dd5255` 版、所見なし）として収録。
-- 引継ぎ票（判定 C 2 回目 → C' 2 巡目）:
+- 引継ぎ票（Phase D の残り）:
+  - 状態: GO（§9「2 回目の裁定」）。implementation head `447913af`（tag `evidence/s-4d1-vfx-abstraction/2`）。PR #135 を push 済み。
+  - 次の作業: マージ前の harvest（Architecture §24）と本書の削除、Evidence の保存・引渡し確認（bundle は「ローカル固定済み（未昇格）」）、task の終了。全 EditMode 回帰の差分外の失敗と Windows のパス長の根本修正は別 task。
+- （旧）引継ぎ票（判定 C 2 回目 → C' 2 巡目）:
   - 前の Phase の結果: 判定 C 2 回目 **完了**（GO 候補 head `447913af`、§7「判定 C（2 回目）」）。発注者が DR-2 版 2（失敗 40 件は DR-2 の集合の部分集合、新規失敗 0）と DR-3（AC14 (a) の許容に Phase D の裁定 commit の program 文書を加える）を裁定した（§2）。
   - 次の Phase・役割: C' 2 巡目（Claude Sonnet 系列、Phase B・判定 C と異なるモデル、新しい session、blind audit bundle）。前巡の指摘（F-1〜F-3）の解消と、前巡 head `4289fbf0` → `447913af` の修正差分・その影響経路を中心に監査する。C' には `TestResults/s-4d1-vfx-stage/cprime-retrieval-guide-2.md` の path だけを渡す。bundle と案内は判定 C 2 回目の初回記録時のまま変えない（DR-2・DR-3 は判定 C への裁定なので C' 向けに入れない）。
   - 引き継ぐ commit: implementation head `447913af`（tag `evidence/s-4d1-vfx-abstraction/2`）。本書の記録 commit はその上に載るが head は変えない。作業ツリーは clean。push していない（PR #135 の状態ブロックも未更新。C' 後に push と状態ブロックの更新を行う）。
@@ -794,3 +797,13 @@ Architecture §24（`24-rendering-system.md`、現在 366 行）に「VFX 抽象
 
 - PR: develop 向けに作成する（本スライスの成果を表すタイトル、状態ブロックは §0 の写し）。
 - 未完了: マージ、Evidence の保存・引渡し確認（evidence bundle は「ローカル固定済み（未昇格）」のまま）、harvest（Architecture §24）、本書の削除、task の終了。
+
+### 2 回目の裁定（2026-10-18）
+
+PR #135 のレビュー（cursor[bot] と発注者が依頼した独立コードレビュー、どちらも assist）が、`VfxSystem` の購読解除の例外で `Dispose` の回収が飛ぶ経路と、`BindSceneLifecycle` の再入で終端中の記録が消える経路を指摘した。オーケストレーターがコードと照合して順序を確かめ、発注者は B 適応で直して判定 C と C' 2 巡目をやり直すと決めた（上の「本スライスの head は変えない」はこの時点で置き換わった）。修正は §6、判定 C 2 回目は §7、C' 2 巡目は §8。
+
+- 判定 C 2 回目の裁定は DR-2 版 2 と DR-3（§2）。
+- C' 2 巡目の独立性: blind bundle の `full.diff` に、新 head の本書（§7 の発見 C・判定 C 1 回目の所見と DR-1・DR-2 を含む）の差分が入っていた。C' 担当は判定 C の結論を読んでいないと報告しているが、行番号を探す出力に一部が表示された（§8「2 巡目」）。発注者はこれを独立性の弱まりとして記録したうえで、C' 2 巡目を独立監査として受け入れた。独立性は `独立性制約あり`。次のスライスでは、bundle の `full.diff` から HANDOFF を外す。
+- C' 2 巡目の F-1: C' は、差分外の既知の失敗を許して GO にするには、決定記録ではなく人間の例外承認か Phase A の新 revision が要ると指摘した。発注者は、全 EditMode 回帰の差分外の失敗 40 件（`WorldCompanionRecoveryTests` 26・`WorldCompanionCreationTransactionTests` 13・`ObservationReloadTests.RealDomainReloadRoundTrip` 1）を**発注者の例外承認**として扱い、GO と裁定した。修正は別 task で行う。
+- 判定: **GO**（implementation head `447913af`）。
+- 後続入力: C' 2 巡目の d2 向け 2 件（`Subscribe` の例外で lifecycle が開いたまま残ること、`BindSceneLifecycle` の `ReleaseAll` が try の外にあること）を program §6.3 の d2 行へ移した。
