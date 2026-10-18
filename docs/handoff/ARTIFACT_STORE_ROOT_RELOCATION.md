@@ -540,9 +540,17 @@ Phase B 担当: 新規 session（Claude Fable 5.1、Anthropic）。2026-10-19。
 ### 動作確認（B が実行してよい分）
 
 - **V1 非仮想化側（B session、判定入力にしない）:** 実状態（印なし）で `pwsh tools/workflow-task.ps1 status -Task store-root-v1-check` を 1 回。生出力 `{"status":"failed","reasonCode":"store-not-migrated"}`、exit 1。`<UserProfile>\OneStarMaker` は前後とも存在しない。旧 root の tree 一覧（名前・属性・size・更新時刻）は前後で一致（47,974 entry、内容は読んでいない）。`UserProfile` の各祖先の reparse 属性はすべて false。期待との差: なし。時刻付きの生記録は B session の作業領域に保持（path は転記しない）。
-- **V1 packaged app 側、V2 両側:** 未実施（修正後の head で実施）。
+- **V1 packaged app 側、V2 両側:** 下の「やり直し」に記録（初回は中断）。
 - **非仮想化側の手順1（2026-10-19、対象 head `43549710`、判定入力にしない）:** `UserProfile` の祖先（`UserProfile`・`C:\Users`・`C:\`）の reparse 属性はすべて false。`<UserProfile>\OneStarMaker` は前の時点で存在しない。旧 root の tree 一覧は 47,974 entry（B の V1 記録と件数が一致）、sha256 `62C6C65FA61CF1100FD50F2BEACF3F891A9F9AA98357FF1934764D628BD6BC75`。V2 用の一時 base `<UserProfile>\OneStarMaker.HostCheck.<hex>` と印を作成した。時刻付きの生記録は実行 session の作業領域に保持（path は転記しない）。
 - **中断:** 手順2（packaged app 側）は実行せず中断した。理由は §7 の blocker 1（`c2ebd441` の `StoreRootHostFixture.ps1` は移行前の host では必ず `legacy-store-present` で止まる）。B の修正後の head で V1・V2 をまとめてやり直す。一時 base は削除し、削除と `<UserProfile>\OneStarMaker` の不在を確認した。
+- **やり直し（2026-10-19、対象 head `34cf6607`、作業ツリー clean、非仮想化側 = B 以外の実行担当。packaged app 側の生出力は owner が Codex で取得し進行役経由で受領、改変なし）:**
+  - 前段・前: `UserProfile` = `C:\Users\void`、祖先 3 段の reparse 属性すべて false。新 root は不在。旧 root の tree 一覧 47,974 entry、sha256 `62C6C65FA61CF1100FD50F2BEACF3F891A9F9AA98357FF1934764D628BD6BC75`。
+  - V1 packaged app 側の生出力: `{"status":"failed","reasonCode":"store-not-migrated"}`、exit 1。
+  - V1 後: 新 root は不在のまま。旧 root の tree 一覧は 47,974 entry・同 sha256 で前後一致。
+  - V2 packaged app 側 `-Action write`（exit 0）: `userProfile` = `C:\Users\void`、`root` = `<一時 base>\OneStarMaker`、`written.logicalPath` = `written.finalPath` = `<root>\hostcheck\<guid>.txt`、`storeContext` = `virtualized`（生結果の記録のみ。合否に使わない）。
+  - V2 非仮想化側 `-Action read`（exit 0）: `userProfile` 同値、`root` は packaged 側と同値、`listing` は上記 file 1 件で `finalPath` = `logicalPath`、`localCacheHit` = `false`。
+  - 後始末: 一時 base を削除し、不在を確認した。
+  - 期待との差: なし（両側 `store-not-migrated`・exit 1、新 root 不在、旧 root 一覧一致、`userProfile`・root 一致、実体 path = 論理 path、packaged 側の書込みが非仮想化側の一覧に出現、LocalCache に同名なし）。§5 の照合 script による判定は判定 C の責任で、ここでは行っていない。時刻付きの生記録は実行 session の作業領域に保持（path は転記しない）。
 
 ### 未実行・未確認
 
