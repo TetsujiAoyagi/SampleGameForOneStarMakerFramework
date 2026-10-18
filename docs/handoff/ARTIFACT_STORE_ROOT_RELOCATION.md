@@ -21,13 +21,18 @@ Artifact Storage・Workflow・Harness が共有する store の実体を、packa
 - evidence bundle の取得案内・状態: 未生成（未到達）
 - C' blind bundle の取得案内・状態: 未生成（未到達）
 - 引継ぎ票:
-  - 次の Phase・役割: 動作確認（Phase B の後）。
+  - 次の Phase・役割: 動作確認（Phase B の後）と発見 C を並行（発見 C の進め方は下の「Phase C〜C' 進行役の着手手順」4）。
   - 次の作業: B の出口 commit を対象 head として、§5 の検証経路のうち未実施の V1 packaged app 側と V2 両側（非仮想化側と packaged app 側）を各 1 回、手順どおりに実行し、生の観測と期待との差の有無を §6「動作確認」に残す（GO / NO-GO と合否は書かない）。V1 の非仮想化側は B が 1 回実行済み（§6。判定の入力にしない）。packaged app 側は Codex 側 session が担当する。期待と違う観測があれば発見 C を待たずに B へ戻す（この往復は B と発見 C の差し戻しの巡に数える）。差が無ければ引継ぎ票を発見 C へ更新する。発見 C は動作確認の完了を待たずに開始してよい（進め方は下の「Phase C〜C' 進行役の着手手順」）。
-  - 引き継ぐ commit SHA: この branch の先頭 commit（B の出口。commit message に `Phase B exit` を含む）。開始時に `git log -1` で確認し、作業ツリーが dirty なら引き継がない。
+  - 引き継ぐ commit SHA: B の出口 commit `c2ebd441fa7639c3762be74526faae2726260ba9`（message に `Phase B exit`）。その後ろに進行役の本書だけの commit が載る（`git diff --stat c2ebd441..HEAD` が本書 1 file だけ）。実装の対象 head は B の出口 commit で、作業ツリーが dirty なら引き継がない。
   - 取得案内の所在: なし（B の結果は Git 上の commit と §6 で完結する。B の suite の result JSON と V1 の生記録は B session の作業領域にあり、判定の入力にしない）。
   - 必要な権限: リポジトリの読み、pwsh 7、packaged app（Codex デスクトップ、full access）内での pwsh 実行。V2 は `<UserProfile>` 直下の一時 base を作り、観測後に削除する。実ストア・LocalCache の中身・資格情報・R2 は触らない。
   - 停止規則: 手順が §5 の記述どおりに実行できない、または実ストア・旧 root に書く必要が生じたら実行を止め、観測と理由を §6 に書いて B へ返す。
   - 引き渡さないもの: ローカル store・LocalCache の実 path、資格情報、Codex 側 copy の内容。
+  - 動作確認の分担と往復（進行役が 2026-10-19 に固定）: 非仮想化側の実行担当 = 進行役が起動する新規 session（B 以外。対象 head が GO 候補 head と一致すれば判定 C の入力にできるため）。packaged app 側 = owner が開く Codex デスクトップの session（full access。B の出口 commit を checkout した作業 tree で実行し、file を編集・commit しない）。往復は 1 回にまとめる:
+    1. 非仮想化側: V1 の前段（`UserProfile` と祖先の reparse 属性）と前の観測（新 root の存在、旧 root の tree 一覧）を取り、V2 の一時 base と印を作る。owner へ一時 base の path を渡して止まる。
+    2. packaged app 側（owner が Codex へ依頼）: `pwsh tools/workflow-task.ps1 status -Task store-root-v1-check` を 1 回（stdout と exit code）、続けて `pwsh tools/Workflow/tests/StoreRootHostFixture.ps1 -Base <一時 base> -Action write` を 1 回。両方の生出力をそのまま返す。失敗しても再実行・原因調査をしない。
+    3. owner が 2 の生出力を非仮想化側へ貼る。
+    4. 非仮想化側: V1 の後の観測、V2 の `-Action read` と LocalCache の `Test-Path`、一時 base の削除。§5 の形式の時刻付きテキストにまとめ、§6「動作確認」に観測と期待との差の有無を書く。
 
 ### Phase B の着手手順（完了済み。記録として残す）
 
@@ -44,7 +49,7 @@ Artifact Storage・Workflow・Harness が共有する store の実体を、packa
 進行役は発見 C・判定 C・C' の各担当 session を順に用意し、引継ぎ票と PR 状態ブロックの正本（PR を更新するまでは本書 §0）を保つ。自分ではレビュー・判定・監査をしない。各担当への依頼は「本書 §0 の引継ぎ票に従って <Phase・役割> を行う」の一文にし、足りないことは依頼文でなく本書へ先に書いて commit する。
 
 1. `AGENTS.md`、`.agents/skills/osm-workflow/SKILL.md`、同 `references/phases-and-handoff.md`・`references/review-evidence.md`・`references/architecture-gates.md` を全文読む。次に本書 §0・§2〜§6 を読む。
-2. 照合: branch `claude/artifact-store-root-relocation` の先頭が B の出口 commit（message に `Phase B exit`）で、作業ツリーが clean であること。食い違えば止める。
+2. 照合: branch `claude/artifact-store-root-relocation` が B の出口 commit（引継ぎ票の SHA）を含み、それ以降の差分が本書だけで、作業ツリーが clean であること。食い違えば止める。
 3. 動作確認（packaged app 側）: V1 の packaged app 側と V2 の両側には Codex デスクトップの session が要り、進行役は起動できない。owner に割当てを依頼し、その間に発見 C を進める。V1・V2 の生観測が判定 C の入力になるのは、GO 候補 head で、B 以外の実行担当が取ったものだけ（§6 の V1 非仮想化側は B の観測で入力にしない）。packaged app 側の出力は非仮想化側が受け取り、§5 の形式の時刻付きテキストに貼る（Codex 側から Evidence を直接渡す経路は使わない）。
 4. 発見 C: 新規 session、Phase B と異なるモデル。入力は commit 固定の差分 `abb99775..<B の出口 commit>` と本書（同一 PC なので stage snapshot は要らない）。構造レビュー（§3 の責務マップとの照合）を機能レビューより先に行い、§5「Phase C / C' で指摘されうる点」を判断の拘束にしない。指摘は blocker（違反する凍結済み条件・常時契約と一次証拠）と後続スライスの入力に分け、§7 に書く。差し戻しは修正用の新規 B session へ渡し、B ↔ 発見 C は 4 巡まで（動作確認からの差し戻しも数える）。修正後の確認は §5 の起点 filter を使う。
 5. GO 候補 head の固定: blocker が無くなったら、未公開の試行錯誤 commit を整理し（A3 凍結版 `b07cd685` 以前は整理しない）、head を固定して §0 の implementation head に書く。判定 evidence を取る head は push しない軽量 tag `evidence/artifact-store-root-relocation/<n>` で到達可能に保つ。
