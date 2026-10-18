@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: slice
-- status: 発見 C 完了（2026-10-18。所見 0 件）。次は判定 C
+- status: 判定 C 完了（2026-10-18。§7）。次は C'（開始時に異なる系列を選ぶ。起動は発注者）
 - branch: `claude/longpath-editmode-regression`
 - implementation base commit: `620aff59`（origin/develop、PR #135 のマージ。2026-10-18 に `ba8245f4` から再固定した。§1 の関係する file には、その間の変更が無い）
 - implementation head commit: `b54266ea`（`b54266ea5e935ef7691719cb375c528ae591fa07`）
@@ -15,7 +15,7 @@
 - Phase A snapshot の取得案内・状態: 未保存。A3 の凍結 commit（この文書を変えた最後の commit）の本文で固定した。`evidence stage` への保存は、判定 C の bundle を作るときに行う。
 - Phase B result: この HANDOFF の「Phase B 実装結果」の節（tracked）。evidence bundle / C' blind bundle: 未生成
 - 引継ぎ票:
-  - 次の担当: 判定 C（動作確認は対象なし。§5）。発見 C は Claude Code（Anthropic、Claude Sonnet 5.5）が実施した。620aff59..b54266ea の差分を全読し、contract-audit 29 PASS と UnityTestRunner 31 PASS を再実行した。所見は無い。Unity のテストは未実行（判定 C の責任）。
+  - 次の担当: C'（blind audit bundle で開始する。bundle は未生成。判定 C の所見・結論を渡さない）。判定 C は Claude Code（Anthropic、Claude Sonnet 5.5）が実施した。S1〜S5 が揃い、反証は無い（§7）。
   - 進め方: 発見 C、判定 C、C' は、オーケストレーターの session がそれぞれ別 session として起動する。各 Phase の出口の担当が、この引継ぎ票を更新する。
   - 引き継ぐ commit: implementation head `b54266ea` の上に、この HANDOFF の B 記録だけを足した commit（`git log -1 -- docs/handoff/EDITMODE_REGRESSION_LONG_PATH.md` で照合する）。レビュー対象の差分は `620aff59..b54266ea`。作業ツリーは clean であること。
   - 必要な権限: 発見 C は差分の読み取りと offline の suite。差し戻し中の Unity テストは §5 の起点 filter で、sandbox の外の承認済み経路から実行する。
@@ -317,3 +317,20 @@ Phase B から A へ戻す条件:
 - 内容: 数える対象は、`AbstractApplicationInitializer` の派生型のうち、`[RuntimeInitializeOnLoadMethod]` を持つ static method を自身で宣言する型（DeclaredOnly）に限る。0 個・1 個・2 個以上の扱いは凍結どおり。
 - 理由: Play で bootstrap を実際に起動するのはその型だけ。テストの中の private な派生型（`StageHarness`、`TestInitializer`）は起動しない。A5 と I6 の意味と合否は変わらない。
 - 残るリスク: 将来の Game が `[RuntimeInitializeOnLoadMethod]` を initializer とは別の class に置くと 0 個になり、テストは何も設定しない。その場合は Game の fail-closed のログでテストが失敗するので、黙って通ることはない。
+
+## 7. 判定 C（Claude Code、Anthropic、Claude Sonnet 5.5。2026-10-18）
+
+- 対象: implementation head `b54266ea`、base `620aff59`。各 run の前に作業ツリーが clean であることを確認した。
+- 事前確認: Unity 非稼働・lock 無し。User / Machine / Process に `SAMPLEGAME_*` 無し（既存テストの副作用は区別して未観測）。主 checkout は develop@`620aff59`、tracked clean、未追跡は他 session の 1 file のみ。
+- 機械検査: `contract-audit.ps1`（検査 9 を含む）違反なし、`docs-audit.ps1` errors 0。offline は `contract-audit.tests.ps1` 29 PASS、`UnityTestRunner.Tests.ps1` 31 PASS。
+- S5: 深い worktree（ルート 98 文字）で base を checkout し、filter `WorldCompanion;ObservationReloadTests` を 1 回実行。53 件中 40 件が失敗した（`WorldCompanion*` 39 件は `HashFile` 経由の path 例外、`RealDomainReloadRoundTrip` 1 件は `content:runtimeMode` の例外）。
+- S1 / A1: 全 EditMode 回帰（空 filter）を同一 commit で 2 checkout で 1 回ずつ実行した。どちらも sandbox の外、他の Unity は無し。
+  - 深い worktree（ルート 98 文字）: total 1238、passed 1238、failed 0、step passed。
+  - 主 checkout を一時的に detached にした短いルート（57 文字）: total 1238、passed 1238、failed 0、step passed。
+  - 照合: 2 つの XML の test-case の `fullname` + `result` の集合が完全一致（1238 件、script ではなく XML から機械的に比較した）。対象の `WorldCompanionCreationTransactionTests` 20 件、`WorldCompanionRecoveryTests` 32 件、`RealDomainReloadRoundTrip` 1 件は全て Passed（base で失敗した 39 + 1 を含む）。
+  - OOM は出なかった。停止規則の発動は無し。
+- A4 / A5: 上の XML に収録され Passed（A5 の単独 run: `b54266ea` で 1 件、Passed）。
+- 副作用: Unity の初回 import が `MobileDependencyResolver` の `.pdb.meta` 5 件を消した。`git checkout --` で戻した（B と同じ）。主 checkout は develop に戻し、状態は実行前と同じ。
+- 所見: 現在の問いを阻害する欠陥は無い。後続の入力: 無し。
+- 未実行・未確認: evidence bundle の `evidence stage`（未生成。C' の起動時に作る）。
+- 生記録: ローカルの side-session-notes（`s5-base/`、`c-deep/`、`c-short/`）。
