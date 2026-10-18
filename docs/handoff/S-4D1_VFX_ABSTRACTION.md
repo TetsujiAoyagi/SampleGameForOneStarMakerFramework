@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C'`（判定 C 2 回目を新 head `447913af` で完了（§7「判定 C（2 回目）」。DR-2 版 2・DR-3 で発注者が裁定）。C' 2 巡目待ち。C' は未起動）
+- status: `C'`（2 巡目の独立監査を §8 に記録済み。blocker なし。GO / NO-GO は Phase D が判定する）
 - branch: `claude/s-4d1-vfx-abstraction`
 - implementation base commit: `ba8245f4`（`develop`、PR #134 のマージ）
 - implementation head commit: `447913af`（PR レビュー 1 巡目の B 適応 commit `fix(vfx): …`。判定 C 2 回目の GO 候補 head として固定し、ローカルの軽量 tag `evidence/s-4d1-vfx-abstraction/2` を付けた）。旧 head `4289fbf0`（Phase B の出口。判定 C の GO 候補 head として固定し、ローカルの軽量 tag `evidence/s-4d1-vfx-abstraction/1` を付けた）の §7 判定 C・§8 C' 1 巡目はこの旧 head の記録で、新 head の判定に移さない。push しない
@@ -733,6 +733,51 @@ Architecture §24（`24-rendering-system.md`、現在 366 行）に「VFX 抽象
 
 - C' の判定: blocker なし。GO / NO-GO の判定は C' では行わない（Phase D が §7 と突き合わせる）。
 - 担当・モデル: Claude Sonnet 系列（Anthropic）。Phase B・判定 C と異なるモデルで、新しい session、blind audit bundle を使った（最低条件を満たす）。強化条件（A・B・C に関与していない系列）は満たさない。F-3 の読み込みにより、`独立性制約あり` の度合いが上がる。
+
+### 2 巡目
+
+- 種別: 2 巡目（最終 C'。高コスト証拠なし）。範囲は前巡 F-1〜F-3 の解消、前巡 head `4289fbf0` → head `447913af` の修正差分（`fix.diff`、`VfxSystem.cs` ほか 4 file）とその影響経路。
+- 使用した入力: blind audit bundle 2 巡目（22 file、`manifest.json` の全 file の sha256 一致を fetch 後に確認、`commits.txt` の base `ba8245f4` / head `447913af` と取得案内が一致）。取得案内の状態は「ローカル固定済み（未昇格）」のまま、別 session で fetch・閲覧できた。
+- 読んだ範囲: `cprime/` の 2 file（前巡の指摘と裁定の版 1）、`fix.diff` 全体、`full.diff` のうち `VfxSystem.cs`・`VfxHandle.cs`（新 head の全体）、`phase-a-snapshot.md` の §2・§5・受け入れ条件の該当箇所（grep と該当行）、`phase-b-result.md` の再入に関する記述、`judge/` の RUN-NOTES・contract-audit・docs-audit・起点 filter と全 EditMode 回帰の `results.xml`・`failed-tests.txt`。
+- テストの再実行: しない。新しい Unity 起動を要する疑念は無かった。生 XML を読んだ。
+- 独立性に関する事実: HANDOFF 本文は読んでいない。行った操作は §8 / §9 の行番号の grep、§0 の `status:` 行の有無、§8 末尾の空行位置の確認（行の長さ）だけ。bundle の `full.diff` は HANDOFF の差分を含むため、grep の出力に B result と C' 前巡の記述の一部が表示された（判定 C の結論は読んでいない）。
+
+#### 現在の問いを阻害する欠陥（blocker）
+
+なし。
+
+- `BindSceneLifecycle` の修正（`VfxSystem.cs` 83〜140 行相当）を、再入点ごとに追った。(1) 前の購読の解除中に再入した差し替えが新しい購読まで終えた場合、外側は `IsBindSuperseded` で `ReleaseAll` 以降を実行せず戻る。新しい購読で受理した Scene 所有 instance は回収されない。(2) 回収中の `Destroy` から再入した場合、外側は `ClearTerminal`・`_sceneQuery` の設定・購読をしない。外側の snapshot は再入前に取った旧 instance だけで、残りの `Release` は冪等。(3) `Subscribe` 中に再入または `Dispose` された場合、外側が自分の購読をその場で解除し、`_sceneSubscription` を上書きしない。(4) 前の購読の解除が例外を投げても、回収と新しい購読へ進む。世代が進んでいるので、解除に失敗した前の購読のイベントと完了通知は `OnSceneEvent` / `OnSceneEventsCompleted` が無視する。(5) `Dispose` は印を先に立て、購読の解除と全回収を別々に捕捉する。A3 §3.1 の `Dispose` 手順（印 → 購読の Dispose → 全 snapshot の回収）、S6、I3 に適合し、二回目の `Dispose` は何もしない。
+- 修正は受理規則・`Release` の1か所の原則・`Tick` を変えない。`VfxHandle` は前巡 head から無変更。公開面の追加なし。`#nullable enable`、`record`・`Task.Delay`・`Thread.Sleep`・`ZLogger*`・`UnityEditor` の混入なし、偽 null の取り扱いも前巡と同じ。`name-status-from-freeze.txt` は Vfx 配下・`.meta`・HANDOFF 2 file・program 文書だけで、asmdef・SampleGame・既存 SceneSystem / AssetManagement の変更は無い（AC14 維持）。contract-audit は errors=0。
+- 新しい試験 `VfxSystemSceneLifecycleFaultTests`（5 件）は起点 filter・全 EditMode 回帰の双方で全件 passed。起点 filter は 87 件（前巡 82 件 + 5 件）で failed 0。再入を注入する 3 件は、修正前の実装では外側の `ClearTerminal`・`ReleaseAll`・`_sceneSubscription` の上書きに当たる順序になっており、弁別力がある。
+- `CountingSceneEventObservable` の拡張（`OnSubscribe` / `OnUnsubscribe`）は試験側のみで、`Dispose` の数え方（`UnsubscribeCount` を例外の前に増やす）は A3 の AC13 の直接観測の趣旨を保つ。
+
+#### 前巡の指摘の解消状況
+
+- F-2（AC4 (c) の読み方）: 裁定どおり実装は §2.3 / I5 と整合し、修正差分はこの読みを変えない。解消。
+- F-3（blind 性）: 裁定どおり `独立性制約あり` のまま。今回の bundle では `RUN-NOTES.md` は生の観測のみで、判定寄りの記述は無い。
+- F-1（全 EditMode 回帰の failed）: 今回の `judge/full` は 1237 件中 failed 40（前巡は 1232 件中 41）。内訳は `WorldCompanionRecoveryTests` 26・`WorldCompanionCreationTransactionTests` 13・`ObservationReloadTests` 1 で、`BuildContentDirectoryIntegrationTests` は今回 passed。Vfx の 87 件は全件 passed、失敗 40 件に Vfx 配下は無く、本スライスの差分とは交わらない。裁定（版 1）は判定必須の読み方を変えないと明記しているので、C' は裁定への異議も新しい blocker も立てない。ただし、`phase-a-snapshot.md` §5 は最終の全 EditMode 回帰を適用除外なしの判定必須とし、その成立は failed 0 で読むのが通常なので、この head の全回帰は文言どおりには未達のままである。GO を出す場合に「差分外の既知失敗を許す」扱いにするなら、凍結条件の合否を変えることになるので、決定記録ではなく Phase A の新 revision、または人間の例外承認が要る（Phase D の判断）。
+
+#### 後続スライスの入力（現スライスを拡張しない）
+
+- d2: `BindSceneLifecycle` は `IsSceneLifecycleOpen = true` を `Subscribe` の前に立てる。`Subscribe` が例外を投げた場合（実 `SceneDirector` では通常起きない）、購読が無いまま Scene 所有の `Spawn` が受理され続け、PreUnloading で回収されない。呼び出し元へ例外が伝わるので composition で観測はできるが、閉じ直す処理は無い。composition の配線時に、`Subscribe` の失敗を捕捉して閉じるかを判断する。
+- d2: `BindSceneLifecycle` の `ReleaseAll` は try で包まれていない。`VfxHandle.Release` は backend の例外を捕捉するが、`ILogger` 実装自身が例外を投げる場合は呼び出し元へ伝わり、`IsSceneLifecycleOpen` が閉じたまま残る。実 logger の契約と合わせて判断する。
+- 前巡の後続入力（Tick の確保、拒否の無言、同一 identity の再ロードの実 SceneDirector テスト、`VfxSystemOwnerTests.cs` の分割、`IVfxBackend` の契約確認）は program §6.3 の d2 / d4 へ移送済み。今回の差分でそれらの状態は変わらない。`VfxSystem.cs` は 471 行で 500 行の警報の手前、増分は 50 行（11%）。
+
+#### 監査できなかった範囲
+
+- 実 backend・実 Player・Play Mode での `VfxOwnerDestroyNotifier.OnDestroy` の実発火は凍結どおり d4 の範囲で、見ていない。
+- Unity を起動しての独立再実行はしていない。`VfxSystemSceneLifecycleFaultTests.cs` の 5 件の本文は全行を読んだが、`VfxSystemOwnerTests.cs`・`VfxHandleStateTests.cs` は前巡 head から無変更のため再読していない。
+- F-1 の失敗 40 件の原因（path 長、シェーダコンパイルの OOM 等）は、今回の bundle の生 XML では再確認していない。失敗の種別が前巡と同じ 3 fixture（1 件減）であることだけ確認した。
+
+#### 残存リスク
+
+- F-1 の全回帰が文言どおり未達のまま GO にする場合の合否の扱い（上記）。
+- 同ベンダー（Anthropic）が全 Phase に関与しているアンカリング。
+
+#### 判定と独立性
+
+- C' の判定: blocker なし。GO / NO-GO は C' では行わない（Phase D が突き合わせる）。
+- 担当・モデル: Claude Sonnet 系列（Anthropic）。Phase B・判定 C と異なるモデルで、新しい session、blind audit bundle を使った（最低条件を満たす）。強化条件（A・B・C に関与していない系列）は満たさない。独立性は 1 巡目から続く `独立性制約あり`。
 
 ## 9. Phase D
 
