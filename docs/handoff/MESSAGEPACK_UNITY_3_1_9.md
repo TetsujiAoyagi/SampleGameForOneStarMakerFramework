@@ -26,6 +26,7 @@
   - 停止規則: 現在の問いを阻害する指摘は凍結済み条件または常時契約の違反根拠を添えて B へ戻す。それ以外は後続スライスへ送る。B と発見 C の往復は 4 巡まで
   - 引き渡さないもの: なし（C' へは発見 C・判定 C の所見を渡さない）
 - Phase C / C' の担当と入口（引継ぎ票が書き換わっても残す。session の prompt には書かない）:
+  - オーケストレーター（Phase C から C' までの進行役）を置く場合: 自分ではレビュー・テスト・修正をせず、各 Phase の担当 session を順に起動し、各 session の出口で引継ぎ票と HEAD を照合して次へ進める。順序は 発見 C →（差し戻しがあれば B → 発見 C、4 巡まで）→ 判定 C → C'。担当の session は下記のモデル条件で選び、モデルの指定が無い担当や条件を満たせない担当があれば起動せずに人間へ返す。C' の session には下記の C' 用 prompt だけを渡し、発見 C・判定 C の所見、本ファイル、PR、自分の要約を渡さない。push、PR 作成、§10 決定記録の追加、Phase A の再開、Phase D、task の終了は人間の指示を待つ。停止条件（4 巡で収束しない、Phase A へ戻す条件、Unity テストの承認が得られない、照合が食い違う）に当たったら止めて人間へ返す。C' が終わったら、判定 C と C' の結果の所在を人間へ報告して終える（突合は Phase D）。
   - 発見 C と判定 C は Phase B（Claude Code、Opus 5.5、Anthropic）と異なるモデルで、それぞれ新しい session で始める。prompt は「本ファイルの §0 引継ぎ票に従い、<発見 C / 判定 C> を担当する」の一文だけとする。
   - 判定 C の作業: §5 の判定必須テストと照合（AC1〜AC10。AC10 は D1 の読み方）を GO 候補 head で実行する。Unity テストは Editor が閉じていることを確かめ、sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1`（空 filter）を起動する。GO 候補 head に軽量 tag `evidence/messagepack-unity-3-1-9/1` を付ける（push しない）。
   - 判定 C の evidence bundle: `.agents/skills/osm-workflow/references/review-evidence.md` の「保存先とリモートへの配布」に従い、task `messagepack-unity-3-1-9` に `evidence stage` で固定する。収録は完全 diff（`e7929955..<head>`）、`--name-status`、`--stat`、AC1〜AC10 の生出力、run-tests の実行ログと XML、`contract-audit` と `docs-audit` の出力。取得案内はメイン checkout の手元層（計画用の git 管理外 directory）の `MESSAGEPACK_UNITY_3_1_9.judgment-c.guide.md` に置き、本ファイルには所在と状態だけを書く。
