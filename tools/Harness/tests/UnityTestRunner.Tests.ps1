@@ -143,6 +143,21 @@ try {
     [void][IO.Directory]::CreateDirectory($root)
     $project = Join-Path $root 'project with space/unity'
     [void][IO.Directory]::CreateDirectory((Join-Path $project 'ProjectSettings'))
+    # 起動前検査は repo のルートで git と tools/path-budget.json を読む。fixture も同じ形にする。
+    # R は fixture のルートが許す最大値（ルート + R = 259）にし、temp の場所でテストの成否を変えない。
+    $fixtureRepo = Split-Path -Parent $project
+    & git -C $fixtureRepo init --quiet
+    if ($LASTEXITCODE -ne 0) { throw 'fixture の git init に失敗した' }
+    & git -C $fixtureRepo config core.longpaths true
+    $fixtureRootLength = Get-PathBudgetRootLength $fixtureRepo
+    $script:fixtureR = 259 - $fixtureRootLength
+    if ($script:fixtureR -lt 61) { throw "temp が深すぎて path 予算の fixture を作れない: $fixtureRepo" }
+    $budgetPath = Join-Path $fixtureRepo 'tools/path-budget.json'
+    [void][IO.Directory]::CreateDirectory((Split-Path -Parent $budgetPath))
+    function Set-FixtureBudget([int]$MaxLength) {
+        [IO.File]::WriteAllText($budgetPath, (ConvertTo-Json -InputObject ([ordered]@{ schemaVersion=1; maxRepoRelativePathLength=$MaxLength; vendorAllowlist=@() }) -Compress))
+    }
+    Set-FixtureBudget $script:fixtureR
     [IO.File]::WriteAllText((Join-Path $project 'ProjectSettings/ProjectVersion.txt'), 'm_EditorVersion: 6000.6.0f1')
     $settingsPath = Join-Path $project 'ProjectSettings/EditorSettings.asset'
     $script:settingsOriginal = "EditorSettings:`n  m_EnterPlayModeOptionsEnabled: 1`n  m_EnterPlayModeOptions: 1`n  m_SerializeInlineMappingsOnOneLine: 1`n  m_SomeOtherSetting: 7`n"
@@ -250,6 +265,82 @@ try {
         }
         $captured = Capture-UnityTestRun @{ ProjectPath=$project; UnityExe=$exe; OutputRoot=$outputRoot; ProcessInvoker=$intercept }
         Assert ($captured.Result.ExitCode -eq 1 -and $null -eq $captured.Result.StepPath -and $captured.Stdout -ceq '') 'step save failure passed or emitted marker'
+    }
+    # --- 起動前の path 予算検査。違反は process seam を 1 回も呼ばずに path-budget の failed step になる。
+    $script:seamCalls = 0
+    # 観測ありの step は process.id を要求するので、起動の seam は PID も返す。
+    $counting = { param($binary, $argv, $cwd) $script:seamCalls++; $observed = & $fake $binary $argv $cwd; $observed | Add-Member -NotePropertyName Id -NotePropertyValue 1234; $observed }
+    function Invoke-Counted([hashtable]$parameters) {
+        $script:seamCalls = 0
+        $parameters.ProcessInvoker = $counting
+        $result = Invoke-UnityTestRun @parameters
+        $step = if ($result.StepPath) { Get-Content $result.StepPath -Raw | ConvertFrom-Json } else { $null }
+        return [pscustomobject]@{ Result=$result; Step=$step; Calls=$script:seamCalls }
+    }
+    function Assert-BudgetRefused($run, [string]$pattern, [string]$message) {
+        Assert ($run.Calls -eq 0 -and $run.Result.ExitCode -eq 1) "$message : process was started"
+        Assert ($run.Step.name -ceq 'path-budget' -and $run.Step.status -ceq 'failed' -and @($run.Step.failure | Where-Object { $_ -match $pattern }).Count -gt 0) "$message : reason missing $(@($run.Step.failure) -join ' / ')"
+    }
+    # 予算内の deep な出力先を作る。ルートの temp の長さに依存せず、目標の長さちょうどにする。
+    function New-OutputRootOfLength([int]$length) {
+        $base = Join-Path $root 'deep'
+        $name = 'o' * ($length - $base.Length - 1)
+        if ($name.Length -lt 1 -or $name.Length -gt 200) { throw "長さ $length の出力先を作れない: $base" }
+        return Join-Path $base $name
+    }
+    $guidLength = [guid]::Empty.ToString().Length
+    Run 'path budget: root + R = 259 starts and 260 refuses' {
+        Set-FixtureBudget $script:fixtureR
+        $run = Invoke-Counted @{ ProjectPath=$project; UnityExe=$exe; OutputRoot=$outputRoot }
+        Assert ($run.Calls -eq 1 -and $run.Result.ExitCode -eq 0 -and $run.Step.name -ceq 'unity-tests') 'root at budget was refused'
+        try {
+            Set-FixtureBudget ($script:fixtureR + 1)
+            Assert-BudgetRefused (Invoke-Counted @{ ProjectPath=$project; UnityExe=$exe; OutputRoot=$outputRoot }) 'ルートが path 予算を超えて' 'root over budget'
+        } finally { Set-FixtureBudget $script:fixtureR }
+    }
+    Run 'path budget: untracked file of R + 1 refuses' {
+        # fixture 自身の file（ProjectSettings など）は収まり、追加した 1 file だけが超える長さにする。
+        $small = 60
+        $name = 'unity/' + ('u' * ($small + 1 - 'unity/'.Length - 4)) + '.txt'
+        $file = Join-Path $fixtureRepo $name
+        [IO.File]::WriteAllText($file, 'x')
+        try {
+            Set-FixtureBudget $small
+            Assert-BudgetRefused (Invoke-Counted @{ ProjectPath=$project; UnityExe=$exe; OutputRoot=$outputRoot }) ([regex]::Escape($name) + '.*' + ($small + 1) + ' 文字') 'untracked over budget'
+        } finally { [IO.File]::Delete($file); Set-FixtureBudget $script:fixtureR }
+    }
+    Run 'path budget: output path 259 starts and 260 refuses' {
+        # 観測なしで最長になるのは <OutputRoot>\<GUID>\results.xml。
+        $tail = 1 + $guidLength + 1 + 'results.xml'.Length
+        $run = Invoke-Counted @{ ProjectPath=$project; UnityExe=$exe; OutputRoot=(New-OutputRootOfLength (259 - $tail)) }
+        Assert ($run.Calls -eq 1 -and $run.Result.ExitCode -eq 0 -and $run.Step.name -ceq 'unity-tests') 'output of 259 was refused'
+        Assert-BudgetRefused (Invoke-Counted @{ ProjectPath=$project; UnityExe=$exe; OutputRoot=(New-OutputRootOfLength (260 - $tail)) }) 'results\.xml（260 文字）' 'output of 260'
+    }
+    Run 'path budget: observed run measures the writer temporary file' {
+        # 観測ありでは <OutputRoot>\<GUID>\observation-progress.json.<32 桁>.tmp が最長。XML は収まる長さで試す。
+        $tail = 1 + $guidLength + 1 + 'observation-progress.json'.Length + 1 + 32 + 4
+        $fits = Invoke-Counted @{ ProjectPath=$project; UnityExe=$exe; OutputRoot=(New-OutputRootOfLength (259 - $tail)); ObserveUnity=$true }
+        Assert ($fits.Calls -eq 1 -and $fits.Step.name -ceq 'unity-tests') 'observed temporary of 259 was refused'
+        Assert-BudgetRefused (Invoke-Counted @{ ProjectPath=$project; UnityExe=$exe; OutputRoot=(New-OutputRootOfLength (260 - $tail)); ObserveUnity=$true }) 'observation-progress\.json\.0{32}\.tmp（260 文字）' 'observed temporary of 260'
+        [IO.File]::WriteAllText($settingsPath, $script:settingsOriginal)
+    }
+    Run 'path budget: missing or invalid budget refuses' {
+        try {
+            [IO.File]::Delete($budgetPath)
+            Assert-BudgetRefused (Invoke-Counted @{ ProjectPath=$project; UnityExe=$exe; OutputRoot=$outputRoot }) '正本がありません' 'missing budget'
+            foreach ($text in @('{', '{"schemaVersion":1,"maxRepoRelativePathLength":"40","vendorAllowlist":[]}', '{"schemaVersion":1,"maxRepoRelativePathLength":40,"vendorAllowlist":["unity/Assets/"]}')) {
+                [IO.File]::WriteAllText($budgetPath, $text)
+                Assert-BudgetRefused (Invoke-Counted @{ ProjectPath=$project; UnityExe=$exe; OutputRoot=$outputRoot }) 'path 予算|maxRepoRelativePathLength|vendorAllowlist' "invalid budget $text"
+            }
+        } finally { Set-FixtureBudget $script:fixtureR }
+    }
+    Run 'path budget: non-git root refuses' {
+        $loose = Join-Path $root 'loose/unity'
+        [void][IO.Directory]::CreateDirectory((Join-Path $loose 'ProjectSettings'))
+        [IO.File]::WriteAllText((Join-Path $loose 'ProjectSettings/ProjectVersion.txt'), 'm_EditorVersion: 6000.6.0f1')
+        [void][IO.Directory]::CreateDirectory((Join-Path $root 'loose/tools'))
+        [IO.File]::Copy($budgetPath, (Join-Path $root 'loose/tools/path-budget.json'))
+        Assert-BudgetRefused (Invoke-Counted @{ ProjectPath=$loose; UnityExe=$exe; OutputRoot=$outputRoot }) 'git' 'non-git root'
     }
     # 観測runnerの終了後だけ、同GUIDの復旧記録と二行差分を照合して取得前bytesを戻す。
     Run 'observed runner restores only known EditorSettings serialization drift' {

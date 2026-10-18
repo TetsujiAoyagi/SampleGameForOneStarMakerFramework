@@ -20,6 +20,19 @@ pwsh tools/run-tests.ps1 -OutputRoot 'C:\Test Evidence\Unity'
 
 step v1 は今回の条件、Unity 実行ファイルと要求版、process の終了、XML の leaf 件数と結果、compile error、ログの hash を保存する。`cases[].reason` は XML の `reason/message` だけを写し、一般の失敗本文を表す欄ではない。`failure/message` を含む詳しい失敗内容は同じ invocation の生 `results.xml` を参照する。
 
+### 起動前の path 予算検査
+
+Windows の Unity 同梱 Mono は、260 文字以上の path を `File.OpenRead` などで開けない。runner は出力先を確保した後、Unity を起動する前に、[`tools/path-budget.json`](../path-budget.json) の予算で次を検査する。予算の数値と vendor の allowlist はこの file だけにあり、判定は [`PathBudget.psm1`](PathBudget.psm1) が持つ。contract-audit の検査 9 も同じ判定を使う。
+
+- 予算の正本が存在し、形式が正しいこと（欠落・不正値・広すぎる allowlist は失敗）。
+- checkout のルートの長さ（末尾の区切りを含む絶対 path）+ 予算の repo 相対の上限が 259 文字以内であること。置き場所は指定しない。
+- git の tracked と、未追跡で ignore されていない file の repo 相対 path が上限以内であること（allowlist の中を除く）。
+- Unity と pwsh が書く出力 path（`results.xml`、`unity.log`、`step.json`。`-ObserveUnity` では観測の各 file と、その `<path>.<32 桁>.tmp` の一時 file）が 259 文字以内であること。
+
+違反があれば Unity を起動せず、`name=path-budget`、`kind=preflight`、`status=failed` の step に超過した path と長さを残して exit 1 にする。この step は通常の `unity-tests` の step ではないので、Harness は採用しない。
+
+保証するのは起動の時点の tree と出力先だけで、起動後の tree の変更、`Library/` など ignore 対象の生成物、テストが動的に作る path、Unity native 内部のアクセスは対象外。World Workspace の companion 生成器が作る path は、EditMode の `WorldCompanionPathBudgetTests` が別に確かめる。未追跡の file（ほかの作業の残り物を含む）も検査の対象なので、長い未追跡 file があると起動前に止まる。
+
 `durationMs` は invocation 全体の単調時計の経過、`timing.processDurationMs` は process 待機、XML の時刻と duration は原値である。Unity 内 marker と実ロード assembly は `unknown` と記録する。結果の対象集合が期待集合を満たすかという gate 判定や H1 の CURRENT/receipt への接続は、この runner にはない。
 
 ## Unity 内観測（EditMode）

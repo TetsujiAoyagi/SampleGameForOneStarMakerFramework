@@ -1,7 +1,7 @@
 {
     "name": "OneStarMaker.Tests.TestObservation.Editor",
     "rootNamespace": "OneStarMaker.Tests.Editor.TestObservation",
-    "references": ["OneStarMaker.Editor.TestObservation", "UnityEditor.TestRunner", "UnityEngine.TestRunner"],
+    "references": ["OneStarMaker.Editor.TestObservation", "OneStarMaker.Runtime", "UnityEditor.TestRunner", "UnityEngine.TestRunner"],
     "includePlatforms": ["Editor"],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

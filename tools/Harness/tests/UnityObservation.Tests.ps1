@@ -163,6 +163,11 @@ try {
     $testProject=Join-Path $root 'project with space/unity'; [void][IO.Directory]::CreateDirectory((Join-Path $testProject 'ProjectSettings'))
     [IO.File]::WriteAllText((Join-Path $testProject 'ProjectSettings/ProjectVersion.txt'),'m_EditorVersion: 6000.6.0f1')
     [IO.File]::WriteAllText((Join-Path $testProject 'ProjectSettings/EditorSettings.asset'),"EditorSettings:`n  m_EnterPlayModeOptionsEnabled: 1`n  m_EnterPlayModeOptions: 1`n  m_SerializeInlineMappingsOnOneLine: 1`n")
+    # runner は起動前に repo のルートで git と tools/path-budget.json を読む。R は fixture のルートが
+    # 許す最大値にし、temp の場所でこの suite の成否を変えない。予算の検査自体は UnityTestRunner.Tests.ps1 が見る。
+    $testRepo=Split-Path -Parent $testProject; & git -C $testRepo init --quiet; if ($LASTEXITCODE -ne 0) { throw 'fixture の git init に失敗した' }
+    [void][IO.Directory]::CreateDirectory((Join-Path $testRepo 'tools'))
+    [IO.File]::WriteAllText((Join-Path $testRepo 'tools/path-budget.json'),(ConvertTo-Json -InputObject ([ordered]@{schemaVersion=1;maxRepoRelativePathLength=(259 - (Get-PathBudgetRootLength $testRepo));vendorAllowlist=@()}) -Compress))
     $exe=Join-Path $root 'Unity Folder/Unity.exe'; [void][IO.Directory]::CreateDirectory((Split-Path $exe)); [IO.File]::WriteAllText($exe,'fixture')
     $out=Join-Path $root 'output with space'
     $fake={ param($binary,$argv,$cwd)

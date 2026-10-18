@@ -4,6 +4,8 @@
 .DESCRIPTION
     各呼び出しを新しい GUID ディレクトリに保存する。結果の取得先は
     UNITY_TEST_RESULT marker の step.json。status と exitCode を読んで合否を判断する。
+    Unity の起動前に tools/path-budget.json の path 予算（ルート、管理対象の repo 相対 path、
+    出力 path）を検査し、違反があれば起動せずに name=path-budget の failed step を残す。
 .PARAMETER Filter
     -testFilter の値。空なら全 EditMode テストを実行する。
 .PARAMETER Platform
@@ -34,6 +36,7 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'Harness/UnityTestResult.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Harness/Adapters/UnityTestOutput.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Harness/UnityObservationResult.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Harness/PathBudget.psm1') -Force
 
 # process の開始・終了待機は runner が所有する。offline テストはこの内部境界だけを差し替える。
 function Invoke-UnityTestProcess {
@@ -148,6 +151,46 @@ function Complete-ObservedEditorSettings([string]$Path, [byte[]]$Before, [string
     return [pscustomobject]@{ Status=$status; Failure=$failure; BeforeSha256=$beforeHash; AfterSha256=$afterHash; RestoreSha256=$restoreHash }
 }
 
+function Get-UnityTestOutputPaths([psobject]$Output, [bool]$ObserveUnity) {
+    # Unity native が書く XML / log と、pwsh が書く step。step は pwsh 7 なら長くても書けるが、
+    # 理由付きの失敗 step を残せる長さかどうかを含めて同じ上限で判定する。
+    $paths = [Collections.Generic.List[string]]::new()
+    foreach ($path in @($Output.XmlPath, $Output.LogPath, $Output.StepPath)) { $paths.Add($path) }
+    if ($ObserveUnity) {
+        # 観測の writer は Unity 内の Mono で動き、各 file を `<path>.<32 桁の GUID>.tmp` へ書いてから
+        # 置き換える（TestObservationWriter.AtomicWrite）。最長になるのはこの一時 file。
+        foreach ($path in @($Output.ProgressPath, $Output.ObservationPath, (Join-Path $Output.Directory 'reload-settings.json'))) {
+            $paths.Add($path)
+            $paths.Add($path + '.' + ('0' * 32) + '.tmp')
+        }
+    }
+    return @($paths.ToArray())
+}
+
+function Invoke-PathBudgetPreflight {
+    # 起動の時点の tree と出力先が tools/path-budget.json の予算に収まらなければ、Unity を起動せずに
+    # path-budget の failed step を残す。予算内なら $null を返し、通常の実行へ進む。
+    # 保証するのは起動の時点だけで、起動後の tree の変更や ignore 対象の生成物は対象外。
+    param([psobject]$Output, [string]$RepoRoot, [string]$Project, [string]$Platform, [string]$Filter, [bool]$ObserveUnity, [Diagnostics.Stopwatch]$Clock)
+    try { $violations = @(Get-PathBudgetLaunchViolations -Root $RepoRoot -OutputPaths (Get-UnityTestOutputPaths $Output $ObserveUnity)) }
+    catch { $violations = @("path 予算を判定できません: $($_.Exception.Message)") }
+    if ($violations.Count -eq 0) { return $null }
+    foreach ($item in $violations) { [Console]::Error.WriteLine("path-budget: $item") }
+    try {
+        $step = [ordered]@{
+            schemaVersion=1; recordKind='unity-test-step'; invocationId=$Output.InvocationId; name='path-budget'; kind='preflight'
+            status='failed'; exitCode=1; failure=@($violations); argv=@(); cwd=$RepoRoot; projectPath=$Project; platform=$Platform; filter=$Filter
+            durationMs=$Clock.ElapsedMilliseconds
+        }
+        $stepPath = Save-UnityTestStep -Output $Output -Step $step
+        [Console]::Out.WriteLine("UNITY_TEST_RESULT $stepPath")
+        return [pscustomobject]@{ ExitCode=1; StepPath=$stepPath; Status='failed' }
+    } catch {
+        [Console]::Error.WriteLine("Unity test の step を保存できません: $($_.Exception.Message)")
+        return [pscustomobject]@{ ExitCode=1; StepPath=$null; Status='failed' }
+    }
+}
+
 function Invoke-UnityTestRun {
     param(
         [string]$Filter = '', [string]$Platform = 'EditMode', [string]$UnityRoot = 'D:\UnityEditor',
@@ -167,6 +210,9 @@ function Invoke-UnityTestRun {
         [Console]::Error.WriteLine("Unity test の出力先を確保できません: $($_.Exception.Message)")
         return [pscustomobject]@{ ExitCode=1; StepPath=$null; Status='failed' }
     }
+
+    $preflight = Invoke-PathBudgetPreflight -Output $output -RepoRoot $repoRoot -Project $project -Platform $Platform -Filter $Filter -ObserveUnity $ObserveUnity -Clock $clock
+    if ($null -ne $preflight) { return $preflight }
 
     $requestedVersion = 'unknown'
     $executableVersion = 'unknown'
