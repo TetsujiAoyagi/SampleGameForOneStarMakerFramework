@@ -3,7 +3,7 @@
 ## 0. Metadata
 
 - type: `program`
-- status: **完了（保留list付き）**。ownerが2026-10-17にArtifact Storageの開発をここで完了と決めた。完了の範囲は同一Windowsユーザー・非仮想化processで検証した基本操作と運用契約（[Artifacts README](../../tools/Artifacts/README.md)冒頭）で、次に実装するスライスは置かない。残りは§6の保留listにあり、再開条件を満たした時にownerが再開を判断する。スライスAはPR #109で実装・限定運用検証と正式C/C′を完了（両方GO、blocker 0）。固定仕様と実行集合・原観測の入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。**注記（合流前、2026-10-17の `store plan`）:** このCURRENTは仮想化されたhost（Codex）が書いた側にだけあり、実ストアには無いので、非仮想化processからは読めない。`store plan` ではこのtaskを含む単位は `hold`（理由 `dependency-held`、`multi-workflow-unit`、`reference-localcache`、`reference-missing`、`reference-out-of-role`）で未合流（§6）。旧限定resetは完了済みで、再実行しない。
+- status: **完了（保留list付き）**。ownerが2026-10-17にArtifact Storageの開発をここで完了と決めた。完了の範囲は同一Windowsユーザー・非仮想化processで検証した基本操作と運用契約（[Artifacts README](../../tools/Artifacts/README.md)冒頭）で、次に実装するスライスは置かない。残りは§6の保留listにあり、再開条件を満たした時にownerが再開を判断する。スライスAはPR #109で実装・限定運用検証と正式C/C′を完了（両方GO、blocker 0）。固定仕様と実行集合・原観測の入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。**注記（合流前、2026-10-17の `store plan`）:** このCURRENTは仮想化されたhost（Codex）が書いた側にだけあり、実ストアには無いので、非仮想化processからは読めない。`store plan` ではこのtaskを含む単位は `hold`（理由 `dependency-held`、`multi-workflow-unit`、`reference-localcache`、`reference-missing`、`reference-out-of-role`）で未合流（§6）。旧限定resetは完了済みで、再実行しない。**2026-10-18にownerが保留項目「Virtualized Host Route」を再開し**、問いを「store rootをAppData外へ移す」に置き換えたスライス `ARTIFACT_STORE_ROOT_RELOCATION.md`（Phase A）を切った。他の保留項目は再開していない。
 - program policy revision: `r7` — 単一の開発用保存契約にContent種別を追加（§2）。旧データと互換性を引き継がない。
 - branch: `codex/artifact-storage-development-policy`
 - planning base commit: `a027bf04b4f5ce16494b93daf10e5b5bccf15a28` (`origin/develop`; PR #106・#107を含む)
@@ -11,7 +11,7 @@
 - risk: `normal`（文書改訂）。リセットと削除機能の対象・検証は実装スライスで具体化する。
 - owner: OSM maintainers
 - created: 2026-09-26
-- updated: 2026-10-17
+- updated: 2026-10-18
 - expires: 2026-12-26 または置換revision（program文書の見直し期限）
 - harvest to: 実装済みの通常操作を `tools/Artifacts/README.md`、program状態を `docs/README.md` へ反映し、program完了時に削除する。 完了宣言後、Phase Dでこの文書を削除するか、保留listだけを公開面へ移すかはownerが決める。
 
@@ -183,16 +183,18 @@ ownerは2026-10-17に、Artifact Storageの開発はここで完了と決めた�
   - RC2: 同じ障害が実運用で 2 回以上起き、既存の reasonCode と README の手順で回復できなかった。
   - RC3: Cloud / 別 PC の読み手が実際に稼働を始めた（HANDOFF に担当として割り当てられた）。
   - 再開は、どれかを A0 に観測事実（日付・task・reasonCode）付きで書けた時に限る。仮定上の障害では再開しない。
+  - 2026-10-18 に owner が追加: 仮想化された host（packaged app 内の process）を Phase 担当として割り当てた事実も、RC3 と同じ種類の観測事実として扱う。希望や予定ではなく、割り当ての決定を A0 に書けた時に限る。
   - 安全上の例外: 秘密の露出、保護対象の誤削除など既存の安全契約に違反したことが確認された場合は、RC1〜RC3 を待たず初回で該当操作の利用を止め、owner が評価する。これは機能開発の再開条件ではなく、保留listの項目にもしない。
 
 ### 取得経路と配布
 
 - **Cloud・別PCからの取得** — Cloud Agent・別PCがR2からEvidenceを閲覧する経路（Evidenceは公開しない。2026-10-11 owner）と、Build・Contentの取得。論点はtokenの受け渡しで、第一候補は受け取る側の環境に読み取り専用・bucket限定のtoken（R2 Object Read only）を登録する方式。署名付きURLは発行主体（誰が親鍵を持って発行するか）とURLを届ける経路が未解決。必要な環境ごとに到達性、限定grant、無人保存/取得、ログ/画像閲覧を確認し、未成立は当該環境の未対応として残してローカル利用を止めない。親鍵を通常file/promptへ複写しない。入力: 別PC・Cloudと共有する利用中保護（R2上の保護記録）、Evidenceが参照するBuildの保護、Cloudに削除権を渡さないこと、`ready` のローカルcopyからのnetwork無しfetch、R2 lifecycleの採用、別PCのpublishを数えることとR2一覧の要否。再開: RC3。判断: owner。
-- **Virtualized Host Route** — 仮想化されたhost（Codex等）からStorageを使う新しい実行経路・保存先。資格情報の保存先・ACL・DPAPIの前提を変えうる。入力: `LocalCache\Local` が無い初回状態での判定（未観測。危険として受け入れ済み）、LocalAppData自体がjunctionのhostでの誤判定、Codex内の仮想化の仕組み。再開: RC1（仮想化hostの担当がStorageを使えずにエンジン側スライスが止まった）またはRC2。判断: owner。
+- **Virtualized Host Route（2026-10-18 に再開、問いを置換）** — 旧い問いは「仮想化されたhost（Codex等）からStorageを使う新しい実行経路・保存先」で、資格情報の保存先・ACL・DPAPIの前提を変えうるものだった。ownerはCodexデスクトップをPhase担当として割り当てる決定を再開理由とし、問いを「store rootをAppData書込み仮想化の対象外へ移す」に置き換えて `ARTIFACT_STORE_ROOT_RELOCATION.md` を切った。資格情報・ACL・DPAPIの前提は変えない。旧い入力のうち、`LocalCache\Local` が無い初回状態での判定とLocalAppData自体がjunctionのhostでの誤判定は、rootをLocalAppDataの外へ出すことで対象外になる見込みで、残るならそのスライスのA1が後続へ送る。Codex内の仮想化の仕組みの解析は行わない。
+- **store root 移設の実行と合流（後続、未着手）** — `ARTIFACT_STORE_ROOT_RELOCATION.md` のコードが merge された後に行う一回の運用スライス。実ストアの新rootへの移行（同一volumeのmoveでACLを保つか、別driveへの複写でACLを再設定するか）、移行済みの印の書込み、LocalCache側copyの新rootへの合流（下の「分裂したストアの合流」のmanifest承認を含む）、Task Schedulerの清掃jobの再登録。入口条件: 当該スライスのmerge。判断: owner（manifestの承認を含む）。
 
 ### 分裂したストア
 
-- **分裂したストアの合流（Split Store Recovery）** — `store consolidate` の実行と保留単位の解消、Harness CURRENTの合流方式。2026-10-17の読取のみの `store plan`（1回、`status: passed`）の分類は、単位20（`publish` 4・`skip` 0・`hold` 16）、`excluded` 90（`unreferenced-transfer` 77、`not-owned` 8、`out-of-scope-role` 2、`credentials` 1、`revision-locks` 1、`unrecognized` 1）。Harnessの4 taskは、`h2c-unity-gate-r2` が `publish`（理由なし・未合流）、`h1-transport-identity` と `h2c-unity-gate` が `hold`（`reference-missing`）、`artifact-evidence-lifecycle` が `hold`（`dependency-held`、`multi-workflow-unit`、`reference-localcache`、`reference-missing`、`reference-out-of-role`）。deployment単位1件が `conflict` で保留され、Evidenceを持つtask単位の多くはそれへの `dependency-held` で保留される。`passed` は manifest を書けたことだけを示し、CURRENTが読めることや合流できることを示さない。保留した単位の扱い（公開途中の不可視性を保つ方式）は、必要なら別の設計スライスに分ける。実ストアの鍵で認証に失敗した場合は資格情報の複写・置換で直さずownerへ返す。入力: `store plan`／`consolidate` の名前表に `retirements-v1` が無く `unrecognized` に載る（挙動は安全側。次に名前表を触るときに登録する）、`invalid-evidence-path` 等の仮想化以外のpath不一致の診断を `unconfirmed` から分けるか。再開: RC1（エンジン側スライスが合流前の記録を読めずに止まった）またはRC2。判断: owner（manifestの承認を含む。承認までは `consolidate` を dry-run も含めて実行しない）。
+- **分裂したストアの合流（Split Store Recovery）** — `store consolidate` の実行と保留単位の解消、Harness CURRENTの合流方式。2026-10-17の読取のみの `store plan`（1回、`status: passed`）の分類は、単位20（`publish` 4・`skip` 0・`hold` 16）、`excluded` 90（`unreferenced-transfer` 77、`not-owned` 8、`out-of-scope-role` 2、`credentials` 1、`revision-locks` 1、`unrecognized` 1）。Harnessの4 taskは、`h2c-unity-gate-r2` が `publish`（理由なし・未合流）、`h1-transport-identity` と `h2c-unity-gate` が `hold`（`reference-missing`）、`artifact-evidence-lifecycle` が `hold`（`dependency-held`、`multi-workflow-unit`、`reference-localcache`、`reference-missing`、`reference-out-of-role`）。deployment単位1件が `conflict` で保留され、Evidenceを持つtask単位の多くはそれへの `dependency-held` で保留される。`passed` は manifest を書けたことだけを示し、CURRENTが読めることや合流できることを示さない。保留した単位の扱い（公開途中の不可視性を保つ方式）は、必要なら別の設計スライスに分ける。実ストアの鍵で認証に失敗した場合は資格情報の複写・置換で直さずownerへ返す。入力: `store plan`／`consolidate` の名前表に `retirements-v1` が無く `unrecognized` に載る（挙動は安全側。次に名前表を触るときに登録する）、`invalid-evidence-path` 等の仮想化以外のpath不一致の診断を `unconfirmed` から分けるか。再開: RC1（エンジン側スライスが合流前の記録を読めずに止まった）またはRC2。判断: owner（manifestの承認を含む。承認までは `consolidate` を dry-run も含めて実行しない）。2026-10-18 の補足: store root の移設が進む間は合流先を新 root にする見込みで、旧 root へ合流してから移す二度手間を避けるため、合流の実行は上の「store root 移設の実行と合流」に寄せる。この項目の再開条件と承認手順は変えない。
 - **Codex側残置の後始末** — 合流済みの記録のCodex側copyの扱い（保持・削除・期限）。Storageの30日清掃はCodex側に届かない。定期清掃jobのbindingと、Codex側だけにある記録の清掃が行われていないことの再確認。再開: RC2（Codex側の残置が原因の障害が2回以上）。判断: owner。
 
 ### Content
