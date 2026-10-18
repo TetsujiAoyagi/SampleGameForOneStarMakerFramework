@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: slice
-- status: C' 完了（2026-10-18。§8）。次は Phase D（C / C' の突合とマージ判断）
+- status: Phase D 完了（2026-10-18。§9）。マージ前にこの HANDOFF を削除する
 - branch: `claude/longpath-editmode-regression`
 - implementation base commit: `620aff59`（origin/develop、PR #135 のマージ。2026-10-18 に `ba8245f4` から再固定した。§1 の関係する file には、その間の変更が無い）
 - implementation head commit: `b54266ea`（`b54266ea5e935ef7691719cb375c528ae591fa07`）
@@ -289,7 +289,7 @@ Phase B から A へ戻す条件:
   - `tools/Harness/PathBudget.psm1`: 予算の読み込みと検証、ルートの判定、管理対象 (1) の列挙（`git ls-files --cached --others --exclude-standard -z` を UTF-8 で読む）、超過の判定、起動前検査の組み立て。ルートが git の最上位でない場合と、git が失敗した場合も違反にする。
   - `tools/contract-audit.ps1`: 検査 9。`AUDIT_RESULT` は `checks=...,9` になる。Harness の解析（`checks=([0-9,]+)`）はそのまま通る。
   - `tools/run-tests.ps1`: 出力の作成の後、Unity の起動前に検査する。違反は `name=path-budget`、`kind=preflight` の failed step と marker にする。
-  - fixture の短縮: root を `Assets/__WCT_{token}`、identity を `T{token}_Cell` / `T{token}_Events` にした（token は 12 桁のまま）。最長の repo 相対 path は 164 文字から 127 文字になった。path の組み立ては `WorldCompanionTestScope.CreateFixturePlan` に置き、A4 のテストも同じものを使う。
+  - fixture の短縮: root を `Assets/__WCT_{token}`、identity を `T{token}_Cell` / `T{token}_Events` にした（token は 12 桁のまま）。最長の repo 相対 path（`unity/` と `.meta` を含む）は 164 文字から 130 文字になった（Phase D で訂正。当初の記録は 127 文字で、PR レビューの実測に合わせた）。path の組み立ては `WorldCompanionTestScope.CreateFixturePlan` に置き、A4 のテストも同じものを使う。
   - `WorldCompanionPathBudgetTests`（A4）: 座標は 0〜99 の格子を 1 組で探り、受理された座標を全ての季節・役割・payload と掛け合わせて、constructor と `Create` にもう一度判定させる（全組で格子を探ると、拒否の例外が約 40 万回になるため）。journal は `JournalPath` と、`Save` が並べる `.tmp` / `.bak` を含める。
   - Q2: `OneStarMaker.Tests.TestObservation.Editor` の asmdef に `OneStarMaker.Runtime` を 1 本足した。DR-1 の基準で initializer を探し、prefix は初期化しない instance で読む。`<prefix>CONTENT__RUNTIMEMODE=addressables` を Process スコープに設定し、元の値は `SessionState` に置いて、`finally` と `TearDown` の両方で戻す。完全修飾名、`AbstractApplicationInitializer`、`InvalidCompanionConfigStartupTests` は変えていない。
   - `AGENTS.md` に常時契約を 1 行、`tools/Harness/README.md` に「起動前の path 予算検査」を足した。
@@ -321,6 +321,7 @@ Phase B から A へ戻す条件:
 ## 7. 判定 C（Claude Code、Anthropic、Claude Sonnet 5.5。2026-10-18）
 
 - 対象: implementation head `b54266ea`、base `620aff59`。各 run の前に作業ツリーが clean であることを確認した。
+  - Phase D で訂正: 主 checkout の run は「tracked clean」で、ほかの session の未追跡 file が 1 つあった（`docs/handoff/` の md。R より十分短く、Unity の project の外）。§5 の Q4 の規則どおり、触れずに実行した。起動前検査は通った（step は passed）。各 run の直前の `git status --porcelain` の生記録は残していない。
 - 事前確認: Unity 非稼働・lock 無し。User / Machine / Process に `SAMPLEGAME_*` 無し（既存テストの副作用は区別して未観測）。主 checkout は develop@`620aff59`、tracked clean、未追跡は他 session の 1 file のみ。
 - 機械検査: `contract-audit.ps1`（検査 9 を含む）違反なし、`docs-audit.ps1` errors 0。offline は `contract-audit.tests.ps1` 29 PASS、`UnityTestRunner.Tests.ps1` 31 PASS。
 - S5: 深い worktree（ルート 98 文字）で base を checkout し、filter `WorldCompanion;ObservationReloadTests` を 1 回実行。53 件中 40 件が失敗した（`WorldCompanion*` 39 件は `HashFile` 経由の path 例外、`RealDomainReloadRoundTrip` 1 件は `content:runtimeMode` の例外）。
@@ -355,9 +356,28 @@ Phase B から A へ戻す条件:
   - content mode の復元が Domain Reload をまたいで必ず走ることは、head の単独 run では確認していない（全件 run では対象のテストが Passed）。
 - 監査できなかった範囲:
   - `step.json` には、commit SHA、tree が clean であること、User / Machine の `SAMPLEGAME_*` の事前確認、Q4 の一言確認が無い。C' は base と head を、短縮前の fixture 名と、head にだけある `WorldCompanionPathBudgetTests` で区別した。
-  - A5 の「単独」にあたる head の filter run は bundle に無い（実行担当の収録漏れ。判定 C の生記録の置き場に、その run の出力が無かった）。
+  - A5 の「単独」にあたる head の filter run は bundle に無い（実行担当の収録漏れ。判定 C の生記録の置き場に、その run の出力が無かった）。→ 下の「追加照合」で解消した。
   - `UnityObservation.Tests.ps1` の生出力は bundle に無い。
   - 2 つの run の leaf の集合（1238 件）は、件数と、`step.json` の一部の index（1–5、401–403、801–803、1235–1238）の fullname の一致だけを見た。全件の集合の差分は取っていない（集計の shell が拒否されたため）。
 - 独立性: B（Anthropic、Claude Opus 5.5）、C（Anthropic、Claude Sonnet 5.5）、A2 の R1 / R2（OpenAI）のどれとも異なる vendor（xAI）。Phase A〜C に関与していない。新規の session で、入力は blind bundle だけ。cursor-agent は 1 回だけ起動した（約 21 分、input 283,882 / output 64,106 / cacheRead 2,867,328 token）。
 - 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: 監査担当には無い。実行担当（Claude Opus 5.5）は §0 と §7 を読んでいるが、監査の指示文（bundle の `AUDIT.md`）には §2 と `AGENTS.md` の条件と、分類の規則だけを書き、Phase C の結論・所見・疑念候補は書いていない。
 - 担当・モデル: cursor-agent 2026.10.16-e3cb207、`--model grok-4.7-high`（Grok 4.7 256K High）、`-p --trust --output-format stream-json`、workspace は bundle の copy。2026-10-18。
+
+### 追加照合: A5 の単独 run（2026-10-18、証拠の収録不備の補完）
+
+- 経緯: PR のレビューが、上の「監査できなかった範囲」の A5 の単独 run の欠落を指摘した。原記録は判定 C を実行した worktree の `TestResults/` に残っていた（invocation `c5fa7f7f`、filter `…ObservationReloadTests.RealDomainReloadRoundTrip`）。
+- 受け取った決定記録: C' 用決定記録 版 1（2026-10-18、発注者。証拠の収録不備として扱い、元の記録を固定して A5 の範囲だけ照合させる。再実行はしない）。
+- 入力: 追加の blind bundle（同じ task に `evidence stage`、ローカル固定済み（未昇格）。fetch で 10 file の hash の一致を確認した）。中身は A3 の凍結 HANDOFF、同じ diff、単独 run の `results.xml`・`step.json`・`unity.log`、その worktree の reflog の該当部分。取得案内は §0 と同じ置き場にある。
+- 判定: A5 の単独 run の証拠として十分。blocker なし。XML の test-case は対象の 1 件だけで Passed（total 1）。step.json の filter・status・exit code、log の filter と結果の保存先は一致する。run の時間（12:20:57〜12:22:38 +09:00）は、reflog の `b54266ea` への checkout（12:20:55）と離脱（12:22:43）の間にある。
+- 残存リスク: reflog の抜粋自体は worktree の path を示さない（step.json の cwd と、ルート 98 文字で対応づけた）。reflog は秒精度。step.json の logHash は再計算していない。
+- 担当・モデル: cursor-agent、`--model grok-4.7-high`。1 回だけ起動した（約 5 分、input 52,033 / output 15,716 token）。shell は使わせていない。
+
+## 9. Phase D（2026-10-18。発注者の指示で Claude Code、Claude Opus 5.5 が実施）
+
+- C / C' の突合: どちらも、現在の問いを阻害する欠陥は無い。C' が後続へ送った 3 点（A4 の座標探索、不正 JSON の fixture の字面、DR-1 の残るリスク）は、判定 C の所見とも PR のレビューとも矛盾しない。PR のレビュー（cursor と発注者の補助レビュー）の 3 点は次のように閉じた。fixture の最長 path の数字を 130 に訂正した。§7 の「clean」の書き方を Q4 に合わせて訂正した。A5 の単独 run は §8 の追加照合で補った。
+- マージ判断: GO（発注者の指示）。
+- Evidence の保存・取得・閲覧: C' の bundle 2 つを task `editmode-regression-long-path` に `evidence stage` で固定した（ローカル固定済み（未昇格））。どちらも別 process の fetch で hash の一致と閲覧を確認し、C' の担当はその copy だけを読んだ。`evidence schedule status` は passed。
+- 取得案内の引渡し: この slice の session 群の共有 notes（git 管理外。削除予定の worktree の外）に置いた。
+- harvest: `AGENTS.md` の常時契約と `tools/Harness/README.md` の「起動前の path 予算検査」（どちらも B で反映済み）。後続スライスの候補（`RUNTIME_PATH_BUDGET`、`TEST_ENV_ISOLATION`、`OBSERVATION_LONG_PATH_BRANCH`、OOM）は PR 本文に残す。
+- 削除: この HANDOFF は、次の commit で削除する。
+- 通常の task 終了・後始末: マージの後に `workflow-task.ps1 end -Reason completed` で記録する。worktree の `TestResults/` の原記録は、bundle に固定したので消してよいが、worktree の後始末は依頼の範囲外なので残す。
