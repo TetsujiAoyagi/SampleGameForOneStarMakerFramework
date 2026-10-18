@@ -22,6 +22,16 @@ namespace OneStarMaker.Tests.Rendering.Vfx
 
         public int ActiveObserverCount => _observers.Count;
 
+        /// <summary>
+        /// 購読の登録の直後（SubscribeCore の中）に呼ばれる。Subscribe の中での再入を注入する。
+        /// </summary>
+        public Action? OnSubscribe { get; set; }
+
+        /// <summary>
+        /// 購読 disposable の Dispose の中で、数えた後に呼ばれる。解除中の再入や、解除の例外を注入する。
+        /// </summary>
+        public Action? OnUnsubscribe { get; set; }
+
         public void Emit(SceneEvent sceneEvent)
         {
             foreach (var observer in _observers.ToArray())
@@ -42,7 +52,9 @@ namespace OneStarMaker.Tests.Rendering.Vfx
         {
             SubscribeCount++;
             _observers.Add(observer);
-            return new Subscription(this, observer);
+            var subscription = new Subscription(this, observer);
+            OnSubscribe?.Invoke();
+            return subscription;
         }
 
         private sealed class Subscription : IDisposable
@@ -67,6 +79,7 @@ namespace OneStarMaker.Tests.Rendering.Vfx
                 _disposed = true;
                 _owner.UnsubscribeCount++;
                 _owner._observers.Remove(_observer);
+                _owner.OnUnsubscribe?.Invoke();
             }
         }
     }

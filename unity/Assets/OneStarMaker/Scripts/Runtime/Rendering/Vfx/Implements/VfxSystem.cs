@@ -97,22 +97,41 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
             var generation = ++_bindGeneration;
             var previous = _sceneSubscription;
             _sceneSubscription = null;
-            previous?.Dispose();
-            ReleaseAll(_index.SnapshotSceneOwned());
-            _index.ClearTerminal();
 
-            if (_disposed || generation != _bindGeneration)
+            // 前の購読の解除が失敗しても、回収と新しい購読は続ける。ここで止めると既存の Scene 所有 instance が
+            // 回収されず、世代が進んだ前の購読のイベントは無視されるので、その Scene の終端でも回収されなくなる。
+            // 解除に失敗した前の購読がイベントを送り続けても、世代の検査で無視される。
+            DisposeSceneSubscription(previous);
+
+            // 再入点（前の購読の解除、回収中の backend Destroy、Subscribe）の後ごとに世代を確かめる。
+            // 再入した BindSceneLifecycle が新しい購読まで終えていたら、それ以降の回収・終端中の記録の消去・
+            // 購読は新しい購読の状態を壊す（新しい購読で受理した Scene 所有の回収、新しく受けた終端の消去）。
+            if (IsBindSuperseded(generation))
             {
-                // 回収中の再入で Dispose された、または更に差し替えられた。
                 return;
             }
 
+            ReleaseAll(_index.SnapshotSceneOwned());
+            if (IsBindSuperseded(generation))
+            {
+                return;
+            }
+
+            _index.ClearTerminal();
             _sceneQuery = sceneQuery;
             // 購読より先に開く。完了済みの Observable は Subscribe の中で OnCompleted を出し、そこで閉じる。
             _index.IsSceneLifecycleOpen = true;
-            _sceneSubscription = sceneEvents.Subscribe(
+            var subscription = sceneEvents.Subscribe(
                 e => OnSceneEvent(generation, e),
                 _ => OnSceneEventsCompleted(generation));
+            if (IsBindSuperseded(generation))
+            {
+                // Subscribe の中の再入で Dispose された、または更に差し替えられた。この購読は誰も解除しなくなるので、ここで解除する。
+                DisposeSceneSubscription(subscription);
+                return;
+            }
+
+            _sceneSubscription = subscription;
         }
 
         public IVfxHandle Spawn(in VfxSpawnRequest request, AssetOwner owner)
@@ -226,9 +245,12 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
             _index.IsSceneLifecycleOpen = false;
             var subscription = _sceneSubscription;
             _sceneSubscription = null;
+
+            // 購読の解除と回収は別々に捕捉する。解除の失敗で全 instance の回収が飛ぶと、印が立っているので
+            // 二回目の Dispose でも回収できなくなる。
+            DisposeSceneSubscription(subscription);
             try
             {
-                subscription?.Dispose();
                 ReleaseAll(_index.SnapshotAll());
             }
             catch (Exception e)
@@ -414,6 +436,20 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
             // 終端中集合への登録を回収より先に行う。回収中の Destroy から再入した Spawn をこれで拒否する。
             _index.EnterTerminal(sceneIdentity);
             ReleaseAll(_index.SnapshotOwner(AssetOwner.Scene(sceneIdentity)));
+        }
+
+        private bool IsBindSuperseded(int generation) => _disposed || generation != _bindGeneration;
+
+        private void DisposeSceneSubscription(IDisposable? subscription)
+        {
+            try
+            {
+                subscription?.Dispose();
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "[VfxSystem] Unsubscribing from scene events failed.");
+            }
         }
 
         private static void ReleaseAll(List<VfxHandle> handles)

@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `D`（C' 完了。2026-10-18 に発注者が F-1〜F-3 を裁定（§9）。PR 作成、マージ待ち）
+- status: `C`（判定 C 待ち。PR #135 のレビュー 1 巡目の指摘 2 件を B 適応で修正した（§6「PR レビュー 1 巡目の B 適応」）。新 head で判定 C と C' 2 巡目をやり直す。2026-10-18 に発注者が指示）
 - branch: `claude/s-4d1-vfx-abstraction`
 - implementation base commit: `ba8245f4`（`develop`、PR #134 のマージ）
-- implementation head commit: `4289fbf0`（Phase B の出口。判定 C の GO 候補 head として固定し、ローカルの軽量 tag `evidence/s-4d1-vfx-abstraction/1` を付けた。push しない）
+- implementation head commit: PR レビュー 1 巡目の B 適応 commit（本書のこの記載を含む `fix(vfx): …` の commit。自分の SHA を本文に書けないので、`git log -1 --format=%H -- unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Vfx/Implements/VfxSystem.cs` を正とする）。旧 head `4289fbf0`（Phase B の出口。判定 C の GO 候補 head として固定し、ローカルの軽量 tag `evidence/s-4d1-vfx-abstraction/1` を付けた）の §7 判定 C・§8 C' 1 巡目はこの旧 head の記録で、新 head の判定に移さない。push しない
 - risk: `high`（Framework の公開 API、所有者・寿命、Scene lifecycle 通知への新しい購読者）
 - owner: 発注者 / S-4d1 担当
 - created: 2026-10-17
@@ -19,7 +19,15 @@
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の bundle 1 件（commit 固定 base `ba8245f4` / head `4289fbf0`、19 file。発見 C・判定 C の所見と DR-1 を含まない）を task `s-4d1-vfx-abstraction` に `evidence stage` で固定し、送信側で fetch と manifest の全 hash 一致を確認した。取得案内は主 checkout の git 管理外 `TestResults/s-4d1-vfx-stage/retrieval-guide.md`（本 worktree の同 path に写し）。発見 C の起点 filter の原 source は `TestResults/` に残したまま（判定 C の bundle には判定 C 自身の実行を収録）。
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 evidence bundle と同一（同じ commit から生成、発見 C・判定 C の所見と DR-1・DR-2 を含まない）。C' 用の案内は主 checkout の git 管理外 `TestResults/s-4d1-vfx-stage/cprime-retrieval-guide.md`（本 worktree の同 path に写し）。C' 担当には案内の path だけを渡し、本書・§7・決定記録は渡さない。
 - Phase B result snapshot の取得案内・状態: ローカル固定済み（未昇格）。判定 evidence bundle に `phase-b-result.md`（B 出口の記録 commit `19dd5255` 版、所見なし）として収録。
-- 引継ぎ票（Phase D へ）:
+- 引継ぎ票（PR レビュー 1 巡目の B 適応 → 判定 C）:
+  - 前の Phase の結果: PR #135 のレビュー 1 巡目の指摘 2 件（`VfxSystem.Dispose` の購読解除の例外で回収が飛ぶ、`BindSceneLifecycle` の世代検査が回収・終端中記録の消去より後）を B 適応として 1 commit で修正し、異常系テスト 5 件を新しいテストファイルに足した（§6「PR レビュー 1 巡目の B 適応」）。公開型・公開メンバー・asmdef・SampleGame・既存の SceneSystem / AssetManagement の変更なし。Editor のコンパイル確認済み、Unity テストは未実行。
+  - 次の Phase・役割: 判定 C（新 head の判定必須テストの実行と判定）。その後に C' 2 巡目（前巡指摘の解消と修正差分を中心に監査）。発注者の指示（2026-10-18）による。
+  - 次の作業: (1) 新 head で evidence bundle を作り直す（旧 bundle と tag `evidence/s-4d1-vfx-abstraction/1` は旧 head `4289fbf0` の記録で、新 head の判定に流用しない）。(2) 判定必須テスト（§5）をやり直す: 起点 filter `OneStarMaker.Tests.Rendering.Vfx`（XML で `VfxSystemSceneLifecycleFaultTests` の 5 件を含むことを確認。旧 head の 82 件 + 5 件）と最終の全 EditMode 回帰（空 filter）。DR-2 の差分外 41 件の扱いは変わらない（全回帰で同じ fixture が落ちた場合の読み方）。(3) 新 head に軽量 tag `evidence/s-4d1-vfx-abstraction/2` を付け、C' 2 巡目用の blind bundle を同じ commit から作る。
+  - 引き継ぐ commit: 上記の implementation head（B 適応 commit）。作業ツリーは clean で引き渡す。push していない（PR #135 の状態ブロックも未更新。公開点の 1 巡 1 commit として、判定 C・C' 後に push と状態ブロックの更新を行う）。
+  - 入力の状態: 新 head の evidence bundle は未生成。
+  - 停止規則: PR レビュー 1 巡目の修正として扱う。巡の数え方と差し戻し上限は osm-workflow の Phase C に従う。
+  - 必要な権限: Unity テストは sandbox 外の承認済み経路。`evidence stage` は Artifacts README の事前承認の範囲。
+- （旧）引継ぎ票（Phase D へ。PR レビュー 1 巡目の B 適応で置き換えた。記録として残す）:
   - 前の Phase の結果: C' 1 巡目（最終 C'）完了。blocker なし（§8）。GO 候補 head `4289fbf0`（tag `evidence/s-4d1-vfx-abstraction/1`）。C' の記録 commit はこの head の上に載るが implementation head は変えない。
   - 次の Phase・役割: Phase D（人間）。判定 C（§7）と C'（§8）を初めて突き合わせ、マージ判断をする。
   - 次の作業: (1) §8 の要判断 F-1（全 EditMode 回帰 failed 41 件。短い path の checkout で取り直すか、決定記録で読み方を確定するか）、F-2（AC4 (c) の文言の読み方の確定）、F-3（C' の blind 性の弱まりの扱い）を裁定する。(2) §8 の後続入力を、所有スライス（d2・d4）の HANDOFF / program へ移送する。(3) 保存・引渡し確認、harvest（Architecture §24）、HANDOFF 削除、task 終了は Phase D の既存手順に従う。
@@ -557,6 +565,27 @@ Architecture §24（`24-rendering-system.md`、現在 366 行）に「VFX 抽象
 - AC6 (b) の終端通知（`PreUnloading` / `LoadCanceled` のどちらか）: テストは観測した方を `TestContext.Out` に出す。Phase B ではテストを実行しないので**未観測**。Phase C の結果 XML の出力から記録する。
 - `pwsh tools/contract-audit.ps1`: errors=0 warnings=0（検査1 の差分 16 ファイル）。
 - 未実行: Unity テスト（`pwsh tools/run-tests.ps1`。Phase C）、Build、動作確認（§5 で `対象なし`）。
+
+### PR レビュー 1 巡目の B 適応（2026-10-18）
+
+発注者の指示（2026-10-18、チャット）: 「2 件を B 適応として 1 commit で直して（異常系テストも足す）、新 head で判定 C と C' 2 巡目をやり直して。」対象は PR #135 の `Implements/VfxSystem.cs`。どちらも §2.1 の不変条件・§2.2 / §2.3 の手順を満たすための実装の修正で、公開面・状態・所有者・寿命を増やさないので B 適応とし、Phase A は再開しない。
+
+- **指摘 1（`Dispose` の購読解除の例外で回収が飛ぶ）:** 旧実装は `subscription?.Dispose()` と `ReleaseAll(_index.SnapshotAll())` を同じ try に並べていた。購読の Dispose が例外を投げると回収がまるごと飛び、`_disposed=true` なので二回目の `Dispose` でも回収できない（I1・S6・AC13 に反する）。
+  - 直し方: 購読の解除を `DisposeSceneSubscription`（private。例外を捕捉して Error ログ1件）に分け、回収は別の try で必ず実行する。
+  - `BindSceneLifecycle` の `previous?.Dispose()` も同じ helper で捕捉し、回収・終端中記録の消去・新しい購読を続ける。I3 との関係: 購読 disposable の例外は backend 由来ではないので I3 の「投げない」の対象外で、I3 だけを根拠にはしない。それでも捕捉するのは、例外を呼び出し元へ漏らすと、§2.3 の差し替えの手順（前の購読の Dispose → 既存の全 `Scene(id)` 所有 handle の回収 → 終端中集合を空に）が途中で止まるからである。止まると、世代が進んでいるので前の購読のイベントは無視され、新しい購読も無いので、既存の Scene 所有 instance はその Scene の終端でも回収されない（I1 違反）。また `IsSceneLifecycleOpen=false` のまま残る。解除に失敗した前の購読がイベントを送り続けても、世代の検査で無視されるので、続行しても二重処理は起きない。`Dispose` の既存の try が backend 以外の例外も捕捉している方針とも揃う。
+- **指摘 2（`BindSceneLifecycle` の世代検査が回収と終端中記録の消去より後）:** 回収中の backend `Destroy` から `BindSceneLifecycle` が再入して新しい購読まで終えると、(a) 新しい購読で `PreUnloading` を受けた Scene の終端中の記録を外側の `ClearTerminal` が消し、その Scene への `Spawn` が `Create` を呼ぶ（I5 違反）、(b) `previous.Dispose()` の中で再入した場合は、外側の `ReleaseAll` が新しい購読で受理した Scene 所有の instance まで回収する。
+  - 直し方: 再入点（前の購読の解除、回収中の backend `Destroy`、`Subscribe`）の後ごとに `IsBindSuperseded(generation)`（`_disposed` または世代の変化）を確かめ、変わっていればそれ以降（`ReleaseAll` / `ClearTerminal` / 購読の保存）を実行せずに戻る。
+  - 同じ考え方で `Subscribe` の後にも検査を置いた。`Subscribe` の中で `BindSceneLifecycle` が再入（または `Dispose`）すると、旧実装は外側の購読で `_sceneSubscription` を上書きし、内側の購読が誰にも解除されなくなっていた（AC13 の購読解除に反する）。検査で変わっていれば、外側は自分の購読をその場で解除して戻る。
+- 変更ファイル: `Implements/VfxSystem.cs`（471 行。private の `IsBindSuperseded` / `DisposeSceneSubscription` を追加）、テスト用の `CountingSceneEventObservable.cs`（再入・例外の注入口 `OnSubscribe` / `OnUnsubscribe` を追加）、新しいテスト `VfxSystemSceneLifecycleFaultTests.cs` とその `.meta`（Editor が生成）、本書。公開型・公開メンバー・asmdef・SampleGame・既存の SceneSystem / AssetManagement の変更なし。テストを新しいファイルにしたのは、`VfxSystemOwnerTests.cs`（828 行）が既に 500 行の警報に当たるため（§8 の構造の入力）。
+- 足したテスト（`VfxSystemSceneLifecycleFaultTests`、5 件）と、旧実装で落ちる箇所（旧実装の手順をテストの順序で追跡して確かめた。Unity テストは実行していない）:
+  1. `Dispose_WhenUnsubscribeThrows_StillReleasesEveryInstance`（指摘 1）: App / Manual / Scene / Bind 所有の各 instance の `Destroy`=1、索引 0、Error 1 件、二回目の `Dispose` で `Destroy` 不変。旧実装は回収が飛んで `Destroy`=0 となり落ちる。
+  2. `Rebind_WhenPreviousUnsubscribeThrows_ReleasesSceneOwned_AndOpensNewLifecycle`（指摘 1 の `BindSceneLifecycle` 側）: 例外を漏らさない、既存の Scene 所有の `Destroy`=1、終端中だった Scene B を受理、新しい購読のイベントで回収。旧実装は例外が漏れて `Assert.DoesNotThrow` で落ちる。
+  3. `Rebind_ReenteredFromDestroy_KeepsTerminalReceivedByNewSubscription`（指摘 2 (a)）: 回収中の `Destroy` から再入した差し替えが新しい購読で Scene B の `PreUnloading` を受けた後、Scene B への `Spawn` の `Create`=0。旧実装は外側の `ClearTerminal` が記録を消して `Create`=1 となり落ちる。
+  4. `Rebind_ReenteredFromPreviousUnsubscribe_KeepsInstanceAcceptedByNewSubscription`（指摘 2 (b)）: 前の購読の解除の中で再入した差し替えのもとで受理した instance の `Destroy`=0・`IsActive=true`。旧実装は外側の `ReleaseAll` が回収して `Destroy`=1 となり落ちる。
+  5. `Rebind_ReenteredFromSubscribe_KeepsOnlyTheInnerSubscription`（`Subscribe` 中の再入）: 外側の購読は解除 1、内側の購読は残り、`Dispose` で解除 1。旧実装は外側の購読が残り（解除 0）落ちる。
+  - 1・2 が旧実装で落ちるのは、R3 の `Observer.Dispose` が上流の購読 disposable の例外を呼び出し元へ伝える前提による（PR の指摘と同じ前提）。判定 C の XML で新しいテストの合格を確かめる。旧実装での実行による失敗の観測は行っていない。
+- 観測: Editor でのコンパイル（2026-10-18、この worktree の project を Unity 6000.6.0f1 で起動）。`Tundra build success`、`error CS` 0 件、`OneStarMaker.Runtime.dll` に `IsBindSuperseded` / `DisposeSceneSubscription`、`OneStarMaker.Tests.dll` に新しいテストクラスとテスト名が入ったことを確認。Package Manager の busy（Hub の IPC timeout）が解けた後に Editor を正常終了させた（lockfile 消滅を確認）。import の副作用の `unity/Assets/MobileDependencyResolver/` の `.pdb.meta` 5 件の削除は `git checkout` で戻した。`pwsh tools/contract-audit.ps1`: errors=0 warnings=0（検査1 の差分 17 ファイル）。`pwsh tools/docs-audit.ps1`: errors=0 warnings=1（検査3「§7 / §8 が両方埋まっている。harvest の頃合い」。本書の既存状態で、本修正とは無関係）。
+- 未実行: Unity テスト（起点 filter・全 EditMode 回帰。判定 C）、Build、PR #135 の状態ブロックの更新と push。
 
 ## 7. Phase C
 
