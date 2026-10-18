@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C`（判定 C 待ち。PR #135 のレビュー 1 巡目の指摘 2 件を B 適応で修正した（§6「PR レビュー 1 巡目の B 適応」）。新 head で判定 C と C' 2 巡目をやり直す。2026-10-18 に発注者が指示）
+- status: `C`（判定 C 2 回目を新 head `447913af` で実施済み（§7「判定 C（2 回目）」）。判定必須テストと機械検査は実行済みで、本スライスに帰属する不合格は 0。完了の記録は発注者の確認 2 点（DR-2 の部分集合への適用、AC14 (a) の program 文書の扱い）待ち。C' 2 巡目は未起動）
 - branch: `claude/s-4d1-vfx-abstraction`
 - implementation base commit: `ba8245f4`（`develop`、PR #134 のマージ）
-- implementation head commit: PR レビュー 1 巡目の B 適応 commit（本書のこの記載を含む `fix(vfx): …` の commit。自分の SHA を本文に書けないので、`git log -1 --format=%H -- unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Vfx/Implements/VfxSystem.cs` を正とする）。旧 head `4289fbf0`（Phase B の出口。判定 C の GO 候補 head として固定し、ローカルの軽量 tag `evidence/s-4d1-vfx-abstraction/1` を付けた）の §7 判定 C・§8 C' 1 巡目はこの旧 head の記録で、新 head の判定に移さない。push しない
+- implementation head commit: `447913af`（PR レビュー 1 巡目の B 適応 commit `fix(vfx): …`。判定 C 2 回目の GO 候補 head として固定し、ローカルの軽量 tag `evidence/s-4d1-vfx-abstraction/2` を付けた）。旧 head `4289fbf0`（Phase B の出口。判定 C の GO 候補 head として固定し、ローカルの軽量 tag `evidence/s-4d1-vfx-abstraction/1` を付けた）の §7 判定 C・§8 C' 1 巡目はこの旧 head の記録で、新 head の判定に移さない。push しない
 - risk: `high`（Framework の公開 API、所有者・寿命、Scene lifecycle 通知への新しい購読者）
 - owner: 発注者 / S-4d1 担当
 - created: 2026-10-17
@@ -16,10 +16,20 @@
 - harvest to: Architecture §24（Rendering）へ「VFX 抽象」の節を追加する。§05（Scene）は変更しない（§3.4）
 - workflow task: `s-4d1-vfx-abstraction`（2026-10-17 に `workflow-task.ps1 start` 済み。Phase B で再度 start しない）
 - Phase A snapshot の取得案内・状態: 確認済み。A2 入力版は commit `01f48d3c`（content sha256 は §5「A2 独立レビュー」）。**A3 凍結版は commit `1462b14c`、本書の content sha256 `2078f87a5b253c88ff5f5cbf2eda422777810c69dabe1306ebca2875dcda6fe4`**（`git show 1462b14c:docs/handoff/S-4D1_VFX_ABSTRACTION.md` の LF 内容の sha256。この値は凍結版を指し、これを書き足した後の本書は指さない）。凍結 commit は program（`S-4_FULL_SPEC_WORLD_AUTHORING.md` の §6.3・§6.4・§10）の更新も含む。凍結 commit の後の記録用 commit はこの §0 だけを変え、凍結条件を変えない。文書だけなので stage は不要
-- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の bundle 1 件（commit 固定 base `ba8245f4` / head `4289fbf0`、19 file。発見 C・判定 C の所見と DR-1 を含まない）を task `s-4d1-vfx-abstraction` に `evidence stage` で固定し、送信側で fetch と manifest の全 hash 一致を確認した。取得案内は主 checkout の git 管理外 `TestResults/s-4d1-vfx-stage/retrieval-guide.md`（本 worktree の同 path に写し）。発見 C の起点 filter の原 source は `TestResults/` に残したまま（判定 C の bundle には判定 C 自身の実行を収録）。
-- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 evidence bundle と同一（同じ commit から生成、発見 C・判定 C の所見と DR-1・DR-2 を含まない）。C' 用の案内は主 checkout の git 管理外 `TestResults/s-4d1-vfx-stage/cprime-retrieval-guide.md`（本 worktree の同 path に写し）。C' 担当には案内の path だけを渡し、本書・§7・決定記録は渡さない。
+- evidence bundle（新 head）の取得案内・状態: ローカル固定済み（未昇格）。判定 C 2 回目の bundle 1 件（commit 固定 base `ba8245f4` / head `447913af`、23 file。発見 C・判定 C の所見、DR-1・DR-2、PR のレビューコメントを含まない。C' 1 巡目の記録と F-1〜F-3 への裁定は `cprime/` に収録）を task `s-4d1-vfx-abstraction` に `evidence stage` で固定し、別 process の fetch で manifest の全 hash 一致を確認した。取得案内は主 checkout の git 管理外 `TestResults/s-4d1-vfx-stage/retrieval-guide-2.md`（本 worktree の同 path に写し）。
+- C' blind bundle（新 head、2 巡目用）の取得案内・状態: ローカル固定済み（未昇格）。上の bundle と同一。C' 用の案内は主 checkout の git 管理外 `TestResults/s-4d1-vfx-stage/cprime-retrieval-guide-2.md`（本 worktree の同 path に写し）。C' 担当には案内の path だけを渡し、本書・§7・§9 は渡さない。
+- （旧 head `4289fbf0` の）evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の bundle 1 件（commit 固定 base `ba8245f4` / head `4289fbf0`、19 file。発見 C・判定 C の所見と DR-1 を含まない）を task `s-4d1-vfx-abstraction` に `evidence stage` で固定し、送信側で fetch と manifest の全 hash 一致を確認した。取得案内は主 checkout の git 管理外 `TestResults/s-4d1-vfx-stage/retrieval-guide.md`（本 worktree の同 path に写し）。発見 C の起点 filter の原 source は `TestResults/` に残したまま（判定 C の bundle には判定 C 自身の実行を収録）。
+- （旧 head `4289fbf0` の）C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 evidence bundle と同一（同じ commit から生成、発見 C・判定 C の所見と DR-1・DR-2 を含まない）。C' 用の案内は主 checkout の git 管理外 `TestResults/s-4d1-vfx-stage/cprime-retrieval-guide.md`（本 worktree の同 path に写し）。C' 1 巡目で使用済み。
 - Phase B result snapshot の取得案内・状態: ローカル固定済み（未昇格）。判定 evidence bundle に `phase-b-result.md`（B 出口の記録 commit `19dd5255` 版、所見なし）として収録。
-- 引継ぎ票（PR レビュー 1 巡目の B 適応 → 判定 C）:
+- 引継ぎ票（判定 C 2 回目 → 発注者の確認 → C' 2 巡目）:
+  - 前の Phase の結果: 判定 C 2 回目を head `447913af` で実施（§7「判定 C（2 回目）」）。起点 filter 87/87 passed（旧 82 + 新 5）、全 EditMode 回帰 1,237 件中 failed 40（全て DR-2 の 41 件の真部分集合。新規の失敗 0、shader compile OOM の 1 件は今回 passed）、contract-audit errors=0、AC14 の機械確認は (a) に文言外の 1 file（program 文書。Phase D の裁定 commit `41ed5bf3` の 4 行、docs のみ）。修正差分（VfxSystem.cs とテスト 2 ファイル）の構造・契約の所見は blocker 0。新テスト 5 件は新 head で passed、旧実装（`VfxSystem.cs` だけを `4289fbf0` に戻した限定実行）で 5/5 failed。R3 の購読 Dispose が上流の例外を呼び出し元へ伝える前提は静的（reflection）と実行の両方で成立。
+  - 次の役割・作業: (1) 発注者の確認 2 点。(a) DR-2 の読み方を、失敗集合が「同じ 41 件」ではなく「その真部分集合 40 件（新規失敗 0）」の場合にも適用するか。(b) AC14 (a)「A3 凍結 commit → head の差分が Vfx 配下・フォルダ `.meta`・本書に閉じる」に対し、Phase D の裁定 commit `41ed5bf3` が `S-4_FULL_SPEC_WORLD_AUTHORING.md` §6.3 の d2・d4 行へ後続入力を移した 4 行（docs のみ、コード・asmdef・SampleGame の変更なし）が head に含まれる点の読み方（決定記録 DR-3 として「判定必須の読み方を変えずに AC14 (a) の許容に Phase D の裁定 commit の program 文書を加える」か、別の裁定か）。どちらも凍結条件の意味・合否を変えない読み方の確定なら決定記録、変えるなら Phase A の新 revision。(2) 確認後、判定 C の完了を §7 と本票に記録し、C' 2 巡目（Phase B・判定 C と異なるモデル、新しい session）を起動する。C' には `cprime-retrieval-guide-2.md` の path だけを渡す。
+  - 引き継ぐ commit: implementation head `447913af`（tag `evidence/s-4d1-vfx-abstraction/2`）。本書の記録 commit はその上に載るが head は変えない。作業ツリーは clean。push していない（PR #135 の状態ブロックも未更新）。
+  - 入力の状態: 新 head の evidence bundle / C' blind bundle はローカル固定済み（未昇格）、別 process の fetch で全 hash 一致を確認済み。
+  - 停止規則: osm-workflow の Phase C。判定 C は判定必須の読み方を自分で緩めない（確認 2 点を自分で裁定しない）。C' の差し戻し上限 3 巡のうち 0 巡（PR レビューの修正は C' の巡に数えない）。
+  - 必要な権限: C' は Unity の再実行を必須にしない。再実行する場合は sandbox 外の承認済み経路。
+  - 引き渡さないもの: 発見 C・判定 C の所見（§7）、DR-1・DR-2、§9、PR #135 のコメントは C' に渡さない。判定 C 2 回目で起動した Unity 3 process は全て正常終了（残留なし）。
+- （旧）引継ぎ票（PR レビュー 1 巡目の B 適応 → 判定 C。判定 C 2 回目で置き換えた。記録として残す）:
   - 前の Phase の結果: PR #135 のレビュー 1 巡目の指摘 2 件（`VfxSystem.Dispose` の購読解除の例外で回収が飛ぶ、`BindSceneLifecycle` の世代検査が回収・終端中記録の消去より後）を B 適応として 1 commit で修正し、異常系テスト 5 件を新しいテストファイルに足した（§6「PR レビュー 1 巡目の B 適応」）。公開型・公開メンバー・asmdef・SampleGame・既存の SceneSystem / AssetManagement の変更なし。Editor のコンパイル確認済み、Unity テストは未実行。
   - 次の Phase・役割: 判定 C（新 head の判定必須テストの実行と判定）。その後に C' 2 巡目（前巡指摘の解消と修正差分を中心に監査）。発注者の指示（2026-10-18）による。
   - 次の作業: (1) 新 head で evidence bundle を作り直す（旧 bundle と tag `evidence/s-4d1-vfx-abstraction/1` は旧 head `4289fbf0` の記録で、新 head の判定に流用しない）。(2) 判定必須テスト（§5）をやり直す: 起点 filter `OneStarMaker.Tests.Rendering.Vfx`（XML で `VfxSystemSceneLifecycleFaultTests` の 5 件を含むことを確認。旧 head の 82 件 + 5 件）と最終の全 EditMode 回帰（空 filter）。DR-2 の差分外 41 件の扱いは変わらない（全回帰で同じ fixture が落ちた場合の読み方）。(3) 新 head に軽量 tag `evidence/s-4d1-vfx-abstraction/2` を付け、C' 2 巡目用の blind bundle を同じ commit から作る。
@@ -639,6 +649,32 @@ Architecture §24（`24-rendering-system.md`、現在 366 行）に「VFX 抽象
 - 後続・人間へ返す事項: 全 EditMode 回帰の failed 41 件の扱い（§0 の引継ぎ票）。発見 C の C-01〜C-06 はそのまま後続入力。
 - 判定: **判定 C 完了（GO 候補 head `4289fbf0`）。** 初回記録時は「判定必須の全 EditMode 回帰が failed 0 でない」として未完了にしたが、DR-2 により failed 41 件を本スライスの差分外と裁定（本スライスに帰属する不合格は 0、I1〜I7・S1〜S6・AC1〜AC14 の合否は変わらない）。判定 C の結論・所見は C' 完了まで C' に渡さない。C' の起動はオーケストレーターが行う（判定 C は起動しない）。
 - 担当・モデル: 判断担当と実行担当は同一（Claude Fable 系列、Anthropic。Phase B・発見 C とは別の新しい session。発見 C と同系列）。
+
+### 判定 C（2 回目、2026-10-18、head `447913af`）
+
+- 種別: 判定（PR レビュー 1 巡目の B 適応後の GO 候補 head `447913af`。旧 head `4289fbf0` の判定・C' は [判定後の head 変更] により新 head に流用しない）。**判定必須テストと機械検査は実行済み。本スライスに帰属する不合格 0。完了の記録は発注者の確認 2 点（下記「人間へ返す事項」）待ち。** C' は起動していない。
+- 使用した evidence の取得案内・状態: ローカル固定済み（未昇格）。commit 固定（base `ba8245f4` / head `447913af`）の bundle 1 件（23 file）を task `s-4d1-vfx-abstraction` に `evidence stage` で固定し、別 process の fetch で manifest の全 hash 一致（22 file + manifest）を確認した。取得案内は `TestResults/s-4d1-vfx-stage/retrieval-guide-2.md`（主 checkout と本 worktree）。bundle は発見 C・判定 C の所見、DR-1・DR-2、PR のレビューコメントを含まない（`judge/RUN-NOTES.md` にも差分内外の判断を書いていない）。head に軽量 tag `evidence/s-4d1-vfx-abstraction/2` を付けた（push しない）。
+- 開始時の照合: branch `claude/s-4d1-vfx-abstraction` の既存 worktree。HEAD `447913af` = §0 の implementation head（`git log -1 -- …/VfxSystem.cs` と一致）。作業ツリー clean。Unity process 0・lockfile 不在を確認してから起動。DR-1・DR-2 は §2 に記録済み。
+- **修正差分（`4289fbf0` → `447913af`、`VfxSystem.cs` 50 行・`CountingSceneEventObservable.cs` 15 行・新テスト 244 行）の構造・契約の所見（発見 C を通っていないので判定の前に読んだ）:**
+  - 構造: 公開型・公開メンバーの増減なし（diff に `public` の行なし）。private の `IsBindSuperseded` / `DisposeSceneSubscription` を追加。`VfxSystem.cs` 471 行（500 行未満）、責務は §3.1 の一行のまま。テストは新ファイル（`VfxSystemOwnerTests.cs` が 828 行なので分けた理由は妥当）。`CountingSceneEventObservable` の `OnSubscribe` / `OnUnsubscribe` はテスト専用の注入口で Runtime に影響しない。asmdef・SampleGame・既存 SceneSystem / AssetManagement の変更なし。
+  - `Dispose`（§2.2 の手順）: 印 → 購読解除（例外は捕捉して Error 1 件）→ 全 snapshot の回収、の順を維持。解除の例外は backend 由来ではないので I3 の対象外だが、捕捉しないと S6 / AC13（全回収・購読解除）が購読 disposable の例外で破れる。B の根拠（§6）どおり。
+  - `BindSceneLifecycle`（§2.3 の差し替えの手順）: `IsSceneLifecycleOpen=false` → 世代更新 → 前の購読の解除 → 既存 Scene 所有の回収 → 終端中集合の消去 → 新しい購読、の順を維持しつつ、再入点（解除・回収中の `Destroy`・`Subscribe`）の直後に世代を検査する。再入した内側の差し替えが完了していれば外側は以降を行わないので、(a) 内側の購読で受けた終端（`EnterTerminal`）を外側の `ClearTerminal` が消さない（I5）、(b) 内側の購読で受理した instance を外側の `ReleaseAll` が回収しない（I1 の裏側の過剰回収を防ぐ）、(c) `Subscribe` 中の再入で外側の購読が解除されずに残らない（AC13 の購読解除）。外側の snapshot に残る handle は内側の回収で既に Released（§2.2 の回収の規則で状態の書き込みと索引除去が `Destroy` より先）なので二重 `Destroy` は起きない（I2）。差し替えの間の `Scene(id)` の `Spawn` 拒否（`IsSceneLifecycleOpen=false`）は、内側が完了した時点で内側の状態（true）になり、外側はそれを上書きしない。
+  - 残る観察（違反根拠なし、記録のみ）: 購読解除の失敗の Error ログは §3.2 のログ回数の列挙に無い新しい種類（失敗ごとに 1 件）。harvest 時に §24 のログ方針へ足す。
+- 構造適合・機械検査: `pwsh tools/contract-audit.ps1` errors=0 warnings=0（検査1 の差分 17 ファイル）。`pwsh tools/docs-audit.ps1` errors=0 warnings=1（検査3「§7 / §8 が両方埋まっている」。既存の状態）。asmdef 差分 0、`manifest.json` 差分 0、Runtime の Vfx 配下に `UnityEngine.VFX` 参照 0、`UpdateSystemRuntime` への登録 0、`#nullable enable` 欠落 0、`record` 0、テストの `Task.Delay` / `Thread.Sleep` 0。AC14 (b) base → head: Vfx 配下・フォルダ `.meta`・本書・program 文書に閉じる。**AC14 (a) 凍結 commit `1462b14c` → head: Vfx 配下・フォルダ `.meta`・本書に加えて `docs/handoff/S-4_FULL_SPEC_WORLD_AUTHORING.md`（4 行）が含まれる。** 由来は Phase D の裁定 commit `41ed5bf3`（§9 の「後続入力を program §6.3 の d2 行・d4 行へ移した」）で、B 適応 commit ではない。docs のみでコード・asmdef・SampleGame の変更はなく I7 の実体には触れないが、AC14 (a) の文言には閉じないので、判定 C はこれを自分で許容せず人間に返す（下記）。
+- 実行したテストコマンドと対象: いずれも sandbox 外の pwsh から `pwsh tools/run-tests.ps1`（EditMode、`-nographics`、Unity 6000.6.0f1）。
+  1. `-Filter OneStarMaker.Tests.Rendering.Vfx`: XML 87 件、passed 87 / failed 0 / skipped 0、exit 0、所要 約 58 秒。4 ファイルのテストを収録（`VfxHandleStateTests` 32、`VfxSystemOwnerTests` 45、`VfxSystemSceneDirectorTests` 5、`VfxSystemSceneLifecycleFaultTests` 5）。AC6 (b) の終端通知は `LoadCanceled`（前回と同じ）。Unity 正常終了（runner が `step.json` を生成、残留なし）。
+  2. 空 filter（全 EditMode 回帰）: XML 1,237 件（旧 1,232 + 新 5）、**passed 1,197 / failed 40** / skipped 0、Unity の終了コード 2、所要 383 秒。assembly 別: `OneStarMaker.Tests` 775/775、`OneStarMaker.Tests.Editor` 153/153、`SampleGame.Tests` 131/131、`Addressables DocExample` 1/1、`OneStarMaker.Tests.TestObservation.Editor` 39/40、`SampleGame.Tests.Editor` 98/137。Vfx の 87 件は全件収録・全件 passed。Unity 正常終了（`step.json` 生成、今回は native 終了 stall なし）。
+  3. 限定実行（判定必須外。理由: B は新テスト 5 件が旧実装で落ちることを順序の追跡だけで確かめ、実行で観測していなかった。R3 の購読 Dispose が上流の例外を呼び出し元へ伝える前提の実行による確認。範囲: `VfxSystem.cs` だけを `4289fbf0` の内容に戻し、`-Filter OneStarMaker.Tests.Rendering.Vfx.VfxSystemSceneLifecycleFaultTests` を 1 回。終了後に `git checkout` で戻し、作業ツリー clean を確認）: 5/5 failed。失敗内容は B の予測どおり（1: `Destroy` Expected 1 But was 0、2: `Expected: No Exception … But was: InvalidOperationException: unsubscribe failed`、3: `Create` Expected 1 But was 2、4: `Destroy` Expected 0 But was 1、5: 解除 Expected (1,1) But was (1,0)）。原 source は `TestResults/5982a454-…`（git 管理外）。C' の blind bundle には収録しない。
+- **R3 の前提の確認（新テスト 1・2 が本当に例外の経路を通っているか）:** 成立。(1) 静的: `R3.dll` 1.3.1 を reflection で読み、`Observer<T>.Dispose` と `SingleAssignmentDisposableCore.Dispose` に例外ハンドラが 0 件（上流の購読 disposable の例外はそのまま呼び出し元へ伝わる）。(2) assert の中身: テスト 1・2 は `_logger.ErrorCount == 1` を判定し、その経路で Error を出すのは `DisposeSceneSubscription` の catch だけ（backend の `Destroy` は例外を注入していない）。R3 が例外を握れば ErrorCount は 0 で落ちる。(3) 実行: 新 head で 5/5 passed（ErrorCount=1 を観測）、旧実装でテスト 2 は例外が呼び出し元へ到達して `Assert.DoesNotThrow` で落ちた。
+- DR-2 との照合: 全回帰の failed 40 件は全て DR-2 の 41 件に含まれる（`WorldCompanionCreationTransactionTests` 13、`WorldCompanionRecoveryTests` 26、`ObservationReloadTests.RealDomainReloadRoundTrip` 1。test 名の集合比較は `judge/full/failed-tests.txt` と旧 bundle の XML で実施）。差は `BuildContentDirectoryIntegrationTests.ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirectory` 1 件が今回は passed になった点だけ（DR-2 で「単独では passed、実行環境の資源起因」とした shader compile OOM）。新規の失敗は 0。
+- テストの副作用: Editor の import による `.pdb.meta` 5 件の削除と、全回帰による `AddressableAssetSettings.asset` の `m_currentHash` の書き換えを `git checkout` で戻した。作業ツリーは本書以外 clean。
+- 現在の問いを阻害する findings（凍結条件・常時契約への違反）: なし。I1〜I7・S1〜S6・AC1〜AC13 に対応する Vfx の 87 件は起点 filter・全回帰の両方で全件 passed。修正差分の所見は上記のとおり blocker 0。
+- **人間へ返す事項（判定 C の完了記録の前提。判定 C は自分で裁定しない）:**
+  1. DR-2 の適用範囲: 発注者の 2026-10-18 の指示は「失敗の集合が同じ（差分外の同じ 41 件）なら同じ読み方を適用してよい。集合が違えば判定 C を完了とせず、その差を報告する」。今回の集合は同じではなく真部分集合（40 件、新規失敗 0）なので、差（OOM の 1 件が passed）を報告し、DR-2 の読み方を部分集合にも適用するかの確認を求める。
+  2. AC14 (a) の読み方: 上記の program 文書 4 行（Phase D の裁定 commit 由来、docs のみ）を AC14 (a) の許容に含めるか。含めるなら判定必須の読み方を変えない決定記録（DR-3 案: 「凍結 commit → head の差分に、Phase D の裁定で program 文書へ後続入力を移した commit の変更を許す」）。
+  - 両方が確認されれば、判定 C 2 回目は完了（GO 候補 head `447913af`）として記録でき、C' 2 巡目を起動できる。
+- 後続・記録: 発見 C の C-01〜C-06 と §8 の後続入力は §9 で program へ移送済み。購読解除失敗の Error ログの種類（上記）は harvest 時の注記。
+- 担当・モデル: 判断担当と実行担当は同一（Claude Fable 系列、Anthropic。Phase B とは異なるモデル、新しい session。発見 C・判定 C 1 回目と同系列）。
 
 ## 8. Phase C'
 
