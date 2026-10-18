@@ -3,23 +3,23 @@
 ## 0. メタデータ
 
 - type: slice
-- status: A 完了（A3 凍結、revision 1、2026-10-18）。次は B
+- status: B 完了（2026-10-18。A3 revision 1 と決定記録 DR-1 に基づく）。次は発見 C
 - branch: `claude/longpath-editmode-regression`
 - implementation base commit: `620aff59`（origin/develop、PR #135 のマージ。2026-10-18 に `ba8245f4` から再固定した。§1 の関係する file には、その間の変更が無い）
-- implementation head commit: 未実装
+- implementation head commit: `b54266ea`（`b54266ea5e935ef7691719cb375c528ae591fa07`）
 - risk: normal（公開 API、所有者、寿命は変えない。asmdef の参照の追加は、A3 で承認した 1 本だけ。§4 の Q2）
 - owner: 発注者（計画の統合）
 - created: 2026-10-18
 - expires: 2026-11-17
 - harvest to: `AGENTS.md`（path 予算の常時契約。数値は書かず、正本の file を指す）、`tools/Harness/README.md`（run-tests の起動前検査）
 - Phase A snapshot の取得案内・状態: 未保存。A3 の凍結 commit（この文書を変えた最後の commit）の本文で固定した。`evidence stage` への保存は、判定 C の bundle を作るときに行う。
-- Phase B result / evidence bundle / C' blind bundle: 未生成
+- Phase B result: この HANDOFF の「Phase B 実装結果」の節（tracked）。evidence bundle / C' blind bundle: 未生成
 - 引継ぎ票:
-  - 次の担当: Phase B（実装）。
-  - 引き継ぐ commit: A3 の凍結 commit（`git log -1 -- docs/handoff/EDITMODE_REGRESSION_LONG_PATH.md` で照合する）。作業ツリーは clean であること。
-  - 必要な権限: Editor の起動とコンパイル確認。Unity のバッチテストは実行しない（Phase C の責任）。offline の 2 つの suite は B の出口で実行してよい。
-  - 停止規則: §4 の「Phase B から A へ戻す条件」。
-  - 引き渡さないもの: 発見 C と判定 C の所見（まだ無い）。
+  - 次の担当: 発見 C（動作確認は対象なし。§5）。
+  - 引き継ぐ commit: implementation head `b54266ea` の上に、この HANDOFF の B 記録だけを足した commit（`git log -1 -- docs/handoff/EDITMODE_REGRESSION_LONG_PATH.md` で照合する）。レビュー対象の差分は `620aff59..b54266ea`。作業ツリーは clean であること。
+  - 必要な権限: 発見 C は差分の読み取りと offline の suite。差し戻し中の Unity テストは §5 の起点 filter で、sandbox の外の承認済み経路から実行する。
+  - 停止規則: §2 の停止規則と、§4 の「Phase B から A へ戻す条件」。
+  - 引き渡さないもの: なし（発見 C の所見はまだ無い）。B の判断の詳細は「Phase B 実装結果」と「決定記録」の節にある。
 
 ## 1. 目的と対象外
 
@@ -116,7 +116,7 @@ S-4d1 の判定 C の XML（`.claude/worktrees/s-4d1-vfx-abstraction/TestResults
 - 判定定義: S1〜S5 が揃い、I1〜I6 に反証が無ければ GO。
 - 停止規則: 標準どおり。OOM が判定 C の全件 run で再現したら、同じ条件で 1 回だけ再実行する。それでも再現したら停止し、OOM を別の課題として発注者へ返す。
 - A3 後の例外承認: なし
-- 決定記録: なし
+- 決定記録: DR-1（Q2-1 の派生型の数え方。版 1、2026-10-18 に Phase B の中で適用。末尾の「決定記録」の節）
 - 本文へ転記した実装制約:
   - `#nullable enable`
   - `record` の禁止
@@ -278,3 +278,41 @@ Phase B から A へ戻す条件:
 | C-4 | allowlist を広げれば検査を骨抜きにできる | A3 の過剰な allowlist の拒否で防ぐ |
 | C-5 | 未追跡の file（ほかの session のものを含む）も管理対象 (1) に入るので、run-tests が失敗しうる | 意図した挙動とする。失敗のメッセージに、超過した path と長さを出す |
 | C-6 | R2 は R1 の所見を知ったうえでのレビューで、独立していない | §5 に記録した。C' の担当の系列の選び方に反映する |
+
+## Phase B 実装結果
+
+この HANDOFF の §6 は A2 の採否に使っているので、テンプレートの §6 の内容をこの節に置く。§7 と §8 は Phase C と C' のために空けておく。
+
+- 実装（base `620aff59` からの差分。§3 の責務マップどおり）:
+  - `tools/path-budget.json`: R = 150、allowlist は `unity/Assets/Packages/` だけ。
+  - `tools/Harness/PathBudget.psm1`: 予算の読み込みと検証、ルートの判定、管理対象 (1) の列挙（`git ls-files --cached --others --exclude-standard -z` を UTF-8 で読む）、超過の判定、起動前検査の組み立て。ルートが git の最上位でない場合と、git が失敗した場合も違反にする。
+  - `tools/contract-audit.ps1`: 検査 9。`AUDIT_RESULT` は `checks=...,9` になる。Harness の解析（`checks=([0-9,]+)`）はそのまま通る。
+  - `tools/run-tests.ps1`: 出力の作成の後、Unity の起動前に検査する。違反は `name=path-budget`、`kind=preflight` の failed step と marker にする。
+  - fixture の短縮: root を `Assets/__WCT_{token}`、identity を `T{token}_Cell` / `T{token}_Events` にした（token は 12 桁のまま）。最長の repo 相対 path は 164 文字から 127 文字になった。path の組み立ては `WorldCompanionTestScope.CreateFixturePlan` に置き、A4 のテストも同じものを使う。
+  - `WorldCompanionPathBudgetTests`（A4）: 座標は 0〜99 の格子を 1 組で探り、受理された座標を全ての季節・役割・payload と掛け合わせて、constructor と `Create` にもう一度判定させる（全組で格子を探ると、拒否の例外が約 40 万回になるため）。journal は `JournalPath` と、`Save` が並べる `.tmp` / `.bak` を含める。
+  - Q2: `OneStarMaker.Tests.TestObservation.Editor` の asmdef に `OneStarMaker.Runtime` を 1 本足した。DR-1 の基準で initializer を探し、prefix は初期化しない instance で読む。`<prefix>CONTENT__RUNTIMEMODE=addressables` を Process スコープに設定し、元の値は `SessionState` に置いて、`finally` と `TearDown` の両方で戻す。完全修飾名、`AbstractApplicationInitializer`、`InvalidCompanionConfigStartupTests` は変えていない。
+  - `AGENTS.md` に常時契約を 1 行、`tools/Harness/README.md` に「起動前の path 予算検査」を足した。
+- HANDOFF との差:
+  - B 適応: `tools/Harness/tests/UnityObservation.Tests.ps1` の runner の fixture を git の repo にして、予算の file を置いた（責務マップに無い file）。起動前検査で既存の runner のテストが失敗しないようにするためで、検査の内容は変えていない。
+  - 新しい事実: `AbstractApplicationInitializer` の派生型は 3 つある（`AppInitializer`、`PlayerContentConfigurationTests.StageHarness`、`InvalidCompanionConfigStartupTests.TestInitializer`）。凍結どおりの数え方では Q2-1 が成立しないので停止し、DR-1 の裁定を受けた。
+- B の出口での確認:
+  - offline: `tools/contract-audit.tests.ps1` 29 PASS、`tools/Harness/tests/UnityTestRunner.Tests.ps1` 31 PASS（path 予算の 6 件を含む）、`UnityObservation.Tests.ps1` 16 PASS、`UnityGate.Tests.ps1` 21 PASS、`Harness.Tests.ps1` 35 PASS。
+  - `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1`: errors 0。
+  - Editor のコンパイル: この worktree（`Library/` が無い状態）で、`Unity.exe -batchmode -nographics -quit -projectPath unity` を sandbox の外で 1 回実行した（テストは無し）。exit 0、`error CS` は 0 件。`OneStarMaker.Tests.TestObservation.Editor.dll` と `SampleGame.Tests.Editor.dll` が生成された。
+  - 初回 import の副作用: Unity が `unity/Assets/MobileDependencyResolver/Editor/**/*.pdb.meta` の 5 file を消し、`unity/Assets/Settings/UniversalRenderPipelineGlobalSettings.asset` の `m_RuntimeSettings` を書き換えた。このスライスとは関係が無いので、`git checkout --` で元に戻した。判定 C で新しい checkout を初めて開くときも、同じ変更が出うる。
+- 未実行: Unity のテスト（Phase C の責任）。A1、A4、A5 と、S1、S5 は判定 C で確かめる。
+- implementation head commit: §0 の値。
+- Phase B 担当・モデル・ベンダー: Claude Code（Anthropic、Claude Opus 5.5）。
+
+### 動作確認
+
+- 対象なし（§5 のとおり、すべてテストで閉じる）。
+
+## 決定記録
+
+### DR-1: Q2-1 で数える派生型（版 1、2026-10-18、Phase B の中で Q2 の実装の前に適用）
+
+- 裁定者: 発注者（「決定記録で承認」）。Phase A は再開しない。§4 の本文は書き換えない。
+- 内容: 数える対象は、`AbstractApplicationInitializer` の派生型のうち、`[RuntimeInitializeOnLoadMethod]` を持つ static method を自身で宣言する型（DeclaredOnly）に限る。0 個・1 個・2 個以上の扱いは凍結どおり。
+- 理由: Play で bootstrap を実際に起動するのはその型だけ。テストの中の private な派生型（`StageHarness`、`TestInitializer`）は起動しない。A5 と I6 の意味と合否は変わらない。
+- 残るリスク: 将来の Game が `[RuntimeInitializeOnLoadMethod]` を initializer とは別の class に置くと 0 個になり、テストは何も設定しない。その場合は Game の fail-closed のログでテストが失敗するので、黙って通ることはない。
