@@ -87,7 +87,7 @@
 - 判定定義: 不変条件 I1〜I5 と成立条件 S1〜S4 を全て満たせば GO。どれか一つでも満たさなければ NO-GO。
 - 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。
 - A3 後の例外承認: なし
-- 決定記録: なし
+- 決定記録: §7 の D1（版 1、2026-10-18、Phase B 完了後・発見 C 前に適用）。状態は有効
 - 本文へ転記した実装制約:
   - Unity側 C# で `record` を使わない、`#nullable enable` を外さない（本スライスは C# を変えない）。
   - Editor を開く前に、対象 project と既存 Editor、`unity/Temp/UnityLockfile` を確認する。人間所有の Editor を無断で終了しない。Editor 操作は `osm-unity-editor` Skill に従う。
@@ -243,3 +243,17 @@ stage した index の blob で照合した（commit 後の blob と同じもの
 
 - Unity テスト（§5 の全 EditMode 回帰）は実行していない（Phase B の範囲外。判定 C が実行する）。
 - 動作確認: `対象なし`（§5 のとおり、検証経路に操作・実行時・目視の条件が無い）。
+
+## 7. 決定記録
+
+凍結した Phase A revision 1（commit `9cc336f3`）は書き換えない。以下は A3 後に人間が下した裁定で、凍結条件の意味を変えないものに限る。
+
+### D1. AC10 の「blob の byte 一致」を Git LFS の dll でどう読むか
+
+- 版・適用時点: 版 1。2026-10-18、Phase B 完了（commit `0e8904fc`）後、発見 C の前から適用する。
+- 裁定者: 人間（owner）
+- 経緯: dll 4 件は `.gitattributes` で Git LFS（`filter=lfs`）の対象で、commit 内の blob は LFS pointer になる。AC10 を字義どおり `git show <head>:<path>` の sha256 で比べると、dll は内容に関係なく必ず不一致になる。A3 で §1 現況に「3.1.7 の 12 件は blob が全件 byte 一致」と書いたが、主担当は dll 4 件を作業ツリーの実体で比べており、blob で比べたのは非 dll の 8 件だけだった。§1 のその記述は dll について不正確である。
+- 裁定: AC10 の比較対象を、Git LFS の対象 path では LFS の実体とする。具体的には `git cat-file --filters <head>:<path>` の出力の sha256（LFS の smudge を通した内容）を nupkg entry の sha256 と比べる。LFS pointer の `oid sha256:` 行との一致は補助の確認として併記してよい。LFS の対象でない path は従来どおり `git show <head>:<path>` の sha256 で比べる。
+- 凍結条件の意味を変えない理由: S1 は「nupkg の対応 entry と内容が一致する」ことを求めており、AC10 はその検証例である。LFS pointer は内容ではなく内容への参照なので、実体で比べる読み方は S1 の意味と合否を変えない。nupkg に無いファイルや旧版の dll が混ざれば、この読み方でも不合格になる。
+- 影響範囲: このスライスの判定 C の照合手順だけ。他のスライス、常時契約、凍結済みの他の条件は変えない。本 HANDOFF は Phase D で削除する。
+- C' への受け渡し: C' 自身の前巡指摘への裁定ではないので、C' 用決定記録には入れない。C' は AC10 の照合結果を evidence bundle の生出力として読む。
