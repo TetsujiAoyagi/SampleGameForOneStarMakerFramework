@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C`（発見 C 待ち。Phase A は revision 1 で A3 凍結済み。2026-10-18 に人間が凍結を指示。Phase B は 2026-10-18 に完了）
+- status: `C`（発見 C 完了（blocker 0 件）。判定 C 待ち。Phase A は revision 1 で A3 凍結済み。2026-10-18 に人間が凍結を指示。Phase B は 2026-10-18 に完了）
 - branch: `claude/messagepack-3.1.9-unity`
 - taskId: `messagepack-unity-3-1-9`（`pwsh tools/workflow-task.ps1 start -Task messagepack-unity-3-1-9` と Evidence の stage に使う。tracked HANDOFF の通常作業で、H1 の `external-current-v1` は採用しない）
 - implementation base commit: `e7929955`（PR #136 のマージ。DebugStudio 側は 3.1.9 済み）
@@ -18,8 +18,8 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C（動作確認は `対象なし` のため飛ばす）。新しい session で始める
-  - 次の作業: 凍結済み revision 1 の §2 受け入れ条件と §3 責務マップに対して、base `e7929955` から implementation 候補 `0e8904fc` までの差分を構造レビューする。AC10 の LFS の dll は §10 決定記録 D1 の読み方で照合する（D1 は決着済みで、発見 C が改めて裁定を求める対象ではない）。GO 判定はしない。出口で §7 Phase C の節（テンプレートの構成で新設）に結果を書き、引継ぎ票を判定 C（差し戻しなら B）へ書き換える
+  - 次の Phase・役割: 判定 C（GO 候補 head の固定と、§5 の判定必須テスト・AC1〜AC10 の照合）。新しい session で始める
+  - 次の作業: 発見 C は blocker 0 件で終えた（§7）。差し戻しは無いので B へは戻さない。GO 候補 head は implementation 候補 `0e8904fc` のまま（履歴の整理も不要）。判定 C は、Editor が閉じていることを確かめ、sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1`（空 filter）を実行し、AC1〜AC10 の生出力を evidence bundle に収録する（本ファイル下の「Phase C / C' の担当と入口」の判定 C の作業・evidence bundle・C' blind audit bundle を参照）。AC10 は D1 の読み方（LFS の dll は `git cat-file --filters`、LFS 対象外は `git show` の sha256）で照合する。text ファイル（nuspec・xml）に `--filters` を当てると autocrlf で偽の不一致になるので使わない
   - 凍結した Phase A: revision 1（commit `9cc336f3`）。implementation base: `e7929955`。implementation 候補: `0e8904fc`（Phase B 出口）
   - 引き継ぐ commit SHA: worktree の HEAD は `0ef22ad2` 以降の HANDOFF だけの commit であってよい。`git diff --name-only 0e8904fc..HEAD` が本ファイルだけで、作業ツリーが clean であることを確かめてから始める。レビュー対象の差分は `e7929955..0e8904fc` で、HANDOFF だけの commit は implementation head に含めない
   - 必要な権限: 発見 C は git と nuget.org への通信（AC10 の照合を試す場合）だけ。Unity テストは判定 C が sandbox 外の承認済み経路で実行する（§5）
@@ -250,6 +250,27 @@ stage した index の blob で照合した（commit 後の blob と同じもの
 
 - Unity テスト（§5 の全 EditMode 回帰）は実行していない（Phase B の範囲外。判定 C が実行する）。
 - 動作確認: `対象なし`（§5 のとおり、検証経路に操作・実行時・目視の条件が無い）。
+
+## 7. Phase C
+
+- 種別: 発見
+- 使用したevidence bundle の取得案内・状態（§0と同じ案内）: bundle は作っていない。固定 commit（base `e7929955`、implementation 候補 `0e8904fc`）を git から直接読んだ。HEAD は `0e8904fc` の後の HANDOFF だけの commit（`git diff --name-only 0e8904fc..HEAD` は本ファイルのみ、作業ツリー clean）
+- 構造適合: §3 の責務マップと一致する。`e7929955..0e8904fc` の変更 path は `unity/Assets/packages.config`、`unity/Assets/Packages/MessagePack*`（A 5・D 5・R 22 で 3.1.7 から 3.1.9 への改名）、`README.md`、本 HANDOFF だけ。コード・型・責務・依存の辺は増えていない（asmdef・`*.cs`・`*.rsp`・`protocol/` の差分は 0 byte）。新しいロジックは無いので、500 行・3 責務・50% 増の警報は対象外
+- 現在の問いを阻害する findings（違反する凍結済み条件 / 常時契約を併記）: なし
+- 後続スライスへ移送する findings: なし。観察を 1 件だけ残す（欠陥ではない）。nupkg の `MessagePack` は net472・net8.0・net9.0・netstandard2.0 の lib と `MessagePackAnalyzer` の `build/MessagePackAnalyzer.targets` も持つが、取り込み物は 3.1.7 と同じ netstandard2.1 だけの slim 構成で、AC6 の path 集合の一致（3.1.7 を 3.1.9 に置換した集合と同一）で足りる
+- 実行したテストコマンドと `-Filter`、対象を選んだ理由: Unity テストは実行していない（発見 C の範囲外。判定 C が実行する）。offline の git 照合と機械検査を実行した（下記）
+- テスト結果（XML 上の実行テスト名と件数）: 該当なし（テスト未実行）。照合結果（生出力の要点。判定 C が固定 head で取り直す）:
+  - AC1: 範囲外の path 無し。`packages.config` の内容差分は MessagePack 3 行の `version` だけ（BOM・属性の順・`manuallyInstalled="true"` は base のまま）
+  - AC2・AC4: `protocol/` と `*.asmdef` `*.cs` `*.rsp` の差分は空
+  - AC3: 3.1.9 の `.meta` 19 件を、`3.1.9`→`3.1.7` で対応づけた base の `.meta` と、改行を正規化し `guid:` 行を除いて比べ、差 0 件
+  - AC5: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`（`AUDIT_RESULT kind=docs files=111 errors=0 warnings=0 checks=1,2,3`）とも違反なし。検査 9 を含む contract-audit は HEAD で違反無しと出た（文字化けした日本語の出力。判定 C が取り直して収録する）
+  - AC6: 3.1.9 配下の path 集合は base の 3.1.7 配下の集合の置換と一致（31 path）。`3.1.7` を含む path は 0 件
+  - AC9: README の使用ライブラリ 3 表に版の列が無く、「2026-06時点の記録」の文言が無い。正本として manifest・lock・`packages.config`・DebugStudio の csproj を案内している。manifest と突き合わせ、UPM 表の取得元（URP・Addressables・Input System・uGUI・Test Framework は Unity Registry、UniTask・LitMotion・CsprojModifier・NuGetForUnity は Git）は現物と一致する。UniTask は NuGet 表から UPM 表へ移っている
+  - AC10: nuget.org から取得した 3.1.9 の nupkg の sha256 は §6 の値と全件一致（`52438b79…`、`2b41bb26…`、`3fffad66…`）。非 `.meta` 12 件は全件一致する。dll 4 件は D1 の読み方（`git cat-file --filters` の実体）で一致し、`.signature.p7s` 3・nuspec 3・xml 2 は `git show` の sha256 が一致する。nuspec と xml に `--filters` を当てると autocrlf で不一致に見えるが、D1 は LFS 対象外に `git show` を使うと定めているので偽の不一致である
+- 判定必須のうち未実行: 全 EditMode 回帰（`pwsh tools/run-tests.ps1`、空 filter）と、AC7・AC8 の観測（判定 C が実行する）。XML に `ProtocolGoldenCrossContractTests`、`ProtocolBackwardCompatibilityTests`、`DebugSocketProtocolRoundtripTests`、`MessagePackZLoggerFormatterTests` が含まれることの確認も判定 C
+- 重い検証を発見段階で限定実行した場合の理由と範囲: なし
+- 未確認事項: S2（compile error 0）と S3（テスト green）は未確認。B の自己確認（§6 手順 7）は判定の入力にしていない。source generator の出力の同一性は S2 のとおり主張しない
+- 担当・モデル: Claude Code（Sonnet 5.5、Anthropic）。Phase B（Opus 5.5、Anthropic）と異なるモデル。新しい session
 
 ## 10. 決定記録
 
