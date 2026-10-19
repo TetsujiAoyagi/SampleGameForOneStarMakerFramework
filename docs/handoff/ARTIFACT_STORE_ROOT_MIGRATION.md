@@ -9,7 +9,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `発見 C 待ち`（Phase A revision 1 を 2026-10-19 に凍結。凍結版 = message に `A3 freeze` を含む commit。Phase B は 2026-10-19 に出口へ到達（§6）。動作確認は `対象なし`）
+- status: `GO 候補 head 固定待ち`（発見 C 1 回目で blocker 0 件。Phase A revision 1 を 2026-10-19 に凍結。凍結版 = message に `A3 freeze` を含む commit。Phase B は 2026-10-19 に出口へ到達（§6）。動作確認は `対象なし`）
 - branch: `claude/artifact-store-root-migration`（移設スライスの branch `claude/artifact-store-root-relocation` の `94f93930` から切った。`34cf6607..94f93930` の差分は `ARTIFACT_STORE_ROOT_RELOCATION.md` だけで、コードは移設スライスの GO 候補 head `34cf6607` と同一。PR base は `develop`）
 - implementation base commit: `94f939303951c8ec0614303d66525bb9abcbacec`（コードは `34cf6607302d27f49bf9d3febaaa31d624f5cbed` と同一）
 - implementation head commit: Phase B の出口の commit（message に `Phase B exit` を含む。GO 候補としては未固定）
@@ -23,8 +23,8 @@
 - evidence bundle の取得案内・状態: 未到達
 - C' blind bundle の取得案内・状態: 未到達
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C（動作確認は `対象なし`。§5・§6）。巡の数: B ↔ 発見 C は 0 巡。
-  - 次の作業: Phase B の出口の commit を §2 の「A1:」「A3:」の小節と §3〜§5 に照らしてレビューし、§6 の B 適応を含めて blocker の有無を判断する。入口 script は実ストアに対して実行しない（高コスト証拠。§5）。
+  - 次の Phase・役割: GO 候補 head の固定（進行役）。続けて判定 C（SHA B で判定必須テスト）と暫定 C'。巡の数: B ↔ 発見 C は 0 巡（発見 C 1 回目で blocker 0 件）。
+  - 次の作業: Phase B の出口の commit（実装 head。発見 C は §7 だけを足す review-record commit で、implementation head を更新しない）を GO 候補 head として固定し、判定 C で `tools/Workflow/tests/*.Tests.ps1` の全 file・両 audit・I6 の `git diff` を実行する。§7 の「後続の入力」を判定 C・暫定 C' の入力として扱う。
   - 引き継ぐ commit SHA: この branch の先頭（message に `Phase B exit` を含む commit）。作業ツリーが dirty なら引き継がない。
   - 取得案内の所在: なし（Git 上の本文とコードだけ）。
   - 必要な権限: リポジトリの読取り（指摘の記録に本書の書込み）、pwsh 7。Unity は使わない。実ストア・LocalCache・資格情報・Task Scheduler・R2 に触れない。
@@ -445,6 +445,22 @@ seam を使わない production の `Get-OsmStoreRoot` と 3 CLI（`artifacts.ps
 - `対象なし`（§5。offline の suite で閉じる）。
 
 ## 7. Phase C
+
+### 発見 C 1 回目
+
+- 担当・モデル: 発見 C 担当 session（Claude Sonnet、Anthropic。Phase B の Opus とは別のモデル）。2026-10-19。対象: `4e69624a..HEAD`（実装 3 file の追加と本書の §0・§6）。
+- 実行: `StoreRootMigration.Tests.ps1` 9/9 passed・failed 0、`StoreRoot.Tests.ps1` 18/18 passed・failed 0（各 `-Case '*' -ResultPath <scratch>`）、`contract-audit` errors 0・warnings 0。入口 script は実行していない。実ストア・LocalCache・Task Scheduler・資格情報には触れていない。GO 判定ではない。
+- 構造: §3 の責務マップどおり（module・薄い入口・suite の 3 file、domain と `StoreConsolidation*` を import しない、seam は module scope の `$script:` だけ）。`git diff --name-status 34cf6607 HEAD -- tools/ unity/` は 3 file の追加だけ（I6）。凍結済みの §1〜§5 は 4e69624a から無変更。
+- 契約の照合: I1（`MoveFileExW` flags 0、複写への fallback 無し）、I2（3 role が size 0 の通常 file であることを印の前に再確認）、I3（`CreateNew` + flush → 上書きしない rename、失敗で一時名を削除）、I4（`virtualized` / `unknown` を何も変える前に拒否）、I5（全例外を固定 code に畳み、role 配下は metadata のみ）、§4 の状態表 8 行と入口の 3 分岐、AC-1〜AC-6・AC-1b・AC-8・AC-9 に対応する case が存在し通る。`Task.Delay` / `Thread.Sleep` 無し。
+- **blocker: 0 件。**（違反する凍結済み条件・常時契約を一次証拠で示せるものは無かった。）
+- 後続の入力（blocker ではない。判定 C・暫定 C'・Phase D の入力）:
+  1. 一時名 `.store-root.<guid>.pending` は、process が書込み中に強制終了した場合に新 root に残り、次の実行は新 root 内の残りを掃除しない（I3 の失敗時削除は catch 経路のみ。A3 で同じ runId の残り削除を簡素化により外した）。残った場合は owner が手で消す。
+  2. 件数照合（`count-mismatch`）は同一 volume の rename では前後で自明に一致し、実質的な検出力は小さい（§6 のとおり前後 3 値を要求しているのでコスト上の問題は無い）。
+  3. role 内の junction を件数がたどらないことの offline case が無い（§6 に記載済み）。実装は `AttributesToSkip = ReparsePoint`。
+  4. 入口 script の子 process の出力（絶対 path・SID を含まないこと、exit code）は suite で見ていない。判定 C は入口を読んで確かめる（§3 の計画どおり）。
+  5. 旧 root の親 directory が無い host は `tombstone-failed` で止まる（何も変えない。新しい host の印の発行は後続の入力）。
+
+### 判定 C
 
 未着手
 
