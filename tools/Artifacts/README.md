@@ -4,7 +4,7 @@
 
 **完了の範囲:** 同一Windowsユーザー・非仮想化processで次を検証済みで、Artifact Storageの開発はここで完了です。Evidenceの保存と別sessionでの取得・hash照合・閲覧、開発Build・開発Contentの保存と全file hashでの取得、Evidenceのtask終了から30日の清掃とBuild・ContentのN=10の件数清掃、削除意図 → DELETE → GET 404による削除の確定、秘密の非露出、offline suiteの合格。残りの機能は、[ドキュメント方針](../../docs/README.md)の作業台の表にあるArtifact Storageのprogramの保留listに、再開条件付きで置いています。
 
-**完了に含めない（未成立）:** 仮想化されたhost（Codex等）が書いた記録の実ストアへの合流（`store consolidate` は未実行で、Harnessの4 taskのCURRENTは非仮想化processから読めません。[分裂したストアの合流](#分裂したストアの合流store-plan--consolidate)）、仮想化されたhostからの操作、別PC・CloudからのR2の直接取得、保留listの機能。取得系のコマンドは資格情報のある非仮想化hostでだけ使えます。
+**完了に含めない（未成立）:** 仮想化されたhost（Codex等）が書いた記録の実ストアへの合流（`store consolidate` は一度も実行していません。このPCでCodexが書いたLocalCache側のcopyは2026-10-20に合流せずに削除したので、そこにだけあったHarnessの4 taskのCURRENTはもうありません。合流の機能は[分裂したストアの合流](#分裂したストアの合流store-plan--consolidate)に残っています）、仮想化されたhostからの操作、別PC・CloudからのR2の直接取得、保留listの機能。取得系のコマンドは資格情報のある非仮想化hostでだけ使えます。
 
 ## 日常操作
 

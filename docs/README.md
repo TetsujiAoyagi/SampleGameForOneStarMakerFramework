@@ -11,7 +11,7 @@
 例外は `docs/handoff/` である。進行中のスライスの作業指示と、複数スライスに跨る計画を置いてよい（実装を別セッション / 別ツールへ渡すため git worktree に持っていく必要がある）。**1 本に限らない。** 複数スライスに跨る計画を置くなら、harvest 先と期限を本文に書くこと。完了したスライスはマージ時に、後段のPhase D手順（保存・引渡し確認 → harvest → 削除・後始末）に従う。進行中 program / 未承認候補は、計画文書のマージ後も owner・期限・harvest 先付きで保持し、解決・置換時にも同じPhase D手順を適用する。
 
 H1適用をA3で明示したArtifacts/Harness作業では、Git外のCURRENTと固定仕様を正本にする。入口は `pwsh tools/harness.ps1 current -Task <id>`。Gitへの新しいPhase RESULT・REVISION・raw実行結果の追加はそのtaskの `pwsh tools/contract-audit.ps1 -HarnessTask <id>` が拒否する。未移行のprogram/Unity作業は従来のtracked HANDOFFを続け、通常のauditは新検査を `not-applicable` と表示する。適用taskの合格根拠に通常auditを流用しない。H1のCURRENT・runは同一Windowsユーザー/マシン内のstore root（UserProfile Known Folder直下のOneStarMaker）に置き、別マシン配布はまだ保証しない。
-完了済みH2c（`h2c-unity-gate` / `h2c-unity-gate-r2`）も同じGit外CURRENT方式で固定記録を保持する。B限定Unity実行の許可範囲と記録の入口は [Harness README](../tools/Harness/README.md#h2c-unity-pilot) を正とし、他taskはA3で移行を明示するまで従来方式を続ける。
+完了済みH2c（`h2c-unity-gate` / `h2c-unity-gate-r2`）も同じGit外CURRENT方式で固定記録を持っていたが、そのCURRENTは2026-10-20に削除した（下の現況）。B限定Unity実行の許可範囲は [Harness README](../tools/Harness/README.md#h2c-unity-pilot) を正とし、H2cの検証の要約はPR #93を正とする。他taskはA3で移行を明示するまで従来方式を続ける。
 
 **現況（2026-10-20）:** `h2c-unity-gate` / `h2c-unity-gate-r2` と `h1-transport-identity`・`artifact-evidence-lifecycle` のCURRENTは、仮想化されたhost（Codex）が書いたLocalCache側のcopyにだけあり、そのcopyは合流せずに削除した。`harness.ps1 current -Task <id>` はこの4 taskでは「CURRENTが見つかりません」で止まる。検証の要約はPR（H1 #82、H2c #93、スライスA #109）を正とする。
 

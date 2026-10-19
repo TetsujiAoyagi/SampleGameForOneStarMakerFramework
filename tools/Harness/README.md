@@ -100,7 +100,7 @@ H1適用taskの契約検査は `pwsh tools/contract-audit.ps1 -HarnessTask <id>`
 
 ## Evidence lifecycle のtask限定gate
 
-`pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle` を実装入口にする。A3本文hash・固定base・変更scope・discovery/judgmentのstep集合は `ApprovedSpecifications.psm1` に登録し、init/current/run/handoffで再照合する。tracked HANDOFFからGit外specへ投影した削除だけを許し、新しい仕様・RESULT・rawをGitへ追加しない。旧H1とH2の集合やclose時計は変えない。
+`pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle` はこのtaskの実装入口だった（CURRENTは下の現況のとおり削除した）。以下はこのtaskの承認範囲の記録である。A3本文hash・固定base・変更scope・discovery/judgmentのstep集合は `ApprovedSpecifications.psm1` に登録してあり、init/current/run/handoffで再照合する。tracked HANDOFFからGit外specへ投影した削除だけを許し、新しい仕様・RESULT・rawをGitへ追加しない。旧H1とH2の集合やclose時計は変えない。
 
 **現況（2026-10-20）:** このtaskのCURRENTは、仮想化されたhost（Codex）が書いたLocalCache側のcopyにだけあり、そのcopyを2026-10-20に合流せずに削除したので、この入口は「CURRENTが見つかりません」で失敗する。検証の要約は [PR #109](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/109) にある。以下はこのtaskの承認範囲の記録である。
 
