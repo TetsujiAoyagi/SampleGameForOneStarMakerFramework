@@ -7,7 +7,7 @@ Artifact Storage・Workflow・Harness が共有する store の実体を、packa
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `C'`（Phase A revision 1 を 2026-10-19 に owner が凍結。Phase B の出口 `c2ebd441`、差し戻し修正 巡 1 `34cf6607`。発見 C 2 回目で blocker 0。動作確認は `34cf6607` で期待との差なし（§6）。owner が 2026-10-19 に、commit を整理せず `34cf6607` を GO 候補 head とした。判定 C は 2026-10-19 に `34cf6607` で GO（§7））
+- status: `C' 完了（owner の確認待ち）`（Phase A revision 1 を 2026-10-19 に owner が凍結。Phase B の出口 `c2ebd441`、差し戻し修正 巡 1 `34cf6607`。発見 C 2 回目で blocker 0。動作確認は `34cf6607` で期待との差なし（§6）。owner が 2026-10-19 に、commit を整理せず `34cf6607` を GO 候補 head とした。判定 C は 2026-10-19 に `34cf6607` で GO（§7）。C' 1 巡目は同日に blocker なし（§8））
 - branch: `claude/artifact-store-root-relocation`（PR base は `develop`。Phase A の作業 branch `claude/artifact-store-root-relocation-plan` は A0 の commit `eebcdda7` で止まっており、A1〜A3 の commit はこの branch にある）
 - implementation base commit: `abb997751035ab3a284916a97c32f887a8faec16`（`origin/develop`、PR #138 を含む）
 - implementation head commit: `34cf6607302d27f49bf9d3febaaa31d624f5cbed`（GO 候補 head。push しない軽量 tag `evidence/artifact-store-root-relocation/1` で到達可能に保つ。以降の本書だけの commit は head を変えない）
@@ -19,11 +19,11 @@ Artifact Storage・Workflow・Harness が共有する store の実体を、packa
 - Phase A snapshot の取得案内・状態: Git 上の本文で完結（A2 入力版は §5 に commit SHA と内容 sha256。A3 凍結版 = この branch の先頭 commit で、commit message に `A3 freeze` を含む）
 - Phase B result snapshot の取得案内・状態: Git 上の commit で完結（B の出口 commit = この branch の先頭 commit で、commit message に `Phase B exit` を含む）。`evidence stage` の snapshot は未生成（同一 PC の引継ぎで、commit SHA で足りるため）
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の担当が GO 候補 head `34cf6607` から develop checkout の CLI（非仮想化 pwsh）で `evidence stage` した（task `artifact-store-root-relocation`、`locality` = `local`）。送信側の別 process の fetch で全 file の hash 一致を確認済み。受け手側の取得・閲覧確認は引渡し未完了。取得案内（reference・packageSha256 の実値を含む）は進行役の共有ノートにあり、進行役が持つ
-- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。evidence bundle と同じ commit・同じ判定入力から生成し、同じ手順で stage・送信側の読戻しを確認した。発見 C・判定 C の所見・結論を含まない（Phase A 凍結版、Phase B の出口時点の実装結果、完全 diff、suite の生結果、機械検査、V1・V2 の生記録）。C' 担当の取得・閲覧確認は引渡し未完了。取得案内は所見から分けた別の案内として進行役の共有ノートにあり、進行役が C' 担当へ直接渡す
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。evidence bundle と同じ commit・同じ判定入力から生成した。発見 C・判定 C の所見・結論は含まない。2026-10-19 に進行役が develop checkout の CLI（非仮想化 pwsh）で fetch し（`passed`）、C' 担当がその展開を閲覧した（§8）。取得案内は進行役の共有ノートにある
 - 引継ぎ票:
-  - 次の Phase・役割: C'（新規 session。モデルは Phase B・C と異なり、強化条件として Phase A・B・C に関与していない系列（§5 の予約どおり Claude 系・GPT 系以外））。巡の数: B ↔ 発見 C は 1 巡終了。C' の差し戻しは別に数え、0 巡。
-  - 次の作業: 進行役が C' 担当を起動し、C' blind bundle の取得案内だけを直接渡す（本書全文・PR・発見 C / 判定 C の結論は渡さない）。C' 担当は develop checkout（Release build 済み）から非仮想化 pwsh で bundle を `fetch` し、取得・閲覧できたことを確かめてから、1 巡目として全体を初見で監査する。結果（指摘を blocker と後続スライスの入力に分類、残存リスク、監査できなかった範囲、使用モデル）は進行役が §8 に記録する。push・PR 更新・実ストアの移行はしない（§0「進行役の着手手順」8・9）。
-  - 引き継ぐ commit SHA: GO 候補 head `34cf6607`（tag `evidence/artifact-store-root-relocation/1`）。本書はこの branch の先頭にある最新版を読む（進行役のみ）。作業ツリーが dirty なら引き継がない。
+  - 次の Phase・役割: 公開点（owner への報告と確認）。その後に PR #139 の更新と Phase D。巡の数: B ↔ 発見 C は 1 巡、C' の差し戻しは 0 巡。
+  - 次の作業: 進行役が C' の結果を owner に報告する。owner の確認を得てから branch を push し、PR #139 本文の状態ブロックを §0 の現況に更新する（§0「進行役の着手手順」9）。push の前に `git log --oneline <前回公開 head>..HEAD` と `pwsh tools/docs-audit.ps1` で、機微な path・reference の実値が入っていないことを確かめる。実ストアの移行（印の書込み）はこのスライスでは行わない（§2 O1）。
+  - 引き継ぐ commit SHA: implementation head `34cf6607`（tag `evidence/artifact-store-root-relocation/1`）。この branch の先頭は §8 を記録した本書だけの commit。作業ツリーが dirty なら引き継がない。
   - 取得案内の所在: 判定 C の evidence bundle と C' blind bundle の取得案内は進行役の共有ノート（別々の案内）にある。local path・reference・packageSha256 の実値は本書に書かない。
   - 必要な権限: リポジトリの読み、pwsh 7、develop checkout の CLI による `fetch`（local 分岐。network・資格情報を使わない）。実ストアの role data・資格情報・R2 は触らない。
   - 停止規則: fetch が失敗する、または bundle の必須 file を閲覧できなければ監査を始めず、理由を進行役へ返す（再梱包は判定 C の担当または進行役が元証拠から行い、観測をやり直させない）。
@@ -690,7 +690,34 @@ Phase B 担当: 新規 session（Claude Fable 5.1、Anthropic）。2026-10-19。
 
 ## 8. Phase C'
 
-未到達。
+### C' 1 巡目（2026-10-19）
+
+- 担当・モデル: cursor-agent CLI の非対話実行（`grok-4.7-high` = Grok 4.7 256K High、xAI 系。Phase A の Claude 系・GPT 系、Phase B・C の Claude 系のどれにも関与していない系列。§5 の予約どおり）。進行役が起動し、論点を 2 つの job に分けて並行で実行した（job 1 = 構造と契約、job 2 = 未検証の失敗経路と証拠の十分性）。指示は共通の前提 file と job ごとの file にした。どちらも読み取り専用（file の編集・シェル・通信を禁止）で、workspace は repo の外。
+- 入力: C' blind audit bundle だけ（判定 C の担当が GO 候補 head `34cf6607` から stage したもの。発見 C・判定 C の所見と結論を含まない）と、同じ head の `tools/`・`AGENTS.md`・`.agents/`・`docs/README.md` の `git archive` 展開。本書全文、PR、発見 C・判定 C の結論は渡していない。bundle は進行役が develop checkout の CLI（非仮想化 pwsh）で `fetch` し（`passed`・`complete`、`stagingMissing` 0）、85 file を展開した。C' 担当が bundle の全区分（README、phase-a、phase-b、diff、suites、machine、records、frozen-fixtures）を読めたことは、両 job の回答が各区分を引用していることで確認した。
+- 規模: job 1 = tool 呼出し 128 回、output 35,806 token。job 2 = tool 呼出し 148 回、output 33,518 token。両方とも 1 回で完了し、撃ち直しはしていない。
+- 結論: **blocker なし**（job 1・job 2 とも）。
+
+#### 後続スライスの入力（C' の指摘。現スライスを阻害しない）
+
+- job 1（構造と契約）:
+  - 旧 root の導出が `SHGetKnownFolderPath` の既定位置で、AppData を redirect した host では redirect 先にだけある旧記録が S4 の prefix 置換に乗らない（§6 の B 適応と同じ入力）。
+  - `RecordStore.psm1` の export `Get-HarnessStoreRoot` は凍結の公開関数 3 つの外（§6 に B 適応として記録済み）。
+  - `StoreConsolidation.psm1` の reasonCode の allow-list に resolver の 3 code が無く、module 直接の呼出しでは `consolidation-failed` に畳まれる（発見 C 1 回目の後続の入力と同じ）。
+  - 印の読込みが 4 KiB の判定より前に file の全長を確保する。結果は `store-root-unavailable` で fail-closed だが、巨大な印 file に対しては無駄な確保になる。
+  - binding ありの記録の読取りは、旧 root に所有 role がある間は I3 で先に止まり、prefix 置換に届かない（移行後には両立する。意図どおり）。
+- job 2（失敗経路と証拠）:
+  - `ac-s4-a-binding` / `ac-s4-e-*` の binding 側は、旧 root を空にしてから実行する（§6 の B 適応のとおり）。「同名 file が残る」と「gate を通る」は同時に作れない。
+  - `ac-i1-e-cli` は対象 directory が無いと skip して合格する。新 root の Harness への junction は CLI 経路では未観測（module の `ac-i1-e` は junction 3 件と identity seam で観測済み）。
+  - `source-root-both-roots-rejected` は論理 path の拒否だけを見ており、実体 path を境界に足す分岐は未観測。
+  - `ac-s3-a` の「印あり・root 不在」はメモリ上の印で再現している（§6 のとおり）。
+  - 証拠の形: packaged app 側の生出力は relay で貼られており、その process の git head が記録に無い。旧 root の tree 一覧は件数と sha256 だけで、生一覧は bundle に無い。照合 script を合成 fixture に通したログが bundle に無い（§7 の判定 C に結果の記述だけがある）。
+- 進行役の補足（C' には渡していない事実）: packaged app 側（Codex）の作業 tree は進行役の worktree で、実行時の HEAD は `434ceae4`（`34cf6607` に本書だけの commit が載ったもの。`git diff --stat 34cf6607..434ceae4` は本書 1 file）。
+
+#### 監査できなかった範囲と残存リスク（C' の申告）
+
+- 読取りだけで、コードもテストも実行していない（印不在の分岐などは読んで確かめた）。8.3 短名や巨大な印 file での実 handle の差は観測していない。
+- packaged app 側の git head は relay に含まれない（上の進行役の補足を参照）。旧 root の一覧の中身は hash の一致の申告だけ。新 root への CLI 経路の junction と、旧 root の実体 path に対する Build の境界は offline では観測していない。
+- 実ストアの移行はこのスライスの判定の対象外（§2 O1）。
 
 ## 9. Phase D
 
