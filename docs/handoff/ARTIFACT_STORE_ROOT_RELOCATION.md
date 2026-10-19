@@ -7,7 +7,7 @@ Artifact Storage・Workflow・Harness が共有する store の実体を、packa
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `判定 C`（Phase A revision 1 を 2026-10-19 に owner が凍結。Phase B の出口 `c2ebd441`、差し戻し修正 巡 1 `34cf6607`。発見 C 2 回目で blocker 0。動作確認は `34cf6607` で期待との差なし（§6）。owner が 2026-10-19 に、commit を整理せず `34cf6607` を GO 候補 head とし、その V1・V2 の観測を判定入力に使うと決めた）
+- status: `C'`（Phase A revision 1 を 2026-10-19 に owner が凍結。Phase B の出口 `c2ebd441`、差し戻し修正 巡 1 `34cf6607`。発見 C 2 回目で blocker 0。動作確認は `34cf6607` で期待との差なし（§6）。owner が 2026-10-19 に、commit を整理せず `34cf6607` を GO 候補 head とした。判定 C は 2026-10-19 に `34cf6607` で GO（§7））
 - branch: `claude/artifact-store-root-relocation`（PR base は `develop`。Phase A の作業 branch `claude/artifact-store-root-relocation-plan` は A0 の commit `eebcdda7` で止まっており、A1〜A3 の commit はこの branch にある）
 - implementation base commit: `abb997751035ab3a284916a97c32f887a8faec16`（`origin/develop`、PR #138 を含む）
 - implementation head commit: `34cf6607302d27f49bf9d3febaaa31d624f5cbed`（GO 候補 head。push しない軽量 tag `evidence/artifact-store-root-relocation/1` で到達可能に保つ。以降の本書だけの commit は head を変えない）
@@ -18,21 +18,16 @@ Artifact Storage・Workflow・Harness が共有する store の実体を、packa
 - harvest to: `tools/Artifacts/README.md`（store の所在、実行する process の条件、合流の対象 root）、`tools/Workflow/README.md`、`tools/Harness/README.md`、`docs/README.md` の program 表と H1 の所在、`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4・§6
 - Phase A snapshot の取得案内・状態: Git 上の本文で完結（A2 入力版は §5 に commit SHA と内容 sha256。A3 凍結版 = この branch の先頭 commit で、commit message に `A3 freeze` を含む）
 - Phase B result snapshot の取得案内・状態: Git 上の commit で完結（B の出口 commit = この branch の先頭 commit で、commit message に `Phase B exit` を含む）。`evidence stage` の snapshot は未生成（同一 PC の引継ぎで、commit SHA で足りるため）
-- evidence bundle の取得案内・状態: 未生成（未到達）
-- C' blind bundle の取得案内・状態: 未生成（未到達）
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の担当が GO 候補 head `34cf6607` から develop checkout の CLI（非仮想化 pwsh）で `evidence stage` した（task `artifact-store-root-relocation`、`locality` = `local`）。送信側の別 process の fetch で全 file の hash 一致を確認済み。受け手側の取得・閲覧確認は引渡し未完了。取得案内（reference・packageSha256 の実値を含む）は進行役の共有ノートにあり、進行役が持つ
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。evidence bundle と同じ commit・同じ判定入力から生成し、同じ手順で stage・送信側の読戻しを確認した。発見 C・判定 C の所見・結論を含まない（Phase A 凍結版、Phase B の出口時点の実装結果、完全 diff、suite の生結果、機械検査、V1・V2 の生記録）。C' 担当の取得・閲覧確認は引渡し未完了。取得案内は所見から分けた別の案内として進行役の共有ノートにあり、進行役が C' 担当へ直接渡す
 - 引継ぎ票:
-  - 次の Phase・役割: 判定 C（新規 session 1 つが実行担当と判断担当を兼ねる。モデルは Phase B の 2 系列（Claude Fable 5.1・Claude Sonnet 5.5）と異なる）。巡の数: 1 巡終了（残り最大 3 巡）。
-  - 次の作業: (1) tag `evidence/artifact-store-root-relocation/1` を detach した新しい worktree を作り、`tools/Artifacts/README.md` の保守節の 3 project を Release build し、`rg` を PATH に足す（できなければ実行せず止める）。(2) §5「判定必須テスト」だけを実行する（各 JSON の executed ≥ 1・failed 0 と、§5 のテスト ID 一覧の case 名の収録を照合。`ac-s1-b-taskeventstore` は §6 の巡 1 のとおり `TaskLifecycle.Tests.ps1`）。(3) V1・V2 は再観測しない。§6「やり直し」の原記録（動作確認の実行担当 session の作業領域にある時刻付きテキスト。所在と sha256 は進行役が別途渡す）の複製を入力にし、§5 の方式で照合 script を自分で書き、合成 fixture 2 件（`tools/Workflow/tests/fixtures/storeroot-hostcheck-{match,mismatch}.json`）で期待どおりになることを確かめてから原記録へ適用する。(4) 結果を §7「判定 C」に書く（実行コマンド、suite ごとの件数、照合の結果、GO / NO-GO と根拠）。blocker があれば NO-GO とし、修正用の B へ戻す（巡に数える）。(5) GO なら `review-evidence.md` に従って判定 C の evidence bundle と C' の blind audit bundle を、同一 commit（GO 候補 head）から develop checkout の CLI を非仮想化 process で使って stage する（§4 D6、task id `artifact-store-root-relocation`）。この branch の CLI は `store-not-migrated` で止まるので使わない。取得案内の状態を §0 に書く（reference・packageSha256 の実値と local path は書かない。実値は進行役へ返す）。(6) 引継ぎ票を C' へ更新し、本書 1 file だけを commit する。push・C' の起動・実ストアの移行はしない。
-  - 引き継ぐ commit SHA: GO 候補 head `34cf6607`（tag `evidence/artifact-store-root-relocation/1`）。本書はこの branch の先頭にある最新版を読む。作業ツリーが dirty なら引き継がない。
-  - 取得案内の所在: B の結果は Git 上の commit と §6。V1・V2 の原記録は動作確認の実行担当 session の作業領域にあり、所在は進行役が判定 C の担当へ直接渡す（local path は本書に書かない）。B の suite の result JSON と B の V1 記録は判定の入力にしない。
-  - 必要な権限: リポジトリの読み、pwsh 7、packaged app（Codex デスクトップ、full access）内での pwsh 実行。V2 は `<UserProfile>` 直下の一時 base を作り、観測後に削除する。実ストア・LocalCache の中身・資格情報・R2 は触らない。
-  - 停止規則: 手順が §5 の記述どおりに実行できない、または実ストア・旧 root に書く必要が生じたら実行を止め、観測と理由を §6 に書いて B へ返す。
-  - 引き渡さないもの: ローカル store・LocalCache の実 path、資格情報、Codex 側 copy の内容。
-  - 動作確認の分担と往復（進行役が 2026-10-19 に固定）: 非仮想化側の実行担当 = 進行役が起動する新規 session（B 以外。対象 head が GO 候補 head と一致すれば判定 C の入力にできるため）。packaged app 側 = owner が開く Codex デスクトップの session（full access。動作確認の対象 head を checkout した作業 tree で実行し、file を編集・commit しない）。往復は 1 回にまとめる:
-    1. 非仮想化側: V1 の前段（`UserProfile` と祖先の reparse 属性）と前の観測（新 root の存在、旧 root の tree 一覧）を取り、V2 の一時 base と印を作る。owner へ一時 base の path を渡して止まる。
-    2. packaged app 側（owner が Codex へ依頼）: `pwsh tools/workflow-task.ps1 status -Task store-root-v1-check` を 1 回（stdout と exit code）、続けて `pwsh tools/Workflow/tests/StoreRootHostFixture.ps1 -Base <一時 base> -Action write` を 1 回。両方の生出力をそのまま返す。失敗しても再実行・原因調査をしない。
-    3. owner が 2 の生出力を非仮想化側へ貼る。
-    4. 非仮想化側: V1 の後の観測、V2 の `-Action read` と LocalCache の `Test-Path`、一時 base の削除。§5 の形式の時刻付きテキストにまとめ、§6「動作確認」に観測と期待との差の有無を書く。
+  - 次の Phase・役割: C'（新規 session。モデルは Phase B・C と異なり、強化条件として Phase A・B・C に関与していない系列（§5 の予約どおり Claude 系・GPT 系以外））。巡の数: B ↔ 発見 C は 1 巡終了。C' の差し戻しは別に数え、0 巡。
+  - 次の作業: 進行役が C' 担当を起動し、C' blind bundle の取得案内だけを直接渡す（本書全文・PR・発見 C / 判定 C の結論は渡さない）。C' 担当は develop checkout（Release build 済み）から非仮想化 pwsh で bundle を `fetch` し、取得・閲覧できたことを確かめてから、1 巡目として全体を初見で監査する。結果（指摘を blocker と後続スライスの入力に分類、残存リスク、監査できなかった範囲、使用モデル）は進行役が §8 に記録する。push・PR 更新・実ストアの移行はしない（§0「進行役の着手手順」8・9）。
+  - 引き継ぐ commit SHA: GO 候補 head `34cf6607`（tag `evidence/artifact-store-root-relocation/1`）。本書はこの branch の先頭にある最新版を読む（進行役のみ）。作業ツリーが dirty なら引き継がない。
+  - 取得案内の所在: 判定 C の evidence bundle と C' blind bundle の取得案内は進行役の共有ノート（別々の案内）にある。local path・reference・packageSha256 の実値は本書に書かない。
+  - 必要な権限: リポジトリの読み、pwsh 7、develop checkout の CLI による `fetch`（local 分岐。network・資格情報を使わない）。実ストアの role data・資格情報・R2 は触らない。
+  - 停止規則: fetch が失敗する、または bundle の必須 file を閲覧できなければ監査を始めず、理由を進行役へ返す（再梱包は判定 C の担当または進行役が元証拠から行い、観測をやり直させない）。
+  - 引き渡さないもの: ローカル store・LocalCache の実 path、資格情報、発見 C・判定 C の所見と結論、本書全文。
 
 ### Phase B の着手手順（完了済み。記録として残す）
 
@@ -630,6 +625,68 @@ Phase B 担当: 新規 session（Claude Fable 5.1、Anthropic）。2026-10-19。
 #### blocker
 
 なし。新しい後続スライスの入力も無い（1 回目の入力は `WindowsStoreRoot.psm1` の冒頭コメントだけが直り、残り 3 件はそのまま）。次は進行役の手順 5（GO 候補 head の固定）と、修正後の head での動作確認（V1・V2）。
+
+### 判定 C（2026-10-19）
+
+- 担当: 進行役が起動した新規 session 1 つが実行担当と判断担当を兼ねた（Claude Opus 5.5、Anthropic。Phase B の Claude Fable 5.1・Claude Sonnet 5.5 と異なるモデル）。
+- 対象: implementation base `abb99775` / head `34cf6607`（tag `evidence/artifact-store-root-relocation/1`）。tag を detach した新しい worktree（作業ツリー clean）で実行した。前提の Release build（`tools/Artifacts/README.md` 保守節の 3 project、各 exit 0）を行い、`rg` を PATH に足した。
+- 巡の数: 1 巡終了のまま（判定 C は巡に数えない）。
+
+#### 実行したコマンドと結果
+
+- 判定必須テスト: `tools/Artifacts/tests`・`tools/Workflow/tests`・`tools/Harness/tests` の `*.Tests.ps1` 全 30 file を、各 `pwsh -NoProfile -File <suite> -Case '*' -ResultPath <path>` で 1 回ずつ。30 file すべて exit 0。
+- 照合（判断担当が書いた script。各 result JSON の `registered`・`selected`・`executed`・`failed` を読む）: 30 file すべてで executed ≥ 1、failed 0、registered = selected = executed（集合として一致）。§5 のテスト ID 一覧はすべて `executed` に含まれる（`StoreRootWiring` の `ac-s1-b-*` は 11 件以上、`StoreContext` の `decision-*`・`native-*` は各 1 件以上。`ac-s1-b-taskeventstore` は `TaskLifecycle.Tests.ps1`）。不足 0 件。
+- `pwsh tools/contract-audit.ps1`: errors 0、warnings 0。`pwsh tools/docs-audit.ps1`: errors 0、warning 1（本書の §7/§8 検出。従来どおり）。
+- AC-S1-a: `git grep -n LocalApplicationData -- 'tools/**/*.ps1' 'tools/**/*.psm1'` は 25 件で、`tools/*/tests/`・`WindowsStoreContext.psm1`・`WindowsStoreRoot.psm1` を除くと 0 件。
+- `git diff --stat abb99775..34cf6607 -- unity/`: 空。
+
+| suite | registered | executed | failed |
+| --- | --- | --- | --- |
+| `Artifacts/ArtifactEvidence` | 53 | 53 | 0 |
+| `Artifacts/ArtifactPackage` | 9 | 9 | 0 |
+| `Artifacts/ArtifactRotation` | 11 | 11 | 0 |
+| `Artifacts/ArtifactTransfer` | 28 | 28 | 0 |
+| `Artifacts/BuildCleanup` | 23 | 23 | 0 |
+| `Artifacts/BuildCollect` | 10 | 10 | 0 |
+| `Artifacts/BuildPublish` | 9 | 9 | 0 |
+| `Artifacts/BuildRetention` | 9 | 9 | 0 |
+| `Artifacts/Content.Contract` | 9 | 9 | 0 |
+| `Artifacts/Content.Fetch` | 5 | 5 | 0 |
+| `Artifacts/Content.Publish` | 12 | 12 | 0 |
+| `Artifacts/ContentCleanup` | 23 | 23 | 0 |
+| `Artifacts/Credentials` | 23 | 23 | 0 |
+| `Artifacts/EvidenceCleanup` | 56 | 56 | 0 |
+| `Artifacts/EvidenceReset` | 31 | 31 | 0 |
+| `Artifacts/EvidenceRetention` | 21 | 21 | 0 |
+| `Artifacts/EvidenceSchedule` | 87 | 87 | 0 |
+| `Artifacts/R2RouteTransport` | 7 | 7 | 0 |
+| `Artifacts/RouteProof` | 26 | 26 | 0 |
+| `Artifacts/SeriesRetirement` | 17 | 17 | 0 |
+| `Artifacts/StoreConsolidation` | 22 | 22 | 0 |
+| `Artifacts/StoreConsolidationPlan` | 26 | 26 | 0 |
+| `Artifacts/StoreRootWiring` | 12 | 12 | 0 |
+| `Harness/Harness` | 38 | 38 | 0 |
+| `Harness/UnityGate` | 21 | 21 | 0 |
+| `Harness/UnityObservation` | 16 | 16 | 0 |
+| `Harness/UnityTestRunner` | 31 | 31 | 0 |
+| `Workflow/StoreContext` | 26 | 26 | 0 |
+| `Workflow/StoreRoot` | 18 | 18 | 0 |
+| `Workflow/TaskLifecycle` | 24 | 24 | 0 |
+
+#### V1・V2 の照合
+
+- 入力: §6「やり直し」の原記録（動作確認の実行担当の時刻付きテキスト。末尾に packaged app 側の生出力 2 ブロック）の複製。進行役から受け取った sha256 と、複製の sha256 が一致することを確かめてから使った。元の file は変えていない。
+- 補った観測: 原記録には V1 の非仮想化側の `status` 呼出しが無かった（§0 の往復手順 1〜4 に載っていなかったため。進行役の確認で手順の欠落と判明）。進行役の承認を得て、判定 C の実行担当が判定用 worktree（`34cf6607`、clean）から非仮想化 pwsh で `pwsh tools/workflow-task.ps1 status -Task store-root-v1-check` を 1 回実行し、前後の新 root の存在と旧 root の tree 一覧（`Get-Tree` と同じ項目。件数と sha256、内容は読まない）を時刻付きで記録した。packaged app 側と V2 は再観測していない。
+- 照合 script（判断担当が書いた。offline、資格情報・通信・実ストアに触れない）は、まず合成 fixture 2 件に通した: `storeroot-hostcheck-match.json` → `match`（差異なし）、`storeroot-hostcheck-mismatch.json` → `mismatch`、差異 `written.finalPath`・`localCacheHit`。どちらも §5 の期待どおり。照合項目: 両側の `userProfile` の一致、両側の `root` の一致と `<userProfile>\OneStarMaker.HostCheck.<32 hex>\OneStarMaker` の形、`written.logicalPath` が `<root>\hostcheck` 配下、`written.finalPath` = `written.logicalPath`、非仮想化側の `listing` に書いた file があり各 `finalPath` = `logicalPath`、`localCacheHit` が false。path は大小文字を区別せずに比べる。
+- V2（AC-S2-a）: 原記録の packaged 側 `-Action write`（exit 0）と非仮想化側 `-Action read`（exit 0）に適用し、`match`（差異なし）。packaged 側の `storeContext` は `virtualized`（合否に使わない。A0 の未観測項目の初回観測として記録）。一時 base は削除済み（原記録）。
+- V1（AC-S2-b）: packaged 側 `{"status":"failed","reasonCode":"store-not-migrated"}`・exit 1（原記録）。非仮想化側 `{"status":"failed","reasonCode":"store-not-migrated"}`・exit 1（補った観測）。新 root は、原記録の往復の前後と補った観測の前後のどちらでも不在。旧 root の tree 一覧は、原記録で 47,974 entry・前後同じ sha256、補った観測で 47,974 entry・前後同じ sha256（2 つの記録は digest の作り方が違うので sha256 の値は比べない。各記録の中の前後で比べた）。祖先 3 段の reparse 属性はすべて false（host 条件の記録）。期待との差なし。
+
+#### 判定
+
+- **GO。** 根拠: I1（AC-I1-a〜e の case 合格、V1 の旧 root 一覧の前後一致）、I2（AC-I2-a〜e 合格、V1 の両側 `store-not-migrated`）、I3（AC-I3-a〜h 合格。`ac-i3-h-job-entry` も executed で合格）、I4（`ac-i4-a`）、I5（`ac-i5-a`〜`c`）、I6（`ac-i6-a`）、S1（AC-S1-a の 0 件、`ac-s1-b-*` 13 件）、S2（V2 の `match`）、S3（`ac-s3-a`）、S4（`ac-s4-a`〜`e`）、S5（30 suite 合格、両 audit error 0）。最低条件 I1〜I6・S1〜S5 がすべて成立し、blocker は無い。
+- 後続スライスの入力: 新しいものは無い（発見 C 1 回目の 3 件はそのまま）。
+- 未確認: なし（高コスト証拠は分類されていない。全 EditMode 回帰は §5 の適用除外どおりで、代替証拠の `unity/` の差分は空）。
+- Evidence: develop checkout（`abb99775`）の CLI を非仮想化 pwsh で使い、`workflow-task.ps1 start -Task artifact-store-root-relocation`（未登録だったため）の後、判定 C の evidence bundle（87 file）と C' blind bundle（85 file）を同じ head・同じ判定入力から `evidence stage` した（両方 `passed`、`locality` = `local`）。送信側の別 process の `fetch` で全 file の hash が送信元と一致した。状態は §0。
 
 ## 8. Phase C'
 
