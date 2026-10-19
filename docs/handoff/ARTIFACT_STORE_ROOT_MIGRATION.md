@@ -9,26 +9,26 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `B`（Phase A revision 1 を 2026-10-19 に凍結。凍結版 = message に `A3 freeze` を含む commit。Phase B 未着手）
+- status: `発見 C 待ち`（Phase A revision 1 を 2026-10-19 に凍結。凍結版 = message に `A3 freeze` を含む commit。Phase B は 2026-10-19 に出口へ到達（§6）。動作確認は `対象なし`）
 - branch: `claude/artifact-store-root-migration`（移設スライスの branch `claude/artifact-store-root-relocation` の `94f93930` から切った。`34cf6607..94f93930` の差分は `ARTIFACT_STORE_ROOT_RELOCATION.md` だけで、コードは移設スライスの GO 候補 head `34cf6607` と同一。PR base は `develop`）
 - implementation base commit: `94f939303951c8ec0614303d66525bb9abcbacec`（コードは `34cf6607302d27f49bf9d3febaaa31d624f5cbed` と同一）
-- implementation head commit: 未固定
+- implementation head commit: Phase B の出口の commit（message に `Phase B exit` を含む。GO 候補としては未固定）
 - risk: `high`（実ストアの不可逆な移設、資格情報 directory の移動、旧 writer の静止と清掃 job の停止・再登録、owner 承認の manifest による合流、移設中は store を使う CLI が無い期間を作る）
 - owner: OSM maintainers（A3 の凍結、手順 3 の静止と旧 task の削除、実ストア操作の一括承認（O7）、Phase D の判断は owner）
 - created: 2026-10-19
 - expires: 2026-12-19 または置換 revision
 - harvest to: `tools/Artifacts/README.md`（移設の完了後の所在）、`tools/Workflow/README.md`・`tools/Harness/README.md`（必要な場合）、`docs/README.md` の program 表、`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4・§6
 - Phase A snapshot の取得案内・状態: Git 上の本文で完結（A0 = commit `a016d02a`、A2 入力版 = commit `0dd3bd6e`、凍結版 = message に `A3 freeze` を含む commit。凍結版の内容 sha256 は commit の blob（`git rev-parse <commit>:docs/handoff/ARTIFACT_STORE_ROOT_MIGRATION.md`）で求められるので転記しない）
-- Phase B result snapshot の取得案内・状態: 未到達
+- Phase B result snapshot の取得案内・状態: Git 上の §6 と Phase B の出口の commit で完結。テスト結果 JSON は未保存（temp に出しただけ）
 - evidence bundle の取得案内・状態: 未到達
 - C' blind bundle の取得案内・状態: 未到達
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（実装）。
-  - 次の作業: 下の「Phase B の着手手順」に従い、§3・§4 の module・入口・suite を実装し、B の出口まで行う。
-  - 引き継ぐ commit SHA: この branch の先頭（message に `A3 freeze` を含む commit）。作業ツリーが dirty なら引き継がない。
-  - 取得案内の所在: なし（Phase A は Git 上の本文だけ）。
-  - 必要な権限: リポジトリの読み書き、pwsh 7。Unity は使わない。実ストア・LocalCache・資格情報・Task Scheduler・R2 に触れない。
-  - 停止規則: 下の「Phase A へ差し戻す条件」に当たったら実装を止めて返す。
+  - 次の Phase・役割: 発見 C（動作確認は `対象なし`。§5・§6）。巡の数: B ↔ 発見 C は 0 巡。
+  - 次の作業: Phase B の出口の commit を §2 の「A1:」「A3:」の小節と §3〜§5 に照らしてレビューし、§6 の B 適応を含めて blocker の有無を判断する。入口 script は実ストアに対して実行しない（高コスト証拠。§5）。
+  - 引き継ぐ commit SHA: この branch の先頭（message に `Phase B exit` を含む commit）。作業ツリーが dirty なら引き継がない。
+  - 取得案内の所在: なし（Git 上の本文とコードだけ）。
+  - 必要な権限: リポジトリの読取り（指摘の記録に本書の書込み）、pwsh 7。Unity は使わない。実ストア・LocalCache・資格情報・Task Scheduler・R2 に触れない。
+  - 停止規則: blocker があれば Phase B へ差し戻す。§4 の状態表・入口の分岐・reasonCode を変える必要があれば Phase A へ返す（下の「Phase A へ差し戻す条件」）。
   - 引き渡さないもの: ローカル store・LocalCache の実 path、資格情報。
 
 ### Phase B の着手手順
@@ -416,7 +416,33 @@ seam を使わない production の `Get-OsmStoreRoot` と 3 CLI（`artifacts.ps
 
 ## 6. Phase B 実装結果
 
-未着手
+- 実装: §3 の 3 file を新規に追加した。`tools/Workflow/StoreRootMigration.psm1`（246 行。計画は約 150）、`tools/Workflow/StoreRootMigration.ps1`（15 行）、`tools/Workflow/tests/StoreRootMigration.Tests.ps1`（310 行。計画は約 220。case は `ac-1`、`ac-1b`、`ac-2`〜`ac-6`、`ac-8`、`ac-9`）。consumer の既存 file・README・`unity/` は変えていない（I6）。行数の超過は、状態表の全行と入口の 3 分岐を 1 file に収めたことと、suite が各 AC の再実行経路まで確かめることによる。
+- 処理の順序: 仮想化の判定（I4）→ `LocalApplicationData` の既定位置との一致（U10）→ 新 root と旧 root の drive root の一致 → seam 無しの `Get-OsmStoreRoot` による入口の 3 分岐 → 3 role の状態を**何も変える前にすべて**分類（§4 の状態表）→ 新 root directory の作成（無ければ。ACL は継承のまま）→ role ごとの処置（件数 → rename → tombstone → 件数の照合）→ 旧 root の 3 role が size 0 の通常 file であることの再確認 → 印の発行 → `Get-OsmStoreRoot` が新 root を返すことの確認。
+- 出力: `{"status","reasonCode","roles":[{"name","action","before","after"}]}`。`action` は `moved`、`initiallyAbsent`、`alreadyMoved`。`before` / `after` は `files`、`directories`、`bytes`（数えない場合は null）。絶対 path・SID を含まない。
+- HANDOFF との差（B 適応。§4 の状態表・入口の分岐・reasonCode の意味は変えていない）:
+  - 成功時の reasonCode に `migrated` を使った（§4 の一覧は失敗 code と `already-migrated` だけを挙げている）。
+  - rename の Win32 error 17（`ERROR_NOT_SAME_DEVICE`）は `different-volume`、それ以外の rename 失敗は `rename-failed` に畳んだ。drive root の比較による事前の `different-volume` も置いた。
+  - seam は §3 の列挙（base、旧 base、store context、rename・書込みの失敗注入）に加え、`ResolvedLocalForTest`（U10 の比較値）、`QueryForTest`（role の metadata 照会。AC-1b のアクセス拒否の注入に要る）、`TombstoneForTest`（tombstone の `CreateNew` の失敗注入。AC-2）を置いた。いずれも module scope の `$script:` 変数で、CLI 引数・環境変数からは設定できない。
+  - 件数は file 数と合計 size に directory 数も加え、前後の 3 値すべての一致を要求した。hidden・system の file も数える（`AttributesToSkip` は `ReparsePoint` だけ）。
+  - 状態表の「旧 不在・新 directory」の再開は、出力で `action` = `moved`・`before` = null として出す（再実行で移し済みの role は後の値だけを出す、の規則に合わせた）。
+  - 新 root が不在で base（UserProfile）が directory でない、または新 root の path が directory でない場合は `store-root-precondition` で止まる。
+  - 旧 root の親 directory（`<LocalApplicationData>\OneStarMaker`）自体が無い host では tombstone の `CreateNew` が失敗し `tombstone-failed` で止まる。状態表に行は足していない（旧 root の無い host は「新しい host での印の発行」の後続の範囲）。
+  - 入口 script は module の読込み失敗も `migration-failed` に畳む（読込み失敗の message に path が入りうるため）。
+  - AC-6 は module を同じ process で呼び、全 stream を結合した出力（入口 script が JSON にする object と同じもの）に対して確かめた。入口 script の子 process の stdout・stderr は seam を設定できないので suite では見ていない（§3 のとおり判定 C が読む）。
+- 実行したテスト（作業ツリーの最終状態。結果 JSON は temp に出し、保存していない）:
+  - `pwsh tools/Workflow/tests/StoreRootMigration.Tests.ps1 -Case '*' -ResultPath <temp>`: 9/9 passed、failed 0。
+  - `pwsh tools/Workflow/tests/StoreRoot.Tests.ps1 -Case '*' -ResultPath <temp>`: 18/18 passed、failed 0。
+  - 参考: `StoreContext.Tests.ps1` 26/26、`TaskLifecycle.Tests.ps1` 24/24（判定必須は判定 C が SHA B で行う）。
+  - `pwsh tools/contract-audit.ps1`: errors 0、warnings 0。`pwsh tools/docs-audit.ps1`: errors 0、warning 1（`ARTIFACT_STORE_ROOT_RELOCATION.md` の harvest の頃合い。本スライスの対象外）。
+  - `git diff --name-status 94f93930 HEAD -- tools/ unity/`: §3 の 3 file の追加だけ（commit 前は未追跡の 3 file だけであることを確かめた）。
+  - 入口 script は構文解析だけ確かめた（parse error 0）。
+- 未実行: 入口 script の実ストアへの実行（禁止。高コスト証拠）。`tools/Artifacts/tests`・`tools/Harness/tests`（I6 により判定必須でない）。Unity（対象外）。role 内の junction を件数がたどらないことの offline の確認（実装は `AttributesToSkip = ReparsePoint` だが、suite に junction の case は無い）。
+- implementation head commit: Phase B の出口の commit（message に `Phase B exit` を含む。この §6 を含む commit 自身）。
+- Phase B 担当・モデル・ベンダー: Phase B 実装 session。
+
+### 動作確認
+
+- `対象なし`（§5。offline の suite で閉じる）。
 
 ## 7. Phase C
 
