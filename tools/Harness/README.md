@@ -66,7 +66,7 @@ pwsh tools/harness.ps1 status
 pwsh tools/harness.ps1 current -Task h1-transport-identity
 ```
 
-**注記（合流前、2026-10-17の `store plan`）:** `h1-transport-identity` のCURRENTは仮想化されたhost（Codex）が書いた側にだけあり、実ストアには無いので、非仮想化processの上の `current` では読めない。読取のみの `store plan` では、このtaskの単位は `hold`（理由 `reference-missing`）で未合流。
+**現況（2026-10-20）:** `h1-transport-identity` のCURRENTは、仮想化されたhost（Codex）が書いたLocalCache側のcopyにだけあり、そのcopyを2026-10-20に合流せずに削除したので、上の `current` はこのtaskでは「CURRENTが見つかりません」で止まる。H1の検証の要約は [PR #82](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/82) にある。上のコマンドは、別taskを始めるときの使い方の例として読む。
 
 新規taskの `init` は人間が承認したA3 snapshotとownerを受け取る。既存taskのCURRENTが欠落したら `init` で上書きせず `restore` を使う。registrationが欠落・破損した場合は`restore`も使えないため、statusの診断に従ってtaskディレクトリと原本を確認し、手動で復旧を判断する。存在するCURRENTが壊れている場合も上書きせず停止する。statusにはtask IDと健全性を表示する。保存先はstore root（UserProfile Known Folder直下の `OneStarMaker`）の `Harness/<repo-id>/tasks/<task-id>`。端末喪失へのbackupはH3で扱う。
 
@@ -100,9 +100,9 @@ H1適用taskの契約検査は `pwsh tools/contract-audit.ps1 -HarnessTask <id>`
 
 ## Evidence lifecycle のtask限定gate
 
-`pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle` を実装入口にする。A3本文hash・固定base・変更scope・discovery/judgmentのstep集合は `ApprovedSpecifications.psm1` に登録し、init/current/run/handoffで再照合する。tracked HANDOFFからGit外specへ投影した削除だけを許し、新しい仕様・RESULT・rawをGitへ追加しない。旧H1とH2の集合やclose時計は変えない。
+`pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle` はこのtaskの実装入口だった（CURRENTは下の現況のとおり削除した）。以下はこのtaskの承認範囲の記録である。A3本文hash・固定base・変更scope・discovery/judgmentのstep集合は `ApprovedSpecifications.psm1` に登録してあり、init/current/run/handoffで再照合する。tracked HANDOFFからGit外specへ投影した削除だけを許し、新しい仕様・RESULT・rawをGitへ追加しない。旧H1とH2の集合やclose時計は変えない。
 
-**注記（合流前、2026-10-17の `store plan`）:** `artifact-evidence-lifecycle` のCURRENTは仮想化されたhost（Codex）が書いた側にだけあり、実ストアには無いので、非仮想化processのこの入口は「CURRENTが見つかりません」で失敗する。読取のみの `store plan` では、このtaskを含む単位は `hold`（理由 `dependency-held`、`multi-workflow-unit`、`reference-localcache`、`reference-missing`、`reference-out-of-role`）で未合流。
+**現況（2026-10-20）:** このtaskのCURRENTは、仮想化されたhost（Codex）が書いたLocalCache側のcopyにだけあり、そのcopyを2026-10-20に合流せずに削除したので、この入口は「CURRENTが見つかりません」で失敗する。検証の要約は [PR #109](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/109) にある。以下はこのtaskの承認範囲の記録である。
 
 このtools専用taskの5 stepは `artifacts-evidence-local`、`workflow-local`、`harness-local`、`contract-audit`、`docs-audit`。Artifacts stepはProbe/Packaging/Transportの3 Release build、全PowerShell parse、Credentials/RouteProof/R2RouteTransport/ArtifactPackage/ArtifactTransfer/ArtifactRotation/ArtifactEvidence/EvidenceRetention/EvidenceCleanup/EvidenceSchedule/EvidenceResetの11 suiteを収録する。Workflowは全parseとTaskLifecycle suite、Harnessは全parseとHarness suite。suiteごとにregistered/selected/executedが同一の非空集合、failed 0であることを確認し、生sidecar/logと実ロードDLL/depsのpath/hashを固定する。通常auditは適用taskの証拠にならず、contractは `-HarnessTask artifact-evidence-lifecycle` を使う。
 
@@ -113,13 +113,9 @@ H1適用taskの契約検査は `pwsh tools/contract-audit.ps1 -HarnessTask <id>`
 原bytesをrunのprivate `payload/<run>/observations/` に追加専用でコピーし、manifest path/hashをrun/ImplementationResultへ固定する。引渡し時は全fileを再検査し、CURRENTは採用runのmanifest参照を表示する。CBlindはCJudgmentと同じ入力ID/hashと同じmanifest参照を使い、Cの所見を追加しない。同一hostの別worktree/sessionまでを扱う。
 ## H2c Unity pilot
 
-旧 `h2c-unity-gate` と再開task `h2c-unity-gate-r2` の二つの明示entryを承認している。H2cはr2の正式C/C′を経て [PR #93](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/93) でマージ済みであり、以下は両taskの承認範囲と固定記録の読み方である。旧taskのCURRENT・specification・run・承認値を保持し、旧入口は読取のみとする。B限定実行の許可はこの2 taskに限り、他taskへは各A3で実行経路と対象集合を固定するまで適用しない。A3本文のSHA-256、完全base、`unity-pilot-gates-v1`、`external-current-v1`、固定profileと変更pathはtask別に `ApprovedSpecifications.psm1` にあり、init/current/run/handoffで再照合する。Git外の登録JSONを承認元にしない。H1の登録・run・非観測step v1はそのまま扱う。
+旧 `h2c-unity-gate` と再開task `h2c-unity-gate-r2` の二つの明示entryを承認している。H2cはr2の正式C/C′を経て [PR #93](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/93) でマージ済みであり、以下は両taskの承認範囲の記録である。承認値は `ApprovedSpecifications.psm1` に保持している。両taskのCURRENT・specification・runは、仮想化されたhost（Codex）が書いたLocalCache側のcopyにだけあり、そのcopyを2026-10-20に合流せずに削除した（検証の要約は PR #93）。B限定実行の許可はこの2 taskに限り、他taskへは各A3で実行経路と対象集合を固定するまで適用しない。A3本文のSHA-256、完全base、`unity-pilot-gates-v1`、`external-current-v1`、固定profileと変更pathはtask別に `ApprovedSpecifications.psm1` にあり、init/current/run/handoffで再照合する。Git外の登録JSONを承認元にしない。H1の登録・run・非観測step v1はそのまま扱う。
 
-**注記（合流前、2026-10-17の `store plan`）:** 旧task `h2c-unity-gate` のCURRENTは仮想化されたhost（Codex）が書いた側にだけあり、実ストアには無いので、非仮想化processからは旧入口を読めない。読取のみの `store plan` では、このtaskの単位は `hold`（理由 `reference-missing`）で未合流。
-
-固定記録の入口は `pwsh tools/harness.ps1 current -Task h2c-unity-gate-r2`。保存先は実行したWindowsユーザーのstore root（UserProfile直下の `OneStarMaker`）で、別のWindowsユーザーからは参照できない。`CURRENT` が見つからない場合は、上記H1の `status`、`restore`、registrationの切り分けに従い、原因を推測で決めない。r2の新規initには凍結済みh2c-a3-v2本文と承認済みbaseを使い、旧taskを上書きしない。`discovery` はrunner/observation/adapter/Harnessのoffline suiteと両audit、固定filterの11件を要求する。`judgment` はoffline suiteと両audit、Artifacts suite、空filterの全EditModeを要求する。いずれも変更pathにかかわらず必須で、H1の変更path派生gateやUnity拒否を広げない。B限定runを判定Cに、C全件runを発見Cに流用しない。
-
-**注記（合流前、2026-10-17の `store plan`）:** `h2c-unity-gate-r2` のCURRENTも仮想化されたhost（Codex）が書いた側にだけあり、実ストアには無いので、非仮想化processのこの入口では読めない。読取のみの `store plan` では、このtaskの単位は `publish`（理由なし・未合流）。合流（`store consolidate`）はownerがmanifestを承認するまで実行しない。
+固定記録（CURRENT・run）は上のとおり削除したので、`pwsh tools/harness.ps1 current -Task h2c-unity-gate-r2` は「CURRENTが見つかりません」で止まり、`restore` でも戻らない。H2cの実例と検証の要約は PR #93 を正とする。r2の新規initには凍結済みh2c-a3-v2本文と承認済みbaseが要るが、承認値と一致するsnapshotはGitの履歴から得られない見込みなので、この2つのtask idは再initしない。以下はr2で承認した実行集合の記録である。`discovery` はrunner/observation/adapter/Harnessのoffline suiteと両audit、固定filterの11件を要求する。`judgment` はoffline suiteと両audit、Artifacts suite、空filterの全EditModeを要求する。いずれも変更pathにかかわらず必須で、H1の変更path派生gateやUnity拒否を広げない。B限定runを判定Cに、C全件runを発見Cに流用しない。
 
 Unity adapterは `tools/run-tests.ps1 -ObserveUnity -OutputRoot <task>/payload/<run>/unity` を一回呼び、限定profileのときだけ固定 `-Filter OneStarMaker.Tests.Editor.TestObservation.ObservationStateTests` を付ける。子processだけに `SAMPLEGAME_CONTENT__RUNTIMEMODE=addressables` を設定する。標準runnerのmarkerを唯一のstep取得先とし、stdout/stderrとstep v2、XML、Unity log、progress、最終observation、private復旧資料があればそのraw bytesを同runに保持する。失敗runも取得済みrawと理由を残すが、readyにはならない。固定timeoutによる正常進行中の中断はしない。
 

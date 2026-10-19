@@ -3,7 +3,7 @@
 ## 0. Metadata
 
 - type: `program`
-- status: **完了（保留list付き）**。ownerが2026-10-17にArtifact Storageの開発をここで完了と決めた。完了の範囲は同一Windowsユーザー・非仮想化processで検証した基本操作と運用契約（[Artifacts README](../../tools/Artifacts/README.md)冒頭）で、次に実装するスライスは置かない。残りは§6の保留listにあり、再開条件を満たした時にownerが再開を判断する。スライスAはPR #109で実装・限定運用検証と正式C/C′を完了（両方GO、blocker 0）。固定仕様と実行集合・原観測の入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。**注記（合流前、2026-10-17の `store plan`）:** このCURRENTは仮想化されたhost（Codex）が書いた側にだけあり、実ストアには無いので、非仮想化processからは読めない。`store plan` ではこのtaskを含む単位は `hold`（理由 `dependency-held`、`multi-workflow-unit`、`reference-localcache`、`reference-missing`、`reference-out-of-role`）で未合流（§6）。旧限定resetは完了済みで、再実行しない。**2026-10-18にownerが保留項目「Virtualized Host Route」を再開し**、問いを「store rootをAppData外へ移す」に置き換えた。store rootの移設はPR #139（resolverと3 CLI）とPR #140（実ストアの一回の移行）で2026-10-19に完了した（§4 F）。他の保留項目は再開していない。
+- status: **完了（保留list付き）**。ownerが2026-10-17にArtifact Storageの開発をここで完了と決めた。完了の範囲は同一Windowsユーザー・非仮想化processで検証した基本操作と運用契約（[Artifacts README](../../tools/Artifacts/README.md)冒頭）で、次に実装するスライスは置かない。残りは§6の保留listにあり、再開条件を満たした時にownerが再開を判断する。スライスAはPR #109で実装・限定運用検証と正式C/C′を完了（両方GO、blocker 0）。固定仕様と実行集合・原観測の入口だったCURRENT（`artifact-evidence-lifecycle`）は、仮想化されたhost（Codex）が書いたLocalCache側のcopyにだけあり、2026-10-20にcopyと一緒に削除した（§4 G）。旧限定resetは完了済みで、再実行しない。**2026-10-18にownerが保留項目「Virtualized Host Route」を再開し**、問いを「store rootをAppData外へ移す」に置き換えた。store rootの移設はPR #139（resolverと3 CLI）とPR #140（実ストアの一回の移行）で2026-10-19に完了した（§4 F）。2026-10-19にownerが保留項目「LocalCache側copyの扱い」を再開し、2026-10-20にcopyを合流せずに全部削除して完了した（§4 G）。他の保留項目は再開していない。
 - program policy revision: `r7` — 単一の開発用保存契約にContent種別を追加（§2）。旧データと互換性を引き継がない。
 - branch: `codex/artifact-storage-development-policy`
 - planning base commit: `a027bf04b4f5ce16494b93daf10e5b5bccf15a28` (`origin/develop`; PR #106・#107を含む)
@@ -23,9 +23,9 @@
 
 この指示を根拠に、r5のlegacy分岐、旧最低保存義務と日程、参照中/参照不明の無期限保持、keyごとの削除承認を置き換える。**PR #107のE1/E2へのIndefinite追加、reader互換、新保護事実recordの実適用タスクは取りやめる。** 過去の方式確認の成果は否定せず、経緯はPR/Git履歴に残す。撤去する方式を一度完成させてから移行する工程は作らない。
 
-現在の実装機能は [Artifacts README](../../tools/Artifacts/README.md) を正とする。スライスAのEvidence v2、workflow taskの終了/再開配送、純粋保持policy、自動清掃と一回の限定resetは検証を完了した。正式C/C′は同じ実装headでGO。検証集合、限定実観測、既知ACL不適合copyの保護によるpartial結果と未確認範囲は、PR #109およびCURRENTの固定記録に残す。
+現在の実装機能は [Artifacts README](../../tools/Artifacts/README.md) を正とする。スライスAのEvidence v2、workflow taskの終了/再開配送、純粋保持policy、自動清掃と一回の限定resetは検証を完了した。正式C/C′は同じ実装headでGO。検証集合、限定実観測、既知ACL不適合copyの保護によるpartial結果と未確認範囲の要約は、PR #109に残っている（CURRENTの固定記録は2026-10-20に削除した。§4 G）。
 
-**注記（合流前、2026-10-17の `store plan`）:** ここで言うCURRENT（`artifact-evidence-lifecycle`）は仮想化されたhost（Codex）が書いた側にだけあり、実ストアには無いので、非仮想化processの `harness.ps1 current -Task artifact-evidence-lifecycle` では読めない。`store plan` では `hold`（理由 `dependency-held`、`multi-workflow-unit`、`reference-localcache`、`reference-missing`、`reference-out-of-role`）で未合流（§6）。
+**現況（2026-10-20）:** ここで言うCURRENT（`artifact-evidence-lifecycle`）は、LocalCache側のcopyと一緒に削除した（§4 G）。検証集合と結果の要約はPR #109に残っている。
 
 - 資格情報管理、Route proof、synthetic publish/fetch、固定E1/E2の別session取得・hash検証・ログ/画像閲覧はPR #76/#81/#96/#104で成立した。
 - PR #106のreader offline可搬性は完了。判定head `19720ed7c6065ffcc55ee2643f811462025a940d`、非秘密dummy fixture、7suite 120/120、3 build、限定不在probe 2/2。現在も役立つ部品・テストを再利用する。
@@ -83,7 +83,7 @@ Content Directory（`transport.json` + `content/`）はPlayerとは独立した�
 
 実行担当は実在するkey/path/ruleと解除可否、他対象への影響を確かめ、対象を列挙してから操作する。bucket全消去や全rule collectionの無条件置換はしない。旧利用停止後の部分失敗は結果を残して対象限定で再実行し、旧経路への自動復帰や二重運用は作らない。設定整理に必要な管理操作はこの一回の担当が行い、日常清掃とは分離する。
 
-r6の方針改訂だけではリセットを開始しない。スライスAの実行は固定対象と開始条件、CURRENTの固定入力に従う。旧保存義務がなくなったことを、現rule解除済み・物理データ不存在・任意領域を削除可能という主張に置き換えない。具体的なコマンドはArtifacts README、対象と除外はスライスAの固定仕様で確認する。
+r6の方針改訂だけではリセットを開始しない。スライスAの実行は固定対象と開始条件、CURRENTの固定入力に従った（スライスAは完了済みで、その固定入力のCURRENTは2026-10-20に削除した。§4 G）。旧保存義務がなくなったことを、現rule解除済み・物理データ不存在・任意領域を削除可能という主張に置き換えない。具体的なコマンドはArtifacts README、対象と除外の要約はPR #109にある。
 
 ## 4. 完了したスライス
 
@@ -103,9 +103,9 @@ r6の方針改訂だけではリセットを開始しない。スライスAの�
 
 **検証:** 保存→別session取得/hash・ログ/画像閲覧、30日境界、終了イベントの再適用、再開後への古いイベント到着、利用開始/再開と削除の競合、対象外の非削除、部分失敗の再実行、秘密非露出、安全な展開。時刻注入、#106のdummy fixture、隔離した使い捨てデータを使う。実R2の限定往復/清掃は運用経路の確認として行い、旧E1/E2継続取得や30日実待機を要求しない。自動清掃の起動・再実行が人の反復操作なしで成立する経路もA3で具体化する。
 
-判定は関連Artifacts/Harness offline suiteと限定R2検証。Unityを変更しないため全EditMode回帰は適用外。スライスAのschema/API、file配置、清掃間隔、7日の初期値、リセット対象/操作はA3 r6に固定済みで、Git外CURRENTから取得する。実装時に必要な終了イベント接続だけを扱い、Harness全体の改造へ膨らませない。
+判定は関連Artifacts/Harness offline suiteと限定R2検証。Unityを変更しないため全EditMode回帰は適用外。スライスAのschema/API、file配置、清掃間隔、7日の初期値、リセット対象/操作はA3 r6に固定し、Git外CURRENTから取得した（そのCURRENTは2026-10-20に削除した。要約はPR #109）。実装時に必要な終了イベント接続だけを扱い、Harness全体の改造へ膨らませない。
 
-**注記（合流前、2026-10-17の `store plan`）:** スライスAのCURRENT（`artifact-evidence-lifecycle`）は仮想化されたhost（Codex）が書いた側にだけあり、実ストアには無いので、非仮想化processの `harness.ps1 current -Task artifact-evidence-lifecycle` では読めない。`store plan` ではこのtaskを含む単位は `hold`（理由 `dependency-held`、`multi-workflow-unit`、`reference-localcache`、`reference-missing`、`reference-out-of-role`）で未合流（§6の「LocalCache側copyの扱い」）。
+**現況（2026-10-20）:** スライスAのCURRENT（`artifact-evidence-lifecycle`）は、LocalCache側のcopyと一緒に削除した（§4 G）。
 
 **停止規則:** 上記の通常利用・期限清掃と一回の切替が成立したら閉じる。Build、Cloud、GUI、常駐broker、別provider、長期保護・互換維持を追加条件にしない。
 
@@ -153,13 +153,17 @@ Cloud・別PCがR2から取得する経路とtokenの受け渡しは未着手で
 
 PR #126 で、3つのCLI（artifacts / workflow-task / harness）がstoreに触れる前にAppData書込みの仮想化を判定して拒否するようになり、すでに分かれた記録を安全に合流する `store plan` / `store consolidate` が入った。判定の方式と実行条件は `tools/Artifacts/README.md` の「実行するprocessの条件（AppData仮想化）」と「分裂したストアの合流」を正とする。実環境で分かったこと: 仮想化されたprocessの新規fileの書込み先はpathごとに違い、実体側にだけあるdirectoryの中では実体側へ書かれる。そのため固定名のprobe領域は誤判定の原因になり、呼出しごとの一意名の新規directoryで判定する。実環境の確認（Codex内のAC4とClaude内のAC5）は、事前実行との間隔を詰め、一つの時刻付きログに前後の一覧を残さないと証拠として成立しない。
 
-実データへの読取のみの `store plan` は2026-10-17に1回行った（結果は§6の「LocalCache側copyの扱い」）。`store consolidate` は実行していない。
+実データへの読取のみの `store plan` は2026-10-17に1回行った。`store consolidate` は実行していない。その後、合流の価値は無いとownerが決め、copyは合流せずに削除した（§4 G）。合流の機能（`store plan` / `consolidate`）はそのまま残っている。
 
 ### F. store rootのLocalAppData外への移設と実ストアの移行（完了）
 
 保留項目「Virtualized Host Route」を2026-10-18にownerが再開し、問いを「store rootをAppData書込み仮想化の対象外へ移す」に置き換えた2スライス。PR #139で、store rootをUserProfile Known Folder直下の `OneStarMaker` に移し、3つのCLIとstore moduleの各root関数が、移行済みの印（`store-root.json`）の有無と旧root（LocalApplicationData直下の `OneStarMaker`）の所有roleの残存を呼出しごとに判定するようになった（`store-not-migrated` / `legacy-store-present` / `store-root-unavailable`）。旧rootの記録が持つpathは、prefix置換だけで新rootへ付け替えて読む。PR #140で、一回限りのprogramにより実ストアの所有roleを同一volumeのrenameで移し（`Harness` は初めから無かった）、旧rootにtombstone（size 0の通常file）を置き、印を発行し、清掃jobを新rootで再登録した。smokeは、Harness CURRENTの読戻しだけを空状態の確認に縮退した（owner承認）。移行programはmerge前に削除した。正は `tools/Artifacts/README.md` の「実行するprocessの条件（store rootと移行済みの印）」。
 
 後続の入力（両スライスのC・C′から。どれも現在の動作を止めない）: AppDataをredirectしたhostでは、redirect先にだけある旧記録がprefix置換に乗らない。`StoreConsolidation.psm1` のreasonCodeのallow-listにresolverの3 codeが無い。印の読込みは4 KiBの判定の前にfile全長を確保する。CLI経路の新rootへのjunctionのcaseは未観測。仮想化判定のprobe directoryは失敗時に空で残りうる。packaged app側のsmoke（`legacy-store-present` の確認）は未実施。
+
+### G. LocalCache側copyの削除（完了）
+
+保留項目「LocalCache側copyの扱い（合流の価値の判断と削除）」を2026-10-19にownerが再開した1スライス。Phase Aでは合流の価値の判断と、残す場合の追跡・網羅性の検証を詰めたが、ownerが2026-10-20に「過去の遺物のために厳密性を足して重くしない」として、合流せずにcopyを全部削除すると決めた。Codexのpackageの `LocalCache\Local\OneStarMaker`（最上位entry 8つ、file 15,035・約1.71 GB）を、非仮想化processで一回だけ削除した。手順は、ownerによるCodexの停止 → 消さない確認 → ownerの承認 → copy rootの形・単一性・非仮想化・reparse pointの拒否を確かめる短いscriptで1回削除 → 不在の確認。新rootと旧rootのtombstoneは前後で変わらず、tombstoneは残した（`tools/Artifacts/README.md` の「消さないでください」を正とする）。copyにだけあったHarnessの4 task（`h1-transport-identity`、`h2c-unity-gate`、`h2c-unity-gate-r2`、`artifact-evidence-lifecycle`）のCURRENTも消えたので、公開文書の入口の記述をPR（#82、#93、#109）の要約へ向け直した。copyの記録が追跡していたR2のobjectは、件数を数えずに追跡できないまま残した（§6「Contentの容量上限と孤児回収」）。削除の後にpackaged app内でCLIが動くことは確かめていない。経緯の全文は削除前のHANDOFF（`docs/handoff/LOCALCACHE_COPY_DISPOSITION.md`、commit `8a27936f`。[PR #141](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/141)）。
 
 ## 5. 責務・残す安全性・採否
 
@@ -199,13 +203,13 @@ ownerは2026-10-17に、Artifact Storageの開発はここで完了と決めた�
 
 ### 分裂したストア
 
-- **LocalCache側copyの扱い（合流の価値の判断と削除）** — owner決定（2026-10-19）で旧2項目「分裂したストアの合流」と「Codex側残置の後始末」をまとめた。問い: LocalCache側copy（packaged appが旧rootの `Artifacts` / `Workflow` / `Harness` として書いた記録）を新rootへ合流させる価値があるか。価値が無ければ合流せずにcopyを削除して終える。価値があると判断した単位だけを、`store plan` の再実行 → ownerのmanifest承認 → `consolidate`（承認までdry-runも含めて実行しない）→ 合流後の確認（H1適用taskのCURRENT・receiptのpath bytesと新rootの両立を含む）へ進める。価値の判断の入力: 2026-10-17の読取のみの `store plan`（単位20、`publish` 4・`skip` 0・`hold` 16、deployment単位1件の `conflict` とそれへの `dependency-held`）。Harnessの4 task（`h2c-unity-gate`、`h2c-unity-gate-r2`、`h1-transport-identity`、`artifact-evidence-lifecycle`）のCURRENTがcopy側にだけあり、非仮想化processから読めない。PR #140は新rootでのHarness CURRENTの読み戻しを実証していない（smokeは空状態の確認に縮退）。tombstoneを置いた後のpackaged appの仮想化されたviewで、実体側の通常fileとLocalCache側のdirectoryが同じ名前で重なったときの見え方（未観測）。合流に進む場合だけの入力: 保留単位の解消方式（公開途中の不可視性。必要なら設計スライスに分ける）、名前表の `retirements-v1`、仮想化以外のpath不一致の診断、`StoreConsolidation.psm1` のreasonCodeの畳み込み、実ストアの鍵で認証に失敗した場合は資格情報の複写・置換で直さずownerへ返すこと。削除の扱い: copyの削除は不可逆なので、対象（packageとcopy内のrole、旧rootに残るtombstone）・除外・開始条件をそのスライスのA3で固定し、ownerの承認で1回行う（通常操作の事前承認に含めない）。削除の後にpackaged appをPhase担当にできる（`legacy-store-present` が解ける）。Storageの30日清掃がcopyに届かないことは削除で解消する。入口条件: 実ストアの移行の完了（PR #140、2026-10-19に成立）。旧RC1・RC2の再開条件はowner決定で置き換えた。判断: owner（価値の判断、manifestの承認、削除の承認）。
+- **LocalCache側copyの扱い（合流の価値の判断と削除）（2026-10-19 に再開、2026-10-20 に完了、§4 G）** — 旧2項目「分裂したストアの合流」と「Codex側残置の後始末」をまとめた項目。ownerは合流の価値が無いと決め、copyを合流せずに全部削除した。tombstoneは残した（削除の対象に含めない。旧版のCLIが旧rootにroleを作り直すのを防ぐため）。
 
 ### Content
 
 - **Content確定記録** — 新旧順序とmanifest digestを持つ追記だけの記録の形式と書込み方式（LISTまたは条件付き書込みの要否）、revision削除時の記録の扱い（削除の正本のローカル `deletion/` を参照するか、削除を追記するか）、「最新」の解決の保存側の部分、単調なpublish順序（時計巻戻りへの耐性）、別PCからの同じrevisionの同時公開の排他（R2側に上書き防止が無い）。再開: RC2（別PCからの同時公開の衝突が実運用で2回以上、READMEの手順で回復できない）またはRC3。判断: owner。
 - **Contentの分離・取得・取り込み** — Content分離（Playerが `content/` を内包しない場合のUnity側の変更。候補はU1: 今のまま内包して重複保存、U2: 既存の `content:installedRevisionPath`+`content:manifestSha256` の組で外部revision rootを指す、U3: 新しいconfig keyの追加。U2は外部revision rootがDIST cacheの `installed/` 配置とreceiptを要し、BuildIdentity一致を要求する点、baked `relativeDirectory` の扱い、起動時のlatchとの両立を確認する。`build collect` の検査・`build-info.json`・selectionの変更、互換キー案の判断。baked targetと外部revisionの照合に使うtargetを分けるか）、Content取得と再利用（R2からArtifactsRootへの配置と不足fileの再利用）、Content取り込み（取り込み元からDIST cacheへの不足fileの再利用、cacheのeviction・lease、アプリ更新を越える永続性、Unityバージョンとroot schemaの束縛、HTTPのfileごとのdeadline）、統合Contentフォルダ（取得型／監視型、複数ワークスペースの衝突規則、ArtifactsRootとの同一性、共有時の削除主体、ローカル設定と選択UI、「最新」の解決の所有）、`contentSet` の命名規約（用途×構成×性能の合成名、既存値 `bs4-spring-full` を改名しないこと、大文字小文字とパス要素の安全規則、hd/sdを1 revisionに同梱した場合の部分取得）、Windows以外のtarget（transport manifest v1の固定 `target` とDIST cacheの配置の拡張）。再開: RC1。判断: owner。
-- **Contentの容量上限と孤児回収** — Content固有の上限値、R2のプラン変更の要否、R2の操作回数の枠（file単位objectのPUT数）、転送中の展開量上限、0 byte fileの拒否、4季節 `all-full` の実測（1 revision・約881 object・約22 MiB以下の見積もり、未実施）。R2の途中失敗や削除後の遅延PUTで残る追跡外object、receiptを失ったobject、既存publishの404 → `failed` で残るremote residueの回収。再開: RC2（容量・孤児objectによる障害が2回以上）。判断: owner。
+- **Contentの容量上限と孤児回収** — Content固有の上限値、R2のプラン変更の要否、R2の操作回数の枠（file単位objectのPUT数）、転送中の展開量上限、0 byte fileの拒否、4季節 `all-full` の実測（1 revision・約881 object・約22 MiB以下の見積もり、未実施）。R2の途中失敗や削除後の遅延PUTで残る追跡外object、receiptを失ったobject、既存publishの404 → `failed` で残るremote residueの回収。2026-10-20に削除したLocalCache側copyの記録が追跡していたobject（Codexが書いたEvidence・Build。件数は数えていない）も追跡できないまま残っている（§4 G）。再開: RC2（容量・孤児objectによる障害が2回以上）。判断: owner。
 
 ### 清掃と運用
 
