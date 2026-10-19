@@ -25,6 +25,7 @@ if($Mode -cnotin @('publish','fetch','inspect')){exit 1}
 . (Join-Path $PSScriptRoot 'EvidenceTestSupport.ps1')
 Import-Module (Join-Path $PSScriptRoot '../BuildApplication.psm1')
 Set-EvidenceTestValue BuildStore TestRoot $StoreRoot
+$null=Enable-EvidenceTestStoreRoot ([IO.Path]::GetDirectoryName($TransferRoot))
 Set-EvidenceTestValue ArtifactPaths TestRoot $TransferRoot
 Set-EvidenceTestValue EvidenceContract DeploymentRoot $DeploymentRoot
 Set-EvidenceTestValue BuildContract OwnedRootsForTest @($StoreRoot,$TransferRoot,$DeploymentRoot)

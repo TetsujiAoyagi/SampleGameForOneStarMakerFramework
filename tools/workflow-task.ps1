@@ -7,10 +7,11 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
-# A virtualized AppData write would split the store. Decide before any store
-# module import or Workflow guard; an undecidable context also stops here.
-try{Import-Module (Join-Path $PSScriptRoot 'Workflow/WindowsStoreContext.psm1');$storeContext=Get-OsmStoreContext}catch{$storeContext='unknown'}
-if($storeContext -cne 'not-virtualized'){[ordered]@{status='failed';reasonCode=$(if($storeContext -ceq 'virtualized'){'virtualized-store'}else{'store-context-unknown'})} | ConvertTo-Json -Compress;exit 1}
+# The store root gate: no migration marker, an old store still under the former
+# root, or a root that cannot be established safely all stop here, before any
+# store module import or Workflow guard, with a fixed code and nothing else.
+try{Import-Module (Join-Path $PSScriptRoot 'Workflow/WindowsStoreRoot.psm1');$null=Get-OsmStoreRoot;$storeGate=$null}catch{$storeGate=$(if($_.Exception.Message -cin @('store-not-migrated','legacy-store-present','store-root-unavailable')){$_.Exception.Message}else{'store-root-unavailable'})}
+if($storeGate){[ordered]@{status='failed';reasonCode=$storeGate} | ConvertTo-Json -Compress;exit 1}
 Import-Module (Join-Path $PSScriptRoot 'Workflow/TaskEventStore.psm1')
 Import-Module (Join-Path $PSScriptRoot 'Workflow/TaskLifecycle.psm1')
 Import-Module (Join-Path $PSScriptRoot 'Artifacts/EvidenceContract.psm1')

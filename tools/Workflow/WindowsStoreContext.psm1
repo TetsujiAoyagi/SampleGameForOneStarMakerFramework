@@ -2,8 +2,14 @@ Set-StrictMode -Version Latest
 
 # Decides whether this process's LocalApplicationData writes are redirected by
 # packaged-app virtualization (for example into a package LocalCache). When they
-# are, a store write lands in a second, private copy of the store and silently
-# splits it, so the interactive CLIs stop before touching the store at all.
+# are, a write under LocalApplicationData lands in a second, private copy and
+# silently splits what lives there.
+#
+# Used only by store plan / consolidate, which read a package copy and must run
+# non-virtualized. The three interactive CLIs no longer call it: the store root
+# moved out of AppData (WindowsStoreRoot.psm1 decides the root, the migration
+# marker and the former root's residue), so a probe under LocalApplicationData
+# says nothing about writes to the store.
 #
 # Where a virtualized write lands depends on the path: a new file inside a
 # directory that exists only on the physical side goes to the physical side, so a

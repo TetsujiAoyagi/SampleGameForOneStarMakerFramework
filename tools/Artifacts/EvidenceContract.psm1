@@ -3,11 +3,13 @@ Import-Module (Join-Path $PSScriptRoot 'ArtifactCommands.psm1')
 # Registry discovery performs its own reparse check; do not rely on another caller's imports.
 Import-Module (Join-Path $PSScriptRoot 'ArtifactAcl.psm1')
 Import-Module (Join-Path $PSScriptRoot '../Workflow/WindowsStorePaths.psm1')
+Import-Module (Join-Path $PSScriptRoot '../Workflow/WindowsStoreRoot.psm1')
 $script:DeploymentRoot = $null
 function Get-EvidenceDeploymentRoot {
-    $logical=[IO.Path]::Combine([Environment]::GetFolderPath('LocalApplicationData'),'OneStarMaker','Artifacts','deployments')
     $binding=[AppDomain]::CurrentDomain.GetData('OneStarMaker.Evidence.StorageBinding.v1')
     if($binding){
+        # The gate runs before a binding is trusted: a bound process is not exempt.
+        $null=Get-OsmStoreRoot
         $context=ConvertFrom-Json -InputObject $binding -AsHashtable -Depth 10
         if($context.schemaVersion -ne 1 -or $context.ownerSid -cne [Security.Principal.WindowsIdentity]::GetCurrent().User.Value -or -not $context.roles.ContainsKey('deployments')){throw 'deployment-root-unavailable'}
         $role=$context.roles.deployments
@@ -16,6 +18,7 @@ function Get-EvidenceDeploymentRoot {
         return $physical
     }
     if($script:DeploymentRoot){return [IO.Path]::GetFullPath($script:DeploymentRoot)}
+    $logical=[IO.Path]::Combine((Get-OsmStoreRoot),'Artifacts','deployments')
     Assert-NoArtifactReparse $logical
     if([IO.Directory]::Exists($logical)){
         $identity=Get-WindowsStorePathIdentity $logical

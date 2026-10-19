@@ -270,7 +270,7 @@ foreach($caseName in $selected){
                 Assert ($i.Exit -eq 0 -and ($i.Output.Trim()|ConvertFrom-Json).reference -ceq $v.reference) 'fresh inspect'
                 $none=Finish-Child (Invoke-Child (Get-ChildArgs $fx 'collect' @{Source=$src.Dir}))
                 Assert ($none.Exit -eq 1 -and ($none.Output.Trim()|ConvertFrom-Json).reasonCode -ceq 'artifacts-root-not-configured') 'unconfigured fresh CLI'
-                $cli=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../artifacts.ps1'));$cfg=$fx.Config;$d=$src.Dir
+                $cli=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot 'CliChild.ps1'));$cfg=$fx.Config;$d=$src.Dir
                 $bad=@(
                     @('content','collect','--profile','osm','--config',$cfg),
                     @('content','collect','--profile','osm','--config',$cfg,'--source',$d,'--latest','yes'),
@@ -283,7 +283,7 @@ foreach($caseName in $selected){
                     @('content','fetch','--profile','osm','--config',$cfg,'--reference','osm-content-v1:x','--sha256',('a'*64),'--extra','1'),
                     @('content','collect','--profile','osm','--config',$cfg,'--source')
                 )
-                foreach($args2 in $bad){$g=Finish-Child (Invoke-Child (@('-NoProfile','-File',$cli)+$args2));Assert ($g.Exit -eq 1 -and $g.Output.Contains('unsupported-command')) "content grammar accepted: $($args2 -join ' ')"}
+                foreach($args2 in $bad){$g=Finish-Child (Invoke-Child (@('-NoProfile','-File',$cli,'-StoreBase',$fx.Root)+$args2));Assert ($g.Exit -eq 1 -and $g.Output.Contains('unsupported-command')) "content grammar accepted: $($args2 -join ' ')"}
             }
         }
     }catch{$failed.Add($caseName+': '+$_.Exception.GetType().Name+': '+$_.Exception.Message+' (line '+$_.InvocationInfo.ScriptLineNumber+')')}

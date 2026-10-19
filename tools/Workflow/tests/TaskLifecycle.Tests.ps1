@@ -1,13 +1,14 @@
 param([string] $ResultPath='',[string]$Case='*')
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
+. (Join-Path $PSScriptRoot 'StoreRootTestSupport.ps1')
 $lifecycle=Import-Module (Join-Path $PSScriptRoot '../TaskLifecycle.psm1') -Force -PassThru
 $store=$lifecycle.NestedModules | Where-Object Name -eq 'TaskEventStore' | Select-Object -Last 1
 Import-Module $store
 $root=[IO.Path]::Combine([IO.Path]::GetTempPath(),'osm-workflow-'+[Guid]::NewGuid().ToString('N'))
 $repo='a'*64
 $cases=@('event-idempotent','event-gap','resume-stale-end','decision-conflict','generation-cas','atomic-before-commit','finalization-decision-crash','finalization-event-crash','receipt-crash','ack-idempotent','trusted-recovery-time','guard-identity','state-corrupt','reparse-rejected','guard-cross-process','pending-decision-conflict','duplicate-json-property','public-resume-deleted-payload','public-resume-deleted-delivery-pending','fresh-contract-config-discovery','public-real-module-start-status-retry-end-resume')
-$cases+=@('guard-bound-root-reimport','guard-bound-identity-mismatch')
+$cases+=@('guard-bound-root-reimport','guard-bound-identity-mismatch','ac-s1-b-taskeventstore')
 $selected=@(if($Case -ceq '*'){$cases}else{$Case.Split(',')})
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
 $fresh=$null
@@ -31,7 +32,7 @@ function Test-PublicResume([string]$Mode,[int]$ExpectedExit){
         Assert ($json.result.version -eq 3 -and $json.result.kind -ceq 'resumed') 'public CLI lost committed event'
         Assert ($json.stagingMissing -eq 2) 'public CLI did not sum missing staging across configs'
         $calls=@([IO.File]::ReadAllLines($callsPath))
-        Assert (@($calls|Where-Object {$_ -like 'import:*'}).Count -eq 6 -and $calls[0] -ceq 'import:WindowsStoreContext.psm1' -and $calls[1] -ceq 'store-context' -and @($calls|Where-Object {$_ -ceq 'preflight'}).Count -eq 2 -and @($calls|Where-Object {$_ -ceq 'sync'}).Count -eq 2 -and @($calls|Where-Object {$_ -ceq 'transition'}).Count -eq 1 -and $calls -ccontains 'dispose') 'public CLI did not use isolated boundaries'
+        Assert (@($calls|Where-Object {$_ -like 'import:*'}).Count -eq 6 -and $calls[0] -ceq 'import:WindowsStoreRoot.psm1' -and $calls[1] -ceq 'store-root' -and @($calls|Where-Object {$_ -ceq 'preflight'}).Count -eq 2 -and @($calls|Where-Object {$_ -ceq 'sync'}).Count -eq 2 -and @($calls|Where-Object {$_ -ceq 'transition'}).Count -eq 1 -and $calls -ccontains 'dispose') 'public CLI did not use isolated boundaries'
     }finally{if(-not $process.HasExited){$process.Kill($true);$process.WaitForExit()};$process.Dispose()}
 }
 function Test-RealModuleBoundary([string]$Mode){
@@ -53,6 +54,9 @@ function Test-RealModuleBoundary([string]$Mode){
     }finally{if(-not $process.HasExited){$process.Kill($true);$process.WaitForExit()};$process.Dispose()}
 }
 try {
+    # The bound-root cases pass the resolver's gate too: a migrated temp store root
+    # beside the Workflow root (which the module itself must create, with its ACL).
+    $null=New-StoreRootTestBase ($root+'.store-root')
     & $store {param($r)$script:TestRoot=$r} $root
     & $lifecycle {param($u)$script:Clock={$u}.GetNewClosure()} $utc
     foreach($case in $selected){
@@ -63,6 +67,15 @@ try {
             Assert ($guard.Path.StartsWith($root+'\',[StringComparison]::OrdinalIgnoreCase)) 'offline guard escaped fixture root'
             $started=Invoke-WorkflowTaskTransition $repo $case 'started' 0 'start' '' $guard
             switch($case){
+                'ac-s1-b-taskeventstore'{
+                    # No TestRoot: the root must come from the resolver's seams alone.
+                    & $store {$script:TestRoot=$null}
+                    try{
+                        $answer=& $store {Get-WorkflowRoot}
+                        $base=& (Import-StoreRootTestModule) {$script:BaseForTest}
+                        Assert ($answer -ceq [IO.Path]::Combine($base,'OneStarMaker','Workflow')) 'workflow root did not follow the resolver'
+                    }finally{& $store {param($r)$script:TestRoot=$r} $root}
+                }
                 {$_ -cin @('guard-bound-root-reimport','guard-bound-identity-mismatch')}{
                     $identity=& $store {param($r)Get-WindowsStorePathIdentity $r} $root
                     $entry=[ordered]@{logicalPath=$root;physicalPath=$identity.physicalPath;volumeSerial=$identity.volumeSerial;fileId=$identity.fileId}

@@ -6,7 +6,8 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../RecordStore.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../GatePolicy.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot '../Adapters/LocalChecks.psm1') -Force
-$registered = @('repository identity and explicit task', 'CLI status and missing task', 'current displays failed Unity step without offline fields', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'missing registration gives honest recovery guidance', 'legacy reference restores with stable identity', 'corrupt current is not overwritten', 'restore rejects dangling reference', 'run payload rejects old DLL and modification', 'failing step keeps record', 'run record carries identity and monotonic duration', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'close rejects in-progress run', 'blind input omits findings', 'blind handoff records receipt and review', 'child process result', 'new run invalidates prior judgment', 'close persists current references', 'terminal survives display update failure','Evidence task scope and stage remain fixed','observation attachment binds identity and raw bytes','observation attachment rejects unsafe manifests','Evidence raw builds cannot be substituted')
+. (Join-Path $PSScriptRoot '../../Workflow/tests/StoreRootTestSupport.ps1')
+$registered = @('repository identity and explicit task', 'CLI status and missing task', 'ac-s1-b-recordstore', 'ac-i1-d', 'ac-i1-e-cli', 'current displays failed Unity step without offline fields', 'forged A3 snapshot rejected', 'immutable record rejects corruption', 'run interruption remains identifiable', 'handoff does not select on failed save', 'current revision and restore', 'missing current restores previous', 'missing registration gives honest recovery guidance', 'legacy reference restores with stable identity', 'corrupt current is not overwritten', 'restore rejects dangling reference', 'run payload rejects old DLL and modification', 'failing step keeps record', 'run record carries identity and monotonic duration', 'actual Git diff detects Unity', 'history catches removed evidence', 'gate requires exact run', 'case names and duplicates', 'broad discovery run is reusable', 'reference ownership and expiry', 'restore preserves active references', 'close checks revision under lock', 'close rejects in-progress run', 'blind input omits findings', 'blind handoff records receipt and review', 'child process result', 'new run invalidates prior judgment', 'close persists current references', 'terminal survives display update failure','Evidence task scope and stage remain fixed','observation attachment binds identity and raw bytes','observation attachment rejects unsafe manifests','Evidence raw builds cannot be substituted')
 $selected = [Collections.Generic.List[string]]::new()
 $executed = [Collections.Generic.List[string]]::new()
 $failed = [Collections.Generic.List[string]]::new()
@@ -56,6 +57,51 @@ try {
         Assert ($listed.ExitCode -eq 0 -and $listed.Stdout.Contains('h1-transport-identity owner=test phase=B')) 'CLI status failed'
         $missing = Invoke-Process 'pwsh' @('-NoProfile', '-File', $cli, 'current', '-Repo', $repo, '-StoreRoot', $store, '-Task', 'missing') $repo 15
         Assert ($missing.ExitCode -ne 0 -and ($missing.Stdout + $missing.Stderr).Contains('status') -and ($missing.Stdout + $missing.Stderr).Contains('restore')) 'CLI missing task guidance failed'
+    }
+    # 既定の Harness root は resolver の store root の下。offline の明示 root だけが resolver を迂回する。
+    Run 'ac-s1-b-recordstore' {
+        $fx = New-StoreRootTestBase $root
+        try {
+            Assert ((Get-HarnessStoreRoot '') -ceq [IO.Path]::Combine($fx.Root, 'Harness')) 'default Harness root is not below the store root'
+            Assert ((Get-TaskDirectory $repo 'ac-s1-b' '') -ceq [IO.Path]::Combine($fx.Root, 'Harness', $identity.Id, 'tasks', 'ac-s1-b')) 'task directory is not below the store root'
+            Assert ((Get-TaskDirectory $repo 'ac-s1-b' $store) -ceq [IO.Path]::Combine($store, $identity.Id, 'tasks', 'ac-s1-b')) 'explicit root replaced'
+        } finally { Clear-StoreRootTestSeams }
+    }
+    # -StoreRoot は tests 専用の明示 root。旧 root・store root・repo 配下は綴りでも実体でも拒否し、
+    # どちらの root にも何も作らない。temp 配下の root は従来どおり通る（上の CLI case）。
+    Run 'ac-i1-d' {
+        $cli = [IO.Path]::GetFullPath([IO.Path]::Combine($PSScriptRoot, '../../harness.ps1'))
+        $repoRoot = [IO.Path]::GetFullPath([IO.Path]::Combine($PSScriptRoot, '../../..'))
+        $legacy = & (Import-StoreRootTestModule) { Get-OsmLegacyStoreRoot }
+        $newRoot = [IO.Path]::Combine([Environment]::GetFolderPath('UserProfile'), 'OneStarMaker')
+        $before = @((Get-StoreRootTestTree $legacy), (Get-StoreRootTestTree $newRoot))
+        foreach ($explicit in @([IO.Path]::Combine($legacy, 'Harness'), [IO.Path]::Combine($newRoot, 'Harness'), [IO.Path]::Combine($repoRoot, 'tools'), $legacy, $newRoot, $repoRoot)) {
+            $run = Invoke-Process 'pwsh' @('-NoProfile', '-File', $cli, 'status', '-Repo', $repo, '-StoreRoot', $explicit) $repo 30
+            Assert ($run.ExitCode -eq 1 -and $run.Stdout.Contains('"reasonCode":"store-root-unavailable"')) ('explicit root accepted: ' + $explicit + ' ' + $run.Stdout + $run.Stderr)
+            foreach ($marker in @($legacy, $newRoot, $repoRoot)) { Assert (-not ($run.Stdout + $run.Stderr).Contains($marker)) 'leaked a root path' }
+        }
+        Assert ((Get-StoreRootTestTree $legacy) -ceq $before[0] -and (Get-StoreRootTestTree $newRoot) -ceq $before[1]) 'a root changed'
+    }
+    # 明示 root が junction 経由で旧 root・store root・repo を指す場合も、実体 path で拒否する。
+    Run 'ac-i1-e-cli' {
+        $cli = [IO.Path]::GetFullPath([IO.Path]::Combine($PSScriptRoot, '../../harness.ps1'))
+        $repoRoot = [IO.Path]::GetFullPath([IO.Path]::Combine($PSScriptRoot, '../../..'))
+        $legacy = & (Import-StoreRootTestModule) { Get-OsmLegacyStoreRoot }
+        $newRoot = [IO.Path]::Combine([Environment]::GetFolderPath('UserProfile'), 'OneStarMaker')
+        $alias = [IO.Path]::Combine($root, 'alias'); $checked = 0
+        foreach ($target in @([IO.Path]::Combine($legacy, 'Harness'), [IO.Path]::Combine($newRoot, 'Harness'), [IO.Path]::Combine($repoRoot, 'tools'))) {
+            if (-not [IO.Directory]::Exists($target)) { continue }
+            if ([IO.Directory]::Exists($alias)) { [IO.Directory]::Delete($alias, $false) }
+            try { New-Item -ItemType Junction -Path $alias -Target $target -ErrorAction Stop | Out-Null } catch { continue }
+            try {
+                foreach ($explicit in @($alias, [IO.Path]::Combine($alias, 'sub', 'missing'))) {
+                    $run = Invoke-Process 'pwsh' @('-NoProfile', '-File', $cli, 'status', '-Repo', $repo, '-StoreRoot', $explicit) $repo 30
+                    Assert ($run.ExitCode -eq 1 -and $run.Stdout.Contains('"reasonCode":"store-root-unavailable"')) ('junction root accepted: ' + $target + ' ' + $run.Stdout + $run.Stderr)
+                }
+                $checked++
+            } finally { if ([IO.Directory]::Exists($alias)) { [IO.Directory]::Delete($alias, $false) } }
+        }
+        Assert ($checked -ge 1) 'no junction target was available'
     }
     # CLIの表示関数を単独実行し、失敗Unity stepにoffline専用項目と観測が無くても表示できることを確かめる。
     Run 'current displays failed Unity step without offline fields' {

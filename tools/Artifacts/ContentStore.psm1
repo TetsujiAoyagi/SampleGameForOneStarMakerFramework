@@ -4,6 +4,7 @@ Import-Module (Join-Path $PSScriptRoot 'ArtifactAcl.psm1')
 Import-Module (Join-Path $PSScriptRoot 'BuildStore.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ContentContract.psm1')
 Import-Module (Join-Path $PSScriptRoot '../Workflow/WindowsStorePaths.psm1')
+Import-Module (Join-Path $PSScriptRoot '../Workflow/WindowsStoreRoot.psm1')
 # このstoreのownerはContent application。同user/同PCで成功を保持し、Workflow終了やEvidenceの30日清掃には
 # 登録しない。Buildのbuilds-v1とは別rootで、同じ規則（専用ACL・reparse拒否）を別名で持つ。
 # 注入rootとfault hookはoffline検証専用。公開CLIから差し替えさせない。
@@ -12,8 +13,8 @@ $script:FaultHook=$null
 
 function Get-ContentRoot([bool]$Create=$false){
     if(-not [OperatingSystem]::IsWindows()){throw 'content-store-unavailable'}
-    $local=[Environment]::GetFolderPath('LocalApplicationData')
-    $root=if($script:TestRoot){[IO.Path]::GetFullPath($script:TestRoot)}else{[IO.Path]::Combine($local,'OneStarMaker','Artifacts','contents-v1')}
+    # 所在と移行済みの判定はresolverが持つ。注入rootだけがそれを迂回する。
+    $root=if($script:TestRoot){[IO.Path]::GetFullPath($script:TestRoot)}else{[IO.Path]::Combine((Get-OsmStoreRoot),'Artifacts','contents-v1')}
     Assert-NoArtifactReparse $root
     if($Create){
         # 共有親のACLは変更せず、このContent領域と子だけを専用所有にする。

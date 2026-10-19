@@ -1,11 +1,15 @@
 param([string]$ResultPath='',[string]$Case='*')
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
-# Store-context decision and the three interactive entries. Every OS operation of
-# the probe is replaced through the module's private seam, except in the native
-# cases. Those run on a temporary root standing in for LocalApplicationData, apart
-# from native-probe-deletes-on-close, which creates and removes one uniquely named
-# probe directory (with one DeleteOnClose file) under the real LocalApplicationData.
+# Store-context decision (used by store plan / consolidate) and the three
+# interactive entries, whose gate is now the store-root resolver. Every OS
+# operation of the probe is replaced through the module's private seam, except in
+# the native cases. Those run on a temporary root standing in for
+# LocalApplicationData, apart from native-probe-deletes-on-close, which creates
+# and removes one uniquely named probe directory (with one DeleteOnClose file)
+# under the real LocalApplicationData. The entry cases run each CLI in a fresh
+# process whose resolver seams point at temporary Known Folder stand-ins.
+. (Join-Path $PSScriptRoot 'StoreRootTestSupport.ps1')
 $context=Import-Module (Join-Path $PSScriptRoot '../WindowsStoreContext.psm1') -Force -PassThru
 $tools=[IO.Path]::GetFullPath([IO.Path]::Combine($PSScriptRoot,'..','..'))
 $local=[Environment]::GetFolderPath('LocalApplicationData')
@@ -15,7 +19,7 @@ $storeRoot=[IO.Path]::Combine($local,'OneStarMaker')
 $probeName='\AOneStarMaker\.StoreProbe\.[0-9a-f]{32}\z'
 $root=[IO.Path]::Combine([IO.Path]::GetTempPath(),'osm-store-context-'+[Guid]::NewGuid().ToString('N'))
 [IO.Directory]::CreateDirectory($root)|Out-Null
-$cases=@('decision-not-virtualized','decision-virtualized','decision-unknown-open','decision-unknown-final-path','decision-unknown-close','decision-unknown-empty-final-path','probe-outside-store','native-probe-deletes-on-close','no-package-identity-input','cli-virtualized-all-entries','cli-unknown-failure-stages','cli-decision-before-store','import-has-no-store-side-effects',
+$cases=@('decision-not-virtualized','decision-virtualized','decision-unknown-open','decision-unknown-final-path','decision-unknown-close','decision-unknown-empty-final-path','probe-outside-store','native-probe-deletes-on-close','no-package-identity-input','ac-i1-a','ac-i1-b','ac-i1-c','ac-i3-a','ac-i3-b','ac-i3-c','cli-decision-before-store','import-has-no-store-side-effects',
     'decision-fresh-directory-each-call','decision-ignores-leftover-areas','decision-directory-exists-is-unknown','decision-directory-create-failure-is-unknown','decision-directory-removal-failure-keeps-result','decision-concurrent-calls-do-not-remove-each-other','decision-probe-parents','native-create-existing-directory-fails','native-open-does-not-create-parent')
 $selected=@(if($Case -ceq '*'){$cases}else{$Case.Split(',')})
 $executed=[Collections.Generic.List[string]]::new();$failed=[Collections.Generic.List[string]]::new()
@@ -94,25 +98,48 @@ function Wait-Child($Child,[int]$Seconds=30){
     }finally{if(-not $process.HasExited){$process.Kill($true);$process.WaitForExit()};$process.Dispose()}
 }
 function Invoke-Child([string[]]$Arguments,[int]$Seconds=30){return Wait-Child (Start-Child $Arguments) $Seconds}
+# A temporary UserProfile / LocalApplicationData pair for one entry case, in the
+# requested state: 'not-migrated' (no marker), 'migrated' (marker, no owned role
+# under the former root; a not-owned directory stays), or 'legacy-present'
+# (marker and the given owned role, holding one file, under the former root).
+function New-EntryState([string]$Name,[string]$State,[string]$LegacyRole='Workflow'){
+    $fx=New-StoreRootTestBase ([IO.Path]::Combine($root,$Name)) -WithoutMarker
+    if($State -cne 'not-migrated'){$null=New-StoreRootTestMarker $fx.Base}
+    [IO.Directory]::CreateDirectory([IO.Path]::Combine($fx.LegacyRoot,'H2a Review'))|Out-Null
+    [IO.File]::WriteAllText([IO.Path]::Combine($fx.LegacyRoot,'H2a Review','notes.md'),'x')
+    if($State -ceq 'legacy-present'){
+        $role=[IO.Path]::Combine($fx.LegacyRoot,$LegacyRole);[IO.Directory]::CreateDirectory($role)|Out-Null
+        [IO.File]::WriteAllText([IO.Path]::Combine($role,'record.json'),'{}')
+    }
+    Clear-StoreRootTestSeams
+    return $fx
+}
 # Runs one public entry in a fresh process through StoreContextCliFixture.ps1.
-function Invoke-Entry([string]$Entry,[string[]]$EntryArguments,[string]$Mode){
+function Invoke-Entry([string]$Entry,[string[]]$EntryArguments,$Fx){
     $calls=[IO.Path]::Combine($root,[Guid]::NewGuid().ToString('N')+'.calls')
     $encoded=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject @($EntryArguments) -Compress)))
-    $result=Invoke-Child @((Join-Path $PSScriptRoot 'StoreContextCliFixture.ps1'),'-Entry',([IO.Path]::Combine($tools,$Entry)),'-CallsPath',$calls,'-Mode',$Mode,'-EntryArgumentsBase64',$encoded)
+    $result=Invoke-Child @((Join-Path $PSScriptRoot 'StoreContextCliFixture.ps1'),'-Entry',([IO.Path]::Combine($tools,$Entry)),'-CallsPath',$calls,'-Base',$Fx.Base,'-LegacyBase',$Fx.LegacyBase,'-EntryArgumentsBase64',$encoded)
     $lines=if([IO.File]::Exists($calls)){@([IO.File]::ReadAllLines($calls))}else{@()}
     $json=@($result.Out -split "`r?`n"|Where-Object {$_.StartsWith('{')})
     $last=if($json.Count){$json[-1]|ConvertFrom-Json}else{$null}
-    return [pscustomobject]@{Exit=$result.Exit;Out=$result.Out;Err=$result.Err;Calls=$lines;Json=$last;Label=$Entry+' '+($EntryArguments -join ' ')+' ['+$Mode+']'}
+    return [pscustomobject]@{Exit=$result.Exit;Out=$result.Out;Err=$result.Err;Calls=$lines;Json=$last;Label=$Entry+' '+($EntryArguments -join ' ')}
 }
-function Assert-StoppedBeforeStore($Run,[string]$ReasonCode){
+function Assert-StoppedBeforeStore($Run,[string]$ReasonCode,$Fx){
     Assert ($Run.Exit -eq 1) ($Run.Label+' exit '+$Run.Exit+' '+$Run.Out+$Run.Err)
     Assert ($null -ne $Run.Json -and $Run.Json.status -ceq 'failed' -and $Run.Json.reasonCode -ceq $ReasonCode) ($Run.Label+' output '+$Run.Out)
     Assert (@($Run.Calls|Where-Object {$_.StartsWith('store:')}).Count -eq 0) ($Run.Label+' reached store: '+($Run.Calls -join ','))
-    Assert ($Run.Calls.Count -ge 2 -and $Run.Calls[0] -ceq 'import:WindowsStoreContext.psm1' -and $Run.Calls[1].StartsWith('probe:directory:')) ($Run.Label+' did not decide first')
-    $directory=Assert-OwnDirectoryOnly $Run.Calls -Prefix 'probe:'
-    Assert (-not (Test-Within $directory $storeRoot)) ($Run.Label+' probe inside the store')
-    # Neither the real path, the package name nor the user name may surface.
-    foreach($marker in @($local,'Fixture.Package',[Environment]::UserName)){Assert (-not $Run.Out.Contains($marker) -and -not $Run.Err.Contains($marker)) ($Run.Label+' leaked a path')}
+    Assert ($Run.Calls.Count -ge 2 -and $Run.Calls[0] -ceq 'import:WindowsStoreRoot.psm1' -and $Run.Calls[1] -ceq ('marker:open:'+[IO.Path]::Combine($Fx.Root,'store-root.json'))) ($Run.Label+' did not decide first: '+($Run.Calls -join ','))
+    # Neither the stand-in bases, the real Known Folders, a package name, the user
+    # name nor the SID may surface in the failure output.
+    foreach($marker in @($Fx.Base,$Fx.LegacyBase,$local,[Environment]::GetFolderPath('UserProfile'),'Fixture.Package',[Environment]::UserName,[Security.Principal.WindowsIdentity]::GetCurrent().User.Value)){Assert (-not $Run.Out.Contains($marker) -and -not $Run.Err.Contains($marker)) ($Run.Label+' leaked '+$marker)}
+}
+# Every entry of the three CLIs, each in a fresh process against the same state.
+function Invoke-AllEntries($Fx,[string]$ReasonCode){
+    $count=0
+    foreach($arguments in $artifactEntries){Assert-StoppedBeforeStore (Invoke-Entry 'artifacts.ps1' $arguments $Fx) $ReasonCode $Fx;$count++}
+    foreach($arguments in $workflowEntries){Assert-StoppedBeforeStore (Invoke-Entry 'workflow-task.ps1' $arguments $Fx) $ReasonCode $Fx;$count++}
+    foreach($arguments in $harnessEntries){Assert-StoppedBeforeStore (Invoke-Entry 'harness.ps1' $arguments $Fx) $ReasonCode $Fx;$count++}
+    return $count
 }
 $artifactEntries=@(
     @('fetch','--profile','osm','--config','c','--reference','r','--sha256','s'),
@@ -190,27 +217,79 @@ try{
                     foreach($text in $sources){foreach($marker in @('GetCurrentPackage','PackageFamilyName','PackageFullName','ApplicationModel','APPMODEL')){Assert (-not $text.Contains($marker)) ('identity input '+$marker)}}
                     Assert ((Invoke-Decision (New-FakeIo)) -ceq 'not-virtualized') 'decision changed'
                 }
-                'cli-virtualized-all-entries'{
-                    $count=0
-                    foreach($arguments in $artifactEntries){Assert-StoppedBeforeStore (Invoke-Entry 'artifacts.ps1' $arguments 'virtualized') 'virtualized-store';$count++}
-                    foreach($arguments in $workflowEntries){Assert-StoppedBeforeStore (Invoke-Entry 'workflow-task.ps1' $arguments 'virtualized') 'virtualized-store';$count++}
-                    foreach($arguments in $harnessEntries){Assert-StoppedBeforeStore (Invoke-Entry 'harness.ps1' $arguments 'virtualized') 'virtualized-store';$count++}
-                    $observed.virtualizedEntries=$count
+                'ac-i1-a'{
+                    # Before the migration (no marker, the former root alive): every entry
+                    # stops with store-not-migrated, touches neither root, and creates nothing.
+                    $fx=New-EntryState $case 'not-migrated' 'Workflow'
+                    $before=@((Get-StoreRootTestTree $fx.LegacyBase),(Get-StoreRootTestTree $fx.Base))
+                    $observed.notMigratedEntries=Invoke-AllEntries $fx 'store-not-migrated'
+                    Assert ((Get-StoreRootTestTree $fx.LegacyBase) -ceq $before[0] -and (Get-StoreRootTestTree $fx.Base) -ceq $before[1]) 'an entry changed a root'
                 }
-                'cli-unknown-failure-stages'{
-                    foreach($mode in @('directory-fails','open-fails','final-path-fails','close-fails')){
-                        Assert-StoppedBeforeStore (Invoke-Entry 'artifacts.ps1' $artifactEntries[0] $mode) 'store-context-unknown'
-                        Assert-StoppedBeforeStore (Invoke-Entry 'workflow-task.ps1' $workflowEntries[1] $mode) 'store-context-unknown'
-                        Assert-StoppedBeforeStore (Invoke-Entry 'harness.ps1' $harnessEntries[2] $mode) 'store-context-unknown'
+                'ac-i1-b'{
+                    # Migrated, but Harness still under the former root: every entry stops
+                    # with legacy-store-present; the new root keeps only its marker.
+                    $fx=New-EntryState $case 'legacy-present' 'Harness'
+                    $before=@((Get-StoreRootTestTree $fx.LegacyBase),(Get-StoreRootTestTree $fx.Base))
+                    $observed.legacyPresentEntries=Invoke-AllEntries $fx 'legacy-store-present'
+                    Assert ((Get-StoreRootTestTree $fx.LegacyBase) -ceq $before[0] -and (Get-StoreRootTestTree $fx.Base) -ceq $before[1]) 'an entry changed a root'
+                }
+                'ac-i1-c'{
+                    # After the migration, the real workflow-task.ps1 status against the real
+                    # modules: the guard's four directories and task.lock under the new root
+                    # are the only additions; the former root (a not-owned directory) is not opened.
+                    $fx=New-EntryState $case 'migrated'
+                    $child=[IO.Path]::Combine($root,'ac-i1-c-child.ps1')
+                    [IO.File]::WriteAllText($child,@'
+param([string]$Base,[string]$LegacyBase,[string]$Support,[string]$Entry)
+Set-StrictMode -Version Latest;$ErrorActionPreference='Stop';$WarningPreference='SilentlyContinue'
+. $Support
+Set-StoreRootTestSeams $Base $LegacyBase
+& $Entry status -Task store-root-ac-i1-c
+exit $LASTEXITCODE
+'@,[Text.UTF8Encoding]::new($false))
+                    $before=Get-StoreRootTestTree $fx.LegacyBase
+                    $run=Invoke-Child @($child,'-Base',$fx.Base,'-LegacyBase',$fx.LegacyBase,'-Support',(Join-Path $PSScriptRoot 'StoreRootTestSupport.ps1'),'-Entry',([IO.Path]::Combine($tools,'workflow-task.ps1'))) 60
+                    $start=$run.Out.IndexOf('{')
+                    Assert ($run.Exit -eq 0 -and $start -ge 0) ('status failed '+$run.Out+$run.Err)
+                    $status=$run.Out.Substring($start)|ConvertFrom-Json
+                    Assert ($status.status -ceq 'ok' -and $status.taskId -ceq 'store-root-ac-i1-c') ('status output '+$run.Out)
+                    Assert ((Get-StoreRootTestTree $fx.LegacyBase) -ceq $before) 'former root changed'
+                    $expected=@('store-root.json','Workflow',('Workflow\'+$status.repositoryId),('Workflow\'+$status.repositoryId+'\tasks'),('Workflow\'+$status.repositoryId+'\tasks\store-root-ac-i1-c'),('Workflow\'+$status.repositoryId+'\tasks\store-root-ac-i1-c\task.lock'))
+                    $actual=@(Get-ChildItem -LiteralPath $fx.Root -Recurse -Force|ForEach-Object {[IO.Path]::GetRelativePath($fx.Root,$_.FullName)}|Sort-Object)
+                    Assert ((($actual|Sort-Object) -join '|') -ceq (($expected|Sort-Object) -join '|')) ('new root entries '+($actual -join ','))
+                }
+                'ac-i3-a'{
+                    $fx=New-EntryState $case 'legacy-present' 'Artifacts'
+                    $before=Get-StoreRootTestTree $fx.Base
+                    foreach($run in @((Invoke-Entry 'artifacts.ps1' $artifactEntries[0] $fx),(Invoke-Entry 'workflow-task.ps1' $workflowEntries[1] $fx),(Invoke-Entry 'harness.ps1' $harnessEntries[2] $fx))){Assert-StoppedBeforeStore $run 'legacy-store-present' $fx}
+                    Assert ((Get-StoreRootTestTree $fx.Base) -ceq $before) 'new root changed'
+                }
+                'ac-i3-b'{
+                    # Continuing is defined as reaching the first store module import.
+                    $fx=New-EntryState $case 'migrated'
+                    foreach($run in @((Invoke-Entry 'artifacts.ps1' $artifactEntries[0] $fx),(Invoke-Entry 'workflow-task.ps1' $workflowEntries[1] $fx),(Invoke-Entry 'harness.ps1' $harnessEntries[2] $fx))){
+                        Assert (@($run.Calls|Where-Object {$_.StartsWith('store:import:')}).Count -ge 1) ($run.Label+' did not continue: '+($run.Calls -join ','))
+                        Assert ($null -eq $run.Json -or $run.Json.reasonCode -cnotin @('store-not-migrated','legacy-store-present','store-root-unavailable')) ($run.Label+' rejected')
+                    }
+                }
+                'ac-i3-c'{
+                    # No marker and the former root alive: the marker decides first, and the
+                    # former root is not even queried.
+                    $fx=New-EntryState $case 'not-migrated' 'Workflow'
+                    foreach($run in @((Invoke-Entry 'artifacts.ps1' $artifactEntries[0] $fx),(Invoke-Entry 'workflow-task.ps1' $workflowEntries[1] $fx),(Invoke-Entry 'harness.ps1' $harnessEntries[2] $fx))){
+                        Assert-StoppedBeforeStore $run 'store-not-migrated' $fx
+                        Assert (@($run.Calls|Where-Object {$_.StartsWith('legacy:query:')}).Count -eq 0) ($run.Label+' queried the former root before the marker')
                     }
                 }
                 'cli-decision-before-store'{
-                    # Non-virtualized entries continue; the first store boundary follows the closed probe and the removal of its directory.
-                    foreach($run in @((Invoke-Entry 'artifacts.ps1' $artifactEntries[0] 'not-virtualized'),(Invoke-Entry 'workflow-task.ps1' $workflowEntries[1] 'not-virtualized'),(Invoke-Entry 'harness.ps1' $harnessEntries[2] 'not-virtualized'))){
-                        $close=[Array]::IndexOf([string[]]$run.Calls,'probe:close');$store=@(for($i=0;$i -lt $run.Calls.Count;$i++){if($run.Calls[$i].StartsWith('store:')){$i}})
-                        $removed=@(for($i=0;$i -lt $run.Calls.Count;$i++){if($run.Calls[$i].StartsWith('probe:remove:')){$i}})
-                        Assert ($close -ge 0 -and $removed.Count -eq 1 -and $removed[0] -gt $close -and $store.Count -ge 1 -and $store[0] -gt $removed[0]) ($run.Label+' order '+($run.Calls -join ','))
-                        Assert ($null -eq $run.Json -or ($run.Json.reasonCode -cne 'virtualized-store' -and $run.Json.reasonCode -cne 'store-context-unknown')) ($run.Label+' rejected')
+                    # The gate (marker, then the former root's three role names) completes
+                    # before the first store boundary, in that order.
+                    $fx=New-EntryState $case 'migrated'
+                    foreach($run in @((Invoke-Entry 'artifacts.ps1' $artifactEntries[0] $fx),(Invoke-Entry 'workflow-task.ps1' $workflowEntries[1] $fx),(Invoke-Entry 'harness.ps1' $harnessEntries[2] $fx))){
+                        $close=[Array]::IndexOf([string[]]$run.Calls,'marker:close');$store=@(for($i=0;$i -lt $run.Calls.Count;$i++){if($run.Calls[$i].StartsWith('store:')){$i}})
+                        $queries=@(for($i=0;$i -lt $run.Calls.Count;$i++){if($run.Calls[$i].StartsWith('legacy:query:')){$i}})
+                        Assert ($run.Calls[0] -ceq 'import:WindowsStoreRoot.psm1' -and $close -ge 1 -and $queries.Count -eq 3 -and $queries[0] -gt $close -and $store.Count -ge 1 -and $store[0] -gt $queries[-1]) ($run.Label+' order '+($run.Calls -join ','))
+                        Assert ($null -eq $run.Json -or $run.Json.reasonCode -cnotin @('store-not-migrated','legacy-store-present','store-root-unavailable')) ($run.Label+' rejected')
                     }
                 }
                 'import-has-no-store-side-effects'{
@@ -240,17 +319,20 @@ try{
                     Assert ($modules.Count -ge 30) 'module closure unexpectedly small'
                     $observed.importedModules=$modules.Count
                     # Dynamic: import that closure in a fresh process with the decision seam
-                    # reporting virtualization; importing alone must not even run the probe.
+                    # reporting virtualization and the resolver's marker / former-root seams
+                    # recording; importing alone must run neither the probe nor the gate.
                     $script=[IO.Path]::Combine($root,'import-only.ps1');$calls=[IO.Path]::Combine($root,'import-only.calls')
                     $body="Set-StrictMode -Version Latest;`$ErrorActionPreference='Stop';`$WarningPreference='SilentlyContinue'`n"+
                         "`$c=Import-Module '"+(Join-Path $PSScriptRoot '../WindowsStoreContext.psm1').Replace("'","''")+"' -PassThru`n"+
-                        "& `$c {param(`$p)`$script:ProbeIo=@{CreateDirectory={param(`$x)[IO.File]::AppendAllText(`$p,'probe'+[Environment]::NewLine);throw 'x'};Open={throw 'x'};FinalPath={throw 'x'};Close={};RemoveDirectory={throw 'x'}}} '"+$calls.Replace("'","''")+"'`n"
+                        "& `$c {param(`$p)`$script:ProbeIo=@{CreateDirectory={param(`$x)[IO.File]::AppendAllText(`$p,'probe'+[Environment]::NewLine);throw 'x'};Open={throw 'x'};FinalPath={throw 'x'};Close={};RemoveDirectory={throw 'x'}}} '"+$calls.Replace("'","''")+"'`n"+
+                        "`$r=Import-Module '"+(Join-Path $PSScriptRoot '../WindowsStoreRoot.psm1').Replace("'","''")+"' -PassThru`n"+
+                        "& `$r {param(`$p)`$script:MarkerIoForTest=@{Open={param(`$x)[IO.File]::AppendAllText(`$p,'marker'+[Environment]::NewLine);throw 'x'};FinalPath={throw 'x'};Read={throw 'x'};Close={}};`$script:LegacyQueryForTest={param(`$x)[IO.File]::AppendAllText(`$p,'legacy'+[Environment]::NewLine);'absent'}} '"+$calls.Replace("'","''")+"'`n"
                     foreach($module in $modules){$body+="Import-Module '"+$module.Replace("'","''")+"'`n"}
                     $body+="'imported'"
                     [IO.File]::WriteAllText($script,$body,[Text.UTF8Encoding]::new($false))
                     $run=Invoke-Child @($script) 120
                     Assert ($run.Exit -eq 0 -and $run.Out.Contains('imported')) ('import failed '+$run.Err)
-                    Assert (-not [IO.File]::Exists($calls)) 'import ran the probe'
+                    Assert (-not [IO.File]::Exists($calls)) 'import ran the probe or the gate'
                 }
                 'decision-fresh-directory-each-call'{
                     $first=New-FakeIo;$second=New-FakeIo

@@ -67,6 +67,56 @@ function Invoke-EvidenceTestPromoteStop($Env,$Stage,[string]$Point){
     [IO.File]::WriteAllBytes($catalog,$saved.bytes);Set-EvidenceTestValue EvidenceCleanup ProcessHook {param($identity)$true}
 }
 $registered+=@('promote-recovery-resend','promote-resend-same-call','promote-failed-recovery','promote-recovery-protection','promote-fetch-source','promote-resend-refusals','promote-resend-persist-order')
+$registered+=@('ac-s4-a-binding','ac-s4-a-nobinding','ac-s4-e-1','ac-s4-e-2','ac-s4-e-3','ac-s4-e-4','ac-s4-e-5','ac-s4-e-6')
+# A record written before the store moved names the evidence role under the former
+# root. Resolve-EvidenceStoredPath re-bases that prefix only: the former root is
+# never opened or compared by identity, and every other prefix keeps its rejection.
+# Each row runs without and (where the case says so) with a process binding.
+function Invoke-EvidenceLegacyAliasCase([string]$Name,$Env){
+    $fx=$Env.StoreRoot;$legacy=[IO.Path]::Combine($fx.LegacyRoot,'Artifacts','evidence-v2')
+    $root=Get-EvidenceRoot;Initialize-EvidenceDirectory ([IO.Path]::Combine($root,'tasks','alpha'))
+    $target=[IO.Path]::Combine($root,'tasks','alpha','receipt.json');[IO.File]::WriteAllText($target,'{}');Set-ArtifactAcl $target $false
+    $aliasDirectory=[IO.Path]::Combine($legacy,'tasks','alpha');[IO.Directory]::CreateDirectory($aliasDirectory)|Out-Null
+    $alias=[IO.Path]::Combine($aliasDirectory,'receipt.json');[IO.File]::WriteAllText($alias,'{"other":1}')
+    $modes=switch($Name){'ac-s4-a-binding'{@('binding')}'ac-s4-a-nobinding'{@('none')}default{@('none','binding')}}
+    $seen=[Collections.Generic.List[string]]::new()
+    Set-EvidenceTestValue WindowsStorePaths IdentityHook ({param($p)$seen.Add($p);[OneStarMaker.Workflow.NativeStorePath]::Read($p)}.GetNewClosure())
+    try{
+        foreach($mode in $modes){
+            if($mode -ceq 'binding'){
+                # A process binding passes the store-root gate, which refuses any role left under
+                # the former root (legacy-store-present). The binding run therefore sees an empty
+                # former root: the alias is still re-based by prefix, and the same-named file kept
+                # on the alias side (AC-S4-e(1)) is shown by the run without a binding only.
+                Assert-StoreRootTestTemp $fx.LegacyRoot;if([IO.Directory]::Exists($fx.LegacyRoot)){[IO.Directory]::Delete($fx.LegacyRoot,$true)}
+                $identity=[OneStarMaker.Workflow.NativeStorePath]::Read($root)
+                [AppDomain]::CurrentDomain.SetData('OneStarMaker.Evidence.StorageBinding.v1',(ConvertTo-Json -Compress -Depth 8 -InputObject ([ordered]@{schemaVersion=1;ownerSid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value;roles=[ordered]@{evidence=[ordered]@{logicalPath=$root;physicalPath=$identity.physicalPath;volumeSerial=$identity.volumeSerial;fileId=$identity.fileId}}})))
+            }
+            $before=Get-StoreRootTestTree $fx.LegacyBase;$seen.Clear()
+            try{
+                $reject={param([string]$Path)$m=try{$null=Resolve-EvidenceStoredPath $Path;'resolved'}catch{$_.Exception.Message};Assert-EvidenceTest ($m -ceq 'invalid-evidence-path') ($Name+' ['+$mode+'] '+$Path+': '+$m)}
+                switch($Name){
+                    {$_ -cin @('ac-s4-a-binding','ac-s4-a-nobinding','ac-s4-e-1')}{
+                        $resolved=Resolve-EvidenceStoredPath $alias
+                        Assert-EvidenceTest ($resolved -ieq $target) ($Name+' ['+$mode+'] resolved to '+$resolved)
+                        if($mode -ceq 'none'){Assert-EvidenceTest ([IO.File]::ReadAllText($alias) -ceq '{"other":1}') 'alias content changed'}
+                    }
+                    'ac-s4-e-2'{
+                        $missing=[IO.Path]::Combine($legacy,'tasks','alpha','missing.json')
+                        $m=try{$null=Resolve-EvidenceStoredPath $missing;'resolved'}catch{$_.Exception.Message};Assert-EvidenceTest ($m -ceq 'evidence-path-missing') ('missing target: '+$m)
+                        Assert-EvidenceTest ((Resolve-EvidenceStoredPath $missing -AllowMissing) -ieq [IO.Path]::Combine($root,'tasks','alpha','missing.json')) 'AllowMissing target'
+                    }
+                    'ac-s4-e-3'{& $reject ([IO.Path]::Combine($fx.LegacyRoot,'Artifacts','transfers',('0'*32),'receipt.json'))}
+                    'ac-s4-e-4'{& $reject ([IO.Path]::Combine($fx.LegacyBase,'OneStarMaker2','Artifacts','evidence-v2','tasks','alpha','receipt.json'))}
+                    'ac-s4-e-5'{& $reject ([IO.Path]::Combine($fx.LegacyBase,'Packages','Fixture.Package_0000000000000','LocalCache','Local','OneStarMaker','Artifacts','evidence-v2','tasks','alpha','receipt.json'))}
+                    'ac-s4-e-6'{& $reject ($legacy+'\tasks\..\alpha\receipt.json')}
+                }
+                Assert-EvidenceTest ((Get-StoreRootTestTree $fx.LegacyBase) -ceq $before) ($Name+' ['+$mode+'] former root changed')
+                Assert-EvidenceTest (@($seen|Where-Object {$_.StartsWith($fx.LegacyRoot,[StringComparison]::OrdinalIgnoreCase)}).Count -eq 0) ($Name+' ['+$mode+'] identity read on the former root: '+($seen -join ','))
+            }finally{[AppDomain]::CurrentDomain.SetData('OneStarMaker.Evidence.StorageBinding.v1',$null)}
+        }
+    }finally{Set-EvidenceTestValue WindowsStorePaths IdentityHook $null}
+}
 # Rebuilds the failed shape that the previous runtime wrote when a recovery GET of a
 # promotion stopped after write A returned 404: a recovery staging whose operation
 # was cleared, and the artifact failed with its putIntent and no operation. The
@@ -456,7 +506,7 @@ function Invoke-EvidencePromoteCase([string]$Name){
                 $x=New-EvidencePromoteFixture;$e=$x.Env;$s=$x.Stage;$p=Invoke-EvidencePromote $e.ConfigPath $s.reference $s.packageSha256;Assert-EvidenceTest ($p.status -ceq 'passed') 'parent promote'
                 $c=Invoke-EvidenceTestChildProcess $e @('-Reference',$s.reference,'-Sha256',$s.packageSha256,'-Action','promote')
                 Assert-EvidenceTest ($c.Exit -eq 0 -and $c.Json.reasonCode -ceq 'already-promoted' -and $c.Json.locality -ceq 'promoted' -and $c.Err.Length -eq 0 -and -not $c.Out.Contains($e.Root)) ('cli promote '+$c.Out+$c.Err)
-                $c=Invoke-EvidenceTestChildProcess $e @('promote','--profile','osm','--config',$e.ConfigPath,'--reference',$s.reference,'--sha256',$s.packageSha256) (Join-Path $PSScriptRoot '../../artifacts.ps1')
+                $c=Invoke-EvidenceTestChildProcess $e @('-StoreBase',$e.Root,'promote','--profile','osm','--config',$e.ConfigPath,'--reference',$s.reference,'--sha256',$s.packageSha256) (Join-Path $PSScriptRoot 'CliChild.ps1')
                 Assert-EvidenceTest ($c.Exit -eq 1 -and $c.Json.reasonCode -ceq 'unsupported-command') ('bare promote '+$c.Out)
             }
         }
@@ -610,13 +660,14 @@ foreach($caseName in $selected){
                 $rejected=$null;try{$null=Read-EvidenceTestTask $env}catch{$rejected=$_.Exception.Message};Assert-EvidenceTest ($rejected -ceq 'corrupt-state') ('unknown origin '+$rejected);break
             }
             {$_ -like 'promote-*'}{Invoke-EvidencePromoteCase $caseName;break}
+            {$_ -like 'ac-s4-*'}{Invoke-EvidenceLegacyAliasCase $caseName $env;break}
             'one-put-lost-response'{$inner=$env.Transport;$hook={param($g,$req)$r=& $inner $g $req;if($req.Operation -ceq 'put'){throw 'response-lost'};$r}.GetNewClosure();Set-EvidenceTestValue ArtifactApplication TransportHook $hook;$p=Invoke-EvidencePublish $env.ConfigPath $selectionPath;Assert-EvidenceTest ($p.status -ceq 'failed' -and @($env.Counts.Values|Where-Object {$_ -gt 1}).Count -eq 0 -and $env.Objects.Count -eq 1) 'one-put';break}
             'readback-failure'{Set-EvidenceTestValue ArtifactApplication ReadbackHook {throw 'reader-failed'};$p=Invoke-EvidencePublish $env.ConfigPath $selectionPath;Assert-EvidenceTest ($p.status -ceq 'failed' -and $null -eq $p.reference) 'unverified success';break}
             'receipt-atomic-failure'{Set-EvidenceTestValue EvidencePaths WriteHook {param($stage,$path)if($stage -ceq 'before-rename' -and $path -like '*receipts*'){throw 'crash'}};$p=Invoke-EvidencePublish $env.ConfigPath $selectionPath;Assert-EvidenceTest ($p.status -ceq 'failed' -and $null -eq $p.reference) 'receipt success';break}
             'secret-exception-output'{Set-EvidenceTestValue ArtifactApplication TransportHook {throw 'DUMMY_SECRET'};$p=Invoke-EvidencePublish $env.ConfigPath $selectionPath;Assert-EvidenceTest ((ConvertTo-Json $p -Depth 10) -cnotmatch 'DUMMY_SECRET') 'secret output';break}
             'legacy-cli-network-zero'{
                 $info=[Diagnostics.ProcessStartInfo]::new('pwsh');$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
-                foreach($arg in @('-NoProfile','-File',(Join-Path $PSScriptRoot '../../artifacts.ps1'),'evidence','commit','--candidate','dummy','--candidate-sha256',('a'*64),'--settings-after','dummy','--settings-after-sha256',('a'*64))){$info.ArgumentList.Add($arg)}
+                foreach($arg in @('-NoProfile','-File',(Join-Path $PSScriptRoot 'CliChild.ps1'),'-StoreBase',$env.Root,'evidence','commit','--candidate','dummy','--candidate-sha256',('a'*64),'--settings-after','dummy','--settings-after-sha256',('a'*64))){$info.ArgumentList.Add($arg)}
                 $proc=[Diagnostics.Process]::new();$proc.StartInfo=$info;try{$null=$proc.Start();$out=$proc.StandardOutput.ReadToEndAsync();$err=$proc.StandardError.ReadToEndAsync();Assert-EvidenceTest ($proc.WaitForExit(10000)) 'legacy bounded';Assert-EvidenceTest ([Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($out,$err),3000)) 'legacy pipes';Assert-EvidenceTest ($proc.ExitCode -eq 1 -and $out.Result -match 'unsupported-command' -and $env.Counts.Count -eq 0) 'legacy accepted'}finally{$proc.Dispose()};break
             }
             'put-recovery-child-protected'{

@@ -15,6 +15,8 @@ function Write-PrivateJson([string]$Path,$Value){Write-EvidenceTestJson $Path $V
 function New-BuildFixture {
     $root=[IO.Path]::Combine([IO.Path]::GetTempPath(),'osm-build-test-'+[Guid]::NewGuid().ToString('N'))
     [IO.Directory]::CreateDirectory($root)|Out-Null
+    # The modules resolve the store root even with TestRoot set; pass the gate below $root.
+    $null=Enable-EvidenceTestStoreRoot $root
     Set-EvidenceTestValue ArtifactPaths TestRoot ([IO.Path]::Combine($root,'transfers'))
     Set-EvidenceTestValue BuildStore TestRoot ([IO.Path]::Combine($root,'builds-v1'))
     Set-EvidenceTestValue EvidenceContract DeploymentRoot ([IO.Path]::Combine($root,'deployments'))
@@ -267,7 +269,7 @@ foreach($caseName in $selected){
                 Assert ($fetched.Exit -eq 0) 'fresh CLI fetch failed'
                 $f=$fetched.Output.Trim()|ConvertFrom-Json -Depth 12 -DateKind String
                 Assert ($f.status -ceq 'passed' -and [IO.File]::ReadAllText([IO.Path]::Combine($f.outputPath,'sample.bin')) -ceq 'safe-build-payload') 'fresh fetch bytes mismatch'
-                $cli=Invoke-Child @('-NoProfile','-File',[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../artifacts.ps1')),'build','delete','--profile','osm','--config',$fixture.Config)
+                $cli=Invoke-Child @('-NoProfile','-File',[IO.Path]::GetFullPath((Join-Path $PSScriptRoot 'CliChild.ps1')),'-StoreBase',$fixture.Root,'build','delete','--profile','osm','--config',$fixture.Config)
                 Assert ($cli.Exit -eq 1 -and $cli.Output.Contains('unsupported-command')) 'Build DELETE grammar accepted'
             }
         }

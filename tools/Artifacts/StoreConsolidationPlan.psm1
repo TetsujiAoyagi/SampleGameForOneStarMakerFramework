@@ -5,7 +5,10 @@ Set-StrictMode -Version Latest
 # The I/O side (StoreConsolidation.psm1) inventories both stores into this model
 # and executes only what a manifest produced here, and approved by the owner, says.
 #
-# Item keys are paths relative to the store root (%LOCALAPPDATA%\OneStarMaker).
+# Item keys are paths relative to the store root (<UserProfile>\OneStarMaker). A
+# record written before the store moved names its references under the former
+# root (%LOCALAPPDATA%\OneStarMaker); the inventory carries that alias as
+# legacyRoots and the reference rule maps either root to the same relative key.
 # A task unit holds one task's Workflow, Evidence and Harness directories plus the
 # transfers operations its records reference. A deployment unit holds one
 # deployment receipt pair. Units sharing a referenced item are merged, because
@@ -61,8 +64,9 @@ function Get-ConsolidationJsonStrings([string]$Json){
 # inside its item ('' for the item itself), because belonging to a unit does not
 # prove that the referenced file exists; references into the item itself are kept
 # for that existence check too.
-function Get-ConsolidationItemReferences($Item,[string]$LogicalRoot,[string]$SourceRoot){
+function Get-ConsolidationItemReferences($Item,[string]$LogicalRoot,[string]$SourceRoot,$LegacyRoots=@()){
     $references=[Collections.Generic.List[object]]::new();$seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase);$violations=[Collections.Generic.List[string]]::new()
+    $roots=@($LogicalRoot)+@($LegacyRoots)
     foreach($file in $Item.files){
         $named=$file.path.EndsWith('.json',[StringComparison]::OrdinalIgnoreCase)
         # A record the reader could not examine (too large to load) has unchecked
@@ -80,8 +84,12 @@ function Get-ConsolidationItemReferences($Item,[string]$LogicalRoot,[string]$Sou
             $path=$value.Replace('/','\');if($path.StartsWith('\\?\')){$path=$path.Substring(4)}
             # A LocalCache path would bind the record to the virtualized copy.
             if((Test-ConsolidationWithin $path $SourceRoot) -or $path -imatch '\\Packages\\[^\\]+\\LocalCache(?:\\|\z)'){$violations.Add('reference-localcache');continue}
-            if(-not (Test-ConsolidationWithin $path $LogicalRoot)){continue}
-            $relative=$path.Substring($LogicalRoot.TrimEnd('\').Length).TrimStart('\')
+            # The store root or the former root's alias: either names the same
+            # relative key. A sibling that merely shares the prefix ('OneStarMaker2')
+            # is outside both, as the separator-aware comparison requires.
+            $owner=$null;foreach($candidate in $roots){if(Test-ConsolidationWithin $path $candidate){$owner=$candidate;break}}
+            if($null -eq $owner){continue}
+            $relative=$path.Substring($owner.TrimEnd('\').Length).TrimStart('\')
             if($relative -match '(?:\A|\\)\.\.?(?:\\|\z)'){$violations.Add('reference-out-of-role');continue}
             $target=Get-ConsolidationItemKey $relative
             if($target -ceq 'out-of-role'){$violations.Add('reference-out-of-role');continue}
@@ -112,9 +120,10 @@ function Test-ConsolidationItemReadable($Files,[string]$Path){
 # Keys the I/O side must observe in the real store before planning.
 function Get-ConsolidationTargetKeys($Inventory){
     $keys=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $legacy=if($Inventory.PSObject.Properties['legacyRoots']){@($Inventory.legacyRoots)}else{@()}
     foreach($item in $Inventory.items){
         $null=$keys.Add($item.key)
-        foreach($reference in (Get-ConsolidationItemReferences $item $Inventory.logicalRoot $Inventory.sourceRoot).references){$null=$keys.Add($reference.key)}
+        foreach($reference in (Get-ConsolidationItemReferences $item $Inventory.logicalRoot $Inventory.sourceRoot $legacy).references){$null=$keys.Add($reference.key)}
         if($item.role -ceq 'evidence'){$null=$keys.Add('Artifacts\deployments\'+$item.deploymentId)}
     }
     return @($keys|Sort-Object)
@@ -151,8 +160,9 @@ function New-ConsolidationPlan($Inventory,$Target){
         $groupOf[$item.key]=$group;if(-not $parent.ContainsKey($group)){$parent[$group]=$group}
     }
     $refs=@{};$holds=@{}
+    $legacy=if($Inventory.PSObject.Properties['legacyRoots']){@($Inventory.legacyRoots)}else{@()}
     foreach($item in $Inventory.items){
-        $r=Get-ConsolidationItemReferences $item $Inventory.logicalRoot $Inventory.sourceRoot;$refs[$item.key]=$r
+        $r=Get-ConsolidationItemReferences $item $Inventory.logicalRoot $Inventory.sourceRoot $legacy;$refs[$item.key]=$r
         foreach($k in @($r.references|ForEach-Object key)){if($k -cne $item.key -and $items.ContainsKey($k) -and $items[$k].role -cne 'deployment'){Join $groupOf[$item.key] $groupOf[$k]}}
     }
     $members=@{}
@@ -214,7 +224,7 @@ function New-ConsolidationPlan($Inventory,$Target){
     $ordered=@($units|Sort-Object @{e={if($_.kind -ceq 'deployment'){0}else{1}}},@{e={$_.unitId}})
     $unreferenced=@($Inventory.items|Where-Object {$_.role -ceq 'transfers' -and -not $unitOf.ContainsKey($_.key)}|ForEach-Object {[ordered]@{key=$_.key;reason='unreferenced-transfer'}})
     return [ordered]@{
-        schemaVersion=1;purpose='store-consolidation-v1';sourceRoot=$Inventory.sourceRoot;logicalRoot=$Inventory.logicalRoot
+        schemaVersion=1;purpose='store-consolidation-v1';sourceRoot=$Inventory.sourceRoot;logicalRoot=$Inventory.logicalRoot;legacyRoots=@($legacy)
         units=$ordered;excluded=@(@($Inventory.excluded)+$unreferenced)
         summary=[ordered]@{units=$ordered.Count;publish=@($ordered|Where-Object status -CEQ 'publish').Count;skip=@($ordered|Where-Object status -CEQ 'skip').Count;hold=@($ordered|Where-Object status -CEQ 'hold').Count}
     }
@@ -229,6 +239,10 @@ function New-ConsolidationPlan($Inventory,$Target){
 # 'target-changed'. A changed set of items changes the unitId: 'source-changed'.
 function Test-ConsolidationManifest($Approved,$Current){
     if($Approved.schemaVersion -ne 1 -or $Approved.purpose -cne 'store-consolidation-v1' -or $Approved.sourceRoot -cne $Current.sourceRoot -or $Approved.logicalRoot -cne $Current.logicalRoot){throw 'manifest-invalid'}
+    # The alias the references were checked against must be the one in force now.
+    # A manifest from before the move has no legacyRoots at all: read by key, never
+    # as a property, so that absence compares as different instead of failing.
+    if((@($Approved['legacyRoots']) -join "`n") -cne (@($Current.legacyRoots) -join "`n")){throw 'manifest-invalid'}
     $now=@{};foreach($unit in $Current.units){$now[$unit.unitId]=$unit}
     foreach($unit in $Approved.units){
         $verdict=if($unit.status -cne 'publish' -and $unit.status -cne 'skip'){'hold'}

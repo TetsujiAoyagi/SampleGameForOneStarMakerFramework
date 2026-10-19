@@ -1,24 +1,26 @@
-param([Parameter(Mandatory=$true)][string]$Entry,[Parameter(Mandatory=$true)][string]$CallsPath,[Parameter(Mandatory=$true)][ValidateSet('not-virtualized','virtualized','directory-fails','open-fails','final-path-fails','close-fails')][string]$Mode,[Parameter(Mandatory=$true)][string]$EntryArgumentsBase64)
+param([Parameter(Mandatory=$true)][string]$Entry,[Parameter(Mandatory=$true)][string]$CallsPath,[Parameter(Mandatory=$true)][string]$Base,[Parameter(Mandatory=$true)][string]$LegacyBase,[Parameter(Mandatory=$true)][string]$EntryArgumentsBase64)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
-# Fresh process for one public entry. Only the real store-context module is loaded,
-# with its private OS seam replaced. Every other module import, and git, is the
-# store I/O seam: the entry reaches store code only through them, so any record
-# with the 'store:' prefix means the entry went past the decision.
+# Fresh process for one public entry. The real store-root resolver (and the path
+# identity module it uses) is loaded, with its Known Folder seams pointed at the
+# temporary UserProfile and LocalApplicationData stand-ins the test prepared, and
+# its marker and former-root operations recorded. Every other module import, and
+# git, is the store I/O seam: the entry reaches store code only through them, so
+# any record with the 'store:' prefix means the entry went past the gate.
 function Record([string]$Name){[IO.File]::AppendAllText($CallsPath,$Name+"`n")}
-$context=Import-Module ([IO.Path]::Combine([IO.Path]::GetDirectoryName($PSScriptRoot),'WindowsStoreContext.psm1')) -PassThru
+. (Join-Path $PSScriptRoot 'StoreRootTestSupport.ps1')
+$resolver=Import-StoreRootTestModule
+$native=& $resolver {$script:NativeMarkerIo}
 $io=@{
-    CreateDirectory={param($Path)Record ('probe:directory:'+$Path);if($Mode -ceq 'directory-fails'){throw 'fixture-directory'}}
-    Open={param($Path)Record ('probe:open:'+$Path);if($Mode -ceq 'open-fails'){throw 'fixture-open'};[pscustomobject]@{Path=$Path}}
-    FinalPath={param($Handle)Record 'probe:final-path';if($Mode -ceq 'final-path-fails'){throw 'fixture-final-path'}
-        # The virtualized answer is the observed Codex shape: a package LocalCache copy.
-        if($Mode -ceq 'virtualized'){$local=[Environment]::GetFolderPath('LocalApplicationData');return [IO.Path]::Combine($local,'Packages','Fixture.Package_0000000000000','LocalCache','Local',$Handle.Path.Substring($local.Length+1))};$Handle.Path}
-    Close={param($Handle)Record 'probe:close';if($Mode -ceq 'close-fails'){throw 'fixture-close'}}
-    RemoveDirectory={param($Path)Record ('probe:remove:'+$Path)}
+    Open={param([string]$Path)Record ('marker:open:'+$Path);& $native.Open $Path}.GetNewClosure()
+    FinalPath={param($Handle)Record 'marker:final-path';& $native.FinalPath $Handle}.GetNewClosure()
+    Read={param($Handle)Record 'marker:read';& $native.Read $Handle}.GetNewClosure()
+    Close={param($Handle)Record 'marker:close';& $native.Close $Handle}.GetNewClosure()
 }
-& $context {param($v)$script:ProbeIo=$v} $io
+$query={param([string]$Path)$status=[string][OneStarMaker.Workflow.StoreRootNative]::Query($Path);Record ('legacy:query:'+$Path+'='+$status);$status}
+Set-StoreRootTestSeams $Base $LegacyBase $io $query
 function Import-Module([string]$Name){
-    if([IO.Path]::GetFileName($Name) -ceq 'WindowsStoreContext.psm1'){Record 'import:WindowsStoreContext.psm1';return}
+    if([IO.Path]::GetFileName($Name) -ceq 'WindowsStoreRoot.psm1'){Record 'import:WindowsStoreRoot.psm1';return}
     Record ('store:import:'+[IO.Path]::GetFileName($Name));throw 'store-boundary-reached'
 }
 function git {Record 'store:git';throw 'store-boundary-reached'}

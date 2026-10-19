@@ -15,6 +15,7 @@ Import-Module (Join-Path $PSScriptRoot '../ContentStore.psm1')
 Import-Module (Join-Path $PSScriptRoot '../Transport/R2ArtifactTransport.psm1')
 # 実storeに触れないよう、全rootを親のfixtureへ向けてから何かを読む。
 Set-EvidenceTestValue ContentStore TestRoot $StoreRoot
+$null=Enable-EvidenceTestStoreRoot ([IO.Path]::GetDirectoryName($TransferRoot))
 Set-EvidenceTestValue BuildStore TestRoot $BuildRoot
 Set-EvidenceTestValue ArtifactPaths TestRoot $TransferRoot
 Set-EvidenceTestValue EvidenceContract DeploymentRoot $DeploymentRoot

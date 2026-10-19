@@ -1,4 +1,8 @@
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot '../../Workflow/tests/StoreRootTestSupport.ps1')
+# Every fixture (and every child process that dot-sources this file) passes the
+# store-root gate through a migrated temp store root below its own work directory.
+function Enable-EvidenceTestStoreRoot([string]$Work){return New-StoreRootTestBase $Work}
 function Get-EvidenceTestModules { param([string]$Name) $seen=[Collections.Generic.HashSet[object]]::new();$q=[Collections.Generic.Queue[object]]::new();foreach($m in @(Get-Module -All)){$q.Enqueue($m)};while($q.Count){$m=$q.Dequeue();if(-not $seen.Add($m)){continue};if($m.Name -ceq $Name){$m};foreach($n in $m.NestedModules){$q.Enqueue($n)}} }
 function Set-EvidenceTestValue([string]$Module,[string]$Name,$Value){foreach($m in @(Get-EvidenceTestModules $Module)){& $m {param($n,$v)Set-Variable -Name $n -Value $v -Scope Script} $Name $Value}}
 function Write-EvidenceTestJson([string]$Path,$Value){[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($Path))|Out-Null;[IO.File]::WriteAllText($Path,(ConvertTo-Json -InputObject $Value -Compress -Depth 24),[Text.UTF8Encoding]::new($false))}
@@ -6,6 +10,7 @@ function Assert-EvidenceTest([bool]$Condition,[string]$Message){if(-not $Conditi
 function New-EvidenceTestEnvironment {
     Import-Module (Join-Path $PSScriptRoot '../EvidenceApplication.psm1');Import-Module (Join-Path $PSScriptRoot '../EvidenceCleanup.psm1');Import-Module (Join-Path $PSScriptRoot '../../Workflow/TaskLifecycle.psm1');Import-Module (Join-Path $PSScriptRoot '../../Workflow/TaskEventStore.psm1');Import-Module (Join-Path $PSScriptRoot '../ArtifactAcl.psm1');Import-Module (Join-Path $PSScriptRoot '../EvidenceStateStore.psm1');Import-Module (Join-Path $PSScriptRoot '../EvidenceContract.psm1');Import-Module (Join-Path $PSScriptRoot '../EvidenceRetentionPolicy.psm1');Import-Module (Join-Path $PSScriptRoot '../EvidencePaths.psm1');Import-Module (Join-Path $PSScriptRoot '../ArtifactApplication.psm1')
     $root=[IO.Path]::Combine([IO.Path]::GetTempPath(),'osm-evidence-v2-'+[Guid]::NewGuid().ToString('N'));[IO.Directory]::CreateDirectory($root)|Out-Null
+    $storeRoot=Enable-EvidenceTestStoreRoot $root
     Set-EvidenceTestValue 'TaskEventStore' 'TestRoot' ([IO.Path]::Combine($root,'workflow'));Set-EvidenceTestValue 'EvidencePaths' 'TestRoot' ([IO.Path]::Combine($root,'catalog'));Set-EvidenceTestValue 'ArtifactPaths' 'TestRoot' ([IO.Path]::Combine($root,'transfers'));Set-EvidenceTestValue 'EvidenceContract' 'DeploymentRoot' ([IO.Path]::Combine($root,'deployments'))
     $config=[ordered]@{schemaVersion=2;profile='osm';endpoint='https://'+('e'*32)+'.r2.cloudflarestorage.com';bucket='osm-artifacts';repositoryId='a'*64;prefix='development/evidence/v2/';policy='task-end-30d-v1';deploymentId='d'*32};$path=[IO.Path]::Combine($root,'deployments',('d'*32)+'.config.json');Write-EvidenceTestJson $path $config
     $hash=(Get-FileHash -LiteralPath $path).Hash.ToLowerInvariant();Write-EvidenceTestJson ([IO.Path]::Combine($root,'deployments',('d'*32)+'.json')) ([ordered]@{schemaVersion=2;deploymentId='d'*32;repositoryId='a'*64;configSha256=$hash;baselineRecordId='fixture';baselineSha256='b'*64;ownerObservationId='fixture';ownerObservationSha256='c'*64})
@@ -26,7 +31,7 @@ function New-EvidenceTestEnvironment {
     $read={param($op,$c,$gen,$key,$bytes,$hash)$data=$objects[$key];$sha=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($data)).ToLowerInvariant();[pscustomobject]@{operation='readback';generation=$gen;key=$key;bytes=[long]$data.Length;sha256=$sha;childExit=0;childStatus='passed';observedAt=[DateTimeOffset]::UtcNow.ToString('o')}}.GetNewClosure()
     Set-EvidenceTestValue 'ArtifactApplication' 'TransportHook' $transport;Set-EvidenceTestValue 'ArtifactApplication' 'ReadbackHook' $read
     $g=Enter-WorkflowTaskGuard $config.repositoryId 'fixture';try{$null=Invoke-WorkflowTaskTransition $config.repositoryId 'fixture' 'started' 0 'fixture-start' '' $g}finally{$g.Dispose()}
-    return [pscustomobject]@{Root=$root;ConfigPath=$path;Config=Read-EvidenceConfig $path;Objects=$objects;Counts=$counts;Transport=$transport;Readback=$read;CredentialReads=$credentialReads}
+    return [pscustomobject]@{Root=$root;ConfigPath=$path;Config=Read-EvidenceConfig $path;Objects=$objects;Counts=$counts;Transport=$transport;Readback=$read;CredentialReads=$credentialReads;StoreRoot=$storeRoot}
 }
 # Total transport calls plus credential reads. Local staging paths must leave it unchanged.
 function Get-EvidenceRemoteTouches($Env){return [int](($Env.Counts.Values|Measure-Object -Sum).Sum)+[int](($Env.CredentialReads.Values|Measure-Object -Sum).Sum)}

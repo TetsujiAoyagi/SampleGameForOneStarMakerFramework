@@ -15,6 +15,7 @@ $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'EvidenceTestSupport.ps1')
 Import-Module (Join-Path $PSScriptRoot '../SeriesRetirementStore.psm1')
 Set-EvidenceTestValue SeriesRetirementStore TestRoot $RetireRoot
+$null=Enable-EvidenceTestStoreRoot ([IO.Path]::GetDirectoryName($TransferRoot))
 $ready=$null;$go=$null
 if($ReadyEvent){$ready=[Threading.EventWaitHandle]::OpenExisting($ReadyEvent);$go=[Threading.EventWaitHandle]::OpenExisting($GoEvent)}
 $fixed=[DateTimeOffset]::Parse($Now,[Globalization.CultureInfo]::InvariantCulture)

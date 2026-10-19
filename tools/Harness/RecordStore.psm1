@@ -1,9 +1,19 @@
 # Git 外の現行入力と、一度書いたら上書きしない記録を置く。
-# 保存先は同一マシンの LocalApplicationData で、clone だけでは戻らない。
+# 保存先は同一マシンの store root（UserProfile Known Folder 直下の OneStarMaker）の Harness で、clone だけでは戻らない。
 # 更新されるのは CURRENT だけ。仕様・run・入力・受領は id 付きの不変ファイル。
 # 更新は task.lock の排他と revision の一致で直列化し、直前版を CURRENT.previous に残す。
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+# Harness → Workflow の OS 基盤層。store の所在と移行済みの判定は resolver だけが持つ。
+Import-Module (Join-Path $PSScriptRoot '../Workflow/WindowsStoreRoot.psm1')
+
+function Get-HarnessStoreRoot([string]$StoreRoot = '') {
+    # 既定は resolver が返す store root の Harness。-StoreRoot は tests 専用の明示 root で、
+    # 旧 root・store root・repo 配下（junction 経由を含む）を拒否してから、そのまま使う。
+    if ([string]::IsNullOrWhiteSpace($StoreRoot)) { return [IO.Path]::Combine((Get-OsmStoreRoot), 'Harness') }
+    Assert-OsmExplicitStoreRoot $StoreRoot
+    return $StoreRoot
+}
 
 function Get-JsonHash([object]$Value) {
     $json = ConvertTo-Json -InputObject $Value -Depth 40 -Compress
@@ -31,10 +41,7 @@ function Get-TaskDirectory([string]$Repo, [string]$Task, [string]$StoreRoot = ''
     # task-id をディレクトリ名に使う。英数字とハイフン以外は、保存先からの逸脱として拒否する。
     if ($Task -cnotmatch '^[a-z0-9][a-z0-9-]{0,63}$') { throw 'task-id は小文字英数字とハイフンのみ、64文字以内にしてください。' }
     $identity = Get-RepositoryIdentity $Repo
-    if ([string]::IsNullOrWhiteSpace($StoreRoot)) {
-        $StoreRoot = [IO.Path]::Combine([Environment]::GetFolderPath('LocalApplicationData'), 'OneStarMaker', 'Harness')
-    }
-    return [IO.Path]::Combine($StoreRoot, $identity.Id, 'tasks', $Task)
+    return [IO.Path]::Combine((Get-HarnessStoreRoot $StoreRoot), $identity.Id, 'tasks', $Task)
 }
 
 function Initialize-Task([string]$TaskDirectory, [string]$Task, [string]$Owner, [object]$Identity, [object]$Spec) {
@@ -394,4 +401,4 @@ function Assert-ObservationAttachment([string]$TaskDirectory,[object]$Run) {
     if($Run.taskId -cne 'artifact-evidence-lifecycle' -or $Run.observation.path -cne "payload$([IO.Path]::DirectorySeparatorChar)$($Run.id)$([IO.Path]::DirectorySeparatorChar)observations$([IO.Path]::DirectorySeparatorChar)manifest.json"){throw '観測attachmentがこのrunのpayload外です。'}
     [void](Read-ObservationManifest (Join-Path $TaskDirectory "payload/$($Run.id)/observations") 'manifest.json' $Run.observation.sha256 $Run.repoId $Run.base $Run.head)
 }
-Export-ModuleMember -Function Save-ObservationAttachment,Assert-ObservationAttachment,Get-JsonHash,Get-RepositoryIdentity,Get-TaskDirectory,Initialize-Task,Publish-Handoff,Publish-BlindHandoff,Write-NewRecord,Read-Record,Test-TaskClosed,Read-Current,Write-Current,Restore-Current,Write-Closed,Start-Run,Begin-Run,Finish-Run,Add-AdoptedRun,Edit-Reference,Set-CurrentNotes
+Export-ModuleMember -Function Save-ObservationAttachment,Assert-ObservationAttachment,Get-JsonHash,Get-RepositoryIdentity,Get-HarnessStoreRoot,Get-TaskDirectory,Initialize-Task,Publish-Handoff,Publish-BlindHandoff,Write-NewRecord,Read-Record,Test-TaskClosed,Read-Current,Write-Current,Restore-Current,Write-Closed,Start-Run,Begin-Run,Finish-Run,Add-AdoptedRun,Edit-Reference,Set-CurrentNotes

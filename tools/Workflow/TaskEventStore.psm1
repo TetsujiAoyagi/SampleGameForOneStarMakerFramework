@@ -1,5 +1,6 @@
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'WindowsStorePaths.psm1')
+Import-Module (Join-Path $PSScriptRoot 'WindowsStoreRoot.psm1')
 
 # A caller may supply a monotonic remaining-time callback for this invocation.
 # Ordinary callers leave it null and retain the existing thirty-second guard limit.
@@ -48,13 +49,16 @@ function Assert-WorkflowPrivateAcl([string] $Path,[bool] $Directory) {
 function Get-WorkflowRoot {
     $context=[AppDomain]::CurrentDomain.GetData('OneStarMaker.Evidence.StorageBinding.v1')
     if($context){
+        # A binding in the process is not proof that the store may be used: the
+        # resolver's gate (marker, former-root residue) runs on every call first.
+        $null=Get-OsmStoreRoot
         $binding=ConvertFrom-Json -InputObject $context -AsHashtable -DateKind String
         $root=Assert-WindowsStorePathIdentity $binding.roles.workflow.physicalPath $binding.roles.workflow
         Assert-WorkflowPrivateAcl $root $true
         return $root
     }
     if ($script:TestRoot) { return [IO.Path]::GetFullPath($script:TestRoot) }
-    $root=[IO.Path]::Combine([Environment]::GetFolderPath('LocalApplicationData'),'OneStarMaker','Workflow')
+    $root=[IO.Path]::Combine((Get-OsmStoreRoot),'Workflow')
     if([IO.Directory]::Exists($root)){$root=(Get-WindowsStorePathIdentity $root).physicalPath;Assert-WorkflowPrivateAcl $root $true}
     return $root
 }

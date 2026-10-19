@@ -5,11 +5,11 @@ $ErrorActionPreference='Stop'
 # public entry. No production module is imported and no test hook must propagate.
 function Record([string]$Name){[IO.File]::AppendAllText($CallsPath,$Name+"`n")}
 function Import-Module([string]$Name){
-    if([IO.Path]::GetFileName($Name) -cnotin @('WindowsStoreContext.psm1','TaskEventStore.psm1','TaskLifecycle.psm1','EvidenceContract.psm1','EvidenceStateStore.psm1','EvidenceCleanup.psm1')){throw 'unexpected-import'}
+    if([IO.Path]::GetFileName($Name) -cnotin @('WindowsStoreRoot.psm1','TaskEventStore.psm1','TaskLifecycle.psm1','EvidenceContract.psm1','EvidenceStateStore.psm1','EvidenceCleanup.psm1')){throw 'unexpected-import'}
     Record ('import:'+ [IO.Path]::GetFileName($Name))
 }
-# The store-context decision is the entry's first boundary; it stays observable here.
-function Get-OsmStoreContext {Record 'store-context';'not-virtualized'}
+# The store-root gate is the entry's first boundary; it stays observable here.
+function Get-OsmStoreRoot {Record 'store-root';'C:\fixture\OneStarMaker'}
 function git {Record 'git';$global:LASTEXITCODE=0;'https://github.com/offline-fixture/evidence-cli.git'}
 function Get-EvidenceConfigurations([string]$RepositoryId){Record 'configs';@('fixture-one','fixture-two')}
 function Enter-WorkflowTaskGuard([string]$RepositoryId,[string]$TaskId){Record 'guard';$g=[pscustomobject]@{RepositoryId=$RepositoryId;TaskId=$TaskId};$g|Add-Member ScriptMethod Dispose {Record 'dispose'};$g}
@@ -23,5 +23,5 @@ function Invoke-WorkflowTaskTransition([string]$RepositoryId,[string]$TaskId,[st
 function Invoke-EvidenceSync([string]$Path,[string]$TaskId){Record 'sync';@{status=if($Mode -ceq 'pending'){'pending'}else{'passed'}}}
 . $Entry resume -Task fixture-resume -ExpectedVersion 2 -Decision fixture-decision
 $entryExit=$LASTEXITCODE
-if(@(Get-Module -All | Where-Object Name -cin @('WindowsStoreContext','TaskEventStore','TaskLifecycle','EvidenceContract','EvidenceStateStore','EvidenceCleanup')).Count){throw 'production-module-loaded'}
+if(@(Get-Module -All | Where-Object Name -cin @('WindowsStoreRoot','TaskEventStore','TaskLifecycle','EvidenceContract','EvidenceStateStore','EvidenceCleanup')).Count){throw 'production-module-loaded'}
 exit $entryExit

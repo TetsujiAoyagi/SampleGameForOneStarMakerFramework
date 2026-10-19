@@ -13,6 +13,7 @@ Import-Module (Join-Path $PSScriptRoot '../BuildCleanup.psm1')
 Import-Module (Join-Path $PSScriptRoot '../BuildApplication.psm1')
 Import-Module (Join-Path $PSScriptRoot '../Transport/R2ArtifactTransport.psm1')
 Set-EvidenceTestValue BuildStore TestRoot $StoreRoot
+$null=Enable-EvidenceTestStoreRoot ([IO.Path]::GetDirectoryName($TransferRoot))
 Set-EvidenceTestValue ArtifactPaths TestRoot $TransferRoot
 Set-EvidenceTestValue EvidenceContract DeploymentRoot $DeploymentRoot
 Set-EvidenceTestValue BuildContract OwnedRootsForTest @($OwnedRoots.Split('|'))

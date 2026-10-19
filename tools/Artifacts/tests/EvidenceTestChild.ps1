@@ -3,6 +3,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'EvidenceTestSupport.ps1')
 Import-Module (Join-Path $PSScriptRoot '../EvidenceApplication.psm1');Import-Module (Join-Path $PSScriptRoot '../EvidenceContract.psm1');Import-Module (Join-Path $PSScriptRoot '../EvidenceStateStore.psm1');Import-Module (Join-Path $PSScriptRoot '../EvidenceCleanup.psm1');Import-Module (Join-Path $PSScriptRoot '../../Workflow/TaskLifecycle.psm1');Import-Module (Join-Path $PSScriptRoot '../../Workflow/TaskEventStore.psm1')
+$null=Enable-EvidenceTestStoreRoot $Root
 Set-EvidenceTestValue TaskEventStore TestRoot ([IO.Path]::Combine($Root,'workflow'));Set-EvidenceTestValue EvidencePaths TestRoot ([IO.Path]::Combine($Root,'catalog'));Set-EvidenceTestValue ArtifactPaths TestRoot ([IO.Path]::Combine($Root,'transfers'));Set-EvidenceTestValue EvidenceContract DeploymentRoot ([IO.Path]::Combine($Root,'deployments'))
 foreach($m in @(Get-EvidenceTestModules EvidenceApplication)+@(Get-EvidenceTestModules EvidenceCleanup)){& $m {function script:Get-CredentialStatus {param($p)[pscustomobject]@{Generation='f'*32}}}}
 if($Now){$at=[DateTimeOffset]::Parse($Now);Set-EvidenceTestValue EvidenceCleanup Clock {$at}.GetNewClosure();Set-EvidenceTestValue EvidenceApplication Clock {$at}.GetNewClosure()}

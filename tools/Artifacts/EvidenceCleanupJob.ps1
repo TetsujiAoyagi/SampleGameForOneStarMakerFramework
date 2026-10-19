@@ -14,7 +14,7 @@ try{
         $seen[$file.path]=$true;$path=[IO.Path]::Combine($Runtime,$file.path)
         if([IO.FileInfo]::new($path).Length -ne $file.bytes -or (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $file.sha256){throw 'runtime-hash-mismatch'}
     }
-    foreach($required in @('config.json','tools/Artifacts/EvidenceCleanupJob.ps1','tools/Artifacts/EvidenceSchedule.psm1','tools/Artifacts/ArtifactAcl.psm1','tools/Workflow/WindowsStorePaths.psm1')){if(-not $seen.ContainsKey($required)){throw 'runtime-path-invalid'}}
+    foreach($required in @('config.json','tools/Artifacts/EvidenceCleanupJob.ps1','tools/Artifacts/EvidenceSchedule.psm1','tools/Artifacts/ArtifactAcl.psm1','tools/Workflow/WindowsStorePaths.psm1','tools/Workflow/WindowsStoreRoot.psm1')){if(-not $seen.ContainsKey($required)){throw 'runtime-path-invalid'}}
     $schedule=Import-Module (Join-Path $PSScriptRoot 'EvidenceSchedule.psm1') -PassThru
     $null=Initialize-EvidenceRuntimeContext $Runtime $ManifestSha256
     Import-Module (Join-Path $PSScriptRoot 'EvidenceStateStore.psm1') -DisableNameChecking

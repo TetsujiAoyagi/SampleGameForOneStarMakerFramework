@@ -1,4 +1,6 @@
 Set-StrictMode -Version Latest
+# store root の所在と移行済みの判定は OS 基盤層の resolver が持つ。
+Import-Module (Join-Path $PSScriptRoot '../../Workflow/WindowsStoreRoot.psm1')
 # テストだけが注入する書き込み台帳。CLI や環境変数からは設定できない。
 $script:WriteLedger = $null
 
@@ -112,10 +114,9 @@ function Get-CredentialRoot([string] $TestRoot) {
     if ($TestRoot) {
         $root = [IO.Path]::GetFullPath($TestRoot)
     } else {
-        # 環境変数 LOCALAPPDATA の置換値を信用せず Known Folder から導く。
-        $local = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
-        if (-not $local) { throw 'Credential operation unavailable.' }
-        $root = [IO.Path]::Combine($local, 'OneStarMaker', 'Artifacts', 'credentials')
+        # 環境変数を信用せず、resolver が Known Folder から導いた store root の下に置く。
+        # 印が無い・旧 root が残る・root を決められない場合は resolver の固定 code で止まる。
+        $root = [IO.Path]::Combine((Get-OsmStoreRoot), 'Artifacts', 'credentials')
     }
     $root = [IO.Path]::GetFullPath($root)
     $repo = [IO.Path]::GetFullPath([IO.Path]::Combine($PSScriptRoot, '..', '..', '..'))
@@ -126,10 +127,10 @@ function Get-CredentialRoot([string] $TestRoot) {
 
 function Initialize-CredentialRoot([string] $Root, [bool] $IsTestRoot, [string] $TestBase) {
     Assert-NoReparse $Root
-    $local = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
+    # 三段の一段目は store root そのもの。本番ではその親（UserProfile）を base にする。
     $base = if ($IsTestRoot) {
         if ($TestBase) { [IO.Path]::GetFullPath($TestBase) } else { [IO.Path]::GetDirectoryName($Root) }
-    } else { $local }
+    } else { [IO.Path]::GetDirectoryName((Get-OsmStoreRoot)) }
     [string[]]$allowed = if ($IsTestRoot -and -not $TestBase) { @($Root) }
         else {
             @(
@@ -144,13 +145,18 @@ function Initialize-CredentialRoot([string] $Root, [bool] $IsTestRoot, [string] 
     foreach ($part in $relative.Split('\', [StringSplitOptions]::RemoveEmptyEntries)) {
         $current = [IO.Path]::Combine($current, $part)
         Assert-NoReparse $current
+        $isStoreRoot = $current.Equals($allowed[0], [StringComparison]::OrdinalIgnoreCase)
+        if (-not $IsTestRoot -and $isStoreRoot) {
+            # 本番の store root は移行（印を書く側）が作る。ここでは存在だけを確かめ、
+            # 無ければ作らずに止める。既存 ACL と兄弟は触らない。
+            Assert-SharedParent $current
+            continue
+        }
         if (-not [IO.Directory]::Exists($current)) {
             Assert-CredentialDirectoryInitialization $current $allowed
             [IO.Directory]::CreateDirectory($current) | Out-Null
             Set-OwnerAcl $current $true $Root $allowed
-        } elseif (-not $IsTestRoot -and $current.Equals($allowed[0], [StringComparison]::OrdinalIgnoreCase)) {
-            Assert-SharedParent $current
-        } elseif ($TestBase -and $current.Equals($allowed[0], [StringComparison]::OrdinalIgnoreCase)) {
+        } elseif ($TestBase -and $isStoreRoot) {
             Assert-SharedParent $current
         } else { Assert-OwnerAcl $current $true }
     }
