@@ -431,7 +431,7 @@ packaged app内のprocessからの実行条件: そのapp独自のサンドボ�
 
 `harness.ps1 -StoreRoot` はtests専用の明示rootで、印・残存の判定を行いません。綴りでも実体pathでも（存在する最も近い祖先まで開いて、junction経由を含めて）旧root配下・store root配下・repo配下を指す値は `store-root-unavailable` で拒否します。temp配下の明示rootは通ります。
 
-実ストアの移設の実行（旧rootの所有roleのmoveまたは複写とACLの再設定、印の発行）、LocalCache側copyの合流先を新rootにすること、Task Schedulerの清掃jobの再登録は、後続の作業（保留listの「store root 移設の実行と合流」）が所有します。それまでこの版のCLIは、印が無い間 `store-not-migrated` で止まります。
+実ストアの移設（所有roleの同一volumeのrename、印の発行）とTask Schedulerの清掃jobの再登録は、2026-10-19に一回だけ行いました（[PR #140](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/140)）。旧rootには、所有roleと同じ名前のsize 0の通常file（tombstone）が残っています。これは旧版のCLIが旧rootにroleを作り直すのを防ぐためのもので、resolverは不在と扱います。消さないでください。移行に使った一回限りのprogramはリポジトリに残していないので、旧rootの無い新しいhostで印を発行する手段はまだありません（保留list「Cloud・別PCからの取得」）。LocalCache側copyの扱い（合流するか、削除するか）は保留listの項目です。
 
 #### LocalApplicationDataへの書込みの仮想化判定（store plan / consolidate だけ）
 
