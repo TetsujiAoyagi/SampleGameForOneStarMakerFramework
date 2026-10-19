@@ -9,7 +9,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `判定 C（最終証拠ラウンド）完了（blocker なし）・最終 C' の記録待ち`（GO 候補 head = SHA B = `7b4f085c`、push しない軽量 tag `evidence/artifact-store-root-migration/1`。実ストアでの実行は 2026-10-19 に実施済み。最終 GO は最終 C' の結果と揃って初めて確定する。Phase A revision 1 を 2026-10-19 に凍結。凍結版 = message に `A3 freeze` を含む commit。動作確認は `対象なし`）
+- status: `C' 完了・最終 GO`（判定 C（最終証拠ラウンド）と最終 C' がともに blocker なし。GO 候補 head = SHA B = `7b4f085c`、push しない軽量 tag `evidence/artifact-store-root-migration/1`。実ストアでの実行は 2026-10-19 に実施済み。最終 GO は最終 C' の結果と揃って初めて確定する。Phase A revision 1 を 2026-10-19 に凍結。凍結版 = message に `A3 freeze` を含む commit。動作確認は `対象なし`）
 - branch: `claude/artifact-store-root-migration`（移設スライスの branch `claude/artifact-store-root-relocation` の `94f93930` から切った。`34cf6607..94f93930` の差分は `ARTIFACT_STORE_ROOT_RELOCATION.md` だけで、コードは移設スライスの GO 候補 head `34cf6607` と同一。PR base は `develop`）
 - implementation base commit: `94f939303951c8ec0614303d66525bb9abcbacec`（コードは `34cf6607302d27f49bf9d3febaaa31d624f5cbed` と同一）
 - implementation head commit: `7b4f085cb746e4ecce8681f5bbe70710aec1ac20`（SHA B。Phase B の出口の commit。GO 候補として固定済み）
@@ -23,13 +23,14 @@
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。最終 bundle（判定 C 用）。`locality` = `local`、task `artifact-store-root-migration`、対象 `4e69624a..7b4f085c`。暫定判定 C と同じ 17 file に、実ストアでの実行の時刻付き生ログと smoke 項目 1・5・6 の script を足した。取得案内は進行役の scratch にある（reference・packageSha256 の実値はここに書かない）。別 process の `fetch` で全 file の収録を確認済み。
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。最終 C' 用の bundle は判定 C 用とは別で、取得案内は進行役の scratch にある（実値はここに書かない）。暫定 C' 用の bundle は実ストアの実行の前のもので、最終には使わない。
 - 引継ぎ票:
-  - 次の Phase・役割: 最終 C'（実ストアでの実行の生ログを含む bundle を、暫定 C' とは別に読ませる）。その結果が blocker 0 件なら最終 GO。巡の数: B ↔ 発見 C は 0 巡、C' の差し戻しは 0 巡。
-  - 次の作業: 最終 C' の記録（§8）。その後 O5 の順序（PR、後始末の commit、#139 の merge、本スライスの merge）。実ストアの実行（手順 0〜3、S4）は完了済み（§7「判定 C（最終証拠ラウンド）」）。実行の記録の `evidence stage` による固定は、最終 C' の記録の後に行う。
-  - 引き継ぐ commit SHA: GO 候補 head = `7b4f085c`（実装）。この branch の先頭は、その後の review-record commit（発見 C 1 回目、判定 C、暫定 C'）。作業ツリーが dirty なら引き継がない。
-  - 取得案内の所在: 進行役の scratch（最終 bundle は判定 C 用と C' 用の 2 つ。値は tracked 文書に書かない）。
-  - 必要な権限: 実ストアの操作（O7 の owner の一括承認）、Task Scheduler の照会・無効化（手順 1 は owner）、pwsh 7。資格情報の登録・置換と R2 の操作はしない。
-  - 停止規則: §5 の各手順の期待と違えば止めて owner に返す。rollback はしない（§2 判定定義）。
-  - 引き渡さないもの: ローカル store・LocalCache の実 path、資格情報、C' に発見 C・判定 C の所見。
+  - 次の Phase・役割: O5 の 2 以降（PR の作成と PR レビュー → Phase D の後始末の commit → owner による #139 の merge → 本スライスの merge）。巡の数: B ↔ 発見 C は 0 巡、C' の差し戻しは 0 巡。
+  - 次の作業: owner の指示で、本 branch を push して `develop` 向けの PR を開く（本文に「#139 の commit を含む。本スライスの差分は `94f93930..<head>`」と書く）。PR レビューの後、(D) の 3 file の削除、harvest、本書の削除を 1 commit にする（O5 の 4）。
+  - 運用上の注意（移設の後）: 実ストアは移設済み（印あり、旧 root の所有 role は tombstone）。#139 の merge までは、`34cf6607` の clean worktree（Release build 済み）を唯一の store CLI とし、develop checkout の CLI（旧コード）を使わない（O1 手順 9）。清掃 job は `34cf6607` の runtime で再登録済み。
+  - 引き継ぐ commit SHA: GO 候補 head = `7b4f085c`（実装、tag `evidence/artifact-store-root-migration/1`）。この branch の先頭は、その後の review-record commit。作業ツリーが dirty なら引き継がない。
+  - 取得案内の所在: 進行役の scratch（暫定 2 file と最終 2 file。判定 C 用と C' 用は別。値は tracked 文書に書かない）。
+  - 必要な権限: push と PR の作成（owner の指示の後）。
+  - 停止規則: PR レビューで blocker が出たら通常の差し戻し（凍結条件の違反だけ）。
+  - 引き渡さないもの: ローカル store・LocalCache の実 path、資格情報。
 
 ### Phase B の着手手順
 
@@ -530,6 +531,25 @@ seam を使わない production の `Get-OsmStoreRoot` と 3 CLI（`artifacts.ps
 #### 監査できなかった範囲と残存リスク
 
 - 読取りだけで、コードもテストも実行していない。実ストアでの実行（S2〜S4、smoke）は未実施で、最終 C' の対象。
+
+### 最終 C'（2026-10-19。実ストアでの実行の後）
+
+- 担当・モデル: cursor-agent CLI の非対話実行（`grok-4.7-high`、xAI 系。暫定 C' と同じ系列・新規の実行）。進行役が起動した。job は 1 本（論点 2 つ: 生ログと凍結した手順・期待の照合、実行での不変条件と秘密の非露出）。読取りだけで、workspace は repo の外。
+- 入力: 最終 C' blind bundle（暫定 C' の bundle と同じ 17 file に、実ストアでの実行の時刻付き生ログと smoke 1・5・6 の script を足した 19 file。発見 C・判定 C の所見と結論を含まない）を、(C) の CLI で別 process の `fetch`（`passed`）で取得したものと、head `7b4f085c` の `git archive` 展開。
+- 規模: tool 呼出し 34 回、output 30,363 token。1 回で完了し、撃ち直しはしていない。
+- 結論: **blocker なし**。判定 C（最終証拠ラウンド）と揃ったので、本スライスは最終 GO。
+
+#### 後続の入力（最終 C' の指摘。現スライスを阻害しない）
+
+- smoke 3・4 は、ログ上は smoke 1 と 2 より前に実行した。どちらも移設後の読取りなので成否は変わらない。
+- U3(1)（Unity Editor・他 worktree の静止）は owner の確認によるもので、ログには無い。手順 0 の `start` 本体は判定 C（暫定）の担当が行い、ログにあるのは `status` だけ。
+- (C) の `schedule install` の正常出力には、絶対 path と userId が含まれる（I5 は (C) の正常出力を対象外としている）。生ログは local の Evidence にだけ置き、tracked 文書に転記していない。
+- smoke script の 2 回の修正による再実行（型名、実体 path の long-path prefix）は測定の前か、比較の不具合で、製品コードは変えていない。最終の値は 21:23:45 の実行。
+- Harness CURRENT の読戻しは O10 のとおり未検証のまま（移設スライスの Phase D と、LocalCache の扱いの後続に引き継ぐ）。
+
+#### 監査できなかった範囲と残存リスク
+
+- 読取りだけ。packaged app 側（smoke 7）は未実施。
 
 ## 9. Phase D
 
