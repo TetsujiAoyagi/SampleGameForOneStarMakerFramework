@@ -9,7 +9,7 @@ owner の決定（2026-10-20）: **copy は全部削除する。** 過去の遺�
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `A` 凍結（Phase A revision 1 を 2026-10-20 に凍結。凍結版 = message に `A3 freeze` を含む commit。2026-10-20 に「全部削除」の最小の計画へ書き直し、Web 版レビュー R5・R6 を反映した。次は §4 の E1）
+- status: E1〜E4 完了（copy root は削除済み。§6）。次は §4 の E5（公開文書の書換えと文書だけの PR）。Phase A revision 1 は 2026-10-20 に凍結（凍結版 = message に `A3 freeze` を含む commit `2a08883a`）
 - branch: `claude/localcache-copy-disposition`（`develop` = `cbcdb22c` から切った。PR base は `develop`）
 - implementation base commit: `cbcdb22cb7e47671ebd01927d1ac92fa7b9425c8`（PR #140 の merge 後の `develop`）
 - implementation head commit: 該当なし（コードの変更は無い。§4 の script は本書に埋め込み、repo に置かない）
@@ -21,8 +21,8 @@ owner の決定（2026-10-20）: **copy は全部削除する。** 過去の遺�
 - Phase A snapshot の取得案内・状態: Git 上の本文で完結（A0 = commit `31263e9e`、A2 入力版 = commit `ce258f34`、凍結版 = message に `A3 freeze` を含む commit。内容 sha256 はその commit の blob から求められるので転記しない）
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 該当なし（§5。実行の記録は §6 に本文として残す）
 - 引継ぎ票（凍結後の状態として書く）:
-  - 次の作業: §4 の E1〜E5。
-  - 引き継ぐ commit SHA: 凍結版の commit。作業ツリーが dirty なら引き継がない。
+  - 次の作業: §4 の E5（E1〜E4 は完了。§6）。
+  - 引き継ぐ commit SHA: 実行の記録の commit（branch の先頭。凍結版は `2a08883a`）。作業ツリーが dirty なら引き継がない。
   - 実行担当: 非仮想化の pwsh を使える session（Claude Code の PowerShell tool で可）。Claude Code の Bash では行わない（LocalAppData への書込みが仮想化されるため）。
   - 必要な権限: copy root の削除（E3 の直前の owner の承認だけ）。
   - 停止規則: §2 の「止まる条件」のどれかに当たれば、調べ直さず、そのまま owner に返す。
@@ -187,7 +187,15 @@ if($result.status -notin @('checked','deleted','absent')){exit 1}
 
 ## 6. 実行の記録
 
-未着手
+実行担当: 本 session（Claude Code の PowerShell tool、非仮想化 pwsh）。凍結版の HEAD `2a08883ad2ab283520818e45123832da5ced8ca6`、作業ツリーは clean。script は凍結版の本書から pwsh で scratch に書き出し、SHA-256 は `1e292ce75404eef74aedb4f9deb4feef221be0fde5043770a043ca8c86090438`（5,287 bytes）。copy root の兄弟は 2 件で、前後とも残った。
+
+- **E1（owner、2026-10-20）:** 「Codex を終了した」。E2・E3 の直前に Codex の process が 0 件であることも確かめた。
+- **E2（2026-10-19 16:58 UTC、`-Delete` なし）:** exit 0。`{"status":"checked","source":"6cf57e314851a9dc490709874a21e49ff97081f663e7746cc38a8066333bd5e5","top":[".virtualization-probe-20261012-98d039acb197|directory","Artifacts|directory","H2a Review|directory","H2b Review|directory","Harness|directory","RevisionLocks|directory","Workflow|directory","WorktreeRecords|directory"],"files":15035,"directories":2051,"bytes":1714521154,"roots":{"marker":"54b6caeb97abff6c9b32a35d12a41c9ffa4a0765e8ed07ac746e3ea7e562c3f2","newRoot":["Artifacts|directory","store-root.json|file:150","Workflow|directory"],"oldRoot":["Artifacts|file:0","Harness|file:0","RevisionLocks|directory","Workflow|file:0"]}}`
+- **owner の承認（2026-10-20）:** 「E2 の出力を確認した。消してよい。E3 を実行して。」
+- **E3（2026-10-19 17:02 UTC）:** 直前の照合は script の SHA-256 一致・HEAD 一致・作業ツリー clean・Codex の process 0 件。`-Delete -ExpectedSourceSha256 6cf57e31…d5e5` で 1 回実行。exit 0、約 6.4 秒。`{"status":"deleted", …}`（`source`・`top`・件数は E2 と同じ。`roots` は E2 と同じで、新 root の印の hash・直下、旧 root の tombstone 3 つ（size 0）と `RevisionLocks` が変わらなかった）。
+- **E4（2026-10-19 17:03 UTC、`-Delete` なし）:** exit 0。`{"status":"absent"}`（非仮想化の判定を通った上で、copy root の形を持つ directory が `Packages` の配下に 1 つも無い）。E3 の `deleted` と組で S1・S2 が成立した。
+- 判定: I1〜I6 に違反なし、S1・S2 が成立。S3（E5 の公開文書）は未着手。
+- 実行時刻は UTC（日本時間では 2026-10-20 の 01:58〜02:03）。
 
 ## 7. Phase C
 
