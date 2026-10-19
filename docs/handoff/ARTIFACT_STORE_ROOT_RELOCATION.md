@@ -7,7 +7,7 @@ Artifact Storage・Workflow・Harness が共有する store の実体を、packa
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `C' 完了（owner の確認待ち）`（Phase A revision 1 を 2026-10-19 に owner が凍結。Phase B の出口 `c2ebd441`、差し戻し修正 巡 1 `34cf6607`。発見 C 2 回目で blocker 0。動作確認は `34cf6607` で期待との差なし（§6）。owner が 2026-10-19 に、commit を整理せず `34cf6607` を GO 候補 head とした。判定 C は 2026-10-19 に `34cf6607` で GO（§7）。C' 1 巡目は同日に blocker なし（§8））
+- status: `C' 完了（後続スライスによる移行待ち。merge は §2 O1 の手順 9）`（Phase A revision 1 を 2026-10-19 に owner が凍結。Phase B の出口 `c2ebd441`、差し戻し修正 巡 1 `34cf6607`。発見 C 2 回目で blocker 0。動作確認は `34cf6607` で期待との差なし（§6）。owner が 2026-10-19 に、commit を整理せず `34cf6607` を GO 候補 head とした。判定 C は 2026-10-19 に `34cf6607` で GO（§7）。C' 1 巡目は同日に blocker なし（§8））
 - branch: `claude/artifact-store-root-relocation`（PR base は `develop`。Phase A の作業 branch `claude/artifact-store-root-relocation-plan` は A0 の commit `eebcdda7` で止まっており、A1〜A3 の commit はこの branch にある）
 - implementation base commit: `abb997751035ab3a284916a97c32f887a8faec16`（`origin/develop`、PR #138 を含む）
 - implementation head commit: `34cf6607302d27f49bf9d3febaaa31d624f5cbed`（GO 候補 head。push しない軽量 tag `evidence/artifact-store-root-relocation/1` で到達可能に保つ。以降の本書だけの commit は head を変えない）
@@ -21,8 +21,8 @@ Artifact Storage・Workflow・Harness が共有する store の実体を、packa
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の担当が GO 候補 head `34cf6607` から develop checkout の CLI（非仮想化 pwsh）で `evidence stage` した（task `artifact-store-root-relocation`、`locality` = `local`）。送信側の別 process の fetch で全 file の hash 一致を確認済み。受け手側の取得・閲覧確認は引渡し未完了。取得案内（reference・packageSha256 の実値を含む）は進行役の共有ノートにあり、進行役が持つ
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。evidence bundle と同じ commit・同じ判定入力から生成した。発見 C・判定 C の所見・結論は含まない。2026-10-19 に進行役が develop checkout の CLI（非仮想化 pwsh）で fetch し（`passed`）、C' 担当がその展開を閲覧した（§8）。取得案内は進行役の共有ノートにある
 - 引継ぎ票:
-  - 次の Phase・役割: 公開点（owner への報告と確認）。その後に PR #139 の更新と Phase D。巡の数: B ↔ 発見 C は 1 巡、C' の差し戻しは 0 巡。
-  - 次の作業: 進行役が C' の結果を owner に報告する。owner の確認を得てから branch を push し、PR #139 本文の状態ブロックを §0 の現況に更新する（§0「進行役の着手手順」9）。push の前に `git log --oneline <前回公開 head>..HEAD` と `pwsh tools/docs-audit.ps1` で、機微な path・reference の実値が入っていないことを確かめる。実ストアの移行（印の書込み）はこのスライスでは行わない（§2 O1）。
+  - 次の Phase・役割: §2 O1 工程表の手順 2〜8（後続スライス「store root 移設の実行と合流」と owner）。この PR の merge は手順 9 で、本スライスの Phase D は手順 10。巡の数: B ↔ 発見 C は 1 巡、C' の差し戻しは 0 巡。
+  - 次の作業: C' の結果は 2026-10-19 に owner へ報告し、branch の push と PR #139 の状態ブロック更新を済ませた。次は後続スライスを Phase A〜C' まで進め、producer の版を固定する（手順 2）。その後、旧 writer の静止 → 旧 root の inventory → 所有 role の移設と照合 → 不在確認 → 印の原子的発行 → `34cf6607` の CLI による production smoke test（手順 3〜8）を行う。**これらが済むまで、この PR を merge しない**（移行前に merge すると develop の 3 CLI が `store-not-migrated` で止まる）。merge の後、`34cf6607` の CLI か merge 後の develop で Phase D を行う。この進行では実ストアの移行（印の書込み）を行わない（§2 O1）。
   - 引き継ぐ commit SHA: implementation head `34cf6607`（tag `evidence/artifact-store-root-relocation/1`）。この branch の先頭は §8 を記録した本書だけの commit。作業ツリーが dirty なら引き継がない。
   - 取得案内の所在: 判定 C の evidence bundle と C' blind bundle の取得案内は進行役の共有ノート（別々の案内）にある。local path・reference・packageSha256 の実値は本書に書かない。
   - 必要な権限: リポジトリの読み、pwsh 7、develop checkout の CLI による `fetch`（local 分岐。network・資格情報を使わない）。実ストアの role data・資格情報・R2 は触らない。
