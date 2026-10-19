@@ -11,7 +11,7 @@
 - risk: `normal`（文書改訂）。リセットと削除機能の対象・検証は実装スライスで具体化する。
 - owner: OSM maintainers
 - created: 2026-09-26
-- updated: 2026-10-18
+- updated: 2026-10-19
 - expires: 2026-12-26 または置換revision（program文書の見直し期限）
 - harvest to: 実装済みの通常操作を `tools/Artifacts/README.md`、program状態を `docs/README.md` へ反映し、program完了時に削除する。 完了宣言後、Phase Dでこの文書を削除するか、保留listだけを公開面へ移すかはownerが決める。
 
@@ -190,7 +190,7 @@ ownerは2026-10-17に、Artifact Storageの開発はここで完了と決めた�
 
 - **Cloud・別PCからの取得** — Cloud Agent・別PCがR2からEvidenceを閲覧する経路（Evidenceは公開しない。2026-10-11 owner）と、Build・Contentの取得。論点はtokenの受け渡しで、第一候補は受け取る側の環境に読み取り専用・bucket限定のtoken（R2 Object Read only）を登録する方式。署名付きURLは発行主体（誰が親鍵を持って発行するか）とURLを届ける経路が未解決。必要な環境ごとに到達性、限定grant、無人保存/取得、ログ/画像閲覧を確認し、未成立は当該環境の未対応として残してローカル利用を止めない。親鍵を通常file/promptへ複写しない。入力: 別PC・Cloudと共有する利用中保護（R2上の保護記録）、Evidenceが参照するBuildの保護、Cloudに削除権を渡さないこと、`ready` のローカルcopyからのnetwork無しfetch、R2 lifecycleの採用、別PCのpublishを数えることとR2一覧の要否。再開: RC3。判断: owner。
 - **Virtualized Host Route（2026-10-18 に再開、問いを置換）** — 旧い問いは「仮想化されたhost（Codex等）からStorageを使う新しい実行経路・保存先」で、資格情報の保存先・ACL・DPAPIの前提を変えうるものだった。ownerはCodexデスクトップをPhase担当として割り当てる決定を再開理由とし、問いを「store rootをAppData書込み仮想化の対象外へ移す」に置き換えて `ARTIFACT_STORE_ROOT_RELOCATION.md` を切った。資格情報・ACL・DPAPIの前提は変えない。旧い入力のうち、`LocalCache\Local` が無い初回状態での判定とLocalAppData自体がjunctionのhostでの誤判定は、rootをLocalAppDataの外へ出すことで対象外になる見込みで、残るならそのスライスのA1が後続へ送る。Codex内の仮想化の仕組みの解析は行わない。
-- **store root 移設の実行と合流（後続、未着手）** — `ARTIFACT_STORE_ROOT_RELOCATION.md` のコードが merge された後に行う一回の運用スライス。実ストアの新rootへの移行（同一volumeのmoveでACLを保つか、別driveへの複写でACLを再設定するか）、移行済みの印の書込み、LocalCache側copyの新rootへの合流（下の「分裂したストアの合流」のmanifest承認を含む）、Task Schedulerの清掃jobの再登録。入口条件: 当該スライスのmerge。判断: owner（manifestの承認を含む）。
+- **store root 移設の実行と合流（2026-10-19 に Phase A を開始）** — `ARTIFACT_STORE_ROOT_RELOCATION.md` のGO候補head（`34cf6607`）を前提に、そのmergeの前に行う一回の運用スライス `ARTIFACT_STORE_ROOT_MIGRATION.md`。実ストアの新rootへの移行（同一volumeのmoveでACLを保つか、別driveへの複写でACLを再設定するか）、移行済みの印の書込み、LocalCache側copyの新rootへの合流（下の「分裂したストアの合流」のmanifest承認を含む）、Task Schedulerの清掃jobの再登録。入口条件: 当該スライスのO1の決定（GO候補headで判定C・C′を完了し、mergeの直前。2026-10-19に成立）。当初の「当該スライスのmerge」はO1で置き換えた。判断: owner（manifestの承認を含む）。
 
 ### 分裂したストア
 
