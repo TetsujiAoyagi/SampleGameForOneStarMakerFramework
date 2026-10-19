@@ -427,11 +427,11 @@ store（`Artifacts`、`Workflow`、`Harness`）の実体は、WindowsのUserProf
 
 旧rootは「別名」として残ります。移行前に書かれた不変の記録（receipt、catalog、transfersの記録）が持つ旧root配下の完全修飾pathは、prefixの置換だけで新rootの同じ相対位置へ付け替えて読み、旧root側は開かず、存在確認や実体の照合もしません（binding済みのprocessでも同じ）。prefixだけが似た別名（`OneStarMaker2` 等）、別のroleを指すpath、LocalCache配下のpath、`..` を含むpathは従来どおり拒否します。合流（`store plan` / `consolidate`）でも、記録の参照のうち旧root配下のものは同じ相対keyに写像して検査し、manifestの `legacyRoots` に別名を記録します。
 
-packaged app内のprocessからの実行条件: そのapp独自のサンドボックスを無効にし、同一Windowsユーザーで実行します。サンドボックスが有効なら印の読取やstoreへの書込みが失敗して止まります。LocalApplicationData側にpackaged appのcopy（旧rootの `Artifacts` / `Workflow` / `Harness`）が残っている間は、processからはそれが見えるので `legacy-store-present` で止まります（残置の後始末は保留listの項目。見えているdirectoryが実体かcopyかは判別しません）。`UserProfile` とその祖先がreparse pointのhost（profileを別driveへ移した構成）では `store-root-unavailable` になります。app固有の設定値はこのREADMEに書かず、各自のgit管理外の運用メモに置きます。
+packaged app内のprocessからの実行条件: そのapp独自のサンドボックスを無効にし、同一Windowsユーザーで実行します。サンドボックスが有効なら印の読取やstoreへの書込みが失敗して止まります。LocalApplicationData側にpackaged appのcopy（旧rootの `Artifacts` / `Workflow` / `Harness`）があると、processからはそれが見えるので `legacy-store-present` で止まります（見えているdirectoryが実体かcopyかは判別しません）。このPCのCodexのcopyは2026-10-20に削除しました。削除の後にpackaged app内でCLIが動くことはまだ確かめていません。`UserProfile` とその祖先がreparse pointのhost（profileを別driveへ移した構成）では `store-root-unavailable` になります。app固有の設定値はこのREADMEに書かず、各自のgit管理外の運用メモに置きます。
 
 `harness.ps1 -StoreRoot` はtests専用の明示rootで、印・残存の判定を行いません。綴りでも実体pathでも（存在する最も近い祖先まで開いて、junction経由を含めて）旧root配下・store root配下・repo配下を指す値は `store-root-unavailable` で拒否します。temp配下の明示rootは通ります。
 
-実ストアの移設（所有roleの同一volumeのrename、印の発行）とTask Schedulerの清掃jobの再登録は、2026-10-19に一回だけ行いました（[PR #140](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/140)）。旧rootには、所有roleと同じ名前のsize 0の通常file（tombstone）が残っています。これは旧版のCLIが旧rootにroleを作り直すのを防ぐためのもので、resolverは不在と扱います。消さないでください。移行に使った一回限りのprogramはリポジトリに残していないので、旧rootの無い新しいhostで印を発行する手段はまだありません（保留list「Cloud・別PCからの取得」）。LocalCache側copyの扱い（合流するか、削除するか）は保留listの項目です。
+実ストアの移設（所有roleの同一volumeのrename、印の発行）とTask Schedulerの清掃jobの再登録は、2026-10-19に一回だけ行いました（[PR #140](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/140)）。旧rootには、所有roleと同じ名前のsize 0の通常file（tombstone）が残っています。これは旧版のCLIが旧rootにroleを作り直すのを防ぐためのもので、resolverは不在と扱います。消さないでください。移行に使った一回限りのprogramはリポジトリに残していないので、旧rootの無い新しいhostで印を発行する手段はまだありません（保留list「Cloud・別PCからの取得」）。LocalCache側のcopy（Codexのpackage）は、2026-10-20に合流せずに削除しました（tombstoneは残しています）。copyの記録が追跡していたR2のobjectは、追跡できないまま残っています。
 
 #### LocalApplicationDataへの書込みの仮想化判定（store plan / consolidate だけ）
 
@@ -527,12 +527,11 @@ pwsh tools/contract-audit.ps1 -HarnessTask artifact-evidence-lifecycle
 pwsh tools/docs-audit.ps1
 ```
 
-**注記（合流前、2026-10-17の `store plan`）:** `artifact-evidence-lifecycle` のCURRENTは仮想化されたhost（Codex）が書いた側にだけあり、実ストアには無いので、非仮想化processの `harness.ps1 current -Task artifact-evidence-lifecycle` は「CURRENTが見つかりません」で失敗します。読取のみの `store plan` では、このtaskを含む単位は `hold`（理由 `dependency-held`、`multi-workflow-unit`、`reference-localcache`、`reference-missing`、`reference-out-of-role`）で、未合流です。
+**現況（2026-10-20）:** このtaskのCURRENTは、仮想化されたhost（Codex）が書いたLocalCache側のcopyにだけあり、そのcopyを2026-10-20に合流せずに削除したので、上の `harness.ps1 current -Task artifact-evidence-lifecycle` は「CURRENTが見つかりません」で失敗します。上のコマンドは承認した実行集合の記録として読み、検証の要約は [PR #109](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/109) を正とします。
 
 PR #106の非秘密dummy fixtureをv2に再利用します。各testは隔離store、clock/transport/scheduler注入とbarrier/signalを使い、30日待機やTask.Delay/Thread.Sleep、秘密や実E1 source、実R2 DELETEを必要としません。DPAPI/ACLの成立はowner Windowsユーザーで確認し、別sandboxユーザーの結果を流用しません。synthetic診断と過去first-useの成功を新v2、scheduler、resetの成立証拠にしません。EvidenceCleanup suiteの `fresh-process-cleanup-contract` は `rg`（ripgrep）でsource一覧を取るため、全suiteを流す前にrgをPATHへ通します。無いとこのcaseだけが失敗します。
 
 ## 経緯
 
-スライスAは[PR #109](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/109)で実装・限定運用検証を完了し、同じ実装headの正式C/C′はGOです。r6は同じ既存保存領域へOS jobを接続する修正で、保存領域の移動や資格情報の複製を行いません。固定仕様・実行集合・原観測の入口は `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle`。一回の限定resetは完了済みです。既知のACL不適合copyは保護されたままで、OS jobのpartial結果と通常schedulerの正常statusは区別して記録しています。
+スライスAは[PR #109](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/109)で実装・限定運用検証を完了し、同じ実装headの正式C/C′はGOです。r6は同じ既存保存領域へOS jobを接続する修正で、保存領域の移動や資格情報の複製を行いません。固定仕様・実行集合・原観測の入口だった `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle` のCURRENTは、LocalCache側のcopyと一緒に2026-10-20に削除しました。一回の限定resetは完了済みです。既知のACL不適合copyは保護されたままで、OS jobのpartial結果と通常schedulerの正常statusは区別して記録しています。
 
-**注記（合流前、2026-10-17の `store plan`）:** `artifact-evidence-lifecycle` のCURRENTは仮想化されたhost（Codex）が書いた側にだけあり、実ストアには無いので、非仮想化processの `harness.ps1 current -Task artifact-evidence-lifecycle` は「CURRENTが見つかりません」で失敗します。読取のみの `store plan` では、このtaskを含む単位は `hold`（理由 `dependency-held`、`multi-workflow-unit`、`reference-localcache`、`reference-missing`、`reference-out-of-role`）で、未合流です。
