@@ -2,34 +2,45 @@
 
 `ARTIFACT_STORE_ROOT_RELOCATION.md`（以下「移設スライス」）が GO 候補 head で用意した consumer（新 root を読む resolver と 3 CLI）が動ける状態を、実ストアで一回だけ作る運用スライス。旧 root の所有 role を新 root へ移し、移行済みの印を発行し、LocalCache 側 copy を新 root へ合流し、清掃 job を新 root で再登録する。移設スライス §2 O1 の工程表の手順 2〜8 を担い、手順 9（移設スライスの merge）の前提を作る。`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §6 の「store root 移設の実行と合流」と、同 §6 の「分裂したストアの合流」のうち合流の実行を受け持つ。
 
+> **有効な scope（A3 の O4 による）:** 実ストアの移設、印の発行、smoke、清掃 job の再登録。LocalCache 側 copy の合流は別スライス。上の段落と §1 の目的は A0 の入力として残している。
+
 ## 0. メタデータ
 
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `A`（A1 初稿 = A2 入力版。A2 未着手）
+- status: `B`（Phase A revision 1 を 2026-10-19 に凍結。凍結版 = message に `A3 freeze` を含む commit。Phase B 未着手）
 - branch: `claude/artifact-store-root-migration`（移設スライスの branch `claude/artifact-store-root-relocation` の `94f93930` から切った。`34cf6607..94f93930` の差分は `ARTIFACT_STORE_ROOT_RELOCATION.md` だけで、コードは移設スライスの GO 候補 head `34cf6607` と同一。PR base は `develop`）
 - implementation base commit: `94f939303951c8ec0614303d66525bb9abcbacec`（コードは `34cf6607302d27f49bf9d3febaaa31d624f5cbed` と同一）
 - implementation head commit: 未固定
 - risk: `high`（実ストアの不可逆な移設、資格情報 directory の移動、旧 writer の静止と清掃 job の停止・再登録、owner 承認の manifest による合流、移設中は store を使う CLI が無い期間を作る）
-- owner: OSM maintainers（A3 の凍結、手順 3・5 の承認、合流 manifest の承認、Phase D の判断は owner）
+- owner: OSM maintainers（A3 の凍結、手順 3 の静止と旧 task の削除、実ストア操作の一括承認（O7）、Phase D の判断は owner）
 - created: 2026-10-19
 - expires: 2026-12-19 または置換 revision
-- harvest to: `tools/Artifacts/README.md`（移設の完了後の所在と、合流の結果）、`tools/Workflow/README.md`・`tools/Harness/README.md`（必要な場合）、`docs/README.md` の program 表、`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4・§6
-- Phase A snapshot の取得案内・状態: Git 上の本文で完結（A0 = commit `a016d02a`（message に `A0`）。A2 入力版 = message に `A1` と `A2 input` を含む commit で、その commit SHA と内容 sha256 は A2 の担当が §5 に記録する）
+- harvest to: `tools/Artifacts/README.md`（移設の完了後の所在）、`tools/Workflow/README.md`・`tools/Harness/README.md`（必要な場合）、`docs/README.md` の program 表、`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4・§6
+- Phase A snapshot の取得案内・状態: Git 上の本文で完結（A0 = commit `a016d02a`、A2 入力版 = commit `0dd3bd6e`、凍結版 = message に `A3 freeze` を含む commit。凍結版の内容 sha256 は commit の blob（`git rev-parse <commit>:docs/handoff/ARTIFACT_STORE_ROOT_MIGRATION.md`）で求められるので転記しない）
 - Phase B result snapshot の取得案内・状態: 未到達
 - evidence bundle の取得案内・状態: 未到達
 - C' blind bundle の取得案内・状態: 未到達
 - 引継ぎ票:
-  - 次の Phase・役割: Phase A の A2（独立レビュー）。進行は Phase A 主担当。
-  - 次の作業: 下の「Phase A の着手手順」5 に従い、A2 入力版（この branch の先頭 commit）の commit SHA と内容 sha256 を §5 に記録し、§5「A2 の観点」の各レビューを同じ入力版で独立に依頼する。互いの指摘を見せない。A0 だけから代替構成を出すレビューには A0 の commit `a016d02a` の本書を渡し、初稿を渡さない。C' 用に Phase A で使わない系列を残す。
-  - 引き継ぐ commit SHA: この branch の先頭（A2 入力版の commit）。作業ツリーが dirty なら引き継がない。
+  - 次の Phase・役割: Phase B（実装）。
+  - 次の作業: 下の「Phase B の着手手順」に従い、§3・§4 の module・入口・suite を実装し、B の出口まで行う。
+  - 引き継ぐ commit SHA: この branch の先頭（message に `A3 freeze` を含む commit）。作業ツリーが dirty なら引き継がない。
   - 取得案内の所在: なし（Phase A は Git 上の本文だけ）。
-  - 必要な権限: リポジトリの読み、pwsh 7。A2 で実ストア・LocalCache・資格情報・Task Scheduler・R2 を変更しない。
-  - 停止規則: A2 の指摘が移設スライスの consumer コード（`34cf6607`）、印の形式（O2）、O1 工程表の変更を要する場合は、採否を決めずに owner へ返す。A2 の結果の記録は commit せず作業ツリーに置き、A3 凍結版で 1 回だけ commit する。
-  - 引き渡さないもの: ローカル store・LocalCache の実 path、資格情報。A2 の各レビューに他のレビューの指摘。
+  - 必要な権限: リポジトリの読み書き、pwsh 7。Unity は使わない。実ストア・LocalCache・資格情報・Task Scheduler・R2 に触れない。
+  - 停止規則: 下の「Phase A へ差し戻す条件」に当たったら実装を止めて返す。
+  - 引き渡さないもの: ローカル store・LocalCache の実 path、資格情報。
 
-### Phase A の着手手順
+### Phase B の着手手順
+
+1. **読むもの:** `AGENTS.md`、`.agents/skills/osm-workflow/SKILL.md`（「Phase B: 実装」）、本書の §2 の「A1:」「A3:」で始まる小節と §3〜§5（これが凍結した仕様。§1 と §2 の A0 の小節は入力の記録で、A1・A3 と食い違うところは A1・A3 を正とする）。コードは `tools/Workflow/WindowsStoreRoot.psm1`（resolver の関数・seam・public 型 `StoreRootNative`）、`tools/Workflow/WindowsStoreContext.psm1`、`tools/Workflow/tests/StoreRoot.Tests.ps1` と `StoreRootTestSupport.ps1`（temp base と module scope の seam の設定方法、`-Case` / `-ResultPath` の suite の形）。
+2. **照合:** branch `claude/artifact-store-root-migration` の HEAD が引継ぎ票の commit で、作業ツリーが clean であること。食い違えば始めない。
+3. **実装の順序:** (1) `tools/Workflow/StoreRootMigration.psm1`（§3・§4。入口の 3 分岐、前提の確認、role ごとの状態表、件数と合計 size、rename と tombstone、印の発行と resolver による確認、例外を固定 code に畳む）。(2) 引数を取らない入口 `tools/Workflow/StoreRootMigration.ps1`。(3) `tools/Workflow/tests/StoreRootMigration.Tests.ps1`（§5 の `ac-1`、`ac-1b`、`ac-2`〜`ac-6`、`ac-8`、`ac-9`）。新規 `.ps1` / `.psm1` の書き方は既存の `tools/Workflow` に合わせる（`#nullable enable` は Unity 側の `.cs` だけの規則）。`Task.Delay` / `Thread.Sleep` を使わない。
+4. **してはいけないこと:** 入口 script を実ストアに対して実行しない（実行は Phase C の後の高コスト証拠）。consumer の既存 file（SHA A `34cf6607` の `tools/`）と README を変えない（I6）。`unity/` を変えない。
+5. **B の出口:** `pwsh tools/Workflow/tests/StoreRootMigration.Tests.ps1 -Case '*' -ResultPath <temp path>` と `pwsh tools/Workflow/tests/StoreRoot.Tests.ps1 -Case '*' -ResultPath <temp path>` が executed 1 件以上・failed 0、`pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` が error 0、`git diff --name-status 94f93930 HEAD -- tools/ unity/` が §3 の 3 file だけ。§6 に実装・HANDOFF との差（B 適応）・未実行・implementation head を書き、§0 の status と引継ぎ票を次の担当（発見 C。動作確認は `対象なし`）へ更新し、1 回 commit する。push と PR はしない（O5）。
+6. **Phase A へ差し戻す条件:** consumer の既存 file を変えないと成立しない（I6）。所有 role 配下の file の内容を開く必要が出た（I5）。module scope の seam では AC-2・AC-4・AC-5 の失敗注入ができない。§4 の状態表・入口の分岐・reasonCode を変える必要が出た。
+
+### Phase A の着手手順（完了済み。記録として残す）
 
 1. `AGENTS.md`、`.agents/skills/osm-workflow/SKILL.md`、同 `references/phases-and-handoff.md`・`references/handoff-template.md`・`references/architecture-gates.md`・`references/review-evidence.md`・`references/docs-policy.md`、`docs/README.md` を全文読む。次に本書を全文読む。
 2. 移設スライスの `ARTIFACT_STORE_ROOT_RELOCATION.md` の §2（特に O1・O2 と「ここでは答えない問い」）、§4（「決定」D3〜D9、「移行済みの印」「resolver の契約」「経路表」「記録 path の分類表」「合流の manifest」）、§7・§8 の「後続スライスの入力」を読む。`tools/Artifacts/README.md` の「エージェント操作の事前承認」「実行するprocessの条件（store rootと移行済みの印）」「分裂したストアの合流」を読む。
@@ -169,243 +180,239 @@ seam を使わない production の `Get-OsmStoreRoot` と 3 CLI（`artifacts.ps
 - 移設スライスの consumer コード（`34cf6607`）、印の形式（O2）、資格情報の保存方式（DPAPI CurrentUser）、private ACL 規則、Known Folder から root を導く原則は変えない。
 - PR の base は `develop`。
 
-### A1: 用語と時点
+### A1: 進め方の前提（owner の決定、2026-10-19）
 
-- **旧 root** = `<LocalApplicationData の既定位置>\OneStarMaker`（移設スライスの `Get-OsmLegacyStoreRoot`）。**新 root** = `<UserProfile>\OneStarMaker`。**所有 role** = `Artifacts`、`Workflow`、`Harness` の 3 directory。**非所有 entry** = 旧 root 配下のうち所有 role の配下でない entry（直下の `RevisionLocks`、`H2a Review` 等の not-owned directory とその配下）。
-- **run directory** = (D) が 1 回の移設ごとに作る記録の置き場 `<UserProfile>\OneStarMaker.Migration.<runId>`（runId は 32 桁 hex。新 root・旧 root のどちらの配下でもない。U4）。
-- 時点: **移行前** = 印なし・新 root なし・旧 root に所有 role あり。**移行中** = 印なし・新 root あり（所有 role の一部または全部を移した）。**移行後** = 印あり・旧 root に所有 role なし。移設スライスの「移行中」（印あり・旧 root に所有 role あり）は本スライスの (D) が作らない状態で、作った場合は I2 の違反。
-- **承認 inventory** = 手順 4 で (D) が書き、その sha256 を owner が承認した inventory file。**移設後 inventory** = 手順 5 の後に (D) が取り直したもの。
+- 実ストアに今使っている記録は無く、壊れても作り直せる（O7 の理由）。そのため、本スライスの証拠・照合・手順は、移設が実際に終わったことと (C) が新 root で動くことを確かめる最小限にする。owner は「厳密にやる意味を感じない」とした。
+- AGENTS.md の常時契約（秘密の非露出、`Task.Delay` / `Thread.Sleep` の禁止、path 予算、PR の base は `develop` 等）は緩めない。
+- 用語: **旧 root** = `<LocalApplicationData の既定位置>\OneStarMaker`。**新 root** = `<UserProfile>\OneStarMaker`。**所有 role** = `Artifacts`、`Workflow`、`Harness`。**tombstone** = 移した role と同じ名前で旧 root に置く空の通常 file（O8）。
 
-### A1: このスライスが答える問い（確定案）
+### A1: このスライスが答える問い（確定）
 
-(D) を SHA B に固定し、O1 手順 3〜8 を実ストアで一回実行したとき、旧 writer を静止したまま、所有 role の全 entry を bytes と file identity を保って新 root へ移し、印を発行し、(C) の production smoke test（清掃 job の新 root での再登録を含む）が通る状態に到達できるか。
-
-A0 案の後半のうち、清掃 job の再登録は smoke 項目 2（Evidence binding の再生成と検証）そのものなので同じ問いに含める。LocalCache 側 copy の合流は別の問いに分け、後続へ送る（U1。A3 で owner が決める O4）。
+(D) を SHA B に固定し、O1 手順 3〜8 を実ストアで一回実行したとき、所有 role を新 root へ移し、印を発行し、(C) の smoke test（清掃 job の新 root での再登録を含む）が通る状態に到達できるか。LocalCache 側 copy の合流は対象外（O4）。
 
 ### A1: 進める最低条件
 
 - 不変条件（起きてはいけないこと）:
-  - **I1 静止の確認前に動かさない:** (D) の `execute` は、同じ呼出しの中で取り直した preflight の観測 P1〜P7（§4「preflight」）がすべて期待どおりで、かつ取り直した旧 root の inventory の sha256 が承認 inventory の sha256 と一致したときだけ、最初の directory を作る・動かす。どれか 1 つでも外れれば、旧 root・新 root のどちらにも entry を作らず動かさずに失敗する（run directory への記録だけを行う）。resume（§4「状態の分類と resume」）も同じ検査を毎回通る。
-  - **I2 照合前に印を書かない:** 印は、同じ `execute` の中で次の 3 つがすべて成立した後にだけ書く。(a) 承認 inventory と移設後 inventory が所有 role の全 entry で一致する（§4「inventory と照合」）。(b) 旧 root の所有 role 3 つの不在を、移設スライスの D9 と同じ意味（zero-access の open で `ERROR_FILE_NOT_FOUND` / `ERROR_PATH_NOT_FOUND`、または同名の通常 file）で証明できる。(c) 旧 root の非所有 entry が、`RevisionLocks` の配下を除いて承認 inventory と一致する。
-  - **I3 印の部分状態と失敗後の残存を作らない:** 印の bytes は新 root 直下の一時名に `CreateNew` で書いて flush してから、上書きしない rename で `store-root.json` に現す。書込み・flush・rename のどれかが失敗したら、自分が作った一時名の file だけを消し、`store-root.json` が無い状態で失敗する。`store-root.json` が既にあれば上書きせず失敗する。
-  - **I4 記録の bytes と identity を変えない:** (D) は所有 role 配下の file を内容の読み書きのために開かず、複写しない。移設は同一 volume の directory rename（`MoveFileExW`、`MOVEFILE_COPY_ALLOWED` と `MOVEFILE_REPLACE_EXISTING` を付けない）だけで行う。別 volume・既存の移動先・rename 失敗では複写に切り替えず止まる。観測: 承認 inventory と移設後 inventory で、所有 role の各 entry の FileId・size・更新時刻・属性・SDDL が一致する（FileId が同じなら同じ実体であり、複写ではない）。
-  - **I5 対象外に触れない:** (D) は旧 root の親 directory、`RevisionLocks`、非所有 entry を作らず、動かさず、消さず、内容を開かない。`<LocalApplicationData>\Packages`（LocalCache 側 copy）を開かず列挙もしない。`Artifacts\credentials` 配下の file は metadata（属性・size・時刻・FileId・SDDL）だけを読み、内容を開かない。Task Scheduler・R2・資格情報 store を変更しない（Task Scheduler は読取の照会だけ）。
-  - **I6 逆向きの操作をしない:** (D) は、印の削除、新 root から旧 root への move、旧 root の所有 role の作成、Task Scheduler の task の有効化・登録・削除を行う経路を持たない。失敗時は止まって記録を残すだけで、自動 rollback をしない。本書の手順も (A) の再開と (B) の再有効化を指示しない。
-  - **I7 秘密と path を出さない:** (D) の stdout・stderr・run directory の記録は、root を token（`<legacy>`、`<new>`、`<run>`）で表した相対 path、固定 reasonCode、件数、hash、真偽値だけを持つ。絶対 path、SID（SDDL 中の現在ユーザーの SID は token `<current-user>` に置き換える）、他 process の command line、資格情報の内容・鍵・header・署名 URL を含めない。内部の .NET 例外は固定 code に畳む（移設スライスの D8 と同じ）。
-  - **I8 合流と移設を混ぜない:** このスライスは `store plan` と `store consolidate`（dry-run を含む）を実行しない。`store consolidate` を旧 root から新 root への移設に使わない。
-  - **I9 consumer を変えない:** SHA B の `tools/` は、SHA A（`34cf6607`）に対して、§3 の新規 file と README の追記だけが差分である。`unity/` の差分は空。
+  - **I1 移せないものを複写で代えない:** (D) は所有 role を同一 volume の directory rename（`MoveFileExW`、`MOVEFILE_COPY_ALLOWED` を付けない）だけで移す。別 volume・移動先の既存・rename 失敗では止まり、複写しない（資格情報の暗号化 store の内容を読まないため）。
+  - **I2 role が残る間に印を書かない:** 印は、旧 root の所有 role 3 つがすべて tombstone（通常 file）になったことを確かめた後にだけ書く（当初から無い role にも tombstone を置く。§4 の状態表）。
+  - **I3 印の部分状態を見せない:** 新 root 直下の一時名に `CreateNew` で書いて flush し、上書きしない rename で `store-root.json` に現す。失敗したら一時名を消して止まる。既存の `store-root.json` は上書きしない。
+  - **I4 仮想化された process で動かさない:** (D) は `Get-OsmStoreContext` が `not-virtualized` のときだけ動く（packaged app 内で LocalCache 側 copy を移さないため。A2 R1 F1）。
+  - **I5 秘密と path を出さない:** (D) の出力は固定 reasonCode と件数だけで、絶対 path・SID・資格情報の内容を含まない。(D) は内部の .NET 例外をすべて catch し、inner を付けずに固定 code だけを出す（rename の失敗 message には絶対 path が入るため。移設スライスの D8 と同じ）。(D) は所有 role 配下の file の内容を開かない。(C) の正常出力には絶対 path が出うるので、smoke の生出力は local の Evidence にだけ置き、実 path・SID・秘密を tracked 文書と PR 本文へ転記しない（A2 R3 P3）。
+  - **I6 consumer を変えない:** SHA B の `tools/` は SHA A（`34cf6607`）に対して §3 の新規 file だけが差分。`unity/` の差分は空。
 - 成立条件（起きなければならないこと）:
-  - **S1 (D) の offline 検証:** 新規 suite（§5）が temp base で、成功、resume、各 preflight の失敗、照合不一致、印の発行失敗、旧 root の無い host の初期化を通し、(D) が書いた印を、同じ temp base を seam に設定した (C) の `Get-OsmStoreRoot` が受け入れて root を返す。
-  - **S2 実ストアの移設照合:** 実ストアの run の記録で、承認 inventory と移設後 inventory が所有 role の全 entry について一致し（相対名・種別・属性・size・更新時刻・FileId・SDDL）、旧 root の所有 role 3 つが不在で、非所有 entry が `RevisionLocks` 配下を除いて一致する。
-  - **S3 印の発行:** 新 root 直下に `store-root.json` が O2 の形式（4 field ちょうど、`schemaVersion` 1、`kind` `osm-store-root`、`ownerSid` が現在ユーザー、`createdAt` ISO 8601、UTF-8 BOM 無し、4 KiB 以下）であり、新 root 直下に (D) の一時名の file が無く、seam 無しの `Get-OsmStoreRoot` が新 root を返す。
-  - **S4 smoke:** O1 手順 8 の smoke 項目 1〜6 が、(C) の worktree から非仮想化 pwsh で成立し、項目 7 が packaged app 側で `legacy-store-present` として記録される。項目 2 は清掃 job の再登録（owner が旧 task を削除し、(C) の `schedule install` の後に `schedule status` が `passed`）で行う。
-  - **S5 既存記録の読戻し:** 移設スライスの Phase C / C' の Evidence（2 bundle）を (C) の `fetch` で取得でき、全 file の hash が取得案内と一致する。本スライスの task `artifact-store-root-migration` を (C) の `workflow-task.ps1 status` で読める。
-  - **S6 機械検査:** `tools/Artifacts/tests`、`tools/Workflow/tests`、`tools/Harness/tests` の全 suite が各 1 件以上実行・failed 0 で合格し、`pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` が error 0。I9 の `git diff`。
+  - **S1 offline 検証:** §5 の suite が temp base で通り、(D) が書いた印を、同じ temp base を seam に設定した (C) の `Get-OsmStoreRoot` が受け入れる。
+  - **S2 移設:** 実ストアで (D) が `passed` を返し、移した role について移す前後の file 数と合計 size が一致し（reparse point をたどらず、前後で同じ関数で数える）、旧 root の所有 role 3 つがすべて tombstone になる。当初から無かった role は出力で `initiallyAbsent` として区別し、移したとは数えない（A2 R3 P1-2）。
+  - **S3 smoke:** O1 手順 8 の smoke 項目 1・2・3・5・6 が、元の条件で (C) の worktree から非仮想化 pwsh で成立する。項目 4 は O10 による空状態の CLI / resolver の確認で代え、`harness.ps1 current` による実際の記録の読み戻しは未検証のまま残す（A2 R5 P1。元の項目 4 と同等の成立とは扱わない）。項目 2 は、旧 task が登録済みならその削除 → (C) の `schedule install` → `schedule status` が `passed`。項目 3 は、手順 3 より前に (A) で start し `status` で読めることを確かめた task `artifact-store-root-migration` を、(C) の `workflow-task.ps1 status` が exit 0 で返す。項目 4 は、(C) の `harness.ps1 status` が exit 0 で `taskはありません` を出す（**読む記録が無いことの確認**であり、記録の読戻しではない。旧 root に Harness が無く、合流もしない（O4）ので、新 root に読み戻す Harness の記録がそもそも無い。`status` は resolver を通って新 root の tasks の一覧を読むので、Harness が新 root で動くことは示せる。O10、A2 R4 P1-B）。項目 3・4 とも「resolver の 3 code が出ない」だけでは成立としない。項目 6 は、旧 task が `Disabled` で `Running` でない、または手順 3 の時点から `not-installed`。項目 7（packaged app 側）は、owner が packaged app の session を割り当てたときだけ記録し、無ければ `未実施` でよい。tombstone と LocalCache 側の directory が同じ名前で重なる view の見え方は未観測なので、`legacy-store-present` 以外が出ても欠陥にせず、観測として記録する。
+  - **S4 既存記録:** 移設スライスの判定 C bundle と C' bundle を (C) の `fetch` で取得できる（移設スライスの Phase D の前提）。取得案内の reference が失われていた場合は成功と読み替えず、この条件の扱いを owner に返す（A2 R3 P3）。
+  - **S5 機械検査:** `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` が error 0。I6 の `git diff`。
 
 ### A1: 受け入れ条件
 
-検証する条件を見出しに併記する。AC-*-o は offline（S1 の suite）、AC-*-r は実ストアの run の記録（高コスト証拠。§5）で確かめる。
-
-- **AC-I1-a（I1、失敗経路、offline）:** P1〜P7 を 1 つずつ外した 7 case（P1: seam で `Get-OsmStoreRoot` が `store-root-unavailable`、P2: 新 root に未知の file、P3: redirect の seam、P4: 別 volume の seam、P5: process 照会の seam が一致 1 件、P6: task が `Ready`、P7: 宣言なし）。期待: `execute` が固定 code で失敗し、旧 root と新 root の親の tree 一覧が前後で一致（run directory の追加だけを許す）。
-- **AC-I1-b（I1、失敗経路、offline）:** plan の後に旧 root の `Workflow` 配下へ file を 1 つ足し、承認 inventory の sha256 で `execute`。期待: `inventory-changed` で失敗し、何も作らず動かさない。差分（相対名と変化した field 名）が run directory の `execute-*.json` に残る。
-- **AC-I1-c（I1、合格例・不合格例、時点）:** owner の承認より後に P6 が崩れた（task が再び有効）。合格例: `execute` の preflight で止まる。不合格例: plan 時点の preflight を使って移す。
-- **AC-I2-a（I2、失敗経路、offline）:** 照合の seam で移設後 inventory の 1 entry の size を変える／旧 root に `Harness` directory を残す（rename の seam で 1 role だけ失敗させる）／非所有 entry を 1 つ消す。期待: いずれも `store-root.json` が作られず、`execute` が `compare-mismatch` / `legacy-role-present` / `nonowned-changed` で失敗する（または partial。下の AC-I6-a）。
-- **AC-I2-b（I2、合格例、名前の境界）:** 旧 root に `Workflow` という名の通常 file と `H2a Review` directory と `RevisionLocks` が残る。期待: 所有 role は不在と判定され印が書かれる。`RevisionLocks` 配下の変化（execute 中に file を足す seam）は不一致にしない。
-- **AC-I2-c（I2、失敗経路、不在を証明できない）:** 旧 root の所有 role 名に対する照会で、アクセス拒否・reparse・未知の Win32 error を seam で注入。期待: 印を書かず `legacy-query-failed` で失敗。
-- **AC-I3-a（I3、失敗経路、offline）:** 一時名の書込み・flush・rename のそれぞれで失敗を注入。期待: 新 root 直下に `store-root.json` も一時名の file も無い。
-- **AC-I3-b（I3、合格例・不合格例、終了境界）:** `store-root.json` が既にある新 root（resume で印の発行後に止まった場合を含む）。合格例: 上書きせず、既存の印が O2 の形式で現在ユーザーのものなら照合だけ行って `passed`（`already-issued`）、そうでなければ `marker-conflict` で失敗。不合格例: 書き直す、または消す。
-- **AC-I4-a（I4、offline）:** temp base で移設した後、所有 role の全 entry の FileId・size・更新時刻・属性・SDDL が前後で一致する。複写の seam（rename の代わりに copy した fixture）を照合に通すと FileId の不一致で `compare-mismatch` になる。
-- **AC-I4-b（I4、失敗経路）:** rename に `ERROR_NOT_SAME_DEVICE` / `ERROR_ALREADY_EXISTS` / `ERROR_ACCESS_DENIED`（所有 role 配下の file を別 handle で開いたまま）を返させる。期待: 複写に切り替えず、その role を動かさずに失敗し、他 role の状態は記録どおり（partial）。
-- **AC-I4-r（I4、実ストア）:** 実 run の承認 inventory と移設後 inventory の所有 role の全 entry で FileId が一致する（判定 C の照合 script が確かめる）。
-- **AC-I5-a（I5、offline）:** fixture の旧 root に `RevisionLocks`、`H2a Review`、`Artifacts\credentials\<dummy>`、LocalCache の代役 `<legacy の親>\Packages\P\LocalCache\Local\OneStarMaker\Workflow` を置く。期待: 非所有 entry と LocalCache の代役の tree 一覧が前後で一致し、I/O の記録 seam に、`credentials` 配下の file への read / write access の open と `Packages` 配下の列挙が無い。
-- **AC-I6-a（I6、失敗経路、partial）:** 3 role のうち 2 つを移した後に 3 つ目の rename が失敗。期待: 旧 root に戻す move が起きず、印が無く、出力は `partial`（exit 2）。同じ `execute` を再実行すると、移した 2 role は `already-moved` として承認 inventory と照合され、3 つ目を移して完了する。
-- **AC-I6-b（I6、機械検査）:** (D) の source に `Enable-ScheduledTask`、`Register-ScheduledTask`、`Unregister-ScheduledTask`、印の file の削除、新 root から旧 root への move の呼出しが無い（判定 C の grep。意味判定は C が行う）。
-- **AC-I7-a（I7、offline）:** 各失敗経路の stdout・stderr と run directory の全 file に、temp base の絶対 path、現在ユーザーの SID、seam で注入した例外の message、fixture の process command line の文字列が現れない。
-- **AC-I8-a（I8、機械検査・実ストア）:** (D) の source が `StoreConsolidation*.psm1` を import せず、実 run の手順（§5 の高コスト証拠）に `store plan` / `consolidate` の呼出しが無い。
-- **AC-I9-a（I9、機械検査）:** `git diff --name-status 34cf6607 <SHA B> -- tools/` が §3 の新規 file と README 2 件だけ。`git diff --stat 34cf6607 <SHA B> -- unity/` が空。
-- **AC-S1-a（S1）:** offline の成功経路で、(D) が書いた印を、同じ temp base を `BaseForTest` / `LegacyBaseForTest` に設定した `Get-OsmStoreRoot` が受け入れて新 root を返す。旧 root が無い fixture（新しい host）では、`plan` が全 role `absent` を記録し、`execute` が新 root と印だけを作る。
-- **AC-S2-r（S2）:** 実 run の `inventory-before.json`（承認 inventory）と `inventory-after.json` を判定 C の照合 script に通して `match`。
-- **AC-S3-r（S3）:** 実 run の `marker.json`（印の field 名・size・BOM 有無・sha256、`ownerSid` が現在ユーザーと一致したかの真偽値）と、smoke 項目 1 の出力。
-- **AC-S4-r（S4）:** §5 の検証経路 V-R2 の各項目の生出力が、各項目の期待と一致する。項目 4 の合格例: 実ストアに Harness の記録があれば選んだ task の `current` が表示される／無ければ未登録の task の Harness 側の既存の失敗が返る。不合格例: `store-not-migrated`・`legacy-store-present`・`store-root-unavailable` のどれかが出る。
-- **AC-S5-r（S5）:** 移設スライスの判定 C bundle と C' bundle の `fetch` が `passed`、全 file の hash が送信元と一致。`workflow-task.ps1 status -Task artifact-store-root-migration` が状態を返す（resolver の 3 code でない）。
-- **AC-S6-a（S6）:** §5「判定必須テスト」の全 suite の JSON で executed 1 件以上・failed 0、両 audit の error 0。
+- **AC-1（I1・I2・S1、offline）:** temp base で 3 role を移し、tombstone 3 つと印ができ、seam を設定した `Get-OsmStoreRoot` が新 root を返す。
+- **AC-1b（S2、当初から無い role）:** 旧 root・新 root とも `Harness` が無く、他の 2 role がある。期待: 2 role を移し、`Harness` は新 root に作らず tombstone だけを置き、出力が `Harness` を `initiallyAbsent` とし、印ができて resolver が通る。旧 root の `Harness` がアクセス拒否・reparse のときは止まる。
+- **AC-2（I1、失敗経路）:** rename に `ERROR_NOT_SAME_DEVICE` / `ERROR_ACCESS_DENIED` を注入すると、その role を動かさず、複写もせず、印を書かずに失敗する。同じ command の再実行で、移し済みの role は飛ばして残りを移す。rename の後・tombstone の前に失敗を注入した場合も、再実行で tombstone を作ってから先へ進む（A2 R3 P2-1）。tombstone の `CreateNew` の失敗では印を書かずに止まる。
+- **AC-3（I2、失敗経路）:** 旧 root と新 root の両方に同じ role の directory がある（tombstone を消して旧コードが作り直した状態を含む）。期待: `role-split` で止まり、印を書かない。
+- **AC-4（I3、失敗経路）:** 一時名の書込み・rename に失敗を注入。期待: `store-root.json` も一時名も残らない。
+- **AC-5（I4、失敗経路）:** `Get-OsmStoreContext` の seam が `virtualized` / `unknown`。期待: 何も作らず動かさずに失敗する。
+- **AC-6（I5）:** AC-1〜AC-5 の stdout・stderr に temp base の絶対 path と現在ユーザーの SID が現れない。rename の seam に絶対 path 入りの .NET 例外を投げさせても、出力は固定 code だけ。
+- **AC-8（再実行、終了境界）:** (1) 有効な印があり、seam を設定した `Get-OsmStoreRoot` が新 root を返す状態で再実行。合格例: 何も変えずに `passed`（`already-migrated`）。不合格例: 印を書き直す、または `failed`。(2) 印が壊れている（0 byte、field 不足、`ownerSid` 不一致）、または印があって旧 root に directory の role がある。合格例: `store-root-precondition` で失敗し、印を直さず上書きしない。不合格例: `passed`（A2 R4 P2-A）。
+- **AC-9（tombstone の境界）:** 旧 root の所有 role 名に size 0 でない通常 file がある。期待: `role-unknown` で止まり、tombstone と扱わない（A2 R4 P2-B）。
+- **AC-7（S2〜S4、実ストア）:** §5「実ストアでの実行」の生出力が各手順の期待どおり。
 
 ### A1: ここでは答えない問いと所有する後続
 
-A0 案の 4 項目はそのまま。加えて次の 2 つを送る。
-
-- LocalCache 側 copy の新 root への合流（`store plan` の再実行、owner の manifest 承認、`consolidate`、合流後の H1 適用 task の CURRENT・receipt の path bytes と新 root の両立の確認、`StoreConsolidation.psm1` の reasonCode の畳み込みが運用上の障害になるか）: program §6「分裂したストアの合流」。入口条件に「本スライスの GO（印あり・旧 root に所有 role なし・smoke 合格）」を加える（U1。A3 の O4 で owner が決め、凍結時に program §6 を直す）。
-- (D) を新しい host（旧 root の無い PC）の初期化に使う運用の文書化と、別 PC での実行: program §6「取得経路と配布」の入力。本スライスは旧 root の無い場合の経路を offline で検証するだけで、実行しない。
+- **LocalCache 側 copy を合流させる価値があるか**（O4 で owner が決定。価値が無ければ合流せずに copy を削除して終える）: program §6 の新しい 1 項目（下の「O4 の決定と program §6 の改め方」）。価値があると判断した単位だけが、`store plan` の再実行、owner の manifest 承認、`consolidate`、合流後の H1 適用 task の CURRENT・receipt の path bytes と新 root の両立の確認、`StoreConsolidation.psm1` の reasonCode の畳み込みの扱いへ進む。入口条件は本スライスの GO。
+- **新しい host（旧 root の無い PC）での印の発行:** (D) は本スライスの PR の merge より前に削除する（O6）ので、移設後は印を書く手段がリポジトリに無くなる。別 PC で (C) 以降の CLI を使うには印の発行手段が要る: program §6「取得経路と配布」の入力。
+- **Harness CURRENT の読み戻しは未実証（O10）:** 移設スライスの Phase D（harvest で移設後の現況を書くときに、Harness の記録の読み戻しを新 root で確かめていないことを残す）と、LocalCache 側 copy の後続（Harness の 4 task の CURRENT を合流させる価値の判断の入力）へ引き継ぐ。consumer の修正や fixture の新設は求めない。
+- 旧 root に残る tombstone 3 つと親 directory の後始末: 上の LocalCache 側 copy の項目（削除を行う場合に同じ承認で扱う）。
+- A0 案の他の項目（`hold` 単位の解消方式、旧 root 別名の廃止期限、移設スライスの C / C' の後続入力のうち本スライスに関わらないもの）はそのまま。
 
 ### A1: 判定定義と停止規則
 
-- GO: 最終証拠ラウンド（§5「高コスト証拠」）で、I1〜I9 のどれにも違反が無く、S1〜S6 がすべて成立し、判定 C と最終 C' の両方に blocker が無い。NO-GO: いずれかの違反・不成立。CONDITIONAL ACCEPT は定義しない。
-- 高コスト証拠（手順 3〜8）は不可逆で、取得後の NO-GO でも自動 rollback・印の削除・(A) の再開をしない（O1）。NO-GO なら owner に返し、回復は O1 手順 5 の「回復の入口」（§4「状態の分類と resume」）か、owner が決める新しい revision で行う。
-- 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。手順 3 以降の失敗は、§4 の停止点で止めて owner へ返し、同じ session で原因調査や再実行をしない（resume は owner の指示で行う）。
+- GO: I1〜I6 に違反が無く、S1〜S5 が成立し、判定 C と最終 C' に blocker が無い。S3 の成立は、smoke 項目 1・2・3・5・6 は元の条件で、項目 4 は O10 による空状態の確認で判定し、Harness CURRENT の読み戻しは未検証と記録する（A2 R5 P1）。CONDITIONAL ACCEPT は定義しない。
+- 実ストアの実行は不可逆だが、作り直せるので、NO-GO でも rollback はしない。owner に返し、必要なら作り直す。
+- 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。実ストアの実行で (D) が `failed` を返したら、その出力を記録して owner に返す。
 
-### A1: 未決事項 U1〜U11 への回答
+### A1: 未決事項 U1〜U11 への回答（owner の決定を反映）
 
-- **U1:** 清掃 job の再登録は同じ問いに含める（smoke 項目 2 が binding の再生成と検証を要求し、それは `schedule install` である。印の発行後でないと (C) の install は `store-not-migrated` で止まるので、手順 8 の中でしか行えない）。合流は分ける。理由: (1) owner の manifest 承認という別の判断を待ち、承認の時期が移設と独立に決まる。(2) 2026-10-17 の plan で 16 単位が `hold` で、`hold` の解消方式は対象外（§1）なので、合流の成立条件を観測可能に書くと「`publish` 単位の合流」だけになり、移設の GO（O1 手順 9 の前提）と結び付ける理由が無い。(3) 合流は移設スライスの merge（手順 9）の前提ではない。A0 の §1 目的と program §6 の記述（合流の実行を本スライスに寄せる）と食い違うので、A3 の O4 で owner が決める。owner が束ねると決めた場合は、合流を 2 つ目の成立条件群ではなく別 revision の問いとして書き直す。
-- **U2:** move だけを使う。理由: (1) 本 host は同じ volume（§1 の観測）。(2) 複写 + ACL 再設定は、`Artifacts\credentials` の暗号化 store の内容を読んで複写することになり、A0 の不変条件候補「資格情報 file の内容を読む・複写して置換する」に当たる。(3) rename は directory 単位で原子的で、FileId が保たれ、bytes を書き換えない（I4 の観測が強くなる）。(4) 所有 role の directory は private ACL（明示 ACE・継承無し。`Set-OwnerAcl` が作った）なので、同一 volume の rename で SD がそのまま残り、新しい親の継承 ACE の再計算を受けない。移設後の照合に SDDL の一致を入れて確かめる（I4）。新 root directory `<UserProfile>\OneStarMaker` は (D) が作り、ACL は UserProfile からの継承のまま変えない（移設スライスの `Assert-SharedParent` は存在と reparse だけを見る）。別 volume の host では P4 で止まり、複写の経路は作らない（必要になれば新しい revision）。
-- **U3:** 手順 3 は owner が行い、(D) は検査だけを行う。owner: Unity Editor をすべて閉じ、develop を checkout した worktree の session（Claude Code・Codex 等）に store を使う CLI の新規実行をさせないことを確認し、`Disable-ScheduledTask` で `\OneStarMaker\` 配下の清掃 job を無効にし、静止の宣言を Decision ID（Workflow README の書式）で出す。(D) の preflight（P5・P6）が同じ Windows ユーザーの process と Task Scheduler を読取で照会する。directory rename は配下の file を開いている process があると失敗するので（AC-I4-b）、照会の後に始まった writer も move の時点では遮られる。move の後に (A) が動いた場合は旧 root に所有 role が再び現れ、(C) の resolver が `legacy-store-present` で止まる（fail-closed。smoke 項目 5 で検出）。store を使う CLI が無い期間は手順 3 から手順 8 の項目 3 まで（目安 1 時間以内）で、その間の Workflow / Evidence の記録は run directory に置き、手順 8 の後に (C) で stage する（U4）。期間中に通常の Phase 作業を行わないことを owner が手順 3 の宣言に含める。
-- **U4:** run directory（用語の節）に、preflight・inventory・execute の journal・照合結果・印の記録を JSON で置く。新 root にも旧 root にも置かないのは、移行中に resolver の名前表と所有 role の照合へ混ざらないため。手順 8 の後に (C) の `evidence stage` で task `artifact-store-root-migration` に固定し、取得案内を §0 の引渡し先に残す。run directory 自体は (D) も本書の手順も消さない（後始末は Phase D で owner が決める）。本スライスの Phase A〜C' の記録は手順 3 より前に (A) で行い、所有 role と一緒に新 root へ移る（S5 の `status` で読み戻す）。
-- **U5:** 当てはめる。手順 3〜8 の実ストアの実行を高コスト証拠に分類し、判定 C → 暫定 C' → 高コスト証拠の取得 → 最終証拠ラウンドで進める（§5「高コスト証拠」）。O1 手順 2 の「SHA B の固定」は暫定 C' に blocker が無い head の固定に当たる。期待値は (D) の実装から独立に §5 に書き、照合 script は判定 C の offline 実行とする。
-- **U6:** (D) の `execute` は冪等で、run directory の承認 inventory を正にして状態を毎回観測から分類する（§4「状態の分類と resume」）。回復は「同じ `execute` の再実行」だけで、前に進む向きにしか動かない。分類できない状態（両方にある、どちらにも無い等）では止まり、owner に返す。runbook はその状態の観測の出し方までを持ち、owner の判断を代行しない。
-- **U7:** 順序は 手順 3 → 4（`plan`）→ owner の承認 → 5〜7（`execute`）→ 8（smoke 項目 1・5・6 → owner が旧 task を削除 → 項目 2 → 項目 3・4 → S5 の `fetch` → 項目 7 → run 記録の stage）→ 手順 9（移設スライスの merge、owner）。合流は後続（U1）。reasonCode の畳み込みは合流の後続の入力として送る。
-- **U8:** 旧 runtime copy `Artifacts\runtime\<旧 head>\` は `Artifacts` と一緒に移り、そのまま残す（Artifacts README「自動清掃」の切替手順と同じく削除しない）。旧 binding manifest は旧 root の `logicalPath` を持つが、旧 task を削除した後は読まれない。新 runtime は (C) の install が `<new>\Artifacts\runtime\<34cf6607…>\` に作る。
-- **U9:** (D) は `tools/Workflow/` の OS 基盤層に置き（§3）、実行後もリポジトリに残す。印を書く唯一の producer で、旧 root の無い新しい host では (D) を通さないと (C) の CLI が `store-not-migrated` のまま使えないため（A3 の O6）。PR は最終証拠ラウンドの GO の後、移設スライスの PR #139 の merge の後に作る。本 branch は #139 の commit を含むので、#139 を merge commit で入れれば本 branch の PR の差分は本スライスの commit だけになり、head を変えずに済む。squash で入れる場合は本 branch を develop へ合わせる必要があり、判定後の head 変更になる（A3 の O5）。
-- **U10:** 確かめる。P3 として、process の `GetFolderPath('LocalApplicationData')` が Known Folder の既定位置（移設スライスの resolver と同じ `KF_FLAG_DEFAULT_PATH`）と一致することを `plan` と `execute` の preflight で照会する（metadata だけ）。一致しなければ止まる（redirect 先の旧記録の扱いは対象外）。
-- **U11:** 次を A3 で固定する（A3 の O7）。対象: 旧 root（既定位置）の所有 role 3 directory の新 root への rename、新 root directory と run directory の作成、印の発行、owner による清掃 job の無効化と旧 task の削除、(C) の `schedule install` 1 回、(C) の通常操作（`status`、`current`、`fetch`、`evidence stage`）。除外: 旧 root の親・`RevisionLocks`・非所有 entry、LocalCache 側 copy、資格情報の内容と登録、R2 の通常操作を超える操作、`store plan` / `consolidate`、Unity 側。開始条件: 暫定 C' に blocker が無い SHA B が固定され、owner が手順 3 の宣言（Decision ID）を出し、`plan` の出力した inventory の sha256 を owner が承認（Decision ID）した後。承認は会話で owner 本人が行い、Decision ID と承認した sha256 を run directory の execute 記録に残す。
+- **U1:** 清掃 job の再登録は同じ問いに含める（smoke 項目 2 そのもので、印の後の (C) でしか行えない）。合流は分離（O4、決定済み）。
+- **U2:** move だけ（I1）。新 root directory は (D) が作り、ACL は UserProfile からの継承のまま変えない（移設スライスは新 root を共有 directory とし、専用の ACL 境界は `Artifacts` 以下）。`Artifacts` と `Workflow` は継承無しの明示 ACE なので rename で変わらない。`Harness` は旧 root の ACL を継承しており、継承済みの ACE が残るが、(C) は `Harness` に private ACL を要求しないので受け入れる（A2 R1 F7）。ACL の照合はしない。
+- **U3:** owner が手順 3 を行う。(1) Unity Editor と、develop を checkout した worktree・並行 session の store を使う作業を止め、新規実行も継続中の実行も無いことを確かめる。(2) 旧清掃 job を `Get-ScheduledTask -TaskPath '\OneStarMaker\' -TaskName 'OSM-Evidence-Cleanup-<repositoryId 先頭 12>'`（`EvidenceSchedule.psm1` と同じ表記）で名前まで特定して照会し、結果を 3 つに分ける（A2 R4 P1-A）。(a) 登録済みで `Running`: `Disable-ScheduledTask` → `Stop-ScheduledTask` → `Running` でなくなるまで待って確かめる。(b) 登録済みで `Running` でない: `Disable-ScheduledTask` → `Disabled` で `Running` でないことを確かめる。(c) 厳密な not found（`ObjectNotFound` かつ `CmdletizationQuery_NotFound*`。`EvidenceSchedule.psm1` と同じ判定）: `not-installed` と記録して続ける（disable も unregister も要らない）。それ以外の照会失敗、またはどれかの操作の失敗では移設に進まない（`Disable-ScheduledTask` は実行中の instance を止めないため。A2 R3 P1-1）。(D) 自身は process や Task Scheduler を照会しない。旧 job の action は旧 root の `Artifacts\runtime\<head>\` を指すので、rename の後は起動しても script が無く失敗する。実行中の instance が中の file を開いていれば rename が失敗する（`rename-failed` → 再実行）。旧 writer が rename の後に動いても、tombstone があるので旧コードの `CreateDirectory` が失敗し、旧 root に role は作られない（O8）。store を使う CLI が無い期間は手順 3 から手順 8 まで。
+- **U4:** 実行の記録は (D) と smoke の生出力のテキスト 1 つだけにし、手順 8 の後に (C) の `evidence stage` で task `artifact-store-root-migration` に固定する。run directory は作らない。
+- **U5:** 手順 3〜8 の実ストアの実行を高コスト証拠とし、判定 C → 暫定 C' → 実行 → 最終証拠ラウンドで進める（O9）。期待値は §5 の各手順の期待。照合 script は使わず、判定 C と最終 C' が生出力を読んで判断する。
+- **U6:** (D) は role ごとに旧 root と新 root の状態の組で動作を決め（§4 の状態表）、再実行で前へ進む。移す前の記録は持たない。両方に directory がある、reparse・アクセス拒否・error のどれかなら止まり、owner に返す。
+- **U7:** (A) で `workflow-task.ps1 start -Task artifact-store-root-migration` を行い、同じ (A) の `status -Task artifact-store-root-migration` で読めることを確かめる（設定が無いと start は記録が成立していても配送待ちで exit 2 を返しうるので、終了コードだけで失敗と断定しない。A2 R4 P3。本スライスの Phase C の Evidence の stage より前。smoke 項目 3 の読戻しの対象にもなる）→ 手順 3 → (D) の実行（4〜7）→ 手順 8（smoke 項目 1・5・6 → 旧 task の削除 → 項目 2 → 項目 3・4 → S4 の `fetch` → 項目 7 → 記録の stage）→ 最終証拠ラウンド（判定 C・最終 C'）→ 以降は O5 の順序。
+- **U8:** 旧 runtime copy は `Artifacts` と一緒に移り、そのまま残す。
+- **U9:** (D) は `tools/Workflow/` に置き、本スライスの PR の merge より前に削除する（O6）。PR の時期と merge の順序は O5。
+- **U10:** (D) は `Get-OsmStoreContext`（I4）に加え、process の `LocalApplicationData` が既定位置と一致することを確かめ、違えば止まる。
+- **U11:** 実ストアの操作は owner の一括承認で、範囲の制限は設けない（O7）。資格情報の登録・置換と R2 の操作は本スライスに不要なので行わない。秘密は出さない（I5）。
 
-### A1: A3 で owner に決めてもらう事項
+### A3: owner の決定（O4〜O9。2026-10-19）
 
-- **O4 合流の分離:** U1 の案（合流を program §6「分裂したストアの合流」へ送り、入口条件に本スライスの GO を加える）を採るか。採る場合は凍結と同じ commit で program §6 の 2 項目の記述を直す。
-- **O5 PR の時期と #139 の merge 方式:** U9 の案（本スライスの PR は最終 GO と #139 の merge の後。#139 は merge commit で入れる）を採るか。
-- **O6 (D) の寿命:** 実行後もリポジトリに残し、新しい host の初期化の入口とするか（README に書く）。残さない場合は Phase D で削除する。
-- **O7 実ストア操作の承認範囲:** U11 の対象・除外・開始条件と、承認を Decision ID と inventory の sha256 で与える方式。
+- **O4 合流の分離:** 合流は別スライスにし、本スライスの対象外とする。後続の問いは「LocalCache 側 copy を合流させる価値があるか」で、価値が無ければ合流せずに copy を削除して終える。owner の原文の要旨:「合流は別スライスで良い。合流させる価値があるのかは問いたい。無ければ合流というか削除で良い」。反映先は下の「O4 の決定と program §6 の改め方」。
+- **O5 PR の時期と merge の順序（owner の補足で置き換え。2026-10-19）:** 次の順に進める。owner の原文の要旨:「今すぐでなくてよい。このタスクが Phase C / C' まで終わって PR を出し、PR レビューで問題ないとできたら、#139 の merge 後にその PR を merge する」。
+  1. 本スライスの Phase C / C' を終える。O9 により、最終 C' は実ストアの実行（手順 3〜8）の後。
+  2. 本スライスの PR を開く（base は `develop`）。この時点で #139 は未 merge なので、本 branch の `develop` との差分には #139 の commit が含まれる。そのことを PR 本文に書く（本スライスの差分は `94f93930..<head>`）。
+  3. PR レビューで問題が無いことを確かめる。
+  4. Phase D の後始末の commit を作る: (D) の module・script・suite の削除（O6）、harvest、本書の削除。実装の判定に使った head（SHA B）は変えず、削除だけの commit として扱う。SHA B は push しない軽量 tag `evidence/artifact-store-root-migration/<n>` で到達可能に保つ。tag は push しないので、別環境からは追跡できない。PR 本文に SHA B の値と、local の Evidence（task `artifact-store-root-migration`）にその実行記録があることを書き、PR とローカルの Evidence の参照関係を残す（A2 R4 P3）。
+  5. 後始末の commit を載せた head で、PR レビューをもう 1 回確かめる（merge する head がレビューされていない状態を作らないため）。
+  6. owner が #139 を merge する（O1 手順 9。移設の後なので O1 の順序は変わらない）。repo の慣行（#134〜#138）どおり merge commit で入れれば、本スライスの PR の差分は #139 の merge の後に自然に本スライスの分だけになり、rebase も cherry-pick も要らない。squash で入れた場合は、本スライス独自の commit だけを載せ直し（rebase または cherry-pick）、内容が SHA B と同じことを `git diff` で確かめて記録する。実ストアの移行はやり直さない（A2 R3 P2-2）。
+  7. owner が本スライスの PR を merge する。
+  理由: owner 以外に作業者がいないため、#139 の merge を待たずに PR を開いてよい。
+- **O6 (D) の寿命:** 残さない。本スライスの PR の merge より前（O5 の 4）に削除する（新しい host での印の発行は後続の入力。上の「ここでは答えない問い」）。
+- **O7 実ストア操作の範囲:** 無制限（owner の一括承認）。理由: 実ストアに今使っている記録が無く、作り直せるため。U11 の承認方式（Decision ID と inventory の sha256）は採らない。
+- **O8 旧 writer の再出現:** 推奨の (a) を採る。各 role の rename の直後に、(D) が旧 root にその role と同じ名前の空の通常 file（tombstone）を `CreateNew` で置く。resolver は同名の通常 file を不在と扱い（移設スライス AC-I3-d）、旧コードの `CreateDirectory` は同名 file で失敗するので、旧 root に role が作り直されない。
+- **O9 O1 手順 2 の読み:** 案どおり。「Phase A〜C' を経て SHA B を固定」を、暫定 C' に blocker が無い head を SHA B とし、最終 C' は実ストアの実行の後とする。実行後に (D) の修正が要った場合は、実行した版を記録に残したまま Phase A の新しい revision にし、実行済みの手順はやり直さない。
+
+- **O10 smoke 項目 4 の縮退（owner が 2026-10-19 に承認）:** O1 から転記した smoke 項目 4「`harness.ps1 current` で読める」を、「(C) の `harness.ps1 status` が exit 0 で `taskはありません` を出す（読む記録が無いことの確認）」に、実行の前に置き換える。これは元の項目 4 と同等の検証ではなく、**明示的な縮退**である。`status` は resolver を通って新 root の tasks の一覧を読むが、Harness の永続記録（CURRENT）を読めることは示さない。Harness CURRENT の読み戻しは未検証のまま、移設スライスの Phase D と LocalCache 側 copy の後続へ引き継ぐ（「ここでは答えない問い」）。理由: `harness.ps1 init` は `ApprovedSpecifications.psm1` が承認した 4 task と snapshot 本文の sha256 の厳密一致を要求し、進行役 session が git 履歴の全 `.md` blob（1,498 個、LF と CRLF の両方）を 4 つの承認値と照合して一致 0 件だったので、承認済み snapshot を Git から得られない見込みが高い。旧 root に Harness が無く、合流もしない（O4）ので、新 root に読み戻す Harness の記録はもともと無い。consumer の承認の allow-list は広げない（I6）。owner の承認: owner が 2026-10-19 に、元の smoke 項目 4 からの明示的な縮退として承認した（原文の要旨:「両方 OK」）。元の条件が達成されたとは扱わない（A2 R5 P1）。
+
+### A3: O4 の決定と program §6 の改め方（凍結の commit で program §6 と `docs/README.md` に反映した）
+
+`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §6 の 3 項目を次のように直す。owner の決定は文書の再開条件より優先するので、既存の再開条件（RC1・RC2）の書き換えも同じ commit で行う。
+
+1. **「store root 移設の実行と合流」→「store root 移設の実行」:** 対象から LocalCache 側 copy の合流を除く。本スライス（`ARTIFACT_STORE_ROOT_MIGRATION.md`）の所有は、実ストアの新 root への移設、印の発行、清掃 job の再登録、smoke まで。「下の『分裂したストアの合流』の manifest 承認を含む」と「判断: owner（manifest の承認を含む）」の manifest の部分を消す。
+2. **「分裂したストアの合流」と「Codex側残置の後始末」を 1 項目にまとめる:** 新しい項目名は「LocalCache 側 copy の扱い（合流の価値の判断と削除）」。
+   - 問い: LocalCache 側 copy（packaged app が旧 root の `Artifacts` / `Workflow` / `Harness` として書いた記録）を新 root へ合流させる価値があるか。価値が無ければ合流せずに copy を削除して終える。価値があると判断した単位だけを、`store plan` の再実行 → owner の manifest 承認 → `consolidate` → 合流後の確認（H1 適用 task の CURRENT・receipt の path bytes と新 root の両立を含む）へ進める。
+   - 価値の判断の入力（既存の記述から移す）: 2026-10-17 の `store plan` の分類（単位 20、`publish` 4・`hold` 16、deployment 単位 1 件の `conflict`）。Harness の 4 task（`h2c-unity-gate`、`h2c-unity-gate-r2`、`h1-transport-identity`、`artifact-evidence-lifecycle`）の CURRENT が copy 側にだけあり、`docs/README.md` の注記と program §4 の A の注記が「非仮想化 process から読めない」としていること。`hold` の解消方式（公開途中の不可視性）は、合流の価値があると判断した単位に必要な場合だけ設計スライスに分ける。Harness CURRENT の新 root での読み戻しが未実証であること（本スライスの O10）。tombstone を置いた後の packaged app の仮想化された view で、実体側の通常 file と LocalCache 側の directory が同じ名前で重なったときの見え方（未観測。本スライスの smoke 項目 7 の観測を入力にする）。名前表の `retirements-v1`、仮想化以外の path 不一致の診断、`StoreConsolidation.psm1` の reasonCode の畳み込み（移設スライスの C / C' の入力）は、合流に進む場合だけの入力として残す。
+   - 削除の扱い: copy の削除は不可逆なので、対象（package と copy 内の role）・除外・開始条件をそのスライスの A3 で固定し、owner の承認で 1 回行う（Artifacts README の「一回の旧開発環境reset」と同じ種類の操作で、通常操作の事前承認に含めない）。削除の後に packaged app を Phase 担当にできる（移設スライス I3 の `legacy-store-present` が解ける）ことを、移設スライスが加えた入口の記述から引き継ぐ。Storage の 30 日清掃が copy に届かないこと、定期清掃 job の binding が copy を見ないことの記述は、削除で不要になるなら消す。
+   - 入口条件: 本スライスの GO（印あり・旧 root に所有 role なし・smoke 合格）。旧 RC1・RC2 の再開条件は置き換える（owner が 2026-10-19 に後続として扱うと決めたため）。判断: owner（価値の判断、manifest の承認、削除の承認）。
+3. **「取得経路と配布」に入力を 1 つ足す:** 本スライスの移行プログラムは PR の merge より前に削除する（O6）ので、旧 root の無い新しい host で印を発行する手段が無くなる。別 PC で store を使う作業の入口に、印の発行手段を加える。
+4. **連動する公開面の記述:** `docs/README.md` の program 表と注記（合流前の `store plan`）、program §4 の A・E の注記は、凍結では書き換えず、本スライスの Phase D の harvest で現況（移設後・copy は未処理）に合わせる。凍結の commit では、`docs/README.md` の「進行中の単一スライス」の本スライスの説明から「LocalCache 側 copy を新 root へ合流する」を除いた。`tools/Artifacts/README.md`「実行するprocessの条件」の末段にある項目名「store root 移設の実行と合流」は、I6（README を変えない）のため Phase D の harvest で直す。
+
+§1 の目的・対象外（A0 の入力）は書き換えない。§1 の「LocalCache 側 copy の削除・期限・後始末は対象外」は、この決定と一致する（削除は上の後続が持つ）。
 
 ## 3. 責務マップ
 
-責務は独立して変わる理由で数える。行数は見込み（新規 file のみ。既存 file のコードは変えない。I9）。
+| file | 責務 | 所有者・寿命 | 依存 | テスト境界 | 行数 |
+|---|---|---|---|---|---|
+| `tools/Workflow/StoreRootMigration.psm1`（新規。PR の merge 前に削除。O6） | 一回の移設の本体。入口で seam 無しの `Get-OsmStoreRoot` の結果を 3 通りに分ける（§4。A2 R4 P2-A）、前提の確認（I4、U10、同一 volume）、role ごとの状態の分類（§4）、件数と合計 size、rename と tombstone、旧 root の 3 role が tombstone であることの確認、印の発行、`Get-OsmStoreRoot` が新 root を返すことの確認。内部の例外は固定 code に畳む（I5）。 | 一回限り。状態を持たない。 | `WindowsStoreRoot.psm1`（関数と public 型 `StoreRootNative`。A2 R1 F8）、`WindowsStoreContext.psm1`、`MoveFileExW`。domain module と `StoreConsolidation*` を import しない。 | private seam（`$script:` 変数: base、旧 base、store context、rename・書込みの失敗注入）。tests は module を import し、既存 suite と同じく `& (Get-Module ...) { $script:... }` で設定する。CLI 引数・環境変数からは設定できない（移設スライスの I4 と同じ理由）。 | 約 150 |
+| `tools/Workflow/StoreRootMigration.ps1`（新規。PR の merge 前に削除。O6） | 薄い入口。module を import して本体を呼び、`{"status":...,"reasonCode":...}` と件数を出す。引数は取らない。 | 同上。 | 上の module。 | tests は入口を呼ばない（seam を設定できないため）。入口は判定 C が読んで確かめる。 | 約 20 |
+| `tools/Workflow/tests/StoreRootMigration.Tests.ps1`（新規。PR の merge 前に削除。O6） | AC-1〜AC-6、AC-1b、AC-8、AC-9。 | テスト。 | 上の module、resolver の seam。 | 本体。 | 約 220 |
 
-| file | 責務 | 変更理由 | 所有者・寿命 | 依存（入力 → 出力） | 公開面 | テスト境界 | 配置理由 | 行数 |
-|---|---|---|---|---|---|---|---|---|
-| `tools/Workflow/StoreRootMigration.psm1`（新規） | 移設の判断（policy）。preflight の観測の評価、role ごとの状態の分類、inventory の正規化と照合、印の bytes の生成、run の記録の schema と承認 hash の計算。I/O をしない。 | 「何が揃えば移してよいか」「何をもって一致とするか」「印の内容」の規則。 | 状態を持たない。process 寿命。 | 観測値（hashtable / 配列）→ 判定結果・差分・bytes。I/O module も domain module も import しない。 | `Test-OsmMigrationPreflight`、`Get-OsmMigrationRoleState`、`Compare-OsmMigrationInventory`、`New-OsmStoreRootMarkerBytes`、`Get-OsmMigrationInventoryHash`。 | in-memory の観測値だけで全規則を検証。 | 規則と I/O を分け、規則を temp directory なしで検証する（アーキテクチャゲート 2・5）。 | 約 220 |
-| `tools/Workflow/StoreRootMigrationIo.psm1`（新規） | 移設の OS I/O。tree の metadata 列挙（属性・size・更新時刻・FileId・SDDL。内容を開かない）、zero-access の存在照会（移設スライス D9 と同じ意味）、同一 volume の directory rename、新 root と run directory の作成、印の一時名書込み・flush・非上書き rename、process と Task Scheduler の読取照会、`LocalApplicationData` の既定位置の照会。 | Windows API の使い方。 | 状態を持たない。handle は呼出しの中で閉じる。 | Win32（`CreateFileW`、`GetFileInformationByHandleEx`、`MoveFileExW`、`SHGetKnownFolderPath`）、CIM（`Win32_Process`）、`Get-ScheduledTask`、`WindowsStorePaths.psm1`（実体 path）→ 観測値。domain module を import しない。 | 上記の各関数。private seam: `$script:IoForTest`（rename・書込み・照会の失敗注入と I/O の記録）。CLI・環境変数から設定できない。 | temp base（同じ volume）で native 実行。seam で失敗注入。 | resolver と同じ OS 基盤層。resolver の native helper は export されておらず、consumer を変えない（I9）ため照会を複製する。複製した照会は §5 の case で resolver と同じ 6 分類を返すことを確かめる。 | 約 280 |
-| `tools/store-root.ps1`（新規） | (D) の CLI。`plan`（preflight + inventory を run directory に書き、承認 hash を出す）、`execute`（再 preflight、再 inventory の照合、新 root の作成、rename、移設後の照合、不在の証明、印の発行、seam 無しの resolver での確認）。出力は `{"status":...,"reasonCode":...}` と件数・hash。 | 手順の順序（orchestration）。 | process 寿命。run directory の所有者は run。 | 上の 2 module と `WindowsStoreRoot.psm1`（`Get-OsmStoreRoot` を P1 と発行後の確認に、`Get-OsmLegacyStoreRoot` を旧 root の導出に使う。読取だけ）→ stdout JSON、exit code、run directory。3 CLI と store module を import しない。 | `plan -OwnerQuiescence <Decision ID>`、`execute -Run <runId> -InventorySha256 <trusted64> -Approval <Decision ID>`。 | 子 process で temp base の CLI case（tests 用の seam は fixture script から設定）。 | 3 CLI と並ぶ管理用の入口。3 CLI の入口は印が無いと止まるので、既存 CLI の分岐にはできない（consumer を変えない）。 | 約 120 |
-| `tools/Workflow/tests/StoreRootMigration.Tests.ps1`（新規） | policy の全規則（preflight 7 項目、状態分類表、照合の field ごとの不一致、`RevisionLocks` の除外、承認 hash、印の bytes）。 | policy の契約。 | テスト。 | policy module。 | なし。 | 本体。 | 同じ domain。 | 約 260 |
-| `tools/Workflow/tests/StoreRootMigrationIo.Tests.ps1`（新規） | I/O と CLI の全経路（成功、resume、partial、各失敗注入、旧 root の無い host、(C) の resolver による印の受入れ、I5・I7 の観測）。 | I/O と orchestration の契約。 | テスト。 | CLI（子 process）、I/O module、resolver の seam。 | なし。 | 本体。 | policy の suite と分けるのは、temp directory と子 process を要し実行時間と前提が違うため。 | 約 380 |
-| `tools/Workflow/tests/StoreRootMigrationHostFixture.ps1`（新規） | 検証経路 V-M1 の fixture。`<UserProfile>` 直下の一時 base に旧 root・新 root の代役と private ACL の role directory を作り、seam を設定して `plan` → `execute` を実行し、生の記録を出す。 | 実 volume 上での rename の振る舞い（FileId・更新時刻・SDDL の保持）を実ストアの前に観測するため。 | テスト。 | CLI、I/O module の seam。 | なし（tests 配下）。 | 本体。 | 移設スライスの `StoreRootHostFixture.ps1` と同じ扱い。 | 約 90 |
-| `tools/Workflow/tests/fixtures/store-root-migration-*/`（新規） | 判定 C の照合 script を原記録の前に通す合成 fixture（§5）。 | 期待値の凍結。 | テスト。 | なし。 | なし。 | 照合 script の入力。 | 同上。 | JSON 5 組 |
-| `tools/Artifacts/README.md`、`tools/Workflow/README.md`（変更） | 「実行するprocessの条件」の末段（「後続の作業が所有」）を、(D) の入口・手順・失敗 code・run directory・新しい host の初期化に書き換える。 | 公開面は今この瞬間に真であること。 | — | — | — | docs-audit。 | — | 文のみ |
-
-行数警報: 500 行を超える file は無い。`StoreRootMigrationIo.Tests.ps1` は約 380 行。policy・I/O・orchestration を 3 file に分けたのは、変更理由（規則 / Windows API / 手順の順序）とテスト方法（in-memory / temp directory / 子 process）が違うため。
-
-アーキテクチャゲートの照合（A1 自己確認）:
-
-1. 独立して変わる判断の同居: 規則（policy）・API（I/O）・順序（CLI）を分けた。所有 role の最上位名 3 つは、resolver、`StoreConsolidation.psm1`、`EvidenceSchedule.psm1` に加えて policy module が 4 箇所目として持つ。consumer を変えない（I9）ので共通化しない。名前が増える変更は 4 file に波及する（下の 7）。
-2. Policy と I/O: policy は観測値だけを受ける。I/O は判定をしない。
-3. 依存方向: (D)（CLI → policy・I/O）→ resolver（`WindowsStoreRoot.psm1`）・`WindowsStorePaths.psm1`。resolver・store module・3 CLI は (D) を import しない。(D) は domain module と `StoreConsolidation*` を import しない（I8）。
-4. 所有者・寿命: 印の producer は (D) だけ。run directory は run が所有し、(D) は作るが消さない。新 root directory は (D) が作り、以後は store が所有する。
-5. 単体テスト: policy は in-memory、I/O は temp base で Unity なしに検証できる。
-6. 公開面: CLI 1 つ（2 action）と reasonCode（§4）。module の関数は tests と CLI だけが使う。
-7. 将来の変更: 印の形式の変更は resolver と policy の 2 file（O2 の変更は対象外）、所有 role の追加は 4 file、rename の方式は I/O 1 file。
+一回限りで PR の merge 前に消すので（O6）、policy・I/O・CLI の分割（A1 初稿）はしない。README は変えない（消すものを公開面に書かない）。
 
 ## 4. 実装計画
 
-### 決定（根拠付き）
+- role ごとの状態の分類（旧 root・新 root の組。照会は `StoreRootNative.Query`。A2 R3 P1-2・P2-1）:
 
-- **M1 move だけ:** U2 のとおり。`MoveFileExW(src, dst, 0)`。.NET の `Directory.Move` は使わない（flag を明示できず、失敗の分類が粗い）。
-- **M2 2 段の CLI と承認 hash:** `plan` が承認 inventory を書いて sha256 を出し、owner がその値を承認し、`execute` が同じ値を `-InventorySha256` で受ける。Artifacts の `--manifest-sha256` と同じ型の承認で、承認後の変化を `execute` の再 inventory との比較で検出する（I1、AC-I1-b）。
-- **M3 preflight を execute でも取り直す:** 承認と実行の間に状態が変わりうるので、plan の観測を使い回さない（AC-I1-c）。
-- **M4 照合は rename の前後の inventory で行う:** 所有 role 配下の全 entry について、相対名・種別・属性・size・更新時刻（UTC、100 ns）・FileId（`FILE_ID_INFO` の 128 bit）・SDDL（owner と DACL、継承 flag を含む。現在ユーザーの SID を token に置換）。role directory 自身の更新時刻も比べる（同一 volume の rename で変わらない想定。V-M1 で実 volume の振る舞いを観測し、変わる場合は Phase B から A へ返す。§4「差し戻す条件」）。内容の hash は取らない（I4。内容を開かないため。FileId と size・時刻で同一実体を示す）。
-- **M5 不在の証明は D9 と同じ意味:** zero-access `CreateFileW`（`OPEN_EXISTING`、`FILE_FLAG_BACKUP_SEMANTICS`、`FILE_FLAG_OPEN_REPARSE_POINT`）。不在・通常 file = 不在、directory = 残存、reparse・アクセス拒否・その他 = 証明できない。
-- **M6 run directory:** `CreateNew` 相当（既存なら失敗）で作り、ACL は継承のまま。記録は `CreateNew` → flush → rename で書く。`execute` の再実行は新しい `execute-<n>.json` を足し、前の記録を書き換えない。
-- **M7 記録の path:** 絶対 path を記録しない。`<legacy>\Artifacts\…` のような token 付き相対 path だけを持つ（I7）。
-- **M8 新しい host:** 旧 root（既定位置）が無い、または所有 role が全部 `absent` のときも同じ手順で、新 root を作って印を書く。P5〜P7 は同じく要求する（新しい host でも旧コードの writer がありうるため）。
+  | 旧 root | 新 root | 動作 |
+  |---|---|---|
+  | directory | 不在 | 件数と size を数えて rename → tombstone を `CreateNew` → 新 root 側を数えて一致を確かめる |
+  | 不在 | 不在 | 当初から無い。新 root には作らず tombstone だけ置き、`initiallyAbsent` と出す |
+  | 不在 | directory | rename の後・tombstone の前に止まった。tombstone を作ってから次へ |
+  | size 0 の通常 file（tombstone） | directory | 移し済み。次へ |
+  | size 0 の通常 file（tombstone） | 不在 | 当初から無かった role の再実行。次へ |
+  | size 0 でない通常 file | — | `role-unknown` で止まる（tombstone と扱わない。A2 R4 P2-B） |
+  | directory | directory | `role-split` で止まる |
+  | どちらかが reparse・アクセス拒否・error、または新 root 側が通常 file | — | `role-unknown` で止まる |
 
-### preflight（P1〜P7。`plan` と `execute` の両方で毎回取る）
-
-| 項目 | 観測 | 期待 | 外れたときの reasonCode |
-|---|---|---|---|
-| P1 | seam 無しの `Get-OsmStoreRoot` の結果 | `store-not-migrated` で失敗（静的拒否・祖先 reparse を通過した証拠）。resume で印が既にある場合は AC-I3-b | `store-root-precondition` |
-| P2 | 新 root の存在と直下の名前 | 不在。resume では直下が所有 role と (D) の一時名だけ | `new-root-unexpected` |
-| P3 | `GetFolderPath('LocalApplicationData')` と既定位置 | 一致 | `legacy-redirected` |
-| P4 | 旧 root と UserProfile の volume（実体 path の drive root） | 一致 | `different-volume` |
-| P5 | 同一ユーザーの process のうち command line に `artifacts.ps1`・`workflow-task.ps1`・`harness.ps1`・`EvidenceCleanupJob.ps1` を含むもの（自分の process tree を除く）と `Unity.exe` の件数 | 0（command line 自体は記録しない） | `writer-running` |
-| P6 | `\OneStarMaker\` 配下の task の名前・`State` | すべて `Disabled`（`Running` が無い） | `scheduler-active` |
-| P7 | `-OwnerQuiescence` の Decision ID | Workflow README の Decision 書式に合う | `quiescence-missing` |
-
-### 状態の分類と resume（role ごと。承認 inventory を正にする）
-
-| 承認 inventory での旧 root | 現在の旧 root | 現在の新 root | 分類 | 動作 |
-|---|---|---|---|---|
-| directory | directory | 不在 | `pending` | 再 inventory の一致を確かめて rename |
-| directory | 不在 | directory | `already-moved` | rename せず、移設後の照合に進む |
-| directory | directory | directory | `split` | 止まる（`role-split`）。owner へ |
-| directory | 不在 | 不在 | `lost` | 止まる（`role-missing`）。owner へ |
-| 不在 | 不在 | 不在 | `absent` | 何もしない |
-| 不在 | 旧 root と新 root のどちらかに directory | （同左） | `unexpected` | 止まる（`role-unexpected`） |
-| 照会できない | — | — | `unknown` | 止まる（`legacy-query-failed`） |
-
-全 role が `already-moved` または `absent` になったら、移設後の照合（I2 の (a)〜(c)）→ 印の発行 → seam 無しの `Get-OsmStoreRoot` が新 root を返すことの確認の順に進む。出力: `passed`（exit 0）、`partial`（一部の role だけ移した。exit 2。同じ `execute` の再実行で前へ進む）、`failed`（exit 1。固定 reasonCode）。
-
-reasonCode（固定集合）: 上の 2 表の code、`invalid-run`、`inventory-changed`、`inventory-hash-mismatch`、`rename-failed`、`compare-mismatch`、`legacy-role-present`、`nonowned-changed`、`marker-conflict`、`marker-write-failed`、`marker-not-accepted`（発行後に resolver が新 root を返さない。印は消さない）、`migration-failed`（それ以外）。
-
-### inventory と照合
-
-- `inventory-before.json`（`plan` が書く）: `schemaVersion` 1、`runId`、`roles`（3 role の存在分類）、`entries`（旧 root 配下の全 entry。各 `root`（`legacy`）、`path`（`<legacy>\` からの相対）、`kind`、`attributes`、`size`、`lastWriteUtc`、`fileId`、`sddl`）。非所有 entry も同じ形で持つ（I2 (c)）。`RevisionLocks` 配下は名前と種別だけを記録し、照合から除く。
-- `inventory-after.json`（`execute` が書く）: 同じ形で、所有 role は `root` = `new`、非所有 entry は `legacy`。
-- 照合: 所有 role の entry は `path` を role からの相対にそろえ、全 field の完全一致。集合の過不足も不一致。非所有 entry は `RevisionLocks` 配下を除いて完全一致。結果は `compare.json`（`result` = `match` / `mismatch`、`differences` = `{path, field}` の配列）。
-
-### 変更対象と順序
-
-1. policy module と `StoreRootMigration.Tests.ps1`（preflight・状態分類・照合・印の bytes・承認 hash）。
-2. I/O module（列挙、照会、rename、印の書込み、process / task の照会）と I/O の単体 case。
-3. CLI `tools/store-root.ps1` と `StoreRootMigrationIo.Tests.ps1` の CLI case（AC-I1〜I7、AC-S1-a）。
-4. `StoreRootMigrationHostFixture.ps1` と `tests/fixtures/store-root-migration-*/`（§5 の 5 組）。
-5. README 2 件。
-6. `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、§5 の起点 filter の suite を B の出口で通す。
-
-### Phase B から Phase A へ差し戻す条件
-
-- consumer（SHA A の `tools/` の既存 file）を変えないと (D) が成立しない（I9）。
-- 同一 volume の directory rename で、FileId・更新時刻・SDDL のどれかが保たれないことが分かった（M4 の前提崩れ。照合 field の選び直しは設計判断）。
-- 列挙・照会のために所有 role 配下の file の内容を開く必要が出た（I4・I5）。
-- process・Task Scheduler の照会が昇格なしでは成立しない（U3 の静止確認の方式の崩れ）。
-- 印の形式（O2）を変える必要が出た。
-
-### 対象外を維持する方法
-
-- Phase B・動作確認・判定 C は実ストア・LocalCache・資格情報・Task Scheduler の登録・R2 に触れない。B のテストは temp base、V-M1 は `<UserProfile>` 直下の一時 base で行い、観測担当が終了時に削除する。実 Task Scheduler と実 process の照会（読取）は V-M1 で 1 回行ってよい。
-- (D) は `store plan` / `consolidate` を呼ばず、`StoreConsolidation*` を import しない（I8）。
-- consumer の既存 file を編集しない（I9。判定 C の `git diff`）。
+  3 role がすべて tombstone になったら印を発行する。
+  「旧 不在・新 directory」を rename の後・tombstone の前に止まった状態と読むのは、移設の履歴を永続の記録で証明しない、この host の作り直せるストアとしての割り切りである（A2 R4 P2-B）。
+- 入口の分岐（A2 R4 P2-A）: seam 無しの `Get-OsmStoreRoot` が (a) 新 root を返したら、何も変えずに `passed`（`already-migrated`）。(b) `store-not-migrated` なら、上の状態表で移設へ進む。(c) それ以外（`legacy-store-present`、`store-root-unavailable`、その他）は `store-root-precondition` で止まり、既存の印を直さず上書きしない（AC-8）。
+- reasonCode: `store-root-precondition`（入口の分岐の (c)）、`virtualized-store`、`store-context-unknown`、`legacy-redirected`、`different-volume`、`role-split`、`role-unknown`、`rename-failed`、`count-mismatch`、`tombstone-failed`、`marker-write-failed`、`marker-not-accepted`、`migration-failed`。
+- 件数と合計 size: 各実行の中で、rename の前に旧 root 側、後に新 root 側を数えて出す。reparse point はたどらない（`EnumerationOptions` の `AttributesToSkip = ReparsePoint`、`RecurseSubdirectories`）。前後で同じ関数を使う。再実行で移し済みの role は後の値だけを出す（S2 は初回の出力で確かめる）。記録の file は作らない。
+- 順序: script と suite → `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`。
+- Phase B から A へ差し戻す条件: consumer の既存 file を変えないと成立しない（I6）、所有 role 配下の file の内容を開く必要が出た（I5）。
+- 対象外の維持: Phase B と判定 C は実ストアに触れない（tests は temp base）。
 
 ## 5. テストとレビュー計画
 
-- 単体テスト:
-  - `StoreRootMigration.Tests.ps1`（policy、in-memory）: `preflight-p1`〜`preflight-p7`（各期待と外れ）、`role-state-<分類>`（状態分類表の 7 行）、`compare-<field>`（7 field と集合の過不足）、`compare-revisionlocks-excluded`、`inventory-hash`、`marker-bytes`（O2 の 4 field・BOM 無し・4 KiB 以下、余分な field が無い）。
-  - `StoreRootMigrationIo.Tests.ps1`（temp base、子 process の CLI）: `ac-i1-a-p1`〜`ac-i1-a-p7`、`ac-i1-b`、`ac-i1-c`、`ac-i2-a-size`・`ac-i2-a-role`・`ac-i2-a-nonowned`、`ac-i2-b`、`ac-i2-c-1`〜`ac-i2-c-3`、`ac-i3-a-write`・`ac-i3-a-flush`・`ac-i3-a-rename`、`ac-i3-b-own`・`ac-i3-b-conflict`、`ac-i4-a`、`ac-i4-a-copy`、`ac-i4-b-1`〜`ac-i4-b-3`、`ac-i5-a`、`ac-i6-a`、`ac-i7-a`、`ac-s1-a`、`ac-s1-a-fresh-host`、`query-matches-resolver-1`〜`-6`（複製した照会が移設スライスの AC-I3-f と同じ 6 分類を返す）。
-  - すべて `Task.Delay` / `Thread.Sleep` を使わない。
-- 差し戻し中の起点 `-Filter`（C が根拠付きで変更可。受け入れ条件の追加ではない）: `tools/Workflow/tests/StoreRootMigration.Tests.ps1`、`tools/Workflow/tests/StoreRootMigrationIo.Tests.ps1`、`tools/Workflow/tests/StoreRoot.Tests.ps1`（各 `-Case '*' -ResultPath <path>`）。
-- 判定必須テスト（GO 候補 head = SHA B）: `tools/Artifacts/tests/*.Tests.ps1`、`tools/Workflow/tests/*.Tests.ps1`、`tools/Harness/tests/*.Tests.ps1` の全 file を各 `-Case '*' -ResultPath <path>` で実行し、executed 1 件以上・failed 0。`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1` が error 0。AC-I6-b・AC-I8-a の grep、AC-I9-a の `git diff`。V-M1 の生観測。実行環境の前提: 判定用 worktree に `tools/Artifacts` の Release build があり、`rg` が PATH にある（移設スライスと同じ既知の前提）。
-- 全 EditMode 回帰の適用除外: 適用除外。理由: 変更は `tools/` の PowerShell と README に限り、`unity/` を変えない。代替証拠: 上記の offline suite 全件、両 audit、`git diff --stat 34cf6607 <SHA B> -- unity/` が空。
+- 単体テスト: `tools/Workflow/tests/StoreRootMigration.Tests.ps1`（`ac-1`、`ac-1b`、`ac-2`〜`ac-6`、`ac-8`、`ac-9`。すべて判定必須の `tools/Workflow/tests/*.Tests.ps1` に含まれる）。`Task.Delay` / `Thread.Sleep` を使わない。
+- 差し戻し中の起点 `-Filter`: 同 suite と `tools/Workflow/tests/StoreRoot.Tests.ps1`（各 `-Case '*' -ResultPath <path>`）。
+- 判定必須テスト（SHA B）: `tools/Workflow/tests/*.Tests.ps1` の全 file（各 `-Case '*' -ResultPath <path>`、executed 1 件以上・failed 0）、両 audit の error 0、I6 の `git diff --name-status 34cf6607 <SHA B> -- tools/ unity/`。`tools/Artifacts/tests` と `tools/Harness/tests` は、consumer の file が変わらない（I6）ので判定必須にしない。
+- 全 EditMode 回帰の適用除外: 適用除外。理由: `unity/` を変えない。代替証拠: I6 の `git diff`。
 - 統合・Unity テスト: なし。
-- 操作・実行時・目視条件の検証経路:
-  - **V-M1（動作確認と判定 C。実 volume での (D) の通し実行）:** 対象: SHA B の候補 head。担当: 動作確認の実行担当（非仮想化 pwsh）。初期状態: `<UserProfile>` 直下に担当が `OneStarMaker.MigrationCheck.<32 桁 hex>` を作る。操作: `pwsh tools/Workflow/tests/StoreRootMigrationHostFixture.ps1 -Base <その一時 base>`（fixture が代役の旧 root に private ACL の `Artifacts`・`Workflow`・`Harness`、`Artifacts\credentials\dummy.bin`（内容は乱数）、`RevisionLocks`、`H2a Review` を作り、seam で base を差し替えて `plan` → `execute` を実行する。P5・P6 は実 process と実 Task Scheduler の照会を行い、その結果は記録するが合否に使わず、seam の値で通す）。観測: CLI の stdout と run directory の全 JSON、fixture が出す「role directory 自身の更新時刻の前後」「FileId の前後」「SDDL の前後」。期待: `passed`、`compare.json` が `match`、印を同じ base の resolver が受け入れる。P5・P6 の実照会が昇格なしで値を返す（返らなければ差し戻す条件）。後始末: 担当が一時 base を削除する。保存証拠: 生出力と run directory の複製を 1 つの時刻付きテキストと JSON 群にし、C / C' の bundle に含める。
-  - **V-R1・V-R2（高コスト証拠。下記）。**
-- 未知の操作経路の疎通結果と、必要な検証支援・確認地点: A1 では未確認。初回確認は V-M1（動作確認）で、確認するのは (1) 同一 volume の directory rename で role directory 自身と配下の更新時刻・FileId・SDDL が保たれるか、(2) 同一ユーザーの `Win32_Process` の command line と `\OneStarMaker\` の task の `State` を昇格なしで読めるか。不成立時は §4「差し戻す条件」で Phase A へ返す。packaged app 側の smoke 項目 7 は移設スライスの V1 で疎通済み（同じ経路）。
-- 人間の判断が必要な条件と合意した担当・証拠の受け入れ方: 観察の判断は無い。owner の行為は 3 つ（手順 3 の静止と宣言、手順 5 の承認、手順 8 の旧 task の削除）で、それぞれ Decision ID を run directory の記録に残す。owner の宣言は観察記録ではなく承認として扱う（P5・P6 の機械照会と併せて使う）。
-- 高コスト証拠（不可逆な実ストアの操作。取得は暫定 C' に blocker が無い SHA B で 1 回）:
-  - **V-R1（手順 3〜7）:** 担当: owner（手順 3・5 の承認、手順 3 の無効化）と、判定 C 用の実行担当 session（(D) の実行。非仮想化 pwsh、SHA B の clean worktree）。手順: (0) 手順 3 より前に (A) で `workflow-task.ps1 start -Task artifact-store-root-migration` が済んでいることを `status` で確かめる。(1) owner が U3 の静止を行い、`Get-ScheduledTask -TaskPath '\OneStarMaker\'` で `Disabled` を確かめて Decision ID を出す。(2) `pwsh tools/store-root.ps1 plan -OwnerQuiescence <ID>`。stdout の `runId`・`inventorySha256`・role ごとの entry 数を owner に示す。(3) owner が承認の Decision ID を出す。(4) `pwsh tools/store-root.ps1 execute -Run <runId> -InventorySha256 <承認した値> -Approval <ID>`。`partial` なら同じ command を owner の指示で 1 回再実行する。`failed` なら止めて owner へ返す。保存証拠: run directory の全 file と各 command の生出力。
-  - **V-R2（手順 8 の smoke と S5）:** 担当: 動作確認の実行担当（非仮想化 pwsh、(C) = `34cf6607` の clean worktree で、`tools/Artifacts` の Release build があるもの）、項目 2 の旧 task の削除は owner、項目 7 は owner が割り当てた packaged app の session（full access、同じ worktree の版）。手順と期待:
-    1. 項目 1・5: (C) の `tools/Workflow/WindowsStoreRoot.psm1` と `WindowsStorePaths.psm1` を import した pwsh で `Get-OsmStoreRoot` を seam 無しで呼び、返り値が `GetFolderPath('UserProfile')` + `\OneStarMaker` と一致し、`store-root.json` を `FileShare.Read` で開いた handle の実体 path が論理 path と一致することを真偽値で出す（path は出さない）。期待: どちらも true（返り値が得られたことが、旧 root の所有 role 不在の resolver による確認でもある）。
-    2. 項目 6: `Get-ScheduledTask -TaskPath '\OneStarMaker\'` の名前と `State`。期待: 旧 task が `Disabled`。
-    3. 項目 2: owner が Artifacts README「自動清掃」の切替手順どおり旧 task を `Unregister-ScheduledTask` し、担当が (C) の worktree で `pwsh tools/artifacts.ps1 evidence schedule install --profile osm --config <新 root の v2 config>` → `... schedule status ...`。期待: install が成功し、status が `passed`。
-    4. 項目 3: `pwsh tools/workflow-task.ps1 status -Task artifact-store-root-migration`。期待: task の状態を返す（resolver の 3 code でない）。
-    5. 項目 4: `pwsh tools/harness.ps1 current -Task <id>`（承認 inventory に `Harness` の task があればその id、無ければ未登録の id）。期待: AC-S4-r の合格例。
-    6. S5: 移設スライスの判定 C bundle と C' bundle の取得案内で `pwsh tools/artifacts.ps1 fetch --profile osm --config <v2 config> --reference <案内の値> --sha256 <案内の値>`。期待: 両方 `passed`、hash 一致。
-    7. 項目 7: packaged app 側で `pwsh tools/workflow-task.ps1 status -Task artifact-store-root-migration`。期待: `legacy-store-present`・exit 1（LocalCache の残置がある間。成功とは記録しない）。
-    8. run directory と smoke の生出力を (C) の `evidence stage` で task `artifact-store-root-migration` に固定する。
-    保存証拠: 各項目の生出力を 1 つの時刻付きテキストにし（packaged app 側の出力と、その session の `git rev-parse HEAD` を担当が受け取って貼る）、run directory と一緒に stage する。
-  - 実装から独立した期待値（判定 C の照合 script が原記録で確かめる）: E1 承認 inventory の sha256 = `plan` の出力 = `execute` の `-InventorySha256` = owner の承認の値。E2 所有 role の entry 集合と全 field が承認 inventory と移設後 inventory で一致し、FileId が全件一致。E3 移設後の旧 root の所有 role 3 つが不在、非所有 entry が `RevisionLocks` 配下を除いて一致。E4 `marker.json` が O2 の形式で、一時名の file が新 root 直下に無い。E5 preflight の P1〜P7 が `execute` の記録で全件期待どおり。E6 V-R2 の各項目が上記の期待どおり。E7 run directory の全 file と stdout に token 以外の絶対 path と `S-1-5-21-` で始まる SID が無い。
-- 判定 C の照合 script の方式: 判定 C の offline 実行。判定 C の担当が、run directory と smoke の生出力の複製に対して E1〜E7 を確かめる script を自分の環境で書いて実行する（資格情報・通信・実ストアに触れない）。原記録の前に、Phase B が `tools/Workflow/tests/fixtures/store-root-migration-*/` に置く合成 fixture 5 組（架空の値。実 host の path・SID を含まない）に通す。期待値（A3 で凍結）:
-  - `match`: 全 E が成立。期待 `match`。
-  - `size-mismatch`: 移設後 inventory の 1 file の `size` だけが違う。期待 `mismatch`、差異 `size`。
-  - `copied`: 移設後 inventory の 1 file の `fileId` だけが違う（複写された）。期待 `mismatch`、差異 `fileId`。
-  - `role-remaining`: 移設後の旧 root に `Harness` が `directory` として残る。期待 `mismatch`、差異 `legacyRoles.Harness`。
-  - `marker-extra-field`: `marker.json` の field に 5 つ目がある。期待 `mismatch`、差異 `marker.fields`。
-- 機械検査: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、AC-I6-b・AC-I8-a の grep、AC-I9-a の `git diff`。
-- 機械検査・H1: H1（`external-current-v1`）は不採用。理由: 移設スライスの D6 と同じく、この branch の `harness.ps1` は移行前に `store-not-migrated` で止まる。Phase A〜C'（暫定）の Workflow / Evidence は (A)（develop checkout の CLI、非仮想化 pwsh）で記録し、手順 8 の後の記録は (C) で行う。task id は `artifact-store-root-migration`。
-- A2 の観点（担当は A2 の開始時に選ぶ。互いの指摘を見せない）:
-  - R1 アーキテクチャゲート（§3 の 3 分割、照会の複製、所有 role 名の 4 箇所目、run directory の所有）と、各不変条件を破る順序の構成（§3・§4 の変更は実装済みと仮定し、契約内の操作順序で破れるかを問う。現コードは consumer の「変えない」確認にだけ使う）。
-  - R2 A0 だけから代替構成（入力は A0 の commit `a016d02a` の本書。初稿を見せない）。
-  - R3（任意）実行可能性: V-M1・V-R1・V-R2 の手順を、その担当が会話なしで実行できるか。owner の 3 つの行為と Decision ID の流れ。
-  - C' のために、Phase A で使わない系列を 1 つ残す。
+- 操作・実行時・目視条件の検証経路: 下の「実ストアでの実行」だけ（高コスト証拠）。動作確認（Phase B の後）は `対象なし`（offline の suite で閉じる）。
+- 未知の操作経路: なし（rename・tombstone・印は offline の suite で temp base に対して確かめる。smoke の経路は移設スライスで疎通済み）。
+- 人間の判断が必要な条件: なし。owner の行為は手順 3 の静止と、手順 8 の旧 task の削除。
+- 高コスト証拠（実ストアでの実行。暫定 C' に blocker が無い SHA B で 1 回）:
+  0. 前提: (A) で `workflow-task.ps1 start -Task artifact-store-root-migration` を行い、(A) の `status` で読めることを確かめ済み（U7）。
+  1. owner: 手順 3（U3。旧 job を名前で特定し、照会結果を 3 つに分けて処置する。`not-installed` も記録する。それ以外の照会失敗では進まない）。
+  2. 実行担当（非仮想化 pwsh、SHA B の clean worktree）: `pwsh tools/Workflow/StoreRootMigration.ps1`。期待: `passed`、移した role の前後の件数と合計 size が一致、`initiallyAbsent` の role が出力に明示される。`failed` なら止めて owner に返す。
+  3. 実行担当（(C) = `34cf6607` の clean worktree、`tools/Artifacts` の Release build あり）:
+     - 項目 1・5: `Get-OsmStoreRoot` が seam 無しで返り、`store-root.json` の handle の実体 path が論理 path と一致する（真偽値だけを出す）。
+     - 項目 6: 旧 task が `Disabled` で `Running` でない、または手順 1 の時点から `not-installed`。
+     - 項目 2: 対象名で既存 task を照会し、登録されている場合だけ owner が旧 task を `Unregister-ScheduledTask` し、担当が `pwsh tools/artifacts.ps1 evidence schedule install --profile osm --config <v2 config>` → `schedule status` が `passed`（config の所在は owner に確かめる。同名の task が残っていると install は `scheduler-identity-mismatch` で止まるので、削除が先）。
+     - 項目 3: `pwsh tools/workflow-task.ps1 status -Task artifact-store-root-migration` が exit 0 でその task を返す。
+     - 項目 4: `pwsh tools/harness.ps1 status` が exit 0 で `taskはありません` を出す（S3。読む記録が無いことの確認）。
+     - S4: 移設スライスの 2 bundle の `fetch` が `passed`。
+     - 項目 7: S3 のとおり。
+  4. 生出力を 1 つのテキストにし、(C) の `evidence stage --profile osm --config <v2 config> --selection <selection file>` で task `artifact-store-root-migration` に固定する（selection file と config の所在、S4 に使う取得案内は手順 3 より前に確かめておく。値は tracked 文書に書かない）。生出力は local の Evidence にだけ置き、実 path・SID・秘密を tracked 文書と PR に転記しない（I5）。
+- 判定 C の照合 script の方式: なし（生出力が短いので、判定 C と最終 C' が読んで判断する）。
+- 機械検査: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、I6 の `git diff`。
+- 機械検査・H1: 不採用（移設スライスの D6 と同じ理由）。Phase A〜暫定 C' の Workflow / Evidence は (A)（develop checkout の CLI）で記録し、実行の後は (C) で行う。
 - A0/A1 主担当・モデル・ベンダー: A0 = owner と Phase A 補助 session。A1 = Phase A 主担当 session（Claude Opus 5.5、Anthropic）。
-- A2 独立レビューごとの観点・担当・モデル・ベンダー、入力版: A2 の担当が記録する（入力版 = message に `A1` と `A2 input` を含む commit。内容 sha256 を正とし commit hash を補助とする）。
-- A3 統合担当・モデル・採否: 未到達。
-- 独立性の強化条件を満たせない場合の理由: 未到達。
+- A2 の観点（実施済み）: R1 アーキテクチャゲートと不変条件の反証（実行可能性を併せた）、R2 A0 だけから代替構成。
+- A2 独立レビューごとの観点・担当・モデル・ベンダー、入力版（2026-10-19）:
+  - 入力版（R1）: A2 入力版。内容 sha256（commit の blob、LF）`232cda5c761ede6d48f97f66b0b0b8c449b4ed77b92645e4c7494013ce3ecbe2`。補助: commit `0dd3bd6e`。
+  - 入力版（R2）: A0 固定版（commit `a016d02a` の `git archive` の展開。本書は §3〜§5 が空で、初稿を含まない）。
+  - **R1**（上記の観点 R1 に R3 の実行可能性を併せた）: 主担当 session が起動した新規 subagent（Claude 系、Anthropic。A1 と同じ系列。独立性: 初稿を入力とし、R2 の指摘は見ていない）。読取専用、実ストアに触れない。指摘 F1〜F13。原文の要旨は主担当 session の共有ノート。
+  - **R2**（初稿を見ず、A0 だけから代替構成）: codex CLI 0.159.2 の非対話実行（GPT 系 `gpt-6-luna`、OpenAI、reasoning effort は既定の low、read-only sandbox）。展開した A0 commit だけを読み、現行の作業 tree は渡していない。原文は主担当 session の共有ノート。
+  - 採否（A3 の統合。主担当が決めた。owner の判断待ちの事項は O4〜O9 に残し、ここでは決めていない。O4 はその後 owner が決定した）:
+    | 指摘 | 採否 | 反映先・理由 |
+    |---|---|---|
+    | R1 F1（仮想化判定が無く、packaged app 内の実行で LocalCache の copy を移しうる） | 採用 | P8（`Get-OsmStoreContext` = `not-virtualized`）、U10、AC-I1-a、§3 の依存。既存 module の import だけで consumer は変わらない。 |
+    | R1 F2（承認 hash が resume と矛盾。hash の対象が未定義） | 採用 | I1 を「現況 inventory の正規形の hash」に。§4「正規形と承認 hash」。AC-I1-d。 |
+    | R1 F3（`RevisionLocks` の出現・非所有の変化で rename 後に行き止まり） | 採用 | I2 (c) を最上位の名前・種別・FileId に絞り、`RevisionLocks` を entry ごと除外。`plan -Rebase`（分類が健全なときだけ、owner の再承認で続ける）。AC-I2-b。 |
+    | R1 F4（rename 後の旧 writer の再出現を回復できない） | 一部採用・保留 | 状態表に `reappeared` を足し、用語の節の「(D) は作らない」を「検出して止まる」に直した。tombstone 案は旧 root への書込みを加える（I5・I6・U11 の改訂）ので O8 で owner の判断待ち。 |
+    | R1 F5（昇格 process の command line が読めない、対話 host 内の実行が見えない） | 採用 | P5 を fail-closed に、`pwsh` の件数と owner の確認を P7 の要件に。U3、V-M1 に昇格 pwsh の観測。 |
+    | R1 F6（P2 が印の発行後の resume と矛盾、古い一時名で行き止まり） | 採用 | P2 の許容集合、I3 の一時名の規則と同じ runId の残りの削除、AC-I3-c。 |
+    | R1 F7（`Harness` は継承 ACL。U2(4) の記述が誤り） | 採用 | U2 を書き直し、inventory に `AreAccessRulesProtected` と旧 root の DACL。新 root の ACL は継承のまま（下の R2 U2 と併せて主担当が決めた）。 |
+    | R1 F8（resolver の public 型を使える。複製は型名衝突。role 名の所在の数え方） | 採用 | §3 の I/O 行・M5 を public 型の呼出しに。ゲート照合 1・3・7、`owned-role-names-match-resolver` の test。 |
+    | R1 F9（O1 手順 2 の読み替えが owner 判断の一覧に無い） | 採用（判断は保留） | U5 に明記し、O9 で owner の判断待ち。 |
+    | R1 F10（Decision ID の流れの抜け） | 採用 | `execute` が宣言 ID と承認 ID を両方記録し別値を要求（`approval-reused`）、3 つ目の Decision は smoke のテキストへ。E8。 |
+    | R1 F11（SID の置換が不十分、E7 が host 依存） | 採用 | I7（SDDL は owner と DACL、well-known 以外は salt 付き hash の token）、E7 の正規表現、`sid-tokenized`。 |
+    | R1 F12（状態表の通常 file・reparse・denied、旧 root の無い host の P4、P6 の not-found、実行中 instance） | 採用 | 状態表の 3 行、M8、P6 の厳密判定と instance、U3。 |
+    | R1 F13（AC-S4-r 項目 4 の期待、config の所在） | 採用 | AC-S4-r（期待値を Phase B が offline で観測して固定）、V-R2 項目 2 に所在の確認。 |
+    | R2 高「問いが広すぎる」・U1・U7 | 一部採用 | 合流を分ける点は初稿と一致（O4）。清掃 job の再登録も分ける点は不採用: 再登録は smoke 項目 2（A0 で固定した smoke の一部）そのもので、印の後の (C) でしか行えず、移設の成否の観測に含まれる。 |
+    | R2 高「不変条件に観測可能な合否が無い」 | 採用（初稿と一致） | A0 の候補への指摘。A1 で不変条件・成立条件と受け入れ条件に分けた。 |
+    | R2 高 U3・U6（静止確認と部分移設の回復が未設計） | 採用（初稿と一致） | U3・状態表・resume。R2 の「owner が継続か手動復旧かを判断」は、曖昧な状態で止めて owner に返す本案と同じ。 |
+    | R2 U2（新 root と各 role に ACL を明示設定する） | 不採用 | 移設スライスは新 root を共有 directory とし（`Assert-SharedParent` は存在と reparse だけ）、専用の ACL 境界を `Artifacts` 以下に置く。(D) が ACL を変えると I4 の SDDL 一致の観測とも食い違う。ACL の照合は採用（R1 F7）。 |
+    | R2 U4（作業用 copy の削除は Evidence 保存の確認後） | 採用（初稿と一致） | run directory は消さず、後始末は Phase D。 |
+    | R2 U5（期待値の事前固定、独立担当の照合、fixture の先行） | 採用（初稿と一致） | §5「高コスト証拠」「照合 script の方式」。 |
+    | R2 U8（旧 runtime copy は保持） | 採用（初稿と一致） | U8。 |
+    | R2 U9（一回限りで恒久 CLI として残さない、`tools/Artifacts` に置く） | 不採用（寿命は保留） | 置き場所は依存（resolver の OS 基盤層、domain に依存しない）から `tools/Workflow`。寿命は O6 で owner の判断待ち（新しい host の初期化に要るという本案の理由と、R2 の一回限りの案を併記）。 |
+    | R2 U10（旧 root の redirect と reparse の確認） | 採用 | P3 に旧 root とその祖先の reparse を追加。 |
+    | R2 U11（通常操作の承認範囲外として A3 で固定） | 採用（初稿と一致） | O7（owner の判断待ち）。 |
+    | R2「入口条件と O1 手順 9 の衝突」 | 不採用（誤読） | A0 の入口条件（移設スライスの merge の前に手順 3〜8）と O1 手順 9（手順 8 の後に merge）は同じ順序を述べており、衝突しない。 |
+    | R2「ACL の照合粒度が A0 で不明」 | 採用 | R1 F7 と同じ反映。 |
+- O5〜O9 の決定による簡素化（2026-10-19。owner の「厳密にやる意味を感じない」と O7 の理由による）で、上の採用分のうち次の反映を本文から削った: R1 F2・F3（承認 hash の正規形と `plan -Rebase`。承認の hash 自体をやめた）、F5・F12 の P5・P6（process と Task Scheduler の照会。owner の手順 3 と tombstone で代える）、F6 の一時名の規則の細部、F7 の ACL の記録と照合、F10（Decision ID の流れ）、F11（SID の token 化。記録に SID を書かないので不要）、F13 の項目 4 の期待値の事前観測。A1 初稿の policy / I/O / CLI の 3 分割、FileId・SDDL の照合、run directory、照合 script と合成 fixture、動作確認 V-M1 も削った。残したもの: F1（仮想化判定、I4）、F4（tombstone、O8）、F8（resolver の public 型）、F9（O9）。
+- **R3**（A2 の追加。2026-10-19）: owner が取得した外部レビュー（GPT 系の Web サービス、OpenAI。GPT 系の 2 件目）。入力: owner の O4〜O9 を反映した未 commit の A3 統合版の全文と、GitHub 上の #139 のコード（静的照合のみ）。原文は owner の手元の file。判定は「方針は支持。凍結の前に P1 の 3 件を閉じる」。
+- **事前チェック**（2026-10-19）: Phase A の進行役 session が、Phase C / C' で指摘されそうな点を本文とコードで見直したもの（11 項目。R3 との重なりは下に併記）。
+- R3 と事前チェックの採否（主担当が決めた）:
+  | 指摘 | 採否 | 反映先・理由 |
+  |---|---|---|
+  | R3 P1-1・事前 3（disable は実行中の instance を止めない） | 採用（小さく） | U3 の (2)(3)、smoke 項目 6 に `Running` でないこと。(D) は照会しない（owner の手順の gate）。旧 job の action が旧 root を指す事実と、unregister が install より先の理由を併記。 |
+  | R3 P1-2・事前 1（当初から無い `Harness` で `role-missing` か tombstone の欠け） | 採用 | §4 の状態表（旧・新の組）で置き換え、`role-missing` と「移す前の記録」を廃止。当初から無い role にも tombstone を置き `initiallyAbsent` と出す。I2、S2、AC-1b。 |
+  | R3 P1-3・事前 2（smoke 3・4 が読戻しを証明しない） | 採用 | S3 と §5 の手順 3: 項目 3 は (A) で start 済みの task を exit 0 で返す、項目 4 は新 root で fixture の `init` → `current`。U7 に (A) の start を置いた（Phase C の Evidence の stage にも要る）。 |
+  | R3 P2-1（rename の後・tombstone の前の resume） | 採用 | 状態表の「旧 不在・新 directory」行、AC-2。 |
+  | R3 P2-2・事前 7（#139 の merge 方式と PR の差分） | 採用（簡単な形） | O5 の 6: repo の慣行どおり merge commit なら rebase も cherry-pick も要らない。squash の場合だけ載せ直して `git diff` で同一性を記録。SHA B は軽量 tag で保つ。 |
+  | R3 P2-3・事前 11（A0 の scope 表示と A3 の食い違い） | 採用 | 冒頭に「有効な scope」の 1 行。 |
+  | R3 P3（正常出力の絶対 path、`evidence stage` の引数、新しい host の制限、S4 の扱い） | 採用 | I5 に正常出力の扱い、§5 の手順 4 に `--selection` と事前の所在確認、S4 に reference 喪失時は owner に返す。新しい host の制限は既に後続の入力。 |
+  | 事前 4（seam を子 process の script 変数で設定できない） | 採用 | §3 を module 本体 + 薄い入口に。tests は module scope で seam を設定（既存 suite の方式）。 |
+  | 事前 5（.NET 例外の message に絶対 path） | 採用 | I5、AC-6。 |
+  | 事前 6（件数で reparse をたどらない） | 採用 | §4 の件数と合計 size。 |
+  | 事前 8（後始末の commit がレビューの後にあり、merge する head が未レビュー） | 採用 | O5 の 4・5: 後始末の commit を載せた head で PR レビューをもう 1 回確かめる。 |
+  | 事前 9（tombstone と LocalCache の directory が重なる view の見え方は未観測） | 採用 | S3 の項目 7 は `legacy-store-present` 以外でも欠陥にしない。§2「O4 の決定と program §6 の改め方」の後続の入力に追加。 |
+  | 事前 10（印の後の再実行が `store-root-precondition`） | 採用 | `already-migrated` で `passed`（§4、AC-8）。 |
+- **R4**（A2 の追加。2026-10-19）: owner が取得した外部レビュー（GPT 系の Web サービス、OpenAI。GPT 系の 3 件目。R3 と同じ担当の再レビュー）。入力: R3 と事前チェックを反映した未 commit の統合版と、#139 のコード（静的照合のみ）。原文は owner の手元の file。判定は「R3 の P1 3 件は解消。凍結の前に新しい P1 2 件を閉じる」。
+- R4 の採否（主担当が決めた）:
+  | 指摘 | 採否 | 反映先・理由 |
+  |---|---|---|
+  | P1-A（旧 task が未登録の場合が未分類、TaskPath の表記） | 採用 | U3 の (a)〜(c)、S3 の項目 6 の合格条件、§5 の手順 1 と項目 2。表記は `'\OneStarMaker\'` と task 名まで。 |
+  | P1-B（`harness.ps1 init` が承認済み snapshot の sha256 の厳密一致を要求する） | 採用（smoke の方法を変える） | 承認済み snapshot は Git から得られない見込み（上の O10 の理由）。smoke 項目 4 を `harness.ps1 status` の `taskはありません` に、実行の前に置き換えた（O10）。allow-list は広げない。 |
+  | P2-A（印ありの再実行と入口の分岐の不一致） | 採用 | §4「入口の分岐」、§3、AC-8 に破損した印の case。 |
+  | P2-B（tombstone を任意の通常 file と区別しない） | 採用 | 状態表で size 0 だけを tombstone とし、それ以外は `role-unknown`。「旧 不在・新 directory」の読みが割り切りであることを明記。AC-9。 |
+  | P3（U3 の path の改行、start の exit 2、tag の追跡性） | 採用 | U3 の path と TaskPath の表記を直した（前回の置換で崩れていた）。U7・§5 の手順 0 に (A) の `status` での確認。O5 の 4 に PR と local の Evidence の参照関係。 |
+- **R5**（A2 の追加。2026-10-19）: owner が取得した外部レビュー（GPT 系の Web サービス、OpenAI。GPT 系の 4 件目。R3・R4 と同じ担当の 3 回目）。入力: R4 を反映した未 commit の統合版と、#139 のコード（静的照合のみ）。判定は「A3 凍結に進める水準。小修正を凍結版に入れることを推奨」。owner のコメントの要旨:「だいたいいい」。
+- R5 の採否（主担当が決めた）:
+  | 指摘 | 採否 | 反映先・理由 |
+  |---|---|---|
+  | P1（O10 を元の smoke 項目 4 と同等の成立と書かない） | 採用 | S3 と判定定義を「1・2・3・5・6 は元の条件、4 は空状態の確認、`current` の読み戻しは未検証」に。O10 を縮退として owner の承認待ちの欄に。未実証を移設スライスの Phase D と LocalCache の後続へ。 |
+  | P2（AC-9 が suite と単体テストの列挙に無い） | 採用 | §3 の suite の責務欄と §5 の単体テストに `ac-9`。判定必須の範囲に含まれることを明記。 |
+  | P3（手順 4 の `harness.ps1 current` の注記が古い） | 採用 | 手順 4 と I5 の理由を「(C) の正常出力には絶対 path が出うる」一般の規則に。 |
+- A3 統合担当・モデル・採否: Phase A 主担当 session（Claude Opus 5.5、Anthropic）。2026-10-19。owner の指示（主担当の判断で A3 まで進め、凍結はしない）により採否を主担当が決め、その後 owner が O4〜O9 を決め、R3・事前チェック・R4・R5 の採否も主担当が決めて本文へ反映した。**未凍結**。凍結（`A3 freeze` の commit）は owner の凍結指示の後に行う。統合版は未 commit の作業ツリーにある（A2 入力版 `0dd3bd6e` からの差分）。
+- 独立性の強化条件を満たせない場合の理由: R1 は A1 と同じ系列（別 session・初稿のみ入力）。R2 は別ベンダーで初稿を見ていない。Phase A では Claude 系と GPT 系だけを使い、C' のためにそれ以外の系列を残した。
 
 ## 6. Phase B 実装結果
 

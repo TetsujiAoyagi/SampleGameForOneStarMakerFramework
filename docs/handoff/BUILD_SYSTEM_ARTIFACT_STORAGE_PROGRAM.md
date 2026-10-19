@@ -105,7 +105,7 @@ r6の方針改訂だけではリセットを開始しない。スライスAの�
 
 判定は関連Artifacts/Harness offline suiteと限定R2検証。Unityを変更しないため全EditMode回帰は適用外。スライスAのschema/API、file配置、清掃間隔、7日の初期値、リセット対象/操作はA3 r6に固定済みで、Git外CURRENTから取得する。実装時に必要な終了イベント接続だけを扱い、Harness全体の改造へ膨らませない。
 
-**注記（合流前、2026-10-17の `store plan`）:** スライスAのCURRENT（`artifact-evidence-lifecycle`）は仮想化されたhost（Codex）が書いた側にだけあり、実ストアには無いので、非仮想化processの `harness.ps1 current -Task artifact-evidence-lifecycle` では読めない。`store plan` ではこのtaskを含む単位は `hold`（理由 `dependency-held`、`multi-workflow-unit`、`reference-localcache`、`reference-missing`、`reference-out-of-role`）で未合流（§6の「分裂したストアの合流」）。
+**注記（合流前、2026-10-17の `store plan`）:** スライスAのCURRENT（`artifact-evidence-lifecycle`）は仮想化されたhost（Codex）が書いた側にだけあり、実ストアには無いので、非仮想化processの `harness.ps1 current -Task artifact-evidence-lifecycle` では読めない。`store plan` ではこのtaskを含む単位は `hold`（理由 `dependency-held`、`multi-workflow-unit`、`reference-localcache`、`reference-missing`、`reference-out-of-role`）で未合流（§6の「LocalCache側copyの扱い」）。
 
 **停止規則:** 上記の通常利用・期限清掃と一回の切替が成立したら閉じる。Build、Cloud、GUI、常駐broker、別provider、長期保護・互換維持を追加条件にしない。
 
@@ -153,7 +153,7 @@ Cloud・別PCがR2から取得する経路とtokenの受け渡しは未着手で
 
 PR #126 で、3つのCLI（artifacts / workflow-task / harness）がstoreに触れる前にAppData書込みの仮想化を判定して拒否するようになり、すでに分かれた記録を安全に合流する `store plan` / `store consolidate` が入った。判定の方式と実行条件は `tools/Artifacts/README.md` の「実行するprocessの条件（AppData仮想化）」と「分裂したストアの合流」を正とする。実環境で分かったこと: 仮想化されたprocessの新規fileの書込み先はpathごとに違い、実体側にだけあるdirectoryの中では実体側へ書かれる。そのため固定名のprobe領域は誤判定の原因になり、呼出しごとの一意名の新規directoryで判定する。実環境の確認（Codex内のAC4とClaude内のAC5）は、事前実行との間隔を詰め、一つの時刻付きログに前後の一覧を残さないと証拠として成立しない。
 
-実データへの読取のみの `store plan` は2026-10-17に1回行った（結果は§6の「分裂したストアの合流」）。`store consolidate` は実行していない。
+実データへの読取のみの `store plan` は2026-10-17に1回行った（結果は§6の「LocalCache側copyの扱い」）。`store consolidate` は実行していない。
 
 ## 5. 責務・残す安全性・採否
 
@@ -188,14 +188,13 @@ ownerは2026-10-17に、Artifact Storageの開発はここで完了と決めた�
 
 ### 取得経路と配布
 
-- **Cloud・別PCからの取得** — Cloud Agent・別PCがR2からEvidenceを閲覧する経路（Evidenceは公開しない。2026-10-11 owner）と、Build・Contentの取得。論点はtokenの受け渡しで、第一候補は受け取る側の環境に読み取り専用・bucket限定のtoken（R2 Object Read only）を登録する方式。署名付きURLは発行主体（誰が親鍵を持って発行するか）とURLを届ける経路が未解決。必要な環境ごとに到達性、限定grant、無人保存/取得、ログ/画像閲覧を確認し、未成立は当該環境の未対応として残してローカル利用を止めない。親鍵を通常file/promptへ複写しない。入力: 別PC・Cloudと共有する利用中保護（R2上の保護記録）、Evidenceが参照するBuildの保護、Cloudに削除権を渡さないこと、`ready` のローカルcopyからのnetwork無しfetch、R2 lifecycleの採用、別PCのpublishを数えることとR2一覧の要否。再開: RC3。判断: owner。
+- **Cloud・別PCからの取得** — Cloud Agent・別PCがR2からEvidenceを閲覧する経路（Evidenceは公開しない。2026-10-11 owner）と、Build・Contentの取得。論点はtokenの受け渡しで、第一候補は受け取る側の環境に読み取り専用・bucket限定のtoken（R2 Object Read only）を登録する方式。署名付きURLは発行主体（誰が親鍵を持って発行するか）とURLを届ける経路が未解決。必要な環境ごとに到達性、限定grant、無人保存/取得、ログ/画像閲覧を確認し、未成立は当該環境の未対応として残してローカル利用を止めない。親鍵を通常file/promptへ複写しない。入力: 別PC・Cloudと共有する利用中保護（R2上の保護記録）、Evidenceが参照するBuildの保護、Cloudに削除権を渡さないこと、`ready` のローカルcopyからのnetwork無しfetch、R2 lifecycleの採用、別PCのpublishを数えることとR2一覧の要否、旧rootの無い新しいhostで移行済みの印を発行する手段（`ARTIFACT_STORE_ROOT_MIGRATION.md` の移行プログラムはmerge前に削除するため、別PCでstoreを使うには印の発行手段が要る）。再開: RC3。判断: owner。
 - **Virtualized Host Route（2026-10-18 に再開、問いを置換）** — 旧い問いは「仮想化されたhost（Codex等）からStorageを使う新しい実行経路・保存先」で、資格情報の保存先・ACL・DPAPIの前提を変えうるものだった。ownerはCodexデスクトップをPhase担当として割り当てる決定を再開理由とし、問いを「store rootをAppData書込み仮想化の対象外へ移す」に置き換えて `ARTIFACT_STORE_ROOT_RELOCATION.md` を切った。資格情報・ACL・DPAPIの前提は変えない。旧い入力のうち、`LocalCache\Local` が無い初回状態での判定とLocalAppData自体がjunctionのhostでの誤判定は、rootをLocalAppDataの外へ出すことで対象外になる見込みで、残るならそのスライスのA1が後続へ送る。Codex内の仮想化の仕組みの解析は行わない。
-- **store root 移設の実行と合流（2026-10-19 に Phase A を開始）** — `ARTIFACT_STORE_ROOT_RELOCATION.md` のGO候補head（`34cf6607`）を前提に、そのmergeの前に行う一回の運用スライス `ARTIFACT_STORE_ROOT_MIGRATION.md`。実ストアの新rootへの移行（同一volumeのmoveでACLを保つか、別driveへの複写でACLを再設定するか）、移行済みの印の書込み、LocalCache側copyの新rootへの合流（下の「分裂したストアの合流」のmanifest承認を含む）、Task Schedulerの清掃jobの再登録。入口条件: 当該スライスのO1の決定（GO候補headで判定C・C′を完了し、mergeの直前。2026-10-19に成立）。当初の「当該スライスのmerge」はO1で置き換えた。判断: owner（manifestの承認を含む）。
+- **store root 移設の実行（2026-10-19 に Phase A を凍結）** — `ARTIFACT_STORE_ROOT_RELOCATION.md` のGO候補head（`34cf6607`）を前提に、そのmergeの前に行う一回の運用スライス `ARTIFACT_STORE_ROOT_MIGRATION.md`。実ストアの所有role（`Artifacts`、`Workflow`、`Harness`）の同一volumeのrenameによる新rootへの移設、旧rootのtombstone、移行済みの印の発行、Task Schedulerの清掃jobの再登録、smoke。LocalCache側copyの合流は含めない（owner決定、2026-10-19。下の「LocalCache側copyの扱い」）。入口条件: 当該スライスのO1の決定（GO候補headで判定C・C′を完了し、mergeの直前。2026-10-19に成立）。判断: owner。
 
 ### 分裂したストア
 
-- **分裂したストアの合流（Split Store Recovery）** — `store consolidate` の実行と保留単位の解消、Harness CURRENTの合流方式。2026-10-17の読取のみの `store plan`（1回、`status: passed`）の分類は、単位20（`publish` 4・`skip` 0・`hold` 16）、`excluded` 90（`unreferenced-transfer` 77、`not-owned` 8、`out-of-scope-role` 2、`credentials` 1、`revision-locks` 1、`unrecognized` 1）。Harnessの4 taskは、`h2c-unity-gate-r2` が `publish`（理由なし・未合流）、`h1-transport-identity` と `h2c-unity-gate` が `hold`（`reference-missing`）、`artifact-evidence-lifecycle` が `hold`（`dependency-held`、`multi-workflow-unit`、`reference-localcache`、`reference-missing`、`reference-out-of-role`）。deployment単位1件が `conflict` で保留され、Evidenceを持つtask単位の多くはそれへの `dependency-held` で保留される。`passed` は manifest を書けたことだけを示し、CURRENTが読めることや合流できることを示さない。保留した単位の扱い（公開途中の不可視性を保つ方式）は、必要なら別の設計スライスに分ける。実ストアの鍵で認証に失敗した場合は資格情報の複写・置換で直さずownerへ返す。入力: `store plan`／`consolidate` の名前表に `retirements-v1` が無く `unrecognized` に載る（挙動は安全側。次に名前表を触るときに登録する）、`invalid-evidence-path` 等の仮想化以外のpath不一致の診断を `unconfirmed` から分けるか。再開: RC1（エンジン側スライスが合流前の記録を読めずに止まった）またはRC2。判断: owner（manifestの承認を含む。承認までは `consolidate` を dry-run も含めて実行しない）。2026-10-18 の補足: store root の移設が進む間は合流先を新 root にする見込みで、旧 root へ合流してから移す二度手間を避けるため、合流の実行は上の「store root 移設の実行と合流」に寄せる。この項目の再開条件と承認手順は変えない。
-- **Codex側残置の後始末** — 合流済みの記録のCodex側copyの扱い（保持・削除・期限）。Storageの30日清掃はCodex側に届かない。定期清掃jobのbindingと、Codex側だけにある記録の清掃が行われていないことの再確認。再開: RC2（Codex側の残置が原因の障害が2回以上）。判断: owner。
+- **LocalCache側copyの扱い（合流の価値の判断と削除）** — owner決定（2026-10-19）で旧2項目「分裂したストアの合流」と「Codex側残置の後始末」をまとめた。問い: LocalCache側copy（packaged appが旧rootの `Artifacts` / `Workflow` / `Harness` として書いた記録）を新rootへ合流させる価値があるか。価値が無ければ合流せずにcopyを削除して終える。価値があると判断した単位だけを、`store plan` の再実行 → ownerのmanifest承認 → `consolidate`（承認までdry-runも含めて実行しない）→ 合流後の確認（H1適用taskのCURRENT・receiptのpath bytesと新rootの両立を含む）へ進める。価値の判断の入力: 2026-10-17の読取のみの `store plan`（単位20、`publish` 4・`skip` 0・`hold` 16、deployment単位1件の `conflict` とそれへの `dependency-held`）。Harnessの4 task（`h2c-unity-gate`、`h2c-unity-gate-r2`、`h1-transport-identity`、`artifact-evidence-lifecycle`）のCURRENTがcopy側にだけあり、非仮想化processから読めない。`ARTIFACT_STORE_ROOT_MIGRATION.md` は新rootでのHarness CURRENTの読み戻しを実証していない（smokeは空状態の確認に縮退）。tombstoneを置いた後のpackaged appの仮想化されたviewで、実体側の通常fileとLocalCache側のdirectoryが同じ名前で重なったときの見え方（未観測）。合流に進む場合だけの入力: 保留単位の解消方式（公開途中の不可視性。必要なら設計スライスに分ける）、名前表の `retirements-v1`、仮想化以外のpath不一致の診断、`StoreConsolidation.psm1` のreasonCodeの畳み込み、実ストアの鍵で認証に失敗した場合は資格情報の複写・置換で直さずownerへ返すこと。削除の扱い: copyの削除は不可逆なので、対象（packageとcopy内のrole、旧rootに残るtombstone）・除外・開始条件をそのスライスのA3で固定し、ownerの承認で1回行う（通常操作の事前承認に含めない）。削除の後にpackaged appをPhase担当にできる（`legacy-store-present` が解ける）。Storageの30日清掃がcopyに届かないことは削除で解消する。入口条件: `ARTIFACT_STORE_ROOT_MIGRATION.md` のGO（印あり・旧rootに所有roleなし・smoke合格）。旧RC1・RC2の再開条件はowner決定で置き換えた。判断: owner（価値の判断、manifestの承認、削除の承認）。
 
 ### Content
 
