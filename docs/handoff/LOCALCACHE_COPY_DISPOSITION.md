@@ -7,7 +7,7 @@ packaged app（Codex）が旧 root の `Artifacts` / `Workflow` / `Harness` と�
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `A`（A0 完了。A1 初稿は未着手）
+- status: `A`（A1 初稿。A2 は未着手。owner の決定 O1〜O8 は A3）
 - branch: `claude/localcache-copy-disposition`（`develop` = `cbcdb22c` から切った。PR base は `develop`）
 - implementation base commit: `cbcdb22cb7e47671ebd01927d1ac92fa7b9425c8`（PR #140 の merge 後の `develop`）
 - implementation head commit: 未到達
@@ -21,9 +21,9 @@ packaged app（Codex）が旧 root の `Artifacts` / `Workflow` / `Harness` と�
 - evidence bundle の取得案内・状態: 未到達
 - C' blind bundle の取得案内・状態: 未到達
 - 引継ぎ票:
-  - 次の Phase・役割: Phase A の A1（初稿）。
-  - 次の作業: 下の「Phase A の着手手順」の 1〜4。§2 の A0 の小節は書き換えず、A1 初稿は「A1:」で始まる小節に書く。
-  - 引き継ぐ commit SHA: この文書を追加した commit（branch の先頭）。作業ツリーが dirty なら引き継がない。
+  - 次の Phase・役割: Phase A の A2（独立レビュー）。
+  - 次の作業: A2 入力版を commit し、§5 の A2 の 3 件を、同じ入力版・互いの指摘を見せずに依頼する。結果を §5 に採用・不採用・保留で記録し、A3 で owner が O1〜O8 を決める。
+  - 引き継ぐ commit SHA: A2 入力版の commit（未作成。A1 初稿は作業ツリーにある）。作業ツリーが dirty なら引き継がない。
   - 必要な権限: なし（A1 は文書だけ）。A1 で copy の追加観測が要る場合は、読取りだけを非仮想化の pwsh で行い、file の内容を開かない（§2「本文へ転記した実装制約」）。
   - 停止規則: A1 では copy・実ストア・旧 root・R2 を変更しない。`store plan` も実行しない（出力 manifest と probe directory を作るため。実行の要否は A1 が決め、A3 で固定する）。
   - 引き渡さないもの: copy・旧 root・新 root の実 path、package 名を含む path、資格情報。
@@ -147,17 +147,191 @@ copy の各部分（Harness の 4 task の CURRENT、Workflow の task、Evidenc
 - 出力・tracked 文書・PR に実 path・package 名を含む path・SID・reference と packageSha256 の実値を書かない。
 - PR の base は `develop`。
 
+### A1: 用語と推奨の前提
+
+- 用語: **copy** = packaged app（Codex）の package の `LocalCache\Local\OneStarMaker` directory とその中身全体。**copy root** = その directory。**最上位 entry** = copy root の直下の entry（A0 の表の 8 つ）。**新 root** = UserProfile 直下の `OneStarMaker`。**旧 root** = LocalApplicationData 直下の `OneStarMaker`（tombstone 3 つと `RevisionLocks`）。**(P)** = 本スライスで作る一回限りの program（§3）。**inventory** = (P) が copy を読取りだけで数えた記録。**承認 manifest** = owner が sha256 を指定して承認した inventory。
+- A1 の推奨は「**合流しない。copy root を丸ごと、owner が承認した最上位 entry だけ削除する。R2 の object は消さず、copy が追跡していた key の一覧を残して後続へ送る**」。理由は O1〜O3 に書く。価値の判断は owner のもので、A3 で O1〜O8 として決める。推奨と違う決定になった場合の扱いも各項目に書く。
+
+### A1: このスライスが答える問い（確定案）
+
+owner が O1 で「合流しない」と決めた前提で、(P) を SHA B に固定し、copy の inventory → owner の承認 → 承認した最上位 entry の削除を一回行ったとき、承認外のもの（新 root、旧 root、copy の除外 entry、他の package）と R2 を変えずに、copy の所有 role 3 つの directory が LocalCache から無くなった状態（packaged app 内の resolver が copy を理由に `legacy-store-present` を返す条件が消えた状態）に到達できるか。
+
+O1 で合流する単位を owner が選んだ場合は、この問いを使わない。合流は別スライス（「LocalCache側copyの合流」）に分け、本スライスはその完了まで削除を行わない（U1 の回答）。
+
+### A1: 進める最低条件
+
+- 不変条件（起きてはいけないこと）:
+  - **I1 承認外を変えない:** (P) の実行の前後で、新 root（印の bytes、直下の entry の名前と種別）、旧 root（tombstone 3 つの size 0 の通常 file と `RevisionLocks` の存在）、copy root の兄弟（package の `LocalCache\Local` の他の entry）、承認 manifest で除外した最上位 entry の中身（名前・種別・size・更新時刻）が変わらない。
+  - **I2 承認の前に消さない:** 承認 manifest の sha256 と一致する manifest を受け取らない限り、(P) は file を 1 つも消さない。inventory は読取りだけで、copy・新 root・旧 root に何も作らない（出力は copy の外の、明示した出力 path にだけ書く）。
+  - **I3 変わった copy を消さない:** 初回の削除の前に、承認した最上位 entry の配下の実際の entry（相対 path、種別、size、更新時刻）が承認 manifest と 1 件でも違えば、何も消さずに `copy-changed` で止まる。再実行では、残っている entry が承認 manifest の部分集合で属性が一致する場合だけ続ける。reparse point を見つけたら、たどらず、消さずに `reparse-present` で止まる。
+  - **I4 仮想化された process で動かない:** `Get-OsmStoreContext` が `not-virtualized` でなければ、inventory も削除も始めない（packaged app の view では copy と実体が重なるため）。
+  - **I5 資格情報の複写と他の内容を開かない:** (P) が内容を開くのは、§4 の「R2 key を読む record」に列挙した JSON file だけ。copy の `Artifacts\credentials` の配下は名前・種別・size・更新時刻だけを見て、開かない。
+  - **I6 秘密と実 path を出さない:** stdout は固定 code と件数だけ。inventory と結果の file は copy root からの相対 path だけを持ち、copy root 自体は正規化した path の sha256（`sourceRootSha256`）で表す。package 名、SID、endpoint、資格情報を書かない。
+  - **I7 R2 と資格情報に触れない:** (P) は network・R2・資格情報 store を使わない。
+- 成立条件（起きなければならないこと）:
+  - **S1 inventory:** 実 copy に対して (P) の inventory が `passed` を返し、最上位 entry ごとの file 数・合計 size・reparse point の有無、R2 key の一覧（record の種類、key、bytes、bucket 名）と読めなかった record の件数、Workflow の task ごとの終了記録の有無を出す。
+  - **S2 owner の承認:** owner が inventory の要約を見て、削除する最上位 entry と承認 manifest の sha256 を 1 回の指示で明示する（O7）。
+  - **S3 削除:** 承認 manifest で (P) の削除が `passed` を返し、承認した最上位 entry が、(P) と独立した非仮想化 pwsh の列挙で存在しない。削除した file 数と合計 size が承認 manifest の値と一致する。承認した最上位 entry が全てなら copy root も無い。
+  - **S4 承認外の不変の観測:** I1 の対象を、削除の直前と直後に (P) と独立した非仮想化 pwsh の列挙で記録し、一致する。
+  - **S5 R2 key の一覧の固定:** S1 の R2 key の一覧を含む inventory を本スライスの task で `evidence stage` し、別 process の `fetch` で読める。program §6「Contentの容量上限と孤児回収」への入力（件数、合計 bytes、取得案内の所在。key の実値は tracked 文書に書かない）は Phase D の harvest で書く。
+
+### A1: 受け入れ条件
+
+offline（temp base に Packages の形を作った fixture。§5）:
+
+- **AC-1（S1・I2・I5）:** fixture の copy で inventory が `passed`。最上位 entry ごとの file 数と size が fixture の期待値と一致し、Evidence と Build の receipt から key と bytes が出る。copy・新 root・旧 root の列挙が実行前後で一致する。`credentials` の配下の file に読取り拒否の ACL を付けても inventory は `passed`（開いていないことの確認）。
+- **AC-2（I2、失敗経路）:** sha256 が一致しない manifest、改変した manifest、schema の違う manifest では、削除が `manifest-hash-mismatch` / `manifest-invalid` で止まり、fixture の file 数が変わらない。
+- **AC-3（I3、失敗経路）:** inventory の後に、承認した entry の配下へ file を 1 つ足す / 1 つ消す / size を変える / 更新時刻を変える。どれも初回の削除が `copy-changed` で止まり、1 つも消さない。
+- **AC-4（I3、失敗経路）:** 承認した entry の配下に junction を置く。inventory は `reparse-present` を出し、削除は止まり、junction の先の file が残る。
+- **AC-5（I1）:** 最上位 entry のうち 1 つを除外した manifest で削除すると、除外した entry、copy root の兄弟、新 root、旧 root の tombstone が前後で一致する。
+- **AC-6（S3、再実行）:** 削除の途中（N 件目）で失敗を注入すると `partial` で止まり、同じ manifest の再実行で `passed` に収束する。2 回目以降の再実行は消すものが無く `passed`（件数 0）。使用中の file（排他で開いた handle）の削除失敗は `in-use` で止まり、handle を閉じた後の再実行で収束する。
+- **AC-7（I4）:** context の seam を `virtualized` / `unknown` にすると、inventory と削除が `virtualized-store` / `store-context-unknown` で止まり、何も読まず消さない。
+- **AC-8（I6）:** 全 case の stdout・stderr・出力 file に、fixture の copy root の絶対 path、fixture の package 名、SID が現れない。
+- **AC-9（S1、読めない record）:** 壊れた JSON の receipt、key の無い receipt は R2 key として推測せず、`unparsedRecords` の件数に入る。
+- **AC-10（I7）:** (P) の module が R2 transport・資格情報の module を import しないことを静的に確かめる（script の検査）。
+
+実操作（高コスト証拠。§5）:
+
+- **AC-11（S1〜S5）:** 実 copy で §4 の手順 H1〜H7 を一回行い、期待値（§5「高コスト証拠」）と照合して一致する。
+
+### A1: ここでは答えない問いと所有する後続
+
+- copy の合流（O1 で合流する単位を選んだ場合）: 新しい slice「LocalCache側copyの合流」（program §6 の本項目から分ける）。本スライスはその完了まで削除しない。
+- R2 上の孤児 object の回収（S5 で引き渡す key の一覧を含む）: program §6「Contentの容量上限と孤児回収」。
+- 旧 root の tombstone と親 directory の後始末、旧 root 別名の廃止: program §6「分裂したストア」の既存の入力（O4 で tombstone を残すため）。
+- packaged app 内の process での実際の結果（印の読取り、サンドボックスの条件を含む）: O5 で owner が Codex の session を割り当てた場合だけ本スライスで観測として記録する。割り当てない場合は、Codex を次に Phase 担当にするときの最初の作業で確かめる（各自の運用メモ）。
+- 移設スライスの C / C' が残した入力（reasonCode の allow-list 等）: program §4 F の「後続の入力」のまま。
+
+### A1: 判定定義と停止規則
+
+- GO: I1〜I7 に違反が無く、S1〜S5 が成立する（S4 は AC-11 の期待値と一致）。
+- NO-GO: 上記のどれかが不成立。削除の途中で止まった（`partial`）まま再実行で収束しない場合も NO-GO で、owner に返す。
+- 停止規則: 上記の GO で終了する。最低条件が未達のまま終了しない。スパイクではないので CONDITIONAL ACCEPT は使わない。H1〜H7 で想定外の結果（`copy-changed`、`reparse-present`、`in-use` の継続、S4 の不一致）が出たら、原因の調査や再実行で埋めず、観測を残して owner に返す。
+
+### A1: owner に決めてもらう事項（A3 で O1〜O8 として凍結する）
+
+- **O1 価値の判断（推奨: 全て合流しない）:** 理由: (a) 開発用の記録で、program §2 の方針は原記録の長期保存を求めない。Harness の 4 task の検証要約は PR（H2c は PR #93、スライス A は PR #109）と公開文書に残っている。(b) 4 task のうち 2026-10-17 に `publish` だったのは `h2c-unity-gate-r2` だけで、残りは `hold`。新 root での `harness.ps1 current` の読み戻しも未実証で、合流は再 plan・承認・実行・確認の一連と、移設スライスが残した入力の解消を要する（V8）。(c) Workflow の task は Codex の作業の記録で、終わった作業は PR に残り、続ける作業（例 `debugstudio-property-write`）は新しい task で再開できる。合流しない場合の代償: 公開文書の「固定記録の入口」（V1）が読めなくなるので、Phase D の harvest で PR の記録へ書き換える（O6）。copy の Evidence の終了イベントと 30 日清掃も無くなる（R2 の object は O3）。合流する単位を選ぶ場合: 上の「ここでは答えない問い」のとおり別スライスに分ける。
+- **O2 削除の範囲（推奨: copy root を丸ごと。最上位 entry ごとに承認）:** 所有 role 3 つだけでも `legacy-store-present` の条件は消えるが、非所有の `WorktreeRecords`・`H2a Review`・`H2b Review`・`RevisionLocks`・`.virtualization-probe-*` も、仮想化のために copy 側にだけできた directory で、実ストアに対になる記録は無く、tools は読まない（`store plan` は名前を列挙するだけ）。owner は inventory を見て、最上位 entry ごとに除外できる（I1・AC-5）。
+- **O3 copy が追跡する R2 object（推奨: 消さない。key の一覧を残す）:** copy の receipt が追跡する R2 object は、copy を消すとどの清掃にも消されない。消すには copy の receipt を読んで DELETE する新しい経路が要り（`evidence reset` は既知の key に固定された実装で使えない）、本スライスの規模と risk を上げる。開発用の private bucket の容量は孤児回収の後続が扱う。key の一覧（S5）があれば後続で回収できる。owner が「消す」を選ぶ場合は、DELETE の経路を後続スライスで作るまで削除を待つか、一覧だけ残して先に削除するかを決める。
+- **O4 tombstone（推奨: 残す）:** README の「消さないでください」を正とし、program §6 の本項目の「旧rootに残るtombstone」を削除の対象から外す。理由: tombstone は旧版の CLI が旧 root に role を作り直すのを防ぐもので、copy の削除と独立している。resolver は同名の通常 file を不在と扱うので、copy を消した後の packaged app の view でも `legacy-store-present` の条件にならない。Phase D で program §6 の記述を直す。
+- **O5 packaged app 内の観測（推奨: 任意）:** owner が Codex の session を割り当てた場合だけ、削除の後に Codex 内で `pwsh tools/workflow-task.ps1 status` を 1 回実行し、reasonCode を観測として記録する（`legacy-store-present` が出たら欠陥ではなく観測として owner に返す）。GO の条件にしない。理由: copy が原因の条件（LocalCache の所有 role の directory）は S3 の非仮想化の列挙で判定でき、Codex の実行条件（サンドボックス等）は本スライスの問いの外。
+- **O6 公開文書の書換え（推奨: Phase D の harvest で行う）:** 削除の後に、`docs/README.md`、`tools/Harness/README.md`、`tools/Artifacts/README.md`、program の「注記（合流前）」計 10 か所と、`harness.ps1 current -Task <4 task>` を「固定記録の入口」とする記述を、「copy は YYYY-MM-DD に合流せずに削除した。検証の要約は PR #… にある」に直す。`ApprovedSpecifications.psm1` の承認 entry とそれを使うテスト・分岐は残す（参照 0 を削除理由にしない契約。CURRENT が無いと `current` は既存どおり「CURRENTが見つかりません」で止まる）。H1 の手順例（`init` / `run` 等の例）は、別 task で始めるときの書き方として残すかを harvest で決める。
+- **O7 承認の取り方（推奨: inventory の後に 1 回）:** copy の削除は事前承認の通常操作に含めない（U10）。owner は H3 の要約（最上位 entry ごとの件数・size、R2 key の件数と合計 bytes、読めない record の件数、終了記録の無い task の名前）を見て、「manifest sha256 = <64 桁>、削除する最上位 entry = <名前の列>」を 1 回の指示で出す。これを削除の承認とし、H4〜H7 の実行に追加の承認を求めない。指示の原文は Evidence に入れる。
+- **O8 (P) の寿命（推奨: merge 前に削除）:** PR #140 の移行 program と同じく一回限りなので、Phase D で (P) と suite を削除し、merge する差分に残さない。経緯は PR と削除前の commit に残す。
+
+### A1: 未決事項 U1〜U10 への回答
+
+- **U1:** 価値の判断は A3 で owner が O1 として下す。凍結する問いは「削除」だけにし、合流を選んだ単位があれば別スライスに分けて、その完了まで本スライスの削除を待つ。
+- **U2:** A1 では copy の内容を開かない。価値の判断に要る追加の観測（R2 key、終了記録、全て `a` の repositoryId の中身）は、(P) の inventory（S1）として SHA B の版で一回だけ取る。`store plan` は再実行しない（合流しないので manifest は不要）。
+- **U3:** O2 のとおり、最上位 entry ごとに承認する。
+- **U4:** 実行担当は非仮想化の pwsh（Claude Code の PowerShell tool で `pwsh -NoProfile -File`）。静止は owner が H1 で行う: Codex のアプリを終了し、Codex 内の作業 session が無いことを確かめる。(P) は process を照会しない。削除中に Codex が copy に書けば、I3 の照合で `copy-changed` か `partial` になる。
+- **U5:** §4 の削除の順序と、AC-3・AC-4・AC-6 のとおり。長い path は `\\?\` 形式で扱う（`tools/path-budget.json` の予算は repo 相対 path のためで、copy の中の path には適用されない）。消した対象の記録は (P) の結果 file（相対 path・件数・size。copy の外の出力 path）で、本スライスの Evidence に入れる。
+- **U6:** O4 のとおり残す。
+- **U7:** O5 のとおり任意。AI が取得できない証拠を GO の条件にしない。
+- **U8:** O6 のとおり。`AGENTS.md` は H2c の固定記録の入口を `tools/Harness/README.md` に委ねるだけなので変えない見込み。harvest で文言を確かめる。
+- **U9:** H2〜H7 を高コスト証拠に分類する（§5）。inventory は読取りだけだが、実 copy に対する承認の入力なので削除と同じ版・同じラウンドで取る。
+- **U10:** O7 のとおり。program §6 の本項目の「ownerの承認で1回行う（通常操作の事前承認に含めない）」をそのまま使う。
+
 ## 3. 責務マップ
 
-A1 で書く。
+A1 初稿。全て新規で、O8 の推奨では Phase D で削除する一回限りの file。既存の file は変えない。
+
+| file | 責務（一文） | 変更理由 | 所有者・寿命 | 依存 | 公開面 | テスト境界 | 予想行数 |
+|---|---|---|---|---|---|---|---|
+| `tools/Workflow/LocalCacheCopyDisposal.psm1` | 1 つの copy root を検証し、読取りだけの inventory を作り、承認 manifest と一致する範囲だけを削除する | copy の処理の規則（何を開くか、何を消すか、いつ止まるか） | 本スライス。一回の実行まで（O8） | `WindowsStoreContext.psm1`（`Get-OsmStoreContext`）、`WindowsStoreRoot.psm1`（新 root・旧 root の導出を重なりの拒否にだけ使う）。R2 transport・資格情報の module は import しない（AC-10） | `Invoke-OsmLocalCacheCopyInventory`、`Invoke-OsmLocalCacheCopyDelete` の 2 関数。module scope の seam（LocalApplicationData の base、context、削除の失敗注入） | temp base の fixture で全経路を offline に検証（§5）。Unity 不要 | 約 280 |
+| `tools/Workflow/LocalCacheCopyDisposal.ps1` | 引数を検証して 2 関数のどちらかを呼び、固定 code と件数だけを stdout に出す入口 | 入口の引数 | 同上 | 上の module だけ | `inventory -SourceRoot <p> -Output <p>`、`delete -SourceRoot <p> -Manifest <p> -ManifestSha256 <64hex> -Output <p>` | suite から子 process で呼ぶ | 約 30 |
+| `tools/Workflow/tests/LocalCacheCopyDisposal.Tests.ps1` | AC-1〜AC-10 | 受け入れ条件 | 同上 | 上の 2 file、既存の test support の書き方（`-Case` / `-ResultPath`） | なし | — | 約 320 |
+
+- 配置の理由: store root の判定（`WindowsStoreRoot.psm1`）と context の判定（`WindowsStoreContext.psm1`）の隣で、PR #140 の移行 program と同じ置き方。`tools/Artifacts` に置かないのは、copy が Artifacts・Workflow・Harness の 3 role と非所有の directory にまたがり、Artifacts の application 層（publish・清掃）と寿命も変更理由も違うため。
+- 分割の判断: 行数警報は発火しない。inventory・manifest の検証・削除は同じ規則（相対 path の集合と属性の一致）を共有し、同じ寿命（一回の実行で削除）で、同じ suite で検証するので、1 module に置く（非分割）。
+- 新しい公開 API・状態・依存 edge: 上の 2 関数だけ。永続する状態は持たない（出力 file は copy の外の明示した path に書き、Evidence として stage する）。
 
 ## 4. 実装計画
 
-A1 で書く。
+### (P) の振る舞い
+
+- **copy root の検証（両 mode 共通）:** `-SourceRoot` は絶対 path で、`<LocalApplicationData の Known Folder>\Packages\<1 segment>\LocalCache\Local\OneStarMaker` の形に一致する（大文字小文字は区別しない）。copy root とその祖先（LocalApplicationData まで）に reparse point が無い。新 root・旧 root と重ならない。`Get-OsmStoreContext` が `not-virtualized`（I4）。満たさなければ `invalid-source-root` / `virtualized-store` / `store-context-unknown` で止まる。
+- **inventory:** copy root の下を、reparse point をたどらずに列挙する（reparse point は entry として記録し、その下を列挙しない）。各 entry の相対 path、種別（file / directory / reparse）、size、更新時刻（UTC、100ns 単位）を記録する。最上位 entry ごとに file 数・合計 size・reparse の有無をまとめる。内容を開くのは次の「R2 key を読む record」と「Workflow の終了記録」だけ（I5）。
+  - **R2 key を読む record:** `Artifacts\evidence-v2` と `Artifacts\builds-v1` の配下の `.json` で 1 MiB 以下のもの。top-level の object が文字列の `key` を持てば、record の種類（`evidence` / `build`）、`key`、`packageBytes`（無ければ `bytes`、どちらも無ければ null）、`bucket`（あれば）を一覧に入れる。同じ key は 1 件にまとめる。`key` が無い JSON は `nonKeyRecords`、JSON として読めないものは `unparsedRecords` に数える（AC-9）。`Artifacts` の他の directory（`review-evidence`、`evidence-ledgers` 等の旧形式、`credentials`、`runtime`、`transfers`）は開かない。
+  - **Workflow の終了記録:** `Workflow\<repositoryId>\tasks\<taskId>\state.json`（1 MiB 以下）の top-level の `status` だけを読み、task ごとに `ended` / `active` / `unknown` を出す。
+  - 出力: `-Output`（copy の外。既存なら上書きせず `invalid-output`）へ JSON（`schemaVersion` 1、`kind` `osm-localcache-copy-inventory`、`sourceRootSha256`、`createdAt`、`entries`、`topLevel`、`r2Keys`、`nonKeyRecords`、`unparsedRecords`、`workflowTasks`）を一時名で書いて rename する。stdout は `{"status":"passed","entries":N,"topLevel":M,"r2Keys":K}`。
+- **承認 manifest:** inventory の JSON に、owner の指示に従って `approvedTopLevel`（削除する最上位 entry の名前の配列）を加えた file。field の追加はこの 1 つだけで、他は inventory のまま。sha256 は file の bytes の SHA-256 で、owner の指示（O7）に書かれた値を `-ManifestSha256` に渡す。
+- **delete:** (1) copy root を検証する。(2) manifest の sha256・schema・`sourceRootSha256` を確かめる（AC-2）。(3) 承認した最上位 entry の配下を列挙し、manifest の entry と比べる。初回（承認した entry が manifest のとおり全て在る）は完全一致を、再実行（一部が無い）は「残りが manifest の部分集合で属性が一致」を要求する。reparse point があれば止まる（I3、AC-3・AC-4）。(4) 承認した最上位 entry ごとに、深い順に file を消してから directory を消す（読取り専用属性は外してから消す。`\\?\` 形式の path を使う）。除外した entry と copy root の外には触れない。(5) 承認した最上位 entry が全て無くなり、copy root が空なら copy root を消す。(6) 結果 file（相対 path ごとの `deleted` / `absent-before`、件数、合計 size）を `-Output` に書く。失敗は `partial`（exit 2）で、結果 file に途中までを書く。同じ manifest の再実行で収束する（AC-6）。
+- **reasonCode:** `invalid-source-root`、`virtualized-store`、`store-context-unknown`、`invalid-output`、`manifest-hash-mismatch`、`manifest-invalid`、`copy-changed`、`reparse-present`、`in-use`、`partial`、`disposal-failed`（それ以外の例外の畳み込み）。stdout に例外の message・path を出さない（I6）。
+
+### 順序
+
+1. Phase B: §3 の 3 file を実装し、§5 の suite を通す。実 copy に対して (P) を実行しない。
+2. Phase C（発見 C → 判定 C）→ 暫定 C'。判定 C の照合 script は判定 C の担当が書く（§5）。
+3. 高コスト証拠の取得（下の H1〜H7。暫定 C' の阻害指摘が無くなった head = SHA B で一回）。
+4. 最終証拠ラウンド（判定 C → 最終 C'）。
+5. Phase D: Evidence の保存・引渡しの確認、O6 の公開文書の書換え（harvest）、program §6 の更新（本項目の完了、O4 の tombstone の記述、孤児回収の項目への S5 の入力）、O8 の削除、本書の削除。
+
+### 高コスト証拠の手順（H1〜H7）
+
+| 手順 | 担当 | 内容 | 止まる条件 |
+|---|---|---|---|
+| H1 静止 | owner | Codex のアプリを終了し、Codex 内の作業 session が無いことを確かめ、「Codex を終了した」と伝える | 確かめられなければ H2 へ進まない |
+| H2 前の観測 | 高コスト証拠の実行担当（非仮想化 pwsh） | §5 の観測 script で I1 の対象を列挙し、`before-1.json` に書く | script が失敗すれば止まる |
+| H3 inventory | 同上 | SHA B の (P) で `inventory`。要約（最上位 entry ごとの件数・size、R2 key の件数と合計 bytes、`nonKeyRecords`・`unparsedRecords` の件数、`active` / `unknown` の task 名）を owner へ渡す | `passed` 以外なら止めて owner に返す |
+| H4 承認 | owner | O7 の形で manifest sha256 と削除する最上位 entry を指示する。実行担当は inventory に `approvedTopLevel` を加えた manifest を作り、sha256 が指示と一致することを確かめる | 不一致なら止まる |
+| H5 直前の観測 | 実行担当 | 観測 script で `before-2.json` を書く。`before-1.json` と一致することを確かめる | 不一致なら止めて owner に返す（H2 から後に何かが変わった） |
+| H6 削除 | 実行担当 | SHA B の (P) で `delete`（承認 manifest と sha256）。`partial` なら同じ引数で 1 回だけ再実行する | 再実行でも `passed` にならなければ止めて owner に返す |
+| H7 後の観測と保存 | 実行担当 | 観測 script で `after.json` を書く。H2〜H7 の生ログ、inventory、承認 manifest、owner の指示の原文、結果 file、3 つの観測 file を本スライスの task で `evidence stage` する（通常操作）。R2 key の一覧は inventory に含まれる（S5） | stage の失敗は既存の回復手順に従う |
+
+H1〜H7 の間は、store を使う CLI（3 CLI）を H7 の `evidence stage` 以外で使わない。
+
+### Phase B から Phase A へ差し戻す条件
+
+- §3 の 3 file 以外（既存の module、README）を変えないと成立しない。
+- I5 の「開く record」の範囲を広げないと S1 の出力を作れない。
+- module scope の seam では AC-6・AC-7 の失敗注入ができない。
+- reasonCode・manifest の field・入口の引数を変える必要が出た。
+
+### 対象外を維持する方法
+
+- (P) は R2 transport・資格情報の module を import しない（AC-10）。consumer の module は import するだけで変えない。`git diff --name-status cbcdb22c HEAD -- tools/ unity/` が §3 の 3 file だけであることを B の出口と判定 C で確かめる。
 
 ## 5. テストとレビュー計画
 
-A1 で書く。
+- 単体テスト: `tools/Workflow/tests/LocalCacheCopyDisposal.Tests.ps1`（AC-1〜AC-10）。temp base に `<base>\LocalAppData\Packages\<fixture package>\LocalCache\Local\OneStarMaker` の形の copy、兄弟 entry、新 root（印つき）、旧 root（tombstone）を作る。LocalApplicationData の base と context は module scope の seam で差し替える。`Task.Delay` / `Thread.Sleep` を使わない（使用中の file は排他 handle を開いたまま実行し、閉じてから再実行する）。
+- 差し戻し中の起点: `pwsh tools/Workflow/tests/LocalCacheCopyDisposal.Tests.ps1 -Case '*' -ResultPath <temp>`（C が根拠付きで変更可）。
+- 判定必須テスト（GO 候補 head）: 上の suite 全件、既存の `pwsh tools/Workflow/tests/StoreRoot.Tests.ps1 -Case '*' -ResultPath <temp>` と `StoreContext.Tests.ps1`（import する module の回帰）、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`。どれも executed 1 件以上・failed 0。
+- 全 EditMode 回帰の適用除外: 適用しない。理由: Unity 側（`unity/`）を変えない。代替証拠: `git diff --name-status` が `tools/Workflow` の 3 file と本書・program だけであること。
+- 統合・Unity テスト: なし。
+- 操作・実行時・目視条件の検証経路: H1〜H7（上表）。H1・H4 は owner、H2・H3・H5〜H7 は高コスト証拠の実行担当（非仮想化 pwsh。Claude Code の PowerShell tool で可）。観測は全て構造・値の検査で、画像は使わない。証拠は H7 の `evidence stage` で本スライスの task に固定し、取得案内で判定 C・C' に渡す。動作確認（Phase B の後）: 実 copy に触れる条件は全て高コスト証拠なので `対象なし`。
+- 観測 script（A1 で書き、A3 で凍結する。(P) と独立）: 引数 `-CopyRoot <copy root>`、`-Exclude <除外する最上位 entry の名前の配列>`、`-Output <path>`。出力は JSON で、(a) 新 root: 印の SHA-256、直下の entry の名前と種別。(b) 旧 root: 直下の entry の名前・種別・size。(c) copy root の兄弟: `LocalCache\Local` の直下の entry の名前と種別（copy root 自身を除く）。(d) copy root: 存在するか、直下の entry の名前と種別。(e) 除外した最上位 entry: reparse point をたどらない再帰列挙の相対 path・種別・size・更新時刻。絶対 path は書かない。
+
+  ```powershell
+  param([Parameter(Mandatory)][string]$CopyRoot,[string[]]$Exclude=@(),[Parameter(Mandatory)][string]$Output)
+  $ErrorActionPreference='Stop'
+  function Get-Kind([IO.FileSystemInfo]$i){if($i.Attributes.HasFlag([IO.FileAttributes]::ReparsePoint)){'reparse'}elseif($i -is [IO.DirectoryInfo]){'directory'}else{'file'}}
+  function Get-Top([string]$Path){if(-not [IO.Directory]::Exists($Path)){return $null};@([IO.DirectoryInfo]::new($Path).EnumerateFileSystemInfos()|Sort-Object Name|ForEach-Object{[ordered]@{name=$_.Name;kind=(Get-Kind $_);size=$(if($_ -is [IO.FileInfo]){$_.Length}else{$null})}})}
+  function Get-Tree([string]$Root){$out=[Collections.Generic.List[object]]::new();$stack=[Collections.Generic.Stack[string]]::new();$stack.Push($Root)
+    while($stack.Count){$d=$stack.Pop();foreach($i in [IO.DirectoryInfo]::new($d).EnumerateFileSystemInfos()){$k=Get-Kind $i;$out.Add([ordered]@{path=[IO.Path]::GetRelativePath($Root,$i.FullName);kind=$k;size=$(if($i -is [IO.FileInfo]){$i.Length}else{$null});mtime=$i.LastWriteTimeUtc.Ticks});if($k -eq 'directory'){$stack.Push($i.FullName)}}}
+    @($out|Sort-Object {$_.path})}
+  $userProfile=[Environment]::GetFolderPath('UserProfile');$local=[Environment]::GetFolderPath('LocalApplicationData')
+  $newRoot=[IO.Path]::Combine($userProfile,'OneStarMaker');$oldRoot=[IO.Path]::Combine($local,'OneStarMaker');$parent=[IO.Path]::GetDirectoryName($CopyRoot)
+  $marker=[IO.Path]::Combine($newRoot,'store-root.json')
+  $result=[ordered]@{schemaVersion=1;createdAt=[DateTimeOffset]::UtcNow.ToString('o')
+    newRoot=[ordered]@{markerSha256=$(if([IO.File]::Exists($marker)){(Get-FileHash -LiteralPath $marker -Algorithm SHA256).Hash.ToLowerInvariant()}else{$null});top=(Get-Top $newRoot)}
+    oldRoot=(Get-Top $oldRoot)
+    copySiblings=@((Get-Top $parent)|Where-Object{$_ -and $_.name -cne [IO.Path]::GetFileName($CopyRoot)}|ForEach-Object{[ordered]@{name=$_.name;kind=$_.kind}})
+    copyRoot=[ordered]@{exists=[IO.Directory]::Exists($CopyRoot);top=@((Get-Top $CopyRoot)|Where-Object{$_}|ForEach-Object{[ordered]@{name=$_.name;kind=$_.kind}})}
+    excluded=[ordered]@{}}
+  foreach($n in $Exclude){$p=[IO.Path]::Combine($CopyRoot,$n);$result.excluded[$n]=$(if([IO.Directory]::Exists($p)){Get-Tree $p}elseif([IO.File]::Exists($p)){'file'}else{'absent'})}
+  [IO.File]::WriteAllText($Output,($result|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
+  ```
+
+- 人間の判断が必要な条件: H1（Codex の静止）と H4（承認）。どちらも owner の明示の指示の原文を Evidence に入れて受理する（観察記録の受理。画像の独立再評価は要らない）。O5 の Codex 内の観測は任意で、行った場合は対象 head・日時・reasonCode を記録する。
+- 未知の操作経路の疎通: 2026-10-19 に A1 の担当が、上の観測 script を実 copy に対して読取りだけで 1 回試した（非仮想化 pwsh、`-Exclude Workflow`）。exit 0、約 0.7 秒。新 root の直下は `Artifacts`・`Workflow`・印、旧 root の直下は tombstone 3 つと `RevisionLocks`、copy root の兄弟 2 件、copy root の直下 8 件、`Workflow` の再帰列挙 61 entry。出力に絶対 path と package 名は無かった。`evidence stage` は既存の通常操作。(P) 自体は未実装なので、その実 copy での動作は高コスト証拠の H3・H6 で初めて確かめる。
+- 高コスト証拠: H2〜H7。実装から独立した期待値: (1) `after.json` の `copyRoot` は、承認した最上位 entry が全てなら `exists=false`、それ以外は `top` が除外した entry の名前と一致。(2) `before-1`・`before-2`・`after` の `newRoot`・`oldRoot`・`copySiblings` が 3 つとも一致。(3) `after.excluded` が `before-2.excluded` と一致。(4) (P) の結果 file の削除件数と合計 size が、承認 manifest の承認した最上位 entry の file 数・合計 size と一致。(5) `before-1` と `before-2` が全体で一致（`createdAt` を除く）。
+- 判定 C の照合 script の方式: 判定 C の offline 実行。判定 C の担当が、H7 で stage した原記録の複製に対して上の期待値 (1)〜(5) を照合する script を書いて実行する。照合は file の比較だけで、資格情報・通信を使わない。原記録へ適用する前に、判定 C の担当が作る合成 fixture（一致する例と、(2) の旧 root の tombstone が消えた例、(4) の件数が 1 違う例）で一度通す。
+- 機械検査: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、AC-10 の import 検査。
+- A0/A1 主担当: Claude Code の session（進行役）。
+- A2 独立レビュー: 未実施。risk `high` なので、(1) アーキテクチャゲート（配置、依存、寿命、テスト境界）、(2) 不変条件 I1〜I7 を破る順序の探索と H1〜H7 の手順の穴、(3) A0 だけから代替構成を出すレビュー、の 3 件を候補とする。入力版は A2 入力版の commit の blob の sha256。
+- A3 統合: 未実施（owner と進行役。O1〜O8 の決定）。
+- C' 用に予約する担当: A2 で使わなかった系列・ベンダーを 1 つ残す。
 
 ## 6. Phase B 実装結果
 
