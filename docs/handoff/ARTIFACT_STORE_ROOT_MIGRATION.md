@@ -9,10 +9,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `GO 候補 head 固定待ち`（発見 C 1 回目で blocker 0 件。Phase A revision 1 を 2026-10-19 に凍結。凍結版 = message に `A3 freeze` を含む commit。Phase B は 2026-10-19 に出口へ到達（§6）。動作確認は `対象なし`）
+- status: `判定 C（暫定。高コスト証拠の前）完了・暫定 C' 待ち`（GO 候補 head = SHA B = `7b4f085c`、push しない軽量 tag `evidence/artifact-store-root-migration/1`。発見 C 1 回目で blocker 0 件。Phase A revision 1 を 2026-10-19 に凍結。凍結版 = message に `A3 freeze` を含む commit。Phase B は 2026-10-19 に出口へ到達（§6）。動作確認は `対象なし`）
 - branch: `claude/artifact-store-root-migration`（移設スライスの branch `claude/artifact-store-root-relocation` の `94f93930` から切った。`34cf6607..94f93930` の差分は `ARTIFACT_STORE_ROOT_RELOCATION.md` だけで、コードは移設スライスの GO 候補 head `34cf6607` と同一。PR base は `develop`）
 - implementation base commit: `94f939303951c8ec0614303d66525bb9abcbacec`（コードは `34cf6607302d27f49bf9d3febaaa31d624f5cbed` と同一）
-- implementation head commit: Phase B の出口の commit（message に `Phase B exit` を含む。GO 候補としては未固定）
+- implementation head commit: `7b4f085cb746e4ecce8681f5bbe70710aec1ac20`（SHA B。Phase B の出口の commit。GO 候補として固定済み）
 - risk: `high`（実ストアの不可逆な移設、資格情報 directory の移動、旧 writer の静止と清掃 job の停止・再登録、owner 承認の manifest による合流、移設中は store を使う CLI が無い期間を作る）
 - owner: OSM maintainers（A3 の凍結、手順 3 の静止と旧 task の削除、実ストア操作の一括承認（O7）、Phase D の判断は owner）
 - created: 2026-10-19
@@ -20,13 +20,13 @@
 - harvest to: `tools/Artifacts/README.md`（移設の完了後の所在）、`tools/Workflow/README.md`・`tools/Harness/README.md`（必要な場合）、`docs/README.md` の program 表、`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` §4・§6
 - Phase A snapshot の取得案内・状態: Git 上の本文で完結（A0 = commit `a016d02a`、A2 入力版 = commit `0dd3bd6e`、凍結版 = message に `A3 freeze` を含む commit。凍結版の内容 sha256 は commit の blob（`git rev-parse <commit>:docs/handoff/ARTIFACT_STORE_ROOT_MIGRATION.md`）で求められるので転記しない）
 - Phase B result snapshot の取得案内・状態: Git 上の §6 と Phase B の出口の commit で完結。テスト結果 JSON は未保存（temp に出しただけ）
-- evidence bundle の取得案内・状態: 未到達
-- C' blind bundle の取得案内・状態: 未到達
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。`locality` = `local`、task `artifact-store-root-migration`、対象 `4e69624a..7b4f085c`。判定 C の判断の要約を含む。取得案内は進行役の scratch にある（reference・packageSha256 の実値はここに書かない）。別 process の `fetch` で hash 一致と全 file の収録を確認済み。
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。`locality` = `local`、同 task・同 head。発見 C・判定 C の所見と結論を含まない（HANDOFF は凍結版 `4e69624a` だけ）。暫定 C'（実ストアの実行の前）用。取得案内は進行役の scratch にあり、判定 C 用とは別。別 process の `fetch` で hash 一致を確認済み。
 - 引継ぎ票:
-  - 次の Phase・役割: GO 候補 head の固定（進行役）。続けて判定 C（SHA B で判定必須テスト）と暫定 C'。巡の数: B ↔ 発見 C は 0 巡（発見 C 1 回目で blocker 0 件）。
-  - 次の作業: Phase B の出口の commit（実装 head。発見 C は §7 だけを足す review-record commit で、implementation head を更新しない）を GO 候補 head として固定し、判定 C で `tools/Workflow/tests/*.Tests.ps1` の全 file・両 audit・I6 の `git diff` を実行する。§7 の「後続の入力」を判定 C・暫定 C' の入力として扱う。
-  - 引き継ぐ commit SHA: この branch の先頭（message に `Phase B exit` を含む commit）。作業ツリーが dirty なら引き継がない。
-  - 取得案内の所在: なし（Git 上の本文とコードだけ）。
+  - 次の Phase・役割: 暫定 C'（進行役が起動。blind bundle だけを読む新規 session）。巡の数: B ↔ 発見 C は 0 巡。
+  - 次の作業: 暫定 C'（実ストアの実行の前）。C' 用の取得案内（進行役の scratch）で blind bundle を `fetch` して監査する。blocker が無ければ、同じ SHA B で高コスト証拠（§5「実ストアでの実行」。手順 3 の静止は owner）→ 最終証拠ラウンド（判定 C の再判定と最終 C'）。
+  - 引き継ぐ commit SHA: GO 候補 head = `7b4f085c`（実装）。この branch の先頭は、その後の review-record commit（発見 C 1 回目、判定 C）。作業ツリーが dirty なら引き継がない。
+  - 取得案内の所在: 進行役の scratch（判定 C 用と C' 用の 2 file。値は tracked 文書に書かない）。(A) の task `artifact-store-root-migration` は start 済みで `status` が読める。
   - 必要な権限: リポジトリの読取り（指摘の記録に本書の書込み）、pwsh 7。Unity は使わない。実ストア・LocalCache・資格情報・Task Scheduler・R2 に触れない。
   - 停止規則: blocker があれば Phase B へ差し戻す。§4 の状態表・入口の分岐・reasonCode を変える必要があれば Phase A へ返す（下の「Phase A へ差し戻す条件」）。
   - 引き渡さないもの: ローカル store・LocalCache の実 path、資格情報。
@@ -460,9 +460,24 @@ seam を使わない production の `Get-OsmStoreRoot` と 3 CLI（`artifacts.ps
   4. 入口 script の子 process の出力（絶対 path・SID を含まないこと、exit code）は suite で見ていない。判定 C は入口を読んで確かめる（§3 の計画どおり）。
   5. 旧 root の親 directory が無い host は `tombstone-failed` で止まる（何も変えない。新しい host の印の発行は後続の入力）。
 
-### 判定 C
+### 判定 C（暫定。高コスト証拠の前）
 
-未着手
+- 担当・モデル: 判定 C の実行担当と判断担当を兼ねる session（Claude Sonnet、Anthropic。Phase B の Opus とは別のモデル）。2026-10-19。対象: GO 候補 head `7b4f085c`（SHA B）。detached worktree（短い path）で実行し、実ストア・LocalCache の role data・資格情報・Task Scheduler・R2 には触れていない。
+- 実行: `tools/Workflow/tests/*.Tests.ps1` の全 4 file を各 `-Case '*' -ResultPath <scratch>\<suite>-result.json` で実行。`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、`git diff --name-status 34cf6607 7b4f085c -- tools/ unity/`。
+- 結果（JSON の registered / executed / failed を照合。環境要因の失敗は無く、再実行はしていない）:
+
+  | suite | executed | failed |
+  |---|---|---|
+  | `StoreContext.Tests.ps1` | 26 | 0 |
+  | `StoreRoot.Tests.ps1` | 18 | 0 |
+  | `StoreRootMigration.Tests.ps1` | 9（`ac-1`、`ac-1b`、`ac-2`、`ac-3`、`ac-4`、`ac-5`、`ac-6`、`ac-8`、`ac-9` を全件含む） | 0 |
+  | `TaskLifecycle.Tests.ps1` | 24 | 0 |
+
+  `contract-audit`: errors 0・warnings 0。`docs-audit`: errors 0・warnings 1（`ARTIFACT_STORE_ROOT_RELOCATION.md` の harvest の頃合い。本スライスの対象外）。I6 の `git diff`: `tools/Workflow/StoreRootMigration.ps1`・`StoreRootMigration.psm1`・`tests/StoreRootMigration.Tests.ps1` の 3 file の追加だけ。`unity/` の差分は空。
+- 判定（offline で判定できる範囲）: I1〜I6 に違反なし（I1〜I5 は suite の対応 case が通り、I6 は上の `git diff`）。S1（offline 検証）と S5（機械検査）が成立。S2〜S4（実ストアの移設、smoke、既存記録の取得）は高コスト証拠（§5）なので、ここでは判定しない。発見 C の「後続の入力」1〜5 は blocker ではないまま、暫定 C'・Phase D の入力として残す。
+- **暫定判定: GO 候補 head は維持。暫定 C' へ進める。最終 GO ではない**（高コスト証拠と最終 C' が揃うまで GO にしない）。
+- 操作・目視条件の証拠: 高コスト証拠を除いて対象なし（動作確認は `対象なし`）。
+- Evidence の状態: ローカル固定済み（未昇格）。判定 C 用 bundle と C' blind bundle を、同じ head・同じ判定入力から旧 CLI（merge 前の develop の checkout）で `evidence stage` した。task `artifact-store-root-migration` は同 CLI で start 済みで `status` が読める。取得案内の所在は進行役の scratch（2 file。判定 C 用と C' 用は別）。別 process の `fetch` で hash 一致を確認済み。保護名規則に当たる file 名は無く、改名していない。
 
 ## 8. Phase C'
 
