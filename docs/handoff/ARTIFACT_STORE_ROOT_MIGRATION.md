@@ -9,7 +9,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `判定 C（暫定。高コスト証拠の前）完了・暫定 C' 待ち`（GO 候補 head = SHA B = `7b4f085c`、push しない軽量 tag `evidence/artifact-store-root-migration/1`。発見 C 1 回目で blocker 0 件。Phase A revision 1 を 2026-10-19 に凍結。凍結版 = message に `A3 freeze` を含む commit。Phase B は 2026-10-19 に出口へ到達（§6）。動作確認は `対象なし`）
+- status: `暫定 C' 完了（blocker なし）・実ストアでの実行（高コスト証拠）待ち`（GO 候補 head = SHA B = `7b4f085c`、push しない軽量 tag `evidence/artifact-store-root-migration/1`。発見 C 1 回目で blocker 0 件。Phase A revision 1 を 2026-10-19 に凍結。凍結版 = message に `A3 freeze` を含む commit。Phase B は 2026-10-19 に出口へ到達（§6）。動作確認は `対象なし`）
 - branch: `claude/artifact-store-root-migration`（移設スライスの branch `claude/artifact-store-root-relocation` の `94f93930` から切った。`34cf6607..94f93930` の差分は `ARTIFACT_STORE_ROOT_RELOCATION.md` だけで、コードは移設スライスの GO 候補 head `34cf6607` と同一。PR base は `develop`）
 - implementation base commit: `94f939303951c8ec0614303d66525bb9abcbacec`（コードは `34cf6607302d27f49bf9d3febaaa31d624f5cbed` と同一）
 - implementation head commit: `7b4f085cb746e4ecce8681f5bbe70710aec1ac20`（SHA B。Phase B の出口の commit。GO 候補として固定済み）
@@ -23,13 +23,13 @@
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。`locality` = `local`、task `artifact-store-root-migration`、対象 `4e69624a..7b4f085c`。判定 C の判断の要約を含む。取得案内は進行役の scratch にある（reference・packageSha256 の実値はここに書かない）。別 process の `fetch` で hash 一致と全 file の収録を確認済み。
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。`locality` = `local`、同 task・同 head。発見 C・判定 C の所見と結論を含まない（HANDOFF は凍結版 `4e69624a` だけ）。暫定 C'（実ストアの実行の前）用。取得案内は進行役の scratch にあり、判定 C 用とは別。別 process の `fetch` で hash 一致を確認済み。
 - 引継ぎ票:
-  - 次の Phase・役割: 暫定 C'（進行役が起動。blind bundle だけを読む新規 session）。巡の数: B ↔ 発見 C は 0 巡。
-  - 次の作業: 暫定 C'（実ストアの実行の前）。C' 用の取得案内（進行役の scratch）で blind bundle を `fetch` して監査する。blocker が無ければ、同じ SHA B で高コスト証拠（§5「実ストアでの実行」。手順 3 の静止は owner）→ 最終証拠ラウンド（判定 C の再判定と最終 C'）。
-  - 引き継ぐ commit SHA: GO 候補 head = `7b4f085c`（実装）。この branch の先頭は、その後の review-record commit（発見 C 1 回目、判定 C）。作業ツリーが dirty なら引き継がない。
+  - 次の Phase・役割: 高コスト証拠の取得（§5「実ストアでの実行」。手順 1 の旧 writer の静止は owner、手順 2〜4 は非仮想化 pwsh の実行担当）。その後に最終証拠ラウンド（判定 C の再判定と最終 C'）。巡の数: B ↔ 発見 C は 0 巡、C' の差し戻しは 0 巡。
+  - 次の作業: owner が手順 1（U3）を行い、実行担当が SHA B `7b4f085c` の clean worktree で手順 2、(C) = `34cf6607` の clean worktree で手順 3・4 を行う。実行時の注意（暫定 C' の後続の入力から。凍結条件は変えない）: 項目 3 は未登録の task でも exit 0 で taskId を返すので、手順 0 で (A) が読んだ記録と同じ内容が返ることを生出力で比べる。項目 4 は Harness の tasks directory が空で存在すると無出力で返るので、出力の文言をそのまま記録する。
+  - 引き継ぐ commit SHA: GO 候補 head = `7b4f085c`（実装）。この branch の先頭は、その後の review-record commit（発見 C 1 回目、判定 C、暫定 C'）。作業ツリーが dirty なら引き継がない。
   - 取得案内の所在: 進行役の scratch（判定 C 用と C' 用の 2 file。値は tracked 文書に書かない）。(A) の task `artifact-store-root-migration` は start 済みで `status` が読める。
-  - 必要な権限: リポジトリの読取り（指摘の記録に本書の書込み）、pwsh 7。Unity は使わない。実ストア・LocalCache・資格情報・Task Scheduler・R2 に触れない。
-  - 停止規則: blocker があれば Phase B へ差し戻す。§4 の状態表・入口の分岐・reasonCode を変える必要があれば Phase A へ返す（下の「Phase A へ差し戻す条件」）。
-  - 引き渡さないもの: ローカル store・LocalCache の実 path、資格情報。
+  - 必要な権限: 実ストアの操作（O7 の owner の一括承認）、Task Scheduler の照会・無効化（手順 1 は owner）、pwsh 7。資格情報の登録・置換と R2 の操作はしない。
+  - 停止規則: §5 の各手順の期待と違えば止めて owner に返す。rollback はしない（§2 判定定義）。
+  - 引き渡さないもの: ローカル store・LocalCache の実 path、資格情報、C' に発見 C・判定 C の所見。
 
 ### Phase B の着手手順
 
@@ -481,7 +481,28 @@ seam を使わない production の `Get-OsmStoreRoot` と 3 CLI（`artifacts.ps
 
 ## 8. Phase C'
 
-未着手
+### 暫定 C' 1 巡目（2026-10-19。実ストアの実行の前）
+
+- 担当・モデル: cursor-agent CLI の非対話実行（`grok-4.7-high` = Grok 4.7 High、xAI 系）。Phase A の Claude 系・GPT 系、Phase B の Claude Opus、Phase C の Claude Sonnet のどれにも関与していない系列（§5 の予約どおり）。進行役が起動し、論点を 2 つの job に分けて並行で実行した（job 1 = 構造と契約・旧 root と tombstone、job 2 = 失敗経路とテスト・実ストアでの実行への準備）。指示は共通の前提 file と job ごとの file。読取りだけ（file の編集・シェル・通信を禁止）で、workspace は repo の外。
+- 入力: C' blind bundle（判定 C の担当が SHA B `7b4f085c` から stage したもの。発見 C・判定 C の所見と結論を含まず、HANDOFF は凍結版 `4e69624a` だけ）と、同じ head の `tools/`・`AGENTS.md`・`.agents/`・`docs/README.md` の `git archive` 展開。bundle は別 process の `fetch`（`passed`、17 file）で取得した。本書の現行版、発見 C・判定 C の結論は渡していない。
+- 規模: job 1 = tool 呼出し 56 回、output 43,204 token。job 2 = tool 呼出し 76 回、output 34,131 token。両方とも 1 回で完了し、撃ち直しはしていない。
+- 結論: **blocker なし**（job 1・job 2 とも）。暫定 C' なので GO 判定には使わない。最終 C' は高コスト証拠の後。
+
+#### 後続の入力（暫定 C' の指摘。現スライスを阻害しない）
+
+- job 1:
+  - I4 で呼ぶ `Get-OsmStoreContext` は旧 root の親（LocalApplicationData 直下）に一意名の probe directory を作って消す。失敗時は空の directory が残りうる（consumer の既存挙動）。
+  - 印の発行の失敗処理は、一時名の削除の失敗を空の catch で握りつぶす（`StoreRootMigration.psm1:172`）。
+  - 成功時の reasonCode `migrated` は §4 の列挙（失敗 code）に無い。`already-migrated` と status `passed` は本文と一致。
+- job 2:
+  - `harness.ps1 status` は、tasks directory が存在して空のときは無出力で返る（`harness.ps1:90-100`）。O10 の期待文言は tasks directory が無い場合のもの。
+  - `workflow-task.ps1 status` は未登録の task でも exit 0 で taskId を返す（`TaskLifecycle.psm1:57`）。smoke 項目 3 は、手順 0 で読めた記録と同じ内容が返ることで判定する。
+  - S2 の件数は (D) の前後の生出力の等式で、事前の固定値は無い。項目 1 の真偽値は実行担当が `Get-OsmStoreRoot` の成否を残す。
+- 進行役の扱い: job 2 の 2 件は、実行の観測の仕方の注意として §0 の引継ぎ票に書いた（凍結条件は変えない）。
+
+#### 監査できなかった範囲と残存リスク
+
+- 読取りだけで、コードもテストも実行していない。実ストアでの実行（S2〜S4、smoke）は未実施で、最終 C' の対象。
 
 ## 9. Phase D
 
