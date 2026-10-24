@@ -16,3 +16,5 @@ members:
   - { id: 11, name: InspectorDetail, surfaces: [unity, debugstudio] }
   - { id: 12, name: ControlCommandRequest, surfaces: [debugstudio] }
   - { id: 13, name: ControlCommandResponse, surfaces: [debugstudio] }
+  - { id: 14, name: ControlReadRequest, surfaces: [debugstudio] }
+  - { id: 15, name: ControlReadResponse, surfaces: [debugstudio] }

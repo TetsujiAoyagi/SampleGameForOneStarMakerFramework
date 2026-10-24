@@ -100,6 +100,39 @@ public sealed class CliControlPlaneRoundtripTests
         Assert.Equal(WebSocketState.Open, unitySocket.State);
     }
 
+    [Fact]
+    public async Task Cli_read_routes_retained_empty_hierarchy_and_accepts_next_connection()
+    {
+        var uri = new Uri($"ws://127.0.0.1:{AllocateFreePort()}/cli-control/");
+        await using var harness = CreateHarness(uri);
+        using (var first = new ClientWebSocket())
+        {
+            await first.ConnectAsync(uri, CancellationToken.None);
+            await SendMessageAsync(first, DebugSocketMessageType.ControlReadRequest,
+                new ControlReadRequestEnvelopeV1 { RequestId = "initial", Operation = "hierarchy" }, "initial");
+            var envelope = await ReceiveEnvelopeAsync(first);
+            Assert.True(DebugSocketProtocol.TryDeserializePayload<ControlReadResponseEnvelopeV1>(envelope, out var response));
+            Assert.Equal("error", response!.Status);
+            Assert.False(response.Hierarchy!.HasSnapshot);
+        }
+
+        harness.Hierarchy.ApplySnapshot(new HierarchySnapshotEnvelopeV1
+        {
+            Revision = 7, CapturedAtUnixTimeMilliseconds = 1234,
+        });
+        using var second = new ClientWebSocket();
+        await second.ConnectAsync(uri, CancellationToken.None);
+        await SendMessageAsync(second, DebugSocketMessageType.ControlReadRequest,
+            new ControlReadRequestEnvelopeV1 { RequestId = "retained", Operation = "hierarchy" }, "retained");
+        var nextEnvelope = await ReceiveEnvelopeAsync(second);
+        Assert.True(DebugSocketProtocol.TryDeserializePayload<ControlReadResponseEnvelopeV1>(nextEnvelope, out var next));
+        Assert.Equal("ok", next!.Status);
+        Assert.True(next.Hierarchy!.HasSnapshot);
+        Assert.Equal(7, next.Hierarchy.Revision);
+        Assert.Empty(next.Hierarchy.Nodes);
+        Assert.Equal("Disconnected", next.Hierarchy.ConnectionState);
+    }
+
     private static CliControlHarness CreateHarness(Uri controlUri)
     {
         var logStore = new LogStore(128);
@@ -146,10 +179,10 @@ public sealed class CliControlPlaneRoundtripTests
             {
                 ControlUri = controlUri,
                 AcceptTimeoutSeconds = 5,
-            });
+            }, new CliReadService(sessionService, hierarchyStore, capabilityStateStore));
 
         controlService.StartAsync().GetAwaiter().GetResult();
-        return new CliControlHarness(sessionService, controlService);
+        return new CliControlHarness(sessionService, controlService, hierarchyStore);
     }
 
     private static async Task SendMessageAsync<TPayload>(
@@ -202,11 +235,14 @@ public sealed class CliControlPlaneRoundtripTests
 
     private sealed class CliControlHarness : IAsyncDisposable
     {
-        public CliControlHarness(SessionService sessionService, DebugStudioCliControlService controlService)
+        public CliControlHarness(SessionService sessionService, DebugStudioCliControlService controlService, HierarchyStore hierarchy)
         {
             SessionService = sessionService;
             ControlService = controlService;
+            Hierarchy = hierarchy;
         }
+
+        public HierarchyStore Hierarchy { get; }
 
         public SessionService SessionService { get; }
 

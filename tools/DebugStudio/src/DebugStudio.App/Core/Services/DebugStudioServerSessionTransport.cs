@@ -27,6 +27,8 @@ public sealed class DebugStudioServerSessionTransport : ISessionTransport
     private readonly DebugStudioServerOptions _serverOptionsTemplate;
     private readonly DebugSocketInboundRouter _inboundRouter;
     private readonly DebugSocketReceiveLoop _receiveLoop;
+    private readonly bool _continueOnIdleTimeout;
+    private readonly Func<DebugStudioServerOptions, DebugStudioWebSocketServer> _serverFactory;
 
     private DebugStudioWebSocketServer? _server;
     private WebSocket? _socket;
@@ -35,9 +37,15 @@ public sealed class DebugStudioServerSessionTransport : ISessionTransport
     private Uri? _serverUri;
     private bool _disposed;
 
-    public DebugStudioServerSessionTransport(DebugStudioServerOptions? serverOptions = null)
+    public DebugStudioServerSessionTransport(DebugStudioServerOptions? serverOptions = null, bool continueOnIdleTimeout = false)
+        : this(serverOptions, continueOnIdleTimeout, options => new DebugStudioWebSocketServer(options)) { }
+
+    internal DebugStudioServerSessionTransport(DebugStudioServerOptions? serverOptions, bool continueOnIdleTimeout,
+        Func<DebugStudioServerOptions, DebugStudioWebSocketServer> serverFactory)
     {
         _serverOptionsTemplate = CloneServerOptions(serverOptions ?? new DebugStudioServerOptions());
+        _continueOnIdleTimeout = continueOnIdleTimeout;
+        _serverFactory = serverFactory;
         _inboundRouter = new DebugSocketInboundRouter();
         _receiveLoop = new DebugSocketReceiveLoop(_inboundRouter);
 
@@ -69,7 +77,7 @@ public sealed class DebugStudioServerSessionTransport : ISessionTransport
         ArgumentNullException.ThrowIfNull(options);
 
         var serverUri = options.ServerUri;
-        var server = new DebugStudioWebSocketServer(CreateServerOptions(serverUri));
+        var server = _serverFactory(CreateServerOptions(serverUri));
         var sessionCts = new CancellationTokenSource();
         WebSocket? acceptedSocket = null;
 
@@ -102,7 +110,7 @@ public sealed class DebugStudioServerSessionTransport : ISessionTransport
             // connect 呼び出しの cancel と transport 自身の stop/dispose を両方 accept 待機へ流す。
             // どちらか一方だけだと「UI は切断済みなのに accept が残る」状態になりやすい。
             using var acceptCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, sessionCts.Token);
-            var context = await server.AcceptWebSocketAsync(acceptCts.Token).ConfigureAwait(false);
+            var context = await server.AcceptWebSocketAsync(acceptCts.Token, _continueOnIdleTimeout).ConfigureAwait(false);
             acceptedSocket = context.WebSocket;
 
             await _gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
@@ -166,6 +174,7 @@ public sealed class DebugStudioServerSessionTransport : ISessionTransport
         {
             if (await TryDetachCurrentSessionAsync(server).ConfigureAwait(false) &&
                 !_disposed &&
+                !(_continueOnIdleTimeout && ex is OperationCanceledException && cancellationToken.IsCancellationRequested) &&
                 !(ex is OperationCanceledException && sessionCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested))
             {
                 UpdateState(DebugSocketConnectionState.Faulted, serverUri, ex.Message);
