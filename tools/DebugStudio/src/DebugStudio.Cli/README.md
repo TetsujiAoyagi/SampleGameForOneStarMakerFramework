@@ -10,6 +10,26 @@ debugstudio-cli send --command debugsocket.ping --control-uri ws://127.0.0.1:501
 
 The control URI, `{}` payload and 15-second timeout are optional defaults. `--uri` remains an alias for `--control-uri`. Existing send output and exit behavior are unchanged.
 
+### Reading an Editor session
+
+Start the WPF host with automatic listening, then start Play in the Editor:
+
+```sh
+dotnet run --project tools/DebugStudio/src/DebugStudio.App/DebugStudio.App.csproj -c Release -- --listen
+debugstudio-cli hierarchy
+debugstudio-cli inspect 123
+```
+
+`--listen` listens on the existing localhost:5011/debugsocket/ endpoint and listens again after a natural disconnect. Connect and Disconnect control the same loop; Disconnect stops it until Connect is pressed. Bind failures retry after 1, 2, then 5 seconds. Waiting without a Runtime connection is normal. Closing the window cancels the loop and active control requests before releasing the session. Without `--listen`, startup still waits for the existing Connect operation.
+
+Both read commands accept `--control-uri URI` and `--timeout-seconds N` (default 15, greater than 0 and at most 60). They print one JSON object with `status`, `reason`, and `data`. Long identifiers such as NodeId and ParentId are JSON strings. Read exits are `0` for a successful read, `1` for a read failure, `2` for usage, and `3` for timeout. Existing `send` keeps its text output and timeout exit `2`.
+
+`hierarchy` reads the host's retained snapshot, with revision, capture time, connection state and negotiation state. `hasSnapshot` distinguishes no snapshot from a received empty tree. A retained snapshot can be read while disconnected; it does not claim to describe the Runtime at this instant. Capture and connection state are separate observations.
+
+Use a NodeId from the current Play's `hierarchy` output for `inspect`. After stopping and restarting Play, rerun `hierarchy`; reusing an old NodeId can read a different object. `inspect` accepts the first response matching TargetId, including a response from a same-target GUI query or a preceding query. It does not guarantee its own response or the newest value. It leaves GUI selection unchanged; the displayed details for the same target may update. Typed raw values are returned as supplied by the Runtime. Disconnection, unsupported capabilities, unknown targets, Runtime faults and timeout are reported as read failures; reads are not automatically resent across connections.
+
+The local control listener processes connections sequentially. A read can occupy it for its request timeout. Whole-frame reception is limited to 15 seconds, response sending to 3 seconds, and socket close to 3 seconds. A CLI process disappearing need not be detected immediately; request subscriptions end on observed disconnection or their deadline.
+
 ## Offline comparison
 
 ```sh

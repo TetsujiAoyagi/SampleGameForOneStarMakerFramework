@@ -27,6 +27,7 @@ public sealed class SessionWindowViewModel : ObservableObject, IAsyncDisposable
     private readonly Dispatcher _dispatcher;
     private readonly SessionService _sessionService;
     private readonly CapabilityStateStore _capabilityStateStore;
+    private readonly AutoListenService? _autoListen;
     private string _serverUri = DebugSocketClientOptions.DefaultServerUri.ToString();
     private string _connectionState = "Stopped";
     private string _connectionDetail = "Ready to listen for a Unity connection.";
@@ -40,11 +41,13 @@ public sealed class SessionWindowViewModel : ObservableObject, IAsyncDisposable
     public SessionWindowViewModel(
         Dispatcher dispatcher,
         SessionService sessionService,
-        CapabilityStateStore capabilityStateStore)
+        CapabilityStateStore capabilityStateStore,
+        AutoListenService? autoListen = null)
     {
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
         _sessionService = sessionService ?? throw new ArgumentNullException(nameof(sessionService));
         _capabilityStateStore = capabilityStateStore ?? throw new ArgumentNullException(nameof(capabilityStateStore));
+        _autoListen = autoListen;
 
         RecentActivity = new ObservableCollection<string>();
         ConnectCommand = new AsyncRelayCommand(ConnectAsync, CanConnect);
@@ -60,6 +63,7 @@ public sealed class SessionWindowViewModel : ObservableObject, IAsyncDisposable
         _sessionService.HierarchyDeltaReceived += OnHierarchyDeltaReceived;
         _sessionService.InspectorDetailReceived += OnInspectorDetailReceived;
         _capabilityStateStore.Changed += OnCapabilityStateChanged;
+        if (_autoListen != null) _autoListen.Changed += OnAutoListenChanged;
 
         OnCapabilityStateChanged(_capabilityStateStore.GetSnapshot());
     }
@@ -126,6 +130,7 @@ public sealed class SessionWindowViewModel : ObservableObject, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (_autoListen != null) _autoListen.Changed -= OnAutoListenChanged;
         _sessionService.ConnectionStateChanged -= OnConnectionStateChanged;
         _sessionService.LogReceived -= OnLogReceived;
         _sessionService.TelemetryReceived -= OnTelemetryReceived;
@@ -141,11 +146,13 @@ public sealed class SessionWindowViewModel : ObservableObject, IAsyncDisposable
 
     private bool CanConnect()
     {
+        if (_autoListen != null) return _autoListen.CanStart;
         return _sessionService.State is DebugSocketConnectionState.Disconnected or DebugSocketConnectionState.Faulted;
     }
 
     private bool CanDisconnect()
     {
+        if (_autoListen != null) return _autoListen.CanStop;
         return _sessionService.State is DebugSocketConnectionState.Connected or
             DebugSocketConnectionState.Connecting or
             DebugSocketConnectionState.Disconnecting;
@@ -163,6 +170,11 @@ public sealed class SessionWindowViewModel : ObservableObject, IAsyncDisposable
 
         try
         {
+            if (_autoListen != null)
+            {
+                _autoListen.Start(new DebugSocketClientOptions { ServerUri = serverUri });
+                return;
+            }
             await _sessionService.ConnectAsync(new DebugSocketClientOptions
             {
                 ServerUri = serverUri,
@@ -182,6 +194,11 @@ public sealed class SessionWindowViewModel : ObservableObject, IAsyncDisposable
     {
         try
         {
+            if (_autoListen != null)
+            {
+                await _autoListen.StopAsync();
+                return;
+            }
             await _sessionService.DisconnectAsync();
         }
         catch (Exception ex)
@@ -204,6 +221,12 @@ public sealed class SessionWindowViewModel : ObservableObject, IAsyncDisposable
             DisconnectCommand.RaiseCanExecuteChanged();
         });
     }
+
+    private void OnAutoListenChanged() => PostToUi(() =>
+    {
+        ConnectCommand.RaiseCanExecuteChanged();
+        DisconnectCommand.RaiseCanExecuteChanged();
+    });
 
     private void OnLogReceived(LogRecord log)
     {

@@ -22,6 +22,8 @@ public sealed class DebugStudioCliControlService : IAsyncDisposable
     private readonly SessionService _sessionService;
     private readonly CommandService _commandService;
     private readonly DebugStudioCliControlOptions _options;
+    private readonly CliReadService? _readService;
+    private readonly Func<TimeSpan, CancellationToken, CancellationTokenSource> _createDeadline;
     private readonly CancellationTokenSource _shutdownCts = new();
 
     private DebugStudioWebSocketServer? _server;
@@ -32,11 +34,24 @@ public sealed class DebugStudioCliControlService : IAsyncDisposable
     public DebugStudioCliControlService(
         SessionService sessionService,
         CommandService commandService,
-        DebugStudioCliControlOptions? options = null)
+        DebugStudioCliControlOptions? options = null,
+        CliReadService? readService = null)
+        : this(sessionService, commandService, options, readService, CreateDeadline)
+    {
+    }
+
+    internal DebugStudioCliControlService(
+        SessionService sessionService,
+        CommandService commandService,
+        DebugStudioCliControlOptions? options,
+        CliReadService? readService,
+        Func<TimeSpan, CancellationToken, CancellationTokenSource> createDeadline)
     {
         _sessionService = sessionService ?? throw new ArgumentNullException(nameof(sessionService));
         _commandService = commandService ?? throw new ArgumentNullException(nameof(commandService));
         _options = options ?? new DebugStudioCliControlOptions();
+        _readService = readService;
+        _createDeadline = createDeadline ?? throw new ArgumentNullException(nameof(createDeadline));
     }
 
     public Uri ControlUri => _options.ControlUri;
@@ -100,7 +115,7 @@ public sealed class DebugStudioCliControlService : IAsyncDisposable
             HttpListenerWebSocketContext? context = null;
             try
             {
-                context = await server.AcceptWebSocketAsync(cancellationToken).ConfigureAwait(false);
+                context = await server.AcceptWebSocketAsync(cancellationToken, continueOnIdleTimeout: true).ConfigureAwait(false);
                 await HandleControlConnectionAsync(context.WebSocket, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -128,7 +143,7 @@ public sealed class DebugStudioCliControlService : IAsyncDisposable
         }
     }
 
-    private async Task HandleControlConnectionAsync(WebSocket socket, CancellationToken cancellationToken)
+    internal async Task HandleControlConnectionAsync(WebSocket socket, CancellationToken cancellationToken)
     {
         try
         {
@@ -138,6 +153,23 @@ public sealed class DebugStudioCliControlService : IAsyncDisposable
                 if (envelope == null)
                 {
                     return;
+                }
+
+                if ((DebugSocketMessageType)envelope.MessageType == DebugSocketMessageType.ControlReadRequest &&
+                    DebugSocketProtocol.TryDeserializePayload<ControlReadRequestEnvelopeV1>(envelope, out var readRequest) &&
+                    readRequest != null)
+                {
+                    var readResponse = _readService != null
+                        ? await _readService.ReadAsync(readRequest, cancellationToken).ConfigureAwait(false)
+                        : new ControlReadResponseEnvelopeV1
+                        {
+                            RequestId = readRequest.RequestId,
+                            Status = "error",
+                            Reason = "read-unavailable",
+                        };
+                    await SendResponseAsync(socket, DebugSocketMessageType.ControlReadResponse,
+                        readResponse, readResponse.RequestId, cancellationToken).ConfigureAwait(false);
+                    continue;
                 }
 
                 if ((DebugSocketMessageType)envelope.MessageType != DebugSocketMessageType.ControlCommandRequest ||
@@ -264,59 +296,91 @@ public sealed class DebugStudioCliControlService : IAsyncDisposable
         }
     }
 
-    private static async Task<DebugSocketEnvelopeV1?> ReceiveEnvelopeAsync(WebSocket socket, CancellationToken cancellationToken)
+    private async Task<DebugSocketEnvelopeV1?> ReceiveEnvelopeAsync(WebSocket socket, CancellationToken cancellationToken)
     {
+        // One deadline covers the entire frame; fragments must not renew an idle peer's lease.
+        using var deadline = _createDeadline(TimeSpan.FromSeconds(15), cancellationToken);
         var buffer = new byte[8192];
         await using var memoryStream = new MemoryStream();
 
-        while (true)
+        try
         {
-            var receiveResult = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken).ConfigureAwait(false);
-            if (receiveResult.MessageType == WebSocketMessageType.Close)
+            while (true)
             {
-                return null;
-            }
+                var receiveResult = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), deadline.Token)
+                    .WaitAsync(deadline.Token).ConfigureAwait(false);
+                if (receiveResult.MessageType == WebSocketMessageType.Close)
+                {
+                    return null;
+                }
 
-            await memoryStream.WriteAsync(buffer.AsMemory(0, receiveResult.Count), cancellationToken).ConfigureAwait(false);
-            if (!receiveResult.EndOfMessage)
-            {
-                continue;
-            }
+                await memoryStream.WriteAsync(buffer.AsMemory(0, receiveResult.Count), deadline.Token).ConfigureAwait(false);
+                if (!receiveResult.EndOfMessage)
+                {
+                    continue;
+                }
 
-            return DebugSocketProtocol.TryDeserializeEnvelope(memoryStream.ToArray(), out var envelope)
-                ? envelope
-                : null;
+                return DebugSocketProtocol.TryDeserializeEnvelope(memoryStream.ToArray(), out var envelope)
+                    ? envelope
+                    : null;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            socket.Abort();
+            throw;
         }
     }
 
-    private static Task SendControlResponseAsync(
+    private Task SendControlResponseAsync(
         WebSocket socket,
         ControlCommandResponseEnvelopeV1 response,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken) => SendResponseAsync(socket,
+            DebugSocketMessageType.ControlCommandResponse, response, response.RequestId, cancellationToken);
+
+    private async Task SendResponseAsync<T>(WebSocket socket, DebugSocketMessageType messageType,
+        T response, string requestId, CancellationToken cancellationToken)
     {
-        var frame = DebugSocketProtocol.SerializeMessage(
-            DebugSocketMessageType.ControlCommandResponse,
-            response,
-            response.RequestId);
-        return socket.SendAsync(
-            new ArraySegment<byte>(frame),
-            WebSocketMessageType.Binary,
-            endOfMessage: true,
-            cancellationToken);
+        using var deadline = _createDeadline(TimeSpan.FromSeconds(3), cancellationToken);
+        var frame = DebugSocketProtocol.SerializeMessage(messageType, response, requestId);
+        try
+        {
+            await socket.SendAsync(new ArraySegment<byte>(frame), WebSocketMessageType.Binary,
+                endOfMessage: true, deadline.Token).WaitAsync(deadline.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            socket.Abort();
+            throw;
+        }
     }
 
-    private static async Task TryCloseSocketAsync(WebSocket socket, string description)
+    private async Task TryCloseSocketAsync(WebSocket socket, string description)
     {
         try
         {
             if (socket.State is WebSocketState.Open or WebSocketState.CloseReceived)
             {
-                await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, description, CancellationToken.None).ConfigureAwait(false);
+                using var deadline = _createDeadline(TimeSpan.FromSeconds(3), CancellationToken.None);
+                await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, description, deadline.Token)
+                    .WaitAsync(deadline.Token).ConfigureAwait(false);
             }
         }
         catch
         {
+            socket.Abort();
         }
+        finally
+        {
+            socket.Dispose();
+        }
+    }
+
+    private static CancellationTokenSource CreateDeadline(TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(timeout);
+        return deadline;
     }
 
     private static DebugStudioServerOptions CreateServerOptions(DebugStudioCliControlOptions options)

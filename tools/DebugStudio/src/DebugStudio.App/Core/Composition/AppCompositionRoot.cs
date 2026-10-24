@@ -26,9 +26,9 @@ public sealed class AppCompositionRoot
     /// MainWindow が必要とする shell persistence service 群をまとめて構築する。
     /// UI control を持たない純 service だけをここで組み立て、DockingManager との接続は view 側へ残す。
     /// </summary>
-    public MainWindow CreateMainWindow()
+    public MainWindow CreateMainWindow(bool autoListen = false)
     {
-        var composition = CreateShellComposition();
+        var composition = CreateShellComposition(autoListen);
         var viewModel = composition.ViewModel;
         var shellLayoutPersistenceService = new ShellLayoutPersistenceService(
             ShellLayoutPersistenceService.CreateDefaultLayoutFilePath());
@@ -39,11 +39,13 @@ public sealed class AppCompositionRoot
             composition.TelemetrySessionAttributesStore);
         IAsyncDisposable appLifetime = viewModel;
 
-        var cliControlService = new DebugStudioCliControlService(composition.SessionService, composition.CommandService);
+        var cliControlService = new DebugStudioCliControlService(composition.SessionService, composition.CommandService,
+            readService: composition.CliReadService);
         try
         {
             cliControlService.StartAsync().GetAwaiter().GetResult();
             appLifetime = CreateAppLifetime(
+                composition.AutoListenService,
                 cliControlService,
                 logPersistenceService,
                 telemetryPersistenceService,
@@ -56,17 +58,21 @@ public sealed class AppCompositionRoot
             Debug.WriteLine($"CLI control plane failed to start: {ex}");
             cliControlService.DisposeAsync().AsTask().GetAwaiter().GetResult();
             appLifetime = CreateAppLifetime(
+                composition.AutoListenService,
                 null,
                 logPersistenceService,
                 telemetryPersistenceService,
                 viewModel);
         }
 
-        return new MainWindow(
+        var window = new MainWindow(
             viewModel,
             shellLayoutPersistenceService,
             shellLayoutSerializerService,
-            appLifetime);
+            appLifetime,
+            asynchronousShutdown: autoListen);
+        composition.AutoListenService?.Start(new DebugSocketClientOptions());
+        return window;
     }
 
     /// <summary>
@@ -85,7 +91,7 @@ public sealed class AppCompositionRoot
         return CreateShellComposition().ViewModel;
     }
 
-    private AppShellComposition CreateShellComposition()
+    private AppShellComposition CreateShellComposition(bool autoListen = false)
     {
         // WPF の UI スレッド dispatcher は viewmodel 側の ObservableCollection 更新で必要になる。
         // 先に取得しておくことで、下流の VM が Application.Current を直接参照しなくて済む。
@@ -139,7 +145,7 @@ public sealed class AppCompositionRoot
         // transport session と、それに付随する orchestration collaborator を構築する。
         // rf2 以降は SessionService に全部を詰めず、reset / routing / capability hello を分離している。
         // 現在の WPF shell は Unity へ outbound 接続せず、server transport で着信待受を開始する。
-        var session = new DebugStudioServerSessionTransport();
+        var session = new DebugStudioServerSessionTransport(continueOnIdleTimeout: autoListen);
         var resetPolicy = new SessionResetPolicy(
             logStore,
             hierarchyStore,
@@ -182,7 +188,9 @@ public sealed class AppCompositionRoot
             capabilityStateStore,
             inspectorExportService,
             new InspectorExportPathPolicy());
-        var sessionViewModel = new SessionWindowViewModel(dispatcher, sessionService, capabilityStateStore);
+        var autoListenService = autoListen ? new AutoListenService(sessionService) : null;
+        var cliReadService = new CliReadService(sessionService, hierarchyStore, capabilityStateStore);
+        var sessionViewModel = new SessionWindowViewModel(dispatcher, sessionService, capabilityStateStore, autoListenService);
         var telemetryViewModel = new TelemetryWindowViewModel(
             dispatcher,
             telemetryStore,
@@ -207,7 +215,9 @@ public sealed class AppCompositionRoot
             sessionService,
             commandService,
             messageRouter,
-            telemetrySessionAttributesStore);
+            telemetrySessionAttributesStore,
+            autoListenService,
+            cliReadService);
     }
 
     private static LogPersistenceService? TryCreateLogPersistenceService(SessionMessageRouter messageRouter)
@@ -247,12 +257,14 @@ public sealed class AppCompositionRoot
     }
 
     private static IAsyncDisposable CreateAppLifetime(
+        AutoListenService? autoListenService,
         DebugStudioCliControlService? cliControlService,
         LogPersistenceService? logPersistenceService,
         TelemetryPersistenceService? telemetryPersistenceService,
         MainWindowViewModel viewModel)
     {
         var disposables = new List<IAsyncDisposable>(4);
+        if (autoListenService != null) disposables.Add(autoListenService);
         if (cliControlService != null)
         {
             disposables.Add(cliControlService);
@@ -279,5 +291,7 @@ public sealed class AppCompositionRoot
         SessionService SessionService,
         CommandService CommandService,
         SessionMessageRouter MessageRouter,
-        TelemetrySessionAttributesStore TelemetrySessionAttributesStore);
+        TelemetrySessionAttributesStore TelemetrySessionAttributesStore,
+        AutoListenService? AutoListenService,
+        CliReadService CliReadService);
 }
