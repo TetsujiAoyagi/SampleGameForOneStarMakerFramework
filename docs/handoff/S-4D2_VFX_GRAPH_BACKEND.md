@@ -15,11 +15,18 @@
 - expires: S-4d2 の Phase D 完了時
 - harvest to: Architecture §24 §16（VFX 抽象）へ composition・Tick 登録・backend 契約の確認結果を追記する。§04（起動）は起動・終了順序の 1 行だけを追記する（§3.4）
 - workflow task: `s-4d2-vfx-graph-backend`（2026-10-21 に `workflow-task.ps1 start` 済み。Phase B で再度 start しない）
-- Phase A snapshot の取得案内・状態: A2 入力版は commit `87a9690a`（content sha256 は §5「A2 独立レビュー」）。A3 凍結版は未生成（発注者の承認後に凍結 commit を作る）。文書だけなので stage は不要
+- Phase A snapshot の取得案内・状態: A2 入力版は commit `87a9690a`（content sha256 は §5「A2 独立レビュー」）。**A3 凍結版は commit `17144576`、本書の content sha256 `856d910bff68e8bc3a3e8c4f851ca5eceddf8abee36a57730d7c57b1de057690`**（`git show 17144576:docs/handoff/S-4D2_VFX_GRAPH_BACKEND.md` の LF 内容の sha256。この値は凍結版を指し、これを書き足した後の本書は指さない）。凍結 commit は program（`S-4_FULL_SPEC_WORLD_AUTHORING.md` の §6.1・§6.3 d2〜d4 行・§10）の更新も含む。凍結 commit の後の記録用 commit はこの §0 だけを変え、凍結条件を変えない。文書だけなので stage は不要
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: A3 凍結（2026-10-25）。凍結 commit の SHA と content sha256、Phase B への引継ぎ票は、凍結 commit の後の記録用 commit でこの §0 に書く。
+- 引継ぎ票（Phase A → Phase B）:
+  - 前の Phase の結果: A3 凍結（2026-10-25、発注者承認。凍結 commit `17144576`）。
+  - 次の Phase・役割: Phase B（実装）。新しい session で始める。Phase C は Phase B と異なるモデル、C' は Phase B・C の両方と異なるモデルにする（xAI 系列を C' 用に残してある）ので、B のモデルはそれを踏まえて選び、§6 に記録する。
+  - 次の作業: §4 の順序で実装する（package の import とコンパイル確認 → Framework の修正とテスト → `VfxRuntimeHost` と配線 → SampleGame の backend 一式 → Editor 操作で fixture を作る → Play 中のテストを書く → `pwsh tools/contract-audit.ps1` / `pwsh tools/docs-audit.ps1`、Editor のコンパイル確認）。§3.2 の「起動時の Warning を数える既存のテスト・smoke が無いこと」を着手時に確かめる。
+  - 引き継ぐ commit: branch `claude/s-4d2-vfx-graph-backend` の先頭（この記録用 commit。凍結 commit `17144576` の 1 つ後）。implementation base は `2734a6ea` のまま。push していない（同じ PC のローカル SHA で照合する）。作業ツリーは clean。
+  - 必要な権限: ローカルの Unity Editor（6000.6.0f1）の起動・操作（package の import、`.vfx` と prefab の作成、コンパイル確認）。Unity テストと Build の実行は Phase C の責任で、Phase B では実行しない。`unity test` / `unity run` は使わない。Scene / asset の YAML を手で編集しない。資格情報・sandbox 外実行は不要。
+  - 停止規則: §4「Phase B から Phase A へ差し戻す条件」に当たったら実装を止めて返す。新しい事実は osm-workflow の「新しい事実の分類」で A 再開 / B 適応 / スパイク / 後続スライスに分ける。
+  - 出口: B の出口で commit し、§6 に実装結果・HANDOFF との差・未実行（Unity テスト）を書き、この引継ぎ票を次の担当（動作確認。§5 の AC1 のコンパイル確認）へ書き換える。push・PR 作成・発見 C の起動はしない。
 
 ## 1. 目的と対象外（A0）
 
