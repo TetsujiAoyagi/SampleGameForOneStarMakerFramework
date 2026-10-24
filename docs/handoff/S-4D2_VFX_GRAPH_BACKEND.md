@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `A`（A1 初稿。A2 の入力版）
+- status: `A`（A3 凍結。次は Phase B）
 - branch: `claude/s-4d2-vfx-graph-backend`
 - implementation base commit: `2734a6ea`（`develop`、PR #142 のマージ）
 - implementation head commit: 未固定
@@ -15,11 +15,11 @@
 - expires: S-4d2 の Phase D 完了時
 - harvest to: Architecture §24 §16（VFX 抽象）へ composition・Tick 登録・backend 契約の確認結果を追記する。§04（起動）は起動・終了順序の 1 行だけを追記する（§3.4）
 - workflow task: `s-4d2-vfx-graph-backend`（2026-10-21 に `workflow-task.ps1 start` 済み。Phase B で再度 start しない）
-- Phase A snapshot の取得案内・状態: 未生成（A2 入力版の commit 後に §5 へ記録する）
+- Phase A snapshot の取得案内・状態: A2 入力版は commit `87a9690a`（content sha256 は §5「A2 独立レビュー」）。A3 凍結版は未生成（発注者の承認後に凍結 commit を作る）。文書だけなので stage は不要
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: Phase A の途中（A2 独立レビュー待ち）。A3 の凍結は人間の承認を待つ。同じ session で Phase B に入らない。
+- 引継ぎ票: A3 凍結（2026-10-25）。凍結 commit の SHA と content sha256、Phase B への引継ぎ票は、凍結 commit の後の記録用 commit でこの §0 に書く。
 
 ## 1. 目的と対象外（A0）
 
@@ -39,7 +39,7 @@
 - **SceneGraph と寿命（§2.1）:** `Season_*` は Scene payload を持たない論理ノード。Cell 配下の職種 Scene（Environment / Lighting / VFX / Events）は `StreamByDistance = false`、`LoadType.OnDemand` で、親 Cell が Stable になった後に SampleGame の companion loader が明示 `AddScene` し、Unload は親 Cell の再帰破棄へ委ねる。`Spring_AtmosphereVFX` は Season ノードの子（`IncrementalAlways` / optional）。
 - **職種の所有物（§2.2）:** Cell VFX は Cell 常駐中ずっと続く環境エフェクト、Season Atmosphere VFX は季節全域の常時エフェクト。VFX Scene にゲーム進行 trigger を置かず、Events Scene が VFX の開始・停止を要求する。Scene を跨ぐ `GameObject` の直接参照は禁止し、event id、world position、service query、`IAssetManagement` で寿命を宣言してロードする prefab で接続する。
 - **VFX の粒度と寿命（§2.4）:** Cell 常駐中ずっと必要な複数エフェクトは 1 Cell 1 VFX Scene に束ねる。一時的な VFX は Scene にせず prefab / `VisualEffectAsset` にし、`IAssetManagement` でロードして `AssetOwner.Scene(eventSceneIdentity)` または `AssetOwner.Bind(go)` で寿命を宣言する。
-- **VFX Graph（§6.1）:** `com.unity.visualeffectgraph` を導入する。採用 version は d2 の Phase A で互換性を確認して固定する（旧指定 `17.5.0` は現行 URP `17.6.0` と一致しないので使わない）。必要な Runtime assembly reference だけを SampleGame 側 asmdef へ追加する。PC Quality で描画を必須受入とする。Mobile では起動時に backend が capability を判定して対応可否だけを返し、非対応なら `VisualEffect` を有効化しない。診断ログは Framework が一度だけ出し、backend と Scene 側は出さない。Mobile 用 ParticleSystem fallback は作らない。PC 必須・Mobile 安全停止を正式な製品判断とする。
+- **VFX Graph（§6.1）:** `com.unity.visualeffectgraph` を導入する。採用 version は d2 の Phase A で互換性を確認して固定する（本書 §1.4 で `17.6.0` に決めた。旧指定 `17.5.0` は現行 URP `17.6.0` と一致しないので使わない）。必要な Runtime assembly reference だけを SampleGame 側 asmdef へ追加する。PC Quality で描画を必須受入とする。Mobile では起動時に backend が capability を判定して対応可否だけを返し、非対応なら `VisualEffect` を有効化しない。診断ログは Framework が一度だけ出し、backend と Scene 側は出さない。Mobile 用 ParticleSystem fallback は作らない。PC 必須・Mobile 安全停止を正式な製品判断とする。
 - **§6.3 d2 行:** 答える問いは「現行 project（URP `17.6.0`）に VFX Graph を入れ、d1 の抽象越しに PC で描画し、非対応環境で安全に止められるか」。範囲は §6.1 の version 互換確認と固定、SampleGame 側 asmdef への Runtime assembly 参照（実名は Editor の import 後に確定）、起動時の capability 判定（§6.4 の backend 側）、backend 実装、Scene に配置済みの `VisualEffect` を止める仕組み（Component が有効化される前に適用できるかを検証する）、確認用の最小 asset。対象外は実証 Scene（d3〜d5）。d1 から送られた必須事項と、d1 の C / C' から送られた入力（採否は d2 の Phase A で決める）は §2.4 で一つずつ裁定する。
 - **§6.4 責務配置:** 抽象は Framework、VFX Graph に依存する実装は SampleGame に置く。Framework の責務は (1) 寿命の宣言と回収、(2) 非対応環境での停止（backend が起動時に 1 回対応可否を返し、Framework は非対応なら何もしない handle を返して診断ログを 1 回だけ出す。Game 側に分岐を書かせない）、(3) 型に依存しない handle。Scene に置く VFX（d3）の寿命は Scene の寿命で回収されるので、d1 の寿命管理の対象は動的に起動する VFX（d4 / d5）である。非対応時の停止は両方に適用する。何もしない handle は Scene に配置済みの `VisualEffect` を止めないので、配置済みのものを止める処理は SampleGame の backend が持つ（d2 で入れ、d3 で実 Scene を確認）。Scene 側は起動時の判定結果を見るだけで、追加の診断ログを出さない。
 - **§10 公開 API と依存:** Framework は season 名、Cell 座標文法、職種 role を知らない。VFX Graph 依存は SampleGame 側に閉じ、`OneStarMaker.Runtime` の公開 API へ `VisualEffect` 型を出さない。`SceneState` の 14 値は変更しない。新しい `LoadType` も追加しない。asmdef 参照追加は d2 の HANDOFF で `Unity.VisualEffectGraph.Runtime` の実 assembly 名を確認してから固定する。
@@ -80,16 +80,16 @@
 
 ### 2.1 進める最低条件
 
-保証の範囲: d2 が保証するのは、(a) package と backend が現行 project で動くこと、(b) Framework の composition が d1 の約束（配線順・Tick・終了順序）を満たすこと、(c) 非対応の判定結果が 1 つの出所から動的 VFX と配置済み VFX の両方に効くこと。実 Scene への配置（d3）、Event からの起動（d4）、Player での描画は保証しない（§2.5）。Mobile 実機での判定は、判定に使う platform の事実を差し替えたテストで代える（§2.7 U2）。
+保証の範囲: d2 が保証するのは、(a) package と backend が現行 project で動くこと、(b) Framework の composition が d1 の約束（配線順・Tick・終了順序）を満たすこと、(c) 非対応の判定結果が 1 つの出所から動的 VFX と配置済み VFX の両方に効くこと。実 Scene への配置（d3）、Event からの起動（d4）、Player での描画は保証しない（§2.5）。Mobile 実機での判定は行わず、判定の規則と、platform の事実を差し替えた実 backend の非対応経路をテストする（§2.7 U2。実機の実証とは記録しない）。
 
 **不変条件（起きてはいけないこと）**
 
 - **I1 非対応で有効化しない:** 判定が非対応（または判定不能）のとき、backend の `Create` は 0 回、`PlacedVfxActivator` を付けた配置済み `VisualEffect` の `enabled` は false のまま、backend と `PlacedVfxActivator` のログは 0 件、例外 0 件。診断ログは `VfxSystem` の 1 件だけ。
-- **I2 判定の出所は 1 つ:** platform の事実の評価は backend の `QueryCapability` の中だけで行い、Framework の composition が `VfxSystem` を 1 つ作るたびに 1 回だけ起きる。`PlacedVfxActivator` は backend が公開した結果を読むだけで、自分で評価しない。結果が未公開（`Undetermined`）なら非対応と同じに扱う。
-- **I3 backend 契約を破らない:** 実 backend で、(a) `Create` 直後は発射していない（`Play` までは粒子 0）、(b) `Create` が失敗したら GameObject を残さない、(c) 同じ backend の生涯で id を再利用しない、(d) `Destroy` は未知の id・破棄済み GameObject・破棄済み source に対して例外を投げずに完了し、2 回目は何もしない、(e) `Destroy` から戻った時点で `VisualEffect` は無効化され source（`visualEffectAsset`）を参照していない（native の破棄完了はフレーム末だが、その間に source を参照しない）、(f) backend はログを出さない。
-- **I4 終了順序:** `ReleaseAll` で、`VfxSystem.Dispose` は Tick 要素の登録解除の後、`_loggerFactory.Dispose`・`_sceneDirector.Dispose`・`AssetManagement.ReleaseAll` より前に完了する。backend の `Dispose` は `VfxSystem.Dispose` の後。`ReleaseAll` を 2 回呼んでも二重に Dispose しない。backend の Dispose の後に backend の他のメソッドは呼ばれない。
+- **I2 判定の出所は 1 つ:** platform の事実の評価は backend の `QueryCapability` の中だけで行い、Framework の composition が `VfxSystem` を 1 つ作るたびに 1 回だけ起きる。`PlacedVfxActivator` は backend が公開した結果を読むだけで、自分で評価しない。結果が未公開（`Undetermined`）なら非対応と同じに扱う。`VfxCapabilityState` は書いた backend（writer）を持ち、別の backend の `Dispose` は値を戻さない。backend の生成・判定・host の生成のどこで失敗しても、`Supported` が残らない（失敗した backend は Dispose され、自分が writer なら `Undetermined` に戻す）。
+- **I3 backend 契約を破らない:** 実 backend で、(a) `Create` 直後は発射していない（`Play` までは粒子 0）、(b) `Create` が失敗したら GameObject を残さない、(c) 同じ backend の生涯で id を再利用しない、(d) `Destroy` は未知の id・破棄済み GameObject・破棄済み source に対して例外を投げずに完了し、2 回目は何もしない、(e) `Destroy` から戻った時点で、GameObject が存在するなら `VisualEffect` は無効化され source（`visualEffectAsset`）を参照していない（native の破棄完了はフレーム末だが、その間に source を参照しない。Unity が先に壊した GameObject には書かない）、(f) backend はログを出さない、(g) backend の ctor は環境に依存する例外を投げない（環境の判定は `QueryCapability` だけが行う）。
+- **I4 終了順序:** `ReleaseAll` で、`VfxSystem.Dispose` は Tick 要素の無効化と登録解除（生きている coordinator に対して）の後、`_updateSystemHost.Dispose`・`_loggerFactory.Dispose`・`_sceneDirector.Dispose`・`AssetManagement.ReleaseAll` より前に完了する。backend の `Dispose` は `VfxSystem.Dispose` の後。`ReleaseAll` を 2 回呼んでも二重に Dispose しない。backend の Dispose の後に backend の他のメソッドは呼ばれない。
 - **I5 境界を変えない:** Framework（`OneStarMaker.*`）に VFX Graph の型と asmdef 参照が無い。SampleGame の asmdef 参照の追加は、Editor のコンパイルが要求した場合の `SampleGame.Common` → `Unity.VisualEffectGraph.Runtime` 1 件だけ（§2.6）。`SceneState` / `SceneEventType` / `LoadType` / `AssetOwner` / `SceneDirector` / `SceneBase` / `AssetManagement` の公開面を変えない。Framework の公開面の追加は §3.2 の 2 件だけ。
-- **I6 Tick の負担と有限性:** `Tick` は毎フレーム unscaled delta で呼ばれる（`Time.timeScale = 0` でも消え切り待ちが有限で終わる）。instance 0 の `Tick` は managed heap を確保しない。`BindSceneLifecycle` の `Subscribe` が例外を投げたら、Scene 所有の `Spawn` を拒否する状態に戻す。
+- **I6 Tick の負担と有限性:** `Tick` は毎フレーム unscaled delta で呼ばれる（`Time.timeScale = 0` でも消え切り待ちが有限で終わる）。instance 0 の `Tick` は managed heap を確保しない。`Tick` の中で 1 つの handle の処理が（backend 以外の原因でも）例外を投げても、同じ `Tick` の残りの handle は処理される。`BindSceneLifecycle` の `Subscribe` が例外を投げたら、Scene 所有の `Spawn` を拒否する状態に戻す。
 
 **成立条件（起きなければならないこと）**
 
@@ -106,29 +106,29 @@
 検証する条件を括弧で併記する。テスト名は Phase B が付ける仮名。
 
 - **AC1（S1・I5）** `unity/Packages/manifest.json` に `"com.unity.visualeffectgraph": "17.6.0"` が 1 行入り、`packages-lock.json` の差分はこの package と依存の解決に閉じる。Editor の import 後のコンパイルでエラー 0（Phase B が Editor の Console で確認し、件数を §6 に記録）。
-- **AC2（I2・I1）** `VfxGraphCapabilityPolicy.Evaluate(VfxPlatformFacts)` の表駆動テスト（EditMode、Unity の SystemInfo を読まない）: compute 非対応、`maxComputeBufferInputsVertex == 0`、`OpenGLES3`、`Null`（graphics なし）、Gamma color space のそれぞれで false と理由、全て満たす PC 相当（`Direct3D11` / `Direct3D12` / `Vulkan`、Linear）で true。
-- **AC3（I2）** 実 backend に固定の facts を注入したテスト: `VfxSystem` の生成で facts の読み取りは 1 回、結果は `VfxCapabilityState` に 1 回公開される。backend の `Dispose` で `Undetermined` に戻る。合格例: `VfxSystem` を作る → `Current == Supported`。不合格例: `PlacedVfxActivator` が facts を自分で読む。
-- **AC4（I1）** facts を非対応に固定した実 backend の `VfxSystem` で `Spawn` を 10 回: 全て何もしない handle、GameObject の生成 0、例外 0、ログは `VfxSystem` の Warning 1 件（偽 logger で数える）。同じ状態で `PlacedVfxActivator` 付き prefab を生成 → `VisualEffect.enabled == false`、ログ 0 件。`Undetermined` のまま生成しても false。
-- **AC5（S2）** `[UnityTest]` + `EnterPlayMode`、`-WithGraphics`、Quality を `PC` に固定: 黒背景のカメラを `RenderTexture` へ描画し、その前方に最小 VFX を `Spawn` → `Play`、所定のフレーム数（frame で待つ。`Task.Delay` を使わない）後に読み戻した画素のうち背景と異なる画素が閾値以上。`Play` 前（`Create` 直後）の同じ計測は閾値未満（I3 (a)）。閾値は fixture の大きさから Phase B が決めて §6 に記録する。
-- **AC6（I3）** 実 backend の契約テスト（Play 中）: (a) `Create` 直後の数フレームは粒子 0、`Play` 後に粒子が出る、(b) source に `VisualEffectAsset` でない Object を渡すと `VfxInstanceId.Invalid` が返り GameObject が増えない、(c) 1000 回の `Create` / `Destroy` で id の重複 0、(d) 未知の id・Destroy 済みの id・外から `Object.Destroy` 済みの GameObject・source を破棄した後の `Destroy` が例外なし、(e) `Destroy` から戻った直後に `VisualEffect.enabled == false` かつ `visualEffectAsset == null`、(f) テスト中の Unity ログに backend 由来の行が 0。
-- **AC7（S3）** 実 backend + Framework の `VfxSystem`（Play 中、Tick は Framework の Tick 要素から）: 即時 `Stop` の次フレームで GameObject が `== null`。`StopAllowingParticlesToFinish` の後、粒子が消えた時点（fixture の寿命から決めるフレーム数の範囲内）で破棄される。粒子が消えない fixture では timeout（テストでは短い timeout を ctor に渡す）で破棄される。`Bind(go)` の go を `Object.Destroy` すると次フレームまでに instance が破棄される。
-- **AC8（S7）** 親ありの `Spawn` の GameObject は親の子、親なしは backend の root（`DontDestroyOnLoad` の Scene にある）の子。backend の `Dispose` で root と残った instance が破棄される。
-- **AC9（S4）** `CreateVfxBackend` が null のとき（テスト用の initializer 部品または `VfxRuntimeHost` の単体テスト）、`VfxSystem` の診断ログは 1 件で、理由文に未構成を示す固定文言を含む。非対応の facts での理由文とは異なる。
-- **AC10（S6・I4）** `VfxRuntimeHost` の単体テスト（EditMode、偽 backend・実 `UpdateCoordinator`）: 生成で Tick 要素が登録・active になり、`OnElementUpdate` が `UnscaledDeltaTime` を `Tick` へ渡す（`timeScale = 0` 相当の context でも timeout が進む）。`Dispose` の順序が「要素の登録解除 → `VfxSystem.Dispose` → backend の `Dispose`」で、2 回目の `Dispose` は何もしない。`AbstractApplicationInitializer` の配線は diff で確認する（`BindSceneDirector` の呼び出しが `new SceneDirector` の直後で `RegisterAlreadyLoadedScenes` より前、`ReleaseAll` の `DisposeVfx` が `_updateSystemHost.Dispose` の後で `_loggerFactory.Dispose` より前）。
-- **AC11（I6）** `VfxSystem` のテスト: instance 0 で warm-up 後の `Tick` 100 回の `GC.GetAllocatedBytesForCurrentThread()` の増分が 0。Stopping の handle がある場合の既存テスト（d1）は全て通る。`Subscribe` が例外を投げる observable で `BindSceneLifecycle` → 例外は呼び出し元へ届き、その後の `Spawn(Scene(id))` の `Create` は 0 回。
-- **AC12（S5・I1）** prefab（無効の `VisualEffect` + `PlacedVfxActivator`、Editor 操作で保存）を Play 中に生成: `Supported` で `enabled == true`、`Unsupported` / `Undetermined` で false。`PlacedVfxActivator` は `VisualEffect` を有効から無効にする処理を持たない（有効化前に効く仕組みであることの構造上の確認）。
+- **AC2（I2・I1）** `VfxGraphCapabilityPolicy.Evaluate(VfxPlatformFacts)` の表駆動テスト（EditMode、Unity の SystemInfo を読まない）。規則は「compute 対応、`maxComputeBufferInputsVertex > 0`、Linear color space、graphics device が拒否リスト（`Null`・`OpenGLES3`）に無い」の全てで対応とする（拒否リスト方式。platform は見ない）。false と理由: compute 非対応、`maxComputeBufferInputsVertex == 0`、`OpenGLES3`、`Null`（graphics なし）、Gamma。true: `Direct3D11` / `Direct3D12` / `Vulkan` / `Metal` / `OpenGLCore` の各行（他の条件は全て満たす）。
+- **AC3（I2）** 実 backend に固定の facts を注入したテスト: `VfxSystem` の生成で facts の読み取りは 1 回、結果は `VfxCapabilityState` に 1 回公開される。評価の前に `Unsupported` を書き、評価が成功したときだけ結果で上書きする（評価中の例外では `Unsupported` が残り、`VfxSystem` の判定と一致する）。backend の `Dispose` で `Undetermined` に戻る。別の backend（後から公開した writer）がいるとき、先の backend の `Dispose` では戻らない。合格例: `VfxSystem` を作る → `Current == Supported`。不合格例: `PlacedVfxActivator` が facts を自分で読む。
+- **AC4（I1）** facts を非対応に固定した実 backend の `VfxSystem`（偽 logger を ctor から数える）: ctor の Warning 1 件。続く `Spawn` 10 回は全て何もしない handle で、ログの増分 0、例外 0、`VisualEffect` の件数（`FindObjectsByType<VisualEffect>` の生成前後の差）0。同じ状態で `PlacedVfxActivator` 付き prefab を生成 → `VisualEffect.enabled == false`、ログ 0 件。`Undetermined` のまま生成しても false。不合格例: Warning を `Spawn` の間だけ数えて 0 件で合格にする。
+- **AC5（S2）** `[UnityTest]` + `EnterPlayMode`、`-WithGraphics`。手順を固定する: (1) 最初に `SystemInfo.graphicsDeviceType` と `supportsComputeShaders` を計測値として出力する、(2) Quality をテストの中で `PC` に切り替え、TearDown で戻す、(3) 黒背景のカメラ（`targetTexture` = RT、自動描画に頼らない）の前方に最小 VFX を `Spawn` → `Play`、(4) 上限フレーム数の loop で `yield return null` し、毎回 `camera.Render()` → 同期の `ReadPixels` で読み戻し、背景と異なる画素が閾値以上になったら合格（上限内に達しなければ不合格）、(5) `Create` 直後・`Play` 前の同じ計測は閾値未満（I3 (a)）。閾値と上限フレーム数は fixture から Phase B が決めて §6 に記録する。(1) が graphics あり・compute 対応で、(4) が上限まで閾値未満のときだけ、§2.7 U3 でいう「描画判定の経路が不成立」とする。graphics なし・compute 非対応なら、経路ではなく実行環境の不備として扱い、環境を直して再実行する。
+- **AC6（I3）** 実 backend の契約テスト（Play 中）: (a) `Create` の後、上限フレーム数の間 `HasAliveParticles == false`、`Play` の後、上限フレーム数の loop 内に true になる、(b) source に `VisualEffectAsset` でない Object を渡すと `VfxInstanceId.Invalid` が返り `VisualEffect` の件数が増えない（この証拠は GameObject を作る前の拒否に限る。GameObject を作った後に失敗する経路の後始末（catch で作りかけの GameObject を破棄して例外を外へ出す）は発見 C のコードレビューで確かめ、そのための fault injection の仕組みは作らない）、(c) 1000 回の `Create` / `Destroy` で id の重複 0、(d) 未知の id・Destroy 済みの id・外から `Object.Destroy` 済みの GameObject・source を破棄した後の `Destroy` が例外なし、(e) GameObject が存在する状態での `Destroy` から戻った直後に `VisualEffect.enabled == false` かつ `visualEffectAsset == null`、(f) テスト中の Unity ログに backend 由来の行が 0（`LogAssert.NoUnexpectedReceived` と backend のコードにログ呼び出しが無いこと）、(g) `Set*`: fixture の Exposed Property（float / int / bool / Vector3 / Vector4 を各 1 件）へ `SetFloat` / `SetInt` / `SetBool` / `SetVector3` / `SetVector4` で書くと true が返り、`VisualEffect.GetFloat` 等で読み戻した値が一致する。未定義の名前と、型の合わない名前は false を返し例外なし（`Has*` で確かめてから書く）。外から GameObject を `Object.Destroy` 済みの instance への `Set*` は false を返し例外なし（`IVfxBackend` の「false は書けなかった」と `VfxHandle` が backend の戻り値をそのまま返す既存の規約に合わせる。新しい parameter API は足さない）。
+- **AC7（S3）** 実 backend と、テストが作る `VfxRuntimeHost`（Play 中の生きた coordinator に登録した Tick 要素から Tick される）: 即時 `Stop` の次フレームで GameObject が `== null`。`StopAllowingParticlesToFinish` の後、`HasAliveParticles` が少なくとも 1 回 true を返したことを確かめ、上限フレーム数の loop 内に破棄される。粒子が消えない fixture では、短い timeout（ctor に渡す）で破棄され、`StopAllowingParticlesToFinish` から破棄までの経過実時間が timeout 以上（最初の Tick の大きな delta で即 timeout する偽合格を除く）。`Bind(go)` の go を `Object.Destroy` すると次フレームまでに instance が破棄される。不合格例: 固定 N フレーム後に handle が非アクティブであることだけを見る。
+- **AC8（S7）** 親ありの `Spawn` の GameObject は親の子、親なしは backend の root（`DontDestroyOnLoad` の Scene にある）の子。どちらも最終の world position / rotation が要求と一致する（許容誤差内）。少なくとも (a) 親なしで原点以外の位置・単位でない回転、(b) 原点以外へ移動し回転した親の下、の 2 ケースで確かめる（local と world の取り違えを検出するため）。backend の `Dispose` で root と残った instance が破棄される。
+- **AC9（S4）** `VfxRuntimeHost` の単体テストで backend に null を渡す: `VfxSystem` の診断ログは 1 件で、理由文に `UnconfiguredVfxBackend` の固定文言を含む。非対応の facts での理由文とは異なる。
+- **AC10（S6・I4・I2）** `VfxRuntimeHost` の単体テスト（EditMode、偽 backend・実 `UpdateCoordinator`・`Subject<SceneEvent>`・偽 `ISceneQuery`）: (a) 生成で Tick 要素が登録・active になり、`OnElementUpdate` が `UnscaledDeltaTime` を `Tick` へ渡す（`DeltaTime = 0`・`UnscaledDeltaTime > 0` の context で timeout が進む）、(b) `Dispose` の順序が「要素の無効化 → 登録解除 → `VfxSystem.Dispose` → backend の `Dispose`」で、2 回目の `Dispose` は何もしない、(c) 生成の途中の失敗で例外が呼び出し元へ届き、backend の `Dispose` が 1 回呼ばれ、`VfxSystem` を作った後の失敗ではその `Dispose` も済んでいる（所有権は `Create` に入った時点で host に移る）。失敗は既存の差し替え点だけで起こす: (c1) `CreateLogger` が例外を投げる偽 `ILoggerFactory`（`VfxSystem` の生成前の失敗）、(c2) 実 `UpdateCoordinator` に layer `Vfx` を別の order で先に作っておく（`GetOrCreateLayer` の order 衝突で `RegisterElement` が `InvalidOperationException` を投げる。`VfxSystem` の生成後の失敗）。`RegisterElement` が false を返す経路の後始末のコードは残すが、テストのために coordinator を virtual 化・interface 化しない（到達はコードレビューで確かめる）。実在の差し替え点で足りないと分かったら Phase A に戻す。(d) `BindSceneLifecycle` に `Subscribe` が例外を投げる observable を渡すと、host は Error を 1 回ログに出して例外を外へ出さない。Play 中のテスト（AC7 と同じ fixture）で、Framework の host が存在し、Tick 要素が active で、Scene lifecycle に接続済みであることを internal の accessor で確かめる。`AbstractApplicationInitializer` の配線の位置は diff で確認する（`BindSceneLifecycle` の呼び出しが `new SceneDirector` と `BindSceneDirector` の直後で `RegisterAlreadyLoadedScenes` より前、`ReleaseAll` の `DisposeVfx` が `_cts.Cancel` の直後で DebugSocket・`_updateSystemHost.Dispose` より前）。
+- **AC11（I6）** `VfxSystem` のテスト: (a) instance 0 で warm-up の `Tick` 1 回の後、`Tick` 100 回の `GC.GetAllocatedBytesForCurrentThread()` の増分が 0（実装は `Tick` の冒頭で索引の件数 0 なら早期 return するだけにする。instance がある場合の snapshot の確保は変えない。再利用 `List` は snapshot の独立性と再入の問題を持ち込むので、測定の根拠ができるまで入れない）、(b) Stopping の handle がある場合の既存テスト（d1）は全て通る、(c) 2 つの Stopping の handle のうち 1 つ目の処理が backend 以外の原因で例外を投げても（偽 backend の `HasAliveParticles` で再入して索引を壊す等、Phase B が構成する）、2 つ目は同じ `Tick` で処理される、(d) `Subscribe` が例外を投げる observable で `BindSceneLifecycle` → 例外は呼び出し元へ届き、その後の `Spawn(Scene(id))` の `Create` は 0 回。
+- **AC12（S5・I1）** prefab（無効の `VisualEffect` + `PlacedVfxActivator`、Editor 操作で保存）を Play 中に生成: `Unsupported` / `Undetermined` で `enabled == false`。`Supported` で `enabled == true`。`Supported` を注入するケースは、実 facts の判定も `Supported` のとき（`-WithGraphics`）だけ実行する（`Assume` で Inconclusive。`-nographics` の起点 filter で graphics の無い device に VFX を有効化しない）。判定 C では、このケースが Inconclusive でなく passed であることを XML で確かめる。`PlacedVfxActivator` は `VisualEffect` を有効から無効にする処理を持たない（有効化前に効く仕組みであることの構造上の確認）。
 - **AC13（I5）** `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` が合格。base `2734a6ea` → implementation head の `git diff --name-status` が §4 の変更対象（と配下の `.meta`、本 HANDOFF、program 文書）に閉じる。Framework の `.cs` に `UnityEngine.VFX` の using / 型が無い。asmdef の差分は §2.6 の 1 件以内。
-- **AC14（回帰）** 判定必須テスト（§5）が failed 0。d1 の `OneStarMaker.Tests.Rendering.Vfx` が全件 passed。
+- **AC14（回帰）** 判定必須テスト（§5）が failed 0。d1 の `OneStarMaker.Tests.Rendering.Vfx` が全件 passed。全 EditMode 回帰を `-WithGraphics` で走らせるのは本スライスが初めてなので、既定（`-nographics`）の全回帰との差（failed・Inconclusive・Ignored の集合）を判定 C が記録する。差がこのスライスの差分と無関係かどうかの扱いは人間の裁定（決定記録）にする。
 
 ### 2.3 状態と順序の手順
 
-- **能力判定の状態（`VfxCapabilityState`、SampleGame の static）:** `Undetermined` → `Supported` / `Unsupported` の 1 回だけの遷移。backend の `QueryCapability` だけが書き、backend の `Dispose` だけが `Undetermined` に戻す。Domain Reload 無効の Play 再開では、Framework の `SubsystemRegistration` の `ReleaseAll` が backend を Dispose するので、前の session の結果は残らない。
-- **起動:** `InitializeBeforeSceneLoad` の `_loggerFactory` 生成の後で `VfxRuntimeHost.Create(CreateVfxBackend(), loggerFactory, updateSystemHost)`。`VfxSystem` の ctor が `QueryCapability` を呼ぶので、Editor の Play で開いていた Scene の Awake（`BeforeSceneLoad` の後）でも結果は公開済み。`CreateVfxBackend` が例外を投げたら他の `Create*` hook と同じく `BeforeSceneLoad` の失敗にする（VFX を黙って無効にしない）。
-- **Scene lifecycle:** `AfterSceneLoad` の `new SceneDirector(...)` と `_updateSystemHost.BindSceneDirector(...)` の直後に `_vfxRuntimeHost.BindSceneDirector(_sceneDirector)`。`BindSceneLifecycle` が例外を投げたら（I6）、host は Error を 1 回ログに出し、起動は続ける（Scene 所有の `Spawn` だけが拒否される）。
-- **更新:** Tick 要素は新しい layer `UpdateLayerIds.Vfx`（order 55。Camera 50 の後、Streaming 60 の前）に登録し、CameraSystem と同じく `ActivatePendingRegistrations()` で即時 active にする。Scene 安定待ちの gate を経由すると、gate が開かない経路（Player の BS4 smoke 等）で消え切り待ちが終わらなくなるため。順序の根拠: Camera の後なので、そのフレームの camera 位置が確定した後に回収判定が走る。Streaming の Scene unload より前に走るが、Scene 所有の回収は scene event で同期に起きるので順序に依存しない。
-- **終了:** `ReleaseAll` の `_updateSystemHost.Dispose()` の直後に `DisposeVfx()`（host の `Dispose`: 要素の登録解除 → `VfxSystem.Dispose` → backend が `IDisposable` なら `Dispose`）。logger と SceneDirector と AM より前なので、回収時のログが出せ、source asset は instance の破棄要求より後に解放される（Architecture §24 §16.4 の source 契約）。Play Mode 終了で Unity が先に Scene を解体した場合も、I3 (d) により backend の `Destroy` は安全に完了する。
+- **能力判定の状態（`VfxCapabilityState`、SampleGame の static）:** 値（`Undetermined` / `Supported` / `Unsupported`）と、最後に書いた backend（writer）を持つ。backend の `QueryCapability` だけが書き（評価の前に `Unsupported`、評価に成功したら結果。書くたびに writer を自分にする）、backend の `Dispose` は自分が writer のときだけ `Undetermined` に戻す。後から書いた backend が勝つので、Play 中のテストが自分の backend を作るとテストの値になり、テストの backend の Dispose で `Undetermined` に戻る（本番の backend は以後 writer ではない。テストの Play を出れば本番も Dispose される）。Domain Reload 無効の Play 再開では、`SubsystemRegistration` の `ReleaseAll` が host を Dispose し、host の生成が途中で失敗した場合も host が backend を Dispose する（AC10 (c)）ので、前の session の `Supported` は残らない。
+- **起動:** `InitializeBeforeSceneLoad` の `_loggerFactory` 生成の後で `VfxRuntimeHost.Create(CreateVfxBackend(), loggerFactory, coordinator)`。backend の所有権は `Create` に入った時点で host に移り、`Create` が失敗したら host が作りかけの `VfxSystem` と backend を Dispose してから例外を外へ出す。`VfxSystem` の ctor が `QueryCapability` を呼ぶので、Editor の Play で開いていた Scene の Awake（`BeforeSceneLoad` の後）でも結果は公開済み。`CreateVfxBackend` と `Create` の例外は、他の `Create*` hook と同じく `BeforeSceneLoad` の失敗にする（VFX を黙って無効にしない）。backend の ctor は環境に依存する例外を投げない（I3 (g)）ので、Mobile の非対応で起動は失敗しない。
+- **Scene lifecycle:** `AfterSceneLoad` の `new SceneDirector(...)` と `_updateSystemHost.BindSceneDirector(...)` の直後に `_vfxRuntimeHost.BindSceneLifecycle(_sceneDirector.OnSceneEvent, _sceneDirector)`。host は `SceneDirector` の具象型を受け取らない（単体テストのため）。`BindSceneLifecycle` が例外を投げたら（I6）、host は Error を 1 回ログに出し、起動は続ける（Scene 所有の `Spawn` だけが拒否される）。`BeforeSceneLoad` から接続までの間（`AfterSceneLoad` の await の間）は、Scene 所有の `Spawn` は d1 の約束どおり拒否される。
+- **更新:** Tick 要素は新しい layer `UpdateLayerIds.Vfx`（order 55。Camera 50 の後、Streaming 60 の前）に登録し、CameraSystem と同じく `ActivatePendingRegistrations()` で即時 active にする。Scene 安定待ちの gate を経由すると、gate が開かない経路（Player の BS4 smoke 等）で消え切り待ちが終わらなくなるため。`Tick` には `UnscaledDeltaTime` を渡す（VFX の simulation は scaled time なので、`timeScale = 0` では粒子が消えず、unscaled の timeout だけが出口になる）。順序の根拠: Camera の後なので、そのフレームの camera 位置が確定した後に回収判定が走る。Streaming の Scene unload より前に走るが、Scene 所有の回収は scene event で同期に起きるので順序に依存しない。
+- **終了:** `ReleaseAll` の `_cts?.Cancel()` の直後、DebugSocket と `_updateSystemHost.Dispose()` より前に `DisposeVfx()`（host の `Dispose`: 要素を no-op にする → 生きている coordinator から登録解除 → `VfxSystem.Dispose` → backend が `IDisposable` なら `Dispose`）。logger と SceneDirector と AM より前なので、回収時のログが出せ、source asset は instance の破棄要求より後に解放される（Architecture §24 §16.4 の source 契約）。`SceneDirector.Dispose` が scene event の Subject を閉じる前に購読を解除しているので、logger の Dispose 後に `OnCompleted` の処理が走らない。Play Mode 終了で Unity が先に Scene を解体した場合も、I3 (d) により backend の `Destroy` は安全に完了する。
 
-### 2.4 d1 から送られた事項の裁定
+### 2.4 d1 から送られた事項と backend の決定
 
 **必須事項（program §6.3 d2 行）**
 
@@ -141,8 +141,17 @@
 | `IVfxBackend` 契約の実 backend での確認 | AC6（`Create` 失敗の後始末、`Destroy` の冪等性と破棄済み GameObject・失効した source への耐性、id を再利用しない） |
 | 消え切り待ち timeout の既定値（d1 は 10 秒） | 10 秒のまま。設定 key は作らない（必要になった Event スライスの Phase A で決める） |
 | `BindSceneLifecycle` を SceneDirector の生成直後・最初の Scene のロード前に呼ぶ配線順 | §2.3「Scene lifecycle」・AC10 |
-| `Destroy` 要求と native 実体の破棄完了の差 | backend の `Destroy` は `VisualEffect.enabled = false`・`visualEffectAsset = null`・GameObject の非 active 化を同期に行ってから `Object.Destroy` する（I3 (e)・AC6 (e)） |
+| `Destroy` 要求と native 実体の破棄完了の差 | backend の `Destroy` は id を対応表から先に外し、GameObject が存在するなら `VisualEffect.enabled = false`・`visualEffectAsset = null`・GameObject の非 active 化を同期に行ってから `Object.Destroy` する（`DestroyImmediate` は `Bind` 所有者の破棄中に失敗しうるので使わない。I3 (e)・AC6 (e)） |
 | `VfxSpawnRequest.Parent` が null のときの配置先 | backend が遅延生成する `DontDestroyOnLoad` の root（S7・AC8）。active Scene に置くと、所有者と無関係な Scene の unload で Unity が先に壊すため |
+
+**backend の実装の決定（A2 で固定）**
+
+- **`Create`（発射しない）:** source が `VisualEffectAsset` でなければ何も作らず `Invalid`。非 active の GameObject に `AddComponent<VisualEffect>` → `visualEffectAsset` を設定 → `initialEventName = string.Empty`（有効化時の初期イベントを送らない）→ 親の下（親なしは root の下）へ移す → `request.Position` / `request.Rotation` を **world** の位置・回転として設定する（親の移動・回転に関係なく、最終の world transform が要求と一致する。d1 の `VfxSpawnRequest` の契約）→ active にする。途中の例外では作りかけの GameObject を破棄してから例外を外へ出す。`VisualEffect` は有効化のたび（と `Reinit` で）初期イベント（既定 `OnPlay`）を送るので、backend は `Reinit` と `enabled` の切り替えを呼ばない。
+- **`Play`:** `VisualEffect.Play()`（全 Spawn system へ `OnPlay`）。**`StopEmitting`:** `VisualEffect.Stop()`。fixture は `OnPlay` / `OnStop` を Spawn に配線した既定の構成にする。
+- **`HasAliveParticles`:** `HasAnySystemAwake() || aliveParticleCount > 0`。`aliveParticleCount` は GPU からの非同期の読み戻しで遅れうる（package の `ComponentAPI.md`）ので単独では使わない。誤判定は回収を遅らせる側に倒し、timeout が上限を保証する。
+- **id:** backend の生涯で 1 から単調増加する `ulong`。再利用しない。
+- **fixture:** `.vfx` 2 件は Culling Flags を常に更新（`CullNone`）にする。カメラに映らない間 simulation が止まり、粒子が消えないまま timeout でしか回収されない状態を避けるため。
+- **配置済み VFX:** `PlacedVfxActivator` が `enabled = true` にした時点で初期イベントが送られ、配置済み VFX は自動で再生される（Cell 常駐の VFX に望ましい挙動。§3.3）。
 
 **d1 の C / C' からの入力**
 
@@ -150,18 +159,20 @@
 |---|---|---|
 | instance 0 でも `Tick` が毎フレーム `List` を 2 つ確保する | 採用（I6・AC11） | d2 で毎フレーム登録するので、常時の GC 負担になる |
 | 拒否（`default(AssetOwner)`・終端中 Scene・破棄済み go・null source）の診断 | 不採用 | 拒否は Game が分岐しないための正常系で、毎フレームの `Spawn` でログが溢れる。最初の Game 利用者である d4 の Phase A で必要なら再検討する |
-| `Tick` の全体 try/catch で backend 以外の例外が同じ Tick の残りを飛ばす | 不採用 | backend 例外は handle ごとに隔離済み。残りは Framework 内の不具合で、隔離より修正の対象。次の Tick で残りは処理される |
+| `Tick` の全体 try/catch で backend 以外の例外が同じ Tick の残りを飛ばす | 採用（I6・AC11 (c)）。A2-3 の指摘で初稿の不採用を改めた | program §6.3 d1 行は「`UpdateSystemRuntime` に登録する場合、エフェクト単位の例外隔離はシステム単位の隔離に加えた d1 の境界」とした。d2 で登録するので、handle ごとの try/catch にする |
 | Unsupported の `VfxSystem` も scene event を購読する | 不採用 | 購読の処理は backend を呼ばず、負担は Scene 遷移ごとの数回の分岐だけ |
-| `BindSceneLifecycle` の `Subscribe` の例外で lifecycle が開いたまま | 採用（I6・AC11） | d2 で実配線するので、失敗時に Scene 所有を受理し続ける状態を残さない |
-| `BindSceneLifecycle` の `ReleaseAll` が try の外で logger の例外が漏れる | 不採用 | `ILogger` 自身の例外は d1 の I3 で対象外とした範囲。host 側（§2.3）が `BindSceneLifecycle` の例外を捕捉する |
+| `BindSceneLifecycle` の `Subscribe` の例外で lifecycle が開いたまま | 採用（I6・AC11 (d)） | d2 で実配線するので、失敗時に Scene 所有を受理し続ける状態を残さない。`VfxSystem` は lifecycle を閉じて例外を外へ出し、host が捕捉してログに出す |
+| `BindSceneLifecycle` の `ReleaseAll` が try の外で logger の例外が漏れる | 不採用 | `ILogger` 自身の例外は d1 の I3 で対象外とした範囲。lifecycle は回収の前に閉じているので fail-closed のまま。host が例外を捕捉する |
 
 ### 2.5 ここでは答えない問いと所有スライス
 
 - 配置済み VFX の authoring 検査（`VisualEffect` を有効のまま保存した、`PlacedVfxActivator` が無い、の Editor 検査）と、実 Scene の Load / Unload での停止の確認: **S-4d3**。
 - Player（Content Directory 経路）での描画と、VFX shader の build への収録: **S-4d3**（実 Scene の asset が build に入る最初のスライス）。
-- Cell の距離ストリーミング体積への影響（N-9）: **S-4d3**。
+- Cell の距離ストリーミング体積への影響（N-9）: **S-4d3**。A2-3 の指摘: `VisualEffect` と一緒に付く `VFXRenderer` は `Renderer` の派生なので、`includeInactive: true` の `Renderer` 収集が VFX の bounds を Cell の AABB に入れうる。d3 の Phase A で確かめる。
+- `VFXManager.asset` の shader 参照が Player で欠ける場合を判定に含めるか: **S-4d3**（Editor では package の import が埋める）。
 - Game が `IVfxSystem` を受け取る経路（`GameSceneFactory` への注入等）、prefab を source にした `Spawn`、拒否の診断の要否: **S-4d4**。
 - notifier の `OnDestroy` の実 Scene unload での発火、同じ identity の Scene の再ロード: **S-4d4**（d1 からの送り）。
+- VFX の時間の所属: **S-4d4**（2026-10-25 発注者決定）。instance が所属する `UpdateLayer` の `IsPaused` / `TimeScale` に再生を追従させる（例: gameplay の layer と一緒に止める）。方向は「VFX は VfxSystem にまとめたまま、instance に時計（所属 layer）を持たせる」で、instance を VfxSystem の外に出さない（所有者の終端での回収・非対応での停止・例外の隔離を一か所に保つため）。d4 の Phase A で決めること: `Spawn` での layer の宣言のしかた（`VfxSpawnRequest` / `IVfxBackend` への追加。どちらも追加だけ）、backend への反映（VFX Graph の `pause` / `playRate`、値が変わったときだけ）、止まっている間の消え切り待ちの timeout の数え方（d2 は unscaled なので、止めた layer の VFX が止まっている間に打ち切られる）、配置済み VFX（`PlacedVfxActivator`）の所属の指定。2026-10-25 の program の追加レビューで、次も d4 の必須検討に足した（詳細は program §6.3 d4 行が正）: layer が `IsPaused` の間はその layer の要素が呼ばれないので、止まっている間も停止・再開を反映できる経路を選ぶこと、`Time.timeScale`・VFX Graph の `Ignore Time Scale`・`playRate`・layer の `TimeScale` の合成規則、`TimeScale == 0` と `IsPaused` の扱い、d3 で配置した VFX への後からの変更の要否（d4 が判断し、d3 の範囲は増やさない）。d2 はこれを入れず、d2 の Tick・timeout・backend の契約は変えない。
 - Mobile 実機での判定と描画: S-4 では行わない（§2.7 U2 で発注者が確認する）。
 
 ### 2.6 本文へ転記した実装制約（`AGENTS.md` の常時契約から）
@@ -179,12 +190,14 @@
 - ローカルの Unity Editor は必要なら起動・操作してよい。Phase B は対象を限定した Editor 操作（package の import、`.vfx` と prefab の作成）とコンパイル確認まで。Unity テストの実行・判定は Phase C。`unity test` / `unity run` は使わない。
 - 参照 0 を削除理由にしない。
 
-### 2.7 未決事項（A3 で発注者が決める）
+### 2.7 未決事項の裁定（A3。2026-10-25 に発注者が承認）
 
-- **U1 Player での描画:** d2 は Editor の Play（`-WithGraphics`）で描画を判定し、Player build は d3 へ送る（§2.5）。program §11 の「PC で表示できる（d2 で 1 件）」をこの読み方で満たすとしてよいか。
-- **U2 Mobile 実機:** 非対応の判定は facts を差し替えた実 backend のテスト（AC4）で代え、実機の確認は S-4 で行わない。program §6.1 の「Mobile 安全停止」をこの範囲で満たすとしてよいか。
-- **U3 描画判定の経路が成立しない場合:** AC5 の `RenderTexture` 読み戻しは Phase C が初めて実行する（未確認。§5）。batch の graphics ありで VFX が RT に描かれない等で成立しない場合、(a) Editor を通常起動し AI が Game view を撮影、人間が画像で描画を判断する、(b) 問いを分け、描画の判定を d3 へ送る、のどちらにするか。
-- **U4 配置済み VFX の authoring 負担:** `VisualEffect` を無効のまま保存する規約では、Edit Mode の Scene view に配置済み VFX がプレビューされない（確認は Play か、一時的に有効にして保存しない操作）。この負担を受け入れるか（代替案と不採用の理由は §3.3）。
+発注者が依頼した追加レビュー（§5「A3 前の追加レビュー」）の判断案を採り、2026-10-25 に発注者が主担当とのチャットで U1〜U4 をこの裁定どおり承認した（原文「そろそろ凍結しましょう」。その前の版で U1〜U4 の裁定案を承認対象として提示済み）。
+
+- **U1 Player での描画 → d3 へ送る（承認）:** d2 は graphics ありの Editor の Play で実描画を判定し、Player build と VFX shader の build 統合は d3 が確かめる。program §11 の「PC で表示できる（d2 で 1 件）」は Editor の Play での 1 件と読む。二つの保証を混同しない。
+- **U2 Mobile 実機 → S-4 では行わない（d2 の検証範囲として承認）:** d2 の証拠は「判定の規則（AC2）と、facts を差し替えた実 backend の非対応経路（AC4）」であり、Mobile 実機で例外が出ないことの実証ではない。実機で実施済みとは記録しない。規則は platform を見ないので、compute と SSBO に対応した Android の Vulkan 端末は `Supported` になるが、それは全 Android Vulkan 実機での動作保証ではない。
+- **U3 描画判定の経路が成立しない場合 → S2 を弱めない（承認）:** 描画の判定（S2）を d3 へ先送りする案は採らない（d2 の中心の問いに答えないまま GO になるため。Player の描画を d3 へ送る U1 とは別の話）。AC5 の `camera.Render()` + RT + `ReadPixels` が不成立（AC5 の定義）なら、次の順に切り替える。(1) Unity 6000.6 / URP 17.6 で使える別の明示的なカメラ描画経路（例: SRP の render request API）を、Editor で有効性を確かめてから検証手段として使う（製品の実装要件は増やさない）。(2) それも不成立なら、Editor を通常起動して AI が Game view を撮影し、人間が画像で描画を判断する（対象 head・場面・観察者・結果を記録し、画像を evidence に入れる）。(3) どちらでも確かめられなければ NO-GO。判定手段の変更を合格条件の緩和に使わない。
+- **U4 配置済み VFX の authoring 負担 → 受け入れる（承認）:** 有効化前に安全に止めることを優先する。Edit Mode の Scene view でプレビューされない負担の実害と、authoring の検査は d3 で扱う（代替案と不採用の理由は §3.3）。
 
 ## 3. 責務マップ（A1）
 
@@ -196,11 +209,11 @@
 
 | ファイル | 責務 | 所有者・寿命 | 依存 | 公開面 | テスト境界 | 行数 |
 |---|---|---|---|---|---|---|
-| `Rendering/Vfx/Implements/VfxRuntimeHost.cs`（新規、internal sealed、`IUpdateElement`） | `VfxSystem` 一式の生成・Tick 要素の登録と転送・Scene lifecycle への接続・Dispose 順序。orchestration だけで判定ロジックを持たない | App（`AbstractApplicationInitializer` が所有。`BeforeSceneLoad` 〜 `ReleaseAll`） | `VfxSystem`、`IVfxBackend`、`ILoggerFactory`、`UpdateCoordinator`、`SceneDirector`（`Observable<SceneEvent>` と `ISceneQuery` として） | internal | EditMode 単体（偽 backend、実 `UpdateCoordinator`、`Subject<SceneEvent>`） | 0 → 130 |
+| `Rendering/Vfx/Implements/VfxRuntimeHost.cs`（新規、internal sealed、`IUpdateElement`） | `VfxSystem` 一式の生成・Tick 要素の登録と転送・Scene lifecycle への接続・Dispose 順序。orchestration だけで判定ロジックを持たない。`Create` に入った時点で backend を所有し、生成の途中で失敗したら自分で Dispose する。登録先の coordinator を自分で保持し、Dispose では要素を no-op にしてから登録解除する。接続は `BindSceneLifecycle(Observable<SceneEvent>, ISceneQuery)`（`SceneDirector` の具象型を受け取らない） | App（`AbstractApplicationInitializer` が所有。`BeforeSceneLoad` 〜 `ReleaseAll`） | `VfxSystem`、`IVfxBackend`、`ILoggerFactory`、`UpdateCoordinator`、`Observable<SceneEvent>`、`ISceneQuery` | internal（Play 中のテスト用の internal accessor を initializer に 1 件） | EditMode 単体（偽 backend、実 `UpdateCoordinator`、`Subject<SceneEvent>`） | 0 → 150 |
 | `Rendering/Vfx/Implements/UnconfiguredVfxBackend.cs`（新規、internal sealed） | 未構成を示す backend。`QueryCapability` が false と固定の理由文を返し、他のメソッドは呼ばれない前提で何もしない | `VfxRuntimeHost` が生成（App） | なし | internal（理由文は internal const でテストから参照） | EditMode 単体 | 0 → 45 |
-| `Rendering/Vfx/Implements/VfxSystem.cs` | 既存。`Tick` の確保回避（I6）と `Subscribe` 失敗時の lifecycle を閉じる処理（I6）を足す | 既存（App） | 既存 | 変えない | 既存テスト + AC11 | 471 → 500 |
-| `Rendering/Vfx/Implements/VfxOwnerIndex.cs` | 既存。Tick 用の再利用 snapshot（件数 0 の早期 return と、Tick 専用の再利用 `List`）を足す | 既存 | 既存 | internal | 既存テスト + AC11 | 115 → 145 |
-| `Bootstrap/AbstractApplicationInitializer.cs` | 既存。`protected virtual IVfxBackend? CreateVfxBackend()` の hook と、host の生成・接続・Dispose の 3 か所の呼び出し | 既存 | + `VfxRuntimeHost` | + protected virtual 1 件 | diff 確認（AC10）。既存の bootstrap テストの回帰 | 1196 → 1220 |
+| `Rendering/Vfx/Implements/VfxSystem.cs` | 既存。`Tick` の確保回避と handle ごとの例外隔離、`Subscribe` 失敗時の lifecycle を閉じる処理（I6）を足す | 既存（App） | 既存 | 変えない | 既存テスト + AC11 | 471 → 510 |
+| `Rendering/Vfx/Implements/VfxOwnerIndex.cs` | 既存。`Tick` の早期 return に使う件数を足す（snapshot の確保は変えない） | 既存 | 既存 | internal | 既存テスト + AC11 | 115 → 120 |
+| `Bootstrap/AbstractApplicationInitializer.cs` | 既存。`protected virtual IVfxBackend? CreateVfxBackend()` の hook と、host の生成・接続・Dispose の 3 か所の呼び出し、Play 中のテスト用の internal accessor | 既存 | + `VfxRuntimeHost` | + protected virtual 1 件 | diff 確認と Play 中の存在確認（AC10）。既存の bootstrap テストの回帰 | 1196 → 1225 |
 | `UpdateSystem/Layers/UpdateLayerIds.cs` | 既存。`Vfx` と `VfxLayerOrder = 55` を足す | 定数 | なし | + public const 2 件 | AC10 | 37 → 45 |
 
 **SampleGame（`unity/Assets/SampleGame/Common/Scripts/Rendering/Vfx/`、namespace `SampleGame.Common.Rendering.Vfx`、asmdef `SampleGame.Common`）**
@@ -208,8 +221,9 @@
 | ファイル | 責務 | 所有者・寿命 | 依存 | 公開面 | テスト境界 | 行数 |
 |---|---|---|---|---|---|---|
 | `VfxGraphCapabilityPolicy.cs`（新規。`VfxPlatformFacts` struct を同居） | platform の事実から対応可否と理由を決める純粋な規則 | static、状態なし | なし（`GraphicsDeviceType` / `ColorSpace` の enum だけ） | public（SampleGame 内） | EditMode 単体、表駆動（AC2） | 0 → 80 |
-| `VfxCapabilityState.cs`（新規、static） | 判定結果の単一の出所。backend が書き、`PlacedVfxActivator` が読む | Domain 内 static。backend の Dispose で `Undetermined` に戻る | なし | public `Current`、internal の書き込み | AC3 | 0 → 50 |
-| `VfxGraphBackend.cs`（新規、`IVfxBackend`・`IDisposable`） | VFX Graph の `VisualEffect` を作る・再生する・止める・壊す。facts の読み取りは注入（既定は `SystemInfo` / `QualitySettings`） | `AbstractApplicationInitializer`（Framework）が `CreateVfxBackend` で受け取り、host が Dispose する（App） | `UnityEngine.VFX`（engine module）、`VfxGraphCapabilityPolicy`、`VfxCapabilityState` | public（SampleGame 内） | Play 中の契約テスト（AC5〜AC8） | 0 → 230 |
+| `VfxCapabilityState.cs`（新規、static） | 判定結果の単一の出所。backend が書き、`PlacedVfxActivator` が読む。値と writer（最後に書いた backend）を持つ | Domain 内 static。writer の backend の Dispose で `Undetermined` に戻る | なし | public `Current`、internal の書き込み（writer 付き） | AC3 | 0 → 60 |
+| `unity/Assets/SampleGame/Common/AssemblyInfo.cs`（新規） | `InternalsVisibleTo("SampleGame.Tests")`。`VfxCapabilityState` の書き込みと backend の facts 注入をテストから使うため（asmdef の変更ではない） | — | — | — | — | 0 → 5 |
+| `VfxGraphBackend.cs`（新規、`IVfxBackend`・`IDisposable`） | VFX Graph の `VisualEffect` を作る・再生する・止める・壊す（§2.4 の手順）。facts の読み取りは internal ctor で注入（既定は `SystemInfo` / `QualitySettings`）。ctor は環境に依存する例外を投げない | `AbstractApplicationInitializer`（Framework）が `CreateVfxBackend` で受け取り、host が Dispose する（App） | `UnityEngine.VFX`（engine module）、`VfxGraphCapabilityPolicy`、`VfxCapabilityState` | public（SampleGame 内） | Play 中の契約テスト（AC5〜AC8） | 0 → 230 |
 | `PlacedVfxActivator.cs`（新規、MonoBehaviour） | 無効のまま保存された配置済み `VisualEffect` を、`Supported` のときだけ Awake で有効にする | 置かれた Scene / prefab の寿命 | `VfxCapabilityState` | public MonoBehaviour | AC12 | 0 → 45 |
 | `unity/Assets/SampleGame/DependOnAll/AppInitializer.cs` | 既存。`CreateVfxBackend` の override 1 件 | 既存 | + `SampleGame.Common.Rendering.Vfx` | 変えない | 回帰 | 422 → 428 |
 
@@ -221,23 +235,23 @@
 | `unity/Assets/OneStarMaker/Tests/Rendering/Vfx/VfxSystemTickAllocationTests.cs`（新規） | AC11（確保 0 と `Subscribe` 失敗） | 0 → 110 |
 | `unity/Assets/SampleGame/Tests/Rendering/Vfx/VfxGraphCapabilityPolicyTests.cs`（新規） | AC2・AC3 | 0 → 120 |
 | `unity/Assets/SampleGame/Tests/Rendering/Vfx/VfxGraphBackendPlayTests.cs`（新規、`EnterPlayMode`） | AC4〜AC8・AC12 | 0 → 420 |
-| `unity/Assets/SampleGame/Tests/Rendering/Vfx/Fixtures/`（新規、Editor 操作で作成） | 最小 `.vfx`（短い寿命の粒子を出し続ける 1 system）と、粒子が消えない `.vfx`（timeout 用）、`PlacedVfxActivator` 付き prefab | asset |
+| `unity/Assets/SampleGame/Tests/Rendering/Vfx/Fixtures/`（新規、Editor 操作で作成） | 最小 `.vfx`（短い寿命の粒子を出し続ける 1 system）と、粒子が消えない `.vfx`（timeout 用）。どちらも Culling Flags は常に更新（`CullNone`）で、`OnPlay` / `OnStop` を Spawn に配線した既定の構成。`PlacedVfxActivator` 付き prefab（`VisualEffect` は無効のまま保存） | asset |
 
 **package と設定:** `unity/Packages/manifest.json`、`unity/Packages/packages-lock.json`、package の import で Editor が書く `unity/ProjectSettings/VFXManager.asset`（と import が書く ProjectSettings。§4 の許容）。
 
 ### 3.2 配置と依存を選んだ理由
 
-- **composition を Framework に置く。** `BindSceneLifecycle` は `new SceneDirector` の直後・最初の Scene のロード前に呼ぶ必要があり、Dispose は logger・SceneDirector・AM より前に置く必要がある。どちらも `AbstractApplicationInitializer` の private な処理の間で、Game の hook からは割り込めない（SampleGame の CameraSystem 等は別の `Application.quitting` handler で、Framework の `ReleaseAll` との前後は登録順に依存する）。Framework は既に SceneDirector・AM・UpdateSystemHost の寿命と順序を所有しているので、同じ場所に置くと順序が 1 か所で読める。Game の差し込みは `CreateVfxBackend` 1 件に絞る。代替（SampleGame が `VfxSystem` を所有し、Framework に「SceneDirector 生成直後」と「解放の途中」の hook を 2 つ足す）は、公開面が増え、順序の約束が二つのクラスに分かれるので採らない。
+- **composition を Framework に置く。** `BindSceneLifecycle` は `new SceneDirector` の直後・最初の Scene のロード前に呼ぶ必要があり、Dispose は logger・SceneDirector・AM より前に置く必要がある。どちらも `AbstractApplicationInitializer` の private な処理の間で、Game の hook からは割り込めない（SampleGame の CameraSystem 等は別の `Application.quitting` handler で、Framework の `ReleaseAll` との前後は登録順に依存する）。Framework は既に SceneDirector・AM・UpdateSystemHost の寿命と順序を所有しているので、同じ場所に置くと順序が 1 か所で読める。Game の差し込みは `CreateVfxBackend` 1 件に絞る。代替（SampleGame が `VfxSystem` を所有し、Framework に「SceneDirector 生成直後」と「解放の途中」の hook を 2 つ足す）は、公開面が増え、順序の約束が二つのクラスに分かれるので採らない。Tick の登録だけなら Game 側でも CameraSystem の前例どおりできるので、Framework が持つ理由は `BindSceneLifecycle` の配線と Dispose の順序の 2 点である。CameraSystem は `CinemachineCameraBackend` が Framework 内にあっても Game が所有するので非対称になるが、Camera は SceneDirector と AM の順序に依存しない。この理由は harvest で §24 §16 に残す。
 - **`VfxRuntimeHost` を分ける。** 1196 行の initializer に判定や順序の詳細を入れず、呼び出し 3 か所だけにする。host は orchestration だけなので、偽 backend と実 `UpdateCoordinator` で単体テストできる。
-- **Framework の公開面の追加は 2 件:** `AbstractApplicationInitializer.CreateVfxBackend()`（protected virtual、既定 null）と `UpdateLayerIds.Vfx` / `VfxLayerOrder`（定数）。Game が `IVfxSystem` を受け取る経路は d4 で決める（d2 に Game の利用者がいない）。
+- **Framework の公開面の追加は 2 件:** `AbstractApplicationInitializer.CreateVfxBackend()`（protected virtual、既定 null）と `UpdateLayerIds.Vfx` / `VfxLayerOrder`（定数）。layer を `UpdateLayerIds` に置くのは、Input・Camera・Streaming との順序を 1 つの一覧で読めるようにするため（同 class は共有する順序の契約）。Game が `IVfxSystem` を受け取る経路は d4 で決める（d2 に Game の利用者がいない）。`CreateVfxBackend` が null の派生 initializer（VFX を使わない project やテスト用）でも起動のたびに Warning が 1 件出る。Phase B は着手時に、起動時の Warning を数える既存のテスト・smoke が無いことを確かめ、§6 に記録する（あれば Phase A に戻す）。
 - **backend 一式を `SampleGame.Common` に置く。** `PlacedVfxActivator` は d3 の InGame の Scene に、backend は DependOnAll の composition に、それぞれ使われる。両方が参照する `SampleGame.Common` に置けば asmdef の追加が要らない。`DependOnAll` は全体配線の場所で、Scene に置く MonoBehaviour を持たせない。
 - **判定の規則を純粋な static に分ける。** `SystemInfo` を読む I/O と規則を分け、規則を表駆動で単体テストする（Mobile 実機の代わりの証拠になる。U2）。
-- **`VfxCapabilityState` を static にする。** `PlacedVfxActivator` は Scene の deserialize で生成され、composition から注入できない。`BeforeSceneLoad` で結果が公開済みになることを §2.3 で保証し、`Undetermined` は非対応として fail-closed にする。
+- **`VfxCapabilityState` を static にする。** `PlacedVfxActivator` は Scene の deserialize で生成され、composition から注入できない。`BeforeSceneLoad` で結果が公開済みになることを §2.3 で保証し、`Undetermined` は非対応として fail-closed にする。Play 中のテストでは本番とテストの 2 つの backend が同居するので、writer を持たせて「後から書いた backend が勝ち、writer の Dispose だけが戻す」にする（A2-1・A2-2 の指摘）。
 - **`.vfx` fixture はテストフォルダに置く。** Editor-only の test assembly から `AssetDatabase` で読むので、build に入らない。d3 は自分の Scene 用の asset を作る。
 
 ### 3.3 配置済み VFX を止める仕組み（program §6.3 の「有効化前に適用できるか」）
 
-- **採用:** `VisualEffect` を無効（`enabled = false`）のまま保存し、同じ GameObject の `PlacedVfxActivator` が Awake で `Supported` のときだけ有効にする。無効のまま deserialize されるので、非対応環境で一度も有効にならないことが構造で決まる（AC12）。
+- **採用:** `VisualEffect` を無効（`enabled = false`）のまま保存し、同じ GameObject の `PlacedVfxActivator` が Awake で `Supported` のときだけ有効にする。無効のまま deserialize されるので、非対応環境で一度も有効にならないことが構造で決まる（AC12。`enabled` は serialize された値が復元されるだけで、有効化の処理は走らないことを A2-2 が確認した）。有効にした時点で初期イベント（既定 `OnPlay`）が送られ、配置済み VFX は自動で再生される。
 - **不採用:** 有効のまま保存し、`[DefaultExecutionOrder]` の早い script が Awake で無効にする。native の `VisualEffect` の有効化は script の Awake の順序と独立に起きうるので、有効化前に止められることを保証できない（一度有効になれば GPU 資源の確保や非対応 API の呼び出しが先に起きうる）。
 - **不採用:** `SceneManager.sceneLoaded` で backend が Scene を走査して止める。Awake / OnEnable の後に届くので有効化前ではない。
 - 負担: Edit Mode の Scene view でプレビューされない（U4）。authoring の検査は d3。
@@ -249,9 +263,9 @@ Architecture §24 §16 に「composition（`VfxRuntimeHost`、起動・終了順
 ### 3.5 行数警報
 
 - `AbstractApplicationInitializer.cs`（1196 行、既に 500 超）: 非分割。d2 は呼び出し 3 か所と hook 1 件（+24 行、2%）で、責務は host へ分けた。既存の大きさは本スライス由来ではない。
-- `VfxSystem.cs`（471 → 約 500）: 非分割。追加は既存の Tick と `BindSceneLifecycle` の中の修正で、d1 で 3 つに分けた責務（状態遷移・索引・受理規則）の境界を変えない。
+- `VfxSystem.cs`（471 → 約 510、500 超）: 非分割。追加は既存の Tick と `BindSceneLifecycle` の中の修正で、d1 で 3 つに分けた責務（状態遷移・索引・受理規則）の境界を変えない。
 - `VfxGraphBackendPlayTests.cs`（約 420）: 非分割。全て同じ Play 中の fixture（カメラ・RT・backend）を共有する。500 を超える見込みになったら、描画（AC5）と契約（AC6〜AC8・AC12）で分ける。
-- 3 責務・50% 増加の警報: 該当なし（`VfxOwnerIndex.cs` は +26% の見込み）。
+- 3 責務・50% 増加の警報: 該当なし（`VfxOwnerIndex.cs` は +5% の見込み）。
 
 ## 4. 実装計画
 
@@ -263,37 +277,101 @@ Architecture §24 §16 に「composition（`VfxRuntimeHost`、起動・終了順
 ## 5. テストとレビュー計画
 
 - 単体テスト: `VfxGraphCapabilityPolicyTests`（純粋）、`VfxRuntimeHostTests`・`VfxSystemTickAllocationTests`（偽 backend、Unity なし）。
-- 差し戻し中の起点 `-Filter`: `OneStarMaker.Tests.Rendering.Vfx;SampleGame.Tests.Rendering.Vfx`（Play 中のテストを含むときは `-WithGraphics`。C が根拠付きで変更可）。
-- 判定必須テスト（GO 候補 head）: `pwsh tools/run-tests.ps1 -WithGraphics`（空 filter の全 EditMode 回帰。Play 中のテストを同じプロセスに集約する）。XML で §3.1 のテスト 4 ファイルのテストが収録され、failed 0 であること。
+- 差し戻し中の起点 `-Filter`: `OneStarMaker.Tests.Rendering.Vfx;SampleGame.Tests.Rendering.Vfx`（Play 中のテストを含むときは `-WithGraphics`。`-nographics` では AC12 の `Supported` のケースと AC5 は Inconclusive になる。C が根拠付きで変更可）。
+- 判定必須テスト（GO 候補 head）: `pwsh tools/run-tests.ps1 -WithGraphics`（空 filter の全 EditMode 回帰。Play 中のテストを同じプロセスに集約する）。XML で §3.1 のテスト 4 ファイルのテストが収録され、failed 0、かつ本スライスのテストの Inconclusive・Ignored が 0 であること。既定（`-nographics`）との差は AC14 のとおり記録する。
 - 全 EditMode 回帰の適用除外: なし
-- 統合・Unity テスト: `VfxGraphBackendPlayTests`（Editor-only asmdef の EditMode テストで `EnterPlayMode` / `ExitPlayMode`。PlayMode platform は採用しない）。
+- 発見 C での先行の全回帰: 全 EditMode 回帰を `-WithGraphics` で回すのは本スライスが初めてなので、発見 C の最初の巡で `pwsh tools/run-tests.ps1 -WithGraphics`（空 filter）を 1 回だけ先に回し、同じ head の既定（`-nographics`）の全回帰との差（failed・Inconclusive・Ignored の集合）を洗い出す。目的は、graphics ありの条件でだけ出る本スライスと無関係な失敗を判定 C より前に見つけ、扱い（決定記録の要否）を早めに人間へ返すこと。この先行の実行は判定の証拠にしない（判定 C は GO 候補 head で判定必須テストを改めて実行する）。差が出ても、本スライスの差分と関係のない失敗の修正は本スライスで行わない。
+- 統合・Unity テスト: `VfxGraphBackendPlayTests`（Editor-only asmdef の EditMode テストで `EnterPlayMode` / `ExitPlayMode`。PlayMode platform は採用しない）。`EnterPlayMode` で本物の `AppInitializer` が起動するので、既存の前例（`SampleGame/Tests/Editor/OutGame/ConfirmDialogAccessibilityTests.cs` の `View_AssignsAccessibilityTextAndClearsItOnDestroy`）と同じ起動前提で Play に入る: 現在の Scene 構成を保存して空の Scene を開き、環境変数 `SAMPLEGAME_CONTENT__RUNTIMEMODE` を `addressables` にしてから `EnterPlayMode`、TearDown で環境変数と Scene 構成を戻す。起動の失敗を VFX の不具合と取り違えないよう、AC10 の Play 中の確認（Framework の host の存在）の前に起動が成功したことを確かめ、失敗していれば「起動の失敗」と分かる文言でテストを失敗させる。
 - 操作・実行時・目視条件の検証経路:
-  - **AC5（PC で描画）:** 担当は Phase C（Unity テスト）。環境はこの PC、Unity 6000.6.0f1、Quality `PC`、`pwsh tools/run-tests.ps1 -WithGraphics -Filter SampleGame.Tests.Rendering.Vfx`。観測は RT の画素数（構造の検査）。証拠は結果 XML とテストが出力する計測値（画素数・閾値）を evidence bundle に収録する。補助として Phase C は RT を PNG に保存し bundle に入れる（人間の判断には使わない）。
+  - **AC5（PC で描画）:** 担当は Phase C（Unity テスト）。環境はこの PC、Unity 6000.6.0f1、Quality `PC`、`pwsh tools/run-tests.ps1 -WithGraphics -Filter SampleGame.Tests.Rendering.Vfx`。手順は AC5 の (1)〜(5)（`camera.Render()` を明示し、同期の `ReadPixels`。batch の Editor には Game view が無く、カメラは自動で描画されないため）。観測は RT の画素数（構造の検査）。証拠は結果 XML とテストが出力する計測値（graphics device・compute 対応・画素数・閾値・到達フレーム数）を evidence bundle に収録する。補助として Phase C は RT を PNG に保存し bundle に入れる（人間の判断には使わない）。
   - **AC1 のコンパイル確認:** 担当は Phase B（Editor の Console）。動作確認で Phase B の head を Editor で開き直し、Console のエラー 0 を観測する。
   - 他の条件はテストで閉じる。
-- 未知の操作経路の疎通結果: **未確認。初回確認は Phase C**（AC5）。理由: Unity テストの実行は Phase C の責任で、Phase A では実行しない。担当: 判定 C の実行担当。確認地点: 発見 C の起点 filter の最初の実行。不成立時の対応: U3 の A3 裁定に従う。
-- 人間の判断が必要な条件: なし（U3 で (a) を選んだ場合だけ、描画の判断を人間が画像で行う）。
+- 未知の操作経路の疎通結果: **未確認。初回確認は Phase C**（AC5）。理由: Unity テストの実行は Phase C の責任で、Phase A では実行しない。担当: 判定 C の実行担当。確認地点: 発見 C の起点 filter の最初の実行。不成立時の対応: §2.7 U3 の (1) → (2) → (3) の順。
+- 人間の判断が必要な条件: 通常はなし。§2.7 U3 の (2) に進んだ場合だけ、描画の判断を人間が画像で行う（画像の独立再評価ができるよう、撮影画像を evidence に入れる）。
 - 高コスト証拠: なし
 - 判定 C の照合 script: なし（XML のテスト名・件数と contract-audit・docs-audit の出力で判定する）。
 - 機械検査: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、AC13 の `git diff --name-status`。
 - A0/A1 主担当: Claude Code（Anthropic）
-- A2 独立レビュー: 未実施（A2 入力版の commit 後に記録する）
-- A3 統合担当: 人間（発注者）と主担当
-- C' 用に予約した担当: xAI 系列（`cursor-agent` の Grok）を Phase A で使わずに残す。
+- A2 独立レビュー: 下記
+- A3 統合担当: 人間（発注者）と主担当。採否案と本文改訂は主担当（Claude Code、Anthropic）が作り、発注者が 2026-10-25 に凍結を承認した。
+- C' 用に予約した担当: xAI 系列（`cursor-agent` の Grok）を Phase A で使わずに残した。
 - 独立性の強化条件を満たせない場合の理由: 未定（Phase B・C のモデルが決まった時点で記録する）。
+
+### A2 独立レビュー
+
+- 入力版: commit `87a9690a`（branch の最初の commit）、`docs/handoff/S-4D2_VFX_GRAPH_BACKEND.md` の content sha256 `b89a1b5c4ef6a1a415a12b8119e4ea34cfd27d094863754b4f9b4d7e48b8d79d`（`git show 87a9690a:<path>` の LF 内容）。A2-2 は sha256 の一致を確認した。
+- 3 件を同じ入力版で並行して実施した。互いの指摘は見せていない。全て主担当の session が起動した別 context の subagent（Anthropic の別モデル）で、ファイルは変更していない。
+  - A2-1 アーキテクチャゲート（architecture-gates.md の Phase A 7 項目と A0 の事実確認）: Claude Sonnet 系列。blocker 0、major 3、minor 6。
+  - A2-2 不変条件の反証・失敗経路・VFX Graph の事実確認（同梱 package の文書とコード）: Claude Fable 系列。blocker 0、major 6、minor 8。
+  - A2-3 初稿（§2 以降）を読まず A0 だけから代替構成を出す: Claude Opus 系列。
+- 独立性制約あり: A2-1〜A2-3 は主担当と同じベンダー（Anthropic）。xAI 系列は C' 用に残した。
+- A0 の事実記述（§1.2〜§1.4）に誤りの指摘は無かった（A2-1 が行番号で照合、A2-2 が import の生成物と `VisualEffect` の engine module を確認）。
+
+### A3 統合（主担当の採否。2026-10-25 に発注者が凍結を承認）
+
+| 指摘 | 採否 | 反映先 |
+|---|---|---|
+| A2-1 #1・A2-2 #1 Play 中のテストで本番とテストの 2 つの backend が `VfxCapabilityState` に書き、テストの Dispose が本番の状態を戻す | 採用。writer を持たせ、後から書いた backend が勝ち、writer の Dispose だけが戻す | I2、AC3、§2.3、§3.1、§3.2 |
+| A2-1 #2 `SampleGame.Common` に `InternalsVisibleTo` が無く、テストが internal の書き込みを使えない | 採用。`SampleGame/Common/AssemblyInfo.cs` を足す（asmdef は変えない） | §3.1 |
+| A2-1 #3・A2-2 #3 host の生成の途中で失敗すると backend が Dispose されず `Supported` と root が残る | 採用。所有権は `Create` に入った時点で host に移り、失敗時は host が Dispose してから例外を外へ出す | I2、AC10 (c)、§2.3、§3.1 |
+| A2-1 #4 `CreateVfxBackend` の例外で起動全体が失敗する | 採用（制約の追加）。backend の ctor は環境に依存する例外を投げない。判定は `QueryCapability` だけ | I3 (g)、§2.3、§3.1 |
+| A2-1 #5 未構成でも毎起動 Warning | 一部採用。未構成の扱い（Warning 1 件）は変えず、既存のテスト・smoke への影響を Phase B の着手時に確かめる | §3.2 |
+| A2-3 未構成なら `VfxSystem` を作らずログも出さない | 不採用 | Game が常に非 null の `IVfxSystem` を受け取れるようにし（Game に分岐を書かせない program §6.4）、未構成を診断で見えるようにするため |
+| A2-1 #6 Framework 所有の理由の補強（Tick だけなら Game でも可、Camera との非対称） | 採用 | §3.2 |
+| A2-1 #7 host の接続の引数が `SceneDirector` だと単体テストできない | 採用。`BindSceneLifecycle(Observable<SceneEvent>, ISceneQuery)` | §2.3、§3.1 |
+| A2-1 #8 initializer の配線が diff の確認だけ | 一部採用。Play 中に Framework の host の存在・Tick 要素の active・lifecycle の接続を internal accessor で確かめる。呼び出しの位置は diff の確認のまま（位置そのものを実行時に観測する手段が無い） | AC10、§3.1 |
+| A2-1 #9 `UpdateLayerIds.Vfx` を public にする根拠 | 採用（根拠を書いた） | §3.2 |
+| A2-1 補足 SceneDirector の生成前の await の間は Scene 所有の `Spawn` が拒否される | 採用（1 行） | §2.3 |
+| A2-2 #2 `-nographics` で `Supported` を注入すると graphics の無い device で VFX を有効化する | 採用。そのケースは実 facts も `Supported` のときだけ実行し、判定 C では Inconclusive 0 を求める | AC12、§5 |
+| A2-2 #4 active な GameObject に `AddComponent<VisualEffect>` すると初期イベントで発射する | 採用。`Create` の手順を固定し、`Reinit` と `enabled` の切り替えを backend で使わない | §2.4、§3.3 |
+| A2-2 #5 粒子数の API の遅れと culling | 採用。`HasAnySystemAwake() || aliveParticleCount > 0`、fixture は `CullNone`、上限フレーム数の loop | §2.4、AC6、AC7、§3.1 |
+| A2-2 #6 batch の Editor でカメラが自動で描画されない | 採用。`camera.Render()`・同期 `ReadPixels`・Quality の切り替えと復元・device 情報の出力、U3 の不成立の定義 | AC5、§5 |
+| A2-2 #7 規則の allowlist / denylist と Metal・OpenGLCore、platform を見ないこと | 採用。拒否リスト方式、AC2 に行を追加、U2 に Android Vulkan を明記 | AC2、§2.7 |
+| A2-2 #8 無効のまま保存した `VisualEffect` は有効化されない | 確認（変更なし。§3.3 に根拠を足した） | §3.3 |
+| A2-2 #9 import が Assets 配下に何も生成しない | 確認（変更なし） | — |
+| A2-2 #10 `_updateSystemHost.Dispose` の後の登録解除は死んだ coordinator への要求になる | 採用。A2-3 の終了順序の案と合わせ、`DisposeVfx` を `_cts.Cancel` の直後（DebugSocket・`_updateSystemHost.Dispose` の前）へ移し、要素を no-op にしてから登録解除する | I4、AC10、§2.3 |
+| A2-2 #11〜#13 AC4・AC7・AC11 の読み違い（数え始め、偽の timeout 合格、warm-up） | 採用。合格例・不合格例を足した | AC4、AC7、AC11 |
+| A2-2 #14 `-WithGraphics` の全回帰は初めて | 採用。既定との差を判定 C が記録し、差の扱いは人間の裁定にする | AC14、§5 |
+| A2-3 d1 の入力「`Tick` の全体 try/catch」は採用すべき（program §6.3 d1 行のエフェクト単位の隔離） | 採用。初稿の不採用を改めた | I6、AC11 (c)、§2.4 |
+| A2-3 d1 の入力「`BindSceneLifecycle` の `ReleaseAll` を try の中へ」 | 不採用 | lifecycle は回収の前に閉じるので fail-closed のまま。host が例外を捕捉する |
+| A2-3 `Subscribe` の失敗を `VfxSystem` の中で捕捉して外へ出さない | 不採用（同じ結果を host 側で得る） | `VfxSystem` は composition の誤りを例外で知らせる d1 の方針を保ち、host が捕捉してログに出す |
+| A2-3 `protected IVfxSystem? Vfx` を d2 で足す | 不採用 | d2 に Game の利用者がいない。d4 の Phase A で決める（§2.5） |
+| A2-3 Tick の layer を Streaming の後（order 70）、scaled delta | 不採用 | 順序は §2.3 の根拠で 55。delta は `timeScale = 0` でも有限で終わるよう unscaled |
+| A2-3 判定の前に `Unsupported` を書き、成功したときだけ結果を書く | 採用 | AC3、§2.3 |
+| A2-3 `VFXRenderer` が N-9 の体積収集に入りうる | d3 へ送る | §2.5 |
+
+### A3 前の追加レビュー（発注者が依頼、2026-10-24）
+
+- 担当・入力: 発注者が別のレビュー担当（モデル名の記録なし）に、未 commit の A3 統合案と `develop` の関連コード・asmdef・`AGENTS.md` を渡して依頼した。A2-1〜A2-3 の採否表を読んだうえでのレビューなので、A2 から独立していない。原文は発注者の手元層。判定は「修正後 GO 推奨。全面再設計・再スライス不要」。
+- 採否:
+
+| 指摘 | 採否 | 反映先 |
+|---|---|---|
+| R1 `VfxSpawnRequest` の world 座標の契約が `Create` と AC8 に無い | 採用。`Create` で world の位置・回転を設定し、AC8 に親なしと移動・回転した親の 2 ケースを足した。d1 の公開 API は変えない | §2.4、AC8 |
+| R2 `IVfxBackend.Set*` の実 backend の検証が無い | 採用。fixture に Exposed Property 5 型を各 1 件、読み戻し・未定義の名前・破棄済み instance を AC6 (g) に足した。新しい parameter API は足さない | AC6、§3.1 |
+| R3 AC10 (c) の「`RegisterElement` が false / 例外の coordinator」は `RegisterElement` が virtual でないので作れない | 採用。既存の差し替え点（例外を投げる偽 `ILoggerFactory`、実 coordinator の layer order 衝突）で起こす。coordinator の virtual 化・interface 化はしない | AC10 (c) |
+| R4 U3 (b)「描画判定を d3 へ」は S2 と GO の定義に矛盾する | 採用。(b) を取り下げ、別の明示的な描画経路 → 人間の画像判定 → NO-GO の順にした | §2.7 U3、AC5、§5 |
+| R5 instance 0 の確保 0 は早期 return だけで足りる | 採用。再利用 `List` を取り下げた | AC11 (a)、§3.1、§3.5 |
+| R6 AC6 (b) は GameObject を作る前の拒否しか証明しない | 採用。証拠の範囲を明記し、作った後の失敗の後始末はコードレビューで確かめる | AC6 (b) |
+| U1〜U4 の判断案 | §2.7 の裁定として採り、発注者が承認した | §2.7 |
+
+### program の追加レビュー（発注者が依頼、2026-10-25）
+
+- 担当・入力: 発注者が別のレビュー担当（モデル名の記録なし）に、未 commit の program 文書（VFX の時間の所属を d4 へ送った版）と `develop` の UpdateSystem を渡して依頼した。原文は発注者の手元層。判定は「方針は支持。d4 の必須検討の明文化と局所的な記述修正で承認可能。再スライス不要。d2 の範囲は維持」。
+- 採否: 全て採用し、program に反映した。(1) layer が止まっている間も VFX の停止・再開を反映できる経路、(2) `Time.timeScale`・`Ignore Time Scale`・`playRate`・layer の `TimeScale` の合成規則、(3) `TimeScale == 0` と `IsPaused` の扱いと timeout の時間基準、を d4 の必須検討として §6.3 d4 行に足した（本書 §2.5 にも要約）。d3 で配置した VFX への後からの変更は d4 が判断すると §6.3 d3 行に書いた（d3 の受け入れ条件は増やさない）。§6.1 の採用 version の記述を、d2 で `17.6.0` に固定した事実に揃えた。d2 の本文（範囲・受け入れ条件）は変えていない。
 
 ## 6. Phase B 実装結果
 
-未着手。
+未着手
 
 ## 7. Phase C
 
-未着手。
+未着手
 
 ## 8. Phase C'
 
-未着手。
+未着手
 
 ## 9. Phase D
 
-未着手。
+未着手
