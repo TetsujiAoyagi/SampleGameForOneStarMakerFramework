@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `B`（Phase B と動作確認が完了。次は Phase C・C'）
+- status: `C`（発見 C 第0巡で阻害する指摘 4 件。Phase B へ差し戻し 1 巡目 = 1/4。§7）
 - branch: `claude/s-4d2-vfx-graph-backend`
 - implementation base commit: `2734a6ea`（`develop`、PR #142 のマージ）
 - implementation head commit: `77a3a0b3`（Phase B の出口。GO 候補としては未固定）
@@ -19,12 +19,16 @@
 - Phase B result snapshot の取得案内・状態: 未生成（Phase B の結果は commit `77a3a0b3` と §6 で引き渡す。`evidence stage` はしていない）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票（動作確認 → Phase C・C'）:
-  - 前の Phase の結果: Phase B 完了（implementation head `77a3a0b3`、§6）。動作確認は AC1 のコンパイル確認 1 件で、`未実施` なし（§6「動作確認」）。Unity テストは未実行。
-  - 次の Phase・役割: Phase C（発見 C → 判定 C）と Phase C'。別 session の進行役が、各担当の新しい session を起動して順に進める。進行役は自分でレビュー・判定をせず、担当の起動・引継ぎ票の照合・待ちの管理・人間への判断の返却だけを行う。各担当の規則は osm-workflow（SKILL と references）が正。
-  - 次の作業（順序）: (1) 発見 C: base `2734a6ea` → head `77a3a0b3` の固定した差分の構造・契約・凍結済み失敗経路を見る。§5「発見 C での先行の全回帰」の `pwsh tools/run-tests.ps1 -WithGraphics`（空 filter）を最初の巡で 1 回だけ回し、同じ head の既定（`-nographics`）の全回帰との差を人間へ返す（判定の証拠にしない）。差し戻しは B と往復する（上限 4 巡。B は Phase B と同じ規則で別 session）。(2) 阻害する指摘が無くなったら、未公開の試行錯誤 commit を整理して GO 候補 head を固定し、ローカル軽量 tag `evidence/s-4d2-vfx-graph-backend/<n>` を付ける。(3) 判定 C: GO 候補 head で §5 の判定必須テスト（`pwsh tools/run-tests.ps1 -WithGraphics`、空 filter）と AC13 の機械検査を行い、AC5・AC12 の `Supported` のケースが Inconclusive でなく passed であること、AC14 の既定との差を記録する。AC5 が §2.7 U3 の不成立なら U3 の順に切り替える。(4) C': 判定 C の証拠が揃った head で、blind audit bundle から新しい session で監査する（上限 3 巡）。(5) 全て終わったら §7・§8 と、この引継ぎ票を Phase D（人間）向けに書き換えて止まる。
+- 引継ぎ票（発見 C 第0巡 → Phase B 差し戻し 1 巡目）:
+  - 前の Phase の結果: 発見 C 第0巡が完了（対象 base `2734a6ea` → head `77a3a0b3`、§7）。先行の全回帰（`-WithGraphics`、空 filter）は 1283 件中 failed 4。4 件とも本スライスの Play 中テストで、阻害する指摘 4 件（§7 の F1〜F4）。
+  - 次の Phase・役割: **Phase B（差し戻し 1 巡目 = 1/4、別 session）**。B の入力はこの HANDOFF（§7）だけ。直す対象は §7 の F1〜F4。B 適応で足りるものは修正し、Phase A の再開に当たる事実（§4 の差し戻し条件、AC・公開面の変更）が出たら止めて返す。B は判定 C・C' を起動しない。
+  - 確認: §5 の起点 filter `OneStarMaker.Tests.Rendering.Vfx;SampleGame.Tests.Rendering.Vfx` を `-WithGraphics` で実行（Phase C の責任の Unity テストを、差し戻し中の限定確認として発見 C の規則で行う。担当は B ではなく発見 C 側の session。B はコンパイル確認と contract-audit・docs-audit まで）。F1 は §7 のとおり、AC5 が U3 に当たるかを切り分けるまで U3 の順へ進まない。
+  - 巡のカウント: B と発見 C の間で 1/4（上限 4）。
+  - （以下は発見 C 第0巡の前の記録。経緯として残す）
+  - 前の Phase の結果（旧）: Phase B 完了（implementation head `77a3a0b3`、§6）。動作確認は AC1 のコンパイル確認 1 件で、`未実施` なし（§6「動作確認」）。Unity テストは未実行だった。
+  - 次の作業（順序、旧）: (1) 発見 C: base `2734a6ea` → head `77a3a0b3` の固定した差分の構造・契約・凍結済み失敗経路を見る。§5「発見 C での先行の全回帰」の `pwsh tools/run-tests.ps1 -WithGraphics`（空 filter）を最初の巡で 1 回だけ回し、同じ head の既定（`-nographics`）の全回帰との差を人間へ返す（判定の証拠にしない）。差し戻しは B と往復する（上限 4 巡。B は Phase B と同じ規則で別 session）。(2) 阻害する指摘が無くなったら、未公開の試行錯誤 commit を整理して GO 候補 head を固定し、ローカル軽量 tag `evidence/s-4d2-vfx-graph-backend/<n>` を付ける。(3) 判定 C: GO 候補 head で §5 の判定必須テスト（`pwsh tools/run-tests.ps1 -WithGraphics`、空 filter）と AC13 の機械検査を行い、AC5・AC12 の `Supported` のケースが Inconclusive でなく passed であること、AC14 の既定との差を記録する。AC5 が §2.7 U3 の不成立なら U3 の順に切り替える。(4) C': 判定 C の証拠が揃った head で、blind audit bundle から新しい session で監査する（上限 3 巡）。(5) 全て終わったら §7・§8 と、この引継ぎ票を Phase D（人間）向けに書き換えて止まる。
   - モデル: Phase C は Phase B（Anthropic、Claude Opus 系列）と異なるモデル。C' は B・C の両方と異なるモデルで、Phase A・B で使っていない xAI 系列（`cursor-agent` の Grok）を予約してある。使った担当・モデルは §7・§8 に実績として書く。
-  - 引き継ぐ commit: branch `claude/s-4d2-vfx-graph-backend` の先頭（この記録用 commit。implementation head `77a3a0b3` の 2 つ後で、HANDOFF だけを変える）。implementation base は `2734a6ea`。push していない（同じ PC のローカル SHA で照合する）。開始前からある未追跡の `docs/handoff/DEBUGSTUDIO_S2_CUT_PLAN.md` は本スライスと無関係なので、作業ツリーの照合ではこの 1 件を除いて clean。
+  - 引き継ぐ commit: branch `claude/s-4d2-vfx-graph-backend` の先頭（発見 C 第0巡の記録用 commit。implementation head `77a3a0b3` の 3 つ後で、HANDOFF だけを変える）。implementation base は `2734a6ea`。push していない（同じ PC のローカル SHA で照合する）。開始前からある未追跡の `docs/handoff/DEBUGSTUDIO_S2_CUT_PLAN.md` は本スライスと無関係なので、作業ツリーの照合ではこの 1 件を除いて clean。
   - 必要な権限: Unity のバッチテストは Editor を閉じてから、最初の実行から sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1` を起動する（osm-workflow の Phase C）。Phase B の Editor の Console に Unity のライセンスの通知（§6）が出ていたので、起動ログのライセンス接続を最初に確かめ、進まなければ osm-workflow の手順で止める（license の返却・再発行を回避策にしない）。証拠の保存と引渡しは Artifacts README の事前承認と review-evidence に従う。
   - 停止規則: §4「Phase B から Phase A へ差し戻す条件」と osm-workflow の blocker の基準・巡の上限。上限で収束しない、AC14 の差の扱い（決定記録）、U3 の (2) の画像判断は人間に返す。C' に発見 C・判定 C の結論・指摘を渡さない（C' は PR と可変な HANDOFF 全文を読まない）。
   - 出口: push・PR 作成は Phase D の前に人間が決める（進行役はしない）。
@@ -401,7 +405,29 @@ Architecture §24 §16 に「composition（`VfxRuntimeHost`、起動・終了順
 
 ## 7. Phase C
 
-未着手
+### 発見 C 第0巡（Phase B の差し戻し前）
+
+- 種別・対象: 発見 C 第0巡（GO 判定ではない）。implementation base `2734a6ea` → head `77a3a0b3`。作業ツリーは記録用 commit `106dafcd`（差は HANDOFF だけ）で、未追跡の `DEBUGSTUDIO_S2_CUT_PLAN.md` 以外は clean だった。
+- 担当・モデル: Claude Code（Anthropic、Claude Sonnet 系列。Phase B の Opus 系列と異なる）。C' 用の xAI 系列は未使用。
+- 構造適合: `VfxRuntimeHost`・`UnconfiguredVfxBackend`・`VfxGraphBackend`・`VfxCapabilityState`・`PlacedVfxActivator`・`VfxGraphCapabilityPolicy` の責務、`VfxSystem` の Tick・`BindSceneLifecycle` の変更、initializer の配線 3 か所（生成は `_loggerFactory` の直後、接続は `BindSceneDirector` の直後で `RegisterAlreadyLoadedScenes` の前、`DisposeVfx` は `_cts?.Cancel()` の直後で DebugSocket・`_updateSystemHost.Dispose` より前）、公開面（§3.2 の 2 件のみ）、asmdef 差分 0 を §3 の責務マップと照合し、構造上の指摘は無かった。編集した Unity `.cs` の `#nullable enable`、`record`、`Task.Delay` / `Thread.Sleep` は問題なし。
+- 実行したコマンドと結果: `pwsh tools/run-tests.ps1 -WithGraphics`（空 filter、最初の巡の 1 回だけ。判定の証拠にしない）。環境: Direct3D11、`supportsComputeShaders=True`、`maxComputeBufferInputsVertex=128`、Linear。結果は 1283 件中 passed 1279・failed 4・Inconclusive 0・Skipped 0。失敗 4 件は全て本スライスのテストで、`SampleGame.Tests.Rendering.Vfx` の 132 件中 128 件が passed。本スライス外の失敗は 0 件。テスト開始前に Unity のライセンス接続は成立していた。
+- 未確認: (1) 同じ head の既定（`-nographics`）の全回帰は未実行なので、AC14 の「既定との差」は未取得（判定 C で記録する）。(2) AC5 が U3 に当たるかの切り分けは未了（F1）。(3) F2・F3 の原因は仮説のまま。
+- native 終了 stall: 結果 XML の完成後も Unity が終了しなかった（`taskkill` は対象無しと返した）。AGENTS.md の既知 native 終了 stall として扱い、調査は打ち切った。追加の調査はしない。
+- 生ログ・XML: git 管理外の `TestResults/` 配下にある（`evidence stage` はしていない。ローカル path はここに転記しない）。
+- 作業ツリーの扱い: Editor が `unity/Assets/MobileDependencyResolver/` の `.pdb.meta` 5 件を再び削除したので `git restore` で戻した（本スライスと無関係。§6 と同じ）。
+
+**阻害する指摘（凍結済み AC への違反）**
+
+| ID | 違反する条件 | 一次証拠（結果 XML） | 状態 |
+|---|---|---|---|
+| F1 | AC5（S2） | `VfxGraphRenderPlayTests.Render_SpawnedVfxAppearsInCameraOutput`: `litPixelsBeforePlay=0`、Play 後は `litPixels=0 reachedFrame=-1 frameLimit=600`、閾値 4。graphics あり・compute 対応なので、AC5 の定義上は「描画判定の経路が不成立」に当たりうる。ただし F2 と同じ fixture・backend なので、実際に発射・描画されていない可能性も排除できていない | 切り分け未了。U3 の (1) へ進む前に、粒子が実際に発射しているか（`HasAliveParticles`・`aliveParticleCount` を同じ場面で出力）と、カメラ・RT 経路（URP のカメラに `camera.Render()` で VFX が入るか）を分けて確かめる |
+| F2 | AC6 (a)・I3 (a)（`Create` は発射しない） | `VfxGraphBackendPlayTests.Create_DoesNotEmitUntilPlay`: `Create` 直後の frame 0 で `HasAliveParticles(id)` が true（テストの 135 行） | 事実。原因は仮説: `initialEventName = string.Empty` が既定の初期イベント（`OnPlay`）を抑止していない（`initialEventNameOverriden` の扱いの確認が要る）、または `HasAnySystemAwake()` が Play 前でも true を返す |
+| F3 | AC7（S3） | `VfxGraphBackendPlayTests.StopAllowingParticlesToFinish_ImmortalParticles_DestroyedByTimeout`: 経過実時間 0.446 秒 < 期待 0.495 秒（ctor の timeout 0.5 秒の 0.99 倍）。テストの 334 行 | 事実。原因は仮説: `VfxHandle.AdvanceStopping` が Stop を呼んだフレームの delta 全体を加算するので、timeout が最大 1 フレーム分（この環境では約 0.05 秒）早く切れる。B 適応で直す先（handle の数え始め、またはテストの許容）は B が選ぶ。AC7 の「最初の Tick の大きな delta で即 timeout する偽合格を除く」の意図を満たすこと |
+| F4 | AC7（S3）。テストの合否が起動の非同期ログに依存 | `VfxGraphBackendPlayTests.BindOwnerDestroyed_InstanceDestroyedByNextFrame`: `Unhandled log message: '[Log] [AppInit] Starting DebugSocket transport. mode=Connect, …'` | 事実（失敗の原因）。fixture の `EnterPlayModeWithApp` が `AfterSceneLoad` の完了（起動の非同期処理の終了）を待たずにテスト本体へ入るため、起動の Log が本体の最中に届く。原因（待ちが無いこと）は B が確かめる |
+
+- 後続スライスへ移送する指摘: なし。
+- B への指示: F1〜F4 を直す。F1 は F2 の修正後に再測定して切り分ける（F2 の修正で F1 が通る可能性がある）。切り分けた結果、AC5 の経路が不成立と分かった場合は §2.7 U3 の (1) の候補と有効性の確認までを B が調べ、検証手段の変更は HANDOFF に書いて発見 C へ返す（合格条件の緩和にしない）。凍結済みの契約・責務配置・公開面を変える必要が出たら止めて返す。
+- 次の発見 C は、B の修正 head に対して §5 の起点 filter を `-WithGraphics` で実行し、F1〜F4 の解消と、他のテストの回帰を確認する（全回帰は判定 C まで回さない）。
 
 ## 8. Phase C'
 
