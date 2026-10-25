@@ -18,6 +18,7 @@ using OneStarMaker.Runtime.AssetDescriptions;
 using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.BuildContent;
 using OneStarMaker.Runtime.Config;
+using OneStarMaker.Runtime.Rendering.Vfx;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.UpdateSystem;
 using OneStarMaker.Runtime.UpdateSystem.Hosting;
@@ -79,6 +80,7 @@ namespace OneStarMaker.Runtime
         private AppLoggerFactory? _loggerFactory;
         private DebugSocketService? _debugSocketService;
         private UpdateSystemHost? _updateSystemHost;
+        private VfxRuntimeHost? _vfxRuntimeHost;
         private bool _debugSocketTelemetrySinkRegistered;
 
         /// <summary>
@@ -118,6 +120,12 @@ namespace OneStarMaker.Runtime
 
         /// <summary>Framework 標準の更新 coordinator。BeforeSceneLoad 完了後に有効。</summary>
         protected UpdateCoordinator? UpdateCoordinator => _updateSystemHost?.Coordinator;
+
+        /// <summary>
+        /// テスト用: 起動中の initializer が所有する VFX の composition。Play 中のテストが、生成・Tick 要素の登録・
+        /// Scene lifecycle への接続を確かめるために読む。Dispose で null に戻る。
+        /// </summary>
+        internal static VfxRuntimeHost? ActiveVfxRuntimeHost { get; private set; }
 
         // ─── Static entry points ───
 
@@ -236,6 +244,11 @@ namespace OneStarMaker.Runtime
                 _debugSocketService = CreateDebugSocketService(_config);
                 LogDebugSocketBootstrapStatus(_config);
                 _loggerFactory = CreateLoggerFactory(_debugSocketService?.RealtimeStream);
+                // VfxSystem の ctor が能力判定を 1 回だけ行う。BeforeSceneLoad の後に Awake する Scene
+                // （Editor の Play で開いていた Scene）からも判定結果を読めるよう、ここで作る。
+                // 失敗は他の Create* hook と同じく BeforeSceneLoad の失敗にする（VFX を黙って無効にしない）。
+                _vfxRuntimeHost = VfxRuntimeHost.Create(CreateVfxBackend(), _loggerFactory, _updateSystemHost.Coordinator);
+                ActiveVfxRuntimeHost = _vfxRuntimeHost;
                 // ── テレメトリ Sink 登録 ──
                 RegisterDefaultTelemetrySink();
 
@@ -345,6 +358,8 @@ namespace OneStarMaker.Runtime
                     sceneVariant,
                     useContentDirectory);
                 _updateSystemHost?.BindSceneDirector(_sceneDirector);
+                // 最初の Scene の登録・ロードより前に接続する（VfxSystem は途中接続の状態同期を約束しない）。
+                _vfxRuntimeHost?.BindSceneLifecycle(_sceneDirector.OnSceneEvent, _sceneDirector);
 
                 if (_sceneDirector == null)
                 {
@@ -839,6 +854,23 @@ namespace OneStarMaker.Runtime
             }
         }
 
+        private void DisposeVfx()
+        {
+            var host = _vfxRuntimeHost;
+            _vfxRuntimeHost = null;
+            if (host == null)
+            {
+                return;
+            }
+
+            if (ReferenceEquals(ActiveVfxRuntimeHost, host))
+            {
+                ActiveVfxRuntimeHost = null;
+            }
+
+            host.Dispose();
+        }
+
         private void OnApplicationQuitting()
         {
             ReleaseAll();
@@ -861,6 +893,11 @@ namespace OneStarMaker.Runtime
 
             // まず framework service 側へ停止を通知する。
             _cts?.Cancel();
+
+            // VFX は logger・UpdateSystemHost・SceneDirector・AssetManagement より前に回収する。
+            // 回収時の診断ログを出せ、生きている coordinator から登録解除でき、
+            // source asset は instance の破棄要求より後に解放される。
+            DisposeVfx();
 
             _debugSocketService?.Dispose();
             _debugSocketService = null;
@@ -923,6 +960,14 @@ namespace OneStarMaker.Runtime
 
         /// <summary>SceneBase のファクトリを生成する。</summary>
         protected abstract ISceneFactory CreateSceneFactory();
+
+        /// <summary>
+        /// VFX の実装（backend）を作る。BeforeSceneLoad で 1 回呼ばれ、所有権は Framework に移る
+        /// （<see cref="System.IDisposable"/> なら ReleaseAll で Dispose する）。
+        /// null なら未構成として扱い、VFX 要求は全て何もしない handle になり、診断ログが 1 回出る。
+        /// 環境に依存する例外を ctor で投げない（環境の判定は <see cref="IVfxBackend.QueryCapability"/> だけが行う）。
+        /// </summary>
+        protected virtual IVfxBackend? CreateVfxBackend() => null;
 
         /// <summary>
         /// 起動中に一度だけ Scene Variant を解決する。Editor では active profile が設定値より優先する。

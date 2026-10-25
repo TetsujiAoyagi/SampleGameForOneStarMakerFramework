@@ -445,18 +445,39 @@ handle の状態は `Created` → `Playing` → `Stopping`（消え切り待ち�
   - 同時に生存する instance に同じ id を返さない。
   - `Destroy` は id ごとに高々 1 回呼ばれ、破棄済みの GameObject や失効した source に対しても安全に完了する。
   - backend はログを出さない。
-- **保証の範囲。** Framework が保証するのは、backend へ破棄を要求する時点と回数である。Unity の native 実体の破棄完了（`Object.Destroy` はフレームの終わりまで遅れる）は、backend の側で確かめる（S-4d2）。
+- **保証の範囲。** Framework が保証するのは、backend へ破棄を要求する時点と回数である。Unity の native 実体の破棄完了（`Object.Destroy` はフレームの終わりまで遅れる）までの間に描画・発射しないことは、backend が同期の処理で保証する（§16.6）。
 
-### 16.5 後続スライスへの送り
+### 16.5 composition と更新
 
-d1 では答えず、後続スライスの Phase A で決める事項。
+`VfxSystem` は Framework の `AbstractApplicationInitializer` が internal の `VfxRuntimeHost`（`Rendering/Vfx/Implements/`）を通して所有する。Game は backend を `protected virtual IVfxBackend? CreateVfxBackend()`（既定 null）で差し込むだけで、生成・接続・更新・破棄の順序は Framework が決める。
 
-- **S-4d2:**
-  - `Tick` の `UpdateSystemRuntime` への登録と、フレーム順序（毎フレームのメモリ確保の回避を含む）。
-  - `VfxSystem` の生成場所と `Dispose` の順序、`BindSceneLifecycle` の配線順。
-  - backend 未構成と Unsupported の区別、capability 判定結果の出所を 1 つにすること。
-  - 実 backend での契約の確認、`Parent == null` のときの配置先。
-  - 拒否を診断するかどうか。
+- **backend 未構成。** `CreateVfxBackend` が null なら internal の `UnconfiguredVfxBackend`（`QueryCapability` が false、固定の理由文）を使う。Game には常に非 null の `VfxSystem` があり、未構成と非対応は Warning 1 件の理由文で区別する。
+- **生成。** `BeforeSceneLoad` の logger factory の生成直後に `VfxRuntimeHost.Create`。backend の所有権は `Create` に入った時点で host に移り、`Create` が失敗したら作りかけの `VfxSystem` と backend を Dispose してから例外を外へ出す（`BeforeSceneLoad` の失敗にする。VFX を黙って無効にしない）。`VfxSystem` の ctor が `QueryCapability` を呼ぶので、能力判定は最初の Scene の Awake より前に済む。
+- **Scene lifecycle への接続。** `AfterSceneLoad` の `SceneDirector` 生成と `BindSceneDirector` の直後、既存 Scene の登録より前に `BindSceneLifecycle`。例外は host が Error 1 件にして起動を続ける（Scene 所有の `Spawn` だけが拒否される）。
+- **更新。** layer `UpdateLayerIds.Vfx`（order 55。Camera 50 の後、Streaming 60 の前）に登録し、Scene 安定待ちの gate を通さず即時 active にする。`Tick` には unscaled delta を渡す（`timeScale = 0` でも消え切り待ちの timeout が出口になる）。`Tick` は instance 0 件で何も確保せず早期 return し、handle・所有者ごとに例外を隔離する。
+- **破棄。** `ReleaseAll` の CTS cancel の直後、DebugSocket と UpdateSystem の Dispose より前に `DisposeVfx`（要素を no-op にする → 登録解除 → `VfxSystem.Dispose` → backend が `IDisposable` なら Dispose）。logger・`SceneDirector`・AssetManagement より前なので、回収のログが出せ、source asset は破棄要求より後に解放される（§16.4）。
+
+### 16.6 SampleGame の VFX Graph backend
+
+VFX Graph（`com.unity.visualeffectgraph` 17.6.0）に依存する実装は `unity/Assets/SampleGame/Common/Scripts/Rendering/Vfx/`（namespace `SampleGame.Common.Rendering.Vfx`）に置く。asmdef は engine module の `UnityEngine.VFX` だけで足り、参照を増やしていない。
+
+- **能力判定（`VfxGraphCapabilityPolicy`）。** platform の事実だけを読む純粋な規則で、compute 対応・頂点 shader の SSBO 対応・Linear color space・graphics device が拒否リスト（OpenGL ES 等）に無い、の全てで対応とする。platform 名は見ない。VFX Graph の実行要件をそのまま規則にしたもので、個々の端末での動作保証ではない。
+- **判定結果の出所は 1 つ（`VfxCapabilityState`）。** backend の `QueryCapability` だけが値（`Undetermined` / `Supported` / `Unsupported`）を書き、評価の前に `Unsupported` を書く。最後に書いた backend が writer になり、writer の Dispose だけが `Undetermined` に戻す。
+- **配置済み VFX（`PlacedVfxActivator`）。** Scene・Prefab に置く `VisualEffect` は無効で保存し、activator が `Supported` のときだけ有効にする。非対応環境では 1 つも有効化しない。有効化で初期イベントが送られ、自動で再生される。
+- **`Create` は発射しない。** source が `VisualEffectAsset` でなければ何も作らない。非 active の GameObject に `VisualEffect` を足し、**`initialEventName = string.Empty` を `visualEffectAsset` より先に書く**（後に書くと、asset の設定時に既定の初期イベントで発射してしまう）。親の下（親なしは backend が遅延生成する `DontDestroyOnLoad` の root。active Scene に置くと無関係な Scene の unload で Unity が先に壊すため）で world の位置・回転を設定してから active にする。`Reinit` と `enabled` の切り替えは呼ばない（初期イベントが送られる）。
+- **`Destroy` は同期に止める。** id を対応表から先に外し、GameObject が残っていれば `VisualEffect.enabled = false`・`visualEffectAsset = null`・非 active 化を同期に行ってから `Object.Destroy` する。`DestroyImmediate` は `Bind` 所有者の破棄中に失敗しうるので使わない。
+- **粒子の有無。** Play の後は `HasAnySystemAwake() || aliveParticleCount > 0`。`aliveParticleCount` は GPU からの非同期の読み戻しで遅れるので単独では使わず、誤判定は回収を遅らせる側に倒して timeout が上限を保証する。id は backend の生涯で単調増加し、再利用しない。
+- **描画の確かめ方（テスト）。** batch の Editor では Game view が無いので、明示の `camera.Render()` と `ReadPixels` で画素を数える。起動したばかりの Editor の process では、通常の描画ループが一度も VFX を描いていないと明示の描画にも粒子が入らないため、計測の前に別のカメラと instance で一度描かせ、両方を壊してから計測する。graphics なし（`-nographics`）では Play 中のテストが Inconclusive になるので、VFX の判定には `run-tests.ps1 -WithGraphics` を使う。
+
+### 16.7 後続スライスへの送り
+
+d1・d2 では答えず、後続スライスの Phase A で決める事項。
+
+- **S-4d3:**
+  - batch の Editor で VFX を明示の描画だけで検査するテスト（RT 経路の検査等）は、§16.6 の事前の描画が要る。GUI の Editor で、複数の instance のうち Game view のカメラから見えるものだけが明示の描画に映った観察もあり、同じ現象の一部かは確かめていない。
+  - 配置済み VFX は `VisualEffect` だけを無効で保存し、同じ GameObject の `VFXRenderer` は有効のまま。非対応環境で描画されないことを実 Scene で確かめる。
 - **S-4d4:**
   - notifier の `OnDestroy` が、実 Scene の unload と go の Destroy で回収を呼ぶことの Play Mode 確認。
   - 同じ identity の Scene の再ロードを、実 `SceneDirector` で 1 往復確かめること。
+  - d2 のテストが直接は見ていない経路: `Bind` 所有者の破棄から 1 フレーム以内の回収（d2 のテストは 2 フレーム待つ）、`Create` 直後に発射しないことの長い観測窓（d2 は 120 フレーム）、host の Update 登録の失敗と、backend の `Create` が GameObject の作成後に失敗した場合の後始末（d2 はコードレビューで確認）。
+  - graphics なし（`-nographics`）の既定の回帰では、実 `VisualEffect` を作る Play 中のテストが全て Inconclusive になる。
