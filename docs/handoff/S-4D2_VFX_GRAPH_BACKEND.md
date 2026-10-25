@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C`（発見 C は第3巡で阻害する指摘 0。GO 候補 head `628b0b53` を固定し、判定 C の待ち。§7）
+- status: `C`（判定 C 完了: `-WithGraphics` 全回帰は 1283 件 passed。AC14 の差の裁定と C' の待ち。§7）
 - branch: `claude/s-4d2-vfx-graph-backend`
 - implementation base commit: `2734a6ea`（`develop`、PR #142 のマージ）
 - implementation head commit: `628b0b53`（Phase B 差し戻し 3 巡目の出口。**GO 候補 head として固定**、ローカル軽量 tag `evidence/s-4d2-vfx-graph-backend/1`（push しない）。前の head は `2a82ace2`、その前は `2055069a`・`77a3a0b3`）
@@ -17,9 +17,10 @@
 - workflow task: `s-4d2-vfx-graph-backend`（2026-10-21 に `workflow-task.ps1 start` 済み。Phase B で再度 start しない）
 - Phase A snapshot の取得案内・状態: A2 入力版は commit `87a9690a`（content sha256 は §5「A2 独立レビュー」）。**A3 凍結版は commit `17144576`、本書の content sha256 `856d910bff68e8bc3a3e8c4f851ca5eceddf8abee36a57730d7c57b1de057690`**（`git show 17144576:docs/handoff/S-4D2_VFX_GRAPH_BACKEND.md` の LF 内容の sha256。この値は凍結版を指し、これを書き足した後の本書は指さない）。凍結 commit は program（`S-4_FULL_SPEC_WORLD_AUTHORING.md` の §6.1・§6.3 d2〜d4 行・§10）の更新も含む。凍結 commit の後の記録用 commit はこの §0 だけを変え、凍結条件を変えない。文書だけなので stage は不要
 - Phase B result snapshot の取得案内・状態: 未生成（Phase B の結果は commit `628b0b53`（差し戻し 3 巡目）と §6 で引き渡す。`evidence stage` はしていない）
-- evidence bundle の取得案内・状態: 未生成
-- C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票（GO 候補 head の固定 → 判定 C）:
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格、`locality=local`）。head `628b0b53` / base `2734a6ea`、判定 C（2026-10-25）が `evidence stage` し、別 process の `fetch` で期待 hash 照合・12 file の閲覧を確認済み。引渡し先は進行役（取得案内は共有ノート `judgment-C-evidence.md`）。担当は判定 C の session
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格、`locality=local`）。同じ head・base。HANDOFF と発見 C・判定 C の所見を除いた diff・凍結 A3・生 XML/log/audit を収録（10 file）。別 process の `fetch` で hash 照合・閲覧を確認済み。C' は未起動
+- 引継ぎ票（判定 C → 人間の AC14 裁定と C'）: 判定 C は head `628b0b53` で完了（§7）。次は (1) 人間が AC14 の差（`-nographics` で Inconclusive 13、全て本スライスの Play 中のテスト）を裁定し決定記録に書く、(2) 新しい session が C' blind bundle（取得案内は上の欄）から監査する（上限 3 巡。C' に判定 C・発見 C の所見を渡さない）。push・PR は人間が決める。
+- 引継ぎ票（GO 候補 head の固定 → 判定 C、経緯として残す）:
   - 前の Phase の結果: 発見 C は第3巡で阻害する指摘 0（§7）。履歴は整理しない（発注者の決定。§7「決定記録」D1）。GO 候補 implementation head は `628b0b53`、ローカル軽量 tag `evidence/s-4d2-vfx-graph-backend/1`。base は `2734a6ea`。
   - 次の Phase・役割: **判定 C（別 session）**。GO 候補 head `628b0b53` で、§5 の判定必須テスト（`pwsh tools/run-tests.ps1 -WithGraphics`、空 filter）と、AC14 のための既定（`-nographics`、空 filter）の全回帰を実行し、AC13 の機械検査（`git diff --name-status 2734a6ea 628b0b53`）、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1` を行う。XML で §3.1 のテスト 4 ファイルの収録、failed 0、本スライスのテストの Inconclusive・Ignored 0（AC5・AC12 の `Supported` が passed）を確かめ、既定との差（failed・Inconclusive・Ignored の集合）を AC14 として記録する。差の扱いは人間の裁定（決定記録）に返す。evidence bundle と C' blind audit bundle は review-evidence に従い同じ commit から作り、§0 の取得案内欄の状態を更新する。判定 C は C' を起動しない。
   - 引き継ぐ commit: branch の先頭（この §0・§7 を書いた記録用 commit。`628b0b53` との差は HANDOFF だけ）。push していない。作業ツリーは未追跡の `docs/handoff/DEBUGSTUDIO_S2_CUT_PLAN.md` を除いて clean。
@@ -546,6 +547,15 @@ Architecture §24 §16 に「composition（`VfxRuntimeHost`、起動・終了順
 - **判断（依頼への回答）:** 補助の描画（warm-up）は AC5 の (3)「自動描画に頼らない」の凍結手順の変更（Phase A の再開）には当たらず、§2.7 U3 の (1) の範囲（合格条件を緩めない検証手段の変更）と判断する。根拠: 計測の RT に書くのは明示の `camera.Render()` だけで、計測の前に補助のカメラ・instance が壊れていることを assert する。閾値・上限・失敗文言・backend は不変。補助の描画自体も閾値に達しなければ失敗する。ただし「通常の描画ループに先に描かせる」ことは batch の Editor の実測に基づく環境条件で、内部原因は未確定。d3 の RT 経路検査にも同じ前提が要る（§6 の後続入力 (a)）。人間へ返す blocker ではない。
 - **阻害する指摘:** なし。後続スライスへ移送する指摘: なし（d3 への入力は §6 に既出）。
 - 次: 未公開の試行錯誤 commit の整理 → GO 候補 implementation head の固定 → 判定 C。
+
+### 判定 C（GO 候補 head `628b0b53`）
+
+- 種別・対象: 判定 C。implementation base `2734a6ea` → head `628b0b53`（tag `evidence/s-4d2-vfx-graph-backend/1`）。作業ツリーは記録用 commit `af58632b`（差は HANDOFF だけ）。担当・モデル: Claude Code（Anthropic、Claude Sonnet 系列）。C' は起動していない。
+- 実行: `pwsh tools/run-tests.ps1 -WithGraphics`（空 filter、Direct3D11・compute 対応・Linear）。**1283 件中 passed 1283・failed 0・Inconclusive 0・Skipped 0**、終了コード 0。XML に `VfxGraphCapabilityPolicyTests` 16、`VfxGraphBackendPlayTests` 15、`VfxGraphRenderPlayTests` 1、`VfxRuntimeHostTests` 9、`VfxSystemTickAllocationTests` 4 を収録。d1 の `OneStarMaker.Tests.Rendering.Vfx` は全件 passed。AC5 `Render_SpawnedVfxAppearsInCameraOutput` は passed（`warmUpLitPixels=12`、`litPixelsBeforePlay=0`、`litPixels=8 reachedFrame=0`、閾値 4）。AC12 の `Supported_PlacedVfxIsEnabled` は passed。
+- AC13: `pwsh tools/contract-audit.ps1` errors 0・warnings 0、`pwsh tools/docs-audit.ps1` errors 0・warnings 0。`git diff --name-status 2734a6ea 628b0b53` は §4 の変更対象・配下の `.meta`・本 HANDOFF・program 文書に閉じる（`.asmdef` の差分 0 件、`unity/Assets/OneStarMaker` に `UnityEngine.VFX` / `VisualEffect` の参照 0）。
+- **AC14（既定との差）:** 同じ head の `pwsh tools/run-tests.ps1`（`-nographics`、空 filter）は 1283 件中 passed 1270・failed 0・**Inconclusive 13**・Skipped 0（終了コード 1）。Inconclusive の 13 件は全て本スライスの Play 中のテスト（`VfxGraphBackendPlayTests` 12、`VfxGraphRenderPlayTests` 1）。failed の集合は両条件とも空で、本スライス外の差は 0 件。`-nographics` で Inconclusive になるのは §5 の想定どおり。**差の扱いは人間の裁定（決定記録）へ返す。**
+- 備考: Editor が `.pdb.meta` 5 件を削除したので `git restore` 済み。Unity は正常終了（stall なし）。PC 再起動で中断した先の全回帰は証拠にしていない。生ログ・XML は git 管理外の `TestResults/`。
+- 判定 C の結論: 判定必須テストと機械検査は条件を満たし、阻害する指摘はない。GO は C' と人間の AC14 裁定が揃うまで確定しない。
 
 ### 決定記録
 
