@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C`（Phase B 差し戻し 2 巡目が完了し、発見 C 第2巡の待ち。巡は 2/4。§6・§7）
+- status: `B`（発見 C 第2巡で F1 が残り、Phase B 差し戻し 3 巡目の待ち。巡は 3/4。§7）
 - branch: `claude/s-4d2-vfx-graph-backend`
 - implementation base commit: `2734a6ea`（`develop`、PR #142 のマージ）
 - implementation head commit: `2a82ace2`（Phase B 差し戻し 2 巡目の出口。GO 候補としては未固定。前の head は `2055069a`、その前は `77a3a0b3`）
@@ -19,6 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（Phase B の結果は commit `2a82ace2`（差し戻し 2 巡目）と §6 で引き渡す。`evidence stage` はしていない）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
+- 引継ぎ票（発見 C 第2巡 → Phase B 差し戻し 3 巡目）: 発見 C 第2巡の結果は §7。head `2a82ace2` で起点 filter 132 件中 failed 1（F1 のみ残る: 粒子は生存・非 culled だが `camera.Render()`+RT の litPixels=0。F2 は解消）。B の第2巡の実測と食い違う。巡は 3/4。引き継ぐ commit は branch の先頭（この記録 commit）。Unity PID 27716（既知 stall）は残置。以下は前の引継ぎ票として残す。
 - 引継ぎ票（Phase B 差し戻し 2 巡目 → 発見 C 第2巡）:
   - 前の Phase の結果: Phase B 差し戻し 2 巡目が完了（implementation head `2a82ace2`、前の head `2055069a` からの差は SampleGame の 3 ファイルだけ。§6「差し戻し 2 巡目」）。F2 は原因を Editor の実測で確かめて修正（`initialEventName` を `visualEffectAsset` より先に書く）。F1 は F2 と同じ原因と判断した: batch の Editor で、旧順序の instance は粒子が生きていても `camera.Render()` + RT に映らず、新順序では映った。AC5 の経路は不成立ではないので、§2.7 U3 の (1) には進めていない（AC5 の手順・閾値・上限は変えていない）。Phase A の再開に当たる事実は無い。Unity テストは未実行。Unity のコンパイル（batch の Editor）はエラー 0、本スライスのファイルの警告 0。contract-audit・docs-audit は errors 0・warnings 0。
   - 次の Phase・役割: **発見 C 第2巡（別 session）**。head `2a82ace2` に対して §5 の起点 filter `OneStarMaker.Tests.Rendering.Vfx;SampleGame.Tests.Rendering.Vfx` を `-WithGraphics` で実行し、F1・F2 の解消と他のテストの回帰を確かめる（全回帰は判定 C まで回さない）。F1 が残れば、§6「差し戻し 2 巡目」の実測と食い違う理由（batch の条件の差）を出力から切り分けて B へ戻す。
@@ -485,6 +486,20 @@ Architecture §24 §16 に「composition（`VfxRuntimeHost`、起動・終了順
 
 - 後続スライスへ移送する指摘: なし。
 - 次: Phase B 差し戻し 2 巡目（巡は 2/4）。F2 と F1 を直す。F1 は U3 の (1) の有効性確認までを B が行い、(2) の人間の画像判断が要る場合は止めて返す。次の発見 C は同じ起点 filter を `-WithGraphics` で再実行する。
+
+### 発見 C 第2巡（Phase B 差し戻し 2 巡目の後）
+
+- 種別・対象: 発見 C 第2巡（GO 判定ではない）。implementation head `2a82ace2`、作業ツリーは記録用 commit `04b0878b`（差は HANDOFF だけ）。担当・モデル: Claude Code（Anthropic、Claude Sonnet 系列）。
+- 実行: `pwsh tools/run-tests.ps1 -WithGraphics -Filter "OneStarMaker.Tests.Rendering.Vfx;SampleGame.Tests.Rendering.Vfx"`（1 回）。Direct3D11、compute 対応、Linear。結果は 132 件中 passed 131・failed 1・Inconclusive 0・Skipped 0。Unity は終了コード 2（失敗ありの通常終了）で終了した。生ログ・XML は git 管理外の `TestResults/` 配下（stage していない）。Editor が `.pdb.meta` 5 件を再度削除したので `git restore` 済み。全回帰は回していない。
+- 解消: **F2**（`Create_DoesNotEmitUntilPlay`）は passed。d1 の `OneStarMaker.Tests.Rendering.Vfx` は全件 passed。他のテストの回帰なし。
+- **残る阻害する指摘**
+
+| ID | 条件 | 一次証拠（XML） | 状態 |
+|---|---|---|---|
+| F1 | AC5（S2） | `Render_SpawnedVfxAppearsInCameraOutput`: `litPixelsBeforePlay=0`、`litPixels=0 reachedFrame=-1 frameLimit=600 maxAliveParticles=67 firstAliveFrame=2 hasAnySystemAwake=True culled=False enabled=True activeInHierarchy=True renderPipeline=UniversalRenderPipelineAsset` | 未解消。F2 の順序修正後も、粒子は生存・非 culled なのに `camera.Render()` + RT に 600 フレームで 1 画素も出ない。B の第2巡の実測（batch の Editor で新順序は 20 フレームで 4 画素）とテスト runner の `-runTests` 実行で食い違う。差の候補（未切り分け）: テスト fixture のカメラ・RT・粒子位置の構成と B の実測用の構成の差、`-runTests` の Play mode と通常の batch Editor の差、同 asset の複数 instance のうち Game view のカメラから見えるものだけが映った（B の後続入力）という挙動 |
+
+- 後続スライスへ移送する指摘: なし。
+- 次: Phase B 差し戻し 3 巡目（巡は 3/4）。B は、F1 を再現する条件（`-runTests` のテスト内）で、B の実測との差を切り分ける（fixture の構成・instance 数・カメラの対象を比較）。直らなければ §2.7 U3 の (1) の有効性確認へ進む。(2) の人間の画像判断が要るなら止めて返す。
 
 ## 8. Phase C'
 
