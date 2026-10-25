@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C`（判定 C 完了: `-WithGraphics` 全回帰は 1283 件 passed。AC14 の差の裁定と C' の待ち。§7）
+- status: `C'`（判定 C 完了、AC14 の差は決定記録 D2 で許容。C' 1 巡目の待ち。§7）
 - branch: `claude/s-4d2-vfx-graph-backend`
 - implementation base commit: `2734a6ea`（`develop`、PR #142 のマージ）
 - implementation head commit: `628b0b53`（Phase B 差し戻し 3 巡目の出口。**GO 候補 head として固定**、ローカル軽量 tag `evidence/s-4d2-vfx-graph-backend/1`（push しない）。前の head は `2a82ace2`、その前は `2055069a`・`77a3a0b3`）
@@ -19,7 +19,8 @@
 - Phase B result snapshot の取得案内・状態: 未生成（Phase B の結果は commit `628b0b53`（差し戻し 3 巡目）と §6 で引き渡す。`evidence stage` はしていない）
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格、`locality=local`）。head `628b0b53` / base `2734a6ea`、判定 C（2026-10-25）が `evidence stage` し、別 process の `fetch` で期待 hash 照合・12 file の閲覧を確認済み。引渡し先は進行役（取得案内は共有ノート `judgment-C-evidence.md`）。担当は判定 C の session
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格、`locality=local`）。同じ head・base。HANDOFF と発見 C・判定 C の所見を除いた diff・凍結 A3・生 XML/log/audit を収録（10 file）。別 process の `fetch` で hash 照合・閲覧を確認済み。C' は未起動
-- 引継ぎ票（判定 C → 人間の AC14 裁定と C'）: 判定 C は head `628b0b53` で完了（§7）。次は (1) 人間が AC14 の差（`-nographics` で Inconclusive 13、全て本スライスの Play 中のテスト）を裁定し決定記録に書く、(2) 新しい session が C' blind bundle（取得案内は上の欄）から監査する（上限 3 巡。C' に判定 C・発見 C の所見を渡さない）。push・PR は人間が決める。
+- 引継ぎ票（AC14 裁定 → C'）: 人間が AC14 の差を許容した（§7 決定記録 D2）。次は C' 1 巡目（新しい session、B・C と異なるモデル。予約は `cursor-agent` の Grok）。入力は C' blind bundle の取得案内だけで、判定 C・発見 C の所見と D1・D2 は渡さない。上限 3 巡。push・PR は人間が決める。
+- 引継ぎ票（判定 C → 人間の AC14 裁定と C'、経緯として残す）: 判定 C は head `628b0b53` で完了（§7）。次は (1) 人間が AC14 の差（`-nographics` で Inconclusive 13、全て本スライスの Play 中のテスト）を裁定し決定記録に書く、(2) 新しい session が C' blind bundle（取得案内は上の欄）から監査する（上限 3 巡。C' に判定 C・発見 C の所見を渡さない）。push・PR は人間が決める。
 - 引継ぎ票（GO 候補 head の固定 → 判定 C、経緯として残す）:
   - 前の Phase の結果: 発見 C は第3巡で阻害する指摘 0（§7）。履歴は整理しない（発注者の決定。§7「決定記録」D1）。GO 候補 implementation head は `628b0b53`、ローカル軽量 tag `evidence/s-4d2-vfx-graph-backend/1`。base は `2734a6ea`。
   - 次の Phase・役割: **判定 C（別 session）**。GO 候補 head `628b0b53` で、§5 の判定必須テスト（`pwsh tools/run-tests.ps1 -WithGraphics`、空 filter）と、AC14 のための既定（`-nographics`、空 filter）の全回帰を実行し、AC13 の機械検査（`git diff --name-status 2734a6ea 628b0b53`）、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1` を行う。XML で §3.1 のテスト 4 ファイルの収録、failed 0、本スライスのテストの Inconclusive・Ignored 0（AC5・AC12 の `Supported` が passed）を確かめ、既定との差（failed・Inconclusive・Ignored の集合）を AC14 として記録する。差の扱いは人間の裁定（決定記録）に返す。evidence bundle と C' blind audit bundle は review-evidence に従い同じ commit から作り、§0 の取得案内欄の状態を更新する。判定 C は C' を起動しない。
@@ -560,6 +561,8 @@ Architecture §24 §16 に「composition（`VfxRuntimeHost`、起動・終了順
 ### 決定記録
 
 - **D1（版 1、2026-10-25 適用、発注者）:** (a) 未公開の試行錯誤 commit は整理しない。実装の commit は Phase B と差し戻し 3 巡の各 1 つで、§6・§7 がその SHA を指すため。GO 候補 head は `628b0b53`（tag `evidence/s-4d2-vfx-graph-backend/1`）。(b) §5「発見 C での先行の全回帰」の既定（`-nographics`）の全回帰は発見 C で回さず、差は判定 C の AC14 で記録する。発見 C 第0巡の `-WithGraphics` の全回帰でスライス外の失敗が 0 件だったため。どの条件の意味・合否も変えない。
+- **D2（版 1、2026-10-25 適用、発注者）:** AC14 の既定（`-nographics`）との差（head `628b0b53` で Inconclusive 13、failed は両条件とも 0）を許容する。13 件は全て本スライスの Play 中のテストで `-WithGraphics` では passed、本スライス外の差は 0 件のため。AC14 の合否・意味は変えない。
+
 ## 8. Phase C'
 
 未着手
