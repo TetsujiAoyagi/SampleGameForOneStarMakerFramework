@@ -121,9 +121,25 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
             _sceneQuery = sceneQuery;
             // 購読より先に開く。完了済みの Observable は Subscribe の中で OnCompleted を出し、そこで閉じる。
             _index.IsSceneLifecycleOpen = true;
-            var subscription = sceneEvents.Subscribe(
-                e => OnSceneEvent(generation, e),
-                _ => OnSceneEventsCompleted(generation));
+            IDisposable subscription;
+            try
+            {
+                subscription = sceneEvents.Subscribe(
+                    e => OnSceneEvent(generation, e),
+                    _ => OnSceneEventsCompleted(generation));
+            }
+            catch
+            {
+                // 購読が無いまま開いていると、終端を知らないまま Scene 所有の Spawn を受理し続ける。
+                // 閉じてから composition の誤りとして例外を外へ出す（再入で差し替え済みなら新しい購読の状態に触れない）。
+                if (!IsBindSuperseded(generation))
+                {
+                    _index.IsSceneLifecycleOpen = false;
+                }
+
+                throw;
+            }
+
             if (IsBindSuperseded(generation))
             {
                 // Subscribe の中の再入で Dispose された、または更に差し替えられた。この購読は誰も解除しなくなるので、ここで解除する。
@@ -203,33 +219,46 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
         /// </summary>
         public void Tick(float deltaSeconds)
         {
-            if (_disposed)
+            // 毎フレーム呼ばれるので、instance が無いときは snapshot を確保しない。
+            // Bind 所有者も handle と一緒にしか索引に入らないので、件数 0 なら検査する相手もいない。
+            if (_disposed || _index.Count == 0)
             {
                 return;
             }
 
-            try
+            // handle・所有者ごとに捕捉する。一つの失敗（backend 以外の原因も含む）で同じ Tick の残りを飛ばすと、
+            // その分だけ消え切り待ちと破棄済み go の回収が遅れる。
+            foreach (var handle in _index.SnapshotAll())
             {
-                foreach (var handle in _index.SnapshotAll())
+                if (handle.State != VfxHandle.HandleState.Stopping)
                 {
-                    if (handle.State == VfxHandle.HandleState.Stopping)
-                    {
-                        handle.AdvanceStopping(deltaSeconds, _gracefulStopTimeoutSeconds);
-                    }
+                    continue;
                 }
 
-                // 通知が来ない破棄（一度も active にならなかった go、EditMode）の保険。
-                foreach (var owner in _index.SnapshotBindOwners())
+                try
+                {
+                    handle.AdvanceStopping(deltaSeconds, _gracefulStopTimeoutSeconds);
+                }
+                catch (Exception e)
+                {
+                    LogTickFailure(e, handle.Id.Value);
+                }
+            }
+
+            // 通知が来ない破棄（一度も active にならなかった go、EditMode）の保険。
+            foreach (var owner in _index.SnapshotBindOwners())
+            {
+                try
                 {
                     if (owner.BoundObject == null)
                     {
                         ReleaseAll(_index.SnapshotOwner(owner));
                     }
                 }
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "[VfxSystem] Tick failed.");
+                catch (Exception e)
+                {
+                    LogTickFailure(e, 0);
+                }
             }
         }
 
@@ -457,6 +486,18 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
             foreach (var handle in handles)
             {
                 handle.Release();
+            }
+        }
+
+        private void LogTickFailure(Exception exception, ulong id)
+        {
+            // logger 自身の例外まで外へ出すと、UpdateSystem の他の要素の Tick を止めうる。ここで握り潰す。
+            try
+            {
+                _logger.LogError(exception, "[VfxSystem] Tick failed. id={Id}", id);
+            }
+            catch
+            {
             }
         }
 

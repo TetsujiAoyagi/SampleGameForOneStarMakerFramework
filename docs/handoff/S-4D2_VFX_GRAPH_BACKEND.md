@@ -369,7 +369,34 @@ Architecture §24 §16 に「composition（`VfxRuntimeHost`、起動・終了順
 
 ## 6. Phase B 実装結果
 
-未着手
+- 実装（§4 の順序どおり）:
+  - **package:** `manifest.json` に `"com.unity.visualeffectgraph": "17.6.0"` を 1 行追加。Editor の import で `packages-lock.json` に同 package（`source: builtin`、依存 `com.unity.shadergraph` / `com.unity.render-pipelines.core` 17.6.0）の 1 項目だけが増え、`ProjectSettings/VFXManager.asset` の shader・resource 参照が埋まった。ProjectSettings の他のファイルは変わっていない。asmdef の変更は 0 件（`SampleGame.Common` は engine module の `UnityEngine.VFX` だけで compile できたので、§2.6 の 1 件も不要だった）。
+  - **Framework:** `VfxSystem.Tick` は索引の件数 0 で早期 return し、handle・所有者ごとに try/catch する（logger 自身の例外も Tick の外へ出さない）。`BindSceneLifecycle` は `Subscribe` の例外で lifecycle を閉じてから例外を外へ出す。`VfxRuntimeHost`（internal、`IUpdateElement`）と `UnconfiguredVfxBackend`（internal、理由文は internal const）を追加。`UpdateLayerIds.Vfx` / `VfxLayerOrder = 55`。`AbstractApplicationInitializer` は `protected virtual IVfxBackend? CreateVfxBackend()`（既定 null）と、生成（`_loggerFactory` の直後）・接続（`BindSceneDirector` の直後、`RegisterAlreadyLoadedScenes` の前）・`DisposeVfx`（`ReleaseAll` の `_cts?.Cancel()` の直後、DebugSocket・`_updateSystemHost.Dispose` の前）の 3 か所、Play 中のテスト用の internal static accessor `ActiveVfxRuntimeHost` を足した。
+  - **SampleGame（`SampleGame.Common.Rendering.Vfx`）:** `VfxGraphCapabilityPolicy`（`VfxPlatformFacts` 同居）、`VfxCapabilityState`（`VfxCapability` enum 同居、writer 付き）、`VfxGraphBackend`（§2.4 の手順。facts の読み取りは internal ctor で注入）、`PlacedVfxActivator`、`SampleGame/Common/AssemblyInfo.cs`（`InternalsVisibleTo("SampleGame.Tests")`）。`AppInitializer` は `CreateVfxBackend` の override 1 件。
+  - **fixture（Editor 操作で作成、`unity/Assets/SampleGame/Tests/Rendering/Vfx/Fixtures/`）:** `VfxShortLived.vfx` と `VfxImmortal.vfx` は、VFX Graph の作成メニューと同じ経路（`VisualEffectAssetEditorUtility.CreateTemplateAsset`）で同梱の Simple Loop テンプレート（spawn 64/秒、寿命 0.8〜1.2 秒、capacity 68、`OnPlay` / `OnStop` は Spawn の既定の入力）から作り、VFX Graph の Editor API（internal なので reflection）で、両方の Culling Flags を `CullNone`、`VfxShortLived` に未接続の Exposed Property 5 件（`FloatProp` / `IntProp` / `BoolProp` / `Vector3Prop` / `Vector4Prop`）、`VfxImmortal` の Update に `reapParticles = false` を設定して `WriteAssetWithSubAssets` で保存した。保存後に `GetExposedProperties` で 5 件と型、`m_CullingFlags = 0` を確認した。`PlacedVfx.prefab` は `VisualEffect`（`VfxShortLived`、`enabled = false`）と `PlacedVfxActivator` の GameObject を `PrefabUtility.SaveAsPrefabAsset` で保存した（保存後に `enabled == false` を読み戻した）。YAML は手で編集していない。
+  - **テスト（4 ファイルの予定を 6 ファイルにした。下記「HANDOFF との差」）:** `OneStarMaker.Tests.Rendering.Vfx` の `VfxRuntimeHostTests`（AC9・AC10 (a)〜(d)、9 件）・`VfxSystemTickAllocationTests`（AC11 (a)・(c)・(d)、4 件）、`SampleGame.Tests.Rendering.Vfx` の `VfxGraphCapabilityPolicyTests`（AC2・AC3、表駆動を含め 16 ケース）・`VfxGraphBackendPlayTests`（AC4・AC6〜AC8・AC10 の Play 中の確認・AC12）・`VfxGraphRenderPlayTests`（AC5）と、Play 入りの共通基底 `VfxPlayTestFixture`。
+- AC5 の数値（fixture から決めた値）: 閾値は背景（黒）と異なる画素 4 個（RT 128×128、カメラは原点の 4 m 手前、画素の判定は RGB のどれかが 8 超）、上限は 600 フレーム。AC6・AC7 の粒子の出現・消滅の上限は 6000 フレーム（batch の Editor はフレームが短く、寿命 1 秒前後の粒子が消え切るまでに数千フレームかかりうるため）、timeout の fixture は ctor の timeout 0.5 秒で、経過実時間 ≥ 0.495 秒を求める。起動待ち（Scene lifecycle への接続）の上限は 3000 フレーム。
+- HANDOFF との差:
+  - `VfxOwnerIndex.cs` は変更しなかった。早期 return に使う件数（`internal int Count`）が既にあった。
+  - Play 中のテストを 1 ファイル（約 420 行の見込み）から、共通基底 `VfxPlayTestFixture.cs`（176 行）・契約 `VfxGraphBackendPlayTests.cs`（396 行）・描画 `VfxGraphRenderPlayTests.cs`（105 行）の 3 ファイルにした。1 ファイルでは 625 行になり、§3.5 の「500 を超える見込みになったら描画（AC5）と契約で分ける」に当たったため。テストの集合と起点 filter（`SampleGame.Tests.Rendering.Vfx`）は変わらない。
+  - 行数の予想との差: `VfxRuntimeHost.cs` 150 → 228、`VfxGraphBackend.cs` 230 → 315（寿命・所有・失敗境界の理由のコメントと、テスト用の internal accessor `RootForTest` / `FindForTest`）、`AbstractApplicationInitializer.cs` +29 → +45（同、コメント）。公開面は増えていない（accessor は全て internal）。
+  - AC10 (c2)（`VfxSystem` を作った後の失敗）で「`VfxSystem` の `Dispose` も済んでいる」ことは、失敗の時点で instance が無いので backend の呼び出しとして観測できない。テストは「能力判定が 1 回呼ばれた（`VfxSystem` を作った）」「backend の `Dispose` が 1 回」「backend は能力判定以外に呼ばれていない」を確かめ、`VfxSystem.Dispose` の呼び出しは `VfxRuntimeHost.Create` の catch → `Dispose` のコードで確かめる（発見 C のコードレビューの対象）。
+  - 新しい事実の分類: A 再開に当たるものは無い。上記はいずれも B 適応（凍結済みの契約・責務配置・公開面を変えない）。
+- 着手時の確認（§3.2）: 起動時の Warning を数える既存のテスト・smoke は無かった。`unity/Assets` の C# と `tools/` の script を `LogType.Warning` / Warning の件数で検索し、`LogAssert.Expect(LogType.Warning, …)` は退役メニューのテストの固定文言だけ、`Application.logMessageReceived` を使う `StreamingIntegrationTests` は Error / Exception だけを数えていた。Phase A へは戻さない。
+- Editor のコンパイル確認（AC1、Phase B の観測）: Unity 6000.6.0f1 でこの worktree の project を開き、package の import と最後のコンパイルの後、`recompile_status` は `failed: false`・compile エラー 0 件。Console の Error は compile 以外の 4 件だった: Unity のライセンスの通知 1 件（"License revoked: Your Unity Personal license has been revoked."）と、Editor の import・domain reload 中に送った Pipeline の eval が main thread の timeout になった記録 3 件。前者は Phase C のバッチテストの起動（ライセンス接続）に影響しうるので、判定 C の実行担当は起動ログのライセンス接続を最初に確かめる（返却・再発行を回避策にしない、は osm-workflow のとおり）。
+- 作業ツリーの扱い: Editor が import の際に `unity/Assets/MobileDependencyResolver/` の `.pdb.meta` 5 件を削除した（対応する `.pdb` は `.gitignore` 済みで worktree に無い）。本スライスと無関係なので commit に含めず、`git restore` で戻した。開始前からあった未追跡の `docs/handoff/DEBUGSTUDIO_S2_CUT_PLAN.md` は本スライスと無関係で、触れていない。
+- 機械検査: `pwsh tools/contract-audit.ps1`（errors 0・warnings 0、検査 9 の path 予算を含む）、`pwsh tools/docs-audit.ps1`（errors 0・warnings 0）。
+- 未実行: Unity テストは全て未実行（Phase B では実行しない。§5 の起点 filter・判定必須テストは Phase C）。AC5 の描画経路の疎通も未確認（§5 のとおり初回確認は Phase C）。
+- implementation head commit: §0 の引継ぎ票に記録する（この §6 を含む commit）。
+- Phase B 担当・モデル・ベンダー: Claude Code（Anthropic、Claude Opus 系列）。C' 用に残した xAI 系列は Phase B でも使っていない。
+
+### 動作確認
+
+- 対象 head: 未実施（次の担当）
+- 条件ごとの実行担当・環境・実行したコマンド: 未実施
+- 生の観測（出力、事前・事後の観測。合否は書かない）と保存先・状態: 未実施
+- 検証経路の期待と違う観測と、B への差し戻し: 未実施
+- `未実施` の条件と理由・担当（未実施が無ければ `なし`、検証経路に該当条件が無いスライスだけ `対象なし`）: AC1 のコンパイル確認（§5。担当は動作確認の担当。Phase B の head を Editor で開き直し、Console の compile エラー 0 を観測する）
 
 ## 7. Phase C
 

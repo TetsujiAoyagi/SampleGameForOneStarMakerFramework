@@ -7,8 +7,10 @@ using OneStarMaker.Runtime.CameraSystem.BackgroundApplier;
 using OneStarMaker.Runtime.CameraSystem.Cinemachine;
 using OneStarMaker.Runtime.CameraSystem.Hosting;
 using OneStarMaker.Runtime.Rendering.Environments;
+using OneStarMaker.Runtime.Rendering.Vfx;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.UpdateSystem.Api;
+using SampleGame.Common.Rendering.Vfx;
 using SampleGame.InGame.Streaming;
 using System;
 using System.Collections.Generic;
@@ -103,6 +105,9 @@ namespace SampleGame.DependOnAll
                 companionSet,
                 renderEnvironment);
         }
+
+        // 所有と解放は Framework の VFX composition が持つ（ReleaseAll で VfxSystem の後に Dispose する）。
+        protected override IVfxBackend CreateVfxBackend() => new VfxGraphBackend();
 
         protected override string GetUICommonPrefabAddress()
             => "Assets/OneStarMaker/Scenes/UIScene.unity";

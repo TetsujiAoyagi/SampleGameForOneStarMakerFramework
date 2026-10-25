@@ -1,0 +1,176 @@
+#nullable enable
+
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using Microsoft.Extensions.Logging.Abstractions;
+using NUnit.Framework;
+using OneStarMaker.Runtime;
+using OneStarMaker.Runtime.Rendering.Vfx;
+using OneStarMaker.Runtime.UpdateSystem.Api;
+using SampleGame.Common.Rendering.Vfx;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.TestTools;
+using UnityEngine.VFX;
+using Object = UnityEngine.Object;
+
+namespace SampleGame.Tests.Rendering.Vfx
+{
+    /// <summary>
+    /// 実 backend（VFX Graph）を Play 中に動かすテストの共通の起動と後始末。本物の AppInitializer が起動した状態で、
+    /// テストが自分の backend を作って確かめる（後から能力判定を書いた backend が <see cref="VfxCapabilityState"/> の writer になる）。
+    /// <para>
+    /// 起動の前提は既存の Play 中のテストと同じ: 現在の Scene 構成を保存して空の Scene を開き、content の runtime mode を
+    /// addressables にしてから Play に入り、TearDown で戻す。起動の失敗は VFX の不具合と区別できる文言で失敗させる。
+    /// graphics device が必要なケースは、実際の platform の事実が対応のときだけ実行する（-nographics では Inconclusive）。
+    /// graphics の無い device で VisualEffect を有効化しないため。待ちは全てフレーム数の上限付きで、時間待ちは使わない。
+    /// </para>
+    /// </summary>
+    public abstract class VfxPlayTestFixture
+    {
+        protected const string FixtureFolder = "Assets/SampleGame/Tests/Rendering/Vfx/Fixtures/";
+        protected const string ShortLivedPath = FixtureFolder + "VfxShortLived.vfx";
+        protected const string ImmortalPath = FixtureFolder + "VfxImmortal.vfx";
+        protected const string PlacedPrefabPath = FixtureFolder + "PlacedVfx.prefab";
+        private const string ContentModeKey = "SAMPLEGAME_CONTENT__RUNTIMEMODE";
+
+        // 粒子の出現・消滅を待つフレーム数の上限。batch の Editor はフレームが短いので、寿命 1 秒前後の粒子
+        // （fixture は VFX Graph の Simple Loop テンプレートの 0.8〜1.2 秒）が消え切るまでに数千フレームかかりうる。
+        // 上限内に起きなければ不合格にする（固定フレーム後の状態だけは見ない）。
+        protected const int ParticleFrameLimit = 6000;
+        protected const int StartupFrameLimit = 3000;
+
+        private readonly List<IDisposable> _disposables = new();
+        private SceneSetup[]? _sceneSetup;
+        private string? _previousContentMode;
+        private bool _contentModeChanged;
+
+        /// <summary>TearDown で破棄する Object（GameObject・RenderTexture 等）。</summary>
+        protected List<Object> Objects { get; } = new();
+
+        /// <summary>0 以上なら TearDown でこの Quality に戻す。</summary>
+        protected int PreviousQualityLevel { get; set; } = -1;
+
+        protected VisualEffectAsset ShortLived { get; private set; } = null!;
+
+        protected VisualEffectAsset Immortal { get; private set; } = null!;
+
+        [UnitySetUp]
+        public IEnumerator EnterPlayModeWithApp()
+        {
+            _sceneSetup = EditorSceneManager.GetSceneManagerSetup();
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            _previousContentMode = Environment.GetEnvironmentVariable(ContentModeKey, EnvironmentVariableTarget.Process);
+            Environment.SetEnvironmentVariable(ContentModeKey, "addressables", EnvironmentVariableTarget.Process);
+            _contentModeChanged = true;
+            yield return new EnterPlayMode();
+
+            // 起動の失敗を VFX の不具合と取り違えないよう、先に起動を確かめる。
+            Assert.That(UpdateSystemRuntime.Coordinator, Is.Not.Null,
+                "起動の失敗: BeforeSceneLoad が完了していない（UpdateSystem が install されていない）");
+            Assert.That(AbstractApplicationInitializer.ActiveVfxRuntimeHost, Is.Not.Null,
+                "起動の失敗、または Framework が VFX の composition を作っていない");
+
+            ShortLived = AssetDatabase.LoadAssetAtPath<VisualEffectAsset>(ShortLivedPath);
+            Immortal = AssetDatabase.LoadAssetAtPath<VisualEffectAsset>(ImmortalPath);
+            Assert.That(ShortLived != null && Immortal != null, Is.True, "fixture の .vfx が無い");
+        }
+
+        [UnityTearDown]
+        public IEnumerator ExitPlayModeAndRestore()
+        {
+            try
+            {
+                // 後に作ったものから戻す（host → backend の順。writer の backend の Dispose で状態が未判定に戻る）。
+                for (var i = _disposables.Count - 1; i >= 0; i--)
+                {
+                    _disposables[i].Dispose();
+                }
+
+                _disposables.Clear();
+                foreach (var obj in Objects)
+                {
+                    if (obj != null)
+                    {
+                        Object.Destroy(obj);
+                    }
+                }
+
+                Objects.Clear();
+                if (PreviousQualityLevel >= 0)
+                {
+                    QualitySettings.SetQualityLevel(PreviousQualityLevel, true);
+                    PreviousQualityLevel = -1;
+                }
+
+                if (EditorApplication.isPlaying)
+                {
+                    yield return null;
+                    yield return new ExitPlayMode();
+                }
+
+                if (_sceneSetup != null)
+                {
+                    if (_sceneSetup.Any(scene => scene.isLoaded && scene.isActive))
+                        EditorSceneManager.RestoreSceneManagerSetup(_sceneSetup);
+                    else
+                        EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                    _sceneSetup = null;
+                }
+            }
+            finally
+            {
+                if (_contentModeChanged)
+                {
+                    Environment.SetEnvironmentVariable(ContentModeKey, _previousContentMode, EnvironmentVariableTarget.Process);
+                    _contentModeChanged = false;
+                }
+            }
+        }
+
+        // ─── helpers ───
+
+        protected static VfxPlatformFacts RealFacts() => new(
+            SystemInfo.supportsComputeShaders,
+            SystemInfo.maxComputeBufferInputsVertex,
+            QualitySettings.activeColorSpace,
+            SystemInfo.graphicsDeviceType);
+
+        protected static VfxPlatformFacts UnsupportedFacts() => new(true, 8, ColorSpace.Linear, UnityEngine.Rendering.GraphicsDeviceType.OpenGLES3);
+
+        protected static void AssumeGraphicsSupported()
+        {
+            var supported = VfxGraphCapabilityPolicy.Evaluate(RealFacts(), out var reason);
+            Assume.That(supported, Is.True, "この環境では VFX Graph を有効化しない: " + reason);
+        }
+
+        protected static int CountVisualEffects()
+            => Object.FindObjectsByType<VisualEffect>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length;
+
+        protected T Track<T>(T disposable) where T : IDisposable
+        {
+            _disposables.Add(disposable);
+            return disposable;
+        }
+
+        protected GameObject NewObject(string name)
+        {
+            var go = new GameObject(name);
+            Objects.Add(go);
+            return go;
+        }
+
+        private protected VfxRuntimeHost CreateHost(VfxGraphBackend backend, float timeoutSeconds = 10f)
+        {
+            var coordinator = UpdateSystemRuntime.Coordinator
+                              ?? throw new InvalidOperationException("UpdateSystem の coordinator が無い");
+            return Track(VfxRuntimeHost.Create(backend, NullLoggerFactory.Instance, coordinator, timeoutSeconds));
+        }
+
+        private protected static VfxInstanceId IdOf(IVfxHandle handle) => ((VfxHandle)handle).Id;
+    }
+}
