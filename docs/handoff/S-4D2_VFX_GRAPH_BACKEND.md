@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C`（発見 C 第3巡が完了。阻害する指摘 0。未公開の試行錯誤 commit の整理と GO 候補 head の固定、判定 C の前。巡は 3/4。§7）
+- status: `C`（発見 C は第3巡で阻害する指摘 0。GO 候補 head `628b0b53` を固定し、判定 C の待ち。§7）
 - branch: `claude/s-4d2-vfx-graph-backend`
 - implementation base commit: `2734a6ea`（`develop`、PR #142 のマージ）
-- implementation head commit: `628b0b53`（Phase B 差し戻し 3 巡目の出口。GO 候補としては未固定。前の head は `2a82ace2`、その前は `2055069a`・`77a3a0b3`）
+- implementation head commit: `628b0b53`（Phase B 差し戻し 3 巡目の出口。**GO 候補 head として固定**、ローカル軽量 tag `evidence/s-4d2-vfx-graph-backend/1`（push しない）。前の head は `2a82ace2`、その前は `2055069a`・`77a3a0b3`）
 - risk: `high`（パッケージ導入、Framework の公開 API と起動・終了順序、所有者・寿命、Scene lifecycle への配線）
 - owner: 発注者 / S-4d2 担当
 - created: 2026-10-21
@@ -19,7 +19,13 @@
 - Phase B result snapshot の取得案内・状態: 未生成（Phase B の結果は commit `628b0b53`（差し戻し 3 巡目）と §6 で引き渡す。`evidence stage` はしていない）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票（発見 C 第3巡 → 進行役）: 発見 C 第3巡は head `628b0b53` で起点 filter 132 件中 passed 132・failed 0。阻害する指摘 0（§7）。次は未公開の試行錯誤 commit の整理 → GO 候補 head の固定とローカル軽量 tag → 判定 C（下の旧記載の順序 (2)〜）。AC5 の補助の描画は U3 の (1) の範囲と判断した（§7）。巡は 3/4 で確定。Unity は正常終了（stall なし。PID 27716 は第0巡の残置のまま）。
+- 引継ぎ票（GO 候補 head の固定 → 判定 C）:
+  - 前の Phase の結果: 発見 C は第3巡で阻害する指摘 0（§7）。履歴は整理しない（発注者の決定。§7「決定記録」D1）。GO 候補 implementation head は `628b0b53`、ローカル軽量 tag `evidence/s-4d2-vfx-graph-backend/1`。base は `2734a6ea`。
+  - 次の Phase・役割: **判定 C（別 session）**。GO 候補 head `628b0b53` で、§5 の判定必須テスト（`pwsh tools/run-tests.ps1 -WithGraphics`、空 filter）と、AC14 のための既定（`-nographics`、空 filter）の全回帰を実行し、AC13 の機械検査（`git diff --name-status 2734a6ea 628b0b53`）、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1` を行う。XML で §3.1 のテスト 4 ファイルの収録、failed 0、本スライスのテストの Inconclusive・Ignored 0（AC5・AC12 の `Supported` が passed）を確かめ、既定との差（failed・Inconclusive・Ignored の集合）を AC14 として記録する。差の扱いは人間の裁定（決定記録）に返す。evidence bundle と C' blind audit bundle は review-evidence に従い同じ commit から作り、§0 の取得案内欄の状態を更新する。判定 C は C' を起動しない。
+  - 引き継ぐ commit: branch の先頭（この §0・§7 を書いた記録用 commit。`628b0b53` との差は HANDOFF だけ）。push していない。作業ツリーは未追跡の `docs/handoff/DEBUGSTUDIO_S2_CUT_PLAN.md` を除いて clean。
+  - 運用の注意: 発見 C 第0巡の stall した Unity（PID 27716）は残置。実行の前に、この project の Unity process を確かめる。
+  - 必要な権限・停止規則・出口・モデル: 下の旧の記載（発見 C 第0巡の前の記録）と同じ。判定 C の担当は Phase B と異なるモデル。
+- 引継ぎ票（発見 C 第3巡 → 進行役、経緯として残す）: 発見 C 第3巡は head `628b0b53` で起点 filter 132 件中 passed 132・failed 0。阻害する指摘 0（§7）。次は未公開の試行錯誤 commit の整理 → GO 候補 head の固定とローカル軽量 tag → 判定 C（下の旧記載の順序 (2)〜）。AC5 の補助の描画は U3 の (1) の範囲と判断した（§7）。巡は 3/4 で確定。Unity は正常終了（stall なし。PID 27716 は第0巡の残置のまま）。
 - 引継ぎ票（Phase B 差し戻し 3 巡目 → 発見 C 第3巡、経緯として残す）:
   - 前の Phase の結果: Phase B 差し戻し 3 巡目が完了（implementation head `628b0b53`、前の head `2a82ace2` からの差は `VfxGraphRenderPlayTests.cs` の 1 ファイルだけ。§6「差し戻し 3 巡目」）。F1 の食い違いの原因を batch の Editor で切り分けた: 起動したばかりの Editor の process では、通常の描画ループ（有効なカメラ）が一度も VFX を描いていないと、明示の `camera.Render()` と SRP の render request（`StandardRequest`）のどちらにも粒子が入らない。一度描かれると同じ process の間は入る。第2巡の B の成功は、同じ process で先に有効なカメラの実験をしていたため（第2巡の「旧順序の混在で映らない」という判断は誤りの可能性が高い）。AC5 のテストは、計測の前に補助のカメラ（別の RT）に別の instance を描かせ、両方を壊してから凍結済みの手順で計測する。閾値・上限・計測の経路は変えていない。これを §2.7 U3 の (1) の適用（Editor で有効性を確かめた明示の描画経路）として扱った。Phase A の再開に当たるかの判断は下の「発見 C への依頼」。Unity テストは未実行。batch の Editor でコンパイルエラー 0（本スライスのファイルの警告 0）。contract-audit・docs-audit は errors 0・warnings 0。
   - 次の Phase・役割: **発見 C 第3巡（別 session）**。head `628b0b53` に対して §5 の起点 filter `OneStarMaker.Tests.Rendering.Vfx;SampleGame.Tests.Rendering.Vfx` を `-WithGraphics` で実行し、F1 の解消と他のテストの回帰を確かめる（全回帰は判定 C まで回さない）。`Render_SpawnedVfxAppearsInCameraOutput` の出力に `warmUpLitPixels`・`warmUpFrames`・`afterWarmUp enabledCameras=… visualEffects=…` が増えている。
@@ -540,6 +546,10 @@ Architecture §24 §16 に「composition（`VfxRuntimeHost`、起動・終了順
 - **判断（依頼への回答）:** 補助の描画（warm-up）は AC5 の (3)「自動描画に頼らない」の凍結手順の変更（Phase A の再開）には当たらず、§2.7 U3 の (1) の範囲（合格条件を緩めない検証手段の変更）と判断する。根拠: 計測の RT に書くのは明示の `camera.Render()` だけで、計測の前に補助のカメラ・instance が壊れていることを assert する。閾値・上限・失敗文言・backend は不変。補助の描画自体も閾値に達しなければ失敗する。ただし「通常の描画ループに先に描かせる」ことは batch の Editor の実測に基づく環境条件で、内部原因は未確定。d3 の RT 経路検査にも同じ前提が要る（§6 の後続入力 (a)）。人間へ返す blocker ではない。
 - **阻害する指摘:** なし。後続スライスへ移送する指摘: なし（d3 への入力は §6 に既出）。
 - 次: 未公開の試行錯誤 commit の整理 → GO 候補 implementation head の固定 → 判定 C。
+
+### 決定記録
+
+- **D1（版 1、2026-10-25 適用、発注者）:** (a) 未公開の試行錯誤 commit は整理しない。実装の commit は Phase B と差し戻し 3 巡の各 1 つで、§6・§7 がその SHA を指すため。GO 候補 head は `628b0b53`（tag `evidence/s-4d2-vfx-graph-backend/1`）。(b) §5「発見 C での先行の全回帰」の既定（`-nographics`）の全回帰は発見 C で回さず、差は判定 C の AC14 で記録する。発見 C 第0巡の `-WithGraphics` の全回帰でスライス外の失敗が 0 件だったため。どの条件の意味・合否も変えない。
 ## 8. Phase C'
 
 未着手
