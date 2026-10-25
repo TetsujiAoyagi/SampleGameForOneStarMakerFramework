@@ -29,20 +29,13 @@ namespace SampleGame.Tests.Rendering.Vfx
         //  Framework の composition（起動時に作られている）
         // ═══════════════════════════════════════════
 
-        [UnityTest]
-        public IEnumerator Startup_FrameworkHostExists_TickActive_AndBoundToSceneLifecycle()
+        /// <summary>接続（AfterSceneLoad の SceneDirector 生成の直後）までの待ちは共通の SetUp が行う。</summary>
+        [Test]
+        public void Startup_FrameworkHostExists_TickActive_AndBoundToSceneLifecycle()
         {
             var host = AbstractApplicationInitializer.ActiveVfxRuntimeHost!;
             Assert.That(host.IsTickElementActive, Is.True);
-
-            // Scene lifecycle への接続は AfterSceneLoad（非同期）の SceneDirector 生成の直後に起きる。
-            for (var frame = 0; frame < StartupFrameLimit && !host.IsSceneLifecycleBound; frame++)
-            {
-                yield return null;
-            }
-
-            Assert.That(host.IsSceneLifecycleBound, Is.True,
-                "起動の失敗（AfterSceneLoad が SceneDirector を作っていない）、または Scene lifecycle への接続の失敗");
+            Assert.That(host.IsSceneLifecycleBound, Is.True);
         }
 
         // ═══════════════════════════════════════════
@@ -128,11 +121,16 @@ namespace SampleGame.Tests.Rendering.Vfx
             var backend = Track(new VfxGraphBackend());
             var id = backend.Create(new VfxSpawnRequest(ShortLived, Vector3.zero, Quaternion.identity));
             Assert.That(id.IsValid, Is.True);
+            var effect = backend.FindForTest(id)!;
+            // 計測値: 初期イベントの抑止が効いたか（空なら有効化で何も送られない）と、粒子の無い system の awake の状態。
+            TestContext.Out.WriteLine(
+                $"initialEventName='{effect.initialEventName}' hasAnySystemAwakeAtCreate={effect.HasAnySystemAwake()}");
 
             for (var frame = 0; frame < 120; frame++)
             {
                 yield return null;
-                Assert.That(backend.HasAliveParticles(id), Is.False, "Create だけでは発射しない（frame " + frame + "）");
+                Assert.That(backend.HasAliveParticles(id), Is.False,
+                    $"Create だけでは発射しない（frame {frame}、aliveParticleCount={effect.aliveParticleCount}）");
             }
 
             Assert.That(backend.Play(id), Is.True);
@@ -322,14 +320,19 @@ namespace SampleGame.Tests.Rendering.Vfx
             }
 
             Assert.That(sawAlive, Is.True, "前提: 粒子が出ている");
-            var stoppedAt = Time.realtimeSinceStartupAsDouble;
+            // 経過はフレームの時計（unscaled time）で測る。消え切り待ちは Tick に渡る unscaled delta を足す規則で、
+            // delta は直前のフレームの開始時刻からの差なので、Stop の後の最初の Tick には呼び出しより前の時間が入る。
+            // 呼び出しの瞬間の実時間から測ると最大 1 フレーム分短く見えるが、フレームの時計なら Tick が足した delta の
+            // 合計と一致する。最初の Tick で即 timeout する実装は経過 1 フレーム分しかないので、これでも落ちる。
+            var stoppedAt = Time.unscaledTimeAsDouble;
             handle.StopAllowingParticlesToFinish();
             for (var frame = 0; frame < ParticleFrameLimit * 4 && go != null; frame++)
             {
                 yield return null;
             }
 
-            var elapsed = Time.realtimeSinceStartupAsDouble - stoppedAt;
+            var elapsed = Time.unscaledTimeAsDouble - stoppedAt;
+            TestContext.Out.WriteLine($"timeout={timeout} elapsedUnscaled={elapsed:F4}");
             Assert.That(go == null, Is.True, "上限フレーム内に timeout で破棄される");
             Assert.That(elapsed, Is.GreaterThanOrEqualTo(timeout * 0.99), "経過実時間が timeout 未満で破棄された");
         }

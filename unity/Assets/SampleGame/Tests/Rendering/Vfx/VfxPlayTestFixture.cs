@@ -72,8 +72,22 @@ namespace SampleGame.Tests.Rendering.Vfx
             // 起動の失敗を VFX の不具合と取り違えないよう、先に起動を確かめる。
             Assert.That(UpdateSystemRuntime.Coordinator, Is.Not.Null,
                 "起動の失敗: BeforeSceneLoad が完了していない（UpdateSystem が install されていない）");
-            Assert.That(AbstractApplicationInitializer.ActiveVfxRuntimeHost, Is.Not.Null,
+            var frameworkHost = AbstractApplicationInitializer.ActiveVfxRuntimeHost;
+            Assert.That(frameworkHost, Is.Not.Null,
                 "起動の失敗、または Framework が VFX の composition を作っていない");
+
+            // AfterSceneLoad（非同期）の完了を待ってからテスト本体へ入る。本体の LogAssert.NoUnexpectedReceived は
+            // 本体の間に届いた全てのログを数えるので、起動のログ（DebugSocket の開始等）が本体に混ざると落ちる。
+            // 完了の目印は Scene lifecycle への接続: DebugSocket の開始とそのログは接続より前で、接続の後の
+            // ロード済み Scene の登録は、空の Scene と UICommon（どちらも SceneResourceMap に無い）を同期でスキップする
+            // だけなので、接続が見えた時点で起動のログは出終わっている。
+            for (var frame = 0; frame < StartupFrameLimit && !frameworkHost!.IsSceneLifecycleBound; frame++)
+            {
+                yield return null;
+            }
+
+            Assert.That(frameworkHost!.IsSceneLifecycleBound, Is.True,
+                "起動の失敗（AfterSceneLoad が SceneDirector を作っていない）、または Scene lifecycle への接続の失敗");
 
             ShortLived = AssetDatabase.LoadAssetAtPath<VisualEffectAsset>(ShortLivedPath);
             Immortal = AssetDatabase.LoadAssetAtPath<VisualEffectAsset>(ImmortalPath);

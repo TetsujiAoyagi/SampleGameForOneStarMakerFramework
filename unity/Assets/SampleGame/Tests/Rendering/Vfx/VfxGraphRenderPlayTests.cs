@@ -52,6 +52,7 @@ namespace SampleGame.Tests.Rendering.Vfx
             var host = CreateHost(backend);
             var handle = host.System.Spawn(new VfxSpawnRequest(ShortLived, Vector3.zero, Quaternion.identity), AssetOwner.App);
             Assert.That(handle.IsActive, Is.True);
+            var effect = backend.FindForTest(IdOf(handle))!;
 
             yield return null;
             var beforePlay = CountLitPixels(camera, rt, readback);
@@ -61,10 +62,21 @@ namespace SampleGame.Tests.Rendering.Vfx
             handle.Play();
             var lit = 0;
             var reachedFrame = -1;
+            // 描画されない場合に「発射していない」と「発射しているが描画経路に入らない」を分けるための計測。
+            // aliveParticleCount は GPU からの読み戻しで遅れるので、最初に 0 を超えたフレームと最大値を残す。
+            var maxAlive = 0;
+            var firstAliveFrame = -1;
             for (var frame = 0; frame < RenderFrameLimit; frame++)
             {
                 yield return null;
                 lit = CountLitPixels(camera, rt, readback);
+                var alive = (int)effect.aliveParticleCount;
+                if (alive > 0 && firstAliveFrame < 0)
+                {
+                    firstAliveFrame = frame;
+                }
+
+                maxAlive = Math.Max(maxAlive, alive);
                 if (lit >= RenderPixelThreshold)
                 {
                     reachedFrame = frame;
@@ -72,8 +84,17 @@ namespace SampleGame.Tests.Rendering.Vfx
                 }
             }
 
-            TestContext.Out.WriteLine($"litPixels={lit} reachedFrame={reachedFrame} frameLimit={RenderFrameLimit}");
-            Assert.That(lit, Is.GreaterThanOrEqualTo(RenderPixelThreshold), "上限フレーム内に背景以外の画素が閾値に達しない");
+            var pipeline = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline;
+            var pipelineName = pipeline != null ? pipeline.GetType().Name : "builtin";
+            TestContext.Out.WriteLine(
+                $"litPixels={lit} reachedFrame={reachedFrame} frameLimit={RenderFrameLimit} " +
+                $"maxAliveParticles={maxAlive} firstAliveFrame={firstAliveFrame} " +
+                $"hasAnySystemAwake={effect.HasAnySystemAwake()} culled={effect.culled} enabled={effect.enabled} " +
+                $"activeInHierarchy={effect.gameObject.activeInHierarchy} renderPipeline={pipelineName}");
+            Assert.That(lit, Is.GreaterThanOrEqualTo(RenderPixelThreshold),
+                maxAlive > 0
+                    ? "上限フレーム内に背景以外の画素が閾値に達しない（粒子は生きている: 描画経路の側）"
+                    : "上限フレーム内に背景以外の画素が閾値に達しない（粒子が 0 のまま: 発射・シミュレーションの側）");
         }
 
         private static int CountLitPixels(Camera camera, RenderTexture rt, Texture2D readback)

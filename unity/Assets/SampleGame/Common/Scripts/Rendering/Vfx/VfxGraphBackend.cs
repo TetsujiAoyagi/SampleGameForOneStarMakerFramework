@@ -122,12 +122,13 @@ namespace SampleGame.Common.Rendering.Vfx
 
         public bool Play(VfxInstanceId id)
         {
-            if (!TryGetEffect(id, out var effect))
+            if (!TryGetEntry(id, out var entry))
             {
                 return false;
             }
 
-            effect.Play();
+            entry.Played = true;
+            entry.Effect.Play();
             return true;
         }
 
@@ -142,14 +143,22 @@ namespace SampleGame.Common.Rendering.Vfx
         public bool HasAliveParticles(VfxInstanceId id)
         {
             // 外から壊された instance には粒子が無いとみなす（消え切り待ちをすぐ終わらせる）。
-            if (!TryGetEffect(id, out var effect))
+            if (!TryGetEntry(id, out var entry))
             {
                 return false;
             }
 
-            // aliveParticleCount は GPU からの非同期の読み戻しで遅れうるので単独では使わない。
+            // Play の前は aliveParticleCount だけで答える。system は有効化された直後から粒子が無くても awake を返すので、
+            // awake を数えると Create 直後に「粒子あり」と誤る。発射が始まっていなければ読み戻しの遅れも無いので、
+            // 本当に発射していれば（初期イベントの抑止が効かなかった等）この値で見える。
+            if (!entry.Played)
+            {
+                return entry.Effect.aliveParticleCount > 0;
+            }
+
+            // Play の後は aliveParticleCount を単独では使わない（GPU からの非同期の読み戻しで遅れうる）。
             // 誤判定は回収を遅らせる側に倒し、上限は VfxSystem の timeout が保証する。
-            return effect.HasAnySystemAwake() || effect.aliveParticleCount > 0;
+            return entry.Effect.HasAnySystemAwake() || entry.Effect.aliveParticleCount > 0;
         }
 
         // Set*: 名前が無い・型が合わない・instance が壊れている場合は書かずに false を返す（例外にしない）。
@@ -277,13 +286,26 @@ namespace SampleGame.Common.Rendering.Vfx
 
         private bool TryGetEffect(VfxInstanceId id, out VisualEffect effect)
         {
-            if (_instances.TryGetValue(id.Value, out var entry) && entry.Effect != null)
+            if (TryGetEntry(id, out var entry))
             {
                 effect = entry.Effect;
                 return true;
             }
 
             effect = null!;
+            return false;
+        }
+
+        /// <summary>id に対応し、VisualEffect がまだ破棄されていない entry。</summary>
+        private bool TryGetEntry(VfxInstanceId id, out Entry entry)
+        {
+            if (_instances.TryGetValue(id.Value, out var found) && found.Effect != null)
+            {
+                entry = found;
+                return true;
+            }
+
+            entry = null!;
             return false;
         }
 
@@ -299,7 +321,7 @@ namespace SampleGame.Common.Rendering.Vfx
             return _root;
         }
 
-        private readonly struct Entry
+        private sealed class Entry
         {
             public Entry(GameObject gameObject, VisualEffect effect)
             {
@@ -310,6 +332,9 @@ namespace SampleGame.Common.Rendering.Vfx
             public GameObject GameObject { get; }
 
             public VisualEffect Effect { get; }
+
+            /// <summary>一度でも Play を送ったか。粒子の有無の判定方法を切り替える（<see cref="HasAliveParticles"/>）。</summary>
+            public bool Played { get; set; }
         }
     }
 }
