@@ -122,7 +122,9 @@ namespace SampleGame.Tests.Rendering.Vfx
             var id = backend.Create(new VfxSpawnRequest(ShortLived, Vector3.zero, Quaternion.identity));
             Assert.That(id.IsValid, Is.True);
             var effect = backend.FindForTest(id)!;
-            // 計測値: 初期イベントの抑止が効いたか（空なら有効化で何も送られない）と、粒子の無い system の awake の状態。
+            // 計測値（合否には使わない）: initialEventName の読み戻しと、粒子の無い system の awake の状態。
+            // 読み戻しが空でも抑止が効いているとは限らない（asset の後に書くと空を返しつつ OnPlay が送られた）ので、
+            // 抑止の確認は下の粒子の有無で行う。
             TestContext.Out.WriteLine(
                 $"initialEventName='{effect.initialEventName}' hasAnySystemAwakeAtCreate={effect.HasAnySystemAwake()}");
 

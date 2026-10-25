@@ -163,7 +163,7 @@ namespace SampleGame.Tests.Rendering.Vfx
         }
 
         protected static int CountVisualEffects()
-            => Object.FindObjectsByType<VisualEffect>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length;
+            => Object.FindObjectsByType<VisualEffect>(FindObjectsInactive.Include).Length;
 
         protected T Track<T>(T disposable) where T : IDisposable
         {

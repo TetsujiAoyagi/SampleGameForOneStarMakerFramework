@@ -92,9 +92,11 @@ namespace SampleGame.Common.Rendering.Vfx
                 go = new GameObject("VFX " + id.Value);
                 go.SetActive(false);
                 var effect = go.AddComponent<VisualEffect>();
-                effect.visualEffectAsset = asset;
                 // 有効化のたびに送られる初期イベントを止める。以後 enabled の切り替えと Reinit は使わない（再び送られるため）。
+                // 順序に意味がある: asset を設定した後に書くと、getter は空を返すのに有効化で asset 既定の初期イベント
+                // （OnPlay）が送られる（Unity 6000.6 / VFX Graph 17.6 の Editor で実測）。asset より先に書くと送られない。
                 effect.initialEventName = string.Empty;
+                effect.visualEffectAsset = asset;
 
                 // 親なしは DontDestroyOnLoad の root に置く。active Scene に置くと、所有者と無関係な Scene の unload で
                 // Unity が先に壊してしまう。
