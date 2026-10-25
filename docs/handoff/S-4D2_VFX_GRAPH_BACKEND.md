@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `B`（Phase B 完了。次は動作確認）
+- status: `B`（Phase B と動作確認が完了。次は Phase C・C'）
 - branch: `claude/s-4d2-vfx-graph-backend`
 - implementation base commit: `2734a6ea`（`develop`、PR #142 のマージ）
 - implementation head commit: `77a3a0b3`（Phase B の出口。GO 候補としては未固定）
@@ -19,14 +19,15 @@
 - Phase B result snapshot の取得案内・状態: 未生成（Phase B の結果は commit `77a3a0b3` と §6 で引き渡す。`evidence stage` はしていない）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票（Phase B → 動作確認）:
-  - 前の Phase の結果: Phase B 完了（2026-10-25）。実装・HANDOFF との差・未実行は §6。Unity テストは未実行。
-  - 次の Phase・役割: 動作確認（Phase B の後）。対象は §5 の「AC1 のコンパイル確認」1 件だけ（AC5 の描画は Unity テストなので Phase C）。その後は発見 C。Phase C は Phase B と異なるモデル、C' は Phase B・C の両方と異なるモデルにする（xAI 系列を C' 用に残してある）。
-  - 次の作業: 対象 head を Editor（6000.6.0f1）で開き直し、compile の完了後に Console の compile エラーの件数を観測して §6「動作確認」に生の観測を書く（合否は書かない）。compile 以外の Console の Error（§6 のライセンスの通知等）も、あれば文言をそのまま残す。期待と違えば B へ戻す。
-  - 引き継ぐ commit: branch `claude/s-4d2-vfx-graph-backend` の先頭（この記録用 commit。implementation head `77a3a0b3` の 1 つ後で、この §0 だけを変える）。implementation base は `2734a6ea`。push していない（同じ PC のローカル SHA で照合する）。開始前からある未追跡の `docs/handoff/DEBUGSTUDIO_S2_CUT_PLAN.md` は本スライスと無関係なので、作業ツリーの照合ではこの 1 件を除いて clean。
-  - 必要な権限: ローカルの Unity Editor の起動・操作（compile の確認だけ）。Phase B が起動した Editor は終了済み。Unity テスト・Build は Phase C。`unity test` / `unity run` は使わない。資格情報・sandbox 外実行は不要（Phase C のバッチテストは osm-workflow のとおり最初から sandbox 外の承認済み経路）。
-  - 停止規則: 動作確認は手順だけを実行し、原因調査や再実行で埋めない。Editor の import で `unity/Assets/MobileDependencyResolver/` の `.pdb.meta` が消えることがある（§6）。本スライスと無関係なので commit しない。
-  - 出口: 動作確認の担当が §6「動作確認」を書き、この引継ぎ票を発見 C（差し戻しなら B）へ書き換える。push・PR 作成・C' の起動はしない。
+- 引継ぎ票（動作確認 → Phase C・C'）:
+  - 前の Phase の結果: Phase B 完了（implementation head `77a3a0b3`、§6）。動作確認は AC1 のコンパイル確認 1 件で、`未実施` なし（§6「動作確認」）。Unity テストは未実行。
+  - 次の Phase・役割: Phase C（発見 C → 判定 C）と Phase C'。別 session の進行役が、各担当の新しい session を起動して順に進める。進行役は自分でレビュー・判定をせず、担当の起動・引継ぎ票の照合・待ちの管理・人間への判断の返却だけを行う。各担当の規則は osm-workflow（SKILL と references）が正。
+  - 次の作業（順序）: (1) 発見 C: base `2734a6ea` → head `77a3a0b3` の固定した差分の構造・契約・凍結済み失敗経路を見る。§5「発見 C での先行の全回帰」の `pwsh tools/run-tests.ps1 -WithGraphics`（空 filter）を最初の巡で 1 回だけ回し、同じ head の既定（`-nographics`）の全回帰との差を人間へ返す（判定の証拠にしない）。差し戻しは B と往復する（上限 4 巡。B は Phase B と同じ規則で別 session）。(2) 阻害する指摘が無くなったら、未公開の試行錯誤 commit を整理して GO 候補 head を固定し、ローカル軽量 tag `evidence/s-4d2-vfx-graph-backend/<n>` を付ける。(3) 判定 C: GO 候補 head で §5 の判定必須テスト（`pwsh tools/run-tests.ps1 -WithGraphics`、空 filter）と AC13 の機械検査を行い、AC5・AC12 の `Supported` のケースが Inconclusive でなく passed であること、AC14 の既定との差を記録する。AC5 が §2.7 U3 の不成立なら U3 の順に切り替える。(4) C': 判定 C の証拠が揃った head で、blind audit bundle から新しい session で監査する（上限 3 巡）。(5) 全て終わったら §7・§8 と、この引継ぎ票を Phase D（人間）向けに書き換えて止まる。
+  - モデル: Phase C は Phase B（Anthropic、Claude Opus 系列）と異なるモデル。C' は B・C の両方と異なるモデルで、Phase A・B で使っていない xAI 系列（`cursor-agent` の Grok）を予約してある。使った担当・モデルは §7・§8 に実績として書く。
+  - 引き継ぐ commit: branch `claude/s-4d2-vfx-graph-backend` の先頭（この記録用 commit。implementation head `77a3a0b3` の 2 つ後で、HANDOFF だけを変える）。implementation base は `2734a6ea`。push していない（同じ PC のローカル SHA で照合する）。開始前からある未追跡の `docs/handoff/DEBUGSTUDIO_S2_CUT_PLAN.md` は本スライスと無関係なので、作業ツリーの照合ではこの 1 件を除いて clean。
+  - 必要な権限: Unity のバッチテストは Editor を閉じてから、最初の実行から sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1` を起動する（osm-workflow の Phase C）。Phase B の Editor の Console に Unity のライセンスの通知（§6）が出ていたので、起動ログのライセンス接続を最初に確かめ、進まなければ osm-workflow の手順で止める（license の返却・再発行を回避策にしない）。証拠の保存と引渡しは Artifacts README の事前承認と review-evidence に従う。
+  - 停止規則: §4「Phase B から Phase A へ差し戻す条件」と osm-workflow の blocker の基準・巡の上限。上限で収束しない、AC14 の差の扱い（決定記録）、U3 の (2) の画像判断は人間に返す。C' に発見 C・判定 C の結論・指摘を渡さない（C' は PR と可変な HANDOFF 全文を読まない）。
+  - 出口: push・PR 作成は Phase D の前に人間が決める（進行役はしない）。
 
 ## 1. 目的と対象外（A0）
 
@@ -392,11 +393,11 @@ Architecture §24 §16 に「composition（`VfxRuntimeHost`、起動・終了順
 
 ### 動作確認
 
-- 対象 head: 未実施（次の担当）
-- 条件ごとの実行担当・環境・実行したコマンド: 未実施
-- 生の観測（出力、事前・事後の観測。合否は書かない）と保存先・状態: 未実施
-- 検証経路の期待と違う観測と、B への差し戻し: 未実施
-- `未実施` の条件と理由・担当（未実施が無ければ `なし`、検証経路に該当条件が無いスライスだけ `対象なし`）: AC1 のコンパイル確認（§5。担当は動作確認の担当。Phase B の head を Editor で開き直し、Console の compile エラー 0 を観測する）
+- 対象 head: `77a3a0b3`（branch の作業ツリーは記録用 commit `7f710dc5`。差は HANDOFF §0 だけ）
+- 条件ごとの実行担当・環境・実行したコマンド: AC1 のコンパイル確認。実行担当は発注者（人間、Phase B の session ではない）。この PC のローカル Unity Editor 6000.6.0f1 で project を開き直した。
+- 生の観測（出力、事前・事後の観測。合否は書かない）と保存先・状態: 発注者の報告（2026-10-25、主担当とのチャット）は「コンパイルエラーなし」。画像・ログの保存は無い。compile 以外の Console の Error の有無は報告に含まれていない。
+- 検証経路の期待と違う観測と、B への差し戻し: なし
+- `未実施` の条件と理由・担当（未実施が無ければ `なし`、検証経路に該当条件が無いスライスだけ `対象なし`）: なし
 
 ## 7. Phase C
 
