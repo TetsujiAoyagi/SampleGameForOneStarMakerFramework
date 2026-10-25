@@ -56,6 +56,7 @@ Play Mode 終了時は Unity が先に Scene を解体する。そのあとで `
 ```
 Initializer.ReleaseAll()
   ├── cancel CTS / stop services
+  ├── DisposeVfx()                 … VFX の Tick 解除 → VfxSystem.Dispose → backend Dispose。logger・SceneDirector・AM より前（§24 §16.5）
   ├── SceneDirector.Dispose()       … 論理 Scene 台帳と SceneBase のみ破棄（AM Unload は呼ばない）
   ├── AssetManagement.ReleaseAll()  … directory Scene は token だけ返す。Addressables Scene Unload も native UnloadSceneAsync も呼ばない
   ├── CompleteContentDirectoryPlayStop() … 受付停止、cache 退避、unregister、OS read lease 解放。UniTask.GetResult は使わない

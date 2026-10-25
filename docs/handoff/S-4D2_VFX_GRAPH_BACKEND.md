@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `D`（判定 C 完了、C' 1 巡目は blocker 0。Phase D（人間）の待ち。§7・§8）
+- status: `D`（Phase D 完了。§9）
 - branch: `claude/s-4d2-vfx-graph-backend`
 - implementation base commit: `2734a6ea`（`develop`、PR #142 のマージ）
 - implementation head commit: `628b0b53`（Phase B 差し戻し 3 巡目の出口。**GO 候補 head として固定**、ローカル軽量 tag `evidence/s-4d2-vfx-graph-backend/1`（push しない）。前の head は `2a82ace2`、その前は `2055069a`・`77a3a0b3`）
@@ -587,4 +587,9 @@ Architecture §24 §16 に「composition（`VfxRuntimeHost`、起動・終了順
 
 ## 9. Phase D
 
-未着手
+- 判断: 発注者が 2026-10-25 に Phase D 完了とマージを指示した（PR #143）。判定 C（§7）と C'（§8）はどちらも阻害する指摘 0。PR の独立コードレビュー（GPT-6、cursor）も阻害する指摘 0。C' と判定 C の後続入力は Architecture §24 §16.7 へ送った。
+- Evidence の保存・引渡し: 判定 C の evidence bundle、C' blind bundle、C' 1 巡目の出力（Phase D で進行役が stage）の 3 つはローカル固定済み（未昇格、`locality=local`）で、どれも別 process の `fetch` で hash 照合・閲覧を確認した。取得案内は進行役の共有ノートにある。R2 への昇格はしていない（同一 PC の読み手だけのため）。
+- 日次清掃 job: `evidence schedule status` は `scheduler-identity-mismatch`（`passed` ではない）。この確認では直さず、owner が Artifacts README「自動清掃」の切替手順で処置する（未完了事項）。
+- harvest: Architecture §24 §16 に §16.5（composition と更新）・§16.6（SampleGame の VFX Graph backend）を追加し、§16.4 の保証の範囲を更新、§16.7 の送りから d2 を消して d3・d4 の入力を足した。§04 の Shutdown 契約に `DisposeVfx` の 1 行。program と `docs/README.md` の完了表記を S-4d2 まで進めた。
+- HANDOFF: この記録の次の commit で削除する。task は マージ後に `workflow-task.ps1 end -Reason completed` で終える。
+- 担当: 進行役（Claude Code、Anthropic Claude Opus 系列）。

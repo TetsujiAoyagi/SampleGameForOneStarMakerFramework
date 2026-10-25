@@ -1,7 +1,7 @@
 # S-4 フルスペック World 制作基盤
 
 > type: program
-> status: 発注者承認済み。S-4a / S-4b / S-4c / S-4d1 は完了（S-4d1 の契約は Architecture §24 §16 へ harvest 済み）。S-4d は d1〜d5 の5スライスに分割した（§6.3、2026-10-17 発注者決定）。各スライスは §0 の手順で着手し、本書と、S-4c から harvest 済みの Architecture §24 / §27 を入力にする。S-4b の現況は Architecture §18 / §21 / §27 と STREAMING_CURRENT_SPEC へ harvest 済み。
+> status: 発注者承認済み。S-4a / S-4b / S-4c / S-4d1 / S-4d2 は完了（S-4d1・S-4d2 の契約は Architecture §24 §16 へ harvest 済み）。S-4d は d1〜d5 の5スライスに分割した（§6.3、2026-10-17 発注者決定）。各スライスは §0 の手順で着手し、本書と、S-4c から harvest 済みの Architecture §24 / §27 を入力にする。S-4b の現況は Architecture §18 / §21 / §27 と STREAMING_CURRENT_SPEC へ harvest 済み。
 > branch: `codex/s-4-full-spec-plan`
 > implementation base commit: `1502ffc`
 > risk: high
