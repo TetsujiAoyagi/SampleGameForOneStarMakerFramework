@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `B`（発見 C 第2巡で F1 が残り、Phase B 差し戻し 3 巡目の待ち。巡は 3/4。§7）
+- status: `C`（Phase B 差し戻し 3 巡目が完了し、発見 C 第3巡の待ち。巡は 3/4。§6・§7）
 - branch: `claude/s-4d2-vfx-graph-backend`
 - implementation base commit: `2734a6ea`（`develop`、PR #142 のマージ）
-- implementation head commit: `2a82ace2`（Phase B 差し戻し 2 巡目の出口。GO 候補としては未固定。前の head は `2055069a`、その前は `77a3a0b3`）
+- implementation head commit: `628b0b53`（Phase B 差し戻し 3 巡目の出口。GO 候補としては未固定。前の head は `2a82ace2`、その前は `2055069a`・`77a3a0b3`）
 - risk: `high`（パッケージ導入、Framework の公開 API と起動・終了順序、所有者・寿命、Scene lifecycle への配線）
 - owner: 発注者 / S-4d2 担当
 - created: 2026-10-21
@@ -16,10 +16,18 @@
 - harvest to: Architecture §24 §16（VFX 抽象）へ composition・Tick 登録・backend 契約の確認結果を追記する。§04（起動）は起動・終了順序の 1 行だけを追記する（§3.4）
 - workflow task: `s-4d2-vfx-graph-backend`（2026-10-21 に `workflow-task.ps1 start` 済み。Phase B で再度 start しない）
 - Phase A snapshot の取得案内・状態: A2 入力版は commit `87a9690a`（content sha256 は §5「A2 独立レビュー」）。**A3 凍結版は commit `17144576`、本書の content sha256 `856d910bff68e8bc3a3e8c4f851ca5eceddf8abee36a57730d7c57b1de057690`**（`git show 17144576:docs/handoff/S-4D2_VFX_GRAPH_BACKEND.md` の LF 内容の sha256。この値は凍結版を指し、これを書き足した後の本書は指さない）。凍結 commit は program（`S-4_FULL_SPEC_WORLD_AUTHORING.md` の §6.1・§6.3 d2〜d4 行・§10）の更新も含む。凍結 commit の後の記録用 commit はこの §0 だけを変え、凍結条件を変えない。文書だけなので stage は不要
-- Phase B result snapshot の取得案内・状態: 未生成（Phase B の結果は commit `2a82ace2`（差し戻し 2 巡目）と §6 で引き渡す。`evidence stage` はしていない）
+- Phase B result snapshot の取得案内・状態: 未生成（Phase B の結果は commit `628b0b53`（差し戻し 3 巡目）と §6 で引き渡す。`evidence stage` はしていない）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票（発見 C 第2巡 → Phase B 差し戻し 3 巡目）: 発見 C 第2巡の結果は §7。head `2a82ace2` で起点 filter 132 件中 failed 1（F1 のみ残る: 粒子は生存・非 culled だが `camera.Render()`+RT の litPixels=0。F2 は解消）。B の第2巡の実測と食い違う。巡は 3/4。引き継ぐ commit は branch の先頭（この記録 commit）。Unity PID 27716（既知 stall）は残置。以下は前の引継ぎ票として残す。
+- 引継ぎ票（Phase B 差し戻し 3 巡目 → 発見 C 第3巡）:
+  - 前の Phase の結果: Phase B 差し戻し 3 巡目が完了（implementation head `628b0b53`、前の head `2a82ace2` からの差は `VfxGraphRenderPlayTests.cs` の 1 ファイルだけ。§6「差し戻し 3 巡目」）。F1 の食い違いの原因を batch の Editor で切り分けた: 起動したばかりの Editor の process では、通常の描画ループ（有効なカメラ）が一度も VFX を描いていないと、明示の `camera.Render()` と SRP の render request（`StandardRequest`）のどちらにも粒子が入らない。一度描かれると同じ process の間は入る。第2巡の B の成功は、同じ process で先に有効なカメラの実験をしていたため（第2巡の「旧順序の混在で映らない」という判断は誤りの可能性が高い）。AC5 のテストは、計測の前に補助のカメラ（別の RT）に別の instance を描かせ、両方を壊してから凍結済みの手順で計測する。閾値・上限・計測の経路は変えていない。これを §2.7 U3 の (1) の適用（Editor で有効性を確かめた明示の描画経路）として扱った。Phase A の再開に当たるかの判断は下の「発見 C への依頼」。Unity テストは未実行。batch の Editor でコンパイルエラー 0（本スライスのファイルの警告 0）。contract-audit・docs-audit は errors 0・warnings 0。
+  - 次の Phase・役割: **発見 C 第3巡（別 session）**。head `628b0b53` に対して §5 の起点 filter `OneStarMaker.Tests.Rendering.Vfx;SampleGame.Tests.Rendering.Vfx` を `-WithGraphics` で実行し、F1 の解消と他のテストの回帰を確かめる（全回帰は判定 C まで回さない）。`Render_SpawnedVfxAppearsInCameraOutput` の出力に `warmUpLitPixels`・`warmUpFrames`・`afterWarmUp enabledCameras=… visualEffects=…` が増えている。
+  - 発見 C への依頼: 補助の描画（warm-up）を足したことが、AC5 の (3)「自動描画に頼らない」の凍結した手順の変更（Phase A の再開）に当たるか、U3 の (1) の範囲（検証手段の変更で、合格条件は緩めていない）かを判断する。B は後者と判断した。計測の RT に書くのは明示の Render だけで、計測の前に補助のカメラと instance は壊れている。前者と判断するなら人間へ返す。
+  - 運用の注意: 発見 C 第0巡の stall した Unity（PID 27716）は残置（Phase B は終了させていない）。Phase B が起動した batch の Editor（6 回）は全て正常終了させた。`Temp/UnityLockfile` は無い。
+  - 巡のカウント: B と発見 C の間で 3/4（上限 4）。次の発見 C で阻害する指摘が残れば、最後の 1 巡になる。
+  - 引き継ぐ commit: branch `claude/s-4d2-vfx-graph-backend` の先頭（この §0・§6 を書いた記録用 commit。implementation head `628b0b53` の 1 つ後で、HANDOFF だけを変える）。push していない。作業ツリーは未追跡の `docs/handoff/DEBUGSTUDIO_S2_CUT_PLAN.md`（本スライスと無関係）を除いて clean。
+  - 必要な権限・停止規則・出口・モデル: 下の旧の記載（発見 C 第0巡の前の記録）と同じ。
+- 引継ぎ票（発見 C 第2巡 → Phase B 差し戻し 3 巡目、経緯として残す）: 発見 C 第2巡の結果は §7。head `2a82ace2` で起点 filter 132 件中 failed 1（F1 のみ残る: 粒子は生存・非 culled だが `camera.Render()`+RT の litPixels=0。F2 は解消）。B の第2巡の実測と食い違う。巡は 3/4。引き継ぐ commit は branch の先頭（この記録 commit）。Unity PID 27716（既知 stall）は残置。以下は前の引継ぎ票として残す。
 - 引継ぎ票（Phase B 差し戻し 2 巡目 → 発見 C 第2巡）:
   - 前の Phase の結果: Phase B 差し戻し 2 巡目が完了（implementation head `2a82ace2`、前の head `2055069a` からの差は SampleGame の 3 ファイルだけ。§6「差し戻し 2 巡目」）。F2 は原因を Editor の実測で確かめて修正（`initialEventName` を `visualEffectAsset` より先に書く）。F1 は F2 と同じ原因と判断した: batch の Editor で、旧順序の instance は粒子が生きていても `camera.Render()` + RT に映らず、新順序では映った。AC5 の経路は不成立ではないので、§2.7 U3 の (1) には進めていない（AC5 の手順・閾値・上限は変えていない）。Phase A の再開に当たる事実は無い。Unity テストは未実行。Unity のコンパイル（batch の Editor）はエラー 0、本スライスのファイルの警告 0。contract-audit・docs-audit は errors 0・warnings 0。
   - 次の Phase・役割: **発見 C 第2巡（別 session）**。head `2a82ace2` に対して §5 の起点 filter `OneStarMaker.Tests.Rendering.Vfx;SampleGame.Tests.Rendering.Vfx` を `-WithGraphics` で実行し、F1・F2 の解消と他のテストの回帰を確かめる（全回帰は判定 C まで回さない）。F1 が残れば、§6「差し戻し 2 巡目」の実測と食い違う理由（batch の条件の差）を出力から切り分けて B へ戻す。
@@ -443,6 +451,27 @@ Architecture §24 §16 に「composition（`VfxRuntimeHost`、起動・終了順
 - コンパイル確認: batch の Editor で修正後の script を compile し、エラー 0。本スライスのファイルの警告 0（`VfxPlayTestFixture` の obsolete な `FindObjectsSortMode` の overload の CS0618 を、同じ件数を返す overload に替えた。残る警告は本スライス外の既存の CS0108 だけ）。起動した Editor（GUI・batch）は Phase B が正常終了させた。Editor が `.pdb.meta` 5 件を削除したので `git restore` で戻した。
 - 機械検査: `pwsh tools/contract-audit.ps1`（errors 0・warnings 0）、`pwsh tools/docs-audit.ps1`（errors 0・warnings 0）。
 - 行数: `VfxGraphBackend.cs` 340 → 342、`VfxGraphBackendPlayTests.cs` 399 → 401、`VfxPlayTestFixture.cs` 190 → 190。
+- 未実行: Unity テストは全て未実行（§0 の確認は発見 C 側）。
+- 担当・モデル: Claude Code（Anthropic、Claude Opus 系列）。C' 用の xAI 系列は使っていない。
+
+### 差し戻し 3 巡目（発見 C 第2巡の F1）
+
+- 対象: 前の head `2a82ace2` → implementation head `628b0b53`。変更は `VfxGraphRenderPlayTests.cs` の 1 ファイルだけ（Framework・backend・asmdef・公開面・fixture asset の変更 0）。
+- 切り分けの方法: Phase B が batch の Editor（`-batchmode`、graphics あり、Direct3D11、Quality `PC`）を起動し、Play 中に eval で instance とカメラを作って計測した（Unity テストではない）。各 Play で、`initialEventName` を先に書く新しい順序の instance 1 件を `DontDestroyOnLoad` の root の下に置き、無効のカメラ（原点の 4 m 手前、黒背景、ARGB32 の 128×128 RT）を `camera.Render()` して同期の `ReadPixels` で数えた（テストと同じ条件、300 フレーム）。Editor の process は 6 回起動し、同じ process で Play を続けて出入りした計測を含む。生の出力は scratch（git 管理外）で、evidence には入れていない。
+- **観測（F1 の食い違いの原因）:**
+  - 起動したばかりの process では、明示の `camera.Render()` の背景以外の画素は 300 フレームで 0（粒子は最大 45〜55 件）。前の Play の内容（配置済み prefab の有効化、source の複製と破棄、1000 回の生成と破棄、既定のイベントでの再生）に関係なく 0 だった。shader のコンパイル中ではない（`ShaderUtil.anythingCompiling == false`、batch では非同期コンパイルは無効）。
+  - 第2巡の B の実験の script をそのまま新しい process で流しても 0 だった。第2巡で 4〜28 画素が出たのは、同じ process で先に有効なカメラを使う実験をしていたためと判断した。第2巡の「旧順序の instance が混ざると新順序も映らない」という判断も、この process の状態で説明できるので根拠が弱い（F2 の修正自体は Create 前の粒子 0 で確かめてあり、影響しない）。
+  - SRP の render request（`RenderPipeline.SubmitRenderRequest` の `StandardRequest`）も、起動したばかりの process では 0 だった。§2.7 U3 の (1) の例の経路だけでは解決しない。
+  - 有効なカメラが VFX を視野に入れて通常の描画ループで描くと（自分の RT へ）、同じ Play の無効のカメラの明示の `camera.Render()` に粒子が入り（最初のフレームから、最大 900 画素前後）、その後の Play でも、有効なカメラが無いまま明示の描画だけで閾値に達した（第 28〜52 フレーム、最大 450〜560 画素）。有効なカメラが VFX を視野に入れていない場合（x = 100 m）や、Play の前の 1 フレームだけ描いた場合は効かなかった。
+  - 補助の描画を先に済ませてから壊し、新しい instance と無効のカメラで計測する手順（テストに入れた手順）を、新しい process の最初の Play で確かめた: 補助のカメラは 2 フレームで閾値に達し、壊した後は有効なカメラ 0・VisualEffect 0。計測の Play 前は 0 画素、Play 後は第 5 フレームで閾値（最大 91 画素）。
+  - 内部の原因（VFX Graph / URP のどの初期化か）は確かめていない。
+- **F1（AC5・S2）→ 計測の前に補助の描画を足した（§2.7 U3 の (1) の適用として扱う）:** `Render_SpawnedVfxAppearsInCameraOutput` は、Quality の切り替えの後、計測の前に `WarmUpRegularRenderLoop` を行う: 有効な補助のカメラ（計測とは別の RT）の前に、同じ host から別の instance を Spawn → Play し、補助の RT（自動描画の結果を読むだけ）が閾値に達するまで上限 600 フレームで待つ。達しなければ「通常の描画ループでも描かれない」として失敗する。達したら instance を Stop、補助のカメラと RT を壊し、2 フレーム後に両方が残っていないことを確かめてから、AC5 の (3)〜(5) の手順を変えずに行う。計測値として `warmUpLitPixels`・`warmUpFrames`・計測の前の有効なカメラと VisualEffect の数を出力する。閾値 4 画素・上限 600 フレーム・計測の経路（計測の RT に書くのは明示の `camera.Render()` だけ、同期の `ReadPixels`）・失敗の文言は変えていない。
+- 分類の判断: B は、AC5 の合格条件を変えない検証手段の変更なので、§2.7 U3 の (1)（「別の明示的なカメラ描画経路を Editor で有効性を確かめてから検証手段として使う」）の範囲で、B 適応と判断した。ただし AC5 の (3) の「自動描画に頼らない」を、計測の前の補助の描画にまで広く読めば凍結した手順の変更になるので、発見 C の判断を求める（§0 の引継ぎ票）。製品の実装要件は増えていない（backend・Framework は不変）。
+- 後続スライスへの入力（現スライスの条件ではない）: (a) batch の Editor で VFX を明示の描画だけで検査するテスト（d3 の RT 経路の検査等）は、同じ補助の描画が要る。(b) 第2巡の後続入力（GUI の Editor で、複数 instance のうち Game view のカメラから見えるものだけが明示の描画に映った）も、同じ現象の一部の可能性がある（未確認）。
+- 新しい事実の分類: 上記の現象は Unity の batch の Editor の性質で、製品の契約・責務配置・公開面は変えない。
+- コンパイル確認: batch の Editor で修正後の script を compile し、エラー 0。本スライスのファイルの警告 0（残る警告は本スライス外の既存の CS0108 だけ）。起動した batch の Editor（6 回）は全て正常終了させた。Editor が `.pdb.meta` 5 件を削除したので `git restore` で戻した。
+- 機械検査: `pwsh tools/contract-audit.ps1`（errors 0・warnings 0）、`pwsh tools/docs-audit.ps1`（errors 0・warnings 0）。
+- 行数: `VfxGraphRenderPlayTests.cs` 127 → 196。
 - 未実行: Unity テストは全て未実行（§0 の確認は発見 C 側）。
 - 担当・モデル: Claude Code（Anthropic、Claude Opus 系列）。C' 用の xAI 系列は使っていない。
 
