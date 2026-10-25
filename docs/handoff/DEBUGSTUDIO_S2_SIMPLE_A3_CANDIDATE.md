@@ -2,7 +2,7 @@
 
 ## 0. 状態と入力
 
-- type: slice / status: A3 r3凍結済み・Phase B実装完了。Cのoffline確認済み、実機AC5は依頼者指示により待機。判定C・C′は未完了。
+- type: slice / status: A3 r3凍結済み・Phase B実装完了。Cのoffline確認済み、共有利用の待機解除を受け実機AC5を再開。判定C・C′は未完了。
 - risk: high（App寿命の待受け・終了経路を変更するため）。A0独立代替検討とA2構造レビューを実施。
 - owner: 主担当。最終判断は依頼者。
 - created: 2026-10-21 / expires: 2026-11-05または置換revision。
@@ -18,14 +18,14 @@
 
 ### 引継ぎ票
 
-- 次のPhase/役割: C担当。実機の利用可能連絡後、同じheadで残るAC5と実観測のchecker照合を行う。主担当は統合・証拠配送を担当し、C′は判定Cの必須証拠が揃ってから別モデル新規担当へ渡す。
+- 次のPhase/役割: C担当。同じheadで残るAC5と実観測のchecker照合を行う。主担当は統合・証拠配送を担当し、C′は判定Cの必須証拠が揃ってから別モデル新規担当へ渡す。
 - 凍結revision: A3 r3、凍結commit e4910a392be1a1cb8cd1f617c127d93bf511aa18。実装引継ぎcommit e7ea37ab841e2c328fcbab17db6e718e5888ff38。本節だけの状態記録commitをimplementation headへ含めない。Cは検証用checkoutのHEAD・clean状態と照合する。
 - Phase A snapshot: ローカル固定済み。取得案内は主担当のprivate artifacts内。B別sessionが独立した期待hashでfetchし、manifestと必須2文書の内容hash・閲覧を確認済み。
 - Phase B resultと発見C初回入力: Artifact Storageでローカル固定済み。新規C担当によるfetch、manifest全59項目hashと必須内容の閲覧を確認済み。B修正結果と新headの発見C入力は主担当がprivate取得案内で渡す。判定C evidence / C′ blind bundleは未生成。CとC′の判定入力は同じbase/head、生証拠から作り、C所見はblind入力へ混ぜない。
 - 必要な権限: ローカル.NET実行、対象を限定したEditor操作、WPF起動/終了、Artifact Storage stage/fetch。実行環境の拒否は迂回しない。
 - 停止規則: 凍結済みI1〜I4/E1〜E3を満たすまでBと発見Cを最大4往復、C′差戻しを最大3往復。新しい契約/所有者/寿命が必要ならAへ戻して分類する。現在の問いを阻害しない追加保証はS3以後へ送る。
 - 決定記録: 現時点でなし。条件を変えない裁定のみ別recordへ残す。
-- 実行上の待機: 2026-10-25、依頼者がClaudeのUnity利用を通知し、共有localhost:5011/5012について「使用中・不明なので、Unity実機検証だけ待機」と回答。既存EditorへのPlay/Scene/設定/終了操作、WPF --listen起動、共有portの利用を再開しない。空きの連絡後に対象project/portを再照合する。凍結済み受入条件は変更しない。
+- 実行環境: 2026-10-25、依頼者の「Unity実機検証だけ待機」に従った後、「使い終わったから使っていいよ」により待機解除。再開時に共有5011/5012とUnity project processが空いていること、検証用checkoutのclean状態と固定headを再照合した。対象projectを確認して実機を再開し、別所有のEditorが現れた場合は操作しない。凍結済み受入条件は変更しない。
 
 ## 1. 今回閉じる問い
 
