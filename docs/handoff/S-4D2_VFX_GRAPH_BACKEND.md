@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C`（Phase B 差し戻し 1 巡目の修正が完了。発見 C 第1巡の待ち。巡は 1/4。§6・§7）
+- status: `B`（発見 C 第1巡が完了し、F1・F2 が残って Phase B 差し戻し 2 巡目の待ち。巡は 2/4。§6・§7）
 - branch: `claude/s-4d2-vfx-graph-backend`
 - implementation base commit: `2734a6ea`（`develop`、PR #142 のマージ）
 - implementation head commit: `2055069a`（Phase B 差し戻し 1 巡目の出口。GO 候補としては未固定。前の head は `77a3a0b3`）
@@ -19,6 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（Phase B の結果は commit `2055069a`（差し戻し 1 巡目）と §6 で引き渡す。`evidence stage` はしていない）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
+- 引継ぎ票（発見 C 第1巡 → Phase B 差し戻し 2 巡目）: 発見 C 第1巡の結果は §7。head `2055069a` で起点 filter 132 件中 failed 2（F2: `initialEventName=''` でも Create 後 frame 3 で粒子が出る / F1: 粒子は生存・非 culled だが `camera.Render()`+RT に出ない = AC5 の経路不成立、U3 の (1) へ）。F3・F4 は解消。巡は 2/4。引き継ぐ commit は branch の先頭（この記録 commit）。以下は前の引継ぎ票として残す。
 - 引継ぎ票（Phase B 差し戻し 1 巡目 → 発見 C 第1巡）:
   - 前の Phase の結果: Phase B 差し戻し 1 巡目が完了（implementation head `2055069a`、前の head `77a3a0b3` からの差は SampleGame の 4 ファイルだけ。§6「差し戻し 1 巡目」）。F2・F3・F4 は修正、F1 は原因を断定できないので、切り分けの計測をテストへ足した（F2 の修正後の再測定で通るか、発射側か描画経路側かを XML の出力で分けられる）。Phase A の再開に当たる事実は無い。Unity テストは未実行。Editor のコンパイル確認は未実施で、代わりに Unity 生成の csproj を `dotnet build` した（エラー 0・警告 0）。contract-audit・docs-audit は errors 0・warnings 0。
   - 次の Phase・役割: **発見 C 第1巡（別 session）**。head `2055069a` に対して §5 の起点 filter `OneStarMaker.Tests.Rendering.Vfx;SampleGame.Tests.Rendering.Vfx` を `-WithGraphics` で実行し、F1〜F4 の解消と他のテストの回帰を確かめる（全回帰は判定 C まで回さない）。F1 が残れば、`Render_SpawnedVfxAppearsInCameraOutput` の出力（`maxAliveParticles` 等）で発射側か描画経路側かを決め、描画経路側（AC5 の定義の「経路が不成立」）なら §2.7 U3 の (1) へ進めるため B へ戻す。前の head `77a3a0b3` からの実装の変更は修正 1 commit（`2055069a`）だけで、他は HANDOFF の記録用 commit。
@@ -448,6 +449,21 @@ Architecture §24 §16 に「composition（`VfxRuntimeHost`、起動・終了順
 - 後続スライスへ移送する指摘: なし。
 - B への指示: F1〜F4 を直す。F1 は F2 の修正後に再測定して切り分ける（F2 の修正で F1 が通る可能性がある）。切り分けた結果、AC5 の経路が不成立と分かった場合は §2.7 U3 の (1) の候補と有効性の確認までを B が調べ、検証手段の変更は HANDOFF に書いて発見 C へ返す（合格条件の緩和にしない）。凍結済みの契約・責務配置・公開面を変える必要が出たら止めて返す。
 - 次の発見 C は、B の修正 head に対して §5 の起点 filter を `-WithGraphics` で実行し、F1〜F4 の解消と、他のテストの回帰を確認する（全回帰は判定 C まで回さない）。
+
+### 発見 C 第1巡（Phase B 差し戻し 1 巡目の後）
+
+- 種別・対象: 発見 C 第1巡（GO 判定ではない）。implementation head `2055069a`、作業ツリーは記録用 commit `83ce3bde`（差は HANDOFF だけ）。担当・モデル: Claude Code（Anthropic、Claude Sonnet 系列）。
+- 実行: `pwsh tools/run-tests.ps1 -WithGraphics -Filter "OneStarMaker.Tests.Rendering.Vfx;SampleGame.Tests.Rendering.Vfx"`（1 回）。Direct3D11、compute 対応、Linear。結果は 132 件中 passed 130・failed 2・Inconclusive 0・Skipped 0。Unity は終了コード 2（失敗ありの通常終了）で終了し、stall は出ていない。生ログ・XML は git 管理外の `TestResults/` 配下（stage していない）。Editor が `.pdb.meta` 5 件を再度削除したので `git restore` 済み。全回帰は回していない。
+- 解消: **F3**（AC7 の timeout）と **F4**（起動ログの混入）は passed。d1 の `OneStarMaker.Tests.Rendering.Vfx` は全件 passed。他のテストの回帰なし。
+- **残る阻害する指摘**
+
+| ID | 条件 | 一次証拠（XML） | 状態 |
+|---|---|---|---|
+| F2 | AC6 (a)・I3 (a) | `Create_DoesNotEmitUntilPlay`: 出力は `initialEventName='' hasAnySystemAwakeAtCreate=False`。それでも frame 3 で `aliveParticleCount=3` となり失敗（Play 前に発射）。前回の `HasAnySystemAwake` 仮説は部分的で、実際に Play 前に粒子が出ている | `initialEventName = string.Empty` が初期イベント（既定 `OnPlay`）の抑止になっていない可能性が高い（空文字は未設定として既定に戻る等）。B が engine/package のコードと実測で確かめ、`Create` で有効化する前に初期イベントを送らせない別の方法（例: 存在しないイベント名、または enabled=false のまま構成して Play で有効化する等。ただし §2.4 の「`enabled` 切り替えを使わない」と衝突しうるので衝突するなら Phase A へ返す）を選ぶ |
+| F1 | AC5（S2） | `Render_SpawnedVfxAppearsInCameraOutput`: `graphicsDeviceType=Direct3D11 supportsComputeShaders=True`、`litPixelsBeforePlay=0`、`litPixels=0 reachedFrame=-1 frameLimit=600 maxAliveParticles=62 firstAliveFrame=2 hasAnySystemAwake=True culled=False enabled=True activeInHierarchy=True renderPipeline=UniversalRenderPipelineAsset` | 粒子は生きて simulation されている（`maxAliveParticles=62`、culled=false）のに、`camera.Render()` + RT + `ReadPixels` に現れない。AC5 の定義上「描画判定の経路が不成立」。§2.7 U3 の (1)（別の明示的な描画経路。SRP の render request API 等）の有効性確認へ進むため B へ戻す。出力の見落としを避けるため、候補は `RenderPipeline.SubmitRenderRequest` と、camera の `targetTexture` の format・VFX の bounds / カメラ位置・向き・near/far の確認（fixture の粒子がカメラの前方 4 m に収まるか）も含めて切り分ける |
+
+- 後続スライスへ移送する指摘: なし。
+- 次: Phase B 差し戻し 2 巡目（巡は 2/4）。F2 と F1 を直す。F1 は U3 の (1) の有効性確認までを B が行い、(2) の人間の画像判断が要る場合は止めて返す。次の発見 C は同じ起点 filter を `-WithGraphics` で再実行する。
 
 ## 8. Phase C'
 
