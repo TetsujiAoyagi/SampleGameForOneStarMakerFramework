@@ -2,7 +2,7 @@
 
 ## 0. 状態と入力
 
-- type: slice / status: A3 r3凍結済み・Phase B実装完了。次は動作確認担当から発見Cへ進む。
+- type: slice / status: A3 r3凍結済み・Phase B実装完了。Cのoffline確認済み、実機AC5は依頼者指示により待機。判定C・C′は未完了。
 - risk: high（App寿命の待受け・終了経路を変更するため）。A0独立代替検討とA2構造レビューを実施。
 - owner: 主担当。最終判断は依頼者。
 - created: 2026-10-21 / expires: 2026-11-05または置換revision。
@@ -18,13 +18,14 @@
 
 ### 引継ぎ票
 
-- 次のPhase/役割: C担当。修正後の固定入力を再確認し、blocker解消後に同じheadで判定必須検証を行う。主担当は統合・証拠配送を担当し、C′は判定Cの必須証拠が揃ってから別モデル新規担当へ渡す。
+- 次のPhase/役割: C担当。実機の利用可能連絡後、同じheadで残るAC5と実観測のchecker照合を行う。主担当は統合・証拠配送を担当し、C′は判定Cの必須証拠が揃ってから別モデル新規担当へ渡す。
 - 凍結revision: A3 r3、凍結commit e4910a392be1a1cb8cd1f617c127d93bf511aa18。実装引継ぎcommit e7ea37ab841e2c328fcbab17db6e718e5888ff38。本節だけの状態記録commitをimplementation headへ含めない。Cは検証用checkoutのHEAD・clean状態と照合する。
 - Phase A snapshot: ローカル固定済み。取得案内は主担当のprivate artifacts内。B別sessionが独立した期待hashでfetchし、manifestと必須2文書の内容hash・閲覧を確認済み。
 - Phase B resultと発見C初回入力: Artifact Storageでローカル固定済み。新規C担当によるfetch、manifest全59項目hashと必須内容の閲覧を確認済み。B修正結果と新headの発見C入力は主担当がprivate取得案内で渡す。判定C evidence / C′ blind bundleは未生成。CとC′の判定入力は同じbase/head、生証拠から作り、C所見はblind入力へ混ぜない。
 - 必要な権限: ローカル.NET実行、対象を限定したEditor操作、WPF起動/終了、Artifact Storage stage/fetch。実行環境の拒否は迂回しない。
 - 停止規則: 凍結済みI1〜I4/E1〜E3を満たすまでBと発見Cを最大4往復、C′差戻しを最大3往復。新しい契約/所有者/寿命が必要ならAへ戻して分類する。現在の問いを阻害しない追加保証はS3以後へ送る。
 - 決定記録: 現時点でなし。条件を変えない裁定のみ別recordへ残す。
+- 実行上の待機: 2026-10-25、依頼者がClaudeのUnity利用を通知し、共有localhost:5011/5012について「使用中・不明なので、Unity実機検証だけ待機」と回答。既存EditorへのPlay/Scene/設定/終了操作、WPF --listen起動、共有portの利用を再開しない。空きの連絡後に対象project/portを再照合する。凍結済み受入条件は変更しない。
 
 ## 1. 今回閉じる問い
 
@@ -227,3 +228,15 @@ B適応: 同じpending acceptをidle期限後も継続し、control listenerで�
 B出口の軽いWPF観測: 引数なしと--listenの両方でWindow handle取得後にCloseMainWindowを送り、15秒以内にexit 0を観測した。Unityの接続・Play2回・進行中inspectと切断が重なる終了は未実施で、C実行担当へ引き渡す。BからEditorを起動せず、Unity compile・Unityテスト・Build・判定C・C′は未実行。B観測をCの判定証拠へ転用しない。
 
 構造補足: MainWindowはWindow終了という単一責務のまま非同期化した。OrderedAsyncDisposableの一回の例外継続cleanupとMainWindowViewModelの残り解放は、凍結済み所有解除契約を実現する局所変更である。control期限は既存control service内、読取りの中核はCliReadService、App loopはAutoListenServiceへ分離した。
+
+## Cの進捗（判定未完了）
+
+担当はGPT-6-astra、利用上限による中断後の継続担当は新規GPT-6-sol。いずれもBのGPT-6.1-solとは別モデル。発見Cの初回差戻し1件は、既定accept期限が無視するHTTP要求で更新される問題で、B適応として修正し再確認済み。未公開実装履歴はA3 commitを残して整理し、上記implementation headを固定した。再確認範囲に追加の具体的な凍結条件違反はない。
+
+同headのC実行記録はApp85/85、CLI112/112、Contracts38/38、failed0。TRXの実行名集合を保存した一覧と照合済み。codegen56生成物一致、contract/docs auditはerrors0/warnings0。同headの記録は中断後も再利用し、セッション変更だけを理由に再実行していない。
+
+C作成checkerは、ホストのfile/通信機能やmodule loaderを渡さないQuickJS/WASMで合成17fixture（期待するaccept5、reject12）を確認済み。実観測への適用は未実施。これをAC5成立やGO判定へ読み替えない。
+
+offline部分証拠は明示35fileをArtifact Storageでローカル固定済み（未昇格）。private取得案内C_OFFLINE_PARTIAL_FETCH_GUIDE.jsonをC継続担当へ渡し、別sessionのfetch成功、全fileの集合・内容hash・長さと必須TRX/checker原記録の閲覧を確認済み。確認記録は主担当のprivate取得案内と同じ引渡し先に保持する。最終判定入力やC′blind bundleではない。Cの所見・取得案内の実値とblind用の生証拠は分離する。
+
+残る必須条件は、同一WPF PIDによる実Editorの二度のPlay、各Playの独立Boolean値と新NodeIdによるinspect照合、未知IDの失敗、実際に進行中のinspectとPlay切断が重なる正常終了、必要な一時状態の復元、および実観測のchecker照合。実機の空き待ち中は判定Cを完了とせず、C′を起動しない。
