@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C'`（判定 C 完了、AC14 の差は決定記録 D2 で許容。C' 1 巡目の待ち。§7）
+- status: `D`（判定 C 完了、C' 1 巡目は blocker 0。Phase D（人間）の待ち。§7・§8）
 - branch: `claude/s-4d2-vfx-graph-backend`
 - implementation base commit: `2734a6ea`（`develop`、PR #142 のマージ）
 - implementation head commit: `628b0b53`（Phase B 差し戻し 3 巡目の出口。**GO 候補 head として固定**、ローカル軽量 tag `evidence/s-4d2-vfx-graph-backend/1`（push しない）。前の head は `2a82ace2`、その前は `2055069a`・`77a3a0b3`）
@@ -18,8 +18,9 @@
 - Phase A snapshot の取得案内・状態: A2 入力版は commit `87a9690a`（content sha256 は §5「A2 独立レビュー」）。**A3 凍結版は commit `17144576`、本書の content sha256 `856d910bff68e8bc3a3e8c4f851ca5eceddf8abee36a57730d7c57b1de057690`**（`git show 17144576:docs/handoff/S-4D2_VFX_GRAPH_BACKEND.md` の LF 内容の sha256。この値は凍結版を指し、これを書き足した後の本書は指さない）。凍結 commit は program（`S-4_FULL_SPEC_WORLD_AUTHORING.md` の §6.1・§6.3 d2〜d4 行・§10）の更新も含む。凍結 commit の後の記録用 commit はこの §0 だけを変え、凍結条件を変えない。文書だけなので stage は不要
 - Phase B result snapshot の取得案内・状態: 未生成（Phase B の結果は commit `628b0b53`（差し戻し 3 巡目）と §6 で引き渡す。`evidence stage` はしていない）
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格、`locality=local`）。head `628b0b53` / base `2734a6ea`、判定 C（2026-10-25）が `evidence stage` し、別 process の `fetch` で期待 hash 照合・12 file の閲覧を確認済み。引渡し先は進行役（取得案内は共有ノート `judgment-C-evidence.md`）。担当は判定 C の session
-- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格、`locality=local`）。同じ head・base。HANDOFF と発見 C・判定 C の所見を除いた diff・凍結 A3・生 XML/log/audit を収録（10 file）。別 process の `fetch` で hash 照合・閲覧を確認済み。C' は未起動
-- 引継ぎ票（AC14 裁定 → C'）: 人間が AC14 の差を許容した（§7 決定記録 D2）。次は C' 1 巡目（新しい session、B・C と異なるモデル。予約は `cursor-agent` の Grok）。入力は C' blind bundle の取得案内だけで、判定 C・発見 C の所見と D1・D2 は渡さない。上限 3 巡。push・PR は人間が決める。
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格、`locality=local`）。同じ head・base。HANDOFF と発見 C・判定 C の所見を除いた diff・凍結 A3・生 XML/log/audit を収録（10 file）。別 process の `fetch` で hash 照合・閲覧を確認済み。C' 1 巡目で進行役が改めて `fetch` し、hash 照合が通った（§8）
+- 引継ぎ票（C' → Phase D）: C' 1 巡目（最終）は blocker 0（§8）。判定 C も阻害する指摘 0（§7）。GO 候補 head は `628b0b53`（tag `evidence/s-4d2-vfx-graph-backend/1`）、base `2734a6ea`。次は Phase D（人間）: 判定 C（§7）と C'（§8）の突き合わせ（C' の後続入力を含む）、Evidence の保存・引渡しの確認（evidence bundle・C' blind bundle はローカル固定済み（未昇格）。取得案内は進行役の共有ノート）、push・PR 作成（base `develop`）の判断、harvest（§0 の harvest to）と HANDOFF の削除、`workflow-task.ps1 end`。push していない。作業ツリーは未追跡の `docs/handoff/DEBUGSTUDIO_S2_CUT_PLAN.md` を除いて clean。
+- 引継ぎ票（AC14 裁定 → C'、経緯として残す）: 人間が AC14 の差を許容した（§7 決定記録 D2）。次は C' 1 巡目（新しい session、B・C と異なるモデル。予約は `cursor-agent` の Grok）。入力は C' blind bundle の取得案内だけで、判定 C・発見 C の所見と D1・D2 は渡さない。上限 3 巡。push・PR は人間が決める。
 - 引継ぎ票（判定 C → 人間の AC14 裁定と C'、経緯として残す）: 判定 C は head `628b0b53` で完了（§7）。次は (1) 人間が AC14 の差（`-nographics` で Inconclusive 13、全て本スライスの Play 中のテスト）を裁定し決定記録に書く、(2) 新しい session が C' blind bundle（取得案内は上の欄）から監査する（上限 3 巡。C' に判定 C・発見 C の所見を渡さない）。push・PR は人間が決める。
 - 引継ぎ票（GO 候補 head の固定 → 判定 C、経緯として残す）:
   - 前の Phase の結果: 発見 C は第3巡で阻害する指摘 0（§7）。履歴は整理しない（発注者の決定。§7「決定記録」D1）。GO 候補 implementation head は `628b0b53`、ローカル軽量 tag `evidence/s-4d2-vfx-graph-backend/1`。base は `2734a6ea`。
@@ -565,7 +566,24 @@ Architecture §24 §16 に「composition（`VfxRuntimeHost`、起動・終了順
 
 ## 8. Phase C'
 
-未着手
+### C' 1 巡目（最終。高コスト証拠なし）
+
+- 種別・対象: C' 1 巡目（高コスト証拠を分類していないので最終）。base `2734a6ea` → GO 候補 head `628b0b53`（tag `evidence/s-4d2-vfx-graph-backend/1`）。
+- 入力: C' blind bundle（§0 の取得案内欄。状態はローカル固定済み（未昇格））を進行役が別 process で `fetch` し、期待 packageSha256 の照合が通った。中身は凍結 A3 版の HANDOFF、HANDOFF を除く差分（`full.diff`・`name-status`・`stat`）、`-WithGraphics` と既定の全回帰の生の XML・log、contract-audit・docs-audit の出力。差分と同梱のソースに発見 C・判定 C の所見や差し戻しへの言及が無いことを検索で確かめた。監査担当の作業場所には、この bundle と head `628b0b53` のソースの写し（`AGENTS.md`、`unity/Assets` の OneStarMaker・SampleGame・Docs/Architecture、`unity/Packages/manifest.json`。HANDOFF は含めない）と、観点を 2 つ（凍結条件・常時契約への違反と構造、証拠の十分さと未検証の失敗経路）に絞った中立の依頼文だけを置いた。可変 HANDOFF・PR・決定記録 D1・D2 は渡していない。
+- 担当・モデル: `cursor-agent`（`-p --trust`、編集を禁止。ファイルの編集・作成の呼び出しは 0 件）の xAI Grok 4.7 High（`grok-4.7-high`）。1 回だけ実行し、約 13 分。
+- 独立性: B は Anthropic Claude Opus 系列、C（発見・判定）は Anthropic Claude Sonnet 系列、C' は xAI 系列。C' は B・C と異なるモデルで、新しい session と blind bundle を使ったので最低条件を満たす。xAI 系列は Phase A・B・C で使っていないので、強化条件も満たす。
+- 結論（C' の出力の要約）: **blocker 0 件。** このスライスの問い（§1・§2.1）への致命的な反証は無い。配線（生成・接続・破棄の位置、layer `Vfx` / order 55）は凍結どおりと確認。
+- 後続スライスの入力（C' が blocker にしなかったもの。Phase D で判定 C と突き合わせる）:
+  - AC14: 既定で Inconclusive 13 件。凍結が予告したのは AC5 と AC12 の `Supported` の 2 件で、契約テスト 11 件も graphics なしでは実行されない。
+  - AC5: 計測の前に自動描画の warm-up がある。合否は明示の `camera.Render()` と `ReadPixels`。合格フレームの `maxAliveParticles=0`。補助の PNG は監査入力に無い。
+  - AC6 (a): 非発射の確認は 120 フレームで、発射待ちの上限 6000 より短い。
+  - AC7: Bind の破棄のテストは `yield return null` を 2 回待つ（凍結文言は「次フレームまで」）。
+  - `HasAliveParticles` は Play 前だけ `aliveParticleCount` を使う（§2.4 の式は常に `HasAnySystemAwake()` を含む）。
+  - §3.1 の名前一覧に無いテストファイル 2 つ（§3.5 の分割の許可の範囲）。
+  - コードレビューに残した経路（`RegisterElement` が false のときの throw と Dispose、`Create` が GameObject の作成後に失敗したとき）はテストで実行されていない。
+  - 配置 prefab の `VisualEffect` は無効、同じ物体の `VFXRenderer` は有効（I1 が止めるのは `VisualEffect.enabled`）。
+- 監査できなかった範囲・残存リスク: HANDOFF §6 の記録（コンパイルの観測など）は入力外。Console のエラー 0 の一次記録は bundle に無い。`.vfx` と prefab が Editor 操作で作られたかは区別できない。Player の描画と Mobile 実機は U1・U2 でスライスの外。テストは再実行していない。画素の中身を画像で見ていない。
+- 生の出力: 進行役の一時作業場所（git 管理外、stage していない）。上の要約が記録の正。
 
 ## 9. Phase D
 
