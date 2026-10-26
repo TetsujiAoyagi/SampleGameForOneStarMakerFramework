@@ -30,6 +30,12 @@ HANDOFF を Phase B の正本とする。本書をスライス共通の実装 HA
 
 本書の §6.3 / §6.4 に無い公開 API、依存、所有者、寿命は、そのスライスの Phase A で決め、本書の該当行も Phase A の PR で更新する。Phase B で決めない（§12）。
 
+**Phase A の判断基準（発注者、2026-10-27）。** 手順 4 の HANDOFF に転記し、A1 の各案と A3 の裁定の材料に明記する。
+
+- **主目的は BuildSystem。** いまの主目的は、きちんとした BuildSystem を作ることで、VFX（S-4d）はそのつなぎ込みの題材である。各案で、スライスの成果物が content build・Player build の経路に乗るかと、Build 側の既知の課題（BS4 の Player は smoke の後に終了して InGame の Spring に入らない、transport staging の path が予算の外。[Architecture §24 §16.7](../../unity/Assets/Docs/Architecture/24-rendering-system.md#167-後続スライスへの送り)・[Harness README](../../tools/Harness/README.md#起動前の-path-予算検査)）を踏むかを書く。Build 側の課題は「やらない」で片付けず、BuildSystem の作業の候補として扱う。
+- **残すコードは SampleGame に必要なものだけ。** 生成や authoring の道具を残すかは「SampleGame にそのコードが必要か（無いと SampleGame の検証が成り立たないか）」で決める。必要でなければ、一時スクリプトで作り commit の前に消す案を既定にする。「他の季節・Cell でも使える」「再利用できる」は残す理由にしない。
+- **checkout のルート。** Player を build するスライスは、ルートが 96 文字以下の checkout で作業する（transport staging の path の制約。上の Harness README）。
+
 ---
 
 ## 1. 目的と裁定
