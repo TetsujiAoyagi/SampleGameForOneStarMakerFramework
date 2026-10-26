@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C'`（最終証拠ラウンド。判定 C の最終判定は完了（§7「判定 C の最終判定」）、最終 C' 待ち）。経緯: D6 で S5・AC7 の範囲を (1)(2) に変更（発注者の例外承認）。AC7 は 2 回目の取得で合格済み（§7 決定記録）。 AC7 の 2 回目で、BS4 Player が Spring に達しないことが分かった（D5 の後）。暫定 C' 1 巡目は blocker 0（§8）。判定 C 完了（AC7 を除く）。
+- status: `D`待ち（**GO**。判定 C の最終判定（§7「判定 C の最終判定」）と最終 C'（§8）がどちらも阻害する指摘 0。Phase D の着手・push・PR は発注者が決める）。経緯: 最終証拠ラウンド。D6 で S5・AC7 の範囲を (1)(2) に変更（発注者の例外承認）。暫定 C' 1 巡目は blocker 0。判定 C 完了（AC7 を除く）。発見 C は 3 巡（差し戻し 2/4）。
 - branch: `claude/s-4d3-vfx-scenes`
 - implementation base commit: `6667f88f`（`develop`、PR #143（S-4d2）のマージ）
 - risk: `high`（Scene・SceneResource・Addressables の生成、Scene の寿命と Season の子の LoadType、Player build への収録）
@@ -18,13 +18,17 @@
 - Phase B result snapshot の取得案内・状態: ブランチ `claude/s-4d3-vfx-scenes` のローカル commit（Phase B 完了 commit。SHA は commit の後に引継ぎ票で渡す）。未 push
 - evidence bundle の取得案内・状態（最終証拠ラウンド版。判定 C の時の版を置き換える）: ローカル固定済み（未昇格、`locality=local`）。head `87daa97c` / base `6667f88f`。判定 C の時の 10 file を同じ生成元から無変更で複写し、AC7 の生証拠 8 file（Editor.log（build の出力）・build receipt・content build の outcome・Content Directory の一覧・照合結果・Player.log・smoke receipt・実行記録）と、この HANDOFF の `b9a438b5` の版を加えた（19 file）。Editor.log は起動引数の Unity Hub の session id と access token の値の 2 行だけを伏せた（元と伏せた後の hash は同梱の実行記録）。最終証拠ラウンドの判定 C の実行担当（2026-10-27）が `evidence stage` し、別 process の `fetch` で期待 hash の照合・19 file の一致・XML と build の出力の閲覧を確認済み。引渡し先は進行役（取得案内は共有ノート `final-round-evidence.md`。判定 C の時の案内 `judgment-C-evidence.md` は経緯）。担当は最終証拠ラウンドの判定 C の session
 - C' blind bundle の取得案内・状態（最終 C' 用。暫定 C' の時の版を置き換える）: ローカル固定済み（未昇格、`locality=local`）。同じ head・base。暫定 C' の時の 11 file（HANDOFF を除く差分、凍結 A3 版（`a7ff035a`）と Phase B 完了時の版（`87daa97c`、§6 まで）の HANDOFF、生の XML・unity.log・step.json・実行記録（強制終了の事実だけ）、contract-audit・docs-audit）に、AC7 の生証拠 8 file（実行記録は 2 回目の生の事実だけ）と、凍結条件の変更として D6 の結論・理由・変えた条件の範囲だけを加えた（20 file）。発見 C・判定 C の所見、D4・D5、暫定 C' の所見は含めない（追加した file を検索で確認）。別 process の `fetch` で hash 照合・20 file の一致・閲覧を確認済み。取得案内は同じ共有ノート `final-round-evidence.md`
-- 引継ぎ票（最終証拠ラウンド (1) 判定 C の最終判定 → (2) 最終 C'）:
+- 引継ぎ票（最終 C' → Phase D）:
+  - 前の Phase の結果: 最終 C' が完了（§8「最終 C'」）。blocker 0 件。判定 C の最終判定と最終 C' がどちらも阻害する指摘 0 なので、GO 候補 head `87daa97c`（tag `evidence/s-4d3-vfx-scenes/1`）を **GO** とする。
+  - 次の Phase・役割: **Phase D（発注者が着手を決める）**。判定 C と C' の後続入力の突き合わせ、harvest（§0 の harvest to、§3.3。D6 による S-9 への移送を含む）、evidence の保存・引渡しの確認、PR（base `develop`）、HANDOFF の削除、task の終了、後始末（detached worktree `D:\osm-s4d3`、退避 branch `s-4d3-pre-squash-backup`、C' の一時作業場所）。push と PR は発注者の指示を待つ。
+  - 巡のカウント: B と発見 C の間は 2/4、C' の差し戻しは 0/3 で確定。
+  - 引き継ぐ commit: branch `claude/s-4d3-vfx-scenes` の先頭（この HANDOFF だけを変える最終 C' の記録用 commit）。implementation head は `87daa97c`、base は `6667f88f`。未 push。Unity は起動していない。
+- 引継ぎ票（以前: 最終証拠ラウンド (1) 判定 C の最終判定 → (2) 最終 C'。経緯として残す）:
   - 前の Phase の結果: 判定 C の最終判定が完了（§7「判定 C の最終判定」）。D6 の後の S5・AC7 は 2 回目の取得の生証拠で満たす。阻害する指摘 0。全回帰はやり直していない（実装の差分は無い）。bundle 2 件を作り直した（上の取得案内欄）。
   - 次の Phase・役割: **最終 C'（進行役が `cursor-agent` の Grok で 1 回）**。入力は上の C' blind bundle（最終 C' 用）の取得案内だけ。範囲は D6 と AC7 の生証拠、暫定 C' 以降の差分（実装の差分は無い）に絞る。判定 C の最終判定と最終 C' の両方が揃うまで GO にしない。判定 C の所見・最終判定は C' へ渡さない。
   - 巡のカウント: B と発見 C の間は 2/4 で確定。C' の差し戻しは 0/3。
   - 引き継ぐ commit: branch `claude/s-4d3-vfx-scenes` の先頭（この HANDOFF だけを変える判定 C の最終判定の記録用 commit）。implementation head は `87daa97c`、base は `6667f88f`。未 push。detached worktree（`D:\osm-s4d3`、`87daa97c`、clean）と Player・artifacts は bundle の作成を終えたが、消すかどうかは Phase D の後始末で決める（まだ残してある）。Unity は起動していない。
 - 引継ぎ票（以前: 発注者の判断（D6） → 最終証拠ラウンド。経緯として残す）:
-- 引継ぎ票（発注者の判断（D6） → 最終証拠ラウンド）:
   - 前の Phase の結果: 発注者が D6 を裁定した（§7 決定記録）。S5・AC7 の範囲は (1) の build の成功と (2) の Content Directory への 2 Scene の収録の照合で、2 回目の取得（head `87daa97c`、§7「AC7 の取得」）で両方とも合格済み。(3)〜(5)（Player での描画）は S-9 へ移送。AC7 の追加取得はしない。
   - 次の Phase・役割: **最終証拠ラウンド（D6 で選んだ (a)）。** (1) 判定 C の実行担当（別 session）: 判定 C の evidence bundle と C' blind bundle を、同じ head `87daa97c` から AC7 の (1)(2) の生証拠（build の出力・照合結果・Content Directory の一覧）を加えて作り直し、§0 の取得案内欄を更新する。C' blind bundle には、凍結条件の変更として D6 の本文（結論・理由・変えた条件の範囲だけ）を入れ、発見 C・判定 C の所見、D4・D5、暫定 C' の所見は入れない。全回帰はやり直さない（実装は変わらない）。判定 C の最終判定（D6 の後の S5 を含む）を記録する。(2) 最終 C'（進行役が `cursor-agent` の Grok で 1 回）: 範囲は D6 と AC7 の生証拠、暫定 C' 以降の差分（実装の差分は無い）に絞る。判定 C の最終判定と最終 C' の両方が揃うまで GO にしない。
   - 巡のカウント: B と発見 C の間は 2/4 で確定。C' の差し戻しは 0/3。
@@ -579,6 +583,25 @@ Architecture §24 §16.6 に「実 Scene での確認（Atmosphere / Cell VFX、
   - AC4・AC6 の Play は、Lighting と祖先を外した `SceneResource` の複製の Map を持つ test の director で行う（§6 B 適応 3）。本番の graph で Season と Cell (4,2) を同時に載せる経路は実行していない。
   - AC6 (c) は合成の `SceneResource` で確かめ、実 asset の `NecessaryAlways` は `VfxSceneStructureTests` が別に確かめる。
 - 監査できなかった範囲・残存リスク: AC7（指示どおり対象外）。216 Cell の体積の再計算は再実行していない（差分上は `Season_Spring` と `Spring_Cell_4_2` の子の各 1 件の追加だけで、Cell の体積の定数と有効化後の bounds の包含は XML で合格）。全回帰の run は Unity が自然終了せず強制終了した（`step.json` の exit 0 はその終了処理の値）。窓のボタンは GUI で押していない。`WorldCompanionOwnershipProof.cs` は §3.1 に無い変更だが、Cell companion では従来と同じ値を受け、既存の回復テストと AC10 (c)(d) は合格。
+- 生の出力: 進行役の一時作業場所（git 管理外、stage していない）。上の要約が記録の正。
+
+### 最終 C'（最終証拠ラウンド）
+
+- 種別・対象: 最終 C'。base `6667f88f` → GO 候補 head `87daa97c`（tag `evidence/s-4d3-vfx-scenes/1`）。暫定 C' の後に実装の差分は無い。
+- 入力: 最終 C' 用の C' blind bundle（§0 の取得案内欄、20 file）を進行役が別 process で `fetch` し、期待 packageSha256 の照合と全 entry の検証が通った。凍結 A3 版の HANDOFF と D6 の本文（結論・理由・変えた条件の範囲だけ）を受け入れの正本とした。進行役は bundle と head `87daa97c` の tree から本書だけを除いた写しを、git 管理外のリポジトリ外の一時作業場所に置き、発見 C・判定 C の所見、D4・D5、暫定 C' の所見が含まれないことを検索で確かめた。範囲は D6 と AC7 の生証拠、それに関わる build・Player のログに絞った。
+- 担当・モデル: `cursor-agent`（`-p --trust`、編集を禁止）の xAI Grok 4.7 High（`grok-4.7-high`）。新しい cursor-agent の session で 1 回だけ実行、約 7 分。ツール呼び出しは read 54・grep 56・glob 4 で、編集・作成は 0 件。
+- 独立性: 暫定 C' と同じ。B・C は Anthropic、C' は xAI 系列。
+- 結論（C' の出力の要約）: **blocker 0 件。** D6 の後の S5・AC7 を満たす。
+  - (1) build: `ac7-editor.log` に `Build Finished, Result: Success.`、content の outcome は `Succeeded`。build の identity は receipt・outcome・Content Directory の一覧で一致する。
+  - (2) 照合: 2 つの `.unity.meta` の GUID が、receipt の照合済みの root（preflight で選ばれた 123 件の physical GUID）と完全に一致する。path と `sourceAssetGUID` を比べる空振りの経路は使っていない。2 Scene とも build の log で `required … ExactlyOne`、除外の行は無い。一覧の file は Player 側と build 側で一致する。
+  - D6: I1〜I5 を破らず、S5 の Player の描画と AC7 の手順 (3)〜(5) の外の凍結条件の合否を変えない。
+  - ログ: `ac7-Player.log` に Exception・Error は無い（shader の strip は `Debug.Log`）。Player の build の Result の後に、別のコンパイル（BeeAssemblyBuilder、`-langversion:9.0`）が CS8773 で ExitCode 1 になる行があるが、手順 (1) の成否を変えない。
+- 後続スライスへの入力（C' が blocker にしなかったもの。Phase D で判定 C と突き合わせる）:
+  - Player での Atmosphere の描画は S-9（D6）。
+  - 凍結版 §2.1 の保証の範囲 (d) に Player の描画の文が残っている。合否の正本は D6 の S5。harvest のときに文言を合わせる。
+  - Content Directory の `.cf` の生の bytes は bundle に無く、content の照合の bytes の再走査はしていない。
+  - build の後の CS8773 のコンパイル失敗の行（上記）。
+- 監査できなかった範囲・残存リスク: AC1〜AC6・AC8〜AC10 と EditMode の回帰は範囲外（暫定 C' が見た）。テスト・build は再実行していない。preflight.json は bundle に無い。
 - 生の出力: 進行役の一時作業場所（git 管理外、stage していない）。上の要約が記録の正。
 
 ## 9. Phase D
