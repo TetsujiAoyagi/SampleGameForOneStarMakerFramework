@@ -33,6 +33,8 @@ Windows の Unity 同梱 Mono は、260 文字以上の path を `File.OpenRead`
 
 保証するのは起動の時点の tree と出力先だけで、起動後の tree の変更、`Library/` など ignore 対象の生成物、テストが動的に作る path、Unity native 内部のアクセスは対象外。World Workspace の companion 生成器が作る path は、EditMode の `WorldCompanionPathBudgetTests` が別に確かめる。未追跡の file（ほかの作業の残り物を含む）も検査の対象なので、長い未追跡 file があると起動前に止まる。
 
+既知の予算外: BS4 Player の build（`Tools/OSM/Content/Build BS4 Spring Player`）が transport の publish で作る staging は ignore 対象の生成物で、この予算の外にある。staging のディレクトリ名が identity・guid・`.staging` を連ねるので repo 相対で 163 文字になり、ルートが 97 文字以上の checkout では絶対 path が 260 文字を超えて build が `DirectoryNotFoundException` で失敗する（2026-10-27、S-4d3 で観測。未修正）。その build はルートの短い checkout で行う。
+
 `durationMs` は invocation 全体の単調時計の経過、`timing.processDurationMs` は process 待機、XML の時刻と duration は原値である。Unity 内 marker と実ロード assembly は `unknown` と記録する。結果の対象集合が期待集合を満たすかという gate 判定や H1 の CURRENT/receipt への接続は、この runner にはない。
 
 ## Unity 内観測（EditMode）

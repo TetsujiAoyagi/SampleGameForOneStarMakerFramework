@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
@@ -155,6 +156,35 @@ namespace OneStarMaker.Tests.Streaming
             await fixture.Driver.ReconcileOnceAsync(cts.Token);
 
             Assert.That(fixture.Controller.UnloadCount, Is.EqualTo(1));
+        }
+
+        // 実 asset の Spring_Cell_4_2 と、その子の実 Spring_VFX_4_2 で profile ごとの選択を見る。
+        // 合成した identity だけでは、作成した Scene の命名が role の分類から外れても気付けない。
+        [TestCase(CellCompanionSet.Full, true)]
+        [TestCase(CellCompanionSet.Vfx, true)]
+        [TestCase(CellCompanionSet.Planner, false)]
+        [TestCase(CellCompanionSet.Lighting, false)]
+        public async Task Reconcile_RealSpringCell42_SelectsVfxSceneOnlyForVfxProfiles(CellCompanionSet set, bool expected)
+        {
+            const string cellPath = "Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Cell_4_2.asset";
+            var parent = UnityEditor.AssetDatabase.LoadAssetAtPath<SceneResource>(cellPath);
+            Assert.That(parent != null, Is.True, $"実 Cell の SceneResource が無い: {cellPath}");
+            var vfx = parent!.Children.SingleOrDefault(child => child != null && child.Identity == "Spring_VFX_4_2");
+            Assert.That(vfx != null, Is.True, "前提: 実 Spring_Cell_4_2 の子に Spring_VFX_4_2 がある");
+            Assert.That(vfx!.StreamByDistance, Is.False);
+
+            var query = new FakeQuery();
+            var controller = new FakeController(query);
+            query.Scenes.Add(parent.Identity, new CellScene(parent, query, controller));
+            query.Loaded.Add(parent.Identity);
+            query.Stable.Add(parent.Identity);
+            var residents = new List<string> { parent.Identity };
+            var driver = new SessionCellCompanionLoadDriver(controller, query, () => residents, set, NullLogger.Instance);
+
+            await driver.ReconcileOnceAsync(CancellationToken.None);
+
+            Assert.That(controller.Added.Contains("Spring_VFX_4_2"), Is.EqualTo(expected),
+                $"profile {set} の選択: {string.Join(",", controller.Added)}");
         }
 
         private Fixture CreateFixture(CellCompanionSet set, bool parentStable, params string[] childIdentities)

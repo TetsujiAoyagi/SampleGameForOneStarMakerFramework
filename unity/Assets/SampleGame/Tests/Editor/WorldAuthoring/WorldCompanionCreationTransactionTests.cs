@@ -108,6 +108,68 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             scope.AssertSourceStateUnchanged();
         }
 
+        [Test]
+        public void Execute_SeasonAtmosphere_CreatesNecessaryAlwaysChildOfLogicalSeason()
+        {
+            using var scope = new WorldCompanionTestScope(WorldCompanionCreationKind.SeasonAtmosphere);
+            using var transaction = new WorldCompanionCreationTransaction(scope.Plan);
+            transaction.Execute();
+
+            scope.AssertCommitted();
+            var resource = AssetDatabase.LoadAssetAtPath<SceneResource>(scope.Plan.ResourcePath);
+            Assert.That(resource!.LoadType, Is.EqualTo(LoadType.NecessaryAlways));
+            Assert.That(resource.Parent!.StreamByDistance, Is.False);
+            Assert.That(scope.GetAddressableAddress(), Is.EqualTo(scope.Plan.ScenePath));
+            Assert.That(scope.GetAddressableGroupName(), Is.EqualTo("Default Local Group"));
+        }
+
+        [Test]
+        public void Preflight_SeasonAtmosphereUnderStreamingCell_IsRejected()
+        {
+            using var scope = new WorldCompanionTestScope();
+            var plan = WorldCompanionCreationPlan.CreateForTests(
+                $"T{WorldCompanionTestScope.NewToken()}_AtmosphereVFX", scope.ParentIdentity, scope.ParentFolder,
+                scope.NodeRoot, scope.ResourceOutputPath, scope.MapPath, scope.SourceRoot,
+                WorldCompanionCreationKind.SeasonAtmosphere);
+
+            var exception = Assert.Throws<InvalidOperationException>(() => WorldCompanionCreationTransaction.Preflight(plan));
+            Assert.That(exception!.Message, Does.Contain("logical Season"));
+            Assert.That(WorldCompanionRecoveryJournal.Exists, Is.False);
+            scope.AssertSourceStateUnchanged();
+        }
+
+        [Test]
+        public void Preflight_CellCompanionUnderSeason_IsRejected()
+        {
+            using var scope = new WorldCompanionTestScope(WorldCompanionCreationKind.SeasonAtmosphere);
+            var plan = WorldCompanionCreationPlan.CreateForTests(
+                $"T{WorldCompanionTestScope.NewToken()}_Events", scope.ParentIdentity, scope.ParentFolder,
+                scope.NodeRoot, scope.ResourceOutputPath, scope.MapPath, scope.SourceRoot);
+
+            var exception = Assert.Throws<InvalidOperationException>(() => WorldCompanionCreationTransaction.Preflight(plan));
+            Assert.That(exception!.Message, Does.Contain("streaming Cell"));
+            Assert.That(WorldCompanionRecoveryJournal.Exists, Is.False);
+            scope.AssertSourceStateUnchanged();
+        }
+
+        // 生成の前（resource の LoadType がまだ既定値）と後（NecessaryAlways）の両方で、
+        // 所有の証明が Season Atmosphere の生成物を自分のものとして回収できることを見る。
+        [TestCase((int)WorldCompanionMutationPoint.AddressableCreated)]
+        [TestCase((int)WorldCompanionMutationPoint.Verified)]
+        public void Execute_SeasonAtmosphereFault_RollsBackExactOwnedState(int mutationPointValue)
+        {
+            using var scope = new WorldCompanionTestScope(WorldCompanionCreationKind.SeasonAtmosphere);
+            var mutationPoint = (WorldCompanionMutationPoint)mutationPointValue;
+            WorldCompanionCreationTransaction.FaultInjector = point =>
+            {
+                if (point == mutationPoint) throw new InjectedWorldCompanionFault(point.ToString());
+            };
+            using var transaction = new WorldCompanionCreationTransaction(scope.Plan);
+
+            Assert.Throws<InjectedWorldCompanionFault>(() => transaction.Execute());
+            scope.AssertRolledBack();
+        }
+
         private static IEnumerable<int> MutationPoints()
             => ((WorldCompanionMutationPoint[])Enum.GetValues(typeof(WorldCompanionMutationPoint))).Select(value => (int)value);
 
@@ -133,7 +195,7 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
         private readonly string _startingActiveScenePath;
         private bool _disposed;
 
-        internal WorldCompanionTestScope()
+        internal WorldCompanionTestScope(WorldCompanionCreationKind kind = WorldCompanionCreationKind.CellCompanion)
         {
             Assert.That(WorldCompanionRecoveryJournal.Exists, Is.False,
                 "A real pending World Workspace operation must be recovered before these tests run.");
@@ -142,7 +204,7 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             _outerSetup = EditorSceneManager.GetSceneManagerSetup();
 
             var token = NewToken();
-            var layout = new FixtureLayout(token);
+            var layout = new FixtureLayout(token, kind);
             Root = layout.Root;
             SourceRoot = layout.SourceRoot;
             NodeRoot = layout.NodeRoot;
@@ -150,17 +212,24 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             MapPath = layout.MapPath;
             var parentIdentity = layout.ParentIdentity;
             var parentCellFolder = layout.ParentCellFolder;
+            ParentIdentity = parentIdentity;
+            ParentFolder = parentCellFolder;
+            // Season の Atmosphere の親は Scene payload を持たない論理ノードで、streaming でない。
+            var isSeasonParent = kind == WorldCompanionCreationKind.SeasonAtmosphere;
             EnsureFolder(NodeRoot);
             EnsureFolder(ResourceOutputPath);
             EnsureFolder(parentCellFolder);
 
             CreateSavedScene($"{Root}/OriginalSetup.unity", leaveOpen: true, NewSceneMode.Single);
-            var parentSceneGuid = CreateSavedScene($"{parentCellFolder}/{parentIdentity}.unity", leaveOpen: false);
             ParentNode = ScriptableObject.CreateInstance<SceneNodeData>();
             ParentNode.name = parentIdentity;
             ParentNode.Identity = parentIdentity;
             ParentNode.NodeLoadType = LoadType.OnDemand;
-            ParentNode.Payloads.Add(new AssetPayload(string.Empty, new AssetReference(parentSceneGuid)));
+            if (!isSeasonParent)
+            {
+                var parentSceneGuid = CreateSavedScene($"{parentCellFolder}/{parentIdentity}.unity", leaveOpen: false);
+                ParentNode.Payloads.Add(new AssetPayload(string.Empty, new AssetReference(parentSceneGuid)));
+            }
             AssetDatabase.CreateAsset(ParentNode, $"{NodeRoot}/{parentIdentity}.asset");
 
             Graph = ScriptableObject.CreateInstance<SceneGraphEdges>();
@@ -173,7 +242,7 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             AssetDatabase.CreateAsset(parentResource, parentResourcePath);
             var parentSerialized = new SerializedObject(parentResource);
             parentSerialized.FindProperty("_identity").stringValue = parentIdentity;
-            parentSerialized.FindProperty("_streamByDistance").boolValue = true;
+            parentSerialized.FindProperty("_streamByDistance").boolValue = !isSeasonParent;
             parentSerialized.ApplyModifiedPropertiesWithoutUndo();
             AssetDatabase.SaveAssets();
             Assert.That(SceneResourceGenerator.Generate(LoadNodes(), LoadGraphs(), ResourceOutputPath, MapPath), Is.True);
@@ -184,7 +253,7 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             Assert.That(map, Is.Not.Null);
             Assert.That(map!.GenerateHash, Is.EqualTo(StartingHash));
             SceneResourceGenerator.RebuildMapLookup(map);
-            Assert.That(map.GetSceneResource(parentIdentity)!.StreamByDistance, Is.True);
+            Assert.That(map.GetSceneResource(parentIdentity)!.StreamByDistance, Is.EqualTo(!isSeasonParent));
 
             _startingSetup = SetupFingerprint(EditorSceneManager.GetSceneManagerSetup());
             _startingActiveScenePath = SceneManager.GetActiveScene().path;
@@ -200,22 +269,37 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
         // 名前は短く保つ: Unity 同梱の Mono は 260 文字以上の path を File.OpenRead で開けず、
         // 所有の証明（WorldCompanionOwnershipProof）が深い checkout で失敗する。
         // 予算は tools/path-budget.json にあり、WorldCompanionPathBudgetTests が確かめる。
-        internal static WorldCompanionCreationPlan CreateFixturePlan(string token) => new FixtureLayout(token).CreatePlan();
+        internal static WorldCompanionCreationPlan CreateFixturePlan(
+            string token,
+            WorldCompanionCreationKind kind = WorldCompanionCreationKind.CellCompanion)
+            => new FixtureLayout(token, kind).CreatePlan();
 
         private readonly struct FixtureLayout
         {
-            internal FixtureLayout(string token)
+            internal FixtureLayout(string token, WorldCompanionCreationKind kind)
             {
+                Kind = kind;
                 Root = $"Assets/__WCT_{token}";
                 SourceRoot = $"{Root}/Source";
                 NodeRoot = $"{SourceRoot}/Nodes";
                 ResourceOutputPath = $"{Root}/Generated";
                 MapPath = $"{Root}/SceneResourceMap.asset";
                 GraphName = $"T{token}";
-                ParentIdentity = $"T{token}_Cell";
-                Identity = $"T{token}_Events";
-                ParentCellFolder = $"{Root}/World/Seasons/Spring/Cells/{ParentIdentity}";
+                if (kind == WorldCompanionCreationKind.SeasonAtmosphere)
+                {
+                    ParentIdentity = $"Season_T{token}";
+                    Identity = $"T{token}_AtmosphereVFX";
+                    ParentCellFolder = $"{Root}/World/Seasons/T{token}";
+                }
+                else
+                {
+                    ParentIdentity = $"T{token}_Cell";
+                    Identity = $"T{token}_Events";
+                    ParentCellFolder = $"{Root}/World/Seasons/Spring/Cells/{ParentIdentity}";
+                }
             }
+
+            internal WorldCompanionCreationKind Kind { get; }
 
             internal string Root { get; }
             internal string SourceRoot { get; }
@@ -229,10 +313,12 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
 
             internal WorldCompanionCreationPlan CreatePlan() => WorldCompanionCreationPlan.CreateForTests(
                 Identity, ParentIdentity, ParentCellFolder, NodeRoot,
-                ResourceOutputPath, MapPath, SourceRoot);
+                ResourceOutputPath, MapPath, SourceRoot, Kind);
         }
 
         internal string SourceRoot { get; }
+        internal string ParentIdentity { get; }
+        internal string ParentFolder { get; }
         internal string NodeRoot { get; }
         internal string ResourceOutputPath { get; }
         internal string MapPath { get; }
@@ -255,6 +341,8 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             Assert.That(map, Is.Not.Null);
             Assert.That(AssetDatabase.AssetPathToGUID(Plan.ResourcePath), Is.Not.Empty);
             Assert.That(resource!.Identity, Is.EqualTo(Plan.Identity));
+            Assert.That(node!.NodeLoadType, Is.EqualTo(Plan.LoadType));
+            Assert.That(resource.LoadType, Is.EqualTo(Plan.LoadType));
             Assert.That(resource.StreamByDistance, Is.False);
             Assert.That(resource.Volume.size, Is.EqualTo(Vector3.zero));
             Assert.That(resource.Parent, Is.Not.Null);
@@ -310,6 +398,13 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
 
         internal string GetAddressableAddress()
             => GetStringMember(GetAddressableEntry(), "address");
+
+        internal string GetAddressableGroupName()
+        {
+            var group = GetAddressableEntry().GetType().GetProperty("parentGroup")!.GetValue(GetAddressableEntry());
+            Assert.That(group, Is.Not.Null);
+            return GetStringMember(group!, "Name");
+        }
 
         internal void SetAddressableAddress(string address)
         {

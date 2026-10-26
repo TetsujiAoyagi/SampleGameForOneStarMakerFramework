@@ -1,6 +1,6 @@
 # 24. RenderingSystem — レンダリングシステム構想
 
-> ステータス: RenderWorld は構想段階。RenderEnvironment の最小 lease / sink 骨格は S-4c で実装済み（2026-09-25）。VFX 抽象（§16）は S-4d1 で実装済み（2026-10-18。VFX Graph の backend と `Tick` の登録は S-4d2）。
+> ステータス: RenderWorld は構想段階。RenderEnvironment の最小 lease / sink 骨格は S-4c で実装済み（2026-09-25）。VFX 抽象（§16）は S-4d1 で実装済み（2026-10-18。VFX Graph の backend と `Tick` の登録は S-4d2、Scene に配置した Season / Cell の VFX は S-4d3）。
 > 前提資料: [13. リソースシステム](13-resource-system.md) / [UpdateSystem 正本](../../../../docs/updater/UPDATER_CURRENT_SPEC.md) / [21. SceneStreaming](21-scene-streaming.md) / [23. CameraSystem](23-camera-system.md)
 > 関連計画書: なし（TDD 計画は判定ゲート（§5）の結果を踏まえて作成する）
 
@@ -468,16 +468,22 @@ VFX Graph（`com.unity.visualeffectgraph` 17.6.0）に依存する実装は `uni
 - **`Destroy` は同期に止める。** id を対応表から先に外し、GameObject が残っていれば `VisualEffect.enabled = false`・`visualEffectAsset = null`・非 active 化を同期に行ってから `Object.Destroy` する。`DestroyImmediate` は `Bind` 所有者の破棄中に失敗しうるので使わない。
 - **粒子の有無。** Play の後は `HasAnySystemAwake() || aliveParticleCount > 0`。`aliveParticleCount` は GPU からの非同期の読み戻しで遅れるので単独では使わず、誤判定は回収を遅らせる側に倒して timeout が上限を保証する。id は backend の生涯で単調増加し、再利用しない。
 - **描画の確かめ方（テスト）。** batch の Editor では Game view が無いので、明示の `camera.Render()` と `ReadPixels` で画素を数える。起動したばかりの Editor の process では、通常の描画ループが一度も VFX を描いていないと明示の描画にも粒子が入らないため、計測の前に別のカメラと instance で一度描かせ、両方を壊してから計測する。graphics なし（`-nographics`）では Play 中のテストが Inconclusive になるので、VFX の判定には `run-tests.ps1 -WithGraphics` を使う。
+- **Scene に置く VFX（Season Atmosphere・Cell VFX）。** 季節全域の常時エフェクトは Season 直下の `{Season}_AtmosphereVFX`、Cell の常駐中ずっと続くエフェクトは Cell の職種 child `{Season}_VFX_{x}_{y}` の別 Scene に置く（分類と LoadType は [§5.13](05-scene.md#513-cell-と職種-companion-の分類)）。寿命は Scene の寿命で、`VfxSystem` の対象ではない。`.vfx` は Scene と同じフォルダに置く。各 System の bounds は Manual・Local 空間で、Cell VFX の描画 bounds は親 Cell の `_volume` の内側に収める。Scene に Collider、ゲーム進行の trigger、カメラ追従の script を置かない。
+- **culling。** Scene に常駐する環境エフェクトの `.vfx` は culling を `CullNone`（常に simulate）にする。template の既定（`CullDefault`）はカメラから見えている間しか simulate しないので、カメラが向いていない間は粒子が空のままで、向いたときに出直す。カメラの無い Play のテストでは粒子が出ない。画面外でも simulate するコストは §16.7 の S-9 の項目。
+- **authoring の検査（`PlacedVfxAuthoringTests`）。** `Seasons/` 配下で `.vfx` に依存する Scene と、Season Atmosphere・Cell VFX の必須 Scene の全ての `VisualEffect`（非 active の GameObject のものを含む）が、無効で保存され、同じ GameObject に `PlacedVfxActivator` を持ち、`visualEffectAsset` が null でないことを EditMode で確かめる。保存フックではない。
+- **実 Scene の Play テスト（`VfxScenePlayTests`・`VfxSceneRenderPlayTests`）。** Scene は test が持つ `SceneDirector`（実 `SceneResource` の複製で Season を根にした Map）で載せる。アプリの director で Season を載せると祖先の InGameSession の距離ストリーミングが動き、読み込み半径の外の Cell を次の Tick で外す。描画の陽性・陰性は本番と同じ `.vfx` だけを置いた専用 Scene で測り、計測の間はアプリの起動が載せる Renderer（UICommon の `UIPanel`）を無効にする。Play の間は DebugSocket を無効にする（接続失敗の warning が長いテストの本体に混ざり、`LogAssert.NoUnexpectedReceived` を落とす）。後始末は基底の `[UnityTearDown]` 1 つにまとめる（ExitPlayMode をまたぐ 2 つ目の TearDown は NullReferenceException で落ちた）。
 
 ### 16.7 後続スライスへの送り
 
 d1・d2 では答えず、後続スライスの Phase A で決める事項。
 
-- **S-4d3:**
-  - batch の Editor で VFX を明示の描画だけで検査するテスト（RT 経路の検査等）は、§16.6 の事前の描画が要る。GUI の Editor で、複数の instance のうち Game view のカメラから見えるものだけが明示の描画に映った観察もあり、同じ現象の一部かは確かめていない。
-  - 配置済み VFX は `VisualEffect` だけを無効で保存し、同じ GameObject の `VFXRenderer` は有効のまま。非対応環境で描画されないことを実 Scene で確かめる。
 - **S-4d4:**
   - notifier の `OnDestroy` が、実 Scene の unload と go の Destroy で回収を呼ぶことの Play Mode 確認。
   - 同じ identity の Scene の再ロードを、実 `SceneDirector` で 1 往復確かめること。
   - d2 のテストが直接は見ていない経路: `Bind` 所有者の破棄から 1 フレーム以内の回収（d2 のテストは 2 フレーム待つ）、`Create` 直後に発射しないことの長い観測窓（d2 は 120 フレーム）、host の Update 登録の失敗と、backend の `Create` が GameObject の作成後に失敗した場合の後始末（d2 はコードレビューで確認）。
   - graphics なし（`-nographics`）の既定の回帰では、実 `VisualEffect` を作る Play 中のテストが全て Inconclusive になる。
+- **S-9:**
+  - Player での Season / Cell VFX の描画の確認。BS4 Spring Player（`Tools/OSM/Content/Build BS4 Spring Player`）は content の smoke 専用で、Title の smoke の後に `Application.Quit(0)` し、InGame の Spring に入らない。S-4d3 の Player の証拠は build の成功と、Content Directory に 2 つの VFX Scene が入ることまで。Spring `(0,4)` に入る Player の観測経路は未作成。
+  - 常に simulate する（`CullNone`）配置済み VFX の画面外のコスト・同時数と、季節全域の大きな bounds の culling。
+  - 保存時の `VFXRenderer` は、Edit Mode では `VisualEffect` の無効に合わせて無効と読める。「`VFXRenderer` が有効のまま `VisualEffect` だけが無効」の状態で描画されないことは測っていない。
+  - 本番の SceneGraph で Season と Cell (4,2) を同時に載せる経路の VFX（S-4d3 の Play テストは Season を根にした複製の Map で載せる）。

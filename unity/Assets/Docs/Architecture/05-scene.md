@@ -417,6 +417,8 @@ OutGame
 | `IncrementalAlways` | 親ロード時に非同期（Forget）でロード | バックグラウンドで先読みしたいもの |
 | `OnDemand` | 明示的な `AddScene` 呼び出し時のみロード | ポーズメニュー、リザルト等 |
 
+**`IncrementalAlways` の既知の不具合（未修正。修正スライスは未作成）:** 親の unload は、ロード中で取消し窓を過ぎた `IncrementalAlways` の子を保留の unload（`_pendingUnloads`）に積む。保留を消費するのは公開 `AddScene` の対象 Scene の経路だけで、子の `IncrementalLoadAsync` は消費しない。そのため子は Stable まで進んで残り、以後の `UnloadScene` も保留に入っているとして早期 return する。project の `SceneResource` に `IncrementalAlways` は 0 件（Season Atmosphere VFX はこれを避けて `NecessaryAlways` にした）。
+
 LoadType は**親に対する引っ張り**専用である。距離で載せるかは LoadType の値を増やさず、現状は格子キーと `CellIdentity.Format` で決める（[§21](21-scene-streaming.md)）。到着は [§34 OnDemand の空間政策](34-ondemand-spatial-policy.md) が候補集合と体積で決める。Pause / Result のような明示 `AddScene` は、距離政策の候補に入っていない OnDemand である。
 
 ### AddScene の祖先ロード
@@ -686,6 +688,7 @@ sceneDirector.OnSceneEvent
 |---|---|
 | Cell | `SceneResource.StreamByDistance == true`。`CellScene` は false を constructor で拒否する |
 | Cell child | `Parent != null && Parent.StreamByDistance`。同じ lifecycle の `CellCompanionScene` |
+| Season Atmosphere VFX | identity が `{Season}_AtmosphereVFX` で、親が `Season_{Season}` かつ親が `StreamByDistance` でない。no-UI の `SeasonAtmosphereVfxScene`（親が streaming の Cell なら constructor で拒否） |
 | その他 | identity の完全一致（Title / InGameSession 等） |
 
 Unity オブジェクトの null 判定は `== null` / `!= null`。公開 bounds が必要な箇所は `SceneResource.Volume` を返し、格子定数から再計算しない。`DemoCellScene` は identity 由来の tint を持たない。見た目を焼く責務は後続の世界制作スライス。
@@ -695,3 +698,5 @@ Unity オブジェクトの null 判定は `== null` / `!= null`。公開 bounds
 Add 完了後は、fresh resident snapshot に parent が残っていること、parent が Stable であること、捕捉した `SceneBase` と `ISceneQuery.GetLoadedScene(parent)` が `ReferenceEquals` で同一であること、session が未キャンセルであることを再確認する。一つでも偽なら、その Add が載せた child を `LoadingDisplayType.None` で Unload する。通常の parent unload は既存の再帰 unload を正とし、driver は先回り remove を出さない。`SceneBase` は `UnityEngine.Object` ではないため、この `ReferenceEquals` は偽 null 禁止に抵触しない。
 
 職種の選別は SampleGame の制作規約に閉じる。identity を `_` で分割し、末尾二要素の直前一要素だけを `Environment` / `Lighting` / `VFX` / `Events` と完全一致比較する。座標や新しい child identity は生成しない。未知 role は warning して飛ばす。同一 Cell の同一 role が複数ならその role を一件も Add しない。欠落 role は optional として正常。どの集合を載せるかは起動時の `world:cellCompanionSet`（[§4.8](04-app-startup.md#48-起動時-scene-variant-と職種-companion-set)）。
+
+Season Atmosphere VFX は Cell の companion ではない。Season の `NecessaryAlways` の子なので、companion set に関係なく Season と一緒に載り（`Planner` でも載る）、Season の Stable はそのロードを待つ。`SessionSeasonController` は `NecessaryAlways` の子として観測個体に登録するので、Season の枝の交換は Atmosphere の終端も待つ。`StreamByDistance == false` なので距離の候補には入らない。

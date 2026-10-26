@@ -199,7 +199,7 @@ SampleGame/
 
 ## 6. World Workspace（職種 companion の Editor 作成）
 
-任意の Cell Lighting / VFX / Events を作る Editor 口は `SampleGame/DependOnAll/Editor/WorldAuthoring/` に置く。Framework Runtime は職種名も Workspace も知らない。Workspace は runtime asset owner を持たない。
+任意の Cell Lighting / VFX / Events と Season Atmosphere VFX を作る Editor 口は `SampleGame/DependOnAll/Editor/WorldAuthoring/` に置く。Framework Runtime は職種名も Workspace も知らない。Workspace は runtime asset owner を持たない。
 
 ```text
 SampleGame/DependOnAll/Editor/WorldAuthoring/
@@ -223,11 +223,18 @@ Seasons/{Season}/Cells/{Season}_Cell_{x}_{y}/{identity}/{identity}.unity
 Assets/SceneGraphData/Nodes/Cells/{identity}.asset
 ```
 
-正本は `SceneNodeData` と `SceneGraphEdges`。`SceneResource` / Map は標準 `SceneResourceGenerator.Generate` の投影物であり、Workspace が生成物だけを手で upsert してはならない。payload は空 Variant、`LoadType.OnDemand`、`Volume = zero`、`StreamByDistance = false`。座標は Editor 入力にだけ使い、runtime が identity から復元しない。
+Season Atmosphere VFX（`{Season}_AtmosphereVFX`、親 `Season_{Season}`）は Season フォルダ直下に置く。作成の種類（Cell companion / Season Atmosphere）は plan と journal が持ち、種類の項目が無い journal は Cell companion として回復する。
+
+```text
+Seasons/{Season}/{Season}_AtmosphereVFX/{Season}_AtmosphereVFX.unity
+Assets/SceneGraphData/Nodes/Seasons/{Season}_AtmosphereVFX.asset
+```
+
+正本は `SceneNodeData` と `SceneGraphEdges`。`SceneResource` / Map は標準 `SceneResourceGenerator.Generate` の投影物であり、Workspace が生成物だけを手で upsert してはならない。payload は空 Variant、`Volume = zero`、`StreamByDistance = false`。LoadType は Cell companion が `OnDemand`、Season Atmosphere が `NecessaryAlways`。Season Atmosphere の親は、`StreamByDistance` でなく Scene payload を持たない論理ノードでなければならない。座標は Editor 入力にだけ使い、runtime が identity から復元しない。
 
 Workspace は SceneGraph Editor を通らない。`SceneGraphViewModel` / `SceneGraphEditorWindow` / `SceneGraphLayout` は更新せず、Undo も積まない。開いている GraphView は古いままになり、Layout に位置が無いノードは再読込すると `(0,0)` に出る。Play が読むのは Map 側なので、作成の成否は Editor ウィンドウでは判定しない。Editor から同じ identity を作り直さない。
 
-Cell / Environment / season Lighting / 大型 Event はこの口では作れない。既存の部分成果物を adopt / repair / overwrite しない。衝突があれば無変更で失敗する。
+Cell / Environment / season Lighting / 大型 Event と、Atmosphere 以外の Season 直下の子はこの口では作れない。既存の部分成果物を adopt / repair / overwrite しない。衝突があれば無変更で失敗する。
 
 ### pending journal が残ったとき
 
@@ -237,6 +244,8 @@ journal は `Library/OneStarMaker/WorldWorkspace/pending-companion-create.json`�
 2. 公式 Rollback が同じ barrier で止まる、またはファイルが壊れて読めないときは **自動削除しない**。journal と識別元（path / GUID / fingerprint）を残して調査する。
 3. 調査後に不要と分かった残骸だけを、人間が Editor と Addressables を確認してから取り除く。journal 破棄だけの command は無い。
 
+無題・未保存の Scene だけを開いた Editor（起動直後）から作成すると、`NewScene(Additive)` も rollback の Scene 構成の復元も失敗して journal が残る。保存済みの Scene を開いてから作成する。
+
 Editor open の途中で Unity API が失敗したときの完全復元は対象外である（事前解決 + 保存確認が境界）。creation transaction の atomic/recovery と混同しない。
 
 ---
@@ -245,6 +254,7 @@ Editor open の途中で Unity API が失敗したときの完全復元は対象
 
 | 日付 | 内容 |
 |---|---|
+| 2026-10-27 | World Workspace が Season Atmosphere VFX も作れる現況（S-4d3）と、無題の Scene からの作成の失敗を追加 |
 | 2026-09-23 | World Workspace は SceneGraph Editor / Layout を通らない現況を追加 |
 | 2026-09-09 | World Workspace の配置、Generate 投影、pending journal の調査手順を追加 |
 | 2026-07-27 | 初版。Assembly 軸と Scene 同居軸を文書化 |

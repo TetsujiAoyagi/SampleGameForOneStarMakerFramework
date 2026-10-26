@@ -36,7 +36,11 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
         internal List<SceneGraphEdges> Graphs = null!;
         internal string SourceHash = string.Empty;
     }
-    /// <summary>一つの optional companion を SceneGraph source と runtime projection へ atomically 追加する。</summary>
+    /// <summary>
+    /// 一つの optional companion（Cell の子、または Season 直下の Atmosphere VFX）を
+    /// SceneGraph source と runtime projection へ atomically 追加する。
+    /// 種類で変わるのは親の検査と LoadType だけで、journal・所有の証明・rollback の順序は共通。
+    /// </summary>
     internal sealed class WorldCompanionCreationTransaction : IDisposable
     {
         private readonly WorldCompanionCreationPlan _plan;
@@ -122,7 +126,7 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
             var companionFolder = System.IO.Path.GetDirectoryName(plan.ScenePath)!.Replace('\\', '/');
             var parentFolder = System.IO.Path.GetDirectoryName(companionFolder)!.Replace('\\', '/');
             if (!AssetDatabase.IsValidFolder(parentFolder))
-                throw new InvalidOperationException($"Parent Cell folder is missing: {parentFolder}");
+                throw new InvalidOperationException($"Parent folder is missing: {parentFolder}");
             if (AssetDatabase.IsValidFolder(companionFolder) || System.IO.Directory.Exists(FullPath(companionFolder)) || System.IO.File.Exists(FullPath(companionFolder) + ".meta"))
                 throw new InvalidOperationException($"Planned companion folder already exists: {companionFolder}");
             foreach (var path in new[] { plan.ScenePath, plan.ResourcePath, plan.NodePath })
@@ -144,9 +148,7 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
             var sourceHash = SceneResourceGenerator.ComputeCurrentHash(nodes, graphs);
             if (!string.Equals(map.GenerateHash, sourceHash, StringComparison.Ordinal))
                 throw new InvalidOperationException($"SceneResourceMap hash is stale: map={map.GenerateHash}, source={sourceHash}");
-            var parentResource = map.GetSceneResource(plan.ParentIdentity);
-            if (parentResource == null || !parentResource.StreamByDistance)
-                throw new InvalidOperationException($"Parent is not a streaming Cell: {plan.ParentIdentity}");
+            VerifyParentKind(plan, map.GetSceneResource(plan.ParentIdentity), parents[0]);
             var resourceMatches = LoadAll<SceneResource>(string.Empty).Count(resource => string.Equals(resource.Identity, plan.Identity, StringComparison.Ordinal));
             if (resourceMatches != 0) throw new InvalidOperationException($"SceneResource identity already exists: {plan.Identity}");
             if (AddressableAddressExists(plan.ScenePath) || AddressableAddressExists(plan.Identity))
@@ -155,6 +157,24 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
             {
                 Map = map, ParentNode = parents[0], Graph = containing[0], Nodes = nodes, Graphs = graphs, SourceHash = sourceHash,
             };
+        }
+        private static void VerifyParentKind(WorldCompanionCreationPlan plan, SceneResource? parentResource, SceneNodeData parentNode)
+        {
+            switch (plan.Kind)
+            {
+                case WorldCompanionCreationKind.CellCompanion:
+                    if (parentResource == null || !parentResource.StreamByDistance)
+                        throw new InvalidOperationException($"Parent is not a streaming Cell: {plan.ParentIdentity}");
+                    return;
+                case WorldCompanionCreationKind.SeasonAtmosphere:
+                    // Season は Scene payload を持たない論理ノード。streaming の Cell や payload のある Scene の下に
+                    // Atmosphere を作ると、距離ストリーミングの候補や Cell の体積に混ざる。
+                    if (parentResource == null || parentResource.StreamByDistance || parentNode.Payloads.Count != 0)
+                        throw new InvalidOperationException($"Parent is not a logical Season node: {plan.ParentIdentity}");
+                    return;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(plan), plan.Kind, "Unknown creation kind.");
+            }
         }
         internal static void RecoverPending()
         {
@@ -205,7 +225,7 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
             var node = ScriptableObject.CreateInstance<SceneNodeData>();
             node.name = journal.identity;
             node.Identity = journal.identity;
-            node.NodeLoadType = LoadType.OnDemand;
+            node.NodeLoadType = WorldCompanionCreationPlan.LoadTypeFor((WorldCompanionCreationKind)journal.creationKind);
             node.Payloads.Add(new AssetPayload(string.Empty, new AssetReference(journal.sceneGuid)));
             AssetDatabase.CreateAsset(node, journal.nodePath);
             WorldCompanionOwnershipProof.CheckpointAsset(journal, journal.nodePath, ref journal.nodeGuid, ref journal.nodeFingerprint);
@@ -251,7 +271,7 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
             if (scene == null || AssetDatabase.AssetPathToGUID(j.scenePath) != j.sceneGuid
                 || nodeAsset == null || nodeAsset != node || AssetDatabase.AssetPathToGUID(j.nodePath) != j.nodeGuid
                 || resource == null || AssetDatabase.AssetPathToGUID(j.resourcePath) != j.resourceGuid
-                || resource.LoadType != LoadType.OnDemand || resource.StreamByDistance
+                || resource.LoadType != WorldCompanionCreationPlan.LoadTypeFor((WorldCompanionCreationKind)j.creationKind) || resource.StreamByDistance
                 || resource.Volume.center != Vector3.zero || resource.Volume.size != Vector3.zero
                 || resource.Parent == null || !string.Equals(resource.Parent.Identity, j.parentIdentity, StringComparison.Ordinal))
                 throw new InvalidOperationException("Generated scene/node/resource invariant failed.");
