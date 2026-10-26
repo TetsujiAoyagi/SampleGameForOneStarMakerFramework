@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C'`（暫定 C' 1 巡目は blocker 0（§8）。GO 候補 head `87daa97c` で AC7（高コスト証拠）の取得待ち。その後に最終証拠ラウンド）。経緯: 判定 C 完了（AC7 を除く、§7「判定 C」）。経緯: 発見 C 第2巡で F4 解消・阻害する指摘 0、履歴整理の後に判定 C。 差し戻し 2 巡目（2/4）で F4 を修正。発見 C 第1巡で F1〜F3 は解消、新しい阻害する指摘 1 件（F4）。 発見 C 第0巡で阻害する指摘 3 件 → 差し戻し 1 巡目で修正。 Phase B 完了（2026-10-26。A3 凍結は同日。U1 は (b)、U2〜U6 はレビュー側の推奨で発注者が裁定し、凍結を承認した）
+- status: `C'`（AC7 は未成立で、人間の判断待ち（§7「AC7 の取得」）。build と Content Directory の照合は合格した。BS4 Player が Title の smoke の後に終了し、Spring に達しないので、凍結した手順 (3)・(5) の観測点が無い）。経緯: 暫定 C' 1 巡目は blocker 0（§8）。経緯: 判定 C 完了（AC7 を除く、§7「判定 C」）。経緯: 発見 C 第2巡で F4 解消・阻害する指摘 0、履歴整理の後に判定 C。 差し戻し 2 巡目（2/4）で F4 を修正。発見 C 第1巡で F1〜F3 は解消、新しい阻害する指摘 1 件（F4）。 発見 C 第0巡で阻害する指摘 3 件 → 差し戻し 1 巡目で修正。 Phase B 完了（2026-10-26。A3 凍結は同日。U1 は (b)、U2〜U6 はレビュー側の推奨で発注者が裁定し、凍結を承認した）
 - branch: `claude/s-4d3-vfx-scenes`
 - implementation base commit: `6667f88f`（`develop`、PR #143（S-4d2）のマージ）
 - risk: `high`（Scene・SceneResource・Addressables の生成、Scene の寿命と Season の子の LoadType、Player build への収録）
@@ -18,7 +18,12 @@
 - Phase B result snapshot の取得案内・状態: ブランチ `claude/s-4d3-vfx-scenes` のローカル commit（Phase B 完了 commit。SHA は commit の後に引継ぎ票で渡す）。未 push
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格、`locality=local`）。head `87daa97c` / base `6667f88f`、判定 C（2026-10-27）が `evidence stage` し、別 process の `fetch` で期待 hash の照合・10 file の一致・XML の閲覧を確認済み。引渡し先は進行役（取得案内は共有ノート `judgment-C-evidence.md`）。担当は判定 C の session。AC7 は未収録（最終証拠ラウンドで bundle を作り直す）
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格、`locality=local`）。同じ head・base。HANDOFF を除く差分、凍結 A3 版（`a7ff035a`）と Phase B 完了時の版（`87daa97c`、§6 まで）の HANDOFF、生の XML・unity.log・step.json・実行記録（強制終了の事実だけ）、contract-audit・docs-audit を収録（11 file）。発見 C・判定 C の所見と裁定は含めない。別 process の `fetch` で hash 照合・11 file の一致・閲覧を確認済み。取得案内は同じ共有ノート
-- 引継ぎ票（暫定 C' → AC7 の取得）:
+- 引継ぎ票（AC7 の取得 → 人間の判断）:
+  - 前の Phase の結果: AC7 は 2 回とも未成立（§7「AC7 の取得」）。1 回目は path 長による基盤の不成立で、D5 により取り直した。2 回目は (1) の build と (2) の Content Directory の照合が合格。(3) は、BS4 Player が Title の smoke の後に `Application.Quit(0)` するため Spring `(0,4)` に達しない。§1.3 の Player の事実記述が実際と食い違う。実装欠陥ではない。
+  - 次の Phase・役割: **人間（発注者）の判断。** Spring に達する Player の観測経路は凍結した手順に無い。手順・期待値を変えるなら Phase A の新しい revision、変えないなら AC7 (3)〜(5) の扱いを決定記録に残す。判断が出るまで AC7 を再実行しない。最終証拠ラウンドも開始しない。
+  - 巡のカウント: B と発見 C の間は 2/4 で確定。C' の差し戻しは 0/3。
+  - 引き継ぐ commit: branch `claude/s-4d3-vfx-scenes` の先頭（この HANDOFF だけを変える記録用 commit）。implementation head は `87daa97c`、base は `6667f88f`。未 push。2 回目の取得に使った detached worktree（`87daa97c`、clean）と、その中の Player・artifacts は残してある。Unity は起動していない。
+- 引継ぎ票（以前: 暫定 C' → AC7 の取得。経緯として残す）:
   - 前の Phase の結果: 暫定 C' 1 巡目が完了（§8）。GO 候補 head `87daa97c` について blocker 0 件。暫定 C' は GO 判定に使わない。
   - 次の Phase・役割: **AC7 の取得（判定 C の実行担当、別 session）**。§5 の AC7 の手順 (1)〜(4) を head `87daa97c` で 1 回だけ行い、(5) の画像判断を人間に依頼する。取得後は最終証拠ラウンド（AC7 を加えた bundle の作り直し、判定 C の最終判定、最終 C'）へ進む。暫定 C' の所見は最終 C' へ渡さない。
   - 巡のカウント: B と発見 C の間は 2/4 で確定。C' の差し戻しは 0/3。
@@ -511,9 +516,22 @@ Architecture §24 §16.6 に「実 Scene での確認（Atmosphere / Cell VFX、
 - 阻害する指摘: なし。後続スライスへ移送する指摘: なし。
 - 判定 C の結論（手順 1）: AC7 を除く判定必須テストと機械検査は条件を満たし、阻害する指摘はない。GO は、暫定 C' → AC7 → 最終証拠ラウンド（判定 C の最終判定と最終 C'）が揃うまで確定しない。
 
+### AC7 の取得（高コスト証拠、手順 3。未成立）
+
+- 担当・モデル: 判定 C の実行担当（Claude Code、Anthropic、Claude Opus 系列）。対象 head `87daa97c`、base `6667f88f`。
+- **1 回目（2026-10-27 04:00 JST、基盤の不成立）:** 実行した worktree は branch `claude/s-4d3-vfx-scenes` の checkout（HEAD `c30dd047`。`git diff 87daa97c c30dd047` は HANDOFF だけ）で、ルートは末尾の区切りを含めて 98 文字。Editor を起動し、`Tools/OSM/Content/Build BS4 Spring Player` を 1 回実行した（その前の 1 回の要求は、Editor の起動直後の 503 で受け付けられず、Editor.log に実行の痕跡は無い）。Content Directory の build は成功した（outcome の summary は `Succeeded|StandaloneWindows64|6292990`）。続く `ContentTransportPublisher.Publish`（`ContentTransportPublisher.cs:94` の `File.OpenRead`）で `DirectoryNotFoundException` が出た。開こうとした path は 261 文字（`artifacts\bs4\transport\<identity>.<guid>.staging\content\<hash>.resS`。repo 相対では 163 文字で、path 予算の 150 を超える）。Player は作られなかった。`6667f88f..87daa97c` は build と transport のコードに触れていない。
+- **2 回目（D5 による取り直し、2026-10-27 04:31〜04:50 JST）:** `87daa97c` の detached worktree をルート 12 文字の新しい path に作り、Library を新規に import した。import 中に `License revoked` が 1 回出て、直後に `New Unity Personal license has been added` が出た。その後の entitlement は解決している。menu を 1 回実行した。
+  - (1) build: `Build Finished, Result: Success.`。Player は IL2CPP・High stripping で、`artifacts/bs4/players/<identity>/` に publish された（identity `20261026T193222328Z-d2872994…`、playerBuildGuid `1ff7afa1…`）。
+  - (2) 機械照合: Content Directory は 240 file。`Spring_AtmosphereVFX`（guid `a694d1cd…`）と `Spring_VFX_4_2`（guid `76e4fa01…`）は、どちらも build receipt の `checkedRootGuids`（BuildReport で照合した root）に入り、content の metadata json と bundle（`.cf`）に GUID と名前で出現する。**合格。**
+  - (3) Player の起動: 04:50:30 に起動した。約 10 秒後、Player は自分から終了した。`Player.log` は Direct3D 11・RTX 2070 SUPER。`Exception` は 0 件、`Debug:LogError` は 0 件。URP の post-process shader が stripping されたという警告が 4 件ある。Season・Cell の `OnStabledImpl` と `Player ready at Cell stream spawn` は 0 件。smoke receipt は `succeeded: true`・`stage: completed`（`ui-common-ready` → `first-scene-stable` → fixture 5 段 → `first-scene-unloaded` → `content-directory-closed`）。**Spring `(0,4)` の Stable には達していない。** スクリーンショットは撮っていない。
+  - 切り分け: 実装欠陥ではない。BS4 Player は、固定 config の `firstScene`（`Title`）が Stable になると content probe（`PlayerContentSmoke`）を実行し、first scene を unload して `Application.Quit(0)` する smoke 用の Player である（`AppInitializer.OnPlayerContentShutdownCompletedAsync`）。InGame の Spring へは遷移しない。§1.3 の「Player は固定 config の `firstScene` から InGame の Spring を始め」は事実と食い違う。凍結した手順 (3)・(5) と期待値「画像に Atmosphere の粒子が写る」は、この Player では観測点が無い。§5 の不成立時の対応に従って人間に返す。
+  - (4) の evidence: 生の `Player.log`、content の照合結果、smoke receipt は、進行役の共有ノートに置いた（git 管理外、`evidence stage` はしていない）。画像は無い。
+  - 後始末: 両方の worktree で、Editor が消した `MobileDependencyResolver` の `.pdb.meta` 5 件を戻し、build が残した未追跡の空フォルダの `.meta`（`OneStarMakerGenerated`、2 回目は `Resources/BS4`・`StreamingAssets` も）を消した。`ProjectSettings.asset` は build の後に元へ戻っていた。2 つの Editor は正常に終了させた（2 回目は build の後処理の busy が終わってから、もう一度終了を要求した）。2 回目の worktree は `87daa97c` で clean のまま、Player と artifacts とともに残してある（次の判断まで消さない）。`artifacts/` は git 管理外。
+
 ### 決定記録
 
 - **D4（版 1、2026-10-27、発注者）:** 判定 C の全回帰で、結果 XML（1320 件全 passed）と unity.log が書き終わった後に Unity が既知の native 終了 stall の症状（CPU 時間が増え続けて終了しない）になった。`tools/Harness/README.md` の stall の節の「強制終了した取得は成功証拠にしない」と、osm-workflow Skill の「結果 XML が完成していればログ末尾と XML で判定する」が衝突した。発注者は (a)「この run の PID だけを強制終了し、完成済みの XML で判定する」を裁定した（原文「(a) で進めて」、進行役経由）。強制終了の事実と生の結果は書き換えずに記録し、stall の原因調査はしない。どの凍結条件の意味・合否も変えない。
+- **D5（版 1、2026-10-27、発注者）:** AC7 の 1 回目は、checkout のルート（98 文字）と transport の staging のディレクトリ名のために生成物の path が 261 文字になり、Mono が開けずに失敗した（§7「AC7 の取得」）。スライスの差分は build と transport に触れていないので、基盤の不成立とした。発注者は (1)「ルートの短い checkout で AC7 を 1 回だけ取り直す」を裁定した（原文「(1) で進めて」、進行役経由）。主 checkout と既存の他の worktree は使わない。staging の path の修正は別スライスの候補として扱い、d3 では直さない。凍結した手順と期待値の意味・合否は変えない。
 
 ## 8. Phase C'
 
