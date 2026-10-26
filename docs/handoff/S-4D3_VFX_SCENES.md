@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `Phase B 完了`（2026-10-26。A3 凍結は同日。U1 は (b)、U2〜U6 はレビュー側の推奨で発注者が裁定し、凍結を承認した）
+- status: `C`（発見 C 第2巡で F4 解消・阻害する指摘 0。履歴整理の後、GO 候補 head `87daa97c` で判定 C 待ち。§7）。経緯: 差し戻し 2 巡目（2/4）で F4 を修正。発見 C 第1巡で F1〜F3 は解消、新しい阻害する指摘 1 件（F4）。 発見 C 第0巡で阻害する指摘 3 件 → 差し戻し 1 巡目で修正。 Phase B 完了（2026-10-26。A3 凍結は同日。U1 は (b)、U2〜U6 はレビュー側の推奨で発注者が裁定し、凍結を承認した）
 - branch: `claude/s-4d3-vfx-scenes`
 - implementation base commit: `6667f88f`（`develop`、PR #143（S-4d2）のマージ）
 - risk: `high`（Scene・SceneResource・Addressables の生成、Scene の寿命と Season の子の LoadType、Player build への収録）
@@ -18,7 +18,33 @@
 - Phase B result snapshot の取得案内・状態: ブランチ `claude/s-4d3-vfx-scenes` のローカル commit（Phase B 完了 commit。SHA は commit の後に引継ぎ票で渡す）。未 push
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: Phase B 完了（§6）。Unity テスト・Build は未実行（Phase C）。動作確認は対象なし。次の担当は発見 C（起点 filter は §5、収録の確認の注意は §6「引継ぎ」）。Phase B 完了 commit の SHA と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない（この worktree に残る未追跡の `docs/handoff/DEBUGSTUDIO_S2_CUT_PLAN.md` は別作業の文書で、発注者の判断で本 task の dirty に数えない）。Phase A の引継ぎ: 凍結版 `a7ff035a`
+- 引継ぎ票（発見 C 第2巡 → 判定 C）:
+  - 前の Phase の結果: 発見 C 第2巡が完了（implementation head `adf23ebd`、§7「発見 C 第2巡」）。起点 filter の実行は 170 件中 passed 170・failed 0。F4 は解消（DebugSocket の接続失敗の warning 0 件）。阻害する指摘 0、後続へ移送する指摘 0。
+  - 次の Phase・役割: **判定 C（別 session）**。GO 候補 head `87daa97c`（下記の履歴整理の後の implementation head）で §5 の判定必須テスト（`pwsh tools/run-tests.ps1 -WithGraphics`、空 filter の全 EditMode 回帰）、機械検査、AC7（Player、高コスト証拠。§5 の手順と最終証拠ラウンドの順）を行う。発見 C の所見は C' へ渡さない。
+  - 巡のカウント: B と発見 C の間で 2/4（上限 4）。
+  - 引き継ぐ commit: branch `claude/s-4d3-vfx-scenes` の先頭（この HANDOFF だけを変える記録用 commit）。implementation head は `87daa97c`、implementation base は `6667f88f`。
+  - 判定 C の前の履歴整理（2026-10-27、発注者の指示）: A3 凍結 `a7ff035a` の後の未公開の 8 commit（Phase B・差し戻し 2 巡・発見 C 3 巡の記録）を、実装 1 commit `87daa97c`（親 `a7ff035a`）と、この HANDOFF の記録 1 commit にまとめた。`87daa97c` の tree は HANDOFF 以外が発見 C 第2巡の対象 `adf23ebd` と完全に一致する（`git diff 87daa97c adf23ebd` が HANDOFF だけ）ので、第2巡の結果はそのまま `87daa97c` に当てはまる。`87daa97c` の HANDOFF は Phase B 完了時（§6 まで）の版。§6・§7 に出てくる整理前の SHA（`0bb0c46d`・`f264cd6e`・`adf23ebd` 等）は各巡の記録として残し、ローカルの退避 branch `s-4d3-pre-squash-backup` から到達できる（判定 evidence を取った head ではないので tag にはしない。Phase D の後始末で消す）。未 push（同じ PC のローカル SHA で照合する）。作業ツリーは、別作業の未追跡 `docs/handoff/DEBUGSTUDIO_S2_CUT_PLAN.md` を除き clean。Editor は終了済み。
+- 引継ぎ票（以前: Phase B 差し戻し 2 巡目 → 発見 C 第2巡。経緯として残す）:
+  - 前の Phase の結果: Phase B 差し戻し 2 巡目が完了（§7「Phase B 差し戻し 2 巡目」）。F4 はテストの起動条件の B 適応で直した（`VfxPlayTestFixture` が Play の間だけ DebugSocket を無効にする。Framework の変更なし）。Phase A 再開に当たる事実は無い。Editor のコンパイル確認は errors 0、`contract-audit` errors 0、`docs-audit` errors 0。Unity テストは未実行（発見 C の責任）。
+  - 次の Phase・役割: **発見 C 第2巡（別 session）**。修正 head に対して §7 第0巡と同じコマンド（`-WithGraphics`）を DebugStudio を起動していない環境で実行し、F4 の解消（failed 0、描画テストの本体が DebugSocket の warning を拾わない）と回帰を確かめる。全回帰・Player は判定 C まで回さない。
+  - 巡のカウント: B と発見 C の間で 2/4（上限 4）。
+  - 引き継ぐ commit: branch `claude/s-4d3-vfx-scenes` の先頭（この HANDOFF とテスト 1 ファイルを変える差し戻し 2 巡目の commit。implementation head はこの commit）。implementation base は `6667f88f`。未 push（同じ PC のローカル SHA で照合する）。作業ツリーは、別作業の未追跡 `docs/handoff/DEBUGSTUDIO_S2_CUT_PLAN.md` を除き clean。Editor は終了済み。
+- 引継ぎ票（以前: 発見 C 第1巡 → Phase B 差し戻し 2 巡目。経緯として残す）:
+  - 前の Phase の結果: 発見 C 第1巡が完了（implementation head `f264cd6e`、§7「発見 C 第1巡」）。起点 filter の実行は 170 件中 passed 169・failed 1。F1〜F3 は解消（実 Scene の 4 件は全て passed、AC4 (b) の bounds 包含も観測）。残る 1 件は新しい阻害する指摘 F4（DebugSocket の接続失敗の warning が長い描画テストの本体に混ざり `LogAssert.NoUnexpectedReceived` で落ちる。B 適応）。
+  - 次の Phase・役割: **Phase B（差し戻し 2 巡目 = 2/4、別 session）**。B の入力はこの HANDOFF（§7 F4）だけ。直す対象は F4。B 適応で足り、Phase A の再開に当たる事実が出たら止めて返す。Unity テストの限定確認は次の発見 C 側の session が行う（B は Editor のコンパイル確認まで）。
+  - 巡のカウント: B と発見 C の間で 2/4（上限 4）。
+  - 引き継ぐ commit: branch `claude/s-4d3-vfx-scenes` の先頭（この HANDOFF だけを変える発見 C 第1巡の記録用 commit）。implementation head は `f264cd6e`、implementation base は `6667f88f`。未 push（同じ PC のローカル SHA で照合する）。作業ツリーは、別作業の未追跡 `docs/handoff/DEBUGSTUDIO_S2_CUT_PLAN.md` を除き clean。Editor は終了済み。
+- 引継ぎ票（以前: Phase B 差し戻し 1 巡目 → 発見 C 第1巡。経緯として残す）:
+  - 前の Phase の結果: Phase B 差し戻し 1 巡目が完了（§7「Phase B 差し戻し 1 巡目」）。F1 は `.vfx` の culling の authoring（B 適応）と特定して直し、F2・F3 はテストの B 適応で直した。Phase A 再開に当たる事実は無い。Editor のコンパイル確認は errors 0、`contract-audit` errors 0、`docs-audit` errors 0。Unity テストは未実行（発見 C の責任）。
+  - 次の Phase・役割: **発見 C 第1巡（別 session）**。修正 head に対して §7 第0巡の末尾のコマンド（起点 filter + 名前空間 2 つ、`-WithGraphics`）を実行し、F1〜F3 の解消と回帰を確かめる。全回帰・Player は判定 C まで回さない。
+  - 巡のカウント: B と発見 C の間で 1/4（上限 4）。
+  - 引き継ぐ commit: branch `claude/s-4d3-vfx-scenes` の先頭（この HANDOFF だけを変える記録用 commit）。implementation head は `f264cd6e`（親は第0巡の記録 commit `09a203ab`）、implementation base は `6667f88f`。未 push（同じ PC のローカル SHA で照合する）。作業ツリーは、別作業の未追跡 `docs/handoff/DEBUGSTUDIO_S2_CUT_PLAN.md` を除き clean。Editor は終了済み。
+- 引継ぎ票（以前: 発見 C 第0巡 → Phase B 差し戻し 1 巡目。経緯として残す）:
+  - 前の Phase の結果: 発見 C 第0巡が完了（base `6667f88f` → implementation head `0bb0c46d`、§7）。起点 filter の実行は 170 件中 failed 5。5 件とも本スライスの Play 中テストで、阻害する指摘 3 件（§7 の F1〜F3）。
+  - 次の Phase・役割: **Phase B（差し戻し 1 巡目 = 1/4、別 session）**。B の入力はこの HANDOFF（§7）だけ。直す対象は §7 の F1〜F3。B 適応で足りるものは修正し、Phase A の再開に当たる事実（§4 の差し戻し条件、AC・公開面の変更）が出たら止めて返す。F1 はスパイクの範囲と終了条件が §7 にある。Unity テストの限定確認は発見 C 側の session が行う（B は Editor のコンパイル確認まで）。
+  - 巡のカウント: B と発見 C の間で 1/4（上限 4）。
+  - 引き継ぐ commit: branch `claude/s-4d3-vfx-scenes` の先頭（発見 C 第0巡の記録用 commit。implementation head `0bb0c46d` の後で、HANDOFF だけを変える）。implementation base は `6667f88f`。未 push（同じ PC のローカル SHA で照合する）。作業ツリーは、別作業の未追跡 `docs/handoff/DEBUGSTUDIO_S2_CUT_PLAN.md` を除き clean にする。
+  - （以下は発見 C 第0巡の前の記録。経緯として残す）Phase B 完了（§6）。Unity テスト・Build は未実行だった。動作確認は対象なし。Phase B 完了 commit `0bb0c46d`（その子の HANDOFF だけの commit は引継ぎの記録で、実装差分を変えない）、Phase A の凍結版は `a7ff035a`。Unity は起動後にライセンス確認のダイアログで止まることがあり、その場合は computer use で閉じてよい（発注者の許可、2026-10-26）。閉じられなければ進行役に伝える。
 
 ## 1. 目的と対象外（A0）
 
@@ -363,7 +389,103 @@ Architecture §24 §16.6 に「実 Scene での確認（Atmosphere / Cell VFX、
 
 ## 7. Phase C
 
-未着手。
+### 発見 C 第0巡（Phase B の差し戻し前）
+
+- 種別・対象: 発見 C 第0巡（GO 判定ではない）。implementation base `6667f88f` → head `0bb0c46d`。作業ツリーは HANDOFF だけが異なる子 commit `02fd0263` で、未追跡の `DEBUGSTUDIO_S2_CUT_PLAN.md` 以外は clean だった。
+- 担当・モデル: Claude Code（Anthropic、Claude Sonnet 系列）。C' 用の xAI 系列は未使用。
+- 構造適合: 差分は §4 の変更対象に閉じる。`unity/Assets/OneStarMaker/` と `*.asmdef` の差分は 0（`git diff --name-only`）。`contract-audit` errors 0 / warnings 0、`docs-audit` errors 0（警告 1 件は §7/§8 の「未着手」を埋まりと数える既存の判定）。`GameSceneFactory` の分類順（Cell companion → Atmosphere）、`SeasonAtmosphereVfxScene` の ctor 検査、Preflight の種類別の親検査、journal の `creationKind`（未知の値は corrupt）は §2.3・§3.1 のとおり。
+- 実行したコマンド: `pwsh tools/run-tests.ps1 -WithGraphics -Filter "SampleGame.Tests.Rendering.Vfx;SampleGame.Tests.Editor.WorldAuthoring;SampleGame.Tests.App;SampleGame.Tests.Streaming;OneStarMaker.Tests.Editor.WorldAuthoring;OneStarMaker.Tests.SampleGame"`（§5 の起点 filter に、§6 引継ぎが注意した実際の名前空間 2 つを足した。受け入れ条件の追加ではない）。環境: Direct3D11、`supportsComputeShaders=True`、`maxComputeBufferInputsVertex=128`、Linear。
+- 結果: 170 件中 passed 165・failed 5・Inconclusive 0・Skipped 0。通ったもの: `VfxSceneStructureTests`（AC1・AC2）、`PlacedVfxAuthoringTests`（AC3）、AC10 の追加ケース、`GameSceneFactoryTests`（分類）、`SessionCellCompanionLoadDriverTests`（AC4 (d)）、`SessionSeasonControllerTests`（AC6 (c)）、既存の WorldAuthoring / Streaming / App のテスト。結果 XML・ログは git 管理外の `TestResults/` 配下（`evidence stage` はしていない。ローカル path は転記しない）。
+- native 終了 stall: Unity の終了コードが 2 だった。AGENTS.md の既知 native 終了 stall として扱い、調査はしていない。追加の調査はしない。
+- 作業ツリーの扱い: Editor が `unity/Assets/MobileDependencyResolver/` の `.pdb.meta` 5 件を削除したので `git checkout` で戻した（本スライスと無関係。§6 と同じ）。
+
+**阻害する指摘（凍結済み条件への違反）**
+
+| ID | 違反する条件 | 一次証拠 | 新しい事実の分類 |
+|---|---|---|---|
+| F1 | AC4 (a)(b)・S3（Supported の実 Scene で粒子が出る） | `VfxScenePlayTests.Supported_SeasonAndCellVfxScenes_EnableAndEmit`: Atmosphere の `VisualEffect` は有効になったが、`ParticleFrameLimit`（6000）内に `HasAnySystemAwake() \|\| aliveParticleCount > 0` が成り立たず `:173` で失敗。Cell VFX と bounds の検査（AC4 (b)・AC2 の R5）には到達していない | **スパイク**（原因が未確認。下記） |
+| F2 | AC5・AC6 (a)(b)（I1・I4 の判定が成立しない） | `VfxScenePlayTests` の `Unsupported_…`・`Undetermined_…`・`ParentUnload_…` の 3 件: テスト本体の観測は出力済みで期待どおり（`enabled=0`、`consoleLogsDuringLoad=0`、unload 後の GameObject 0）だが、3 件とも TearDown で `NullReferenceException`（`EditModePcHelper.SetEnumeratorPC`）になり failed | **B 適応**（テストの後始末の実装。凍結条件の意味は変えない） |
+| F3 | AC4 (c)・AC5（D1 の前提条件「判定時にロード済みの全 Scene で有効な `Renderer` が対象の `VFXRenderer` だけ」） | `VfxSceneRenderPlayTests.RenderFixture_…`: 前提条件で `otherEnabledRenderers` が `Assets/OneStarMaker/Scenes/UISystem/UIScene.unity:UIPanel` を 1 件含み失敗。計測（画素）には到達していない | **B 適応**（下記） |
+
+**各指摘の詳細と B への指示**
+
+- **F1（スパイク）**
+  - 事実: 有効化は成立（`enabled` の assert は通過）。粒子の活動だけが出ない。`.vfx` は Simple Loop template から作り、各 System を Manual・Local にしただけ（§6）で、Editor で再生した観測は無い。
+  - 未確認: (1) Edit Mode の Play・Game view が描画しない状況で `HasAnySystemAwake()` / `aliveParticleCount` が進まないだけか（d2 の `VfxPlayTestFixture` の前例はこの観測で粒子を確認している）。(2) 実 Scene の `VisualEffect` の位置・scale・Manual bounds が原因で、粒子が culling されるか。(3) template の spawn が Loop・Rate で始まっていないか（initial event、`PlacedVfxActivator` による有効化のタイミングで event が送られているか）。
+  - 確認する範囲: B は、F3 を先に直して専用 Scene で同じ `.vfx` が画素を出すかを見る（Phase C の限定実行の対象。B は Editor のコンパイル確認まで）ことを前提に、(a) `.vfx` を Editor で開いて spawn の設定を確認する、(b) 粒子の観測を d2 の前例と同じ方法に揃える、の 2 点までを行う。
+  - 終了条件: 原因が (i) 観測方法（テストの B 適応）、(ii) `.vfx` の authoring（`.vfx` の修正は B 適応。Manual bounds・配置の修正を含む）のどちらかに特定できれば B 適応として直す。(iii) AC の前提（例: Edit Mode の Play で実 Scene の粒子を観測できない）が成り立たないと分かった場合は、観測した事実を書いて Phase A 再開として人間に返す。**1 回の診断で特定できなければ止めて返す**（診断の反復はしない）。
+- **F2（B 適応）**
+  - 事実: この fixture だけが、基底の `VfxPlayTestFixture.ExitPlayModeAndRestore`（`ExitPlayMode`、ドメイン再読込を伴う）に加えて、派生に `[UnityTearDown] UnloadTestScenes` を持つ。TearDown の NRE は `VfxScenePlayTests` の 4 件の失敗のうち 3 件に出ている。`VfxSceneRenderPlayTests` は派生の TearDown を持たず、この NRE は出ていない。
+  - 仮説（未確認）: `ExitPlayMode` をまたぐと 2 つ目の TearDown が再開できない。基底に後始末の仮想フックを足す（TearDown を 1 つにまとめる）か、test の director の後始末を各テストの末尾（`finally`）へ移す。
+  - 直す際の注意: AC6 の観測語（unload 後に `go.scene` の一致する GameObject が 0）と上限フレーム数は変えない。unload のフレーム数が 0 だったのは `UnloadScene` の await が完了まで待つためで不自然ではないが、`CountObjectsIn == 0` の assert が実際に走っていることを直した後のログで確かめる。
+- **F3（B 適応。条件の意味は変えない）**
+  - 判断: 凍結条件は「判定時にロード済みの全 Scene で有効な `Renderer` が対象の `VFXRenderer` だけ」で、文言はそのまま満たせる。アプリ起動で載る UICommon の `UIPanel` を、テストが計測の間だけ無効にし、後で元に戻せば満たせる（前提条件の assert は変えず、assert の前に他の Renderer を無効にする）。条件の意味は変わらないので Phase A 再開にしない。
+  - 直す際の注意: 無効にした Renderer の一覧（Scene・名前）をログに出し、`finally` で元の `enabled` に戻す。無効にできない Renderer（対象の VFX 以外が計測に入る別の経路）が残る場合は、事実を書いて止める（その場合は条件の意味に関わるので Phase A 再開の判断を人間に返す）。
+
+- 後続スライスへ移送する指摘: なし。
+- 未確認(第0巡の範囲外): AC7（Player）、全 EditMode 回帰、`Planner` / `Lighting` profile の実機確認は判定 C まで未実施。F1 が解消するまで AC4 (b) の Cell VFX の bounds 包含（R5）は未観測。
+- 次の発見 C は、B の修正 head に対して §5 の起点 filter（上のコマンド）を `-WithGraphics` で実行し、F1〜F3 の解消と他のテストの回帰を確認する（全回帰・Player は判定 C まで回さない）。
+
+### Phase B 差し戻し 1 巡目（1/4）
+
+- 対象: base `09a203ab`（第0巡の記録 commit）→ implementation head `f264cd6e`。変更は 4 ファイル（2 つの `.vfx` の各 1 行、`VfxScenePlayTests.cs`、`VfxSceneRenderPlayTests.cs`）。§4 の変更対象の中で、Framework・asmdef・本番 Scene・`SceneResource`・Addressables の差分は無い。
+- 実行したもの: Editor のコンパイル確認（errors 0。新しいメンバーが読み込まれたことを reflection で確認）、`contract-audit` errors 0 / warnings 0、`docs-audit` errors 0（警告 1 件は既存の §7/§8 の判定）。実行していないもの: Unity テスト（`run-tests.ps1`）。発見 C 第1巡で確かめる。Editor が `MobileDependencyResolver` の `.pdb.meta` 5 件を消したので戻した（§6 と同じ）。
+- **F1（スパイク → B 適応 (ii) `.vfx` の authoring と特定）:**
+  - 診断（1 回）: (a) Editor で 2 つの `.vfx` の設定を読み、d2 の fixture（`VfxImmortal.vfx`、`VfxShortLived.vfx`）と比べた。spawn・initial event（`OnPlay`）・system の構成は同じで、違いは culling・bounds の mode と空間・`reapParticles` だけだった。culling は d2 の fixture が `CullNone`（`m_CullingFlags: 0`、常に simulate）、新しい 2 つは template の既定 `CullDefault`（`3`、見えているときだけ bounds の計算と simulate）。(b) d2 の前例の観測（カメラ無しで `aliveParticleCount` を待つ）は `CullNone` の asset が前提だった。AC4 (a)(b) の実 Scene には VFX を見るカメラが無く（Atmosphere は (125, 0, 1135)）、`CullDefault` では system が起きない。§7 第0巡の「有効化は成り立つが粒子だけが出ない」と合う。
+  - 修正: 2 つの `.vfx` の culling を `CullNone` にした（Editor の `VisualEffectResource.cullingFlags`。YAML は手で編集していない。他の設定は変えていない）。Cell の常駐中・季節中ずっと続く環境エフェクトなので、カメラが向いていない間も simulate を続け、カメラが向いたときに粒子が空から出直さない、という authoring の判断。観測の方法は d2 の前例のまま（テストは変えていない）。画面外でも simulate するコストは、program の同時数・culling の範囲（S-9、§2.4）の入力にする。
+  - 未確認: これは静的な診断で、粒子が出ることは発見 C 第1巡の実行で確かめる。これで出なければ、§7 F1 の終了条件どおり、観測した事実を書いて Phase A 再開として人間に返す（B で再診断しない）。
+- **F2（B 適応）:** `VfxScenePlayTests` の派生の `[UnityTearDown]` を消し、test の director の後始末を各テストの本体の直後（`WithTestScenesAsync` の `finally`）に移した。TearDown は基底の `ExitPlayModeAndRestore` の 1 つだけになる。観測語・期待値・上限フレーム数は変えていない。AC6 のログに unload 後の GameObject の件数（`cellVfxObjects`・`atmosphereObjects`）を足したので、`CountObjectsIn == 0` の assert が走ったことを発見 C がログで確かめられる。
+- **F3（B 適応）:** `VfxSceneRenderPlayTests` は、計測の間だけ専用 Scene の外の有効な `Renderer`（UICommon の `UIPanel` 等）を無効にし（`disabledOutsideFixture=` で Scene・名前をログに出す）、`finally` で元に戻す。前提条件の assert（有効な `Renderer` が対象だけ）は変えていない。専用 Scene の中の Renderer は無効にしないので、fixture の欠陥は従来どおり前提条件で失敗する。無効にしても他の Renderer が残れば同じ assert で失敗し、§7 F3 の「止めて返す」に当たる。
+
+### 発見 C 第1巡（差し戻し 1 巡目の修正の確認）
+
+- 種別・対象: 発見 C 第1巡（GO 判定ではない）。implementation base `6667f88f` → head `f264cd6e`（差し戻し 1 巡目の差分は `09a203ab..f264cd6e` の 4 ファイル）。作業ツリーは HANDOFF だけが異なる子 commit `4d687048` で、未追跡の `DEBUGSTUDIO_S2_CUT_PLAN.md` 以外は clean だった。
+- 担当・モデル: Claude Code（Anthropic、Claude Opus 系列）。C' 用の xAI 系列は未使用。
+- 構造適合: 差し戻し 1 巡目の差分は §7 の記録どおり（2 つの `.vfx` の `m_CullingFlags` 3 → 0 の各 1 行、テスト 2 ファイル）。`unity/Assets/OneStarMaker/` と `*.asmdef` の差分は base から 0。`contract-audit` errors 0 / warnings 0。F2 の修正（`WithTestScenesAsync` の `finally` で後始末）と F3 の修正（専用 Scene の外の Renderer を計測の間だけ無効にし `finally` で戻す、`!= null` で偽 null を考慮）は前提条件の assert・観測語・上限フレーム数を変えていない。
+- 実行したコマンド: §7 第0巡と同じ（`pwsh tools/run-tests.ps1 -WithGraphics -Filter "SampleGame.Tests.Rendering.Vfx;SampleGame.Tests.Editor.WorldAuthoring;SampleGame.Tests.App;SampleGame.Tests.Streaming;OneStarMaker.Tests.Editor.WorldAuthoring;OneStarMaker.Tests.SampleGame"`）。環境: Direct3D11、`supportsComputeShaders=True`、`maxComputeBufferInputsVertex=128`、Linear。DebugStudio のサーバーは起動していない（第0巡と同じ）。
+- 結果: 170 件中 passed 169・failed 1・Inconclusive 0・Skipped 0。`SampleGame.Tests.Rendering.Vfx` の収録は 44 件。結果 XML・ログは git 管理外の `TestResults/` 配下（`evidence stage` はしていない）。
+- **F1 解消:** `Supported_SeasonAndCellVfxScenes_EnableAndEmit` が passed。Atmosphere・Cell VFX とも `effects=1`、`activeFrame=2`（上限 6000）で `HasAnySystemAwake() || aliveParticleCount > 0` が成立（その時点の `alive=0`。AC4 (a) の条件は OR なので合格）。AC4 (b) の bounds 包含（R5）を初めて観測: `cellVfxBounds center=(1125, 20, 625) size=(70, 32, 70)`（寸法 0 でない）が `cellVolume center=(1125, 24.5, 625) size=(245, 49, 245)` に含まれる。
+- **F2 解消:** `Unsupported_…`・`Undetermined_…`・`ParentUnload_…` が passed（TearDown の NRE なし）。AC5 の実 Scene は両 capability で `enabled=0`、`consoleLogsDuringLoad=0`。AC6 のログ `cellUnloadFrames=0 cellVfxObjects=0 atmosphereObjects=1`、`seasonUnloadFrames=0 atmosphereObjects=0` で、`CountObjectsIn == 0` の assert が走ったことを確認した。
+- **F3 解消:** `VfxSceneRenderPlayTests` の 4 回の計測すべてで `disabledOutsideFixture=1 [Assets/OneStarMaker/Scenes/UISystem/UIScene.unity:UIPanel]`、`precondition otherEnabledRenderers=0`。陽性は Atmosphere・Cell とも `litPixels=4`（閾値 4、`alive=1`）、陰性は両方 `litPixels=0`（`frame=600`）。画素の判定はすべて期待どおりで、テストは下の F4 だけで落ちた。
+- native 終了 stall: Unity の終了コードが 2。既知 native 終了 stall として扱い、調査はしていない。
+- 作業ツリーの扱い: Editor が `MobileDependencyResolver` の `.pdb.meta` 5 件を削除したので `git checkout` で戻した（§6 と同じ）。
+
+**阻害する指摘（凍結済み条件への違反）**
+
+| ID | 違反する条件 | 一次証拠 | 新しい事実の分類 |
+|---|---|---|---|
+| F4 | AC4 (c)・AC5（`LogAssert.NoUnexpectedReceived`。判定 C の failed 0） | `VfxSceneRenderPlayTests.RenderFixture_SupportedDrawsVfx_UnsupportedNewInstanceDrawsNothing`: 本体末尾の `LogAssert.NoUnexpectedReceived()` が `[Warning] [DebugSocket] Failed to connect to DebugStudio server. endpoint=ws://127.0.0.1:5011/debugsocket/ …` で失敗。warning は陰性側の計測中（Atmosphere の 600 フレームの間）に出ている | **B 適応**（テストの起動条件。凍結条件の意味は変えない） |
+
+- **F4 の詳細と B への指示**
+  - 事実: アプリの起動（`AppInit`）は DebugSocket を `mode=Connect`・`autoStart=True` で始め、DebugStudio のサーバーが無いと `DebugSocketTransportHost.ConnectLoopAsync`（`:176`）が接続失敗の warning を出す（以後 2 秒ごとに再接続）。warning は Play の開始から数秒後に非同期で届き、unity.log では Play session ごとに 1 回出ている。`VfxPlayTestFixture` の起動待ち（`IsSceneLifecycleBound`）のコメントは「接続が見えた時点で起動のログは出終わっている」と仮定しているが、接続失敗の warning はこの仮定の外にある。本体が約 3 秒の他の Play テストは warning の前に終わって通り、本体が約 6.7 秒の描画テストだけが拾った。第0巡では描画テストが前提条件で先に落ちていたので表に出なかった。DebugStudio の有無とタイミングに依存するので、他の Play テスト（d2 の `VfxGraphBackendPlayTests`、AC5 の `consoleLogsDuringLoad`）も同じ原因で揺れうる。
+  - 直す範囲: テスト側（`VfxPlayTestFixture` を含む）で、Play テストの本体に DebugSocket の接続のログが混ざらないようにする。方法は B が選ぶ（例: テストの Play では DebugSocket を開始しない構成にする、等）。AC5 の `LogAssert.NoUnexpectedReceived` と console ログ件数 0 の条件は弱めない（`LogAssert.ignoreFailingMessages` や、このテストだけ assert を外す・無条件の `LogAssert.Expect` で吸う形は条件の意味を変えるので不可）。Framework（`unity/Assets/OneStarMaker/`）の変更が必要になる場合は止めて返す。
+  - 確認の観点（次の発見 C）: 同じ起点 filter で failed 0。DebugStudio を起動していない環境で、描画テストの本体が warning を拾わないこと。
+
+- 後続スライスへ移送する指摘: なし。
+- 未確認(第1巡の範囲外): AC7（Player）、全 EditMode 回帰、`Planner` / `Lighting` profile の実機確認は判定 C まで未実施。
+- 次の発見 C は、B の修正 head に対して同じコマンドを `-WithGraphics` で実行し、F4 の解消と回帰を確認する（全回帰・Player は判定 C まで回さない）。
+
+### Phase B 差し戻し 2 巡目（2/4）
+
+- 対象: base `be1b9ad9`（第1巡の記録 commit）→ implementation head（この巡の commit。SHA は §0 の引継ぎ票の照合で使う）。実装の変更は `VfxPlayTestFixture.cs` の 1 ファイル。Framework・asmdef・本番 Scene・`SceneResource`・Addressables・`app-config.json` の差分は無い。
+- 実行したもの: Editor のコンパイル確認（`scriptCompilationFailed=False`、新しい定数が読み込まれたことを reflection で確認）、`contract-audit` errors 0 / warnings 0、`docs-audit` errors 0。実行していないもの: Unity テスト（`run-tests.ps1`）。発見 C 第2巡で確かめる。Editor が `MobileDependencyResolver` の `.pdb.meta` 5 件を消したので戻した（§6 と同じ）。自分で起動した Editor は、コンパイル確認の後に `EditorApplication.Exit(0)` を呼んでも 7 分以上 process が残ったので、既知の native 終了 stall として調査せず、その PID だけを強制終了し、残った `unity/Temp/UnityLockfile` を消した（他の Unity process は無い）。
+- **F4（B 適応。テストの起動条件）:** `VfxPlayTestFixture` の SetUp が、Play に入る前に環境変数 `SAMPLEGAME_DEBUGSOCKET__ENABLED=false` を設定し、TearDown の `finally` で元の値に戻す（`SAMPLEGAME_CONTENT__RUNTIMEMODE` と同じ扱い）。`AppConfig` は環境変数を config file より優先するので、この Play では `CreateDebugSocketService` が service を作らず、接続ループ（`ConnectLoopAsync`）とその warning が発生しない。無効のときに出る起動の warning 2 件（BeforeSceneLoad の `[AppInit] DebugSocket disabled.` と AfterSceneLoad の `[AppInit] DebugSocket は無効です。`）は、どちらも Scene lifecycle への接続（`BindSceneLifecycle`）より前に同期で出るので、SetUp の起動待ちの中で出終わり、本体には入らない。
+  - 条件の扱い: `LogAssert.NoUnexpectedReceived`・AC5 の console ログ件数 0 は変えていない（`ignoreFailingMessages`・`LogAssert.Expect` は使っていない）。VFX の Play テストは DebugSocket を使わないので、観測の対象は変わらない。fixture を共有する d2 の `VfxGraphBackendPlayTests`・`VfxGraphRenderPlayTests` も同じ条件で起動するようになり、§7 F4 が指摘した DebugStudio の有無とタイミングへの依存がまとめて無くなる。
+  - 未確認: 静的な確認だけ。描画テストの本体が warning を拾わないこと・failed 0 は発見 C 第2巡の実行で確かめる。
+
+### 発見 C 第2巡（差し戻し 2 巡目の修正の確認）
+
+- 種別・対象: 発見 C 第2巡（GO 判定ではない）。implementation base `6667f88f` → head `adf23ebd`（差し戻し 2 巡目の差分は `be1b9ad9..adf23ebd` の HANDOFF とテスト 1 ファイル）。作業ツリーは未追跡の `DEBUGSTUDIO_S2_CUT_PLAN.md` 以外は clean だった。
+- 担当・モデル: Claude Code（Anthropic、Claude Opus 系列）。C' 用の xAI 系列は未使用。
+- 構造適合: 差分は §7「Phase B 差し戻し 2 巡目」の記録どおり（`VfxPlayTestFixture.cs` だけ。SetUp で `SAMPLEGAME_DEBUGSOCKET__ENABLED=false` を設定し、TearDown の `finally` で元に戻す。`SAMPLEGAME_` は `AppInitializer.GetEnvironmentVariablePrefix` と一致）。`LogAssert` の assert・観測語・上限フレーム数は変えていない（`ignoreFailingMessages`・`LogAssert.Expect` の追加なし）。`unity/Assets/OneStarMaker/` と `*.asmdef` の差分は base から 0。`contract-audit` errors 0 / warnings 0。
+- 実行したコマンド: §7 第0巡と同じ（`pwsh tools/run-tests.ps1 -WithGraphics -Filter "SampleGame.Tests.Rendering.Vfx;SampleGame.Tests.Editor.WorldAuthoring;SampleGame.Tests.App;SampleGame.Tests.Streaming;OneStarMaker.Tests.Editor.WorldAuthoring;OneStarMaker.Tests.SampleGame"`）。環境: Direct3D11、`supportsComputeShaders=True`、`maxComputeBufferInputsVertex=128`、Linear。DebugStudio は起動していない（process 無し）。
+- 結果: 170 件中 passed 170・failed 0・Inconclusive 0・Skipped 0。`SampleGame.Tests.Rendering.Vfx` の収録は 44 件。Unity の終了コードは 0（今回は native 終了 stall なし）。結果 XML・ログは git 管理外の `TestResults/` 配下（`evidence stage` はしていない）。
+- **F4 解消:** `RenderFixture_SupportedDrawsVfx_UnsupportedNewInstanceDrawsNothing` が passed。unity.log に `Failed to connect to DebugStudio server` は 0 件（第1巡は Play session ごとに 1 件）。計測は第1巡と同じ: 4 回とも `disabledOutsideFixture=1 [Assets/OneStarMaker/Scenes/UISystem/UIScene.unity:UIPanel]`、陽性 `litPixels=4`（閾値 4）、陰性 `litPixels=0`。
+- 回帰: 第1巡で通ったものは全て passed。AC4 (b) `cellVfxBounds center=(1125, 20, 625) size=(70, 32, 70)` ⊂ `cellVolume center=(1125, 24.5, 625) size=(245, 49, 245)`、AC5 `consoleLogsDuringLoad=0`（2 件）、AC6 `cellUnloadFrames=0 cellVfxObjects=0 atmosphereObjects=1`・`seasonUnloadFrames=0 atmosphereObjects=0`。d2 の `VfxGraphBackendPlayTests`・`VfxGraphRenderPlayTests` も passed。
+- 作業ツリーの扱い: Editor が `MobileDependencyResolver` の `.pdb.meta` 5 件を削除したので `git checkout` で戻した（§6 と同じ）。
+- 阻害する指摘: なし。後続スライスへ移送する指摘: なし。
+- 未確認（第2巡の範囲外）: 判定必須テスト（空 filter の全 EditMode 回帰）、AC7（Player）、`Planner` / `Lighting` profile の実機確認。判定 C で行う。
+- 次: 未解決の blocker が無いので、`adf23ebd` を GO 候補 head として判定 C へ進む。
 
 ## 8. Phase C'
 
