@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C'`（AC7 は未成立で、人間の判断待ち（§7「AC7 の取得」）。build と Content Directory の照合は合格した。BS4 Player が Title の smoke の後に終了し、Spring に達しないので、凍結した手順 (3)・(5) の観測点が無い）。経緯: 暫定 C' 1 巡目は blocker 0（§8）。経緯: 判定 C 完了（AC7 を除く、§7「判定 C」）。経緯: 発見 C 第2巡で F4 解消・阻害する指摘 0、履歴整理の後に判定 C。 差し戻し 2 巡目（2/4）で F4 を修正。発見 C 第1巡で F1〜F3 は解消、新しい阻害する指摘 1 件（F4）。 発見 C 第0巡で阻害する指摘 3 件 → 差し戻し 1 巡目で修正。 Phase B 完了（2026-10-26。A3 凍結は同日。U1 は (b)、U2〜U6 はレビュー側の推奨で発注者が裁定し、凍結を承認した）
+- status: `C`（D6 で S5・AC7 の範囲を (1)(2) に変更（発注者の例外承認）。AC7 は 2 回目の取得で合格済み。最終証拠ラウンド待ち。§7 決定記録）。経緯: AC7 の 2 回目で、BS4 Player が Spring に達しないことが分かった（D5 の後）。暫定 C' 1 巡目は blocker 0（§8）。判定 C 完了（AC7 を除く）。
 - branch: `claude/s-4d3-vfx-scenes`
 - implementation base commit: `6667f88f`（`develop`、PR #143（S-4d2）のマージ）
 - risk: `high`（Scene・SceneResource・Addressables の生成、Scene の寿命と Season の子の LoadType、Player build への収録）
@@ -18,7 +18,12 @@
 - Phase B result snapshot の取得案内・状態: ブランチ `claude/s-4d3-vfx-scenes` のローカル commit（Phase B 完了 commit。SHA は commit の後に引継ぎ票で渡す）。未 push
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格、`locality=local`）。head `87daa97c` / base `6667f88f`、判定 C（2026-10-27）が `evidence stage` し、別 process の `fetch` で期待 hash の照合・10 file の一致・XML の閲覧を確認済み。引渡し先は進行役（取得案内は共有ノート `judgment-C-evidence.md`）。担当は判定 C の session。AC7 は未収録（最終証拠ラウンドで bundle を作り直す）
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格、`locality=local`）。同じ head・base。HANDOFF を除く差分、凍結 A3 版（`a7ff035a`）と Phase B 完了時の版（`87daa97c`、§6 まで）の HANDOFF、生の XML・unity.log・step.json・実行記録（強制終了の事実だけ）、contract-audit・docs-audit を収録（11 file）。発見 C・判定 C の所見と裁定は含めない。別 process の `fetch` で hash 照合・11 file の一致・閲覧を確認済み。取得案内は同じ共有ノート
-- 引継ぎ票（AC7 の取得 → 人間の判断）:
+- 引継ぎ票（発注者の判断（D6） → 最終証拠ラウンド）:
+  - 前の Phase の結果: 発注者が D6 を裁定した（§7 決定記録）。S5・AC7 の範囲は (1) の build の成功と (2) の Content Directory への 2 Scene の収録の照合で、2 回目の取得（head `87daa97c`、§7「AC7 の取得」）で両方とも合格済み。(3)〜(5)（Player での描画）は S-9 へ移送。AC7 の追加取得はしない。
+  - 次の Phase・役割: **最終証拠ラウンド（D6 で選んだ (a)）。** (1) 判定 C の実行担当（別 session）: 判定 C の evidence bundle と C' blind bundle を、同じ head `87daa97c` から AC7 の (1)(2) の生証拠（build の出力・照合結果・Content Directory の一覧）を加えて作り直し、§0 の取得案内欄を更新する。C' blind bundle には、凍結条件の変更として D6 の本文（結論・理由・変えた条件の範囲だけ）を入れ、発見 C・判定 C の所見、D4・D5、暫定 C' の所見は入れない。全回帰はやり直さない（実装は変わらない）。判定 C の最終判定（D6 の後の S5 を含む）を記録する。(2) 最終 C'（進行役が `cursor-agent` の Grok で 1 回）: 範囲は D6 と AC7 の生証拠、暫定 C' 以降の差分（実装の差分は無い）に絞る。判定 C の最終判定と最終 C' の両方が揃うまで GO にしない。
+  - 巡のカウント: B と発見 C の間は 2/4 で確定。C' の差し戻しは 0/3。
+  - 引き継ぐ commit: branch `claude/s-4d3-vfx-scenes` の先頭（この HANDOFF だけを変える D6 の記録用 commit）。implementation head は `87daa97c`、base は `6667f88f`。未 push。2 回目の取得に使った detached worktree（`D:\osm-s4d3`、`87daa97c`、clean）と Player・artifacts は、最終証拠ラウンドの bundle の作成まで残す。Unity は起動していない。
+- 引継ぎ票（以前: AC7 の取得 → 人間の判断。経緯として残す）:
   - 前の Phase の結果: AC7 は 2 回とも未成立（§7「AC7 の取得」）。1 回目は path 長による基盤の不成立で、D5 により取り直した。2 回目は (1) の build と (2) の Content Directory の照合が合格。(3) は、BS4 Player が Title の smoke の後に `Application.Quit(0)` するため Spring `(0,4)` に達しない。§1.3 の Player の事実記述が実際と食い違う。実装欠陥ではない。
   - 次の Phase・役割: **人間（発注者）の判断。** Spring に達する Player の観測経路は凍結した手順に無い。手順・期待値を変えるなら Phase A の新しい revision、変えないなら AC7 (3)〜(5) の扱いを決定記録に残す。判断が出るまで AC7 を再実行しない。最終証拠ラウンドも開始しない。
   - 巡のカウント: B と発見 C の間は 2/4 で確定。C' の差し戻しは 0/3。
@@ -120,7 +125,7 @@
 - このスライスが答える問い: `Spring_AtmosphereVFX` と `Spring_VFX_4_2` を制作契約どおりの別 Scene として作ったとき、PC の Play で表示され、非対応環境では 1 つも有効化されず、Scene の寿命（Cell unload・Season unload）で回収され、Cell の距離ストリーミング体積を変えず、Player で Atmosphere が描画されるか。
 - 判定定義: 進める最低条件（§2.1）を全て満たせば GO。一つでも未達なら NO-GO。スパイクではないので CONDITIONAL ACCEPT は使わない。
 - 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。
-- A3 後の例外承認: なし
+- A3 後の例外承認: **D6**（§7 決定記録。2026-10-27、発注者）。S5 と AC7 の範囲を変える裁定を、Phase A の新しい revision ではなく発注者の例外として承認した。それ以外の凍結条件は変えていない
 - 決定記録（凍結前の発注者決定）:
   - **D1 描画の画素検査は専用テスト Scene で行う（2026-10-26）:** 実 Scene には地形等の他の Renderer が混じり、非黒画素の閾値は VFX の描画証拠にならない。AC4 (c)・AC5 の画素検査は、本番 2 Scene と同一の `.vfx` asset を参照する専用テスト Scene で陽性・陰性を同条件で取る。実 Scene のロード・有効化・寿命の検査（AC4 (a)(b)(d)・AC5 の有効化 0・AC6）と Player の実描画（AC7）は維持し、専用 Scene の描画成功で代替しない。
   - **D2 ParticleSystem fallback は後続へ（2026-10-26）:** d3 では実装しない。非対応・`Undetermined` 時は d2 の契約どおり `VisualEffect` を有効化せず、代替表示が無いことは d3 の失敗ではない。要否・契約・実装は後続の独立スライス（担当・時期未定。d4・d5・S-9 に決め打ちしない）。program の「作らない」を「今回作らない」に改訂する（§1.1）。d2 の「非対応では有効化しない」契約は変えない。
@@ -532,6 +537,11 @@ Architecture §24 §16.6 に「実 Scene での確認（Atmosphere / Cell VFX、
 
 - **D4（版 1、2026-10-27、発注者）:** 判定 C の全回帰で、結果 XML（1320 件全 passed）と unity.log が書き終わった後に Unity が既知の native 終了 stall の症状（CPU 時間が増え続けて終了しない）になった。`tools/Harness/README.md` の stall の節の「強制終了した取得は成功証拠にしない」と、osm-workflow Skill の「結果 XML が完成していればログ末尾と XML で判定する」が衝突した。発注者は (a)「この run の PID だけを強制終了し、完成済みの XML で判定する」を裁定した（原文「(a) で進めて」、進行役経由）。強制終了の事実と生の結果は書き換えずに記録し、stall の原因調査はしない。どの凍結条件の意味・合否も変えない。
 - **D5（版 1、2026-10-27、発注者）:** AC7 の 1 回目は、checkout のルート（98 文字）と transport の staging のディレクトリ名のために生成物の path が 261 文字になり、Mono が開けずに失敗した（§7「AC7 の取得」）。スライスの差分は build と transport に触れていないので、基盤の不成立とした。発注者は (1)「ルートの短い checkout で AC7 を 1 回だけ取り直す」を裁定した（原文「(1) で進めて」、進行役経由）。主 checkout と既存の他の worktree は使わない。staging の path の修正は別スライスの候補として扱い、d3 では直さない。凍結した手順と期待値の意味・合否は変えない。
+- **D6（版 1、2026-10-27、発注者。A3 後の例外承認）:** S5 と AC7 の範囲を変える。
+  - 結論: S5 を「BS4 Spring Player の build が成功し、Content Directory に 2 つの VFX Scene が入る」に、AC7 を §5 の手順 (1) の build と (2) の機械照合に限る。(3) Player の起動・(4) の画像の evidence・(5) 人間の画像判断（Player で Atmosphere が描画されること）は d3 の受け入れ条件から外し、**S-9** へ移送する。d2 の発注者決定（Player の描画を d3 で確かめる）はこの範囲で変える。それ以外の凍結条件（I1〜I5、S1〜S4、AC1〜AC6・AC8〜AC10、専用テスト Scene の描画の陽性・陰性）は変えない。
+  - 理由: BS4 Spring Player は content の smoke 専用で、Title の smoke の後に必ず `Application.Quit(0)` し、InGame の Spring に入らない（`AppInitializer` の BS4 Player モード。§1.3 の「Player は firstScene から InGame の Spring を始める」は誤り）。Spring まで入る Player の既存の build 経路は無い（Variant の Player build は廃止済み）。経路を作るにはコードか設定の変更が要り、Phase A の revision で手順を作り直すのはこのスライスの問いに対してコストに見合わない、と発注者が判断した。凍結条件の合否を変える裁定なので、規則上は Phase A の新しい revision に当たるが、発注者の例外として承認した（§2「A3 後の例外承認」）。
+  - S-9 への入力: Player で Atmosphere・Cell VFX の描画を確かめること、そのために Spring `(0,4)` まで入る Player の観測経路（BS4 の smoke とは別の起動経路か、smoke の後に終了しない設定）を作ること、§1.3 の誤りの訂正。
+  - 合否: S5・AC7 は、2 回目の取得（head `87daa97c`）の (1) build 成功と (2) 照合の合格で満たす。追加の取得はしない。判定 C の最終判定と最終 C' で確かめる。
 
 ## 8. Phase C'
 
