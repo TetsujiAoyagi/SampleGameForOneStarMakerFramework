@@ -606,4 +606,11 @@ Architecture §24 §16.6 に「実 Scene での確認（Atmosphere / Cell VFX、
 
 ## 9. Phase D
 
-未着手。
+- 判断: 発注者が 2026-10-27 に Phase D 完了とマージを指示した（PR #144）。判定 C の最終判定（§7）と最終 C'（§8）はどちらも阻害する指摘 0。PR のレビューも blocker 0（発注者の報告）。
+- Evidence の保存・引渡し: 判定 C の evidence bundle（最終証拠ラウンド版）と最終 C' 用の C' blind bundle はローカル固定済み（未昇格、`locality=local`）で、どちらも別 process の `fetch` で hash 照合・閲覧を確認済み。Phase D で進行役が、暫定 C'・最終 C' の結果と生出力・指示ファイル、本書の削除前の最終版（`63782819`）の 7 file を `evidence stage` し、別 process の `fetch` で hash 照合・7 file の一致・閲覧を確認した。取得案内は進行役と判定 C の担当の共有ノートにある。R2 への昇格はしていない（同一 PC の読み手だけのため）。
+- 日次清掃 job: `evidence schedule status` は `status: passed`。
+- harvest: Architecture §24 §16.6 に Scene に置く VFX（配置・bounds・culling・authoring の検査・Play テストの注意）を追加し、§16.7 から S-4d3 の送りを消して S-9 の送り（Player での描画、`CullNone` のコスト、`VFXRenderer` が有効のままの場合、本番の graph での同時ロード）を足した。§05 §5.7 に `IncrementalAlways` の保留 unload の既知の不具合、§5.13 に Season Atmosphere VFX の分類と載り方。§27 §6 に World Workspace の Season Atmosphere の作成と、無題の Scene からの作成の失敗。Streaming 現状仕様に VFX が体積を変えない理由と bounds の規約。`SEASON_WORLD_DESIGN.md` の N-9 を解決済みに。`tools/Harness/README.md` に BS4 の transport staging の path が予算の外であること。program と `docs/README.md` の完了表記を S-4d3 まで進めた。
+- 後続へ送ったもの（突き合わせの結果）: 判定 C・C' の後続入力は、Player の描画（D6）、`VFXRenderer` が有効のままの場合、本番の graph での同時ロード、`CullNone` のコストを §24 §16.7 の S-9 に、`IncrementalAlways` の不具合を §5.7 に置いた。凍結版 §2.1 (d) の Player の描画の文と D6 の食い違いは、本書の削除で解消する（公開面には D6 の後の範囲だけを書いた）。staging の path の修正は別スライスの候補（担当未定）。
+- HANDOFF: この記録の次の commit で削除する。task は マージ後に `workflow-task.ps1 end -Reason completed` で終える。
+- 後始末（マージ後）: detached worktree `D:\osm-s4d3`、退避 branch `s-4d3-pre-squash-backup`、C' の一時作業場所、Phase D の作業 file。
+- 担当: 進行役（Claude Code、Anthropic Claude Opus 系列）。

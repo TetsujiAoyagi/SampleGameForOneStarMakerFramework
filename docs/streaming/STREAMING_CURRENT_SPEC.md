@@ -31,7 +31,7 @@ R-3 は候補フラグで検出する。セル型は SampleGame にあり、FW �
 | 本番レイアウト | 四季それぞれ 9×6、54 Cell。active Season の直下にある `StreamByDistance` 子だけを候補にする | `SeasonCandidateSelection` / `WorldCellCatalog` |
 | 格子定数 | `Origin = (0,0,0)` / `CellSize = 250` / `CellHeight = 96`。**制作座標・スポーン・HUD 用。距離政策は読まない** | `WorldCellCatalog` |
 | 体積 | `SceneResource._volume`（ワールド AABB）。`.unity` の全 Renderer の合併 ＋ 候補でない子の合併 | `SceneResource` |
-| 体積の収集範囲 | `SceneVolumeSceneReader` は全 `Renderer` を `includeInactive: true` で拾う。Particle / Trail / 無効デバッグメッシュを足して保存すると中心が跳ね得る。Collider のみは寄与しない。VFX等で収集範囲を変える場合は別途設計・検証する。除外規約を実装済みとしない | 同上 |
+| 体積の収集範囲 | `SceneVolumeSceneReader` は全 `Renderer` を `includeInactive: true` で拾う。Particle / Trail / 無効デバッグメッシュを足して保存すると中心が跳ね得る。Collider のみは寄与しない。VFX等で収集範囲を変える場合は別途設計・検証する。除外規約を実装済みとしない。配置済み VFX（Cell VFX・Season Atmosphere）は除外規約なしで体積を変えない: 保存時の `VFXRenderer` は無効と読め bounds の寸法が 0 なので収集から落ちる。Cell VFX の描画 bounds（Manual・Local）は親 Cell の体積の内側に収める（Architecture §24 §16.6） | 同上 |
 | 候補フラグ | `SceneResource._streamByDistance`。Cell は true、Environment は false。幾何からは導出しない | 同上 |
 | 体積の焼き直し | シーン保存フック ＋ メニュー `OneStarMaker/Scene Volume/Recalculate All`。**書くのは体積だけ**でフラグには触らない | `SceneVolumeRecalculator` |
 | 半径 | `LoadRadius = 375` / `UnloadRadius = 550` / `MaxInFlight = 2` | 同上 |
