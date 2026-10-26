@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C`（D6 で S5・AC7 の範囲を (1)(2) に変更（発注者の例外承認）。AC7 は 2 回目の取得で合格済み。最終証拠ラウンド待ち。§7 決定記録）。経緯: AC7 の 2 回目で、BS4 Player が Spring に達しないことが分かった（D5 の後）。暫定 C' 1 巡目は blocker 0（§8）。判定 C 完了（AC7 を除く）。
+- status: `C'`（最終証拠ラウンド。判定 C の最終判定は完了（§7「判定 C の最終判定」）、最終 C' 待ち）。経緯: D6 で S5・AC7 の範囲を (1)(2) に変更（発注者の例外承認）。AC7 は 2 回目の取得で合格済み（§7 決定記録）。 AC7 の 2 回目で、BS4 Player が Spring に達しないことが分かった（D5 の後）。暫定 C' 1 巡目は blocker 0（§8）。判定 C 完了（AC7 を除く）。
 - branch: `claude/s-4d3-vfx-scenes`
 - implementation base commit: `6667f88f`（`develop`、PR #143（S-4d2）のマージ）
 - risk: `high`（Scene・SceneResource・Addressables の生成、Scene の寿命と Season の子の LoadType、Player build への収録）
@@ -16,8 +16,14 @@
 - workflow task: `s-4d3-vfx-scenes`（Phase B の着手時に start 済み）
 - Phase A snapshot の取得案内・状態: A2 入力版は未 commit の版（content sha256 は §5「A2 独立レビュー」）。A3 凍結版はブランチ `claude/s-4d3-vfx-scenes` のローカル commit（本書・program の改訂を含む。SHA は commit の後に引継ぎ票で渡す）
 - Phase B result snapshot の取得案内・状態: ブランチ `claude/s-4d3-vfx-scenes` のローカル commit（Phase B 完了 commit。SHA は commit の後に引継ぎ票で渡す）。未 push
-- evidence bundle の取得案内・状態: ローカル固定済み（未昇格、`locality=local`）。head `87daa97c` / base `6667f88f`、判定 C（2026-10-27）が `evidence stage` し、別 process の `fetch` で期待 hash の照合・10 file の一致・XML の閲覧を確認済み。引渡し先は進行役（取得案内は共有ノート `judgment-C-evidence.md`）。担当は判定 C の session。AC7 は未収録（最終証拠ラウンドで bundle を作り直す）
-- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格、`locality=local`）。同じ head・base。HANDOFF を除く差分、凍結 A3 版（`a7ff035a`）と Phase B 完了時の版（`87daa97c`、§6 まで）の HANDOFF、生の XML・unity.log・step.json・実行記録（強制終了の事実だけ）、contract-audit・docs-audit を収録（11 file）。発見 C・判定 C の所見と裁定は含めない。別 process の `fetch` で hash 照合・11 file の一致・閲覧を確認済み。取得案内は同じ共有ノート
+- evidence bundle の取得案内・状態（最終証拠ラウンド版。判定 C の時の版を置き換える）: ローカル固定済み（未昇格、`locality=local`）。head `87daa97c` / base `6667f88f`。判定 C の時の 10 file を同じ生成元から無変更で複写し、AC7 の生証拠 8 file（Editor.log（build の出力）・build receipt・content build の outcome・Content Directory の一覧・照合結果・Player.log・smoke receipt・実行記録）と、この HANDOFF の `b9a438b5` の版を加えた（19 file）。Editor.log は起動引数の Unity Hub の session id と access token の値の 2 行だけを伏せた（元と伏せた後の hash は同梱の実行記録）。最終証拠ラウンドの判定 C の実行担当（2026-10-27）が `evidence stage` し、別 process の `fetch` で期待 hash の照合・19 file の一致・XML と build の出力の閲覧を確認済み。引渡し先は進行役（取得案内は共有ノート `final-round-evidence.md`。判定 C の時の案内 `judgment-C-evidence.md` は経緯）。担当は最終証拠ラウンドの判定 C の session
+- C' blind bundle の取得案内・状態（最終 C' 用。暫定 C' の時の版を置き換える）: ローカル固定済み（未昇格、`locality=local`）。同じ head・base。暫定 C' の時の 11 file（HANDOFF を除く差分、凍結 A3 版（`a7ff035a`）と Phase B 完了時の版（`87daa97c`、§6 まで）の HANDOFF、生の XML・unity.log・step.json・実行記録（強制終了の事実だけ）、contract-audit・docs-audit）に、AC7 の生証拠 8 file（実行記録は 2 回目の生の事実だけ）と、凍結条件の変更として D6 の結論・理由・変えた条件の範囲だけを加えた（20 file）。発見 C・判定 C の所見、D4・D5、暫定 C' の所見は含めない（追加した file を検索で確認）。別 process の `fetch` で hash 照合・20 file の一致・閲覧を確認済み。取得案内は同じ共有ノート `final-round-evidence.md`
+- 引継ぎ票（最終証拠ラウンド (1) 判定 C の最終判定 → (2) 最終 C'）:
+  - 前の Phase の結果: 判定 C の最終判定が完了（§7「判定 C の最終判定」）。D6 の後の S5・AC7 は 2 回目の取得の生証拠で満たす。阻害する指摘 0。全回帰はやり直していない（実装の差分は無い）。bundle 2 件を作り直した（上の取得案内欄）。
+  - 次の Phase・役割: **最終 C'（進行役が `cursor-agent` の Grok で 1 回）**。入力は上の C' blind bundle（最終 C' 用）の取得案内だけ。範囲は D6 と AC7 の生証拠、暫定 C' 以降の差分（実装の差分は無い）に絞る。判定 C の最終判定と最終 C' の両方が揃うまで GO にしない。判定 C の所見・最終判定は C' へ渡さない。
+  - 巡のカウント: B と発見 C の間は 2/4 で確定。C' の差し戻しは 0/3。
+  - 引き継ぐ commit: branch `claude/s-4d3-vfx-scenes` の先頭（この HANDOFF だけを変える判定 C の最終判定の記録用 commit）。implementation head は `87daa97c`、base は `6667f88f`。未 push。detached worktree（`D:\osm-s4d3`、`87daa97c`、clean）と Player・artifacts は bundle の作成を終えたが、消すかどうかは Phase D の後始末で決める（まだ残してある）。Unity は起動していない。
+- 引継ぎ票（以前: 発注者の判断（D6） → 最終証拠ラウンド。経緯として残す）:
 - 引継ぎ票（発注者の判断（D6） → 最終証拠ラウンド）:
   - 前の Phase の結果: 発注者が D6 を裁定した（§7 決定記録）。S5・AC7 の範囲は (1) の build の成功と (2) の Content Directory への 2 Scene の収録の照合で、2 回目の取得（head `87daa97c`、§7「AC7 の取得」）で両方とも合格済み。(3)〜(5)（Player での描画）は S-9 へ移送。AC7 の追加取得はしない。
   - 次の Phase・役割: **最終証拠ラウンド（D6 で選んだ (a)）。** (1) 判定 C の実行担当（別 session）: 判定 C の evidence bundle と C' blind bundle を、同じ head `87daa97c` から AC7 の (1)(2) の生証拠（build の出力・照合結果・Content Directory の一覧）を加えて作り直し、§0 の取得案内欄を更新する。C' blind bundle には、凍結条件の変更として D6 の本文（結論・理由・変えた条件の範囲だけ）を入れ、発見 C・判定 C の所見、D4・D5、暫定 C' の所見は入れない。全回帰はやり直さない（実装は変わらない）。判定 C の最終判定（D6 の後の S5 を含む）を記録する。(2) 最終 C'（進行役が `cursor-agent` の Grok で 1 回）: 範囲は D6 と AC7 の生証拠、暫定 C' 以降の差分（実装の差分は無い）に絞る。判定 C の最終判定と最終 C' の両方が揃うまで GO にしない。
@@ -532,6 +538,21 @@ Architecture §24 §16.6 に「実 Scene での確認（Atmosphere / Cell VFX、
   - 切り分け: 実装欠陥ではない。BS4 Player は、固定 config の `firstScene`（`Title`）が Stable になると content probe（`PlayerContentSmoke`）を実行し、first scene を unload して `Application.Quit(0)` する smoke 用の Player である（`AppInitializer.OnPlayerContentShutdownCompletedAsync`）。InGame の Spring へは遷移しない。§1.3 の「Player は固定 config の `firstScene` から InGame の Spring を始め」は事実と食い違う。凍結した手順 (3)・(5) と期待値「画像に Atmosphere の粒子が写る」は、この Player では観測点が無い。§5 の不成立時の対応に従って人間に返す。
   - (4) の evidence: 生の `Player.log`、content の照合結果、smoke receipt は、進行役の共有ノートに置いた（git 管理外、`evidence stage` はしていない）。画像は無い。
   - 後始末: 両方の worktree で、Editor が消した `MobileDependencyResolver` の `.pdb.meta` 5 件を戻し、build が残した未追跡の空フォルダの `.meta`（`OneStarMakerGenerated`、2 回目は `Resources/BS4`・`StreamingAssets` も）を消した。`ProjectSettings.asset` は build の後に元へ戻っていた。2 つの Editor は正常に終了させた（2 回目は build の後処理の busy が終わってから、もう一度終了を要求した）。2 回目の worktree は `87daa97c` で clean のまま、Player と artifacts とともに残してある（次の判断まで消さない）。`artifacts/` は git 管理外。
+
+### 判定 C の最終判定（最終証拠ラウンド、head `87daa97c`）
+
+- 種別・対象: 判定 C の最終判定（高コスト証拠を加えた手順 4）。base `6667f88f` → head `87daa97c`（tag `evidence/s-4d3-vfx-scenes/1`）。記録の起点は HANDOFF だけを変える `b9a438b5`。
+- 担当・モデル: 判定 C の実行担当（Claude Code、Anthropic、Claude Opus 系列）。最終 C' は起動していない。
+- 実装の差分: 判定 C の後に implementation head は変わっていない（`87daa97c` の後の commit は HANDOFF の記録だけ）。全 EditMode 回帰（1320 件中 passed 1320）と機械検査の結果は、判定 C の XML・ログをそのまま使う。Unity テストは再実行していない。
+- AC7（D6 の後の範囲）の生証拠（2 回目の取得、2026-10-27 04:31〜04:50 JST、retained detached worktree の `87daa97c`）:
+  - (1) build: Editor.log に `Build Finished, Result: Success.` が 1 件。Player は IL2CPP・High stripping（build receipt）。content build の outcome の summary は `Succeeded|StandaloneWindows64|6292991`、issues は空。**合格。**
+  - (2) Content Directory: 240 file。Player 側の `content` と build 側の Content Directory は 240 file とも sha256 が一致する（同梱の一覧）。`Spring_AtmosphereVFX`（`.unity.meta` の guid `a694d1cd…`）と `Spring_VFX_4_2`（guid `76e4fa01…`）は、どちらも build receipt の `checkedRootGuids` に入り、content の metadata json に GUID で、bundle（`.cf`）8 件に名前で出現する。この session でも Player の出力に対して照合し直し、取得時の照合結果と一致した。**合格。**
+  - (3) 以降（Player の起動・画像・人間の判断）は D6 により d3 の受け入れ条件の外。生の事実（Player が約 10 秒で自ら終了、`Player.log` の `Exception`・`LogError` 0、smoke receipt `succeeded`）は bundle に入れたが、判定には使わない。
+- S5（D6 の後）: 上の (1)(2) で満たす。
+- 進める最低条件: I1〜I5・S1〜S4 は判定 C（手順 1）の証拠のまま、S5 は上のとおり。AC1〜AC10 は、AC7 を D6 の範囲で、他は判定 C のとおり満たす。
+- Evidence: 判定 C 用と C' 用の bundle を同じ head から作り直し、`evidence stage` でローカル固定した（§0 の取得案内欄）。Editor.log の起動引数に Unity Hub の access token と session id の値があったので、bundle の写しではその 2 行だけを伏せた（worktree の元の log は変えていない）。
+- 阻害する指摘: なし。後続スライスへ移送する指摘: なし（S-9 への入力は D6 のとおり）。
+- 判定 C の最終判定: 凍結条件（D6 の後）を満たし、阻害する指摘は無い。GO は最終 C' の結果が揃うまで確定しない。
 
 ### 決定記録
 
