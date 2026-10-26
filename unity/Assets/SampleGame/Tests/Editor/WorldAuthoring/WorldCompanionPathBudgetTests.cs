@@ -14,7 +14,7 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
     // 収まらなければならない。Unity 同梱の Mono は 260 文字以上の path を File.OpenRead などで開けず、
     // 予算を超えた生成物は深い checkout でだけ所有の証明に失敗する。tracked の file は contract-audit が
     // 見るが、生成器がこれから作る path はまだ tree に無いので、ここで生成器の出力そのものを確かめる。
-    // 保証するのは列挙した生成器（WorldCompanionCreationPlan と回復 journal）だけ。
+    // 保証するのは列挙した生成器（WorldCompanionCreationPlan の Cell companion と Season Atmosphere、回復 journal）だけ。
     [TestFixture]
     public sealed class WorldCompanionPathBudgetTests
     {
@@ -31,7 +31,11 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             var budget = ReadBudget();
             var paths = new List<string>();
             foreach (var plan in AcceptedProductionPlans()) AddPlanPaths(paths, plan);
+            foreach (WorldSeason season in Enum.GetValues(typeof(WorldSeason)))
+                AddPlanPaths(paths, WorldCompanionCreationPlan.CreateSeasonAtmosphere(season));
             AddPlanPaths(paths, WorldCompanionTestScope.CreateFixturePlan(WorldCompanionTestScope.NewToken()));
+            AddPlanPaths(paths, WorldCompanionTestScope.CreateFixturePlan(
+                WorldCompanionTestScope.NewToken(), WorldCompanionCreationKind.SeasonAtmosphere));
             AddJournalPaths(paths);
 
             var longest = paths.OrderByDescending(path => path.Length).First();

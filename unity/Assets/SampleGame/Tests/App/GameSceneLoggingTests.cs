@@ -6,6 +6,7 @@ using System.Reflection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
+using OneStarMaker.Runtime.AssetDescriptions;
 using OneStarMaker.Runtime.CameraSystem.Abstractions;
 using OneStarMaker.Runtime.Rendering.Environments;
 using OneStarMaker.Tests.CameraSystem;
@@ -118,6 +119,34 @@ namespace OneStarMaker.Tests.SampleGame
 
             Assert.That(scene, Is.TypeOf<SeasonLightingScene>());
             Assert.That(scene, Is.Not.TypeOf<CellCompanionScene>());
+        }
+
+        // Scene の無い季節（Summer）も含める: 作成の道具はどの季節の Atmosphere も作れるので、
+        // factory が Spring だけを分類すると、作れた Scene がロード時に null で落ちる。
+        [TestCase("Spring_AtmosphereVFX", "Season_Spring")]
+        [TestCase("Summer_AtmosphereVFX", "Season_Summer")]
+        public void CreateSceneClass_SeasonAtmosphereVfx_ReturnsAtmosphereScene(string identity, string parentIdentity)
+        {
+            var factory = CreateFactory(NullLoggerFactory.Instance);
+            var parent = SceneTestHelper.CreateSceneResource(parentIdentity);
+            var child = SceneTestHelper.CreateSceneResource(identity, LoadType.NecessaryAlways, parent: parent);
+
+            var scene = factory.CreateSceneClass(child, new StubSceneQuery(), new StubSceneController());
+
+            Assert.That(scene, Is.TypeOf<SeasonAtmosphereVfxScene>());
+        }
+
+        [TestCase("Spring_AtmosphereVFX", "Season_Summer")]
+        [TestCase("Spring_AtmosphereVFX", null)]
+        public void CreateSceneClass_AtmosphereNameWithoutMatchingSeasonParent_IsNotClassified(string identity, string? parentIdentity)
+        {
+            var factory = CreateFactory(NullLoggerFactory.Instance);
+            var parent = parentIdentity == null ? null : SceneTestHelper.CreateSceneResource(parentIdentity);
+            var child = SceneTestHelper.CreateSceneResource(identity, LoadType.NecessaryAlways, parent: parent);
+
+            var scene = factory.CreateSceneClass(child, new StubSceneQuery(), new StubSceneController());
+
+            Assert.That(scene, Is.Null);
         }
 
         [Test]

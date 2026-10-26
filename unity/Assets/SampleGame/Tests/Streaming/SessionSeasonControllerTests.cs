@@ -207,6 +207,35 @@ namespace OneStarMaker.Tests.Streaming
             await toSpring;
         });
 
+        // Season 直下の Atmosphere VFX は Lighting と同じ NecessaryAlways の子なので、controller の
+        // コードを変えずに観測個体へ登録され、枝の交換はその終端まで待つ（IncrementalAlways にすると観測されない）。
+        [UnityTest]
+        public IEnumerator SpringAtmosphereVfx_IsObservedInstance_SwitchWaitsForItsTerminal()
+            => UniTask.ToCoroutine(async () =>
+        {
+            var fixture = CreateFixtureCore(includeOriginEnvironment: false, includeSpringAtmosphere: true);
+            await fixture.Season.EnsureInitialWorldAsync(CancellationToken.None);
+            Assert.That(fixture.Query.IsSceneStable("Spring_AtmosphereVFX"), Is.True,
+                "前提: Season の Add が NecessaryAlways の Atmosphere を載せている");
+
+            fixture.Controller.UnloadReturnsImmediately = true;
+            fixture.Controller.HoldStableUntilReleased = true;
+            var toSummer = fixture.Season.RequestSeasonAsync("Summer", 0, 4, CancellationToken.None);
+            await UniTask.Yield();
+            fixture.Terminals.Emit("Season_Spring", SceneTerminalKind.Removed);
+            fixture.Terminals.Emit("Spring_Cell_0_4", SceneTerminalKind.Removed);
+            fixture.Terminals.Emit("Spring_Lighting", SceneTerminalKind.Removed);
+            await UniTask.Yield();
+            Assert.That(
+                toSummer.Status,
+                Is.EqualTo(UniTaskStatus.Pending),
+                "Atmosphere の Removed が最後のとき、観測個体の終端まで切替しない");
+
+            fixture.Terminals.Emit("Spring_AtmosphereVFX", SceneTerminalKind.Removed);
+            await CompleteHeldSwitchAsync(fixture, "Season_Summer", "Summer_Lighting", "Summer_Cell_0_4");
+            await toSummer;
+        });
+
         [UnityTest]
         public IEnumerator StopWorldOperations_RejectsNewIssues_DoesNotDrain()
             => UniTask.ToCoroutine(async () =>
@@ -277,7 +306,7 @@ namespace OneStarMaker.Tests.Streaming
             return CreateFixtureCore(includeOriginEnvironment: true);
         }
 
-        private Fixture CreateFixtureCore(bool includeOriginEnvironment)
+        private Fixture CreateFixtureCore(bool includeOriginEnvironment, bool includeSpringAtmosphere = false)
         {
             var originVolume = new Bounds(new Vector3(125f, 48f, 1125f), new Vector3(250f, 96f, 250f));
             var spring = Track(SceneTestHelper.CreateSceneResource("Season_Spring"));
@@ -286,6 +315,17 @@ namespace OneStarMaker.Tests.Streaming
                 loadType: LoadType.NecessaryAlways,
                 parent: spring));
             SceneTestHelper.AddChild(spring, springLight);
+            SceneResource? springAtmosphere = null;
+            if (includeSpringAtmosphere)
+            {
+                // 実 asset と同じ形: Season 直下の NecessaryAlways で、streaming でない。
+                springAtmosphere = Track(SceneTestHelper.CreateSceneResource(
+                    "Spring_AtmosphereVFX",
+                    loadType: LoadType.NecessaryAlways,
+                    parent: spring));
+                SceneTestHelper.AddChild(spring, springAtmosphere);
+            }
+
             var springOrigin = Track(SceneTestHelper.CreateSceneResource(
                 "Spring_Cell_0_4",
                 parent: spring,
@@ -326,6 +366,11 @@ namespace OneStarMaker.Tests.Streaming
             if (springEnvironment != null)
             {
                 resources[springEnvironment.Identity] = springEnvironment;
+            }
+
+            if (springAtmosphere != null)
+            {
+                resources[springAtmosphere.Identity] = springAtmosphere;
             }
 
             var query = new FakeQuery();

@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `A3 凍結`（2026-10-26。U1 は (b)、U2〜U6 はレビュー側の推奨で発注者が裁定し、凍結を承認した）
+- status: `Phase B 完了`（2026-10-26。A3 凍結は同日。U1 は (b)、U2〜U6 はレビュー側の推奨で発注者が裁定し、凍結を承認した）
 - branch: `claude/s-4d3-vfx-scenes`
 - implementation base commit: `6667f88f`（`develop`、PR #143（S-4d2）のマージ）
 - risk: `high`（Scene・SceneResource・Addressables の生成、Scene の寿命と Season の子の LoadType、Player build への収録）
@@ -13,12 +13,12 @@
 - created: 2026-10-25
 - expires: S-4d3 の Phase D 完了時
 - harvest to: Architecture §24 §16（§16.6 配置済み VFX の実 Scene での確認、§16.7 の d3 行の削除）、§05 §5.13（Season 直下の Atmosphere VFX の分類と LoadType）、§21 または STREAMING_CURRENT_SPEC（VFX Scene と Cell 体積の規約）。新しい文書は起こさない
-- workflow task: 未開始（Phase B の着手時に `workflow-task.ps1 start -Task s-4d3-vfx-scenes`）
+- workflow task: `s-4d3-vfx-scenes`（Phase B の着手時に start 済み）
 - Phase A snapshot の取得案内・状態: A2 入力版は未 commit の版（content sha256 は §5「A2 独立レビュー」）。A3 凍結版はブランチ `claude/s-4d3-vfx-scenes` のローカル commit（本書・program の改訂を含む。SHA は commit の後に引継ぎ票で渡す）
-- Phase B result snapshot の取得案内・状態: 未生成
+- Phase B result snapshot の取得案内・状態: ブランチ `claude/s-4d3-vfx-scenes` のローカル commit（Phase B 完了 commit。SHA は commit の後に引継ぎ票で渡す）。未 push
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: Phase A 完了（A3 凍結）。U1〜U6 の裁定（§2 決定記録 D3）、A3 改訂レビュー R1〜R5、発注者決定 D1・D2 を反映し、program の §1 確定事項・§2.1・§3.4・§6.1・§6.3 d3 行を改訂した。次の担当は Phase B（`workflow-task.ps1 start -Task s-4d3-vfx-scenes` から着手）。凍結版 commit の SHA と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない
+- 引継ぎ票: Phase B 完了（§6）。Unity テスト・Build は未実行（Phase C）。動作確認は対象なし。次の担当は発見 C（起点 filter は §5、収録の確認の注意は §6「引継ぎ」）。Phase B 完了 commit の SHA と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない（この worktree に残る未追跡の `docs/handoff/DEBUGSTUDIO_S2_CUT_PLAN.md` は別作業の文書で、発注者の判断で本 task の dirty に数えない）。Phase A の引継ぎ: 凍結版 `a7ff035a`
 
 ## 1. 目的と対象外（A0）
 
@@ -314,7 +314,52 @@ Architecture §24 §16.6 に「実 Scene での確認（Atmosphere / Cell VFX、
 
 ## 6. Phase B 実装結果
 
-未着手。
+- 対象 head: Phase B 完了 commit（凍結版 `a7ff035a` の子。SHA は引継ぎ票で渡す）。workflow task は `s-4d3-vfx-scenes` を start 済み（version 1）。
+- 実行していないもの: Unity テスト（`run-tests.ps1`）、Addressables / Player の Build、AC7。Phase C の責任（§5）。Editor のコンパイル確認は行い、全 asmdef が errors 0 で通った（新しいテスト型 4 件と追加ケースの読み込みも確認）。`contract-audit` errors 0、`docs-audit` errors 0（警告 1 件は §7/§8 の「未着手」を埋まりと数える既存の判定）。
+- 動作確認: 対象なし（§5 の検証経路の条件は Unity テスト（AC4〜AC6）、Phase B 自身の書き出し（AC2）、高コスト証拠（AC7）で、動作確認の対象外）。窓の「Create + Open Spring_AtmosphereVFX」ボタンは GUI では押しておらず、ボタンが呼ぶ `WorldCompanionSceneCreator.CreateOrOpenSeasonAtmosphere(Spring)` を Editor で直接呼んで作成した（§3.1 の「Phase B が Spring で 1 回使う」はこの呼び出し）。`Spring_VFX_4_2` も同様に `CreateAndOpen`（Spring, 4, 2, VFX）で作った。
+
+### 実装
+
+- `SeasonAtmosphereVfxScene`（no-UI、親が streaming でないことを ctor で要求、生成時の Information 1 行のみ）と、`GameSceneFactory` の分類（identity `{Season}_AtmosphereVFX` かつ親 `Season_{Season}` かつ親が streaming でない）。
+- 作成 transaction の拡張（U1 (b)）: `WorldCompanionCreationKind`（`CellCompanion = 0`、`SeasonAtmosphere = 1`）を plan と journal（`creationKind`、未知の値は corrupt）に持たせ、LoadType は `WorldCompanionCreationPlan.LoadTypeFor(kind)` から引く。Preflight の親の検査を種類で分けた（Season Atmosphere は親が streaming でなく、親 node の payload が 0）。窓に「Create + Open / Open {Season}_AtmosphereVFX」を 1 つ足した（既にあれば開くだけ）。
+- テスト: `VfxSceneStructureTests`（AC1・AC2 の定数）、`PlacedVfxAuthoringTests`（AC3、検査関数は Scene を引数に取り、失敗経路 4 件と適合 1 件）、`VfxScenePlayTests`（AC4 (a)(b)・AC5 の実 Scene・AC6 (a)(b)）、`VfxSceneRenderPlayTests`（AC4 (c)・AC5 の描画）、`SessionCellCompanionLoadDriverTests` に AC4 (d)、`SessionSeasonControllerTests` に AC6 (c)、AC10 (a)〜(f) を既存 4 ファイルと `GameSceneLoggingTests`（クラス名は `GameSceneFactoryTests`）へ追加。既存のテストの本体と期待値は変えていない（共有の `WorldCompanionTestScope` に種類の引数（既定は Cell companion）を足し、`AssertCommitted` に node / resource の LoadType の一致を足した）。
+
+### B 適応（Phase A は再開しない）
+
+1. **`WorldCompanionOwnershipProof.cs` の変更（§3.1 に無いファイル）:** 回復時の所有の証明が node / resource の LoadType を `OnDemand` 固定で照合しており、Season Atmosphere の rollback（AC10 (c)）が「Node ownership mismatch」で止まる。§2.3「node の作成と作成後の検査の LoadType は plan の値を使う」の範囲として、journal の種類から LoadType を引くようにした。resource は生成器が node から写すまで既定値（`OnDemand`）なので、既定値と計画の値の両方を受ける（Cell companion では同じ値）。rollback の順序・barrier は変えていない。AC10 (c) は生成の前（`AddressableCreated`）と後（`Verified`）の 2 点で失敗させる。
+2. **`VfxScenePlayTests` の分割（§3.4 の行数警報）:** 1 ファイルで 610 行になったので、描画の専用 Scene の部分を `VfxSceneRenderPlayTests.cs`（222 行）へ分け、残りは 391 行。§3.4 の例示（表示 / 寿命）と違い、bulk を持つ描画の補助で切った（寿命だけを外すと 500 行を下回らない）。共有する起動条件 3 つ（能力の公開・PC Quality・graphics の計測値）は d2 の `VfxPlayTestFixture` に protected で移した。
+3. **AC4〜AC6 の Scene は test が持つ SceneDirector で載せる:** アプリの SceneDirector で `Season_Spring` を `AddScene` すると祖先の InGameSession が載って距離ストリーミングが動き、`WorldStreamingController.IssueRemovesOutsideRetain` が読み込み半径の外の `Spring_Cell_4_2` を次の Tick で外す（テストが載せた Cell も対象）ため、AC4 (b)・AC6 (a) が競合する。test の director はアプリの起動が作った UICommon・LoadingDisplay・AssetManagement・variant・Content Directory の設定を reflection で読み（`BuildContentDirectoryIntegrationTests` と同じ観測）、実 `SceneResource` 4 件（Season_Spring、Atmosphere、Cell 4_2、VFX 4_2）の複製で Season_Spring を根にした Map を作る（同じ `.unity`・payload・LoadType・体積）。Scene class は実 `GameSceneFactory` が分類する。`Spring_Lighting` は RenderEnvironment の lease を取るので複製に入れない。観測語（`IsSceneStable`、`go.scene` の一致）と期待値は §2.2 のまま。Phase C で前提が崩れた場合（UICommon の取得等）は基盤不備として記録する。
+4. **`SampleGame.Tests` は Addressables を参照しないので、Play テストの Scene の path は payload の GUID ではなく `SceneResource` と同じフォルダ・同じ名前の `.unity` から引く。** payload の GUID との一致は `VfxSceneStructureTests`（`SampleGame.Tests.Editor`）が照合する。asmdef は足していない。
+
+### AC2: 体積の書き出しと比較
+
+- 書き出しは Editor の一時スクリプト（commit しない）。全 `SceneResource` の identity・path・`StreamByDistance`・LoadType・`_volume`（center / size を round-trip の書式）・親。
+- HEAD の保存値: 453 件（`StreamByDistance == true` 216 件）。手順 (1) の `Recalculate All` は「更新 0 件」で、A は HEAD の保存値と完全一致（既存のドリフト 0）。
+- 手順 (3) の `Recalculate All` も「更新 0 件」。B は 455 件。**A と B の差は新しい 2 行（`Spring_AtmosphereVFX`、`Spring_VFX_4_2`。どちらも `_volume` は 0、`StreamByDistance == false`）だけで、既存 453 件（Cell 216 件を含む）の `_volume`・`StreamByDistance`・LoadType・親は完全一致。** `Season_Spring` の `_volume` も 0 のまま（I2 が許す祖先の鎖の変化は起きていない）。
+- 判定 C 用の定数: `Spring_Cell_4_2` の `_volume` は center (1125, 24.5, 625)、size (245, 49, 245)（world AABB は x 1002.5〜1247.5、y 0〜49、z 502.5〜747.5）。`VfxSceneStructureTests.ExpectedCellVolume` に持つ。
+- 描画 bounds（R5 の (1)）: 保存直後の Edit Mode で、両 Scene の `VFXRenderer` は存在し、`enabled == false`、`renderer.bounds` の寸法は 0（center は各 GameObject の位置）。寸法 0 なので体積の収集から落ち、A == B はこの事実でも成り立つ（bounds の規約はここでは検査していない。AC4 (b) が有効化後に検査する）。d2 HANDOFF §2.5 の「`VFXRenderer` は有効のまま」と違い、Edit Mode では `VisualEffect` の無効に合わせて `VFXRenderer.enabled` も false と読めた（Play 中の値は未観測）。
+
+### 作成物の中身
+
+- `.vfx` は VFX Graph の Simple Loop template から作り（Editor の `CreateTemplateAsset`）、各 System（Initialize / Update / Output の 1 系統）の Bounds Setting Mode を Manual、空間を Local にした（Gravity の Force だけは template どおり World 空間）。bounds は template の center (0, 1, 0)・size (3.5, 4, 3.5)、padding (0.5, 0.5, 0.5)。import 時に compile され、shader 1・compute shader 3・material 1 の sub-asset を持つ（VFX Graph 窓の compile 経路は窓で開いていない asset では使えなかったので使っていない）。
+  - `Spring_VFX_4_2/Spring_VFX_4_2_GroundFog.vfx`（地表の霧の代表）
+  - `Spring_AtmosphereVFX/Spring_AtmosphereVFX_Petals.vfx`（花びら／塵の代表）
+- 配置（各 Scene の root に GameObject 1 個、`VisualEffect` 無効 + `PlacedVfxActivator`、他の component なし）:
+  - `GroundFog`: 位置 (1125, 12, 625)、scale (20, 8, 20)。Local の bounds（padding 込み）の world の範囲は概算 x 1080〜1170、y 2〜38、z 580〜670 で、Cell の体積の内側。
+  - `SpringPetals`: 位置 (125, 0, 1135)、scale 12。world の範囲は概算 x 98〜152、y -15〜39、z 1108〜1162。スポーン (125, 28, 1125) とその上空・前方（Player は +z を向いて出る）を含む（U5、AC7 の観測点）。
+- 描画用 fixture `SampleGame/Tests/Rendering/Vfx/Fixtures/VfxSceneRender.unity`: 無効の Camera `VfxRenderCamera`（位置 (0, 1, -5)、黒背景、FOV 60。RT はテストが付ける）、非 active の `AtmosphereVfx` / `CellVfx`（原点、scale 1、本番の上の 2 つの `.vfx` を直接参照、`VisualEffect` 無効 + activator）。SceneResource・SceneGraph・Map・Addressables・Build Settings に入れていない。
+- 計測の閾値と上限（AC4 (c)・AC5、d2 の fixture と同じ値）: 背景以外の画素（いずれかの channel > 8）を 128×128 の RT で数え、閾値 4。描画の上限 600 フレーム、warm-up の上限 600 フレーム、粒子の出現の上限 6000 フレーム（`ParticleFrameLimit`）、unload 後の消滅の上限 3000 フレーム。
+- 構造（S1）: `Season_Spring._children` は Lighting・Atmosphere・54 Cell の 56 件、`Spring_Cell_4_2._children` に VFX が 1 件増えた。`Total.asset` に node 2・Edge 2。Addressables は `Default Local Group` に 2 entry（address は scene path）。`SceneResourceMap` は 2 件の追加と `_generateHash` の更新（`b802a1ddfb7f6e94` → `d0b4f213a2108c4c`）に加え、生成器の出力順で既存の 2 件（GUID `c84b0242…`・`4b037e04…`）の並びが入れ替わった（内容は不変）。
+
+### 新しい事実（後続スライスの入力）
+
+- **無題の Scene を開いた Editor から作成すると、作成も rollback も失敗する（既存の transaction の挙動）:** 起動直後の Editor（無題・未保存の Scene）で `CreateAndOpen` を呼ぶと、`NewScene(Additive)` が「untitled scene unsaved」で失敗し、rollback の `RestoreSceneManagerSetup`（元の構成が空）も「No loaded scene found」で失敗して journal が残った。回復は、保存済みの `Assets/Scenes/SampleScene.unity` を開き、journal の元の構成をそれに合わせてから公式の `RecoverPending` を実行した（生成物・フォルダは消え、source のハッシュは開始時の `b802a1ddfb7f6e94` に一致）。その後 SampleScene を開いた状態で作り直した。d3 の拡張では変えていない経路（Cell companion と共通）で、d3 の凍結条件の違反ではない。所有は World Workspace の authoring 改善（§2.4、所有スライス未定）。
+- MobileDependencyResolver の `.pdb.meta` 5 件は、この worktree に `.pdb` 本体が無いため Editor の import が削除した。範囲外なので commit 前に戻した（Editor を開くたびに再発しうる）。
+
+### 引継ぎ（発見 C へ）
+
+- 起点 filter（§5）: `SampleGame.Tests.Rendering.Vfx;SampleGame.Tests.Editor.WorldAuthoring;SampleGame.Tests.App;SampleGame.Tests.Streaming`、`-WithGraphics`。新しいテストの名前空間は `SampleGame.Tests.Rendering.Vfx`（Play / authoring）と `OneStarMaker.Tests.Editor.WorldAuthoring`（構造・AC10。既存の WorldAuthoring テストと同じ名前空間）、`OneStarMaker.Tests.SampleGame`（factory）、`SampleGame.Tests.Streaming`。起点 filter の `SampleGame.Tests.Editor.WorldAuthoring` は既存テストの名前空間と一致しない可能性があるので、Phase C が XML で収録を確かめる。
+- 初回疎通（§5）が未確認のもの: AC4〜AC6 の実 Scene のロード（上の B 適応 3 の test director を含む）、AC4 (c) の専用 Scene の描画、AC7。
 
 ## 7. Phase C
 

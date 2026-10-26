@@ -18,6 +18,8 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
     [Serializable]
     internal sealed class WorldCompanionJournalData
     {
+        // WorldCompanionCreationKind の整数。項目の無い既存の journal は既定値 0（Cell companion）で読まれる。
+        public int creationKind;
         public string identity = string.Empty;
         public string parentIdentity = string.Empty;
         public string scenePath = string.Empty;
@@ -68,6 +70,7 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
         {
             var data = new WorldCompanionJournalData
             {
+                creationKind = (int)plan.Kind,
                 identity = plan.Identity,
                 parentIdentity = plan.ParentIdentity,
                 scenePath = plan.ScenePath,
@@ -101,6 +104,7 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
             var json = File.ReadAllText(JournalPath);
             var data = JsonUtility.FromJson<WorldCompanionJournalData>(json);
             if (data == null
+                || !Enum.IsDefined(typeof(WorldCompanionCreationKind), data.creationKind)
                 || string.IsNullOrWhiteSpace(data.identity)
                 || string.IsNullOrWhiteSpace(data.parentIdentity)
                 || !IsAssetPath(data.scenePath)

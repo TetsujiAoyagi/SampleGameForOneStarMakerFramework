@@ -107,6 +107,28 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             Assert.That(plan.NodePath, Is.EqualTo($"Assets/SceneGraphData/Nodes/Cells/{identity}.asset"));
         }
 
+        [Test]
+        public void CreateSeasonAtmospherePlan_CalculatesSeasonChildPathsAndLoadType()
+        {
+            var plan = WorldCompanionCreationPlan.CreateSeasonAtmosphere(WorldSeason.Spring);
+            Assert.That(plan.Kind, Is.EqualTo(WorldCompanionCreationKind.SeasonAtmosphere));
+            Assert.That(plan.Identity, Is.EqualTo("Spring_AtmosphereVFX"));
+            Assert.That(plan.ParentIdentity, Is.EqualTo("Season_Spring"));
+            Assert.That(plan.ScenePath, Is.EqualTo("Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_AtmosphereVFX/Spring_AtmosphereVFX.unity"));
+            Assert.That(plan.ResourcePath, Is.EqualTo("Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Spring_AtmosphereVFX/Spring_AtmosphereVFX.asset"));
+            Assert.That(plan.NodePath, Is.EqualTo("Assets/SceneGraphData/Nodes/Seasons/Spring_AtmosphereVFX.asset"));
+            Assert.That(plan.LoadType, Is.EqualTo(LoadType.NecessaryAlways));
+        }
+
+        [Test]
+        public void CreatePlan_CellCompanion_KeepsOnDemand()
+        {
+            var selection = new WorldWorkspaceSelection(WorldSeason.Spring, 4, 2, WorldWorkspaceRole.Vfx, WorldLevelPayload.Full);
+            var plan = WorldCompanionCreationPlan.Create(selection);
+            Assert.That(plan.Kind, Is.EqualTo(WorldCompanionCreationKind.CellCompanion));
+            Assert.That(plan.LoadType, Is.EqualTo(LoadType.OnDemand));
+        }
+
         [TestCase((int)WorldWorkspaceRole.Level)]
         [TestCase((int)WorldWorkspaceRole.Environment)]
         public void CreatePlan_RejectsRequiredNonCompanionRoles(int roleValue)

@@ -37,6 +37,7 @@ namespace SampleGame.Tests.Rendering.Vfx
         protected const string ImmortalPath = FixtureFolder + "VfxImmortal.vfx";
         protected const string PlacedPrefabPath = FixtureFolder + "PlacedVfx.prefab";
         private const string ContentModeKey = "SAMPLEGAME_CONTENT__RUNTIMEMODE";
+        private const string DebugSocketEnabledKey = "SAMPLEGAME_DEBUGSOCKET__ENABLED";
 
         // 粒子の出現・消滅を待つフレーム数の上限。batch の Editor はフレームが短いので、寿命 1 秒前後の粒子
         // （fixture は VFX Graph の Simple Loop テンプレートの 0.8〜1.2 秒）が消え切るまでに数千フレームかかりうる。
@@ -48,6 +49,8 @@ namespace SampleGame.Tests.Rendering.Vfx
         private SceneSetup[]? _sceneSetup;
         private string? _previousContentMode;
         private bool _contentModeChanged;
+        private string? _previousDebugSocketEnabled;
+        private bool _debugSocketEnabledChanged;
 
         /// <summary>TearDown で破棄する Object（GameObject・RenderTexture 等）。</summary>
         protected List<Object> Objects { get; } = new();
@@ -67,6 +70,15 @@ namespace SampleGame.Tests.Rendering.Vfx
             _previousContentMode = Environment.GetEnvironmentVariable(ContentModeKey, EnvironmentVariableTarget.Process);
             Environment.SetEnvironmentVariable(ContentModeKey, "addressables", EnvironmentVariableTarget.Process);
             _contentModeChanged = true;
+
+            // DebugSocket はこの Play では起動しない。app-config.json は connect・autoStart で始め、DebugStudio の
+            // サーバーが無いと接続失敗の warning を Play の開始から数秒後に非同期で出し、以後も再接続のたびに出しうる。
+            // その warning は起動の完了（下の Scene lifecycle への接続）とは無関係に届くので、本体の長いテストの
+            // LogAssert.NoUnexpectedReceived に DebugStudio の有無とタイミング次第で混ざる。VFX のテストは DebugSocket を
+            // 使わないので、assert を弱めず、ログの発生源を止める。無効のときの起動の warning は接続の前に同期で出る。
+            _previousDebugSocketEnabled = Environment.GetEnvironmentVariable(DebugSocketEnabledKey, EnvironmentVariableTarget.Process);
+            Environment.SetEnvironmentVariable(DebugSocketEnabledKey, "false", EnvironmentVariableTarget.Process);
+            _debugSocketEnabledChanged = true;
             yield return new EnterPlayMode();
 
             // 起動の失敗を VFX の不具合と取り違えないよう、先に起動を確かめる。
@@ -77,8 +89,8 @@ namespace SampleGame.Tests.Rendering.Vfx
                 "起動の失敗、または Framework が VFX の composition を作っていない");
 
             // AfterSceneLoad（非同期）の完了を待ってからテスト本体へ入る。本体の LogAssert.NoUnexpectedReceived は
-            // 本体の間に届いた全てのログを数えるので、起動のログ（DebugSocket の開始等）が本体に混ざると落ちる。
-            // 完了の目印は Scene lifecycle への接続: DebugSocket の開始とそのログは接続より前で、接続の後の
+            // 本体の間に届いた全てのログを数えるので、起動のログが本体に混ざると落ちる。
+            // 完了の目印は Scene lifecycle への接続: DebugSocket の起動判断とそのログは接続より前で、接続の後の
             // ロード済み Scene の登録は、空の Scene と UICommon（どちらも SceneResourceMap に無い）を同期でスキップする
             // だけなので、接続が見えた時点で起動のログは出終わっている。
             for (var frame = 0; frame < StartupFrameLimit && !frameworkHost!.IsSceneLifecycleBound; frame++)
@@ -143,6 +155,12 @@ namespace SampleGame.Tests.Rendering.Vfx
                     Environment.SetEnvironmentVariable(ContentModeKey, _previousContentMode, EnvironmentVariableTarget.Process);
                     _contentModeChanged = false;
                 }
+
+                if (_debugSocketEnabledChanged)
+                {
+                    Environment.SetEnvironmentVariable(DebugSocketEnabledKey, _previousDebugSocketEnabled, EnvironmentVariableTarget.Process);
+                    _debugSocketEnabledChanged = false;
+                }
             }
         }
 
@@ -186,5 +204,28 @@ namespace SampleGame.Tests.Rendering.Vfx
         }
 
         private protected static VfxInstanceId IdOf(IVfxHandle handle) => ((VfxHandle)handle).Id;
+
+        // ─── 起動の条件（d3 の VFX Scene のテストが共有）───
+
+        protected void PublishCapability(Func<VfxPlatformFacts> facts, VfxCapability expected)
+        {
+            // test の backend を writer にする。TearDown の Dispose で未判定に戻る。
+            var backend = Track(new VfxGraphBackend(facts));
+            backend.QueryCapability(out _);
+            Assert.That(VfxCapabilityState.Current, Is.EqualTo(expected), "前提: 能力判定の状態");
+        }
+
+        protected void UsePcQuality()
+        {
+            var pc = Array.IndexOf(QualitySettings.names, "PC");
+            Assert.That(pc, Is.GreaterThanOrEqualTo(0), "Quality に PC が無い");
+            PreviousQualityLevel = QualitySettings.GetQualityLevel();
+            QualitySettings.SetQualityLevel(pc, true);
+        }
+
+        protected static void WriteGraphicsFacts()
+            => TestContext.Out.WriteLine(
+                $"graphicsDeviceType={SystemInfo.graphicsDeviceType} supportsComputeShaders={SystemInfo.supportsComputeShaders} " +
+                $"maxComputeBufferInputsVertex={SystemInfo.maxComputeBufferInputsVertex} colorSpace={QualitySettings.activeColorSpace}");
     }
 }

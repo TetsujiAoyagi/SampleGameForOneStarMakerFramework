@@ -166,10 +166,11 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
                     VerifyEmptyScene(path);
                     return;
                 case WorldCompanionOwnedAssetKind.Node:
+                    var expectedLoadType = WorldCompanionCreationPlan.LoadTypeFor((WorldCompanionCreationKind)journal.creationKind);
                     var node = AssetDatabase.LoadAssetAtPath<SceneNodeData>(path);
                     var payloads = node == null ? null : node.Payloads;
                     if (node == null || !string.Equals(node.Identity, journal.identity, StringComparison.Ordinal)
-                        || node.NodeLoadType != LoadType.OnDemand || payloads == null || payloads.Count != 1
+                        || node.NodeLoadType != expectedLoadType || payloads == null || payloads.Count != 1
                         || payloads[0].Reference == null || !string.Equals(payloads[0].Variant, string.Empty, StringComparison.Ordinal)
                         || !string.Equals(payloads[0].Reference!.AssetGUID, journal.sceneGuid, StringComparison.Ordinal))
                         throw new InvalidOperationException($"Node ownership mismatch: {path}");
@@ -190,8 +191,12 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
                               || (resourcePayloads.Count == 1 && resourcePayloads[0].Reference != null
                                   && string.Equals(resourcePayloads[0].Variant, string.Empty, StringComparison.Ordinal)
                                   && string.Equals(resourcePayloads[0].Reference!.AssetGUID, journal.sceneGuid, StringComparison.Ordinal)));
+                    // SceneResource の LoadType は生成器が node から写すまで既定値（OnDemand）のまま。
+                    // 生成の前に落ちた Season Atmosphere の resource も自分の所有物として回収できるよう、
+                    // 既定値と計画の値の両方を受ける（Cell companion では両者が同じ）。
+                    var resourceLoadType = WorldCompanionCreationPlan.LoadTypeFor((WorldCompanionCreationKind)journal.creationKind);
                     if (resource == null || !identityShape
-                        || resource.LoadType != LoadType.OnDemand || resource.StreamByDistance
+                        || (resource.LoadType != LoadType.OnDemand && resource.LoadType != resourceLoadType) || resource.StreamByDistance
                         || resource.Volume.center != Vector3.zero || resource.Volume.size != Vector3.zero
                         || resource.Children.Count != 0 || !payloadShape
                         || (resource.Parent != null && !string.Equals(resource.Parent.Identity, journal.parentIdentity, StringComparison.Ordinal)))

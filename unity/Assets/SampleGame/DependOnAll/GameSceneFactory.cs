@@ -58,6 +58,11 @@ namespace SampleGame.DependOnAll
                 return new InGame.World.CellCompanionScene(sceneResource, sceneQuery, sceneController, _loggerFactory);
             }
 
+            if (IsSeasonAtmosphereVfx(sceneResource))
+            {
+                return new InGame.World.SeasonAtmosphereVfxScene(sceneResource, sceneQuery, sceneController, _loggerFactory);
+            }
+
             return sceneResource.Identity switch
             {
                 "Title" => new TitleScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
@@ -94,6 +99,25 @@ namespace SampleGame.DependOnAll
                 "ConfirmDialog" => new ConfirmDialogScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
                 _ => null,
             };
+        }
+
+        // World Workspace の作成の道具（WorldCompanionCreationPlan.CreateSeasonAtmosphere）と同じ命名規則。
+        // 道具で作れる季節の Atmosphere がロード時に "SceneFactory returned null" で落ちないよう、
+        // identity を 1 件ずつ列挙せず規則で分類する。構造だけでは Season_X の Lighting と区別できない。
+        private static bool IsSeasonAtmosphereVfx(SceneResource sceneResource)
+        {
+            const string suffix = "_AtmosphereVFX";
+            var identity = sceneResource.Identity;
+            var parent = sceneResource.Parent;
+            if (parent == null || parent.StreamByDistance || !identity.EndsWith(suffix, System.StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            var season = identity.Substring(0, identity.Length - suffix.Length);
+            return season.Length > 0
+                && season.IndexOf('_') < 0
+                && string.Equals(parent.Identity, "Season_" + season, System.StringComparison.Ordinal);
         }
     }
 }

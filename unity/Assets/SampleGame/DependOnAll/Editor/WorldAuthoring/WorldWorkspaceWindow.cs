@@ -80,6 +80,13 @@ namespace SampleGame.DependOnAll.Editor.WorldAuthoring
                     WorldCompanionSceneCreator.CreateAndOpen(selection, out _message);
             }
 
+            EditorGUILayout.Space();
+            var atmosphere = WorldCompanionCreationPlan.SeasonAtmosphereIdentity(_season);
+            var atmosphereExists = map.GetSceneResource(atmosphere) != null;
+            EditorGUILayout.LabelField("Season", EditorStyles.boldLabel);
+            if (GUILayout.Button(atmosphereExists ? $"Open {atmosphere}" : $"Create + Open {atmosphere}"))
+                WorldCompanionSceneCreator.CreateOrOpenSeasonAtmosphere(_season, out _message);
+
             if (!string.IsNullOrEmpty(_message))
                 EditorGUILayout.HelpBox(_message, MessageType.None);
         }

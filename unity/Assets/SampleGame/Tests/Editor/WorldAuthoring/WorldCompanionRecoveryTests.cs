@@ -358,6 +358,34 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             scope.AssertRolledBack();
         }
 
+        // 作成の種類の項目を足す前に書かれた journal は Cell companion の作成だった。
+        // 項目が無いことを理由に回復を拒否すると、旧版の途中終了が Workspace を塞いだままになる。
+        [Test]
+        public void PendingJournalWithoutCreationKind_RecoversAsCellCompanion()
+        {
+            using var scope = new WorldCompanionTestScope();
+            LeaveFullyCreatedPending(scope);
+            var json = File.ReadAllText(WorldCompanionRecoveryJournal.JournalPath);
+            var legacy = System.Text.RegularExpressions.Regex.Replace(json, @"\s*""creationKind"":\s*\d+,", string.Empty);
+            Assert.That(legacy, Does.Not.Contain("creationKind"));
+            File.WriteAllText(WorldCompanionRecoveryJournal.JournalPath, legacy);
+
+            Assert.That(WorldCompanionRecoveryJournal.Load().creationKind, Is.EqualTo((int)WorldCompanionCreationKind.CellCompanion));
+            WorldCompanionCreationTransaction.RecoverPending();
+
+            scope.AssertRolledBack();
+        }
+
+        [Test]
+        public void JournalWithUnknownCreationKind_IsCorrupt()
+        {
+            var data = CreateJournalData("unknown-kind");
+            data.creationKind = 99;
+            WorldCompanionRecoveryJournal.Save(data);
+
+            Assert.Throws<InvalidDataException>(() => WorldCompanionRecoveryJournal.Load());
+        }
+
         private static void LeaveFullyCreatedPending(WorldCompanionTestScope scope)
         {
             WorldCompanionCreationTransaction.FaultInjector = point =>
