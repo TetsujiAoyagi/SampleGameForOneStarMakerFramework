@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C`（発見 C 第2巡で F4 解消・阻害する指摘 0。履歴整理の後、GO 候補 head `87daa97c` で判定 C 待ち。§7）。経緯: 差し戻し 2 巡目（2/4）で F4 を修正。発見 C 第1巡で F1〜F3 は解消、新しい阻害する指摘 1 件（F4）。 発見 C 第0巡で阻害する指摘 3 件 → 差し戻し 1 巡目で修正。 Phase B 完了（2026-10-26。A3 凍結は同日。U1 は (b)、U2〜U6 はレビュー側の推奨で発注者が裁定し、凍結を承認した）
+- status: `C'`（判定 C 完了（高コスト証拠 AC7 を除く）。GO 候補 head `87daa97c`（tag `evidence/s-4d3-vfx-scenes/1`）で暫定 C' 待ち。§7「判定 C」）。経緯: 発見 C 第2巡で F4 解消・阻害する指摘 0、履歴整理の後に判定 C。 差し戻し 2 巡目（2/4）で F4 を修正。発見 C 第1巡で F1〜F3 は解消、新しい阻害する指摘 1 件（F4）。 発見 C 第0巡で阻害する指摘 3 件 → 差し戻し 1 巡目で修正。 Phase B 完了（2026-10-26。A3 凍結は同日。U1 は (b)、U2〜U6 はレビュー側の推奨で発注者が裁定し、凍結を承認した）
 - branch: `claude/s-4d3-vfx-scenes`
 - implementation base commit: `6667f88f`（`develop`、PR #143（S-4d2）のマージ）
 - risk: `high`（Scene・SceneResource・Addressables の生成、Scene の寿命と Season の子の LoadType、Player build への収録）
@@ -16,9 +16,14 @@
 - workflow task: `s-4d3-vfx-scenes`（Phase B の着手時に start 済み）
 - Phase A snapshot の取得案内・状態: A2 入力版は未 commit の版（content sha256 は §5「A2 独立レビュー」）。A3 凍結版はブランチ `claude/s-4d3-vfx-scenes` のローカル commit（本書・program の改訂を含む。SHA は commit の後に引継ぎ票で渡す）
 - Phase B result snapshot の取得案内・状態: ブランチ `claude/s-4d3-vfx-scenes` のローカル commit（Phase B 完了 commit。SHA は commit の後に引継ぎ票で渡す）。未 push
-- evidence bundle の取得案内・状態: 未生成
-- C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票（発見 C 第2巡 → 判定 C）:
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格、`locality=local`）。head `87daa97c` / base `6667f88f`、判定 C（2026-10-27）が `evidence stage` し、別 process の `fetch` で期待 hash の照合・10 file の一致・XML の閲覧を確認済み。引渡し先は進行役（取得案内は共有ノート `judgment-C-evidence.md`）。担当は判定 C の session。AC7 は未収録（最終証拠ラウンドで bundle を作り直す）
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格、`locality=local`）。同じ head・base。HANDOFF を除く差分、凍結 A3 版（`a7ff035a`）と Phase B 完了時の版（`87daa97c`、§6 まで）の HANDOFF、生の XML・unity.log・step.json・実行記録（強制終了の事実だけ）、contract-audit・docs-audit を収録（11 file）。発見 C・判定 C の所見と裁定は含めない。別 process の `fetch` で hash 照合・11 file の一致・閲覧を確認済み。取得案内は同じ共有ノート
+- 引継ぎ票（判定 C → 暫定 C'）:
+  - 前の Phase の結果: 判定 C は GO 候補 head `87daa97c`（tag `evidence/s-4d3-vfx-scenes/1`、push しない）で完了（高コスト証拠 AC7 を除く。§7「判定 C」）。空 filter の全 EditMode 回帰（`-WithGraphics`）は 1320 件中 passed 1320・failed 0・Inconclusive 0・Skipped 0。機械検査は合格。阻害する指摘 0。Unity の終了 stall で強制終了した run の XML を判定に使うことを発注者が裁定した（§7 決定記録 D4）。
+  - 次の Phase・役割: **暫定 C'（新しい session、B・C と異なるモデル）**。入力は C' blind bundle の取得案内だけ（判定 C・発見 C の所見と D4 は渡さない。C' は PR と可変な HANDOFF 全文を読まない）。暫定 C' は GO 判定に使わない。暫定 C' の阻害指摘が無くなった head で AC7（§5 の手順）を 1 回取得し、最終証拠ラウンド（判定 C の最終判定と最終 C'）へ進む（review-evidence の「高コスト証拠と最終証拠ラウンド」）。
+  - 巡のカウント: B と発見 C の間は 2/4 で確定。C' の差し戻しは別に数えて 0/3。
+  - 引き継ぐ commit: branch `claude/s-4d3-vfx-scenes` の先頭（この HANDOFF だけを変える判定 C の記録用 commit）。implementation head は `87daa97c`、base は `6667f88f`。未 push（同じ PC のローカル SHA で照合する）。作業ツリーは、別作業の未追跡 `docs/handoff/DEBUGSTUDIO_S2_CUT_PLAN.md` を除き clean。Unity は起動していない。
+- 引継ぎ票（以前: 発見 C 第2巡 → 判定 C。経緯として残す）:
   - 前の Phase の結果: 発見 C 第2巡が完了（implementation head `adf23ebd`、§7「発見 C 第2巡」）。起点 filter の実行は 170 件中 passed 170・failed 0。F4 は解消（DebugSocket の接続失敗の warning 0 件）。阻害する指摘 0、後続へ移送する指摘 0。
   - 次の Phase・役割: **判定 C（別 session）**。GO 候補 head `87daa97c`（下記の履歴整理の後の implementation head）で §5 の判定必須テスト（`pwsh tools/run-tests.ps1 -WithGraphics`、空 filter の全 EditMode 回帰）、機械検査、AC7（Player、高コスト証拠。§5 の手順と最終証拠ラウンドの順）を行う。発見 C の所見は C' へ渡さない。
   - 巡のカウント: B と発見 C の間で 2/4（上限 4）。
@@ -486,6 +491,24 @@ Architecture §24 §16.6 に「実 Scene での確認（Atmosphere / Cell VFX、
 - 阻害する指摘: なし。後続スライスへ移送する指摘: なし。
 - 未確認（第2巡の範囲外）: 判定必須テスト（空 filter の全 EditMode 回帰）、AC7（Player）、`Planner` / `Lighting` profile の実機確認。判定 C で行う。
 - 次: 未解決の blocker が無いので、`adf23ebd` を GO 候補 head として判定 C へ進む。
+
+### 判定 C（GO 候補 head `87daa97c`）
+
+- 種別・対象: 判定 C（高コスト証拠 AC7 を除く、手順 1）。implementation base `6667f88f` → head `87daa97c`（ローカル軽量 tag `evidence/s-4d3-vfx-scenes/1`、push しない）。作業ツリーは HANDOFF だけが異なる記録用 commit `93ee5268` で、未追跡の `DEBUGSTUDIO_S2_CUT_PLAN.md` 以外は clean だった。`git diff 87daa97c adf23ebd` は HANDOFF だけ（§0 の履歴整理の記録と一致）。
+- 担当・モデル: Claude Code（Anthropic、Claude Opus 系列）。C' は起動していない。
+- 実行: `pwsh tools/run-tests.ps1 -WithGraphics`（空 filter、Direct3D11・`supportsComputeShaders=True`・Linear）。sandbox 外で起動し、ライセンス接続（LicensingClient の起動）とコンパイルの進行を確認した。**1320 件中 passed 1320・failed 0・Inconclusive 0・Skipped 0**（XML の test-run、16:07:36Z〜16:21:58Z）。
+- 収録の確認（XML のテスト名）: `VfxSceneStructureTests` 7、`PlacedVfxAuthoringTests` 7、`VfxScenePlayTests` 4、`VfxSceneRenderPlayTests` 1 が全て passed。追加したケース（AC10 (a)〜(f) の `Execute_SeasonAtmosphere_*`・`Execute_SeasonAtmosphereFault_*`（2）・`Preflight_*`（2）・`PendingJournalWithoutCreationKind_RecoversAsCellCompanion`・`JournalWithUnknownCreationKind_IsCorrupt`・`CreateSeasonAtmospherePlan_*`・`CreatePlan_CellCompanion_KeepsOnDemand`・`CreateSceneClass_*Atmosphere*`（4）、AC4 (d) `Reconcile_RealSpringCell42_SelectsVfxSceneOnlyForVfxProfiles`（4）、AC6 (c) `SpringAtmosphereVfx_IsObservedInstance_SwitchWaitsForItsTerminal`）も全て収録・passed。AC9 の `SampleGame.Tests.Rendering.Vfx` 44 件、`OneStarMaker.Tests.Rendering.Vfx` 100 件、WorldAuthoring の 4 fixture（25・34・22・1 件）は全件 passed。本スライスのテストの Inconclusive・Ignored は 0。
+- 計測値（テストの出力）: AC4 (a)(b) `activeFrame=2`（上限 6000）、AC4 (b) `cellVfxBounds center=(1125, 20, 625) size=(70, 32, 70)` ⊂ `cellVolume center=(1125, 24.5, 625) size=(245, 49, 245)`、AC4 (c)・AC5 の描画は 4 回とも `disabledOutsideFixture=1 [UIScene.unity:UIPanel]`・`otherEnabledRenderers=0`、陽性 `litPixels=4`（閾値 4）、陰性 `litPixels=0`。AC5 の実 Scene `consoleLogsDuringLoad=0`（2 件）。AC6 `cellUnloadFrames=0 cellVfxObjects=0`、`seasonUnloadFrames=0 atmosphereObjects=0`。AC2 の `SpringCell42_VolumeIsUnchangedByVfxScene` は passed。
+- 機械検査（AC8）: `contract-audit` errors 0・warnings 0、`docs-audit` errors 0（警告 1 件は §7/§8 の「未着手」を埋まりと数える既存の判定）。`git diff --name-status 6667f88f 87daa97c` は §4 の変更対象・配下の `.meta`・本 HANDOFF・program 文書と、§6・§7 に記録した B 適応（`WorldCompanionOwnershipProof.cs`、`VfxPlayTestFixture.cs`、`VfxSceneRenderPlayTests.cs` の分割）に閉じる。`unity/Assets/OneStarMaker/` と `*.asmdef` の差分 0。`.unity` は `Seasons/` 配下が 654 → 656（+2）、`SampleGame/Tests/Rendering/Vfx/Fixtures/` が 0 → 1（全体 663 → 666）。編集・新規の `.cs` は全て `#nullable enable` があり、`record`・`Task.Delay`・`Thread.Sleep` は 0。`?.` / `??` の出現は `Type`・`FieldInfo`・plan・delegate 等の非 `UnityEngine.Object` に対するもので、偽 null の違反は無い。
+- **Unity の終了（生の事実。書き換えない）:** results.xml は 01:21:59、unity.log は 01:22:08（JST）に書き終わったが、Unity（PID 16504、この run が起動）は終了せず、CPU 時間が増え続けた（約 1412 s → 1755 s）。既知の native 終了 stall と同じ症状として原因調査はしていない。D4 に従い 01:42〜01:43 にこの PID だけを強制終了した（`Stop-Process -Force` と `taskkill /F` では終わらず、`Win32_Process.Terminate` で終了）。**自然終了ではない。** step.json の `process.exitCode = 0` は強制終了の値で、Unity の終了コードではない。Editor の import が `MobileDependencyResolver` の `.pdb.meta` 5 件を消したので `git checkout` で戻した（§6 と同じ）。
+- 操作・実行時・目視の条件: AC4〜AC6 は上の Unity テストで GO 候補 head の証拠が揃った。AC2 は Phase B の書き出し（§6）とテスト（`SpringCell42_VolumeIsUnchangedByVfxScene`）。AC7 は高コスト証拠で、暫定 C' の後に取得する（未取得）。
+- Evidence: evidence bundle と C' blind bundle を同じ commit から作り、`evidence stage` でローカル固定した（§0 の取得案内欄）。
+- 阻害する指摘: なし。後続スライスへ移送する指摘: なし。
+- 判定 C の結論（手順 1）: AC7 を除く判定必須テストと機械検査は条件を満たし、阻害する指摘はない。GO は、暫定 C' → AC7 → 最終証拠ラウンド（判定 C の最終判定と最終 C'）が揃うまで確定しない。
+
+### 決定記録
+
+- **D4（版 1、2026-10-27、発注者）:** 判定 C の全回帰で、結果 XML（1320 件全 passed）と unity.log が書き終わった後に Unity が既知の native 終了 stall の症状（CPU 時間が増え続けて終了しない）になった。`tools/Harness/README.md` の stall の節の「強制終了した取得は成功証拠にしない」と、osm-workflow Skill の「結果 XML が完成していればログ末尾と XML で判定する」が衝突した。発注者は (a)「この run の PID だけを強制終了し、完成済みの XML で判定する」を裁定した（原文「(a) で進めて」、進行役経由）。強制終了の事実と生の結果は書き換えずに記録し、stall の原因調査はしない。どの凍結条件の意味・合否も変えない。
 
 ## 8. Phase C'
 
