@@ -20,6 +20,9 @@ using RuntimeCameraSystem = OneStarMaker.Runtime.CameraSystem.Core.CameraSystem;
 using Cysharp.Threading.Tasks;
 using System.Threading;
 using OneStarMaker.Foundation.Telemetry;
+using OneStarMaker.Runtime.AssetManagement;
+using OneStarMaker.Runtime.Rendering.Vfx;
+using OneStarMaker.Runtime.UpdateSystem.Api;
 
 namespace OneStarMaker.Tests.SampleGame
 {
@@ -38,7 +41,7 @@ namespace OneStarMaker.Tests.SampleGame
         public void Constructor_NullLoggerFactory_Throws()
         {
             Assert.Throws<ArgumentNullException>(
-                () => new GameSceneFactory(null!, null!, null!, CellCompanionSet.Full, new FakeRenderEnvironmentForFactory()));
+                () => new GameSceneFactory(null!, null!, null!, CellCompanionSet.Full, new FakeRenderEnvironmentForFactory(), new NoopVfxSystem()));
         }
 
         [Test]
@@ -50,7 +53,8 @@ namespace OneStarMaker.Tests.SampleGame
                     null!,
                     new NoopCameraBackgroundApplier(),
                     CellCompanionSet.Full,
-                    new FakeRenderEnvironmentForFactory()));
+                    new FakeRenderEnvironmentForFactory(),
+                    new NoopVfxSystem()));
         }
 
         [Test]
@@ -64,7 +68,8 @@ namespace OneStarMaker.Tests.SampleGame
                     cameraSystem,
                     null!,
                     CellCompanionSet.Full,
-                    new FakeRenderEnvironmentForFactory()));
+                    new FakeRenderEnvironmentForFactory(),
+                    new NoopVfxSystem()));
         }
 
         [Test]
@@ -160,6 +165,22 @@ namespace OneStarMaker.Tests.SampleGame
                     cameraSystem,
                     new NoopCameraBackgroundApplier(),
                     CellCompanionSet.Full,
+                    null!,
+                    new NoopVfxSystem()));
+        }
+
+        [Test]
+        public void Constructor_NullVfxSystem_Throws()
+        {
+            var cameraSystem = new RuntimeCameraSystem(new FakeCameraBackend());
+
+            Assert.Throws<ArgumentNullException>(
+                () => new GameSceneFactory(
+                    NullLoggerFactory.Instance,
+                    cameraSystem,
+                    new NoopCameraBackgroundApplier(),
+                    CellCompanionSet.Full,
+                    new FakeRenderEnvironmentForFactory(),
                     null!));
         }
 
@@ -202,7 +223,17 @@ namespace OneStarMaker.Tests.SampleGame
                 cameraSystem,
                 new NoopCameraBackgroundApplier(),
                 companionSet,
-                new FakeRenderEnvironmentForFactory());
+                new FakeRenderEnvironmentForFactory(),
+                new NoopVfxSystem());
+        }
+
+        /// <summary>何も登録しない VfxSystem。factory・Scene class の生成だけを見るテストで使う。</summary>
+        private sealed class NoopVfxSystem : IVfxSystem
+        {
+            public IVfxHandle Spawn(in VfxSpawnRequest request, AssetOwner owner) => NullVfxHandle.Instance;
+
+            public IVfxHandle Adopt(UnityEngine.Object placed, AssetOwner owner, string? timeLayerId = UpdateLayerIds.Gameplay)
+                => NullVfxHandle.Instance;
         }
 
         private sealed class FakeRenderEnvironmentForFactory : IRenderEnvironment

@@ -17,9 +17,19 @@ namespace SampleGame.Common.Rendering.Vfx
     /// ロードした <see cref="VisualEffectAsset"/> を借りるだけで、解放もしない。
     /// </para>
     /// <para>
-    /// 能力判定は <see cref="QueryCapability"/> だけが行い、結果を <see cref="VfxCapabilityState"/> へ公開する
-    /// （配置済み VFX もこの結果を読む）。ctor は環境を読まず、環境に依存する例外を投げない。
+    /// 能力判定は <see cref="QueryCapability"/> だけが行う。ctor は環境を読まず、環境に依存する例外を投げない。
     /// Mobile の非対応環境でも起動を失敗させないため。ログは出さない（診断は VfxSystem が出す）。
+    /// 非対応環境では VfxSystem が以後この backend を呼ばないので、配置済み VFX も有効にならない。
+    /// </para>
+    /// <para>
+    /// Scene に配置済みの VFX（<see cref="Adopt"/>）は登録するだけで、GameObject も component も Scene の所有のまま。
+    /// 最初の <see cref="Play"/> で有効にする（VFX Graph の標準の開始で、有効化で初期イベントが送られる）。
+    /// 回収（<see cref="Release"/>）は無効化だけで、再び有効にはしない（有効化のたびに初期イベントが再送されるため）。
+    /// </para>
+    /// <para>
+    /// 時間: <c>.vfx</c> は Update Mode を Delta Time + Ignore Time Scale にする約束で、VFX Graph の 1 フレームの進みは
+    /// <c>min(unscaledDeltaTime, VFXManager.maxDeltaTime) × playRate</c> になる。<see cref="SetPlayback"/> は
+    /// Framework の倍率（実時間に対する倍率）をこの頭打ちに合わせて <c>playRate</c> へ換算する。
     /// </para>
     /// </summary>
     public sealed class VfxGraphBackend : IVfxBackend, IDisposable
@@ -51,18 +61,7 @@ namespace SampleGame.Common.Rendering.Vfx
             => _instances.TryGetValue(id.Value, out var entry) && entry.Effect != null ? entry.Effect : null;
 
         public bool QueryCapability(out string? reason)
-        {
-            // 評価の前に非対応を書いておく。事実の読み取りや評価が例外を投げても（VfxSystem はそれを非対応とみなす）、
-            // 配置済み VFX が読む値を VfxSystem の判定と一致させる。
-            VfxCapabilityState.Publish(this, VfxCapability.Unsupported);
-            var supported = VfxGraphCapabilityPolicy.Evaluate(_readFacts(), out reason);
-            if (supported)
-            {
-                VfxCapabilityState.Publish(this, VfxCapability.Supported);
-            }
-
-            return supported;
-        }
+            => VfxGraphCapabilityPolicy.Evaluate(_readFacts(), out reason);
 
         public VfxInstanceId Create(in VfxSpawnRequest request)
         {
@@ -129,9 +128,75 @@ namespace SampleGame.Common.Rendering.Vfx
                 return false;
             }
 
+            // 配置済み VFX の最初の開始は有効化だけにする（初期イベントで自動再生される、VFX Graph の標準の開始）。
+            // 有効のまま保存された（authoring の約束違反の）component は既に再生しているので、通常の再トリガにする。
+            var firstAdoptedStart = entry.Adopted && !entry.Played && !entry.Effect.enabled;
             entry.Played = true;
-            entry.Effect.Play();
+            if (firstAdoptedStart)
+            {
+                entry.Effect.enabled = true;
+            }
+            else
+            {
+                entry.Effect.Play();
+            }
+
             return true;
+        }
+
+        /// <summary>
+        /// 再生状態を書く。倍率は <c>rate × u ÷ min(u, VFXManager.maxDeltaTime)</c>（u = unscaledDeltaTime）で
+        /// <c>playRate</c> へ換算する。VFX Graph は 1 フレームの進みを <c>VFXManager.maxDeltaTime</c> で頭打ちにするので、
+        /// その分だけ playRate を上げて、Framework が求めた進み（rate × u）に合わせる。
+        /// u か上限が 0・負・NaN・∞ のフレームは換算できないので、playRate は前回の値のままにする（pause は書く）。
+        /// </summary>
+        public void SetPlayback(VfxInstanceId id, bool paused, float rate)
+        {
+            if (!TryGetEffect(id, out var effect))
+            {
+                return;
+            }
+
+            effect.pause = paused;
+            var playRate = ToPlayRate(rate, Time.unscaledDeltaTime, VFXManager.maxDeltaTime);
+            if (playRate.HasValue)
+            {
+                effect.playRate = playRate.Value;
+            }
+        }
+
+        /// <summary>
+        /// 配置済みの <see cref="VisualEffect"/> を登録する。有効化も開始もしない。VisualEffect 以外・破棄済みは無効 id。
+        /// </summary>
+        public VfxInstanceId Adopt(Object placed)
+        {
+            if (_disposed)
+            {
+                return VfxInstanceId.Invalid;
+            }
+
+            if (placed is not VisualEffect effect || effect == null)
+            {
+                return VfxInstanceId.Invalid;
+            }
+
+            var id = new VfxInstanceId(++_lastId);
+            _instances.Add(id.Value, new Entry(effect.gameObject, effect, adopted: true));
+            return id;
+        }
+
+        /// <summary>
+        /// 配置済み VFX の登録を外す。無効化するだけで、GameObject も component も破棄しない（Scene の所有）。
+        /// 破棄済みなら何もしない。未知の id・2 回目の呼び出しは何もしない。
+        /// </summary>
+        public void Release(VfxInstanceId id)
+        {
+            if (!_instances.Remove(id.Value, out var entry))
+            {
+                return;
+            }
+
+            ReleaseEntry(entry);
         }
 
         public void StopEmitting(VfxInstanceId id)
@@ -232,6 +297,14 @@ namespace SampleGame.Common.Rendering.Vfx
                 return;
             }
 
+            // VfxSystem は配置済みの instance に Destroy を呼ばない（IVfxBackend の契約）。契約違反でも Scene の
+            // GameObject は壊さない。
+            if (entry.Adopted)
+            {
+                ReleaseEntry(entry);
+                return;
+            }
+
             DestroyEntry(entry);
         }
 
@@ -243,14 +316,21 @@ namespace SampleGame.Common.Rendering.Vfx
             }
 
             _disposed = true;
-            VfxCapabilityState.ResetIfWriter(this);
 
-            // VfxSystem は先に全 instance を回収しているので、通常ここに残りは無い。残っていたら破棄する。
+            // VfxSystem は先に全 instance を回収しているので、通常ここに残りは無い。残っていたら回収する
+            // （配置済みは無効化だけで、Scene の GameObject は壊さない）。
             var remaining = new List<Entry>(_instances.Values);
             _instances.Clear();
             foreach (var entry in remaining)
             {
-                DestroyEntry(entry);
+                if (entry.Adopted)
+                {
+                    ReleaseEntry(entry);
+                }
+                else
+                {
+                    DestroyEntry(entry);
+                }
             }
 
             if (_root != null)
@@ -268,6 +348,32 @@ namespace SampleGame.Common.Rendering.Vfx
                 SystemInfo.maxComputeBufferInputsVertex,
                 QualitySettings.activeColorSpace,
                 SystemInfo.graphicsDeviceType);
+        }
+
+        /// <summary>
+        /// 倍率を playRate に換算する。換算できない（u か上限が 0・負・NaN・∞、結果が有限の 0 以上でない）なら null。
+        /// </summary>
+        internal static float? ToPlayRate(float rate, float unscaledDeltaTime, float maxDeltaTime)
+        {
+            if (!IsUsable(unscaledDeltaTime) || !IsUsable(maxDeltaTime))
+            {
+                return null;
+            }
+
+            var playRate = rate * unscaledDeltaTime / Mathf.Min(unscaledDeltaTime, maxDeltaTime);
+            return playRate >= 0f && !float.IsInfinity(playRate) ? playRate : null;
+        }
+
+        // NaN は比較が全て false になるので > 0 で落ちる。
+        private static bool IsUsable(float value) => value > 0f && !float.IsInfinity(value);
+
+        private static void ReleaseEntry(Entry entry)
+        {
+            // Unity が先に壊した（Scene の unload・Play Mode の終了）component には書かない。
+            if (entry.Effect != null)
+            {
+                entry.Effect.enabled = false;
+            }
         }
 
         private static void DestroyEntry(Entry entry)
@@ -325,15 +431,19 @@ namespace SampleGame.Common.Rendering.Vfx
 
         private sealed class Entry
         {
-            public Entry(GameObject gameObject, VisualEffect effect)
+            public Entry(GameObject gameObject, VisualEffect effect, bool adopted = false)
             {
                 GameObject = gameObject;
                 Effect = effect;
+                Adopted = adopted;
             }
 
             public GameObject GameObject { get; }
 
             public VisualEffect Effect { get; }
+
+            /// <summary>Scene に配置済みの VFX を登録したものか。GameObject は Scene の所有で、回収は無効化だけ。</summary>
+            public bool Adopted { get; }
 
             /// <summary>一度でも Play を送ったか。粒子の有無の判定方法を切り替える（<see cref="HasAliveParticles"/>）。</summary>
             public bool Played { get; set; }

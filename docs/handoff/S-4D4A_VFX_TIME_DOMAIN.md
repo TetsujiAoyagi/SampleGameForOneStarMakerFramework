@@ -20,6 +20,7 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
+  - **2026-10-27 更新:** Phase B は中断。§6.1 の疑いはスパイクで事実と確認され（§6.1.1）、A 再開に分類した。次は Phase A revision 2（主担当）。§6.1.1 の「残る未決」を発注者と決め、D3・§2.1・AC7・§3・§4.2 の差分を A2 で見直して A3 で凍結する。B のコードは本ファイルを含む中断 commit にあり（`git log -1 -- docs/handoff/S-4D4A_VFX_TIME_DOMAIN.md`）、revision 2 の凍結後に B を再開するときの起点にする。Editor 操作・コンパイル確認は未了（§6.5）。以下の項目は revision 1 の B 開始時のもの。
   - 次の Phase・役割: Phase B（実装担当）。新しい session で始める。§4.1 の順（時間制御 → 配置済み VFX）で、§3 の責務マップの範囲だけを実装する。
   - 凍結した Phase A: revision 1。凍結 commit は本ファイルを含む A3 凍結 commit（`git log -1 -- docs/handoff/S-4D4A_VFX_TIME_DOMAIN.md` で引く）。implementation base は `a4e940b1`。引継ぎの開始時に、凍結 commit と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない。
   - 入力: 本 HANDOFF（凍結版）。凍結前スパイクの原記録は Phase A snapshot の欄のとおり（Phase B では読まなくてよい。§1.4 が要約）。
@@ -467,7 +468,73 @@ asmdef 参照の追加は 0 件。公開 API の追加は `UpdateLayerIds.Gamepl
 
 ## 6. Phase B 実装結果
 
-未着手
+**状態: 中断（Phase A revision 2 待ち）。** §4.1 の 1〜4 のコードは書いた。Editor 操作（`.vfx` の Update Mode）とコンパイル確認は未了。D3 の換算に食い違いの疑いを 1 件見つけ、新しい事実の分類に従ってスパイクで因果を確かめた（発注者了承 2026-10-27）。疑いは事実で、§6.1 の判断の基準により **A 再開**（§6.1 の結果）。
+
+### 6.1 D3 の換算の疑い（スパイク。確認後に分類する）
+
+- **疑い（論理の上の推論で、未観測）:** D3 は (paused, rate) を「前回と違うときだけ」backend へ書く（AC1）。backend の換算 `playRate = rate × u ÷ min(u, VFXManager.maxDeltaTime)`（u = unscaledDeltaTime）は毎フレームの u に依存する。§1.4 の S3 のモデル（VFX の 1 フレームの進み = `min(u, VFXManager.maxDeltaTime) × playRate`）が `0.05 < u ≤ 0.333` でも成り立つなら、そのフレームでは `Time.deltaTime` が頭打ちにならず rate が変わらない。すると `SetPlayback` は呼ばれず、playRate は前回の値（通常 1）のままになり、VFX は 0.05 秒、gameplay は u 秒進む。これは E3（任意の連続したフレーム列で一致）に反する。
+- **未確認の前提:** §1.4 で測った負荷スパイクは u ≈ 0.517 の 1 点だけで、`0.05 < u ≤ 0.333` のフレームは測っていない。`Time.maximumDeltaTime` が `Time.timeScale` を掛ける前と後のどちらに効くかも測っていない。解決案（VFX 側の上限を `Time.maximumDeltaTime` に揃える、または十分大きくして換算を無くす）は、この 2 点が分かるまで比べられない。
+- **担当:** 別の実行担当 session（§5.1 と同じ）。sandbox の外での実行の承認と、Unity のライセンスが有効な状態が要る（2026-10-27 時点では、この PC の Editor.log に `License revoked` が出ていた）。主担当は観測の解釈と分類を行い、実行担当は GO / NO-GO・設計の判断を書かない。
+- **環境:** §1.4 のスパイクの使い捨てブランチ（`84d44922`、Update Mode 0 / 2 / 3 の fixture がある）から、新しい使い捨てブランチを作る（マージしない）。条件は §1.4 と同じで、`pwsh tools/run-tests.ps1 -WithGraphics -Filter <スパイクのテスト>` で実行する。待ちに `Thread.Sleep` / `Task.Delay` を使わず、フレームの引き延ばしは計算のループで行う。fixture は Update Mode 3（Delta Time + Ignore Time Scale）の、reap しないもの。
+- **観測する問い（各条件 3 回、フレームごとの値を記録する）:**
+  - **T1（欠陥の確認）:** `Time.timeScale = 1`・`playRate = 1`・`VFXManager.maxDeltaTime` は既定（0.05）。1 フレームを u ≈ 0.1、0.2、0.5 に引き延ばしたときの、spawn system の `totalTime` の増分、`Time.deltaTime`、`Time.unscaledDeltaTime`。
+  - **T2（上限を上げたとき）:** 実行中に `VFXManager.maxDeltaTime` を 0.333 と 1.0 にし、T1 と同じフレーム列で同じ値を取る。u ≈ 0.5 のフレームでは `playRate = 2` も取る（§1.4 の未確認「スパイクのフレームで playRate > 1 を掛けたときの進み」）。値はテストの最後に元に戻し、終了後に `unity/ProjectSettings/` の git diff が空であることを記録する。
+  - **T3（頭打ちと timeScale の順序）:** `Time.timeScale = 2` と `0.5` のそれぞれで、u ≈ 0.2 と 0.5 のフレームの `Time.deltaTime`（頭打ちが掛ける前か後か）。
+- **保存する証拠:** 生ログ、結果 XML、フレームごとの値の出力、スパイクのテストの差分、対象の commit。`evidence stage` で固定する（§0 の取得案内の欄に状態を書く）。
+- **判断の基準（観測の前に固定する）:**
+  - T1 で u ≈ 0.1・0.2 のフレームの `totalTime` の増分が 0.05 ± 10% なら、疑いは事実。T2・T3 の結果で解決案を選ぶ。修正は §3 の外（project 設定か、backend が全体の設定を持つ寿命）になるので **A 再開**とし、revision 2 で D3 の換算、AC7（`0.05 < u ≤ 0.333` のフレーム列を足すか）、§3、§4.2 の差分だけを A2 で見直す。時間の宣言、反映点、開始の保留、Adopt は変えない。B のコード（中断 commit）を捨てず、再開の起点にする。
+  - T1 で増分が u ± 10% なら、疑いは誤り。§6.1 を取り下げ、Phase B を revision 1 のまま続ける。
+  - どちらにも当たらなければ、観測を記録して主担当が発注者に返す（追加の取得は 1 回まで）。
+- **実装の現状:** `VfxGraphBackend.SetPlayback` は D3 の式のまま。
+
+#### 6.1.1 スパイクの結果（2026-10-27）
+
+- **実施:** 別の実行担当 session（Anthropic、Claude 系）。§1.4 のスパイクのブランチから切った使い捨てブランチ（テストの commit `e05ad48e`、未 push、マージしない）。Unity 6000.6.0f1、`-WithGraphics`、各条件 3 回、テストは Passed。実行後の `unity/ProjectSettings/` の git diff は空。原記録は `evidence stage` で固定した（ローカル固定済み（未昇格）。取得案内は実行担当の報告にあり、次の担当への引渡しは未完了）。
+- **観測（事実。increment は spawn system の `totalTime` の 1 フレームの増分）:**
+  - **T1**（`VFXManager.maxDeltaTime` 0.05、timeScale 1、playRate 1）: u ≈ 0.1・0.2 では `Time.deltaTime` = u、increment 0.050000。u ≈ 0.5 では `Time.deltaTime` 0.333333、increment 0.050000。3 回とも同じ。
+  - **T2:** `maxDeltaTime` 0.333 では、u ≈ 0.1・0.2 の increment は u、u ≈ 0.5 で 0.333000（設定値）。1.0 では increment は u（u ≈ 0.5 で約 0.500）。playRate 2 ではどれも 2 倍（0.333 で 0.666000、1.0 で約 1.000）。
+  - **T3**（`maxDeltaTime` 0.05）: increment はどの条件でも 0.050000。`Time.deltaTime` は timeScale 2 で u ≈ 0.2 → 約 0.400、u ≈ 0.5 → 0.666667。timeScale 0.5 で u ≈ 0.2 → 約 0.100、u ≈ 0.5 → 0.166667。
+  - その他: T1 の 1 回目だけ、Play の直後に引き延ばしていない長いフレームが 1 つあった（u 0.83）。
+- **解釈（主担当。観測とは分ける）:**
+  - VFX の 1 フレームの進みは `min(u, VFXManager.maxDeltaTime) × playRate` で、playRate は頭打ちの後に掛かる（T2。§1.4 の未確認「スパイクのフレームで playRate > 1」も解消）。
+  - `Time.deltaTime = min(u, Time.maximumDeltaTime) × Time.timeScale`。頭打ちは timeScale を掛ける**前**に効く（T3）。
+  - T1 の u ≈ 0.1・0.2 の increment が 0.05（± 10% の内）なので、§6.1 の疑いは事実。
+- **分類:** **A 再開**（§6.1 の判断の基準）。修正は VFX Graph の全体の設定（`VFXManager.maxDeltaTime`）に触れ、§3 の外になる。
+- **revision 2 の起点（主担当の分析。未凍結）:**
+  - **上限を揃える案:** `VFXManager.maxDeltaTime` を `Time.maximumDeltaTime` と同じ値にする。T2・T3 から、gameplay の領域では u によらず `playRate = Time.timeScale × Layer の TimeScale` になり、「変わったときだけ書く」（AC1）のままで全フレームで一致する。D3 の換算の式は変えなくてよい。0.333 と 0.333333 のような手書きのずれを避けるため、値は実行時の `Time.maximumDeltaTime` から写す。
+  - **上限を大きくする案**（例: 1.0）: u ≤ 上限なら換算が不要になる（playRate = rate）。ただし u > 上限のフレームで同じ問題が戻り、unscaled の VFX の 1 回の進みが大きくなる。上限を揃える案より弱い。
+  - **残る未決:** (1) unscaled の領域。どちらの案でも rate は常に 1 で書き直されないので、u > 上限のフレームでは VFX が上限までしか進まない。unscaled の領域の時間を `min(u, 上限)` と定義し直すか（§2.1 の改訂）、別の扱いにするか。(2) 設定の置き場と寿命。project 設定（`VFXManager.asset`）を変えるか、backend が起動時に写すか。game が実行中に `Time.maximumDeltaTime` を変えたときに追従するか、しないことを契約にするか。(3) AC7 に `0.05 < u ≤ 0.333` のフレーム列を足すか（今回の欠陥は AC7 のスパイク列だけでは見逃しうる）。
+  - **変えないもの:** 時間の宣言、反映点、開始の保留、Adopt と回収、テストの大半。B のコード（中断 commit）は revision 2 の凍結後に B を再開するときの起点にする。
+
+### 6.2 実装したもの（§3 との対応）
+
+- **Framework（時間）:** `UpdateLayerIds.Gameplay` / `GameplayLayerOrder`、adapter の定数化、`UpdateCoordinator.TryGetLayer`（`#nullable enable` を追加）、`VfxSpawnRequest.TimeLayerId` / `WithUnscaledTime`、internal `IVfxTimeSource`・`VfxTimeLayerBinding`（static、状態なし）、`IVfxBackend.SetPlayback`、`VfxHandle` の領域・前回値・開始の保留、`VfxSystem` の反映点、host の Gameplay Layer 作成・時間源・LateUpdate での反映、`AbstractApplicationInitializer.Vfx`。
+- **Framework（配置済み）:** `IVfxSystem.Adopt`、`IVfxBackend.Adopt` / `Release`、adopted の回収は `Release`、二重登録の拒否（`VfxSystem` の集合）。
+- **SampleGame:** `VfxGraphBackend`（`SetPlayback` の換算、`Adopt`、adopted の最初の `Play` は `enabled = true`、`Release` は無効化だけ）、`PlacedVfxActivator` を marker に（`Effect`、`UsesUnscaledTime`）、`VfxCapabilityState` 削除、`PlacedVfxAdopter`（internal static）、`CellCompanionScene` / `SeasonAtmosphereVfxScene` が `OnInitialize` で登録、`GameSceneFactory` / `AppInitializer` の注入。
+- **テスト:** `VfxSystemTimeLayerTests`（AC1〜AC3・AC5・所属先の検証）、`VfxSystemAdoptTests`（AC2 配置済み・AC4・AC9 登録側）、`FakeVfxTimeSource`（新規の偽物）、`FakeVfxBackend` の追従、`VfxSystemTickAllocationTests` に AC12、`VfxRuntimeHostTests` の unscaled 前提のテストを LateUpdate・領域の時間の確認に書き換え、`UpdateCoordinatorTests` に `TryGetLayer`。SampleGame: `VfxGraphBackendPlayTests` に AC6（動的・配置済み）・AC7、`VfxScenePlayTests` に AC8・AC9（未構成を追加、動的 `Spawn` を追加）、`PlacedVfxAuthoringTests` に AC10 の Update Mode、`VfxSceneRenderPlayTests` / `VfxGraphCapabilityPolicyTests` / `GameSceneLoggingTests` / `CellSceneTests` の追従。`VfxCapabilityState` を検査していたテスト（writer の Dispose・未判定）は対象が消えたので削除した。
+
+### 6.3 B 適応（凍結条件の意味を変えない実装上の判断）
+
+- **`Tick(float)`:** 引数は変えず、反映点にした（host は `Vfx` Layer の LateUpdate から呼ぶ）。public ctor（時間源なし）では Tick の delta を全領域の時間とし、Layer は「止まっていない、倍率 1」とみなす。internal ctor が時間源を受け取る。
+- **unscaled の表し方:** `TimeLayerId == null` を unscaled とした（D5 の「形は既存の命名に合わせてよい」）。`Adopt` の `timeLayerId` も同じ。
+- **初期の再生状態:** backend の初期状態を (止まっていない, 1) と契約に書き、handle の「前回の値」の初期値にした。値が同じなら書かない。止まっているフレームの rate は前回の値を保つ。
+- **host のテスト用の差し込み口:** `VfxRuntimeHost.FrameTimeForTest`（EditMode では `Time.deltaTime` を制御できないため）。
+- **marker の時間の宣言:** `PlacedVfxActivator` に serialized の `_unscaledTime`（既定 false）。
+
+### 6.4 規模（§3 の予想との差）
+
+- `VfxSystem.cs` 512 → 678（予想 580）。`Adopt` の受理規則（無効 id・生存中 id・再入後の再判定）が `Spawn` と同じ形で並び、反映点と時間源なしの時間源が増えた。時間の計算は binding へ分けてある。
+- `VfxHandle.cs` 251 → 389（予想 300）。開始の保留・再生状態の書き写し・adopted の回収の分岐と、その契約のコメント。
+- Phase C で構造劣化の由来を区別して記録する。
+
+### 6.5 未実行・未確認
+
+- **Editor 操作:** `.vfx` 4 件（d3 の 2 件、fixture の `VfxImmortal` / `VfxShortLived`）の Update Mode を Delta Time + Ignore Time Scale にする操作は未実施（現在は全て 0）。AC10 の新しいテストはこの状態では落ちる。
+- **コンパイル確認:** 未確認。Editor はこの worktree で起動したが、Library の初回の import の後、Editor.log に `License revoked: Your Unity Personal license has been revoked.` が出て Pipeline が 503 のまま応答しない。新規 `.cs` 5 件の `.meta` は初回の import で生成された（commit に含む）。
+- **`pwsh tools/contract-audit.ps1`:** errors 0 / warnings 0（作業ツリー、2026-10-27）。
+- **Unity テスト・Build:** 未実行（Phase C の責任）。
+- **公開文書:** Architecture §24 の §16.5（unscaled の Tick）と `VfxCapabilityState` の記述は古くなった。Phase D の harvest で直す。
+- **スライス外の差分（commit に含めない）:** この worktree で Editor を開くと、`MobileDependencyResolver/Editor` の `.pdb.meta` 5 件が削除される。原因は、`.gitignore` の `*.pdb` で vendor の `.pdb` 本体が checkout に無く、tracked の `.meta` だけが残って Unity が孤立した `.meta` として消すこと（元の checkout には `.pdb` がローカルにあるので起きない）。新しい worktree・clone では毎回起きる。d4a では毎回 restore して差分に入れない。根本の修正は d4a の範囲外で、別の作業として扱う。
 
 ## 7. Phase C
 

@@ -12,7 +12,8 @@ using UnityEngine.Rendering;
 namespace SampleGame.Tests.Rendering.Vfx
 {
     /// <summary>
-    /// VFX Graph の対応可否の規則（Unity の状態を読まない）と、判定結果の単一の出所（<see cref="VfxCapabilityState"/>）。
+    /// VFX Graph の対応可否の規則（Unity の状態を読まない）と、実 backend + VfxSystem で判定が 1 回だけ行われること。
+    /// 配置済み VFX は判定結果を自分で読まず VfxSystem に登録されるので、判定の出所は VfxSystem の 1 か所だけになる。
     /// Mobile 実機の代わりに、platform の事実を差し替えた規則と実 backend の判定経路を確かめる（実機での実証ではない）。
     /// </summary>
     [TestFixture]
@@ -75,7 +76,7 @@ namespace SampleGame.Tests.Rendering.Vfx
         }
 
         // ═══════════════════════════════════════════
-        //  判定結果の公開（実 backend + VfxSystem）
+        //  判定（実 backend + VfxSystem）
         // ═══════════════════════════════════════════
 
         private VfxGraphBackend Backend(Func<VfxPlatformFacts> readFacts)
@@ -93,7 +94,7 @@ namespace SampleGame.Tests.Rendering.Vfx
         }
 
         [Test]
-        public void VfxSystemCreation_ReadsFactsOnce_AndPublishesSupported()
+        public void VfxSystemCreation_ReadsFactsOnce_AndSupportedLogsNothing()
         {
             var reads = 0;
             var backend = Backend(() =>
@@ -103,63 +104,34 @@ namespace SampleGame.Tests.Rendering.Vfx
             });
             Assert.That(reads, Is.EqualTo(0), "backend の ctor は環境を読まない");
 
-            CreateSystem(backend, new FakeVfxLogger());
+            var logger = new FakeVfxLogger();
+            CreateSystem(backend, logger);
 
             Assert.That(reads, Is.EqualTo(1));
-            Assert.That(VfxCapabilityState.Current, Is.EqualTo(VfxCapability.Supported));
+            Assert.That(logger.TotalCount, Is.EqualTo(0));
         }
 
         [Test]
-        public void VfxSystemCreation_UnsupportedFacts_PublishesUnsupported()
+        public void VfxSystemCreation_UnsupportedFacts_LogsOneWarning()
         {
             var logger = new FakeVfxLogger();
             CreateSystem(Backend(() => Facts(GraphicsDeviceType.OpenGLES3)), logger);
 
-            Assert.That(VfxCapabilityState.Current, Is.EqualTo(VfxCapability.Unsupported));
             Assert.That(logger.WarningCount, Is.EqualTo(1));
+            Assert.That(logger.TotalCount, Is.EqualTo(1));
         }
 
-        /// <summary>評価中の例外では、評価の前に書いた Unsupported が残り、VfxSystem の判定（非対応）と一致する。</summary>
+        /// <summary>評価中の例外は VfxSystem が非対応とみなし、Error を 1 件だけ残す。</summary>
         [Test]
-        public void VfxSystemCreation_FactsReadThrows_UnsupportedRemains()
+        public void VfxSystemCreation_FactsReadThrows_TreatedAsUnsupported()
         {
             var logger = new FakeVfxLogger();
             var backend = Backend(() => throw new InvalidOperationException("facts unavailable"));
 
             var system = CreateSystem(backend, logger);
 
-            Assert.That(VfxCapabilityState.Current, Is.EqualTo(VfxCapability.Unsupported));
             Assert.That(logger.ErrorCount, Is.EqualTo(1));
             Assert.That(system.LiveInstanceCount, Is.EqualTo(0));
-        }
-
-        [Test]
-        public void BackendDispose_ResetsToUndetermined()
-        {
-            var backend = Backend(() => Facts());
-            CreateSystem(backend, new FakeVfxLogger());
-            Assert.That(VfxCapabilityState.Current, Is.EqualTo(VfxCapability.Supported));
-
-            backend.Dispose();
-
-            Assert.That(VfxCapabilityState.Current, Is.EqualTo(VfxCapability.Undetermined));
-        }
-
-        /// <summary>後から書いた backend が勝つ。先の backend の Dispose は値を戻さず、writer の Dispose だけが戻す。</summary>
-        [Test]
-        public void LaterWriterWins_EarlierBackendDisposeDoesNotReset()
-        {
-            var first = Backend(() => Facts());
-            CreateSystem(first, new FakeVfxLogger());
-            var second = Backend(() => Facts(GraphicsDeviceType.OpenGLES3));
-            CreateSystem(second, new FakeVfxLogger());
-            Assert.That(VfxCapabilityState.Current, Is.EqualTo(VfxCapability.Unsupported));
-
-            first.Dispose();
-            Assert.That(VfxCapabilityState.Current, Is.EqualTo(VfxCapability.Unsupported), "writer でない backend は戻さない");
-
-            second.Dispose();
-            Assert.That(VfxCapabilityState.Current, Is.EqualTo(VfxCapability.Undetermined));
         }
 
         [Test]

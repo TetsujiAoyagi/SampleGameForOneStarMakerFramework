@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using OneStarMaker.Runtime.CameraSystem.Abstractions;
 using OneStarMaker.Runtime.CameraSystem.Hosting;
 using OneStarMaker.Runtime.Rendering.Environments;
+using OneStarMaker.Runtime.Rendering.Vfx;
 using OneStarMaker.Runtime.SceneSystem;
 using SampleGame.InGame.World;
 using SampleGame.InGame.Streaming;
@@ -23,18 +24,23 @@ namespace SampleGame.DependOnAll
         private readonly ICameraSystem _cameraSystem;
         private readonly CellCompanionSet _companionSet;
         private readonly IRenderEnvironment _renderEnvironment;
+        private readonly IVfxSystem _vfx;
         /// <summary>
         /// Bootstrap が構成した唯一の <see cref="ILoggerFactory"/> を受け取る。
         /// Game 層で <see cref="OneStarMaker.Foundation.Logging.AppLoggerFactory"/> を再生成すると、
         /// rolling file と DebugSocket への出力経路が分断される。
         /// </summary>
         /// <param name="loggerFactory">アプリ起動時に一度だけ構成された logger factory。</param>
+        /// <param name="vfx">
+        /// 配置済み VFX を登録する Scene class へ渡す。非対応・未構成の環境でも Framework が非 null を返す。
+        /// </param>
         public GameSceneFactory(
             ILoggerFactory loggerFactory,
             ICameraSystem cameraSystem,
             ICameraBackgroundApplier backgroundApplier,
             CellCompanionSet companionSet,
-            IRenderEnvironment renderEnvironment)
+            IRenderEnvironment renderEnvironment,
+            IVfxSystem vfx)
         {
             _loggerFactory = loggerFactory ?? throw new System.ArgumentNullException(nameof(loggerFactory));
             // OutGame は MainView の背景を初期化するため、CameraSystem と applier は任意依存ではない。
@@ -44,6 +50,7 @@ namespace SampleGame.DependOnAll
             _cameraBackgroundApplier = backgroundApplier ?? throw new System.ArgumentNullException(nameof(backgroundApplier));
             _companionSet = companionSet;
             _renderEnvironment = renderEnvironment ?? throw new System.ArgumentNullException(nameof(renderEnvironment));
+            _vfx = vfx ?? throw new System.ArgumentNullException(nameof(vfx));
         }
 
         public SceneBase? CreateSceneClass(SceneResource sceneResource, ISceneQuery sceneQuery, ISceneController sceneController)
@@ -55,12 +62,12 @@ namespace SampleGame.DependOnAll
 
             if (sceneResource.Parent != null && sceneResource.Parent.StreamByDistance)
             {
-                return new InGame.World.CellCompanionScene(sceneResource, sceneQuery, sceneController, _loggerFactory);
+                return new InGame.World.CellCompanionScene(sceneResource, sceneQuery, sceneController, _loggerFactory, _vfx);
             }
 
             if (IsSeasonAtmosphereVfx(sceneResource))
             {
-                return new InGame.World.SeasonAtmosphereVfxScene(sceneResource, sceneQuery, sceneController, _loggerFactory);
+                return new InGame.World.SeasonAtmosphereVfxScene(sceneResource, sceneQuery, sceneController, _loggerFactory, _vfx);
             }
 
             return sceneResource.Identity switch

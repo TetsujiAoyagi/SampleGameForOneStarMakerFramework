@@ -4,9 +4,11 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using NUnit.Framework;
+using OneStarMaker.Foundation.UpdateSystem;
 using OneStarMaker.Runtime;
 using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.Rendering.Vfx;
+using OneStarMaker.Runtime.UpdateSystem.Api;
 using OneStarMaker.Tests.Rendering.Vfx;
 using SampleGame.Common.Rendering.Vfx;
 using UnityEditor;
@@ -18,8 +20,9 @@ using Object = UnityEngine.Object;
 namespace SampleGame.Tests.Rendering.Vfx
 {
     /// <summary>
-    /// 実 backend の契約（発射しない Create・拒否・id・Destroy の耐性・Set*）、非対応・未判定での停止、
-    /// 停止と回収（生きた coordinator から Tick される host を通す）、配置先、Framework の composition の存在を Play 中に見る。
+    /// 実 backend の契約（発射しない Create・拒否・id・Destroy の耐性・Set*）、非対応での停止、配置済み VFX の登録・開始・回収、
+    /// 停止と回収（生きた coordinator から Tick される host を通す）、時間の領域への追従（Pause・倍率・負荷スパイク）、
+    /// 配置先、Framework の composition の存在を Play 中に見る。
     /// 描画は <see cref="VfxGraphRenderPlayTests"/>。
     /// </summary>
     [TestFixture]
@@ -53,7 +56,6 @@ namespace SampleGame.Tests.Rendering.Vfx
             var system = Track(new VfxSystem(backend, logger));
             Assert.That(logger.WarningCount, Is.EqualTo(1));
             Assert.That(logger.TotalCount, Is.EqualTo(1));
-            Assert.That(VfxCapabilityState.Current, Is.EqualTo(VfxCapability.Unsupported));
 
             for (var i = 0; i < 10; i++)
             {
@@ -67,47 +69,264 @@ namespace SampleGame.Tests.Rendering.Vfx
             Assert.That(CountVisualEffects() - before, Is.EqualTo(0));
 
             var placed = InstantiatePlaced();
+            var adopted = system.Adopt(placed, AssetOwner.App);
+            Assert.That(adopted.IsActive, Is.False, "非対応では登録しない");
+            yield return null;
             yield return null;
             Assert.That(placed.enabled, Is.False);
+            Assert.That(logger.TotalCount, Is.EqualTo(1), "登録の間にログは増えない");
             LogAssert.NoUnexpectedReceived();
         }
 
+        /// <summary>marker は自分では有効化しない（Awake は何もしない）。登録しない限り無効のまま。</summary>
         [UnityTest]
-        public IEnumerator Undetermined_PlacedVfxStaysDisabled()
-        {
-            var backend = new VfxGraphBackend(UnsupportedFacts);
-            Track(new VfxSystem(backend, new FakeVfxLogger())).Dispose();
-            backend.Dispose();
-            Assert.That(VfxCapabilityState.Current, Is.EqualTo(VfxCapability.Undetermined), "前提: writer の Dispose で未判定");
-
-            var placed = InstantiatePlaced();
-            yield return null;
-            Assert.That(placed.enabled, Is.False);
-            LogAssert.NoUnexpectedReceived();
-        }
-
-        [UnityTest]
-        public IEnumerator Supported_PlacedVfxIsEnabled()
+        public IEnumerator PlacedVfx_NotAdopted_StaysDisabled()
         {
             AssumeGraphicsSupported();
-            var backend = Track(new VfxGraphBackend(RealFacts));
-            Track(new VfxSystem(backend, new FakeVfxLogger()));
-            Assert.That(VfxCapabilityState.Current, Is.EqualTo(VfxCapability.Supported));
+            CreateHost(RealFacts);
 
             var placed = InstantiatePlaced();
             yield return null;
-            Assert.That(placed.enabled, Is.True);
+            yield return null;
+
+            Assert.That(placed.enabled, Is.False);
             LogAssert.NoUnexpectedReceived();
         }
 
-        private VisualEffect InstantiatePlaced()
+        /// <summary>
+        /// 登録は有効化しない。最初の反映点（LateUpdate）で有効になり、初期イベントで粒子が出る。
+        /// 回収は無効化だけで GameObject を壊さず、回収の後に再び有効にならない。
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Supported_AdoptedPlacedVfx_EnabledAtReflection_ReleaseDisablesWithoutDestroy()
+        {
+            AssumeGraphicsSupported();
+            var host = CreateHost(RealFacts);
+            var placed = InstantiatePlaced();
+
+            var handle = host.System.Adopt(placed, AssetOwner.App);
+            Assert.That(handle.IsActive, Is.True);
+            Assert.That(placed.enabled, Is.False, "登録だけでは有効にしない");
+
+            yield return null;
+            Assert.That(placed.enabled, Is.True, "最初の反映点で有効になる");
+            var alive = false;
+            for (var frame = 0; frame < ParticleFrameLimit && !alive; frame++)
+            {
+                yield return null;
+                alive = placed.HasAnySystemAwake() || placed.aliveParticleCount > 0;
+            }
+
+            Assert.That(alive, Is.True, "有効化の初期イベントで粒子が出る");
+
+            handle.Stop();
+            Assert.That(placed.enabled, Is.False, "回収は無効化");
+            yield return null;
+            yield return null;
+            Assert.That(placed != null, Is.True, "回収は GameObject を壊さない");
+            Assert.That(placed.enabled, Is.False, "回収の後に再び有効にならない");
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        private VisualEffect InstantiatePlaced(VisualEffectAsset? asset = null)
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PlacedPrefabPath);
             Assert.That(prefab != null, Is.True, "fixture の prefab が無い");
             Assert.That(prefab!.GetComponent<VisualEffect>().enabled, Is.False, "前提: prefab の VisualEffect は無効のまま保存されている");
             var instance = Object.Instantiate(prefab);
             Objects.Add(instance);
-            return instance.GetComponent<VisualEffect>();
+            var effect = instance.GetComponent<VisualEffect>();
+            if (asset != null)
+            {
+                // 無効のまま差し替えるので、ここでは初期イベントは送られない。
+                effect.visualEffectAsset = asset;
+            }
+
+            return effect;
+        }
+
+        // ═══════════════════════════════════════════
+        //  時間の領域（AC6・AC7）
+        // ═══════════════════════════════════════════
+
+        // AC6 の止まっている間のフレーム数。reap しない fixture の aliveParticleCount は同じフレームで変わる（実測）ので、
+        // 除外するフレームは無い。
+        private const int PausedFrames = 30;
+
+        /// <summary>
+        /// AC6（動的）: 一定の spawn rate で寿命の無い粒子を出す fixture を再生中に Gameplay Layer を止めると、
+        /// 止まっている N フレームの間 aliveParticleCount が増えず、Resume の後に増える。
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AC6_Dynamic_PauseStopsAndResumeRestarts()
+        {
+            AssumeGraphicsSupported();
+            var backend = new VfxGraphBackend();
+            var host = CreateHost(backend);
+            var handle = host.System.Spawn(new VfxSpawnRequest(Immortal, Vector3.zero, Quaternion.identity), AssetOwner.App);
+            var effect = backend.FindForTest(IdOf(handle))!;
+            handle.Play();
+
+            yield return AssertPauseStopsAndResumeRestarts(effect, "dynamic");
+        }
+
+        /// <summary>AC6（配置済み）: 同じ操作で、登録した配置済み VFX も止まり、再開する。</summary>
+        [UnityTest]
+        public IEnumerator AC6_Placed_PauseStopsAndResumeRestarts()
+        {
+            AssumeGraphicsSupported();
+            var host = CreateHost(RealFacts);
+            var placed = InstantiatePlaced(Immortal);
+            Assert.That(host.System.Adopt(placed, AssetOwner.App).IsActive, Is.True);
+
+            yield return AssertPauseStopsAndResumeRestarts(placed, "placed");
+        }
+
+        private IEnumerator AssertPauseStopsAndResumeRestarts(VisualEffect effect, string label)
+        {
+            var started = false;
+            for (var frame = 0; frame < ParticleFrameLimit && !started; frame++)
+            {
+                yield return null;
+                started = effect.aliveParticleCount > 0;
+            }
+
+            Assert.That(started, Is.True, $"前提: {label} の粒子が出ている");
+
+            // coroutine は Update の後・LateUpdate の前に再開する。ここで止めると、このフレームの反映点（LateUpdate）で
+            // pause が書かれ、このフレームの VFX の更新から止まる。
+            var layer = GameplayLayer;
+            layer.IsPaused = true;
+            var pausedCount = effect.aliveParticleCount;
+            var counts = new List<int>();
+            for (var frame = 0; frame < PausedFrames; frame++)
+            {
+                yield return null;
+                counts.Add(effect.aliveParticleCount);
+            }
+
+            TestContext.Out.WriteLine($"{label} pausedAt={pausedCount} duringPause={string.Join(",", counts)}");
+            Assert.That(counts, Has.All.EqualTo(pausedCount), $"{label}: 止まっている間に粒子が増えた");
+
+            layer.IsPaused = false;
+            var resumed = false;
+            var resumeFrames = 0;
+            for (; resumeFrames < ParticleFrameLimit && !resumed; resumeFrames++)
+            {
+                yield return null;
+                resumed = effect.aliveParticleCount > pausedCount;
+            }
+
+            TestContext.Out.WriteLine($"{label} resumedAfterFrames={resumeFrames} alive={effect.aliveParticleCount}");
+            Assert.That(resumed, Is.True, $"{label}: Resume の後に粒子が増えない");
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        // AC7 で比べるフレーム数と、負荷スパイクで引き延ばす長さ（Time.maximumDeltaTime を超える）。
+        private const int MeasuredFrames = 60;
+        private const double SpikeSeconds = 0.5;
+
+        /// <summary>
+        /// AC7: Gameplay Layer に置いた test の要素が受け取った DeltaTime の和と、VFX の spawn system が進んだ時間
+        /// （totalTime の増分）が一致する。(Time.timeScale, Layer の TimeScale) の 3 組のそれぞれで、
+        /// Time.maximumDeltaTime を超える負荷スパイクのフレームを含む列で比べる。
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AC7_EffectTimeMatchesGameplayTime_IncludingLoadSpike()
+        {
+            AssumeGraphicsSupported();
+            var coordinator = UpdateSystemRuntime.Coordinator!;
+            var probe = new GameplayDeltaProbe();
+            Assert.That(coordinator.RegisterElement(UpdateLayerIds.Gameplay, probe, UpdateLayerIds.GameplayLayerOrder), Is.True);
+            coordinator.ActivatePendingRegistrations();
+            try
+            {
+                var conditions = new[] { (0.5f, 0.5f), (1f, 2f), (2f, 0.5f) };
+                foreach (var (timeScale, layerScale) in conditions)
+                {
+                    yield return MeasureOneCondition(probe, timeScale, layerScale);
+                }
+            }
+            finally
+            {
+                coordinator.UnregisterElement(probe);
+            }
+
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        private IEnumerator MeasureOneCondition(GameplayDeltaProbe probe, float timeScale, float layerScale)
+        {
+            var backend = new VfxGraphBackend();
+            var host = CreateHost(backend);
+            var handle = host.System.Spawn(new VfxSpawnRequest(Immortal, Vector3.zero, Quaternion.identity), AssetOwner.App);
+            var effect = backend.FindForTest(IdOf(handle))!;
+            SetTimeScale(timeScale);
+            GameplayLayer.SetTimeScale(layerScale);
+            handle.Play();
+            var spawnNames = new List<string>();
+
+            // 開始の直後のフレームを外し、spawn system の時間が進み始めてから測る。
+            for (var frame = 0; frame < 5; frame++)
+            {
+                yield return null;
+            }
+
+            effect.GetSpawnSystemNames(spawnNames);
+            Assert.That(spawnNames, Is.Not.Empty, "前提: fixture に spawn system がある");
+            var spawnName = spawnNames[0];
+
+            // coroutine の時点では、gameplay の要素はこのフレームの Update を受け取り済みで、VFX はまだこのフレームを
+            // 更新していない。両者を同じフレームの範囲に揃えるため、gameplay 側はこのフレームの分を引いた和を使う。
+            var startEffect = effect.GetSpawnSystemInfo(spawnName).totalTime;
+            var startGameplay = probe.Sum - probe.Last;
+            var frames = new List<string>();
+            for (var frame = 0; frame < MeasuredFrames; frame++)
+            {
+                if (frame == MeasuredFrames / 2)
+                {
+                    SpinMainThread(SpikeSeconds);
+                }
+
+                yield return null;
+                frames.Add($"{Time.unscaledDeltaTime:F4}/{Time.deltaTime:F4}");
+            }
+
+            var effectTime = effect.GetSpawnSystemInfo(spawnName).totalTime - startEffect;
+            var gameplayTime = probe.Sum - probe.Last - startGameplay;
+            var tolerance = Math.Max(1e-3f, gameplayTime * 0.01f);
+            TestContext.Out.WriteLine(
+                $"timeScale={timeScale} layerScale={layerScale} gameplay={gameplayTime:F5} effect={effectTime:F5} " +
+                $"tolerance={tolerance:F5} maximumDeltaTime={Time.maximumDeltaTime} vfxMaxDeltaTime={VFXManager.maxDeltaTime} " +
+                $"frames(unscaled/delta)={string.Join(",", frames)}");
+            Assert.That(effectTime, Is.EqualTo(gameplayTime).Within(tolerance),
+                $"(timeScale {timeScale}, layer {layerScale}) で VFX の時間が gameplay の時間と一致しない");
+
+            handle.Stop();
+            SetTimeScale(1f);
+            GameplayLayer.SetTimeScale(1f);
+        }
+
+        /// <summary>Gameplay Layer の要素が受け取った DeltaTime を足す（AC7 の gameplay 側の時間）。</summary>
+        private sealed class GameplayDeltaProbe : IUpdateElement
+        {
+            public float Sum { get; private set; }
+
+            public float Last { get; private set; }
+
+            public void OnElementStart()
+            {
+            }
+
+            public void OnElementUpdate(in UpdateFrameContext context)
+            {
+                Last = context.DeltaTime;
+                Sum += context.DeltaTime;
+            }
+
+            public void OnElementLateUpdate(in UpdateFrameContext context)
+            {
+            }
         }
 
         // ═══════════════════════════════════════════
@@ -322,10 +541,12 @@ namespace SampleGame.Tests.Rendering.Vfx
             }
 
             Assert.That(sawAlive, Is.True, "前提: 粒子が出ている");
-            // 経過はフレームの時計（unscaled time）で測る。消え切り待ちは Tick に渡る unscaled delta を足す規則で、
-            // delta は直前のフレームの開始時刻からの差なので、Stop の後の最初の Tick には呼び出しより前の時間が入る。
-            // 呼び出しの瞬間の実時間から測ると最大 1 フレーム分短く見えるが、フレームの時計なら Tick が足した delta の
-            // 合計と一致する。最初の Tick で即 timeout する実装は経過 1 フレーム分しかないので、これでも落ちる。
+            // 経過はフレームの時計（unscaled time）で測る。消え切り待ちは反映点ごとに領域の時間（Gameplay、
+            // Time.timeScale = 1 なので頭打ちのフレーム以外は unscaled delta と同じ）を足す規則で、delta は直前のフレームの
+            // 開始時刻からの差なので、Stop の後の最初の反映点には呼び出しより前の時間が入る。呼び出しの瞬間の実時間から
+            // 測ると最大 1 フレーム分短く見えるが、フレームの時計なら反映点が足した delta の合計と一致する
+            // （頭打ちのフレームでは足す量が少ないので、経過はむしろ長くなる）。最初の反映点で即 timeout する実装は
+            // 経過 1 フレーム分しかないので、これでも落ちる。
             var stoppedAt = Time.unscaledTimeAsDouble;
             handle.StopAllowingParticlesToFinish();
             for (var frame = 0; frame < ParticleFrameLimit * 4 && go != null; frame++)

@@ -5,7 +5,6 @@ using System.Collections;
 using System.Linq;
 using Cysharp.Threading.Tasks;
 using NUnit.Framework;
-using SampleGame.Common.Rendering.Vfx;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -17,7 +16,8 @@ namespace SampleGame.Tests.Rendering.Vfx
 {
     /// <summary>
     /// 本番の Atmosphere VFX と Cell VFX と同じ .vfx だけを置いた専用 Scene（Fixtures/VfxSceneRender.unity）で、
-    /// 対応時に VFX の画素が出ること（陽性）と、非対応に切り替えた後に新しく載せた instance では出ないこと（陰性）を測る。
+    /// 対応の VfxSystem に登録したときに VFX の画素が出ること（陽性）と、非対応の VfxSystem に登録した新しい instance では
+    /// 出ないこと（陰性）を測る。
     /// 実 Scene には地形等の他の Renderer が混ざり、画素の閾値が VFX の描画の証拠にならないので、描画だけをここで見る。
     /// 実 Scene のロード・有効化・寿命は <see cref="VfxScenePlayTests"/> が見る（ここの成功で代替しない）。
     /// </summary>
@@ -38,10 +38,13 @@ namespace SampleGame.Tests.Rendering.Vfx
                 WriteGraphicsFacts();
                 AssumeGraphicsSupported();
                 UsePcQuality();
-                PublishCapability(RealFacts, expected: VfxCapability.Supported);
+                var supportedHost = CreateHost(RealFacts);
 
                 // 陽性: 同じ process の陽性対照。これが閾値に達しなければ、陰性の画素 0 は描画の証拠にならない。
+                // 専用 Scene は SceneDirector を通さずに載せるので、本番の Scene class の代わりに marker を登録する。
                 var supportedScene = await LoadRenderFixtureAsync();
+                var supportedHandles = AdoptMarkers(supportedHost.System, supportedScene.GetRootGameObjects());
+                Assert.That(supportedHandles.All(handle => handle.IsActive), Is.True, "前提: 対応時は登録される");
                 foreach (var target in new[] { "AtmosphereVfx", "CellVfx" })
                 {
                     var lit = await MeasureTargetAsync(supportedScene, target);
@@ -49,11 +52,14 @@ namespace SampleGame.Tests.Rendering.Vfx
                     Assert.That(lit, Is.GreaterThanOrEqualTo(RenderPixelThreshold), $"対応時に {target} が描画されない");
                 }
 
+                supportedHandles.ForEach(handle => handle.Stop());
                 await SceneManager.UnloadSceneAsync(supportedScene);
 
-                // 陰性: 非対応に切り替えた後に新しく載せた instance。先に有効化された VFX を止める仕様は要求しない。
-                PublishCapability(UnsupportedFacts, expected: VfxCapability.Unsupported);
+                // 陰性: 非対応の VfxSystem に登録した、新しく載せた instance。
+                var unsupportedHost = CreateHost(UnsupportedFacts);
                 var unsupportedScene = await LoadRenderFixtureAsync();
+                var unsupportedHandles = AdoptMarkers(unsupportedHost.System, unsupportedScene.GetRootGameObjects());
+                Assert.That(unsupportedHandles.Any(handle => handle.IsActive), Is.False, "前提: 非対応では登録されない");
                 foreach (var target in new[] { "AtmosphereVfx", "CellVfx" })
                 {
                     var lit = await MeasureTargetAsync(unsupportedScene, target);

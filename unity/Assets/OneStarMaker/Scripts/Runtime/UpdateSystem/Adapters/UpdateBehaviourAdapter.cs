@@ -18,9 +18,9 @@ namespace OneStarMaker.Runtime.UpdateSystem.Adapters
         private static readonly AppLoggerFactory s_loggerFactory = new(minimumLevel: LogLevel.Error);
         private static readonly ILogger s_logger = s_loggerFactory.CreateLogger(nameof(UpdateBehaviourAdapter));
 
-        protected virtual string LayerId => "Gameplay";
+        protected virtual string LayerId => Api.UpdateLayerIds.Gameplay;
 
-        protected virtual int LayerOrder => 0;
+        protected virtual int LayerOrder => Api.UpdateLayerIds.GameplayLayerOrder;
 
         protected virtual int ExecutionOrder => 0;
 

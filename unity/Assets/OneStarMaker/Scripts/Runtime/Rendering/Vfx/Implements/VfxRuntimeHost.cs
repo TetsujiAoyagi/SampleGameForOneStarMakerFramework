@@ -20,12 +20,18 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
     /// Game の hook からは割り込めないので Framework に置く。判定ロジックは持たず、orchestration だけを行う。
     /// </para>
     /// <para>
-    /// Tick 要素は Scene 安定待ちの gate を経由せず即時 active にする。gate が開かない起動経路でも
-    /// 消え切り待ちが有限で終わるようにするため。delta は unscaled を渡す（<c>Time.timeScale = 0</c> では
-    /// 粒子が消えないので、unscaled の timeout だけが出口になる）。
+    /// Tick 要素は Scene 安定待ちの gate を経由せず即時 active にする（gate が開かない起動経路でも反映が止まらない）。
+    /// 時間の反映点は <c>Vfx</c> Layer の LateUpdate で、全 Layer の Update の後・VFX の simulation の前にある。
+    /// どの Layer の Update で pause・倍率を変えても同じフレームに反映される。<c>Vfx</c> Layer 自身は時間の領域に
+    /// しない（pause されると全 VFX への反映が止まる）。
+    /// </para>
+    /// <para>
+    /// 時間の値の出所（<see cref="IVfxTimeSource"/>）もここが実装する。<c>UnityEngine.Time</c> の delta と、
+    /// UpdateCoordinator の Layer の状態を、Layer を作らずに読む。既定の時間の領域である Gameplay Layer は、
+    /// 生成時に既定の順序で作って存在を保証する（Game の要素より先に別の順序で作られることを防ぐ）。
     /// </para>
     /// </summary>
-    internal sealed class VfxRuntimeHost : IUpdateElement, IDisposable
+    internal sealed class VfxRuntimeHost : IUpdateElement, IVfxTimeSource, IDisposable
     {
         private readonly IVfxBackend _backend;
         private ILogger<VfxRuntimeHost>? _logger;
@@ -49,6 +55,16 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
 
         /// <summary>テスト用: Scene lifecycle への接続が成功したか（失敗、または Dispose 後は false）。</summary>
         internal bool IsSceneLifecycleBound { get; private set; }
+
+        /// <summary>
+        /// テスト用: 非 null なら <c>UnityEngine.Time</c> の代わりにこの delta を時間の値として使う
+        /// （EditMode では <c>Time.deltaTime</c> を制御できないため）。
+        /// </summary>
+        internal (float DeltaTime, float UnscaledDeltaTime)? FrameTimeForTest { get; set; }
+
+        float IVfxTimeSource.DeltaTime => FrameTimeForTest?.DeltaTime ?? Time.deltaTime;
+
+        float IVfxTimeSource.UnscaledDeltaTime => FrameTimeForTest?.UnscaledDeltaTime ?? Time.unscaledDeltaTime;
 
         /// <summary>
         /// 一式を作る。<paramref name="backend"/> の所有権はこのメソッドに入った時点で host に移る。
@@ -76,11 +92,19 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
                 }
 
                 host._logger = loggerFactory.CreateLogger<VfxRuntimeHost>();
-                // VfxSystem の ctor が能力判定を 1 回だけ行う。以後、Scene の Awake からも判定結果を読める。
+
+                // 既定の時間の領域。UpdateBehaviourAdapter の既定と同じ id・順序なので、既存の Layer と同一になる。
+                coordinator.GetOrCreateLayer(UpdateLayerIds.Gameplay, UpdateLayerIds.GameplayLayerOrder);
+
+                // 時間源は coordinator を読むので、VfxSystem より先に記録する。
+                host._coordinator = coordinator;
+
+                // VfxSystem の ctor が能力判定を 1 回だけ行う。
                 host._system = new VfxSystem(
                     host._backend,
                     loggerFactory.CreateLogger<VfxSystem>(),
-                    gracefulStopTimeoutSeconds);
+                    gracefulStopTimeoutSeconds,
+                    host);
 
                 if (!coordinator.RegisterElement(UpdateLayerIds.Vfx, host, UpdateLayerIds.VfxLayerOrder))
                 {
@@ -88,8 +112,7 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
                         "The VFX update element could not be registered. Check the UpdateSystem initialization order.");
                 }
 
-                // 登録できた時点で記録する。以降で失敗しても Dispose が登録を解除できるように。
-                host._coordinator = coordinator;
+                // 登録できた時点から転送する。以降で失敗しても Dispose が登録を解除できる（coordinator は記録済み）。
                 host._forwardTicks = true;
                 coordinator.ActivatePendingRegistrations();
             }
@@ -148,6 +171,7 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
             {
                 try
                 {
+                    // 登録の前に失敗した場合も呼ばれる。未登録なら false が返るだけ。
                     coordinator.UnregisterElement(this);
                 }
                 catch (Exception e)
@@ -193,17 +217,33 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
 
         void IUpdateElement.OnElementUpdate(in UpdateFrameContext context)
         {
+        }
+
+        void IUpdateElement.OnElementLateUpdate(in UpdateFrameContext context)
+        {
             if (!_forwardTicks)
             {
                 return;
             }
 
+            // 反映点。時間の値は IVfxTimeSource（この host）から読むので、delta 引数は使われない。
             // VfxSystem.Tick は自分で例外を捕捉する（他の UpdateSystem 要素の Tick を止めない）。
             _system?.Tick(context.UnscaledDeltaTime);
         }
 
-        void IUpdateElement.OnElementLateUpdate(in UpdateFrameContext context)
+        bool IVfxTimeSource.TryGetLayerState(string layerId, out bool isPaused, out float timeScale)
         {
+            var coordinator = _coordinator;
+            if (coordinator != null && coordinator.TryGetLayer(layerId, out var layer))
+            {
+                isPaused = layer.IsPaused;
+                timeScale = layer.TimeScale;
+                return true;
+            }
+
+            isPaused = false;
+            timeScale = 1f;
+            return false;
         }
 
         private void LogError(Exception exception, string message)

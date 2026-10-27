@@ -2,7 +2,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using SampleGame.Common.Rendering.Vfx;
 using UnityEditor;
@@ -18,8 +20,14 @@ namespace SampleGame.Tests.Rendering.Vfx
     /// Scene に配置した VFX の authoring の約束を検査する（Play には入らない）。
     /// <para>
     /// 約束: 全ての <see cref="VisualEffect"/> は無効で保存し、同じ GameObject に <see cref="PlacedVfxActivator"/> を持ち、
-    /// asset の参照が外れていない。有効のまま保存すると、非対応環境でも deserialize の時点で有効化が走る
-    /// （activator は有効なものを止めない）。VFX 専用の Scene には Collider とゲーム進行・カメラ追従の script を置かない。
+    /// asset の参照が外れていない。有効のまま保存すると、非対応環境でも deserialize の時点で有効化が走り、
+    /// 時間の領域が止まっていても開始してしまう（有効化は VfxSystem に登録した後の反映点で行う）。
+    /// VFX 専用の Scene には Collider とゲーム進行・カメラ追従の script を置かない。
+    /// </para>
+    /// <para>
+    /// 全ての <c>.vfx</c> は Update Mode を Delta Time + Ignore Time Scale にする。VFX Graph が <c>Time.timeScale</c> を
+    /// 内部で効かせると Framework が書く再生速度と二重に効き、Fixed Delta Time では 1/60 の刻みになってフレームごとに
+    /// gameplay の時間と一致しない。
     /// </para>
     /// <para>
     /// 対象は、必須の 2 Scene と、Seasons 配下で依存に .vfx を含む Scene の和集合。必須側を別に持つのは、
@@ -81,6 +89,44 @@ namespace SampleGame.Tests.Rendering.Vfx
             }
 
             Assert.That(violations, Is.Empty);
+        }
+
+        // Delta Time（1）と Ignore Time Scale（2）の組。.vfx の VisualEffectResource に m_UpdateMode として保存される。
+        private const int DeltaTimeIgnoringTimeScale = 3;
+
+        private const string VfxSearchRoot = "Assets/SampleGame";
+
+        [Test]
+        public void AllVfxAssets_UseDeltaTimeIgnoringTimeScale()
+        {
+            var paths = AssetDatabase.FindAssets("t:VisualEffectAsset", new[] { VfxSearchRoot })
+                .Select(AssetDatabase.GUIDToAssetPath)
+                .Where(path => path.EndsWith(".vfx", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(path => path, StringComparer.Ordinal)
+                .ToList();
+            TestContext.Out.WriteLine("vfx=" + string.Join(",", paths));
+            Assert.That(paths, Is.Not.Empty, "前提: .vfx がある");
+
+            var violations = paths
+                .Select(path => (path, violation: InspectUpdateMode(File.ReadAllText(path))))
+                .Where(entry => entry.violation != null)
+                .Select(entry => entry.path + ": " + entry.violation)
+                .ToList();
+            Assert.That(violations, Is.Empty);
+        }
+
+        [TestCase("    m_UpdateMode: 3\n", null)]
+        [TestCase("    m_UpdateMode: 0\n", "Update Mode が 0")]
+        [TestCase("    m_UpdateMode: 2\n", "Update Mode が 2")]
+        [TestCase("    m_Other: 1\n", "m_UpdateMode が無い")]
+        [TestCase("    m_UpdateMode: 3\n    m_UpdateMode: 3\n", "m_UpdateMode が 2 件")]
+        public void InspectUpdateMode_ReportsViolations(string text, string? expected)
+        {
+            var violation = InspectUpdateMode(text);
+            if (expected == null)
+                Assert.That(violation, Is.Null);
+            else
+                Assert.That(violation, Does.Contain(expected));
         }
 
         // ─── 失敗経路: 検査関数が各違反を返すこと ───
@@ -167,7 +213,7 @@ namespace SampleGame.Tests.Rendering.Vfx
                     violations.Add($"{HierarchyPath(collider.transform)}: VFX Scene に Collider がある");
                 foreach (var behaviour in root.GetComponentsInChildren<MonoBehaviour>(includeInactive: true))
                 {
-                    // 配置済み VFX の有効化以外の script（ゲーム進行・カメラ追従等）は VFX Scene に置かない。
+                    // 配置済み VFX の marker 以外の script（ゲーム進行・カメラ追従等）は VFX Scene に置かない。
                     if (behaviour == null)
                         violations.Add($"{root.name}: 参照の外れた script がある");
                     else if (behaviour is not PlacedVfxActivator)
@@ -176,6 +222,24 @@ namespace SampleGame.Tests.Rendering.Vfx
             }
 
             return violations;
+        }
+
+        /// <summary>
+        /// .vfx の本文から Update Mode を読み、約束に従わなければ違反を文で返す（従えば null）。
+        /// 値は読むだけで、.vfx を書き換えない（Update Mode の変更は Editor 操作で行う）。
+        /// </summary>
+        internal static string? InspectUpdateMode(string vfxText)
+        {
+            var matches = Regex.Matches(vfxText, @"^\s*m_UpdateMode:\s*(\d+)\s*$", RegexOptions.Multiline);
+            if (matches.Count == 0)
+                return "m_UpdateMode が無い";
+            if (matches.Count > 1)
+                return $"m_UpdateMode が {matches.Count} 件ある";
+
+            var mode = int.Parse(matches[0].Groups[1].Value);
+            return mode == DeltaTimeIgnoringTimeScale
+                ? null
+                : $"Update Mode が {mode}（Delta Time + Ignore Time Scale = {DeltaTimeIgnoringTimeScale} にする）";
         }
 
         private static List<string> TargetScenePaths()

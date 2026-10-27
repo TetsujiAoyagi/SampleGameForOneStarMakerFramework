@@ -21,6 +21,18 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
     /// <item>どのメソッドが例外を投げても、VfxSystem はその instance だけを回収して続行する。</item>
     /// <item>backend はログを出さない。診断ログは VfxSystem が出す。</item>
     /// </list>
+    /// <para>
+    /// instance には 2 種類ある。<see cref="Create"/> で作る動的な instance と、Scene に配置済みの VFX を
+    /// <see cref="Adopt"/> で登録した instance（adopted）である。回収は動的なら <see cref="Destroy"/>、adopted なら
+    /// <see cref="Release"/> で、どちらか一方だけが id ごとに高々 1 回呼ばれる。
+    /// </para>
+    /// <para>
+    /// 時間: VfxSystem はフレームごとの反映点（<c>Vfx</c> Layer の LateUpdate）で、値が変わったときだけ
+    /// <see cref="SetPlayback"/> を呼ぶ。初めて呼ばれるまでの instance は「止まっていない、倍率 1」とみなされる
+    /// （backend は作った・登録した instance をその状態で用意する）。
+    /// 時間の領域が止まっている間は <see cref="Play"/> が呼ばれず、開始は止まっていない最初の反映点で
+    /// <see cref="SetPlayback"/> の後に呼ばれる。
+    /// </para>
     /// </summary>
     public interface IVfxBackend
     {
@@ -29,8 +41,33 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
 
         VfxInstanceId Create(in VfxSpawnRequest request);
 
-        /// <summary>発射する。再生中に呼ばれたら再トリガする。false は「再生できなかった」で、instance は残す。</summary>
+        /// <summary>
+        /// 発射する。再生中に呼ばれたら再トリガする。false は「再生できなかった」で、instance は残す。
+        /// adopted の instance では、最初の 1 回が有効化（配置済み VFX が自動で再生を始める、その環境の標準の開始）で、
+        /// 2 回目以降は動的な instance と同じ再トリガとする。
+        /// </summary>
         bool Play(VfxInstanceId id);
+
+        /// <summary>
+        /// 再生状態を書く。<paramref name="paused"/> が true なら simulation を進めない。
+        /// <paramref name="rate"/> は「このフレーム、effect が実時間（unscaled delta）に対して何倍で進むべきか」で、
+        /// 0 以上の有限値。backend 自身の delta の扱い（delta の上限や更新方式）への補正は backend が持ち、
+        /// 渡された倍率のとおりに effect の時間が進むようにする。
+        /// </summary>
+        void SetPlayback(VfxInstanceId id, bool paused, float rate);
+
+        /// <summary>
+        /// Scene に配置済みの VFX（その環境の VFX component）を登録して id を返す。登録だけで、有効化も開始もしない
+        /// （開始は <see cref="Play"/>）。扱えない対象なら <see cref="VfxInstanceId.Invalid"/> か例外を返す。
+        /// GameObject の所有は Scene に残り、backend は破棄しない。
+        /// </summary>
+        VfxInstanceId Adopt(Object placed);
+
+        /// <summary>
+        /// adopted の instance の登録を外す。無効化して登録から外すだけで、GameObject も component も破棄しない。
+        /// 破棄済みの対象にも安全に完了する。外した後で同じ id へ他のメソッドは呼ばれない。
+        /// </summary>
+        void Release(VfxInstanceId id);
 
         /// <summary>新しい粒子の放出を止める。生存中の粒子は消えるまで残す。</summary>
         void StopEmitting(VfxInstanceId id);
@@ -47,6 +84,7 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
 
         bool SetVector4(VfxInstanceId id, string name, Vector4 value);
 
+        /// <summary>動的な instance を破棄する。adopted の instance には呼ばれない（<see cref="Release"/> を使う）。</summary>
         void Destroy(VfxInstanceId id);
     }
 }
