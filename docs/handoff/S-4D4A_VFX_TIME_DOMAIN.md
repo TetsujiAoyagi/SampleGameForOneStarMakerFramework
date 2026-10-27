@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `発見 C`（3 巡目待ち。差し戻し 2 巡目の B を完了。Phase A は A3 凍結版の revision 2、revision 1 からの差分は §2.7）
+- status: `C'`（判定 C 完了・GO。C' 待ち。Phase A は A3 凍結版の revision 2、revision 1 からの差分は §2.7）
 - branch: `claude/s-4d4a-vfx-time-domain`
 - implementation base commit: `a4e940b1`（`develop`）
-- implementation head commit: 未固定
+- implementation head commit: `791edb1c`（判定 C の GO 候補 head。ローカル tag `evidence/s-4d4-local-event/1`）
 - risk: `high`（Framework の公開 API・所有者／寿命・Update の経路を変える）
 - owner: 発注者 / S-4d4a 担当
 - created: 2026-10-27
@@ -17,10 +17,15 @@
 - workflow task: `s-4d4-local-event`（`tools/workflow-task.ps1 start` 済み。分割前の id をそのまま使う）
 - Phase A snapshot の取得案内・状態: 凍結前スパイクの原記録は `evidence stage` で固定済み（ローカル固定済み（未昇格）、task `s-4d4-local-event`）。取得案内は主担当の worktree の `TestResults/` にあり、次の担当への引渡しは未完了。凍結した HANDOFF 本体は A3 凍結 commit で固定する
 - Phase B result snapshot の取得案内・状態: 未生成（B は Unity テストを実行しないので、固定する生の結果は無い。B の出口 commit が入力）
-- evidence bundle の取得案内・状態: 未生成
+- evidence bundle の取得案内・状態: 判定 bundle（所見なし）と Phase C の記録 bundle（所見あり）を `evidence stage` で固定済み（ローカル固定済み（未昇格）、task `s-4d4-local-event`）。取得案内は進行役の worktree の `TestResults/` にあり、次の担当への引渡しは未完了
 - C' blind bundle の取得案内・状態: 未生成
 - A3 後の決定記録: §7.2（DR-1、C' には渡さない）
 - 引継ぎ票:
+  - **2026-10-28 更新（判定 C 完了・GO）:** 次は C' の blind audit bundle の作成と、Phase C'（独立監査、新しい session）。対象は implementation head `791edb1c`（判定 evidence の head。tag `evidence/s-4d4-local-event/1`）、base `a4e940b1`。高コスト証拠は無いので、この head の C' が最終 C'。
+    - blind bundle の作成（Phase C 側の担当）: 判定 bundle（所見を含まない）をそのまま C' の evidence に使い、凍結した Phase A snapshot（A3 r2 凍結 commit `e8a120c0` の本ファイル）と、所見を含まない Phase B の実装結果を加える。§6.7・§6.8 は発見 C の指摘に応じた修正の記録なので、C1・C2 の指摘・所見を除いた形で入れる。§7 と Phase C の記録 bundle と DR-1 は入れない（C' 自身の前巡の指摘ではない）。stage し、C' 用の独立した取得案内を作る。
+    - C' の担当: §5.3 で予約した OpenAI 系（Codex）。A〜C に関与していない。開始時に、取得案内の reference と期待 hash で fetch し、必須 file を閲覧できることを確かめる（同一 PC の `local`）。Codex の packaged 環境から Claude 側の store を読めない既知の問題が過去にあったので、最初に小さく取得を試し、読めなければ assist 扱いにせず、止めて発注者に返す。
+    - 必要な権限: Artifact Storage の fetch（同一 PC、資格情報を使わない local 分岐）。Unity テストの再実行は必須ではない。
+    - 引き渡さないもの: 発見 C・判定 C の結論・指摘・ledger、DR-1、この引継ぎ票のうち C' の作業に要らない経緯。
   - **2026-10-28 更新（差し戻し 2 巡目の B 完了）:** 次は発見 C 3 巡目（新しい session）。対象は B の出口 commit（本ファイルを含む最新の commit。`git log -1 -- docs/handoff/S-4D4A_VFX_TIME_DOMAIN.md` で引く）で、implementation base は `a4e940b1`。2 巡目の対象 `be1f716e` からの差分は C2-1 の分（§6.8、テスト 1 ファイルだけ）。引継ぎの開始時に、その commit と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない。
     - 動作確認: `対象なし`（変わらず）。
     - 見てほしい点: AC7 の 2 件の結果と、`spins=` の読み方（§6.8）で (b) を否定できたか。(b) を示す結果なら §4.2 に当たり Phase A へ返す。
@@ -663,6 +668,30 @@ asmdef 参照の追加は 0 件。公開 API の追加は `UpdateLayerIds.Gamepl
 - **差し戻し（発注者の判断、2026-10-28）: C2-1 AC7 の引き延ばしの位置。** いまの AC7 は VFXUpdate の後（coroutine の中）で引き延ばすので、(b)「VFX Graph が自分の更新どうしの実時間で進みを測る」を直接は否定できない。その位置では、Unity の `Time` で測っても VFX Graph 自身が測っても、同じフレームに入るからである（W-2）。実際の負荷スパイクは gameplay の Update で起きる（VFXUpdate より前）。AC7 の文言の範囲内なので規則上は blocker ではないが、E3 をその位置で直接確かめるため、発注者は B をもう 1 巡回すことを選んだ。**B 適応:** 引き延ばしを同じフレームの VFXUpdate より前（例: gameplay layer の要素の Update の中）で行う。そうすると (a) なら Unity の次のフレームの delta と VFX の次のフレームの増分に、(b) なら VFX の同じフレームの増分に入る。凍結した AC7 の値（許容誤差、測定窓、u ≈ 0.1・0.2・> `maximumDeltaTime`、3 組の倍率、unscaled の頭打ち）は変えない。今の記録点（`resumesAfterVfxUpdate` と `spins=`）はそのまま残す。(b) を示す結果が出たら、§4.2 に当たるので Phase A へ返す（修正では埋めない）。
 - **後続スライスの入力:** F-13 `VfxUpdateRecorder` の PlayerLoop の保存・復元は「差し込みから Dispose まで他の誰も loop を書き換えない」前提（テスト専用）。F-14 `DescribeFrame` は起点の行も「未記録」と表示する（合否には無関係）。
 - **原記録:** 2 巡目の構造レビューの ledger は進行役の scratchpad にある（未保存。1 巡目と同じ扱い）。
+
+### 7.1.2 発見 C 3 巡目（2026-10-28、対象 `791edb1c`）
+
+- **入力:** `be1f716e` から `791edb1c` までの差分（C2-1。`VfxGraphBackendPlayTests.cs` だけ）。担当は前巡と同じ構成。
+- **実行したテスト:** 同じ起点 filter（`-WithGraphics`、sandbox 外）。250 件すべて passed（failed 0）。
+- **C2-1:** 引き延ばしは gameplay layer の要素の Update の中で行われ、同じフレームの `PostLateUpdate.VFXUpdate` より前。unscaled のテストも同じ位置。4 列（3 組の倍率と unscaled）とも、引き延ばした時間は**次のフレーム**の u と VFX の増分の両方に入った（例: (0.5, 0.5) の spin@f167 → f168 で u 0.1017・期待 0.0254・増分 0.0254。unscaled の u ≈ 0.5 の増分は 0.3333）。VFX Graph は Unity の `Time` で進み、(b) は起きていない。§4.2 の差し戻し条件には当たらない。
+- **構造レビュー:** blocker 0 件。凍結した AC7 の値は変わっていない。後始末（要素の登録解除、PlayerLoop の差し込みの復元）は finally で行う。
+- **結論:** 現在の問いを阻害する指摘は無い。B ↔ 発見 C は 2 巡（上限 4）で収束した。履歴の整理は発注者の判断で行わず、GO 候補 head を `791edb1c` とした。
+
+### 7.3 判定 C（2026-10-28、GO 候補 head `791edb1c`）
+
+- **担当:** 判断担当は B と別モデルの subagent（生の証拠だけを読み、Unity は起動していない）。実行担当は進行役（凍結した判定必須だけを実行）。
+- **evidence bundle:** 判定必須の生の結果、固定差分（base〜head の patch・stat・name-status・log）、機械検査（contract-audit・docs-audit）、Content Directory の manifest・outcome・file 一覧。`evidence stage` でローカル固定済み（未昇格）。取得案内は進行役の worktree の `TestResults/` にある（次の担当への引渡しは未完了。取得側の確認は C' の開始時）。発見 C・判定 C の所見は入れていない。判定 evidence の head はローカルの軽量 tag `evidence/s-4d4-local-event/1`（未 push）。
+- **実行したコマンド:** `pwsh tools/run-tests.ps1 -WithGraphics`（空 filter、sandbox 外）。続けて batchmode の `-executeMethod SampleGame.DependOnAll.Editor.Build.SampleGameContentBuild.BuildSpringFull` と `…BuildSpringWhitebox`。
+- **結果:**
+  - 全 EditMode 回帰: 1382 件すべて passed（failed・skipped・inconclusive 0、exit 0）。AC6〜AC10・AC13 の Play / authoring テストと、差し戻しで足した C1-2・C1-3 のテストを含む。
+  - `unity/ProjectSettings/` の git diff は、テストの後も build の後も空（AC13・R1）。
+  - Content Directory: `Build Spring Full`・`Build Spring Whitebox` とも成功。`Spring_VFX_4_2`・`Spring_AtmosphereVFX` が、両方の manifest の `LoadableScenes` に Scene payload として入った（§4.3）。
+  - AC7: 4 列とも、凍結した許容誤差の内で一致した。u ≈ 0.5 の unscaled の増分は `maximumDeltaTime` になった。
+  - AC8: d3 の実 Scene 2 件は、止まっている間 `aliveParticleCount` 0、Resume の後に増えた。
+- **条件ごとの判定:** I1〜I6・E1〜E4 は全て、紐付く AC の証拠で成立した（対応表は判断担当の ledger。Phase C の記録 bundle に入れた）。操作・実行時・目視の条件は Play テストで閉じる（§5.2）。動作確認は `対象なし`。高コスト証拠は無いので、この head の C' が最終 C' になる。
+- **判定: GO**（判定 C 完了）。現在の問いを阻害する欠陥は無い。
+- **後続スライスの入力:** Content build の `outcome.json` の `selected`・`roots`・`closure` が空配列で、候補の一覧は `preflight.json` にしか無い（記録形式の問題。build の成否と Scene の収録には影響しない。BuildSystem の作業候補）。発見 C の F-03〜F-14。
+- **Phase C の記録 bundle（所見を含む。C' には渡さない）:** 発見 C 1〜3 巡目の ledger と起点 filter の生結果、判定 C の ledger。`evidence stage` でローカル固定済み（未昇格）。取得案内は判定 bundle と同じ所在。Phase D の突き合わせに使う。
 
 ### 7.2 決定記録
 
