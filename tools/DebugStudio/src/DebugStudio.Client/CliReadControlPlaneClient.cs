@@ -37,8 +37,12 @@ public sealed class CliReadControlPlaneClient
                     if (received.MessageType == WebSocketMessageType.Close) return Error("control-closed");
                     frame.Write(buffer, 0, received.Count);
                 } while (!received.EndOfMessage);
-                if (DebugSocketProtocol.TryDeserializeEnvelope(frame.ToArray(), out var envelope) && envelope != null &&
-                    (DebugSocketMessageType)envelope.MessageType == DebugSocketMessageType.ControlReadResponse &&
+                if (!DebugSocketProtocol.TryDeserializeEnvelope(frame.ToArray(), out var envelope) || envelope == null)
+                    continue;
+                // 旧 host は read 要求を command の失敗で返す。期限切れと誤認させない。
+                if ((DebugSocketMessageType)envelope.MessageType == DebugSocketMessageType.ControlCommandResponse &&
+                    string.Equals(envelope.RequestId, request.RequestId, StringComparison.Ordinal)) return Error("control-unsupported");
+                if ((DebugSocketMessageType)envelope.MessageType == DebugSocketMessageType.ControlReadResponse &&
                     DebugSocketProtocol.TryDeserializePayload<ControlReadResponseEnvelopeV1>(envelope, out var response) &&
                     response != null && string.Equals(response.RequestId, request.RequestId, StringComparison.Ordinal)) return response;
             }

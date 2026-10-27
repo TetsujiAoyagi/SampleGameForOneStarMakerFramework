@@ -1,6 +1,10 @@
 #nullable enable
 
 using System.Text.Json;
+using System.Net;
+using System.Net.Sockets;
+using System.Net.WebSockets;
+using DebugStudio.Client;
 using DebugStudio.Cli;
 using DebugStudio.Contracts.Protocol;
 
@@ -44,6 +48,37 @@ public sealed class ReadCommandTests
         using var json = JsonDocument.Parse(output.ToString());
         Assert.Equal("9223372036854775807", json.RootElement.GetProperty("data").GetProperty("targetId").GetString());
         Assert.Equal("true", json.RootElement.GetProperty("data").GetProperty("sections")[0].GetProperty("properties")[0].GetProperty("rawValue").GetString());
+    }
+
+    [Fact]
+    public async Task 旧hostのcommand失敗応答はtimeoutではなく読取り失敗になる()
+    {
+        var reservation = new TcpListener(IPAddress.Loopback, 0);
+        reservation.Start();
+        var port = ((IPEndPoint)reservation.LocalEndpoint).Port;
+        reservation.Stop();
+        using var listener = new HttpListener();
+        listener.Prefixes.Add($"http://127.0.0.1:{port}/cli-control/");
+        listener.Start();
+        var server = Task.Run(async () =>
+        {
+            var context = await listener.GetContextAsync();
+            using var socket = (await context.AcceptWebSocketAsync(null)).WebSocket;
+            var buffer = new byte[8192];
+            var received = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+            Assert.True(DebugSocketProtocol.TryDeserializeEnvelope(buffer[..received.Count], out var envelope));
+            var frame = DebugSocketProtocol.SerializeMessage(DebugSocketMessageType.ControlCommandResponse,
+                new ControlCommandResponseEnvelopeV1 { RequestId = envelope!.RequestId!, Status = ControlCommandRoundtripStatus.Failed }, envelope.RequestId);
+            await socket.SendAsync(new ArraySegment<byte>(frame), WebSocketMessageType.Binary, true, CancellationToken.None);
+            await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "done", CancellationToken.None);
+        });
+        using var output = new StringWriter();
+        var exit = await ReadCommand.ExecuteAsync(new(new Uri($"ws://127.0.0.1:{port}/cli-control/"), "hierarchy", 0, TimeSpan.FromSeconds(15)), output)
+            .WaitAsync(TimeSpan.FromSeconds(5));
+        await server.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(1, exit);
+        using var json = JsonDocument.Parse(output.ToString());
+        Assert.Equal("control-unsupported", json.RootElement.GetProperty("reason").GetString());
     }
 
     [Fact]

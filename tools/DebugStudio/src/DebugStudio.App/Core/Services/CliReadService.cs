@@ -10,7 +10,7 @@ using DebugStudio.Contracts.Protocol;
 
 namespace DebugStudio.App.Core.Services;
 
-/// <summary>Retained hierarchy reads and request-owned inspector subscriptions; never changes GUI selection.</summary>
+/// <summary>保持済み階層と要求単位の Inspector 購読を使い、GUI の選択を変更せずに読み取る。</summary>
 public sealed class CliReadService
 {
     private readonly SessionService _session;
@@ -39,7 +39,7 @@ public sealed class CliReadService
         if (request.Operation == "hierarchy")
         {
             var retained = _hierarchy.GetRetainedSnapshot();
-            // Revision distinguishes an empty received tree from the initial/Clear state.
+            // 空の受信済み階層と初期状態・Clear 後を revision で区別する。
             var data = new ControlHierarchySnapshotV1
             {
                 HasSnapshot = retained.State.Revision > 0,
@@ -64,10 +64,11 @@ public sealed class CliReadService
         using var deadline = new CancellationTokenSource(TimeSpan.FromMilliseconds(request.TimeoutMilliseconds), _time);
         using var operation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
         var completion = new TaskCompletionSource<ControlReadResponseEnvelopeV1>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var disconnected = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         void OnDetail(InspectorDetailEnvelopeV1 detail)
         {
             if (detail.TargetId != request.NodeId) return;
-            // Best effort by TargetId: a same-target GUI response is deliberately accepted.
+            // 応答元を識別できないため、同じ対象への GUI 応答も受け入れる。
             completion.TrySetResult(new() { RequestId = request.RequestId, Inspector = detail,
                 Status = detail.State == InspectorDetailState.Ready ? "ok" : "error",
                 Reason = detail.State switch { InspectorDetailState.Ready => "ready",
@@ -75,7 +76,12 @@ public sealed class CliReadService
         }
         void OnConnection(DebugSocketConnectionSnapshot snapshot)
         {
-            if (snapshot.State != DebugSocketConnectionState.Connected) { completion.TrySetResult(Error("disconnected")); operation.Cancel(); }
+            // イベントは購読解除後にも呼ばれ得るため、破棄対象の CTS には触れない。
+            if (snapshot.State != DebugSocketConnectionState.Connected)
+            {
+                completion.TrySetResult(Error("disconnected"));
+                disconnected.TrySetResult();
+            }
         }
         _session.InspectorDetailReceived += OnDetail;
         _session.ConnectionStateChanged += OnConnection;
@@ -83,11 +89,14 @@ public sealed class CliReadService
         try
         {
             if (_session.State != DebugSocketConnectionState.Connected) return Error("disconnected");
-            await _session.SendProtocolMessageAsync(DebugSocketMessageType.InspectorQuery,
+            var send = _session.SendProtocolMessageAsync(DebugSocketMessageType.InspectorQuery,
                 new InspectorQueryEnvelopeV1 { TargetId = request.NodeId,
                     QueryFlags = InspectorQueryFlags.IncludeMetadata | InspectorQueryFlags.IncludeComponents |
                         InspectorQueryFlags.IncludeProperties | InspectorQueryFlags.IncludeRawValues },
-                requestId: $"cli-inspector-{Guid.NewGuid():N}", cancellationToken: operation.Token).WaitAsync(operation.Token).ConfigureAwait(false);
+                requestId: $"cli-inspector-{Guid.NewGuid():N}", cancellationToken: operation.Token).WaitAsync(operation.Token);
+            // 送信が停滞していても切断を先に返し、finally で送信を取り消す。
+            if (await Task.WhenAny(send, disconnected.Task).ConfigureAwait(false) == send)
+                await send.ConfigureAwait(false);
             return await completion.Task.ConfigureAwait(false);
         }
         catch (OperationCanceledException) { return completion.Task.IsCompletedSuccessfully ? completion.Task.Result : Error(cancellationToken.IsCancellationRequested ? "cancelled" : "timeout"); }
@@ -96,6 +105,7 @@ public sealed class CliReadService
         {
             _session.InspectorDetailReceived -= OnDetail;
             _session.ConnectionStateChanged -= OnConnection;
+            operation.Cancel();
         }
     }
 }

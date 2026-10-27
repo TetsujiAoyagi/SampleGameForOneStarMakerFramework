@@ -76,6 +76,23 @@ public sealed class CliReadServiceTests
     }
 
     [Fact]
+    public async Task 切断通知の取得済みデリゲートは読取り終了後も安全に呼べる()
+    {
+        var h = new Harness(); h.Ready();
+        var read = h.Read("inspect");
+        await h.Transport.Sent.Task;
+        var handler = (Action<DebugSocketConnectionSnapshot>)typeof(SessionService)
+            .GetField("ConnectionStateChanged", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(h.Session)!;
+        h.Transport.Detail(new() { TargetId = 42, State = InspectorDetailState.Ready });
+        Assert.Equal("ready", (await read).Reason);
+        var notified = false;
+        handler += _ => notified = true;
+        // 購読解除前に取得された通知は CTS の破棄後にも届き得る。
+        handler(new(DebugSocketConnectionState.Disconnected, null, "closed", DateTimeOffset.Now));
+        Assert.True(notified);
+    }
+
+    [Fact]
     public async Task Inspect_does_not_change_gui_target_and_rejects_unconnected_or_unnegotiated_before_send()
     {
         var h = new Harness();

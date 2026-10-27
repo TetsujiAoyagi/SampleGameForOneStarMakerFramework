@@ -155,10 +155,16 @@ public sealed class DebugStudioCliControlService : IAsyncDisposable
                     return;
                 }
 
-                if ((DebugSocketMessageType)envelope.MessageType == DebugSocketMessageType.ControlReadRequest &&
-                    DebugSocketProtocol.TryDeserializePayload<ControlReadRequestEnvelopeV1>(envelope, out var readRequest) &&
-                    readRequest != null)
+                if ((DebugSocketMessageType)envelope.MessageType == DebugSocketMessageType.ControlReadRequest)
                 {
+                    // read の不正 payload は read 応答で返し、command と混同させない。
+                    if (!DebugSocketProtocol.TryDeserializePayload<ControlReadRequestEnvelopeV1>(envelope, out var readRequest) || readRequest == null)
+                    {
+                        var invalidRead = new ControlReadResponseEnvelopeV1 { RequestId = envelope.RequestId ?? string.Empty, Reason = "invalid-request" };
+                        await SendResponseAsync(socket, DebugSocketMessageType.ControlReadResponse,
+                            invalidRead, invalidRead.RequestId, cancellationToken).ConfigureAwait(false);
+                        continue;
+                    }
                     var readResponse = _readService != null
                         ? await _readService.ReadAsync(readRequest, cancellationToken).ConfigureAwait(false)
                         : new ControlReadResponseEnvelopeV1

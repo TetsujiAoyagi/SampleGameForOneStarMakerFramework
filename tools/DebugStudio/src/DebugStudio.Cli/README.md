@@ -8,7 +8,7 @@ The .NET 8 CLI sends live control-plane commands and compares explicitly selecte
 debugstudio-cli send --command debugsocket.ping --control-uri ws://127.0.0.1:5012/cli-control/ --payload "{}" --timeout-seconds 15
 ```
 
-The control URI, `{}` payload and 15-second timeout are optional defaults. `--uri` remains an alias for `--control-uri`. Existing send output and exit behavior are unchanged.
+The control URI, `{}` payload and 15-second timeout are optional defaults. For `send`, `--uri` remains an alias for `--control-uri`; the read commands accept only `--control-uri`. Existing send output and exit behavior are unchanged.
 
 ### Reading an Editor session
 

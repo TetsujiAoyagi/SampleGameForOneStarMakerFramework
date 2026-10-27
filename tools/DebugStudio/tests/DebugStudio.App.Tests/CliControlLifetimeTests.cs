@@ -53,6 +53,21 @@ public sealed class CliControlLifetimeTests
     }
 
     [Fact]
+    public async Task 不正なread_payloadはreadの失敗応答を返す()
+    {
+        await using var harness = new Harness();
+        using var socket = new ScriptedSocket();
+        socket.Frames.Enqueue((DebugSocketProtocol.SerializeMessage(DebugSocketMessageType.ControlReadRequest, "invalid", "bad"), true, WebSocketMessageType.Binary));
+        socket.Frames.Enqueue((Array.Empty<byte>(), true, WebSocketMessageType.Close));
+        await harness.Control.HandleControlConnectionAsync(socket, CancellationToken.None);
+        Assert.True(DebugSocketProtocol.TryDeserializeEnvelope(Assert.Single(socket.Sent), out var envelope));
+        Assert.Equal(DebugSocketMessageType.ControlReadResponse, (DebugSocketMessageType)envelope!.MessageType);
+        Assert.True(DebugSocketProtocol.TryDeserializePayload<ControlReadResponseEnvelopeV1>(envelope, out var response));
+        Assert.Equal("bad", response!.RequestId);
+        Assert.Equal("invalid-request", response.Reason);
+    }
+
+    [Fact]
     public async Task Shutdown_cancels_receive_and_disposes_socket()
     {
         await using var harness = new Harness();
