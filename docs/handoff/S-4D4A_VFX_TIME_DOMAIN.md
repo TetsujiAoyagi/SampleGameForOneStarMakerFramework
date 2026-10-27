@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `B`（発見 C 1 巡目で差し戻し。B ↔ 発見 C の 1 巡目。Phase A は A3 凍結版の revision 2、revision 1 からの差分は §2.7）
+- status: `発見 C`（2 巡目待ち。差し戻し 1 巡目の B を完了。Phase A は A3 凍結版の revision 2、revision 1 からの差分は §2.7）
 - branch: `claude/s-4d4a-vfx-time-domain`
 - implementation base commit: `a4e940b1`（`develop`）
 - implementation head commit: 未固定
@@ -21,6 +21,11 @@
 - C' blind bundle の取得案内・状態: 未生成
 - A3 後の決定記録: §7.2（DR-1、C' には渡さない）
 - 引継ぎ票:
+  - **2026-10-28 更新（差し戻し 1 巡目の B 完了）:** 次は発見 C 2 巡目（新しい session）。対象は B の出口 commit（本ファイルを含む最新の commit。`git log -1 -- docs/handoff/S-4D4A_VFX_TIME_DOMAIN.md` で引く）で、implementation base は `a4e940b1`。1 巡目の対象 `e9706ac5` からの差分が C1-1〜C1-3 と DR-1 のコメントの分（§6.7）。引継ぎの開始時に、その commit と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない。
+    - 動作確認: `対象なし`（変わらず）。
+    - 見てほしい点: C1-1 の原因の確定（§6.7 の読み方で、AC7 の出力から (a) テストの行の対応付けか (b) VFX Graph が自分で時間を測るかを区別する。(b) なら §4.2 に当たり Phase A へ返す）。C1-2・C1-3 の修正と新しいテスト。
+    - 起点 `-Filter` は §5.2 のまま。Unity テスト・Build は B では未実行。コンパイルは Editor で確認した（§6.7）。新しい worktree で Editor やテストを起動すると vendor の `.pdb.meta` 5 件が消えるので restore する（§6.5）。
+    - 必要な権限: Unity テストの実行（sandbox 外の承認済み経路、`-WithGraphics` を含む）。
   - **2026-10-28 更新（発見 C 1 巡目で差し戻し）:** 次は Phase B（差し戻し 1 巡目、実装担当、新しい session）。起点は本ファイルを含む最新の commit（`git log -1 -- docs/handoff/S-4D4A_VFX_TIME_DOMAIN.md` で引く。implementation は `e9706ac5` のまま）。引継ぎの開始時に、その commit と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない。
     - やること: §7.1 の C1-1〜C1-3 の修正と、DR-1（§7.2）の読みを `VfxHandle.Play` のコメントに書くこと。C1-1 は原因が未確定なので、テストが再開時点と VFX の更新の前後を自分で観測する形に直す（推測で行をずらさない）。修正を書く段階で (b)（VFX Graph が自分で時間を測る）を示す事実が出たら、直さずに止めて Phase A へ返す（§4.2）。
     - Unity テストは実行しない（H2 未適用）。コンパイル確認と `pwsh tools/contract-audit.ps1` まで。新しい worktree で Editor を開くと vendor の `.pdb.meta` 5 件が消えるので restore する（§6.5）。
@@ -599,6 +604,18 @@ asmdef 参照の追加は 0 件。公開 API の追加は `UpdateLayerIds.Gamepl
 - **AC3・AC5（偽 backend）:** `VfxSystemTimeLayerTests` に、unscaled の要求で u が上限を超えるフレーム（倍率 0.5 が書かれ、消え切り待ちが上限の分だけ進む）と、unscaled の要求で u が 0・負・NaN・∞ のフレーム（倍率を書かず、消え切り待ちが進まない）を足した。既存の「unscaled は実時間で数える」は u を上限より小さい 0.25 にした（意味は同じ）。偽の時間源の上限の既定は 1/3。
 - **AC13:** `VfxGraphCapabilityPolicyTests`（EditMode）に、実 backend 2 つを作成順・逆順で Dispose するテスト（生存中は揃えた値、全て手放した後は元の値、同じ backend の 2 回目の判定では数えない、2 回目の Dispose は何もしない）と、非対応の判定で書かないテストを足した。TearDown は、失敗したテストが書き換えを残しても元の値に戻す。
 - **B 適応:** 上限が正でない時間源（Unity では起きない）では unscaled の領域を頭打ちにしない。時間源なしの public ctor の構成は、従来どおり Tick の delta をそのまま全領域の時間にする（上限 ∞）。
+
+### 6.7 差し戻し 1 巡目（2026-10-28、§7.1 の C1-1〜C1-3 と DR-1）
+
+- **C1-1（AC7 のテスト）:** 行の対応付けを coroutine の再開時点に頼らない形に直した（推測で行をずらしていない）。`VfxGraphBackendPlayTests` の測定は、PlayerLoop の `PostLateUpdate.VFXUpdate` の直後に差し込んだ記録点（テスト内の private class `VfxUpdateRecorder`。Dispose と TearDown で差し込む前の PlayerLoop に戻す）で、フレームごとに `Time.frameCount`・`unscaledDeltaTime`・領域の時間・spawn system の `totalTime` を取り、同じフレーム番号どうしで「totalTime の増分」と「そのフレームの領域の時間」を比べる。gameplay の領域の時間は、probe が同じフレームの Update で受け取った `DeltaTime`（受け取っていなければ不一致として記録）。許容誤差・測定窓・引き延ばしの区間の前提・unscaled の頭打ちの確認は変えていない。
+  - **原因の区別の読み方（発見 C 向け）:** 出力に `resumesAfterVfxUpdate=<n>/60`（coroutine の再開時点で、そのフレームの VFX の更新が既に済んでいた回数）と、引き延ばしごとの `spin@f<F>:f<F>=u … expected … effect …;f<F+1>=…` を出す。引き延ばしはフレーム F の coroutine の中（F の開始より後）で起きるので、u が大きくなるのは F+1。修正後のテストが通れば (a)（1 巡目のテストの行の対応付けの欠陥、`resumesAfterVfxUpdate` が 0 より大きいはず）。**F の effect が大きく F+1 の u が大きい形で落ちれば (b)**（VFX Graph が自分の更新どうしの実時間で進んでいる）で、§4.2 に当たり Phase A へ返す。限界: 再開が VFX の更新より後なら、引き延ばしの実時間と F+1 の u が同じ区間に入るので、この列だけでは (a) と (b) を区別できない（その場合も E3 の比較は成り立つ）。
+- **C1-2（`VfxSceneRenderPlayTests`）:** 「保存時に非 active・無効」の前提の検査を、Scene のロードの直後・`Adopt` の前（`AssertTargetsSavedDisabled`）へ移した。計測の中の検査は「計測の前は非 active」だけにした。陰性は弱めず、非対応の計測の後に `VisualEffect` が無効のままであることを足した。
+- **C1-3（`VfxGraphBackend.Adopt`）:** `Adopt` で `pause = false`・`playRate = 1` を書き、契約の初期状態に揃える（理由はコメント）。実 backend のテスト `Supported_ReadoptAfterReleaseInPausedDomain_StartsFromInitialPlayback` を足した（止まった領域で `Adopt` → 反映点で `pause = true` が書かれたことを前提として確かめる → 回収 → Resume → 同じ component を `Adopt` → `pause`・`playRate` が初期状態 → 有効になり粒子が出る）。
+- **DR-1:** `VfxHandle.Play` に、開始か保留かは呼び出し時点の領域の状態で決めること、反映点より後の Resume の同じフレームの `Play` は即時に開始しうることと、それが I1 に反しない理由・厳密化しない理由のコメントを足した。動作は変えていない。
+- **F-12:** 足していない（任意）。F-03〜F-11 は実装していない。
+- **コンパイル確認（済み）:** この worktree で Editor を起動し、`compilationFailed: false`、`recompile` は `up_to_date`。`Library/ScriptAssemblies` の `OneStarMaker.Runtime.dll`・`SampleGame.Common.dll`・`SampleGame.Tests.dll` が編集の後に作られ、`SampleGame.Tests.dll` に新しい型とテスト名が入っていることを確かめた（反射の `eval` は主スレッドの 5 秒の待ちで打ち切られた）。console のエラーは起動時の `License revoked` 1 件だけ。Editor は正常終了させ、vendor の `.pdb.meta` 5 件を restore した。`unity/ProjectSettings/` の差分は空。
+- **`pwsh tools/contract-audit.ps1`:** errors 0 / warnings 0（作業ツリー、修正の後）。
+- **Unity テスト・Build:** 未実行（H2 未適用）。修正した AC7・C1-2 のテストと新しいテストは一度も実行していない。
 
 ## 7. Phase C
 

@@ -192,6 +192,7 @@ namespace SampleGame.Common.Rendering.Vfx
 
         /// <summary>
         /// 配置済みの <see cref="VisualEffect"/> を登録する。有効化も開始もしない。VisualEffect 以外・破棄済みは無効 id。
+        /// 再生状態は契約の初期状態（止まっていない、倍率 1）に書き直す。
         /// </summary>
         public VfxInstanceId Adopt(Object placed)
         {
@@ -205,6 +206,12 @@ namespace SampleGame.Common.Rendering.Vfx
                 return VfxInstanceId.Invalid;
             }
 
+            // 同じ component は回収の後に新しく Adopt されうる（I4 は再利用を許す）。Release は無効化だけなので、
+            // 前の登録で反映点が書いた pause / playRate が component に残っている。Framework は新しい handle の前回の値を
+            // 契約の初期状態とみなし、同じ値なら SetPlayback を呼ばないので、ここで揃えないと pause = true のまま
+            // 有効化され、自動再生が進まない（無効のまま書いた pause / playRate は有効化の後も保たれる）。
+            effect.pause = false;
+            effect.playRate = 1f;
             var id = new VfxInstanceId(++_lastId);
             _instances.Add(id.Value, new Entry(effect.gameObject, effect, adopted: true));
             return id;

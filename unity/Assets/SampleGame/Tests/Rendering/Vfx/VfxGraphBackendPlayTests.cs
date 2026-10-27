@@ -13,6 +13,8 @@ using OneStarMaker.Tests.Rendering.Vfx;
 using SampleGame.Common.Rendering.Vfx;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.LowLevel;
+using UnityEngine.PlayerLoop;
 using UnityEngine.TestTools;
 using UnityEngine.VFX;
 using Object = UnityEngine.Object;
@@ -125,6 +127,47 @@ namespace SampleGame.Tests.Rendering.Vfx
             yield return null;
             Assert.That(placed != null, Is.True, "回収は GameObject を壊さない");
             Assert.That(placed.enabled, Is.False, "回収の後に再び有効にならない");
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        /// <summary>
+        /// 回収の後に同じ component を新しく登録すると、前の登録が止まった領域で書いた pause が残っていても、
+        /// 契約の初期状態（止まっていない、倍率 1）から自動再生が進む。順序: 止まった領域で Adopt → 反映点で pause が
+        /// 書かれる → 回収（無効化だけ）→ Resume → 同じ component を Adopt。
+        /// </summary>
+        [UnityTest]
+        public IEnumerator Supported_ReadoptAfterReleaseInPausedDomain_StartsFromInitialPlayback()
+        {
+            AssumeGraphicsSupported();
+            var host = CreateHost(RealFacts);
+            var placed = InstantiatePlaced(Immortal);
+            var layer = GameplayLayer;
+            layer.IsPaused = true;
+
+            var first = host.System.Adopt(placed, AssetOwner.App);
+            Assert.That(first.IsActive, Is.True);
+            yield return null;
+            Assert.That(placed.pause, Is.True, "前提: 止まった領域の反映点で pause が書かれた");
+            first.Stop();
+            Assert.That(placed.enabled, Is.False, "前提: 回収で無効になった");
+
+            layer.IsPaused = false;
+            yield return null;
+            var second = host.System.Adopt(placed, AssetOwner.App);
+            Assert.That(second.IsActive, Is.True, "回収の後の新しい登録は受理される");
+            Assert.That(placed.pause, Is.False, "登録で pause が初期状態に戻る");
+            Assert.That(placed.playRate, Is.EqualTo(1f), "登録で playRate が初期状態に戻る");
+
+            var alive = false;
+            for (var frame = 0; frame < ParticleFrameLimit && !alive; frame++)
+            {
+                yield return null;
+                alive = placed.aliveParticleCount > 0;
+            }
+
+            Assert.That(placed.enabled, Is.True, "止まっていない反映点で有効になる");
+            Assert.That(alive, Is.True, "再登録の後に自動再生が進む");
+            second.Stop();
             LogAssert.NoUnexpectedReceived();
         }
 
@@ -297,60 +340,104 @@ namespace SampleGame.Tests.Rendering.Vfx
             Assert.That(spawnNames, Is.Not.Empty, "前提: fixture に spawn system がある");
             var spawnName = spawnNames[0];
 
-            // coroutine の時点では、gameplay の要素はこのフレームの Update を受け取り済みで、VFX はまだこのフレームを
-            // 更新していない。したがって次の再開までの totalTime の増分が、このフレームの領域の時間に対応する。
-            var previousTotal = effect.GetSpawnSystemInfo(spawnName).totalTime;
-            var expectedThisFrame = DomainDelta(probe, maximumDeltaTime);
-            var unscaledThisFrame = Time.unscaledDeltaTime;
+            // 行の対応付けは coroutine の再開時点に頼らない。coroutine が VFX の更新（PostLateUpdate.VFXUpdate）の前と
+            // 後のどちらで再開するかは仮定せず、VFX の更新の直後に差し込んだ記録点で、そのフレームの番号・
+            // unscaledDeltaTime・領域の時間・totalTime を取り、同じフレーム番号どうしで比べる。再開時点の前後は
+            // 記録して出力する（発見 C 1 巡目で、増分が期待より 1 行早く出た原因を区別するため）。
+            var recorder = Track(new VfxUpdateRecorder(() => effect.GetSpawnSystemInfo(spawnName).totalTime, probe, maximumDeltaTime));
+            var spinFrames = new List<int>();
+            var stretchedUnscaled = new List<float>();
+            var resumesAfterVfxUpdate = 0;
+            try
+            {
+                // 最初の記録（増分の起点）が取れるまで進める。
+                yield return null;
+                for (var frame = 0; frame < MeasuredFrames; frame++)
+                {
+                    var stretch = Array.FindIndex(StretchedFrames, s => s.Frame == frame);
+                    if (stretch >= 0)
+                    {
+                        spinFrames.Add(Time.frameCount);
+                        SpinMainThread(StretchedFrames[stretch].Seconds);
+                    }
+
+                    yield return null;
+                    Assert.That(VFXManager.maxDeltaTime, Is.EqualTo(maximumDeltaTime), "測定中に VFX Graph の上限が変わった");
+                    if (recorder.LastFrame == Time.frameCount)
+                    {
+                        resumesAfterVfxUpdate++;
+                    }
+
+                    // 引き延ばしはそのフレームの開始より後なので、次のフレームの unscaledDeltaTime に入る。
+                    if (stretch >= 0)
+                    {
+                        stretchedUnscaled.Add(Time.unscaledDeltaTime);
+                    }
+                }
+
+                // 最後のフレームの VFX の更新を記録点が取るまで進める。
+                yield return null;
+            }
+            finally
+            {
+                recorder.Dispose();
+            }
+
+            var samples = recorder.Samples;
             var expectedSum = 0f;
             var effectSum = 0f;
             var rows = new List<string>();
             var mismatches = new List<string>();
-            var stretchedUnscaled = new List<float>();
             var cappedIncrement = float.NaN;
-            for (var frame = 0; frame < MeasuredFrames; frame++)
+            for (var i = 1; i < samples.Count; i++)
             {
-                var stretch = Array.FindIndex(StretchedFrames, s => s.Frame == frame);
-                if (stretch >= 0)
+                var previous = samples[i - 1];
+                var current = samples[i];
+                var increment = current.TotalTime - previous.TotalTime;
+                var expected = current.DomainDelta;
+                rows.Add($"f{current.Frame}:{current.UnscaledDeltaTime:F4}/{expected:F4}/{increment:F4}");
+                if (current.Frame != previous.Frame + 1)
                 {
-                    SpinMainThread(StretchedFrames[stretch].Seconds);
+                    mismatches.Add($"f{current.Frame} 記録点が前のフレーム f{previous.Frame} から連続していない");
+                    continue;
                 }
 
-                yield return null;
-                Assert.That(VFXManager.maxDeltaTime, Is.EqualTo(maximumDeltaTime), "測定中に VFX Graph の上限が変わった");
-                var total = effect.GetSpawnSystemInfo(spawnName).totalTime;
-                var increment = total - previousTotal;
-                var frameTolerance = Math.Max(0.005f, expectedThisFrame * 0.02f);
-                rows.Add($"{unscaledThisFrame:F4}/{expectedThisFrame:F4}/{increment:F4}");
-                if (Math.Abs(increment - expectedThisFrame) > frameTolerance)
+                if (float.IsNaN(expected))
                 {
-                    mismatches.Add($"#{frame} u={unscaledThisFrame:F4} expected={expectedThisFrame:F5} effect={increment:F5}");
+                    mismatches.Add($"f{current.Frame} gameplay の要素がこのフレームの Update を受け取っていない");
+                    continue;
                 }
 
-                if (unscaledThisFrame > maximumDeltaTime)
+                if (Math.Abs(increment - expected) > Math.Max(0.005f, expected * 0.02f))
+                {
+                    mismatches.Add($"f{current.Frame} u={current.UnscaledDeltaTime:F4} expected={expected:F5} effect={increment:F5}");
+                }
+
+                if (current.UnscaledDeltaTime > maximumDeltaTime)
                 {
                     cappedIncrement = increment;
                 }
 
-                expectedSum += expectedThisFrame;
+                expectedSum += expected;
                 effectSum += increment;
-                previousTotal = total;
+            }
 
-                // 引き延ばしたフレームの次のフレームから、このフレームの値として測る。
-                expectedThisFrame = DomainDelta(probe, maximumDeltaTime);
-                unscaledThisFrame = Time.unscaledDeltaTime;
-                if (stretch >= 0)
-                {
-                    stretchedUnscaled.Add(unscaledThisFrame);
-                }
+            // 引き延ばしたフレーム F とその次のフレームの値。増分が F で大きく u が F+1 で大きければ、VFX Graph が
+            // Unity の Time ではなく自分の更新どうしの実時間で進んでいる（引き延ばしは F の VFX の更新より前に起きる）。
+            var spins = new List<string>();
+            foreach (var spinFrame in spinFrames)
+            {
+                spins.Add($"spin@f{spinFrame}:{DescribeFrame(samples, spinFrame)};{DescribeFrame(samples, spinFrame + 1)}");
             }
 
             var sumTolerance = expectedSum * 0.01f;
             TestContext.Out.WriteLine(
                 $"unscaled={unscaled} timeScale={timeScale} layerScale={layerScale} expected={expectedSum:F5} " +
                 $"effect={effectSum:F5} sumTolerance={sumTolerance:F5} maximumDeltaTime={maximumDeltaTime} " +
-                $"vfxMaxDeltaTime={VFXManager.maxDeltaTime} stretched(u)={string.Join(",", stretchedUnscaled)} " +
+                $"vfxMaxDeltaTime={VFXManager.maxDeltaTime} resumesAfterVfxUpdate={resumesAfterVfxUpdate}/{MeasuredFrames} " +
+                $"stretched(u)={string.Join(",", stretchedUnscaled)} spins={string.Join(" ", spins)} " +
                 $"frames(u/expected/effect)={string.Join(",", rows)}");
+            Assert.That(samples.Count, Is.GreaterThanOrEqualTo(MeasuredFrames), "前提: 記録点が測定の全フレームで呼ばれた");
 
             // 前提: 引き延ばしたフレームが狙った区間に入っている（VFX Graph の上限の既定 0.05 < u ≤ maximumDeltaTime が
             // 2 つ、maximumDeltaTime を超えるものが 1 つ）。
@@ -373,17 +460,24 @@ namespace SampleGame.Tests.Rendering.Vfx
             GameplayLayer.SetTimeScale(1f);
         }
 
-        /// <summary>
-        /// このフレームの領域の時間。gameplay は要素が受け取った DeltaTime、unscaled は
-        /// <c>min(unscaledDeltaTime, maximumDeltaTime)</c>（Framework の定義を Unity の Time から独立に求める）。
-        /// </summary>
-        private static float DomainDelta(GameplayDeltaProbe? probe, float maximumDeltaTime)
-            => probe != null ? probe.Last : Math.Min(Time.unscaledDeltaTime, maximumDeltaTime);
+        private static string DescribeFrame(List<VfxUpdateRecorder.Sample> samples, int frame)
+        {
+            var index = samples.FindIndex(s => s.Frame == frame);
+            if (index <= 0)
+            {
+                return $"f{frame}=(未記録)";
+            }
 
-        /// <summary>Gameplay Layer の要素が受け取った DeltaTime を足す（AC7 の gameplay 側の時間）。</summary>
+            var sample = samples[index];
+            return $"f{frame}=u {sample.UnscaledDeltaTime:F4} expected {sample.DomainDelta:F4} effect {sample.TotalTime - samples[index - 1].TotalTime:F4}";
+        }
+
+        /// <summary>Gameplay Layer の要素が受け取った DeltaTime と、それを受け取ったフレーム（AC7 の gameplay 側の時間）。</summary>
         private sealed class GameplayDeltaProbe : IUpdateElement
         {
             public float Last { get; private set; }
+
+            public int Frame { get; private set; } = -1;
 
             public void OnElementStart()
             {
@@ -392,10 +486,103 @@ namespace SampleGame.Tests.Rendering.Vfx
             public void OnElementUpdate(in UpdateFrameContext context)
             {
                 Last = context.DeltaTime;
+                Frame = Time.frameCount;
             }
 
             public void OnElementLateUpdate(in UpdateFrameContext context)
             {
+            }
+        }
+
+        /// <summary>
+        /// PlayerLoop の <c>PostLateUpdate.VFXUpdate</c> の直後に記録点を差し込み、VFX がそのフレームを更新した後の
+        /// totalTime と、同じフレームの unscaledDeltaTime・領域の時間を取る。Dispose で差し込む前の PlayerLoop に戻す
+        /// （テストが途中で失敗しても TearDown の Dispose で戻る）。
+        /// </summary>
+        private sealed class VfxUpdateRecorder : IDisposable
+        {
+            private readonly Func<float> _readTotalTime;
+            private readonly GameplayDeltaProbe? _probe;
+            private readonly float _maximumDeltaTime;
+            private PlayerLoopSystem? _saved;
+
+            public VfxUpdateRecorder(Func<float> readTotalTime, GameplayDeltaProbe? probe, float maximumDeltaTime)
+            {
+                _readTotalTime = readTotalTime;
+                _probe = probe;
+                _maximumDeltaTime = maximumDeltaTime;
+                var root = PlayerLoop.GetCurrentPlayerLoop();
+                var inserted = false;
+                var patched = Insert(root, ref inserted);
+                Assert.That(inserted, Is.True, "前提: PlayerLoop に PostLateUpdate.VFXUpdate がある");
+                _saved = root;
+                PlayerLoop.SetPlayerLoop(patched);
+            }
+
+            public List<Sample> Samples { get; } = new();
+
+            /// <summary>記録点が最後に呼ばれたフレーム（呼ばれていなければ -1）。</summary>
+            public int LastFrame => Samples.Count > 0 ? Samples[Samples.Count - 1].Frame : -1;
+
+            public void Dispose()
+            {
+                if (_saved is { } saved)
+                {
+                    _saved = null;
+                    PlayerLoop.SetPlayerLoop(saved);
+                }
+            }
+
+            private void Record()
+            {
+                // 領域の時間: gameplay は要素がこのフレームに受け取った DeltaTime（受け取っていなければ NaN）、unscaled は
+                // min(unscaledDeltaTime, maximumDeltaTime)（Framework の定義を Unity の Time から独立に求める）。
+                var frame = Time.frameCount;
+                var domain = _probe == null
+                    ? Math.Min(Time.unscaledDeltaTime, _maximumDeltaTime)
+                    : _probe.Frame == frame ? _probe.Last : float.NaN;
+                Samples.Add(new Sample(frame, Time.unscaledDeltaTime, domain, _readTotalTime()));
+            }
+
+            private PlayerLoopSystem Insert(PlayerLoopSystem system, ref bool inserted)
+            {
+                if (system.subSystemList == null)
+                {
+                    return system;
+                }
+
+                var list = new List<PlayerLoopSystem>(system.subSystemList.Length + 1);
+                foreach (var child in system.subSystemList)
+                {
+                    list.Add(Insert(child, ref inserted));
+                    if (system.type == typeof(PostLateUpdate) && child.type == typeof(PostLateUpdate.VFXUpdate))
+                    {
+                        list.Add(new PlayerLoopSystem { type = typeof(VfxUpdateRecorder), updateDelegate = Record });
+                        inserted = true;
+                    }
+                }
+
+                system.subSystemList = list.ToArray();
+                return system;
+            }
+
+            public readonly struct Sample
+            {
+                public Sample(int frame, float unscaledDeltaTime, float domainDelta, float totalTime)
+                {
+                    Frame = frame;
+                    UnscaledDeltaTime = unscaledDeltaTime;
+                    DomainDelta = domainDelta;
+                    TotalTime = totalTime;
+                }
+
+                public int Frame { get; }
+
+                public float UnscaledDeltaTime { get; }
+
+                public float DomainDelta { get; }
+
+                public float TotalTime { get; }
             }
         }
 

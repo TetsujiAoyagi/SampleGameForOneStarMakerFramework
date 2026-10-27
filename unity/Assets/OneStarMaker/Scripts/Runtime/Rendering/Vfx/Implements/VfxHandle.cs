@@ -114,6 +114,11 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
                 return false;
             }
 
+            // 開始するか保留するかは、呼び出し時点の領域の状態で決める（反映点を通過したかは見ない）。そのフレームの
+            // 反映点より後に Resume してから Play を呼ぶと、この instance だけそのフレームに開始する。止まった時間で
+            // 進まない約束は反映点で backend に書く状態についてのもので、この即時の開始はそれに反しない。厳密にするには
+            // 「このフレームの反映点を通過済み」の状態が要り、止まっていない領域での即時の開始（Spawn → Play の同期列）とも
+            // 両立しないので、持たない。
             VfxTimeLayerBinding.EvaluateDomain(_timeSource, TimeLayerId, out var paused, out var domainDelta);
             if (paused || _startPending)
             {
