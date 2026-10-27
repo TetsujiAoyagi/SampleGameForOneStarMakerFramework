@@ -2,7 +2,7 @@
 
 ## 0. 状態と入力
 
-- type: slice / status: A3 r3凍結済み・Phase B実装完了。固定headで最終CとC′はともにGO。判定入力と最終レビュー結果はローカル固定し、別sessionによる取得・閲覧を確認済み。
+- type: slice / status: PRレビュー指摘でPhase B差戻し、修正済み。新headの動作確認・発見C・判定C・C′は未実施。旧headのGOは新headに適用しない。
 - risk: high（App寿命の待受け・終了経路を変更するため）。A0独立代替検討とA2構造レビューを実施。
 - owner: 主担当。最終判断は依頼者。
 - created: 2026-10-21 / expires: 2026-11-05または置換revision。
@@ -18,8 +18,8 @@
 
 ### 引継ぎ票
 
-- 次のPhase/役割: C/C′の結果を依頼者へ引き渡す。Phase D以降は別の依頼を待つ。
-- 凍結revision: A3 r3、凍結commit e4910a392be1a1cb8cd1f617c127d93bf511aa18。実装引継ぎcommit e7ea37ab841e2c328fcbab17db6e718e5888ff38。本節だけの状態記録commitをimplementation headへ含めない。Cは検証用checkoutのHEAD・clean状態と照合する。
+- 次のPhase/役割: 新headの動作確認、続いて別sessionで発見C。判定C/C′はその後に実施する。
+- 凍結revision: A3 r3、凍結commit e4910a392be1a1cb8cd1f617c127d93bf511aa18。修正実装head 6e1f82c3a00430b46e0e50f885b6681e52425a15。旧実装head e7ea37ab841e2c328fcbab17db6e718e5888ff38。本節の状態記録commitはimplementation headに含めない。次担当は引継ぎcommitとclean状態を照合する。
 - Phase A snapshot: ローカル固定済み。取得案内は主担当のprivate artifacts内。B別sessionが独立した期待hashでfetchし、manifestと必須2文書の内容hash・閲覧を確認済み。
 - Phase B resultと発見C入力: Artifact Storageでローカル固定済み、別sessionによるfetchと必須内容の閲覧を確認済み。判定C evidence / C′ blind入力は同じbase/head・生証拠から237fileの同一snapshotとして判定前に生成し、ローカル固定済み。private取得案内FINAL_C_FETCH_GUIDE.jsonとBLIND_CPRIME_FETCH_GUIDE.jsonにより、それぞれ別sessionで全file集合/hash・必須74pathの閲覧を確認済み。追加実機は行わず、この固定証拠と決定記録に基づきC/C′を判定した。
 - 必要な権限: ローカル.NET実行、対象を限定したEditor操作、WPF起動/終了、Artifact Storage stage/fetch。実行環境の拒否は迂回しない。
@@ -216,6 +216,14 @@ r2への追加レビュー（依頼者が2026-10-24に提示したDEBUGSTUDIO_S2
 次session用:
 > DEBUGSTUDIO_S2_SIMPLE_A3_CANDIDATE.mdを入口に、Debug用途に絞った単一S2案のA3候補を検討する。--listenで同じWPFからPlay停止再開後もCLIで読み、TargetId best-effortと同対象GUI値更新を許容する。新世代/requestId/transaction基盤や旧4分割を必須へ戻さず、指摘の実害と最小修正を示す。依頼者の明示判断前に凍結・実装・commit・push・Editor操作・Unityテスト・Buildを行わない。
 
+
+## PRレビュー後のPhase B差戻し（2026-10-28）
+
+切断イベントが解除後に呼ばれる場合に破棄済み取消へ触れないよう修正し、停滞する送信も切断で終了する。凍結条件 I2 / E2 と AC3 の切断・再待受けの欠陥に対する B 適応。非対応hostのcommand失敗応答をread失敗として扱い、不正read payloadにはread失敗を返す。E3の失敗とtimeoutの区別に対する B 適応。send専用の `--uri` をREADMEで明確化した。契約や責務配置は変更しない。
+
+client/serverのtimeout起点とclient離脱後の占有は、既存の期限と即時検出を保証しない凍結条件の変更を伴うため、S3以後の検討に送る。新headでは旧C/C′の判定を使わない。
+
+限定確認: Release AppのCliReadServiceTests / CliControlLifetimeTests 19件、CLIのReadCommandTests 14件成功。contract-audit / docs-auditはerrors=0、warnings=0。最初の並列buildは共有DLLの競合で失敗し、逐次実行で確認した。Unity Editor compile・実機動作確認・判定必須検証は未実施。新しいB resultのEvidence保存・取得案内は未生成、未引渡し。
 
 ## Phase B 実装結果
 
