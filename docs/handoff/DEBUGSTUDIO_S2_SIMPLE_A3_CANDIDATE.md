@@ -2,11 +2,11 @@
 
 ## 0. 状態と入力
 
-- type: slice / status: A3 r3凍結済み・Phase B実装完了。Cのoffline確認済み、共有利用の待機解除を受け実機AC5を再開。判定C・C′は未完了。
+- type: slice / status: A3 r3凍結済み・Phase B実装完了。CはAC5の15秒起点をfixture完了と読み証拠不足、C′は再読取り開始と読んでGO。どちらの読みでも満たす実機証拠を追加するまで最終判定は未完了。
 - risk: high（App寿命の待受け・終了経路を変更するため）。A0独立代替検討とA2構造レビューを実施。
 - owner: 主担当。最終判断は依頼者。
 - created: 2026-10-21 / expires: 2026-11-05または置換revision。
-- updated: 2026-10-25。候補r3を承認済み。Bの未公開実装履歴を整理してGO候補headを固定した。過去の候補時点の記述は経緯であり、現在の許可範囲は本節を正とする。
+- updated: 2026-10-28。候補r3を承認済み。Bの未公開実装履歴を整理してGO候補headを固定した。過去の候補時点の記述は経緯であり、現在の許可範囲は本節を正とする。
 - branch: codex/debugstudio-s2-final（検証用checkout）。元checkoutはcodex/debugstudio-s2-verification。
 - implementation base: 2734a6ea7bc844861feb5acdfd8df213eb3ec3ef / head: e7ea37ab841e2c328fcbab17db6e718e5888ff38。
 - 入力: ClaudeのDEBUGSTUDIO_S2_CUT_PLAN.mdと、依頼者の「Debug用途のToolで厳密なトランザクションを要求していない」という今回の指示。
@@ -18,10 +18,10 @@
 
 ### 引継ぎ票
 
-- 次のPhase/役割: C担当。同じheadで残るAC5と実観測のchecker照合を行う。主担当は統合・証拠配送を担当し、C′は判定Cの必須証拠が揃ってから別モデル新規担当へ渡す。
+- 次のPhase/役割: C担当。依頼者の指定に従ってClaude側のUnity作業終了を待ち、対象projectと接続先が使えることを確認後、同一WPFで二度Play・受付確認後の正常終了を取得する。各fixture通知後15秒以内のHierarchy取得も記録し、固定headの追加証拠でCとC′を再判定する。
 - 凍結revision: A3 r3、凍結commit e4910a392be1a1cb8cd1f617c127d93bf511aa18。実装引継ぎcommit e7ea37ab841e2c328fcbab17db6e718e5888ff38。本節だけの状態記録commitをimplementation headへ含めない。Cは検証用checkoutのHEAD・clean状態と照合する。
 - Phase A snapshot: ローカル固定済み。取得案内は主担当のprivate artifacts内。B別sessionが独立した期待hashでfetchし、manifestと必須2文書の内容hash・閲覧を確認済み。
-- Phase B resultと発見C初回入力: Artifact Storageでローカル固定済み。新規C担当によるfetch、manifest全59項目hashと必須内容の閲覧を確認済み。B修正結果と新headの発見C入力は主担当がprivate取得案内で渡す。判定C evidence / C′ blind bundleは未生成。CとC′の判定入力は同じbase/head、生証拠から作り、C所見はblind入力へ混ぜない。
+- Phase B resultと発見C入力: Artifact Storageでローカル固定済み、別sessionによるfetchと必須内容の閲覧を確認済み。判定C evidence / C′ blind入力は同じbase/head・生証拠から237fileの同一snapshotとして判定前に生成し、ローカル固定済み。private取得案内FINAL_C_FETCH_GUIDE.jsonとBLIND_CPRIME_FETCH_GUIDE.jsonにより、それぞれ別sessionで全file集合/hash・必須74pathの閲覧を確認済み。追加証拠取得後は両判定用の入力を再固定する。
 - 必要な権限: ローカル.NET実行、対象を限定したEditor操作、WPF起動/終了、Artifact Storage stage/fetch。実行環境の拒否は迂回しない。
 - 停止規則: 凍結済みI1〜I4/E1〜E3を満たすまでBと発見Cを最大4往復、C′差戻しを最大3往復。新しい契約/所有者/寿命が必要ならAへ戻して分類する。現在の問いを阻害しない追加保証はS3以後へ送る。
 - 決定記録: 現時点でなし。条件を変えない裁定のみ別recordへ残す。
@@ -229,14 +229,18 @@ B出口の軽いWPF観測: 引数なしと--listenの両方でWindow handle取�
 
 構造補足: MainWindowはWindow終了という単一責務のまま非同期化した。OrderedAsyncDisposableの一回の例外継続cleanupとMainWindowViewModelの残り解放は、凍結済み所有解除契約を実現する局所変更である。control期限は既存control service内、読取りの中核はCliReadService、App loopはAutoListenServiceへ分離した。
 
-## Cの進捗（判定未完了）
+## Phase C / C′ の現況
 
-担当はGPT-6-astra、利用上限による中断後の継続担当は新規GPT-6-sol。いずれもBのGPT-6.1-solとは別モデル。発見Cの初回差戻し1件は、既定accept期限が無視するHTTP要求で更新される問題で、B適応として修正し再確認済み。未公開実装履歴はA3 commitを残して整理し、上記implementation headを固定した。再確認範囲に追加の具体的な凍結条件違反はない。
+発見C（GPT-6-astra）の初回差戻し1件は、既定accept期限が無視するHTTP要求で更新される問題だった。Bが凍結条件内で修正し、C（GPT-6-sol）が確認した。未公開実装履歴を整理して、implementation headをe7ea37abに固定した。
 
-同headのC実行記録はApp85/85、CLI112/112、Contracts38/38、failed0。TRXの実行名集合を保存した一覧と照合済み。codegen56生成物一致、contract/docs auditはerrors0/warnings0。同headの記録は中断後も再利用し、セッション変更だけを理由に再実行していない。
+固定headのC実行では、Release .NET App 85/85、CLI 112/112、Contracts 38/38、failed/skipped 0。実行名集合をTRXと照合した。codegen56生成物一致、contract/docs auditはerrors0/warnings0。C作成の隔離checkerは合成17fixtureと、Editor独立値を読み取った実観測3件が期待どおりだった。
 
-C作成checkerは、ホストのfile/通信機能やmodule loaderを渡さないQuickJS/WASMで合成17fixture（期待するaccept5、reject12）を確認済み。実観測への適用は未実施。これをAC5成立やGO判定へ読み替えない。
+実Editor 6000.6.0f1と同一WPF PIDで、二度のPlayそれぞれに新しいfixtureを生成し、現在のHierarchyから取得したNodeIdのBoolean RawValueをEditor独立値true/falseと照合した。未知の正Int64 IDはNotFound、GUIのInspector選択はNo selectionだった。軽量debuggerでWPFのinspect要求受付位置を確認し、その後Play停止と通常Window.Closeを重ねた。readは有限にdisconnected、WPFはexit0。Debug構成と軽量debuggerの採用は依頼者が提示したメモリ制約に対応した検証経路の適応で、Visual Studioを起動せず、製品sourceや受入条件は変更していない。Editorのprocess限定content modeは元のnullに戻し、Scene cleanと設定file hash不変を記録した。
 
-offline部分証拠は明示35fileをArtifact Storageでローカル固定済み（未昇格）。private取得案内C_OFFLINE_PARTIAL_FETCH_GUIDE.jsonをC継続担当へ渡し、別sessionのfetch成功、全fileの集合・内容hash・長さと必須TRX/checker原記録の閲覧を確認済み。確認記録は主担当のprivate取得案内と同じ引渡し先に保持する。最終判定入力やC′blind bundleではない。Cの所見・取得案内の実値とblind用の生証拠は分離する。
+C′（GPT-6-luna）は同じ固定入力237fileを別sessionでfetchし、全file集合・bytes/hash、必須74pathの内容、3 TRXのテスト名集合を独立に確認した。固定source38fileはheadのblobと一致した。patchのgit再生成時の違いはhunk headerの関数名表示だけで、hunk範囲と本文は一致した。C′は§6の15秒をHierarchy再読取り自体の総時間と読み、初回応答が両対象を含み0.5秒未満であったことからGO、blockerなしとした。
 
-残る必須条件は、同一WPF PIDによる実Editorの二度のPlay、各Playの独立Boolean値と新NodeIdによるinspect照合、未知IDの失敗、実際に進行中のinspectとPlay切断が重なる正常終了、必要な一時状態の復元、および実観測のchecker照合。実機の空き待ち中は判定Cを完了とせず、C′を起動しない。
+一方Cは§6の15秒をfixtureと通知の完了からHierarchy取得成功までと読み、Play1が25.334秒だったため初回GOを撤回し、証拠不足のNO-GOとした。Play2は13.876秒だった。この差は実装欠陥を証明していない。判断の読みを一方的に緩めず、同じheadの同一WPFで二度Playと受付後の終了を再取得し、各fixture通知後から15秒以内のHierarchy成功を記録する。前回のWPFは終了済みのため、旧Play2と新Play1を別PIDで合成しない。既存の.NET回帰と同head原証拠は中断だけを理由に繰り返さない。
+
+2026-10-28、依頼者はClaude側のUnity作業終了後に追加実機を行うよう指定した。Claudeの別worktreeのEditor稼働と空きメモリ約0.6 GiBを確認し、終了前の新Editor/WPF実機操作を待機する。Editor起動時は依頼者に事前に知らせる。待機中は検証補助手順と証拠保存を進める。
+
+最終CとC′の入力は同一snapshotで判定前に生成した237fileをローカル固定し、両担当によるfetch・全file集合/hash・必須74pathの閲覧を確認済み。private取得案内はFINAL_C_FETCH_GUIDE.jsonとBLIND_CPRIME_FETCH_GUIDE.json。部分offline/live archiveも既存案内から取得確認済み。CのNO-GO、C′のGOと撤回履歴、両受領記録を含む中間結果14fileもローカル固定し、別sessionで全file集合・hashと必須8pathの閲覧を確認済み。private案内はINTERIM_REVIEW_RESULTS_FETCH_GUIDE.json、確認記録はINTERIM_REVIEW_RESULTS_FETCH_CONFIRMATION.md。追加証拠後にCとC′を再判定し、C所見をC′ blind入力へ混ぜない。Phase D、PR、push、merge、task終了は今回の出口に含めない。
