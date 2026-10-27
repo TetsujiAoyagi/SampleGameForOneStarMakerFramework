@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C'`（判定 C 完了・GO。C' 待ち。Phase A は A3 凍結版の revision 2、revision 1 からの差分は §2.7）
+- status: `C'`（判定 C 完了・GO（DR-2 で `b33ceb22` に適用）。C' blind bundle 作成済み、C' 待ち。Phase A は A3 凍結版の revision 2、revision 1 からの差分は §2.7）
 - branch: `claude/s-4d4a-vfx-time-domain`
 - implementation base commit: `a4e940b1`（`develop`）
-- implementation head commit: `791edb1c`（判定 C の GO 候補 head。ローカル tag `evidence/s-4d4-local-event/1`）
+- implementation head commit: `b33ceb22`（C' の監査対象。判定 C の証拠は `791edb1c`（ローカル tag `evidence/s-4d4-local-event/1`）で取得し、DR-2 で引き継いだ）
 - risk: `high`（Framework の公開 API・所有者／寿命・Update の経路を変える）
 - owner: 発注者 / S-4d4a 担当
 - created: 2026-10-27
@@ -18,18 +18,19 @@
 - Phase A snapshot の取得案内・状態: 凍結前スパイクの原記録は `evidence stage` で固定済み（ローカル固定済み（未昇格）、task `s-4d4-local-event`）。取得案内は主担当の worktree の `TestResults/` にあり、次の担当への引渡しは未完了。凍結した HANDOFF 本体は A3 凍結 commit で固定する
 - Phase B result snapshot の取得案内・状態: 未生成（B は Unity テストを実行しないので、固定する生の結果は無い。B の出口 commit が入力）
 - evidence bundle の取得案内・状態: 判定 bundle（所見なし）と Phase C の記録 bundle（所見あり）を `evidence stage` で固定済み（ローカル固定済み（未昇格）、task `s-4d4-local-event`）。取得案内は進行役の worktree の `TestResults/` にあり、次の担当への引渡しは未完了
-- C' blind bundle の取得案内・状態: 未生成
-- A3 後の決定記録: §7.2（DR-1、C' には渡さない）
+- C' blind bundle の取得案内・状態: `evidence stage` で固定済み（ローカル固定済み（未昇格）、task `s-4d4-local-event`）。C' 用の独立した取得案内は進行役の worktree の `TestResults/` にあり、次の担当（C'）への引渡しは未完了（C' の開始時に取得・閲覧を確認する）
+- A3 後の決定記録: §7.2（DR-1・DR-2。どちらも C' には渡さない。DR-2 については、判定の証拠を引き継いだ事実だけを C' bundle の README に書いた）
 - 引継ぎ票:
+  - **2026-10-28 更新（C' blind bundle 作成済み）:** 次は Phase C'（独立監査、最終 C'、新しい session）。対象は implementation base `a4e940b1`、head `b33ceb22`。高コスト証拠は無いので、この監査が最終 C'。
+    - 入力: C' 用の取得案内（進行役の worktree の `TestResults/`。C' 専用で所見を含まない）が示す blind audit bundle だけ。この HANDOFF・PR・Phase C の記録 bundle・判定 bundle は入力にしない。進行役が C' に渡すのは取得案内の中身（reference・期待 hash・取得手順）だけ。
+    - C' の担当: §5.3 で予約した OpenAI 系（Codex）。A〜C に関与していない。開始時に、取得案内の reference と期待 hash で fetch し、必須 file を閲覧できることを確かめる（同一 PC の `local`）。Codex の packaged 環境から Claude 側の store を読めない既知の問題が過去にあったので、最初に小さく取得を試し、読めなければ assist 扱いにせず、止めて発注者に返す。
+    - 必要な権限: Artifact Storage の fetch（同一 PC、資格情報を使わない local 分岐）。Unity テストの再実行は必須ではない。
+    - 出口: 指摘（現在の問いを阻害する欠陥 / 後続スライスの入力）、残存リスク、監査できなかった範囲、使用したモデルを §8 に記録する。
   - **2026-10-28 更新（DR-2: C' の前のコメント修正）:** 次は Phase B（実装担当。差し戻しの巡には数えない）。起点は本ファイルを含む最新の commit（`git log -1 -- docs/handoff/S-4D4A_VFX_TIME_DOMAIN.md` で引く。implementation は `791edb1c`）。引継ぎの開始時に、その commit と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない。
     - やること: §7.2 の DR-2 のとおり、`unity/Assets/SampleGame/Tests/Rendering/Vfx/VfxGraphBackendPlayTests.cs` の測定ループの前のコメントから、工程への言及（「発見 C 1 巡目で…」「発見 C 2 巡目の実測」）だけを消す。理由（再開時点に頼らないこと、VFX の更新より前で引き延ばすこと、その区別の仕方）は残す。`//` コメントの行の文言だけを変え、コードの行・空白以外の字句・他のファイルには触れない。行の追加・削除もしない（1 行が長くなるなら言い換えで収める）。
     - Editor・Unity テストは起動しない（コメントだけなのでコンパイル確認も不要。同一性は進行役が機械で確かめる）。`pwsh tools/contract-audit.ps1` だけ通す。
     - 出口: 実装の commit を 1 つ作り（HANDOFF は変えない）、進行役に SHA を返す。この引継ぎ票と §6 は進行役が更新する。
-  - **2026-10-28 更新（判定 C 完了・GO）:** 次は C' の blind audit bundle の作成と、Phase C'（独立監査、新しい session）。対象は implementation head `791edb1c`（判定 evidence の head。tag `evidence/s-4d4-local-event/1`）、base `a4e940b1`。高コスト証拠は無いので、この head の C' が最終 C'。
-    - blind bundle の作成（Phase C 側の担当）: 判定 bundle（所見を含まない）をそのまま C' の evidence に使い、凍結した Phase A snapshot（A3 r2 凍結 commit `e8a120c0` の本ファイル）と、所見を含まない Phase B の実装結果を加える。§6.7・§6.8 は発見 C の指摘に応じた修正の記録なので、C1・C2 の指摘・所見を除いた形で入れる。§7 と Phase C の記録 bundle と DR-1 は入れない（C' 自身の前巡の指摘ではない）。stage し、C' 用の独立した取得案内を作る。
-    - C' の担当: §5.3 で予約した OpenAI 系（Codex）。A〜C に関与していない。開始時に、取得案内の reference と期待 hash で fetch し、必須 file を閲覧できることを確かめる（同一 PC の `local`）。Codex の packaged 環境から Claude 側の store を読めない既知の問題が過去にあったので、最初に小さく取得を試し、読めなければ assist 扱いにせず、止めて発注者に返す。
-    - 必要な権限: Artifact Storage の fetch（同一 PC、資格情報を使わない local 分岐）。Unity テストの再実行は必須ではない。
-    - 引き渡さないもの: 発見 C・判定 C の結論・指摘・ledger、DR-1、この引継ぎ票のうち C' の作業に要らない経緯。
+  - **2026-10-28 更新（判定 C 完了・GO）:** 判定 C は `791edb1c` で GO（§7.3）。C' の blind bundle の作成は、DR-2 のコメント修正（`b33ceb22`）の後に行った（上の項目）。
   - **2026-10-28 更新（差し戻し 2 巡目の B 完了）:** 次は発見 C 3 巡目（新しい session）。対象は B の出口 commit（本ファイルを含む最新の commit。`git log -1 -- docs/handoff/S-4D4A_VFX_TIME_DOMAIN.md` で引く）で、implementation base は `a4e940b1`。2 巡目の対象 `be1f716e` からの差分は C2-1 の分（§6.8、テスト 1 ファイルだけ）。引継ぎの開始時に、その commit と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない。
     - 動作確認: `対象なし`（変わらず）。
     - 見てほしい点: AC7 の 2 件の結果と、`spins=` の読み方（§6.8）で (b) を否定できたか。(b) を示す結果なら §4.2 に当たり Phase A へ返す。
@@ -694,6 +695,7 @@ asmdef 参照の追加は 0 件。公開 API の追加は `UpdateLayerIds.Gamepl
   - AC8: d3 の実 Scene 2 件は、止まっている間 `aliveParticleCount` 0、Resume の後に増えた。
 - **条件ごとの判定:** I1〜I6・E1〜E4 は全て、紐付く AC の証拠で成立した（対応表は判断担当の ledger。Phase C の記録 bundle に入れた）。操作・実行時・目視の条件は Play テストで閉じる（§5.2）。動作確認は `対象なし`。高コスト証拠は無いので、この head の C' が最終 C' になる。
 - **判定: GO**（判定 C 完了）。現在の問いを阻害する欠陥は無い。
+- **DR-2 の適用（2026-10-28）:** B がコメント 2 行の工程への言及を消した `b33ceb22` を作った。`791edb1c..b33ceb22` の実装の差分は対象テストの 1 ファイルだけで、変わった 2 行は両版ともコメント行、行数は同じ。コメントと空白を除いた内容の hash は一致し、工程への言及は残っていない。この確認により、上の判定の証拠と GO を `b33ceb22` に適用した（Unity テストと build は再実行していない）。
 - **後続スライスの入力:** Content build の `outcome.json` の `selected`・`roots`・`closure` が空配列で、候補の一覧は `preflight.json` にしか無い（記録形式の問題。build の成否と Scene の収録には影響しない。BuildSystem の作業候補）。発見 C の F-03〜F-14。
 - **Phase C の記録 bundle（所見を含む。C' には渡さない）:** 発見 C 1〜3 巡目の ledger と起点 filter の生結果、判定 C の ledger。`evidence stage` でローカル固定済み（未昇格）。取得案内は判定 bundle と同じ所在。Phase D の突き合わせに使う。
 
