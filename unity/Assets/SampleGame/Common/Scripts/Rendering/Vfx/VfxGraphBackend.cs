@@ -31,6 +31,14 @@ namespace SampleGame.Common.Rendering.Vfx
     /// <c>min(unscaledDeltaTime, VFXManager.maxDeltaTime) × playRate</c> になる。<see cref="SetPlayback"/> は
     /// Framework の倍率（実時間に対する倍率）をこの頭打ちに合わせて <c>playRate</c> へ換算する。
     /// </para>
+    /// <para>
+    /// VFX Graph の上限: 対応と判定した最初の <see cref="QueryCapability"/> で 1 回だけ、<c>VFXManager.maxDeltaTime</c> を
+    /// 実行時の <c>Time.maximumDeltaTime</c> に揃え、<see cref="Dispose"/> で手放す（<see cref="VfxGraphMaxDeltaTimeAlignment"/>。
+    /// backend が重なっても最後の 1 つが元に戻し、アプリの終了でも戻す）。揃えないと、VFX Graph の上限と Unity の頭打ちの
+    /// 間のフレームで Framework の倍率が変わらず、playRate が書き直されないまま VFX だけが上限で止まる。
+    /// この設定はプロセス内の全ての VisualEffect（VfxSystem の外のものを含む）に効く。<c>Time.maximumDeltaTime</c> の
+    /// 実行中の変更には追従しないので、backend を作る前に決め、実行中は変えないこと。
+    /// </para>
     /// </summary>
     public sealed class VfxGraphBackend : IVfxBackend, IDisposable
     {
@@ -41,6 +49,9 @@ namespace SampleGame.Common.Rendering.Vfx
         private ulong _lastId;
         private GameObject? _root;
         private bool _disposed;
+
+        // VFX Graph の上限を揃えた値を持っているときの世代（VfxGraphMaxDeltaTimeAlignment）。持っていなければ null。
+        private int? _maxDeltaTimeAlignment;
 
         public VfxGraphBackend()
             : this(ReadPlatformFacts)
@@ -60,8 +71,20 @@ namespace SampleGame.Common.Rendering.Vfx
         internal VisualEffect? FindForTest(VfxInstanceId id)
             => _instances.TryGetValue(id.Value, out var entry) && entry.Effect != null ? entry.Effect : null;
 
+        /// <summary>
+        /// 能力を判定する。対応と判定した最初の 1 回だけ VFX Graph の上限を揃える（2 回目以降と非対応の判定では書かない。
+        /// 非対応環境では VFX Graph の設定に触れない）。
+        /// </summary>
         public bool QueryCapability(out string? reason)
-            => VfxGraphCapabilityPolicy.Evaluate(_readFacts(), out reason);
+        {
+            var supported = VfxGraphCapabilityPolicy.Evaluate(_readFacts(), out reason);
+            if (supported && !_disposed && !_maxDeltaTimeAlignment.HasValue)
+            {
+                _maxDeltaTimeAlignment = VfxGraphMaxDeltaTimeAlignment.Acquire();
+            }
+
+            return supported;
+        }
 
         public VfxInstanceId Create(in VfxSpawnRequest request)
         {
@@ -149,6 +172,8 @@ namespace SampleGame.Common.Rendering.Vfx
         /// <c>playRate</c> へ換算する。VFX Graph は 1 フレームの進みを <c>VFXManager.maxDeltaTime</c> で頭打ちにするので、
         /// その分だけ playRate を上げて、Framework が求めた進み（rate × u）に合わせる。
         /// u か上限が 0・負・NaN・∞ のフレームは換算できないので、playRate は前回の値のままにする（pause は書く）。
+        /// 上限を <c>Time.maximumDeltaTime</c> に揃えてあるので、Framework の倍率が変わらないフレーム（呼ばれないフレーム）でも
+        /// VFX の進みは倍率 × 頭打ちの時間になり、gameplay と一致する。
         /// </summary>
         public void SetPlayback(VfxInstanceId id, bool paused, float rate)
         {
@@ -316,6 +341,12 @@ namespace SampleGame.Common.Rendering.Vfx
             }
 
             _disposed = true;
+
+            if (_maxDeltaTimeAlignment.HasValue)
+            {
+                VfxGraphMaxDeltaTimeAlignment.Release(_maxDeltaTimeAlignment.Value);
+                _maxDeltaTimeAlignment = null;
+            }
 
             // VfxSystem は先に全 instance を回収しているので、通常ここに残りは無い。残っていたら回収する
             // （配置済みは無効化だけで、Scene の GameObject は壊さない）。

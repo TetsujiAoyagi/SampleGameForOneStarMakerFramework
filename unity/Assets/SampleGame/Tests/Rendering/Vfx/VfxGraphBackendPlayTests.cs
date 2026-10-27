@@ -222,14 +222,16 @@ namespace SampleGame.Tests.Rendering.Vfx
             LogAssert.NoUnexpectedReceived();
         }
 
-        // AC7 で比べるフレーム数と、負荷スパイクで引き延ばす長さ（Time.maximumDeltaTime を超える）。
+        // AC7 で比べるフレーム数と、引き延ばすフレーム。0.1・0.2 秒は VFX Graph の上限の既定（0.05 秒）を超えるが
+        // Time.maximumDeltaTime では頭打ちにならない長さ、0.5 秒は Time.maximumDeltaTime を超える負荷スパイク。
         private const int MeasuredFrames = 60;
-        private const double SpikeSeconds = 0.5;
+        private static readonly (int Frame, double Seconds)[] StretchedFrames = { (15, 0.1), (30, 0.2), (45, 0.5) };
 
         /// <summary>
-        /// AC7: Gameplay Layer に置いた test の要素が受け取った DeltaTime の和と、VFX の spawn system が進んだ時間
-        /// （totalTime の増分）が一致する。(Time.timeScale, Layer の TimeScale) の 3 組のそれぞれで、
-        /// Time.maximumDeltaTime を超える負荷スパイクのフレームを含む列で比べる。
+        /// AC7: Gameplay Layer に置いた test の要素が受け取った DeltaTime と、VFX の spawn system が進んだ時間
+        /// （totalTime の増分）が、フレームごとと列の和の両方で一致する。(Time.timeScale, Layer の TimeScale) の 3 組の
+        /// それぞれで、VFX Graph の上限の既定を超えるが頭打ちにならないフレームと、Time.maximumDeltaTime を超える
+        /// 負荷スパイクのフレームを含む列で比べる。
         /// </summary>
         [UnityTest]
         public IEnumerator AC7_EffectTimeMatchesGameplayTime_IncludingLoadSpike()
@@ -255,18 +257,37 @@ namespace SampleGame.Tests.Rendering.Vfx
             LogAssert.NoUnexpectedReceived();
         }
 
-        private IEnumerator MeasureOneCondition(GameplayDeltaProbe probe, float timeScale, float layerScale)
+        /// <summary>
+        /// AC7（unscaled）: unscaled の要求は Time.timeScale に依らず、1 フレームに
+        /// <c>min(unscaledDeltaTime, Time.maximumDeltaTime)</c> だけ進む。Time.timeScale = 0.5 で、
+        /// u ≈ 0.5 秒のフレームの増分が Time.maximumDeltaTime になる。
+        /// </summary>
+        [UnityTest]
+        public IEnumerator AC7_UnscaledEffectTime_IsCappedAtMaximumDeltaTime()
         {
+            AssumeGraphicsSupported();
+            yield return MeasureOneCondition(probe: null, timeScale: 0.5f, layerScale: 1f);
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        /// <param name="probe">gameplay の領域の時間の出所。null なら unscaled の要求で、領域の時間は Unity の Time から求める。</param>
+        private IEnumerator MeasureOneCondition(GameplayDeltaProbe? probe, float timeScale, float layerScale)
+        {
+            var unscaled = probe == null;
             var backend = new VfxGraphBackend();
             var host = CreateHost(backend);
-            var handle = host.System.Spawn(new VfxSpawnRequest(Immortal, Vector3.zero, Quaternion.identity), AssetOwner.App);
+            var request = new VfxSpawnRequest(Immortal, Vector3.zero, Quaternion.identity);
+            var handle = host.System.Spawn(unscaled ? request.WithUnscaledTime() : request, AssetOwner.App);
             var effect = backend.FindForTest(IdOf(handle))!;
+            var maximumDeltaTime = Time.maximumDeltaTime;
+            Assert.That(maximumDeltaTime, Is.GreaterThan(0f), "前提: Time.maximumDeltaTime が 0 でない");
+            Assert.That(VFXManager.maxDeltaTime, Is.EqualTo(maximumDeltaTime), "前提: backend が VFX Graph の上限を揃えている");
             SetTimeScale(timeScale);
             GameplayLayer.SetTimeScale(layerScale);
             handle.Play();
             var spawnNames = new List<string>();
 
-            // 開始の直後のフレームを外し、spawn system の時間が進み始めてから測る。
+            // Play の直後は長いフレームが出ることがあるので、最初の反映点から 5 フレームを外して測る。
             for (var frame = 0; frame < 5; frame++)
             {
                 yield return null;
@@ -277,41 +298,91 @@ namespace SampleGame.Tests.Rendering.Vfx
             var spawnName = spawnNames[0];
 
             // coroutine の時点では、gameplay の要素はこのフレームの Update を受け取り済みで、VFX はまだこのフレームを
-            // 更新していない。両者を同じフレームの範囲に揃えるため、gameplay 側はこのフレームの分を引いた和を使う。
-            var startEffect = effect.GetSpawnSystemInfo(spawnName).totalTime;
-            var startGameplay = probe.Sum - probe.Last;
-            var frames = new List<string>();
+            // 更新していない。したがって次の再開までの totalTime の増分が、このフレームの領域の時間に対応する。
+            var previousTotal = effect.GetSpawnSystemInfo(spawnName).totalTime;
+            var expectedThisFrame = DomainDelta(probe, maximumDeltaTime);
+            var unscaledThisFrame = Time.unscaledDeltaTime;
+            var expectedSum = 0f;
+            var effectSum = 0f;
+            var rows = new List<string>();
+            var mismatches = new List<string>();
+            var stretchedUnscaled = new List<float>();
+            var cappedIncrement = float.NaN;
             for (var frame = 0; frame < MeasuredFrames; frame++)
             {
-                if (frame == MeasuredFrames / 2)
+                var stretch = Array.FindIndex(StretchedFrames, s => s.Frame == frame);
+                if (stretch >= 0)
                 {
-                    SpinMainThread(SpikeSeconds);
+                    SpinMainThread(StretchedFrames[stretch].Seconds);
                 }
 
                 yield return null;
-                frames.Add($"{Time.unscaledDeltaTime:F4}/{Time.deltaTime:F4}");
+                Assert.That(VFXManager.maxDeltaTime, Is.EqualTo(maximumDeltaTime), "測定中に VFX Graph の上限が変わった");
+                var total = effect.GetSpawnSystemInfo(spawnName).totalTime;
+                var increment = total - previousTotal;
+                var frameTolerance = Math.Max(0.005f, expectedThisFrame * 0.02f);
+                rows.Add($"{unscaledThisFrame:F4}/{expectedThisFrame:F4}/{increment:F4}");
+                if (Math.Abs(increment - expectedThisFrame) > frameTolerance)
+                {
+                    mismatches.Add($"#{frame} u={unscaledThisFrame:F4} expected={expectedThisFrame:F5} effect={increment:F5}");
+                }
+
+                if (unscaledThisFrame > maximumDeltaTime)
+                {
+                    cappedIncrement = increment;
+                }
+
+                expectedSum += expectedThisFrame;
+                effectSum += increment;
+                previousTotal = total;
+
+                // 引き延ばしたフレームの次のフレームから、このフレームの値として測る。
+                expectedThisFrame = DomainDelta(probe, maximumDeltaTime);
+                unscaledThisFrame = Time.unscaledDeltaTime;
+                if (stretch >= 0)
+                {
+                    stretchedUnscaled.Add(unscaledThisFrame);
+                }
             }
 
-            var effectTime = effect.GetSpawnSystemInfo(spawnName).totalTime - startEffect;
-            var gameplayTime = probe.Sum - probe.Last - startGameplay;
-            var tolerance = Math.Max(1e-3f, gameplayTime * 0.01f);
+            var sumTolerance = expectedSum * 0.01f;
             TestContext.Out.WriteLine(
-                $"timeScale={timeScale} layerScale={layerScale} gameplay={gameplayTime:F5} effect={effectTime:F5} " +
-                $"tolerance={tolerance:F5} maximumDeltaTime={Time.maximumDeltaTime} vfxMaxDeltaTime={VFXManager.maxDeltaTime} " +
-                $"frames(unscaled/delta)={string.Join(",", frames)}");
-            Assert.That(effectTime, Is.EqualTo(gameplayTime).Within(tolerance),
-                $"(timeScale {timeScale}, layer {layerScale}) で VFX の時間が gameplay の時間と一致しない");
+                $"unscaled={unscaled} timeScale={timeScale} layerScale={layerScale} expected={expectedSum:F5} " +
+                $"effect={effectSum:F5} sumTolerance={sumTolerance:F5} maximumDeltaTime={maximumDeltaTime} " +
+                $"vfxMaxDeltaTime={VFXManager.maxDeltaTime} stretched(u)={string.Join(",", stretchedUnscaled)} " +
+                $"frames(u/expected/effect)={string.Join(",", rows)}");
+
+            // 前提: 引き延ばしたフレームが狙った区間に入っている（VFX Graph の上限の既定 0.05 < u ≤ maximumDeltaTime が
+            // 2 つ、maximumDeltaTime を超えるものが 1 つ）。
+            Assert.That(stretchedUnscaled, Has.Count.EqualTo(StretchedFrames.Length));
+            Assert.That(stretchedUnscaled[0], Is.GreaterThan(0.05f).And.LessThanOrEqualTo(maximumDeltaTime));
+            Assert.That(stretchedUnscaled[1], Is.GreaterThan(0.05f).And.LessThanOrEqualTo(maximumDeltaTime));
+            Assert.That(stretchedUnscaled[2], Is.GreaterThan(maximumDeltaTime));
+
+            var label = $"(unscaled {unscaled}, timeScale {timeScale}, layer {layerScale})";
+            Assert.That(mismatches, Is.Empty, $"{label} でフレームの VFX の時間が領域の時間と一致しない");
+            Assert.That(effectSum, Is.EqualTo(expectedSum).Within(sumTolerance), $"{label} で VFX の時間の和が領域の時間の和と一致しない");
+            if (unscaled)
+            {
+                Assert.That(cappedIncrement, Is.EqualTo(maximumDeltaTime).Within(Math.Max(0.005f, maximumDeltaTime * 0.02f)),
+                    "unscaled の VFX が maximumDeltaTime を超えるフレームで maximumDeltaTime だけ進まない");
+            }
 
             handle.Stop();
             SetTimeScale(1f);
             GameplayLayer.SetTimeScale(1f);
         }
 
+        /// <summary>
+        /// このフレームの領域の時間。gameplay は要素が受け取った DeltaTime、unscaled は
+        /// <c>min(unscaledDeltaTime, maximumDeltaTime)</c>（Framework の定義を Unity の Time から独立に求める）。
+        /// </summary>
+        private static float DomainDelta(GameplayDeltaProbe? probe, float maximumDeltaTime)
+            => probe != null ? probe.Last : Math.Min(Time.unscaledDeltaTime, maximumDeltaTime);
+
         /// <summary>Gameplay Layer の要素が受け取った DeltaTime を足す（AC7 の gameplay 側の時間）。</summary>
         private sealed class GameplayDeltaProbe : IUpdateElement
         {
-            public float Sum { get; private set; }
-
             public float Last { get; private set; }
 
             public void OnElementStart()
@@ -321,7 +392,6 @@ namespace SampleGame.Tests.Rendering.Vfx
             public void OnElementUpdate(in UpdateFrameContext context)
             {
                 Last = context.DeltaTime;
-                Sum += context.DeltaTime;
             }
 
             public void OnElementLateUpdate(in UpdateFrameContext context)

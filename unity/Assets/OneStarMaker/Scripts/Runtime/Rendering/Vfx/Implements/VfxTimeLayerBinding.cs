@@ -10,8 +10,16 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
     /// <para>
     /// 領域の時間（domain delta）は、そのフレームにその領域の Layer の要素が受け取る delta と同じ値にする:
     /// gameplay 等の Layer の領域では <c>IsPaused ? 0 : Time.deltaTime × TimeScale</c>、unscaled の領域では
-    /// <c>Time.unscaledDeltaTime</c>。<c>Time.deltaTime</c> は <c>maximumDeltaTime</c> で頭打ちになり、unscaled は
-    /// ならないので、負荷スパイクのフレームでは倍率（rate）が下がる。これで gameplay と同じ量だけ VFX が進む。
+    /// <c>min(Time.unscaledDeltaTime, Time.maximumDeltaTime)</c>。<c>Time.deltaTime</c> は <c>maximumDeltaTime</c> で
+    /// 頭打ちになり、<c>unscaledDeltaTime</c> はならないので、負荷スパイクのフレームでは倍率（rate）が下がる。
+    /// これで gameplay と同じ量だけ VFX が進む。
+    /// </para>
+    /// <para>
+    /// unscaled の領域は、Unity が頭打ちにした時間から timeScale だけを外したものと定義する
+    /// （Unity は <c>Time.deltaTime = min(unscaled, maximumDeltaTime) × timeScale</c> とし、頭打ちは timeScale を掛ける前に効く）。
+    /// したがって unscaled の VFX も 1 フレームに <c>maximumDeltaTime</c> より先へは進まず、実時間の長い停止を
+    /// またいで一気に進めることはしない。実時間の delta が 0・負・NaN・∞ のフレームでは、unscaled の領域の時間は 0
+    /// （消え切り待ちは進まない）。
     /// </para>
     /// <para>
     /// 倍率は「このフレーム、effect が実時間に対して何倍で進むべきか」で、領域の時間 ÷ 実時間の delta とする。
@@ -68,7 +76,7 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
             if (timeLayerId == null)
             {
                 paused = false;
-                domainDelta = source.UnscaledDeltaTime;
+                domainDelta = UnscaledDomainDelta(source.UnscaledDeltaTime, source.MaximumDeltaTime);
                 return;
             }
 
@@ -96,6 +104,20 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
 
             var rate = domainDelta / unscaledDeltaTime;
             return rate >= 0f && !float.IsInfinity(rate) ? rate : previousRate;
+        }
+
+        /// <summary>
+        /// unscaled の領域の時間。異常の判定は min より先に行う（<c>min(NaN, M)</c> は M になり、異常が隠れるため）。
+        /// 上限が正でない（Unity では起きない）なら頭打ちにしない。
+        /// </summary>
+        private static float UnscaledDomainDelta(float unscaledDeltaTime, float maximumDeltaTime)
+        {
+            if (!IsUsableDelta(unscaledDeltaTime))
+            {
+                return 0f;
+            }
+
+            return maximumDeltaTime > 0f ? Math.Min(unscaledDeltaTime, maximumDeltaTime) : unscaledDeltaTime;
         }
 
         // NaN は比較が全て false になるので > 0 で落ちる。

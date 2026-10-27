@@ -22,6 +22,12 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
         float UnscaledDeltaTime { get; }
 
         /// <summary>
+        /// 1 フレームの delta の上限（<c>Time.maximumDeltaTime</c>）。unscaled の領域の時間はこの値で頭打ちにする
+        /// （<c>Time.deltaTime</c> と同じ上限を持たせ、timeScale だけを外した時間にするため）。
+        /// </summary>
+        float MaximumDeltaTime { get; }
+
+        /// <summary>
         /// Layer の状態を返す。Layer がまだ無ければ false（呼び出し側は「止まっていない、倍率 1」とみなす）。
         /// 存在しない Layer を作ってはいけない。
         /// </summary>

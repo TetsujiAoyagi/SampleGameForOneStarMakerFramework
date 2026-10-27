@@ -657,6 +657,9 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
 
             public float UnscaledDeltaTime => _delta;
 
+            // Tick の delta をそのまま領域の時間にする（呼び出し側の delta を頭打ちにしない）。
+            public float MaximumDeltaTime => float.PositiveInfinity;
+
             public void SetDelta(float delta) => _delta = delta;
 
             public bool TryGetLayerState(string layerId, out bool isPaused, out float timeScale)

@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `A`（A3 凍結版、revision 2。revision 1 からの差分は §2.7）
+- status: `B`（Phase B 完了。Phase A は A3 凍結版の revision 2、revision 1 からの差分は §2.7）
 - branch: `claude/s-4d4a-vfx-time-domain`
 - implementation base commit: `a4e940b1`（`develop`）
 - implementation head commit: 未固定
@@ -16,10 +16,15 @@
 - harvest to: Architecture §24 §16（VFX 抽象・backend・配置済み VFX）、UpdateSystem の layer の一覧（`UpdateLayerIds` を記述している既存文書。Phase D で場所を確かめる）
 - workflow task: `s-4d4-local-event`（`tools/workflow-task.ps1 start` 済み。分割前の id をそのまま使う）
 - Phase A snapshot の取得案内・状態: 凍結前スパイクの原記録は `evidence stage` で固定済み（ローカル固定済み（未昇格）、task `s-4d4-local-event`）。取得案内は主担当の worktree の `TestResults/` にあり、次の担当への引渡しは未完了。凍結した HANDOFF 本体は A3 凍結 commit で固定する
-- Phase B result snapshot の取得案内・状態: 未生成
+- Phase B result snapshot の取得案内・状態: 未生成（B は Unity テストを実行しないので、固定する生の結果は無い。B の出口 commit が入力）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
+  - **2026-10-27 更新（Phase B 完了）:** 次は発見 C（新しい session）。対象は B の出口 commit（本ファイルを含む最新の commit。`git log -1 -- docs/handoff/S-4D4A_VFX_TIME_DOMAIN.md` で引く）で、implementation base は `a4e940b1`。B の中断 commit `0f84eddf` から出口 commit までが revision 2 の分（§6.6）。引継ぎの開始時に、その commit と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない。
+    - 動作確認: `対象なし`（§5.2 の検証経路で、E1〜E4 は Play テストで閉じ、操作・目視の条件が無い）。
+    - B でやったこと・やっていないことは §6.5。Unity テスト・Build は未実行。コンパイルは Editor で確認した（§6.5）。
+    - 発見 C の起点 `-Filter` は §5.2。AC7 と AC13 は revision 2 で書き直した・足したテスト（§6.6）。新しい worktree で Editor やテストを起動すると vendor の `.pdb.meta` 5 件が消えるので、毎回 restore して差分に入れない（§6.5）。
+    - 必要な権限: Unity テストの実行（sandbox 外の承認済み経路、`-WithGraphics` を含む）。Build は判定 C。
   - **2026-10-27 更新（revision 2 凍結）:** 次は Phase B の再開（実装担当、新しい session）。起点は中断 commit `0f84eddf` の B のコード（HEAD はその上の revision 2 の凍結 commit）。やることは (1) §2.7 の R1〜R3 と AC13 の実装・テスト、(2) §6.5 の未了の Editor 操作（`.vfx` 4 件の Update Mode）とコンパイル確認、(3) §6 の更新。新しい worktree で Editor を開くと vendor の `.pdb.meta` 5 件が消えるので、毎回 restore して差分に入れない（§6.5）。必要な権限・停止規則・引き渡さないものは下の revision 1 の項目と同じ。
   - 次の Phase・役割: Phase B（実装担当）。新しい session で始める。§4.1 の順（時間制御 → 配置済み VFX）で、§3 の責務マップの範囲だけを実装する。
   - 凍結した Phase A: revision 2。凍結 commit は本ファイルを含む A3 凍結 commit（`git log -1 -- docs/handoff/S-4D4A_VFX_TIME_DOMAIN.md` で引く）。implementation base は `a4e940b1`。引継ぎの開始時に、凍結 commit と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない。
@@ -510,7 +515,7 @@ asmdef 参照の追加は 0 件。公開 API の追加は `UpdateLayerIds.Gamepl
 
 ## 6. Phase B 実装結果
 
-**状態: 中断（Phase A revision 2 待ち）。** §4.1 の 1〜4 のコードは書いた。Editor 操作（`.vfx` の Update Mode）とコンパイル確認は未了。D3 の換算に食い違いの疑いを 1 件見つけ、新しい事実の分類に従ってスパイクで因果を確かめた（発注者了承 2026-10-27）。疑いは事実で、§6.1 の判断の基準により **A 再開**（§6.1 の結果）。
+**状態: 完了（2026-10-27）。** revision 1 で §4.1 の 1〜4 のコードを書いた後、D3 の換算に食い違いの疑いを 1 件見つけ、スパイクで事実と確かめて A 再開に分類した（§6.1）。revision 2 の凍結（§2.7）の後、中断 commit `0f84eddf` を起点に R1〜R3・AC13 を実装し、Editor 操作（`.vfx` の Update Mode）とコンパイル確認を済ませた（§6.6、§6.5）。
 
 ### 6.1 D3 の換算の疑い（スパイク。確認後に分類する）
 
@@ -565,18 +570,29 @@ asmdef 参照の追加は 0 件。公開 API の追加は `UpdateLayerIds.Gamepl
 
 ### 6.4 規模（§3 の予想との差）
 
-- `VfxSystem.cs` 512 → 678（予想 580）。`Adopt` の受理規則（無効 id・生存中 id・再入後の再判定）が `Spawn` と同じ形で並び、反映点と時間源なしの時間源が増えた。時間の計算は binding へ分けてある。
+- `VfxSystem.cs` 512 → 681（予想 580）。`Adopt` の受理規則（無効 id・生存中 id・再入後の再判定）が `Spawn` と同じ形で並び、反映点と時間源なしの時間源が増えた。時間の計算は binding へ分けてある。
 - `VfxHandle.cs` 251 → 389（予想 300）。開始の保留・再生状態の書き写し・adopted の回収の分岐と、その契約のコメント。
+- revision 2: `VfxGraphBackend.cs` 342 → 483（予想 420）。`Adopt` / `Release` / 換算に加え、上限を揃える所有の注記と `QueryCapability` の分岐。数える処理は新規の `VfxGraphMaxDeltaTimeAlignment.cs`（89 行）へ分けた。`VfxTimeLayerBinding.cs` 126 行（予想 110）。
 - Phase C で構造劣化の由来を区別して記録する。
 
 ### 6.5 未実行・未確認
 
-- **Editor 操作:** `.vfx` 4 件（d3 の 2 件、fixture の `VfxImmortal` / `VfxShortLived`）の Update Mode を Delta Time + Ignore Time Scale にする操作は未実施（現在は全て 0）。AC10 の新しいテストはこの状態では落ちる。
-- **コンパイル確認:** 未確認。Editor はこの worktree で起動したが、Library の初回の import の後、Editor.log に `License revoked: Your Unity Personal license has been revoked.` が出て Pipeline が 503 のまま応答しない。新規 `.cs` 5 件の `.meta` は初回の import で生成された（commit に含む）。
-- **`pwsh tools/contract-audit.ps1`:** errors 0 / warnings 0（作業ツリー、2026-10-27）。
-- **Unity テスト・Build:** 未実行（Phase C の責任）。
-- **公開文書:** Architecture §24 の §16.5（unscaled の Tick）と `VfxCapabilityState` の記述は古くなった。Phase D の harvest で直す。
+- **Editor 操作（済み、2026-10-27）:** `.vfx` 4 件（d3 の `Spring_VFX_4_2_GroundFog`・`Spring_AtmosphereVFX_Petals`、fixture の `VfxImmortal`・`VfxShortLived`）の Update Mode を 3（Delta Time + Ignore Time Scale）にした。経路は Editor の `VisualEffectResource` の `SerializedObject`（`m_Infos.m_UpdateMode`）で、§1.4 のスパイクが使ったものと同じ。各ファイルの差分は `m_UpdateMode: 0 → 3` の 1 行だけ。d3 の Scene 2 件は、配置済みの `VisualEffect` が 1 件ずつ無効（`m_Enabled: 0`）で保存され、同じ GameObject に marker（`PlacedVfxActivator`）があることを読んで確かめた（変更なし）。
+- **コンパイル確認（済み、2026-10-27）:** この worktree で Editor を起動し、コンパイルエラー 0（`compilationFailed: false`）、`recompile` は `up_to_date`。revision 2 の新しい型・メンバー（`VfxGraphMaxDeltaTimeAlignment`、`IVfxTimeSource.MaximumDeltaTime`、AC13 のテスト）が読み込まれていることを反射で確かめた。Editor のログには起動時に `License revoked` が 1 件出たが、コンパイルと asset の保存は進んだ。Pipeline の `eval` は主スレッドの 5 秒の待ちで何度か打ち切られた（操作は 1 件ずつに分けて再実行し、結果をファイルで確かめた）。Editor は確認の後に正常終了させた。
+- **`pwsh tools/contract-audit.ps1`:** errors 0 / warnings 0（作業ツリー、2026-10-27、revision 2 の変更の後）。
+- **`unity/ProjectSettings/` の差分:** Editor 操作の後も空（`VFXManager.asset` は変えていない。R1）。Play テストの後の確認は判定 C。
+- **Unity テスト・Build:** 未実行（Phase C の責任）。AC13 と書き直した AC7 は一度も実行していない。
+- **公開文書:** Architecture §24 の §16.5（unscaled の Tick）と `VfxCapabilityState` の記述は古くなった。revision 2 の契約（VFX Graph の上限を揃えること、その影響範囲、`Time.maximumDeltaTime` を実行中に変えないこと、unscaled の領域の時間）も未反映。Phase D の harvest で直す。
 - **スライス外の差分（commit に含めない）:** この worktree で Editor を開くと、`MobileDependencyResolver/Editor` の `.pdb.meta` 5 件が削除される。原因は、`.gitignore` の `*.pdb` で vendor の `.pdb` 本体が checkout に無く、tracked の `.meta` だけが残って Unity が孤立した `.meta` として消すこと（元の checkout には `.pdb` がローカルにあるので起きない）。新しい worktree・clone では毎回起きる。d4a では毎回 restore して差分に入れない。根本の修正は d4a の範囲外で、別の作業として扱う。
+
+### 6.6 revision 2 の実装（§2.7 との対応）
+
+- **R1（VFX Graph の上限を揃える）:** `VfxGraphBackend.QueryCapability` が、対応と判定した最初の 1 回だけ `VfxGraphMaxDeltaTimeAlignment.Acquire()` を呼ぶ（2 回目以降・非対応・Dispose 後は呼ばない）。`Dispose` が `Release` する。`VfxGraphMaxDeltaTimeAlignment`（SampleGame.Common の internal static、新規）は保持数を数え、0 → 1 で元の値を保存して `VFXManager.maxDeltaTime = Time.maximumDeltaTime`、1 → 0 で元に戻す。`Application.quitting` で保持数に関係なく戻し、世代を進める（終了の後に残った backend の `Release` は古い世代として無視する）。影響範囲と「実行中の変更に追従しない」は backend と本クラスの XML doc に書いた。`SetPlayback` の換算の式は変えていない。
+- **R2（unscaled の領域の時間）:** internal の `IVfxTimeSource` に `MaximumDeltaTime` を足した（host は `Time.maximumDeltaTime`、時間源なしの構成は ∞ で頭打ちにしない）。`VfxTimeLayerBinding.EvaluateDomain` は unscaled の領域の時間を、u が 0・負・NaN・∞ なら 0、そうでなければ `min(u, MaximumDeltaTime)` にする（異常の判定が min より先）。rate はこれを u で割った値。公開 API は変えていない。
+- **R3・AC7:** `VfxGraphBackendPlayTests` の AC7 を書き直した。60 フレームの列の 15・30・45 フレーム目を計算のループで 0.1・0.2・0.5 秒引き延ばし、引き延ばしたフレームの u が狙った区間（2 つは 0.05 < u ≤ `maximumDeltaTime`、1 つは `maximumDeltaTime` より上）に入ったことを前提として確かめる。フレームごとに totalTime の増分と領域の時間を比べ（≤ max(0.005 s, 2%)）、列の和を 1% で比べる。測定窓は Play の後、最初の反映点から 5 フレームを外して始める。gameplay の 3 組に加え、unscaled の要求（`Time.timeScale` = 0.5）を別のテストにし、`maximumDeltaTime` を超えるフレームの増分が `maximumDeltaTime` であることも確かめる。測定中は `VFXManager.maxDeltaTime` が `Time.maximumDeltaTime` と等しいことを毎フレーム確かめる。
+- **AC3・AC5（偽 backend）:** `VfxSystemTimeLayerTests` に、unscaled の要求で u が上限を超えるフレーム（倍率 0.5 が書かれ、消え切り待ちが上限の分だけ進む）と、unscaled の要求で u が 0・負・NaN・∞ のフレーム（倍率を書かず、消え切り待ちが進まない）を足した。既存の「unscaled は実時間で数える」は u を上限より小さい 0.25 にした（意味は同じ）。偽の時間源の上限の既定は 1/3。
+- **AC13:** `VfxGraphCapabilityPolicyTests`（EditMode）に、実 backend 2 つを作成順・逆順で Dispose するテスト（生存中は揃えた値、全て手放した後は元の値、同じ backend の 2 回目の判定では数えない、2 回目の Dispose は何もしない）と、非対応の判定で書かないテストを足した。TearDown は、失敗したテストが書き換えを残しても元の値に戻す。
+- **B 適応:** 上限が正でない時間源（Unity では起きない）では unscaled の領域を頭打ちにしない。時間源なしの public ctor の構成は、従来どおり Tick の delta をそのまま全領域の時間にする（上限 ∞）。
 
 ## 7. Phase C
 

@@ -326,12 +326,37 @@ namespace OneStarMaker.Tests.Rendering.Vfx
             var handle = SpawnPlaying(Request().WithUnscaledTime());
             handle.StopAllowingParticlesToFinish();
             _time.SetPaused(UpdateLayerIds.Gameplay, true);
-            _time.SetFrame(deltaTime: 0f, unscaledDeltaTime: 0.5f);
+            _time.SetFrame(deltaTime: 0f, unscaledDeltaTime: 0.25f);
 
             Frame();
-            Assert.That(handle.IsActive, Is.True);
+            Frame();
+            Frame();
+            Assert.That(handle.IsActive, Is.True, "0.25 × 3 = 0.75 < 1");
             Frame();
             Assert.That(handle.IsActive, Is.False, "unscaled の領域は実時間で数える");
+        }
+
+        /// <summary>
+        /// unscaled の領域の時間は <c>min(unscaledDeltaTime, maximumDeltaTime)</c>。上限を超えるフレームでは
+        /// 倍率が 1 未満で書かれ、消え切り待ちも上限の分だけ進む。
+        /// </summary>
+        [Test]
+        public void AC3_UnscaledRequest_FrameOverMaximumDeltaTime_IsCapped()
+        {
+            var handle = SpawnPlaying(Request().WithUnscaledTime());
+            handle.StopAllowingParticlesToFinish();
+            _time.MaximumDeltaTime = 0.25f;
+            _time.SetFrame(deltaTime: 0.125f, unscaledDeltaTime: 0.5f);
+
+            Frame();
+            Assert.That(_backend.PlaybackCalls, Has.Count.EqualTo(1));
+            Assert.That(_backend.PlaybackCalls[0].Paused, Is.False);
+            Assert.That(_backend.PlaybackCalls[0].Rate, Is.EqualTo(0.5f), "0.25 ÷ 0.5");
+            Frame();
+            Frame();
+            Assert.That(handle.IsActive, Is.True, "0.25 × 3 = 0.75。上限が無ければ 1.5 で timeout している");
+            Frame();
+            Assert.That(handle.IsActive, Is.False);
         }
 
         // ═══════════════════════════════════════════
@@ -354,6 +379,37 @@ namespace OneStarMaker.Tests.Rendering.Vfx
 
             Assert.That(_backend.PlaybackCalls, Has.Count.EqualTo(1), "状態が変わらなければ書かない");
             Assert.That(handle.IsActive, Is.True);
+        }
+
+        /// <summary>
+        /// unscaled の要求でも、異常な delta のフレームは倍率を保ち、消え切り待ちは進まない
+        /// （異常の判定は上限との min より先。<c>min(NaN, M)</c> は M になるため）。
+        /// </summary>
+        [TestCase(0f)]
+        [TestCase(-1f)]
+        [TestCase(float.NaN)]
+        [TestCase(float.PositiveInfinity)]
+        public void AC5_UnscaledRequest_AbnormalDelta_KeepsRate_TimeoutDoesNotAdvance(float unscaled)
+        {
+            var handle = SpawnPlaying(Request().WithUnscaledTime());
+            handle.StopAllowingParticlesToFinish();
+            _time.SetFrame(deltaTime: 0.016f, unscaledDeltaTime: unscaled);
+
+            for (var i = 0; i < 20; i++)
+            {
+                Assert.DoesNotThrow(Frame);
+            }
+
+            Assert.That(_backend.SetPlaybackCount, Is.EqualTo(0), "倍率は前回の値（1）のまま");
+            Assert.That(handle.IsActive, Is.True, "異常な delta のフレームでは消え切り待ちが進まない");
+
+            _time.SetFrame(deltaTime: 0.016f, unscaledDeltaTime: 0.25f);
+            for (var i = 0; i < 4; i++)
+            {
+                Frame();
+            }
+
+            Assert.That(handle.IsActive, Is.False, "正常な delta に戻ると進む");
         }
 
         [TestCase(0f)]

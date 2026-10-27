@@ -66,6 +66,8 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
 
         float IVfxTimeSource.UnscaledDeltaTime => FrameTimeForTest?.UnscaledDeltaTime ?? Time.unscaledDeltaTime;
 
+        float IVfxTimeSource.MaximumDeltaTime => Time.maximumDeltaTime;
+
         /// <summary>
         /// 一式を作る。<paramref name="backend"/> の所有権はこのメソッドに入った時点で host に移る。
         /// 途中で失敗したら、作りかけの VfxSystem と backend を Dispose してから例外を外へ出す

@@ -18,6 +18,9 @@ namespace OneStarMaker.Tests.Rendering.Vfx
 
         public float UnscaledDeltaTime { get; set; } = 0.016f;
 
+        /// <summary>既定は Unity の project 設定の既定（1/3 秒）。</summary>
+        public float MaximumDeltaTime { get; set; } = 1f / 3f;
+
         /// <summary>Layer を作る（または状態を書き換える）。作っていない Layer は「無い」と答える。</summary>
         public void SetLayer(string layerId, bool paused = false, float scale = 1f) => _layers[layerId] = (paused, scale);
 
