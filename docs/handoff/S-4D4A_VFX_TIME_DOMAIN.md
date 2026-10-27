@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `B`（Phase B 完了。Phase A は A3 凍結版の revision 2、revision 1 からの差分は §2.7）
+- status: `B`（発見 C 1 巡目で差し戻し。B ↔ 発見 C の 1 巡目。Phase A は A3 凍結版の revision 2、revision 1 からの差分は §2.7）
 - branch: `claude/s-4d4a-vfx-time-domain`
 - implementation base commit: `a4e940b1`（`develop`）
 - implementation head commit: 未固定
@@ -19,7 +19,13 @@
 - Phase B result snapshot の取得案内・状態: 未生成（B は Unity テストを実行しないので、固定する生の結果は無い。B の出口 commit が入力）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
+- A3 後の決定記録: §7.2（DR-1、C' には渡さない）
 - 引継ぎ票:
+  - **2026-10-28 更新（発見 C 1 巡目で差し戻し）:** 次は Phase B（差し戻し 1 巡目、実装担当、新しい session）。起点は本ファイルを含む最新の commit（`git log -1 -- docs/handoff/S-4D4A_VFX_TIME_DOMAIN.md` で引く。implementation は `e9706ac5` のまま）。引継ぎの開始時に、その commit と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない。
+    - やること: §7.1 の C1-1〜C1-3 の修正と、DR-1（§7.2）の読みを `VfxHandle.Play` のコメントに書くこと。C1-1 は原因が未確定なので、テストが再開時点と VFX の更新の前後を自分で観測する形に直す（推測で行をずらさない）。修正を書く段階で (b)（VFX Graph が自分で時間を測る）を示す事実が出たら、直さずに止めて Phase A へ返す（§4.2）。
+    - Unity テストは実行しない（H2 未適用）。コンパイル確認と `pwsh tools/contract-audit.ps1` まで。新しい worktree で Editor を開くと vendor の `.pdb.meta` 5 件が消えるので restore する（§6.5）。
+    - 出口: commit し、§6 に修正の記録を足し、この引継ぎ票を次の担当（発見 C 2 巡目）へ更新する。動作確認は `対象なし` のまま。
+    - 引き渡さないもの: F-03〜F-12 の後続入力を現スライスで実装しない（F-12 のコメントは任意）。
   - **2026-10-27 更新（Phase B 完了）:** 次は発見 C（新しい session）。対象は B の出口 commit（本ファイルを含む最新の commit。`git log -1 -- docs/handoff/S-4D4A_VFX_TIME_DOMAIN.md` で引く）で、implementation base は `a4e940b1`。B の中断 commit `0f84eddf` から出口 commit までが revision 2 の分（§6.6）。引継ぎの開始時に、その commit と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない。
     - 動作確認: `対象なし`（§5.2 の検証経路で、E1〜E4 は Play テストで閉じ、操作・目視の条件が無い）。
     - B でやったこと・やっていないことは §6.5。Unity テスト・Build は未実行。コンパイルは Editor で確認した（§6.5）。
@@ -596,7 +602,25 @@ asmdef 参照の追加は 0 件。公開 API の追加は `UpdateLayerIds.Gamepl
 
 ## 7. Phase C
 
-未着手
+### 7.1 発見 C 1 巡目（2026-10-28、対象 `e9706ac5`）
+
+- **入力:** implementation base `a4e940b1`、head `e9706ac5`（commit 固定。stage snapshot は使っていない）。担当は進行役（Unity テストの実行担当を兼ねる）と、B と別モデルの構造レビュー担当（subagent）。GO 判定はしていない。C' は起動していない。
+- **機械検査:** `pwsh tools/contract-audit.ps1` errors 0 / warnings 0（`e9706ac5`）。
+- **構造適合:** §3 に無い公開 API・状態・依存・所有者・寿命は無い。asmdef の diff 0、`SceneState` の diff 0、`SampleGame/InGame` の `UnityEngine.VFX` の using 0。`VfxSystem.cs` が 500 行を超えるのは既存由来（512 → 681）。`VfxHandle.cs` の +55%（251 → 389）は今回由来。どちらも §6.4 の説明で非分割は妥当。
+- **実行したテスト:** `pwsh tools/run-tests.ps1 -WithGraphics -Filter 'OneStarMaker.Tests.Rendering.Vfx;SampleGame.Tests.Rendering.Vfx;UpdateCoordinatorTests'`（§5.2 の起点 filter、sandbox 外）。249 件中 passed 246・failed 3。Unity の exit code は 2。生ログと XML は進行役の worktree の `TestResults/` にある（未保存。判定 C の bundle と一緒に `evidence stage` する）。実行後に vendor の `.pdb.meta` 5 件を restore した。
+- **現在の問いを阻害する欠陥（B へ差し戻す）:**
+  - **C1-1 AC7 の 2 件が失敗**（`AC7_EffectTimeMatchesGameplayTime_IncludingLoadSpike` は最初の組 (0.5, 0.5) で、`AC7_UnscaledEffectTime_IsCappedAtMaximumDeltaTime` も失敗）。違反: AC7・E3。観測: 引き延ばした全てのフレームで、VFX の増分が期待値より 1 行早く出る（例: unscaled の #15 は u 0.0008・期待 0.00083・増分 0.10087、#16 は u 0.1009・期待 0.10087・増分 0.00160）。隣り合う 2 行の和は一致する。**分類: スパイク（原因未確認）。** 説明の候補は 2 つあり、XML からは区別できない。(a) テストの前提「coroutine の再開時点では、VFX はまだこのフレームを更新していない」（`VfxGraphBackendPlayTests.cs` の測定ループのコメント）が誤りで、再開が `PostLateUpdate.VFXUpdate` より後にあり、行の対応付けが 1 フレームずれている（テストの欠陥。B 適応）。(b) VFX Graph が 1 フレームの進みを Unity の `Time` ではなく、自分の更新どうしの実時間で測っている（実装・設計の前提の不成立。§4.2 に当たり A 再開）。B は推測でずらさず、どちらが起きているかをテスト自身が観測できる形にする（例: gameplay の要素の Update と、PlayerLoop の `PostLateUpdate.VFXUpdate` の直後に差し込んだ記録点で `Time.frameCount` を取り、再開時点との前後を確かめてから行を対応付ける）。原因の確定は修正後の発見 C の実行で行う。(b) と分かったら §4.2 の差し戻し条件として Phase A へ返す。
+  - **C1-2 `VfxSceneRenderPlayTests.RenderFixture_SupportedDrawsVfx_UnsupportedNewInstanceDrawsNothing` が失敗**（`MeasureTargetAsync` の前提「VisualEffect は無効で保存されている」が True）。違反: d3 から追従させた描画の確認（§3 の SampleGame テストの行）。読み: 対応の `VfxSystem` に `Adopt` した後、最初の止まっていない反映点で backend の `Play`（= 有効化）が届くので（D4・D5）、有効の検査の時点では既に有効になっている。テストの前提が新しい開始の契約に追従していない見込み（B 適応）。前提の検査を「保存時に無効」を確かめられる時点（`Adopt` の前）へ移すなどで直す。陰性（非対応では有効化されない）の検査は弱めない。
+  - **C1-3 F-01: `VfxGraphBackend.Adopt` が adopted の再生状態を契約の初期状態に揃えない**（`VfxGraphBackend.cs` の `Adopt`）。違反: `IVfxBackend` の契約「backend は作った・登録した instance を（止まっていない、倍率 1）で用意する」と E4。順序: 止まった領域で `Adopt` → 反映点で component に `pause = true` が書かれる → handle の `Stop`（`Release`。component の `pause` は true のまま残る）→ Resume → 同じ component を新しく `Adopt`（I4 が許す再利用）→ handle の前回の値 (false, 1) と一致するので `SetPlayback` が呼ばれない → `pause = true` のまま有効化され、自動再生が進まない（§1.4 S1: pause したまま有効にすると時間が進まない）。修正は `Adopt` で `pause = false`・`playRate = 1` を書くこと（B 適応）と、この順序の偽 backend ではなく実 backend のテスト。
+- **決定記録で読みを確定したもの:** F-02 → DR-1（§7.2）。B は `VfxHandle.Play` に DR-1 の読みのコメントを足す（B 適応）。
+- **後続スライスの入力（違反根拠なし。現スライスを広げない）:** F-03 rate の float の丸めで `SetPlayback` が毎フレーム呼ばれうる（確認待ち）。F-04 I5 の文言と `Adopt` の引数検証の例外。F-05 `Application.quitting` の経路は未検証（判定 C の ProjectSettings の diff で R1 の漏れは閉じる）。F-06 `Adopt` は任意の layer id を受け、`VfxSpawnRequest` は gameplay / unscaled の 2 値だけ。F-07 `AbstractApplicationInitializer.Vfx` は Dispose 後に null ではなく `ObjectDisposedException`。F-08 `OnInitialize` より前の `Adopt` は拒否される（契約の明示）。F-09 AC5 の TestCase が 0 と NaN だけ。F-10 d3 の本番 `.vfx` 2 件がバイト同一（既存由来）。F-11 `Spawn` と `Adopt` の受理規則の重複。F-12 コメント不足 4 か所（B が C1 の修正のついでに足してよい。必須ではない）。行き先は Phase D の harvest で S-4 program の後続入力に転記する。
+- **破れなかった条件（構造レビュー）:** §3 の範囲、I4（二重 `Adopt`・回収後の再有効化なし）、I5（非対応で backend 呼び出し 0）、I6、AC1〜AC13 のテストが凍結した条件と失敗経路を判定していること（常に通る assert・弱めた assert は無い）。
+- **見られなかった範囲:** AC6・AC8・AC9・AC13 は今回の実行で通ったが、GO 候補 head ではないので判定に使わない。Content Directory の build と全 EditMode 回帰は判定 C。
+- **原記録:** 構造レビューの ledger（F-01〜F-12 の全文）は進行役の scratchpad にある（未保存。判定 C の前に発見 C の記録として `evidence stage` する。C' の bundle には入れない）。
+
+### 7.2 決定記録
+
+- **DR-1（版 1、2026-10-28 発注者。適用: 発見 C 1 巡目以降）:** F-02「反映点より後に gameplay layer を Resume した同じフレームで `Play()` を呼ぶと、その instance だけ同じフレームに開始する」は I1 違反としない。I1 は反映点で backend に書かれる instance の状態についての条件と読み、`IVfxHandle.Play()` は呼び出し時点の領域の状態で開始するか保留するかを決める（D4）。どの条件の合否も変えない。理由: D4 は止まっていない領域での即時開始を前提にしており（AC1 の `Spawn` → `Play` の同期列）、厳密化は計画外の状態（反映点の通過済みの印）を要する。SampleGame に layer を pause / resume するコードは無い。C' 自身の指摘への裁定ではないので、C' には渡さない。
 
 ## 8. Phase C'
 
