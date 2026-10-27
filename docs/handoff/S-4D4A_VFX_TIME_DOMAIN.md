@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `発見 C`（2 巡目待ち。差し戻し 1 巡目の B を完了。Phase A は A3 凍結版の revision 2、revision 1 からの差分は §2.7）
+- status: `B`（発見 C 2 巡目で差し戻し。B ↔ 発見 C の 2 巡目。Phase A は A3 凍結版の revision 2、revision 1 からの差分は §2.7）
 - branch: `claude/s-4d4a-vfx-time-domain`
 - implementation base commit: `a4e940b1`（`develop`）
 - implementation head commit: 未固定
@@ -21,6 +21,10 @@
 - C' blind bundle の取得案内・状態: 未生成
 - A3 後の決定記録: §7.2（DR-1、C' には渡さない）
 - 引継ぎ票:
+  - **2026-10-28 更新（発見 C 2 巡目で差し戻し）:** 次は Phase B（差し戻し 2 巡目、実装担当）。起点は本ファイルを含む最新の commit（`git log -1 -- docs/handoff/S-4D4A_VFX_TIME_DOMAIN.md` で引く。implementation は `be1f716e` のまま）。引継ぎの開始時に、その commit と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない。
+    - やること: §7.1.1 の C2-1（AC7 の引き延ばしを VFXUpdate より前へ移す）だけ。凍結した AC7 の値は変えない。(b) を示す事実が出たら、直さずに止めて Phase A へ返す（§4.2）。
+    - Unity テストは実行しない。コンパイル確認と `pwsh tools/contract-audit.ps1` まで。vendor の `.pdb.meta` 5 件は restore する（§6.5）。
+    - 出口: commit し、§6 に修正の記録を足し、この引継ぎ票を次の担当（発見 C 3 巡目）へ更新する。動作確認は `対象なし` のまま。
   - **2026-10-28 更新（差し戻し 1 巡目の B 完了）:** 次は発見 C 2 巡目（新しい session）。対象は B の出口 commit（本ファイルを含む最新の commit。`git log -1 -- docs/handoff/S-4D4A_VFX_TIME_DOMAIN.md` で引く）で、implementation base は `a4e940b1`。1 巡目の対象 `e9706ac5` からの差分が C1-1〜C1-3 と DR-1 のコメントの分（§6.7）。引継ぎの開始時に、その commit と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない。
     - 動作確認: `対象なし`（変わらず）。
     - 見てほしい点: C1-1 の原因の確定（§6.7 の読み方で、AC7 の出力から (a) テストの行の対応付けか (b) VFX Graph が自分で時間を測るかを区別する。(b) なら §4.2 に当たり Phase A へ返す）。C1-2・C1-3 の修正と新しいテスト。
@@ -634,6 +638,16 @@ asmdef 参照の追加は 0 件。公開 API の追加は `UpdateLayerIds.Gamepl
 - **破れなかった条件（構造レビュー）:** §3 の範囲、I4（二重 `Adopt`・回収後の再有効化なし）、I5（非対応で backend 呼び出し 0）、I6、AC1〜AC13 のテストが凍結した条件と失敗経路を判定していること（常に通る assert・弱めた assert は無い）。
 - **見られなかった範囲:** AC6・AC8・AC9・AC13 は今回の実行で通ったが、GO 候補 head ではないので判定に使わない。Content Directory の build と全 EditMode 回帰は判定 C。
 - **原記録:** 構造レビューの ledger（F-01〜F-12 の全文）は進行役の scratchpad にある（未保存。判定 C の前に発見 C の記録として `evidence stage` する。C' の bundle には入れない）。
+
+### 7.1.1 発見 C 2 巡目（2026-10-28、対象 `be1f716e`）
+
+- **入力:** 1 巡目の対象 `e9706ac5` から `be1f716e` までの修正差分（§6.7）とその影響経路。担当は 1 巡目と同じ構成（進行役が Unity テストの実行担当、B と別モデルの構造レビュー担当）。
+- **実行したテスト:** 1 巡目と同じ起点 filter（`-WithGraphics`、sandbox 外）。250 件すべて passed（failed 0、exit 0）。生ログと XML は進行役の worktree の `TestResults/` にある（未保存）。実行後に vendor の `.pdb.meta` 5 件を restore した。
+- **C1-1 の原因:** (a) テストの行の対応付けで確定した。`resumesAfterVfxUpdate=60/60`（coroutine の再開は全フレームで `PostLateUpdate.VFXUpdate` の後）。coroutine で引き延ばした時間は、Unity の次のフレームの delta と、VFX の同じフレームの増分の両方に入る（例: (0.5, 0.5) の spin@f186 → f187 で u 0.1012・期待 0.0253・増分 0.0253）。3 組の倍率と unscaled（u ≈ 0.5 の増分 0.3333 = `maximumDeltaTime`）のどれも、フレームごと・列の和の両方で一致した。
+- **C1-2・C1-3・DR-1 のコメント:** 修正は妥当（陰性の検査は計測の後の `enabled == false` で強めた。C1-3 の実 backend テストは修正前のコードでは失敗する）。blocker 0 件。確認待ちだった W-1・W-3〜W-6 は、上の全件通過で閉じた。
+- **差し戻し（発注者の判断、2026-10-28）: C2-1 AC7 の引き延ばしの位置。** いまの AC7 は VFXUpdate の後（coroutine の中）で引き延ばすので、(b)「VFX Graph が自分の更新どうしの実時間で進みを測る」を直接は否定できない。その位置では、Unity の `Time` で測っても VFX Graph 自身が測っても、同じフレームに入るからである（W-2）。実際の負荷スパイクは gameplay の Update で起きる（VFXUpdate より前）。AC7 の文言の範囲内なので規則上は blocker ではないが、E3 をその位置で直接確かめるため、発注者は B をもう 1 巡回すことを選んだ。**B 適応:** 引き延ばしを同じフレームの VFXUpdate より前（例: gameplay layer の要素の Update の中）で行う。そうすると (a) なら Unity の次のフレームの delta と VFX の次のフレームの増分に、(b) なら VFX の同じフレームの増分に入る。凍結した AC7 の値（許容誤差、測定窓、u ≈ 0.1・0.2・> `maximumDeltaTime`、3 組の倍率、unscaled の頭打ち）は変えない。今の記録点（`resumesAfterVfxUpdate` と `spins=`）はそのまま残す。(b) を示す結果が出たら、§4.2 に当たるので Phase A へ返す（修正では埋めない）。
+- **後続スライスの入力:** F-13 `VfxUpdateRecorder` の PlayerLoop の保存・復元は「差し込みから Dispose まで他の誰も loop を書き換えない」前提（テスト専用）。F-14 `DescribeFrame` は起点の行も「未記録」と表示する（合否には無関係）。
+- **原記録:** 2 巡目の構造レビューの ledger は進行役の scratchpad にある（未保存。1 巡目と同じ扱い）。
 
 ### 7.2 決定記録
 
