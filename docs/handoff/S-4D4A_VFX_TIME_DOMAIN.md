@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `B`（発見 C 2 巡目で差し戻し。B ↔ 発見 C の 2 巡目。Phase A は A3 凍結版の revision 2、revision 1 からの差分は §2.7）
+- status: `発見 C`（3 巡目待ち。差し戻し 2 巡目の B を完了。Phase A は A3 凍結版の revision 2、revision 1 からの差分は §2.7）
 - branch: `claude/s-4d4a-vfx-time-domain`
 - implementation base commit: `a4e940b1`（`develop`）
 - implementation head commit: 未固定
@@ -21,6 +21,11 @@
 - C' blind bundle の取得案内・状態: 未生成
 - A3 後の決定記録: §7.2（DR-1、C' には渡さない）
 - 引継ぎ票:
+  - **2026-10-28 更新（差し戻し 2 巡目の B 完了）:** 次は発見 C 3 巡目（新しい session）。対象は B の出口 commit（本ファイルを含む最新の commit。`git log -1 -- docs/handoff/S-4D4A_VFX_TIME_DOMAIN.md` で引く）で、implementation base は `a4e940b1`。2 巡目の対象 `be1f716e` からの差分は C2-1 の分（§6.8、テスト 1 ファイルだけ）。引継ぎの開始時に、その commit と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない。
+    - 動作確認: `対象なし`（変わらず）。
+    - 見てほしい点: AC7 の 2 件の結果と、`spins=` の読み方（§6.8）で (b) を否定できたか。(b) を示す結果なら §4.2 に当たり Phase A へ返す。
+    - 起点 `-Filter` は §5.2 のまま。Unity テスト・Build は B では未実行。コンパイルは Editor で確認した（§6.8）。vendor の `.pdb.meta` 5 件は restore する（§6.5）。
+    - 必要な権限: Unity テストの実行（sandbox 外の承認済み経路、`-WithGraphics` を含む）。
   - **2026-10-28 更新（発見 C 2 巡目で差し戻し）:** 次は Phase B（差し戻し 2 巡目、実装担当）。起点は本ファイルを含む最新の commit（`git log -1 -- docs/handoff/S-4D4A_VFX_TIME_DOMAIN.md` で引く。implementation は `be1f716e` のまま）。引継ぎの開始時に、その commit と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない。
     - やること: §7.1.1 の C2-1（AC7 の引き延ばしを VFXUpdate より前へ移す）だけ。凍結した AC7 の値は変えない。(b) を示す事実が出たら、直さずに止めて Phase A へ返す（§4.2）。
     - Unity テストは実行しない。コンパイル確認と `pwsh tools/contract-audit.ps1` まで。vendor の `.pdb.meta` 5 件は restore する（§6.5）。
@@ -620,6 +625,16 @@ asmdef 参照の追加は 0 件。公開 API の追加は `UpdateLayerIds.Gamepl
 - **コンパイル確認（済み）:** この worktree で Editor を起動し、`compilationFailed: false`、`recompile` は `up_to_date`。`Library/ScriptAssemblies` の `OneStarMaker.Runtime.dll`・`SampleGame.Common.dll`・`SampleGame.Tests.dll` が編集の後に作られ、`SampleGame.Tests.dll` に新しい型とテスト名が入っていることを確かめた（反射の `eval` は主スレッドの 5 秒の待ちで打ち切られた）。console のエラーは起動時の `License revoked` 1 件だけ。Editor は正常終了させ、vendor の `.pdb.meta` 5 件を restore した。`unity/ProjectSettings/` の差分は空。
 - **`pwsh tools/contract-audit.ps1`:** errors 0 / warnings 0（作業ツリー、修正の後）。
 - **Unity テスト・Build:** 未実行（H2 未適用）。修正した AC7・C1-2 のテストと新しいテストは一度も実行していない。
+
+### 6.8 差し戻し 2 巡目（2026-10-28、§7.1.1 の C2-1）
+
+- **C2-1（AC7 の引き延ばしの位置）:** `VfxGraphBackendPlayTests` の AC7 は、引き延ばしを coroutine の中ではなく、Gameplay Layer の test の要素（`GameplayDeltaProbe`）の Update の中で行う。coroutine が `RequestSpin(秒)` で次のフレームの Update に依頼し、要素は Update の中で `SpinMainThread` を呼び、そのフレーム番号を `SpinFrames` に残す。Update は同じフレームの `PostLateUpdate.VFXUpdate` より前なので、実際の負荷スパイクと同じ位置になる。unscaled のテストも同じ要素を Gameplay Layer に置く（領域の時間は従来どおり Unity の Time から求め、要素の DeltaTime は使わない）。
+- **読み方:** 引き延ばしたフレームを F とすると、(a) Unity の `Time` で進むなら、u と VFX の増分の両方が F+1 で大きくなり一致する。(b) VFX Graph が自分の更新どうしの実時間で進むなら、VFX の増分が F で大きく、u は F+1 で大きくなり、F と F+1 の両方が不一致になる。出力の `spins=spin@f<F>:f<F>=…;f<F+1>=…` で見分けられる。
+- **引き延ばしの区間の前提:** 引き延ばしの時間は F+1 の u に入るので、u ≈ 0.1・0.2・> `maximumDeltaTime` の前提の検査は、記録点が取った F+1 の `unscaledDeltaTime` で行う（従来は coroutine の再開時点の `Time.unscaledDeltaTime`）。全ての引き延ばしが Update の中で行われたことも前提として確かめる。
+- **変えていないもの:** 凍結した AC7 の値（許容誤差、測定窓、引き延ばしの長さと位置のフレーム番号、3 組の倍率、unscaled の頭打ち）、記録点（`resumesAfterVfxUpdate`・`spins=`）、フレーム番号での行の対応付け。F-13・F-14 は実装していない。
+- **コンパイル確認（済み）:** Editor で `compilationFailed: false`、`recompile` は `up_to_date`、`SampleGame.Tests.dll` が編集の後に作られ新しいメンバーを含む。console のエラーは起動時の `License revoked` 1 件だけ。Editor は正常終了させ、vendor の `.pdb.meta` 5 件を restore した。
+- **`pwsh tools/contract-audit.ps1`:** errors 0 / warnings 0（作業ツリー、修正の後）。
+- **Unity テスト・Build:** 未実行（H2 未適用）。
 
 ## 7. Phase C
 

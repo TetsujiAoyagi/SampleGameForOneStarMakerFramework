@@ -289,7 +289,7 @@ namespace SampleGame.Tests.Rendering.Vfx
                 var conditions = new[] { (0.5f, 0.5f), (1f, 2f), (2f, 0.5f) };
                 foreach (var (timeScale, layerScale) in conditions)
                 {
-                    yield return MeasureOneCondition(probe, timeScale, layerScale);
+                    yield return MeasureOneCondition(probe, unscaled: false, timeScale, layerScale);
                 }
             }
             finally
@@ -309,14 +309,27 @@ namespace SampleGame.Tests.Rendering.Vfx
         public IEnumerator AC7_UnscaledEffectTime_IsCappedAtMaximumDeltaTime()
         {
             AssumeGraphicsSupported();
-            yield return MeasureOneCondition(probe: null, timeScale: 0.5f, layerScale: 1f);
+            // unscaled の領域の時間は probe から取らないが、引き延ばしは gameplay の Update で行うので probe を置く。
+            var coordinator = UpdateSystemRuntime.Coordinator!;
+            var probe = new GameplayDeltaProbe();
+            Assert.That(coordinator.RegisterElement(UpdateLayerIds.Gameplay, probe, UpdateLayerIds.GameplayLayerOrder), Is.True);
+            coordinator.ActivatePendingRegistrations();
+            try
+            {
+                yield return MeasureOneCondition(probe, unscaled: true, timeScale: 0.5f, layerScale: 1f);
+            }
+            finally
+            {
+                coordinator.UnregisterElement(probe);
+            }
+
             LogAssert.NoUnexpectedReceived();
         }
 
-        /// <param name="probe">gameplay の領域の時間の出所。null なら unscaled の要求で、領域の時間は Unity の Time から求める。</param>
-        private IEnumerator MeasureOneCondition(GameplayDeltaProbe? probe, float timeScale, float layerScale)
+        /// <param name="probe">Gameplay Layer の要素。引き延ばしを行い、gameplay の要求では領域の時間の出所になる。</param>
+        /// <param name="unscaled">true なら unscaled の要求で、領域の時間は Unity の Time から求める。</param>
+        private IEnumerator MeasureOneCondition(GameplayDeltaProbe probe, bool unscaled, float timeScale, float layerScale)
         {
-            var unscaled = probe == null;
             var backend = new VfxGraphBackend();
             var host = CreateHost(backend);
             var request = new VfxSpawnRequest(Immortal, Vector3.zero, Quaternion.identity);
@@ -344,9 +357,15 @@ namespace SampleGame.Tests.Rendering.Vfx
             // 後のどちらで再開するかは仮定せず、VFX の更新の直後に差し込んだ記録点で、そのフレームの番号・
             // unscaledDeltaTime・領域の時間・totalTime を取り、同じフレーム番号どうしで比べる。再開時点の前後は
             // 記録して出力する（発見 C 1 巡目で、増分が期待より 1 行早く出た原因を区別するため）。
-            var recorder = Track(new VfxUpdateRecorder(() => effect.GetSpawnSystemInfo(spawnName).totalTime, probe, maximumDeltaTime));
-            var spinFrames = new List<int>();
-            var stretchedUnscaled = new List<float>();
+            //
+            // 引き延ばしは coroutine ではなく、次のフレームの gameplay の要素の Update の中（同じフレームの VFX の更新より前。
+            // 実際の負荷スパイクと同じ位置）で行う。coroutine は VFX の更新の後に再開する（発見 C 2 巡目の実測）ので、
+            // そこで引き延ばすと、VFX Graph が Unity の Time で進んでも、自分の更新どうしの実時間で進んでも、増分が
+            // 同じフレームに入って区別できない。Update の中なら、Unity の Time で進むときは引き延ばしたフレームの次の
+            // フレームの delta と増分に、自分で測るときは引き延ばしたフレームの増分に入るので、後者は不一致で落ちる。
+            var recorder = Track(new VfxUpdateRecorder(() => effect.GetSpawnSystemInfo(spawnName).totalTime,
+                unscaled ? null : probe, maximumDeltaTime));
+            probe.SpinFrames.Clear();
             var resumesAfterVfxUpdate = 0;
             try
             {
@@ -357,8 +376,7 @@ namespace SampleGame.Tests.Rendering.Vfx
                     var stretch = Array.FindIndex(StretchedFrames, s => s.Frame == frame);
                     if (stretch >= 0)
                     {
-                        spinFrames.Add(Time.frameCount);
-                        SpinMainThread(StretchedFrames[stretch].Seconds);
+                        probe.RequestSpin(StretchedFrames[stretch].Seconds);
                     }
 
                     yield return null;
@@ -367,23 +385,31 @@ namespace SampleGame.Tests.Rendering.Vfx
                     {
                         resumesAfterVfxUpdate++;
                     }
-
-                    // 引き延ばしはそのフレームの開始より後なので、次のフレームの unscaledDeltaTime に入る。
-                    if (stretch >= 0)
-                    {
-                        stretchedUnscaled.Add(Time.unscaledDeltaTime);
-                    }
                 }
 
-                // 最後のフレームの VFX の更新を記録点が取るまで進める。
+                // 最後の引き延ばしの次のフレームまで、記録点が取るまで進める。
+                yield return null;
                 yield return null;
             }
             finally
             {
+                probe.RequestSpin(0);
                 recorder.Dispose();
             }
 
             var samples = recorder.Samples;
+            var spinFrames = probe.SpinFrames;
+            Assert.That(spinFrames, Has.Count.EqualTo(StretchedFrames.Length), "前提: gameplay の Update で全ての引き延ばしが行われた");
+
+            // 引き延ばしはそのフレームの開始より後なので、次のフレームの unscaledDeltaTime に入る。
+            var stretchedUnscaled = new List<float>();
+            foreach (var spinFrame in spinFrames)
+            {
+                var next = samples.FindIndex(sample => sample.Frame == spinFrame + 1);
+                Assert.That(next, Is.GreaterThanOrEqualTo(0), $"前提: 引き延ばした f{spinFrame} の次のフレームが記録された");
+                stretchedUnscaled.Add(samples[next].UnscaledDeltaTime);
+            }
+
             var expectedSum = 0f;
             var effectSum = 0f;
             var rows = new List<string>();
@@ -483,10 +509,25 @@ namespace SampleGame.Tests.Rendering.Vfx
             {
             }
 
+            /// <summary>Update の中で引き延ばしたフレームの番号。</summary>
+            public List<int> SpinFrames { get; } = new();
+
+            private double _pendingSpinSeconds;
+
+            /// <summary>次の Update の中で、指定秒だけ main thread を占有する（0 で取り消す）。</summary>
+            public void RequestSpin(double seconds) => _pendingSpinSeconds = seconds;
+
             public void OnElementUpdate(in UpdateFrameContext context)
             {
                 Last = context.DeltaTime;
                 Frame = Time.frameCount;
+                if (_pendingSpinSeconds > 0)
+                {
+                    var seconds = _pendingSpinSeconds;
+                    _pendingSpinSeconds = 0;
+                    SpinFrames.Add(Frame);
+                    SpinMainThread(seconds);
+                }
             }
 
             public void OnElementLateUpdate(in UpdateFrameContext context)
