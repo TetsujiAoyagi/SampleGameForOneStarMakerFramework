@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C'`（判定 C 完了・GO（DR-2 で `b33ceb22` に適用）。C' blind bundle 作成済み、C' 待ち。Phase A は A3 凍結版の revision 2、revision 1 からの差分は §2.7）
+- status: `D`（判定 C は GO（DR-2 で `b33ceb22` に適用）、最終 C' は PASS（独立性制約あり）。Phase D 待ち。Phase A は A3 凍結版の revision 2、revision 1 からの差分は §2.7）
 - branch: `claude/s-4d4a-vfx-time-domain`
 - implementation base commit: `a4e940b1`（`develop`）
 - implementation head commit: `b33ceb22`（C' の監査対象。判定 C の証拠は `791edb1c`（ローカル tag `evidence/s-4d4-local-event/1`）で取得し、DR-2 で引き継いだ）
@@ -21,6 +21,7 @@
 - C' blind bundle の取得案内・状態: `evidence stage` で固定済み（ローカル固定済み（未昇格）、task `s-4d4-local-event`）。C' 用の独立した取得案内は進行役の worktree の `TestResults/` にあり、次の担当（C'）への引渡しは未完了（C' の開始時に取得・閲覧を確認する）
 - A3 後の決定記録: §7.2（DR-1・DR-2。どちらも C' には渡さない。DR-2 については、判定の証拠を引き継いだ事実だけを C' bundle の README に書いた）
 - 引継ぎ票:
+  - **2026-10-28 更新（最終 C' 完了）:** 次は Phase D（発注者がマージの判断をし、担当が Evidence の保存・引渡しの確認、harvest、HANDOFF の削除を行う）。implementation base `a4e940b1`、head `b33ceb22`。判定 C は GO（§7.3。証拠は `791edb1c`、DR-2 で引き継いだ）、最終 C' は PASS（§8.1、独立性制約あり）。両者の所見の突き合わせは Phase D で初めて行う。Evidence は全てローカル固定（未昇格）で、取得案内は進行役の worktree の `TestResults/` にある。PR は未作成で、push もしていない。
   - **2026-10-28 更新（C' blind bundle 作成済み）:** 次は Phase C'（独立監査、最終 C'、新しい session）。対象は implementation base `a4e940b1`、head `b33ceb22`。高コスト証拠は無いので、この監査が最終 C'。
     - 入力: C' 用の取得案内（進行役の worktree の `TestResults/`。C' 専用で所見を含まない）が示す blind audit bundle だけ。この HANDOFF・PR・Phase C の記録 bundle・判定 bundle は入力にしない。進行役が C' に渡すのは取得案内の中身（reference・期待 hash・取得手順）だけ。
     - C' の担当: §5.3 で予約した OpenAI 系（Codex）。A〜C に関与していない。開始時に、取得案内の reference と期待 hash で fetch し、必須 file を閲覧できることを確かめる（同一 PC の `local`）。Codex の packaged 環境から Claude 側の store を読めない既知の問題が過去にあったので、最初に小さく取得を試し、読めなければ assist 扱いにせず、止めて発注者に返す。
@@ -706,7 +707,18 @@ asmdef 参照の追加は 0 件。公開 API の追加は `UpdateLayerIds.Gamepl
 
 ## 8. Phase C'
 
-未着手
+### 8.1 最終 C' 1 巡目（2026-10-28、対象 base `a4e940b1`・head `b33ceb22`）
+
+- **種別:** 最終 C'（高コスト証拠なし）。1 巡目の全体監査。
+- **担当とモデル:** Grok 4.7（xAI、`grok-4.7-high`、cursor-agent 経由の新規 session）。予約していた OpenAI 系（Codex）は利用上限とクレジット切れで使えず、発注者の指示で切り替えた。
+- **独立性:** 最低条件（B・C と別のモデル、新規 session、blind audit bundle）は満たす。強化条件は満たさない（Phase A の A2 で xAI の Grok 系を 1 件使った）。**独立性制約あり**。
+- **入力と取得:** C' 用の blind audit bundle（`evidence stage` でローカル固定済み、§0）。cursor-agent を全許可（`--force`）で起動する方法は Claude Code の auto mode が拒否したので、C' はシェルを使わない読み取り専用で動かした。そのため **取得は進行役が代行した**（取得案内の reference と期待 hash で `fetch`、status passed。複写の後に manifest の 25 件の sha256 を照合し、不一致 0）。C' の作業場所はリポジトリの外で、bundle と `b33ceb22` のソースの写し（このスライスの HANDOFF を除く）だけを置いた。C' のツール呼び出し 196 件に、作業場所の外のパスは無かった。
+- **判定: PASS**（現在の問いを阻害する欠陥なし）。I1〜I6・E1〜E4・AC1〜AC13 と常時契約を、head の実装と `791edb1c` の証拠の対応で確かめた。DR-2 の同一性は、変わった 2 行（359・362 行）がコメント行であることを読んで確かめた（hash の再計算はしていない）。
+- **後続スライスの入力（C' の報告から）:**
+  - 反映点の後に Resume した同じフレームで、保留していない `Play` が即時に開始しうる（`VfxHandle.Play`）。d4b の trigger がその窓で `Play` するなら、d4b の A0 の入力。
+  - program の d4a 行は revision 1 の写しで、revision 2 の上限揃えと unscaled の頭打ちが書かれていない（Phase D の harvest で直す）。
+- **残存リスク・監査できなかった範囲（C' の報告から）:** 止まっているフレームの rate は前回の値を保つ（AC は数値を固定しておらず、I1 は AC6 で見ている）。カメラがある条件は未観測。`Application.quitting` の戻しは単体テストが無い（ProjectSettings の diff で見ている）。`VfxHandle.cs` の `ReferenceEquals(placed, null)` は寿命の判定ではなく構築時の種別の固定。DR-2 の hash は再計算していない。Unity・build・機械検査は再実行していない。
+- **原記録:** C' の報告全文、stream-json の原記録、依頼文、取得結果を `evidence stage` で固定済み（ローカル固定済み（未昇格））。取得案内は進行役の worktree の `TestResults/`（判定 bundle の案内と同じファイル）。Phase C の所見との突き合わせは Phase D で行う。
 
 ## 9. Phase D
 
