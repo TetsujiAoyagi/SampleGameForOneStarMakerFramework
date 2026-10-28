@@ -17,7 +17,7 @@
 - workflow task: `s-4d4b-local-event`（未開始。最初に Evidence を固定する時点で `pwsh tools/workflow-task.ps1 start` する）
 - Phase A snapshot の取得案内・状態: 未生成（凍結前スパイクは計画していない。凍結した HANDOFF 本体は A3 凍結 commit で固定する）
 - Phase B result snapshot の取得案内・状態: 未生成（引渡しはローカルの commit SHA で行う。evidence の固定は発見 C が `workflow-task.ps1 start` の後に行う）
-- evidence bundle の取得案内・状態: 未生成
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C 用 bundle（head `4cb3b8d3`）。引渡し先は同一 PC の C' 担当。取得案内は進行役の共有メモにある。fetch は作成 session で確認済み、別 session の確認は未実施
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票: 発見 C 2 巡目完了（2026-10-29、対象 implementation head `4cb3b8d3`、阻害する指摘なし。§7）。次は判定 C（GO 候補 head `4cb3b8d3`。判定 C は途中: 全 EditMode は 2 回とも XML 完成・failed 0 だが Unity 終了 stall のため未完了、§7）。未実行は全 EditMode 回帰（空 filter）、Play テスト（`-WithGraphics`）、AC16（`Build Spring Full` / `Build Spring Whitebox`）、AC17 の既存回帰、`contract-audit`、Evidence の stage と C 用 bundle。C' の担当ベンダーは進行役が選ぶ（§5.1）。
 
@@ -478,7 +478,12 @@ InGameSession
   - 再取得の `step.json`（後から生成）: status `failed`、exitCode 1、理由は「Inconclusive のテストがあります」と「Unity process が正常終了しませんでした: 1」。
   - inconclusive 23 件は graphics が要る Play テスト（`VfxGraphBackendPlayTests` 18、`VfxGraphRenderPlayTests` 1、`VfxScenePlayTests` 2、`VfxSceneRenderPlayTests` 1、`LocalVfxEventPlayTests` 1）。`-WithGraphics` 側で実行する。
 - **`contract-audit`:** errors 0、warnings 0。
-- **未実行:** `-WithGraphics` の Play テスト（`LocalVfxEventPlayTests` ほか）、AC16（`Build Spring Full` / `Build Spring Whitebox`）、AC17 の既存回帰、Evidence の stage。
+- **PC 再起動後の追加実行（同じ head `4cb3b8d3`）:**
+  - `-WithGraphics`、filter は `SampleGame.Tests.Rendering.Vfx`・`OneStarMaker.Tests.Rendering.Vfx`・`SampleGame.Tests.World.LocalVfxEventSessionTests`・`OneStarMaker.Tests.SceneSystem.SceneDirectorSceneScopedAssetLoadTests` ほか。232 件中 232 件 passed、failed 0、inconclusive 0、skipped 0、exit 0、Unity は正常終了。収録（pass 件数）: `LocalVfxEventPlayTests` 5（AC7〜AC12。AC9 は実 backend で pass）、`LocalVfxEventSessionTests` 18、`VfxSystemSceneDirectorTests` 6（AC6 を含む）、AC5 の 2、`VfxScenePlayTests` 5、`VfxGraphBackendPlayTests` 20。
+  - `OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests`（AC17、EditMode）: 15 件 passed、exit 0。
+  - AC16: `Build Spring Full` と `Build Spring Whitebox`（`SampleGameContentBuild.BuildSpringFull` / `BuildSpringWhitebox` を `-batchmode -executeMethod` で実行）。どちらも exit 0、`outcome.json` の summary は `Succeeded`。両方の Content Directory の catalog に `Spring_Events_4_2.unity` の Scene payload がある。
+- **Evidence:** C 用 bundle（実行 log・XML・`step.json`、AC16 の log・`outcome.json`・catalog、`4cb3b8d3` までの diff、`contract-audit` の出力）を `evidence stage` した。状態: ローカル固定済み（未昇格）。引渡し先は同一 PC の C' 担当（進行役が選ぶ）。取得案内は進行役の共有メモ（side-session-notes）にある。同じ session で `fetch` が成功し、bundle の内容を読めることは確認した。別 session での取得確認は未実施。
+- **判定 C の状態:** 判定必須のうち、全 EditMode 回帰だけが Unity の終了 stall で `step.json` が `failed` のまま（XML は 2 回とも 1387 passed・failed 0）。それ以外は揃った。この点の扱い（既知リスクの受容か）は進行役・人間の判断に残し、判定 C を完了とは記録しない。GO / NO-GO は出していない。
 - 判定 C 担当: Anthropic 系（Claude Sonnet 系）。
 
 ## 8. Phase C'
