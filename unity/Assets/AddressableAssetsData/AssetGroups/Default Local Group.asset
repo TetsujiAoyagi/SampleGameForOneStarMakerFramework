@@ -915,6 +915,11 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 447192e2365044e4caafad332d204daf
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Events_4_2/Spring_Events_4_2_Burst.vfx
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 44936af449ecbfd47ae9338af30bbb4f
     m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Winter/Cells/Winter_Cell_2_0/Winter_Cell_2_0.unity
     m_ReadOnly: 0
@@ -947,6 +952,11 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 47184bcde09d40f4d914b3000ac1f739
     m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Autumn/Cells/Autumn_Cell_7_1/Variants/Whitebox/Autumn_Cell_7_1.unity
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 477a22bca2e9cbe49ac294404473ddc3
+    m_Address: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Events_4_2/Spring_Events_4_2.unity
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0

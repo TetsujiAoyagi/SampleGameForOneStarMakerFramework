@@ -3,6 +3,7 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.SceneSystem;
 
 namespace OneStarMaker.Tests.SceneSystem.TestDoubles
@@ -34,6 +35,11 @@ namespace OneStarMaker.Tests.SceneSystem.TestDoubles
         public Func<UniTask>? AfterUnLoadAction { get; set; }
 
         public TestSceneBase(SceneResource sceneResource, ISceneQuery sceneQuery, ISceneController sceneController) : base(sceneResource, sceneQuery, sceneController) { }
+
+        /// <summary>この Scene 所有（<c>Scene(identity)</c>）のロード。lifecycle の action からテストが呼ぶ。</summary>
+        public UniTask<IAssetHandle<T>> LoadSceneScopedAssetForTest<T>(AssetKey key, CancellationToken ct = default)
+            where T : UnityEngine.Object
+            => LoadSceneScopedAssetAsync<T>(key, ct);
 
         protected override async UniTask OnPreLoadedImpl(CancellationToken ct)
         {
