@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `A`（A3 凍結版、revision 1。A2 入力版は `04d833b0`、採否は §5.1）
+- status: `B`（Phase B 完了、次は発見 C。Phase A は A3 凍結版 revision 1 `c68b6d39`、A2 入力版は `04d833b0`、採否は §5.1）
 - branch: `claude/s-4d4b-local-event`
 - implementation base commit: `9d0c8f2f`（`develop`、S-4d4a の PR #147 のマージ）
-- implementation head commit: 未固定
+- implementation head commit: `eba9ddaf`（Phase B の実装 commit。判定 C 用の GO 候補としては未固定）
 - risk: `high`（所有者・寿命の実例、Addressables entry の追加、非同期ロードと unload の競合に触れる。Framework の公開 API は変えない見込み）
 - owner: 発注者 / S-4d4b 担当
 - created: 2026-10-28
@@ -16,10 +16,10 @@
 - harvest to: Architecture §24 §16（§16.7 の S-4d4b 項目の解消と、Events Scene の trigger から起動する VFX の寿命の実例）、§05 §5.13（Cell の職種 companion のうち Events の振る舞い）
 - workflow task: `s-4d4b-local-event`（未開始。最初に Evidence を固定する時点で `pwsh tools/workflow-task.ps1 start` する）
 - Phase A snapshot の取得案内・状態: 未生成（凍結前スパイクは計画していない。凍結した HANDOFF 本体は A3 凍結 commit で固定する）
-- Phase B result snapshot の取得案内・状態: 未生成
+- Phase B result snapshot の取得案内・状態: 未生成（引渡しはローカルの commit SHA で行う。evidence の固定は発見 C が `workflow-task.ps1 start` の後に行う）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: Phase A 凍結（2026-10-28、revision 1。発注者の指示）。凍結した版はこの文書の A3 凍結 commit。次は Phase B を新しい session で始める（base `9d0c8f2f`、ブランチ `claude/s-4d4b-local-event` の凍結 commit から。§4.1 の順序、§4.2 の差し戻し条件）。Unity テストと Build は Phase C。C' の担当ベンダーは未定（Phase C' の開始までに発注者が決める）。
+- 引継ぎ票: Phase B 完了（2026-10-29）。実装は `eba9ddaf`（ブランチ `claude/s-4d4b-local-event`、base `9d0c8f2f`、push していない）。次は発見 C（動作確認は対象なし、§5）。Unity テストは全て未実行で、§1.3 の読み（AC5）と §5 の未知の操作経路（1）（2）は発見 C の最初の Unity 実行で確かめる。Editor は閉じてある（この worktree の `Library/` は同じ base の別 worktree から複製して作った）。B の作業中に見つけた後続の入力は §6。C' の担当ベンダーは未定（Phase C' の開始までに発注者が決める）。
 
 ---
 
@@ -393,7 +393,32 @@ InGameSession
 
 ## 6. Phase B 実装結果
 
-未着手。
+- 実装（§4.1 の順）:
+  - `LocalVfxEventSession`（D3）と単体テスト `SampleGame/Tests/World/LocalVfxEventSessionTests.cs`（AC1〜AC4・AC13）。偽 `IVfxSystem` は同じフォルダの `RecordingVfxSystem.cs`（handle 操作の順序を記録し、`IsActive` を test が決める）。
+  - Framework のテスト: AC5 は新規 `OneStarMaker/Tests/Scene/SceneDirectorSceneScopedAssetLoadTests.cs`（直接の unload と親の再帰 unload の 2 件。ロードを保留できる backend はファイル内の nested class）。AC6 は `VfxSystemSceneDirectorTests.ReloadSameIdentity_AcceptsNewSpawn_AndOldHandleStaysCollected`。Framework のコードは変えていない。
+  - `LocalVfxEventTrigger`（D2）、`LocalVfxEventBinder`（D4。`CellCompanionScene` が instance を 1 つ持つ）、`CellCompanionScene` の `OnInitialize` / `OnLoadedImpl` / `OnPreUnLoadedImpl`（51 → 81 行）。
+  - Editor 操作（D1。Pipeline の `eval` だけを使い、一時スクリプトは repo に置いていない）:
+    - World Workspace の Planner role の作成 transaction（`WorldCompanionSceneCreator.CreateAndOpen`、Spring (4,2)）で `Spring_Events_4_2` の `.unity`・`SceneResource`・SceneGraph node・`Total.asset` の Edge・Map・Addressables entry（Default Local Group、address は scene path）を作った。`Spring_Cell_4_2` の `_volume` は変わっていない。
+    - trigger: `LocalVfxTrigger_Burst`、位置 (1100, 4, 625)、回転 identity、`BoxCollider`（`isTrigger`、10×8×10）と `LocalVfxEventTrigger`。Cell の中心 (1125, *, 625) には高さ 49 の `Witness` の柱があるので、Cell の地表（y≈0）の上で柱を外した位置にした。Renderer は置いていない。
+    - `.vfx`: `Spring_Events_4_2/Spring_Events_4_2_Burst.vfx`。`Spring_VFX_4_2_GroundFog.vfx` を `AssetDatabase.CopyAsset` で複製し、VFX Graph の Editor API で spawner の `VFXSpawnerConstantRate`（Rate 64）を `VFXSpawnerBurst`（Count 48、Single）に置き換えた（spawner の loop は Infinite のままなので、1 回だけ発射する）。Update Mode は 3 のまま。Addressables entry を Events Scene と同じ group に API で足した（address は asset path）。
+  - Play テスト `SampleGame/Tests/Rendering/Vfx/LocalVfxEventPlayTests.cs`（AC7・AC8 は 1 件にまとめた、AC9〜AC12）と `LocalVfxEventPlayTests.Scenes.cs`（test の SceneDirector、記録する backend、ログの計数）。authoring テスト `SampleGame/Tests/Rendering/Vfx/LocalVfxEventAuthoringTests.cs`（AC14・AC15）。
+- HANDOFF との差（いずれも B 適応。凍結条件の意味は変えていない）:
+  - `.vfx` の「短い発射」は Single Burst（Count 48）で実現した（D1 の「Single Burst 等」の範囲）。
+  - AC5 のために、テスト double `TestSceneBase` に Scene 所有のロードを lifecycle の action から呼ぶ `LoadSceneScopedAssetForTest` を足した（§3 の「保留できる test double」の一部。Framework のコードではない）。
+  - Play テストは 1 ファイルで 609 行になったので、§3 の 500 行の規則で 2 ファイルに分けた。分け方は AC の群ではなく、テスト本体（290 行）と Scene の載せ方・観測の補助（360 行、`partial`）にした。AC ごとの群に分けると補助の重複か共有の基底が要るため。
+  - authoring テスト（AC14・AC15）は既存の `PlacedVfxAuthoringTests` に足さず新規ファイルにした（Addressables の entry の照合は `VfxSceneStructureTests` と同じ reflection）。
+  - AC8 は「`Destroy` の時点で trigger の go が `!= null`・Events の Unity Scene が `isLoaded`」に加え、Events の lifecycle の通知と `Destroy` の時系列（`PreUnloading` → `Destroy` → `Removed`）をテストのログに出して順序も確かめる。AC12 の診断ログは Warning 以上を数える（非対応の診断は `VfxSystem` の `LogWarning`）。
+- B の作業中に見つけた事象（後続の入力。d4b の判定には影響しない）:
+  - **World Workspace の作成 transaction が、未保存の untitled Scene だけが開いている Editor で preflight を通り、失敗後の rollback も元の Scene 構成（空）を復元できずに journal が残った。** Editor を起動した直後（Scene 未選択）に `CreateAndOpen` を呼ぶと「Cannot create a new scene additively with an untitled scene unsaved」で失敗し、rollback が「One active scene is required」で失敗した。作られていたのは空の companion フォルダだけ（journal の scene・resource・node・Addressables の GUID は全て空）だったので、そのフォルダを `AssetDatabase.DeleteAsset` で消し、この worktree の `Library/` の journal を消してから、Cell の Scene を開いた状態で作り直した。修正は World Workspace の作成 transaction の preflight（untitled の未保存 Scene を拒否する）か rollback（空の構成の復元）で、所有スライス未定。
+  - Editor でこの project を開くと `Assets/MobileDependencyResolver/` の `.pdb.meta` 5 件が消える（対応する `.pdb` が無い）。commit 前に戻した。d4b の変更ではない。
+- 確認したこと: Editor のコンパイル（エラー 0。新しく書いたファイルに警告 0）。`pwsh tools/contract-audit.ps1`（errors 0、warnings 0）。
+- 未実行: Unity テストの全て（AC1〜AC15・AC17。Phase C）、Content Directory の build（AC16。判定 C）。§1.3 の読み（AC5）と §5 の未知の操作経路（1）（2）は、Phase C の最初の実行で初めて確かめられる。
+- implementation head commit: `eba9ddaf`
+- Phase B 担当: この session の主担当（Anthropic 系）
+
+### 動作確認
+
+- 対象なし（§5「動作確認の対象: なし」。E1〜E7 は Play テストと build の出力で閉じる）。
 
 ## 7. Phase C
 
