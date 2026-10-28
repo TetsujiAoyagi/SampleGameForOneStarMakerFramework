@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `B`（差し戻し 1 巡目。発見 C 1 巡目で阻害する指摘 3 件、いずれも B 適応のテスト修正。Phase A は A3 凍結版 revision 1 `c68b6d39`、A2 入力版は `04d833b0`、採否は §5.1）
+- status: `C`（発見 C 2 巡目待ち。発見 C 1 巡目の阻害する指摘 3 件を B 差し戻し 1 巡目でテストの修正として直した。Phase A は A3 凍結版 revision 1 `c68b6d39`、A2 入力版は `04d833b0`、採否は §5.1）
 - branch: `claude/s-4d4b-local-event`
 - implementation base commit: `9d0c8f2f`（`develop`、S-4d4a の PR #147 のマージ）
-- implementation head commit: `eba9ddaf`（Phase B の実装 commit。判定 C 用の GO 候補としては未固定）
+- implementation head commit: `4cb3b8d3`（B 差し戻し 1 巡目の修正 commit。親は発見 C 1 巡目の記録 `3300d497`、その前の実装 commit は `eba9ddaf`。判定 C 用の GO 候補としては未固定）
 - risk: `high`（所有者・寿命の実例、Addressables entry の追加、非同期ロードと unload の競合に触れる。Framework の公開 API は変えない見込み）
 - owner: 発注者 / S-4d4b 担当
 - created: 2026-10-28
@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（引渡しはローカルの commit SHA で行う。evidence の固定は発見 C が `workflow-task.ps1 start` の後に行う）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: 発見 C 1 巡目完了（2026-10-29、対象 head `eba9ddaf`）。次は B（差し戻し 1 巡目）。修正対象は §7 の F1〜F3（いずれもテストの修正で、製品コードと凍結条件は変えない）。修正後の head を再び発見 C に渡す。Unity テストの未実行分（全 EditMode 回帰、AC16、AC17）は GO 候補 head の判定 C で行う。C' の担当ベンダーは進行役が選ぶ（§5.1）。
+- 引継ぎ票: B 差し戻し 1 巡目完了（2026-10-29、implementation head `4cb3b8d3`、§6 の「差し戻し 1 巡目」）。次は発見 C 2 巡目（§7 の F1〜F3 の解消と修正差分 `3300d497..4cb3b8d3` の確認。テストは §7 の起点 filter に AC5 の class を加えたもの）。Unity テストの未実行分（全 EditMode 回帰、AC16、AC17）は GO 候補 head の判定 C で行う。C' の担当ベンダーは進行役が選ぶ（§5.1）。
 
 ---
 
@@ -414,6 +414,17 @@ InGameSession
 - 確認したこと: Editor のコンパイル（エラー 0。新しく書いたファイルに警告 0）。`pwsh tools/contract-audit.ps1`（errors 0、warnings 0）。
 - 未実行: Unity テストの全て（AC1〜AC15・AC17。Phase C）、Content Directory の build（AC16。判定 C）。§1.3 の読み（AC5）と §5 の未知の操作経路（1）（2）は、Phase C の最初の実行で初めて確かめられる。
 - implementation head commit: `eba9ddaf`
+- Phase B 担当: この session の主担当（Anthropic 系）
+
+### 差し戻し 1 巡目（2026-10-29）
+
+- 入力: §7 の発見 C 1 巡目の F1〜F3。いずれもテストの修正で、製品コード・凍結条件・Framework は変えていない。
+- 修正（`3300d497..4cb3b8d3`、テスト 3 ファイル）:
+  - F1: `LocalVfxEventSessionTests.LoaderCanceled_PropagatesCancellation_AndLogsNothing` を `Assert.CatchAsync<OperationCanceledException>` にした（派生の `TaskCanceledException` を許す）。
+  - F2: `LocalVfxEventAuthoringTests` の AC14 の Update Mode を `PlacedVfxAuthoringTests.InspectUpdateMode`（行頭一致・ちょうど 1 件・値 3）が null を返すことで確かめる。
+  - F3: `LocalVfxEventPlayTests.Unsupported_EnterAndUnload_NoBackendCallsNoExtraLogs_AndNoSourceLeft` に陽性対照を足した。進入の後、Unload の前に trigger の session を reflection で読み、在室数 1 と、起動で受け取った handle が `NullVfxHandle.Instance`（非対応の `VfxSystem.Spawn` が返す no-op）であることを要求する。在室だけでなく起動（`Spawn` の呼び出し）まで届いたことを示す。製品コードに観測用の面は足していない。
+- 確認したこと: Editor のコンパイル（`scriptCompilationFailed` = false、変更した 3 ファイルに警告・エラーなし。確認後に Editor を正常終了した）。`pwsh tools/contract-audit.ps1`（errors 0、warnings 0）。Editor の起動で `.pdb.meta` 5 件が消える事象が再発し、`git checkout` で戻した（commit に含めない）。
+- 未実行: Unity テストの全て（F1〜F3 の修正の確認を含む。発見 C 2 巡目）。
 - Phase B 担当: この session の主担当（Anthropic 系）
 
 ### 動作確認
