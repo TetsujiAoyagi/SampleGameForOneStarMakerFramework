@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `C`（発見 C 2 巡目待ち。発見 C 1 巡目の阻害する指摘 3 件を B 差し戻し 1 巡目でテストの修正として直した。Phase A は A3 凍結版 revision 1 `c68b6d39`、A2 入力版は `04d833b0`、採否は §5.1）
+- status: `C`（発見 C 2 巡目で阻害する指摘なし。次は判定 C。Phase A は A3 凍結版 revision 1 `c68b6d39`、A2 入力版は `04d833b0`、採否は §5.1）
 - branch: `claude/s-4d4b-local-event`
 - implementation base commit: `9d0c8f2f`（`develop`、S-4d4a の PR #147 のマージ）
 - implementation head commit: `4cb3b8d3`（B 差し戻し 1 巡目の修正 commit。親は発見 C 1 巡目の記録 `3300d497`、その前の実装 commit は `eba9ddaf`。判定 C 用の GO 候補としては未固定）
@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（引渡しはローカルの commit SHA で行う。evidence の固定は発見 C が `workflow-task.ps1 start` の後に行う）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: B 差し戻し 1 巡目完了（2026-10-29、implementation head `4cb3b8d3`、§6 の「差し戻し 1 巡目」）。次は発見 C 2 巡目（§7 の F1〜F3 の解消と修正差分 `3300d497..4cb3b8d3` の確認。テストは §7 の起点 filter に AC5 の class を加えたもの）。Unity テストの未実行分（全 EditMode 回帰、AC16、AC17）は GO 候補 head の判定 C で行う。C' の担当ベンダーは進行役が選ぶ（§5.1）。
+- 引継ぎ票: 発見 C 2 巡目完了（2026-10-29、対象 implementation head `4cb3b8d3`、阻害する指摘なし。§7）。次は判定 C（GO 候補 head `4cb3b8d3`）。未実行は全 EditMode 回帰（空 filter）、Play テスト（`-WithGraphics`）、AC16（`Build Spring Full` / `Build Spring Whitebox`）、AC17 の既存回帰、`contract-audit`、Evidence の stage と C 用 bundle。C' の担当ベンダーは進行役が選ぶ（§5.1）。
 
 ---
 
@@ -452,6 +452,21 @@ InGameSession
 - **後続スライスへ移送する入力:** なし（§6 に記録済みの World Workspace transaction の preflight / rollback と `.pdb.meta` の消失は、引き続き d4b の判定に影響しない後続の入力）。
 - **未実行（GO 候補 head の判定 C で行う）:** 全 EditMode 回帰（空 filter）、AC16（`Build Spring Full` / `Build Spring Whitebox`）、AC17 の既存回帰（`VfxScenePlayTests`、`SessionCellCompanionLoadDriverTests`）、`contract-audit` の再実行（B の記録のみ）、Evidence の stage と C 用 bundle。F1〜F3 の修正後の再実行は、起点 filter（§5）に AC5 の class（`OneStarMaker.Tests.SceneSystem.SceneDirectorSceneScopedAssetLoadTests`）を加えたものを使う。
 - 実行の副作用: Unity が `Assets/MobileDependencyResolver/` の `.pdb.meta` 5 件を消す事象が再発したので、`git checkout` で戻した（commit には含めない。§6）。
+- 発見 C 担当: Anthropic 系（Claude Sonnet 系）。
+
+### 発見 C 2 巡目（2026-10-29）
+
+- **種別:** 発見 C（GO 判定ではない）。対象 implementation head `4cb3b8d3`（前巡 `eba9ddaf` からの修正差分 `eba9ddaf..4cb3b8d3`、テスト 3 ファイルのみ）。
+- **F1〜F3 の解消:**
+  - F1: `Assert.CatchAsync<OperationCanceledException>` に変更。解消（実行で pass）。
+  - F2: `PlacedVfxAuthoringTests.InspectUpdateMode(...)` が null であることを要求する形に変更。AC14 の規約（行頭一致、ちょうど 1 件、値 3）と同じ判定になった。解消。
+  - F3: 非対応のテストに、進入後の session の在室数 1 と、保持する handle が `NullVfxHandle.Instance`（非対応の `Spawn` が返す no-op）であることの陽性対照を追加。進入が届かなければ失敗する。session の内部は reflection で読む（製品コードにテストのための面を足さない、とコメントに理由あり）。解消。
+- **実行（`pwsh tools/run-tests.ps1 -WithGraphics`、Editor は閉じた状態、1 プロセス）:** filter `SampleGame.Tests.World.LocalVfxEventSessionTests;SampleGame.Tests.Rendering.Vfx.LocalVfxEventAuthoringTests;SampleGame.Tests.Rendering.Vfx.PlacedVfxAuthoringTests;SampleGame.Tests.Rendering.Vfx.LocalVfxEventPlayTests;OneStarMaker.Tests.Rendering.Vfx.VfxSystemSceneDirectorTests;OneStarMaker.Tests.SceneSystem.SceneDirectorSceneScopedAssetLoadTests`。46 件中 46 件 pass、exit 0（session 18、`PlacedVfxAuthoringTests` 13、`VfxSystemSceneDirectorTests` 6、Play 5、AC5 の 2、authoring 2）。Inconclusive・Skipped 0。
+- **構造適合:** 修正差分はテストのみで、製品コード・Framework・asmdef の diff は 0。前巡の構造適合の結論は変わらない。
+- **阻害する指摘:** なし。新たな違反根拠も見つからなかった。
+- **後続スライスへ移送する入力:** なし（§6 の既存記録のみ）。
+- **未実行（判定 C で行う）:** 全 EditMode 回帰（空 filter）、AC16、AC17 の既存回帰（`VfxScenePlayTests`、`SessionCellCompanionLoadDriverTests`）、`contract-audit`、Evidence の stage と C 用 bundle。
+- 実行の副作用: `.pdb.meta` 5 件の消失が再発したので `git checkout` で戻した（commit には含めない）。
 - 発見 C 担当: Anthropic 系（Claude Sonnet 系）。
 
 ## 8. Phase C'
