@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `B`（Phase B 完了、次は発見 C。Phase A は A3 凍結版 revision 1 `c68b6d39`、A2 入力版は `04d833b0`、採否は §5.1）
+- status: `B`（差し戻し 1 巡目。発見 C 1 巡目で阻害する指摘 3 件、いずれも B 適応のテスト修正。Phase A は A3 凍結版 revision 1 `c68b6d39`、A2 入力版は `04d833b0`、採否は §5.1）
 - branch: `claude/s-4d4b-local-event`
 - implementation base commit: `9d0c8f2f`（`develop`、S-4d4a の PR #147 のマージ）
 - implementation head commit: `eba9ddaf`（Phase B の実装 commit。判定 C 用の GO 候補としては未固定）
@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（引渡しはローカルの commit SHA で行う。evidence の固定は発見 C が `workflow-task.ps1 start` の後に行う）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: Phase B 完了（2026-10-29）。実装は `eba9ddaf`（ブランチ `claude/s-4d4b-local-event`、base `9d0c8f2f`、push していない）。次は発見 C（動作確認は対象なし、§5）。Unity テストは全て未実行で、§1.3 の読み（AC5）と §5 の未知の操作経路（1）（2）は発見 C の最初の Unity 実行で確かめる。Editor は閉じてある（この worktree の `Library/` は同じ base の別 worktree から複製して作った）。B の作業中に見つけた後続の入力は §6。C' の担当ベンダーは進行役が選ぶ（2026-10-29 発注者が委任。§5.1 の独立性の条件に従う）。
+- 引継ぎ票: 発見 C 1 巡目完了（2026-10-29、対象 head `eba9ddaf`）。次は B（差し戻し 1 巡目）。修正対象は §7 の F1〜F3（いずれもテストの修正で、製品コードと凍結条件は変えない）。修正後の head を再び発見 C に渡す。Unity テストの未実行分（全 EditMode 回帰、AC16、AC17）は GO 候補 head の判定 C で行う。C' の担当ベンダーは進行役が選ぶ（§5.1）。
 
 ---
 
@@ -422,7 +422,26 @@ InGameSession
 
 ## 7. Phase C
 
-未着手。
+### 発見 C 1 巡目（2026-10-29）
+
+- **種別:** 発見 C（GO 判定ではない）。対象 implementation head `eba9ddaf`、base `9d0c8f2f`。workflow task `s-4d4b-local-event` は開始済み（Evidence の stage は未実施）。
+- **実行（`pwsh tools/run-tests.ps1`、Editor は閉じた状態、限定 filter）:**
+  1. EditMode、filter `SampleGame.Tests.World.LocalVfxEventSessionTests;OneStarMaker.Tests.Rendering.Vfx.VfxSystemSceneDirectorTests;OneStarMaker.Tests.Scene.SceneDirectorSceneScopedAssetLoadTests;SampleGame.Tests.Rendering.Vfx.LocalVfxEventAuthoringTests`。26 件中 25 件 pass・1 件 fail。収録は session 18・`VfxSystemSceneDirectorTests` 6・authoring 2。AC5 の class は namespace が `OneStarMaker.Tests.SceneSystem` で、この filter の `OneStarMaker.Tests.Scene.` では一致せず 0 件だった（filter の誤り。次の実行で解消）。
+  2. `-WithGraphics`、filter `OneStarMaker.Tests.SceneSystem.SceneDirectorSceneScopedAssetLoadTests;SampleGame.Tests.Rendering.Vfx.LocalVfxEventPlayTests`。7 件全て pass（AC5 の 2 件、AC7・8 / AC9 / AC10 / AC11 / AC12 の Play 5 件。AC9 は実 backend で Inconclusive でなく pass）。
+- **未知の操作経路の確認結果:** §1.3 の読み（`OnLoadedImpl` 中の Scene 所有のロードは unload が Stable まで保留され、source が残らない）は AC5 の 2 件で成立。§5 の（1）kinematic Rigidbody の `MovePosition` で `OnTriggerEnter` が届く（AC7 pass）、（2）batchmode の Play で active な trigger の go の `Object.Destroy` が同じフレームに `OnDestroy` に届く（AC10 pass）はともに成立。Phase A の再開理由は無い。
+- **構造適合:** §3 の責務マップどおり（session / trigger / binder / `CellCompanionScene` の 3 hook）。Framework のコード・公開 API・asmdef・`SceneState` の diff 0。`record` なし、新規 `.cs` に `#nullable enable`。静的な読みで、製品コード（session・trigger・binder・`CellCompanionScene`）に凍結条件・常時契約への違反は見つからなかった。テストコード本体は AC の条件との照合まで精読した（下の F1〜F3 以外は、AC の観測が条件どおり）。
+- **阻害する指摘（いずれも B 適応。テストの修正で足り、Phase A の再開は不要）:**
+
+| # | 内容 | 違反する凍結条件 | 修正案 |
+|---|---|---|---|
+| F1 | `LocalVfxEventSessionTests.LoaderCanceled_PropagatesCancellation_AndLogsNothing`（:295）が失敗。`Assert.ThrowsAsync<OperationCanceledException>` は型が完全一致を要求するが、`UniTask.FromCanceled` は派生の `TaskCanceledException` を投げる。製品コードは派生を再 throw していて正しい | AC13（`OperationCanceledException` だけは外へ出す）の判定が実行で不成立 | `Assert.CatchAsync<OperationCanceledException>` にする |
+| F2 | `LocalVfxEventAuthoringTests` の AC14 が `.vfx` の Update Mode を `Does.Contain("m_UpdateMode: 3")` で確かめる。条件が引く既存規約（`PlacedVfxAuthoringTests.InspectUpdateMode`: 行頭一致、ちょうど 1 件、値 3）より弱く、`m_UpdateMode: 30` や別値との併存を通す | AC14（「`.vfx` は Update Mode 3（既存の `PlacedVfxAuthoringTests` の規約）」）を実際より弱く判定 | `PlacedVfxAuthoringTests.InspectUpdateMode`（同じ asmdef の internal）を呼んで null を要求する |
+| F3 | `Unsupported_EnterAndUnload_NoBackendCallsNoExtraLogs_AndNoSourceLeft`（AC12）は「`QueryCapability` 以外の backend 呼び出し 0」を見るが、進入が session まで届いたことの陽性対照が無い。進入が届かなくても通る（空振りで pass できる） | AC12（「AC7・AC8 の操作」で非対応の経路を通すこと）を実際より弱く判定 | 進入が届いたことを観測する（例: 進入の後に trigger の Collider と probe の重なりを `Physics` で確認する、または session の在室数を reflection で読む）。非対応でも `Spawn` 自体は呼ばれ no-op handle が返るので、`VfxSystem` 側の観測が取れるならそれを使ってよい |
+
+- **後続スライスへ移送する入力:** なし（§6 に記録済みの World Workspace transaction の preflight / rollback と `.pdb.meta` の消失は、引き続き d4b の判定に影響しない後続の入力）。
+- **未実行（GO 候補 head の判定 C で行う）:** 全 EditMode 回帰（空 filter）、AC16（`Build Spring Full` / `Build Spring Whitebox`）、AC17 の既存回帰（`VfxScenePlayTests`、`SessionCellCompanionLoadDriverTests`）、`contract-audit` の再実行（B の記録のみ）、Evidence の stage と C 用 bundle。F1〜F3 の修正後の再実行は、起点 filter（§5）に AC5 の class（`OneStarMaker.Tests.SceneSystem.SceneDirectorSceneScopedAssetLoadTests`）を加えたものを使う。
+- 実行の副作用: Unity が `Assets/MobileDependencyResolver/` の `.pdb.meta` 5 件を消す事象が再発したので、`git checkout` で戻した（commit には含めない。§6）。
+- 発見 C 担当: Anthropic 系（Claude Sonnet 系）。
 
 ## 8. Phase C'
 
