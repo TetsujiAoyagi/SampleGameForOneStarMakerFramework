@@ -475,6 +475,7 @@ InGameSession
 - **実行（`pwsh tools/run-tests.ps1`、空 filter、全 EditMode、-nographics、Editor は閉じた状態）:**
   1. 1 回目: XML は完成（1410 件中 passed 1387・failed 0・skipped 0・inconclusive 23）したが、Unity が終了せず CPU 時間が増え続け、runner を停止した。`step.json` なし。強制停止を伴うため成功証拠にしない。
   2. Harness README「Unity終了時の既知native stall」の停止規則に従い、同じ head で 1 回だけ再取得: XML は完成（同じ 1410 件・passed 1387・failed 0・skipped 0・inconclusive 23）したが、XML の完成後も Unity プロセスが 10 分以上終了しなかった。同じ症状。既知リスクとして raw のまま記録し、追加の調査・再取得はしない。
+  - 再取得の `step.json`（後から生成）: status `failed`、exitCode 1、理由は「Inconclusive のテストがあります」と「Unity process が正常終了しませんでした: 1」。
   - inconclusive 23 件は graphics が要る Play テスト（`VfxGraphBackendPlayTests` 18、`VfxGraphRenderPlayTests` 1、`VfxScenePlayTests` 2、`VfxSceneRenderPlayTests` 1、`LocalVfxEventPlayTests` 1）。`-WithGraphics` 側で実行する。
 - **`contract-audit`:** errors 0、warnings 0。
 - **未実行:** `-WithGraphics` の Play テスト（`LocalVfxEventPlayTests` ほか）、AC16（`Build Spring Full` / `Build Spring Whitebox`）、AC17 の既存回帰、Evidence の stage。
