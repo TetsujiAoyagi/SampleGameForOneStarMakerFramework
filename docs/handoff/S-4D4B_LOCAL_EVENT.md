@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `C`（判定 C 完了。次は C'。発見 C 2 巡目で阻害する指摘なし。Phase A は A3 凍結版 revision 1 `c68b6d39`、A2 入力版は `04d833b0`、採否は §5.1）
+- status: `C'`（C' 1 巡目完了、阻害する欠陥なし。次は Phase D（人間の GO 判定と、判定 C・C' の突き合わせ）。Phase A は A3 凍結版 revision 1 `c68b6d39`、A2 入力版は `04d833b0`、採否は §5.1）
 - branch: `claude/s-4d4b-local-event`
 - implementation base commit: `9d0c8f2f`（`develop`、S-4d4a の PR #147 のマージ）
-- implementation head commit: `4cb3b8d3`（B 差し戻し 1 巡目の修正 commit。親は発見 C 1 巡目の記録 `3300d497`、その前の実装 commit は `eba9ddaf`。判定 C 用の GO 候補としては未固定）
+- implementation head commit: `4cb3b8d3`（B 差し戻し 1 巡目の修正 commit。前の実装 commit は `eba9ddaf`。判定 C・C' の GO 候補として固定。ローカル tag `evidence/s-4d4b-local-event/1`、push していない）
 - risk: `high`（所有者・寿命の実例、Addressables entry の追加、非同期ロードと unload の競合に触れる。Framework の公開 API は変えない見込み）
 - owner: 発注者 / S-4d4b 担当
 - created: 2026-10-28
@@ -17,9 +17,9 @@
 - workflow task: `s-4d4b-local-event`（未開始。最初に Evidence を固定する時点で `pwsh tools/workflow-task.ps1 start` する）
 - Phase A snapshot の取得案内・状態: 未生成（凍結前スパイクは計画していない。凍結した HANDOFF 本体は A3 凍結 commit で固定する）
 - Phase B result snapshot の取得案内・状態: 未生成（引渡しはローカルの commit SHA で行う。evidence の固定は発見 C が `workflow-task.ps1 start` の後に行う）
-- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C 用 bundle（head `4cb3b8d3`）。引渡し先は同一 PC の C' 担当。取得案内は進行役の共有メモにある。fetch は作成 session で確認済み、別 session の確認は未実施
-- C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: 発見 C 2 巡目完了（2026-10-29、対象 implementation head `4cb3b8d3`、阻害する指摘なし。§7）。次は判定 C（GO 候補 head `4cb3b8d3`。判定 C は完了（2026-10-29）: 全 EditMode の Unity 終了 stall は人間が既知リスクとして受容、Play・AC16・AC17 は pass、§7）。次は C'。未実行は全 EditMode 回帰（空 filter）、Play テスト（`-WithGraphics`）、AC16（`Build Spring Full` / `Build Spring Whitebox`）、AC17 の既存回帰、`contract-audit`、Evidence の stage と C 用 bundle。C' の担当ベンダーは進行役が選ぶ（§5.1）。
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C 用 bundle（head `4cb3b8d3`）。取得案内は進行役の共有メモにある。作成 session と、別 session（進行役）の両方で fetch と内容の閲覧を確認済み
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。所見を除いた C' 1 巡目の入力（head `4cb3b8d3`）。取得案内は進行役の共有メモにあり、判定 C の取得案内とは別に置いた。進行役の session で fetch と閲覧を確認し、その取得した写しを C' に渡した。C' の所見（Phase D 用）も別の bundle としてローカル固定済み（未昇格）で、取得案内は同じメモにある
+- 引継ぎ票: C' 1 巡目完了（2026-10-29、対象 implementation head `4cb3b8d3`、阻害する欠陥なし。§8）。判定 C も完了（§7。全 EditMode の Unity 終了 stall は人間が既知リスクとして受容）。次は Phase D: 人間が判定 C（§7）と C'（§8）を突き合わせて GO を判断し、PR 作成（base `develop`）・harvest・HANDOFF 削除へ進む。ブランチは push していない。Evidence はすべてローカル固定済み（未昇格）
 
 ---
 
@@ -488,7 +488,26 @@ InGameSession
 
 ## 8. Phase C'
 
-未着手。
+### C' 1 巡目（2026-10-29、最終 C'。高コスト証拠の分類なし）
+
+- **担当:** cursor-agent（xAI、Grok 系）。新規セッションで、出力ファイル 1 つだけを書く読み取り専用の指示で動かした。実行後、ワークスペースに他の変更が無いことを確かめた。
+- **担当の選定と理由（§5.1 の委任による）:** 最低条件は、B（Anthropic、Claude Opus 系）とも C（Anthropic、Claude Sonnet 系）とも異なるモデルであること。A〜C に関与していないベンダーは、この PC で使える範囲に無い（Anthropic は A2・B・C、xAI は A2、OpenAI は A3 に関与。OpenAI 系は利用上限で使えないと、発注者が 2026-10-29 に連絡）。そこで、関与が A2 の 1 件（入力版の不変条件レビュー）だけの xAI を選んだ。**独立性制約あり。** 強化条件を満たさず、A2 で同じ系統が設計の不変条件を見ているので、実装監査で見落としが残る余地がある。
+- **入力:** C' blind bundle（§0 の取得案内）と、implementation head の `git archive`（この HANDOFF を除く）。bundle の中身は次のとおり。
+  - 凍結した Phase A（`c68b6d39` の版）
+  - 所見を含まない Phase B の実装結果（`a93fe946` の §6 に、監査対象 head を示す 1 行を足したもの）
+  - HANDOFF を除く base..head の完全 diff
+  - 判定必須の生証拠（全 EditMode の raw 2 回、`-WithGraphics` の実行、companion driver の実行、AC16 の log・outcome・catalog、`contract-audit`）
+  - 発見 C・判定 C の所見と、判定 C に対する人間の裁定は含めていない。C' 用決定記録: なし（1 巡目）。
+- **結果:** 阻害する欠陥なし。後続スライスへ移送する新しい指摘もなし。I1〜I7 を破る順序は作れず、AC1〜AC17 はどれも、条件を観測するテストまたは build の生証拠で通っていると監査した。
+- **監査できなかった範囲・残存リスク（C' の記録）:**
+  - `docs-audit` の出力は bundle に無い。
+  - 証拠ログに git hash は無く、head との対応は manifest の宣言による。
+  - 全 EditMode の 2 回目は、XML の完成から process の終了まで約 5 時間かかった。終了コードの直接の原因は分からない。
+  - `-WithGraphics` の filter のうち `SampleGame.Tests.World.SessionCellCompanionLoadDriverTests` は、実体の namespace と一致しない。同じ 15 件は、空 filter と専用の実行で pass している。
+  - 実 Scene の `Spawn` に渡る owner が `Bind(trigger)` であることは、Play テストでは断言していない。根拠は binder の接続と AC1 の単体テスト。
+  - 退出の直後に Cell を unload する Play テストは無い。ただし `Stopping` 中も `End` が `Stop` するので、I1・I2 は破れない。
+  - 凍結時に後続へ送った範囲は対象外（複数 Collider、退出通知の無い破棄、`LoadAssetAsync` の所有者確認、notifier 単独の Play、Content Directory での `.vfx`）。
+- **所見の原記録:** C' の出力（findings）と実行の生出力は、Phase D 用の別 bundle としてローカル固定済み（§0）。判定 C との突き合わせは Phase D で行う。
 
 ## 9. Phase D
 
