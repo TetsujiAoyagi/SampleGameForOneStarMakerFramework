@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `A`（A3 統合版。A2 の採否は承認済み、A3 レビュー（GPT）の採否は承認待ち、凍結は待ち。A2 入力版は `04d833b0`、採否は §5.1）
+- status: `A`（A3 統合版。A2・A3 レビューの採否は承認済み、凍結は待ち。A2 入力版は `04d833b0`、採否は §5.1）
 - branch: `claude/s-4d4b-local-event`
 - implementation base commit: `9d0c8f2f`（`develop`、S-4d4a の PR #147 のマージ）
 - implementation head commit: 未固定
@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: Phase A 作業中。A2 の独立レビュー 3 件を統合した A3 統合版（§5.1）。U2・U3 と採否は承認済み。発注者が凍結を指示したら A3 凍結 commit を作る（program の §6.3 d4b 行の更新を含む）。凍結までは Phase B に入らない。Phase B へは A3 凍結後に新しい session で入る。
+- 引継ぎ票: Phase A 作業中。A2 の独立レビュー 3 件と A3 統合版のレビュー（GPT）を統合した A3 統合版（§5.1）。U2・U3 と両方の採否は承認済み。C' の担当ベンダーは未定（Phase C' の開始までに発注者が決める）。発注者が凍結を指示したら A3 凍結 commit を作る（program の §6.3 d4b 行の更新を含む）。凍結までは Phase B に入らない。Phase B へは A3 凍結後に新しい session で入る。
 
 ---
 
@@ -162,7 +162,7 @@ InGameSession
 - **I4 Planner で VFX Scene に依存しない:** `Spring_VFX_4_2`（と Environment）をロードしない状態で、trigger の起動・回収が例外なく成り立つ。
 - **I5 非対応環境:** 非対応の `VfxSystem` で trigger に進入しても、例外、`QueryCapability` 以外の backend 呼び出し、起動時の 1 件以外の診断ログが無い。Events の unload の後に source asset が残らない。
 - **I6 他の companion を変えない:** trigger を持たない companion（Environment / Lighting / VFX）の振る舞い・ログ・ロード時間の経路を変えない（trigger が無ければ asset をロードしない）。Events Scene の追加で `Spring_Cell_4_2` の `_volume` が変わらない。
-- **I7 常時契約:** `SceneState` 14 値不変、Game → Framework の一方向、Framework の公開 API の diff 0、asmdef 参照の追加 0 件、`SampleGame/InGame` に `UnityEngine.VFX` の using 0、Unity の偽 null を `== null` / `!= null` で判定する、テストで `Task.Delay` / `Thread.Sleep` を使わない。
+- **I7 常時契約:** `SceneState` 14 値不変、Game → Framework の一方向、Framework の公開 API の diff 0、asmdef 参照の追加 0 件、`SampleGame/InGame` に `UnityEngine.VFX` の using 0、Unity の偽 null を `== null` / `!= null` で判定する、テストで `Task.Delay` / `Thread.Sleep` を使わない、新規・編集する `.cs` の先頭に `#nullable enable`、`record` を使わない。
 
 ### 2.2 成立条件（起きなければならないこと）
 
@@ -182,12 +182,12 @@ InGameSession
 | AC2 | 単体: 準備前に進入 → `Spawn` 0 → 準備完了で `Spawn` 1・`Play` 1。準備前に進入して退出 → 準備完了で `Spawn` 0 | E2 | ○ |
 | AC3 | 単体: 退出（在室 1→0）で `StopAllowingParticlesToFinish` 1。再入で、持っている handle が `IsActive` なら `Stop` 1 → 新しい `Spawn` 1、`IsActive` でなければ（消え切って回収済み）`Stop` 0 → `Spawn` 1。どちらも新しい `Spawn` の前に古い handle が `IsActive` でない。同じ Rigidbody の id の重複した進入で `Spawn` は増えず、在室に無い id の退出で `StopAllowingParticlesToFinish` 0・例外 0 | E3 | ○ |
 | AC4 | 単体: `End` で、持っている handle が `IsActive` なら `Stop` 1。`End` の後の進入、`End` の後に届いた準備完了のどちらでも `Spawn` 0。準備の失敗の後の進入で `Spawn` 0・例外 0。`End` を 2 回呼んでも `Stop` は 1 | I1, I3 | ○ |
-| AC5 | Framework（OneStarMaker.Tests、`TestableSceneDirector` と既存の偽 asset backend）: `OnLoadedImpl` で Scene 所有の asset のロードを待っている間に、その Scene の unload（直接、と親の再帰 unload の両方）を要求する → ロードを完了させる → `Removed` の時点で `GetOwners(key)` が 0 件、unload は Stable の後に 1 回だけ走る | I3（source が残らない）、§1.3 の読みの確認 | ○ |
+| AC5 | Framework（OneStarMaker.Tests、`TestableSceneDirector` と、ロードの完了を test が決められる偽 asset backend。既存の `FakeAssetBackend` は `LoadAssetAsync` が即時に完了するので、保留できる test double をテスト側に足す）: `OnLoadedImpl` で Scene 所有の asset のロードを待っている間に、その Scene の unload（直接、と親の再帰 unload の両方）を要求する → ロードを完了させる → `Removed` の時点で `GetOwners(key)` が 0 件、unload は Stable の後に 1 回だけ走る | I3（source が残らない）、§1.3 の読みの確認 | ○ |
 | AC6 | Framework（`VfxSystemSceneDirectorTests` に 1 件）: `Scene(id)` 所有の `Spawn` → unload → 同じ identity を再ロード → `Spawn` が受理され `Create` 1 → unload で `Destroy` 1。古い handle は生き返らない | E6 | ○ |
 | AC7 | Play（実 Scene、test の `SceneDirector`、偽 backend `FakeVfxBackend`）: Cell 4_2 と Events 4_2 だけを載せる（`Spring_VFX_4_2`・Environment は載せない）。kinematic `Rigidbody` + Collider の test 用 go を trigger の内へ動かし FixedUpdate を通す → `Create` 1・`Play` 1、位置が trigger と一致 | E1, I4 | |
-| AC8 | Play（AC7 の続き）: Cell を unload。記録する列が「Events の `PreUnloading` → `GetOwners(key)` が `Scene(Events)` を含む状態での `Destroy`（instance ごとに 1。Events の Unity Scene unload より前）→ Events の `Removed`（このとき `GetOwners(key)` 0 件、`Destroy` は増えていない）」。source asset のロード / `Create` / `Destroy` / `Removed` の前後をテストのログに出す（d1 の「前後関係が見える実例」）。回収が `OnDestroy` の通知や `Tick` に頼らないこと（session の `End()` の `Stop`）を、記録した `Destroy` が Unity Scene unload より前であることで確かめる | E4, I1, I2 | ○ |
-| AC9 | Play（実 backend `VfxGraphBackend`、`-WithGraphics`）: AC7・AC8 と同じ操作で、起動中は trigger の位置に有効な `VisualEffect` が 1 つあり、Events の `Removed` の**次のフレーム**に trigger の VFX の `VisualEffect` が 0 件（`DontDestroyOnLoad` の root を含む。`Object.Destroy` の native の破棄はフレームの終わりまで遅れるので、`Removed` と同じフレームでは数えない。§16.6） | E1, I1 | ○ |
-| AC10 | Play（偽 backend）: trigger の go を `Object.Destroy` したフレーム N に、backend `Destroy` が 1 回呼ばれ（経路は `LocalVfxEventTrigger.OnDestroy` → `End()` → `Stop`。`VfxOwnerDestroyNotifier` の経路の証拠にしない）、記録したフレーム番号が N（`Tick` の回収なら N+1 になる）。その後の Cell unload で同じ instance の `Destroy` は増えない | E5, I1 | ○ |
+| AC8 | Play（AC7 の続き）: Cell を unload。記録する列が「Events の `PreUnloading` → `GetOwners(key)` が `Scene(Events)` を含む状態での `Destroy`（instance ごとに 1。Events の Unity Scene unload より前）→ Events の `Removed`（このとき `GetOwners(key)` 0 件、`Destroy` は増えていない）」。source asset のロード / `Create` / `Destroy` / `Removed` の前後をテストのログに出す（d1 の「前後関係が見える実例」）。回収が `OnDestroy` の通知や `Tick` に頼らないこと（session の `End()` の `Stop`）を、記録した `Destroy` が Unity Scene unload より前であることで確かめる。「Unity Scene unload より前」の観測: `Destroy` の記録時に trigger の go が `!= null` で、Events の Unity Scene の `isLoaded` が true | E4, I1, I2 | ○ |
+| AC9 | Play（実 backend `VfxGraphBackend`、`-WithGraphics`）: AC7・AC8 と同じ操作で、起動中は trigger の位置に有効な `VisualEffect` が 1 つあり、Events の `Removed` の**次のフレーム**に trigger の VFX の `VisualEffect` が 0 件（Cell と Events だけを載せ、どちらも `VisualEffect` を持たないので、数えるのは読み込まれている全 `VisualEffect`。`DontDestroyOnLoad` の root を含む。`Object.Destroy` の native の破棄はフレームの終わりまで遅れるので、`Removed` と同じフレームでは数えない。§16.6） | E1, I1 | ○ |
+| AC10 | Play（偽 backend）: trigger の go を `Object.Destroy` したフレーム N に、backend `Destroy` が 1 回呼ばれ（経路は判定しない。同じ go の `LocalVfxEventTrigger` と `VfxOwnerDestroyNotifier` の `OnDestroy` の順を Unity は定めないので、どちらが先でも合格。notifier の経路の証拠にしない）、記録したフレーム番号が N（`Tick` の回収なら N+1 になる）。その後の Cell unload で同じ instance の `Destroy` は増えない | E5, I1 | ○ |
 | AC11 | Play（偽 backend）: Cell を unload → 同じ Map で Cell と Events を再び載せる → 進入で `Create` が再び 1（合計 2）、古い instance の `Destroy` は 1 のまま | E6 | |
 | AC12 | Play: 非対応の `VfxSystem`（`UnsupportedFacts`）で AC7・AC8 の操作 → 例外 0、`QueryCapability` 以外の backend 呼び出し 0、診断ログは起動時の 1 件だけ、Events の `Removed` で `GetOwners(key)` 0 件 | I5 | ○ |
 | AC13 | 単体（偽 `IVfxSystem`・偽の loader・記録用 logger）: session の準備（`PrepareAsync(loader)`）で loader が例外を投げる → `PrepareAsync` は例外を外へ出さずに完了し（`OperationCanceledException` だけは外へ出す）、Error ログは 1 件、以後の進入で `Spawn` 0。loader が `null` を返した場合も同じ（§2.5 D3・D4 の U2 案） | I3, U2 | ○ |
@@ -285,7 +285,7 @@ InGameSession
 | `SampleGame/InGame/InGameSession/World/LocalVfxEventBinder.cs`（新規、internal、instance） | root から trigger を集め session を作って付ける、loader を作って各 session の準備を await する、全 session の `End()` | Events Scene の lifecycle との接続 | `CellCompanionScene` が保持（Scene の寿命）。session の一覧を持つ | `IVfxSystem`、Scene スコープのロード（delegate で受ける）、`ILoggerFactory` | internal | Play（AC7〜AC12） | 0 → 80 |
 | `SampleGame/InGame/InGameSession/World/CellCompanionScene.cs` | `LocalVfxEventBinder?` のフィールド 1 つと、`OnInitialize` / `OnLoadedImpl` / `OnPreUnLoadedImpl` から binder を呼ぶ | 呼び出しの追加 | Scene | 既存 | 変更なし | Play | 51 → 85 |
 | `OneStarMaker/Tests/Rendering/Vfx/VfxSystemSceneDirectorTests.cs` | 再ロード後の再受理 1 件（AC6） | テスト | — | — | — | — | 293 → 340 |
-| `OneStarMaker/Tests/Scene/`（既存の Scene のテストのうち適切なファイル、または新規 1 本） | `OnLoadedImpl` の Scene スコープのロード中の unload（AC5） | テスト | — | 既存の偽 asset backend | — | — | +120 |
+| `OneStarMaker/Tests/Scene/`（既存の Scene のテストのうち適切なファイル、または新規 1 本） | `OnLoadedImpl` の Scene スコープのロード中の unload（AC5） | テスト | — | ロードを保留できる偽 asset backend（新規の test double。既存の `FakeAssetBackend` は即時完了） | — | — | +150 |
 | `SampleGame/Tests/World/LocalVfxEventSessionTests.cs`（新規）と偽 `IVfxSystem` | AC1〜AC4、AC13 | テスト | — | — | — | — | 0 → 250 |
 | `SampleGame/Tests/Rendering/Vfx/LocalVfxEventPlayTests.cs`（新規） | AC7〜AC12 | テスト | — | `VfxPlayTestFixture`、`FakeVfxBackend` | — | — | 0 → 400 |
 | `SampleGame/Tests/Rendering/Vfx/PlacedVfxAuthoringTests.cs` または新規の authoring テスト | AC14・AC15 | テスト | — | — | — | — | 283 → 350 |
@@ -378,8 +378,15 @@ InGameSession
 | GPT 補足 A | 新しい Events が `Full`・`Planner` の対象に列挙される証拠 | 採用（小） | AC15 に Cell の `Children` への 1 回の登録と classifier の Events 分類を追加。driver の end-to-end は足さない |
 | GPT 補足 B | BuildSystem の境界の維持 | 変更なし | §4.3 のまま |
 
-- **A3 統合:** 統合版（本版）。U2・U3・A2 の採否は発注者が承認した（2026-10-28）。A3 レビューの採否は主担当の案で、発注者の承認待ち。**凍結は発注者の指示待ち。** 凍結の commit で program の §6.3 d4b 行も更新する。
-- **C' 用に予約した担当:** OpenAI 系（Codex）で予約していたが、A3 の統合版レビューに OpenAI 系（GPT）が関与したため、「A〜C に関与していないベンダー」の条件を満たさない。C' の担当ベンダーは凍結の前に発注者が決める。
+- **A3 統合:** 統合版（本版）。U2・U3・A2 の採否は発注者が承認した（2026-10-28）。A3 レビューの採否も発注者が主担当の案どおり承認した（2026-10-28）。**凍結は発注者の指示待ち。** 凍結の commit で program の §6.3 d4b 行も更新する。
+- **凍結前の主担当の見直し（Phase C・C' で指摘されそうな点、反映済み）:**
+  - AC10 が「経路は trigger の `OnDestroy` → `End`」と断定していたが、同じ go の notifier と trigger の `OnDestroy` の順は Unity が定めない。経路を判定から外し、フレームと回数だけで判定する形にした。
+  - AC8 の「Unity Scene unload より前」に観測の方法が無かった。trigger の go の生存と Events の Unity Scene の `isLoaded` で観測する形にした。
+  - AC9 の「trigger の VFX の `VisualEffect`」の見分け方が無かった。Cell と Events は `VisualEffect` を持たない（Cell 4_2 の `.unity` を確認）ので、全件を数える形にした。
+  - AC5 と §3 が「既存の偽 asset backend」で保留中のロードを作れる前提だったが、`FakeAssetBackend.LoadAssetAsync` は即時完了する。保留できる test double を足すことを明記した（Framework のコードは変えない）。
+  - I7 に常時契約の `#nullable enable` と `record` 禁止を足した。
+  - 確かめて変更不要だった点: base `9d0c8f2f` の後に `origin/develop` は進んでいない（2026-10-28）。Content Directory の candidate は `SceneResource` の payload から作るので、`.vfx` の Addressables entry が candidate になって build が止まることは無い。Whitebox の build にも Full だけの補助 Scene（Events）が共通として入る（`SeasonSceneSelectionPolicy`）。
+- **C' 用に予約した担当:** OpenAI 系（Codex）で予約していたが、A3 の統合版レビューに OpenAI 系（GPT）が関与したため、「A〜C に関与していないベンダー」の条件を満たさない。C' の担当ベンダーは Phase C' の開始までに発注者が決める（2026-10-28、発注者「後で決める」）。
 - **独立性の強化条件:** A2 の 3 件のうち 2 件が Anthropic 系（モデルは別）、1 件が xAI。A3 の統合版レビューは OpenAI 系。C' の担当は上記のとおり未定。
 
 ## 6. Phase B 実装結果
