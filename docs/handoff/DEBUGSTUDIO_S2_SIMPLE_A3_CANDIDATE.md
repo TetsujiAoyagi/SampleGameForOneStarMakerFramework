@@ -18,12 +18,13 @@
 
 ### 引継ぎ票
 
-- 次のPhase/役割: 別sessionで新headの発見C。判定C/C′はその後に実施する。
+- 次のPhase/役割: 別sessionで新headの判定C。対象headに対応する動作確認と実Editor条件、判定必須検証を実施し、証拠が揃ってからC′へ渡す。
 - 凍結revision: A3 r3、凍結commit e4910a392be1a1cb8cd1f617c127d93bf511aa18。修正実装head 6e1f82c3a00430b46e0e50f885b6681e52425a15。旧実装head e7ea37ab841e2c328fcbab17db6e718e5888ff38。本節の状態記録commitはimplementation headに含めない。次担当は引継ぎcommitとclean状態を照合する。
 - Phase A snapshot: ローカル固定済み。取得案内は主担当のprivate artifacts内。B別sessionが独立した期待hashでfetchし、manifestと必須2文書の内容hash・閲覧を確認済み。
 - 旧headのPhase B resultと発見C入力: Artifact Storageでローカル固定済み、別sessionによるfetchと必須内容の閲覧を確認済み。旧headの判定C evidence / C′ blind入力は同じbase/head・生証拠から237fileの同一snapshotとして判定前に生成し、ローカル固定済み。private取得案内FINAL_C_FETCH_GUIDE.jsonとBLIND_CPRIME_FETCH_GUIDE.jsonにより、それぞれ別sessionで全file集合/hash・必須74pathの閲覧を確認済み。追加実機は行わず、この固定証拠と決定記録に基づきC/C′を判定した。
 - 新headのPhase B result: ローカル固定済み。private取得案内 PR146_B_FETCH_GUIDE.json により別sessionでfetch・全2 fileの内容hashと原記録の閲覧を確認済み。同一PC・同一ユーザーでの確認。
 - 動作確認: 既存Release WPFの既定起動と --listen でWindow表示後の正常終了を観測したが、binaryと新headの厳密な対応は未確認のため対象headの観測としては未実施。Unity接続・Play・進行中inspectの終了はC担当に引き渡す。
+- 新headの発見C: GPT-6-astraが構造・契約・失敗経路を確認し、阻害指摘0、後続指摘0。限定App 19件・CLI 14件成功、TRX実行名を確認しcontract-auditはerrors/warnings 0。52 fileの非blind入力・結果をローカル固定し、別sessionで全hashと必須12 pathの閲覧を確認済み。private取得案内 PR146_DISCOVERY_FETCH_GUIDE.json。判定C/C′のGOではない。
 - 必要な権限: ローカル.NET実行、対象を限定したEditor操作、WPF起動/終了、Artifact Storage stage/fetch。実行環境の拒否は迂回しない。
 - 停止規則: 凍結済みI1〜I4/E1〜E3を満たすまでBと発見Cを最大4往復、C′差戻しを最大3往復。新しい契約/所有者/寿命が必要ならAへ戻して分類する。現在の問いを阻害しない追加保証はS3以後へ送る。
 - 決定記録: AC5のHierarchy再読取りについて、依頼者は読取りが成功していればGOでよいと裁定した。§6の15秒は再読取りの総時間と読み、fixture終了時点を計時起点に追加しない。判断経緯と生時刻はprivateのOWNER_15S_DECISION.mdに記録する。
