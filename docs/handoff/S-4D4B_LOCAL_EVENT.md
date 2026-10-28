@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `A`（A3 統合版。採否は承認済み、凍結は待ち。A2 入力版は `04d833b0`、採否は §5.1）
+- status: `A`（A3 統合版。A2 の採否は承認済み、A3 レビュー（GPT）の採否は承認待ち、凍結は待ち。A2 入力版は `04d833b0`、採否は §5.1）
 - branch: `claude/s-4d4b-local-event`
 - implementation base commit: `9d0c8f2f`（`develop`、S-4d4a の PR #147 のマージ）
 - implementation head commit: 未固定
@@ -156,7 +156,7 @@ InGameSession
 
 ### 2.1 不変条件（起きてはいけないこと）
 
-- **I1 回収漏れ・二重回収なし:** `Spring_Events_4_2` の unload（親 Cell の再帰 unload を含む）の後、その Scene の trigger から起動した全ての instance について、backend `Destroy` が instance ごとに高々 1 回で、Events の `Removed` の時点で全て 1 回呼ばれている。`Removed` の後に、その instance の `VisualEffect` の GameObject が残っていない。
+- **I1 回収漏れ・二重回収なし:** `Spring_Events_4_2` の unload（親 Cell の再帰 unload を含む）の後、その Scene の trigger から起動した全ての instance について、backend `Destroy` が instance ごとに高々 1 回で、Events の `Removed` の時点で全て 1 回呼ばれている（AC8）。`Removed` の**次のフレーム**に、その instance の `VisualEffect` の GameObject が残っていない（AC9。`Object.Destroy` の native の破棄はフレームの終わりまで遅れる）。
 - **I2 source より先に instance:** trigger の VFX の各 instance の backend `Destroy` が呼ばれた時点で、その source asset はまだ `Scene(Spring_Events_4_2)` に所有されている（`IAssetDiagnostics.GetOwners` に含まれる）。Events の `Removed` の時点で、その asset の owner は 0 件。
 - **I3 終わった trigger は起動しない:** trigger が終わった後（Events Scene の `OnPreUnLoadedImpl` で全 session を `End()` した後、または trigger の GameObject の `OnDestroy` の後）、その trigger から `Spawn` が呼ばれない。asset のロードの完了が終わりより後に届いた場合も同じで、そのとき source asset は Events の `Removed` の時点で残っていない。`PreUnloading` の通知から `OnPreUnLoadedImpl` までの間に届いた進入で `Spawn` されても、その instance は `End()` の `Stop` で回収されるので I1・I2 は保たれる（A2 アーキ F3）。
 - **I4 Planner で VFX Scene に依存しない:** `Spring_VFX_4_2`（と Environment）をロードしない状態で、trigger の起動・回収が例外なく成り立つ。
@@ -180,31 +180,31 @@ InGameSession
 |---|---|---|---|
 | AC1 | 単体（偽 `IVfxSystem`）: session が準備済みで進入 0→1 なら `Spawn` 1・`Play` 1。owner は `Bind(trigger)`、request は trigger の位置・回転、`TimeLayerId` は gameplay | E1 | |
 | AC2 | 単体: 準備前に進入 → `Spawn` 0 → 準備完了で `Spawn` 1・`Play` 1。準備前に進入して退出 → 準備完了で `Spawn` 0 | E2 | ○ |
-| AC3 | 単体: 退出（在室 1→0）で `StopAllowingParticlesToFinish` 1。再入で、持っている handle が `IsActive` なら `Stop` 1 → 新しい `Spawn` 1、`IsActive` でなければ（消え切って回収済み）`Stop` 0 → `Spawn` 1。どちらも新しい `Spawn` の前に古い handle が `IsActive` でない。同じ Rigidbody の 2 つ目の Collider の進入・退出で在室数が変わらない | E3 | ○ |
+| AC3 | 単体: 退出（在室 1→0）で `StopAllowingParticlesToFinish` 1。再入で、持っている handle が `IsActive` なら `Stop` 1 → 新しい `Spawn` 1、`IsActive` でなければ（消え切って回収済み）`Stop` 0 → `Spawn` 1。どちらも新しい `Spawn` の前に古い handle が `IsActive` でない。同じ Rigidbody の id の重複した進入で `Spawn` は増えず、在室に無い id の退出で `StopAllowingParticlesToFinish` 0・例外 0 | E3 | ○ |
 | AC4 | 単体: `End` で、持っている handle が `IsActive` なら `Stop` 1。`End` の後の進入、`End` の後に届いた準備完了のどちらでも `Spawn` 0。準備の失敗の後の進入で `Spawn` 0・例外 0。`End` を 2 回呼んでも `Stop` は 1 | I1, I3 | ○ |
 | AC5 | Framework（OneStarMaker.Tests、`TestableSceneDirector` と既存の偽 asset backend）: `OnLoadedImpl` で Scene 所有の asset のロードを待っている間に、その Scene の unload（直接、と親の再帰 unload の両方）を要求する → ロードを完了させる → `Removed` の時点で `GetOwners(key)` が 0 件、unload は Stable の後に 1 回だけ走る | I3（source が残らない）、§1.3 の読みの確認 | ○ |
 | AC6 | Framework（`VfxSystemSceneDirectorTests` に 1 件）: `Scene(id)` 所有の `Spawn` → unload → 同じ identity を再ロード → `Spawn` が受理され `Create` 1 → unload で `Destroy` 1。古い handle は生き返らない | E6 | ○ |
 | AC7 | Play（実 Scene、test の `SceneDirector`、偽 backend `FakeVfxBackend`）: Cell 4_2 と Events 4_2 だけを載せる（`Spring_VFX_4_2`・Environment は載せない）。kinematic `Rigidbody` + Collider の test 用 go を trigger の内へ動かし FixedUpdate を通す → `Create` 1・`Play` 1、位置が trigger と一致 | E1, I4 | |
 | AC8 | Play（AC7 の続き）: Cell を unload。記録する列が「Events の `PreUnloading` → `GetOwners(key)` が `Scene(Events)` を含む状態での `Destroy`（instance ごとに 1。Events の Unity Scene unload より前）→ Events の `Removed`（このとき `GetOwners(key)` 0 件、`Destroy` は増えていない）」。source asset のロード / `Create` / `Destroy` / `Removed` の前後をテストのログに出す（d1 の「前後関係が見える実例」）。回収が `OnDestroy` の通知や `Tick` に頼らないこと（session の `End()` の `Stop`）を、記録した `Destroy` が Unity Scene unload より前であることで確かめる | E4, I1, I2 | ○ |
 | AC9 | Play（実 backend `VfxGraphBackend`、`-WithGraphics`）: AC7・AC8 と同じ操作で、起動中は trigger の位置に有効な `VisualEffect` が 1 つあり、Events の `Removed` の**次のフレーム**に trigger の VFX の `VisualEffect` が 0 件（`DontDestroyOnLoad` の root を含む。`Object.Destroy` の native の破棄はフレームの終わりまで遅れるので、`Removed` と同じフレームでは数えない。§16.6） | E1, I1 | ○ |
-| AC10 | Play（偽 backend）: trigger の go を `Object.Destroy` したフレーム N に、backend `Destroy` が 1 回呼ばれ、記録したフレーム番号が N（`Tick` の回収なら N+1 になる）。その後の Cell unload で同じ instance の `Destroy` は増えない | E5, I1 | ○ |
+| AC10 | Play（偽 backend）: trigger の go を `Object.Destroy` したフレーム N に、backend `Destroy` が 1 回呼ばれ（経路は `LocalVfxEventTrigger.OnDestroy` → `End()` → `Stop`。`VfxOwnerDestroyNotifier` の経路の証拠にしない）、記録したフレーム番号が N（`Tick` の回収なら N+1 になる）。その後の Cell unload で同じ instance の `Destroy` は増えない | E5, I1 | ○ |
 | AC11 | Play（偽 backend）: Cell を unload → 同じ Map で Cell と Events を再び載せる → 進入で `Create` が再び 1（合計 2）、古い instance の `Destroy` は 1 のまま | E6 | |
 | AC12 | Play: 非対応の `VfxSystem`（`UnsupportedFacts`）で AC7・AC8 の操作 → 例外 0、`QueryCapability` 以外の backend 呼び出し 0、診断ログは起動時の 1 件だけ、Events の `Removed` で `GetOwners(key)` 0 件 | I5 | ○ |
 | AC13 | 単体（偽 `IVfxSystem`・偽の loader・記録用 logger）: session の準備（`PrepareAsync(loader)`）で loader が例外を投げる → `PrepareAsync` は例外を外へ出さずに完了し（`OperationCanceledException` だけは外へ出す）、Error ログは 1 件、以後の進入で `Spawn` 0。loader が `null` を返した場合も同じ（§2.5 D3・D4 の U2 案） | I3, U2 | ○ |
 | AC14 | authoring（EditMode）: `Spring_Events_4_2` に `LocalVfxEventTrigger` が 1 つ以上あり、それぞれ同じ go に `isTrigger` の Collider を持ち、address が空でなく `Seasons/` 配下の `.vfx` の Addressables entry を指す。Events Scene に `VisualEffect`・`PlacedVfxActivator`・`Renderer` が無い。`.vfx` は Update Mode 3（既存の `PlacedVfxAuthoringTests` の規約） | §1.2 の所有物の契約、I6 | ○ |
-| AC15 | authoring（EditMode）: `Spring_Cell_4_2` の `SceneResource` の `_volume` が base（`9d0c8f2f`）と同じ。`Spring_Events_4_2` の `SceneResource` は `StreamByDistance = false`・`LoadType.OnDemand`・親が `Spring_Cell_4_2` | I6、§1.2 | ○ |
+| AC15 | authoring（EditMode）: `Spring_Cell_4_2` の `SceneResource` の `_volume` が base（`9d0c8f2f`）と同じ。`Spring_Events_4_2` の `SceneResource` は `StreamByDistance = false`・`LoadType.OnDemand`・親が `Spring_Cell_4_2`。`Spring_Cell_4_2` の `Children` に `Spring_Events_4_2` がちょうど 1 回あり、`CellCompanionRoleClassifier` がその identity を Events に分類する（`Full`・`Planner` のロード対象に入る。A3 GPT 補足 A） | I6、§1.2 | ○ |
 | AC16 | 判定 C: `Build Spring Full` と `Build Spring Whitebox` が成功し、両方の Content Directory に `Spring_Events_4_2` が Scene payload として入る | E7 | |
 | AC17 | 既存の回帰: `VfxScenePlayTests`（d3・d4a の配置済み VFX）と `SessionCellCompanionLoadDriverTests` が変わらず通る。`contract-audit` 通過、asmdef・`SceneState`・Framework の公開 API の diff 0、`SampleGame/InGame` に `UnityEngine.VFX` の using 0 | I6, I7 | ○ |
 
 **読み方の固定（合格例・不合格例）。**
 
-- AC3 の「在室」: 進入者は `attachedRigidbody` を持つ Collider で、Rigidbody ごとに数える。合格: 同じ Rigidbody の 2 つの Collider が順に入っても `Spawn` は 1。不合格: Collider ごとに数えて 2 回起動する。`attachedRigidbody` を持たない Collider（静的な地形など）は数えない。
+- AC3 の「在室」: 進入者は `attachedRigidbody` を持つ Collider で、Rigidbody ごとに数える。合格: 同じ Rigidbody の id の進入が 2 回届いても `Spawn` は 1。不合格: 2 回起動する。`attachedRigidbody` を持たない Collider（静的な地形など）は数えない。**前提: 進入者の Rigidbody は trigger に重なる Collider を 1 つだけ持つ**（いまの Player は `CapsuleCollider` 1 つ）。1 つの Rigidbody の複数 Collider の入退出（片方の退出で在室が消える）は d4b で保証しない（A3 GPT 指摘 1。下の「答えない問い」）。
 - AC10 の「そのフレーム」: `Object.Destroy` は破棄をフレームの終わりまで遅らせる。合格: `Destroy` の記録が `Object.Destroy` を呼んだフレームの番号。不合格: 次のフレームの番号（`Tick` の偽 null 検査で回収した）。
 - I3 の「終わり」: Events の `OnPreUnLoadedImpl` で全 session を `End()` し、trigger の `OnDestroy` でもその session を `End()` する（早いほう）。合格: `OnPreUnLoadedImpl` と Unity Scene unload の間に physics の進入が届いても `Spawn` 0。合格: `PreUnloading` の通知と `OnPreUnLoadedImpl` の間の進入で `Spawn` 1 → `End()` で `Stop` 1 → `Removed` までに `Destroy` 1。不合格: `End()` の後の進入で `Spawn` が呼ばれる。
 - AC3 の「再入」: 単体テストでは退出と再入を同じ呼び出し列で続け、偽 handle の `IsActive` を test が決める（消え切りの回収は偽 handle の `IsActive = false` で表す。`Tick` は無い）。
 - I1 の回収経路: Cell の unload では session の `End()` の `Stop` が回収する（`OnPreUnLoadedImpl` の時点。Unity Scene unload・`ReleaseScene` より前）。`Bind` の破棄通知（`OnDestroy`）と `Tick` の偽 null 検査は、trigger の go を個別に破棄した場合（E5）と、`End()` が呼ばれなかった場合の保険で、I1・I2 の根拠にしない。理由: `VfxOwnerDestroyNotifier` の契約では、一度も active にならなかった go 等で `OnDestroy` が呼ばれず、そのときの回収は `ReleaseScene` より後の `Tick` になる（A2 Grok F1）。
 
-- **ここでは答えない問いと所有する後続スライス:** 大型 Event と Planner 実証の全体（S-4d5）。trigger の VFX asset を Content Directory・Player build に乗せる経路と、Content Directory 上で trigger の VFX が起動すること（BuildSystem の実装系、所有 HANDOFF 未作成）。`AssetManagement.LoadAssetAsync` の await の後の所有者確認の欠落（Framework、所有スライス未定）。Player での描画と Spring に入る Player の観測経路（S-9）。退出の通知が来ない破棄・非 active 化（進入中の Rigidbody が trigger の中で消えた場合。在室が残り、Cell unload まで VFX が残る。所有スライス未定）。ParticleSystem fallback（後続の独立スライス）。
+- **ここでは答えない問いと所有する後続スライス:** 大型 Event と Planner 実証の全体（S-4d5）。trigger の VFX asset を Content Directory・Player build に乗せる経路と、Content Directory 上で trigger の VFX が起動すること（BuildSystem の実装系、所有 HANDOFF 未作成）。`AssetManagement.LoadAssetAsync` の await の後の所有者確認の欠落（Framework、所有スライス未定）。Player での描画と Spring に入る Player の観測経路（S-9）。退出の通知が来ない破棄・非 active 化（進入中の Rigidbody が trigger の中で消えた場合。在室が残り、Cell unload まで VFX が残る）と、1 つの Rigidbody に Collider が複数ある進入者の在室（Collider ごとの入退出を Rigidbody へ集約する表現。どちらも進入者の追跡の厳密化で、所有スライス未定）。ParticleSystem fallback（後続の独立スライス）。
 - **判定定義:** GO = §2.1・§2.2 の全条件を AC で確認できた。NO-GO = いずれかの不変条件の違反、または成立条件の不成立。CONDITIONAL ACCEPT は使わない（スパイクではない）。
 - **停止規則:** 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。
 - **A3 後の例外承認:** なし
@@ -214,9 +214,9 @@ InGameSession
 
 | 項目 | 扱い |
 |---|---|
-| notifier の `OnDestroy` が実 Scene unload と go の Destroy で回収を呼ぶことの Play Mode 確認 | go の Destroy は採用（AC10）。実 Scene の unload では、session の `End()` の `Stop` が Unity Scene unload より前に回収するので、notifier の経路を通らない（A2 Grok F1 による設計の変更。I1 の回収経路の読み） |
+| notifier の `OnDestroy` が実 Scene unload と go の Destroy で回収を呼ぶことの Play Mode 確認 | 不採用（§16.7 に未確認として残す）。実 Scene の unload でも go の Destroy（AC10）でも、trigger の `End()` の `Stop` が先に回収するので notifier の経路を通らず、AC10 は notifier の証拠にならない（A2 Grok F1 による設計の変更、A3 GPT 指摘 2）。d4b の問いの判定に notifier 単独の Play テストは要らない |
 | 同じ identity の再ロードを実 `SceneDirector` で 1 往復 | 採用（AC6・AC11） |
-| d2 のテストが直接見ていない経路のうち、`Bind` 所有者の破棄から 1 フレーム以内の回収 | 採用（AC10 は同じフレームを求める） |
+| d2 のテストが直接見ていない経路のうち、`Bind` 所有者の破棄から 1 フレーム以内の回収 | 不採用（§16.7 に残す。上と同じ理由で、AC10 の同じフレームの回収は `Bind` の仕組みではなく trigger の `End()` による） |
 | 同、`Create` 直後に発射しないことの長い観測窓、host の Update 登録の失敗、backend の `Create` が GameObject の作成後に失敗した場合の後始末 | 不採用（d4b の問いの判定に要らない。§16.7 に残す） |
 | graphics なしの既定の回帰で実 `VisualEffect` の Play テストが Inconclusive になる | 記録のみ。d4b の実 backend の AC は AC9 だけにし、残りの Play テストは偽 backend で graphics なしでも走る形にする |
 | 反映点より後に Resume した同じフレームの `Play` | 条件を足さない。trigger の `Play` は physics の callback（FixedUpdate の段、`Update` より前）か、`OnLoadedImpl` の完了の続きで呼ばれ、いまの SampleGame に layer を pause / resume するコードは無い。契約は §16.8 と d4a の DR-1 のまま |
@@ -243,7 +243,7 @@ InGameSession
 - 進入（在室 0→1）: `Ready` なら、残っている handle に `Stop` → `Spawn(new VfxSpawnRequest(source, position, rotation), owner)` → `Play`。`Preparing` なら在室だけ記録する。
 - 退出（在室 1→0）: handle があれば `StopAllowingParticlesToFinish`（handle は持ったまま。次の進入で `Stop` する）。
 - 再入で前の handle を `Stop` するのは、その handle が `IsActive` のときだけ（消え切って回収済みなら参照を捨てるだけ）。
-- `PrepareAsync(loader)`（A2 アーキ F2）: `loader` は source をロードする delegate（`Func<UniTask<UnityEngine.Object?>>`。binder が `LoadSceneScopedAssetAsync` を包んで渡す）。`Preparing` のときだけ実行し、成功（非 null）なら `Ready` にして在室が 1 以上なら進入と同じ起動をする。例外（`OperationCanceledException` を除く）か null なら `Failed` にして Error ログを 1 件出し、例外を外へ出さない（U2）。完了の時点で `Ended` なら何もしない。ログは ctor で受け取る `ILogger` に出す。
+- `PrepareAsync(loader)`（A2 アーキ F2）: `loader` は source をロードする delegate（`Func<UniTask<UnityEngine.Object?>>`。binder が `LoadSceneScopedAssetAsync` を包んで渡す。返り値は `IAssetHandle<UnityEngine.Object>` の `.Value`）。`Preparing` のときだけ実行し、成功（非 null）なら `Ready` にして在室が 1 以上なら進入と同じ起動をする。例外（`OperationCanceledException` を除く）か null なら `Failed` にして Error ログを 1 件出し、例外を外へ出さない（U2）。完了の時点で `Ended` なら何もしない。ログは ctor で受け取る `ILogger` に出す。
 - `End()`: `Ended` にし、持っている handle が `IsActive` なら `Stop` してから参照を手放す（A2 Grok F1。Cell の unload で、Unity Scene unload と `ReleaseScene` より前に instance を回収する。`Bind` の破棄通知に頼らない）。2 回目以降は何もしない。以後の進入・準備完了は何もしない（I3）。
 - source asset の handle は session が持たない（所有者は Events Scene の `Scene(id)`。§1.3 の読みのとおり、`OnLoadedImpl` でロードすれば `ReleaseScene` はロードの完了より前に起きない）。そのため「完了したロードの handle を session がすぐ Release する」補助と、ロード完了の直後に Scene がまだロードされているかを確かめ直す補助は入れない（AC5 で前提を確かめる。前提が崩れたら §4.2 で Phase A へ返す）。
 
@@ -251,7 +251,7 @@ InGameSession
 
 - **binder は instance で、`CellCompanionScene` が `LocalVfxEventBinder?` を 1 つ持つ**（A2 アーキ F1。`SceneBase` は `OnPreUnLoadedImpl` の直前に `RootObjects` を空にするので、root から集め直せない）。session の一覧の寿命は Scene。trigger が無ければ binder を作らない（I6。Environment 216 件は root の走査だけ）。
 - `OnInitialize`: 既存の `PlacedVfxAdopter.AdoptAll` に加え、root から `LocalVfxEventTrigger`（`includeInactive: true`）を集め、1 つ以上あれば binder を作り、各 trigger に session を作って付ける。
-- `OnLoadedImpl`: binder が各 session の `PrepareAsync` を、`LoadSceneScopedAssetAsync<UnityEngine.Object>(AssetKey.FromAddress(address))` を包んだ loader で順に await する。InGame は VFX の型を知らないので `UnityEngine.Object` で受け、型の検査は backend の `Create` に任せる（`VisualEffectAsset` でなければ何も作らない。§16.6）。
+- `OnLoadedImpl`: binder が各 session の `PrepareAsync` を、`LoadSceneScopedAssetAsync<UnityEngine.Object>(AssetKey.FromAddress(address))` を包んだ loader で順に await する。loader は返った `IAssetHandle<UnityEngine.Object>` の `.Value` を返し、handle 自体は `VfxSpawnRequest` に渡さず個別に `Release` もしない（解放は `ReleaseScene`）。`.Value` が null なら U2・AC13 の失敗。InGame は VFX の型を知らないので `UnityEngine.Object` で受け、型の検査は backend の `Create` に任せる（`VisualEffectAsset` でなければ何も作らない。§16.6）。
 - **U2（案）: ロードの失敗は Events Scene のロード失敗にしない。** session の `PrepareAsync` が失敗を捕まえて Error ログを trigger ごとに 1 件出し、その trigger だけを止める。Scene のロードは続ける。理由: trigger の VFX は表示の演出で、Events Scene の他の進行制御まで止めない。Content Directory を使う Player では、この `.vfx` が directory に入らないので（U1）、失敗を Scene のロード失敗にすると Events 全体が載らなくなる。失敗はログで見える。
 - `OnPreUnLoadedImpl`: binder が全 session を `End()`（I1・I3。生存 instance を `Stop` で回収し、以後の進入で `Spawn` しない）。
 - 寿命: asset は `Scene(Events の identity)`、VFX は `Bind(trigger の go)`。Cell の unload では `OnPreUnLoadedImpl` の `End()` が回収し、その後に Unity Scene unload、`ReleaseScene` が続くので「VFX の回収 → asset の解放」が保たれる（I2）。`Bind` の所有は trigger の go の個別の破棄（E5）と、`End()` が呼ばれなかった場合の保険。
@@ -314,7 +314,7 @@ InGameSession
 - AC5 で、`OnLoadedImpl` のロード中の unload がロードの完了より前に `ReleaseScene` を呼ぶ（§1.3 の読みが誤り）。その場合は session が完了したロードの handle を Release する案（§1.2 の外部レビューの代替）を A2 で比べる。
 - World Workspace の transaction で Events Scene を作れない、または作った Scene が Cell の `_volume` を変える。
 - `CellCompanionScene` に trigger の処理を置くと、trigger を持たない companion の振る舞いが変わる。
-- AC10 で、batchmode の Play 中に trigger の go を `Object.Destroy` しても `OnDestroy` の通知が同じフレームに届かない（§5 の未知の操作経路（2））。
+- AC10 で、batchmode の Play 中に trigger の go を `Object.Destroy` しても `LocalVfxEventTrigger.OnDestroy` が同じフレームに届かない（§5 の未知の操作経路（2））。
 
 ### 4.3 BuildSystem の既知の課題との関係（判断基準による記録）
 
@@ -334,7 +334,7 @@ InGameSession
 - **全 EditMode 回帰の適用除外:** なし
 - **操作・実行時・目視条件の検証経路:** E1〜E6 は Play テストで閉じる（構造・値の検査。backend の呼び出し記録、`IAssetDiagnostics.GetOwners`、`VisualEffect` の件数、フレーム番号）。見た目の判断は求めない。E7 は Content Directory の build の出力で確かめる（判定 C の実行担当）。動作確認の対象: なし（offline のテストで閉じない操作・目視の条件が無い）。
 - **未知の操作経路:** kinematic Rigidbody と静的な trigger の Collider で、test が `MovePosition` で動かしたときに `OnTriggerEnter` / `OnTriggerExit` が届くこと（Unity の標準の挙動。未確認。初回確認は Phase C、理由: Unity テストが要る。担当: 発見 C の Unity 実行担当。確認地点: AC7 の最初の実行。不成立なら、test 用の go を非 kinematic にして位置を書く等の手段の変更は B 適応、trigger の検出方式を変える必要があれば Phase A へ返す）。
-- **未知の操作経路（2）:** Play テスト（`run-tests.ps1` は batchmode で起動する）で、active な trigger の go を `Object.Destroy` したとき `VfxOwnerDestroyNotifier.OnDestroy` が同じフレームに届くこと。notifier の XML doc は「一度も active にならなかった go や batchmode / EditMode では `OnDestroy` が呼ばれない」と書くが、Play 中の active な go の batchmode での振る舞いは未確認。未確認。初回確認は Phase C（理由: Unity テストが要る。担当: 発見 C の Unity 実行担当。確認地点: AC10 の最初の実行）。不成立なら、AC10（E5 の「同じフレーム」）を「次の `Tick`」に変える必要があり、成立条件の意味が変わるので Phase A を新しい revision で再開する。I1・I2 は E5 の経路に頼らないので影響しない。
+- **未知の操作経路（2）:** Play テスト（`run-tests.ps1` は batchmode で起動する）で、active な trigger の go を `Object.Destroy` したとき `LocalVfxEventTrigger.OnDestroy` が同じフレームに届くこと（AC10 の回収はこの経路。notifier の経路は d4b で確かめない。§2.4）。notifier の XML doc は「一度も active にならなかった go や batchmode / EditMode では `OnDestroy` が呼ばれない」と書くが、Play 中の active な go の batchmode での MonoBehaviour の `OnDestroy` の振る舞いは未確認。未確認。初回確認は Phase C（理由: Unity テストが要る。担当: 発見 C の Unity 実行担当。確認地点: AC10 の最初の実行）。不成立なら、AC10（E5 の「同じフレーム」）を「次の `Tick`」に変える必要があり、成立条件の意味が変わるので Phase A を新しい revision で再開する。I1・I2 は E5 の経路に頼らないので影響しない。
 - **人間の判断が必要な条件:** なし
 - **高コスト証拠:** なし（Player build を行わない）
 - **判定 C の照合 script の方式:** なし
@@ -365,10 +365,22 @@ InGameSession
 | 代替: ロード完了の直後に `IsSceneLoaded` を確かめ直し、false なら handle を即 Dispose する保険 | | 不採用 | §1.3 の読みでは起きない経路で、A2 (2) も現コードで成り立つと確かめた。通らない分岐を足さず、AC5 で前提を確かめ、崩れたら Phase A へ返す（§4.2） |
 | 代替: 進入者を Player の Rigidbody に絞る | | 不採用（U3） | 識別の規約を新しく足す必要があり、範囲を膨らませない |
 
-- **主担当が自分で洗い直した点（反映済み）:** `End()` の `Stop` を足したことで、d1 の「notifier の `OnDestroy` が実 Scene の unload で回収を呼ぶ」確認は通らない経路になる（§2.4 の表に記録）。go の個別の破棄の経路（AC10）は残すが、batchmode の Play での `OnDestroy` の届き方は未確認なので、未知の操作経路（2）と §4.2 に足した。
-- **A3 統合:** 統合版（本版）。U2・U3・上の採否は発注者が承認した（2026-10-28）。**凍結は発注者の指示待ち。** 凍結の commit で program の §6.3 d4b 行も更新する。
-- **C' 用に予約した担当:** OpenAI 系（Codex）。A2・A3 では使っていない。
-- **独立性の強化条件:** A2 の 3 件のうち 2 件が Anthropic 系（モデルは別）、1 件が xAI。C' を A〜C に関与していないベンダーで行うために OpenAI 系を予約した。
+- **主担当が自分で洗い直した点（反映済み）:** `End()` の `Stop` を足したことで、d1 の「notifier の `OnDestroy` が実 Scene の unload で回収を呼ぶ」確認は通らない経路になる（§2.4 の表に記録）。go の個別の破棄の経路（AC10）は残すが、batchmode の Play での `OnDestroy` の届き方は未確認なので、未知の操作経路（2）と §4.2 に足した。A3 レビューで、AC10 も notifier の証拠にならないと指摘され、§2.4 の該当 2 行を不採用（§16.7 に残す）に直した。
+- **A3 統合版のレビュー（2026-10-28）:** 統合版 `329d309c` を発注者が外部の GPT（OpenAI 系）に渡した静的照合レビュー。Unity の実行は無し。総合は「骨格は妥当、凍結前に P1 2 件・P2 2 件」。発注者の方針: Collider 群の厳密化で範囲が膨らむなら後続へ回してよい。
+- **A3 レビューの採否:**
+
+| 指摘 | 内容 | 採否 | 理由・反映先 |
+|---|---|---|---|
+| GPT 1（P1） | Rigidbody の id の集合では、同じ Rigidbody の Collider A・B が入って A だけ出ると在室が消え、B が中にいるのに止まる。AC3 の「2 つ目の Collider で在室数が変わらない」と食い違う | 制限として記録（後続へ） | AC3 の 2 つ目の Collider の宣言を削り、重複進入・在室に無い退出の扱いに直した。読み方に「進入者の Rigidbody は Collider 1 つ」の前提を明記（いまの Player は `CapsuleCollider` 1 つ）。Collider ごとの集約は「退出が来ない破棄」と同じ進入者の追跡の厳密化として「答えない問い」へ |
+| GPT 2（P1） | AC10 は `LocalVfxEventTrigger.OnDestroy` → `End` → `Stop` だけで通り、notifier の `OnDestroy` の証拠にならない | 採用（未確認へ戻す） | AC10 に経路を明記。§2.4 の notifier の Play 確認と `Bind` 所有者の 1 フレーム回収を不採用（§16.7 に残す）に。未知の操作経路（2）・§4.2 を trigger の `OnDestroy` に直した。notifier 単独の Play テストは足さない |
+| GPT 3（P2） | `LoadSceneScopedAssetAsync` は `IAssetHandle<T>` を返す | 採用 | D3・D4 に `.Value` の取り出し、handle を渡さない・個別 Release しない、null は U2 の失敗、を明記 |
+| GPT 4（P2） | I1 の「`Removed` の後に残らない」が AC9 の「次のフレーム」と揃っていない | 採用 | I1 を `Removed` までの `Destroy` 1 回（AC8）と次のフレームの 0 件（AC9）の 2 段に |
+| GPT 補足 A | 新しい Events が `Full`・`Planner` の対象に列挙される証拠 | 採用（小） | AC15 に Cell の `Children` への 1 回の登録と classifier の Events 分類を追加。driver の end-to-end は足さない |
+| GPT 補足 B | BuildSystem の境界の維持 | 変更なし | §4.3 のまま |
+
+- **A3 統合:** 統合版（本版）。U2・U3・A2 の採否は発注者が承認した（2026-10-28）。A3 レビューの採否は主担当の案で、発注者の承認待ち。**凍結は発注者の指示待ち。** 凍結の commit で program の §6.3 d4b 行も更新する。
+- **C' 用に予約した担当:** OpenAI 系（Codex）で予約していたが、A3 の統合版レビューに OpenAI 系（GPT）が関与したため、「A〜C に関与していないベンダー」の条件を満たさない。C' の担当ベンダーは凍結の前に発注者が決める。
+- **独立性の強化条件:** A2 の 3 件のうち 2 件が Anthropic 系（モデルは別）、1 件が xAI。A3 の統合版レビューは OpenAI 系。C' の担当は上記のとおり未定。
 
 ## 6. Phase B 実装結果
 
