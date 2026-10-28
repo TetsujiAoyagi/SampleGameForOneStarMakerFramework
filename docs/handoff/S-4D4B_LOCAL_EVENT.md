@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `C`（発見 C 2 巡目で阻害する指摘なし。次は判定 C。Phase A は A3 凍結版 revision 1 `c68b6d39`、A2 入力版は `04d833b0`、採否は §5.1）
+- status: `C`（判定 C 完了。次は C'。発見 C 2 巡目で阻害する指摘なし。Phase A は A3 凍結版 revision 1 `c68b6d39`、A2 入力版は `04d833b0`、採否は §5.1）
 - branch: `claude/s-4d4b-local-event`
 - implementation base commit: `9d0c8f2f`（`develop`、S-4d4a の PR #147 のマージ）
 - implementation head commit: `4cb3b8d3`（B 差し戻し 1 巡目の修正 commit。親は発見 C 1 巡目の記録 `3300d497`、その前の実装 commit は `eba9ddaf`。判定 C 用の GO 候補としては未固定）
@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（引渡しはローカルの commit SHA で行う。evidence の固定は発見 C が `workflow-task.ps1 start` の後に行う）
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C 用 bundle（head `4cb3b8d3`）。引渡し先は同一 PC の C' 担当。取得案内は進行役の共有メモにある。fetch は作成 session で確認済み、別 session の確認は未実施
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: 発見 C 2 巡目完了（2026-10-29、対象 implementation head `4cb3b8d3`、阻害する指摘なし。§7）。次は判定 C（GO 候補 head `4cb3b8d3`。判定 C は途中: 全 EditMode は 2 回とも XML 完成・failed 0 だが Unity 終了 stall のため未完了、§7）。未実行は全 EditMode 回帰（空 filter）、Play テスト（`-WithGraphics`）、AC16（`Build Spring Full` / `Build Spring Whitebox`）、AC17 の既存回帰、`contract-audit`、Evidence の stage と C 用 bundle。C' の担当ベンダーは進行役が選ぶ（§5.1）。
+- 引継ぎ票: 発見 C 2 巡目完了（2026-10-29、対象 implementation head `4cb3b8d3`、阻害する指摘なし。§7）。次は判定 C（GO 候補 head `4cb3b8d3`。判定 C は完了（2026-10-29）: 全 EditMode の Unity 終了 stall は人間が既知リスクとして受容、Play・AC16・AC17 は pass、§7）。次は C'。未実行は全 EditMode 回帰（空 filter）、Play テスト（`-WithGraphics`）、AC16（`Build Spring Full` / `Build Spring Whitebox`）、AC17 の既存回帰、`contract-audit`、Evidence の stage と C 用 bundle。C' の担当ベンダーは進行役が選ぶ（§5.1）。
 
 ---
 
@@ -483,7 +483,7 @@ InGameSession
   - `OneStarMaker.Tests.Streaming.SessionCellCompanionLoadDriverTests`（AC17、EditMode）: 15 件 passed、exit 0。
   - AC16: `Build Spring Full` と `Build Spring Whitebox`（`SampleGameContentBuild.BuildSpringFull` / `BuildSpringWhitebox` を `-batchmode -executeMethod` で実行）。どちらも exit 0、`outcome.json` の summary は `Succeeded`。両方の Content Directory の catalog に `Spring_Events_4_2.unity` の Scene payload がある。
 - **Evidence:** C 用 bundle（実行 log・XML・`step.json`、AC16 の log・`outcome.json`・catalog、`4cb3b8d3` までの diff、`contract-audit` の出力）を `evidence stage` した。状態: ローカル固定済み（未昇格）。引渡し先は同一 PC の C' 担当（進行役が選ぶ）。取得案内は進行役の共有メモ（side-session-notes）にある。同じ session で `fetch` が成功し、bundle の内容を読めることは確認した。別 session での取得確認は未実施。
-- **判定 C の状態:** 判定必須のうち、全 EditMode 回帰だけが Unity の終了 stall で `step.json` が `failed` のまま（XML は 2 回とも 1387 passed・failed 0）。それ以外は揃った。この点の扱い（既知リスクの受容か）は進行役・人間の判断に残し、判定 C を完了とは記録しない。GO / NO-GO は出していない。
+- **判定 C の状態:** 判定必須のうち、全 EditMode 回帰だけが Unity の終了 stall で `step.json` が `failed` のまま（XML は 2 回とも 1387 passed・failed 0。inconclusive 23 は graphics 必須の Play テストで、上の `-WithGraphics` 実行で pass）。**この stall は、人間の決定（2026-10-29、「受容して完了」）により既知リスクとして受容した。** テスト失敗・欠測への受容ではなく、raw はそのまま保持する（強制停止を伴う run を成功証拠とはしない）。これにより判定必須が揃い、**判定 C 完了: GO 候補 implementation head `4cb3b8d3` に阻害する指摘なし。** 次は C'（未関与の担当を進行役が選ぶ。C 用 bundle は上記、blind 入力は所見から分離して生成する）。
 - 判定 C 担当: Anthropic 系（Claude Sonnet 系）。
 
 ## 8. Phase C'
