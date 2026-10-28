@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `A`（A3 統合版。A2・A3 レビューの採否は承認済み、凍結は待ち。A2 入力版は `04d833b0`、採否は §5.1）
+- status: `A`（A3 凍結版、revision 1。A2 入力版は `04d833b0`、採否は §5.1）
 - branch: `claude/s-4d4b-local-event`
 - implementation base commit: `9d0c8f2f`（`develop`、S-4d4a の PR #147 のマージ）
 - implementation head commit: 未固定
@@ -19,13 +19,13 @@
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: Phase A 作業中。A2 の独立レビュー 3 件と A3 統合版のレビュー（GPT）を統合した A3 統合版（§5.1）。U2・U3 と両方の採否は承認済み。C' の担当ベンダーは未定（Phase C' の開始までに発注者が決める）。発注者が凍結を指示したら A3 凍結 commit を作る（program の §6.3 d4b 行の更新を含む）。凍結までは Phase B に入らない。Phase B へは A3 凍結後に新しい session で入る。
+- 引継ぎ票: Phase A 凍結（2026-10-28、revision 1。発注者の指示）。凍結した版はこの文書の A3 凍結 commit。次は Phase B を新しい session で始める（base `9d0c8f2f`、ブランチ `claude/s-4d4b-local-event` の凍結 commit から。§4.1 の順序、§4.2 の差し戻し条件）。Unity テストと Build は Phase C。C' の担当ベンダーは未定（Phase C' の開始までに発注者が決める）。
 
 ---
 
 ## 1. 目的と対象外
 
-- **目的:** Cell `Spring (4,2)` の Events Scene `Spring_Events_4_2` に trigger を置き、trigger から VFX を `IVfxSystem` 越しに動的に起動し、Cell の unload と trigger の GameObject の破棄で確実に回収されることを、実 Scene で示す。d1 から送られてきた `Bind(go)` 所有の実例（破棄通知での回収、source asset と instance の前後関係、同じ identity の再ロード後の再受理）をここで閉じる。
+- **目的:** Cell `Spring (4,2)` の Events Scene `Spring_Events_4_2` に trigger を置き、trigger から VFX を `IVfxSystem` 越しに動的に起動し、Cell の unload と trigger の GameObject の破棄で確実に回収されることを、実 Scene で示す。d1 から引き継いだ動的 VFX の寿命の実証のうち、trigger の `End()`（Scene の `OnPreUnLoadedImpl` か trigger の `OnDestroy`）による回収、source asset と instance の前後関係、同じ identity の再ロード後の再受理をここで確かめる。`VfxOwnerDestroyNotifier` 単独の `OnDestroy` 経路の Play 確認は §16.7 に残す（§2.4。§1.2 の d1 からの転記は当初の A0 入力で、現行の条件は §2）。
 - **対象外:**
   - 独立 Scene の大型 Event `Spring_Event_MultiCellProof`、Planner 実証の全体、S-4 の harvest と program の削除（S-4d5）。
   - trigger の VFX asset を Content Directory・Player build に乗せる経路（BuildSystem の実装系。2026-10-27 発注者決定、§2.6 U1）。
@@ -170,7 +170,7 @@ InGameSession
 - **E2 準備前の進入:** asset のロードが終わる前に入っていた場合は、ロードの完了の時点で E1 と同じように起動する（入って出た後なら起動しない）。
 - **E3 再入と退出:** 退出で、その trigger の handle に `StopAllowingParticlesToFinish`。退出の後の再入、または handle が残ったままの再入では、前の handle を即 `Stop` してから新しく起動する（trigger ごとに生存 instance は高々 1 つ）。
 - **E4 Cell unload で回収:** 親 Cell `Spring_Cell_4_2` の unload で、E1 の instance が I1・I2 のとおり回収される。
-- **E5 go の破棄で回収:** Play 中に trigger の go を `Object.Destroy` すると、その go に `Bind` した instance の `Destroy` が、そのフレームの破棄（`OnDestroy`）の中で呼ばれる（次のフレームの `Tick` を待たない）。
+- **E5 go の破棄で回収:** Play 中に trigger の go を `Object.Destroy` すると、その go に `Bind` した instance の backend `Destroy` が、go を破棄したフレームの中で要求される（次のフレームの `Tick` を待たない。経路は問わない。AC10）。
 - **E6 再ロード後の再受理:** 同じ identity の Scene を unload → 再ロードした後、再び起動できる（Framework: 実 `TestableSceneDirector` の 1 往復、SampleGame: 実 Scene で Cell を載せ直して trigger から再び `Create`）。
 - **E7 content build:** `Tools/OSM/Content/Build Spring Full` と `Build Spring Whitebox` の両方の Content Directory に、`Spring_Events_4_2` が Scene payload として入る（Player の動作の証明ではない）。
 
@@ -214,7 +214,7 @@ InGameSession
 
 | 項目 | 扱い |
 |---|---|
-| notifier の `OnDestroy` が実 Scene unload と go の Destroy で回収を呼ぶことの Play Mode 確認 | 不採用（§16.7 に未確認として残す）。実 Scene の unload でも go の Destroy（AC10）でも、trigger の `End()` の `Stop` が先に回収するので notifier の経路を通らず、AC10 は notifier の証拠にならない（A2 Grok F1 による設計の変更、A3 GPT 指摘 2）。d4b の問いの判定に notifier 単独の Play テストは要らない |
+| notifier の `OnDestroy` が実 Scene unload と go の Destroy で回収を呼ぶことの Play Mode 確認 | 不採用（§16.7 に未確認として残す）。実 Scene の unload では `OnPreUnLoadedImpl` の `End()` の `Stop` が先に回収するので notifier の経路を通らない。trigger の go を個別に `Object.Destroy` した場合は、同じ go の trigger と notifier の `OnDestroy` の順を Unity が定めないので、AC10 は同じフレームの回収だけを確かめ、notifier 単独の経路の証明にはしない（A2 Grok F1 による設計の変更、A3 GPT 指摘 2・再レビュー P3）。d4b の問いの判定に notifier 単独の Play テストは要らない |
 | 同じ identity の再ロードを実 `SceneDirector` で 1 往復 | 採用（AC6・AC11） |
 | d2 のテストが直接見ていない経路のうち、`Bind` 所有者の破棄から 1 フレーム以内の回収 | 不採用（§16.7 に残す。上と同じ理由で、AC10 の同じフレームの回収は `Bind` の仕組みではなく trigger の `End()` による） |
 | 同、`Create` 直後に発射しないことの長い観測窓、host の Update 登録の失敗、backend の `Create` が GameObject の作成後に失敗した場合の後始末 | 不採用（d4b の問いの判定に要らない。§16.7 に残す） |
@@ -378,7 +378,7 @@ InGameSession
 | GPT 補足 A | 新しい Events が `Full`・`Planner` の対象に列挙される証拠 | 採用（小） | AC15 に Cell の `Children` への 1 回の登録と classifier の Events 分類を追加。driver の end-to-end は足さない |
 | GPT 補足 B | BuildSystem の境界の維持 | 変更なし | §4.3 のまま |
 
-- **A3 統合:** 統合版（本版）。U2・U3・A2 の採否は発注者が承認した（2026-10-28）。A3 レビューの採否も発注者が主担当の案どおり承認した（2026-10-28）。**凍結は発注者の指示待ち。** 凍結の commit で program の §6.3 d4b 行も更新する。
+- **A3 統合:** 統合版。U2・U3・A2 の採否は発注者が承認した（2026-10-28）。A3 レビューの採否も発注者が主担当の案どおり承認した（2026-10-28）。
 - **凍結前の主担当の見直し（Phase C・C' で指摘されそうな点、反映済み）:**
   - AC10 が「経路は trigger の `OnDestroy` → `End`」と断定していたが、同じ go の notifier と trigger の `OnDestroy` の順は Unity が定めない。経路を判定から外し、フレームと回数だけで判定する形にした。
   - AC8 の「Unity Scene unload より前」に観測の方法が無かった。trigger の go の生存と Events の Unity Scene の `isLoaded` で観測する形にした。
@@ -386,6 +386,8 @@ InGameSession
   - AC5 と §3 が「既存の偽 asset backend」で保留中のロードを作れる前提だったが、`FakeAssetBackend.LoadAssetAsync` は即時完了する。保留できる test double を足すことを明記した（Framework のコードは変えない）。
   - I7 に常時契約の `#nullable enable` と `record` 禁止を足した。
   - 確かめて変更不要だった点: base `9d0c8f2f` の後に `origin/develop` は進んでいない（2026-10-28）。Content Directory の candidate は `SceneResource` の payload から作るので、`.vfx` の Addressables entry が candidate になって build が止まることは無い。Whitebox の build にも Full だけの補助 Scene（Events）が共通として入る（`SeasonSceneSelectionPolicy`）。
+- **A3 再レビュー（2026-10-28）:** `89a6242a` を同じ GPT（OpenAI 系）が静的に再レビュー。結論は「凍結 GO を推奨。前回の P1・P2 は解消、新しいブロッカーなし」。P3 の 2 件（§1 の目的の「破棄通知での回収をここで閉じる」と §2.4 の `OnDestroy` の順の断定が現行の裁定と食い違う）と、E5 の文言を AC10 のフレームだけの観測に揃える提案を採用し、凍結 commit で直した。
+- **A3 凍結:** 2026-10-28、発注者の指示で revision 1 として凍結。program の §6.3 d4b 行を更新した。
 - **C' 用に予約した担当:** OpenAI 系（Codex）で予約していたが、A3 の統合版レビューに OpenAI 系（GPT）が関与したため、「A〜C に関与していないベンダー」の条件を満たさない。C' の担当ベンダーは Phase C' の開始までに発注者が決める（2026-10-28、発注者「後で決める」）。
 - **独立性の強化条件:** A2 の 3 件のうち 2 件が Anthropic 系（モデルは別）、1 件が xAI。A3 の統合版レビューは OpenAI 系。C' の担当は上記のとおり未定。
 
