@@ -3,10 +3,13 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
+using OneStarMaker.Foundation.UpdateSystem.Layers;
 using OneStarMaker.Runtime;
+using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.Rendering.Vfx;
 using OneStarMaker.Runtime.UpdateSystem.Api;
 using SampleGame.Common.Rendering.Vfx;
@@ -22,7 +25,12 @@ namespace SampleGame.Tests.Rendering.Vfx
 {
     /// <summary>
     /// 実 backend（VFX Graph）を Play 中に動かすテストの共通の起動と後始末。本物の AppInitializer が起動した状態で、
-    /// テストが自分の backend を作って確かめる（後から能力判定を書いた backend が <see cref="VfxCapabilityState"/> の writer になる）。
+    /// テストが自分の backend と Framework の host（VfxSystem）を作って確かめる。配置済み VFX もテストの VfxSystem に
+    /// 登録して有効にする（marker は自分では有効化しない）。
+    /// <para>
+    /// 時間: テストが変えた Gameplay Layer の pause・倍率と <c>Time.timeScale</c> は TearDown で元に戻す
+    /// （アプリの Gameplay の要素も同じ Layer にいるため）。
+    /// </para>
     /// <para>
     /// 起動の前提は既存の Play 中のテストと同じ: 現在の Scene 構成を保存して空の Scene を開き、content の runtime mode を
     /// addressables にしてから Play に入り、TearDown で戻す。起動の失敗は VFX の不具合と区別できる文言で失敗させる。
@@ -51,6 +59,10 @@ namespace SampleGame.Tests.Rendering.Vfx
         private bool _contentModeChanged;
         private string? _previousDebugSocketEnabled;
         private bool _debugSocketEnabledChanged;
+        private bool _gameplayChanged;
+        private bool _previousGameplayPaused;
+        private float _previousGameplayScale = 1f;
+        private float _previousTimeScale = 1f;
 
         /// <summary>TearDown で破棄する Object（GameObject・RenderTexture 等）。</summary>
         protected List<Object> Objects { get; } = new();
@@ -111,7 +123,9 @@ namespace SampleGame.Tests.Rendering.Vfx
         {
             try
             {
-                // 後に作ったものから戻す（host → backend の順。writer の backend の Dispose で状態が未判定に戻る）。
+                RestoreTime();
+
+                // 後に作ったものから戻す（host の Dispose が自分の backend も Dispose する）。
                 for (var i = _disposables.Count - 1; i >= 0; i--)
                 {
                     _disposables[i].Dispose();
@@ -196,24 +210,118 @@ namespace SampleGame.Tests.Rendering.Vfx
             return go;
         }
 
-        private protected VfxRuntimeHost CreateHost(VfxGraphBackend backend, float timeoutSeconds = 10f)
+        /// <param name="backend">null なら未構成（Framework の UnconfiguredVfxBackend）。</param>
+        private protected VfxRuntimeHost CreateHost(VfxGraphBackend? backend, float timeoutSeconds = 10f)
         {
             var coordinator = UpdateSystemRuntime.Coordinator
                               ?? throw new InvalidOperationException("UpdateSystem の coordinator が無い");
             return Track(VfxRuntimeHost.Create(backend, NullLoggerFactory.Instance, coordinator, timeoutSeconds));
         }
 
+        /// <summary>指定の platform の事実で判定する backend と、それを使う host（テストの VfxSystem）を作る。</summary>
+        private protected VfxRuntimeHost CreateHost(Func<VfxPlatformFacts> facts)
+            => CreateHost(new VfxGraphBackend(facts));
+
         private protected static VfxInstanceId IdOf(IVfxHandle handle) => ((VfxHandle)handle).Id;
 
-        // ─── 起動の条件（d3 の VFX Scene のテストが共有）───
-
-        protected void PublishCapability(Func<VfxPlatformFacts> facts, VfxCapability expected)
+        /// <summary>
+        /// Scene の root から marker を集め、テストの VfxSystem に登録する（本番では Scene class が行う）。
+        /// 所有者は App にして、テストが handle で回収する。
+        /// </summary>
+        private protected static List<IVfxHandle> AdoptMarkers(IVfxSystem vfx, IEnumerable<GameObject> roots)
         {
-            // test の backend を writer にする。TearDown の Dispose で未判定に戻る。
-            var backend = Track(new VfxGraphBackend(facts));
-            backend.QueryCapability(out _);
-            Assert.That(VfxCapabilityState.Current, Is.EqualTo(expected), "前提: 能力判定の状態");
+            var handles = new List<IVfxHandle>();
+            foreach (var root in roots)
+            {
+                foreach (var marker in root.GetComponentsInChildren<PlacedVfxActivator>(includeInactive: true))
+                {
+                    handles.Add(vfx.Adopt(marker.Effect!, AssetOwner.App, marker.UsesUnscaledTime ? null : UpdateLayerIds.Gameplay));
+                }
+            }
+
+            return handles;
         }
+
+        // ─── 時間（TearDown で戻す）───
+
+        /// <summary>アプリの coordinator の Gameplay Layer（Framework の host が作っている）。</summary>
+        protected UpdateLayer GameplayLayer
+        {
+            get
+            {
+                var coordinator = UpdateSystemRuntime.Coordinator
+                                  ?? throw new InvalidOperationException("UpdateSystem の coordinator が無い");
+                Assert.That(coordinator.TryGetLayer(UpdateLayerIds.Gameplay, out var layer), Is.True, "前提: Gameplay Layer がある");
+                RememberTime();
+                return layer!;
+            }
+        }
+
+        protected void SetTimeScale(float timeScale)
+        {
+            RememberTime();
+            Time.timeScale = timeScale;
+        }
+
+        private void RememberTime()
+        {
+            if (_gameplayChanged)
+            {
+                return;
+            }
+
+            var coordinator = UpdateSystemRuntime.Coordinator;
+            if (coordinator != null && coordinator.TryGetLayer(UpdateLayerIds.Gameplay, out var layer))
+            {
+                _previousGameplayPaused = layer.IsPaused;
+                _previousGameplayScale = layer.TimeScale;
+            }
+
+            _previousTimeScale = Time.timeScale;
+            _gameplayChanged = true;
+        }
+
+        private void RestoreTime()
+        {
+            if (!_gameplayChanged)
+            {
+                return;
+            }
+
+            _gameplayChanged = false;
+            Time.timeScale = _previousTimeScale;
+            var coordinator = UpdateSystemRuntime.Coordinator;
+            if (coordinator != null && coordinator.TryGetLayer(UpdateLayerIds.Gameplay, out var layer))
+            {
+                layer.IsPaused = _previousGameplayPaused;
+                layer.SetTimeScale(_previousGameplayScale);
+            }
+        }
+
+        private static readonly Stopwatch SpinClock = Stopwatch.StartNew();
+        // ループの結果の置き場（読まれないが、捨てるとループごと最適化で消されうる）。
+        private static double SpinSink { get; set; }
+
+        /// <summary>
+        /// 数値計算のループで main thread を指定秒だけ占有し、そのフレームを引き延ばす（負荷スパイクの再現）。
+        /// <c>Thread.Sleep</c> は使わない（テストの待ちの約束）。
+        /// </summary>
+        protected static void SpinMainThread(double seconds)
+        {
+            var end = SpinClock.Elapsed.TotalSeconds + seconds;
+            var sink = 0.0;
+            while (SpinClock.Elapsed.TotalSeconds < end)
+            {
+                for (var i = 0; i < 256; i++)
+                {
+                    sink += Math.Sqrt(i + sink);
+                }
+            }
+
+            SpinSink = sink;
+        }
+
+        // ─── 起動の条件（d3 の VFX Scene のテストが共有）───
 
         protected void UsePcQuality()
         {

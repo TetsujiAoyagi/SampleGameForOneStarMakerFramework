@@ -113,6 +113,13 @@ namespace OneStarMaker.Runtime
         protected IAssetManagement? AssetManagement => _assetManagement;
 
         /// <summary>
+        /// Game が VFX を起動・登録する窓口。BeforeSceneLoad 完了後は非 null で、VFX backend を構成していない・非対応の
+        /// 環境でも何もしない handle を返す（Game に対応可否の分岐を書かせない）。
+        /// Scene class へは factory の ctor 注入で渡す（service locator にしない）。
+        /// </summary>
+        protected IVfxSystem? Vfx => _vfxRuntimeHost?.System;
+
+        /// <summary>
         /// Framework 標準のロガーファクトリ。
         /// DebugSocketService が有効な場合は、その realtime stream もここへ配線される。
         /// </summary>

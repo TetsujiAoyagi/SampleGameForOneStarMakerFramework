@@ -96,6 +96,19 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
 
         internal List<VfxHandle> SnapshotAll() => new(_byId.Values);
 
+        /// <summary>
+        /// 全 handle を呼び出し側の buffer へ写す（毎フレームの反映点用。新しい snapshot を確保しない）。
+        /// 写した後の列挙中に再入で索引が変わっても buffer は影響を受けない。
+        /// </summary>
+        internal void CopyAllTo(List<VfxHandle> destination)
+        {
+            destination.Clear();
+            foreach (var handle in _byId.Values)
+            {
+                destination.Add(handle);
+            }
+        }
+
         internal List<VfxHandle> SnapshotSceneOwned()
         {
             var result = new List<VfxHandle>();

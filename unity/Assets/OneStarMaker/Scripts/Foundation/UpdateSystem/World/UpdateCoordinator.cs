@@ -1,5 +1,8 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using OneStarMaker.Foundation.UpdateSystem.Apply;
 using OneStarMaker.Foundation.UpdateSystem.Configuration;
 using OneStarMaker.Foundation.UpdateSystem.Layers;
@@ -78,6 +81,30 @@ namespace OneStarMaker.Foundation.UpdateSystem.World
             _orderedLayers.Add(layer);
             _orderedLayers.Sort(LayerOrderComparer.Instance);
             return layer;
+        }
+
+        /// <summary>
+        /// 登録済みの Layer を作らずに引く。無ければ false。
+        /// 状態（pause・time scale）を読むだけの利用者が、存在しない Layer を既定の順序で作ってしまわないために使う
+        /// （<see cref="GetOrCreateLayer"/> は同じ id に別の順序を渡すと例外を投げるので、後から正しい順序で作れなくなる）。
+        /// </summary>
+        public bool TryGetLayer(string layerId, [NotNullWhen(true)] out UpdateLayer? layer)
+        {
+            if (string.IsNullOrWhiteSpace(layerId))
+            {
+                layer = null;
+                return false;
+            }
+
+            // GetOrCreateLayer と同じ正規化をする。前後の空白だけが違う id で別の Layer に見えないように。
+            if (_layersById.TryGetValue(layerId.Trim(), out var found))
+            {
+                layer = found;
+                return true;
+            }
+
+            layer = null;
+            return false;
         }
 
         public UpdateLayer GetOrCreateUpdateLayer(string layerId, int layerOrder = 0)

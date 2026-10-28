@@ -2,6 +2,7 @@
 
 using System;
 using OneStarMaker.Runtime.AssetManagement;
+using OneStarMaker.Runtime.UpdateSystem.Api;
 using UnityEngine;
 
 namespace OneStarMaker.Runtime.Rendering.Vfx
@@ -10,9 +11,16 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
     /// 1 instance の状態機械と、backend 呼び出しの例外境界。
     /// <para>
     /// 状態は Created → Playing → Stopping → Released の一方向で、Released は吸収状態。
-    /// Released への遷移は <see cref="Release"/> の1か所だけを通り、「状態を書く → 索引から外す → backend Destroy」
-    /// の順に行う。backend 呼び出しより先に状態と索引を確定させるので、Destroy の中から破棄通知や Spawn が
-    /// 同期で再入しても二回目の Destroy は起きない。
+    /// Released への遷移は <see cref="Release"/> の1か所だけを通り、「状態を書く → 索引から外す → backend の回収」
+    /// の順に行う。backend の回収は、動的な instance なら Destroy、Scene に配置済みの VFX（adopted）なら Release
+    /// （無効化と登録解除だけで GameObject を壊さない）。backend 呼び出しより先に状態と索引を確定させるので、
+    /// 回収の中から破棄通知や Spawn が同期で再入しても二回目の回収は起きない。
+    /// </para>
+    /// <para>
+    /// 時間: handle は所属する時間の領域（Layer id、null は unscaled）と、backend へ前回書いた再生状態
+    /// (paused, rate) と、開始の保留を持つ。計算は <see cref="VfxTimeLayerBinding"/> に任せ、ここは
+    /// 「値が変わったときだけ書く」「止まっている間は開始を backend に届けない」「開始は状態を書いた後」の順序だけを守る。
+    /// 消え切り待ちの timeout は領域の時間で数える（止まっている間は進まない）。
     /// </para>
     /// <para>
     /// backend の Play / StopEmitting / HasAliveParticles / Set* の呼び出し中にも、同じ handle の Stop や
@@ -36,22 +44,45 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
         private readonly IVfxBackend _backend;
         private readonly Action<VfxHandle> _onReleased;
         private readonly Action<VfxHandle, Exception> _onFailed;
+        private readonly IVfxTimeSource? _timeSource;
         private float _stoppingElapsed;
         private bool _failureReported;
 
+        // backend へ前回書いた再生状態。初期値は backend の契約上の初期状態（止まっていない、倍率 1）。
+        private bool _writtenPaused;
+        private float _writtenRate = VfxTimeLayerBinding.InitialRate;
+
+        // 開始の保留。止まった領域での Play と、adopted の自動開始で立つ。止まっていない最初の反映点で backend へ届ける。
+        private bool _startPending;
+
+        /// <param name="timeSource">null なら領域は常に「止まっていない」とみなし、再生状態を書かない。</param>
+        /// <param name="timeLayerId">所属する時間の領域の Layer id。null は unscaled。</param>
+        /// <param name="placed">adopted の instance なら登録した配置済みの component。動的な instance なら null。</param>
         internal VfxHandle(
             IVfxBackend backend,
             VfxInstanceId id,
             AssetOwner owner,
             Action<VfxHandle> onReleased,
-            Action<VfxHandle, Exception> onFailed)
+            Action<VfxHandle, Exception> onFailed,
+            IVfxTimeSource? timeSource = null,
+            string? timeLayerId = UpdateLayerIds.Gameplay,
+            UnityEngine.Object? placed = null)
         {
             _backend = backend;
             Id = id;
             Owner = owner;
             _onReleased = onReleased;
             _onFailed = onFailed;
+            _timeSource = timeSource;
+            TimeLayerId = timeLayerId;
+            Placed = placed;
+
+            // 参照の有無で種別を決める（破棄済みでも adopted であることは変わらない）。偽 null の判定ではない。
+            IsAdopted = !ReferenceEquals(placed, null);
             State = HandleState.Created;
+
+            // 配置済み VFX は「自動で開始するもの」。登録の時点では開始せず、最初の止まっていない反映点で開始する。
+            _startPending = IsAdopted;
         }
 
         internal VfxInstanceId Id { get; }
@@ -59,6 +90,18 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
         internal AssetOwner Owner { get; }
 
         internal HandleState State { get; private set; }
+
+        /// <summary>所属する時間の領域の Layer id。null は unscaled。</summary>
+        internal string? TimeLayerId { get; }
+
+        /// <summary>Scene に配置済みの VFX を登録した instance か。回収で Destroy ではなく backend の Release を呼ぶ。</summary>
+        internal bool IsAdopted { get; }
+
+        /// <summary>adopted の instance が登録した component（二重登録の検出に使う）。破棄済みでも参照は残る。</summary>
+        internal UnityEngine.Object? Placed { get; }
+
+        /// <summary>テスト用: 開始が保留されているか。</summary>
+        internal bool IsStartPending => _startPending;
 
         public bool IsActive => State != HandleState.Released;
 
@@ -71,24 +114,28 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
                 return false;
             }
 
-            bool played;
-            try
+            // 開始するか保留するかは、呼び出し時点の領域の状態で決める（反映点を通過したかは見ない）。そのフレームの
+            // 反映点より後に Resume してから Play を呼ぶと、この instance だけそのフレームに開始する。止まった時間で
+            // 進まない約束は反映点で backend に書く状態についてのもので、この即時の開始はそれに反しない。厳密にするには
+            // 「このフレームの反映点を通過済み」の状態が要り、止まっていない領域での即時の開始（Spawn → Play の同期列）とも
+            // 両立しないので、持たない。
+            VfxTimeLayerBinding.EvaluateDomain(_timeSource, TimeLayerId, out var paused, out var domainDelta);
+            if (paused || _startPending)
             {
-                played = _backend.Play(Id);
+                // 止まった領域では開始を backend に届けない。保留済み（adopted の自動開始を含む）なら反映点に任せる。
+                _startPending = true;
+                return true;
             }
-            catch (Exception e)
+
+            // 開始は常に「状態の反映 → 開始」の順。そのフレームの反映点より後に作られた instance でも、
+            // 領域の倍率を書いてから発射する。
+            var rate = VfxTimeLayerBinding.ComputeRate(paused, domainDelta, UnscaledDeltaTime, _writtenRate);
+            if (!WritePlayback(paused, rate) || State != before)
             {
-                Fail(e);
                 return false;
             }
 
-            if (State != before || !played)
-            {
-                return false;
-            }
-
-            State = HandleState.Playing;
-            return true;
+            return StartOnBackend(before);
         }
 
         public void Stop() => Release();
@@ -100,10 +147,13 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
             switch (State)
             {
                 case HandleState.Created:
-                    // backend 契約で Create は発射しないので、未再生なら粒子は無い。
+                    // backend 契約で Create・Adopt は発射しないので、未再生なら粒子は無い。開始の保留中でも同じで、
+                    // 開始を届けずに回収する。
                     Release();
                     return;
                 case HandleState.Playing:
+                    // 保留中の再トリガは消え切り待ちと両立しないので捨てる。
+                    _startPending = false;
                     // StopEmitting の前に Stopping を書く。呼び出し中に同じ操作が再入しても StopEmitting は1回で済み、
                     // Dispose が再入した場合は Released が上書きするので Stopping へ戻らない。
                     State = HandleState.Stopping;
@@ -180,8 +230,43 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
         }
 
         /// <summary>
-        /// 回収の唯一の入口。Destroy の要求は高々1回で、例外を投げても再試行しない
-        /// （資源が残った場合の回復は backend の責任）。
+        /// 反映点（<c>Vfx</c> Layer の LateUpdate）での 1 instance の処理。順序は
+        /// 「領域の状態を書く（変わったときだけ）→ 保留した開始を届ける（止まっていなければ）→ 消え切り待ちを領域の時間で進める」。
+        /// 所属 Layer が止まっていても呼ばれるので、Pause と Resume のどちらも同じフレームの simulation の前に反映される。
+        /// </summary>
+        internal void ApplyFrame(float timeoutSeconds)
+        {
+            if (State == HandleState.Released)
+            {
+                return;
+            }
+
+            VfxTimeLayerBinding.EvaluateDomain(_timeSource, TimeLayerId, out var paused, out var domainDelta);
+            var rate = VfxTimeLayerBinding.ComputeRate(paused, domainDelta, UnscaledDeltaTime, _writtenRate);
+            if (!WritePlayback(paused, rate))
+            {
+                return;
+            }
+
+            if (_startPending && !paused)
+            {
+                _startPending = false;
+                var before = State;
+                if (before == HandleState.Created || before == HandleState.Playing)
+                {
+                    StartOnBackend(before);
+                }
+            }
+
+            if (State == HandleState.Stopping)
+            {
+                AdvanceStopping(domainDelta, timeoutSeconds);
+            }
+        }
+
+        /// <summary>
+        /// 回収の唯一の入口。backend の回収（動的は Destroy、adopted は Release）の要求は高々1回で、
+        /// 例外を投げても再試行しない（資源が残った場合の回復は backend の責任）。
         /// </summary>
         internal void Release()
         {
@@ -191,15 +276,73 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
             }
 
             State = HandleState.Released;
+            _startPending = false;
             _onReleased(this);
             try
             {
-                _backend.Destroy(Id);
+                if (IsAdopted)
+                {
+                    _backend.Release(Id);
+                }
+                else
+                {
+                    _backend.Destroy(Id);
+                }
             }
             catch (Exception e)
             {
                 ReportFailure(e);
             }
+        }
+
+        private float UnscaledDeltaTime => _timeSource?.UnscaledDeltaTime ?? 0f;
+
+        /// <summary>
+        /// 再生状態が前回書いた値と違うときだけ backend に書く。backend の失敗で回収されたら false。
+        /// 値は呼び出しの前に記録する（呼び出し中の再入で同じ値を二度書かないため）。
+        /// </summary>
+        private bool WritePlayback(bool paused, float rate)
+        {
+            if (_timeSource == null || (paused == _writtenPaused && rate == _writtenRate))
+            {
+                return State != HandleState.Released;
+            }
+
+            _writtenPaused = paused;
+            _writtenRate = rate;
+            try
+            {
+                _backend.SetPlayback(Id, paused, rate);
+            }
+            catch (Exception e)
+            {
+                Fail(e);
+                return false;
+            }
+
+            return State != HandleState.Released;
+        }
+
+        private bool StartOnBackend(HandleState before)
+        {
+            bool played;
+            try
+            {
+                played = _backend.Play(Id);
+            }
+            catch (Exception e)
+            {
+                Fail(e);
+                return false;
+            }
+
+            if (State != before || !played)
+            {
+                return false;
+            }
+
+            State = HandleState.Playing;
+            return true;
         }
 
         private bool SetParameter<T>(string name, T value, Func<IVfxBackend, VfxInstanceId, string, T, bool> call)

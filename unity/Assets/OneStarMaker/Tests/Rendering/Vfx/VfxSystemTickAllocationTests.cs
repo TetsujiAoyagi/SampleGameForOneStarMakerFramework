@@ -7,6 +7,7 @@ using NUnit.Framework;
 using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.Rendering.Vfx;
 using OneStarMaker.Runtime.SceneSystem;
+using OneStarMaker.Runtime.UpdateSystem.Api;
 using R3;
 using UnityEngine;
 
@@ -14,7 +15,7 @@ namespace OneStarMaker.Tests.Rendering.Vfx
 {
     /// <summary>
     /// UpdateSystem に毎フレーム登録される前提で足した VfxSystem の性質を見る:
-    /// instance 0 の Tick が managed heap を確保しないこと、Tick の中の 1 handle の失敗が同じ Tick の残りを止めないこと、
+    /// instance 0 の Tick と、値が変わらないフレームの反映処理が managed heap を確保しないこと、Tick の中の 1 handle の失敗が同じ Tick の残りを止めないこと、
     /// scene event の Subscribe が失敗したら Scene 所有の Spawn を拒否する状態に戻ること。
     /// </summary>
     [TestFixture]
@@ -80,6 +81,47 @@ namespace OneStarMaker.Tests.Rendering.Vfx
             }
 
             Assert.That(GC.GetAllocatedBytesForCurrentThread() - before, Is.EqualTo(0));
+        }
+
+        /// <summary>
+        /// AC12: 生存 instance があり再生状態が変わらないフレームで、新しく足した反映処理は確保しない。
+        /// 対象は反映処理（<see cref="VfxSystem.ApplyFrame"/>）だけで、Tick の他の部分（破棄済み所有者の検査の snapshot）は
+        /// 対象外。再生中・止まった領域で開始を保留中・unscaled の instance を混ぜ、どれも backend を呼ばない状態で測る
+        /// （偽 backend は呼び出しを List に記録するので、呼ぶ状態を混ぜると偽物の確保が入る）。
+        /// </summary>
+        [Test]
+        public void ApplyFrame_WithLiveInstancesAndUnchangedState_AllocatesNothing()
+        {
+            var time = new FakeVfxTimeSource();
+            time.SetLayer(UpdateLayerIds.Gameplay, paused: false, scale: 2f);
+            time.SetLayer("Paused", paused: true);
+            _system = new VfxSystem(_backend, new FakeVfxLogger(), 10f, time);
+            var placed = new GameObject("Placed");
+            try
+            {
+                _system.Spawn(Request(), AssetOwner.App).Play();
+                _system.Spawn(Request().WithUnscaledTime(), AssetOwner.App).Play();
+                _system.Adopt(placed.transform, AssetOwner.App, "Paused");
+
+                // 初回の書き写しと JIT・buffer の拡張を測定から外す。
+                _system.ApplyFrame();
+                _system.ApplyFrame();
+                var callsBefore = _backend.TotalCallCount;
+
+                var before = GC.GetAllocatedBytesForCurrentThread();
+                for (var i = 0; i < 100; i++)
+                {
+                    _system.ApplyFrame();
+                }
+
+                var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                Assert.That(_backend.TotalCallCount, Is.EqualTo(callsBefore), "前提: 値が変わらず backend を呼んでいない");
+                Assert.That(allocated, Is.EqualTo(0), "反映処理は確保しない");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(placed);
+            }
         }
 
         /// <summary>

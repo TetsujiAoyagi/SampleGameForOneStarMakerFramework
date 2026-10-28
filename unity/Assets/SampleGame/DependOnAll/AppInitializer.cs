@@ -98,12 +98,16 @@ namespace SampleGame.DependOnAll
             var renderEnvironment = _renderEnvironment
                 ?? throw new InvalidOperationException(
                     "RenderEnvironment is not initialized. Ensure BeforeSceneLoad completed successfully.");
+            var vfx = Vfx
+                ?? throw new InvalidOperationException(
+                    "VFX system is not initialized. Ensure BeforeSceneLoad completed successfully.");
             return new GameSceneFactory(
                 loggerFactory,
                 _cameraSystem,
                 _cameraBackgroundApplier,
                 companionSet,
-                renderEnvironment);
+                renderEnvironment,
+                vfx);
         }
 
         // 所有と解放は Framework の VFX composition が持つ（ReleaseAll で VfxSystem の後に Dispose する）。

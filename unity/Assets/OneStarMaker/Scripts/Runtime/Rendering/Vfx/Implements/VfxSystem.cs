@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.SceneSystem;
+using OneStarMaker.Runtime.UpdateSystem.Api;
 using R3;
 using UnityEngine;
 
@@ -21,8 +22,17 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
     /// </para>
     /// <para>
     /// 生成・<see cref="BindSceneLifecycle"/>・<see cref="Tick"/> の UpdateSystemRuntime 登録・<see cref="Dispose"/> は
-    /// composition の責任。<see cref="Tick"/> は消え切り待ちの完了・timeout と破棄済み go の検出にだけ要り、
-    /// 所有者の終端は Tick に依存しない。全メソッドは Unity の main thread からだけ呼ぶ（スレッド安全にはしない）。
+    /// composition の責任。<see cref="Tick"/> は時間の反映点で、再生状態の書き写し・保留した開始・消え切り待ちの完了と
+    /// timeout・破棄済み go の検出を行う。所有者の終端は Tick に依存しない。
+    /// 全メソッドは Unity の main thread からだけ呼ぶ（スレッド安全にはしない）。
+    /// </para>
+    /// <para>
+    /// 時間: 各 instance は時間の領域（Layer id、または unscaled）を 1 つ持つ。反映点で、所属 Layer の pause・倍率から
+    /// 求めた再生状態を、変わったときだけ backend に書く。所属 Layer が止まっていても反映点は呼ばれる（反映点は
+    /// 時間の領域ではない <c>Vfx</c> Layer にある）ので、Pause も Resume も同じフレームに届く。
+    /// 時間の値は <see cref="IVfxTimeSource"/> だけから読み、<c>UnityEngine.Time</c> を直接読まない。
+    /// 時間源を注入しない構成（public の ctor）では、<see cref="Tick"/> の delta を全ての領域の時間とし、
+    /// Layer は「止まっていない、倍率 1」とみなす。
     /// </para>
     /// <para>
     /// backend 由来の例外は呼び出し元へ投げない。例外を起こした instance だけを回収し、他の instance の処理は続ける。
@@ -39,16 +49,36 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
         private readonly Action<VfxHandle> _onHandleReleased;
         private readonly Action<VfxHandle, Exception> _onHandleFailed;
         private readonly Action<ulong> _onOwnerDestroyed;
+        private readonly IVfxTimeSource _timeSource;
+        private readonly TickDeltaTimeSource? _tickTimeSource;
+
+        // 反映点で毎フレーム使う列挙用の buffer。snapshot を毎回確保しないために使い回す（反映処理の確保 0）。
+        private readonly List<VfxHandle> _frameHandles = new();
+
+        // 登録中の配置済み VFX。同じ component の二重登録を backend を呼ぶ前に拒否するために持つ。
+        private readonly HashSet<UnityEngine.Object> _adoptedObjects = new();
 
         private ISceneQuery? _sceneQuery;
         private IDisposable? _sceneSubscription;
         private int _bindGeneration;
+        private bool _applyingFrame;
         private bool _disposed;
 
         /// <param name="gracefulStopTimeoutSeconds">
-        /// 消え切り待ちの上限。有限の正の値だけを受け付ける（待ちを必ず有限で終わらせるため）。
+        /// 消え切り待ちの上限。有限の正の値だけを受け付ける。所属する時間の領域の時間で数えるので、
+        /// 領域が止まっている間は進まない（実時間での出口は所有者の終端）。
         /// </param>
         public VfxSystem(IVfxBackend backend, ILogger<VfxSystem> logger, float gracefulStopTimeoutSeconds = 10f)
+            : this(backend, logger, gracefulStopTimeoutSeconds, timeSource: null)
+        {
+        }
+
+        /// <param name="timeSource">null なら <see cref="Tick"/> の delta を全ての領域の時間として使う。</param>
+        internal VfxSystem(
+            IVfxBackend backend,
+            ILogger<VfxSystem> logger,
+            float gracefulStopTimeoutSeconds,
+            IVfxTimeSource? timeSource)
         {
             _backend = backend ?? throw new ArgumentNullException(nameof(backend));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -61,7 +91,17 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
             }
 
             _gracefulStopTimeoutSeconds = gracefulStopTimeoutSeconds;
-            _onHandleReleased = _index.Remove;
+            if (timeSource == null)
+            {
+                _tickTimeSource = new TickDeltaTimeSource();
+                _timeSource = _tickTimeSource;
+            }
+            else
+            {
+                _timeSource = timeSource;
+            }
+
+            _onHandleReleased = OnHandleReleased;
             _onHandleFailed = LogHandleFailure;
             _onOwnerDestroyed = NotifyOwnerGameObjectDestroyed;
             _supported = QueryCapabilityOnce();
@@ -184,8 +224,8 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
                 return NullVfxHandle.Instance;
             }
 
-            var handle = new VfxHandle(_backend, id, owner, _onHandleReleased, _onHandleFailed);
-
+            var handle = new VfxHandle(
+                _backend, id, owner, _onHandleReleased, _onHandleFailed, _timeSource, request.TimeLayerId);
             // Create の中の再入で所有者が終端に入った、または Dispose された場合に備えて受理判定をやり直す。
             if (_disposed || !CanAccept(request, owner))
             {
@@ -193,29 +233,71 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
                 return NullVfxHandle.Instance;
             }
 
+            return Register(handle);
+        }
+
+        public IVfxHandle Adopt(UnityEngine.Object placed, AssetOwner owner, string? timeLayerId = UpdateLayerIds.Gameplay)
+        {
+            // 所属先の誤りは呼び出し側のコードの誤りなので、対応可否に関係なく投げる（環境によって黙って通らないように）。
+            VfxTimeLayerBinding.ValidateTimeLayerId(timeLayerId, nameof(timeLayerId));
+            var layerId = timeLayerId?.Trim();
+
+            // 非対応環境では backend を呼ばない。component は無効で保存されているので、有効化も起きない。
+            if (_disposed || !_supported || placed == null || !IsOwnerAlive(owner))
+            {
+                return NullVfxHandle.Instance;
+            }
+
+            if (_adoptedObjects.Contains(placed))
+            {
+                // 同じ component の二重登録（開いている Scene の再利用など）。backend を呼ばずに拒否する。
+                return NullVfxHandle.Instance;
+            }
+
+            VfxInstanceId id;
             try
             {
-                _index.Add(handle);
-                if (owner.Kind == AssetOwnerKind.GameObject)
-                {
-                    EnsureDestroyNotifier(owner);
-                }
-
-                RegistrationFaultForTest?.Invoke(handle);
+                id = _backend.Adopt(placed);
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "[VfxSystem] Registering a VFX instance failed. id={Id} owner={Owner}",
-                    id.Value, owner.ToString());
+                _logger.LogError(e, "[VfxSystem] Adopt failed. owner={Owner}", owner.ToString());
+                return NullVfxHandle.Instance;
+            }
+
+            if (!id.IsValid)
+            {
+                _logger.LogError("[VfxSystem] Adopt returned an invalid id. owner={Owner}", owner.ToString());
+                return NullVfxHandle.Instance;
+            }
+
+            if (_index.ContainsLive(id))
+            {
+                // backend 契約違反。生存中の別 instance を壊さないため Release を要求しない。
+                _logger.LogError(
+                    "[VfxSystem] Adopt returned an id that is still alive. id={Id} owner={Owner}",
+                    id.Value,
+                    owner.ToString());
+                return NullVfxHandle.Instance;
+            }
+
+            var handle = new VfxHandle(
+                _backend, id, owner, _onHandleReleased, _onHandleFailed, _timeSource, layerId, placed);
+            // Adopt の中の再入で所有者が終端に入った、同じ component が登録された、または Dispose された場合に備えて
+            // 受理判定をやり直す。
+            if (_disposed || placed == null || !IsOwnerAlive(owner) || _adoptedObjects.Contains(placed))
+            {
                 handle.Release();
                 return NullVfxHandle.Instance;
             }
 
-            return handle;
+            return Register(handle);
         }
 
         /// <summary>
-        /// 消え切り待ちを進め、破棄済みの Bind 所有者の instance を回収する。delta が負・NaN・∞なら 0 として扱う。
+        /// 時間の反映点。再生状態の書き写し・保留した開始・消え切り待ちを進め、破棄済みの Bind 所有者の instance を回収する。
+        /// <paramref name="deltaSeconds"/> は時間源を注入しない構成でだけ使う（その場合は全ての領域の時間になる）。
+        /// 負・NaN・∞の delta は、消え切り待ちを進めない 0 として扱う。
         /// </summary>
         public void Tick(float deltaSeconds)
         {
@@ -226,24 +308,8 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
                 return;
             }
 
-            // handle・所有者ごとに捕捉する。一つの失敗（backend 以外の原因も含む）で同じ Tick の残りを飛ばすと、
-            // その分だけ消え切り待ちと破棄済み go の回収が遅れる。
-            foreach (var handle in _index.SnapshotAll())
-            {
-                if (handle.State != VfxHandle.HandleState.Stopping)
-                {
-                    continue;
-                }
-
-                try
-                {
-                    handle.AdvanceStopping(deltaSeconds, _gracefulStopTimeoutSeconds);
-                }
-                catch (Exception e)
-                {
-                    LogTickFailure(e, handle.Id.Value);
-                }
-            }
+            _tickTimeSource?.SetDelta(deltaSeconds);
+            ApplyFrame();
 
             // 通知が来ない破棄（一度も active にならなかった go、EditMode）の保険。
             foreach (var owner in _index.SnapshotBindOwners())
@@ -309,10 +375,88 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
             }
         }
 
+        /// <summary>
+        /// 反映点の本体。全 instance について、領域の状態を書き（変わったときだけ）、保留した開始を届け、
+        /// 消え切り待ちを領域の時間で進める。値が変わらないフレームでは managed heap を確保しない。
+        /// </summary>
+        internal void ApplyFrame()
+        {
+            // 反映中の backend 呼び出しからの再入は、使い回している buffer を壊すので次のフレームに任せる。
+            if (_disposed || _applyingFrame || _index.Count == 0)
+            {
+                return;
+            }
+
+            _applyingFrame = true;
+            try
+            {
+                _index.CopyAllTo(_frameHandles);
+
+                // handle ごとに捕捉する。一つの失敗（backend 以外の原因も含む）で同じフレームの残りを飛ばすと、
+                // その分だけ Pause の反映・開始・消え切り待ちの回収が遅れる。
+                for (var i = 0; i < _frameHandles.Count; i++)
+                {
+                    var handle = _frameHandles[i];
+                    try
+                    {
+                        handle.ApplyFrame(_gracefulStopTimeoutSeconds);
+                    }
+                    catch (Exception e)
+                    {
+                        LogTickFailure(e, handle.Id.Value);
+                    }
+                }
+            }
+            finally
+            {
+                _frameHandles.Clear();
+                _applyingFrame = false;
+            }
+        }
+
         /// <summary>テスト用: Spawn の登録段階（索引への登録と notifier の設置の後）で例外を起こす差し込み口。</summary>
         internal Action<VfxHandle>? RegistrationFaultForTest { get; set; }
 
         internal int LiveInstanceCount => _index.Count;
+
+        /// <summary>受理判定をやり直した後の handle を索引に入れる（Spawn と Adopt の共通部分）。</summary>
+        private IVfxHandle Register(VfxHandle handle)
+        {
+            try
+            {
+                _index.Add(handle);
+                if (handle.IsAdopted)
+                {
+                    _adoptedObjects.Add(handle.Placed!);
+                }
+
+                if (handle.Owner.Kind == AssetOwnerKind.GameObject)
+                {
+                    EnsureDestroyNotifier(handle.Owner);
+                }
+
+                RegistrationFaultForTest?.Invoke(handle);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "[VfxSystem] Registering a VFX instance failed. id={Id} owner={Owner}",
+                    handle.Id.Value, handle.Owner.ToString());
+                handle.Release();
+                return NullVfxHandle.Instance;
+            }
+
+            return handle;
+        }
+
+        private void OnHandleReleased(VfxHandle handle)
+        {
+            _index.Remove(handle);
+            if (handle.IsAdopted)
+            {
+                // 回収した component は登録から外す。再び使うなら呼び出し側が新しく Adopt する（回収は handle の終端）。
+                _adoptedObjects.Remove(handle.Placed!);
+            }
+        }
 
         private bool QueryCapabilityOnce()
         {
@@ -498,6 +642,31 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
             }
             catch
             {
+            }
+        }
+
+        /// <summary>
+        /// 時間源を注入しない構成の時間源。<see cref="Tick"/> の delta を全ての領域の時間とし、Layer は持たない
+        /// （どの Layer も「止まっていない、倍率 1」とみなされるので、倍率は常に 1 で再生状態は書かれない）。
+        /// </summary>
+        private sealed class TickDeltaTimeSource : IVfxTimeSource
+        {
+            private float _delta;
+
+            public float DeltaTime => _delta;
+
+            public float UnscaledDeltaTime => _delta;
+
+            // Tick の delta をそのまま領域の時間にする（呼び出し側の delta を頭打ちにしない）。
+            public float MaximumDeltaTime => float.PositiveInfinity;
+
+            public void SetDelta(float delta) => _delta = delta;
+
+            public bool TryGetLayerState(string layerId, out bool isPaused, out float timeScale)
+            {
+                isPaused = false;
+                timeScale = 1f;
+                return false;
             }
         }
 

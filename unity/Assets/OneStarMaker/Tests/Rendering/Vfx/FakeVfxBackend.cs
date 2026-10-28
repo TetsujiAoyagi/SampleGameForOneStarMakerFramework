@@ -50,6 +50,10 @@ namespace OneStarMaker.Tests.Rendering.Vfx
 
         public Action<VfxInstanceId>? OnDestroy { get; set; }
 
+        public Action<VfxInstanceId>? OnSetPlayback { get; set; }
+
+        public Action<VfxInstanceId>? OnRelease { get; set; }
+
         // ─── 記録 ───
 
         public int QueryCapabilityCount { get; private set; }
@@ -66,6 +70,18 @@ namespace OneStarMaker.Tests.Rendering.Vfx
 
         public int DestroyCount { get; private set; }
 
+        public int SetPlaybackCount { get; private set; }
+
+        public int AdoptCount { get; private set; }
+
+        public int ReleaseCount { get; private set; }
+
+        /// <summary>SetPlayback の引数の記録（呼び出し順）。</summary>
+        public List<(ulong Id, bool Paused, float Rate)> PlaybackCalls { get; } = new();
+
+        /// <summary>Adopt に渡された component（呼び出し順）。</summary>
+        public List<UnityEngine.Object> AdoptedObjects { get; } = new();
+
         /// <summary>全呼び出しの順序。QueryCapability は id を持たないので 0 で記録する。</summary>
         public List<(string Op, ulong Id)> Calls { get; } = new();
 
@@ -73,18 +89,36 @@ namespace OneStarMaker.Tests.Rendering.Vfx
 
         public int TotalCallCount => Calls.Count;
 
-        public int DestroyCountOf(VfxInstanceId id)
+        public int DestroyCountOf(VfxInstanceId id) => CountOf("Destroy", id);
+
+        /// <summary>指定 id への、指定した操作の呼び出しの数。</summary>
+        public int CountOf(string op, VfxInstanceId id)
         {
             var count = 0;
             foreach (var call in Calls)
             {
-                if (call.Op == "Destroy" && call.Id == id.Value)
+                if (call.Op == op && call.Id == id.Value)
                 {
                     count++;
                 }
             }
 
             return count;
+        }
+
+        /// <summary>指定 id への呼び出しの操作名を順に返す（順序の判定に使う）。</summary>
+        public List<string> OpsOf(VfxInstanceId id)
+        {
+            var ops = new List<string>();
+            foreach (var call in Calls)
+            {
+                if (call.Id == id.Value)
+                {
+                    ops.Add(call.Op);
+                }
+            }
+
+            return ops;
         }
 
         /// <summary>指定 id への呼び出し（全操作）の数。Destroy 後の呼び出し0件の判定に使う。</summary>
@@ -132,6 +166,33 @@ namespace OneStarMaker.Tests.Rendering.Vfx
             ThrowIfFaulted("Play", id);
             OnPlay?.Invoke(id);
             return PlayResult;
+        }
+
+        public void SetPlayback(VfxInstanceId id, bool paused, float rate)
+        {
+            SetPlaybackCount++;
+            Calls.Add(("SetPlayback", id.Value));
+            PlaybackCalls.Add((id.Value, paused, rate));
+            ThrowIfFaulted("SetPlayback", id);
+            OnSetPlayback?.Invoke(id);
+        }
+
+        public VfxInstanceId Adopt(UnityEngine.Object placed)
+        {
+            AdoptCount++;
+            var id = NextIdOverride != null ? NextIdOverride() : new VfxInstanceId(_nextId++);
+            Calls.Add(("Adopt", id.Value));
+            AdoptedObjects.Add(placed);
+            ThrowIfFaulted("Adopt", id);
+            return id;
+        }
+
+        public void Release(VfxInstanceId id)
+        {
+            ReleaseCount++;
+            Calls.Add(("Release", id.Value));
+            OnRelease?.Invoke(id);
+            ThrowIfFaulted("Release", id);
         }
 
         public void StopEmitting(VfxInstanceId id)

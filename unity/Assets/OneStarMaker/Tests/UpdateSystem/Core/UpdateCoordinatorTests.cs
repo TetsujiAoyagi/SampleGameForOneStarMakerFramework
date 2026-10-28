@@ -69,6 +69,23 @@ namespace OneStarMaker.Tests.UpdateSystem
         }
 
         [Test]
+        public void TryGetLayer_未作成のlayerは作らずfalse_作成済みは同じinstanceを返す()
+        {
+            Assert.That(_coordinator.TryGetLayer("Gameplay", out var missing), Is.False);
+            Assert.That(missing, Is.Null);
+
+            // 読むだけで作っていないので、後から任意の順序で作れる（作っていたら別の順序で例外になる）。
+            var created = _coordinator.GetOrCreateLayer("Gameplay", 7);
+
+            Assert.That(_coordinator.TryGetLayer("Gameplay", out var found), Is.True);
+            Assert.That(found, Is.SameAs(created));
+            Assert.That(_coordinator.TryGetLayer(" Gameplay ", out var trimmed), Is.True, "GetOrCreateLayer と同じ正規化");
+            Assert.That(trimmed, Is.SameAs(created));
+            Assert.That(_coordinator.TryGetLayer("", out _), Is.False);
+            Assert.That(_coordinator.TryGetLayer("  ", out _), Is.False);
+        }
+
+        [Test]
         public void ExecutionConfigurationCommand_Register時にlayerIdがnullなら例外()
         {
             Assert.Throws<ArgumentException>(

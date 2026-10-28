@@ -5,7 +5,6 @@ using System.Collections;
 using System.Linq;
 using Cysharp.Threading.Tasks;
 using NUnit.Framework;
-using SampleGame.Common.Rendering.Vfx;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -17,7 +16,8 @@ namespace SampleGame.Tests.Rendering.Vfx
 {
     /// <summary>
     /// 本番の Atmosphere VFX と Cell VFX と同じ .vfx だけを置いた専用 Scene（Fixtures/VfxSceneRender.unity）で、
-    /// 対応時に VFX の画素が出ること（陽性）と、非対応に切り替えた後に新しく載せた instance では出ないこと（陰性）を測る。
+    /// 対応の VfxSystem に登録したときに VFX の画素が出ること（陽性）と、非対応の VfxSystem に登録した新しい instance では
+    /// 出ないこと（陰性）を測る。
     /// 実 Scene には地形等の他の Renderer が混ざり、画素の閾値が VFX の描画の証拠にならないので、描画だけをここで見る。
     /// 実 Scene のロード・有効化・寿命は <see cref="VfxScenePlayTests"/> が見る（ここの成功で代替しない）。
     /// </summary>
@@ -38,10 +38,14 @@ namespace SampleGame.Tests.Rendering.Vfx
                 WriteGraphicsFacts();
                 AssumeGraphicsSupported();
                 UsePcQuality();
-                PublishCapability(RealFacts, expected: VfxCapability.Supported);
+                var supportedHost = CreateHost(RealFacts);
 
                 // 陽性: 同じ process の陽性対照。これが閾値に達しなければ、陰性の画素 0 は描画の証拠にならない。
+                // 専用 Scene は SceneDirector を通さずに載せるので、本番の Scene class の代わりに marker を登録する。
                 var supportedScene = await LoadRenderFixtureAsync();
+                AssertTargetsSavedDisabled(supportedScene);
+                var supportedHandles = AdoptMarkers(supportedHost.System, supportedScene.GetRootGameObjects());
+                Assert.That(supportedHandles.All(handle => handle.IsActive), Is.True, "前提: 対応時は登録される");
                 foreach (var target in new[] { "AtmosphereVfx", "CellVfx" })
                 {
                     var lit = await MeasureTargetAsync(supportedScene, target);
@@ -49,16 +53,21 @@ namespace SampleGame.Tests.Rendering.Vfx
                     Assert.That(lit, Is.GreaterThanOrEqualTo(RenderPixelThreshold), $"対応時に {target} が描画されない");
                 }
 
+                supportedHandles.ForEach(handle => handle.Stop());
                 await SceneManager.UnloadSceneAsync(supportedScene);
 
-                // 陰性: 非対応に切り替えた後に新しく載せた instance。先に有効化された VFX を止める仕様は要求しない。
-                PublishCapability(UnsupportedFacts, expected: VfxCapability.Unsupported);
+                // 陰性: 非対応の VfxSystem に登録した、新しく載せた instance。
+                var unsupportedHost = CreateHost(UnsupportedFacts);
                 var unsupportedScene = await LoadRenderFixtureAsync();
+                AssertTargetsSavedDisabled(unsupportedScene);
+                var unsupportedHandles = AdoptMarkers(unsupportedHost.System, unsupportedScene.GetRootGameObjects());
+                Assert.That(unsupportedHandles.Any(handle => handle.IsActive), Is.False, "前提: 非対応では登録されない");
                 foreach (var target in new[] { "AtmosphereVfx", "CellVfx" })
                 {
                     var lit = await MeasureTargetAsync(unsupportedScene, target);
                     TestContext.Out.WriteLine($"unsupported target={target} litPixels={lit} threshold={RenderPixelThreshold}");
                     Assert.That(lit, Is.LessThan(RenderPixelThreshold), $"非対応時に {target} が描画された");
+                    Assert.That(TargetEffect(unsupportedScene, target).enabled, Is.False, $"非対応時に {target} の VisualEffect が有効になった");
                 }
 
                 await SceneManager.UnloadSceneAsync(unsupportedScene);
@@ -66,6 +75,23 @@ namespace SampleGame.Tests.Rendering.Vfx
             });
 
         // ─── 専用 Scene の描画 ───
+
+        /// <summary>
+        /// 保存時の状態の前提: 対象は非 active、VisualEffect は無効。登録（Adopt）より前に確かめる。対応の VfxSystem では
+        /// 登録の後の最初の止まっていない反映点で backend の Play（= 有効化）が届くので、計測の時点では既に有効でありうる。
+        /// </summary>
+        private static void AssertTargetsSavedDisabled(Scene scene)
+        {
+            foreach (var target in new[] { "AtmosphereVfx", "CellVfx" })
+            {
+                var effect = TargetEffect(scene, target);
+                Assert.That(effect.gameObject.activeSelf, Is.False, $"前提: {target} は非 active で保存されている");
+                Assert.That(effect.enabled, Is.False, $"前提: {target} の VisualEffect は無効で保存されている");
+            }
+        }
+
+        private static VisualEffect TargetEffect(Scene scene, string targetName)
+            => scene.GetRootGameObjects().Single(root => root.name == targetName).GetComponent<VisualEffect>();
 
         private static async UniTask<Scene> LoadRenderFixtureAsync()
         {
@@ -88,8 +114,7 @@ namespace SampleGame.Tests.Rendering.Vfx
             var target = roots.Single(root => root.name == targetName);
             var camera = roots.Single(root => root.name == "VfxRenderCamera").GetComponent<Camera>();
             var effect = target.GetComponent<VisualEffect>();
-            Assert.That(target.activeSelf, Is.False, "前提: 対象は非 active で保存されている");
-            Assert.That(effect.enabled, Is.False, "前提: VisualEffect は無効で保存されている");
+            Assert.That(target.activeSelf, Is.False, "前提: 対象は計測の前は非 active");
 
             await WarmUpRegularRenderLoopAsync(effect.visualEffectAsset, camera.transform);
 

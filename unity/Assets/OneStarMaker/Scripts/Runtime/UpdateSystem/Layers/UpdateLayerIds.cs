@@ -15,13 +15,25 @@ namespace OneStarMaker.Runtime.UpdateSystem.Api
         /// </summary>
         public const string Input = "Input";
 
+        /// <summary>
+        /// ゲームの世界の時間の Layer。<see cref="Adapters.UpdateBehaviourAdapter"/> の既定の登録先で、
+        /// VFX の既定の時間の領域でもある（この Layer の <c>IsPaused</c> / <c>TimeScale</c> に VFX の再生が追従する）。
+        /// ゲームを一時停止する・遅くする処理は、この Layer を pause / time scale する。
+        /// </summary>
+        public const string Gameplay = "Gameplay";
+
         /// <summary>Brain 更新・Modifier・Snapshot 確定を担当する Layer。</summary>
         public const string Camera = "Camera";
 
         /// <summary>確定済み Camera Snapshot を消費してストリーミングを更新する Layer。</summary>
         public const string Streaming = "Streaming";
 
-        /// <summary>VFX の消え切り待ちと破棄済み所有者の回収を進める Layer（Framework の VFX composition が登録する）。</summary>
+        /// <summary>
+        /// VFX の再生状態（pause・再生速度）を時間の領域から書き写し、消え切り待ちと破棄済み所有者の回収を進める Layer
+        /// （Framework の VFX composition が登録する）。
+        /// この Layer は時間の領域ではない。pause / time scale すると全 VFX への反映が止まるので、しない。
+        /// VFX の所属先にも指定できない（引数の誤りとして拒否される）。
+        /// </summary>
         public const string Vfx = "Vfx";
 
         /// <summary>
@@ -30,6 +42,12 @@ namespace OneStarMaker.Runtime.UpdateSystem.Api
         /// ゲームプレイ側がこれ以下の順序を独自に選ぶと契約は崩れる。この定数はその下限を共有する。
         /// </summary>
         public const int InputLayerOrder = -100;
+
+        /// <summary>
+        /// ゲームプレイの既定順序。入力のサンプリング（-100）の後、Camera（50）の前に置く。
+        /// 同じ id に別の順序を渡すと <c>GetOrCreateLayer</c> が例外を投げるので、登録側は全てこの定数を使う。
+        /// </summary>
+        public const int GameplayLayerOrder = 0;
 
         /// <summary>Gameplay の target 更新後、Streaming の Snapshot 消費前に Camera を実行する。</summary>
         public const int CameraLayerOrder = 50;

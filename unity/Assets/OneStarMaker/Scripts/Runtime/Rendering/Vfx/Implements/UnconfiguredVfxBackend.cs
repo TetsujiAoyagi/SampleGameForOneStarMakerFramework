@@ -28,6 +28,16 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
 
         public bool Play(VfxInstanceId id) => false;
 
+        public void SetPlayback(VfxInstanceId id, bool paused, float rate)
+        {
+        }
+
+        public VfxInstanceId Adopt(Object placed) => VfxInstanceId.Invalid;
+
+        public void Release(VfxInstanceId id)
+        {
+        }
+
         public void StopEmitting(VfxInstanceId id)
         {
         }

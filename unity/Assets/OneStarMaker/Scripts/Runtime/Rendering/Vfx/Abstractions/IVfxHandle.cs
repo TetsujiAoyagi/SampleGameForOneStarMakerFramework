@@ -24,6 +24,9 @@ namespace OneStarMaker.Runtime.Rendering.Vfx
 
         /// <summary>
         /// 発射する。再生中なら再トリガする。backend が再生できなかった場合と、消え切り待ち・回収済みでは false。
+        /// 所属する時間の領域が止まっている間は、開始を保留して true を返す。保留した開始は、領域が止まっていない
+        /// 最初の反映点で backend に届く。保留中に <see cref="Stop"/> / <see cref="StopAllowingParticlesToFinish"/> /
+        /// Dispose すると、開始せずに回収する。
         /// </summary>
         bool Play();
 

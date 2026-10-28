@@ -370,17 +370,17 @@ D-1（ホット/コールド分離）・D-5（Handle API）・D-6（2 経路）�
 
 ## 16. VFX 抽象
 
-VFX の寿命、非対応環境での停止、例外の隔離を、VFX 実装の型に依存しない Framework の契約として保証する（S-4d1）。実装は `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Vfx/`（namespace `OneStarMaker.Runtime.Rendering.Vfx`、asmdef `OneStarMaker.Runtime`）。VFX Graph に依存する backend は SampleGame に置き（S-4d2）、Framework に VFX Graph の型と asmdef 参照を持ち込まない。同時数の上限・優先度・間引き・pool / prewarm・DebugStudio 観測は、必要になったスライスで決める。
+VFX の寿命、非対応環境での停止、例外の隔離、時間の領域への追従を、VFX 実装の型に依存しない Framework の契約として保証する（S-4d1、時間の領域と配置済み VFX の登録は S-4d4a）。実装は `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Vfx/`（namespace `OneStarMaker.Runtime.Rendering.Vfx`、asmdef `OneStarMaker.Runtime`）。VFX Graph に依存する backend は SampleGame に置き（S-4d2）、Framework に VFX Graph の型と asmdef 参照を持ち込まない。同時数の上限・優先度・間引き・pool / prewarm・DebugStudio 観測は、必要になったスライスで決める。
 
 ### 16.1 公開型と配置
 
 | 型 | 役割 |
 |---|---|
-| `IVfxSystem` | Game が `Spawn(in VfxSpawnRequest, AssetOwner)` で VFX を起動する窓口 |
+| `IVfxSystem` | Game が `Spawn(in VfxSpawnRequest, AssetOwner)` で VFX を起動し、`Adopt(placed, owner, timeLayerId)` で Scene に配置済みの VFX を登録する窓口（§16.8） |
 | `VfxSystem` | composition が生成し、`BindSceneLifecycle`・`Tick`・`Dispose` を呼ぶ App 寿命のサービス。ctor は `IVfxBackend`、`ILogger<VfxSystem>`、消え切り待ちの timeout（既定 10 秒、有限の正の値だけ） |
-| `IVfxHandle` | 1 instance の操作（`Play` / `Stop` / `StopAllowingParticlesToFinish` / Set* / `Dispose`）。`Dispose` は `Stop` と同じ即時の回収で、消え切り待ちを打ち切る |
-| `VfxSpawnRequest` | `Source`（呼び出し側がロードした `UnityEngine.Object`）、world 座標の位置・回転、親。親なしと「親ありだが破棄済み」を `HasParent` で区別する |
-| `IVfxBackend` | VFX 実装への差し込み口。`VfxSystem` は借用するだけで所有・Dispose しない |
+| `IVfxHandle` | 1 instance の操作（`Play` / `Stop` / `StopAllowingParticlesToFinish` / Set* / `Dispose`）。`Dispose` は `Stop` と同じ即時の回収で、消え切り待ちを打ち切る。止まった時間の領域での `Play` は受理して true を返し、開始を保留する（§16.8） |
+| `VfxSpawnRequest` | `Source`（呼び出し側がロードした `UnityEngine.Object`）、world 座標の位置・回転、親。親なしと「親ありだが破棄済み」を `HasParent` で区別する。時間の領域は `TimeLayerId`（既定 `UpdateLayerIds.Gameplay`）で、`WithUnscaledTime()` で unscaled に外れる |
+| `IVfxBackend` | VFX 実装への差し込み口。`VfxSystem` は借用するだけで所有・Dispose しない。再生状態の反映 `SetPlayback(id, paused, rate)`、配置済みの登録 `Adopt` と回収 `Release` を含む |
 | `VfxInstanceId` | backend が返す instance の識別値（0 は無効） |
 
 内部は 3 つに分ける。
@@ -401,8 +401,8 @@ handle の状態は `Created` → `Playing` → `Stopping`（消え切り待ち�
   - 複数の handle をまとめて回収する経路は、どれも索引の snapshot を列挙する。
 - **backend 呼び出しの後の書き戻し。** backend の呼び出し中に、同じ handle の `Stop` / `Dispose` や所有者の終端が再入しうる。呼び出しの後で状態を書くのは、戻った時点の状態が呼び出し前と同じときだけなので、Released から生き返らない。
 - **例外の隔離。** backend の例外は、それを起こした instance だけを回収して終わる（Error ログは handle ごとに最初の 1 回）。ほかの instance と呼び出し元へは伝えない。投げるのは引数の誤り（`ArgumentNullException` / `ArgumentOutOfRangeException`）だけ。
-- **消え切り待ち。** `Tick(deltaSeconds)` が Stopping の handle の待ち時間を進める。`待ち時間 >= timeout` になるか、backend が粒子なしを返した時点で回収する。負・NaN・∞の delta は 0 として扱う。同じ instance への再試行ループは持たない。
-- **非対応環境。** `QueryCapability` は `VfxSystem` の生涯で 1 回だけ呼ぶ。false か例外なら、以後の backend 呼び出しは 0 回、診断ログは 1 回で、`Spawn` は何もしない handle を返す。
+- **消え切り待ち。** 反映点（§16.8）ごとに、Stopping の handle の待ち時間をその instance の領域の時間だけ進める。`待ち時間 >= timeout` になるか、backend が粒子なしを返した時点で回収する。負・NaN・∞の delta は 0 として扱う。同じ instance への再試行ループは持たない。領域が止まっている間は進まないので、`App` / `Manual` 所有の消え切り待ちは、時間が止まり続けると `VfxSystem.Dispose` まで残る（実時間の出口は timer ではなく所有者の終端が持つ）。
+- **非対応環境。** `QueryCapability` は `VfxSystem` の生涯で 1 回だけ呼ぶ。false か例外なら、以後の backend 呼び出しは 0 回、診断ログは 1 回で、`Spawn` と `Adopt` は何もしない handle を返す（配置済みの `VisualEffect` は 1 つも有効にならない）。
 
 ### 16.3 所有者の終端
 
@@ -444,17 +444,19 @@ handle の状態は `Created` → `Playing` → `Stopping`（消え切り待ち�
   - `Create` が id を返す前に失敗したら、作りかけの資源は backend が後始末する。
   - 同時に生存する instance に同じ id を返さない。
   - `Destroy` は id ごとに高々 1 回呼ばれ、破棄済みの GameObject や失効した source に対しても安全に完了する。
+  - instance には、`Create` で作る動的なものと、`Adopt` で登録した配置済みのもの（adopted）がある。`Adopt` は登録だけで有効化しない。回収は動的なら `Destroy`、adopted なら `Release` で、id ごとにどちらか一方が高々 1 回呼ばれる。`Release` は無効化して登録を外すだけで GameObject を壊さず、破棄済みの対象にも安全に完了する。adopted の `Play` は最初の 1 回が有効化（初期イベントが送られる）、2 回目以降は動的と同じ再トリガ。
+  - 作った・登録した instance は（止まっていない、倍率 1）の再生状態で用意する。`SetPlayback` は値が変わったときだけ呼ばれる。
   - backend はログを出さない。
 - **保証の範囲。** Framework が保証するのは、backend へ破棄を要求する時点と回数である。Unity の native 実体の破棄完了（`Object.Destroy` はフレームの終わりまで遅れる）までの間に描画・発射しないことは、backend が同期の処理で保証する（§16.6）。
 
 ### 16.5 composition と更新
 
-`VfxSystem` は Framework の `AbstractApplicationInitializer` が internal の `VfxRuntimeHost`（`Rendering/Vfx/Implements/`）を通して所有する。Game は backend を `protected virtual IVfxBackend? CreateVfxBackend()`（既定 null）で差し込むだけで、生成・接続・更新・破棄の順序は Framework が決める。
+`VfxSystem` は Framework の `AbstractApplicationInitializer` が internal の `VfxRuntimeHost`（`Rendering/Vfx/Implements/`）を通して所有する。Game は backend を `protected virtual IVfxBackend? CreateVfxBackend()`（既定 null）で差し込むだけで、生成・接続・更新・破棄の順序は Framework が決める。Game は `protected IVfxSystem? Vfx`（`BeforeSceneLoad` の後は非 null）で `IVfxSystem` を受け取り、Scene class へは ctor で渡す（SampleGame は `GameSceneFactory` → `CellCompanionScene` / `SeasonAtmosphereVfxScene`。service locator にしない）。
 
 - **backend 未構成。** `CreateVfxBackend` が null なら internal の `UnconfiguredVfxBackend`（`QueryCapability` が false、固定の理由文）を使う。Game には常に非 null の `VfxSystem` があり、未構成と非対応は Warning 1 件の理由文で区別する。
 - **生成。** `BeforeSceneLoad` の logger factory の生成直後に `VfxRuntimeHost.Create`。backend の所有権は `Create` に入った時点で host に移り、`Create` が失敗したら作りかけの `VfxSystem` と backend を Dispose してから例外を外へ出す（`BeforeSceneLoad` の失敗にする。VFX を黙って無効にしない）。`VfxSystem` の ctor が `QueryCapability` を呼ぶので、能力判定は最初の Scene の Awake より前に済む。
 - **Scene lifecycle への接続。** `AfterSceneLoad` の `SceneDirector` 生成と `BindSceneDirector` の直後、既存 Scene の登録より前に `BindSceneLifecycle`。例外は host が Error 1 件にして起動を続ける（Scene 所有の `Spawn` だけが拒否される）。
-- **更新。** layer `UpdateLayerIds.Vfx`（order 55。Camera 50 の後、Streaming 60 の前）に登録し、Scene 安定待ちの gate を通さず即時 active にする。`Tick` には unscaled delta を渡す（`timeScale = 0` でも消え切り待ちの timeout が出口になる）。`Tick` は instance 0 件で何も確保せず早期 return し、handle・所有者ごとに例外を隔離する。
+- **更新。** host は生成時に時間の領域 `UpdateLayerIds.Gameplay`（order 0。`UpdateBehaviourAdapter` の既定 layer と同じ）を `GetOrCreateLayer` で作り、存在を保証する。`VfxSystem` は layer `UpdateLayerIds.Vfx`（order 55。Camera 50 の後、Streaming 60 の前）に登録し、Scene 安定待ちの gate を通さず即時 active にする。`Vfx` layer は反映を担うので pause / time scale しない（所属先に指定すると `ArgumentException`）。`Tick` は `Vfx` layer の **LateUpdate** から呼び、そこが反映点になる（§16.8）。時間の値は internal の `IVfxTimeSource`（host が `UnityEngine.Time` と `UpdateCoordinator.TryGetLayer` で実装）から読み、`VfxSystem` は `UnityEngine.Time` を直接読まない。`Tick` は instance 0 件で何も確保せず早期 return し、生存 instance があり値が変わらないフレームの反映処理も確保しない。handle・所有者ごとに例外を隔離する。
 - **破棄。** `ReleaseAll` の CTS cancel の直後、DebugSocket と UpdateSystem の Dispose より前に `DisposeVfx`（要素を no-op にする → 登録解除 → `VfxSystem.Dispose` → backend が `IDisposable` なら Dispose）。logger・`SceneDirector`・AssetManagement より前なので、回収のログが出せ、source asset は破棄要求より後に解放される（§16.4）。
 
 ### 16.6 SampleGame の VFX Graph backend
@@ -462,28 +464,51 @@ handle の状態は `Created` → `Playing` → `Stopping`（消え切り待ち�
 VFX Graph（`com.unity.visualeffectgraph` 17.6.0）に依存する実装は `unity/Assets/SampleGame/Common/Scripts/Rendering/Vfx/`（namespace `SampleGame.Common.Rendering.Vfx`）に置く。asmdef は engine module の `UnityEngine.VFX` だけで足り、参照を増やしていない。
 
 - **能力判定（`VfxGraphCapabilityPolicy`）。** platform の事実だけを読む純粋な規則で、compute 対応・頂点 shader の SSBO 対応・Linear color space・graphics device が拒否リスト（OpenGL ES 等）に無い、の全てで対応とする。platform 名は見ない。VFX Graph の実行要件をそのまま規則にしたもので、個々の端末での動作保証ではない。
-- **判定結果の出所は 1 つ（`VfxCapabilityState`）。** backend の `QueryCapability` だけが値（`Undetermined` / `Supported` / `Unsupported`）を書き、評価の前に `Unsupported` を書く。最後に書いた backend が writer になり、writer の Dispose だけが `Undetermined` に戻す。
-- **配置済み VFX（`PlacedVfxActivator`）。** Scene・Prefab に置く `VisualEffect` は無効で保存し、activator が `Supported` のときだけ有効にする。非対応環境では 1 つも有効化しない。有効化で初期イベントが送られ、自動で再生される。
+- **配置済み VFX（`PlacedVfxActivator`）。** Scene・Prefab に置く `VisualEffect` は無効で保存し、同じ GameObject に marker の `PlacedVfxActivator` を置く。marker は有効化しない（`Awake` は何もしない）。公開面は `Component Effect`（同じ go の `VisualEffect`）と時間の宣言（既定 gameplay、serialized の unscaled 指定）で、InGame は `VisualEffect` 型を使わずに `Adopt(marker.Effect, …)` を呼ぶ。有効化（= 初期イベントによる自動再生）は `VfxSystem` が最初の止まっていない反映点で backend `Play` として届ける。非対応環境では `Adopt` が backend を呼ばないので 1 つも有効化しない。
+- **再生状態の換算（`SetPlayback`）。** `pause` はそのまま、`playRate = rate × u ÷ min(u, VFXManager.maxDeltaTime)`（u = `Time.unscaledDeltaTime`）。u か上限が 0・負・NaN・∞ のフレームは playRate を前回の値のままにする（pause は書く）。`Adopt` は component の `pause = false`・`playRate = 1` を書き、契約の初期状態（止まっていない、倍率 1）に揃える（前の登録で書いた pause が残っていると、同じ component を登録し直したときに `SetPlayback` が呼ばれず止まったまま有効化される）。
+- **VFX Graph の 1 フレームの上限を揃える（`VfxGraphMaxDeltaTimeAlignment`）。** VFX Graph の 1 フレームの進みは `min(u, VFXManager.maxDeltaTime) × playRate`、Unity の `Time.deltaTime` は `min(u, Time.maximumDeltaTime) × Time.timeScale`（頭打ちは timeScale を掛ける前）。上限が食い違うと、その間のフレームで Framework の rate が変わらず換算が書き直されない。そこで backend は、対応と判定した最初の `QueryCapability` で 1 回だけ `VFXManager.maxDeltaTime` に実行時の `Time.maximumDeltaTime` を写す。書き換えはプロセス全体で参照を数え（最初の backend が元の値を保存し、最後の Dispose が戻す）、`Application.quitting` では数に関係なく戻す。project 設定（`VFXManager.asset`）は変えず、ProjectSettings に残さない。`VFXManager.maxDeltaTime` はプロセス内の全ての `VisualEffect`（`VfxSystem` の外のものも含む）に効く。**時間の一致は `Time.maximumDeltaTime` を backend の生成より前に決め、実行中に変えないことを前提にする**（変えると VFX の上限は古い値のまま）。
+- **`.vfx` の Update Mode。** 全ての `.vfx` を Delta Time + Ignore Time Scale（`m_UpdateMode: 3`）にする。VFX Graph が `Time.timeScale` を内部で効かせると Framework の rate と二重になり、Fixed は 1/60 の刻みでフレームごとに一致しない。`PlacedVfxAuthoringTests` が検査する。
 - **`Create` は発射しない。** source が `VisualEffectAsset` でなければ何も作らない。非 active の GameObject に `VisualEffect` を足し、**`initialEventName = string.Empty` を `visualEffectAsset` より先に書く**（後に書くと、asset の設定時に既定の初期イベントで発射してしまう）。親の下（親なしは backend が遅延生成する `DontDestroyOnLoad` の root。active Scene に置くと無関係な Scene の unload で Unity が先に壊すため）で world の位置・回転を設定してから active にする。`Reinit` と `enabled` の切り替えは呼ばない（初期イベントが送られる）。
 - **`Destroy` は同期に止める。** id を対応表から先に外し、GameObject が残っていれば `VisualEffect.enabled = false`・`visualEffectAsset = null`・非 active 化を同期に行ってから `Object.Destroy` する。`DestroyImmediate` は `Bind` 所有者の破棄中に失敗しうるので使わない。
 - **粒子の有無。** Play の後は `HasAnySystemAwake() || aliveParticleCount > 0`。`aliveParticleCount` は GPU からの非同期の読み戻しで遅れるので単独では使わず、誤判定は回収を遅らせる側に倒して timeout が上限を保証する。id は backend の生涯で単調増加し、再利用しない。
 - **描画の確かめ方（テスト）。** batch の Editor では Game view が無いので、明示の `camera.Render()` と `ReadPixels` で画素を数える。起動したばかりの Editor の process では、通常の描画ループが一度も VFX を描いていないと明示の描画にも粒子が入らないため、計測の前に別のカメラと instance で一度描かせ、両方を壊してから計測する。graphics なし（`-nographics`）では Play 中のテストが Inconclusive になるので、VFX の判定には `run-tests.ps1 -WithGraphics` を使う。
-- **Scene に置く VFX（Season Atmosphere・Cell VFX）。** 季節全域の常時エフェクトは Season 直下の `{Season}_AtmosphereVFX`、Cell の常駐中ずっと続くエフェクトは Cell の職種 child `{Season}_VFX_{x}_{y}` の別 Scene に置く（分類と LoadType は [§5.13](05-scene.md#513-cell-と職種-companion-の分類)）。寿命は Scene の寿命で、`VfxSystem` の対象ではない。`.vfx` は Scene と同じフォルダに置く。各 System の bounds は Manual・Local 空間で、Cell VFX の描画 bounds は親 Cell の `_volume` の内側に収める。Scene に Collider、ゲーム進行の trigger、カメラ追従の script を置かない。
+- **Scene に置く VFX（Season Atmosphere・Cell VFX）。** 季節全域の常時エフェクトは Season 直下の `{Season}_AtmosphereVFX`、Cell の常駐中ずっと続くエフェクトは Cell の職種 child `{Season}_VFX_{x}_{y}` の別 Scene に置く（分類と LoadType は [§5.13](05-scene.md#513-cell-と職種-companion-の分類)）。配置済みの `VisualEffect` は、その Scene の class（`CellCompanionScene` / `SeasonAtmosphereVfxScene`）が `OnInitialize` で root から marker を集め（InGame の internal `PlacedVfxAdopter`。role は見ない）、配置した Scene の `Scene(id)` 所有で `Adopt` する。回収は `PreUnloading` で、`VisualEffect` がまだ破棄されていない時点に無効化だけを行う。`.vfx` は Scene と同じフォルダに置く。各 System の bounds は Manual・Local 空間で、Cell VFX の描画 bounds は親 Cell の `_volume` の内側に収める。Scene に Collider、ゲーム進行の trigger、カメラ追従の script を置かない。
 - **culling。** Scene に常駐する環境エフェクトの `.vfx` は culling を `CullNone`（常に simulate）にする。template の既定（`CullDefault`）はカメラから見えている間しか simulate しないので、カメラが向いていない間は粒子が空のままで、向いたときに出直す。カメラの無い Play のテストでは粒子が出ない。画面外でも simulate するコストは §16.7 の S-9 の項目。
-- **authoring の検査（`PlacedVfxAuthoringTests`）。** `Seasons/` 配下で `.vfx` に依存する Scene と、Season Atmosphere・Cell VFX の必須 Scene の全ての `VisualEffect`（非 active の GameObject のものを含む）が、無効で保存され、同じ GameObject に `PlacedVfxActivator` を持ち、`visualEffectAsset` が null でないことを EditMode で確かめる。保存フックではない。
+- **authoring の検査（`PlacedVfxAuthoringTests`）。** `Seasons/` 配下で `.vfx` に依存する Scene と、Season Atmosphere・Cell VFX の必須 Scene の全ての `VisualEffect`（非 active の GameObject のものを含む）が、無効で保存され、同じ GameObject に `PlacedVfxActivator` を持ち、`visualEffectAsset` が null でないこと、全ての `.vfx` が上の Update Mode であることを EditMode で確かめる。保存フックではない。
+- **時間の追従の確かめ方（テスト）。** `VfxGraphBackendPlayTests` の時間の一致は、PlayerLoop の `PostLateUpdate.VFXUpdate` の直後に差し込んだ記録点で、フレーム番号・u・領域の時間・spawn system の `totalTime` を取り、同じフレーム番号どうしで比べる（`yield return null` の再開は VFXUpdate より後なので、再開時点で行を対応付けるとずれる）。負荷スパイクは gameplay layer の要素の Update の中で計算のループで作る（VFXUpdate より前。実際のスパイクと同じ位置で、VFX Graph が Unity の `Time` で進むことを区別できる）。寿命の無い粒子の fixture の `aliveParticleCount` は同じフレームで変わるが、reap する system では約 60 フレームに 1 回しか変わらないので、フレーム単位の判定に使わない。
 - **実 Scene の Play テスト（`VfxScenePlayTests`・`VfxSceneRenderPlayTests`）。** Scene は test が持つ `SceneDirector`（実 `SceneResource` の複製で Season を根にした Map）で載せる。アプリの director で Season を載せると祖先の InGameSession の距離ストリーミングが動き、読み込み半径の外の Cell を次の Tick で外す。描画の陽性・陰性は本番と同じ `.vfx` だけを置いた専用 Scene で測り、計測の間はアプリの起動が載せる Renderer（UICommon の `UIPanel`）を無効にする。Play の間は DebugSocket を無効にする（接続失敗の warning が長いテストの本体に混ざり、`LogAssert.NoUnexpectedReceived` を落とす）。後始末は基底の `[UnityTearDown]` 1 つにまとめる（ExitPlayMode をまたぐ 2 つ目の TearDown は NullReferenceException で落ちた）。
 
 ### 16.7 後続スライスへの送り
 
-d1・d2 では答えず、後続スライスの Phase A で決める事項。
+d1〜d4a では答えず、後続スライスの Phase A で決める事項。
 
-- **S-4d4:**
+- **S-4d4b:**
   - notifier の `OnDestroy` が、実 Scene の unload と go の Destroy で回収を呼ぶことの Play Mode 確認。
   - 同じ identity の Scene の再ロードを、実 `SceneDirector` で 1 往復確かめること。
   - d2 のテストが直接は見ていない経路: `Bind` 所有者の破棄から 1 フレーム以内の回収（d2 のテストは 2 フレーム待つ）、`Create` 直後に発射しないことの長い観測窓（d2 は 120 フレーム）、host の Update 登録の失敗と、backend の `Create` が GameObject の作成後に失敗した場合の後始末（d2 はコードレビューで確認）。
   - graphics なし（`-nographics`）の既定の回帰では、実 `VisualEffect` を作る Play 中のテストが全て Inconclusive になる。
+  - 反映点（`Vfx` layer の LateUpdate）より後に gameplay layer を Resume した同じフレームで、保留していない `Play` はそのフレームに開始する（§16.8）。trigger がその窓で `Play` するかを A0 で確かめる。
+- **d4a から送った事項（所有スライス未定）:**
+  - gameplay のコードを gameplay layer へ移し、ゲームの一時停止を実際に作ること（いまの SampleGame に layer を pause / time scale する呼び出しは無い）。
+  - Prefab で動的に置いた配置済み VFX の登録（`Bind(go)` 所有の `Adopt`）。
+  - `SetPlayback` の rate が、毎フレームの float の丸めで「変わった」と判定され頻繁に呼ばれうるか（未観測）。
+  - `IVfxSystem.Adopt` は任意の layer id を受けるが、`VfxSpawnRequest` は gameplay / unscaled の 2 値だけ。`Spawn` と `Adopt` の受理規則の重複。
+  - `AbstractApplicationInitializer.Vfx` は Dispose 後に null ではなく `ObjectDisposedException` を返す。`OnInitialize` より前の `Adopt` は拒否される（契約の明示）。
+  - `Application.quitting` で上限を戻す経路の単体テスト（現在は ProjectSettings の差分が空であることで見ている）。カメラがある条件での追従は未観測（時間の Play テストはカメラを置かない）。
+  - Content build の `outcome.json` の `selected` / `roots` / `closure` が空配列で、候補の一覧は `preflight.json` にしか無い（BuildSystem の記録形式）。
 - **S-9:**
   - Player での Season / Cell VFX の描画の確認。BS4 Spring Player（`Tools/OSM/Content/Build BS4 Spring Player`）は content の smoke 専用で、Title の smoke の後に `Application.Quit(0)` し、InGame の Spring に入らない。S-4d3 の Player の証拠は build の成功と、Content Directory に 2 つの VFX Scene が入ることまで。Spring `(0,4)` に入る Player の観測経路は未作成。
   - 常に simulate する（`CullNone`）配置済み VFX の画面外のコスト・同時数と、季節全域の大きな bounds の culling。
   - 保存時の `VFXRenderer` は、Edit Mode では `VisualEffect` の無効に合わせて無効と読める。「`VFXRenderer` が有効のまま `VisualEffect` だけが無効」の状態で描画されないことは測っていない。
   - 本番の SceneGraph で Season と Cell (4,2) を同時に載せる経路の VFX（S-4d3 の Play テストは Season を根にした複製の Map で載せる）。
+
+### 16.8 時間の領域と配置済み VFX の登録
+
+VFX の時間は「どの世界に属するか」で決め、作り方（動的に起動したか、Scene に配置したか）では分けない（S-4d4a）。動的な VFX も配置済みの VFX も `VfxSystem` に登録し、時間・開始・回収・非対応環境での停止を同じ規則で扱う。
+
+- **時間の領域。** 全ての VFX は時間の領域を 1 つ持つ。実体は `UpdateLayer` の `IsPaused` / `TimeScale` で、既定は gameplay layer（`UpdateLayerIds.Gameplay`）。UI 演出などは unscaled を明示して外れる（`VfxSpawnRequest.WithUnscaledTime()`、`Adopt` の `timeLayerId = null`、marker の unscaled 指定）。まだ作られていない layer は「止まっていない、倍率 1」とみなす。`Vfx` layer は領域にできない。`IsPaused`（状態）と `TimeScale == 0`（倍率）は区別する。倍率 0 は止まっていないので開始は届き、時間だけが進まない。
+- **領域の時間（1 フレーム分）。** gameplay の領域は `IsPaused ? 0 : Time.deltaTime × layer.TimeScale`（`Time.deltaTime` は `Time.maximumDeltaTime` で頭打ちになった値のまま）。unscaled の領域は `min(Time.unscaledDeltaTime, Time.maximumDeltaTime)`（Unity が頭打ちにした時間から timeScale を外したもの）。u が 0・負・NaN・∞ のフレームは 0（異常の判定は min の前に行う）。gameplay のコードが受け取る時間と VFX の進む時間を、負荷スパイクのフレームを含めて一致させる。
+- **反映点。** `Vfx` layer の LateUpdate。各 instance について、所属 layer の状態から (paused, rate = 領域の時間 ÷ u) を求め、前回 backend へ書いた組と違うときだけ `SetPlayback` を呼ぶ。所属 layer が止まって要素が呼ばれなくても、反映点は呼ばれる（Pause も Resume も届く）。VFX Graph の simulation（`PostLateUpdate.VFXUpdate`）はこの後なので、Update 中のどの layer で状態を変えても同じフレームに効く。反映点より後に変えた値は次のフレームから効く。u が異常で rate を計算できないフレームは rate だけ前回の値を保ち、paused はそのフレームの状態を書く。計算は状態を持たない internal の `VfxTimeLayerBinding`、前回の値・領域・開始の保留は `VfxHandle` が持つ。
+- **開始の契約。** 領域が止まっている間は、開始（動的な `Play`、配置済みの最初の有効化）を backend に届けない。`IVfxHandle.Play()` は受理して true を返し、handle に開始の保留を立てる。開始は、領域が止まっていない最初の反映点で、そのフレームの (paused, rate) を書いた後に届く（「登録 → 状態の反映 → 開始」）。保留中の `Stop` / `Dispose` は backend `Play` を呼ばずに回収する。`Play()` の可否は呼び出し時点の領域の状態で決めるので、反映点より後に Resume した同じフレームの `Play` はそのフレームに開始する（その instance だけ 1 フレーム早く効く）。Unity の標準の挙動（有効化 = 開始、`pause` / `playRate` が同じフレームの VFXUpdate に効く、rate 0 からの再開に `Play` の再送は要らない）だけで成り立ち、`initialEventName` の書き換え・`enabled` の切り替え・`Reinit` は使わない。
+- **配置済み VFX の登録（`Adopt`）。** `IVfxSystem.Adopt(UnityEngine.Object placed, AssetOwner owner, string? timeLayerId = UpdateLayerIds.Gameplay)`。`placed` は配置済みの VFX の component で、Framework は型を知らない。所有者は配置した Scene の `Scene(id)`（`OnInitialize` の時点で `IsSceneLoaded` は true なので受理される）。`Adopt` は登録だけで、配置済み VFX は「自動で開始するもの」として最初の止まっていない反映点で backend `Play` を受ける。同じ component の 2 回目の `Adopt` は backend を呼ばず何もしない handle を返す（Editor で既に開いている Scene を再利用する経路で起きうる）。回収は終端で、VFX Graph は `enabled` の切り替えで初期イベントを再送するので、`VfxSystem` が同じ component を再び有効化することは無い。再び使うなら新しく `Adopt` する。
+- **確かめていること。** 偽 backend・偽の時間源の単体テスト（`VfxSystemTimeLayerTests`・`VfxSystemAdoptTests`）と、実 `VisualEffect` の Play テスト（Pause → Resume で粒子の増加が止まって戻る（動的・配置済み）、(`Time.timeScale`, layer の倍率) = (0.5, 0.5)・(1, 2)・(2, 0.5) と unscaled で、u ≈ 0.1・0.2・0.5 秒のフレームを含む列でフレームごと max(5 ms, 2%)・列の和 1% 以内の一致、止まった領域で載せた d3 の Scene が Resume まで粒子 0）。

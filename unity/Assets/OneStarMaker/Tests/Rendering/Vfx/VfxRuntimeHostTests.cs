@@ -17,7 +17,8 @@ namespace OneStarMaker.Tests.Rendering.Vfx
 {
     /// <summary>
     /// Framework の VFX composition（<see cref="VfxRuntimeHost"/>）を、偽 backend・実 UpdateCoordinator・Subject で見る:
-    /// 未構成の診断、Tick 要素の登録と unscaled delta の転送、解放の順序、生成の途中の失敗での後始末、
+    /// 未構成の診断、Tick 要素の登録と LateUpdate の反映点、Gameplay Layer の作成と時間の値の出所、
+    /// 解放の順序、生成の途中の失敗での後始末、
     /// Scene lifecycle への接続の失敗の扱い。initializer の中の呼び出し位置はここでは見ない（diff で確認する）。
     /// </summary>
     [TestFixture]
@@ -102,23 +103,83 @@ namespace OneStarMaker.Tests.Rendering.Vfx
                 "layer は Vfx の order で作られている（別の order なら例外になる）");
         }
 
-        /// <summary>DeltaTime が 0（timeScale = 0 相当）でも、UnscaledDeltaTime で消え切り待ちの timeout が進む。</summary>
         [Test]
-        public void OnElementUpdate_ForwardsUnscaledDelta()
+        public void Create_CreatesGameplayLayerWithDefaultOrder()
+        {
+            _host = VfxRuntimeHost.Create(new FakeVfxBackend(), _loggers, _coordinator);
+
+            Assert.That(_coordinator.TryGetLayer(UpdateLayerIds.Gameplay, out var layer), Is.True);
+            Assert.That(layer!.LayerOrder, Is.EqualTo(UpdateLayerIds.GameplayLayerOrder));
+            Assert.That(UpdateLayerIds.GameplayLayerOrder, Is.LessThan(UpdateLayerIds.VfxLayerOrder), "反映点は Gameplay の後");
+        }
+
+        /// <summary>反映点は LateUpdate。Update だけでは消え切り待ちも再生状態も進まない。</summary>
+        [Test]
+        public void ReflectionPoint_IsLateUpdate_NotUpdate()
         {
             var backend = new FakeVfxBackend { AliveParticles = true };
             _host = VfxRuntimeHost.Create(backend, _loggers, _coordinator, gracefulStopTimeoutSeconds: 1f);
+            _host.FrameTimeForTest = (0.6f, 0.6f);
             var handle = _host.System.Spawn(Request(), AssetOwner.App);
             handle.Play();
             handle.StopAllowingParticlesToFinish();
 
-            _coordinator.RunUpdate(deltaTime: 0f, unscaledDeltaTime: 0.6f);
-            Assert.That(handle.IsActive, Is.True, "前提: timeout 前は残る");
-            Assert.That(backend.HasAliveParticlesCount, Is.EqualTo(1), "Tick が転送されている");
+            _coordinator.RunUpdate(deltaTime: 0.6f, unscaledDeltaTime: 0.6f);
+            Assert.That(backend.HasAliveParticlesCount, Is.EqualTo(0), "Update では反映しない");
 
-            _coordinator.RunUpdate(deltaTime: 0f, unscaledDeltaTime: 0.6f);
-            Assert.That(handle.IsActive, Is.False, "unscaled の累積で timeout した");
+            _coordinator.RunLateUpdate(deltaTime: 0.6f, unscaledDeltaTime: 0.6f);
+            Assert.That(backend.HasAliveParticlesCount, Is.EqualTo(1), "LateUpdate で反映した");
+            _coordinator.RunLateUpdate(deltaTime: 0.6f, unscaledDeltaTime: 0.6f);
+            Assert.That(handle.IsActive, Is.False, "領域の時間の累積で timeout した");
             Assert.That(backend.DestroyCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Gameplay Layer が止まっていても Vfx Layer の反映点は呼ばれ、Pause を backend へ書く。
+        /// 止まっている間は消え切り待ちの timeout が進まず、Resume の後に進む（実時間では数えない）。
+        /// </summary>
+        [Test]
+        public void GameplayPaused_ReflectsPause_AndTimeoutDoesNotAdvanceUntilResume()
+        {
+            var backend = new FakeVfxBackend { AliveParticles = true };
+            _host = VfxRuntimeHost.Create(backend, _loggers, _coordinator, gracefulStopTimeoutSeconds: 1f);
+            _host.FrameTimeForTest = (0.6f, 0.6f);
+            var gameplay = _coordinator.GetOrCreateLayer(UpdateLayerIds.Gameplay, UpdateLayerIds.GameplayLayerOrder);
+            var handle = _host.System.Spawn(Request(), AssetOwner.App);
+            handle.Play();
+            handle.StopAllowingParticlesToFinish();
+
+            gameplay.IsPaused = true;
+            for (var i = 0; i < 5; i++)
+            {
+                _coordinator.RunLateUpdate(deltaTime: 0.6f, unscaledDeltaTime: 0.6f);
+            }
+
+            Assert.That(handle.IsActive, Is.True, "止まっている間は timeout しない");
+            Assert.That(backend.PlaybackCalls, Has.Count.EqualTo(1), "Pause は 1 回だけ書く");
+            Assert.That(backend.PlaybackCalls[0].Paused, Is.True);
+
+            gameplay.IsPaused = false;
+            _coordinator.RunLateUpdate(deltaTime: 0.6f, unscaledDeltaTime: 0.6f);
+            Assert.That(backend.PlaybackCalls, Has.Count.EqualTo(2));
+            Assert.That(backend.PlaybackCalls[1].Paused, Is.False, "Resume が同じ反映点で書かれる");
+            Assert.That(handle.IsActive, Is.True, "Resume の後の 0.6 秒では timeout しない");
+
+            _coordinator.RunLateUpdate(deltaTime: 0.6f, unscaledDeltaTime: 0.6f);
+            Assert.That(handle.IsActive, Is.False, "Resume の後の累積で timeout した");
+        }
+
+        /// <summary>時間の値は Layer の状態を Layer を作らずに読む（未作成の Layer は「止まっていない、倍率 1」）。</summary>
+        [Test]
+        public void TimeSource_UnknownLayer_IsNotCreated()
+        {
+            _host = VfxRuntimeHost.Create(new FakeVfxBackend(), _loggers, _coordinator);
+            var source = (IVfxTimeSource)_host;
+
+            Assert.That(source.TryGetLayerState("NotCreated", out var paused, out var scale), Is.False);
+            Assert.That(paused, Is.False);
+            Assert.That(scale, Is.EqualTo(1f));
+            Assert.That(_coordinator.TryGetLayer("NotCreated", out _), Is.False, "読むだけで作らない");
         }
 
         // ═══════════════════════════════════════════
@@ -243,6 +304,12 @@ namespace OneStarMaker.Tests.Rendering.Vfx
             public VfxInstanceId Create(in VfxSpawnRequest request) => Inner.Create(request);
 
             public bool Play(VfxInstanceId id) => Inner.Play(id);
+
+            public void SetPlayback(VfxInstanceId id, bool paused, float rate) => Inner.SetPlayback(id, paused, rate);
+
+            public VfxInstanceId Adopt(UnityEngine.Object placed) => Inner.Adopt(placed);
+
+            public void Release(VfxInstanceId id) => Inner.Release(id);
 
             public void StopEmitting(VfxInstanceId id) => Inner.StopEmitting(id);
 

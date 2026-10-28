@@ -12,6 +12,7 @@ using NUnit.Framework;
 using OneStarMaker.Runtime;
 using OneStarMaker.Runtime.CameraSystem.Abstractions;
 using OneStarMaker.Runtime.Rendering.Environments;
+using OneStarMaker.Runtime.Rendering.Vfx;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Tests.CameraSystem;
 using OneStarMaker.Tests.SceneSystem.Helpers;
@@ -30,14 +31,16 @@ namespace SampleGame.Tests.Rendering.Vfx
 {
     /// <summary>
     /// Season の Atmosphere VFX（Spring_AtmosphereVFX）と Cell VFX（Spring_VFX_4_2）を実 Scene として Play 中に載せ、
-    /// 対応時の有効化と粒子、非対応・未判定時に何も有効化されないこと、親の unload での回収を見る。
+    /// 対応時の登録・有効化と粒子、止まった時間の領域でロードしたときに Resume まで始まらないこと、
+    /// 非対応・未構成時に何も有効化されないこと、親の unload での回収を見る。
     /// 描画の陽性・陰性は <see cref="VfxSceneRenderPlayTests"/> が専用 Scene で測る。
     /// <para>
     /// Scene は test が持つ SceneDirector で載せる。アプリの SceneDirector で Season を載せると祖先の InGameSession の
     /// 距離ストリーミングが動き、読み込み半径の外の Cell (4,2) を次の Tick で外すので、Cell VFX の観測が競合する。
     /// test の director はアプリと同じ UICommon・AssetManagement・variant を使い、実 SceneResource の複製から
     /// Season_Spring を根にした Map を作る（同じ .unity を同じ経路で載せる。Lighting は RenderEnvironment の lease を
-    /// 取るので入れない）。Scene class は実 GameSceneFactory が分類する。
+    /// 取るので入れない）。Scene class は実 GameSceneFactory が分類し、配置済み VFX をテストの VfxSystem に登録する
+    /// （テストの VfxSystem はテストの director の Scene lifecycle に接続する）。
     /// </para>
     /// </summary>
     [TestFixture]
@@ -58,6 +61,9 @@ namespace SampleGame.Tests.Rendering.Vfx
 
         private const int SceneFrameLimit = 3000;
 
+        // AC8 で止めておくフレーム数（AC6 と同じ）。
+        private const int PausedFrames = 30;
+
         // ═══ AC4 (a)(b): 対応時に実 Scene の VisualEffect が全て有効になり、粒子が出る ═══
 
         [UnityTest]
@@ -67,8 +73,8 @@ namespace SampleGame.Tests.Rendering.Vfx
                 WriteGraphicsFacts();
                 AssumeGraphicsSupported();
                 UsePcQuality();
-                PublishCapability(RealFacts, expected: VfxCapability.Supported);
-                await WithTestScenesAsync(async scenes =>
+                var host = CreateHost(RealFacts);
+                await WithTestScenesAsync(host, async scenes =>
                 {
                     await scenes.Director.AddScene(Season, null, CancellationToken.None);
                     Assert.That(scenes.Director.IsSceneStable(Season), Is.True);
@@ -85,33 +91,72 @@ namespace SampleGame.Tests.Rendering.Vfx
                 });
             });
 
-        // ═══ AC5: 非対応・未判定では、新しく載せた実 Scene の VisualEffect が 1 つも有効にならず、ログも増えない ═══
+        // ═══ S-4d4a AC8: 止まった時間の領域でロードした配置済み VFX は、Resume まで始まらない ═══
+
+        [UnityTest]
+        public IEnumerator Paused_PlacedVfxScenes_DoNotStartUntilResume()
+            => UniTask.ToCoroutine(async () =>
+            {
+                WriteGraphicsFacts();
+                AssumeGraphicsSupported();
+                UsePcQuality();
+                var host = CreateHost(RealFacts);
+                var layer = GameplayLayer;
+                layer.IsPaused = true;
+                await WithTestScenesAsync(host, async scenes =>
+                {
+                    await scenes.Director.AddScene(Season, null, CancellationToken.None);
+                    await scenes.Director.AddScene(Cell, null, CancellationToken.None);
+                    await scenes.Director.AddScene(CellVfx, null, CancellationToken.None);
+                    var effects = EffectsIn(scenes.ScenePathOf(Atmosphere)).Concat(EffectsIn(scenes.ScenePathOf(CellVfx))).ToArray();
+                    Assert.That(effects, Is.Not.Empty, "前提: 配置済みの VisualEffect がある");
+
+                    for (var frame = 0; frame < PausedFrames; frame++)
+                    {
+                        await UniTask.NextFrame();
+                        Assert.That(effects.Sum(effect => effect.aliveParticleCount), Is.Zero,
+                            $"止まっている間に粒子が出た（frame {frame}）");
+                        Assert.That(effects.Count(effect => effect.enabled), Is.Zero,
+                            $"止まっている間に開始した（frame {frame}）");
+                    }
+
+                    layer.IsPaused = false;
+                    var frames = 0;
+                    for (; frames < ParticleFrameLimit && !effects.All(effect => effect.aliveParticleCount > 0); frames++)
+                    {
+                        await UniTask.NextFrame();
+                    }
+
+                    TestContext.Out.WriteLine(
+                        $"pausedFrames={PausedFrames} resumeToAliveFrames={frames} frameLimit={ParticleFrameLimit} " +
+                        $"alive={string.Join(",", effects.Select(effect => effect.aliveParticleCount))}");
+                    Assert.That(effects.All(effect => effect.enabled), Is.True, "Resume の後に開始しない VisualEffect がある");
+                    Assert.That(effects.All(effect => effect.aliveParticleCount > 0), Is.True, "Resume の後に粒子が増えない");
+                });
+            });
+
+        // ═══ AC5（S-4d4a AC9）: 非対応・未構成では、新しく載せた実 Scene の VisualEffect が 1 つも有効にならず、
+        //     動的な起動も何もせず、ログも増えない ═══
 
         [UnityTest]
         public IEnumerator Unsupported_RealVfxScenes_EnableNothingAndLogNothing()
             => UniTask.ToCoroutine(async () =>
             {
-                PublishCapability(UnsupportedFacts, expected: VfxCapability.Unsupported);
-                await AssertRealScenesStayDisabledAsync();
+                await AssertRealScenesStayDisabledAsync(CreateHost(UnsupportedFacts));
             });
 
         [UnityTest]
-        public IEnumerator Undetermined_RealVfxScenes_EnableNothingAndLogNothing()
+        public IEnumerator Unconfigured_RealVfxScenes_EnableNothingAndLogNothing()
             => UniTask.ToCoroutine(async () =>
             {
-                // writer の backend を Dispose すると状態は未判定に戻る（VfxCapabilityState.ResetIfWriter）。
-                var backend = new VfxGraphBackend(UnsupportedFacts);
-                backend.QueryCapability(out _);
-                backend.Dispose();
-                Assert.That(VfxCapabilityState.Current, Is.EqualTo(VfxCapability.Undetermined), "前提: 未判定");
-                await AssertRealScenesStayDisabledAsync();
+                await AssertRealScenesStayDisabledAsync(CreateHost((VfxGraphBackend?)null));
             });
 
         // ═══ AC6 (a)(b): 親の unload で VFX Scene の GameObject が残らない ═══
 
         [UnityTest]
         public IEnumerator ParentUnload_RemovesVfxSceneObjects()
-            => UniTask.ToCoroutine(() => WithTestScenesAsync(async scenes =>
+            => UniTask.ToCoroutine(() => WithTestScenesAsync(CreateHost(RealFacts), async scenes =>
             {
                 await scenes.Director.AddScene(Season, null, CancellationToken.None);
                 await scenes.Director.AddScene(Cell, null, CancellationToken.None);
@@ -146,6 +191,15 @@ namespace SampleGame.Tests.Rendering.Vfx
             Assert.That(expected != null, Is.True, $"VFX asset が無い: {expectedAssetPath}");
             var effects = EffectsIn(scenePath);
             Assert.That(effects, Is.Not.Empty, $"Scene に VisualEffect が無い: {scenePath}");
+
+            // 有効化は登録の後の最初の反映点（LateUpdate）で起きる。
+            var enableFrames = 0;
+            for (; enableFrames < SceneFrameLimit && !effects.All(effect => effect.enabled); enableFrames++)
+            {
+                await UniTask.NextFrame();
+            }
+
+            TestContext.Out.WriteLine($"scene={scenePath} enabledAfterFrames={enableFrames}");
             Assert.That(effects.All(effect => effect.enabled), Is.True, $"対応時に有効にならない VisualEffect がある: {scenePath}");
             Assert.That(effects.All(effect => effect.visualEffectAsset == expected), Is.True,
                 $"Scene の VisualEffect が本番の .vfx を参照していない: {scenePath}");
@@ -188,7 +242,7 @@ namespace SampleGame.Tests.Rendering.Vfx
             }
         }
 
-        private static UniTask AssertRealScenesStayDisabledAsync() => WithTestScenesAsync(async scenes =>
+        private UniTask AssertRealScenesStayDisabledAsync(VfxRuntimeHost host) => WithTestScenesAsync(host, async scenes =>
         {
             var logCount = 0;
             void Count(string condition, string stackTrace, LogType type) => logCount++;
@@ -198,6 +252,15 @@ namespace SampleGame.Tests.Rendering.Vfx
                 await scenes.Director.AddScene(Season, null, CancellationToken.None);
                 await scenes.Director.AddScene(Cell, null, CancellationToken.None);
                 await scenes.Director.AddScene(CellVfx, null, CancellationToken.None);
+
+                // 動的な起動も何もしない（例外を出さず、VisualEffect を作らない）。
+                var before = CountVisualEffects();
+                var spawned = host.System.Spawn(
+                    new VfxSpawnRequest(ShortLived, Vector3.zero, Quaternion.identity), OneStarMaker.Runtime.AssetManagement.AssetOwner.Scene(CellVfx));
+                Assert.That(spawned.IsActive, Is.False);
+                Assert.That(spawned.Play(), Is.False);
+                Assert.That(CountVisualEffects(), Is.EqualTo(before));
+                await UniTask.NextFrame();
                 await UniTask.NextFrame();
             }
             finally
@@ -209,8 +272,7 @@ namespace SampleGame.Tests.Rendering.Vfx
             {
                 var effects = EffectsIn(scenes.ScenePathOf(identity));
                 TestContext.Out.WriteLine(
-                    $"capability={VfxCapabilityState.Current} scene={identity} effects={effects.Length} " +
-                    $"enabled={effects.Count(effect => effect.enabled)}");
+                    $"scene={identity} effects={effects.Length} enabled={effects.Count(effect => effect.enabled)}");
                 Assert.That(effects, Is.Not.Empty, $"前提: {identity} に VisualEffect がある");
                 Assert.That(effects.Count(effect => effect.enabled), Is.Zero, $"{identity} で有効な VisualEffect がある");
             }
@@ -225,9 +287,9 @@ namespace SampleGame.Tests.Rendering.Vfx
         /// 後始末を派生の [UnityTearDown] に分けない: 基底の TearDown が ExitPlayMode（ドメインの再読込）をまたぐので、
         /// 派生にもう 1 つ TearDown を置いた形では、本体の観測が期待どおりでも TearDown が NullReferenceException で落ちた。
         /// </summary>
-        private static async UniTask WithTestScenesAsync(Func<TestSceneDirector, UniTask> body)
+        private static async UniTask WithTestScenesAsync(VfxRuntimeHost host, Func<TestSceneDirector, UniTask> body)
         {
-            var scenes = TestSceneDirector.Create();
+            var scenes = TestSceneDirector.Create(host);
             try
             {
                 await body(scenes);
@@ -283,7 +345,8 @@ namespace SampleGame.Tests.Rendering.Vfx
 
             internal SceneDirector Director { get; }
 
-            internal static TestSceneDirector Create()
+            /// <param name="host">配置済み VFX を登録するテストの VfxSystem。この director の Scene lifecycle に接続する。</param>
+            internal static TestSceneDirector Create(VfxRuntimeHost host)
             {
                 var originals = new Dictionary<string, SceneResource>(StringComparer.Ordinal)
                 {
@@ -313,13 +376,18 @@ namespace SampleGame.Tests.Rendering.Vfx
                     cameraSystem,
                     new NoopCameraBackgroundApplier(),
                     CellCompanionSet.Full,
-                    new UnusedRenderEnvironment());
+                    new UnusedRenderEnvironment(),
+                    host.System);
                 var ctor = typeof(SceneDirector).GetConstructors(Instance).Single(c => c.GetParameters().Length == 7);
                 var director = (SceneDirector)ctor.Invoke(new[]
                 {
                     factory, Field("_uiCommon"), map, Field("_loadingDisplay"), Field("_assetManagement"),
                     Field("_sceneVariant"), Field("_useContentDirectory"),
                 });
+
+                // Scene 所有の登録を受理させるため、最初の Scene を載せる前に接続する（本番の initializer と同じ順序）。
+                host.BindSceneLifecycle(director.OnSceneEvent, director);
+                Assert.That(host.IsSceneLifecycleBound, Is.True, "前提: テストの VfxSystem が director に接続した");
                 return new TestSceneDirector(director, map, clones, originals);
             }
 

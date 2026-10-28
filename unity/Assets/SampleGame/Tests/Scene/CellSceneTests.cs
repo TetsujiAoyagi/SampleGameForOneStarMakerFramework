@@ -17,6 +17,8 @@ using OneStarMaker.Tests.SceneSystem.TestDoubles;
 using SampleGame.InGame.World;
 using UnityEngine;
 using UnityEngine.TestTools;
+using OneStarMaker.Runtime.Rendering.Vfx;
+using OneStarMaker.Runtime.UpdateSystem.Api;
 
 namespace OneStarMaker.Tests.SceneSystem
 {
@@ -72,7 +74,8 @@ namespace OneStarMaker.Tests.SceneSystem
                 child,
                 new NullSceneQuery(),
                 new NullSceneController(),
-                NullLoggerFactory.Instance);
+                NullLoggerFactory.Instance,
+                new NoopVfxSystem());
 
             Assert.That(scene.UIView, Is.Null);
         }
@@ -88,9 +91,9 @@ namespace OneStarMaker.Tests.SceneSystem
             CreatedSOs.Add(child);
 
             Assert.Throws<ArgumentException>(() => new CellCompanionScene(
-                orphan, new NullSceneQuery(), new NullSceneController(), NullLoggerFactory.Instance));
+                orphan, new NullSceneQuery(), new NullSceneController(), NullLoggerFactory.Instance, new NoopVfxSystem()));
             Assert.Throws<ArgumentException>(() => new CellCompanionScene(
-                child, new NullSceneQuery(), new NullSceneController(), NullLoggerFactory.Instance));
+                child, new NullSceneQuery(), new NullSceneController(), NullLoggerFactory.Instance, new NoopVfxSystem()));
         }
 
         [Test]
@@ -214,6 +217,15 @@ namespace OneStarMaker.Tests.SceneSystem
             public UniTask SwitchScene(string? from, string to, CancellationToken ct, SceneContext? context = null, LoadingDisplayType loadingDisplay = LoadingDisplayType.BlackScreen, IReadOnlyDictionary<string, string>? tags = null) => UniTask.CompletedTask;
             public UniTask GoBack(CancellationToken ct, SceneContext? context = null, LoadingDisplayType loadingDisplay = LoadingDisplayType.BlackScreen, IReadOnlyDictionary<string, string>? tags = null) => UniTask.CompletedTask;
             public void ClearHistory() { }
+        }
+
+        /// <summary>何も登録しない VfxSystem。factory・Scene class の生成だけを見るテストで使う。</summary>
+        private sealed class NoopVfxSystem : IVfxSystem
+        {
+            public IVfxHandle Spawn(in VfxSpawnRequest request, AssetOwner owner) => NullVfxHandle.Instance;
+
+            public IVfxHandle Adopt(UnityEngine.Object placed, AssetOwner owner, string? timeLayerId = UpdateLayerIds.Gameplay)
+                => NullVfxHandle.Instance;
         }
     }
 }
