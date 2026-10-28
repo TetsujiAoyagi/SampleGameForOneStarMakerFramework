@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（引渡しはローカルの commit SHA で行う。evidence の固定は発見 C が `workflow-task.ps1 start` の後に行う）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: 発見 C 2 巡目完了（2026-10-29、対象 implementation head `4cb3b8d3`、阻害する指摘なし。§7）。次は判定 C（GO 候補 head `4cb3b8d3`）。未実行は全 EditMode 回帰（空 filter）、Play テスト（`-WithGraphics`）、AC16（`Build Spring Full` / `Build Spring Whitebox`）、AC17 の既存回帰、`contract-audit`、Evidence の stage と C 用 bundle。C' の担当ベンダーは進行役が選ぶ（§5.1）。
+- 引継ぎ票: 発見 C 2 巡目完了（2026-10-29、対象 implementation head `4cb3b8d3`、阻害する指摘なし。§7）。次は判定 C（GO 候補 head `4cb3b8d3`。判定 C は途中: 全 EditMode は 2 回とも XML 完成・failed 0 だが Unity 終了 stall のため未完了、§7）。未実行は全 EditMode 回帰（空 filter）、Play テスト（`-WithGraphics`）、AC16（`Build Spring Full` / `Build Spring Whitebox`）、AC17 の既存回帰、`contract-audit`、Evidence の stage と C 用 bundle。C' の担当ベンダーは進行役が選ぶ（§5.1）。
 
 ---
 
@@ -468,6 +468,17 @@ InGameSession
 - **未実行（判定 C で行う）:** 全 EditMode 回帰（空 filter）、AC16、AC17 の既存回帰（`VfxScenePlayTests`、`SessionCellCompanionLoadDriverTests`）、`contract-audit`、Evidence の stage と C 用 bundle。
 - 実行の副作用: `.pdb.meta` 5 件の消失が再発したので `git checkout` で戻した（commit には含めない）。
 - 発見 C 担当: Anthropic 系（Claude Sonnet 系）。
+
+### 判定 C（2026-10-29、GO 候補 implementation head `4cb3b8d3`。未完了）
+
+- **種別:** 判定 C の途中記録。判定は出していない（完了とも記録しない）。C' は起動していない。
+- **実行（`pwsh tools/run-tests.ps1`、空 filter、全 EditMode、-nographics、Editor は閉じた状態）:**
+  1. 1 回目: XML は完成（1410 件中 passed 1387・failed 0・skipped 0・inconclusive 23）したが、Unity が終了せず CPU 時間が増え続け、runner を停止した。`step.json` なし。強制停止を伴うため成功証拠にしない。
+  2. Harness README「Unity終了時の既知native stall」の停止規則に従い、同じ head で 1 回だけ再取得: XML は完成（同じ 1410 件・passed 1387・failed 0・skipped 0・inconclusive 23）したが、XML の完成後も Unity プロセスが 10 分以上終了しなかった。同じ症状。既知リスクとして raw のまま記録し、追加の調査・再取得はしない。
+  - inconclusive 23 件は graphics が要る Play テスト（`VfxGraphBackendPlayTests` 18、`VfxGraphRenderPlayTests` 1、`VfxScenePlayTests` 2、`VfxSceneRenderPlayTests` 1、`LocalVfxEventPlayTests` 1）。`-WithGraphics` 側で実行する。
+- **`contract-audit`:** errors 0、warnings 0。
+- **未実行:** `-WithGraphics` の Play テスト（`LocalVfxEventPlayTests` ほか）、AC16（`Build Spring Full` / `Build Spring Whitebox`）、AC17 の既存回帰、Evidence の stage。
+- 判定 C 担当: Anthropic 系（Claude Sonnet 系）。
 
 ## 8. Phase C'
 
