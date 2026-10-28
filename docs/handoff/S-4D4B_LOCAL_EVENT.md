@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（引渡しはローカルの commit SHA で行う。evidence の固定は発見 C が `workflow-task.ps1 start` の後に行う）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: Phase B 完了（2026-10-29）。実装は `eba9ddaf`（ブランチ `claude/s-4d4b-local-event`、base `9d0c8f2f`、push していない）。次は発見 C（動作確認は対象なし、§5）。Unity テストは全て未実行で、§1.3 の読み（AC5）と §5 の未知の操作経路（1）（2）は発見 C の最初の Unity 実行で確かめる。Editor は閉じてある（この worktree の `Library/` は同じ base の別 worktree から複製して作った）。B の作業中に見つけた後続の入力は §6。C' の担当ベンダーは未定（Phase C' の開始までに発注者が決める）。
+- 引継ぎ票: Phase B 完了（2026-10-29）。実装は `eba9ddaf`（ブランチ `claude/s-4d4b-local-event`、base `9d0c8f2f`、push していない）。次は発見 C（動作確認は対象なし、§5）。Unity テストは全て未実行で、§1.3 の読み（AC5）と §5 の未知の操作経路（1）（2）は発見 C の最初の Unity 実行で確かめる。Editor は閉じてある（この worktree の `Library/` は同じ base の別 worktree から複製して作った）。B の作業中に見つけた後続の入力は §6。C' の担当ベンダーは進行役が選ぶ（2026-10-29 発注者が委任。§5.1 の独立性の条件に従う）。
 
 ---
 
@@ -388,7 +388,7 @@ InGameSession
   - 確かめて変更不要だった点: base `9d0c8f2f` の後に `origin/develop` は進んでいない（2026-10-28）。Content Directory の candidate は `SceneResource` の payload から作るので、`.vfx` の Addressables entry が candidate になって build が止まることは無い。Whitebox の build にも Full だけの補助 Scene（Events）が共通として入る（`SeasonSceneSelectionPolicy`）。
 - **A3 再レビュー（2026-10-28）:** `89a6242a` を同じ GPT（OpenAI 系）が静的に再レビュー。結論は「凍結 GO を推奨。前回の P1・P2 は解消、新しいブロッカーなし」。P3 の 2 件（§1 の目的の「破棄通知での回収をここで閉じる」と §2.4 の `OnDestroy` の順の断定が現行の裁定と食い違う）と、E5 の文言を AC10 のフレームだけの観測に揃える提案を採用し、凍結 commit で直した。
 - **A3 凍結:** 2026-10-28、発注者の指示で revision 1 として凍結。program の §6.3 d4b 行を更新した。
-- **C' 用に予約した担当:** OpenAI 系（Codex）で予約していたが、A3 の統合版レビューに OpenAI 系（GPT）が関与したため、「A〜C に関与していないベンダー」の条件を満たさない。C' の担当ベンダーは Phase C' の開始までに発注者が決める（2026-10-28、発注者「後で決める」）。
+- **C' 用に予約した担当:** OpenAI 系（Codex）で予約していたが、A3 の統合版レビューに OpenAI 系（GPT）が関与したため、「A〜C に関与していないベンダー」の条件を満たさない。C' の担当ベンダーは Phase C' の開始までに発注者が決める（2026-10-28、発注者「後で決める」）。 2026-10-29、発注者が C' の担当の選定を Phase C〜C' の進行役に委任した（「A〜C に関与していないベンダー」の条件を満たす担当を進行役が選び、選んだ担当と理由を §8 に記録する）。
 - **独立性の強化条件:** A2 の 3 件のうち 2 件が Anthropic 系（モデルは別）、1 件が xAI。A3 の統合版レビューは OpenAI 系。C' の担当は上記のとおり未定。
 
 ## 6. Phase B 実装結果
