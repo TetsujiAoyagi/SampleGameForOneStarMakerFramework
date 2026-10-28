@@ -292,7 +292,8 @@ namespace SampleGame.Tests.World
         {
             var session = CreateSession();
 
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            // UniTask.FromCanceled は派生の TaskCanceledException を投げる。ThrowsAsync は型の完全一致なので、派生を許す CatchAsync で見る。
+            Assert.CatchAsync<OperationCanceledException>(async () =>
                 await session.PrepareAsync(() => UniTask.FromCanceled<Object?>()));
 
             Assert.That(_logger.TotalCount, Is.Zero);

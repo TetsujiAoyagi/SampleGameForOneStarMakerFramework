@@ -219,6 +219,14 @@ namespace SampleGame.Tests.Rendering.Vfx
                 await WithEventsAsync(host, backend, async scenes =>
                 {
                     await EnterAsync(scenes.Trigger);
+
+                    // 陽性対照: 非対応では backend に何も届かないので、進入が session まで届いて起動（VfxSystem.Spawn）まで
+                    // 進んだことを session 側で見る。これが無いと、進入が届かなくても下の「呼び出し 0」が通る。
+                    var (occupants, handle) = ReadSession(scenes.Trigger);
+                    TestContext.Out.WriteLine($"occupants={occupants} handle={handle?.GetType().Name ?? "null"}");
+                    Assert.That(occupants, Is.EqualTo(1), "進入が session に届いていない");
+                    Assert.That(handle, Is.SameAs(NullVfxHandle.Instance), "起動されていない（非対応の Spawn は no-op の handle を返す）");
+
                     await scenes.Director.UnloadScene(Cell);
                     await scenes.WaitRemovedAsync(Events);
 
@@ -265,6 +273,20 @@ namespace SampleGame.Tests.Rendering.Vfx
         }
 
         private GameObject? _probe;
+
+        /// <summary>
+        /// trigger に付いた session の在室数と、起動で受け取った handle を読む。session は観測用の面を持たないので reflection で読む
+        /// （製品コードにテストのための面を足さない）。
+        /// </summary>
+        private static (int Occupants, IVfxHandle? Handle) ReadSession(LocalVfxEventTrigger trigger)
+        {
+            const BindingFlags instance = BindingFlags.Instance | BindingFlags.NonPublic;
+            var session = typeof(LocalVfxEventTrigger).GetField("_session", instance)!.GetValue(trigger) as LocalVfxEventSession;
+            Assert.That(session, Is.Not.Null, "trigger に session が付いていない");
+            var occupants = (HashSet<ulong>)typeof(LocalVfxEventSession).GetField("_occupants", instance)!.GetValue(session)!;
+            var handle = (IVfxHandle?)typeof(LocalVfxEventSession).GetField("_handle", instance)!.GetValue(session);
+            return (occupants.Count, handle);
+        }
 
         private async UniTask LeaveAsync()
         {

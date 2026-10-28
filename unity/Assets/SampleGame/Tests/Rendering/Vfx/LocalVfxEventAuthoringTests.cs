@@ -80,7 +80,7 @@ namespace SampleGame.Tests.Rendering.Vfx
                 Assert.That(address.StartsWith(SeasonsRoot, StringComparison.Ordinal) && address.EndsWith(".vfx", StringComparison.Ordinal),
                     Is.True, $"{name}: address が Seasons/ 配下の .vfx でない: {address}");
                 Assert.That(AssetDatabase.LoadAssetAtPath<VisualEffectAsset>(address) != null, Is.True, $"{name}: .vfx が無い: {address}");
-                Assert.That(File.ReadAllText(address), Does.Contain("m_UpdateMode: 3"), $"{name}: .vfx の Update Mode が 3 でない");
+                Assert.That(PlacedVfxAuthoringTests.InspectUpdateMode(File.ReadAllText(address)), Is.Null, $"{name}: .vfx の Update Mode");
 
                 var entry = FindAddressableEntry(AssetDatabase.AssetPathToGUID(address));
                 Assert.That(entry, Is.Not.Null, $"{name}: .vfx の Addressables entry が無い");
