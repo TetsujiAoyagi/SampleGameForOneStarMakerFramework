@@ -370,7 +370,7 @@ D-1（ホット/コールド分離）・D-5（Handle API）・D-6（2 経路）�
 
 ## 16. VFX 抽象
 
-VFX の寿命、非対応環境での停止、例外の隔離、時間の領域への追従を、VFX 実装の型に依存しない Framework の契約として保証する（S-4d1、時間の領域と配置済み VFX の登録は S-4d4a）。実装は `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Vfx/`（namespace `OneStarMaker.Runtime.Rendering.Vfx`、asmdef `OneStarMaker.Runtime`）。VFX Graph に依存する backend は SampleGame に置き（S-4d2）、Framework に VFX Graph の型と asmdef 参照を持ち込まない。同時数の上限・優先度・間引き・pool / prewarm・DebugStudio 観測は、必要になったスライスで決める。
+VFX の寿命、非対応環境での停止、例外の隔離、時間の領域への追従を、VFX 実装の型に依存しない Framework の契約として保証する（S-4d1、時間の領域と配置済み VFX の登録は S-4d4a、Cell Events の trigger から起動する VFX の実例は S-4d4b）。実装は `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Vfx/`（namespace `OneStarMaker.Runtime.Rendering.Vfx`、asmdef `OneStarMaker.Runtime`）。VFX Graph に依存する backend は SampleGame に置き（S-4d2）、Framework に VFX Graph の型と asmdef 参照を持ち込まない。同時数の上限・優先度・間引き・pool / prewarm・DebugStudio 観測は、必要になったスライスで決める。
 
 ### 16.1 公開型と配置
 
@@ -480,14 +480,18 @@ VFX Graph（`com.unity.visualeffectgraph` 17.6.0）に依存する実装は `uni
 
 ### 16.7 後続スライスへの送り
 
-d1〜d4a では答えず、後続スライスの Phase A で決める事項。
+d1〜d4b では答えず、後続スライスの Phase A で決める事項。
 
-- **S-4d4b:**
-  - notifier の `OnDestroy` が、実 Scene の unload と go の Destroy で回収を呼ぶことの Play Mode 確認。
-  - 同じ identity の Scene の再ロードを、実 `SceneDirector` で 1 往復確かめること。
-  - d2 のテストが直接は見ていない経路: `Bind` 所有者の破棄から 1 フレーム以内の回収（d2 のテストは 2 フレーム待つ）、`Create` 直後に発射しないことの長い観測窓（d2 は 120 フレーム）、host の Update 登録の失敗と、backend の `Create` が GameObject の作成後に失敗した場合の後始末（d2 はコードレビューで確認）。
-  - graphics なし（`-nographics`）の既定の回帰では、実 `VisualEffect` を作る Play 中のテストが全て Inconclusive になる。
-  - 反映点（`Vfx` layer の LateUpdate）より後に gameplay layer を Resume した同じフレームで、保留していない `Play` はそのフレームに開始する（§16.8）。trigger がその窓で `Play` するかを A0 で確かめる。
+- **d1〜d2 から残る確認（所有スライス未定）:** S-4d4b は、同じ identity の Scene の再ロードを実 `SceneDirector` で 1 往復確かめた（§16.9）。次の事項は、Cell の unload を `End()` の `Stop` で回収する設計にしたので通らない経路になり、未確認のまま残る。
+  - notifier（`VfxOwnerDestroyNotifier`）の `OnDestroy` だけで、実 Scene の unload と go の Destroy の回収が起きることの Play Mode 確認。
+  - `Bind` 所有者の破棄から 1 フレーム以内の回収（d2 のテストは 2 フレーム待つ）。S-4d4b の「破棄したフレームで回収」は trigger 自身の `OnDestroy` → `End()` によるもので、同じ go の notifier との順を Unity は定めないので、`Bind` の仕組みの証拠にはならない。
+  - `Create` 直後に発射しないことの長い観測窓（d2 は 120 フレーム）、host の Update 登録の失敗、backend の `Create` が GameObject の作成後に失敗した場合の後始末（d2 はコードレビューで確認）。
+  - graphics なし（`-nographics`）の既定の回帰では、実 `VisualEffect` を作る Play 中のテストが全て Inconclusive になる。runner はそれを失敗の終了コードにするので、全件回帰の判定には `-WithGraphics` の実行を併用する。
+- **S-4d4b から送った事項（所有スライス未定）:**
+  - 進入者の追跡の厳密化。1 つの Rigidbody が trigger に重なる Collider を複数持つ場合の在室（Collider ごとの入退出を Rigidbody へ集約する）と、退出の通知が来ない破棄・非 active 化（在室が残り、Cell の unload まで VFX が残る）。
+  - `AssetManagement.LoadAssetAsync` は backend のロードを await した後、所有者の Scene の終端を確かめずに登録する。所有者が先に `ReleaseScene` された後にロードが完了すると、その asset は誰にも解放されない（Framework 側の欠落。§16.9 は `OnLoadedImpl` でロードしてこの経路を避けている）。
+  - trigger の `.vfx` を Content Directory・Player build に乗せる経路と、Content Directory 上で trigger の VFX が起動すること（BuildSystem の実装系。いまは Content Directory を使う実行でロードが失敗し、Error ログを出してその trigger だけが止まる）。
+  - World Workspace の companion 作成 transaction が、未保存の untitled Scene だけが開いている Editor でも preflight を通り、失敗後の rollback で元の Scene 構成（空）を復元できず journal が残る。
 - **d4a から送った事項（所有スライス未定）:**
   - gameplay のコードを gameplay layer へ移し、ゲームの一時停止を実際に作ること（いまの SampleGame に layer を pause / time scale する呼び出しは無い）。
   - Prefab で動的に置いた配置済み VFX の登録（`Bind(go)` 所有の `Adopt`）。
@@ -512,3 +516,20 @@ VFX の時間は「どの世界に属するか」で決め、作り方（動的�
 - **開始の契約。** 領域が止まっている間は、開始（動的な `Play`、配置済みの最初の有効化）を backend に届けない。`IVfxHandle.Play()` は受理して true を返し、handle に開始の保留を立てる。開始は、領域が止まっていない最初の反映点で、そのフレームの (paused, rate) を書いた後に届く（「登録 → 状態の反映 → 開始」）。保留中の `Stop` / `Dispose` は backend `Play` を呼ばずに回収する。`Play()` の可否は呼び出し時点の領域の状態で決めるので、反映点より後に Resume した同じフレームの `Play` はそのフレームに開始する（その instance だけ 1 フレーム早く効く）。Unity の標準の挙動（有効化 = 開始、`pause` / `playRate` が同じフレームの VFXUpdate に効く、rate 0 からの再開に `Play` の再送は要らない）だけで成り立ち、`initialEventName` の書き換え・`enabled` の切り替え・`Reinit` は使わない。
 - **配置済み VFX の登録（`Adopt`）。** `IVfxSystem.Adopt(UnityEngine.Object placed, AssetOwner owner, string? timeLayerId = UpdateLayerIds.Gameplay)`。`placed` は配置済みの VFX の component で、Framework は型を知らない。所有者は配置した Scene の `Scene(id)`（`OnInitialize` の時点で `IsSceneLoaded` は true なので受理される）。`Adopt` は登録だけで、配置済み VFX は「自動で開始するもの」として最初の止まっていない反映点で backend `Play` を受ける。同じ component の 2 回目の `Adopt` は backend を呼ばず何もしない handle を返す（Editor で既に開いている Scene を再利用する経路で起きうる）。回収は終端で、VFX Graph は `enabled` の切り替えで初期イベントを再送するので、`VfxSystem` が同じ component を再び有効化することは無い。再び使うなら新しく `Adopt` する。
 - **確かめていること。** 偽 backend・偽の時間源の単体テスト（`VfxSystemTimeLayerTests`・`VfxSystemAdoptTests`）と、実 `VisualEffect` の Play テスト（Pause → Resume で粒子の増加が止まって戻る（動的・配置済み）、(`Time.timeScale`, layer の倍率) = (0.5, 0.5)・(1, 2)・(2, 0.5) と unscaled で、u ≈ 0.1・0.2・0.5 秒のフレームを含む列でフレームごと max(5 ms, 2%)・列の和 1% 以内の一致、止まった領域で載せた d3 の Scene が Resume まで粒子 0）。
+
+### 16.9 Cell Events の trigger から起動する VFX
+
+Cell の Events Scene（`{Season}_Events_{x}_{y}`）に置いた trigger から、一時的な VFX を `IVfxSystem.Spawn` で起動し、Cell の unload と trigger の GameObject の破棄で、source asset の解放より前に 1 回ずつ回収する（S-4d4b。実例は `Spring_Events_4_2`）。Framework のコードと公開 API は変えず、SampleGame.InGame の 3 つの型で組む。
+
+| 型 | 責務 |
+|---|---|
+| `LocalVfxEventTrigger`（MonoBehaviour） | authoring の面（`.vfx` の Addressables address）と、physics の callback を session へ渡す受け口。`OnTriggerEnter` / `OnTriggerExit` の `attachedRigidbody` の id（`EntityId`）を進入・退出として流す。session が付く前の callback は出来事の列として順に溜め、付いた時点で流す。`OnDestroy` で session を `End()` する |
+| `LocalVfxEventSession`（internal、純 C#） | trigger 1 つ分の規則。状態は `Preparing` → `Ready` / `Failed` → `Ended` の一方向。在室は Rigidbody の id の集合で、生存 handle は高々 1 つ。進入（在室 0→1）で残った handle が `IsActive` なら `Stop` してから `Spawn` → `Play`、退出（在室 1→0）で `StopAllowingParticlesToFinish`。準備前の進入は、準備の完了で起動する |
+| `LocalVfxEventBinder`（internal、instance） | Events Scene の lifecycle との接続。`CellCompanionScene` が 1 つ持つ（`SceneBase` は `OnPreUnLoadedImpl` の直前に `RootObjects` を空にするので、session の一覧を Scene の寿命で保持する）。trigger が無い companion では作らない |
+
+- **寿命。** source asset は `OnLoadedImpl` で `LoadSceneScopedAssetAsync`（所有者 `Scene(Events の identity)`）でロードし、handle 自体は渡さず個別に Release もしない（解放は `ReleaseScene`）。`OnLoadedImpl` はキャンセル窓の外なので、ロード中に要求された unload は Stable の後へ保留され、`ReleaseScene` がロードの完了より前に起きない（`SceneDirectorSceneScopedAssetLoadTests` が直接・親の再帰の両方で確かめる）。VFX は `Bind(trigger の go)` 所有で親なし（親を trigger にすると、Unity の Scene unload が回収漏れを隠す）。
+- **回収の順序。** Cell の unload では `OnPreUnLoadedImpl` の `End()` が生存 handle を `Stop` する。その後に Unity Scene の unload、`ReleaseScene` が続くので、「VFX の回収 → asset の解放」が保たれる。`Bind` の破棄通知（`OnDestroy`）と `Tick` の偽 null の検査は、go を個別に破棄した場合と `End()` が呼ばれなかった場合の保険で、この順序の根拠にしない（一度も active にならなかった go などでは `OnDestroy` が呼ばれず、回収が `ReleaseScene` の後の `Tick` になる）。`End()` の後の進入と、後から届いた準備の完了は `Spawn` しない。
+- **失敗。** asset のロードの失敗（例外か null）は Events Scene のロード失敗にしない。session が Error ログを trigger ごとに 1 件出し、その trigger だけを止める（`OperationCanceledException` だけは外へ出す）。InGame は VFX の型を知らないので `UnityEngine.Object` で受け、型の検査は backend の `Create` に任せる。
+- **進入者。** `attachedRigidbody` を持つ Collider 全て（Player に限らない）を Rigidbody ごとに数える。進入者の Rigidbody が trigger に重なる Collider を 1 つだけ持つことを前提にする（§16.7）。
+- **authoring。** Events Scene は World Workspace の Planner role の作成 transaction で作る（[§5.13](05-scene.md#513-cell-と職種-companion-の分類)）。trigger の go に `isTrigger` の Collider と `LocalVfxEventTrigger` を置き、Renderer・`VisualEffect`・`PlacedVfxActivator` は置かない（Cell の `_volume` を変えない）。`.vfx` は Events Scene と同じフォルダに置き、Update Mode は §16.6 の規約、Addressables entry は Scene と同じ group で address は asset path。`LocalVfxEventAuthoringTests` が EditMode で確かめる。Events Scene は `Build Spring Full` / `Build Spring Whitebox` の Content Directory に Scene payload として入るが、`.vfx` は Scene の依存ではないので入らない。
+- **確かめていること。** session の単体テスト（`LocalVfxEventSessionTests`、偽 `IVfxSystem`）、`VfxSystemSceneDirectorTests` の同じ identity の再ロード後の再受理、実 Scene の Play テスト（`LocalVfxEventPlayTests`。test の `SceneDirector` で Cell と Events だけを載せ、kinematic Rigidbody の `MovePosition` で `OnTriggerEnter` を起こす。`PreUnloading` → `Destroy` → `Removed` の時系列と `IAssetDiagnostics.GetOwners`、go の `Object.Destroy` と同じフレームの `Destroy`、Cell を載せ直した後の再起動、非対応の `VfxSystem`、実 backend で `Removed` の次のフレームに `VisualEffect` 0 件）。
