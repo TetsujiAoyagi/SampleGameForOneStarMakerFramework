@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `B` 第 2 revision の後の B 完了（2026-10-30。次は発見 C 2 巡目）。Phase A は第 2 revision 凍結（2026-10-30。発見 C 1 巡目の F3 による受理の優先順位の改訂。§7「F3 への発注者の決定」、§5.2）。第 1 revision のA3 凍結版は `3104ff5a`（2026-10-29、A2 入力版 `1fa1b472`、§5.1）
+- status: `B` 第 2 revision の後の B 完了、発見 C 2 巡目完了・指摘なし（2026-10-30。次は判定 C）。Phase A は第 2 revision 凍結（2026-10-30。発見 C 1 巡目の F3 による受理の優先順位の改訂。§7「F3 への発注者の決定」、§5.2）。第 1 revision のA3 凍結版は `3104ff5a`（2026-10-29、A2 入力版 `1fa1b472`、§5.1）
 - branch: `claude/s-4d5-major-event`
 - implementation base commit: `22ebf130`（`develop`、S-4d4b の PR #148 のマージ）
 - implementation head commit: 第 2 revision の後の B の出口（この記述を含む commit。§6「第 2 revision の後の B」）。前の B の出口は `1766af84`。GO 候補 head としては未固定
@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と、第 2 revision の後の B の出口 commit で引き渡す）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: 第 2 revision の後の Phase B を終えた（出口はこの記述を含む commit。§6「第 2 revision の後の B」）。範囲は §4.1「第 2 revision の後の B」のとおり `Admit` の判定の順とコメント、`MajorEventDriverTests` の AC2 の優先順位、`SeasonMajorEventPlayTests` の AC9 と F1・F2。Editor の compile はエラー 0、`pwsh tools/contract-audit.ps1` は errors=0 warnings=0。Unity テストは未実行（Phase C）。動作確認の対象は無い（§6「動作確認」）。次は 発見 C 2 巡目（新しい session）: 起点 filter（§5）で F1〜F3 の閉鎖を確かめ、通れば判定 C → C'。C' には未関与の系列を残している（§5.1）。
+- 引継ぎ票: 第 2 revision の後の Phase B を終えた（出口はこの記述を含む commit。§6「第 2 revision の後の B」）。範囲は §4.1「第 2 revision の後の B」のとおり `Admit` の判定の順とコメント、`MajorEventDriverTests` の AC2 の優先順位、`SeasonMajorEventPlayTests` の AC9 と F1・F2。Editor の compile はエラー 0、`pwsh tools/contract-audit.ps1` は errors=0 warnings=0。Unity テストは未実行（Phase C）。動作確認の対象は無い（§6「動作確認」）。発見 C 2 巡目は終了し、F1〜F3 は閉じた（§7「発見 C（2 巡目）」）。次は判定 C（全 EditMode 回帰、Play 系、`Build Spring Whitebox`）→ C'。C' には未関与の系列を残している（§5.1）。
 
 ---
 
@@ -391,6 +391,19 @@ AC6〜AC9 の「次のフレーム」は、対象の `Removed` の通知を受�
 - 理由: 本スライスの harvest で major Event の分類と寿命が Architecture §05 §5.13 に載る前に決める方が、凍結後・公開後に直すより安い。変更は受理の純関数と単体テストに閉じる見込み。消えかけの Event に「動いている」と答える意味のずれも解消する。
 - レビュー担当: 第 2 revision の A2 は既に関与した系列で行ってよい（発注者「普通に Phase A やっといて」）。未関与の系列は C' 用に残す。
 - F1・F2 は Phase A と独立。再凍結の後の B で F3 の test と一緒に直す。
+
+### 発見 C（2 巡目）
+
+- 種別: 発見。対象: implementation head `31e3654c`（第 2 revision の後の B の出口。1 巡目の記録 `5a411185` からの差分を読んだ）。GO 判定はしない。担当: Phase B・発見 C 1 巡目とは別の session（Anthropic 系）。
+- 機械検査: `pwsh tools/contract-audit.ps1` errors=0 warnings=0、`pwsh tools/docs-audit.ps1` errors=0 warnings=0。
+- 差分の読み: `Admit` は「停止 → 枝 → Season の未ロード → 差し替え → Stable でない → driver の状態 → 構造」の順で、§2 の受理の優先順位と一致。driver の状態遷移・拒否の理由の集合・controller・公開面・Framework・asmdef は無変更。親が健全な間の driver の状態の答えは変わらない。F1（Cell の `Removed` の通知を数えて待つ）、F2（Destroy が Stable の後・`PreUnloaded` の前、`ownedByEvent=True`）、AC9（unload 前に Loading 中の `AlreadyActive` と `EventPreLoadingCount`=1、`LoadingDisplayType.None`、前提不成立の文言、後続の要求は `Rejected`）はいずれも製品を変えず観測だけを直している。
+- 実行したテスト（起点 filter の範囲）:
+  - EditMode（`-nographics`）: `MajorEventDriverTests`・`SessionSeasonControllerTests`・`GameSceneFactoryTests`・`VfxSceneStructureTests` を `OneStarMaker.Tests.*` の namespace 付きで指定。total=93、passed=93、failed=0。
+  - `SeasonMajorEventPlayTests`（`-WithGraphics`、EditMode）: total=6、passed=6、failed=0（AC6、AC7 (a)+AC8 (a)、AC7 (b)+AC8 (b)、AC7 (c)、AC9、AC10）。
+- 指摘: なし。F1・F2・F3 は閉じた（F3 は AC9 が文言どおり `Rejected` で通過）。AC9 の前提（Event が Stable でない）は 1 巡目と今回の 2 回とも成立し、「Stable に先を越される」懸念は 2 回の実行では起きなかった（再現性は判定 C の実行で引き続き見る）。後続スライスの入力: なし。
+- 判定必須テストのうち未実行（判定 C の範囲）: 全 EditMode 回帰（空 filter）、`MajorEventAuthoringTests`・`LocalVfxEventPlayTests`・`VfxScenePlayTests`・Streaming の Play 系（`-WithGraphics`）、`Build Spring Whitebox`（AC14）。
+- 実行環境の副作用: Editor の起動で `MobileDependencyResolver` の `.pdb.meta` 5 件が消えたため `git checkout` で戻した。
+- 結論: 発見 C の差し戻しは無い。往復は 2 巡目で収束。
 
 ## 8. Phase C'
 
