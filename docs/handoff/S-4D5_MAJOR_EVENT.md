@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `A2` 第 2 revision（発見 C 1 巡目の F3 による。§7「F3 への発注者の決定」）。A2 入力版を commit した（第 1 revision のA3 凍結版は `3104ff5a`、2026-10-29。A2 入力版は `1fa1b472`。採否の要約は §5.1、第 2 revision は §5.2）
+- status: `A` 第 2 revision 凍結（2026-10-30。発見 C 1 巡目の F3 による受理の優先順位の改訂。§7「F3 への発注者の決定」、§5.2）。第 1 revision のA3 凍結版は `3104ff5a`（2026-10-29、A2 入力版 `1fa1b472`、§5.1）
 - branch: `claude/s-4d5-major-event`
 - implementation base commit: `22ebf130`（`develop`、S-4d4b の PR #148 のマージ）
 - implementation head commit: `1766af84`（Phase B の出口。GO 候補 head としては未固定）
@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と commit `1766af84` で引き渡す）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: Phase A 第 2 revision の A2（範囲を絞ったレビュー）中。改訂は受理の優先順位だけ（§2 冒頭「受理の優先順位」、AC2・AC3・AC9、D2、§4.1 の第 2 revision の後の B、§4.2 の停止条件、§1.3 の追加の現況）。前提の確認: Event の Add 中も Season は Stable のまま（§1.3）。A3 の再凍結の後は B（`Admit` の判定の順と F1〜F3 の test の修正）→ 発見 C 2 巡目 → 判定 C → C'。implementation head は `1766af84` のまま。
+- 引継ぎ票: Phase A 第 2 revision を A3 で再凍結した（凍結 commit はこの記述を含む commit。A2 入力版 `2745e79e`、§5.2）。改訂は受理の優先順位だけ（§2 冒頭「受理の優先順位」、I1 の判定の名前、AC2・AC3・AC9、D2、§3 の driver 行、§4.1「第 2 revision の後の B」、§4.2 の停止条件 2 件、§1.3 の追加の現況）。次は Phase B（新しい session）: implementation head `1766af84` から、§4.1「第 2 revision の後の B」の範囲だけを直す（`Admit` の判定の順とコメント、`MajorEventDriverTests` の AC2 の組み合わせと `Request` 経由の 1 本、`SeasonMajorEventPlayTests` の AC9 と F1・F2）。権限: Editor の compile 確認と `pwsh tools/contract-audit.ps1` まで。Unity テストは Phase C。B の出口で commit し、§6 と本票を更新する。その後は 発見 C 2 巡目 → 判定 C → C'。C' には未関与の系列を残している（§5.1）。
 
 ---
 
@@ -105,16 +105,16 @@ InGameSession
 
 **受理の優先順位（第 2 revision。全条件で共通）。** 受理は次の 4 段を上から順に見て、最初に当たった段で答える。
 1. **driver の停止:** 停止後は `Rejected(Stopped)`。
-2. **枝と Season の生存:** 枝の操作中は `Rejected(BranchBusy)`。Season の未ロード・差し替え・Stable でないは `Rejected(SeasonNotLoaded / SeasonReplaced / SeasonNotStable)`。
+2. **枝と Season の生存:** 次の順に見る。2a 枝の操作中は `Rejected(BranchBusy)`。2b Season の未ロード（捕捉した個体か現在の個体が null。unload の開始後を含む）は `Rejected(SeasonNotLoaded)`。2c 差し替え（`ReferenceEquals` が false）は `Rejected(SeasonReplaced)`。2d Stable でないは `Rejected(SeasonNotStable)`。
 3. **driver の状態:** Idle でない間、別の identity は `Rejected(OtherEventActive)`、同じ identity の Ending は `Rejected(Ending)`、Loading・Live は `AlreadyActive`。
 4. **構造:** identity が active Season の直下でない・OnDemand でない・`StreamByDistance` は `Rejected(NotSeasonChild / NotOnDemand / StreamByDistance)`。どれにも当たらなければ `Accepted`。
 
-段 2 を段 3 より先に見るのは、親（枝・Season）が既に Event を生かせない状態なら、消えかけの Event に「動いている」（`AlreadyActive`）と答えないため。段 2 の判定は Event の Add 中に偽にならない（Season が Stable を外れるのは unload の開始だけ。§1.3）ので、親が健全な間の段 3 の答えは第 1 revision と同じ。段 3 と段 4 の順と、拒否の理由の集合は第 1 revision から変えない。
+段 2 を段 3 より先に見るのは、親（枝・Season）が既に Event を生かせない状態なら、消えかけの Event に「動いている」（`AlreadyActive`）と答えないため。段 2 の判定は Event の Add 中に偽にならない（Season が Stable を外れるのは unload の開始だけ。§1.3）ので、親が健全な間の段 3 の答えは第 1 revision と同じ。段 3 と段 4 の順、段 2 の内部の順、拒否の理由の集合は第 1 revision から変えない。段 2 を先に見る結果、親の unload の開始後に届く開始 trigger の要求は、無音の `AlreadyActive` ではなく拒否の Warning を出す。ログが増えるだけで Add の有無は変わらないので許容し、抑制は作らない（第 2 revision の A2）。
 
 ### 2.1 不変条件（起きてはいけないこと）
 
 - **I1（親の外で生きない）:** major Event の Add は、active な Season が Stable で枝の操作中でない間にだけ発行される。受理の判定、状態の記録、`AddScene` の開始は 1 つの同期区間で行い、その間に await を挟まない。Season が未ロード・unload 中・枝の切替中・Session の停止後の要求は Add を発行しない（祖先の暗黙のロードも、unload 中の親への取り残しも起きない）。
-  - **保証の範囲:** Season を unload する全経路。Season を直接の対象にする unload は controller の枝の終了だけで、driver の停止と `_branchBusy` が先に立つ。Session・`InGame` など祖先の unload では、SceneDirector が子孫の収集と同じ同期区間で Season の `PhasePreUnload` に入り、Season は UIView を持たないので `PreUnloading` へ同期に進む（`IsUnloadStarted` が真、`GetLoadedScene` が null）。よって収集の後に届く要求は Stable の判定で `Rejected` になる（A3 版レビュー R1）。
+  - **保証の範囲:** Season を unload する全経路。Season を直接の対象にする unload は controller の枝の終了だけで、driver の停止と `_branchBusy` が先に立つ。Session・`InGame` など祖先の unload では、SceneDirector が子孫の収集と同じ同期区間で Season の `PhasePreUnload` に入り、Season は UIView を持たないので `PreUnloading` へ同期に進む（`IsUnloadStarted` が真、`GetLoadedScene` が null）。よって収集の後に届く要求は Season の生存の判定（`GetLoadedScene` が null で `SeasonNotLoaded`）で `Rejected` になる（A3 版レビュー R1。第 2 revision で判定の名前を直した）。
   - **この証明の位置づけ:** 「Season の Scene class は UIView を登録しない」は現コードの観測で、本スライスの設計契約にしない（Season の UI の有無を major Event の契約にしない）。保証は現在の構成と指定した呼び出し経路に依存する。AC9 の続きは後続のフレームでの受付の停止を確かめるだけで、同期区間の窓が無いことは §1.3 のコードの順序で扱う。崩れた場合の口は §2.4 の後続。要求は物理の callback や frame の処理から届き、`OnSceneEvent` の同期の購読者から要求しない（post-order の収集の途中で同期に呼ばれると、Season の `PreUnloading` より前になる）。
 - **I2（重複しない）:** 1 つの Season 枝に同時に生きる major Event は最大 1 件。driver が Idle でない間、同じ identity の要求は `AlreadyActive`（Loading・Live）または `Rejected`（Ending）、別の identity の要求は `Rejected` で、どれも 2 つ目の Add を発行しない（停止・枝・Season の生存の段で先に `Rejected` になる場合を除く。受理の優先順位）。同じフレームの複数の進入も含む。複数同時の辞書・pool・queue は作らない（A3 凍結前レビュー R3-1）。
 - **I3（Season より長く残らない）:**
@@ -140,14 +140,14 @@ InGameSession
 | AC | 内容 | 条件 | 種別 |
 |---|---|---|---|
 | AC1 | active Season が Stable の間の要求 1 回で、Add が 1 回発行され、`Accepted` を返す。返る前に driver は Loading で、個体は観測個体に登録済み | E1・I1 | 単体 |
-| AC2 | 受理（driver の static な純関数）: Season 未ロード、捕捉した Season の個体と現在の個体が別（`ReferenceEquals` が false）、Stable でない、枝の切替中、停止後、identity が active Season の直下でない・OnDemand でない・`StreamByDistance` である（別 Season の Event、Cell、Lighting 等）のそれぞれで `Rejected`（理由付き）。driver は Add を発行せず Warning を 1 回出す。**優先順位（第 2 revision）:** 停止後、枝の切替中、Season の未ロード・差し替え・Stable でないの各条件を、driver の状態が Loading・Live・Ending のそれぞれで同じ identity の要求と組み合わせても、結果は `Rejected` で理由は段 1・段 2 のもの（`AlreadyActive`・`Ending` にならない）。Idle の Season 未ロードと構造違反（例 `Spring_Lighting`）の組み合わせは `SeasonNotLoaded` | I1 | 単体（失敗経路） |
+| AC2 | 受理（driver の static な純関数）: Season 未ロード、捕捉した Season の個体と現在の個体が別（`ReferenceEquals` が false）、Stable でない、枝の切替中、停止後、identity が active Season の直下でない・OnDemand でない・`StreamByDistance` である（別 Season の Event、Cell、Lighting 等）のそれぞれで `Rejected`（理由付き）。driver は Add を発行せず Warning を 1 回出す。**優先順位（第 2 revision）:** 停止後、枝の切替中、Season の未ロード・差し替え・Stable でないの各条件を、driver の状態が Loading・Live・Ending のそれぞれで同じ identity の要求と組み合わせても、結果は `Rejected` で理由は段 1・段 2 のもの（`AlreadyActive`・`Ending` にならない）。Idle の Season 未ロードと構造違反（例 `Spring_Lighting`）の組み合わせは `SeasonNotLoaded`、枝の切替中と Season 未ロードの組み合わせは `BranchBusy`（段 2 の内部の順）。`Request` 経由で 1 回: driver が Loading の間に query が Season を返さなくなった（unload の開始）ときの同じ identity の要求は `Rejected(SeasonNotLoaded)`、Warning 1 回、Add も unload も追加されず、driver は Loading のまま（拒否は状態を遷移させない） | I1 | 単体（失敗経路） |
 | AC3 | 停止・枝・Season の生存が受理できる状態（段 1・段 2 に当たらない）で、Loading・Live の要求は `AlreadyActive`、Ending の要求は `Rejected`。どちらも Add 0。終端（`Removed` と `CancelCleanedUp` のどちらでも）を観測した後の要求は Add 1。同じ同期区間の 2 回の要求で Add 1。完了の通知が Add の await が戻る前（Loading）に届いても Ending になり、unload が 1 回発行される。偽 Event A が Loading・Live の間の別 identity の偽 Event B の要求は `Rejected`、Add 0。A の終端の後の B の要求は Add 1 | I2・E2 | 単体（失敗経路） |
 | AC4 | Event が Live の間の枝の切替は、Event の終端を待ってから次の Season を Add する（偽 terminal events で Event の終端を遅らせると次の Add が保留される） | I3(a) | 単体 |
 | AC5 | Event の Add の await 中に枝の切替を始める: (i) キャンセル窓で `CancelCleanedUp`、(ii) 窓の外（`OnLoadedImpl` の await 中）で保留の後の `Removed`、(iii) `Initializing`。いずれも次の Season の Add は Event の終端の後に発行され、registry の未完了 op は 0、Event の個体は 0。(iv) 発行の失敗: 偽 controller で await より前に個体を捕捉できない場合も、元の Add の task が終わる（完了・例外）までは driver が Idle に戻らず、その間の要求で 2 本目の Add を出さない。例外は driver が観測して Error を 1 回出し、未観測の例外を残さない | I3(a) | 単体（失敗経路） |
 | AC6 | 実 Scene: 開始 → Stable → anchor 2 か所に VFX 2 件。Cell (4,2) と Events を unload し、Cell の `Removed` の次のフレームで Event は Stable、VFX 2 件が `IsActive` | E1・E4 | Play |
 | AC7 | 実 Scene: 完了の trigger に kinematic Rigidbody を入れると Event が回収される。(a) 記録 backend: Event の `PreUnloading` → instance の `Destroy` 2 回 → `ReleaseScene`（`IAssetDiagnostics.GetOwners` から Event の所有者が消える）→ `Removed` の順。(b) 実 backend: 起動で Event が起動した `VisualEffect` 2 件、Event の `Removed` の次のフレームで**その 2 件**が 0 件、再要求で再び 2 件。数えるのは Event Scene の個体が起動したものだけで（起動の前後の差か、Event の所有で識別する）、`Spring_AtmosphereVFX` など既存の `VisualEffect` は数えない。(c) 非対応の `VfxSystem` でも開始・完了が例外なく進み、`VisualEffect` は有効にならない（旧 AC11 を統合）。計測のために製品コードや共通のテスト基盤を足さない（`LocalVfxEventPlayTests` と同じ分け方） | E2・I4・I5 | Play（AC8 と同じ test class） |
 | AC8 | 実 Scene: Event が Stable の間に枝を終了して Season を unload すると、(a) 記録 backend: Event の `PreUnloading` → instance の `Destroy` 2 回 → `ReleaseScene` → Event の `Removed` → Season の `Removed` の順。(b) 実 backend: Season の `Removed` の次のフレームで Event の個体なし・Event が起動した `VisualEffect` 0 件（AC7 (b) と同じ数え方。Season 全体の終了後の総数と混同しない） | E3・I3(c)・I4 | Play（AC7 と同じ test class） |
-| AC9 | 実 Scene で 1 回だけ: Event の窓の外のロード中に Session を unload する（本番の退出と同じく controller の待ちを通さない）。Event は保留の後に終端し、その `Removed` の次のフレームに Event の個体なし・Event が起動した `VisualEffect` 0 件（AC7 (b) と同じ数え方）・`GetOwners` に Event の所有者なし。`Spawn` の回数は判定しない。同じテストの続きで、Session の unload の開始の次のフレームに 1 回要求すると `Rejected`、Add 0（このとき driver は Loading のまま停止していない。`Rejected` は受理の優先順位の段 2、Season の生存による。`AlreadyActive` は不合格。第 2 revision）。これは後続のフレームでの受付の停止を確かめるもので、子孫の収集の直後の同期区間に窓が無いことの直接の証明ではない（そちらは I1 のコードの順序の確認で扱う。A3 凍結前レビュー R3-5）。位相ごとの Play の行列にしない | I1・I3(b)・I4 | Play（失敗経路、1 本） |
+| AC9 | 実 Scene で 1 回だけ: Event の窓の外のロード中に Session を unload する（本番の退出と同じく controller の待ちを通さない）。Event は保留の後に終端し、その `Removed` の次のフレームに Event の個体なし・Event が起動した `VisualEffect` 0 件（AC7 (b) と同じ数え方）・`GetOwners` に Event の所有者なし。`Spawn` の回数は判定しない。Session の unload の前に、Event が窓の外のロード中（Stable でない）の間に同じ identity を 1 回要求すると `AlreadyActive`、Add 0（実 SceneDirector で Event の Add 中も Season が Stable のままであることの確認。第 2 revision）。同じテストの続きで、Session を `LoadingDisplayType.None` で unload し、その開始の次のフレームに、前提（`GetLoadedScene(Season)` が null、Event の個体はまだ終端していない）を確かめてから 1 回要求すると `Rejected`、Add 0（このとき driver は Loading のまま停止していない。`Rejected` は受理の優先順位の段 2b による。理由は Warning にだけ出るので Play では判定せず、AC2 の `Request` 経由の単体で見る。`AlreadyActive` は不合格。前提が成り立たなければ `AlreadyActive` で合格・不合格を決めず、前提不成立として失敗にする。第 2 revision）。これは後続のフレームでの受付の停止を確かめるもので、子孫の収集の直後の同期区間に窓が無いことの直接の証明ではない（そちらは I1 のコードの順序の確認で扱う。A3 凍結前レビュー R3-5）。位相ごとの Play の行列にしない | I1・I3(b)・I4 | Play（失敗経路、1 本） |
 | AC10 | 実 Scene: `CellCompanionSet.Planner` で Season・Cell (4,2) を載せ、Environment が 1 件も載っていない状態で、Events の開始 trigger から Event が起動し、完了の trigger で回収される。Events_4_2 は既存の companion driver が resident の Cell (4,2) から載せたもので、テストが直接 Add しない（誰が載せたかを記録する）。Whitebox の representation は含まない | E5 | Play |
 | AC11 | 欠番（第 3 版で AC7 (c) に統合） | — | — |
 | AC12 | authoring: `Spring_Event_MultiCellProof` の node・payload（Full のみ）・親子 link・Map・Addressables entry（Scene と同じ group、address は asset path）。`.vfx` は Scene と同じフォルダで、Update Mode は §24 §16.6 の規約（`PlacedVfxAuthoringTests` と同じ検査）。Event Scene に Renderer・`VisualEffect`・`PlacedVfxActivator` が無い。anchor は Cell (4,2) と (5,2) の `_volume` の中に 1 つずつ、完了の trigger は (5,2) の体積の中、開始の trigger は `Spring_Events_4_2` の (4,2) の体積の中にあり、どちらも `isTrigger` の Collider を持つ。開始の trigger の event identity は Season_Spring の子に実在し、`GameSceneFactory` が `SeasonMajorEventScene` に分類する。Season_Spring の子 57 件 | E6 | EditMode |
@@ -157,7 +157,7 @@ InGameSession
 
 AC3 の読み方: 合格例: Stable で完了した直後の要求は `Rejected`、Event の `Removed` の後の要求は Add 1。Loading 中に `CancelCleanedUp` で終端した後の要求は Add 1。不合格例: 完了の直後の要求で Add が発行され、unload 中の個体と新しい個体が同時に生きる。
 
-AC2 の優先順位の読み方（第 2 revision）: 合格例: driver が Loading で Season が `PreUnloading`（`GetLoadedScene` が null）のときの同じ identity の要求は `Rejected(SeasonNotLoaded)`。driver が Live で枝の切替中は `Rejected(BranchBusy)`。Season が Stable で driver が Loading なら `AlreadyActive`（第 1 revision と同じ）。不合格例: 親の unload の開始後に `AlreadyActive` や `Rejected(Ending)` を返す。
+AC2 の優先順位の読み方（第 2 revision）: 合格例: driver が Loading で Season が `PreUnloading`（`GetLoadedScene` が null）のときの同じ identity の要求は `Rejected(SeasonNotLoaded)`。driver が Live で枝の切替中は `Rejected(BranchBusy)`。Season が Stable で driver が Loading なら `AlreadyActive`（第 1 revision と同じ）。不合格例: 親の unload の開始後に `AlreadyActive` や `Rejected(Ending)` を返す。枝の切替中かつ Season 未ロードで `SeasonNotLoaded` を返す（段 2 の内部の順は 2a が先）。
 
 AC5 の読み方: 合格例: (i)〜(iii) のどれでも、偽 controller に記録された次の Season の Add が、Event の終端の通知より後。不合格例: Event の終端の前に次の Season を Add する、または Event の op が未完了のまま切替が終わらない。
 
@@ -202,11 +202,11 @@ AC6〜AC9 の「次のフレーム」は、対象の `Removed` の通知を受�
 
 ---
 
-## 3. 責務マップ（A3 凍結版）
+## 3. 責務マップ（A3 凍結版。第 2 revision で受理の優先順位を改訂）
 
 | ファイル | 責務・変更理由 | 所有者・寿命 | 依存・公開面 | テスト境界 | 行数（現在 → 予想） |
 |---|---|---|---|---|---|
-| 新規 `Streaming/Runtime/Season/MajorEventDriver.cs` | 受理の純関数と結果の enum、状態（Idle / Loading / Live / Ending）、発行の呼び出し、完了の待ち、終端の観測 | controller の枝ごと。枝の終了で停止 | controller が渡す delegate、query、terminal events。internal | 偽の delegate / query / terminal events で AC1〜AC3 | 0 → 160〜220 |
+| 新規 `Streaming/Runtime/Season/MajorEventDriver.cs` | 受理の純関数（判定の順は §2 の受理の優先順位。第 2 revision）と結果の enum、状態（Idle / Loading / Live / Ending）、発行の呼び出し、完了の待ち、終端の観測 | controller の枝ごと。枝の終了で停止 | controller が渡す delegate、query、terminal events。internal | 偽の delegate / query / terminal events で AC1〜AC3（優先順位の組み合わせを含む） | 0 → 160〜220（実装は §6。優先順位の改訂は判定の順の入れ替えで、行数と責務を変えない） |
 | `SessionSeasonController.cs` | driver の生成と停止、private な発行（await より前の bind）、要求の委譲 | InGameSession | 既存 | `SessionSeasonControllerTests` に AC4・AC5 | 599 → 640〜680（690 を超える見込みで止める。D2） |
 | `InGameSessionScene.cs` | internal の `RequestMajorEvent` で driver へ委譲 | InGameSession | 既存。public 面は変えない | — | 174 → 182〜188 |
 | 新規 `World/SeasonMajorEventScene.cs` | Event Scene の lifecycle: source のロード、Stable で anchor の位置に `Scene(Event)` 所有の `Spawn`、Stable からの完了の受付と delegate の呼び出し | Event Scene | `IVfxSystem` | Play（AC6〜AC9） | 0 → 110〜150 |
@@ -229,7 +229,7 @@ AC6〜AC9 の「次のフレーム」は、対象の `Removed` の通知を受�
 - **非分割（`CellCompanionScene`）:** 開始 trigger の収集を `MajorEventStartBinder` に出すので、Scene class の責務は「配置済み VFX・local Event・major Event の開始を、それぞれの binder に Scene の lifecycle でつなぐ」1 つのまま。
 - **配置:** driver は Season の枝の所有物なので `Streaming/Runtime/Season/`。namespace は既存の `SampleGame.InGame.Streaming`。Scene class・trigger・binder は既存の `World/`（d4b と同じ）。新しい asmdef・依存 edge は無い。
 
-## 4. 実装計画（A3 凍結版）
+## 4. 実装計画（A3 凍結版。第 2 revision で受理の優先順位を改訂）
 
 ### 4.1 順序
 
@@ -239,7 +239,7 @@ AC6〜AC9 の「次のフレーム」は、対象の `Removed` の通知を受�
 4. authoring・Play テスト（AC6〜AC12）。`VfxSceneStructureTests` の件数。
 5. `pwsh tools/contract-audit.ps1`、Editor の compile 確認。
 
-**第 2 revision の後の B（`1766af84` から）:** 変更は `MajorEventDriver.Admit` の判定の順（受理の優先順位）と、そのコメント、`MajorEventDriverTests` の AC2 の優先順位の組み合わせ、`SeasonMajorEventPlayTests` の F1・F2（観測の取り方）と F3（AC9 の `Rejected` がそのまま通ることの確認）に限る。controller・`InGameSession`・Scene class・binder・Scene / asset・公開面・Framework・asmdef は変えない。拒否の理由の集合と driver の状態遷移も変えない。
+**第 2 revision の後の B（`1766af84` から）:** 変更は `MajorEventDriver.Admit` の判定の順（受理の優先順位）と、そのコメント、`MajorEventDriverTests` の AC2 の優先順位の組み合わせ、`SeasonMajorEventPlayTests` の AC9（第 2 revision の文言: unload 前の `AlreadyActive`、`LoadingDisplayType.None`、要求前の前提確認）に限る。F1・F2（AC6・AC7 (a)・AC8 (a) の観測の取り方）は Phase A の範囲外の B 適応として同じ B で直す（§7）。controller・`InGameSession`・Scene class・binder・Scene / asset・公開面・Framework・asmdef は変えない。拒否の理由の集合と driver の状態遷移も変えない。
 
 ### 4.2 Phase B から Phase A へ差し戻す条件
 
@@ -254,7 +254,8 @@ AC6〜AC9 の「次のフレーム」は、対象の `Removed` の通知を受�
 - Play の根を成り立たせるために、Session・Ensure・streaming・companion のどれかの製品の挙動を変える（§5 の停止条件）。
 - driver の delegate が 3 つで足りない（D2）、または発行の interface や public の要求 interface が無いと単体テストが書けない。driver が controller の private な registry に触りすぎている兆候なので、発行の手続きを controller の private に戻して解く。層を足して解かない。
 - controller が 690 行を超える見込みになる（D2）。
-- （第 2 revision）受理の優先順位を満たすために、driver の状態遷移・拒否の理由の集合・`Admit` の入力・controller の変更が要る。または、unload を始めていない Season が Event の Add 中に Stable を外れる（段 2 が段 3 の `AlreadyActive` を親が健全な間に覆う）観測が出る。
+- （第 2 revision）受理の優先順位を満たすために、driver の状態遷移・拒否の理由の集合・`Admit` の入力・controller の変更が要る。または、unload を始めていない Season が Event の Add 中に Stable を外れる（段 2 が段 3 の `AlreadyActive` を親が健全な間に覆う）観測が出る（AC9 の unload 前の `AlreadyActive` の確認で見る）。
+- （第 2 revision）`LoadingDisplayType.None` で Session を unload しても、その開始の次のフレームに Season の unload が始まっていない（`GetLoadedScene(Season)` が null にならない）。I1 の祖先の unload の保証の前提が崩れている。
 - §5 の未知の操作経路 (1) の確認で選んだ構成が Play テストで成り立たず、本番に無い composition が要る。
 
 ### 4.3 BuildSystem の既知の課題との関係（判断基準による記録）
@@ -262,7 +263,7 @@ AC6〜AC9 の「次のフレーム」は、対象の `Removed` の通知を受�
 - Event Scene は Content Directory の Spring build に Scene payload として入る（AC14 で Phase C が 1 回 build する）。`.vfx` は入らないので、Content Directory の実行では Event のロードは成功し VFX のロードだけが失敗して Error を出す（d4b と同じ）。これを直す「非 Scene asset の production 経路」と「Editor Play 向けの publish 入口」は BuildSystem の実装の候補で、U1 の推奨では d5b の前提として所有 HANDOFF を切る。
 - d5a は Player を build しない。BS4 の Player が Spring に入らない課題は S-9 / BuildSystem の候補のまま（本スライスでは踏まない）。
 
-## 5. テストとレビュー計画（A3 凍結版）
+## 5. テストとレビュー計画（A3 凍結版。第 2 revision で受理の優先順位を改訂）
 
 - **単体テスト:** `MajorEventDriverTests`（AC1〜AC3。偽の delegate・query・terminal events）、`SessionSeasonControllerTests` の追加（AC4・AC5 の 3 位相）。既存の偽 controller / query / terminal events を使う。
 - **差し戻し中の起点 `-Filter`:** `MajorEventDriverTests`、`SessionSeasonControllerTests`、`SeasonMajorEventPlayTests`、`MajorEventAuthoringTests`、`VfxSceneStructureTests`、`LocalVfxEventPlayTests`。
@@ -304,8 +305,15 @@ AC6〜AC9 の「次のフレーム」は、対象の `Removed` の通知を受�
 
 - **範囲:** 受理の優先順位だけ（§7「F3 への発注者の決定」）。それ以外の凍結条件は第 1 revision（`3104ff5a`）のまま。
 - **A0/A1 主担当:** 第 2 revision の主担当（Anthropic 系、第 1 revision とは別の session）。
-- **A2 入力版:** 未記録（A2 入力版の commit の後に記録する）。
-- **A2 レビュー:** 未実施。
+- **A2 入力版:** commit `2745e79e`、内容 sha256 `6e97f9a1a038648da9c9944b2e62c7b48a51d45ae47800a3b0fd446b665339fa`。
+- **A2 独立レビュー（2026-10-30、同じ入力版、互いの指摘は見せない。発注者の決定どおり既に関与した系列）:** (1) 不変条件の反例探し（Anthropic 系、主担当とは別のモデル）、(2) アーキテクチャゲート（Anthropic 系、主担当とは別のモデル）。どちらも blocker なし。I1〜I3・AC2・AC3・AC5 を破る順序は見つからず、§1.3 の「Event の Add 中も Season は Stable のまま」と「Session の unload で Season の `PreUnloading` が同期に始まる」はコードで再確認された。
+- **採用（反映先）:**
+  - 段 2 の内部の順（枝 → 未ロード → 差し替え → Stable でない）を規範として書き、AC2 に枝の切替中かつ Season 未ロードの例を足す（両レビュー。§2 冒頭・AC2）。
+  - I1 の「Stable の判定」を「Season の生存の判定（`SeasonNotLoaded`）」に直す。AC9 の理由は Play では判定せず、AC2 の `Request` 経由の単体（Loading 中の Season 未ロード、Warning 1 回、Add・unload なし、状態は Loading のまま）で見る（両レビュー）。
+  - AC9 の unload は `LoadingDisplayType.None` で行い、要求の前に Season の unload の開始と Event の未終端を確かめ、崩れたら前提不成立とする（反例探し。`UnloadScene` は表示付きだと `Show` を await してから unload に入る）。§4.2 に対応する停止条件を足す。
+  - AC9 の Play で unload の前に Loading 中の同じ identity の要求が `AlreadyActive` であることを 1 回見る。新しい Play は足さない（アーキテクチャゲート。単体の偽 query だけでは段 2 の前提を実 SceneDirector で確かめられない）。§4.2 の既存の停止条件の観測先にする。
+  - 親の unload の開始後の要求が Warning を出すことを許容と明記（両レビュー）。F1・F2 は範囲外の B 適応と明記（アーキテクチャゲート）。§3 の driver 行と見出しに第 2 revision を書く（アーキテクチャゲート）。
+- **採らなかった:** なし。範囲外の観察（本番では枝の操作中と Idle でない driver が同時に見えないので、`BranchBusy` と Loading・Live の組み合わせは防御の分岐）は記録だけにし、分岐は削らない。
 
 ## 6. Phase B 実装結果
 
