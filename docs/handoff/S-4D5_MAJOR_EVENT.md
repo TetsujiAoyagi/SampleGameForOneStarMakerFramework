@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `B` 完了、発見 C 1 巡目の差し戻し待ち（A3 凍結版は `3104ff5a`、2026-10-29。A2 入力版は `1fa1b472`。採否の要約は §5.1）
+- status: `A` 再開（第 2 revision。発見 C 1 巡目の F3 による。§7「F3 への発注者の決定」）（第 1 revision のA3 凍結版は `3104ff5a`、2026-10-29。A2 入力版は `1fa1b472`。採否の要約は §5.1）
 - branch: `claude/s-4d5-major-event`
 - implementation base commit: `22ebf130`（`develop`、S-4d4b の PR #148 のマージ）
 - implementation head commit: `1766af84`（Phase B の出口。GO 候補 head としては未固定）
@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と commit `1766af84` で引き渡す）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: 発見 C（1 巡目）完了。対象 head は implementation head `1766af84`（HEAD は記録のみの `0708e361`）。阻害する指摘 2 件（テストの観測の取り方 F1・F2）と、凍結条件の読みの確定が要る 1 件（F3、AC9 と AC3 の食い違い）。次は B（F1・F2 の観測の修正）と、F3 の人間の決定記録。製品コードの欠陥は見つからず、Play の根（§5 未知の操作経路 (1)）は成立した。詳細は §7。判定 C・C' は未着手。
+- 引継ぎ票: 発見 C（1 巡目）完了（§7）。F3 は仕様の穴（受理の判定の優先順位が未定）と発注者が判断し、**範囲を受理の優先順位に限って Phase A を第 2 revision として再開する**（§7「F3 への発注者の決定」）。次は Phase A（新しい session）: 第 1 revision（`3104ff5a`）を起点に、§7 の決定の範囲で §2〜§5 を改訂し、A2 の範囲を絞ったレビューを経て A3 で再凍結する。最初に、Event の Loading 中に親の Season が Stable のままかを確かめる（Stable から外れるなら「unload 中でない」等の条件で優先順位を書く）。レビュー担当は既に関与した系列でよい（発注者の決定。未関与の系列の予約は C' 用に残し、使えなければ C' で `独立性制約あり` として記録する）。範囲外の変更は入れない。再凍結の後は B（`Admit` の判定の順番と F1〜F3 の test の修正）→ 発見 C 2 巡目 → 判定 C → C'。implementation head は `1766af84` のまま。
 
 ---
 
@@ -340,6 +340,14 @@ AC6〜AC9 の「次のフレーム」は、対象の `Removed` の通知を受�
 - 判定必須テストのうち未実行: 全 EditMode 回帰（空 filter）、`VfxScenePlayTests`・`LocalVfxEventPlayTests`・Streaming の Play 系（`-WithGraphics`）、`Build Spring Whitebox`（AC14）。差し戻しが決まったため判定用の検証一式は実行していない。
 - 未確認事項: AC9 の Event のロード中の位相は、F3 の位置（228 行）まで前提 assert（`Event が Stable でない`）を通過した。つまり §6 の未確認（Unity Scene のロードが 1 フレームで終わり Stable に先を越される懸念）は、この 1 回の実行では起きなかった。以後の実行での再現性は未確認。
 - 差し戻し: B へ（F1・F2）。F3 は人間の決定記録を先に取る。往復は 1 巡目として数える。
+
+#### F3 への発注者の決定（2026-10-30）
+
+- 結論: F3 は文言の誤りではなく仕様の穴とする。AC2（祖先・枝の状態による拒否）と AC3（Event の状態による答え）が同時に成り立つ場合の優先順位が凍結条件に無く、現在の `Admit` は Event の状態を先に見るため、Session の unload の開始後も Loading の Event に `AlreadyActive` を返す。「Add 0（`Accepted` でない）」と読む案は採らない。
+- 扱い: 凍結条件（AC2・AC3・AC9 の合否）の意味を変えるので決定記録ではなく、Phase A の第 2 revision として再開する。範囲は受理の判定の優先順位だけ（目安: 停止と祖先の生存の判定を Event の状態より先に見る。AC9 は文言どおり `Rejected`）。controller・公開面・Framework・asmdef の変更は範囲外。
+- 理由: 本スライスの harvest で major Event の分類と寿命が Architecture §05 §5.13 に載る前に決める方が、凍結後・公開後に直すより安い。変更は受理の純関数と単体テストに閉じる見込み。消えかけの Event に「動いている」と答える意味のずれも解消する。
+- レビュー担当: 第 2 revision の A2 は既に関与した系列で行ってよい（発注者「普通に Phase A やっといて」）。未関与の系列は C' 用に残す。
+- F1・F2 は Phase A と独立。再凍結の後の B で F3 の test と一緒に直す。
 
 ## 8. Phase C'
 
