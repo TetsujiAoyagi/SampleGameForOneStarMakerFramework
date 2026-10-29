@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using OneStarMaker.Runtime.AssetDescriptions;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.Streaming;
+using SampleGame.InGame.World;
 using UnityEngine;
 using ZLogger;
 
@@ -34,7 +35,9 @@ namespace SampleGame.InGame.Streaming
 
         private static readonly IReadOnlyList<string> EmptyIdentities = Array.Empty<string>();
 
+        private readonly ISceneController _sceneController;
         private readonly ISceneQuery _query;
+        private readonly ISceneTerminalEvents _terminalEvents;
         private readonly ISceneVolumeQuery _volumes;
         private readonly IssuedSceneOperationRegistry _registry = new();
         private readonly SceneTerminalTracker _tracker;
@@ -50,6 +53,7 @@ namespace SampleGame.InGame.Streaming
 
         private SessionWorldStreamingDriver? _streamingDriver;
         private SessionCellCompanionLoadDriver? _companionDriver;
+        private MajorEventDriver? _majorEventDriver;
         private SceneBase? _activeSeasonScene;
         private string? _activeSeason;
         private string? _inFlightSeason;
@@ -74,7 +78,9 @@ namespace SampleGame.InGame.Streaming
             Func<ISceneStreamingBackend, StreamingCandidateSet, SessionWorldStreamingDriver>? streamingDriverFactory = null,
             Func<ISceneController, ISceneQuery, Func<IReadOnlyList<string>>, SessionCellCompanionLoadDriver>? companionDriverFactory = null)
         {
+            _sceneController = sceneController ?? throw new ArgumentNullException(nameof(sceneController));
             _query = sceneQuery ?? throw new ArgumentNullException(nameof(sceneQuery));
+            _terminalEvents = terminalEvents ?? throw new ArgumentNullException(nameof(terminalEvents));
             _volumes = volumeQuery ?? throw new ArgumentNullException(nameof(volumeQuery));
             _companionSet = companionSet;
             _focusProvider = focusProvider ?? throw new ArgumentNullException(nameof(focusProvider));
@@ -104,6 +110,18 @@ namespace SampleGame.InGame.Streaming
 
         internal IReadOnlyList<string> GetLoadedCompanionIdentities()
             => _companionDriver?.GetLoadedCompanionIdentities() ?? EmptyIdentities;
+
+        /// <summary>active な Season 枝の major Event を要求する。受理と状態は枝の <see cref="MajorEventDriver"/> が持つ。</summary>
+        internal MajorEventRequestResult RequestMajorEvent(string eventIdentity)
+        {
+            if (_majorEventDriver == null)
+            {
+                _logger.ZLogWarning($"Major event request rejected without a season branch: '{eventIdentity}'");
+                return MajorEventRequestResult.Rejected;
+            }
+
+            return _majorEventDriver.Request(eventIdentity, _branchBusy);
+        }
 
         /// <summary>テストが発行済み所有を観測する口。本番の子シーンは見ない。</summary>
         internal IssuedSceneOperationRegistry Registry => _registry;
@@ -190,7 +208,7 @@ namespace SampleGame.InGame.Streaming
                 var candidates = SeasonCandidateSelection.FromSeasonChildren(
                     capturedSeason.SceneResource.Children,
                     _volumes);
-                CreateDrivers(candidates);
+                CreateDrivers(capturedSeason, candidates);
 
                 var originIdentity = SeasonCellNames.Cell(season, originX, originY);
                 capturedOrigin = await AddAndCaptureStableAsync(originIdentity, ct);
@@ -238,6 +256,7 @@ namespace SampleGame.InGame.Streaming
 
             _stopped = true;
             _stopCts.Cancel();
+            _majorEventDriver?.Stop();
             _streamingDriver?.Stop();
             _companionDriver?.Stop();
             _registry.StopNewIssues();
@@ -274,6 +293,9 @@ namespace SampleGame.InGame.Streaming
             }
 
             var oldSeason = _activeSeasonScene;
+            // major Event は発行時に観測登録済みなので、下の 2 つの待ちが Event の終端まで待つ。
+            _majorEventDriver?.Stop();
+            _majorEventDriver = null;
             // companion は Stop だけの再 Start ができない（CTS が残る）ので破棄して作り直す。
             _streamingDriver?.Dispose();
             _streamingDriver = null;
@@ -396,6 +418,51 @@ namespace SampleGame.InGame.Streaming
             _registry.BindIncompleteForIdentity(identity, gen);
         }
 
+        /// <summary>
+        /// major Event の Add。親が Stable なら個体は Add の最初の await より前に辞書に入るので、<b>await より前に</b>観測登録する。
+        /// <see cref="IssuedSceneController.AddScene"/> の await 後の bind では、await 中に終端した個体の op が切替の待ちを塞ぎうる
+        /// （既存の経路は変えない）。token は渡さない。Session の停止で残った Event は Framework の親子の unload が回収する。
+        /// </summary>
+        private (SceneBase? Captured, UniTask Add) IssueMajorEventAdd(string identity)
+        {
+            if (_stopped || !_registry.TryRegisterAdd(identity, out var opId))
+            {
+                return (null, UniTask.FromException(new InvalidOperationException($"発行停止後の major Event の Add は拒否します: '{identity}'。")));
+            }
+
+            var add = _sceneController.AddScene(identity, afterOnLoadedTask: null, CancellationToken.None);
+            var captured = _query.GetLoadedScene(identity);
+            if (captured != null)
+            {
+                var gen = _tracker.RegisterObservedInstance(captured);
+                _registry.BindInstance(opId, gen);
+                _registry.BindIncompleteForIdentity(identity, gen);
+            }
+
+            return (captured, CompleteMajorEventAddAsync(identity, opId, add, bound: captured != null));
+        }
+
+        private async UniTask CompleteMajorEventAddAsync(string identity, int opId, UniTask add, bool bound)
+        {
+            try
+            {
+                await add;
+                _registry.RememberAddOp(identity, opId);
+                if (!bound)
+                {
+                    TryCaptureAndBind(identity, opId);
+                }
+            }
+            catch
+            {
+                _registry.CompleteOp(opId);
+                throw;
+            }
+        }
+
+        private static void AttachMajorEventCompletion(SceneBase scene, Action onCompleted)
+            => (scene as SeasonMajorEventScene)?.SetCompletionHandler(onCompleted);
+
         private void BindLiveGeneration(string identity, int opId)
         {
             if (_tracker.TryGetLiveGeneration(identity, out var gen))
@@ -404,10 +471,19 @@ namespace SampleGame.InGame.Streaming
             }
         }
 
-        private void CreateDrivers(StreamingCandidateSet candidates)
+        private void CreateDrivers(SceneBase season, StreamingCandidateSet candidates)
         {
             _streamingDriver?.Dispose();
             _companionDriver?.Dispose();
+            _majorEventDriver?.Stop();
+            _majorEventDriver = new MajorEventDriver(
+                season,
+                _query,
+                _terminalEvents,
+                IssueMajorEventAdd,
+                identity => _issuedScenes.UnloadScene(identity),
+                AttachMajorEventCompletion,
+                _logger);
             _streamingDriver = _streamingDriverFactory(_streamingBackend, candidates);
             _companionDriver = _companionDriverFactory(
                 _issuedScenes,

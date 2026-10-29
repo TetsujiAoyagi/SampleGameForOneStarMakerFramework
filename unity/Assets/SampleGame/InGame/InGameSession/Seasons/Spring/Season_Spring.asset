@@ -75,6 +75,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: afe744e86ebae714eb1e1a76fd4bab7b, type: 2}
   - {fileID: 11400000, guid: 3f304bed4409b954e8134b435055ece7, type: 2}
   - {fileID: 11400000, guid: 9bc6bf38fb4fc0e4cbe337a7778fc532, type: 2}
+  - {fileID: 11400000, guid: 87baca1e3b1ffeb449ebf824003ecdba, type: 2}
   _volume:
     m_Center: {x: 0, y: 0, z: 0}
     m_Extent: {x: 0, y: 0, z: 0}

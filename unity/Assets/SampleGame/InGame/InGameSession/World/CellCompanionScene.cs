@@ -17,6 +17,7 @@ namespace SampleGame.InGame.World
     /// 職種（role）は見ない。配置済み VFX の marker があれば VfxSystem に登録する（VFX を置いていない companion では何もしない）。
     /// 局所 VFX の trigger（<see cref="LocalVfxEventTrigger"/>）があれば、その source をこの Scene 所有でロードし、
     /// unload の開始で trigger を全て終わらせる（trigger を置いていない companion では何もしない）。
+    /// major Event の開始の trigger（<see cref="MajorEventStartTrigger"/>）があれば、その出来事を Session への要求につなぐ。
     /// </summary>
     public sealed class CellCompanionScene : SceneBase
     {
@@ -55,6 +56,8 @@ namespace SampleGame.InGame.World
             // 所有者はこの Scene。Unload の開始で VfxSystem が回収する（GameObject は壊さない）。
             PlacedVfxAdopter.AdoptAll(RootObjects, _vfx, SceneAssetOwner);
             _localVfxEvents = LocalVfxEventBinder.Create(RootObjects, _vfx, _loggerFactory, SceneResource.Identity);
+            // 受け口は trigger が持つので binder の参照は保持しない（状態も unload の処理も無い）。
+            MajorEventStartBinder.Create(RootObjects, SceneResource, SceneQuery, _loggerFactory);
         }
 
         protected override async UniTask OnLoadedImpl(CancellationToken ct)

@@ -154,6 +154,52 @@ namespace OneStarMaker.Tests.SampleGame
             Assert.That(scene, Is.Null);
         }
 
+        // major Event は名前（{Season}_Event_{slug}）・親（同じ Season、非 streaming）・OnDemand の全部で分類する。
+        [TestCase("Spring_Event_MultiCellProof", "Season_Spring")]
+        [TestCase("Summer_Event_X", "Season_Summer")]
+        public void CreateSceneClass_SeasonMajorEvent_ReturnsMajorEventScene(string identity, string parentIdentity)
+        {
+            var factory = CreateFactory(NullLoggerFactory.Instance);
+            var parent = SceneTestHelper.CreateSceneResource(parentIdentity);
+            var child = SceneTestHelper.CreateSceneResource(identity, LoadType.OnDemand, parent: parent);
+
+            var scene = factory.CreateSceneClass(child, new StubSceneQuery(), new StubSceneController());
+
+            Assert.That(scene, Is.TypeOf<SeasonMajorEventScene>());
+        }
+
+        // 既存の Season の子の分類は major Event の追加で変わらない（構造だけの判定は Lighting を飲み込む）。
+        [TestCase("Spring_Lighting", LoadType.NecessaryAlways, typeof(SeasonLightingScene))]
+        [TestCase("Spring_AtmosphereVFX", LoadType.NecessaryAlways, typeof(SeasonAtmosphereVfxScene))]
+        public void CreateSceneClass_OtherSeasonChildren_KeepTheirClass(string identity, LoadType loadType, Type expected)
+        {
+            var factory = CreateFactory(NullLoggerFactory.Instance);
+            var parent = SceneTestHelper.CreateSceneResource("Season_Spring");
+            var child = SceneTestHelper.CreateSceneResource(identity, loadType, parent: parent);
+
+            var scene = factory.CreateSceneClass(child, new StubSceneQuery(), new StubSceneController());
+
+            Assert.That(scene, Is.TypeOf(expected));
+        }
+
+        // 名前の規則に合わない子、親が別 Season、OnDemand でない誤った authoring は major Event にしない。
+        [TestCase("Spring_Foo", "Season_Spring", LoadType.OnDemand)]
+        [TestCase("Summer_Event_X", "Season_Spring", LoadType.OnDemand)]
+        [TestCase("Spring_Event_", "Season_Spring", LoadType.OnDemand)]
+        [TestCase("Spring_Event_MultiCellProof", "Season_Spring", LoadType.NecessaryAlways)]
+        [TestCase("Spring_Event_MultiCellProof", "Season_Spring", LoadType.IncrementalAlways)]
+        public void CreateSceneClass_MajorEventMismatch_IsNotClassified(string identity, string parentIdentity, LoadType loadType)
+        {
+            var factory = CreateFactory(NullLoggerFactory.Instance);
+            var parent = SceneTestHelper.CreateSceneResource(parentIdentity);
+            var child = SceneTestHelper.CreateSceneResource(identity, loadType, parent: parent);
+
+            var scene = factory.CreateSceneClass(child, new StubSceneQuery(), new StubSceneController());
+
+            Assert.That(scene, Is.Not.TypeOf<SeasonMajorEventScene>());
+            Assert.That(scene, Is.Null);
+        }
+
         [Test]
         public void Constructor_NullRenderEnvironment_Throws()
         {

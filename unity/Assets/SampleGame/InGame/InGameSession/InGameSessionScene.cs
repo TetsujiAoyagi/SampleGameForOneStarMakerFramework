@@ -111,6 +111,13 @@ namespace SampleGame.InGame
             _logger.ZLogInformation($"Flight unregistered from session hub");
         }
 
+        /// <summary>
+        /// active な Season 枝の major Event を要求する。同じアセンブリの開始 binder だけが呼ぶ（公開面には出さない）。
+        /// controller が無い・停止後は拒否する。
+        /// </summary>
+        internal MajorEventRequestResult RequestMajorEvent(string eventIdentity)
+            => _seasonController?.RequestMajorEvent(eventIdentity) ?? MajorEventRequestResult.Rejected;
+
         protected override UniTask OnLoadedImpl(CancellationToken ct)
         {
             // SceneDirectorStreamingBackend は SceneDirector 具象を要求する。

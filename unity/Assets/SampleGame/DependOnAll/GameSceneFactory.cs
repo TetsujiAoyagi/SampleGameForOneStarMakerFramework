@@ -70,6 +70,11 @@ namespace SampleGame.DependOnAll
                 return new InGame.World.SeasonAtmosphereVfxScene(sceneResource, sceneQuery, sceneController, _loggerFactory, _vfx);
             }
 
+            if (IsSeasonMajorEvent(sceneResource))
+            {
+                return new InGame.World.SeasonMajorEventScene(sceneResource, sceneQuery, sceneController, _loggerFactory, _vfx);
+            }
+
             return sceneResource.Identity switch
             {
                 "Title" => new TitleScene(sceneResource, sceneQuery, sceneController, _loggerFactory),
@@ -125,6 +130,19 @@ namespace SampleGame.DependOnAll
             return season.Length > 0
                 && season.IndexOf('_') < 0
                 && string.Equals(parent.Identity, "Season_" + season, System.StringComparison.Ordinal);
+        }
+
+        // Season 直下の major Event。名前（{Season}_Event_{slug}）・親（同じ Season、非 streaming）・OnDemand の全部で分類する。
+        // 構造だけでは Lighting など他の Season の子を飲み込み、名前だけでは誤った authoring（NecessaryAlways 等）を通す。
+        // 分類されない誤設定は、ロード時に factory の null（"SceneFactory returned null"）で表に出る。
+        private static bool IsSeasonMajorEvent(SceneResource sceneResource)
+        {
+            var parent = sceneResource.Parent;
+            return parent != null
+                && !parent.StreamByDistance
+                && sceneResource.LoadType == OneStarMaker.Runtime.AssetDescriptions.LoadType.OnDemand
+                && SeasonCellNames.TryParseMajorEvent(sceneResource.Identity, out var season, out _)
+                && string.Equals(parent.Identity, SeasonCellNames.Season(season), System.StringComparison.Ordinal);
         }
     }
 }
