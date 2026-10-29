@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `B` 完了（A3 凍結版は `3104ff5a`、2026-10-29。A2 入力版は `1fa1b472`。採否の要約は §5.1）
+- status: `B` 完了、発見 C 1 巡目の差し戻し待ち（A3 凍結版は `3104ff5a`、2026-10-29。A2 入力版は `1fa1b472`。採否の要約は §5.1）
 - branch: `claude/s-4d5-major-event`
 - implementation base commit: `22ebf130`（`develop`、S-4d4b の PR #148 のマージ）
 - implementation head commit: `1766af84`（Phase B の出口。GO 候補 head としては未固定）
@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と commit `1766af84` で引き渡す）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: Phase B 完了（implementation head `1766af84`、worktree は clean）。動作確認は `対象なし`（§6）なので、次は発見 C（新しい session、Phase B と異なるモデル）。Unity テストと content build は未実行。Play の根の構成（§5 の未知の操作経路 (1)）と AC9 のタイミングは、発見 C の最初の実行で確かめる（§6「未確認」）。不成立なら §2.6 U4 の分割へ進む。
+- 引継ぎ票: 発見 C（1 巡目）完了。対象 head は implementation head `1766af84`（HEAD は記録のみの `0708e361`）。阻害する指摘 2 件（テストの観測の取り方 F1・F2）と、凍結条件の読みの確定が要る 1 件（F3、AC9 と AC3 の食い違い）。次は B（F1・F2 の観測の修正）と、F3 の人間の決定記録。製品コードの欠陥は見つからず、Play の根（§5 未知の操作経路 (1)）は成立した。詳細は §7。判定 C・C' は未着手。
 
 ---
 
@@ -316,7 +316,30 @@ AC6〜AC9 の「次のフレーム」は、対象の `Removed` の通知を受�
 
 ## 7. Phase C
 
-未着手
+### 発見 C（1 巡目）
+
+- 種別: 発見。対象: implementation head `1766af84`（base `22ebf130`）。evidence bundle は作らず commit 固定の diff を直接読んだ（取得案内: 未生成）。GO 判定はしない。
+- 担当・モデル: Phase B と別の担当（Anthropic 系の別 session）。
+- 機械検査: `pwsh tools/contract-audit.ps1` errors=0 warnings=0、`pwsh tools/docs-audit.ps1` errors=0 warnings=0。
+- 構造適合: 責務マップと一致（driver は Season の枝の所有物、発行は controller の private、Scene class・trigger・binder は `World/`、新しい asmdef・公開面なし）。controller 675 行（上限 690 の内）。偽 null は `== null` 判定。Framework 無変更。製品コードの欠陥は見つからなかった。
+- 実行したテスト（起点 filter の範囲。Unity は EditMode で起動）:
+  - EditMode 78 件 全通過（test-run の total=78、failed=0。対象は `MajorEventDriverTests`・`SessionSeasonControllerTests`・`GameSceneFactoryTests`・`MajorEventAuthoringTests`・`VfxSceneStructureTests`）。
+  - `SeasonMajorEventPlayTests`（`pwsh tools/run-tests.ps1 -WithGraphics -Filter SampleGame.Tests.Rendering.Vfx.SeasonMajorEventPlayTests`）6 件中 3 件通過（AC7 (b)+AC8 (b)、AC7 (c)、AC10）、3 件失敗（下の F1〜F3）。
+- **§5 未知の操作経路 (1): 成立。** 複製 Map の根を実 `InGameSession`、Planner、偽 Flight の構成で、Ensure・距離 streaming・companion driver が動き、Events_4_2 が companion driver から載り、major Event が Add / Stable / 完了 / 枝の終了で回収された（AC10、AC7 (b)、AC8 (b) が通過）。停止条件に当たらず、§2.6 U4 の分割は不要。
+- **実行環境の事実（判定 C の手順に影響）:** `SampleGame.Tests` の asmdef は `includePlatforms: Editor` のため、Play 系の `[UnityTest]` は `-Platform PlayMode` では 0 件になる（`-Platform PlayMode` は「成功したテストがありません」で failed）。Play 系は EditMode の `pwsh tools/run-tests.ps1 -WithGraphics -Filter ...` で実行する。§5 の判定必須テストの「PlayMode」はこの意味で読む。また filter は namespace 付きで書く（`OneStarMaker.Tests.Streaming.*`、`OneStarMaker.Tests.SampleGame.GameSceneFactoryTests`、`SampleGame.Tests.Rendering.Vfx.*`、`OneStarMaker.Tests.Editor.WorldAuthoring.VfxSceneStructureTests`）。
+
+#### 指摘
+
+| ID | bucket | 違反する条件 | 内容 | 修正先 |
+|---|---|---|---|---|
+| F1 | 現在の問いを阻害する欠陥（テストの観測） | AC6（検証が成り立たない。製品の違反ではない） | `Start_SpawnsAtBothAnchors_AndSurvivesCellUnload` の 93 行が失敗。待ちが `!IsSceneLoaded(Cell)` で、`IsSceneLoaded` は unload の開始で false になる。AC6 の定義は「Cell の `Removed` の次のフレーム」。Cell の unload の開始の次のフレームには子の Events がまだ unload 中で `IsSceneLoaded(Events)` が true になる（出力: `cellRemovedFrame=1344 eventsLoaded=True`）。Event の生存（94 行）はその前に確認していない。 | B 適応: Cell の `Removed` イベントを購読して待つ。製品は変えない |
+| F2 | 現在の問いを阻害する欠陥（テストの観測） | AC7 (a)・AC8 (a)（同上） | `CompletionAndBranchSwitch_RecordingBackend_DestroyBothBeforeSourceRelease` が `AssertRecoveryOrder`（302 行）で失敗。タイムラインは `event Stable → destroy id=1 → destroy id=2 → event PreUnloading → ... → event Removed owners=0`。VfxSystem は `BindSceneLifecycle` で test の購読より先に `OnSceneEvent` を購読するので、PreUnloading の同じ dispatch の中の Destroy が test の `event PreUnloading` の記録より前に並ぶ。Destroy は source が所有されたまま（`ownedByEvent=True`）、`Removed` の時点の所有者は 0 で、I4 の順序そのものは満たしている。assert の「Destroy が PreUnloading の後」が購読順の人工物。 | B 適応: PreUnloading の記録と Destroy の順序を購読順に依存しない形にする（例: Destroy が Stable の後・`PreUnloaded` の前、かつ `ownedByEvent=True`、と読む）。製品は変えない |
+| F3 | 凍結条件の読みの確定が要る（人間の決定記録） | AC9 と AC3 | `SessionUnloadDuringEventLoad_EventEndsAfterPending_AndRequestsAreRejected` の 228 行が失敗: Session の unload の開始の次のフレームの要求が `Rejected` ではなく `AlreadyActive`。Event は窓の外のロード中（driver は Loading）で、Session 自身の `OnPreUnLoadedImpl`（driver の `Stop`）は子の保留が終わるまで走らないため、driver はまだ停止していない。受理は同じ identity かつ Loading を AlreadyActive と定め（AC3）、Add は発行されていない（`EventPreLoadingCount` の assert 237 行は未到達）。I1 の「Add を発行しない」・AC9 の主旨（後続フレームの受付の停止）は満たすが、AC9 の文言「`Rejected`」とは合わない。AC3（Loading は AlreadyActive）と AC9 の文言が同じ状況で食い違う。 | 人間の決定記録で読みを確定する（案: AC9 の続きは「Add 0（`Accepted` でない）」とする。`Rejected` に統一するなら受理に「親の unload 開始」を足す設計変更で Phase A 再開）。確定後に B で test を直す |
+
+- 後続スライスの入力: なし。
+- 判定必須テストのうち未実行: 全 EditMode 回帰（空 filter）、`VfxScenePlayTests`・`LocalVfxEventPlayTests`・Streaming の Play 系（`-WithGraphics`）、`Build Spring Whitebox`（AC14）。差し戻しが決まったため判定用の検証一式は実行していない。
+- 未確認事項: AC9 の Event のロード中の位相は、F3 の位置（228 行）まで前提 assert（`Event が Stable でない`）を通過した。つまり §6 の未確認（Unity Scene のロードが 1 フレームで終わり Stable に先を越される懸念）は、この 1 回の実行では起きなかった。以後の実行での再現性は未確認。
+- 差し戻し: B へ（F1・F2）。F3 は人間の決定記録を先に取る。往復は 1 巡目として数える。
 
 ## 8. Phase C'
 
