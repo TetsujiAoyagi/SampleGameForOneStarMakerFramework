@@ -699,4 +699,6 @@ Add 完了後は、fresh resident snapshot に parent が残っていること�
 
 職種の選別は SampleGame の制作規約に閉じる。identity を `_` で分割し、末尾二要素の直前一要素だけを `Environment` / `Lighting` / `VFX` / `Events` と完全一致比較する。座標や新しい child identity は生成しない。未知 role は warning して飛ばす。同一 Cell の同一 role が複数ならその role を一件も Add しない。欠落 role は optional として正常。どの集合を載せるかは起動時の `world:cellCompanionSet`（[§4.8](04-app-startup.md#48-起動時-scene-variant-と職種-companion-set)）。
 
+Events の child も Scene class は他の職種と同じ `CellCompanionScene` で、職種による分岐は持たない（role の分類器は SampleGame.InGame の internal で、composition から呼べない）。振る舞いは root の内容で決まる。`CellCompanionScene` は `OnInitialize` で root から配置済み VFX の marker と `LocalVfxEventTrigger` を集め、trigger があるときだけ binder を作る（`OnLoadedImpl` で trigger の asset を Scene 所有でロードし、`OnPreUnLoadedImpl` で全 trigger を終わらせる）。trigger も配置済み VFX も置かない companion では何もしない。Events Scene は進行制御（trigger 等）を持ち、Renderer を置かないので親 Cell の `_volume` を変えず、VFX Scene に依存しない（`Planner` でも Events だけで trigger が動く）。trigger から起動する VFX の寿命は [§24 §16.9](24-rendering-system.md#169-cell-events-の-trigger-から起動する-vfx)。
+
 Season Atmosphere VFX は Cell の companion ではない。Season の `NecessaryAlways` の子なので、companion set に関係なく Season と一緒に載り（`Planner` でも載る）、Season の Stable はそのロードを待つ。`SessionSeasonController` は `NecessaryAlways` の子として観測個体に登録するので、Season の枝の交換は Atmosphere の終端も待つ。`StreamByDistance == false` なので距離の候補には入らない。

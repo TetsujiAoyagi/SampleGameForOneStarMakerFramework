@@ -146,6 +146,37 @@ namespace OneStarMaker.Tests.Rendering.Vfx
         }
 
         // ═══════════════════════════════════════════
+        //  同じ identity の Scene の unload → 再ロード後の再受理（S-4d4b AC6）
+        // ═══════════════════════════════════════════
+
+        [UnityTest]
+        public IEnumerator ReloadSameIdentity_AcceptsNewSpawn_AndOldHandleStaysCollected() => UniTask.ToCoroutine(async () =>
+        {
+            SetupSingleScene("TestScene");
+            BindAndCaptureUnitySceneUnload();
+            await Director.AddScene("TestScene", null, CancellationToken.None);
+            var old = (VfxHandle)SpawnPlaying("TestScene");
+            await Director.UnloadScene("TestScene");
+            Assert.That(_backend.DestroyCountOf(old.Id), Is.EqualTo(1), "前提: 1 回目の unload で回収された");
+            var oldCalls = _backend.CallCountOf(old.Id);
+
+            await Director.AddScene("TestScene", null, CancellationToken.None);
+            var created = _backend.CreateCount;
+            var renewed = (VfxHandle)SpawnPlaying("TestScene");
+
+            Assert.That(_backend.CreateCount - created, Is.EqualTo(1), "再ロードした Scene の所有で受理される");
+            Assert.That(old.IsActive, Is.False, "古い handle は再ロードで生き返らない");
+            Assert.That(old.Play(), Is.False);
+            Assert.That(_backend.CallCountOf(old.Id), Is.EqualTo(oldCalls), "古い handle の操作は backend に届かない");
+
+            await Director.UnloadScene("TestScene");
+
+            Assert.That(_backend.DestroyCountOf(renewed.Id), Is.EqualTo(1));
+            Assert.That(_backend.DestroyCountOf(old.Id), Is.EqualTo(1), "古い instance を二重に回収しない");
+            Assert.That(renewed.IsActive, Is.False);
+        });
+
+        // ═══════════════════════════════════════════
         //  AC6 Load キャンセルと失敗回収
         // ═══════════════════════════════════════════
 

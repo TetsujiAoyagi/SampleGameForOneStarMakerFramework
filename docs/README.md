@@ -47,7 +47,7 @@ H1適用をA3で明示したArtifacts/Harness作業では、Git外のCURRENTと�
 |---|---|---|
 | `HLOD_PROGRAM.md` | 観測した問題→最小代替比較→条件付き aggregate pilot の必要性判断 | いいえ。PR #91 は文書修正 A3 のみ。Gate 0 / 1 で pilot なしの終了も可能。`HLOD_RESIDENT_PILOT.md` は未承認候補で、必要性が残った場合だけ新 A1 / A2 / A3 を行う。owner は root、期限は 2026-11-05 または置換 revision |
 | `SEASON_WORLD_DESIGN.md` | 世界構図・実証・スライス順序 | 着手時 HANDOFF を切るまでの正本。スライス表の順で切る。W-5 / W-6 は Content Directory / DIST。S-6 / S-7 実装スライスは廃止済み |
-| `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b / S-4c / S-4d1 / S-4d2 / S-4d3 / S-4d4a 完了。S-4d は d1〜d5 に分割済み（d4 は d4a / d4b に分割）で、各スライスは本書 §0 の手順で着手時に HANDOFF を切る |
+| `S-4_FULL_SPEC_WORLD_AUTHORING.md` | S-4a〜d の制作分業、Lighting、VFX、Events、Whitebox Variant の program 計画 | S-4a / S-4b / S-4c / S-4d1 / S-4d2 / S-4d3 / S-4d4a / S-4d4b 完了。S-4d は d1〜d5 に分割済み（d4 は d4a / d4b に分割）で、各スライスは本書 §0 の手順で着手時に HANDOFF を切る |
 | `BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` | 開発用Artifact Storageの単一保存契約と、完了後の保留list | いいえ。**完了（保留list付き）**。ownerが2026-10-17に開発の完了を決めた。完了の範囲は同一Windowsユーザー・非仮想化processで検証した基本操作と運用契約（Evidence・Build・Contentの保存と取得、30日清掃と件数清掃、削除の確定、秘密の非露出）で、経緯はPR #109〜#131。残りは再開条件付きの保留listで、条件を満たした時にownerが再開を判断する。2026-10-18 に保留項目 1 件（store root の LocalAppData 外への移設）を再開し、PR #139・#140 で 2026-10-19 に完了した（store root は UserProfile 直下の `OneStarMaker`。program §4 F）。2026-10-19 に保留項目「LocalCache側copyの扱い」を再開し、2026-10-20 にcopyを合流せずに削除した（スライスAのCURRENTも一緒に削除。検証の要約はPR #109）。現在の機能と方針は[Artifacts README](../tools/Artifacts/README.md) |
 
 **未承認の単一スライス候補:** `UI_ACCESSIBILITY_BUTTON_PILOT.md` は Button の Windows Narrator 最初の実証に向けた A1 改稿（A2・PR コメントを照合）。実装キューではなく、検証経路と人間の A3 合意が未成立。owner は root、期限は 2026-11-05 または置換 revision、harvest 先は Architecture §6。上記 program 4件とは別に保持する。
