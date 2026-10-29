@@ -1,13 +1,13 @@
 # S-4 フルスペック World 制作基盤
 
 > type: program
-> status: 発注者承認済み。S-4a / S-4b / S-4c / S-4d1 / S-4d2 / S-4d3 / S-4d4a / S-4d4b は完了（S-4d1〜S-4d4b の契約は Architecture §24 §16 へ harvest 済み）。S-4d は d1〜d5 の5スライスに分割し（§6.3、2026-10-17 発注者決定）、d4 をさらに d4a / d4b に分けた（2026-10-27 発注者決定）。各スライスは §0 の手順で着手し、本書と、S-4c から harvest 済みの Architecture §24 / §27 を入力にする。S-4b の現況は Architecture §18 / §21 / §27 と STREAMING_CURRENT_SPEC へ harvest 済み。
+> status: 発注者承認済み。S-4a / S-4b / S-4c / S-4d1 / S-4d2 / S-4d3 / S-4d4a / S-4d4b は完了（S-4d1〜S-4d4b の契約は Architecture §24 §16 へ harvest 済み）。S-4d は d1〜d5 の5スライスに分割し（§6.3、2026-10-17 発注者決定）、d4 をさらに d4a / d4b に（2026-10-27 発注者決定）、d5 を d5a / d5b に分けた（2026-10-29 発注者決定。d5b の前に BuildSystem の HANDOFF を切る）。各スライスは §0 の手順で着手し、本書と、S-4c から harvest 済みの Architecture §24 / §27 を入力にする。S-4b の現況は Architecture §18 / §21 / §27 と STREAMING_CURRENT_SPEC へ harvest 済み。
 > branch: `codex/s-4-full-spec-plan`
 > implementation base commit: `1502ffc`
 > risk: high
 > owner: 発注者 / S-4 各スライス担当
 > created: 2026-09-06
-> expires: S-4d5 の Phase D 完了時
+> expires: S-4d5b の Phase D 完了時
 > harvest to: Architecture §05（Scene）、§18（Variant）、§24（Rendering）、§27（Folder）と Streaming 現状仕様
 
 本書は [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md) の世界構図を変更せず、
@@ -54,7 +54,7 @@ VFX アーティスト、プランナーが同じ Cell を別 Scene で並行制
 - 通常イベントは Cell 単位の Events Scene に束ね、大型イベントだけを独立 Scene にする。
 - Lighting は Season-global と Cell-local に分け、代表する隣接2 Cellだけを S-4 でベイクする。
 - VFX Graph を導入する。PC は描画必須、Mobile は非対応時に安全停止する。ParticleSystem fallback は S-4d3 では作らず、要否・契約・実装は後続の独立スライスで決める（§6.1）。
-- S-4 は S-4a〜d に分け、S-4d はさらに d1〜d5（d4 は d4a / d4b）に分ける（§6.3）。1スライス = 1ブランチ = 1 HANDOFF。
+- S-4 は S-4a〜d に分け、S-4d はさらに d1〜d5（d4 は d4a / d4b、d5 は d5a / d5b）に分ける（§6.3）。1スライス = 1ブランチ = 1 HANDOFF。
 - 大量生成器は一度だけ使用し、生成後に削除する。日常用の小さい authoring tool は残す。
 - 生成時間を理由に 9x6 を縮小しない。時間は実測値として記録するだけとする。
 
@@ -125,7 +125,7 @@ Scene を跨ぐ `GameObject` の直接参照は禁止し、event id、world posi
 - 専用 Timeline / Cinemachine staging を独立ファイルとして所有したい。
 - 別担当が Cell bundle と独立して変更する必要がある規模である。
 
-いずれかに該当するときだけ `Season_Event_{slug}` とする。小イベント1件ごとに Scene を
+いずれかに該当するときだけ `{Season}_Event_{slug}`（例: `Spring_Event_MultiCellProof`）とする。小イベント1件ごとに Scene を
 増やさず、Season 単位の巨大な Events Scene にも集約しない。
 
 ### 2.4 VFX の粒度と寿命
@@ -333,7 +333,7 @@ Planner Playは§3.1の経路で `content:representation=Whitebox` と
 
 ### 6.3 S-4d の分割
 
-順序は `d1 -> d2 -> d3 -> d4a -> d4b -> d5`。前のスライスのマージ後に次を始める。各行は Phase A の A0 入力であり、凍結済みの条件ではない。
+順序は `d1 -> d2 -> d3 -> d4a -> d4b -> d5a -> (BuildSystem の HANDOFF) -> d5b`。前のスライスのマージ後に次を始める。各行は Phase A の A0 入力であり、凍結済みの条件ではない。
 
 | スライス | 答える問い | 範囲 | 対象外（所有スライス） |
 |---|---|---|---|
@@ -342,9 +342,10 @@ Planner Playは§3.1の経路で `content:representation=Whitebox` と
 | **d3** VFX Scene 2件 | Season / Cell の VFX を §2 の制作契約どおり別 Scene として配置し、PC で表示でき、非対応環境では止まるか | **完了（2026-10-27）。** 現況は [Architecture §24 §16.6](../../unity/Assets/Docs/Architecture/24-rendering-system.md#166-samplegame-の-vfx-graph-backend)・[§05 §5.13](../../unity/Assets/Docs/Architecture/05-scene.md#513-cell-と職種-companion-の分類)。Player での描画は S-9 へ送った（BS4 Spring Player は smoke の後に終了して Spring に入らない。§24 §16.7）。以下は着手前の A0 入力: `Spring_AtmosphereVFX`（Season）、`Spring_VFX_4_2`（Cell）。d2 の停止の仕組みを実 Scene で確認する。**Phase A の必須検討:** Cell の体積（N-9）。体積の再計算は `StreamByDistance == false` の子だけを親へ畳み、収集は `Renderer`（`includeInactive: true`）に限る。Cell の子である `Spring_VFX_4_2` を保存したあと Cell の `_volume` が変わるかを確かめ、変わったときだけ除外規約を決める。`Spring_AtmosphereVFX` の畳み先は Season ノードで、Cell の AABB には入らない。d4 で VFX の時間の所属を導入するときに、d3 で配置した VFX の component や設定に後から変更が要るかは d4 が判断する（d3 の受け入れ条件は増やさない）。**Phase A の決定（A3 凍結）:** Atmosphere は `NecessaryAlways`（§2.1）、作成 transaction を Season Atmosphere へ拡張（§3.4）、Cell VFX の描画 bounds は親 Cell の体積の内側に収める authoring 規約、描画の画素検査は本番と同一の `.vfx` を使う専用テスト Scene、ParticleSystem fallback は後続（§6.1） | Event からの起動（d4）、ParticleSystem fallback（後続の独立スライス、担当未定） |
 | **d4a** VFX の時間の領域と配置済み VFX の登録 | 動的・配置済みの全ての VFX が、属する時間の領域（gameplay layer）の Pause / Resume / 時間の倍率に、負荷スパイクを含めて gameplay のコードと同じ時間で追従し、止まっている間は開始もしないか | **完了（2026-10-28、PR #147）。** 契約は Architecture §24 §16（特に §16.8 時間の領域と配置済み VFX の登録、§16.6 の backend の換算と VFX Graph の上限揃え）へ harvest 済み。動的・配置済みの全ての VFX が gameplay layer（`UpdateLayerIds.Gameplay`）の Pause / Resume / 時間の倍率に追従し、止まっている間は開始を保留する。配置済みも `VfxSystem` に `Adopt` で登録し、所有者は配置した Scene の `Scene(id)`、回収は無効化だけ。revision 2 で、VFX Graph の 1 フレームの上限（`VFXManager.maxDeltaTime`）を実行時の `Time.maximumDeltaTime` に揃え、unscaled の領域の時間を `min(u, Time.maximumDeltaTime)` にした。`VfxCapabilityState` は削除。後続へ送った事項は §24 §16.7 | local Event（d4b）、gameplay のコードを gameplay layer へ移して一時停止を作ること（所有スライス未定）、Prefab で動的に置いた配置済み VFX の登録 |
 | **d4b** local Event | Cell 内の trigger から VFX を起動し、Cell unload（と所有 go の破棄）で確実に回収できるか | **完了（2026-10-29、PR #148）。** 契約は Architecture §24 §16.9（Cell Events の trigger から起動する VFX）と §05 §5.13（Events の companion の振る舞い）へ harvest 済み。後続へ送った事項は §24 §16.7。**決定の要約:** `Spring_Events_4_2` を World Workspace の Planner role の transaction で作り、trigger 1 つと専用の `.vfx`（Addressables entry は Scene と同じ group、address は asset path）を置く。trigger の規則は純 C# の `LocalVfxEventSession`（在室は Rigidbody の id、生存 handle は高々 1 つ）、Unity の受け口は `LocalVfxEventTrigger`、Scene との接続は `CellCompanionScene` が持つ `LocalVfxEventBinder`。asset は `OnLoadedImpl` で `Scene(Events)` 所有でロードし（ロード中の unload は Stable の後へ保留される読みを AC5 で確かめる）、VFX は `Bind(trigger の go)` で親なし。Cell unload では `OnPreUnLoadedImpl` の `End()` が `Stop` で回収し、notifier の経路に頼らない。asset のロード失敗は Events のロード失敗にしない（U2）。進入者は `attachedRigidbody` を持つ Collider 全て（U3）。Framework のコードと公開 API は変えない（テストだけを足す）。後続へ送った事項: notifier 単独の `OnDestroy` の Play 確認（§16.7）、複数 Collider の進入者と退出の来ない破棄の追跡、`LoadAssetAsync` の await の後の所有者確認の欠落 | 独立 Scene の大型 Event（d5）、Content Directory の非 Scene asset の production 経路（BuildSystem の実装系、所有 HANDOFF 未作成） |
-| **d5** major Event と S-4 の完了 | Cell bundle から独立した Event Scene を Add / Unload し、完了または Season unload で回収できるか。Planner profile で Environment を読まずに Event が動くか | `Spring_Event_MultiCellProof`、その寿命の所有者（S-4b の Season 排他 controller との関係を含め d5 の Phase A で決める）、§6.2 の Planner 実証、本書の harvest と削除。Phase A で major Event と Planner 実証・harvest の見積もりを分け、大きければ追加分割を判断する | S-5 の Tunnel 遷移 |
+| **d5a** major Event | Cell bundle から独立した Event Scene を、Season の排他 controller の管理下で Add / Unload し、完了または Season unload で、その Scene と `Scene(id)` 所有の動的 VFX を回収できるか | **A3 凍結（2026-10-29）。** HANDOFF は `docs/handoff/S-4D5_MAJOR_EVENT.md`。`Spring_Event_MultiCellProof`、寿命は Season 枝の driver が所有、`CellCompanionSet.Planner` での開始 trigger からの起動、Scene payload の content build 1 回 | Content Directory の Whitebox を使う Planner Play と harvest（d5b）、`.vfx` の Content Directory・Player の経路（BuildSystem）、S-5 の Tunnel 遷移 |
+| **d5b** Planner 実証と S-4 の完了 | Planner profile で Environment を読まずに、Content Directory の Whitebox 上で Event が動くか | §6.2 の Planner 実証、本書の harvest と削除。**前提:** 非 Scene asset の production 経路と Editor Play の publish 入口を所有する BuildSystem の HANDOFF の完了 | S-5 の Tunnel 遷移 |
 
-d5 完了時に Scene 実体は §6.2 の658件になる。
+d5a 完了時に Scene 実体は §6.2 の658件になる。
 
 ### 6.4 VFX 基盤の責務配置
 
@@ -414,8 +415,8 @@ S-4a〜cは完了時の条件を残すもので、撤去済み生成器の再実
 - Mobile非対応時に例外、未解放handle、無限retryがない（d1 は偽 backend、d2 は実 backend）。
 - 非対応時、`Spring_AtmosphereVFX` / `Spring_VFX_4_2` をロードしても例外・有効な `VisualEffect`・追加の診断ログがない（d3）。
 - VFX Scene の追加で Cell の距離ストリーミング体積が意図せず変わらない（d3）。
-- Planner profileでEnvironmentをロードせずWhitebox上のEventが動く（d5）。
-- local EventはCell unload、major Eventは完了またはSeason unloadで回収される（d4b / d5）。
+- Planner profileでEnvironmentをロードせずWhitebox上のEventが動く（d5b）。
+- local EventはCell unload、major Eventは完了またはSeason unloadで回収される（d4b / d5a）。
 - 動的・配置済みの VFX が gameplay layer の Pause / Resume / 時間の倍率に同じ規則で追従する（d4a）。
 
 操作権限の正本は [AGENTS.md](../../AGENTS.md) と [osm-unity-editor](../../.agents/skills/osm-unity-editor/SKILL.md)、テスト担当は [osm-workflow](../../.agents/skills/osm-workflow/SKILL.md)。旧CLIの固定versionや個人pathを前提にしない。
@@ -428,13 +429,13 @@ S-4a〜cは完了時の条件を残すもので、撤去済み生成器の再実
 
 ## 12. スライス境界とharvest
 
-順序は `S-4a -> S-4b -> S-4c -> S-4d1 -> … -> S-4d4a -> S-4d4b -> S-4d5 -> S-5`。
+順序は `S-4a -> S-4b -> S-4c -> S-4d1 -> … -> S-4d4a -> S-4d4b -> S-4d5a -> S-4d5b -> S-5`。
 
 各スライスは着手時に専用HANDOFFを作り、責務マップ、現在行数、予想増分、公開API、所有者、寿命、
 単体テスト境界を固定する。500行、3責務、50%以上増加の警報が出た場合は、分割または非分割の理由を
 HANDOFFへ書く。本書にない公開API、依存、状態、所有者が必要になったらPhase Bで決めずPhase Aへ戻す。
 
-d1〜d4b の各 Phase D は、そのスライスで現況になった契約を、Phase A で選んだ既存の Architecture 文書へ harvest し（新しい文書を起こす前に既存への統合を確認する）、自分の HANDOFF を削除する。本書は残し、§6.3 の該当行を完了に更新する。
-d5 の Phase D で、残る S-4d 固有の契約を Architecture §05 / §18 / §24 / §27 と Streaming 現状仕様へ harvest し、
-本書と d5 HANDOFF を削除する。S-4a〜c HANDOFFはharvest後に削除済みであり、復活させない。後続S-5が必要とするSeason排他controllerの公開面だけは、
+d1〜d5a の各 Phase D は、そのスライスで現況になった契約を、Phase A で選んだ既存の Architecture 文書へ harvest し（新しい文書を起こす前に既存への統合を確認する）、自分の HANDOFF を削除する。本書は残し、§6.3 の該当行を完了に更新する。
+d5b の Phase D で、残る S-4d 固有の契約を Architecture §05 / §18 / §24 / §27 と Streaming 現状仕様へ harvest し、
+本書と d5b HANDOFF を削除する。S-4a〜c HANDOFFはharvest後に削除済みであり、復活させない。後続S-5が必要とするSeason排他controllerの公開面だけは、
 harvest後のArchitecture文書を参照する。
