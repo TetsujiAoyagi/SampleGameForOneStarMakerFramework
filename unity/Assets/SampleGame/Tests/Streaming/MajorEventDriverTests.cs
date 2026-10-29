@@ -173,6 +173,109 @@ namespace OneStarMaker.Tests.Streaming
             Assert.That(f.Driver.State, Is.EqualTo(MajorEventDriverState.Idle));
         }
 
+        // AC2 の優先順位: 停止と枝・Season の生存は driver の状態より先に見る。消えかけの Event に
+        // AlreadyActive / Ending と答えない（同じ identity の要求でも、理由は停止・枝・Season のもの）。
+        [Test]
+        public void Admit_StopBranchAndSeasonOutrankDriverState(
+            [Values(AdmitCase.Stopped, AdmitCase.BranchBusy, AdmitCase.SeasonNotLoaded, AdmitCase.SeasonReplaced, AdmitCase.SeasonNotStable)]
+            AdmitCase admitCase,
+            [Values] ActiveState activeState)
+        {
+            var state = activeState switch
+            {
+                ActiveState.Loading => MajorEventDriverState.Loading,
+                ActiveState.Live => MajorEventDriverState.Live,
+                _ => MajorEventDriverState.Ending,
+            };
+            var f = CreateFixture();
+            var season = f.Season;
+            SceneBase? current = season;
+            var stable = true;
+            var branchBusy = false;
+            var stopped = false;
+            MajorEventRejectReason expected;
+            switch (admitCase)
+            {
+                case AdmitCase.Stopped:
+                    stopped = true;
+                    expected = MajorEventRejectReason.Stopped;
+                    break;
+                case AdmitCase.BranchBusy:
+                    branchBusy = true;
+                    expected = MajorEventRejectReason.BranchBusy;
+                    break;
+                case AdmitCase.SeasonNotLoaded:
+                    current = null;
+                    expected = MajorEventRejectReason.SeasonNotLoaded;
+                    break;
+                case AdmitCase.SeasonReplaced:
+                    current = new TestSceneBase(season.SceneResource, f.Query, new StubController());
+                    expected = MajorEventRejectReason.SeasonReplaced;
+                    break;
+                default:
+                    stable = false;
+                    expected = MajorEventRejectReason.SeasonNotStable;
+                    break;
+            }
+
+            var result = MajorEventDriver.Admit(
+                EventId,
+                season,
+                current,
+                stable,
+                branchBusy,
+                stopped,
+                state,
+                activeEventIdentity: EventId,
+                out var reason);
+
+            Assert.That(result, Is.EqualTo(MajorEventRequestResult.Rejected));
+            Assert.That(reason, Is.EqualTo(expected));
+        }
+
+        // AC2 の優先順位: Season の生存は構造より先（Idle の Season 未ロード × Lighting は SeasonNotLoaded）、
+        // 段 2 の内部は枝が先（枝の切替中 × Season 未ロードは BranchBusy）。
+        [TestCase("Spring_Lighting", false, nameof(MajorEventRejectReason.SeasonNotLoaded))]
+        [TestCase(EventId, true, nameof(MajorEventRejectReason.BranchBusy))]
+        public void Admit_SeasonNotLoaded_CombinedOrder(string identity, bool branchBusy, string expected)
+        {
+            var f = CreateFixture();
+
+            var result = MajorEventDriver.Admit(
+                identity,
+                f.Season,
+                currentSeason: null,
+                seasonStable: false,
+                branchBusy,
+                stopped: false,
+                MajorEventDriverState.Idle,
+                activeEventIdentity: null,
+                out var reason);
+
+            Assert.That(result, Is.EqualTo(MajorEventRequestResult.Rejected));
+            Assert.That(reason.ToString(), Is.EqualTo(expected));
+        }
+
+        // AC2（Request 経由）: Loading の間に Season の unload が始まる（Query が Season を返さない）と、同じ identity の
+        // 要求は Rejected(SeasonNotLoaded)・Warning 1 回で、Add も unload も増えず、状態は Loading のまま（拒否は遷移させない）。
+        [Test]
+        public void Request_WhileLoading_AfterSeasonUnloadStarts_IsRejectedWithoutTransition()
+        {
+            var f = CreateFixture();
+            Assert.That(f.Driver.Request(EventId, false), Is.EqualTo(MajorEventRequestResult.Accepted));
+            f.Query.Scenes.Remove(f.Season.SceneResource.Identity);
+            f.Query.Stable.Remove(f.Season.SceneResource.Identity);
+
+            var result = f.Driver.Request(EventId, false);
+
+            Assert.That(result, Is.EqualTo(MajorEventRequestResult.Rejected));
+            Assert.That(f.Logger.WarningCount, Is.EqualTo(1));
+            Assert.That(f.Logger.Messages, Has.Exactly(1).Contains(nameof(MajorEventRejectReason.SeasonNotLoaded)));
+            Assert.That(f.Added, Is.EqualTo(new[] { EventId }));
+            Assert.That(f.Unloaded, Is.Empty);
+            Assert.That(f.Driver.State, Is.EqualTo(MajorEventDriverState.Loading));
+        }
+
         // AC3: Loading・Live の同じ identity は AlreadyActive。同じ同期区間の 2 回で Add 1。
         [Test]
         public void Request_WhileLoadingOrLive_IsAlreadyActive_AndIssuesNoSecondAdd()
@@ -343,6 +446,14 @@ namespace OneStarMaker.Tests.Streaming
             Unknown,
             Lighting,
             Cell,
+        }
+
+        // driver の状態は internal なので、public の test の引数には Idle でない 3 つを写したこの enum を使う。
+        public enum ActiveState
+        {
+            Loading,
+            Live,
+            Ending,
         }
 
         private sealed class Fixture

@@ -129,6 +129,8 @@ namespace SampleGame.Tests.Rendering.Vfx
 
             internal int SeasonRemovedCount { get; private set; }
 
+            internal int CellRemovedCount { get; private set; }
+
             internal SceneState? EventState { get; private set; }
 
             /// <summary>Event の Removed の時点の、Event の VFX source の所有者の数（-1 は未観測）。</summary>
@@ -257,6 +259,13 @@ namespace SampleGame.Tests.Rendering.Vfx
                 {
                     SeasonRemovedCount++;
                     Log("season Removed");
+                    return;
+                }
+
+                if (e.SceneIdentify == Cell && e.Type == SceneEventType.Removed)
+                {
+                    CellRemovedCount++;
+                    Log("cell Removed");
                     return;
                 }
 

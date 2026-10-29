@@ -171,6 +171,14 @@ namespace SampleGame.InGame.Streaming
         /// <summary>
         /// 受理の判定（副作用なし）。構造の判定は Season の SceneResource の子で見て、名前の規則は使わない。
         /// </summary>
+        /// <remarks>
+        /// 判定は「停止 → 枝と Season の生存 → driver の状態 → 構造」の順に見て、最初に当たったもので答える。
+        /// 枝と Season の生存を driver の状態より先に見るのは、親が既に Event を生かせない状態（Season の unload の開始後、
+        /// 枝の切替中）なら、消えかけの Event に AlreadyActive（動いている）と答えないため。Season が Stable を外れるのは
+        /// unload の開始だけなので、親が健全な間の driver の状態の答えはこの順でも変わらない。
+        /// 生存の内部の順（枝 → 未ロード → 差し替え → Stable でない）も同じ契約の一部で、入れ替えない。
+        /// 親の unload の開始後に届く開始 trigger の要求は拒否の Warning になるが、Add の有無は変わらないので抑制しない。
+        /// </remarks>
         /// <param name="capturedSeason">枝の確立時に捕捉した Season の個体。</param>
         /// <param name="currentSeason">いま Query が返す Season の個体（unload 開始後は null）。</param>
         /// <param name="activeEventIdentity">driver が Idle でないときの Event の identity。</param>
@@ -191,19 +199,6 @@ namespace SampleGame.InGame.Streaming
                 return Reject(MajorEventRejectReason.Stopped, out reason);
             }
 
-            if (state != MajorEventDriverState.Idle)
-            {
-                if (!string.Equals(activeEventIdentity, eventIdentity, StringComparison.Ordinal))
-                {
-                    return Reject(MajorEventRejectReason.OtherEventActive, out reason);
-                }
-
-                // Ending の個体は unload 中か保留中。新しい個体を同時に生かさないため、終端を観測するまで受けない。
-                return state == MajorEventDriverState.Ending
-                    ? Reject(MajorEventRejectReason.Ending, out reason)
-                    : MajorEventRequestResult.AlreadyActive;
-            }
-
             if (branchBusy)
             {
                 return Reject(MajorEventRejectReason.BranchBusy, out reason);
@@ -222,6 +217,19 @@ namespace SampleGame.InGame.Streaming
             if (!seasonStable)
             {
                 return Reject(MajorEventRejectReason.SeasonNotStable, out reason);
+            }
+
+            if (state != MajorEventDriverState.Idle)
+            {
+                if (!string.Equals(activeEventIdentity, eventIdentity, StringComparison.Ordinal))
+                {
+                    return Reject(MajorEventRejectReason.OtherEventActive, out reason);
+                }
+
+                // Ending の個体は unload 中か保留中。新しい個体を同時に生かさないため、終端を観測するまで受けない。
+                return state == MajorEventDriverState.Ending
+                    ? Reject(MajorEventRejectReason.Ending, out reason)
+                    : MajorEventRequestResult.AlreadyActive;
             }
 
             var child = FindChild(capturedSeason.SceneResource, eventIdentity);

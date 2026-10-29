@@ -83,10 +83,11 @@ namespace SampleGame.Tests.Rendering.Vfx
                     Assert.That(backend.Created.Select(created => created.Position), Is.EquivalentTo(anchors));
                     Assert.That(backend.Created, Has.Count.EqualTo(2));
 
+                    // AC6 の時点は「Cell の Removed の次のフレーム」。IsSceneLoaded は unload の開始で false になり、
+                    // その時点では子の Events がまだ unload 中なので、Removed の通知を数えて待つ。
                     scenes.MoveFocusAway();
-                    var cellRemovedFrame = -1;
-                    await WaitFramesUntilAsync(() => !scenes.Director.IsSceneLoaded(Cell), "Cell (4,2) が外れない");
-                    cellRemovedFrame = Time.frameCount;
+                    await WaitFramesUntilAsync(() => scenes.CellRemovedCount == 1, "Cell (4,2) の Removed が届かない");
+                    var cellRemovedFrame = Time.frameCount;
                     await UniTask.NextFrame();
 
                     TestContext.Out.WriteLine($"cellRemovedFrame={cellRemovedFrame} eventsLoaded={scenes.Director.IsSceneLoaded(Events)}");
@@ -222,9 +223,19 @@ namespace SampleGame.Tests.Rendering.Vfx
                         "Event が窓の外のロードに入らない");
                     var stateAtUnload = scenes.EventState;
                     Assert.That(scenes.Director.IsSceneStable(EventIdentity), Is.False, "前提: Session の unload の時点で Event は Stable でない");
-                    var unload = scenes.Director.UnloadScene(SessionIdentity);
+
+                    // 親が健全な間（Season は Event の Add 中も Stable）のロード中の同じ identity は AlreadyActive で、Add しない。
+                    Assert.That(session.RequestMajorEvent(EventIdentity), Is.EqualTo(MajorEventRequestResult.AlreadyActive), "Session の unload の前のロード中の要求");
+                    Assert.That(scenes.EventPreLoadingCount, Is.EqualTo(1), "ロード中の要求で Event の Add が発行された");
+
+                    // 表示付きの unload は表示の await の後に unload へ入るので、開始の次のフレームに Season の unload が始まるよう表示なしにする。
+                    var unload = scenes.Director.UnloadScene(SessionIdentity, LoadingDisplayType.None);
 
                     await UniTask.NextFrame();
+                    // 前提が崩れたときは AlreadyActive の合否で決めず、前提不成立として落とす。
+                    Assert.That(scenes.Director.GetLoadedScene(SeasonIdentity) == null, Is.True, "前提不成立: Session の unload の開始の次のフレームに Season の unload が始まっていない");
+                    Assert.That(scenes.EventRemovedCount, Is.Zero, "前提不成立: 要求の前に Event が終端した");
+                    // driver は Session の停止（子の保留の後）より前で Loading のまま。拒否は Season の未ロードの判定による（理由は単体で見る）。
                     Assert.That(session.RequestMajorEvent(EventIdentity), Is.EqualTo(MajorEventRequestResult.Rejected), "Session の unload の開始の後の要求");
                     await unload;
 
@@ -290,16 +301,27 @@ namespace SampleGame.Tests.Rendering.Vfx
                 $"destroy id={id.Value} ownedByEvent={scenes.Owners(EventVfxAddress).Contains(AssetOwner.Scene(EventIdentity))}");
         }
 
+        /// <summary>
+        /// Event の PreUnloading の dispatch で Destroy 2 回 → source の解放 → Removed の順を見る。
+        /// VfxSystem は test より先に director のイベントを購読するので、同じ PreUnloading の dispatch の中の Destroy は
+        /// test の「event PreUnloading」の行より前に並ぶ。購読順に依存しないよう、Destroy は直前の Stable の後・
+        /// PreUnloaded の前にあり、その時点で source を Event が所有している（解放より前）ことで読む。
+        /// </summary>
         private static void AssertRecoveryOrder(List<string> timeline)
         {
             var preUnloading = timeline.IndexOf("event PreUnloading");
+            var preUnloaded = timeline.IndexOf("event PreUnloaded");
+            var stable = preUnloading < 0 ? -1 : timeline.LastIndexOf("event Stable", preUnloading);
             var destroys = timeline.Select((line, index) => (line, index))
                 .Where(item => item.line.StartsWith("destroy id=", StringComparison.Ordinal))
                 .ToArray();
             var removed = timeline.FindIndex(line => line.StartsWith("event Removed", StringComparison.Ordinal));
             Assert.That(preUnloading, Is.GreaterThanOrEqualTo(0), "Event の PreUnloading が記録されていない");
+            Assert.That(stable, Is.GreaterThanOrEqualTo(0), "PreUnloading の前に Event の Stable が記録されていない");
+            Assert.That(preUnloaded, Is.GreaterThan(preUnloading), "Event の PreUnloaded が PreUnloading の後に記録されていない");
+            Assert.That(removed, Is.GreaterThan(preUnloaded), "Event の Removed が PreUnloaded の後に記録されていない");
             Assert.That(destroys, Has.Length.EqualTo(2), "Event の VFX の Destroy が 2 回でない");
-            Assert.That(destroys.All(item => item.index > preUnloading && item.index < removed), Is.True, "Destroy が Event の PreUnloading と Removed の間に無い");
+            Assert.That(destroys.All(item => item.index > stable && item.index < preUnloaded), Is.True, "Destroy が Event の Stable と PreUnloaded の間に無い");
             Assert.That(destroys.All(item => item.line.EndsWith("ownedByEvent=True", StringComparison.Ordinal)), Is.True, "Destroy の時点で source が解放済み");
         }
 

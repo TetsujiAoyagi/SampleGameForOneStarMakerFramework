@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `A` 第 2 revision 凍結（2026-10-30。発見 C 1 巡目の F3 による受理の優先順位の改訂。§7「F3 への発注者の決定」、§5.2）。第 1 revision のA3 凍結版は `3104ff5a`（2026-10-29、A2 入力版 `1fa1b472`、§5.1）
+- status: `B` 第 2 revision の後の B 完了（2026-10-30。次は発見 C 2 巡目）。Phase A は第 2 revision 凍結（2026-10-30。発見 C 1 巡目の F3 による受理の優先順位の改訂。§7「F3 への発注者の決定」、§5.2）。第 1 revision のA3 凍結版は `3104ff5a`（2026-10-29、A2 入力版 `1fa1b472`、§5.1）
 - branch: `claude/s-4d5-major-event`
 - implementation base commit: `22ebf130`（`develop`、S-4d4b の PR #148 のマージ）
-- implementation head commit: `1766af84`（Phase B の出口。GO 候補 head としては未固定）
+- implementation head commit: 第 2 revision の後の B の出口（この記述を含む commit。§6「第 2 revision の後の B」）。前の B の出口は `1766af84`。GO 候補 head としては未固定
 - risk: `high`（Season の排他 controller に新しい所有物を足す。親の unload と子の Add の競合、Addressables entry の追加、`InGameSession` への internal method の追加に触れる（公開 interface は足さない）。Framework のコードと公開 API は変えない見込み）
 - owner: 発注者 / S-4d5 担当
 - created: 2026-10-29
@@ -16,10 +16,10 @@
 - harvest to: Architecture §05 §5.13（Season 直下の major Event の分類と寿命）、§24 §16（`Scene(id)` 所有の動的 VFX の実例。§16.7 の更新）。S-4 program 全体の harvest と削除は d5b の範囲（§2.6 U1）
 - workflow task: `s-4d5-major-event`（未開始。最初に Evidence を固定する時点で `pwsh tools/workflow-task.ps1 start` する）
 - Phase A snapshot の取得案内・状態: 未生成（凍結した HANDOFF 本体は A3 凍結 commit で固定する）
-- Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と commit `1766af84` で引き渡す）
+- Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と、第 2 revision の後の B の出口 commit で引き渡す）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: Phase A 第 2 revision を A3 で再凍結した（凍結 commit はこの記述を含む commit。A2 入力版 `2745e79e`、§5.2）。改訂は受理の優先順位だけ（§2 冒頭「受理の優先順位」、I1 の判定の名前、AC2・AC3・AC9、D2、§3 の driver 行、§4.1「第 2 revision の後の B」、§4.2 の停止条件 2 件、§1.3 の追加の現況）。次は Phase B（新しい session）: implementation head `1766af84` から、§4.1「第 2 revision の後の B」の範囲だけを直す（`Admit` の判定の順とコメント、`MajorEventDriverTests` の AC2 の組み合わせと `Request` 経由の 1 本、`SeasonMajorEventPlayTests` の AC9 と F1・F2）。権限: Editor の compile 確認と `pwsh tools/contract-audit.ps1` まで。Unity テストは Phase C。B の出口で commit し、§6 と本票を更新する。その後は 発見 C 2 巡目 → 判定 C → C'。C' には未関与の系列を残している（§5.1）。
+- 引継ぎ票: 第 2 revision の後の Phase B を終えた（出口はこの記述を含む commit。§6「第 2 revision の後の B」）。範囲は §4.1「第 2 revision の後の B」のとおり `Admit` の判定の順とコメント、`MajorEventDriverTests` の AC2 の優先順位、`SeasonMajorEventPlayTests` の AC9 と F1・F2。Editor の compile はエラー 0、`pwsh tools/contract-audit.ps1` は errors=0 warnings=0。Unity テストは未実行（Phase C）。動作確認の対象は無い（§6「動作確認」）。次は 発見 C 2 巡目（新しい session）: 起点 filter（§5）で F1〜F3 の閉鎖を確かめ、通れば判定 C → C'。C' には未関与の系列を残している（§5.1）。
 
 ---
 
@@ -335,9 +335,23 @@ AC6〜AC9 の「次のフレーム」は、対象の `Removed` の通知を受�
 - implementation head commit: `1766af84`
 - Phase B 担当・モデル・ベンダー: この session の担当（Anthropic 系）。
 
+### 第 2 revision の後の B
+
+- 範囲: §4.1「第 2 revision の後の B」。controller・`InGameSession`・Scene class・binder・Scene / asset・公開面・Framework・asmdef、拒否の理由の集合、driver の状態遷移、`Admit` の入力は変えていない。
+- 製品: `MajorEventDriver.Admit` の判定の順を §2 の受理の優先順位（停止 → 枝 → Season の未ロード → 差し替え → Stable でない → driver の状態 → 構造）に入れ替え、順の理由（親が Event を生かせないなら `AlreadyActive` と答えない、親が健全な間は答えが変わらない、段 2 の内部の順も契約、拒否の Warning は抑制しない）を remarks に書いた。407 → 415 行。
+- テスト（`MajorEventDriverTests`）: AC2 の優先順位として、停止・枝の切替中・Season の未ロード・差し替え・Stable でない × driver の Loading・Live・Ending（同じ identity）の 15 組が段 1・段 2 の理由で `Rejected` になる組み合わせテスト、Idle の Season 未ロード × `Spring_Lighting` が `SeasonNotLoaded`・枝の切替中 × Season 未ロードが `BranchBusy` の 2 件、`Request` 経由で Loading 中に Season が未ロードになったときの `Rejected(SeasonNotLoaded)`・Warning 1 回（理由をメッセージで確認）・Add と unload の増加なし・Loading のまま、の 1 件を足した。driver の状態は internal なので、public の test の引数には Idle でない 3 つを写した test 内の enum を使う。
+- テスト（`SeasonMajorEventPlayTests`）:
+  - AC9: Session の unload の前に、Event が窓の外のロード中（Stable でない）の間の同じ identity の要求が `AlreadyActive`・`EventPreLoadingCount` が 1 のままであることを見る。unload は `LoadingDisplayType.None` を明示。開始の次のフレームに前提（`GetLoadedScene(Season_Spring)` が null、Event の Removed が未着）を「前提不成立」の文言で確かめてから要求し、`Rejected` を判定する。
+  - F1（AC6）: Cell (4,2) の待ちを `IsSceneLoaded` から Cell の `Removed` の通知の回数（`.Scenes.cs` の `CellRemovedCount`）に変えた。
+  - F2（AC7 (a)・AC8 (a)）: `AssertRecoveryOrder` を、Destroy 2 回が直前の Event の `Stable` の後・`PreUnloaded` の前にあり、どちらも `ownedByEvent=True`、`PreUnloading` → `PreUnloaded` → `Removed` の順、と読む形にした（VfxSystem が test より先に購読するので、同じ `PreUnloading` の dispatch の Destroy は test の行より前に並ぶ）。test 名は変えていない。
+- 確認: Editor の compile はエラー 0（`SampleGame.Tests` を含む。変更したファイルに警告なし。最初の compile で internal enum を public の test の引数にしたエラー CS0051 が出て直した）。`pwsh tools/contract-audit.ps1` は errors=0 warnings=0。
+- 未実行: Unity テスト（起点 filter・全 EditMode・Play 系）と `Build Spring Whitebox`（AC14）は Phase C。
+- Editor の副作用: Editor の起動で vendor の `MobileDependencyResolver` の `.pdb.meta` 5 件が消えたが、本作業の変更ではないので commit に含めず、Editor の終了後に作業ツリーへ戻した。
+- 担当・モデル・ベンダー: この session の担当（Anthropic 系、前の B・発見 C 1 巡目・第 2 revision の主担当とは別の session）。
+
 ### 動作確認
 
-- 対象 head: `1766af84`
+- 対象 head: `1766af84`、および第 2 revision の後の B の出口（どちらも同じ扱い）
 - 条件ごとの実行担当・環境・実行したコマンド: なし（下記）
 - 生の観測と保存先・状態: なし
 - 検証経路の期待と違う観測と、B への差し戻し: なし
