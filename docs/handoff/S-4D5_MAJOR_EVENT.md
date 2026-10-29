@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `A` 凍結（A3 凍結版、2026-10-29。A2 入力版は `1fa1b472`。採否の要約は §5.1）
+- status: `B` 完了（A3 凍結版は `3104ff5a`、2026-10-29。A2 入力版は `1fa1b472`。採否の要約は §5.1）
 - branch: `claude/s-4d5-major-event`
 - implementation base commit: `22ebf130`（`develop`、S-4d4b の PR #148 のマージ）
-- implementation head commit: 未固定
+- implementation head commit: `1766af84`（Phase B の出口。GO 候補 head としては未固定）
 - risk: `high`（Season の排他 controller に新しい所有物を足す。親の unload と子の Add の競合、Addressables entry の追加、`InGameSession` への internal method の追加に触れる（公開 interface は足さない）。Framework のコードと公開 API は変えない見込み）
 - owner: 発注者 / S-4d5 担当
 - created: 2026-10-29
@@ -16,10 +16,10 @@
 - harvest to: Architecture §05 §5.13（Season 直下の major Event の分類と寿命）、§24 §16（`Scene(id)` 所有の動的 VFX の実例。§16.7 の更新）。S-4 program 全体の harvest と削除は d5b の範囲（§2.6 U1）
 - workflow task: `s-4d5-major-event`（未開始。最初に Evidence を固定する時点で `pwsh tools/workflow-task.ps1 start` する）
 - Phase A snapshot の取得案内・状態: 未生成（凍結した HANDOFF 本体は A3 凍結 commit で固定する）
-- Phase B result snapshot の取得案内・状態: 未生成
+- Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と commit `1766af84` で引き渡す）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: A3 凍結済み。次は Phase B（新しい session で、本 HANDOFF の §2〜§5 を正本に実装する）。Play の根の構成（§5 の未知の操作経路 (1)）は未確認で、初回確認は Phase C。不成立なら §2.6 U4 の分割へ進む。凍結後に設計判断を変える場合は Phase A の新しい revision にする。
+- 引継ぎ票: Phase B 完了（implementation head `1766af84`、worktree は clean）。動作確認は `対象なし`（§6）なので、次は発見 C（新しい session、Phase B と異なるモデル）。Unity テストと content build は未実行。Play の根の構成（§5 の未知の操作経路 (1)）と AC9 のタイミングは、発見 C の最初の実行で確かめる（§6「未確認」）。不成立なら §2.6 U4 の分割へ進む。
 
 ---
 
@@ -288,7 +288,31 @@ AC6〜AC9 の「次のフレーム」は、対象の `Removed` の通知を受�
 
 ## 6. Phase B 実装結果
 
-未着手
+- 実装（`1766af84`、base `22ebf130` からの差分）:
+  - 製品: `MajorEventDriver.cs`（新規 407 行。受理の純関数 `Admit`、結果と理由の enum、Idle / Loading / Live / Ending、Idle へ戻るのは Add の task の終わりと捕捉個体の終端の両方を観測した後）、`SessionSeasonController.cs`（599 → 675 行。driver の生成・停止、await より前に観測登録する private の `IssueMajorEventAdd`、`RequestMajorEvent` の委譲）、`InGameSessionScene.cs`（174 → 181 行、internal の `RequestMajorEvent`）、`SeasonMajorEventScene.cs`（新規 172 行）、`MajorEventVfxAnchor.cs`・`MajorEventCompletionTrigger.cs`・`MajorEventStartTrigger.cs`（新規 計 98 行）、`MajorEventStartBinder.cs`（新規 87 行）、`CellCompanionScene.cs`（81 → 84 行）、`SeasonCellNames.cs`（44 → 63 行、`MajorEvent` / `TryParseMajorEvent`）、`GameSceneFactory.cs`（130 → 148 行）。
+  - Scene・asset: `Seasons/Spring/Events/Spring_Event_MultiCellProof/`（`.unity`・SceneResource・`_Burst.vfx`）、`SceneGraphData/Nodes/Seasons/Spring_Event_MultiCellProof.asset`、`Total.asset` の node と Edge、`Season_Spring.asset` の子、`SceneResourceMap.asset`（再生成）、Default Local Group の Scene と `.vfx` の entry（address は asset path）、`Spring_Events_4_2.unity` に開始の trigger。`Seasons/` 配下の `.unity` は 658 件、Season_Spring の子は 57 件。
+  - テスト: `MajorEventDriverTests`（新規。AC1〜AC3 と停止・捕捉なしの発行）、`SessionSeasonControllerTests`（AC4、AC5 (i)〜(iv)）、`GameSceneFactoryTests`（`GameSceneLoggingTests.cs` に AC13）、`MajorEventAuthoringTests`（新規、AC12 の SceneResource・Addressables・Scene の中身・開始の trigger）、`VfxSceneStructureTests`（AC12 の node・Edge・Map・選択に Event を追加、子の件数 56 → 57）、`SeasonMajorEventPlayTests`（新規、AC6〜AC10。Play の根は `.Scenes.cs` の 334 行）。
+- HANDOFF との差（いずれも B 適応。契約・責務配置・受け入れ条件は変えていない）:
+  - **起動位置の marker が `.vfx` の address を持つ。** D4 は anchor を「位置だけ」とし、source の address の置き場所を決めていない。d4b の trigger（`VfxAddress`）と同じく authoring の値として anchor に置き、Scene class は異なる address ごとに 1 回ロードする。marker は判断も状態も持たない。
+  - **AC12 を 2 つの test class に分けた。** `SampleGame.Tests` は `OneStarMaker.Editor` と Addressables を参照しない（asmdef 参照は足さない）ので、node・Edge・Map・payload の参照先・Full / Whitebox の選択は Editor asmdef の `VfxSceneStructureTests` の spec 表に Event を足して見る。これに伴い同 class の `SeasonSpring_ChildrenAreLightingAtmosphereAnd54Cells` を `...MajorEventAnd54Cells`、`SeasonSelection_SpringIncludesBothVfxScenes` を `...IncludesVfxAndMajorEventScenes` に改名した（判定 C の XML ではこの名前で探す）。AC13 は既存の `GameSceneFactoryTests` に足した（fake の重複を避けるため）。
+  - **authoring の一時スクリプト。** 既存の World Workspace の作成 transaction を Season 直下の子の種類（Atmosphere）で実行し、node の LoadType だけを OnDemand に直して Map を再生成した。`.vfx` は `Spring_Events_4_2_Burst.vfx` の複製。スクリプトは commit の前に削除した。1 回目と 2 回目の実行は、Editor に未保存の untitled Scene があって transaction の Scene 作成と rollback が失敗した（作られたのは空フォルダと journal だけで、node・Edge・Map・Addressables は未変更を確認したうえで手で消した）。保存済み Scene を先に開く形に直して 3 回目で成功。
+  - **Play は 6 本。** §2.3 の「3 本と AC9 の 1 本」に対し、AC7 の (a) 記録 backend・(b) 実 backend・(c) 非対応は host が別なので分け、同じ host の AC7 と AC8 は 1 本にまとめた（AC6、AC7 (a)+AC8 (a)、AC7 (b)+AC8 (b)、AC7 (c)、AC9、AC10）。位相ごとの Play は作っていない。
+  - **Play の根。** 計画した構成のまま（複製 Map の根を実 `InGameSession`、factory は Planner、Focus は公開の `RegisterFlight` に偽の Flight）。Cell (5,2) は含めていない（起動位置と完了の trigger は Event Scene にあり、Cell (5,2) を載せる必要がない）。Lighting・Atmosphere も含めない（`RenderEnvironment` を要し、Event の VFX だけを数えるため）。AC10 の「Environment が載っていない」を意味のある観測にするため `Spring_Environment_4_2` を Map に含め、Planner で載らないことを見る。AC8 の枝の終了には `Season_Summer` と `Summer_Cell_0_4` を Map に含め、controller の `RequestSeasonAsync` を reflection で呼ぶ。
+  - **行数。** 製品は約 870 行で見積もり（430〜600 行）を超えた。主に driver（見積もり 160〜220 → 407 行）の enum 3 種・契約のコメント・捕捉なしの発行の経路による。controller は 675 行で上限 690 の内、Play の根は d4b の 362 行以内。§2.6 U4 の分割の条件には当たらない。
+- 未確認（発見 C の最初の実行で確かめる）:
+  - §5 の未知の操作経路 (1)（Play の根が実 `InGameSession` の Ensure・距離 streaming・companion driver で成り立つか）。
+  - AC9 は、Event の状態が `Loading`〜`WaitLoadChildScene` に入ったことを test のフレームの処理で見てから Session を unload する。Unity Scene のロードが 1 フレームで終わると Stable に先を越され、前提の Assert（「unload の時点で Event は Stable でない」）で落ちる。その場合は製品を変えず、観測の取り方だけを B で直す。
+- 未実行: Unity テスト（全 EditMode・PlayMode）と `Build Spring Whitebox`（AC14）は Phase C。Editor でのコンパイルは確認済み（エラー 0、変更したファイルに警告なし）。`pwsh tools/contract-audit.ps1` は errors=0 warnings=0。
+- implementation head commit: `1766af84`
+- Phase B 担当・モデル・ベンダー: この session の担当（Anthropic 系）。
+
+### 動作確認
+
+- 対象 head: `1766af84`
+- 条件ごとの実行担当・環境・実行したコマンド: なし（下記）
+- 生の観測と保存先・状態: なし
+- 検証経路の期待と違う観測と、B への差し戻し: なし
+- `未実施` の条件と理由・担当: `対象なし`（§5 の検証経路は AC6〜AC10 が Play テスト、AC14 が content build で、どちらも動作確認の対象外。人間の目視の条件は無い）
 
 ## 7. Phase C
 
