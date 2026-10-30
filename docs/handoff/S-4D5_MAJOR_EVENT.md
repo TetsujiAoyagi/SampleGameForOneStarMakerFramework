@@ -445,6 +445,15 @@ AC6〜AC9 の「次のフレーム」は、対象の `Removed` の通知を受�
 - 実行環境の副作用: Editor の起動で `MobileDependencyResolver` の `.pdb.meta` 5 件が消えたため `git checkout` で戻した。
 - 結論: 発見 C の差し戻しは無い。往復は 3 巡目で収束（上限 4 巡の内）。次は判定 C（やり直し）。
 
+### 判定 C（2 回目）
+
+- 対象: implementation head `7eb5d980`（HEAD `b4e1f5c9` との差分は HANDOFF のみ）。担当: Phase B・発見 C・判定 C 1 回目とは別の session（Anthropic 系）。
+- 全回帰: `pwsh tools/run-tests.ps1 -WithGraphics`（空 filter、sandbox 外）total=1478、passed=1476、failed=2。`SeasonMajorEventPlayTests` の 6 件は収録され全通過（1 回目に不安定だった AC6 `Start_SpawnsAtBothAnchors_AndSurvivesCellUnload` を含む）。
+- 失敗 2 件（どちらも本スライスの範囲外）: (1) `ContentHttpArtifactSourceTests.FailedNextRevision_PreservesKnownGoodBytesAndPin_ThenRetrySucceeds`（ローカル HTTP 接続の強制切断）、(2) `VfxGraphBackendPlayTests.AC7_UnscaledEffectTime_IsCappedAtMaximumDeltaTime`（`VfxGraphBackendPlayTests.cs:472`、実測 0.90 秒。全回帰の負荷下の時間計測）。この 2 class だけを再実行（`-WithGraphics -Filter`）すると total=24、failed=0。全回帰の中でだけ落ちた不安定な観測で、製品差分とは無関係。後続スライスの入力（テストの安定化）。
+- AC14: `Build Spring Whitebox`（`SampleGameContentBuild.BuildSpringWhitebox` を batchmode で 1 回）。exit 0、outcome `Succeeded|StandaloneWindows64`、Content Directory に `Spring_Event_MultiCellProof` の Scene payload あり、`.vfx` なし。
+- 判定: 凍結条件（AC1〜AC10・AC12〜AC15）への違反は見つからなかった。ただし全回帰が 1 回で clean にならなかったため、不安定 2 件の扱い（受容するか、全回帰を再実行して clean を取るか）は発注者の判断を待つ。C' は未起動。
+- 実行環境の副作用: `MobileDependencyResolver` の `.pdb.meta` 5 件を `git checkout` で戻した。
+
 ## 8. Phase C'
 
 未着手
