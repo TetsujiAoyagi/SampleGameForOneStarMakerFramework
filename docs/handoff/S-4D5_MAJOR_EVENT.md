@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `B` 判定 C 1 回目の後の B 完了（2026-10-30。AC6 の観測の修正。§6「判定 C 1 回目の後の B」。次は発見 C 3 巡目）。発見 C 3 巡目は完了・指摘なし（§7「発見 C（3 巡目）」。次は判定 C のやり直し）。それ以前: 第 2 revision の後の B 完了、発見 C 2 巡目完了・指摘なし、判定 C 1 回目は AC6 の不安定な失敗 1 件で未完了（§7「判定 C（1 回目）」）。Phase A は第 2 revision 凍結（2026-10-30。発見 C 1 巡目の F3 による受理の優先順位の改訂。§7「F3 への発注者の決定」、§5.2）。第 1 revision のA3 凍結版は `3104ff5a`（2026-10-29、A2 入力版 `1fa1b472`、§5.1）
+- status: `C'` 1 巡目完了・blocker なし（2026-10-30。§8。独立性制約あり）。次は Phase D。それ以前: `B` 判定 C 1 回目の後の B 完了（2026-10-30。AC6 の観測の修正。§6「判定 C 1 回目の後の B」。次は発見 C 3 巡目）。発見 C 3 巡目は完了・指摘なし（§7「発見 C（3 巡目）」。次は判定 C のやり直し）。それ以前: 第 2 revision の後の B 完了、発見 C 2 巡目完了・指摘なし、判定 C 1 回目は AC6 の不安定な失敗 1 件で未完了（§7「判定 C（1 回目）」）。Phase A は第 2 revision 凍結（2026-10-30。発見 C 1 巡目の F3 による受理の優先順位の改訂。§7「F3 への発注者の決定」、§5.2）。第 1 revision のA3 凍結版は `3104ff5a`（2026-10-29、A2 入力版 `1fa1b472`、§5.1）
 - branch: `claude/s-4d5-major-event`
 - implementation base commit: `22ebf130`（`develop`、S-4d4b の PR #148 のマージ）
 - implementation head commit: 判定 C 1 回目の後の B の出口（この記述を含む commit。§6「判定 C 1 回目の後の B」）。それ以前の B の出口は `31e3654c`（第 2 revision の後の B）、`1766af84`。GO 候補 head としては未固定
@@ -14,12 +14,12 @@
 - created: 2026-10-29
 - expires: S-4d5a の Phase D 完了時
 - harvest to: Architecture §05 §5.13（Season 直下の major Event の分類と寿命）、§24 §16（`Scene(id)` 所有の動的 VFX の実例。§16.7 の更新）。S-4 program 全体の harvest と削除は d5b の範囲（§2.6 U1）
-- workflow task: `s-4d5-major-event`（未開始。最初に Evidence を固定する時点で `pwsh tools/workflow-task.ps1 start` する）
+- workflow task: `s-4d5-major-event`（開始済み。2026-10-30、C' の bundle の固定時に `start`）
 - Phase A snapshot の取得案内・状態: 未生成（凍結した HANDOFF 本体は A3 凍結 commit で固定する）
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と、第 2 revision の後の B の出口 commit で引き渡す）
-- evidence bundle の取得案内・状態: 未生成
-- C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: 【最新】判定 C（2 回目）完了。GO 候補 head `7eb5d980`、全回帰の不安定 2 件は発注者が受容、AC14 成功（§7）。次は C'（未関与の系列、§5.1）。以下は直前の記述: 判定 C 1 回目の後の B 完了（B 適応、AC6 の観測だけを修正。§6「判定 C 1 回目の後の B」）。implementation head はこの記述を含む commit（B の出口）。変更は `SeasonMajorEventPlayTests.cs` の AC6 の assert の並べ替えと待ちの追加だけで、製品・Framework・companion driver・凍結条件は変えていない。Editor の compile はエラー 0、`pwsh tools/contract-audit.ps1` は errors=0 warnings=0。Unity テストと `Build Spring Whitebox` は未実行。動作確認は `対象なし`（§6「動作確認」と同じ）。発見 C 3 巡目は完了・指摘なし（§7）。次は 判定 C（やり直し。対象 head は `7eb5d980` から。全 EditMode 回帰、Play 系、`Build Spring Whitebox`）→ C'。C' には未関与の系列を残している（§5.1）。
+- evidence bundle の取得案内・状態: 判定 C 2 回目の生証拠（全回帰・2 class の再実行・AC14）は C' blind bundle に収録した（同じ package。下記）。判定 C 用の独立した bundle は未生成
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。C' 担当への引渡しは確認済み（別プロセスの fetch で全 file の hash 一致）。取得案内は担当者の `OneStarMaker/cprime/` 配下（worktree 外）
+- 引継ぎ票: 【最新】C' 1 巡目完了・blocker なし（§8）。担当は Grok 系で `独立性制約あり`（未関与の系列が利用できず、発注者が了承）。後続スライスの入力 2 件。次は Phase D（判定 C と C' の突合、保存・引渡しの確認、harvest、PR。base は `develop`）。対象 head は `7eb5d980`。以下は直前の記述: 判定 C（2 回目）完了。GO 候補 head `7eb5d980`、全回帰の不安定 2 件は発注者が受容、AC14 成功（§7）。次は C'（未関与の系列、§5.1）。以下は直前の記述: 判定 C 1 回目の後の B 完了（B 適応、AC6 の観測だけを修正。§6「判定 C 1 回目の後の B」）。implementation head はこの記述を含む commit（B の出口）。変更は `SeasonMajorEventPlayTests.cs` の AC6 の assert の並べ替えと待ちの追加だけで、製品・Framework・companion driver・凍結条件は変えていない。Editor の compile はエラー 0、`pwsh tools/contract-audit.ps1` は errors=0 warnings=0。Unity テストと `Build Spring Whitebox` は未実行。動作確認は `対象なし`（§6「動作確認」と同じ）。発見 C 3 巡目は完了・指摘なし（§7）。次は 判定 C（やり直し。対象 head は `7eb5d980` から。全 EditMode 回帰、Play 系、`Build Spring Whitebox`）→ C'。C' には未関与の系列を残している（§5.1）。
 
 ---
 
@@ -457,7 +457,18 @@ AC6〜AC9 の「次のフレーム」は、対象の `Removed` の通知を受�
 
 ## 8. Phase C'
 
-未着手
+### C'（1 巡目）
+
+- 対象: implementation head `7eb5d980`（base `22ebf130`）。判定 C 2 回目と同じ head・同じ判定 evidence。
+- 担当: Grok 系（xAI）。cursor-agent で新規 session、1 回の実行（約 15 分）。**独立性制約あり:** 未関与の系列（Google 系等）が利用できなかった。xAI 系は Phase A の A2（不変条件レビュー）に関与している。B・C の担当（Anthropic 系）とは異なるので最低条件は満たす。強化条件は満たさない。発注者は Grok での実施を了承した（2026-10-30）。残存リスクは、Phase A のレビューと同じ見落としを繰り返す余地。
+- 入力: blind audit bundle（凍結した Phase A 第 2 revision の §1〜§5、所見を除いた Phase B の結果、base..head の完全 diff（`docs/handoff/` を除く）、`contract-audit`・`docs-audit` の出力、判定 C 2 回目の全回帰と 2 class の再実行の生ログ・XML、AC14 の build log・report・Content Directory）と、head の source tree（`docs/handoff/` と git 履歴を除く）だけ。発見 C・判定 C の所見と人間の裁定は渡していない。bundle は `evidence stage` でローカル固定し、別プロセスの fetch で全 file の hash 一致を確認した。取得案内と C' の報告の原本は worktree 外（担当者の `OneStarMaker/cprime/` 配下）にある。
+- 結論: **blocker なし。** AC1〜AC10・AC12〜AC15 はテスト XML・再実行・content build の outcome と preflight・source の配置で確認できた（AC11 は欠番）。構造は §3 の責務マップと一致し、常時契約の違反は無い。
+- 後続スライスの入力:
+  1. Play の複製 Map が Season_Spring の NecessaryAlways の子（Lighting・Atmosphere）を含まない（`SeasonMajorEventPlayTests.Scenes.cs`）。同じ枝に NecessaryAlways の子がいる場合の Event の回収順は Play で再現していない。AC の合否は要求しない。
+  2. 起動位置の marker（`MajorEventVfxAnchor`）が `.vfx` の address を持つ。§3・D4 は「位置だけ」。AC を破る経路は無いが、marker を増やす後続では address の責務の置き場所を決め直す。
+- 残存リスク（C' の記述）: 全回帰の 1 プロセスは clean でない（2 件は範囲外で再実行は通過、負荷下で再発しうる）。捕捉に失敗した Add が成功で終わる経路では、controller が await 後の捕捉にも失敗すると `CompleteOp` を呼ばず未完了 op が枝の待ちを塞ぎうる（前提「Stable な親の子は最初の await より前に辞書へ入る」が破れた場合だけ。証拠に破れた観測は無い）。製品の行数は見積もりを超える（driver 416 行、controller 675 行は上限 690 の内）。`.vfx` は Content Directory に乗らない（§4.3・U1 の対象外どおり）。
+- 監査できなかった範囲: `content-directory.zip` のエントリの列挙（zip を読む shell が拒否された。AC14 は outcome・preflight・build log で判断）、SceneDirector の子孫収集と Season の `PreUnloading` の同期の順序の再実行（Framework は無変更）、一時 authoring スクリプトの中身（commit に無い）、人間の目視（Phase A で対象なし）。
+- 次: Phase D（判定 C と C' の突合、保存・引渡しの確認、PR）。
 
 ## 9. Phase D
 
