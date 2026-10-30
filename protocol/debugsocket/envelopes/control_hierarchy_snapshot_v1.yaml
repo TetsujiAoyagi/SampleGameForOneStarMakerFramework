@@ -1,0 +1,13 @@
+name: ControlHierarchySnapshotV1
+kind: message
+surfaces: [debugstudio]
+fields:
+  - { id: 0, name: HasSnapshot, type: bool }
+  - { id: 1, name: Revision, type: i64 }
+  - { id: 2, name: CapturedAtUnixTimeMilliseconds, type: i64 }
+  - { id: 3, name: ConnectionState, type: string, default: "" }
+  - { id: 4, name: HandshakeState, type: string, default: "" }
+  - { id: 5, name: Nodes, type: array<HierarchyNodeDtoV1>, default: [] }
+encodings:
+  messagepack:
+    key_field: id

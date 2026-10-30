@@ -26,6 +26,9 @@ internal static class Program
             return parseResult.ExitCode;
         }
 
+        if (parseResult.ReadOptions is { } readOptions)
+            return await ReadCommand.ExecuteAsync(readOptions, Console.Out).ConfigureAwait(false);
+
         var roundtripClient = new DebugCommandControlPlaneClient();
 
         var result = await roundtripClient.SendAsync(

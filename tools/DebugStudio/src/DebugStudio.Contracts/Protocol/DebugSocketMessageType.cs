@@ -21,4 +21,6 @@ public enum DebugSocketMessageType
     InspectorDetail = 11,
     ControlCommandRequest = 12,
     ControlCommandResponse = 13,
+    ControlReadRequest = 14,
+    ControlReadResponse = 15,
 }
