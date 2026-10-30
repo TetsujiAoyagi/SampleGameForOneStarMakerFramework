@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `B` 判定 C 1 回目の後の B 完了（2026-10-30。AC6 の観測の修正。§6「判定 C 1 回目の後の B」。次は発見 C 3 巡目）。それ以前: 第 2 revision の後の B 完了、発見 C 2 巡目完了・指摘なし、判定 C 1 回目は AC6 の不安定な失敗 1 件で未完了（§7「判定 C（1 回目）」）。Phase A は第 2 revision 凍結（2026-10-30。発見 C 1 巡目の F3 による受理の優先順位の改訂。§7「F3 への発注者の決定」、§5.2）。第 1 revision のA3 凍結版は `3104ff5a`（2026-10-29、A2 入力版 `1fa1b472`、§5.1）
+- status: `B` 判定 C 1 回目の後の B 完了（2026-10-30。AC6 の観測の修正。§6「判定 C 1 回目の後の B」。次は発見 C 3 巡目）。発見 C 3 巡目は完了・指摘なし（§7「発見 C（3 巡目）」。次は判定 C のやり直し）。それ以前: 第 2 revision の後の B 完了、発見 C 2 巡目完了・指摘なし、判定 C 1 回目は AC6 の不安定な失敗 1 件で未完了（§7「判定 C（1 回目）」）。Phase A は第 2 revision 凍結（2026-10-30。発見 C 1 巡目の F3 による受理の優先順位の改訂。§7「F3 への発注者の決定」、§5.2）。第 1 revision のA3 凍結版は `3104ff5a`（2026-10-29、A2 入力版 `1fa1b472`、§5.1）
 - branch: `claude/s-4d5-major-event`
 - implementation base commit: `22ebf130`（`develop`、S-4d4b の PR #148 のマージ）
 - implementation head commit: 判定 C 1 回目の後の B の出口（この記述を含む commit。§6「判定 C 1 回目の後の B」）。それ以前の B の出口は `31e3654c`（第 2 revision の後の B）、`1766af84`。GO 候補 head としては未固定
@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と、第 2 revision の後の B の出口 commit で引き渡す）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: 判定 C 1 回目の後の B 完了（B 適応、AC6 の観測だけを修正。§6「判定 C 1 回目の後の B」）。implementation head はこの記述を含む commit（B の出口）。変更は `SeasonMajorEventPlayTests.cs` の AC6 の assert の並べ替えと待ちの追加だけで、製品・Framework・companion driver・凍結条件は変えていない。Editor の compile はエラー 0、`pwsh tools/contract-audit.ps1` は errors=0 warnings=0。Unity テストと `Build Spring Whitebox` は未実行。動作確認は `対象なし`（§6「動作確認」と同じ）。次は 発見 C 3 巡目（B と発見 C の往復の 3 巡目。上限 4 巡）→ 判定 C（やり直し。全 EditMode 回帰、Play 系、`Build Spring Whitebox`）→ C'。C' には未関与の系列を残している（§5.1）。
+- 引継ぎ票: 判定 C 1 回目の後の B 完了（B 適応、AC6 の観測だけを修正。§6「判定 C 1 回目の後の B」）。implementation head はこの記述を含む commit（B の出口）。変更は `SeasonMajorEventPlayTests.cs` の AC6 の assert の並べ替えと待ちの追加だけで、製品・Framework・companion driver・凍結条件は変えていない。Editor の compile はエラー 0、`pwsh tools/contract-audit.ps1` は errors=0 warnings=0。Unity テストと `Build Spring Whitebox` は未実行。動作確認は `対象なし`（§6「動作確認」と同じ）。発見 C 3 巡目は完了・指摘なし（§7）。次は 判定 C（やり直し。対象 head は `7eb5d980` から。全 EditMode 回帰、Play 系、`Build Spring Whitebox`）→ C'。C' には未関与の系列を残している（§5.1）。
 
 ---
 
@@ -433,6 +433,17 @@ AC6〜AC9 の「次のフレーム」は、対象の `Removed` の通知を受�
 - 推定される経路: Events の `Removed` から Cell 自身の PreUnload までの間に companion driver が回ると、Cell は Stable で resident のままなので Events を再び Add する。再 Add された Events は親の子孫の収集より後なので Cell の unload に含まれず、Cell の `Removed` の後も残る。Add の完了後に companion driver の補償で unload される。フレームの重さで窓に入るかどうかが変わるので、全回帰の中でだけ失敗した観測と合う。Unity での再現は取っていない。
 - 分類: 本スライスの製品（driver・controller・Event Scene）の違反ではない。AC6 の文言（Cell の `Removed` の次のフレームで Event は Stable、VFX 2 件が `IsActive`）が求める観測とも別で、94 行の「Events が載っていない」はその時点では保証されない。B 適応で観測を直す（§0 引継ぎ票）。凍結条件は変えない。
 - 後続スライスの入力: 親の子孫の unload 中に親が Stable のまま見えるため、companion driver が unload 中の親の下に子を再 Add し、一時的に取り残す競合（d4b の companion driver と Framework の unload の順序。§2.4 の「親の unload の開始後の Add」の窓と同系統）。Architecture §16.7 の Framework の修正の入力に足す。
+
+### 発見 C（3 巡目）
+
+- 種別: 発見。対象: implementation head `7eb5d980`（判定 C 1 回目の後の B の出口。2 巡目の対象 `31e3654c` からの製品・テストの差分を読んだ）。GO 判定はしない。担当: Phase B・発見 C 1・2 巡目・判定 C 1 回目とは別の session（Anthropic 系）。
+- 機械検査: `pwsh tools/contract-audit.ps1` errors=0 warnings=0、`pwsh tools/docs-audit.ps1` errors=0 warnings=0。
+- 差分の読み: 製品・Framework・companion driver・Scene / asset・asmdef は無変更。変更は `SeasonMajorEventPlayTests.cs`（AC6）の 1 test だけで、Cell の `Removed` の次のフレームの assert を Event が Stable・Destroy 0 件に限り、`IsSceneLoaded(Events)` が false になるのを `WaitFramesUntilAsync`（上限 `SceneFrameLimit`）で待ってから Stable・Destroy 0 件を再確認する形。AC6 の文言（Cell の `Removed` の次のフレームで Event は Stable、VFX 2 件）と一致し、§7「AC6 の失敗の切り分け」の分類（B 適応・凍結条件は変えない）の範囲内。test 名は変えていない。
+- 実行したテスト（起点 filter の範囲）: `SeasonMajorEventPlayTests`（`pwsh tools/run-tests.ps1 -WithGraphics -Filter SampleGame.Tests.Rendering.Vfx.SeasonMajorEventPlayTests`、EditMode、sandbox 外）total=6、passed=6、failed=0（出力 `cellRemovedFrame=1171 eventsLoaded=False`）。EditMode の単体系は、2 巡目から製品・単体テストが無変更なので再実行していない。
+- 指摘: なし。後続スライスの入力: なし（companion driver の再 Add の競合は §7「AC6 の失敗の切り分け」に記録済み）。留意（非 blocker）: 新しい待ちは、Cell の `Removed` の時点で Events の再 Add が進行中でまだ未ロードの場合、`IsSceneLoaded(Events)` が false で先に抜けうる。その場合も AC6 の合否（Cell の `Removed` の次のフレーム）は変わらず、後段の確認が弱くなるだけで偽の失敗は起きない。
+- 判定必須テストのうち未実行（判定 C の範囲）: 全 EditMode 回帰（空 filter）、`MajorEventAuthoringTests`・`LocalVfxEventPlayTests`・`VfxScenePlayTests`・Streaming の Play 系（`-WithGraphics`）、`Build Spring Whitebox`（AC14）。
+- 実行環境の副作用: Editor の起動で `MobileDependencyResolver` の `.pdb.meta` 5 件が消えたため `git checkout` で戻した。
+- 結論: 発見 C の差し戻しは無い。往復は 3 巡目で収束（上限 4 巡の内）。次は判定 C（やり直し）。
 
 ## 8. Phase C'
 
