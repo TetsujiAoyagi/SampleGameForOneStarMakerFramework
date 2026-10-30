@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と、第 2 revision の後の B の出口 commit で引き渡す）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: 判定 C 1 回目の後の B 完了（B 適応、AC6 の観測だけを修正。§6「判定 C 1 回目の後の B」）。implementation head はこの記述を含む commit（B の出口）。変更は `SeasonMajorEventPlayTests.cs` の AC6 の assert の並べ替えと待ちの追加だけで、製品・Framework・companion driver・凍結条件は変えていない。Editor の compile はエラー 0、`pwsh tools/contract-audit.ps1` は errors=0 warnings=0。Unity テストと `Build Spring Whitebox` は未実行。動作確認は `対象なし`（§6「動作確認」と同じ）。発見 C 3 巡目は完了・指摘なし（§7）。次は 判定 C（やり直し。対象 head は `7eb5d980` から。全 EditMode 回帰、Play 系、`Build Spring Whitebox`）→ C'。C' には未関与の系列を残している（§5.1）。
+- 引継ぎ票: 【最新】判定 C（2 回目）完了。GO 候補 head `7eb5d980`、全回帰の不安定 2 件は発注者が受容、AC14 成功（§7）。次は C'（未関与の系列、§5.1）。以下は直前の記述: 判定 C 1 回目の後の B 完了（B 適応、AC6 の観測だけを修正。§6「判定 C 1 回目の後の B」）。implementation head はこの記述を含む commit（B の出口）。変更は `SeasonMajorEventPlayTests.cs` の AC6 の assert の並べ替えと待ちの追加だけで、製品・Framework・companion driver・凍結条件は変えていない。Editor の compile はエラー 0、`pwsh tools/contract-audit.ps1` は errors=0 warnings=0。Unity テストと `Build Spring Whitebox` は未実行。動作確認は `対象なし`（§6「動作確認」と同じ）。発見 C 3 巡目は完了・指摘なし（§7）。次は 判定 C（やり直し。対象 head は `7eb5d980` から。全 EditMode 回帰、Play 系、`Build Spring Whitebox`）→ C'。C' には未関与の系列を残している（§5.1）。
 
 ---
 
@@ -453,6 +453,7 @@ AC6〜AC9 の「次のフレーム」は、対象の `Removed` の通知を受�
 - AC14: `Build Spring Whitebox`（`SampleGameContentBuild.BuildSpringWhitebox` を batchmode で 1 回）。exit 0、outcome `Succeeded|StandaloneWindows64`、Content Directory に `Spring_Event_MultiCellProof` の Scene payload あり、`.vfx` なし。
 - 判定: 凍結条件（AC1〜AC10・AC12〜AC15）への違反は見つからなかった。ただし全回帰が 1 回で clean にならなかったため、不安定 2 件の扱い（受容するか、全回帰を再実行して clean を取るか）は発注者の判断を待つ。C' は未起動。
 - 実行環境の副作用: `MobileDependencyResolver` の `.pdb.meta` 5 件を `git checkout` で戻した。
+- 発注者の決定（2026-10-30）: 不安定 2 件は受容する。再発したらその時に扱いを考える（今は再実行も調査もしない）。これにより判定 C は完了（GO 候補 head `7eb5d980`）。次は C'（未関与の系列。§5.1）。
 
 ## 8. Phase C'
 
