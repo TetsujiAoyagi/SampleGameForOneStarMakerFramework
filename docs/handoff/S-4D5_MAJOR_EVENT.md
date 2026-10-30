@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `B` 第 2 revision の後の B 完了、発見 C 2 巡目完了・指摘なし（2026-10-30。次は判定 C）。Phase A は第 2 revision 凍結（2026-10-30。発見 C 1 巡目の F3 による受理の優先順位の改訂。§7「F3 への発注者の決定」、§5.2）。第 1 revision のA3 凍結版は `3104ff5a`（2026-10-29、A2 入力版 `1fa1b472`、§5.1）
+- status: `B` 第 2 revision の後の B 完了、発見 C 2 巡目完了・指摘なし、判定 C 1 回目は AC6 の不安定な失敗 1 件で未完了（2026-10-30。§7「判定 C（1 回目）」。次は B）。Phase A は第 2 revision 凍結（2026-10-30。発見 C 1 巡目の F3 による受理の優先順位の改訂。§7「F3 への発注者の決定」、§5.2）。第 1 revision のA3 凍結版は `3104ff5a`（2026-10-29、A2 入力版 `1fa1b472`、§5.1）
 - branch: `claude/s-4d5-major-event`
 - implementation base commit: `22ebf130`（`develop`、S-4d4b の PR #148 のマージ）
 - implementation head commit: 第 2 revision の後の B の出口（この記述を含む commit。§6「第 2 revision の後の B」）。前の B の出口は `1766af84`。GO 候補 head としては未固定
@@ -404,6 +404,17 @@ AC6〜AC9 の「次のフレーム」は、対象の `Removed` の通知を受�
 - 判定必須テストのうち未実行（判定 C の範囲）: 全 EditMode 回帰（空 filter）、`MajorEventAuthoringTests`・`LocalVfxEventPlayTests`・`VfxScenePlayTests`・Streaming の Play 系（`-WithGraphics`）、`Build Spring Whitebox`（AC14）。
 - 実行環境の副作用: Editor の起動で `MobileDependencyResolver` の `.pdb.meta` 5 件が消えたため `git checkout` で戻した。
 - 結論: 発見 C の差し戻しは無い。往復は 2 巡目で収束。
+
+### 判定 C（1 回目、判定 C 未完了）
+
+- 対象: implementation head `31e3654c`（HEAD `3b9fa956` は HANDOFF の記録のみで差分は文書だけ）。担当: 発見 C・Phase B とは別の session（Anthropic 系）。
+- 実行: `pwsh tools/run-tests.ps1 -WithGraphics`（空 filter、EditMode、Play 系を含む 1 プロセス、sandbox 外）。結果は total=1478、passed=1477、failed=1。`SeasonMajorEventPlayTests` の 6 件は XML に収録されている。
+- **失敗 1 件:** `SampleGame.Tests.Rendering.Vfx.SeasonMajorEventPlayTests.Start_SpawnsAtBothAnchors_AndSurvivesCellUnload`（AC6）。`SeasonMajorEventPlayTests.cs:94` の `IsSceneLoaded(Events)` が `False` のはずが `True`（出力 `cellRemovedFrame=1099 eventsLoaded=True`）。Cell (4,2) の `Removed` の次のフレームに、子の Events (4,2) がまだロード扱い。
+- 切り分け: 同じ test class だけを 1 回再実行（`-WithGraphics -Filter SampleGame.Tests.Rendering.Vfx.SeasonMajorEventPlayTests`）すると 6/6 通過（`cellRemovedFrame=1050 eventsLoaded=False`）。全回帰の中でだけ失敗した不安定な観測で、発見 C 2 巡目の 6/6 とも食い違う。原因（test の観測の取り方か、Framework の Removed 通知と子の Unity unload 完了の前後関係か）は未特定。調査は追加していない。
+- 未実行: 判定必須テストの `Build Spring Whitebox`（AC14）。失敗が残るため実行していない。
+- 判定: **判定 C 未完了（NO-GO 候補）。** AC6 の観測が安定しない。製品の違反かどうかは未確認。C' は起動しない。
+- 次の担当: B（または Phase A の分類）。AC6 の待ちの条件を、Events の `Removed` の通知も数えて待つ形に直せるかを先に分類する（B 適応）。Events が Cell の `Removed` の後に unload されるのが Framework の契約なら凍結条件の読みの確定が要る。直した後は発見 C → 判定 C をやり直す。往復は 3 巡目に数える。
+- 実行環境の副作用: Editor の起動で `MobileDependencyResolver` の `.pdb.meta` 5 件が消えたため `git checkout` で戻した。
 
 ## 8. Phase C'
 
