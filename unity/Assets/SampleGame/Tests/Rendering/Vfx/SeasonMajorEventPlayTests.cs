@@ -91,9 +91,15 @@ namespace SampleGame.Tests.Rendering.Vfx
                     await UniTask.NextFrame();
 
                     TestContext.Out.WriteLine($"cellRemovedFrame={cellRemovedFrame} eventsLoaded={scenes.Director.IsSceneLoaded(Events)}");
-                    Assert.That(scenes.Director.IsSceneLoaded(Events), Is.False, "Events (4,2) が残る");
                     Assert.That(scenes.Director.IsSceneStable(EventIdentity), Is.True, "Cell の unload で Event が外れた");
                     Assert.That(backend.Inner.DestroyCount, Is.Zero, "Cell の unload で Event の VFX が回収された");
+
+                    // Events (4,2) は Cell の Removed の時点で外れているとは限らない。Framework は子孫を外してから親の
+                    // PreUnload を始め、その間 Cell は Stable のままなので、companion driver が Events を再び Add し、
+                    // Add の完了後の補償で外すことがある。AC6 の観測とは別なので、有限フレームで外れるのを待ってから見る。
+                    await WaitFramesUntilAsync(() => !scenes.Director.IsSceneLoaded(Events), "Events (4,2) が残る");
+                    Assert.That(scenes.Director.IsSceneStable(EventIdentity), Is.True, "Events (4,2) の unload で Event が外れた");
+                    Assert.That(backend.Inner.DestroyCount, Is.Zero, "Events (4,2) の unload で Event の VFX が回収された");
                 });
             });
 

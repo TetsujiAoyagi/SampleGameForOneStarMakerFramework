@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `B` 第 2 revision の後の B 完了、発見 C 2 巡目完了・指摘なし、判定 C 1 回目は AC6 の不安定な失敗 1 件で未完了（2026-10-30。§7「判定 C（1 回目）」。次は B）。Phase A は第 2 revision 凍結（2026-10-30。発見 C 1 巡目の F3 による受理の優先順位の改訂。§7「F3 への発注者の決定」、§5.2）。第 1 revision のA3 凍結版は `3104ff5a`（2026-10-29、A2 入力版 `1fa1b472`、§5.1）
+- status: `B` 判定 C 1 回目の後の B 完了（2026-10-30。AC6 の観測の修正。§6「判定 C 1 回目の後の B」。次は発見 C 3 巡目）。それ以前: 第 2 revision の後の B 完了、発見 C 2 巡目完了・指摘なし、判定 C 1 回目は AC6 の不安定な失敗 1 件で未完了（§7「判定 C（1 回目）」）。Phase A は第 2 revision 凍結（2026-10-30。発見 C 1 巡目の F3 による受理の優先順位の改訂。§7「F3 への発注者の決定」、§5.2）。第 1 revision のA3 凍結版は `3104ff5a`（2026-10-29、A2 入力版 `1fa1b472`、§5.1）
 - branch: `claude/s-4d5-major-event`
 - implementation base commit: `22ebf130`（`develop`、S-4d4b の PR #148 のマージ）
-- implementation head commit: 第 2 revision の後の B の出口（この記述を含む commit。§6「第 2 revision の後の B」）。前の B の出口は `1766af84`。GO 候補 head としては未固定
+- implementation head commit: 判定 C 1 回目の後の B の出口（この記述を含む commit。§6「判定 C 1 回目の後の B」）。それ以前の B の出口は `31e3654c`（第 2 revision の後の B）、`1766af84`。GO 候補 head としては未固定
 - risk: `high`（Season の排他 controller に新しい所有物を足す。親の unload と子の Add の競合、Addressables entry の追加、`InGameSession` への internal method の追加に触れる（公開 interface は足さない）。Framework のコードと公開 API は変えない見込み）
 - owner: 発注者 / S-4d5 担当
 - created: 2026-10-29
@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と、第 2 revision の後の B の出口 commit で引き渡す）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: 判定 C 1 回目は AC6 の Play の不安定な失敗 1 件で未完了（§7「判定 C（1 回目）」）。進行役の 1 回限りの切り分けで、原因は既存の companion driver と Framework の unload の順序の競合であり、本スライスの製品の違反ではないと分類した（§7「AC6 の失敗の切り分け」。凍結条件は変えない）。次は Phase B（B 適応、新しい session または第 2 revision の後の B の session）: `SeasonMajorEventPlayTests` の AC6 の観測だけを直す。AC6 の時点（Cell の `Removed` の次のフレーム）の assert は Event の Stable と VFX の回収なしに限り、Events (4,2) が載っていないことは、その後に有限フレームで Events が外れるのを待ってから確かめる（外れた後も Event が Stable で VFX が回収されていないことも見る）。製品・Framework・companion driver は変えない。権限と出口は第 2 revision の後の B と同じ（Editor の compile 確認と `pwsh tools/contract-audit.ps1` まで、出口で commit し §6 と本票を更新）。その後は 発見 C 3 巡目 → 判定 C（やり直し。全 EditMode 回帰、Play 系、`Build Spring Whitebox`）→ C'。C' には未関与の系列を残している（§5.1）。
+- 引継ぎ票: 判定 C 1 回目の後の B 完了（B 適応、AC6 の観測だけを修正。§6「判定 C 1 回目の後の B」）。implementation head はこの記述を含む commit（B の出口）。変更は `SeasonMajorEventPlayTests.cs` の AC6 の assert の並べ替えと待ちの追加だけで、製品・Framework・companion driver・凍結条件は変えていない。Editor の compile はエラー 0、`pwsh tools/contract-audit.ps1` は errors=0 warnings=0。Unity テストと `Build Spring Whitebox` は未実行。動作確認は `対象なし`（§6「動作確認」と同じ）。次は 発見 C 3 巡目（B と発見 C の往復の 3 巡目。上限 4 巡）→ 判定 C（やり直し。全 EditMode 回帰、Play 系、`Build Spring Whitebox`）→ C'。C' には未関与の系列を残している（§5.1）。
 
 ---
 
@@ -348,6 +348,15 @@ AC6〜AC9 の「次のフレーム」は、対象の `Removed` の通知を受�
 - 未実行: Unity テスト（起点 filter・全 EditMode・Play 系）と `Build Spring Whitebox`（AC14）は Phase C。
 - Editor の副作用: Editor の起動で vendor の `MobileDependencyResolver` の `.pdb.meta` 5 件が消えたが、本作業の変更ではないので commit に含めず、Editor の終了後に作業ツリーへ戻した。
 - 担当・モデル・ベンダー: この session の担当（Anthropic 系、前の B・発見 C 1 巡目・第 2 revision の主担当とは別の session）。
+
+### 判定 C 1 回目の後の B
+
+- 範囲: §7「判定 C（1 回目）」の AC6 の不安定な失敗に対する B 適応（§7「AC6 の失敗の切り分け」の分類による）。製品・Framework・companion driver・Scene / asset・凍結条件は変えていない。
+- テスト（`SeasonMajorEventPlayTests.Start_SpawnsAtBothAnchors_AndSurvivesCellUnload`、AC6）: Cell の `Removed` の次のフレームの assert を、AC6 の文言どおり Event が Stable・VFX の Destroy 0 件の 2 つに限った。Events (4,2) が載っていないことは、その後に `WaitFramesUntilAsync`（上限 `SceneFrameLimit` フレーム）で `IsSceneLoaded(Events)` が false になるのを待ってから確かめ、外れた後も Event が Stable・Destroy 0 件であることを見る。待ちを置く理由（子孫を外した後も親の PreUnload までは Cell が Stable なので companion driver が Events を再 Add し、補償で外すことがある）をコメントに書いた。診断の出力行は残した。test 名は変えていない。
+- 確認: Editor の compile はエラー 0（`SampleGame.Tests` を含む。変更したファイルに警告なし）。`pwsh tools/contract-audit.ps1` は errors=0 warnings=0。
+- 未実行: Unity テスト（起点 filter・全 EditMode・Play 系）と `Build Spring Whitebox`（AC14）は Phase C。
+- Editor の副作用: Editor の起動で vendor の `MobileDependencyResolver` の `.pdb.meta` 5 件が消えたため、Editor の終了後に作業ツリーへ戻した（commit に含めない）。
+- 担当・モデル・ベンダー: この session の担当（Anthropic 系、判定 C 1 回目の担当とは別の session）。
 
 ### 動作確認
 
