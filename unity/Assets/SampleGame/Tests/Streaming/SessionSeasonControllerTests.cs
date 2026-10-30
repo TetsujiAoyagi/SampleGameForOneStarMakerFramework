@@ -11,6 +11,7 @@ using OneStarMaker.Foundation.Telemetry;
 using OneStarMaker.Runtime.AssetDescriptions;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.Streaming;
+using OneStarMaker.Tests.Rendering.Vfx;
 using OneStarMaker.Tests.SceneSystem.Helpers;
 using OneStarMaker.Tests.SceneSystem.TestDoubles;
 using SampleGame.InGame.Streaming;
@@ -281,6 +282,122 @@ namespace OneStarMaker.Tests.Streaming
             Assert.That(fixture.Season.IsWorldReady, Is.False);
         });
 
+        // AC4: Event が Live の間の切替は、Event の終端を待ってから次の Season を Add する。
+        [UnityTest]
+        public IEnumerator SeasonSwitch_WithLiveMajorEvent_WaitsForEventTerminal()
+            => UniTask.ToCoroutine(async () =>
+        {
+            var fixture = CreateFixtureCore(includeOriginEnvironment: false, includeMajorEvent: true);
+            await fixture.Season.EnsureInitialWorldAsync(CancellationToken.None);
+            Assert.That(fixture.Season.RequestMajorEvent(MajorEventId), Is.EqualTo(MajorEventRequestResult.Accepted));
+            Assert.That(fixture.Query.IsSceneStable(MajorEventId), Is.True);
+
+            fixture.Controller.UnloadReturnsImmediately = true;
+            fixture.Controller.HoldStableUntilReleased = true;
+            var toSummer = fixture.Season.RequestSeasonAsync("Summer", 0, 4, CancellationToken.None);
+            await UniTask.Yield();
+            Assert.That(fixture.Season.RequestMajorEvent(MajorEventId), Is.EqualTo(MajorEventRequestResult.Rejected));
+            fixture.Terminals.Emit("Season_Spring", SceneTerminalKind.Removed);
+            fixture.Terminals.Emit("Spring_Lighting", SceneTerminalKind.Removed);
+            fixture.Terminals.Emit("Spring_Cell_0_4", SceneTerminalKind.Removed);
+            await UniTask.Yield();
+            Assert.That(fixture.Controller.Added, Does.Not.Contain("Season_Summer"), "Event の終端の前に次の Season を Add しない");
+
+            fixture.Terminals.Emit(MajorEventId, SceneTerminalKind.Removed);
+            await CompleteHeldSwitchAsync(fixture, "Season_Summer", "Summer_Lighting", "Summer_Cell_0_4");
+            await toSummer;
+            Assert.That(fixture.Season.Registry.HasIncompleteAdd(MajorEventId), Is.False);
+        });
+
+        // AC5 (i)〜(iii): Event の Add の await 中に切替を始める。(i) キャンセル窓の CancelCleanedUp（Add はその後に戻る）、
+        // (ii) 窓の外のロードの後の Removed（Add が戻ってから終端）、(iii) Initializing の Removed（終端の後に Add が戻る）。
+        // どれも次の Season の Add は Event の終端の後で、Event の op は完了し、Event の個体は残らない。
+        [UnityTest]
+        public IEnumerator SeasonSwitch_DuringMajorEventAdd_WaitsForEventTerminal(
+            [Values(EventAddPhase.CancelWindow, EventAddPhase.OutsideWindow, EventAddPhase.Initializing)] EventAddPhase phase)
+            => UniTask.ToCoroutine(async () =>
+        {
+            var fixture = CreateFixtureCore(includeOriginEnvironment: false, includeMajorEvent: true);
+            await fixture.Season.EnsureInitialWorldAsync(CancellationToken.None);
+            fixture.Controller.HoldStableUntilReleased = true;
+            Assert.That(fixture.Season.RequestMajorEvent(MajorEventId), Is.EqualTo(MajorEventRequestResult.Accepted));
+            Assert.That(fixture.Season.Registry.HasIncompleteAdd(MajorEventId), Is.True);
+
+            fixture.Controller.UnloadReturnsImmediately = true;
+            var toSummer = fixture.Season.RequestSeasonAsync("Summer", 0, 4, CancellationToken.None);
+            await UniTask.Yield();
+            fixture.Terminals.Emit("Season_Spring", SceneTerminalKind.Removed);
+            fixture.Terminals.Emit("Spring_Lighting", SceneTerminalKind.Removed);
+            fixture.Terminals.Emit("Spring_Cell_0_4", SceneTerminalKind.Removed);
+            await UniTask.Yield();
+            Assert.That(fixture.Controller.Added, Does.Not.Contain("Season_Summer"));
+
+            switch (phase)
+            {
+                case EventAddPhase.CancelWindow:
+                    fixture.Terminals.Emit(MajorEventId, SceneTerminalKind.CancelCleanedUp);
+                    fixture.Controller.ReleaseHeldAdds();
+                    break;
+                case EventAddPhase.OutsideWindow:
+                    fixture.Controller.ReleaseHeldAdds();
+                    await UniTask.Yield();
+                    Assert.That(fixture.Controller.Added, Does.Not.Contain("Season_Summer"), "Add の戻りだけでは切替しない");
+                    fixture.Terminals.Emit(MajorEventId, SceneTerminalKind.Removed);
+                    break;
+                case EventAddPhase.Initializing:
+                    fixture.Terminals.Emit(MajorEventId, SceneTerminalKind.Removed);
+                    fixture.Controller.ReleaseHeldAdds();
+                    break;
+            }
+
+            await CompleteHeldSwitchAsync(fixture, "Season_Summer", "Summer_Lighting", "Summer_Cell_0_4");
+            await toSummer;
+            Assert.That(fixture.Season.Registry.HasIncompleteAdd(MajorEventId), Is.False);
+            Assert.That(fixture.Query.GetLoadedScene(MajorEventId), Is.Null);
+        });
+
+        // AC5 (iv): await より前に個体を捕捉できない発行。元の Add が例外で終わるまで 2 本目の Add を出さず、
+        // 例外は Error 1 回で閉じ、未観測の例外を残さない。終わった後の要求は Add 1。
+        [UnityTest]
+        public IEnumerator MajorEventIssueWithoutCapture_WaitsForOriginalAddToFail()
+            => UniTask.ToCoroutine(async () =>
+        {
+            var logger = new FakeVfxLogger();
+            var fixture = CreateFixtureCore(includeOriginEnvironment: false, includeMajorEvent: true, logger: logger);
+            await fixture.Season.EnsureInitialWorldAsync(CancellationToken.None);
+            fixture.Controller.HoldStableUntilReleased = true;
+            fixture.Controller.DeferQueryRegistration = true;
+            fixture.Controller.FailAfterHoldIdentity = MajorEventId;
+
+            Assert.That(fixture.Season.RequestMajorEvent(MajorEventId), Is.EqualTo(MajorEventRequestResult.Accepted));
+            Assert.That(fixture.Season.RequestMajorEvent(MajorEventId), Is.EqualTo(MajorEventRequestResult.Rejected));
+            Assert.That(CountAdds(fixture, MajorEventId), Is.EqualTo(1));
+            Assert.That(logger.ErrorCount, Is.Zero);
+
+            fixture.Controller.ReleaseHeldAdds();
+            await UniTask.Yield();
+            Assert.That(logger.ErrorCount, Is.EqualTo(1));
+            Assert.That(fixture.Season.Registry.HasIncompleteAdd(MajorEventId), Is.False);
+
+            fixture.Controller.HoldStableUntilReleased = false;
+            fixture.Controller.DeferQueryRegistration = false;
+            fixture.Controller.FailAfterHoldIdentity = null;
+            Assert.That(fixture.Season.RequestMajorEvent(MajorEventId), Is.EqualTo(MajorEventRequestResult.Accepted));
+            Assert.That(CountAdds(fixture, MajorEventId), Is.EqualTo(2));
+        });
+
+        public enum EventAddPhase
+        {
+            CancelWindow,
+            OutsideWindow,
+            Initializing,
+        }
+
+        private const string MajorEventId = "Spring_Event_MultiCellProof";
+
+        private static int CountAdds(Fixture fixture, string identity)
+            => fixture.Controller.Added.FindAll(added => added == identity).Count;
+
         private static async UniTask CompleteHeldSwitchAsync(
             Fixture fixture,
             string seasonIdentity,
@@ -306,7 +423,11 @@ namespace OneStarMaker.Tests.Streaming
             return CreateFixtureCore(includeOriginEnvironment: true);
         }
 
-        private Fixture CreateFixtureCore(bool includeOriginEnvironment, bool includeSpringAtmosphere = false)
+        private Fixture CreateFixtureCore(
+            bool includeOriginEnvironment,
+            bool includeSpringAtmosphere = false,
+            bool includeMajorEvent = false,
+            Microsoft.Extensions.Logging.ILogger? logger = null)
         {
             var originVolume = new Bounds(new Vector3(125f, 48f, 1125f), new Vector3(250f, 96f, 250f));
             var spring = Track(SceneTestHelper.CreateSceneResource("Season_Spring"));
@@ -341,6 +462,13 @@ namespace OneStarMaker.Tests.Streaming
                 SceneTestHelper.AddChild(springOrigin, springEnvironment);
             }
 
+            SceneResource? springEvent = null;
+            if (includeMajorEvent)
+            {
+                springEvent = Track(SceneTestHelper.CreateSceneResource(MajorEventId, parent: spring));
+                SceneTestHelper.AddChild(spring, springEvent);
+            }
+
             var summer = Track(SceneTestHelper.CreateSceneResource("Season_Summer"));
             var summerLight = Track(SceneTestHelper.CreateSceneResource(
                 "Summer_Lighting",
@@ -371,6 +499,11 @@ namespace OneStarMaker.Tests.Streaming
             if (springAtmosphere != null)
             {
                 resources[springAtmosphere.Identity] = springAtmosphere;
+            }
+
+            if (springEvent != null)
+            {
+                resources[springEvent.Identity] = springEvent;
             }
 
             var query = new FakeQuery();
@@ -413,7 +546,7 @@ namespace OneStarMaker.Tests.Streaming
                 terminals,
                 CellCompanionSet.Full,
                 () => null,
-                NullLogger.Instance,
+                logger ?? NullLogger.Instance,
                 streamingDriverFactory: driverFactory);
             _seasons.Add(season);
 
@@ -524,6 +657,9 @@ namespace OneStarMaker.Tests.Streaming
             internal bool HoldStableUntilReleased { get; set; }
             internal bool UnloadReturnsImmediately { get; set; }
             internal string? FailIdentity { get; set; }
+            // 個体を Add の最初の await の後に辞書へ入れる（await より前に捕捉できない発行の再現）。
+            internal bool DeferQueryRegistration { get; set; }
+            internal string? FailAfterHoldIdentity { get; set; }
             internal List<string> Added { get; } = new();
             internal List<string> Unloaded { get; } = new();
 
@@ -562,7 +698,12 @@ namespace OneStarMaker.Tests.Streaming
                 var scene = resource.StreamByDistance
                     ? (SceneBase)new CellScene(resource, _query, this)
                     : new TestSceneBase(resource, _query, this);
-                _query.Scenes[sceneIdentify] = scene;
+                var deferRegistration = DeferQueryRegistration;
+                if (!deferRegistration)
+                {
+                    _query.Scenes[sceneIdentify] = scene;
+                }
+
                 _query.Loaded.Add(sceneIdentify);
 
                 foreach (var child in resource.Children)
@@ -588,6 +729,17 @@ namespace OneStarMaker.Tests.Streaming
                     using (ct.Register(() => gate.TrySetCanceled(ct)))
                     {
                         await gate.Task;
+                    }
+
+                    if (string.Equals(FailAfterHoldIdentity, sceneIdentify, StringComparison.Ordinal))
+                    {
+                        _query.Loaded.Remove(sceneIdentify);
+                        throw new InvalidOperationException($"add failed after hold: {sceneIdentify}");
+                    }
+
+                    if (deferRegistration)
+                    {
+                        _query.Scenes[sceneIdentify] = scene;
                     }
 
                     return;

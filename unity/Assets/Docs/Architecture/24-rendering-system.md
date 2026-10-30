@@ -370,7 +370,7 @@ D-1（ホット/コールド分離）・D-5（Handle API）・D-6（2 経路）�
 
 ## 16. VFX 抽象
 
-VFX の寿命、非対応環境での停止、例外の隔離、時間の領域への追従を、VFX 実装の型に依存しない Framework の契約として保証する（S-4d1、時間の領域と配置済み VFX の登録は S-4d4a、Cell Events の trigger から起動する VFX の実例は S-4d4b）。実装は `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Vfx/`（namespace `OneStarMaker.Runtime.Rendering.Vfx`、asmdef `OneStarMaker.Runtime`）。VFX Graph に依存する backend は SampleGame に置き（S-4d2）、Framework に VFX Graph の型と asmdef 参照を持ち込まない。同時数の上限・優先度・間引き・pool / prewarm・DebugStudio 観測は、必要になったスライスで決める。
+VFX の寿命、非対応環境での停止、例外の隔離、時間の領域への追従を、VFX 実装の型に依存しない Framework の契約として保証する（S-4d1、時間の領域と配置済み VFX の登録は S-4d4a、Cell Events の trigger から起動する VFX の実例は S-4d4b、Season 直下の major Event の `Scene(id)` 所有の VFX の実例は S-4d5a）。実装は `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Vfx/`（namespace `OneStarMaker.Runtime.Rendering.Vfx`、asmdef `OneStarMaker.Runtime`）。VFX Graph に依存する backend は SampleGame に置き（S-4d2）、Framework に VFX Graph の型と asmdef 参照を持ち込まない。同時数の上限・優先度・間引き・pool / prewarm・DebugStudio 観測は、必要になったスライスで決める。
 
 ### 16.1 公開型と配置
 
@@ -480,13 +480,22 @@ VFX Graph（`com.unity.visualeffectgraph` 17.6.0）に依存する実装は `uni
 
 ### 16.7 後続スライスへの送り
 
-d1〜d4b では答えず、後続スライスの Phase A で決める事項。
+d1〜d5a では答えず、後続スライスの Phase A で決める事項。
 
 - **d1〜d2 から残る確認（所有スライス未定）:** S-4d4b は、同じ identity の Scene の再ロードを実 `SceneDirector` で 1 往復確かめた（§16.9）。次の事項は、Cell の unload を `End()` の `Stop` で回収する設計にしたので通らない経路になり、未確認のまま残る。
   - notifier（`VfxOwnerDestroyNotifier`）の `OnDestroy` だけで、実 Scene の unload と go の Destroy の回収が起きることの Play Mode 確認。
   - `Bind` 所有者の破棄から 1 フレーム以内の回収（d2 のテストは 2 フレーム待つ）。S-4d4b の「破棄したフレームで回収」は trigger 自身の `OnDestroy` → `End()` によるもので、同じ go の notifier との順を Unity は定めないので、`Bind` の仕組みの証拠にはならない。
   - `Create` 直後に発射しないことの長い観測窓（d2 は 120 フレーム）、host の Update 登録の失敗、backend の `Create` が GameObject の作成後に失敗した場合の後始末（d2 はコードレビューで確認）。
   - graphics なし（`-nographics`）の既定の回帰では、実 `VisualEffect` を作る Play 中のテストが全て Inconclusive になる。runner はそれを失敗の終了コードにするので、全件回帰の判定には `-WithGraphics` の実行を併用する。
+- **S-4d5a から送った事項（所有スライス未定）:**
+  - 親の unload の開始後に子を Add すると取り残される（Framework）。親の unload は子孫を post-order で外し終えるまで親を Stable のまま見せるので、`SessionCellCompanionLoadDriver` が unload 中の Cell の下に Events を再 Add し、Cell の `Removed` の後に一時的に取り残す（Add 完了後の補償で外れる）。major Event は同期の受理と発行でこの窓に Add を出さない（[§05 §5.13](05-scene.md#513-cell-と職種-companion-の分類)）が、Framework の修正は未着手。
+  - 既存の `IssuedSceneController.AddScene` は await の後に個体を観測個体へ登録するので、companion driver の Add が枝の切替の待ちを塞ぎうる。major Event だけが await より前の登録を使う。companion driver の経路の確認と修正。
+  - `MajorEventDriver` で、await より前に個体を捕捉できない Add が**成功**で終わる経路。driver は補償の unload を出して終端を待たずに Idle に戻り、unload の進行中の再要求で同じ identity の Add を再発行しうる。controller の成功側は await 後の捕捉にも失敗すると op を完了させず、枝の待ちを塞ぎうる。現在の Framework は Stable な親の子を最初の await より前に辞書へ入れるので通常の経路では起きず、テストは例外で終わる側だけを見ている。
+  - Season が UIView を持つようになった場合に祖先の unload の開始を知る口、major Event の仕組みの Framework への移設と Season 以外の親への一般化。
+  - `SeasonMajorEventPlayTests` の複製 Map は Season の `NecessaryAlways` の子（Lighting・Atmosphere）を含まないので、同じ枝にそれらがいる場合の Event の回収順は Play で再現していない。
+  - `MajorEventVfxAnchor` は位置に加えて `.vfx` の address を authoring の値として持つ。起動位置の marker を増やす場合は address の置き場所を決め直す。
+  - `.vfx` の Content Directory・Player の経路は local Event と同じく未整備で、Content Directory 上では source のロードが失敗し、Event は Error を 1 回出して VFX なしで進む（BuildSystem の実装系）。
+  - 全件回帰（`-WithGraphics`、1 プロセス）の中でだけ落ちる不安定なテスト: `ContentHttpArtifactSourceTests.FailedNextRevision_PreservesKnownGoodBytesAndPin_ThenRetrySucceeds`（ローカル HTTP の接続が切断される）と `VfxGraphBackendPlayTests.AC7_UnscaledEffectTime_IsCappedAtMaximumDeltaTime`（負荷下のフレーム遅延で測定の前提が外れる）。単独の再実行では通る。
 - **S-4d4b から送った事項（所有スライス未定）:**
   - 進入者の追跡の厳密化。1 つの Rigidbody が trigger に重なる Collider を複数持つ場合の在室（Collider ごとの入退出を Rigidbody へ集約する）と、退出の通知が来ない破棄・非 active 化（在室が残り、Cell の unload まで VFX が残る）。
   - `AssetManagement.LoadAssetAsync` は backend のロードを await した後、所有者の Scene の終端を確かめずに登録する。所有者が先に `ReleaseScene` された後にロードが完了すると、その asset は誰にも解放されない（Framework 側の欠落。§16.9 は `OnLoadedImpl` でロードしてこの経路を避けている）。
@@ -533,3 +542,13 @@ Cell の Events Scene（`{Season}_Events_{x}_{y}`）に置いた trigger から�
 - **進入者。** `attachedRigidbody` を持つ Collider 全て（Player に限らない）を Rigidbody ごとに数える。進入者の Rigidbody が trigger に重なる Collider を 1 つだけ持つことを前提にする（§16.7）。
 - **authoring。** Events Scene は World Workspace の Planner role の作成 transaction で作る（[§5.13](05-scene.md#513-cell-と職種-companion-の分類)）。trigger の go に `isTrigger` の Collider と `LocalVfxEventTrigger` を置き、Renderer・`VisualEffect`・`PlacedVfxActivator` は置かない（Cell の `_volume` を変えない）。`.vfx` は Events Scene と同じフォルダに置き、Update Mode は §16.6 の規約、Addressables entry は Scene と同じ group で address は asset path。`LocalVfxEventAuthoringTests` が EditMode で確かめる。Events Scene は `Build Spring Full` / `Build Spring Whitebox` の Content Directory に Scene payload として入るが、`.vfx` は Scene の依存ではないので入らない。
 - **確かめていること。** session の単体テスト（`LocalVfxEventSessionTests`、偽 `IVfxSystem`）、`VfxSystemSceneDirectorTests` の同じ identity の再ロード後の再受理、実 Scene の Play テスト（`LocalVfxEventPlayTests`。test の `SceneDirector` で Cell と Events だけを載せ、kinematic Rigidbody の `MovePosition` で `OnTriggerEnter` を起こす。`PreUnloading` → `Destroy` → `Removed` の時系列と `IAssetDiagnostics.GetOwners`、go の `Object.Destroy` と同じフレームの `Destroy`、Cell を載せ直した後の再起動、非対応の `VfxSystem`、実 backend で `Removed` の次のフレームに `VisualEffect` 0 件）。
+
+### 16.10 Season 直下の major Event の VFX
+
+Season の `OnDemand` の子として独立に Add / Unload する major Event Scene（S-4d5a。実例は `Spring_Event_MultiCellProof`）は、`Scene(Event の identity)` 所有の動的 VFX の実例である。Event の寿命と受理は [§05 §5.13](05-scene.md#513-cell-と職種-companion-の分類)。Framework のコードと公開 API は変えていない。
+
+- **起動。** `SeasonMajorEventScene` は `OnInitialize` で root から `MajorEventVfxAnchor`（起動位置と `.vfx` の address。状態を持たない）と `MajorEventCompletionTrigger` を集める。`OnLoadedImpl` で異なる address ごとに 1 回 `LoadSceneScopedAssetAsync`（所有者 `Scene(Event)`、キャンセル窓の外。§16.9 と同じ理由）でロードし、`OnStabledImpl` で anchor ごとに同期に `Spawn`（所有者 `Scene(Event)`、親なし、時間は gameplay layer）して `Play` する。親の生存は確かめない（Season の unload 中に Stable へ達した Event が起動しても、保留された unload の `Scene(Event)` 所有の回収が壊す）。
+- **回収。** Scene class は `Stop` を呼ばず、Framework の `Scene(id)` 所有の経路に任せる。Event の完了・枝の切替・Season の unload・Session の unload のどれでも、Event の `PreUnloading` で VFX が壊され、その後に `ReleaseScene` と `Removed` が続く（「VFX の回収 → asset の解放」）。Event の `Removed` の次のフレームに、その Event が起動した `VisualEffect` は 0 件。
+- **失敗。** source のロード失敗は Event の失敗にせず、Error を 1 回出して VFX を起動しない（§16.9 と同じ）。
+- **authoring。** Event Scene は `Seasons/{Season}/Events/{identity}/` に置き、`.vfx` は同じフォルダ、Update Mode は §16.6 の規約、Addressables entry は Scene と同じ group で address は asset path。Renderer・`VisualEffect`・`PlacedVfxActivator` は置かない。anchor は起動位置の Cell の `_volume` の中に置く（実例は Cell (4,2) と (5,2) に 1 つずつ、完了の trigger は (5,2)）。開始の trigger は Cell Events（実例は `Spring_Events_4_2`）。`MajorEventAuthoringTests` と `VfxSceneStructureTests` が EditMode で確かめる。Event Scene は `Build Spring Whitebox` の Content Directory に Scene payload（Full の共有）として入るが、`.vfx` は入らない。
+- **確かめていること。** `SeasonMajorEventPlayTests`（test の `SceneDirector` と実 `InGameSession` を根にした複製の Map）: 記録 backend で `PreUnloading` → `Destroy` 2 回 → `ReleaseScene` → `Removed` の順と `IAssetDiagnostics.GetOwners`、実 backend で Event が起動した `VisualEffect` だけを数えて `Removed` の次のフレームに 0 件、非対応の `VfxSystem` で backend を呼ばずに開始・完了が進むこと。

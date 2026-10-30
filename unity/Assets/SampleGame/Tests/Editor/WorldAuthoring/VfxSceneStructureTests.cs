@@ -18,7 +18,8 @@ using UnityEngine;
 namespace OneStarMaker.Tests.Editor.WorldAuthoring
 {
     /// <summary>
-    /// Season の Atmosphere VFX と Cell VFX の 2 Scene が制作契約どおりの構造で存在し、content の選択に入ることを、
+    /// Season の Atmosphere VFX と Cell VFX の 2 Scene、および Season 直下の major Event Scene が制作契約どおりの構造で存在し、
+    /// content の選択に入ることを、
     /// Scene を開かずに asset から確かめる。SceneGraph source（node・Total.asset の Edge）と生成済み Map のハッシュの照合は
     /// WorldCompanionCreationTransaction の作成後の検査と同じ。体積は、2 Scene を作る前に Recalculate All した値から
     /// 変わっていないことを定数で見る（VFX の描画 bounds が Cell の距離ストリーミング体積へ混ざらないこと）。
@@ -42,6 +43,10 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             new("Spring_VFX_4_2", "Spring_Cell_4_2", LoadType.OnDemand,
                 SeasonsRoot + "/Spring/Cells/Spring_Cell_4_2/Spring_VFX_4_2/Spring_VFX_4_2",
                 "Assets/SceneGraphData/Nodes/Cells/Spring_VFX_4_2.asset"),
+            // major Event は VFX Scene ではないが、Season の子としての投影（node・Edge・Map・Addressables・選択）は同じ規則。
+            new("Spring_Event_MultiCellProof", "Season_Spring", LoadType.OnDemand,
+                SeasonsRoot + "/Spring/Events/Spring_Event_MultiCellProof/Spring_Event_MultiCellProof",
+                "Assets/SceneGraphData/Nodes/Seasons/Spring_Event_MultiCellProof.asset"),
         };
 
         [TestCaseSource(nameof(SpecNames))]
@@ -98,15 +103,16 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
         }
 
         [Test]
-        public void SeasonSpring_ChildrenAreLightingAtmosphereAnd54Cells()
+        public void SeasonSpring_ChildrenAreLightingAtmosphereMajorEventAnd54Cells()
         {
             var season = AssetDatabase.LoadAssetAtPath<SceneResource>(SeasonsRoot + "/Spring/Season_Spring.asset");
             Assert.That(season != null, Is.True);
             var children = season!.Children.Select(child => child.Identity).ToArray();
             Assert.That(children, Does.Contain("Spring_Lighting"));
             Assert.That(children, Does.Contain("Spring_AtmosphereVFX"));
+            Assert.That(children, Does.Contain("Spring_Event_MultiCellProof"));
             Assert.That(children.Count(identity => identity.StartsWith("Spring_Cell_", StringComparison.Ordinal)), Is.EqualTo(54));
-            Assert.That(children, Has.Length.EqualTo(56));
+            Assert.That(children, Has.Length.EqualTo(57));
         }
 
         [Test]
@@ -123,7 +129,7 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
         // 実 node から content の選択を作る（SampleGameContentBuild.BuildResult と同じ materialize と graph の写し）。
         [TestCase(SeasonContentMode.Full)]
         [TestCase(SeasonContentMode.Whitebox)]
-        public void SeasonSelection_SpringIncludesBothVfxScenes(SeasonContentMode mode)
+        public void SeasonSelection_SpringIncludesVfxAndMajorEventScenes(SeasonContentMode mode)
         {
             var map = AssetDatabase.LoadAssetAtPath<SceneResourceMap>(MapPath);
             Assert.That(map != null, Is.True);
