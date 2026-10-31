@@ -26,6 +26,13 @@ namespace OneStarMaker.Runtime.AssetManagement
         private readonly Dictionary<string, UniTask<IBackendAsset>> _inFlight = new(StringComparer.Ordinal);
 
         /// <summary>
+        /// key の共有をしない backend 呼び出し（Scene ロードと Instantiate）のうち、await 中のものの数。
+        /// これらは <see cref="_inFlight"/> に載らないが、封じる前の backend で完了して registry に入りうるので、
+        /// 封じる判定では in-flight として数える。
+        /// </summary>
+        private int _pendingUnsharedBackendCalls;
+
+        /// <summary>
         /// 封じた時点で registry にあった Addressables 由来の key。null なら封じていない。
         /// これ以外の address key は、封じた後は registry・cache・in-flight のどこからも返さない。
         /// </summary>
@@ -71,10 +78,11 @@ namespace OneStarMaker.Runtime.AssetManagement
                 return;
             }
 
-            if (_inFlight.Count != 0)
+            var inFlight = _inFlight.Count + _pendingUnsharedBackendCalls;
+            if (inFlight != 0)
             {
                 throw new InvalidOperationException(
-                    $"Cannot seal the Addressables backend while {_inFlight.Count} load(s) are in flight; seal only in the synchronous startup section.");
+                    $"Cannot seal the Addressables backend while {inFlight} load(s) are in flight; seal only in the synchronous startup section.");
             }
 
             var allowed = new HashSet<string>(StringComparer.Ordinal);
@@ -169,13 +177,32 @@ namespace OneStarMaker.Runtime.AssetManagement
                 throw new ArgumentNullException(nameof(desc));
             }
 
+            // 封じた後は Scene 台帳の早期 return より前で拒否する。台帳には封じる前の Addressables Scene も
+            // LoadContentSceneAsync が載せた directory Scene も同じ identity で入るので、台帳を見てから拒否すると
+            // この Addressables 用の入口が成功してしまう。封じる前の Scene の unload は UnloadSceneAsync が受け持つ。
+            if (_sealedAddressKeys != null)
+            {
+                throw new InvalidOperationException(
+                    "Addressables backend is sealed: Scene loads by description are not available in Content Directory mode. scene=" + sceneIdentity);
+            }
+
             if (_registry.TryGetScene(sceneIdentity, out var existing) && !existing.IsUnloaded)
             {
                 return new SceneHandle(sceneIdentity, existing.Backend);
             }
 
             var key = AssetKey.FromDescription(desc, variant);
-            var backendScene = await _backend.LoadSceneAsync(key.Address, options, ct);
+            IBackendScene backendScene;
+            _pendingUnsharedBackendCalls++;
+            try
+            {
+                backendScene = await _backend.LoadSceneAsync(key.Address, options, ct);
+            }
+            finally
+            {
+                _pendingUnsharedBackendCalls--;
+            }
+
             _registry.AddScene(sceneIdentity, backendScene);
             return new SceneHandle(sceneIdentity, backendScene);
         }
@@ -204,7 +231,17 @@ namespace OneStarMaker.Runtime.AssetManagement
             bool worldSpace = false,
             CancellationToken ct = default)
         {
-            var backendInstance = await _backend.InstantiateAsync(key.Address, parent, worldSpace, ct);
+            IBackendInstance backendInstance;
+            _pendingUnsharedBackendCalls++;
+            try
+            {
+                backendInstance = await _backend.InstantiateAsync(key.Address, parent, worldSpace, ct);
+            }
+            finally
+            {
+                _pendingUnsharedBackendCalls--;
+            }
+
             var instance = backendInstance.Instance
                 ?? throw new InvalidOperationException($"Instantiate failed: {key.Canonical}");
 

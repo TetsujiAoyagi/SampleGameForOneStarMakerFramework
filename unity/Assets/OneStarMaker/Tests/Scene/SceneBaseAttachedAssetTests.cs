@@ -156,9 +156,16 @@ namespace OneStarMaker.Tests.SceneSystem
             var summerHandle = Bind(summer, assets, useContentDirectory: false, variant: "Full").LoadAttached<Object>("InGameSession", "Lit").GetAwaiter().GetResult();
 
             Assert.That(backend.LoadAssetCallCount, Is.EqualTo(1), "同じ canonical key は backend で共有される");
+            var litKey = AssetKey.FromDescription(_session.FindAttachedAsset("Lit")!, "Full");
+            Assert.That(litKey.Canonical, Is.EqualTo(springHandle.Key));
+            Assert.That(assets.GetOwners(litKey), Is.EquivalentTo(new[] { AssetOwner.Scene("Season_Spring"), AssetOwner.Scene("Season_Summer") }));
+
             assets.ReleaseScene("Season_Spring");
-            Assert.That(springHandle.IsValid, Is.False);
+            // IAssetHandle.IsValid は「参照先がまだ有効か」で、所有者ごとの有効性ではない。共有 entry は他の所有者が
+            // 持つ限り生きているので、解放した側の handle も IsValid のまま。解放は所有者の一覧で確かめる。
+            Assert.That(assets.GetOwners(litKey), Is.EqualTo(new[] { AssetOwner.Scene("Season_Summer") }));
             Assert.That(summerHandle.IsValid, Is.True);
+            Assert.That(summerHandle.Value, Is.Not.Null);
             Assert.That(backend.ReleaseCallCount, Is.Zero);
             assets.ReleaseScene("Season_Summer");
             Assert.That(backend.ReleaseCallCount, Is.EqualTo(1));

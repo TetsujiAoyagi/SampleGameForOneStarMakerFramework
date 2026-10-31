@@ -131,6 +131,69 @@ namespace OneStarMaker.Tests.AssetManagement
             Assert.DoesNotThrow(() => assets.SealAddressables());
         }
 
+        // Scene ロードと Instantiate は key を共有しないので _inFlight に載らない。それでも await 中に封じると
+        // 差し替え前の backend で完了して台帳に載るため、封じる判定では in-flight に数える。
+        [Test]
+        public void Seal_WithInFlightSceneLoad_IsRejected()
+        {
+            var backend = new HoldingBackend();
+            var assets = new Runtime.AssetManagement.AssetManagement(backend);
+            var pending = assets.LoadSceneAsync("Pending", SceneDescription("Pending", "cccccccccccccccccccccccccccccccc"));
+
+            Assert.Throws<InvalidOperationException>(() => assets.SealAddressables());
+            Assert.That(assets.IsAddressablesSealed, Is.False);
+
+            backend.CompleteScene();
+            pending.GetAwaiter().GetResult();
+            Assert.DoesNotThrow(() => assets.SealAddressables());
+        }
+
+        [Test]
+        public void Seal_WithInFlightInstantiate_IsRejected()
+        {
+            var backend = new HoldingBackend();
+            var assets = new Runtime.AssetManagement.AssetManagement(backend);
+            var pending = assets.InstantiateAsync(OtherKey);
+
+            Assert.Throws<InvalidOperationException>(() => assets.SealAddressables());
+            Assert.That(assets.IsAddressablesSealed, Is.False);
+
+            // 完了の仕方（成功・失敗）によらず、await が終われば in-flight から外れる。
+            backend.FailInstance();
+            Assert.Throws<InvalidOperationException>(() => pending.GetAwaiter().GetResult());
+            Assert.DoesNotThrow(() => assets.SealAddressables());
+        }
+
+        // 封じた後の LoadSceneAsync(desc) は Scene 台帳を見る前に拒否する。台帳には封じる前の Addressables Scene も
+        // 封じた後の directory Scene も同じ identity で載るので、台帳から返すと Addressables 用の入口が成功してしまう。
+        [Test]
+        public void LoadSceneByDescription_AfterSeal_DoesNotReturnLedgerScenes()
+        {
+            var backend = new FakeAssetBackend();
+            var assets = new Runtime.AssetManagement.AssetManagement(backend);
+            var earlierDescription = SceneDescription("Earlier", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+            assets.LoadSceneAsync("Earlier", earlierDescription).GetAwaiter().GetResult();
+
+            assets.SealAddressables();
+
+            // (1) 封じる前に Addressables で読んだ Scene と同じ identity。
+            Assert.ThrowsAsync<InvalidOperationException>(async () => await assets.LoadSceneAsync("Earlier", earlierDescription));
+
+            // (2) 封じた後に directory で読んだ Scene と同じ identity。
+            var directory = new FakeDirectoryPort();
+            assets.InstallContentDirectory(directory);
+            directory.SceneResult.TrySetResult(new DirectoryScene());
+            var title = assets.LoadContentSceneAsync("Title", "Full", new SceneLoadOptions(UnityEngine.SceneManagement.LoadSceneMode.Additive)).GetAwaiter().GetResult();
+            Assert.That(title.IsLoaded, Is.True);
+            Assert.ThrowsAsync<InvalidOperationException>(async () => await assets.LoadSceneAsync("Title", SceneDescription("Title", "dddddddddddddddddddddddddddddddd")));
+
+            Assert.That(backend.LoadSceneCallCount, Is.EqualTo(1), "封じた後に backend の Scene ロードが呼ばれた");
+
+            // 封じる前の Scene は引き続き unload できる。
+            assets.UnloadSceneAsync("Earlier").GetAwaiter().GetResult();
+            Assert.That(backend.UnloadSceneCallCount, Is.EqualTo(1));
+        }
+
         [Test]
         public void Seal_DropsAddressablesEntriesFromResidentCache()
         {
@@ -177,6 +240,9 @@ namespace OneStarMaker.Tests.AssetManagement
             }
         }
 
+        private static SceneAssetDescription SceneDescription(string identity, string guid)
+            => new(identity, LoadType.OnDemand, new List<AssetPayload> { new(string.Empty, new AssetReference(guid)) });
+
         private sealed class FixedBudget : IBudgetProvider
         {
             public long GetBudgetBytes(AssetType type) => 1024;
@@ -185,13 +251,24 @@ namespace OneStarMaker.Tests.AssetManagement
         private sealed class HoldingBackend : IAssetBackend
         {
             private readonly UniTaskCompletionSource<IBackendAsset> _pending = new();
+            private readonly UniTaskCompletionSource<IBackendScene> _pendingScene = new();
+            private readonly UniTaskCompletionSource<IBackendInstance> _pendingInstance = new();
             public void Complete() => _pending.TrySetResult(new HeldAsset());
+            public void CompleteScene() => _pendingScene.TrySetResult(new HeldScene());
+            public void FailInstance() => _pendingInstance.TrySetException(new InvalidOperationException("instantiate failed"));
             public UniTask<IBackendAsset> LoadAssetAsync<T>(string address, CancellationToken ct) where T : UnityEngine.Object => _pending.Task;
             public IBackendAsset LoadAssetSync<T>(string address) where T : UnityEngine.Object => throw new NotSupportedException();
-            public UniTask<IBackendScene> LoadSceneAsync(string address, SceneLoadOptions options, CancellationToken ct) => throw new NotSupportedException();
+            public UniTask<IBackendScene> LoadSceneAsync(string address, SceneLoadOptions options, CancellationToken ct) => _pendingScene.Task;
             public UniTask UnloadSceneAsync(IBackendScene scene, CancellationToken ct) => UniTask.CompletedTask;
-            public UniTask<IBackendInstance> InstantiateAsync(string address, Transform? parent, bool worldSpace, CancellationToken ct) => throw new NotSupportedException();
+            public UniTask<IBackendInstance> InstantiateAsync(string address, Transform? parent, bool worldSpace, CancellationToken ct) => _pendingInstance.Task;
             public void Release(IBackendAsset asset) { }
+
+            private sealed class HeldScene : IBackendScene
+            {
+                public bool IsLoaded => true;
+                public string Name => "held";
+                public GameObject[] GetRootGameObjects() => Array.Empty<GameObject>();
+            }
 
             private sealed class HeldAsset : IBackendAsset
             {

@@ -56,7 +56,8 @@ namespace OneStarMaker.Build.Selection
                 var rejection = FindRejection(attributed[candidate], requested);
                 if (rejection != null)
                 {
-                    excluded.Add(new BuildContentExclusion(candidate, rejection.Item1, rejection.Item2.Dimension!, rejection.Item2.Value!));
+                    excluded.Add(new BuildContentExclusion(candidate, ReclassifyRejection(candidate, rejection, policy),
+                        rejection.Item2.Dimension!, rejection.Item2.Value!));
                     continue;
                 }
                 // tag の照合を通っても、宣言が要求しない候補は採らない（到達しない node、優先順で選ばれなかった表現）。
@@ -86,6 +87,25 @@ namespace OneStarMaker.Build.Selection
             foreach (var tag in tags)
                 if (string.Equals(tag.Dimension, representationDimension, StringComparison.Ordinal)) return tag.Value;
             return null;
+        }
+
+        /// <summary>
+        /// 宣言が要求する logical key の候補が、表現の値で request に落とされた場合は RepresentationNotPreferred と記録する。
+        /// request の表現は宣言の優先順そのものなので、そこに無い値は「選ばれていない値」ではなく「優先順に無い表現」である。
+        /// requirement の無い key（到達しない node）の候補は従来の理由のまま残す。
+        /// </summary>
+        private static BuildExclusionReasonCode ReclassifyRejection(
+            BuildContentCandidate candidate, Tuple<BuildExclusionReasonCode, BuildTag> rejection, BuildSelectionPolicy policy)
+        {
+            if (!policy.ExcludeUnrequired
+                || rejection.Item1 != BuildExclusionReasonCode.ValueNotSelected
+                || policy.RepresentationDimension == null
+                || !string.Equals(rejection.Item2.Dimension, policy.RepresentationDimension, StringComparison.Ordinal))
+                return rejection.Item1;
+            foreach (var requirement in policy.Requirements)
+                if (string.Equals(requirement.LogicalKey, candidate.LogicalKey, StringComparison.Ordinal))
+                    return BuildExclusionReasonCode.RepresentationNotPreferred;
+            return rejection.Item1;
         }
 
         private static BuildContentExclusion? FindUnrequired(BuildContentCandidate candidate, string? representation, BuildSelectionPolicy policy)

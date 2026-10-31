@@ -41,9 +41,10 @@ namespace OneStarMaker.Tests.Editor.Build
             var native = new FakeNativeDirectory(root);
             var addressables = new CountingAddressablesBackend();
             var assets = new Runtime.AssetManagement.AssetManagement(addressables);
+            ContentDirectorySession? session = null;
             try
             {
-                var session = ContentDirectorySession.Register(path, "build", "StandaloneWindows64-Player", native);
+                session = ContentDirectorySession.Register(path, "build", "StandaloneWindows64-Player", native);
                 assets.InstallContentDirectory(session);
                 assets.SealAddressables();
                 var scene = Scene(Owner, assets, Lineage((Owner, "Lit")));
@@ -59,6 +60,7 @@ namespace OneStarMaker.Tests.Editor.Build
             }
             finally
             {
+                Unregister(assets, session);
                 UnityEngine.Object.DestroyImmediate(root);
                 Directory.Delete(path);
             }
@@ -81,9 +83,10 @@ namespace OneStarMaker.Tests.Editor.Build
             var native = new FakeNativeDirectory(root) { ObjectResult = new FakeAsset(texture) };
             var addressables = new CountingAddressablesBackend();
             var assets = new Runtime.AssetManagement.AssetManagement(addressables);
+            ContentDirectorySession? session = null;
             try
             {
-                var session = ContentDirectorySession.Register(path, "build", "StandaloneWindows64-Player", native);
+                session = ContentDirectorySession.Register(path, "build", "StandaloneWindows64-Player", native);
                 assets.InstallContentDirectory(session);
                 assets.SealAddressables();
                 var owner = Scene(Owner, assets, Lineage((Owner, "Lit")));
@@ -95,13 +98,16 @@ namespace OneStarMaker.Tests.Editor.Build
                 Assert.That(ownerHandle.Value, Is.SameAs(texture));
                 Assert.That(childHandle.Value, Is.SameAs(texture));
                 Assert.That(native.ObjectLoads, Is.EqualTo(1), "同じ entry は 1 回だけ native でロードし、所有者ごとに参照を数える");
-                Assert.That(assets.GetOwners(session.GetObjectKey(Owner + ":Lit", "Whitebox")),
-                    Is.EquivalentTo(new[] { AssetOwner.Scene(Owner), AssetOwner.Scene(Child) }));
+                var litKey = session.GetObjectKey(Owner + ":Lit", "Whitebox");
+                Assert.That(assets.GetOwners(litKey), Is.EquivalentTo(new[] { AssetOwner.Scene(Owner), AssetOwner.Scene(Child) }));
 
                 // 片方の所有者を解放しても、もう片方は有効。
                 assets.ReleaseScene(Owner);
-                Assert.That(ownerHandle.IsValid, Is.False);
+                // IAssetHandle.IsValid は「参照先がまだ有効か」で、所有者ごとの有効性ではない。共有 entry は他の所有者が
+                // 持つ限り生きているので、解放した側の handle も IsValid のまま。解放は所有者の一覧で確かめる。
+                Assert.That(assets.GetOwners(litKey), Is.EqualTo(new[] { AssetOwner.Scene(Child) }));
                 Assert.That(childHandle.IsValid, Is.True);
+                Assert.That(childHandle.Value, Is.SameAs(texture));
                 Assert.That(native.ReleaseCount, Is.Zero);
                 assets.ReleaseScene(Child);
                 Assert.That(native.ReleaseCount, Is.EqualTo(1));
@@ -111,10 +117,20 @@ namespace OneStarMaker.Tests.Editor.Build
             }
             finally
             {
+                Unregister(assets, session);
                 UnityEngine.Object.DestroyImmediate(texture);
                 UnityEngine.Object.DestroyImmediate(root);
                 Directory.Delete(path);
             }
+        }
+
+        // 失敗した assert の後も directory の登録を残さない。登録は process に 1 つだけで、残すと後続の
+        // directory テストが RevisionBusy /「already registered」で連鎖失敗する。正常経路で close 済みなら no-op。
+        private static void Unregister(Runtime.AssetManagement.AssetManagement assets, ContentDirectorySession? session)
+        {
+            if (session == null) return;
+            assets.ReleaseAll();
+            session.CompletePlayStop();
         }
 
         private static string TempDirectory()

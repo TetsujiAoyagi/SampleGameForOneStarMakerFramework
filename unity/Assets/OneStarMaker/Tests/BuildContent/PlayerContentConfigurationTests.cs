@@ -46,11 +46,21 @@ namespace OneStarMaker.Tests.BuildContent
         {
             // Player の baked config に無い key は、directory の宣言から補わない（宣言は Runtime が Warning に使うだけ）。
             // 解決結果は content の欄だけを持ち、world:* の値はどこにも現れない。
+            // install root は区切り文字で終わらない path にする（Path.GetTempPath() の末尾の区切りでは包含判定が成り立たない）。
+            var root = Path.Combine(Path.GetTempPath(), "osm-bs5a-config", Guid.NewGuid().ToString("N"));
             var baked = new PlayerBakedContentConfiguration(Config("content", "StandaloneWindows64-Player"));
             var merged = Config("content", "StandaloneWindows64-Player");
             Assert.That(merged.ContainsKey("world:cellCompanionSet"), Is.False);
-            var resolved = PlayerContentConfiguration.Resolve(baked, merged, Path.GetTempPath(), "StandaloneWindows64-Player");
+            var resolved = PlayerContentConfiguration.Resolve(baked, merged, root, "StandaloneWindows64-Player");
+            Assert.That(resolved.Path, Is.EqualTo(Path.GetFullPath(Path.Combine(root, "content"))));
             Assert.That(resolved.Representation, Is.EqualTo("Full"));
+            Assert.That(merged.ContainsKey("world:cellCompanionSet"), Is.False, "Resolve が config に runtime 既定値を書き足した");
+
+            // 宣言は Resolve の入力にならない: 引数に宣言の型が無いので、baked config に無い key を宣言から補う経路が無い。
+            var parameterTypes = typeof(PlayerContentConfiguration).GetMethod(nameof(PlayerContentConfiguration.Resolve),
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!
+                .GetParameters().Select(parameter => parameter.ParameterType).ToArray();
+            Assert.That(parameterTypes, Is.EqualTo(new[] { typeof(PlayerBakedContentConfiguration), typeof(AppConfig), typeof(string), typeof(string) }));
             var members = typeof(PlayerContentConfiguration).GetProperties(
                     System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
                 .Select(property => property.Name).OrderBy(name => name, StringComparer.Ordinal).ToArray();

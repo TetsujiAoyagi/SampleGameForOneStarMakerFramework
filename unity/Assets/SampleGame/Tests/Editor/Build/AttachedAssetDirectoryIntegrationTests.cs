@@ -150,10 +150,14 @@ namespace OneStarMaker.Tests.Editor.Build
                         Assert.That(((ContentDirectoryException)missing).LogicalKey, Is.EqualTo(SceneKey + ":Ghost"));
                         Assert.That(((ContentDirectoryException)missing).Representation, Is.EqualTo("Whitebox"));
 
-                        // 片方の所有者を解放しても、もう片方は有効。
+                        // 片方の所有者を解放しても、もう片方は有効。IAssetHandle.IsValid は「参照先がまだ有効か」で
+                        // 所有者ごとの有効性ではないので、解放は所有者の一覧で確かめる。
+                        var litKey = session.GetObjectKey(SceneKey + ":Lit", "Whitebox");
+                        Assert.That(assets.GetOwners(litKey), Is.EquivalentTo(new[] { AssetOwner.Scene(SceneKey), AssetOwner.Scene(ChildKey) }));
                         assets.ReleaseScene(SceneKey);
-                        Assert.That(ownerHandle.IsValid, Is.False);
+                        Assert.That(assets.GetOwners(litKey), Is.EqualTo(new[] { AssetOwner.Scene(ChildKey) }));
                         Assert.That(childHandle.IsValid, Is.True);
+                        Assert.That(childHandle.Value, Is.Not.Null);
                         ownerHandle = null;
                     }
                     finally
