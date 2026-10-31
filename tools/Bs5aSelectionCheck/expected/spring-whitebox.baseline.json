@@ -1,0 +1,9 @@
+{
+  "contentSet": "spring-whitebox",
+  "sourceCommit": "840b6609",
+  "preflightIdentity": "20261031T125629395Z-9f31f4a3e9f84e728e7f1518b0dd00d1",
+  "selectedCount": 124,
+  "sha256": "08337bd99d852f63c13fb55e4a41b90a109d0ca4502d1da94b054df7fb6a3ed3",
+  "capturedUtc": "2026-10-31T13:02:25.5629476Z",
+  "note": "(i) 旧 policy の実測。実装の出力ではなく、sourceCommit の Editor で menu を実行して得た preflight.json の selected。"
+}

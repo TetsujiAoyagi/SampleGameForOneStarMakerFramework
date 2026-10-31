@@ -1,0 +1,9 @@
+{
+  "contentSet": "all-full",
+  "sourceCommit": "840b6609",
+  "preflightIdentity": "20261031T125820420Z-24ad7eb508d14e3cb98af3f231a797de",
+  "selectedCount": 451,
+  "sha256": "e7a607e2b4ab92ac007fb4efe1b8fc4253a6f132a546e99837d2e195211effc8",
+  "capturedUtc": "2026-10-31T13:02:25.6764954Z",
+  "note": "(i) 旧 policy の実測。実装の出力ではなく、sourceCommit の Editor で menu を実行して得た preflight.json の selected。"
+}

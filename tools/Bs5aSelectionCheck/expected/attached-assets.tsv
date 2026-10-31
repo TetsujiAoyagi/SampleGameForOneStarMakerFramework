@@ -1,0 +1,5 @@
+# (ii) 付随 asset 3 件の stable key。ScenePayloadMappingPolicy.StableKey の規則（"osm-build-candidate-v1|" + 長さ:値 を logicalKey, representation, guid の順に連結）と各 asset の .meta の GUID から導いた。Variant 空 = Full。実装の出力ではない。
+logicalKey	representation	guid	stableKey
+Spring_Events_4_2:Burst	Full	447192e2365044e4caafad332d204daf	osm-build-candidate-v1|23:Spring_Events_4_2:Burst4:Full32:447192e2365044e4caafad332d204daf
+Spring_Event_MultiCellProof:Burst	Full	f1056ba4553cd454487b976e54856926	osm-build-candidate-v1|33:Spring_Event_MultiCellProof:Burst4:Full32:f1056ba4553cd454487b976e54856926
+InGameSession:Lit	Full	c03517b35199eb046852798ce73fa2d7	osm-build-candidate-v1|17:InGameSession:Lit4:Full32:c03517b35199eb046852798ce73fa2d7
