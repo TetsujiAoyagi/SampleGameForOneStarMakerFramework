@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `A`（A2 入力版 第 3 版。未凍結）
+- status: `A`（A2 入力版 第 4 版。未凍結）
 - branch: `claude/bs5-purpose-selection`
 - implementation base commit: `840b6609`（`develop`、S-4d5a の PR #149 のマージ）
 - implementation head commit: 未固定
@@ -19,19 +19,19 @@
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: Phase A 作業中。本版は A2 の入力版（第 3 版。第 2 版 `485a51a4` を、参照者を 4 者に置き直したゼロベースの見直しで書き換えた。主な変更: build 無しの Editor Play に宣言を効かせる D7 の追加、revision の形式を変えず入力 identity を欄として運ぶ D4、検証 Play を日常の Play と分けた §1.4 / §1.5、判定の単純化）。A2 の独立レビューを統合した A3 版を作り、発注者が凍結を指示するまで Phase B に入らない。
+- 引継ぎ票: Phase A 作業中。本版は A2 の入力版（第 4 版。第 3 版 `915314ef` に、A2 の前の「問いのレビュー」2 件（§5）を統合した。主な変更: Editor の日常 Play の現況の訂正（未指定の runtime mode は失敗する契約、表現は Editor の active profile が優先）と D7 の作り直し、Player の範囲の限定、別 PC / Cloud の前提、`Full` を publish の既定にして古い出力の混入を構造で防ぐ D14、数え違いの訂正）。第 3 版は参照者を 4 者に置き直したゼロベースの見直し。A2 の独立レビューを統合した A3 版を作り、発注者が凍結を指示するまで Phase B に入らない。
 
 ---
 
 ## 1. 目的と対象外
 
-- **目的:** 「何が必要か」を宣言 1 つで表し、Editor の日常 Play・Editor の検証 Play・Player・別 PC / Cloud の batch が同じ宣言を使う BuildSystem にする。宣言（目的 = Runtime が実際にロードする範囲、設定 = Unity の build 条件、Variant = 表現、runtime の既定値）から、必要十分な Scene と付随 asset の集合が決定的に導かれ、その成果物だけで検証 Play と Player が動き、build 無しの日常 Play でも宣言の runtime 既定値が効き、同じ build を batch から起動できる。S-4d5b（Planner profile の Whitebox 上の Event 実証）の前提を満たす。
+- **目的:** 「何が必要か」を宣言 1 つで表し、Editor の日常 Play・Editor の検証 Play・Player・別 PC / Cloud の batch が同じ宣言を使う BuildSystem にする。中核は 3 つ。(a) 宣言（目的 = Runtime が実際にロードする範囲、設定 = Unity の build 条件、Variant = 表現、runtime の既定値）から、必要十分な Scene と付随 asset の集合が決定的に導かれる。(b) その集合だけで動くことを、Addressables に抜けない fail-closed の検証 Play で示せる。(c) directory が自分の宣言を持つ。これを 4 者が使えるようにする手段として、build 無しの日常 Play に宣言の既定値を効かせる口、宣言 1 つからの検証 Play、batch 入口、入力 identity による再利用を同じスライスで作る。Player は BS4 の smoke と内包内容の検査まで（実動作は後続）。S-4d5b（Planner profile の Whitebox 上の Event 実証）の前提を満たす。
 - **対象外:**
   - 経路の連鎖（key ごとに source → local の object → LAN / R2 の順で探す）。Editor が自分の持たない asset を built content から読む形は後続（§2.5）。本スライスの Runtime は従来どおり Addressables mode か directory mode のどちらか 1 つで動く。
   - 格納と更新の最小性（同じ bytes を revision や目的をまたいで一度だけ転送・格納し、差分だけを更新する）。後続（§2.5）。本スライスは build mode（§2.4 D14）と manifest を従来どおり残すだけ。
   - Player の実行時の content 差し替え、複数 Content Directory の同時登録、共通 base と目的差分への層化。
   - InGame の Spring に入る Player の build 経路（BS4 の Player は Title の smoke の後に `Application.Quit(0)` する）。BS4 の経路は壊さないが、Player の動作は変えない。
-  - 設定（target、compression、options、defines）を宣言で変える口。本スライスは値を固定したまま識別子に含め、filter の tag の供給源になりうることだけを定める（D1）。
+  - 設定（target、compression、options、defines）を宣言で変える口。本スライスは値を固定したまま識別子に含め、filter の tag の供給源になりうることだけを定める（D1）。設定別の組合せと最小性は未検証のまま残る。
   - World Workspace の transaction への付随 asset の authoring の組み込み。
   - Addressables の退役、旧 Variant 経路の整理。Addressables mode の Editor Play の読み口は従来どおり。
   - §24 §16.7 の所有スライス未定の事項のうち本スライスの問いに関係しない事項。
@@ -57,9 +57,9 @@
 
 ### 1.3 A0 の現況（`840b6609`）
 
-**Editor の日常 Play の経路。** 既定の Editor Play は `AbstractApplicationInitializer` が Addressables backend で `AssetManagement` を構成し、Addressables の Play Mode script は既定（AssetDatabase 直読み）なので、source をそのまま読む。build は要らない。表現は config の `assets:sceneVariant`、companion set は `world:cellCompanionSet` から読み、config は `app-config.json` と環境変数（prefix `SAMPLEGAME_`、`:` を `__` に写す）で与える。**Planner profile で Play するには環境変数 2 つを手で置く必要があり、宣言から既定値を得る口が無い。**
+**Editor の日常 Play の経路。** 起動時の mode は config の `content:runtimeMode` で決まる。**未指定の Editor Play は、Delivery の verified pair が無ければ `BeforeSceneLoad` で失敗する契約**（Architecture §04 / §20、`InvalidCompanionConfigStartupTests` が同じ文言を期待する）で、source を読む経路は **明示 `addressables` だけ**が口になる。`app-config.json` は `content:runtimeMode` を持たず、Play テストは環境変数 `SAMPLEGAME_CONTENT__RUNTIMEMODE=addressables` を置いて source を読む。明示 addressables の Play は Addressables backend + 既定の Play Mode script（AssetDatabase 直読み）で source をそのまま読み、build は要らない。表現は `ResolveSceneVariant` が **Editor の active profile（`DeveloperVariantSettings`、`UserSettings/OneStarMaker/` に永続化。profile は `Default`（空）・`Production`（空）・`WorldWhitebox`（Whitebox））を config の `assets:sceneVariant` より優先**し、profile 未選択の時だけ config を読む。companion set は `world:cellCompanionSet`。config は `app-config.json` → 環境変数（prefix `SAMPLEGAME_`、`__` を `:` に写す）→ command line の順に重なる。**発注者の「日常 Play は source を読み build は要らない」は現状ではなく要件で、今は mode の明示・profile の切替・companion set の環境変数の 3 つを手で揃える必要があり、宣言から得る口が無い。**
 
-**build の経路。** source → `SceneResourceContentMaterializer`（`SceneResourceMap` の Scene payload だけを候補にする）→ `SeasonSceneSelectionPolicy`（季節・表現の request と requirement）→ `BuildTagSelector`（pure）→ bootstrap composer（UICommon と `SceneResourceMap.asset` を固定 content として合成）→ `BuildContentProjection`（閉包の照合）→ `UnityContentDirectoryAdapter`（`BuildContentRoot` を生成して `BuildPipeline.BuildContentDirectory`。workspace は `work/<target>/<contentSet>` を再利用するので Unity 側は incremental）→ `BuildContentCoordinator`（workspace を丸ごと `artifacts/bs2b/content/<identity>/` へ複写して公開）→ `ContentTransportPublisher.Publish`（BS4 だけが呼ぶ）→ DIST install → Editor の検証 Play（Delivery 窓の Use For Next Play）または BS4 Player。
+**build の経路。** source → `SceneResourceContentMaterializer`（`SceneResourceMap` の Scene payload だけを候補にする）→ `SeasonSceneSelectionPolicy`（季節・表現の request と requirement）→ `BuildTagSelector`（pure）→ bootstrap composer（UICommon と `SceneResourceMap.asset` を固定 content として合成）→ `BuildContentProjection`（閉包の照合）→ `UnityContentDirectoryAdapter`（`BuildContentRoot` を生成して `BuildPipeline.BuildContentDirectory`。workspace は `work/<target>/<contentSet>` を再利用するので Unity 側は incremental）→ `BuildContentCoordinator`（workspace を丸ごと staging へ複写し `artifacts/bs2b/content/<identity>/` へ移して公開。**workspace は contentSet ごとに再利用され、複写は全 file なので、Unity が古い出力を消さなければ前回の選択の file が成果物に混ざる。** Unity が消すかは未確認）→ `ContentTransportPublisher.Publish`（BS4 だけが呼ぶ）→ DIST install → Editor の検証 Play（Delivery 窓の Use For Next Play）または BS4 Player。
 
 **選択 core（`BuildTagSelector`、302 行、pure）。** 候補は `StableKey / LogicalKey / PhysicalKey`。request は dimension ごとの OR、dimension 間の AND。候補の tag が request に無い dimension なら `UnrequestedDimension`、値が選ばれていなければ `ValueNotSelected` で除外。tag の無い dimension は中立。requirement は logical key ごとの `ExactlyOne` / `OneOrMore` で、選ばれた候補の数だけを数える。**requirement の無い logical key の候補を除外する手段は無い。**
 
@@ -69,9 +69,9 @@
 
 **実測の graph（`SceneResourceMap`、457 node）。** OutGame: `OutGameScene`（NecessaryAlways、root）、`Title`・`HpGauge`・`OutGameSession`（OnDemand）、`ConfirmDialog`（HpGauge の子）、`HomeScene`（OutGameSession の子、payload 無し）。InGame: `InGameScene`（root、payload 無し）、`InGameSession`（NecessaryAlways、payload 無し）、`InGameUI`・`PlayerScene`（NecessaryAlways）、`Result`（OnDemand）、`Season_*` 4 件（OnDemand、payload 無し）。各 Season: `{S}_Lighting`（NecessaryAlways）、Spring だけ `Spring_AtmosphereVFX`（NecessaryAlways）と `Spring_Event_MultiCellProof`（OnDemand）、Cell 54 件（OnDemand、Variant は空と Whitebox）。各 Cell: Environment 1 件、Spring の (4,2)(5,2) に Lighting、(4,2) に VFX と Events。`Tunnel` は無い。
 
-**実測の成果物（2026-10-30 の `spring-whitebox`）。** selected 124 件 = Scene payload 122 件 + bootstrap 2 件。Unity の出力は hash 名の `.cf` / `.resS` と hash 名の manifest `.json`、固定名 `BuildManifestHash.txt`、計 233 file・6.2 MB。manifest は `RootAssets 1 / Loadables 2 / LoadableScenes 123 / SerializedFiles 196`。閉包は 608 file。Unity の manifest は `SerializedFiles` ごとに `ContentHash` と `SerializedFileDependencies` を持ち、Scene 1 件の推移的な file 閉包は平均 7.3・最大 37、50 Scene 以上から共有される file は 6 件。file 単位の content hash と依存 graph は Unity 側に既にある（後続の差分更新の入力。§2.5）。on-disk の content build は 1 件だけで、再 build の bytes 比較はできていない。
+**実測の成果物（2026-10-30 の `spring-whitebox`）。** selected 124 件 = Scene payload 122 件 + bootstrap 2 件。Unity の出力は hash 名の `.cf` / `.resS` と hash 名の manifest `.json`、固定名 `BuildManifestHash.txt`、計 233 file・6.2 MB。manifest は `RootAssets 1 / Loadables 2 / LoadableScenes 123 / SerializedFiles 196`。`AssetDatabase.GetDependencies` による source 側の閉包は 608 file（Unity の SerializedFiles とは単位が違う）。Unity の manifest は `SerializedFiles` ごとに `ContentHash` と `SerializedFileDependencies` を持ち、Scene 1 件の推移的な file 閉包は平均 7.3・最大 37、50 Scene 以上から共有される file は 6 件。file 単位の content hash と依存 graph は Unity 側に既にある（後続の差分更新の入力。§2.5）。on-disk の content build は 1 件だけで、再 build の bytes 比較はできていない。
 
-**build identity。** `DateTime.UtcNow + Guid`（`yyyyMMddTHHmmssfffZ-<guid32>`）で、入力から導出されない。同じ入力の build は別 identity、別 directory になる。`outcome.json` は identity・path・summary だけで、選択と閉包は `preflight.json` が正本。transport の `revision` は identity、manifest の SHA-256 は install の照合に使う。**この形式は tools/Artifacts の 4 箇所（`ContentContract.psm1` の `Assert-ContentRevision`、`ContentCatalog.psm1`、`BuildContract.psm1`、`Transport/R2ArtifactTransport.psm1` と `ArtifactReadback.ps1` の key の allow-list）が正規表現で固定しており、Runtime の `ContentManifestValidation` は revision を安全な path segment としてだけ検査する。** 形式を変えると Storage program（完了、保留 list 付き）を再開することになる。
+**build identity。** `DateTime.UtcNow + Guid`（`yyyyMMddTHHmmssfffZ-<guid32>`）で、入力から導出されない。同じ入力の build は別 identity、別 directory になる。`outcome.json` は identity・path・summary だけで、選択と閉包は `preflight.json` が正本。transport の `revision` は identity、manifest の SHA-256 は install の照合に使う。**この形式は tools/Artifacts の 5 箇所（`ContentContract.psm1` の `Assert-ContentRevision`、`ContentCatalog.psm1`、`BuildContract.psm1`、`Transport/R2ArtifactTransport.psm1` と `ArtifactReadback.ps1` の key の allow-list）が正規表現で固定しており、Runtime の `ContentManifestValidation` は revision を安全な path segment としてだけ検査する。** 形式を変えると Storage program（完了、保留 list 付き）を再開することになる。
 
 **閉包と動的ロード。** `AssetDependencySnapshotBuilder` が `AssetDatabase.GetDependencies` で root ごとに閉包を取る。Scene 内に置いた `.vfx`（`Spring_AtmosphereVFX`・`Spring_VFX_4_2`）は閉包で同梱される。**address で動的にロードする asset は 3 箇所ある:** `Spring_Events_4_2_Burst.vfx`（`CellCompanionScene`、所有者 `Scene(Events)`）、`Spring_Event_MultiCellProof_Burst.vfx`（`SeasonMajorEventScene`、所有者 `Scene(Event)`）、**`DemoCellLit.mat`（`SeasonScene.OnPreLoadedImpl`、4 つの Season が同じ material を各 `Scene(Season)` 所有でロード）**。material は Cell の閉包で directory に入っているが、key で引ける `Object` entry ではない。`.vfx` 2 件は閉包にも入らない。`BuildContentRoot` の `Object` entry を本番 build で埋める経路は bootstrap composer（`SceneResourceMap.asset`）と BS4 の `Bs4FixtureComposer`（probe prefab）だけで、どちらも選択 policy を迂回する合成。
 
@@ -79,7 +79,7 @@
 
 **Runtime の読み口。** `SceneBase.LoadSceneScopedAssetAsync(AssetKey)` だけがあり、directory の `IAssetManagement.LoadContentAssetAsync(logicalKey, representation, owner)` は Scene から届かない。`ContentDirectoryIndex` の Object 解決には Scene にある Full fallback が無い。`SceneDirector` は `_useContentDirectory` と `_sceneVariant` で Scene のロードを分岐し、`SceneBase` には `BindAssets(IAssetManagement)` だけを注入する。`AssetManagement` は canonical key で backend の asset を共有し、所有者ごとに参照を数える。
 
-**検証 Play の publish と install。** `Tools/OSM/Content/Build ...` 4 つは Content Directory を生成するだけ。`ContentTransportPublisher.Publish` を Editor 向けに呼ぶ入口は無く、§20 / §4.8 / SEASON design が「未整備」と書く。Delivery 窓は source・manifest SHA-256・contentSet・revision・cache root・representation・budget を手で入れて Prepare → Use For Next Play する（`transport.json` は contentSet と revision を持つが窓は読まない）。`ContentDeliveryPlayBridge` は `SAMPLEGAME_CONTENT__*` の環境変数 5 つを process scope の ledger で管理し、`world:cellCompanionSet` は扱わない。publisher の staging は `<final>.<guid32>.staging` で、BS4 では repo 相対 163 文字になり、ルートが 97 文字以上の checkout で `DirectoryNotFoundException` になる（Harness README）。DIST の install は revision を丸ごと staging へ複写して rename し、HTTP source は file ごとに stream で取る（resume・部分取得は無い）。manifest の `version == 1`・`rootSchemaVersion == 2` は固定で要求され、`JsonUtility` は未知の field を無視する。
+**検証 Play の publish と install。** `Tools/OSM/Content/Build ...` 4 つは Content Directory を生成するだけ。`ContentTransportPublisher.Publish` を Editor 向けに呼ぶ入口は無く、§20 / §4.8 / SEASON design が「未整備」と書く。Delivery 窓は source・manifest SHA-256・contentSet・revision・cache root・representation・budget を手で入れて Prepare → Use For Next Play する（`transport.json` は contentSet と revision を持つが窓は読まない）。`ContentDeliveryPlayBridge` は `SAMPLEGAME_CONTENT__*` の環境変数 5 つを process scope に置き、以前の値を Unity の `SessionState` の ledger に残す（domain reload は越え、Editor の再起動では消える）。`Reset` は現在値が自分の適用値と一致する時だけ戻し、他者の変更は保持する。`world:cellCompanionSet` と表現の profile は扱わない。Delivery 窓の入力欄は 7 つ。publisher の staging は `<final>.<guid32>.staging` で、BS4 では repo 相対 163 文字になり、ルートが 97 文字以上の checkout で `DirectoryNotFoundException` になる（Harness README）。DIST の install は revision を丸ごと staging へ複写して rename し、HTTP source は file ごとに stream で取る（resume・部分取得は無い）。manifest の `version == 1`・`rootSchemaVersion == 2` は固定で要求され、`JsonUtility` は未知の field を無視する。
 
 **batch の入口。** content build を起動できるのは menu だけ。`-executeMethod` の入口は退役済みの `VariantRemoteBuildBatch` しか無い。`tools/unity-editor.ps1` は Editor の起動・状態確認を持つ。
 
@@ -91,33 +91,35 @@
 
 | 誰 | 必要なものをどう知るか | 持っているもの | 足りないものの経路 | 本スライス後 |
 |---|---|---|---|---|
-| Editor（日常） | 開いている Scene graph と、選んだ宣言の runtime 既定値 | AssetDatabase の source | （後続）LAN / R2 の object | 宣言を選んで Play する（D7）。build は要らない |
+| Editor（日常） | 開いている Scene graph と、選んだ宣言の runtime 既定値 | AssetDatabase の source（明示 addressables の経路） | （後続）LAN / R2 の object | 宣言を選んで Play する（D7。mode の明示・表現 profile・companion set を宣言から置く）。build は要らない |
 | Editor（成果物の検証） | 宣言 | installed directory | なし。fail-closed | 宣言 1 つから build → publish → install → 検証 Play（D8・D10） |
 | Player | baked の宣言 | 内包 / installed | （後続）R2 の object の差分、実行時差し替え | baked config の既定値を宣言から写す（D11） |
-| 別 PC / Cloud | 宣言名 | 無い、または cache | published directory、（後続）R2 の object | batch で build と publish（D12）。Editor は published directory から検証 Play（D8） |
+| 別 PC / Cloud（build する側） | 宣言名 | clean checkout の source と Unity | なし | batch で build と publish（D12） |
+| 別 PC / Cloud（受け取る側） | published directory の manifest の宣言 | published directory、または cache | （後続）R2 の object。転送自体は本スライスの外 | Editor は published directory から検証 Play（D8） |
 
 ### 1.5 ユースケースと足りないもの（A0）
 
 | # | 誰が何をする | 今 | 本スライス後 | 残る後続 |
 |---|---|---|---|---|
-| UC1 | 企画者が Whitebox Cell や Event を直してそのまま Play | source route で動く | 変えない（I8） | — |
-| UC2 | 企画者が Planner profile（Environment 無し）で Play | 環境変数 2 つを手で置く | 宣言 `spring-planner-whitebox` を選んで Play（D7、AC16） | — |
+| UC1 | 企画者が Whitebox Cell や Event を直してそのまま Play | `content:runtimeMode=addressables` を明示すれば source route で動く。未指定は失敗する契約 | 契約は変えない（I8）。宣言を選ぶ Play が明示 addressables を置く（D7） | — |
+| UC2 | 企画者が Planner profile（Environment 無し）で Play | mode の環境変数・表現の profile・companion set の環境変数を手で揃える | 宣言 `spring-planner-whitebox` を選んで Play（D7、AC16） | — |
 | UC3 | 企画者が自分の持たない asset（別部署の Environment 等）を含む Scene を Play | 不可。Addressables が source を要する | 変えない。必要集合は宣言から出る | 経路の連鎖と object store（§2.5） |
-| UC4 | 担当が「この目的の成果物だけで動くか」を Editor で確かめる | 窓に 5 欄を手入力。Addressables に抜ける | 1 操作で build → 検証 Play、fail-closed（D8・D10、AC15） | — |
-| UC5 | QA / release 向けに目的 X の Player を作る | BS4 は Spring の全部を内包、`.vfx` は入らない、companion set は手書き | 付随 asset が入り、既定値は宣言から（D5・D11、AC17） | Spring 進入、差分更新（§2.5） |
-| UC6 | CI が clean checkout で目的 X を build し publish する | menu しか無い | batch 入口（D12、AC23）、Full / Incremental（D14） | R2 へ object 単位で置く（§2.5） |
-| UC7 | 別 PC が published directory を受け取り Editor で検証 Play | 窓に手入力 | From published directory（D8、AC22） | — |
+| UC4 | 担当が「この目的の成果物だけで動くか」を Editor で確かめる | 窓に 7 欄を手入力。Addressables に抜ける | 1 操作で build → 検証 Play、fail-closed（D8・D10、AC15） | — |
+| UC5 | QA / release 向けに目的 X の Player を作る | BS4 は Spring の全部を内包、`.vfx` は入らない、companion set は手書き | 付随 asset が入り、既定値は宣言から（D5・D11、AC17）。確かめるのは smoke と内包内容まで | Player の実動作（Spring 進入）、差分更新（§2.5） |
+| UC6 | CI が clean checkout（source と Unity がある）で目的 X を build し publish する | menu しか無い | batch 入口（D12、AC23）。publish は `Full`（D14） | R2 へ object 単位で置く（§2.5） |
+| UC7 | 別 PC が published directory を受け取った後、Editor で検証 Play | 窓に手入力 | From published directory（D8、AC22）。転送自体は扱わない | 転送（§2.5） |
 | UC8 | 同じ source・同じ宣言で 2 回 build する | 2 つの directory ができる | 入力 identity が一致すれば既存を返す（D4、AC8） | bytes の決定性の測定（§2.5） |
 | UC9 | 同じ Scene を複数の目的で build する（spring-full と spring-whitebox） | 目的ごとに全部格納 | 変えない | object 単位の格納（§2.5） |
 | UC10 | Player が動いたまま content を差し替える | 不可 | 変えない | 実行時差し替え（§2.5） |
+| UC11 | 企画者が Scene に address ロードを足し、宣言に書き忘れる | 日常 Play では source から読めて気づかず、Player で落ちる | 変えない。検証 Play（UC4）で fail-closed に当たる | 日常 Play での宣言外ロードの検出（§2.5） |
 
-足りないと分かったもの: UC2（build 無しで宣言を効かせる口）が第 2 版まで無かった。UC3・UC9・UC10 は本スライスで作らないが、宣言と選択の形（logical key の集合と所有者）がその入力になるように決める（D1・D5）。
+足りないと分かったもの: UC2（build 無しで宣言を効かせる口）が第 2 版まで無かった。問いのレビューで、UC1 の「今」が現状の契約と違っていたこと（未指定は失敗、表現は profile が優先）と UC11 が足された。UC3・UC9・UC10 は本スライスで作らないが、宣言と選択の形（logical key の集合と所有者）がその入力になるように決める（D1・D5）。
 
 ---
 
 ## 2. 意思決定と受け入れ境界（A1）
 
-- **このスライスが答える問い:** 目的・設定・Variant・runtime 既定値の宣言から、必要十分な Scene と付随 asset の集合が決定的に導かれ、同じ宣言が build 無しの日常 Play・検証 Play・Player・batch で同じ既定値として働き、その成果物だけで検証 Play と Player が動くか。
+- **このスライスが答える問い:** 目的・設定・Variant・runtime 既定値の宣言から、必要十分な Scene と付随 asset の集合が決定的に導かれ、同じ宣言が build 無しの日常 Play・検証 Play・Player・batch で同じ既定値として働き、その成果物だけで検証 Play が動き、Player には付随 asset と宣言の既定値が内包されるか。
 
 ### 2.1 不変条件（起きてはいけないこと）
 
@@ -128,7 +130,7 @@
 - **I5（Framework は語彙を知らない）:** Framework の選択・materialization・identity・Runtime の読み口・宣言の運搬は、season 名・Cell 座標文法・職種 role・`CellCompanionSet` を参照しない。宣言の runtime 値は Framework にとって不透明な key=value。Game → Framework の依存方向を維持する。
 - **I6（寿命と順序を変えない）:** 付随 asset は従来どおり読む Scene が `AssetOwner.Scene(identity)` で所有し、VFX の回収 → asset の解放の順序、d4b / d5a の既存テストの結果を変えない。`SceneState`、`LoadType`、asmdef 参照を変えない。
 - **I7（directory の外を読まない）:** directory mode の検証 Play と Player は、Addressables backend からロードしない。`AssetKey.FromAddress` / `FromDescription` によるロードは directory mode では失敗する。
-- **I8（日常 Play を変えない）:** Addressables mode の Editor Play の読み口・起動順序・config の読み方は変えない。宣言を選ばない Play は従来どおり動く。
+- **I8（日常 Play の契約を変えない）:** Addressables mode の Editor Play の読み口・起動順序・config の読み方・mode の契約（未指定は verified pair が無ければ失敗、明示 `addressables` だけが source の口）は変えない。宣言を選ばない Play は従来の契約どおり動く。
 - **I9（識別子の形式を変えない）:** transport の `revision`、DIST の `installed/<contentSet>/<revision>`、Storage の key の形式は変えない。入力 identity は欄として運び、名前にしない。
 
 ### 2.2 成立条件（起きなければならないこと）
@@ -138,7 +140,7 @@
 - **E3（付随 asset と共有 asset）:** `Spring_Events_4_2` と `Spring_Event_MultiCellProof` の `.vfx`、`InGameSession` が所有する `DemoCellLit.mat` が、所有 node が到達する全ての宣言の Content Directory に `Object` entry として入り、読む Scene から所有者と名前で解決できる。Addressables mode の Editor Play でも同じ呼び出しで解決できる。
 - **E4（入力 identity と再利用）:** 入力 identity は宣言と選択済み候補の source 状態から計算され、`preflight.json`・`BuildContentRoot`・manifest に載る。同じ入力 identity の 2 回目の build は build を実行せず既存の revision を返す。revision の形式は従来どおり。
 - **E5（宣言の運搬）:** 宣言の名前・表現の主値・runtime の key=value が `BuildContentRoot` と `transport.json` に載り、検証 Play の Use For Next Play と Player の baked config がそれを既定値にする。
-- **E6（build 無しの日常 Play）:** 宣言を選ぶ 1 操作で、次の Addressables mode の Play に宣言の runtime 既定値（表現、companion set）が効き、解除で元に戻る。
+- **E6（build 無しの日常 Play）:** 宣言を選ぶ 1 操作で、次の Play が明示 `addressables`（source）で起動し、宣言の表現が Editor の active profile として、runtime 既定値（companion set）が config として効き、解除で mode・profile・既定値が元に戻る。
 - **E7（検証 Play の 1 操作と fail-closed）:** 宣言ごとの 1 操作で content build → transport publish → DIST install → Use For Next Play まで進み、そのまま検証 Play できる。その Play で `spring-full` の directory から Cell (4,2) の Events の trigger の VFX と Season の Lit が解決され、Error ログが出ず、Addressables backend は作られていない。Delivery 窓は published directory から manifest SHA-256・contentSet・revision を読める。publish の staging path は path 予算の範囲に収まる。
 - **E8（batch）:** 宣言名を引数に取る batch 入口から content build と publish を起動でき、終了コードと `preflight.json` / `outcome.json` で結果を読める。判定 C の build はこの入口で行う。
 
@@ -163,12 +165,12 @@
 | AC13 | `Spring_Events_4_2`・`Spring_Event_MultiCellProof` の `SceneResource` に付随 asset `Burst`、`InGameSession` に付随 asset `Lit`（`DemoCellLit.mat`）が宣言され、Variant は空。trigger / anchor の名前が `Burst`、`SeasonScene` が `InGameSession:Lit` を読む | E3 | EditMode |
 | AC14 | `Build And Publish` の後、published directory に `transport.json` と `content/` があり、manifest の files が directory の全 file と size・SHA-256 で一致し、manifest に宣言の名前・表現の主値・runtime の key=value・入力 identity が入る。staging path の repo 相対長が `tools/path-budget.json` の上限以内 | E4・E5・E7 | 操作（動作確認）+ EditMode（path 長の単体、manifest の往復の単体） |
 | AC15 | `spring-full` の `Build And Verify Next Play` 1 操作の後、そのまま Play して Spring (0,4) が Stable になり、Cell (4,2) へ移動して Events の trigger に入ると VFX が起動する。Console に Error が無く、起動ログに Addressables backend 無しの構成の 1 行がある | E7・I7 | 操作（動作確認）、証拠は Console ログ |
-| AC16 | build せずに `Play As spring-planner-whitebox` を選んで Play すると、Spring (0,4) が Stable になり、Environment が 1 件もロードされず、Cell は Whitebox で、Error が無い（環境変数を手で置かない）。解除の後の Play は従来どおり Full で Environment が載る。Event の動作は d5b で確かめる | E6・I8 | 操作（動作確認） |
+| AC16 | 環境変数も profile も手で触らず `Play As spring-planner-whitebox` を選んで Play すると、起動し、Spring (0,4) が Stable になり、Environment が 1 件もロードされず、Cell は Whitebox で、Error が無い。`Play As/Reset` の後、active profile と環境変数が Play As の前の値に戻っている。Event の動作は d5b で確かめる | E6・I8 | 操作（動作確認） |
 | AC17 | BS4 の `Build BS4 Spring Player` が成功し、Player の smoke receipt が `completed`。Player 内 `content/` に付随 asset 3 件の `Object` entry が入る（manifest の `Loadables` が 2 + 3 = 5）。`bs4-runtime.json` の `cellCompanionSet` と `representation` が宣言の値 | I4・E3・E5 | 高コスト証拠（§5） |
 | AC18 | 最終の全 EditMode 回帰と、Streaming・Vfx の PlayMode が通る | I6・I8 | 回帰 |
 | AC19 | directory mode で構成した `AssetManagement` は Addressables backend を持たず、`LoadAssetAsync(AssetKey.FromAddress(...))` と `LoadSceneAsync(desc)` は `InvalidOperationException` で失敗する。directory の `LoadContentAssetAsync` / `LoadContentSceneAsync` は動く。Addressables mode の構成は従来どおり | I7・I8 | 単体 + EditMode（既存 `ContentDirectorySessionTests` の構成） |
 | AC20 | `InGameSession` の付随 asset `Lit` は候補 1 件で、4 つの `SeasonScene` が `LoadAttachedAssetAsync("InGameSession", "Lit")` で同じ backend asset を各 `Scene(Season)` 所有で取得し、1 つの Season を unload しても他の Season の handle は有効 | E3・I6 | 単体（偽 `IAssetManagement` で呼び出しの形）+ AC10（共有の解放） |
-| AC21 | `ContentDeliveryPlayBridge` が、(a) 宣言だけから（build 無し）`SAMPLEGAME_ASSETS__SCENEVARIANT` と宣言の runtime key=value（例 `SAMPLEGAME_WORLD__CELLCOMPANIONSET=Planner`）を、(b) published directory の manifest から従来の 5 つに加えて同じ key=value を、process scope の ledger に入れ、`Reset` で元へ戻す。(a) と (b) は同時に有効にならない。Framework 側は key を解釈せず、`SAMPLEGAME_` + `__` の変換規則は Game 側に置く。Player の `PlayerContentConfiguration.Resolve` は baked config に無い key を宣言から補わない | E5・E6・I5 | 単体（ledger の往復）+ `PlayerContentConfigurationTests` |
+| AC21 | `ContentDeliveryPlayBridge` が、(a) 宣言だけから（build 無し）`SAMPLEGAME_CONTENT__RUNTIMEMODE=addressables`、宣言の runtime key=value（例 `SAMPLEGAME_WORLD__CELLCOMPANIONSET=Planner`）、表現に対応する `DeveloperVariantSettings` の active profile を、(b) published directory の manifest から従来の 5 つに加えて同じ runtime key=value を、適用し、以前の値（環境変数と profile GUID）を ledger に残して `Reset` で元へ戻す。(a) と (b) は同時に有効にならない（先に `Reset` を要求する）。Framework 側は key を解釈せず、`SAMPLEGAME_` + `__` の変換規則は Game 側に置く。Player の `PlayerContentConfiguration.Resolve` は baked config に無い key を宣言から補わない | E5・E6・I5 | 単体（ledger の往復）+ `PlayerContentConfigurationTests` |
 | AC22 | Delivery 窓の「From published directory」で、path 1 つから manifest SHA-256・contentSet・revision・representation・宣言名が埋まり、Prepare → Use For Next Play が成功する。manifest が無い path・SHA-256 の不一致は失敗で、ledger を変えない | E7 | 操作 + 単体（読み取りの失敗経路） |
 | AC23 | `Unity.exe -batchmode -quit -executeMethod <入口> -osmPurpose spring-full -osmPublish` が content build と publish を行い、成功で 0、宣言名の誤り・build 失敗で非 0 を返し、`preflight.json` / `outcome.json` / published directory の path を log に出す。menu と同じ coordinator を通る | E8 | EditMode（引数の解釈の単体）+ 判定 C での実行 |
 
@@ -178,24 +180,24 @@ AC8 の読み方: 「中途状態」は `staging/<revision>` だけが在って 
 
 AC15 の読み方: 「Addressables backend 無しの構成の 1 行」は `content:runtimeMode=directory` の Play で `AssetManagement` が backend 無しで構成されたことを示す起動ログ。合格例: その行があり、Lit と VFX が解決される。不合格例: その行が無い（Addressables から読めてしまう）。
 
-AC16 の読み方: 「Environment がロードされない」は `SceneDirector` のロード済み一覧に `_Environment_` が無いこと。「Whitebox」は Cell の Scene 名が Whitebox payload のもの。合格例: 環境変数を置かずに両方が成り立つ。不合格例: companion set は Planner だが Cell が Full、または解除後も Planner のまま。
+AC16 の読み方: 「Environment がロードされない」は `SceneDirector` のロード済み一覧に `_Environment_` が無いこと。「Whitebox」は Cell の Scene 名が Whitebox payload のもの。合格例: 何も手で置かずに起動し、両方が成り立ち、Reset で profile が元に戻る。不合格例: `content:runtimeMode is required` で起動に失敗する、companion set は Planner だが Cell が Full（profile が切り替わっていない）、解除後も Planner や Whitebox のまま。
 
 ### 2.4 A1 の設計
 
 - **D1（宣言型）:** `BuildPurposeDeclaration`（`OneStarMaker.Build.Selection`、pure）。`Name`（contentSet と同じ規則の ASCII）、`Roots`（logical key の列）、`Filter`（`BuildRequest`。OnDemand の子に適用する tag の述語）、`Representation`（優先順の列と `First` / `All`）、`Configuration`（target、compression、options、defines、Unity version、root schema version の正準化した key=value 列。本スライスでは adapter の定数と Editor の値を写すだけ）、`RuntimeDefaults`（Game が決める不透明な key=value 列。例 `world:cellCompanionSet=Planner`）。Framework は値の意味を知らない。設定の値は Game の tag policy が node 水準の tag（例 `Platform`）に写して filter の入力にもできる。宣言は build の入力であると同時に、build 無しの Play の既定値の供給源でもある（D7）。
 - **D2（到達規則）:** `BuildPurposeResolver`（pure）。入力は graph node（identity、parent、children、LoadType、payload の有無、付随 asset の名前列）、node ごとの tag、候補と candidate tag provider、宣言。出力は requirement（到達 node の payload と付随 asset。`First` なら `ExactlyOne`、`All` なら `OneOrMore`）、Representation の request、到達しない候補と優先順に無い表現の候補の除外。規則: `required(n) ⇔ n ∈ roots ∨ (required(parent) ∧ (LoadType ∈ {NecessaryAlways, IncrementalAlways} ∨ filter(tags(n))))`。filter の意味は既存 `BuildTagSelector` の request の意味と同じ。payload の無い中間 node（`InGameSession`、`Season_*`）も到達の経路になり、付随 asset を持てる。graph の検証は既存 `SeasonSceneSelectionPolicy.ValidateGraph` の規則を Framework へ移す。
 - **D3（選択 core の拡張）:** `BuildSelectionPolicy` に `ExcludeUnrequired`（requirement の無い logical key の候補を `BuildExclusionReasonCode.Unreachable` で除外）と、`BuildContentRequirement` に表現の優先（dimension、順序付き値、`First` / `All`）を足す。`SeasonalMode` tag と `VerifyDual` は不要になり、SampleGame の policy から消す。tag を node 水準（Season、Role）と candidate 水準（Representation）に分け、node 水準は Game が供給する。
-- **D4（入力 identity と再利用。revision は変えない）:** `BuildContentIdentity`（`OneStarMaker.Build.Content`、pure + gateway）が正準化文字列（宣言の各欄（sorted、`RuntimeDefaults` を含む）、設定（sorted key=value）、選ばれた候補ごとの `stableKey|physicalGuid|dependencyHash`（stable key で sorted））の SHA-256（64 hex）を入力 identity として計算する。`dependencyHash` は `IAssetDatabaseGateway.GetDependencyHash(path)`（`AssetDatabase.GetAssetDependencyHash`）。**revision（directory 名、`BuildContentRoot.BuildIdentity`、transport の `revision`）は従来の `UtcNow + Guid` のままにし、入力 identity は `preflight.json`・`BuildContentRoot.InputIdentity`・manifest の `inputIdentity` の欄として運ぶ。** coordinator は成功時に `content/index/<inputIdentity>` へ revision 名を書き、次回は index が指す `content/<revision>` が在れば adapter を呼ばず再利用する（AC8）。この形なら Storage・DIST・transport の形式に触れず（I9）、同じ入力で bytes が違う build が 2 つできても別 revision として共存し、どちらが入力 identity の正か index が決める。build mode（D14）と時刻は `preflight.json` の metadata に残すだけで入力 identity に入れない。既知の限界: project settings（Graphics API、Quality、Lightmap 設定）は入力 identity に入らない（§2.6 U3）。
+- **D4（入力 identity と再利用。revision は変えない）:** `BuildContentIdentity`（`OneStarMaker.Build.Content`、pure + gateway）が正準化文字列（宣言の各欄（sorted、`RuntimeDefaults` を含む）、設定（sorted key=value）、選ばれた候補ごとの `stableKey|physicalGuid|dependencyHash`（stable key で sorted））の SHA-256（64 hex）を入力 identity として計算する。`dependencyHash` は `IAssetDatabaseGateway.GetDependencyHash(path)`（`AssetDatabase.GetAssetDependencyHash`）。**revision（directory 名、`BuildContentRoot.BuildIdentity`、transport の `revision`）は従来の `UtcNow + Guid` のままにし、入力 identity は `preflight.json`・`BuildContentRoot.InputIdentity`・manifest の `inputIdentity` の欄として運ぶ。** coordinator は成功時に `content/index/<inputIdentity>` へ revision 名を書き、次回は index が指す `content/<revision>` が在れば adapter を呼ばず再利用する（AC8）。この形なら Storage・DIST・transport の形式に触れず（I9）、同じ入力で bytes が違う build が 2 つできても別 revision として共存し、どちらが入力 identity の正か index が決める。`Full`（D14）の build は index を読まず、成功時に index を上書きする（再利用を確実に迂回する口）。index は build した machine のローカルで、別 PC へは持ち出さない。build mode と時刻は `preflight.json` の metadata に残すだけで入力 identity に入れない。既知の限界: project settings（Graphics API、Quality、Lightmap 設定）は入力 identity に入らない（§2.6 U3）。
 - **D5（付随 asset と共有 asset）:** Runtime に `AttachedAssetDescription : AssetDescription`（`Name` と `AssetPayload` の列。`[Serializable]`、埋め込み）を足し、`SceneResource` に `_attachedAssets` と `AttachedAssets` / `FindAttachedAsset(name)` を足す。payload の無い node（`InGameSession`）も宣言できる。materializer は付随 asset ごとに候補（logical key `<identity>:<name>`、stable key は既存の `osm-build-candidate-v1` 規則、Representation は Variant から既存規則で写す、`Owner` tag に所有 identity、provenance `SceneResourceMap.AttachedAsset`）と閉包を作る。同じ physical GUID は 1 つの node だけが宣言できる（共有は祖先に 1 回宣言し、子孫が所有者を指定して読む）。`SceneBase` に `LoadAttachedAssetAsync<T>(string name, ct)` と `LoadAttachedAssetAsync<T>(string ownerIdentity, string name, ct)` を足し、`SceneDirector` が `BindAssets` と同じ時点で `useContentDirectory`・`sceneVariant`・`SceneResourceMap` の検索口を `SceneContentBinding`（internal の値型）として注入する。directory モードは `LoadContentAssetAsync(<owner>:<name>, sceneVariant, Scene(自分))`、それ以外は `LoadAssetAsync(AssetKey.FromDescription(desc, sceneVariant), Scene(自分))`。所有者は常に読む Scene なので、共有 asset は `AssetManagement` の canonical key の共有と所有者ごとの参照で従来どおり数えられる。`ContentDirectoryIndex.TryResolveObject` に Scene と同じ Full fallback を与える。trigger / anchor の `_vfxAddress` は `_vfxAsset`（付随 asset の名前）に替え、`CellCompanionScene` / `SeasonMajorEventScene` は `LoadAttachedAssetAsync(name)`、`SeasonScene` は `LoadAttachedAssetAsync("InGameSession", "Lit")` を呼ぶ。`.vfx` と material の Addressables entry は Addressables モードの `AssetReference` が要するので残す。所有者・回収順序・ロード失敗の扱いは変えない。
 - **D6（SampleGame の policy）:** `SeasonSceneSelectionPolicy` を、node 水準の tag を導く `SeasonSceneTagPolicy`（`Season` は祖先から、`Role` は `CellCompanionRoleClassifier` で。classifier は `InternalsVisibleTo("SampleGame.DependOnAll.Editor")` で参照し、規則を複製しない）と、宣言の表 `SampleGameBuildPurposes`（6 件。root は `OutGameScene`・`InGameScene`、filter は `Season` と `Role`、表現の優先順、`RuntimeDefaults` に `world:cellCompanionSet` と `content:representation`）に置き換える。`SampleGameContentBuild` は宣言を引数に取り、menu は宣言ごとの `Build`・`Build And Publish`・`Build And Verify Next Play` と、build を伴わない `Play As <宣言>` にする。bootstrap composer と BS4 の fixture composer は resolver の後に従来どおり合成する。
-- **D7（build 無しの日常 Play に宣言を効かせる）:** `Tools/OSM/Content/Play As/<宣言名>` と `Play As/Reset`。`ContentDeliveryPlayBridge.ApplyDeclaration(declaration)` が、宣言の表現の主値を `SAMPLEGAME_ASSETS__SCENEVARIANT` に、`RuntimeDefaults` の各 key を Game の規則で環境変数名に写して、既存の process scope の ledger に入れる。`content:runtimeMode` は置かないので Addressables mode のまま source を読む。directory の `Apply` と同時に有効にならない（先に `Reset`）。Framework は変えず、`SampleGame.DependOnAll.Editor` の中で閉じる。企画者の Planner Play（UC2）はこれで足り、d5b の Event 実証は build を要しない。
+- **D7（build 無しの日常 Play に宣言を効かせる）:** `Tools/OSM/Content/Play As/<宣言名>` と `Play As/Reset`。`ContentDeliveryPlayBridge.ApplyDeclaration(declaration)` が 3 つを揃える。(1) `SAMPLEGAME_CONTENT__RUNTIMEMODE=addressables` を process scope に置く（source を読む唯一の口。未指定のままだと起動が失敗する契約なので、Play As が明示する）。(2) 宣言の表現の主値に対応する `BuildVariantProfile`（SampleGame の表で Whitebox → `WorldWhitebox`、空 → `Default`）を `DeveloperVariantSettings.SetActiveProfileGuid` で active にする（Editor では profile が config より優先するため、環境変数では効かない）。(3) `RuntimeDefaults` の各 key を Game の規則（`SAMPLEGAME_` + `__`）で環境変数名に写す。以前の環境変数と profile GUID は既存の ledger（`SessionState`）に残し、`Reset` が戻す。Editor を再起動すると環境変数と ledger は消えるが profile は UserSettings に残るので、Play As の menu は現在の active profile を表示する。directory の `Apply` と同時に有効にならない（先に `Reset` を要求する）。Framework は変えず、`SampleGame.DependOnAll.Editor` の中で閉じる。企画者の Planner Play（UC2）はこれで足り、d5b の Event 実証は build を要しない。
 - **D8（検証 Play の 1 操作と published directory）:** `SampleGameContentBuild.BuildAndPublish(declaration)` が coordinator の結果を `ContentTransportPublisher.Publish(result, <artifactsRoot>/published/<revision>)` へ渡す。`BuildAndVerifyNextPlay(declaration)` はさらに既定の cache root（Delivery 窓の保存値、無ければ `UserSettings` 配下）へ `ContentInstaller` で install し、`ContentDeliveryPlayBridge.Apply` を呼ぶ。Delivery 窓に「From published directory」を足し、`transport.json` から manifest SHA-256・contentSet・revision・表現の主値・宣言名を埋める（同一 PC の自分の成果物と、別 PC から運んだ成果物の両方。manifest の bytes を照合するので安全性は従来と同じ）。publisher の staging は `<final>.<8 hex>.tmp` にして repo 相対長を予算内にする。
 - **D9（authoring）:** 3 つの `SceneResource`（`Spring_Events_4_2`・`Spring_Event_MultiCellProof`・`InGameSession`）への付随 asset の宣言と trigger / anchor の名前は、Phase B が Editor の Inspector または一時スクリプトで行い、一時スクリプトは commit の前に消す。World Workspace の transaction は変えない。
 - **D10（directory mode の fail-closed）:** `AssetManagement` に backend 無しの構成（`AssetManagement.ForContentDirectory()` または `IAddressableBackend?` を受ける internal constructor）を足し、`AbstractApplicationInitializer` は `ReadContentDirectoryConfiguration` が directory を返した時だけそれを使う。backend 無しの `LoadAssetAsync` / `LoadSceneAsync` / `LoadAppAssetSync` は `InvalidOperationException`（「directory mode では Addressables を使わない」）で失敗し、`CreateVfxBackend` 等の他の初期化は変えない。起動ログに構成を 1 行出す（AC15 の読み方）。Addressables mode と Player の BS4 以外の経路は変えない。`UICommon` の bootstrap が Addressables を要する経路が残っていれば B は止めて A へ返す（§4.2）。
 - **D11（宣言の運搬）:** `BuildContentRoot` に `Declaration`（name、representation の主値、runtime の key=value 列）と `InputIdentity` を任意の serialized field として足し、adapter が宣言から写す。`ContentTransportManifest` に同じ `declaration` と `inputIdentity` を任意 field として足す。schema version（root 2、manifest 1）は変えず、宣言の無い root / manifest は従来どおり既定値なしとして扱う（既存の installed revision の再検証を壊さない）。`ContentDeliveryPlayBridge.Apply` は manifest の runtime の key=value を環境変数へ写す。Framework は `content:*` 以外の key を解釈せず、Game の key を環境変数名に変換する規則（`SAMPLEGAME_` + `__` 区切り）は `AppInitializer` 側の既存規則に合わせる。BS4 の `RuntimeJson` は `bs4-spring-full` 宣言の `RuntimeDefaults` から `cellCompanionSet` と representation を写す（手書きの定数をやめる）。
 - **D12（batch 入口）:** `SampleGameContentBuild.BuildFromCommandLine()`（`-executeMethod` の対象）。引数は `-osmPurpose <name>`、`-osmPublish`、`-osmBuildMode Full|Incremental`（既定 Incremental）。menu と同じ `BuildResult` を通り、終了コードは成功 0、引数不正 2、build 失敗 1。log に `preflight.json` / `outcome.json` / published directory の path を出す。`tools/unity-editor.ps1` の既存の起動経路から呼べる wrapper は Phase B の判断で足し、無ければ README にコマンド行を書く。
 - **D13（既存 build 入口）:** 既存 4 つの menu は宣言ごとの `Build` に置き換え、名前（contentSet）は変えない。`bs4-spring-full` は BS4 coordinator が宣言を引数に呼ぶ。
-- **D14（build mode）:** `BuildContentRequest` に `BuildMode`（`Incremental` = workspace を再利用、`Full` = workspace を空にしてから build）を足す。入力 identity には入れず `preflight.json` に記録する。本スライスは `Incremental` を既定にし、`Full` は CI の clean build と、後続の決定性の測定の入口。
+- **D14（build mode）:** `BuildContentRequest` に `BuildMode`（`Incremental` = workspace を再利用、`Full` = workspace を空にしてから build）を足す。入力 identity には入れず `preflight.json` に記録する。**`Build And Publish`・`Build And Verify Next Play`・batch（publish を伴う経路）は `Full` を既定**にし、workspace の再利用で前回の選択の file が成果物に混ざる経路（§1.3）を構造で断つ。menu の `Build`（inner loop、publish しない）だけ `Incremental` を既定にする。batch は `-osmBuildMode Incremental` で明示的に変えられる。`Full` は後続の決定性の測定の入口でもある。
 
 ### 2.5 ここでは答えない問いと所有する後続
 
@@ -212,6 +214,8 @@ AC16 の読み方: 「Environment がロードされない」は `SceneDirector`
 | Planner profile の Whitebox 上の Event の動作、S-4 program の harvest と削除 | `Play As spring-planner-whitebox`（D7）で build 無しに実証できる | S-4d5b |
 | Addressables の退役（`.vfx`・material の entry を含む）、旧 Variant 経路の整理 | — | ADDR-RETIRE / ADDR-HYGIENE（§20 §9） |
 | 付随 asset の World Workspace transaction への組み込み、Variant 別の付随 asset | — | 需要が出たスライス |
+| 日常 Play（source）で宣言に無い Scene / asset を読んだ時の検出（UC11。Warning か失敗） | 宣言の必要集合を build 無しに Runtime へ渡す口が要る。検証 Play（fail-closed）は同じ漏れを失敗として出す | BuildSystem 後続 |
+| 別 PC への published directory の転送そのもの（UC7 の前段） | DIST の HTTP source は file ごとの stream。Storage は revision 単位 | BuildSystem 後続（object 単位の格納と同じ設計） |
 | directory に無い OnDemand content を要求した時の Runtime の振る舞い（Cell の欠落、companion の Warning の集約） | 本スライスは宣言の既定値で不一致を防ぐだけ | 需要が出たスライス |
 | §24 §16.7 の Framework の欠落（親の unload 開始後の子の Add、`LoadAssetAsync` の await 後の所有者確認） | — | 所有スライス未定のまま |
 
@@ -231,6 +235,7 @@ AC16 の読み方: 「Environment がロードされない」は `SceneDirector`
 - **U5（fail-closed の置き場）:** 推奨は D10（backend 無しの構成。Addressables の初期化自体が走らない）。代案は `AssetManagement` に mode flag を持たせて `FromAddress` を拒否する（backend は作られ、Addressables の初期化が走る。拒否の網羅が実装依存になる）。
 - **U6（宣言の運搬の経路）:** 推奨は D11（`BuildContentRoot` と manifest の両方に載せ、Editor は manifest、Player は baked config を読む）。代案は manifest だけ（Player が宣言を知る経路が無くなり、BS4 の RuntimeJson の手書きが残る）。
 - **U7（Play As の置き場）:** 推奨は D7（`ContentDeliveryPlayBridge` の ledger を共用し、SampleGame の Editor に閉じる）。代案は Framework の Editor に汎用の「宣言 → 環境変数」を置く（環境変数名の規則は Game のものなので、Framework に置くと規則の注入が要る）。
+- **U8（表現の切替の方法）:** 推奨は D7 の (2)（表現に対応する既存 profile を active にする。profile の `RemoteCatalogUrl` 等の他の値も一緒に切り替わる）。代案は active profile を空にして config の `assets:sceneVariant` を環境変数で置く（profile の他の値が失われる。Framework の resolver を変えずに済む点は同じ）。どちらでも Editor の再起動後に profile が残る点は同じで、menu の表示で補う。
 
 ---
 
@@ -259,7 +264,7 @@ AC16 の読み方: 「Environment がロードされない」は `SceneDirector`
 | 新規 `SampleGame/DependOnAll/Editor/Build/SeasonSceneTagPolicy.cs` | node 水準の `Season`・`Role` tag | — | `CellCompanionRoleClassifier`（InternalsVisibleTo） | 単体 | 0 → 100〜130 |
 | 新規 `SampleGame/DependOnAll/Editor/Build/SampleGameBuildPurposes.cs` | 6 件の宣言（runtime 既定値を含む） | — | pure | EditMode（AC4・AC5） | 0 → 90〜110 |
 | `SampleGame/DependOnAll/Editor/Build/SampleGameContentBuild.cs` | 宣言ごとの menu、Play As、Build And Publish、Build And Verify Next Play、batch 入口 | — | Editor I/O | 操作（AC14〜AC16・AC23）、引数の単体 | 131 → 240〜270 |
-| `SampleGame/DependOnAll/Editor/Build/ContentDeliveryWindow.cs`・`ContentDeliveryPlayBridge.cs` | From published directory、`ApplyDeclaration`（build 無し）、manifest の runtime 既定値の適用と Reset | — | Editor I/O | 単体（ledger の往復、AC21・AC22） | 168 → 200、98 → 160 |
+| `SampleGame/DependOnAll/Editor/Build/ContentDeliveryWindow.cs`・`ContentDeliveryPlayBridge.cs` | From published directory、`ApplyDeclaration`（mode の明示・profile の切替・runtime 既定値。build 無し）、manifest の runtime 既定値の適用と Reset | — | Editor I/O。`DeveloperVariantSettings`（Framework Editor の public） | 単体（ledger の往復、AC21・AC22） | 168 → 200、98 → 180 |
 | 削除 `SeasonSceneSelectionPolicy.cs`・`SeasonSceneSelectionPolicyTests.cs` | 置き換え | — | — | — | 243 → 0、181 → 0 |
 | `SampleGame/DependOnAll/Editor/Build/SampleGamePlayerBuildCoordinator.cs` | `bs4-spring-full` 宣言の利用、RuntimeJson を宣言から写す | — | 既存 | `Bs4FixtureComposerTests`、AC17 | 145 → 155 |
 | `SampleGame/InGame/.../World/LocalVfxEventTrigger.cs`・`MajorEventVfxAnchor.cs`・`LocalVfxEventBinder.cs`・`CellCompanionScene.cs`・`SeasonMajorEventScene.cs`・`SeasonScene.cs` | address → 付随 asset 名、`LoadAttachedAssetAsync` の利用 | 既存 | 既存 | AC12・AC13・AC20 | 各 ±5〜10 |
@@ -277,7 +282,7 @@ AC16 の読み方: 「Environment がロードされない」は `SceneDirector`
 1. Selection: 宣言型、graph node、resolver、selector の拡張、単体テスト（AC1〜AC3・AC6）。
 2. Materialization と入力 identity: graph snapshot、付随 asset の候補、`GetDependencyHash`、`BuildContentIdentity`、coordinator の index と再利用と build mode、publisher の staging 名、テスト（AC7〜AC9・AC14 の単体）。
 3. SampleGame の policy と宣言の表、menu、BS4 の接続、テスト（AC4・AC5）。この時点で既存 4 build の選択が一致することを EditMode で確かめる。
-4. Play As（D7）: `ApplyDeclaration` と menu、ledger の単体（AC21 の (a)）。ここで Addressables mode の Editor Play を 1 回軽く Play して AC16 の前提（環境変数 2 つで Planner と Whitebox が効く）を確かめる。
+4. Play As（D7）: `ApplyDeclaration` と menu、ledger の単体（AC21 の (a)）。ここで Editor Play を 1 回軽く Play して AC16 の前提（明示 addressables で起動し、profile で Whitebox、環境変数で Planner が効く）を確かめる。
 5. Runtime の付随 asset と fail-closed: `AttachedAssetDescription`、`SceneResource`、`SceneBase` / `SceneDirector`、index の fallback、`AssetManagement` の backend 無し構成、`AbstractApplicationInitializer`、テスト（AC10・AC11・AC19・AC20）。ここで U1 の引き金を確かめる。
 6. 宣言の運搬: `BuildContentRoot`・manifest・validation・adapter・publisher、PlayBridge と Delivery 窓（AC21 の (b)、AC22 の単体）、BS4 の RuntimeJson。
 7. SampleGame の Scene class と trigger / anchor、asset の宣言（Inspector または一時スクリプト）、Play テストの更新（AC12・AC13）。
@@ -293,7 +298,8 @@ AC16 の読み方: 「Environment がロードされない」は `SceneDirector`
 - Object の Full fallback が既存 `ContentDirectorySessionTests` の契約を破る。
 - directory mode で backend 無しにすると、`UICommon` の bootstrap や他の App 常駐の初期化が Addressables を要して起動できない（D10 の前提が崩れる）。
 - 任意 field として足した `declaration` / `inputIdentity` を DIST の validation か `JsonUtility` が拒否し、version を上げる必要が出る。
-- 環境変数 `SAMPLEGAME_ASSETS__SCENEVARIANT` と `SAMPLEGAME_WORLD__CELLCOMPANIONSET` だけでは Addressables mode の Play で Whitebox と Planner にならない（D7 の前提が崩れる）。
+- 明示 addressables・active profile・`SAMPLEGAME_WORLD__CELLCOMPANIONSET` を揃えても Play が Whitebox と Planner にならない、または profile の切替が `DeveloperVariantSettings` の公開 API で行えない（D7 の前提が崩れる）。
+- `Full` 既定の publish が Phase C の判定時間を許容できないほど延ばす（その場合は Incremental に戻す前に、Unity が古い出力を消すかを測って A で決める）。
 
 ### 4.3 対象外を維持する方法
 
@@ -313,12 +319,13 @@ AC16 の読み方: 「Environment がロードされない」は `SceneDirector`
   - AC15（担当: 同上。環境: `spring-full` の `Build And Verify Next Play` 1 操作の後、Play。観測: 起動ログの構成 1 行、(0,4) Stable、WASD で (4,2) へ移動し Events の trigger 位置へ入る、Console の Error の有無、VFX の表示。証拠: Console ログの保存）。
   - AC16（担当: 同上。環境: build せず `Play As spring-planner-whitebox` を選んで Play、次に `Play As/Reset` して Play。観測: 1 回目は (0,4) Stable、ロード済み一覧に `_Environment_` が無く Cell が Whitebox、Error の有無。2 回目は Environment が載る。証拠: Console ログ）。
   - AC22（担当: 同上。環境: Delivery 窓の From published directory に AC14 の path を入れて Prepare。観測: 埋まった field と Prepare の結果）。
-- **未知の操作経路:** (1) `UICommon` の bootstrap や App 常駐の初期化が Addressables backend 無しで起動できるか。未確認。初回確認は Phase B の順序 5（担当: B）。不成立なら §4.2 で A へ返す。(2) `JsonUtility` と DIST の validation が任意 field を無視して受理するか。初回確認は B の順序 6 の単体テスト。(3) `AssetDatabase.GetAssetDependencyHash` が Scene と `.vfx` で安定した値を返すか。未確認。初回確認は B の単体テスト作成時。(4) 環境変数 2 つだけで Addressables mode の Play が Whitebox と Planner になるか。初回確認は B の順序 4。
+- **未知の操作経路:** (1) `UICommon` の bootstrap や App 常駐の初期化が Addressables backend 無しで起動できるか。未確認。初回確認は Phase B の順序 5（担当: B）。不成立なら §4.2 で A へ返す。(2) `JsonUtility` と DIST の validation が任意 field を無視して受理するか。初回確認は B の順序 6 の単体テスト。(3) `AssetDatabase.GetAssetDependencyHash` が Scene と `.vfx` で安定した値を返すか。未確認。初回確認は B の単体テスト作成時。(4) 明示 addressables・active profile・companion set の環境変数で Play が Whitebox と Planner になるか。初回確認は B の順序 4。(5) Unity の `BuildContentDirectory` が workspace の古い出力を消すか。本スライスは `Full` 既定で回避し、測らない。
 - **人間の判断が必要な条件:** なし（AC15 の VFX の表示は Console のログ `LocalVfxEventSession` の起動記録で代替する）。
 - **高コスト証拠:** BS4 Player build 1 回（AC17）。手順: ルート 96 文字以下の checkout で `Tools/OSM/Content/Build BS4 Spring Player` を実行し、Player を起動して smoke receipt を取る。独立した期待値: receipt が `completed`、Player 内 `content/` の `BuildContentRoot` の entry に `Spring_Events_4_2:Burst`・`Spring_Event_MultiCellProof:Burst`・`InGameSession:Lit` の `Object` entry がある（manifest の `Loadables` が 5）、`bs4-runtime.json` の `cellCompanionSet` と `representation` が宣言の値。判定 C → 暫定 C' → 高コスト証拠 → 最終証拠ラウンドの順（review-evidence の規則）。
 - **判定 C の照合 script の方式:** A3 凍結 script（offline の pwsh）。入力は GO 候補 head で batch 入口が出した `preflight.json` 2 件と、A3 で凍結する期待値（宣言ごとの件数と sorted stable key 列の SHA-256。`840b6609` の policy で得た `spring-whitebox` 124 件に付随 asset 3 件を加えた集合、`spring-planner-whitebox` 70 件）。script は selected の stable key を sorted して件数と SHA-256 を比べ、`_Environment_` 等の禁止 pattern の不在と、`inputIdentity` が 64 hex であることを確かめる。期待値の stable key 列は A3 の前に `840b6609` の Editor で 5 宣言分の `preflight.json` を取って凍結する（担当: A3 の主担当。Editor 操作だけで Unity テストは伴わない）。
 - **機械検査:** `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`。
 - **A0/A1 主担当・モデル・ベンダー:** この session の主担当（Anthropic 系）。
+- **問いのレビュー（A2 の前、2026-10-31。第 3 版 `915314ef`、内容 sha256 `6a62452d5a9b83004ab5d18148ab280e68c739ffc4aa7d047517607ae46ec794`。互いの指摘は見せない）:** (1) A0（§1）だけを読んで問いと最小構成を出す担当（Anthropic 系、主担当とは別のモデル）、(2) 問いの批評と §1.3 の事実確認（OpenAI 系）。採用: 目的を (a)(b)(c) に絞って手段と分ける、Player の範囲を smoke と内包内容に限定、別 PC / Cloud を build する側と受け取る側に分ける、UC1 の現況の訂正（未指定の mode は失敗する契約、profile が config より優先）と D7 の作り直し、`Full` を publish の既定にして workspace の再利用による混入を断つ、`Full` が index を迂回する規則、ledger の記述の訂正（`SessionState`）、数え違い 3 件（5 箇所、7 欄、608 と 196 の単位）、UC11。保留（後続へ）: 日常 Play での宣言外ロードの検出、宣言の組合せ（表のままにし合成しない）、入力 identity に commit を含める（source の依存 hash で足り、index はローカル）。不採用: 一括 publish・batch・再利用を後続へ送る案（4 者が同じ宣言を使うことを同じスライスで確かめるのが問い）。
 - **A2 独立レビューごとの観点・担当:** 未実施。観点は (a) アーキテクチャゲート（Framework / SampleGame、pure / I/O、公開面の最小性。特に D10・D11 が Runtime に足す面）、(b) 到達規則と不変条件を破る順序の探索（I1・I2・I7 を破る graph・filter・mode の例を 1 つ挙げられるか）、(c) 入力 identity と index の再利用の安全（AC8 の誤再利用の経路、build mode との分離）、(d) 実ユースケースの通し（§1.5 の UC1〜UC8 で欠ける手順が残っていないか、Play As と検証 Play の ledger の競合）。入力版は本 commit の内容 sha256 を正とする。
 - **A3 統合担当・モデル・採否:** 未実施。
 - **C' 用に予約した担当・モデル・ベンダー:** Phase A・B・C に関与しない系列を進行役が選び、ここに記録する。
