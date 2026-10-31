@@ -11,6 +11,7 @@ using OneStarMaker.Foundation.UpdateSystem.Layers;
 using OneStarMaker.Runtime;
 using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.Rendering.Vfx;
+using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.UpdateSystem.Api;
 using SampleGame.Common.Rendering.Vfx;
 using UnityEditor;
@@ -335,5 +336,25 @@ namespace SampleGame.Tests.Rendering.Vfx
             => TestContext.Out.WriteLine(
                 $"graphicsDeviceType={SystemInfo.graphicsDeviceType} supportsComputeShaders={SystemInfo.supportsComputeShaders} " +
                 $"maxComputeBufferInputsVertex={SystemInfo.maxComputeBufferInputsVertex} colorSpace={QualitySettings.activeColorSpace}");
+
+        /// <summary>
+        /// InGameSession だけを無反応の SceneBase（論理 node の器）にし、他は製品の factory に委ねる。
+        /// Season_Spring は祖先 InGameSession の付随 asset（InGameSession:Lit）を名前で読むので、Season を載せる複製の Map は
+        /// InGameSession を根に置く。Session の初期 Ensure・距離 streaming・companion driver は VFX の Play テストの対象では
+        /// なく、動かすと test の director が載せた Cell を外しうるので動かさない。InGameSession の SceneResource は payload を
+        /// 持たないので、根を置いても .unity のロードは増えない。
+        /// </summary>
+        protected sealed class InertSessionFactory : ISceneFactory
+        {
+            internal const string SessionIdentity = "InGameSession";
+            private readonly ISceneFactory _inner;
+
+            internal InertSessionFactory(ISceneFactory inner) => _inner = inner;
+
+            public SceneBase? CreateSceneClass(SceneResource sceneResource, ISceneQuery sceneQuery, ISceneController sceneController)
+                => sceneResource.Identity == SessionIdentity
+                    ? new SceneBase(sceneResource, sceneQuery, sceneController)
+                    : _inner.CreateSceneClass(sceneResource, sceneQuery, sceneController);
+        }
     }
 }

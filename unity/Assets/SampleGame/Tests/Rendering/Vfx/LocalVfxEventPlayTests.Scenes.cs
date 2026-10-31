@@ -373,22 +373,5 @@ namespace SampleGame.Tests.Rendering.Vfx
             public RenderEnvironmentLease Acquire(object ownerKey)
                 => throw new InvalidOperationException("局所 VFX の Play テストは RenderEnvironment を使わない");
         }
-
-        /// <summary>
-        /// InGameSession だけを無反応の SceneBase（論理 node の器）にし、他は製品の factory に委ねる。
-        /// Season_Spring が祖先の付随 asset（InGameSession:Lit）を読めるように根を置くが、Session の初期 Ensure・
-        /// 距離 streaming・companion driver はこのテストの対象ではないので動かさない。
-        /// </summary>
-        private sealed class InertSessionFactory : ISceneFactory
-        {
-            private readonly ISceneFactory _inner;
-
-            internal InertSessionFactory(ISceneFactory inner) => _inner = inner;
-
-            public SceneBase? CreateSceneClass(SceneResource sceneResource, ISceneQuery sceneQuery, ISceneController sceneController)
-                => sceneResource.Identity == SessionIdentity
-                    ? new SceneBase(sceneResource, sceneQuery, sceneController)
-                    : _inner.CreateSceneClass(sceneResource, sceneQuery, sceneController);
-        }
     }
 }

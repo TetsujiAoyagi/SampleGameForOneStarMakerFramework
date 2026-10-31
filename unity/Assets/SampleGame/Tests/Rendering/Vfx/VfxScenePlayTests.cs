@@ -38,15 +38,18 @@ namespace SampleGame.Tests.Rendering.Vfx
     /// Scene は test が持つ SceneDirector で載せる。アプリの SceneDirector で Season を載せると祖先の InGameSession の
     /// 距離ストリーミングが動き、読み込み半径の外の Cell (4,2) を次の Tick で外すので、Cell VFX の観測が競合する。
     /// test の director はアプリと同じ UICommon・AssetManagement・variant を使い、実 SceneResource の複製から
-    /// Season_Spring を根にした Map を作る（同じ .unity を同じ経路で載せる。Lighting は RenderEnvironment の lease を
-    /// 取るので入れない）。Scene class は実 GameSceneFactory が分類し、配置済み VFX をテストの VfxSystem に登録する
-    /// （テストの VfxSystem はテストの director の Scene lifecycle に接続する）。
+    /// InGameSession → Season_Spring の枝だけの Map を作る（同じ .unity を同じ経路で載せる。Lighting は RenderEnvironment の
+    /// lease を取るので入れない）。Season_Spring は祖先 InGameSession の付随 asset（共有 Lit）を読むので根に置くが、
+    /// Session の Scene class は無反応にする（<see cref="VfxPlayTestFixture.InertSessionFactory"/>）。他の Scene class は
+    /// 実 GameSceneFactory が分類し、配置済み VFX をテストの VfxSystem に登録する（テストの VfxSystem はテストの director の
+    /// Scene lifecycle に接続する）。
     /// </para>
     /// </summary>
     [TestFixture]
     public sealed class VfxScenePlayTests : VfxPlayTestFixture
     {
         private const string SeasonsRoot = "Assets/SampleGame/InGame/InGameSession/Seasons/Spring";
+        private const string SessionResourcePath = "Assets/OneStarMakerCommon/SceneMap/InGameSession.asset";
         private const string SeasonResourcePath = SeasonsRoot + "/Season_Spring.asset";
         private const string AtmosphereResourcePath = SeasonsRoot + "/Spring_AtmosphereVFX/Spring_AtmosphereVFX.asset";
         private const string AtmosphereVfxPath = SeasonsRoot + "/Spring_AtmosphereVFX/Spring_AtmosphereVFX_Petals.vfx";
@@ -54,6 +57,7 @@ namespace SampleGame.Tests.Rendering.Vfx
         private const string CellVfxResourcePath = SeasonsRoot + "/Cells/Spring_Cell_4_2/Spring_VFX_4_2/Spring_VFX_4_2.asset";
         private const string CellVfxAssetPath = SeasonsRoot + "/Cells/Spring_Cell_4_2/Spring_VFX_4_2/Spring_VFX_4_2_GroundFog.vfx";
 
+        private const string Session = InertSessionFactory.SessionIdentity;
         private const string Season = "Season_Spring";
         private const string Atmosphere = "Spring_AtmosphereVFX";
         private const string Cell = "Spring_Cell_4_2";
@@ -322,7 +326,7 @@ namespace SampleGame.Tests.Rendering.Vfx
 
         /// <summary>
         /// test が所有する SceneDirector と、実 SceneResource の複製で作った Map。
-        /// 複製は Season_Spring を根にし（祖先の InGameSession を載せない）、子は VFX の検査に要るものだけにする。
+        /// 複製は InGameSession（無反応の論理 node）を根にして Season_Spring の枝だけを持ち、子は VFX の検査に要るものだけにする。
         /// </summary>
         private sealed class TestSceneDirector
         {
@@ -350,16 +354,18 @@ namespace SampleGame.Tests.Rendering.Vfx
             {
                 var originals = new Dictionary<string, SceneResource>(StringComparer.Ordinal)
                 {
+                    [Session] = LoadResource(SessionResourcePath),
                     [Season] = LoadResource(SeasonResourcePath),
                     [Atmosphere] = LoadResource(AtmosphereResourcePath),
                     [Cell] = LoadResource(CellResourcePath),
                     [CellVfx] = LoadResource(CellVfxResourcePath),
                 };
-                var season = Clone(originals[Season], null);
+                var session = Clone(originals[Session], null);
+                var season = Clone(originals[Season], session);
                 var atmosphere = Clone(originals[Atmosphere], season);
                 var cell = Clone(originals[Cell], season);
                 var cellVfx = Clone(originals[CellVfx], cell);
-                var clones = new List<SceneResource> { season, atmosphere, cell, cellVfx };
+                var clones = new List<SceneResource> { session, season, atmosphere, cell, cellVfx };
                 var map = SceneTestHelper.CreateSceneResourceMap(clones.ToArray());
 
                 // アプリの起動が作った依存を同じ設定で使う（BuildContentDirectoryIntegrationTests と同じ、検証時だけの観測）。
@@ -371,13 +377,13 @@ namespace SampleGame.Tests.Rendering.Vfx
                 object Field(string name) => typeof(SceneDirector).GetField(name, Instance)!.GetValue(appDirector)!;
 
                 var cameraSystem = new RuntimeCameraSystem(new FakeCameraBackend());
-                var factory = new GameSceneFactory(
+                var factory = new InertSessionFactory(new GameSceneFactory(
                     NullLoggerFactory.Instance,
                     cameraSystem,
                     new NoopCameraBackgroundApplier(),
                     CellCompanionSet.Full,
                     new UnusedRenderEnvironment(),
-                    host.System);
+                    host.System));
                 var ctor = typeof(SceneDirector).GetConstructors(Instance).Single(c => c.GetParameters().Length == 7);
                 var director = (SceneDirector)ctor.Invoke(new[]
                 {
@@ -407,7 +413,12 @@ namespace SampleGame.Tests.Rendering.Vfx
             {
                 try
                 {
-                    if (Director.IsSceneLoaded(Season))
+                    // 根は InGameSession。根から外せば Season・Cell・VFX Scene も外れる。
+                    if (Director.IsSceneLoaded(Session))
+                    {
+                        await Director.UnloadScene(Session);
+                    }
+                    else if (Director.IsSceneLoaded(Season))
                     {
                         await Director.UnloadScene(Season);
                     }
