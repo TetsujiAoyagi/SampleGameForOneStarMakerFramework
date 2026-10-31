@@ -152,23 +152,36 @@ namespace OneStarMaker.Tests.SceneSystem
             var backend = new FakeAssetBackend();
             var assets = new Runtime.AssetManagement.AssetManagement(backend);
             var summer = Resource("Season_Summer", _session);
-            var springHandle = Bind(_season, assets, useContentDirectory: false, variant: "Full").LoadAttached<Object>("InGameSession", "Lit").GetAwaiter().GetResult();
-            var summerHandle = Bind(summer, assets, useContentDirectory: false, variant: "Full").LoadAttached<Object>("InGameSession", "Lit").GetAwaiter().GetResult();
+            // 型は偽 backend が実体を作れる Texture2D にする（UnityEngine.Object や Material では null を返し、
+            // 値の有効性を観測できない）。canonical key は型に依らないので、共有と解放の観測は変わらない。
+            var springHandle = Bind(_season, assets, useContentDirectory: false, variant: "Full").LoadAttached<Texture2D>("InGameSession", "Lit").GetAwaiter().GetResult();
+            var summerHandle = Bind(summer, assets, useContentDirectory: false, variant: "Full").LoadAttached<Texture2D>("InGameSession", "Lit").GetAwaiter().GetResult();
+            var shared = summerHandle.Value;
+            try
+            {
+                Assert.That(backend.LoadAssetCallCount, Is.EqualTo(1), "同じ canonical key は backend で共有される");
+                Assert.That(shared, Is.Not.Null);
+                Assert.That(springHandle.Value, Is.SameAs(shared), "2 つの Season は同じ backend asset を指す");
+                var litKey = AssetKey.FromDescription(_session.FindAttachedAsset("Lit")!, "Full");
+                Assert.That(litKey.Canonical, Is.EqualTo(springHandle.Key));
+                Assert.That(assets.GetOwners(litKey), Is.EquivalentTo(new[] { AssetOwner.Scene("Season_Spring"), AssetOwner.Scene("Season_Summer") }));
 
-            Assert.That(backend.LoadAssetCallCount, Is.EqualTo(1), "同じ canonical key は backend で共有される");
-            var litKey = AssetKey.FromDescription(_session.FindAttachedAsset("Lit")!, "Full");
-            Assert.That(litKey.Canonical, Is.EqualTo(springHandle.Key));
-            Assert.That(assets.GetOwners(litKey), Is.EquivalentTo(new[] { AssetOwner.Scene("Season_Spring"), AssetOwner.Scene("Season_Summer") }));
-
-            assets.ReleaseScene("Season_Spring");
-            // IAssetHandle.IsValid は「参照先がまだ有効か」で、所有者ごとの有効性ではない。共有 entry は他の所有者が
-            // 持つ限り生きているので、解放した側の handle も IsValid のまま。解放は所有者の一覧で確かめる。
-            Assert.That(assets.GetOwners(litKey), Is.EqualTo(new[] { AssetOwner.Scene("Season_Summer") }));
-            Assert.That(summerHandle.IsValid, Is.True);
-            Assert.That(summerHandle.Value, Is.Not.Null);
-            Assert.That(backend.ReleaseCallCount, Is.Zero);
-            assets.ReleaseScene("Season_Summer");
-            Assert.That(backend.ReleaseCallCount, Is.EqualTo(1));
+                assets.ReleaseScene("Season_Spring");
+                // IAssetHandle.IsValid は「参照先がまだ有効か」で、所有者ごとの有効性ではない。共有 entry は他の所有者が
+                // 持つ限り生きているので、解放した側の handle も IsValid のまま。解放は所有者の一覧で確かめる。
+                Assert.That(assets.GetOwners(litKey), Is.EqualTo(new[] { AssetOwner.Scene("Season_Summer") }));
+                Assert.That(summerHandle.IsValid, Is.True);
+                Assert.That(summerHandle.Value, Is.SameAs(shared));
+                Assert.That(backend.ReleaseCallCount, Is.Zero);
+                assets.ReleaseScene("Season_Summer");
+                Assert.That(backend.ReleaseCallCount, Is.EqualTo(1));
+                Assert.That(summerHandle.IsValid, Is.False, "最後の所有者の解放で共有 entry も無効になる");
+            }
+            finally
+            {
+                // 偽 backend の Release は Object を破棄しない。
+                if (shared != null) Object.DestroyImmediate(shared);
+            }
         }
 
         private AttachedScene Bind(SceneResource resource, IAssetManagement assets, bool useContentDirectory, string variant)
