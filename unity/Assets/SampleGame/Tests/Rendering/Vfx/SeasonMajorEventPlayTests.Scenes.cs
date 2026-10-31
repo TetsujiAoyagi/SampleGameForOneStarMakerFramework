@@ -107,13 +107,15 @@ namespace SampleGame.Tests.Rendering.Vfx
             private readonly IAssetDiagnostics _assets;
             private readonly IDisposable _subscription;
             private readonly FakeFlight _flight = new();
+            private readonly AssetKey _eventSourceKey;
 
-            private SessionScenes(SceneDirector director, SceneResourceMap map, List<SceneResource> clones, IAssetDiagnostics assets)
+            private SessionScenes(SceneDirector director, SceneResourceMap map, List<SceneResource> clones, IAssetDiagnostics assets, AssetKey eventSourceKey)
             {
                 Director = director;
                 _map = map;
                 _clones = clones;
                 _assets = assets;
+                _eventSourceKey = eventSourceKey;
                 _subscription = director.OnSceneEvent.Subscribe(OnSceneEvent);
             }
 
@@ -167,15 +169,19 @@ namespace SampleGame.Tests.Rendering.Vfx
                     host.System);
                 var ctor = typeof(SceneDirector).GetConstructors(Instance).Single(c => c.GetParameters().Length == 7);
                 var assets = Field("_assetManagement");
+                var sceneVariant = (string)Field("_sceneVariant");
                 var director = (SceneDirector)ctor.Invoke(new[]
                 {
                     factory, Field("_uiCommon"), map, Field("_loadingDisplay"), assets,
-                    Field("_sceneVariant"), Field("_useContentDirectory"),
+                    sceneVariant, Field("_useContentDirectory"),
                 });
 
                 host.BindSceneLifecycle(director.OnSceneEvent, director);
                 Assert.That(host.IsSceneLifecycleBound, Is.True, "前提: テストの VfxSystem が director に接続した");
-                return new SessionScenes(director, map, clones, (IAssetDiagnostics)assets);
+                // Event の VFX source の key は、Event の SceneResource の付随 asset の宣言とアプリの Variant から導く。
+                var declaration = majorEvent.FindAttachedAsset(EventVfxAssetName);
+                Assert.That(declaration, Is.Not.Null, $"前提: {EventIdentity} の SceneResource が付随 asset '{EventVfxAssetName}' を宣言する");
+                return new SessionScenes(director, map, clones, (IAssetDiagnostics)assets, AssetKey.FromDescription(declaration!, sceneVariant));
             }
 
             /// <summary>
@@ -208,7 +214,8 @@ namespace SampleGame.Tests.Rendering.Vfx
                 Assert.That(EventRemovedCount, Is.EqualTo(expectedRemoved), "Event の Removed の回数");
             }
 
-            internal IReadOnlyList<AssetOwner> Owners(string address) => _assets.GetOwners(AssetKey.FromAddress(address));
+            /// <summary>Event の VFX source（付随 asset）の現在の所有者。</summary>
+            internal IReadOnlyList<AssetOwner> EventSourceOwners() => _assets.GetOwners(_eventSourceKey);
 
             internal T Single<T>(string scenePath) where T : Component
             {
@@ -288,7 +295,7 @@ namespace SampleGame.Tests.Rendering.Vfx
                 {
                     EventRemovedCount++;
                     EventState = null;
-                    EventOwnersAtRemoved = _assets.GetOwners(AssetKey.FromAddress(EventVfxAddress)).Count;
+                    EventOwnersAtRemoved = _assets.GetOwners(_eventSourceKey).Count;
                     Log($"event Removed owners={EventOwnersAtRemoved}");
                 }
             }

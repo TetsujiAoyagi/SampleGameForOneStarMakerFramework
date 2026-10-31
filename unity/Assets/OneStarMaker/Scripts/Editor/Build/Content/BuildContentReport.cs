@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using OneStarMaker.Build.Selection;
@@ -14,11 +15,29 @@ namespace OneStarMaker.Editor.Build.Content
     {
         public BuildContentRequest(BuildPlan plan, OneStarMaker.Editor.Build.Materialization.BuildMaterializationSnapshot snapshot,
             string contentSet, string artifactsRoot)
-        { Plan = plan; Snapshot = snapshot; ContentSet = contentSet; ArtifactsRoot = artifactsRoot; }
+            : this(plan, snapshot, contentSet, artifactsRoot, null, null)
+        {
+        }
+
+        /// <param name="declaration">
+        /// この build を導いた宣言。directory の root と transport manifest に写す。合成だけの build（fixture）では null。
+        /// </param>
+        /// <param name="requirements">
+        /// 到達規則が導いた requirement と到達経路。preflight の `requirements[]` に「なぜ入っているか」として残す。
+        /// 選択 plan を変えない記録専用の入力で、null なら preflight に書かない。
+        /// </param>
+        public BuildContentRequest(BuildPlan plan, OneStarMaker.Editor.Build.Materialization.BuildMaterializationSnapshot snapshot,
+            string contentSet, string artifactsRoot, BuildPurposeDeclaration? declaration, IReadOnlyList<BuildPurposeRequirement>? requirements)
+        {
+            Plan = plan; Snapshot = snapshot; ContentSet = contentSet; ArtifactsRoot = artifactsRoot;
+            Declaration = declaration; Requirements = requirements;
+        }
         public BuildPlan Plan { get; }
         public OneStarMaker.Editor.Build.Materialization.BuildMaterializationSnapshot Snapshot { get; }
         public string ContentSet { get; }
         public string ArtifactsRoot { get; }
+        public BuildPurposeDeclaration? Declaration { get; }
+        public IReadOnlyList<BuildPurposeRequirement>? Requirements { get; }
     }
 
     // 1回の build の結果。preflight/outcome は失敗時にも診断用に残す。
@@ -27,8 +46,14 @@ namespace OneStarMaker.Editor.Build.Content
     {
         public BuildContentResult(string identity, string preflightPath, string outcomePath, string? contentPath,
             string? manifestPointer, string? metadataPath, string summary, BuildContentIssue[] issues)
+            : this(identity, preflightPath, outcomePath, contentPath, manifestPointer, metadataPath, summary, issues, null)
+        {
+        }
+
+        public BuildContentResult(string identity, string preflightPath, string outcomePath, string? contentPath,
+            string? manifestPointer, string? metadataPath, string summary, BuildContentIssue[] issues, BuildPurposeDeclaration? declaration)
         { Identity = identity; PreflightPath = preflightPath; OutcomePath = outcomePath; ContentPath = contentPath;
-          ManifestPointer = manifestPointer; MetadataPath = metadataPath; Summary = summary; Issues = issues; }
+          ManifestPointer = manifestPointer; MetadataPath = metadataPath; Summary = summary; Issues = issues; Declaration = declaration; }
         public string Identity { get; }
         public string PreflightPath { get; }
         public string OutcomePath { get; }
@@ -37,11 +62,14 @@ namespace OneStarMaker.Editor.Build.Content
         public string? MetadataPath { get; }
         public string Summary { get; }
         public BuildContentIssue[] Issues { get; }
+        // request の宣言をそのまま運ぶ。publisher が manifest に写す（preflight の形は変えない）。
+        public BuildPurposeDeclaration? Declaration { get; }
         public bool IsSuccess => ContentPath != null && Issues.Length == 0;
     }
 
     // JsonUtility 用の保存形。Unity の内部 BuildReport 型を外部 protocol にしない。
     // preflight と outcome は同じ形を使うが、前者は入力判断、後者は build 結果を記録する。
+    // requirements は後方互換の追加項目。既存の読み手（判定 script、Artifacts の collect、Player build の検証）は未知の項目を無視する。
     [Serializable] internal sealed class ContentReportFile
     {
         public string identity = "";
@@ -56,14 +84,27 @@ namespace OneStarMaker.Editor.Build.Content
         public string contentPath = "";
         public string manifestPointer = "";
         public string metadataPath = "";
+        public ContentReportRequirement[] requirements = Array.Empty<ContentReportRequirement>();
+    }
+
+    // 「なぜ入っているか」: (logical key, 表現) と root からの到達経路。logicalKey、次に representation の ordinal で並ぶ。
+    [Serializable] internal sealed class ContentReportRequirement
+    {
+        public string logicalKey = "";
+        public string representation = "";
+        public string[] path = Array.Empty<string>();
     }
 
     internal static class BuildContentReport
     {
+        public static void WritePreflight(string path, string identity, string target, string contentSet,
+            BuildPlan plan, BuildContentProjectionResult projection)
+            => WritePreflight(path, identity, target, contentSet, plan, projection, null);
+
         // Unity build 前に確定した選択、除外理由、root、閉包、構造化 issue を保存する。
         // 失敗してもこのファイルを読めば、どの候補を build しようとしたか追跡できる。
         public static void WritePreflight(string path, string identity, string target, string contentSet,
-            BuildPlan plan, BuildContentProjectionResult projection)
+            BuildPlan plan, BuildContentProjectionResult projection, IReadOnlyList<BuildPurposeRequirement>? requirements)
         {
             Write(path, new ContentReportFile {
                 identity = identity, target = target, contentSet = contentSet,
@@ -71,7 +112,11 @@ namespace OneStarMaker.Editor.Build.Content
                 excluded = plan.ExcludedContent.Select(x => x.Candidate.StableKey + "|" + x.ReasonCode + "|" + x.Dimension + "|" + x.Value).ToArray(),
                 roots = projection.Roots.Select(x => x.Candidate.StableKey + "|" + x.Path + "|" + x.Representation).ToArray(),
                 closure = projection.Files.Select(x => x.Guid + "|" + x.Path).ToArray(),
-                issues = projection.Issues.Select(x => x.Code + "|" + x.Key + "|" + x.Detail).ToArray()
+                issues = projection.Issues.Select(x => x.Code + "|" + x.Key + "|" + x.Detail).ToArray(),
+                requirements = (requirements ?? Array.Empty<BuildPurposeRequirement>())
+                    .OrderBy(x => x.LogicalKey, StringComparer.Ordinal).ThenBy(x => x.Representation, StringComparer.Ordinal)
+                    .Select(x => new ContentReportRequirement { logicalKey = x.LogicalKey, representation = x.Representation, path = x.Path.ToArray() })
+                    .ToArray()
             });
         }
 

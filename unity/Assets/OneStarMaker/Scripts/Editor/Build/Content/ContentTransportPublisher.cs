@@ -64,6 +64,15 @@ namespace OneStarMaker.Editor.Build.Content
                     .Select(x => new ContentSourceFile { path = x.Replace('\\', '/'), sha256 = Sha256(x) })
                     .OrderBy(x => x.path, StringComparer.Ordinal)
                     .ToArray();
+                // 宣言は build result から写す（preflight の形は変えない）。version と rootSchemaVersion は据え置き:
+                // 任意の追加項目で、宣言の無い旧 manifest は name が空のまま読まれる。
+                var declaration = result.Declaration == null ? new ContentManifestDeclaration() : new ContentManifestDeclaration
+                {
+                    name = result.Declaration.Name,
+                    representation = result.Declaration.Representation.Primary,
+                    runtimeDefaults = result.Declaration.RuntimeDefaults
+                        .Select(pair => new ContentManifestDeclarationValue { key = pair.Key, value = pair.Value }).ToArray(),
+                };
                 var manifest = new ContentTransportManifest
                 {
                     version = 1,
@@ -76,6 +85,7 @@ namespace OneStarMaker.Editor.Build.Content
                     playerConfigSchemaVersion = 1,
                     files = files,
                     sourceFiles = sources,
+                    declaration = declaration,
                 };
                 File.WriteAllText(Path.Combine(staging, "transport.json"),
                     JsonUtility.ToJson(manifest, true), new UTF8Encoding(false));

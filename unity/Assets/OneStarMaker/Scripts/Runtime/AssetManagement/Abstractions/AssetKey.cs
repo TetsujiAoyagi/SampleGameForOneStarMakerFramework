@@ -10,8 +10,9 @@ namespace OneStarMaker.Runtime.AssetManagement
     /// </summary>
     public readonly struct AssetKey : IEquatable<AssetKey>
     {
-        private const string AddressPrefix = "address:";
-        private const string DescriptionPrefix = "description:";
+        // canonical key の接頭辞。Addressables 由来の key を cache・registry で見分けるために AssetManagement が読む。
+        internal const string AddressPrefix = "address:";
+        internal const string DescriptionPrefix = "description:";
 
         private AssetKey(string canonical, string address, AssetType type)
         {

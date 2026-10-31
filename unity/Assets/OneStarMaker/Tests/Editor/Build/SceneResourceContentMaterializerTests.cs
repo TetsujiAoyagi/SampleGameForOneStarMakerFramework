@@ -332,6 +332,128 @@ namespace OneStarMaker.Tests.Editor.Build
                 Does.Contain(BuildValidationCode.CardinalityViolation));
         }
 
+        // ═══ 付随 asset と graph snapshot（AC8） ═══
+
+        [Test]
+        public void Materialize_AttachedAssets_ProduceOwnedCandidatesClosureAndGraph()
+        {
+            const string guidB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+            const string guidC = "cccccccccccccccccccccccccccccccc";
+            // payload の無い論理 node（InGameSession）が Lit を、payload を持つ子（Spring_Events）が Burst を宣言する。
+            var session = CreateResource("InGameSession");
+            Attach(session, "Lit", new AssetPayload(string.Empty, new AssetReference(guidB)));
+            var events = CreateResource("Spring_Events", new AssetPayload(string.Empty, new AssetReference(GuidA)));
+            Attach(events, "Burst", new AssetPayload(string.Empty, new AssetReference(guidC)));
+            Link(session, events);
+            var gateway = new FakeGateway(GuidA, "Assets/Events.unity", guidB, "Assets/Lit.mat", guidC, "Assets/Burst.vfx");
+
+            var result = new SceneResourceContentMaterializer(gateway).Materialize(CreateMap(events, session));
+
+            Assert.That(result.HasErrors, Is.False, string.Join(";", result.Issues.Select(ProjectIssue)));
+            var snapshot = result.Snapshot!;
+            Assert.That(snapshot.Candidates.Select(x => x.LogicalKey), Is.EquivalentTo(new[] { "InGameSession:Lit", "Spring_Events", "Spring_Events:Burst" }));
+            var lit = snapshot.Candidates.Single(x => x.LogicalKey == "InGameSession:Lit");
+            Assert.That(lit.Owner, Is.EqualTo("InGameSession"));
+            Assert.That(lit.PhysicalKey, Is.EqualTo(guidB));
+            Assert.That(lit.StableKey, Is.EqualTo(ScenePayloadMappingPolicy.StableKey("InGameSession:Lit", "Full", guidB)));
+            Assert.That(lit.Provenance.SourceKind, Is.EqualTo("SceneResourceMap.AttachedAsset"));
+            Assert.That(snapshot.Candidates.Single(x => x.LogicalKey == "Spring_Events").Owner, Is.Null);
+            Assert.That(snapshot.FindDependency(guidC), Is.Not.Null);
+            Assert.That(snapshot.TagProviders.Single().GetTags(lit).Single().Value, Is.EqualTo("Full"));
+            Assert.That(AttachedAssetDescription.LogicalKey("InGameSession", "Lit"), Is.EqualTo("InGameSession:Lit"));
+
+            // graph: 論理 node も node になり、宣言済みの表現と付随 asset を持つ。
+            var sessionNode = snapshot.Graph.Single(x => x.Identity == "InGameSession");
+            Assert.That(sessionNode.SceneRepresentations, Is.Empty);
+            Assert.That(sessionNode.Children, Is.EqualTo(new[] { "Spring_Events" }));
+            Assert.That(sessionNode.AttachedAssets.Single().Name, Is.EqualTo("Lit"));
+            Assert.That(sessionNode.AttachedAssets.Single().Representations, Is.EqualTo(new[] { "Full" }));
+            var eventsNode = snapshot.Graph.Single(x => x.Identity == "Spring_Events");
+            Assert.That(eventsNode.Parent, Is.EqualTo("InGameSession"));
+            Assert.That(eventsNode.Load, Is.EqualTo(BuildGraphLoad.OnDemand));
+            Assert.That(eventsNode.SceneRepresentations, Is.EqualTo(new[] { "Full" }));
+
+            // 所有者は metadata であって tag ではない: Representation だけの request で付随 asset が選ばれる。
+            var selection = Select(snapshot, "Full", "Full");
+            Assert.That(selection.IsSuccess, Is.True);
+            Assert.That(selection.Plan!.SelectedContent.Select(x => x.LogicalKey), Is.EquivalentTo(new[] { "InGameSession:Lit", "Spring_Events", "Spring_Events:Burst" }));
+        }
+
+        [Test]
+        public void Materialize_AttachedAssetDeclarationFaults_AreIssues()
+        {
+            const string guidB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+            var gateway = new FakeGateway(GuidA, "Assets/A.unity", guidB, "Assets/B.mat");
+
+            var duplicateName = CreateResource("A", new AssetPayload(string.Empty, new AssetReference(GuidA)));
+            Attach(duplicateName, "Lit", new AssetPayload(string.Empty, new AssetReference(guidB)));
+            Attach(duplicateName, "Lit", new AssetPayload(string.Empty, new AssetReference(guidB)));
+            Assert.That(new SceneResourceContentMaterializer(gateway).Materialize(CreateMap(duplicateName)).Issues.Select(x => x.Code),
+                Does.Contain(BuildMaterializationIssueCode.DuplicateAttachedAssetName));
+
+            var missingReference = CreateResource("A", new AssetPayload(string.Empty, new AssetReference(GuidA)));
+            Attach(missingReference, "Lit", new AssetPayload(string.Empty, null!));
+            var missing = new SceneResourceContentMaterializer(gateway).Materialize(CreateMap(missingReference));
+            Assert.That(missing.Issues.Any(x => x.Code == BuildMaterializationIssueCode.MissingReference && x.Subject == BuildMaterializationSubject.AttachedAsset), Is.True);
+
+            var noPayload = CreateResource("A", new AssetPayload(string.Empty, new AssetReference(GuidA)));
+            Attach(noPayload, "Lit");
+            Assert.That(new SceneResourceContentMaterializer(gateway).Materialize(CreateMap(noPayload)).Issues.Select(x => x.Code),
+                Does.Contain(BuildMaterializationIssueCode.MissingReference));
+
+            // 同じ physical GUID を 2 つの node が宣言する。
+            var first = CreateResource("A", new AssetPayload(string.Empty, new AssetReference(GuidA)));
+            Attach(first, "Lit", new AssetPayload(string.Empty, new AssetReference(guidB)));
+            var second = CreateResource("B");
+            Attach(second, "Lit", new AssetPayload(string.Empty, new AssetReference(guidB)));
+            Assert.That(new SceneResourceContentMaterializer(gateway).Materialize(CreateMap(first, second)).Issues.Select(x => x.Code),
+                Does.Contain(BuildMaterializationIssueCode.PhysicalKeyCollision));
+
+            // `<node>:<名前>` が別の node の identity と同じ。
+            var owner = CreateResource("A", new AssetPayload(string.Empty, new AssetReference(GuidA)));
+            Attach(owner, "B", new AssetPayload(string.Empty, new AssetReference(guidB)));
+            var clashing = CreateResource("A:B");
+            Assert.That(new SceneResourceContentMaterializer(gateway).Materialize(CreateMap(owner, clashing)).Issues.Select(x => x.Code),
+                Does.Contain(BuildMaterializationIssueCode.AttachedAssetKeyCollision));
+
+            var blankName = CreateResource("A", new AssetPayload(string.Empty, new AssetReference(GuidA)));
+            Attach(blankName, " ", new AssetPayload(string.Empty, new AssetReference(guidB)));
+            Assert.That(new SceneResourceContentMaterializer(gateway).Materialize(CreateMap(blankName)).Issues.Select(x => x.Code),
+                Does.Contain(BuildMaterializationIssueCode.InvalidAttachedAssetName));
+        }
+
+        [Test]
+        public void Materialize_Graph_CarriesParentChildrenLoadAndDeclaredRepresentations()
+        {
+            const string guidB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+            var parent = CreateResource("Parent");
+            Set(parent, "_sceneAssetDescription", new SceneAssetDescription("Parent", LoadType.NecessaryAlways, new List<AssetPayload>()));
+            var child = CreateResource("Child", new AssetPayload(string.Empty, new AssetReference(GuidA)), new AssetPayload("Whitebox", new AssetReference(guidB)));
+            Link(parent, child);
+            var snapshot = new SceneResourceContentMaterializer(new FakeGateway(GuidA, "Assets/Child.unity", guidB, "Assets/ChildWb.unity"))
+                .Materialize(CreateMap(child, parent)).Snapshot!;
+
+            Assert.That(snapshot.Graph.Select(x => x.Identity), Is.EqualTo(new[] { "Child", "Parent" }));
+            Assert.That(snapshot.Graph[1].Load, Is.EqualTo(BuildGraphLoad.Always));
+            Assert.That(snapshot.Graph[1].Parent, Is.Null);
+            Assert.That(snapshot.Graph[0].SceneRepresentations, Is.EqualTo(new[] { "Full", "Whitebox" }));
+        }
+
+        private void Attach(SceneResource resource, string name, params AssetPayload[] payloads)
+        {
+            var list = (List<AttachedAssetDescription>)typeof(SceneResource)
+                .GetField("_attachedAssets", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(resource);
+            list.Add(new AttachedAssetDescription(name, payloads.ToList()));
+        }
+
+        private static void Link(SceneResource parent, SceneResource child)
+        {
+            child.Parent = parent;
+            var children = (List<SceneResource>)typeof(SceneResource)
+                .GetField("_children", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(parent);
+            children.Add(child);
+        }
+
         private static BuildPlanResult Select(BuildMaterializationSnapshot snapshot, string selected, params string[] allowed)
         {
             var policy = new BuildSelectionPolicy(new BuildTagSchema(new[]

@@ -149,7 +149,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c56f272b87b080140a4ae5adc07d822b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: SampleGame.InGame::SampleGame.InGame.World.LocalVfxEventTrigger
-  _vfxAddress: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_4_2/Spring_Events_4_2/Spring_Events_4_2_Burst.vfx
+  _vfxAsset: Burst
 --- !u!65 &388636397
 BoxCollider:
   m_ObjectHideFlags: 0

@@ -80,8 +80,10 @@ namespace OneStarMaker.Runtime.BuildContent
             return true;
         }
 
+        // Object も Scene と同じ Full fallback を持つ。付随 asset（VFX の source、共有 material）は Full だけを宣言するのが普通で、
+        // Whitebox の Play で読めなければ Scene は載るのに演出だけが欠ける。宣言した表現の候補の存在は build 側が検査する。
         internal bool TryResolveObject(string logicalKey, string representation, out BuildContentEntry? entry, out ContentDirectoryIssue issue)
-            => TryResolve(logicalKey, representation, BuildContentKind.Object, false, out entry, out issue);
+            => TryResolve(logicalKey, representation, BuildContentKind.Object, true, out entry, out issue);
 
         internal bool TryResolveScene(string logicalKey, string representation, out BuildContentEntry? entry, out ContentDirectoryIssue issue)
             => TryResolve(logicalKey, representation, BuildContentKind.Scene, true, out entry, out issue);

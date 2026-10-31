@@ -33,11 +33,14 @@ namespace OneStarMaker.Runtime.BuildContent
         private Action? _evictCache;
 
         private ContentDirectorySession(string path, string identity, string target, IDisposable reservation,
-            ContentDirectoryIndex index, IContentNativeDirectory backend)
-        { _path=path; BuildIdentity=identity; Target=target; _reservation=reservation; _registered=true; _index=index; _backend=backend; }
+            ContentDirectoryIndex index, IContentNativeDirectory backend, BuildContentDeclaration? declaration)
+        { _path=path; BuildIdentity=identity; Target=target; _reservation=reservation; _registered=true; _index=index; _backend=backend; Declaration=declaration; }
 
         public string BuildIdentity { get; }
         public string Target { get; }
+
+        /// <summary>登録した root が持つ宣言。宣言の無い root（旧 build、合成 fixture）では null。起動が設定との不一致を見るために読む。</summary>
+        internal BuildContentDeclaration? Declaration { get; }
         public string CachePrefix => ContentDirectoryIndex.CachePrefix(_path, BuildIdentity, Target);
 
         public AssetKey GetObjectKey(string logicalKey, string representation)
@@ -115,7 +118,7 @@ namespace OneStarMaker.Runtime.BuildContent
                     throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidRoot, "Content directory must contain exactly one BuildContentRoot.", identity, target);
                 if (!ContentDirectoryIndex.TryCreate(roots[0], identity, target, out var index, out var issue))
                     throw new ContentDirectoryException(issue.Code, issue.Message, identity, target, issue.LogicalKey, issue.Representation);
-                return new ContentDirectorySession(normalized, identity, target, reservation, index!, backend);
+                return new ContentDirectorySession(normalized, identity, target, reservation, index!, backend, roots[0].Declaration);
             }
             catch (Exception ex)
             {

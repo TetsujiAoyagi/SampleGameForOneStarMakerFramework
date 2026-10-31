@@ -29,7 +29,8 @@ namespace OneStarMaker.Editor.Build.Content
                 throw new InvalidOperationException("BS2b requires active StandaloneWindows64 Player target.");
         }
 
-        public ContentDirectoryBuild Build(BuildContentProjectionResult projection, string identity, string workspace)
+        public ContentDirectoryBuild Build(BuildContentProjectionResult projection, string identity, string workspace,
+            OneStarMaker.Build.Selection.BuildPurposeDeclaration? declaration)
         {
             ValidateTarget();
             // 前回の異常終了で残った所有物だけを掃除する。marker のない folder は触れない。
@@ -74,14 +75,20 @@ namespace OneStarMaker.Editor.Build.Content
                 var root = ScriptableObject.CreateInstance<BuildContentRoot>();
                 // directory に同梱する単一 root。build identity と entry を同じ serialized asset に閉じ込める。
                 // BS3 は登録後にこの root を一件だけ取得し、source を再走査せず対応を復元する。
-                root.Initialize(identity, BuildContentCoordinator.TargetName, entries);
+                // 宣言は名前・表現の主値・runtime 既定値だけを写す。root が「何の目的で作られたか」を自分で持つための記録で、
+                // Runtime は起動設定との不一致を Warning にするだけで、値の意味は解釈しない。
+                var rootDeclaration = declaration == null ? null
+                    : new BuildContentDeclaration(declaration.Name, declaration.Representation.Primary, declaration.RuntimeDefaults);
+                root.Initialize(identity, BuildContentCoordinator.TargetName, entries, rootDeclaration);
                 var rootPath = folder + "/BuildContentRoot.asset";
                 AssetDatabase.CreateAsset(root, rootPath);
                 EditorUtility.SetDirty(root);
                 AssetDatabase.SaveAssetIfDirty(root);
                 AssetDatabase.ImportAsset(rootPath, ImportAssetOptions.ForceUpdate);
                 var loaded = AssetDatabase.LoadAssetAtPath<BuildContentRoot>(rootPath);
-                if (loaded == null || loaded.BuildIdentity != identity || loaded.Entries.Count != entries.Count)
+                if (loaded == null || loaded.BuildIdentity != identity || loaded.Entries.Count != entries.Count
+                    || (rootDeclaration != null) != (loaded.Declaration != null)
+                    || (rootDeclaration != null && loaded.Declaration!.Name != rootDeclaration.Name))
                     throw new InvalidOperationException("Generated root did not retain its serialized identities.");
                 var parameters = new BuildContentDirectoryParameters {
                     // rootAssetPaths は生成 root のみ。そこから参照される Scene/Object を Unity が収集する。

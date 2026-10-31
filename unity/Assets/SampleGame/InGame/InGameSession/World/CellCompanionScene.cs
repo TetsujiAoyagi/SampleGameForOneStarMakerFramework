@@ -70,8 +70,10 @@ namespace SampleGame.InGame.World
             // OnLoadedImpl はキャンセル窓の外なので、この Scene の unload はロードの完了（Stable）まで保留され、
             // ReleaseScene がロードの完了より前に起きない（Scene 所有の asset が誰にも解放されずに残る経路を通らない）。
             // handle は個別に Release しない。解放は Scene の ReleaseScene に任せ、instance の回収（下の EndAll）より後になる。
-            await _localVfxEvents.PrepareAllAsync(async address =>
-                (await LoadSceneScopedAssetAsync<UnityEngine.Object>(AssetKey.FromAddress(address), ct)).Value);
+            // source は trigger の address ではなく、この Scene の SceneResource が宣言した付随 asset の名前で読む。
+            // Content Directory の Play では directory の entry から読み、Addressables には抜けない。
+            await _localVfxEvents.PrepareAllAsync(async assetName =>
+                (await LoadAttachedAssetAsync<UnityEngine.Object>(assetName, ct)).Value);
         }
 
         protected override UniTask OnPreUnLoadedImpl()

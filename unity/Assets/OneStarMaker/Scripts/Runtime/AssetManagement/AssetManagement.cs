@@ -17,12 +17,19 @@ namespace OneStarMaker.Runtime.AssetManagement
     /// </summary>
     public sealed partial class AssetManagement : IAssetManagement, IAssetDiagnostics
     {
-        private readonly IAssetBackend _backend;
+        // readonly ではない唯一の理由は SealAddressables。差し替えはそこで 1 回だけ起きる。
+        private IAssetBackend _backend;
         private readonly IAssetResidentCache? _cache;
         private readonly AssetRegistry _registry = new();
 
         /// <summary>同一 key の並行ロードを 1 本の backend ロードに集約する in-flight テーブル。</summary>
         private readonly Dictionary<string, UniTask<IBackendAsset>> _inFlight = new(StringComparer.Ordinal);
+
+        /// <summary>
+        /// 封じた時点で registry にあった Addressables 由来の key。null なら封じていない。
+        /// これ以外の address key は、封じた後は registry・cache・in-flight のどこからも返さない。
+        /// </summary>
+        private HashSet<string>? _sealedAddressKeys;
 
         public AssetManagement()
             : this(new AddressableBackend())
@@ -49,11 +56,62 @@ namespace OneStarMaker.Runtime.AssetManagement
             _cache = cache;
         }
 
+        /// <summary>
+        /// Content Directory mode の起動で、config を読んだ直後に Addressables の取得経路を封じる。
+        /// backend を <see cref="SealedAssetBackend"/> に差し替え（backend 呼び出しはどの公開 member から到達しても拒否）、
+        /// backend を経由しない経路も閉じる: in-flight が 1 件でもあれば例外（封じる時点を初期化の同期区間に限る）、
+        /// resident cache の Addressables 由来の entry を落とし、封じる時点で registry にある address key だけを以後も許可する
+        /// （現状は config の TextAsset 1 件）。安全性が呼ぶ時点の状態に依存することを、この assert と記録で明示する。
+        /// 2 回目以降は no-op。Addressables mode では呼ばない。
+        /// </summary>
+        internal void SealAddressables()
+        {
+            if (_sealedAddressKeys != null)
+            {
+                return;
+            }
+
+            if (_inFlight.Count != 0)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot seal the Addressables backend while {_inFlight.Count} load(s) are in flight; seal only in the synchronous startup section.");
+            }
+
+            var allowed = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var loaded in _registry.GetAllLoadedAssets())
+            {
+                if (loaded.Backend is not IContentDirectoryToken)
+                {
+                    allowed.Add(loaded.Key);
+                }
+            }
+
+            // cache の key は canonical key。Addressables 由来は address: / description: で始まり、directory は directory: で始まる。
+            _cache?.EvictByPrefix(AssetKey.AddressPrefix);
+            _cache?.EvictByPrefix(AssetKey.DescriptionPrefix);
+            _backend = new SealedAssetBackend(_backend);
+            _sealedAddressKeys = allowed;
+        }
+
+        /// <summary>封じたか（診断・テスト用）。</summary>
+        internal bool IsAddressablesSealed => _sealedAddressKeys != null;
+
+        private void RejectIfSealed(AssetKey key)
+        {
+            if (_sealedAddressKeys != null && !_sealedAddressKeys.Contains(key.Canonical))
+            {
+                throw new InvalidOperationException(
+                    "Addressables backend is sealed: the key was not loaded before the Content Directory mode was decided. key=" + key.Canonical);
+            }
+        }
+
         public async UniTask<IAssetHandle<T>> LoadAssetAsync<T>(
             AssetKey key,
             AssetOwner owner,
             CancellationToken ct = default) where T : UnityEngine.Object
         {
+            // 封じた後は registry・cache・in-flight のどれからも、記録した key 以外を返さない。
+            RejectIfSealed(key);
             AssetRegistry.LoadedAsset loaded;
             if (_registry.TryGetAsset(key.Canonical, out var existing))
             {
@@ -75,6 +133,7 @@ namespace OneStarMaker.Runtime.AssetManagement
 
         public IAssetHandle<T> LoadAppAssetSync<T>(AssetKey key) where T : UnityEngine.Object
         {
+            RejectIfSealed(key);
             AssetRegistry.LoadedAsset loaded;
             if (_registry.TryGetAsset(key.Canonical, out var existing))
             {

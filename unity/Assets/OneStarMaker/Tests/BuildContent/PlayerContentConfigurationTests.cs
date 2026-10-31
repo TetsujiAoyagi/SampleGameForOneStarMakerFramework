@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using NUnit.Framework;
 using OneStarMaker.Foundation.Config;
 using OneStarMaker.Runtime;
@@ -38,6 +39,22 @@ namespace OneStarMaker.Tests.BuildContent
             var config = new AppConfig(new IConfigProvider[] { new DictionaryProvider(new Dictionary<string, string>()) });
             Assert.Throws<ContentDirectoryException>(() =>
                 PlayerContentConfiguration.Read(config, Path.GetTempPath(), "StandaloneWindows64-Player"));
+        }
+
+        [Test]
+        public void Resolve_DoesNotSupplyDeclaredRuntimeDefaults()
+        {
+            // Player の baked config に無い key は、directory の宣言から補わない（宣言は Runtime が Warning に使うだけ）。
+            // 解決結果は content の欄だけを持ち、world:* の値はどこにも現れない。
+            var baked = new PlayerBakedContentConfiguration(Config("content", "StandaloneWindows64-Player"));
+            var merged = Config("content", "StandaloneWindows64-Player");
+            Assert.That(merged.ContainsKey("world:cellCompanionSet"), Is.False);
+            var resolved = PlayerContentConfiguration.Resolve(baked, merged, Path.GetTempPath(), "StandaloneWindows64-Player");
+            Assert.That(resolved.Representation, Is.EqualTo("Full"));
+            var members = typeof(PlayerContentConfiguration).GetProperties(
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
+                .Select(property => property.Name).OrderBy(name => name, StringComparer.Ordinal).ToArray();
+            Assert.That(members, Is.EqualTo(new[] { "FirstScene", "Identity", "Path", "Representation", "VerifiedRevision" }));
         }
 
         [Test]

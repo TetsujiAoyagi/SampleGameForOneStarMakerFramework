@@ -10,10 +10,14 @@ namespace OneStarMaker.Editor.Build.Materialization
         NullPayload, InvalidVariant, MissingReference, InvalidRootGuid, UnresolvedRootGuid,
         RootGuidRoundTripMismatch, MissingRootAsset, InvalidDependencyPath, UnresolvedDependencyGuid,
         MissingDependencyAsset, DependencyIdentityCollision, DuplicateStableKey, PhysicalKeyCollision,
-        GatewayFailure
+        GatewayFailure,
+        // 付随 asset の宣言の検査。名前が無い・空白付き、同じ node での名前の重複、`<node>:<名前>` が別の node の identity と衝突。
+        InvalidAttachedAssetName, DuplicateAttachedAssetName, AttachedAssetKeyCollision,
+        // 親子リンクの欠損（null の親・子）。到達規則の graph を作れない。
+        InvalidGraphLink
     }
 
-    public enum BuildMaterializationSubject { Map, Resource, Payload, Dependency, Gateway }
+    public enum BuildMaterializationSubject { Map, Resource, Payload, Dependency, Gateway, AttachedAsset }
 
     // 検証失敗を例外文言ではなく、コードと対象キーで再現可能に報告する。
     public sealed class BuildMaterializationIssue : IEquatable<BuildMaterializationIssue>

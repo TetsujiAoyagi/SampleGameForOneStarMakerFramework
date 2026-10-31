@@ -167,22 +167,27 @@ namespace SampleGame.Tests.Rendering.Vfx
             private readonly IAssetDiagnostics _assets;
             private readonly RecordingBackend? _backend;
             private readonly IDisposable _subscription;
+            private readonly string _sceneVariant;
             private int _removedCount;
-            private string? _address;
+            private AssetKey? _sourceKey;
 
-            private EventsScenes(SceneDirector director, SceneResourceMap map, List<SceneResource> clones, IAssetDiagnostics assets, RecordingBackend? backend)
+            private EventsScenes(SceneDirector director, SceneResourceMap map, List<SceneResource> clones, IAssetDiagnostics assets, RecordingBackend? backend, string sceneVariant)
             {
                 Director = director;
                 _map = map;
                 _clones = clones;
                 _assets = assets;
                 _backend = backend;
+                _sceneVariant = sceneVariant;
                 _subscription = director.OnSceneEvent.Subscribe(OnSceneEvent);
             }
 
             internal SceneDirector Director { get; }
 
             internal LocalVfxEventTrigger Trigger { get; private set; } = null!;
+
+            /// <summary>trigger の source の AssetKey。Events の SceneResource の付随 asset の宣言と、アプリの Variant から導く。</summary>
+            internal AssetKey SourceKey => _sourceKey ?? throw new InvalidOperationException("Events はまだ載っていない");
 
             internal List<string> Timeline { get; } = new();
 
@@ -192,10 +197,11 @@ namespace SampleGame.Tests.Rendering.Vfx
 
             internal static EventsScenes Create(VfxRuntimeHost host, RecordingBackend? backend)
             {
-                var season = Clone(LoadResource(SeasonResourcePath), null);
+                var session = Clone(LoadResource(SessionResourcePath), null);
+                var season = Clone(LoadResource(SeasonResourcePath), session);
                 var cell = Clone(LoadResource(CellResourcePath), season);
                 var events = Clone(LoadResource(EventsResourcePath), cell);
-                var clones = new List<SceneResource> { season, cell, events };
+                var clones = new List<SceneResource> { session, season, cell, events };
                 var map = SceneTestHelper.CreateSceneResourceMap(clones.ToArray());
 
                 var initializer = Type.GetType("SampleGame.DependOnAll.AppInitializer, SampleGame.DependOnAll")
@@ -205,24 +211,25 @@ namespace SampleGame.Tests.Rendering.Vfx
                 Assert.That(appDirector, Is.Not.Null, "起動の失敗: アプリの SceneDirector が無い");
                 object Field(string name) => typeof(SceneDirector).GetField(name, Instance)!.GetValue(appDirector)!;
 
-                var factory = new GameSceneFactory(
+                var factory = new InertSessionFactory(new GameSceneFactory(
                     NullLoggerFactory.Instance,
                     new RuntimeCameraSystem(new FakeCameraBackend()),
                     new NoopCameraBackgroundApplier(),
                     CellCompanionSet.Planner,
                     new UnusedRenderEnvironment(),
-                    host.System);
+                    host.System));
                 var ctor = typeof(SceneDirector).GetConstructors(Instance).Single(c => c.GetParameters().Length == 7);
                 var assets = Field("_assetManagement");
+                var sceneVariant = (string)Field("_sceneVariant");
                 var director = (SceneDirector)ctor.Invoke(new[]
                 {
                     factory, Field("_uiCommon"), map, Field("_loadingDisplay"), assets,
-                    Field("_sceneVariant"), Field("_useContentDirectory"),
+                    sceneVariant, Field("_useContentDirectory"),
                 });
 
                 host.BindSceneLifecycle(director.OnSceneEvent, director);
                 Assert.That(host.IsSceneLifecycleBound, Is.True, "前提: テストの VfxSystem が director に接続した");
-                return new EventsScenes(director, map, clones, (IAssetDiagnostics)assets, backend);
+                return new EventsScenes(director, map, clones, (IAssetDiagnostics)assets, backend, sceneVariant);
             }
 
             internal async UniTask AddCellAndEventsAsync()
@@ -238,11 +245,14 @@ namespace SampleGame.Tests.Rendering.Vfx
                     .ToArray();
                 Assert.That(triggers, Has.Length.EqualTo(1), "前提: Events Scene に trigger が 1 つ");
                 Trigger = triggers[0];
-                _address = Trigger.VfxAddress;
+                var eventsResource = _clones.Single(clone => clone.Identity == Events);
+                var declaration = eventsResource.FindAttachedAsset(Trigger.VfxAsset);
+                Assert.That(declaration, Is.Not.Null, $"前提: Events の SceneResource が付随 asset '{Trigger.VfxAsset}' を宣言する");
+                _sourceKey = AssetKey.FromDescription(declaration!, _sceneVariant);
                 if (_backend != null)
                 {
                     var trigger = Trigger;
-                    var key = AssetKey.FromAddress(trigger.VfxAddress);
+                    var key = _sourceKey.Value;
                     _backend.Observe = id =>
                     {
                         var record = new DestroyRecord(
@@ -278,7 +288,12 @@ namespace SampleGame.Tests.Rendering.Vfx
             {
                 try
                 {
-                    if (Director.IsSceneLoaded(Season))
+                    // 根は InGameSession（無反応の SceneBase）。根から外せば Season・Cell・Events も外れる。
+                    if (Director.IsSceneLoaded(SessionIdentity))
+                    {
+                        await Director.UnloadScene(SessionIdentity);
+                    }
+                    else if (Director.IsSceneLoaded(Season))
                     {
                         await Director.UnloadScene(Season);
                     }
@@ -318,9 +333,9 @@ namespace SampleGame.Tests.Rendering.Vfx
                 }
             }
 
-            // trigger は Removed の時点で破棄済みなので、ロード時に読んだ address を使う。
+            // trigger は Removed の時点で破棄済みなので、ロード時に導いた key を使う。
             private int CountOwnersOfTriggerSource()
-                => _address == null ? -1 : _assets.GetOwners(AssetKey.FromAddress(_address)).Count;
+                => _sourceKey == null ? -1 : _assets.GetOwners(_sourceKey.Value).Count;
 
             private static SceneResource LoadResource(string path)
             {
@@ -357,6 +372,23 @@ namespace SampleGame.Tests.Rendering.Vfx
 
             public RenderEnvironmentLease Acquire(object ownerKey)
                 => throw new InvalidOperationException("局所 VFX の Play テストは RenderEnvironment を使わない");
+        }
+
+        /// <summary>
+        /// InGameSession だけを無反応の SceneBase（論理 node の器）にし、他は製品の factory に委ねる。
+        /// Season_Spring が祖先の付随 asset（InGameSession:Lit）を読めるように根を置くが、Session の初期 Ensure・
+        /// 距離 streaming・companion driver はこのテストの対象ではないので動かさない。
+        /// </summary>
+        private sealed class InertSessionFactory : ISceneFactory
+        {
+            private readonly ISceneFactory _inner;
+
+            internal InertSessionFactory(ISceneFactory inner) => _inner = inner;
+
+            public SceneBase? CreateSceneClass(SceneResource sceneResource, ISceneQuery sceneQuery, ISceneController sceneController)
+                => sceneResource.Identity == SessionIdentity
+                    ? new SceneBase(sceneResource, sceneQuery, sceneController)
+                    : _inner.CreateSceneClass(sceneResource, sceneQuery, sceneController);
         }
     }
 }

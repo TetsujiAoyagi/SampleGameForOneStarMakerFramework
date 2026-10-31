@@ -15,6 +15,12 @@ namespace OneStarMaker.Build.Selection
         DuplicateRequirement,
         ConflictingRequirement,
         RequiredGroupMissing,
-        CardinalityViolation
+        CardinalityViolation,
+        // 以下は宣言からの到達（BuildPurposeResolver）が graph を検査して出す。1 件でもあれば plan を公開しない。
+        GraphDuplicateNode,
+        GraphMissingRoot,
+        GraphOrphan,
+        GraphLinkMismatch,
+        GraphCycle
     }
 }

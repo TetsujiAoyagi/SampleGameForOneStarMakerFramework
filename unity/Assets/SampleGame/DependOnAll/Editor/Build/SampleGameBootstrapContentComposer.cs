@@ -72,7 +72,7 @@ namespace SampleGame.DependOnAll.Editor.Build
                     new BuildContentRequirement(UiCommonLogicalKey, BuildContentCardinality.ExactlyOne),
                     new BuildContentRequirement(SceneResourceMapLogicalKey, BuildContentCardinality.ExactlyOne),
                 }),
-                snapshot.Dependencies.Concat(new[] { uiClosure, mapClosure }));
+                snapshot.Dependencies.Concat(new[] { uiClosure, mapClosure }), snapshot.Graph);
             var composedPlan = new BuildPlan(
                 plan.Request,
                 plan.SelectedContent.Concat(new[] { ui, map }),

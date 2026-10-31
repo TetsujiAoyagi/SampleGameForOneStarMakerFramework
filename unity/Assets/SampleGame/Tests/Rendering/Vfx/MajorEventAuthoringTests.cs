@@ -104,10 +104,14 @@ namespace SampleGame.Tests.Rendering.Vfx
             var roots = scene.GetRootGameObjects();
 
             var anchors = roots.SelectMany(root => root.GetComponentsInChildren<MajorEventVfxAnchor>(includeInactive: true)).ToArray();
+            var eventResource = LoadResource(EventResourcePath);
             foreach (var anchor in anchors)
             {
-                TestContext.Out.WriteLine($"anchor={anchor.name} position={anchor.transform.position:R} address={anchor.VfxAddress}");
-                AssertVfxAddress(anchor.name, anchor.VfxAddress);
+                // anchor は address ではなく付随 asset の名前を持つ。.vfx の所在は Event の SceneResource の宣言から引く。
+                Assert.That(eventResource.FindAttachedAsset(anchor.VfxAsset), Is.Not.Null, $"{anchor.name}: Event の SceneResource が付随 asset '{anchor.VfxAsset}' を宣言していない");
+                var address = AssetDatabase.GUIDToAssetPath(AttachedAssetGuid(eventResource, anchor.VfxAsset));
+                TestContext.Out.WriteLine($"anchor={anchor.name} position={anchor.transform.position:R} asset={anchor.VfxAsset} path={address}");
+                AssertVfxAddress(anchor.name, address);
             }
 
             Assert.That(anchors, Has.Length.EqualTo(2), "起動位置は 2 つ");
@@ -167,6 +171,22 @@ namespace SampleGame.Tests.Rendering.Vfx
             var entry = FindAddressableEntry(AssetDatabase.AssetPathToGUID(address));
             Assert.That(entry, Is.Not.Null, $"{name}: .vfx の Addressables entry が無い");
             Assert.That(GetString(entry!, "address"), Is.EqualTo(address), $"{name}: Addressables の address が asset path でない");
+        }
+
+        // この asmdef は Addressables を参照しないので、宣言の参照 GUID は serialized property から読む。
+        private static string AttachedAssetGuid(SceneResource resource, string name)
+        {
+            var attached = new SerializedObject(resource).FindProperty("_attachedAssets");
+            for (var i = 0; i < attached.arraySize; i++)
+            {
+                var element = attached.GetArrayElementAtIndex(i);
+                if (element.FindPropertyRelative("_name").stringValue != name) continue;
+                var payloads = element.FindPropertyRelative("_payloads");
+                Assert.That(payloads.arraySize, Is.EqualTo(1), $"{name}: payload は 1 件");
+                return payloads.GetArrayElementAtIndex(0).FindPropertyRelative("Reference").FindPropertyRelative("m_AssetGUID").stringValue;
+            }
+            Assert.Fail($"付随 asset '{name}' の宣言が無い");
+            return string.Empty;
         }
 
         private static SceneResource LoadResource(string path)

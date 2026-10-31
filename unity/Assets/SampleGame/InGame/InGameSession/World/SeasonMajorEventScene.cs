@@ -38,7 +38,8 @@ namespace SampleGame.InGame.World
     {
         private readonly ILogger<SeasonMajorEventScene> _logger;
         private readonly IVfxSystem _vfx;
-        private readonly List<(Vector3 Position, Quaternion Rotation, string Address)> _anchors = new();
+        // Address ではなく、この Scene の SceneResource が宣言した付随 asset の名前。
+        private readonly List<(Vector3 Position, Quaternion Rotation, string AssetName)> _anchors = new();
         private readonly Dictionary<string, Object> _sources = new(StringComparer.Ordinal);
         private Action? _onCompleted;
         private bool _accepting;
@@ -88,7 +89,7 @@ namespace SampleGame.InGame.World
                 foreach (var anchor in root.GetComponentsInChildren<MajorEventVfxAnchor>(includeInactive: true))
                 {
                     var transform = anchor.transform;
-                    _anchors.Add((transform.position, transform.rotation, anchor.VfxAddress));
+                    _anchors.Add((transform.position, transform.rotation, anchor.VfxAsset));
                 }
 
                 foreach (var trigger in root.GetComponentsInChildren<MajorEventCompletionTrigger>(includeInactive: true))
@@ -102,9 +103,9 @@ namespace SampleGame.InGame.World
         {
             // OnLoadedImpl はキャンセル窓の外なので、この Scene の unload はロードの完了まで保留され、
             // ReleaseScene がロードの完了より前に起きない。handle は個別に Release せず、Scene の ReleaseScene に任せる。
-            foreach (var (_, _, address) in _anchors)
+            foreach (var (_, _, assetName) in _anchors)
             {
-                if (_sources.ContainsKey(address))
+                if (_sources.ContainsKey(assetName))
                 {
                     continue;
                 }
@@ -112,7 +113,8 @@ namespace SampleGame.InGame.World
                 Object? source;
                 try
                 {
-                    source = (await LoadSceneScopedAssetAsync<Object>(AssetKey.FromAddress(address), ct)).Value;
+                    // 付随 asset の名前で、この Scene 所有で読む。directory の Play では directory の entry から読み、Addressables には抜けない。
+                    source = (await LoadAttachedAssetAsync<Object>(assetName, ct)).Value;
                 }
                 catch (OperationCanceledException)
                 {
@@ -120,26 +122,26 @@ namespace SampleGame.InGame.World
                 }
                 catch (Exception exception)
                 {
-                    // VFX は演出なので Event の失敗にしない（Content Directory を使う実行では .vfx が directory に無い）。
-                    _logger.ZLogError(exception, $"Major event VFX source failed to load and stays inactive: {SceneResource.Identity} ({address})");
+                    // VFX は演出なので Event の失敗にしない（宣言の無い名前や directory に entry の無い build でもここで止まる）。
+                    _logger.ZLogError(exception, $"Major event VFX source failed to load and stays inactive: {SceneResource.Identity} ({assetName})");
                     continue;
                 }
 
                 if (source == null)
                 {
-                    _logger.ZLogError($"Major event VFX source loaded nothing and stays inactive: {SceneResource.Identity} ({address})");
+                    _logger.ZLogError($"Major event VFX source loaded nothing and stays inactive: {SceneResource.Identity} ({assetName})");
                     continue;
                 }
 
-                _sources[address] = source;
+                _sources[assetName] = source;
             }
         }
 
         protected override UniTask OnStabledImpl()
         {
-            foreach (var (position, rotation, address) in _anchors)
+            foreach (var (position, rotation, assetName) in _anchors)
             {
-                if (_sources.TryGetValue(address, out var source))
+                if (_sources.TryGetValue(assetName, out var source))
                 {
                     _vfx.Spawn(new VfxSpawnRequest(source, position, rotation), SceneAssetOwner).Play();
                 }

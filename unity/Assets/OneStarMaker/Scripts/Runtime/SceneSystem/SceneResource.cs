@@ -40,6 +40,13 @@ namespace OneStarMaker.Runtime.SceneSystem
         [SerializeField]
         private bool _streamByDistance;
 
+        /// <summary>
+        /// この node が所有し、この node か子孫の Scene が名前で読む付随 asset。
+        /// Scene payload の無い論理 node（InGameSession 等）も宣言できる。SceneGraph の Generate は触らない。
+        /// </summary>
+        [SerializeField]
+        private List<AttachedAssetDescription> _attachedAssets = new();
+
         /// <summary>シーンの一意識別子。</summary>
         public string Identity
         {
@@ -94,5 +101,21 @@ namespace OneStarMaker.Runtime.SceneSystem
         public AssetReference? GetSceneReference(string variant)
             => _sceneAssetDescription?.ResolveReference(variant);
 
+        /// <summary>この node が所有する付随 asset の宣言。宣言順。</summary>
+        public IReadOnlyList<AttachedAssetDescription> AttachedAssets => _attachedAssets;
+
+        /// <summary>名前で付随 asset の宣言を探す。無ければ null。名前は ordinal で比べる。</summary>
+        public AttachedAssetDescription? FindAttachedAsset(string name)
+        {
+            foreach (var attached in _attachedAssets)
+            {
+                if (attached != null && string.Equals(attached.Name, name, System.StringComparison.Ordinal))
+                {
+                    return attached;
+                }
+            }
+
+            return null;
+        }
     }
 }

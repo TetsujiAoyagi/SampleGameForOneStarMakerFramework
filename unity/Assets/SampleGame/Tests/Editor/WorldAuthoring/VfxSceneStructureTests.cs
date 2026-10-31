@@ -126,35 +126,21 @@ namespace OneStarMaker.Tests.Editor.WorldAuthoring
             Assert.That(cell.Children.Select(child => child.Identity), Does.Contain("Spring_VFX_4_2"));
         }
 
-        // 実 node から content の選択を作る（SampleGameContentBuild.BuildResult と同じ materialize と graph の写し）。
-        [TestCase(SeasonContentMode.Full)]
-        [TestCase(SeasonContentMode.Whitebox)]
-        public void SeasonSelection_SpringIncludesVfxAndMajorEventScenes(SeasonContentMode mode)
+        // 実 node から宣言で content の選択を作る（SampleGameContentBuild.BuildResult と同じ materialize と resolver）。
+        [TestCase("spring-full")]
+        [TestCase("spring-whitebox")]
+        public void SeasonSelection_SpringIncludesVfxAndMajorEventScenes(string declarationName)
         {
-            var map = AssetDatabase.LoadAssetAtPath<SceneResourceMap>(MapPath);
-            Assert.That(map != null, Is.True);
-            var materialized = new SceneResourceContentMaterializer().Materialize(map!);
-            Assert.That(materialized.Snapshot, Is.Not.Null,
-                "materialize の失敗: " + string.Join("; ", materialized.Issues.Select(issue => issue.Code + ":" + issue.SubjectKey)));
-            var detail = new SeasonSceneSelectionPolicy().SelectDetailed(
-                CopyGraph(map!), materialized.Snapshot!.Candidates, materialized.Snapshot.TagProviders, new[] { "Spring" }, mode);
-            var selection = detail.Selection;
+            var resolution = SampleGameContentBuild.Resolve(SampleGameBuildPurposes.Find(declarationName));
+            var selection = resolution.Selection;
             Assert.That(selection.Plan, Is.Not.Null,
                 "選択の失敗: " + string.Join("; ", selection.Issues.Select(issue => issue.Code + ":" + issue.SubjectKey)));
             var selected = selection.Plan!.SelectedContent.Select(content => content.LogicalKey).ToArray();
             foreach (var spec in Specs)
-                Assert.That(selected, Does.Contain(spec.Identity), $"{mode} の選択に {spec.Identity} が入らない");
+                Assert.That(selected, Does.Contain(spec.Identity), $"{declarationName} の選択に {spec.Identity} が入らない");
         }
 
         private static IEnumerable<string> SpecNames() => Specs.Select(spec => spec.Identity);
-
-        private static IReadOnlyList<SeasonSceneNode> CopyGraph(SceneResourceMap map)
-            => map.SceneResources.Select(resource => new SeasonSceneNode(
-                    resource.Identity,
-                    resource.Parent == null ? null : resource.Parent.Identity,
-                    resource.Children.Select(child => child.Identity),
-                    resource.GetPayloads().Count != 0))
-                .ToList();
 
         private static List<T> LoadAll<T>() where T : UnityEngine.Object
             => AssetDatabase.FindAssets($"t:{typeof(T).Name}")
