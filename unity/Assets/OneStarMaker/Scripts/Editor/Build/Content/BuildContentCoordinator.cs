@@ -47,9 +47,9 @@ namespace OneStarMaker.Editor.Build.Content
             var root = Path.GetFullPath(request.ArtifactsRoot);
             // 実 directory の検証は build を伴うが、既存の検証ログを増減させない。
             // テスト専用 root だけを追加で許し、任意の workspace path への出力は引き続き拒む。
-            if (!SamePath(approvedRoot, root) && !Contained(approvedRoot, root)
-                && !SamePath(testRoot, root) && !Contained(testRoot, root))
-                throw new ArgumentException("Output root must be inside artifacts/bs2b or TestResults/bs3-fixture.");
+            var boundary = SamePath(approvedRoot, root) || Contained(approvedRoot, root) ? approvedRoot
+                : SamePath(testRoot, root) || Contained(testRoot, root) ? testRoot
+                : throw new ArgumentException("Output root must be inside artifacts/bs2b or TestResults/bs3-fixture.");
             var identity = DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffZ") + "-" + Guid.NewGuid().ToString("N");
             var reportDirectory = Child(root, "reports", identity);
             var preflight = Path.Combine(reportDirectory, "preflight.json");
@@ -64,7 +64,7 @@ namespace OneStarMaker.Editor.Build.Content
             if (!projection.IsValid)
             {
                 var failure = new BuildContentResult(identity, preflight, outcome, null, null, null,
-                    "Preflight failed", projection.Issues.ToArray(), request.Declaration);
+                    "Preflight failed", projection.Issues.ToArray(), request.Declaration, request.Mode);
                 BuildContentReport.WriteOutcome(outcome, failure);
                 return failure;
             }
@@ -72,6 +72,10 @@ namespace OneStarMaker.Editor.Build.Content
             try
             {
                 _adapter.ValidateTarget();
+                // Full は workspace の中身を消してから Unity を呼ぶ。消せなければ（リンク、他 process の lock）
+                // Unity の build を始めずに下の失敗として記録する。workspace 自体は残す。
+                // 作成より先に検査し、途中の segment がリンクなら CreateDirectory でリンク先に書かない。
+                if (request.Mode == BuildContentMode.Full) ClearWorkspace(boundary, workspace);
                 Directory.CreateDirectory(workspace);
                 var built = _adapter.Build(projection, identity, workspace, request.Declaration);
                 // Unity report が成功でも、manifest と metadata が所定 workspace に無ければ公開しない。
@@ -95,7 +99,7 @@ namespace OneStarMaker.Editor.Build.Content
                 var success = new BuildContentResult(identity, preflight, outcome, final,
                     Path.Combine(final, Path.GetRelativePath(workspace, built.ManifestPointer)),
                     Path.Combine(final, Path.GetRelativePath(workspace, built.MetadataPath)), built.Summary,
-                    Array.Empty<BuildContentIssue>(), request.Declaration);
+                    Array.Empty<BuildContentIssue>(), request.Declaration, request.Mode);
                 BuildContentReport.WriteOutcome(outcome, success);
                 return success;
             }
@@ -106,10 +110,47 @@ namespace OneStarMaker.Editor.Build.Content
                 if (Directory.Exists(staging)) Directory.Delete(staging, true);
                 if (published && Directory.Exists(final)) Directory.Delete(final, true);
                 var failure = new BuildContentResult(identity, preflight, outcome, null, null, null,
-                    ex.ToString(), new[] { new BuildContentIssue(BuildContentIssueCode.BuildFailure, identity, ex.Message) }, request.Declaration);
+                    ex.ToString(), new[] { new BuildContentIssue(BuildContentIssueCode.BuildFailure, identity, ex.Message) }, request.Declaration, request.Mode);
                 BuildContentReport.WriteOutcome(outcome, failure);
                 return failure;
             }
+        }
+
+        // workspace の中身だけを消す。字句上の包含（Child）だけでは、途中の segment や中の directory が
+        // junction・symbolic link の場合にリンク先（root の外でありうる）を消してしまう。そこで root から workspace までの
+        // 各 segment と workspace の中の全 directory を先に調べ、reparse point が 1 つでもあれば何も消さずに失敗する。
+        // リンクの中は辿らない。汎用の filesystem 防御ではなく、この削除経路のための検査に限る。
+        private static void ClearWorkspace(string boundary, string workspace)
+        {
+            if (!SamePath(boundary, workspace) && !Contained(boundary, workspace))
+                throw new IOException("Workspace escapes the approved root.");
+            var segment = Path.GetFullPath(boundary).TrimEnd(Path.DirectorySeparatorChar);
+            RejectReparsePoint(segment);
+            foreach (var part in Path.GetRelativePath(boundary, workspace).Split(Path.DirectorySeparatorChar))
+            {
+                segment = Path.Combine(segment, part);
+                RejectReparsePoint(segment);
+            }
+            if (!Directory.Exists(workspace)) return;
+            var pending = new System.Collections.Generic.Stack<string>();
+            pending.Push(workspace);
+            while (pending.Count > 0)
+                foreach (var child in Directory.GetDirectories(pending.Pop()))
+                {
+                    RejectReparsePoint(child);
+                    pending.Push(child);
+                }
+            // 検査を全て通ってから消す。ここでの lock による失敗は途中まで消えた workspace を残すが、
+            // workspace は再利用の cache であり、次の Full が改めて空にする。
+            foreach (var file in Directory.GetFiles(workspace)) File.Delete(file);
+            foreach (var directory in Directory.GetDirectories(workspace)) Directory.Delete(directory, true);
+        }
+
+        private static void RejectReparsePoint(string path)
+        {
+            if (!Directory.Exists(path) && !File.Exists(path)) return;
+            if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+                throw new IOException("Workspace path contains a link and is not cleared: " + path);
         }
 
         private static void ValidateSegment(string segment)

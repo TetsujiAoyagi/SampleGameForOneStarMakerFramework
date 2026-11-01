@@ -30,7 +30,8 @@ namespace SampleGame.DependOnAll.Editor.Build
             try
             {
                 var guid = AssetDatabase.AssetPathToGUID(ProbePath);
-                var result = SampleGameContentBuild.BuildResult(declaration,
+                // transport へ publish するので Full（workspace に前回の選択の file を残さない）。
+                var result = SampleGameContentBuild.BuildResult(declaration, BuildContentMode.Full,
                     (plan, snapshot) =>
                     {
                         var value = Bs4FixtureComposer.Compose(plan, snapshot, guid, ProbePath, representation, token);

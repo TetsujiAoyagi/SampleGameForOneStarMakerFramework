@@ -35,7 +35,10 @@ namespace SampleGame.DependOnAll.Editor.Build
         [MenuItem("Tools/OSM/Content/Build spring-planner-whitebox")]
         public static void BuildSpringPlannerWhitebox() => Build(SampleGameBuildPurposes.SpringPlannerWhitebox);
 
-        public static void Build(BuildPurposeDeclaration declaration) => BuildResult(declaration);
+        // menu の build は Incremental（workspace を再利用して速い、publish しない）。publish する経路は Full を渡す。
+        internal const BuildContentMode MenuBuildMode = BuildContentMode.Incremental;
+
+        public static void Build(BuildPurposeDeclaration declaration) => BuildResult(declaration, MenuBuildMode);
 
         /// <summary>
         /// 実 SceneResourceMap を materialize し、宣言で選択する。build は行わない（判定の照合や test が選択だけを見る入口）。
@@ -50,7 +53,21 @@ namespace SampleGame.DependOnAll.Editor.Build
         internal static BuildPurposeResolution Resolve(BuildPurposeDeclaration declaration, BuildMaterializationSnapshot snapshot) =>
             new BuildPurposeResolver().Resolve(declaration, snapshot.Graph, snapshot.Candidates, snapshot.TagProviders, new SeasonSceneTagPolicy());
 
-        internal static BuildContentResult BuildResult(BuildPurposeDeclaration declaration,
+        /// <summary>宣言から build する。選択・build のどちらの失敗も例外にする（menu と BS4 Player build の入口）。</summary>
+        internal static BuildContentResult BuildResult(BuildPurposeDeclaration declaration, BuildContentMode mode,
+            Func<BuildPlan, BuildMaterializationSnapshot, (BuildPlan Plan, BuildMaterializationSnapshot Snapshot)>? compose = null)
+        {
+            var result = BuildUnchecked(declaration, mode, compose);
+            if (!result.IsSuccess)
+                throw new InvalidOperationException("Content Directory build failed: " + result.OutcomePath + " / " + result.Summary);
+            return result;
+        }
+
+        /// <summary>
+        /// 宣言から build し、coordinator の失敗（preflight の issue、Unity build の失敗）は result のまま返す。
+        /// 宣言による選択の失敗は <see cref="PurposeSelectionException"/>。batch が終了コードを分けるための入口。
+        /// </summary>
+        internal static BuildContentResult BuildUnchecked(BuildPurposeDeclaration declaration, BuildContentMode mode,
             Func<BuildPlan, BuildMaterializationSnapshot, (BuildPlan Plan, BuildMaterializationSnapshot Snapshot)>? compose = null)
         {
             if (declaration == null) throw new ArgumentNullException(nameof(declaration));
@@ -59,7 +76,7 @@ namespace SampleGame.DependOnAll.Editor.Build
             var snapshot = materialized.Snapshot!;
             var resolution = Resolve(declaration, snapshot);
             if (resolution.Selection.Plan == null)
-                throw new InvalidOperationException("Selection failed: " +
+                throw new PurposeSelectionException("Selection failed: " +
                     string.Join("; ", resolution.Selection.Issues.Select(x => x.Code + ":" + x.Subject + ":" + x.SubjectKey)));
             var plan = resolution.Selection.Plan;
             var bootstrap = ComposeBootstrap(snapshot, plan);
@@ -83,10 +100,9 @@ namespace SampleGame.DependOnAll.Editor.Build
             var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
             var artifactsRoot = Path.GetFullPath(Path.Combine(projectRoot, "..", "artifacts", "bs2b"));
             var result = new BuildContentCoordinator().Build(
-                new BuildContentRequest(plan, snapshot, declaration.Name, artifactsRoot, declaration, resolution.Requirements));
-            if (!result.IsSuccess)
-                throw new InvalidOperationException("Content Directory build failed: " + result.OutcomePath + " / " + result.Summary);
-            Debug.Log(LogPrefix + "Content Directory: " + result.ContentPath + " / outcome: " + result.OutcomePath);
+                new BuildContentRequest(plan, snapshot, declaration.Name, artifactsRoot, declaration, resolution.Requirements, mode));
+            if (result.IsSuccess)
+                Debug.Log(LogPrefix + "Content Directory (" + mode + "): " + result.ContentPath + " / outcome: " + result.OutcomePath);
             return result;
         }
 
@@ -122,5 +138,11 @@ namespace SampleGame.DependOnAll.Editor.Build
                 throw new InvalidOperationException("Bootstrap asset is missing: " + path);
             return guid.ToLowerInvariant();
         }
+    }
+
+    /// <summary>宣言による選択が plan を作れなかった失敗。従来どおり <see cref="InvalidOperationException"/> として扱える。</summary>
+    internal sealed class PurposeSelectionException : InvalidOperationException
+    {
+        public PurposeSelectionException(string message) : base(message) { }
     }
 }
