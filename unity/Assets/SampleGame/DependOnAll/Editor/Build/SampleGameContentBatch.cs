@@ -70,15 +70,15 @@ namespace SampleGame.DependOnAll.Editor.Build
             string? published = null;
             int Fail(int code, string reason)
             {
-                Debug.LogError(LogPrefix + "exitCode=" + code + " " + reason);
+                stages.LogError(LogPrefix + "exitCode=" + code + " " + reason);
                 if (published != null && Directory.Exists(published))
                 {
                     try { Directory.Delete(published, true); }
-                    catch (Exception ex) { Debug.LogException(ex); }
+                    catch (Exception ex) { stages.LogError(LogPrefix + ex); }
                 }
                 // 失敗の結果 file は exitCode と理由だけ。書けなくても終了コードが正なので、失敗の上塗りはしない。
                 try { stages.Commit(resultPath, JsonUtility.ToJson(new FailureFile { exitCode = code, reason = reason }, true)); }
-                catch (Exception ex) { Debug.LogException(ex); }
+                catch (Exception ex) { stages.LogError(LogPrefix + ex); }
                 return code;
             }
 
@@ -158,21 +158,27 @@ namespace SampleGame.DependOnAll.Editor.Build
             return string.Concat(hash.ComputeHash(stream).Select(x => x.ToString("x2")));
         }
 
-        /// <summary>batch の段。テストは偽の段を注入し、Unity の build なしで終了コードと所有の規則を確かめる。</summary>
+        /// <summary>
+        /// batch の段。テストは偽の段を注入し、Unity の build なしで終了コードと所有の規則を確かめる。
+        /// 失敗の log も段にする。Unity Test Framework は期待していない error log をテストの失敗にし、
+        /// テストの asmdef は LogAssert（UnityEngine.TestRunner）を参照しないため、失敗経路のテストは log を受け取って確かめる。
+        /// </summary>
         internal sealed class Stages
         {
             public Stages(Func<BuildPurposeDeclaration, BuildContentResult> build, Func<BuildContentResult, string, string> publish,
-                Action<string, string> commit)
-            { Build = build; Publish = publish; Commit = commit; }
+                Action<string, string> commit, Action<string> logError)
+            { Build = build; Publish = publish; Commit = commit; LogError = logError; }
 
             public static Stages Default { get; } = new Stages(
                 declaration => SampleGameContentBuild.BuildUnchecked(declaration, BuildMode),
                 ContentTransportPublisher.Publish,
-                CommitResult);
+                CommitResult,
+                message => Debug.LogError(message));
 
             public Func<BuildPurposeDeclaration, BuildContentResult> Build { get; }
             public Func<BuildContentResult, string, string> Publish { get; }
             public Action<string, string> Commit { get; }
+            public Action<string> LogError { get; }
         }
 
         [Serializable]

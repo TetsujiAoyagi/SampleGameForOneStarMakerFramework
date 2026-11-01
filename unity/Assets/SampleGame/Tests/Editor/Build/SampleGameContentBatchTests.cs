@@ -59,6 +59,7 @@ namespace SampleGame.Tests.Editor.Build
             Assert.That(result.manifestSha256, Is.EqualTo(Sha256(Path.Combine(result.publishPath, "transport.json"))));
             Assert.That(Directory.Exists(result.publishPath), Is.True);
             Assert.That(Directory.GetFiles(Path.GetDirectoryName(_resultPath)!), Has.Length.EqualTo(1), "一時 file が残っている");
+            Assert.That(fake.Errors, Is.Empty);
         }
 
         private static IEnumerable<TestCaseData> InvalidArgumentCases()
@@ -77,7 +78,7 @@ namespace SampleGame.Tests.Editor.Build
             var code = SampleGameContentBatch.Run(args, fake.Create(), _root);
             Assert.That(code, Is.EqualTo(SampleGameContentBatch.ExitInvalidArguments));
             Assert.That(fake.BuildCalls, Is.Zero);
-            AssertFailureFile(SampleGameContentBatch.ExitInvalidArguments);
+            AssertFailureFile(SampleGameContentBatch.ExitInvalidArguments, fake);
             Assert.That(Directory.Exists(Path.Combine(_root, "transport")), Is.False);
         }
 
@@ -87,7 +88,7 @@ namespace SampleGame.Tests.Editor.Build
             var fake = new FakeStages(_root) { ThrowSelection = true };
             Assert.That(SampleGameContentBatch.Run(Args("spring-full"), fake.Create(), _root),
                 Is.EqualTo(SampleGameContentBatch.ExitSelectionFailed));
-            AssertFailureFile(SampleGameContentBatch.ExitSelectionFailed);
+            AssertFailureFile(SampleGameContentBatch.ExitSelectionFailed, fake);
         }
 
         [TestCase(BuildContentIssueCode.MissingClosure, SampleGameContentBatch.ExitSelectionFailed)]
@@ -97,7 +98,18 @@ namespace SampleGame.Tests.Editor.Build
             var fake = new FakeStages(_root) { FailIssue = issue };
             Assert.That(SampleGameContentBatch.Run(Args("spring-full"), fake.Create(), _root), Is.EqualTo(expected));
             Assert.That(fake.PublishCalls, Is.Zero);
-            AssertFailureFile(expected);
+            AssertFailureFile(expected, fake);
+        }
+
+        [Test]
+        public void FailedBuildResultWithoutIssues_ReturnsFour()
+        {
+            // issue が無くても成果物が無ければ失敗。選択の失敗と言える根拠が無いので build の失敗に分類する。
+            var fake = new FakeStages(_root) { FailWithoutIssue = true };
+            Assert.That(SampleGameContentBatch.Run(Args("spring-full"), fake.Create(), _root),
+                Is.EqualTo(SampleGameContentBatch.ExitBuildFailed));
+            Assert.That(fake.PublishCalls, Is.Zero);
+            AssertFailureFile(SampleGameContentBatch.ExitBuildFailed, fake);
         }
 
         [Test]
@@ -107,7 +119,7 @@ namespace SampleGame.Tests.Editor.Build
             Assert.That(SampleGameContentBatch.Run(Args("spring-full"), fake.Create(), _root),
                 Is.EqualTo(SampleGameContentBatch.ExitPublishFailed));
             Assert.That(Directory.Exists(Path.Combine(_root, "transport", fake.Identity)), Is.False);
-            AssertFailureFile(SampleGameContentBatch.ExitPublishFailed);
+            AssertFailureFile(SampleGameContentBatch.ExitPublishFailed, fake);
         }
 
         [Test]
@@ -122,7 +134,7 @@ namespace SampleGame.Tests.Editor.Build
             Assert.That(Directory.Exists(Path.Combine(_root, "transport", fake.Identity)), Is.False);
             Assert.That(Directory.Exists(other), Is.True);
             // 前回の成功結果は開始時に消え、残るのは今回の失敗の結果だけ。
-            AssertFailureFile(SampleGameContentBatch.ExitUnexpected);
+            AssertFailureFile(SampleGameContentBatch.ExitUnexpected, fake);
         }
 
         [Test]
@@ -133,10 +145,14 @@ namespace SampleGame.Tests.Editor.Build
                 Is.EqualTo(SampleGameContentBatch.ExitUnexpected));
             Assert.That(File.Exists(_resultPath), Is.False);
             Assert.That(Directory.Exists(Path.Combine(_root, "transport", fake.Identity)), Is.False);
+            Assert.That(fake.Errors, Has.Some.Contains("exitCode=" + SampleGameContentBatch.ExitUnexpected + " "));
+            // 失敗の結果 file も書けなかったことが log に残る。
+            Assert.That(fake.Errors, Has.Some.Contains("fixture commit failure"));
         }
 
-        private void AssertFailureFile(int expected)
+        private void AssertFailureFile(int expected, FakeStages fake)
         {
+            Assert.That(fake.Errors, Has.Some.Contains("exitCode=" + expected + " "));
             var json = File.ReadAllText(_resultPath);
             var failure = JsonUtility.FromJson<SampleGameContentBatch.FailureFile>(json);
             Assert.That(failure.exitCode, Is.EqualTo(expected));
@@ -167,11 +183,13 @@ namespace SampleGame.Tests.Editor.Build
             public bool ThrowPublish { get; set; }
             public bool FailFirstCommit { get; set; }
             public bool FailAllCommits { get; set; }
+            public bool FailWithoutIssue { get; set; }
             public int BuildCalls { get; private set; }
             public int PublishCalls { get; private set; }
             public string? BuiltDeclaration { get; private set; }
+            public List<string> Errors { get; } = new List<string>();
 
-            public SampleGameContentBatch.Stages Create() => new SampleGameContentBatch.Stages(Build, Publish, Commit);
+            public SampleGameContentBatch.Stages Create() => new SampleGameContentBatch.Stages(Build, Publish, Commit, Errors.Add);
 
             private BuildContentResult Build(BuildPurposeDeclaration declaration)
             {
@@ -182,6 +200,9 @@ namespace SampleGame.Tests.Editor.Build
                 if (FailIssue is { } issue)
                     return new BuildContentResult(Identity, Path.Combine(reports, "preflight.json"), Path.Combine(reports, "outcome.json"),
                         null, null, null, "failed", new[] { new BuildContentIssue(issue, "key", "fixture") }, declaration, BuildContentMode.Full);
+                if (FailWithoutIssue)
+                    return new BuildContentResult(Identity, Path.Combine(reports, "preflight.json"), Path.Combine(reports, "outcome.json"),
+                        null, null, null, "failed", Array.Empty<BuildContentIssue>(), declaration, BuildContentMode.Full);
                 var content = Path.Combine(_root, "content", Identity);
                 Directory.CreateDirectory(content);
                 return new BuildContentResult(Identity, Path.Combine(reports, "preflight.json"), Path.Combine(reports, "outcome.json"),
