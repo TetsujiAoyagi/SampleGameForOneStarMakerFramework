@@ -23,14 +23,14 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 ## 公開点とGit履歴
 
 - **push は配布であり保存ではない。** リモートにしか居ない読者が居る時だけ push する。同一 PC の担当同士の引継ぎは、ローカルの commit SHA と、必要なら `evidence stage` の取得案内で行う。
-- **公開点**は (a) PR 作成、(b) レビュー依頼（`@cursoragent` のコメントを含む）と、レビュー 1 巡ごとの修正 1 commit、(c) マージ前の最終（harvest と HANDOFF 削除）とする。(b) は公開 PR のレビューに限る規則で、Phase A の A2 レビューは公開点ではなく、A2 中の改訂を巡ごとに commit しない（[Phase A の commit と snapshot](references/phases-and-handoff.md#phase-a-の-commit-と-snapshot)）。例外は、Cloud・別 host の担当が割り当てられた Phase 境界と、人間の明示指示。
+- **公開点**は (a) PR 作成、(b) レビュー依頼（`@cursoragent` のコメントを含む）と、レビュー 1 巡ごとの修正 1 commit、(c) マージ前の最終（harvest と HANDOFF 削除）とする。公開点以外で push してよい例外は、Cloud・別 host の担当が割り当てられた Phase 境界と、人間の明示指示に限る。(b) は公開 PR のレビューに限る規則で、Phase A の A2 レビューは公開点ではなく、A2 中の改訂を巡ごとに commit しない（[Phase A の commit と snapshot](references/phases-and-handoff.md#phase-a-の-commit-と-snapshot)）。
 - 順序は「B ↔ 発見 C → 未公開の試行錯誤 commit の整理 → GO 候補 implementation head の固定 → 判定 C → C' → PR 作成・push」とする。履歴の整理は判定 C の前に済ませる。整理で head が変わったら [判定後の head 変更](references/review-evidence.md#判定後の-head-変更) に従う。
 - 判定 evidence を取った head は、push しないローカルの軽量 tag `evidence/<taskId>/<n>` で到達可能に保ち、対象 SHA を引継ぎ票に書く。tag は旧 head の到達可能性だけを担い、整理後の別 head に旧判定を移す根拠にならない。判定 evidence を取っていない中間 head は整理してよい。
 - 証拠の保存先と配布は [レビュー証拠](references/review-evidence.md#保存先とリモートへの配布) に従う。証拠の配布方法と、試行錯誤の実装コミットをPR履歴へ積まないことは別の条件として扱う。差し戻し中の中間コミットは判定用headの固定には使えても、そのまま全て公開する理由にはならない。
 - PR公開後の修正は、レビュー1ラウンドにつき原則1つの修正コミットにまとめる。独立してレビューすべき変更を分ける場合は、その理由をPRに示す。Git配布が認められない証拠を未pushの中間コミットへ誤って入れた場合は公開前に履歴から除く。公開済みの違反は履歴の書き換えでなかったことにしない。
-- 整理の対象は B 以降の実装の試行錯誤コミットに限る。Phase A の 2 点の commit（A2 入力版・A3 凍結版）はレビュー入力の記録として整理しない。
+- 整理の対象は B 以降の実装の試行錯誤コミットに限る。Phase A の 2 点の commit（A2 入力版・A3 凍結版）は整理しない。
 - push前に、前回公開headから増えるコミットを `git log --oneline <前回公開head>..HEAD` で確認する。数がレビュー上必要な単位を超えていれば、未公開分を整理してからpushする。あわせて `pwsh tools/docs-audit.ps1` を通し、push するコミットに機微な path（ローカルの store・transfers・資格情報の場所、reference・packageSha256 の実値）が入っていないことを確認する。公開済み履歴は明示的な合意なく書き換えない。既存履歴の大規模rebaseを対象外とする判断は、未公開の中間コミットを整理しない理由にならない。
-- push 前に `git diff --stat <前回公開head>..HEAD` で push 範囲に入る file の種類を確認し、機械向けデータ（key 一覧・baseline・生成物等）、ローカル path、秘密が含まれていれば push せず、履歴から除くか Artifact Storage へ移す。実害は commit ではなく push で起きるので、この確認を commit 時の点検で代用しない。
+- push 前に `git diff --stat <前回公開head>..HEAD` で push 範囲に入る file の種類を確認し、判定 C 用の期待値（key 一覧・baseline）と照合 script、ローカル path、秘密が含まれていれば push せず、履歴から除くか Artifact Storage へ移す。実装から導ける恒久 fixture は対象外とする（[置き場所](references/review-evidence.md#判定-c-の照合-script)）。実害は commit ではなく push で起きるので、この確認を commit 時の点検で代用しない。
 
 ## Phase A: 計画と設計レビュー
 

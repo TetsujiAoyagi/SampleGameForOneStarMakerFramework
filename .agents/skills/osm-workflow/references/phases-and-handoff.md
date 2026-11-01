@@ -29,9 +29,9 @@ A2 の指摘は全件採用を既定にせず、現在の問い、最低条件�
 
 ### Phase A の commit と snapshot
 
-Phase A の commit は **A2 入力版** と **A3 凍結版** の 2 点だけにする。A2 入力版は 1 回だけ切る。A2 中の HANDOFF の改訂、レビュー記録と採否の分類、A3 の途中版は作業ツリーに置いたまま commit しない。A2 の指摘で入力版を切り直す必要が出ても新しい commit にせず、改訂後の版は次の段落の snapshot で渡す。凍結後に Phase A を新しい revision として再開する場合も、その revision の A2 入力版と A3 凍結版の 2 点に限る。この 2 点はレビュー入力の記録であり、[公開点](../SKILL.md#公開点とgit履歴) の履歴整理の対象にしない。公開 PR レビューの「1 巡ごとの修正 1 commit」は Phase A に適用しない。
+Phase A の commit は **A2 入力版** と **A3 凍結版** の 2 点だけにする。A2 入力版は 1 回だけ切る。A2 中の HANDOFF の改訂、レビュー記録と採否の分類、A3 の途中版は作業ツリーに置いたまま commit しない。A2 の指摘で入力版を切り直す必要が出ても新しい commit にせず、改訂後の版は次の段落の snapshot で渡す。凍結後に Phase A を新しい revision として再開する場合も、その revision の A2 入力版と A3 凍結版の 2 点に限る。この 2 点は [公開点](../SKILL.md#公開点とgit履歴) の履歴整理の対象にしない。切り直し後のレビュー入力は commit ではなく、内容 sha256 を持つ次の段落の snapshot である。公開 PR レビューの「1 巡ごとの修正 1 commit」は Phase A に適用しない。
 
-途中の版（A2 中の改訂版、A3 の途中版）を別 session・別モデル・Cloud の外部レビューへ渡すときは、Artifact Storage の **Phase A snapshot**（HANDOFF §0 の「Phase A snapshot の取得案内・状態」の欄）を使い、取得案内と HANDOFF の A2 記録に、その版の内容 sha256 とともに「未 commit の版」と書く。未 commit の版に commit hash の補助記録は無い。判定 C が使う機械向けの期待値と照合 script も Phase A snapshot に収録し、git に入れない（[判定 C の照合 script](review-evidence.md#判定-c-の照合-script)）。Phase A の commit の push は [公開点](../SKILL.md#公開点とgit履歴) に従う。
+途中の版（A2 中の改訂版、A3 の途中版）を別 session・別モデルの外部レビューへ渡すときは、Artifact Storage の **Phase A snapshot**（HANDOFF §0 の「Phase A snapshot の取得案内・状態」の欄）を使い、取得案内と HANDOFF の A2 記録に、その版の内容 sha256 とともに「未 commit の版」と書く。未 commit の版に commit hash の補助記録は無い。Cloud・別 host へ渡す未 commit の版は、その読み手が snapshot を取得し閲覧できたことを確認するまで assist であり、A2 の同一入力版を満たしたことにしない（[Cloud の担当](#cloud-の担当)）。凍結後の §0 の Phase A snapshot 欄は、途中版ではなく C / C' が読む A3 凍結 snapshot を指す。判定 C が使う機械向けの期待値と照合 script の置き場所は [判定 C の照合 script](review-evidence.md#判定-c-の照合-script) に従い、git に入れない。Phase A の commit の push は [公開点](../SKILL.md#公開点とgit履歴) に従う。
 
 ## 検証経路の成立
 
