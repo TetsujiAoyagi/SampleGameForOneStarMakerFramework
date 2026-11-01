@@ -16,7 +16,7 @@ description: >-
 2. 自分が担当する Phase と成果物を特定する。
 3. 専用ブランチで作業する。`main` / `develop` に直接コミットしない。A3で `external-current-v1` を採用した作業は `pwsh tools/harness.ps1 current -Task <id>` を唯一の作業入口とし、過去RESULTを探して補完しない。未移行作業は従来のHANDOFFを使う。
 4. PR の base は `develop` とする。
-5. 前の Phase から引き継ぐときは、HANDOFF §0 の引継ぎ票の commit SHA と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない。PR が存在する間は状態ブロックも照合する。同一 PC ではローカルの SHA で照合し、origin との照合は Cloud・別 host の担当が割り当てられている時だけ行う。食い違えば引き継がずに停止する。C' は PR を読まない。詳細は [Phase 境界の引継ぎ](references/phases-and-handoff.md#phase-境界の引継ぎ)。
+5. 前の Phase から引き継ぐときは、HANDOFF §0 の引継ぎ票の commit SHA（票が「この票を含む commit」と書く場合は、起動時に渡された SHA）と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない。PR が存在する間は状態ブロックも照合する。同一 PC ではローカルの SHA で照合し、origin との照合は Cloud・別 host の担当が割り当てられている時だけ行う。食い違えば引き継がずに停止する。C' は PR を読まない。詳細は [Phase 境界の引継ぎ](references/phases-and-handoff.md#phase-境界の引継ぎ)。
 
 Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](references/phases-and-handoff.md) を全文読む。ドキュメントを変更する場合は [ドキュメント方針](references/docs-policy.md) も全文読む。
 
