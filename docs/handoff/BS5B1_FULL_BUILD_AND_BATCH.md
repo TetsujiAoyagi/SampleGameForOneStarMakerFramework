@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と implementation head の commit で渡す。evidence bundle は発見 C が implementation head から作る）
 - evidence bundle の取得案内・状態: 未到達
 - C' blind bundle の取得案内・状態: 未到達
-- 引継ぎ票: **Phase B 完了（2026-11-02）。次は発見 C。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。implementation base `26f34046`、implementation head `3ceb19ab`（この票を含む commit は head に HANDOFF の記録だけを足す）。凍結した Phase A は A3 凍結版（§2〜§5）。作業: implementation base..head の差分を、§2 の不変条件・成立条件、§3 の責務マップ、§6 の「HANDOFF との差」と照合する（構造レビューを先に）。差し戻し中のテストは §5 の起点 `-Filter`（新しい class は `BuildContentFullModeTests`・`SampleGameContentBatchTests`）。権限: Unity テストは `pwsh tools/run-tests.ps1`（sandbox 外の承認済み経路）。content build を伴う `BuildContentDirectoryIntegrationTests`、batch（AC14・HC1）は判定時にまとめる（§5）。入力: Phase A snapshot は発見 C では使わない（判定 C と C' の起動指示で渡す）。停止規則: 凍結条件・常時契約の違反は B へ差し戻す（osm-workflow の巡の上限）。引き渡さないもの: 発見 C の所見を C' へ渡さない。動作確認は対象なし（§5）。push と PR は未実施（公開点の規則に従い、判定 C・C' の後に PR を作る）。
+- 引継ぎ票: **発見 C 完了（2026-11-02）。次は B（差し戻し 1 巡目）。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。implementation base `26f34046`、implementation head は B の修正後に更新する（発見 C 時点は `3ceb19ab`）。作業: §7.1 の F1（`SampleGameContentBatchTests` の失敗経路 10 件。`Fail` の `Debug.LogError` をテストが期待していない）を直し、`-Filter "BuildContentFullModeTests;SampleGameContentBatchTests"` を通す。軽微な m1〜m3 は B の判断（文書化・テスト追加・見送り）で、凍結条件は変えない。権限・停止規則は従来のとおり（osm-workflow の巡の上限。差し戻しは 1 巡目）。Unity テストは `pwsh tools/run-tests.ps1`。入力: Phase A snapshot は B では読まない。push と PR は未実施。
 
 ### PR 状態ブロック
 
@@ -255,7 +255,22 @@ Play・bridge・初回 Scene のコードに触らない（BS5b-2）。identity�
 
 ## 7. Phase C
 
-未着手
+### 7.1 発見 C（2026-11-02）
+
+- **種別:** 発見 C（構造レビューと、新規テストの限定実行）。判定 C ではない。
+- **使った evidence の取得案内と状態:** Phase A snapshot は使っていない（§0 のとおり発見 C では読まない）。evidence bundle は作っていない（未生成）。入力は implementation base `26f34046`..head `3ceb19ab` の差分と、この票を含む commit `b6e42182`。
+- **構造適合:** 適合。§2 の I4〜I7 と E3・E4・E6、§3 の責務マップ、§6 の「HANDOFF との差」に照らして凍結条件・常時契約の違反は無い。`ClearWorkspace` は adapter と `CreateDirectory` の前に reparse point を検査し、`Full` の publish 拒否は outcome の `buildMode` を正として publish 先・staging の作成前に行う。staging は `.staging/<guid32>`。batch の終了コード分類と所有（結果 file・published directory）は D8 のとおり。asmdef 参照の変更なし、Framework に語彙の追加なし。
+- **差し戻し指摘（B へ、1 件）:**
+  - **F1: `SampleGameContentBatchTests` の失敗経路 10 件が失敗する。** 違反根拠: AC13（終了コード 2・3・4・5・1 の分岐と、publish 後の確定失敗の負例）が検証できていない。原因は `SampleGameContentBatch.Run` の `Fail` が `Debug.LogError` を出す（`SampleGameContentBatch.cs:73`）のに、テストが `LogAssert.Expect` していないこと（Unity Test Framework が Unhandled log message で失敗にする）。失敗したテスト: `Missing`・`NoValue`・`ValueIsOption`・`Unknown`、`SelectionException_ReturnsThree`、`FailedBuildResult_MapsIssueToExitCode`（`MissingClosure,3` と `BuildFailure,4`）、`PublishFailure_ReturnsFiveAndLeavesNoPublishedDirectory`、`CommitFailureAfterPublish_ReturnsOneAndRemovesOnlyThisRunsPublishedDirectory`、`CommitAlwaysFailing_StillReturnsOneAndLeavesNoPreviousResult`。製品の規則の誤りではなくテストの期待の欠落。直し方（テストで `LogAssert.Expect` するか、log の出し方を整理するか）は B の判断。
+- **後続へ回す軽微な所見（差し戻し条件ではない）:**
+  - m1: `ClearWorkspace` は approved root（またはテスト root）自身が reparse point でも拒否する。`artifacts/bs2b` を別 drive への junction にした環境では `Full`（batch・BS4）が常に失敗する。D6 の「root から各 segment」には沿う。運用上の制約として文書に残す価値がある（この worktree の `artifacts` は junction ではない）。
+  - m2: 削除の段階で lock により失敗すると workspace が途中まで消えた状態で残る（コード内コメントに明記済み。workspace は再利用の cache）。
+  - m3: issue が空で `IsSuccess=false` の場合は終了コード 4 になるが、テストで固定されていない。
+- **実行したコマンドと結果:**
+  - `pwsh tools/run-tests.ps1 -Filter "BuildContentFullModeTests;SampleGameContentBatchTests"`: total 22、passed 12、failed 10（上の F1）。`BuildContentFullModeTests`（AC10〜AC12、junction の負例を含む）は全て Passed。結果 XML は `TestResults/3f251e75-a254-44a7-bfc7-6bafbe3a016e/results.xml`（git 管理外）。process の終了コード 2。
+  - Editor の import が `unity/Assets/MobileDependencyResolver/` の `.pdb.meta` 5 件を再び消した（Phase B と同じ現象で範囲外）。`git checkout` で戻し、commit していない。
+- **未実行:** 全 EditMode 回帰、`BuildContentDirectoryIntegrationTests`（content build を伴う）、AC14、HC1、`pwsh tools/contract-audit.ps1`（B が errors=0 を確認済みで、発見 C では再実行していない）。F1 の修正後の判定 C で行う。
+- **担当・モデル・ベンダー:** Claude Sonnet 5.5（Anthropic）、2026-11-02。Phase B（Claude Opus 5.5）とは別のモデル。
 
 ## 8. Phase C'
 
