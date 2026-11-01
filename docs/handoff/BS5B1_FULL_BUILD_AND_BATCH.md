@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `Phase B 完了`（2026-11-02。A3 凍結は同日）
+- status: `Phase B 差し戻し 1 巡目完了`（2026-11-02。A3 凍結は同日）
 - branch: `claude/bs5b-operation-routes`
 - implementation base commit: `26f34046`（`develop`、PR #152 のマージ。§1.3 の現況は `6fe18810` で確認し、`26f34046` までの差分は workflow 文書だけ）
-- implementation head commit: `3ceb19ab`
+- implementation head commit: `36b966c6`（差し戻し 1 巡目。初回の Phase B は `3ceb19ab`）
 - risk: `high`（全ての content build が通る `BuildContentCoordinator` の workspace の扱いを変えて削除を伴う。publish の受け付け条件を変え、BS4 の publish 経路にも効く）
 - owner: 発注者 / BS5b-1 担当
 - created: 2026-11-01（BS5b を 2026-11-02 に BS5b-1 と [BS5b-2](BS5B2_PURPOSE_PLAY_ROUTES.md) に分けた）
@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と implementation head の commit で渡す。evidence bundle は発見 C が implementation head から作る）
 - evidence bundle の取得案内・状態: 未到達
 - C' blind bundle の取得案内・状態: 未到達
-- 引継ぎ票: **発見 C 完了（2026-11-02）。次は B（差し戻し 1 巡目）。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。implementation base `26f34046`、implementation head は B の修正後に更新する（発見 C 時点は `3ceb19ab`）。作業: §7.1 の F1（`SampleGameContentBatchTests` の失敗経路 10 件。`Fail` の `Debug.LogError` をテストが期待していない）を直し、compile 確認と `pwsh tools/contract-audit.ps1` まで行う（Unity テストは B では実行しない。修正の確認は次の発見 C が `-Filter "BuildContentFullModeTests;SampleGameContentBatchTests"` で行う）。軽微な m1〜m3 は B の判断（文書化・テスト追加・見送り）で、凍結条件は変えない。権限・停止規則は従来のとおり（osm-workflow の巡の上限。差し戻しは 1 巡目）。入力: Phase A snapshot は B では読まない。push と PR は未実施。
+- 引継ぎ票: **B（差し戻し 1 巡目）完了（2026-11-02）。次は発見 C（1 巡目の再レビュー）。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。implementation base `26f34046`、implementation head `36b966c6`。作業: §6.1 の修正（§7.1 F1 と m1〜m3 の扱い）を確かめ、`pwsh tools/run-tests.ps1 -Filter "BuildContentFullModeTests;SampleGameContentBatchTests"` で F1 の修正を確認する（Windows では最初から sandbox 外の承認済み経路で起動）。阻害する指摘が無ければ、判定 C へ進める（GO 候補 head の固定と判定必須テストは判定 C の担当）。権限・停止規則は従来のとおり（osm-workflow の巡の上限。今回の再レビューで差し戻せば 2 巡目）。入力: Phase A snapshot は発見 C では読まない。動作確認は対象なし（§5）。push と PR は未実施。
 
 ### PR 状態ブロック
 
@@ -252,6 +252,19 @@ Play・bridge・初回 Scene のコードに触らない（BS5b-2）。identity�
 ### 動作確認
 
 対象なし（§5。Editor 操作の条件が無く、batch と content build は Phase B で実行しない）。
+
+### 6.1 差し戻し 1 巡目（2026-11-02）
+
+- **入力:** §7.1 の発見 C（F1、m1〜m3）。引き継いだ commit は `2fc38fb2`。
+- **修正（`36b966c6`）:**
+  - **F1:** `SampleGameContentBatch.Stages` に失敗の log の段 `LogError`（既定は `Debug.LogError`）を足し、`Run` の失敗経路の log（終了コードと理由、published directory の削除と失敗の結果 file の書き込みの例外）をその段へ出すようにした。テストの偽の段は log を記録し、各失敗経路で `exitCode=<code>` の log を、結果の確定が常に失敗する経路では commit の例外の log も確かめる。成功経路では error log が無いことを確かめる。テストで `LogAssert.Expect` を使わなかった理由: `SampleGame.Tests.Editor` の asmdef は `UnityEngine.TestRunner` を参照しておらず、asmdef 参照の追加は §1.2 で禁止されている。`BuildAndPublish` の最外の `Debug.LogException`（`Run` の外の想定外の例外）はテストが通らない経路なので変えていない。終了コード・結果 file・所有の規則は変えていない（B 適応）。
+  - **m3（テスト追加）:** issue が空で成果物が無い result が終了コード 4 になることを `FailedBuildResultWithoutIssues_ReturnsFour` で固定した。
+  - **m1（文書化、Phase D の harvest へ）:** approved root（`artifacts/bs2b`）自身が junction 等の reparse point だと、`Full` の build（batch・BS4 coordinator）は常に失敗する。D6 の「root から各 segment を見る」どおりの挙動で、凍結条件は変えない。運用上の制約として、harvest 先の Architecture §18 §4（build mode の記述）に書く。
+  - **m2（見送り）:** 削除の途中の lock の失敗で workspace が途中まで消えて残ることは、コード内コメントに書いてあり（workspace は再利用の cache で、次の `Full` が空にし直す）、追加の対応はしない。
+- **確認済み:** Unity Editor（6000.6.0f1）で compile（`EditorUtility.scriptCompilationFailed=False`、変更した 2 file に warning なし、新しい段とテストが読み込まれていることを reflection で確認）。`pwsh tools/contract-audit.ps1` は errors=0 warnings=0。Editor は B が起動し、正常終了させた。
+- **未実行:** Unity テスト（F1 の修正の確認を含む）、content build、batch（AC14・HC1）。次の発見 C と判定 C で行う。
+- **作業中の観測（範囲外）:** Editor の初回 import が `unity/Assets/MobileDependencyResolver/` の `.pdb.meta` 5 件を再び消した。`git checkout` で戻し、commit していない。2026-11-01 起動の EditMode batch テストの Unity process 2 つ（§6 の観測と同じ PID 39552・31952）がまだ残っている。B のものではないので触っていない。
+- **担当・モデル・ベンダー:** Claude Opus 5.5（Anthropic）、2026-11-02
 
 ## 7. Phase C
 
