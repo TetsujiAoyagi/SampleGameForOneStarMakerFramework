@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `A3 凍結`（2026-11-02）
+- status: `Phase B 完了`（2026-11-02。A3 凍結は同日）
 - branch: `claude/bs5b-operation-routes`
 - implementation base commit: `26f34046`（`develop`、PR #152 のマージ。§1.3 の現況は `6fe18810` で確認し、`26f34046` までの差分は workflow 文書だけ）
-- implementation head commit: 未到達
+- implementation head commit: `3ceb19ab`
 - risk: `high`（全ての content build が通る `BuildContentCoordinator` の workspace の扱いを変えて削除を伴う。publish の受け付け条件を変え、BS4 の publish 経路にも効く）
 - owner: 発注者 / BS5b-1 担当
 - created: 2026-11-01（BS5b を 2026-11-02 に BS5b-1 と [BS5b-2](BS5B2_PURPOSE_PLAY_ROUTES.md) に分けた）
@@ -16,10 +16,10 @@
 - harvest to: Architecture §18 §4（「SampleGame の宣言と Editor build」「BuildSystem の後続」の build mode・batch）、[Harness README](../../tools/Harness/README.md#起動前の-path-予算検査) の「既知の予算外」、[BuildSystem program §7](BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md#7-buildsystem-の他の系列の所在) の BS5b-1 行
 - workflow task: `bs5b1-full-build-batch`（2026-11-02 start）
 - Phase A snapshot の取得案内・状態: ローカル固定済み（未昇格）。A3 凍結 snapshot（合成 fixture F1〜F5 と期待出力、生成 script。§5）を task `bs5b1-full-build-batch` に `evidence stage` で固定した。取得案内は判定 C と C' の起動指示で渡す（同じ PC では task の `evidence inspect` で引き直せる）。Phase B は読まない
-- Phase B result snapshot の取得案内・状態: 未到達
+- Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と implementation head の commit で渡す。evidence bundle は発見 C が implementation head から作る）
 - evidence bundle の取得案内・状態: 未到達
 - C' blind bundle の取得案内・状態: 未到達
-- 引継ぎ票: **A3 凍結（2026-11-02）。次は Phase B（実装）。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。作業: §2〜§4 のとおり実装し、§4.1 の確認地点ごとに compile と差分の自己点検をする。権限: Unity Editor の起動と compile の確認まで（Unity テスト・content build・batch の実行はしない。§1.2）。停止規則: §4.2 に当たれば実装を止めて Phase A へ返す。引き渡さないもの: Phase A snapshot（Phase B は読まない）。B の出口で commit し、この票を書き換える。動作確認の対象は無いので、次の担当は発見 C。
+- 引継ぎ票: **Phase B 完了（2026-11-02）。次は発見 C。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。implementation base `26f34046`、implementation head `3ceb19ab`（この票を含む commit は head に HANDOFF の記録だけを足す）。凍結した Phase A は A3 凍結版（§2〜§5）。作業: implementation base..head の差分を、§2 の不変条件・成立条件、§3 の責務マップ、§6 の「HANDOFF との差」と照合する（構造レビューを先に）。差し戻し中のテストは §5 の起点 `-Filter`（新しい class は `BuildContentFullModeTests`・`SampleGameContentBatchTests`）。権限: Unity テストは `pwsh tools/run-tests.ps1`（sandbox 外の承認済み経路）。content build を伴う `BuildContentDirectoryIntegrationTests`、batch（AC14・HC1）は判定時にまとめる（§5）。入力: Phase A snapshot は発見 C では使わない（判定 C と C' の起動指示で渡す）。停止規則: 凍結条件・常時契約の違反は B へ差し戻す（osm-workflow の巡の上限）。引き渡さないもの: 発見 C の所見を C' へ渡さない。動作確認は対象なし（§5）。push と PR は未実施（公開点の規則に従い、判定 C・C' の後に PR を作る）。
 
 ### PR 状態ブロック
 
@@ -230,7 +230,28 @@ Play・bridge・初回 Scene のコードに触らない（BS5b-2）。identity�
 
 ## 6. Phase B 実装結果
 
-未到達。
+- **実装（`3ceb19ab`）:**
+  - Framework（`OneStarMaker.Build.Content`）: `BuildContentMode`（`Incremental` / `Full`）を足し、`BuildContentRequest` と `BuildContentResult` に `Mode`（既存の constructor は `Incremental`）。coordinator は `Full` の時、adapter を呼ぶ前に `ClearWorkspace` で workspace の中身を消す。approved root（またはテスト root）から workspace までの各 segment と workspace の中の全 directory を先に調べ、reparse point があれば何も消さずに `IOException`。これは既存の catch で `BuildFailure` になり、adapter は呼ばれない。検査を作成より先に行い、途中の segment がリンクなら `CreateDirectory` でリンク先に書かない。`BuildContentReport.WriteOutcome` が `buildMode` を書く（`ContentReportFile` の追加項目。preflight は同じ形なので空の欄が出る）。`ContentTransportPublisher.Publish` は outcome の file を読み、無い・identity 不一致・`buildMode` が `Full` でない（欄の無い旧 outcome を含む）なら、publish 先と staging を作る前に `InvalidOperationException`。staging は `StagingPathFor`（`<publishRoot の親>/.staging/<guid32>`）。
+  - SampleGame（`SampleGame.DependOnAll.Editor`）: `SampleGameContentBuild.Build(declaration)`（5 menu）は `MenuBuildMode`（`Incremental`）。`BuildResult(declaration, mode, compose)` は従来どおり失敗を例外にし、新しい `BuildUnchecked` は coordinator の失敗を result のまま返す（宣言による選択の失敗は `PurposeSelectionException : InvalidOperationException`）。BS4 coordinator は `Full`。新規 `SampleGameContentBatch.BuildAndPublish`（§2.3 AC13 の引数・終了コード・結果 file。段は `Stages` で注入でき、既定は `BuildUnchecked(Full)`・`ContentTransportPublisher.Publish`・一時 file から move）。
+  - テスト: 新規 `BuildContentFullModeTests`（AC10・AC11・AC12。偽 adapter、`TestResults/bs3-fixture` の下のテストごとの root、junction は `cmd /c mklink /J`）、新規 `SampleGameContentBatchTests`（AC13。偽の段）。`BuildContentDirectoryIntegrationTests` は AC11 のとおり 1 回目 `Full`・2 回目 `Incremental`、publish は 1 回目。
+- **HANDOFF との差（全て B 適応。凍結条件の意味は変えていない）:**
+  - `BuildContentResult` にも `Mode` を足した（outcome に書くため。§3 の表は request の欄だけを書いていた）。publisher は result の欄ではなく outcome の file を正とする。
+  - 終了コード 3 と 4 を分けるため、`SampleGameContentBuild` に `BuildUnchecked` と `PurposeSelectionException` を足した（§3 の表に無い）。分類: 引数の誤り 2、選択の失敗（resolver が plan を作れない、または coordinator の preflight の issue）3、`BuildFailure`（Unity の build と、その前の workspace の削除）4、publish の例外 5、それ以外（materialize・bootstrap の失敗、結果の確定の失敗を含む）1。
+  - AC12 のテストのため、publisher の staging の path を `internal static StagingPathFor` に切り出した。
+  - `BuildContentDirectoryIntegrationTests` は publish に加え、`integration-copy-<identity>` の複写と install も 1 回目（`Full`）の result で行うようにした。copy の名前の identity を install した revision と照合する後段があり、publish した revision と揃える必要があるため。2 回目の result は workspace の再利用と report の確認にだけ使う。
+  - `PlayerBuildIntegrationPolicyTests` は `ContentTransportPublisher.Publish` を呼んでいなかった（呼ぶのは `PlayerBuildPublisher`）。合成 result の helper を `Full` にしただけで、判定は変えていない。
+  - AC10 の「引数なしの `Build` は `Incremental`」は、`Build(declaration)` が使う `MenuBuildMode` を単体で確かめる（実 SceneResourceMap の materialize を伴う menu の経路は偽 adapter に差し替えられないため）。
+  - 失敗の結果 file は成功と別の形（`exitCode`・`reason` だけ）で書く。成功の欄（identity・publishPath 等）を持たない。
+  - 規模（追加行）: 製品コードは見積もり約 200 行に対し約 340 行（Framework 約 110、SampleGame 約 230。batch が 196 行で、`Stages` と doc comment・削除の検査の理由のコメントが見積もりより多い）。テストは約 510 行（見積もり 300〜400）。変更理由は見積もりどおり 2 つ（build mode と publish、batch）。
+- **未実行:** Unity テスト（新規 2 class を含む全て）、content build、batch（AC14・HC1）。Phase C で行う。junction の負例は Unity テストの中でだけ確かめる。
+- **確認済み:** Unity Editor（6000.6.0f1）で compile（`OneStarMaker.Build.Content`・`OneStarMaker.Tests.Editor`・`SampleGame.DependOnAll.Editor`・`SampleGame.Tests.Editor` を含め error 0、変更した file に新しい warning なし、`EditorUtility.scriptCompilationFailed=False`）。`pwsh tools/contract-audit.ps1` は errors=0 warnings=0。Editor は B が起動し、正常終了させた。
+- **作業中の観測（範囲外）:** Editor の初回 import が `unity/Assets/MobileDependencyResolver/` の `.pdb.meta` を 5 件消した（この worktree に `.pdb` が無いため）。commit せず `git checkout` で戻した。2026-11-01 に起動されたこの project の EditMode batch テストの Unity process が 2 つ（作業集合 10 MB 前後、lockfile 無し）残っていた。B のものではないので触っていない。
+- **implementation head commit:** `3ceb19ab`
+- **Phase B 担当・モデル・ベンダー:** Claude Opus 5.5（Anthropic）、2026-11-02
+
+### 動作確認
+
+対象なし（§5。Editor 操作の条件が無く、batch と content build は Phase B で実行しない）。
 
 ## 7. Phase C
 
